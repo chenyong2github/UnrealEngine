@@ -26,66 +26,8 @@ class FRDGBuilder;
 /** Number of cube map shadow depth surfaces that will be created and used for rendering one pass point light shadows. */
 static const int32 NumCubeShadowDepthSurfaces = 5;
 
-/** 
- * Allocate enough sets of translucent volume textures to cover all the cascades, 
- * And then one more which will be used as a scratch target when doing ping-pong operations like filtering. 
- */
-static const int32 NumTranslucentVolumeRenderTargetSets = (TVC_MAX + 1);
-
 /** Forward declaration of console variable controlling translucent volume blur */
 extern int32 GUseTranslucencyVolumeBlur;
-
-/** Function returning current translucency lighting volume dimensions. */
-inline int32 GetTranslucencyLightingVolumeDim()
-{
-	extern int32 GTranslucencyLightingVolumeDim;
-	return FMath::Clamp(GTranslucencyLightingVolumeDim, 4, 2048);
-}
-
-/** Function to select the index of the volume texture that we will hold the final translucency lighting volume texture */
-inline int SelectTranslucencyVolumeTarget(ETranslucencyVolumeCascade InCascade)
-{
-	if (GUseTranslucencyVolumeBlur)
-	{
-		switch (InCascade)
-		{
-		case TVC_Inner:
-			{
-				return 2;
-			}
-		case TVC_Outer:
-			{
-				return 0;
-			}
-		default:
-			{
-				// error
-				check(false);
-				return 0;
-			}
-		}
-	}
-	else
-	{
-		switch (InCascade)
-		{
-		case TVC_Inner:
-			{
-				return 0;
-			}
-		case TVC_Outer:
-			{
-				return 1;
-			}
-		default:
-			{
-				// error
-				check(false);
-				return 0;
-			}
-		}
-	}
-}
 
 /** Number of surfaces used for translucent shadows. */
 static const int32 NumTranslucencyShadowSurfaces = 2;
@@ -165,7 +107,6 @@ protected:
 		CurrentMobileSceneColorFormat(EPixelFormat::PF_Unknown),
 		bAllowStaticLighting(true),
 		CurrentMaxShadowResolution(0),
-		CurrentTranslucencyLightingVolumeDim(64),
 		CurrentFeatureLevel(ERHIFeatureLevel::Num),
 		CurrentShadingPath(EShadingPath::Num),
 		bRequireSceneColorAlpha(false),
@@ -191,7 +132,7 @@ public:
 	 * Checks that scene render targets are ready for rendering a view family of the given dimensions.
 	 * If the allocated render targets are too small, they are reallocated.
 	 */
-	void Allocate(FRHICommandListImmediate& RHICmdList, const FSceneRenderer* SceneRenderer);
+	void Allocate(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRenderer);
 
 	void AllocSceneColor(FRHICommandList& RHICmdList);
 
@@ -318,26 +259,6 @@ public:
 
 	bool UseDownsizedOcclusionQueries() const { return bUseDownsizedOcclusionQueries; }
 
-	/** Get the current translucent ambient lighting volume texture. Can vary depending on whether volume filtering is enabled */
-	IPooledRenderTarget* GetTranslucencyVolumeAmbient(ETranslucencyVolumeCascade Cascade, int32 ViewIndex = 0) const
-	{
-		if (TranslucencyLightingVolumeAmbient.Num())
-		{
-			return TranslucencyLightingVolumeAmbient[SelectTranslucencyVolumeTarget(Cascade) + ViewIndex * NumTranslucentVolumeRenderTargetSets].GetReference();
-		}
-		return nullptr;
-	}
-
-	/** Get the current translucent directional lighting volume texture. Can vary depending on whether volume filtering is enabled */
-	IPooledRenderTarget* GetTranslucencyVolumeDirectional(ETranslucencyVolumeCascade Cascade, int32 ViewIndex = 0) const
-	{
-		if (TranslucencyLightingVolumeDirectional.Num())
-		{
-			return TranslucencyLightingVolumeDirectional[SelectTranslucencyVolumeTarget(Cascade) + ViewIndex * NumTranslucentVolumeRenderTargetSets].GetReference();
-		}
-		return nullptr;
-	}
-
 	/** Returns the size of most screen space render targets e.g. SceneColor, SceneDepth, GBuffer, ... might be different from final RT or output Size because of ScreenPercentage use. */
 	FIntPoint GetBufferSizeXY() const { return BufferSize; }
 	/** */
@@ -405,7 +326,7 @@ public:
 	// Can be called when the Scene Color content is no longer needed. As we create SceneColor on demand we can make sure it is created with the right format.
 	// (as a call to SetSceneColor() can override it with a different format)
 	void ReleaseSceneColor();
-	
+
 	ERHIFeatureLevel::Type GetCurrentFeatureLevel() const { return CurrentFeatureLevel; }
 	bool IsFoveationTextureAllocated() const { return bAllocatedFoveationTexture;  }
 
@@ -467,10 +388,6 @@ public:
 	/** Temporary storage during SH irradiance map generation. */
 	TRefCountPtr<IPooledRenderTarget> SkySHIrradianceMap;
 
-	/** Volume textures used for lighting translucency. */
-	TArray<TRefCountPtr<IPooledRenderTarget>, TInlineAllocator<NumTranslucentVolumeRenderTargetSets>> TranslucencyLightingVolumeAmbient;
-	TArray<TRefCountPtr<IPooledRenderTarget>, TInlineAllocator<NumTranslucentVolumeRenderTargetSets>> TranslucencyLightingVolumeDirectional;
-
 	/** Color and depth texture arrays for mobile multi-view */
 	TRefCountPtr<IPooledRenderTarget> MobileMultiViewSceneColor;
 	TRefCountPtr<IPooledRenderTarget> MobileMultiViewSceneDepthZ;
@@ -528,7 +445,7 @@ private:
 public:
 	/** Allocates render targets for use with the deferred shading path. */
 	// Temporarily Public to call from DefferedShaderRenderer to attempt recovery from a crash until cause is found.
-	void AllocateDeferredShadingPathRenderTargets(FRHICommandListImmediate& RHICmdList, const int32 NumViews = 1);
+	void AllocateDeferredShadingPathRenderTargets(FRDGBuilder& GraphBuilder, const int32 NumViews = 1);
 
 	void AllocateAnisotropyTarget(FRHICommandListImmediate& RHICmdList);
 
@@ -545,7 +462,7 @@ public:
 private:
 
 	/** Allocates render targets for use with the current shading path. */
-	void AllocateRenderTargets(FRHICommandListImmediate& RHICmdList, const int32 NumViews);
+	void AllocateRenderTargets(FRDGBuilder& GraphBuilder, const int32 NumViews);
 
 
 	/** Allocates common depth render targets that are used by both mobile and deferred rendering paths */
@@ -629,8 +546,6 @@ private:
 	bool bAllowStaticLighting;
 	/** To detect a change of the CVar r.Shadow.MaxResolution */
 	int32 CurrentMaxShadowResolution;
-	/** To detect a change of the CVar r.TranslucencyLightingVolumeDim */
-	int32 CurrentTranslucencyLightingVolumeDim;
 	/** To detect a change of the CVar r.MobileMSAA or r.MSAA */
 	int32 CurrentMSAACount;
 	/** To detect a change of the CVar r.Shadow.MinResolution */

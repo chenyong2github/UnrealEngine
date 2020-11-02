@@ -32,6 +32,7 @@ class FScene;
 template<typename TBufferStruct> class TUniformBufferRef;
 
 struct FSceneWithoutWaterTextures;
+struct FTranslucentVolumeLightingTextures;
 
 class FViewInfo;
 class UMaterialExpressionSingleLayerWaterMaterialOutput;
@@ -148,6 +149,7 @@ extern TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePa
 extern TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBasePassUniformBuffer(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	const FTranslucentVolumeLightingTextures* TranslucentVolumeLightingTextures,
 	FRDGTextureRef SceneColorCopy,
 	ESceneTextureSetupMode SceneTextureSetupMode,
 	const int32 ViewIndex);

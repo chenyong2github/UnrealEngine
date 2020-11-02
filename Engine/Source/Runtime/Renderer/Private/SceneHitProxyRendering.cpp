@@ -229,7 +229,7 @@ void InitHitProxyRender(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRe
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	// Allocate the maximum scene render target space for the current view family.
-	SceneContext.Allocate(GraphBuilder.RHICmdList, SceneRenderer);
+	SceneContext.Allocate(GraphBuilder, SceneRenderer);
 
 	// Create a texture to store the resolved light attenuation values, and a render-targetable surface to hold the unresolved light attenuation values.
 	{

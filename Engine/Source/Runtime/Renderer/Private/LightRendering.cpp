@@ -1192,6 +1192,7 @@ void GetRenderLightParameters(
 FRDGTextureRef FDeferredShadingSceneRenderer::RenderLights(
 	FRDGBuilder& GraphBuilder,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef SceneDepthTexture,
 	FRDGTextureRef LightingChannelsTexture,
@@ -1217,17 +1218,6 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLights(
 
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "DirectLighting");
-
-		if (GbEnableAsyncComputeTranslucencyLightingVolumeClear && GSupportsEfficientAsyncCompute)
-		{
-			AddPass(GraphBuilder, [this](FRHICommandList& RHICmdList)
-			{
-				//Gfx pipe must wait for the async compute clear of the translucency volume clear.
-				check(TranslucencyLightingVolumeClearEndTransition);
-				RHICmdList.EndTransition(TranslucencyLightingVolumeClearEndTransition);
-				TranslucencyLightingVolumeClearEndTransition = nullptr;
-			});
-		}
 
 		if(ViewFamily.EngineShowFlags.DirectLighting)
 		{
@@ -1327,7 +1317,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLights(
 				if (AttenuationLightStart)
 				{
 					// Inject non-shadowed, non-simple, non-light function lights in to the volume.
-					InjectTranslucentVolumeLightingArray(GraphBuilder, SortedLights, SimpleLightsEnd, AttenuationLightStart);
+					InjectTranslucentVolumeLightingArray(GraphBuilder, TranslucentVolumeLightingTextures, SortedLights, SimpleLightsEnd, AttenuationLightStart);
 				}
 
 				if (SimpleLights.InstanceData.Num() > 0)
@@ -1346,7 +1336,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLights(
 							FViewInfo& View = Views[ViewIndex];
 							RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 							RDG_EVENT_SCOPE(GraphBuilder, "InjectSimpleLightsTranslucentLighting");
-							InjectSimpleTranslucentVolumeLightingArray(GraphBuilder, SimpleLightArray, View, ViewIndex);
+							InjectSimpleTranslucentVolumeLightingArray(GraphBuilder, TranslucentVolumeLightingTextures, SimpleLightArray, View, ViewIndex);
 						}
 					}
 				}
@@ -1878,7 +1868,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLights(
 							ClearShadowMask(ScreenShadowMaskSubPixelTexture);
 						}
 
-						RenderDeferredShadowProjections(GraphBuilder, SceneTexturesUniformBuffer,  &LightSceneInfo, ScreenShadowMaskTexture, ScreenShadowMaskSubPixelTexture, SceneDepthTexture, HairDatas, bInjectedTranslucentVolume);
+						RenderDeferredShadowProjections(GraphBuilder, SceneTexturesUniformBuffer, TranslucentVolumeLightingTextures, &LightSceneInfo, ScreenShadowMaskTexture, ScreenShadowMaskSubPixelTexture, SceneDepthTexture, HairDatas, bInjectedTranslucentVolume);
 					}
 
 					bUsedShadowMaskTexture = true;
@@ -1919,7 +1909,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLights(
 						RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
 						// Accumulate this light's unshadowed contribution to the translucency lighting volume
-						InjectTranslucentVolumeLighting(GraphBuilder, LightSceneInfo, nullptr, View, ViewIndex);
+						InjectTranslucentVolumeLighting(GraphBuilder, TranslucentVolumeLightingTextures, LightSceneInfo, nullptr, View, ViewIndex);
 					}
 				}
 

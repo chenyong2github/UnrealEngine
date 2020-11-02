@@ -376,6 +376,7 @@ static TAutoConsoleVariable<int32> CVarTestSecondaryUpscaleOverride(
 static FParallelCommandListSet* GOutstandingParallelCommandListSet = nullptr;
 FGraphEventRef FSceneRenderer::OcclusionSubmittedFence[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames];
 
+extern int32 GetTranslucencyLightingVolumeDim();
 
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer ViewExtensionPostRenderView"), STAT_FDeferredShadingSceneRenderer_ViewExtensionPostRenderView, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer ViewExtensionPreRenderView"), STAT_FDeferredShadingSceneRenderer_ViewExtensionPreRenderView, STATGROUP_SceneRendering);

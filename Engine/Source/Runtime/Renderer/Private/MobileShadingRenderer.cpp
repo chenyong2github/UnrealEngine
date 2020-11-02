@@ -532,7 +532,11 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	// Allocate the maximum scene render target space for the current view family.
 	SceneContext.SetKeepDepthContent(bKeepDepthContent);
-	SceneContext.Allocate(RHICmdList, this);
+	{
+		FRDGBuilder GraphBuilder(RHICmdList);
+		SceneContext.Allocate(GraphBuilder, this);
+		GraphBuilder.Execute();
+	}
 	if (bDeferredShading)
 	{
 		ETextureCreateFlags AddFlags = bRequiresMultiPass ? TexCreate_InputAttachmentRead : (TexCreate_InputAttachmentRead | TexCreate_Memoryless);

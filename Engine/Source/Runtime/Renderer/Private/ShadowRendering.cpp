@@ -1945,6 +1945,7 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 	FRDGBuilder& GraphBuilder,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
 	const FLightSceneInfo* LightSceneInfo,
 	FRDGTextureRef ScreenShadowMaskTexture,
 	FRDGTextureRef ScreenShadowMaskSubPixelTexture,
@@ -1999,7 +2000,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 					}
 
 					RDG_GPU_MASK_SCOPE(GraphBuilder, ProjectedShadowInfo->DependentView->GPUMask);
-					InjectTranslucentVolumeLighting(GraphBuilder, *LightSceneInfo, ProjectedShadowInfo, *ProjectedShadowInfo->DependentView, ViewIndex);
+					InjectTranslucentVolumeLighting(GraphBuilder, TranslucentVolumeLightingTextures, *LightSceneInfo, ProjectedShadowInfo, *ProjectedShadowInfo->DependentView, ViewIndex);
 				}
 				else
 				{
@@ -2007,7 +2008,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 					{
 						FViewInfo& View = Views[ViewIndex];
 						RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-						InjectTranslucentVolumeLighting(GraphBuilder, *LightSceneInfo, ProjectedShadowInfo, View, ViewIndex);
+						InjectTranslucentVolumeLighting(GraphBuilder, TranslucentVolumeLightingTextures, *LightSceneInfo, ProjectedShadowInfo, View, ViewIndex);
 					}
 				}
 			}

@@ -443,7 +443,7 @@ uint16 FSceneRenderTargets::GetNumSceneColorMSAASamples(ERHIFeatureLevel::Type I
 	return NumSamples;
 }
 
-void FSceneRenderTargets::Allocate(FRHICommandListImmediate& RHICmdList, const FSceneRenderer* SceneRenderer)
+void FSceneRenderTargets::Allocate(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRenderer)
 {
 	check(IsInRenderingThread());
 	// ViewFamily setup wasn't complete
@@ -518,8 +518,6 @@ void FSceneRenderTargets::Allocate(FRHICommandListImmediate& RHICmdList, const F
 		}
 	}
 
-	const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
-
 	int32 MSAACount = GetNumSceneColorMSAASamples(NewFeatureLevel);
 
 	uint32 MinShadowResolution;
@@ -537,7 +535,6 @@ void FSceneRenderTargets::Allocate(FRHICommandListImmediate& RHICmdList, const F
 		(bAllowStaticLighting != bNewAllowStaticLighting) ||
 		(bUseDownsizedOcclusionQueries != bDownsampledOcclusionQueries) ||
 		(CurrentMaxShadowResolution != MaxShadowResolution) ||
-		(CurrentTranslucencyLightingVolumeDim != TranslucencyLightingVolumeDim) ||
 		(CurrentMSAACount != MSAACount) ||
 		(CurrentMinShadowResolution != MinShadowResolution))
 	{
@@ -547,7 +544,6 @@ void FSceneRenderTargets::Allocate(FRHICommandListImmediate& RHICmdList, const F
 		bAllowStaticLighting = bNewAllowStaticLighting;
 		bUseDownsizedOcclusionQueries = bDownsampledOcclusionQueries;
 		CurrentMaxShadowResolution = MaxShadowResolution;
-		CurrentTranslucencyLightingVolumeDim = TranslucencyLightingVolumeDim;
 		CurrentMSAACount = MSAACount;
 		CurrentMinShadowResolution = MinShadowResolution;
 
@@ -561,7 +557,7 @@ void FSceneRenderTargets::Allocate(FRHICommandListImmediate& RHICmdList, const F
 
 	// Do allocation of render targets if they aren't available for the current shading path
 	CurrentFeatureLevel = NewFeatureLevel;
-	AllocateRenderTargets(RHICmdList, ViewFamily.Views.Num());
+	AllocateRenderTargets(GraphBuilder, ViewFamily.Views.Num());
 }
 
 static int32 FindGBufferTargetIndex(const FGBufferInfo& GBufferInfo, const FString& Name)
@@ -1528,45 +1524,6 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandListImmediate& 
 	}
 }
 
-// This is a helper class. It generates and provides N names with
-// sequentially incremented postfix starting from 0.
-// Example: SomeName0, SomeName1, ..., SomeName117
-class FIncrementalNamesHolder
-{
-public:
-	FIncrementalNamesHolder(const TCHAR* const Name, uint32 Size)
-	{
-		check(Size > 0);
-		Names.Empty(Size);
-		for (uint32 i = 0; i < Size; ++i)
-		{
-			Names.Add(FString::Printf(TEXT("%s%d"), Name, i));
-		}
-	}
-
-	const TCHAR* const operator[] (uint32 Idx) const
-	{
-		CA_SUPPRESS(6385);	// Doesn't like COM
-		return *Names[Idx];
-	}
-
-private:
-	TArray<FString> Names;
-};
-
-// for easier use of "VisualizeTexture"
-static const TCHAR* const GetVolumeName(uint32 Id, bool bDirectional)
-{
-	constexpr uint32 MaxNames = 128;
-	static FIncrementalNamesHolder Names(TEXT("TranslucentVolume"), MaxNames);
-	static FIncrementalNamesHolder NamesDir(TEXT("TranslucentVolumeDir"), MaxNames);
-
-	check(Id < MaxNames);
-
-	CA_SUPPRESS(6385);	// Doesn't like COM
-	return bDirectional ? NamesDir[Id] : Names[Id];
-}
-
 void FSceneRenderTargets::AllocateReflectionTargets(FRHICommandList& RHICmdList, int32 TargetSize)
 {
 	if (GSupportsRenderTargetFormat_PF_FloatRGBA)
@@ -1753,18 +1710,18 @@ void FSceneRenderTargets::AllocateFoveationTexture(FRHICommandList& RHICmdList)
 	}
 }
 
-void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRHICommandListImmediate& RHICmdList, const int32 NumViews)
+void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRDGBuilder& GraphBuilder, const int32 NumViews)
 {
 	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
 
-	AllocateCommonDepthTargets(RHICmdList);
+	AllocateCommonDepthTargets(GraphBuilder.RHICmdList);
 
 	// Create a quarter-sized version of the scene depth.
 	{
 		FIntPoint SmallDepthZSize(FMath::Max<uint32>(BufferSize.X / SmallColorDepthDownsampleFactor, 1), FMath::Max<uint32>(BufferSize.Y / SmallColorDepthDownsampleFactor, 1));
 
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(SmallDepthZSize, PF_DepthStencil, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, true));
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SmallDepthZ, TEXT("SmallDepthZ"), ERenderTargetTransience::NonTransient);
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, SmallDepthZ, TEXT("SmallDepthZ"), ERenderTargetTransience::NonTransient);
 	}
 
 	// Create the required render targets if running Highend.
@@ -1781,73 +1738,7 @@ void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRHICommandLi
 				// todo: ideally this should be only UAV or RT, not both
 				Desc.TargetableFlags |= TexCreate_UAV;
 			}
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ScreenSpaceAO, TEXT("ScreenSpaceAO"), ERenderTargetTransience::NonTransient);
-		}
-		
-		{
-			const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
-
-			// TODO: We can skip the and TLV allocations when rendering in forward shading mode
-			ETextureCreateFlags TranslucencyTargetFlags = TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_ReduceMemoryWithTilingMode;
-
-			if (CurrentFeatureLevel >= ERHIFeatureLevel::SM5)
-			{
-				TranslucencyTargetFlags |= TexCreate_UAV;
-			}
-
-			TranslucencyLightingVolumeAmbient.SetNum(NumViews * NumTranslucentVolumeRenderTargetSets);
-			TranslucencyLightingVolumeDirectional.SetNum(NumViews * NumTranslucentVolumeRenderTargetSets);
-
-			for (int32 RTSetIndex = 0; RTSetIndex < NumTranslucentVolumeRenderTargetSets * NumViews; RTSetIndex++)
-			{
-				GRenderTargetPool.FindFreeElement(
-					RHICmdList,
-					FPooledRenderTargetDesc(FPooledRenderTargetDesc::CreateVolumeDesc(
-						TranslucencyLightingVolumeDim,
-						TranslucencyLightingVolumeDim,
-						TranslucencyLightingVolumeDim,
-						PF_FloatRGBA,
-						FClearValueBinding::Transparent,
-						TexCreate_None,
-						TranslucencyTargetFlags,
-						false,
-						1,
-						false)),
-					TranslucencyLightingVolumeAmbient[RTSetIndex],
-					GetVolumeName(RTSetIndex, false),
-					ERenderTargetTransience::NonTransient
-					);
-
-				//Tests to catch UE-31578, UE-32536 and UE-22073 crash (Defferred Render Targets not being allocated)
-				ensureMsgf(TranslucencyLightingVolumeAmbient[RTSetIndex], TEXT("Failed to allocate render target %s with dimension %i and flags %i"),
-					GetVolumeName(RTSetIndex, false),
-					TranslucencyLightingVolumeDim,
-					TranslucencyTargetFlags);
-
-				GRenderTargetPool.FindFreeElement(
-					RHICmdList,
-					FPooledRenderTargetDesc(FPooledRenderTargetDesc::CreateVolumeDesc(
-						TranslucencyLightingVolumeDim,
-						TranslucencyLightingVolumeDim,
-						TranslucencyLightingVolumeDim,
-						PF_FloatRGBA,
-						FClearValueBinding::Transparent,
-						TexCreate_None,
-						TranslucencyTargetFlags,
-						false,
-						1,
-						false)),
-					TranslucencyLightingVolumeDirectional[RTSetIndex],
-					GetVolumeName(RTSetIndex, true),
-					ERenderTargetTransience::NonTransient
-					);
-
-				//Tests to catch UE-31578, UE-32536 and UE-22073 crash
-				ensureMsgf(TranslucencyLightingVolumeDirectional[RTSetIndex], TEXT("Failed to allocate render target %s with dimension %i and flags %i"),
-					GetVolumeName(RTSetIndex, true),
-					TranslucencyLightingVolumeDim,
-					TranslucencyTargetFlags);
-			}
+			GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, ScreenSpaceAO, TEXT("ScreenSpaceAO"), ERenderTargetTransience::NonTransient);
 		}
 	}
 
@@ -1859,19 +1750,19 @@ void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRHICommandLi
 			Desc.TargetableFlags |= TexCreate_UAV;
 		}
 		Desc.Flags |= GFastVRamConfig.LightAccumulation;
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, LightAccumulation, TEXT("LightAccumulation"), ERenderTargetTransience::NonTransient);
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, LightAccumulation, TEXT("LightAccumulation"), ERenderTargetTransience::NonTransient);
 	}
 
 	if (bAllocateVelocityGBuffer)
 	{
 		FPooledRenderTargetDesc VelocityRTDesc = Translate(FVelocityRendering::GetRenderTargetDesc(ShaderPlatform));
 		VelocityRTDesc.Flags |= GFastVRamConfig.GBufferVelocity;
-		GRenderTargetPool.FindFreeElement(RHICmdList, VelocityRTDesc, SceneVelocity, TEXT("GBufferVelocity"));
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, VelocityRTDesc, SceneVelocity, TEXT("GBufferVelocity"));
 	}
 
-	AllocateVirtualTextureFeedbackBuffer(RHICmdList);
+	AllocateVirtualTextureFeedbackBuffer(GraphBuilder.RHICmdList);
 
-	AllocateDebugViewModeTargets(RHICmdList);
+	AllocateDebugViewModeTargets(GraphBuilder.RHICmdList);
 }
 
 void FSceneRenderTargets::AllocateAnisotropyTarget(FRHICommandListImmediate& RHICmdList)
@@ -1968,17 +1859,17 @@ EPixelFormat FSceneRenderTargets::GetSceneColorFormat(ERHIFeatureLevel::Type InF
 	return SceneColorBufferFormat;
 }
 
-void FSceneRenderTargets::AllocateRenderTargets(FRHICommandListImmediate& RHICmdList, const int32 NumViews)
+void FSceneRenderTargets::AllocateRenderTargets(FRDGBuilder& GraphBuilder, const int32 NumViews)
 {
 	if (BufferSize.X > 0 && BufferSize.Y > 0 && IsAllocateRenderTargetsRequired())
 	{
 		if ((EShadingPath)CurrentShadingPath == EShadingPath::Mobile)
 		{
-			AllocateMobileRenderTargets(RHICmdList);
+			AllocateMobileRenderTargets(GraphBuilder.RHICmdList);
 		}
 		else
 		{
-			AllocateDeferredShadingPathRenderTargets(RHICmdList, NumViews);
+			AllocateDeferredShadingPathRenderTargets(GraphBuilder, NumViews);
 		}
 	}
 	else if ((EShadingPath)CurrentShadingPath == EShadingPath::Mobile && SceneDepthZ)
@@ -1992,7 +1883,7 @@ void FSceneRenderTargets::AllocateRenderTargets(FRHICommandListImmediate& RHICmd
 			SceneDepthZ.SafeRelease();
 			// Make sure the old depth buffer is freed by flushing the target pool.
 			GRenderTargetPool.FreeUnusedResources();
-			AllocateCommonDepthTargets(RHICmdList);
+			AllocateCommonDepthTargets(GraphBuilder.RHICmdList);
 		}
 	}
 }
@@ -2049,13 +1940,6 @@ void FSceneRenderTargets::ReleaseAllTargets()
 	}
 
 	SkySHIrradianceMap.SafeRelease();
-
-	ensure(TranslucencyLightingVolumeAmbient.Num() == TranslucencyLightingVolumeDirectional.Num());
-	for (int32 RTSetIndex = 0; RTSetIndex < TranslucencyLightingVolumeAmbient.Num(); RTSetIndex++)
-	{
-		TranslucencyLightingVolumeAmbient[RTSetIndex].SafeRelease();
-		TranslucencyLightingVolumeDirectional[RTSetIndex].SafeRelease();
-	}
 
 	MobileMultiViewSceneColor.SafeRelease();
 	MobileMultiViewSceneDepthZ.SafeRelease();

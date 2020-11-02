@@ -42,6 +42,8 @@ struct FRayTracingReflectionOptions;
 struct FHairStrandsTransmittanceMaskData;
 struct FHairStrandsRenderingData;
 
+struct FTranslucentVolumeLightingTextures;
+
 /**   
  * Data for rendering meshes into Lumen Lighting Cards.
  */
@@ -162,8 +164,6 @@ class FDeferredShadingSceneRenderer : public FSceneRenderer
 public:
 	/** Defines which objects we want to render in the EarlyZPass. */
 	FDepthPassInfo DepthPass;
-	
-	const FRHITransition* TranslucencyLightingVolumeClearEndTransition = nullptr;
 
 	FLumenCardRenderer LumenCardRenderer;
 
@@ -588,6 +588,7 @@ private:
 	FRDGTextureRef RenderLights(
 		FRDGBuilder& GraphBuilder,
 		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
 		FRDGTextureRef SceneColorTexture,
 		FRDGTextureRef SceneDepthTexture,
 		FRDGTextureRef LightingChannelsTexture,
@@ -611,6 +612,7 @@ private:
 	/** Renders the scene's translucency passes. */
 	void RenderTranslucency(
 		FRDGBuilder& GraphBuilder,
+		const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
 		FRDGTextureMSAA SceneColorTexture,
 		FRDGTextureMSAA SceneDepthTexture,
 		FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
@@ -619,6 +621,7 @@ private:
 	/** Renders the scene's translucency given a specific pass. */
 	void RenderTranslucencyInner(
 		FRDGBuilder& GraphBuilder,
+		const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
 		FRDGTextureMSAA SceneColorTexture,
 		FRDGTextureMSAA SceneDepthTexture,
 		FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
@@ -708,6 +711,7 @@ private:
 	void RenderDeferredShadowProjections(
 		FRDGBuilder& GraphBuilder,
 		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
 		const FLightSceneInfo* LightSceneInfo,
 		FRDGTextureRef ScreenShadowMaskTexture,
 		FRDGTextureRef ScreenShadowMaskSubPixelTexture,
@@ -801,23 +805,50 @@ private:
 		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 		const FSimpleLightArray& SimpleLights);
 
-	/** Clears the translucency lighting volumes. Can be compute or async compute. */
-	void ClearTranslucentVolumeLighting(FRDGBuilder& GraphBuilder, ERDGPassFlags PassFlags);
+	/** Initializes the translucency lighting volumes. Can be compute or async compute. */
+	void InitTranslucentVolumeLighting(
+		FRDGBuilder& GraphBuilder,
+		ERDGPassFlags PassFlags,
+		FTranslucentVolumeLightingTextures& Textures);
 
 	/** Add AmbientCubemap to the lighting volumes. */
-	void InjectAmbientCubemapTranslucentVolumeLighting(FRDGBuilder& GraphBuilder, const FViewInfo& View, int32 ViewIndex);
+	void InjectAmbientCubemapTranslucentVolumeLighting(
+		FRDGBuilder& GraphBuilder,
+		const FTranslucentVolumeLightingTextures& Textures,
+		const FViewInfo& View,
+		int32 ViewIndex);
 
 	/** Accumulates direct lighting for the given light.  InProjectedShadowInfo can be NULL in which case the light will be unshadowed. */
-	void InjectTranslucentVolumeLighting(FRDGBuilder& GraphBuilder, const FLightSceneInfo& LightSceneInfo, const FProjectedShadowInfo* InProjectedShadowInfo, const FViewInfo& View, int32 ViewIndex);
+	void InjectTranslucentVolumeLighting(
+		FRDGBuilder& GraphBuilder,
+		const FTranslucentVolumeLightingTextures& Textures,
+		const FLightSceneInfo& LightSceneInfo,
+		const FProjectedShadowInfo* InProjectedShadowInfo,
+		const FViewInfo& View,
+		int32 ViewIndex);
 
 	/** Accumulates direct lighting for an array of unshadowed lights. */
-	void InjectTranslucentVolumeLightingArray(FRDGBuilder& GraphBuilder, const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights, int32 FirstLightIndex, int32 LightsEndIndex);
+	void InjectTranslucentVolumeLightingArray(
+		FRDGBuilder& GraphBuilder,
+		const FTranslucentVolumeLightingTextures& Textures,
+		const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights,
+		int32 FirstLightIndex,
+		int32 LightsEndIndex);
 
 	/** Accumulates direct lighting for simple lights. */
-	void InjectSimpleTranslucentVolumeLightingArray(FRDGBuilder& GraphBuilder, const FSimpleLightArray& SimpleLights, const FViewInfo& View, const int32 ViewIndex);
+	void InjectSimpleTranslucentVolumeLightingArray(
+		FRDGBuilder& GraphBuilder,
+		const FTranslucentVolumeLightingTextures& Textures,
+		const FSimpleLightArray& SimpleLights,
+		const FViewInfo& View,
+		const int32 ViewIndex);
 
 	/** Filters the translucency lighting volumes to reduce aliasing. */
-	void FilterTranslucentVolumeLighting(FRDGBuilder& GraphBuilder, const FViewInfo& View, const int32 ViewIndex);
+	void FilterTranslucentVolumeLighting(
+		FRDGBuilder& GraphBuilder,
+		FTranslucentVolumeLightingTextures& Textures,
+		const FViewInfo& View,
+		const int32 ViewIndex);
 
 	bool ShouldRenderVolumetricFog() const;
 

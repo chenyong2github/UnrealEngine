@@ -1474,7 +1474,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		GSystemTextures.InitializeTextures(RHICmdList, FeatureLevel);
 
 		// Allocate the maximum scene render target space for the current view family.
-		SceneContext.Allocate(RHICmdList, this);
+		SceneContext.Allocate(GraphBuilder, this);
 	}
 
 	const bool bUseVirtualTexturing = UseVirtualTexturing(FeatureLevel);
@@ -2122,30 +2122,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			SceneContext.bScreenSpaceAOIsValid);
 	}
 
-	if (bRenderDeferredLighting)
-	{
-		bool bShouldAllocateDeferredShadingPathRenderTargets = false;
-		const TCHAR* Str = SceneContext.ScreenSpaceAO ? TEXT("Allocated") : TEXT("Unallocated"); // ScreenSpaceAO is determining factor of detecting render target allocation
-		for (int32 Index = 0; Index < (NumTranslucentVolumeRenderTargetSets * Views.Num()); ++Index)
-		{
-			if (!SceneContext.TranslucencyLightingVolumeAmbient[Index] || !SceneContext.TranslucencyLightingVolumeDirectional[Index])
-			{
-				ensureMsgf(SceneContext.TranslucencyLightingVolumeAmbient[Index], TEXT("%s%d is unallocated, Deferred Render Targets would be detected as: %s"), "TranslucencyLightingVolumeAmbient", Index, Str);
-				ensureMsgf(SceneContext.TranslucencyLightingVolumeDirectional[Index], TEXT("%s%d is unallocated, Deferred Render Targets would be detected as: %s"), "TranslucencyLightingVolumeDirectional", Index, Str);
-				bShouldAllocateDeferredShadingPathRenderTargets = true;
-				break;
-			}
-		}
+	FTranslucentVolumeLightingTextures TranslucentLightingVolumeTextures;
 
-		if(bShouldAllocateDeferredShadingPathRenderTargets)
-		{
-			SceneContext.AllocateDeferredShadingPathRenderTargets(RHICmdList);
-		}
-		
-		if (GbEnableAsyncComputeTranslucencyLightingVolumeClear && GSupportsEfficientAsyncCompute)
-		{
-			ClearTranslucentVolumeLighting(GraphBuilder, ERDGPassFlags::AsyncCompute);
-		}
+	if (bRenderDeferredLighting && GbEnableAsyncComputeTranslucencyLightingVolumeClear && GSupportsEfficientAsyncCompute)
+	{
+		InitTranslucentVolumeLighting(GraphBuilder, ERDGPassFlags::AsyncCompute, TranslucentLightingVolumeTextures);
 	}
 
 	SceneContext.AllocSceneColor(RHICmdList);
@@ -2425,7 +2406,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		// Clear the translucent lighting volumes before we accumulate
 		if ((GbEnableAsyncComputeTranslucencyLightingVolumeClear && GSupportsEfficientAsyncCompute) == false)
 		{
-			ClearTranslucentVolumeLighting(GraphBuilder, ERDGPassFlags::Compute);
+			InitTranslucentVolumeLighting(GraphBuilder, ERDGPassFlags::Compute, TranslucentLightingVolumeTextures);
 		}
 
 #if RHI_RAYTRACING
@@ -2436,7 +2417,15 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 #endif
 
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Lighting));
-		SceneColorTexture = FRDGTextureMSAA(RenderLights(GraphBuilder, SceneTextures, SceneColorTexture.Target, SceneDepthTexture.Target, LightingChannelsTexture, SortedLightSet, HairDatas));
+		SceneColorTexture = FRDGTextureMSAA(RenderLights(
+			GraphBuilder,
+			SceneTextures,
+			TranslucentLightingVolumeTextures,
+			SceneColorTexture.Target,
+			SceneDepthTexture.Target,
+			LightingChannelsTexture,
+			SortedLightSet,
+			HairDatas));
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterLighting));
 		AddServiceLocalQueuePass(GraphBuilder);
 
@@ -2444,7 +2433,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			const FViewInfo& View = Views[ViewIndex];
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-			InjectAmbientCubemapTranslucentVolumeLighting(GraphBuilder, Views[ViewIndex], ViewIndex);
+			InjectAmbientCubemapTranslucentVolumeLighting(GraphBuilder, TranslucentLightingVolumeTextures, Views[ViewIndex], ViewIndex);
 		}
 		AddServiceLocalQueuePass(GraphBuilder);
 
@@ -2454,7 +2443,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
 			// Filter the translucency lighting volume now that it is complete
-			FilterTranslucentVolumeLighting(GraphBuilder, View, ViewIndex);
+			FilterTranslucentVolumeLighting(GraphBuilder, TranslucentLightingVolumeTextures, View, ViewIndex);
 		}
 		AddServiceLocalQueuePass(GraphBuilder);
 
@@ -2513,7 +2502,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderTranslucency);
 			SCOPE_CYCLE_COUNTER(STAT_TranslucencyDrawTime);
 			AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Translucency));
-			RenderTranslucency(GraphBuilder, SceneColorTexture, SceneDepthTexture, nullptr, ETranslucencyView::UnderWater);
+			RenderTranslucency(GraphBuilder, TranslucentLightingVolumeTextures, SceneColorTexture, SceneDepthTexture, nullptr, ETranslucencyView::UnderWater);
 			EnumRemoveFlags(TranslucencyViewsToRender, ETranslucencyView::UnderWater);
 		}
 
@@ -2632,7 +2621,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		// Render all remaining translucency views.
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Translucency));
-		RenderTranslucency(GraphBuilder, SceneColorTexture, SceneDepthTexture, &SeparateTranslucencyTextures, TranslucencyViewsToRender);
+		RenderTranslucency(GraphBuilder, TranslucentLightingVolumeTextures, SceneColorTexture, SceneDepthTexture, &SeparateTranslucencyTextures, TranslucencyViewsToRender);
 		AddServiceLocalQueuePass(GraphBuilder);
 		TranslucencyViewsToRender = ETranslucencyView::None;
 
