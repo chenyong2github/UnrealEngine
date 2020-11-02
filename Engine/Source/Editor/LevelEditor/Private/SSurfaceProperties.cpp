@@ -953,7 +953,7 @@ FReply SSurfaceProperties::OnApplyScaling()
 
 const FSlateBrush* SSurfaceProperties::GetPreserveScaleRatioImage() const
 {
-	return bPreserveScaleRatio ? FEditorStyle::GetBrush( TEXT("GenericLock") ) : FEditorStyle::GetBrush( TEXT("GenericUnlock") ) ;
+	return bPreserveScaleRatio ? FEditorStyle::GetBrush( TEXT("Icons.Lock") ) : FEditorStyle::GetBrush( TEXT("Icons.Unlock") ) ;
 }
 
 ECheckBoxState SSurfaceProperties::IsPreserveScaleRatioChecked() const

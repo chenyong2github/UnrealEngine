@@ -651,11 +651,6 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	Set( "MarqueeSelection", new BORDER_BRUSH( "Old/DashedBorder", FMargin(6.0f/32.0f) ) );
 
-	Set( "GenericLock", new IMAGE_BRUSH( "Icons/padlock_locked_16x", Icon16x16 ) );
-	Set( "GenericLock.Small", new IMAGE_BRUSH( "Icons/padlock_locked_16x", Icon16x16 ) );
-	Set( "GenericUnlock", new IMAGE_BRUSH( "Icons/padlock_unlocked_16x", Icon16x16 ) );
-	Set( "GenericUnlock.Small", new IMAGE_BRUSH( "Icons/padlock_unlocked_16x", Icon16x16 ) );
-
 	Set( "GenericPlay", new IMAGE_BRUSH( "Icons/generic_play_16x", Icon16x16 ) );
 	Set( "GenericPause", new IMAGE_BRUSH( "Icons/generic_pause_16x", Icon16x16 ) );
 	Set( "GenericStop", new IMAGE_BRUSH( "Icons/generic_stop_16x", Icon16x16 ) );
@@ -3107,10 +3102,10 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		Set( "PropertyWindow.Favorites_Disabled", new IMAGE_BRUSH( "Icons/EmptyStar_16x", Icon16x16 ) );
 		Set( "PropertyWindow.Locked", new CORE_IMAGE_BRUSH_SVG( "Starship/Common/lock", Icon16x16 ) );
 		Set( "PropertyWindow.Unlocked", new CORE_IMAGE_BRUSH_SVG( "Starship/Common/lock-unlocked", Icon16x16 ) );
-		Set( "PropertyWindow.DiffersFromDefault", new IMAGE_BRUSH( "/PropertyView/DiffersFromDefault_8x8", FVector2D(8,8) ) ) ;
+		Set( "PropertyWindow.DiffersFromDefault", new IMAGE_BRUSH_SVG( "Starship/Common/ResetToDefault", Icon16x16) ) ;
 		
-		Set( "PropertyWindow.NormalFont", DEFAULT_FONT("Regular", 8) );
-		Set( "PropertyWindow.BoldFont", DEFAULT_FONT( "Bold", 8 ) );
+		Set( "PropertyWindow.NormalFont", FStyleFonts::Get().Small);
+		Set( "PropertyWindow.BoldFont",FStyleFonts::Get().SmallBold);
 		Set( "PropertyWindow.ItalicFont", DEFAULT_FONT( "Italic", 8 ) );
 		Set( "PropertyWindow.FilterFont", DEFAULT_FONT( "Regular", 10 ) );
 		Set( "PropertyWindow.NoOverlayColor", new FSlateNoResource() );
@@ -5279,9 +5274,6 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 			.SetFont(ICON_FONT(10))
 			.SetColorAndOpacity(FLinearColor(0.f, 0.f, 0.f))
 		);
-
-		Set("FindResults.LockButton_Locked", new IMAGE_BRUSH("Icons/padlock_locked_16x", Icon16x16));
-		Set("FindResults.LockButton_Unlocked", new IMAGE_BRUSH("Icons/padlock_unlocked_16x", Icon16x16));
 	}
 
 	//Bookmarks

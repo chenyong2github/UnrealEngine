@@ -1664,11 +1664,11 @@ const FSlateBrush* SFindInBlueprints::OnGetLockButtonImage() const
 {
 	if (bIsLocked)
 	{
-		return FEditorStyle::GetBrush("FindResults.LockButton_Locked");
+		return FEditorStyle::GetBrush("Icons.Lock");
 	}
 	else
 	{
-		return FEditorStyle::GetBrush("FindResults.LockButton_Unlocked");
+		return FEditorStyle::GetBrush("Icons.Unlock");
 	}
 }
 

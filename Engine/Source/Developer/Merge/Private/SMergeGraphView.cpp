@@ -604,7 +604,7 @@ FReply SMergeGraphView::OnToggleLockView()
 
 const FSlateBrush* SMergeGraphView::GetLockViewImage() const
 {
-	return bViewsAreLocked ? FEditorStyle::GetBrush("GenericLock") : FEditorStyle::GetBrush("GenericUnlock");
+	return bViewsAreLocked ? FEditorStyle::GetBrush("Icons.Lock") : FEditorStyle::GetBrush("Icons.Unlock");
 }
 
 #undef LOCTEXT_NAMESPACE

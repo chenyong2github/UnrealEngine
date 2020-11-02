@@ -1282,7 +1282,7 @@ void SBlueprintDiff::OnToggleSplitViewMode()
 
 FSlateIcon SBlueprintDiff::GetLockViewImage() const
 {
-	return FSlateIcon(FEditorStyle::GetStyleSetName(), bLockViews ? "GenericLock" : "GenericUnlock");
+	return FSlateIcon(FEditorStyle::GetStyleSetName(), bLockViews ? "Icons.Lock" : "Icons.Unlock");
 }
 
 FSlateIcon SBlueprintDiff::GetSplitViewModeImage() const

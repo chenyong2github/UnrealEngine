@@ -181,7 +181,7 @@ void SDeviceProfileSourceControl::Construct(const FArguments& InArgs)
 					.AutoWidth()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("GenericUnlock"))
+						.Image(FEditorStyle::GetBrush("Icons.Unlock"))
 					]
 					+ SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
@@ -208,7 +208,7 @@ void SDeviceProfileSourceControl::Construct(const FArguments& InArgs)
 					.AutoWidth()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("GenericLock"))
+						.Image(FEditorStyle::GetBrush("Icons.Lock"))
 					]
 					+ SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
