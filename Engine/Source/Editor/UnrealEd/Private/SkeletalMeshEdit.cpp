@@ -1553,20 +1553,25 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 
 void UnFbx::FFbxImporter::ImportBlendShapeCurves(FAnimCurveImportSettings& AnimImportSettings, FbxAnimStack* CurAnimStack, int32& OutKeyCount)
 {
-	FScopedSlowTask SlowTask(AnimImportSettings.NodeArray.Num(), LOCTEXT("BeginImportMorphTargetCurves", "Importing Morph Target Curves"));
-	SlowTask.MakeDialog();
+	FScopedSlowTask SlowTaskNode(AnimImportSettings.NodeArray.Num(), LOCTEXT("BeginImportMorphTargetCurves", "Importing Morph Target Curves"));
+	SlowTaskNode.MakeDialog();
 
 	OutKeyCount = 0;
 	USkeleton* MySkeleton = AnimImportSettings.DestSeq->GetSkeleton();
 	for (int32 NodeIndex = 0; NodeIndex < AnimImportSettings.NodeArray.Num(); NodeIndex++)
 	{
+		SlowTaskNode.EnterProgressFrame(1);
+
 		// consider blendshape animation curve
 		FbxGeometry* Geometry = (FbxGeometry*)AnimImportSettings.NodeArray[NodeIndex]->GetNodeAttribute();
 		if (Geometry)
 		{
 			int32 BlendShapeDeformerCount = Geometry->GetDeformerCount(FbxDeformer::eBlendShape);
+			FScopedSlowTask SlowTaskBlendShape(BlendShapeDeformerCount);
+
 			for (int32 BlendShapeIndex = 0; BlendShapeIndex < BlendShapeDeformerCount; ++BlendShapeIndex)
 			{
+				SlowTaskBlendShape.EnterProgressFrame(1);
 				FbxBlendShape* BlendShape = (FbxBlendShape*)Geometry->GetDeformer(BlendShapeIndex, FbxDeformer::eBlendShape);
 
 				const int32 BlendShapeChannelCount = BlendShape->GetBlendShapeChannelCount();
@@ -1575,10 +1580,11 @@ void UnFbx::FFbxImporter::ImportBlendShapeCurves(FAnimCurveImportSettings& AnimI
 
 				// see below where this is used for explanation...
 				const bool bMightBeBadMAXFile = (BlendShapeName == FString("Morpher"));
-
+				FScopedSlowTask SlowTaskChannel(BlendShapeChannelCount, LOCTEXT("BeginImportMorphTargetCurves", "Importing Morph Target Curves"));
 				for (int32 ChannelIndex = 0; ChannelIndex < BlendShapeChannelCount; ++ChannelIndex)
 				{
 					FbxBlendShapeChannel* Channel = BlendShape->GetBlendShapeChannel(ChannelIndex);
+					bool bUpdatedProgress = false;
 
 					if (Channel)
 					{
@@ -1606,7 +1612,8 @@ void UnFbx::FFbxImporter::ImportBlendShapeCurves(FAnimCurveImportSettings& AnimI
 							FFormatNamedArguments Args;
 							Args.Add(TEXT("BlendShape"), FText::FromString(ChannelName));
 							const FText StatusUpate = FText::Format(LOCTEXT("ImportingMorphTargetCurvesDetail", "Importing Morph Target Curves [{BlendShape}]"), Args);
-							SlowTask.EnterProgressFrame(1, StatusUpate);
+							SlowTaskChannel.EnterProgressFrame(1, StatusUpate);
+							bUpdatedProgress = true;
 							// now see if we have one already exists. If so, just overwrite that. if not, add new one. 
 
 							if (ImportCurveToAnimSequence(AnimImportSettings.DestSeq, *ChannelName, Curve, 0, AnimImportSettings.AnimTimeSpan, 0.01f /** for some reason blend shape values are coming as 100 scaled **/))
@@ -1621,6 +1628,11 @@ void UnFbx::FFbxImporter::ImportBlendShapeCurves(FAnimCurveImportSettings& AnimI
 						{
 							UE_LOG(LogFbx, Warning, TEXT("CurveName(%s) is skipped because it only contains invalid values."), *ChannelName);
 						}
+					}
+
+					if (!bUpdatedProgress)
+					{
+						SlowTaskChannel.EnterProgressFrame(1);
 					}
 				}
 			}
