@@ -202,11 +202,11 @@ bool FLandscapeConfigHelper::ChangeGridSize(ULandscapeInfo* InLandscapeInfo, uin
 					{
 						if (LandscapeProxy->GetLandscapeMaterial(LODIndex) == LandscapeProxy->GetLandscapeActor()->GetLandscapeMaterial(LODIndex))
 						{
-							LandscapeProxy->LandscapeMaterialsOverride.Add({ LODIndex, PreviousLODMaterial });
+							LandscapeProxy->LandscapeMaterialsOverride.Add({ LODIndex, decltype(FLandscapeProxyMaterialOverride::Material)(PreviousLODMaterial) });
 						}
 						else // If it already differs it means that the component differs from it, override on component
 						{
-							MovedComponent->OverrideMaterials.Add({ LODIndex, PreviousLODMaterial });
+							MovedComponent->OverrideMaterials.Add({ LODIndex, decltype(FLandscapeComponentMaterialOverride::Material)(PreviousLODMaterial) });
 						}
 					}
 				}

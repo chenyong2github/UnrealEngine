@@ -35,6 +35,12 @@ namespace UE
 																	, const UInterchangeSourceData* InSourceData
 																	, FString InNodeUniqueID
 																	, UInterchangeBaseNodeContainer* InNodeContainer);
+
+				FUpdateImportAssetDataParameters(UObject* InAssetImportDataOuter
+																	, TObjectPtr<UAssetImportData>* InAssetImportData
+																	, const UInterchangeSourceData* InSourceData
+																	, FString InNodeUniqueID
+																	, UInterchangeBaseNodeContainer* InNodeContainer);
 			};
 
 			/**

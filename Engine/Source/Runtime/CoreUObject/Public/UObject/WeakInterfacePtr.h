@@ -8,6 +8,8 @@
 #include "Templates/Casts.h"
 #include "ScriptInterface.h"
 
+#include <type_traits>
+
 /**
  * An alternative to TWeakObjectPtr that makes it easier to work through an interface.
  */
@@ -28,11 +30,11 @@ struct TWeakInterfacePtr
 	 */
 	template<
 		typename U,
-		decltype(ImplicitConv<typename TCopyQualifiersFromTo<U, UObject>::Type*>((U*)nullptr))* = nullptr
+		decltype(ImplicitConv<typename TCopyQualifiersFromTo<U, UObject>::Type*>(std::declval<U>()))* = nullptr
 	>
-	TWeakInterfacePtr(U* Object)
+	TWeakInterfacePtr(U&& Object)
 	{
-		InterfaceInstance = Cast<T>(Object);
+		InterfaceInstance = Cast<T>(ImplicitConv<typename TCopyQualifiersFromTo<U, UObject>::Type*>(Object));
 		if (InterfaceInstance != nullptr)
 		{
 			ObjectInstance = Object;

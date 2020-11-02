@@ -30,6 +30,15 @@ namespace UE
 			ensure(NodeContainer);
 		}
 
+		FFactoryCommon::FUpdateImportAssetDataParameters::FUpdateImportAssetDataParameters(UObject* InAssetImportDataOuter
+																							, TObjectPtr<UAssetImportData>* InAssetImportData
+																							, const UInterchangeSourceData* InSourceData
+																							, FString InNodeUniqueID
+																							, UInterchangeBaseNodeContainer* InNodeContainer)
+			: FUpdateImportAssetDataParameters(InAssetImportDataOuter, &((UAssetImportData*&)InAssetImportData), InSourceData, InNodeUniqueID, InNodeContainer)
+		{
+		}
+
 		void FFactoryCommon::UpdateImportAssetData(FUpdateImportAssetDataParameters& Parameters)
 		{
 #if WITH_EDITORONLY_DATA
