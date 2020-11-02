@@ -14,7 +14,6 @@
 #endif
 
 DEFINE_LOG_CATEGORY(LogClothingMeshUtils)
-DECLARE_CYCLE_STAT(TEXT("Skin Physics Mesh"), STAT_ClothSkinPhysMesh, STATGROUP_Physics);
 
 #define LOCTEXT_NAMESPACE "ClothingMeshUtils"
 
@@ -50,8 +49,6 @@ namespace ClothingMeshUtils
 		TArray<FVector>& OutNormals,
 		uint32 ArrayOffset)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_ClothSkinPhysMesh);
-
 		const uint32 NumVerts = InMesh.Vertices.Num();
 
 		if(!bInPlaceOutput)
