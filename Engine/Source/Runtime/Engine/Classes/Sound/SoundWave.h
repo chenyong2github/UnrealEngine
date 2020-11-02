@@ -366,15 +366,15 @@ public:
 	uint8 bDynamicResource:1;
 
 	/** If set to true if this sound is considered to contain mature/adult content. */
-	UPROPERTY(EditAnywhere, Category=Subtitles, AssetRegistrySearchable)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Subtitles, AssetRegistrySearchable)
 	uint8 bMature:1;
 
 	/** If set to true will disable automatic generation of line breaks - use if the subtitles have been split manually. */
-	UPROPERTY(EditAnywhere, Category=Subtitles )
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Subtitles )
 	uint8 bManualWordWrap:1;
 
 	/** If set to true the subtitles display as a sequence of single lines as opposed to multiline. */
-	UPROPERTY(EditAnywhere, Category=Subtitles )
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Subtitles )
 	uint8 bSingleLine:1;
 
 #if WITH_EDITORONLY_DATA
@@ -557,11 +557,11 @@ private:
 public:
 
 	/** A localized version of the text that is actually spoken phonetically in the audio. */
-	UPROPERTY(EditAnywhere, Category=Subtitles )
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Subtitles )
 	FString SpokenText;
 
 	/** The priority of the subtitle. */
-	UPROPERTY(EditAnywhere, Category=Subtitles)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Subtitles)
 	float SubtitlePriority;
 
 	/** Playback volume of sound 0 to 1 - Default is 1.0. */
@@ -608,7 +608,7 @@ public:
 	 * Subtitle cues.  If empty, use SpokenText as the subtitle.  Will often be empty,
 	 * as the contents of the subtitle is commonly identical to what is spoken.
 	 */
-	UPROPERTY(EditAnywhere, Category=Subtitles)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Subtitles)
 	TArray<struct FSubtitleCue> Subtitles;
 
 #if WITH_EDITORONLY_DATA
