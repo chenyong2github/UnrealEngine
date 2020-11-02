@@ -493,7 +493,7 @@ protected:
 	UWaterSplineMetadata* WaterSplineMetadata;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY()
+	UPROPERTY(Transient)
 	UBillboardComponent* ActorIcon;
 #endif
 
