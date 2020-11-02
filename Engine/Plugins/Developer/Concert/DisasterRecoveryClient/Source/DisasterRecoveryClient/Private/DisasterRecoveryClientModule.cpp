@@ -263,12 +263,6 @@ private:
 			DisasterRecoveryClient->Shutdown();
 			DisasterRecoveryClient.Reset();
 		}
-
-		if (DisasterRecoveryServiceHandle.IsValid())
-		{
-			FPlatformProcess::TerminateProc(DisasterRecoveryServiceHandle);
-			DisasterRecoveryServiceHandle.Reset();
-		}
 	}
 
 	void HandleConcertSyncClientCreated(TSharedRef<IConcertSyncClient> Client)
