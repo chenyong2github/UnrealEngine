@@ -2,8 +2,8 @@
 
 #include "DMXBlueprintGraphModule.h"
 #include "DMXGraphPanelPinFactory.h"
-#include "K2Node_GetDMXActiveModeFunctionValues.h"
-#include "Customizations/K2Node_GetDMXActiveModeFunctionValuesCustomization.h"
+#include "K2Node_GetDMXAttributeValues.h"
+#include "Customizations/K2Node_GetDMXAttributeValuesCustomization.h"
 #include "DMXBlueprintGraphLog.h"
 #include "Library/DMXEntityFixtureType.h"
 
@@ -56,7 +56,7 @@ void FDMXBlueprintGraphModule::ShutdownModule()
 
 void FDMXBlueprintGraphModule::RegisterObjectCustomizations()
 {
-	RegisterCustomClassLayout(UK2Node_GetDMXActiveModeFunctionValues::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&K2Node_GetDMXActiveModeFunctionValuesCustomization::MakeInstance));
+	RegisterCustomClassLayout(UK2Node_GetDMXAttributeValues::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FK2Node_GetDMXAttributeValuesCustomization::MakeInstance));
 
 	RegisterCustomClassLayout(UK2Node_CastPatchToType::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&K2Node_CastPatchToTypeCustomization::MakeInstance));
 
@@ -75,7 +75,7 @@ void FDMXBlueprintGraphModule::RegisterCustomClassLayout(FName ClassName, FOnGet
 
 void FDMXBlueprintGraphModule::OnDataTypeChanged(const UDMXEntityFixtureType* InFixtureType, const FDMXFixtureMode& InMode)
 {
-	for (TObjectIterator<UK2Node_GetDMXActiveModeFunctionValues> It(RF_Transient | RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFlags */ EInternalObjectFlags::PendingKill); It; ++It)
+	for (TObjectIterator<UK2Node_GetDMXAttributeValues> It(RF_Transient | RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFlags */ EInternalObjectFlags::PendingKill); It; ++It)
 	{
 		if (It->HasValidBlueprint())
 		{

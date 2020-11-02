@@ -7,9 +7,9 @@
 #include "IDetailCustomization.h"
 
 class IDetailLayoutBuilder;
-class UK2Node_GetDMXActiveModeFunctionValues;
+class UK2Node_GetDMXAttributeValues;
 
-class K2Node_GetDMXActiveModeFunctionValuesCustomization 
+class FK2Node_GetDMXAttributeValuesCustomization
 	: public IDetailCustomization
 {
 public:
@@ -21,13 +21,13 @@ private:
 	//~ Begin IDetailCustomization Interface
 
 	/** Handles the Expose button's on click event */
-	FReply ExposeFunctionsClicked();
+	FReply ExposeAttributesClicked();
 
 	/** Handles the Reset button's on click event */
-	FReply ResetFunctionsClicked();
+	FReply ResetAttributesClicked();
 
-	/** Get the pointer to GetDMXActiveModeFunctionValues node */
-	UK2Node_GetDMXActiveModeFunctionValues* GetK2Node_GetDMXActiveModeFunctionValues() const;
+	/** Get the pointer to GetDMXAttributeValues node */
+	UK2Node_GetDMXAttributeValues* GetK2Node_DMXAttributeValues() const;
 
 private:
 
