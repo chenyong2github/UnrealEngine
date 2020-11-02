@@ -146,9 +146,29 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 	int32 PoolSize = (StencilLayerViewStates.Num() + ActivePostProcessMaterials.Num() + 1) * 3;
 	AccumulatorPool = MakeShared<TAccumulatorPool<FImageOverlappedAccumulator>, ESPMode::ThreadSafe>(PoolSize);
 	
+	PreviousCustomDepthValue.Reset();
+
 	// This scene view extension will be released automatically as soon as Render Sequence is torn down.
 	// One Extension per sequence, since each sequence has its own OCIO settings.
 	OCIOSceneViewExtension = FSceneViewExtensions::NewExtension<FOpenColorIODisplayExtension>();
+
+	if (StencilLayerViewStates.Num() > 0)
+	{
+		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CustomDepth"));
+		if (CVar)
+		{
+			PreviousCustomDepthValue = CVar->GetInt();
+			const int32 CustomDepthWithStencil = 3;
+			if (PreviousCustomDepthValue != CustomDepthWithStencil)
+			{
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Overriding project custom depth/stencil value to support a stencil pass."));
+				// We use ECVF_SetByProjectSetting otherwise once this is set once by rendering, the UI silently fails
+				// if you try to change it afterwards. This SetByProjectSetting will fail if they have manipulated the cvar via the console
+				// during their current session but it's less likely than changing the project settings.
+				CVar->Set(CustomDepthWithStencil, EConsoleVariableFlags::ECVF_SetByProjectSetting);
+			}
+		}
+	}
 }
 
 void UMoviePipelineDeferredPassBase::TeardownImpl()
@@ -179,6 +199,19 @@ void UMoviePipelineDeferredPassBase::TeardownImpl()
 	
 	OCIOSceneViewExtension.Reset();
 	OCIOSceneViewExtension = nullptr;
+
+	if (PreviousCustomDepthValue.IsSet())
+	{
+		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CustomDepth"));
+		if (CVar)
+		{
+			if (CVar->GetInt() != PreviousCustomDepthValue.GetValue())
+			{
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Restoring custom depth/stencil value to: %d"), PreviousCustomDepthValue.GetValue());
+				CVar->Set(PreviousCustomDepthValue.GetValue(), EConsoleVariableFlags::ECVF_SetByProjectSetting);
+			}
+		}
+	}
 
 	// Preserve our view state until the rendering thread has been flushed.
 	Super::TeardownImpl();
