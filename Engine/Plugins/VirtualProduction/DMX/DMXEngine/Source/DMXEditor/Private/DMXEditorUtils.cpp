@@ -682,7 +682,10 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 			TArray<UDMXEntityFixturePatch*>& SortedPatchesWithSetAddress)
 		{
 			const int32 NeededSpan = ToAssign->GetChannelSpan();
-			check(NeededSpan > 0);
+			if (NeededSpan < 1)
+			{
+				return false;
+			}
 
 			UDMXEntityFixturePatch* FirstPatchWithMinAddress = SortedPatchesWithSetAddress[IndexOfFirstPatchWithMinAddress];
 			const bool bDoesPatchFitBeforeFirstPatchWithMinAddress = FirstPatchWithMinAddress->GetStartingChannel() >= MinimumAddress
