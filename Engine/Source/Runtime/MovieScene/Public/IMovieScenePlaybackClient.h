@@ -4,7 +4,7 @@
 
 #include "UObject/Interface.h"
 #include "UObject/ObjectMacros.h"
-
+#include "Engine/EngineTypes.h"
 #include "MovieSceneSequenceID.h"
 #include "IMovieScenePlaybackClient.generated.h"
 
