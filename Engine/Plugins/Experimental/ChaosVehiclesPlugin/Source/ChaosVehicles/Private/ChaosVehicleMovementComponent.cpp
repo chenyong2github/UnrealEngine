@@ -310,10 +310,13 @@ void UChaosVehicleMovementComponent::TickVehicle(float DeltaTime)
 void UChaosVehicleMovementComponent::StopMovementImmediately()
 {
 	FBodyInstance* TargetInstance = GetBodyInstance();
-	TargetInstance->SetLinearVelocity(FVector::ZeroVector, false);
-	TargetInstance->SetAngularVelocityInRadians(FVector::ZeroVector, false);
-	TargetInstance->ClearForces();
-	TargetInstance->ClearTorques();
+	if (TargetInstance)
+	{
+		TargetInstance->SetLinearVelocity(FVector::ZeroVector, false);
+		TargetInstance->SetAngularVelocityInRadians(FVector::ZeroVector, false);
+		TargetInstance->ClearForces();
+		TargetInstance->ClearTorques();
+	}
 	Super::StopMovementImmediately();
 	ClearAllInput();
 }
