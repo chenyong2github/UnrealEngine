@@ -6234,7 +6234,13 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 		UTexture2D* CurrentWeightmapTexture = MobileWeightNormalmapTexture;
 		MobileWeightmapTextures.Add(CurrentWeightmapTexture);
 		int32 CurrentChannel = 0;
-		int32 RemainingChannels = 2;
+
+		// Give normal map a full texture if this doesn't increase the overall allocation count.
+		// This then saves a texture slot because we don't need to sample a combined normalmap/weightmap texture with two different sampler settings.
+		int32 NumTexturesCombinedNormal = FMath::DivideAndRoundUp(MobileWeightmapLayerAllocations.Num() + 2, 4);
+		int32 NumTexturesIsolatedNormal = 1 + FMath::DivideAndRoundUp(MobileWeightmapLayerAllocations.Num(), 4);
+		bool bIsolateNormalMap = NumTexturesCombinedNormal == NumTexturesIsolatedNormal;
+		int32 RemainingChannels = bIsolateNormalMap ? 0 : 2;
 
 		MobileBlendableLayerMask = 0;
 
