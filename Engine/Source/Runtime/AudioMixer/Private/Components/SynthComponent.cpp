@@ -471,6 +471,8 @@ void USynthComponent::Start()
 		AudioComponent->Play(0);
 
 		SetActiveFlag(AudioComponent->IsActive());
+
+		bIsSynthPlaying = true;
 	}
 }
 
