@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VCamOutputRemoteSession.h"
-#include "VCamComponent.h"
+#include "VCamOutputComposure.h"
 #include "Channels/RemoteSessionImageChannel.h"
 #include "Channels/RemoteSessionInputChannel.h"
 #include "GameFramework/PlayerController.h"
@@ -165,33 +165,6 @@ void UVCamOutputRemoteSession::DestroyRemoteSession()
 	}
 }
 
-UVCamOutputComposure* UVCamOutputRemoteSession::GetComposureProvider()
-{
-	if (FromComposureOutputProviderIndex > -1)
-	{
-		if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
-		{
-			if (UVCamOutputProviderBase* Provider = OuterComponent->GetOutputProviderByIndex(FromComposureOutputProviderIndex))
-			{
-				if (UVCamOutputComposure* ComposureProvider = Cast<UVCamOutputComposure>(Provider))
-				{
-					return ComposureProvider;
-				}
-				else
-				{
-					UE_LOG(LogVCamOutputProvider, Warning, TEXT("GetComposureProvider - Composure usage was requested, but the specified index FromComposureOutputProvider does not refer to a ComposureOutputProvider"));
-				}
-			}
-			else
-			{
-				UE_LOG(LogVCamOutputProvider, Warning, TEXT("GetComposureProvider - Composure usage was requested, but the specified index FromComposureOutputProvider is out of range"));
-			}
-		}
-	}
-
-	return nullptr;
-}
-
 void UVCamOutputRemoteSession::OnRemoteSessionChannelChange(IRemoteSessionRole* Role, TWeakPtr<IRemoteSessionChannel> Channel, ERemoteSessionChannelChange Change)
 {
 	TSharedPtr<IRemoteSessionChannel> PinnedChannel = Channel.Pin();
@@ -221,7 +194,7 @@ void UVCamOutputRemoteSession::OnImageChannelCreated(TWeakPtr<IRemoteSessionChan
 		Options.bResizeSourceBuffer = true;
 
 		// If we are rendering from a ComposureOutputProvider, get the requested render target and use that instead of the viewport
-		if (UVCamOutputComposure* ComposureProvider = GetComposureProvider())
+		if (UVCamOutputComposure* ComposureProvider = Cast<UVCamOutputComposure>(GetOtherOutputProviderByIndex(FromComposureOutputProviderIndex)))
 		{
 			if (ComposureProvider->FinalOutputRenderTarget)
 			{
@@ -256,7 +229,7 @@ void UVCamOutputRemoteSession::OnInputChannelCreated(TWeakPtr<IRemoteSessionChan
 			TSharedPtr<SVirtualWindow> InputWindow;
 
 			// If we are rendering from a ComposureOutputProvider, we need to get the InputWindow from that UMG, not the one in the RemoteSessionOutputProvider
-			if (UVCamOutputComposure* ComposureProvider = GetComposureProvider())
+			if (UVCamOutputComposure* ComposureProvider = Cast<UVCamOutputComposure>(GetOtherOutputProviderByIndex(FromComposureOutputProviderIndex)))
 			{
 				if (UVPFullScreenUserWidget* ComposureUMGWidget = ComposureProvider->GetUMGWidget())
 				{
@@ -398,8 +371,10 @@ void UVCamOutputRemoteSession::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	if (Property && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		static FName NAME_PortNumber = GET_MEMBER_NAME_CHECKED(UVCamOutputRemoteSession, PortNumber);
+		static FName NAME_FromComposureOutputProviderIndex = GET_MEMBER_NAME_CHECKED(UVCamOutputRemoteSession, FromComposureOutputProviderIndex);
 
-		if (Property->GetFName() == NAME_PortNumber)
+		if ((Property->GetFName() == NAME_PortNumber) ||
+			(Property->GetFName() == NAME_FromComposureOutputProviderIndex))
 		{
 			if (bIsActive)
 			{
