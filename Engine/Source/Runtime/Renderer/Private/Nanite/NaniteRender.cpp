@@ -4409,7 +4409,7 @@ void DrawLumenMeshCapturePass(
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::DrawLumenMeshCapturePass");
 
 	// Material range placeholder (not used by Lumen, but must still be bound)
-	FRDGTextureDesc MaterialRangeDesc = FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource);
+	FRDGTextureDesc MaterialRangeDesc = FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_UAV | TexCreate_ShaderResource);
 	FRDGTextureRef  MaterialRange = GraphBuilder.CreateTexture(MaterialRangeDesc, TEXT("NaniteMaterialRange"));
 	//FRDGTextureSRVRef  MaterialRangeSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(MaterialRange));
 
@@ -4420,6 +4420,7 @@ void DrawLumenMeshCapturePass(
 	FRDGBufferRef    VisibleMaterials     = GraphBuilder.CreateBuffer(VisibleMaterialsDesc, TEXT("NaniteVisibleMaterials"));
 	FRDGBufferUAVRef VisibleMaterialsUAV  = GraphBuilder.CreateUAV(VisibleMaterials);
 	AddClearUAVPass(GraphBuilder, VisibleMaterialsUAV, 0);
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(MaterialRange), FUintVector4(0, 0, 0, 0));
 
 	// Mark stencil for all pixels that pass depth test
 	{
