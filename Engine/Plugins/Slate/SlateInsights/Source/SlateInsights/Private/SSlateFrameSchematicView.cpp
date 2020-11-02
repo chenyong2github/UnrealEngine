@@ -13,6 +13,8 @@
 #include "Widgets/Layout/SHeader.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableRow.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "SSlateFrameSchematicView"
 
@@ -213,6 +215,7 @@ void SSlateFrameSchematicView::Construct(const FArguments& InArgs)
 					.TreeItemsSource(&WidgetInvalidationInfos)
 					.OnGenerateRow(this, &SSlateFrameSchematicView::HandleUniqueInvalidatedMakeTreeRowWidget)
 					.OnGetChildren(this, &SSlateFrameSchematicView::HandleUniqueInvalidatedChildrenForInfo)
+					.OnContextMenuOpening(this, &SSlateFrameSchematicView::HandleWidgetInvalidateListContextMenu)
 					.SelectionMode(ESelectionMode::Single)
 					.HeaderRow
 					(
@@ -383,6 +386,55 @@ void SSlateFrameSchematicView::HandleSelectionEventChanged(const TSharedPtr<cons
 
 			RefreshNodes();
 		}
+	}
+}
+
+TSharedPtr<SWidget> SSlateFrameSchematicView::HandleWidgetInvalidateListContextMenu()
+{
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, nullptr);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("GotoRootInvalidationWidget", "Go to root widget(s)"),
+		LOCTEXT("GotoRootInvalidationWidgetTooltip", "Go to child widget that caused invalidation. Stops early if multiple widgets caused invalidation."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SSlateFrameSchematicView::HandleWidgetInvalidateListGotoRootWidget),
+			FCanExecuteAction::CreateSP(this, &SSlateFrameSchematicView::CanWidgetInvalidateListGotoRootWidget)
+		));
+
+	return MenuBuilder.MakeWidget();
+}
+
+bool SSlateFrameSchematicView::CanWidgetInvalidateListGotoRootWidget()
+{
+	return WidgetInvalidateInfoListView->GetSelectedItems().Num() == 1;
+}
+
+void SSlateFrameSchematicView::HandleWidgetInvalidateListGotoRootWidget()
+{
+	TArray<TSharedPtr<Private::FWidgetUniqueInvalidatedInfo>> SelectedItems = WidgetInvalidateInfoListView->GetSelectedItems();
+	
+	if (SelectedItems.Num() != 1)
+	{
+		return;
+	}
+
+	TSharedPtr<Private::FWidgetUniqueInvalidatedInfo> SelectedItem = SelectedItems.Last();
+	
+	bool bExpandedItem = false;
+	while (SelectedItem->Investigators.Num() == 1)
+	{
+		WidgetInvalidateInfoListView->SetItemExpansion(SelectedItem, true /** InShouldExpandItem */);
+		SelectedItem = SelectedItem->Investigators.Last();
+		bExpandedItem = true;
+	}
+
+	if (bExpandedItem)
+	{
+		WidgetInvalidateInfoListView->ClearSelection();
+		WidgetInvalidateInfoListView->SetItemSelection(SelectedItem, true, ESelectInfo::Direct);
+		WidgetInvalidateInfoListView->RequestNavigateToItem(SelectedItem);
 	}
 }
 

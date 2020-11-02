@@ -68,8 +68,7 @@ namespace Private
 				Text,
 				Index, Index + 1,
 				FontInfo,
-				ESlateDrawEffect::None,
-				InWidgetStyle.GetForegroundColor()
+				ESlateDrawEffect::None
 			);
 		}
 	}
