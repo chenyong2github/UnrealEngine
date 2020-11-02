@@ -1827,7 +1827,12 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			);
 		}
 
-		if (bMetalSourceCompileSucceeded)
+		if (!bMetalSourceCompileSucceeded)
+		{
+			// Compilation failed.
+			Result = 0;
+		}
+		else
 		{
 			MetaData += TEXT("// Compiled by ShaderConductor\n");
 			if (INPString.Len())
