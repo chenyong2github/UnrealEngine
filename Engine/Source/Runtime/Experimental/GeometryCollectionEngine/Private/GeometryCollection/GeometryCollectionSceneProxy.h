@@ -131,6 +131,7 @@ class FGeometryCollectionSceneProxy final : public FPrimitiveSceneProxy
 	FGeometryCollectionVertexFactory VertexFactory;
 	
 	bool bSupportsManualVertexFetch;
+	const bool bSupportsTripleBufferVertexUpload;
 	
 	FStaticMeshVertexBuffers VertexBuffers;
 	FGeometryCollectionIndexBuffer IndexBuffer;
