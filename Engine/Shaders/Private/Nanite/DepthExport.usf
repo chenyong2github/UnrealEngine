@@ -15,9 +15,6 @@
 // .w = unused
 uint4 DepthExportConfig;
 
-// .xy = min, .zw = max
-uint4 ViewRect;
-
 // Requirements:
 // COMPILER_SUPPORTS_TO_SCALAR_MEMORY
 // COMPILER_SUPPORTS_WAVE_ONCE
@@ -35,8 +32,6 @@ RWTexture2D<float>			MaterialDepth;
 
 ByteAddressBuffer			MaterialDepthTable;
 ByteAddressBuffer			MaterialHitProxyTable;
-
-RWStructuredBuffer<uint>	VisibleMaterials;
 
 uint EncodeTileMinMaxDepth(float MinDepth, float MaxDepth, uint PlatformConfig)
 {
@@ -125,29 +120,6 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 		{
 			SceneHTile[TileIndex] = EncodeTileMinMaxDepth(TileMinSceneDepth, TileMaxSceneDepth, PlatformConfig);
 			MaterialHTile[TileIndex] = EncodeTileMinMaxDepth(TileMinMaterialDepth, TileMaxMaterialDepth, PlatformConfig);
-		}
-
-		uint MaterialBucketId = GetMaterialBucketIdFromDepth(MaterialDepthValue);
-
-		uint2 ViewportSize       = ViewRect.zw - ViewRect.xy;
-		uint2 MaterialGridSize   = uint2(8, 4); // 32 bits, 1 bit per tile
-		float2 MaterialTileSize  = (float2)ViewportSize / (float2)MaterialGridSize;
-		uint2 MaterialGridPos    = (uint2)floor((float2)(PixelPos.xy - ViewRect.xy) / MaterialTileSize);
-		uint MaterialTileIndex   = MaterialGridPos.x + MaterialGridPos.y * MaterialGridSize.x;
-		uint VisibleMaterialMask = 1u << MaterialTileIndex;
-		uint ThisLaneIndex       = WaveGetLaneIndex();
-		bool bThisLaneActive     = true;
-		while (bThisLaneActive)
-		{
-			if (MaterialBucketId == WaveReadLaneFirst(MaterialBucketId))
-			{
-				uint ActiveVisibleMaterialMask = WaveActiveBitOr(VisibleMaterialMask);
-				if (ThisLaneIndex == WaveGetActiveLaneIndexFirst())
-				{
-					InterlockedOr(VisibleMaterials[MaterialBucketId], ActiveVisibleMaterialMask);
-				}
-				bThisLaneActive = false;
-			}
 		}
 	}
 	else if (WaveIsFirstLane())

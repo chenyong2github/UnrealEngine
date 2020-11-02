@@ -20,24 +20,24 @@ static constexpr uint32 MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS = 12;												
 static constexpr uint32 MAX_VIEWS_PER_CULL_RASTERIZE_PASS_MASK	= ( ( 1 << MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS ) - 1 );	// must match define in NaniteDataDecode.ush
 static constexpr uint32 MAX_VIEWS_PER_CULL_RASTERIZE_PASS		= ( 1 << MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS );			// must match define in NaniteDataDecode.ush
 
-DECLARE_GPU_STAT_NAMED_EXTERN(NaniteDebug, TEXT("Nanite Debug"));
-DECLARE_GPU_STAT_NAMED_EXTERN(NaniteEditor, TEXT("Nanite Editor"));
-DECLARE_GPU_STAT_NAMED_EXTERN(NaniteRaster, TEXT("Nanite Raster"));
-DECLARE_GPU_STAT_NAMED_EXTERN(NaniteMaterials, TEXT("Nanite Materials"));
+DECLARE_GPU_STAT_NAMED_EXTERN(NaniteDebug,		TEXT("Nanite Debug"));
+DECLARE_GPU_STAT_NAMED_EXTERN(NaniteDepth,		TEXT("Nanite Depth"));
+DECLARE_GPU_STAT_NAMED_EXTERN(NaniteEditor,		TEXT("Nanite Editor"));
+DECLARE_GPU_STAT_NAMED_EXTERN(NaniteRaster,		TEXT("Nanite Raster"));
+DECLARE_GPU_STAT_NAMED_EXTERN(NaniteMaterials,	TEXT("Nanite Materials"));
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
-	SHADER_PARAMETER(FIntVector4,   SOAStrides)
-	SHADER_PARAMETER(FIntVector4,	MaterialConfig) // .x mode, .yz grid size, .w unused
-	SHADER_PARAMETER(float,			MaterialDepth)
-	SHADER_PARAMETER(uint32,		MaxNodes)
-	SHADER_PARAMETER(uint32,		MaxClusters)
-	SHADER_PARAMETER(uint32,		RenderFlags)
-	SHADER_PARAMETER(FVector4,		RectScaleOffset) // xy: scale, zw: offset
-
-	SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
-	SHADER_PARAMETER_SRV(ByteAddressBuffer,	ClusterPageHeaders)
-	SHADER_PARAMETER_SRV(ByteAddressBuffer,	VisibleClustersSWHW)
-	SHADER_PARAMETER_SRV(StructuredBuffer<uint>, VisibleMaterials)
+	SHADER_PARAMETER(FIntVector4,					SOAStrides)
+	SHADER_PARAMETER(FIntVector4,					MaterialConfig) // .x mode, .yz grid size, .w unused
+	SHADER_PARAMETER(float,							MaterialDepth)
+	SHADER_PARAMETER(uint32,						MaxNodes)
+	SHADER_PARAMETER(uint32,						MaxClusters)
+	SHADER_PARAMETER(uint32,						RenderFlags)
+	SHADER_PARAMETER(FVector4,						RectScaleOffset) // xy: scale, zw: offset
+	SHADER_PARAMETER_SRV(ByteAddressBuffer,			ClusterPageData)
+	SHADER_PARAMETER_SRV(ByteAddressBuffer,			ClusterPageHeaders)
+	SHADER_PARAMETER_SRV(ByteAddressBuffer,			VisibleClustersSWHW)
+	SHADER_PARAMETER_SRV(StructuredBuffer<uint>,	VisibleMaterials)
 	SHADER_PARAMETER_TEXTURE(Texture2D<uint2>,		MaterialRange)
 	SHADER_PARAMETER_TEXTURE(Texture2D<UlongType>,	VisBuffer64)
 	SHADER_PARAMETER_TEXTURE(Texture2D<UlongType>,	DbgBuffer64)
@@ -457,6 +457,8 @@ struct FRasterResults
 	TRefCountPtr<IPooledRenderTarget>	VisBuffer64;
 	TRefCountPtr<IPooledRenderTarget>	DbgBuffer64;
 	TRefCountPtr<IPooledRenderTarget>	DbgBuffer32;
+
+	TRefCountPtr<IPooledRenderTarget>	MaterialDepth;
 };
 
 FCullingContext	InitCullingContext(
@@ -598,11 +600,13 @@ void EmitCubemapShadow(
 	bool bUseGeometryShader
 );
 
-void DrawPrePass(
-	FRHICommandListImmediate& RHICmdList,
+void EmitDepthTargets(
+	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const FViewInfo& View,
-	FRasterResults& RasterResults
+	const FCullingContext& CullingContext,
+	const FRasterContext& RasterContext,
+	TRefCountPtr<IPooledRenderTarget>& OutMaterialDepth
 );
 
 void DrawBasePass(
@@ -627,6 +631,14 @@ void DrawLumenMeshCapturePass(
 	FRDGTextureRef AlbedoAtlasTexture,
 	FRDGTextureRef NormalAtlasTexture,
 	FRDGTextureRef DepthAtlasTexture
+);
+
+void DrawVisualization(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef SceneDepth,
+	const FScene& Scene,
+	const FViewInfo& View,
+	const FRasterResults& RasterResults
 );
 
 #if WITH_EDITOR

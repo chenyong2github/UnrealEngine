@@ -1863,6 +1863,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
 				const FViewInfo& View = Views[ViewIndex];
+				Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
 
 				Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
 					GraphBuilder,
@@ -1891,6 +1892,15 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 					bExtractStats
 				);
 
+				Nanite::EmitDepthTargets(
+					GraphBuilder,
+					*Scene,
+					Views[ViewIndex],
+					CullingContext,
+					RasterContext,
+					RasterResults.MaterialDepth
+				);
+
 				if (!bIsEarlyDepthComplete && bTwoPassOcclusion && View.ViewState)
 				{
 					// Won't have a complete SceneDepth for post pass so can't use complete HZB for main pass or it will poke holes in the post pass HZB killing occlusion culling.
@@ -1910,7 +1920,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 					GraphBuilder.QueueTextureExtraction( GraphHZB, &View.ViewState->PrevFrameViewInfo.NaniteHZB );
 				}
 
-				Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, NaniteRasterResults[ViewIndex]);
+				Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, RasterResults);
 			}
 		}
 
@@ -2149,7 +2159,26 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 			{
-				Nanite::DrawBasePass(GraphBuilder, SceneDepthTexture.Target, *Scene, Views[ViewIndex], NaniteRasterResults[ViewIndex]);
+				const FViewInfo& View = Views[ViewIndex];
+				const Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
+
+				FRDGTextureRef SceneDepth = SceneDepthTexture.Target;
+
+				Nanite::DrawBasePass(
+					GraphBuilder,
+					SceneDepth,
+					*Scene,
+					View,
+					RasterResults
+				);
+
+				Nanite::DrawVisualization(
+					GraphBuilder,
+					SceneDepth,
+					*Scene,
+					View,
+					RasterResults
+				);
 			}
 		}
 
@@ -2270,6 +2299,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderVelocities(GraphBuilder, SceneDepthTexture.Resolve, VelocityTexture, nullptr, EVelocityPass::Opaque, bHairEnable);
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterVelocity));
 		AddServiceLocalQueuePass(GraphBuilder);
+
+		// TODO: Populate velocity buffer from Nanite visibility buffer.
 	}
 
 	// Hair base pass for deferred shading

@@ -13,14 +13,17 @@ SamplerState MaterialSampler;
 ByteAddressBuffer MaterialDepthTable;
 ByteAddressBuffer MaterialHitProxyTable;
 
-uint DummyZero;
+uint DummyZero; // TODO: Remove me
+uint StencilClear;
+uint StencilDecal;
 
 Texture2D<UlongType> VisBuffer64;
 
+// TODO: Can likely be removed
 void MarkStencilPS(
 	in float4 SvPosition	: SV_Position,
 	out float OutDepth		: SV_Depth
-	)
+)
 {
 	uint2 PixelPos = (uint2)SvPosition.xy;
 	UlongType VisPixel = VisBuffer64[PixelPos];
@@ -40,10 +43,10 @@ void MarkStencilPS(
 	}
 }
 
-void EmitMaterialIdPS(
-	in float4 SvPosition	: SV_Position,
-	out float OutMaterialId : SV_Depth
-	)
+void EmitMaterialDepthPS(
+	in  float4 SvPosition	: SV_Position,
+	out float  OutDepth		: SV_Depth
+)
 {
 	uint2 PixelPos = (uint2)SvPosition.xy;
 	UlongType VisPixel = VisBuffer64[PixelPos];
@@ -53,18 +56,25 @@ void EmitMaterialIdPS(
 	uint TriIndex = 0;
 	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
 
-	// Export material depth ID as SV_Depth.
-	FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-	FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster.InstanceId);
-	FTriCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-	const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable);
-	OutMaterialId = asfloat(MaterialDepthId | DummyZero);	// Workaround for bug on Geforce 2080Ti. It seems the issue might be related to writing directly to oDepth in a buffer load instruction.
+	if (VisibleClusterIndex != 0xFFFFFFFF)
+	{
+		// Export material depth ID as SV_Depth.
+		const FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
+		const FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster.InstanceId);
+		const FTriCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+		const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable);
+		OutDepth = asfloat(MaterialDepthId | DummyZero); // Workaround for bug on Geforce 2080Ti. It seems the issue might be related to writing directly to OutDepth in a buffer load instruction.
+	}
+	else
+	{
+		discard;
+	}
 }
 
-void EmitDepthPS(
+void EmitSceneDepthPS(
 	in float4 SvPosition	: SV_Position,
 	out float OutDepth		: SV_Depth
-	)
+)
 {
 	OutDepth = 0;
 
@@ -76,7 +86,7 @@ void EmitDepthPS(
 	uint TriIndex = 0;
 	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
 
-	if( VisibleClusterIndex != 0xFFFFFFFF )
+	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
 		OutDepth = asfloat(DepthInt);
 	}
@@ -86,10 +96,10 @@ void EmitDepthPS(
 	}
 }
 
-void EmitStencilPS(
+void EmitSceneStencilPS(
 	in float4 SvPosition	: SV_Position,
 	out float OutDepth		: SV_Depth
-	)
+)
 {
 	OutDepth = 0;
 
@@ -121,6 +131,43 @@ void EmitStencilPS(
 	}
 }
 
+void EmitSceneDepthStencilPS
+(
+	in float4 SvPosition	: SV_Position,
+	out float OutDepth		: SV_Depth,
+	out uint  OutStencil	: SV_StencilRef // Requires GRHISupportsStencilRefFromPixelShader
+)
+{
+	OutDepth = 0;
+	OutStencil = StencilClear;
+
+	uint2 PixelPos = (uint2)SvPosition.xy;
+	UlongType VisPixel = VisBuffer64[PixelPos];
+
+	uint DepthInt = 0;
+	uint VisibleClusterIndex = 0;
+	uint TriIndex = 0;
+	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
+
+	if (VisibleClusterIndex != 0xFFFFFFFF)
+	{
+		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
+		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster.InstanceId);
+
+		if (GetPrimitiveData(InstanceData.PrimitiveId).DecalReceiverMask > 0 && View.ShowDecalsMask > 0)
+		{
+			OutStencil = StencilDecal;
+		}
+
+		// TODO: OutVelocity (have already decoded cluster data, so why not!)
+		OutDepth = asfloat(DepthInt);
+	}
+	else
+	{
+		discard;
+	}
+}
+
 float ViewToClip22;
 float DepthBias;
 
@@ -129,7 +176,7 @@ Texture2D< uint > DepthBuffer;
 void EmitShadowMapPS(
 	in float4 SvPosition	: SV_Position,
 	out float OutDepth		: SV_Depth
-	)
+)
 {
 	OutDepth = 0;
 
@@ -163,7 +210,7 @@ void EmitHitProxyIdPS(
 	in float4 SvPosition		: SV_Position,
 	out float4 OutHitProxyId	: SV_Target0,
 	out float OutDepth			: SV_Depth
-	)
+)
 {
 	uint2 PixelPos = (uint2)SvPosition.xy;
 	UlongType VisPixel = VisBuffer64[PixelPos];
@@ -223,7 +270,7 @@ float2 OutputToInputScale;
 #if EDITOR_LEVELINSTANCE_BUFFER_COUNT > 0
 
 void EmitEditorLevelInstanceDepthPS(
-	float4 SvPosition : SV_Position,
+	float4 SvPosition  : SV_Position,
 	out float OutDepth : SV_Depth
 )
 {
@@ -260,9 +307,9 @@ void EmitEditorLevelInstanceDepthPS(
 #if EDITOR_SELECTED_BUFFER_COUNT > 0
 
 void EmitEditorSelectionDepthPS(
-	float4 SvPosition : SV_Position,
+	float4 SvPosition  : SV_Position,
 	out float OutDepth : SV_Depth
-	)
+)
 {
 	uint2 PixelPos = (uint2)(SvPosition.xy * OutputToInputScale);
 	UlongType VisPixel = VisBuffer64[PixelPos];
@@ -297,10 +344,10 @@ void EmitEditorSelectionDepthPS(
 
 
 void FullScreenVS(
-	float2 InPosition : ATTRIBUTE0,
-	uint TileIndex : SV_InstanceID,
+	float2 InPosition   : ATTRIBUTE0,
+	uint TileIndex      : SV_InstanceID,
 	out float4 Position : SV_Position
-	)
+)
 {
 	const uint  CullMode = Nanite.MaterialConfig.x;
 	const uint2 GridSize = Nanite.MaterialConfig.yz;

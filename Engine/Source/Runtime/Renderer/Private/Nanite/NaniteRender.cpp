@@ -45,6 +45,7 @@ DECLARE_GPU_STAT_NAMED(NaniteInstanceCull,		TEXT("Nanite Instance Cull"));
 DECLARE_GPU_STAT_NAMED(NaniteInstanceCullVSM,	TEXT("Nanite Instance Cull VSM"));
 
 DEFINE_GPU_STAT(NaniteDebug);
+DEFINE_GPU_STAT(NaniteDepth);
 DEFINE_GPU_STAT(NaniteEditor);
 DEFINE_GPU_STAT(NaniteRaster);
 DEFINE_GPU_STAT(NaniteMaterials);
@@ -52,6 +53,8 @@ DEFINE_GPU_STAT(NaniteMaterials);
 DECLARE_DWORD_COUNTER_STAT(TEXT("CullingContexts"), STAT_NaniteCullingContexts, STATGROUP_Nanite);
 
 DEFINE_LOG_CATEGORY(LogNanite);
+
+#define NANITE_MATERIAL_STENCIL 1
 
 int32 GNaniteAsyncRasterization = 1;
 static FAutoConsoleVariableRef CVarNaniteEnableAsyncRasterization(
@@ -1103,10 +1106,10 @@ class FNaniteMarkStencilPS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FNaniteMarkStencilPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "MarkStencilPS", SF_Pixel);
 
-class FNaniteEmitMaterialIdPS : public FNaniteShader
+class FEmitMaterialDepthPS : public FNaniteShader
 {
-	DECLARE_GLOBAL_SHADER(FNaniteEmitMaterialIdPS);
-	SHADER_USE_PARAMETER_STRUCT(FNaniteEmitMaterialIdPS, FNaniteShader);
+	DECLARE_GLOBAL_SHADER(FEmitMaterialDepthPS);
+	SHADER_USE_PARAMETER_STRUCT(FEmitMaterialDepthPS, FNaniteShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -1134,18 +1137,23 @@ class FNaniteEmitMaterialIdPS : public FNaniteShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FNaniteEmitMaterialIdPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitMaterialIdPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FEmitMaterialDepthPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitMaterialDepthPS", SF_Pixel);
 
 IMPLEMENT_GLOBAL_SHADER(FNaniteVS, "/Engine/Private/Nanite/ExportGBuffer.usf", "FullScreenVS", SF_Vertex);
 
-class FEmitDepthPS : public FNaniteShader
+class FEmitSceneDepthPS : public FNaniteShader
 {
-	DECLARE_GLOBAL_SHADER(FEmitDepthPS);
-	SHADER_USE_PARAMETER_STRUCT(FEmitDepthPS, FNaniteShader);
+	DECLARE_GLOBAL_SHADER(FEmitSceneDepthPS);
+	SHADER_USE_PARAMETER_STRUCT(FEmitSceneDepthPS, FNaniteShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -1153,16 +1161,21 @@ class FEmitDepthPS : public FNaniteShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FEmitDepthPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitDepthPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FEmitSceneDepthPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitSceneDepthPS", SF_Pixel);
 
-class FEmitStencilPS : public FNaniteShader
+class FEmitSceneStencilPS : public FNaniteShader
 {
-	DECLARE_GLOBAL_SHADER(FEmitStencilPS);
-	SHADER_USE_PARAMETER_STRUCT(FEmitStencilPS, FNaniteShader);
+	DECLARE_GLOBAL_SHADER(FEmitSceneStencilPS);
+	SHADER_USE_PARAMETER_STRUCT(FEmitSceneStencilPS, FNaniteShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -1177,7 +1190,39 @@ class FEmitStencilPS : public FNaniteShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FEmitStencilPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitStencilPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FEmitSceneStencilPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitSceneStencilPS", SF_Pixel);
+
+class FEmitSceneDepthStencilPS : public FNaniteShader
+{
+	DECLARE_GLOBAL_SHADER(FEmitSceneDepthStencilPS);
+	SHADER_USE_PARAMETER_STRUCT(FEmitSceneDepthStencilPS, FNaniteShader);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
+		SHADER_PARAMETER(FIntVector4, SOAStrides)
+		SHADER_PARAMETER(uint32, StencilClear)
+		SHADER_PARAMETER(uint32, StencilDecal)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageHeaders)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FEmitSceneDepthStencilPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitSceneDepthStencilPS", SF_Pixel);
 
 class FEmitShadowMapPS : public FNaniteShader
 {
@@ -1423,43 +1468,69 @@ class FDepthExportCS : public FNaniteShader
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageHeaders)
 		SHADER_PARAMETER(FIntVector4, DepthExportConfig)
-		SHADER_PARAMETER(FIntVector4, ViewRect)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTextureMetadata, SceneHTile)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, SceneDepth)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, SceneStencil)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTextureMetadata, MaterialHTile)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, MaterialDepth)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, VisibleMaterials)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FDepthExportCS, "/Engine/Private/Nanite/DepthExport.usf", "DepthExport", SF_Compute);
 
-class FReduceMaterialRangeCS : public FNaniteShader
+class FClassifyMaterialsCS : public FNaniteShader
 {
-	DECLARE_GLOBAL_SHADER(FReduceMaterialRangeCS);
-	SHADER_USE_PARAMETER_STRUCT(FReduceMaterialRangeCS, FNaniteShader);
+public:
+	class FCullingMethodDim : SHADER_PERMUTATION_INT("CULLING_METHOD", 5);
+	using FPermutationDomain = TShaderPermutationDomain<FCullingMethodDim>;
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportNanite(Parameters.Platform);
-	}
+	DECLARE_GLOBAL_SHADER(FClassifyMaterialsCS);
+	SHADER_USE_PARAMETER_STRUCT(FClassifyMaterialsCS, FNaniteShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, SOAStrides)
+		SHADER_PARAMETER(FIntVector4, ViewRect)
+		SHADER_PARAMETER(FIntPoint, FetchClamp)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageHeaders)
-		SHADER_PARAMETER(FIntPoint, FetchClamp)
-		SHADER_PARAMETER(uint32, CullingMode)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint2>, MaterialRange)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, VisibleMaterials)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		const uint32 CullingMethod = uint32(PermutationVector.Get<FCullingMethodDim>());
+		if (CullingMethod == 0)
+		{
+			// No culling - don't bother compiling this permutation. Keeps it 1:1 with cvar
+			return false;
+		}
+
+		if ((CullingMethod == 1 || CullingMethod == 2) && !FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(Parameters.Platform))
+		{
+			// Platform doesn't support necessary wave intrinsics for the 8x4 grid method
+			return false;
+		}
+
+		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		const uint32 CullingMethod = uint32(PermutationVector.Get<FCullingMethodDim>());
+		OutEnvironment.SetDefine(TEXT("MATERIAL_CULLING_METHOD"), CullingMethod);
+	}
 };
-IMPLEMENT_GLOBAL_SHADER(FReduceMaterialRangeCS, "/Engine/Private/Nanite/MaterialCulling.usf", "ReduceMaterialRange", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FClassifyMaterialsCS, "/Engine/Private/Nanite/MaterialCulling.usf", "ClassifyMaterials", SF_Compute);
 
 // TODO: Move to common location outside of Nanite
 class FHTileVisualizeCS : public FNaniteShader
@@ -1808,18 +1879,19 @@ FMeshPassProcessor* CreateNaniteMeshProcessor(
 	PassDrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
 	PassDrawRenderState.SetNaniteUniformBuffer(Scene->UniformBuffers.NaniteUniformBuffer);
 
-	if (UseComputeDepthExport())
-	{
-		SetupBasePassState(FExclusiveDepthStencil::DepthWrite_StencilNop, false, PassDrawRenderState);
-		PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Equal>::GetRHI());
-		PassDrawRenderState.SetDepthStencilAccess(FExclusiveDepthStencil::DepthRead_StencilNop);
-	}
-	else
+	const bool bStencilExport = (NANITE_MATERIAL_STENCIL != 0) && !UseComputeDepthExport();
+	if (bStencilExport)
 	{
 		SetupBasePassState(FExclusiveDepthStencil::DepthWrite_StencilWrite, false, PassDrawRenderState);
 		PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Equal, true, CF_Equal>::GetRHI());
-		PassDrawRenderState.SetDepthStencilAccess(FExclusiveDepthStencil::DepthRead_StencilRead);
+		PassDrawRenderState.SetDepthStencilAccess(FExclusiveDepthStencil::DepthWrite_StencilWrite);
 		PassDrawRenderState.SetStencilRef(STENCIL_SANDBOX_MASK);
+	}
+	else
+	{
+		SetupBasePassState(FExclusiveDepthStencil::DepthWrite_StencilNop, false, PassDrawRenderState);
+		PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Equal>::GetRHI());
+		PassDrawRenderState.SetDepthStencilAccess(FExclusiveDepthStencil::DepthWrite_StencilNop);
 	}
 
 	return new(FMemStack::Get()) FNaniteMeshProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, PassDrawRenderState, InDrawListContext);
@@ -3654,51 +3726,222 @@ void EmitCubemapShadow(
 	);
 }
 
-void DrawPrePass(
-	FRHICommandListImmediate& RHICmdList,
+void EmitDepthTargets(
+	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const FViewInfo& View,
-	FRasterResults& RasterResults
-	)
+	const FCullingContext& CullingContext,
+	const FRasterContext& RasterContext,
+	TRefCountPtr<IPooledRenderTarget>& OutMaterialDepth
+)
 {
 	LLM_SCOPE_BYTAG(Nanite);
+	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::EmitDepthTargets");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteDepth);
+
+	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get();
+	const FClearValueBinding DefaultDepthStencil = SceneTargets.GetDefaultDepthClear();
+	float DefaultDepth = 0.0f;
+	uint32 DefaultStencil = 0;
+	DefaultDepthStencil.GetDepthStencil(DefaultDepth, DefaultStencil);
+
+	const uint32 StencilDecalMask = GET_STENCIL_BIT_MASK(RECEIVE_DECAL, 1);
+
+	// TODO: Can be 16bit UNORM (PF_ShadowDepth) (32bit float w/ 8bit stencil is a waste of bandwidth and memory)
+	FRDGTextureDesc MaterialDepthDesc = FRDGTextureDesc::Create2D(
+		SceneTargets.GetBufferSizeXY(),
+		PF_DepthStencil,
+		SceneTargets.GetDefaultDepthClear(),
+		TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead | (UseComputeDepthExport() ? TexCreate_UAV : TexCreate_None));
+
+	FRDGTextureRef MaterialDepth	= GraphBuilder.CreateTexture(MaterialDepthDesc, TEXT("MaterialDepth"));
+	FRDGTextureRef SceneDepth		= GraphBuilder.RegisterExternalTexture(SceneTargets.SceneDepthZ, TEXT("SceneDepth"));
 
 	if (UseComputeDepthExport())
 	{
-		// TODO: Perform depth export here and if done here dont do it in base pass
+		// Emit depth, stencil, and velocity buffers (TODO)
+
+		// TODO: Don't currently support offset views.
+		checkf(View.ViewRect.Min.X == 0 && View.ViewRect.Min.Y == 0, TEXT("Viewport offset support is not implemented."));
+
+		const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(View.ViewRect.Max, 8); // Only run DepthExport shader on viewport. We have already asserted that ViewRect.Min=0.
+		const uint32 PlatformConfig = RHIGetHTilePlatformConfig(SceneTargets.GetBufferSizeXY().X, SceneTargets.GetBufferSizeXY().Y);
+
+		FRDGTextureUAVRef SceneDepthUAV		= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::CompressedSurface));
+		FRDGTextureUAVRef SceneStencilUAV	= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::Stencil));
+		FRDGTextureUAVRef SceneHTileUAV		= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::HTile));
+		FRDGTextureUAVRef MaterialDepthUAV	= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(MaterialDepth, ERDGTextureMetaDataAccess::CompressedSurface));
+		FRDGTextureUAVRef MaterialHTileUAV	= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(MaterialDepth, ERDGTextureMetaDataAccess::HTile));
+
+		FDepthExportCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDepthExportCS::FParameters>();
+
+		PassParameters->View					= View.ViewUniformBuffer;
+		PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
+		PassParameters->SOAStrides				= CullingContext.SOAStrides;
+		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
+		PassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
+		PassParameters->DepthExportConfig		= FIntVector4(PlatformConfig, SceneTargets.GetBufferSizeXY().X, StencilDecalMask, 0);
+		PassParameters->VisBuffer64				= RasterContext.VisBuffer64;
+		PassParameters->SceneHTile				= SceneHTileUAV;
+		PassParameters->SceneDepth				= SceneDepthUAV;
+		PassParameters->SceneStencil			= SceneStencilUAV;
+		PassParameters->MaterialHTile			= MaterialHTileUAV;
+		PassParameters->MaterialDepth			= MaterialDepthUAV;
+		PassParameters->MaterialDepthTable		= Scene.MaterialTables[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+
+		auto ComputeShader = View.ShaderMap->GetShader<FDepthExportCS>();
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("DepthExport"),
+			ComputeShader,
+			PassParameters,
+			DispatchDim
+		);
 	}
 	else
 	{
-		SCOPED_DRAW_EVENT(RHICmdList, NanitePrePass);
+		// Emit material depth (and stencil mask) for pixels produced from Nanite rasterization.
+		{
+			auto* PassParameters = GraphBuilder.AllocParameters<FEmitMaterialDepthPS::FParameters>();
 
-		FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get();
-
-		FRDGBuilder GraphBuilder(RHICmdList);
-
-		FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.VisBuffer64, GSystemTextures.BlackDummy);
-		FRDGTextureRef SceneDepth = GraphBuilder.RegisterExternalTexture(SceneTargets.SceneDepthZ, TEXT("SceneDepth"));
-
-		auto* PassParameters = GraphBuilder.AllocParameters<FEmitDepthPS::FParameters>();
-
-		PassParameters->VisBuffer64 = VisBuffer64;
-		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
-
-		auto PixelShader = View.ShaderMap->GetShader<FEmitDepthPS>();
-
-		FPixelShaderUtils::AddFullscreenPass(
-			GraphBuilder,
-			GetGlobalShaderMap(View.FeatureLevel),
-			RDG_EVENT_NAME("Emit Depth"),
-			PixelShader,
-			PassParameters,
-			View.ViewRect,
-			TStaticBlendState<>::GetRHI(),
-			TStaticRasterizerState<>::GetRHI(),
-			TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI()
+			PassParameters->DummyZero = 0u;
+			PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV();
+			PassParameters->ClusterPageHeaders			= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
+			PassParameters->MaterialDepthTable			= Scene.MaterialTables[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+			PassParameters->SOAStrides					= CullingContext.SOAStrides;
+			PassParameters->View						= View.ViewUniformBuffer;
+			PassParameters->VisBuffer64					= RasterContext.VisBuffer64;
+			PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
+			PassParameters->RenderTargets.DepthStencil	= FDepthStencilBinding(
+				MaterialDepth,
+				ERenderTargetLoadAction::EClear,
+				FExclusiveDepthStencil::DepthWrite_StencilWrite
 			);
 
-		GraphBuilder.Execute();
+			auto PixelShader = View.ShaderMap->GetShader<FEmitMaterialDepthPS>();
+
+			FPixelShaderUtils::AddFullscreenPass(
+				GraphBuilder,
+				GetGlobalShaderMap(View.FeatureLevel),
+				RDG_EVENT_NAME("Emit Material Depth"),
+				PixelShader,
+				PassParameters,
+				View.ViewRect,
+				TStaticBlendState<>::GetRHI(),
+				TStaticRasterizerState<>::GetRHI(),
+			#if NANITE_MATERIAL_STENCIL
+				TStaticDepthStencilState<true, CF_Always, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI(),
+				STENCIL_SANDBOX_MASK
+			#else
+				TStaticDepthStencilState<true, CF_Always>::GetRHI()
+			#endif
+			);
+		}
+
+		if (GRHISupportsStencilRefFromPixelShader)
+		{
+			// Emit scene depth, stencil, and velocity buffers (TODO)
+
+			auto  PixelShader		= View.ShaderMap->GetShader<FEmitSceneDepthStencilPS>();
+			auto* PassParameters	= GraphBuilder.AllocParameters<FEmitSceneDepthStencilPS::FParameters>();
+
+			PassParameters->View						= View.ViewUniformBuffer;
+			PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
+			PassParameters->SOAStrides					= CullingContext.SOAStrides;
+			PassParameters->StencilClear				= DefaultStencil;
+			PassParameters->StencilDecal				= StencilDecalMask;
+			PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV();
+			PassParameters->ClusterPageHeaders			= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
+			PassParameters->VisBuffer64					= RasterContext.VisBuffer64;
+			PassParameters->RenderTargets.DepthStencil	= FDepthStencilBinding
+			(
+				SceneDepth,
+				ERenderTargetLoadAction::ELoad,
+				FExclusiveDepthStencil::DepthWrite_StencilWrite
+			);
+
+			FPixelShaderUtils::AddFullscreenPass(
+				GraphBuilder,
+				GetGlobalShaderMap(View.FeatureLevel),
+				RDG_EVENT_NAME("Emit Scene Depth/Stencil/Velocity"),
+				PixelShader,
+				PassParameters,
+				View.ViewRect,
+				TStaticBlendState<>::GetRHI(),
+				TStaticRasterizerState<>::GetRHI(),
+				TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI()
+			);
+		}
+		else
+		{
+			// Emit scene depth buffer
+			{
+				auto  PixelShader		= View.ShaderMap->GetShader<FEmitSceneDepthPS>();
+				auto* PassParameters	= GraphBuilder.AllocParameters<FEmitSceneDepthPS::FParameters>();
+
+				PassParameters->VisBuffer64 = RasterContext.VisBuffer64;
+				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding
+				(
+					SceneDepth,
+					ERenderTargetLoadAction::ELoad,
+					FExclusiveDepthStencil::DepthWrite_StencilWrite
+				);
+
+				FPixelShaderUtils::AddFullscreenPass(
+					GraphBuilder,
+					GetGlobalShaderMap(View.FeatureLevel),
+					RDG_EVENT_NAME("Emit Scene Depth"),
+					PixelShader,
+					PassParameters,
+					View.ViewRect,
+					TStaticBlendState<>::GetRHI(),
+					TStaticRasterizerState<>::GetRHI(),
+					TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI()
+				);
+			}
+
+			// Emit stencil and velocity buffers (TODO)
+			{
+				auto  PixelShader		= View.ShaderMap->GetShader<FEmitSceneStencilPS>();
+				auto* PassParameters	= GraphBuilder.AllocParameters<FEmitSceneStencilPS::FParameters>();
+
+				PassParameters->View						= View.ViewUniformBuffer;
+				PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
+				PassParameters->SOAStrides					= CullingContext.SOAStrides;
+				PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV();
+				PassParameters->ClusterPageHeaders			= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
+				PassParameters->VisBuffer64					= RasterContext.VisBuffer64;
+				PassParameters->RenderTargets.DepthStencil	= FDepthStencilBinding
+				(
+					SceneDepth,
+					ERenderTargetLoadAction::ELoad,
+					FExclusiveDepthStencil::DepthWrite_StencilWrite
+				);
+
+				FPixelShaderUtils::AddFullscreenPass(
+					GraphBuilder,
+					GetGlobalShaderMap(View.FeatureLevel),
+					RDG_EVENT_NAME("Emit Scene Stencil/Velocity"),
+					PixelShader,
+					PassParameters,
+					View.ViewRect,
+					TStaticBlendState<>::GetRHI(),
+					TStaticRasterizerState<>::GetRHI(),
+					TStaticDepthStencilState<false, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI(),
+					StencilDecalMask
+				);
+			}
+		}
+
+		if (GRHISupportsResummarizeHTile && GNaniteResummarizeHTile != 0)
+		{
+			// Resummarize HTile meta data if the RHI supports it
+			AddResummarizeHTilePass(GraphBuilder, SceneDepth);
+		}
 	}
+
+	ConvertToExternalTexture(GraphBuilder, MaterialDepth, OutMaterialDepth);
 }
 
 struct FNaniteMaterialPassCommand
@@ -3780,219 +4023,83 @@ void DrawBasePass(
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteMaterials);
 
 	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get();
-	const ENaniteMeshPass::Type MeshPass = ENaniteMeshPass::BasePass;
 
 	const int32 ViewWidth		= View.ViewRect.Max.X - View.ViewRect.Min.X;
 	const int32 ViewHeight		= View.ViewRect.Max.Y - View.ViewRect.Min.Y;
 	const FIntPoint ViewSize	= FIntPoint(ViewWidth, ViewHeight);
 
-	TRefCountPtr<IPooledRenderTarget> DebugVisualizationOutput;
-	TRefCountPtr<IPooledRenderTarget> MaterialDepthOutput; // Only used for visualizing material depth export
-
-	if (!UseComputeDepthExport() && (GNaniteMaterialCulling == 1 || GNaniteMaterialCulling == 2))
-	{
-		// Mode 1 and 2 (32bit mask) is currently unsupported when compute depth export is disabled.
-		// Culling was intended, so fall back to range load method.
-		// TODO: Test and optimize further before allowing the new fallback
-		//GNaniteMaterialCulling = 3;
-		GNaniteMaterialCulling = 0;
-	}
-
 	int32 VelocityRTIndex = -1;
 	FRenderTargetBinding RenderTargets[MaxSimultaneousRenderTargets] = {};
 	int32 NumMRTs = SceneTargets.GetGBufferRenderTargets(GraphBuilder, ERenderTargetLoadAction::ELoad, RenderTargets, VelocityRTIndex);
 
-	FRDGTextureRef VisBuffer64		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.VisBuffer64,		GSystemTextures.BlackDummy);
-	FRDGTextureRef DbgBuffer64		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.DbgBuffer64,		GSystemTextures.BlackDummy);
-	FRDGTextureRef DbgBuffer32		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.DbgBuffer32,		GSystemTextures.BlackDummy);
-	FRDGTextureRef MaterialDepth	= SceneDepth;
+	FRDGTextureRef MaterialDepth	= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.MaterialDepth, GSystemTextures.BlackDummy);
+	FRDGTextureRef VisBuffer64		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.VisBuffer64,   GSystemTextures.BlackDummy);
+	FRDGTextureRef DbgBuffer64		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.DbgBuffer64,   GSystemTextures.BlackDummy);
+	FRDGTextureRef DbgBuffer32		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.DbgBuffer32,   GSystemTextures.BlackDummy);
+
 	FRDGBufferRef VisibleClustersSWHW	= GraphBuilder.RegisterExternalBuffer(RasterResults.VisibleClustersSWHW);
 
 	const bool b32BitMaskCulling = (GNaniteMaterialCulling == 1 || GNaniteMaterialCulling == 2);
+	const bool bTileGridCulling  = (GNaniteMaterialCulling == 3 || GNaniteMaterialCulling == 4);
 
-	FRDGBufferDesc   VisibleMaterialsDesc = FRDGBufferDesc::CreateStructuredDesc(4, b32BitMaskCulling ? FNaniteCommandInfo::MAX_STATE_BUCKET_ID+1 : 1);
-	FRDGBufferRef    VisibleMaterials     = GraphBuilder.CreateBuffer(VisibleMaterialsDesc, TEXT("NaniteVisibleMaterials"));
-	FRDGBufferUAVRef VisibleMaterialsUAV  = GraphBuilder.CreateUAV(VisibleMaterials);
+	const FIntPoint TileGridDim = bTileGridCulling ? FMath::DivideAndRoundUp(ViewSize, { 64, 64 }) : FIntPoint(1, 1);
 
-	// Visible material buffer is currently only filled by compute depth export pass.
-	// If that's not used, then initialize all materials to visible.
+	FRDGBufferDesc     VisibleMaterialsDesc	= FRDGBufferDesc::CreateStructuredDesc(4, b32BitMaskCulling ? FNaniteCommandInfo::MAX_STATE_BUCKET_ID+1 : 1);
+	FRDGBufferRef      VisibleMaterials		= GraphBuilder.CreateBuffer(VisibleMaterialsDesc, TEXT("NaniteVisibleMaterials"));
+	FRDGBufferUAVRef   VisibleMaterialsUAV	= GraphBuilder.CreateUAV(VisibleMaterials);
+	FRDGTextureDesc    MaterialRangeDesc	= FRDGTextureDesc::Create2D(TileGridDim, PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
+	FRDGTextureRef     MaterialRange		= GraphBuilder.CreateTexture(MaterialRangeDesc, TEXT("NaniteMaterialRange"));
+	FRDGTextureUAVRef  MaterialRangeUAV		= GraphBuilder.CreateUAV(MaterialRange);
+	FRDGTextureSRVDesc MaterialRangeSRVDesc	= FRDGTextureSRVDesc::Create(MaterialRange);
+	FRDGTextureSRVRef  MaterialRangeSRV		= GraphBuilder.CreateSRV(MaterialRangeSRVDesc);
+
 	AddClearUAVPass(GraphBuilder, VisibleMaterialsUAV, 0);
-
-	FRDGTextureDesc MaterialRangeDesc = FRDGTextureDesc::Create2D(FMath::DivideAndRoundUp(ViewSize, { 64, 64 }), PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
-	FRDGTextureRef  MaterialRange = GraphBuilder.CreateTexture(MaterialRangeDesc, TEXT("NaniteMaterialRange"));
-	FRDGTextureUAVRef  MaterialRangeUAV = GraphBuilder.CreateUAV(MaterialRange);
-	FRDGTextureSRVDesc MaterialRangeSRVDesc = FRDGTextureSRVDesc::Create(MaterialRange);
-	FRDGTextureSRVRef  MaterialRangeSRV = GraphBuilder.CreateSRV(MaterialRangeSRVDesc);
-
 	AddClearUAVPass(GraphBuilder, MaterialRangeUAV, { 0u, 1u, 0u, 0u });
 
-	if (UseComputeDepthExport())
+	// Classify materials for tile culling
+	// TODO: Run velocity export in here instead of depth pre-pass?
+	if (b32BitMaskCulling || bTileGridCulling)
 	{
-		// TODO: Don't currently support offset views.
-		checkf(View.ViewRect.Min.X == 0 && View.ViewRect.Min.Y == 0, TEXT("Viewport offset support is not implemented."));
+		FClassifyMaterialsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClassifyMaterialsCS::FParameters>();
+		PassParameters->View					= View.ViewUniformBuffer;
+		PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
+		PassParameters->SOAStrides				= RasterResults.SOAStrides;
+		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
+		PassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
+		PassParameters->VisBuffer64				= VisBuffer64;
+		PassParameters->MaterialDepthTable		= Scene.MaterialTables[ENaniteMeshPass::BasePass].GetDepthTableSRV();
 
-#if 1 //PLATFORM_PS4
-		// TODO: For some strange reason, using FClearValueBinding::None will cause the PS4 GPU to crash
-		//       due to unmapped memory. The creation of the Material HTILE UAV seems to succeed, yet
-		//       the binding is failing somewhere along the way. Needs further investigation.
-		const FClearValueBinding MaterialDepthClear = SceneTargets.GetDefaultDepthClear(); // FClearValueBinding::None; // Cleared explicitly in compute pass
-#else
-		const FClearValueBinding MaterialDepthClear = FClearValueBinding::None; // Cleared explicitly in compute pass
-#endif
-		FRDGTextureDesc MaterialDepthDesc = FRDGTextureDesc::Create2D(
-			SceneTargets.GetBufferSizeXY(),
-			PF_DepthStencil,
-			MaterialDepthClear,
-			TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead | TexCreate_UAV);
+		uint32 DispatchGroupSize = 0;
 
-		MaterialDepth = GraphBuilder.CreateTexture(MaterialDepthDesc, TEXT("MaterialDepth"));
-
-		// Emit scene depth and material depth
+		if (b32BitMaskCulling)
 		{
-			FRDGTextureUAVRef SceneDepthUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::CompressedSurface));
-			FRDGTextureUAVRef SceneStencilUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::Stencil));
-			FRDGTextureUAVRef SceneHTileUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::HTile));
-			FRDGTextureUAVRef MaterialDepthUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(MaterialDepth, ERDGTextureMetaDataAccess::CompressedSurface));
-			FRDGTextureUAVRef MaterialHTileUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(MaterialDepth, ERDGTextureMetaDataAccess::HTile));
-
-			FDepthExportCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDepthExportCS::FParameters>();
-
-			const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(View.ViewRect.Max, 8);	// Only run DepthExport shader on viewport. We have already asserted that ViewRect.Min=0.
-
-			const uint32 PlatformConfig = RHIGetHTilePlatformConfig(SceneTargets.GetBufferSizeXY().X, SceneTargets.GetBufferSizeXY().Y);
-
-			PassParameters->View = View.ViewUniformBuffer;
-			PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
-			PassParameters->SOAStrides = RasterResults.SOAStrides;
-			PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
-			PassParameters->ClusterPageHeaders = Nanite::GStreamingManager.GetClusterPageHeadersSRV();
-
-			PassParameters->DepthExportConfig = FIntVector4(PlatformConfig, SceneTargets.GetBufferSizeXY().X, GET_STENCIL_BIT_MASK(RECEIVE_DECAL, 1), 0);
+			// TODO: Don't currently support offset views.
+			checkf(View.ViewRect.Min.X == 0 && View.ViewRect.Min.Y == 0, TEXT("Viewport offset support is not implemented."));
+			DispatchGroupSize = 8;
 			PassParameters->ViewRect = FIntVector4(View.ViewRect.Min.X, View.ViewRect.Min.Y, View.ViewRect.Max.X, View.ViewRect.Max.Y);
-
-			PassParameters->VisBuffer64 = VisBuffer64;
-
-			PassParameters->SceneHTile = SceneHTileUAV;
-			PassParameters->SceneDepth = SceneDepthUAV;
-			PassParameters->SceneStencil = SceneStencilUAV;
-
-			PassParameters->MaterialHTile = MaterialHTileUAV;
-			PassParameters->MaterialDepth = MaterialDepthUAV;
-
-			PassParameters->MaterialDepthTable = Scene.MaterialTables[MeshPass].GetDepthTableSRV();
 			PassParameters->VisibleMaterials = VisibleMaterialsUAV;
 
-			auto ComputeShader = View.ShaderMap->GetShader<FDepthExportCS>();
-
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("DepthExport"),
-				ComputeShader,
-				PassParameters,
-				DispatchDim
-			);
 		}
-	}
-	else
-	{
-		// Classify materials for 64x64 tiles
-		if (GNaniteMaterialCulling == 3 || GNaniteMaterialCulling == 4)
+		else if (bTileGridCulling)
 		{
-			FReduceMaterialRangeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReduceMaterialRangeCS::FParameters>();
-
-			const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(View.ViewRect.Max, 64);
-
-			PassParameters->View = View.ViewUniformBuffer;
-			PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
-			PassParameters->SOAStrides = RasterResults.SOAStrides;
-			PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
-			PassParameters->ClusterPageHeaders = Nanite::GStreamingManager.GetClusterPageHeadersSRV();
+			DispatchGroupSize = 64;
 			PassParameters->FetchClamp = View.ViewRect.Max - 1;
-			PassParameters->CullingMode = GNaniteMaterialCulling;
-
-			PassParameters->VisBuffer64 = VisBuffer64;
-
-			PassParameters->MaterialDepthTable = Scene.MaterialTables[MeshPass].GetDepthTableSRV();
 			PassParameters->MaterialRange = MaterialRangeUAV;
-
-			auto ComputeShader = View.ShaderMap->GetShader<FReduceMaterialRangeCS>();
-
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("ReduceMaterialRange"),
-				ComputeShader,
-				PassParameters,
-				DispatchDim
-			);
 		}
 
-		// Mark stencil for all pixels that pass depth test
-		{
-			auto* PassParameters = GraphBuilder.AllocParameters<FNaniteMarkStencilPS::FParameters>();
+		const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(View.ViewRect.Max, DispatchGroupSize);
 
-			PassParameters->View = View.ViewUniformBuffer;
-			PassParameters->VisBuffer64 = VisBuffer64;
+		FClassifyMaterialsCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FClassifyMaterialsCS::FCullingMethodDim>(GNaniteMaterialCulling);
+		auto ComputeShader = View.ShaderMap->GetShader<FClassifyMaterialsCS>(PermutationVector.ToDimensionValueId());
 
-			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
-				SceneDepth,
-				ERenderTargetLoadAction::ELoad,
-				FExclusiveDepthStencil::DepthRead_StencilWrite
-			);
-
-			auto PixelShader = View.ShaderMap->GetShader<FNaniteMarkStencilPS>();
-
-			FPixelShaderUtils::AddFullscreenPass(
-				GraphBuilder,
-				GetGlobalShaderMap(View.FeatureLevel),
-				RDG_EVENT_NAME("Mark Stencil"),
-				PixelShader,
-				PassParameters,
-				View.ViewRect,
-				TStaticBlendState<>::GetRHI(),
-				TStaticRasterizerState<>::GetRHI(),
-				TStaticDepthStencilState<false, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI(),
-				STENCIL_SANDBOX_MASK
-				);
-		}
-
-		// Emit material IDs as depth values
-		{
-			auto* PassParameters = GraphBuilder.AllocParameters<FNaniteEmitMaterialIdPS::FParameters>();
-
-			PassParameters->View = View.ViewUniformBuffer;
-			PassParameters->DummyZero = 0u;
-
-			PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
-			PassParameters->SOAStrides = RasterResults.SOAStrides;
-			PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
-			PassParameters->ClusterPageHeaders = Nanite::GStreamingManager.GetClusterPageHeadersSRV();
-
-			PassParameters->VisBuffer64 = VisBuffer64;
-
-			PassParameters->MaterialDepthTable = Scene.MaterialTables[MeshPass].GetDepthTableSRV();
-
-			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
-				SceneDepth,
-				ERenderTargetLoadAction::ELoad,
-				ERenderTargetLoadAction::ELoad,
-				FExclusiveDepthStencil::DepthWrite_StencilRead
-			);
-
-			auto PixelShader = View.ShaderMap->GetShader<FNaniteEmitMaterialIdPS>();
-
-			FPixelShaderUtils::AddFullscreenPass(
-				GraphBuilder,
-				GetGlobalShaderMap(View.FeatureLevel),
-				RDG_EVENT_NAME("Emit Material Id"),
-				PixelShader,
-				PassParameters,
-				View.ViewRect,
-				TStaticBlendState<>::GetRHI(),
-				TStaticRasterizerState<>::GetRHI(),
-				TStaticDepthStencilState<true, CF_Always, true, CF_Equal>::GetRHI(),
-				STENCIL_SANDBOX_MASK
-				);
-		}
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("Classify Materials"),
+			ComputeShader,
+			PassParameters,
+			DispatchDim
+		);
 	}
 
 	// Emit GBuffer Values
@@ -4048,7 +4155,7 @@ void DrawBasePass(
 
 		const FExclusiveDepthStencil MaterialDepthStencil = UseComputeDepthExport()
 			? FExclusiveDepthStencil::DepthWrite_StencilNop
-			: FExclusiveDepthStencil::DepthWrite_StencilRead;
+			: FExclusiveDepthStencil::DepthWrite_StencilWrite;
 
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 			MaterialDepth,
@@ -4061,7 +4168,7 @@ void DrawBasePass(
 			RDG_EVENT_NAME("Emit GBuffer"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[PassParameters, &Scene, MeshPass, ViewRect = View.ViewRect](FRHICommandListImmediate& RHICmdList)
+			[PassParameters, &Scene, ViewRect = View.ViewRect](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 
@@ -4099,7 +4206,7 @@ void DrawBasePass(
 			FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
 
 			TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator> NaniteMaterialPassCommands;
-			BuildNaniteMaterialPassCommands(RHICmdList, Scene.NaniteDrawCommands[MeshPass], NaniteMaterialPassCommands);
+			BuildNaniteMaterialPassCommands(RHICmdList, Scene.NaniteDrawCommands[ENaniteMeshPass::BasePass], NaniteMaterialPassCommands);
 
 			FMeshDrawCommandStateCache StateCache;
 
@@ -4117,64 +4224,27 @@ void DrawBasePass(
 			}
 		});
 	}
+}
 
-	// Emit depth values
-	if (!UseComputeDepthExport())
-	{
-		// While we are emitting depth also decrement stencil (setting it to 0) to disable all Nanite meshes receiving decals.
-		// Then do another pass that sets stencil value to all the Nanite meshes (depth tested) that want to receive decals.
-		{
-			FEmitDepthPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FEmitDepthPS::FParameters>();
+void DrawVisualization(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef SceneDepth,
+	const FScene& Scene,
+	const FViewInfo& View,
+	const FRasterResults& RasterResults
+)
+{
+	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
-			PassParameters->VisBuffer64 = VisBuffer64;
-			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+	LLM_SCOPE_BYTAG(Nanite);
+	RDG_EVENT_SCOPE(GraphBuilder, "NaniteVisualization");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteDebug);
 
-			auto PixelShader = View.ShaderMap->GetShader<FEmitDepthPS>();
+	const int32 ViewWidth    = View.ViewRect.Max.X - View.ViewRect.Min.X;
+	const int32 ViewHeight   = View.ViewRect.Max.Y - View.ViewRect.Min.Y;
+	const FIntPoint ViewSize = FIntPoint(ViewWidth, ViewHeight);
 
-			FPixelShaderUtils::AddFullscreenPass(
-				GraphBuilder,
-				GetGlobalShaderMap(View.FeatureLevel),
-				RDG_EVENT_NAME("Emit Depth"),
-				PixelShader,
-				PassParameters,
-				View.ViewRect,
-				TStaticBlendState<>::GetRHI(),
-				TStaticRasterizerState<>::GetRHI(),
-				TStaticDepthStencilState<true, CF_Always, true, CF_Equal, SO_Keep, SO_Keep, SO_Decrement>::GetRHI(),
-				STENCIL_SANDBOX_MASK
-				);
-		}
-
-		{
-			auto* PassParameters = GraphBuilder.AllocParameters<FEmitStencilPS::FParameters>();
-
-			PassParameters->View = View.ViewUniformBuffer;
-
-			PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
-			PassParameters->SOAStrides = RasterResults.SOAStrides;
-			PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
-			PassParameters->ClusterPageHeaders = Nanite::GStreamingManager.GetClusterPageHeadersSRV();
-
-			PassParameters->VisBuffer64 = VisBuffer64;
-
-			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
-
-			auto PixelShader = View.ShaderMap->GetShader<FEmitStencilPS>();
-
-			FPixelShaderUtils::AddFullscreenPass(
-				GraphBuilder,
-				GetGlobalShaderMap(View.FeatureLevel),
-				RDG_EVENT_NAME("Emit Stencil"),
-				PixelShader,
-				PassParameters,
-				View.ViewRect,
-				TStaticBlendState<>::GetRHI(),
-				TStaticRasterizerState<>::GetRHI(),
-				TStaticDepthStencilState<false, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI(),
-				GET_STENCIL_BIT_MASK(RECEIVE_DECAL, 1)
-				);
-		}
-	}
+	TRefCountPtr<IPooledRenderTarget> DebugVisualizationOutput;
 
 	// Visualize Debug Views
 	if (ShouldExportDebugBuffers())
@@ -4183,6 +4253,12 @@ void DrawBasePass(
 		checkf(View.ViewRect.Min.X == 0 && View.ViewRect.Min.Y == 0, TEXT("Viewport offset support is not implemented."));
 
 		RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteDebug);
+
+		FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.VisBuffer64, GSystemTextures.BlackDummy);
+		FRDGTextureRef DbgBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.DbgBuffer64, GSystemTextures.BlackDummy);
+		FRDGTextureRef DbgBuffer32 = RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.DbgBuffer32, GSystemTextures.BlackDummy);
+
+		FRDGBufferRef VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(RasterResults.VisibleClustersSWHW);
 
 		FRDGTextureDesc DebugOutputDesc = FRDGTextureDesc::Create2D(
 			View.ViewRect.Max,
@@ -4207,14 +4283,14 @@ void DrawBasePass(
 		PassParameters->VisBuffer64				= VisBuffer64;
 		PassParameters->DbgBuffer64				= DbgBuffer64;
 		PassParameters->DbgBuffer32				= DbgBuffer32;
-		PassParameters->MaterialDepthTable		= Scene.MaterialTables[MeshPass].GetDepthTableSRV();
-	#if WITH_EDITOR
-		PassParameters->MaterialHitProxyTable	= Scene.MaterialTables[MeshPass].GetHitProxyTableSRV();
-	#else
+		PassParameters->MaterialDepthTable		= Scene.MaterialTables[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+#if WITH_EDITOR
+		PassParameters->MaterialHitProxyTable	= Scene.MaterialTables[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
+#else
 		// TODO: Permutation with hit proxy support to keep this clean?
 		// For now, bind a valid SRV
-		PassParameters->MaterialHitProxyTable	= Scene.MaterialTables[MeshPass].GetDepthTableSRV();
-	#endif
+		PassParameters->MaterialHitProxyTable	= Scene.MaterialTables[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+#endif
 		PassParameters->DebugOutput				= GraphBuilder.CreateUAV(DebugOutput);
 
 		auto ComputeShader = View.ShaderMap->GetShader<FDebugVisualizeCS>();
@@ -4229,34 +4305,17 @@ void DrawBasePass(
 		ConvertToExternalTexture(GraphBuilder, DebugOutput, DebugVisualizationOutput);
 	}
 
-	// Extract the textures to ensure RDG transitions them to readable as they exit the graph.
-	if (UseComputeDepthExport() && IsVisualizingHTile())
-	{
-		if (GNaniteDebugVisualize == VISUALIZE_MAT_HTILE_MINZ ||
-			GNaniteDebugVisualize == VISUALIZE_MAT_HTILE_MAXZ ||
-			GNaniteDebugVisualize == VISUALIZE_MAT_HTILE_DELTAZ ||
-			GNaniteDebugVisualize == VISUALIZE_MAT_HTILE_ZMASK)
-		{
-			ConvertToExternalTexture(GraphBuilder, MaterialDepth, MaterialDepthOutput);
-		}
-	}
-
-	if (GRHISupportsResummarizeHTile && GNaniteResummarizeHTile != 0 && !UseComputeDepthExport())
-	{
-		// Resummarize HTile meta data if the RHI supports it and the compute depth export path isn't active.
-		AddResummarizeHTilePass(GraphBuilder, SceneDepth);
-	}
-
-	// Start a new graph builder (needed after explicitly inlining the resummarize depth command above)
 	if (IsVisualizingHTile())
 	{
 		// TODO: Don't currently support offset views.
 		checkf(View.ViewRect.Min.X == 0 && View.ViewRect.Min.Y == 0, TEXT("Viewport offset support is not implemented."));
 
+		FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get();
+
 		FShaderResourceViewRHIRef HTileBufferRef;
-		if (MaterialDepthOutput)
+		if (RasterResults.MaterialDepth)
 		{
-			FSceneRenderTargetItem& MaterialDepthRef = MaterialDepthOutput->GetRenderTargetItem();
+			FSceneRenderTargetItem& MaterialDepthRef = RasterResults.MaterialDepth->GetRenderTargetItem();
 			if (!MaterialDepthRef.HTileSRV)
 			{
 				MaterialDepthRef.HTileSRV = RHICreateShaderResourceViewHTile((FTexture2DRHIRef&)MaterialDepthRef.TargetableTexture);
@@ -4271,8 +4330,6 @@ void DrawBasePass(
 
 		if (HTileBufferRef != nullptr)
 		{
-			RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteDebug);
-
 			FRDGTextureRef DebugOutput = GraphBuilder.CreateTexture(
 				FRDGTextureDesc::Create2D(
 					SceneTargets.GetBufferSizeXY(),
@@ -4313,12 +4370,12 @@ END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitMaterialIdRectsParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FPixelShaderUtils::FRasterizeToRectsVS::FParameters, VS)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FNaniteEmitMaterialIdPS::FParameters, PS)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FEmitMaterialDepthPS::FParameters, PS)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitDepthRectsParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FPixelShaderUtils::FRasterizeToRectsVS::FParameters, VS)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FEmitDepthPS::FParameters, PS)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FEmitSceneDepthPS::FParameters, PS)
 END_SHADER_PARAMETER_STRUCT()
 
 void DrawLumenMeshCapturePass(
@@ -4341,7 +4398,12 @@ void DrawLumenMeshCapturePass(
 	checkSlow(DoesPlatformSupportLumenGI(GMaxRHIShaderPlatform));
 
 	LLM_SCOPE_BYTAG(Nanite);
-	RDG_EVENT_SCOPE( GraphBuilder, "Nanite::DrawLumenMeshCapturePass" );
+	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::DrawLumenMeshCapturePass");
+
+	// Material range placeholder (not used by Lumen, but must still be bound)
+	FRDGTextureDesc MaterialRangeDesc = FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource);
+	FRDGTextureRef  MaterialRange = GraphBuilder.CreateTexture(MaterialRangeDesc, TEXT("NaniteMaterialRange"));
+	//FRDGTextureSRVRef  MaterialRangeSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(MaterialRange));
 
 	FRDGTextureRef BlackTexture = GraphBuilder.RegisterExternalTexture( GSystemTextures.BlackDummy, TEXT("Black") );
 
@@ -4405,11 +4467,11 @@ void DrawLumenMeshCapturePass(
 			FExclusiveDepthStencil::DepthWrite_StencilRead
 		);
 
-		auto PixelShader = SharedView->ShaderMap->GetShader<FNaniteEmitMaterialIdPS>();
+		auto PixelShader = SharedView->ShaderMap->GetShader<FEmitMaterialDepthPS>();
 
 		FPixelShaderUtils::AddRasterizeToRectsPass(GraphBuilder,
 			SharedView->ShaderMap,
-			RDG_EVENT_NAME("Emit Material Id"),
+			RDG_EVENT_NAME("Emit Material Depth"),
 			PixelShader,
 			PassParameters,
 			ViewportSize,
@@ -4436,7 +4498,7 @@ void DrawLumenMeshCapturePass(
 
 		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
 
-		PassParameters->MaterialRange = BlackTexture;
+		PassParameters->MaterialRange = MaterialRange;
 		PassParameters->GridSize = { 1u, 1u };
 
 		PassParameters->VisibleMaterials = GraphBuilder.CreateSRV(VisibleMaterials, PF_R32_UINT);
@@ -4546,7 +4608,7 @@ void DrawLumenMeshCapturePass(
 		PassParameters->PS.VisBuffer64 = RasterContext.VisBuffer64;
 		PassParameters->PS.RenderTargets.DepthStencil = FDepthStencilBinding(DepthAtlasTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilRead);
 
-		auto PixelShader = SharedView->ShaderMap->GetShader<FEmitDepthPS>();
+		auto PixelShader = SharedView->ShaderMap->GetShader<FEmitSceneDepthPS>();
 
 		FPixelShaderUtils::AddRasterizeToRectsPass(GraphBuilder,
 			SharedView->ShaderMap,
