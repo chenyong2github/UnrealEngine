@@ -636,6 +636,9 @@ protected:
 
 	/** Called by AWaterBodyActor::PostEditChangeProperty. */
 	virtual void OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool& bShapeOrPositionChanged, bool& bWeightmapSettingsChanged);
+
+	/** Validates this actor's data */
+	virtual void CheckForErrors() override;
 #endif // WITH_EDITOR
 
 	EWaterBodyQueryFlags CheckAndAjustQueryFlags(EWaterBodyQueryFlags InQueryFlags) const;
@@ -645,7 +648,7 @@ protected:
 	bool UpdateWaterHeight();
 	void CreateOrUpdateWaterMID();
 	void CreateOrUpdateUnderwaterPostProcessMID();
-	void FindLandscape() const;
+	ALandscapeProxy* FindLandscape() const;
 	void SetOceanOnWaterSubsystem();
 	void PrepareCurrentPostProcessSettings();
 	void ApplyNavigationSettings() const;

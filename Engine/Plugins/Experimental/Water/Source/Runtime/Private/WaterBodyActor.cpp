@@ -27,11 +27,17 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "GerstnerWaterWaves.h"
 #include "WaterVersion.h"
+#include "Misc/MapErrors.h"
+#include "Misc/UObjectToken.h"
+#include "Logging/MessageLog.h"
+#include "Logging/TokenizedMessage.h"
 
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
 #include "Components/BillboardComponent.h"
 #endif
+
+#define LOCTEXT_NAMESPACE "Water"
 
 // ----------------------------------------------------------------------------------
 
@@ -98,7 +104,7 @@ AWaterBody::AWaterBody(const FObjectInitializer& ObjectInitializer)
 		SplineComp->OnSplineDataChanged().AddUObject(this, &AWaterBody::OnSplineDataChanged);
 	}
 
-	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterSprite"), NSLOCTEXT("Water", "WaterBodySpriteName", "Water Body"));
+	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterSprite"), LOCTEXT("WaterBodySpriteName", "Water Body"));
 #endif
 
 	RootComponent = SplineComp;
@@ -478,8 +484,7 @@ FWaterBodyQueryResult AWaterBody::QueryWaterInfoClosestToWorldLocation(const FVe
 		if (bTryUseLandscape)
 		{
 			TOptional<float> LandscapeHeightOptional;
-			FindLandscape();
-			if (ALandscapeProxy* LandscapePtr = Landscape.Get())
+			if (ALandscapeProxy* LandscapePtr = FindLandscape())
 			{
 				SCOPE_CYCLE_COUNTER(STAT_WaterBody_ComputeLandscapeDepth);
 				LandscapeHeightOptional = LandscapePtr->GetHeightAtLocation(InWorldLocation);
@@ -789,7 +794,7 @@ void AWaterBody::PrepareCurrentPostProcessSettings()
 	}
 }
 
-void AWaterBody::FindLandscape() const
+ALandscapeProxy* AWaterBody::FindLandscape() const
 {
 	if (bAffectsLandscape && !Landscape.IsValid())
 	{
@@ -801,12 +806,12 @@ void AWaterBody::FindLandscape() const
 				if (Box.IsInsideXY(GetActorLocation()))
 				{
 					Landscape = *It;
-					break;
+					return Landscape.Get();
 				}
 			}
 		}
 	}
-
+	return Landscape.Get();
 }
 void AWaterBody::UpdateWaterComponentVisibility()
 {	
@@ -963,6 +968,36 @@ void AWaterBody::OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(AWaterBody, TargetWaveMaskDepth))
 	{
 		RequestGPUWaveDataUpdate();
+	}
+}
+
+void AWaterBody::CheckForErrors()
+{
+	Super::CheckForErrors();
+
+	if (!IsTemplate())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(World))
+			{
+				if (AffectsWaterMesh() && (WaterSubsystem->GetWaterMeshActor() == nullptr))
+				{
+					FMessageLog("MapCheck").Error()
+						->AddToken(FUObjectToken::Create(this))
+						->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_MissingWaterMesh", "This water body requires a WaterMeshActor to be rendered. Please add one to the map. ")))
+						->AddToken(FMapErrorToken::Create(TEXT("WaterBodyMissingWaterMesh")));
+				}
+			}
+
+			if (AffectsLandscape() && (FindLandscape() == nullptr))
+			{
+				FMessageLog("MapCheck").Error()
+					->AddToken(FUObjectToken::Create(this))
+					->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_MissingLandscape", "This water body requires a Landscape to be rendered. Please add one to the map. ")))
+					->AddToken(FMapErrorToken::Create(TEXT("WaterBodyMissingLandscape")));
+			}
+		}
 	}
 }
 
@@ -1502,3 +1537,4 @@ float AWaterBody::GetWaveAttenuationFactor(const FVector& InPosition, float InWa
 	return WaterWaves->GetWaveAttenuationFactor(InPosition, InWaterDepth, TargetWaveMaskDepth);
 }
 
+#undef LOCTEXT_NAMESPACE 

@@ -4,6 +4,10 @@
 #include "CoreMinimal.h"
 #include "LandscapeProxy.h"
 #include "Landscape.h"
+#include "Misc/MapErrors.h"
+#include "Misc/UObjectToken.h"
+#include "Logging/MessageLog.h"
+#include "Logging/TokenizedMessage.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -195,6 +199,22 @@ void ALandscapeBlueprintBrushBase::Destroyed()
 	}
 	OwningLandscape = nullptr;
 #endif
+}
+
+void ALandscapeBlueprintBrushBase::CheckForErrors()
+{
+	Super::CheckForErrors();
+
+	if (GetWorld() && !IsTemplate())
+	{
+		if (OwningLandscape == nullptr)
+		{
+			FMessageLog("MapCheck").Error()
+				->AddToken(FUObjectToken::Create(this))
+				->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_MissingLandscape", "This brush requires a Landscape. Add one to the map or remove the brush actor.")))
+				->AddToken(FMapErrorToken::Create(TEXT("LandscapeBrushMissingLandscape")));
+		}
+	}
 }
 
 void ALandscapeBlueprintBrushBase::GetRenderDependencies(TSet<UObject*>& OutDependencies)
