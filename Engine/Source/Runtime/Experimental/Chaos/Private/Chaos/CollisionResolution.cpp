@@ -23,6 +23,7 @@
 #include "Chaos/Transform.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/GeometryQueries.h"
+#include "Chaos/CollisionOneShotManifolds.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -647,7 +648,7 @@ namespace Chaos
 		// This function will clip the input vertices by a reference shape's planes (Specified by ClippingAxis and Distance for an AABB)
 		// more vertices may be added to outputVertexBuffer by this function
 		// This is the core of the Sutherland-Hodgman algorithm
-		uint32 ClipVerticesAgainstPlane(const FVec3* InputVertexBuffer, FVec3* outputVertexBuffer, uint32 ClipPointCount, FReal ClippingAxis, FReal Distance)
+		uint32 BoxBoxClipVerticesAgainstPlane(const FVec3* InputVertexBuffer, FVec3* outputVertexBuffer, uint32 ClipPointCount, FReal ClippingAxis, FReal Distance)
 		{
 
 			auto CalculateIntersect = [=](const FVec3& Point1, const FVec3& Point2) -> FVec3
@@ -953,8 +954,8 @@ namespace Chaos
 			{
 				if (Coordinate != RefPlaneCoordinateIndex)
 				{
-					ContactPointCount = ClipVerticesAgainstPlane(VertexBuffer1, VertexBuffer2, ContactPointCount, Coordinate, refBoxHalfExtents[Coordinate]);
-					ContactPointCount = ClipVerticesAgainstPlane(VertexBuffer2, VertexBuffer1, ContactPointCount, Coordinate, -refBoxHalfExtents[Coordinate]);
+					ContactPointCount = BoxBoxClipVerticesAgainstPlane(VertexBuffer1, VertexBuffer2, ContactPointCount, Coordinate, refBoxHalfExtents[Coordinate]);
+					ContactPointCount = BoxBoxClipVerticesAgainstPlane(VertexBuffer2, VertexBuffer1, ContactPointCount, Coordinate, -refBoxHalfExtents[Coordinate]);
 				}
 			}
 
@@ -1008,6 +1009,7 @@ namespace Chaos
 			if (ContactCount == 0)
 			{
 				ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullDistance, Constraint, true);
+				//ConstructConvexConvexOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullDistance, Constraint, true);
 			}
 			else
 			{
