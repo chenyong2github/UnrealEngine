@@ -62,7 +62,9 @@ TUniquePtr<FDynamicMeshOperator> UVoxelMorphologyMeshesTool::MakeNewOperator()
 	for (int Idx = 0; Idx < ComponentTargets.Num(); Idx++)
 	{
 		Op->Meshes[Idx] = OriginalDynamicMeshes[Idx];
-		Op->Transforms[Idx] = TransformProxies[Idx]->GetTransform();
+		FTransform UseTransform = TransformProxies[Idx]->GetTransform();
+		UseTransform.MultiplyScale3D(TransformInitialScales[Idx]);
+		Op->Transforms[Idx] = UseTransform;
 	}
 
 	VoxProperties->SetPropertiesOnOp(*Op);
