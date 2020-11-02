@@ -60,7 +60,7 @@ void FWaterEditorModule::StartupModule()
 	// Register type actions
 	RegisterAssetTypeAction(MakeShareable(new FAssetTypeActions_WaterWaves));
 
-	GEngine->OnLevelActorAdded().AddRaw(this, &FWaterEditorModule::OnWaterBodyAddedToWorld);
+	GEngine->OnLevelActorAdded().AddRaw(this, &FWaterEditorModule::OnLevelActorAddedToWorld);
 
 	FEditorDelegates::OnMapOpened.AddRaw(this, &FWaterEditorModule::OnMapLoaded);
 	RegisterComponentVisualizer(UWaterSplineComponent::StaticClass()->GetFName(), MakeShareable(new FWaterSplineComponentVisualizer));
@@ -132,10 +132,10 @@ void FWaterEditorModule::RegisterComponentVisualizer(FName ComponentClassName, T
 	}
 }
 
-void FWaterEditorModule::OnWaterBodyAddedToWorld(AActor* Actor)
+void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 {
-	AWaterBody* WaterBody = Cast<AWaterBody>(Actor);
-	if (WaterBody && !Actor->bIsEditorPreviewActor && !Actor->HasAnyFlags(RF_Transient) && WaterBody->GetWaterBodyType() != EWaterBodyType::Transition)
+	IWaterBrushActorInterface* WaterBrushActor = Cast<IWaterBrushActorInterface>(Actor);
+	if (WaterBrushActor && !Actor->bIsEditorPreviewActor && !Actor->HasAnyFlags(RF_Transient) && WaterBrushActor->AffectsLandscape())
 	{
 		UWorld* ActorWorld = Actor->GetWorld();
 		if (ActorWorld && ActorWorld->IsEditorWorld())
