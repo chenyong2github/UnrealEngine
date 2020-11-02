@@ -73,11 +73,14 @@ void ADisplayClusterRootActor::InitializeFromConfig(const FString& ConfigFile)
 	// Clean up current hierarchy before building a new one
 	CleanupHierarchy();
 
-	// Update config data
-	UDisplayClusterConfigurationData* ConfigData = IDisplayClusterConfiguration::Get().LoadConfig(ConfigFile, this);
-	if (ConfigData)
+	if (!ConfigFile.IsEmpty())
 	{
-		InitializeFromConfig(ConfigData);
+		// Update config data
+		UDisplayClusterConfigurationData* ConfigData = IDisplayClusterConfiguration::Get().LoadConfig(ConfigFile, this);
+		if (ConfigData)
+		{
+			InitializeFromConfig(ConfigData);
+		}
 	}
 }
 
