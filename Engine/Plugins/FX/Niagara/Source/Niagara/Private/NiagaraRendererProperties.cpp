@@ -265,9 +265,18 @@ uint32 UNiagaraRendererProperties::ComputeMaxUsedComponents(const FNiagaraDataSe
 	return MaxNumComponents;
 }
 
-bool UNiagaraRendererProperties::NeedsLoadForTargetPlatform(const class ITargetPlatform* TargetPlatform)const
+bool UNiagaraRendererProperties::NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const
 {
-	return bIsEnabled && Platforms.IsEnabledForPlatform(TargetPlatform->IniPlatformName());
+	// only keep enabled renderers that are parented to valid emitters
+	if (const UNiagaraEmitter* OwnerEmitter = GetTypedOuter<const UNiagaraEmitter>())
+	{
+		if (OwnerEmitter->NeedsLoadForTargetPlatform(TargetPlatform))
+		{
+			return bIsEnabled && Platforms.IsEnabledForPlatform(TargetPlatform->IniPlatformName());
+		}
+	}
+
+	return false;
 }
 
 void UNiagaraRendererProperties::PostLoadBindings(ENiagaraRendererSourceDataMode InSourceMode)
