@@ -87,7 +87,7 @@ namespace ChaosTest
 		Particles.X(4) = TVector<T, 3>(1, 5, 1);
 		Particles.X(5) = TVector<T, 3>(1, 1, -5);
 
-		FConvex Convex(MoveTemp(Particles));
+		FConvex Convex(MoveTemp(Particles), 0.0f);
 
 		//simple into the triangle
 		bool bHit = Convex.Raycast(TVector<T, 3>(3, 2, 2), TVector<T, 3>(0, 0, -1), 2, 0, Time, Position, Normal, FaceIndex);
@@ -143,7 +143,7 @@ namespace ChaosTest
 		Particles.X(4) = TVector<T, 3>(0, 1, 1);
 		Particles.X(5) = TVector<T, 3>(-1, -1, -1);
 
-		TUniquePtr<FImplicitObject> Convex = MakeUnique<FConvex>(MoveTemp(Particles));
+		TUniquePtr<FImplicitObject> Convex = MakeUnique<FConvex>(MoveTemp(Particles), 0.0f);
 
 		//identity scale
 		{

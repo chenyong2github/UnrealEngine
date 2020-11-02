@@ -555,7 +555,7 @@ namespace ChaosTest {
 		Cube.X(7) = TVector<float, 3>(1000, 1000, 0);
 		Cube.X(8) = TVector<float, 3>(0, 0, 0);
 
-		Particle->SetDynamicGeometry(MakeUnique<FConvex>(Cube));
+		Particle->SetDynamicGeometry(MakeUnique<FConvex>(Cube, 0.0f));
 
 		::ChaosTest::SetParticleSimDataToCollide({ Particle });
 
@@ -622,7 +622,7 @@ namespace ChaosTest {
 		InParticles.InvM() = 1.f;
 		InParticles.I() = PMatrix<T, 3, 3>(1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f);
 		InParticles.InvI() = PMatrix<T, 3, 3>(1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f);
-		InParticles.SetDynamicGeometry(MakeUnique<FConvex>(Cube));//, Margin));
+		InParticles.SetDynamicGeometry(MakeUnique<FConvex>(Cube, 0.0f));
 		InParticles.SetObjectStateLowLevel(EObjectStateType::Dynamic);
 
 		::ChaosTest::SetParticleSimDataToCollide({ &InParticles });
