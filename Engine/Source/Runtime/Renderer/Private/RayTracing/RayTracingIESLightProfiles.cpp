@@ -2,10 +2,11 @@
 
 #include "RayTracingIESLightProfiles.h"
 #include "SceneRendering.h"
+#include "CopyTextureShaders.h"
 
 #if RHI_RAYTRACING
 
-void FIESLightProfileResource::BuildIESLightProfilesTexture(const TArray<UTextureLightProfile*, SceneRenderingAllocator>& NewIESProfilesArray)
+void FIESLightProfileResource::BuildIESLightProfilesTexture(FRHICommandListImmediate& RHICmdList, const TArray<UTextureLightProfile*, SceneRenderingAllocator>& NewIESProfilesArray)
 {
 	// Rebuild 2D texture that contains one IES light profile per row
 
@@ -36,43 +37,82 @@ void FIESLightProfileResource::BuildIESLightProfilesTexture(const TArray<UTextur
 		return;
 	}
 
-	uint32 NumFloatsPerRow = AllowedIESProfileWidth() * 4;
+	if (!DefaultTexture)
+	{
+		FRHIResourceCreateInfo CreateInfo;
+		CreateInfo.DebugName = TEXT("RTDefaultIESProfile");
+		DefaultTexture = RHICreateTexture2D(AllowedIESProfileWidth, 1, AllowedIESProfileFormat, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+		FUnorderedAccessViewRHIRef UAV = RHICreateUnorderedAccessView(DefaultTexture, 0);
 
-	IESProfilesBulkData.SetNum(NewArraySize * NumFloatsPerRow);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, DefaultTexture);
+		RHICmdList.ClearUAVFloat(UAV, FVector4(1.0f, 1.0f, 1.0f, 1.0f));
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, DefaultTexture);
+	}
 
+	if (!AtlasTexture || AtlasTexture->GetSizeY() != NewArraySize)
+	{
+		FRHIResourceCreateInfo CreateInfo;
+		CreateInfo.DebugName = TEXT("RTIESProfileAtlas");
+		AtlasTexture = RHICreateTexture2D(AllowedIESProfileWidth, NewArraySize, AllowedIESProfileFormat, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+		AtlasUAV = RHICreateUnorderedAccessView(AtlasTexture, 0);
+	}
+
+	CopyTextureCS::DispatchContext DispatchContext;
+	TShaderRef<FCopyTextureCS> Shader = FCopyTextureCS::SelectShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), 
+		ECopyTextureResourceType::Texture2D, // SrcType
+		ECopyTextureResourceType::Texture2D, // DstType
+		ECopyTextureValueType::Float,
+		DispatchContext); // out DispatchContext
+	FRHIComputeShader* ShaderRHI = Shader.GetComputeShader();
+
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, AtlasTexture);
+	RHICmdList.SetComputeShader(ShaderRHI);
+	RHICmdList.SetUAVParameter(ShaderRHI, Shader->GetDstResourceParam().GetBaseIndex(), AtlasUAV);
+	RHICmdList.BeginUAVOverlap();
 	for (uint32 ProfileIndex = 0; ProfileIndex < NewArraySize; ++ProfileIndex)
 	{
 		IESTextureData[ProfileIndex] = NewIESProfilesArray[ProfileIndex];
 		const UTextureLightProfile* LightProfileTexture = IESTextureData[ProfileIndex];
-		const uint32 Offset = NumFloatsPerRow * ProfileIndex;
-		FFloat16* DataPtr = &IESProfilesBulkData[Offset];
 
+		FTextureRHIRef ProfileTexture; 
 		if (IsIESTextureFormatValid(LightProfileTexture))
 		{
-			LightProfileTexture->PlatformData->Mips[0].BulkData.GetCopy((void**)&DataPtr, false);
+			ProfileTexture = LightProfileTexture->Resource->TextureRHI;
 		}
-	}
-
-	if (!TextureRHI || TextureRHI->GetSizeY() != NewArraySize)
-	{
-		FRHIResourceCreateInfo CreateInfo;
-		const ETextureCreateFlags TexCreateFlags = TexCreate_Dynamic | TexCreate_NoTiling | TexCreate_ShaderResource;
-		TextureRHI = RHICreateTexture2D(256, NewArraySize, PF_FloatRGBA, 1, 1, TexCreateFlags, CreateInfo);
-	}
-
-	uint32 DestStride;
-	FFloat16* TargetPtr = (FFloat16*)RHILockTexture2D(TextureRHI, 0, RLM_WriteOnly, DestStride, false);
-	{
-		check(DestStride == sizeof(FFloat16) * NumFloatsPerRow);
-
-		for (uint32 RowIndex = 0; RowIndex < NewArraySize; ++RowIndex)
+		else
 		{
-			FFloat16* Row = TargetPtr + RowIndex * DestStride / sizeof(FFloat16);
-			const FFloat16* SourcePtr = IESProfilesBulkData.GetData() + NumFloatsPerRow * RowIndex;
-			FPlatformMemory::Memcpy(Row, SourcePtr, sizeof(FFloat16) * NumFloatsPerRow);
+			ProfileTexture = DefaultTexture;
 		}
+
+		RHICmdList.SetShaderTexture(ShaderRHI, Shader->GetSrcResourceParam().GetBaseIndex(), ProfileTexture);
+		Shader->Dispatch(RHICmdList, DispatchContext,
+			FIntVector(0, 0, 0), // SrcOffset
+			FIntVector(0, ProfileIndex, 0), // DstOffset
+			FIntVector(AllowedIESProfileWidth, 1, 1));
 	}
-	RHIUnlockTexture2D(TextureRHI, 0, false);
+	RHICmdList.EndUAVOverlap();
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, AtlasTexture);
+}
+
+bool FIESLightProfileResource::IsIESTextureFormatValid(const UTextureLightProfile* Texture) const
+{
+	if (Texture
+		&& Texture->Resource
+		&& Texture->Resource->TextureRHI
+		&& Texture->PlatformData
+		&& Texture->PlatformData->PixelFormat == AllowedIESProfileFormat
+		&& Texture->PlatformData->Mips.Num() == 1
+		&& Texture->PlatformData->Mips[0].SizeX == AllowedIESProfileWidth
+		//#dxr_todo: UE-70840 anisotropy in IES files is ignored so far (to support that, we should not store one IES profile per row but use more than one row per profile in that case)
+		&& Texture->PlatformData->Mips[0].SizeY == 1
+		)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 #endif
