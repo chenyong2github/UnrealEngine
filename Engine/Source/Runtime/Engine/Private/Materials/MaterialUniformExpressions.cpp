@@ -1257,7 +1257,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			// It's possible for this command to trigger before a given material is cleaned up and removed from deferred update list
 			// Technically I don't think it's necessary to check 'Resource' for nullptr here, as if TextureReferenceRHI has been initialized, that should be enough
 			// Going to leave the check for now though, to hopefully avoid any unexpected problems
-			if (Value && Value->Resource && Value->TextureReference.TextureReferenceRHI && (Value->GetMaterialType() & ValidTextureTypes) != 0u)
+			if (Value && Value->Resource && Value->TextureReference.TextureReferenceRHI && Value->TextureReference.TextureReferenceRHI->GetReferencedTexture() && (Value->GetMaterialType() & ValidTextureTypes) != 0u)
 			{
 				FSamplerStateRHIRef* SamplerSource = &Value->Resource->SamplerStateRHI;
 
