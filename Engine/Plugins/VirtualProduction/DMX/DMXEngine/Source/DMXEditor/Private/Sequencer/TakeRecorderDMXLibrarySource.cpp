@@ -136,6 +136,8 @@ FText UTakeRecorderDMXLibrarySource::GetDisplayTextImpl() const
 
 void UTakeRecorderDMXLibrarySource::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 	
 	if ((PropertyName == GET_MEMBER_NAME_CHECKED(UTakeRecorderDMXLibrarySource, FixturePatchRefs)
