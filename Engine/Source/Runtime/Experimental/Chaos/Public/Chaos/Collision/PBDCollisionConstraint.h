@@ -19,7 +19,8 @@ namespace Chaos
 	{
 	public:
 		FVec3 ShapeContactPoints[2];	// Shape-space contact points on the two bodies
-		FVec3 ShapeContactNormal;		// Shape-space contact normal relative to second body
+		FVec3 ShapeContactNormal;		// Shape-space contact normal relative to the NormalOwner, but with direction that always goes from body 1 to body 0
+		int32 ContactNormalOwnerIndex;	// The shape which owns the contact normal (usually the second body, but not always for manifolds)
 
 		// @todo(chaos): these do not need to be stored here (they can be derived from above)
 		FVec3 Location;					// World-space contact location
@@ -27,7 +28,8 @@ namespace Chaos
 		FReal Phi;						// Contact separation (negative for overlap)
 
 		FContactPoint()
-			: Normal(1, 0, 0)
+			: ContactNormalOwnerIndex(1)
+			, Normal(1, 0, 0)
 			, Phi(TNumericLimits<FReal>::Max()) {}
 
 		bool IsSet() const { return (Phi != TNumericLimits<FReal>::Max()); }
@@ -38,8 +40,8 @@ namespace Chaos
 	public:
 		FManifoldPoint() 
 			: CoMContactPoints{ FVec3(0), FVec3(0) }
+			, PrevCoMContactPoints{ FVec3(0), FVec3(0) }
 			, CoMContactNormal(0)
-			, PrevCoMContactPoint1(0)
 			, NetImpulse(0)
 			, NetPushOut(0)
 			, NetPushOutImpulse(0)
@@ -54,8 +56,8 @@ namespace Chaos
 		FManifoldPoint(const FContactPoint& InContactPoint) 
 			: ContactPoint(InContactPoint)
 			, CoMContactPoints{ FVec3(0), FVec3(0) }
+			, PrevCoMContactPoints{ FVec3(0), FVec3(0) }
 			, CoMContactNormal(0)
-			, PrevCoMContactPoint1(0)
 			, NetImpulse(0)
 			, NetPushOut(0)
 			, NetPushOutImpulse(0)
@@ -67,10 +69,11 @@ namespace Chaos
 			, bActive(false)
 		{}
 
+		// @todo(chaos): Normal and plane owner should be per manifold, not per manifold-point when we are not using incremental manifolds any more
 		FContactPoint ContactPoint;			// Shape-space data from low-level collision detection
 		FVec3 CoMContactPoints[2];			// CoM-space contact points on the two bodies
-		FVec3 CoMContactNormal;				// CoM-space contact normal relative to second body
-		FVec3 PrevCoMContactPoint1;			// CoM-space contact point on second body at previous transforms (used for static friction)
+		FVec3 PrevCoMContactPoints[2];		// CoM-space contact points on the two bodies at previous transforms (used for static friction)
+		FVec3 CoMContactNormal;				// CoM-space contact normal relative to ContactNormalOwner body	
 		FVec3 NetImpulse;					// Total impulse applied by this contact point
 		FVec3 NetPushOut;					// Total pushout applied at this contact point
 		FReal NetPushOutImpulse;			// Total pushout impulse along normal (for final velocity correction) applied at this contact point
