@@ -178,6 +178,11 @@ void FStreamedAudioChunk::Serialize(FArchive& Ar, UObject* Owner, int32 ChunkInd
 	{
 		Ar << DerivedDataKey;
 	}
+
+	if (Ar.IsLoading() && bCooked)
+	{
+		bLoadedFromCookedPackage = true;
+	}
 #endif // #if WITH_EDITORONLY_DATA
 }
 
