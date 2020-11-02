@@ -1201,6 +1201,26 @@ void FPhysScene_PhysX::WaitPhysScenes()
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FPhysScene_WaitPhysScenes);
 		FTaskGraphInterface::Get().WaitUntilTasksComplete(ThingsToComplete, ENamedThreads::GameThread);
 	}
+
+
+}
+
+FGraphEventArray FPhysScene_PhysX::GetCompletionEvents()
+{
+	FGraphEventArray CompletionEvents;
+	CompletionEvents.Add(PhysicsSceneCompletion);
+	return CompletionEvents;
+
+}
+
+bool FPhysScene_PhysX::IsCompletionEventComplete() const
+{
+	if (PhysicsSceneCompletion && !PhysicsSceneCompletion->IsComplete())
+	{
+		return false;
+	}
+
+	return true;
 }
 
 void FPhysScene_PhysX::SceneCompletionTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)

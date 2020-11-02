@@ -7,8 +7,10 @@
 #include "Chaos/ChaosCache.h"
 #include "Components/StaticMeshComponent.h"
 
+
 namespace Chaos
 {
+
 	FComponentCacheAdapter::SupportType FStaticMeshCacheAdapter::SupportsComponentClass(UClass* InComponentClass) const
 	{
 		UClass* Desired = GetDesiredClass();
@@ -55,6 +57,8 @@ namespace Chaos
 
 	void FStaticMeshCacheAdapter::Record_PostSolve(UPrimitiveComponent* InComponent, const FTransform& InRootTransform, FPendingFrameWrite& OutFrame, Chaos::FReal InTime) const
 	{
+#if WITH_CHAOS
+
 		UStaticMeshComponent* MeshComp = CastChecked<UStaticMeshComponent>(InComponent);
 
 		IPhysicsProxyBase* PhysProxy = MeshComp->BodyInstance.ActorHandle->GetProxy();
@@ -80,6 +84,7 @@ namespace Chaos
 			break;
 		}
 		}
+#endif // WITH_CHAOS
 	}
 
 	template<typename ProxyType>
@@ -117,6 +122,8 @@ namespace Chaos
 
 	void FStaticMeshCacheAdapter::Playback_PreSolve(UPrimitiveComponent* InComponent, UChaosCache* InCache, Chaos::FReal InTime, FPlaybackTickRecord& TickRecord, TArray<TPBDRigidParticleHandle<Chaos::FReal, 3>*>& OutUpdatedRigids) const
 	{
+#if WITH_CHAOS
+
 		UStaticMeshComponent* MeshComp = CastChecked<UStaticMeshComponent>(InComponent);
 
 		IPhysicsProxyBase* PhysProxy = MeshComp->BodyInstance.ActorHandle->GetProxy();
@@ -142,6 +149,7 @@ namespace Chaos
 			break;
 		}
 		}
+#endif // WITH_CHAOS
 	}
 
 	FGuid FStaticMeshCacheAdapter::GetGuid() const
@@ -160,6 +168,8 @@ namespace Chaos
 
 	Chaos::FPhysicsSolver* FStaticMeshCacheAdapter::GetComponentSolver(UPrimitiveComponent* InComponent) const
 	{
+#if WITH_CHAOS
+
 		if(InComponent && InComponent->GetWorld())
 		{
 			UWorld* ComponentWorld = InComponent->GetWorld();
@@ -169,6 +179,7 @@ namespace Chaos
 				return WorldScene->GetSolver();
 			}
 		}
+#endif // WITH_CHAOS
 
 		return nullptr;
 	}
@@ -180,10 +191,13 @@ namespace Chaos
 
 	bool FStaticMeshCacheAdapter::InitializeForPlayback(UPrimitiveComponent* InComponent, UChaosCache* InCache) const
 	{
+#if WITH_CHAOS
+
 		if(Cast<UStaticMeshComponent>(InComponent))
 		{
 			FPhysInterface_Chaos::SetIsKinematic_AssumesLocked(InComponent->GetBodyInstance()->ActorHandle, true);
 		}
+#endif // WITH_CHAOS
 
 		return true;
 	}
@@ -191,3 +205,4 @@ namespace Chaos
 }    // namespace Chaos
 
 Chaos::TAutoRegisterCacheAdapter<Chaos::FStaticMeshCacheAdapter> StaticMeshAdapter;
+
