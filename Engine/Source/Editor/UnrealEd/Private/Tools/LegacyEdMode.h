@@ -6,6 +6,7 @@
 #include "Tools/Modes.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Templates/SharedPointer.h"
+#include "Tools/LegacyEdModeInterfaces.h"
 
 #include "LegacyEdMode.generated.h"
 
@@ -22,7 +23,7 @@ class FViewport;
 class UPrimitiveComponent;
 
 UCLASS()
-class UNREALED_API ULegacyEdModeWrapper final : public UEdMode
+class UNREALED_API ULegacyEdModeWrapper final : public UEdMode, public ILegacyEdModeWidgetInterface, public ILegacyEdModeToolInterface, public ILegacyEdModeSelectInterface
 {
 	GENERATED_BODY()
 
@@ -92,6 +93,34 @@ public:
 	virtual FEdMode* AsLegacyMode() override;
 	virtual UTexture2D* GetVertexTexture() override;
 	// End UEdMode overrides
+
+	// ILegacyEdModeWidgetInterface
+	virtual bool AllowWidgetMove() override;
+	virtual bool CanCycleWidgetMode() const override;
+	virtual bool ShowModeWidgets() const override;
+	virtual EAxisList::Type GetWidgetAxisToDraw(UE::Widget::EWidgetMode InWidgetMode) const override;
+	virtual FVector GetWidgetLocation() const override;
+	virtual bool ShouldDrawWidget() const override;
+	virtual bool UsesTransformWidget() const override;
+	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const override;
+	virtual FVector GetWidgetNormalFromCurrentAxis(void* InData) override;
+	virtual bool BoxSelect(FBox& InBox, bool InSelect = true) override;
+	virtual bool FrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect = true) override;
+	virtual void SetCurrentWidgetAxis(EAxisList::Type InAxis) override;
+	virtual EAxisList::Type GetCurrentWidgetAxis() const override;
+	virtual bool UsesPropertyWidgets() const override;
+	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData) override;
+	virtual bool GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData) override;
+	// End ILegacyEdModeWidgetInterface
+
+	// ILegacyEdModeToolInterface overrides
+	virtual void SetCurrentTool(EModeTools InID) override;
+	virtual void SetCurrentTool(FModeTool* InModeTool) override;
+	virtual FModeTool* FindTool(EModeTools InID) override;
+	virtual const TArray<FModeTool*>& GetTools() const override;
+	virtual FModeTool* GetCurrentTool() override;
+	virtual const FModeTool* GetCurrentTool() const override;
+	// End ILegacyEdModeToolInterface overrides
 
 	// Start FCommonDrawHelper overrides
 	virtual void Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI) override;

@@ -51,11 +51,6 @@ void FEditorModeRegistry::Initialize()
 	}
 
 	// Add default editor modes
-	RegisterMode<FEdModeDefault>(
-		FBuiltinEditorModes::EM_Default,
-		NSLOCTEXT("DefaultMode", "DisplayName", "Select"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.SelectMode", "LevelEditor.SelectMode.Small"),
-		true, 0);
 	RegisterMode<FEdModeInterpEdit>(FBuiltinEditorModes::EM_InterpEdit);
 
 	FModuleManager::LoadModuleChecked<FActorPickerModeModule>(TEXT("ActorPickerMode"));

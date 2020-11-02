@@ -139,11 +139,15 @@ bool UEdMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewpor
 
 	if (Event != IE_Released)
 	{
-		if (ToolCommandList->ProcessCommandBindings(Key, FSlateApplication::Get().GetModifierKeys(), false/*Event == IE_Repeat*/))
+		if (ToolsContext->ShouldIgnoreHotkeys() == false)		// allow the context to capture keyboard input if necessary
 		{
-			return true;
+			if (ToolCommandList->ProcessCommandBindings(Key, FSlateApplication::Get().GetModifierKeys(), false/*Event == IE_Repeat*/))
+			{
+				return true;
+			}
 		}
 	}
+
 	// Next pass input to the mode toolkit
 	if (Toolkit.IsValid() && ((Event == IE_Pressed) || (Event == IE_Repeat)))
 	{
@@ -223,9 +227,10 @@ void UEdMode::Enter()
 
 	// Now that the context is ready, make the toolkit
 	CreateToolkit();
-	check(Toolkit.IsValid());
-
-	Toolkit->Init(Owner->GetToolkitHost(), this);
+	if (Toolkit.IsValid())
+	{
+		Toolkit->Init(Owner->GetToolkitHost(), this);
+	}
 
 	BindCommands();
 
@@ -238,7 +243,11 @@ void UEdMode::Enter()
 	if (SettingsObject)
 	{
 		SettingsObject->LoadConfig();
-		Toolkit->SetModeSettingsObject(SettingsObject);
+
+		if (Toolkit.IsValid())
+		{
+			Toolkit->SetModeSettingsObject(SettingsObject);
+		}
 	}
 
 	FEditorDelegates::EditorModeIDEnter.Broadcast(GetID());
@@ -247,6 +256,11 @@ void UEdMode::Enter()
 
 void UEdMode::RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIdentifier, UInteractiveToolBuilder* Builder)
 {
+	if (!Toolkit.IsValid())
+	{
+		return;
+	}
+
 	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
 	ToolsContext->ToolManager->RegisterToolType(ToolIdentifier, Builder);
 	CommandList->MapAction(UICommand,
@@ -268,19 +282,19 @@ void UEdMode::Exit()
 		SettingsObject->SaveConfig();
 	}
 
-	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
-	for (auto& RegisteredTool : RegisteredTools)
-	{
-		CommandList->UnmapAction(RegisteredTool.Key);
-		ToolsContext->ToolManager->UnregisterToolType(RegisteredTool.Value);
-	}
-	RegisteredTools.SetNum(0);
-
 	if (Toolkit.IsValid())
 	{
+		const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
+		for (auto& RegisteredTool : RegisteredTools)
+		{
+			CommandList->UnmapAction(RegisteredTool.Key);
+			ToolsContext->ToolManager->UnregisterToolType(RegisteredTool.Value);
+		}
+
 		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
 		Toolkit.Reset();
 	}
+	RegisteredTools.SetNum(0);
 
 	ToolsContext = nullptr;
 
@@ -484,6 +498,11 @@ TWeakObjectPtr<UEdModeInteractiveToolsContext> UEdMode::GetInteractiveToolsConte
 
 void UEdMode::CreateToolkit()
 {
+	if (!UsesToolkits())
+	{
+		return;
+	}
+
 	check(!Toolkit.IsValid())
 	Toolkit = MakeShareable(new FModeToolkit);
 }

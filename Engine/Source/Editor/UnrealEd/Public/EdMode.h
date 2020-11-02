@@ -11,6 +11,7 @@
 #include "EditorModeRegistry.h"
 #include "Tools/UEdMode.h"
 #include "Templates/SharedPointer.h"
+#include "Tools/LegacyEdModeWidgetHelpers.h"
 
 class FCanvas;
 class FEditorModeTools;
@@ -35,7 +36,7 @@ struct FViewportClick;
 /**
  * Base class for all editor modes.
  */
-class UNREALED_API FEdMode : public TSharedFromThis<FEdMode>, public FGCObject, public FEditorCommonDrawHelper
+class UNREALED_API FEdMode : public TSharedFromThis<FEdMode>, public FGCObject, public FEditorCommonDrawHelper, public FLegacyEdModeWidgetHelper
 {
 public:
 	/** Friends so it can access mode's internals on construction */
@@ -93,16 +94,8 @@ public:
 	virtual bool IsCompatibleWith(FEditorModeID OtherModeID) const { return false; }
 	virtual void ActorMoveNotify() {}
 	virtual void ActorsDuplicatedNotify(TArray<AActor*>& PreDuplicateSelection, TArray<AActor*>& PostDuplicateSelection, bool bOffsetLocations) {}
-	virtual void ActorSelectionChangeNotify();
 	virtual void ActorPropChangeNotify() {}
 	virtual void MapChangeNotify() {}
-	virtual bool ShowModeWidgets() const { return 1; }
-
-	/** If the EdMode is handling InputDelta (i.e., returning true from it), this allows a mode to indicated whether or not the Widget should also move. */
-	virtual bool AllowWidgetMove() { return true; }
-	
-	/** Check to see if the current widget mode can be cycled */
-	virtual bool CanCycleWidgetMode() const { return true; }
 
 	/** If the Edmode is handling its own mouse deltas, it can disable the MouseDeltaTacker */
 	virtual bool DisallowMouseDeltaTracking() const { return false; }
@@ -130,8 +123,6 @@ public:
 	virtual bool PostConvertMouseMovement(FEditorViewportClient* InViewportClient) { return false;}
 
 	virtual bool ShouldDrawBrushWireframe( AActor* InActor ) const { return true; }
-	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData);
-	virtual bool GetCustomInputCoordinateSystem( FMatrix& InMatrix, void* InData ) { return 0; }
 
 	/** If Rotation Snap should be enabled for this mode*/ 
 	virtual bool IsSnapRotationEnabled();
@@ -142,45 +133,21 @@ public:
 	* @return					True if you have overridden the value
 	*/
 	virtual bool SnapRotatorToGridOverride(FRotator& Rotation){ return false; };
-
-	/**
-	 * Allows each mode to customize the axis pieces of the widget they want drawn.
-	 *
-	 * @param	InwidgetMode	The current widget mode
-	 *
-	 * @return					A bitfield comprised of AXIS_* values
-	 */
-	virtual EAxisList::Type GetWidgetAxisToDraw( UE::Widget::EWidgetMode InWidgetMode ) const;
-
-	/**
-	 * Allows each mode/tool to determine a good location for the widget to be drawn at.
-	 */
-	virtual FVector GetWidgetLocation() const;
-
-	/**
-	 * Lets the mode determine if it wants to draw the widget or not.
-	 */
-	virtual bool ShouldDrawWidget() const;
 	virtual void UpdateInternalData() {}
-
-	virtual FVector GetWidgetNormalFromCurrentAxis( void* InData );
 
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override {}
 
 	virtual void Enter();
 	virtual void Exit();
 	virtual UTexture2D* GetVertexTexture();
-	
+
 	/**
 	 * Lets each tool determine if it wants to use the editor widget or not.  If the tool doesn't want to use it,
 	 * it will be fed raw mouse delta information (not snapped or altered in any way).
 	 */
-	virtual bool UsesTransformWidget() const;
-
-	/**
-	 * Lets each mode selectively exclude certain widget types.
-	 */
-	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const;
+	virtual bool UsesTransformWidget() const override;
+	using FLegacyEdModeWidgetHelper::UsesTransformWidget;
+	virtual bool UsesPropertyWidgets() const override;
 
 	virtual void PostUndo() {}
 
@@ -252,12 +219,6 @@ public:
 	const FModeTool* GetCurrentTool() const	{ return CurrentTool; }
 	//@}
 
-	/** @name Current widget axis. */
-	//@{
-	void SetCurrentWidgetAxis(EAxisList::Type InAxis)		{ CurrentWidgetAxis = InAxis; }
-	EAxisList::Type GetCurrentWidgetAxis() const			{ return CurrentWidgetAxis; }
-	//@}
-
 	/** @name Rendering */
 	//@{
 	/** Draws translucent polygons on brushes and volumes. */
@@ -298,24 +259,12 @@ public:
 	 */
 	virtual void BuildModeToolbar(class FToolBarBuilder& ToolbarBuilder) {}
 
-	// Property Widgets
-
-	/**
-	 * Lets each mode selectively enable widgets for editing properties tagged with 'Show 3D Widget' metadata.
-	 */
-	virtual bool UsesPropertyWidgets() const { return false; }
-
-	// @TODO: Find a better home for these?
-	/** Value of UPROPERTY can be edited with a widget in the editor (translation, rotation) */
-	static const FName MD_MakeEditWidget;
-	/** Specifies a function used for validation of the current value of a property.  The function returns a string that is empty if the value is valid, or contains an error description if the value is invalid */
-	static const FName MD_ValidateWidgetUsing;
-	/** Returns true if this structure can support creating a widget in the editor */
-	static bool CanCreateWidgetForStructure(const UStruct* InPropStruct);
-	/** Returns true if this property can support creating a widget in the editor */
-	static bool CanCreateWidgetForProperty(FProperty* InProp);
-	/** See if we should create a widget for the supplied property when selecting an actor instance */
-	static bool ShouldCreateWidgetForProperty(FProperty* InProp);
+	using FLegacyEdModeWidgetHelper::MD_MakeEditWidget;
+	using FLegacyEdModeWidgetHelper::MD_ValidateWidgetUsing;
+	using FLegacyEdModeWidgetHelper::CanCreateWidgetForStructure;
+	using FLegacyEdModeWidgetHelper::CanCreateWidgetForProperty;
+	using FLegacyEdModeWidgetHelper::ShouldCreateWidgetForProperty;
+	using FPropertyWidgetInfo = FLegacyEdModeWidgetHelper::FPropertyWidgetInfo;
 
 public:
 
@@ -333,9 +282,6 @@ private:
 	void OnModeUnregistered(FEditorModeID ModeID);
 
 protected:
-	/** The current axis that is being dragged on the widget. */
-	EAxisList::Type CurrentWidgetAxis;
-
 	/** Optional array of tools for this mode. */
 	TArray<FModeTool*> Tools;
 
@@ -347,72 +293,4 @@ protected:
 
 	/** Editor Mode Toolkit that is associated with this toolkit mode */
 	TSharedPtr<class FModeToolkit> Toolkit;
-
-	/** Pointer back to the mode tools that we are registered with */
-	FEditorModeTools* Owner;
-
-	// Property Widgets
-public:
-	/** Structure that holds info about our optional property widget */
-	struct FPropertyWidgetInfo
-	{
-		FString PropertyName;
-		int32 PropertyIndex;
-		FName PropertyValidationName;
-		FString DisplayName;
-		bool bIsTransform;
-
-		FPropertyWidgetInfo()
-			: PropertyIndex(INDEX_NONE)
-			, bIsTransform(false)
-		{
-		}
-		
-		void GetTransformAndColor(UObject* BestSelectedItem, bool bIsSelected, FTransform& OutLocalTransform, FString& OutValidationMessage, FColor& OutDrawColor) const;
-	};
-
-protected:
-	/**
-	 * Returns the first selected Actor, or NULL if there is no selection.
-	 */
-	AActor* GetFirstSelectedActorInstance() const;
-
-	/**
-	 * Gets an array of property widget info structures for the given struct/class type for the given container.
-	 *
-	 * @param InStruct The type of structure/class to access widget info structures for.
-	 * @param InContainer The container of the given type.
-	 * @param OutInfos An array of widget info structures (output).
-	 */
-	void GetPropertyWidgetInfos(const UStruct* InStruct, const void* InContainer, TArray<FPropertyWidgetInfo>& OutInfos) const;
-
-	/** Finds the best item to display widgets for (preferring selected components over selected actors) */
-	virtual UObject* GetItemToTryDisplayingWidgetsFor(FTransform& OutWidgetToWorld) const;
-
-	/** Name of the property currently being edited */
-	FString EditedPropertyName;
-
-	/** If the property being edited is an array property, this is the index of the element we're currently dealing with */
-	int32 EditedPropertyIndex;
-
-	/** Indicates  */
-	bool bEditedPropertyIsTransform;
 };
-
-/*------------------------------------------------------------------------------
-	Default.
-------------------------------------------------------------------------------*/
-
-/**
- * The default editing mode. 
- */
-class FEdModeDefault : public FEdMode
-{
-public:
-	FEdModeDefault();
-
-	// FEdMode interface
-	virtual bool UsesPropertyWidgets() const override { return true; }
-	// End of FEdMode interface
-};
-

@@ -33,6 +33,7 @@
 #include "InputRouter.h"
 #include "InteractiveGizmoManager.h"
 #include "EdModeInteractiveToolsContext.h"
+#include "Tools/LegacyEdModeInterfaces.h"
 
 /*------------------------------------------------------------------------------
 	FEditorModeTools.
@@ -959,7 +960,7 @@ FMatrix FEditorModeTools::GetLocalCoordinateSystem()
 	bool CustomCoordinateSystemProvided = false;
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
-		FEdMode* LegacyMode = Mode->AsLegacyMode();
+		ILegacyEdModeWidgetInterface* LegacyMode = Cast<ILegacyEdModeWidgetInterface>(Mode);
 		if (LegacyMode && LegacyMode->GetCustomDrawingCoordinateSystem(Matrix, nullptr))
 		{
 			CustomCoordinateSystemProvided = true;
@@ -999,7 +1000,7 @@ EAxisList::Type FEditorModeTools::GetWidgetAxisToDraw( UE::Widget::EWidgetMode I
 	EAxisList::Type OutAxis = EAxisList::All;
 	for( int Index = ActiveScriptableModes.Num() - 1; Index >= 0 ; Index-- )
 	{
-		FEdMode* Mode = ActiveScriptableModes[Index]->AsLegacyMode();
+		ILegacyEdModeWidgetInterface* Mode = Cast<ILegacyEdModeWidgetInterface>(ActiveScriptableModes[Index]);
 		if ( Mode && Mode->ShouldDrawWidget() )
 		{
 			OutAxis = Mode->GetWidgetAxisToDraw( InWidgetMode );
@@ -1047,7 +1048,7 @@ bool FEditorModeTools::AllowsViewportDragTool() const
 	bool bCanUseDragTool = false;
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
-		if (FEdMode* LegacyMode = Mode->AsLegacyMode())
+		if (ILegacyEdModeSelectInterface* LegacyMode = Cast<ILegacyEdModeSelectInterface>(Mode))
 		{
 			bCanUseDragTool |= LegacyMode->AllowsViewportDragTool();
 		}
@@ -1079,7 +1080,7 @@ bool FEditorModeTools::BoxSelect( FBox& InBox, bool InSelect )
 	bool bHandled = false;
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
-		if (FEdMode* LegacyMode = Mode->AsLegacyMode())
+		if (ILegacyEdModeSelectInterface* LegacyMode = Cast<ILegacyEdModeSelectInterface>(Mode))
 		{
 			bHandled |= LegacyMode->BoxSelect(InBox, InSelect);
 		}
@@ -1093,7 +1094,7 @@ bool FEditorModeTools::FrustumSelect( const FConvexVolume& InFrustum, FEditorVie
 	bool bHandled = false;
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
-		if (FEdMode* LegacyMode = Mode->AsLegacyMode())
+		if (ILegacyEdModeSelectInterface* LegacyMode = Cast<ILegacyEdModeSelectInterface>(Mode))
 		{
 			bHandled |= LegacyMode->FrustumSelect(InFrustum, InViewportClient, InSelect);
 		}
@@ -1108,7 +1109,7 @@ bool FEditorModeTools::UsesTransformWidget() const
 	bool bUsesTransformWidget = false;
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
-		if (FEdMode* LegacyMode = Mode->AsLegacyMode())
+		if (ILegacyEdModeWidgetInterface* LegacyMode = Cast<ILegacyEdModeWidgetInterface>(Mode))
 		{
 			bUsesTransformWidget |= LegacyMode->UsesTransformWidget();
 		}
@@ -1123,7 +1124,7 @@ bool FEditorModeTools::UsesTransformWidget( UE::Widget::EWidgetMode CheckMode ) 
 	bool bUsesTransformWidget = false;
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
-		if (FEdMode* LegacyMode = Mode->AsLegacyMode())
+		if (ILegacyEdModeWidgetInterface* LegacyMode = Cast<ILegacyEdModeWidgetInterface>(Mode))
 		{
 			bUsesTransformWidget |= LegacyMode->UsesTransformWidget(CheckMode);
 		}
@@ -1137,7 +1138,7 @@ void FEditorModeTools::SetCurrentWidgetAxis( EAxisList::Type NewAxis )
 {
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
-		if (FEdMode* LegacyMode = Mode->AsLegacyMode())
+		if (ILegacyEdModeWidgetInterface* LegacyMode = Cast<ILegacyEdModeWidgetInterface>(Mode))
 		{
 			LegacyMode->SetCurrentWidgetAxis(NewAxis);
 		}
@@ -1395,7 +1396,7 @@ bool FEditorModeTools::AllowWidgetMove() const
 	bool bAllow = false;
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
-		if (FEdMode* LegacyMode = Mode->AsLegacyMode())
+		if (ILegacyEdModeWidgetInterface* LegacyMode = Cast<ILegacyEdModeWidgetInterface>(Mode))
 		{
 			bAllow |= LegacyMode->AllowWidgetMove();
 		}
@@ -1459,7 +1460,7 @@ bool FEditorModeTools::GetShowWidget() const
 	// Check to see of any active modes support widget drawing
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
-		if (FEdMode* LegacyMode = Mode->AsLegacyMode())
+		if (ILegacyEdModeWidgetInterface* LegacyMode = Cast<ILegacyEdModeWidgetInterface>(Mode))
 		{
 			bDrawModeSupportsWidgetDrawing |= LegacyMode->ShouldDrawWidget();
 		}
@@ -1524,7 +1525,7 @@ FVector FEditorModeTools::GetWidgetLocation() const
 {
 	for (int Index = ActiveScriptableModes.Num() - 1; Index >= 0; Index--)
 	{
-		if (FEdMode* LegacyMode = ActiveScriptableModes[Index]->AsLegacyMode())
+		if (ILegacyEdModeWidgetInterface* LegacyMode = Cast<ILegacyEdModeWidgetInterface>(ActiveScriptableModes[Index]))
 		{
 			if (LegacyMode->UsesTransformWidget())
 			{
@@ -1617,7 +1618,7 @@ const FEdMode* FEditorModeTools::GetActiveMode( FEditorModeID InID ) const
 
 const FModeTool* FEditorModeTools::GetActiveTool( FEditorModeID InID ) const
 {
-	const FEdMode* ActiveMode = GetActiveMode( InID );
+	ILegacyEdModeToolInterface* ActiveMode = Cast<ILegacyEdModeToolInterface>(GetActiveScriptableMode( InID ));
 	const FModeTool* Tool = nullptr;
 	if( ActiveMode )
 	{
@@ -1628,15 +1629,7 @@ const FModeTool* FEditorModeTools::GetActiveTool( FEditorModeID InID ) const
 
 bool FEditorModeTools::IsModeActive( FEditorModeID InID ) const
 {
-	if (GetActiveMode(InID) != nullptr)
-	{
-		return true;
-	}
-	else if (GetActiveScriptableMode(InID) != nullptr)
-	{
-		return true;
-	}
-	return false;
+	return (GetActiveScriptableMode(InID) != nullptr);
 }
 
 bool FEditorModeTools::IsDefaultModeActive() const
@@ -1657,7 +1650,7 @@ bool FEditorModeTools::CanCycleWidgetMode() const
 {
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
-		if (FEdMode* LegacyMode = Mode->AsLegacyMode())
+		if (ILegacyEdModeWidgetInterface* LegacyMode = Cast<ILegacyEdModeWidgetInterface>(Mode))
 		{
 			if (LegacyMode->CanCycleWidgetMode())
 			{
