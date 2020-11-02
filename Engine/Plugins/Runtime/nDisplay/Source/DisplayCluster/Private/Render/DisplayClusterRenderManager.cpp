@@ -122,8 +122,6 @@ void FDisplayClusterRenderManager::EndSession()
 	}
 #endif
 
-	bWindowAdjusted = false;
-
 	SyncPolicy.Reset();
 }
 
@@ -147,35 +145,6 @@ void FDisplayClusterRenderManager::EndScene()
 
 void FDisplayClusterRenderManager::PreTick(float DeltaSeconds)
 {
-	// Adjust position and size of game window to match window config.
-	// This needs to happen after UGameEngine::SwitchGameWindowToUseGameViewport
-	// is called. In practice that happens from FEngineLoop::Init after a call
-	// to UGameEngine::Start - therefore this is done in PreTick on the first frame.
-	if (!bWindowAdjusted)
-	{
-		bWindowAdjusted = true;
-
-		if (FParse::Param(FCommandLine::Get(), TEXT("windowed")))
-		{
-			int32 WinX = 0;
-			int32 WinY = 0;
-			int32 ResX = 0;
-			int32 ResY = 0;
-
-			if (FParse::Value(FCommandLine::Get(), TEXT("WinX="), WinX) &&
-				FParse::Value(FCommandLine::Get(), TEXT("WinY="), WinY) &&
-				FParse::Value(FCommandLine::Get(), TEXT("ResX="), ResX) &&
-				FParse::Value(FCommandLine::Get(), TEXT("ResY="), ResY))
-			{
-				ResizeWindow(WinX, WinY, ResX, ResY);
-			}
-			else
-			{
-				UE_LOG(LogDisplayClusterRender, Error, TEXT("Wrong window pos/size arguments"));
-			}
-		}
-	}
-
 	if (RenderDevicePtr)
 	{
 		RenderDevicePtr->PreTick(DeltaSeconds);
