@@ -26,7 +26,7 @@
 const FName UK2Node_CastPatchToType::InputPinName_FixturePatch(TEXT("Input_FixturePatch"));
 const FName UK2Node_CastPatchToType::InputPinName_FixtureTypeRef(TEXT("Input_FixtureTypeRef"));
 
-const FName UK2Node_CastPatchToType::OutputPinName_FunctionsMap(TEXT("Output_FunctionsMap"));
+const FName UK2Node_CastPatchToType::OutputPinName_AttributesMap(TEXT("Output_FixtureTypeAttributesMap"));
 
 UK2Node_CastPatchToType::UK2Node_CastPatchToType()
 {
@@ -214,12 +214,12 @@ void UK2Node_CastPatchToType::AllocateDefaultPins()
 	InPin_FixtureTypeRef->bNotConnectable = true;
 
  	// Output pins
-	FCreatePinParams PinParams_OutputFunctions;
-	PinParams_OutputFunctions.ContainerType = EPinContainerType::Map;
-	PinParams_OutputFunctions.ValueTerminalType.TerminalCategory = UEdGraphSchema_K2::PC_Int;
+	FCreatePinParams PinParams_OutputAttributes;
+	PinParams_OutputAttributes.ContainerType = EPinContainerType::Map;
+	PinParams_OutputAttributes.ValueTerminalType.TerminalCategory = UEdGraphSchema_K2::PC_Int;
 
-	UEdGraphPin* OutputPin_FunctionsMapPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Struct, FDMXAttributeName::StaticStruct(), OutputPinName_FunctionsMap, PinParams_OutputFunctions);
-	K2Schema->ConstructBasicPinTooltip(*OutputPin_FunctionsMapPin, LOCTEXT("OutputPin_FunctionsMap", "FunctionsMap"), OutputPin_FunctionsMapPin->PinToolTip);
+	UEdGraphPin* OutputPin_AttributesMapPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Struct, FDMXAttributeName::StaticStruct(), OutputPinName_AttributesMap, PinParams_OutputAttributes);
+	K2Schema->ConstructBasicPinTooltip(*OutputPin_AttributesMapPin, LOCTEXT("OutputPin_FixtureTypeAttributesMap", "FixtureTypeAttributesMap"), OutputPin_AttributesMapPin->PinToolTip);
 
 	Super::AllocateDefaultPins();
 }
@@ -239,7 +239,7 @@ void UK2Node_CastPatchToType::ExpandNode(class FKismetCompilerContext& CompilerC
 	
 	UEdGraphPin* MeOut_ThenSuccess = FindPinChecked(TEXT("Success"));
 	UEdGraphPin* MeOut_ThenFailure = FindPinChecked(TEXT("Failure"));
-	UEdGraphPin* MeOut_FunctionsMap = FindPinChecked(OutputPinName_FunctionsMap);
+	UEdGraphPin* MeOut_AttributesMap = FindPinChecked(OutputPinName_AttributesMap);
 	
 	const UEdGraphSchema_K2* K2Schema = CompilerContext.GetSchema();
 
@@ -295,38 +295,38 @@ void UK2Node_CastPatchToType::ExpandNode(class FKismetCompilerContext& CompilerC
  
  	LastThenPin = Branch_Node->GetThenPin();
 
-	// NODE 4. UDMXSubsystem::GetFunctionsMap
-	static const FName FuncName_GetFunctionsMapForPatch = GET_FUNCTION_NAME_CHECKED(UDMXSubsystem, GetFunctionsMapForPatch);
-	UFunction* FuncPtr_GetFunctionsMapForPatch = FindUField<UFunction>(UDMXSubsystem::StaticClass(), FuncName_GetFunctionsMapForPatch);
-	check(FuncPtr_GetFunctionsMapForPatch);
+	// NODE 4. UDMXSubsystem::GetAttributesMap
+	static const FName FuncName_GetAttributesMapForPatch = GET_FUNCTION_NAME_CHECKED(UDMXSubsystem, GetFunctionsMapForPatch);
+	UFunction* FuncPtr_GetAttributesMapForPatch = FindUField<UFunction>(UDMXSubsystem::StaticClass(), FuncName_GetAttributesMapForPatch);
+	check(FuncPtr_GetAttributesMapForPatch);
 
-	UK2Node_CallFunction* GetFunctionsMapForPatch_Node = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, SourceGraph);
-	GetFunctionsMapForPatch_Node->SetFromFunction(FuncPtr_GetFunctionsMapForPatch);
-	GetFunctionsMapForPatch_Node->AllocateDefaultPins();
+	UK2Node_CallFunction* GetAttributesMapForPatch_Node = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, SourceGraph);
+	GetAttributesMapForPatch_Node->SetFromFunction(FuncPtr_GetAttributesMapForPatch);
+	GetAttributesMapForPatch_Node->AllocateDefaultPins();
 
-	UEdGraphPin* GetFunctionsMap_In_Self = GetFunctionsMapForPatch_Node->FindPinChecked(UEdGraphSchema_K2::PN_Self);
-	UEdGraphPin* GetFunctionsMap_In_Exec = GetFunctionsMapForPatch_Node->GetExecPin();
-	UEdGraphPin* GetFunctionsMap_In_FixturePatch = GetFunctionsMapForPatch_Node->FindPinChecked(TEXT("InFixturePatch"));
+	UEdGraphPin* GetAttributesMap_In_Self = GetAttributesMapForPatch_Node->FindPinChecked(UEdGraphSchema_K2::PN_Self);
+	UEdGraphPin* GetAttributesMap_In_Exec = GetAttributesMapForPatch_Node->GetExecPin();
+	UEdGraphPin* GetAttributesMap_In_FixturePatch = GetAttributesMapForPatch_Node->FindPinChecked(TEXT("InFixturePatch"));
 
-	UEdGraphPin* GetFunctionsMap_InOut_FunctionsMap = GetFunctionsMapForPatch_Node->FindPinChecked(TEXT("OutFunctionsMap"));
+	UEdGraphPin* GetAttributesMap_InOut_AttributesMap = GetAttributesMapForPatch_Node->FindPinChecked(TEXT("OutAttributesMap"));
 
-	UEdGraphPin* GetFunctionsMap_Out_Then = GetFunctionsMapForPatch_Node->GetThenPin();
+	UEdGraphPin* GetAttributesMap_Out_Then = GetAttributesMapForPatch_Node->GetThenPin();
 
 	// inputs
- 	K2Schema->TryCreateConnection(GetFunctionsMap_In_Self, DMXSubsytem_ReturnValue);
-	CompilerContext.CopyPinLinksToIntermediate(*MeIn_FixturePatch, *GetFunctionsMap_In_FixturePatch);
-	K2Schema->TryCreateConnection(LastThenPin, GetFunctionsMap_In_Exec);
+ 	K2Schema->TryCreateConnection(GetAttributesMap_In_Self, DMXSubsytem_ReturnValue);
+	CompilerContext.CopyPinLinksToIntermediate(*MeIn_FixturePatch, *GetAttributesMap_In_FixturePatch);
+	K2Schema->TryCreateConnection(LastThenPin, GetAttributesMap_In_Exec);
 
 	// outputs
-	CompilerContext.MovePinLinksToIntermediate(*MeOut_FunctionsMap, *GetFunctionsMap_InOut_FunctionsMap);
-	LastThenPin = GetFunctionsMap_Out_Then;
+	CompilerContext.MovePinLinksToIntermediate(*MeOut_AttributesMap, *GetAttributesMap_InOut_AttributesMap);
+	LastThenPin = GetAttributesMap_Out_Then;
 
 	if(UserDefinedPins.Num() > 0)
 	{
 		TArray<UEdGraphPin*> Map_OUT_Ints;
 		TArray<UEdGraphPin*> Map_IN_Names;
 
-		// Call functions for dmx function values
+		// Call Attributes for dmx function values
 		for (const TSharedPtr<FUserPinInfo>& PinInfo : UserDefinedPins)
 		{
 			UEdGraphPin* Pin = FindPinChecked(PinInfo->PinName);
@@ -349,33 +349,33 @@ void UK2Node_CastPatchToType::ExpandNode(class FKismetCompilerContext& CompilerC
 			UEdGraphPin* IN_FuncName = Map_IN_Names[PairIndex];
 			UEdGraphPin* OUT_FuncInt = Map_OUT_Ints[PairIndex];
 
-			const FName FuncName_GetFunctionsValue = GET_FUNCTION_NAME_CHECKED(UDMXSubsystem, GetFunctionsValue);
-			UFunction* FuncPtr_GetFunctionsValue = FindUField<UFunction>(UDMXSubsystem::StaticClass(), FuncName_GetFunctionsValue);
-			check(FuncPtr_GetFunctionsValue);
+			const FName FuncName_GetAttributesValue = GET_FUNCTION_NAME_CHECKED(UDMXSubsystem, GetFunctionsValue);
+			UFunction* FuncPtr_GetAttributesValue = FindUField<UFunction>(UDMXSubsystem::StaticClass(), FuncName_GetAttributesValue);
+			check(FuncPtr_GetAttributesValue);
 
-			UK2Node_CallFunction* GetFunctionsValue_Node = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, SourceGraph);
-			GetFunctionsValue_Node->SetFromFunction(FuncPtr_GetFunctionsValue);
-			GetFunctionsValue_Node->AllocateDefaultPins();
+			UK2Node_CallFunction* GetAttributesValue_Node = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, SourceGraph);
+			GetAttributesValue_Node->SetFromFunction(FuncPtr_GetAttributesValue);
+			GetAttributesValue_Node->AllocateDefaultPins();
 
-			UEdGraphPin* GetFunctionsValue_In_Self = GetFunctionsValue_Node->FindPinChecked(UEdGraphSchema_K2::PN_Self);
-			UEdGraphPin* GetFunctionsValue_In_Exec = GetFunctionsValue_Node->GetExecPin();
-			UEdGraphPin* GetFunctionsValue_In_FunctionAttribute = GetFunctionsValue_Node->FindPinChecked(TEXT("FunctionAttributeName"));
-			UEdGraphPin* GetFunctionsValue_In_InFunctionsMapPin = GetFunctionsValue_Node->FindPinChecked(TEXT("InFunctionsMap"));
+			UEdGraphPin* GetAttributesValue_In_Self = GetAttributesValue_Node->FindPinChecked(UEdGraphSchema_K2::PN_Self);
+			UEdGraphPin* GetAttributesValue_In_Exec = GetAttributesValue_Node->GetExecPin();
+			UEdGraphPin* GetAttributesValue_In_FunctionAttribute = GetAttributesValue_Node->FindPinChecked(TEXT("FunctionAttributeName"));
+			UEdGraphPin* GetAttributesValue_In_InAttributesMapPin = GetAttributesValue_Node->FindPinChecked(TEXT("InAttributesMap"));
 
-			UEdGraphPin* GetFunctionsValue_Out_ReturnValue = GetFunctionsValue_Node->FindPinChecked(UEdGraphSchema_K2::PN_ReturnValue);
-			UEdGraphPin* GetFunctionsValue_Out_Then= GetFunctionsValue_Node->GetThenPin();
+			UEdGraphPin* GetAttributesValue_Out_ReturnValue = GetAttributesValue_Node->FindPinChecked(UEdGraphSchema_K2::PN_ReturnValue);
+			UEdGraphPin* GetAttributesValue_Out_Then= GetAttributesValue_Node->GetThenPin();
 
 			// Input
-			K2Schema->TryCreateConnection(GetFunctionsValue_In_Self, DMXSubsytem_ReturnValue);
-			CompilerContext.MovePinLinksToIntermediate(*IN_FuncName, *GetFunctionsValue_In_FunctionAttribute);			
+			K2Schema->TryCreateConnection(GetAttributesValue_In_Self, DMXSubsytem_ReturnValue);
+			CompilerContext.MovePinLinksToIntermediate(*IN_FuncName, *GetAttributesValue_In_FunctionAttribute);			
 
 			// Output			
-			K2Schema->TryCreateConnection(GetFunctionsValue_In_InFunctionsMapPin, GetFunctionsMap_InOut_FunctionsMap);
-			CompilerContext.MovePinLinksToIntermediate(*OUT_FuncInt, *GetFunctionsValue_Out_ReturnValue);
+			K2Schema->TryCreateConnection(GetAttributesValue_In_InAttributesMapPin, GetAttributesMap_InOut_AttributesMap);
+			CompilerContext.MovePinLinksToIntermediate(*OUT_FuncInt, *GetAttributesValue_Out_ReturnValue);
 
 			// Execution
-			K2Schema->TryCreateConnection(LastThenPin, GetFunctionsValue_In_Exec);
-			LastThenPin = GetFunctionsValue_Out_Then;
+			K2Schema->TryCreateConnection(LastThenPin, GetAttributesValue_In_Exec);
+			LastThenPin = GetAttributesValue_Out_Then;
 		}
 
 		CompilerContext.MovePinLinksToIntermediate(*MeOut_ThenSuccess, *LastThenPin);
@@ -435,9 +435,9 @@ bool UK2Node_CastPatchToType::ModifyUserDefinedPinDefaultValue(TSharedPtr<FUserP
 	return false;
 }
 
-void UK2Node_CastPatchToType::ExposeFunctions()
+void UK2Node_CastPatchToType::ExposeAttributes()
 {
-	ResetFunctions();
+	ResetAttributes();
 
 	if(bIsExposed && UserDefinedPins.Num())
 	{
@@ -489,11 +489,11 @@ void UK2Node_CastPatchToType::ExposeFunctions()
 	}
 	else
 	{
-		ResetFunctions();
+		ResetAttributes();
 	}	
 }
 
-void UK2Node_CastPatchToType::ResetFunctions()
+void UK2Node_CastPatchToType::ResetAttributes()
 {
 	if(bIsExposed)
 	{
