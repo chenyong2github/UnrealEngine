@@ -2,14 +2,22 @@
 
 #include "SimpleVirtualCamera.h"
 
-ASimpleVirtualCamera::ASimpleVirtualCamera(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+void ASimpleVirtualCamera::PostActorCreated()
 {
+	Super::PostActorCreated();
+
 	// Don't run on CDO
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		VCamComponent = ObjectInitializer.CreateDefaultSubobject<UVCamComponent>(this, TEXT("VCamComponent"));
-		VCamComponent->AttachToComponent(GetCineCameraComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-		VCamComponent->RegisterComponent();
+		VCamComponent = NewObject<UVCamComponent>(this, TEXT("VCamComponent"));
+		if (VCamComponent)
+		{
+			VCamComponent->AttachToComponent(GetCineCameraComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+			VCamComponent->RegisterComponent();
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("SimpleVirtualCamera - unable to create VCamComponent"));
+		}
 	}
 }
