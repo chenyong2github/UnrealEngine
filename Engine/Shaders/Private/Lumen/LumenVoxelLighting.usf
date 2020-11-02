@@ -241,11 +241,10 @@ void SetupVoxelTracesCS(
 	int3 UpdateGridBaseOffset = GroupThreadId.xyz * VIS_BUFFER_TILE_SIZE;
 	uint ObjectIndex = ObjectIndexBuffer[IndexInObjectIndexBuffer];
 
-	float3 ObjectWorldCenter = LoadGlobalObjectPositionAndRadius(ObjectIndex).xyz;
-	float3 ObjectWorldExtent = LoadGlobalObjectExtent(ObjectIndex);
+	FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
 
-	int3 ObjectGridMin = (ObjectWorldCenter - ObjectWorldExtent - ConservativeRasterizationExtent) * ClipmapToUpdateGridScale + ClipmapToUpdateGridBias;
-	int3 ObjectGridMax = (ObjectWorldCenter + ObjectWorldExtent + ConservativeRasterizationExtent) * ClipmapToUpdateGridScale + ClipmapToUpdateGridBias;
+	int3 ObjectGridMin = (DFObjectBounds.Center - DFObjectBounds.BoxExtent - ConservativeRasterizationExtent) * ClipmapToUpdateGridScale + ClipmapToUpdateGridBias;
+	int3 ObjectGridMax = (DFObjectBounds.Center + DFObjectBounds.BoxExtent + ConservativeRasterizationExtent) * ClipmapToUpdateGridScale + ClipmapToUpdateGridBias;
 
 	ObjectGridMin = clamp(ObjectGridMin, UpdateGridBaseOffset, UpdateGridBaseOffset + VIS_BUFFER_TILE_SIZE);
 	ObjectGridMax = clamp(ObjectGridMax, UpdateGridBaseOffset, UpdateGridBaseOffset + VIS_BUFFER_TILE_SIZE);

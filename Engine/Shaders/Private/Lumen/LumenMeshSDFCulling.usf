@@ -136,12 +136,14 @@ void MeshSDFObjectCullVS(
 {
 	uint ObjectIndex = ObjectIndexBuffer[IndexInIndexBuffer];
 
-	float4 ObjectPositionAndRadius = LoadGlobalObjectPositionAndRadius(ObjectIndex);
+	FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
+
 	//@todo - expand to handle conservative rasterization
-	float EffectiveRadius = (ObjectPositionAndRadius.w + MaxMeshSDFInfluenceRadius) * ConservativeRadiusScale;
-	float3 WorldPosition = InPosition.xyz * EffectiveRadius + ObjectPositionAndRadius.xyz;
+	float EffectiveRadius = (DFObjectBounds.SphereRadius + MaxMeshSDFInfluenceRadius) * ConservativeRadiusScale;
+	float3 WorldPosition = InPosition.xyz * EffectiveRadius + DFObjectBounds.Center;
 	OutPosition = mul(float4(WorldPosition, 1), View.WorldToClip);
-	Output.PositionAndRadius = ObjectPositionAndRadius;
+	Output.PositionAndRadius.xyz = DFObjectBounds.Center;
+	Output.PositionAndRadius.w = DFObjectBounds.SphereRadius;
 	Output.ObjectIndex = ObjectIndex;
 } 
 

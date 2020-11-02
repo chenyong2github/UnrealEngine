@@ -702,7 +702,7 @@ float ShadowConeTraceAgainstCulledCapsuleShapes(
 
 bool TileBoundsIntersectDistanceFieldCaster(
 	uint ObjectIndex, 
-	float4 SphereCenterAndRadius, 
+	FDFObjectBounds DFObjectBounds, 
 	float4 TileBoundingSphere, 
 	float3 TileConeAxis,
 	float TileConeAngleCos,
@@ -710,7 +710,7 @@ bool TileBoundsIntersectDistanceFieldCaster(
 	float MaxOcclusionDistance)
 {
 	BRANCH
-	if (SphereIntersectSphere(float4(SphereCenterAndRadius.xyz, SphereCenterAndRadius.w + MaxOcclusionDistance), TileBoundingSphere)
+	if (SphereIntersectSphere(float4(DFObjectBounds.Center, DFObjectBounds.SphereRadius + MaxOcclusionDistance), TileBoundingSphere)
 #if LIGHT_SOURCE_MODE != LIGHT_SOURCE_FROM_RECEIVER
 		// This 'can object cast on tile bounds' test has to be disabled because the weight used to combine occlusion from multiple objects is computed based on distance to occluder only
 		//&& SphereIntersectConeWithMaxDistance(float4(SphereCenterAndRadius.xyz, SphereCenterAndRadius.w + TileBoundingSphere.w), TileBoundingSphere.xyz, TileConeAxis, TileConeAngleCos, TileConeAngleSin, MaxOcclusionDistance)
@@ -787,11 +787,11 @@ uint CullDistanceFieldCastersToTile(
 
 		#endif
 
-		float4 SphereCenterAndRadius = LoadGlobalObjectPositionAndRadius(ObjectIndex);
-		float EffectiveMaxOcclusionDistance = MaxOcclusionDistance + .5f * SphereCenterAndRadius.w;
+		FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
+		float EffectiveMaxOcclusionDistance = MaxOcclusionDistance + .5f * DFObjectBounds.SphereRadius;
 
 		BRANCH
-		if (TileBoundsIntersectDistanceFieldCaster(ObjectIndex, SphereCenterAndRadius, TileCullingData0.BoundingSphere, ConeAxis0, ConeAngleCos0, ConeAngleSin0, EffectiveMaxOcclusionDistance))
+		if (TileBoundsIntersectDistanceFieldCaster(ObjectIndex, DFObjectBounds, TileCullingData0.BoundingSphere, ConeAxis0, ConeAngleCos0, ConeAngleSin0, EffectiveMaxOcclusionDistance))
 		{
 			uint ListIndex;
 			InterlockedAdd(TileNumDistanceFields0, 1U, ListIndex);
@@ -801,7 +801,7 @@ uint CullDistanceFieldCastersToTile(
 		}
 
 		BRANCH
-		if (TileBoundsIntersectDistanceFieldCaster(ObjectIndex, SphereCenterAndRadius, TileCullingData1.BoundingSphere, ConeAxis1, ConeAngleCos1, ConeAngleSin1, EffectiveMaxOcclusionDistance))
+		if (TileBoundsIntersectDistanceFieldCaster(ObjectIndex, DFObjectBounds, TileCullingData1.BoundingSphere, ConeAxis1, ConeAngleCos1, ConeAngleSin1, EffectiveMaxOcclusionDistance))
 		{
 			uint ListIndex;
 			InterlockedAdd(TileNumDistanceFields1, 1U, ListIndex);
@@ -851,11 +851,11 @@ float ShadowConeTraceAgainstCulledDistanceFieldCasters(
 
 		uint ObjectIndex = MeshDistanceFieldCasterIndices[ListObjectIndex];
 
-		float4 SphereCenterAndRadius = LoadGlobalObjectPositionAndRadius(ObjectIndex);
+		FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
 
 		// Increase max occlusion distance based on object size for distance field casters
 		// This improves the solidness of the shadows, since the fadeout distance causes internal structure of objects to become visible
-		float EffectiveMaxOcclusionDistance = MaxOcclusionDistance + .5f * SphereCenterAndRadius.w;
+		float EffectiveMaxOcclusionDistance = MaxOcclusionDistance + .5f * DFObjectBounds.SphereRadius;
 
 		float MaxSphereRadius = TanConeAngle * EffectiveMaxOcclusionDistance;
 		float3 WorldRayEnd = WorldRayStart + UnitRayDirection * EffectiveMaxOcclusionDistance;

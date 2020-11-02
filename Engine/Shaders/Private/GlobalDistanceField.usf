@@ -83,17 +83,13 @@ void CullObjectsToClipmapCS(
 
 	if (ObjectIndex < NumSceneObjects)
 	{
-		float4 ObjectBoundingSphere = LoadGlobalObjectPositionAndRadius(ObjectIndex);
-		uint OftenMoving = LoadGlobalObjectOftenMoving(ObjectIndex);
+		FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
 
 		BRANCH
-		if (ObjectBoundingSphere.w > MeshSDFRadiusThreshold
-			&& (AcceptOftenMovingObjectsOnly == 2 || OftenMoving == AcceptOftenMovingObjectsOnly))
+		if (DFObjectBounds.SphereRadius > MeshSDFRadiusThreshold
+			&& (AcceptOftenMovingObjectsOnly == 2 || DFObjectBounds.OftenMoving == AcceptOftenMovingObjectsOnly))
 		{
-			float3 ObjectCenter = ObjectBoundingSphere.xyz;
-			float3 ObjectExtent = LoadGlobalObjectExtent(ObjectIndex);
-
-			float DistanceSq = ComputeSquaredDistanceBetweenAABBs(ClipmapWorldCenter, ClipmapWorldExtent, ObjectCenter, ObjectExtent);
+			float DistanceSq = ComputeSquaredDistanceBetweenAABBs(ClipmapWorldCenter, ClipmapWorldExtent, DFObjectBounds.Center, DFObjectBounds.BoxExtent);
 			if (DistanceSq < InfluenceRadiusSq)
 			{
 				uint DestIndex;
@@ -284,10 +280,9 @@ void AllocatePagesCS(
 		{
 			uint ObjectIndex = CullGridObjectArray[CullGridObjectOffset + IndexInCullCell];
 
-			float3 ObjectCenter = LoadGlobalObjectPositionAndRadius(ObjectIndex).xyz;
-			float3 ObjectExtent = LoadGlobalObjectExtent(ObjectIndex);
+			FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
 
-			float SquaredDistanceBetweenAABBs = ComputeSquaredDistanceBetweenAABBs(PageWorldCenter, PageWorldExtent, ObjectCenter, ObjectExtent);
+			float SquaredDistanceBetweenAABBs = ComputeSquaredDistanceBetweenAABBs(PageWorldCenter, PageWorldExtent, DFObjectBounds.Center, DFObjectBounds.BoxExtent);
 
 			if (SquaredDistanceBetweenAABBs < ClipmapInfluenceRadius * ClipmapInfluenceRadius)
 			{
@@ -487,10 +482,9 @@ void CullObjectsToGridCS(
 		{
 			uint ObjectIndex = ObjectIndexBuffer[IndexInObjectIndexBuffer];
 
-			float3 ObjectCenter = LoadGlobalObjectPositionAndRadius(ObjectIndex).xyz;
-			float3 ObjectExtent = LoadGlobalObjectExtent(ObjectIndex);
+			FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
 
-			float DistanceSq = ComputeSquaredDistanceBetweenAABBs(CullTileWorldCenter, CullTileWorldExtent, ObjectCenter, ObjectExtent);
+			float DistanceSq = ComputeSquaredDistanceBetweenAABBs(CullTileWorldCenter, CullTileWorldExtent, DFObjectBounds.Center, DFObjectBounds.BoxExtent);
 
 			if (DistanceSq <= InfluenceRadiusSq)
 			{
@@ -518,10 +512,9 @@ void CullObjectsToGridCS(
 		{
 			uint ObjectIndex = ObjectIndexBuffer[IndexInObjectIndexBuffer];
 
-			float3 ObjectCenter = LoadGlobalObjectPositionAndRadius(ObjectIndex).xyz;
-			float3 ObjectExtent = LoadGlobalObjectExtent(ObjectIndex);
+			FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
 
-			float DistanceSq = ComputeSquaredDistanceBetweenAABBs(CullTileWorldCenter, CullTileWorldExtent, ObjectCenter, ObjectExtent);
+			float DistanceSq = ComputeSquaredDistanceBetweenAABBs(CullTileWorldCenter, CullTileWorldExtent, DFObjectBounds.Center, DFObjectBounds.BoxExtent);
 
 			if (DistanceSq <= InfluenceRadiusSq)
 			{
@@ -616,10 +609,9 @@ void ComposeObjectsIntoPagesCS(
 		{
 			uint ObjectIndex = CullGridObjectArray[CullGridObjectOffset + IndexInCullCell];
 
-			float3 ObjectCenter = LoadGlobalObjectPositionAndRadius(ObjectIndex).xyz;
-			float3 ObjectExtent = LoadGlobalObjectExtent(ObjectIndex);
+			FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
 
-			float DistanceSq = ComputeSquaredDistanceBetweenAABBs(ComposeTileWorldCenter, ComposeTileWorldExtent, ObjectCenter, ObjectExtent);
+			float DistanceSq = ComputeSquaredDistanceBetweenAABBs(ComposeTileWorldCenter, ComposeTileWorldExtent, DFObjectBounds.Center, DFObjectBounds.BoxExtent);
 
 			if (DistanceSq < InfluenceRadiusSq)
 			{

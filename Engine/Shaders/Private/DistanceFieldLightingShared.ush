@@ -108,20 +108,25 @@ uint NumSceneObjects;
 StructuredBuffer<float4> SceneObjectBounds;
 StructuredBuffer<float4> SceneObjectData;
 
-float4 LoadGlobalObjectPositionAndRadius(uint ObjectIndex)
+struct FDFObjectBounds
 {
-	return SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 0];
-}
+	float3 Center;		// World space bounds center
+	float SphereRadius;	// World space bounding sphere extent
+	float3 BoxExtent;	// World space AABB extent
+	uint OftenMoving;
+};
 
-float3 LoadGlobalObjectExtent(uint ObjectIndex)
+FDFObjectBounds LoadDFObjectBounds(uint ObjectIndex)
 {
-	return SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 1].xyz;
-}
+	FDFObjectBounds Bounds;
 
-uint LoadGlobalObjectOftenMoving(uint ObjectIndex)
-{
-	float WComponent = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 1].w;
-	return WComponent;
+	Bounds.Center = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 0].xyz;
+	Bounds.SphereRadius = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 0].w;
+
+	Bounds.BoxExtent = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 1].xyz;
+	Bounds.OftenMoving = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 1].w;
+
+	return Bounds;
 }
 
 float4x4 LoadGlobalObjectWorldToVolume(uint ObjectIndex)
