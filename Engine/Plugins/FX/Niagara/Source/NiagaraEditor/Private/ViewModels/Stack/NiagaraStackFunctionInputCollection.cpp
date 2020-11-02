@@ -15,11 +15,12 @@
 
 #include "EdGraph/EdGraphPin.h"
 #include "ScopedTransaction.h"
-#include "NiagaraEditorUtilities.h"
 #include "NiagaraNodeOutput.h"
 #include "Containers/ContainerAllocationPolicies.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackFunctionInputCollection"
+
+FText UNiagaraStackFunctionInputCollection::UncategorizedName = LOCTEXT("Uncategorized", "Uncategorized");
 
 UNiagaraStackFunctionInputCollection::UNiagaraStackFunctionInputCollection()
 	: ModuleNode(nullptr)
@@ -119,6 +120,22 @@ void UNiagaraStackFunctionInputCollection::GetChildInputs(TArray<UNiagaraStackFu
 	}
 }
 
+struct FNiagaraParentData
+{
+	const UEdGraphPin* ParentPin;
+	TArray<int32> ChildIndices;
+};
+
+void UNiagaraStackFunctionInputCollection::AddInvalidChildStackIssue(FName PinName, TArray<FStackIssue>& OutIssues)
+{
+	FStackIssue InvalidHierarchyWarning(
+        EStackIssueSeverity::Warning,
+        FText::Format(LOCTEXT("InvalidHierarchyWarningSummaryFormat", "Invalid ParentAttribute {0} in module metadata."), FText::FromString(PinName.ToString())),
+        FText::Format(LOCTEXT("InvalidHierarchyWarningFormat", "The attribute {0} was used as parent in the metadata although it is itself the child of another attribute.\nPlease check the module metadata to fix this."),
+            FText::FromString(PinName.ToString())), GetStackEditorDataKey(), true);
+	OutIssues.Add(InvalidHierarchyWarning);
+}
+
 void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
 	TSet<const UEdGraphPin*> HiddenPins;
@@ -136,13 +153,12 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 	TMap<FName, UEdGraphPin*> StaticSwitchInputs;
 	TArray<const UEdGraphPin*> PinsWithInvalidTypes;
 
-	FText UncategorizedName = LOCTEXT("Uncategorized", "Uncategorized");
-
 	UNiagaraGraph* InputFunctionGraph = InputFunctionCallNode->FunctionScript != nullptr
 		? CastChecked<UNiagaraScriptSource>(InputFunctionCallNode->FunctionScript->GetSource())->NodeGraph
 		: nullptr;
 
 	TArray<FInputData> InputDataCollection;
+	TMap<FName, FNiagaraParentData> ParentMapping;
 	
 	// Gather input data
 	for (const UEdGraphPin* InputPin : InputPins)
@@ -175,7 +191,21 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 
 		bool IsVisible = !HiddenPins.Contains(InputPin);
 		FInputData InputData = { InputPin, InputVariable.GetType(), InputMetaData ? InputMetaData->EditorSortPriority : 0, InputCategory, false, IsVisible };
-		InputDataCollection.Add(InputData);
+		int32 Index = InputDataCollection.Add(InputData);
+
+		// set up the data for the parent-child mapping
+		if (InputMetaData &&  !InputMetaData->ParentAttribute.IsNone())
+		{
+			if (InputMetaData->ParentAttribute.ToString().StartsWith(PARAM_MAP_MODULE_STR))
+			{
+				ParentMapping.FindOrAdd(InputMetaData->ParentAttribute).ChildIndices.Add(Index);
+			}
+			else
+			{
+				FString NamespacedParent = PARAM_MAP_MODULE_STR + InputMetaData->ParentAttribute.ToString();
+				ParentMapping.FindOrAdd(FName(*NamespacedParent)).ChildIndices.Add(Index);
+			}
+		}
 	}
 
 	// Gather static switch parameters
@@ -186,7 +216,7 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 	{
 		// The static switch pin names to not contain the module namespace, as they are not part of the parameter maps.
 		// We add it here only to check for name clashes with actual module parameters.
-		FString ModuleName = TEXT("Module.");
+		FString ModuleName = PARAM_MAP_MODULE_STR;
 		InputPin->PinName.AppendString(ModuleName);
 		FName SwitchPinName(*ModuleName); 
 
@@ -219,12 +249,58 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 
 		bool IsVisible = !HiddenSwitchPins.Contains(InputPin);
 		FInputData InputData = { InputPin, InputVariable.GetType(), InputMetaData ? InputMetaData->EditorSortPriority : 0, InputCategory, true, IsVisible };
-		InputDataCollection.Add(InputData);
+		int32 Index = InputDataCollection.Add(InputData);
+
+		// set up the data for the parent-child mapping
+		if (InputMetaData)
+		{
+			FNiagaraParentData& ParentData = ParentMapping.FindOrAdd(SwitchPinName);
+			ParentData.ParentPin = InputPin;
+			if (!InputMetaData->ParentAttribute.IsNone())
+			{
+				if (InputMetaData->ParentAttribute.ToString().StartsWith(PARAM_MAP_MODULE_STR))
+				{
+					ParentMapping.FindOrAdd(InputMetaData->ParentAttribute).ChildIndices.Add(Index);
+				}
+				else
+				{
+					FString NamespacedParent = PARAM_MAP_MODULE_STR + InputMetaData->ParentAttribute.ToString();
+					ParentMapping.FindOrAdd(FName(*NamespacedParent)).ChildIndices.Add(Index);
+				}
+			}
+		}
 	}
 
-	// Sort data and keep the uncategorized first
-	InputDataCollection.Sort([UncategorizedName](const FInputData& A, const FInputData& B)
+	// resolve the parent/child relationships
+	for (auto& Entry : ParentMapping)
 	{
+		FNiagaraParentData& Data = Entry.Value;
+		if (Data.ChildIndices.Num() == 0) {continue;}
+		for (FInputData& InputData : InputDataCollection)
+		{
+			if (InputData.Pin != Data.ParentPin) { continue; }
+			if (InputData.bIsChild)
+			{
+				AddInvalidChildStackIssue(InputData.Pin->PinName, NewIssues);
+				continue;
+			}
+			for (int32 ChildIndex : Data.ChildIndices)
+			{
+				if (InputDataCollection[ChildIndex].Children.Num() > 0)
+				{
+					AddInvalidChildStackIssue(InputDataCollection[ChildIndex].Pin->PinName, NewIssues);
+					continue;
+				}
+				InputDataCollection[ChildIndex].bIsChild = true;
+				InputDataCollection[ChildIndex].Category = InputData.Category; // children get the parent category to prevent inconsistencies there
+				InputData.Children.Add(&InputDataCollection[ChildIndex]);
+			}
+		}
+	}
+
+	auto SortPredicate = [](const FInputData& A, const FInputData& B)
+	{
+		// keep the uncategorized attributes first
 		if (A.Category.CompareTo(UncategorizedName) == 0 && B.Category.CompareTo(UncategorizedName) != 0)
 		{
 			return true;
@@ -237,45 +313,63 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 		{
 			return A.SortKey < B.SortKey;
 		}
-		else
-		{
-			return A.Pin->PinName.LexicalLess(B.Pin->PinName);
-		}
-	});
+		return A.Pin->PinName.LexicalLess(B.Pin->PinName);
+	};
 
-	// Populate the category children
-	for (const FInputData& InputData : InputDataCollection)
+	// Sort child and parent data separately
+	TArray<FInputData*> ParentDataCollection;
+	for (FInputData& InputData : InputDataCollection)
 	{
-		// Try to find an existing category in the already processed children.
-		UNiagaraStackInputCategory* InputCategory = FindCurrentChildOfTypeByPredicate<UNiagaraStackInputCategory>(NewChildren,
-			[&](UNiagaraStackInputCategory* CurrentCategory) { return CurrentCategory->GetCategoryName().CompareTo(InputData.Category) == 0; });
-
-		if (InputCategory == nullptr)
+		if (!InputData.bIsChild)
 		{
-			// If we haven't added any children to this category yet see if there is one that can be reused from the current children.
-			InputCategory = FindCurrentChildOfTypeByPredicate<UNiagaraStackInputCategory>(CurrentChildren,
-				[&](UNiagaraStackInputCategory* CurrentCategory) { return CurrentCategory->GetCategoryName().CompareTo(InputData.Category) == 0; });
-			if (InputCategory == nullptr)
-			{
-				// If we don't have a current child for this category make a new one.
-				InputCategory = NewObject<UNiagaraStackInputCategory>(this);
-				InputCategory->Initialize(CreateDefaultChildRequiredData(), *ModuleNode, *InputFunctionCallNode, InputData.Category, GetOwnerStackItemEditorDataKey());
-			}
-			else
-			{
-				// We found a category to reuse, but we need to reset the inputs before we can start adding the current set of inputs.
-				InputCategory->ResetInputs();
-			}
-
-			if (InputData.Category.CompareTo(UncategorizedName) == 0)
-			{
-				InputCategory->SetShouldShowInStack(false);
-			}
-			NewChildren.Add(InputCategory);
+			ParentDataCollection.Add(&InputData);
+			InputData.Children.Sort(SortPredicate);
 		}
-		InputCategory->AddInput(InputData.Pin->PinName, InputData.Type, InputData.bIsStatic ? EStackParameterBehavior::Static : EStackParameterBehavior::Dynamic, InputData.bIsVisible);
+	}
+	ParentDataCollection.Sort(SortPredicate);
+
+	// Populate the categories
+	for (FInputData* ParentData : ParentDataCollection)
+	{
+		AddInputToCategory(*ParentData, CurrentChildren, NewChildren);
+		for (FInputData* ChildData : ParentData->Children)
+		{
+			AddInputToCategory(*ChildData, CurrentChildren, NewChildren);			
+		}
 	}
 	RefreshIssues(DuplicateInputNames, ValidAliasedInputNames, PinsWithInvalidTypes, StaticSwitchInputs, NewIssues);
+}
+
+void UNiagaraStackFunctionInputCollection::AddInputToCategory(const FInputData& InputData, const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren)
+{
+	// Try to find an existing category in the already processed children.
+	UNiagaraStackInputCategory* InputCategory = FindCurrentChildOfTypeByPredicate<UNiagaraStackInputCategory>(NewChildren,
+        [&](UNiagaraStackInputCategory* CurrentCategory) { return CurrentCategory->GetCategoryName().CompareTo(InputData.Category) == 0; });
+
+	if (InputCategory == nullptr)
+	{
+		// If we haven't added any children to this category yet see if there is one that can be reused from the current children.
+		InputCategory = FindCurrentChildOfTypeByPredicate<UNiagaraStackInputCategory>(CurrentChildren,
+            [&](UNiagaraStackInputCategory* CurrentCategory) { return CurrentCategory->GetCategoryName().CompareTo(InputData.Category) == 0; });
+		if (InputCategory == nullptr)
+		{
+			// If we don't have a current child for this category make a new one.
+			InputCategory = NewObject<UNiagaraStackInputCategory>(this);
+			InputCategory->Initialize(CreateDefaultChildRequiredData(), *ModuleNode, *InputFunctionCallNode, InputData.Category, GetOwnerStackItemEditorDataKey());
+		}
+		else
+		{
+			// We found a category to reuse, but we need to reset the inputs before we can start adding the current set of inputs.
+			InputCategory->ResetInputs();
+		}
+
+		if (InputData.Category.CompareTo(UncategorizedName) == 0)
+		{
+			InputCategory->SetShouldShowInStack(false);
+		}
+		NewChildren.Add(InputCategory);
+	}
+	InputCategory->AddInput(InputData.Pin->PinName, InputData.Type, InputData.bIsStatic ? EStackParameterBehavior::Static : EStackParameterBehavior::Dynamic, InputData.bIsVisible, InputData.bIsChild);
 }
 
 UNiagaraStackEntry::FStackIssueFix UNiagaraStackFunctionInputCollection::GetNodeRemovalFix(UEdGraphPin* PinToRemove, FText FixDescription)

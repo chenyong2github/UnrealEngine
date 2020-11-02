@@ -90,6 +90,46 @@ void SNiagaraStackTableRow::SetContentPadding(FMargin InContentPadding)
 	ContentPadding = InContentPadding;
 }
 
+// searches for the first parent stack entry without a front divider
+UNiagaraStackEntry* GetParentEntryNoDivider(UNiagaraStackEntry* Entry)
+{
+	UNiagaraStackEntry* Outer = Cast<UNiagaraStackEntry>(Entry->GetOuter());
+	if (Outer == nullptr || !Outer->HasFrontDivider())
+	{
+		return Outer;
+	}
+	return GetParentEntryNoDivider(Outer);
+}
+
+UNiagaraStackEntry* GetEntryAbove(UNiagaraStackEntry* Entry)
+{
+	UNiagaraStackEntry* Outer = Cast<UNiagaraStackEntry>(Entry->GetOuter());
+	if (Outer)
+	{
+		TArray<UNiagaraStackEntry*> FilteredChildren;
+		Outer->GetFilteredChildren(FilteredChildren);
+		for (int32 Index = 1; Index < FilteredChildren.Num(); Index++)
+		{
+			if (FilteredChildren[Index] == Entry)
+			{
+				return FilteredChildren[Index - 1];
+			}
+		}
+	}
+	return nullptr;
+}
+
+bool HasVisibleChildren(UNiagaraStackEntry* Entry)
+{
+	if (!Entry)
+	{
+		return false;
+	}
+	TArray<UNiagaraStackEntry*> Children;
+	Entry->GetFilteredChildren(Children);
+	return Children.Num() > 0;
+}
+
 void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWidget, TSharedPtr<SWidget> InValueWidget)
 {
 	FSlateColor IconColor = FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetColorNameForExecutionCategory(StackEntry->GetExecutionCategoryName()));
@@ -156,8 +196,20 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 		InNameWidget
 	];
 
-	TSharedPtr<SWidget> ChildContent;
+	UNiagaraStackEntry* ParentEntry = GetParentEntryNoDivider(StackEntry);
+	bool bIsDisplayedInCategory = StackEntry->HasFrontDivider() && ParentEntry && ParentEntry->GetShouldShowInStack();
+	UNiagaraStackEntry* AboveEntry = GetEntryAbove(StackEntry);
+	if (!StackEntry->HasFrontDivider() && AboveEntry && AboveEntry->HasFrontDivider())
+	{
+		ContentPadding.Top += 6;
+	}
+	if (StackEntry->HasFrontDivider())
+	{
+		ContentPadding.Left += IndentSize * (bIsDisplayedInCategory ? 3 : 2) - 4;
+	}
+	bool bInsertDivAbove = StackEntry->GetStackRowStyle() == UNiagaraStackEntry::EStackRowStyle::ItemCategory && HasVisibleChildren(AboveEntry);
 
+	TSharedPtr<SWidget> ChildContent;
 	if (InValueWidget.IsValid())
 	{
 		ChildContent = SNew(SSplitter)
@@ -169,14 +221,31 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 		.Value(NameColumnWidth)
 		.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SNiagaraStackTableRow::OnNameColumnWidthChanged))
 		[
-			SNew(SBox)
-			.Padding(FMargin(ContentPadding.Left, ContentPadding.Top, 5, ContentPadding.Bottom))
-			.HAlign(NameHorizontalAlignment)
-			.VAlign(NameVerticalAlignment)
-			.MinDesiredWidth(NameMinWidth.IsSet() ? NameMinWidth.GetValue() : FOptionalSize())
-			.MaxDesiredWidth(NameMaxWidth.IsSet() ? NameMaxWidth.GetValue() : FOptionalSize())
-			[
-				NameContent
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(ContentPadding.Left, 0, 0, 0))
+		    .AutoWidth()
+		    [
+				 SNew(SBorder)
+		        .BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+		        .BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.DividerColor"))
+		        .Padding(0)
+		        [
+		            SNew(SBox)
+		            .WidthOverride(StackEntry->HasFrontDivider() ? 1 : 0)
+		        ]
+		    ]
+		    + SHorizontalBox::Slot()
+            [
+				SNew(SBox)
+				.Padding(FMargin(0, ContentPadding.Top, 5, ContentPadding.Bottom))
+				.HAlign(NameHorizontalAlignment)
+				.VAlign(NameVerticalAlignment)
+				.MinDesiredWidth(NameMinWidth.IsSet() ? NameMinWidth.GetValue() : FOptionalSize())
+				.MaxDesiredWidth(NameMaxWidth.IsSet() ? NameMaxWidth.GetValue() : FOptionalSize())
+				[
+                    NameContent
+                ]
 			]
 		]
 
@@ -242,16 +311,34 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 				.ForegroundColor(ForegroundColor)
 				.Padding(0)
 				[
-					SNew(SBorder)
-					.BorderImage(this, &SNiagaraStackTableRow::GetSearchResultBorderBrush)
-					.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.SearchHighlightColor"))
-					.Padding(0)
+					SNew(SVerticalBox)
+					+SVerticalBox::Slot()
+					.Padding(bInsertDivAbove ? FMargin(8, 8, 8, 4) : 0)
+					.AutoHeight()
+                    [
+	                    SNew(SBorder)
+			            .BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+			            .BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.DividerColor"))
+			            .Visibility(bInsertDivAbove ? EVisibility::Visible : EVisibility::Collapsed)
+			            .Padding(0)
+			            [
+			                SNew(SBox)
+			                .HeightOverride(1)
+			            ]
+                    ]
+					+SVerticalBox::Slot()
 					[
 						SNew(SBorder)
-						.BorderImage(this, &SNiagaraStackTableRow::GetSelectionBorderBrush)
+						.BorderImage(this, &SNiagaraStackTableRow::GetSearchResultBorderBrush)
+						.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.SearchHighlightColor"))
 						.Padding(0)
 						[
-							ChildContent.ToSharedRef()
+							SNew(SBorder)
+							.BorderImage(this, &SNiagaraStackTableRow::GetSelectionBorderBrush)
+							.Padding(0)
+							[
+								ChildContent.ToSharedRef()
+							]
 						]
 					]
 				]
@@ -410,6 +497,11 @@ EVisibility SNiagaraStackTableRow::GetExecutionCategoryIconVisibility() const
 
 FOptionalSize SNiagaraStackTableRow::GetIndentSize() const
 {
+	if (StackEntry->HasFrontDivider())
+	{
+		UNiagaraStackEntry* ParentEntry = GetParentEntryNoDivider(StackEntry);
+		return (StackEntry->GetIndentLevel() - (ParentEntry && ParentEntry->GetShouldShowInStack() ? 1 : 0)) * IndentSize;
+	}
 	return StackEntry->GetIndentLevel() * IndentSize;
 }
 
