@@ -53,6 +53,9 @@ public:
 	/** Returns true if the given function is a comparison operator */
 	static bool IsComparisonFunc(UFunction const* const Func);
 
+	/** Returns true if the given op name is a comparison operator name */
+	static bool IsComparisonOpName(const FName OpName);
+
 	static FName GetOpNameFromFunction(UFunction const* const Func);
 
 	/** Returns true if the given function is a candidate to handle type promotion */

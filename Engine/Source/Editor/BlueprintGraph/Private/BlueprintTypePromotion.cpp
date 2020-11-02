@@ -524,6 +524,11 @@ bool FTypePromotion::IsComparisonFunc(UFunction const* const Func)
 	return Func && GetComparisonOpNames().Contains(GetOpNameFromFunction(Func));
 }
 
+bool FTypePromotion::IsComparisonOpName(const FName OpName)
+{
+	return GetComparisonOpNames().Contains(OpName);
+}
+
 void FTypePromotion::GetAllFuncsForOp_Internal(FName Operation, TArray<UFunction*>& OutFuncs)
 {
 	OutFuncs.Empty();
