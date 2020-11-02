@@ -11,6 +11,7 @@
 #include "ShaderParameterStruct.h"
 #include "VolumeLighting.h"
 #include "LumenSceneUtils.h"
+#include "DistanceFieldLightingShared.h"
 
 int32 GLumenDirectLighting = 1;
 FAutoConsoleVariableRef CVarLumenDirectLighting(
@@ -28,6 +29,13 @@ FAutoConsoleVariableRef CVarLumenDirectLightingForceOffscreenShadowing(
 	ECVF_RenderThreadSafe
 );
 
+int32 GLumenDirectLightingOffscreenShadowingTraceMeshSDFs = 0;
+FAutoConsoleVariableRef CVarLumenDirectLightingOffscreenShadowingTraceMeshSDFs(
+	TEXT("r.Lumen.DirectLighting.OffscreenShadowing.TraceMeshSDFs"),
+	GLumenDirectLightingOffscreenShadowingTraceMeshSDFs,
+	TEXT("Whether to trace against Mesh Signed Distance Fields for offscreen shadowing, or to trace against the lower resolution Global SDF."),
+	ECVF_RenderThreadSafe
+);
 
 int32 GLumenDirectLightingBatchSize = 16;
 FAutoConsoleVariableRef CVarLumenDirectLightingBatchSize(
@@ -36,14 +44,6 @@ FAutoConsoleVariableRef CVarLumenDirectLightingBatchSize(
 	TEXT(""),
 	ECVF_RenderThreadSafe
 );
-
-float GOffscreenShadowingConeAngle = .2f;
-FAutoConsoleVariableRef CVarOffscreenShadowingConeAngle(
-	TEXT("r.Lumen.DirectLighting.OffscreenShadowingConeAngle"),
-	GOffscreenShadowingConeAngle,
-	TEXT(""),
-	ECVF_RenderThreadSafe
-	);
 
 float GOffscreenShadowingMaxTraceDistance = 10000;
 FAutoConsoleVariableRef CVarOffscreenShadowingMaxTraceDistance(
@@ -126,31 +126,48 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingShaderParameters)
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)	
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLightFunctionParameters, LightFunctionParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, ObjectBufferParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldCulledObjectBufferParameters, CulledObjectBufferParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLightTileIntersectionParameters, LightTileIntersectionParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlasParameters)
+		SHADER_PARAMETER(FMatrix, WorldToShadow)
+		SHADER_PARAMETER(float, TwoSidedMeshDistanceBias)
 		SHADER_PARAMETER(float, StepFactor)
-		SHADER_PARAMETER(float, ConeHalfAngle)
+		SHADER_PARAMETER(float, TanLightSourceAngle)
 		SHADER_PARAMETER(float, MaxTraceDistance)
 		SHADER_PARAMETER(float, SurfaceBias)
 		SHADER_PARAMETER(float, SlopeScaledSurfaceBias)
 		SHADER_PARAMETER(float, SDFSurfaceBiasScale)
+		SHADER_PARAMETER(uint32, ForceOffscreenShadowing)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>,ShadowMaskAtlas)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FDynamicallyShadowed	: SHADER_PERMUTATION_BOOL("DYNAMICALLY_SHADOWED");
-	class FForceOffscreenShadowing : SHADER_PERMUTATION_BOOL("FORCE_OFFSCREEN_SHADOWING");
 	class FShadowed	: SHADER_PERMUTATION_BOOL("SHADOWED_LIGHT");
+	class FTraceMeshSDFs	: SHADER_PERMUTATION_BOOL("OFFSCREEN_SHADOWING_TRACE_MESH_SDF");
 	class FLightFunction : SHADER_PERMUTATION_BOOL("LIGHT_FUNCTION");
 	class FLightType : SHADER_PERMUTATION_ENUM_CLASS("LIGHT_TYPE", ELumenLightType);
 	class FRayTracingShadowPassCombine : SHADER_PERMUTATION_BOOL("HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE");
-	using FPermutationDomain = TShaderPermutationDomain<FLightType, FDynamicallyShadowed, FShadowed, 
-								FForceOffscreenShadowing, FLightFunction, FRayTracingShadowPassCombine>;
+	using FPermutationDomain = TShaderPermutationDomain<FLightType, FDynamicallyShadowed, FShadowed, FTraceMeshSDFs,
+								FLightFunction, FRayTracingShadowPassCombine>;
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
 		if (!PermutationVector.Get<FShadowed>())
 		{
-			PermutationVector.Set<FForceOffscreenShadowing>(false);
 			PermutationVector.Set<FDynamicallyShadowed>(false);
 			PermutationVector.Set<FRayTracingShadowPassCombine>(false);
+			PermutationVector.Set<FTraceMeshSDFs>(false);
+		}
+
+		if (PermutationVector.Get<FRayTracingShadowPassCombine>() || PermutationVector.Get<FLightType>() != ELumenLightType::Directional)
+		{
+			PermutationVector.Set<FTraceMeshSDFs>(false);
+		}
+
+		if (PermutationVector.Get<FRayTracingShadowPassCombine>())
+		{
+			PermutationVector.Set<FDynamicallyShadowed>(false);
 		}
 
 		return PermutationVector;
@@ -204,6 +221,124 @@ void SetupLightFunctionParameters(const FLightSceneInfo* LightSceneInfo, float S
 		PreviewShadowsMask);
 }
 
+void SetupMeshSDFShadowInitializer(
+	const FLightSceneInfo* LightSceneInfo,
+	const FBox& LumenSceneBounds, 
+	FSphere& OutShadowBounds,
+	FWholeSceneProjectedShadowInitializer& OutInitializer)
+{	
+	FSphere Bounds;
+
+	{
+		// Get the 8 corners of the cascade's camera frustum, in world space
+		FVector CascadeFrustumVerts[8];
+		const FVector LumenSceneCenter = LumenSceneBounds.GetCenter();
+		const FVector LumenSceneExtent = LumenSceneBounds.GetExtent();
+		CascadeFrustumVerts[0] = LumenSceneCenter + FVector(LumenSceneExtent.X, LumenSceneExtent.Y, LumenSceneExtent.Z);  
+		CascadeFrustumVerts[1] = LumenSceneCenter + FVector(LumenSceneExtent.X, LumenSceneExtent.Y, -LumenSceneExtent.Z); 
+		CascadeFrustumVerts[2] = LumenSceneCenter + FVector(LumenSceneExtent.X, -LumenSceneExtent.Y, LumenSceneExtent.Z);    
+		CascadeFrustumVerts[3] = LumenSceneCenter + FVector(LumenSceneExtent.X, -LumenSceneExtent.Y, -LumenSceneExtent.Z);  
+		CascadeFrustumVerts[4] = LumenSceneCenter + FVector(-LumenSceneExtent.X, LumenSceneExtent.Y, LumenSceneExtent.Z);     
+		CascadeFrustumVerts[5] = LumenSceneCenter + FVector(-LumenSceneExtent.X, LumenSceneExtent.Y, -LumenSceneExtent.Z);   
+		CascadeFrustumVerts[6] = LumenSceneCenter + FVector(-LumenSceneExtent.X, -LumenSceneExtent.Y, LumenSceneExtent.Z);      
+		CascadeFrustumVerts[7] = LumenSceneCenter + FVector(-LumenSceneExtent.X, -LumenSceneExtent.Y, -LumenSceneExtent.Z);   
+
+		Bounds = FSphere(LumenSceneCenter, 0);
+		for (int32 Index = 0; Index < 8; Index++)
+		{
+			Bounds.W = FMath::Max(Bounds.W, FVector::DistSquared(CascadeFrustumVerts[Index], Bounds.Center));
+		}
+
+		Bounds.W = FMath::Max(FMath::Sqrt(Bounds.W), 1.0f);
+
+		ComputeShadowCullingVolume(true, CascadeFrustumVerts, -LightSceneInfo->Proxy->GetDirection(), OutInitializer.CascadeSettings.ShadowBoundsAccurate, OutInitializer.CascadeSettings.NearFrustumPlane, OutInitializer.CascadeSettings.FarFrustumPlane);
+	}
+
+	OutInitializer.CascadeSettings.ShadowSplitIndex = 0;
+
+	const float ShadowExtent = Bounds.W / FMath::Sqrt(3.0f);
+	const FBoxSphereBounds SubjectBounds(Bounds.Center, FVector(ShadowExtent, ShadowExtent, ShadowExtent), Bounds.W);
+	OutInitializer.PreShadowTranslation = -Bounds.Center;
+	OutInitializer.WorldToLight = FInverseRotationMatrix(LightSceneInfo->Proxy->GetDirection().GetSafeNormal().Rotation());
+	OutInitializer.Scales = FVector2D(1.0f / Bounds.W, 1.0f / Bounds.W);
+	OutInitializer.SubjectBounds = FBoxSphereBounds(FVector::ZeroVector, SubjectBounds.BoxExtent, SubjectBounds.SphereRadius);
+	OutInitializer.WAxis = FVector4(0, 0, 0, 1);
+	OutInitializer.MinLightW = FMath::Min<float>(-HALF_WORLD_MAX, -SubjectBounds.SphereRadius);
+	const float MaxLightW = SubjectBounds.SphereRadius;
+	OutInitializer.MaxDistanceToCastInLightW = MaxLightW - OutInitializer.MinLightW;
+	OutInitializer.bRayTracedDistanceField = true;
+	OutInitializer.CascadeSettings.bFarShadowCascade = false;
+
+	const float SplitNear = -Bounds.W;
+	const float SplitFar = Bounds.W;
+
+	OutInitializer.CascadeSettings.SplitFarFadeRegion = 0.0f;
+	OutInitializer.CascadeSettings.SplitNearFadeRegion = 0.0f;
+	OutInitializer.CascadeSettings.SplitFar = SplitFar;
+	OutInitializer.CascadeSettings.SplitNear = SplitNear;
+	OutInitializer.CascadeSettings.FadePlaneOffset = SplitFar;
+	OutInitializer.CascadeSettings.FadePlaneLength = 0;
+	OutInitializer.CascadeSettings.CascadeBiasDistribution = 0;
+	OutInitializer.CascadeSettings.ShadowSplitIndex = 0;
+
+	OutShadowBounds = Bounds;
+}
+
+void CullMeshSDFsForLightCards(
+	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	const FViewInfo& View,
+	const FLightSceneInfo* LightSceneInfo,
+	const FDistanceFieldObjectBufferParameters& ObjectBufferParameters,
+	FMatrix& WorldToMeshSDFShadowValue,
+	FDistanceFieldCulledObjectBufferParameters& CulledObjectBufferParameters,
+	FLightTileIntersectionParameters& LightTileIntersectionParameters)
+{
+	const FVector LumenSceneViewOrigin = GetLumenSceneViewOrigin(View, GetNumLumenVoxelClipmaps() - 1);
+	const FVector LumenSceneExtent = FVector(ComputeMaxCardUpdateDistanceFromCamera());
+	const FBox LumenSceneBounds(LumenSceneViewOrigin - LumenSceneExtent, LumenSceneViewOrigin + LumenSceneExtent);
+
+	FSphere MeshSDFShadowBounds;
+	FWholeSceneProjectedShadowInitializer MeshSDFShadowInitializer;
+	SetupMeshSDFShadowInitializer(LightSceneInfo, LumenSceneBounds, MeshSDFShadowBounds, MeshSDFShadowInitializer);
+
+	const FMatrix FaceMatrix(
+		FPlane(0, 0, 1, 0),
+		FPlane(0, 1, 0, 0),
+		FPlane(-1, 0, 0, 0),
+		FPlane(0, 0, 0, 1));
+
+	const FMatrix TranslatedWorldToView = MeshSDFShadowInitializer.WorldToLight * FaceMatrix;
+
+	float MaxSubjectZ = TranslatedWorldToView.TransformPosition(MeshSDFShadowInitializer.SubjectBounds.Origin).Z + MeshSDFShadowInitializer.SubjectBounds.SphereRadius;
+	MaxSubjectZ = FMath::Min(MaxSubjectZ, MeshSDFShadowInitializer.MaxDistanceToCastInLightW);
+	const float MinSubjectZ = FMath::Max(MaxSubjectZ - MeshSDFShadowInitializer.SubjectBounds.SphereRadius * 2, MeshSDFShadowInitializer.MinLightW);
+
+	const FMatrix ScaleMatrix = FScaleMatrix( FVector( MeshSDFShadowInitializer.Scales.X, MeshSDFShadowInitializer.Scales.Y, 1.0f ) );
+	const FMatrix ViewToClip = ScaleMatrix * FShadowProjectionMatrix(MinSubjectZ, MaxSubjectZ, MeshSDFShadowInitializer.WAxis);
+	const FMatrix SubjectAndReceiverMatrix = TranslatedWorldToView * ViewToClip;
+
+	int32 NumPlanes = MeshSDFShadowInitializer.CascadeSettings.ShadowBoundsAccurate.Planes.Num();
+	const FPlane* PlaneData = MeshSDFShadowInitializer.CascadeSettings.ShadowBoundsAccurate.Planes.GetData();
+	FVector4 LocalLightShadowBoundingSphereValue(0, 0, 0, 0);
+
+	WorldToMeshSDFShadowValue = FTranslationMatrix(MeshSDFShadowInitializer.PreShadowTranslation) * SubjectAndReceiverMatrix;
+
+	CullDistanceFieldObjectsForLight(
+		GraphBuilder,
+		View,
+		LightSceneInfo->Proxy,
+		DFPT_SignedDistanceField,
+		WorldToMeshSDFShadowValue,
+		NumPlanes,
+		PlaneData,
+		LocalLightShadowBoundingSphereValue,
+		MeshSDFShadowBounds.W,
+		ObjectBufferParameters,
+		CulledObjectBufferParameters,
+		LightTileIntersectionParameters);
+}
+
 void RenderDirectLightIntoLumenCards(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -241,10 +376,21 @@ void RenderDirectLightIntoLumenCards(
 
 	bDynamicallyShadowed = ProjectedShadowInfo != nullptr;
 
+	FDistanceFieldObjectBufferParameters ObjectBufferParameters;
+	ObjectBufferParameters.SceneObjectBounds = Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
+	ObjectBufferParameters.SceneObjectData = Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+	ObjectBufferParameters.NumSceneObjects = Scene->DistanceFieldSceneData.NumObjectsInBuffer;
 
-	// Run ray traced shadow pass only when it's enabled, the light shadow is enabled and the ray tracing scene has been setup.
-	// to save frame time.
+	FLightTileIntersectionParameters LightTileIntersectionParameters;
+	FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;
+	FMatrix WorldToMeshSDFShadowValue = FMatrix::Identity;
+
 	const bool bLumenUseHardwareRayTracedShadow = Lumen::UseHardwareRayTracedShadows(View) && bShadowed;
+	const bool bTraceMeshSDFs = bShadowed 
+		&& LumenLightType == ELumenLightType::Directional 
+		&& DoesPlatformSupportDistanceFieldShadowing(View.GetShaderPlatform())
+		&& GLumenDirectLightingOffscreenShadowingTraceMeshSDFs != 0
+		&& Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0;
 
 	if (bLumenUseHardwareRayTracedShadow)
 	{
@@ -253,9 +399,11 @@ void RenderDirectLightIntoLumenCards(
 			LightName,CardScatterContext, ScatterInstanceIndex, 
 			LumenDirectLightingHardwareRayTracingData, bDynamicallyShadowed, LumenLightType);
 	}
+	else if (bTraceMeshSDFs)
+	{
+		CullMeshSDFsForLightCards(GraphBuilder, Scene, View, LightSceneInfo, ObjectBufferParameters, WorldToMeshSDFShadowValue, CulledObjectBufferParameters, LightTileIntersectionParameters);
+	}
 
-
-	//Use ray-traced shadow if Ray Tracing is enabled otherwise use shadow map and sdf.
 	FLumenCardDirectLighting* PassParameters = GraphBuilder.AllocParameters<FLumenCardDirectLighting>();
 	{
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(FinalLightingAtlas, ERenderTargetLoadAction::ELoad);
@@ -287,12 +435,28 @@ void RenderDirectLightIntoLumenCards(
 		PassParameters->PS.DeferredLightUniforms = CreateUniformBufferImmediate(DeferredLightUniforms, UniformBuffer_SingleDraw);
 		PassParameters->PS.ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 		SetupLightFunctionParameters(LightSceneInfo, 1.0f, PassParameters->PS.LightFunctionParameters);
-		PassParameters->PS.ConeHalfAngle = GOffscreenShadowingConeAngle * PI / 180.0f;
+		
+		PassParameters->PS.ObjectBufferParameters = ObjectBufferParameters;
+		PassParameters->PS.CulledObjectBufferParameters = CulledObjectBufferParameters;
+		PassParameters->PS.LightTileIntersectionParameters = LightTileIntersectionParameters;
+
+		FDistanceFieldAtlasParameters DistanceFieldAtlasParameters;
+		DistanceFieldAtlasParameters.DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
+		DistanceFieldAtlasParameters.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
+		DistanceFieldAtlasParameters.DistanceFieldAtlasTexelSize = FVector(1.0f / GDistanceFieldVolumeTextureAtlas.GetSizeX(), 1.0f / GDistanceFieldVolumeTextureAtlas.GetSizeY(), 1.0f / GDistanceFieldVolumeTextureAtlas.GetSizeZ());
+
+		PassParameters->PS.DistanceFieldAtlasParameters = DistanceFieldAtlasParameters;
+		PassParameters->PS.WorldToShadow = WorldToMeshSDFShadowValue;
+		extern float GTwoSidedMeshDistanceBias;
+		PassParameters->PS.TwoSidedMeshDistanceBias = GTwoSidedMeshDistanceBias;
+
+		PassParameters->PS.TanLightSourceAngle = FMath::Tan(LightSceneInfo->Proxy->GetLightSourceAngle());
 		PassParameters->PS.MaxTraceDistance = GOffscreenShadowingMaxTraceDistance;
 		PassParameters->PS.StepFactor = FMath::Clamp(GOffscreenShadowingTraceStepFactor, .1f, 10.0f);
 		PassParameters->PS.SurfaceBias = FMath::Clamp(GShadowingSurfaceBias, .01f, 100.0f);
 		PassParameters->PS.SlopeScaledSurfaceBias = FMath::Clamp(GShadowingSlopeScaledSurfaceBias, .01f, 100.0f);
 		PassParameters->PS.SDFSurfaceBiasScale = FMath::Clamp(GOffscreenShadowingSDFSurfaceBiasScale, .01f, 100.0f);
+		PassParameters->PS.ForceOffscreenShadowing = GLumenDirectLightingForceOffscreenShadowing;
 
 		if (bLumenUseHardwareRayTracedShadow)
 		{
@@ -318,7 +482,7 @@ void RenderDirectLightIntoLumenCards(
 	PermutationVector.Set< FLumenCardDirectLightingPS::FLightType >(LumenLightType);
 	PermutationVector.Set< FLumenCardDirectLightingPS::FDynamicallyShadowed >(bDynamicallyShadowed);
 	PermutationVector.Set< FLumenCardDirectLightingPS::FShadowed >(bShadowed);
-	PermutationVector.Set< FLumenCardDirectLightingPS::FForceOffscreenShadowing >(GLumenDirectLightingForceOffscreenShadowing != 0);
+	PermutationVector.Set< FLumenCardDirectLightingPS::FTraceMeshSDFs >(bTraceMeshSDFs);
 	PermutationVector.Set< FLumenCardDirectLightingPS::FLightFunction >(bUseLightFunction);
 	PermutationVector.Set< FLumenCardDirectLightingPS::FRayTracingShadowPassCombine>(bLumenUseHardwareRayTracedShadow);
 	
@@ -327,6 +491,8 @@ void RenderDirectLightIntoLumenCards(
 	const FMaterial& Material = LightFunctionMaterialProxy->GetMaterialWithFallback(Scene->GetFeatureLevel(), LightFunctionMaterialProxy);
 	const FMaterialShaderMap* MaterialShaderMap = Material.GetRenderingThreadShaderMap();
 	auto PixelShader = MaterialShaderMap->GetShader<FLumenCardDirectLightingPS>(PermutationVector);
+
+	ClearUnusedGraphResources(PixelShader, &PassParameters->PS);
 
 	const uint32 CardIndirectArgOffset = CardScatterContext.GetIndirectArgOffset(ScatterInstanceIndex);
 

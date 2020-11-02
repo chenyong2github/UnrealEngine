@@ -14,6 +14,9 @@
 #include "/Engine/Generated/Material.ush"
 #include "../LightFunctionCommon.ush"
 #include "../GlobalDistanceFieldUtils.ush"
+#include "../DistanceFieldLightingShared.ush"
+#define DF_SHADOW_QUALITY 2
+#include "../DistanceFieldShadowingShared.ush"
 
 // Must match ELumenLightType in LumenSceneDirectLighting.cpp
 #define LIGHT_TYPE_DIRECTIONAL 0
@@ -48,13 +51,14 @@ float GetLightFunction(float3 WorldPosition)
 }
 
 Texture2D OpacityAtlas;
-float ConeHalfAngle;
 float MaxTraceDistance;
 float StepFactor;
 float SurfaceBias;
+float TanLightSourceAngle;
 float SlopeScaledSurfaceBias;
 float SDFSurfaceBiasScale;
 float SDFExpandSurfaceAmount;
+uint ForceOffscreenShadowing;
 
 #if HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE
 Texture2D<float> ShadowMaskAtlas;
@@ -173,12 +177,11 @@ void LumenCardDirectLightingPS(
 			
 						bool bOffscreenShadowing = !bShadowFactorComplete;
 
-						#if FORCE_OFFSCREEN_SHADOWING
+						if (ForceOffscreenShadowing != 0)
 						{
 							ShadowFactor = 1.0;
 							bOffscreenShadowing = true;
 						}
-						#endif
 
 						if (bOffscreenShadowing)
 						{
@@ -190,7 +193,31 @@ void LumenCardDirectLightingPS(
 							#endif
 
 							#define OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF 1
-							#if OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF
+
+							#if OFFSCREEN_SHADOWING_TRACE_MESH_SDF && (LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL)
+							{
+								uint NumIntersectingObjects = GetCulledNumObjects();
+								uint CulledDataParameter = 0;
+								GetShadowTileCulledData(WorldPositionForShadowing, CulledDataParameter, NumIntersectingObjects);
+
+								float SubsurfaceDensity = 0;
+								bool bUseSubsurfaceTransmission = false;
+
+								ShadowFactor *= ShadowRayTraceThroughCulledObjects(
+									WorldPositionForShadowing,
+									WorldPositionForShadowing + L * TraceDistance,
+									TraceDistance,
+									0, //@todo - TanLightSourceAngle - causes mismatch with CSM which doesn't support LightSourceAngle
+									0,
+									100,
+									SubsurfaceDensity,
+									CulledDataParameter,
+									NumIntersectingObjects,
+									true,
+									true,
+									bUseSubsurfaceTransmission);
+							}
+							#elif OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF
 							{
 								float3 Gradient = GetDistanceFieldGradientGlobal(WorldPosition);
 

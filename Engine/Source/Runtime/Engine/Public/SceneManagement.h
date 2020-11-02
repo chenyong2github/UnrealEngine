@@ -1730,6 +1730,8 @@ protected:
 	void SetColor(const FLinearColor& InColor);
 };
 
+extern ENGINE_API void ComputeShadowCullingVolume(bool bReverseCulling, const FVector* CascadeFrustumVerts, const FVector& LightDirection, FConvexVolume& ConvexVolumeOut, FPlane& NearPlaneOut, FPlane& FarPlaneOut);
+
 
 /** Encapsulates the data which is used to render a decal parallel to the game thread. */
 class ENGINE_API FDeferredDecalProxy

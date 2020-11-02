@@ -30,6 +30,15 @@ FAutoConsoleVariableRef CVarLumenSceneCardLightingUpdateMinFrequency(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+float GLumenSceneDiffuseReflectivityOverride = 0;
+FAutoConsoleVariableRef CVarLumenSceneDiffuseReflectivityOverride(
+	TEXT("r.LumenScene.DiffuseReflectivityOverride"),
+	GLumenSceneDiffuseReflectivityOverride,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+
 namespace Lumen
 {
 	bool UseIrradianceAtlas()
@@ -147,12 +156,6 @@ void GetLumenVoxelTracingParameters(const FLumenCardTracingInputs& TracingInputs
 
 	for (int32 i = 0; i < TracingInputs.NumClipmapLevels; i++)
 	{
-		/*LumenVoxelTracingParameters.ClipmapWorldToUVScale[i] = TracingInputs.ClipmapWorldToUVScale[i];
-		LumenVoxelTracingParameters.ClipmapWorldToUVBias[i] = TracingInputs.ClipmapWorldToUVBias[i];
-		LumenVoxelTracingParameters.ClipmapVoxelSizeAndRadius[i] = TracingInputs.ClipmapVoxelSizeAndRadius[i];
-		LumenVoxelTracingParameters.ClipmapWorldCenter[i] = TracingInputs.ClipmapWorldCenter[i];
-		LumenVoxelTracingParameters.ClipmapWorldExtent[i] = TracingInputs.ClipmapWorldExtent[i];
-		LumenVoxelTracingParameters.ClipmapWorldSamplingExtent[i] = TracingInputs.ClipmapWorldSamplingExtent[i];*/
 		GetLumenVoxelParametersForClipmapLevel(TracingInputs, LumenVoxelTracingParameters, i, i);
 	}
 
@@ -386,6 +389,7 @@ class FLumenCardBlendAlbedoPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AlbedoAtlas)
+		SHADER_PARAMETER(float, DiffuseReflectivityOverride)
 	END_SHADER_PARAMETER_STRUCT()
 
 	using FPermutationDomain = TShaderPermutationDomain<>;
@@ -517,6 +521,7 @@ void ApplyLumenCardAlbedo(
 	PassParameters->PS.View = View.ViewUniformBuffer;
 	PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
 	PassParameters->PS.AlbedoAtlas = AlbedoAtlas;
+	PassParameters->PS.DiffuseReflectivityOverride = FMath::Clamp<float>(GLumenSceneDiffuseReflectivityOverride, 0.0f, 1.0f);
 
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("ApplyLumenCardAlbedo"),

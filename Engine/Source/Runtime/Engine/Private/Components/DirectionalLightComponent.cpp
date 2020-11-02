@@ -89,6 +89,100 @@ static TAutoConsoleVariable<float> CVarRTDFDistanceScale(
 	TEXT("(1,10000]: larger distance.)"),
 	ECVF_RenderThreadSafe);
 
+// Computes a shadow culling volume (convex hull) based on a set of 8 vertices and a light direction
+void ComputeShadowCullingVolume(bool bReverseCulling, const FVector* CascadeFrustumVerts, const FVector& LightDirection, FConvexVolume& ConvexVolumeOut, FPlane& NearPlaneOut, FPlane& FarPlaneOut) 
+{
+	// For mobile platforms that switch vertical axis and MobileHDR == false the sense of bReverseCulling is inverted.
+	bReverseCulling = XOR(bReverseCulling, (RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]) && !IsMobileHDR()));
+
+	// Pairs of plane indices from SubFrustumPlanes whose intersections
+	// form the edges of the frustum.
+	static const int32 AdjacentPlanePairs[12][2] =
+	{
+		{0,2}, {0,4}, {0,1}, {0,3},
+		{2,3}, {4,2}, {1,4}, {3,1},
+		{2,5}, {4,5}, {1,5}, {3,5}
+	};
+	// Maps a plane pair index to the index of the two frustum corners
+	// which form the end points of the plane intersection.
+	static const int32 LineVertexIndices[12][2] =
+	{
+		{0,1}, {1,3}, {3,2}, {2,0},
+		{0,4}, {1,5}, {3,7}, {2,6},
+		{4,5}, {5,7}, {7,6}, {6,4}
+	};
+
+	TArray<FPlane, TInlineAllocator<6>> Planes;
+
+	// Find the view frustum subsection planes which face away from the light and add them to the bounding volume
+	FPlane SubFrustumPlanes[6];
+	if (!bReverseCulling)
+	{
+		SubFrustumPlanes[0] = FPlane(CascadeFrustumVerts[3], CascadeFrustumVerts[2], CascadeFrustumVerts[0]); // Near
+		SubFrustumPlanes[1] = FPlane(CascadeFrustumVerts[7], CascadeFrustumVerts[6], CascadeFrustumVerts[2]); // Left
+		SubFrustumPlanes[2] = FPlane(CascadeFrustumVerts[0], CascadeFrustumVerts[4], CascadeFrustumVerts[5]); // Right
+		SubFrustumPlanes[3] = FPlane(CascadeFrustumVerts[2], CascadeFrustumVerts[6], CascadeFrustumVerts[4]); // Top
+		SubFrustumPlanes[4] = FPlane(CascadeFrustumVerts[5], CascadeFrustumVerts[7], CascadeFrustumVerts[3]); // Bottom
+		SubFrustumPlanes[5] = FPlane(CascadeFrustumVerts[4], CascadeFrustumVerts[6], CascadeFrustumVerts[7]); // Far
+	}
+	else
+	{
+		SubFrustumPlanes[0] = FPlane(CascadeFrustumVerts[0], CascadeFrustumVerts[2], CascadeFrustumVerts[3]); // Near
+		SubFrustumPlanes[1] = FPlane(CascadeFrustumVerts[2], CascadeFrustumVerts[6], CascadeFrustumVerts[7]); // Left
+		SubFrustumPlanes[2] = FPlane(CascadeFrustumVerts[5], CascadeFrustumVerts[4], CascadeFrustumVerts[0]); // Right
+		SubFrustumPlanes[3] = FPlane(CascadeFrustumVerts[4], CascadeFrustumVerts[6], CascadeFrustumVerts[2]); // Top
+		SubFrustumPlanes[4] = FPlane(CascadeFrustumVerts[3], CascadeFrustumVerts[7], CascadeFrustumVerts[5]); // Bottom
+		SubFrustumPlanes[5] = FPlane(CascadeFrustumVerts[7], CascadeFrustumVerts[6], CascadeFrustumVerts[4]); // Far
+	}
+
+	NearPlaneOut = SubFrustumPlanes[0];
+	FarPlaneOut = SubFrustumPlanes[5];
+
+	// Add the planes from the camera's frustum which form the back face of the frustum when in light space.
+	for (int32 i = 0; i < 6; i++)
+	{
+		FVector Normal(SubFrustumPlanes[i]);
+		float d = Normal | LightDirection;
+		if (d < 0.0f)
+		{
+			Planes.Add(SubFrustumPlanes[i]);
+		}
+	}
+
+	// Now add the planes which form the silhouette edges of the camera frustum in light space.
+	for (int32 i = 0; i < 12; i++)
+	{
+		FVector NormalA(SubFrustumPlanes[AdjacentPlanePairs[i][0]]);
+		FVector NormalB(SubFrustumPlanes[AdjacentPlanePairs[i][1]]);
+
+		float DotA = NormalA | LightDirection;
+		float DotB = NormalB | LightDirection;
+
+		// If the signs of the dot product are different
+		if (DotA * DotB < 0.0f)
+		{
+			// Planes are opposing, so this is an edge. 
+			// Extrude the plane along the light direction, and add it to the array.
+
+			FVector A = CascadeFrustumVerts[LineVertexIndices[i][0]];
+			FVector B = CascadeFrustumVerts[LineVertexIndices[i][1]];
+			// Scale the 3rd vector by the length of AB for precision
+			FVector C = A + LightDirection * (A - B).Size();
+
+			// Account for winding
+			if (XOR(DotA >= 0.0f, bReverseCulling))
+			{
+				Planes.Add(FPlane(A, B, C));
+			}
+			else
+			{
+				Planes.Add(FPlane(B, A, C));
+			}
+		}
+	}
+	ConvexVolumeOut = FConvexVolume(Planes);
+}
+
 /**
  * The scene info for a directional light.
  */
@@ -564,100 +658,6 @@ private:
 	void UpdateLightShaftOverrideDirection_RenderThread(FVector NewLightShaftOverrideDirection)
 	{
 		LightShaftOverrideDirection = NewLightShaftOverrideDirection;
-	}
-
-	// Computes a shadow culling volume (convex hull) based on a set of 8 vertices and a light direction
-	void ComputeShadowCullingVolume(bool bReverseCulling, const FVector* CascadeFrustumVerts, const FVector& LightDirection, FConvexVolume& ConvexVolumeOut, FPlane& NearPlaneOut, FPlane& FarPlaneOut) const
-	{
-		// For mobile platforms that switch vertical axis and MobileHDR == false the sense of bReverseCulling is inverted.
-		bReverseCulling = XOR(bReverseCulling, (RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]) && !IsMobileHDR()));
-
-		// Pairs of plane indices from SubFrustumPlanes whose intersections
-		// form the edges of the frustum.
-		static const int32 AdjacentPlanePairs[12][2] =
-		{
-			{0,2}, {0,4}, {0,1}, {0,3},
-			{2,3}, {4,2}, {1,4}, {3,1},
-			{2,5}, {4,5}, {1,5}, {3,5}
-		};
-		// Maps a plane pair index to the index of the two frustum corners
-		// which form the end points of the plane intersection.
-		static const int32 LineVertexIndices[12][2] =
-		{
-			{0,1}, {1,3}, {3,2}, {2,0},
-			{0,4}, {1,5}, {3,7}, {2,6},
-			{4,5}, {5,7}, {7,6}, {6,4}
-		};
-
-		TArray<FPlane, TInlineAllocator<6>> Planes;
-
-		// Find the view frustum subsection planes which face away from the light and add them to the bounding volume
-		FPlane SubFrustumPlanes[6];
-		if (!bReverseCulling)
-		{
-			SubFrustumPlanes[0] = FPlane(CascadeFrustumVerts[3], CascadeFrustumVerts[2], CascadeFrustumVerts[0]); // Near
-			SubFrustumPlanes[1] = FPlane(CascadeFrustumVerts[7], CascadeFrustumVerts[6], CascadeFrustumVerts[2]); // Left
-			SubFrustumPlanes[2] = FPlane(CascadeFrustumVerts[0], CascadeFrustumVerts[4], CascadeFrustumVerts[5]); // Right
-			SubFrustumPlanes[3] = FPlane(CascadeFrustumVerts[2], CascadeFrustumVerts[6], CascadeFrustumVerts[4]); // Top
-			SubFrustumPlanes[4] = FPlane(CascadeFrustumVerts[5], CascadeFrustumVerts[7], CascadeFrustumVerts[3]); // Bottom
-			SubFrustumPlanes[5] = FPlane(CascadeFrustumVerts[4], CascadeFrustumVerts[6], CascadeFrustumVerts[7]); // Far
-		}
-		else
-		{
-			SubFrustumPlanes[0] = FPlane(CascadeFrustumVerts[0], CascadeFrustumVerts[2], CascadeFrustumVerts[3]); // Near
-			SubFrustumPlanes[1] = FPlane(CascadeFrustumVerts[2], CascadeFrustumVerts[6], CascadeFrustumVerts[7]); // Left
-			SubFrustumPlanes[2] = FPlane(CascadeFrustumVerts[5], CascadeFrustumVerts[4], CascadeFrustumVerts[0]); // Right
-			SubFrustumPlanes[3] = FPlane(CascadeFrustumVerts[4], CascadeFrustumVerts[6], CascadeFrustumVerts[2]); // Top
-			SubFrustumPlanes[4] = FPlane(CascadeFrustumVerts[3], CascadeFrustumVerts[7], CascadeFrustumVerts[5]); // Bottom
-			SubFrustumPlanes[5] = FPlane(CascadeFrustumVerts[7], CascadeFrustumVerts[6], CascadeFrustumVerts[4]); // Far
-		}
-
-		NearPlaneOut = SubFrustumPlanes[0];
-		FarPlaneOut = SubFrustumPlanes[5];
-
-		// Add the planes from the camera's frustum which form the back face of the frustum when in light space.
-		for (int32 i = 0; i < 6; i++)
-		{
-			FVector Normal(SubFrustumPlanes[i]);
-			float d = Normal | LightDirection;
-			if ( d < 0.0f )
-			{
-				Planes.Add(SubFrustumPlanes[i]);
-			}
-		}
-
-		// Now add the planes which form the silhouette edges of the camera frustum in light space.
-		for (int32 i = 0; i < 12; i++)
-		{
-			FVector NormalA(SubFrustumPlanes[AdjacentPlanePairs[i][0]]);
-			FVector NormalB(SubFrustumPlanes[AdjacentPlanePairs[i][1]]);
-
-			float DotA = NormalA | LightDirection;
-			float DotB = NormalB | LightDirection;
-
-			// If the signs of the dot product are different
-			if ( DotA * DotB < 0.0f )
-			{
-				// Planes are opposing, so this is an edge. 
-				// Extrude the plane along the light direction, and add it to the array.
-
-				FVector A = CascadeFrustumVerts[LineVertexIndices[i][0]];
-				FVector B = CascadeFrustumVerts[LineVertexIndices[i][1]];
-				// Scale the 3rd vector by the length of AB for precision
-				FVector C = A + LightDirection * (A - B).Size(); 
-
-				// Account for winding
-				if (XOR(DotA >= 0.0f, bReverseCulling)) 
-				{
-					Planes.Add(FPlane(A, B, C));
-				}
-				else
-				{
-					Planes.Add(FPlane(B, A, C));
-				}
-			}
-		}
-		ConvexVolumeOut = FConvexVolume(Planes);
 	}
 
 	// Useful helper function to compute shadow map cascade distribution

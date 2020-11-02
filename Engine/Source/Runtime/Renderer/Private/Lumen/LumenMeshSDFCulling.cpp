@@ -664,8 +664,11 @@ void CullMeshSDFObjectsToViewGrid(
 			auto PixelShader = View.ShaderMap->GetShader<FMeshSDFObjectCullPS>(PermutationVector);
 			const bool bReverseCulling = View.bReverseCulling;
 
+			ClearUnusedGraphResources(VertexShader, &PassParameters->VS);
+			ClearUnusedGraphResources(PixelShader, &PassParameters->PS);
+
 			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("ScatterCardsToFroxelGrid"),
+				RDG_EVENT_NAME("ScatterMeshSDFsToGrid"),
 				PassParameters,
 				ERDGPassFlags::Raster,
 				[CullGridSize, bReverseCulling, VertexShader, PixelShader, PassParameters](FRHICommandListImmediate& RHICmdList)

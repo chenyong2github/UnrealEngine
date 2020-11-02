@@ -487,6 +487,7 @@ void LumenCardCopyAtlasPS(
 }
 
 Texture2D AlbedoAtlas;
+float DiffuseReflectivityOverride;
 
 void LumenCardBlendAlbedoPS(
 	FCardVSToPS CardInterpolants,
@@ -494,6 +495,13 @@ void LumenCardBlendAlbedoPS(
 {
 	float3 AlbedoSqr = Texture2DSampleLevel(AlbedoAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).xyz;
 	float3 DiffuseColor = AlbedoSqr * AlbedoSqr;
+
+	if (DiffuseReflectivityOverride > 0.0f)
+	{
+		float DiffuseMaxComponent = max(DiffuseColor.r, max(DiffuseColor.g, DiffuseColor.b));
+		DiffuseColor = saturate(DiffuseColor * max(DiffuseReflectivityOverride / max(DiffuseMaxComponent, .0001f), 1.0f));
+	}
+
 	OutColor = float4(Diffuse_Lambert(DiffuseColor), 0);
 }
 

@@ -150,19 +150,6 @@ FAutoConsoleVariableRef CVarLumenSceneUploadDFObjectToCubeMapTreeIndexBufferEver
 	ECVF_RenderThreadSafe
 );
 
-float GLumenSceneDiffuseReflectivityOverride = 0;
-FAutoConsoleVariableRef CVarLumenSceneDiffuseReflectivityOverride(
-	TEXT("r.LumenScene.DiffuseReflectivityOverride"),
-	GLumenSceneDiffuseReflectivityOverride,
-	TEXT(""),
-	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
-	{
-		extern int32 GLumenSceneGeneration;
-		FPlatformAtomics::InterlockedAdd(&GLumenSceneGeneration, 1);
-	}),
-	ECVF_RenderThreadSafe
-	);
-
 int32 GLumenGIMaxConeSteps = 1000;
 FAutoConsoleVariableRef CVarLumenGIMaxConeSteps(
 	TEXT("r.Lumen.MaxConeSteps"),
@@ -2041,8 +2028,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 
 			FLumenCardPassUniformParameters* PassUniformParameters = GraphBuilder.AllocParameters<FLumenCardPassUniformParameters>();
 			SetupSceneTextureUniformParameters(GraphBuilder, Scene->GetFeatureLevel(), /*SceneTextureSetupMode*/ ESceneTextureSetupMode::None, PassUniformParameters->SceneTextures);
-			PassUniformParameters->OverrideDiffuseReflectivity = GLumenSceneDiffuseReflectivityOverride > 0 ? 1.0f : 0.0f;
-			PassUniformParameters->DiffuseReflectivityOverride = FMath::Clamp<float>(GLumenSceneDiffuseReflectivityOverride, 0.0f, 1.0f);
 
 			{
 				FLumenCardPassParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardPassParameters>();
