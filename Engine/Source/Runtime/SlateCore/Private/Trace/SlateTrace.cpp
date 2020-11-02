@@ -6,10 +6,23 @@
 
 #include "Application/SlateApplicationBase.h"
 #include "HAL/PlatformTime.h"
+#include "HAL/ThreadHeartBeat.h"
+#include "HAL/PlatformStackWalk.h"
+#include "HAL/PlatformProcess.h"
 #include "Trace/Trace.inl"
 #include "Types/ReflectionMetadata.h"
 #include "Widgets/SWidget.h"
 #include "FastUpdate/WidgetProxy.h"
+
+#if !(UE_BUILD_SHIPPING)
+
+static int32 bCaptureRootInvalidationCallstacks = 0;
+static FAutoConsoleVariableRef CVarCaptureRootInvalidationCallstacks(
+	TEXT("SlateDebugger.bCaptureRootInvalidationCallstacks"),
+	bCaptureRootInvalidationCallstacks,
+	TEXT("Whenever a widget is the root cause of an invalidation, capture the callstack for slate insights."));
+
+#endif // !(UE_BUILD_SHIPPING)
 
 //-----------------------------------------------------------------------------------//
 
@@ -55,9 +68,12 @@ UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(SlateTrace, WidgetInvalidated)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint64, WidgetId)				// Invalidated widget unique ID.
-	UE_TRACE_EVENT_FIELD(uint64, InvestigatorId)		// Widget unique ID that investigated the invalidation.
-	UE_TRACE_EVENT_FIELD(uint8, InvalidateWidgetReason)	// The reason of the invalidation. (EInvalidateWidgetReason)
+	UE_TRACE_EVENT_FIELD(uint64, WidgetId)					// Invalidated widget unique ID.
+	UE_TRACE_EVENT_FIELD(uint64, InvestigatorId)			// Widget unique ID that investigated the invalidation.
+	UE_TRACE_EVENT_FIELD(uint8, InvalidateWidgetReason)		// The reason of the invalidation. (EInvalidateWidgetReason)
+	UE_TRACE_EVENT_FIELD(Trace::WideString, ScriptTrace)	// Optional script trace for root widget invalidations
+	UE_TRACE_EVENT_FIELD(uint64[], Callstack)				// Optional callstack for root widget invalidations
+	UE_TRACE_EVENT_FIELD(uint32, ProcessId)					// Optional proccess ID where the invalidation occureed.
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(SlateTrace, RootInvalidated)
@@ -186,6 +202,31 @@ void FSlateTrace::WidgetInvalidated(const SWidget* Widget, const SWidget* Invest
 
 		static_assert(sizeof(EInvalidateWidgetReason) == sizeof(uint8), "EInvalidateWidgetReason is not a uint8");
 
+		FString ScriptTrace;
+		constexpr int MAX_DEPTH = 64;
+		uint64 StackTrace[MAX_DEPTH] = { 0 };
+		uint32 StackTraceDepth = 0;
+		uint32 ProcessId = 0;
+
+#if !(UE_BUILD_SHIPPING)
+		//@TODO: Could add a CVar to only capture certain callstacks for performance (Widget name, type, etc).
+		if (!Investigator && bCaptureRootInvalidationCallstacks)
+		{
+			FSlowHeartBeatScope SuspendHeartBeat;
+			FDisableHitchDetectorScope SuspendGameThreadHitch;
+
+			ScriptTrace = FFrame::GetScriptCallstack(true /* bReturnEmpty */);
+			if (!ScriptTrace.IsEmpty())
+			{
+				ScriptTrace = "ScriptTrace: \n" + ScriptTrace;
+			}
+
+			// Walk the stack and dump it to the allocated memory.
+			StackTraceDepth = FPlatformStackWalk::CaptureStackBackTrace(StackTrace, MAX_DEPTH);
+			ProcessId = FPlatformProcess::GetCurrentProcessId();
+		}
+#endif // !(UE_BUILD_SHIPPING)
+
 		const uint64 WidgetId = SlateTraceDetail::GetWidgetId(Widget);
 		const uint64 InvestigatorId = SlateTraceDetail::GetWidgetIdIfValid(Investigator);
 
@@ -193,6 +234,9 @@ void FSlateTrace::WidgetInvalidated(const SWidget* Widget, const SWidget* Invest
 			<< WidgetInvalidated.Cycle(FPlatformTime::Cycles64())
 			<< WidgetInvalidated.WidgetId(WidgetId)
 			<< WidgetInvalidated.InvestigatorId(InvestigatorId)
+			<< WidgetInvalidated.ScriptTrace(*ScriptTrace)
+			<< WidgetInvalidated.Callstack(StackTrace, StackTraceDepth)
+			<< WidgetInvalidated.ProcessId(ProcessId)
 			<< WidgetInvalidated.InvalidateWidgetReason(static_cast<uint8>(Reason));
 	}
 }

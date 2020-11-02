@@ -456,7 +456,7 @@ static bool ShowKismetScriptStackOnWarnings()
 	return ShowScriptStackForScriptWarning;
 }
 
-FString FFrame::GetScriptCallstack()
+FString FFrame::GetScriptCallstack(bool bReturnEmpty)
 {
 	FString ScriptStack;
 
@@ -469,12 +469,15 @@ FString FFrame::GetScriptCallstack()
 			ScriptStack += TEXT("\t") + BlueprintExceptionTracker.ScriptStack[i]->GetStackDescription() + TEXT("\n");
 		}
 	}
-	else
+	else if (!bReturnEmpty)
 	{
 		ScriptStack += TEXT("\t[Empty] (FFrame::GetScriptCallstack() called from native code)");
 	}
 #else
-	ScriptStack = TEXT("Unable to display Script Callstack. Compile with DO_BLUEPRINT_GUARD=1");
+	if (!bReturnEmpty)
+	{
+		ScriptStack = TEXT("Unable to display Script Callstack. Compile with DO_BLUEPRINT_GUARD=1");
+	}
 #endif
 
 	return ScriptStack;

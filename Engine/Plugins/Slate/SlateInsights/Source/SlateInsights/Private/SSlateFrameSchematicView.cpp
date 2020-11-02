@@ -13,8 +13,18 @@
 #include "Widgets/Layout/SHeader.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableRow.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
+
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Application/SlateApplication.h"
+
+#include "HAL/FileManager.h"
+#include "Modules/ModuleManager.h"
+#include "Internationalization/Regex.h"
+#include "SlateInsightsStyle.h"
+#include "ISourceCodeAccessModule.h"
+#include "ISourceCodeAccessor.h"
 
 #define LOCTEXT_NAMESPACE "SSlateFrameSchematicView"
 
@@ -40,6 +50,8 @@ namespace Private
 		uint32 Count;
 		TArray<TSharedPtr<FWidgetUniqueInvalidatedInfo>> Investigators;
 		bool bRoot;
+		FString ScriptTrace;
+		FString Callstack;
 	};
 
 	struct FWidgetUpdateInfo
@@ -81,6 +93,7 @@ namespace Private
 			if (ColumnName == ColumnWidgetId)
 			{
 				const EVisibility ExpanderArrowVisibility = Info->Investigators.Num() ? EVisibility::Visible : EVisibility::Hidden;
+				const FString TraceAndCallStackTipText = Info->ScriptTrace.IsEmpty() ? Info->Callstack : Info->ScriptTrace + "\n" + Info->Callstack;
 
 				return SNew(SHorizontalBox)
 
@@ -98,6 +111,7 @@ namespace Private
 					[
 						SNew(STextBlock)
 						.Text(WidgetName)
+						.ToolTipText(FText::AsCultureInvariant(TraceAndCallStackTipText))
 					];
 			}
 			if (ColumnName == ColumnNumber)
@@ -403,6 +417,15 @@ TSharedPtr<SWidget> SSlateFrameSchematicView::HandleWidgetInvalidateListContextM
 			FCanExecuteAction::CreateSP(this, &SSlateFrameSchematicView::CanWidgetInvalidateListGotoRootWidget)
 		));
 
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ViewScriptAndCallStack", "View script and call stack"),
+		LOCTEXT("ViewScriptAndCallStackTooltip", "Open a window containing the script stack and the call stack. Script stack may be empty."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SSlateFrameSchematicView::HandleWidgetInvalidateListViewScriptAndCallStack),
+			FCanExecuteAction::CreateSP(this, &SSlateFrameSchematicView::CanWidgetInvalidateListViewScriptAndCallStack)
+		));
+
 	return MenuBuilder.MakeWidget();
 }
 
@@ -436,6 +459,109 @@ void SSlateFrameSchematicView::HandleWidgetInvalidateListGotoRootWidget()
 		WidgetInvalidateInfoListView->SetItemSelection(SelectedItem, true, ESelectInfo::Direct);
 		WidgetInvalidateInfoListView->RequestNavigateToItem(SelectedItem);
 	}
+}
+
+bool SSlateFrameSchematicView::CanWidgetInvalidateListViewScriptAndCallStack()
+{
+	if (WidgetInvalidateInfoListView->GetSelectedItems().Num() == 1)
+	{
+		TSharedPtr<Private::FWidgetUniqueInvalidatedInfo> SelectedItem = WidgetInvalidateInfoListView->GetSelectedItems().Last();
+		return !SelectedItem->Callstack.IsEmpty();
+	}
+
+	return false;
+}
+
+void SSlateFrameSchematicView::HandleWidgetInvalidateListViewScriptAndCallStack()
+{
+	if (WidgetInvalidateInfoListView->GetSelectedItems().Num() == 1)
+	{
+		TSharedPtr<Private::FWidgetUniqueInvalidatedInfo> Info = WidgetInvalidateInfoListView->GetSelectedItems().Last();
+		const FString TraceAndCallStackTipText = Info->ScriptTrace.IsEmpty() ? Info->Callstack : Info->ScriptTrace + "\n" + Info->Callstack;
+		const FText WidgetName = Private::GetWidgetName(AnalysisSession, Info->WidgetId);
+
+		/** Create the window to host our package dialog widget */
+		TSharedRef< SWindow > ViewScriptAndCallstackWindow = SNew(SWindow)
+		.Title(WidgetName)
+		.ClientSize(FVector2D(1200, 600))
+		.ActivationPolicy(EWindowActivationPolicy::Never)
+		.IsInitiallyMaximized(false)
+		[
+				
+			SNew(SBorder)
+			.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+			.OnMouseDoubleClick(this, &SSlateFrameSchematicView::OnMouseButtonDoubleClick)
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.FillHeight(1.0f)
+				[
+					SAssignNew(ScriptAndCallStackTextBox, SMultiLineEditableTextBox)
+					.Style(FSlateInsightsStyle::Get(), "Callstack.TextBox")
+					.Text(FText::AsCultureInvariant(TraceAndCallStackTipText))
+					.SelectWordOnMouseDoubleClick(false)
+				]
+			]
+		];
+
+		/** Show the package dialog window as a modal window */
+		FSlateApplication::Get().AddModalWindow(ViewScriptAndCallstackWindow, FSlateApplication::Get().GetActiveModalWindow());
+	}
+}
+
+bool ExtractFilepathAndLineNumber(FString& PotentialFilePath, int32& LineNumber)
+{
+	// Extract filename and line number using regex	
+#if PLATFORM_WINDOWS
+	const FRegexPattern SourceCodeRegexPattern(TEXT("([a-zA-Z]:/[^:\\n\\r()]+(h|cpp)):([0-9]+)"));
+	const int32 LineNumberCaptureGroupID = 3;
+#else
+	const FRegexPattern SourceCodeRegexPattern(TEXT("((//([^:/\\n]+[/])*)([^/]+)(h|cpp)):([0-9]+))"));
+	const int32 LineNumberCaptureGroupID = 6;
+#endif
+
+	FRegexMatcher SourceCodeRegexMatcher(SourceCodeRegexPattern, PotentialFilePath);
+	if (SourceCodeRegexMatcher.FindNext())
+	{
+		PotentialFilePath = SourceCodeRegexMatcher.GetCaptureGroup(1);
+		LineNumber = FCString::Strtoi(*SourceCodeRegexMatcher.GetCaptureGroup(LineNumberCaptureGroupID), nullptr, 10);
+		return true;
+	}
+
+	return false;
+}
+
+FReply SSlateFrameSchematicView::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		// grab cursor location's line of text
+		FString PotentialCodeFilePath;
+		if (ScriptAndCallStackTextBox)
+		{
+			ScriptAndCallStackTextBox->GetCurrentTextLine(PotentialCodeFilePath);
+
+			int32 LeftBrace = INDEX_NONE;
+			int32 RightBrace = INDEX_NONE;
+			if (PotentialCodeFilePath.FindChar('[', LeftBrace) && PotentialCodeFilePath.FindChar(']', RightBrace))
+			{
+				PotentialCodeFilePath.MidInline(LeftBrace + 1, RightBrace - LeftBrace - 1);
+
+				// Extract potential .cpp./h files file path & line number
+				int32 LineNumber = 0;
+				PotentialCodeFilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*PotentialCodeFilePath);
+				if (ExtractFilepathAndLineNumber(PotentialCodeFilePath, LineNumber) && PotentialCodeFilePath.Len() && IFileManager::Get().FileSize(*PotentialCodeFilePath) != INDEX_NONE)
+				{
+					ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
+					SourceCodeAccessModule.GetAccessor().OpenFileAtLine(PotentialCodeFilePath, LineNumber);
+				}
+
+				return FReply::Handled();
+			}
+		}
+	}
+
+	return FReply::Unhandled();
 }
 
 void SSlateFrameSchematicView::RefreshNodes()
@@ -534,6 +660,15 @@ void SSlateFrameSchematicView::RefreshNodes_Invalidation(const FSlateProvider* S
 				WidgetInfo->Investigators.Add(InvestigatorInfo);
 			}
 
+			if (!Message.ScriptTrace.IsEmpty())
+			{
+				WidgetInfo->ScriptTrace = Message.ScriptTrace;
+			}
+
+			if (!Message.Callstack.IsEmpty())
+			{
+				WidgetInfo->Callstack = Message.Callstack;
+			}
 
 			return Trace::EEventEnumerate::Continue;
 		});
