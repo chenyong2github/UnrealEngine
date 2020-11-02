@@ -15,3 +15,4 @@ void AddMobileSeparateTranslucencyPass(FRDGBuilder& GraphBuilder, const FViewInf
 
 // Returns whether separate translucency is enabled and there primitives to draw in the view
 bool IsMobileSeparateTranslucencyActive(const FViewInfo& View);
+bool IsMobileSeparateTranslucencyActive(const FViewInfo* Views, int32 NumViews);

@@ -8,6 +8,18 @@ MobileSeparateTranslucencyPass.cpp - Mobile specific separate translucency pass
 #include "TranslucentRendering.h"
 #include "DynamicPrimitiveDrawing.h"
 
+bool IsMobileSeparateTranslucencyActive(const FViewInfo* Views, int32 NumViews)
+{
+	for (int32 ViewIdx = 0; ViewIdx < NumViews; ++ViewIdx)
+	{
+		if (IsMobileSeparateTranslucencyActive(Views[ViewIdx]))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 bool IsMobileSeparateTranslucencyActive(const FViewInfo& View)
 {
 	return View.ParallelMeshDrawCommandPasses[EMeshPass::TranslucencyAfterDOF].HasAnyDraw();
