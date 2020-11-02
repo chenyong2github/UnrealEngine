@@ -9,6 +9,7 @@
 #include "DistanceFieldLightingShared.ush"
 #include "DistanceFieldAOShared.ush"
 #include "GlobalDistanceFieldShared.ush"
+#include "MeshDistanceFieldCommon.ush"
 
 #ifndef CULLOBJECTS_THREADGROUP_SIZE
 	#define CULLOBJECTS_THREADGROUP_SIZE 1
@@ -62,33 +63,6 @@ RWTexture3D<UNORM float> RWPageAtlasTexture;
 #endif
 
 #define COMPOSITE_THREADGORUP_TOTALSIZE (COMPOSITE_THREADGROUP_SIZEX * COMPOSITE_THREADGROUP_SIZEY * COMPOSITE_THREADGROUP_SIZEZ)
-
-float DistanceToNearestSurfaceForObject(uint ObjectIndex, float3 WorldPosition, float MaxDistance)
-{
-	float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex);
-	float4x4 WorldToVolume = LoadGlobalObjectWorldToVolume(ObjectIndex);
-	bool bGeneratedAsTwoSided;
-	float4 UVScaleAndVolumeScale = LoadGlobalObjectUVScale(ObjectIndex, bGeneratedAsTwoSided);
-	float3 VolumePosition = mul(float4(WorldPosition, 1), WorldToVolume).xyz;
-	float BoxDistance = ComputeDistanceFromBoxToPoint(-LocalPositionExtent, LocalPositionExtent, VolumePosition) * UVScaleAndVolumeScale.w;
-
-	float DistanceToOccluder = MaxDistance;
-
-	BRANCH
-	if (BoxDistance < MaxDistance)
-	{
-		float3 UVAdd = LoadGlobalObjectUVAddAndSelfShadowBias(ObjectIndex).xyz;
-		float2 DistanceFieldMAD = LoadGlobalObjectDistanceFieldMAD(ObjectIndex);
-
-		float3 ClampedSamplePosition = clamp(VolumePosition, -LocalPositionExtent, LocalPositionExtent);
-		float DistanceToClamped = length(VolumePosition - ClampedSamplePosition);
-
-		float3 StepVolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, UVScaleAndVolumeScale.xyz, UVAdd);
-		DistanceToOccluder = (SampleMeshDistanceField(StepVolumeUV, DistanceFieldMAD).x + DistanceToClamped) * UVScaleAndVolumeScale.w;
-	}
-
-	return DistanceToOccluder;
-}
 
 RWStructuredBuffer<uint> RWObjectIndexBuffer;
 RWStructuredBuffer<uint> RWObjectIndexNumBuffer;

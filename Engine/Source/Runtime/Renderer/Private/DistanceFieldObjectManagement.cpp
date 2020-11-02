@@ -47,11 +47,11 @@ FAutoConsoleVariableRef CVarDFParallelUpdate(
 );
 
 // Must match equivalent shader defines
-template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 16;
+template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 17;
 template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectBoundsStride = 2;
 template<> int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectDataStride = 6;
 template<> int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectBoundsStride = 2;
-template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 16;
+template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 17;
 template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectBoxBoundsStride = 5;
 template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectDataStride = 6;
 template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectBoxBoundsStride = 5;
@@ -691,6 +691,9 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRDGB
 									UploadObjectData[13] = *(FVector4*)&VolumeToWorldT.M[0];
 									UploadObjectData[14] = *(FVector4*)&VolumeToWorldT.M[1];
 									UploadObjectData[15] = *(FVector4*)&VolumeToWorldT.M[2];
+
+									// Scale from a local space to a volume space
+									UploadObjectData[16] = FVector4(MaxExtent * LocalToWorld.GetScaleVector(), 0.0f);
 								}
 							}
 						},

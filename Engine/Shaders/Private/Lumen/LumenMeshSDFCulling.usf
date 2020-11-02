@@ -9,6 +9,7 @@
 #include "../HybridIndirectLighting.ush"
 #include "LumenCardCommon.ush"
 #include "ProbeHierarchy/LumenProbeTracing.ush"
+#include "../MeshDistanceFieldCommon.ush"
 
 uint ObjectBoundingGeometryIndexCount;
 float CardTraceEndDistanceFromCamera; 
@@ -188,31 +189,6 @@ float3 ComputeCellWorldPosition(uint3 GridCoordinate, float3 CellOffset)
 	return CenterPosition.xyz / CenterPosition.w - View.PreViewTranslation;
 }
 
-bool DoesMeshSDFAffectSphere(float3 WorldSphereCenter, float WorldSphereRadius, uint ObjectIndex, float3 LocalPositionExtent) 
-{
-	float4x4 WorldToVolume = LoadGlobalObjectWorldToVolume(ObjectIndex);
-
-	float3 VolumeSphereCenter = mul(float4(WorldSphereCenter, 1), WorldToVolume).xyz;
-
-	// Transform a length along each axis and take the maximum bounding sphere to conservatively handle non-uniform scaling
-	float3 VolumeTileInfluenceRadii = abs(mul(float4(WorldSphereRadius, WorldSphereRadius, WorldSphereRadius, 0), WorldToVolume).xyz);
-	float VolumeTileInfluenceRadius = max(VolumeTileInfluenceRadii.x, max(VolumeTileInfluenceRadii.y, VolumeTileInfluenceRadii.z));
-
-	float3 UVAdd = LoadGlobalObjectUVAddAndSelfShadowBias(ObjectIndex).xyz;
-	float2 DistanceFieldMAD = LoadGlobalObjectDistanceFieldMAD(ObjectIndex);
-
-	float3 ClampedSamplePosition = clamp(VolumeSphereCenter, -LocalPositionExtent, LocalPositionExtent);
-	float DistanceToClamped = length(VolumeSphereCenter - ClampedSamplePosition);
-
-	bool bGeneratedAsTwoSided;
-	float4 UVScaleAndVolumeScale = LoadGlobalObjectUVScale(ObjectIndex, bGeneratedAsTwoSided);
-
-	float3 StepVolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, UVScaleAndVolumeScale.xyz, UVAdd);
-	float DistanceToOccluder = SampleMeshDistanceField(StepVolumeUV, DistanceFieldMAD).x + DistanceToClamped;
-
-	return DistanceToOccluder < VolumeTileInfluenceRadius;
-}
-
 uint MaxNumberOfCulledObjects;
 
 Texture2D ClosestHZBTexture;
@@ -317,7 +293,9 @@ void MeshSDFObjectCullPS(
 			WorldTileCornerVector = (ComputeCellWorldPosition(FroxelGridCoordinate, float3(0, 0, 1)) - WorldTileCenterPosition);
 			CornerLength = max(length(WorldTileCornerVector), CornerLength);
 
-			bTileIntersectsObject = DoesMeshSDFAffectSphere(WorldTileCenterPosition, CornerLength + MaxMeshSDFInfluenceRadius, ObjectIndex, LocalPositionExtent);
+			float TileBoundingSphereRadius = CornerLength + MaxMeshSDFInfluenceRadius;
+			float DistanceToSurface = DistanceToNearestSurfaceForObject(ObjectIndex, WorldTileCenterPosition, TileBoundingSphereRadius);
+			bTileIntersectsObject = DistanceToSurface < TileBoundingSphereRadius;
 		}
 #endif
 		
@@ -396,7 +374,8 @@ void MeshSDFObjectCullForProbesPS(
 				// Check distance to SDF
 				if (bProbeIntersectsObject)
 				{
-					bProbeIntersectsObject = DoesMeshSDFAffectSphere(ProbeWorldPosition, MaxMeshSDFInfluenceRadius, ObjectIndex, LocalPositionExtent);
+					float DistanceToSurface = DistanceToNearestSurfaceForObject(ObjectIndex, ProbeWorldPosition, MaxMeshSDFInfluenceRadius);
+					bProbeIntersectsObject = DistanceToSurface < MaxMeshSDFInfluenceRadius;
 				}
 
 				if (bProbeIntersectsObject)

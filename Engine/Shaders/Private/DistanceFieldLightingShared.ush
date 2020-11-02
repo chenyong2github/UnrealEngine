@@ -95,7 +95,7 @@ uint GetCulledNumObjects()
 // In float4's.  Must match equivalent C++ variables.
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 #define OBJECT_BOUNDS_STRIDE 2
-#define OBJECT_DATA_STRIDE 16
+#define OBJECT_DATA_STRIDE 17
 #elif (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_HeightField)
 #define OBJECT_BOUNDS_STRIDE 2
 #define OBJECT_DATA_STRIDE 6
@@ -193,9 +193,23 @@ float4x4 LoadGlobalObjectOBBToWorld(uint ObjectIndex)
 	return transpose(float4x4(M0, M1, M2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
 }
 
+struct FDFObjectData
+{
+	float3 VolumeToLocalScale;
+};
+
+FDFObjectData LoadDFObjectData(uint ObjectIndex)
+{
+	FDFObjectData Data;
+
+	Data.VolumeToLocalScale = SceneObjectData[ObjectIndex * OBJECT_DATA_STRIDE + 16].xyz;
+
+	return Data;
+}
+
 // In float4's.  Must match equivalent C++ variables.
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
-#define CULLED_OBJECT_DATA_STRIDE 16
+#define CULLED_OBJECT_DATA_STRIDE 17
 #define CULLED_OBJECT_BOX_BOUNDS_STRIDE 5
 #elif (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_HeightField)
 #define CULLED_OBJECT_DATA_STRIDE 6
