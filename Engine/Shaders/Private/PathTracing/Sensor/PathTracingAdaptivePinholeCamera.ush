@@ -71,50 +71,67 @@ void AdaptivePinholeCamera_SampleEmitter(
 	uint2 MipPixel = 0;
 	uint MipCount = Log2(AdaptiveSamplingData.VarianceDimensions.x);
 
+	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, 0);
 	uint StopLevel = 0;
+
+	float OneMinusEps = 0.999999940395; // float just before 1.0
 	for (uint Index = 0; Index < MipCount - StopLevel; ++Index)
 	{
 		uint MipIndex = MipCount - Index - 1;
-		float4 VarianceCdf;
-		VarianceCdf.x = AdaptiveSamplingData.VarianceMipTree[BufferOffsetAtPixel(MipPixel, MipIndex)];
-		VarianceCdf.y = VarianceCdf.x + AdaptiveSamplingData.VarianceMipTree[BufferOffsetAtPixel(MipPixel + uint2(1, 0), MipIndex)];
-		VarianceCdf.z = VarianceCdf.y + AdaptiveSamplingData.VarianceMipTree[BufferOffsetAtPixel(MipPixel + uint2(0, 1), MipIndex)];
-		VarianceCdf.w = VarianceCdf.z + AdaptiveSamplingData.VarianceMipTree[BufferOffsetAtPixel(MipPixel + uint2(1, 1), MipIndex)];
-		VarianceCdf /= VarianceCdf.w;
+		float Pdf00 = AdaptiveSamplingData.VarianceMipTree[BufferOffsetAtPixel(MipPixel, MipIndex)];
+		float Pdf01 = AdaptiveSamplingData.VarianceMipTree[BufferOffsetAtPixel(MipPixel + uint2(0, 1), MipIndex)];
+		float Pdf10 = AdaptiveSamplingData.VarianceMipTree[BufferOffsetAtPixel(MipPixel + uint2(1, 0), MipIndex)];
+		float Pdf11 = AdaptiveSamplingData.VarianceMipTree[BufferOffsetAtPixel(MipPixel + uint2(1, 1), MipIndex)];
 
-		float RandSample = RandomSequence_GenerateSample1D(RandSequence, 0);
-		if (RandSample < VarianceCdf.x)
+		// first decide between left / right:
+		float PdfSum = (Pdf00 + Pdf01) + (Pdf10 + Pdf11);
+		float ProbLeft = (Pdf00 + Pdf01) / PdfSum;
+
+		if (RandSample.x < ProbLeft)
 		{
-			OutPdf *= VarianceCdf.x;
+			RandSample.x = min(RandSample.x / ProbLeft, OneMinusEps);
+			// chose left - warp x and choose between the top / bottom pixels
+
+			float ProbTop = Pdf00 / (Pdf00 + Pdf01);
+			if (RandSample.y < ProbTop)
+			{
+				RandSample.y = min(RandSample.y / ProbTop, OneMinusEps);
+				OutPdf *= 4 * Pdf00 / PdfSum;
+			}
+			else
+			{
+				RandSample.y = min((1.0 - RandSample.y) / (1.0 - ProbTop), OneMinusEps);
+				OutPdf *= 4 * Pdf01 / PdfSum;
+				MipPixel.y += 1;
+			}
 		}
-		else if (RandSample < VarianceCdf.y)
+		else
 		{
-			OutPdf *= VarianceCdf.y - VarianceCdf.x;
+			// chose right - warp x and choose between the top / bottom pixels
+			RandSample.x = min((RandSample.x - ProbLeft) / (1.0 - ProbLeft), OneMinusEps);
+
 			MipPixel.x += 1;
-		}
-		else if (RandSample < VarianceCdf.z)
-		{
-			OutPdf *= VarianceCdf.z - VarianceCdf.y;
-			MipPixel.y += 1;
-		}
-		else // if (RandSample < VarianceCdf.w)
-		{
-			OutPdf *= 1.0 - VarianceCdf.z;
-			MipPixel += 1;
+
+			float ProbTop = Pdf10 / (Pdf10 + Pdf11);
+			if (RandSample.y < ProbTop)
+			{
+				RandSample.y = min(RandSample.y / ProbTop, OneMinusEps);
+				OutPdf *= 4 * Pdf10 / PdfSum;
+			}
+			else
+			{
+				RandSample.y = min((1.0 - RandSample.y) / (1.0 - ProbTop), OneMinusEps);
+				OutPdf *= 4 * Pdf11 / PdfSum;
+				MipPixel.y += 1;
+			}
 		}
 
-		MipPixel = uint2(MipPixel.x << 1, MipPixel.y << 1);
+		MipPixel <<= 1;
 	}
-#if 0
-	// Applying correct normalization causes catastrophic cancelation. Instead, OutPdf is only proportional to the correct weight
-	float NormalizationFactor = View.BufferSizeAndInvSize.x * View.BufferSizeAndInvSize.y;
-	float AreaPdf = (DimensionsAtLevel(StopLevel).x * DimensionsAtLevel(StopLevel).y) / (DimensionsAtLevel(0).x * DimensionsAtLevel(0).y);
-	OutPdf *= AreaPdf * NormalizationFactor;
-#endif
-	MipPixel = uint2(MipPixel.x >> 1, MipPixel.y >> 1);
 
-	float2 PixelOffset = RandomSequence_GenerateSample2D(RandSequence, 0);
-	float2 MipPixelUV = (MipPixel + PixelOffset) / float2(DimensionsAtLevel(StopLevel));
+	MipPixel >>= 1;
+
+	float2 MipPixelUV = (MipPixel + RandSample) / float2(DimensionsAtLevel(StopLevel));
 	// Correct for ViewSize/BufferSize discrepancy
 	MipPixelUV *= View.ViewSizeAndInvSize.xy * View.BufferSizeAndInvSize.zw;
 

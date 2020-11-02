@@ -16,16 +16,15 @@ Texture2D<uint> SampleCountTexture;
 Texture2D<float4> CumulativeIrradianceTexture;
 Texture2D<uint> CumulativeSampleCountTexture;
 
-// TODO: Make C1 continuous
 float TonemapGammaAndHDR(float Value)
 {
 	if (Value > 1.0)
 	{
-		Value = log(Value);
+		Value = 1.0 + 2.0 * log(Value);
 	}
 	else
 	{
-		Value = pow(Value, 2.2);
+		Value = pow(Value, 2.0);
 	}
 	return Value;
 }
@@ -55,39 +54,53 @@ void CompositeMain(
 	float RadianceBlue = FixedPointToFloat(RadianceBlueTexture.Load(TexCoord), 24);
 	float RadianceAlpha = FixedPointToFloat(RadianceAlphaTexture.Load(TexCoord), 24);
 	float4 Radiance = float4(RadianceRed, RadianceGreen, RadianceBlue, RadianceAlpha);
-	float SampleCount = SampleCountTexture.Load(TexCoord);
+	uint SampleCount = SampleCountTexture.Load(TexCoord);
+
+	if (SampleCount > 1)
+		Radiance /= float(SampleCount);
 
 	float4 CumulativeIrradiance = CumulativeIrradianceTexture.Load(TexCoord);
-	float CumulativeSampleCount = CumulativeSampleCountTexture.Load(TexCoord);
+	uint CumulativeSampleCount = CumulativeSampleCountTexture.Load(TexCoord);
 
-	float CumulativeVariance = CumulativeIrradiance.a;
+	// extract variance from variance of the mean
+	float CumulativeVariance = CumulativeIrradiance.a * CumulativeSampleCount;
 
 	OutCumulativeSampleCount = CumulativeSampleCount + SampleCount;
-	OutCumulativeIrradiance.rgb = (CumulativeIrradiance.rgb * CumulativeSampleCount + Radiance.rgb) / OutCumulativeSampleCount;
+    // Average radiance using the smaller blend factor for extra precision
+	float BlendFactor = float(SampleCount) / float(OutCumulativeSampleCount);
+	OutCumulativeIrradiance.rgb = lerp(CumulativeIrradiance.rgb, Radiance.rgb, BlendFactor);
 
 	float OutVariance = 0;
-	if (OutCumulativeSampleCount > 1 && OutCumulativeSampleCount < 4096)
-	{
-#if 0
-		// Per-sample variance
-		float IrradianceY = Tonemap(Luminance(Radiance));
-		float DeviationSquared = IrradianceY - Tonemap(Luminance(OutCumulativeIrradiance));
-#else
-		// Variance of the mean
-		float IrradianceY = Luminance(CumulativeIrradiance);
-		float DeviationSquared = IrradianceY - Luminance(OutCumulativeIrradiance);
-#endif
-		DeviationSquared *= DeviationSquared;
-		OutVariance = DeviationSquared;
-		if (CumulativeSampleCount > 0)
-		{
-			OutVariance += CumulativeVariance * (CumulativeSampleCount - 1);
-		}
-		OutVariance /= OutCumulativeSampleCount - 1;
-	}
-	OutCumulativeIrradiance.a = OutVariance;
+	float RadianceY = Luminance(Radiance.rgb);
+	float DeviationSquared = (RadianceY - Luminance(OutCumulativeIrradiance.rgb)) * (RadianceY - Luminance(CumulativeIrradiance.rgb));
+	// This formula is correct when SampleCount == 1 - but for larger values we would
+    // theoretically need to know the variance of our new batch of samples ...
+	OutVariance = lerp(CumulativeVariance, DeviationSquared, BlendFactor);
+
+	// store variance of the mean
+	OutCumulativeIrradiance.a = OutCumulativeSampleCount > 0 ? OutVariance / OutCumulativeSampleCount : 0;
 	OutColor = float4(OutCumulativeIrradiance.rgb * View.PreExposure, 1.0);
 
+#if 0
+    // split-screen debugging aids
+	if (UV.x < 0.5)
+	{
+		float Lum = Luminance(OutCumulativeIrradiance.rgb); // mean
+		float StdErr = OutCumulativeSampleCount > 0 ? sqrt(OutVariance / OutCumulativeSampleCount) : 0; // stderr
+		//OutColor = Tonemap(Lum + 3 * StdErr) - Tonemap(max(Lum - 3 * StdErr, 0.0)); // error estimator
+		//OutColor = StdErr * View.PreExposure;
+		OutColor = StdErr / (Lum + 0.0001) * View.PreExposure;
+		//OutColor = OutVariance / (Tonemap(Lum) + 0.0001);
+		//OutColor = OutVariance * View.PreExposure;
+		//OutColor = OutCumulativeSampleCount / 1024.0 * View.PreExposure;
+		//OutColor.r = AdaptiveSamplingData.VarianceDimensions.x + AdaptiveSamplingData.VarianceDimensions.x;
+		//OutColor.g = AdaptiveSamplingData.VarianceDimensions.x;
+		//OutColor.b = AdaptiveSamplingData.VarianceDimensions.y;
+
+		//OutColor = AdaptiveSamplingData.VarianceMipTree[BufferOffsetAtPixel(TexCoord.xy, 0)];
+
+	}
+#endif
 	// To visualize the current frame:
-	// OutColor = float4(Irradiance.rgb / SampleCount, 1.0);
+	//OutColor = float4(Radiance.rgb / SampleCount, 1.0);
 }
