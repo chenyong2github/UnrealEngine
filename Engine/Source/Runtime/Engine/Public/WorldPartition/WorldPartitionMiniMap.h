@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/info.h"
+#include "GameFramework/Info.h"
 #include "WorldPartitionMiniMap.generated.h"
 
 /**
