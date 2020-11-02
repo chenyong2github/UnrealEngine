@@ -543,6 +543,17 @@ private:
 	void OnSectionRecomputeTangentChanged(ECheckBoxState NewState, int32 LODIndex, int32 SectionIndex);
 
 	/**
+	* Handler for selecting which vertex color to mask the blending of recomputing tangents
+	*
+	* @param LODIndex	The LODIndex we want to change
+	* @param SectionIndex	The SectionIndex we change the RecomputeTangent
+	*/
+	TSharedRef<class SWidget> OnGenerateRecomputeTangentsVertexChannelMaskPicker(int32 LODIndex, int32 SectionIndex);
+	bool IsGenerateRecomputeTangentsVertexChannelMaskPicker(int32 LODIndex, int32 SectionIndex) const;
+	FText GetCurrentRecomputeTangentsVertexChannelMaskName(int32 LODIndex, int32 SectionIndex) const;
+	void SetCurrentRecomputeTangentsVertexChannel(int32 LODIndex, int32 SectionIndex, int32 Index);
+
+	/**
 	 * Handler for enabling delete button on materials
 	 *
 	 * @param SectionIndex - index of the section to check
