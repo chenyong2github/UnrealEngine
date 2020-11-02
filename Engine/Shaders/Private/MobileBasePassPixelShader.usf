@@ -689,7 +689,12 @@ void Main(
 	// Cascaded Shadow Map
 	if(MobileBasePass.UseCSM)
 	{
-		Shadow = MobileDirectionalLightCSM(MaterialParameters.ScreenPosition.xy, MaterialParameters.ScreenPosition.w);
+		half ShadowMap = MobileDirectionalLightCSM(MaterialParameters.ScreenPosition.xy, MaterialParameters.ScreenPosition.w);
+	#if MOVABLE_DIRECTIONAL_LIGHT
+		Shadow = ShadowMap;
+	#else
+		Shadow = min(ShadowMap, Shadow);
+	#endif
 	}
 #endif /* DIRECTIONAL_LIGHT_CSM */
 

@@ -233,7 +233,7 @@ return ShadowMap;
 
 half MobileDirectionalLightCSM(float2 ScreenPosition, float SceneDepth)
 {
-	half Shadow = 1;
+	half ShadowMap = 1;
 	FPCFSamplerSettings Settings;
 	Settings.ShadowDepthTexture = MobileDirectionalLight.DirectionalLightShadowTexture;
 	Settings.ShadowDepthTextureSampler = MobileDirectionalLight.DirectionalLightShadowSampler;
@@ -267,19 +267,13 @@ half MobileDirectionalLightCSM(float2 ScreenPosition, float SceneDepth)
 		float LightSpacePixelDepthForOpaque = min(ShadowPosition.z, 0.99999f);
 		Settings.SceneDepth = LightSpacePixelDepthForOpaque;
 
-		half ShadowMap = MobileShadowPCF(ShadowPosition.xy, Settings);
+		ShadowMap = MobileShadowPCF(ShadowPosition.xy, Settings);
 
 		#if FADE_CSM
 			float Fade = saturate(SceneDepth * MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.x + MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.y);
-		// lerp out shadow based on fade params.
+			// lerp out shadow based on fade params.
 			ShadowMap = lerp(ShadowMap, 1.0, Fade * Fade);
 		#endif
-
-		#if MOVABLE_DIRECTIONAL_LIGHT
-			Shadow = ShadowMap;
-		#else
-			Shadow = min(ShadowMap, Shadow);
-		#endif
 	}
-	return Shadow;
+	return ShadowMap;
 }
