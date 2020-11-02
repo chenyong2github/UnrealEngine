@@ -139,4 +139,4 @@ goto:eof
 
 ::------------------------------------------------------------------------------
 :start_sb
-.\.thirdparty\python\current\python.exe -m switchboard
+start .\.thirdparty\python\current\pythonw.exe -m switchboard
