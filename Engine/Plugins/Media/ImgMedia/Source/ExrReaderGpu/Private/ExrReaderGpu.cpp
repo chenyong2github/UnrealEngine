@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
-#if defined(PLATFORM_WINDOWS) && PLATFORM_WINDOWS
-
 #include "ExrReaderGpu.h"
-#include "CoreMinimal.h"
+
+#if PLATFORM_WINDOWS
+
 #include "ExrReaderGpuModule.h"
 
 PRAGMA_DEFAULT_VISIBILITY_START
