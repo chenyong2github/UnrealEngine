@@ -433,9 +433,14 @@ namespace Chaos
 
 						for (const FManifoldPoint& ManifoldPoint : PointConstraint->GetManifoldPoints())
 						{
-							const FVec3 Location = SpaceTransform.TransformPosition(WorldCoMTransform0.TransformPosition(ManifoldPoint.CoMContactPoints[0]));
-							const FVec3 OldLocation = SpaceTransform.TransformPosition(WorldCoMTransform1.TransformPosition(Particle1->CenterOfMass() + Particle1->RotationOfMass() * ManifoldPoint.PrevCoMContactPoint1));
-							const FVec3 Normal = SpaceTransform.TransformVector(WorldCoMTransform1.TransformVector(ManifoldPoint.CoMContactNormal));
+							const int32 ContactPlaneOwner = ManifoldPoint.ContactPoint.ContactNormalOwnerIndex;
+							const int32 ContactPointOwner = 1 - ContactPlaneOwner;
+							const FRigidTransform3& PlaneTransform = (ContactPlaneOwner == 0) ? WorldCoMTransform0 : WorldCoMTransform1;
+							const FRigidTransform3& PointTransform = (ContactPlaneOwner == 0) ? WorldCoMTransform1 : WorldCoMTransform0;
+							TConstGenericParticleHandle<FReal, 3> PlaneParticle = (ContactPlaneOwner == 0) ? Particle0 : Particle1;
+							const FVec3 Location = SpaceTransform.TransformPosition(PointTransform.TransformPosition(ManifoldPoint.CoMContactPoints[ContactPointOwner]));
+							const FVec3 OldLocation = SpaceTransform.TransformPosition(PlaneTransform.TransformPosition(PlaneParticle->CenterOfMass() + PlaneParticle->RotationOfMass() * ManifoldPoint.PrevCoMContactPoints[ContactPlaneOwner]));
+							const FVec3 Normal = SpaceTransform.TransformVector(PlaneTransform.TransformVector(ManifoldPoint.CoMContactNormal));
 
 							// Dynamic friction, restitution = red
 							// Static friction, no restitution = green
