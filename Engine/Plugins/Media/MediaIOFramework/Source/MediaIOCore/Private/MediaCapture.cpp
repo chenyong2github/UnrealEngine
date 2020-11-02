@@ -826,6 +826,7 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 				// convert the source with a draw call
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
 				FRHITexture* RenderTarget = DestRenderTarget.TargetableTexture.GetReference();
+				RHICmdList.Transition(FRHITransitionInfo(RenderTarget, ERHIAccess::Unknown, ERHIAccess::RTV));
 				FRHIRenderPassInfo RPInfo(RenderTarget,  ERenderTargetActions::DontLoad_Store);
 				RHICmdList.BeginRenderPass(RPInfo, TEXT("MediaCapture"));
 
@@ -888,9 +889,9 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 				// set viewport to RT size
 				RHICmdList.SetViewport(0, 0, 0.0f, InMediaCapture->DesiredOutputSize.X, InMediaCapture->DesiredOutputSize.Y, 1.0f);
 				RHICmdList.DrawPrimitive(0, 2, 1);
-				RHICmdList.Transition(FRHITransitionInfo(DestRenderTarget.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
-
 				RHICmdList.EndRenderPass();
+				RHICmdList.Transition(FRHITransitionInfo(DestRenderTarget.TargetableTexture, ERHIAccess::RTV, ERHIAccess::SRVGraphics));
+
 			}
 
 			if (InMediaCapture->bShouldCaptureRHITexture)
