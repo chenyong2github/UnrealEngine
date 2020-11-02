@@ -8,6 +8,17 @@ namespace Chaos
 {
 	namespace Collisions
 	{
+		uint32 BoxBoxClipVerticesAgainstPlane(const FVec3* InputVertexBuffer, FVec3* outputVertexBuffer, uint32 ClipPointCount, FReal ClippingAxis, FReal Distance);
+		uint32 ReduceManifoldContactPoints(FVec3* Points, uint32 PointCount);
+
+		void ConstructBoxBoxOneShotManifold(
+			const FImplicitBox3& Box1,
+			const FRigidTransform3& Box1Transform, //world
+			const FImplicitBox3& Box2,
+			const FRigidTransform3& Box2Transform, //world
+			const FReal CullDistance,
+			FRigidBodyPointContactConstraint& Constraint,
+			bool bInInitialize);
 
 		template <typename ConvexImplicitType>
 		void ConstructConvexConvexOneShotManifold(
@@ -18,6 +29,5 @@ namespace Chaos
 			const FReal CullDistance,
 			FRigidBodyPointContactConstraint& Constraint,
 			bool bInInitialize);
-
 	}
 }
