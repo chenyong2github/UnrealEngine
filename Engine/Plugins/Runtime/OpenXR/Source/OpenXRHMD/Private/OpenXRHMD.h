@@ -30,11 +30,11 @@ public:
 	{
 	public:
 		FDeviceSpace(XrAction InAction);
+		~FDeviceSpace();
 
 		bool CreateSpace(XrSession InSession);
 		void DestroySpace();
 
-		XrReferenceSpaceType ReferenceSpaceType;
 		XrAction Action;
 		XrSpace Space;
 	};
