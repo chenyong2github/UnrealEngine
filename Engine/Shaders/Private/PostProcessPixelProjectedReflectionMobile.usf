@@ -137,7 +137,7 @@ void ProjectionPassCS(
 	ResolvedView = ResolveView(EyeIndex);
 	LayerIndex = EyeIndex;
 #elif MOBILE_MULTI_VIEW
-#if (COMPILER_GLSL_ES3_1 || COMPILER_GLSL_ES3_1_EXT)
+#if COMPILER_GLSL_ES3_1
 	const int MultiViewId = int(ViewId);
 	ResolvedView = ResolveView(uint(MultiViewId));
 	MultiViewIndex = float(MultiViewId);
@@ -204,7 +204,7 @@ void ReflectionPassVS(
 	ResolvedView = ResolveView(EyeIndex);
 	LayerIndex = EyeIndex;
 #elif MOBILE_MULTI_VIEW
-#if (COMPILER_GLSL_ES3_1 || COMPILER_GLSL_ES3_1_EXT)
+#if COMPILER_GLSL_ES3_1
 	const int MultiViewId = int(ViewId);
 	ResolvedView = ResolveView(uint(MultiViewId));
 	MultiViewIndex = float(MultiViewId);
