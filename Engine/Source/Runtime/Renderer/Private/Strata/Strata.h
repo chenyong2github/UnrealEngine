@@ -29,13 +29,15 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 
 
-struct FStrataData
+struct FStrataSceneData
 {
 	uint32 MaxBytesPerPixel;
 	TRefCountPtr<IPooledRenderTarget> MaterialLobesTexture; // This should be a RDG resource when the refactoring gets in
 	FRWByteAddressBuffer MaterialLobesBuffer;				// This should be a RDG resource	"		"		"
 
-	FStrataData()
+	TUniformBufferRef<FStrataGlobalUniformParameters> StrataGlobalUniformParameters;
+
+	FStrataSceneData()
 	{
 	}
 };

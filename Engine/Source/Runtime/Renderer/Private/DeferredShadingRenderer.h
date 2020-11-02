@@ -41,7 +41,6 @@ struct FHeightFogRenderingParameters;
 struct FRayTracingReflectionOptions;
 struct FHairStrandsTransmittanceMaskData;
 struct FHairStrandsRenderingData;
-struct FStrataData;
 
 /**   
  * Data for rendering meshes into Lumen Lighting Cards.

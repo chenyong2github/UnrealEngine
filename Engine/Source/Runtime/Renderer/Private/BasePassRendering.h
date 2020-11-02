@@ -36,8 +36,6 @@ struct FSceneWithoutWaterTextures;
 class FViewInfo;
 class UMaterialExpressionSingleLayerWaterMaterialOutput;
 
-struct FStrataData;
-
 /** Whether to allow the indirect lighting cache to be applied to dynamic objects. */
 extern int32 GIndirectLightingCache;
 
