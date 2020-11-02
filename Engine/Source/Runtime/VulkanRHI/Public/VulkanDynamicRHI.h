@@ -457,11 +457,13 @@ protected:
 
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 	IConsoleObject* DumpMemoryCmd = nullptr;
+	IConsoleObject* DumpMemoryFullCmd = nullptr;
 	IConsoleObject* DumpStagingMemoryCmd = nullptr;
 	IConsoleObject* DumpLRUCmd = nullptr;
 	IConsoleObject* TrimLRUCmd = nullptr;
 public:
 	static void DumpMemory();
+	static void DumpMemoryFull();
 	static void DumpStagingMemory();
 	static void DumpLRU();
 	static void TrimLRU();

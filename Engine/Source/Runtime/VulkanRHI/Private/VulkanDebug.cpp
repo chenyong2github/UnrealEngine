@@ -509,7 +509,7 @@ static FORCEINLINE void BreakOnTrackingImageView(VkImageView InView)
 }
 #endif
 
-#if VULKAN_ENABLE_BUFFER_TRACKING_LAYER || VULKAN_ENABLE_DUMP_LAYER
+#if VULKAN_ENABLE_BUFFER_TRACKING_LAYER || VULKAN_ENABLE_DUMP_LAYER || VULKAN_ENABLE_IMAGE_TRACKING_LAYER 
 static TMap<VkBuffer, TTrackingResource<VkBufferCreateInfo>> GVulkanTrackingBuffers;
 static TMap<VkBuffer, TArray<VkBufferView>> GVulkanTrackingBufferToBufferViews;
 static TMap<VkBufferView, TTrackingResource<VkBufferViewCreateInfo>> GVulkanTrackingBufferViews;
