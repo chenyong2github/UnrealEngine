@@ -826,6 +826,17 @@ uint8 FMaterial::GetRuntimeVirtualTextureOutputAttibuteMask_RenderThread() const
 	return RenderingThreadShaderMap ? RenderingThreadShaderMap->GetRuntimeVirtualTextureOutputAttributeMask() : 0;
 }
 
+bool FMaterial::MaterialUsesAnisotropy_GameThread() const
+{
+	return GameThreadShaderMap ? GameThreadShaderMap->UsesAnisotropy() : false;
+}
+
+bool FMaterial::MaterialUsesAnisotropy_RenderThread() const
+{
+	check(IsInParallelRenderingThread());
+	return RenderingThreadShaderMap ? RenderingThreadShaderMap->UsesAnisotropy() : false;
+}
+
 void FMaterial::SetGameThreadShaderMap(FMaterialShaderMap* InMaterialShaderMap)
 {
 	checkSlow(IsInGameThread() || IsInAsyncLoadingThread());
