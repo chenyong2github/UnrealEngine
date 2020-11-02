@@ -37,6 +37,9 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 		const FHairStrandsRestRootResource* HairStrandsRestRootResource,
 		const FHairStrandsDeformedRootResource* HairStrandsDeformedRootResource);
 
+	/** Transfer CPU datas to GPU */
+	void Transfer(const TStaticArray<float, 32 * NumScales>& InParamsScale);
+
 	/** Init the buffer */
 	virtual void InitRHI() override;
 

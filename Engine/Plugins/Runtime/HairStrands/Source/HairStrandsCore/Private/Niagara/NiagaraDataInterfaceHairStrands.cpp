@@ -307,6 +307,19 @@ void FNDIHairStrandsBuffer::Update(
 	SourceDeformedRootResources = HairStrandsDeformedRootResource;
 }
 
+void FNDIHairStrandsBuffer::Transfer(const TStaticArray<float, 32 * NumScales>& InParamsScale)
+{
+	if (SourceDatas != nullptr && SourceRestResources != nullptr)
+	{
+		const uint32 ScaleCount = 32 * NumScales;
+		const uint32 ScaleBytes = sizeof(float) * ScaleCount;
+
+		void* ScaleBufferData = RHILockVertexBuffer(ParamsScaleBuffer.Buffer, 0, ScaleBytes, RLM_WriteOnly);
+		FMemory::Memcpy(ScaleBufferData, InParamsScale.GetData(), ScaleBytes);
+		RHIUnlockVertexBuffer(ParamsScaleBuffer.Buffer);
+	}
+}
+
 void FNDIHairStrandsBuffer::InitRHI()
 {
 	if (SourceDatas != nullptr && SourceRestResources != nullptr)
@@ -3665,10 +3678,10 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 							void {InstanceFunctionName} (in bool EnableConstraint, in float ConstraintStiffness, in float PenetrationDepth, in float3 CollisionPosition, in float3 CollisionVelocity, in float3 CollisionNormal, 
-					in float StaticFriction, in float KineticFriction, in float DeltaTime, in float NodeMass, out float3 OutNodePosition )
+					in float StaticFriction, in float KineticFriction, in float DeltaTime, out float3 OutNodePosition )
 							{
 								{HairStrandsContextName} ProjectSoftCollisionConstraint(EnableConstraint,DIContext.StrandSize,ConstraintStiffness,PenetrationDepth,
-									CollisionPosition,CollisionVelocity,CollisionNormal,StaticFriction,KineticFriction,DeltaTime,NodeMass,OutNodePosition);
+									CollisionPosition,CollisionVelocity,CollisionNormal,StaticFriction,KineticFriction,DeltaTime,OutNodePosition);
 							}
 							)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -3834,6 +3847,8 @@ void FNDIHairStrandsProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraD
 			BoundingBoxOffsets[1] = BoundingBoxOffsets[2];
 			BoundingBoxOffsets[2] = BoundingBoxOffsets[3];
 			BoundingBoxOffsets[3] = FirstOffset;
+
+			ProxyData->HairStrandsBuffer->Transfer(ProxyData->ParamsScale);
 		}
 	}
 }
