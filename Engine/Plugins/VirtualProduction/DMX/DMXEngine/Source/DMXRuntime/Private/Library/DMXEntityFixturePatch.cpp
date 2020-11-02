@@ -673,7 +673,7 @@ TArray<UDMXEntityController*> UDMXEntityFixturePatch::GetRelevantControllers() c
 	}
 	else
 	{
-		UE_LOG(DMXEntityFixturePatchLog, Fatal, TEXT("Parent library is null!"));
+		ensureMsgf(ParentLibrary.IsValid(), TEXT("Parent library is null!"));
 	}
 
 	return MoveTemp(RetVal);
