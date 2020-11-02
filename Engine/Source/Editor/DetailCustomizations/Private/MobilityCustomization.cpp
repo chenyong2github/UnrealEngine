@@ -54,7 +54,7 @@ void FMobilityCustomization::CreateMobilityCustomization(IDetailCategoryBuilder&
 		ButtonOptionsPanel->AddSlot(EComponentMobility::Static)
 		[
 			SNew(STextBlock)
-			.Font(IDetailLayoutBuilder::GetDetailFontBold())
+			.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.MobilityFont"))
 			.TransformPolicy(ETextTransformPolicy::ToUpper)
 			.Text(LOCTEXT("Static", "Static"))
 		]
@@ -71,7 +71,7 @@ void FMobilityCustomization::CreateMobilityCustomization(IDetailCategoryBuilder&
 		ButtonOptionsPanel->AddSlot(EComponentMobility::Stationary)
 		[
 			SNew(STextBlock)
-			.Font(IDetailLayoutBuilder::GetDetailFontBold())
+			.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.MobilityFont"))
 			.TransformPolicy(ETextTransformPolicy::ToUpper)
 			.Text(LOCTEXT("Stationary", "Stationary"))
 		]
@@ -86,7 +86,7 @@ void FMobilityCustomization::CreateMobilityCustomization(IDetailCategoryBuilder&
 	ButtonOptionsPanel->AddSlot(EComponentMobility::Movable)
 	[
 		SNew(STextBlock)
-		.Font(IDetailLayoutBuilder::GetDetailFontBold())
+		.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.MobilityFont"))
 		.TransformPolicy(ETextTransformPolicy::ToUpper)
 		.Text(LOCTEXT("Movable", "Movable"))
 	]

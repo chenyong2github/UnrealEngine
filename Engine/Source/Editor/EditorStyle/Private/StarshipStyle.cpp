@@ -3108,6 +3108,11 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		Set( "PropertyWindow.BoldFont",FStyleFonts::Get().SmallBold);
 		Set( "PropertyWindow.ItalicFont", DEFAULT_FONT( "Italic", 8 ) );
 		Set( "PropertyWindow.FilterFont", DEFAULT_FONT( "Regular", 10 ) );
+
+		FSlateFontInfo MobilityFont = FStyleFonts::Get().SmallBold;
+		MobilityFont.LetterSpacing = 200;
+
+		Set("PropertyWindow.MobilityFont", MobilityFont);
 		Set( "PropertyWindow.NoOverlayColor", new FSlateNoResource() );
 		Set( "PropertyWindow.EditConstColor", new FSlateColorBrush( FColor( 152, 152, 152, 80 ) ) );
 		Set( "PropertyWindow.FilteredColor", new FSlateColorBrush( FColor( 0, 255, 0, 80 ) ) );
