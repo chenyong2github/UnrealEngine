@@ -1187,17 +1187,6 @@ bool FGenericCrashContext::CreateCrashReportDirectory(const TCHAR* CrashGUIDRoot
 	return IFileManager::Get().MakeDirectory(*OutCrashDirectoryAbsolute, true);
 }
 
-FProgramCounterSymbolInfoEx::FProgramCounterSymbolInfoEx( FString InModuleName, FString InFunctionName, FString InFilename, uint32 InLineNumber, uint64 InSymbolDisplacement, uint64 InOffsetInModule, uint64 InProgramCounter ) :
-	ModuleName( InModuleName ),
-	FunctionName( InFunctionName ),
-	Filename( InFilename ),
-	LineNumber( InLineNumber ),
-	SymbolDisplacement( InSymbolDisplacement ),
-	OffsetInModule( InOffsetInModule ),
-	ProgramCounter( InProgramCounter )
-{
-}
-
 FString RecoveryService::GetRecoveryServerName()
 {
 	// Requirements: To avoid collision, the name must be unique on the local machine (multiple instances) and across the local network (multiple users).

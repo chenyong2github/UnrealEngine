@@ -16,6 +16,17 @@ FProgramCounterSymbolInfo::FProgramCounterSymbolInfo() :
 	FCStringAnsi::Strncpy( Filename, "", MAX_NAME_LENGTH );
 }
 
+FProgramCounterSymbolInfoEx::FProgramCounterSymbolInfoEx(FString InModuleName, FString InFunctionName, FString InFilename, uint32 InLineNumber, uint64 InSymbolDisplacement, uint64 InOffsetInModule, uint64 InProgramCounter) :
+	ModuleName(InModuleName),
+	FunctionName(InFunctionName),
+	Filename(InFilename),
+	LineNumber(InLineNumber),
+	SymbolDisplacement(InSymbolDisplacement),
+	OffsetInModule(InOffsetInModule),
+	ProgramCounter(InProgramCounter)
+{
+}
+
 /** Settings for stack walking */
 static bool GWantsDetailedCallstacksInNonMonolithicBuilds = true;
 
@@ -126,10 +137,12 @@ bool FGenericPlatformStackWalk::SymbolInfoToHumanReadableStringEx( const FProgra
 	// ModuleName! {ProgramCounter}
 	
 	// Strip module path.
-	const TCHAR* Pos0 = FCString::Strrchr( *SymbolInfo.ModuleName, '\\' );
-	const TCHAR* Pos1 = FCString::Strrchr( *SymbolInfo.ModuleName, '/' );
-	const UPTRINT RealPos = FMath::Max( (UPTRINT)Pos0, (UPTRINT)Pos1 );
-	const FString StrippedModuleName = RealPos > 0 ? (const ANSICHAR*)(RealPos + 1) : SymbolInfo.ModuleName;
+	int32 Pos0;
+	int32 Pos1;
+	SymbolInfo.ModuleName.FindLastChar('\\', Pos0);
+	SymbolInfo.ModuleName.FindLastChar('/', Pos1);
+	const int32 RealPos = FMath::Max( Pos0, Pos1 );
+	const FString StrippedModuleName = RealPos > 0 ? SymbolInfo.ModuleName.RightChop(RealPos + 1) : SymbolInfo.ModuleName;
 
 	out_HumanReadableString = StrippedModuleName;
 	
