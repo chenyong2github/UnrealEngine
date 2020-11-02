@@ -533,7 +533,7 @@ FThreeBandSHVectorRGB SampleSHRGB(in float3 SampleDirection, in float weight, in
 [numthreads(THREADGROUP_SIZE_X, THREADGROUP_SIZE_Y, 1)]
 void ComputeSkyEnvMapDiffuseIrradianceCS(uint3 ThreadId : SV_DispatchThreadID)
 {
-	const uint LinearIndex = THREADGROUP_SIZE_X * ThreadId.x + ThreadId.y;
+	const uint LinearIndex = THREADGROUP_SIZE_X * ThreadId.y + ThreadId.x;
 
 
 #if 1
