@@ -27,9 +27,9 @@ public:
 
 private:
 
-	ECheckBoxState IsMobilityActive(EComponentMobility::Type InMobility) const;
+	EComponentMobility::Type GetActiveMobility() const;
 	FSlateColor GetMobilityTextColor(EComponentMobility::Type InMobility) const;
-	void OnMobilityChanged(ECheckBoxState InCheckedState, EComponentMobility::Type InMobility);
+	void OnMobilityChanged(EComponentMobility::Type InMobility);
 	FText GetMobilityToolTip() const;
 	
 	TSharedPtr<IPropertyHandle> MobilityHandle;

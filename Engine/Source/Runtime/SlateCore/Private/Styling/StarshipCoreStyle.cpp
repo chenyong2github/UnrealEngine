@@ -1243,7 +1243,10 @@ void FStarshipCoreStyle::SetupCheckboxStyles(TSharedRef<FStyle>& Style)
 		.SetCheckedPressedImage(FSlateNoResource())
 		.SetUndeterminedImage(FSlateNoResource())
 		.SetUndeterminedHoveredImage(FSlateNoResource())
-		.SetUndeterminedPressedImage(FSlateNoResource());
+		.SetUndeterminedPressedImage(FSlateNoResource())
+		.SetForegroundColor(FStyleColors::Foreground)
+		.SetHoveredForegroundColor(FStyleColors::ForegroundHover);
+
 	Style->Set("TransparentCheckBox", BasicTransparentCheckBoxStyle);
 
 	/* Default Style for a toggleable button */

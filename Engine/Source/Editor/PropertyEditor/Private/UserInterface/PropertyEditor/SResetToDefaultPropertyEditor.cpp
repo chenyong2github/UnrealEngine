@@ -31,14 +31,15 @@ void SResetToDefaultPropertyEditor::Construct(const FArguments& InArgs, const TS
 		SNew(SButton)
 		.IsFocusable(false)
 		.ToolTipText(this, &SResetToDefaultPropertyEditor::GetResetToolTip)
-		.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 		.ContentPadding(0) 
-		.Visibility( this, &SResetToDefaultPropertyEditor::GetDiffersFromDefaultAsVisibility )
-		.OnClicked( this, &SResetToDefaultPropertyEditor::OnResetClicked )
+		.Visibility(this, &SResetToDefaultPropertyEditor::GetDiffersFromDefaultAsVisibility )
+		.OnClicked(this, &SResetToDefaultPropertyEditor::OnResetClicked)
 		.Content()
 		[
 			SNew(SImage)
-			.Image( FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault") )
+			.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 	];
 
