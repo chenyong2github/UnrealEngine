@@ -6,6 +6,7 @@ import re
 import socket
 import subprocess
 import threading
+import sys
 
 
 class RepeatFunction(object):
@@ -88,10 +89,20 @@ class PollProcess(object):
     def __init__(self, task_name):
         self.task_name = task_name
 
+    def get_sp_startupinfo(self):
+        ''' Returns subprocess.startupinfo and avoids extra cmd line window in windows.
+        '''
+        startupinfo = subprocess.STARTUPINFO()
+
+        if sys.platform.startswith("win"):
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+        return startupinfo
+
     def poll(self):
         tasklist_cmd = f"tasklist /FI \"IMAGENAME eq {self.task_name}\""
         try: # Figure out what is happening here OSError: [WinError 6] The handle is invalid
-            tasklist_output = subprocess.check_output(tasklist_cmd).decode()
+            tasklist_output = subprocess.check_output(tasklist_cmd, startupinfo=self.get_sp_startupinfo()).decode()
 
             #p = re.compile(f"{self.task_name} (.*?) Console")
             # Some process do not always list the .exe in the name

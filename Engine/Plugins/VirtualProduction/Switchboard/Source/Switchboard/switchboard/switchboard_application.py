@@ -10,6 +10,7 @@ import os
 import re
 import subprocess
 import threading
+import sys
 
 
 class ApplicationAbstract(object):
@@ -94,6 +95,16 @@ class MultiUserApplication(ApplicationAbstract):
         # Application Options
         self.concert_ignore_cl = False
 
+    def get_sp_startupinfo(self):
+        ''' Returns subprocess.startupinfo and avoids extra cmd line window in windows.
+        '''
+        startupinfo = subprocess.STARTUPINFO()
+
+        if sys.platform.startswith("win"):
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+        return startupinfo
+
     def launch(self):
         if self.is_running():
             return False
@@ -111,7 +122,7 @@ class MultiUserApplication(ApplicationAbstract):
             cmdline += " -ConcertClean"
 
         LOGGER.debug(cmdline)
-        subprocess.Popen(cmdline, shell=True)
+        subprocess.Popen(cmdline, shell=True, startupinfo=self.get_sp_startupinfo())
 
         return True
 
