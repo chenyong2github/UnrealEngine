@@ -35,8 +35,8 @@ namespace Message
 		, DebugInfo()
 		, EventIndex(0)
 	{
-		//EventData.GetString("Path", Path);
-		//EventData.GetString("DebugInfo", DebugInfo);
+		EventData.GetString("Path", Path);
+		EventData.GetString("DebugInfo", DebugInfo);
 	}
 	
 	FWidgetUpdatedMessage::FWidgetUpdatedMessage(const Trace::IAnalyzer::FEventData& EventData)
