@@ -399,6 +399,13 @@ void UAssetGuideline::PostLoad()
 	}
 }
 
+void UAssetGuideline::BeginDestroy()
+{
+	DismissNotifications();
+
+	Super::BeginDestroy();
+}
+
 void UAssetGuideline::EnableMissingGuidelines(TArray<FString> IncorrectPlugins, TArray<FIniStringValue> IncorrectProjectSettings)
 {
 	if (TSharedPtr<SNotificationItem> NotificationPin = NotificationPtr.Pin())

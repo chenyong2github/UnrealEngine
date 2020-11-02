@@ -63,6 +63,7 @@ private:
 public:
 	virtual bool IsPostLoadThreadSafe() const override;
 	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
 
 private:
 	void EnableMissingGuidelines(TArray<FString> IncorrectPlugins, TArray<FIniStringValue> IncorrectProjectSettings);
