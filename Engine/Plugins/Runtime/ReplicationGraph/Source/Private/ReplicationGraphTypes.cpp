@@ -279,7 +279,7 @@ void PrintRepListDetails(int32 PoolSize, int32 BlockIdx, int32 ListIdx)
 
 void PreAllocateRepList(int32 ListSize, int32 NumLists)
 {
-	GActorListAllocator.PreAllocateLists(ListSize, NumLists);
+	// nothing
 }
 
 void CountReplicationGraphSharedBytes_Private(FArchive& Ar)
