@@ -1649,7 +1649,18 @@ void URigVM::CacheSingleMemoryHandle(const FRigVMOperand& InArg, bool bForExecut
 
 		FRigVMExternalVariable& ExternalVariable = ExternalVariables[InArg.GetRegisterIndex()];
 		check(ExternalVariable.Memory);
-		CachedMemoryHandles.Add(ExternalVariable.GetHandle(InArg.GetRegisterOffset()));
+
+		FRigVMMemoryHandle Handle = ExternalVariable.GetHandle();
+		if (InArg.GetRegisterOffset() != INDEX_NONE)
+		{
+			FRigVMMemoryContainer* WorkMemory = CachedMemory[(int32)ERigVMMemoryType::Work];
+			const FRigVMRegisterOffset& RegisterOffset = WorkMemory->RegisterOffsets[InArg.GetRegisterOffset()];
+
+			// offset the handle to the memory based on the register offset
+			uint8* Ptr = RegisterOffset.GetData(Handle.GetData());
+			Handle = FRigVMMemoryHandle(Ptr, RegisterOffset.GetElementSize(), FRigVMMemoryHandle::FType::Plain);
+		}
+		CachedMemoryHandles.Add(Handle);
 		return;
 	}
 
