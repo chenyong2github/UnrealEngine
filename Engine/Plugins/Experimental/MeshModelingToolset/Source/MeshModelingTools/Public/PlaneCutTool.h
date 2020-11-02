@@ -178,8 +178,6 @@ protected:
 	UPROPERTY()
 	TArray<UDynamicMeshReplacementChangeTarget*> MeshesToCut;
 
-	// for each mesh in MeshesToCut, the index of the attached generic triangle attribute tracking the object index
-	TArray<int> MeshSubObjectAttribIndices;
 	// UV Scale factor is cached based on the bounding box of the mesh before any cuts are performed, so you don't get inconsistent UVs if you multi-cut the object to smaller sizes
 	TArray<float> MeshUVScaleFactor;
 

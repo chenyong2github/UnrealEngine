@@ -168,6 +168,49 @@ public:
 	// Accessors/Queries
 	//  
 
+	virtual bool CopyThroughMapping(const TDynamicAttributeBase<FDynamicMesh3>* Source, const FMeshIndexMappings& Mapping) override
+	{
+		AttribValueType BufferData[AttribDimension];
+		int BufferSize = sizeof(BufferData);
+		for (const TPair<int32, int32>& MapTID : Mapping.GetTriangleMap().GetForwardMap())
+		{
+			if (!ensure(Source->CopyOut(MapTID.Key, BufferData, BufferSize)))
+			{
+				return false;
+			}
+			SetValue(MapTID.Value, BufferData);
+		}
+		return true;
+	}
+	virtual bool CopyOut(int RawID, void* Buffer, int BufferSize) const override
+	{
+		if (sizeof(AttribValueType) * AttribDimension != BufferSize)
+		{
+			return false;
+		}
+		AttribValueType* BufferData = static_cast<AttribValueType*>(Buffer);
+		int k = RawID * AttribDimension;
+		for (int i = 0; i < AttribDimension; ++i)
+		{
+			BufferData[i] = AttribValues[k + i];
+		}
+		return true;
+	}
+	virtual bool CopyIn(int RawID, void* Buffer, int BufferSize) override
+	{
+		if (sizeof(AttribValueType) * AttribDimension != BufferSize)
+		{
+			return false;
+		}
+		AttribValueType* BufferData = static_cast<AttribValueType*>(Buffer);
+		int k = RawID * AttribDimension;
+		for (int i = 0; i < AttribDimension; ++i)
+		{
+			AttribValues[k + i] = BufferData[i];
+		}
+		return true;
+	}
+
 	/** Get the element at a given index */
 	inline void GetValue(int TriangleID, AttribValueType* Data) const
 	{

@@ -11,17 +11,6 @@
 #include "Selections/MeshConnectedComponents.h"
 
 
-void FMeshIndexMappings::Initialize(FDynamicMesh3* Mesh)
-{
-	if (Mesh->HasAttributes())
-	{
-		FDynamicMeshAttributeSet* Attribs = Mesh->Attributes();
-		UVMaps.SetNum(Attribs->NumUVLayers());
-		NormalMaps.SetNum(Attribs->NumNormalLayers());
-	}
-}
-
-
 
 
 
@@ -44,7 +33,18 @@ void FDynamicMeshEditResult::GetAllTriangles(TArray<int>& TrianglesOut) const
 
 
 
-
+bool FDynamicMeshEditor::RemoveIsolatedVertices()
+{
+	bool bSuccess = true;
+	for (int VID : Mesh->VertexIndicesItr())
+	{
+		if (Mesh->GetVtxEdgeCount(VID) == 0)
+		{
+			bSuccess = Mesh->RemoveVertex(VID, false, false) == EMeshResult::Ok && bSuccess;
+		}
+	}
+	return bSuccess;
+}
 
 
 bool FDynamicMeshEditor::StitchVertexLoopsMinimal(const TArray<int>& Loop1, const TArray<int>& Loop2, FDynamicMeshEditResult& ResultOut)
@@ -180,7 +180,7 @@ bool FDynamicMeshEditor::WeldVertexLoops(const TArray<int32>& Loop1, const TArra
 
 
 
-bool FDynamicMeshEditor::StitchSparselyCorrespondedVertexLoops(const TArray<int>& VertexIDs1, const TArray<int>& MatchedIndices1, const TArray<int>& VertexIDs2, const TArray<int>& MatchedIndices2, FDynamicMeshEditResult& ResultOut)
+bool FDynamicMeshEditor::StitchSparselyCorrespondedVertexLoops(const TArray<int>& VertexIDs1, const TArray<int>& MatchedIndices1, const TArray<int>& VertexIDs2, const TArray<int>& MatchedIndices2, FDynamicMeshEditResult& ResultOut, bool bReverseOrientation)
 {
 	int CorrespondN = MatchedIndices1.Num();
 	if (!ensureMsgf(CorrespondN == MatchedIndices2.Num(), TEXT("FDynamicMeshEditor::StitchSparselyCorrespondedVertices: correspondence arrays are not the same length!")))
@@ -247,6 +247,10 @@ bool FDynamicMeshEditor::StitchSparselyCorrespondedVertexLoops(const TArray<int>
 				FVector3d NextV = Mesh->GetVertex(Tri.C);
 				LenAlong[1] += NextV.Distance(Vertex[1]);
 				Vertex[1] = NextV;
+			}
+			if (bReverseOrientation)
+			{
+				Swap(Tri.B, Tri.C);
 			}
 			int Tid = Mesh->AppendTriangle(Tri, NewGroupID);
 			if (Tid < 0)
@@ -1484,6 +1488,15 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 				ToMaterialIDs->SetValue(TriangleMap.GetTo(TriID), FromMaterialIDs->GetValue(TriID));
 			}
 		}
+
+		for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : AppendMesh->Attributes()->GetAttachedAttributes())
+		{
+			if (Mesh->Attributes()->HasAttachedAttribute(AttribPair.Key))
+			{
+				FDynamicMeshAttributeBase* ToAttrib = Mesh->Attributes()->GetAttachedAttribute(AttribPair.Key);
+				ToAttrib->CopyThroughMapping(AttribPair.Value.Get(), IndexMapsOut);
+			}
+		}
 	}
 }
 
@@ -1652,6 +1665,15 @@ static void AppendAttributes(const FDynamicMesh3* FromMesh, int FromTriangleID, 
 		const FDynamicMeshMaterialAttribute* FromMaterialIDs = FromMesh->Attributes()->GetMaterialID();
 		FDynamicMeshMaterialAttribute* ToMaterialIDs = ToMesh->Attributes()->GetMaterialID();
 		ToMaterialIDs->SetValue(ToTriangleID, FromMaterialIDs->GetValue(FromTriangleID));
+	}
+
+	for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : FromMesh->Attributes()->GetAttachedAttributes())
+	{
+		if (ToMesh->Attributes()->HasAttachedAttribute(AttribPair.Key))
+		{
+			FDynamicMeshAttributeBase* ToAttrib = ToMesh->Attributes()->GetAttachedAttribute(AttribPair.Key);
+			ToAttrib->CopyThroughMapping(AttribPair.Value.Get(), IndexMaps);
+		}
 	}
 }
 
