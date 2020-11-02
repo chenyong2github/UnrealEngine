@@ -53,7 +53,7 @@ public:
 
 	void MarkWaterMeshGridDirty() { bNeedsRebuild = true; }
 
-	int32 GetTessellationFactor() const { return FMath::Max(1, TessellationFactor + TessFactorBiasScalability); }
+	int32 GetTessellationFactor() const { return FMath::Clamp(TessellationFactor + TessFactorBiasScalability, 1, 12); }
 
 	float GetLODScale() const { return LODScale + LODScaleBiasScalability; }
 
@@ -116,7 +116,7 @@ private:
 	FWaterTileInstanceData FarDistanceWaterInstanceData;
 
 	/** Highest tessellation factor of a water tile. Max number of verts on the side of a tile will be (2^TessellationFactor)+1)  */
-	UPROPERTY(EditAnywhere, Category = Mesh, meta = (ClampMin = "1"))
+	UPROPERTY(EditAnywhere, Category = Mesh, meta = (ClampMin = "1", ClampMax = "12"))
 	int32 TessellationFactor = 6;
 
 	/** World scale of the concentric LODs */
