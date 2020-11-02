@@ -1125,7 +1125,7 @@ namespace Audio
 					// Prepare the scratch buffer for effect chain processing
 					EffectChainOutputBuffer.SetNumUninitialized(NumSamples);
 
-					bProcessedAnEffect |= GenerateEffectChainAudio(InputData, FadeInfo.EffectChain, EffectChainOutputBuffer);
+					bProcessedAnEffect |= GenerateEffectChainAudio(InputData, InputBuffer, FadeInfo.EffectChain, EffectChainOutputBuffer);
 
 					float StartFadeVolume = FadeInfo.FadeVolume.GetValue();
 					FadeInfo.FadeVolume.Update(DeltaTimeSec);
@@ -1266,8 +1266,12 @@ namespace Audio
 		}
 	}
 
-	bool FMixerSubmix::GenerateEffectChainAudio(FSoundEffectSubmixInputData& InputData, TArray<FSoundEffectSubmixPtr>& InEffectChain, AlignedFloatBuffer& OutBuffer)
+	bool FMixerSubmix::GenerateEffectChainAudio(FSoundEffectSubmixInputData& InputData, AlignedFloatBuffer& InAudioBuffer, TArray<FSoundEffectSubmixPtr>& InEffectChain, AlignedFloatBuffer& OutBuffer)
 	{
+		// Reset the output scratch buffer
+		ScratchBuffer.Reset(NumSamples);
+		ScratchBuffer.AddZeroed(NumSamples);
+
 		FSoundEffectSubmixOutputData OutputData;
 		OutputData.AudioBuffer = &ScratchBuffer;
 		OutputData.NumChannels = NumChannels;
@@ -1283,10 +1287,6 @@ namespace Audio
 				continue;
 			}
 
-			// Reset the output scratch buffer
-			ScratchBuffer.Reset(NumSamples);
-			ScratchBuffer.AddZeroed(NumSamples);
-
 			// Check to see if we need to down-mix our audio before sending to the submix effect
 			const uint32 ChannelCountOverride = SubmixEffect->GetDesiredInputChannelCountOverride();
 
@@ -1294,29 +1294,39 @@ namespace Audio
 			{
 				// Perform the down-mix operation with the down-mixed scratch buffer
 				DownmixedBuffer.SetNumUninitialized(NumOutputFrames * ChannelCountOverride);
-				DownmixBuffer(NumChannels, InputBuffer, ChannelCountOverride, DownmixedBuffer);
+				DownmixBuffer(NumChannels, InAudioBuffer, ChannelCountOverride, DownmixedBuffer);
 
 				InputData.NumChannels = ChannelCountOverride;
 				InputData.AudioBuffer = &DownmixedBuffer;
 				SubmixEffect->ProcessAudio(InputData, OutputData);
+
+				// Mix back up to the input channel count when we copy the effect output to the input
+				DownmixBuffer(ChannelCountOverride, DownmixedBuffer, NumChannels, InAudioBuffer);
 			}
 			else
 			{
 				// If we're not down-mixing, then just pass in the current wet buffer and our channel count is the same as the output channel count
 				InputData.NumChannels = NumChannels;
-				InputData.AudioBuffer = &InputBuffer;
+				InputData.AudioBuffer = &InAudioBuffer;
 				SubmixEffect->ProcessAudio(InputData, OutputData);
+
+				// Copy the output to the input
+				FMemory::Memcpy((void*)InAudioBuffer.GetData(), (void*)OutputData.AudioBuffer->GetData(), sizeof(float) * NumSamples);
 			}
 
 			// Mix in the dry signal directly
 			const float DryLevel = SubmixEffect->GetDryLevel();
 			if (DryLevel > 0.0f)
 			{
-				MixInBufferFast(InputBuffer, ScratchBuffer, DryLevel);
+				MixInBufferFast(InAudioBuffer, ScratchBuffer, DryLevel);
 			}
 
 			bProcessedAnEffect = true;
-			FMemory::Memcpy((void*)OutBuffer.GetData(), (void*)ScratchBuffer.GetData(), sizeof(float) * NumSamples);
+		}
+
+		if (bProcessedAnEffect)
+		{
+			FMemory::Memcpy((void*)OutBuffer.GetData(), (void*)InAudioBuffer.GetData(), sizeof(float) * NumSamples);
 		}
 
 		return bProcessedAnEffect;
