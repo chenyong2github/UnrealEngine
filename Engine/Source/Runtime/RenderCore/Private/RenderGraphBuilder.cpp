@@ -2070,7 +2070,7 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGTextureSRVRef 
 
 	FRDGTextureRef Texture = SRV->Desc.Texture;
 	FRDGPooledTexture* PooledTexture = Texture->PooledTexture;
-	check(PooledTexture);
+	checkf(PooledTexture, TEXT("Pass parameters contained an SRV of RDG Texture %s, before that texture was referenced as a UAV or RTV, which isn't supported.  Make sure to call ClearUnusedGraphResources to remove unbound parameters which can also cause this."), Texture->Name);
 
 	if (!Texture->FirstPass.IsValid())
 	{
@@ -2207,7 +2207,7 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGBufferSRVRef S
 	}
 
 	FRDGBufferRef Buffer = SRV->Desc.Buffer;
-	check(Buffer->PooledBuffer);
+	checkf(Buffer->PooledBuffer, TEXT("Pass parameters contained an SRV of RDG buffer %s, before that buffer was referenced as a UAV, which isn't supported.  Make sure to call ClearUnusedGraphResources to remove unbound parameters which can also cause this."), Buffer->Name);
 
 	if (!Buffer->FirstPass.IsValid())
 	{
