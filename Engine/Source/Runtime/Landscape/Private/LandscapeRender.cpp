@@ -3797,6 +3797,8 @@ public:
 			FName(TEXT("TBasePassPSFSimpleNoLightmapLightingPolicySkylight")),
 			FName(TEXT("TBasePassVSFSimpleNoLightmapLightingPolicy")),
 			FName(TEXT("TBasePassVSFSimpleNoLightmapLightingPolicyAtmosphericFog")),
+			FName(TEXT("FAnisotropyVS")),
+			FName(TEXT("FAnisotropyPS")),
 			FName(TEXT("TDepthOnlyVS<false>")),
 			FName(TEXT("TDepthOnlyVS<true>")),
 			FName(TEXT("FDepthOnlyPS<true>")),

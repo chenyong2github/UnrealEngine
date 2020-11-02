@@ -87,7 +87,7 @@ public:
 
 			bool bUseSkyMaterial = Mesh.MaterialRenderProxy->GetMaterial(FeatureLevel)->IsSky();
 			bool bUseSingleLayerWaterMaterial = Material->GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
-			bool bUseAnisotropy = Material->GetShadingModels().HasAnyShadingModel({MSM_DefaultLit, MSM_ClearCoat}) && Material->HasAnisotropyConnected();
+			bool bUseAnisotropy = Material->GetShadingModels().HasAnyShadingModel({MSM_DefaultLit, MSM_ClearCoat}) && Material->MaterialUsesAnisotropy_RenderThread();
 
 			FStaticMeshBatchRelevance* StaticMeshRelevance = new(PrimitiveSceneInfo->StaticMeshRelevances) FStaticMeshBatchRelevance(
 				*StaticMesh, 
