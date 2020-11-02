@@ -96,7 +96,7 @@ TArray<FString> FShaderCompileDistributedThreadRunnable_Interface::GetDependency
 	TArray<FString> Dependencies;
 	uint64 ShaderPlatformMask = 0;
 	static_assert(EShaderPlatform::SP_NumPlatforms <= sizeof(ShaderPlatformMask) * 8, "Insufficient bits in ShaderPlatformMask.");
-	for (const FShaderCommonCompileJobPtr Job : Jobs)
+	for (const FShaderCommonCompileJobPtr& Job : Jobs)
 	{
 		EShaderPlatform ShaderPlatform = EShaderPlatform::SP_PCD3D_SM5;
 		const FShaderCompileJob* ShaderJob = Job->GetSingleShaderJob();
