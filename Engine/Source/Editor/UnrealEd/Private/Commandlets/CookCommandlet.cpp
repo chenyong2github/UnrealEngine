@@ -42,7 +42,6 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "AssetRegistryModule.h"
 #include "Cooker/CookProfiling.h"
-#include "StudioAnalytics.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCookCommandlet, Log, All);
 
@@ -99,38 +98,12 @@ namespace DetailedCookStats
 
 	static void LogCookStats(const FString& CookCmdLine)
 	{
-		if ( FStudioAnalytics::IsAvailable() )
-		{ 
-			// convert filtered stats directly to an analytics event
-			TArray<FAnalyticsEventAttribute> StatAttrs;
-			
-			// Sends each cook stat to the studio analytics system.
-			auto SendCookStatsToAnalytics = [&StatAttrs](const FString& StatName, const TArray<FCookStatsManager::StringKeyValue>& StatAttributes)
-			{
-				for (const auto& Attr : StatAttributes)
-				{
-					FString FormattedAttrName = StatName + "." + Attr.Key;
-
-					StatAttrs.Emplace(FormattedAttrName, Attr.Value);
-				}
-			};
-
-			// Now actually grab the stats 
-			FCookStatsManager::LogCookStats(SendCookStatsToAnalytics);
-
-			// Record them all under cooking event
-			FStudioAnalytics::GetProvider().RecordEvent(TEXT("Core.Cooking"), StatAttrs);
-
-			FStudioAnalytics::GetProvider().BlockUntilFlushed(60.0f);
-		}
-
 		bool bSendCookAnalytics = false;
 		GConfig->GetBool(TEXT("CookAnalytics"), TEXT("SendAnalytics"), bSendCookAnalytics, GEngineIni);
 
 		if (GIsBuildMachine || FParse::Param(FCommandLine::Get(), TEXT("SendCookAnalytics")) || bSendCookAnalytics)
-		{	
+		{
 			FString APIServerET;
-
 			if (GConfig->GetString(TEXT("CookAnalytics"), TEXT("APIServer"), APIServerET, GEngineIni))
 			{
 				FString AppId(TEXT("Cook"));
@@ -169,7 +142,6 @@ namespace DetailedCookStats
 							UE_LOG(LogCookCommandlet, Verbose, TEXT("[%s] not present on cook analytics whitelist"), *StatName);
 						}
 					};
-
 					FCookStatsManager::LogCookStats(SendCookStatsToAnalytics);
 				}
 			}
