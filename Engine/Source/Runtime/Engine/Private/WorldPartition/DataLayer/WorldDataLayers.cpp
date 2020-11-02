@@ -31,6 +31,40 @@ const AWorldDataLayers* AWorldDataLayers::Get(UWorld* World)
 }
 
 #if WITH_EDITOR
+AWorldDataLayers* AWorldDataLayers::Get(UWorld* World, bool bCreateIfNotFound)
+{
+	if (bCreateIfNotFound)
+	{
+		AWorldDataLayers* WorldDataLayers = nullptr;
+		static FName WorldDataLayersName = AWorldDataLayers::StaticClass()->GetFName();
+		if (UObject* ExistingObject = StaticFindObject(nullptr, World->PersistentLevel, *WorldDataLayersName.ToString()))
+		{
+			WorldDataLayers = CastChecked<AWorldDataLayers>(ExistingObject);
+			if (WorldDataLayers->IsPendingKill())
+			{
+				// Handle the case where the actor already exists, but it's pending kill
+				WorldDataLayers->Rename(nullptr, nullptr, REN_DontCreateRedirectors | REN_DoNotDirty | REN_NonTransactional | REN_ForceNoResetLoaders);
+				WorldDataLayers = nullptr;
+			}
+		}
+
+		if (!WorldDataLayers)
+		{
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.OverrideLevel = World->PersistentLevel;
+			SpawnParams.bHideFromSceneOutliner = true;
+			SpawnParams.Name = WorldDataLayersName;
+			SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal;
+			WorldDataLayers = World->SpawnActor<AWorldDataLayers>(AWorldDataLayers::StaticClass(), SpawnParams);
+		}
+		return WorldDataLayers;
+	}
+	else
+	{
+		return const_cast<AWorldDataLayers*>(Get(World));
+	}
+}
+
 FName AWorldDataLayers::GenerateUniqueDataLayerLabel(const FName& InDataLayerLabel) const
 {
 	int32 DataLayerIndex = 0;

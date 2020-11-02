@@ -44,6 +44,8 @@
 #include "LandscapeInfo.h"
 #include "LandscapeConfigHelper.h"
 #include "LandscapeGizmoActor.h"
+#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 
 DEFINE_LOG_CATEGORY(LogWorldPartitionConvertCommandlet);
 
@@ -805,6 +807,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	}
 
 	UPackage* MainPackage = MainLevel->GetPackage();
+	AWorldDataLayers* MainWorldDataLayers = AWorldDataLayers::Get(MainWorld, /*bCreateIfNotFound*/true);
 
 	OnWorldLoaded(MainWorld);
 
@@ -870,7 +873,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		}
 	};
 
-	auto PrepareLevelActors = [this, PartitionFoliage, PartitionLandscape](ULevel* Level, bool bMainLevel, EActorGridPlacement DefaultGridPlacement)
+	auto PrepareLevelActors = [this, PartitionFoliage, PartitionLandscape, MainWorldDataLayers](ULevel* Level, bool bMainLevel, EActorGridPlacement DefaultGridPlacement)
 	{
 		const FBox WorldBounds(WorldOrigin - WorldExtent, WorldOrigin + WorldExtent);
 
@@ -913,6 +916,18 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 					}
 				}
 
+				// Convert Layers into DataLayers with DynamicallyLoaded flag disabled
+				for (FName Layer : Actor->Layers)
+				{
+					UDataLayer* DataLayer = const_cast<UDataLayer*>(MainWorldDataLayers->GetDataLayerFromLabel(Layer));
+					if (!DataLayer)
+					{
+						DataLayer = MainWorldDataLayers->CreateDataLayer();
+						DataLayer->SetDataLayerLabel(Layer);
+						DataLayer->SetIsDynamicallyLoaded(false);
+					}
+					Actor->AddDataLayer(DataLayer);
+				}
 				// Clear actor layers as they are not supported yet in world partition
 				Actor->Layers.Empty();
 			}

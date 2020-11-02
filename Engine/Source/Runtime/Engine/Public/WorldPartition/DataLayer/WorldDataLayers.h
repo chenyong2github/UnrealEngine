@@ -22,6 +22,7 @@ public:
 	virtual void PostLoad() override;
 
 #if WITH_EDITOR
+	static AWorldDataLayers* Get(UWorld* World, bool bCreateIfNotFound);
 	UDataLayer* CreateDataLayer();
 	bool RemoveDataLayer(const UDataLayer* InDataLayer);
 	bool RemoveDataLayers(const TArray<const UDataLayer*>& InDataLayers);
