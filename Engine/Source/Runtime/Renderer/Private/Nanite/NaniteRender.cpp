@@ -153,7 +153,7 @@ static FAutoConsoleVariableRef CVarNaniteClusterPerPage(
 	TEXT("")
 );
 
-int32 GNaniteMaterialCulling = 2;
+int32 GNaniteMaterialCulling = 4;
 static FAutoConsoleVariableRef CVarNaniteMaterialCulling(
 	TEXT("r.Nanite.MaterialCulling"),
 	GNaniteMaterialCulling,
@@ -4038,6 +4038,14 @@ void DrawBasePass(
 	FRDGTextureRef DbgBuffer32		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.DbgBuffer32,   GSystemTextures.BlackDummy);
 
 	FRDGBufferRef VisibleClustersSWHW	= GraphBuilder.RegisterExternalBuffer(RasterResults.VisibleClustersSWHW);
+
+	if (!FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(GMaxRHIShaderPlatform) &&
+		(GNaniteMaterialCulling == 1 || GNaniteMaterialCulling == 2))
+	{
+		// Invalid culling method, platform does not support wave operations
+		// Default to 64x64 tile grid method instead.
+		GNaniteMaterialCulling = 4;
+	}
 
 	const bool b32BitMaskCulling = (GNaniteMaterialCulling == 1 || GNaniteMaterialCulling == 2);
 	const bool bTileGridCulling  = (GNaniteMaterialCulling == 3 || GNaniteMaterialCulling == 4);
