@@ -352,6 +352,14 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	Payload.Roughness = Roughness;
 	Payload.Metallic = Metallic;
 	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
+
+#if MATERIALBLENDING_MASKED
+	if (GetMaterialMask(PixelMaterialInputs) < 0)
+	{
+		Payload.Opacity = 0;
+	}
+#endif // MATERIALBLENDING_MASKED
+
 	Payload.Ior = Refraction.x;
 	Payload.CustomData = float4(GetMaterialCustomData0(MaterialParameters), GetMaterialCustomData1(MaterialParameters), 0, 0);
 	
