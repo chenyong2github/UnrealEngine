@@ -106,7 +106,7 @@ struct FMaterialCachedParameterEntry
 	// This is used to map FMaterialParameterInfos to indices, which are then used to index various TArrays containing values for each type of parameter
 	// (ExpressionGuids and Overrides, along with ScalarValues, VectorValues, etc)
 	UPROPERTY()
-	TSet<FMaterialParameterInfo> ParameterInfos;
+	TSet<FMaterialParameterInfo> ParameterInfoSet;
 
 	UPROPERTY()
 	TArray<FGuid> ExpressionGuids; // editor-only?
@@ -144,7 +144,7 @@ struct FMaterialCachedParameters
 	inline const FMaterialCachedParameterEntry& GetParameterTypeEntry(EMaterialParameterType Type) const { return RuntimeEntries[static_cast<int32>(Type)]; }
 #endif
 
-	inline int32 GetNumParameters(EMaterialParameterType Type) const { return GetParameterTypeEntry(Type).ParameterInfos.Num(); }
+	inline int32 GetNumParameters(EMaterialParameterType Type) const { return GetParameterTypeEntry(Type).ParameterInfoSet.Num(); }
 
 	int32 FindParameterIndex(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& HashedParameterInfo, bool bOveriddenOnly) const;
 	int32 FindParameterIndex(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& HashedParameterInfo) const;
