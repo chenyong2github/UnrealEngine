@@ -23,7 +23,7 @@
 		},
 		{
 			"Name": "ChaosVehiclesEditor",
-			"Type": "Editor",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "PreDefault"
 		}
 	]
