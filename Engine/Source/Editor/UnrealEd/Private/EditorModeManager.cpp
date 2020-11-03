@@ -1352,7 +1352,10 @@ void FEditorModeTools::DrawActiveModes( const FSceneView* InView, FPrimitiveDraw
 {
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
-		Mode->Draw(InView, PDI);
+		if (ILegacyEdModeDrawHelperInterface* DrawHelper = Cast<ILegacyEdModeDrawHelperInterface>(Mode))
+		{
+			DrawHelper->Draw(InView, PDI);
+		}
 	}
 }
 

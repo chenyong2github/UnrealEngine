@@ -65,7 +65,6 @@ UEdMode::UEdMode()
 	: bPendingDeletion(false)
 	, Owner(nullptr)
 {
-	bDrawKillZ = true;
 	ToolsContext = nullptr;
 	ToolCommandList = MakeShareable(new FUICommandList);
 }

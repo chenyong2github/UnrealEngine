@@ -56,7 +56,7 @@ namespace EEditAction
  * Base class for all editor modes.
  */
 UCLASS(Abstract)
-class UNREALED_API UEdMode : public UObject, public FEditorCommonDrawHelper
+class UNREALED_API UEdMode : public UObject
 {
 	GENERATED_BODY()
 

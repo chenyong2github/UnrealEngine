@@ -8,11 +8,6 @@
 
 UEdModeDefault::UEdModeDefault()
 {
-	bDrawGrid = true;
-	bDrawPivot = false;
-	bDrawBaseInfo = false;
-	bDrawWorldBox = false;
-	bDrawKillZ = false;
 	Info = FEditorModeInfo(
 		FBuiltinEditorModes::EM_Default,
 		NSLOCTEXT("DefaultMode", "DisplayName", "Select"),

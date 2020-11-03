@@ -1760,8 +1760,12 @@ FLevelEditorViewportClient::FLevelEditorViewportClient(const TSharedPtr<SLevelVi
 	// Add a delegate so we get informed when an actor has moved.
 	GEngine->OnActorMoved().AddRaw(this, &FLevelEditorViewportClient::OnActorMoved);
 
-	// GEditorModeTools serves as our draw helper
-	bUsesDrawHelper = false;
+	// Set up defaults for the draw helper.
+	DrawHelper.bDrawGrid = true;
+	DrawHelper.bDrawPivot = false;
+	DrawHelper.bDrawBaseInfo = false;
+	DrawHelper.bDrawWorldBox = false;
+	DrawHelper.bDrawKillZ = false;
 
 	InitializeVisibilityFlags();
 
