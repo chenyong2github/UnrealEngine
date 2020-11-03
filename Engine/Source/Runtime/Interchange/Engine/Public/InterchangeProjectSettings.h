@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
 #include "Engine/EngineTypes.h"
+#include "InterchangePipelineBase.h"
 
 #include "InterchangeProjectSettings.generated.h"
 
