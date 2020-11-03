@@ -286,7 +286,8 @@ void FChaosEngineInterface::AddDisabledCollisionsFor_AssumesLocked(const TMap<FP
 			TArray< FPhysicsActorHandle >& DisabledCollisions = Elem.Value;
 			Chaos::FPhysicsSolver* Solver = ActorReference->GetProxy()->GetSolver<Chaos::FPhysicsSolver>();
 			Chaos::FIgnoreCollisionManager& CollisionManager = Solver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
-			Chaos::FIgnoreCollisionManager::FPendingMap& PendingMap = CollisionManager.GetPendingActivationsForGameThread();
+			int32 ExternalTimestamp = Solver->GetMarshallingManager().GetExternalTimestamp_External();
+			Chaos::FIgnoreCollisionManager::FPendingMap& PendingMap = CollisionManager.GetPendingActivationsForGameThread(ExternalTimestamp);
 			if (PendingMap.Contains(ActorReference))
 			{
 				PendingMap.Remove(ActorReference);
@@ -304,7 +305,8 @@ void FChaosEngineInterface::RemoveDisabledCollisionsFor_AssumesLocked(TArray< FP
 		{
 			Chaos::FPhysicsSolver* Solver = Handle->GetProxy()->GetSolver<Chaos::FPhysicsSolver>();
 			Chaos::FIgnoreCollisionManager& CollisionManager = Solver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
-			Chaos::FIgnoreCollisionManager::FParticleArray& PendingMap = CollisionManager.GetPendingDeactivationsForGameThread();
+			int32 ExternalTimestamp = Solver->GetMarshallingManager().GetExternalTimestamp_External();
+			Chaos::FIgnoreCollisionManager::FParticleArray& PendingMap = CollisionManager.GetPendingDeactivationsForGameThread(ExternalTimestamp);
 			if (!PendingMap.Contains(Handle))
 			{
 				PendingMap.Add(Handle);
