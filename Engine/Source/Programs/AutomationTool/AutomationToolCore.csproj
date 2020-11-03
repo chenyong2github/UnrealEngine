@@ -21,6 +21,9 @@
     <EnableDefaultItems>false</EnableDefaultItems>
     <DefineConstants>NET_CORE</DefineConstants>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <IsWindows Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true'">true</IsWindows> 
+    <IsOSX Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">true</IsOSX> 
+    <IsLinux Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))' == 'true'">true</IsLinux> 
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Development|AnyCPU' ">
     <DefineConstants>$(DefineConstants);TRACE</DefineConstants>
@@ -34,7 +37,7 @@
     <DefineConstants>$(DefineConstants);DEBUG;TRACE</DefineConstants>
   </PropertyGroup>
   <Choose>
-    <When Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <When Condition="'$(IsOSX)'=='true'">
       <PropertyGroup>
         <!-- Set runtime identifier for osx so that it produces a app host executable (consistency with the other platforms) -->
         <RuntimeIdentifier>osx-x64</RuntimeIdentifier>
