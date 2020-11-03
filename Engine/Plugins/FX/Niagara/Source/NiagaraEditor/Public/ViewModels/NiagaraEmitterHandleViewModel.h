@@ -49,10 +49,10 @@ public:
 	NIAGARAEDITOR_API FGuid GetId() const;
 
 	/** Gets the name of the emitter handle. */
-	FName GetName() const;
+	NIAGARAEDITOR_API FName GetName() const;
 
 	/** Sets the name of the emitter handle. */
-	void SetName(FName InName);
+	NIAGARAEDITOR_API void SetName(FName InName);
 
 	/** Gets the text representation of the emitter handle name. */
 	NIAGARAEDITOR_API FText GetNameText() const;
