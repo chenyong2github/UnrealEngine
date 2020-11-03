@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "EngineDefines.h"
 #include "Engine/SkeletalMesh.h"
+#include "Misc/CoreMiscDefines.h"
 #include "DestructibleMesh.generated.h"
 
 class UPhysicalMaterial;
@@ -42,7 +43,7 @@ enum EImpactDamageOverride
 
 /** Properties that may be set for all chunks at a particular depth in the fracture hierarchy. */
 USTRUCT()
-struct FDestructibleDepthParameters
+struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.") FDestructibleDepthParameters
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -51,10 +52,10 @@ struct FDestructibleDepthParameters
 	TEnumAsByte<enum EImpactDamageOverride> ImpactDamageOverride;
 
 
-		FDestructibleDepthParameters()
+	FDestructibleDepthParameters()
 		: ImpactDamageOverride(IDO_None)
-		{}
-	
+	{}
+
 #if WITH_APEX
 	void FillDestructibleActorDesc(NvParameterized::Interface* Params, const char* OverrideName, const char* OverrideValueName) const;
 	void LoadDefaultDestructibleParametersFromApexAsset(const NvParameterized::Interface* Params, const char* OverrideName, const char* OverrideValueName);
@@ -65,7 +66,7 @@ struct FDestructibleDepthParameters
 
 /** Flags that apply to a destructible actor. */
 USTRUCT()
-struct FDestructibleParametersFlag
+struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.") FDestructibleParametersFlag
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -159,7 +160,7 @@ struct FDestructibleParametersFlag
 		, bAccurateRaycasts(false)
 		, bUseValidBounds(false)
 		, bFormExtendedStructures(false)
-	{ }
+	{}
 
 #if WITH_APEX
 	void FillDestructibleActorDesc(NvParameterized::Interface* Params) const;
@@ -171,7 +172,7 @@ struct FDestructibleParametersFlag
 
 /** Parameters that pertain to chunk damage. */
 USTRUCT()
-struct FDestructibleDamageParameters
+struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.") FDestructibleDamageParameters
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -229,7 +230,7 @@ struct FDestructibleDamageParameters
 		, DefaultImpactDamageDepth(0.f)
 		, bCustomImpactResistance(false)
 		, ImpactResistance(1.f)
-	{ }
+	{}
 
 #if WITH_APEX
 	void FillDestructibleActorDesc(NvParameterized::Interface* Params, UPhysicalMaterial* PhysMat) const;
@@ -241,7 +242,7 @@ struct FDestructibleDamageParameters
 
 /** Parameters that pertain to chunk debris-level settings. */
 USTRUCT()
-struct FDestructibleDebrisParameters
+struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.") FDestructibleDebrisParameters
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -283,14 +284,13 @@ struct FDestructibleDebrisParameters
 
 
 
-		FDestructibleDebrisParameters()
+	FDestructibleDebrisParameters()
 		: DebrisLifetimeMin(1.0f)
 		, DebrisLifetimeMax(10.0f)
 		, DebrisMaxSeparationMin(1.0f)
 		, DebrisMaxSeparationMax(10.0f)
 		, ValidBounds(FVector(-500000.0f), FVector(500000.0f))
-		{
-		}
+	{}
 
 #if WITH_APEX
 	void FillDestructibleActorDesc(NvParameterized::Interface* Params) const;
@@ -302,7 +302,7 @@ struct FDestructibleDebrisParameters
 
 /** Parameters that are less-often used. */
 USTRUCT()
-struct FDestructibleAdvancedParameters
+struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.") FDestructibleAdvancedParameters
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -342,8 +342,7 @@ struct FDestructibleAdvancedParameters
 		, ImpactVelocityThreshold(0)
 		, MaxChunkSpeed(0)
 		, FractureImpulseScale(0)
-	{
-	}
+	{}
 
 #if WITH_APEX
 	void FillDestructibleActorDesc(NvParameterized::Interface* Params) const;
@@ -355,7 +354,7 @@ struct FDestructibleAdvancedParameters
 
 /** Special hierarchy depths for various behaviors. */
 USTRUCT()
-struct FDestructibleSpecialHierarchyDepths
+struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.") FDestructibleSpecialHierarchyDepths
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -405,8 +404,8 @@ struct FDestructibleSpecialHierarchyDepths
 		, bEnableDebris(false)
 		, DebrisDepth(-1)
 		, EssentialDepth(0)
-	{ }
-	
+	{}
+
 #if WITH_APEX
 	void FillDestructibleActorDesc(NvParameterized::Interface* Params) const;
 	void LoadDefaultDestructibleParametersFromApexAsset(const NvParameterized::Interface* Params);
@@ -416,7 +415,7 @@ struct FDestructibleSpecialHierarchyDepths
 
 /** Parameters that apply to a destructible actor. */
 USTRUCT()
-struct FDestructibleParameters
+struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.") FDestructibleParameters
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -453,9 +452,8 @@ struct FDestructibleParameters
 /**
  * Holds an APEX destructible asset as well as an associated USkeletalMesh.
  */
-UCLASS(hidecategories=(Object, Mesh, LevelOfDetail, Mirroring, Physics, Reimport, Clothing), MinimalAPI)
-class UDestructibleMesh
-	: public USkeletalMesh
+UCLASS(hidecategories = (Object, Mesh, LevelOfDetail, Mirroring, Physics, Reimport, Clothing), MinimalAPI)
+class UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.") UDestructibleMesh : public USkeletalMesh
 {
 	GENERATED_UCLASS_BODY()
 

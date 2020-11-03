@@ -5,6 +5,7 @@
 #include "ApexDestructibleAssetImport.h"
 #include "DestructibleMesh.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UDestructibleChunkParamsProxy::UDestructibleChunkParamsProxy(const FObjectInitializer& ObjectInitializer)
 	:Super(ObjectInitializer)
 {
@@ -32,3 +33,5 @@ void UDestructibleChunkParamsProxy::PostEditChangeProperty( struct FPropertyChan
 		DestructibleMeshEditorPtr.Pin()->RefreshViewport();
 	}
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

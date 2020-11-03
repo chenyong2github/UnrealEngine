@@ -8,7 +8,7 @@
 
 //////////////////////////////////////////////////////////////////////////
 // FDestructibleMeshComponentBroker
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class FDestructibleMeshComponentBroker : public IComponentAssetBroker
 {
 public:
@@ -42,3 +42,4 @@ public:
 		return NULL;
 	}
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -41,8 +41,11 @@ void AddStructToDetails(FName CategoryName, FName PropertyName, IDetailLayoutBui
 
 void FDestructibleMeshDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		//rest of customization is just moving stuff out of DefaultDestructibleParameters so it's nicer to view
 		TSharedPtr<IPropertyHandle> DefaultParams = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDestructibleMesh, DefaultDestructibleParameters));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 		if (DefaultParams.IsValid() == false)
 		{
 			return;
@@ -64,22 +67,31 @@ void FDestructibleMeshDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 
 void FDestructibleMeshDetails::HideUnsupportedProperties(IDetailLayoutBuilder &DetailBuilder)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Body setups are not available on destructible meshes as we set up the bodies through APEX
 	TSharedPtr<IPropertyHandle> BodySetupHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDestructibleMesh, BodySetup));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	if(BodySetupHandle.IsValid())
 	{
 		BodySetupHandle->MarkHiddenByCustomization();
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Capsule shadows only supported on skeletal meshes
 	TSharedPtr<IPropertyHandle> ShadowPhysicsAssetHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDestructibleMesh, ShadowPhysicsAsset), USkeletalMesh::StaticClass());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	if(ShadowPhysicsAssetHandle.IsValid())
 	{
 		ShadowPhysicsAssetHandle->MarkHiddenByCustomization();
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Post processing graphs only supported on skeletal meshes
 	TSharedPtr<IPropertyHandle> PostProcessBlueprintHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDestructibleMesh, PostProcessAnimBlueprint), USkeletalMesh::StaticClass());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	if(PostProcessBlueprintHandle.IsValid())
 	{
 		PostProcessBlueprintHandle->MarkHiddenByCustomization();
@@ -87,4 +99,3 @@ void FDestructibleMeshDetails::HideUnsupportedProperties(IDetailLayoutBuilder &D
 }
 
 #undef LOCTEXT_NAMESPACE
-
