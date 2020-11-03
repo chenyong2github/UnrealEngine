@@ -5,6 +5,10 @@
 #include "UObject/UObjectGlobals.h"
 
 
+// #TODO_ZABIR: TEMP
+#include "ComputeFramework/ComputeKernelFromText.h"
+
+
 FComputeKernelInvocationHandle UComputeGraph::AddKernel(UComputeKernelSource* KernelSource)
 {
 	return {};
@@ -19,6 +23,14 @@ void UComputeGraph::PostLoad()
 {
 	Super::PostLoad();
 
+	UComputeKernel* Kernel = LoadObject<UComputeKernel>(
+		nullptr, 
+		TEXT("/Game/Developers/ZabirHoque/CF/LBS_Kernel.LBS_Kernel"),
+		nullptr,
+		LOAD_None, 
+		nullptr
+		);
+
 	KernelInvocations.Reset();
-	KernelInvocations.Emplace();
+	KernelInvocations.Emplace(Kernel, 1);
 }

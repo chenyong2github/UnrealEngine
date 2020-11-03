@@ -244,6 +244,7 @@ FRDGPassRef FRDGBuilder::AddPass(
 template <typename ParameterStructType, typename ExecuteLambdaType>
 FRDGPassRef FRDGBuilder::AddPass(
 	FRDGEventName&& Name,
+	const FShaderParametersMetadata* ParametersMetadata,
 	const ParameterStructType* ParameterStruct,
 	ERDGPassFlags Flags,
 	ExecuteLambdaType&& ExecuteLambda)
@@ -271,6 +272,7 @@ FRDGPassRef FRDGBuilder::AddPass(
 
 	FRDGPass* Pass = Allocator.AllocObject<LambdaPassType>(
 		MoveTemp(Name),
+		ParametersMetadata,
 		ParameterStruct,
 		OverridePassFlags(Name.GetTCHAR(), Flags, LambdaPassType::kSupportsAsyncCompute),
 		MoveTemp(ExecuteLambda));
@@ -279,6 +281,16 @@ FRDGPassRef FRDGBuilder::AddPass(
 	Passes.Insert(Pass);
 	SetupPass(Pass);
 	return Pass;
+}
+
+template <typename ParameterStructType, typename ExecuteLambdaType>
+FRDGPassRef FRDGBuilder::AddPass(
+	FRDGEventName&& Name,
+	const ParameterStructType* ParameterStruct,
+	ERDGPassFlags Flags,
+	ExecuteLambdaType&& ExecuteLambda)
+{
+	return AddPass(Forward<FRDGEventName>(Name), ParameterStructType::FTypeInfo::GetStructMetadata(), ParameterStruct, Flags, Forward<ExecuteLambdaType>(ExecuteLambda));
 }
 
 inline void FRDGBuilder::QueueTextureExtraction(

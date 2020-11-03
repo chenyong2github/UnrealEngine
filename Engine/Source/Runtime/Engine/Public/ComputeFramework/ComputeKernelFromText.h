@@ -32,6 +32,27 @@ public:
 	uint64 SourceHash = 0;
 
 #if WITH_EDITOR
+	FString KernelSourceText;
+
+	FString GetEntryPoint() const override
+	{
+		return EntryPointName;
+	}
+
+	FString GetSource() const override
+	{
+		return KernelSourceText;
+	}
+
+	uint64 GetSourceHashCode() const override
+	{
+		return SourceHash;
+	}
+#endif
+
+	void PostLoad() override;
+
+#if WITH_EDITOR
 	FFilePath PrevSourceFile;
 
 	virtual void PreEditChange(FEditPropertyChain& PropertyAboutToChange) override;

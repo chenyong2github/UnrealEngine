@@ -6,13 +6,12 @@
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "RHIDefinitions.h"
-#include "ComputeFramework/ComputeKernelShaderMap.h"
 #include "ComputeFramework/ComputeKernelShader.h"
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 
 DECLARE_GPU_STAT_NAMED(ComputeFramework_ExecuteBatches, TEXT("ComputeFramework::ExecuteBatches"));
 
-static int32 GComputeFrameworkMode = 0;
+static int32 GComputeFrameworkMode = 1;
 static FAutoConsoleVariableRef CVarComputeFrameworkMode(
 	TEXT("r.ComputeFramework.mode"),
 	GComputeFrameworkMode,
@@ -34,10 +33,10 @@ void FComputeGraph::Initialize(UComputeGraph* ComputeGraph)
 	for (auto& Invocation : ComputeGraph->GetShaderInvocationList())
 	{
 		FKernelInvocation KernelInvocation = {
-			Invocation.ComputeKernel ? Invocation.ComputeKernel->GetFName() : "NULL Kernel",
+			Invocation.ComputeKernel->GetFName(),
 			FName("InvocationName"),
 			FIntVector(1, 1, 1),
-			Invocation.ComputeKernel ? Invocation.ComputeKernel->GetResource() : nullptr
+			Invocation.ComputeKernel->GetResource()
 			};
 
 		KernelInvocations.Emplace(KernelInvocation);
@@ -55,9 +54,8 @@ void FComputeFramework::EnqueueForExecution(const FComputeGraph* ComputeGraph)
 			Invocation.KernelName,
 			Invocation.InvocationName,
 			Invocation.DispatchDim,
-			Invocation.KernelResource ? 
-				Invocation.KernelResource->ShaderMap_RT->GetShader<FComputeKernelShader>(0) : 
-				GetGlobalShaderMap(ERHIFeatureLevel::SM5)->GetShader<FComputeKernelShader>()
+			Invocation.Kernel->GetShaderParamMetadata(),
+			Invocation.Kernel->GetShader()
 			};
 
 		ComputeShaders.Emplace(ShaderInvocation);
@@ -142,24 +140,71 @@ void FComputeFramework::ExecuteBatches(
 
 		for (auto& Compute : ComputeShaders)
 		{
+			FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateBufferDesc(4, 32);
+
+			void* RawBuffer = GraphBuilder.Alloc(Compute.ShaderParamMetadata->GetSize(), SHADER_PARAMETER_STRUCT_ALIGNMENT);
+			FMemory::Memzero(RawBuffer, Compute.ShaderParamMetadata->GetSize());
+
+			uint8* ParamBuffer = static_cast<uint8*>(RawBuffer);
+			TArray<FShaderParametersMetadata::FMember> ParamMembers = Compute.ShaderParamMetadata->GetMembers();
+			for (auto& Member : ParamMembers)
+			{
+				switch (Member.GetBaseType())
+				{
+				case EUniformBufferBaseType::UBMT_INT32:
+				case EUniformBufferBaseType::UBMT_UINT32:
+				case EUniformBufferBaseType::UBMT_FLOAT32:
+					// Fill is CBuffer data
+					break;
+
+				case EUniformBufferBaseType::UBMT_RDG_BUFFER_SRV:
+					{
+						FRDGBufferRef InputBuffer = GraphBuilder.CreateBuffer(BufferDesc, Member.GetName());
+
+						FComputeShaderUtils::ClearUAV(
+							GraphBuilder,
+							GetGlobalShaderMap(ERHIFeatureLevel::SM5),
+							GraphBuilder.CreateUAV(InputBuffer, PF_A32B32G32R32F),
+							FVector4(0.0f)
+							);
+
+						*reinterpret_cast<FRDGBufferSRVRef*>(&ParamBuffer[Member.GetOffset()]) = GraphBuilder.CreateSRV(InputBuffer, PF_R32_FLOAT);
+					}
+					break;
+
+				case EUniformBufferBaseType::UBMT_RDG_BUFFER_UAV:
+					{						
+						FRDGBufferRef OutputBuffer = GraphBuilder.CreateBuffer(BufferDesc, Member.GetName());
+
+						*reinterpret_cast<FRDGBufferUAVRef*>(&ParamBuffer[Member.GetOffset()]) = GraphBuilder.CreateUAV(OutputBuffer, PF_R32_FLOAT);
+					}
+					break;
+
+				default:
+					check(!"Unsupported type");
+					break;
+				};
+			}
+
 			TCHAR KernelName[FComputeKernelInvocation::MAX_NAME_LENGTH];
 			Compute.KernelName.ToString(KernelName);
 
 			TCHAR InvocationName[FComputeKernelInvocation::MAX_NAME_LENGTH];
 			Compute.InvocationName.ToString(InvocationName);
 
-			auto* Params = GraphBuilder.AllocParameters<FComputeKernelShader::FParameters>();
-
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("Compute[%s]: %s", KernelName, InvocationName),
-				ERDGPassFlags::Compute,
+				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				Compute.Shader,
-				Params,
+				Compute.ShaderParamMetadata,
+				static_cast<FComputeKernelShader::FParameters*>(RawBuffer),
 				Compute.DispatchDim
-				);
+				);		
 		}
 
 		GraphBuilder.Execute();
+
+		ComputeShaders.Reset();
 	}
 }

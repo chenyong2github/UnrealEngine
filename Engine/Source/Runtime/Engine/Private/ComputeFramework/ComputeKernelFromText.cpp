@@ -12,8 +12,13 @@ UComputeKernelFromText::UComputeKernelFromText()
 	UniqueId = FGuid::NewGuid();
 }
 
-#if WITH_EDITOR
+void UComputeKernelFromText::PostLoad()
+{
+	Super::PostLoad();
+	ReparseKernelSourceText();
+}
 
+#if WITH_EDITOR
 void UComputeKernelFromText::PreEditChange(FEditPropertyChain& PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
@@ -49,8 +54,12 @@ void UComputeKernelFromText::ReparseKernelSourceText()
 	if (SourceFile.FilePath.IsEmpty())
 	{
 		EntryPointName = FString();
+		KernelSourceText = FString();
 		PermutationSet = FComputeKernelPermutationSet();
 		DefinitionsSet = FComputeKernelDefinitionsSet();
+		InputParams.Empty();
+		InputSRVs.Empty();
+		Outputs.Empty();
 
 		return;
 	}
@@ -66,7 +75,6 @@ void UComputeKernelFromText::ReparseKernelSourceText()
 		return;
 	}
 
-	FString KernelSourceText;
 	if (!FFileHelper::LoadFileToString(KernelSourceText, &PlatformFileSystem, *FullKernelPath))
 	{
 		UE_LOG(ComputeKernel, Error, TEXT("Unable to read kernel file \"%s\""), *FullKernelPath);
@@ -75,39 +83,169 @@ void UComputeKernelFromText::ReparseKernelSourceText()
 		return;
 	}
 
-	const FRegexPattern KernelEntryPointPattern(TEXT(R"(KERNEL_ENTRY_POINT\(\s*([a-zA-Z_][\w\d]*)\s*\))"));
+	const FRegexPattern KernelEntryPointPattern(TEXT(R"(KERNEL_ENTRY_POINT\(\s*([a-zA-Z_]\w*)\s*\))"));
 	{
-		FRegexMatcher KernelEntryPointMatcher(KernelEntryPointPattern, KernelSourceText);
-		if (KernelEntryPointMatcher.FindNext())
+		FRegexMatcher Matcher(KernelEntryPointPattern, KernelSourceText);
+		if (Matcher.FindNext())
 		{
-			EntryPointName = KernelEntryPointMatcher.GetCaptureGroup(1);
+			EntryPointName = Matcher.GetCaptureGroup(1);
 		}
 	}
 
-	const FRegexPattern KernelPermutationBoolPattern(TEXT(R"(KERNEL_PERMUTATION_BOOL\(\s*([a-zA-Z_][\w\d]*)\s*\))"));
+	const FRegexPattern KernelPermutationBoolPattern(TEXT(R"(KERNEL_PERMUTATION_BOOL\(\s*([a-zA-Z_]\w*)\s*\))"));
 	{
 		FComputeKernelPermutationSet NewPermutationSet;
 
-		FRegexMatcher BoolPermuationMatcher(KernelPermutationBoolPattern, KernelSourceText);
-		while (BoolPermuationMatcher.FindNext())
+		FRegexMatcher Matcher(KernelPermutationBoolPattern, KernelSourceText);
+		while (Matcher.FindNext())
 		{
-			NewPermutationSet.BooleanOptions.Emplace(BoolPermuationMatcher.GetCaptureGroup(1));
+			NewPermutationSet.BooleanOptions.Emplace(Matcher.GetCaptureGroup(1));
 		}
 
-		PermutationSet = NewPermutationSet;
+		PermutationSet = MoveTemp(NewPermutationSet);
 	}
 
-	const FRegexPattern KernelDefinePattern(TEXT(R"(KERNEL_DEFINE\(\s*([a-zA-Z_][\w\d]*)\s*\))"));
+	const FRegexPattern KernelDefinePattern(TEXT(R"(KERNEL_DEFINE\(\s*([a-zA-Z_][\w]*)\s*\))"));
 	{
 		FComputeKernelDefinitionsSet NewDefinitionsSet;
 
-		FRegexMatcher DefineMatcher(KernelDefinePattern, KernelSourceText);
-		while (DefineMatcher.FindNext())
+		FRegexMatcher Matcher(KernelDefinePattern, KernelSourceText);
+		while (Matcher.FindNext())
 		{
-			NewDefinitionsSet.Defines.Emplace(DefineMatcher.GetCaptureGroup(1));
+			NewDefinitionsSet.Defines.Emplace(Matcher.GetCaptureGroup(1));
 		}
 
-		DefinitionsSet = NewDefinitionsSet;
+		DefinitionsSet = MoveTemp(NewDefinitionsSet);
+	}
+
+	const FRegexPattern KernelInputParamPattern(TEXT(R"(KERNEL_PARAM\(\s*(bool|int|uint|float)((?:[1-4])|(?:[1-4]x[1-4]))?\s*,\s*([a-zA-Z_]\w*)\s*\))"));
+	{
+		TArray<FShaderParamTypeDefinition> Params;
+
+		FRegexMatcher Matcher(KernelInputParamPattern, KernelSourceText);
+		while (Matcher.FindNext())
+		{
+			FShaderParamTypeDefinition Param = {};
+
+			FString FundamentalType = Matcher.GetCaptureGroup(1);
+			FString DimensionType	= Matcher.GetCaptureGroup(2);
+			FString ParamName		= Matcher.GetCaptureGroup(3);
+
+			Param.Name				= MoveTemp(ParamName);
+			Param.FundamentalType	= FShaderParamTypeDefinition::ParseFundamental(FundamentalType);
+			Param.DimType			= FShaderParamTypeDefinition::ParseDimension(DimensionType);
+			Param.BindingType		= EShaderParamBindingType::ConstantParameter;
+
+			switch (Param.DimType)
+			{
+			case EShaderFundamentalDimensionType::Scalar:
+				Param.VectorDimension = 0;
+				break;
+
+			case EShaderFundamentalDimensionType::Vector:
+				Param.VectorDimension = FShaderParamTypeDefinition::ParseVectorDimension(DimensionType);
+				break;
+
+			case EShaderFundamentalDimensionType::Matrix:
+				FIntVector2 MtxDim = FShaderParamTypeDefinition::ParseMatrixDimension(DimensionType);
+				Param.MatrixColumnCount	= MtxDim.X;
+				Param.MatrixRowCount	= MtxDim.Y;
+				break;
+			}
+
+			Param.ResetTypeDeclaration();
+			Params.Emplace(MoveTemp(Param));
+		}
+
+		InputParams = MoveTemp(Params);
+	}
+
+	const FRegexPattern KernelInputSRVPattern(TEXT(R"(KERNEL_SRV\(\s*(ByteAddress|Structured|Buffer|Texture1D|Texture2D|Texture3D|TextureCube)\s*<\s*(?:SNORM|UNORM)?\s*(int|uint|float)((?:[1-4])|(?:[1-4]x[1-4]))?\s*>\s*,\s*([a-zA-Z_]\w*)\s*\))"));
+	{
+		TArray<FShaderParamTypeDefinition> SRVs;
+
+		FRegexMatcher Matcher(KernelInputSRVPattern, KernelSourceText);
+		while (Matcher.FindNext())
+		{
+			FShaderParamTypeDefinition Param = {};
+
+			FString ResourceType	= Matcher.GetCaptureGroup(1);
+			FString FundamentalType = Matcher.GetCaptureGroup(2);
+			FString DimensionType	= Matcher.GetCaptureGroup(3);
+			FString ParamName		= Matcher.GetCaptureGroup(4);
+
+			Param.Name				= MoveTemp(ParamName);
+			Param.FundamentalType	= FShaderParamTypeDefinition::ParseFundamental(FundamentalType);
+			Param.DimType			= FShaderParamTypeDefinition::ParseDimension(DimensionType);
+			Param.BindingType		= EShaderParamBindingType::ReadOnlyResource;
+			Param.ResourceType		= FShaderParamTypeDefinition::ParseResource(ResourceType);
+
+			switch (Param.DimType)
+			{
+			case EShaderFundamentalDimensionType::Scalar:
+				Param.VectorDimension = 0;
+				break;
+
+			case EShaderFundamentalDimensionType::Vector:
+				Param.VectorDimension = FShaderParamTypeDefinition::ParseVectorDimension(DimensionType);
+				break;
+
+			case EShaderFundamentalDimensionType::Matrix:
+				FIntVector2 MtxDim = FShaderParamTypeDefinition::ParseMatrixDimension(DimensionType);
+				Param.MatrixColumnCount = MtxDim.X;
+				Param.MatrixRowCount	= MtxDim.Y;
+				break;
+			}
+
+			Param.ResetTypeDeclaration();
+			SRVs.Emplace(MoveTemp(Param));
+		}
+
+		InputSRVs = MoveTemp(SRVs);
+	}
+
+	const FRegexPattern KernelOutputPattern(TEXT(R"(KERNEL_UAV\(\s*RW(ByteAddress|Structured|Buffer|Texture1D|Texture2D|Texture3D|TextureCube)\s*<\s*(?:SNORM|UNORM)?\s*(int|uint|float)((?:[1-4])|(?:[1-4]x[1-4]))?\s*>\s*,\s*([a-zA-Z_]\w*)\s*\))"));
+	{
+		TArray<FShaderParamTypeDefinition> OutputParams;
+
+		FRegexMatcher Matcher(KernelOutputPattern, KernelSourceText);
+		while (Matcher.FindNext())
+		{
+			FShaderParamTypeDefinition Param = {};
+
+			FString ResourceType	= Matcher.GetCaptureGroup(1);
+			FString FundamentalType = Matcher.GetCaptureGroup(2);
+			FString DimensionType	= Matcher.GetCaptureGroup(3);
+			FString ParamName		= Matcher.GetCaptureGroup(4);
+
+			Param.Name				= MoveTemp(ParamName);
+			Param.FundamentalType	= FShaderParamTypeDefinition::ParseFundamental(FundamentalType);
+			Param.DimType			= FShaderParamTypeDefinition::ParseDimension(DimensionType);
+			Param.BindingType		= EShaderParamBindingType::ReadWriteResource;
+			Param.ResourceType		= FShaderParamTypeDefinition::ParseResource(ResourceType);
+
+			switch (Param.DimType)
+			{
+			case EShaderFundamentalDimensionType::Scalar:
+				Param.VectorDimension = 0;
+				break;
+
+			case EShaderFundamentalDimensionType::Vector:
+				Param.VectorDimension = FShaderParamTypeDefinition::ParseVectorDimension(DimensionType);
+				break;
+
+			case EShaderFundamentalDimensionType::Matrix:
+				FIntVector2 MtxDim = FShaderParamTypeDefinition::ParseMatrixDimension(DimensionType);
+				Param.MatrixColumnCount = MtxDim.X;
+				Param.MatrixRowCount	= MtxDim.Y;
+				break;
+			}
+
+			Param.ResetTypeDeclaration();
+			OutputParams.Emplace(MoveTemp(Param));
+		}
+
+		Outputs = MoveTemp(OutputParams);
 	}
 
 	/*

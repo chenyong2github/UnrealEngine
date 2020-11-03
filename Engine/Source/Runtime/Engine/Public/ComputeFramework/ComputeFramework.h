@@ -43,7 +43,7 @@ public:
 		FName KernelName;
 		FName InvocationName;
 		FIntVector DispatchDim;
-		FComputeKernelResource* KernelResource = nullptr;
+		FComputeKernelResource* Kernel = nullptr;
 	};
 
 	void Initialize(UComputeGraph* ComputeGraph);
@@ -59,6 +59,7 @@ public:
 		FName KernelName;
 		FName InvocationName;
 		FIntVector DispatchDim;
+		const FShaderParametersMetadata* ShaderParamMetadata = nullptr;
 		TShaderRef<FComputeKernelShader> Shader;
 	};
 

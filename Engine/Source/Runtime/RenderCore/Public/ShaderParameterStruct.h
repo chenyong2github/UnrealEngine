@@ -182,9 +182,14 @@ inline void UnsetShaderUAVs(TRHICmdList& RHICmdList, const TShaderRef<TShaderCla
 
 /** Set shader's parameters from its parameters struct. */
 template<typename TRHICmdList, typename TShaderClass, typename TShaderRHI>
-inline void SetShaderParameters(TRHICmdList& RHICmdList, const TShaderRef<TShaderClass>& Shader, TShaderRHI* ShadeRHI, const typename TShaderClass::FParameters& Parameters)
+inline void SetShaderParameters(
+	TRHICmdList& RHICmdList, 
+	const TShaderRef<TShaderClass>& Shader, 
+	TShaderRHI* ShadeRHI, 
+	const FShaderParametersMetadata* ParametersMetadata,
+	const typename TShaderClass::FParameters& Parameters)
 {
-	ValidateShaderParameters(Shader, Parameters);
+	ValidateShaderParameters(Shader, ParametersMetadata, &Parameters);
 
 	// TODO(RDG): Once all shader sets their parameter through this, can refactor RHI so all shader parameters get sets through a single RHI function call.
 	const FShaderParameterBindings& Bindings = Shader->Bindings;
@@ -282,6 +287,12 @@ inline void SetShaderParameters(TRHICmdList& RHICmdList, const TShaderRef<TShade
 	}
 }
 
+template<typename TRHICmdList, typename TShaderClass, typename TShaderRHI>
+inline void SetShaderParameters(TRHICmdList& RHICmdList, const TShaderRef<TShaderClass>& Shader, TShaderRHI* ShaderRHI, const typename TShaderClass::FParameters& Parameters)
+{
+	const FShaderParametersMetadata* ParametersMetadata = TShaderClass::FParameters::FTypeInfo::GetStructMetadata();
+	SetShaderParameters(RHICmdList, Shader, ShaderRHI, ParametersMetadata, Parameters);
+}
 
 #if RHI_RAYTRACING
 

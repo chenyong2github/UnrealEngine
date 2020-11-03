@@ -13,7 +13,7 @@ UComputeGraphComponent::UComputeGraphComponent()
 
 void UComputeGraphComponent::QueueExecute()
 {
-	if (!ComputeGraph)
+	if (!ComputeGraph || !GetScene()->GetComputeFramework())
 	{
 		return;
 	}
@@ -25,8 +25,10 @@ void UComputeGraphComponent::SendRenderDynamicData_Concurrent()
 {
 	check(ComputeGraph);
 	Super::SendRenderDynamicData_Concurrent();
-
+	
 	FComputeFramework* ComputeFramework = GetScene()->GetComputeFramework();
+	check(ComputeFramework);
+
 	FComputeGraph* ComputeGraphProxy = new FComputeGraph();
 	ComputeGraphProxy->Initialize(ComputeGraph);
 

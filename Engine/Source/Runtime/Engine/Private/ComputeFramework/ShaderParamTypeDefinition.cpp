@@ -4,6 +4,7 @@
 
 #include "Serialization/Archive.h"
 #include "Templates/TypeHash.h"
+#include "Misc/DefaultValueHelper.h"
 
 
 // Storage for shared shader value types.
@@ -239,9 +240,6 @@ FString FShaderValueType::ToString() const
 	case EShaderFundamentalType::Float:
 		BaseName = "float";
 		break;
-	case EShaderFundamentalType::Double:
-		BaseName = "double";
-		break;
 
 	case EShaderFundamentalType::Struct:
 		return Name.ToString();
@@ -330,4 +328,149 @@ FArchive& operator<<(FArchive& InArchive, FShaderValueType::FStructElement& InEl
 	InArchive << InElement.Name;
 	InArchive << InElement.Type;
 	return InArchive;
+}
+
+
+using FFundamentalStingPair = TPair<EShaderFundamentalType, FString>;
+using FResourceStingPair = TPair<EShaderResourceType, FString>;
+
+static FFundamentalStingPair TypeStringMap[] = {
+	FFundamentalStingPair(EShaderFundamentalType::Bool,		TEXT("bool")),
+	FFundamentalStingPair(EShaderFundamentalType::Uint,		TEXT("uint")),
+	FFundamentalStingPair(EShaderFundamentalType::Int,		TEXT("int")),
+	FFundamentalStingPair(EShaderFundamentalType::Float,	TEXT("float")),
+	};
+
+static FResourceStingPair ResTypeStringMap[] = {
+	FResourceStingPair(EShaderResourceType::Texture1D,			TEXT("Texture1D")),
+	FResourceStingPair(EShaderResourceType::Texture2D,			TEXT("Texture2D")),
+	FResourceStingPair(EShaderResourceType::Texture3D,			TEXT("Texture3D")),
+	FResourceStingPair(EShaderResourceType::TextureCube,		TEXT("TextureCube")),
+	FResourceStingPair(EShaderResourceType::StructuredBuffer,	TEXT("StructuredBuffer")),
+	FResourceStingPair(EShaderResourceType::ByteAddressBuffer,	TEXT("ByteAddressBuffer")),
+	FResourceStingPair(EShaderResourceType::Buffer,				TEXT("Buffer")),
+	};
+
+EShaderFundamentalType FShaderParamTypeDefinition::ParseFundamental(
+	const FString& Str
+	)
+{
+	for (auto& Pair : TypeStringMap)
+	{
+		if (Str.Contains(Pair.Value))
+		{
+			return Pair.Key;
+		}
+	}
+
+	check(!"Unknown Type");
+	return EShaderFundamentalType::Float;
+}
+
+EShaderFundamentalDimensionType FShaderParamTypeDefinition::ParseDimension(
+	const FString& Str
+	)
+{
+	if (Str.Contains(TEXT("x"), ESearchCase::CaseSensitive))
+	{
+		return EShaderFundamentalDimensionType::Matrix;
+	}
+	else if (!Str.IsEmpty())
+	{
+		return EShaderFundamentalDimensionType::Vector;
+	}
+	else
+	{
+		return EShaderFundamentalDimensionType::Scalar;
+	}
+}
+
+uint8 FShaderParamTypeDefinition::ParseVectorDimension(
+	const FString& Str
+	)
+{
+	int32 Dim = 0;
+	FDefaultValueHelper::ParseInt(Str, Dim);
+
+	return uint8(Dim);
+}
+
+FIntVector2 FShaderParamTypeDefinition::ParseMatrixDimension(
+	const FString& Str
+	)
+{
+	FIntVector2 Dim;
+
+	Dim.X = ParseVectorDimension(Str.Left(1));
+	Dim.Y = ParseVectorDimension(Str.Right(1));
+
+	return Dim;
+}
+
+EShaderResourceType FShaderParamTypeDefinition::ParseResource(const FString& Str)
+{
+	for (auto& Pair : ResTypeStringMap)
+	{
+		if (Str.Contains(Pair.Value))
+		{
+			return Pair.Key;
+		}
+	}
+
+	check(!"Unknown Type");
+	return EShaderResourceType::Buffer;
+}
+
+void FShaderParamTypeDefinition::ResetTypeDeclaration(
+	)
+{
+	FString TypeDecl;
+	if (BindingType == EShaderParamBindingType::ReadWriteResource)
+	{
+		TypeDecl.Append(TEXT("RW"));
+	}
+
+	if (BindingType != EShaderParamBindingType::ConstantParameter)
+	{
+		auto* foundItem = Algo::FindByPredicate(
+			ResTypeStringMap, 
+			[this](const FResourceStingPair& Pair) 
+			{ 
+				return Pair.Key == ResourceType; 
+			});
+		check(foundItem);
+
+		TypeDecl.Appendf(TEXT("%s<"), *foundItem->Value);
+	}
+
+	auto* foundItem = Algo::FindByPredicate(
+		TypeStringMap, 
+		[this](const FFundamentalStingPair& Pair) 
+		{ 
+			return Pair.Key == FundamentalType; 
+		});
+	check(foundItem);
+
+	TypeDecl.Append(foundItem->Value);
+
+	switch (DimType)
+	{
+	case EShaderFundamentalDimensionType::Scalar:
+		break;
+
+	case EShaderFundamentalDimensionType::Vector:
+		TypeDecl.AppendInt(VectorDimension);
+		break;
+
+	case EShaderFundamentalDimensionType::Matrix:
+		TypeDecl.Appendf(TEXT("%dx%d"), MatrixRowCount, MatrixColumnCount);
+		break;
+	};
+
+	if (BindingType != EShaderParamBindingType::ConstantParameter)
+	{
+		TypeDecl.AppendChar(TEXT('>'));
+	}
+
+	TypeDeclaration = MoveTemp(TypeDecl);
 }

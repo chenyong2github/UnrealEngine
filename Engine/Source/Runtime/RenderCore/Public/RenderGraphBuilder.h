@@ -134,6 +134,9 @@ public:
 	 *  The pass name is used by debugging / profiling tools.
 	 */
 	template <typename ParameterStructType, typename ExecuteLambdaType>
+	FRDGPassRef AddPass(FRDGEventName&& Name, const FShaderParametersMetadata* ParametersMetadata, const ParameterStructType* ParameterStruct, ERDGPassFlags Flags, ExecuteLambdaType&& ExecuteLambda);
+	
+	template <typename ParameterStructType, typename ExecuteLambdaType>
 	FRDGPassRef AddPass(FRDGEventName&& Name, const ParameterStructType* ParameterStruct, ERDGPassFlags Flags, ExecuteLambdaType&& ExecuteLambda);
 
 	/** Adds a lambda pass to the graph without any parameters. This useful for deferring RHI work onto the graph timeline,

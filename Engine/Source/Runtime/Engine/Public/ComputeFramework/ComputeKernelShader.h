@@ -2,20 +2,27 @@
 
 #pragma once
 
-#include "Shader.h"
-#include "ShaderParameterStruct.h"
-#include "ComputeFramework/ComputeKernelShaderMap.h"
-
 #include "GlobalShader.h"
+#include "ComputeKernelShaderType.h"
+#include "ComputeKernelShared.h"
+#include "SceneView.h"
+#include "Shader.h"
+#include "ShaderParameters.h"
 
-class FComputeKernelShader : public FGlobalShader /*public FShader*/
+class FTextureResource;
+class UClass;
+
+class FComputeKernelShader : public FShader
 {
-public:
-	DECLARE_SHADER_TYPE(FComputeKernelShader, Global);
-	SHADER_USE_PARAMETER_STRUCT(FComputeKernelShader, FGlobalShader);
-	//DECLARE_SHADER_TYPE(FComputeKernelShader, ComputeKernel);
-	//SHADER_USE_PARAMETER_STRUCT(FComputeKernelShader, FShader);
+	DECLARE_SHADER_TYPE(FComputeKernelShader, ComputeKernel);
 
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-	END_SHADER_PARAMETER_STRUCT()
+public:
+	FComputeKernelShader() = default;
+	FComputeKernelShader(
+		const FComputeKernelShaderType::CompiledShaderInitializerType & Initializer
+		);
+
+	MS_ALIGN(SHADER_PARAMETER_STRUCT_ALIGNMENT) struct FParameters
+	{
+	};
 };

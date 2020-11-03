@@ -3,9 +3,18 @@
 #include "ComputeFramework/ComputeKernel.h"
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
 #include "ComputeFramework/ComputeKernelSource.h"
-#include "ComputeFramework/ComputeKernelResource.h"
 
 DEFINE_LOG_CATEGORY(ComputeKernel);
+
+void UComputeKernel::PostLoad()
+{
+	Super::PostLoad();
+
+	if (FApp::CanEverRender())
+	{
+		CacheResourceShadersForRendering();
+	}
+}
 
 #if WITH_EDITOR
 void UComputeKernel::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
@@ -24,31 +33,36 @@ void UComputeKernel::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 	{
 		if (KernelSource)
 		{
-			PermutationSet = KernelSource->PermutationSet;
-			DefinitionsSet = KernelSource->DefinitionsSet;
+			PermutationSetOverrides = KernelSource->PermutationSet;
+			DefinitionsSetOverrides = KernelSource->DefinitionsSet;
 		}
 		else
 		{
-			PermutationSet = FComputeKernelPermutationSet();
-			DefinitionsSet = FComputeKernelDefinitionsSet();
+			PermutationSetOverrides = FComputeKernelPermutationSet();
+			DefinitionsSetOverrides = FComputeKernelDefinitionsSet();
 		}
 		
 		CacheResourceShadersForRendering();
 	}
-	else if (ModifiedPropName == GET_MEMBER_NAME_CHECKED(UComputeKernel, PermutationSet) ||
-		ModifiedPropName == GET_MEMBER_NAME_CHECKED(UComputeKernel, DefinitionsSet))
+	else if (ModifiedPropName == GET_MEMBER_NAME_CHECKED(UComputeKernel, PermutationSetOverrides) ||
+		ModifiedPropName == GET_MEMBER_NAME_CHECKED(UComputeKernel, DefinitionsSetOverrides))
 	{
 		CacheResourceShadersForRendering();
 	}
 }
 
 void UComputeKernel::CacheResourceShadersForRendering(
-	uint32 CompilationFlags /*= uint32(EComputeKernelCompilationFlags::None)*/
+	uint32 CompilationFlags /*= uint32(EComputeKernelCompilationFlags::ApplyCompletedShaderMapForRendering)*/
 	)
 {
 	if (!KernelSource)
 	{
-		KernelResource->Invalidate();
+		if (KernelResource)
+		{
+			KernelResource->Invalidate();
+			KernelResource = nullptr;
+		}
+
 		return;
 	}
 
@@ -57,31 +71,42 @@ void UComputeKernel::CacheResourceShadersForRendering(
 		KernelResource = MakeUnique<FComputeKernelResource>();
 	}
 
-	// #TODO_ZABIR: Initialize KernelResouce with needed data
+	KernelResource = MakeUnique<FComputeKernelResource>();
+	KernelResource->SetupResource(
+		GMaxRHIFeatureLevel, 
+		KernelSource,  
+		GetName()
+		);
 
 	ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;
 	const EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[CacheFeatureLevel];
 
-	UComputeKernel::CacheShadersForResource(ShaderPlatform, CompilationFlags, KernelResource.Get());
+	UComputeKernel::CacheShadersForResource(ShaderPlatform, nullptr, CompilationFlags | uint32(EComputeKernelCompilationFlags::Force), KernelResource.Get());
 }
 
 void UComputeKernel::CacheShadersForResource(
 	EShaderPlatform ShaderPlatform,
+	const ITargetPlatform* TargetPlatform,
 	uint32 CompilationFlags,
 	FComputeKernelResource* KernelResource
 	)
 {
+	bool bCooking = (CompilationFlags & uint32(EComputeKernelCompilationFlags::IsCooking)) != 0;
+	
 	const bool bIsDefault = (KernelResource->GetKernelFlags() & uint32(EComputeKernelFlags::IsDefaultKernel)) != 0;
-	if (!GIsEditor || GIsAutomationTesting || bIsDefault)
+	if (!GIsEditor || GIsAutomationTesting || bIsDefault || bCooking)
 	{
 		CompilationFlags |= uint32(EComputeKernelCompilationFlags::Synchronous);
 	}
 
-	KernelResource->CacheShaders(ShaderPlatform, CompilationFlags);
+	const bool bIsSuccess = KernelResource->CacheShaders(
+		ShaderPlatform, 
+		TargetPlatform, 
+		CompilationFlags & uint32(EComputeKernelCompilationFlags::ApplyCompletedShaderMapForRendering),
+		CompilationFlags & uint32(EComputeKernelCompilationFlags::Synchronous)
+		);
 
-	const FComputeKernelCompilationResults& Results = KernelResource->GetCompilationResults();
-
-	if (!Results.bIsSuccess)
+	if (!bIsSuccess)
 	{
 		if (bIsDefault)
 		{
@@ -102,16 +127,11 @@ void UComputeKernel::CacheShadersForResource(
 			*LegacyShaderPlatformToShaderFormat(ShaderPlatform).ToString()
 			);
 
-		uint32 WarningCount = Results.CompileWarnings.Num();
-		for (uint32 i = 0; i < WarningCount; ++i)
-		{
-			UE_LOG(ComputeKernel, Warning, TEXT("    [Warning] - %s"), *Results.CompileWarnings[i]);
-		}
-
-		uint32 ErrorCount = Results.CompileWarnings.Num();
+		auto& CompilationErrors = KernelResource->GetCompileErrors();
+		uint32 ErrorCount = CompilationErrors.Num();
 		for (uint32 i = 0; i < ErrorCount; ++i)
 		{
-			UE_LOG(ComputeKernel, Warning, TEXT("      [Error] - %s"), *Results.CompileErrors[i]);
+			UE_LOG(ComputeKernel, Warning, TEXT("      [Error] - %s"), *CompilationErrors[i]);
 		}
 	}
 }

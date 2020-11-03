@@ -1,0 +1,15 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+
+#define KERNEL_ENTRY_POINT(EntryPointName) \
+    void EntryPointName( \
+        uint Gidx : SV_GroupIndex, \
+        uint3 Gid : SV_GroupID, \
+        uint3 GTid: SV_GroupThreadID, \
+        uint3 DTid : SV_DispatchThreadID)
+
+#define KERNEL_PARAM(Type, Name)    Type Name
+#define KERNEL_SRV(Type, Name)      Type Name
+#define KERNEL_UAV(Type, Name)      Type Name

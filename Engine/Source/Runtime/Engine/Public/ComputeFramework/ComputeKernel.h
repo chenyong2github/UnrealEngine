@@ -5,10 +5,11 @@
 #include "CoreMinimal.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
-#include "ComputeFramework/ComputeKernelResource.h"
+#include "ComputeFramework/ComputeKernelShared.h"
 
 #include "ComputeKernel.generated.h"
 
+class FComputeKernelResource;
 class UComputeKernelSource;
 
 DECLARE_LOG_CATEGORY_EXTERN(ComputeKernel, Log, All);
@@ -58,6 +59,11 @@ enum class EComputeKernelCompilationFlags
 
 	/* Compile the shader while blocking the main thread. */
 	Synchronous = 1 << 1,
+
+	/* Replaces all instances of the shader with the newly compiled version. */
+	ApplyCompletedShaderMapForRendering = 1 << 2,
+
+	IsCooking = 1 << 3,
 };
 
 /* Base class representing a kernel that will be run as a shader on the GPU. */
@@ -79,10 +85,10 @@ public:
 	int32 KernelFlags = 0;
 
 	UPROPERTY(EditDefaultsOnly, meta = (ShowOnlyInnerProperties), Category = "Kernel")
-	FComputeKernelPermutationSet PermutationSet;
+	FComputeKernelPermutationSet PermutationSetOverrides;
 
 	UPROPERTY(EditDefaultsOnly, meta = (ShowOnlyInnerProperties), Category = "Kernel")
-	FComputeKernelDefinitionsSet DefinitionsSet;
+	FComputeKernelDefinitionsSet DefinitionsSetOverrides;
 
 	/*
 	 * The minimum number of invocations (threads) launched by the kernel definition.
@@ -90,14 +96,6 @@ public:
 	 */
 	UPROPERTY(VisibleAnywhere, Category = "Kernel")
 	FKernelInvocationDimension GroupSizeDim;
-
-	/* Named input types to the kernel. These are discovered via reflection from the shader. */
-	UPROPERTY(VisibleAnywhere, EditFixedSize, Category = "Kernel")
-	TArray<FShaderParamTypeDefinition> Inputs;
-
-	/* Named output types to the kernel. These are discovered via reflection from the shader. */
-	UPROPERTY(VisibleAnywhere, EditFixedSize, Category = "Kernel")
-	TArray<FShaderParamTypeDefinition> Outputs;
 
 #if WITH_EDITOR
 	DECLARE_EVENT_OneParam(UComputeKernel, FShaderResetEvent, const UComputeKernel*);
@@ -119,8 +117,13 @@ public:
 
 	//=========================================================================
 	// UObject interface
+	void PostLoad(
+		) override;
+
 #if WITH_EDITOR
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	void PostEditChangeChainProperty(
+		FPropertyChangedChainEvent& PropertyChangedEvent
+		) override;
 #endif
 	//=========================================================================
 
@@ -130,17 +133,18 @@ private:
 #if WITH_EDITOR
 	/* Entry point to initiate any [re]compilation necessary due to changes. */
 	void CacheResourceShadersForRendering(
-		uint32 CompilationFlags = uint32(EComputeKernelCompilationFlags::None)
+		uint32 CompilationFlags = uint32(EComputeKernelCompilationFlags::ApplyCompletedShaderMapForRendering) | uint32(EComputeKernelCompilationFlags::Force)
 		);
 
 	/* Given a FKernelResouce, its associated shader is compiled - used for rendering and cooking. */
 	static void CacheShadersForResource(
 		EShaderPlatform ShaderPlatform,
+		const ITargetPlatform* TargetPlatform,
 		uint32 CompilationFlags,
-		FComputeKernelResource* KernelResource
+		FComputeKernelResource* Kernel
 		);
 #endif
 
-	/* The shader resouce encapsulating the kernel. Akin to FMaterialResource */
+	/* The shader resource encapsulating the kernel. Akin to FMaterialResource */
 	TUniquePtr<FComputeKernelResource> KernelResource = nullptr;
 };

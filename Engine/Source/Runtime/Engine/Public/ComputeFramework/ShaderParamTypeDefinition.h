@@ -20,7 +20,6 @@ enum class EShaderFundamentalType : uint8
 	Int,
 	Uint,
 	Float,
-	Double,
 	Struct
 };
 
@@ -189,6 +188,32 @@ struct FShaderParamTypeDefinition
 	GENERATED_BODY()
 
 public:
+	static EShaderFundamentalType ParseFundamental(
+		const FString& Str
+		);
+
+	static EShaderFundamentalDimensionType ParseDimension(
+		const FString& Str
+		);
+
+	static uint8 ParseVectorDimension(
+		const FString& Str
+		);
+
+	static FIntVector2 ParseMatrixDimension(
+		const FString& Str
+		);
+
+	static EShaderResourceType ParseResource(
+		const FString& Str
+		);
+
+public:
+#if WITH_EDITOR
+	UPROPERTY(VisibleAnywhere, Category = "Kernel")
+	FString TypeDeclaration;
+#endif
+
 	UPROPERTY(EditAnywhere, Category = "Kernel")
 	FString	Name;
 
@@ -196,8 +221,6 @@ public:
 	UPROPERTY()
 	FShaderValueTypeHandle ValueType;
 
-// #TODO_ZABIR: Shader reflection needs to extract much richer type info. Currently skip param type validation
-#if 0
 	UPROPERTY()
 	uint16 ArrayElementCount; // 0 indicates not an array. >= 1 indicates an array
 
@@ -215,12 +238,12 @@ public:
 
 	union
 	{
-		uint8 VectorElemCount : 2;
+		uint8 VectorDimension : 3;
 
 		struct
 		{
-			uint8 MatrixRowCount : 2;
 			uint8 MatrixColumnCount : 2;
+			uint8 MatrixRowCount : 2;
 		};
 	};
 
@@ -270,5 +293,7 @@ public:
 
 		return true;
 	}
-#endif
+
+	void ResetTypeDeclaration(
+		);
 };

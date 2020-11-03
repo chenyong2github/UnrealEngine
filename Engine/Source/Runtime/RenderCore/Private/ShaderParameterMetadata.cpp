@@ -7,6 +7,7 @@
 #include "ShaderParameterMetadata.h"
 #include "RenderCore.h"
 #include "ShaderCore.h"
+#include "ShaderParameterMetadataBuilder.h"
 
 FUniformBufferStaticSlotRegistrar::FUniformBufferStaticSlotRegistrar(const TCHAR* InName)
 {
@@ -889,4 +890,74 @@ FString FShaderParametersMetadata::GetFullMemberCodeName(uint16 MemberOffset) co
 	}
 
 	return MemberName;
+}
+
+void FShaderParametersMetadataBuilder::AddRDGBufferSRV(
+	const TCHAR* Name,
+	const TCHAR* ShaderType,
+	EShaderPrecisionModifier::Type Precision /* = EShaderPrecisionModifier::Float */
+	)
+{
+	NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_POINTER_ALIGNMENT);
+
+	new(Members) FShaderParametersMetadata::FMember(
+		Name,
+		ShaderType,
+		__LINE__,
+		NextMemberOffset,
+		UBMT_RDG_BUFFER_SRV,
+		Precision,
+		TShaderResourceParameterTypeInfo<FRDGBufferSRV*>::NumRows,
+		TShaderResourceParameterTypeInfo<FRDGBufferSRV*>::NumColumns,
+		TShaderResourceParameterTypeInfo<FRDGBufferSRV*>::NumElements,
+		TShaderResourceParameterTypeInfo<FRDGBufferSRV*>::GetStructMetadata()
+		);
+
+	NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
+}
+
+void FShaderParametersMetadataBuilder::AddRDGBufferUAV(
+	const TCHAR* Name,
+	const TCHAR* ShaderType,
+	EShaderPrecisionModifier::Type Precision /* = EShaderPrecisionModifier::Float */
+	)
+{
+	NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_POINTER_ALIGNMENT);
+
+	new(Members) FShaderParametersMetadata::FMember(
+		Name,
+		ShaderType,
+		__LINE__,
+		NextMemberOffset,
+		UBMT_RDG_BUFFER_UAV,
+		Precision,
+		TShaderResourceParameterTypeInfo<FRDGBufferUAV*>::NumRows,
+		TShaderResourceParameterTypeInfo<FRDGBufferUAV*>::NumColumns,
+		TShaderResourceParameterTypeInfo<FRDGBufferUAV*>::NumElements,
+		TShaderResourceParameterTypeInfo<FRDGBufferUAV*>::GetStructMetadata()
+		);
+
+	NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
+}
+
+FShaderParametersMetadata* FShaderParametersMetadataBuilder::Build(
+	FShaderParametersMetadata::EUseCase UseCase,
+	const TCHAR* ShaderParameterName
+	)
+{
+	const uint32 StructSize = Align(NextMemberOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT);
+
+	FShaderParametersMetadata* ShaderParameterMetadata = new FShaderParametersMetadata(
+		UseCase,
+		ShaderParameterName,
+		ShaderParameterName,
+		nullptr,
+		nullptr,
+		__FILE__,
+		__LINE__,
+		StructSize,
+		Members
+		);
+
+	return ShaderParameterMetadata;
 }

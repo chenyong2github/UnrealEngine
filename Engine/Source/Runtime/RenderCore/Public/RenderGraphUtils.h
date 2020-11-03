@@ -57,11 +57,10 @@ extern RENDERCORE_API void ClearUnusedGraphResourcesImpl(
 template <typename TShaderClass>
 void ClearUnusedGraphResources(
 	const TShaderRef<TShaderClass>& Shader,
+	const FShaderParametersMetadata* ParametersMetadata,
 	typename TShaderClass::FParameters* InoutParameters,
 	std::initializer_list<FRDGResourceRef> ExcludeList = {})
 {
-	const FShaderParametersMetadata* ParametersMetadata = TShaderClass::FParameters::FTypeInfo::GetStructMetadata();
-
 	// Verify the shader have all the parameters it needs. This is done before the
 	// ClearUnusedGraphResourcesImpl() to not mislead user on why some resource are missing
 	// when debugging a validation failure.
@@ -69,6 +68,16 @@ void ClearUnusedGraphResources(
 
 	// Clear the resources the shader won't need.
 	return ClearUnusedGraphResourcesImpl(Shader->Bindings, ParametersMetadata, InoutParameters, ExcludeList);
+}
+
+template <typename TShaderClass>
+void ClearUnusedGraphResources(
+	const TShaderRef<TShaderClass>& Shader,
+	typename TShaderClass::FParameters* InoutParameters,
+	std::initializer_list<FRDGResourceRef> ExcludeList = {})
+{
+	const FShaderParametersMetadata* ParametersMetadata = TShaderClass::FParameters::FTypeInfo::GetStructMetadata();
+	return ClearUnusedGraphResources(Shader, ParametersMetadata, InoutParameters, MoveTemp(ExcludeList));
 }
 
 template <typename TShaderClassA, typename TShaderClassB, typename TPassParameterStruct>
@@ -250,14 +259,30 @@ struct RENDERCORE_API FComputeShaderUtils
 
 	/** Dispatch a compute shader to rhi command list with its parameters. */
 	template<typename TShaderClass>
-	static void Dispatch(FRHIComputeCommandList& RHICmdList, const TShaderRef<TShaderClass>& ComputeShader, const typename TShaderClass::FParameters& Parameters, FIntVector GroupCount)
+	static void Dispatch(
+		FRHIComputeCommandList& RHICmdList, 
+		const TShaderRef<TShaderClass>& ComputeShader, 
+		const FShaderParametersMetadata* ParametersMetadata,
+		const typename TShaderClass::FParameters& Parameters,
+		FIntVector GroupCount)
 	{
 		ValidateGroupCount(GroupCount);
 		FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
 		RHICmdList.SetComputeShader(ShaderRHI);
-		SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, Parameters);
+		SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, ParametersMetadata, Parameters);
 		RHICmdList.DispatchComputeShader(GroupCount.X, GroupCount.Y, GroupCount.Z);
 		UnsetShaderUAVs(RHICmdList, ComputeShader, ShaderRHI);
+	}
+
+	template<typename TShaderClass>
+	static void Dispatch(
+		FRHIComputeCommandList& RHICmdList,
+		const TShaderRef<TShaderClass>& ComputeShader,
+		const typename TShaderClass::FParameters& Parameters,
+		FIntVector GroupCount)
+	{
+		const FShaderParametersMetadata* ParametersMetadata = TShaderClass::FParameters::FTypeInfo::GetStructMetadata();
+		Dispatch(RHICmdList, ComputeShader, ParametersMetadata, Parameters, GroupCount);
 	}
 	
 	/** Indirect dispatch a compute shader to rhi command list with its parameters. */
@@ -301,6 +326,7 @@ struct RENDERCORE_API FComputeShaderUtils
 		FRDGEventName&& PassName,
 		ERDGPassFlags PassFlags,
 		const TShaderRef<TShaderClass>& ComputeShader,
+		const FShaderParametersMetadata* ParametersMetadata,
 		typename TShaderClass::FParameters* Parameters,
 		FIntVector GroupCount)
 	{
@@ -309,16 +335,30 @@ struct RENDERCORE_API FComputeShaderUtils
 			!EnumHasAnyFlags(PassFlags, ERDGPassFlags::Copy | ERDGPassFlags::Raster), TEXT("AddPass only supports 'Compute' or 'AsyncCompute'."));
 
 		ValidateGroupCount(GroupCount);
-		ClearUnusedGraphResources(ComputeShader, Parameters);
+		ClearUnusedGraphResources(ComputeShader, ParametersMetadata, Parameters);
 
 		GraphBuilder.AddPass(
 			Forward<FRDGEventName>(PassName),
+			ParametersMetadata,
 			Parameters,
 			PassFlags,
-			[Parameters, ComputeShader, GroupCount](FRHIComputeCommandList& RHICmdList)
+			[ParametersMetadata, Parameters, ComputeShader, GroupCount](FRHIComputeCommandList& RHICmdList)
 		{
-			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *Parameters, GroupCount);
+			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, ParametersMetadata, *Parameters, GroupCount);
 		});
+	}
+
+	template<typename TShaderClass>
+	static void AddPass(
+		FRDGBuilder& GraphBuilder,
+		FRDGEventName&& PassName,
+		ERDGPassFlags PassFlags,
+		const TShaderRef<TShaderClass>& ComputeShader,
+		typename TShaderClass::FParameters* Parameters,
+		FIntVector GroupCount)
+	{
+		const FShaderParametersMetadata* ParametersMetadata = TShaderClass::FParameters::FTypeInfo::GetStructMetadata();
+		AddPass(GraphBuilder, Forward<FRDGEventName>(PassName), PassFlags, ComputeShader, ParametersMetadata, Parameters, GroupCount);
 	}
 
 	template <typename TShaderClass>
@@ -329,7 +369,8 @@ struct RENDERCORE_API FComputeShaderUtils
 		typename TShaderClass::FParameters* Parameters,
 		FIntVector GroupCount)
 	{
-		AddPass(GraphBuilder, Forward<FRDGEventName>(PassName), ERDGPassFlags::Compute, ComputeShader, Parameters, GroupCount);
+		const FShaderParametersMetadata* ParametersMetadata = TShaderClass::FParameters::FTypeInfo::GetStructMetadata();
+		AddPass(GraphBuilder, Forward<FRDGEventName>(PassName), ERDGPassFlags::Compute, ComputeShader, ParametersMetadata, Parameters, GroupCount);
 	}
 
 	/** Dispatch a compute shader to render graph builder with its parameters. */
