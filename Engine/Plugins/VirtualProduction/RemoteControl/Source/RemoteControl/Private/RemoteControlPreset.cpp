@@ -727,7 +727,15 @@ FName URemoteControlPreset::CreateTarget(const TArray<UObject*>& TargetObjects)
 }
 
 void URemoteControlPreset::DeleteTarget(FName TargetName)
-{
+{	
+	if (FRemoteControlTarget* Target = RemoteControlTargets.Find(TargetName))
+	{
+		for (auto It = Target->ExposedProperties.CreateConstIterator(); It; ++It)
+		{
+			Unexpose(It->Label);
+		}
+	}
+
 	RemoteControlTargets.Remove(TargetName);
 }
 
