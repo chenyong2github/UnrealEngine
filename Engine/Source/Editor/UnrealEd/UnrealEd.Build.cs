@@ -112,6 +112,8 @@ public class UnrealEd : ModuleRules
 				"TypedElementInterfaces",
 				"ToolMenusEditor",
 				"StatusBar",
+				"InterchangeCore",
+				"InterchangeEngine",
 			}
 		);
 
@@ -134,8 +136,6 @@ public class UnrealEd : ModuleRules
 				"ImageWriteQueue",
 				"InputCore",
 				"InputBindingEditor",
-				"InterchangeCore",
-				"InterchangeEngine",
 				"LauncherServices",
 				"MaterialEditor",
 				"MessageLog",

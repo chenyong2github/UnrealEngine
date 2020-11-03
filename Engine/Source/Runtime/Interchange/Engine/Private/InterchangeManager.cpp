@@ -9,6 +9,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "InterchangeFactoryBase.h"
 #include "InterchangeEngineLogPrivate.h"
+#include "InterchangeProjectSettings.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
 #include "InterchangeWriterBase.h"
@@ -30,6 +31,8 @@
 #include "UObject/UObjectIterator.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/Notifications/SNotificationList.h"
+
+
 
 namespace InternalInterchangePrivate
 {
@@ -506,24 +509,24 @@ UE::Interchange::FAsyncImportResult UInterchangeManager::ImportAssetAsync(const 
 		check(AsyncHelper->BaseNodeContainers[SourceDataIndex].IsValid());
 	}
 
-	if ( ImportAssetParameters.OverridePipeline == nullptr )
+	if ( ImportAssetParameters.OverridePipelines.Num() == 0 )
 	{
-		//Get all pipeline candidate we want for this import
-		TArray<UClass*> PipelineCandidates;
-		FindPipelineCandidate(PipelineCandidates);
+		const TArray<TSoftClassPtr<UInterchangePipelineBase>>& PipelineStack = GetDefault<UInterchangeProjectSettings>()->PipelineStack;
 
-		// Stack all pipelines, for this import proto. TODO: We need to be able to control which pipeline we use for the import
-		// It can be set in the project settings and can also be set by a UI where the user create the pipeline stack he want.
-		// This should be a list of available pipelines that can be drop into a stack where you can control the order.
-		for (int32 GraphPipelineIndex = 0; GraphPipelineIndex < PipelineCandidates.Num(); ++GraphPipelineIndex)
+		for (int32 GraphPipelineIndex = 0; GraphPipelineIndex < PipelineStack.Num(); ++GraphPipelineIndex)
 		{
-			UInterchangePipelineBase* GeneratedPipeline = NewObject<UInterchangePipelineBase>(GetTransientPackage(), PipelineCandidates[GraphPipelineIndex], NAME_None, RF_NoFlags);
+			UClass* PipelineClass = PipelineStack[GraphPipelineIndex].LoadSynchronous();
+			UInterchangePipelineBase* GeneratedPipeline = NewObject<UInterchangePipelineBase>(GetTransientPackage(), PipelineClass, NAME_None, RF_NoFlags);
 			AsyncHelper->Pipelines.Add(GeneratedPipeline);
 		}
 	}
 	else
 	{
-		AsyncHelper->Pipelines.Add(ImportAssetParameters.OverridePipeline);
+		for (int32 GraphPipelineIndex = 0; GraphPipelineIndex < ImportAssetParameters.OverridePipelines.Num(); ++GraphPipelineIndex)
+		{
+			//Use directly the override pipeline no duplicate.
+			AsyncHelper->Pipelines.Add(ImportAssetParameters.OverridePipelines[GraphPipelineIndex]);
+		}
 	}
 
 	FQueuedTaskData QueuedTaskData;

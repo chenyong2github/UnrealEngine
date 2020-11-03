@@ -76,6 +76,19 @@ public:
 	{
 		return CanExecuteOnAnyThread(PipelineTask);
 	}
+
+	/**
+	 * Non scripted class should return false here, we have the default to true because scripted class cannot override
+	 * this function since it can be call in a asynchronous thread, which python cannot be executed.
+	 *
+	 * We cannot call ScriptedCanExecuteOnAnyThread for a scripted python pipeline from the task parsing async thread.
+	 * This function allow us to not call it and force the ScriptedExecutePostImportPipeline to execute on the game thread.
+	 */
+	virtual bool IsScripted()
+	{
+		return true;
+	}
+
 protected:
 
 	/**

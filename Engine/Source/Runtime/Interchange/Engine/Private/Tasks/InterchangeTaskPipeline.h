@@ -28,6 +28,17 @@ namespace UE
 
 			ENamedThreads::Type GetDesiredThread()
 			{
+				if (!ensure(PipelineBase.IsValid()))
+				{
+					return ENamedThreads::GameThread;
+				}
+				
+				//Scripted (python) cannot run outside of the game thread, it will lock forever if we do this
+				if (PipelineBase.Get()->IsScripted())
+				{
+					return ENamedThreads::GameThread;
+				}
+
 				return PipelineBase.Get()->ScriptedCanExecuteOnAnyThread(EInterchangePipelineTask::PreFactoryImport) ? ENamedThreads::AnyBackgroundThreadNormalTask : ENamedThreads::GameThread;
 			}
 
@@ -71,6 +82,13 @@ namespace UE
 				{
 					return ENamedThreads::GameThread;
 				}
+
+				//Scripted (python) cannot run outside of the game thread, it will lock forever if we do this
+				if (AsyncHelper->Pipelines[PipelineIndex]->IsScripted())
+				{
+					return ENamedThreads::GameThread;
+				}
+
 				//Ask the pipeline implementation
 				if (AsyncHelper->Pipelines[PipelineIndex]->ScriptedCanExecuteOnAnyThread(EInterchangePipelineTask::PostFactoryImport))
 				{

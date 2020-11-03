@@ -7,7 +7,9 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "InputCoreTypes.h"
+#include "InterchangePipelineBase.h"
 #include "EditorExperimentalSettings.generated.h"
+
 
 /**
  * Implements Editor settings for experimental features.
@@ -23,8 +25,8 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Performance, meta = (DisplayName = "Enable async texture compilation to improve PIE and map load time performance when texture compilation is required"))
 	bool bEnableAsyncTextureCompilation;
 
-	/** Enable interchange framework, the interchange framework is a new import system which can import asynchronously and in parallel. */
-	UPROPERTY(EditAnywhere, config, Category = Performance, meta = (DisplayName = "Enable interchange framework import"))
+	/** Enable interchange framework, the interchange framework is a new import system which can import asynchronously and in parallel. See the interchange project settings to configure the import pipeline*/
+	UPROPERTY(EditAnywhere, config, Category = Interchange, meta = (DisplayName = "Enable interchange framework import"))
 	bool bEnableInterchangeFramework;
 
 	/** Allows the editor to run on HDR monitors on Windows 10 */

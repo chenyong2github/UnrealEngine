@@ -375,7 +375,7 @@ UE::Interchange::FAsyncImportResult FDatasmithTextureImporter::CreateTextureAsyn
 	UDatasmithTexturePipeline* TexturePipeline = NewObject< UDatasmithTexturePipeline >();
 	TexturePipeline->TextureElement = TextureElement;
 
-	ImportAssetParameters.OverridePipeline = TexturePipeline;
+	ImportAssetParameters.OverridePipelines.Add(TexturePipeline);
 
 	UE::Interchange::FAsyncImportResult FutureTexture = UInterchangeManager::GetInterchangeManager().ImportAssetAsync( ContentPath, ScopedSourceData.GetSourceData(), ImportAssetParameters );
 

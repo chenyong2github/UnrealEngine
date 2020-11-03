@@ -54,5 +54,9 @@ class UDatasmithTexturePipeline : public UInterchangePipelineBase
 public:
 	virtual bool ExecutePreImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer) override;
 
+	bool IsScripted() override
+	{
+		return false;
+	}
 	TSharedPtr< IDatasmithTextureElement > TextureElement;
 };

@@ -20,7 +20,8 @@ public class InterchangeEngine : ModuleRules
 			new string[] {
 				"AssetRegistry",
 				"SlateCore",
-				"Slate"
+				"Slate",
+				"DeveloperSettings"
 			}
 		);
 	}

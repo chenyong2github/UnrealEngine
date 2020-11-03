@@ -157,7 +157,7 @@ struct FImportAssetParameters
 	bool bIsAutomated = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
-	UInterchangePipelineBase* OverridePipeline = nullptr;
+	TArray<UInterchangePipelineBase*> OverridePipelines;
 };
 
 UCLASS(Transient, BlueprintType)
