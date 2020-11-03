@@ -30,7 +30,7 @@ public class OnlineSubsystemEOS : ModuleRules
 		bool bSDKInstalled = false;
 
 		// Update this to your SDK path once it is installed
-		string EOSSDKVersion = "EOS-SDK-1.8";
+		string EOSSDKVersion = "EOS-SDK-1.9";
 		string EOSPath = Path.Combine(ModuleDirectory, "..", "EOS", EOSSDKVersion, "SDK");
 		string EOSIncludePath = Path.Combine(EOSPath, "Include");
 		if (bSDKInstalled)
