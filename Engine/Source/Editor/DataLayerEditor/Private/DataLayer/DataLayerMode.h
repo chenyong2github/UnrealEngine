@@ -48,6 +48,7 @@ public:
 	virtual void OnItemDoubleClick(FSceneOutlinerTreeItemPtr Item) override;
 	virtual void OnItemAdded(FSceneOutlinerTreeItemPtr Item) override;
 	virtual FReply OnKeyDown(const FKeyEvent& InKeyEvent) override;
+	virtual void OnItemSelectionChanged(FSceneOutlinerTreeItemPtr TreeItem, ESelectInfo::Type SelectionType, const FSceneOutlinerItemSelection& Selection) override;
 
 	virtual bool CanSupportDragAndDrop() const { return true; }
 	virtual bool ParseDragDrop(FSceneOutlinerDragDropPayload& OutPayload, const FDragDropOperation& Operation) const override;
@@ -66,6 +67,7 @@ private:
 	void RegisterContextMenu();
 	void ChooseRepresentingWorld();
 	TArray<AActor*> GetActorsFromOperation(const FDragDropOperation& Operation, bool bOnlyFindFirst = false) const;
+	TArray<const UDataLayer*> GetSelectedDataLayers(SSceneOutliner* InSceneOutliner) const;
 
 	/** The world which we are currently representing */
 	TWeakObjectPtr<UWorld> RepresentingWorld;
@@ -77,4 +79,8 @@ private:
 	UDataLayerEditorSubsystem* DataLayerEditorSubsystem;
 	/** If this mode was created to display a specific world, don't allow it to be reassigned */
 	const TWeakObjectPtr<UWorld> SpecifiedWorldToDisplay;
+
+	TSet<TWeakObjectPtr<const UDataLayer>> SelectedDataLayers;
+	typedef TPair<TWeakObjectPtr<const UDataLayer>, TWeakObjectPtr<const AActor>> FSelectedDataLayerActor;
+	TSet<FSelectedDataLayerActor> SelectedDataLayerActors;
 };
