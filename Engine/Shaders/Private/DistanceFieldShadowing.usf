@@ -57,7 +57,7 @@ void CopyCulledObjectData(uint DestIndex, uint SourceIndex)
 
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 		FDFObjectData DFObjectData = LoadDFObjectData(SourceIndex);
-		float3 WorldBoundsPosition = mul(float4(UnitBoxVertex, 1.0f), DFObjectData.OBBToWorld).xyz;
+		float3 WorldBoundsPosition = mul(float4(UnitBoxVertex, 1.0f), DFObjectData.VolumeToWorld).xyz;
 #else
 		float3 WorldBoundsPosition = UnitBoxVertex * BoxExtent.xyz + BoxOriginAndSphereRadius.xyz;
 #endif
@@ -264,7 +264,7 @@ void ShadowObjectCullVS(
 {
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 	FDFObjectData DFObjectData = LoadCulledDFObjectData(ObjectIndex);
-	float4x4 ObjectOBBToWorld = DFObjectData.OBBToWorld;
+	float4x4 ObjectOBBToWorld = DFObjectData.VolumeToWorld;
 
 	float ObjectScaleX = length(ObjectOBBToWorld[0].xyz);
 	float ObjectScaleY = length(ObjectOBBToWorld[1].xyz);

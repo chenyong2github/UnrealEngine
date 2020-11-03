@@ -208,7 +208,7 @@ void MeshSDFObjectCullPS(
 	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
 	float3 WorldObjectPosition = Input.PositionAndRadius.xyz;
-	float3 WorldObjectExtent = mul(DFObjectData.LocalPositionExtent, abs(DFObjectData.VolumeToWorld));
+	float3 WorldObjectExtent = mul(DFObjectData.LocalPositionExtent, abs(((float3x3) DFObjectData.VolumeToWorld)));
 
 	float3 ViewSpaceObjectPosition = mul(float4(WorldObjectPosition + View.PreViewTranslation.xyz, 1), View.TranslatedWorldToView).xyz;
 	float3 ViewSpaceObjectInfluenceExtent = mul(WorldObjectExtent, abs((float3x3)View.TranslatedWorldToView)) + MaxMeshSDFInfluenceRadius;
@@ -332,7 +332,7 @@ void MeshSDFObjectCullForProbesPS(
 	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
 	float3 WorldObjectPosition = Input.PositionAndRadius.xyz;
-	float3 WorldObjectExtent = mul(DFObjectData.LocalPositionExtent, abs(DFObjectData.VolumeToWorld));
+	float3 WorldObjectExtent = mul(DFObjectData.LocalPositionExtent, abs((float3x3) DFObjectData.VolumeToWorld));
 
 	for (uint ProbeIndexInTile = 0; ProbeIndexInTile < PROBE_HIERARCHY_MAX_EMIT_PER_TILE; ++ProbeIndexInTile)
 	{

@@ -728,7 +728,7 @@ FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 
 		float3 VolumeUV = DistanceFieldVolumePositionToUV(SampleVolumePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
 		float3 LocalGradient = CalculateMeshSDFGradient(VolumeUV, DFObjectData.DistanceFieldMAD);
-		TraceSDFData.HitNormal = normalize(mul(LocalGradient, DFObjectData.VolumeToWorld));
+		TraceSDFData.HitNormal = normalize(mul(LocalGradient, (float3x3) DFObjectData.VolumeToWorld));
 	}
 	else
 	{

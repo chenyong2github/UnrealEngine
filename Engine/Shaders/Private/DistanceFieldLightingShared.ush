@@ -96,7 +96,7 @@ uint GetCulledNumObjects()
 // In float4's.  Must match equivalent C++ variables.
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 #define OBJECT_BOUNDS_STRIDE 2
-#define OBJECT_DATA_STRIDE 17
+#define OBJECT_DATA_STRIDE 11
 #elif (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_HeightField)
 #define OBJECT_BOUNDS_STRIDE 2
 #define OBJECT_DATA_STRIDE 6
@@ -143,8 +143,7 @@ struct FDFObjectData
 	float2 MinMaxDrawDistance2;
 
 	float4x4 WorldToVolume;
-	float3x3 VolumeToWorld;
-	float4x4 OBBToWorld;
+	float4x4 VolumeToWorld;
 
 	float3 VolumeToLocalScale;
 };
@@ -175,15 +174,9 @@ FDFObjectData LoadDFObjectDataFromBuffer(StructuredBuffer<float4> SourceBuffer, 
 	V0 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 7];
 	V1 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 8];
 	V2 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 9];
+	Data.VolumeToWorld = transpose(float4x4(V0, V1, V2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
-	Data.VolumeToWorld = float3x3(V0.xyz, V1.xyz, V2.xyz);
-
-	V0 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 13];
-	V1 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 14];
-	V2 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 15];
-	Data.OBBToWorld = transpose(float4x4(V0, V1, V2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
-
-	Data.VolumeToLocalScale = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 16].xyz;
+	Data.VolumeToLocalScale = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 10].xyz;
 
 	return Data;
 }

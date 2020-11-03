@@ -47,7 +47,7 @@ FAutoConsoleVariableRef CVarDFParallelUpdate(
 );
 
 // Must match equivalent shader defines
-template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 17;
+template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 11;
 template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectBoundsStride = 2;
 template<> int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectDataStride = 6;
 template<> int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectBoundsStride = 2;
@@ -677,23 +677,13 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRDGB
 									TmpVec4.Z = MinDrawDist2;
 									TmpVec4.W = MaxDrawDist * MaxDrawDist;
 
-									UploadObjectData[7] = *(FVector4*)&UniformScaleVolumeToWorld.M[0];
-									UploadObjectData[8] = *(FVector4*)&UniformScaleVolumeToWorld.M[1];
-									UploadObjectData[9] = *(FVector4*)&UniformScaleVolumeToWorld.M[2];
-
-									FMatrix LocalToWorldT = LocalToWorld.GetTransposed();
-									UploadObjectData[10] = *(FVector4*)&LocalToWorldT.M[0];
-									UploadObjectData[11] = *(FVector4*)&LocalToWorldT.M[1];
-									UploadObjectData[12] = *(FVector4*)&LocalToWorldT.M[2];
-
-									// DF Object bounds data
 									FMatrix VolumeToWorldT = UniformScaleVolumeToWorld.GetTransposed();
-									UploadObjectData[13] = *(FVector4*)&VolumeToWorldT.M[0];
-									UploadObjectData[14] = *(FVector4*)&VolumeToWorldT.M[1];
-									UploadObjectData[15] = *(FVector4*)&VolumeToWorldT.M[2];
+									UploadObjectData[7] = *(FVector4*)&VolumeToWorldT.M[0];
+									UploadObjectData[8] = *(FVector4*)&VolumeToWorldT.M[1];
+									UploadObjectData[9] = *(FVector4*)&VolumeToWorldT.M[2];
 
 									// Scale from a local space to a volume space
-									UploadObjectData[16] = FVector4(MaxExtent * LocalToWorld.GetScaleVector(), 0.0f);
+									UploadObjectData[10] = FVector4(MaxExtent * LocalToWorld.GetScaleVector(), 0.0f);
 								}
 							}
 						},
