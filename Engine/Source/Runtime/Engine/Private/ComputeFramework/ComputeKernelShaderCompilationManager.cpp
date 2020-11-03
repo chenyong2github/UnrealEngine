@@ -23,7 +23,7 @@ static FAutoConsoleVariableRef CVarShowComputeKernelShaderWarnings(
 	);
 
 
-
+#if WITH_EDITOR
 FComputeKernelShaderCompilationManager GComputeKernelShaderCompilationManager;
 
 void FComputeKernelShaderCompilationManager::Tick(float DeltaSeconds)
@@ -444,4 +444,4 @@ void FComputeKernelShaderCompilationManager::FinishCompilation(const TCHAR* InKe
 	check(ComputeKernelShaderMapJobs.Num() == 0);
 #endif
 }
-
+#endif

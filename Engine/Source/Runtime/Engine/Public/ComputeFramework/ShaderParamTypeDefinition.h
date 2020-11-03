@@ -209,10 +209,8 @@ public:
 		);
 
 public:
-#if WITH_EDITOR
 	UPROPERTY(VisibleAnywhere, Category = "Kernel")
 	FString TypeDeclaration;
-#endif
 
 	UPROPERTY(EditAnywhere, Category = "Kernel")
 	FString	Name;

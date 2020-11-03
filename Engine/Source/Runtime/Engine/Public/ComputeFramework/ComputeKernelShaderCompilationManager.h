@@ -4,7 +4,10 @@
 
 #include "ComputeKernelShared.h"
 #include "ShaderCompiler.h"
+
+#if WITH_EDITOR
 #include "TickableEditorObject.h"
+#endif
 
 
 /** Information tracked for each shader compile worker process instance. */
@@ -77,8 +80,8 @@ struct FComputeKernelShaderMapFinalizeResults : public FComputeKernelShaderMapCo
 };
 
 
+#if WITH_EDITOR
 // handles finished shader compile jobs, applying of the shaders to their config asset, and some error handling
-//
 class FComputeKernelShaderCompilationManager : public FTickableEditorObject
 {
 public:
@@ -119,3 +122,4 @@ private:
 };
 
 extern FComputeKernelShaderCompilationManager GComputeKernelShaderCompilationManager;
+#endif

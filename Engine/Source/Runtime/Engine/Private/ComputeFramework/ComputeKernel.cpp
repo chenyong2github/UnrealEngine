@@ -10,10 +10,12 @@ void UComputeKernel::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITOR
 	if (FApp::CanEverRender())
 	{
 		CacheResourceShadersForRendering();
 	}
+#endif
 }
 
 #if WITH_EDITOR

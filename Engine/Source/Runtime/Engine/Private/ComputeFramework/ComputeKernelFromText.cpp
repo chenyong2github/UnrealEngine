@@ -15,7 +15,9 @@ UComputeKernelFromText::UComputeKernelFromText()
 void UComputeKernelFromText::PostLoad()
 {
 	Super::PostLoad();
+#if WITH_EDITOR
 	ReparseKernelSourceText();
+#endif
 }
 
 #if WITH_EDITOR

@@ -361,6 +361,7 @@ void FComputeKernelShaderMap::Compile(
 	{
 		UE_LOG(LogShaders, Fatal, TEXT("Trying to compile ComputeKernel shader %s at run-time, which is not supported on consoles!"), *InKernel->GetFriendlyName() );
 	}
+#if WITH_EDITOR
 	else
 	{
 		// Make sure we are operating on a referenced shader map or the below Find will cause this shader map to be deleted,
@@ -463,6 +464,7 @@ void FComputeKernelShaderMap::Compile(
 			}
 		}
 	}
+#endif
 }
 
 FShader* FComputeKernelShaderMap::ProcessCompilationResultsForSingleJob(FShaderCompileJob& CurrentJob, const FSHAHash& InShaderMapHash)
