@@ -1580,12 +1580,27 @@ void FFractureEditorModeToolkit::ExecuteFracture(FFractureContext& FractureConte
 {
 	if (ActiveTool != nullptr)
 	{
-
 		FractureContext.FracturedGeometryCollection->Modify();
 		ActiveTool->ExecuteFracture(FractureContext);
 		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FractureContext.FracturedGeometryCollection->GetGeometryCollection();
 		FGeometryCollection* OutGeometryCollection = GeometryCollectionPtr.Get();
 		FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(OutGeometryCollection, -1);
+
+		// Update Nanite resource data to correctly reflect modified geometry collection data
+		{
+			FractureContext.FracturedGeometryCollection->ReleaseResources();
+
+			if (FractureContext.FracturedGeometryCollection->EnableNanite)
+			{
+				FractureContext.FracturedGeometryCollection->NaniteData = UGeometryCollection::CreateNaniteData(OutGeometryCollection);
+			}
+			else
+			{
+				FractureContext.FracturedGeometryCollection->NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
+			}
+
+			FractureContext.FracturedGeometryCollection->InitResources();
+		}
 
 		UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(FractureContext.OriginalPrimitiveComponent);
 
