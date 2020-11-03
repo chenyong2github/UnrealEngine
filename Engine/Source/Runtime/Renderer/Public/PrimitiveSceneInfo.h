@@ -348,6 +348,8 @@ public:
 
 	TArray<TArray<int32, TInlineAllocator<2>>> CachedRayTracingMeshCommandIndicesPerLOD;
 
+	TArray<uint64> CachedRayTracingMeshCommandsHashPerLOD;
+
 	struct FStaticMeshOrCommandIndex
 	{
 		int32 StaticMeshIndex;
