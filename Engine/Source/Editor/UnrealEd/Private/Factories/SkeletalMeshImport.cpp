@@ -511,6 +511,11 @@ void SkeletalMeshHelperImpl::RestoreDependentLODs(const TSharedPtr<const FExisti
 void SkeletalMeshHelperImpl::RestoreLODInfo(const TSharedPtr<const FExistingSkelMeshData>& MeshData, USkeletalMesh* SkeletalMesh, int32 LodIndex)
 {
 	FSkeletalMeshLODInfo& ImportedLODInfo = SkeletalMesh->GetLODInfoArray()[LodIndex];
+	if (!MeshData->ExistingLODInfo.IsValidIndex(LodIndex))
+	{
+		return;
+	}
+
 	const FSkeletalMeshLODInfo& ExistingLODInfo = MeshData->ExistingLODInfo[LodIndex];
 
 	ImportedLODInfo.ScreenSize = ExistingLODInfo.ScreenSize;
@@ -993,7 +998,7 @@ void SkeletalMeshHelper::RestoreExistingSkelMeshData(TSharedPtr<const FExistingS
 		SkeletalMesh->AddAssetUserData(UserDataObject);
 	}
 
-	if (!bImportSkinningOnly && !MeshData->ExistingLODInfo[SafeReimportLODIndex].bHasBeenSimplified)
+	if (!bImportSkinningOnly && (!MeshData->ExistingLODInfo.IsValidIndex(SafeReimportLODIndex) || !MeshData->ExistingLODInfo[SafeReimportLODIndex].bHasBeenSimplified))
 	{
 		if (SkeletalMeshImportedModel->OriginalReductionSourceMeshData.IsValidIndex(SafeReimportLODIndex))
 		{
