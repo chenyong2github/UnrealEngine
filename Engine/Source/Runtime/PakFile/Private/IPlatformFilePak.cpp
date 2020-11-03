@@ -7070,7 +7070,8 @@ void FPakPlatformFile::OptimizeMemoryUsageForMountedPaks()
 
 bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const TCHAR* InPath /*= NULL*/, bool bLoadIndex /*= true*/)
 {
-	bool bSuccess = false;
+	bool bPakSuccess = false;
+	bool bIoStoreSuccess = true;
 	TSharedPtr<IFileHandle> PakHandle = MakeShareable(LowerLevel->OpenRead(InPakFilename));
 	if (PakHandle.IsValid())
 	{
@@ -7120,7 +7121,7 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 					PakFiles.Add(Entry);
 					PakFiles.StableSort();
 				}
-				bSuccess = true;
+				bPakSuccess = true;
 			}
 			else
 			{
@@ -7144,35 +7145,36 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 			UE_LOG(LogPakFile, Warning, TEXT("Failed to mount pak \"%s\", pak is invalid."), InPakFilename);
 		}
 
-		if (bSuccess)
+		if (FIoDispatcher::IsInitialized())
 		{
-			if (FIoDispatcher::IsInitialized())
+			FIoStoreEnvironment IoStoreEnvironment;
+			IoStoreEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(InPakFilename, FString()), PakOrder);
+
+			FGuid EncryptionKeyGuid = Pak->GetInfo().EncryptionKeyGuid;
+			FAES::FAESKey EncryptionKey;
+
+			if (!GetRegisteredEncryptionKeys().GetKey(EncryptionKeyGuid, EncryptionKey))
 			{
-				FIoStoreEnvironment IoStoreEnvironment;
-				IoStoreEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(InPakFilename, FString()), PakOrder);
-
-				FGuid EncryptionKeyGuid = Pak->GetInfo().EncryptionKeyGuid;
-				FAES::FAESKey EncryptionKey;
-
-				if (!GetRegisteredEncryptionKeys().GetKey(EncryptionKeyGuid, EncryptionKey))
+				if (!EncryptionKeyGuid.IsValid() && FCoreDelegates::GetPakEncryptionKeyDelegate().IsBound())
 				{
-					if (!EncryptionKeyGuid.IsValid() && FCoreDelegates::GetPakEncryptionKeyDelegate().IsBound())
-					{
-						FCoreDelegates::GetPakEncryptionKeyDelegate().Execute(EncryptionKey.Key);
-					}
-				}
-
-				FIoStatus IoStatus = FIoDispatcher::Get().Mount(IoStoreEnvironment, EncryptionKeyGuid, EncryptionKey);
-				if (IoStatus.IsOk())
-				{
-					UE_LOG(LogPakFile, Display, TEXT("Mounted IoStore environment \"%s\""), *IoStoreEnvironment.GetPath());
-				}
-				else
-				{
-					UE_LOG(LogPakFile, Warning, TEXT("Failed to mount IoStore environment \"%s\" [%s]"), *IoStoreEnvironment.GetPath(), *IoStatus.ToString());
+					FCoreDelegates::GetPakEncryptionKeyDelegate().Execute(EncryptionKey.Key);
 				}
 			}
 
+			FIoStatus IoStatus = FIoDispatcher::Get().Mount(IoStoreEnvironment, EncryptionKeyGuid, EncryptionKey);
+			if (IoStatus.IsOk())
+			{
+				UE_LOG(LogPakFile, Display, TEXT("Mounted IoStore environment \"%s\""), *IoStoreEnvironment.GetPath());
+			}
+			else
+			{
+				bIoStoreSuccess = false;
+				UE_LOG(LogPakFile, Warning, TEXT("Failed to mount IoStore environment \"%s\" [%s]"), *IoStoreEnvironment.GetPath(), *IoStatus.ToString());
+			}
+		}
+
+		if (bPakSuccess)
+		{
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FCoreDelegates::PakFileMountedCallback.Broadcast(InPakFilename);
 			FCoreDelegates::OnPakFileMounted.Broadcast(InPakFilename, Pak->PakchunkIndex);
@@ -7193,7 +7195,7 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 	{
 		UE_LOG(LogPakFile, Warning, TEXT("Failed to open pak \"%s\""), InPakFilename);
 	}
-	return bSuccess;
+	return bPakSuccess && bIoStoreSuccess;
 }
 
 bool FPakPlatformFile::Unmount(const TCHAR* InPakFilename)
