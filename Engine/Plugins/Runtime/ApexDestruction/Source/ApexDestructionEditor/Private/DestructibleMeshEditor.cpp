@@ -83,6 +83,7 @@ void FDestructibleMeshEditor::UnregisterTabSpawners(const TSharedRef<class FTabM
 	InTabManager->UnregisterTabSpawner( ChunkParametersTabId );
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void FDestructibleMeshEditor::InitDestructibleMeshEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UDestructibleMesh* InDestructibleMesh )
 {
 	FReimportManager::Instance()->OnPostReimport().AddRaw(this, &FDestructibleMeshEditor::OnPostReimport);
@@ -189,6 +190,7 @@ void FDestructibleMeshEditor::InitDestructibleMeshEditor( const EToolkitMode::Ty
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 TSharedRef<SDockTab> FDestructibleMeshEditor::SpawnTab_Viewport( const FSpawnTabArgs& Args )
 {
@@ -349,10 +351,13 @@ void FDestructibleMeshEditor::ExtendToolbar()
 
 	AddToolbarExtender(ToolbarExtender);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FDestructibleMeshEditorModule& DestructibleMeshEditorModule = FModuleManager::LoadModuleChecked<FDestructibleMeshEditorModule>( "ApexDestructionEditor" );
 	AddToolbarExtender(DestructibleMeshEditorModule.GetToolBarExtensibilityManager()->GetAllExtenders());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void FDestructibleMeshEditor::SetEditorMesh(UDestructibleMesh* InDestructibleMesh)
 {
 	DestructibleMesh = InDestructibleMesh;
@@ -385,10 +390,13 @@ void FDestructibleMeshEditor::SetEditorMesh(UDestructibleMesh* InDestructibleMes
 	Viewport->UpdatePreviewMesh(DestructibleMesh);
 	RefreshTool();
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FDestructibleMeshEditor::OnChangeMesh()
 {
 	FEditorDelegates::LoadSelectedAssetsIfNeeded.Broadcast();
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UDestructibleMesh* SelectedMesh = GEditor->GetSelectedObjects()->GetTop<UDestructibleMesh>();
 	if(SelectedMesh && SelectedMesh != DestructibleMesh)
 	{
@@ -397,6 +405,7 @@ void FDestructibleMeshEditor::OnChangeMesh()
 
 		SetEditorMesh(SelectedMesh);
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FDestructibleMeshEditor::OnPostReimport(UObject* InObject, bool bSuccess)
@@ -413,10 +422,12 @@ void FDestructibleMeshEditor::OnPostReimport(UObject* InObject, bool bSuccess)
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UDestructibleMesh* FDestructibleMeshEditor::GetDestructibleMesh() 
 {
 	return DestructibleMesh;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 int32 FDestructibleMeshEditor::GetCurrentPreviewDepth() const
 {

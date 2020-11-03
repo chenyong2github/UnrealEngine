@@ -16,8 +16,10 @@ public:
 	/** Constructor */
 	FDestructibleMeshThumbnailScene();
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Sets the skeletal mesh to use in the next GetView() */
 	void SetDestructibleMesh(class UDestructibleMesh* InMesh);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 protected:
 	// FThumbnailPreviewScene implementation

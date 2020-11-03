@@ -5,21 +5,22 @@
 #include "CoreMinimal.h"
 #include "CustomPhysXPayload.h"
 
-struct FUpdateChunksInfo
+struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.") FUpdateChunksInfo
 {
 	int32 ChunkIndex;
 	FTransform WorldTM;
 
-	FUpdateChunksInfo(int32 InChunkIndex, const FTransform& InWorldTM) : ChunkIndex(InChunkIndex), WorldTM(InWorldTM) {}
+	FUpdateChunksInfo(int32 InChunkIndex, const FTransform & InWorldTM) : ChunkIndex(InChunkIndex), WorldTM(InWorldTM)
+	{}
 };
 
 #if WITH_APEX
 
 class UDestructibleComponent;
 
-struct FApexDestructionSyncActors : public FCustomPhysXSyncActors
+struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.") FApexDestructionSyncActors : public FCustomPhysXSyncActors
 {
-	virtual void BuildSyncData_AssumesLocked(const TArray<physx::PxRigidActor*>& RigidActors) override;
+	virtual void BuildSyncData_AssumesLocked(const TArray<physx::PxRigidActor*> & RigidActors) override;
 
 	virtual void FinalizeSync() override;
 
@@ -29,7 +30,7 @@ private:
 	TMap<TWeakObjectPtr<UDestructibleComponent>, TArray<FUpdateChunksInfo> > ComponentUpdateMapping;
 };
 
-struct FApexDestructionCustomPayload : public FCustomPhysXPayload
+struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.") FApexDestructionCustomPayload : public FCustomPhysXPayload
 {
 	FApexDestructionCustomPayload()
 		: FCustomPhysXPayload(SingletonCustomSync)

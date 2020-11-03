@@ -9,6 +9,7 @@
 #include "DestructibleComponent.h"
 #include "Engine/SkeletalMesh.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 ADestructibleActor::ADestructibleActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -28,7 +29,6 @@ bool ADestructibleActor::GetReferencedContentObjects( TArray<UObject*>& Objects 
 	return true;
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void ADestructibleActor::PostLoad()
 {
 	Super::PostLoad();
