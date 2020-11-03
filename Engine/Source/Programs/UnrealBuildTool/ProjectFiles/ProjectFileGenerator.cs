@@ -2638,25 +2638,6 @@ namespace UnrealBuildTool
 				Progress.Write(TotalProjectFileCount, TotalProjectFileCount);
 			}
 
-            // Update the dotnet reference files so that the tooling knows which projects to build
-            // TODO: Should UAT build like this for net core or should it use custom logic to determine which projects to build?
-            if (AutomationProjectFiles.Any())
-            {
-	            XNamespace NS = XNamespace.Get("http://schemas.microsoft.com/developer/msbuild/2003");
-
-	            DirectoryReference AutomationToolDir = DirectoryReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs", "AutomationTool");
-	            new XDocument(
-		            new XElement(NS + "Project",
-			            new XAttribute("DefaultTargets", "Build"),
-			            new XElement(NS + "ItemGroup",
-				            from AutomationProject in AutomationProjectFiles
-				            select new XElement(NS + "ProjectReference",
-					            new XAttribute("Include", AutomationProject.ProjectFilePath.MakeRelativeTo(AutomationToolDir))
-				            )
-			            )
-		            )
-	            ).Save(FileReference.Combine(AutomationToolDir, "AutomationToolCore.csproj.References").FullName);
-            }
 			return true;
 		}
 
