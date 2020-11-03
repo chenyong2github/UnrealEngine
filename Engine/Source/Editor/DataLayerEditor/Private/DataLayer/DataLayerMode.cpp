@@ -71,7 +71,7 @@ void FDataLayerMode::OnItemAdded(FSceneOutlinerTreeItemPtr Item)
 	{
 		if (!Item->Flags.bIsFilteredOut)
 		{
-			if (SelectedDataLayers.Contains(DataLayerItem->GetDataLayer()))
+			if (SelectedDataLayersSet.Contains(DataLayerItem->GetDataLayer()))
 			{
 				SceneOutliner->AddToSelection({Item});
 			}
@@ -610,9 +610,9 @@ TUniquePtr<ISceneOutlinerHierarchy> FDataLayerMode::CreateHierarchy()
 
 void FDataLayerMode::OnItemSelectionChanged(FSceneOutlinerTreeItemPtr TreeItem, ESelectInfo::Type SelectionType, const FSceneOutlinerItemSelection& Selection)
 {
-	SelectedDataLayers.Empty();
+	SelectedDataLayersSet.Empty();
 	SelectedDataLayerActors.Empty();
-	Selection.ForEachItem<FDataLayerTreeItem>([this](const FDataLayerTreeItem& Item) { SelectedDataLayers.Add(Item.GetDataLayer()); });
+	Selection.ForEachItem<FDataLayerTreeItem>([this](const FDataLayerTreeItem& Item) { SelectedDataLayersSet.Add(Item.GetDataLayer()); });
 	Selection.ForEachItem<FDataLayerActorTreeItem>([this](const FDataLayerActorTreeItem& Item) { SelectedDataLayerActors.Add(FSelectedDataLayerActor(Item.GetDataLayer(), Item.GetActor())); });
 }
 

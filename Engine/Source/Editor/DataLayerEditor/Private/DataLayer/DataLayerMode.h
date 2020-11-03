@@ -80,7 +80,7 @@ private:
 	/** If this mode was created to display a specific world, don't allow it to be reassigned */
 	const TWeakObjectPtr<UWorld> SpecifiedWorldToDisplay;
 
-	TSet<TWeakObjectPtr<const UDataLayer>> SelectedDataLayers;
+	TSet<TWeakObjectPtr<const UDataLayer>> SelectedDataLayersSet;
 	typedef TPair<TWeakObjectPtr<const UDataLayer>, TWeakObjectPtr<const AActor>> FSelectedDataLayerActor;
 	TSet<FSelectedDataLayerActor> SelectedDataLayerActors;
 };
