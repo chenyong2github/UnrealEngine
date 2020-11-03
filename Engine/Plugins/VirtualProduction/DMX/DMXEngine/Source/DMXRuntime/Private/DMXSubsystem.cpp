@@ -95,7 +95,7 @@ void UDMXSubsystem::SendDMX(UDMXEntityFixturePatch* FixturePatch, TMap<FDMXAttri
 							Results.Add(Protocol->InputDMXFragment(Universe + Controller->RemoteOffset, DMXFragmentMap));
 						}
 						
-						Results.Add(Protocol->SendDMXFragment(Universe + Controller->RemoteOffset, DMXFragmentMap));
+						Results.Add(Protocol->SendDMXFragmentCreate(Universe + Controller->RemoteOffset, DMXFragmentMap));
 						UniversesUsed.Add(RemoteUniverse); // Avoid setting values in the same Universe more than once							
 					}
 				}
