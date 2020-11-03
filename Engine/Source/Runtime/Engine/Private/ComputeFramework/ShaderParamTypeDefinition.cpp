@@ -5,6 +5,7 @@
 #include "Serialization/Archive.h"
 #include "Templates/TypeHash.h"
 #include "Misc/DefaultValueHelper.h"
+#include "Algo/Find.h"
 
 
 // Storage for shared shader value types.

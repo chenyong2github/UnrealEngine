@@ -438,7 +438,7 @@ public:
 	
 	bool IsSame(const FComputeKernelShaderMapId& InId) const;
 
-	uint32 GetKernelFlags() const { return 0; }
+	uint32 GetKernelFlags() const { return KernelFlags; }
 
 protected:
 
@@ -475,6 +475,8 @@ private:
 	 * the same output, same shader resource will be shared 
 	 */
 	uint64 ShaderCodeHash = 0;
+
+	uint32 KernelFlags = 0;
 
 	/** 
 	 * Contains the compiling id of this shader map when it is being compiled asynchronously. 

@@ -3,6 +3,8 @@
 #pragma once
 
 #include "Templates/RefCounting.h"
+#include "RHIDefinitions.h"
+#include "Shader.h"
 
 class FRDGPooledBuffer;
 class FComputeKernelResource;
