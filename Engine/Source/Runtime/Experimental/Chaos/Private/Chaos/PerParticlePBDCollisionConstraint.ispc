@@ -484,9 +484,10 @@ export void ApplyPerParticleCollisionFastFriction(uniform FVector ParticlesP[],
 				const FVector RelativeDisplacement = (P - X) - (CollisionV[i] + VectorCross(CollisionW[i], VectorToPoint)) * Dt; // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
 				const FVector RelativeDisplacementTangent = RelativeDisplacement - VectorDot(RelativeDisplacement, NormalWorld) * NormalWorld; // Project displacement into the tangential plane
 				const float RelativeDisplacementTangentLength = VectorSize(RelativeDisplacementTangent);
-				const float PositionCorrection = min(Penetration * PerGroupFriction, RelativeDisplacementTangentLength);
 
-				P = P - ((PositionCorrection / RelativeDisplacementTangentLength) * RelativeDisplacementTangent);
+				const float PositionCorrection = min(Penetration * PerGroupFriction, RelativeDisplacementTangentLength);
+				const float CorrectionRatio = select(RelativeDisplacementTangentLength < SMALL_NUMBER, 0.0f, PositionCorrection / RelativeDisplacementTangentLength);
+				P = P - (CorrectionRatio * RelativeDisplacementTangent);
 			}
 		}
 
