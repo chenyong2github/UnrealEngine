@@ -208,6 +208,13 @@ public:
 	static const EShaderCompileJobType Type = EShaderCompileJobType::Single;
 
 	FShaderCompileJobKey Key;
+
+	/** 
+	 * Additional parameters that can be supplied to the compile job such 
+	 * that it is available from the compilation begins to when the FShader is created.
+	 */
+	TSharedPtr<const FShaderType::FParameters, ESPMode::ThreadSafe> ShaderParameters;
+
 	/** Input for the shader compile */
 	FShaderCompilerInput Input;
 	FShaderCompilerOutput Output;

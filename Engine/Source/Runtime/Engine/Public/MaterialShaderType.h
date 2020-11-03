@@ -75,7 +75,15 @@ public:
 			const FVertexFactoryType* InVertexFactoryType,
 			const FString& InDebugDescription
 			)
-		: FGlobalShaderType::CompiledShaderInitializerType(InType,InPermutationId,CompilerOutput,InMaterialShaderMapHash,InShaderPipeline,InVertexFactoryType)
+		: FGlobalShaderType::CompiledShaderInitializerType(
+			InType, 
+			nullptr, 
+			InPermutationId,
+			CompilerOutput,
+			InMaterialShaderMapHash,
+			InShaderPipeline,
+			InVertexFactoryType
+			)
 		, UniformExpressionSet(InUniformExpressionSet)
 		, DebugDescription(InDebugDescription)
 		{}

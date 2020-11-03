@@ -42,6 +42,10 @@ class FVertexFactoryType;
 class FShaderParametersMetadata;
 class FShaderMapPointerTable;
 struct FShaderCompilerOutput;
+struct FShaderCompiledShaderInitializerType;
+
+UE_DEPRECATED(4.26, "FShadereCompiledShaderInitializerType is deprecated. Use FShaderCompiledShaderInitializerType.")
+typedef FShaderCompiledShaderInitializerType FShadereCompiledShaderInitializerType;
 
 /** Define a shader permutation uniquely according to its type, and permutation id.*/
 template<typename MetaShaderType>
@@ -660,34 +664,6 @@ struct FShaderPermutationParameters
 	{}
 };
 
-struct FShaderCompiledShaderInitializerType
-{
-	const FShaderType* Type;
-	FShaderTarget Target;
-	const TArray<uint8>& Code;
-	const FShaderParameterMap& ParameterMap;
-	const FSHAHash& OutputHash;
-	FSHAHash MaterialShaderMapHash;
-	const FShaderPipelineType* ShaderPipeline;
-	const FVertexFactoryType* VertexFactoryType;
-	uint32 NumInstructions;
-	uint32 NumTextureSamplers;
-	uint32 CodeSize;
-	int32 PermutationId;
-
-	RENDERCORE_API FShaderCompiledShaderInitializerType(
-		const FShaderType* InType,
-		int32 InPermutationId,
-		const FShaderCompilerOutput& CompilerOutput,
-		const FSHAHash& InMaterialShaderMapHash,
-		const FShaderPipelineType* InShaderPipeline,
-		const FVertexFactoryType* InVertexFactoryType
-	);
-};
-
-UE_DEPRECATED(4.26, "FShadereCompiledShaderInitializerType is deprecated. Use FShaderCompiledShaderInitializerType.")
-typedef FShaderCompiledShaderInitializerType FShadereCompiledShaderInitializerType;
-
 namespace Freeze
 {
 	RENDERCORE_API void IntrinsicToString(const TIndexedPtr<FShaderType>& Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext);
@@ -1034,6 +1010,15 @@ public:
 		NumShaderTypes,
 	};
 
+	/**
+	 * Derived FShaderTypes should derive from this class to pass params to FShader constructor
+	 */
+	class FParameters
+	{
+	public:
+		virtual ~FParameters(){}
+	};
+
 	typedef class FShader* (*ConstructSerializedType)();
 	typedef FShader* (*ConstructCompiledType)(const FShader::CompiledShaderInitializerType& Initializer);
 	typedef bool (*ShouldCompilePermutationType)(const FShaderPermutationParameters&);
@@ -1294,6 +1279,33 @@ protected:
 	*/
 	mutable TMap<const TCHAR*, FCachedUniformBufferDeclaration> ReferencedUniformBufferStructsCache;
 
+};
+
+struct FShaderCompiledShaderInitializerType
+{
+	const FShaderType* Type;
+	const FShaderType::FParameters* Parameters;
+	FShaderTarget Target;
+	const TArray<uint8>& Code;
+	const FShaderParameterMap& ParameterMap;
+	const FSHAHash& OutputHash;
+	FSHAHash MaterialShaderMapHash;
+	const FShaderPipelineType* ShaderPipeline;
+	const FVertexFactoryType* VertexFactoryType;
+	uint32 NumInstructions;
+	uint32 NumTextureSamplers;
+	uint32 CodeSize;
+	int32 PermutationId;
+
+	RENDERCORE_API FShaderCompiledShaderInitializerType(
+		const FShaderType* InType,
+		const FShaderType::FParameters* InParameters,
+		int32 InPermutationId,
+		const FShaderCompilerOutput& CompilerOutput,
+		const FSHAHash& InMaterialShaderMapHash,
+		const FShaderPipelineType* InShaderPipeline,
+		const FVertexFactoryType* InVertexFactoryType
+	);
 };
 
 #define SHADER_DECLARE_VTABLE(ShaderClass) \

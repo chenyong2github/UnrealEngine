@@ -487,24 +487,26 @@ bool FShaderMapPointerTable::LoadFromArchive(FArchive& Ar, const FPlatformTypeLa
 
 FShaderCompiledShaderInitializerType::FShaderCompiledShaderInitializerType(
 	const FShaderType* InType,
+	const FShaderType::FParameters* InParameters,
 	int32 InPermutationId,
 	const FShaderCompilerOutput& CompilerOutput,
 	const FSHAHash& InMaterialShaderMapHash,
 	const FShaderPipelineType* InShaderPipeline,
 	const FVertexFactoryType* InVertexFactoryType
-) :
-	Type(InType),
-	Target(CompilerOutput.Target),
-	Code(CompilerOutput.ShaderCode.GetReadAccess()),
-	ParameterMap(CompilerOutput.ParameterMap),
-	OutputHash(CompilerOutput.OutputHash),
-	MaterialShaderMapHash(InMaterialShaderMapHash),
-	ShaderPipeline(InShaderPipeline),
-	VertexFactoryType(InVertexFactoryType),
-	NumInstructions(CompilerOutput.NumInstructions),
-	NumTextureSamplers(CompilerOutput.NumTextureSamplers),
-	CodeSize(CompilerOutput.ShaderCode.GetShaderCodeSize()),
-	PermutationId(InPermutationId)
+	) 
+	: Type(InType)
+	, Parameters(InParameters)
+	, Target(CompilerOutput.Target)
+	, Code(CompilerOutput.ShaderCode.GetReadAccess())
+	, ParameterMap(CompilerOutput.ParameterMap)
+	, OutputHash(CompilerOutput.OutputHash)
+	, MaterialShaderMapHash(InMaterialShaderMapHash)
+	, ShaderPipeline(InShaderPipeline)
+	, VertexFactoryType(InVertexFactoryType)
+	, NumInstructions(CompilerOutput.NumInstructions)
+	, NumTextureSamplers(CompilerOutput.NumTextureSamplers)
+	, CodeSize(CompilerOutput.ShaderCode.GetShaderCodeSize())
+	, PermutationId(InPermutationId)
 {
 }
 
