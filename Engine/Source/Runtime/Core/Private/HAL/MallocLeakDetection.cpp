@@ -65,6 +65,8 @@ FMallocLeakDetection& FMallocLeakDetection::Get()
 
 FMallocLeakDetection::~FMallocLeakDetection()
 {	
+	OpenPointers.Empty(); // clean up the state
+	SetAllocationCollection(false); // disable colletion to avoid a call back to this instance when its members are destroyed
 }
 
 
