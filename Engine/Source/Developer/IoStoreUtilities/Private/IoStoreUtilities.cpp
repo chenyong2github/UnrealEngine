@@ -1868,7 +1868,7 @@ FPackage* FindOrAddPackage(
 	FString ErrorMessage;
 	if (!FPackageName::TryConvertFilenameToLongPackageName(RelativeFileName, PackageName, &ErrorMessage))
 	{
-		UE_LOG(LogIoStore, Warning, TEXT("Failed to convert file name from file name '%s'"), *ErrorMessage);
+		UE_LOG(LogIoStore, Warning, TEXT("Failed to obtain package name from file name '%s'"), *ErrorMessage);
 		return nullptr;
 	}
 
@@ -3734,6 +3734,23 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	FSourceToLocalizedPackageMultimap SourceToLocalizedPackageMap;
 
 	ProcessLocalizedPackages(Packages, PackageNameMap, GlobalPackageData, SourceToLocalizedPackageMap);
+
+	for (FPackage* Package : Packages)
+	{
+		if (Package->RedirectedPackageId.IsValid())
+		{
+			for (int32 ExportIndex : Package->Exports)
+			{
+				const FExportObjectData& ExportData = GlobalPackageData.ExportObjects[ExportIndex];
+				if (!ExportData.SuperIndex.IsNull() && ExportData.OuterIndex.IsNull())
+				{
+					UE_LOG(LogIoStore, Warning, TEXT("Skipping redirect to package '%s' due to presence of UStruct '%s'"), *Package->Name.ToString(), *ExportData.ObjectName.ToString());
+					Package->RedirectedPackageId = FPackageId();
+					break;
+				}
+			}
+		}
+	}
 
 	AddPreloadDependencies(
 		PackageAssetData,
