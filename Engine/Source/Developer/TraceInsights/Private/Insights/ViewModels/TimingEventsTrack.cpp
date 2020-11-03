@@ -79,18 +79,18 @@ void FTimingEventsTrack::PreUpdate(const ITimingTrackUpdateContext& Context)
 		}
 
 		const TSharedPtr<ITimingEventFilter> EventFilter = Context.GetEventFilter();
-		if (EventFilter.IsValid() && EventFilter->FilterTrack(*this))
+		if ((EventFilter.IsValid() && EventFilter->FilterTrack(*this)) || HasCustomFilter())
 		{
 			const FTimingTrackViewport& Viewport = Context.GetViewport();
 
 			const bool bFastLastBuild = FilteredDrawStateInfo.LastBuildDuration < 0.005; // LastBuildDuration < 5ms
 			const bool bFilterPointerChanged = !FilteredDrawStateInfo.LastEventFilter.HasSameObject(EventFilter.Get());
-			const bool bFilterContentChanged = FilteredDrawStateInfo.LastFilterChangeNumber != EventFilter->GetChangeNumber();
+			const bool bFilterContentChanged = EventFilter.IsValid() ? FilteredDrawStateInfo.LastFilterChangeNumber != EventFilter->GetChangeNumber() : false;
 
 			if (bFastLastBuild || bFilterPointerChanged || bFilterContentChanged)
 			{
 				FilteredDrawStateInfo.LastEventFilter = EventFilter;
-				FilteredDrawStateInfo.LastFilterChangeNumber = EventFilter->GetChangeNumber();
+				FilteredDrawStateInfo.LastFilterChangeNumber = EventFilter.IsValid() ? EventFilter->GetChangeNumber() : 0;
 				FilteredDrawStateInfo.ViewportStartTime = Context.GetViewport().GetStartTime();
 				FilteredDrawStateInfo.ViewportScaleX = Context.GetViewport().GetScaleX();
 				FilteredDrawStateInfo.Counter = 0;
@@ -225,7 +225,7 @@ void FTimingEventsTrack::DrawEvents(const ITimingTrackDrawContext& Context, cons
 {
 	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
 
-	if (Context.GetEventFilter().IsValid())
+	if (Context.GetEventFilter().IsValid() || HasCustomFilter())
 	{
 		Helper.DrawFadedEvents(*DrawState, *this, OffsetY, 0.1f);
 

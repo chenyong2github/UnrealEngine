@@ -15,6 +15,8 @@
 #include "Insights/InsightsManager.h"
 #include "Insights/ITimingViewSession.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/ViewModels/Filters.h"
+#include "Insights/ViewModels/FilterConfigurator.h"
 #include "Insights/ViewModels/TimerNode.h"
 #include "Insights/ViewModels/ThreadTrackEvent.h"
 #include "Insights/ViewModels/TimingEventSearch.h"
@@ -795,6 +797,73 @@ void FThreadTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuild
 			}
 		}
 	}
+
+	if (HasCustomFilter()) // Custom filter (from the filtering widget)
+	{
+		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
+		{
+			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+
+			const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
+
+			const Trace::ITimingProfilerTimerReader* TimerReader;
+			TimingProfilerProvider.ReadTimers([&TimerReader](const Trace::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
+
+			const FTimingTrackViewport& Viewport = Context.GetViewport();
+
+			TimingProfilerProvider.ReadTimeline(TimelineIndex,
+				[&Viewport, this, &Builder, TimerReader](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+				{
+					TArray<TArray<FPendingEventInfo>> FilteredEvents;
+
+					Trace::ITimeline<Trace::FTimingProfilerEvent>::EnumerateAsyncParams Params;
+					Params.IntervalStart = Viewport.GetStartTime();
+					Params.IntervalEnd = Viewport.GetEndTime();
+
+					// Note: Enumerating events for filtering should not use downsampling.
+					Params.Resolution = 0.0;
+					Params.SetupCallback = [&FilteredEvents](uint32 NumTasks)
+					{
+						FilteredEvents.AddDefaulted(NumTasks);
+					};
+					Params.Callback = [this, &Builder, TimerReader, &FilteredEvents](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event, uint32 TaskIndex)
+					{
+						const Trace::FTimingProfilerTimer* Timer = TimerReader->GetTimer(Event.TimerIndex);
+						if (ensure(Timer != nullptr))
+						{
+							FFilterContext Context;
+							Context.AddFilterData<double>(EFilterField::StartTime, StartTime);
+							Context.AddFilterData<double>(EFilterField::EndTime, EndTime);
+							Context.AddFilterData<double>(EFilterField::Duration, EndTime - StartTime);
+							Context.AddFilterData<int64>(EFilterField::EventType, Timer->Id);
+
+							if (FilterConfigurator->ApplyFilters(Context))
+							{
+								FPendingEventInfo TimelineEvent;
+								TimelineEvent.StartTime = StartTime;
+								TimelineEvent.EndTime = EndTime;
+								TimelineEvent.Depth = Depth;
+								TimelineEvent.TimerIndex = Event.TimerIndex;
+								FilteredEvents[TaskIndex].Add(TimelineEvent);
+							}
+						}
+						return Trace::EEventEnumerate::Continue;
+					};
+
+					Timeline.EnumerateEventsDownSampledAsync(Params);
+
+					for (TArray<FPendingEventInfo>& Array : FilteredEvents)
+					{
+						for (FPendingEventInfo& TimelineEvent : Array)
+						{
+							const Trace::FTimingProfilerTimer* Timer = TimerReader->GetTimer(TimelineEvent.TimerIndex);
+							AddTimingEventToBuilder(Builder, TimelineEvent.StartTime, TimelineEvent.EndTime, TimelineEvent.Depth, TimelineEvent.TimerIndex, Timer);
+						}
+					}
+				});
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1093,6 +1162,22 @@ void FThreadTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
 	if (GetGroupName() != nullptr)
 	{
+		MenuBuilder.BeginSection(TEXT("Options"));
+		{
+			FExecuteAction FilterTrackAction;
+			FilterTrackAction.BindSP(this, &FThreadTimingTrack::OnFilterTrackClicked);
+
+			MenuBuilder.AddMenuEntry(
+				(LOCTEXT("FilerTrack", "Filter Track [WIP]")),
+				FText(),
+				FSlateIcon(),
+				FUIAction(FilterTrackAction, FCanExecuteAction::CreateLambda([]() { return true; })),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+		MenuBuilder.EndSection();
+
 		MenuBuilder.BeginSection(TEXT("Misc"));
 		{
 			MenuBuilder.AddMenuEntry(
@@ -1217,5 +1302,41 @@ bool FThreadTimingTrack::TimerIndexToTimerId(uint32 InTimerIndex, uint32& OutTim
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FThreadTimingTrack::OnFilterTrackClicked()
+{
+	if (!FilterConfigurator.IsValid())
+	{
+		FilterConfigurator = MakeShared<FFilterConfigurator>();
+
+		FilterConfigurator->AddFilter(EFilterField::StartTime);
+		FilterConfigurator->AddFilter(EFilterField::EndTime);
+		FilterConfigurator->AddFilter(EFilterField::Duration);
+		FilterConfigurator->AddFilter(EFilterField::EventType);
+
+		FilterConfigurator->SetOnChangesCommitedCallback([this]()
+			{
+				this->SetDirtyFlag();
+			});
+	}
+
+	FFilterService::Get()->CreateFilterConfiguratorWidget(FilterConfigurator);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FThreadTimingTrack::HasCustomFilter() const
+{
+	if (!FilterConfigurator.IsValid())
+	{
+		return false;
+	}
+	if (FilterConfigurator->GetRootNode().IsValid() && FilterConfigurator->GetRootNode()->GetChildren().Num() > 0)
+	{
+		return true;
+	}
+
+	return false;
+}
 
 #undef LOCTEXT_NAMESPACE

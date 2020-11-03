@@ -150,6 +150,11 @@ protected:
 		return Children;
 	}
 
+	void SetGroupPtr(FBaseTreeNodePtr InGroupPtr)
+	{
+		GroupPtr = InGroupPtr;
+	}
+
 private:
 	/** The default sort order. Index used to optimize sorting. */
 	int32 DefaultSortOrder;

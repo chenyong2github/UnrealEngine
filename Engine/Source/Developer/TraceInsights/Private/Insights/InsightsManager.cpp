@@ -20,6 +20,7 @@
 #include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
 #include "Insights/Tests/InsightsTestRunner.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/ViewModels/Filters.h"
 #include "Insights/Widgets/SStartPageWindow.h"
 #include "Insights/Widgets/SSessionInfoWindow.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
@@ -145,6 +146,8 @@ void FInsightsManager::Initialize(IUnrealInsightsModule& InsightsModule)
 	bIsInitialized = true;
 
 	InsightsMenuBuilder = MakeShared<FInsightsMenuBuilder>();
+
+	FFilterService::CreateInstance();
 
 	// Register tick functions.
 	OnTick = FTickerDelegate::CreateSP(this, &FInsightsManager::Tick);
