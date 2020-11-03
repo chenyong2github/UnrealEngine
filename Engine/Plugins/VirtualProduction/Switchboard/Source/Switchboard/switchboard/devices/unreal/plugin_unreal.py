@@ -414,7 +414,7 @@ class DeviceUnreal(Device):
         
         exec_cmds = f'{DeviceUnreal.csettings["exec_cmds"].get_value(self.name)}'.strip()
         if len(exec_cmds):
-            command_line_args += f' ExecCmds={exec_cmds} '
+            command_line_args += f' -ExecCmds="{exec_cmds}" '
 
         selected_roles = self.setting_roles.get_value()
         unsupported_roles = [role for role in selected_roles if role not in self.setting_roles.possible_values]
