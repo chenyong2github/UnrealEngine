@@ -687,8 +687,8 @@ void RayTraceSingleMeshSDF(
 
 		if (bHit)
 		{
-			float NewHitDistance = length(mul(VolumeRayDirection * SampleRayTime, DFObjectData.VolumeToWorld)) + MinTraceDistance;
-				
+			float NewHitDistance = length(VolumeRayDirection * SampleRayTime * DFObjectData.VolumeToLocalScale) + MinTraceDistance;
+
 			if (NewHitDistance < TraceResult.HitDistance)
 			{
 				TraceResult.HitObject = ObjectIndex;

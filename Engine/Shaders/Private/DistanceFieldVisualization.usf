@@ -71,7 +71,8 @@ void RayTraceThroughTileCulledDistanceFields(float3 WorldRayStart, float3 WorldR
 
 			if (MinDistance * DFObjectData.VolumeScale < 0 || StepIndex == MaxSteps)
 			{
-				MinRayTime = min(MinRayTime, SampleRayTime * DFObjectData.VolumeScale);
+				const float NewHitDistance = length(VolumeRayDirection * SampleRayTime * DFObjectData.VolumeToLocalScale);
+				MinRayTime = min(MinRayTime, NewHitDistance);
 			}
 
 			TotalStepsTaken += StepIndex;
