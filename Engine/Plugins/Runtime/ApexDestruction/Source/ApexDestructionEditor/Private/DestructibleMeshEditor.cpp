@@ -476,6 +476,7 @@ FText FDestructibleMeshEditor::HandlePreviewDepthComboBoxContent() const
 
 void FDestructibleMeshEditor::RegeneratePreviewDepthComboList()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 #if WITH_APEX
 	if (DestructibleMesh->ApexDestructibleAsset != NULL)
 	{
@@ -507,6 +508,7 @@ void FDestructibleMeshEditor::RegeneratePreviewDepthComboList()
 		}
 	}
 #endif // WITH_APEX
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 TSharedRef<SWidget> FDestructibleMeshEditor::MakeWidgetFromString( TSharedPtr<FString> InItem )

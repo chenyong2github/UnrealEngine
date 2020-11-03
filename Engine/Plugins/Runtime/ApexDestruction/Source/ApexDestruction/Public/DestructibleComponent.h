@@ -80,8 +80,10 @@ class APEXDESTRUCTION_API UDestructibleComponent : public USkinnedMeshComponent,
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_APEX
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Per chunk info */
 	TArray<FApexDestructionCustomPayload> ChunkInfos;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_PHYSX 
 
 #if WITH_EDITOR
