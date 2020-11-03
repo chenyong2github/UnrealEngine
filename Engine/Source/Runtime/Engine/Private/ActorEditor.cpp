@@ -1297,6 +1297,23 @@ bool AActor::IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& Propert
 	return false;
 }
 
+bool AActor::IsValidForDataLayer() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	const bool bIsPartitionedActor = UWorld::HasSubsystem<UWorldPartitionSubsystem>(World);
+	const bool bIsInEditorWorld = World->WorldType == EWorldType::Editor;
+	const bool bIsBuilderBrush = FActorEditorUtils::IsABuilderBrush(this);
+	const bool bIsHidden = GetClass()->GetDefaultObject<AActor>()->bHiddenEd;
+	const bool bIsValid = !bIsHidden && !bIsBuilderBrush && bIsInEditorWorld && bIsPartitionedActor;
+
+	return bIsValid;
+}
+
 // DataLayers (end)
 //---------------------------------------------------------------------------
 

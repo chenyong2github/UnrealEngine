@@ -887,49 +887,55 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 				{
 					Level->GetWorld()->DestroyActor(Actor);
 				}
-				else if (AInstancedFoliageActor* IFA = Cast<AInstancedFoliageActor>(Actor))
+				else 
 				{
-					IFAs.Add(IFA);
-				}
-				else if (ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(Actor))
-				{
-					ULandscapeInfo* LandscapeInfo = LandscapeProxy->GetLandscapeInfo();
-					check(LandscapeInfo);
-					LandscapeInfos.Add(LandscapeInfo);
-				}
-				// Only override default grid placement on actors that are not marked as always loaded
-				else if (Actor->GridPlacement != EActorGridPlacement::AlwaysLoaded)
-				{
-					FVector BoundsLocation;
-					FVector BoundsExtent;
-					Actor->GetActorLocationBounds(/*bOnlyCollidingComponents*/false, BoundsLocation, BoundsExtent, /*bIncludeFromChildActors*/true);
-
-					const FBox ActorBounds(BoundsLocation - BoundsExtent, BoundsLocation + BoundsExtent);
-
-					if (!WorldBounds.IsInside(ActorBounds))
+					if (AInstancedFoliageActor* IFA = Cast<AInstancedFoliageActor>(Actor))
 					{
-						Actor->GridPlacement = EActorGridPlacement::AlwaysLoaded;
+						IFAs.Add(IFA);
 					}
-					else
+					else if (ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(Actor))
 					{
-						Actor->GridPlacement = DefaultGridPlacement;
+						ULandscapeInfo* LandscapeInfo = LandscapeProxy->GetLandscapeInfo();
+						check(LandscapeInfo);
+						LandscapeInfos.Add(LandscapeInfo);
 					}
-				}
+					// Only override default grid placement on actors that are not marked as always loaded
+					else if (Actor->GridPlacement != EActorGridPlacement::AlwaysLoaded)
+					{
+						FVector BoundsLocation;
+						FVector BoundsExtent;
+						Actor->GetActorLocationBounds(/*bOnlyCollidingComponents*/false, BoundsLocation, BoundsExtent, /*bIncludeFromChildActors*/true);
 
-				// Convert Layers into DataLayers with DynamicallyLoaded flag disabled
-				for (FName Layer : Actor->Layers)
-				{
-					UDataLayer* DataLayer = const_cast<UDataLayer*>(MainWorldDataLayers->GetDataLayerFromLabel(Layer));
-					if (!DataLayer)
-					{
-						DataLayer = MainWorldDataLayers->CreateDataLayer();
-						DataLayer->SetDataLayerLabel(Layer);
-						DataLayer->SetIsDynamicallyLoaded(false);
+						const FBox ActorBounds(BoundsLocation - BoundsExtent, BoundsLocation + BoundsExtent);
+
+						if (!WorldBounds.IsInside(ActorBounds))
+						{
+							Actor->GridPlacement = EActorGridPlacement::AlwaysLoaded;
+						}
+						else
+						{
+							Actor->GridPlacement = DefaultGridPlacement;
+						}
 					}
-					Actor->AddDataLayer(DataLayer);
+
+					// Convert Layers into DataLayers with DynamicallyLoaded flag disabled
+					if (Actor->IsValidForDataLayer())
+					{
+						for (FName Layer : Actor->Layers)
+						{
+							UDataLayer* DataLayer = const_cast<UDataLayer*>(MainWorldDataLayers->GetDataLayerFromLabel(Layer));
+							if (!DataLayer)
+							{
+								DataLayer = MainWorldDataLayers->CreateDataLayer();
+								DataLayer->SetDataLayerLabel(Layer);
+								DataLayer->SetIsDynamicallyLoaded(false);
+							}
+							Actor->AddDataLayer(DataLayer);
+						}
+					}
+					// Clear actor layers as they are not supported yet in world partition
+					Actor->Layers.Empty();
 				}
-				// Clear actor layers as they are not supported yet in world partition
-				Actor->Layers.Empty();
 			}
 		}
 

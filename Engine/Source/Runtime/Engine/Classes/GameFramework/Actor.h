@@ -1005,6 +1005,7 @@ public:
 	TArray<FName> GetDataLayerNames() const;
 	TArray<const UDataLayer*> GetDataLayerObjects() const;
 	bool IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& PropertyChangedEvent) const;
+	bool IsValidForDataLayer() const;
 	void FixupDataLayers();
 #endif
 

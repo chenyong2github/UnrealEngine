@@ -200,24 +200,7 @@ void UDataLayerEditorSubsystem::PostUndoRedo()
 
 bool UDataLayerEditorSubsystem::IsActorValidForDataLayer(AActor* Actor)
 {
-	if (!Actor || Actor->GetClass() == nullptr)
-	{
-		return false;
-	}
-
-	UWorld* World = Actor->GetWorld();
-	if (!World)
-	{
-		return false;
-	}
-
-	const bool bIsPartitionedActor = UWorld::HasSubsystem<UWorldPartitionSubsystem>(World);
-	const bool bIsInEditorWorld = World->WorldType == EWorldType::Editor;
-	const bool bIsBuilderBrush = FActorEditorUtils::IsABuilderBrush(Actor);
-	const bool bIsHidden = Actor->GetClass()->GetDefaultObject<AActor>()->bHiddenEd;
-	const bool bIsValid = !bIsHidden && !bIsBuilderBrush && bIsInEditorWorld && bIsPartitionedActor;
-
-	return bIsValid;
+	return Actor && Actor->IsValidForDataLayer();
 }
 
 void UDataLayerEditorSubsystem::InitializeNewActorDataLayers(AActor* Actor)
@@ -1046,7 +1029,7 @@ void UDataLayerEditorSubsystem::SetDataLayersIsDynamicallyLoaded(const TArray<UD
 			DataLayerChanged.Broadcast(EDataLayerAction::Modify, DataLayer, "bIsDynamicallyLoaded");
 			bChangeOccurred = true;
 		}
-	}
+		}
 
 	if (bChangeOccurred)
 	{
