@@ -59,6 +59,14 @@ static FAutoConsoleVariableRef CVarShortScriptWarnings(
 	ECVF_Default
 );
 
+static int32 GScriptRecurseLimit = 120;
+static FAutoConsoleVariableRef CVarScriptRecurseLimit(
+	TEXT("bp.ScriptRecurseLimit"),
+	GScriptRecurseLimit,
+	TEXT("Sets the number of recursions before script is considered in an infinite loop.\n"),
+	ECVF_Default
+);
+
 #if PER_FUNCTION_SCRIPT_STATS
 static int32 GMaxFunctionStatDepth = -1;
 static FAutoConsoleVariableRef CVarMaxFunctionStatDepth(
@@ -86,12 +94,6 @@ COREUOBJECT_API FNativeFuncPtr GCasts[CST_Max];
 COREUOBJECT_API int32 GCastDuplicate=0;
 
 COREUOBJECT_API int32 GMaximumScriptLoopIterations = 1000000;
-
-#if !PLATFORM_DESKTOP
-	#define RECURSE_LIMIT 120
-#else
-	#define RECURSE_LIMIT 250
-#endif
 
 #if DO_BLUEPRINT_GUARD
 
@@ -1057,7 +1059,7 @@ void ProcessLocalScriptFunction(UObject* Context, FFrame& Stack, RESULT_DECL)
 		ClearReturnValue(ReturnProp, RESULT_PARAM);
 		return;
 	}
-	else if (++BpET.Recurse == RECURSE_LIMIT)
+	else if (++BpET.Recurse == GScriptRecurseLimit)
 	{
 		// If we have a return property, return a zeroed value in it, to try and save execution as much as possible
 		FProperty* ReturnProp = (Function)->GetReturnProperty();
@@ -1068,7 +1070,7 @@ void ProcessLocalScriptFunction(UObject* Context, FFrame& Stack, RESULT_DECL)
 			EBlueprintExceptionType::InfiniteLoop, 
 			FText::Format(
 				LOCTEXT("InfiniteLoop", "Infinite script recursion ({0} calls) detected - see log for stack trace"), 
-				FText::AsNumber(RECURSE_LIMIT)
+				FText::AsNumber(GScriptRecurseLimit)
 			)
 		);
 		FBlueprintCoreDelegates::ThrowScriptException(Context, Stack, InfiniteRecursionExceptionInfo);
