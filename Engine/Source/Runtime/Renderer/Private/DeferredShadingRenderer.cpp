@@ -1898,7 +1898,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 					Views[ViewIndex],
 					CullingContext,
 					RasterContext,
-					RasterResults.MaterialDepth
+					RasterResults.MaterialDepth,
+					RasterResults.VelocityMask
 				);
 
 				if (!bIsEarlyDepthComplete && bTwoPassOcclusion && View.ViewState)

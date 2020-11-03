@@ -9,6 +9,8 @@ RWTexture2D<float4>		DebugOutput;
 Texture2D<UlongType>	VisBuffer64;
 Texture2D<UlongType>	DbgBuffer64;
 Texture2D<uint>			DbgBuffer32;
+Texture2D<uint>			VelocityMask;
+Texture2D<float>		SceneDepth;
 int4					VisualizeConfig;
 
 ByteAddressBuffer		MaterialDepthTable;
@@ -37,11 +39,27 @@ float3 IntToColor(uint Index)
 	return Color * (1.0f / 255.0f);
 }
 
+uint GetVisualizeMode()
+{
+	return VisualizeConfig.x;
+}
+
+float GetOverdrawScale()
+{
+	return clamp(float(VisualizeConfig.y), 0.0f, 100.0f) / 100.0f;
+}
+
+bool GetCompositeWithSceneDepth()
+{
+	return VisualizeConfig.z != 0;
+}
+
 float4 VisualizeData(
 	uint2 PixelPos,
 	uint DepthInt,
 	FVisibleCluster VisibleCluster,
 	uint  TriIndex,
+	float3 Velocity,
 	uint  DebugValueMax,
 	uint  DebugValueAdd)
 {
@@ -55,10 +73,9 @@ float4 VisualizeData(
 
 	float3 Result = float3(0, 0, 0);
 
-	const uint VisualizeMode = VisualizeConfig.x;
-	if (VisualizeMode == VISUALIZE_TRIANGLES)
+	const uint VisualizeMode = GetVisualizeMode();
+	if (GetVisualizeMode() == VISUALIZE_TRIANGLES)
 	{
-	
 		// Sobel edge detect depth
 		static int SobelX[] =
 		{
@@ -137,7 +154,7 @@ float4 VisualizeData(
 	}
 	else if (VisualizeMode == VISUALIZE_OVERDRAW)
 	{
-		const float OverdrawScale = clamp(VisualizeConfig.y, 0, 100) / 100.0;
+		const float OverdrawScale = GetOverdrawScale();
 		const float OverdrawCount = DebugValueAdd; // Num of evaluations per pixel
 		const float OverdrawColor = 1 - exp2( -OverdrawCount * OverdrawScale );
 		Result = float3( sin( OverdrawColor * 6.28/4 ), Pow3( OverdrawColor ), lerp( sin( OverdrawColor * 6.28 ), OverdrawColor, 0.6 ) );
@@ -162,6 +179,10 @@ float4 VisualizeData(
 	{
 		Result = IntToColor(GetMaterialHitProxyId(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable));
 	}
+	else if (VisualizeMode == VISUALIZE_NANITE_MASK)
+	{
+		Result = float3(0, 1, 0);
+	}
 
 	return float4(Result, 0);
 }
@@ -176,8 +197,11 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 	uint TriIndex;
 	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
 
+	const float4 UnpackedVelocityMask = Unpack_R10G10B10A2_UNORM_To_Float4(VelocityMask[PixelPos.xy]);
+	const bool IsUnOccluded = UnpackedVelocityMask.a > 0.0f /* Is Nanite */;
+
 	float4 Result = float4(0, 0, 0, 0);
-	if (VisibleClusterIndex != 0xFFFFFFFF)
+	if (VisibleClusterIndex != 0xFFFFFFFF && (!GetCompositeWithSceneDepth() | IsUnOccluded))
 	{
 		// Nanite Pixel
 
@@ -194,12 +218,21 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 					DepthInt,
 					VisibleCluster,
 					TriIndex,
+					UnpackedVelocityMask.xyz,
 					DebugValueMax,
 					DebugValueAdd);
 	}
 	else
 	{
 		// Non-Nanite Pixel
+
+		if (GetVisualizeMode() == VISUALIZE_NANITE_MASK)
+		{
+			if (SceneDepth[PixelPos.xy] > 0.0f) // only visualize written fragments
+			{
+				Result = float4(1, 0, 0, 0);
+			}
+		}
 	}
 
 	DebugOutput[PixelPos.xy] = Result;

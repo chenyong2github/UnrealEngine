@@ -122,6 +122,7 @@ uint GetHWClusterCounterIndex(uint InRenderFlags)
 #define VISUALIZE_MATERIAL_INDEX					18
 #define VISUALIZE_MATERIAL_ID						19
 #define VISUALIZE_HIT_PROXY_ID						20
+#define VISUALIZE_NANITE_MASK						21
 
 struct FStats
 {
@@ -953,6 +954,34 @@ uint4 UnpackToUint4(uint Value, int4 NumComponentBits)
 					BitFieldExtractU32(Value, NumComponentBits.y, NumComponentBits.x),
 					BitFieldExtractU32(Value, NumComponentBits.z, NumComponentBits.x + NumComponentBits.y),
 					BitFieldExtractU32(Value, NumComponentBits.w, NumComponentBits.x + NumComponentBits.y + NumComponentBits.z));
+}
+
+// TODO: Move to a proper common location
+uint FloatToUIntScaled(float Value, float Scale)
+{
+	return (uint)floor(Value * Scale + 0.5f);
+}
+
+// TODO: Move to a proper common location
+uint Pack_Float4_To_R10G10B10A2_UNORM(float4 Unpacked)
+{
+	const float4 UnpackedClamped = saturate(Unpacked);
+	uint Packed = ((FloatToUIntScaled(UnpackedClamped.x, 1023))       |
+				   (FloatToUIntScaled(UnpackedClamped.y, 1023) << 10) |
+				   (FloatToUIntScaled(UnpackedClamped.z, 1023) << 20) |
+				   (FloatToUIntScaled(UnpackedClamped.w,    3) << 30) );
+	return Packed;
+}
+
+// TODO: Move to a proper common location
+float4 Unpack_R10G10B10A2_UNORM_To_Float4(uint Packed)
+{
+	float4 Unpacked;
+	Unpacked.x = (float)(((Packed      ) & 0x000003FF)) / 1023;
+	Unpacked.y = (float)(((Packed >> 10) & 0x000003FF)) / 1023;
+	Unpacked.z = (float)(((Packed >> 20) & 0x000003FF)) / 1023;
+	Unpacked.w = (float)(((Packed >> 30) & 0x00000003)) / 3;
+	return Unpacked;
 }
 
 void UnpackVisPixel(

@@ -23,6 +23,8 @@ uint4 DepthExportConfig;
 
 Texture2D<UlongType>		VisBuffer64;
 
+RWTexture2D<uint>			VelocityMask;
+
 RWStructuredBuffer<uint>	SceneHTile;
 RWTexture2D<float>			SceneDepth;
 RWTexture2D<uint>			SceneStencil;

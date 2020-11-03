@@ -18,6 +18,7 @@ uint StencilClear;
 uint StencilDecal;
 
 Texture2D<UlongType> VisBuffer64;
+Texture2D<uint> VelocityMask;
 
 // TODO: Can likely be removed
 void MarkStencilPS(
@@ -49,14 +50,16 @@ void EmitMaterialDepthPS(
 )
 {
 	uint2 PixelPos = (uint2)SvPosition.xy;
-	UlongType VisPixel = VisBuffer64[PixelPos];
+
+	float4 UnpackedMask = Unpack_R10G10B10A2_UNORM_To_Float4(VelocityMask[PixelPos]);
+	UlongType VisPixel  = VisBuffer64[PixelPos];
 
 	uint DepthInt = 0;
 	uint VisibleClusterIndex = 0;
 	uint TriIndex = 0;
 	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
 
-	if (VisibleClusterIndex != 0xFFFFFFFF)
+	if (VisibleClusterIndex != 0xFFFFFFFF && UnpackedMask.a > 0.0f /* Is Nanite */)
 	{
 		// Export material depth ID as SV_Depth.
 		const FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
@@ -72,11 +75,13 @@ void EmitMaterialDepthPS(
 }
 
 void EmitSceneDepthPS(
-	in float4 SvPosition	: SV_Position,
-	out float OutDepth		: SV_Depth
+	in float4 SvPosition		: SV_Position,
+	out uint OutVelocityMask	: SV_Target0,
+	out float OutDepth			: SV_Depth
 )
 {
 	OutDepth = 0;
+	OutVelocityMask = 0;
 
 	uint2 PixelPos = (uint2)SvPosition.xy;
 	UlongType VisPixel = VisBuffer64[PixelPos];
@@ -88,6 +93,9 @@ void EmitSceneDepthPS(
 
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
+		// TODO: Calculate velocity vectors
+		const float3 Velocity = float3(0.30f, 0.60f, 0.90f); // [0...1 range]
+		OutVelocityMask = Pack_Float4_To_R10G10B10A2_UNORM(float4(Velocity, 1.0f /* Is Nanite */));
 		OutDepth = asfloat(DepthInt);
 	}
 	else
@@ -97,8 +105,8 @@ void EmitSceneDepthPS(
 }
 
 void EmitSceneStencilPS(
-	in float4 SvPosition	: SV_Position,
-	out float OutDepth		: SV_Depth
+	in float4 SvPosition		: SV_Position,
+	out float OutDepth			: SV_Depth
 )
 {
 	OutDepth = 0;
@@ -133,14 +141,12 @@ void EmitSceneStencilPS(
 
 void EmitSceneDepthStencilPS
 (
-	in float4 SvPosition	: SV_Position,
-	out float OutDepth		: SV_Depth,
-	out uint  OutStencil	: SV_StencilRef // Requires GRHISupportsStencilRefFromPixelShader
+	in float4 SvPosition		: SV_Position,
+	out uint  OutVelocityMask	: SV_Target0,
+	out float OutDepth			: SV_Depth,
+	out uint  OutStencil		: SV_StencilRef // Requires GRHISupportsStencilRefFromPixelShader
 )
 {
-	OutDepth = 0;
-	OutStencil = StencilClear;
-
 	uint2 PixelPos = (uint2)SvPosition.xy;
 	UlongType VisPixel = VisBuffer64[PixelPos];
 
@@ -158,8 +164,15 @@ void EmitSceneDepthStencilPS
 		{
 			OutStencil = StencilDecal;
 		}
+		else
+		{
+			OutStencil = StencilClear;
+		}
 
-		// TODO: OutVelocity (have already decoded cluster data, so why not!)
+		// TODO: Calculate velocity vectors
+		const float3 Velocity = float3(0.30f, 0.60f, 0.90f); // [0...1 range]
+		OutVelocityMask = Pack_Float4_To_R10G10B10A2_UNORM(float4(Velocity, 1.0f /* Is Nanite */));
+
 		OutDepth = asfloat(DepthInt);
 	}
 	else
