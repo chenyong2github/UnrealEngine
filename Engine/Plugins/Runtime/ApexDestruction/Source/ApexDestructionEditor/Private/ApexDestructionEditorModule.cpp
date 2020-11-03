@@ -100,6 +100,7 @@ TSharedRef<FExtender> FDestructibleMeshEditorModule::OnExtendContentBrowserAsset
 
 void FDestructibleMeshEditorModule::ShutdownModule()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MenuExtensibilityManager.Reset();
 	ToolBarExtensibilityManager.Reset();
 
@@ -119,7 +120,6 @@ void FDestructibleMeshEditorModule::ShutdownModule()
 	}
 	
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (UObjectInitialized())
 	{
 		UThumbnailManager::Get().UnregisterCustomRenderer(UDestructibleMesh::StaticClass());
