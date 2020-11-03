@@ -454,7 +454,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 	}
 
 	// Input bindings
-	for (const FDisplayClusterConfigurationTextInputSetup CfgInputBinding : CfgInputSetupRecords)
+	for (const FDisplayClusterConfigurationTextInputSetup& CfgInputBinding : CfgInputSetupRecords)
 	{
 		FDisplayClusterConfigurationInputBinding InputBinding;
 
