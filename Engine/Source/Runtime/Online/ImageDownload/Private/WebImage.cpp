@@ -147,7 +147,7 @@ bool FWebImage::ProcessHttpResponse(const FString& RequestUrl, FHttpResponsePtr 
 
 	// make a dynamic image
 	FName ResourceName(*RequestUrl);
-	DownloadedBrush = FSlateDynamicImageBrush::CreateWithImageData(ResourceName, FVector2D(ImageWrapper->GetWidth(), ImageWrapper->GetHeight()), RawImageData);
+	DownloadedBrush = FSlateDynamicImageBrush::CreateWithImageData(ResourceName, FVector2D((float)ImageWrapper->GetWidth(), (float)ImageWrapper->GetHeight()), RawImageData);
 	return DownloadedBrush.IsValid();
 }
 

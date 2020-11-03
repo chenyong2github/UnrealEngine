@@ -122,7 +122,7 @@ TSharedPtr<FSlateDynamicImageBrush> FContentSourceViewModel::CreateBrushFromRawD
 	if (bSucceeded)
 	{
 		FString UniqueResourceName = ResourceNamePrefix + "_" + FString::FromInt(ImageID++);
-		Brush = FSlateDynamicImageBrush::CreateWithImageData(FName(*UniqueResourceName), FVector2D(ImageWrapper->GetWidth(), ImageWrapper->GetHeight()), DecodedImage);
+		Brush = FSlateDynamicImageBrush::CreateWithImageData(FName(*UniqueResourceName), FVector2D((float)ImageWrapper->GetWidth(), (float)ImageWrapper->GetHeight()), DecodedImage);
 	}
 
 	return Brush;
