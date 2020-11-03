@@ -2,7 +2,7 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
 echo
-echo Setting up Unreal Engine 4 project files...
+echo Setting up Unreal Engine 5 project files...
 echo
 
 # If ran from somewhere other then the script location we'll have the full base path
@@ -20,51 +20,68 @@ if [ ! -d "$BASE_PATH/../../../Source" ]; then
  exit 1
 fi
 
-source "$BASE_PATH/SetupEnvironment.sh" -mono "$BASE_PATH"
+if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
+  source "$BASE_PATH/SetupEnvironment.sh" -dotnet "$BASE_PATH"
+else
+  source "$BASE_PATH/SetupEnvironment.sh" -mono "$BASE_PATH"
+fi
 
 if [ -f "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" ]; then
-	xbuild "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" /property:Configuration="Development" /verbosity:quiet /nologo /p:NoWarn=1591 |grep -i error
+  if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
+    dotnet build $BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildToolCore.csproj -c Development
+  else
+    xbuild "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" /property:Configuration="Development" /verbosity:quiet /nologo /p:NoWarn=1591
+  fi
+
+  if [ $? -ne 0 ]; then
+    echo GenerateProjectFiles ERROR: Failed to build UnrealBuildTool
+    exit 1
+  fi
 fi
 
 WANT_AOT="`defaults read com.epicgames.ue4 MonoAOT`"
 OPENSSL="./../../../Binaries/DotNET/IOS/openssl.exe"
 if [ ! -z $WANT_AOT ]; then
-	if [ $WANT_AOT == "1" ]; then
-			for i in $BASE_PATH/../../../Binaries/DotNET/*.dll;
-			do
-				if test "$i" -nt "$i.dylib"; then
+	if [ $WANT_AOT == "1"] && [${UE_USE_DOTNET:=0} -eq 0 ]; then
+		for i in $BASE_PATH/../../../Binaries/DotNET/*.dll;
+		do
+			if test "$i" -nt "$i.dylib"; then
+				echo Compiling $i to native...
+				mono --aot $i > /dev/null 2>&1;
+			fi
+		done
+
+		for i in $BASE_PATH/../../../Binaries/DotNET/*.exe;
+		do
+			if test "$i" -nt "$i.dylib"; then
+				echo Compiling $i to native...
+				mono --aot $i > /dev/null 2>&1;
+			fi
+		done
+
+		for i in $BASE_PATH/../../../Binaries/DotNET/IOS/*.dll;
+		do
+			if test "$i" -nt "$i.dylib"; then
+				echo Compiling $i to native...
+				mono --aot $i > /dev/null 2>&1;
+			fi
+		done
+
+		for i in $BASE_PATH/../../../Binaries/DotNET/IOS/*.exe;
+		do
+			if test "$i" -nt "$i.dylib"; then
+				if [ $i != $OPENSSL ]; then
 					echo Compiling $i to native...
 					mono --aot $i > /dev/null 2>&1;
 				fi
-			done
-
-			for i in $BASE_PATH/../../../Binaries/DotNET/*.exe;
-			do
-				if test "$i" -nt "$i.dylib"; then
-					echo Compiling $i to native...
-					mono --aot $i > /dev/null 2>&1;
-				fi
-			done
-
-			for i in $BASE_PATH/../../../Binaries/DotNET/IOS/*.dll;
-			do
-				if test "$i" -nt "$i.dylib"; then
-					echo Compiling $i to native...
-					mono --aot $i > /dev/null 2>&1;
-				fi
-			done
-
-			for i in $BASE_PATH/../../../Binaries/DotNET/IOS/*.exe;
-			do
-				if test "$i" -nt "$i.dylib"; then
-					if [ $i != $OPENSSL ]; then
-						echo Compiling $i to native...
-						mono --aot $i > /dev/null 2>&1;
-					fi
-				fi
-			done
+			fi
+		done
 	fi
 fi
 
 # pass all parameters to UBT
-mono "$BASE_PATH/../../../Binaries/DotNET/UnrealBuildTool.exe" -projectfiles "$@"
+if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
+  "$BASE_PATH/../../../Binaries/DotNET/UnrealBuildTool/UnrealBuildTool" -projectfiles "$@"
+else
+  mono "$BASE_PATH/../../../Binaries/DotNET/UnrealBuildTool.exe" -projectfiles "$@"
+fi

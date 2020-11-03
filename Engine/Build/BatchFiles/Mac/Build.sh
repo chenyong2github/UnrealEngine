@@ -5,14 +5,25 @@
 cd "`dirname "$0"`/../../../.."
 
 # Setup Environment and Mono
-source Engine/Build/BatchFiles/Mac/SetupEnvironment.sh -mono Engine/Build/BatchFiles/Mac
+if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
+  source Engine/Build/BatchFiles/Mac/SetupEnvironment.sh -dotnet Engine/Build/BatchFiles/Mac
+else
+  source Engine/Build/BatchFiles/Mac/SetupEnvironment.sh -mono Engine/Build/BatchFiles/Mac
+fi
 
 # Skip UBT and SWC compile step if we're coming in on an SSH connection (ie remote toolchain)
 if [ -z "$SSH_CONNECTION" ]; then
 	# First make sure that the UnrealBuildTool is up-to-date
-	if ! xbuild /property:Configuration=Development /verbosity:quiet /nologo /p:NoWarn=1591 Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj; then
-	  echo "Failed to build to build tool (UnrealBuildTool)"
-	  exit 1
+	if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
+		if ! dotnet build Engine/Source/Programs/UnrealBuildTool/UnrealBuildToolCore.csproj -c Development; then
+			echo "Failed to build to build tool (UnrealBuildTool)"
+			exit 1
+		else
+			if ! xbuild /property:Configuration=Development /verbosity:quiet /nologo /p:NoWarn=1591 Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj; then
+				echo "Failed to build to build tool (UnrealBuildTool)"
+				exit 1
+			fi
+		fi
 	fi
 
 	# build SCW if specified
@@ -25,8 +36,13 @@ if [ -z "$SSH_CONNECTION" ]; then
 	done
 fi
 
-echo Running Engine/Binaries/DotNET/UnrealBuildTool.exe "$@"
-mono Engine/Binaries/DotNET/UnrealBuildTool.exe "$@"
+if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
+  echo Running Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool "$@"
+  Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool "$@"
+else
+  echo Running Engine/Binaries/DotNET/UnrealBuildTool.exe "$@"
+  mono Engine/Binaries/DotNET/UnrealBuildTool.exe "$@"
+fi
 
 ExitCode=$?
 if [ $ExitCode -eq 254 ] || [ $ExitCode -eq 255 ] || [ $ExitCode -eq 2 ]; then

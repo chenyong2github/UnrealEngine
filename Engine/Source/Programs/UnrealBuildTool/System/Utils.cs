@@ -437,7 +437,12 @@ namespace UnrealBuildTool
 		/// <param name="LogOutput">Whether to also log standard output and standard error</param>
 		public static string RunLocalProcessAndReturnStdOut(string Command, string Args, out int ExitCode, bool LogOutput = false)
 		{
-			//LUMIN_MERGE
+#if NET_CORE
+			// Process Arguments follow windows conventions in .NET Core
+			// Which means single quotes ' are not considered quotes.
+			// see https://github.com/dotnet/runtime/issues/29857
+			Args = Args.Replace('\'', '\"');
+#endif
 			ProcessStartInfo StartInfo = new ProcessStartInfo(Command, Args);
 			StartInfo.UseShellExecute = false;
 			StartInfo.RedirectStandardOutput = true;

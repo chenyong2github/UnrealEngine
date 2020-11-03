@@ -71,11 +71,18 @@ namespace UnrealBuildTool
 			// thread start time
 			Action.StartTime = DateTimeOffset.Now;
 
+			string Args = Action.CommandArguments;
+#if NET_CORE
+			// Process Arguments follow windows conventions in .NET Core
+			// Which means single quotes ' are not considered quotes.
+			// see https://github.com/dotnet/runtime/issues/29857
+			Args = Args.Replace('\'', '\"');
+#endif
 			// Create the action's process.
 			ProcessStartInfo ActionStartInfo = new ProcessStartInfo();
 			ActionStartInfo.WorkingDirectory = Action.WorkingDirectory.FullName;
 			ActionStartInfo.FileName = Action.CommandPath.FullName;
-			ActionStartInfo.Arguments = Action.CommandArguments;
+			ActionStartInfo.Arguments = Args;
 			ActionStartInfo.UseShellExecute = false;
 			ActionStartInfo.RedirectStandardInput = false;
 			ActionStartInfo.RedirectStandardOutput = false;
