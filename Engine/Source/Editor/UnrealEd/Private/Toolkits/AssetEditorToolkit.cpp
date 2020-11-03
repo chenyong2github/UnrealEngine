@@ -1122,7 +1122,11 @@ void FAssetEditorToolkit::RegenerateMenusAndToolbars()
 {
 	RemoveAllToolbarWidgets();
 
-	StandaloneHost.Pin()->GenerateMenus(false);
+	TSharedPtr< class SStandaloneAssetEditorToolkitHost > HostWidget = StandaloneHost.Pin();
+	if (HostWidget)
+	{
+		HostWidget->GenerateMenus(false);
+	}
 
 	if (Toolbar != SNullWidget::NullWidget)
 	{
