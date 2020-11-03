@@ -392,6 +392,16 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 		}
 	}
 
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::GeometryCollectionNaniteCooked)
+	{
+		if (NaniteData == nullptr)
+		{
+			NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
+		}
+
+		NaniteData->Serialize(ChaosAr, this);
+	}
+
 #if WITH_EDITOR
 	//for all versions loaded, make sure sim data is up to date
 	if (Ar.IsLoading())

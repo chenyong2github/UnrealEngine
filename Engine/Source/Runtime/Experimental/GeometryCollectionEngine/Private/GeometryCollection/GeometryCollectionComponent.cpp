@@ -528,6 +528,7 @@ FPrimitiveSceneProxy* UGeometryCollectionComponent::CreateSceneProxy()
 	// TODO: Abstract with a common helper
 	if (UseNanite(GetScene()->GetShaderPlatform()) &&
 		RestCollection->EnableNanite &&
+		RestCollection->NaniteData != nullptr &&
 		GGeometryCollectionNanite != 0)
 	{
 		return new FNaniteGeometryCollectionSceneProxy(this);
@@ -2050,12 +2051,16 @@ void UGeometryCollectionComponent::SendRenderDynamicData_Concurrent()
 		InitDynamicData(DynamicData);
 
 		//
-		// Only send dynamic data if the transform arrys on the past N frames are different
+		// Only send dynamic data if the transform arrays on the past N frames are different
 		//
 		bool PastFramesTransformsAreEqual = true;
-		for (int i = 0; i < TransformsAreEqual.Num(); ++i)
+		for (int32 TransformIndex = 0; TransformIndex < TransformsAreEqual.Num(); ++TransformIndex)
 		{
-			PastFramesTransformsAreEqual = PastFramesTransformsAreEqual && TransformsAreEqual[i];
+			if (!TransformsAreEqual[TransformIndex])
+			{
+				PastFramesTransformsAreEqual = false;
+				break;
+			}
 		}
 
 		if (PastFramesTransformsAreEqual)

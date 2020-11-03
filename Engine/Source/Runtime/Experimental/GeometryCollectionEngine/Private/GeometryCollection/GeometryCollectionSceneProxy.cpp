@@ -1123,6 +1123,22 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 		Instance.RenderBounds = BoundingBoxes[GeometryIndex];
 		Instance.NaniteInfo = GeometryCollection->GetNaniteInfo(GeometryIndex);
 	}
+
+	// Need to specify initial instance list, even with just identity transforms, so that the
+	// GPUScene instance data allocator reserves space for the instances early on. The instance
+	// transforms will be corrected during the first frame before any rendering occurs.
+	Instances.SetNumZeroed(NumGeometry);
+	for (int32 GeometryIndex = 0; GeometryIndex < NumGeometry; ++GeometryIndex)
+	{
+		FPrimitiveInstance& Instance = Instances[GeometryIndex];
+		Instance.PrimitiveId = ~uint32(0);
+		Instance.InstanceToLocal.SetIdentity();
+		Instance.LocalToInstance.SetIdentity();
+		Instance.LocalToWorld.SetIdentity();
+		Instance.WorldToLocal.SetIdentity();
+		Instance.RenderBounds = GeometryNaniteData[GeometryIndex].RenderBounds;
+		Instance.LocalBounds = Instance.RenderBounds;
+	}
 }
 
 FPrimitiveViewRelevance FNaniteGeometryCollectionSceneProxy::GetViewRelevance(const FSceneView* View) const
@@ -1270,11 +1286,6 @@ void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometry
 			continue;
 		}
 
-		//if (Collection->IsClustered(TransformIndex))
-		//{
-		//	continue;
-		//}
-
 		const FGeometryNaniteData& NaniteData = GeometryNaniteData[TransformToGeometryIndex];
 
 		FPrimitiveInstance& Instance = Instances.Emplace_GetRef();
@@ -1312,16 +1323,6 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 			{
 				continue;
 			}
-
-			//if (Collection->IsClustered(TransformIndex))
-			//{
-			//	continue;
-			//}
-
-			//if (TransformChildren[TransformIndex].Num() > 0)
-			//{
-			//	continue;
-			//}
 
 			const FGeometryNaniteData& NaniteData = GeometryNaniteData[TransformToGeometryIndex];
 
