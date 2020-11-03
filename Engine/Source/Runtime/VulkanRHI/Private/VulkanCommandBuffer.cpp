@@ -400,7 +400,6 @@ FVulkanCommandBufferPool::~FVulkanCommandBufferPool()
 	for (int32 Index = 0; Index < CmdBuffers.Num(); ++Index)
 	{
 		FVulkanCmdBuffer* CmdBuffer = CmdBuffers[Index];
-		CmdBuffer->FreeMemory();
 		delete CmdBuffer;
 	}
 
