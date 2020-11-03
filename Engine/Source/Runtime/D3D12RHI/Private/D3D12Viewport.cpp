@@ -630,7 +630,7 @@ bool FD3D12Viewport::PresentChecked(int32 SyncInterval)
 		// Present failed so current expected GPU index will not match anymore, so patch up expected back buffer index
 		// Warning: Present is skipped for this frame but could cause a black screen for the next frame as well
 		FScopeLock Lock(&ExpectedBackBufferIndexLock);
-		ExpectedBackBufferIndex_RenderThread = (ExpectedBackBufferIndex_RenderThread == 0) ? NumBackBuffers - 1 : ExpectedBackBufferIndex_RenderThread--;
+		ExpectedBackBufferIndex_RenderThread = (ExpectedBackBufferIndex_RenderThread == 0) ? NumBackBuffers - 1 : ExpectedBackBufferIndex_RenderThread - 1;
 #endif // WITH_MGPU
 		return false;
 	}
