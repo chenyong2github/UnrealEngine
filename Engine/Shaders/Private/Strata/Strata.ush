@@ -227,9 +227,10 @@ struct FStrataBSDFContext
 
 	float3 N;
 	float3 V;
-	float3 L;
 	float3 R;
 	float3 H;
+
+	float3 L;	// There to initialise the BxDFContext. Only used by StrataEvaluateBSDF, not by StrataImportanceSampleBSDF or StrataEvaluateForEnvLight
 
 	BxDFContext Context;
 	float SatNoL;
@@ -264,7 +265,7 @@ FStrataBSDFContext StrataCreateBSDFContext(FStrataBSDF BSDF, float3 V, float3 L)
 	BSDFContext.N = normalize(BSDFContext.N);
 
 	BSDFContext.R = 2 * dot(BSDFContext.V, BSDFContext.N) * BSDFContext.N - BSDFContext.V;
-	BSDFContext.H = normalize(BSDFContext.V + BSDFContext.N);
+	BSDFContext.H = normalize(BSDFContext.V + BSDFContext.L);
 
 	BSDFContext.Context = (BxDFContext)0;
 	Init(BSDFContext.Context, BSDFContext.N, BSDFContext.V, BSDFContext.L);
@@ -273,9 +274,17 @@ FStrataBSDFContext StrataCreateBSDFContext(FStrataBSDF BSDF, float3 V, float3 L)
 
 	BSDFContext.TangentBasis = GetTangentBasis(BSDFContext.N);
 	BSDFContext.TangentV = mul(BSDFContext.TangentBasis, BSDFContext.V);
-	BSDFContext.TangentH = mul(BSDFContext.TangentBasis, normalize(BSDFContext.V + BSDFContext.L));
+	BSDFContext.TangentH = mul(BSDFContext.TangentBasis, BSDFContext.H);
 
 	return BSDFContext;
+}
+
+void StrataUpdateBSDFContext(inout FStrataBSDFContext BSDFContext, float3 NewL)
+{
+	// Update all the data related to L
+	Init(BSDFContext.Context, BSDFContext.N, BSDFContext.V, NewL);
+	BSDFContext.H = normalize(BSDFContext.V + BSDFContext.L);
+	BSDFContext.TangentH = mul(BSDFContext.TangentBasis, BSDFContext.H);
 }
 
 struct FStrataEvaluateResult
@@ -385,16 +394,71 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext)
 struct FStrataImportanceSampleResult
 {
 	float3 Direction;
-	float ConeHalfAngle;
-	// add a SH representation here?
+	float ConeAngle;		// Cone angle is 1/PDF as defined by Lumen
 
-	FStrataEvaluateResult Eval;
+//	FStrataEvaluateResult Eval;
 };
 
-FStrataImportanceSampleResult StrataSampleBSDF(FStrataBSDF BSDF, float2 U, BxDFContext Context)
+/**
+ * Importance sample a Strata BSDF
+ * BSDF: the strata BSDF to importance sample
+ * E: two random numbers
+ * CameraVector: vector from the camera to the considered direction (not V)
+ */
+FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataBSDF BSDF, float2 E, float3 CameraVector)
 {
 	FStrataImportanceSampleResult Sample = (FStrataImportanceSampleResult)0;
-	// TODO
+
+	// Create a context from the information we have
+	const float3 UnusedL = float3(0.0f, 0.0f, 1.0f);
+	const float3 V = -CameraVector;
+	FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(BSDF, V, UnusedL);
+
+	float PDF = 0.0f;
+	switch (BSDFContext.BSDF.BSDFType)
+	{
+		case STRATA_BSDF_TYPE_DIFFUSE_ON:
+		case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+		{
+			// STRATA_TODO take into account roughness
+			float4 ImportanceSample = CosineSampleHemisphere(E);
+			Sample.Direction = mul(ImportanceSample.xyz, BSDFContext.TangentBasis);
+			PDF = ImportanceSample.w;
+			Sample.ConeAngle = 1.0f / PDF;
+			break;
+		}
+		case STRATA_BSDF_TYPE_DIELECTRIC:
+		{
+			float4 GGXSample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(DIELECTRIC_ROUGHNESS(BSDFContext.BSDF)), BSDFContext.TangentV);
+			float3 WorldH = mul(GGXSample.xyz, BSDFContext.TangentBasis);
+			Sample.Direction = reflect(CameraVector, WorldH);
+			PDF = GGXSample.w;
+			Sample.ConeAngle = 1.0f / PDF;
+			break;
+		}
+		case STRATA_BSDF_TYPE_CONDUCTOR:
+		{
+			float4 GGXSample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(CONDUCTOR_ROUGHNESS(BSDFContext.BSDF)), BSDFContext.TangentV);
+			float3 WorldH = mul(GGXSample.xyz, BSDFContext.TangentBasis);
+			Sample.Direction = reflect(CameraVector, WorldH);
+			PDF = GGXSample.w;
+			Sample.ConeAngle = 1.0f / PDF;
+			break;
+		}
+		case STRATA_BSDF_TYPE_VOLUME:
+		{
+			float4 PhaseSample = ImportanceSampleHenyeyGreensteinPhase(E, VOLUME_ANISOTROPY(BSDFContext.BSDF));
+			Sample.Direction = mul(PhaseSample.xyz, BSDFContext.TangentBasis);
+			PDF = PhaseSample.w;
+			Sample.ConeAngle = 1.0f / PDF;
+			break;
+		}
+	}
+
+	//StrataUpdateBSDFContext(BSDFContext, Sample.Direction);
+	//Sample.Eval = StrataEvaluateBSDF(BSDFContext);
+	//Sample.Eval.PDF = PDF;	// We override the pdf to make sure the compiler skips all pdf code from StrataEvaluateBSDF because GGXSample.w si the pdf already for instance.
+
 	return Sample;
 }
 

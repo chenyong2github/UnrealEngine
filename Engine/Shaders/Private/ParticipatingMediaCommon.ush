@@ -13,10 +13,10 @@ float IsotropicPhase()
 	return 1.0f / (4.0f * PI);
 }
 
-float HenyeyGreensteinPhase(float g, float CosTheta)
+// Follows PBRT convention http://www.pbr-book.org/3ed-2018/Volume_Scattering/Phase_Functions.html#PhaseHG
+float HenyeyGreensteinPhase(float G, float CosTheta)
 {
-	g = -g;
-	return (1.0f - g * g) / (4.0f * PI * pow(1.0f + g * g - 2.0f * g * CosTheta, 1.5f));
+	return (1.0f - G * G) / (4.0f * PI * pow(1.0f + G * G + 2.0f * G * CosTheta, 1.5f));
 }
 
 float RaleighPhase(float CosTheta)
@@ -25,16 +25,45 @@ float RaleighPhase(float CosTheta)
 }
 
 // Schlick phase function approximating henyey-greenstein
-float SchlickPhaseFromK(float k, float CosTheta)
+float SchlickPhaseFromK(float K, float CosTheta)
 {
-	const float SchlickPhaseFactor = 1.0f + k * CosTheta;
-	const float PhaseValue = (1.0f - k * k) / (4.0f * PI * SchlickPhaseFactor * SchlickPhaseFactor);
+	const float SchlickPhaseFactor = 1.0f + K * CosTheta;
+	const float PhaseValue = (1.0f - K * K) / (4.0f * PI * SchlickPhaseFactor * SchlickPhaseFactor);
 	return PhaseValue;
 }
-float SchlickPhase(float g, float CosTheta)
+float SchlickPhase(float G, float CosTheta)
 {
-	const float k = 1.55f * g - 0.55f * g * g * g;
-	return SchlickPhaseFromK(k, CosTheta);
+	const float K = 1.55f * G - 0.55f * G * G * G;
+	return SchlickPhaseFromK(K, CosTheta);
 }
 
+// Follows PBRT convention http://www.pbr-book.org/3ed-2018/Light_Transport_II_Volume_Rendering/Sampling_Volume_Scattering.html#SamplingPhaseFunctions
+float HenyeyGreensteinPhaseInvertCDF(float E, float G)
+{
+	float OnePlusG2  = 1.0f + G * G;
+	float OneMinusG2 = 1.0f - G * G;
+	float OneOver2G  = 0.5f / G;
+	float t = OneMinusG2 / (1.0f + G - 2.0f * G * E);
+	return -OneOver2G * (OnePlusG2 - t * t);	// Careful: OneOver2G undefined for g close to 0
+}
+
+// Follows PBRT convention http://www.pbr-book.org/3ed-2018/Light_Transport_II_Volume_Rendering/Sampling_Volume_Scattering.html#SamplingPhaseFunctions
+float4 ImportanceSampleHenyeyGreensteinPhase(float2 E, float G)
+{
+	float Phi = 2.0f * PI * E.x;
+	float CosTheta = 0;
+	if (abs(G) < 0.001f)
+	{
+		CosTheta = 1.0f - 2.0f * E.y;
+	}
+	else
+	{
+		CosTheta = HenyeyGreensteinPhaseInvertCDF(E.y, G);
+	}
+	float SinTheta = sqrt(max(0.0f, 1.0f - CosTheta * CosTheta));
+
+	float3 H = float3(SinTheta * sin(Phi), SinTheta * cos(Phi), CosTheta);
+
+	return float4(H, HenyeyGreensteinPhase(G, CosTheta));
+}
 
