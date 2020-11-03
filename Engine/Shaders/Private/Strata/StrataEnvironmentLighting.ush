@@ -49,6 +49,8 @@ float3 StrataEnvironmentLighting(
 				float3 R = 2 * dot(V, N) * N - V;
 				float3 EvalEnvBRDF = EnvBRDFApprox(F0, SafeRoughness, SatNoV);
 
+				R = GetOffSpecularPeakReflectionDir(N, R, SafeRoughness);
+
 				SpecularDirection = R;
 				SpecularWeight = EvalEnvBRDF * DIELECTRIC_TINT(BSDF);
 				SpecularSafeRoughness = SafeRoughness;
@@ -68,6 +70,8 @@ float3 StrataEnvironmentLighting(
 				const float SatNoV = saturate(dot(N, V));
 				float3 R = 2 * dot(V, N) * N - V;
 				float3 EvalEnvBRDF = EnvBRDFApprox(CONDUCTOR_REFLECTIVITY(BSDF), CONDUCTOR_EDGECOLOR(BSDF), SafeRoughness, SatNoV);
+
+				R = GetOffSpecularPeakReflectionDir(N, R, SafeRoughness);
 
 				SpecularDirection = R;
 				SpecularWeight = EvalEnvBRDF;
