@@ -59,6 +59,10 @@ public:
 	void ClearCachedData();
 #endif // WITH_EDITOR
 
+protected:
+	/** Updates dmx cache to hold latest data from buffer if required */
+	void UpdateDMXCache();
+
 private:
 	/** Updates CachedDMXValues, returns true if cached values changed. */
 	bool UpdateCachedDMXValues();
