@@ -315,7 +315,9 @@ public:
 			}
 		};
 
-		FBulkDataBase::GetIoDispatcher()->ReadWithCallback(InChunkId, Options, IoDispatcherPriority_Low, OnRequestLoaded);
+		FIoBatch IoBatch = FBulkDataBase::GetIoDispatcher()->NewBatch();
+		IoRequest = IoBatch.ReadWithCallback(InChunkId, Options, IoDispatcherPriority_Low, OnRequestLoaded);
+		IoBatch.Issue();
 	}
 
 	virtual ~FReadChunkIdRequest()
@@ -385,6 +387,8 @@ protected:
 
 	/** The ChunkId that is being read. */
 	FIoChunkId ChunkId;
+	/** Pending io request */
+	FIoRequest IoRequest;
 	/** Only actually gets created if WaitCompletion is called. */
 	FEvent* DoneEvent = nullptr;
 	/** True while the request is pending, true once it has either been completed or canceled. */
@@ -459,9 +463,6 @@ public:
 			DataResult = nullptr;
 		}
 
-		// Should be freed by the callback!
-		checkf(!IoBatch.IsValid(), TEXT("FBulkDataIoDispatcherRequest::IoBatch was not freed"));
-
 		// Make sure no other thread is waiting on this request
 		checkf(DoneEvent == nullptr, TEXT("A thread is still waiting on a FBulkDataIoDispatcherRequest that is being destroyed!"));
 	}
@@ -469,28 +470,26 @@ public:
 	void StartAsyncWork()
 	{		
 		checkf(RequestArray.Num() > 0, TEXT("RequestArray cannot be empty"));
-		checkf(!IoBatch.IsValid(), TEXT("FBulkDataIoDispatcherRequest::StartAsyncWork was called twice"));
 
-		auto Callback = [this](TIoStatusOr<FIoBuffer> Result)
+		auto Callback = [this]()
 		{
-			// We need to store the this pointer as a local variable as it will become invalidated by our
-			// later call to FreeBatch
-			FBulkDataIoDispatcherRequest* InRequest = this;
-
-			if (Result.Status().IsOk())
+			bool bIsOk = true;
+			for (Request& Request : RequestArray)
 			{
-				CHECK_IOSTATUS(Result.Status(), TEXT("FIoBatch::IssueWithCallback"));
-				FIoBuffer IoBuffer = Result.ConsumeValueOrDie();
-
-				InRequest->SizeResult = IoBuffer.DataSize();
+				TIoStatusOr<FIoBuffer> RequestResult = Request.IoRequest.GetResult();
+				bIsOk &= RequestResult.IsOk();
+			}
+			if (bIsOk)
+			{
+				SizeResult = IoBuffer.DataSize();
 
 				if (IoBuffer.IsMemoryOwned())
 				{
-					InRequest->DataResult = IoBuffer.Release().ConsumeValueOrDie();
+					DataResult = IoBuffer.Release().ConsumeValueOrDie();
 				}
 				else
 				{
-					InRequest->DataResult = IoBuffer.Data();
+					DataResult = IoBuffer.Data();
 				}
 			}
 			else
@@ -503,37 +502,48 @@ public:
 
 			bDataIsReady = true;
 
-			// Note that freeing the batch will invalidate the current callback!
-			FBulkDataBase::GetIoDispatcher()->FreeBatch(InRequest->IoBatch);
-
-			if (InRequest->CompleteCallback)
+			if (CompleteCallback)
 			{
-				InRequest->CompleteCallback(InRequest->bIsCanceled, InRequest);
+				CompleteCallback(bIsCanceled, this);
 			}
 
 			{
 				FScopeLock Lock(&FReadChunkIdRequestEvent);
-				InRequest->bIsCompleted = true;
+				bIsCompleted = true;
 
-				if (InRequest->DoneEvent != nullptr)
+				if (DoneEvent != nullptr)
 				{
-					InRequest->DoneEvent->Trigger();
+					DoneEvent->Trigger();
 				}
 			}
 		};
 
-		IoBatch = FBulkDataBase::GetIoDispatcher()->NewBatch();
+		FIoBatch IoBatch = FBulkDataBase::GetIoDispatcher()->NewBatch();
 
+		uint64 TotalSize = 0;
+		for (const Request& Request : RequestArray)
+		{
+			//checkf(!Request.IoRequest.IsValid(), TEXT("FBulkDataIoDispatcherRequest::StartAsyncWork was called twice"));
+			TotalSize += Request.BytesToRead;
+		}
+		if (UserSuppliedMemory != nullptr)
+		{
+			IoBuffer = FIoBuffer(FIoBuffer::Wrap, UserSuppliedMemory, TotalSize);
+		}
+		else
+		{
+			IoBuffer = FIoBuffer(FIoBuffer::AssumeOwnership, FMemory::Malloc(TotalSize), TotalSize);
+		}
+		uint8* Dst = IoBuffer.Data();
 		for (Request& Request : RequestArray)
 		{
-			IoBatch.Read(Request.ChunkId, FIoReadOptions(Request.OffsetInBulkData, Request.BytesToRead));
+			FIoReadOptions ReadOptions(Request.OffsetInBulkData, Request.BytesToRead);
+			ReadOptions.SetTargetVa(Dst);
+			Request.IoRequest = IoBatch.Read(Request.ChunkId, ReadOptions, IoDispatcherPriority_Low);
+			Dst += Request.BytesToRead;
 		}
 
-		FIoBatchReadOptions BatchReadOptions;
-		BatchReadOptions.SetTargetVa(UserSuppliedMemory);
-
-		FIoStatus Status = IoBatch.IssueWithCallback(BatchReadOptions, IoDispatcherPriority_Low, Callback);
-		CHECK_IOSTATUS(Status, TEXT("FIoBatch::IssueWithCallback"));
+		IoBatch.IssueWithCallback(Callback);
 	}
 
 	virtual bool PollCompletion() const override
@@ -611,6 +621,7 @@ private:
 		FIoChunkId ChunkId;
 		uint64 OffsetInBulkData;
 		uint64 BytesToRead;
+		FIoRequest IoRequest;
 	};
 
 	TArray<Request, TInlineAllocator<8>> RequestArray;
@@ -629,7 +640,7 @@ private:
 	/** Only actually gets created if WaitCompletion is called. */
 	FEvent* DoneEvent = nullptr;
 
-	FIoBatch IoBatch;
+	FIoBuffer IoBuffer;
 };
 
 FBulkDataBase::FBulkDataBase(FBulkDataBase&& Other)
@@ -1191,10 +1202,10 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(int64 OffsetInBulkData
 	if (IsUsingIODispatcher())
 	{
 		checkf(OffsetInBulkData + BytesToRead <= BulkDataSize, TEXT("Attempting to read past the end of BulkData"));
-		FBulkDataIoDispatcherRequest* IoRequest = new FBulkDataIoDispatcherRequest(CreateChunkId(), BulkDataOffset + OffsetInBulkData, BytesToRead, CompleteCallback, UserSuppliedMemory);
-		IoRequest->StartAsyncWork();
+		FBulkDataIoDispatcherRequest* BulkDataIoDispatcherRequest = new FBulkDataIoDispatcherRequest(CreateChunkId(), BulkDataOffset + OffsetInBulkData, BytesToRead, CompleteCallback, UserSuppliedMemory);
+		BulkDataIoDispatcherRequest->StartAsyncWork();
 
-		return IoRequest;
+		return BulkDataIoDispatcherRequest;
 	}
 	else
 	{
@@ -1524,15 +1535,14 @@ void FBulkDataBase::InternalLoadFromIoStore(void** DstBuffer)
 	FIoReadOptions Options(BulkDataOffset, BulkDataSize);
 	Options.SetTargetVa(*DstBuffer);
 
-	FIoBatch NewBatch = GetIoDispatcher()->NewBatch();
-	FIoRequest Request = NewBatch.Read(CreateChunkId(), Options);
+	FIoBatch Batch = GetIoDispatcher()->NewBatch();
+	FIoRequest Request = Batch.Read(CreateChunkId(), Options, IoDispatcherPriority_High);
 
-	NewBatch.Issue(IoDispatcherPriority_High);
-	NewBatch.Wait(); // Blocking wait until all requests in the batch are done
-
-	CHECK_IOSTATUS(Request.Status(), TEXT("FIoRequest"));
-	
-	FBulkDataBase::GetIoDispatcher()->FreeBatch(NewBatch);
+	FEvent* BatchCompletedEvent = FPlatformProcess::GetSynchEventFromPool();
+	Batch.IssueAndTriggerEvent(BatchCompletedEvent);
+	BatchCompletedEvent->Wait(); // Blocking wait until all requests in the batch are done
+	FPlatformProcess::ReturnSynchEventToPool(BatchCompletedEvent);
+	CHECK_IOSTATUS(Request.GetResult().Status(), TEXT("FIoRequest"));
 }
 
 void FBulkDataBase::InternalLoadFromIoStoreAsync(void** DstBuffer, AsyncCallback&& Callback)
@@ -1547,7 +1557,9 @@ void FBulkDataBase::InternalLoadFromIoStoreAsync(void** DstBuffer, AsyncCallback
 	FIoReadOptions Options;
 	Options.SetTargetVa(*DstBuffer);
 
-	GetIoDispatcher()->ReadWithCallback(CreateChunkId(), Options, IoDispatcherPriority_Low, MoveTemp(Callback));
+	FIoBatch Batch = GetIoDispatcher()->NewBatch();
+	Batch.ReadWithCallback(CreateChunkId(), Options, IoDispatcherPriority_Low, MoveTemp(Callback));
+	Batch.Issue();
 }
 
 void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FString* Filename, int64& InOutOffsetInFile)
