@@ -104,14 +104,39 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		uint32 CurveCount = EventData.GetValue<uint32>("CurveCount");
 		uint16 FrameCounter = EventData.GetValue<uint16>("FrameCounter");
 		uint16 LodIndex = EventData.GetValue<uint16>("LodIndex");
+
+		// ComponentToWorld. FTransform's data needs to be aligned.
 		TArrayView<const float> ComponentToWorldFloatArray = EventData.GetArrayView<float>("ComponentToWorld");
-		check(ComponentToWorldFloatArray.Num() == sizeof(FTransform) / sizeof(float));
-		const FTransform& ComponentToWorld = *reinterpret_cast<const FTransform*>(ComponentToWorldFloatArray.GetData());
+		const int TransformFloatCount = ComponentToWorldFloatArray.Num();
+
+		// ComponentToWorld and Pose were encoded assuming 48 bytes (12 floats) for an FTransform.
+		check(TransformFloatCount == 12);
+
+		const float* TransformFloats = reinterpret_cast<const float*>(ComponentToWorldFloatArray.GetData());
+		const FQuat Rotation(TransformFloats[0], TransformFloats[1], TransformFloats[2], TransformFloats[3]);
+		const FVector Translation(TransformFloats[4], TransformFloats[5], TransformFloats[6]); // TransformFloats[7] is waste
+		const FVector Scale3D(TransformFloats[8], TransformFloats[9], TransformFloats[10]); // TransformFloats[11] is waste
+		const FTransform ComponentToWorld(Rotation, Translation, Scale3D);
+
+		// Pose. FTransform's data needs to be aligned.
 		TArrayView<const float> PoseFloatArray = EventData.GetArrayView<float>("Pose");
-		TArrayView<const FTransform> Pose(reinterpret_cast<const FTransform*>(PoseFloatArray.GetData()), PoseFloatArray.Num() / (sizeof(FTransform) / sizeof(float)));
+		const int PoseTransformCount = PoseFloatArray.Num() / TransformFloatCount;
+		TArray<FTransform> Pose;
+		Pose.AddDefaulted(PoseTransformCount);
+		const float* PoseTransformFloats = reinterpret_cast<const float*>(PoseFloatArray.GetData());
+		for (int PoseIndex = 0; PoseIndex < PoseTransformCount; ++PoseIndex)
+		{
+			const FQuat PoseRotation(PoseTransformFloats[0], PoseTransformFloats[1], PoseTransformFloats[2], PoseTransformFloats[3]);
+			const FVector PoseTranslation(PoseTransformFloats[4], PoseTransformFloats[5], PoseTransformFloats[6]);
+			const FVector PoseScale3D(PoseTransformFloats[8], PoseTransformFloats[9], PoseTransformFloats[10]);
+			Pose[PoseIndex].SetComponents(PoseRotation, PoseTranslation, PoseScale3D);
+			PoseTransformFloats += TransformFloatCount;
+		}
+
 		TArrayView<const uint32> CurveIds = EventData.GetArrayView<uint32>("CurveIds");
 		TArrayView<const float> CurveValues = EventData.GetArrayView<float>("CurveValues");
 		check(CurveIds.Num() == CurveValues.Num());
+
 		AnimationProvider.AppendSkeletalMeshComponent(ComponentId, MeshId, Context.EventTime.AsSeconds(Cycle), LodIndex, FrameCounter, ComponentToWorld, Pose, CurveIds, CurveValues);
 		break;
 	}
