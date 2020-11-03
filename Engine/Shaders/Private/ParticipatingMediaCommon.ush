@@ -2,6 +2,8 @@
 	ParticipatingMediaCommon.ush
 =============================================================================*/
 
+#pragma once
+
 #include "Common.ush"
 
 

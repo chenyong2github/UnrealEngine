@@ -5,6 +5,8 @@
 #include "../Common.ush"
 #include "../BRDF.ush"
 #include "../ShadingCommon.ush"
+#include "../ParticipatingMediaCommon.ush"
+#include "../MonteCarlo.ush"
 
 #include "/Engine/Shared/StrataDefinitions.h"
 
@@ -206,6 +208,276 @@ FStrataData GetStrataVolumeBSDF(float3 Albedo, float3 Extinction, float Anisotro
 	StrataData.Layers[0].BSDFs[0].Weight						= 1.0f;
 
 	return StrataData;
+}
+
+// STRATA_TODO put in a common file
+// Point lobe in off-specular peak direction
+float3 StrataGetOffSpecularPeakReflectionDir(float3 Normal, float3 ReflectionVector, float Roughness)
+{
+	float a = Square(Roughness);
+	return lerp(Normal, ReflectionVector, (1 - a) * (sqrt(1 - a) + a));
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// BSDF evaluate and sampling
+
+struct FStrataBSDFContext
+{
+	FStrataBSDF BSDF;
+
+	float3 N;
+	float3 V;
+	float3 L;
+	float3 R;
+	float3 H;
+
+	BxDFContext Context;
+	float SatNoL;
+	float SatNoV;
+
+	float3x3 TangentBasis;
+	float3 TangentV;
+	float3 TangentH;
+};
+
+FStrataBSDFContext StrataCreateBSDFContext(FStrataBSDF BSDF, float3 V, float3 L)
+{
+	FStrataBSDFContext BSDFContext = (FStrataBSDFContext)0;
+
+	BSDFContext.BSDF = BSDF;
+
+	BSDFContext.V = V;
+	BSDFContext.L = L;
+	BSDFContext.N = float3(0.0f, 0.0f, 1.0f);
+	switch (BSDF.BSDFType)		// TODO_STRATA: all have a normal, even subsurface?
+	{
+	case STRATA_BSDF_TYPE_DIFFUSE_ON:
+	case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+	{ BSDFContext.N = DIFFUSE_NORMAL(BSDF);				break; }
+	case STRATA_BSDF_TYPE_DIELECTRIC:
+	{ BSDFContext.N = DIELECTRIC_NORMAL(BSDF);			break; }
+	case STRATA_BSDF_TYPE_CONDUCTOR:
+	{ BSDFContext.N = CONDUCTOR_NORMAL(BSDF);			break; }
+	case STRATA_BSDF_TYPE_VOLUME:
+	{ BSDFContext.N = VOLUME_SMOOTHSURFACENORMAL(BSDF);	break; }
+	}
+	BSDFContext.N = normalize(BSDFContext.N);
+
+	BSDFContext.R = 2 * dot(BSDFContext.V, BSDFContext.N) * BSDFContext.N - BSDFContext.V;
+	BSDFContext.H = normalize(BSDFContext.V + BSDFContext.N);
+
+	BSDFContext.Context = (BxDFContext)0;
+	Init(BSDFContext.Context, BSDFContext.N, BSDFContext.V, BSDFContext.L);
+	BSDFContext.SatNoL = saturate(BSDFContext.Context.NoL);
+	BSDFContext.SatNoV = saturate(BSDFContext.Context.NoV);
+
+	BSDFContext.TangentBasis = GetTangentBasis(BSDFContext.N);
+	BSDFContext.TangentV = mul(BSDFContext.TangentBasis, BSDFContext.V);
+	BSDFContext.TangentH = mul(BSDFContext.TangentBasis, normalize(BSDFContext.V + BSDFContext.L));
+
+	return BSDFContext;
+}
+
+struct FStrataEvaluateResult
+{
+	float3 Value;
+	float  PDF;
+	float3 Throughput;	// Throughput to the next layer
+};
+
+FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext)
+{
+	FStrataEvaluateResult Sample = (FStrataEvaluateResult)0;
+
+	const float OpaqueBSDFThroughput = 0.0f;
+
+	switch (BSDFContext.BSDF.BSDFType)
+	{
+		case STRATA_BSDF_TYPE_DIFFUSE_ON:
+		{
+			const float SafeRoughness = MakeRoughnessSafe(DIFFUSE_ROUGHNESS(BSDFContext.BSDF));
+
+			Sample.Value		= Diffuse_OrenNayar(DIFFUSE_ALBEDO(BSDFContext.BSDF), SafeRoughness, BSDFContext.Context.NoV, BSDFContext.SatNoL, BSDFContext.Context.VoH);
+			Sample.PDF			= BSDFContext.SatNoV / PI;
+			Sample.Throughput	= OpaqueBSDFThroughput;
+			break;
+		}
+		case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+		{
+			const float SafeRoughness = MakeRoughnessSafe(DIFFUSE_ROUGHNESS(BSDFContext.BSDF));
+			float a = SafeRoughness * SafeRoughness;
+			float a2 = a * a;
+
+			Sample.Value		= Diffuse_Chan(DIFFUSE_ALBEDO(BSDFContext.BSDF), a2, BSDFContext.Context.NoV, BSDFContext.SatNoL, BSDFContext.Context.VoH, BSDFContext.Context.NoH);
+			Sample.PDF			= BSDFContext.SatNoV / PI;
+			Sample.Throughput	= OpaqueBSDFThroughput;
+			break;
+		}
+		case STRATA_BSDF_TYPE_DIELECTRIC:
+		{
+			float F0 = DielectricIorToF0(DIELECTRIC_IOR(BSDFContext.BSDF));
+
+			const float SafeRoughness = MakeRoughnessSafe(DIELECTRIC_ROUGHNESS(BSDFContext.BSDF).x);
+			float a2 = Pow4(SafeRoughness);
+			float Energy = 1.0f; // See EnergyNormalization
+
+			// Generalized microfacet specular
+			float D = D_GGX(a2, BSDFContext.Context.NoH) * Energy;
+			float Vis = Vis_SmithJointApprox(a2, BSDFContext.Context.NoV, BSDFContext.SatNoL);
+			float3 F = F_Schlick(F0, BSDFContext.Context.VoH);
+
+			Sample.Value		= D * Vis * F * DIELECTRIC_TINT(BSDFContext.BSDF);
+			Sample.PDF			= VisibleGGXPDF(BSDFContext.TangentV, BSDFContext.TangentH, a2);
+			Sample.Throughput	= (1.0f - F); // STRATA_TODO (Kulla's (1-FDG))
+			break;
+		}
+		case STRATA_BSDF_TYPE_CONDUCTOR:
+		{
+			// See SpecularGGX, isotropic verion
+			const float SafeRoughness = MakeRoughnessSafe(CONDUCTOR_ROUGHNESS(BSDFContext.BSDF).x);
+			float a2 = Pow4(SafeRoughness);
+			float Energy = 1.0f; // See EnergyNormalization
+
+			// Generalized microfacet specular
+			float D = D_GGX(a2, BSDFContext.Context.NoH) * Energy;
+			float Vis = Vis_SmithJointApprox(a2, BSDFContext.Context.NoV, BSDFContext.SatNoL);
+			float3 F = F_Schlick(CONDUCTOR_REFLECTIVITY(BSDFContext.BSDF), CONDUCTOR_EDGECOLOR(BSDFContext.BSDF), BSDFContext.Context.VoH);
+
+			Sample.Value		= D * Vis * F;
+			Sample.PDF			= VisibleGGXPDF(BSDFContext.TangentV, BSDFContext.TangentH, a2);
+			Sample.Throughput	= OpaqueBSDFThroughput;
+			break;
+		}
+		case STRATA_BSDF_TYPE_VOLUME:
+		{
+			const float3 Albedo = VOLUME_ALBEDO(BSDFContext.BSDF);
+			const float3 ExtinctionCoefficients = VOLUME_EXTINCTION(BSDFContext.BSDF);
+			const float3 ScatteringCoefficients = Albedo * ExtinctionCoefficients;
+			const float3 AbsorptionCoefficients = ExtinctionCoefficients - ScatteringCoefficients;
+			const float  Thickness = VOLUME_THICKNESS(BSDFContext.BSDF);
+			const float  Phase = HenyeyGreensteinPhase(VOLUME_ANISOTROPY(BSDFContext.BSDF), BSDFContext.Context.VoL);
+
+			const float3 SafeExtinctionThreshold = 0.000001f;
+			const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
+
+			const float PathLength = Thickness / max(0.0001f, abs(BSDFContext.Context.NoV));
+			const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
+			const float3 NormLuminanceTransfert = 1.0f * ScatteringCoefficients;
+			float3 NormLuminanceSingleScattering = (NormLuminanceTransfert - NormLuminanceTransfert * SafePathSegmentTransmittance) / SafeExtinctionCoefficients;
+
+#if 1
+			const float3 SelfShadowTransmittance = 1.0;// BSDFContext.SatNoL;
+#else
+			const float LightPathLength = Thickness / max(0.0001f, BSDFContext.SatNoL);
+			const float3 SelfShadowTransmittance = BSDFContext.SatNoL <= 0.0 ? 0.0 : exp(-ExtinctionCoefficients * LightPathLength);
+#endif
+
+			Sample.Value		= NormLuminanceSingleScattering * Phase * SelfShadowTransmittance;
+			Sample.PDF			= Phase;
+			Sample.Throughput	= SafePathSegmentTransmittance;
+			break;
+		}
+	}
+
+	return Sample;
+}
+
+struct FStrataImportanceSampleResult
+{
+	float3 Direction;
+	float ConeHalfAngle;
+	// add a SH representation here?
+
+	FStrataEvaluateResult Eval;
+};
+
+FStrataImportanceSampleResult StrataSampleBSDF(FStrataBSDF BSDF, float2 U, BxDFContext Context)
+{
+	FStrataImportanceSampleResult Sample = (FStrataImportanceSampleResult)0;
+	// TODO
+	return Sample;
+}
+
+struct FStrataEnvLightResult
+{
+	float3 DiffuseAlbedo;
+	float3 DiffuseNormal;
+
+	float3 SpecularDirection;
+	float3 SpecularWeight;
+	float  SpecularSafeRoughness;
+};
+
+FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, bool bEnableSpecular)
+{
+	FStrataEnvLightResult StrataEnvLightResult = (FStrataEnvLightResult)0;
+
+	switch (BSDFContext.BSDF.BSDFType)
+	{
+		case STRATA_BSDF_TYPE_DIFFUSE_ON:
+		case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+		{
+			StrataEnvLightResult.DiffuseAlbedo = DIFFUSE_ALBEDO(BSDFContext.BSDF);
+			StrataEnvLightResult.DiffuseNormal = DIFFUSE_NORMAL(BSDFContext.BSDF);
+			break;
+		}
+		case STRATA_BSDF_TYPE_DIELECTRIC:
+		{
+			BRANCH
+			if (bEnableSpecular)
+			{
+				float F0 = DielectricIorToF0(DIELECTRIC_IOR(BSDFContext.BSDF));
+				const float SafeRoughness = MakeRoughnessSafe(DIELECTRIC_ROUGHNESS(BSDFContext.BSDF).x);
+
+				float3 EvalEnvBRDF = EnvBRDFApprox(F0, SafeRoughness, BSDFContext.SatNoV);
+
+				StrataEnvLightResult.SpecularDirection = StrataGetOffSpecularPeakReflectionDir(BSDFContext.N, BSDFContext.R, SafeRoughness);
+				StrataEnvLightResult.SpecularWeight = EvalEnvBRDF * DIELECTRIC_TINT(BSDFContext.BSDF);
+				StrataEnvLightResult.SpecularSafeRoughness = SafeRoughness;
+			}
+			break;
+		}
+		case STRATA_BSDF_TYPE_CONDUCTOR:
+		{
+			BRANCH
+			if (bEnableSpecular)
+			{
+				// See SpecularGGX, isotropic verion
+
+				const float SafeRoughness = MakeRoughnessSafe(CONDUCTOR_ROUGHNESS(BSDFContext.BSDF).x);
+
+				const float3 N = CONDUCTOR_NORMAL(BSDFContext.BSDF);
+				float3 EvalEnvBRDF = EnvBRDFApprox(CONDUCTOR_REFLECTIVITY(BSDFContext.BSDF), CONDUCTOR_EDGECOLOR(BSDFContext.BSDF), SafeRoughness, BSDFContext.SatNoV);
+
+				StrataEnvLightResult.SpecularDirection = StrataGetOffSpecularPeakReflectionDir(BSDFContext.N, BSDFContext.R, SafeRoughness);
+				StrataEnvLightResult.SpecularWeight = EvalEnvBRDF;
+				StrataEnvLightResult.SpecularSafeRoughness = SafeRoughness;
+			}
+			break;
+		}
+		case STRATA_BSDF_TYPE_VOLUME:
+		{
+			const float3 VolumeAlbedo = VOLUME_ALBEDO(BSDFContext.BSDF);
+			const float3 ExtinctionCoefficients = VOLUME_EXTINCTION(BSDFContext.BSDF);
+			const float3 ScatteringCoefficients = VolumeAlbedo * ExtinctionCoefficients;
+			const float3 AbsorptionCoefficients = ExtinctionCoefficients - ScatteringCoefficients;
+			const float  Thickness = VOLUME_THICKNESS(BSDFContext.BSDF);
+
+			const float3 SafeExtinctionThreshold = 0.000001f;
+			const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
+
+			const float PathLength = Thickness / max(0.0001f, BSDFContext.SatNoV);
+			const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
+			const float3 NormLuminanceTransfert = 1.0f * ScatteringCoefficients;
+			float3 NormLuminanceSingleScattering = (NormLuminanceTransfert - NormLuminanceTransfert * SafePathSegmentTransmittance) / SafeExtinctionCoefficients;
+
+			StrataEnvLightResult.DiffuseAlbedo = NormLuminanceSingleScattering;
+			StrataEnvLightResult.DiffuseNormal = VOLUME_SMOOTHSURFACENORMAL(BSDFContext.BSDF);
+			break;
+		}
+	}
+
+	return StrataEnvLightResult;
 }
 
 

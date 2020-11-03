@@ -20,117 +20,40 @@ float3 StrataEnvironmentLighting(
 		FStrataBSDF BSDF = PixelBSDFs.BSDFs[i];
 		const float3 BSDFThroughput = BSDF.Weight;
 
-		float3 DiffuseAlbedo = 0.0f;
-		float3 DiffuseNormal = 0.0f;
+		// Create the BSDF context
+		const float3 UnusedL = float3(0.0f, 0.0f, 1.0f);
+		FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(BSDF, V, UnusedL);
 
-		float3 SpecularDirection = 0.0f;
-		float3 SpecularWeight = 0.0f;
-		float  SpecularSafeRoughness = 0.0f;
-
-		switch (BSDF.BSDFType)
-		{
-		case STRATA_BSDF_TYPE_DIFFUSE_ON:
-		case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
-		{
-			DiffuseAlbedo = DIFFUSE_ALBEDO(BSDF);
-			DiffuseNormal = DIFFUSE_NORMAL(BSDF);
-		}
-		break;
-		case STRATA_BSDF_TYPE_DIELECTRIC:
-		{
-			BRANCH
-			if (ReflectionStruct.SkyLightParameters.y > 0)
-			{
-				float F0 = DielectricIorToF0(DIELECTRIC_IOR(BSDF));
-				const float SafeRoughness = MakeRoughnessSafe(DIELECTRIC_ROUGHNESS(BSDF).x);
-
-				const float3 N = DIELECTRIC_NORMAL(BSDF);
-				const float SatNoV = saturate(dot(N, V));
-				float3 R = 2 * dot(V, N) * N - V;
-				float3 EvalEnvBRDF = EnvBRDFApprox(F0, SafeRoughness, SatNoV);
-
-				R = GetOffSpecularPeakReflectionDir(N, R, SafeRoughness);
-
-				SpecularDirection = R;
-				SpecularWeight = EvalEnvBRDF * DIELECTRIC_TINT(BSDF);
-				SpecularSafeRoughness = SafeRoughness;
-			}
-		}
-		break;
-		case STRATA_BSDF_TYPE_CONDUCTOR:
-		{
-			BRANCH
-			if (ReflectionStruct.SkyLightParameters.y > 0)
-			{
-				// See SpecularGGX, isotropic verion
-
-				const float SafeRoughness = MakeRoughnessSafe(CONDUCTOR_ROUGHNESS(BSDF).x);
-
-				const float3 N = CONDUCTOR_NORMAL(BSDF);
-				const float SatNoV = saturate(dot(N, V));
-				float3 R = 2 * dot(V, N) * N - V;
-				float3 EvalEnvBRDF = EnvBRDFApprox(CONDUCTOR_REFLECTIVITY(BSDF), CONDUCTOR_EDGECOLOR(BSDF), SafeRoughness, SatNoV);
-
-				R = GetOffSpecularPeakReflectionDir(N, R, SafeRoughness);
-
-				SpecularDirection = R;
-				SpecularWeight = EvalEnvBRDF;
-				SpecularSafeRoughness = SafeRoughness;
-			}
-		}
-		break;
-		case STRATA_BSDF_TYPE_VOLUME:
-		{
-			const float3 VolumeAlbedo = VOLUME_ALBEDO(BSDF);
-			const float3 ExtinctionCoefficients = VOLUME_EXTINCTION(BSDF);
-			const float3 ScatteringCoefficients = VolumeAlbedo * ExtinctionCoefficients;
-			const float3 AbsorptionCoefficients = ExtinctionCoefficients - ScatteringCoefficients;
-			const float  Thickness = VOLUME_THICKNESS(BSDF);
-
-			const float3 SafeExtinctionThreshold = 0.000001f;
-			const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
-
-			const float SatNoV = saturate(dot(VOLUME_SMOOTHSURFACENORMAL(BSDF), V));
-			const float PathLength = Thickness / max(0.0001f, SatNoV);
-			const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
-			const float3 NormLuminanceTransfert = 1.0f * ScatteringCoefficients;
-			float3 NormLuminanceSingleScattering = (NormLuminanceTransfert - NormLuminanceTransfert * SafePathSegmentTransmittance) / SafeExtinctionCoefficients;
-
-			// No phase function because the SH already contains integration of BSDF with respect to hemisphere. Incorrect but needed.
-			DiffuseAlbedo = NormLuminanceSingleScattering;
-
-			// STRATA_TODO: This is to fake some directionality. Have normal specified on the material as for MaterialX?
-			DiffuseNormal = VOLUME_SMOOTHSURFACENORMAL(BSDF);
-		}
-		break;
-		}
+		// Evaluate environment lighting
+		const bool bEnableSpecular = ReflectionStruct.SkyLightParameters.y > 0.0f;
+		FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, bEnableSpecular);
 
 		// Diffuse component
-		if (any(DiffuseAlbedo > 0.0f))
+		if (any(StrataEnvLight.DiffuseAlbedo > 0.0f))
 		{
 			// Apply bent normal if needed
 			#if APPLY_SKY_SHADOWING
 			{
-				DiffuseNormal = UpsampleDFAO(BufferUV, GBuffer.Depth, DiffuseNormal); // Bent normal
+				StrataEnvLight.DiffuseNormal = UpsampleDFAO(BufferUV, GBuffer.Depth, StrataEnvLight.DiffuseNormal); // Bent normal
 			}
 			#endif
 
 			// Compute the common sky visibility factors
-			FSkyLightVisibilityData SkyVisData = GetSkyLightVisibilityData(GBuffer, AmbientOcclusion, DiffuseNormal);
+			FSkyLightVisibilityData SkyVisData = GetSkyLightVisibilityData(GBuffer, AmbientOcclusion, StrataEnvLight.DiffuseNormal);
 
 			// Finally sample the sky diffuse contribution (spherical harmonic, Lambert BRDF)
-			float3 DiffuseLookup = GetSkySHDiffuse(DiffuseNormal) * View.SkyLightColor.rgb;			// STRATA_TODO compute SH coefficients for ON or Chan
+			float3 DiffuseLookup = GetSkySHDiffuse(StrataEnvLight.DiffuseNormal) * View.SkyLightColor.rgb;			// STRATA_TODO compute SH coefficients for ON or Chan
 			// And accumulate
-			SkyLighting += BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * DiffuseAlbedo;
+			SkyLighting += BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * StrataEnvLight.DiffuseAlbedo;
 		}
 
 		// Specular component
-		if (any(SpecularWeight > 0.0f))
+		if (any(StrataEnvLight.SpecularWeight > 0.0f))
 		{
 			float SkyAverageBrightness = 1.0f;
-			const float3 SpecularLuminance = GetSkyLightReflection(SpecularDirection, SpecularSafeRoughness, SkyAverageBrightness);
+			const float3 SpecularLuminance = GetSkyLightReflection(StrataEnvLight.SpecularDirection, StrataEnvLight.SpecularSafeRoughness, SkyAverageBrightness);
 
-			SkyLighting += BSDFThroughput * SpecularLuminance * SpecularWeight * View.SkyLightColor.rgb * AmbientOcclusion;
+			SkyLighting += BSDFThroughput * SpecularLuminance * StrataEnvLight.SpecularWeight * View.SkyLightColor.rgb * AmbientOcclusion;
 		}
 
 	}

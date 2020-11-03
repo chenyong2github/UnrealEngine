@@ -32,177 +32,37 @@ float3 StrataForwardLighting(
 			FStrataBSDF BSDF = Strata.Layers[l].BSDFs[i];
 			const float3 BSDFCoverage = BSDF.Weight;
 
-			float3 N = MaterialParametersWorldNormal;
-			switch (BSDF.BSDFType)		// TODO_STRATA: all have a normal, even subsurface?
-			{
-			case STRATA_BSDF_TYPE_DIFFUSE_ON:
-			case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
-			{ N = DIFFUSE_NORMAL(BSDF);				SanitizeStrataDiffuse(BSDF);	break; }
-			case STRATA_BSDF_TYPE_DIELECTRIC:
-			{ N = DIELECTRIC_NORMAL(BSDF);			SanitizeStrataDielectric(BSDF);	break; }
-			case STRATA_BSDF_TYPE_CONDUCTOR:
-			{ N = CONDUCTOR_NORMAL(BSDF);			SanitizeStrataConductor(BSDF);	break; }
-			case STRATA_BSDF_TYPE_VOLUME:
-			{ N = VOLUME_SMOOTHSURFACENORMAL(BSDF);	SanitizeStrataVolume(BSDF);		break; }
-			}
-			N = normalize(N);
-			float3 R = 2 * dot(V, N) * N - V;
+			// Create the BSDF context
+			FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(BSDF, V, L);
 
-			BxDFContext Context = (BxDFContext)0;
-			Init(Context, N, V, L);
-			float SatNoL = saturate(Context.NoL);
-
+			// Compute some common factors
 			const float3 DirLightBaseFactor = OutThroughput * BSDFCoverage * LColor * LShadow;
-			const float3 DirLightGeometryFactor = DirLightBaseFactor * SatNoL;
+			const float3 DirLightGeometryFactor = DirLightBaseFactor * StrataBSDFContext.SatNoL;
 			const float3 SkyLightCommonFactor = OutThroughput * BSDFCoverage * ResolvedView.SkyLightColor.rgb * IndirectOcclusion;
 
-			switch (BSDF.BSDFType)
+			// Evaluate environment lighting
+			const bool bEnableSpecular = ReflectionStruct.SkyLightParameters.y > 0.0f;
+			FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, bEnableSpecular);
+			if (any(StrataEnvLight.DiffuseAlbedo > 0.0f))
 			{
-			case STRATA_BSDF_TYPE_DIFFUSE_ON:
+				// SkySHDiffuse is pre integrated according to a Lambert diffuse lobe. Thus, we need to rescale to account for the phase function operating over 4PI.
+				// We apply a 2PI factor to recover average luminance over half hemisphere, and then times the phase function to account for the scattering events.
+				const float VolumeOnlyFactor = BSDF.BSDFType == STRATA_BSDF_TYPE_VOLUME ? 2.0f * PI * IsotropicPhase() : 1.0f;
+
+				Color += GetEffectiveSkySHDiffuse(StrataEnvLight.DiffuseNormal) * StrataEnvLight.DiffuseAlbedo * SkyLightCommonFactor * VolumeOnlyFactor;
+			}
+			if (any(StrataEnvLight.SpecularWeight > 0.0f))
 			{
-				const float SafeRoughness = MakeRoughnessSafe(DIFFUSE_ROUGHNESS(BSDF));
-				Color += Diffuse_OrenNayar(DIFFUSE_ALBEDO(BSDF), SafeRoughness, Context.NoV, SatNoL, Context.VoH) * DirLightGeometryFactor;
-
-#if ENABLE_SKY_LIGHT
-				BRANCH
-				if (ReflectionStruct.SkyLightParameters.y > 0)
-				{
-					Color += GetEffectiveSkySHDiffuse(N) * DIFFUSE_ALBEDO(BSDF) * SkyLightCommonFactor; // STRATA_TODO compute SH coefficients for ON
-				}
-#endif
-
-				LayerCoverage	+= BSDFCoverage;
-				LayerThroughput += BSDFCoverage * OpaqueBSDFThroughput;
-				break;
+				float SkyAverageBrightness = 1.0f;
+				Color += GetSkyLightReflection(StrataEnvLight.SpecularDirection, StrataEnvLight.SpecularSafeRoughness, SkyAverageBrightness) * StrataEnvLight.SpecularWeight * SkyLightCommonFactor;
 			}
 
-			case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
-			{
-				const float SafeRoughness = MakeRoughnessSafe(DIFFUSE_ROUGHNESS(BSDF));
-				float a = SafeRoughness * SafeRoughness;
-				float a2 = a * a;
-				Color += Diffuse_Chan(DIFFUSE_ALBEDO(BSDF), a2, Context.NoV, SatNoL, Context.VoH, Context.NoH) * DirLightGeometryFactor;
+			// Evalaute the lighting coming from L (it will lso contain the BSDF throughput to the next layer)
+			FStrataEvaluateResult StrataEvaluate = StrataEvaluateBSDF(StrataBSDFContext);
+			Color += StrataEvaluate.Value * DirLightGeometryFactor;
 
-#if ENABLE_SKY_LIGHT
-				BRANCH
-				if (ReflectionStruct.SkyLightParameters.y > 0)
-				{
-					Color += GetEffectiveSkySHDiffuse(N) * DIFFUSE_ALBEDO(BSDF) * SkyLightCommonFactor; // STRATA_TODO compute SH coefficients for Chan
-				}
-#endif
-				
-				LayerCoverage	+= BSDFCoverage;
-				LayerThroughput += BSDFCoverage * OpaqueBSDFThroughput;
-				break;
-			}
-
-			case STRATA_BSDF_TYPE_DIELECTRIC:
-			{
-				float F0 = DielectricIorToF0(DIELECTRIC_IOR(BSDF));
-
-				const float SafeRoughness = MakeRoughnessSafe(DIELECTRIC_ROUGHNESS(BSDF).x);
-				float a2 = Pow4(SafeRoughness);
-				float Energy = 1.0f; // See EnergyNormalization
-
-				// Generalized microfacet specular
-				float D = D_GGX(a2, Context.NoH) * Energy;
-				float Vis = Vis_SmithJointApprox(a2, Context.NoV, SatNoL);
-				float3 F = F_Schlick(F0, Context.VoH);
-
-				Color += D * Vis * F * DIELECTRIC_TINT(BSDF) * DirLightGeometryFactor;
-
-#if ENABLE_SKY_LIGHT
-				BRANCH
-					if (ReflectionStruct.SkyLightParameters.y > 0)
-					{
-						float3 EvalEnvBRDF = EnvBRDFApprox(F0, SafeRoughness, Context.NoV);
-						float SkyAverageBrightness = 1.0f;
-						Color += GetSkyLightReflection(R, SafeRoughness, SkyAverageBrightness) * EvalEnvBRDF * DIELECTRIC_TINT(BSDF) * SkyLightCommonFactor;
-					}
-#endif
-				
-				LayerCoverage	+= BSDFCoverage;
-				LayerThroughput += BSDFCoverage * (1.0f - F); // STRATA_TODO (Kulla's (1-FDG))
-				break;
-			}
-
-			case STRATA_BSDF_TYPE_CONDUCTOR:
-			{
-				// See SpecularGGX, isotropic verion
-
-				const float SafeRoughness = MakeRoughnessSafe(CONDUCTOR_ROUGHNESS(BSDF).x);
-				float a2 = Pow4(SafeRoughness);
-				float Energy = 1.0f; // See EnergyNormalization
-
-				// Generalized microfacet specular
-				float D = D_GGX(a2, Context.NoH) * Energy;
-				float Vis = Vis_SmithJointApprox(a2, Context.NoV, SatNoL);
-				float3 F = F_Schlick(CONDUCTOR_REFLECTIVITY(BSDF), CONDUCTOR_EDGECOLOR(BSDF), Context.VoH);
-
-				Color += D * Vis * F * DirLightGeometryFactor;
-
-#if ENABLE_SKY_LIGHT
-				//BRANCH
-				if (ReflectionStruct.SkyLightParameters.y > 0)
-				{
-					float3 EvalEnvBRDF = EnvBRDFApprox(CONDUCTOR_REFLECTIVITY(BSDF), CONDUCTOR_EDGECOLOR(BSDF), SafeRoughness, Context.NoV);
-					float SkyAverageBrightness = 1.0f;
-					Color += GetSkyLightReflection(R, SafeRoughness, SkyAverageBrightness) * EvalEnvBRDF * SkyLightCommonFactor;
-				}
-#endif
-				
-				LayerCoverage	+= BSDFCoverage;
-				LayerThroughput += BSDFCoverage * OpaqueBSDFThroughput;
-				break;
-			}
-
-			case STRATA_BSDF_TYPE_VOLUME:
-			{
-				const float3 Albedo = VOLUME_ALBEDO(BSDF);
-				const float3 ExtinctionCoefficients = VOLUME_EXTINCTION(BSDF);
-				const float3 ScatteringCoefficients = Albedo * ExtinctionCoefficients;
-				const float3 AbsorptionCoefficients = ExtinctionCoefficients - ScatteringCoefficients;
-				const float  Thickness = VOLUME_THICKNESS(BSDF);
-				const float  Phase = HenyeyGreensteinPhase(VOLUME_ANISOTROPY(BSDF), Context.VoL);
-
-				const float3 SafeExtinctionThreshold = 0.000001f;
-				const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
-
-				const float PathLength = Thickness / max(0.0001f, abs(Context.NoV));
-				const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
-				const float3 NormLuminanceTransfert = 1.0f * ScatteringCoefficients;
-				float3 NormLuminanceSingleScattering = (NormLuminanceTransfert - NormLuminanceTransfert * SafePathSegmentTransmittance) / SafeExtinctionCoefficients;
-
-#if 1
-				const float3 SelfShadowTransmittance = SatNoL;
-#else
-				const float LightPathLength = Thickness / max(0.0001f, SatNoL);
-				const float3 SelfShadowTransmittance = SatNoL <= 0.0 ? 0.0 : exp(-ExtinctionCoefficients * LightPathLength);
-#endif
-
-				Color += NormLuminanceSingleScattering * Phase * DirLightBaseFactor * SelfShadowTransmittance;
-
-#if ENABLE_SKY_LIGHT
-				//BRANCH
-				if (ReflectionStruct.SkyLightParameters.y > 0)
-				{
-					const float RescaleWithPhase = 2.0f * PI * IsotropicPhase(); // times 2PI to recover luminance, and then times the phase function for the scattering event
-					float3 EvalEnvBRDF = NormLuminanceSingleScattering * RescaleWithPhase;
-					float SafeRoughnessFromG = clamp(1.0 - abs(VOLUME_ANISOTROPY(BSDF)), 0.001, 1.0f); // STRATA_TODO map G to roughness correctly
-					float SkyAverageBrightness = 1.0f;
-					// STRATA_TODO 
-					//	- Using R is weird. We should use V. But for rought material when light is incoming mainly from upper hemisphere, using N would make more send.
-					//	- Then what phase should be used? Phase(VoN)? We need to fund a good mapping on there. 
-					//	- We need to clarify what must be the weight there also (with env light in participating media coming from 2pi). See above attempt RescaleWithPhase.
-					Color += GetSkyLightReflection(R, SafeRoughnessFromG, SkyAverageBrightness) * EvalEnvBRDF * SkyLightCommonFactor;
-				}
-#endif
-
-				LayerCoverage	+= BSDFCoverage;
-				LayerThroughput += BSDFCoverage * SafePathSegmentTransmittance;
-				break;
-			}
-			}
+			LayerCoverage	+= BSDFCoverage;
+			LayerThroughput += BSDFCoverage * StrataEvaluate.Throughput;
 		}
 
 		// Take into account the non covered part for this layer and update throughput accordingly
