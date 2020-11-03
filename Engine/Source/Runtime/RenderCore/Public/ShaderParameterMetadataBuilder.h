@@ -35,7 +35,7 @@ public:
 			TParamTypeInfo::GetStructMetadata()
 			);
 
-		NextMemberOffset += sizeof(TParamTypeInfo::TAlignedType);
+		NextMemberOffset += sizeof(typename TParamTypeInfo::TAlignedType);
 	}
 
 	void AddRDGBufferSRV(
