@@ -92,6 +92,9 @@ class NAVIGATIONSYSTEM_API URecastNavMeshDataChunk : public UNavigationDataChunk
 	/** Const accessor to the list of tiles in the data chunk. */
 	const TArray<FRecastTileData>& GetTiles() const { return Tiles; }
 
+	/** Returns the AABB for the given tiles. */
+	void GetTilesBounds(const FPImplRecastNavMesh& NavMeshImpl, const TArray<int32>& TileIndices, FBox& OutBounds) const;
+
 	/** Mutable accessor to the list of tiles in the data chunk. */
 	TArray<FRecastTileData>& GetMutableTiles() { return Tiles; }
 

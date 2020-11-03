@@ -243,7 +243,7 @@ public:
 	virtual bool ContainsNavData(const FBox& Bounds) const { return false; }
 	virtual void AddNavigationDataChunk(class ANavigationDataChunkActor& DataChunkActor) {}
 	virtual void RemoveNavigationDataChunk(class ANavigationDataChunkActor& DataChunkActor) {}
-	virtual void FillNavigationDataChunkActor(const FBox& Bounds, class ANavigationDataChunkActor& DataChunkActor) {}
+	virtual void FillNavigationDataChunkActor(const FBox& QueryBounds, class ANavigationDataChunkActor& DataChunkActor, FBox& OutTilesBounds) {}
 
 protected:
 	/**	Sets the Transform the Navigation System will use when converting from FromCoordType

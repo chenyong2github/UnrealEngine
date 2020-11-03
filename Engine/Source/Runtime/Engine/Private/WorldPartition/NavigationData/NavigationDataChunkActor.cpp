@@ -54,7 +54,7 @@ void ANavigationDataChunkActor::BeginDestroy()
 }
 #endif // WITH_EDITOR
 
-void ANavigationDataChunkActor::CollectNavData(const FBox& Bounds)
+void ANavigationDataChunkActor::CollectNavData(const FBox& QueryBounds, FBox& OutTilesBounds)
 {
 	Log(ANSI_TO_TCHAR(__FUNCTION__));
 
@@ -63,7 +63,7 @@ void ANavigationDataChunkActor::CollectNavData(const FBox& Bounds)
 	{
 		if (UNavigationSystemBase* NavSys = World->GetNavigationSystem())
 		{
-			NavSys->FillNavigationDataChunkActor(Bounds, *this);
+			NavSys->FillNavigationDataChunkActor(QueryBounds, *this, OutTilesBounds);
 		}
 	}
 }

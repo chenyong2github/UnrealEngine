@@ -759,7 +759,7 @@ public:
 	/** Called on world origin changes **/
 	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 
-	virtual void FillNavigationDataChunkActor(const FBox& InBounds, class ANavigationDataChunkActor& DataChunkActor) const override;
+	virtual void FillNavigationDataChunkActor(const FBox& InQueryBounds, class ANavigationDataChunkActor& DataChunkActor, FBox& OutTilesBounds) const override;
 
 	virtual void OnStreamingNavDataAdded(class ANavigationDataChunkActor& InActor) override;
 	virtual void OnStreamingNavDataRemoved(class ANavigationDataChunkActor& InActor) override;

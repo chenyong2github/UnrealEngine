@@ -1868,13 +1868,13 @@ void UNavigationSystemV1::RemoveNavigationDataChunk(ANavigationDataChunkActor& D
 	}
 }
 
-void UNavigationSystemV1::FillNavigationDataChunkActor(const FBox& Bounds, ANavigationDataChunkActor& DataChunkActor)
+void UNavigationSystemV1::FillNavigationDataChunkActor(const FBox& QueryBounds, ANavigationDataChunkActor& DataChunkActor, FBox& OutTilesBounds)
 {
 	for (const ANavigationData* NavData : NavDataSet)
 	{
 		if (NavData)
 		{
-			NavData->FillNavigationDataChunkActor(Bounds, DataChunkActor);
+			NavData->FillNavigationDataChunkActor(QueryBounds, DataChunkActor, OutTilesBounds);
 		}
 	}
 }

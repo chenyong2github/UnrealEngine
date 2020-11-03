@@ -587,7 +587,7 @@ public:
 	virtual bool ContainsNavData(const FBox& Bounds) const override;
 	virtual void AddNavigationDataChunk(class ANavigationDataChunkActor& DataChunkActor) override;
 	virtual void RemoveNavigationDataChunk(class ANavigationDataChunkActor& DataChunkActor) override;
-	virtual void FillNavigationDataChunkActor(const FBox& Bounds, class ANavigationDataChunkActor& DataChunkActor) override;
+	virtual void FillNavigationDataChunkActor(const FBox& QueryBounds, class ANavigationDataChunkActor& DataChunkActor, FBox& OutTilesBounds) override;
 
 	ANavigationData* GetDefaultNavDataInstance() const { return MainNavData; }
 

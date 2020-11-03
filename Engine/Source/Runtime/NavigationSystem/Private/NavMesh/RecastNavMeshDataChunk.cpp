@@ -437,3 +437,18 @@ void URecastNavMeshDataChunk::GetTiles(const FPImplRecastNavMesh* NavMeshImpl, c
 		}
 	}
 }
+
+void URecastNavMeshDataChunk::GetTilesBounds(const FPImplRecastNavMesh& NavMeshImpl, const TArray<int32>& TileIndices, FBox& OutBounds) const
+{
+	OutBounds.Init();
+	const dtNavMesh* NavMesh = NavMeshImpl.DetourNavMesh;
+
+	for (const int32 TileIdx : TileIndices)
+	{
+		const dtMeshTile* Tile = NavMesh->getTile(TileIdx);
+		if (Tile && Tile->header)
+		{
+			OutBounds += Recast2UnrealBox(Tile->header->bmin, Tile->header->bmax);
+		}
+	}
+}

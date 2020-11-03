@@ -2092,13 +2092,13 @@ void ARecastNavMesh::ApplyWorldOffset(const FVector& InOffset, bool bWorldShift)
 	RequestDrawingUpdate();
 }
 
-void ARecastNavMesh::FillNavigationDataChunkActor(const FBox& Bounds, ANavigationDataChunkActor& DataChunkActor) const
+void ARecastNavMesh::FillNavigationDataChunkActor(const FBox& QueryBounds, ANavigationDataChunkActor& DataChunkActor, FBox& OutTilesBounds) const
 {
 	if (RecastNavMeshImpl)
 	{
-		UE_LOG(LogNavigation, Verbose, TEXT("%s Bounds pos: (%s)  size: (%s)."), ANSI_TO_TCHAR(__FUNCTION__), *Bounds.GetCenter().ToString(), *Bounds.GetSize().ToString());
+		UE_LOG(LogNavigation, Verbose, TEXT("%s Bounds pos: (%s)  size: (%s)."), ANSI_TO_TCHAR(__FUNCTION__), *QueryBounds.GetCenter().ToString(), *QueryBounds.GetSize().ToString());
 
-		const TArray<FBox> Boxes({ Bounds });
+		const TArray<FBox> Boxes({ QueryBounds });
 		TArray<int32> TileIndices;
 		RecastNavMeshImpl->GetNavMeshTilesIn(Boxes, TileIndices);
 		if (!TileIndices.IsEmpty())
@@ -2109,6 +2109,7 @@ void ARecastNavMesh::FillNavigationDataChunkActor(const FBox& Bounds, ANavigatio
 			DataChunkActor.GetMutableNavDataChunk().Add(DataChunk);
 
 			DataChunk->GetTiles(RecastNavMeshImpl, TileIndices, EGatherTilesCopyMode::CopyData);
+			DataChunk->GetTilesBounds(*RecastNavMeshImpl, TileIndices, OutTilesBounds);
 		}
 	}
 }

@@ -587,7 +587,7 @@ public:
 	virtual bool SupportsStreaming() const;
 	virtual void OnNavigationBoundsChanged();
 
-	virtual void FillNavigationDataChunkActor(const FBox& Bounds, class ANavigationDataChunkActor& DataChunkActor) const {};
+	virtual void FillNavigationDataChunkActor(const FBox& QueryBounds, class ANavigationDataChunkActor& DataChunkActor, FBox& OutTilesBounds) const {};
 	virtual void OnStreamingNavDataAdded(class ANavigationDataChunkActor& InActor) {};
 	virtual void OnStreamingNavDataRemoved(class ANavigationDataChunkActor& InActor) {};
 	

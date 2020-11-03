@@ -24,7 +24,7 @@ public:
 	const TArray<UNavigationDataChunk*>& GetNavDataChunk() const { return NavDataChunks; }
 	TArray<UNavigationDataChunk*>& GetMutableNavDataChunk() { return NavDataChunks; }
 
-	void CollectNavData(const FBox& Bounds);
+	void CollectNavData(const FBox& QueryBounds, FBox& OutTilesBounds);
 
 #if WITH_EDITOR
 	void SetDataChunkActorBounds(const FBox& InBounds);
