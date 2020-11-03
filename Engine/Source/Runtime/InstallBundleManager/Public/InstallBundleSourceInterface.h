@@ -103,7 +103,7 @@ public:
 	virtual bool CancelRequestRemoveContentOnNextInit(TArrayView<const FName> BundleNames) { return false; }
 
 	// Cancel the install for the specified bundles
-	virtual void CancelBundles(TArrayView<const FName> BundleNames, EInstallBundleCancelFlags Flags) {}
+	virtual void CancelBundles(TArrayView<const FName> BundleNames) {}
 
 	// User Pause/Resume bundles.
 	virtual void UserPauseBundles(TArrayView<const FName> BundleNames) {}
