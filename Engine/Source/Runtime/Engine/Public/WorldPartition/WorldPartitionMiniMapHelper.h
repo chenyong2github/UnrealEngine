@@ -9,13 +9,13 @@
 #pragma once
 
 #if WITH_EDITOR
+#include "Math/Box.h"
+#include "Math/Matrix.h"
+
 class AWorldPartitionMiniMap;
 class UWorld;
 class UTexture2D;
 class AActor;
-
-#include "Math/Box.h"
-#include "Math/Matrix.h"
 
 class ENGINE_API FWorldPartitionMiniMapHelper
 {
