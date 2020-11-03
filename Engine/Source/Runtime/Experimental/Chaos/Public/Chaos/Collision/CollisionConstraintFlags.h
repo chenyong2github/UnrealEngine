@@ -6,6 +6,7 @@
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
+#include "Containers/Queue.h"
 
 namespace Chaos
 {
