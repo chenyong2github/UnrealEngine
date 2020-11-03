@@ -118,7 +118,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		if (bIsValidPixel)
 		{
 			TraceDeferredMaterialGatherRay(TLAS,
-				RAY_FLAG_FORCE_OPAQUE, // Masked and transparent materials are currently not supported
+				RAY_FLAG_FORCE_OPAQUE,
 				RAY_TRACING_MASK_OPAQUE,
 				Ray,
 				Bookmark,
@@ -170,15 +170,9 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		}
 		PackedPayload.SetPixelCoord(PixelPos);
 
-		uint RayFlags = 0;
-		if (ReflectionRay.Roughness >= AnyHitMaxRoughness)
-		{
-			RayFlags |= RAY_FLAG_FORCE_OPAQUE;
-		}
-
 		TraceDeferredMaterialShadingRay(
 			TLAS,
-			RayFlags,
+			RAY_FLAG_FORCE_OPAQUE,
 			RAY_TRACING_MASK_OPAQUE,
 			Ray,
 			Bookmark,
@@ -190,7 +184,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		// we can trace another ray that performs full traversal and masked material evaluation.
 		// The assumption here is that majority of the rays will actually hit opaque surfaces and
 		// the win from skipping AHS invocations during initial traversal will lead to overall win on average.
-		if (!PackedPayload.IsHit())
+		if ((!PackedPayload.IsHit() || PackedPayload.GetOpacity() == 0) 
+			&& ReflectionRay.Roughness <= AnyHitMaxRoughness)
 		{
 			FRayCone RayCone = (FRayCone)0;
 			TraceMaterialRayPacked(
