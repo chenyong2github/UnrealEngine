@@ -8,7 +8,7 @@ namespace UnrealBuildTool.Rules
 	{
 		public InterchangeFbxParser(ReadOnlyTargetRules Target) : base(Target)
 		{
-			//bEnableExceptions = true;
+			bEnableExceptions = true;
 			
             PublicDependencyModuleNames.AddRange(
 				new string[]
