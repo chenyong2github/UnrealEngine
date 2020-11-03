@@ -109,10 +109,10 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 			}
 			else if (TransitionType == EBlendListTransitionType::Inertialization)
 			{
-				FAnimNode_Inertialization* InertializationNode = Context.GetAncestor<FAnimNode_Inertialization>();
-				if (InertializationNode)
+				UE::Anim::IInertializationRequester* InertializationRequester = Context.GetMessage<UE::Anim::IInertializationRequester>();
+				if (InertializationRequester)
 				{
-					InertializationNode->RequestInertialization(BlendTime[ChildIndex]);
+					InertializationRequester->RequestInertialization(BlendTime[ChildIndex]);
 				}
 				else
 				{

@@ -29,9 +29,9 @@ void FAnimNode_LinkedInputPose::Update_AnyThread(const FAnimationUpdateContext& 
 	if(InputProxy)
 	{
 		FAnimationUpdateContext InputContext = Context.WithOtherProxy(InputProxy);
-#if ANIM_NODE_IDS_AVAILABLE
+
 		InputContext = InputContext.WithNodeId(OuterGraphNodeIndex);
-#endif
+
 		InputPose.Update(InputContext);
 	}
 }

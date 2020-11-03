@@ -105,7 +105,7 @@ void FAnimNode_BlendSpacePlayer::UpdateInternal(const FAnimationUpdateContext& C
 
 		TRACE_ANIM_TICK_RECORD(Context, TickRecord);
 
-#if ANIM_NODE_IDS_AVAILABLE && WITH_EDITORONLY_DATA
+#if WITH_EDITORONLY_DATA
 		if (FAnimBlueprintDebugData* DebugData = Context.AnimInstanceProxy->GetAnimBlueprintDebugData())
 		{
 			DebugData->RecordBlendSpacePlayer(Context.GetCurrentNodeId(), BlendSpace, BlendInput.X, BlendInput.Y, BlendInput.Z);

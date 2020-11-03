@@ -145,10 +145,8 @@ void FAnimNode_SkeletalControlBase::EvaluateComponentSpace_AnyThread(FComponentS
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateComponentSpace_AnyThread)
 
-#if ANIM_NODE_IDS_AVAILABLE
 	// Cache the incoming node IDs in a base context
 	FAnimationBaseContext CachedContext(Output);
-#endif
 
 	EvaluateComponentPose_AnyThread(Output);
 
@@ -165,9 +163,7 @@ void FAnimNode_SkeletalControlBase::EvaluateComponentSpace_AnyThread(FComponentS
 	// Apply the skeletal control if it's valid
 	if (FAnimWeight::IsRelevant(ActualAlpha) && IsValidToEvaluate(Output.AnimInstanceProxy->GetSkeleton(), Output.AnimInstanceProxy->GetRequiredBones()))
 	{
-#if ANIM_NODE_IDS_AVAILABLE
 		Output.SetNodeIds(CachedContext);
-#endif
 
 		EvaluateComponentSpaceInternal(Output);
 

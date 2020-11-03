@@ -1280,12 +1280,12 @@ void FAnimInstanceProxy::UpdateAnimation()
 
 	FAnimationUpdateSharedContext SharedContext;
 	FAnimationUpdateContext Context(this, CurrentDeltaSeconds, &SharedContext);
-#if ANIM_NODE_IDS_AVAILABLE
+
 	if(AnimClassInterface && AnimClassInterface->GetAnimBlueprintFunctions().Num() > 0)
 	{
 		Context = Context.WithNodeId(AnimClassInterface->GetAnimBlueprintFunctions()[0].OutputPoseNodeIndex);
 	}
-#endif
+
 	UpdateAnimation_WithRoot(Context, RootNode, NAME_AnimGraph);
 }
 
@@ -1471,12 +1471,10 @@ void FAnimInstanceProxy::EvaluateAnimationNode_WithRoot(FPoseContext& Output, FA
 			EvaluationCounter.Increment();
 		}
 
-#if ANIM_NODE_IDS_AVAILABLE
 		if(AnimClassInterface && AnimClassInterface->GetAnimBlueprintFunctions().Num() > 0)
 		{
 			Output.SetNodeId(AnimClassInterface->GetAnimBlueprintFunctions()[0].OutputPoseNodeIndex);
 		}
-#endif
 
 		TRACE_SCOPED_ANIM_NODE(Output);
 

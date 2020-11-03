@@ -8,7 +8,32 @@
 #include "Animation/AnimCurveTypes.h"
 #include "BonePose.h"
 #include "Animation/AnimNodeBase.h"
+#include "Animation/AnimNodeMessages.h"
 #include "AnimNode_SaveCachedPose.generated.h"
+
+namespace UE { namespace Anim {
+
+// Event that can be subscribed to receive skipped updates when a cached pose is run.
+// When a cached pose update call executes the link with the maximum weight, this event receives information about
+// the other links with lesser weights
+class ENGINE_API FCachedPoseSkippedUpdateHandler : public IGraphMessage
+{
+	DECLARE_ANIMGRAPH_MESSAGE(FCachedPoseSkippedUpdateHandler);
+
+public:
+	FCachedPoseSkippedUpdateHandler(TUniqueFunction<void(TArrayView<const FMessageStack>)> InFunction)
+		: Function(MoveTemp(InFunction))
+	{}
+
+	// Called when there are Update() calls that were skipped due to pose caching. 
+	void OnUpdatesSkipped(TArrayView<const FMessageStack> InSkippedUpdates) { Function(InSkippedUpdates); }
+
+private:
+	// Function to call
+	TUniqueFunction<void(TArrayView<const FMessageStack>)> Function;
+};
+
+}}	// namespace UE::Anim
 
 USTRUCT(BlueprintInternalUseOnly)
 struct ENGINE_API FAnimNode_SaveCachedPose : public FAnimNode_Base

@@ -3,9 +3,12 @@
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimNodeMessages.h"
+#include "Animation/AnimNode_SaveCachedPose.h"
 
 #define LOCTEXT_NAMESPACE "AnimNode_Inertialization"
 
+IMPLEMENT_ANIMGRAPH_MESSAGE(UE::Anim::IInertializationRequester);
 
 TAutoConsoleVariable<int32> CVarAnimInertializationEnable(TEXT("a.AnimNode.Inertialization.Enable"), 1, TEXT("Enable / Disable Inertialization"));
 TAutoConsoleVariable<int32> CVarAnimInertializationIgnoreVelocity(TEXT("a.AnimNode.Inertialization.IgnoreVelocity"), 0, TEXT("Ignore velocity information during Inertialization (effectively reverting to a quintic diff blend)"));
@@ -15,6 +18,25 @@ TAutoConsoleVariable<int32> CVarAnimInertializationIgnoreDeficit(TEXT("a.AnimNod
 static constexpr int32 INERTIALIZATION_MAX_POSE_SNAPSHOTS = 2;
 static constexpr float INERTIALIZATION_TIME_EPSILON = 1.0e-7f;
 
+namespace UE { namespace Anim {
+
+// Inertialization request event bound to a node
+class FInertializationRequester : public IInertializationRequester
+{
+public:
+	FInertializationRequester(FAnimNode_Inertialization* InNode)
+		: Node(*InNode)
+	{}
+
+private:
+	// IInertializationRequester interface
+	virtual void RequestInertialization(float InRequestedDuration) { Node.RequestInertialization(InRequestedDuration); }
+
+	// Node to target
+	FAnimNode_Inertialization& Node;
+};
+
+}}	// namespace UE::Anim
 
 FAnimNode_Inertialization::FAnimNode_Inertialization()
 	: DeltaTime(0.0f)
@@ -81,7 +103,30 @@ void FAnimNode_Inertialization::Update_AnyThread(const FAnimationUpdateContext& 
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread);
 
-	FScopedAnimNodeTracker Tracked = Context.TrackAncestor(this);
+	// Allow nodes further towards the leaves to inertialize using this node
+	UE::Anim::TScopedGraphMessage<UE::Anim::FInertializationRequester> Inertialization(Context, this);
+
+	// Handle skipped updates for cached poses by forwarding to inertialization nodes in those residual stacks
+	UE::Anim::TScopedGraphMessage<UE::Anim::FCachedPoseSkippedUpdateHandler> CachedPoseSkippedUpdate(Context, [this](TArrayView<const UE::Anim::FMessageStack> InSkippedUpdates)
+	{
+		// If we have a pending request forward the request to other Inertialization nodes
+		// that were skipped due to pose caching.
+		if(RequestedDuration >= 0.0f)
+		{
+			// Cached poses have their Update function called once even though there may be multiple UseCachedPose nodes for the same pose.
+			// Because of this, there may be Inertialization ancestors of the UseCachedPose nodes that missed out on requests.
+			// So here we forward 'this' node's requests to the ancestors of those skipped UseCachedPose nodes.
+			for (const UE::Anim::FMessageStack& Stack : InSkippedUpdates)
+			{
+				Stack.ForEachMessage<UE::Anim::IInertializationRequester>([this](UE::Anim::IInertializationRequester& InMessage)
+				{
+					InMessage.RequestInertialization(RequestedDuration);
+
+					return UE::Anim::FMessageStack::EEnumerate::Stop;
+				});
+			}
+		}
+	});
 
 	Source.Update(Context);
 
@@ -284,30 +329,6 @@ void FAnimNode_Inertialization::ResetDynamics(ETeleportType InTeleportType)
 	if (InTeleportType > TeleportType)
 	{
 		TeleportType = InTeleportType;
-	}
-}
-
-
-bool FAnimNode_Inertialization::WantsSkippedUpdates() const
-{
-	// We want to receive an OnUpdatesSkipped callback if we have a pending request.
-	// This will give us a chance to forward the request to other Inertialization nodes
-	// that were skipped due to pose caching.
-	return RequestedDuration >= 0.0f;
-}
-
-
-void FAnimNode_Inertialization::OnUpdatesSkipped(TArrayView<const FAnimationUpdateContext*> SkippedUpdateContexts)
-{
-	// Cached poses have their Update function called once even though there may be multiple UseCachedPose nodes for the same pose.
-	// Because of this, there may be Inertialization ancestors of the UseCachedPose nodes that missed out on requests.
-	// So here we forward 'this' node's requests to the ancestors of those skipped UseCachedPose nodes.
-	for (const FAnimationUpdateContext* Update : SkippedUpdateContexts)
-	{
-		if (FAnimNode_Inertialization* OtherIneritalizationNode = Update->GetAncestor<FAnimNode_Inertialization>())
-		{
-			OtherIneritalizationNode->RequestInertialization(RequestedDuration);
-		}
 	}
 }
 

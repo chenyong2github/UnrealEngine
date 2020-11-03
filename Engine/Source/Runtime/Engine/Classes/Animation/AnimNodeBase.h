@@ -16,6 +16,7 @@
 #include "Animation/AnimationPoseData.h"
 #include "UObject/FieldPath.h"
 #include "CustomAttributesRuntime.h"
+#include "Animation/AnimNodeMessages.h"
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
 #include "UObject/UndefineUPropertyMacros.h"
@@ -24,8 +25,6 @@
 
 #define DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Method) \
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-#define ANIM_NODE_IDS_AVAILABLE	(ANIM_TRACE_ENABLED || WITH_EDITORONLY_DATA)
 
 class IAnimClassInterface;
 class UAnimBlueprint;
@@ -36,6 +35,7 @@ class UProperty;
 struct FPropertyAccessLibrary;
 
 /**
+ * DEPRECATED - This system is now supplanted by UE::Anim::FMessageStack
  * Utility container for tracking a stack of ancestor nodes by node type during graph traversal
  * This is not an exhaustive list of all visited ancestors. During Update nodes must call
  * FAnimationUpdateContext::TrackAncestor() to appear in the tracker.
@@ -99,7 +99,7 @@ struct FAnimNodeTracker
 };
 
 
-/** Helper RAII object to cleanup a node added to the node tracker */
+/** DEPRECATED - This system is now supplanted by UE::Anim::FMessageStack - Helper RAII object to cleanup a node added to the node tracker */
 class FScopedAnimNodeTracker
 {
 public:
@@ -127,11 +127,24 @@ private:
 /** Persistent state shared during animation tree update  */
 struct FAnimationUpdateSharedContext
 {
+	FAnimationUpdateSharedContext() = default;
+
+	// Non-copyable
+	FAnimationUpdateSharedContext(FAnimationUpdateSharedContext& ) = delete;
+	FAnimationUpdateSharedContext& operator=(const FAnimationUpdateSharedContext&) = delete;
+
+	UE_DEPRECATED(5.0, "Please use the message & tagging system in UE::Anim::FMessageStack")
 	FAnimNodeTracker AncestorTracker;
 
-	void CopyForCachedUpdate(const FAnimationUpdateSharedContext& Source)
+	// Message stack used for storing scoped messages and tags during execution
+	UE::Anim::FMessageStack MessageStack;
+
+	void CopyForCachedUpdate(FAnimationUpdateSharedContext& Source)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		AncestorTracker.CopyTopsOnly(Source.AncestorTracker);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		MessageStack.CopyForCachedUpdate(Source.MessageStack);
 	}
 };
 
@@ -167,6 +180,7 @@ public:
 #endif //WITH_EDITORONLY_DATA
 
 	template<typename NodeType>
+	UE_DEPRECATED(5.0, "Please use the message & tagging system in UE::Anim::FMessageStack")
 	FScopedAnimNodeTracker TrackAncestor(NodeType* Node) const {
 		if (ensure(SharedContext != nullptr))
 		{
@@ -178,6 +192,7 @@ public:
 	}
 
 	template<typename NodeType>
+	UE_DEPRECATED(5.0, "Please use the message & tagging system in UE::Anim::FMessageStack")
 	NodeType* GetAncestor() const {
 		if (ensure(SharedContext != nullptr))
 		{
@@ -188,7 +203,43 @@ public:
 		return nullptr;
 	}
 
-#if ANIM_NODE_IDS_AVAILABLE
+	// Get the innermost scoped message of the specified type
+	template<typename TGraphMessageType>
+	TGraphMessageType* GetMessage() const
+	{
+		if (ensure(SharedContext != nullptr))
+		{
+			TGraphMessageType* Message = nullptr;
+
+			SharedContext->MessageStack.TopMessage<TGraphMessageType>([&Message](TGraphMessageType& InMessage)
+			{
+				Message = &InMessage;
+			});
+
+			return Message;
+		}
+		
+		return nullptr;
+	}
+	
+	// Get the innermost scoped message of the specified type
+	template<typename TGraphMessageType>
+	TGraphMessageType& GetMessageChecked() const
+	{
+		check(SharedContext != nullptr);
+
+		TGraphMessageType* Message = nullptr;
+
+		SharedContext->MessageStack.TopMessage<TGraphMessageType>([&Message](TGraphMessageType& InMessage)
+		{
+			Message = &InMessage;
+		});
+
+		check(Message != nullptr);
+
+		return *Message;
+	}
+	
 	// Get the current node Id, set when we recurse into graph traversal functions from pose links
 	ENGINE_API int32 GetCurrentNodeId() const { return CurrentNodeId; }
 
@@ -201,7 +252,6 @@ protected:
 
 	// The previous node ID, set when we recurse into graph traversal functions from pose links
 	int32 PreviousNodeId;
-#endif // ANIM_NODE_IDS_AVAILABLE
 
 protected:
 
@@ -328,7 +378,6 @@ public:
 		return Result;
 	}
 
-#if ANIM_NODE_IDS_AVAILABLE
 	FAnimationUpdateContext WithNodeId(int32 InNodeId) const
 	{ 
 		FAnimationUpdateContext Result(*this);
@@ -336,7 +385,6 @@ public:
 		Result.CurrentNodeId = InNodeId;
 		return Result; 
 	}
-#endif
 
 	// Returns persistent state that is tracked through animation tree update
 	FAnimationUpdateSharedContext* GetSharedContext() const
@@ -383,13 +431,10 @@ public:
 	{
 		Initialize(SourceContext.AnimInstanceProxy);
 
-#if ANIM_NODE_IDS_AVAILABLE
 		CurrentNodeId = SourceContext.CurrentNodeId;
 		PreviousNodeId = SourceContext.PreviousNodeId;
-#endif
 	}
 
-#if ANIM_NODE_IDS_AVAILABLE
 	void SetNodeId(int32 InNodeId)
 	{ 
 		PreviousNodeId = CurrentNodeId;
@@ -401,7 +446,6 @@ public:
 		CurrentNodeId = InContext.GetCurrentNodeId();
 		PreviousNodeId = InContext.GetPreviousNodeId();
 	}
-#endif
 
 	ENGINE_API void Initialize(FAnimInstanceProxy* InAnimInstanceProxy);
 
@@ -481,13 +525,10 @@ public:
 	{
 		// No need to initialize, done through FA2CSPose::AllocateLocalPoses
 
-#if ANIM_NODE_IDS_AVAILABLE
 		CurrentNodeId = SourceContext.CurrentNodeId;
 		PreviousNodeId = SourceContext.PreviousNodeId;
-#endif
 	}
 
-#if ANIM_NODE_IDS_AVAILABLE
 	void SetNodeId(int32 InNodeId)
 	{ 
 		PreviousNodeId = CurrentNodeId;
@@ -499,7 +540,6 @@ public:
 		CurrentNodeId = InContext.GetCurrentNodeId();
 		PreviousNodeId = InContext.GetPreviousNodeId();
 	}
-#endif
 
 	ENGINE_API void ResetToRefPose();
 
@@ -888,18 +928,6 @@ struct ENGINE_API FAnimNode_Base
 	/** Called to help dynamics-based updates to recover correctly from large movements/teleports */
 	virtual void ResetDynamics(ETeleportType InTeleportType);
 
-	/**
-	 * Override this if your node uses ancestor tracking and wants to be informed of Update() calls
-	 * that were skipped due to pose caching.
-	 */
-	virtual bool WantsSkippedUpdates() const { return false; }
-	
-	/**
-	 * Called on a tracked ancestor node when there are Update() calls that were skipped due to pose 
-	 * caching. Your node must implement WantsSkippedUpdates to receive this callback.
-	 */
-	virtual void OnUpdatesSkipped(TArrayView<const FAnimationUpdateContext*> SkippedUpdateContexts) {}
-
 	/** Called after compilation */
 	virtual void PostCompile(const class USkeleton* InSkeleton) {}
 
@@ -925,6 +953,10 @@ struct ENGINE_API FAnimNode_Base
 	virtual void EvaluateComponentSpace(FComponentSpacePoseContext& Output) { check(false); }
 	UE_DEPRECATED(4.20, "Please use ResetDynamics with an ETeleportPhysics flag instead")
 	virtual void ResetDynamics() {}
+	UE_DEPRECATED(5.0, "Please use IGraphMessage instead")
+	virtual bool WantsSkippedUpdates() const { return false; }
+	UE_DEPRECATED(5.0, "Please use IGraphMessage instead")
+	virtual void OnUpdatesSkipped(TArrayView<const FAnimationUpdateContext*> SkippedUpdateContexts) {}
 
 	// The default handler for graph-exposed inputs:
 	const FExposedValueHandler& GetEvaluateGraphExposedInputs();

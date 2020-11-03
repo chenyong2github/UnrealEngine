@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimCurveTypes.h"
+#include "Animation/AnimNodeMessages.h"
 #include "AnimNode_Inertialization.generated.h"
 
 
@@ -16,6 +17,21 @@
 // https://www.gdcvault.com/play/1025165/Inertialization
 // https://www.gdcvault.com/play/1025331/Inertialization
 
+
+namespace UE { namespace Anim {
+
+// Event that can be subscribed to request inertialization-based blends
+class ENGINE_API IInertializationRequester : public IGraphMessage
+{
+	DECLARE_ANIMGRAPH_MESSAGE(IInertializationRequester);
+
+public:
+	// Request to activate inertialization for a duration.
+	// If multiple requests are made on the same inertialization node, the minimum requested time will be used.
+	virtual void RequestInertialization(float InRequestedDuration) = 0;
+};
+
+}}	// namespace UE::Anim
 
 UENUM()
 enum class EInertializationState : uint8
@@ -232,10 +248,6 @@ public: // FAnimNode_Base
 
 	virtual bool NeedsDynamicReset() const override;
 	virtual void ResetDynamics(ETeleportType InTeleportType) override;
-
-	virtual bool WantsSkippedUpdates() const override;
-	virtual void OnUpdatesSkipped(TArrayView<const FAnimationUpdateContext *> SkippedUpdateContexts) override;
-
 
 protected:
 

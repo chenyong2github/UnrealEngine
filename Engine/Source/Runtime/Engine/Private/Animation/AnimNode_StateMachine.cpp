@@ -522,10 +522,10 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 
 				if (ReferenceTransition.LogicType == ETransitionLogicType::TLT_Inertialization)
 				{
-					FAnimNode_Inertialization* InertializationNode = Context.GetAncestor<FAnimNode_Inertialization>();
-					if (InertializationNode)
+					UE::Anim::IInertializationRequester* InertializationRequester = Context.GetMessage<UE::Anim::IInertializationRequester>();
+					if (InertializationRequester)
 					{
-						InertializationNode->RequestInertialization(ReferenceTransition.CrossfadeDuration);
+						InertializationRequester->RequestInertialization(ReferenceTransition.CrossfadeDuration);
 					}
 					else
 					{

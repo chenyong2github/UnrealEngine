@@ -111,9 +111,9 @@ void FAnimNode_LinkedAnimGraph::Update_AnyThread(const FAnimationUpdateContext& 
 		// in USkeletalMeshComponent::TickAnimation. It used to be the case that we could do non-parallel work in 
 		// USkeletalMeshComponent::TickAnimation, which would mean we would have to skip doing that work here.
 		FAnimationUpdateContext NewContext = InContext.WithOtherProxy(&Proxy);
- #if ANIM_NODE_IDS_AVAILABLE
+
 		NewContext = NewContext.WithNodeId(CachedLinkedNodeIndex);
- #endif
+
 		Proxy.UpdateAnimation_WithRoot(NewContext, LinkedRoot, GetDynamicLinkFunctionName());
 	}
 	else if(InputPoses.Num() > 0)
@@ -126,10 +126,10 @@ void FAnimNode_LinkedAnimGraph::Update_AnyThread(const FAnimationUpdateContext& 
 	// Consume pending inertial blend request
 	if(PendingBlendDuration >= 0.0f)
 	{
-		FAnimNode_Inertialization* InertializationNode = InContext.GetAncestor<FAnimNode_Inertialization>();
-		if(InertializationNode)
+		UE::Anim::IInertializationRequester* InertializationRequester = InContext.GetMessage<UE::Anim::IInertializationRequester>();
+		if(InertializationRequester)
 		{
-			InertializationNode->RequestInertialization(PendingBlendDuration);
+			InertializationRequester->RequestInertialization(PendingBlendDuration);
 		}
 		else if ((PendingBlendDuration != 0.0f) && (InputPoses.Num() > 0))
 		{
