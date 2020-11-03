@@ -2360,7 +2360,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 	// TODO: if we need this emulation feature by going through the view we can probably pass in the shader map as part of the context and get it out of the view at context-creation time
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
-	const bool bMultiView = Views.Num() > 1;
+	const bool bMultiView = Views.Num() > 1 || VirtualShadowMapArray != nullptr;
 
 	FRDGBufferRef PageFlags = nullptr;
 	FRDGBufferRef HPageFlags = nullptr;
@@ -2719,7 +2719,7 @@ void AddPass_Rasterize(
 	const ERasterTechnique Technique = RasterContext.RasterTechnique;
 	const ERasterScheduling Scheduling = RasterContext.RasterScheduling;
 	const bool bNearClip = RasterState.bNearClip;
-	const bool bMultiView = Views.Num() > 1;
+	const bool bMultiView = Views.Num() > 1 || VirtualShadowMapArray != nullptr;
 
 
 	FIntRect ViewRect(Views[0].ViewRect.X, Views[0].ViewRect.Y, Views[0].ViewRect.Z, Views[0].ViewRect.W);

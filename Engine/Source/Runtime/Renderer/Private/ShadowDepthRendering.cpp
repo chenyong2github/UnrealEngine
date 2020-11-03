@@ -1713,7 +1713,10 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder)
 
 							// TODO: Clean this up - could be stored in a single structure for the whole clipmap
 							int32 AbsoluteClipmapLevel = Clipmap->GetClipmapLevel(ClipmapLevelIndex);		// NOTE: Can be negative!
-							int32 HZBKey = Clipmap->GetLightSceneInfo().Id;
+							int32 ClipmapLevelKey = AbsoluteClipmapLevel + 128;
+							check(ClipmapLevelKey > 0 && ClipmapLevelKey < 256);
+
+							int32 HZBKey = Clipmap->GetLightSceneInfo().Id + (ClipmapLevelKey << 24);
 							FVirtualShadowMapHZBMetadata& PrevHZB = CacheManager->HZBMetadata.FindOrAdd(HZBKey);
 							if (PrevHZB.FrameNumber == CachedFrameNumber)
 							{
