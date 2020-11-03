@@ -333,6 +333,10 @@ private:
 	friend class UVolumeTexture;
 	friend class UTexture2DArray;
 
+#if WITH_EDITOR
+	/** Protects simultaneous access to BulkData */
+	FRWLock       BulkDataLock;
+#endif
 	/** The bulk source data. */
 	FByteBulkData BulkData;
 	/** Pointer to locked mip data, if any. */
