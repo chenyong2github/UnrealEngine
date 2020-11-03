@@ -7,7 +7,7 @@
 
 void FDisplayClusterConfiguratorCommands::RegisterCommands()
 {
-	UI_COMMAND(Import, "Import", "Imposrt nDisplay Config", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(Import, "Import", "Import nDisplay Config", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(SaveToFile, "SaveToFile", "Save With Open File Dialog", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(EditConfig, "EditConfig", "Edit config file with text editor", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ToggleWindowInfo, "Show Window Info", "Enables or disables showing the window information", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::W));
