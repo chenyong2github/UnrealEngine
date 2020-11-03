@@ -512,8 +512,8 @@ namespace Chaos
 						}
 
 						// Erase the second plane
-						InOutPlanes.RemoveAtSwap(PlaneIndex1);
-						InOutFaceVertexIndices.RemoveAtSwap(PlaneIndex1);
+						InOutPlanes.RemoveAtSwap(PlaneIndex1, 1, false);
+						InOutFaceVertexIndices.RemoveAtSwap(PlaneIndex1, 1, false);
 						--PlaneIndex1;
 					}
 				}
