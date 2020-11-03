@@ -25,17 +25,20 @@ struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be su
 	virtual void FinalizeSync() override;
 
 private:
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Sync data for updating physx sim result */
 	TMap<TWeakObjectPtr<UDestructibleComponent>, TArray<FUpdateChunksInfo> > ComponentUpdateMapping;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 
 struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.") FApexDestructionCustomPayload : public FCustomPhysXPayload
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FApexDestructionCustomPayload()
 		: FCustomPhysXPayload(SingletonCustomSync)
 	{
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual TWeakObjectPtr<UPrimitiveComponent> GetOwningComponent() const override;
 
@@ -52,7 +55,10 @@ struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be su
 
 private:
 	friend class FApexDestructionModule;
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	static FApexDestructionSyncActors* SingletonCustomSync;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 
 #endif // WITH_APEX
