@@ -114,7 +114,7 @@ FReflectionCaptureMapBuildData* UReflectionCaptureComponent::GetMapBuildData() c
 			{
 				FReflectionCaptureMapBuildData* ReflectionBuildData = MapBuildData->GetReflectionCaptureBuildData(MapBuildDataId);
 
-				if (ReflectionBuildData && ReflectionBuildData->CubemapSize == UReflectionCaptureComponent::GetReflectionCaptureSize())
+				if (ReflectionBuildData && (ReflectionBuildData->CubemapSize == UReflectionCaptureComponent::GetReflectionCaptureSize() || ReflectionBuildData->HasBeenUploadedFinal()))
 				{
 					return ReflectionBuildData;
 				}
