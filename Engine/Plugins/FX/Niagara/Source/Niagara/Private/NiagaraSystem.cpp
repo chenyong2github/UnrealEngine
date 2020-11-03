@@ -1568,7 +1568,7 @@ bool InternalCompileGuardCheck(void* TestValue)
 	return bCompileGuardInProgress;
 }
 
-bool UNiagaraSystem::CompilationResultsValid(const FNiagaraSystemCompileRequest& CompileRequest) const
+bool UNiagaraSystem::CompilationResultsValid(FNiagaraSystemCompileRequest& CompileRequest) const
 {
 	// for now the only thing we're concerned about is if we've got results for SystemSpawn and SystemUpdate scripts
 	// then we need to make sure that they agree in terms of the dataset attributes
@@ -1589,7 +1589,46 @@ bool UNiagaraSystem::CompilationResultsValid(const FNiagaraSystemCompileRequest&
 	{
 		if (SpawnScriptRequest->CompileResults->Attributes != UpdateScriptRequest->CompileResults->Attributes)
 		{
-			UE_LOG(LogNiagara, Log, TEXT("Failed to generate consistent results for System spawn and update scripts for system %s."), *GetFullName());
+			// if we had requested a full rebuild, then we've got a case where the generated scripts are not compatible.  This indicates
+			// a significant issue where we're allowing graphs to generate invalid collections of scripts.  One known example is using
+			// the Script.Context static switch that isn't fully processed in all scripts, leading to attributes differing between the
+			// SystemSpawnScript and the SystemUpdateScript
+			if (CompileRequest.bForced)
+			{
+				FString MissingAttributes;
+				FString AdditionalAttributes;
+
+				for (const auto& SpawnAttrib : SpawnScriptRequest->CompileResults->Attributes)
+				{
+					if (!UpdateScriptRequest->CompileResults->Attributes.Contains(SpawnAttrib))
+					{
+						MissingAttributes.Appendf(TEXT("%s%s"), MissingAttributes.Len() ? TEXT(", ") : TEXT(""), *SpawnAttrib.GetName().ToString());
+					}
+				}
+
+				for (const auto& UpdateAttrib : UpdateScriptRequest->CompileResults->Attributes)
+				{
+					if (!SpawnScriptRequest->CompileResults->Attributes.Contains(UpdateAttrib))
+					{
+						AdditionalAttributes.Appendf(TEXT("%s%s"), AdditionalAttributes.Len() ? TEXT(", ") : TEXT(""), *UpdateAttrib.GetName().ToString());
+					}
+				}
+
+				FNiagaraCompileEvent AttributeMismatchEvent(
+					FNiagaraCompileEventSeverity::Error,
+					FText::Format(LOCTEXT("SystemScriptAttributeMismatchError", "System Spawn/Update scripts have attributes which don't match!\n\tMissing update attributes: {0}\n\tAdditional update attributes: {1}"),
+						FText::FromString(MissingAttributes),
+						FText::FromString(AdditionalAttributes))
+					.ToString());
+
+				SpawnScriptRequest->CompileResults->LastCompileStatus = ENiagaraScriptCompileStatus::NCS_Error;
+				SpawnScriptRequest->CompileResults->LastCompileEvents.Add(AttributeMismatchEvent);
+			}
+			else
+			{
+				UE_LOG(LogNiagara, Log, TEXT("Failed to generate consistent results for System spawn and update scripts for system %s."), *GetFullName());
+			}
+
 			return false;
 		}
 	}
@@ -1636,7 +1675,8 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		{
 			// if we've gotten all the results, run a quick check to see if the data is valid, if it's not then that indicates that
 			// we've run into a compatibility issue and so we should see if we should issue a full rebuild
-			if (!ActiveCompilations[ActiveCompileIdx].bForced && !CompilationResultsValid(ActiveCompilations[ActiveCompileIdx]))
+			const bool ResultsValid = CompilationResultsValid(ActiveCompilations[ActiveCompileIdx]);
+			if (!ResultsValid && !ActiveCompilations[ActiveCompileIdx].bForced)
 			{
 				ActiveCompilations[ActiveCompileIdx].RootObjects.Empty();
 				ActiveCompilations.RemoveAt(ActiveCompileIdx);
