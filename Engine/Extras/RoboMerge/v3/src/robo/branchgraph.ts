@@ -52,7 +52,9 @@ if (botname === '__TEST__') {
 
 	private propagateBotPropertiesToNodes() {
 		const propertiesToPropagate: [keyof BotConfig, keyof NodeOptions, ConfigBlendMode | null][] = [
-			['excludeAuthors', 'excludeAuthors', 'override']
+			['excludeAuthors', 'excludeAuthors', 'override'],
+			['badgeUrlOverride', 'badgeUrlOverride', 'override'],
+
 		]
 
 		for (const [nameInBot, nameInNode, blendMode] of propertiesToPropagate) {

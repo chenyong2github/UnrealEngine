@@ -19,6 +19,7 @@ export interface BotConfig {
 	mirrorPath: string[]
 	alias: string // alias if we need to mask name of bot in commands
 	emailDomainWhitelist: string[]
+	badgeUrlOverride: string
 
 	macros: { [name: string]: string[] }
 }
@@ -86,6 +87,8 @@ type NodeOptionFields = BranchBase & CommonOptionFields & {
 	workspaceNameOverride: string
 	additionalSlackChannelForBlockages: string
 	ignoreBranchspecs: boolean
+
+	badgeUrlOverride: string
 }
 
 // will eventually have all properties listed on wiki
@@ -162,7 +165,8 @@ export class BranchDefs {
 			mirrorPath: [],
 			alias: '',
 			emailDomainWhitelist: [],
-			macros: {}
+			macros: {},
+			badgeUrlOverride: ''
 		}
 
 		let branchGraph

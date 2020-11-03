@@ -1181,7 +1181,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		// Get branch referenced by blockage object
 		const conflictBranch : Branch = blockage.change.branch
 
-		// Only email for our branch, if the branch is configured to recieve emails
+		// Only email for our branch, if the branch is configured to receive emails
 		if (this.branch.name !== conflictBranch.name) {
 			return
 		}
@@ -1199,7 +1199,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		// Get branch referenced by blockage object
 		const shelfBranch : Branch = pendingChange.change.branch
 
-		// Only email for our branch, if the branch is configured to recieve emails
+		// Only email for our branch, if the branch is configured to receive emails
 		if (this.branch.name !== shelfBranch.name) {
 			return
 		}
