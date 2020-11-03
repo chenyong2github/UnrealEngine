@@ -51,7 +51,13 @@ void EmitMaterialDepthPS(
 {
 	uint2 PixelPos = (uint2)SvPosition.xy;
 
+#if VELOCITY_MASK
 	float4 UnpackedMask = Unpack_R10G10B10A2_UNORM_To_Float4(VelocityMask[PixelPos]);
+	const bool UnOccluded = UnpackedMask.a > 0.0f /* Is Nanite */;
+#else
+	const bool UnOccluded = true;
+#endif
+
 	UlongType VisPixel  = VisBuffer64[PixelPos];
 
 	uint DepthInt = 0;
@@ -59,7 +65,7 @@ void EmitMaterialDepthPS(
 	uint TriIndex = 0;
 	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
 
-	if (VisibleClusterIndex != 0xFFFFFFFF && UnpackedMask.a > 0.0f /* Is Nanite */)
+	if (VisibleClusterIndex != 0xFFFFFFFF && UnOccluded)
 	{
 		// Export material depth ID as SV_Depth.
 		const FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);

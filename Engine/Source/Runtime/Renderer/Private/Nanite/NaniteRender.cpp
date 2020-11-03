@@ -1119,6 +1119,9 @@ class FEmitMaterialDepthPS : public FNaniteShader
 	DECLARE_GLOBAL_SHADER(FEmitMaterialDepthPS);
 	SHADER_USE_PARAMETER_STRUCT(FEmitMaterialDepthPS, FNaniteShader);
 
+	class FVelocityMaskDim : SHADER_PERMUTATION_BOOL("VELOCITY_MASK");
+	using FPermutationDomain = TShaderPermutationDomain<FVelocityMaskDim>;
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportNanite(Parameters.Platform);
@@ -3948,7 +3951,9 @@ void EmitDepthTargets(
 				FExclusiveDepthStencil::DepthWrite_StencilWrite
 			);
 
-			auto PixelShader = View.ShaderMap->GetShader<FEmitMaterialDepthPS>();
+			FEmitMaterialDepthPS::FPermutationDomain PermutationVectorPS;
+			PermutationVectorPS.Set<FEmitMaterialDepthPS::FVelocityMaskDim>(true /* using velocity mask */);
+			auto PixelShader = View.ShaderMap->GetShader<FEmitMaterialDepthPS>(PermutationVectorPS);
 
 			FPixelShaderUtils::AddFullscreenPass(
 				GraphBuilder,
@@ -4514,7 +4519,9 @@ void DrawLumenMeshCapturePass(
 			FExclusiveDepthStencil::DepthWrite_StencilRead
 		);
 
-		auto PixelShader = SharedView->ShaderMap->GetShader<FEmitMaterialDepthPS>();
+		FEmitMaterialDepthPS::FPermutationDomain PermutationVectorPS;
+		PermutationVectorPS.Set<FEmitMaterialDepthPS::FVelocityMaskDim>(false /* not using velocity mask */);
+		auto PixelShader = SharedView->ShaderMap->GetShader<FEmitMaterialDepthPS>(PermutationVectorPS);
 
 		FPixelShaderUtils::AddRasterizeToRectsPass(GraphBuilder,
 			SharedView->ShaderMap,
