@@ -40,7 +40,7 @@ UATCompileArg=-compile
 
 if [ ! -f Build/BatchFiles/RunUAT.sh ]; then
 	echo "RunUAT ERROR: The script does not appear to be located in the "
-  echo "Engine/Build/BatchFiles directory.  This script must be run from within that directory."
+	echo "Engine/Build/BatchFiles directory.  This script must be run from within that directory."
 	exit 1
 fi
 
@@ -55,14 +55,20 @@ if [ -f Build/InstalledBuild.txt ]; then
 	UATCompileArg=
 fi
 
+EnvironmentType=-mono
+if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
+	EnvironmentType=-dotnet
+	UATDirectory=Binaries/DotNET/AutomationTool
+fi
+
 if [ "$(uname)" = "Darwin" ]; then
-	# Setup Environment and Mono
-	source "$SCRIPT_DIR/Mac/SetupEnvironment.sh" -mono "$SCRIPT_DIR/Mac"
+	# Setup Environment
+	source "$SCRIPT_DIR/Mac/SetupEnvironment.sh" $EnvironmentType "$SCRIPT_DIR/Mac"
 fi
 
 if [ "$(uname)" = "Linux" ]; then
-	# Setup Environment and Mono
-	source "$SCRIPT_DIR/Mac/SetupEnvironment.sh" -mono "$SCRIPT_DIR/Linux"
+	# Setup Environment
+	source "$SCRIPT_DIR/Linux/SetupEnvironment.sh" $EnvironmentType "$SCRIPT_DIR/Linux"
 fi
 
 
@@ -72,22 +78,30 @@ if [ "$UATCompileArg" = "-compile" ]; then
 		echo No project to compile, attempting to use precompiled AutomationTool
 		UATCompileArg=
 	else
-		# mono 5.0 and up include msbuild
-		if [ "$IS_MS_BUILD_AVAILABLE" == "1" ]; then
-			BUILD_TOOL=msbuild
+		if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
+			dotnet build Source/Programs/AutomationTool/AutomationToolCore.csproj -c Development
+			if [ $? -ne 0 ]; then
+				echo RunUAT ERROR: AutomationTool failed to compile.
+				exit 1
+			fi
 		else
-			BUILD_TOOL=xbuild
-		fi
+			# mono 5.0 and up include msbuild
+			if [ "$IS_MS_BUILD_AVAILABLE" == "1" ]; then
+				BUILD_TOOL=msbuild
+			else
+				BUILD_TOOL=xbuild
+			fi
 
-		ARGS="/p:Configuration=Development /p:Platform=AnyCPU /verbosity:quiet /nologo /p:NoWarn=1591 /property:AutomationToolProjectOnly=true"
-		ARGS="${ARGS} /p:TargetFrameworkProfile="
+			ARGS="/p:Configuration=Development /p:Platform=AnyCPU /verbosity:quiet /nologo /p:NoWarn=1591 /property:AutomationToolProjectOnly=true"
+			ARGS="${ARGS} /p:TargetFrameworkProfile="
 
-		echo "$BUILD_TOOL Source/Programs/AutomationTool/AutomationTool.csproj $ARGS"
-		$BUILD_TOOL Source/Programs/AutomationTool/AutomationTool.csproj $ARGS
-		# make sure it succeeded
-		if [ $? -ne 0 ]; then
-			echo RunUAT ERROR: AutomationTool failed to compile.
-			exit 1
+			echo "$BUILD_TOOL Source/Programs/AutomationTool/AutomationTool.csproj $ARGS"
+			$BUILD_TOOL Source/Programs/AutomationTool/AutomationTool.csproj $ARGS
+			# make sure it succeeded
+			if [ $? -ne 0 ]; then
+				echo RunUAT ERROR: AutomationTool failed to compile.
+				exit 1
+			fi
 		fi
 	fi
 fi
@@ -97,27 +111,32 @@ fi
 #run UAT
 cd $UATDirectory
 if [ -z "$uebp_LogFolder" ]; then
-  LogDir="$HOME/Library/Logs/Unreal Engine/LocalBuildLogs"
+	LogDir="$HOME/Library/Logs/Unreal Engine/LocalBuildLogs"
 else
 	LogDir="$uebp_LogFolder"
 fi
 
-# if we are running under UE, we need to run this with the term handler (otherwise canceling a UAT job from the editor
-# can leave mono, etc running in the background, which means we need the PID so we 
-# run it in the background
-if [ "$UE_DesktopUnrealProcess" = "1" ]; then
-	# you can't set a dotted env var nicely in sh, but env will run a command with
-	# a list of env vars set, including dotted ones
-	echo Start UAT Non-Interactively: mono AutomationTool.exe "${Args[@]}"
-	trap TermHandler SIGTERM SIGINT
-	env uebp_LogFolder="$LogDir" mono AutomationTool.exe "${Args[@]}" $UATCompileArg &
-	UATPid=$!
-	wait $UATPid
+if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
+	echo Start UAT: AutomationTool "${Args[@]}"
+	env uebp_LogFolder="$LogDir" ./AutomationTool "${Args[@]}" $UATCompileArg
 else
-	# you can't set a dotted env var nicely in sh, but env will run a command with
-	# a list of env vars set, including dotted ones
-	echo Start UAT Interactively: mono AutomationTool.exe "${Args[@]}"
-	env uebp_LogFolder="$LogDir" mono AutomationTool.exe "${Args[@]}" $UATCompileArg
+	# if we are running under UE, we need to run this with the term handler (otherwise canceling a UAT job from the editor
+	# can leave mono, etc running in the background, which means we need the PID so we 
+	# run it in the background
+	if [ "$UE_DesktopUnrealProcess" = "1" ]; then
+		# you can't set a dotted env var nicely in sh, but env will run a command with
+		# a list of env vars set, including dotted ones
+		echo Start UAT Non-Interactively: mono AutomationTool.exe "${Args[@]}"
+		trap TermHandler SIGTERM SIGINT
+		env uebp_LogFolder="$LogDir" mono AutomationTool.exe "${Args[@]}" $UATCompileArg &
+		UATPid=$!
+		wait $UATPid
+	else
+		# you can't set a dotted env var nicely in sh, but env will run a command with
+		# a list of env vars set, including dotted ones
+		echo Start UAT Interactively: mono AutomationTool.exe "${Args[@]}"
+		env uebp_LogFolder="$LogDir" mono AutomationTool.exe "${Args[@]}" $UATCompileArg
+	fi
 fi
 
 UATReturn=$?

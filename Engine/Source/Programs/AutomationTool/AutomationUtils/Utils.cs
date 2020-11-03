@@ -724,7 +724,17 @@ namespace AutomationTool
 			var bCreatedMutex = false;
             var EntryAssemblyLocation = Assembly.GetEntryAssembly().GetOriginalLocation();
 			var LocationHash = EntryAssemblyLocation.GetHashCode();
-            var MutexName = "Global/" + Path.GetFileNameWithoutExtension(EntryAssemblyLocation) + "_" + LocationHash.ToString() + "_Mutex";
+
+			string Prefix = "Global/";
+#if NET_CORE
+			// / is a reservered character for mutexes and thus should be omited when not running on windows
+			// as Global/ and Local/ only has meaning there. Will throw a DirectoryNotFoundException otherwise.
+			if (!Utils.IsRunningOnWindows)
+			{
+				Prefix = "";
+			}
+#endif
+			var MutexName = Prefix + Path.GetFileNameWithoutExtension(EntryAssemblyLocation) + "_" + LocationHash.ToString() + "_Mutex";
 			using (Mutex SingleInstanceMutex = new Mutex(true, MutexName, out bCreatedMutex))
 			{
 				IsSoleInstance = bCreatedMutex;

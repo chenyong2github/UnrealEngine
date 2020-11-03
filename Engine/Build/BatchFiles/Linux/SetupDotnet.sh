@@ -1,6 +1,9 @@
 #!/bin/bash
 # Copyright Epic Games, Inc. All Rights Reserved.
 
+START_DIR=`pwd`
+cd "$1"
+
 IS_DOTNET_INSTALLED=0
 DOTNET_VERSION_PATH=$(command -v dotnet) || true
 
@@ -30,3 +33,5 @@ if [ $IS_DOTNET_INSTALLED -eq 0 ]; then
 else
 	export IS_DOTNET_INSTALLED=$IS_DOTNET_INSTALLED
 fi
+
+cd "$START_DIR"

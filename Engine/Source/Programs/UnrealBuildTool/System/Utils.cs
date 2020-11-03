@@ -25,6 +25,20 @@ namespace UnrealBuildTool
 		/// </summary>
 #if NET_CORE
 		public static readonly bool IsRunningOnMono = !RuntimeInformation.IsOSPlatform(OSPlatform.Windows); // TODO: This check seems to mainly be used to determine if this is running on windows or not. Should be refactored.
+
+		/// <summary>
+		/// Whether we are currently running on Linux.
+		/// </summary>
+		public static readonly bool IsRunningOnLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
+		/// <summary>
+		/// Whether we are currently running on a MacOS platform.
+		/// </summary>
+		public static readonly bool IsRunningOnMac = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+		
+		/// <summary>
+		/// Whether we are currently running a Windows platform.
+		/// </summary>
+		public static readonly bool IsRunningOnWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 #else
 		public static readonly bool IsRunningOnMono = Type.GetType("Mono.Runtime") != null;
 #endif
