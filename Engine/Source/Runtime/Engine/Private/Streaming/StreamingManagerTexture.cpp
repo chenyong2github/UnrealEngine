@@ -1898,7 +1898,7 @@ void FRenderAssetStreamingManager::AddRenderedTextureStats(TMap<FString, FRender
 	{
 		const UStreamableRenderAsset* RenderAsset = StreamingRenderAsset.RenderAsset;
 		if (RenderAsset == nullptr || StreamingRenderAsset.bUseUnkownRefHeuristic
-			|| StreamingRenderAsset.RenderAssetType != FStreamingRenderAsset::AT_Texture || StreamingRenderAsset.LastRenderTime == MAX_FLT)
+			|| StreamingRenderAsset.RenderAssetType != EStreamableRenderAssetType::Texture || StreamingRenderAsset.LastRenderTime == MAX_FLT)
 		{
 			continue;
 		}
