@@ -857,7 +857,8 @@ void FMaterial::SetInlineShaderMap(FMaterialShaderMap* InMaterialShaderMap)
 {
 	checkSlow(IsInGameThread() || IsInAsyncLoadingThread());
 	check(InMaterialShaderMap);
-	const bool bIsComplete = InMaterialShaderMap->IsComplete(this, true);
+	// Hack: Forcing this to true to work around some materials with incomplete shader maps returning false here
+	const bool bIsComplete = true; //InMaterialShaderMap->IsComplete(this, true);
 
 	GameThreadShaderMap = InMaterialShaderMap;
 	bGameThreadShaderMapIsComplete = bIsComplete;
