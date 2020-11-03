@@ -95,13 +95,11 @@ void SRadialBox::FChildArranger::Arrange()
 	const int32 NumItems = RadialBox.Slots.Num();
 	const float Radius = RadialBox.PreferredWidth.Get() / 2.f;
 
-	// If are working with less-than-full-circumference, we want the last item to land exactly on the angle
-	const bool bHasExtraItemAtTheEnd = RadialBox.SectorCentralAngle < 360.f;
-	const int32 ItemCountDifference = bHasExtraItemAtTheEnd ? 1 : 0;
-
-	int32 TargetNumItems = FMath::Max(1, NumItems - ItemCountDifference);
+	int32 TargetNumItems = FMath::Max(1, NumItems);
+	const bool bIsFullCircumference = RadialBox.SectorCentralAngle >= 360.f;
 	const float DegreeIncrements = RadialBox.bDistributeItemsEvenly? RadialBox.SectorCentralAngle / TargetNumItems : RadialBox.AngleBetweenItems;
-	float DegreeOffset = RadialBox.StartingAngle * (-1.f) ;
+	const float EqualDistributionOffset = RadialBox.bDistributeItemsEvenly && !bIsFullCircumference ? DegreeIncrements / 2.f : 0.f;
+	float DegreeOffset = (RadialBox.StartingAngle + EqualDistributionOffset) * (-1.f);
 
 	//Offset to create the elements based on the middle of the widget as starting point
 	const float MiddlePointOffset = RadialBox.PreferredWidth.Get() / 2.f;
