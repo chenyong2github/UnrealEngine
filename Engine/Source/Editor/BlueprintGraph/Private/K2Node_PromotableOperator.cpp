@@ -885,6 +885,9 @@ void UK2Node_PromotableOperator::UpdatePinsFromFunction(const UFunction* Functio
 	// Update the function reference and the FUNC_BlueprintPure/FUNC_Const appropriately
 	SetFromFunction(Function);
 
+	// Invalidate the tooltips
+	CachedTooltip.MarkDirty();
+
 	// We need to notify the graph that the node has changed to get 
 	// the correct default value text boxes on the node
 	GetGraph()->NotifyGraphChanged();
