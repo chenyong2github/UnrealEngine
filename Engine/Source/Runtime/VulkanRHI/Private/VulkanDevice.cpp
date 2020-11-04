@@ -336,6 +336,15 @@ void FVulkanDevice::CreateDevice()
 	}
 #endif
 
+#if VULKAN_SUPPORTS_SCALAR_BLOCK_LAYOUT
+	VkPhysicalDeviceScalarBlockLayoutFeaturesEXT ScalarBlockLayoutFeatures;
+	ZeroVulkanStruct(ScalarBlockLayoutFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES_EXT);
+	ScalarBlockLayoutFeatures.scalarBlockLayout = VK_TRUE;
+	ScalarBlockLayoutFeatures.pNext = (void*)DeviceInfo.pNext;
+	DeviceInfo.pNext = &ScalarBlockLayoutFeatures;
+#endif
+
+
 	// Create the device
 	VkResult Result = VulkanRHI::vkCreateDevice(Gpu, &DeviceInfo, VULKAN_CPU_ALLOCATOR, &Device);
 	if (Result == VK_ERROR_INITIALIZATION_FAILED)
