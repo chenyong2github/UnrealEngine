@@ -282,12 +282,22 @@ void TAttributeArrayContainer<AttributeType>::Remap(const TSparseArray<int32>& I
 template <typename AttributeType>
 class TArrayAttribute
 {
+	template <typename T> friend class TArrayAttribute;
 	using ArrayType = typename TCopyQualifiersFromTo<AttributeType, TAttributeArrayContainer<typename TRemoveCV<AttributeType>::Type>>::Type;
 
 public:
 	explicit TArrayAttribute(ArrayType& InArray, int32 InIndex)
 		: Array(InArray),
 		  Index(InIndex)
+	{}
+
+	/**
+	 * Construct a TArrayAttribute<const T> from a TArrayAttribute<T>. 
+	 */
+	template <typename T = AttributeType, typename TEnableIf<TIsSame<T, const T>::Value, int>::Type = 0>
+	TArrayAttribute(TArrayAttribute<typename TRemoveCV<T>::Type> InValue)
+		: Array(InValue.Array),
+		  Index(InValue.Index)
 	{}
 
 	/**
