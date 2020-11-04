@@ -10,6 +10,7 @@
 #include "PhysicsCoreTypes.h"
 #include "Chaos/Defines.h"
 #include "Chaos/EvolutionTraits.h"
+#include "Chaos/PullPhysicsDataImp.h"
 
 namespace Chaos
 {
@@ -81,6 +82,14 @@ public:
 	void BufferCommand(Chaos::FPhysicsSolver* InSolver, const FFieldSystemCommand& InCommand) {}
 	void SyncBeforeDestroy() {}
 	void OnRemoveFromScene() {}
+
+	void SetPullDataInterpIdx_External(const int32 Idx)
+	{
+		PullDataInterpIdx_External = Idx;
+	}
+
+	int32 GetPullDataInterpIdx_External() const { return PullDataInterpIdx_External; }
+
 	// END DELETE ME
 
 	/**/
@@ -140,7 +149,10 @@ public:
 	void BufferPhysicsResults(Chaos::FDirtyRigidParticleData&);
 
 	/**/
-	bool PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp);
+	void BufferPhysicsResults_External(Chaos::FDirtyRigidParticleData&);
+
+	/**/
+	bool PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData = nullptr, const float* Alpha = nullptr);
 
 	/**/
 	bool IsDirty();
@@ -176,6 +188,9 @@ private:
 	TUniquePtr<Chaos::IBufferResource<FStorageData>> BufferedData;
 	//TUniquePtr<Chaos::IBufferResource<FPropertiesDataHolder>> PropertiesData;
 	//TUniquePtr<Chaos::FDoubleBuffer<FPropertiesDataHolder>> PropertiesData;
+
+	//Used by interpolation code
+	int32 PullDataInterpIdx_External;
 };
 
 
@@ -187,7 +202,10 @@ template< >
 CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::BufferPhysicsResults(Chaos::FDirtyRigidParticleData& PullData);
 
 template< >
-CHAOS_API bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp);
+CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::BufferPhysicsResults_External(Chaos::FDirtyRigidParticleData& PullData);
+
+template< >
+CHAOS_API bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData, const float* Alpha);
 
 template< >
 bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::IsDirty();
@@ -218,7 +236,10 @@ template< >
 CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::BufferPhysicsResults(Chaos::FDirtyRigidParticleData& PullData);
 
 template< >
-CHAOS_API bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp);
+CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::BufferPhysicsResults_External(Chaos::FDirtyRigidParticleData& PullData);
+
+template< >
+CHAOS_API bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData, const float* Alpha);
 
 template< >
 bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::IsDirty();
@@ -241,7 +262,10 @@ template< >
 CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::BufferPhysicsResults(Chaos::FDirtyRigidParticleData&);
 
 template< >
-CHAOS_API bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp);
+CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::BufferPhysicsResults_External(Chaos::FDirtyRigidParticleData& PullData);
+
+template< >
+CHAOS_API bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData, const float* Alpha);
 
 template< >
 bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::IsDirty();

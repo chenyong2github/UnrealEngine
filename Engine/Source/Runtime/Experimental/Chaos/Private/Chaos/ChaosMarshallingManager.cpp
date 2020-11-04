@@ -24,10 +24,11 @@ FChaosMarshallingManager::FChaosMarshallingManager()
 
 FChaosMarshallingManager::~FChaosMarshallingManager() = default;
 
-void FChaosMarshallingManager::FinalizePullData_Internal(int32 LastExternalTimestampConsumed, float SimStartTime)
+void FChaosMarshallingManager::FinalizePullData_Internal(int32 LastExternalTimestampConsumed, float SimStartTime, float DeltaTime)
 {
 	CurPullData->SolverTimestamp = LastExternalTimestampConsumed;
 	CurPullData->ExternalStartTime = SimStartTime;
+	CurPullData->ExternalEndTime = SimStartTime + DeltaTime;
 	PullDataQueue.Enqueue(CurPullData);
 	PreparePullData();
 }
