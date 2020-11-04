@@ -32,7 +32,7 @@ struct FInAppPurchaseReceiptInfo
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FInAppPurchaseResult, EInAppPurchaseState::Type, PurchaseStatus, const FInAppPurchaseProductInfo&, InAppPurchaseReceipts);
 
 UCLASS(MinimalAPI)
-class UInAppPurchaseCallbackProxy : public UObject
+class UE_DEPRECATED(4.26, "UInAppPurchaseCallbackProxy is deprecated, please use UInAppPurchaseCallbackProxy2 instead.") UInAppPurchaseCallbackProxy : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
