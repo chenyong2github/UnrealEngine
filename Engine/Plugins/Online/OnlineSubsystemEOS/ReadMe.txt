@@ -18,6 +18,7 @@ This plugin supports:
 	- EGS/EAS Ecom
 	- EOS Sessions
 	- EOS Stats
+	- EOS Achievements
 	- EOS Leaderboards
 	- EOS p2p Sockets
 	- EOS Metrics (session based analytics)
