@@ -639,7 +639,7 @@ void FFbxImporter::ReleaseScene()
 
 	// reset
 	FbxTextureToUniqueNameMap.Empty();
-	NodeUniqueNameToOriginalNameMap.Empty();
+	NodeUniqueNameToOriginalNameMap.Clear();
 	CollisionModels.Clear();
 	CreatedObjects.Empty();
 	CurPhase = NOTSTARTED;
@@ -1271,7 +1271,7 @@ void FFbxImporter::EnsureNodeNameAreValid(const FString& BaseFilename)
 			} while (AllNodeName.Contains(UniqueNodeName));
 
 			FbxString UniqueName(TCHAR_TO_UTF8(*UniqueNodeName));
-			NodeUniqueNameToOriginalNameMap.FindOrAdd(UniqueName) = Node->GetName();
+			NodeUniqueNameToOriginalNameMap[UniqueName] = Node->GetName();
 			Node->SetName(UniqueName);
 			
 			if (!GIsAutomationTesting)
