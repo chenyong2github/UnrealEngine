@@ -96,6 +96,9 @@ private:
 
 	void OnSocketClose(INetworkingWebSocket* Socket);
 
+	/** Returns whether the port is available. */
+	bool IsPortAvailable(uint32 Port) const;
+
 private:
 	/** Holds a web socket connection to a client. */
 	class FWebSocketConnection

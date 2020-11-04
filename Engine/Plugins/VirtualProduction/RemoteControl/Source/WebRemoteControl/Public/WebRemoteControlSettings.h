@@ -11,8 +11,8 @@ public:
 	GENERATED_BODY()
 
 	UWebRemoteControlSettings()
-		: RemoteControlHttpServerPort(8080)
-		, RemoteControlWebSocketServerPort(9080)
+		: RemoteControlHttpServerPort(50000)
+		, RemoteControlWebSocketServerPort(55000)
 	{}
 
 public:
