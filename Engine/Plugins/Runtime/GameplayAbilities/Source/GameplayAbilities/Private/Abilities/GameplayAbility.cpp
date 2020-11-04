@@ -72,6 +72,8 @@ UGameplayAbility::UGameplayAbility(const FObjectInitializer& ObjectInitializer)
 
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
 
+	NetSecurityPolicy = EGameplayAbilityNetSecurityPolicy::ClientOrServer;
+
 	ScopeLockCount = 0;
 
 	bMarkPendingKillOnAbilityEnd = false;
@@ -274,7 +276,8 @@ bool UGameplayAbility::DoesAbilitySatisfyTagRequirements(const UAbilitySystemCom
 
 bool UGameplayAbility::ShouldActivateAbility(ENetRole Role) const
 {
-	return Role != ROLE_SimulatedProxy;
+	return Role != ROLE_SimulatedProxy && 		
+		(Role == ROLE_Authority || (NetSecurityPolicy != EGameplayAbilityNetSecurityPolicy::ServerOnly && NetSecurityPolicy != EGameplayAbilityNetSecurityPolicy::ServerOnlyExecution));	// Don't violate security policy if we're not the server
 }
 
 void UGameplayAbility::K2_CancelAbility()
