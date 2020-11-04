@@ -1426,11 +1426,13 @@ void FAssetFileContextMenu::ExecuteReimportWithNewFile(int32 SourceFileIndex /*=
 	}
 
 	int32 SourceFileIndexToReplace = SourceFileIndex;
-	//Check if the data is valid
+	// Check if the data is valid
 	if (SourceFileIndex == INDEX_NONE)
 	{
-		check(AssetSourcePaths.Num() <= 1);
-		//Ask for a new file for the index 0
+		/* Ask for a new file for the index 0
+		 * Some asset may have more then one source files (ex: UDIMs texture)
+		 * but we should default to replace only the first file to match the behavior found in 4.25.
+		 */
 		SourceFileIndexToReplace = 0;
 	}
 	else
@@ -1438,7 +1440,6 @@ void FAssetFileContextMenu::ExecuteReimportWithNewFile(int32 SourceFileIndex /*=
 		check(AssetSourcePaths.IsValidIndex(SourceFileIndex));
 	}
 	check(SourceFileIndexToReplace >= 0);
-	
 
 	FReimportManager::Instance()->ValidateAllSourceFileAndReimport(CopyOfSelectedAssets, true, SourceFileIndexToReplace, true);
 }
