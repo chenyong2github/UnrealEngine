@@ -39,6 +39,9 @@ bool FOnlineSubsystemEOSPlus::Init()
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOSPlus::Init() failed to get the EOS OSS"));
 		return false;
 	}
+
+	StatsInterfacePtr = MakeShareable(new FOnlineStatsEOSPlus(this));
+
 	return true;
 }
 
@@ -46,6 +49,17 @@ bool FOnlineSubsystemEOSPlus::Shutdown()
 {
 	BaseOSS = nullptr;
 	EosOSS = nullptr;
+
+#define DESTRUCT_INTERFACE(Interface) \
+	if (Interface.IsValid()) \
+	{ \
+		ensure(Interface.IsUnique()); \
+		Interface = nullptr; \
+	}
+
+	DESTRUCT_INTERFACE(StatsInterfacePtr);
+
+#undef DESTRUCT_INTERFACE
 
 	return true;
 }
@@ -162,7 +176,7 @@ IOnlineChatPtr FOnlineSubsystemEOSPlus::GetChatInterface() const
 
 IOnlineStatsPtr FOnlineSubsystemEOSPlus::GetStatsInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetStatsInterface() : nullptr;
+	return StatsInterfacePtr;
 }
 
 IOnlineTurnBasedPtr FOnlineSubsystemEOSPlus::GetTurnBasedInterface() const
