@@ -641,4 +641,6 @@ public:
 	 */
 	virtual void PakVisitPrunedFilenames(IPlatformFile::FDirectoryVisitor& Visitor) const = 0;
 	virtual const FString& PakGetMountPoint() const = 0;
+
+	virtual int32 GetNumFiles() const = 0;
 };
