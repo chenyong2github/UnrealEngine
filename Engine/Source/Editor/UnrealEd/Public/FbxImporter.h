@@ -1353,7 +1353,7 @@ protected:
 	 * A map holding the original name of the renamed fbx nodes, 
 	 * It is used namely to associate collision meshes to their corresponding static mesh if it has been renamed. 
 	 */
-	TMap<FbxString, FbxString> NodeUniqueNameToOriginalNameMap;
+	FbxMap<FbxString, FbxString> NodeUniqueNameToOriginalNameMap;
 
 	/**
 	 * A map holding pairs of fbx texture that needs to be renamed with the
