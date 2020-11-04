@@ -309,10 +309,6 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		// Only support forward shading, we don't want to break tiled deferred shading.
 		&& !bDeferredShading;
 
-	if (bRequiresPixelProjectedPlanarRelfectionPass)
-	{
-		InitPixelProjectedReflectionOutputs(RHICmdList, PlanarReflectionSceneProxy->RenderTarget->GetSizeXY());
-	}
 
 	bRequriesAmbientOcclusionPass = IsUsingMobileAmbientOcclusion(ShaderPlatform)
 		&& Views[0].FinalPostProcessSettings.AmbientOcclusionIntensity > 0
@@ -355,15 +351,6 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		SceneContext.AllocGBufferTargets(RHICmdList, AddFlags);
 	}
 
-	if (bRequriesAmbientOcclusionPass)
-	{
-		InitAmbientOcclusionOutputs(RHICmdList, SceneContext.SceneDepthZ);
-	}
-	else
-	{
-		ReleaseAmbientOcclusionOutputs();
-	}
-
 	// Initialise Sky/View resources before the view global uniform buffer is built.
 	if (ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags))
 	{
@@ -380,6 +367,24 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 
 	//make sure all the targets we're going to use will be safely writable.
 	GRenderTargetPool.TransitionTargetsWritable(RHICmdList);
+
+	if (bRequiresPixelProjectedPlanarRelfectionPass)
+	{
+		InitPixelProjectedReflectionOutputs(RHICmdList, PlanarReflectionSceneProxy->RenderTarget->GetSizeXY());
+	}
+	else
+	{
+		ReleasePixelProjectedReflectionOutputs();
+	}
+
+	if (bRequriesAmbientOcclusionPass)
+	{
+		InitAmbientOcclusionOutputs(RHICmdList, SceneContext.SceneDepthZ);
+	}
+	else
+	{
+		ReleaseAmbientOcclusionOutputs();
+	}
 
 	// Find out whether custom depth pass should be rendered.
 	{
@@ -675,11 +680,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RHICmdList.Transition(FRHITransitionInfo(SceneColor, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 	}
 
-	if (bRequiresPixelProjectedPlanarRelfectionPass)
-	{
-		ReleasePixelProjectedReflectionOutputs();
-	}
-
 	if (bRequriesAmbientOcclusionPass)
 	{
 		RenderAmbientOcclusion(RHICmdList, SceneContext.SceneDepthZ);
@@ -949,6 +949,9 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		{
 			DepthTargetAction = EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil;
 		}
+
+		RHICmdList.Transition(FRHITransitionInfo(SceneColor, ERHIAccess::Unknown, ERHIAccess::RTV));
+		RHICmdList.Transition(FRHITransitionInfo(SceneDepth, ERHIAccess::Unknown, ERHIAccess::DSVWrite));
 
 		FRHIRenderPassInfo TranslucentRenderPassInfo(
 			SceneColor,
