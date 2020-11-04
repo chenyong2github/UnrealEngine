@@ -23,7 +23,8 @@
 			"WhitelistPlatforms": [
 			"Win64",
 			"Win32",
-			"Linux"
+			"Linux",
+			"Mac"
 		  ]
 		},
 		{
@@ -33,7 +34,8 @@
 			"WhitelistPlatforms": [
 			"Win64",
 			"Win32",
-			"Linux"
+			"Linux",
+			"Mac"
 		  ]
 		},
 		{
@@ -43,7 +45,8 @@
 		  "WhitelistPlatforms": [
 			"Win64",
 			"Win32",
-			"Linux"
+			"Linux",
+			"Mac"
 		  ]
 		}
 	]
