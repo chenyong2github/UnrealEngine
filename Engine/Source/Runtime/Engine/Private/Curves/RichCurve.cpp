@@ -3,8 +3,6 @@
 #include "Curves/RichCurve.h"
 #include "Templates/Function.h"
 
-DECLARE_CYCLE_STAT(TEXT("RichCurve Eval"), STAT_RichCurve_Eval, STATGROUP_Engine);
-
 // Broken - do not turn on! 
 #define MIXEDKEY_STRIPS_TANGENTS 0
 
@@ -1299,8 +1297,6 @@ void FRichCurve::RemapTimeValue(float& InTime, float& CycleValueOffset) const
 
 float FRichCurve::Eval(float InTime, float InDefaultValue) const
 {
-	SCOPE_CYCLE_COUNTER(STAT_RichCurve_Eval);
-
 	// Remap time if extrapolation is present and compute offset value to use if cycling 
 	float CycleValueOffset = 0;
 	RemapTimeValue(InTime, CycleValueOffset);
@@ -2352,8 +2348,6 @@ static TFunction<float(ERichCurveExtrapolation PreInfinityExtrap, ERichCurveExtr
 
 float FCompressedRichCurve::Eval(float InTime, float InDefaultValue) const
 {
-	SCOPE_CYCLE_COUNTER(STAT_RichCurve_Eval);
-
 	// Dynamic dispatch into a template optimized code path
 	const float Value = InterpEvalMap[CompressionFormat][KeyTimeCompressionFormat](PreInfinityExtrap, PostInfinityExtrap, ConstantValueNumKeys, CompressedKeys.GetData(), InTime, InDefaultValue);
 	return Value;
@@ -2361,8 +2355,6 @@ float FCompressedRichCurve::Eval(float InTime, float InDefaultValue) const
 
 float FCompressedRichCurve::StaticEval(ERichCurveCompressionFormat CompressionFormat, ERichCurveKeyTimeCompressionFormat KeyTimeCompressionFormat, ERichCurveExtrapolation PreInfinityExtrap, ERichCurveExtrapolation PostInfinityExtrap, FCompressedRichCurve::TConstantValueNumKeys ConstantValueNumKeys, const uint8* CompressedKeys, float InTime, float InDefaultValue)
 {
-	SCOPE_CYCLE_COUNTER(STAT_RichCurve_Eval);
-
 	// Dynamic dispatch into a template optimized code path
 	const float Value = InterpEvalMap[CompressionFormat][KeyTimeCompressionFormat](PreInfinityExtrap, PostInfinityExtrap, ConstantValueNumKeys, CompressedKeys, InTime, InDefaultValue);
 	return Value;
