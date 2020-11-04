@@ -6574,7 +6574,7 @@ const FPakEntryLocation* FPakFile::FindLocationFromIndex(const FString& FullPath
 
 FPakFile::EFindResult FPakFile::Find(const FString& FullPath, FPakEntry* OutEntry) const
 {
-	QUICK_SCOPE_CYCLE_COUNTER(PakFileFind);
+	//QUICK_SCOPE_CYCLE_COUNTER(PakFileFind);
 
 	const FPakEntryLocation* PakEntryLocation;
 #if ENABLE_PAKFILE_RUNTIME_PRUNING_VALIDATE
