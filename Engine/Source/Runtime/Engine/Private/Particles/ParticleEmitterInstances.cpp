@@ -190,8 +190,6 @@ TMap<void*, int32> GFastPoolSizeMap;
 
 FORCEINLINE static void* FastParticleSmallBlockAlloc(size_t AllocSize)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_PARTALLOC);
-
 	if (GEnableFastPools)
 	{
 		FScopeLock S(&GFastPoolsCriticalSection);
