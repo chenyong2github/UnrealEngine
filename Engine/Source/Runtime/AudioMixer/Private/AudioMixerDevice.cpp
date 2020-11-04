@@ -65,10 +65,6 @@ namespace Audio
 		{
 			delete AudioMixerPlatform;
 		}
-
-		// Shutdown all pending clock events, as they may have references to 
-		// the FMixerSourceManager that is about to be destroyed
-		QuantizedEventClockManager.Shutdown();
 	}
 
 	void FMixerDevice::CheckAudioThread() const
@@ -670,6 +666,10 @@ namespace Audio
 
 		// Make sure we force any pending release data to happen on shutdown
 		SourceManager->UpdatePendingReleaseData(true);
+
+		// Shutdown all pending clock events, as they may have references to 
+		// the FMixerSourceManager that is about to be destroyed
+		QuantizedEventClockManager.Shutdown();
 	}
 
 	void FMixerDevice::LoadMasterSoundSubmix(EMasterSubmixType::Type InType, const FString& InDefaultName, bool bInDefaultMuteWhenBackgrounded, FSoftObjectPath& InObjectPath)

@@ -404,8 +404,7 @@ void UQuartzClockHandle::ProcessCommand(Audio::FQuartzQuantizedCommandDelegateDa
 	}
 
 	// (end of a command)
-	if ((Data.DelegateSubType == EQuartzCommandDelegateSubType::CommandCompleted)
-		|| (Data.DelegateSubType == EQuartzCommandDelegateSubType::CommandOnCanceled))
+	if (Data.DelegateSubType == EQuartzCommandDelegateSubType::CommandOnCanceled)
 	{
 		// are all the commands done?
 		if (GameThreadEntry.RefCount.Decrement() == 0)
