@@ -2504,11 +2504,16 @@ FAnimNotifyEvent& SAnimNotifyTrack::CreateNewNotify(FString NewNotifyName, UClas
 		NewEvent.NotifyStateClass = Cast<UAnimNotifyState>(AnimNotifyClass);
 		NewEvent.Notify = Cast<UAnimNotify>(AnimNotifyClass);
 
-		// Set default duration to 1 frame for AnimNotifyState.
 		if( NewEvent.NotifyStateClass )
 		{
+			// Set default duration to 1 frame for AnimNotifyState.
 			NewEvent.SetDuration(1 / 30.f);
 			NewEvent.EndLink.Link(Sequence, NewEvent.EndLink.GetTime());
+			NewEvent.TriggerWeightThreshold = NewEvent.NotifyStateClass->GetDefaultTriggerWeightThreshold();
+		}
+		else if ( NewEvent.Notify )
+		{
+			NewEvent.TriggerWeightThreshold = NewEvent.Notify->GetDefaultTriggerWeightThreshold();
 		}
 	}
 	else
