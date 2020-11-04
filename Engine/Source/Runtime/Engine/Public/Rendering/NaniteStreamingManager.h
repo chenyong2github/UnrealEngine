@@ -127,6 +127,7 @@ public:
 	FRHIShaderResourceView*				GetClusterPageDataSRV() const		{ return ClusterPageData.DataBuffer.SRV; }
 	FRHIShaderResourceView*				GetClusterPageHeadersSRV() const	{ return ClusterPageHeaders.DataBuffer.SRV; }
 	FRHIShaderResourceView*				GetHierarchySRV() const				{ return Hierarchy.DataBuffer.SRV; }
+	FRHIShaderResourceView*				GetRootPagesSRV() const				{ return RootPages.DataBuffer.SRV; }
 private:
 	friend class FStreamingUpdateTask;
 	struct FHeapBuffer
@@ -145,11 +146,11 @@ private:
 		}
 	};
 
-	FGrowOnlySpanAllocator	RootPagesAllocator;
 	FHeapBuffer				ClusterPageData;	// FPackedTriCluster*, GeometryData { Index, Position, TexCoord, TangentX, TangentZ }*
 	FHeapBuffer				ClusterPageHeaders;
 	FScatterUploadBuffer	ClusterFixupUploadBuffer;
 	FHeapBuffer				Hierarchy;
+	FHeapBuffer				RootPages;
 	TRefCountPtr< FRDGPooledBuffer > StreamingRequestsBuffer;
 	
 	uint32					MaxStreamingPages;

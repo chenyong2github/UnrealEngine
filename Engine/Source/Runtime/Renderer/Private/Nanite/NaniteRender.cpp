@@ -445,6 +445,52 @@ BEGIN_SHADER_PARAMETER_STRUCT( FVirtualTargetParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint4 >, PageRectBounds )
 END_SHADER_PARAMETER_STRUCT()
 
+class FRasterTechnique
+{
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters, int32 RasterTechnique)
+	{
+		if (RasterTechnique == int32(Nanite::ERasterTechnique::PlatformAtomics) &&
+			!FDataDrivenShaderPlatformInfo::GetSupportsUInt64ImageAtomics(Parameters.Platform))
+		{
+			// Only some platforms support native 64-bit atomics.
+			return false;
+		}
+
+		if ((RasterTechnique == int32(Nanite::ERasterTechnique::NVAtomics) ||
+			 RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
+			 RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+			 && Parameters.Platform != EShaderPlatform::SP_PCD3D_SM5)
+		{
+			// Only supporting vendor extensions on PC D3D SM5+
+			return false;
+		}
+
+		return true;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment, int32 RasterTechnique)
+	{
+		if (RasterTechnique == int32(Nanite::ERasterTechnique::NVAtomics) ||
+			RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
+			RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+		{
+			// Need to force optimization for driver injection to work correctly.
+			// https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
+			// https://gpuopen.com/gcn-shader-extensions-for-direct3d-and-vulkan/
+			OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
+		}
+
+		if (RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+		{
+			// Force shader model 6.0+
+			OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
+		}
+	}
+};
+
+
+
 class FInstanceCull_CS : public FNaniteShader
 {
 	DECLARE_GLOBAL_SHADER( FInstanceCull_CS );
@@ -455,16 +501,30 @@ class FInstanceCull_CS : public FNaniteShader
 	class FInstanceDrawListDim : SHADER_PERMUTATION_BOOL("INSTANCE_DRAW_LIST");
 	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
 	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL("DEBUG_FLAGS");
-	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FMultiViewDim, FInstanceDrawListDim, FNearClipDim, FDebugFlagsDim>;
+	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
+	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FMultiViewDim, FInstanceDrawListDim, FNearClipDim, FDebugFlagsDim, FRasterTechniqueDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return DoesPlatformSupportNanite(Parameters.Platform);
+		if (!DoesPlatformSupportNanite(Parameters.Platform))
+		{
+			return false;
+		}
+		
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		
+		if( !FRasterTechnique::ShouldCompilePermutation( Parameters, PermutationVector.Get<FRasterTechniqueDim>() ) )
+			return false;
+
+		return FNaniteShader::ShouldCompilePermutation(Parameters);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		
 		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FRasterTechnique::ModifyCompilationEnvironment(Parameters, OutEnvironment, PermutationVector.Get<FRasterTechniqueDim>());
 
 		FVirtualShadowMapArray::SetShaderDefines( OutEnvironment );	// Still needed for shader to compile
 
@@ -476,12 +536,14 @@ class FInstanceCull_CS : public FNaniteShader
 		SHADER_PARAMETER( uint32, NumInstances )
 		
 		SHADER_PARAMETER_STRUCT_INCLUDE( FCullingParameters, CullingParameters )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneParameters, GPUSceneParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
+		SHADER_PARAMETER_STRUCT_INCLUDE( FRasterParameters, RasterParameters )
+
+		SHADER_PARAMETER_SRV( ByteAddressBuffer, ImposterAtlas )
 		
 		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FInstanceDraw >, InInstanceDraws )
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer, OutNodes )
-
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< uint >, OutOccludedInstances )
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< FPersistentState >, OutMainAndPostPassPersistentStates )
@@ -741,7 +803,8 @@ class FInitArgs_CS : public FNaniteShader
 IMPLEMENT_GLOBAL_SHADER(FInitArgs_CS, "/Engine/Private/Nanite/ClusterCulling.usf", "InitArgs", SF_Compute);
 
 BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
-	SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters)
+	SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
+	SHADER_PARAMETER_STRUCT_INCLUDE( FRasterParameters, RasterParameters )
 
 	SHADER_PARAMETER( FIntVector4,	VisualizeConfig )
 	SHADER_PARAMETER( FIntVector4,	SOAStrides )
@@ -755,12 +818,6 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FPackedView >,	InViews )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer,					VisibleClustersSWHW )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FUintVector2 >,	InTotalPrevDrawClusters )
-
-	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< uint >,		OutDepthBuffer )
-	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< UlongType >,	OutVisBuffer64 )
-	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< UlongType >,	OutDbgBuffer64 )
-	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< uint >,		OutDbgBuffer32 )
-	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< uint >,		LockBuffer )
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, InClusterOffsetSWHW )
 
@@ -796,22 +853,9 @@ class FMicropolyRasterizeCS : public FNaniteShader
 		}
 		
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
-
-		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::PlatformAtomics) &&
-			!FDataDrivenShaderPlatformInfo::GetSupportsUInt64ImageAtomics(Parameters.Platform))
-		{
-			// Only some platforms support native 64-bit atomics.
+		
+		if( !FRasterTechnique::ShouldCompilePermutation( Parameters, PermutationVector.Get<FRasterTechniqueDim>() ) )
 			return false;
-		}
-
-		if ((PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
-			 PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			 PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
-			 && Parameters.Platform != EShaderPlatform::SP_PCD3D_SM5)
-		{
-			// Only supporting vendor extensions on PC D3D SM5+
-			return false;
-		}
 
 		if (PermutationVector.Get<FRasterTechniqueDim>() == (int32)Nanite::ERasterTechnique::DepthOnly &&
 			PermutationVector.Get<FDebugVisualizeDim>() )
@@ -837,30 +881,17 @@ class FMicropolyRasterizeCS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		
 		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FRasterTechnique::ModifyCompilationEnvironment(Parameters, OutEnvironment, PermutationVector.Get<FRasterTechniqueDim>());
+
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 1);
 
 		// Get data from GPUSceneParameters rather than View.
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
-
-		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
-		{
-			// Need to force optimization for driver injection to work correctly.
-			// https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
-			// https://gpuopen.com/gcn-shader-extensions-for-direct3d-and-vulkan/
-			OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
-		}
-
-		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
-		{
-			// Force shader model 6.0+
-			OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
-		}
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FMicropolyRasterizeCS, "/Engine/Private/Nanite/Rasterizer.usf", "MicropolyRasterize", SF_Compute);
@@ -2344,6 +2375,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 	const TArray<FPackedView, SceneRenderingAllocator> &Views,
 	const uint32 NumPrimaryViews,
 	const FCullingContext& CullingContext,
+	const FRasterContext& RasterContext,
 	const FRasterState& RasterState,
 	const FGPUSceneParameters &GPUSceneParameters,
 	uint32 CullingPass,
@@ -2419,8 +2451,12 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		FInstanceCull_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInstanceCull_CS::FParameters >();
 
 		PassParameters->GPUSceneParameters = GPUSceneParameters;
+		PassParameters->RasterParameters = RasterContext.Parameters;
 		PassParameters->NumInstances = CullingContext.NumInstancesPreCull;
 		PassParameters->CullingParameters = CullingParameters;
+
+		PassParameters->ImposterAtlas = Nanite::GStreamingManager.GetRootPagesSRV();
+
 		PassParameters->OutMainAndPostPassPersistentStates	= GraphBuilder.CreateUAV( CullingContext.MainAndPostPassPersistentStates );
 		
 		if (CullingContext.StatsBuffer)
@@ -2457,6 +2493,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PermutationVector.Set<FInstanceCull_CS::FInstanceDrawListDim>(CullingContext.InstanceDrawsBuffer != nullptr);
 		PermutationVector.Set<FInstanceCull_CS::FNearClipDim>(RasterState.bNearClip);
 		PermutationVector.Set<FInstanceCull_CS::FDebugFlagsDim>(GNaniteDebugFlags != 0);
+		PermutationVector.Set<FInstanceCull_CS::FRasterTechniqueDim>(int32(RasterContext.RasterTechnique));
 
 		auto ComputeShader = ShaderMap->GetShader<FInstanceCull_CS>(PermutationVector);
 
@@ -2495,7 +2532,6 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		
 		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
 		PassParameters->HierarchyBuffer			= Nanite::GStreamingManager.GetHierarchySRV();
-
 		PassParameters->MainAndPostPassPersistentStates	= GraphBuilder.CreateUAV( CullingContext.MainAndPostPassPersistentStates );
 		
 		if( CullingPass == CULLING_PASS_NO_OCCLUSION || CullingPass == CULLING_PASS_OCCLUSION_MAIN )
@@ -2673,31 +2709,13 @@ void AddPass_Rasterize(
 	}
 
 	PassParameters->GPUSceneParameters = GPUSceneParameters;
+	PassParameters->RasterParameters = RasterContext.Parameters;
 	PassParameters->VisualizeConfig = GetVisualizeConfig();
 	PassParameters->SOAStrides = SOAStrides;
 	PassParameters->MaxClusters = Nanite::FGlobalResources::GetMaxClusters();
 	PassParameters->RenderFlags = RenderFlags;
 	PassParameters->RasterStateReverseCull = RasterState.CullMode == CM_CCW ? 1 : 0;
 	PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
-	if (RasterContext.RasterTechnique == ERasterTechnique::DepthOnly)
-	{
-		PassParameters->OutDepthBuffer = GraphBuilder.CreateUAV(RasterContext.DepthBuffer);
-	}
-	else
-	{
-		PassParameters->OutVisBuffer64 = GraphBuilder.CreateUAV(RasterContext.VisBuffer64);
-	}
-
-	if( ShouldExportDebugBuffers() )
-	{
-		PassParameters->OutDbgBuffer64 = GraphBuilder.CreateUAV(RasterContext.DbgBuffer64);
-		PassParameters->OutDbgBuffer32 = GraphBuilder.CreateUAV(RasterContext.DbgBuffer32);
-	}
-
-	if( RasterContext.RasterTechnique == ERasterTechnique::LockBufferFallback )
-	{
-		PassParameters->LockBuffer = GraphBuilder.CreateUAV(RasterContext.LockBuffer);
-	}
 	
 	if (VirtualShadowMapArray)
 	{
@@ -2943,27 +2961,32 @@ FRasterContext InitRasterContext(
 
 	if(RasterMode == EOutputBufferMode::DepthOnly)
 	{
+		RasterContext.Parameters.OutDepthBuffer = GraphBuilder.CreateUAV( RasterContext.DepthBuffer );
 		if( bClearTarget )
 		{
-			AddClearUAVPass( GraphBuilder, GraphBuilder.CreateUAV( RasterContext.DepthBuffer ), ClearValue, RectMinMaxBufferSRV, NumRects );
+			AddClearUAVPass( GraphBuilder, RasterContext.Parameters.OutDepthBuffer, ClearValue, RectMinMaxBufferSRV, NumRects );
 		}
 	}
 	else
 	{
+		RasterContext.Parameters.OutVisBuffer64 = GraphBuilder.CreateUAV( RasterContext.VisBuffer64 );
 		if( bClearTarget )
 		{
-			AddClearUAVPass( GraphBuilder, GraphBuilder.CreateUAV( RasterContext.VisBuffer64 ), ClearValue, RectMinMaxBufferSRV, NumRects );
+			AddClearUAVPass( GraphBuilder, RasterContext.Parameters.OutVisBuffer64, ClearValue, RectMinMaxBufferSRV, NumRects );
 		}
 		
 		if( ShouldExportDebugBuffers() )
 		{
-			AddClearUAVPass( GraphBuilder, GraphBuilder.CreateUAV( RasterContext.DbgBuffer64 ), ClearValue, RectMinMaxBufferSRV, NumRects );
-			AddClearUAVPass( GraphBuilder, GraphBuilder.CreateUAV( RasterContext.DbgBuffer32 ), ClearValue, RectMinMaxBufferSRV, NumRects );
+			RasterContext.Parameters.OutDbgBuffer64 = GraphBuilder.CreateUAV( RasterContext.DbgBuffer64 );
+			RasterContext.Parameters.OutDbgBuffer32 = GraphBuilder.CreateUAV( RasterContext.DbgBuffer32 );
+			AddClearUAVPass( GraphBuilder, RasterContext.Parameters.OutDbgBuffer64, ClearValue, RectMinMaxBufferSRV, NumRects );
+			AddClearUAVPass( GraphBuilder, RasterContext.Parameters.OutDbgBuffer32, ClearValue, RectMinMaxBufferSRV, NumRects );
 		}
 
 		if( RasterContext.RasterTechnique == ERasterTechnique::LockBufferFallback )
 		{
-			AddClearUAVPass( GraphBuilder, GraphBuilder.CreateUAV( RasterContext.LockBuffer ), ClearValue, RectMinMaxBufferSRV, NumRects );
+			RasterContext.Parameters.LockBuffer = GraphBuilder.CreateUAV( RasterContext.LockBuffer );
+			AddClearUAVPass( GraphBuilder, RasterContext.Parameters.LockBuffer, ClearValue, RectMinMaxBufferSRV, NumRects );
 		}
 	}
 
@@ -3139,6 +3162,7 @@ void CullRasterizeInner(
 		Views,
 		NumPrimaryViews,
 		CullingContext,
+		RasterContext,
 		RasterState,
 		GPUSceneParameters,
 		CullingContext.bTwoPassOcclusion ? CULLING_PASS_OCCLUSION_MAIN : CULLING_PASS_NO_OCCLUSION,
@@ -3208,6 +3232,7 @@ void CullRasterizeInner(
 			Views,
 			NumPrimaryViews,
 			CullingContext,
+			RasterContext,
 			RasterState,
 			GPUSceneParameters,
 			CULLING_PASS_OCCLUSION_POST,
@@ -4161,6 +4186,7 @@ void DrawBasePass(
 			
 		PassParameters->ClusterPageData		= Nanite::GStreamingManager.GetClusterPageDataSRV(); 
 		PassParameters->ClusterPageHeaders	= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
+
 		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 
 		PassParameters->MaterialRange = MaterialRange;

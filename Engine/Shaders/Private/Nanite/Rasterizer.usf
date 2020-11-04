@@ -4,47 +4,12 @@
 #include "../SceneData.ush"
 #include "NaniteDataDecode.ush"
 #include "../VirtualShadowMaps/PageAccessCommon.ush"
+#include "WritePixel.ush"
 
-// Must match ERasterTechnique in NaniteRender.h
-#define RASTER_TECHNIQUE_FALLBACK	0
-#define RASTER_TECHNIQUE_PLATFORM	1
-#define RASTER_TECHNIQUE_NVIDIA		2
-#define RASTER_TECHNIQUE_AMD_DX11	3
-#define RASTER_TECHNIQUE_AMD_DX12	4
-#define RASTER_TECHNIQUE_DEPTHONLY	5
-
-#if RASTER_TECHNIQUE == RASTER_TECHNIQUE_FALLBACK
-#define COHERENCY_FLAG globallycoherent
-#else
-#define COHERENCY_FLAG 
-#endif
-
-// When near clipping is disabled we need to move the geometry 
-#ifndef NEAR_CLIP
-#define NEAR_CLIP 1
-#endif
-
-RWTexture2D<uint>						OutDepthBuffer : register(u0);
-COHERENCY_FLAG RWTexture2D<UlongType>	OutVisBuffer64 : register(u0);
-#if DEBUG_VISUALIZE
-COHERENCY_FLAG RWTexture2D<UlongType>	OutDbgBuffer64 : register(u1);
-RWTexture2D<uint>						OutDbgBuffer32 : register(u2);
-#endif
-RWTexture2D<uint> 						LockBuffer : register(u3);
-
-StructuredBuffer< uint2 >				InTotalPrevDrawClusters;
-
-#if RASTER_TECHNIQUE == RASTER_TECHNIQUE_NVIDIA
-#define NV_SHADER_EXTN_SLOT u7
-#include "/Engine/Shared/ThirdParty/NVIDIA/nvHLSLExtns.h"
-
-#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_AMD_DX11
-#define AmdDxExtShaderIntrinsicsUAVSlot u7
-#include "/Engine/Shared/ThirdParty/AMD/ags_shader_intrinsics_dx11.h"
-
-#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_AMD_DX12
-#include "/Engine/Shared/ThirdParty/AMD/ags_shader_intrinsics_dx12.h"
-#endif
+#define SUBPIXEL_BITS				8
+#define SUBPIXEL_SAMPLES			(1 << SUBPIXEL_BITS)
+#define SUBPIXEL_MASK				(SUBPIXEL_SAMPLES - 1)
+#define SUBPIXEL_DILATE				0	// To correct for mismatch with HW rasterizer
 
 uint RasterStateReverseCull;
 
@@ -79,54 +44,6 @@ uint2 GetVisualizeValues()
 	return uint2(DebugValueMax, DebugValueAdd);
 }
 #endif
-
-void WritePixel( RWTexture2D<UlongType> OutBuffer, uint PixelValue, uint2 PixelPos, float DeviceZ, FNaniteView NaniteView, bool bUsePageTable )
-{
-#if VIRTUAL_TEXTURE_TARGET
-	if( bUsePageTable )
-	{
-		if( !VirtualToPhysicalTexel(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, PixelPos, PixelPos) )
-		{
-			// mapped to non-commited space.
-			return;
-		}
-	}
-#endif
-
-#if !NEAR_CLIP
-	DeviceZ = max(0.0f, DeviceZ);
-#endif
-
-	const uint DepthInt = asuint(DeviceZ);
-
-#if RASTER_TECHNIQUE == RASTER_TECHNIQUE_DEPTHONLY
-	InterlockedMax( OutDepthBuffer[ PixelPos ], DepthInt );
-#else
-	const UlongType Pixel = PackUlongType(uint2(PixelValue, DepthInt));
-
-#if RASTER_TECHNIQUE == RASTER_TECHNIQUE_PLATFORM
-#if COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS
-	ImageInterlockedMaxUInt64(OutBuffer, PixelPos, Pixel);
-#else
-	#error UNKNOWN_ATOMIC_PLATFORM
-#endif
-#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_NVIDIA
-	NvInterlockedMaxUint64(OutBuffer, PixelPos, Pixel); 
-#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_AMD_DX11
-	AmdDxExtShaderIntrinsics_AtomicMaxU64(OutBuffer, PixelPos, Pixel);
-#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_AMD_DX12
-	AmdExtD3DShaderIntrinsics_AtomicMaxU64(OutBuffer, PixelPos, Pixel);
-#else
-	// YOLO SYNC: Surprisingly this seems to work in practice (for compute, not pixel). Tested on 2080Ti and 1080.
-	uint PrevDepth;
-	InterlockedMax(LockBuffer[PixelPos], DepthInt, PrevDepth);
-	if (DepthInt > PrevDepth)
-	{
-		OutBuffer[PixelPos] = Pixel;
-	}
-#endif
-#endif
-}
 
 void RasterizeTri(
 	FNaniteView NaniteView,
@@ -371,26 +288,6 @@ float3 DecodePosition(uint VertIndex, FTriCluster Cluster)
 	return UnpackPosition(PackedPos, Cluster, POSITION_QUANTIZATION_BITS);
 }
 
-float3 TransformVertex(uint VertIndex, FTriCluster Cluster, float4x4 LocalToSubpixel)
-{
-	// Assume proper bounds checking already performed.
-	float3 PointLocal = DecodePosition(VertIndex, Cluster);
-	float4 PointClipSubpixel = mul(float4( PointLocal, 1), LocalToSubpixel);
-	float3 Subpixel = PointClipSubpixel.xyz / PointClipSubpixel.w;
-	return float3(floor(Subpixel.xy), Subpixel.z);
-}
-
-void TransformVertexCache(uint VertIndex, FTriCluster Cluster, float4x4 LocalToSubpixel, float2 SubpixelOffset)
-{
-	if (VertIndex < Cluster.NumVerts)
-	{
-		// Transform vertex and store in group shared memory.
-		float3 Vert = TransformVertex(VertIndex, Cluster, LocalToSubpixel);
-		Vert.xy += SubpixelOffset;
-		GroupVerts[VertIndex] = Vert;
-	}
-}
-
 // Default cull mode is CW. If this returns true, CCW culling is required
 bool ReverseWindingOrder(FInstanceSceneData InstanceData)
 {
@@ -404,13 +301,15 @@ bool ReverseWindingOrder(FInstanceSceneData InstanceData)
 	return (bReverseInstanceCull != bRasterStateReverseCull);
 }
 
-Buffer<uint> InClusterOffsetSWHW;
+StructuredBuffer< uint2 >	InTotalPrevDrawClusters;
+Buffer<uint>				InClusterOffsetSWHW;
+
 groupshared float4x4 LocalToSubpixelLDS;
 
 [numthreads(128, 1, 1)]
 void MicropolyRasterize(
 	uint	VisibleIndex	: SV_GroupID,
-	uint	ThreadIndex		: SV_GroupIndex) 
+	uint	GroupIndex		: SV_GroupIndex) 
 {
 #if HAS_PREV_DRAW_DATA
 	VisibleIndex += InTotalPrevDrawClusters[0].x;
@@ -424,37 +323,63 @@ void MicropolyRasterize(
 	FInstanceSceneData InstanceData = GetInstanceData( VisibleCluster.InstanceId );
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
 
-	float2 SubpixelOffset = 0;
-
 #if CLUSTER_PER_PAGE
 	// Scalar
 	uint2 vPage = VisibleCluster.vPage;
 	uint2 pPage = PageTable[ CalcPageTableLevelOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel ) + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, vPage ) ];
-	SubpixelOffset = ( (float2)pPage - (float2)vPage ) * VSM_PAGE_SIZE * SUBPIXEL_SAMPLES;
 #endif
 
-	// InstancedDynamicData is group invariant, so let's just calculate it once and share it through LDS.
-	if (ThreadIndex == 0)
-	{
-		LocalToSubpixelLDS = CalculateInstanceDynamicData(NaniteView, InstanceData).LocalToSubpixel;
-	}
+	float4x4 LocalToSubpixel;
 
+	// InstancedDynamicData is group invariant, so let's just calculate it once and share it through LDS.
+	if( GroupIndex == 0 )
+	{
+		LocalToSubpixel = CalculateInstanceDynamicData(NaniteView, InstanceData).LocalToClip;
+		
+		// Apply Vert.xy = PointScreen.xy * float2(0.5, -0.5) * View.ViewSizeAndInvSize.xy + 0.5 * View.ViewSizeAndInvSize.xy + View.ViewRect.xy
+		float2 Scale = float2( 0.5, -0.5 ) * NaniteView.ViewSizeAndInvSize.xy * SUBPIXEL_SAMPLES;
+		float2 Bias = ( 0.5 * NaniteView.ViewSizeAndInvSize.xy + NaniteView.ViewRect.xy ) * SUBPIXEL_SAMPLES + 0.5f;
+
+#if CLUSTER_PER_PAGE
+		Bias += ( (float2)pPage - (float2)vPage ) * VSM_PAGE_SIZE * SUBPIXEL_SAMPLES;
+#endif
+
+		LocalToSubpixel._m00_m10_m20_m30 = LocalToSubpixel._m00_m10_m20_m30 * Scale.x + LocalToSubpixel._m03_m13_m23_m33 * Bias.x;
+		LocalToSubpixel._m01_m11_m21_m31 = LocalToSubpixel._m01_m11_m21_m31 * Scale.y + LocalToSubpixel._m03_m13_m23_m33 * Bias.y;
+
+		LocalToSubpixelLDS = LocalToSubpixel;
+	}
 	GroupMemoryBarrierWithGroupSync();
-	float4x4 LocalToSubpixel = LocalToSubpixelLDS;
+	LocalToSubpixel = LocalToSubpixelLDS;
 
 	FTriCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
-	TransformVertexCache( ThreadIndex +   0, Cluster, LocalToSubpixel, SubpixelOffset );
-	TransformVertexCache( ThreadIndex + 128, Cluster, LocalToSubpixel, SubpixelOffset );
-#if USE_CONSTRAINED_CLUSTERS == 0
-	TransformVertexCache( ThreadIndex + 256, Cluster, LocalToSubpixel, SubpixelOffset );
-#endif
+	UNROLL
+	for( uint i = 0; i < 2; i++ )
+	{
+		uint VertIndex = GroupIndex + i * 128;
+		if( VertIndex < Cluster.NumVerts )
+		{
+			// Transform vertex and store in group shared memory.
+			float3 PointLocal = DecodePosition( VertIndex, Cluster );
+			float4 PointClipSubpixel = mul( float4( PointLocal, 1 ), LocalToSubpixel );
+			float3 Subpixel = PointClipSubpixel.xyz / PointClipSubpixel.w;
+			GroupVerts[ VertIndex ] = float3(floor(Subpixel.xy), Subpixel.z);
+		}
+	}
 	
 	GroupMemoryBarrierWithGroupSync();
 
-	if (ThreadIndex < Cluster.NumTris)
+	int4 ViewRect = NaniteView.ViewRect;
+
+#if CLUSTER_PER_PAGE
+	ViewRect.xy = pPage * VSM_PAGE_SIZE;
+	ViewRect.zw = ViewRect.xy + VSM_PAGE_SIZE;
+#endif
+
+	if (GroupIndex < Cluster.NumTris)
 	{
-		uint TriangleID = ThreadIndex;
+		uint TriangleID = GroupIndex;
 		uint3 TriangleIndices = ReadTriangleIndices(Cluster, TriangleID);
 		if (ReverseWindingOrder(InstanceData))
 		{
@@ -467,13 +392,6 @@ void MicropolyRasterize(
 		Vertices[2] = GroupVerts[TriangleIndices.z];
 
 		uint PixelValue = ((VisibleIndex + 1) << 7) | TriangleID;
-		
-		int4 ViewRect = NaniteView.ViewRect;
-
-#if CLUSTER_PER_PAGE
-		ViewRect.xy = pPage * VSM_PAGE_SIZE;
-		ViewRect.zw = ViewRect.xy + VSM_PAGE_SIZE;
-#endif
 
 		RasterizeTri(
 			NaniteView,

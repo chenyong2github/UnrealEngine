@@ -605,7 +605,19 @@ static void PackTriCluster(Nanite::FPackedTriCluster& OutCluster, const Nanite::
 	OutCluster.Pad0 = 0;
 }
 
-static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const Nanite::FHierarchyNode& InNode, const TArray<FClusterGroup>& Groups, const TArray<FClusterGroupPart>& GroupParts)
+struct FHierarchyNode
+{
+	FSphere			Bounds[64];
+	FSphere			LODBounds[64];
+	//FPackedBound	PackedBounds[64];
+	float			MinLODErrors[64];
+	float			MaxParentLODErrors[64];
+	uint32			ChildrenStartIndex[64];
+	uint32			NumChildren[64];
+	uint32			ClusterGroupPartIndex[64];
+};
+
+static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const FHierarchyNode& InNode, const TArray<FClusterGroup>& Groups, const TArray<FClusterGroupPart>& GroupParts)
 {
 	static_assert( MAX_RESOURCE_PAGES_BITS + MAX_CLUSTERS_PER_GROUP_BITS + MAX_GROUP_PARTS_BITS <= 32, "" );
 	for (uint32 i = 0; i < 64; i++)
@@ -644,23 +656,7 @@ static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const Nanit
 	}
 }
 
-struct FCompareMaterialTriangleIndex
-{
-	// This groups the material ranges from largest to smallest, which is
-	// more efficient for evaluating the sequences on the GPU, and also makes
-	// the minus one encoding work (the first range must have more than 1 tri).
-	FORCEINLINE bool operator()(const FMaterialTriangle& A, const FMaterialTriangle& B) const
-	{
-		if (A.RangeCount != B.RangeCount)
-		{
-			return (A.RangeCount > B.RangeCount);
-		}
-
-		return (A.MaterialIndex < B.MaterialIndex);
-	}
-};
-
-static void CalculateQuantizedPositions(TArray< Nanite::FCluster >& Clusters, const FBounds& MeshBounds)
+static void CalculateQuantizedPositions(TArray< FCluster >& Clusters, const FBounds& MeshBounds)
 {
 	// Quantize cluster positions to 10:10:10 cluster-local coordinates.
 	const float FLOAT_UINT32_MAX = 4294967040.0f;	// Largest float value smaller than MAX_uint32: 1.11111111111111111111111b * 2^31
@@ -1891,31 +1887,6 @@ static void WritePages(	FResources& Resources,
 	Resources.bLZCompressed = bLZCompress;
 }
 
-static FSphere CombineBoundingSpheres( const FSphere& SphereA, const FSphere& SphereB )
-{
-	FVector Delta = SphereB.Center - SphereA.Center;
-	float Dist2 = FVector::DotProduct( Delta, Delta );
-	float DeltaR = SphereB.W - SphereA.W;
-
-	if( DeltaR * DeltaR >= Dist2 )
-	{
-		// Larger sphere encloses smaller sphere
-		return SphereA.W >= SphereB.W ? SphereA : SphereB;
-	}
-	else
-	{
-		// Partially overlapping or disjoin
-		float Dist = FMath::Sqrt( Dist2 );
-		FSphere Result = SphereA;
-		Result.W = ( Dist + SphereA.W + SphereB.W ) * 0.5f;
-		if( Dist > 1e-5f )
-		{
-			Result.Center += ( Result.W - SphereA.W ) / Dist * Delta;
-		}
-		return Result;
-	}
-}
-
 struct FIntermediateNode
 {
 	enum class EType : uint8
@@ -2118,7 +2089,7 @@ static void BuildHierarchyNodesKMeans( TArray< Nanite::FHierarchyNode >& Hierarc
 			{
 				Node.Children[ i ] = NodeBaseIndex + Cluster.Nodes[ i ];
 				const FIntermediateNode& ChildNode = Nodes[ Node.Children[ i ] ];
-				Node.Bound = CombineBoundingSpheres( Node.Bound, ChildNode.Bound );
+				Node.Bound += ChildNode.Bound;
 				if( ChildNode.Type != FIntermediateNode::EType::GroupPart )
 					Node.Type = FIntermediateNode::EType::InnerNode;
 			}
@@ -2141,7 +2112,7 @@ static void BuildHierarchyNodesKMeans( TArray< Nanite::FHierarchyNode >& Hierarc
 		{
 			Node.Children[ i ] = NodeBaseIndex + i;
 			const FIntermediateNode& ChildNode = Nodes[ NodeBaseIndex + i ];
-			Node.Bound = CombineBoundingSpheres( Node.Bound, ChildNode.Bound );
+			Node.Bound += ChildNode.Bound;
 			if( ChildNode.Type != FIntermediateNode::EType::GroupPart )
 				Node.Type = FIntermediateNode::EType::InnerNode;
 		}
@@ -2192,7 +2163,19 @@ void BuildMaterialRanges(
 	}
 
 	// Sort by triangle range count descending, and material index ascending.
-	MaterialTris.Sort(FCompareMaterialTriangleIndex());
+	// This groups the material ranges from largest to smallest, which is
+	// more efficient for evaluating the sequences on the GPU, and also makes
+	// the minus one encoding work (the first range must have more than 1 tri).
+	MaterialTris.Sort(
+		[](const FMaterialTriangle& A, const FMaterialTriangle& B)
+		{
+			if (A.RangeCount != B.RangeCount)
+			{
+				return (A.RangeCount > B.RangeCount);
+			}
+
+			return (A.MaterialIndex < B.MaterialIndex);
+		} );
 
 	FMaterialRange CurrentRange;
 	CurrentRange.RangeStart = 0;
@@ -3670,11 +3653,11 @@ static void RemoveDegenerateTriangles(FCluster& Cluster)
 
 static void RemoveDegenerateTriangles(TArray<FCluster>& Clusters)
 {
-	const uint32 NumClusters = Clusters.Num();
-	for (uint32 i = 0; i < NumClusters; i++)
-	{
-		RemoveDegenerateTriangles(Clusters[i]);
-	}
+	ParallelFor( Clusters.Num(),
+		[&]( uint32 ClusterIndex )
+		{
+			RemoveDegenerateTriangles( Clusters[ ClusterIndex ] );
+		} );
 }
 
 static void ConstrainClusters( TArray< FClusterGroup >& ClusterGroups, TArray< FCluster >& Clusters )

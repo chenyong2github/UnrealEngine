@@ -14,12 +14,13 @@
 #include "DisjointSet.h"
 #include "Async/ParallelFor.h"
 #include "NaniteEncode.h"
+#include "ImposterAtlas.h"
 
 // If static mesh derived data needs to be rebuilt (new format, serialization
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("F9D57879-6720-47A9-8983-C5B8C525CB7A")
+#define NANITE_DERIVEDDATA_VER TEXT("30EDE0DF-D0EF-4458-B259-0C0128D1F439")
 
 namespace Nanite
 {
@@ -196,9 +197,9 @@ static uint32 BuildCoarseRepresentation(
 }
 
 static void ClusterTriangles(
-	const TArray<FStaticMeshBuildVertex>& Verts,
-	const TArray<uint32>& Indexes,
-	const TArray<int32>& MaterialIndexes,
+	const TArray< FStaticMeshBuildVertex >& Verts,
+	const TArray< uint32 >& Indexes,
+	const TArray< int32 >& MaterialIndexes,
 	TArray< FCluster >& Clusters,
 	const FBounds& MeshBounds,
 	uint32 NumTexCoords,
@@ -206,8 +207,8 @@ static void ClusterTriangles(
 {
 	uint32 Time0 = FPlatformTime::Cycles();
 
-	//UE_LOG( LogStaticMesh, Log, TEXT("Source Verts CRC %u"), FCrc::MemCrc32( Verts.GetData(), Verts.Num() * Verts.GetTypeSize() ) );
-	//UE_LOG( LogStaticMesh, Log, TEXT("Source Indexes CRC %u"), FCrc::MemCrc32( Indexes.GetData(), Indexes.Num() * Indexes.GetTypeSize() ) );
+	LOG_CRC( Verts );
+	LOG_CRC( Indexes );
 
 	uint32 NumTriangles = Indexes.Num() / 3;
 
@@ -327,8 +328,7 @@ static void ClusterTriangles(
 	uint32 BoundaryTime = FPlatformTime::Cycles();
 	UE_LOG( LogStaticMesh, Log, TEXT("Boundary [%.2fs], verts: %i, tris: %i, UVs %i%s"), FPlatformTime::ToMilliseconds( BoundaryTime - Time0 ) / 1000.0f, Verts.Num(), Indexes.Num() / 3, NumTexCoords, bHasColors ? TEXT(", Color") : TEXT("") );
 
-	//UE_LOG( LogStaticMesh, Log, TEXT("Boundary CRC %u"), FCrc::MemCrc32( BoundaryEdges.GetData(), BoundaryEdges.GetAllocatedSize() ) );
-	//UE_LOG( LogStaticMesh, Log, TEXT("SharedEdges CRC %u"), FCrc::MemCrc32( SharedEdges.GetData(), SharedEdges.Num() * SharedEdges.GetTypeSize() ) );
+	LOG_CRC( SharedEdges );
 
 	FGraphPartitioner Partitioner( NumTriangles );
 
@@ -369,8 +369,7 @@ static void ClusterTriangles(
 		Partitioner.PartitionStrict( Graph, FCluster::ClusterSize - 4, FCluster::ClusterSize, true );
 		check( Partitioner.Ranges.Num() );
 
-		//UE_LOG( LogStaticMesh, Log, TEXT("Partitioner.Indexes CRC %u"), FCrc::MemCrc32( Partitioner.Indexes.GetData(), Partitioner.Indexes.Num() * Partitioner.Indexes.GetTypeSize() ) );
-		//UE_LOG( LogStaticMesh, Log, TEXT("Partitioner.Ranges CRC %u"), FCrc::MemCrc32( Partitioner.Ranges.GetData(), Partitioner.Ranges.Num() * Partitioner.Ranges.GetTypeSize() ) );
+		LOG_CRC( Partitioner.Ranges );
 	}
 
 	const uint32 OptimalNumClusters = FMath::DivideAndRoundUp< int32 >( Indexes.Num(), FCluster::ClusterSize * 3 );
@@ -403,10 +402,10 @@ static void ClusterTriangles(
 
 static bool BuildNaniteData(
 	FResources& Resources,
-	TArray<FStaticMeshSection, TInlineAllocator<1>>& CoarseSections,
-	TArray<FStaticMeshBuildVertex>& Verts, // TODO: Do not require this vertex type for all users of Nanite
-	TArray<uint32>& Indexes,
-	TArray<int32>&  MaterialIndexes,
+	TArray< FStaticMeshBuildVertex >& Verts, // TODO: Do not require this vertex type for all users of Nanite
+	TArray< uint32 >& Indexes,
+	TArray< FStaticMeshSection, TInlineAllocator<1> >& Sections,
+	TArray< int32 >&  MaterialIndexes,
 	uint32 NumTexCoords,
 	const FMeshNaniteSettings& Settings
 )
@@ -450,15 +449,17 @@ static bool BuildNaniteData(
 
 	uint32 Time0 = FPlatformTime::Cycles();
 
-	TArray< FClusterGroup > Groups;
-	FClusterDAG DAG( Clusters, Groups );
+	FClusterDAG DAG( Clusters );
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::DAG.Reduce"));
-		DAG.Reduce( Settings );
+		DAG.Reduce();
 	}
 
 	uint32 ReduceTime = FPlatformTime::Cycles();
 	UE_LOG(LogStaticMesh, Log, TEXT("Reduce [%.2fs]"), FPlatformTime::ToMilliseconds(ReduceTime - Time0) / 1000.0f);
+
+	int32 RootClusterIndex = Clusters.Num() - 1;
+	int32 RootGroupIndex = DAG.Groups.Num() - 1;
 
 	if (bUseCoarseRepresentation)
 	{
@@ -479,7 +480,7 @@ static bool BuildNaniteData(
 
 				TArrayView< FCluster > LevelClusters( &Clusters[ Offset ], Num );
 
-				CoarseTriCount = BuildCoarseRepresentation(LevelClusters, CoarseSections, Indexes, Verts, NumTexCoords);
+				CoarseTriCount = BuildCoarseRepresentation(LevelClusters, Sections, Indexes, Verts, NumTexCoords);
 				bCoarseCreated = true;
 				break;
 			}
@@ -496,10 +497,30 @@ static bool BuildNaniteData(
 
 	uint32 EncodeTime0 = FPlatformTime::Cycles();
 
-	Encode( Resources, Clusters, Groups, DAG.MeshBounds, NumTexCoords, bHasColors );
+	Encode( Resources, Clusters, DAG.Groups, DAG.MeshBounds, NumTexCoords, bHasColors );
 
 	uint32 EncodeTime1 = FPlatformTime::Cycles();
 	UE_LOG( LogStaticMesh, Log, TEXT("Encode [%.2fs]"), FPlatformTime::ToMilliseconds( EncodeTime1 - EncodeTime0 ) / 1000.0f );
+
+	auto& RootChildren = DAG.Groups[ RootGroupIndex ].Children;
+	
+	FImposterAtlas ImposterAtlas( Resources.ImposterAtlas, MeshBounds );
+
+	ParallelFor( FMath::Square( FImposterAtlas::AtlasSize ),
+		[&]( int32 TileIndex )
+		{
+			FIntPoint TilePos(
+				TileIndex % FImposterAtlas::AtlasSize,
+				TileIndex / FImposterAtlas::AtlasSize );
+
+			for( int32 ClusterIndex = 0; ClusterIndex < RootChildren.Num(); ClusterIndex++ )
+			{
+				ImposterAtlas.Rasterize( TilePos, Clusters[ RootChildren[ ClusterIndex ] ], ClusterIndex );
+			}
+		} );
+
+	uint32 ImposterTime = FPlatformTime::Cycles();
+	UE_LOG(LogStaticMesh, Log, TEXT("Imposter [%.2fs]"), FPlatformTime::ToMilliseconds( ImposterTime - EncodeTime1 ) / 1000.0f);
 
 	uint32 Time1 = FPlatformTime::Cycles();
 
@@ -522,9 +543,9 @@ bool FBuilderModule::Build(
 	TArray<FStaticMeshSection, TInlineAllocator<1>> IgnoredCoarseSections;
 	return BuildNaniteData(
 		Resources,
-		IgnoredCoarseSections,
 		Vertices,
 		TriangleIndices,
+		IgnoredCoarseSections,
 		MaterialIndices,
 		NumTexCoords,
 		Settings
@@ -567,9 +588,9 @@ bool FBuilderModule::Build(
 
 	return BuildNaniteData(
 		Resources,
-		Sections,
 		Vertices,
 		TriangleIndices,
+		Sections,
 		MaterialIndices,
 		NumTexCoords,
 		Settings

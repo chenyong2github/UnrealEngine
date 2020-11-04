@@ -360,6 +360,7 @@ void FStreamingManager::InitRHI()
 	RequestsHashTable	= new FRequestsHashTable();
 	PageUploader		= new FStreamingPageUploader();
 
+	RootPages.DataBuffer.Initialize(sizeof(uint32), 0, TEXT("FStreamingManagerRootPagesInitial"));
 	ClusterPageData.DataBuffer.Initialize(sizeof(uint32), 0, TEXT("FStreamingManagerClusterPageDataInitial"));
 	ClusterPageHeaders.DataBuffer.Initialize(sizeof(uint32), 0, TEXT("FStreamingManagerClusterPageHeadersInitial"));
 	Hierarchy.DataBuffer.Initialize(sizeof(uint32), 0, TEXT("FStreamingManagerHierarchyInitial"));	// Dummy allocation to make sure it is a valid resource
@@ -382,6 +383,7 @@ void FStreamingManager::ReleaseRHI()
 		}
 	}
 
+	RootPages.Release();
 	ClusterPageData.Release();
 	ClusterPageHeaders.Release();
 	Hierarchy.Release();
@@ -408,9 +410,10 @@ void FStreamingManager::Add( FResources* Resources )
 		INC_DWORD_STAT_BY( STAT_NaniteTotalPages, Resources->PageStreamingStates.Num() );
 		INC_DWORD_STAT_BY( STAT_NaniteRootPages, 1 );
 
-		Resources->RootPageIndex = RootPagesAllocator.Allocate( 1 );
+		Resources->RootPageIndex = RootPages.Allocator.Allocate( 1 );
+		RootPages.TotalUpload++;
 
-		Resources->RuntimeResourceID = NextRuntimeResourceID++;
+		Resources->RuntimeResourceID = Resources->RootPageIndex;
 		RuntimeResourceMap.Add( Resources->RuntimeResourceID, Resources );
 		
 		PendingAdds.Add( Resources );
@@ -430,7 +433,7 @@ void FStreamingManager::Remove( FResources* Resources )
 		Hierarchy.Allocator.Free( Resources->HierarchyOffset, Resources->HierarchyNodes.Num() );
 		Resources->HierarchyOffset = -1;
 
-		RootPagesAllocator.Free( Resources->RootPageIndex, 1 );
+		RootPages.Allocator.Free( Resources->RootPageIndex, 1 );
 		Resources->RootPageIndex = -1;
 
 		const uint32 NumResourcePages = Resources->PageStreamingStates.Num();
@@ -1028,8 +1031,13 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 
 	check( MaxStreamingPages <= MAX_GPU_PAGES );
 	uint32 MaxRootPages = MAX_GPU_PAGES - MaxStreamingPages;
-	uint32 NumAllocatedRootPages = FMath::Clamp( FMath::RoundUpToPowerOfTwo( RootPagesAllocator.GetMaxSize() ), MIN_ROOT_PAGES_CAPACITY, MaxRootPages );
-	check( NumAllocatedRootPages >= (uint32)RootPagesAllocator.GetMaxSize() );	// Root pages just don't fit!
+	uint32 NumAllocatedRootPages = FMath::Clamp( FMath::RoundUpToPowerOfTwo( RootPages.Allocator.GetMaxSize() ), MIN_ROOT_PAGES_CAPACITY, MaxRootPages );
+	check( NumAllocatedRootPages >= (uint32)RootPages.Allocator.GetMaxSize() );	// Root pages just don't fit!
+	
+	uint32 WidthInTiles = 12;
+	uint32 TileSize = 12;
+	uint32 AtlasBytes = FMath::Square( WidthInTiles * TileSize ) * sizeof( uint16 );
+	ResizeResourceIfNeeded( GraphBuilder.RHICmdList, RootPages.DataBuffer, NumAllocatedRootPages * AtlasBytes, TEXT("FStreamingManagerRootPages") );
 
 	uint32 NumAllocatedPages = MaxStreamingPages + NumAllocatedRootPages;
 	check( NumAllocatedPages <= MAX_GPU_PAGES );
@@ -1048,6 +1056,7 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 	
 	ClusterPageHeaders.UploadBuffer.Init( NumPendingAdds, sizeof( uint32 ), false, TEXT("FStreamingManagerClusterPageHeadersUpload") );
 	Hierarchy.UploadBuffer.Init( Hierarchy.TotalUpload, sizeof( FPackedHierarchyNode ), false, TEXT("FStreamingManagerHierarchyUpload"));
+	RootPages.UploadBuffer.Init( RootPages.TotalUpload, AtlasBytes, false, TEXT("FStreamingManagerRootPagesUpload"));
 	
 	// Calculate total requires size
 	uint32 TotalUncompressedSize = 0;
@@ -1095,6 +1104,7 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 		}
 		
 		Hierarchy.UploadBuffer.Add( Resources->HierarchyOffset, &Resources->HierarchyNodes[ 0 ], Resources->HierarchyNodes.Num() );
+		RootPages.UploadBuffer.Add( Resources->RootPageIndex, Resources->ImposterAtlas.GetData() );
 
 		FRootPageInfo& RootPageInfo = RootPageInfos[ Resources->RootPageIndex ];
 		RootPageInfo.RuntimeResourceID = Resources->RuntimeResourceID;
@@ -1103,16 +1113,21 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 	}
 
 	{
-		FRHITransitionInfo Transitions[3] =
+		FRHITransitionInfo Transitions[] =
 		{
 			FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::Unknown, ERHIAccess::UAVCompute),
 			FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-			FRHITransitionInfo(Hierarchy.DataBuffer.UAV,			ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+			FRHITransitionInfo(Hierarchy.DataBuffer.UAV,			ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+			FRHITransitionInfo(RootPages.DataBuffer.UAV,			ERHIAccess::Unknown, ERHIAccess::UAVCompute)
 		};
 		GraphBuilder.RHICmdList.Transition(Transitions);
 		
 		Hierarchy.TotalUpload = 0;
 		Hierarchy.UploadBuffer.ResourceUploadTo(GraphBuilder.RHICmdList, Hierarchy.DataBuffer, false);
+
+		RootPages.TotalUpload = 0;
+		RootPages.UploadBuffer.ResourceUploadTo(GraphBuilder.RHICmdList, RootPages.DataBuffer, false);
+
 		ClusterPageHeaders.UploadBuffer.ResourceUploadTo(GraphBuilder.RHICmdList, ClusterPageHeaders.DataBuffer, false);
 		PageUploader->ResourceUploadTo(GraphBuilder.RHICmdList, ClusterPageData.DataBuffer);
 	}

@@ -90,8 +90,6 @@ FCluster::FCluster(
 					CorrectAttributesColor( Attributes );
 				else
 					CorrectAttributes( Attributes );
-
-				Bounds += InVert.Position;
 			}
 
 			Indexes.Add( NewIndex );
@@ -154,8 +152,6 @@ FCluster::FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const 
 				OldToNewIndex.Add( OldIndex, NewIndex );
 
 				FMemory::Memcpy( &GetPosition( NewIndex ), &SrcCluster.GetPosition( OldIndex ), GetVertSize() * sizeof( float ) );
-
-				Bounds += GetPosition( NewIndex );
 			}
 
 			Indexes.Add( NewIndex );
@@ -317,6 +313,7 @@ float FCluster::Simplify( uint32 TargetNumTris )
 	for( uint32 i = 0; i < NumVerts; i++ )
 	{
 		GetPosition(i) *= InvScale;
+		Bounds += GetPosition(i);
 	}
 
 	return FMath::Sqrt( MaxErrorSqr ) * InvScale;
@@ -583,6 +580,7 @@ FMatrix CovarianceToBasis( const FMatrix& Covariance )
 void FCluster::Bound()
 {
 	NumTris = Indexes.Num() / 3;
+	Bounds = FBounds();
 	
 	TArray< FVector, TInlineAllocator<128> > Positions;
 	Positions.SetNum( NumVerts, false );
@@ -590,6 +588,7 @@ void FCluster::Bound()
 	for( uint32 i = 0; i < NumVerts; i++ )
 	{
 		Positions[i] = GetPosition(i);
+		Bounds += Positions[i];
 	}
 	SphereBounds = FSphere( Positions.GetData(), Positions.Num() );
 	LODBounds = SphereBounds;

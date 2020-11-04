@@ -7,6 +7,58 @@
 
 #include "NaniteDataDecode.ush"
 #include "HZBCull.ush"
+#include "WritePixel.ush"
+#include "Imposter.ush"
+
+void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint InstanceId, FScreenRect Rect )
+{
+	// High bit flags it as an imposter
+	uint BaseCode = (1 << 31) | (1 << 7);
+	uint RootClusterCode = ( InstanceId << 8 ) | BaseCode;
+	uint RootClusterIndex = InstanceData.NaniteRuntimeResourceID;
+
+	for( int y = Rect.Pixels.y; y <= Rect.Pixels.w; y++ )
+	{
+		for( int x = Rect.Pixels.x; x <= Rect.Pixels.z; x++ )
+		{
+			uint2 PixelPos = uint2(x,y);
+
+			// FIXME
+			float2 Jitter = NaniteView.ViewToClip[2].xy * 0.5 * NaniteView.ViewSizeAndInvSize;
+			int FrameRand = Jitter.x * 417;
+
+			float2 Noise = Rand3DPCG16( int3( PixelPos, FrameRand ) ).xy / 65535.0;
+
+			FRay RayWorld;
+			RayWorld.Origin = NaniteView.WorldCameraOrigin.xyz;
+
+			float2 PixelClip = ( ( PixelPos + 0.5 ) * NaniteView.ViewSizeAndInvSize.zw - 0.5 ) * float2(2, -2);
+			RayWorld.Direction = mul( float4( PixelClip, 0, 1 ), NaniteView.ClipToWorld ).xyz;
+	
+			FRay RayLocal;
+			RayLocal.Origin		= mul( float4( RayWorld.Origin, 1 ),	InstanceData.WorldToLocal ).xyz;
+			RayLocal.Direction	= mul( float4( RayWorld.Direction, 0 ),	InstanceData.WorldToLocal ).xyz;
+
+			uint2 ImposterPixel = RayIntersectImposter( RayLocal, RootClusterIndex, InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, Noise );
+
+			if( ImposterPixel.y != 0 )
+			{
+				float Depth = asfloat( ImposterPixel.y );
+				float4 HitClip = mul( float4( 0, 0, Depth, 1 ), NaniteView.ViewToClip );
+				float DeviceZ = HitClip.z / HitClip.w;
+
+				uint TriIndex = ImposterPixel.x;
+				uint PixelValue = RootClusterCode + TriIndex;
+				WritePixel( OutVisBuffer64, PixelValue, NaniteView.ViewRect.xy + PixelPos, DeviceZ, NaniteView, false );
+
+				#if 0//DEBUG_VISUALIZE
+					WritePixel( OutDbgBuffer64, 0, PixelPos, DeviceZ, NaniteView, false );
+					InterlockedAdd(OutDbgBuffer32[ PixelPos ], 1);
+				#endif
+			}
+		}
+	}
+}
 
 //======================
 // Instance culling
@@ -46,13 +98,16 @@ void InstanceCull(
 	const bool bIsPostPass = (CULLING_PASS == CULLING_PASS_OCCLUSION_POST);
 
 #if NANITE_MULTI_VIEW && !INSTANCE_DRAW_LIST
-
 	// Loop over each of the views
 	for (uint ViewId = 0; ViewId < NumViews; ++ViewId)
 	{
-#else // !(NANITE_MULTI_VIEW && !INSTANCE_DRAW_LIST)
+#else
 	uint ViewId = 0;
-#endif // NANITE_MULTI_VIEW && !INSTANCE_DRAW_LIST
+#endif
+	
+#if !INSTANCE_DRAW_LIST || CULLING_PASS_OCCLUSION_POST
+	FNaniteView NaniteView = GetNaniteView( ViewId );
+#endif
 
 	bool bIsVisible = false;
 	bool bWasOccluded = false;
@@ -64,6 +119,8 @@ void InstanceCull(
 #if INSTANCE_DRAW_LIST
 		ViewId = InInstanceDraws[ InstanceId ].ViewId;	
 		InstanceId = InInstanceDraws[ InstanceId ].InstanceId;
+
+		FNaniteView NaniteView = GetNaniteView( ViewId );
 #endif // INSTANCE_DRAW_LIST
 
 #else // !(CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN)
@@ -72,7 +129,7 @@ void InstanceCull(
 	{
 		InstanceId = InOccludedInstances[DispatchIndex];
 #endif // CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		FNaniteView NaniteView = GetNaniteView( ViewId );
+		
 		FInstanceSceneData InstanceData = GetInstanceData( InstanceId );
 		const uint RuntimeResourceID = InstanceData.NaniteRuntimeResourceID;
 
@@ -91,15 +148,16 @@ void InstanceCull(
 		LocalToTranslatedWorld[3].xyz += NaniteView.PreViewTranslation.xyz;
 		float4x4 LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
 
-
 		float BoundsRadiusSq = dot(InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsExtent);
 		bIsVisible = (InstanceData.PrimitiveId != 0xFFFFFFFFu && RuntimeResourceID != 0xFFFFFFFFu) && BoundsRadiusSq > NaniteView.MinBoundsRadiusSq; // Only process valid Nanite primitives
+
+		FFrustumCullData Cull;
 		
 #if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
 		BRANCH
 		if( bIsVisible )
 		{
-			FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum);
+			Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum);
 			bIsVisible = Cull.bIsVisible;
 		}
 
@@ -138,7 +196,7 @@ void InstanceCull(
 		BRANCH
 		if( bIsVisible )
 		{
-			FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum);
+			Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum);
 
 			BRANCH
 			if (Cull.bIsVisible && !Cull.bCrossesNearPlane)
@@ -148,6 +206,19 @@ void InstanceCull(
 			}
 			
 			bIsVisible = !bWasOccluded;
+		}
+#endif
+
+#if !INSTANCE_DRAW_LIST
+		if( bIsVisible && !bWasOccluded )
+		{
+			FScreenRect Rect = GetScreenRect( NaniteView.ViewSizeAndInvSize.xy, Cull, 4 );
+
+			if( all( Rect.Pixels.zw - Rect.Pixels.xy < 6 ) )
+			{
+				DrawImposter( NaniteView, InstanceData, InstanceId, Rect );
+				bIsVisible = false;
+			}
 		}
 #endif
 	}

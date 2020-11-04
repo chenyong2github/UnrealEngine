@@ -138,6 +138,7 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner)
 	{
 		Ar << RootClusterPage;
 		StreamableClusterPages.Serialize(Ar, Owner, 0);
+		Ar << ImposterAtlas;
 		Ar << HierarchyNodes;
 		Ar << PageStreamingStates;
 		Ar << PageDependencies;

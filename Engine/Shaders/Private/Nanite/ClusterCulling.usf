@@ -546,9 +546,7 @@ void CandidateCullInner(
 	BRANCH
 	if( bVisible )
 	{
-		float4x4 LocalToClip = mul( DynamicData.LocalToView, NaniteView.ViewToClip );
-
-		FFrustumCullData Cull = BoxCullFrustum(Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum);
+		FFrustumCullData Cull = BoxCullFrustum(Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.LocalToClip, bNearClip, bSkipBoxCullFrustum);
 		FScreenRect Rect = GetScreenRect( NaniteView.ViewSizeAndInvSize.xy, Cull, 4 );
 
 		bVisible = Cull.bIsVisible && ( Rect.bOverlapsPixelCenter || Cull.bCrossesNearPlane );	// Rect from box isn't valid if crossing near plane
@@ -593,9 +591,7 @@ void CandidateCullInner(
 	BRANCH
 	if( bVisible )
 	{
-		float4x4 LocalToClip = mul( DynamicData.PrevLocalToView, NaniteView.PrevViewToClip );
-
-		FFrustumCullData PrevCull = BoxCullFrustum(Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum);
+		FFrustumCullData PrevCull = BoxCullFrustum(Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.PrevLocalToClip, bNearClip, bSkipBoxCullFrustum);
 		
 		BRANCH
 		if (PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane)
@@ -637,9 +633,7 @@ void CandidateCullInner(
 	BRANCH
 	if( bVisible )
 	{
-		float4x4 LocalToClip = mul( DynamicData.LocalToView, NaniteView.ViewToClip );
-
-		FFrustumCullData Cull = BoxCullFrustum(Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum);
+		FFrustumCullData Cull = BoxCullFrustum(Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.LocalToClip, bNearClip, bSkipBoxCullFrustum);
 		FScreenRect Rect = GetScreenRect( NaniteView.ViewSizeAndInvSize.xy, Cull, 4 );
 
 		bVisible = Cull.bIsVisible && ( Rect.bOverlapsPixelCenter || Cull.bCrossesNearPlane );	// Rect from box isn't valid if crossing near plane

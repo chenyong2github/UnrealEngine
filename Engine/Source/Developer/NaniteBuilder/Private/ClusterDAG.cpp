@@ -9,18 +9,12 @@
 namespace Nanite
 {
 
-FClusterDAG::FClusterDAG( TArray< FCluster >& InClusters, TArray< FClusterGroup >& InClusterGroups )
+FClusterDAG::FClusterDAG( TArray< FCluster >& InClusters )
 	: Clusters( InClusters )
-	, ClusterGroups( InClusterGroups )
 	, NumClusters( Clusters.Num() )
-{
-	for( int i = 0; i < Clusters.Num(); i++ )
-	{
-		CompleteCluster(i);
-	}
-}
+{}
 
-void FClusterDAG::Reduce( const FMeshNaniteSettings& Settings )
+void FClusterDAG::Reduce()
 {
 	int32 LevelOffset = 0;
 
@@ -30,8 +24,36 @@ void FClusterDAG::Reduce( const FMeshNaniteSettings& Settings )
 
 		TArrayView< FCluster > LevelClusters( &Clusters[ LevelOffset ], Clusters.Num() - LevelOffset );
 
+		for( FCluster& Cluster : LevelClusters )
+		{
+			NumExternalEdges	+= Cluster.NumExternalEdges;
+			MeshBounds			+= Cluster.Bounds;
+		}
+
 		if( LevelClusters.Num() < 2 )
 			break;
+
+		if( LevelClusters.Num() <= MaxGroupSize )
+		{
+			TArray< uint32, TInlineAllocator< MaxGroupSize > > Children;
+
+			uint32 MaxParents = 0;
+			for( FCluster& Cluster : LevelClusters )
+			{
+				MaxParents += FMath::DivideAndRoundUp< uint32 >( Cluster.Indexes.Num(), FCluster::ClusterSize * 6 );
+				Children.Add( LevelOffset++ );
+			}
+
+			Clusters.AddDefaulted( MaxParents );
+			Groups.AddDefaulted( 1 );
+
+			Reduce( Children, Groups.Num() - 1 );
+
+			// Correct num to atomic count
+			Clusters.SetNum( NumClusters, false );
+
+			continue;
+		}
 		
 		struct FExternalEdge
 		{
@@ -194,14 +216,13 @@ void FClusterDAG::Reduce( const FMeshNaniteSettings& Settings )
 		}
 		Graph->AdjacencyOffset[ Graph->Num ] = Graph->Adjacency.Num();
 
-		//UE_LOG( LogStaticMesh, Log, TEXT("Adjacency CRC %u"), FCrc::MemCrc32( Graph->Adjacency.GetData(), Graph->Adjacency.Num() * Graph->Adjacency.GetTypeSize() ) );
-		//UE_LOG( LogStaticMesh, Log, TEXT("AdjacencyCost CRC %u"), FCrc::MemCrc32( Graph->AdjacencyCost.GetData(), Graph->AdjacencyCost.Num() * Graph->AdjacencyCost.GetTypeSize() ) );
-		//UE_LOG( LogStaticMesh, Log, TEXT("AdjacencyOffset CRC %u"), FCrc::MemCrc32( Graph->AdjacencyOffset.GetData(), Graph->AdjacencyOffset.Num() * Graph->AdjacencyOffset.GetTypeSize() ) );
+		LOG_CRC( Graph->Adjacency );
+		LOG_CRC( Graph->AdjacencyCost );
+		LOG_CRC( Graph->AdjacencyOffset );
 
-		Partitioner.PartitionStrict( Graph, 8, 32, true );
-		//Partitioner.Partition( Graph, 8, 32 );
+		Partitioner.PartitionStrict( Graph, MinGroupSize, MaxGroupSize, true );
 
-		//UE_LOG( LogStaticMesh, Log, TEXT("Partitioner.Ranges CRC %u"), FCrc::MemCrc32( Partitioner.Ranges.GetData(), Partitioner.Ranges.Num() * Partitioner.Ranges.GetTypeSize() ) );
+		LOG_CRC( Partitioner.Ranges );
 
 		uint32 MaxParents = 0;
 		for( auto& Range : Partitioner.Ranges )
@@ -219,7 +240,7 @@ void FClusterDAG::Reduce( const FMeshNaniteSettings& Settings )
 		LevelOffset = Clusters.Num();
 
 		Clusters.AddDefaulted( MaxParents );
-		ClusterGroups.AddDefaulted( Partitioner.Ranges.Num() );
+		Groups.AddDefaulted( Partitioner.Ranges.Num() );
 
 		ParallelFor( Partitioner.Ranges.Num(),
 			[&]( int32 PartitionIndex )
@@ -227,18 +248,13 @@ void FClusterDAG::Reduce( const FMeshNaniteSettings& Settings )
 				auto& Range = Partitioner.Ranges[ PartitionIndex ];
 
 				TArrayView< uint32 > Children( &Partitioner.Indexes[ Range.Begin ], Range.End - Range.Begin );
-				uint32 ClusterGroupIndex = PartitionIndex + ClusterGroups.Num() - Partitioner.Ranges.Num();
+				uint32 ClusterGroupIndex = PartitionIndex + Groups.Num() - Partitioner.Ranges.Num();
 
 				Reduce( Children, ClusterGroupIndex );
 			}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
 
 		// Correct num to atomic count
 		Clusters.SetNum( NumClusters, false );
-
-		for( int32 i = LevelOffset; i < Clusters.Num(); i++ )
-		{
-			CompleteCluster(i);
-		}
 	}
 	
 	// Max out root node
@@ -250,13 +266,13 @@ void FClusterDAG::Reduce( const FMeshNaniteSettings& Settings )
 	RootClusterGroup.MaxParentLODError = 1e10f;
 	RootClusterGroup.MinLODError = -1.0f;
 	RootClusterGroup.MipLevel = MAX_int32;
-	Clusters[ RootIndex ].GroupIndex = ClusterGroups.Num();
-	ClusterGroups.Add( RootClusterGroup );
+	Clusters[ RootIndex ].GroupIndex = Groups.Num();
+	Groups.Add( RootClusterGroup );
 }
 
-void FClusterDAG::Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex )
+void FClusterDAG::Reduce( TArrayView< uint32 > Children, int32 GroupIndex )
 {
-	check( ClusterGroupIndex >= 0 );
+	check( GroupIndex >= 0 );
 
 	// Merge
 	TArray< FCluster*, TInlineAllocator<16> > MergeList;
@@ -320,15 +336,8 @@ void FClusterDAG::Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex
 		}
 	}
 
-	TArray< FSphere, TInlineAllocator<32> > LODBoundSpheres;
-	
-	// Force parents to have same LOD data. They are all dependent.
-	for( int32 Parent = ParentStart; Parent < ParentEnd; Parent++ )
-	{
-		LODBoundSpheres.Add( Clusters[ Parent ].LODBounds );
-	}
-
-	TArray< FSphere, TInlineAllocator<32> > ChildSpheres;
+	TArray< FSphere, TInlineAllocator<32> > Children_LODBounds;
+	TArray< FSphere, TInlineAllocator<32> > Children_SphereBounds;
 					
 	// Force monotonic nesting.
 	float ChildMinLODError = MAX_flt;
@@ -337,45 +346,32 @@ void FClusterDAG::Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex
 		bool bLeaf = Clusters[ Child ].EdgeLength < 0.0f;
 		float LODError = Clusters[ Child ].LODError;
 
-		LODBoundSpheres.Add( Clusters[ Child ].LODBounds );
-		ChildSpheres.Add( Clusters[ Child ].SphereBounds );
+		Children_LODBounds.Add( Clusters[ Child ].LODBounds );
+		Children_SphereBounds.Add( Clusters[ Child ].SphereBounds );
 		ChildMinLODError = FMath::Min( ChildMinLODError, bLeaf ? -1.0f : LODError );
 		ParentMaxLODError = FMath::Max( ParentMaxLODError, LODError );
+
+		Clusters[ Child ].GroupIndex = GroupIndex;
+		Groups[ GroupIndex ].Children.Add( Child );
+		check( Groups[ GroupIndex ].Children.Num() <= MAX_CLUSTERS_PER_GROUP_TARGET );
 	}
+	
+	FSphere	ParentLODBounds( Children_LODBounds.GetData(), Children_LODBounds.Num() );
+	FSphere	ParentBounds( Children_SphereBounds.GetData(), Children_SphereBounds.Num() );
 
-	FSphere	ParentLODBound( LODBoundSpheres.GetData(), LODBoundSpheres.Num() );
-	FSphere	ParentBound( ChildSpheres.GetData(), ChildSpheres.Num() );
-
+	// Force parents to have same LOD data. They are all dependent.
 	for( int32 Parent = ParentStart; Parent < ParentEnd; Parent++ )
 	{
-		Clusters[ Parent ].LODBounds			= ParentLODBound;
+		Clusters[ Parent ].LODBounds			= ParentLODBounds;
 		Clusters[ Parent ].LODError				= ParentMaxLODError;
-		Clusters[ Parent ].GeneratingGroupIndex = ClusterGroupIndex;
+		Clusters[ Parent ].GeneratingGroupIndex = GroupIndex;
 	}
 
-	ClusterGroups[ ClusterGroupIndex ].Bounds				= ParentBound;
-	ClusterGroups[ ClusterGroupIndex ].LODBounds			= ParentLODBound;
-	ClusterGroups[ ClusterGroupIndex ].MinLODError			= ChildMinLODError;
-	ClusterGroups[ ClusterGroupIndex ].MaxParentLODError	= ParentMaxLODError;
-	ClusterGroups[ ClusterGroupIndex ].MipLevel				= Merged.MipLevel;
-
-	// Parents are completed, match parent data.
-	for( int32 Child : Children )
-	{
-		check( ClusterGroups[ ClusterGroupIndex ].Children.Num() <= MAX_CLUSTERS_PER_GROUP_TARGET);
-		ClusterGroups[ ClusterGroupIndex ].Children.Add( Child );
-		Clusters[ Child ].GroupIndex = ClusterGroupIndex;
-	}
-}
-
-void FClusterDAG::CompleteCluster( uint32 Index )
-{
-	FCluster& Cluster = Clusters[ Index ];
-	
-	NumVerts			+= Cluster.NumVerts;
-	NumIndexes			+= Cluster.Indexes.Num();
-	NumExternalEdges	+= Cluster.NumExternalEdges;
-	MeshBounds			+= Cluster.Bounds;
+	Groups[ GroupIndex ].Bounds				= ParentBounds;
+	Groups[ GroupIndex ].LODBounds			= ParentLODBounds;
+	Groups[ GroupIndex ].MinLODError		= ChildMinLODError;
+	Groups[ GroupIndex ].MaxParentLODError	= ParentMaxLODError;
+	Groups[ GroupIndex ].MipLevel			= Merged.MipLevel;
 }
 
 FArchive& operator<<(FArchive& Ar, FClusterGroup& Group)

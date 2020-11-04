@@ -2,8 +2,14 @@
 
 #pragma once
 
-#include "Rendering/NaniteResources.h"
 #include "Cluster.h"
+
+// Log CRCs to test for deterministic building
+#if 0
+	#define LOG_CRC( Array ) UE_LOG( LogStaticMesh, Log, TEXT(#Array " CRC %u"), FCrc::MemCrc32( Array.GetData(), Array.Num() * Array.GetTypeSize() ) )
+#else
+	#define LOG_CRC( Array )
+#endif
 
 namespace Nanite
 {
@@ -18,42 +24,31 @@ struct FClusterGroup
 	
 	uint32				PageIndexStart;
 	uint32				PageIndexNum;
-	TArray<uint32>		Children;
+	TArray< uint32 >	Children;
 
 	friend FArchive& operator<<(FArchive& Ar, FClusterGroup& Group);
-};
-
-struct FHierarchyNode
-{
-	FSphere			Bounds[64];
-	FSphere			LODBounds[64];
-	//FPackedBound	PackedBounds[64];
-	float			MinLODErrors[64];
-	float			MaxParentLODErrors[64];
-	uint32			ChildrenStartIndex[64];
-	uint32			NumChildren[64];
-	uint32			ClusterGroupPartIndex[64];
 };
 
 class FClusterDAG
 {
 public:
-	FClusterDAG( TArray< FCluster >& InCluster, TArray< FClusterGroup >& InClusterGroups );
+	FClusterDAG( TArray< FCluster >& InCluster );
 	
-	void		Reduce( const FMeshNaniteSettings& Settings );
-	
-	uint32		NumVerts = 0;
-	uint32		NumIndexes = 0;
-	FBounds		MeshBounds;
+	void		Reduce();
 
-	TArray< int32 >		MipEnds;
+	static const uint32 MinGroupSize = 8;
+	static const uint32 MaxGroupSize = 32;
+	
+	FBounds		MeshBounds;
+	
+	TArray< FCluster >&		Clusters;
+	TArray< FClusterGroup >	Groups;
+
+	TArray< int32 >			MipEnds;
 
 private:
 	void		CompleteCluster( uint32 Index );
-	void		Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex );
-
-	TArray< FCluster >&			Clusters;
-	TArray< FClusterGroup >&	ClusterGroups;
+	void		Reduce( TArrayView< uint32 > Children, int32 GroupIndex );
 
 	TAtomic< uint32 >	NumClusters;
 	uint32				NumExternalEdges = 0;

@@ -78,6 +78,14 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteSelectionOutlineParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT( FRasterParameters, )
+	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< uint >,		OutDepthBuffer )
+	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< UlongType >,	OutVisBuffer64 )
+	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< UlongType >,	OutDbgBuffer64 )
+	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< uint >,		OutDbgBuffer32 )
+	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< uint >,		LockBuffer )
+END_SHADER_PARAMETER_STRUCT()
+
 class FNaniteCommandInfo
 {
 public:
@@ -443,6 +451,8 @@ struct FRasterContext
 	FRDGTextureRef		VisBuffer64;
 	FRDGTextureRef		DbgBuffer64;
 	FRDGTextureRef		DbgBuffer32;
+
+	FRasterParameters	Parameters;
 };
 
 struct FRasterResults

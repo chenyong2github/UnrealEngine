@@ -26,13 +26,13 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 	
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
-		FVisibleCluster VisCluster = GetVisibleCluster(VisibleClusterIndex);
-		
-		FInstanceSceneData InstanceData = GetInstanceData(VisCluster.InstanceId);
+		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
+		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster);
 		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
 		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
-		FTriCluster Cluster = GetCluster( VisCluster.PageIndex, VisCluster.ClusterIndex );
+
+		FTriCluster Cluster = GetCluster( VisibleCluster.PageIndex, VisibleCluster.ClusterIndex );
 
 		uint3 TriIndices = ReadTriangleIndices(Cluster, TriIndex);
 
@@ -53,17 +53,17 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		float3 PointLocal1 = UnpackPosition(PositionData1, Cluster, POSITION_QUANTIZATION_BITS);
 		float3 PointLocal2 = UnpackPosition(PositionData2, Cluster, POSITION_QUANTIZATION_BITS);
 
-		float4 PointClipSubpixel0 = mul(float4(PointLocal0, 1), InstanceDynamicData.LocalToSubpixel);
-		float4 PointClipSubpixel1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToSubpixel);
-		float4 PointClipSubpixel2 = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToSubpixel);
+		float4 PointClip0 = mul(float4(PointLocal0, 1), InstanceDynamicData.LocalToClip);
+		float4 PointClip1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToClip);
+		float4 PointClip2 = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToClip);
 
-		float3 Pos0 = PointClipSubpixel0.xyz / PointClipSubpixel0.w;
-		float3 Pos1 = PointClipSubpixel1.xyz / PointClipSubpixel1.w;
-		float3 Pos2 = PointClipSubpixel2.xyz / PointClipSubpixel2.w;
+		float3 Pos0 = PointClip0.xyz / PointClip0.w;
+		float3 Pos1 = PointClip1.xyz / PointClip1.w;
+		float3 Pos2 = PointClip2.xyz / PointClip2.w;
 
-		float3 RcpW = rcp(float3(PointClipSubpixel0.w, PointClipSubpixel1.w, PointClipSubpixel2.w));
+		float3 RcpW = rcp(float3(PointClip0.w, PointClip1.w, PointClip2.w));
 
-		float2 PixelCoord = (PixelPos + 0.5f) * SUBPIXEL_SAMPLES;
+		float2 PixelClip = ( SvPosition.xy - View.ViewRectMin.xy ) * View.ViewSizeAndInvSize.zw * float2(2,-2) + float2(-1,1);
 
 		// Calculate perspective correct barycentric coordinates with screen derivatives
 		float3 Pos120X = float3(Pos1.x, Pos2.x, Pos0.x);
@@ -74,7 +74,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		float3 C_dx = Pos201Y - Pos120Y;
 		float3 C_dy = Pos120X - Pos201X;
 
-		float3 C = C_dx * (PixelCoord.x - Pos120X) + C_dy * (PixelCoord.y - Pos120Y);	// Evaluate the 3 edge functions
+		float3 C = C_dx * (PixelClip.x - Pos120X) + C_dy * (PixelClip.y - Pos120Y);	// Evaluate the 3 edge functions
 		float3 G = C * RcpW;
 
 		float H = dot(C, RcpW);
@@ -142,8 +142,8 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		float H_dx = dot(C_dx, RcpW);
 		float H_dy = dot(C_dy, RcpW);
 
-		float3 UVW_dx = (G_dx * H - G * H_dx) * (RcpH * RcpH * SUBPIXEL_SAMPLES);
-		float3 UVW_dy = (G_dy * H - G * H_dy) * (RcpH * RcpH * SUBPIXEL_SAMPLES);
+		float3 UVW_dx = (G_dx * H - G * H_dx) * (RcpH * RcpH);
+		float3 UVW_dy = (G_dy * H - G * H_dy) * (RcpH * RcpH);
 
 		UNROLL
 		for (uint TexCoordIndex = 0; TexCoordIndex < NUM_TEX_COORD_INTERPOLATORS; TexCoordIndex++)
@@ -202,7 +202,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 					const float b = TangentZ.x * TangentZ.y * a;
 	
 					TangentX = float3( 1 + Sign * a * Pow2( TangentZ.x ), Sign * b, -Sign * TangentZ.x );
-					TangentY = float3( b, Sign + a * Pow2( TangentZ.y ), -TangentZ.y );
+					TangentY = float3( b,  Sign + a * Pow2( TangentZ.y ), -TangentZ.y );
 
 					Result.UnMirrored = 1;
 				}
@@ -237,15 +237,13 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 
 			// Should be Pow2(InvScale) but that requires renormalization
 			half3 InvScale = InstanceData.InvNonUniformScaleAndDeterminantSign.xyz;
-			Result.TangentToWorld = float3x3(float3(0,0,0), float3(0,0,0), mul(TangentZ * InvScale, (float3x3)InstanceData.LocalToWorld));
+			Result.TangentToWorld = float3x3(float3(0,0,0), float3(0,0,0), mul(TangentZ * InvScale.z, (float3x3)InstanceData.LocalToWorld));
 		}
 #endif
 		float3 PointLocal = UVW.x * PointLocal0 + UVW.y * PointLocal1 + UVW.z * PointLocal2;
 
-		Result.PrevScreenPosition = mul(float4(PointLocal, 1), InstanceDynamicData.PrevLocalToSubpixel);
-		Result.PrevScreenPosition = Result.PrevScreenPosition / Result.PrevScreenPosition.w;
-		Result.PrevScreenPosition.xy = Result.PrevScreenPosition.xy * (1.0 / SUBPIXEL_SAMPLES);
-		Result.PrevScreenPosition = SvPositionToResolvedScreenPosition(Result.PrevScreenPosition);
+		Result.PrevScreenPosition = mul( float4(PointLocal, 1), InstanceDynamicData.PrevLocalToClip );
+		//Result.PrevScreenPosition = float4( Result.PrevScreenPosition.xyz / Result.PrevScreenPosition.w, 1 );
 
 		// Update to real depth from VisBuffer
 		SvPosition.z = asfloat(DepthInt);

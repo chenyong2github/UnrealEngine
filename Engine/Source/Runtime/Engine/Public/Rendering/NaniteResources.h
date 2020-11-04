@@ -308,6 +308,7 @@ struct FResources
 	// Persistent State
 	TArray< uint8 >					RootClusterPage;		// Root page is loaded on resource load, so we always have something to draw.
 	FByteBulkData					StreamableClusterPages;	// Remaining pages are streamed on demand.
+	TArray< uint16 >				ImposterAtlas;
 	TArray< FPackedHierarchyNode >	HierarchyNodes;
 	TArray< FPageStreamingState >	PageStreamingStates;
 	TArray< uint32 >				PageDependencies;

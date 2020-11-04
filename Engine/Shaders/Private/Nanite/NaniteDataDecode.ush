@@ -53,11 +53,6 @@
 
 #define NUM_PACKED_CLUSTER_FLOAT4S				8														// must match define in NaniteResources.h
 
-#define SUBPIXEL_BITS								8
-#define SUBPIXEL_SAMPLES							(1 << SUBPIXEL_BITS)
-#define SUBPIXEL_MASK								(SUBPIXEL_SAMPLES - 1)
-#define SUBPIXEL_DILATE								0	// To correct for mismatch with HW rasterizer
-
 #define POSITION_QUANTIZATION_BITS					10
 #define NORMAL_QUANTIZATION_BITS					9
 
@@ -236,10 +231,10 @@ struct FHierarchyNodeSlice
 
 struct FInstanceDynamicData
 {
-	float4x4	LocalToSubpixel;
+	float4x4	LocalToClip;
 	float4x4	LocalToView;
 	float4x4	ClipToLocal;
-	float4x4 	PrevLocalToSubpixel;
+	float4x4 	PrevLocalToClip;
 	float4x4	PrevLocalToView;
 	float4x4	PrevClipToLocal;
 	float3		ViewPosScaledLocal;
@@ -648,9 +643,45 @@ FVisibleCluster GetVisibleCluster( ByteAddressBuffer VisibleClusters, uint Clust
 	return VisibleCluster;
 }
 
-FVisibleCluster GetVisibleCluster( uint ClusterIdx, bool bHasPageData = false )
+FVisibleCluster GetVisibleCluster( uint ClusterIdx, bool bHasPageData )
 {
 	return GetVisibleCluster( VisibleClustersSWHW, ClusterIdx, bHasPageData );
+}
+
+FVisibleCluster GetVisibleCluster( uint ClusterIndex )
+{
+	FVisibleCluster VisibleCluster;
+
+	bool bImposter = ClusterIndex >= (1 << 24);
+	if( bImposter )
+	{
+		// Couldn't have been stored so signals this is an imposter
+		VisibleCluster.Flags = 1 << NUM_CULLING_FLAG_BITS;
+		VisibleCluster.ViewId = 0;	// TODO
+		VisibleCluster.InstanceId = BitFieldExtractU32( ClusterIndex, MAX_INSTANCES_BITS - 1, 1 );
+		VisibleCluster.PageIndex = 0;
+		VisibleCluster.ClusterIndex = ClusterIndex & 1;
+	}
+	else
+	{
+		VisibleCluster = GetVisibleCluster( ClusterIndex, false );
+	}
+
+	return VisibleCluster;
+}
+
+FInstanceSceneData GetInstanceData( inout FVisibleCluster VisibleCluster )
+{
+	FInstanceSceneData InstanceData = GetInstanceData( VisibleCluster.InstanceId, SOAStrides.x );
+
+	// Couldn't have been stored so signals this is an imposter
+	if( VisibleCluster.Flags == (1 << NUM_CULLING_FLAG_BITS) )
+	{
+		const uint MaxStreamingPages = 1 << 12;
+		VisibleCluster.PageIndex = MaxStreamingPages + InstanceData.NaniteRuntimeResourceID;
+	}
+
+	return InstanceData;
 }
 
 void StoreVisibleCluster( RWByteAddressBuffer VisibleClusters, uint ClusterIdx, FVisibleCluster VisibleCluster, bool bHasPageData = false )
@@ -753,38 +784,18 @@ FInstanceDynamicData CalculateInstanceDynamicData( FNaniteView NaniteView, FInst
 
 	float4x4 LocalToTranslatedWorld = LocalToWorld;
 	LocalToTranslatedWorld[3].xyz += NaniteView.PreViewTranslation.xyz;
-	
-	float4x4 LocalToView = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToView );
-	float4x4 LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
-	float4x4 ClipToLocal = mul( NaniteView.ClipToWorld, WorldToLocal );
-
-	// Apply Vert.xy = PointScreen.xy * float2(0.5, -0.5) * View.ViewSizeAndInvSize.xy + 0.5 * View.ViewSizeAndInvSize.xy + View.ViewRect.xy
-	float2 Scale = float2( 0.5, -0.5 ) * NaniteView.ViewSizeAndInvSize.xy * SUBPIXEL_SAMPLES;
-	float2 Bias = ( 0.5 * NaniteView.ViewSizeAndInvSize.xy + NaniteView.ViewRect.xy ) * SUBPIXEL_SAMPLES + 0.5f;
-
-	float4x4 LocalToSubpixel = LocalToClip;
-	LocalToSubpixel._m00_m10_m20_m30 = LocalToSubpixel._m00_m10_m20_m30 * Scale.x + LocalToSubpixel._m03_m13_m23_m33 * Bias.x;
-	LocalToSubpixel._m01_m11_m21_m31 = LocalToSubpixel._m01_m11_m21_m31 * Scale.y + LocalToSubpixel._m03_m13_m23_m33 * Bias.y;
 
 	float4x4 PrevLocalToTranslatedWorld = InstanceData.PrevLocalToWorld;
 	PrevLocalToTranslatedWorld[3].xyz += NaniteView.PrevPreViewTranslation.xyz;
 
-	float4x4 PrevLocalToView = mul( PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToView );
-	float4x4 PrevLocalToClip = mul( PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToClip );
-	float4x4 PrevClipToLocal = mul( NaniteView.PrevClipToWorld, WorldToLocal );
-
-	float4x4 PrevLocalToSubpixel = PrevLocalToClip;
-	PrevLocalToSubpixel._m00_m10_m20_m30 = PrevLocalToSubpixel._m00_m10_m20_m30 * Scale.x + PrevLocalToSubpixel._m03_m13_m23_m33 * Bias.x;
-	PrevLocalToSubpixel._m01_m11_m21_m31 = PrevLocalToSubpixel._m01_m11_m21_m31 * Scale.y + PrevLocalToSubpixel._m03_m13_m23_m33 * Bias.y;
-
 	FInstanceDynamicData DynamicData;
-	DynamicData.LocalToSubpixel		= LocalToSubpixel;
-	DynamicData.LocalToView			= LocalToView;
-	DynamicData.ClipToLocal			= ClipToLocal;
+	DynamicData.LocalToView = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToView );
+	DynamicData.LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
+	DynamicData.ClipToLocal = mul( NaniteView.ClipToWorld, WorldToLocal );
 
-	DynamicData.PrevLocalToSubpixel	= PrevLocalToSubpixel;
-	DynamicData.PrevLocalToView		= PrevLocalToView;
-	DynamicData.PrevClipToLocal		= PrevClipToLocal;
+	DynamicData.PrevLocalToView	= mul( PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToView );
+	DynamicData.PrevLocalToClip	= mul( PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToClip );
+	DynamicData.PrevClipToLocal	= mul( NaniteView.PrevClipToWorld, WorldToLocal );
 
 	DynamicData.ViewPosScaledLocal = mul( float4( NaniteView.WorldCameraOrigin.xyz, 1 ), WorldToLocal ).xyz * InstanceData.NonUniformScale.xyz;
 	DynamicData.ViewForwardScaledLocal = mul( float4( NaniteView.ViewForward.xyz, 0 ), WorldToLocal ).xyz * InstanceData.NonUniformScale.xyz;
