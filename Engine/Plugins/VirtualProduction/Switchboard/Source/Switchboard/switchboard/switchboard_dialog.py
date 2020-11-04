@@ -496,23 +496,31 @@ class SwitchboardDialog(QtCore.QObject):
     def refresh_engine_cl_button_clicked(self):
         self.p4_refresh_engine_cl()
 
-    def connect_all_button_clicked(self):
-        device_widgets = self.device_list_widget.device_widgets()
+    def connect_all_button_clicked(self, button_state):
+        devices = self.device_manager.devices()
+        self.set_device_connection_state(devices, button_state)
 
-        for device_widget in device_widgets:
+    def launch_all_button_clicked(self, button_state):
+        devices = self.device_manager.devices()
+        self.set_device_launch_state(devices, button_state)
+
+    def set_device_launch_state(self, devices, launch_state):
+        for device in devices:
             try:
-                if not device_widget.connect_button.isChecked():
-                    device_widget._connect()
+                if launch_state and device.widget.open_button.isEnabled():
+                    device.widget._open()
+                elif not launch_state and device.widget.open_button.isChecked():
+                    device.widget._close()
             except:
                 pass
 
-    def launch_all_button_clicked(self):
-        device_widgets = self.device_list_widget.device_widgets()
-
-        for device_widget in device_widgets:
+    def set_device_connection_state(self, devices, connection_state):
+        for device in devices:
             try:
-                if device_widget.open_button.isEnabled() and not device_widget.open_button.isChecked():
-                    device_widget._open()
+                if connection_state:
+                    device.widget._connect()
+                else:
+                    device.widget._disconnect()
             except:
                 pass
 
@@ -612,27 +620,13 @@ class SwitchboardDialog(QtCore.QObject):
         except:
             pass
 
-    def on_all_plugin_devices_connect_toggled(self, plugin_name, state):
+    def on_all_plugin_devices_connect_toggled(self, plugin_name, button_state):
         devices = self.device_manager.devices_of_type(plugin_name)
-        for device in devices:
-            try:
-                if state:
-                    device.widget._connect()
-                else:
-                    device.widget._disconnect()
-            except:
-                pass
+        self.set_device_connection_state(devices, button_state)
 
-    def on_all_plugin_devices_open_toggled(self, plugin_name, state):
+    def on_all_plugin_devices_open_toggled(self, plugin_name, button_state):
         devices = self.device_manager.devices_of_type(plugin_name)
-        for device in devices:
-            try:
-                if state and device.widget.open_button.isEnabled():
-                    device.widget._open()
-                else:
-                    device.widget._close()
-            except:
-                pass
+        self.set_device_launch_state(devices, button_state)
 
     def multiuser_session_name(self):
         return self._multiuser_session_name
@@ -984,6 +978,7 @@ class SwitchboardDialog(QtCore.QObject):
 
         devices = self.device_manager.devices_of_type(device.device_type)
         self.device_list_widget.update_category_status(device.category_name, devices)
+        self.update_connect_and_open_button_states()
 
         if previous_status != device.status:
             LOGGER.debug(f'{device.name}: device status change: {device.status.name}')
@@ -997,6 +992,32 @@ class SwitchboardDialog(QtCore.QObject):
         if previous_status <= DeviceStatus.OPEN and device.status >= DeviceStatus.READY:
             device.set_take(self.take)
             device.set_slate(self.slate)
+
+    def update_connect_and_open_button_states(self):
+        """ Refresh states of connect-all and start-all buttons. """
+        devices = self.device_manager.devices()
+        any_connected = any(device.status != DeviceStatus.DISCONNECTED for device in devices)
+        any_started = any(device.status > DeviceStatus.CLOSED for device in devices)
+
+        self.update_connect_all_button_state(any_connected)
+        self.update_start_all_button_state(any_connected, any_started)
+
+    def update_connect_all_button_state(self, any_devices_connected):
+        """ Refresh state of connect-all button. """
+        self.window.connect_all_button.setChecked(any_devices_connected)
+        if any_devices_connected:
+            self.window.connect_all_button.setToolTip("Disconnect all connected devices")
+        else:
+            self.window.connect_all_button.setToolTip("Connect all devices")
+
+    def update_start_all_button_state(self, any_devices_connected, any_devices_started):
+        """ Refresh state of start-all button. """
+        self.window.launch_all_button.setEnabled(any_devices_connected)
+        self.window.launch_all_button.setChecked(any_devices_started)
+        if any_devices_started:
+            self.window.launch_all_button.setToolTip("Stop all running devices")
+        else:
+            self.window.launch_all_button.setToolTip("Start all connected devices")
 
     @QtCore.Slot(object)
     def device_is_recording_device_changed(self, device, is_recording_device):
