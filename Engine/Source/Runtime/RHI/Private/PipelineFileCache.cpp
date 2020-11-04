@@ -3083,7 +3083,7 @@ void FPipelineFileCache::CacheRayTracingPSO(const FRayTracingPipelineStateInitia
 
 					if (!FileCache->IsPSOEntryCached(NewEntry, &CurrentUsageData))
 					{
-						CSV_EVENT(PSO, TEXT("Encountered new ray tracing PSO"));
+						//CSV_EVENT(PSO, TEXT("Encountered new ray tracing PSO"));
 						UE_LOG(LogRHI, Display, TEXT("Encountered a new ray tracing PSO: %u"), PSOHash);
 						if (GPSOFileCachePrintNewPSODescriptors > 0)
 						{
