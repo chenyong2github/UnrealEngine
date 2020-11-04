@@ -3044,7 +3044,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				if (IllegalObjectsInOtherMaps.Num() )
 				{
 					UObject* MostLikelyCulprit = nullptr;
-					const FProperty* PropertyRef = nullptr;
 
 					// construct a string containing up to the first 5 objects problem objects
 					FString ObjectNames;
@@ -3077,19 +3076,16 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					bool bFindCulprit = IsRunningCommandlet() || (FMessageDialog::Open(EAppMsgType::YesNo, Message) == EAppReturnType::Yes);
 					if (bFindCulprit)
 					{
-						SavePackageUtilities::FindMostLikelyCulprit(IllegalObjectsInOtherMaps, MostLikelyCulprit, PropertyRef);
-						if (MostLikelyCulprit != nullptr && PropertyRef != nullptr)
+						FString Referencer;
+						SavePackageUtilities::FindMostLikelyCulprit(IllegalObjectsInOtherMaps, MostLikelyCulprit, Referencer);
+						if (MostLikelyCulprit != nullptr)
 						{
-							CulpritString = FString::Printf(TEXT("%s (%s)"), *MostLikelyCulprit->GetFullName(), *PropertyRef->GetName());
-						}
-						else if (MostLikelyCulprit != nullptr)
-						{
-							CulpritString = FString::Printf(TEXT("%s (Unknown property)"), *MostLikelyCulprit->GetFullName());
+							CulpritString = FString::Printf(TEXT("%s (%s)"), *MostLikelyCulprit->GetFullName(), *Referencer);
 						}
 					}
 					else if (!ObjectNames.IsEmpty())
 					{
-							CulpritString = ObjectNames;
+						CulpritString = ObjectNames;
 					}
 
 					FString ErrorMessage = FString::Printf(TEXT("Can't save %s: Graph is linked to object %s in external map"), Filename, *CulpritString);
@@ -3108,7 +3104,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				if (PrivateObjects.Num())
 				{
 					UObject* MostLikelyCulprit = nullptr;
-					const FProperty* PropertyRef = nullptr;
 					
 					// construct a string containing up to the first 5 objects problem objects
 					FString ObjectNames;
@@ -3138,12 +3133,14 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					const FText Message = FText::Format( NSLOCTEXT("Core", "LinkedToPrivateObjectsInOtherPackage_FindCulpritQ", "Can't save {FileName}: Graph is linked to private object(s) in an external package.\nExternal Object(s):\n{ObjectNames}  \nTry to find the chain of references to that object (may take some time)?"), Args );
 
 					FString CulpritString = TEXT( "Unknown" );
-					if (FMessageDialog::Open(EAppMsgType::YesNo, Message) == EAppReturnType::Yes)
+					bool bFindCulprit = IsRunningCommandlet() || (FMessageDialog::Open(EAppMsgType::YesNo, Message) == EAppReturnType::Yes);
+					if (bFindCulprit)
 					{
-						SavePackageUtilities::FindMostLikelyCulprit(PrivateObjects, MostLikelyCulprit, PropertyRef);
+						FString Referencer;
+						SavePackageUtilities::FindMostLikelyCulprit(PrivateObjects, MostLikelyCulprit, Referencer);
 						CulpritString = FString::Printf(TEXT("%s (%s)"),
 							(MostLikelyCulprit != nullptr) ? *MostLikelyCulprit->GetFullName() : TEXT("(unknown culprit)"),
-							(PropertyRef != nullptr) ? *PropertyRef->GetName() : TEXT("unknown property ref"));
+							*Referencer);
 					}
 
 					if (!(SaveFlags & SAVE_NoError))

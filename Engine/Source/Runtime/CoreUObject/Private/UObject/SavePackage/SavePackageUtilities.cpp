@@ -457,14 +457,42 @@ void ConditionallyExcludeObjectForTarget(UObject* Obj, EObjectMark ExcludedObjec
  * @param	BadObjects	array of objects that are considered "bad" (e.g. non- RF_Public, in different map package, ...)
  * @return	UObject that is considered the most likely culprit causing them to be referenced or NULL
  */
-void FindMostLikelyCulprit(TArray<UObject*> BadObjects, UObject*& MostLikelyCulprit, const FProperty*& PropertyRef)
+void FindMostLikelyCulprit(TArray<UObject*> BadObjects, UObject*& MostLikelyCulprit, FString& OutReferencer)
 {
-	MostLikelyCulprit = nullptr;
+	UObject* ArchetypeCulprit = nullptr;
+	UObject* ReferencedCulprit = nullptr;
+	const FProperty* ReferencedCulpritReferencer = nullptr;
 
 	// Iterate over all objects that are marked as unserializable/ bad and print out their referencers.
 	for (int32 BadObjIndex = 0; BadObjIndex < BadObjects.Num(); BadObjIndex++)
 	{
 		UObject* Obj = BadObjects[BadObjIndex];
+
+		// SavePackage adds references to the class archetype manually; if this type is a class archetype and it is private, mark it as an error
+		// for that reason rather than checking references. Class archetypes must be public since instances of their class in other packages can refer to them
+		if (Obj->HasAnyFlags(RF_ArchetypeObject | RF_DefaultSubObject | RF_ClassDefaultObject))
+		{
+			UE_LOG(LogSavePackage, Warning, TEXT("%s is a private Archetype object"), *Obj->GetFullName());
+			TArray<const TCHAR*> Flags;
+			auto AddFlagIfPresent = [&Flags, Obj](EObjectFlags InFlag, const TCHAR* Descriptor)
+			{
+				if (Obj->HasAnyFlags(InFlag))
+				{
+					Flags.Add(Descriptor);
+				}
+			};
+			AddFlagIfPresent(RF_ArchetypeObject, TEXT("RF_ArchetypeObject"));
+			AddFlagIfPresent(RF_ClassDefaultObject, TEXT("RF_ClassDefaultObject"));
+			AddFlagIfPresent(RF_DefaultSubObject, TEXT("RF_DefaultSubObject"));
+			UE_LOG(LogSavePackage, Warning, TEXT("\tThis object is an archetype (flags include %s) but is private. This is a code error from the generator of the object. All archetype objects must be public."),
+				*FString::Join(Flags, TEXT("|")));
+
+			if (ArchetypeCulprit == nullptr)
+			{
+				ArchetypeCulprit = Obj;
+			}
+			continue;
+		}
 
 		UE_LOG(LogSavePackage, Warning, TEXT("\r\nReferencers of %s:"), *Obj->GetFullName());
 
@@ -488,12 +516,32 @@ void FindMostLikelyCulprit(TArray<UObject*> BadObjects, UObject*& MostLikelyCulp
 					{
 						const FProperty* Prop = Refs.ExternalReferences[i].ReferencingProperties[j];
 						UE_LOG(LogSavePackage, Warning, TEXT("\t\t%i) %s"), j, *Prop->GetFullName());
-						PropertyRef = Prop;
+						ReferencedCulpritReferencer = Prop;
 					}
 
-					MostLikelyCulprit = Obj;
+					// Later ReferencedCulprits are higher priority than earlier culprits. TODO: Not sure if this is an intentional behavior or if they choice was arbitrary.
+					ReferencedCulprit = Obj;
 				}
 			}
+		}
+	}
+
+	if (ArchetypeCulprit)
+	{
+		// ArchetypeCulprits are the most likely to be the problem; they are definitely a problem
+		MostLikelyCulprit = ArchetypeCulprit;
+		OutReferencer = TEXT("Referenced because it is an archetype object");
+	}
+	else
+	{
+		MostLikelyCulprit = ReferencedCulprit; // Might be null, in which case we didn't find one
+		if (ReferencedCulpritReferencer)
+		{
+			OutReferencer = *ReferencedCulpritReferencer->GetName();
+		}
+		else
+		{
+			OutReferencer = TEXT("Unknown property");
 		}
 	}
 }

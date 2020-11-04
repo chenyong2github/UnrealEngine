@@ -312,7 +312,7 @@ namespace SavePackageUtilities
 	bool HasUnsaveableOuter(UObject* InObj, UPackage* InSavingPackage);
 	void CheckObjectPriorToSave(FArchiveUObject& Ar, UObject* InObj, UPackage* InSavingPackage);
 	void ConditionallyExcludeObjectForTarget(UObject* Obj, EObjectMark ExcludedObjectMarks, const ITargetPlatform* TargetPlatform);
-	void FindMostLikelyCulprit(TArray<UObject*> BadObjects, UObject*& MostLikelyCulprit, const FProperty*& PropertyRef);
+	void FindMostLikelyCulprit(TArray<UObject*> BadObjects, UObject*& MostLikelyCulprit, FString& OutReferencer);
 	void AddFileToHash(FString const& Filename, FMD5& Hash);
 
 	void WriteToFile(const FString& Filename, const uint8* InDataPtr, int64 InDataSize);

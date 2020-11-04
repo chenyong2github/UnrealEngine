@@ -414,7 +414,6 @@ ESavePackageResult ValidateIllegalReferences(FSaveContext& SaveContext, TArray<U
 	if (ObjectsInOtherMaps.Num() > 0)
 	{
 		UObject* MostLikelyCulprit = nullptr;
-		const FProperty* PropertyRef = nullptr;
 
 		// construct a string containing up to the first 5 objects problem objects
 		FString ObjectNames;
@@ -447,14 +446,11 @@ ESavePackageResult ValidateIllegalReferences(FSaveContext& SaveContext, TArray<U
 		bool bFindCulprit = IsRunningCommandlet() || (FMessageDialog::Open(EAppMsgType::YesNo, Message) == EAppReturnType::Yes);
 		if (bFindCulprit)
 		{
-			SavePackageUtilities::FindMostLikelyCulprit(ObjectsInOtherMaps, MostLikelyCulprit, PropertyRef);
-			if (MostLikelyCulprit != nullptr && PropertyRef != nullptr)
+			FString Referencer;
+			SavePackageUtilities::FindMostLikelyCulprit(ObjectsInOtherMaps, MostLikelyCulprit, Referencer);
+			if (MostLikelyCulprit != nullptr)
 			{
-				CulpritString = FString::Printf(TEXT("%s (%s)"), *MostLikelyCulprit->GetFullName(), *PropertyRef->GetName());
-			}
-			else if (MostLikelyCulprit != nullptr)
-			{
-				CulpritString = FString::Printf(TEXT("%s (Unknown property)"), *MostLikelyCulprit->GetFullName());
+				CulpritString = FString::Printf(TEXT("%s (%s)"), *MostLikelyCulprit->GetFullName(), *Referencer);
 			}
 		}
 
@@ -473,7 +469,6 @@ ESavePackageResult ValidateIllegalReferences(FSaveContext& SaveContext, TArray<U
 	if (PrivateObjects.Num() > 0)
 	{
 		UObject* MostLikelyCulprit = nullptr;
-		const FProperty* PropertyRef = nullptr;
 
 		// construct a string containing up to the first 5 objects problem objects
 		FString ObjectNames;
@@ -503,12 +498,14 @@ ESavePackageResult ValidateIllegalReferences(FSaveContext& SaveContext, TArray<U
 		const FText Message = FText::Format(NSLOCTEXT("Core", "LinkedToPrivateObjectsInOtherPackage_FindCulpritQ", "Can't save {FileName}: Graph is linked to private object(s) in an external package.\nExternal Object(s):\n{ObjectNames}  \nTry to find the chain of references to that object (may take some time)?"), Args);
 
 		FString CulpritString = TEXT("Unknown");
-		if (FMessageDialog::Open(EAppMsgType::YesNo, Message) == EAppReturnType::Yes)
+		bool bFindCulprit = IsRunningCommandlet() || (FMessageDialog::Open(EAppMsgType::YesNo, Message) == EAppReturnType::Yes);
+		if (bFindCulprit)
 		{
-			SavePackageUtilities::FindMostLikelyCulprit(PrivateObjects, MostLikelyCulprit, PropertyRef);
+			FString Referencer;
+			SavePackageUtilities::FindMostLikelyCulprit(PrivateObjects, MostLikelyCulprit, Referencer);
 			CulpritString = FString::Printf(TEXT("%s (%s)"),
 				(MostLikelyCulprit != nullptr) ? *MostLikelyCulprit->GetFullName() : TEXT("(unknown culprit)"),
-				(PropertyRef != nullptr) ? *PropertyRef->GetName() : TEXT("unknown property ref"));
+				*Referencer);
 		}
 
 		if (SaveContext.IsGenerateSaveError())
