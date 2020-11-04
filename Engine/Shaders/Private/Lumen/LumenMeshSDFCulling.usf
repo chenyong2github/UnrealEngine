@@ -138,7 +138,7 @@ void MeshSDFObjectCullVS(
 	FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
 
 	//@todo - expand to handle conservative rasterization
-	float EffectiveRadius = (DFObjectBounds.SphereRadius + MaxMeshSDFInfluenceRadius) * ConservativeRadiusScale;
+	float EffectiveRadius = (DFObjectBounds.SphereRadius + MaxMeshSDFInfluenceRadius) * ConservativeRadiusScale / 0.7f;
 	float3 WorldPosition = InPosition.xyz * EffectiveRadius + DFObjectBounds.Center;
 	OutPosition = mul(float4(WorldPosition, 1), View.WorldToClip);
 	Output.PositionAndRadius.xyz = DFObjectBounds.Center;
