@@ -240,6 +240,18 @@ public:
 		return *Message;
 	}
 	
+	void SetNodeId(int32 InNodeId)
+	{ 
+		PreviousNodeId = CurrentNodeId;
+		CurrentNodeId = InNodeId;
+	}
+
+	void SetNodeIds(const FAnimationBaseContext& InContext)
+	{ 
+		CurrentNodeId = InContext.CurrentNodeId;
+		PreviousNodeId = InContext.PreviousNodeId;
+	}
+
 	// Get the current node Id, set when we recurse into graph traversal functions from pose links
 	ENGINE_API int32 GetCurrentNodeId() const { return CurrentNodeId; }
 
@@ -318,10 +330,8 @@ public:
 		, RootMotionWeightModifier(Copy.RootMotionWeightModifier)
 		, DeltaTime(Copy.DeltaTime)
 	{
-#if ANIM_TRACE_ENABLED
 		CurrentNodeId = Copy.CurrentNodeId;
 		PreviousNodeId = Copy.PreviousNodeId;
-#endif
 	}
 
 public:
@@ -335,10 +345,8 @@ public:
 		FAnimationUpdateContext Result(*this);
 		Result.SharedContext = InSharedContext;
 
-#if ANIM_TRACE_ENABLED
 		// This is currently only used in the case of cached poses, where we dont want to preserve the previous node, so clear it here
 		Result.PreviousNodeId = INDEX_NONE;
-#endif
 
 		return Result;
 	}
@@ -381,8 +389,7 @@ public:
 	FAnimationUpdateContext WithNodeId(int32 InNodeId) const
 	{ 
 		FAnimationUpdateContext Result(*this);
-		Result.PreviousNodeId = CurrentNodeId;
-		Result.CurrentNodeId = InNodeId;
+		Result.SetNodeId(InNodeId);
 		return Result; 
 	}
 
@@ -433,18 +440,6 @@ public:
 
 		CurrentNodeId = SourceContext.CurrentNodeId;
 		PreviousNodeId = SourceContext.PreviousNodeId;
-	}
-
-	void SetNodeId(int32 InNodeId)
-	{ 
-		PreviousNodeId = CurrentNodeId;
-		CurrentNodeId = InNodeId;
-	}
-
-	void SetNodeIds(const FAnimationBaseContext& InContext)
-	{ 
-		CurrentNodeId = InContext.GetCurrentNodeId();
-		PreviousNodeId = InContext.GetPreviousNodeId();
 	}
 
 	ENGINE_API void Initialize(FAnimInstanceProxy* InAnimInstanceProxy);
@@ -527,18 +522,6 @@ public:
 
 		CurrentNodeId = SourceContext.CurrentNodeId;
 		PreviousNodeId = SourceContext.PreviousNodeId;
-	}
-
-	void SetNodeId(int32 InNodeId)
-	{ 
-		PreviousNodeId = CurrentNodeId;
-		CurrentNodeId = InNodeId;
-	}
-
-	void SetNodeIds(const FAnimationBaseContext& InContext)
-	{ 
-		CurrentNodeId = InContext.GetCurrentNodeId();
-		PreviousNodeId = InContext.GetPreviousNodeId();
 	}
 
 	ENGINE_API void ResetToRefPose();

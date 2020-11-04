@@ -13,30 +13,24 @@
 FAnimationBaseContext::FAnimationBaseContext()
 	: AnimInstanceProxy(nullptr)
 	, SharedContext(nullptr)
-#if ANIM_TRACE_ENABLED
 	, CurrentNodeId(INDEX_NONE)
 	, PreviousNodeId(INDEX_NONE)
-#endif
 {
 }
 
 FAnimationBaseContext::FAnimationBaseContext(FAnimInstanceProxy* InAnimInstanceProxy, FAnimationUpdateSharedContext* InSharedContext)
 	: AnimInstanceProxy(InAnimInstanceProxy)
 	, SharedContext(InSharedContext)
-#if ANIM_TRACE_ENABLED
 	, CurrentNodeId(INDEX_NONE)
 	, PreviousNodeId(INDEX_NONE)
-#endif
 {
 }
 
 FAnimationBaseContext::FAnimationBaseContext(const FAnimationBaseContext& InContext)
 	: AnimInstanceProxy(InContext.AnimInstanceProxy)
 	, SharedContext(InContext.SharedContext)
-#if ANIM_TRACE_ENABLED
 	, CurrentNodeId(InContext.CurrentNodeId)
 	, PreviousNodeId(InContext.PreviousNodeId)
-#endif
 {
 }
 
@@ -192,7 +186,10 @@ void FPoseLinkBase::Initialize(const FAnimationInitializeContext& Context)
 	// Do standard initialization
 	if (LinkedNode != NULL)
 	{
-		LinkedNode->Initialize_AnyThread(Context);
+		FAnimationInitializeContext LinkContext(Context);
+		LinkContext.SetNodeId(LinkID);
+		TRACE_SCOPED_ANIM_NODE(LinkContext);
+		LinkedNode->Initialize_AnyThread(LinkContext);
 	}
 }
 
@@ -299,15 +296,9 @@ void FPoseLinkBase::Update(const FAnimationUpdateContext& Context)
 
 	if (LinkedNode != NULL)
 	{
-#if ANIM_TRACE_ENABLED
-		{
-			FAnimationUpdateContext LinkContext(Context.WithNodeId(LinkID));
-			TRACE_SCOPED_ANIM_NODE(LinkContext);
-			LinkedNode->Update_AnyThread(LinkContext);
-		}
-#else
-		LinkedNode->Update_AnyThread(Context);
-#endif
+		FAnimationUpdateContext LinkContext(Context.WithNodeId(LinkID));
+		TRACE_SCOPED_ANIM_NODE(LinkContext);
+		LinkedNode->Update_AnyThread(LinkContext);
 	}
 }
 
@@ -352,10 +343,8 @@ void FPoseLink::Evaluate(FPoseContext& Output)
 #endif
 
 		{
-#if ANIM_TRACE_ENABLED
 			Output.SetNodeId(LinkID);
 			TRACE_SCOPED_ANIM_NODE(Output);
-#endif
 			LinkedNode->Evaluate_AnyThread(Output);
 		}
 
@@ -438,10 +427,8 @@ void FComponentSpacePoseLink::EvaluateComponentSpace(FComponentSpacePoseContext&
 	if (LinkedNode != NULL)
 	{
 		{
-#if ANIM_TRACE_ENABLED
 			Output.SetNodeId(LinkID);
 			TRACE_SCOPED_ANIM_NODE(Output);
-#endif
 			LinkedNode->EvaluateComponentSpace_AnyThread(Output);
 		}
 
