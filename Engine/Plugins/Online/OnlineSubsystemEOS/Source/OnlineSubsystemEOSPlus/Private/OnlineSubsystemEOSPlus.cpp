@@ -41,6 +41,7 @@ bool FOnlineSubsystemEOSPlus::Init()
 	}
 
 	StatsInterfacePtr = MakeShareable(new FOnlineStatsEOSPlus(this));
+	AchievementsInterfacePtr = MakeShareable(new FOnlineAchievementsEOSPlus(this));
 
 	return true;
 }
@@ -58,6 +59,7 @@ bool FOnlineSubsystemEOSPlus::Shutdown()
 	}
 
 	DESTRUCT_INTERFACE(StatsInterfacePtr);
+	DESTRUCT_INTERFACE(AchievementsInterfacePtr);
 
 #undef DESTRUCT_INTERFACE
 
@@ -146,7 +148,7 @@ IOnlineEventsPtr FOnlineSubsystemEOSPlus::GetEventsInterface() const
 
 IOnlineAchievementsPtr FOnlineSubsystemEOSPlus::GetAchievementsInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetAchievementsInterface() : nullptr;
+	return AchievementsInterfacePtr;
 }
 
 IOnlineSharingPtr FOnlineSubsystemEOSPlus::GetSharingInterface() const
