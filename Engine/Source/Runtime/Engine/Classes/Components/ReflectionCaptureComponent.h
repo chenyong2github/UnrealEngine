@@ -138,11 +138,12 @@ private:
 	/** Whether the reflection capture needs to re-capture the scene. */
 	bool bNeedsRecaptureOrUpload;
 
-	/** Cubemap texture resource used for rendering with the encoded HDR values. */
-	FTexture* EncodedHDRCubemap;
+	/** Cached Cubemap texture from MapBuildData used for rendering with the encoded HDR values. */
+	UPROPERTY(transient)
+	UTextureCube* CachedEncodedHDRCubemap;
 
-	/** Temporary encoded data used to preview feature level changes in the editor, or running uncooked. */
-	TArray<uint8> TemporaryEncodedHDRCapturedData;
+	/** Cached Average Brightness from MapBuildData used for rendering with the encoded HDR values. */
+	float CachedAverageBrightness;
 
 	/** Fence used to track progress of releasing resources on the rendering thread. */
 	FRenderCommandFence ReleaseResourcesFence;
