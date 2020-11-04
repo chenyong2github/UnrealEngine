@@ -356,6 +356,7 @@ namespace VulkanRHI
 	class FDeviceMemoryManager
 	{
 		TMap<FDeviceMemoryBlockKey, FDeviceMemoryBlock> Allocations;
+		void UpdateMemoryProperties();
 	public:
 		FDeviceMemoryManager();
 		~FDeviceMemoryManager();
@@ -402,6 +403,7 @@ namespace VulkanRHI
 		void GetMemoryDump(TArray<FResourceHeapStats>& OutDeviceHeapsStats);
 		void DumpMemory();
 
+		VkPhysicalDeviceMemoryBudgetPropertiesEXT MemoryBudget;
 		VkPhysicalDeviceMemoryProperties MemoryProperties;
 		VkDevice DeviceHandle;
 		bool bHasUnifiedMemory;

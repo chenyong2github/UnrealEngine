@@ -166,6 +166,7 @@ struct FWrapLayer
 #if VULKAN_SUPPORTS_DEDICATED_ALLOCATION
 	static void GetImageMemoryRequirements2KHR(VkResult Result, VkDevice Device, const VkImageMemoryRequirementsInfo2KHR* Info, VkMemoryRequirements2KHR* MemoryRequirements) VULKAN_LAYER_BODY
 #endif
+	VULKAN_EXTERN_EXPORT static void GetPhysicalDeviceMemoryProperties2(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceMemoryProperties2* MemoryProperties) VULKAN_LAYER_BODY 
 #if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 	VULKAN_EXTERN_EXPORT static void GetPhysicalDeviceProperties2KHR(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceProperties2KHR* Properties) VULKAN_LAYER_BODY
 	VULKAN_EXTERN_EXPORT static void GetPhysicalDeviceFeatures2KHR(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceFeatures2KHR* Features) VULKAN_LAYER_BODY
@@ -242,6 +243,13 @@ namespace VulkanRHI
 		FWrapLayer::GetPhysicalDeviceProperties(VK_RESULT_MAX_ENUM, PhysicalDevice, Properties);
 		VULKANAPINAMESPACE::vkGetPhysicalDeviceProperties(PhysicalDevice, Properties);
 		FWrapLayer::GetPhysicalDeviceProperties(VK_SUCCESS, PhysicalDevice, Properties);
+	}
+
+	static FORCEINLINE_DEBUGGABLE void vkGetPhysicalDeviceMemoryProperties2(VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceMemoryProperties2* pMemoryProperties)
+	{
+		FWrapLayer::GetPhysicalDeviceMemoryProperties2(VK_RESULT_MAX_ENUM, PhysicalDevice, pMemoryProperties);
+		VULKANAPINAMESPACE::vkGetPhysicalDeviceMemoryProperties2(PhysicalDevice, pMemoryProperties);
+		FWrapLayer::GetPhysicalDeviceMemoryProperties2(VK_SUCCESS, PhysicalDevice, pMemoryProperties);
 	}
 
 #if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
