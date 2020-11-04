@@ -4062,9 +4062,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, 
 				// Add the primitive to its shadow parent's linked list of children.
 				// Note: must happen before AddToScene because AddToScene depends on LightingAttachmentRoot
 				PrimitiveSceneInfo->LinkAttachmentGroup();
-
-				// Set lod Parent information if valid
-				PrimitiveSceneInfo->LinkLODParentComponent();
 			}
 
 
@@ -4114,11 +4111,10 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, 
 				// Flush virtual textures touched by primitive
 				PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
 
-				// LOD Parent, if this is LOD parent, we should update Proxy Scene Info
-				// LOD parent gets removed WHEN no children is accessing
-				// LOD parent can be recreated as scene updates
-				// I update if the parent component ID is still valid
-				// @Todo : really remove it if you know this is being destroyed - should happen from game thread as streaming in/out
+				// Set LOD parent information if valid
+				PrimitiveSceneInfo->LinkLODParentComponent();
+
+				// Update scene LOD tree
 				SceneLODHierarchy.UpdateNodeSceneInfo(PrimitiveSceneInfo->PrimitiveComponentId, PrimitiveSceneInfo);
 			}
 			AddedLocalPrimitiveSceneInfos.RemoveAt(StartIndex, AddedLocalPrimitiveSceneInfos.Num() - StartIndex);
