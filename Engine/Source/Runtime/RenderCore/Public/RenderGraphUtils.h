@@ -421,9 +421,9 @@ struct RENDERCORE_API FComputeShaderUtils
 
 	static inline void ValidateGroupCount(const FIntVector& GroupCount)
 	{
-		check(GroupCount.X <= GRHIMaxDispatchThreadGroupsPerDimension.X);
-		check(GroupCount.Y <= GRHIMaxDispatchThreadGroupsPerDimension.Y);
-		check(GroupCount.Z <= GRHIMaxDispatchThreadGroupsPerDimension.Z);
+		ensure(GroupCount.X <= GRHIMaxDispatchThreadGroupsPerDimension.X);
+		ensure(GroupCount.Y <= GRHIMaxDispatchThreadGroupsPerDimension.Y);
+		ensure(GroupCount.Z <= GRHIMaxDispatchThreadGroupsPerDimension.Z);
 	}
 
 	static inline void ValidateIndirectArgsBuffer(uint32 IndirectArgsBufferSize, uint32 IndirectArgOffset)
