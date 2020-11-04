@@ -8,7 +8,7 @@
 
 namespace Metasound
 {
-	FBop::FBop(bool bShouldBop, const FOperatorSettings& InSettings)
+	FBop::FBop(const FOperatorSettings& InSettings, bool bShouldBop)
 	:	NumFramesPerBlock(InSettings.GetNumFramesPerBlock())
 	,	SampleRate(InSettings.GetSampleRate())
 	{
@@ -18,7 +18,7 @@ namespace Metasound
 		}
 	}
 
-	FBop::FBop(int32 InFrameToBop, const FOperatorSettings& InSettings)
+	FBop::FBop(const FOperatorSettings& InSettings, int32 InFrameToBop)
 	:	NumFramesPerBlock(InSettings.GetNumFramesPerBlock())
 	,	SampleRate(InSettings.GetSampleRate())
 	{
@@ -26,7 +26,7 @@ namespace Metasound
 	}
 
 	FBop::FBop(const FOperatorSettings& InSettings)
-		: FBop(false, InSettings)
+		: FBop(InSettings, false)
 	{}
 
 	void FBop::BopFrame(int32 InFrameToBop)

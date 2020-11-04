@@ -6,6 +6,7 @@
 #include "MetasoundBuildError.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
+#include "MetasoundDataFactory.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundExecutableOperator.h"
 
@@ -20,20 +21,18 @@ namespace Metasound
 	template<typename FromDataType, typename ToDataType>
 	class TAutoConverterNode : public INode
 	{
-		static_assert(TDataReferenceTypeInfo<FromDataType>::bIsValidSpecialization, "Please use DECLARE_METASOUND_DATA_REFERENCE_TYPES with this class before trying to create an converter node with it.");
-		static_assert(TDataReferenceTypeInfo<ToDataType>::bIsValidSpecialization, "Please use DECLARE_METASOUND_DATA_REFERENCE_TYPES with this class before trying to create an converter node with it.");
 		static_assert(std::is_convertible<FromDataType, ToDataType>::value, "Tried to create an auto converter node between two types we can't static_cast between.");
 
 	public:
-		static FString& GetInputName()
+		static const FString& GetInputName()
 		{
-			static FString InputName = FString(TDataReferenceTypeInfo<FromDataType>::TypeName);
+			static const FString InputName = GetMetasoundDataTypeString<FromDataType>();
 			return InputName;
 		}
 
-		static FString& GetOutputName()
+		static const FString& GetOutputName()
 		{
-			static FString OutputName = FString(TDataReferenceTypeInfo<ToDataType>::TypeName);
+			static const FString OutputName = GetMetasoundDataTypeString<ToDataType>();
 			return OutputName;
 		}
 
@@ -87,7 +86,7 @@ namespace Metasound
 
 				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override
 				{
-					TDataWriteReference<ToDataType> WriteReference = TDataReferenceFactory<ToDataType>::CreateNewWriteReference(InParams.OperatorSettings);
+					TDataWriteReference<ToDataType> WriteReference = TDataWriteReferenceFactory<ToDataType>::CreateAny(InParams.OperatorSettings);
 
 					if (!InParams.InputDataReferences.ContainsDataReadReference<FromDataType>(GetInputName()))
 					{
@@ -99,7 +98,7 @@ namespace Metasound
 						}
 
 						// We can still build something even though there is an error. 
-						TDataReadReference<FromDataType> ReadReference = TDataReferenceFactory<FromDataType>::CreateNewReadReference(InParams.OperatorSettings);
+						TDataReadReference<FromDataType> ReadReference = TDataReadReferenceFactory<FromDataType>::CreateAny(InParams.OperatorSettings);
 						return MakeUnique<FConverterOperator>(ReadReference, WriteReference);
 					}
 

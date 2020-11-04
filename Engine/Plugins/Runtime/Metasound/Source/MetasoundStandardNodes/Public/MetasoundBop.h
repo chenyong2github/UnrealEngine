@@ -22,17 +22,17 @@ namespace Metasound
 		public:
 			/** FBop constructor. 
 			 *
-			 * @param bShouldBop - If true, bops first sample.
 			 * @param InSettings - Operator settings.
+			 * @param bShouldBop - If true, bops first sample.
 			 */
-			explicit FBop(bool bShouldBop, const FOperatorSettings& InSettings);
+			explicit FBop(const FOperatorSettings& InSettings, bool bShouldBop);
 
 			/** FBop constructor. 
 			 *
 			 * @param InFrameToBop - Set specific frame to bop.
 			 * @param InSettings - Operator settings.
 			 */
-			explicit FBop(int32 InFrameToBop, const FOperatorSettings& InSettings);
+			explicit FBop(const FOperatorSettings& InSettings, int32 InFrameToBop);
 
 			/** FBop constructor. By default it is not bopped.
 			 *

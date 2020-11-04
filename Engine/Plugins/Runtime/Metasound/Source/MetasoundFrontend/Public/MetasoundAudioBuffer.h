@@ -123,4 +123,20 @@ namespace Metasound
 	};
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FAudioBuffer, METASOUNDFRONTEND_API, FAudioBufferTypeInfo, FAudioBufferReadRef, FAudioBufferWriteRef);
+
+
+	// This empty base class is used so that we can specialize various nodes (Send, Receive, etc.) for subclasses of IAudioDatatype.
+	class METASOUNDFRONTEND_API IAudioDataType
+	{
+		/**
+		 * Audio datatypes require the following member functions:
+		 * int32 GetNumChannels() const { return NumChannels; }
+		 *
+		 * int32 GetMaxNumChannels() const { return MaxNumChannels; }
+
+		 * const TArrayView<const FAudioBufferReadRef> GetBuffers() const { return ReadableBuffers; }
+
+		 * const TArrayView<const FAudioBufferWriteRef> GetBuffers() { return WritableBuffers; }
+		 */
+	};
 };

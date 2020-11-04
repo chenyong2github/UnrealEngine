@@ -299,10 +299,10 @@ namespace Metasound
 			/**
 			 * Constructor used by the Metasound Frontend.
 			 *
-			 * @param InSeconds The number in time to initialize to.
 			 * @param InSettings the operator settings to use.
+			 * @param InSeconds The number in time to initialize to.
 			 */
-			TTime(float InSeconds, const FOperatorSettings& InSettings)
+			TTime(const FOperatorSettings& InSettings, float InSeconds)
 				: TTime(InSeconds, ETimeResolution::Seconds, InSettings.GetSampleRate())
 			{}
 

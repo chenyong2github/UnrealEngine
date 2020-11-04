@@ -2741,14 +2741,7 @@ REGISTER_METASOUND_DATATYPE(float, "Primitive:Float", ::Metasound::ELiteralArgTy
 REGISTER_METASOUND_DATATYPE(double, "Primitive:Double", ::Metasound::ELiteralArgType::Float)
 REGISTER_METASOUND_DATATYPE(FString, "Primitive:String", ::Metasound::ELiteralArgType::String)
 
-namespace Metasound
-{
-	REGISTER_METASOUND_DATATYPE(FAudioBuffer, "Audio:Buffer")
-
-
-	static_assert(TDataReferenceTypeInfo<FSendAddress>::bIsValidSpecialization, "ahhhhh");
-
-	REGISTER_METASOUND_DATATYPE(FSendAddress, "Send:Address")
-}
+REGISTER_METASOUND_DATATYPE(Metasound::FAudioBuffer, "Audio:Buffer")
+REGISTER_METASOUND_DATATYPE(Metasound::FSendAddress, "Send:Address")
 
 IMPLEMENT_MODULE(FMetasoundFrontendModule, MetasoundFrontend);

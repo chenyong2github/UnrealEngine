@@ -6,14 +6,12 @@
 #include "MetasoundSource.h"
 #include "Modules/ModuleManager.h"
 #include "MetasoundWave.h"
+#include "MetasoundDataReference.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
 
 DEFINE_LOG_CATEGORY(LogMetasoundEngine);
 
-namespace Metasound
-{
-	REGISTER_METASOUND_DATATYPE(FWaveAsset, "Primitive:WaveAsset", ::Metasound::ELiteralArgType::UObjectProxy, USoundWave)
-}
+REGISTER_METASOUND_DATATYPE(Metasound::FWaveAsset, "Primitive:WaveAsset", Metasound::ELiteralArgType::UObjectProxy, USoundWave);
 
 class FMetasoundEngineModule : public IMetasoundEngineModule
 {

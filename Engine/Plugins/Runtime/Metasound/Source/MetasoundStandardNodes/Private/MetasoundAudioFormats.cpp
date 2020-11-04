@@ -6,15 +6,16 @@
 #include "MetasoundDataReference.h"
 #include "MetasoundAudioBuffer.h"
 
+REGISTER_METASOUND_DATATYPE(Metasound::FUnformattedAudio, "Audio:Unformatted")
+REGISTER_METASOUND_DATATYPE(Metasound::FMonoAudioFormat, "Audio:Mono")
+REGISTER_METASOUND_DATATYPE(Metasound::FStereoAudioFormat, "Audio:Stereo")
+
+// FMultichannelAudio cannot be used as an input type because it's channel count
+// cannot be changed at runtime. Hence, it is not registered.
+DEFINE_METASOUND_DATA_TYPE(Metasound::FMultichannelAudioFormat, "Audio:Multichannel")
+
 namespace Metasound
 {
-	REGISTER_METASOUND_DATATYPE(FUnformattedAudio, "Audio:Unformatted")
-	REGISTER_METASOUND_DATATYPE(FMonoAudioFormat, "Audio:Mono")
-	REGISTER_METASOUND_DATATYPE(FStereoAudioFormat, "Audio:Stereo")
-
-	// FMultichannelAudio cannot be used as an input type because it's channel count
-	// cannot be changed at runtime. Hence, it is not registered.
-	IMPL_METASOUND_DATA_TYPE(FMultichannelAudioFormat, "Audio:Multichannel")
 
 	/* FUnformattedAudio */
 	FUnformattedAudio::FUnformattedAudio(int32 InNumFrames, int32 InNumChannels, int32 InMaxNumChannels)
@@ -37,7 +38,7 @@ namespace Metasound
 		SetNumChannels(InNumChannels);
 	}
 
-	FUnformattedAudio::FUnformattedAudio(int32 InInitialNumChannels, const FOperatorSettings& InSettings)
+	FUnformattedAudio::FUnformattedAudio(const FOperatorSettings& InSettings, int32 InInitialNumChannels)
 		: FUnformattedAudio(InSettings.GetNumFramesPerBlock(), InInitialNumChannels, 8)
 	{
 	}
@@ -79,7 +80,7 @@ namespace Metasound
 		ReadableBuffers = ReadableBufferStorage;
 	}
 
-	FMultichannelAudioFormat::FMultichannelAudioFormat(int32 InNumChannels, const FOperatorSettings& InSettings)
+	FMultichannelAudioFormat::FMultichannelAudioFormat(const FOperatorSettings& InSettings, int32 InNumChannels)
 		: FMultichannelAudioFormat(InSettings.GetNumFramesPerBlock(), InNumChannels)
 	{}
 

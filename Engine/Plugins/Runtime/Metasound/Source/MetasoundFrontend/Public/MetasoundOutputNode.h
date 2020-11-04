@@ -14,8 +14,6 @@ namespace Metasound
 	template<typename DataType>
 	class TOutputNode : public FNode
 	{
-		static_assert(TDataReferenceTypeInfo<DataType>::bIsValidSpecialization, "Please use DECLARE_METASOUND_DATA_REFERENCE_TYPES with this class before trying to create an output node with it.");
-			
 		class FOutputOperator : public IOperator
 		{
 			public:

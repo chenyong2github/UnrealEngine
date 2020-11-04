@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Internationalization/Text.h"
+#include "MetasoundDataFactory.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundVertex.h"
+#include "MetasoundLiteral.h"
 
 namespace Metasound
 {
@@ -29,8 +31,8 @@ namespace Metasound
 			checkf(ParamMap.Contains(ParamName), TEXT("Tried to use node initialization parameter that didn't exist!"));
 
 			// If this hits, check that you have a constructor for DataType that can interpret the parameter.
-			checkf(ParamMap[ParamName].IsCompatibleWithType<ParamType>(), TEXT("Tried to parse initialization parameter to an invalid type!"));
-			return ParamMap[ParamName].ParseTo<ParamType>();
+			//checkf(ParamMap[ParamName].IsCompatibleWithType<ParamType>(), TEXT("Tried to parse initialization parameter to an invalid type!"));
+			return TDataTypeLiteralFactory<ParamType>::CreateAny(ParamMap[ParamName]);
 		}
 	};
 

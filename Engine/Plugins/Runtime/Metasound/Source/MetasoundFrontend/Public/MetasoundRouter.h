@@ -2,15 +2,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NameTypes.h"
 
-#include "MetasoundOperatorSettings.h"
-#include "MetasoundDataReference.h"
-#include "MetasoundOperatorInterface.h"
-#include "MetasoundAudioBuffer.h"
-#include "Misc/Guid.h"
 #include "DSP/Dsp.h"
 #include "DSP/MultithreadedPatching.h"
+#include "MetasoundAudioBuffer.h"
+#include "MetasoundDataFactory.h"
+#include "MetasoundDataReference.h"
+#include "MetasoundLiteral.h"
+#include "MetasoundOperatorInterface.h"
+#include "MetasoundOperatorSettings.h"
+#include "Misc/Guid.h"
+#include "UObject/NameTypes.h"
 
 #include <type_traits>
 
@@ -47,6 +49,9 @@ namespace Metasound
 		Global,
 		Extension // This means that this metasound router talks to an implentation of IMetasoundTransmissionListener.
 	};
+	/* TODO: Rename "Subsystem" to "Protocol".  A "Protocol" defines how data is moved around
+	 * and can be used by multiple APIs. 
+	 */
 
 	// This converts an ETransmissionScope into an FName that can be used in FSendAddress::Subsystem.
 	// For ETransmissionScope::Extension, the FName of that extension should be used instead.
@@ -520,9 +525,9 @@ namespace Metasound
 
 		virtual bool PushLiteral(const FDataTypeLiteralParam& InParam)
 		{
-			if (InParam.IsCompatibleWithType<TDataType>())
+			if (TLiteralTraits<TDataType>::IsParsable(InParam))
 			{
-				TDataType DataToPush = InParam.ParseTo<TDataType>(OperatorSettings);
+				TDataType DataToPush = TDataTypeLiteralFactory<TDataType>::CreateExplicitArgs(OperatorSettings, InParam);
 
 				FScopeLock ScopeLock(&AtomicDataLock);
 				if (!AtomicData.IsValid())
@@ -771,27 +776,27 @@ namespace Metasound
 
 	// Coalesce both our standard copying Sender/Receivers and our audio-specific sender/receiver implementations into TSenderPtr and TReceiverPtr:
 
-	template<typename TDataType, typename USenderType = typename std::conditional<TIsDerivedFrom<TDataType, IAudioDatatype>::Value, TAudioSender<TDataType>, TSender<TDataType>>::type>
+	template<typename TDataType, typename USenderType = typename std::conditional<TIsDerivedFrom<TDataType, IAudioDataType>::Value, TAudioSender<TDataType>, TSender<TDataType>>::type>
 	using TSenderPtr = TUniquePtr<USenderType>;
 
-	template<typename TDataType, typename UReceiverType = typename std::conditional<TIsDerivedFrom<TDataType, IAudioDatatype>::Value, TAudioReceiver<TDataType>, TReceiver<TDataType>>::type>
+	template<typename TDataType, typename UReceiverType = typename std::conditional<TIsDerivedFrom<TDataType, IAudioDataType>::Value, TAudioReceiver<TDataType>, TReceiver<TDataType>>::type>
 	using TReceiverPtr = TUniquePtr<UReceiverType>;
 
 	// SFINAE for creating the correct data channel type for the given datatype:
 
-	template<typename TDataType, typename TEnableIf<std::is_copy_constructible<TDataType>::value && !TIsDerivedFrom<TDataType, IAudioDatatype>::Value, bool>::Type = true>
+	template<typename TDataType, typename TEnableIf<std::is_copy_constructible<TDataType>::value && !TIsDerivedFrom<TDataType, IAudioDataType>::Value, bool>::Type = true>
 	TSharedRef<IDataChannel> MakeDataChannel(const FOperatorSettings& InSettings)
 	{
 		return MakeShareable(new TCopyableDataChannel<TDataType>(InSettings));
 	}
 
-	template<typename TDataType, typename TEnableIf<TIsDerivedFrom<TDataType, IAudioDatatype>::Value, bool>::Type = true>
+	template<typename TDataType, typename TEnableIf<TIsDerivedFrom<TDataType, IAudioDataType>::Value, bool>::Type = true>
 	TSharedRef<IDataChannel> MakeDataChannel(const FOperatorSettings& InSettings)
 	{
 		return MakeShareable(new TAudioDataChannel<TDataType>(InSettings));
 	}
 
-	template<typename TDataType, typename TEnableIf<!std::is_copy_constructible<TDataType>::value && !TIsDerivedFrom<TDataType, IAudioDatatype>::Value, bool>::Type = true>
+	template<typename TDataType, typename TEnableIf<!std::is_copy_constructible<TDataType>::value && !TIsDerivedFrom<TDataType, IAudioDataType>::Value, bool>::Type = true>
 	TSharedRef<IDataChannel> MakeDataChannel(const FOperatorSettings& InSettings)
 	{
 		return MakeShareable(new TNonOperationalDataChannel<TDataType>(InSettings));
@@ -800,7 +805,7 @@ namespace Metasound
 	// Utility function for properly downcasting to the correct type based on whether TDataType is an audio stream:
 
 	// For Audio Senders:
-	template <typename TDataType, typename TEnableIf<TIsDerivedFrom<TDataType, IAudioDatatype>::Value, bool>::Type = true>
+	template <typename TDataType, typename TEnableIf<TIsDerivedFrom<TDataType, IAudioDataType>::Value, bool>::Type = true>
 	TSenderPtr<TDataType> Downcast(TUniquePtr<ISender>&& InPtr)
 	{
 		checkf(InPtr->CheckType<TAudioSender<TDataType>>(), TEXT("Tried to downcast an ISender of type %s to a TSender of type %s!"), *(InPtr->GetDataType().ToString()), *(TAudioSender<TDataType>::GetDataTypeName().ToString()));
@@ -808,7 +813,7 @@ namespace Metasound
 	}
 
 	// For generic senders for copyable types:
-	template <typename TDataType, typename TEnableIf<std::is_copy_constructible<TDataType>::value && !TIsDerivedFrom<TDataType, IAudioDatatype>::Value, bool>::Type = true>
+	template <typename TDataType, typename TEnableIf<std::is_copy_constructible<TDataType>::value && !TIsDerivedFrom<TDataType, IAudioDataType>::Value, bool>::Type = true>
 	TSenderPtr<TDataType> Downcast(TUniquePtr<ISender>&& InPtr)
 	{
 		checkf(InPtr->CheckType<TSender<TDataType>>(), TEXT("Tried to downcast an ISender of type %s to a TSender of type %s!"), *(InPtr->GetDataType().ToString()), *(TSender<TDataType>::GetDataTypeName().ToString()));
@@ -816,14 +821,14 @@ namespace Metasound
 	}
 
 	// For invalid types (non-copyable AND not an audio type):
-	template <typename TDataType, typename TEnableIf<!std::is_copy_constructible<TDataType>::value && !TIsDerivedFrom<TDataType, IAudioDatatype>::Value, bool>::Type = true>
+	template <typename TDataType, typename TEnableIf<!std::is_copy_constructible<TDataType>::value && !TIsDerivedFrom<TDataType, IAudioDataType>::Value, bool>::Type = true>
 	TSenderPtr<TDataType> Downcast(TUniquePtr<ISender>&& InPtr)
 	{
 		return nullptr;
 	}
 
 	// For audio receivers:
-	template <typename TDataType, typename TEnableIf<TIsDerivedFrom<TDataType, IAudioDatatype>::Value, bool>::Type = true>
+	template <typename TDataType, typename TEnableIf<TIsDerivedFrom<TDataType, IAudioDataType>::Value, bool>::Type = true>
 	TReceiverPtr<TDataType> Downcast(TUniquePtr<IReceiver>&& InPtr)
 	{
 		checkf(InPtr->CheckType<TAudioReceiver<TDataType>>(), TEXT("Tried to downcast an IReceiver of type %s to a TSender of type %s!"), *(InPtr->GetDataType().ToString()), *(TAudioReceiver<TDataType>::GetDataTypeName().ToString()));
@@ -831,7 +836,7 @@ namespace Metasound
 	}
 
 	// For generic receivers for copyable types:
-	template <typename TDataType, typename TEnableIf<std::is_copy_constructible<TDataType>::value && !TIsDerivedFrom<TDataType, IAudioDatatype>::Value, bool>::Type = true>
+	template <typename TDataType, typename TEnableIf<std::is_copy_constructible<TDataType>::value && !TIsDerivedFrom<TDataType, IAudioDataType>::Value, bool>::Type = true>
 	TReceiverPtr<TDataType> Downcast(TUniquePtr<IReceiver>&& InPtr)
 	{
 		checkf(InPtr->CheckType<TReceiver<TDataType>>(), TEXT("Tried to downcast an IReceiver of type %s to a TSender of type %s!"), *(InPtr->GetDataType().ToString()), *(TReceiver<TDataType>::GetDataTypeName().ToString()));
@@ -839,7 +844,7 @@ namespace Metasound
 	}
 
 	// For invalid types (non-copyable AND not an audio type):
-	template <typename TDataType, typename TEnableIf<!std::is_copy_constructible<TDataType>::value && !TIsDerivedFrom<TDataType, IAudioDatatype>::Value, bool>::Type = true>
+	template <typename TDataType, typename TEnableIf<!std::is_copy_constructible<TDataType>::value && !TIsDerivedFrom<TDataType, IAudioDataType>::Value, bool>::Type = true>
 	TReceiverPtr<TDataType> Downcast(TUniquePtr<IReceiver>&& InPtr)
 	{
 		return nullptr;

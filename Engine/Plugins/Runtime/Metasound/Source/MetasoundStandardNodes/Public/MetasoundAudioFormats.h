@@ -19,7 +19,7 @@ namespace Metasound
 	 * of the FUnformattedAudio. All audio buffers within a FUnformattedAudio object must contain the 
 	 * same number of audio frames.
 	 */
-	class METASOUNDSTANDARDNODES_API FUnformattedAudio : public IAudioDatatype
+	class METASOUNDSTANDARDNODES_API FUnformattedAudio : public IAudioDataType
 	{
 		public:
 			/** FUnformattedAudio Constructor.
@@ -37,10 +37,10 @@ namespace Metasound
 			/**
 			 * FUnformattedAudio Constructor used by the metasound frontend.
 			 *
-			 * @param InNumChannels - initial number of audio channels.
 			 * @param InSettings - Operator Settings passed in on construction.
+			 * @param InNumChannels - initial number of audio channels.
 			 */
-			explicit FUnformattedAudio(int32 InNumChannels, const FOperatorSettings& InSettings);
+			explicit FUnformattedAudio(const FOperatorSettings& InSettings, int32 InNumChannels);
 
 
 			/** Sets the number of audio channels.
@@ -107,7 +107,7 @@ namespace Metasound
 	 * of the FMultichannelAudioFormat. All audio buffers within a FMultichannelAudioFormat object must contain the 
 	 * same number of audio frames.
 	 */
-	class METASOUNDSTANDARDNODES_API FMultichannelAudioFormat : public IAudioDatatype
+	class METASOUNDSTANDARDNODES_API FMultichannelAudioFormat : public IAudioDataType
 	{
 		public:
 			FMultichannelAudioFormat();
@@ -122,10 +122,10 @@ namespace Metasound
 			/**
 			 * FMultichannelAudioFormat Constructor used by the metasound frontend.
 			 *
-			 * @param InNumChannels - initial number of audio channels.
 			 * @param InSettings - Operator Settings passed in on construction.
+			 * @param InNumChannels - initial number of audio channels.
 			 */
-			explicit FMultichannelAudioFormat(int32 InNumChannels, const FOperatorSettings& InSettings);
+			explicit FMultichannelAudioFormat(const FOperatorSettings& InSettings, int32 InNumChannels);
 
 			/** FMultichannelAudioFormat Constructor.
 			 *
@@ -212,7 +212,7 @@ namespace Metasound
 	 * number of audio frames.
 	 */
 	template<int32 NumChannels>
-	class TStaticChannelAudioFormat : public IAudioDatatype
+	class TStaticChannelAudioFormat : public IAudioDataType
 	{
 		public:
 			/** TStaticChannelAudioFormat Constructor

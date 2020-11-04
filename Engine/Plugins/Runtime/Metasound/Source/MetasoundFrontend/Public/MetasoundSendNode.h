@@ -20,18 +20,16 @@ namespace Metasound
 	template<typename TDataType>
 	class TSendNode : public INode
 	{
-		static_assert(TDataReferenceTypeInfo<TDataType>::bIsValidSpecialization, "Please use DECLARE_METASOUND_DATA_REFERENCE_TYPES with this class before trying to create an converter node with it.");
-
 	public:
-		static FString& GetAddressInputName()
+		static const FString& GetAddressInputName()
 		{
-			static FString InputName = FString(TEXT("Address"));
+			static const FString InputName = FString(TEXT("Address"));
 			return InputName;
 		}
 
-		static FString& GetSendInputName()
+		static const FString& GetSendInputName()
 		{
-			static FString SendInput = FString(TDataReferenceTypeInfo<TDataType>::TypeName);
+			static const FString SendInput = GetMetasoundDataTypeString<TDataType>();
 			return SendInput;
 		}
 

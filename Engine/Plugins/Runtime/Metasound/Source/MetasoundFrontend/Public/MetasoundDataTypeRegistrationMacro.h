@@ -5,18 +5,19 @@
 #include "CoreMinimal.h"
 #include "Templates/Casts.h"
 
-#include "MetasoundDataReference.h"
-#include "MetasoundOutputNode.h"
-#include "MetasoundInputNode.h"
-#include "MetasoundPrimitives.h"
-#include "MetasoundOperatorInterface.h"
-#include "MetasoundFrontendRegistries.h"
 #include "MetasoundAutoConverterNode.h"
-#include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundConverterNodeRegistrationMacro.h"
-#include "MetasoundSendNode.h"
+#include "MetasoundDataFactory.h"
+#include "MetasoundDataReference.h"
+#include "MetasoundFrontendRegistries.h"
+#include "MetasoundInputNode.h"
+#include "MetasoundNodeRegistrationMacro.h"
+#include "MetasoundOperatorInterface.h"
+#include "MetasoundOutputNode.h"
+#include "MetasoundPrimitives.h"
 #include "MetasoundReceiveNode.h"
 #include "MetasoundRouter.h"
+#include "MetasoundSendNode.h"
 
 #include <type_traits>
 
@@ -47,7 +48,7 @@ struct TIsTransmittable
 {
 private:
 	static constexpr bool bCanBeTransmitted =
-		std::is_copy_constructible<TDataType>::value|| TIsDerivedFrom<TDataType, ::Metasound::IAudioDatatype>::Value;
+		std::is_copy_constructible<TDataType>::value|| TIsDerivedFrom<TDataType, ::Metasound::IAudioDataType>::Value;
 
 public:
 
@@ -127,7 +128,7 @@ bool RegisterDataTypeWithFrontend()
 	// Lambdas that generate our template-instantiated input and output nodes:
 	FInputNodeConstructorCallback InputNodeConstructor = [](::Metasound::FInputNodeConstructorParams&& InParams) -> TUniquePtr<::Metasound::INode>
 	{
-		return TUniquePtr<::Metasound::INode>(new ::Metasound::TInputNode<TDataType>(InParams.InNodeName, InParams.InVertexName, MoveTemp(InParams.InitParam), InParams.InSettings));
+		return TUniquePtr<::Metasound::INode>(new ::Metasound::TInputNode<TDataType>(InParams.InNodeName, InParams.InVertexName, MoveTemp(InParams.InitParam)));
 	};
 
 	FOutputNodeConstructorCallback OutputNodeConstructor = [](const ::Metasound::FOutputNodeConstrutorParams& InParams) -> TUniquePtr<::Metasound::INode>
@@ -167,33 +168,46 @@ bool RegisterDataTypeWithFrontend()
 		};
 	}
 
-	static FName DataTypeName = FName(::Metasound::TDataReferenceTypeInfo<TDataType>::TypeName);
+	static const FName DataTypeName = ::Metasound::GetMetasoundDataTypeName<TDataType>();
 
 	// Pack all of our various constructor lambdas to a single struct.
 	::Metasound::FDataTypeConstructorCallbacks Callbacks = { MoveTemp(InputNodeConstructor), MoveTemp(OutputNodeConstructor), MoveTemp(ProxyGenerator) };
 
+
 	::Metasound::FDataTypeRegistryInfo RegistryInfo;
+
 	RegistryInfo.DataTypeName = DataTypeName;
 	RegistryInfo.PreferredLiteralType = PreferredArgType;
-	RegistryInfo.bIsBoolParsable = ::Metasound::TDataReferenceTypeInfo<TDataType>::bIsBoolParsable;
-	RegistryInfo.bIsIntParsable = ::Metasound::TDataReferenceTypeInfo<TDataType>::bIsIntParsable;
-	RegistryInfo.bIsFloatParsable = ::Metasound::TDataReferenceTypeInfo<TDataType>::bIsFloatParsable;
-	RegistryInfo.bIsStringParsable = ::Metasound::TDataReferenceTypeInfo<TDataType>::bIsStringParsable;
-	RegistryInfo.bIsProxyParsable = ::Metasound::TDataReferenceTypeInfo<TDataType>::bIsProxyParsable;
-	RegistryInfo.bIsProxyArrayParsable = ::Metasound::TDataReferenceTypeInfo<TDataType>::bIsProxyArrayParsable;
-	RegistryInfo.bIsConstructableWithSettings = ::Metasound::TDataReferenceTypeInfo<TDataType>::bIsConstructableWithSettings;
-	RegistryInfo.bIsDefaultConstructible = ::Metasound::TDataReferenceTypeInfo<TDataType>::bCanUseDefaultConstructor;
+
+	RegistryInfo.bIsBoolParsable = ::Metasound::TIsParsable<TDataType, bool>::Value;
+	RegistryInfo.bIsIntParsable = ::Metasound::TIsParsable<TDataType, int32>::Value;
+	RegistryInfo.bIsFloatParsable = ::Metasound::TIsParsable<TDataType, float>::Value;
+	RegistryInfo.bIsStringParsable = ::Metasound::TIsParsable<TDataType, FString>::Value;
+	RegistryInfo.bIsProxyParsable = ::Metasound::TIsParsable<TDataType, const Audio::IProxyDataPtr&>::Value;
+	RegistryInfo.bIsProxyArrayParsable = ::Metasound::TIsParsable<TDataType, const TArray<Audio::IProxyDataPtr>& >::Value;
+	RegistryInfo.bIsConstructableWithSettings = std::is_constructible<TDataType, const ::Metasound::FOperatorSettings&>::value;
+	RegistryInfo.bIsDefaultConstructible = std::is_constructible<TDataType>::value;
 	
 	RegistryInfo.ProxyGeneratorClass = UClassToUse::StaticClass();
 
 	bool bSucceeded = FMetasoundFrontendRegistryContainer::Get()->RegisterDataType(RegistryInfo, MoveTemp(Callbacks));
-	ensureAlwaysMsgf(bSucceeded, TEXT("Failed to register data type %s in the node registry!"), ::Metasound::TDataReferenceTypeInfo<TDataType>::TypeName);
+	ensureAlwaysMsgf(bSucceeded, TEXT("Failed to register data type %s in the node registry!"), *::Metasound::GetMetasoundDataTypeString<TDataType>());
 	
 	RegisterConverterNodes<TDataType>();
 	AttemptToRegisterSendAndReceiveNodes<TDataType>();
 	
 	return bSucceeded;
 }
+
+template<typename DataType>
+struct TMetasoundDataTypeRegistration
+{
+	static_assert(std::is_same<DataType, typename std::decay<DataType>::type>::value, "DataType and decayed DataType must be the same");
+	
+	static constexpr bool bCanRegister = ::Metasound::TInputNode<DataType>::bCanRegister;
+
+	static const bool bSuccessfullyRegistered;
+};
 
 // This should be used to expose a datatype as a potential input or output for a metasound graph.
 // The first argument to the macro is the class to expose.
@@ -204,10 +218,19 @@ bool RegisterDataTypeWithFrontend()
 // If ::Metasound::
 // Metasound::ELiteralArgType::Invalid can be used to enforce that we don't provide space for a literal, in which case you should have a default constructor or a constructor that takes [const FOperatorSettings&] implemented.
 // If you pass in a preferred arg type, please make sure that the passed in datatype has a matching constructor, since we won't check this until runtime.
+
+#define CANNOT_REGISTER_METASOUND_DATA_TYPE_ASSERT_STRING(DataType) \
+"To register " #DataType " to be used as a Metasounds input or output type, it needs a default constructor or one of the following constructors must be implemented:  " \
+#DataType "(const ::Metasound::FOperatorSettings& InSettings), " \
+#DataType "(const ::Metasound::FOperatorSettings& InSettings, bool InValue), " \
+#DataType "(const ::Metasound::FOperatorSettings& InSettings, int32 InValue), " \
+#DataType "(const ::Metasound::FOperatorSettings& InSettings, float InValue), " \
+#DataType "(const ::Metasound::FOperatorSettings& InSettings, const FString& InString)" \
+#DataType "(const ::Metasound::FOperatorSettings& InSettings, const Audio::IProxyDataPtr& InData),  or " \
+#DataType "(const ::Metasound::FOperatorSettings& InSettings, const TArray<Audio::IProxyDataPtr>& InProxyArray)."
+
 #define REGISTER_METASOUND_DATATYPE(DataType, DataTypeName, ...) \
-	IMPL_METASOUND_DATA_TYPE(DataType, DataTypeName) \
-	static_assert(::Metasound::TDataReferenceTypeInfo<DataType>::bIsValidSpecialization, "Please call DECLARE_METASOUND_DATA_REFERENCE_TYPES(" #DataType "...) before calling REGISTER_METASOUND_DATATYPE(" #DataType")."); \
-	static constexpr bool bCanRegister##DataType = ::Metasound::TDataReferenceTypeInfo<DataType>::bIsStringParsable || ::Metasound::TDataReferenceTypeInfo<DataType>::bIsBoolParsable || ::Metasound::TDataReferenceTypeInfo<DataType>::bIsIntParsable || ::Metasound::TDataReferenceTypeInfo<DataType>::bIsFloatParsable || ::Metasound::TDataReferenceTypeInfo<DataType>::bIsProxyParsable || ::Metasound::TDataReferenceTypeInfo<DataType>::bIsProxyArrayParsable || ::Metasound::TDataReferenceTypeInfo<DataType>::bIsConstructableWithSettings || ::Metasound::TDataReferenceTypeInfo<DataType>::bCanUseDefaultConstructor; \
-	static_assert(bCanRegister##DataType , "To register " #DataType " to be used as a Metasounds input or output type, it needs a default constructor or one of the following constructors must be implemented:  " #DataType "(const ::Metasound::FOperatorSettings& InSettings), " #DataType "(int32 InValue, const ::Metasound::FOperatorSettings& InSettings), " #DataType "(float InValue, const ::Metasound::FOperatorSettings& InSettings), " #DataType "(bool InValue, const ::Metasound::FOperatorSettings& InSettings), " #DataType "(const Audio::IProxyData& InData, const ::Metasound::FOperatorSettings& InSettings), " #DataType "(const TArray<Audio::IProxyDataPtr>& InProxyArray, const ::Metasound::FOperatorSettings& InSettings) or " #DataType "(const FString& InString, const ::Metasound::FOperatorSettings& InSettings)."); \
-	static const bool bSuccessfullyRegistered##DataType = FMetasoundFrontendRegistryContainer::Get()->EnqueueInitCommand([](){ ::RegisterDataTypeWithFrontend<DataType, ##__VA_ARGS__>(); }); // This static bool is useful for debugging, but also is the only way the compiler will let us call this function outside of an expression.
+	DEFINE_METASOUND_DATA_TYPE(DataType, DataTypeName); \
+	static_assert(::TMetasoundDataTypeRegistration<DataType>::bCanRegister, CANNOT_REGISTER_METASOUND_DATA_TYPE_ASSERT_STRING(DataType)); \
+	template<> const bool ::TMetasoundDataTypeRegistration<DataType>::bSuccessfullyRegistered = ::FMetasoundFrontendRegistryContainer::Get()->EnqueueInitCommand([](){ ::RegisterDataTypeWithFrontend<DataType, ##__VA_ARGS__>(); }); // This static bool is useful for debugging, but also is the only way the compiler will let us call this function outside of an expression.
 

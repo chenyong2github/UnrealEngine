@@ -21,11 +21,18 @@ namespace Metasound
 	class FWavePlayerError : public FBuildErrorBase
 	{
 	public:
-		FWavePlayerError(FName InName, FText InErrorDescription)
-			: FBuildErrorBase(InName, InErrorDescription)
-		{}
+		FWavePlayerError(const FWavePlayerNode& InNode, FText InErrorDescription)
+			: FBuildErrorBase(ErrorType, InErrorDescription)
+		{
+			AddNode(InNode);
+		}
+
 		virtual ~FWavePlayerError() = default;
+
+		static const FName ErrorType;
 	};
+
+	const FName FWavePlayerError::ErrorType = FName(TEXT("WavePlayerError"));
 	
 	class FWavePlayerOperator : public TExecutableOperator<FWavePlayerOperator>
 	{
@@ -164,15 +171,17 @@ namespace Metasound
 				}
 				else
 				{
-					AddBuildError<FWavePlayerError>(OutErrors, TEXT("FailedToFindCodec"),
-						LOCTEXT("FailedToFindCodec", "Failed to find codec for opening the supplied Wave"));
+					AddBuildError<FWavePlayerError>(OutErrors, WaveNode, LOCTEXT("FailedToFindCodec", "Failed to find codec for opening the supplied Wave"));
 				}
 			}
 			else
 			{
-				AddBuildError<FWavePlayerError>(OutErrors, TEXT("FailedToParseInput"),
-					LOCTEXT("FailedToParseInput", "Failed to parse the compressed data"));
+				AddBuildError<FWavePlayerError>(OutErrors, WaveNode, LOCTEXT("FailedToParseInput", "Failed to parse the compressed data"));
 			}
+		}
+		else
+		{
+			AddBuildError<FWavePlayerError>(OutErrors, WaveNode, LOCTEXT("NoSoundWave", "No Sound Wave"));
 		}
 
 		// Create the player without any inputs, will just produce silence.
