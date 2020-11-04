@@ -257,7 +257,7 @@ struct FHairHZBParameters
 	// Set from renderer for view culling
 	FVector HZBUvFactorValue;
 	FVector4 HZBSizeValue;
-	TRefCountPtr<IPooledRenderTarget> HZB;
+	FRDGTextureRef HZB = nullptr;
 };
 
 bool IsHairStrandsClusterDebugEnable();
@@ -387,11 +387,11 @@ static void AddClusterCullingPass(
 
 		Parameters->HZBUvFactor = HZBParameters.HZBUvFactorValue;
 		Parameters->HZBSize = HZBParameters.HZBSizeValue;
-		Parameters->HZBTexture = HZBParameters.HZB.IsValid() ? GraphBuilder.RegisterExternalTexture(HZBParameters.HZB, TEXT("HairClusterCullingHZB")) : nullptr;
+		Parameters->HZBTexture = HZBParameters.HZB;
 		Parameters->HZBSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 		FHairClusterCullingCS::FPermutationDomain Permutation;
-		Permutation.Set<FHairClusterCullingCS::FHZBCulling>((HZBParameters.HZB.IsValid() && !bClusterCullingFrozenCamera && GHairStrandsClusterCullingUsesHzb) ? 1 : 0);
+		Permutation.Set<FHairClusterCullingCS::FHZBCulling>((HZBParameters.HZB && !bClusterCullingFrozenCamera && GHairStrandsClusterCullingUsesHzb) ? 1 : 0);
 		Permutation.Set<FHairClusterCullingCS::FDebugAABBBuffer>(bClusterDebugAABBBuffer ? 1 : 0);
 		TShaderMapRef<FHairClusterCullingCS> ComputeShader(ShaderMap, Permutation);
 		const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(ClusterData.ClusterCount, 1, 1), FIntVector(64, 1, 1));
@@ -589,7 +589,7 @@ void ComputeHairStrandsClustersCulling(
 	if (ViewCount > 0) // only handling one view for now
 	{
 		const FViewInfo& ViewInfo = Views[0];
-		HZBParameters.HZB = ViewInfo.HZB.IsValid() ? ViewInfo.HZB : nullptr;
+		HZBParameters.HZB = ViewInfo.HZB;
 
 		const float kHZBTestMaxMipmap = 9.0f;
 		const float HZBMipmapCounts = FMath::Log2(FMath::Max(ViewInfo.HZBMipmap0Size.X, ViewInfo.HZBMipmap0Size.Y));

@@ -369,9 +369,9 @@ bool FDeferredShadingSceneRenderer::RenderHzb(
 			// Update the view.
 			{
 				View.HZBMipmap0Size = FurthestHZBTexture->Desc.Extent;
+				View.HZB = FurthestHZBTexture;
 
 				// Extract furthest HZB texture.
-				ConvertToExternalTexture(GraphBuilder, FurthestHZBTexture, View.HZB);
 				if (View.ViewState)
 				{
 					GraphBuilder.QueueTextureExtraction(FurthestHZBTexture, &View.ViewState->PrevFrameViewInfo.HZB);
@@ -380,7 +380,7 @@ bool FDeferredShadingSceneRenderer::RenderHzb(
 				// Extract closest HZB texture.
 				if (ViewPipelineState.bClosestHZB)
 				{
-					ConvertToExternalTexture(GraphBuilder, ClosestHZBTexture, View.ClosestHZB);
+					View.ClosestHZB = ClosestHZBTexture;
 				}
 			}
 		}
@@ -2143,7 +2143,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			uint32 SSAOLevels = FSSAOHelper::ComputeAmbientOcclusionPassCount(View);
 			// In deferred shader, the SSAO uses the GBuffer and must be executed after base pass. Otherwise, async compute runs the shader in RenderHzb()
 			// In forward, if zprepass is off - as SSAO here requires a valid HZB buffer - disable SSAO
-			if (!IsForwardShadingEnabled(ShaderPlatform) || !View.HZB.IsValid() || FSSAOHelper::IsAmbientOcclusionAsyncCompute(View, SSAOLevels))
+			if (!IsForwardShadingEnabled(ShaderPlatform) || !View.HZB || FSSAOHelper::IsAmbientOcclusionAsyncCompute(View, SSAOLevels))
 			{
 				SSAOLevels = 0;
 			}
@@ -2352,11 +2352,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		AddPass(GraphBuilder, [this, &SceneContext](FRHICommandList&)
 		{
-			for (FViewInfo& View : Views)
-			{
-				View.HZB = nullptr;
-			}
-
 			// Release SSAO texture and HZB texture earlier to free resources, such as FastVRAM.
 			SceneContext.ScreenSpaceAO.SafeRelease();
 			SceneContext.bScreenSpaceAOIsValid = false;

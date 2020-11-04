@@ -376,12 +376,12 @@ void TraceReflections(
 
 		if (InputColor == CurrentSceneColor || !SceneTextures.GBufferVelocityTexture)
 		{
-			PassParameters->SceneTextures.GBufferVelocityTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+			PassParameters->SceneTextures.GBufferVelocityTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
 		}
 
 		checkf(View.ClosestHZB, TEXT("Lumen screen tracing: ClosestHZB was not setup, should have been setup by FDeferredShadingSceneRenderer::RenderHzb"));
-		PassParameters->ClosestHZBTexture = GraphBuilder.RegisterExternalTexture(View.ClosestHZB, TEXT("ClosestHZB"));
-		PassParameters->HZBBaseTexelSize = FVector2D(1.0f / View.ClosestHZB->GetDesc().Extent.X, 1.0f / View.ClosestHZB->GetDesc().Extent.Y);
+		PassParameters->ClosestHZBTexture = View.ClosestHZB;
+		PassParameters->HZBBaseTexelSize = FVector2D(1.0f / View.ClosestHZB->Desc.Extent.X, 1.0f / View.ClosestHZB->Desc.Extent.Y);
 		PassParameters->MaxHierarchicalScreenTraceIterations = GLumenReflectionHierarchicalScreenTracesMaxIterations;
 		PassParameters->UncertainTraceRelativeDepthThreshold = GLumenReflectionHierarchicalScreenTraceRelativeDepthThreshold;
 

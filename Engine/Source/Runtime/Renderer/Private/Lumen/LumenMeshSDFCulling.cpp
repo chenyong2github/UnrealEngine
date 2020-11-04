@@ -647,8 +647,8 @@ void CullMeshSDFObjectsToViewGrid(
 			PassParameters->PS.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			PassParameters->PS.DistanceFieldAtlasTexelSize = Context.DistanceFieldAtlasTexelSize;
 			PassParameters->PS.MaxNumberOfCulledObjects = Context.MaxNumberOfCulledObjects;
-			PassParameters->PS.ClosestHZBTexture = GraphBuilder.RegisterExternalTexture(View.ClosestHZB ? View.ClosestHZB : GSystemTextures.BlackDummy, TEXT("ClosestHZB"));
-			PassParameters->PS.FurthestHZBTexture = GraphBuilder.RegisterExternalTexture(View.HZB, TEXT("FurthestHZB"));
+			PassParameters->PS.ClosestHZBTexture = View.ClosestHZB ? View.ClosestHZB : GSystemTextures.GetBlackDummy(GraphBuilder);
+			PassParameters->PS.FurthestHZBTexture = View.HZB;
 			PassParameters->PS.HZBMipLevel = FMath::Max<float>((int32)FMath::FloorLog2(GridPixelsPerCellXY) - 1, 0.0f);
 			PassParameters->PS.HaveClosestHZB = View.ClosestHZB ? 1 : 0;
 			PassParameters->PS.ViewportUVToHZBBufferUV = FVector2D(

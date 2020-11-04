@@ -1307,8 +1307,8 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 
 			PassParameters->ProbeListPerEmitTile = ProbeListsPerEmitTile[HierarchyLevelId];
 			PassParameters->TiledDepthBounds = TiledDepthBounds;
-			PassParameters->ClosestHZB = GraphBuilder.RegisterExternalTexture(View.ClosestHZB);
-			PassParameters->FurthestHZB = GraphBuilder.RegisterExternalTexture(View.HZB);
+			PassParameters->ClosestHZB = View.ClosestHZB;
+			PassParameters->FurthestHZB = View.HZB;
 			PassParameters->ProbeArray = ProbeHierachyParameters.ProbeArray;
 
 			PassParameters->ProbePerTilesOutput = GraphBuilder.CreateUAV(ProbeListsPerResolveTile[HierarchyLevelId]);

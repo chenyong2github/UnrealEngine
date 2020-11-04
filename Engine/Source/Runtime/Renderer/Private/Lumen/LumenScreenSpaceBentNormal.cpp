@@ -76,7 +76,7 @@ FScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 			1.0f / ViewportUVToHZBBufferUV.X,
 			1.0f / ViewportUVToHZBBufferUV.Y);
 
-		PassParameters->FurthestHZBTexture = GraphBuilder.RegisterExternalTexture(View.HZB);
+		PassParameters->FurthestHZBTexture = View.HZB;
 		PassParameters->FurthestHZBTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenSpaceBentNormalCS>(0);

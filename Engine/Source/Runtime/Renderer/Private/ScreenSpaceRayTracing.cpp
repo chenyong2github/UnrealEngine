@@ -222,7 +222,7 @@ void SetupCommonScreenSpaceRayParameters(
 			(0.5f * View.ViewRect.Height() - 0.5f) / float(PrevSceneColor.SceneColor->Desc.Extent.Y));
 	}
 
-	OutParameters->FurthestHZBTexture = GraphBuilder.RegisterExternalTexture(View.HZB);
+	OutParameters->FurthestHZBTexture = View.HZB;
 	OutParameters->FurthestHZBTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
 	OutParameters->ColorTexture = PrevSceneColor.SceneColor;
 	OutParameters->ColorTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
@@ -766,8 +766,8 @@ FPrevSceneColorMip ReducePrevSceneColorMip(
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "SSGI SceneColorReduction");
 
-	FRDGTexture* FurthestHZBTexture = GraphBuilder.RegisterExternalTexture(View.HZB);
-	FRDGTexture* ClosestHZBTexture = GraphBuilder.RegisterExternalTexture(View.ClosestHZB);
+	FRDGTexture* FurthestHZBTexture = View.HZB;
+	FRDGTexture* ClosestHZBTexture = View.ClosestHZB;
 
 	// Number of mip skipped at the begining of the mip chain.
 	const int32 DownSamplingMip = 1;
@@ -953,8 +953,8 @@ FSSRTTileClassificationParameters RenderHorizonTileClassification(
 {
 	FIntPoint SceneTexturesExtent = SceneTextures.SceneDepthTexture->Desc.Extent;
 
-	FRDGTextureRef FurthestHZBTexture = GraphBuilder.RegisterExternalTexture(View.HZB);
-	FRDGTextureRef ClosestHZBTexture = GraphBuilder.RegisterExternalTexture(View.ClosestHZB);
+	FRDGTextureRef FurthestHZBTexture = View.HZB;
+	FRDGTextureRef ClosestHZBTexture = View.ClosestHZB;
 
 	FSSRTTileClassificationParameters ClassificationParameters;
 	{
@@ -1164,7 +1164,7 @@ void RenderScreenSpaceReflections(
 		PassParameters->SceneColor = InputColor;
 		PassParameters->SceneColorSampler = GSSRHalfResSceneColor ? TStaticSamplerState<SF_Bilinear>::GetRHI() : TStaticSamplerState<SF_Point>::GetRHI();
 		
-		PassParameters->HZB = GraphBuilder.RegisterExternalTexture(View.HZB);
+		PassParameters->HZB = View.HZB;
 		PassParameters->HZBSampler = TStaticSamplerState<SF_Point>::GetRHI();
 	};
 

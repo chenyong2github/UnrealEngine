@@ -510,9 +510,9 @@ void SetupDefaultRenderVolumetricCloudGlobalParameters(FRDGBuilder& GraphBuilder
 
 static void SetupRenderVolumetricCloudGlobalParametersHZB(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FRenderVolumetricCloudGlobalParameters& ShaderParameters)
 {
-	ShaderParameters.HasValidHZB = (ViewInfo.HZB.IsValid() && CVarVolumetricCloudHzbCulling.GetValueOnAnyThread() > 0) ? 1 : 0;
+	ShaderParameters.HasValidHZB = (ViewInfo.HZB && CVarVolumetricCloudHzbCulling.GetValueOnAnyThread() > 0) ? 1 : 0;
 
-	ShaderParameters.HZBTexture = GraphBuilder.RegisterExternalTexture(ShaderParameters.HasValidHZB ? ViewInfo.HZB : GSystemTextures.BlackDummy);
+	ShaderParameters.HZBTexture = ShaderParameters.HasValidHZB ? ViewInfo.HZB : GSystemTextures.GetBlackDummy(GraphBuilder);
 	ShaderParameters.HZBSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	const float kHZBTestMaxMipmap = 9.0f;

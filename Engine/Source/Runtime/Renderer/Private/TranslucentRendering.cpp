@@ -632,7 +632,7 @@ void SetupTranslucentBasePassUniformParameters(
 
 		if (View.HZB)
 		{
-			BasePassParameters.HZBTexture = GetRDG(View.HZB);
+			BasePassParameters.HZBTexture = View.HZB;
 			BasePassParameters.HZBSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 			FRDGTextureRef PrevSceneColorTexture = BlackDummyTexture;

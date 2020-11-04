@@ -1284,8 +1284,8 @@ public:
 	FOcclusionQueryBatcher GroupedOcclusionQueries;
 
 	// Furthest and closest Hierarchical Z Buffer
-	TRefCountPtr<IPooledRenderTarget> HZB;
-	TRefCountPtr<IPooledRenderTarget> ClosestHZB;
+	FRDGTextureRef HZB = nullptr;
+	FRDGTextureRef ClosestHZB = nullptr;
 
 	int32 NumBoxReflectionCaptures;
 	int32 NumSphereReflectionCaptures;

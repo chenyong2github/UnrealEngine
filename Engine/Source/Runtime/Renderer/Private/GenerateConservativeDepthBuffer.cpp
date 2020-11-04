@@ -41,7 +41,7 @@ IMPLEMENT_GLOBAL_SHADER(FGenerateConservativeDepthBufferCS, "/Engine/Private/Gen
 
 void AddGenerateConservativeDepthBufferPass(FViewInfo& View, FRDGBuilder& GraphBuilder, FRDGTextureRef ConservativeDepthTexture, int32 DestinationPixelSizeAtFullRes)
 {
-	if (View.HZB.IsValid())
+	if (View.HZB)
 	{
 		FGenerateConservativeDepthBufferCS::FPermutationDomain Permutation;
 		TShaderMapRef<FGenerateConservativeDepthBufferCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5), Permutation);
@@ -54,9 +54,9 @@ void AddGenerateConservativeDepthBufferPass(FViewInfo& View, FRDGBuilder& GraphB
 		Parameters->ConservativeDepthTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ConservativeDepthTexture));
 		Parameters->ConservativeDepthTextureSize = ConservativeDepthTextureSize;
 		Parameters->DestinationPixelSizeAtFullRes = DestinationPixelSizeAtFullRes;
-		Parameters->HZBTexture = GraphBuilder.RegisterExternalTexture(View.HZB);
+		Parameters->HZBTexture = View.HZB;
 		Parameters->HZBSampler = TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
-		Parameters->HZBSize = View.HZB->GetDesc().Extent;
+		Parameters->HZBSize = View.HZB->Desc.Extent;
 		Parameters->HZBViewSize = FVector2D(View.ViewRect.Size());
 
 		const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(ConservativeDepthTextureSize.X, ConservativeDepthTextureSize.Y, 1), FIntVector(8, 8, 1));

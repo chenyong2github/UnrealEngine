@@ -139,7 +139,7 @@ static FSSAOCommonParameters GetSSAOCommonParameters(
 	CommonParameters.SceneTexturesUniformBufferRHI = SceneTexturesUniformBufferRHI;
 	CommonParameters.SceneTexturesViewport = FScreenPassTextureViewport(SceneTextureParameters.SceneDepthTexture, View.ViewRect);
 
-	CommonParameters.HZBInput = FScreenPassTexture(GraphBuilder.RegisterExternalTexture(View.HZB, TEXT("HZBInput")));
+	CommonParameters.HZBInput = FScreenPassTexture(View.HZB);
 	CommonParameters.GBufferA = FScreenPassTexture(SceneTextureParameters.GBufferATexture, View.ViewRect);
 	CommonParameters.SceneDepth = FScreenPassTexture(SceneTextureParameters.SceneDepthTexture, View.ViewRect);
 
@@ -170,7 +170,7 @@ FGTAOCommonParameters GetGTAOCommonParameters(
 	CommonParameters.SceneTexturesUniformBufferRHI = SceneTexturesUniformBufferRHI;
 	CommonParameters.SceneTexturesViewport = FScreenPassTextureViewport(SceneTextureParameters.SceneDepthTexture, View.ViewRect);
 
-	CommonParameters.HZBInput = FScreenPassTexture(GraphBuilder.RegisterExternalTexture(View.HZB, TEXT("HZBInput")));
+	CommonParameters.HZBInput = FScreenPassTexture(View.HZB);
 	CommonParameters.SceneDepth = FScreenPassTexture(SceneTextureParameters.SceneDepthTexture, View.ViewRect);
 	CommonParameters.SceneVelocity = FScreenPassTexture(SceneTextureParameters.GBufferVelocityTexture, View.ViewRect);
 

@@ -568,9 +568,9 @@ void TraceScreenProbes(
 		}
 
 		checkf(View.ClosestHZB, TEXT("Lumen screen tracing: ClosestHZB was not setup, should have been setup by FDeferredShadingSceneRenderer::RenderHzb"));
-		PassParameters->ClosestHZBTexture = GraphBuilder.RegisterExternalTexture(View.ClosestHZB, TEXT("ClosestHZB"));
+		PassParameters->ClosestHZBTexture = View.ClosestHZB;
 		PassParameters->SceneDepthTexture = SceneTextures.SceneDepthTexture;
-		PassParameters->HZBBaseTexelSize = FVector2D(1.0f / View.ClosestHZB->GetDesc().Extent.X, 1.0f / View.ClosestHZB->GetDesc().Extent.Y);
+		PassParameters->HZBBaseTexelSize = FVector2D(1.0f / View.ClosestHZB->Desc.Extent.X, 1.0f / View.ClosestHZB->Desc.Extent.Y);
 		PassParameters->MaxHierarchicalScreenTraceIterations = GLumenScreenProbeGatherHierarchicalScreenTracesMaxIterations;
 		PassParameters->UncertainTraceRelativeDepthThreshold = GLumenScreenProbeGatherUncertainTraceRelativeDepthThreshold;
 		PassParameters->NumThicknessStepsToDetermineCertainty = GLumenScreenProbeGatherNumThicknessStepsToDetermineCertainty;
