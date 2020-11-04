@@ -91,9 +91,9 @@ namespace Audio
 		FMixerDevice* MixerDevice;
 
 		// Container of active clocks
-		FCriticalSection ActiveClocksMutationCritSec;
+		FCriticalSection ActiveClockCritSec;
 
-		// Our array of active clocks (mutation/access aquires clock)
+		// Our array of active clocks (mutation/access acquires clock)
 		TArray<FQuartzClock> ActiveClocks;
 	};
 } // namespace Audio
