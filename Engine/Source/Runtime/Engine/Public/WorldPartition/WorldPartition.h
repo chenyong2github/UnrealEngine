@@ -174,7 +174,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	// Default HLOD layer
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=HLOD)
 	class UHLODLayer* DefaultHLODLayer;
 #endif
 
