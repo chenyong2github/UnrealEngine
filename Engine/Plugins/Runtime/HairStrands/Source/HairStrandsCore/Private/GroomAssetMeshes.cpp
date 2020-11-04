@@ -2,6 +2,7 @@
 
 #include "GroomAssetMeshes.h"
 #include "Engine/StaticMesh.h"
+#include "MeshDescription.h"
 
 FHairGroupsMeshesSourceDescription::FHairGroupsMeshesSourceDescription()
 {
@@ -20,14 +21,28 @@ bool FHairGroupsMeshesSourceDescription::operator==(const FHairGroupsMeshesSourc
 		ImportedMesh == A.ImportedMesh;
 }
 
+FString FHairGroupsMeshesSourceDescription::GetMeshKey() const
+{
+#if WITH_EDITORONLY_DATA
+	if (ImportedMesh)
+	{
+		ImportedMesh->ConditionalPostLoad();
+		FStaticMeshSourceModel& SourceModel = ImportedMesh->GetSourceModel(0);
+		if (SourceModel.MeshDescriptionBulkData)
+		{
+			return SourceModel.MeshDescriptionBulkData->GetIdString();
+		}
+	}
+#endif
+	return TEXT("INVALID_MESH");
+}
 
 bool FHairGroupsMeshesSourceDescription::HasMeshChanged() const
 {
 #if WITH_EDITORONLY_DATA
 	if (ImportedMesh)
 	{
-		ImportedMesh->ConditionalPostLoad();
-		return ImportedMeshKey == ImportedMesh->GetRenderData()->DerivedDataKey;
+		return ImportedMeshKey == GetMeshKey();
 	}
 #endif
 	return false;
@@ -38,8 +53,7 @@ void FHairGroupsMeshesSourceDescription::UpdateMeshKey()
 #if WITH_EDITORONLY_DATA
 	if (ImportedMesh)
 	{
-		ImportedMesh->ConditionalPostLoad();
-		ImportedMeshKey = ImportedMesh->GetRenderData()->DerivedDataKey;
+		ImportedMeshKey = GetMeshKey();
 	}
 #endif
 }

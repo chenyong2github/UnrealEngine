@@ -2,6 +2,7 @@
 
 #include "GroomAssetCards.h"
 #include "Engine/StaticMesh.h"
+#include "MeshDescription.h"
 
 FHairCardsClusterSettings::FHairCardsClusterSettings()
 {
@@ -115,18 +116,43 @@ bool FHairGroupsCardsSourceDescription::operator==(const FHairGroupsCardsSourceD
 		ImportedMesh == A.ImportedMesh;
 }
 
-bool FHairGroupsCardsSourceDescription::HasMeshChanged() const
+FString FHairGroupsCardsSourceDescription::GetMeshKey() const
 {
 #if WITH_EDITORONLY_DATA
 	if (SourceType == EHairCardsSourceType::Imported && ImportedMesh)
 	{
 		ImportedMesh->ConditionalPostLoad();
-		return ImportedMeshKey == ImportedMesh->GetRenderData()->DerivedDataKey;
+		FStaticMeshSourceModel& SourceModel = ImportedMesh->GetSourceModel(0);
+		if (SourceModel.MeshDescriptionBulkData)
+		{
+			return SourceModel.MeshDescriptionBulkData->GetIdString();
+		}
+
 	}
 	else if (SourceType == EHairCardsSourceType::Procedural && ProceduralMesh)
 	{
 		ProceduralMesh->ConditionalPostLoad();
-		return ProceduralMeshKey == ProceduralMesh->GetRenderData()->DerivedDataKey;
+		FStaticMeshSourceModel& SourceModel = ProceduralMesh->GetSourceModel(0);
+		if (SourceModel.MeshDescriptionBulkData)
+		{
+			return SourceModel.MeshDescriptionBulkData->GetIdString();
+		}
+	}
+	return TEXT("INVALID_MESH");
+#endif
+}
+
+bool FHairGroupsCardsSourceDescription::HasMeshChanged() const
+{
+#if WITH_EDITORONLY_DATA
+	if (SourceType == EHairCardsSourceType::Imported && ImportedMesh)
+	{
+		return ImportedMeshKey == GetMeshKey();
+	}
+	else if (SourceType == EHairCardsSourceType::Procedural && ProceduralMesh)
+	{
+		ProceduralMesh->ConditionalPostLoad();
+		return ProceduralMeshKey == GetMeshKey();
 	}
 #endif
 	return false;
@@ -137,13 +163,11 @@ void FHairGroupsCardsSourceDescription::UpdateMeshKey()
 #if WITH_EDITORONLY_DATA
 	if (SourceType == EHairCardsSourceType::Imported && ImportedMesh)
 	{
-		ImportedMesh->ConditionalPostLoad();
-		ImportedMeshKey = ImportedMesh->GetRenderData()->DerivedDataKey;
+		ImportedMeshKey = GetMeshKey();
 	}
 	else if (SourceType == EHairCardsSourceType::Procedural && ProceduralMesh)
 	{
-		ProceduralMesh->ConditionalPostLoad();
-		ProceduralMeshKey = ProceduralMesh->GetRenderData()->DerivedDataKey;
+		ProceduralMeshKey = GetMeshKey();
 	}
 #endif
 }
