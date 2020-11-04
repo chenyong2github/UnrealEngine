@@ -916,9 +916,9 @@ void FTextLocalizationManager::OnPakFileMounted(const IPakFile& PakFile)
 	LLM_SCOPE(ELLMTag::Localization);
 
 	int32 ChunkId = PakFile.PakGetPakchunkIndex();
-	if (ChunkId == INDEX_NONE || ChunkId == 0)
+	if (ChunkId == INDEX_NONE || ChunkId == 0 || PakFile.GetNumFiles() == 0)
 	{
-		// Skip non-chunked PAK files, and chunk 0 as that contains the standard localization data
+		// Skip empty (IoStore), non-chunked PAK files, and chunk 0 as that contains the standard localization data
 		return;
 	}
 
