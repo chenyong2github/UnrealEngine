@@ -52,8 +52,10 @@ private:
 	FText FilterGroupOperators_GetSelectionText() const;
 
 	FReply AddFilter_OnClicked();
-
 	FReply DeleteFilter_OnClicked();
+
+	FReply AddGroup_OnClicked();
+	FReply DeleteGroup_OnClicked();
 
 	FText GetTextBoxValue() const;
 	void OnTextBoxValueCommitted(const FText& InNewText, ETextCommit::Type InTextCommit);

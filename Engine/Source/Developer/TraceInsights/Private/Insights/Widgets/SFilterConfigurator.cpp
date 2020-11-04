@@ -105,10 +105,10 @@ void SFilterConfigurator::Construct(const FArguments& InArgs, TSharedPtr<FFilter
 			]
 		]
 			+ SVerticalBox::Slot()
-			.FillHeight(1.0f)
-			.Padding(0.0f, 6.0f, 0.0f, 0.0f)
+			.AutoHeight()
+			.Padding(0.0f, 5.0f, 0.0f, 5.0f)
 			.HAlign(EHorizontalAlignment::HAlign_Right)
-			.VAlign(EVerticalAlignment::VAlign_Center)
+			.VAlign(EVerticalAlignment::VAlign_Bottom)
 			[
 				SNew(SHorizontalBox)
 
@@ -116,7 +116,7 @@ void SFilterConfigurator::Construct(const FArguments& InArgs, TSharedPtr<FFilter
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)
 				.AutoWidth()
-				.Padding(0.0f)
+				.Padding(1.0f)
 				[
 					SNew(SButton)
 					.Text(LOCTEXT("OK", "OK"))
@@ -128,7 +128,7 @@ void SFilterConfigurator::Construct(const FArguments& InArgs, TSharedPtr<FFilter
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)
 				.AutoWidth()
-				.Padding(0.0f)
+				.Padding(1.0f)
 				[
 					SNew(SButton)
 					.Text(LOCTEXT("Cancel", "Cancel"))
