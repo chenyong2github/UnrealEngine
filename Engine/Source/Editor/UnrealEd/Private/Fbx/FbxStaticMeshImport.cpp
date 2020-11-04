@@ -581,9 +581,9 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 		TRACE_CPUPROFILER_EVENT_SCOPE(BuildCollision);
 
 		FbxString NodeName;
-		if (const FbxString* OriginalNodeName = NodeUniqueNameToOriginalNameMap.Find(Node->GetName()))
+		if (const FbxMap<FbxString, FbxString>::RecordType* OriginalNodeNameKeyValuePair = NodeUniqueNameToOriginalNameMap.Find(Node->GetName()))
 		{
-			NodeName = GetNodeNameWithoutNamespace(*OriginalNodeName);
+			NodeName = GetNodeNameWithoutNamespace(OriginalNodeNameKeyValuePair->GetValue());
 		}
 		else
 		{
