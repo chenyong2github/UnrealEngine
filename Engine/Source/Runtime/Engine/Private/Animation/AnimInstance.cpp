@@ -58,7 +58,6 @@ DEFINE_STAT(STAT_Montage_UpdateWeight);
 DEFINE_STAT(STAT_UpdateCurves);
 DEFINE_STAT(STAT_UpdateCurvesToEvaluationContext);
 DEFINE_STAT(STAT_UpdateCurvesPostEvaluation);
-DEFINE_STAT(STAT_LocalBlendCSBoneTransforms);
 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Anim Init Time"), STAT_AnimInitTime, STATGROUP_Anim, );
 DEFINE_STAT(STAT_AnimInitTime);
