@@ -89,6 +89,7 @@ int32 FApexDestructionCustomPayload::GetItemIndex() const
 
 FName FApexDestructionCustomPayload::GetBoneName() const
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if(UDestructibleComponent* RawOwningComponent = OwningComponent.Get())
 	{
 		return RawOwningComponent->GetBoneName(UDestructibleComponent::ChunkIdxToBoneIdx(ChunkIndex));
@@ -97,11 +98,14 @@ FName FApexDestructionCustomPayload::GetBoneName() const
 	{
 		return NAME_None;
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FBodyInstance* FApexDestructionCustomPayload::GetBodyInstance() const
 {
 	return OwningComponent.IsValid() ? &OwningComponent->BodyInstance : nullptr;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif // WITH_APEX
