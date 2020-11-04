@@ -46,6 +46,12 @@ namespace UnrealBuildTool
 		string[] DisablePlatformProjectGenerators = null;
 
 		/// <summary>
+		/// Whether this command is being run in an automated mode
+		/// </summary>
+		[CommandLine("-Automated")]
+		bool bAutomated = false;
+
+		/// <summary>
 		/// Execute the tool mode
 		/// </summary>
 		/// <param name="Arguments">Command line arguments</param>
@@ -63,7 +69,7 @@ namespace UnrealBuildTool
 			TryParseProjectFileArgument(Arguments, out ProjectFile);
 
 			// Warn if there are explicit project file formats specified
-			if (ProjectFileFormats.Count > 0)
+			if (ProjectFileFormats.Count > 0 && !bAutomated)
 			{
 				StringBuilder Configuration = new StringBuilder();
 				Configuration.Append("Project file formats specified via the command line will be ignored when generating\n");
