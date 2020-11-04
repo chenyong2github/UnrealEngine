@@ -6,7 +6,8 @@
 #include "OnlineSubsystemImpl.h"
 #include "OnlineSubsystemEOSPlusPrivate.h"
 /**
- *	OnlineSubsystemEOSPlus - Wrapper OSS that uses both the main platform and EOS OSS
+ * OnlineSubsystemEOSPlus - Wrapper OSS that uses both the main platform and EOS OSS
+ * hence EOS Plus another OSS
  */
 class FOnlineSubsystemEOSPlus : 
 	public FOnlineSubsystemImpl
@@ -15,49 +16,53 @@ public:
 	virtual ~FOnlineSubsystemEOSPlus() = default;
 
 // IOnlineSubsystem
-	virtual IOnlineSessionPtr GetSessionInterface() const override { return nullptr; }
-	virtual IOnlineFriendsPtr GetFriendsInterface() const override { return nullptr; }
-	virtual IOnlineGroupsPtr GetGroupsInterface() const override { return nullptr; }
-	virtual IOnlinePartyPtr GetPartyInterface() const override { return nullptr; }
-	virtual IOnlineSharedCloudPtr GetSharedCloudInterface() const override { return nullptr; }
-	virtual IOnlineUserCloudPtr GetUserCloudInterface() const override { return nullptr; }
-	virtual IOnlineEntitlementsPtr GetEntitlementsInterface() const override { return nullptr; }
-	virtual IOnlineLeaderboardsPtr GetLeaderboardsInterface() const override { return nullptr; }
-	virtual IOnlineVoicePtr GetVoiceInterface() const override { return nullptr; }
-	virtual IOnlineExternalUIPtr GetExternalUIInterface() const override { return nullptr; }
-	virtual IOnlineTimePtr GetTimeInterface() const override { return nullptr; }
-	virtual IOnlineIdentityPtr GetIdentityInterface() const override { return nullptr; }
-	virtual IOnlineTitleFilePtr GetTitleFileInterface() const override { return nullptr; }
-	virtual IOnlineStoreV2Ptr GetStoreV2Interface() const override { return nullptr; }
-	virtual IOnlinePurchasePtr GetPurchaseInterface() const override { return nullptr; }
-	virtual IOnlineEventsPtr GetEventsInterface() const override { return nullptr; }
-	virtual IOnlineAchievementsPtr GetAchievementsInterface() const override { return nullptr; }
-	virtual IOnlineSharingPtr GetSharingInterface() const override { return nullptr; }
-	virtual IOnlineUserPtr GetUserInterface() const override { return nullptr; }
-	virtual IOnlineMessagePtr GetMessageInterface() const override { return nullptr; }
-	virtual IOnlinePresencePtr GetPresenceInterface() const override { return nullptr; }
-	virtual IOnlineChatPtr GetChatInterface() const override { return nullptr; }
-	virtual IOnlineStatsPtr GetStatsInterface() const override { return nullptr; }
-	virtual IOnlineTurnBasedPtr GetTurnBasedInterface() const override { return nullptr; }
-	virtual IOnlineTournamentPtr GetTournamentInterface() const override { return nullptr; }
+	virtual IOnlineSessionPtr GetSessionInterface() const override;
+	virtual IOnlineFriendsPtr GetFriendsInterface() const override;
+	virtual IOnlineGroupsPtr GetGroupsInterface() const override;
+	virtual IOnlinePartyPtr GetPartyInterface() const override;
+	virtual IOnlineSharedCloudPtr GetSharedCloudInterface() const override;
+	virtual IOnlineUserCloudPtr GetUserCloudInterface() const override;
+	virtual IOnlineEntitlementsPtr GetEntitlementsInterface() const override;
+	virtual IOnlineLeaderboardsPtr GetLeaderboardsInterface() const override;
+	virtual IOnlineVoicePtr GetVoiceInterface() const override;
+	virtual IOnlineExternalUIPtr GetExternalUIInterface() const override;
+	virtual IOnlineTimePtr GetTimeInterface() const override;
+	virtual IOnlineIdentityPtr GetIdentityInterface() const override;
+	virtual IOnlineTitleFilePtr GetTitleFileInterface() const override;
+	virtual IOnlineStoreV2Ptr GetStoreV2Interface() const override;
+	virtual IOnlinePurchasePtr GetPurchaseInterface() const override;
+	virtual IOnlineEventsPtr GetEventsInterface() const override;
+	virtual IOnlineAchievementsPtr GetAchievementsInterface() const override;
+	virtual IOnlineSharingPtr GetSharingInterface() const override;
+	virtual IOnlineUserPtr GetUserInterface() const override;
+	virtual IOnlineMessagePtr GetMessageInterface() const override;
+	virtual IOnlinePresencePtr GetPresenceInterface() const override;
+	virtual IOnlineChatPtr GetChatInterface() const override;
+	virtual IOnlineStatsPtr GetStatsInterface() const override;
+	virtual IOnlineTurnBasedPtr GetTurnBasedInterface() const override;
+	virtual IOnlineTournamentPtr GetTournamentInterface() const override;
 
 	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 	virtual FText GetOnlineServiceName() const override;
 
-	virtual bool Init() override { return true; }
-	virtual bool Shutdown() override { return true; }
+	virtual bool Init() override;
+	virtual bool Shutdown() override;
 	virtual FString GetAppId() const override;
-	//~IOnlineSubsystem
-
-// FTickerObjectBase
-	virtual bool Tick(float DeltaTime) override;
+//~IOnlineSubsystem
 
 PACKAGE_SCOPE:
-	/** Only the factory makes instances */
+/** Only the factory makes instances */
 	FOnlineSubsystemEOSPlus() = delete;
-	explicit FOnlineSubsystemEOSPlus(FName InInstanceName) :
-		FOnlineSubsystemImpl(EOSPLUS_SUBSYSTEM, InInstanceName)
+	explicit FOnlineSubsystemEOSPlus(FName InInstanceName)
+		: FOnlineSubsystemImpl(EOSPLUS_SUBSYSTEM, InInstanceName)
+		, BaseOSS(nullptr)
+		, EosOSS(nullptr)
 	{}
+
+	/** The platform or store specific OSS being used as the primary OSS */
+	IOnlineSubsystem* BaseOSS;
+	/** The EOS OSS that is being used in conjunction with the platform one */
+	IOnlineSubsystem* EosOSS;
 };
 
 typedef TSharedPtr<FOnlineSubsystemEOSPlus, ESPMode::ThreadSafe> FOnlineSubsystemEOSPlusPtr;
