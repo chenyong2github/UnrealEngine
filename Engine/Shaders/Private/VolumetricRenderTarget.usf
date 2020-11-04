@@ -268,6 +268,12 @@ void ReconstructVolumetricRenderTargetPS(
 					}
 #endif
 				}
+
+				if (!(all(IsFinite(RGBA)) && all(IsFinite(Depths))))
+				{
+					RGBA = float4(0.0f, 0.0f, 0.0f, 1.0f);
+					Depths = float2(1000.0f, 1000.0f);
+				}
 			}
 		}
 		else
