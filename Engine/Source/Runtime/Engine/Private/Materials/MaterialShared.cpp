@@ -853,24 +853,41 @@ void FMaterial::SetGameThreadShaderMap(FMaterialShaderMap* InMaterialShaderMap)
 	});
 }
 
+void FMaterial::UpdateInlineShaderMapIsComplete()
+{
+	checkSlow(IsInGameThread() || IsInAsyncLoadingThread());
+	check(bContainsInlineShaders);
+	// We expect inline shader maps to be complete, so we want to log missing shaders here
+	const bool bSilent = false;
+	const bool bIsComplete = GameThreadShaderMap->IsComplete(this, bSilent);
+
+	bGameThreadShaderMapIsComplete = bIsComplete;
+	TRefCountPtr<FMaterial> Material = this;
+	ENQUEUE_RENDER_COMMAND(UpdateGameThreadShaderMapIsComplete)([Material = MoveTemp(Material), bIsComplete](FRHICommandListImmediate& RHICmdList) mutable
+	{
+		Material->bRenderingThreadShaderMapIsComplete = bIsComplete;
+	});
+}
+
 void FMaterial::SetInlineShaderMap(FMaterialShaderMap* InMaterialShaderMap)
 {
 	checkSlow(IsInGameThread() || IsInAsyncLoadingThread());
 	check(InMaterialShaderMap);
-	// Hack: Forcing this to true to work around some materials with incomplete shader maps returning false here
-	const bool bIsComplete = true; //InMaterialShaderMap->IsComplete(this, true);
 
 	GameThreadShaderMap = InMaterialShaderMap;
-	bGameThreadShaderMapIsComplete = bIsComplete;
 	bContainsInlineShaders = true;
 	bLoadedCookedShaderMapId = true;
 
+	// SetInlineShaderMap is called during PostLoad(), before given UMaterial(Instance) is fully initialized
+	// Can't check for completeness yet
+	bGameThreadShaderMapIsComplete = false;
+
 	TRefCountPtr<FMaterial> Material = this;
 	TRefCountPtr<FMaterialShaderMap> ShaderMap = InMaterialShaderMap;
-	ENQUEUE_RENDER_COMMAND(SetInlineShaderMap)([Material = MoveTemp(Material), ShaderMap = MoveTemp(ShaderMap), bIsComplete](FRHICommandListImmediate& RHICmdList) mutable
+	ENQUEUE_RENDER_COMMAND(SetInlineShaderMap)([Material = MoveTemp(Material), ShaderMap = MoveTemp(ShaderMap)](FRHICommandListImmediate& RHICmdList) mutable
 	{
 		Material->RenderingThreadShaderMap = MoveTemp(ShaderMap);
-		Material->bRenderingThreadShaderMapIsComplete = bIsComplete;
+		Material->bRenderingThreadShaderMapIsComplete = false;
 	});
 }
 
@@ -2036,6 +2053,7 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 		else if (GameThreadShaderMap)
 		{
 			// We are going to use the inlined shader map, register it so it can be re-used by other materials
+			UpdateInlineShaderMapIsComplete();
 			GameThreadShaderMap->Register(Platform);
 		}
 	}

@@ -1863,6 +1863,7 @@ public:
 
 	ENGINE_API void SetGameThreadShaderMap(FMaterialShaderMap* InMaterialShaderMap);
 	ENGINE_API void SetInlineShaderMap(FMaterialShaderMap* InMaterialShaderMap);
+	ENGINE_API void UpdateInlineShaderMapIsComplete();
 
 	ENGINE_API class FMaterialShaderMap* GetRenderingThreadShaderMap() const;
 
