@@ -344,9 +344,13 @@ public:
 		bGenerateFileStub = true;
 	}
 
-	void AddImport(UObject* InObject)
+	void AddImport(UObject* InObject, bool bIsEditorOnlyImport = false)
 	{
 		Imports.Add(InObject);
+		if (!bIsEditorOnlyImport)
+		{
+			ImportsUsedInGame.Add(InObject);
+		}
 	}
 
 	void AddExport(UObject* InObj, bool bNotAlwaysLoadedForEditorGame)
@@ -446,6 +450,16 @@ public:
 	const TSet<UPackage*>& GetPrestreamPackages() const
 	{
 		return PrestreamPackages;
+	}
+
+	TSet<UPackage*>& GetPrestreamPackages()
+	{
+		return PrestreamPackages;
+	}
+
+	bool IsPrestreamPackage(UPackage* InPackage) const
+	{
+		return PrestreamPackages.Contains(InPackage);
 	}
 
 	void AddPrestreamPackages(UPackage* InPackage)
@@ -575,7 +589,7 @@ private:
 	TMap<UObject*, TSet<UObject*>> ExportObjectDependencies;
 	// Map of objects to their native dependencies
 	TMap<UObject*, TSet<UObject*>> ExportNativeObjectDependencies;
-	// Set of harvested prestream packages, should be deprecated, not implementated in Save2 yet
+	// Set of harvested prestream packages
 	TSet<UPackage*> PrestreamPackages;
 	// Harvested custom versions
 	FCustomVersionContainer CustomVersions;

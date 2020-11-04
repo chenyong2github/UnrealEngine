@@ -73,13 +73,6 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #endif
 
-#if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
-UE_TRACE_CHANNEL(SaveTimeChannel)
-#define SCOPED_SAVETIMER(TimerName) TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(TimerName, SaveTimeChannel)
-#else
-#define SCOPED_SAVETIMER(TimerName)
-#endif
-
 static FCriticalSection InitializeCoreClassesCritSec;
 
 #define VALIDATE_INITIALIZECORECLASSES 0
@@ -2150,16 +2143,12 @@ public:
 
 #endif
 
-// Switch to SavePackage to Save2
-static TAutoConsoleVariable<int32> CVarEnablePackageNewSave(TEXT("SavePackage.EnableNewSave"), 0, TEXT("Enable new package save mechanism over the old one."));
-
 FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags, const TCHAR* Filename,
 	FOutputDevice* Error, FLinkerNull* ConformNO, bool bForceByteSwapping, bool bWarnOfLongFilename, uint32 SaveFlags,
 	const class ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask, FArchiveDiffMap* InOutDiffMap,
 	FSavePackageContext* SavePackageContext)
 {
-
-	if (CVarEnablePackageNewSave.GetValueOnAnyThread() > 0)
+	if (SavePackageUtilities::IsNewSaveEnabled(TargetPlatform != nullptr))
 	{
 		FSavePackageArgs SaveArgs = { (ITargetPlatform*)TargetPlatform, TopLevelFlags, SaveFlags, bForceByteSwapping, bWarnOfLongFilename, bSlowTask, FinalTimeStamp, Error, InOutDiffMap, SavePackageContext };
 		return UPackage::Save2(InOuter, Base, Filename, SaveArgs);
@@ -2279,7 +2268,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 		TAsyncWorkSequence<FMD5> AsyncWriteAndHashSequence;
 
 		// Make sure package is fully loaded before saving. 
-		if (!Base && !InOuter->IsFullyLoaded())
+		// IsFullyLoaded has important byproducts for new packages, so make sure we evaluate it rather than short-circuiting it
+		if (!InOuter->IsFullyLoaded() && !Base)
 		{
 			if (!(SaveFlags & SAVE_NoError))
 			{

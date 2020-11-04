@@ -230,7 +230,6 @@ void FPackageHarvester::ProcessExport(UObject* InObject)
 			}
 		}
 
-		//@todo FH: Is this even useful anymore!
 		if (SaveContext.IsProcessingPrestreamingRequests())
 		{
 			Deps.Reset();
@@ -298,13 +297,11 @@ void FPackageHarvester::TryHarvestImport(UObject* InObject)
 	if (!bExcludePackageFromCook && !bExcluded && !SaveContext.IsUnsaveable(InObject))
 	{
 		bool bIsNative = IsObjNative(InObject);
-		SaveContext.AddImport(InObject);
+		bool bIsEditorOnly = false;
 #if WITH_EDITORONLY_DATA
-		if (!bIsEditorOnlyExportOnStack && !IsEditorOnlyPropertyOnTheStack())
+		bIsEditorOnly = bIsEditorOnlyExportOnStack || IsEditorOnlyPropertyOnTheStack();
 #endif
-		{
-			SaveContext.ImportsUsedInGame.Add(InObject);
-		}
+		SaveContext.AddImport(InObject, bIsEditorOnly);
 
 		UObject* ObjOuter = InObject->GetOuter();
 		UClass* ObjClass = InObject->GetClass();

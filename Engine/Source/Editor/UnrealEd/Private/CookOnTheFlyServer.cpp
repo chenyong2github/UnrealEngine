@@ -3700,14 +3700,15 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 					if (DiffModeHelper.IsRunningCookLinkerDiff())
 					{
 						static IConsoleVariable* EnableNewSave = IConsoleManager::Get().FindConsoleVariable(TEXT("SavePackage.EnableNewSave"));
-						bool bPreviousCvarValue = EnableNewSave->GetBool();
+						int32 PreviousCvarValue = EnableNewSave->GetInt();
 
 						// If the linker diff is comparing the two save algo, switch the cvar to the other algo before saving again,
 						// Otherwise the linker diff mode is tracking if the save is consistent across multiple save
 						bool bAlgoLinkerDiff = DiffModeHelper.GetLinkerDiffMode() == FDiffModeCookServerUtils::LDM_Algo;
 						if (bAlgoLinkerDiff)
 						{
-							EnableNewSave->Set(!bPreviousCvarValue);
+							// see CVarEnablePackageNewSave definition in SavePackageUtilities.cpp for value meaning
+							EnableNewSave->Set(PreviousCvarValue & 1 ? 0 : 1);
 						}
 
 						FSavePackageResultStruct NewResult = GEditor->Save(Package, World, FlagsToCook, *PlatFilename,
@@ -3717,7 +3718,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 
 						if (bAlgoLinkerDiff)
 						{
-							EnableNewSave->Set(bPreviousCvarValue);
+							EnableNewSave->Set(PreviousCvarValue);
 						}
 
 						if (Result.LinkerSave && NewResult.LinkerSave)

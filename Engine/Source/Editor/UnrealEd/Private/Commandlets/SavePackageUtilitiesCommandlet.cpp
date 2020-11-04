@@ -25,26 +25,11 @@ int32 USavePackageUtilitiesCommandlet::Main(const FString& Params)
 {
 	InitParameters(Params);
 
-	auto GetPackageAsset = [](UPackage* InPackage) -> UObject*
-	{
-		UObject* Asset = nullptr;
-		ForEachObjectWithPackage(InPackage, [&Asset](UObject* Object)
-			{
-				if (Object->IsAsset())
-				{
-					Asset = Object;
-					return false;
-				}
-				return true;
-			}, /*bIncludeNestedObjects*/ false);
-		return Asset;
-	};
-
 	for (const FString& PackageName : PackageNames)
 	{
 		// Load Package
 		UPackage* Package = LoadPackage(nullptr, *PackageName, LOAD_None);
-		UObject* Asset = GetPackageAsset(Package);
+		UObject* Asset = Package->FindAssetInPackage();
 		FString Filename = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir());
 
 		FSavePackageArgs SaveArgs;
@@ -65,12 +50,11 @@ int32 USavePackageUtilitiesCommandlet::Main(const FString& Params)
 		// New Save Package
 		FSavePackageResultStruct NewResult;
 		{
-			EnableNewSave->Set(1);
+			EnableNewSave->Set(3); // Enable new save cooked and uncooked data
 			NewResult = GEditor->Save(Package, Asset, SaveArgs.TopLevelFlags, *Filename,
 				GError, nullptr, false, true, SaveArgs.SaveFlags, SaveArgs.TargetPlatform,
 				FDateTime::MinValue(), false, /*DiffMap*/ nullptr,
 				nullptr);
-
 		}
 
 		// Old Save Package

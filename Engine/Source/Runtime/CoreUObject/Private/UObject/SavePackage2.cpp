@@ -74,7 +74,7 @@ ESavePackageResult ValidateBlueprintNativeCodeGenReplacement(FSaveContext& SaveC
 
 ESavePackageResult ValidatePackage(FSaveContext& SaveContext)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_ValidatePackage);
+	SCOPED_SAVETIMER(UPackage_ValidatePackage);
 
 	// Platform can't save the package
 	if (!FPlatformProperties::HasEditorOnlyData())
@@ -208,7 +208,7 @@ FORCEINLINE void EnsurePackageLocalization(UPackage* InPackage)
 
 ESavePackageResult RoutePresave(FSaveContext& SaveContext)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_RoutePresave);
+	SCOPED_SAVETIMER(UPackage_RoutePresave);
 
 	// Just route presave on all objects in the package while skipping unsaveable objects. 
 	// This should be more efficient then trying to restrict to just the actual export, 
@@ -250,7 +250,7 @@ ESavePackageResult RoutePresave(FSaveContext& SaveContext)
 
 ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_HarvestPackage);
+	SCOPED_SAVETIMER(UPackage_Save_HarvestPackage);
 
 	FPackageHarvester Harvester(SaveContext);
 	EObjectFlags TopLevelFlags = SaveContext.GetTopLevelFlags();
@@ -285,22 +285,24 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 		}
 	}
 
-	// Harvest Prestream package class name if needed
-	if (SaveContext.GetPrestreamPackages().Num() > 0)
+	// Trim PrestreamPackage list 
+	TSet<UPackage*>& PrestreamPackages = SaveContext.GetPrestreamPackages();
+	TSet<UPackage*> KeptPrestreamPackages;
+	for (UPackage* Pkg : PrestreamPackages)
 	{
-		Harvester.HarvestName(SavePackageUtilities::NAME_PrestreamPackage);
-		
-		//@todo FH: is this really needed?
-		//TSet<UPackage*> KeptPrestreamPackages;
-		//for (UPackage* Pkg : PrestreamPackages)
-		//{
-		//	if (!Pkg->HasAnyMarks(OBJECTMARK_TagImp))
-		//	{
-		//		Pkg->Mark(OBJECTMARK_TagImp);
-		//		KeptPrestreamPackages.Add(Pkg);
-		//	}
-		//}
-		//Exchange(PrestreamPackages, KeptPrestreamPackages);
+		// If the prestream package hasn't been otherwise already marked as an import, keep it as such and mark it as an import
+		if (!SaveContext.IsImport(Pkg))
+		{
+			KeptPrestreamPackages.Add(Pkg);
+			SaveContext.AddImport(Pkg);
+		}
+	}
+	Exchange(PrestreamPackages, KeptPrestreamPackages);
+
+	// Harvest the PrestreamPackage class name if needed
+	if (PrestreamPackages.Num() > 0)
+	{
+		Harvester.HarvestName(SavePackageUtilities::NAME_PrestreamPackage);		
 	}
 
 	// if we have a WorldTileInfo, we need to harvest its dependencies as well, i.e. Custom Version
@@ -325,7 +327,7 @@ static FNameEntryId NAME_UniqueObjectNameForCookingComparisonIndex = FName("Uniq
 
 ESavePackageResult ValidateExports(FSaveContext& SaveContext)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_ValidateExports);
+	SCOPED_SAVETIMER(UPackage_Save_ValidateExports);
 
 	// Check if we gathered any exports
 	if (SaveContext.GetExports().Num() == 0)
@@ -520,7 +522,7 @@ ESavePackageResult ValidateIllegalReferences(FSaveContext& SaveContext, TArray<U
 
 ESavePackageResult ValidateImports(FSaveContext& SaveContext)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_ValidateImports);
+	SCOPED_SAVETIMER(UPackage_Save_ValidateImports);
 
 	TArray<UObject*> TopLevelObjects;
 	GetObjectsWithPackage(SaveContext.GetPackage(), TopLevelObjects, false);
@@ -572,6 +574,15 @@ ESavePackageResult ValidateImports(FSaveContext& SaveContext)
 		ensureAlways(SaveContext.NameExists(Import->GetClass()->GetFName().GetComparisonIndex()));
 		ensureAlways(SaveContext.NameExists(Import->GetClass()->GetOuter()->GetFName().GetComparisonIndex()));
 
+		// if the import is marked as a prestream package, we dont need to validate further
+		if (SaveContext.IsPrestreamPackage(ImportPackage))
+		{
+			ensureAlways(Import == ImportPackage);
+			// These are not errors
+			UE_LOG(LogSavePackage, Display, TEXT("Prestreaming package %s "), *ImportPackage->GetPathName()); //-V595
+			continue;
+		}
+
 		// if an import outer is an export and that import doesn't have a specific package set then, there's an error
 		const bool bWrongImport = Import->GetOuter() && Import->GetOuter()->IsInPackage(SaveContext.GetPackage()) && Import->GetExternalPackage() == nullptr;
 		if (bWrongImport)
@@ -590,14 +601,6 @@ ESavePackageResult ValidateImports(FSaveContext& SaveContext)
 			}
 		}
 		check(!bWrongImport || Import->HasAllFlags(RF_Transient) || Import->IsNative());
-
-		// @todo FH: validate prestream packages still needed..
-		if (SaveContext.GetPrestreamPackages().Contains(ImportPackage))
-		{
-			// These are not errors
-			UE_LOG(LogSavePackage, Display, TEXT("Prestreaming package %s "), *ImportPackage->GetPathName()); //-V595
-			continue;
-		}
 
 		// if this import shares a outer with top level object of this package then the reference is acceptable
 		if (!SaveContext.IsCooking() && (IsInAnyTopLevelObject(Import) || AnyTopLevelObjectIsIn(Import) || AnyTopLevelObjectHasSameOutermostObject(Import)))
@@ -645,7 +648,7 @@ ESavePackageResult CreateLinker(FSaveContext& SaveContext)
 	// The temp file will be saved in the game save folder to not have to deal with potentially too long paths.
 	// Since the temp filename may include a 32 character GUID as well, limit the user prefix to 32 characters.
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_CreateLinkerSave);
+		SCOPED_SAVETIMER(UPackage_Save_CreateLinkerSave);
 
 		if (SaveContext.IsDiffing())
 		{
@@ -777,7 +780,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 
 	// Build Name Map
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_BuildNameMap);
+		SCOPED_SAVETIMER(UPackage_Save_BuildNameMap);
 		Linker->Summary.NameOffset = 0;
 		Linker->Summary.NameCount = 0;
 		Linker->NameMap.Append(SaveContext.GetReferencedNames().Array());
@@ -798,7 +801,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 		Linker->Summary.GatherableTextDataCount = 0;
 		if (!SaveContext.IsFilterEditorOnly())
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_BuildGatherableTextData);
+			SCOPED_SAVETIMER(UPackage_Save_BuildGatherableTextData);
 
 			// Gathers from the given package
 			SaveContext.GatherableTextResultFlags = EPropertyLocalizationGathererResultFlags::Empty;
@@ -809,7 +812,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 	// Build ImportMap
 	TMap<UObject*, UObject*> ReplacedImportOuters;
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_BuildImportMap);
+		SCOPED_SAVETIMER(UPackage_Save_BuildImportMap);
 		for (UObject* Import : SaveContext.GetImports())
 		{
 			UClass* ImportClass = Import->GetClass();
@@ -826,8 +829,8 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 			}
 			FObjectImport& ObjectImport = Linker->ImportMap.Add_GetRef(FObjectImport(Import, ImportClass));
 
-			//@todo FH: validate this
-			if (SaveContext.GetPrestreamPackages().Contains((UPackage*)Import))
+			// If the package import is a prestream package, mark it as such by hacking its class name
+			if (SaveContext.IsPrestreamPackage(Cast<UPackage>(Import)))
 			{
 				ObjectImport.ClassName = SavePackageUtilities::NAME_PrestreamPackage;
 			}
@@ -843,7 +846,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 
 	// Build ExportMap & Package Netplay data
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_BuildExportMap);
+		SCOPED_SAVETIMER(UPackage_Save_BuildExportMap);
 		for (const FTaggedExport& TaggedExport : SaveContext.GetExports())
 		{
 			FObjectExport& Export = Linker->ExportMap.Add_GetRef(FObjectExport(TaggedExport.Obj, TaggedExport.bNotAlwaysLoadedForEditorGame));
@@ -862,7 +865,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 		// for example where FAnimInstanceProxy PostLoad actually depends on  UAnimBlueprintGeneratedClass PostLoad to be properly initialized.
 		FObjectExportSortHelper ExportSortHelper;
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_SortExports);
+			SCOPED_SAVETIMER(UPackage_Save_SortExports);
 			ExportSortHelper.SortExports(Linker, nullptr);
 		}
 		Linker->Summary.ExportCount = Linker->ExportMap.Num();
@@ -886,7 +889,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 
 	// Build DependsMap
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_BuildExportDependsMap);
+		SCOPED_SAVETIMER(UPackage_Save_BuildExportDependsMap);
 
 		Linker->DependsMap.AddZeroed(Linker->ExportMap.Num());
 		for (int32 ExpIndex = 0; ExpIndex < Linker->ExportMap.Num(); ++ExpIndex)
@@ -931,7 +934,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 
 	// Map Export Indices
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_MapExportIndices);
+		SCOPED_SAVETIMER(UPackage_Save_MapExportIndices);
 		for (FObjectExport& Export : Linker->ExportMap)
 		{
 			// Set class index.
@@ -1336,7 +1339,7 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 	// Write Name Map
 	Linker->Summary.NameOffset = SaveContext.OffsetAfterPackageFileSummary;
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_BuildNameMap);
+		SCOPED_SAVETIMER(UPackage_Save_BuildNameMap);
 		Linker->Summary.NameCount = Linker->NameMap.Num();
 		for (const FNameEntryId NameEntryId : Linker->NameMap)
 		{
@@ -1346,13 +1349,13 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 
 	// Write GatherableText
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_WriteGatherableTextData);
+		SCOPED_SAVETIMER(UPackage_Save_WriteGatherableTextData);
 		WriteGatherableText(StructuredArchiveRoot, SaveContext);
 	}
 
 	// Save Dummy Import Map, overwritten later.
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_WriteDummyImportMap);
+		SCOPED_SAVETIMER(UPackage_Save_WriteDummyImportMap);
 		Linker->Summary.ImportOffset = Linker->Tell();
 		for (FObjectImport& Import : Linker->ImportMap)
 		{
@@ -1363,7 +1366,7 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 
 	// Save Dummy Export Map, overwritten later.
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_WriteDummyExportMap);
+		SCOPED_SAVETIMER(UPackage_Save_WriteDummyExportMap);
 		Linker->Summary.ExportOffset = Linker->Tell();
 		for (FObjectExport& Export : Linker->ExportMap)
 		{
@@ -1374,7 +1377,7 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 
 	// Save Depend Map
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_WriteDependsMap);
+		SCOPED_SAVETIMER(UPackage_Save_WriteDependsMap);
 
 		FStructuredArchive::FStream DependsStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("DependsMap")));
 		Linker->Summary.DependsOffset = Linker->Tell();
@@ -1401,7 +1404,7 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 	// Write Soft Package references & Searchable Names
 	if (!SaveContext.IsFilterEditorOnly())
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_SaveSoftPackagesAndSearchableNames);
+		SCOPED_SAVETIMER(UPackage_Save_SaveSoftPackagesAndSearchableNames);
 
 		// Save soft package references
 		Linker->Summary.SoftPackageReferencesOffset = Linker->Tell();
@@ -1427,23 +1430,23 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 
 	// Save thumbnails
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_SaveThumbnails);
+		SCOPED_SAVETIMER(UPackage_Save_SaveThumbnails);
 		SavePackageUtilities::SaveThumbnails(SaveContext.GetPackage(), Linker, StructuredArchiveRoot.EnterField(SA_FIELD_NAME(TEXT("Thumbnails"))));
 	}
 	{
 		// Save asset registry data so the editor can search for information about assets in this package
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_SaveAssetRegistryData);
+		SCOPED_SAVETIMER(UPackage_Save_SaveAssetRegistryData);
 		UE::AssetRegistry::WritePackageData(StructuredArchiveRoot, SaveContext.IsCooking(), SaveContext.GetPackage(), Linker, SaveContext.GetImportsUsedInGame(), SaveContext.GetSoftPackagesUsedInGame());
 	}
 	// Save level information used by World browser
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_WorldLevelData);
+		SCOPED_SAVETIMER(UPackage_Save_WorldLevelData);
 		SavePackageUtilities::SaveWorldLevelInfo(SaveContext.GetPackage(), Linker, StructuredArchiveRoot);
 	}
 
 	// Write Preload Dependencies
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_PreloadDependencies);
+		SCOPED_SAVETIMER(UPackage_Save_PreloadDependencies);
 		SavePreloadDependencies(StructuredArchiveRoot, SaveContext);
 	}
 	Linker->Summary.TotalHeaderSize = Linker->Tell();
@@ -1456,18 +1459,18 @@ ESavePackageResult WritePackageTextHeader(FStructuredArchive::FRecord& Structure
 
 	// Write GatherableText
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_WriteGatherableTextData);
+		SCOPED_SAVETIMER(UPackage_Save_WriteGatherableTextData);
 		WriteGatherableText(StructuredArchiveRoot, SaveContext);
 	}
 
 	// Save thumbnails
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_SaveThumbnails);
+		SCOPED_SAVETIMER(UPackage_Save_SaveThumbnails);
 		SavePackageUtilities::SaveThumbnails(SaveContext.GetPackage(), Linker, StructuredArchiveRoot.EnterField(SA_FIELD_NAME(TEXT("Thumbnails"))));
 	}
 	// Save level information used by World browser
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_WorldLevelData);
+		SCOPED_SAVETIMER(UPackage_Save_WorldLevelData);
 		SavePackageUtilities::SaveWorldLevelInfo(SaveContext.GetPackage(), Linker, StructuredArchiveRoot);
 	}
 
@@ -1477,7 +1480,7 @@ ESavePackageResult WritePackageTextHeader(FStructuredArchive::FRecord& Structure
 ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRoot, FSaveContext& SaveContext)
 {
 	//COOK_STAT(FScopedDurationTimer SaveTimer(FSavePackageStats::SerializeExportsTimeSec));
-	TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_SaveExports);
+	SCOPED_SAVETIMER(UPackage_Save_SaveExports);
 	FLinkerSave* Linker = SaveContext.Linker.Get();
 	FScopedSlowTask SlowTask(Linker->ExportMap.Num(), FText(), SaveContext.IsUsingSlowTask());
 
@@ -1496,7 +1499,7 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 		FObjectExport& Export = Linker->ExportMap[i];
 		if (Export.Object)
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_SaveExport);
+			SCOPED_SAVETIMER(UPackage_Save_SaveExport);
 
 			// Save the object data.
 			Export.SerialOffset = Linker->Tell();
@@ -1599,7 +1602,7 @@ ESavePackageResult WriteAdditionalExportFiles(FSaveContext& SaveContext)
 
 ESavePackageResult UpdatePackageHeader(FStructuredArchive::FRecord& StructuredArchiveRoot, FSaveContext& SaveContext)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_UpdatePackageHeader);
+	SCOPED_SAVETIMER(UPackage_Save_UpdatePackageHeader);
 
 	FLinkerSave* Linker = SaveContext.Linker.Get();
 #if WITH_EDITOR
@@ -1688,7 +1691,7 @@ ESavePackageResult UpdatePackageHeader(FStructuredArchive::FRecord& StructuredAr
 
 ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRoot, FSaveContext& SaveContext)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_FinalizeFile);
+	SCOPED_SAVETIMER(UPackage_Save_FinalizeFile);
 
 	// In the concurrent case, it is called right after routing presave so it can be done in batch before going concurrent
 	if (!SaveContext.IsConcurrent())
@@ -2031,7 +2034,7 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 	// Mark Exports & Package RF_Loaded
 	SlowTask.EnterProgressFrame();
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_MarkExportLoaded);
+		SCOPED_SAVETIMER(UPackage_Save_MarkExportLoaded);
 		FLinkerSave* Linker = SaveContext.Linker.Get();
 		// Mark exports and the package as RF_Loaded after they've been serialized
 		// This is to ensue that newly created packages are properly marked as loaded (since they now exist on disk and 
@@ -2075,7 +2078,7 @@ FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, 
 {
 	//COOK_STAT(FScopedDurationTimer FuncSaveTimer(FSavePackageStats::SavePackageTimeSec));
 	//COOK_STAT(FSavePackageStats::NumPackagesSaved++);
-	TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save2);
+	SCOPED_SAVETIMER(UPackage_Save2);
 	FSaveContext SaveContext(InPackage, InAsset, InFilename, SaveArgs);
 
 	// Create the slow task dialog if needed
@@ -2162,21 +2165,6 @@ FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, 
 
 ESavePackageResult UPackage::SaveConcurrent(TArrayView<FPackageSaveInfo> InPackages, FSavePackageArgs& SaveArgs, TArray<FSavePackageResultStruct>& OutResults)
 {
-	auto GetPackageAsset = [](FPackageSaveInfo& PackageSaveInfo) -> UObject*
-	{
-		UObject* Asset = nullptr;
-		ForEachObjectWithPackage(PackageSaveInfo.Package, [&Asset](UObject* Object)
-			{
-				if (Object->IsAsset())
-				{
-					Asset = Object;
-					return false;
-				}
-				return true;
-			}, /*bIncludeNestedObjects*/ false);
-		return Asset;
-	};
-
 	const int32 TotalSaveSteps = 4;
 	FScopedSlowTask SlowTask(TotalSaveSteps, NSLOCTEXT("Core", "SavingFiles", "Saving files..."), SaveArgs.bSlowTask);
 	SlowTask.MakeDialog(!!(SaveArgs.SaveFlags & SAVE_FromAutosave));
@@ -2185,10 +2173,10 @@ ESavePackageResult UPackage::SaveConcurrent(TArrayView<FPackageSaveInfo> InPacka
 	SlowTask.EnterProgressFrame();
 	TArray<FSaveContext> PackageSaveContexts;
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_SaveConcurrent_PreSave);
+		SCOPED_SAVETIMER(UPackage_SaveConcurrent_PreSave);
 		for (FPackageSaveInfo& PackageSaveInfo : InPackages)
 		{
-			FSaveContext& SaveContext = PackageSaveContexts.Emplace_GetRef(PackageSaveInfo.Package, GetPackageAsset(PackageSaveInfo), *PackageSaveInfo.Filename, SaveArgs, nullptr);
+			FSaveContext& SaveContext = PackageSaveContexts.Emplace_GetRef(PackageSaveInfo.Package, PackageSaveInfo.Package->FindAssetInPackage(), *PackageSaveInfo.Filename, SaveArgs, nullptr);
 
 			// Validation
 			SaveContext.Result = ValidatePackage(SaveContext);
@@ -2204,7 +2192,7 @@ ESavePackageResult UPackage::SaveConcurrent(TArrayView<FPackageSaveInfo> InPacka
 			// PreSave Asset
 			if (SaveContext.GetAsset())
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_SaveConcurrent_PreSaveRoot);
+				SCOPED_SAVETIMER(UPackage_SaveConcurrent_PreSaveRoot);
 				SaveContext.SetPreSaveCleanup(SaveContext.GetAsset()->PreSaveRoot(SaveContext.GetFilename()));
 			}
 
@@ -2220,17 +2208,15 @@ ESavePackageResult UPackage::SaveConcurrent(TArrayView<FPackageSaveInfo> InPacka
 	SlowTask.EnterProgressFrame();
 	{
 		// Flush async loading and reset loaders
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_SaveConcurrent_ResetLoadersForSave);
+		SCOPED_SAVETIMER(UPackage_SaveConcurrent_ResetLoadersForSave);
 		ResetLoadersForSave(InPackages);
 	}
 
 	SlowTask.EnterProgressFrame();
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_SaveConcurrent);
-
+		SCOPED_SAVETIMER(UPackage_SaveConcurrent);
 		// Use concurrent new save only if new save is enabled, otherwise use old save
-		static const IConsoleVariable* EnableNewSave = IConsoleManager::Get().FindConsoleVariable(TEXT("SavePackage.EnableNewSave"));
-		if (EnableNewSave->GetInt())
+		if (SavePackageUtilities::IsNewSaveEnabled(SaveArgs.TargetPlatform != nullptr))
 		{
 			// Passing in false here so that GIsSavingPackage is set to true on top of locking the GC
 			FScopedSavingFlag IsSavingFlag(false);
@@ -2241,7 +2227,8 @@ ESavePackageResult UPackage::SaveConcurrent(TArrayView<FPackageSaveInfo> InPacka
 					InnerSave(PackageSaveContexts[PackageIdx]);
 				});
 		}
-		else
+		// save concurrently if the SAVE_Concurrent flag is present
+		else if (SaveArgs.SaveFlags & SAVE_Concurrent)
 		{
 			GIsSavingPackage = true;
 			ParallelFor(PackageSaveContexts.Num(), [&PackageSaveContexts](int32 PackageIdx)
@@ -2254,12 +2241,22 @@ ESavePackageResult UPackage::SaveConcurrent(TArrayView<FPackageSaveInfo> InPacka
 				});
 			GIsSavingPackage = false;
 		}
+		// otherwise save serial
+		else
+		{
+			for (FSaveContext& SaveContext : PackageSaveContexts)
+			{
+				Save(SaveContext.GetPackage(), SaveContext.GetAsset(), SaveArgs.TopLevelFlags, SaveContext.GetFilename(),
+					SaveArgs.Error, nullptr, SaveArgs.bForceByteSwapping, SaveArgs.bWarnOfLongFilename, SaveArgs.SaveFlags | SAVE_Concurrent, // still pass in the flag so that we don't redo things we have handled already
+					SaveArgs.TargetPlatform, SaveArgs.FinalTimeStamp, false, nullptr, nullptr);
+			}
+		}
 	}
 
 	// Run Post Concurrent Save
 	SlowTask.EnterProgressFrame();
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_SaveConcurrent_PostSave);
+		SCOPED_SAVETIMER(UPackage_SaveConcurrent_PostSave);
 		for (FSaveContext& SaveContext : PackageSaveContexts)
 		{
 			// PostSave Asset

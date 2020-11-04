@@ -22,6 +22,14 @@ template<typename StateType> class TAsyncWorkSequence;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogSavePackage, Log, All);
 
+// Save Time trace
+#if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
+UE_TRACE_CHANNEL_EXTERN(SaveTimeChannel)
+#define SCOPED_SAVETIMER(TimerName) TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(TimerName, SaveTimeChannel)
+#else
+#define SCOPED_SAVETIMER(TimerName)
+#endif
+
 struct FLargeMemoryDelete
 {
 	void operator()(uint8* Ptr) const
@@ -287,6 +295,9 @@ namespace SavePackageUtilities
 	extern const FName NAME_World;
 	extern const FName NAME_Level;
 	extern const FName NAME_PrestreamPackage;
+
+	// return if the new save algorithm is enabled for cooked or uncooked
+	bool IsNewSaveEnabled(bool bForCooking = false);
 
 	void GetBlueprintNativeCodeGenReplacement(UObject* InObj, UClass*& ObjClass, UObject*& ObjOuter, FName& ObjName, const ITargetPlatform* TargetPlatform);
 
