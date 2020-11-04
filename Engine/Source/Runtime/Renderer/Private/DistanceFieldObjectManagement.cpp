@@ -632,7 +632,7 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRDGB
 									UploadObjectData[2] = (*(FVector4*)&WorldToVolumeT.M[2]);
 
 									// Minimal surface bias which increases chance that ray hit will a surface located between two texels
-									float ExpandSurfaceDistance = (0.25f * InvBlockSize * LocalVolumeBounds.GetSize()).Size() / LocalVolumeBounds.GetExtent().GetMax();
+									float ExpandSurfaceDistance = (0.25f * InvBlockSize * LocalVolumeBounds.GetSize()).Size() / MaxExtent;
 									if (bBuiltAsIfTwoSided)
 									{
 										ExpandSurfaceDistance *= 2.0f;

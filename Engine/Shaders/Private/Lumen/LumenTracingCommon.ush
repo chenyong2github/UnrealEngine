@@ -666,7 +666,7 @@ void RayTraceSingleMeshSDF(
 			{
 				// One more step to the surface
 				bRayStartInsideGeometry = SampleRayTime <= 0.0f && SampleRayTime + DistanceField < 0.0f ? true : false;
-				SampleRayTime = max(SampleRayTime + DistanceField - ExpandSurfaceAmount, 0.0f);
+				SampleRayTime = max(SampleRayTime + DistanceField - ExpandSurfaceAmount, IntersectionTimes.x * VolumeRayLength);
 				bHit = true;
 				break;
 			}
