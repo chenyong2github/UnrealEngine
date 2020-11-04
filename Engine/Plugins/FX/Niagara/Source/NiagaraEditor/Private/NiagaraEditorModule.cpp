@@ -147,8 +147,6 @@
 
 IMPLEMENT_MODULE( FNiagaraEditorModule, NiagaraEditor );
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 #define LOCTEXT_NAMESPACE "NiagaraEditorModule"
 
 const FName FNiagaraEditorModule::NiagaraEditorAppIdentifier( TEXT( "NiagaraEditorApp" ) );
@@ -1543,7 +1541,5 @@ bool FNiagaraEditorModule::DeferredDestructObjects(float InDeltaTime)
 	EnqueuedForDeferredDestruction.Empty();
 	return false;
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE
