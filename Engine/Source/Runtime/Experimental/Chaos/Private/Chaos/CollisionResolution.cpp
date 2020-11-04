@@ -287,9 +287,9 @@ namespace Chaos
 			FReal Penetration;
 			FVec3 ClosestA, ClosestBInA, Normal;
 			int32 ClosestVertexIndexA, ClosestVertexIndexB;
-			int32 NumIterations = 0;
+			const FReal EpsilonSq = 1.e-5f;
 
-			if (ensure(GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0.5f * ShapePadding, InitialDir, 0.5f * ShapePadding, &NumIterations)))
+			if (ensure(GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0.5f * ShapePadding, InitialDir, 0.5f * ShapePadding, EpsilonSq)))
 			{
 				// GJK output is all in the local space of A. We need to transform the B-relative position and the normal in to B-space
 				Contact.ShapeContactPoints[0] = ClosestA;
@@ -495,7 +495,6 @@ namespace Chaos
 			return nullptr;
 		}
 
-
 		FContactPoint GenericConvexConvexContactPoint(const FImplicitObject& A, const FRigidTransform3& ATM, const FImplicitObject& B, const FRigidTransform3& BTM, const FReal CullDistance, const FReal ShapePadding)
 		{
 			FContactPoint ContactPoint = Utilities::CastHelper(A, ATM, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
@@ -508,6 +507,105 @@ namespace Chaos
 
 			return ContactPoint;
 		}
+
+		// Traits for use with generic convex-convex collision detection
+		template<typename T> struct TImplicitManifoldTraits
+		{
+			// Does the implicit type implement the one-shot manifold interface? Default: no
+			static const bool bSupportsOneShotManifold = false;
+		};
+
+		// Types that implement the one-shot manifold interface
+		template<> struct TImplicitManifoldTraits<FImplicitBox3>
+		{
+			static const bool bSupportsOneShotManifold = true;
+		};
+		template<> struct TImplicitManifoldTraits<FImplicitConvex3>
+		{
+			static const bool bSupportsOneShotManifold = true;
+		};
+		template<> struct TImplicitManifoldTraits<TImplicitObjectScaled<FImplicitConvex3>>
+		{
+			static const bool bSupportsOneShotManifold = true;
+		};
+
+		// Use the traits to call the appropriate convex-convex update method. Either single-point update or one-shot manifold create/update
+		template<bool B_SUPPORTSONESHOT>
+		struct FConvexConvexUpdaterImpl
+		{
+		};
+
+		// Single-point convex-convex update
+		template<>
+		struct FConvexConvexUpdaterImpl<false>
+		{
+			template<typename T_ImplicitA, typename T_ImplicitB>
+			void UpdateConvexConvexConstraintImpl(const T_ImplicitA& A, const FRigidTransform3& ATM, const T_ImplicitB& B, const FRigidTransform3& BTM, const FReal CullDistance, const FReal ShapePadding, FRigidBodyPointContactConstraint& Constraint)
+			{
+				UpdateContactPoint(Constraint, GJKContactPoint(A, ATM, B, BTM, FVec3(1, 0, 0), ShapePadding));
+			}
+		};
+
+		// One-shot manifold convex-convex update
+		template<>
+		struct FConvexConvexUpdaterImpl<true>
+		{
+			template<typename T_ImplicitA, typename T_ImplicitB>
+			void UpdateConvexConvexConstraintImpl(const T_ImplicitA& A, const FRigidTransform3& ATM, const T_ImplicitB& B, const FRigidTransform3& BTM, const FReal CullDistance, const FReal ShapePadding, FRigidBodyPointContactConstraint& Constraint)
+			{
+				if (Constraint.UseOneShotManifold())
+				{
+					// We only build one shot manifolds once
+					uint32 ContactCount = Constraint.GetManifoldPoints().Num();
+					if (ContactCount == 0)
+					{
+						ConstructConvexConvexOneShotManifold(A, ATM, B, BTM, CullDistance, Constraint, true);
+					}
+					else
+					{
+						Constraint.UpdateOneShotManifoldContacts();
+					}
+				}
+				else
+				{
+					// We may disable one-shots based on cvars or something else...revert to single-point update
+					UpdateContactPoint(Constraint, GJKContactPoint(A, ATM, B, BTM, FVec3(1, 0, 0), ShapePadding));
+				}
+			}
+		};
+
+		// Helper class to check oneshot manifold support on both types and provide the appropriate update method
+		template<typename T_ImplicitA, typename T_ImplicitB>
+		struct FConvexConvexUpdater : public FConvexConvexUpdaterImpl<TImplicitManifoldTraits<T_ImplicitA>::bSupportsOneShotManifold && TImplicitManifoldTraits<T_ImplicitB>::bSupportsOneShotManifold>
+		{
+			using FConvexConvexUpdaterImpl<TImplicitManifoldTraits<T_ImplicitA>::bSupportsOneShotManifold&& TImplicitManifoldTraits<T_ImplicitB>::bSupportsOneShotManifold>::UpdateConvexConvexConstraintImpl;
+		};
+
+		// Another helper required by UpdateGenericConvexConvexConstraintHelper which uses CastHelper and does not have any typedefs 
+		// for the concrete implicit types, so we need to rely on type deduction from the compiler.
+		struct FConvexConvexUpdaterCaller
+		{
+			template<typename T_ImplicitA, typename T_ImplicitB>
+			static void Update(const T_ImplicitA& A, const FRigidTransform3& ATM, const T_ImplicitB& B, const FRigidTransform3& BTM, const FReal CullDistance, const FReal ShapePadding, FRigidBodyPointContactConstraint& Constraint)
+			{
+				FConvexConvexUpdater<T_ImplicitA, T_ImplicitB>().UpdateConvexConvexConstraintImpl(A, ATM, B, BTM, CullDistance, ShapePadding, Constraint);
+			}
+		};
+
+		// Unwrap the many convex types, including scaled, and call the appropriate update which depends on the concrete types
+		void UpdateGenericConvexConvexConstraintHelper(const FImplicitObject& A, const FRigidTransform3& ATM, const FImplicitObject& B, const FRigidTransform3& BTM, const FReal CullDistance, const FReal ShapePadding, FRigidBodyPointContactConstraint& Constraint)
+		{
+			// This explands to a switch of switches that calls the inner function with the appropriate concrete implicit types
+			Utilities::CastHelper(A, ATM, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
+			{
+				Utilities::CastHelper(B, BTM, [&](const auto& BDowncast, const FRigidTransform3& BFullTM)
+				{
+					// Use template type deduction to call the appropriate update method (single point or manifold)
+					FConvexConvexUpdaterCaller::Update(ADowncast, AFullTM, BDowncast, BFullTM, CullDistance, ShapePadding, Constraint);
+				});
+			});
+		}
+
 
 		FContactPoint GenericConvexConvexContactPointSwept(const FImplicitObject& A, const FRigidTransform3& ATM, const FImplicitObject& B, const FRigidTransform3& BTM, const FVec3& Dir, const FReal Length, const FReal CullDistance, FReal& TOI)
 		{
@@ -1851,7 +1949,7 @@ namespace Chaos
 			if (ConstraintBase.GetType() == FRigidBodyPointContactConstraint::StaticType())
 			{
 				FRigidBodyPointContactConstraint* Constraint = ConstraintBase.template As<FRigidBodyPointContactConstraint>();
-				UpdateContactPoint(*Constraint, GenericConvexConvexContactPoint(Implicit0, WorldTransform0, Implicit1, WorldTransform1, CullDistance, ConstraintBase.Manifold.RestitutionPadding));
+				UpdateGenericConvexConvexConstraintHelper(Implicit0, WorldTransform0, Implicit1, WorldTransform1, CullDistance, ConstraintBase.Manifold.RestitutionPadding, *Constraint);
 			}
 			else if (ConstraintBase.GetType() == FRigidBodySweptPointContactConstraint::StaticType())
 			{
@@ -1932,7 +2030,7 @@ namespace Chaos
 				return;
 			}
 
-			FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::GenericConvexConvex, Context.bUseIncrementalManifold, false);
+			FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::GenericConvexConvex, Context.bUseIncrementalManifold, Context.bUseOneShotManifolds);
 			if (T_TRAITS::bImmediateUpdate)
 			{
 				FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
