@@ -23,7 +23,7 @@ enum ESharedBufferFlags : uint16
 {
 	None = 0,
 	Owned = 1 << 0,
-	Immutable = 1 << 1,
+	ReadOnly = 1 << 1,
 	HasDeleter = 1 << 2,
 };
 
@@ -197,7 +197,7 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** A non-nullable, thread-safe, reference to a mutable shared buffer. */
+/** A non-nullable, thread-safe, reference to a writable shared buffer. */
 class FSharedBufferRef
 {
 public:
@@ -252,7 +252,7 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** A non-nullable, thread-safe, pointer to a mutable shared buffer. */
+/** A non-nullable, thread-safe, pointer to a writable shared buffer. */
 class FSharedBufferPtr
 {
 public:
@@ -325,7 +325,7 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** A non-nullable, thread-safe, weak, pointer to a mutable shared buffer. */
+/** A non-nullable, thread-safe, weak, pointer to a writable shared buffer. */
 class FSharedBufferWeakPtr
 {
 public:
@@ -507,57 +507,57 @@ public:
 		return !IsValid(Buffer) || Buffer->IsOwned() ? Forward<T>(Buffer) : Clone(Buffer->GetData(), Buffer->GetSize());
 	}
 
-	/** Return the buffer if it is owned and either immutable or this is the only reference, or a clone otherwise. */
-	static inline FSharedBufferConstRef MakeImmutable(FSharedBufferRef&& Buffer)
+	/** Return the buffer if it is owned and either read-only or this is the only reference, or a clone otherwise. */
+	static inline FSharedBufferConstRef MakeReadOnly(FSharedBufferRef&& Buffer)
 	{
 		const FSharedBuffer& BufferRef = *Buffer;
-		return BufferRef.TryMakeImmutable() ? MoveTemp(Buffer) : MakeImmutable(Clone(*Buffer));
+		return BufferRef.TryMakeReadOnly() ? MoveTemp(Buffer) : MakeReadOnly(Clone(*Buffer));
 	}
 
-	/** Return the buffer if it is owned and either immutable or this is the only reference, or a clone otherwise. */
-	static inline FSharedBufferConstRef MakeImmutable(FSharedBufferConstRef&& Buffer)
+	/** Return the buffer if it is owned and either read-only or this is the only reference, or a clone otherwise. */
+	static inline FSharedBufferConstRef MakeReadOnly(FSharedBufferConstRef&& Buffer)
 	{
-		return Buffer->TryMakeImmutable() ? MoveTemp(Buffer) : MakeImmutable(Clone(*Buffer));
+		return Buffer->TryMakeReadOnly() ? MoveTemp(Buffer) : MakeReadOnly(Clone(*Buffer));
 	}
 
-	/** Return the buffer if it is owned and either immutable or this is the only reference, or a clone otherwise. */
-	static inline FSharedBufferConstPtr MakeImmutable(FSharedBufferPtr&& Buffer)
+	/** Return the buffer if it is owned and either read-only or this is the only reference, or a clone otherwise. */
+	static inline FSharedBufferConstPtr MakeReadOnly(FSharedBufferPtr&& Buffer)
 	{
-		return MakeImmutable(FSharedBufferConstPtr(MoveTemp(Buffer)));
+		return MakeReadOnly(FSharedBufferConstPtr(MoveTemp(Buffer)));
 	}
 
-	/** Return the buffer if it is owned and either immutable or this is the only reference, or a clone otherwise. */
-	static inline FSharedBufferConstPtr MakeImmutable(FSharedBufferConstPtr&& Buffer)
+	/** Return the buffer if it is owned and either read-only or this is the only reference, or a clone otherwise. */
+	static inline FSharedBufferConstPtr MakeReadOnly(FSharedBufferConstPtr&& Buffer)
 	{
-		return Buffer ? Buffer->TryMakeImmutable() ? MoveTemp(Buffer) : MakeImmutable(Clone(*Buffer)) : FSharedBufferConstPtr();
+		return Buffer ? Buffer->TryMakeReadOnly() ? MoveTemp(Buffer) : MakeReadOnly(Clone(*Buffer)) : FSharedBufferConstPtr();
 	}
 
 	// Disable overloads that would allow the argument to be copied.
-	static void MakeImmutable(const FSharedBufferRef&) = delete;
-	static void MakeImmutable(const FSharedBufferConstRef&) = delete;
-	static void MakeImmutable(const FSharedBufferPtr&) = delete;
-	static void MakeImmutable(const FSharedBufferConstPtr&) = delete;
+	static void MakeReadOnly(const FSharedBufferRef&) = delete;
+	static void MakeReadOnly(const FSharedBufferConstRef&) = delete;
+	static void MakeReadOnly(const FSharedBufferPtr&) = delete;
+	static void MakeReadOnly(const FSharedBufferConstPtr&) = delete;
 
-	/** Return the buffer because it is already mutable. */
-	static inline FSharedBufferRef MakeMutable(FSharedBufferRef&& Buffer) { return MoveTemp(Buffer); }
+	/** Return the buffer because it is already writable. */
+	static inline FSharedBufferRef MakeWritable(FSharedBufferRef&& Buffer) { return MoveTemp(Buffer); }
 
-	/** Return the buffer if it is owned and either mutable or this is the only reference, or a clone otherwise. */
-	static inline FSharedBufferRef MakeMutable(FSharedBufferConstRef&& Buffer)
+	/** Return the buffer if it is owned and either writable or this is the only reference, or a clone otherwise. */
+	static inline FSharedBufferRef MakeWritable(FSharedBufferConstRef&& Buffer)
 	{
-		if (Buffer->TryMakeMutable())
+		if (Buffer->TryMakeWritable())
 		{
 			return FSharedBufferRef(FSharedBufferRef::PtrType(const_cast<FSharedBuffer*>(&Buffer.Get())));
 		}
 		return Clone(*Buffer);
 	}
 
-	/** Return the buffer because it is already mutable. */
-	static inline FSharedBufferPtr MakeMutable(FSharedBufferPtr&& Buffer) { return MoveTemp(Buffer); }
+	/** Return the buffer because it is already writable. */
+	static inline FSharedBufferPtr MakeWritable(FSharedBufferPtr&& Buffer) { return MoveTemp(Buffer); }
 
-	/** Return the buffer if it is owned and either mutable or this is the only reference, or a clone otherwise. */
-	static inline FSharedBufferPtr MakeMutable(FSharedBufferConstPtr&& Buffer)
+	/** Return the buffer if it is owned and either writable or this is the only reference, or a clone otherwise. */
+	static inline FSharedBufferPtr MakeWritable(FSharedBufferConstPtr&& Buffer)
 	{
-		if (Buffer->TryMakeMutable())
+		if (Buffer->TryMakeWritable())
 		{
 			return FSharedBufferPtr(FSharedBufferPtr::PtrType(const_cast<FSharedBuffer*>(Buffer.Get())));
 		}
@@ -565,10 +565,10 @@ public:
 	}
 
 	// Disable overloads that would allow the argument to be copied.
-	static void MakeMutable(const FSharedBufferRef&) = delete;
-	static void MakeMutable(const FSharedBufferConstRef&) = delete;
-	static void MakeMutable(const FSharedBufferPtr&) = delete;
-	static void MakeMutable(const FSharedBufferConstPtr&) = delete;
+	static void MakeWritable(const FSharedBufferRef&) = delete;
+	static void MakeWritable(const FSharedBufferConstRef&) = delete;
+	static void MakeWritable(const FSharedBufferPtr&) = delete;
+	static void MakeWritable(const FSharedBufferConstPtr&) = delete;
 
 	/** A pointer to the start of the buffer. */
 	inline void* GetData() { return Data; }
@@ -582,39 +582,39 @@ public:
 	inline bool IsOwned() const { return (GetFlags(ReferenceCountAndFlags) & ESharedBufferFlags::Owned) != 0; }
 
 	/**
-	 * Whether the shared buffer is immutable.
+	 * Whether the shared buffer is read-only.
 	 *
-	 * An immutable shared buffer is owned and every reference or pointer to it is const.
+	 * A read-only shared buffer is owned and every reference or pointer to it is const.
 	 */
-	inline bool IsImmutable() const { return (GetFlags(ReferenceCountAndFlags) & ESharedBufferFlags::Immutable) != 0; }
+	inline bool IsReadOnly() const { return (GetFlags(ReferenceCountAndFlags) & ESharedBufferFlags::ReadOnly) != 0; }
 
 	/**
-	 * Try to make the shared buffer immutable.
+	 * Try to make the shared buffer read-only.
 	 *
-	 * A shared buffer can be made immutable if it is owned and there is only one reference to it.
+	 * A shared buffer can be made read-only if it is owned and there is only one reference to it.
 	 *
-	 * @return true if the buffer was immutable or was made immutable, otherwise false.
+	 * @return true if the buffer was read-only or was made read-only, otherwise false.
 	 */
-	CORE_API bool TryMakeImmutable() const;
+	CORE_API bool TryMakeReadOnly() const;
 
-	// Disable this overload because it would allow an immutable buffer to be mutated.
-	bool TryMakeImmutable() = delete;
+	// Disable this overload because it would allow a read-only buffer to be mutated.
+	bool TryMakeReadOnly() = delete;
 
 	/**
-	 * Try to make the shared buffer mutable.
+	 * Try to make the shared buffer writable.
 	 *
-	 * A shared buffer can be made mutable if it is owned and there is only one reference to it.
+	 * A shared buffer can be made writable if it is owned and there is only one reference to it.
 	 *
-	 * @return true if the buffer was mutable or was made mutable, otherwise false.
+	 * @return true if the buffer was writable or was made writable, otherwise false.
 	 */
-	CORE_API bool TryMakeMutable() const;
+	CORE_API bool TryMakeWritable() const;
 
-	/** The shared buffer is already mutable. */
-	inline bool TryMakeMutable() { return true; }
+	/** The shared buffer is already writable. */
+	inline bool TryMakeWritable() { return true; }
 
-	/** A mutable view of buffer. */
+	/** A writable view of buffer. */
 	inline FMutableMemoryView GetView() { return FMutableMemoryView(GetData(), GetSize()); }
-	/** A const view of the buffer. */
+	/** A read-only view of the buffer. */
 	inline FConstMemoryView GetView() const { return FConstMemoryView(GetData(), GetSize()); }
 
 	inline operator FMutableMemoryView() { return GetView(); }

@@ -46,11 +46,11 @@ void FSharedBuffer::ReleaseData()
 	ReferenceCountAndFlags.fetch_and(~SetFlags(~ESharedBufferFlags::None));
 }
 
-bool FSharedBuffer::TryMakeImmutable() const
+bool FSharedBuffer::TryMakeReadOnly() const
 {
 	for (uint64 Value = ReferenceCountAndFlags.load(std::memory_order_relaxed);;)
 	{
-		if (EnumHasAnyFlags(GetFlags(Value), ESharedBufferFlags::Immutable))
+		if (EnumHasAnyFlags(GetFlags(Value), ESharedBufferFlags::ReadOnly))
 		{
 			return true;
 		}
@@ -59,7 +59,7 @@ bool FSharedBuffer::TryMakeImmutable() const
 		{
 			return false;
 		}
-		if (ReferenceCountAndFlags.compare_exchange_weak(Value, Value | SetFlags(ESharedBufferFlags::Immutable),
+		if (ReferenceCountAndFlags.compare_exchange_weak(Value, Value | SetFlags(ESharedBufferFlags::ReadOnly),
 			std::memory_order_relaxed, std::memory_order_relaxed))
 		{
 			return true;
@@ -67,7 +67,7 @@ bool FSharedBuffer::TryMakeImmutable() const
 	}
 }
 
-bool FSharedBuffer::TryMakeMutable() const
+bool FSharedBuffer::TryMakeWritable() const
 {
 	for (uint64 Value = ReferenceCountAndFlags.load(std::memory_order_relaxed);;)
 	{
@@ -76,11 +76,11 @@ bool FSharedBuffer::TryMakeMutable() const
 		{
 			return false;
 		}
-		if (!EnumHasAnyFlags(GetFlags(Value), ESharedBufferFlags::Immutable))
+		if (!EnumHasAnyFlags(GetFlags(Value), ESharedBufferFlags::ReadOnly))
 		{
 			return true;
 		}
-		if (ReferenceCountAndFlags.compare_exchange_weak(Value, Value & ~SetFlags(ESharedBufferFlags::Immutable),
+		if (ReferenceCountAndFlags.compare_exchange_weak(Value, Value & ~SetFlags(ESharedBufferFlags::ReadOnly),
 			std::memory_order_relaxed, std::memory_order_relaxed))
 		{
 			return true;

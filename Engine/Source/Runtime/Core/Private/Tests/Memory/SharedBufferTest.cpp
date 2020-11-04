@@ -244,134 +244,134 @@ bool FSharedBufferTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("FSharedBuffer::MakeOwned(Null)"), FSharedBuffer::MakeOwned(FSharedBufferConstPtr()).IsValid());
 	}
 
-	// Test MakeImmutable
+	// Test MakeReadOnly
 	{
-		// MakeImmutable from a new reference.
+		// MakeReadOnly from a new reference.
 		constexpr uint64 Size = 64;
-		FSharedBufferConstRef Ref = FSharedBuffer::MakeImmutable(FSharedBuffer::Alloc(Size));
-		TestTrue(TEXT("FSharedBuffer::MakeImmutable(AllocRef).IsOwned()"), Ref->IsOwned());
-		TestTrue(TEXT("FSharedBuffer::MakeImmutable(AllocRef).IsImmutable()"), Ref->IsImmutable());
-		TestEqual(TEXT("FSharedBuffer::MakeImmutable(AllocRef).GetSize()"), Ref->GetSize(), Size);
+		FSharedBufferConstRef Ref = FSharedBuffer::MakeReadOnly(FSharedBuffer::Alloc(Size));
+		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(AllocRef).IsOwned()"), Ref->IsOwned());
+		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(AllocRef).IsReadOnly()"), Ref->IsReadOnly());
+		TestEqual(TEXT("FSharedBuffer::MakeReadOnly(AllocRef).GetSize()"), Ref->GetSize(), Size);
 		FSharedBufferConstRef OtherRef = Ref;
-		FSharedBufferConstRef ImmutableRef = FSharedBuffer::MakeImmutable(MoveTemp(Ref));
-		TestEqual(TEXT("FSharedBuffer::MakeImmutable(AllocRef).GetData()"), Ref->GetData(), ImmutableRef->GetData());
+		FSharedBufferConstRef ReadOnlyRef = FSharedBuffer::MakeReadOnly(MoveTemp(Ref));
+		TestEqual(TEXT("FSharedBuffer::MakeReadOnly(AllocRef).GetData()"), Ref->GetData(), ReadOnlyRef->GetData());
 	}
 	{
-		// MakeImmutable from a new pointer.
+		// MakeReadOnly from a new pointer.
 		constexpr uint64 Size = 64;
 		FSharedBufferPtr MutablePtr = FSharedBuffer::Alloc(Size);
-		TestFalse(TEXT("FSharedBuffer::MakeImmutable(MovePtr).IsImmutable()"), MutablePtr->IsImmutable());
-		TestTrue(TEXT("FSharedBuffer::MakeImmutable(MovePtr).IsOwned()"), MutablePtr->IsOwned());
+		TestFalse(TEXT("FSharedBuffer::MakeReadOnly(MovePtr).IsReadOnly()"), MutablePtr->IsReadOnly());
+		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(MovePtr).IsOwned()"), MutablePtr->IsOwned());
 		const void* const Data = MutablePtr->GetData();
-		FSharedBufferConstPtr Ptr = FSharedBuffer::MakeImmutable(MoveTemp(MutablePtr));
-		TestTrue(TEXT("FSharedBuffer::MakeImmutable(MovePtr).IsOwned()"), Ptr->IsOwned());
-		TestTrue(TEXT("FSharedBuffer::MakeImmutable(MovePtr).IsImmutable()"), Ptr->IsImmutable());
-		TestEqual(TEXT("FSharedBuffer::MakeImmutable(MovePtr).GetSize()"), Ptr->GetSize(), Size);
-		TestEqual(TEXT("FSharedBuffer::MakeImmutable(MovePtr).GetData()"), Ptr->GetData(), Data);
+		FSharedBufferConstPtr Ptr = FSharedBuffer::MakeReadOnly(MoveTemp(MutablePtr));
+		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(MovePtr).IsOwned()"), Ptr->IsOwned());
+		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(MovePtr).IsReadOnly()"), Ptr->IsReadOnly());
+		TestEqual(TEXT("FSharedBuffer::MakeReadOnly(MovePtr).GetSize()"), Ptr->GetSize(), Size);
+		TestEqual(TEXT("FSharedBuffer::MakeReadOnly(MovePtr).GetData()"), Ptr->GetData(), Data);
 	}
 	{
-		// MakeImmutable from a view.
+		// MakeReadOnly from a view.
 		constexpr uint64 Size = 64;
 		uint8 Data[Size]{};
 		FSharedBufferPtr MutablePtr = FSharedBuffer::MakeView(Data, Size);
-		TestFalse(TEXT("FSharedBuffer::MakeImmutable(View).IsOwned()"), MutablePtr->IsOwned());
-		TestFalse(TEXT("FSharedBuffer::MakeImmutable(View).IsImmutable()"), MutablePtr->IsImmutable());
-		FSharedBufferConstPtr Ptr = FSharedBuffer::MakeImmutable(MoveTemp(MutablePtr));
-		TestTrue(TEXT("FSharedBuffer::MakeImmutable(View).IsOwned()"), Ptr->IsOwned());
-		TestTrue(TEXT("FSharedBuffer::MakeImmutable(View).IsImmutable()"), Ptr->IsImmutable());
-		TestEqual(TEXT("FSharedBuffer::MakeImmutable(View).GetSize()"), Ptr->GetSize(), Size);
-		TestNotEqual(TEXT("FSharedBuffer::MakeImmutable(View).GetData()"), Ptr->GetData(), static_cast<const void*>(Data));
+		TestFalse(TEXT("FSharedBuffer::MakeReadOnly(View).IsOwned()"), MutablePtr->IsOwned());
+		TestFalse(TEXT("FSharedBuffer::MakeReadOnly(View).IsReadOnly()"), MutablePtr->IsReadOnly());
+		FSharedBufferConstPtr Ptr = FSharedBuffer::MakeReadOnly(MoveTemp(MutablePtr));
+		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(View).IsOwned()"), Ptr->IsOwned());
+		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(View).IsReadOnly()"), Ptr->IsReadOnly());
+		TestEqual(TEXT("FSharedBuffer::MakeReadOnly(View).GetSize()"), Ptr->GetSize(), Size);
+		TestNotEqual(TEXT("FSharedBuffer::MakeReadOnly(View).GetData()"), Ptr->GetData(), static_cast<const void*>(Data));
 	}
 	{
-		// MakeImmutable with another shared reference.
+		// MakeReadOnly with another shared reference.
 		constexpr uint64 Size = 64;
 		FSharedBufferPtr MutablePtr = FSharedBuffer::Alloc(Size);
 		FSharedBufferConstPtr SharedPtr = MutablePtr;
-		TestFalse(TEXT("FSharedBuffer::MakeImmutable(SharedRef).IsImmutable()"), MutablePtr->IsImmutable());
+		TestFalse(TEXT("FSharedBuffer::MakeReadOnly(SharedRef).IsReadOnly()"), MutablePtr->IsReadOnly());
 		const void* const Data = MutablePtr->GetData();
-		FSharedBufferConstPtr Ptr = FSharedBuffer::MakeImmutable(MoveTemp(MutablePtr));
-		TestTrue(TEXT("FSharedBuffer::MakeImmutable(SharedRef).IsOwned()"), Ptr->IsOwned());
-		TestTrue(TEXT("FSharedBuffer::MakeImmutable(SharedRef).IsImmutable()"), Ptr->IsImmutable());
-		TestNotEqual(TEXT("FSharedBuffer::MakeImmutable(SharedRef).GetData()"), Ptr->GetData(), Data);
+		FSharedBufferConstPtr Ptr = FSharedBuffer::MakeReadOnly(MoveTemp(MutablePtr));
+		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(SharedRef).IsOwned()"), Ptr->IsOwned());
+		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(SharedRef).IsReadOnly()"), Ptr->IsReadOnly());
+		TestNotEqual(TEXT("FSharedBuffer::MakeReadOnly(SharedRef).GetData()"), Ptr->GetData(), Data);
 	}
 	{
-		// MakeImmutable with another weak reference.
+		// MakeReadOnly with another weak reference.
 		constexpr uint64 Size = 64;
 		FSharedBufferPtr MutablePtr = FSharedBuffer::Alloc(Size);
 		FSharedBufferConstWeakPtr WeakPtr = MutablePtr;
-		TestFalse(TEXT("FSharedBuffer::MakeImmutable(WeakRef).IsImmutable()"), MutablePtr->IsImmutable());
+		TestFalse(TEXT("FSharedBuffer::MakeReadOnly(WeakRef).IsReadOnly()"), MutablePtr->IsReadOnly());
 		const void* const Data = MutablePtr->GetData();
-		FSharedBufferConstPtr Ptr = FSharedBuffer::MakeImmutable(MoveTemp(MutablePtr));
-		TestTrue(TEXT("FSharedBuffer::MakeImmutable(WeakRef).IsOwned()"), Ptr->IsOwned());
-		TestTrue(TEXT("FSharedBuffer::MakeImmutable(WeakRef).IsImmutable()"), Ptr->IsImmutable());
-		TestNotEqual(TEXT("FSharedBuffer::MakeImmutable(WeakRef).GetData()"), Ptr->GetData(), Data);
+		FSharedBufferConstPtr Ptr = FSharedBuffer::MakeReadOnly(MoveTemp(MutablePtr));
+		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(WeakRef).IsOwned()"), Ptr->IsOwned());
+		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(WeakRef).IsReadOnly()"), Ptr->IsReadOnly());
+		TestNotEqual(TEXT("FSharedBuffer::MakeReadOnly(WeakRef).GetData()"), Ptr->GetData(), Data);
 	}
 
-	// Test MakeMutable
+	// Test MakeWritable
 	{
-		// MakeMutable from a new reference.
+		// MakeWritable from a new reference.
 		constexpr uint64 Size = 64;
-		FSharedBufferConstRef ConstRef = FSharedBuffer::MakeImmutable(FSharedBuffer::Alloc(Size));
-		FSharedBufferRef Ref = FSharedBuffer::MakeMutable(MoveTemp(ConstRef));
-		TestTrue(TEXT("FSharedBuffer::MakeMutable(AllocRef).IsOwned()"), Ref->IsOwned());
-		TestFalse(TEXT("FSharedBuffer::MakeMutable(AllocRef).IsImmutable()"), Ref->IsImmutable());
-		TestEqual(TEXT("FSharedBuffer::MakeMutable(AllocRef).GetSize()"), Ref->GetSize(), Size);
-		TestEqual(TEXT("FSharedBuffer::MakeMutable(AllocRef).GetData()"), const_cast<const void*>(Ref->GetData()), ConstRef->GetData());
-		FSharedBufferRef MutableRef = FSharedBuffer::MakeMutable(MoveTemp(Ref));
-		TestEqual(TEXT("FSharedBuffer::MakeMutable(AllocRef).GetData()"), Ref->GetData(), MutableRef->GetData());
+		FSharedBufferConstRef ConstRef = FSharedBuffer::MakeReadOnly(FSharedBuffer::Alloc(Size));
+		FSharedBufferRef Ref = FSharedBuffer::MakeWritable(MoveTemp(ConstRef));
+		TestTrue(TEXT("FSharedBuffer::MakeWritable(AllocRef).IsOwned()"), Ref->IsOwned());
+		TestFalse(TEXT("FSharedBuffer::MakeWritable(AllocRef).IsReadOnly()"), Ref->IsReadOnly());
+		TestEqual(TEXT("FSharedBuffer::MakeWritable(AllocRef).GetSize()"), Ref->GetSize(), Size);
+		TestEqual(TEXT("FSharedBuffer::MakeWritable(AllocRef).GetData()"), const_cast<const void*>(Ref->GetData()), ConstRef->GetData());
+		FSharedBufferRef MutableRef = FSharedBuffer::MakeWritable(MoveTemp(Ref));
+		TestEqual(TEXT("FSharedBuffer::MakeWritable(AllocRef).GetData()"), Ref->GetData(), MutableRef->GetData());
 	}
 	{
-		// MakeMutable from a new pointer.
+		// MakeWritable from a new pointer.
 		constexpr uint64 Size = 64;
-		FSharedBufferConstPtr ConstPtr = FSharedBuffer::MakeImmutable(FSharedBuffer::Alloc(Size));
+		FSharedBufferConstPtr ConstPtr = FSharedBuffer::MakeReadOnly(FSharedBuffer::Alloc(Size));
 		const void* const Data = ConstPtr->GetData();
-		FSharedBufferPtr Ptr = FSharedBuffer::MakeMutable(MoveTemp(ConstPtr));
-		TestFalse(TEXT("FSharedBuffer::MakeImmutable(MovePtr).IsMutable()"), Ptr->IsImmutable());
-		TestTrue(TEXT("FSharedBuffer::MakeImmutable(MovePtr).IsOwned()"), Ptr->IsOwned());
-		TestEqual(TEXT("FSharedBuffer::MakeImmutable(MovePtr).GetSize()"), Ptr->GetSize(), Size);
-		TestEqual(TEXT("FSharedBuffer::MakeImmutable(MovePtr).GetData()"), const_cast<const void*>(Ptr->GetData()), Data);
+		FSharedBufferPtr Ptr = FSharedBuffer::MakeWritable(MoveTemp(ConstPtr));
+		TestFalse(TEXT("FSharedBuffer::MakeReadOnly(MovePtr).IsReadOnly()"), Ptr->IsReadOnly());
+		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(MovePtr).IsOwned()"), Ptr->IsOwned());
+		TestEqual(TEXT("FSharedBuffer::MakeReadOnly(MovePtr).GetSize()"), Ptr->GetSize(), Size);
+		TestEqual(TEXT("FSharedBuffer::MakeReadOnly(MovePtr).GetData()"), const_cast<const void*>(Ptr->GetData()), Data);
 	}
 	{
-		// MakeMutable from a mutable view.
+		// MakeWritable from a mutable view.
 		constexpr uint64 Size = 64;
 		uint8 Data[Size]{};
-		FSharedBufferPtr Ptr = FSharedBuffer::MakeMutable(FSharedBuffer::MakeView(Data, Size));
-		TestFalse(TEXT("FSharedBuffer::MakeMutable(View).IsOwned()"), Ptr->IsOwned());
-		TestFalse(TEXT("FSharedBuffer::MakeMutable(View).IsImmutable()"), Ptr->IsImmutable());
-		TestEqual(TEXT("FSharedBuffer::MakeMutable(View).GetSize()"), Ptr->GetSize(), Size);
-		TestEqual(TEXT("FSharedBuffer::MakeMutable(View).GetData()"), const_cast<const void*>(Ptr->GetData()), static_cast<const void*>(Data));
+		FSharedBufferPtr Ptr = FSharedBuffer::MakeWritable(FSharedBuffer::MakeView(Data, Size));
+		TestFalse(TEXT("FSharedBuffer::MakeWritable(View).IsOwned()"), Ptr->IsOwned());
+		TestFalse(TEXT("FSharedBuffer::MakeWritable(View).IsReadOnly()"), Ptr->IsReadOnly());
+		TestEqual(TEXT("FSharedBuffer::MakeWritable(View).GetSize()"), Ptr->GetSize(), Size);
+		TestEqual(TEXT("FSharedBuffer::MakeWritable(View).GetData()"), const_cast<const void*>(Ptr->GetData()), static_cast<const void*>(Data));
 	}
 	{
-		// MakeMutable from a const view.
+		// MakeWritable from a const view.
 		constexpr uint64 Size = 64;
 		const uint8 Data[Size]{};
-		FSharedBufferPtr Ptr = FSharedBuffer::MakeMutable(FSharedBuffer::MakeView(Data, Size));
-		TestTrue(TEXT("FSharedBuffer::MakeMutable(View).IsOwned()"), Ptr->IsOwned());
-		TestFalse(TEXT("FSharedBuffer::MakeMutable(View).IsImmutable()"), Ptr->IsImmutable());
-		TestEqual(TEXT("FSharedBuffer::MakeMutable(View).GetSize()"), Ptr->GetSize(), Size);
-		TestNotEqual(TEXT("FSharedBuffer::MakeMutable(View).GetData()"), const_cast<const void*>(Ptr->GetData()), static_cast<const void*>(Data));
+		FSharedBufferPtr Ptr = FSharedBuffer::MakeWritable(FSharedBuffer::MakeView(Data, Size));
+		TestTrue(TEXT("FSharedBuffer::MakeWritable(View).IsOwned()"), Ptr->IsOwned());
+		TestFalse(TEXT("FSharedBuffer::MakeWritable(View).IsReadOnly()"), Ptr->IsReadOnly());
+		TestEqual(TEXT("FSharedBuffer::MakeWritable(View).GetSize()"), Ptr->GetSize(), Size);
+		TestNotEqual(TEXT("FSharedBuffer::MakeWritable(View).GetData()"), const_cast<const void*>(Ptr->GetData()), static_cast<const void*>(Data));
 	}
 	{
-		// MakeMutable with another shared reference.
+		// MakeWritable with another shared reference.
 		constexpr uint64 Size = 64;
-		FSharedBufferConstPtr ConstPtr = FSharedBuffer::MakeImmutable(FSharedBuffer::Alloc(Size));
+		FSharedBufferConstPtr ConstPtr = FSharedBuffer::MakeReadOnly(FSharedBuffer::Alloc(Size));
 		FSharedBufferConstPtr SharedPtr = ConstPtr;
 		const void* const Data = ConstPtr->GetData();
-		FSharedBufferConstPtr Ptr = FSharedBuffer::MakeMutable(MoveTemp(ConstPtr));
-		TestTrue(TEXT("FSharedBuffer::MakeMutable(SharedRef).IsOwned()"), Ptr->IsOwned());
-		TestFalse(TEXT("FSharedBuffer::MakeMutable(SharedRef).IsImmutable()"), Ptr->IsImmutable());
-		TestNotEqual(TEXT("FSharedBuffer::MakeMutable(SharedRef).GetData()"), const_cast<const void*>(Ptr->GetData()), Data);
+		FSharedBufferConstPtr Ptr = FSharedBuffer::MakeWritable(MoveTemp(ConstPtr));
+		TestTrue(TEXT("FSharedBuffer::MakeWritable(SharedRef).IsOwned()"), Ptr->IsOwned());
+		TestFalse(TEXT("FSharedBuffer::MakeWritable(SharedRef).IsReadOnly()"), Ptr->IsReadOnly());
+		TestNotEqual(TEXT("FSharedBuffer::MakeWritable(SharedRef).GetData()"), const_cast<const void*>(Ptr->GetData()), Data);
 	}
 	{
-		// MakeMutable with another weak reference.
+		// MakeWritable with another weak reference.
 		constexpr uint64 Size = 64;
-		FSharedBufferConstPtr ConstPtr = FSharedBuffer::MakeImmutable(FSharedBuffer::Alloc(Size));
+		FSharedBufferConstPtr ConstPtr = FSharedBuffer::MakeReadOnly(FSharedBuffer::Alloc(Size));
 		FSharedBufferConstWeakPtr WeakPtr = ConstPtr;
 		const void* const Data = ConstPtr->GetData();
-		FSharedBufferConstPtr Ptr = FSharedBuffer::MakeMutable(MoveTemp(ConstPtr));
-		TestTrue(TEXT("FSharedBuffer::MakeMutable(WeakRef).IsOwned()"), Ptr->IsOwned());
-		TestFalse(TEXT("FSharedBuffer::MakeMutable(WeakRef).IsImmutable()"), Ptr->IsImmutable());
-		TestNotEqual(TEXT("FSharedBuffer::MakeMutable(WeakRef).GetData()"), const_cast<const void*>(Ptr->GetData()), Data);
+		FSharedBufferConstPtr Ptr = FSharedBuffer::MakeWritable(MoveTemp(ConstPtr));
+		TestTrue(TEXT("FSharedBuffer::MakeWritable(WeakRef).IsOwned()"), Ptr->IsOwned());
+		TestFalse(TEXT("FSharedBuffer::MakeWritable(WeakRef).IsReadOnly()"), Ptr->IsReadOnly());
+		TestNotEqual(TEXT("FSharedBuffer::MakeWritable(WeakRef).GetData()"), const_cast<const void*>(Ptr->GetData()), Data);
 	}
 
 	// Test WeakPtr
