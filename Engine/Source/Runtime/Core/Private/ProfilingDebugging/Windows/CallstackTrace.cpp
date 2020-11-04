@@ -60,7 +60,7 @@ static uint32 AddressToId(UPTRINT Address)
 
 static UPTRINT IdToAddress(uint32 Id)
 {
-	return UPTRINT(Id << 16);
+	return static_cast<uint32>(UPTRINT(Id) << 16);
 }
 
 struct FIdPredicate

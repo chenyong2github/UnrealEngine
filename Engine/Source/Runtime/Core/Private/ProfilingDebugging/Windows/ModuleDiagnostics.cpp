@@ -16,6 +16,7 @@ struct FNtDllFunction
 	FNtDllFunction(const char* Name)
 	{
 		HMODULE NtDll = LoadLibraryW(L"ntdll.dll");
+		check(NtDll);
 		Addr = GetProcAddress(NtDll, Name);
 	}
 
