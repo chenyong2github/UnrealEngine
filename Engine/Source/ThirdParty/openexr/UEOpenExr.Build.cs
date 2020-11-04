@@ -121,7 +121,7 @@ public class UEOpenExr : ModuleRules
             PublicSystemIncludePaths.AddRange(
                 new string[] {
 					Target.UEThirdPartySourceDirectory + DeployDir + "/OpenEXR/include",
-					Target.UEThirdPartySourceDirectory + DeployDir + "/OpenEXR/include/OpenEXR", // Alambic SDK is non-standard, doesn't prefix its include correctly
+					Target.UEThirdPartySourceDirectory + DeployDir + "/OpenEXR/include/openexr", // Alambic SDK is non-standard, doesn't prefix its include correctly
 				}
             );
         }
