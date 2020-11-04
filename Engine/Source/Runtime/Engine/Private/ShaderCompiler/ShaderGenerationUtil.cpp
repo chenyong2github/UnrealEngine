@@ -248,7 +248,7 @@ void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderCompilerDefines& SrcD
 
 
 // if we change the logic, increment this number to force a DDC key change
-static const int32 GBufferGeneratorVersion = 1;
+static const int32 GBufferGeneratorVersion = 2;
 
 static FShaderGlobalDefines FetchShaderGlobalDefines(EShaderPlatform TargetPlatform)
 {
@@ -532,6 +532,7 @@ static const FGBufferCompressionInfo GBufferCompressionInfo[] =
 	{ GBC_Packed_Normal_Octahedral_8_8, 3, 2, {  8,  8,  0,  0 }, false,  true, TEXT("CompressOctahedral")     , TEXT("DecompressOctahedral")   },
 	{ GBC_EncodeNormal_Normal_16_16_16, 3, 3, { 16, 16, 16,  0 }, false,  true, TEXT("EncodeNormalHelper")     , TEXT("DecodeNormalHelper")     },
 	{ GBC_EncodeNormal_Normal_10_10_10, 3, 3, { 10, 10, 10,  0 }, false,  true, TEXT("EncodeNormalHelper")     , TEXT("DecodeNormalHelper")     },
+	{ GBC_EncodeNormal_Normal_8_8_8,    3, 3, {  8,  8,  8,  0 }, false,  true, TEXT("EncodeNormalHelper")     , TEXT("DecodeNormalHelper")     },
 	{ GBC_Packed_Color_5_6_5,			3, 3, {  5,  6,  5,  0 },  true,  true, TEXT("EncodeQuantize565")      , TEXT("DecodeQuantize565")      },
 	{ GBC_Packed_Color_5_6_5_Sqrt,		3, 3, {  5,  6,  5,  0 },  true,  true, TEXT("EncodeQuantize565Sqrt")  , TEXT("DecodeQuantize565Sqrt")  },
 	{ GBC_Packed_Color_4_4_4,			3, 3, {  4,  4,  4,  0 },  true,  true, TEXT("EncodeQuantize444")      , TEXT("DecodeQuantize444")	    },

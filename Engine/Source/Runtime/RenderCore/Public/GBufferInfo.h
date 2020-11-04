@@ -58,6 +58,7 @@ enum EGBufferCompression
 	GBC_Packed_Normal_Octahedral_8_8,
 	GBC_EncodeNormal_Normal_16_16_16,
 	GBC_EncodeNormal_Normal_10_10_10,
+	GBC_EncodeNormal_Normal_8_8_8,
 
 	GBC_Packed_Color_5_6_5, // a unorm value, packed to 565
 	GBC_Packed_Color_5_6_5_Sqrt, // a unorm value, packed to 565, with sqrt

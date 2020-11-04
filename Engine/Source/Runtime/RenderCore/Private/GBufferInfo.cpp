@@ -200,9 +200,6 @@ FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(const FGBufferParams& Params)
 		Info.NumTargets = Params.bHasPrecShadowFactor ? 7 : 6;
 	}
 
-
-
-
 	// good to see the quality loss due to precision in the gbuffer
 	const bool bHighPrecisionGBuffers = (Params.LegacyFormatIndex >= EGBufferFormat_Force16BitsPerChannel);
 	// good to profile the impact of non 8 bit formats
@@ -214,12 +211,12 @@ FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(const FGBufferParams& Params)
 	if (bEnforce8BitPerChannel)
 	{
 		NormalGBufferFormatTarget  = GBT_Unorm_8_8_8_8;
-		NormalGBufferFormatChannel = GBC_Raw_Unorm_8_8_8_8;
+		NormalGBufferFormatChannel = GBC_EncodeNormal_Normal_8_8_8;
 	}
 	else if (Params.LegacyFormatIndex == EGBufferFormat_HighPrecisionNormals)
 	{
 		NormalGBufferFormatTarget  = GBT_Float_16_16_16_16;
-		NormalGBufferFormatChannel = GBC_Raw_Float_16_16_16;
+		NormalGBufferFormatChannel = GBC_EncodeNormal_Normal_16_16_16;
 	}
 
 	const EGBufferType        DiffuseAndSpecularGBufferFormat  = bHighPrecisionGBuffers ? GBT_Float_16_16_16_16 : GBT_Unorm_8_8_8_8;
