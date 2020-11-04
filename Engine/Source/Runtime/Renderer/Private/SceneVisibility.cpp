@@ -4476,7 +4476,22 @@ void FLODSceneTree::AddChildNode(const FPrimitiveComponentId ParentId, FPrimitiv
 {
 	if (ParentId.IsValid() && ChildSceneInfo)
 	{
-		FLODSceneNode* Parent = &SceneNodes.FindOrAdd(ParentId);
+		FLODSceneNode* Parent = SceneNodes.Find(ParentId);
+
+		// If parent SceneNode hasn't been created yet (possible, depending on the order actors are added to the scene)
+		if (!Parent)
+		{
+			// Create parent SceneNode, assign correct SceneInfo
+			Parent = &SceneNodes.Add(ParentId, FLODSceneNode());
+
+			int32 ParentIndex = Scene->PrimitiveComponentIds.Find(ParentId);
+			if (ParentIndex != INDEX_NONE)
+			{
+				Parent->SceneInfo = Scene->Primitives[ParentIndex];
+				check(Parent->SceneInfo->PrimitiveComponentId == ParentId);
+			}
+		}
+
 		Parent->AddChild(ChildSceneInfo);
 	}
 }
