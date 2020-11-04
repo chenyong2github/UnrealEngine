@@ -16,7 +16,7 @@
     <RootNamespace>HoloLens.Automation</RootNamespace>
     <AssemblyName>HoloLens.Automation</AssemblyName>
     <WarningsNotAsErrors>612,618</WarningsNotAsErrors>
-    <OutputPath>..\..\..\..\Binaries\DotNET\AutomationTool</OutputPath>
+    <OutputPath>..\..\..\..\Binaries\DotNET\AutomationTool\AutomationScripts\HoloLens\</OutputPath>
     <DefineConstants>NET_CORE</DefineConstants>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <IsWindows Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true'">true</IsWindows> 
@@ -73,7 +73,6 @@
       </ItemGroup>
     </When>
   </Choose>
-
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk.WindowsDesktop" Condition="'$(IsWindows)'=='true'"/>
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk.WindowsDesktop" Condition="'$(IsWindows)'=='true'"/>
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" Condition="'$(IsWindows)'!='true'"/>
@@ -91,10 +90,10 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\DotNETCommon\DotNETUtilities\DotNETUtilitiesCore.csproj" />
-    <ProjectReference Include="..\..\UnrealBuildTool\UnrealBuildToolCore.csproj" />
-    <ProjectReference Include="..\AutomationUtils\AutomationUtils.Automation.Core.csproj" />
-    <ProjectReference Include="..\Scripts\AutomationScripts.Automation.Core.csproj" />
+    <ProjectReference Include="..\..\DotNETCommon\DotNETUtilities\DotNETUtilitiesCore.csproj"><Private>false</Private></ProjectReference>
+    <ProjectReference Include="..\..\UnrealBuildTool\UnrealBuildToolCore.csproj"><Private>false</Private></ProjectReference>
+    <ProjectReference Include="..\AutomationUtils\AutomationUtils.Automation.Core.csproj"><Private>false</Private></ProjectReference>
+    <ProjectReference Include="..\Scripts\AutomationScripts.Automation.Core.csproj"><Private>false</Private></ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
