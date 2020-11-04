@@ -359,13 +359,16 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 		.Font( DetailFontInfo )
 	]
 	.ValueContent()
+	.MinDesiredWidth(250.f)
+	.MaxDesiredWidth(250.f)
 	[
-		SNew(SEditableTextBox)
+		SNew(SMultiLineEditableTextBox)
 		.Text( this, &FBlueprintVarActionDetails::OnGetTooltipText )
 		.ToolTipText( this, &FBlueprintVarActionDetails::OnGetTooltipText )
 		.OnTextCommitted( this, &FBlueprintVarActionDetails::OnTooltipTextCommitted, CachedVariableName )
 		.IsEnabled(IsVariableInBlueprint())
 		.Font( DetailFontInfo )
+		.ModiferKeyForNewLine(EModifierKey::Shift)
 	];
 
 	TSharedPtr<SToolTip> Widget3DTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VariableWidget3D_Tooltip", "When true, allows the user to tweak the vector variable by using a 3D transform widget in the viewport (usable when varible is public/enabled)."), NULL, DocLink, TEXT("Widget3D"));
