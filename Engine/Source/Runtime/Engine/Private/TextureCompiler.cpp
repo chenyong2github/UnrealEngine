@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TextureCompiler.h"
-#include "Engine/Texture.h"
 
 #if WITH_EDITOR
 
+#include "Engine/Texture.h"
+#include "ObjectCacheContext.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -13,12 +14,13 @@
 #include "EngineModule.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/StrongObjectPtr.h"
-#include "UObject/UObjectIterator.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/Material.h"
 #include "TextureDerivedDataTask.h"
 #include "Misc/IQueuedWork.h"
+#include "Components/PrimitiveComponent.h"
+#include "LevelEditor.h"
 
 #define LOCTEXT_NAMESPACE "TextureCompiler"
 
@@ -60,42 +62,6 @@ namespace TextureCompilingManagerImpl
 		return StaticEnum<TextureGroup>()->GetMetaData(TEXT("DisplayName"), Texture->LODGroup);
 	}
 
-	static TMultiMap<UObject*, UMaterialInterface*> GetTexturesAffectingMaterialInterfaces()
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(GetTexturesAffectingMaterials);
-
-		// Update any material that uses this texture
-		TMultiMap<UObject*, UMaterialInterface*> TexturesRequiringMaterialUpdate;
-
-		for (TObjectIterator<UMaterialInterface> It; It; ++It)
-		{
-			UMaterialInterface* MaterialInterface = *It;
-			for (UObject* Texture : MaterialInterface->GetReferencedTextures())
-			{
-				TexturesRequiringMaterialUpdate.Emplace(Texture, MaterialInterface);
-			}
-			
-			// Fix in CL 13480995 broke GetReferencedTextures() ability to return all referenced textures
-			// so we manually gather them instead...
-			// Recursion is required for MIC to resolve all TextureParameterValues in the hierarchy.
-			UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(MaterialInterface);
-			while (MaterialInstance)
-			{
-				for (const FTextureParameterValue& TextureParam : MaterialInstance->TextureParameterValues)
-				{
-					if (TextureParam.ParameterValue)
-					{
-						TexturesRequiringMaterialUpdate.Add(TextureParam.ParameterValue, MaterialInterface);
-					}
-				}
-
-				MaterialInstance = Cast<UMaterialInstance>(MaterialInstance->Parent);
-			}
-		}
-
-		return TexturesRequiringMaterialUpdate;
-	}
-
 	static EQueuedWorkPriority GetBasePriority(UTexture* InTexture)
 	{
 		switch (InTexture->LODGroup)
@@ -111,7 +77,7 @@ namespace TextureCompilingManagerImpl
 
 	static EQueuedWorkPriority GetBoostPriority(UTexture* InTexture)
 	{
-		return (EQueuedWorkPriority)((uint8)GetBasePriority(InTexture) - 1);
+		return (EQueuedWorkPriority)(FMath::Max((uint8)1, (uint8)GetBasePriority(InTexture)) - 1);
 	}
 
 	static const TCHAR* GetPriorityName(EQueuedWorkPriority Priority)
@@ -297,7 +263,7 @@ void FTextureCompilingManager::UpdateCompilationNotification()
 	{
 		if (NotificationItem.IsValid())
 		{
-			NotificationItem->SetText(NSLOCTEXT("TextureBuild", "TextureBuildFinished", "Finished building Textures!"));
+			NotificationItem->SetText(NSLOCTEXT("TextureBuild", "TextureBuildFinished", "Textures are ready!"));
 			NotificationItem->SetCompletionState(SNotificationItem::CS_Success);
 			NotificationItem->ExpireAndFadeout();
 
@@ -308,7 +274,7 @@ void FTextureCompilingManager::UpdateCompilationNotification()
 	{
 		if (!NotificationItem.IsValid())
 		{
-			FNotificationInfo Info(NSLOCTEXT("TextureBuild", "TextureBuildInProgress", "Building Textures"));
+			FNotificationInfo Info(NSLOCTEXT("TextureBuild", "TextureBuildInProgress", "Preparing Textures"));
 			Info.bFireAndForget = false;
 
 			// Setting fade out and expire time to 0 as the expire message is currently very obnoxious
@@ -321,7 +287,7 @@ void FTextureCompilingManager::UpdateCompilationNotification()
 
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("BuildTasks"), FText::AsNumber(NumRemainingCompilations));
-		FText ProgressMessage = FText::Format(NSLOCTEXT("TextureBuild", "TextureBuildInProgressFormat", "Building Textures ({BuildTasks})"), Args);
+		FText ProgressMessage = FText::Format(NSLOCTEXT("TextureBuild", "TextureBuildInProgressFormat", "Preparing Textures ({BuildTasks})"), Args);
 
 		NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
 		NotificationItem->SetVisibility(EVisibility::HitTestInvisible);
@@ -336,12 +302,10 @@ void FTextureCompilingManager::FinishTextureCompilation(UTexture* Texture)
 	check(IsInGameThread());
 	TRACE_CPUPROFILER_EVENT_SCOPE(FinishTextureCompilation);
 
-	UE_LOG(LogTexture, Verbose, TEXT("UpdateResource for %s (%s) due to async texture compilation"), *Texture->GetName(), *GetLODGroupName(Texture));
+	UE_LOG(LogTexture, Verbose, TEXT("Refreshing texture %s because it is ready"), *Texture->GetName());
 
 	Texture->FinishCachePlatformData();
 	Texture->UpdateResource();
-
-	GetRendererModule().FlushVirtualTextureCache();
 
 	// Generate an empty property changed event, to force the asset registry tag
 	// to be refreshed now that pixel format and alpha channels are available.
@@ -382,11 +346,6 @@ void FTextureCompilingManager::AddTextures(const TArray<UTexture*>& InTextures)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCompilingManager::AddTextures)
 	check(IsInGameThread());
-
-	// We might not get ticked very often during load time
-	// so this will allow us to refresh compiled textures
-	// of the highest priority to improve the UI experience.
-	ProcessTextures(1 /* Maximum Priority */);
 
 	// Register new textures after ProcessTextures to avoid
 	// potential reentrant calls to CreateResource on the
@@ -439,7 +398,7 @@ void FTextureCompilingManager::FinishCompilation(const TArray<UTexture*>& InText
 
 	if (PendingTextures.Num())
 	{
-		FScopedSlowTask SlowTask((float)PendingTextures.Num(), LOCTEXT("FinishTextureCompilation", "Waiting on texture compilation"), true);
+		FScopedSlowTask SlowTask((float)PendingTextures.Num(), LOCTEXT("FinishTextureCompilation", "Waiting on texture preparation"), true);
 		SlowTask.MakeDialogDelayed(1.0f);
 
 		struct FTextureTask : public IQueuedWork
@@ -467,7 +426,7 @@ void FTextureCompilingManager::FinishCompilation(const TArray<UTexture*>& InText
 		auto UpdateProgress =
 			[&SlowTask](float Progress, int32 Done, int32 Total, const FString& CurrentObjectsName)
 			{
-				return SlowTask.EnterProgressFrame(Progress, FText::FromString(FString::Printf(TEXT("Waiting on texture compilation %d/%d (%s) ..."), Done, Total, *CurrentObjectsName)));
+				return SlowTask.EnterProgressFrame(Progress, FText::FromString(FString::Printf(TEXT("Waiting for textures to be ready %d/%d (%s) ..."), Done, Total, *CurrentObjectsName)));
 			};
 
 		for (FTextureTask& PendingTask : PendingTasks)
@@ -479,13 +438,67 @@ void FTextureCompilingManager::FinishCompilation(const TArray<UTexture*>& InText
 			{
 				UpdateProgress(0.0f, TextureIndex, InTextures.Num(), TextureName);
 			}
+			UE_LOG(LogTexture, Display, TEXT("Waiting for textures to be ready %d/%d (%s) ..."), TextureIndex, InTextures.Num(), *TextureName);
 			UpdateProgress(1.f, TextureIndex++, InTextures.Num(), TextureName);
-			UE_LOG(LogTexture, Verbose, TEXT("FinishCompilation requested for %s (%s)"), *TextureName, *GetLODGroupName(Texture));
 			FinishTextureCompilation(Texture);
 
 			for (TSet<TWeakObjectPtr<UTexture>>& Bucket : RegisteredTextureBuckets)
 			{
 				Bucket.Remove(Texture);
+			}
+		}
+	}
+
+	PostTextureCompilation(PendingTextures);
+}
+
+void FTextureCompilingManager::PostTextureCompilation(const TSet<UTexture*>& InCompiledTextures)
+{
+	using namespace TextureCompilingManagerImpl;
+	if (InCompiledTextures.Num())
+	{
+		FObjectCacheContextScope ObjectCacheScope;
+		TRACE_CPUPROFILER_EVENT_SCOPE(PostTextureCompilation);
+		{
+			TSet<UMaterialInterface*> AffectedMaterials;
+			for (UTexture* Texture : InCompiledTextures)
+			{
+				AffectedMaterials.Append(ObjectCacheScope.GetContext().GetMaterialsAffectedByTexture(Texture));
+			}
+
+			if (AffectedMaterials.Num())
+			{
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(UpdateMaterials);
+
+					for (UMaterialInterface* MaterialToUpdate : AffectedMaterials)
+					{
+						FMaterialRenderProxy* RenderProxy = MaterialToUpdate->GetRenderProxy();
+						if (RenderProxy)
+						{
+							ENQUEUE_RENDER_COMMAND(TextureCompiler_RecacheUniformExpressions)(
+								[RenderProxy](FRHICommandListImmediate& RHICmdList)
+								{
+									RenderProxy->CacheUniformExpressions(false);
+								});
+						}
+					}
+				}
+
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(UpdatePrimitives);
+
+					TSet<UPrimitiveComponent*> AffectedPrimitives;
+					for (UMaterialInterface* MaterialInterface : AffectedMaterials)
+					{
+						AffectedPrimitives.Append(ObjectCacheScope.GetContext().GetPrimitivesAffectedByMaterial(MaterialInterface));
+					}
+
+					for (UPrimitiveComponent* AffectedPrimitive : AffectedPrimitives)
+					{
+						AffectedPrimitive->MarkRenderStateDirty();
+					}
+				}
 			}
 		}
 	}
@@ -516,7 +529,43 @@ void FTextureCompilingManager::FinishAllCompilation()
 	}
 }
 
-void FTextureCompilingManager::ProcessTextures(int32 MaximumPriority)
+bool FTextureCompilingManager::RequestPriorityChange(UTexture* InTexture, EQueuedWorkPriority InPriority)
+{
+	using namespace TextureCompilingManagerImpl;
+	if (InTexture)
+	{
+		FTexturePlatformData** Data = InTexture->GetRunningPlatformData();
+		if (Data && *Data)
+		{
+			FTextureAsyncCacheDerivedDataTask* AsyncTask = (*Data)->AsyncTask;
+			if (AsyncTask)
+			{
+				EQueuedWorkPriority OldPriority = AsyncTask->GetPriority();
+				if (OldPriority != InPriority)
+				{
+					if (AsyncTask->Reschedule(GetThreadPool(), InPriority))
+					{
+						UE_LOG(
+							LogTexture,
+							Verbose,
+							TEXT("Changing priority of %s (%s) from %s to %s"),
+							*InTexture->GetName(),
+							*GetLODGroupName(InTexture),
+							GetPriorityName(OldPriority),
+							GetPriorityName(InPriority)
+						);
+
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+void FTextureCompilingManager::ProcessTextures(bool bLimitExecutionTime, int32 MaximumPriority)
 {
 	using namespace TextureCompilingManagerImpl;
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCompilingManager::ProcessTextures);
@@ -524,7 +573,8 @@ void FTextureCompilingManager::ProcessTextures(int32 MaximumPriority)
 
 	if (GetNumRemainingTextures())
 	{
-		TArray<UTexture*> ProcessedTextures;
+		FObjectCacheContextScope ObjectCacheScope;
+		TSet<UTexture*> ProcessedTextures;
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ProcessFinishedTextures);
 
@@ -547,7 +597,7 @@ void FTextureCompilingManager::ProcessTextures(int32 MaximumPriority)
 					{
 						if (Texture.IsValid())
 						{
-							const bool bHasTimeLeft = (FPlatformTime::Seconds() - TickStartTime) < MaxSecondsPerFrame;
+							const bool bHasTimeLeft = bLimitExecutionTime ? ((FPlatformTime::Seconds() - TickStartTime) < MaxSecondsPerFrame) : true;
 							if ((bIsHighestPrio || bHasTimeLeft) && Texture->IsAsyncCacheComplete())
 							{
 								FinishTextureCompilation(Texture.Get());
@@ -565,83 +615,120 @@ void FTextureCompilingManager::ProcessTextures(int32 MaximumPriority)
 			}
 		}
 
-		if (ProcessedTextures.Num())
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(RecacheUniformExpressions);
-
-			TMultiMap<UObject*, UMaterialInterface*> TexturesAffectingMaterials = GetTexturesAffectingMaterialInterfaces();
-
-			TArray<UMaterialInterface*> MaterialsToUpdate;
-			for (UTexture* Texture : ProcessedTextures)
-			{
-				TexturesAffectingMaterials.MultiFind(Texture, MaterialsToUpdate);
-			}
-
-			if (MaterialsToUpdate.Num())
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(UpdateMaterials);
-				
-				for (UMaterialInterface* MaterialToUpdate : MaterialsToUpdate)
-				{
-					MaterialToUpdate->RecacheUniformExpressions(false);
-				}
-			}
-		}
-
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCompilingManager::Reschedule);
 
-			// Reschedule higher priority if they have been rendered
-			for (TSet<TWeakObjectPtr<UTexture>>& Bucket : RegisteredTextureBuckets)
+			TSet<UTexture*> ReferencedTextures;
+			if (GEngine)
 			{
-				for (TWeakObjectPtr<UTexture>& WeakPtr : Bucket)
+				TRACE_CPUPROFILER_EVENT_SCOPE(GatherSeenPrimitiveMaterials);
+
+				TSet<UMaterialInterface*> RenderedMaterials;
+				for (UPrimitiveComponent* Component : ObjectCacheScope.GetContext().GetPrimitiveComponents())
 				{
-					if (UTexture* Texture = WeakPtr.Get())
+					if (Component->IsRegistered() && Component->IsRenderStateCreated() && Component->GetLastRenderTimeOnScreen() > 0.0f)
 					{
-						// Reschedule any texture that have been rendered with slightly higher priority 
-						// to improve the editor experience for low-core count.
-						//
-						// Keep in mind that some textures are only accessed once during the construction
-						// of a virtual texture, so we can't count on the LastRenderTime to be updated
-						// continuously for those even if they're in view.
-						if ((Texture->Resource && Texture->Resource->LastRenderTime != -FLT_MAX) ||
-							Texture->TextureReference.GetLastRenderTime() != -FLT_MAX)
+						for (UMaterialInterface* MaterialInterface : ObjectCacheScope.GetContext().GetUsedMaterials(Component))
 						{
-							FTexturePlatformData** Data = Texture->GetRunningPlatformData();
-							if (Data && *Data)
+							if (MaterialInterface)
 							{
-								FTextureAsyncCacheDerivedDataTask* AsyncTask = (*Data)->AsyncTask;
-								if (AsyncTask && AsyncTask->GetPriority() == GetBasePriority(Texture))
-								{
-									if (AsyncTask->Reschedule(GetThreadPool(), GetBoostPriority(Texture)))
-									{
-										UE_LOG(
-											LogTexture, 
-											Verbose, 
-											TEXT("Boosting priority of %s (%s) from %s to %s because of it's last render time"), 
-											*Texture->GetName(), 
-											*GetLODGroupName(Texture), 
-											GetPriorityName(GetBasePriority(Texture)),
-											GetPriorityName(GetBoostPriority(Texture))
-										);
-									}
-								}
+								RenderedMaterials.Add(MaterialInterface);
+							}
+						}
+					}
+				}
+
+				for (UMaterialInterface* MaterialInstance : RenderedMaterials)
+				{
+					ReferencedTextures.Append(ObjectCacheScope.GetContext().GetUsedTextures(MaterialInstance));
+				}
+			}
+
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(ApplyPriorityChanges);
+				// Reschedule higher priority if they have been rendered
+				for (TSet<TWeakObjectPtr<UTexture>>& Bucket : RegisteredTextureBuckets)
+				{
+					for (TWeakObjectPtr<UTexture>& WeakPtr : Bucket)
+					{
+						if (UTexture* Texture = WeakPtr.Get())
+						{
+							// Reschedule any texture that have been rendered with slightly higher priority 
+							// to improve the editor experience for low-core count.
+							//
+							// Keep in mind that some textures are only accessed once during the construction
+							// of a virtual texture, so we can't count on the LastRenderTime to be updated
+							// continuously for those even if they're in view.
+							if (ReferencedTextures.Contains(Texture) ||
+								(Texture->Resource && Texture->Resource->LastRenderTime > 0.0f) ||
+								Texture->TextureReference.GetLastRenderTime() > 0.0f)
+							{
+								RequestPriorityChange(Texture, GetBoostPriority(Texture));
 							}
 						}
 					}
 				}
 			}
 		}
+
+		if (ProcessedTextures.Num())
+		{
+			PostTextureCompilation(ProcessedTextures);
+		}
 	}
 }
 
-void FTextureCompilingManager::Tick(float DeltaTime)
+void FTextureCompilingManager::FinishCompilationsForGame()
 {
-	ProcessTextures();
+	if (GetNumRemainingTextures())
+	{
+		// Supports both Game and PIE mode
+		const bool bIsPlaying =
+			(GWorld && !GWorld->IsEditorWorld()) ||
+			(GEditor && GEditor->PlayWorld && !GEditor->IsSimulateInEditorInProgress());
+
+		if (bIsPlaying)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCompilingManager::FinishCompilationsForGame);
+
+			TSet<UTexture*> TexturesRequiredForGame;
+			for (TSet<TWeakObjectPtr<UTexture>>& Bucket : RegisteredTextureBuckets)
+			{
+				for (TWeakObjectPtr<UTexture>& WeakTexture : Bucket)
+				{
+					if (UTexture* Texture = WeakTexture.Get())
+					{
+						switch (Texture->LODGroup)
+						{
+						case TEXTUREGROUP_Terrain_Heightmap:
+						case TEXTUREGROUP_Terrain_Weightmap:
+							TexturesRequiredForGame.Add(Texture);
+							break;
+						default:
+							break;
+						}
+					}
+				}
+			}
+
+			if (TexturesRequiredForGame.Num())
+			{
+				FinishCompilation(TexturesRequiredForGame.Array());
+			}
+		}
+	}
+}
+
+void FTextureCompilingManager::ProcessAsyncTasks(bool bLimitExecutionTime)
+{
+	FObjectCacheContextScope ObjectCacheScope;
+	FinishCompilationsForGame();
+
+	ProcessTextures(bLimitExecutionTime);
 
 	UpdateCompilationNotification();
 }
 
-#endif // #if WITH_EDITOR
-
 #undef LOCTEXT_NAMESPACE
+
+#endif // #if WITH_EDITOR

@@ -19,6 +19,7 @@
 #include "Async/ParallelFor.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
 #include "Async/Async.h"
+#include "ObjectCacheContext.h"
 
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
@@ -306,8 +307,9 @@ FString FCardRepresentationAsyncQueue::GetReferencerName() const
 void FCardRepresentationAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 {
 #if WITH_EDITOR
-	TRACE_CPUPROFILER_EVENT_SCOPE(FCardRepresentationAsyncQueue::ProcessAsyncTasks)
+	TRACE_CPUPROFILER_EVENT_SCOPE(FCardRepresentationAsyncQueue::ProcessAsyncTasks);
 
+	FObjectCacheContextScope ObjectCacheScope;
 	const double MaxProcessingTime = 0.016f;
 	double StartTime = FPlatformTime::Seconds();
 	while (!bLimitExecutionTime || (FPlatformTime::Seconds() - StartTime) < MaxProcessingTime)
@@ -331,12 +333,19 @@ void FCardRepresentationAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 		{
 			FCardRepresentationData* OldCardData = Task->StaticMesh->GetRenderData()->LODResources[0].CardRepresentationData;
 
-			{
-				// Cause all components using this static mesh to get re-registered, which will recreate their proxies and primitive uniform buffers
-				FStaticMeshComponentRecreateRenderStateContext RecreateRenderStateContext(Task->StaticMesh, false);
+			// Assign the new data, this is safe because the render threads makes a copy of the pointer at scene proxy creation time.
+			Task->StaticMesh->GetRenderData()->LODResources[0].CardRepresentationData = Task->GeneratedCardRepresentation;
 
-				// Assign the new data
-				Task->StaticMesh->GetRenderData()->LODResources[0].CardRepresentationData = Task->GeneratedCardRepresentation;
+			// Any already created render state needs to be dirtied
+			if (Task->StaticMesh->GetRenderData()->IsInitialized())
+			{
+				for (UStaticMeshComponent* Component : ObjectCacheScope.GetContext().GetStaticMeshComponents(Task->StaticMesh))
+				{
+					if (Component->IsRegistered() && Component->IsRenderStateCreated())
+					{
+						Component->MarkRenderStateDirty();
+					}
+				}
 			}
 
 			// Rendering thread may still be referencing the old one, use the deferred cleanup interface to delete it next frame when it is safe

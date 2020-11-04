@@ -108,6 +108,7 @@
 	#include "Features/IModularFeatures.h"
 	#include "GameFramework/WorldSettings.h"
 	#include "SystemSettings.h"
+	#include "ObjectCacheContext.h"
 	#include "EngineStats.h"
 	#include "EngineGlobals.h"
 	#include "AudioThread.h"
@@ -4945,23 +4946,31 @@ void FEngineLoop::Tick()
 			}
 		}
 
-		if (GShaderCompilingManager)
 		{
-			// Process any asynchronous shader compile results that are ready, limit execution time
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_Tick_GShaderCompilingManager);
-			GShaderCompilingManager->ProcessAsyncResults(true, false);
-		}
+			// Reuse ObjectIterator Caching and Reverse lookups for the duration of all asset updates
+			FObjectCacheContextScope ObjectCacheScope;
 
-		if (GDistanceFieldAsyncQueue)
-		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_Tick_GDistanceFieldAsyncQueue);
-			GDistanceFieldAsyncQueue->ProcessAsyncTasks(true);
-		}
-		
-		if (GCardRepresentationAsyncQueue)
-		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_Tick_GCardRepresentationAsyncQueue);
-			GCardRepresentationAsyncQueue->ProcessAsyncTasks(true);
+			if (GShaderCompilingManager)
+			{
+				// Process any asynchronous shader compile results that are ready, limit execution time
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_Tick_GShaderCompilingManager);
+				GShaderCompilingManager->ProcessAsyncResults(true, false);
+			}
+
+			if (GDistanceFieldAsyncQueue)
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_Tick_GDistanceFieldAsyncQueue);
+				GDistanceFieldAsyncQueue->ProcessAsyncTasks(true);
+			}
+
+			if (GCardRepresentationAsyncQueue)
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_Tick_GCardRepresentationAsyncQueue);
+				GCardRepresentationAsyncQueue->ProcessAsyncTasks(true);
+			}
+#if WITH_EDITOR
+			FTextureCompilingManager::Get().ProcessAsyncTasks(true);
+#endif
 		}
 #if !UE_SERVER
 		// tick media framework

@@ -13,10 +13,15 @@ class UTexture;
 class FQueuedThreadPool;
 enum class EQueuedWorkPriority : uint8;
 
-class FTextureCompilingManager : public FTickableGameObject
+class FTextureCompilingManager
 {
 public:
 	ENGINE_API static FTextureCompilingManager& Get();
+
+	/**
+	 * Returns true if the feature is currently activated.
+	 */
+	ENGINE_API bool IsAsyncTextureCompilationEnabled() const;
 
 	/** 
 	 * Returns the number of outstanding texture compilations.
@@ -44,6 +49,11 @@ public:
 	ENGINE_API bool IsAsyncCompilationAllowed(UTexture* InTexture) const;
 
 	/**
+	 * Request that the texture be processed at the specified priority.
+	 */
+	ENGINE_API bool RequestPriorityChange(UTexture* InTexture, EQueuedWorkPriority Priority);
+
+	/**
 	 * Returns the priority at which the given texture should be scheduled.
 	 */
 	ENGINE_API EQueuedWorkPriority GetBasePriority(UTexture* InTexture) const;
@@ -58,18 +68,16 @@ public:
 	 */
 	ENGINE_API void Shutdown();
 
-protected:
-	virtual void Tick(float DeltaTime) override;
-	virtual bool IsTickableWhenPaused() const override { return true; }
-	virtual bool IsTickableInEditor() const override { return true; }
-	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(FTextureCompilingManager, STATGROUP_Tickables); }
+	/** Called once per frame, fetches completed tasks and applies them to the scene. */
+	ENGINE_API void ProcessAsyncTasks(bool bLimitExecutionTime = false);
 
 private:
 	bool bHasShutdown = false;
 	TArray<TSet<TWeakObjectPtr<UTexture>>> RegisteredTextureBuckets;
 
-	void ProcessTextures(int32 MaximumPriority = -1);
-	bool IsAsyncTextureCompilationEnabled() const;
+	void PostTextureCompilation(const TSet<UTexture*>& InCompiledTextures);
+	void FinishCompilationsForGame();
+	void ProcessTextures(bool bLimitExecutionTime, int32 MaximumPriority = -1);
 	void UpdateCompilationNotification();
 	void FinishTextureCompilation(UTexture* Texture);
 };

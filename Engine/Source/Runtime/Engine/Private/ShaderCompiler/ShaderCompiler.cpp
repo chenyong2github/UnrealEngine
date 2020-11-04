@@ -53,6 +53,8 @@
 #include "ShaderCore.h"
 #include "DistributedBuildInterface/Public/DistributedBuildControllerInterface.h"
 #include "Misc/ScopeRWLock.h"
+#include "ObjectCacheContext.h"
+
 #if WITH_EDITOR
 #include "TextureCompiler.h"
 #include "Rendering/StaticLightingSystemInterface.h"
@@ -936,6 +938,8 @@ static void ProcessErrors(const FShaderCompileJob& CurrentJob, TArray<FString>& 
 
 static bool ReadSingleJob(FShaderCompileJob* CurrentJob, FArchive& OutputFile)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ReadSingleJob);
+
 	check(!CurrentJob->bFinalized);
 	CurrentJob->bFinalized = true;
 
@@ -1257,6 +1261,8 @@ void FShaderCompileUtilities::DoReadTaskResults(const TArray<FShaderCommonCompil
 	// Requeue any jobs we wish to run again
 	if (ReissueSourceJobs.Num())
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ReissueShaderJobs);
+
 		TArray<FShaderCommonCompileJobPtr> ReissueJobs;
 		ReissueJobs.Reserve(ReissueSourceJobs.Num());
 		const uint32 JobId = FShaderCommonCompileJob::GetNextJobId();
@@ -1789,6 +1795,8 @@ void FShaderCompileThreadRunnable::ReadAvailableResults()
 		// Check for available result files
 		if (CurrentWorkerInfo.QueuedJobs.Num() > 0)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompileThreadRunnable::ReadAvailableResults);
+
 			// Distributed compiles always use the same directory
 			const FString WorkingDirectory = Manager->AbsoluteShaderBaseWorkingDirectory + FString::FromInt(WorkerIndex) + TEXT("/");
 			// 'Only' indicates to the worker that it should log and continue checking for the input file after the first one is processed
@@ -2537,6 +2545,7 @@ void FShaderCompilingManager::ReleaseJob(FShaderCommonCompileJob* Job)
 
 void FShaderCompilingManager::SubmitJobs(TArray<FShaderCommonCompileJobPtr>& NewJobs, const FString MaterialBasePath, const FString PermutationString)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompilingManager::SubmitJobs);
 	check(!FPlatformProperties::RequiresCookedData());
 
 	if (NewJobs.Num() == 0)
@@ -3044,11 +3053,12 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 			// shadermap it is stored in, while cached MDCs can reference its memory. Re-registering will
 			// re-create the cache.
 			{
-				TIndirectArray<FComponentRecreateRenderStateContext> ComponentContexts;
-				for (TObjectIterator<UPrimitiveComponent> PrimitiveIt; PrimitiveIt; ++PrimitiveIt)
-				{
-					UPrimitiveComponent* PrimitiveComponent = *PrimitiveIt;
+				TRACE_CPUPROFILER_EVENT_SCOPE(PropagateGlobalShadersToAllPrimitives);
 
+				FObjectCacheContextScope ObjectCacheScope;
+				TIndirectArray<FComponentRecreateRenderStateContext> ComponentContexts;
+				for (UPrimitiveComponent* PrimitiveComponent : ObjectCacheScope.GetContext().GetPrimitiveComponents())
+				{
 					if (PrimitiveComponent->IsRenderStateCreated())
 					{
 						ComponentContexts.Add(new FComponentRecreateRenderStateContext(PrimitiveComponent));
@@ -3121,22 +3131,19 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 
 void FShaderCompilingManager::PropagateMaterialChangesToPrimitives(const TMap<TRefCountPtr<FMaterial>, TRefCountPtr<FMaterialShaderMap>>& MaterialsToUpdate)
 {
-	TArray<UMaterialInterface*> UsedMaterials;
+	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompilingManager::PropagateMaterialChangesToPrimitives);
+
+	FObjectCacheContextScope ObjectCacheScope;
 	TIndirectArray<FComponentRecreateRenderStateContext> ComponentContexts;
-
-	for (TObjectIterator<UPrimitiveComponent> PrimitiveIt; PrimitiveIt; ++PrimitiveIt)
+	for (UPrimitiveComponent* PrimitiveComponent : ObjectCacheScope.GetContext().GetPrimitiveComponents())
 	{
-		UPrimitiveComponent* PrimitiveComponent = *PrimitiveIt;
-
 		if (PrimitiveComponent->IsRenderStateCreated())
 		{
-			UsedMaterials.Reset();
 			bool bPrimitiveIsDependentOnMaterial = false;
 
 			// Note: relying on GetUsedMaterials to be accurate, or else we won't propagate to the right primitives and the renderer will crash later
 			// FPrimitiveSceneProxy::VerifyUsedMaterial is used to make sure that all materials used for rendering are reported in GetUsedMaterials
-			PrimitiveComponent->GetUsedMaterials(UsedMaterials);
-
+			const TArray<UMaterialInterface*>& UsedMaterials = ObjectCacheScope.GetContext().GetUsedMaterials(PrimitiveComponent);
 			if (UsedMaterials.Num() > 0)
 			{
 				for (TMap<TRefCountPtr<FMaterial>, TRefCountPtr<FMaterialShaderMap>>::TConstIterator MaterialIt(MaterialsToUpdate); MaterialIt; ++MaterialIt)

@@ -23,6 +23,7 @@
 #include "MeshCardRepresentation.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
 #include "Async/Async.h"
+#include "ObjectCacheContext.h"
 
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
@@ -1156,8 +1157,9 @@ FString FDistanceFieldAsyncQueue::GetReferencerName() const
 void FDistanceFieldAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 {
 #if WITH_EDITOR
-	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::ProcessAsyncTasks)
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::ProcessAsyncTasks);
 
+	FObjectCacheContextScope ObjectCacheScope;
 	const double MaxProcessingTime = 0.016f;
 	double StartTime = FPlatformTime::Seconds();
 	while (!bLimitExecutionTime || (FPlatformTime::Seconds() - StartTime) < MaxProcessingTime)
@@ -1183,19 +1185,19 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 			Task->GeneratedVolumeData->VolumeTexture.Initialize(Task->StaticMesh);
 			FDistanceFieldVolumeData* OldVolumeData = Task->StaticMesh->GetRenderData()->LODResources[0].DistanceFieldData;
 
+			// Assign the new volume data, this is safe because the render thread makes a copy of the pointer at scene proxy creation time.
+			Task->StaticMesh->GetRenderData()->LODResources[0].DistanceFieldData = Task->GeneratedVolumeData;
+
 			// Renderstates are not initialized between UStaticMesh::PreEditChange() and UStaticMesh::PostEditChange()
 			if (Task->StaticMesh->GetRenderData()->IsInitialized())
 			{
-				// Cause all components using this static mesh to get re-registered, which will recreate their proxies and primitive uniform buffers
-				FStaticMeshComponentRecreateRenderStateContext RecreateRenderStateContext(Task->StaticMesh, false);
-
-				// Assign the new volume data
-				Task->StaticMesh->GetRenderData()->LODResources[0].DistanceFieldData = Task->GeneratedVolumeData;
-			}
-			else
-			{
-				// Assign the new volume data
-				Task->StaticMesh->GetRenderData()->LODResources[0].DistanceFieldData = Task->GeneratedVolumeData;
+				for (UStaticMeshComponent* Component : ObjectCacheScope.GetContext().GetStaticMeshComponents(Task->StaticMesh))
+				{
+					if (Component->IsRegistered() && Component->IsRenderStateCreated())
+					{
+						Component->MarkRenderStateDirty();
+					}
+				}
 			}
 
 			OldVolumeData->VolumeTexture.Release();
