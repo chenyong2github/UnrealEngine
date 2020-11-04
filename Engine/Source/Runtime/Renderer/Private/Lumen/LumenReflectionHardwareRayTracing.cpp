@@ -63,6 +63,22 @@ namespace Lumen
 		return EHardwareRayTracedReflectionsLightingMode::LightingFromSurfaceCache;
 #endif
 	}
+
+	const TCHAR* GetLightingModeName(EHardwareRayTracedReflectionsLightingMode LightingMode)
+	{
+		switch (LightingMode)
+		{
+		case EHardwareRayTracedReflectionsLightingMode::LightingFromSurfaceCache:
+			return TEXT("LightingFromSurfaceCache");
+		case EHardwareRayTracedReflectionsLightingMode::EvaluateMaterial:
+			return TEXT("EvaluateMaterial");
+		case EHardwareRayTracedReflectionsLightingMode::EvaluateMaterialAndDirectLighting:
+			return TEXT("EvaluateMaterialAndDirectLighting");
+		default:
+			checkf(0, TEXT("Unhandled EHardwareRayTracedReflectionsLightingMode"));
+		}
+		return nullptr;
+	}
 }
 
 #if RHI_RAYTRACING
@@ -159,7 +175,7 @@ void RenderLumenHardwareRayTracingReflections(
 	ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("TraceCards %ux%u(HardwareRayTracing)", View.ViewRect.Width(), View.ViewRect.Height()),
+		RDG_EVENT_NAME("HardwareRayTracing %ux%u LightingMode=%s", View.ViewRect.Width(), View.ViewRect.Height(), Lumen::GetLightingModeName((Lumen::EHardwareRayTracedReflectionsLightingMode)PassParameters->LightingMode)),
 		PassParameters,
 		ERDGPassFlags::Compute,
 		[PassParameters, &View, RayGenerationShader](FRHICommandList& RHICmdList)

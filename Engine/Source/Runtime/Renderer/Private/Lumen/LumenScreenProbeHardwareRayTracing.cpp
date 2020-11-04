@@ -740,12 +740,9 @@ void RenderHardwareRayTracingScreenProbeSubpass(FRDGBuilder& GraphBuilder,
 	bool bReferenceDirectMaterialTracing = MaterialEvaluationType == ERayHitMaterialEvaluationType::NormalFromMaterialLightingFromHit;
 	
 	GraphBuilder.AddPass(
-		bReferenceDirectMaterialTracing ? RDG_EVENT_NAME("DiffuseIndirect %ux%u Res (HardwareRayTracing, direct material evaluation)",
-			RayTracingResolution.X,
-			RayTracingResolution.Y)
-		:
-		RDG_EVENT_NAME("DiffuseIndirect %ux%u Res (HardwareRayTracing, Ray hit)", RayTracingResolution.X,
-			RayTracingResolution.Y),
+		bReferenceDirectMaterialTracing ? 
+			RDG_EVENT_NAME("HardwareRayTracing %ux%u (direct material evaluation)", RayTracingResolution.X, RayTracingResolution.Y) :
+			RDG_EVENT_NAME("HardwareRayTracing %ux%u", RayTracingResolution.X, RayTracingResolution.Y),
 		PassParameters,
 		ERDGPassFlags::Compute,
 		[PassParameters, &View, RayGenShader, RayTracingResolution, MaterialEvaluationType](FRHICommandList& RHICmdList)
@@ -937,12 +934,9 @@ void VisualizeLumenHardwareRayTracingPrimaryRaySubpass(FRDGBuilder& GraphBuilder
 	bool bReferenceDirectMaterialTracing = MaterialEvaluationType == ERayHitMaterialEvaluationType::NormalFromMaterialLightingFromHit;
 
 	GraphBuilder.AddPass(
-		bReferenceDirectMaterialTracing ? RDG_EVENT_NAME("DiffuseIndirect %ux%u Res (HardwareRayTracing, direct material evaluation)",
-			RayTracingResolution.X,
-			RayTracingResolution.Y)
-		:
-		RDG_EVENT_NAME("DiffuseIndirect %ux%u Res (HardwareRayTracing, Ray hit)", RayTracingResolution.X,
-			RayTracingResolution.Y),
+		bReferenceDirectMaterialTracing ? 
+			RDG_EVENT_NAME("HardwareRayTracing %ux%u (direct material evaluation)", RayTracingResolution.X, RayTracingResolution.Y) :
+			RDG_EVENT_NAME("HardwareRayTracing %ux%u", RayTracingResolution.X, RayTracingResolution.Y),
 		PassParameters,
 		ERDGPassFlags::Compute,
 		[PassParameters, &View, RayGenShader, RayTracingResolution, MaterialEvaluationType](FRHICommandList& RHICmdList)
