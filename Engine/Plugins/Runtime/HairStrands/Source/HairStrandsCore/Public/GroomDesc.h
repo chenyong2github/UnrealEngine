@@ -69,7 +69,7 @@ struct FHairGroupDesc
 	bool bUseHairRaytracingGeometry_Override = false;
 
 	/** Bias the selected LOD. A value >0 will progressively select lower detailed lods. Used when r.HairStrands.Cluster.Culling = 1. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = "Performance", AdvancedDisplay, meta = (ClampMin = "-7.0", ClampMax = "7.0", UIMin = "-7.0", UIMax = "7.0", SliderExponent = 1))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, interp, Category = "Performance", AdvancedDisplay, meta = (ClampMin = "-7.0", ClampMax = "7.0", UIMin = "-7.0", UIMax = "7.0", SliderExponent = 1))
 	float LODBias = 0;
 
 	/** Insure the hair does not alias. When enable, group of hairs might appear thicker. Isolated hair should remain thin. */
