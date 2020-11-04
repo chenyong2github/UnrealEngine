@@ -845,6 +845,8 @@ FExposureBufferData* FSceneViewState::FEyeAdaptationManager::GetOrCreateBuffer(F
 
 		ExposureBufferData[BufferIndex].SRV = RHICmdList.CreateShaderResourceView(ExposureBufferData[BufferIndex].Buffer, sizeof(FVector4), PF_A32B32G32R32F);
 		ExposureBufferData[BufferIndex].UAV = RHICmdList.CreateUnorderedAccessView(ExposureBufferData[BufferIndex].Buffer, PF_A32B32G32R32F);
+
+		RHICmdList.Transition(FRHITransitionInfo(ExposureBufferData[BufferIndex].UAV, ERHIAccess::UAVMask, ERHIAccess::SRVMask));
 	}
 
 	return &ExposureBufferData[BufferIndex];
@@ -886,20 +888,19 @@ void FSceneViewState::FEyeAdaptationManager::SwapBuffers(bool bInUpdateLastExpos
 			bReadbackCompleted = true;
 		}
 
-		RHICmdList.Transition(FRHITransitionInfo(ExposureBufferData[CurrentBuffer].UAV, ERHIAccess::Unknown, ERHIAccess::CopySrc));
-
-		if (!ExposureBufferReadback)
+		if (bReadbackCompleted || !ExposureBufferReadback)
 		{
-			static const FName ExposureValueName(TEXT("Scene view state exposure readback"));
-			ExposureBufferReadback.Reset(new FRHIGPUBufferReadback(ExposureValueName));
+			if (!ExposureBufferReadback)
+			{
+				static const FName ExposureValueName(TEXT("Scene view state exposure readback"));
+				ExposureBufferReadback.Reset(new FRHIGPUBufferReadback(ExposureValueName));
+			}
 
-			// Send the first request.
+			RHICmdList.Transition(FRHITransitionInfo(ExposureBufferData[CurrentBuffer].UAV, ERHIAccess::UAVMask, ERHIAccess::CopySrc));
+
 			ExposureBufferReadback->EnqueueCopy(RHICmdList, ExposureBufferData[CurrentBuffer].Buffer);
-		}
-		else if (bReadbackCompleted) // it exists and ready
-		{
-			// Send the request for next update.
-			ExposureBufferReadback->EnqueueCopy(RHICmdList, ExposureBufferData[CurrentBuffer].Buffer);
+
+			RHICmdList.Transition(FRHITransitionInfo(ExposureBufferData[CurrentBuffer].UAV, ERHIAccess::CopySrc, ERHIAccess::SRVMask));
 		}
 	}
 
