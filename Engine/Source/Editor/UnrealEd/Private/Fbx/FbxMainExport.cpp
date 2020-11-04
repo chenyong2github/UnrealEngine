@@ -1922,39 +1922,7 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 
 	// Get all the transform tracks that affect this binding
 	TArray<TWeakObjectPtr<UMovieScene3DTransformTrack> > TransformTracks;
-	for ( const FMovieSceneBinding& MovieSceneBinding : MovieScene->GetBindings() )
-	{
-		for ( TWeakObjectPtr<UObject> RuntimeObject : MovieScenePlayer->FindBoundObjects(MovieSceneBinding.GetObjectGuid(), InSequenceID) )
-		{
-			if (RuntimeObject.IsValid())
-			{
-				AActor* RuntimeActor = Cast<AActor>(RuntimeObject);
-				UActorComponent* RuntimeComponent = nullptr;
-				if (!RuntimeActor)
-				{
-					RuntimeComponent = Cast<UActorComponent>(RuntimeObject);
-					if (RuntimeComponent)
-					{
-						RuntimeActor = RuntimeComponent->GetOwner();
-					}
-				}
-
-				if (RuntimeActor == Actor || RuntimeComponent == BoundObject)
-				{
-					for (UMovieSceneTrack* Track : MovieSceneBinding.GetTracks())
-					{
-						if (Track->IsA(UMovieScene3DTransformTrack::StaticClass()))
-						{
-							TransformTracks.Add(Cast<UMovieScene3DTransformTrack>(Track));
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Also need to skip 3d transform track if this object is an actor and the component has a transform track because otherwise 
-	if (BoundObject && BoundObject->IsA<AActor>())
+	if (BoundObject)
 	{
 		for ( const FMovieSceneBinding& MovieSceneBinding : MovieScene->GetBindings() )
 		{
@@ -1962,14 +1930,49 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 			{
 				if (RuntimeObject.IsValid())
 				{
-					UActorComponent* RuntimeComponent = Cast<UActorComponent>(RuntimeObject);
-					if (RuntimeComponent && RuntimeComponent->GetOwner() == BoundObject)
+					AActor* RuntimeActor = Cast<AActor>(RuntimeObject);
+					UActorComponent* RuntimeComponent = nullptr;
+					if (!RuntimeActor)
+					{
+						RuntimeComponent = Cast<UActorComponent>(RuntimeObject);
+						if (RuntimeComponent)
+						{
+							RuntimeActor = RuntimeComponent->GetOwner();
+						}
+					}
+
+					if (RuntimeActor == Actor || RuntimeComponent == BoundObject)
 					{
 						for (UMovieSceneTrack* Track : MovieSceneBinding.GetTracks())
 						{
 							if (Track->IsA(UMovieScene3DTransformTrack::StaticClass()))
 							{
-								bSkip3DTransformTrack = true;
+								TransformTracks.Add(Cast<UMovieScene3DTransformTrack>(Track));
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Also need to skip 3d transform track if this object is an actor and the component has a transform track because otherwise 
+		if (BoundObject->IsA<AActor>())
+		{
+			for ( const FMovieSceneBinding& MovieSceneBinding : MovieScene->GetBindings() )
+			{
+				for ( TWeakObjectPtr<UObject> RuntimeObject : MovieScenePlayer->FindBoundObjects(MovieSceneBinding.GetObjectGuid(), InSequenceID) )
+				{
+					if (RuntimeObject.IsValid())
+					{
+						UActorComponent* RuntimeComponent = Cast<UActorComponent>(RuntimeObject);
+						if (RuntimeComponent && RuntimeComponent->GetOwner() == BoundObject)
+						{
+							for (UMovieSceneTrack* Track : MovieSceneBinding.GetTracks())
+							{
+								if (Track->IsA(UMovieScene3DTransformTrack::StaticClass()))
+								{
+									bSkip3DTransformTrack = true;
+								}
 							}
 						}
 					}
@@ -3199,7 +3202,7 @@ void FFbxExporter::ExportLevelSequenceInterrogated3DTransformTrack(FbxNode* FbxN
 	Interrogator.Update();
 
 	TArray<FTransform> WorldTransforms;
-	Interrogator.QueryWorldSpaceTransforms(BoundComponent, WorldTransforms);
+	Interrogator.QueryWorldSpaceTransforms(BoundComponent ? BoundComponent : BoundActor->GetRootComponent(), WorldTransforms);
 
 	ensure(WorldTransforms.Num() == AnimationLength);
 
