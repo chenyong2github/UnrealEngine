@@ -354,6 +354,7 @@ void GameThread_UpdateMIParameter(const UMaterialInstance* Instance, const Param
 		[Resource, ParameterInfo, Value](FRHICommandListImmediate& RHICmdList)
 		{
 			Resource->RenderThread_UpdateParameter(ParameterInfo, Value);
+			Resource->CacheUniformExpressions(false);
 		});
 }
 
@@ -3707,7 +3708,6 @@ bool UMaterialInstance::SetVectorParameterByIndexInternal(int32 ParameterIndex, 
 		ParameterValue->ParameterValue = Value;
 		// Update the material instance data in the rendering thread.
 		GameThread_UpdateMIParameter(this, *ParameterValue);
-		CacheMaterialInstanceUniformExpressions(this);
 	}
 
 	return true;
@@ -3735,7 +3735,6 @@ void UMaterialInstance::SetVectorParameterValueInternal(const FMaterialParameter
 		ParameterValue->ParameterValue = Value;
 		// Update the material instance data in the rendering thread.
 		GameThread_UpdateMIParameter(this, *ParameterValue);
-		CacheMaterialInstanceUniformExpressions(this);
 	}
 }
 
@@ -3752,7 +3751,6 @@ bool UMaterialInstance::SetScalarParameterByIndexInternal(int32 ParameterIndex, 
 		ParameterValue->ParameterValue = Value;
 		// Update the material instance data in the rendering thread.
 		GameThread_UpdateMIParameter(this, *ParameterValue);
-		CacheMaterialInstanceUniformExpressions(this);
 	}
 
 	return true;
@@ -3780,7 +3778,6 @@ void UMaterialInstance::SetScalarParameterValueInternal(const FMaterialParameter
 		ParameterValue->ParameterValue = Value;
 		// Update the material instance data in the rendering thread.
 		GameThread_UpdateMIParameter(this, *ParameterValue);
-		CacheMaterialInstanceUniformExpressions(this);
 	}
 }
 
@@ -3812,7 +3809,6 @@ void UMaterialInstance::SetScalarParameterAtlasInternal(const FMaterialParameter
 			ParameterValue->ParameterValue = NewValue;
 			// Update the material instance data in the rendering thread.
 			GameThread_UpdateMIParameter(this, *ParameterValue);
-			CacheMaterialInstanceUniformExpressions(this);
 		}
 	}
 }
@@ -3843,7 +3839,6 @@ void UMaterialInstance::SetTextureParameterValueInternal(const FMaterialParamete
 			ParameterValue->ParameterValue = Value;
 			// Update the material instance data in the rendering thread.
 			GameThread_UpdateMIParameter(this, *ParameterValue);
-			CacheMaterialInstanceUniformExpressions(this);
 		}		
 	}
 }
@@ -3873,7 +3868,6 @@ void UMaterialInstance::SetRuntimeVirtualTextureParameterValueInternal(const FMa
 			ParameterValue->ParameterValue = Value;
 			// Update the material instance data in the rendering thread.
 			GameThread_UpdateMIParameter(this, *ParameterValue);
-			CacheMaterialInstanceUniformExpressions(this);
 		}
 	}
 }
@@ -3903,7 +3897,6 @@ void UMaterialInstance::SetFontParameterValueInternal(const FMaterialParameterIn
 		ParameterValue->FontPage = FontPage;
 		// Update the material instance data in the rendering thread.
 		GameThread_UpdateMIParameter(this, *ParameterValue);
-		CacheMaterialInstanceUniformExpressions(this);
 	}
 }
 
