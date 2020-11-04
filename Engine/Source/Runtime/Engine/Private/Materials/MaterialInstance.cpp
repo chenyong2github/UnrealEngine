@@ -2836,6 +2836,7 @@ void UMaterialInstance::CacheResourceShadersForRendering(EMaterialShaderPrecompi
 				if (!PackageFileName.IsNone() && ReloadMaterialResource(&Tmp, PackageFileName.ToString(), OffsetToFirstResource, FeatureLevel, ActiveQualityLevel))
 				{
 					CurrentResource->SetInlineShaderMap(Tmp.GetGameThreadShaderMap());
+					CurrentResource->UpdateInlineShaderMapIsComplete();
 				}
 			}
 #endif // STORE_ONLY_ACTIVE_SHADERMAPS
