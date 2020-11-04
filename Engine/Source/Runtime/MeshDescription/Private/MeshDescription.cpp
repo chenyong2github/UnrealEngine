@@ -338,31 +338,59 @@ struct FMeshPolygonGroup_Legacy
 
 
 template <typename T>
-void FixAttributesSize(int32 ExpectedNum, TAttributesSet<T>& AttributesSet)
+struct FFixAttributesSizeHelper
 {
-	// Ensure that the attribute set is the same size as the mesh element array they describe
-	// If there are extra elements, and they are not set to trivial defaults, this is an error.
-	bool bAllDefault = true;
-	AttributesSet.ForEach([ExpectedNum, &bAllDefault](const FName AttributeName, auto AttributesConstRef)
+	explicit FFixAttributesSizeHelper(int32 InExpectedNum)
+		: ExpectedNum(InExpectedNum),
+		  bAllDefault(true)
+	{}
+
+	template <typename U>
+	void operator()(const FName AttributeName, TMeshAttributesRef<T, TArrayView<U>> AttributeArrayRef)
+	{
+		// Not expecting arrays in legacy attributes
+		check(false);
+	}
+
+	template <typename U>
+	void operator()(const FName AttributeName, TMeshAttributesRef<T, TArrayAttribute<U>> AttributeArrayRef)
+	{
+		// Not expecting arrays in legacy attributes
+		check(false);
+	}
+
+	template <typename U>
+	void operator()(const FName AttributeName, TMeshAttributesRef<T, U> AttributeArrayRef)
+	{
+		if (bAllDefault)
 		{
-			if (bAllDefault)
+			for (int32 Channel = 0; Channel < AttributeArrayRef.GetNumChannels(); Channel++)
 			{
-				for (int32 Channel = 0; Channel < AttributesConstRef.GetNumChannels(); Channel++)
+				for (int32 Index = ExpectedNum; Index < AttributeArrayRef.GetNumElements(); Index++)
 				{
-					for (int32 Index = ExpectedNum; Index < AttributesConstRef.GetNumElements(); Index++)
+					if (AttributeArrayRef.Get(T(Index), Channel) != AttributeArrayRef.GetDefaultValue())
 					{
-						if (AttributesConstRef.Get(T(Index), Channel) != AttributesConstRef.GetDefaultValue())
-						{
-							bAllDefault = false;
-							break;
-						}
+						bAllDefault = false;
+						return;
 					}
 				}
 			}
 		}
-	);
+	}
 
-	check(bAllDefault);	// If this fires, something is very wrong with the legacy asset
+	int32 ExpectedNum;
+	bool bAllDefault;
+};
+
+
+template <typename T>
+void FixAttributesSize(int32 ExpectedNum, TAttributesSet<T>& AttributesSet)
+{
+	// Ensure that the attribute set is the same size as the mesh element array they describe
+	// If there are extra elements, and they are not set to trivial defaults, this is an error.
+	FFixAttributesSizeHelper<T> Helper(ExpectedNum);
+	AttributesSet.ForEach(Helper);
+	check(Helper.bAllDefault);	// If this fires, something is very wrong with the legacy asset
 	AttributesSet.SetNumElements(ExpectedNum);
 }
 

@@ -1894,9 +1894,12 @@ bool FStaticMeshOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescriptio
 				DuplicateMeshDescription.VertexInstanceAttributes().ForEach(
 					[&PolyHash, &RefVertexInstanceID](const FName AttributeName, auto AttributeArrayRef)
 					{
-						for (int32 Index = 0; Index < AttributeArrayRef.GetNumChannels(); ++Index)
+						for (int32 Channel = 0; Channel < AttributeArrayRef.GetNumChannels(); ++Channel)
 						{
-							PolyHash = HashCombine(PolyHash, GetTypeHash(AttributeArrayRef.Get(RefVertexInstanceID)));
+							for (const auto& Element : AttributeArrayRef.GetArrayView(RefVertexInstanceID, Channel))
+							{
+								PolyHash = HashCombine(PolyHash, GetTypeHash(Element));
+							}
 						}
 					}
 				);

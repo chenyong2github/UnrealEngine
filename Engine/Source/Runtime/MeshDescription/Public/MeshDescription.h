@@ -55,20 +55,6 @@ template <typename AttributeType> using TTriangleAttributesConstRef = TMeshAttri
 template <typename AttributeType> using TPolygonAttributesConstRef = TMeshAttributesConstRef<FPolygonID, AttributeType>;
 template <typename AttributeType> using TPolygonGroupAttributesConstRef = TMeshAttributesConstRef<FPolygonGroupID, AttributeType>;
 
-template <typename AttributeType> using TVertexAttributesView = TMeshAttributesView<FVertexID, AttributeType>;
-template <typename AttributeType> using TVertexInstanceAttributesView = TMeshAttributesView<FVertexInstanceID, AttributeType>;
-template <typename AttributeType> using TEdgeAttributesView = TMeshAttributesView<FEdgeID, AttributeType>;
-template <typename AttributeType> using TTriangleAttributesView = TMeshAttributesView<FTriangleID, AttributeType>;
-template <typename AttributeType> using TPolygonAttributesView = TMeshAttributesView<FPolygonID, AttributeType>;
-template <typename AttributeType> using TPolygonGroupAttributesView = TMeshAttributesView<FPolygonGroupID, AttributeType>;
-
-template <typename AttributeType> using TVertexAttributesConstView = TMeshAttributesConstView<FVertexID, AttributeType>;
-template <typename AttributeType> using TVertexInstanceAttributesConstView = TMeshAttributesConstView<FVertexInstanceID, AttributeType>;
-template <typename AttributeType> using TEdgeAttributesConstView = TMeshAttributesConstView<FEdgeID, AttributeType>;
-template <typename AttributeType> using TTriangleAttributesConstView = TMeshAttributesConstView<FTriangleID, AttributeType>;
-template <typename AttributeType> using TPolygonAttributesConstView = TMeshAttributesConstView<FPolygonID, AttributeType>;
-template <typename AttributeType> using TPolygonGroupAttributesConstView = TMeshAttributesConstView<FPolygonGroupID, AttributeType>;
-
 UENUM()
 enum class EComputeNTBsOptions : uint32
 {
@@ -1190,6 +1176,9 @@ public:
 
 	/** Remaps the element IDs in the mesh description according to the passed in object */
 	void Remap( const FElementIDRemappings& Remappings );
+
+	/** Gets the number of UV element channels */
+	int32 GetNumUVElementChannels() const { return UVElements->GetNumChannels(); }
 
 	/** Sets the specified number of UV channels */
 	void SetNumUVChannels(const int32 NumUVChannels);
