@@ -5,9 +5,14 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Templates/SharedPointer.h"
-#include "LandscapeFileFormatInterface.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "Templates/EnableIf.h"
+
+template<class T>
+class ILandscapeFileFormat;
+
+using ILandscapeHeightmapFileFormat = ILandscapeFileFormat<uint16>;
+using ILandscapeWeightmapFileFormat = ILandscapeFileFormat<uint8>;
 
 class FUICommandList;
 

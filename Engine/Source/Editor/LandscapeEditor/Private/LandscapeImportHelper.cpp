@@ -128,14 +128,25 @@ ELandscapeImportResult GetImportDescriptorInternal(const FString& FilePath, bool
 	FString OutFileImportPattern;
 	FString FilePathPattern;
 	TArray<FString> OutFilesToImport;
-	if (!bSingleFile && FLandscapeImportHelper::ExtractCoordinates(FPaths::GetBaseFilename(FilePath), OutCoord, OutFileImportPattern))
+
+	// If we are handling multiple files handle the case where Filepath is in the _xN_yM.extenstion format or if its a pattern already
+	if (!bSingleFile)
 	{
-		FilePathPattern = FPaths::GetPath(FilePath) / OutFileImportPattern;
+		if (FLandscapeImportHelper::ExtractCoordinates(FPaths::GetBaseFilename(FilePath), OutCoord, OutFileImportPattern))
+		{
+			FilePathPattern = FPaths::GetPath(FilePath) / OutFileImportPattern;
+		}
+		else
+		{
+			FilePathPattern = FPaths::GetBaseFilename(FilePath, false);
+		}
+
 		FLandscapeImportHelper::GetMatchingFiles(FilePathPattern, OutFilesToImport);
+		// We were expecting multiple files but only got one.
+		bSingleFile = OutFilesToImport.Num() == 1 && FilePath == OutFilesToImport[0];
 	}
 	else
 	{
-		bSingleFile = true;
 		OutFilesToImport.Add(FilePath);
 	}
 
@@ -233,16 +244,38 @@ ELandscapeImportResult GetImportDescriptorInternal(const FString& FilePath, bool
 }
 
 template<class T>
-void ExpandImportDataInternal(const TArray<T>& InData, TArray<T>& OutData, const FLandscapeImportResolution& CurrentResolution, const FLandscapeImportResolution& RequiredResolution)
+void TransformImportDataInternal(const TArray<T>& InData, TArray<T>& OutData, const FLandscapeImportResolution& CurrentResolution, const FLandscapeImportResolution& RequiredResolution, ELandscapeImportTransformType TransformType, FIntPoint Offset)
 {
 	check(InData.Num() == CurrentResolution.Width * CurrentResolution.Height);
-	// Center Import data
-	const int32 OffsetX = (int32)(RequiredResolution.Width - CurrentResolution.Width) / 2;
-	const int32 OffsetY = (int32)(RequiredResolution.Height - CurrentResolution.Height) / 2;
-
-	FIntRect SrcRegion(0, 0, CurrentResolution.Width - 1, CurrentResolution.Height - 1);
-	FIntRect DestRegion(-OffsetX, -OffsetY, RequiredResolution.Width - OffsetX - 1, RequiredResolution.Height - OffsetY - 1);
-	FLandscapeConfigHelper::ExpandData<T>(InData, OutData, SrcRegion, DestRegion, true);
+	if (TransformType == ELandscapeImportTransformType::Resample)
+	{
+		const FIntRect SrcRegion(0, 0, CurrentResolution.Width - 1, CurrentResolution.Height - 1);
+		const FIntRect DestRegion(0, 0, RequiredResolution.Width - 1, RequiredResolution.Height - 1);
+		FLandscapeConfigHelper::ResampleData<T>(InData, OutData, SrcRegion, DestRegion);
+	}
+	else if(TransformType != ELandscapeImportTransformType::None)
+	{
+		int32 OffsetX = 0;
+		int32 OffsetY = 0;
+		if (TransformType == ELandscapeImportTransformType::ExpandCentered)
+		{
+			OffsetX = (int32)(RequiredResolution.Width - CurrentResolution.Width) / 2;
+			OffsetY = (int32)(RequiredResolution.Height - CurrentResolution.Height) / 2;
+		}
+		else if (TransformType == ELandscapeImportTransformType::ExpandOffset)
+		{
+			OffsetX = Offset.X;
+			OffsetY = Offset.Y;
+		}
+				
+		const FIntRect SrcRegion(0, 0, CurrentResolution.Width - 1, CurrentResolution.Height - 1);
+		const FIntRect DestRegion(-OffsetX, -OffsetY, RequiredResolution.Width - OffsetX - 1, RequiredResolution.Height - OffsetY - 1);
+		FLandscapeConfigHelper::ExpandData<T>(InData, OutData, SrcRegion, DestRegion, OffsetX != 0 || OffsetY != 0);
+	}
+	else
+	{
+		OutData = InData;
+	}
 }
 
 ELandscapeImportResult FLandscapeImportHelper::GetHeightmapImportDescriptor(const FString& FilePath, bool bSingleFile, FLandscapeImportDescriptor& OutImportDescriptor, FText& OutMessage)
@@ -265,14 +298,14 @@ ELandscapeImportResult FLandscapeImportHelper::GetWeightmapImportData(const FLan
 	return GetImportDataInternal<uint8>(ImportDescriptor, DescriptorIndex, LayerName, 0, OutData, OutMessage);
 }
 
-void FLandscapeImportHelper::ExpandWeightmapImportData(const TArray<uint8>& InData, TArray<uint8>& OutData, const FLandscapeImportResolution& CurrentResolution, const FLandscapeImportResolution& RequiredResolution)
+void FLandscapeImportHelper::TransformWeightmapImportData(const TArray<uint8>& InData, TArray<uint8>& OutData, const FLandscapeImportResolution& CurrentResolution, const FLandscapeImportResolution& RequiredResolution, ELandscapeImportTransformType TransformType, FIntPoint Offset)
 {
-	ExpandImportDataInternal<uint8>(InData, OutData, CurrentResolution, RequiredResolution);
+	TransformImportDataInternal<uint8>(InData, OutData, CurrentResolution, RequiredResolution, TransformType, Offset);
 }
 
-void FLandscapeImportHelper::ExpandHeightmapImportData(const TArray<uint16>& InData, TArray<uint16>& OutData, const FLandscapeImportResolution& CurrentResolution, const FLandscapeImportResolution& RequiredResolution)
+void FLandscapeImportHelper::TransformHeightmapImportData(const TArray<uint16>& InData, TArray<uint16>& OutData, const FLandscapeImportResolution& CurrentResolution, const FLandscapeImportResolution& RequiredResolution, ELandscapeImportTransformType TransformType, FIntPoint Offset)
 {
-	ExpandImportDataInternal<uint16>(InData, OutData, CurrentResolution, RequiredResolution);
+	TransformImportDataInternal<uint16>(InData, OutData, CurrentResolution, RequiredResolution, TransformType, Offset);
 }
 
 void FLandscapeImportHelper::ChooseBestComponentSizeForImport(int32 Width, int32 Height, int32& InOutQuadsPerSection, int32& InOutSectionsPerComponent, FIntPoint& OutComponentCount)

@@ -204,17 +204,26 @@ struct FLandscapeImportLayer : public FLandscapeImportLayerInfo
 	UPROPERTY(Category="Import", VisibleAnywhere)
 	ULandscapeMaterialInstanceConstant* ThumbnailMIC;
 
-	UPROPERTY(Category="Import", VisibleAnywhere)
+	UPROPERTY(Category = "Import", VisibleAnywhere)
 	ELandscapeImportResult ImportResult;
 
-	UPROPERTY(Category="Import", VisibleAnywhere)
+	UPROPERTY(Category = "Import", VisibleAnywhere)
 	FText ErrorMessage;
+
+	UPROPERTY(Category="Export", EditAnywhere, meta = (DisplayName = "Layer File"))
+	FString ExportFilePath;
+
+	UPROPERTY(Category="Import", EditAnywhere)
+	bool bSelected;
+
+	FLandscapeImportDescriptor ImportDescriptor;
 
 	FLandscapeImportLayer()
 		: FLandscapeImportLayerInfo()
 		, ThumbnailMIC(nullptr)
 		, ImportResult(ELandscapeImportResult::Success)
 		, ErrorMessage(FText())
+		, bSelected(false)
 	{
 	}
 };
@@ -523,7 +532,25 @@ class ULandscapeEditorObject : public UObject
 	UPROPERTY(NonTransactional)
 	uint32 ImportLandscape_Height;
 
+	UPROPERTY(Category="Import / Export", EditAnywhere, NonTransactional, meta=(DisplayName="Heightmap File", ShowForTools="ImportExport"))
+	FString HeightmapExportFilename;
+		
+	UPROPERTY(NonTransactional)
+	FIntPoint ImportLandscape_GizmoLocalPosition;
+
+	UPROPERTY(Category = "Import / Export", EditAnywhere, NonTransactional, meta =(ShowForTools = "ImportExport"))
+	ELandscapeImportTransformType ImportType;
+		
+	UPROPERTY(NonTransactional)
+	bool bHeightmapSelected = false;
+	
+	UPROPERTY(Category = "Import / Export", EditAnywhere, NonTransactional, meta = (DisplayName="Export Edit Layer", ShowForTools = "ImportExport", ToolTip="When true exports the selected edit layer, if false exports the blend result"))
+	bool bExportEditLayer = true;
+
+	UPROPERTY(NonTransactional)
 	FLandscapeImportDescriptor HeightmapImportDescriptor;
+	
+	UPROPERTY(NonTransactional)
 	int32 HeightmapImportDescriptorIndex;
 private:
 	UPROPERTY(NonTransactional)
@@ -649,7 +676,7 @@ public:
 	void ClearImportLandscapeData() { ImportLandscape_Data.Empty(); }
 	void ChooseBestComponentSizeForImport();
 	void ImportLandscapeData();
-	void RefreshImportLayersList();
+	void RefreshImportLayersList(bool bRefreshFromTarget = false);
 	ELandscapeImportResult CreateImportLayersInfo(TArray<FLandscapeImportLayerInfo>& OutImportLayerInfos);
 	ELandscapeImportResult CreateNewLayersInfo(TArray<FLandscapeImportLayerInfo>& OutNewLayerInfos);
 	void InitializeDefaultHeightData(TArray<uint16>& OutData);
@@ -657,7 +684,10 @@ public:
 	void UpdateComponentLayerWhitelist();
 	bool UseSingleFileImport() const;
 	void OnChangeImportLandscapeResolution(int32 DescriptorIndex);
-	void OnImportHeightmapFilenameChanged();
+	void OnImportHeightmapFilenameChanged() { RefreshImports(); }
+	void RefreshImports();
+	void OnImportWeightmapFilenameChanged() { RefreshLayerImports(); }
+	void RefreshLayerImports();
 
 	int32 ClampLandscapeSize(int32 InComponentsCount) const
 	{

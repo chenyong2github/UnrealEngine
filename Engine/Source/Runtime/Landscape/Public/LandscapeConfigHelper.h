@@ -88,12 +88,12 @@ public:
 		}
 		else
 		{
-			ExpandData(InData, OutData, InSrcRegion, InDestRegion);
+			ExpandData(InData, OutData, InSrcRegion, InDestRegion, true);
 		}
 	}
 
 	template<typename T>
-	static void ExpandData(const TArray<T>& InData, TArray<T>& OutData, const FIntRect& InSrcRegion, const FIntRect& InDestRegion, bool bOffset = false)
+	static void ExpandData(const TArray<T>& InData, TArray<T>& OutData, const FIntRect& InSrcRegion, const FIntRect& InDestRegion, bool bOffset)
 	{
 		// Regions are in ComponentQuads and we want Vertices (+1)
 		const int32 SrcWidth = InSrcRegion.Width() + 1;
@@ -120,11 +120,12 @@ public:
 			{
 				const int32 X = FMath::Max(0, -OffsetX);
 				const int32 OldX = FMath::Clamp<int32>(X + OffsetX, 0, SrcWidth - 1);
-				FMemory::Memcpy(&OutData[Y * DestWidth + X], &InData[OldY * SrcWidth + OldX], FMath::Min<int32>(SrcWidth, DestWidth) * sizeof(T));
+				const int32 CopySize = FMath::Min<int32>(SrcWidth - OldX, DestWidth) * sizeof(T);
+				FMemory::Memcpy(&OutData[Y * DestWidth + X], &InData[OldY * SrcWidth + OldX], CopySize);
 			}
 
 			const T PadRight = InData[OldY * SrcWidth + SrcWidth - 1];
-			for (int32 X = SrcWidth; X < DestWidth; ++X)
+			for (int32 X = -OffsetX + SrcWidth; X < DestWidth; ++X)
 			{
 				OutData[Y * DestWidth + X] = PadRight;
 			}

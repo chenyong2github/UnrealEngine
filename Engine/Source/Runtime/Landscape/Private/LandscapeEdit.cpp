@@ -3419,6 +3419,26 @@ bool ALandscape::HasAllComponent()
 	return false;
 }
 
+bool ULandscapeInfo::GetLandscapeExtent(ALandscapeProxy* LandscapeProxy, FIntRect& ProxyExtent) const
+{
+	ProxyExtent.Min.X = INT32_MAX;
+	ProxyExtent.Min.Y = INT32_MAX;
+	ProxyExtent.Max.X = INT32_MIN;
+	ProxyExtent.Max.Y = INT32_MIN;
+
+	for (ULandscapeComponent* LandscapeComponent : LandscapeProxy->LandscapeComponents)
+	{
+		LandscapeComponent->GetComponentExtent(ProxyExtent.Min.X, ProxyExtent.Min.Y, ProxyExtent.Max.X, ProxyExtent.Max.Y);
+	}
+	
+	return ProxyExtent.Min.X != INT32_MAX;
+}
+
+bool ULandscapeInfo::GetLandscapeExtent(FIntRect& LandscapeExtent) const
+{
+	return GetLandscapeExtent(LandscapeExtent.Min.X, LandscapeExtent.Min.Y, LandscapeExtent.Max.X, LandscapeExtent.Max.Y);
+}
+
 bool ULandscapeInfo::GetLandscapeExtent(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY) const
 {
 	MinX = MAX_int32;
@@ -3562,29 +3582,32 @@ bool ULandscapeInfo::IsValidPosition(int32 X, int32 Y)
 
 void ULandscapeInfo::ExportHeightmap(const FString& Filename)
 {
-	int32 MinX = MAX_int32;
-	int32 MinY = MAX_int32;
-	int32 MaxX = -MAX_int32;
-	int32 MaxY = -MAX_int32;
-
-	if (!GetLandscapeExtent(MinX, MinY, MaxX, MaxY))
+	FIntRect ExportRegion;
+	if (!GetLandscapeExtent(ExportRegion))
 	{
 		return;
 	}
 
+	ExportHeightmap(Filename, ExportRegion);
+}
+
+void ULandscapeInfo::ExportHeightmap(const FString& Filename, const FIntRect& ExportRegion)
+{
 	GWarn->BeginSlowTask(LOCTEXT("BeginExportingLandscapeHeightmapTask", "Exporting Landscape Heightmap"), true);
 
 	ILandscapeEditorModule& LandscapeEditorModule = FModuleManager::GetModuleChecked<ILandscapeEditorModule>("LandscapeEditor");
 	FLandscapeEditDataInterface LandscapeEdit(this);
 
 	TArray<uint16> HeightData;
-	HeightData.AddZeroed((MaxX - MinX + 1) * (MaxY - MinY + 1));
-	LandscapeEdit.GetHeightDataFast(MinX, MinY, MaxX, MaxY, HeightData.GetData(), 0);
+	int32 ExportWidth = ExportRegion.Width() + 1;
+	int32 ExportHeight = ExportRegion.Height() + 1;
+	HeightData.AddZeroed(ExportWidth * ExportHeight);
+	LandscapeEdit.GetHeightDataFast(ExportRegion.Min.X, ExportRegion.Min.Y, ExportRegion.Max.X, ExportRegion.Max.Y, HeightData.GetData(), 0);
 
 	const ILandscapeHeightmapFileFormat* HeightmapFormat = LandscapeEditorModule.GetHeightmapFormatByExtension(*FPaths::GetExtension(Filename, true));
 	if (HeightmapFormat)
 	{
-		HeightmapFormat->Export(*Filename, NAME_None, HeightData, {(uint32)(MaxX - MinX + 1), (uint32)(MaxY - MinY + 1)}, DrawScale * FVector(1, 1, LANDSCAPE_ZSCALE));
+		HeightmapFormat->Export(*Filename, NAME_None, HeightData, {(uint32)ExportWidth, (uint32)ExportHeight}, DrawScale * FVector(1, 1, LANDSCAPE_ZSCALE));
 	}
 
 	GWarn->EndSlowTask();
@@ -3592,32 +3615,35 @@ void ULandscapeInfo::ExportHeightmap(const FString& Filename)
 
 void ULandscapeInfo::ExportLayer(ULandscapeLayerInfoObject* LayerInfo, const FString& Filename)
 {
-	check(LayerInfo);
-
-	int32 MinX = MAX_int32;
-	int32 MinY = MAX_int32;
-	int32 MaxX = -MAX_int32;
-	int32 MaxY = -MAX_int32;
-
-	if (!GetLandscapeExtent(MinX, MinY, MaxX, MaxY))
+	FIntRect ExportRegion;
+	if (!GetLandscapeExtent(ExportRegion))
 	{
 		return;
 	}
 
+	ExportLayer(LayerInfo, Filename, ExportRegion);
+}
+
+void ULandscapeInfo::ExportLayer(ULandscapeLayerInfoObject* LayerInfo, const FString& Filename, const FIntRect& ExportRegion)
+{
+	check(LayerInfo);
+		
 	GWarn->BeginSlowTask(LOCTEXT("BeginExportingLandscapeWeightmapTask", "Exporting Landscape Layer Weightmap"), true);
 
 	ILandscapeEditorModule& LandscapeEditorModule = FModuleManager::GetModuleChecked<ILandscapeEditorModule>("LandscapeEditor");
 
 	TArray<uint8> WeightData;
-	WeightData.AddZeroed((MaxX - MinX + 1) * (MaxY - MinY + 1));
+	int32 ExportWidth = ExportRegion.Width() + 1;
+	int32 ExportHeight = ExportRegion.Height() + 1;
+	WeightData.AddZeroed(ExportWidth * ExportHeight);
 
 	FLandscapeEditDataInterface LandscapeEdit(this);
-	LandscapeEdit.GetWeightDataFast(LayerInfo, MinX, MinY, MaxX, MaxY, WeightData.GetData(), 0);
+	LandscapeEdit.GetWeightDataFast(LayerInfo, ExportRegion.Min.X, ExportRegion.Min.Y, ExportRegion.Max.X, ExportRegion.Max.Y, WeightData.GetData(), 0);
 
 	const ILandscapeWeightmapFileFormat* WeightmapFormat = LandscapeEditorModule.GetWeightmapFormatByExtension(*FPaths::GetExtension(Filename, true));
 	if (WeightmapFormat)
 	{
-		WeightmapFormat->Export(*Filename, LayerInfo->LayerName, WeightData, {(uint32)(MaxX - MinX + 1), (uint32)(MaxY - MinY + 1)}, DrawScale * FVector(1, 1, LANDSCAPE_ZSCALE));
+		WeightmapFormat->Export(*Filename, LayerInfo->LayerName, WeightData, { (uint32)ExportWidth, (uint32)ExportHeight }, DrawScale * FVector(1, 1, LANDSCAPE_ZSCALE));
 	}
 
 	GWarn->EndSlowTask();

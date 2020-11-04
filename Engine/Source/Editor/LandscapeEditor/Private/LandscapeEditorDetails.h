@@ -18,6 +18,7 @@ class FLandscapeEditorDetailCustomization_MiscTools;
 class FLandscapeEditorDetailCustomization_NewLandscape;
 class FLandscapeEditorDetailCustomization_ResizeLandscape;
 class FLandscapeEditorDetailCustomization_TargetLayers;
+class FLandscapeEditorDetailCustomization_ImportExport;
 class FUICommandList;
 class IDetailLayoutBuilder;
 class ULandscapeInfo;
@@ -79,6 +80,7 @@ protected:
 
 	TSharedPtr<FLandscapeEditorDetailCustomization_NewLandscape> Customization_NewLandscape;
 	TSharedPtr<FLandscapeEditorDetailCustomization_ResizeLandscape> Customization_ResizeLandscape;
+	TSharedPtr<FLandscapeEditorDetailCustomization_ImportExport> Customization_ImportExport;
 	TSharedPtr<FLandscapeEditorDetailCustomization_CopyPaste> Customization_CopyPaste;
 	TSharedPtr<FLandscapeEditorDetailCustomization_MiscTools> Customization_MiscTools;
 	TSharedPtr<FLandscapeEditorDetailCustomization_AlphaBrush> Customization_AlphaBrush;

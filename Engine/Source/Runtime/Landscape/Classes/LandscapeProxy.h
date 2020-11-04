@@ -140,7 +140,7 @@ struct FLandscapeImportLayerInfo
 	UPROPERTY(Category="Import", EditAnywhere)
 	ULandscapeLayerInfoObject* LayerInfo;
 
-	UPROPERTY(Category="Import", EditAnywhere)
+	UPROPERTY(Category="Import", EditAnywhere, meta=(DisplayName="Layer File"))
 	FString SourceFilePath; // Optional
 	
 	// Raw weightmap data

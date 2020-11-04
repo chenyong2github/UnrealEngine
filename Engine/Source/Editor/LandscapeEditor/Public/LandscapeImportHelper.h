@@ -7,24 +7,49 @@
 #include "LandscapeFileFormatInterface.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "Templates/EnableIf.h"
+#include "LandscapeImportHelper.generated.h"
 
+USTRUCT()
 struct FLandscapeImportFileDescriptor
 {
+	GENERATED_USTRUCT_BODY()
+
 	FLandscapeImportFileDescriptor(const FString& InFilePath, const FIntPoint& InCoord)
 		: Coord(InCoord), FilePath(InFilePath){}
 
+	FLandscapeImportFileDescriptor() {}
+
 	/* Which tile does that descriptor represent */
+	UPROPERTY()
 	FIntPoint Coord;
 	/* File path */
+	UPROPERTY()
 	FString FilePath;
 };
 
+USTRUCT()
 struct FLandscapeImportResolution
 {
+	GENERATED_USTRUCT_BODY()
+
 	FLandscapeImportResolution(uint32 InWidth, uint32 InHeight) : Width(InWidth), Height(InHeight) {}
 
-	uint32 Width;
-	uint32 Height;
+	FLandscapeImportResolution() {}
+
+	UPROPERTY()
+	uint32 Width = 0;
+	UPROPERTY()
+	uint32 Height = 0;
+};
+
+UENUM()
+enum class ELandscapeImportTransformType : int8
+{
+
+	None UMETA(DisplayName="Original", ToolTip="Will Import the data at the gizmo location in the original size"),
+	ExpandOffset UMETA(DisplayName="Expand", ToolTip="Will Import the data at the gizmo location and expand the data to fill the landscape") ,
+	ExpandCentered UMETA(Hidden), 
+	Resample UMETA(ToolTip="Will resample Import data to fit landscape")
 };
 
 FORCEINLINE bool operator==(const FLandscapeImportResolution& Lhs, const FLandscapeImportResolution& Rhs)
@@ -37,8 +62,11 @@ FORCEINLINE bool operator!=(const FLandscapeImportResolution& Lhs, const FLandsc
 	return !(Lhs == Rhs);
 }
 
+USTRUCT()
 struct FLandscapeImportDescriptor
 {
+	GENERATED_USTRUCT_BODY()
+
 	FLandscapeImportDescriptor()
 		: Scale(100, 100, 100) {}
 
@@ -64,12 +92,16 @@ struct FLandscapeImportDescriptor
 	}
 
 	/* Landscape Import Resolution based on File Coords + Resolutions */
+	UPROPERTY()
 	TArray<FLandscapeImportResolution> ImportResolutions;
 	/* Single File Resolutions */
+	UPROPERTY()
 	TArray<FLandscapeFileResolution> FileResolutions;
 	/* Files contributing to this descriptor */
+	UPROPERTY()
 	TArray<FLandscapeImportFileDescriptor> FileDescriptors;
 	/* Scale of Import data */
+	UPROPERTY()
 	FVector Scale;
 };
 
@@ -98,8 +130,8 @@ public:
 	static ELandscapeImportResult GetHeightmapImportData(const FLandscapeImportDescriptor& ImportDescriptor, int32 DescriptorIndex, TArray<uint16>& OutData, FText& OutMessage);
 	static ELandscapeImportResult GetWeightmapImportData(const FLandscapeImportDescriptor& ImportDescriptor, int32 DescriptorIndex, FName LayerName, TArray<uint8>& OutData, FText& OutMessage);
 
-	static void ExpandWeightmapImportData(const TArray<uint8>& InData, TArray<uint8>& OutData, const FLandscapeImportResolution& CurrentResolution, const FLandscapeImportResolution& RequiredResolution);
-	static void ExpandHeightmapImportData(const TArray<uint16>& InData, TArray<uint16>& OutData, const FLandscapeImportResolution& CurrentResolution, const FLandscapeImportResolution& RequiredResolution);
+	static void TransformWeightmapImportData(const TArray<uint8>& InData, TArray<uint8>& OutData, const FLandscapeImportResolution& CurrentResolution, const FLandscapeImportResolution& RequiredResolution, ELandscapeImportTransformType TransformType = ELandscapeImportTransformType::ExpandCentered, FIntPoint Offset = FIntPoint(0,0));
+	static void TransformHeightmapImportData(const TArray<uint16>& InData, TArray<uint16>& OutData, const FLandscapeImportResolution& CurrentResolution, const FLandscapeImportResolution& RequiredResolution, ELandscapeImportTransformType TransformType = ELandscapeImportTransformType::ExpandCentered, FIntPoint Offset = FIntPoint(0, 0));
 
 	static void ChooseBestComponentSizeForImport(int32 Width, int32 Height, int32& InOutQuadsPerSection, int32& InOutSectionsPerComponent, FIntPoint& OutComponentCount);
 
@@ -119,9 +151,9 @@ public:
 		return GetHeightmapImportData(ImportDescriptor, DescriptorIndex, OutData, OutMessage);
 	}
 	template<typename T>
-	static typename TEnableIf<TIsSame<T, uint16>::Value, void>::Type ExpandImportData(const TArray<T>& InData, TArray<T>& OutData, const FLandscapeImportResolution& CurrentResolution, const FLandscapeImportResolution& RequiredResolution)
+	static typename TEnableIf<TIsSame<T, uint16>::Value, void>::Type TransformImportData(const TArray<T>& InData, TArray<T>& OutData, const FLandscapeImportResolution& CurrentResolution, const FLandscapeImportResolution& RequiredResolution, ELandscapeImportTransformType TransformType = ELandscapeImportTransformType::ExpandCentered, FIntPoint Offset = FIntPoint(0, 0))
 	{
-		return ExpandHeightmapImportData(InData, OutData, CurrentResolution, RequiredResolution);
+		return TransformHeightmapImportData(InData, OutData, CurrentResolution, RequiredResolution, TransformType, Offset);
 	}
 
 	template<typename T>
@@ -135,8 +167,8 @@ public:
 		return GetWeightmapImportData(ImportDescriptor, DescriptorIndex, LayerName, OutData, OutMessage);
 	}
 	template<typename T>
-	static typename TEnableIf<TIsSame<T, uint8>::Value, void>::Type ExpandImportData(const TArray<T>& InData, TArray<T>& OutData, const FLandscapeImportResolution& CurrentResolution, const FLandscapeImportResolution& RequiredResolution)
+	static typename TEnableIf<TIsSame<T, uint8>::Value, void>::Type TransformImportData(const TArray<T>& InData, TArray<T>& OutData, const FLandscapeImportResolution& CurrentResolution, const FLandscapeImportResolution& RequiredResolution, ELandscapeImportTransformType TransformType = ELandscapeImportTransformType::ExpandCentered, FIntPoint Offset = FIntPoint(0, 0))
 	{
-		return ExpandWeightmapImportData(InData, OutData, CurrentResolution, RequiredResolution);
+		return TransformWeightmapImportData(InData, OutData, CurrentResolution, RequiredResolution, TransformType, Offset);
 	}
 };

@@ -14,6 +14,7 @@
 #include "LandscapeGizmoActiveActor.h"
 #include "LandscapeEdit.h"
 #include "Containers/Set.h"
+#include "LandscapeImportHelper.h"
 
 class ALandscape;
 class FCanvas;
@@ -241,27 +242,6 @@ struct FGizmoHistory
 	}
 };
 
-
-namespace ELandscapeEdge
-{
-	enum Type
-	{
-		None,
-
-		// Edges
-		X_Negative,
-		X_Positive,
-		Y_Negative,
-		Y_Positive,
-
-		// Corners
-		X_Negative_Y_Negative,
-		X_Positive_Y_Negative,
-		X_Negative_Y_Positive,
-		X_Positive_Y_Positive,
-	};
-}
-
 namespace ENewLandscapePreviewMode
 {
 	enum Type
@@ -269,6 +249,15 @@ namespace ENewLandscapePreviewMode
 		None,
 		NewLandscape,
 		ImportLandscape,
+	};
+}
+
+namespace EImportExportMode
+{
+	enum Type
+	{
+		Import,
+		Export,
 	};
 }
 
@@ -306,8 +295,7 @@ public:
 	int32 CurrentBrushSetIndex;
 
 	ENewLandscapePreviewMode::Type NewLandscapePreviewMode;
-	ELandscapeEdge::Type DraggingEdge;
-	float DraggingEdge_Remainder;
+	EImportExportMode::Type ImportExportMode;
 
 	TWeakObjectPtr<ALandscapeGizmoActiveActor> CurrentGizmoActor;
 	// UI callbacks for copy/paste tool
@@ -351,6 +339,7 @@ public:
 	void InitializeTool_Retopologize();
 	void InitializeTool_NewLandscape();
 	void InitializeTool_ResizeLandscape();
+	void InitializeTool_ImportExport();
 	void InitializeTool_Select();
 	void InitializeTool_AddComponent();
 	void InitializeTool_DeleteComponent();
@@ -521,6 +510,7 @@ public:
 	const TArray<ALandscapeBlueprintBrushBase*>& GetBrushList() const;
 
 	const TArray<TSharedRef<FLandscapeTargetListInfo>>& GetTargetList() const;
+	UMaterialInterface* GetTargetLandscapeMaterial() const { return CachedLandscapeMaterial; }
 	const TArray<FName>* GetTargetDisplayOrderList() const;
 	const TArray<FName>& GetTargetShownList() const;
 	int32 GetTargetLayerStartingIndex() const;
@@ -603,6 +593,8 @@ public:
 
 	void ReimportData(const FLandscapeTargetListInfo& TargetInfo);
 	void ImportData(const FLandscapeTargetListInfo& TargetInfo, const FString& Filename);
+	void ImportHeightData(ULandscapeInfo* LandscapeInfo, const FGuid& LayerGuid, const FString& Filename, const FIntRect& ImportRegionVerts, ELandscapeImportTransformType TransformType = ELandscapeImportTransformType::ExpandCentered, FIntPoint Offset = FIntPoint(0,0), const ELandscapeLayerPaintingRestriction& PaintRestriction = ELandscapeLayerPaintingRestriction::None);
+	void ImportWeightData(ULandscapeInfo* LandscapeInfo, const FGuid& LayerGuid, ULandscapeLayerInfoObject* LayerInfo, const FString& Filename, const FIntRect& ImportRegionVerts, ELandscapeImportTransformType TransformType = ELandscapeImportTransformType::ExpandCentered, FIntPoint Offset = FIntPoint(0, 0), const ELandscapeLayerPaintingRestriction& PaintRestriction = ELandscapeLayerPaintingRestriction::None);
 	bool UseSingleFileImport() const { return !IsGridBased(); }
 
 	/** Resample landscape to a different resolution or change the component size */

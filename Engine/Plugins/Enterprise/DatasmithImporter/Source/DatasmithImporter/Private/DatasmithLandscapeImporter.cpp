@@ -11,7 +11,6 @@
 #include "LandscapeDataAccess.h"
 #include "LandscapeEditorModule.h"
 #include "LandscapeEditorObject.h"
-#include "LandscapeEditorUtils.h"
 #include "LandscapeFileFormatInterface.h"
 #include "LandscapeImportHelper.h"
 
@@ -55,7 +54,7 @@ AActor* FDatasmithLandscapeImporter::ImportLandscapeActor( const TSharedRef< IDa
 	const int32 SizeY = OutComponentCount.Y * QuadsPerComponent + 1;
 
 	TArray<uint16> FinalHeightData;
-	FLandscapeImportHelper::ExpandHeightmapImportData(ImportData, FinalHeightData, OutImportDescriptor.ImportResolutions[DescriptorIndex], FLandscapeImportResolution(SizeX, SizeY));
+	FLandscapeImportHelper::TransformHeightmapImportData(ImportData, FinalHeightData, OutImportDescriptor.ImportResolutions[DescriptorIndex], FLandscapeImportResolution(SizeX, SizeY), ELandscapeImportTransformType::ExpandCentered);
 		
 	const FVector Offset = FTransform( LandscapeActorElement->GetRotation(), FVector::ZeroVector, 
 		LandscapeActorElement->GetScale() ).TransformVector( FVector( -OutComponentCount.X * QuadsPerComponent / 2, -OutComponentCount.Y * QuadsPerComponent / 2, 0 ) );

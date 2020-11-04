@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Containers/ArrayView.h"
 #include "Misc/Paths.h"
+#include "LandscapeFileFormatInterface.generated.h"
 
 class Error;
 
@@ -30,10 +31,19 @@ enum class ELandscapeImportResult : uint8
 	Error,
 };
 
+USTRUCT()
 struct FLandscapeFileResolution
 {
-	uint32 Width;
-	uint32 Height;
+	GENERATED_USTRUCT_BODY()
+
+	FLandscapeFileResolution() {}
+	FLandscapeFileResolution(uint32 InWidth, uint32 InHeight) : Width(InWidth), Height(InHeight) {}
+
+	UPROPERTY()
+	uint32 Width = 0;
+
+	UPROPERTY()
+	uint32 Height = 0;
 };
 
 FORCEINLINE bool operator==(const FLandscapeFileResolution& Lhs, const FLandscapeFileResolution& Rhs)

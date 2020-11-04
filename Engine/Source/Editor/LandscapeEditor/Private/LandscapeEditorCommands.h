@@ -32,6 +32,7 @@ public:
 	// Tools
 	TSharedPtr<FUICommandInfo> NewLandscape;
 	TSharedPtr<FUICommandInfo> ResizeLandscape;
+	TSharedPtr<FUICommandInfo> ImportExportTool;
 
 	TSharedPtr<FUICommandInfo> SculptTool;
 	TSharedPtr<FUICommandInfo> EraseTool;

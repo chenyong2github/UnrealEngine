@@ -15,6 +15,7 @@
 #include "LandscapeEditorDetailCustomization_CopyPaste.h"
 #include "LandscapeEditorDetailCustomization_MiscTools.h"
 #include "LandscapeEditorDetailCustomization_AlphaBrush.h"
+#include "LandscapeEditorDetailCustomization_ImportExport.h"
 #include "DetailWidgetRow.h"
 #include "LandscapeEditorDetailCustomization_TargetLayers.h"
 #include "DetailCategoryBuilder.h"
@@ -142,6 +143,8 @@ void FLandscapeEditorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	// Tools:
 	Customization_NewLandscape = MakeShareable(new FLandscapeEditorDetailCustomization_NewLandscape);
 	Customization_NewLandscape->CustomizeDetails(DetailBuilder);
+	Customization_ImportExport = MakeShareable(new FLandscapeEditorDetailCustomization_ImportExport);
+	Customization_ImportExport->CustomizeDetails(DetailBuilder);
 	Customization_ResizeLandscape = MakeShareable(new FLandscapeEditorDetailCustomization_ResizeLandscape);
 	Customization_ResizeLandscape->CustomizeDetails(DetailBuilder);
 	Customization_CopyPaste = MakeShareable(new FLandscapeEditorDetailCustomization_CopyPaste);

@@ -135,4 +135,5 @@ class FLandscapeEditorStructCustomization_Base : public IPropertyTypeCustomizati
 {
 protected:
 	static FEdModeLandscape* GetEditorMode();
+	static bool IsToolActive(FName ToolName);
 };

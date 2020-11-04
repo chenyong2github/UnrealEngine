@@ -92,6 +92,7 @@ void FLandscapeToolKit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
 #define MAP_TOOL(ToolName) CommandList->MapAction(NameToCommandMap.FindChecked("Tool_" ToolName), FUIAction(FExecuteAction::CreateSP(this, &FLandscapeToolKit::OnChangeTool, FName(ToolName)), FCanExecuteAction::CreateSP(this, &FLandscapeToolKit::IsToolEnabled, FName(ToolName)), FIsActionChecked::CreateSP(this, &FLandscapeToolKit::IsToolActive, FName(ToolName)), FIsActionButtonVisible::CreateSP(this, &FLandscapeToolKit::IsToolAvailable, FName(ToolName))));
 	MAP_TOOL("NewLandscape");
 	MAP_TOOL("ResizeLandscape");
+	MAP_TOOL("ImportExport");
 
 	MAP_TOOL("Sculpt");
 	MAP_TOOL("Erase");
@@ -194,7 +195,7 @@ void FLandscapeToolKit::BuildToolPalette(FName PaletteName, class FToolBarBuilde
 		ToolBarBuilder.BeginSection("Manage");
 
 		ToolBarBuilder.AddToolBarButton(Commands.NewLandscape);
-
+		ToolBarBuilder.AddToolBarButton(Commands.ImportExportTool);
 		ToolBarBuilder.AddToolBarButton(Commands.SelectComponentTool);
 		ToolBarBuilder.AddToolBarButton(Commands.AddComponentTool);
 		ToolBarBuilder.AddToolBarButton(Commands.DeleteComponentTool);

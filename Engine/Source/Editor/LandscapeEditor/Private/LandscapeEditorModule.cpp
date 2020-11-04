@@ -24,6 +24,7 @@
 #include "LandscapeEditorDetails.h"
 #include "LandscapeEditorDetailCustomization_NewLandscape.h"
 #include "LandscapeEditorDetailCustomization_CopyPaste.h"
+#include "LandscapeEditorDetailCustomization_ImportLayers.h"
 #include "LandscapeSplineDetails.h"
 
 #include "LevelEditor.h"
