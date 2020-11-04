@@ -1109,8 +1109,8 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 			RichCurve.SetKeyTangentWeightMode(NewKeyHandle, NewTangentWeightMode, bAutoSetTangents);
 
 			FRichCurveKey& NewKey = RichCurve.GetKey(NewKeyHandle);
-			NewKey.ArriveTangent = ArriveTangent;
-			NewKey.LeaveTangent = LeaveTangent;
+			NewKey.ArriveTangent = ArriveTangent * ValueScale;
+			NewKey.LeaveTangent = LeaveTangent * ValueScale;
 			NewKey.ArriveTangentWeight = ArriveTangentWeight;
 			NewKey.LeaveTangentWeight = LeaveTangentWeight;
 		}
