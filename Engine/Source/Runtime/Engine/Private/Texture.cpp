@@ -27,10 +27,6 @@
 #include "Interfaces/ITextureFormat.h"
 #include "Interfaces/ITextureFormatModule.h"
 
-#if WITH_EDITOR
-#include "Misc/ScopeRWLock.h"
-#endif
-
 #if WITH_EDITORONLY_DATA
 	#include "EditorFramework/AssetImportData.h"
 #endif
@@ -1169,9 +1165,6 @@ bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, i
 	bool bSuccess = false;
 	if (BlockIndex < GetNumBlocks() && LayerIndex < NumLayers && MipIndex < NumMips && BulkData.GetBulkDataSize() > 0)
 	{
-#if WITH_EDITOR
-		FWriteScopeLock BulkDataReadScope(BulkDataLock);
-#endif
 		void* RawSourceData = BulkData.Lock(LOCK_READ_ONLY);
 		if (bPNGCompressed)
 		{

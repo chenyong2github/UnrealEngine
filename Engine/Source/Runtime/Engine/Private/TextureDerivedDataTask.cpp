@@ -396,6 +396,20 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 			CompositeTextureData.Init(*Texture.CompositeTexture, BuildSettingsPerLayer.GetData(), bAllowAsyncLoading);
 		}
 	}
+
+	// If the bulkdata is loaded and async build is allowed, get the source mips now (safe) to allow building the DDC if required.
+	// If the bulkdata is not loaded, the DDC will be built in Finalize() unless async loading is enabled (which won't allow reuse of the source for later use).
+	if (bAllowAsyncBuild)
+	{
+		if (TextureData.IsValid() && Texture.Source.IsBulkDataLoaded())
+		{
+			TextureData.GetSourceMips(Texture.Source, ImageWrapper);
+		}
+		if (CompositeTextureData.IsValid() && Texture.CompositeTexture && Texture.CompositeTexture->Source.IsBulkDataLoaded())
+		{
+			CompositeTextureData.GetSourceMips(Texture.CompositeTexture->Source, ImageWrapper);
+		}
+	}
 }
 
 void FTextureCacheDerivedDataWorker::DoWork()
@@ -478,26 +492,9 @@ void FTextureCacheDerivedDataWorker::DoWork()
 	
 	if (!bSucceeded && bAllowAsyncBuild)
 	{
-		bool bHasTextureSourceMips = false;
-		if (TextureData.IsValid() && Texture.Source.IsBulkDataLoaded())
-		{
-			TextureData.GetSourceMips(Texture.Source, ImageWrapper);
-			bHasTextureSourceMips = true;
-		}
-
-		bool bHasCompositeTextureSourceMips = false;
-		if (CompositeTextureData.IsValid() && Texture.CompositeTexture && Texture.CompositeTexture->Source.IsBulkDataLoaded())
-		{
-			CompositeTextureData.GetSourceMips(Texture.CompositeTexture->Source, ImageWrapper);
-			bHasCompositeTextureSourceMips = true;
-		}
-
-		if (bAllowAsyncLoading && !bHasTextureSourceMips)
+		if (bAllowAsyncLoading)
 		{
 			TextureData.GetAsyncSourceMips(ImageWrapper);
-		}
-		if (bAllowAsyncLoading && !bHasCompositeTextureSourceMips)
-		{
 			CompositeTextureData.GetAsyncSourceMips(ImageWrapper);
 		}
 
