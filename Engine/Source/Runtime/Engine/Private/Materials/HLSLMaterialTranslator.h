@@ -337,7 +337,7 @@ public:
 	EMaterialExpressionVisitResult VisitExpressionsForProperty(EMaterialProperty InProperty, IMaterialExpressionVisitor& InVisitor);
 
 	void ValidateVtPropertyLimits();
- 
+	void ValidateShadingModelsForFeatureLevel(const FMaterialShadingModelField& ShadingModels);
 	bool Translate();
 
 	void GetMaterialEnvironment(EShaderPlatform InPlatform, FShaderCompilerEnvironment& OutEnvironment);
