@@ -62,7 +62,7 @@ FAutoConsoleVariableRef CVarOffscreenShadowingTraceStepFactor(
 	);
 
 
-float GOffscreenShadowingSDFSurfaceBiasScale = 2;
+float GOffscreenShadowingSDFSurfaceBiasScale = 6;
 FAutoConsoleVariableRef CVarOffscreenShadowingSDFSurfaceBiasScale(
 	TEXT("r.Lumen.DirectLighting.OffscreenShadowingSDFSurfaceBiasScale"),
 	GOffscreenShadowingSDFSurfaceBiasScale,

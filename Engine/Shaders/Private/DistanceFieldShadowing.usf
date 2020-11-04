@@ -730,7 +730,8 @@ void DistanceFieldShadowingCS(
 				NumIntersectingObjects,
 				bUseCulling,
 				bUseScatterTileCulling,
-				bUseSubsurfaceTransmission);
+				bUseSubsurfaceTransmission,
+				/*bExpandSurface*/ false);
 		}
 	}
 #else

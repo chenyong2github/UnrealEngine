@@ -53,7 +53,8 @@ float ShadowRayTraceThroughCulledObjects(
 	uint NumIntersectingObjects,
 	uniform bool bUseCulling,
 	uniform bool bUseScatterTileCulling,
-	bool bUseSubsurfaceTransmission)
+	bool bUseSubsurfaceTransmission,
+	bool bExpandSurface)
 {
 	float MinConeVisibility = 1;
 	float3 WorldRayUnitDirection = normalize(WorldRayEnd - WorldRayStart);
@@ -131,6 +132,14 @@ float ShadowRayTraceThroughCulledObjects(
 					if (DFObjectData.bGeneratedAsTwoSided)
 					{
 						DistanceField -= VolumeTwoSidedMeshDistanceBias;
+					}
+					else if (bExpandSurface)
+					{
+						// Expand the surface to find thin features, but only away from the start of the trace where it won't introduce incorrect self-occlusion
+						// This still causes incorrect self-occlusion at grazing angles
+						float ExpandSurfaceDistance = DFObjectData.LocalSurfaceBias;
+						float ExpandSurfaceAmount = ExpandSurfaceDistance * saturate((SampleRayTime - ExpandSurfaceDistance) / ExpandSurfaceDistance);
+						DistanceField -= ExpandSurfaceAmount;
 					}
 
 					MinDistance = min(MinDistance, DistanceField);

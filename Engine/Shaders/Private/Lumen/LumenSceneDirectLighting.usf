@@ -57,7 +57,6 @@ float SurfaceBias;
 float TanLightSourceAngle;
 float SlopeScaledSurfaceBias;
 float SDFSurfaceBiasScale;
-float SDFExpandSurfaceAmount;
 uint ForceOffscreenShadowing;
 
 #if HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE
@@ -215,17 +214,14 @@ void LumenCardDirectLightingPS(
 									NumIntersectingObjects,
 									true,
 									true,
-									bUseSubsurfaceTransmission);
+									bUseSubsurfaceTransmission,
+									/*bExpandSurface*/ true);
 							}
 							#elif OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF
 							{
-								float3 Gradient = GetDistanceFieldGradientGlobal(WorldPosition);
+								WorldPositionForShadowing = WorldPosition + L * (SurfaceBias + SlopeScaledSurfaceBias * saturate(1 - dot(L, WorldNormal))) * SDFSurfaceBiasScale;
 
-								uint RayOriginClipmapIndex = ComputeGlobalDistanceFieldClipmapIndex(WorldPosition);
-								float SDFSurfaceBias = .5f * GlobalVolumeCenterAndExtent[RayOriginClipmapIndex].w * GlobalVolumeTexelSize * SDFSurfaceBiasScale;
-								float3 WorldPositionForSDFTrace = WorldPosition + normalize(Gradient) * SDFSurfaceBias;
-
-								FGlobalSDFTraceInput TraceInput = SetupGlobalSDFTraceInput(WorldPositionForSDFTrace, L, 0.0f, TraceDistance, 1.0f, 1.0f);
+								FGlobalSDFTraceInput TraceInput = SetupGlobalSDFTraceInput(WorldPositionForShadowing, L, 0.0f, TraceDistance, 1.0f, 1.0f);
 
 								FGlobalSDFTraceResult SDFResult = RayTraceGlobalDistanceField(TraceInput);
 

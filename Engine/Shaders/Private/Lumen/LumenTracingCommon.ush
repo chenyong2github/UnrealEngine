@@ -624,7 +624,6 @@ void RayTraceSingleMeshSDF(
 	inout FTraceMeshSDFResult TraceResult)
 {
 	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
-	float ExpandSurfaceDistance = DFObjectData.LocalSurfaceBias;
 
 	// #lumen_todo: continue tracing from last TraceResult.HitDistance. At the moment this causes nondeterministic flickering of surfaces.
 	// * min(MaxTraceDistance, TraceResult.HitDistance);
@@ -660,6 +659,7 @@ void RayTraceSingleMeshSDF(
 
 			// Expand the surface to find thin features, but only away from the start of the trace where it won't introduce incorrect self-occlusion
 			// This still causes incorrect self-occlusion at grazing angles
+			float ExpandSurfaceDistance = DFObjectData.LocalSurfaceBias;
 			float ExpandSurfaceAmount = ExpandSurfaceDistance * saturate((ExpandSurfaceTime - ExpandSurfaceDistance) / ExpandSurfaceDistance);
 
 			if (DistanceField < ExpandSurfaceAmount)
