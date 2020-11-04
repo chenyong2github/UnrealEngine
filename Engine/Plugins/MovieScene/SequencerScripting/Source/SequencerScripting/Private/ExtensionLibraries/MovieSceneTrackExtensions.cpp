@@ -1,7 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ExtensionLibraries/MovieSceneTrackExtensions.h"
+#include "MovieSceneNameableTrack.h"
 #include "MovieSceneTrack.h"
+
+void UMovieSceneTrackExtensions::SetDisplayName(UMovieSceneTrack* Track, const FText& InName)
+{
+	if (UMovieSceneNameableTrack* NameableTrack = Cast<UMovieSceneNameableTrack>(Track))
+	{
+#if WITH_EDITORONLY_DATA
+		NameableTrack->SetDisplayName(InName);
+#endif
+	}
+}
 
 FText UMovieSceneTrackExtensions::GetDisplayName(UMovieSceneTrack* Track)
 {
