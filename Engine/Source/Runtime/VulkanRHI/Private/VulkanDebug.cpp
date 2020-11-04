@@ -3754,6 +3754,17 @@ void FWrapLayer::QueueBindSparse(VkResult Result, VkQueue Queue, uint32_t BindIn
 	}
 }
 
+void FWrapLayer::GetPhysicalDeviceMemoryProperties2(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceMemoryProperties2* MemoryProperties)
+{
+	if (Result == VK_RESULT_MAX_ENUM)
+	{
+#if VULKAN_ENABLE_DUMP_LAYER
+		PrintfBegin(FString::Printf(TEXT("vkGetPhysicalDeviceMemoryProperties2(PhysicalDevice=0x%p, Properties=0x%p)[...]"), PhysicalDevice, MemoryProperties));
+#endif
+	}
+}
+
+
 #if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 void FWrapLayer::GetPhysicalDeviceProperties2KHR(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceProperties2KHR* Properties)
 {
