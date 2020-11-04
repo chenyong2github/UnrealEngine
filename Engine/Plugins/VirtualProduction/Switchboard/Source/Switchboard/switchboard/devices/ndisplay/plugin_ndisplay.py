@@ -337,7 +337,7 @@ class DevicenDisplay(DeviceUnreal):
 
         if fullscreen:
             args.extend([
-                'fullscreen=true',
+                '-fullscreen',
             ])
         else:
             args.extend([
