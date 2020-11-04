@@ -46,6 +46,7 @@ struct HAIRSTRANDSCORE_API FHairGroupsMeshesSourceDescription
 
 	bool operator==(const FHairGroupsMeshesSourceDescription& A) const;
 
+	FString GetMeshKey() const;
 	bool HasMeshChanged() const;
 	void UpdateMeshKey();
 };
