@@ -1,12 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RemoteControlWebSocketServer.h"
-#include "IWebSocketNetworkingModule.h"
-#include "WebSocketNetworkingDelegates.h"
-#include "WebRemoteControlUtils.h"
-#include "IRemoteControlModule.h"
-#include "RemoteControlRequest.h"
 #include "Containers/Ticker.h"
+#include "IPAddress.h"
+#include "IRemoteControlModule.h"
+#include "IWebSocketNetworkingModule.h"
+#include "RemoteControlRequest.h"
+#include "Sockets.h"
+#include "SocketSubsystem.h"
+#include "WebRemoteControlUtils.h"
+#include "WebSocketNetworkingDelegates.h"
 
 #define LOCTEXT_NAMESPACE "RCWebSocketServer"
 
@@ -73,9 +76,14 @@ void FWebsocketMessageRouter::UnbindRoute(const FString& MessageName)
 
 bool FRCWebSocketServer::Start(uint32 Port, TSharedPtr<FWebsocketMessageRouter> InRouter)
 {
+	if (!IsPortAvailable(Port))
+	{
+		return false;
+	}
+
 	FWebSocketClientConnectedCallBack CallBack;
 	CallBack.BindRaw(this, &FRCWebSocketServer::OnWebSocketClientConnected);
-	
+
 	Server = FModuleManager::Get().LoadModuleChecked<IWebSocketNetworkingModule>(TEXT("WebSocketNetworking")).CreateServer();
 	
 	if (!Server || !Server->Init(Port, CallBack))
@@ -88,6 +96,26 @@ bool FRCWebSocketServer::Start(uint32 Port, TSharedPtr<FWebsocketMessageRouter> 
 	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FRCWebSocketServer::Tick));
 
 	return true;
+}
+
+bool FRCWebSocketServer::IsPortAvailable(uint32 Port) const
+{
+	if (ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM))
+	{
+		TSharedRef<FInternetAddr> Addr = SocketSubsystem->CreateInternetAddr();
+		Addr->SetAnyAddress();
+		Addr->SetPort(Port);
+
+		if (FUniqueSocket Socket = SocketSubsystem->CreateUniqueSocket(NAME_Stream, TEXT("TemporarySocket")))
+		{
+			if (Socket->Bind(*Addr))
+			{
+				return true;
+			}
+		}
+	}
+	
+	return false;
 }
 
 void FRCWebSocketServer::Stop()
