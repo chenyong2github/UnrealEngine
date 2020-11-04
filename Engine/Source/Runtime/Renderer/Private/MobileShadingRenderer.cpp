@@ -366,9 +366,6 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		FVirtualTextureSystem::Get().CallPendingCallbacks();
 	}
 
-	//make sure all the targets we're going to use will be safely writable.
-	GRenderTargetPool.TransitionTargetsWritable(RHICmdList);
-
 	if (bRequiresPixelProjectedPlanarRelfectionPass)
 	{
 		InitPixelProjectedReflectionOutputs(RHICmdList, PlanarReflectionSceneProxy->RenderTarget->GetSizeXY());
@@ -386,6 +383,9 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	{
 		ReleaseAmbientOcclusionOutputs();
 	}
+
+	//make sure all the targets we're going to use will be safely writable.
+	GRenderTargetPool.TransitionTargetsWritable(RHICmdList);
 
 	// Find out whether custom depth pass should be rendered.
 	{
@@ -929,6 +929,12 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		{
 			const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy = Scene ? Scene->GetForwardPassGlobalPlanarReflection() : nullptr;
 			RenderPixelProjectedReflection(RHICmdList, SceneContext, PlanarReflectionSceneProxy);
+
+			FRHITransitionInfo TranslucentRenderPassTransitions[] = {
+			FRHITransitionInfo(SceneColor, ERHIAccess::SRVMask, ERHIAccess::RTV),
+			FRHITransitionInfo(SceneDepth, ERHIAccess::SRVMask, ERHIAccess::DSVWrite)
+			};
+			RHICmdList.Transition(MakeArrayView(TranslucentRenderPassTransitions, UE_ARRAY_COUNT(TranslucentRenderPassTransitions)));
 		}
 
 		DepthTargetAction = EDepthStencilTargetActions::LoadDepthStencil_DontStoreDepthStencil;
@@ -950,9 +956,6 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		{
 			DepthTargetAction = EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil;
 		}
-
-		RHICmdList.Transition(FRHITransitionInfo(SceneColor, ERHIAccess::Unknown, ERHIAccess::RTV));
-		RHICmdList.Transition(FRHITransitionInfo(SceneDepth, ERHIAccess::Unknown, ERHIAccess::DSVWrite));
 
 		FRHIRenderPassInfo TranslucentRenderPassInfo(
 			SceneColor,
