@@ -407,10 +407,8 @@ void FMobileSceneRenderer::InitAmbientOcclusionOutputs(FRHICommandListImmediate&
 	{
 		GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture.SafeRelease();
 
-		GRenderTargetPool.FindFreeElement(RHICmdList, FPooledRenderTargetDesc::Create2DDesc(Extent, bUsePixelShader ? PF_G8 : PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false), GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture, TEXT("AmbientOcclusionTexture"));
+		GRenderTargetPool.FindFreeElement(RHICmdList, FPooledRenderTargetDesc::Create2DDesc(Extent, bUsePixelShader ? PF_G8 : PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false, 1, false), GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture, TEXT("AmbientOcclusionTexture"));
 	}
-
-	RHICmdList.Transition(FRHITransitionInfo(GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture->GetRenderTargetItem().TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
 }
 
 void FMobileSceneRenderer::ReleaseAmbientOcclusionOutputs()
