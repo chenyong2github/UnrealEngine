@@ -5,11 +5,7 @@
 #include "InterchangeCommands.h"
 #include "InterchangeDispatcherConfig.h"
 #include "InterchangeDispatcherTask.h"
-
-#if PLATFORM_WINDOWS && PLATFORM_64BITS
 #include "InterchangeFbxParser.h"
-#endif
-
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
@@ -156,23 +152,15 @@ void FInterchangeWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComman
 	UE_LOG(LogInterchangeWorker, Verbose, TEXT("End of Process %s"), *JsonToProcess);
 }
 
-ETaskState FInterchangeWorkerImpl::LoadFbxFile(const FJsonLoadSourceCmd& LoadSourceCommand, FString& OutJSonResult, TArray<FString>& OutJSonMessages) const
+ETaskState FInterchangeWorkerImpl::LoadFbxFile(const FJsonLoadSourceCmd& LoadSourceCommand, FString& OutJSonResult, TArray<FString>& OutJSonMessages)
 {
 	ETaskState ResultState = ETaskState::Unknown;
 	FString SourceFilename = LoadSourceCommand.GetSourceFilename();
-#if PLATFORM_WINDOWS && PLATFORM_64BITS
-	UE::Interchange::FbxParser FbxParser;
 	FbxParser.LoadFbxFile(SourceFilename, ResultFolder);
 	FJsonLoadSourceCmd::JsonResultParser ResultParser;
 	ResultParser.SetResultFilename(FbxParser.GetResultFilepath());
 	OutJSonMessages = FbxParser.GetJsonLoadMessages();
 	OutJSonResult = ResultParser.ToJson();
 	ResultState = ETaskState::ProcessOk;
-#else
-	FJsonLoadSourceCmd::JsonResultParser ResultParser;
-	ResultParser.SetResultFilename(FString());
-	OutJSonMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot Execute fbx command on other platform then window 64 bits!\"}}"));
-	ResultState = ETaskState::ProcessFailed;
-#endif
 	return ResultState;
 }

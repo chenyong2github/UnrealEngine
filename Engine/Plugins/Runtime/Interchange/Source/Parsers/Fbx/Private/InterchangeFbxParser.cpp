@@ -14,10 +14,20 @@ namespace UE
 {
 	namespace Interchange
 	{
-		void FbxParser::LoadFbxFile(const FString& Filename, const FString& ResultFolder)
+		FInterchangeFbxParser::FInterchangeFbxParser()
 		{
-			UE::Interchange::Private::FFbxParser FbxParserPrivate;
-			if (!FbxParserPrivate.LoadFbxFile(Filename, JsonLoadMessages))
+			FbxParserPrivate = MakeUnique<Private::FFbxParser>();
+		}
+		FInterchangeFbxParser::~FInterchangeFbxParser()
+		{
+			FbxParserPrivate = nullptr;
+		}
+
+		void FInterchangeFbxParser::LoadFbxFile(const FString& Filename, const FString& ResultFolder)
+		{
+			check(FbxParserPrivate.IsValid());
+
+			if (!FbxParserPrivate->LoadFbxFile(Filename, JsonLoadMessages))
 			{
 				JsonLoadMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot load the fbx file.\"}}"));
 				return;
@@ -32,7 +42,7 @@ namespace UE
 				JsonLoadMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot allocate base node container to add fbx scene data\"}}"));
 				return;
 			}
-			FbxParserPrivate.FillContainerWithFbxScene(*Container.Get(), JsonLoadMessages);
+			FbxParserPrivate->FillContainerWithFbxScene(*Container.Get(), JsonLoadMessages);
 
 			Container.Get()->SaveToFile(ResultFilepath);
 			JsonLoadMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Log\",\n\"Msg\" : \"This is a success!\"}}"));

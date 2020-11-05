@@ -21,7 +21,7 @@ namespace UE
 		{
 			static FString ProcessorPath = [&]()
 			{
-				FString Path = FPaths::Combine(FPaths::EnginePluginsDir(), TEXT("Runtime/Interchange/Binaries"));
+				FString Path = FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries"));
 
 #if PLATFORM_MAC
 				Path = FPaths::Combine(Path, TEXT("Mac/InterchangeWorker"));

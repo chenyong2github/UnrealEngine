@@ -13,7 +13,7 @@ namespace UE
 	namespace Interchange
 	{
 
-		class DispatcherCommandVersion
+		class INTERCHANGEDISPATCHER_API DispatcherCommandVersion
 		{
 		public:
 			//Major version should be updated when there is an existing API that has been change.
@@ -97,27 +97,27 @@ namespace UE
 
 
 
-		class FTerminateCommand : public ICommand
+		class INTERCHANGEDISPATCHER_API FTerminateCommand : public ICommand
 		{
 		public:
 			virtual ECommandId GetType() const override { return ECommandId::Terminate; }
 		};
 
 
-		class FPingCommand : public ICommand
+		class INTERCHANGEDISPATCHER_API FPingCommand : public ICommand
 		{
 		public:
 			virtual ECommandId GetType() const override { return ECommandId::Ping; }
 		};
 
 
-		class FBackPingCommand : public ICommand
+		class INTERCHANGEDISPATCHER_API FBackPingCommand : public ICommand
 		{
 		public:
 			virtual ECommandId GetType() const override { return ECommandId::BackPing; }
 		};
 
-		class FRunTaskCommand : public ICommand
+		class INTERCHANGEDISPATCHER_API FRunTaskCommand : public ICommand
 		{
 		public:
 			FRunTaskCommand() = default;
@@ -132,7 +132,7 @@ namespace UE
 			int32 JobIndex = -1;
 		};
 
-		class FCompletedTaskCommand : public ICommand
+		class INTERCHANGEDISPATCHER_API FCompletedTaskCommand : public ICommand
 		{
 		public:
 			virtual ECommandId GetType() const override { return ECommandId::NotifyEndTask; }

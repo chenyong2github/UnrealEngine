@@ -41,7 +41,7 @@ namespace UE
 		};
 
 
-		class FNetworkNode
+		class INTERCHANGEDISPATCHER_API FNetworkNode
 		{
 		public:
 			virtual ~FNetworkNode();
@@ -79,7 +79,7 @@ namespace UE
 
 
 		// Create, Bind, Listen, Accept sequence
-		class FNetworkServerNode : public FNetworkNode
+		class INTERCHANGEDISPATCHER_API FNetworkServerNode : public FNetworkNode
 		{
 		public:
 			FNetworkServerNode();
@@ -94,7 +94,7 @@ namespace UE
 
 
 		// Create, Connect sequence
-		class FNetworkClientNode : public FNetworkNode
+		class INTERCHANGEDISPATCHER_API FNetworkClientNode : public FNetworkNode
 		{
 		public:
 			bool Connect(const FString& Description, int32 ServerPort, double Timeout_s);
@@ -102,7 +102,7 @@ namespace UE
 
 
 
-		class FCommandQueue
+		class INTERCHANGEDISPATCHER_API FCommandQueue
 		{
 		public:
 			void SetNetworkInterface(FNetworkNode* InNetworkInterface);

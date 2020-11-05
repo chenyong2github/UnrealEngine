@@ -1679,6 +1679,15 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
 #if WITH_EDITOR
 	bUseInterchangeFramework = GetDefault<UEditorExperimentalSettings>()->bEnableInterchangeFramework;
+	//Avoid using interchange for scene factory, we did not do the scene import yet
+	//TODO do the scene import and remove this 
+	if (bUseInterchangeFramework && Params.SpecifiedFactory)
+	{
+		if (Params.SpecifiedFactory->GetClass()->IsChildOf(USceneImportFactory::StaticClass()))
+		{
+			bUseInterchangeFramework = false;
+		}
+	}
 #endif
 
 	if (!bUseInterchangeFramework && Files.Num() > 1)

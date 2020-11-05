@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "HAL/PlatformTime.h"
 #include "InterchangeWorker.h"
-
 #include "InterchangeCommands.h"
 #include "InterchangeDispatcherNetworking.h"
-
-#include "HAL/PlatformTime.h"
-
+#include "InterchangeFbxParser.h"
 
 struct FFileStatData;
 struct FImportParameters;
@@ -24,7 +22,7 @@ private:
 	void ProcessCommand(const UE::Interchange::FBackPingCommand& BackPingCommand);
 	void ProcessCommand(const UE::Interchange::FRunTaskCommand& TerminateCommand);
 
-	UE::Interchange::ETaskState LoadFbxFile(const UE::Interchange::FJsonLoadSourceCmd& LoadSourceCommand, FString& OutJSonResult, TArray<FString>& OutJSonMessages) const;
+	UE::Interchange::ETaskState LoadFbxFile(const UE::Interchange::FJsonLoadSourceCmd& LoadSourceCommand, FString& OutJSonResult, TArray<FString>& OutJSonMessages);
 
 private:
 	UE::Interchange::FNetworkClientNode NetworkInterface;
@@ -34,4 +32,7 @@ private:
 	int32 ServerPort;
 	uint64 PingStartCycle;
 	FString ResultFolder;
+
+	UE::Interchange::FInterchangeFbxParser FbxParser;
+
 };

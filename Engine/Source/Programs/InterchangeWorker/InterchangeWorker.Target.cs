@@ -41,7 +41,5 @@ public class InterchangeWorkerTarget : TargetRules
 
 		GlobalDefinitions.Add("USE_LOCALIZED_PACKAGE_CACHE=0");
 
-		string EngineDir = @"..\.."; // relative to default destination, which is $(EngineDir)\Binaries\Win64
-		ExeBinariesSubFolder = EngineDir + @"\Plugins\Runtime\Interchange\Binaries\Win64\";
 	}
 }

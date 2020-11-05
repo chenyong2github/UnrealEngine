@@ -36,6 +36,13 @@ public class InterchangeWorker : ModuleRules
 					"InterchangeNodePlugin"
 				}
 			);
+
+			AddEngineThirdPartyPrivateStaticDependencies(Target,
+				new string[]
+				{
+					"FBX"
+				}
+			);
 		}
 	}
 }
