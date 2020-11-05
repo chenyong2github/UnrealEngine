@@ -43,6 +43,7 @@ bool FOnlineSubsystemEOSPlus::Init()
 	StatsInterfacePtr = MakeShareable(new FOnlineStatsEOSPlus(this));
 	AchievementsInterfacePtr = MakeShareable(new FOnlineAchievementsEOSPlus(this));
 	FriendsInterfacePtr = MakeShareable(new FOnlineFriendsEOSPlus(this));
+	PresenceInterfacePtr = MakeShareable(new FOnlinePresenceEOSPlus(this));
 
 	return true;
 }
@@ -61,6 +62,8 @@ bool FOnlineSubsystemEOSPlus::Shutdown()
 
 	DESTRUCT_INTERFACE(StatsInterfacePtr);
 	DESTRUCT_INTERFACE(AchievementsInterfacePtr);
+	DESTRUCT_INTERFACE(FriendsInterfacePtr);
+	DESTRUCT_INTERFACE(PresenceInterfacePtr);
 
 #undef DESTRUCT_INTERFACE
 
@@ -169,7 +172,7 @@ IOnlineMessagePtr FOnlineSubsystemEOSPlus::GetMessageInterface() const
 
 IOnlinePresencePtr FOnlineSubsystemEOSPlus::GetPresenceInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetPresenceInterface() : nullptr;
+	return PresenceInterfacePtr;
 }
 
 IOnlineChatPtr FOnlineSubsystemEOSPlus::GetChatInterface() const
