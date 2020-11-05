@@ -978,9 +978,10 @@ public:
 			RootNodeContext.Bounds.Center += FVector4(InOffset, 0.0f);
 		}
 
-		// Add all elements from a saved nodes to a new empty octree
-		for (const ElementType& Element : TempElementStorage)
+		// Offset & Add all elements from a saved nodes to a new empty octree
+		for (ElementType& Element : TempElementStorage)
 		{
+			OctreeSemantics::ApplyOffset(Element, InOffset);
 			AddElement(Element);
 		}
 	}
