@@ -765,7 +765,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 			DenoiserOutputs = RenderLumenScreenProbeGather(
 				GraphBuilder, 
-				CommonDiffuseParameters.SceneTextures, 
+				SceneTexturesUniformBuffer,
 				PrevSceneColorMip, 
 				View,
 				&View.PrevViewInfo,

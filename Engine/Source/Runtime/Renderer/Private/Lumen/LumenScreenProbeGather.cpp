@@ -706,7 +706,7 @@ DECLARE_GPU_STAT(LumenScreenProbeGather);
 
 FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	FRDGBuilder& GraphBuilder,
-	const FSceneTextureParameters& InSceneTextures,
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColorMip,
 	const FViewInfo& View,
 	FPreviousViewInfo* PreviousViewInfos,
@@ -733,12 +733,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		return ScreenSpaceDenoiserInputs;
 	}
 
-	FSceneTextureParameters SceneTextures = InSceneTextures;
-
-	if (!SceneTextures.GBufferVelocityTexture)
-	{
-		SceneTextures.GBufferVelocityTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-	}
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTexturesUniformBuffer);
 
 	FScreenProbeParameters ScreenProbeParameters;
 	ScreenProbeParameters.ScreenProbeTracingOctahedronResolution = LumenScreenProbeGather::GetTracingOctahedronResolution();
@@ -906,7 +901,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		View, 
 		bSSGI,
 		GLumenGatherCvars.TraceCards != 0,
-		SceneTextures,
+		SceneTexturesUniformBuffer,
 		PrevSceneColorMip,
 		TracingInputs,
 		RadianceCacheParameters,

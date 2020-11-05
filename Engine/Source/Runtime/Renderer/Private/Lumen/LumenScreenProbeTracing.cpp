@@ -187,7 +187,7 @@ class FScreenProbeTraceCardsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFGridParameters, MeshSDFGridParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
-		SHADER_PARAMETER_STRUCT_REF(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedTraceParameters, CompactedTraceParameters)
 	END_SHADER_PARAMETER_STRUCT()
 		
@@ -220,7 +220,7 @@ class FScreenProbeTraceVoxelsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
-		SHADER_PARAMETER_STRUCT_REF(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedTraceParameters, CompactedTraceParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -523,13 +523,15 @@ void TraceScreenProbes(
 	const FViewInfo& View, 
 	bool bEnableSSGI,
 	bool bTraceCards,
-	const FSceneTextureParameters& SceneTextures,
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColor,
 	const FLumenCardTracingInputs& TracingInputs,
 	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
 	FScreenProbeParameters& ScreenProbeParameters,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters)
 {
+	const FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTexturesUniformBuffer);
+
 	{
 		FClearTracesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearTracesCS::FParameters>();
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
@@ -641,7 +643,7 @@ void TraceScreenProbes(
 				PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 				PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 				PassParameters->IndirectTracingParameters = IndirectTracingParameters;
-				PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder.RHICmdList, View.FeatureLevel);
+				PassParameters->SceneTexturesStruct = SceneTexturesUniformBuffer;
 				PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
 				FScreenProbeTraceCardsCS::FPermutationDomain PermutationVector;
@@ -673,7 +675,7 @@ void TraceScreenProbes(
 		GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
-		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder.RHICmdList, View.FeatureLevel);
+		PassParameters->SceneTexturesStruct = SceneTexturesUniformBuffer;
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
 		const bool bRadianceCache = LumenScreenProbeGather::UseRadianceCache(View);

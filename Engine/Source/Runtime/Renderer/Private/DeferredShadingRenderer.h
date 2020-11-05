@@ -496,7 +496,7 @@ private:
 
 	FSSDSignalTextures RenderLumenScreenProbeGather(
 		FRDGBuilder& GraphBuilder,
-		const FSceneTextureParameters& SceneTextures,
+		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures,
 		const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColorMip,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
