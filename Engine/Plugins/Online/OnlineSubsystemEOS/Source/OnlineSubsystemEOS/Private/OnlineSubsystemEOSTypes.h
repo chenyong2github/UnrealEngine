@@ -12,6 +12,8 @@
 
 #include "OnlineSubsystemEOSPackage.h"
 
+#include "IPAddress.h"
+
 #if WITH_EOS_SDK
 	#include "eos_common.h"
 #endif
