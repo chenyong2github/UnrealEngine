@@ -27,6 +27,10 @@
 #include "Interfaces/ITextureFormat.h"
 #include "Interfaces/ITextureFormatModule.h"
 
+#if WITH_EDITOR
+#include "TextureCompiler.h"
+#endif
+
 #if WITH_EDITORONLY_DATA
 	#include "EditorFramework/AssetImportData.h"
 #endif
@@ -219,6 +223,18 @@ bool UTexture::IsPostLoadThreadSafe() const
 bool UTexture::IsDefaultTexture() const
 {
 	return false;
+}
+
+bool UTexture::Modify(bool bAlwaysMarkDirty)
+{
+	// Before applying any modification to the texture
+	// make sure no compilation is still ongoing.
+	if (IsDefaultTexture())
+	{
+		FTextureCompilingManager::Get().FinishCompilation({this});
+	}
+
+	return Super::Modify(bAlwaysMarkDirty);
 }
 
 bool UTexture::CanEditChange(const FProperty* InProperty) const

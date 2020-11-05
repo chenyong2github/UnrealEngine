@@ -1046,6 +1046,7 @@ public:
 
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
+	ENGINE_API virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif // WITH_EDITOR
