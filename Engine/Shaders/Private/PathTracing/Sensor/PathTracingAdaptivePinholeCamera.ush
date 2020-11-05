@@ -38,6 +38,10 @@ uint Log2(uint Value)
 
 bool DoAdaptiveSampling()
 {
+#if 1
+	return false;
+#else
+	// TODO: remove this
 	bool bVarianceMapExists = AdaptiveSamplingData.VarianceDimensions.x + AdaptiveSamplingData.VarianceDimensions.y > 0;
 	bool bVarianceMapIsPrimed = AdaptiveSamplingData.Iteration >= AdaptiveSamplingData.MinimumSamplesPerPixel;
 	bool bVarianceSumIsValid = false;
@@ -49,6 +53,7 @@ bool DoAdaptiveSampling()
 		bVarianceSumIsValid = VarianceSum > Epsilon;
 	}
 	return bVarianceMapExists && bVarianceMapIsPrimed && bVarianceSumIsValid;
+#endif
 }
 
 void AdaptivePinholeCamera_SampleEmitter(
