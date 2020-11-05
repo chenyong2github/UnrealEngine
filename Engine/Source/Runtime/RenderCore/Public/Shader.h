@@ -393,8 +393,8 @@ public:
 
 	virtual FShaderMapPointerTable* Clone() const { return new FShaderMapPointerTable(*this); }
 
-	virtual void SaveToArchive(FArchive& Ar, void* FrozenContent, bool bInlineShaderResources) const;
-	virtual void LoadFromArchive(FArchive& Ar, void* FrozenContent, bool bInlineShaderResources, bool bLoadedByCookedMaterial);
+	virtual void SaveToArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, const void* FrozenObject) const override;
+	virtual bool LoadFromArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, void* FrozenObject) override;
 
 	TPtrTable<FShaderType> ShaderTypes;
 	TPtrTable<FVertexFactoryType> VFTypes;
@@ -1982,18 +1982,19 @@ public:
 	inline FShaderMapResource* GetResource() const { return Resource; }
 	inline FShaderMapResource* GetResourceChecked() const { check(Resource); return Resource; }
 	inline const FShaderMapPointerTable& GetPointerTable() const { check(PointerTable); return *PointerTable; }
-	inline const FShaderMapContent* GetContent() const { return Content; }
+	inline const FShaderMapContent* GetContent() const { return Content.Object; }
 	inline FShaderMapContent* GetMutableContent()
 	{
 		UnfreezeContent();
-		return Content;
+		return Content.Object;
 	}
 
-	inline EShaderPlatform GetShaderPlatform() const { return Content ? Content->GetShaderPlatform() : SP_NumPlatforms; }
-	inline uint32 GetFrozenContentSize() const { return FrozenContentSize; }
+	inline EShaderPlatform GetShaderPlatform() const { return Content.Object ? Content.Object->GetShaderPlatform() : SP_NumPlatforms; }
+	inline uint32 GetFrozenContentSize() const { return Content.FrozenSize; }
 
-	void AssignContent(FShaderMapContent* InContent);
+	void AssignContent(TMemoryImageObject<FShaderMapContent> InContent);
 
+	void FinalizeContent();
 	void UnfreezeContent();
 	bool Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial, bool bInlineShaderCode=false);
 
@@ -2002,11 +2003,11 @@ public:
 #if WITH_EDITOR
 	inline void GetOutdatedTypes(TArray<const FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes) const
 	{
-		Content->GetOutdatedTypes(*this, OutdatedShaderTypes, OutdatedShaderPipelineTypes, OutdatedFactoryTypes);
+		Content.Object->GetOutdatedTypes(*this, OutdatedShaderTypes, OutdatedShaderPipelineTypes, OutdatedFactoryTypes);
 	}
 	void SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, const struct FStableShaderKeyAndValue& SaveKeyVal)
 	{
-		Content->SaveShaderStableKeys(*this, TargetShaderPlatform, SaveKeyVal);
+		Content.Object->SaveShaderStableKeys(*this, TargetShaderPlatform, SaveKeyVal);
 	}
 
 	/** Associates a shadermap with an asset (note: one shadermap can be used by several assets, e.g. MIs). 
@@ -2029,13 +2030,15 @@ public:
 #endif // WITH_EDITOR
 
 protected:
-	explicit FShaderMapBase(const FTypeLayoutDesc& InContentTypeLayout);
+	FShaderMapBase();
 
-	void AssignAndFreezeContent(const FShaderMapContent* InContent);
+	void AssignCopy(const FShaderMapBase& Source);
+
 	void InitResource();
 	void DestroyContent();
 
 protected:
+	virtual const FTypeLayoutDesc& GetContentTypeDesc() const = 0;
 	virtual FShaderMapPointerTable* CreatePointerTable() const = 0;
 
 private:
@@ -2043,12 +2046,10 @@ private:
 	/** List of the assets that are using this shadermap. This is only available in the editor (cooker) to influence ordering of shader libraries. */
 	FShaderMapAssetPaths AssociatedAssets;
 #endif
-	const FTypeLayoutDesc& ContentTypeLayout;
 	TRefCountPtr<FShaderMapResource> Resource;
 	TRefCountPtr<FShaderMapResourceCode> Code;
 	FShaderMapPointerTable* PointerTable;
-	FShaderMapContent* Content;
-	uint32 FrozenContentSize;
+	TMemoryImageObject<FShaderMapContent> Content;
 	uint32 NumFrozenShaders;
 };
 
@@ -2066,12 +2067,11 @@ public:
 		check(LocalContent);
 		LocalContent->Finalize(this->GetResourceCode());
 		LocalContent->Validate(*this);
-		this->AssignAndFreezeContent(LocalContent);
-		this->InitResource();
+		FShaderMapBase::FinalizeContent();
 	}
 
 protected:
-	TShaderMap() : FShaderMapBase(StaticGetTypeLayoutDesc<ContentType>()) {}
+	virtual const FTypeLayoutDesc& GetContentTypeDesc() const final override { return StaticGetTypeLayoutDesc<ContentType>(); }
 	virtual FShaderMapPointerTable* CreatePointerTable() const final override { return new PointerTableType(); }
 };
 

@@ -730,11 +730,12 @@ namespace Freeze
 	}
 
 	template<typename KeyType, typename ValueType>
-	void IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TTuple<KeyType, ValueType>& Object, void* OutDst)
+	uint32 IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TTuple<KeyType, ValueType>& Object, void* OutDst)
 	{
 		TTuple<KeyType, ValueType>* DstObject = (TTuple<KeyType, ValueType>*)OutDst;
 		Context.UnfreezeObject(Object.Key, &DstObject->Key);
 		Context.UnfreezeObject(Object.Value, &DstObject->Value);
+		return sizeof(Object);
 	}
 
 	template<typename KeyType, typename ValueType>
