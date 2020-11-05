@@ -3813,6 +3813,9 @@ void ALandscape::PostEditMove(bool bFinished)
 		}
 	}
 
+	// Some edit layers could be affected by BP brushes, which might need to be updated when the landscape is transformed :
+	RequestLayersContentUpdate(bFinished ? ELandscapeLayerUpdateMode::Update_All : ELandscapeLayerUpdateMode::Update_All_Editing_NoCollision);
+
 	Super::PostEditMove(bFinished);
 }
 
@@ -3842,6 +3845,9 @@ void ALandscape::PostEditImport()
 		}
 	}
 
+	// Some edit layers could be affected by BP brushes, which might need to be updated when the landscape is transformed :
+	RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
+
 	Super::PostEditImport();
 }
 
@@ -3853,6 +3859,9 @@ void ALandscape::PostDuplicate(bool bDuplicateForPIE)
 		LandscapeGuid = FGuid::NewGuid();
 		// This makes sure at least we have a LandscapeInfo mapped for this GUID.
 		CreateLandscapeInfo();
+
+		// Some edit layers could be affected by BP brushes, which might need to be updated when the landscape is transformed :
+		RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
 	}
 
 	Super::PostDuplicate(bDuplicateForPIE);
@@ -4944,6 +4953,9 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 			Info->FixupProxiesTransform();
 			bNeedsRecalcBoundingBox = true;
 		}
+
+		// Some edit layers could be affected by BP brushes, which might need to be updated when the landscape is transformed :
+		RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
 	}
 	else if (GIsEditor && PropertyName == FName(TEXT("MaxLODLevel")))
 	{
