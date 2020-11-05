@@ -1001,14 +1001,17 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 
 	if ( FbxCurve )
 	{
-		for ( int32 KeyIndex=0; KeyIndex<FbxCurve->KeyGetCount(); ++KeyIndex )
+		int32 KeyCount = FbxCurve->KeyGetCount();
+		float PreviousKeyValue = 0;
+		for ( int32 KeyIndex=0; KeyIndex < KeyCount; ++KeyIndex )
 		{
 			FbxAnimCurveKey Key = FbxCurve->KeyGet(KeyIndex);
 			FbxTime KeyTime = Key.GetTime() - AnimTimeSpan.GetStart();
 			float Value = Key.GetValue() * ValueScale;
 			FKeyHandle NewKeyHandle = RichCurve.AddKey(KeyTime.GetSecondDouble(), Value, false);
 
-			FbxAnimCurveDef::ETangentMode KeyTangentMode = Key.GetTangentMode();
+			const bool bIncludeOverrides = true;
+			FbxAnimCurveDef::ETangentMode KeyTangentMode = Key.GetTangentMode(bIncludeOverrides);
 			FbxAnimCurveDef::EInterpolationType KeyInterpMode = Key.GetInterpolation();
 			FbxAnimCurveDef::EWeightedMode KeyTangentWeightMode = Key.GetTangentWeightMode();
 
@@ -1020,6 +1023,22 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 			float ArriveTangent = 0.f;
 			float LeaveTangentWeight = DefaultCurveWeight;
 			float ArriveTangentWeight = DefaultCurveWeight;
+
+			//Gather if we want to use auto mode for tangent weight
+			const bool bIsAutoTangent = (KeyTangentMode & FbxAnimCurveDef::eTangentAuto);
+			// When this flag is true, the tangent is flat if the value has the same value as the previous or next key.
+			const bool bTangentGenericClamp = (KeyTangentMode & FbxAnimCurveDef::eTangentGenericClamp);
+			// When this flag is true, the tangent is flat if the value is outside of the [previous key, next key] value range.
+			const bool bTangentGenericClampProgressive = (KeyTangentMode & FbxAnimCurveDef::ETangentMode::eTangentGenericClampProgressive) == FbxAnimCurveDef::ETangentMode::eTangentGenericClampProgressive;
+ 			if (KeyTangentMode & FbxAnimCurveDef::eTangentGenericBreak)
+ 			{
+ 				NewTangentMode = RCTM_Break;
+ 			}
+  			else if(KeyTangentMode & FbxAnimCurveDef::eTangentUser)
+  			{
+  				NewTangentMode = RCTM_User;
+  			}
+			//Anything else will be set to auto, we do not support eTangentTCB (Tension, Continuity, Bias)
 
 			switch (KeyInterpMode)
 			{
@@ -1033,16 +1052,55 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 				NewInterpMode = RCIM_Cubic;
 				// get tangents
 				{
-					LeaveTangent = Key.GetDataFloat(FbxAnimCurveDef::eRightSlope);
-
-					if ( KeyIndex > 0 )
+					bool bIsFlatTangent = false;
+					if (bTangentGenericClampProgressive)
 					{
-						FbxAnimCurveKey PrevKey = FbxCurve->KeyGet(KeyIndex-1);
-						ArriveTangent = PrevKey.GetDataFloat(FbxAnimCurveDef::eNextLeftSlope);
+						if (KeyIndex > 0 && KeyIndex < KeyCount - 1)
+						{
+							const float NextValue = FbxCurve->KeyGet(KeyIndex + 1).GetValue() * ValueScale;
+							const float PreviousNextHalfDelta = (NextValue - PreviousKeyValue) * 0.5f;
+							const float PreviousNextAverage = PreviousKeyValue + PreviousNextHalfDelta;
+
+							// If the value is outside of the previous-next value range, the tangent is flat.
+							bIsFlatTangent = FMath::Abs(Value - PreviousNextAverage) >= FMath::Abs(PreviousNextHalfDelta);
+						}
+						else
+						{
+							//Start/End tangent with the ClampProgressive flag are flat.
+							bIsFlatTangent = true;
+						}
+					}
+					else if (bTangentGenericClamp && (KeyIndex > 0 || KeyIndex < KeyCount - 1))
+					{
+						if (KeyIndex > 0 && PreviousKeyValue == Value)
+						{
+							bIsFlatTangent = true;
+						}
+						if (KeyIndex < KeyCount - 1)
+						{
+							const float NextValue = FbxCurve->KeyGet(KeyIndex + 1).GetValue() * ValueScale;
+							bIsFlatTangent |= Value == NextValue;
+						}
+					}
+					
+					if (bIsFlatTangent)
+					{
+						LeaveTangent = 0;
+						ArriveTangent = 0;
+						NewTangentMode = RCTM_User;
 					}
 					else
 					{
-						ArriveTangent = 0.f;
+						LeaveTangent = Key.GetDataFloat(FbxAnimCurveDef::eRightSlope);
+						if ( KeyIndex > 0 )
+						{
+							FbxAnimCurveKey PrevKey = FbxCurve->KeyGet(KeyIndex-1);
+							ArriveTangent = PrevKey.GetDataFloat(FbxAnimCurveDef::eNextLeftSlope);
+						}
+						else
+						{
+							ArriveTangent = 0.f;
+						}
 					}
 
 				}
@@ -1061,8 +1119,7 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
   			}
 			//Anything else will be set to auto, we do not support eTangentTCB (Tension, Continuity, Bias)
 
-			// @fix me : weight of tangent is not used, but we'll just save this for future where we might use it.
-			if (!bSetDefaultWeight)
+			if (!bIsAutoTangent)
 			{
 				switch (KeyTangentWeightMode)
 				{
@@ -1104,15 +1161,25 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 				}
 			}
 
-			RichCurve.SetKeyInterpMode(NewKeyHandle, NewInterpMode, bAutoSetTangents);
-			RichCurve.SetKeyTangentMode(NewKeyHandle, NewTangentMode, bAutoSetTangents);
-			RichCurve.SetKeyTangentWeightMode(NewKeyHandle, NewTangentWeightMode, bAutoSetTangents);
+			const bool bForceDisableTangentRecompute = false; //No need to recompute all the tangents of the curve every time we change de key.
+			RichCurve.SetKeyInterpMode(NewKeyHandle, NewInterpMode, bForceDisableTangentRecompute);
+			RichCurve.SetKeyTangentMode(NewKeyHandle, NewTangentMode, bForceDisableTangentRecompute);
+			RichCurve.SetKeyTangentWeightMode(NewKeyHandle, NewTangentWeightMode, bForceDisableTangentRecompute);
 
-			FRichCurveKey& NewKey = RichCurve.GetKey(NewKeyHandle);
-			NewKey.ArriveTangent = ArriveTangent;
-			NewKey.LeaveTangent = LeaveTangent;
-			NewKey.ArriveTangentWeight = ArriveTangentWeight;
-			NewKey.LeaveTangentWeight = LeaveTangentWeight;
+			if (NewTangentMode != RCTM_Auto || !bAutoSetTangents)
+			{
+				FRichCurveKey& NewKey = RichCurve.GetKey(NewKeyHandle);
+				NewKey.ArriveTangent = ArriveTangent * ValueScale;
+				NewKey.LeaveTangent = LeaveTangent * ValueScale;
+				NewKey.ArriveTangentWeight = ArriveTangentWeight;
+				NewKey.LeaveTangentWeight = LeaveTangentWeight;
+			}
+			PreviousKeyValue = Value;
+		}
+
+		if (bAutoSetTangents)
+		{
+			RichCurve.AutoSetTangents();
 		}
 
 		return true;
