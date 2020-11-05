@@ -210,7 +210,7 @@ struct ENGINE_API FQuartzQuantizationBoundary
 	EQuartzCommandQuantization Quantization;
 
 	// how many "Resolutions" to wait before the onset we care about
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings", meta = (ClampMin = "1.0"))
 	float Multiplier;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings")
