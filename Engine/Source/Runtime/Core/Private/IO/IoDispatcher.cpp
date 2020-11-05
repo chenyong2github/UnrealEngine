@@ -703,7 +703,7 @@ FIoBatch::operator=(FIoBatch&& Other)
 }
 
 FIoRequestImpl*
-FIoBatch::ReadInternal(const FIoChunkId& ChunkId, const FIoReadOptions& Options, EIoDispatcherPriority Priority)
+FIoBatch::ReadInternal(const FIoChunkId& ChunkId, const FIoReadOptions& Options, int32 Priority)
 {
 	FIoRequestImpl* Request = Dispatcher->AllocRequest(ChunkId, Options);
 	Request->Priority = Priority;
@@ -723,14 +723,14 @@ FIoBatch::ReadInternal(const FIoChunkId& ChunkId, const FIoReadOptions& Options,
 }
 
 FIoRequest
-FIoBatch::Read(const FIoChunkId& ChunkId, FIoReadOptions Options, EIoDispatcherPriority Priority)
+FIoBatch::Read(const FIoChunkId& ChunkId, FIoReadOptions Options, int32 Priority)
 {
 	FIoRequestImpl* Request = ReadInternal(ChunkId, Options, Priority);
 	return FIoRequest(Request);
 }
 
 FIoRequest
-FIoBatch::ReadWithCallback(const FIoChunkId& ChunkId, const FIoReadOptions& Options, EIoDispatcherPriority Priority, FIoReadCallback&& Callback)
+FIoBatch::ReadWithCallback(const FIoChunkId& ChunkId, const FIoReadOptions& Options, int32 Priority, FIoReadCallback&& Callback)
 {
 	FIoRequestImpl* Request = ReadInternal(ChunkId, Options, Priority);
 	Request->Callback = MoveTemp(Callback);
@@ -744,7 +744,7 @@ FIoBatch::Issue()
 }
 
 void
-FIoBatch::Issue(EIoDispatcherPriority Priority)
+FIoBatch::Issue(int32 Priority)
 {
 	FIoRequestImpl* Request = HeadRequest;
 	while (Request)

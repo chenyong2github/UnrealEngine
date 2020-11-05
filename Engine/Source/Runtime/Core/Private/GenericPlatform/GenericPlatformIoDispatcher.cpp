@@ -80,7 +80,7 @@ bool FGenericFileIoStoreImpl::OpenContainer(const TCHAR* ContainerFilePath, uint
 
 bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQueue)
 {
-	FFileIoStoreReadRequest* NextRequest = RequestQueue.Peek();
+	FFileIoStoreReadRequest* NextRequest = RequestQueue.Pop();
 	if (!NextRequest)
 	{
 		return false;
@@ -92,6 +92,7 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 		NextRequest->Buffer = BufferAllocator.AllocBuffer();
 		if (!NextRequest->Buffer)
 		{
+			RequestQueue.Push(*NextRequest);
 			return false;
 		}
 		Dest = NextRequest->Buffer->Memory;
@@ -101,8 +102,6 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 		Dest = NextRequest->ImmediateScatter.Request->IoBuffer.Data() + NextRequest->ImmediateScatter.DstOffset;
 	}
 	
-	RequestQueue.Pop(*NextRequest);
-
 	if (!BlockCache.Read(NextRequest))
 	{
 		IFileHandle* FileHandle = reinterpret_cast<IFileHandle*>(static_cast<UPTRINT>(NextRequest->FileHandle));

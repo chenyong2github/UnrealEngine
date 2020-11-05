@@ -63,7 +63,7 @@ public:
 	FIoBuffer IoBuffer;
 	FIoReadCallback Callback;
 	uint32 UnfinishedReadsCount = 0;
-	EIoDispatcherPriority Priority = IoDispatcherPriority_Medium;
+	int32 Priority = 0;
 	TAtomic<EIoErrorCode> ErrorCode{ EIoErrorCode::Unknown };
 	bool bFailed = false;
 
