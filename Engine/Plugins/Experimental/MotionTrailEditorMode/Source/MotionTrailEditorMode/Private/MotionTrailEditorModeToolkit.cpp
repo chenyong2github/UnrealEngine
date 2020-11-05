@@ -24,10 +24,11 @@ FMotionTrailEditorModeToolkit::FMotionTrailEditorModeToolkit()
 {
 }
 
-void FMotionTrailEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
+void FMotionTrailEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode)
 {
 	SAssignNew(TimingStatsTextWidget, STextBlock);
-	FModeToolkit::Init(InitToolkitHost);
+
+	FModeToolkit::Init(InitToolkitHost, InOwningMode);
 }
 
 FName FMotionTrailEditorModeToolkit::GetToolkitFName() const
@@ -42,7 +43,6 @@ FText FMotionTrailEditorModeToolkit::GetBaseToolkitName() const
 
 TSharedPtr<SWidget> FMotionTrailEditorModeToolkit::GetInlineContent() const
 {
-	// TODO: fix crash where TimingStatsTextWidget becomes null when re-activating ed mode
 	TSharedPtr<SWidget> ModeWidget = FModeToolkit::GetInlineContent();
 	return SNew(SVerticalBox)
 		+ SVerticalBox::Slot()

@@ -21,12 +21,12 @@ public:
 	FMotionTrailEditorModeToolkit();
 	
 	/** FModeToolkit interface */
-	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost) override;
+	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode) override;
 
 	/** IToolkit interface */
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
-	TSharedPtr<SWidget> GetInlineContent() const override;
+	virtual TSharedPtr<SWidget> GetInlineContent() const override;
 
 	void SetTimingStats(const TArray<TMap<FString, FTimespan>>& HierarchyStats);
 
