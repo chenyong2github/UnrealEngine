@@ -30,6 +30,7 @@ enum class ETextLocalizationManagerInitializedFlags : uint8
 	None = 0,
 	Engine = 1<<0,
 	Game = 1<<1,
+	Initializing = 1<<2
 };
 ENUM_CLASS_FLAGS(ETextLocalizationManagerInitializedFlags);
 
@@ -39,6 +40,8 @@ class CORE_API FTextLocalizationManager
 	friend CORE_API void BeginPreInitTextLocalization();
 	friend CORE_API void BeginInitTextLocalization();
 	friend CORE_API void InitEngineTextLocalization();
+	friend CORE_API void BeginInitGameTextLocalization();
+	friend CORE_API void EndInitGameTextLocalization();
 	friend CORE_API void InitGameTextLocalization();
 
 private:
@@ -79,6 +82,11 @@ private:
 	bool IsInitialized() const
 	{
 		return InitializedFlags != ETextLocalizationManagerInitializedFlags::None;
+	}
+
+	bool IsInitializing() const
+	{
+		return EnumHasAnyFlags(InitializedFlags, ETextLocalizationManagerInitializedFlags::Initializing);
 	}
 
 	FCriticalSection SynchronizationObject;
