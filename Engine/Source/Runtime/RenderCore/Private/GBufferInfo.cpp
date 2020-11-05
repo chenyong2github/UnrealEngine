@@ -356,12 +356,6 @@ FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(const FGBufferParams& Params)
 		Info.Slots[GBS_BaseColor].Packing[2] = FGBufferPacking(TargetGBufferC, 2, 0, 0, 6, 2);
 #endif
 
-		if (bStaticLighting)
-		{
-			Info.Slots[GBS_GenericAO] = FGBufferItem(GBS_GenericAO, GBC_Raw_Unorm_8, GBCH_Both);
-			Info.Slots[GBS_GenericAO].Packing[0] = FGBufferPacking(TargetGBufferC, 0, 3);
-		}
-		else
 		{
 			Info.Slots[GBS_GenericAO] = FGBufferItem(GBS_GenericAO, GBC_Raw_Unorm_8, GBCH_Both);
 			Info.Slots[GBS_GenericAO].Packing[0] = FGBufferPacking(TargetGBufferC, 0, 3);

@@ -1981,11 +1981,27 @@ FGBufferInfo FShaderCompileUtilities::FetchGBufferInfoAndWriteAutogen(EShaderPla
 		OutputFileData += TEXT("#endif\n");
 		OutputFileData += TEXT("\n");
 
-		FPaths::MakeStandardFilename(AutogenHeaderFilenameTemp);
-		FFileHelper::SaveStringToFile(OutputFileData, AutogenHeaderFilenameTemp.GetCharArray().GetData(), FFileHelper::EEncodingOptions::ForceAnsi);
+		// If this file already exists, and the text file is the same as what we are planning to write, then don't write it. In that case,
+		// we don't need to update it (since it didn't change) and it leaves the timestamp unchanged in case you need to open the file manually
+		// for debugging.
+		bool bWriteNeeded = true;
+		{
+			FString PrevFileData;
+			bool bFileExists = FFileHelper::LoadFileToString(PrevFileData,*AutogenHeaderFilename);
+			if (bFileExists && PrevFileData == OutputFileData)
+			{
+				bWriteNeeded = false;
+			}
+		}
 
-		FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*AutogenHeaderFilename);
-		FPlatformFileManager::Get().GetPlatformFile().MoveFile(*AutogenHeaderFilename, *AutogenHeaderFilenameTemp);
+		if (bWriteNeeded)
+		{
+			FPaths::MakeStandardFilename(AutogenHeaderFilenameTemp);
+			FFileHelper::SaveStringToFile(OutputFileData, *AutogenHeaderFilenameTemp, FFileHelper::EEncodingOptions::ForceAnsi);
+
+			FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*AutogenHeaderFilename);
+			FPlatformFileManager::Get().GetPlatformFile().MoveFile(*AutogenHeaderFilename, *AutogenHeaderFilenameTemp);
+		}
 	}
 
 	return BufferInfo;

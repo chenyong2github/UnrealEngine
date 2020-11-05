@@ -91,6 +91,7 @@
 	#include "PIEPreviewDeviceProfileSelectorModule.h"
 	#include "Misc/QueuedThreadPoolWrapper.h"
 	#include "TextureCompiler.h"
+	#include "ShaderCompiler.h"
 
 	#if PLATFORM_WINDOWS
 		#include "Windows/AllowWindowsPlatformTypes.h"
@@ -2615,6 +2616,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		// One-time initialization of global variables based on engine configuration.
 		RenderUtilsInit();
 	}
+
+#if WITH_EDITOR
+	{
+		// Force generation of the autogen files if they don't already exist. We'll ignore the returned data.
+		FGBufferInfo GBufferInfo = FShaderCompileUtilities::FetchGBufferInfoAndWriteAutogen(GMaxRHIShaderPlatform, GetMaxSupportedFeatureLevel(GMaxRHIShaderPlatform));
+	}
+#endif
 
 	{
 		bool bUseCodeLibrary = FPlatformProperties::RequiresCookedData() || GAllowCookedDataInEditorBuilds;
