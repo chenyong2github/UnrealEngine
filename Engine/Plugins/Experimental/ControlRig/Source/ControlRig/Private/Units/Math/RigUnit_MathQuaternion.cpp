@@ -47,6 +47,25 @@ FRigUnit_MathQuaternionToAxisAndAngle_Execute()
 		Axis = FVector(1.f, 0.f, 0.f);
 		Angle = 0.f;
 	}
+
+	if (bMinimumAngle)
+	{
+		float AngleSign = Angle < 0.f ? -1.f : 1.f;
+		Angle = FMath::Abs(Angle);
+
+		static const float TWO_PI = PI * 2.f;
+		if (Angle > TWO_PI)
+		{
+			Angle = FMath::Fmod(Angle, TWO_PI);
+		}
+		if (Angle > PI)
+		{
+			Angle = TWO_PI - Angle;
+			AngleSign = -AngleSign;
+		}
+
+		Angle = Angle * AngleSign;
+	}
 }
 
 FRigUnit_MathQuaternionScale_Execute()
