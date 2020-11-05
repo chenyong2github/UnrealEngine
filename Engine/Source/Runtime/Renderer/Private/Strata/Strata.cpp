@@ -8,6 +8,7 @@
 #include "SceneRendering.h"
 #include "RendererInterface.h"
 #include "UniformBuffer.h"
+#include "SceneTextureParameters.h"
 
 
 
@@ -57,12 +58,6 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 		StrataSceneData.MaxBytesPerPixel = 4u;
 	}
 
-	FRDGTextureRef MaterialLobesTexture = GraphBuilder.CreateTexture(
-		FRDGTextureDesc::Create2D(FIntPoint(ResolutionX, ResolutionY), PF_R16F, FClearValueBinding::None,
-		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV), TEXT("MaterialLobesTexture"));
-	AddClearRenderTargetPass(GraphBuilder, MaterialLobesTexture, FLinearColor::Black);
-	ConvertToExternalTexture(GraphBuilder, MaterialLobesTexture, StrataSceneData.MaterialLobesTexture);
-
 	const uint32 DesiredBufferSize = FMath::Max(4u, ResolutionX * ResolutionY * StrataSceneData.MaxBytesPerPixel);
 	if (StrataSceneData.MaterialLobesBuffer.NumBytes < DesiredBufferSize)
 	{
@@ -89,13 +84,11 @@ void BindStrataBasePassUniformParameters(const FViewInfo& View, FStrataOpaquePas
 	if (View.StrataSceneData)
 	{
 		OutStrataUniformParameters.MaxBytesPerPixel = View.StrataSceneData->MaxBytesPerPixel;
-		OutStrataUniformParameters.MaterialLobesTextureUAV = View.StrataSceneData->MaterialLobesTexture->GetRenderTargetItem().UAV;
 		OutStrataUniformParameters.MaterialLobesBufferUAV = View.StrataSceneData->MaterialLobesBuffer.UAV;
 	}
 	else
 	{
 		OutStrataUniformParameters.MaxBytesPerPixel = 0;
-		OutStrataUniformParameters.MaterialLobesTextureUAV = GEmptyVertexBufferWithUAV->UnorderedAccessViewRHI;
 		OutStrataUniformParameters.MaterialLobesBufferUAV = GEmptyVertexBufferWithUAV->UnorderedAccessViewRHI;
 	}
 }
@@ -112,7 +105,6 @@ TUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParamet
 		}
 
 		StrataUniformParameters.MaxBytesPerPixel = View.StrataSceneData->MaxBytesPerPixel;
-		StrataUniformParameters.MaterialLobesTexture = View.StrataSceneData->MaterialLobesTexture->GetRenderTargetItem().ShaderResourceTexture;
 		StrataUniformParameters.MaterialLobesBuffer = View.StrataSceneData->MaterialLobesBuffer.SRV;
 
 		View.StrataSceneData->StrataGlobalUniformParameters = CreateUniformBufferImmediate(StrataUniformParameters, UniformBuffer_SingleFrame);
@@ -122,7 +114,6 @@ TUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParamet
 	{
 		// Create each time. This path will go away when Strata is always enabled anyway.
 		StrataUniformParameters.MaxBytesPerPixel = 0;
-		StrataUniformParameters.MaterialLobesTexture = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
 		StrataUniformParameters.MaterialLobesBuffer = GEmptyVertexBufferWithUAV->ShaderResourceViewRHI;
 		return CreateUniformBufferImmediate(StrataUniformParameters, UniformBuffer_SingleDraw);
 	}
@@ -143,6 +134,7 @@ class FVisualizeMaterialPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_TEXTURE(Texture2D, MiniFontTexture)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -186,6 +178,7 @@ void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const TArray<FViewInf
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 			PassParameters->MiniFontTexture = GetMiniFontTexture();
+			PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder);
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
 
 			FPixelShaderUtils::AddFullscreenPass<FVisualizeMaterialPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("StrataVisualizeMaterial"),

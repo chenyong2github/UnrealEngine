@@ -385,7 +385,7 @@ void ReflectionEnvironmentSkyLighting(
 
 	const bool bUnlitMaterial = ShadingModelID == SHADINGMODELID_UNLIT;
 #if STRATA_ENABLED
-	const bool bStrataMaterial = Strata.MaterialLobesTexture[PixelPos].x > 0.0f;
+	const bool bStrataMaterial = ShadingModelID == SHADINGMODELID_STRATA;
 #else
 	const bool bStrataMaterial = false;
 #endif

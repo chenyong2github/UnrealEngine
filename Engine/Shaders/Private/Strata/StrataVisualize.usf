@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "/Engine/Private/Common.ush"
+#include "/Engine/Private/DeferredShadingCommon.ush"
 
 #include "/Engine/Private/Strata/Strata.ush"
 
@@ -21,10 +22,14 @@ void VisualizeMaterialPS(
 	const uint2 MaterialPos = View.CursorPosition;
 	const int  InspectSquare = 10;
 
+	// Sample scene textures.
+	float2 BufferUV = SvPositionToBufferUV(SVPos);
+	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
+	bool bStrataMaterial = GBuffer.ShadingModelID == SHADINGMODELID_STRATA;
 
 #if 0
 	OutColor = 0;
-	if (Strata.MaterialLobesTexture[PixelPos].x > 0.0f)
+	if (bStrataMaterial)
 	{
 		uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(PixelPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
 		FStrataPixelBSDFs PixelBSDFs = UnpackStrataIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
@@ -60,7 +65,7 @@ void VisualizeMaterialPS(
 		OutColor.w = 0.0f;				// Set background visiblity to 0 in the bottom right part of the screen to better reads the debug values
 	}
 
-	if (Strata.MaterialLobesTexture[MaterialPos].x > 0.0f)
+	if (bStrataMaterial)
 	{
 		uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(MaterialPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
 		FStrataPixelBSDFs PixelBSDFs = UnpackStrataIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
