@@ -47,6 +47,29 @@ USimpleDynamicMeshComponent::USimpleDynamicMeshComponent(const FObjectInitialize
 }
 
 
+FDynamicMesh3* USimpleDynamicMeshComponent::GetRenderMesh()
+{
+	if (RenderMeshPostProcessor && RenderMesh)
+	{
+		return RenderMesh.Get();
+	}
+	else
+	{
+		return Mesh.Get();
+	}
+}
+
+const FDynamicMesh3* USimpleDynamicMeshComponent::GetRenderMesh() const
+{
+	if (RenderMeshPostProcessor && RenderMesh)
+	{
+		return RenderMesh.Get();
+	}
+	else
+	{
+		return Mesh.Get();
+	}
+}
 
 void USimpleDynamicMeshComponent::InitializeMesh(FMeshDescription* MeshDescription)
 {
@@ -61,6 +84,22 @@ void USimpleDynamicMeshComponent::InitializeMesh(FMeshDescription* MeshDescripti
 	NotifyMeshUpdated();
 }
 
+void USimpleDynamicMeshComponent::SetRenderMeshPostProcessor(TUniquePtr<IRenderMeshPostProcessor> Processor)
+{
+	RenderMeshPostProcessor = MoveTemp(Processor);
+	if (RenderMeshPostProcessor)
+	{
+		if (!RenderMesh)
+		{
+			RenderMesh = MakeUnique<FDynamicMesh3>(*Mesh);
+		}
+	}
+	else
+	{
+		// No post processor, no render mesh
+		RenderMesh = nullptr;
+	}
+}
 
 void USimpleDynamicMeshComponent::UpdateTangents(const FMeshTangentsf* ExternalTangents, bool bFastUpdateIfPossible)
 {
@@ -195,8 +234,7 @@ void USimpleDynamicMeshComponent::SetDrawOnTop(bool bSet)
 	bUseEditorCompositing = bSet;
 }
 
-
-void USimpleDynamicMeshComponent::NotifyMeshUpdated()
+void USimpleDynamicMeshComponent::ResetProxy()
 {
 	// Need to recreate scene proxy to send it over
 	MarkRenderStateDirty();
@@ -209,11 +247,27 @@ void USimpleDynamicMeshComponent::NotifyMeshUpdated()
 	}
 }
 
+void USimpleDynamicMeshComponent::NotifyMeshUpdated()
+{
+	if (RenderMeshPostProcessor)
+	{
+		RenderMeshPostProcessor->ProcessMesh(*Mesh, *RenderMesh);
+	}
+
+	ResetProxy();
+}
+
 
 void USimpleDynamicMeshComponent::FastNotifyColorsUpdated()
 {
+	if (RenderMeshPostProcessor)
+	{
+		RenderMeshPostProcessor->ProcessMesh(*Mesh, *RenderMesh);
+	}
+
 	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
-	if (Proxy != nullptr)
+
+	if (Proxy && Proxy->RenderMeshLayoutMatchesRenderBuffers())
 	{
 		if (TriangleColorFunc != nullptr &&  Proxy->bUsePerTriangleColor == false )
 		{
@@ -231,7 +285,7 @@ void USimpleDynamicMeshComponent::FastNotifyColorsUpdated()
 	}
 	else
 	{
-		NotifyMeshUpdated();
+		ResetProxy();
 	}
 }
 
@@ -239,7 +293,14 @@ void USimpleDynamicMeshComponent::FastNotifyColorsUpdated()
 
 void USimpleDynamicMeshComponent::FastNotifyPositionsUpdated(bool bNormals, bool bColors, bool bUVs)
 {
-	if (GetCurrentSceneProxy() != nullptr)
+	if (RenderMeshPostProcessor)
+	{
+		RenderMeshPostProcessor->ProcessMesh(*Mesh, *RenderMesh);
+	}
+
+	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
+
+	if (Proxy && Proxy->RenderMeshLayoutMatchesRenderBuffers())
 	{
 		GetCurrentSceneProxy()->FastUpdateVertices(true, bNormals, bColors, bUVs);
 		//MarkRenderDynamicDataDirty();
@@ -249,15 +310,22 @@ void USimpleDynamicMeshComponent::FastNotifyPositionsUpdated(bool bNormals, bool
 	}
 	else
 	{
-		NotifyMeshUpdated();
+		ResetProxy();
 	}
 }
 
 
 void USimpleDynamicMeshComponent::FastNotifyVertexAttributesUpdated(bool bNormals, bool bColors, bool bUVs)
 {
+	if (RenderMeshPostProcessor)
+	{
+		RenderMeshPostProcessor->ProcessMesh(*Mesh, *RenderMesh);
+	}
+
+	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
+
 	check(bNormals || bColors || bUVs);
-	if (GetCurrentSceneProxy() != nullptr)
+	if (Proxy && Proxy->RenderMeshLayoutMatchesRenderBuffers())
 	{
 		GetCurrentSceneProxy()->FastUpdateVertices(false, bNormals, bColors, bUVs);
 		//MarkRenderDynamicDataDirty();
@@ -265,15 +333,22 @@ void USimpleDynamicMeshComponent::FastNotifyVertexAttributesUpdated(bool bNormal
 	}
 	else
 	{
-		NotifyMeshUpdated();
+		ResetProxy();
 	}
 }
 
 
 void USimpleDynamicMeshComponent::FastNotifyVertexAttributesUpdated(EMeshRenderAttributeFlags UpdatedAttributes)
 {
+	if (RenderMeshPostProcessor)
+	{
+		RenderMeshPostProcessor->ProcessMesh(*Mesh, *RenderMesh);
+	}
+
+	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
+
 	check(UpdatedAttributes != EMeshRenderAttributeFlags::None);
-	if (GetCurrentSceneProxy() != nullptr)
+	if (Proxy && Proxy->RenderMeshLayoutMatchesRenderBuffers())
 	{
 		bool bPositions = (UpdatedAttributes & EMeshRenderAttributeFlags::Positions) != EMeshRenderAttributeFlags::None;
 		GetCurrentSceneProxy()->FastUpdateVertices(bPositions,
@@ -290,7 +365,7 @@ void USimpleDynamicMeshComponent::FastNotifyVertexAttributesUpdated(EMeshRenderA
 	}
 	else
 	{
-		NotifyMeshUpdated();
+		ResetProxy();
 	}
 }
 
@@ -304,22 +379,36 @@ void USimpleDynamicMeshComponent::FastNotifyUVsUpdated()
 
 void USimpleDynamicMeshComponent::FastNotifySecondaryTrianglesChanged()
 {
-	if (GetCurrentSceneProxy() != nullptr)
+	if (RenderMeshPostProcessor)
+	{
+		RenderMeshPostProcessor->ProcessMesh(*Mesh, *RenderMesh);
+	}
+
+	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
+
+	if (Proxy && Proxy->RenderMeshLayoutMatchesRenderBuffers())
 	{
 		GetCurrentSceneProxy()->FastUpdateAllIndexBuffers();
 	}
 	else
 	{
-		NotifyMeshUpdated();
+		ResetProxy();
 	}
 }
 
 
 void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TArray<int32>& Triangles, EMeshRenderAttributeFlags UpdatedAttributes)
 {
-	if (GetCurrentSceneProxy() == nullptr)
+	if (RenderMeshPostProcessor)
 	{
-		NotifyMeshUpdated();
+		RenderMeshPostProcessor->ProcessMesh(*Mesh, *RenderMesh);
+	}
+
+	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
+
+	if (!Proxy || !Proxy->RenderMeshLayoutMatchesRenderBuffers())
+	{
+		ResetProxy();
 	}
 	else if ( ! Decomposition )
 	{
@@ -353,9 +442,16 @@ void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TArray
 
 void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TSet<int32>& Triangles, EMeshRenderAttributeFlags UpdatedAttributes)
 {
-	if (GetCurrentSceneProxy() == nullptr)
+	if (RenderMeshPostProcessor)
 	{
-		NotifyMeshUpdated();
+		RenderMeshPostProcessor->ProcessMesh(*Mesh, *RenderMesh);
+	}
+
+	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
+
+	if (!Proxy || !Proxy->RenderMeshLayoutMatchesRenderBuffers())
+	{
+		ResetProxy();
 	}
 	else if (!Decomposition)
 	{

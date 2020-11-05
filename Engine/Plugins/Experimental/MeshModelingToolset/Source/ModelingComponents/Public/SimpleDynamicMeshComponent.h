@@ -18,6 +18,19 @@ struct FMeshDescription;
 class FSimpleDynamicMeshSceneProxy;
 
 
+/**
+ * Interface for a render mesh processor. Use this to process the Mesh stored in USimpleDynamicMeshComponent before
+ * sending it off for rendering.
+ * NOTE: This is called whenever the Mesh is updated and before rendering, so performance matters.
+ */
+class MODELINGCOMPONENTS_API IRenderMeshPostProcessor
+{
+public:
+	virtual ~IRenderMeshPostProcessor() = default;
+
+	virtual void ProcessMesh(const FDynamicMesh3& Mesh, FDynamicMesh3& OutRenderMesh) = 0;
+};
+
 
 /** 
  * USimpleDynamicMeshComponent is a mesh component similar to UProceduralMeshComponent,
@@ -54,6 +67,16 @@ public:
 	 * @return pointer to internal mesh
 	 */
 	virtual const FDynamicMesh3* GetMesh() const override { return Mesh.Get(); }
+
+	/*
+	* The SceneProxy should call these functions to get the post-processed RenderMesh. (See IRenderMeshPostProcessor.)
+	*/
+	virtual FDynamicMesh3* GetRenderMesh();
+
+	/*
+	* The SceneProxy should call these functions to get the post-processed RenderMesh. (See IRenderMeshPostProcessor.)
+	*/
+	virtual const FDynamicMesh3* GetRenderMesh() const;
 
 	/**
 	 * @return the current internal mesh, which is replaced with an empty mesh
@@ -241,6 +264,10 @@ public:
 	 */
 	virtual void SetExternalDecomposition(TUniquePtr<FMeshRenderDecomposition> Decomposition);
 
+	/**
+	 * Add a render mesh processor, to be called before the mesh is sent for rendering.
+	 */
+	virtual void SetRenderMeshPostProcessor(TUniquePtr<IRenderMeshPostProcessor> Processor);
 
 public:
 
@@ -262,6 +289,9 @@ protected:
 private:
 
 	FSimpleDynamicMeshSceneProxy* GetCurrentSceneProxy() { return (FSimpleDynamicMeshSceneProxy*)SceneProxy; }
+
+	// Called from NotifyMeshUpdated, as well as the FastNotify functions if needed
+	void ResetProxy();
 
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
@@ -285,4 +315,7 @@ private:
 	TUniqueFunction<bool(const FDynamicMesh3*, int32)> SecondaryTriFilterFunc = nullptr;
 
 	TUniquePtr<FMeshRenderDecomposition> Decomposition;
+
+	TUniquePtr<IRenderMeshPostProcessor> RenderMeshPostProcessor;
+	TUniquePtr<FDynamicMesh3> RenderMesh;
 };

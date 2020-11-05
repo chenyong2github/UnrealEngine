@@ -68,7 +68,7 @@ public:
 		}
 
 
-		FDynamicMesh3* Mesh = ParentComponent->GetMesh();
+		FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
 		if (Mesh->HasAttributes() && Mesh->Attributes()->HasMaterialID() && NumMaterials > 1)
 		{
 			bIsSingleBuffer = false;
@@ -103,7 +103,7 @@ public:
 
 		bIsSingleBuffer = false;
 
-		FDynamicMesh3* Mesh = ParentComponent->GetMesh();
+		FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
 		// find suitable overlays
 		FDynamicMeshUVOverlay* UVOverlay = Mesh->Attributes()->PrimaryUV();
 		FDynamicMeshNormalOverlay* NormalOverlay = Mesh->Attributes()->PrimaryNormals();
@@ -152,7 +152,7 @@ public:
 	 */
 	virtual void InitializeSingleBufferSet(FMeshRenderBufferSet* RenderBuffers)
 	{
-		FDynamicMesh3* Mesh = ParentComponent->GetMesh();
+		FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
 
 		// find suitable overlays
 		FDynamicMeshUVOverlay* UVOverlay = nullptr;
@@ -191,7 +191,7 @@ public:
 	 */
 	virtual void InitializeByMaterial(TArray<FMeshRenderBufferSet*>& BufferSets)
 	{
-		FDynamicMesh3* Mesh = ParentComponent->GetMesh();
+		FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
 		check(Mesh->HasAttributes() && Mesh->Attributes()->HasMaterialID());
 
 		// find suitable overlays
@@ -271,7 +271,67 @@ public:
 	}
 
 
+	bool RenderMeshLayoutMatchesRenderBuffers() const
+	{
+		const FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
 
+		auto CheckBufferSet = [](const FDynamicMesh3* Mesh, const FMeshRenderBufferSet* BufferSet, int NumTriangles) -> bool
+		{
+			if (BufferSet->Triangles)
+			{
+				for (int TriangleID : BufferSet->Triangles.GetValue())
+				{
+					if (!Mesh->IsTriangle(TriangleID))
+					{
+						return false;
+					}
+				}
+			}
+
+			int NumVertices = NumTriangles * 3;
+			if (BufferSet->PositionVertexBuffer.GetNumVertices() != NumVertices ||
+				BufferSet->StaticMeshVertexBuffer.GetNumVertices() != NumVertices ||
+				BufferSet->ColorVertexBuffer.GetNumVertices() != NumVertices)
+			{
+				return false;
+			}
+
+			return true;
+		};
+
+		if (bIsSingleBuffer)
+		{
+			check(RenderBufferSets.Num() == 1);
+
+			FMeshRenderBufferSet* BufferSet = RenderBufferSets[0];
+			if (BufferSet->TriangleCount != Mesh->TriangleCount())
+			{
+				return false;
+			}
+
+			int NumTriangles = Mesh->TriangleCount();
+
+			if (!CheckBufferSet(Mesh, BufferSet, NumTriangles))
+			{
+				return false;
+			}
+		}
+		else
+		{
+			for (FMeshRenderBufferSet* BufferSet : RenderBufferSets)
+			{
+				check(BufferSet->Triangles);
+				int NumTriangles = BufferSet->Triangles->Num();
+
+				if (!CheckBufferSet(Mesh, BufferSet, NumTriangles))
+				{
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
 
 
 
@@ -283,7 +343,7 @@ public:
 		// This needs to be rewritten for split-by-material buffers.
 		// Could store triangle set with each buffer, and then rebuild vtx buffer(s) as needed?
 
-		FDynamicMesh3* Mesh = ParentComponent->GetMesh();
+		FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
 
 		// find suitable overlays and attributes
 		FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
@@ -376,7 +436,7 @@ public:
 		// This needs to be rewritten for split-by-material buffers.
 		// Could store triangle set with each buffer, and then rebuild vtx buffer(s) as needed?
 
-		FDynamicMesh3* Mesh = ParentComponent->GetMesh();
+		FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
 
 		// find suitable overlays
 		FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
@@ -441,7 +501,7 @@ public:
 	 */
 	virtual void FastUpdateAllIndexBuffers()
 	{
-		const FDynamicMesh3* Mesh = ParentComponent->GetMesh();
+		FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
 
 		// have to wait for all outstanding rendering to finish because the index buffers we are about to edit might be in-use
 		FlushRenderingCommands();
