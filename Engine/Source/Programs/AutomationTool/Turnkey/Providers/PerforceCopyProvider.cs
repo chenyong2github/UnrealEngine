@@ -127,7 +127,7 @@ namespace Turnkey
 		private P4ClientInfo CanClientHandleOperation(string ClientName, string Operation, string Hostname)
 		{
 			// make sure the Operation can be supported by the client (Tokens[1] is the clientspec name)
-			IProcessResult P4Result = PerforceConnection.P4(string.Format("-c {0} where {1}", ClientName, Operation), AllowSpew: false, WithClient: false);
+			IProcessResult P4Result = PerforceConnection.P4(string.Format("-c {0}", ClientName), string.Format("where {0}", Operation), Input: null, AllowSpew: false, WithClient: false);
 
 			if (P4Result.ExitCode == 0)
 			{
