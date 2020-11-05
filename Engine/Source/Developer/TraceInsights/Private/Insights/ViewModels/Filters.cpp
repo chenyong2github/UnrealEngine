@@ -63,7 +63,8 @@ void FFilterService::RegisterTabSpawner()
 {
 	FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FilterConfiguratorTabId,
 		FOnSpawnTab::CreateRaw(this, &FFilterService::SpawnTab))
-		.SetDisplayName(LOCTEXT("FilterConfiguratorTabTitle", "Filter Configurator"));
+		.SetDisplayName(LOCTEXT("FilterConfiguratorTabTitle", "Filter Configurator"))
+		.SetMenuType(ETabSpawnerMenuType::Hidden);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
