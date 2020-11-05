@@ -650,6 +650,28 @@ TextureMipGenSettings UTexture::GetMipGenSettingsFromString(const TCHAR* InStr, 
 	return bTextureGroup ? TMGS_SimpleAverage : TMGS_FromTextureGroup;
 }
 
+void UTexture::SetDeterministicLightingGuid()
+{
+#if WITH_EDITORONLY_DATA
+	// Compute a 128-bit hash based on the texture name and use that as a GUID to fix this issue.
+	FTCHARToUTF8 Converted(*GetFullName());
+	FMD5 MD5Gen;
+	MD5Gen.Update((const uint8*)Converted.Get(), Converted.Length());
+	uint32 Digest[4];
+	MD5Gen.Final((uint8*)Digest);
+
+	// FGuid::NewGuid() creates a version 4 UUID (at least on Windows), which will have the top 4 bits of the
+	// second field set to 0100. We'll set the top bit to 1 in the GUID we create, to ensure that we can never
+	// have a collision with textures which use implicitly generated GUIDs.
+	Digest[1] |= 0x80000000;
+	FGuid TextureGUID(Digest[0], Digest[1], Digest[2], Digest[3]);
+
+	LightingGuid = TextureGUID;
+#else
+	LightingGuid = FGuid(0, 0, 0, 0);
+#endif // WITH_EDITORONLY_DATA
+}
+
 UEnum* UTexture::GetPixelFormatEnum()
 {
 	// Lookup the pixel format enum so that the pixel format can be serialized by name.
