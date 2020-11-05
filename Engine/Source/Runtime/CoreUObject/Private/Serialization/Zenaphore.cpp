@@ -43,9 +43,13 @@ void FZenaphore::NotifyOne()
 
 void FZenaphore::NotifyAll()
 {
-	FZenaphoreWaiterNode* Waiter = HeadWaiter.Load();
-	while (Waiter)
+	for (;;)
 	{
+		FZenaphoreWaiterNode* Waiter = HeadWaiter.Load();
+		if (!Waiter)
+		{
+			return;
+		}
 		if (HeadWaiter.CompareExchange(Waiter, Waiter->Next))
 		{
 			NotifyInternal(Waiter);
