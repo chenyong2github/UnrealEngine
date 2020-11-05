@@ -1566,13 +1566,13 @@ void UNiagaraSystemConversionContext::Cleanup()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 UNiagaraEmitterConversionContext* UNiagaraSystemConversionContext::AddEmptyEmitter(FString NewEmitterNameString)
 {
-	UNiagaraEmitterFactoryNew* Factory = NewObject<UNiagaraEmitterFactoryNew>();
-	UPackage* Pkg = CreatePackage(nullptr);
 	FName NewEmitterName = FNiagaraEditorUtilities::GetUniqueObjectName(System, UNiagaraEmitter::StaticClass(), NewEmitterNameString);
-	EObjectFlags Flags = RF_Public | RF_Standalone;
-	UNiagaraEmitter* NewEmitter = CastChecked<UNiagaraEmitter>(Factory->FactoryCreateNew(UNiagaraEmitter::StaticClass(), Pkg, NewEmitterName, Flags, NULL, GWarn));
+	UNiagaraEmitter* NewEmitter = CastChecked<UNiagaraEmitter>(StaticLoadObject(UNiagaraEmitter::StaticClass(), nullptr, TEXT("/Niagara/DefaultAssets/Templates/CascadeConversion/CompletelyEmpty")));
+	
+	const TSharedPtr<FNiagaraEmitterHandleViewModel>& NewEmitterHandleViewModel = SystemViewModel->AddEmitter(*NewEmitter);
+	NewEmitterHandleViewModel->SetName(NewEmitterName);
+	NewEmitterName = NewEmitterHandleViewModel->GetName();
 
-	TSharedPtr<FNiagaraEmitterHandleViewModel> NewEmitterHandleViewModel = SystemViewModel->AddEmitter(*NewEmitter);
 	UNiagaraEmitterConversionContext* EmitterConversionContext = NewObject<UNiagaraEmitterConversionContext>();
 	EmitterConversionContext->Init(NewEmitterHandleViewModel->GetEmitterHandle()->GetInstance(), NewEmitterHandleViewModel);
 	EmitterNameToConversionContextMap.Add(NewEmitterName, EmitterConversionContext);
