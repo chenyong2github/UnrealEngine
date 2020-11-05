@@ -326,9 +326,6 @@ void SDataprepEditorViewport::UpdateScene()
 
 	ClearScene();
 
-	RenderingMaterialType = ERenderingMaterialType::OriginalRenderingMaterial;
-	bWireframeRenderingMode = false;
-
 	ViewportDebug::FTimeLogger TimeLogger( TEXT("Updating viewport") );
 
 	SceneBounds = FBox( FVector::ZeroVector, FVector(100.0f) );
@@ -512,6 +509,11 @@ void SDataprepEditorViewport::UpdateScene()
 	PreviewScene->SetFloorOffset(-SceneBounds.Min.Z );
 
 	UpdateOverlayText();
+
+	if (RenderingMaterialType != ERenderingMaterialType::OriginalRenderingMaterial)
+	{
+		ApplyRenderingMaterial();
+	}
 
 	SceneViewport->Invalidate();
 }
