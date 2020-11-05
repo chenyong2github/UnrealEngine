@@ -965,9 +965,9 @@ void APlayerCameraManager::UpdateCamera(float DeltaTime)
 					
 					const float MaxQuantize = 1048575.f;
 					const float MinQuantize = -1048575.f;
-					ClientCameraPosition.X = FMath::Clamp(ClientCameraPosition.X, MaxQuantize, MaxQuantize);
-					ClientCameraPosition.Y = FMath::Clamp(ClientCameraPosition.Y, MaxQuantize, MaxQuantize);
-					ClientCameraPosition.Z = FMath::Clamp(ClientCameraPosition.Z, MaxQuantize, MaxQuantize);
+					ClientCameraPosition.X = FMath::Clamp(ClientCameraPosition.X, MinQuantize, MaxQuantize);
+					ClientCameraPosition.Y = FMath::Clamp(ClientCameraPosition.Y, MinQuantize, MaxQuantize);
+					ClientCameraPosition.Z = FMath::Clamp(ClientCameraPosition.Z, MinQuantize, MaxQuantize);
 
 					PCOwner->ServerUpdateCamera(ClientCameraPosition, CompressedRotation);
 
