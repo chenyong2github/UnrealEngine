@@ -3082,7 +3082,7 @@ void FBlueprintEditor::ReparentBlueprint_NewParentChosen(UClass* ChosenClass)
 				}
 			}
 
-			UClass* OldParentClass = BlueprintObj->ParentClass ;
+			UClass* OldParentClass = BlueprintObj->ParentClass;
 			BlueprintObj->ParentClass = ChosenClass;
 
 			// Ensure that the Blueprint is up-to-date (valid SCS etc.) before compiling
