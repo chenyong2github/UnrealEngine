@@ -1794,6 +1794,14 @@ bool FOpenXRHMD::OnStereoStartup()
 		}
 	}
 
+	// Check for hand tracking support
+	XrSystemHandTrackingPropertiesEXT HandTrackingSystemProperties{
+		XR_TYPE_SYSTEM_HAND_TRACKING_PROPERTIES_EXT };
+	XrSystemProperties systemProperties{ XR_TYPE_SYSTEM_PROPERTIES,
+										&HandTrackingSystemProperties };
+	XR_ENSURE(xrGetSystemProperties(Instance, System, &systemProperties));
+	bSupportsHandTracking = HandTrackingSystemProperties.supportsHandTracking == XR_TRUE;
+
 	StartSession();
 
 	return true;
