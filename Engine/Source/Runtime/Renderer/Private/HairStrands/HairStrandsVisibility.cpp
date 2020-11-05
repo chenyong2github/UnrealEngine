@@ -761,6 +761,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMaterialPassParameters, )
 	SHADER_PARAMETER(uint32, NodeGroupSize)
 	SHADER_PARAMETER(uint32, bUpdateSampleCoverage)
 	SHADER_PARAMETER_TEXTURE(Texture2D<uint>, NodeIndex)
+	SHADER_PARAMETER_TEXTURE(Texture2D<uint>, TotalNodeCounter)
 	SHADER_PARAMETER_SRV(StructuredBuffer<uint>, NodeCoord)
 	SHADER_PARAMETER_SRV(StructuredBuffer<FNodeVis>, NodeVis)
 	SHADER_PARAMETER_SRV(Buffer<uint>, IndirectArgs)
@@ -1004,6 +1005,7 @@ FHairMaterialProcessor::FHairMaterialProcessor(
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVisibilityMaterialPassParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, NodeIndex)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, TotalNodeCounter)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, NodeCoord)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FNodeVis>, NodeVis)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, IndirectArgs)
@@ -1081,6 +1083,7 @@ static FMaterialPassOutput AddHairMaterialPass(
 	FRDGTextureRef CompactNodeIndex,
 	FRDGBufferRef CompactNodeVis,
 	FRDGBufferRef CompactNodeCoord,
+	FRDGTextureRef CompactNodeCounter,
 	FRDGBufferRef IndirectArgBuffer)
 {
 	if (!CompactNodeVis || !CompactNodeIndex)
@@ -1098,6 +1101,7 @@ static FMaterialPassOutput AddHairMaterialPass(
 
 	// Add resources reference to the pass parameters, in order to get the resource lifetime extended to this pass
 	FVisibilityMaterialPassParameters* PassParameters = GraphBuilder.AllocParameters<FVisibilityMaterialPassParameters>();
+	PassParameters->TotalNodeCounter= CompactNodeCounter;
 	PassParameters->NodeIndex		= CompactNodeIndex;
 	PassParameters->NodeVis			= GraphBuilder.CreateSRV(CompactNodeVis);
 	PassParameters->NodeCoord		= GraphBuilder.CreateSRV(CompactNodeCoord);
@@ -1128,6 +1132,7 @@ static FMaterialPassOutput AddHairMaterialPass(
 		MaterialPassParameters.MaxResolution	= Resolution;
 		MaterialPassParameters.NodeGroupSize	= NodeGroupSize;
 		MaterialPassParameters.MaxSampleCount	= MaxNodeCount;
+		MaterialPassParameters.TotalNodeCounter	= PassParameters->TotalNodeCounter->GetPooledRenderTarget()->GetRenderTargetItem().ShaderResourceTexture;
 		MaterialPassParameters.NodeIndex		= PassParameters->NodeIndex->GetPooledRenderTarget()->GetRenderTargetItem().ShaderResourceTexture;
 		MaterialPassParameters.NodeCoord		= PassParameters->NodeCoord->GetRHI();
 		MaterialPassParameters.NodeVis			= PassParameters->NodeVis->GetRHI();
@@ -3279,6 +3284,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 							CompactNodeIndex,
 							CompactNodeData,
 							CompactNodeCoord,
+							NodeCounter,
 							IndirectArgsBuffer);
 
 						// Merge per-sample velocity into the scene velocity buffer
@@ -3474,6 +3480,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 							CompactNodeIndex,
 							CompactNodeData,
 							CompactNodeCoord,
+							NodeCounter,
 							IndirectArgsBuffer);
 
 						// Merge per-sample velocity into the scene velocity buffer
