@@ -916,7 +916,7 @@ void CheckRenderingThreadHealth()
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		TGuardValue<TAtomic<bool>, bool> GuardMainThreadBlockedOnRenderThread(GMainThreadBlockedOnRenderThread,true);
 #endif
-		SCOPE_CYCLE_COUNTER(STAT_PumpMessages);
+		//QUICK_SCOPE_CYCLE_COUNTER(STAT_PumpMessages);
 		FPlatformApplicationMisc::PumpMessages(false);
 	}
 }
