@@ -420,8 +420,7 @@ void BeginInitGameTextLocalization()
 		LocLoadFlags |= ELocalizationLoadFlags::Additional;
 	}
 
-	FTextLocalizationManager::Get().InitializedFlags |= ETextLocalizationManagerInitializedFlags::Initializing;
-	InitGameTextLocalizationTask = FFunctionGraphTask::CreateAndDispatchWhenReady([LocLoadFlags, InitializedFlags = FTextLocalizationManager::Get().InitializedFlags]()
+	auto TaskLambda = [LocLoadFlags, InitializedFlags = FTextLocalizationManager::Get().InitializedFlags]()
 	{
 		SCOPED_BOOT_TIMING("InitGameTextLocalization");
 
@@ -430,13 +429,24 @@ void BeginInitGameTextLocalization()
 		//FTextLocalizationManager::Get().DumpMemoryInfo();
 		FTextLocalizationManager::Get().CompactDataStructures();
 		//FTextLocalizationManager::Get().DumpMemoryInfo();
-	}, TStatId());
+	};
+	if (FTaskGraphInterface::IsRunning())
+	{
+		InitGameTextLocalizationTask = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(TaskLambda), TStatId());
+	}
+	else
+	{
+		TaskLambda();
+	}
 }
 
 void EndInitGameTextLocalization()
 {
 	SCOPED_BOOT_TIMING("WaitForInitGameTextLocalization");
-	FTaskGraphInterface::Get().WaitUntilTaskCompletes(InitGameTextLocalizationTask);
+	if (InitGameTextLocalizationTask)
+	{
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(InitGameTextLocalizationTask);
+	}
 }
 
 void InitGameTextLocalization()
