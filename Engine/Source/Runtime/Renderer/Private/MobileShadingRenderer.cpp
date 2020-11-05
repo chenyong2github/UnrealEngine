@@ -175,6 +175,16 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 	bRequiresPixelProjectedPlanarRelfectionPass = false;
 	bRequriesAmbientOcclusionPass = false;
 
+	// Don't do occlusion queries when doing scene captures
+	for (FViewInfo& View : Views)
+	{
+		if (View.bIsSceneCapture)
+		{
+			View.bDisableQuerySubmissions = true;
+			View.bIgnoreExistingQueries = true;
+		}
+	}
+
 	static const auto CVarMobileMSAA = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileMSAA"));
 	NumMSAASamples = (CVarMobileMSAA ? CVarMobileMSAA->GetValueOnAnyThread() : 1);
 }
