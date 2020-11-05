@@ -340,12 +340,12 @@ float FNiagaraStatDatabase::GetRuntimeStat(FName StatName, ENiagaraScriptUsage U
 		{
 			if (MinimalNameToName(StatEntry.Key->Name) == StatName)
 			{
-				for (int i = 0; i < StatEntry.Value.CapturedTimings.Num(); i++)
+				ValueCount = StatEntry.Value.CapturedTimings.Num();
+				for (int i = 0; i < ValueCount; i++)
 				{
 					float Value = StatEntry.Value.CapturedTimings[i];
 					Max = FMath::Max(Max, Value);
 					Sum += Value;
-					ValueCount++;
 				}
 				break;
 			}
