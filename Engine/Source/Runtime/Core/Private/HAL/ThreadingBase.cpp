@@ -79,7 +79,7 @@ CORE_API FRunnableThread* GRenderingThread = nullptr;
 CORE_API bool IsInActualRenderingThread()
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return GRenderingThread && FPlatformTLS::GetCurrentThreadId() == GRenderingThread->GetThreadID();
+	return FPlatformTLS::GetCurrentThreadId() == GRenderThreadId;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
