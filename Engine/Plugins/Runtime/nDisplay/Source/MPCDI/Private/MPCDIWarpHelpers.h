@@ -165,46 +165,30 @@ private:
 	}
 };
 
-inline bool CalcFrustumFromVertex(const FVector4& PFMVertice, const FMatrix& World2Local, float& Top, float& Bottom, float& Left, float& Right)
+inline bool GetProjectionClip(const FVector4& PFMVertice, const FMatrix& World2Local, float& Top, float& Bottom, float& Left, float& Right)
 {
-	bool bResult = true;
-
 	if (PFMVertice.W > 0)
 	{
-		FVector4 PrjectedVertice = World2Local.TransformFVector4(PFMVertice);
-
-		float Scale = 1.0f / PrjectedVertice.X;
-		if (Scale <= 0)
-		{
-			// This point out of view plane
-			bResult = false;
-			return bResult;
-		}
+		FVector4 ProjectedVertice = World2Local.TransformFVector4(PFMVertice);
 
 		// Use only points over view plane, ignore backside pts
-		PrjectedVertice.Y *= Scale;
-		PrjectedVertice.Z *= Scale;
-
-		if (PrjectedVertice.Z > Top)
+		if (isnan(ProjectedVertice.X) || isnan(ProjectedVertice.Y) || isnan(ProjectedVertice.Z) || ProjectedVertice.X <= 0 || FMath::IsNearlyZero(ProjectedVertice.X, 1.e-6f))
 		{
-			Top = PrjectedVertice.Z;
+			// This point out of view plane
+			return false;
 		}
 
-		if (PrjectedVertice.Z < Bottom)
-		{
-			Bottom = PrjectedVertice.Z;
-		}
+		const float Scale = 1.0f / ProjectedVertice.X;
 
-		if (PrjectedVertice.Y > Right)
-		{
-			Right = PrjectedVertice.Y;
-		}
+		ProjectedVertice.Y *= Scale;
+		ProjectedVertice.Z *= Scale;
 
-		if (PrjectedVertice.Y < Left)
-		{
-			Left = PrjectedVertice.Y;
-		}
+		Left  = FMath::Min(Left,  ProjectedVertice.Y);
+		Right = FMath::Max(Right, ProjectedVertice.Y);
+
+		Top    = FMath::Max(Top,    ProjectedVertice.Z);
+		Bottom = FMath::Min(Bottom, ProjectedVertice.Z);
 	}
 
-	return bResult;
+	return true;
 }
