@@ -141,9 +141,21 @@ public:
 		static const FD3D12RootSignature StaticComputeRootSignature(this, FD3D12RootSignatureDesc::GetStaticComputeRootSignatureDesc());
 		return &StaticComputeRootSignature;
 	}
+	FORCEINLINE const FD3D12RootSignature* GetStaticRayTracingGlobalRootSignature()
+	{
+		static const FD3D12RootSignature StaticRootSignature(this, FD3D12RootSignatureDesc::GetStaticRayTracingGlobalRootSignatureDesc(), 1 /*RAY_TRACING_REGISTER_SPACE_GLOBAL*/);
+		return &StaticRootSignature;
+	}
+	FORCEINLINE const FD3D12RootSignature* GetStaticRayTracingLocalRootSignature()
+	{
+		static const FD3D12RootSignature StaticRootSignature(this, FD3D12RootSignatureDesc::GetStaticRayTracingLocalRootSignatureDesc(), 0 /*RAY_TRACING_REGISTER_SPACE_LOCAL*/);
+		return &StaticRootSignature;
+	}
 #else // USE_STATIC_ROOT_SIGNATURE
 	FORCEINLINE const FD3D12RootSignature* GetStaticGraphicsRootSignature(){ return nullptr; }
 	FORCEINLINE const FD3D12RootSignature* GetStaticComputeRootSignature() { return nullptr; }
+	FORCEINLINE const FD3D12RootSignature* GetStaticRayTracingGlobalRootSignature() { return nullptr; }
+	FORCEINLINE const FD3D12RootSignature* GetStaticRayTracingLocalRootSignature() { return nullptr; }
 #endif // USE_STATIC_ROOT_SIGNATURE
 
 	FORCEINLINE FD3D12RootSignature* GetRootSignature(const FD3D12QuantizedBoundShaderState& QBSS) 

@@ -310,27 +310,55 @@ FRayTracingShaderRHIRef FD3D12DynamicRHI::RHICreateRayTracingShader(TArrayView<c
 	Ar << Shader->IntersectionEntryPoint;
 
 	int32 Offset = Ar.Tell();
-	const uint8* CodePtr = Code.GetData() + Offset;
-	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
+
 	bool bFoundCodeFeatures;
 	FShaderCodeFeatures CodeFeatures;
 	if (!ReadShaderOptionalData(ShaderCode, *Shader, bFoundCodeFeatures, CodeFeatures))
 	{
 		return nullptr;
 	}
+
+	int32 PrecompiledKey = 0;
+	Ar << PrecompiledKey;
+	if (PrecompiledKey == RayTracingPrecompiledPSOKey)
+	{
+		Offset += sizeof(PrecompiledKey); // Skip the precompiled PSO marker if it's present
+		Shader->bPrecompiledPSO = true;
+	}
+
 	Shader->Code = Code;
 
+	const uint8* CodePtr = Shader->Code.GetData() + Offset;
+	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
+
 	D3D12_SHADER_BYTECODE ShaderBytecode;
-	ShaderBytecode.pShaderBytecode = Shader->Code.GetData() + Offset;
+	ShaderBytecode.pShaderBytecode = CodePtr;
 	ShaderBytecode.BytecodeLength = CodeSize;
+
 	Shader->ShaderBytecode.SetShaderBytecode(ShaderBytecode);
 
 	FD3D12Adapter& Adapter = GetAdapter();
 
+#if USE_STATIC_ROOT_SIGNATURE
+	switch (ShaderFrequency)
+	{
+	case SF_RayGen:
+		Shader->pRootSignature = Adapter.GetStaticRayTracingGlobalRootSignature();
+		break;
+	case SF_RayHitGroup:
+	case SF_RayCallable:
+	case SF_RayMiss:
+		Shader->pRootSignature = Adapter.GetStaticRayTracingLocalRootSignature();
+		break;
+	default:
+		checkNoEntry(); // Unexpected shader target frequency
+	}
+#else // USE_STATIC_ROOT_SIGNATURE
 	const D3D12_RESOURCE_BINDING_TIER Tier = Adapter.GetResourceBindingTier();
 	FD3D12QuantizedBoundShaderState QBSS;
 	QuantizeBoundShaderState(ShaderFrequency, Tier, Shader, QBSS);
 	Shader->pRootSignature = Adapter.GetRootSignature(QBSS);
+#endif // USE_STATIC_ROOT_SIGNATURE
 
 	return Shader;
 }
