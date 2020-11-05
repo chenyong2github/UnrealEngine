@@ -3494,6 +3494,10 @@ static bool SetRayTracingShaderResources(
 						BindIndex, BufferIndex, *(Buffer->GetLayout().GetDebugName()));
 
 					FD3D12ShaderResourceView* SRV = FD3D12CommandContext::RetrieveTextureBase(RHITexture, GPUIndex)->GetShaderResourceView();
+					if (!ensure(SRV))
+					{
+						SRV = FD3D12CommandContext::RetrieveTextureBase(GBlackTexture->TextureRHI, GPUIndex)->GetShaderResourceView();
+					}
 					check(SRV != nullptr);
 
 					LocalSRVs[BindIndex] = SRV->GetView();
