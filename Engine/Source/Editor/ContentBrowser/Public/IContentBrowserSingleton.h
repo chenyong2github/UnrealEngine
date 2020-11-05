@@ -14,6 +14,7 @@
 #include "Misc/FilterCollection.h"
 #include "Framework/Views/ITypedTableView.h"
 #include "AssetThumbnail.h"
+#include "Misc/BlacklistNames.h"
 
 class FViewport;
 class UFactory;
@@ -324,6 +325,9 @@ struct FPathPickerConfig
 {
 	/** The initial path to select. Leave empty to skip initial selection. */
 	FString DefaultPath;
+
+	/** Custom Folder Blacklist to be used to filter folders in this Path Picker. */
+	TSharedPtr<FBlacklistPaths> CustomFolderBlacklist;
 
 	/** The delegate that fires when a path was selected */
 	FOnPathSelected OnPathSelected;

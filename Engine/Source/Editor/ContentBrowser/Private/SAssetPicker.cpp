@@ -542,10 +542,9 @@ void SAssetPicker::HandleItemSelectionChanged(const FContentBrowserItem& InSelec
 	if (InSelectInfo != ESelectInfo::Direct)
 	{
 		FAssetData ItemAssetData;
-		if (InSelectedItem.Legacy_TryGetAssetData(ItemAssetData))
-		{
-			OnAssetSelected.ExecuteIfBound(ItemAssetData);
-		}
+		InSelectedItem.Legacy_TryGetAssetData(ItemAssetData);
+		OnAssetSelected.ExecuteIfBound(ItemAssetData);
+		
 	}
 }
 

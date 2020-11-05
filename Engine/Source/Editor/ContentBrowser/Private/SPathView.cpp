@@ -210,6 +210,7 @@ void SPathView::Construct( const FArguments& InArgs )
 		]
 	];
 
+	CustomFolderBlacklist = InArgs._CustomFolderBlacklist;
 	// Add all paths currently gathered from the asset registry
 	Populate();
 
@@ -605,6 +606,15 @@ FContentBrowserDataCompiledFilter SPathView::CreateCompiledFolderFilter() const
 		{
 			CombinedFolderBlacklist->Append(*WritableFolderBlacklist);
 		}
+	}
+
+	if (CustomFolderBlacklist.IsValid())
+	{
+		if (!CombinedFolderBlacklist.IsValid())
+		{
+			CombinedFolderBlacklist = MakeShared<FBlacklistPaths>();
+		}
+		CombinedFolderBlacklist->Append(*CustomFolderBlacklist);
 	}
 
 	ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(FARFilter(), nullptr, CombinedFolderBlacklist, DataFilter);

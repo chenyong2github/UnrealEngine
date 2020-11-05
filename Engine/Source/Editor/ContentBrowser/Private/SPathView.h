@@ -83,6 +83,9 @@ public:
 		/** Optional external search. Will hide and replace our internal search UI */
 		SLATE_ARGUMENT( TSharedPtr<FSourcesSearch>, ExternalSearch )
 
+		/** Optional Custom Folder Blacklist to be used to filter folders. */
+		SLATE_ARGUMENT( TSharedPtr<FBlacklistPaths>, CustomFolderBlacklist)
+
 	SLATE_END_ARGS()
 
 	/** Destructor */
@@ -327,6 +330,9 @@ protected:
 
 	/** Writable folder filter */
 	TSharedPtr<FBlacklistPaths> WritableFolderBlacklist;
+
+	/** Custom Folder Blacklist*/
+	TSharedPtr<FBlacklistPaths> CustomFolderBlacklist;
 
 private:
 
