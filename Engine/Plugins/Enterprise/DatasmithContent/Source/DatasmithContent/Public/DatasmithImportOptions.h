@@ -93,16 +93,6 @@ enum class EDatasmithImportScene : uint8
 };
 
 UENUM()
-enum class EDatasmithImportHierarchy : uint8
-{
-	UseMultipleActors	UMETA(DisplayName = "One StaticMeshActor per Geometric Object", ToolTip = "Create an StaticMeshActor for every node in the hierarchy of the model."),
-
-	UseSingleActor		UMETA(DisplayName = "Single StaticMeshActor with Components", ToolTip = "Create one root StaticMeshActor then one component for every node in the hierarchy of the model. Recommended to import udatasmith files."),
-
-	UseOneBlueprint		UMETA(DisplayName = "Blueprint", ToolTip = "Create one root blueprint then one component for every node in the hierarchy of the model. Recommended to import CAD files."),
-};
-
-UENUM()
 enum class EDatasmithCADStitchingTechnique : uint8
 {
 	StitchingNone = 0,
@@ -379,9 +369,6 @@ public:
 	/** Specifies what to do when material conflicts */
 	UPROPERTY(Transient, AdvancedDisplay)
 	EDatasmithImportMaterialQuality MaterialQuality; // Not displayed. Kept for future use
-
-	/** Specifies how to import the model's hierarchy */
-	EDatasmithImportHierarchy HierarchyHandling;
 
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Options", meta = (ShowOnlyInnerProperties))
 	FDatasmithImportBaseOptions BaseOptions;

@@ -227,9 +227,6 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	/** Per-Translator settings related to the import of a Datasmith scene */
 	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> AdditionalImportOptions;
 
-	/** Root blueprint which will be used if user requires every components of the scene under one blueprint */
-	UBlueprint* RootBlueprint;
-
 	/** Stack of parent components we're currently importing under */
 	TArray< USceneComponent* > Hierarchy;
 

@@ -345,7 +345,7 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 		{
 			ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
-			AsyncData[TextureIndex].Result = 
+			AsyncData[TextureIndex].Result =
 				Async(
 					EAsyncExecution::LargeThreadPool,
 					[&ImportContext, &AsyncData, &FilteredTextureElements, &DatasmithTextureImporter, TextureIndex]()
@@ -492,7 +492,7 @@ UMaterialFunction* FDatasmithImporter::FinalizeMaterialFunction(UObject* SourceM
 	UMaterialFunction* ExistingMaterialFunction, TMap< UObject*, UObject* >* ReferencesToRemap)
 {
 	UMaterialFunction* MaterialFunction = Cast< UMaterialFunction >( FDatasmithImporterImpl::FinalizeAsset( SourceMaterialFunction, MaterialFunctionsFolderPath, ExistingMaterialFunction, ReferencesToRemap ) );
-	
+
 	MaterialFunction->PreEditChange( nullptr );
 	MaterialFunction->PostEditChange();
 
@@ -669,15 +669,6 @@ void FDatasmithImporter::ImportActors( FDatasmithImportContext& ImportContext )
 			}
 		}
 
-		// Add all components under root actor to the root blueprint if Blueprint is required
-		if (ImportContext.Options->HierarchyHandling == EDatasmithImportHierarchy::UseOneBlueprint && ImportContext.RootBlueprint != nullptr)
-		{
-			// Reparent all scene components attached to root actor toward blueprint root
-			FKismetEditorUtilities::FAddComponentsToBlueprintParams Params;
-			Params.bKeepMobility = true;
-			FKismetEditorUtilities::AddComponentsToBlueprint(ImportContext.RootBlueprint, ImportSceneActor->GetInstanceComponents(), Params);
-		}
-
 		// After all actors were imported, perform a post import step so that any dependencies can be resolved
 		for (int32 i = 0; i < ActorsCount && !ImportContext.bUserCancelled; ++i)
 		{
@@ -777,7 +768,7 @@ AActor* FDatasmithImporter::ImportActor( FDatasmithImportContext& ImportContext,
 
 		if ( ChildActorElement.IsValid() )
 		{
-			if ( ImportContext.Options->HierarchyHandling == EDatasmithImportHierarchy::UseMultipleActors && !ChildActorElement->IsAComponent() )
+			if (!ChildActorElement->IsAComponent() )
 			{
 				ImportActor( ImportContext, ChildActorElement.ToSharedRef() );
 			}
@@ -1067,7 +1058,7 @@ AActor* FDatasmithImporter::FinalizeActor( FDatasmithImportContext& ImportContex
 	{
 		// Setup the actor to allow modifications.
 		FDatasmithImporterImpl::FScopedFinalizeActorChanges ScopedFinalizedActorChanges(DestinationActor, ImportContext);
-		
+
 		ReferencesToRemap.Add( &SourceActor ) = DestinationActor;
 
 		TArray< FDatasmithImporterImpl::FMigratedTemplatePairType > MigratedTemplates = FDatasmithImporterImpl::MigrateTemplates(
@@ -1125,7 +1116,7 @@ void FDatasmithImporter::ImportLevelSequences( FDatasmithImportContext& ImportCo
 
 	TUniquePtr<FScopedSlowTask> ProgressPtr;
 	if ( ImportContext.FeedbackContext )
-	{ 
+	{
 		ProgressPtr = MakeUnique<FScopedSlowTask>( (float)SequencesCount, LOCTEXT("ImportingLevelSequences", "Importing Level Sequences..."), true, *ImportContext.FeedbackContext );
 		ProgressPtr->MakeDialog(true);
 	}
@@ -1400,7 +1391,7 @@ void FDatasmithImporter::FilterElementsToImport( FDatasmithImportContext& Import
 		TSharedRef< IDatasmithMeshElement > MeshElement = ImportContext.Scene->GetMesh( MeshIndex ).ToSharedRef();
 		bool bNeedsReimport = true;
 		FString AssetName = MeshElement->GetName();
-		
+
 		if ( StaticMeshes.Contains( MeshElement->GetName() ) )
 		{
 			AssetName = StaticMeshes[ MeshElement->GetName() ].ToString();
@@ -1464,7 +1455,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 	TUniquePtr<FScopedSlowTask> ProgressPtr;
 
 	if ( ImportContext.FeedbackContext )
-	{ 
+	{
 		ProgressPtr = MakeUnique<FScopedSlowTask>((float)NumAssetsToFinalize + NumStaticMeshToBuild, LOCTEXT("FinalizingAssets", "Finalizing Assets"), true, *ImportContext.FeedbackContext);
 		ProgressPtr->MakeDialog(true);
 	}
