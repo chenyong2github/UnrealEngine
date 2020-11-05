@@ -524,6 +524,11 @@ void FLegacyEdModeWidgetHelper::ActorSelectionChangeNotify()
 	bEditedPropertyIsTransform = false;
 }
 
+bool FLegacyEdModeWidgetHelper::AllowsViewportDragTool() const
+{
+	return true;
+}
+
 bool FLegacyEdModeWidgetHelper::InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale)
 {
 	if (UsesPropertyWidgets())
@@ -870,5 +875,10 @@ bool UBaseLegacyWidgetEdMode::GetCustomInputCoordinateSystem(FMatrix& InMatrix, 
 void UBaseLegacyWidgetEdMode::ActorSelectionChangeNotify()
 {
 	WidgetHelper->ActorSelectionChangeNotify();
+}
+
+bool UBaseLegacyWidgetEdMode::AllowsViewportDragTool() const
+{
+	return WidgetHelper->AllowsViewportDragTool();
 }
 

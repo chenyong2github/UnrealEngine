@@ -1048,7 +1048,7 @@ bool FEditorModeTools::AllowsViewportDragTool() const
 	bool bCanUseDragTool = false;
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
-		if (ILegacyEdModeSelectInterface* LegacyMode = Cast<ILegacyEdModeSelectInterface>(Mode))
+		if (ILegacyEdModeWidgetInterface* LegacyMode = Cast<ILegacyEdModeWidgetInterface>(Mode))
 		{
 			bCanUseDragTool |= LegacyMode->AllowsViewportDragTool();
 		}

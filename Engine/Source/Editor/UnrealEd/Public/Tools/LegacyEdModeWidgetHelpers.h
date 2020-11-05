@@ -48,6 +48,7 @@ public:
 	virtual bool GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData);
 	
 	virtual void ActorSelectionChangeNotify();
+	virtual bool AllowsViewportDragTool() const;
 
 	// Property Widgets
 	/** Structure that holds info about our optional property widget */
@@ -155,6 +156,7 @@ public:
 	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData) override;
 	virtual bool GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData) override;
 	virtual void ActorSelectionChangeNotify() override;
+	virtual bool AllowsViewportDragTool() const override;
 
 protected:
 	TSharedPtr<FLegacyEdModeWidgetHelper> WidgetHelper;

@@ -41,9 +41,6 @@ public:
 	 * @return	true if something was selected/deselected, false otherwise.
 	 */
 	virtual bool FrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect = true) = 0;
-
-	/** @return True if this mode allows the viewport to use a drag tool */
-	virtual bool AllowsViewportDragTool() const = 0;
 };
 
 UINTERFACE(NotBlueprintable, MinimalAPI)
@@ -109,6 +106,9 @@ public:
 
 	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData) = 0;
 	virtual bool GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData) = 0;
+
+	/** @return True if this mode allows the viewport to use a drag tool */
+	virtual bool AllowsViewportDragTool() const = 0;
 };
 
 UINTERFACE(NotBlueprintable, MinimalAPI)
