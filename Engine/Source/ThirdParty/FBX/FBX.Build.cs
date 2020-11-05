@@ -38,10 +38,14 @@ public class FBX : ModuleRules
 				if (Target.bUseStaticCRT)
 				{
 					PublicAdditionalLibraries.Add(FBxLibPath + "libfbxsdk-mt.lib");
+					PublicAdditionalLibraries.Add(FBxLibPath + "libxml2-mt.lib");
+					PublicAdditionalLibraries.Add(FBxLibPath + "zlib-mt.lib");
 				}
 				else
 				{
 					PublicAdditionalLibraries.Add(FBxLibPath + "libfbxsdk-md.lib");
+					PublicAdditionalLibraries.Add(FBxLibPath + "libxml2-md.lib");
+					PublicAdditionalLibraries.Add(FBxLibPath + "zlib-md.lib");
 				}
 			}
 		}
