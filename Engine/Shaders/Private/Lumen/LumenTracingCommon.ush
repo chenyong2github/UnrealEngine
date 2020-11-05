@@ -626,21 +626,28 @@ void RayTraceSingleMeshSDF(
 	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
 	// #lumen_todo: continue tracing from last TraceResult.HitDistance. At the moment this causes nondeterministic flickering of surfaces.
-	// * min(MaxTraceDistance, TraceResult.HitDistance);
 	float3 WorldRayEnd = WorldRayStart + WorldRayDirection * MaxTraceDistance;
-	float3 VolumeRayStart = mul(float4(WorldRayStart + WorldRayDirection * MinTraceDistance, 1), DFObjectData.WorldToVolume).xyz;
+	float3 VolumeRayStart = mul(float4(WorldRayStart, 1), DFObjectData.WorldToVolume).xyz;
 	float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), DFObjectData.WorldToVolume).xyz;
 	float3 VolumeRayDirection = VolumeRayEnd - VolumeRayStart;
-	float VolumeRayLength = length(VolumeRayDirection);
-	VolumeRayDirection /= VolumeRayLength;
+
+	float VolumeMaxTraceDistance = length(VolumeRayDirection);
+	float VolumeMinTraceDistance = VolumeMaxTraceDistance * (MinTraceDistance / MaxTraceDistance);
+	VolumeRayDirection /= VolumeMaxTraceDistance;
+
+	// Bias based on the SDF voxel size to prev hitting itself
+	VolumeMinTraceDistance = max(VolumeMinTraceDistance, DFObjectData.LocalSurfaceBias);
 
 	float2 IntersectionTimes = LineBoxIntersect(VolumeRayStart, VolumeRayEnd, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
+
+	IntersectionTimes *= VolumeMaxTraceDistance;
+	IntersectionTimes.x = max(IntersectionTimes.x, VolumeMinTraceDistance);
 
 	BRANCH
 	if (IntersectionTimes.x < IntersectionTimes.y)
 	{
 		bool bRayStartInsideGeometry = false;
-		float SampleRayTime = IntersectionTimes.x * VolumeRayLength;
+		float SampleRayTime = IntersectionTimes.x;
 		uint MaxSteps = 64;
 		float MinStepSize = 1.0f / (4 * MaxSteps);
 		uint StepIndex = 0;
@@ -666,7 +673,7 @@ void RayTraceSingleMeshSDF(
 			{
 				// One more step to the surface
 				bRayStartInsideGeometry = SampleRayTime <= 0.0f && SampleRayTime + DistanceField < 0.0f ? true : false;
-				SampleRayTime = max(SampleRayTime + DistanceField - ExpandSurfaceAmount, IntersectionTimes.x * VolumeRayLength);
+				SampleRayTime = clamp(SampleRayTime + DistanceField - ExpandSurfaceAmount, IntersectionTimes.x, IntersectionTimes.y);
 				bHit = true;
 				break;
 			}
@@ -674,7 +681,7 @@ void RayTraceSingleMeshSDF(
 			float StepDistance = max(DistanceField, MinStepSize);
 			SampleRayTime += StepDistance;		
 
-			if (SampleRayTime > IntersectionTimes.y * VolumeRayLength + ExpandSurfaceAmount)
+			if (SampleRayTime > IntersectionTimes.y + ExpandSurfaceAmount)
 			{
 				break;
 			}
@@ -687,7 +694,7 @@ void RayTraceSingleMeshSDF(
 
 		if (bHit)
 		{
-			float NewHitDistance = length(VolumeRayDirection * SampleRayTime * DFObjectData.VolumeToLocalScale) + MinTraceDistance;
+			float NewHitDistance = length(VolumeRayDirection * SampleRayTime * DFObjectData.VolumeToLocalScale);
 
 			if (NewHitDistance < TraceResult.HitDistance)
 			{
