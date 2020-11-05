@@ -75,7 +75,6 @@ bool FMPCDIModule::GetRegionLocator(const FString& LocalMPCDIFile, const FString
 	OutRegionLocator = IMPCDI::FRegionLocator();
 	
 	FMPCDIData* DataItemPtr = nullptr;
-	IMPCDI::FRegionLocator TmpRegionLocator;
 
 	// Find the file index
 	for (int FileIndex = 0; FileIndex < MPCDIData.Num(); ++FileIndex)
@@ -83,28 +82,12 @@ bool FMPCDIModule::GetRegionLocator(const FString& LocalMPCDIFile, const FString
 		if (FPaths::IsSamePath(MPCDIData[FileIndex]->GetLocalMPCIDIFile(), LocalMPCDIFile))
 		{
 			DataItemPtr = MPCDIData[FileIndex].Get();
-			TmpRegionLocator.FileIndex = FileIndex;
+			OutRegionLocator.FileIndex = FileIndex;
 			break;
 		}
 	}
 
-	if (!DataItemPtr)
-	{
-		//! handle error: file not loaded
-		return false;
-	}
-
-	// Try to find the requested region
-	if (!DataItemPtr->FindRegion(BufferName, RegionName, TmpRegionLocator))
-	{
-		//! Handle error: BufferName + RegionName not defined for LocalMPCDIFile
-		return false;
-	}
-
-	// Return handler to warp data region
-	OutRegionLocator = TmpRegionLocator;
-
-	return true;
+	return DataItemPtr && DataItemPtr->FindRegion(BufferName, RegionName, OutRegionLocator);
 }
 
 bool FMPCDIModule::SetStaticMeshWarp(const IMPCDI::FRegionLocator& InRegionLocator, UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent)
