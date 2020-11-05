@@ -31,6 +31,8 @@ FFilterConfigurator& FFilterConfigurator::operator=(const FFilterConfigurator& O
 		OnChangesCommitedCallback();
 	}
 
+	RootNode->ProcessFilter();
+
 	return *this;
 }
 

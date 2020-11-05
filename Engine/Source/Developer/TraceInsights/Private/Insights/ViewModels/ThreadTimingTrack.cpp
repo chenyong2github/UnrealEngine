@@ -816,6 +816,7 @@ void FThreadTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuild
 				[&Viewport, this, &Builder, TimerReader](const Trace::ITimingProfilerProvider::Timeline& Timeline)
 				{
 					TArray<TArray<FPendingEventInfo>> FilteredEvents;
+					TArray<FFilterContext> FilterContexts;
 
 					Trace::ITimeline<Trace::FTimingProfilerEvent>::EnumerateAsyncParams Params;
 					Params.IntervalStart = Viewport.GetStartTime();
@@ -823,20 +824,28 @@ void FThreadTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuild
 
 					// Note: Enumerating events for filtering should not use downsampling.
 					Params.Resolution = 0.0;
-					Params.SetupCallback = [&FilteredEvents](uint32 NumTasks)
+					Params.SetupCallback = [&FilteredEvents, &FilterContexts](uint32 NumTasks)
 					{
 						FilteredEvents.AddDefaulted(NumTasks);
+						FilterContexts.AddDefaulted(NumTasks);
+						for(FFilterContext& Context : FilterContexts)
+						{
+							Context.AddFilterData<double>(EFilterField::StartTime, 0.0f);
+							Context.AddFilterData<double>(EFilterField::EndTime, 0.0f);
+							Context.AddFilterData<double>(EFilterField::Duration, 0.0f);
+							Context.AddFilterData<int64>(EFilterField::EventType, 0);
+						}
 					};
-					Params.Callback = [this, &Builder, TimerReader, &FilteredEvents](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event, uint32 TaskIndex)
+					Params.Callback = [this, &Builder, TimerReader, &FilteredEvents, &FilterContexts](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event, uint32 TaskIndex)
 					{
 						const Trace::FTimingProfilerTimer* Timer = TimerReader->GetTimer(Event.TimerIndex);
 						if (ensure(Timer != nullptr))
 						{
-							FFilterContext Context;
-							Context.AddFilterData<double>(EFilterField::StartTime, StartTime);
-							Context.AddFilterData<double>(EFilterField::EndTime, EndTime);
-							Context.AddFilterData<double>(EFilterField::Duration, EndTime - StartTime);
-							Context.AddFilterData<int64>(EFilterField::EventType, Timer->Id);
+							FFilterContext& Context = FilterContexts[TaskIndex];
+							Context.SetFilterData<double>(EFilterField::StartTime, StartTime);
+							Context.SetFilterData<double>(EFilterField::EndTime, EndTime);
+							Context.SetFilterData<double>(EFilterField::Duration, EndTime - StartTime);
+							Context.SetFilterData<int64>(EFilterField::EventType, Timer->Id);
 
 							if (FilterConfigurator->ApplyFilters(Context))
 							{
@@ -1168,7 +1177,7 @@ void FThreadTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			FilterTrackAction.BindSP(this, &FThreadTimingTrack::OnFilterTrackClicked);
 
 			MenuBuilder.AddMenuEntry(
-				(LOCTEXT("FilerTrack", "Filter Track [WIP]")),
+				(LOCTEXT("FilterTrack", "Filter Track")),
 				FText(),
 				FSlateIcon(),
 				FUIAction(FilterTrackAction, FCanExecuteAction::CreateLambda([]() { return true; })),

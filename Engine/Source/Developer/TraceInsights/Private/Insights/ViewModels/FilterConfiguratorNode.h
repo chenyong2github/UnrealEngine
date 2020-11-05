@@ -6,6 +6,7 @@
 
 // Insights
 #include "Insights/Table/ViewModels/BaseTreeNode.h"
+#include "Insights/ViewModels/Filters.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -76,6 +77,8 @@ public:
 
 	bool ApplyFilters(const class FFilterContext& Context) const;
 
+	void ProcessFilter();
+
 private:
 	FFilterConfiguratorNode& operator=(const FFilterConfiguratorNode& Other);
 
@@ -88,6 +91,9 @@ private:
 	TSharedPtr<struct FFilterGroupOperator> SelectedFilterGroupOperator;
 
 	FString TextBoxValue;
+
+	// The textbox value, converted to its data type
+	FFilterContext::ContextData FilterValue;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

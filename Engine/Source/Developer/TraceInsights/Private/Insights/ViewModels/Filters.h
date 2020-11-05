@@ -202,6 +202,12 @@ public:
 	}
 
 	template<typename T>
+	void SetFilterData(EFilterField Key, const T& InData)
+	{
+		DataMap[Key].Set<T>(InData);
+	}
+
+	template<typename T>
 	void GetFilterData(EFilterField Key, T& OutData) const
 	{
 		const ContextData* Data = DataMap.Find(Key);
