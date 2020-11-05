@@ -711,6 +711,7 @@ namespace VulkanRHI
 		VULKAN_LOGMEMORY(TEXT("Host Allocation Percentage %6.2f%% -      %8.2fMB / %8.3fMB"), AllocatedPercentage, HostAllocated / (1024.f * 1024.f), HostLimit / (1024.f * 1024.f));
 		if(Device->GetOptionalExtensions().HasMemoryBudget)
 		{
+			UpdateMemoryProperties();
 			VULKAN_LOGMEMORY(TEXT("Memory Budget"));
 			VULKAN_LOGMEMORY(TEXT("\t         | Usage                     | Budget          | Size            |"));
 			VULKAN_LOGMEMORY(TEXT("\t---------|---------------------------------------------------------------|"));
