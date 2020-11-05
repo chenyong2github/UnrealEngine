@@ -512,17 +512,13 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 				SkyRC.NearClippingDistance = 0.01f;
 				SkyRC.FeatureLevel = FeatureLevel;
 
-				//SkyRC.LightShadowShaderParams0UniformBuffer = nullptr;
-				//SkyRC.LightShadowShaderParams1UniformBuffer = nullptr;
-
-				const bool VolumetricCloudShadowMap0Valid = MainView.ViewState && MainView.ViewState->VolumetricCloudShadowRenderTarget[0].CurrentIsValid();
-				const bool VolumetricCloudShadowMap1Valid = MainView.ViewState && MainView.ViewState->VolumetricCloudShadowRenderTarget[1].CurrentIsValid();
-				SkyRC.bShouldSampleCloudShadow = HasVolumetricCloud() && (VolumetricCloudShadowMap0Valid || VolumetricCloudShadowMap1Valid);
-				SkyRC.VolumetricCloudShadowMap[0] = GraphBuilder.RegisterExternalTexture(SkyRC.bShouldSampleCloudShadow && VolumetricCloudShadowMap0Valid ? MainView.ViewState->VolumetricCloudShadowRenderTarget[0].CurrentRenderTarget() : GSystemTextures.BlackDummy);
-				SkyRC.VolumetricCloudShadowMap[1] = GraphBuilder.RegisterExternalTexture(SkyRC.bShouldSampleCloudShadow && VolumetricCloudShadowMap1Valid ? MainView.ViewState->VolumetricCloudShadowRenderTarget[1].CurrentRenderTarget() : GSystemTextures.BlackDummy);
-
-				SkyRC.bShouldSampleCloudSkyAO = HasVolumetricCloud() && MainView.VolumetricCloudSkyAO.IsValid();
-				SkyRC.VolumetricCloudSkyAO = GraphBuilder.RegisterExternalTexture(SkyRC.bShouldSampleCloudSkyAO ? MainView.VolumetricCloudSkyAO : GSystemTextures.BlackDummy);
+				FCloudShadowAOData CloudShadowAOData;
+				GetCloudShadowAOData(GetVolumetricCloudSceneInfo(), CubeView, GraphBuilder, CloudShadowAOData);
+				SkyRC.bShouldSampleCloudShadow = CloudShadowAOData.bShouldSampleCloudShadow;
+				SkyRC.VolumetricCloudShadowMap[0] = CloudShadowAOData.VolumetricCloudShadowMap[0];
+				SkyRC.VolumetricCloudShadowMap[1] = CloudShadowAOData.VolumetricCloudShadowMap[1];
+				SkyRC.bShouldSampleCloudSkyAO = CloudShadowAOData.bShouldSampleCloudSkyAO;
+				SkyRC.VolumetricCloudSkyAO = CloudShadowAOData.VolumetricCloudSkyAO;
 
 				const bool bUseDepthBuffer = CVarRealTimeReflectionCaptureDepthBuffer.GetValueOnRenderThread() > 0;
 				FRDGTextureRef CubeDepthTexture = nullptr;
@@ -645,8 +641,6 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 					CloudRC.RenderTargets[0] = SkyRC.RenderTargets[0];
 					//	CloudRC.RenderTargets[1] = Null target will skip export
 
-					FCloudShadowAOData CloudShadowAOData;
-					GetCloudShadowAOData(GetVolumetricCloudSceneInfo(), CubeView, GraphBuilder, CloudShadowAOData);
 					CloudRC.VolumetricCloudShadowTexture[0] = CloudShadowAOData.VolumetricCloudShadowMap[0];
 					CloudRC.VolumetricCloudShadowTexture[1] = CloudShadowAOData.VolumetricCloudShadowMap[1];
 
