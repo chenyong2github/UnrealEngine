@@ -22,6 +22,8 @@ struct WATER_API FWaterCustomVersion
 		UpdateBuoyancyComponentPontoonsData,
 		// Move JumpFlood materials into AWaterBrushManager
 		MoveJumpFloodMaterialsToWaterBrushManager,
+		// Fixup Gerstner waves that were not recomputed at the right moment
+		FixupUnserializedGerstnerWaves,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
