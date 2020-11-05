@@ -20,7 +20,7 @@ class GEOMETRYCACHEABCFILE_API UGeometryCacheAbcFileComponent : public UGeometry
 
 public:
 
-	UPROPERTY(EditAnywhere, Category = "Alembic", meta = (FilePathFilter = "Alembic files (*.abc)|*.abc"))
+	UPROPERTY(EditAnywhere, Category = "Alembic", meta = (FilePathFilter = "Alembic files (*.abc)|*.abc", RelativeToGameDir))
 	FFilePath AlembicFilePath;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Alembic")

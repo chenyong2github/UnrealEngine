@@ -59,7 +59,13 @@ void UGeometryCacheAbcFileComponent::ReloadAbcFile()
 	AbcSettings->ConversionSettings = ConversionSettings;
 	AbcSettings->NormalGenerationSettings = NormalGenerationSettings;
 
-	bool bIsValid = AbcFileTrack->SetSourceFile(AlembicFilePath.FilePath, AbcSettings, GetAnimationTime(), bLooping);
+	FString FilePath(AlembicFilePath.FilePath);
+	if (FPaths::IsRelative(FilePath))
+	{
+		FilePath = FPaths::Combine(FPaths::ProjectDir(), FilePath);
+	}
+
+	bool bIsValid = AbcFileTrack->SetSourceFile(FilePath, AbcSettings, GetAnimationTime(), bLooping);
 	if (bIsValid)
 	{
 		// Update the SamplingSettings for the UI since the start/end frames may have changed
