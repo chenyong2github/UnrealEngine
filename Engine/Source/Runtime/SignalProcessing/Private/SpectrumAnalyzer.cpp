@@ -1281,6 +1281,11 @@ namespace Audio
 		return Analyzer->GetMagnitudeForFrequency(InFrequency, InMethod);
 	}
 
+	float FAsyncSpectrumAnalyzer::GetNormalizedMagnitudeForFrequency(float InFrequency, FSpectrumAnalyzer::EPeakInterpolationMethod InMethod)
+	{
+		return Analyzer->GetNormalizedMagnitudeForFrequency(InFrequency, InMethod);
+	}
+
 	float FAsyncSpectrumAnalyzer::GetPhaseForFrequency(float InFrequency, FSpectrumAnalyzer::EPeakInterpolationMethod InMethod)
 	{
 		return Analyzer->GetPhaseForFrequency(InFrequency, InMethod);
