@@ -25,6 +25,10 @@ namespace Chaos
 	{
 #if CHAOS_DEBUG_DRAW
 
+		bool bChaosDebugDebugDrawShapeBounds = false;
+		FAutoConsoleVariableRef CVarChaosDebugDrawShapeBounds(TEXT("p.Chaos.DebugDraw.ShowShapeBounds"), bChaosDebugDebugDrawShapeBounds, TEXT("Whether to show the bounds of each shape in DrawShapes"));
+
+
 		// NOTE: These settings should never really be used - they are the fallback defaults
 		// if the user does not specify settings in the debug draw call.
 		// See PBDRigidsColver.cpp and ImmediatePhysicsSimulation_Chaos.cpp for example.
@@ -181,6 +185,7 @@ namespace Chaos
 			else if (IsInstanced(PackedType))
 			{
 				DrawShapesInstancedImpl(ShapeTransform, Shape, Color, Settings);
+				return;
 			}
 
 			// @todo(ccaulfield): handle scale throughout
@@ -279,6 +284,14 @@ namespace Chaos
 			default:
 				break;
 			}
+
+			if (bChaosDebugDebugDrawShapeBounds)
+			{
+				const FColor ShapeBoundsColor = FColor::Orange;
+				const FAABB3& ShapeBounds = Shape->BoundingBox();
+				const FVec3 ShapeBoundsPos = ShapeTransform.TransformPosition(ShapeBounds.Center());
+				FDebugDrawQueue::GetInstance().DrawDebugBox(ShapeBoundsPos, 0.5f * ShapeBounds.Extents(), ShapeTransform.GetRotation(), ShapeBoundsColor, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+			}
 		}
 
 		void DrawParticleShapesImpl(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<FReal, 3>* Particle, const FColor& InColor, const FChaosDebugDrawSettings& Settings)
@@ -313,10 +326,10 @@ namespace Chaos
 
 		void DrawParticleBoundsImpl(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<FReal, 3>* InParticle, const FChaosDebugDrawSettings& Settings)
 		{
-			TAABB<FReal, 3> Box = InParticle->WorldSpaceInflatedBounds();
-			FVec3 P = SpaceTransform.TransformPosition(Box.GetCenter());
-			FRotation3 Q = SpaceTransform.GetRotation();
-			FMatrix33 Qm = Q.ToMatrix();
+			const FAABB3 Box = InParticle->WorldSpaceInflatedBounds();
+			const FVec3 P = SpaceTransform.TransformPosition(Box.GetCenter());
+			const FRotation3 Q = SpaceTransform.GetRotation();
+			const FMatrix33 Qm = Q.ToMatrix();
 			FColor Color = FColor::Black;
 			if (InParticle->ObjectState() == EObjectStateType::Dynamic)
 			{
