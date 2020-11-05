@@ -162,24 +162,3 @@ extern RENDERER_API TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBuf
 
 
 extern RENDERER_API bool IsSceneTexturesValid(FRHICommandListImmediate& RHICmdList);
-
-
-/** Deprecated APIs. */
-
-/** This was renamed to remove the extraneous 's' for consistency. */
-UE_DEPRECATED(4.26, "FSceneTexturesUniformParameters has been renamed to FSceneTextureUniformParameters.")
-typedef FSceneTextureUniformParameters FSceneTexturesUniformParameters;
-
-UE_DEPRECATED(4.26, "BindSceneTextureUniformBufferDependentOnShadingPath has been removed.")
-inline void BindSceneTextureUniformBufferDependentOnShadingPath(
-	const FShader::CompiledShaderInitializerType& Initializer,
-	FShaderUniformBufferParameter& SceneTexturesUniformBuffer)
-{}
-
-UE_DEPRECATED(4.26, "SetupMobileSceneTextureUniformParameters has been refactored to EMobileSceneTextureSetupMode.")
-extern void SetupMobileSceneTextureUniformParameters(
-	FSceneRenderTargets& SceneContext,
-	ERHIFeatureLevel::Type FeatureLevel,
-	bool bSceneTexturesValid,
-	bool bCustomDepthIsValid,
-	FMobileSceneTextureUniformParameters& SceneTextureParameters);
