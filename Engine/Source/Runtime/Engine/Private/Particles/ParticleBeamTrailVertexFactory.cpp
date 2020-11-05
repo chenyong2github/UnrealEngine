@@ -17,7 +17,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FParticleBeamTrailUniformParameters,"Be
  */
 class FParticleBeamTrailVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
-	DECLARE_TYPE_LAYOUT(FParticleBeamTrailVertexFactoryShaderParameters, NonVirtual);
+	DECLARE_INLINE_TYPE_LAYOUT(FParticleBeamTrailVertexFactoryShaderParameters, NonVirtual);
 public:
 	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
@@ -33,9 +33,10 @@ public:
 		FParticleBeamTrailVertexFactory* BeamTrailVF = (FParticleBeamTrailVertexFactory*)VertexFactory;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FParticleBeamTrailUniformParameters>(), BeamTrailVF->GetBeamTrailUniformBuffer() );
 	}
-};
 
-IMPLEMENT_TYPE_LAYOUT(FParticleBeamTrailVertexFactoryShaderParameters);
+	
+	
+};
 
 ///////////////////////////////////////////////////////////////////////////////
 /**

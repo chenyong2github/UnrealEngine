@@ -26,7 +26,7 @@ public:
 */
 class FNiagaraRibbonVertexFactoryShaderParametersVS : public FNiagaraRibbonVertexFactoryShaderParameters
 {
-	DECLARE_TYPE_LAYOUT(FNiagaraRibbonVertexFactoryShaderParametersVS, NonVirtual);
+	DECLARE_INLINE_TYPE_LAYOUT(FNiagaraRibbonVertexFactoryShaderParametersVS, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -51,15 +51,13 @@ public:
 private:
 };
 
-IMPLEMENT_TYPE_LAYOUT(FNiagaraRibbonVertexFactoryShaderParametersVS);
-
 
 /**
 * Shader parameters for the beam/trail vertex factory.
 */
 class FNiagaraRibbonVertexFactoryShaderParametersPS : public FNiagaraRibbonVertexFactoryShaderParameters
 {
-	DECLARE_TYPE_LAYOUT(FNiagaraRibbonVertexFactoryShaderParametersPS, NonVirtual);
+	DECLARE_INLINE_TYPE_LAYOUT(FNiagaraRibbonVertexFactoryShaderParametersPS, NonVirtual);
 public:
 	 void GetElementShaderBindings(
 		const FSceneInterface* Scene,
@@ -76,8 +74,6 @@ public:
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraRibbonUniformParameters>(), RibbonVF->GetRibbonUniformBuffer());
 	}
 };
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraRibbonVertexFactoryShaderParametersPS);
 
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -26,9 +26,9 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FVectorFieldVisualizationParameters,"Ve
  */
 class FVectorFieldVisualizationVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
-	DECLARE_TYPE_LAYOUT(FVectorFieldVisualizationVertexFactoryShaderParameters, NonVirtual);
+	DECLARE_INLINE_TYPE_LAYOUT(FVectorFieldVisualizationVertexFactoryShaderParameters, NonVirtual);
 public:
-	void Bind(const FShaderParameterMap& ParameterMap)
+	void Bind( const FShaderParameterMap& ParameterMap )
 	{
 		VectorFieldTexture.Bind(ParameterMap, TEXT("VectorFieldTexture"));
 		VectorFieldTextureSampler.Bind(ParameterMap, TEXT("VectorFieldTextureSampler"));
@@ -46,13 +46,12 @@ public:
 		FVertexInputStreamArray& VertexStreams) const;
 
 private:
-
-	/** The vector field texture parameter. */
-	LAYOUT_FIELD(FShaderResourceParameter, VectorFieldTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, VectorFieldTextureSampler);
+	
+		/** The vector field texture parameter. */
+		LAYOUT_FIELD(FShaderResourceParameter, VectorFieldTexture)
+		LAYOUT_FIELD(FShaderResourceParameter, VectorFieldTextureSampler)
+	
 };
-
-IMPLEMENT_TYPE_LAYOUT(FVectorFieldVisualizationVertexFactoryShaderParameters);
 
 /**
  * Vertex declaration for visualizing vector fields.

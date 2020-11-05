@@ -29,16 +29,16 @@ public:
 
 class FNiagaraSpriteVertexFactoryShaderParametersVS : public FNiagaraSpriteVertexFactoryShaderParameters
 {
-	DECLARE_TYPE_LAYOUT(FNiagaraSpriteVertexFactoryShaderParametersVS, NonVirtual);
+	DECLARE_INLINE_TYPE_LAYOUT(FNiagaraSpriteVertexFactoryShaderParametersVS, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		NumCutoutVerticesPerFrame.Bind(ParameterMap, TEXT("NumCutoutVerticesPerFrame"));
 		CutoutGeometry.Bind(ParameterMap, TEXT("CutoutGeometry"));
 
-		//  		NiagaraParticleDataInt.Bind(ParameterMap, TEXT("NiagaraParticleDataInt"));
-		//  		Int32DataOffset.Bind(ParameterMap, TEXT("NiagaraInt32DataOffset"));
-		//  		Int32DataStride.Bind(ParameterMap, TEXT("NiagaraInt3DataStride"));
+//  		NiagaraParticleDataInt.Bind(ParameterMap, TEXT("NiagaraParticleDataInt"));
+//  		Int32DataOffset.Bind(ParameterMap, TEXT("NiagaraInt32DataOffset"));
+//  		Int32DataStride.Bind(ParameterMap, TEXT("NiagaraInt3DataStride"));
 
 		ParticleAlignmentMode.Bind(ParameterMap, TEXT("ParticleAlignmentMode"));
 		ParticleFacingMode.Bind(ParameterMap, TEXT("ParticleFacingMode"));
@@ -59,10 +59,10 @@ public:
 		FVertexInputStreamArray& VertexStreams) const
 	{
 		FNiagaraSpriteVertexFactory* SpriteVF = (FNiagaraSpriteVertexFactory*)VertexFactory;
-		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraSpriteUniformParameters>(), SpriteVF->GetSpriteUniformBuffer());
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraSpriteUniformParameters>(), SpriteVF->GetSpriteUniformBuffer() );
 
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraSpriteVFLooseParameters>(), SpriteVF->LooseParameterUniformBuffer);
-
+		
 		ShaderBindings.Add(NumCutoutVerticesPerFrame, SpriteVF->GetNumCutoutVerticesPerFrame());
 		FRHIShaderResourceView* NullSRV = GFNiagaraNullCutoutVertexBuffer.VertexBufferSRV;
 		ShaderBindings.Add(CutoutGeometry, SpriteVF->GetCutoutGeometrySRV() ? SpriteVF->GetCutoutGeometrySRV() : NullSRV);
@@ -75,29 +75,26 @@ public:
 	}
 
 private:
+	
+		LAYOUT_FIELD(FShaderParameter, NumCutoutVerticesPerFrame);
 
-	LAYOUT_FIELD(FShaderParameter, NumCutoutVerticesPerFrame);
+		LAYOUT_FIELD(FShaderParameter, ParticleAlignmentMode);
+		LAYOUT_FIELD(FShaderParameter, ParticleFacingMode);
 
-	LAYOUT_FIELD(FShaderParameter, ParticleAlignmentMode);
-	LAYOUT_FIELD(FShaderParameter, ParticleFacingMode);
-
-	LAYOUT_FIELD(FShaderResourceParameter, CutoutGeometry);
+		LAYOUT_FIELD(FShaderResourceParameter, CutoutGeometry);
 
 
 	//  	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataInt);
 	//  	LAYOUT_FIELD(FShaderParameter, Int32DataOffset);
 	//  	LAYOUT_FIELD(FShaderParameter, Int32DataStride);
-
-	LAYOUT_FIELD(FShaderResourceParameter, SortedIndices);
-	LAYOUT_FIELD(FShaderParameter, SortedIndicesOffset);
-
+	
+		LAYOUT_FIELD(FShaderResourceParameter, SortedIndices);
+		LAYOUT_FIELD(FShaderParameter, SortedIndicesOffset);
+	
 };
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraSpriteVertexFactoryShaderParametersVS);
 
 class FNiagaraSpriteVertexFactoryShaderParametersPS : public FNiagaraSpriteVertexFactoryShaderParameters
 {
-	DECLARE_TYPE_LAYOUT(FNiagaraSpriteVertexFactoryShaderParametersPS, NonVirtual);
 public:
 	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
@@ -114,8 +111,6 @@ public:
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraSpriteUniformParameters>(), SpriteVF->GetSpriteUniformBuffer() );
 	}
 };
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraSpriteVertexFactoryShaderParametersPS);
 
 /**
  * The particle system vertex declaration resource type.
