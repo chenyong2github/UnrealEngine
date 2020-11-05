@@ -5,6 +5,7 @@
 void Main(
 	in float4 SvPosition: SV_Position
 	, in uint2 Resolution : DISPATCH_RESOLUTION
+	, in uint TotalNodeCount : DISPATCH_NODE_COUNT
 	#if HAIR_MATERIAL_DEBUG_OUTPUT
 	, out float4 OutColor0 : SV_Target0
 	#endif
@@ -15,7 +16,7 @@ void Main(
 	const uint3 PixelCoord = uint3(floor(SvPosition.xy), 0);
 	const uint SampleIndex = PixelCoord.x + PixelCoord.y * Resolution.x;// MaterialPassParameters.MaxResolution.x;
 	bool bIsValid = false;
-	if (SampleIndex < MaterialPassParameters.MaxSampleCount)
+	if (SampleIndex < TotalNodeCount)
 	{
 		const FNodeVis InNode = MaterialPassParameters.NodeVis[SampleIndex];
 		
