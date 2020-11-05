@@ -24,6 +24,10 @@ struct FNiagaraParameterStore;
 //#define NIAGARA_NAN_CHECKING 1
 #define NIAGARA_NAN_CHECKING 0
 
+#ifndef NIAGARA_COMPUTEDEBUG_ENABLED
+	#define NIAGARA_COMPUTEDEBUG_ENABLED WITH_EDITOR
+#endif
+
 #define INTERPOLATED_PARAMETER_PREFIX TEXT("PREV_")
 
 /** Defines The maximum ThreadGroup size we allow in Niagara.  This is important for how memory is allocated as we always need to round this and the final instance is used to avoid overflowing the buffer. */

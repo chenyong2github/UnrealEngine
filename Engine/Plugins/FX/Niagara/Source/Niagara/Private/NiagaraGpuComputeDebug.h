@@ -9,6 +9,29 @@ Class used help realtime debug Gpu Compute simulations
 #include "NiagaraCommon.h"
 #include "RHICommandList.h"
 
+#if NIAGARA_COMPUTEDEBUG_ENABLED
+
+struct FNiagaraSimulationDebugDrawData
+{
+	struct FGpuLine
+	{
+		FVector	Start;
+		FVector	End;
+		uint32	Color;
+	};
+
+	bool				bRequiresUpdate = true;
+	int32				LastUpdateTickCount = INDEX_NONE;
+
+	TArray<FGpuLine>	StaticLines;
+	uint32				StaticLineCount = 0;
+	FReadBuffer			StaticLineBuffer;
+
+	FRWBuffer			GpuLineBufferArgs;
+	FRWBuffer			GpuLineVertexBuffer;
+	uint32				GpuLineMaxInstances = 0;
+};
+
 class FNiagaraGpuComputeDebug
 {
 public:
@@ -21,10 +44,10 @@ public:
 		FIntVector4					AttributesToVisualize = FIntVector4(-1, -1, -1, -1);
 	};
 
-	FNiagaraGpuComputeDebug(ERHIFeatureLevel::Type InFeatureLevel)
-		: FeatureLevel(InFeatureLevel)
-	{
-	}
+	FNiagaraGpuComputeDebug(ERHIFeatureLevel::Type InFeatureLevel);
+
+	// Called at the start of the frame
+	void Tick(FRHICommandListImmediate& RHICmdList);
 
 	// Enables providing debug information for the system instance
 	void AddSystemInstance(FNiagaraSystemInstanceID SystemInstanceID, FString SystemName);
@@ -41,15 +64,27 @@ public:
 	// The first -1 in the attribute indices list will also limit the number of attributes we attempt to read
 	void AddAttributeTexture(FRHICommandList& RHICmdList, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FRHITexture* Texture, FIntPoint NumTextureAttributes, FIntVector4 AttributeIndices);
 
+	// Get Debug draw buffers for a system instance
+	FNiagaraSimulationDebugDrawData* GetSimulationDebugDrawData(FNiagaraSystemInstanceID SystemInstanceID, bool bRequiresGpuBuffers);
+
+	// Force remove debug draw data
+	void RemoveSimulationDebugDrawData(FNiagaraSystemInstanceID SystemInstanceID);
+
 	// Do we need DrawDebug to be called?
 	bool ShouldDrawDebug() const;
 
 	// Draw all the debug information for the system
 	void DrawDebug(class FRDGBuilder& GraphBuilder, const class FViewInfo& View, const struct FScreenPassRenderTarget& Output);
 
+	// Draw debug information that requires rendering into the scene
+	void DrawSceneDebug(class FRDGBuilder& GraphBuilder, const class FViewInfo& View, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth);
+
 private:
 	ERHIFeatureLevel::Type FeatureLevel;
 	uint32 TickCounter = 0;
 	TArray<FNiagaraVisualizeTexture> VisualizeTextures;
+	TMap<FNiagaraSystemInstanceID, TUniquePtr<FNiagaraSimulationDebugDrawData>> DebugDrawBuffers;
 	TMap<FNiagaraSystemInstanceID, FString> SystemInstancesToWatch;
 };
+
+#endif //NIAGARA_COMPUTEDEBUG_ENABLED

@@ -88,6 +88,15 @@ void FFXSystemSet::DrawDebug_RenderThread(class FRDGBuilder& GraphBuilder, const
 	}
 }
 
+void FFXSystemSet::DrawSceneDebug_RenderThread(class FRDGBuilder& GraphBuilder, const class FViewInfo& View, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth)
+{
+	for (FFXSystemInterface* FXSystem : FXSystems)
+	{
+		check(FXSystem);
+		FXSystem->DrawSceneDebug_RenderThread(GraphBuilder, View, SceneColor, SceneDepth);
+	}
+}
+
 void FFXSystemSet::AddVectorField(UVectorFieldComponent* VectorFieldComponent)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)

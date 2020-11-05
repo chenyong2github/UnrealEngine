@@ -198,9 +198,17 @@ public:
 
 	/**
 	 * Draw desired debug information related to the effects system on the render thread.
-	 * @param Canvas The canvas on which to draw.
+	 * This is called at the end of the rendering when
+	 * @param GraphBuilder Render Graph Builder to use
+	 * @param View The view we are rendering for
+	 * @param Output The output buffer information
 	 */
 	virtual void DrawDebug_RenderThread(class FRDGBuilder& GraphBuilder, const class FViewInfo& View, const struct FScreenPassRenderTarget& Output) {}
+
+	/**
+	 * Call to handle debug drawing to the scene (i.e. where depth is available)
+	 */
+	virtual void DrawSceneDebug_RenderThread(class FRDGBuilder& GraphBuilder, const class FViewInfo& View, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth) {}
 
 	/**
 	 * Add a vector field to the FX system.

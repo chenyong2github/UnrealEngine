@@ -518,7 +518,7 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 
 void FNiagaraSystemInstance::SetGpuComputeDebug(bool bEnableDebug)
 {
-#if WITH_EDITOR
+#if NIAGARA_COMPUTEDEBUG_ENABLED
 	UNiagaraSystem* System  = GetSystem();
 	if (Batcher == nullptr || System == nullptr)
 	{

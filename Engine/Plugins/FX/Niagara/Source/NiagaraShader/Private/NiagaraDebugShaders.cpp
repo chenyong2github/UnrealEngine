@@ -68,6 +68,197 @@ IMPLEMENT_GLOBAL_SHADER(FNiagaraVisualizeTexturePS, "/Plugin/FX/Niagara/Private/
 
 //////////////////////////////////////////////////////////////////////////
 
+class NIAGARASHADER_API FNiagaraClearUAVCS : public FGlobalShader
+{
+public:
+	DECLARE_SHADER_TYPE(FNiagaraClearUAVCS, Global);
+	SHADER_USE_PARAMETER_STRUCT(FNiagaraClearUAVCS, FGlobalShader);
+
+	static constexpr uint32 ThreadGroupSize = 32;
+
+	//class FUAVType : SHADER_PERMUTATION_INT("TEXTURE_TYPE", 3);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		//FPermutationDomain PermutationVector(Parameters.PermutationId);
+		return true;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("NIAGARA_DEBUGDRAW_CLEARUAV_UINT_CS"), 1);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), ThreadGroupSize);
+	}
+
+	//NIAGARA_DEBUGDRAW_CLEARUAV_UINT_CS
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FUintVector4,			ClearValue)
+		SHADER_PARAMETER(uint32,				ClearSize)
+		SHADER_PARAMETER_UAV(RWBuffer<uint>, BufferToClear)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+IMPLEMENT_GLOBAL_SHADER(FNiagaraClearUAVCS, "/Plugin/FX/Niagara/Private/NiagaraDebugDraw.usf", "MainCS", SF_Compute);
+
+//////////////////////////////////////////////////////////////////////////
+
+class NIAGARASHADER_API FNiagaraDebugDrawLineVS : public FGlobalShader
+{
+public:
+	DECLARE_SHADER_TYPE(FNiagaraDebugDrawLineVS, Global);
+	SHADER_USE_PARAMETER_STRUCT(FNiagaraDebugDrawLineVS, FGlobalShader);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return true;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("NIAGARA_DEBUGDRAW_DRAWLINE_VS"), 1);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_SRV(Buffer<float>, LineBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+class NIAGARASHADER_API FNiagaraDebugDrawLinePS : public FGlobalShader
+{
+public:
+	DECLARE_SHADER_TYPE(FNiagaraDebugDrawLinePS, Global);
+	SHADER_USE_PARAMETER_STRUCT(FNiagaraDebugDrawLinePS, FGlobalShader);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return true;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("NIAGARA_DEBUGDRAW_DRAWLINE_PS"), 1);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraDebugDrawLineParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FNiagaraDebugDrawLineVS::FParameters, VSParameters)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FNiagaraDebugDrawLinePS::FParameters, PSParameters)
+END_SHADER_PARAMETER_STRUCT()
+
+IMPLEMENT_GLOBAL_SHADER(FNiagaraDebugDrawLineVS, "/Plugin/FX/Niagara/Private/NiagaraDebugDraw.usf", "MainVS", SF_Vertex);
+IMPLEMENT_GLOBAL_SHADER(FNiagaraDebugDrawLinePS, "/Plugin/FX/Niagara/Private/NiagaraDebugDraw.usf", "MainPS", SF_Pixel);
+
+//////////////////////////////////////////////////////////////////////////
+
+void NiagaraDebugShaders::ClearUAV(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV, FUintVector4 ClearValues, uint32 UIntsToSet)
+{
+	check(UIntsToSet > 0);
+	check(UAV != nullptr);
+
+	FNiagaraClearUAVCS::FParameters	PassParameters;
+	PassParameters.BufferToClear = UAV;
+	PassParameters.ClearValue = ClearValues;
+	PassParameters.ClearSize = UIntsToSet;
+
+	TShaderMapRef<FNiagaraClearUAVCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+	FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
+	const uint32 NumThreadGroups = FMath::DivideAndRoundUp(UIntsToSet, FNiagaraClearUAVCS::ThreadGroupSize);
+
+	RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+	RHICmdList.SetComputeShader(ShaderRHI);
+	SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, PassParameters);
+	RHICmdList.DispatchComputeShader(NumThreadGroups, 1, 1);
+	UnsetShaderUAVs(RHICmdList, ComputeShader, ShaderRHI);
+	RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+}
+
+void NiagaraDebugShaders::DrawDebugLines(
+	class FRDGBuilder& GraphBuilder, const class FViewInfo& View, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth,
+	const uint32 LineInstanceCount, const FShaderResourceViewRHIRef& LineBuffer
+)
+{
+	TShaderMapRef<FNiagaraDebugDrawLineVS> VertexShader(View.ShaderMap);
+	TShaderMapRef<FNiagaraDebugDrawLinePS> PixelShader(View.ShaderMap);
+
+	auto* PassParameters = GraphBuilder.AllocParameters<FNiagaraDebugDrawLineParameters>();
+	PassParameters->VSParameters.View = View.ViewUniformBuffer;
+	PassParameters->VSParameters.LineBuffer = LineBuffer;
+
+	PassParameters->PSParameters.RenderTargets[0] = FRenderTargetBinding(SceneColor, ERenderTargetLoadAction::ELoad);
+	PassParameters->PSParameters.RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop);
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("NiagaraDrawDebugLines"),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[VertexShader, PixelShader, LineInstanceCount, PassParameters](FRHICommandListImmediate& RHICmdList)
+		{
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI(); // Premultiplied-alpha composition
+			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None, true>::GetRHI();
+			GraphicsPSOInit.PrimitiveType = PT_LineList;
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->VSParameters);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PSParameters);
+			RHICmdList.DrawPrimitive(0, 2, LineInstanceCount);
+		}
+	);
+}
+
+void NiagaraDebugShaders::DrawDebugLines(
+	class FRDGBuilder& GraphBuilder, const class FViewInfo& View, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth,
+	const FVertexBufferRHIRef& ArgsBuffer, const FShaderResourceViewRHIRef& LineBuffer
+)
+{
+	TShaderMapRef<FNiagaraDebugDrawLineVS> VertexShader(View.ShaderMap);
+	TShaderMapRef<FNiagaraDebugDrawLinePS> PixelShader(View.ShaderMap);
+
+	auto* PassParameters = GraphBuilder.AllocParameters<FNiagaraDebugDrawLineParameters>();
+	PassParameters->VSParameters.View = View.ViewUniformBuffer;
+	PassParameters->VSParameters.LineBuffer = LineBuffer;
+
+	PassParameters->PSParameters.RenderTargets[0] = FRenderTargetBinding(SceneColor, ERenderTargetLoadAction::ELoad);
+	PassParameters->PSParameters.RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop);
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("NiagaraDrawDebugLines"),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[VertexShader, PixelShader, ArgsBuffer, PassParameters](FRHICommandListImmediate& RHICmdList)
+		{
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI(); // Premultiplied-alpha composition
+			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None, true>::GetRHI();
+			GraphicsPSOInit.PrimitiveType = PT_LineList;
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->VSParameters);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PSParameters);
+			RHICmdList.DrawPrimitiveIndirect(ArgsBuffer, 0);
+		}
+	);
+}
+
 void NiagaraDebugShaders::VisualizeTexture(
 	class FRDGBuilder& GraphBuilder, const FViewInfo& View, const FScreenPassRenderTarget& Output,
 	const FIntPoint& Location, const int32& DisplayHeight,

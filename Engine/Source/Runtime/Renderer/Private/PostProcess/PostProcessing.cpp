@@ -51,6 +51,7 @@
 #include "PixelShaderUtils.h"
 #include "ScreenSpaceRayTracing.h"
 #include "SceneViewExtension.h"
+#include "FXSystem.h"
 
 /** The global center for all post processing activities. */
 FPostProcessing GPostProcessing;
@@ -981,6 +982,13 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 	if (ShaderPrint::IsEnabled() && ShaderPrint::IsSupported(View))
 	{
 		ShaderPrint::DrawView(GraphBuilder, View, SceneColor.Texture);
+	}
+	if ( View.Family && View.Family->Scene )
+	{
+		if (FFXSystemInterface* FXSystem = View.Family->Scene->GetFXSystem())
+		{
+			FXSystem->DrawSceneDebug_RenderThread(GraphBuilder, View, SceneColor.Texture, SceneDepth.Texture);
+		}
 	}
 
 	if (PassSequence.IsEnabled(EPass::HighResolutionScreenshotMask))
