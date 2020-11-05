@@ -844,6 +844,10 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 #if VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS
 	HasAtomicInt64 = HasExtension(DeviceExtensions, VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME);
 #endif
+
+#if VULKAN_SUPPORTS_SCALAR_BLOCK_LAYOUT
+	HasScalarBlockLayoutFeatures = HasExtension(DeviceExtensions, VK_EXT_SCALAR_BLOCK_LAYOUT_EXTENSION_NAME);
+#endif
 }
 
 void FVulkanDynamicRHI::SetupValidationRequests()
