@@ -401,7 +401,7 @@ public:
 	/** If a connection can be made without breaking existing connections */
 	bool CanSafeConnect() const
 	{
-		return (Response == CONNECT_RESPONSE_MAKE);
+		return (Response == CONNECT_RESPONSE_MAKE  || Response == CONNECT_RESPONSE_MAKE_WITH_PROMOTION);
 	}
 
 	bool IsFatal() const
