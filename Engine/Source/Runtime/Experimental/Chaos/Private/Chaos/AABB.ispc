@@ -13,10 +13,12 @@ inline static void GrowToInclude(uniform FVector4 &Min, uniform FVector4 &Max, c
 
 inline static void GrowToInclude(uniform FVector8 &MinMax, const uniform FVector8& V)
 {
-	const uniform FVector8 MinV = SetVector8(V.V[0], V.V[1], V.V[2], V.V[3], FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
-	const uniform FVector8 MaxV = SetVector8(-FLT_MAX, -FLT_MAX, -FLT_MAX, -FLT_MAX, V.V[4], V.V[5], V.V[6], V.V[7]);
-	MinMax = VectorMin(MinMax, MinV);
-	MinMax = VectorMax(MinMax, MaxV);
+	const uniform FVector8 VReverse = SetVector8(V.V[4], V.V[5], V.V[6], V.V[7], V.V[0], V.V[1], V.V[2], V.V[3]);
+
+	const uniform FVector8 Min = VectorMin(VectorMin(MinMax, V), VReverse);
+	const uniform FVector8 Max = VectorMax(VectorMax(MinMax, V), VReverse);
+
+	MinMax = SetVector8(Min.V[0], Min.V[1], Min.V[2], Min.V[3], Max.V[4], Max.V[5], Max.V[6], Max.V[7]);
 }
 
 export void TransformedAABB(const uniform FTransform &SpaceTransform, const uniform FVector &MMin, const uniform FVector &MMax, uniform FVector &NewMin, uniform FVector &NewMax)
@@ -48,8 +50,8 @@ export void TransformedAABB(const uniform FTransform &SpaceTransform, const unif
 	const uniform FVector8 RightVectorTransform = TransformPosition(SpaceTransformWide, MinMax + RightVector8 * CurrentExtentsWide);
 	const uniform FVector8 UpVectorTransform = TransformPosition(SpaceTransformWide, MinMax + UpVector8 * CurrentExtentsWide);
 
-	uniform FVector8 MinMaxToNewSpace = SetVector8(*((uniform FVector4 *uniform)&MinMaxTransform), *((uniform FVector4 *uniform)&MinMaxTransform));
-	GrowToInclude(MinMaxToNewSpace, SetVector8(*(((uniform FVector4 *uniform)&MinMaxTransform)+1), *(&((uniform FVector4 *uniform)&MinMaxTransform)+1)));
+	uniform FVector8 MinMaxToNewSpace = MinMaxTransform;
+	GrowToInclude(MinMaxToNewSpace, MinMaxTransform);
 	GrowToInclude(MinMaxToNewSpace, ForwardVectorTransform);
 	GrowToInclude(MinMaxToNewSpace, RightVectorTransform);
 	GrowToInclude(MinMaxToNewSpace, UpVectorTransform);
