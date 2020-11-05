@@ -3,6 +3,7 @@
 #include "OnlineStatsEOSPlus.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemEOSPlus.h"
+#include "EOSSettings.h"
 
 void FOnlineStatsEOSPlus::QueryStats(const TSharedRef<const FUniqueNetId> LocalUserId, const TSharedRef<const FUniqueNetId> StatsUser, const FOnlineStatsQueryUserStatsComplete& Delegate)
 {
@@ -42,11 +43,14 @@ void FOnlineStatsEOSPlus::UpdateStats(const TSharedRef<const FUniqueNetId> Local
 	{
 		Stats->UpdateStats(LocalUserId, UpdatedUserStats, Delegate);
 	}
-	// Also write the data to EOS
-	IOnlineStatsPtr EOSStats = EOSPlus->EosOSS->GetStatsInterface();
-	if (EOSStats.IsValid())
+	if (GetDefault<UEOSSettings>()->bMirrorStatsToEOS)
 	{
-		EOSStats->UpdateStats(LocalUserId, UpdatedUserStats, IgnoredStatsComplete);
+		// Also write the data to EOS
+		IOnlineStatsPtr EOSStats = EOSPlus->EosOSS->GetStatsInterface();
+		if (EOSStats.IsValid())
+		{
+			EOSStats->UpdateStats(LocalUserId, UpdatedUserStats, IgnoredStatsComplete);
+		}
 	}
 }
 

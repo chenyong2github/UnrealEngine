@@ -3,6 +3,7 @@
 #include "OnlineAchievementsEOSPlus.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemEOSPlus.h"
+#include "EOSSettings.h"
 
 FOnAchievementsWrittenDelegate Ignored;
 
@@ -13,11 +14,14 @@ void FOnlineAchievementsEOSPlus::WriteAchievements(const FUniqueNetId& PlayerId,
 	{
 		Achievements->WriteAchievements(PlayerId, WriteObject, Delegate);
 	}
-	// Mirror the achievement data to EOS
-	IOnlineAchievementsPtr EOSAchievements = EOSPlus->EosOSS->GetAchievementsInterface();
-	if (EOSAchievements.IsValid())
+	if (GetDefault<UEOSSettings>()->bMirrorAchievementsToEOS)
 	{
-		EOSAchievements->WriteAchievements(PlayerId, WriteObject, Ignored);
+		// Mirror the achievement data to EOS
+		IOnlineAchievementsPtr EOSAchievements = EOSPlus->EosOSS->GetAchievementsInterface();
+		if (EOSAchievements.IsValid())
+		{
+			EOSAchievements->WriteAchievements(PlayerId, WriteObject, Ignored);
+		}
 	}
 }
 

@@ -324,6 +324,46 @@ void UEOSSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 		}
 	}
 
+	// Turning off EAS disables presence mirroring too
+	if (PropertyChangedEvent.Property->GetFName() == FName(TEXT("bUseEAS")))
+	{
+		if (!bUseEAS)
+		{
+			bMirrorPresenceToEAS = false;
+		}
+	}
+
+	// Turning on presence requires EAS
+	if (PropertyChangedEvent.Property->GetFName() == FName(TEXT("bMirrorPresenceToEAS")))
+	{
+		if (bMirrorPresenceToEAS)
+		{
+			bUseEAS = true;
+		}
+	}
+
+	// Turning off EAS disables presence mirroring too
+	if (PropertyChangedEvent.Property->GetFName() == FName(TEXT("bUseEOSConnect")))
+	{
+		if (!bUseEOSConnect)
+		{
+			bMirrorAchievementsToEOS = false;
+			bMirrorStatsToEOS = false;
+			bUseEOSSessions = false;
+		}
+	}
+
+	// These all require EOS turned on if they are on
+	if (PropertyChangedEvent.Property->GetFName() == FName(TEXT("bMirrorAchievementsToEOS")) ||
+		PropertyChangedEvent.Property->GetFName() == FName(TEXT("bMirrorStatsToEOS")) ||
+		PropertyChangedEvent.Property->GetFName() == FName(TEXT("bUseEOSSessions")))
+	{
+		if (bMirrorAchievementsToEOS || bMirrorStatsToEOS || bUseEOSSessions)
+		{
+			bUseEOSConnect = true;
+		}
+	}
+
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
