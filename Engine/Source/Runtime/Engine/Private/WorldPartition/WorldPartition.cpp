@@ -56,7 +56,6 @@ static FAutoConsoleCommand GenerateHLODCmd(
 			{
 				if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 				{
-					WorldPartition->Modify();
 					WorldPartition->GenerateHLOD();
 				}
 			}
