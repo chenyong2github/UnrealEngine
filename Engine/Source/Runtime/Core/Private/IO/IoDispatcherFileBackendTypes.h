@@ -25,7 +25,6 @@ struct FFileIoStoreBuffer
 {
 	FFileIoStoreBuffer* Next = nullptr;
 	uint8* Memory = nullptr;
-	EIoDispatcherPriority Priority = IoDispatcherPriority_Count;
 };
 
 struct FFileIoStoreBlockKey
@@ -55,9 +54,9 @@ struct FFileIoStoreBlockKey
 struct FFileIoStoreBlockScatter
 {
 	FIoRequestImpl* Request = nullptr;
-	uint64 DstOffset;
-	uint64 SrcOffset;
-	uint64 Size;
+	uint64 DstOffset = 0;
+	uint64 SrcOffset = 0;
+	uint64 Size = 0;
 };
 
 struct FFileIoStoreCompressedBlock
@@ -69,9 +68,8 @@ struct FFileIoStoreCompressedBlock
 	uint32 UncompressedSize;
 	uint32 CompressedSize;
 	uint32 RawSize;
-	uint32 RawBlocksCount = 0;
 	uint32 UnfinishedRawBlocksCount = 0;
-	struct FFileIoStoreReadRequest* SingleRawBlock;
+	TArray<struct FFileIoStoreReadRequest*, TInlineAllocator<2>> RawBlocks;
 	TArray<FFileIoStoreBlockScatter, TInlineAllocator<16>> ScatterList;
 	FFileIoStoreCompressionContext* CompressionContext = nullptr;
 	uint8* CompressedDataBuffer = nullptr;
@@ -82,6 +80,12 @@ struct FFileIoStoreCompressedBlock
 
 struct FFileIoStoreReadRequest
 {
+	FFileIoStoreReadRequest()
+		: Sequence(NextSequence++)
+	{
+
+	}
+
 	FFileIoStoreReadRequest* Next = nullptr;
 	uint64 FileHandle = uint64(-1);
 	uint64 Offset = uint64(-1);
@@ -90,10 +94,13 @@ struct FFileIoStoreReadRequest
 	FFileIoStoreBuffer* Buffer = nullptr;
 	TArray<FFileIoStoreCompressedBlock*, TInlineAllocator<4>> CompressedBlocks;
 	uint32 CompressedBlocksRefCount = 0;
+	uint32 Sequence = 0;
+	int32 Priority = 0;
 	FFileIoStoreBlockScatter ImmediateScatter;
-	EIoDispatcherPriority Priority = IoDispatcherPriority_Count;
 	bool bIsCacheable = false;
 	bool bFailed = false;
+
+	static uint32 NextSequence;
 };
 
 class FFileIoStoreReadRequestList
@@ -214,15 +221,21 @@ class FFileIoStoreRequestQueue
 {
 public:
 	FFileIoStoreReadRequest* Peek();
-	void Pop(FFileIoStoreReadRequest& Request);
+	FFileIoStoreReadRequest* Pop();
 	void Push(FFileIoStoreReadRequest& Request);
+	void Push(const FFileIoStoreReadRequestList& Requests);
+	void UpdateOrder();
 
 private:
-	struct FByPriority
+	static bool QueueSortFunc(const FFileIoStoreReadRequest& A, const FFileIoStoreReadRequest& B)
 	{
-		FFileIoStoreReadRequest* Head = nullptr;
-		FFileIoStoreReadRequest* Tail = nullptr;
-	};
-
-	FByPriority ByPriority[IoDispatcherPriority_Count];
+		if (A.Priority == B.Priority)
+		{
+			return A.Sequence < B.Sequence;
+		}
+		return A.Priority > B.Priority;
+	}
+	
+	TArray<FFileIoStoreReadRequest*> Heap;
+	FCriticalSection CriticalSection;
 };

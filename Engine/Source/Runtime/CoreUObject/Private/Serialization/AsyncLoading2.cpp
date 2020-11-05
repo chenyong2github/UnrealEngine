@@ -343,6 +343,8 @@ struct FAsyncPackageDesc2
 {
 	// A unique request id for each external call to LoadPackage
 	int32 RequestID;
+	// Package priority
+	int32 Priority;
 	// The package store entry with meta data about the actual disk package
 	const FPackageStoreEntry* StoreEntry;
 	// The disk package id corresponding to the StoreEntry
@@ -364,6 +366,7 @@ struct FAsyncPackageDesc2
 
 	FAsyncPackageDesc2(
 		int32 InRequestID,
+		int32 InPriority,
 		FPackageId InPackageIdToLoad,
 		const FPackageStoreEntry* InStoreEntry,
 		FName InDiskPackageName = FName(),
@@ -371,6 +374,7 @@ struct FAsyncPackageDesc2
 		FName InCustomName = FName(),
 		TUniquePtr<FLoadPackageAsyncDelegate>&& InCompletionDelegate = TUniquePtr<FLoadPackageAsyncDelegate>())
 		: RequestID(InRequestID)
+		, Priority(InPriority)
 		, StoreEntry(InStoreEntry)
 		, DiskPackageId(InPackageIdToLoad)
 		, CustomPackageId(InPackageId)
@@ -383,6 +387,7 @@ struct FAsyncPackageDesc2
 	/** This constructor does not modify the package loaded delegate as this is not safe outside the game thread */
 	FAsyncPackageDesc2(const FAsyncPackageDesc2& OldPackage)
 		: RequestID(OldPackage.RequestID)
+		, Priority(OldPackage.Priority)
 		, StoreEntry(OldPackage.StoreEntry)
 		, DiskPackageId(OldPackage.DiskPackageId)
 		, CustomPackageId(OldPackage.CustomPackageId)
@@ -2781,7 +2786,7 @@ void FAsyncLoadingThread2::StartBundleIoRequests()
 		FIoReadOptions ReadOptions;
 		Package->IoRequest = IoBatch.ReadWithCallback(CreateIoChunkId(Package->Desc.DiskPackageId.Value(), 0, EIoChunkType::ExportBundleData),
 			ReadOptions,
-			IoDispatcherPriority_Medium,
+			Package->Desc.Priority,
 			[Package](TIoStatusOr<FIoBuffer> Result)
 		{
 			if (Result.IsOk())
@@ -3290,7 +3295,7 @@ void FAsyncPackage2::ImportPackagesRecursive()
 			PackageRef.ClearIsMissingPackage();
 		}
 
-		FAsyncPackageDesc2 PackageDesc(INDEX_NONE, ImportedPackageId, ImportedPackageEntry);
+		FAsyncPackageDesc2 PackageDesc(INDEX_NONE, Desc.Priority, ImportedPackageId, ImportedPackageEntry);
 		bool bInserted;
 		FAsyncPackage2* ImportedPackage = AsyncLoadingThread.FindOrInsertPackage(&PackageDesc, bInserted);
 
@@ -5655,7 +5660,7 @@ int32 FAsyncLoadingThread2::LoadPackage(const FString& InName, const FGuid* InGu
 #endif
 
 		// Add new package request
-		FAsyncPackageDesc2 PackageDesc(RequestID, DiskPackageId, StoreEntry, DiskPackageName, CustomPackageId, CustomPackageName, MoveTemp(CompletionDelegatePtr));
+		FAsyncPackageDesc2 PackageDesc(RequestID, InPackagePriority, DiskPackageId, StoreEntry, DiskPackageName, CustomPackageId, CustomPackageName, MoveTemp(CompletionDelegatePtr));
 
 		// Fixup for redirected packages since the slim StoreEntry itself has been stripped from both package names and package ids
 		FPackageId RedirectedDiskPackageId = GlobalPackageStore.GetRedirectedPackageId(DiskPackageId);
@@ -5672,7 +5677,7 @@ int32 FAsyncLoadingThread2::LoadPackage(const FString& InName, const FGuid* InGu
 	}
 	else
 	{
-		FAsyncPackageDesc2 PackageDesc(RequestID, DiskPackageId, StoreEntry, DiskPackageName, CustomPackageId, CustomPackageName);
+		FAsyncPackageDesc2 PackageDesc(RequestID, InPackagePriority, DiskPackageId, StoreEntry, DiskPackageName, CustomPackageId, CustomPackageName);
 		if (!bDiskPackageIdIsValid)
 		{
 			UE_ASYNC_PACKAGE_LOG(Warning, PackageDesc, TEXT("LoadPackage: SkipPackage"),
