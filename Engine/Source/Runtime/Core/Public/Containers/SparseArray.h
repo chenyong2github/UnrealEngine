@@ -1121,7 +1121,7 @@ private:
 			if (NumElements > 0)
 			{
 				const FTypeLayoutDesc& ElementTypeDesc = StaticGetTypeLayoutDesc<ElementType>();
-				FMemoryImageWriter ArrayWriter = Writer.WritePointer(ElementTypeDesc);
+				FMemoryImageWriter ArrayWriter = Writer.WritePointer(FString::Printf(TEXT("TSparseArray<%s>"), ElementTypeDesc.Name));
 				for (int32 i = 0; i < NumElements; ++i)
 				{
 					const FElementOrFreeListLink& Elem = Object.Data[i];
@@ -1140,7 +1140,7 @@ private:
 			}
 			else
 			{
-				Writer.WriteNullPointer();
+				Writer.WriteMemoryImagePointerSizedBytes(0u);
 			}
 			Writer.WriteBytes(NumElements);
 			Writer.WriteBytes(NumElements);
@@ -1212,10 +1212,9 @@ namespace Freeze
 	}
 
 	template<typename ElementType, typename Allocator>
-	uint32 IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TSparseArray<ElementType, Allocator>& Object, void* OutDst)
+	void IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TSparseArray<ElementType, Allocator>& Object, void* OutDst)
 	{
 		Object.CopyUnfrozen(Context, OutDst);
-		return sizeof(Object);
 	}
 
 	template<typename ElementType, typename Allocator>

@@ -2674,7 +2674,7 @@ private:
 		}
 		static void ToString(const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext, const TArray& Object)
 		{
-			Object.AllocatorInstance.ToString(StaticGetTypeLayoutDesc<ElementType>(), Object.ArrayNum, Object.ArrayMax, LayoutParams, OutContext);
+			Object.AllocatorInstance.ToString(StaticGetTypeLayoutDesc<ElementType>(), Object.ArrayNum, LayoutParams, OutContext);
 		}
 	};
 
@@ -2995,23 +2995,26 @@ namespace Freeze
 	}
 
 	template<typename T, typename AllocatorType>
-	uint32 IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TArray<T, AllocatorType>& Object, void* OutDst)
+	void IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TArray<T, AllocatorType>& Object, void* OutDst)
 	{
 		Object.CopyUnfrozen(Context, OutDst);
-		return sizeof(Object);
 	}
 
 	template<typename T, typename AllocatorType>
 	uint32 IntrinsicAppendHash(const TArray<T, AllocatorType>* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
 	{
-		return AppendHashForNameAndSize(TypeDesc.Name, sizeof(TArray<T, AllocatorType>), Hasher);
+		// sizeof(TArray) changes depending on target platform 32bit vs 64bit
+		// For now, calculate the size manually
+		static_assert(sizeof(TArray<T, AllocatorType>) == sizeof(FMemoryImageUPtrInt) + sizeof(int32) + sizeof(int32), "Unexpected TArray size");
+		const uint32 SizeFromFields = LayoutParams.GetMemoryImagePointerSize() + sizeof(int32) + sizeof(int32);
+		return AppendHashForNameAndSize(TypeDesc.Name, SizeFromFields, Hasher);;
 	}
 
 	template<typename T, typename AllocatorType>
 	uint32 IntrinsicGetTargetAlignment(const TArray<T, AllocatorType>* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams)
 	{
 		// Assume alignment of array is drive by pointer
-		return FMath::Min(8u, LayoutParams.MaxFieldAlignment);
+		return FMath::Min(LayoutParams.GetMemoryImagePointerSize(), LayoutParams.MaxFieldAlignment);
 	}
 
 	template<typename T, typename AllocatorType>

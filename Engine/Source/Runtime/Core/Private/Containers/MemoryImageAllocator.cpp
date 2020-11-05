@@ -55,13 +55,14 @@ void FMemoryImageAllocatorBase::WriteMemoryImage(FMemoryImageWriter& Writer, con
 	{
 		const void* RawPtr = GetAllocation();
 		check(RawPtr);
-		FMemoryImageWriter ArrayWriter = Writer.WritePointer(TypeDesc);
+		FMemoryImageWriter ArrayWriter = Writer.WritePointer(FString::Printf(TEXT("FMemoryImageAllocator<%s>"), TypeDesc.Name));
+		ArrayWriter.AddDependency(TypeDesc);
 		ArrayWriter.WriteAlignment(Alignment);
 		ArrayWriter.WriteObjectArray(RawPtr, TypeDesc, NumAllocatedElements);
 	}
 	else
 	{
-		Writer.WriteNullPointer();
+		Writer.WriteMemoryImagePointerSizedBytes(0u);
 	}
 }
 
@@ -69,28 +70,23 @@ void FMemoryImageAllocatorBase::CopyUnfrozen(const FMemoryUnfreezeContent& Conte
 {
 	if (NumAllocatedElements > 0)
 	{
-		const uint8* FrozenObject = (uint8*)GetAllocation();
-		uint8* UnfrozenDst = (uint8*)OutDst;
-
+		const void* RawPtr = GetAllocation();
 		FTypeLayoutDesc::FUnfrozenCopyFunc* Func = TypeDesc.UnfrozenCopyFunc;
 		const uint32 ElementSize = TypeDesc.Size;
-		const uint32 ElementAlign = TypeDesc.Alignment;
-		const uint32 FrozenElementAlign = Freeze::GetTargetAlignment(TypeDesc, Context.FrozenLayoutParameters);
-		uint32 FrozenOffset = 0u;
-		uint32 UnfrozenOffset = 0u;
 
 		for (int32 i = 0; i < NumAllocatedElements; ++i)
 		{
-			const uint32 FrozenElementSize = Func(Context, FrozenObject + FrozenOffset, TypeDesc, UnfrozenDst + UnfrozenOffset);
-			FrozenOffset = Align(FrozenOffset + FrozenElementSize, FrozenElementAlign);
-			UnfrozenOffset = Align(UnfrozenOffset + ElementSize, ElementAlign);
+			Func(Context,
+				(uint8*)RawPtr + ElementSize * i,
+				TypeDesc,
+				(uint8*)OutDst + ElementSize * i);
 		}
 	}
 }
 
-void FMemoryImageAllocatorBase::ToString(const FTypeLayoutDesc& TypeDesc, int32 NumAllocatedElements, int32 MaxAllocatedElements, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext) const
+void FMemoryImageAllocatorBase::ToString(const FTypeLayoutDesc& TypeDesc, int32 NumAllocatedElements, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext) const
 {
-	OutContext.String->Appendf(TEXT("TArray<%s>, Num: %d, Max: %d\n"), TypeDesc.Name, NumAllocatedElements, MaxAllocatedElements);
+	OutContext.String->Appendf(TEXT("TArray<%s>, Num: %d\n"), TypeDesc.Name, NumAllocatedElements);
 	++OutContext.Indent;
 
 	const void* RawPtr = GetAllocation();
