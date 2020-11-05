@@ -30,3 +30,8 @@
 #define RAY_TRACING_NUM_MISS_SHADER_SLOTS		2
 
 #define RAY_TRACING_LIGHT_COUNT_MAXIMUM		256
+
+#define RAY_TRACING_MAX_ALLOWED_RECURSION_DEPTH 1   // Only allow ray tracing from RayGen shader
+#define RAY_TRACING_MAX_ALLOWED_ATTRIBUTE_SIZE  8   // Sizeof 2 floats (barycentrics)
+#define RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE    64  // Our maximum allowed payload size (sizeof FPackedMaterialClosestHitPayload)
+
