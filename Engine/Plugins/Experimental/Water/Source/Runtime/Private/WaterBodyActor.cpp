@@ -1331,12 +1331,16 @@ void AWaterBody::PostLoad()
 				bHasWaveSpectrumSettings_DEPRECATED = false;
 			}
 		}
+	}
 
+	if (GetLinkerCustomVersion(FWaterCustomVersion::GUID) < FWaterCustomVersion::FixupUnserializedGerstnerWaves)
+	{
 		// At one point, some attributes from UGerstnerWaterWaves were transient, recompute those here at load-time (nowadays, they are serialized properly so they should be properly recompute on property change)
 		if (HasWaves())
 		{
 			if (UGerstnerWaterWaves* GerstnerWaterWaves = Cast<UGerstnerWaterWaves>(WaterWaves->GetWaterWaves()))
 			{
+				GerstnerWaterWaves->ConditionalPostLoad();
 				GerstnerWaterWaves->RecomputeWaves(/*bAllowBPScript = */false); // We're in PostLoad, don't let BP script run, this is forbidden
 			}
 		}
