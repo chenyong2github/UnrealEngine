@@ -68,6 +68,8 @@ namespace AutomationTool
 			Parallel.For(0, ProjectFiles.Count, Idx => Projects[Idx] = CsProjectInfo.Read(ProjectFiles[Idx], MsBuildProperties));
 			Log.TraceLog("Parsed project files in {0:0.000}s", ParsingTimer.Elapsed.TotalSeconds);
 
+			// net core does not support shadow copying, as such we expect the compile to happen before running UAT via dotnet build
+#if !NET_CORE
 			// Compile only if not disallowed.
 			if (GlobalCommandLine.Compile && !String.IsNullOrEmpty(CommandUtils.CmdEnv.MsBuildExe))
 			{
@@ -78,6 +80,7 @@ namespace AutomationTool
 				}
 				CompileAutomationProjects(CompileProjects, MsBuildProperties);
 			}
+#endif
 
 			// Get all the build artifacts
 			BuildProducts = new HashSet<FileReference>();

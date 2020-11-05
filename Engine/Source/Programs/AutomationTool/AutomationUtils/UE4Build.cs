@@ -1261,10 +1261,12 @@ namespace AutomationTool
 		/// </summary>
 		public void AddUBTFilesToBuildProducts()
 		{
+#if !NET_CORE
 			if (!GlobalCommandLine.Compile)
 			{
 				CommandUtils.LogVerbose("We are being asked to copy the UBT build products, but we are running precompiled, so this does not make much sense.");
 			}
+#endif
 
 			var UBTLocation = Path.GetDirectoryName(GetUBTExecutable());
 			var UBTFiles = new List<string>(new string[] 

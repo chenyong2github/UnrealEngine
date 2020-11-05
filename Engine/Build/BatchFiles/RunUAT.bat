@@ -11,11 +11,16 @@ echo Running AutomationTool...
 
 set UATExecutable=AutomationToolLauncher.exe
 set UATDirectory=Binaries\DotNET\
+set UATCompileArg=-compile
+
 if "%UE_USE_DOTNET%" == "1" (
-	set UATDirectory=Binaries\DotNET\AutomationToolLauncher
+	REM We do not use the automaton tool launcher for dotnet builds
+	set UATExecutable=AutomationTool.exe
+	set UATDirectory=Binaries\DotNET\AutomationTool
+	REM -compile is not supported with netcore
+	set UATCompileArg=
 )
 
-set UATCompileArg=-compile
 
 rem ## Change the CWD to /Engine. 
 pushd "%~dp0..\..\"
@@ -53,9 +58,8 @@ rem ## Verify that dotnet is present
 call "%~dp0GetDotnetPath.bat"
 if errorlevel 1 goto Error_NoDotnetSDK
 
-dotnet build Source\Programs\AutomationToolLauncher\AutomationToolLauncherCore.csproj -c Development 
-if errorlevel 1 goto Error_UATCompileFailed
-dotnet build Source\Programs\AutomationTool\AutomationToolCore.csproj -c Development 
+echo Building AutomationTool...
+dotnet build Source\Programs\AutomationTool\AutomationToolCore.csproj -c Development -v quiet 
 if errorlevel 1 goto Error_UATCompileFailed
 goto DoRunUAT
 
@@ -65,10 +69,6 @@ rem ## ok, well it doesn't look like visual studio is installed, let's try runni
 set UATCompileArg=
 if "%UE_USE_DOTNET%" == "1" (
 	if not exist Binaries\DotNET\AutomationTool\AutomationTool.exe goto Error_NoFallbackExecutable
-	if not exist Binaries\DotNET\AutomationToolLauncher\AutomationToolLauncher.exe (
-		set UATExecutable=AutomationTool.exe
-		set UATDirectory=Binaries\DotNET\AutomationTool
-	) 
 ) else (
 	if not exist Binaries\DotNET\AutomationTool.exe goto Error_NoFallbackExecutable
 	if not exist Binaries\DotNET\AutomationToolLauncher.exe set UATExecutable=AutomationTool.exe

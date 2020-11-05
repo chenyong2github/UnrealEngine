@@ -97,7 +97,9 @@ namespace AutomationTool
 		public static CommandLineArg NoSubmit = new CommandLineArg("-NoSubmit");
 		public static CommandLineArg NoP4 = new CommandLineArg("-NoP4");
 		public static CommandLineArg P4 = new CommandLineArg("-P4");
+#if !NET_CORE
         public static CommandLineArg Compile = new CommandLineArg("-Compile");
+#endif
 		public static CommandLineArg IgnoreDependencies = new CommandLineArg("-IgnoreDependencies");
 		/// <summary>
 		/// This command is LEGACY because we used to run UAT.exe to compile scripts by default.
