@@ -797,13 +797,13 @@ private:
 
 using FIoReadCallback = TFunction<void(TIoStatusOr<FIoBuffer>)>;
 
-enum EIoDispatcherPriority : uint8
+enum EIoDispatcherPriority : int32
 {
-	IoDispatcherPriority_Low,
-	IoDispatcherPriority_Medium,
-	IoDispatcherPriority_High,
-
-	IoDispatcherPriority_Count,
+	IoDispatcherPriority_Min = INT32_MIN,
+	IoDispatcherPriority_Low = INT32_MIN / 2,
+	IoDispatcherPriority_Medium = 0,
+	IoDispatcherPriority_High = INT32_MAX / 2,
+	IoDispatcherPriority_Max = INT32_MAX
 };
 
 /** I/O batch
@@ -820,8 +820,8 @@ public:
 	CORE_API FIoBatch(FIoBatch&& Other);
 	CORE_API ~FIoBatch();
 	CORE_API FIoBatch& operator=(FIoBatch&& Other);
-	CORE_API FIoRequest Read(const FIoChunkId& Chunk, FIoReadOptions Options, EIoDispatcherPriority Priority);
-	CORE_API FIoRequest ReadWithCallback(const FIoChunkId& ChunkId, const FIoReadOptions& Options, EIoDispatcherPriority Priority, FIoReadCallback&& Callback);
+	CORE_API FIoRequest Read(const FIoChunkId& Chunk, FIoReadOptions Options, int32 Priority);
+	CORE_API FIoRequest ReadWithCallback(const FIoChunkId& ChunkId, const FIoReadOptions& Options, int32 Priority, FIoReadCallback&& Callback);
 
 	CORE_API void Issue();
 	CORE_API void IssueWithCallback(TFunction<void()>&& Callback);
@@ -847,12 +847,12 @@ public:
 	}
 
 	UE_DEPRECATED(4.26, "Specify priority on each Read()")
-	CORE_API void Issue(EIoDispatcherPriority Priority);
+	CORE_API void Issue(int32 Priority);
 
 
 private:
 	FIoBatch(FIoDispatcherImpl& InDispatcher);
-	FIoRequestImpl* ReadInternal(const FIoChunkId& ChunkId, const FIoReadOptions& Options, EIoDispatcherPriority Priority);
+	FIoRequestImpl* ReadInternal(const FIoChunkId& ChunkId, const FIoReadOptions& Options, int32 Priority);
 
 	FIoDispatcherImpl*	Dispatcher;
 	FIoRequestImpl*		HeadRequest = nullptr;
