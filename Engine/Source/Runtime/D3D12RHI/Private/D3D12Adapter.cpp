@@ -325,7 +325,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	}
 	
 	// Setup DRED if requested
-	if (GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Full || FParse::Param(FCommandLine::Get(), TEXT("dred")))
+	if (GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Minimal || GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Full || FParse::Param(FCommandLine::Get(), TEXT("dred")))
 	{
 		ID3D12DeviceRemovedExtendedDataSettings* DredSettings = nullptr;
 		HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&DredSettings));
