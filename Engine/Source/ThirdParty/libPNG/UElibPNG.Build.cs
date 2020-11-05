@@ -12,7 +12,11 @@ public class UElibPNG : ModuleRules
 	{
 		get
 		{
-			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android) ||
+			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
+			{
+				return "libPNG-1.6.37";
+			}
+			else if (Target.Platform == UnrealTargetPlatform.Mac ||
 				Target.Platform == UnrealTargetPlatform.Mac ||
 				Target.Architecture.StartsWith("aarch64") ||
 				Target.Architecture.StartsWith("i686"))
@@ -34,6 +38,8 @@ public class UElibPNG : ModuleRules
 		Type = ModuleType.External;
 
 		string LibDir;
+
+		PublicDefinitions.Add("WITH_LIBPNG_1_6=" + (LibPNGVersion.Contains("-1.6.") ? "1" : "0"));
 
 		// On Windows x64, use the LLVM compiled version with changes made by us to improve performance
 		// due to better vectorization and FMV support that will take advantage of the different instruction

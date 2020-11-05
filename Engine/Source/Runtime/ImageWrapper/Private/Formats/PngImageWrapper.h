@@ -9,8 +9,17 @@
 
 THIRD_PARTY_INCLUDES_START
 	#include "ThirdParty/zlib/zlib-1.2.5/Inc/zlib.h"
+
+	// make sure no other versions of libpng headers are picked up
+#if WITH_LIBPNG_1_6
+	#include "ThirdParty/libPNG/libPNG-1.6.37/png.h"
+	#include "ThirdParty/libPNG/libPNG-1.6.37/pngstruct.h"
+	#include "ThirdParty/libPNG/libPNG-1.6.37/pnginfo.h"
+#else
 	#include "ThirdParty/libPNG/libPNG-1.5.2/png.h"
 	#include "ThirdParty/libPNG/libPNG-1.5.2/pnginfo.h"
+#endif
+
 	#include <setjmp.h>
 THIRD_PARTY_INCLUDES_END
 
