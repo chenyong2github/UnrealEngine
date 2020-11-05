@@ -102,7 +102,7 @@ struct FLidarPointCloudBatchElementUserData
  */
 class FLidarPointCloudVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
-	DECLARE_INLINE_TYPE_LAYOUT(FLidarPointCloudVertexFactoryShaderParameters, NonVirtual);
+	DECLARE_TYPE_LAYOUT(FLidarPointCloudVertexFactoryShaderParameters, NonVirtual);
 
 public:
 	void Bind(const FShaderParameterMap& ParameterMap);
