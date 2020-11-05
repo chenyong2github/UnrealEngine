@@ -1759,6 +1759,8 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 			{
 				FProjectedShadowInfo* ProjectedShadowInfo = ShadowMapAtlas.Shadows[ShadowIndex];
 				SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
+				
+				ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene);
 				ProjectedShadowInfo->RenderTranslucencyDepths(RHICmdList, this);
 			}
 		}
