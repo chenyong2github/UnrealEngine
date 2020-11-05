@@ -4792,7 +4792,7 @@ void FEngineLoop::Tick()
 			});
 
 		{
-			SCOPE_CYCLE_COUNTER(STAT_PumpMessages);
+			//QUICK_SCOPE_CYCLE_COUNTER(STAT_PumpMessages);
 			FPlatformApplicationMisc::PumpMessages(true);
 		}
 
