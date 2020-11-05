@@ -99,7 +99,7 @@ void FOnlineFriendsEOSPlus::OnFriendRemoved(const FUniqueNetId& UserId, const FU
 
 bool FOnlineFriendsEOSPlus::ReadFriendsList(int32 LocalUserNum, const FString& ListName, const FOnReadFriendsListComplete& Delegate)
 {
-	BaseFriendsInterface->ReadFriendsList(LocalUserNum, ListName,
+	return BaseFriendsInterface->ReadFriendsList(LocalUserNum, ListName,
 		FOnReadFriendsListComplete::CreateLambda([this, IntermediateComplete = FOnReadFriendsListComplete(Delegate)](int32 LocalUserNum, bool bWasSuccessful, const FString& ListName, const FString& ErrorStr)
 	{
 		// Skip reading EAS if not in use and if we errored at the platform level
@@ -109,13 +109,12 @@ bool FOnlineFriendsEOSPlus::ReadFriendsList(int32 LocalUserNum, const FString& L
 			return;
 		}
 		// Read the EAS version too
-		BaseFriendsInterface->ReadFriendsList(LocalUserNum, ListName,
+		EOSFriendsInterface->ReadFriendsList(LocalUserNum, ListName,
 			FOnReadFriendsListComplete::CreateLambda([this, OnComplete = FOnReadFriendsListComplete(IntermediateComplete)](int32 LocalUserNum, bool bWasSuccessful, const FString& ListName, const FString& ErrorStr)
 		{
 			OnComplete.ExecuteIfBound(LocalUserNum, bWasSuccessful, ListName, ErrorStr);
 		}));
 	}));
-	return false;
 }
 
 bool FOnlineFriendsEOSPlus::DeleteFriendsList(int32 LocalUserNum, const FString& ListName, const FOnDeleteFriendsListComplete& Delegate)
