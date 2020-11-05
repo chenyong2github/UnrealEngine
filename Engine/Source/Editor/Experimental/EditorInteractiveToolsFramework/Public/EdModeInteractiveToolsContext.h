@@ -82,6 +82,8 @@ public:
 	//
 
 	virtual bool CanStartTool(const FString ToolTypeIdentifier) const;
+	virtual bool HasActiveTool() const;
+	virtual FString GetActiveToolName() const;
 	virtual bool ActiveToolHasAccept() const;
 	virtual bool CanAcceptActiveTool() const;
 	virtual bool CanCancelActiveTool() const;

@@ -217,7 +217,7 @@ void FGroomEditorMode::Enter()
 		ToolsContext->ToolManager->RegisterToolType(ToolIdentifier, Builder);
 		CommandList->MapAction( UICommand,
 			FExecuteAction::CreateLambda([this, ToolIdentifier]() { ToolsContext->StartTool(ToolIdentifier); }),
-			FCanExecuteAction::CreateLambda([this, ToolIdentifier]() { return ToolsContext->CanStartTool(ToolIdentifier); }));
+			FCanExecuteAction::CreateLambda([this, ToolIdentifier]() { return !ToolsContext->HasActiveTool() && ToolsContext->CanStartTool(ToolIdentifier); }));
 		RegisteredTools.Emplace(UICommand, ToolIdentifier);
 	};
 

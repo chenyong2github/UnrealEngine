@@ -34,6 +34,8 @@ public:
 	virtual void DeactivateAllActiveTools();
 
 	bool CanStartTool(EToolSide WhichSide, const FString& ToolTypeIdentifier) const;
+	bool HasActiveTool(EToolSide WhichSide) const;
+	FString GetActiveToolName(EToolSide WhichSide) const;
 	bool ActiveToolHasAccept(EToolSide WhichSide) const;
 	bool CanAcceptActiveTool(EToolSide WhichSide) const;
 	bool CanCancelActiveTool(EToolSide WhichSide) const;

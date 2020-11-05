@@ -1194,6 +1194,16 @@ bool UEdModeInteractiveToolsContext::CanStartTool(const FString ToolTypeIdentifi
 	return UInteractiveToolsContext::CanStartTool(EToolSide::Mouse, ToolTypeIdentifier);
 }
 
+bool UEdModeInteractiveToolsContext::HasActiveTool() const
+{
+	return UInteractiveToolsContext::HasActiveTool(EToolSide::Mouse);
+}
+
+FString UEdModeInteractiveToolsContext::GetActiveToolName() const
+{
+	return UInteractiveToolsContext::GetActiveToolName(EToolSide::Mouse);
+}
+
 bool UEdModeInteractiveToolsContext::ActiveToolHasAccept() const
 {
 	return  UInteractiveToolsContext::ActiveToolHasAccept(EToolSide::Mouse);

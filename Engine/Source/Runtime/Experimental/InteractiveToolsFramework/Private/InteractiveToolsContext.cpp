@@ -65,8 +65,17 @@ void UInteractiveToolsContext::DeactivateAllActiveTools()
 
 bool UInteractiveToolsContext::CanStartTool(EToolSide WhichSide, const FString& ToolTypeIdentifier) const
 {
-	return (ToolManager->HasActiveTool(WhichSide) == false) &&
-		(ToolManager->CanActivateTool(WhichSide, ToolTypeIdentifier) == true);
+	return ToolManager->CanActivateTool(WhichSide, ToolTypeIdentifier);
+}
+
+bool UInteractiveToolsContext::HasActiveTool(EToolSide WhichSide) const
+{
+	return ToolManager->HasActiveTool(WhichSide);
+}
+
+FString UInteractiveToolsContext::GetActiveToolName(EToolSide WhichSide) const
+{
+	return ToolManager->GetActiveToolName(WhichSide);
 }
 
 bool UInteractiveToolsContext::ActiveToolHasAccept(EToolSide WhichSide) const

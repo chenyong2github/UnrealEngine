@@ -484,7 +484,8 @@ void FModelingToolsEditorMode::Enter()
 		ToolsContext->ToolManager->RegisterToolType(ToolIdentifier, Builder);
 		CommandList->MapAction( UICommand,
 			FExecuteAction::CreateLambda([this, ToolIdentifier]() { ToolsContext->StartTool(ToolIdentifier); }),
-			FCanExecuteAction::CreateLambda([this, ToolIdentifier]() { return ToolsContext->CanStartTool(ToolIdentifier); }));
+			FCanExecuteAction::CreateLambda([this, ToolIdentifier]() { return ToolsContext->CanStartTool(ToolIdentifier); }),
+			FIsActionChecked::CreateLambda([this, ToolIdentifier]() { return ToolsContext->GetActiveToolName() == ToolIdentifier; }));
 
 		RegisteredTools.Emplace(UICommand, ToolIdentifier);
 	};
