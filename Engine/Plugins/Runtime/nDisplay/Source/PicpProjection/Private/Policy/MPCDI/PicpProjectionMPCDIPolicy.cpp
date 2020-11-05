@@ -193,7 +193,7 @@ void FPicpProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uint32 ViewId
 	MPCDIAPI.ReloadAll_RenderThread();
 	
 	FPicpProjectionOverlayViewportData ViewportOverlayData;
-	ViewportOverlayData.Initialize(OverlayViewportData);
+	GetOverlayData_RenderThread(ViewportOverlayData);
 
 	// Initialize shader input data
 	IMPCDI::FShaderInputData ShaderInputData;
@@ -377,9 +377,19 @@ void FPicpProjectionMPCDIPolicy::SetOverlayData_RenderThread(const FPicpProjecti
 
 	if (Source)
 	{
-		OverlayViewportData.Initialize(*Source); // Copy data on render thread
+		FScopeLock lock(&LocalOverlayViewportDataCS);
+		LocalOverlayViewportData.Initialize(*Source); // Copy data on render thread
 	}
 }
+
+void FPicpProjectionMPCDIPolicy::GetOverlayData_RenderThread(FPicpProjectionOverlayViewportData& Output)
+{
+	check(IsInRenderingThread());
+
+	FScopeLock lock(&LocalOverlayViewportDataCS);
+	Output.Initialize(LocalOverlayViewportData);
+}
+
 
 void FPicpProjectionOverlayViewportData::Initialize(const FPicpProjectionOverlayViewportData& Source)
 {
