@@ -437,9 +437,6 @@ void FMicrosoftSpatialSoundModule::StartupModule()
 	FPlatformProcess::GetDllHandle(_TEXT("PerceptionDevice.dll"));
 	FPlatformProcess::GetDllHandle(_TEXT("Microsoft.Holographic.AppRemoting.dll"));
 	FPlatformProcess::PopDllDirectory(*HoloLensLibraryDir);
-
-	FPlatformProcess::GetDllHandle(*(EngineDir / "Binaries" / BinariesSubDir / "HolographicStreamerDesktop.dll"));
-	FPlatformProcess::GetDllHandle(*(EngineDir / "Binaries" / BinariesSubDir / "Microsoft.Perception.Simulation.dll"));
 #endif // PLATFORM_64BITS && WITH_EDITOR	
 	
 	// Then finally try to load the WMR Interop Library
