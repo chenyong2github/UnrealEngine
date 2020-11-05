@@ -32,7 +32,7 @@ TSharedPtr<const FOnlineStatsUserStats> FOnlineStatsEOSPlus::GetStats(const TSha
 	return nullptr;
 }
 
-FOnlineStatsUpdateStatsComplete Ignored;
+FOnlineStatsUpdateStatsComplete IgnoredStatsComplete;
 
 void FOnlineStatsEOSPlus::UpdateStats(const TSharedRef<const FUniqueNetId> LocalUserId, const TArray<FOnlineStatsUserUpdatedStats>& UpdatedUserStats, const FOnlineStatsUpdateStatsComplete& Delegate)
 {
@@ -46,7 +46,7 @@ void FOnlineStatsEOSPlus::UpdateStats(const TSharedRef<const FUniqueNetId> Local
 	IOnlineStatsPtr EOSStats = EOSPlus->EosOSS->GetStatsInterface();
 	if (EOSStats.IsValid())
 	{
-		EOSStats->UpdateStats(LocalUserId, UpdatedUserStats, Ignored);
+		EOSStats->UpdateStats(LocalUserId, UpdatedUserStats, IgnoredStatsComplete);
 	}
 }
 
