@@ -10,12 +10,13 @@
 #include "RayTracingDefinitions.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingData, )
+	SHADER_PARAMETER(uint32, Iteration)
+	SHADER_PARAMETER(uint32, TemporalSeed)
 	SHADER_PARAMETER(uint32, MaxBounces)
 	SHADER_PARAMETER(uint32, MISMode)
 	SHADER_PARAMETER(uint32, VisibleLights)
 	SHADER_PARAMETER(float, MaxPathIntensity)
 	SHADER_PARAMETER(float, MaxNormalBias)
-	SHADER_PARAMETER(FIntVector, TileOffset)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 
@@ -40,14 +41,4 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingLightData, RENDERER_API)
 	SHADER_PARAMETER_ARRAY(uint32, Flags, [RAY_TRACING_LIGHT_COUNT_MAXIMUM])
 	// Only used by GPULightmass currently, not filled in realtime paths
 	SHADER_PARAMETER_ARRAY(uint32, Mobility, [RAY_TRACING_LIGHT_COUNT_MAXIMUM])
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
-
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingAdaptiveSamplingData, )
-	SHADER_PARAMETER(uint32, UseAdaptiveSampling)
-	SHADER_PARAMETER(uint32, MinimumSamplesPerPixel)
-	SHADER_PARAMETER(uint32, Iteration)
-	SHADER_PARAMETER(uint32, TemporalSeed)
-	SHADER_PARAMETER(FIntVector, VarianceDimensions)
-	SHADER_PARAMETER_SRV(Buffer<float>, VarianceMipTree)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
