@@ -290,6 +290,8 @@ void FD3D12CommandAllocator::Init(ID3D12Device* InDevice, const D3D12_COMMAND_LI
 
 namespace D3D12RHI
 {
+	static FCriticalSection CopyQueueCS;
+
 	void GetGfxCommandListAndQueue(FRHICommandList& RHICmdList, void*& OutGfxCmdList, void*& OutCommandQueue)
 	{
 		IRHICommandContext& RHICmdContext = RHICmdList.GetContext();
@@ -311,13 +313,19 @@ namespace D3D12RHI
 		OutCommandQueue = CommandQueue;
 	}
 
-	void GetCopyCommandQueue(FRHICommandList& RHICmdList, void*& OutCommandQueue)
+	D3D12RHI_API void ExecuteCodeWithCopyCommandQueueUsage(TFunction<void(ID3D12CommandQueue*)>&& CodeToRun)
 	{
-		IRHICommandContext& RHICmdContext = RHICmdList.GetContext();
-		FD3D12CommandContextBase& BaseCmdContext = (FD3D12CommandContextBase&)RHICmdContext;
-		check(BaseCmdContext.IsDefaultContext());
+		IRHICommandContext* Context = GDynamicRHI->RHIGetDefaultContext();
+		checkSlow(Context);
+		FD3D12CommandContextBase& BaseCmdContext = (FD3D12CommandContextBase&)*Context;
 
 		ID3D12CommandQueue* CommandQueue = BaseCmdContext.GetParentAdapter()->GetDevice(0)->GetD3DCommandQueue(ED3D12CommandQueueType::Copy);
-		OutCommandQueue = CommandQueue;
+		checkSlow(CommandQueue);
+
+		{
+			FScopeLock Lock(&CopyQueueCS);
+			CodeToRun(CommandQueue);
+		}
 	}
+
 }
