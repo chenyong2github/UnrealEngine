@@ -468,8 +468,8 @@ namespace BuildPatchServices
 				InstallationInfo.Add(InstallDirectory, BuildPatchInstallerAction.GetSharedCurrentManifest());
 			}
 			// Cache chunk sizes too
-			ChunkDataSizeProvider->AddManifestData(BuildPatchInstallerAction.TryGetCurrentManifest());
-			ChunkDataSizeProvider->AddManifestData(BuildPatchInstallerAction.TryGetInstallManifest());
+			ChunkDataSizeProvider->AddManifestData(BuildPatchInstallerAction.TryGetSharedCurrentManifest());
+			ChunkDataSizeProvider->AddManifestData(BuildPatchInstallerAction.TryGetSharedInstallManifest());
 		}
 	}
 
@@ -705,7 +705,7 @@ namespace BuildPatchServices
 		{
 			for (const FBuildPatchInstallerAction& InstallerAction : InstallerActions)
 			{
-				ChunkDataSizeProvider->AddManifestData(InstallerAction.TryGetInstallManifest());
+				ChunkDataSizeProvider->AddManifestData(InstallerAction.TryGetSharedInstallManifest());
 			}
 		}).Wait();
 
