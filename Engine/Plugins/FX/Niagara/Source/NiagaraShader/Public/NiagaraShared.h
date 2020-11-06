@@ -252,6 +252,11 @@ public:
 	 */
 	LAYOUT_FIELD(FPlatformTypeLayoutParameters, LayoutParams);
 
+	/*
+	 * Shader type dependencies
+	 */
+	LAYOUT_FIELD(TMemoryImageArray<FShaderTypeDependency>, ShaderTypeDependencies);
+
 	/** Whether or not we need to bake Rapid Iteration params. True to keep params, false to bake.*/
 	LAYOUT_FIELD_INITIALIZED(bool, bUsesRapidIterationParams, true);
 
