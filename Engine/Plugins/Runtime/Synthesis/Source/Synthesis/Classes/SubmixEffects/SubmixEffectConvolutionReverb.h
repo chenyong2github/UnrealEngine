@@ -31,7 +31,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FAudioImpulseResponsePropertyChange, FProper
 // UAudioImpulseResponse
 // UAsset used to represent Imported Impulse Responses
 // ========================================================================
-UCLASS()
+UCLASS(BlueprintType)
 class SYNTHESIS_API UAudioImpulseResponse : public UObject
 {
 	GENERATED_BODY()
@@ -51,11 +51,11 @@ public:
 	int32 SampleRate;
 
 	/* Used to account for energy added by convolution with "loud" Impulse Responses. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixEffectPreset, meta = (ClamMin = "-60.0", ClampMax = "15.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SubmixEffectPreset, meta = (ClamMin = "-60.0", ClampMax = "15.0"))
 	float NormalizationVolumeDb;
 
 	/* If true, impulse response channels are interpreted as true stereo which allows channel crosstalk. If false, impulse response channels are interpreted as independent channel impulses. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixEffectPreset, meta = (EditCondition = "(NumChannels > 0) && (NumChannels % 2 == 0)"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SubmixEffectPreset, meta = (EditCondition = "(NumChannels > 0) && (NumChannels % 2 == 0)"))
 	bool bTrueStereo;
 
 	UPROPERTY(meta = ( DeprecatedProperty ) )
@@ -172,6 +172,10 @@ public:
 	Audio::FConvolutionReverbSettings GetParameters() const;
 
 private:
+	// Sets current runtime settings for convolution reverb which do *not* trigger
+	// a FConvolutionReverb rebuild.  These settings will be applied to FConvolutionReverb 
+	// at the next call to UpdateParameters()
+	void SetConvolutionReverbParameters(const FSubmixEffectConvolutionReverbSettings& InSettings);
 
 	// Increments the internal verion number and returns a copy of the
 	// latest version information.
@@ -279,6 +283,7 @@ public:
 	virtual void PostLoad() override;
 
 private:
+	void SetImpulseResponseSettings(UAudioImpulseResponse* InImpulseResponse);
 
 	void UpdateSettings();
 
