@@ -12,6 +12,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
 
+class SLevelSnapshotsEditorResultsRowGroup;
 class FLevelSnapshotsEditorResults;
 class SLevelSnapshotsEditorResults;
 class ULevelSnapshot;
@@ -41,8 +42,11 @@ struct FLevelSnapshotsEditorResultsRow
 
 	virtual TSharedPtr<struct FLevelSnapshotsEditorFilterRowGroup> AsGroup() { return nullptr; }
 
-	/** Get this tree node's childen. */
+	/** Get this tree node's children. */
 	virtual void GetNodeChildren(TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>& OutChildren) {}
+
+	/** This node's row group widget */
+	TSharedPtr<SLevelSnapshotsEditorResultsRowGroup> GroupWidget;
 };
 
 struct SLevelSnapshotsEditorResultsChildField : public SCompoundWidget, public FLevelSnapshotsEditorResultsRow
@@ -62,6 +66,8 @@ public:
 	virtual ENodeType GetType() override { return ENodeType::Field; }
 
 	virtual TSharedPtr<SLevelSnapshotsEditorResultsField> AsField() override;
+
+	TSharedPtr<SCheckBox> CheckboxPtr;
 
 //public:
 //	FString ActorObjectPath;
@@ -97,6 +103,10 @@ public:
 
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>& FieldGroup, const TSharedPtr<SLevelSnapshotsEditorResults>& OwnerPanel);
 
+	// A pointer to the expand/collapse caret
+	TSharedPtr<SExpanderArrow> ExpanderArrowPtr;
+	// A pointer to the group checkbox (not field checkbox)
+	TSharedPtr<SCheckBox> CheckboxPtr;
 };
 
 class SLevelSnapshotsEditorResults : public SCompoundWidget
@@ -125,6 +135,12 @@ private:
 	void RefreshGroups();
 
 	void OnSnapshotSelected(ULevelSnapshot* InLevelSnapshot);
+
+	// For the Select/Deselect All buttons
+	FReply SetAllGroupsSelected();
+	FReply SetAllGroupsUnselected();
+
+	FReply SetAllGroupsCollapsed();
 
 	TSharedRef<SWidget> MakeAddFilterMenu();
 

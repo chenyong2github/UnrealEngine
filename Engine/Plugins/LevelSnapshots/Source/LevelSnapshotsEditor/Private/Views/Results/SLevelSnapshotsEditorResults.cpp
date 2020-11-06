@@ -25,6 +25,7 @@
 #include "PropertyHandle.h"
 #include "ISinglePropertyView.h"
 #include "EditorStyleSet.h"
+#include "Components/SlateWrapperTypes.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
@@ -129,6 +130,7 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, const TSh
 				[
 					SNew(SButton)
 					.VAlign(VAlign_Center)
+					.OnClicked(this, &SLevelSnapshotsEditorResults::SetAllGroupsCollapsed)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("CollapseAll", "Collapse All"))
@@ -140,6 +142,7 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, const TSh
 				[
 					SNew(SButton)
 					.VAlign(VAlign_Center)
+					.OnClicked(this, &SLevelSnapshotsEditorResults::SetAllGroupsUnselected)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("UnselectAll", "Unselect All"))
@@ -151,6 +154,7 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, const TSh
 				[
 					SNew(SButton)
 					.VAlign(VAlign_Center)
+					.OnClicked(this, &SLevelSnapshotsEditorResults::SetAllGroupsSelected)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("SelectAll", "Select All"))
@@ -203,7 +207,7 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, const TSh
 					.AutoWidth()
 					[
 						SNew(SCheckBox)
-						.IsChecked(true)
+						.IsChecked(false)
 					]
 
 					+SHorizontalBox::Slot()
@@ -216,7 +220,7 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, const TSh
 						.HAlign(HAlign_Center)
 						[
 							SNew(STextBlock)
-							.Text(LOCTEXT("ShowAll", "Show All"))
+							.Text(LOCTEXT("LevelSnapshotsEditorResults_ShowUnchanged", "Show Unchanged"))
 						]
 					]
 				]
@@ -243,7 +247,8 @@ TSharedRef<ITableRow> SLevelSnapshotsEditorResults::OnGenerateRow(TSharedPtr<FLe
 	{
 		if (TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> RowGroup = StaticCastSharedPtr<FLevelSnapshotsEditorResultsRowGroup>(InResultsRow))
 		{
-			return SNew(SLevelSnapshotsEditorResultsRowGroup, OwnerTable, RowGroup.ToSharedRef(), SharedThis<SLevelSnapshotsEditorResults>(this));
+			SAssignNew(InResultsRow->GroupWidget, SLevelSnapshotsEditorResultsRowGroup, OwnerTable, RowGroup.ToSharedRef(), SharedThis<SLevelSnapshotsEditorResults>(this));
+			return InResultsRow->GroupWidget.ToSharedRef();
 		}
 	}
 	else if (InResultsRow->GetType() == FLevelSnapshotsEditorResultsRow::Field)
@@ -365,7 +370,7 @@ void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSna
 			TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> NewGroup = MakeShared<FLevelSnapshotsEditorResultsRowGroup>(ActorSnapshotPair.Key, ActorSnapshotPair.Value);
 
 			{
-				UObject* ActorObject = ActorSnapshotPair.Value.GetDeserializedActor();
+				UObject* ActorObject = ActorSnapshotPair.Value.GetDeserializedActor(); 
 
 				TStrongObjectPtr<UObject> ActorObjectPtr = TStrongObjectPtr<UObject>(ActorObject);
 				ActorObjects.Add(ActorObjectPtr);
@@ -382,7 +387,7 @@ void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSna
 				{
 					FString PropertyString = PropertyPair.Key.ToString();
 
-					// Check showld we expose this property from filtered list
+					// Check should we expose this property from filtered list
 					if (TSharedPtr<IDetailTreeNode> Node = LevelSnapshotsEditorResultsUtil::FindNode(RowGenerator->GetRootTreeNodes(), PropertyString, true))
 					{
 						/*ExposedFieldWidgets.Add(SAssignNew(ExposedFieldWidget, SRCPanelExposedField, RCProperty, RowGenerator, WeakPanel)
@@ -402,6 +407,55 @@ void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSna
 
 		RefreshGroups();
 	}
+}
+
+FReply SLevelSnapshotsEditorResults::SetAllGroupsSelected()
+{
+	for (TSharedPtr<FLevelSnapshotsEditorResultsRowGroup, ESPMode::Fast> Group : FieldGroups)
+	{
+		if (Group->GetType() == FLevelSnapshotsEditorResultsRow::Group && Group->GroupWidget)
+		{
+			if (Group->GroupWidget->CheckboxPtr.IsValid())
+			{
+				Group->GroupWidget->CheckboxPtr->SetIsChecked(true);
+			}
+		}
+	}
+
+	return FReply::Handled();
+}
+
+FReply SLevelSnapshotsEditorResults::SetAllGroupsUnselected()
+{
+	for (TSharedPtr<FLevelSnapshotsEditorResultsRowGroup, ESPMode::Fast> Group : FieldGroups)
+	{
+		if (Group->GetType() == FLevelSnapshotsEditorResultsRow::Group && Group->GroupWidget)
+		{
+			if (Group->GroupWidget->CheckboxPtr.IsValid())
+			{
+				Group->GroupWidget->CheckboxPtr->SetIsChecked(false);
+			}
+		}
+	}
+
+	return FReply::Handled();
+}
+
+FReply SLevelSnapshotsEditorResults::SetAllGroupsCollapsed()
+{
+	for (TSharedPtr<FLevelSnapshotsEditorResultsRowGroup, ESPMode::Fast> Group : FieldGroups)
+	{
+		if (Group->GetType() == FLevelSnapshotsEditorResultsRow::Group && Group->GroupWidget)
+		{
+			// There is no method to set expansion directly, but we can check to see if it is expanded and if so, toggle it closed
+			if (Group->GroupWidget->IsItemExpanded())
+			{
+				Group->GroupWidget->ToggleExpansion();
+			}
+		}
+	}
+
+	return FReply::Handled();
 }
 
 TSharedRef<SWidget> SLevelSnapshotsEditorResults::MakeAddFilterMenu()
@@ -453,14 +507,14 @@ void SLevelSnapshotsEditorResultsRowGroup::Construct(const FArguments& InArgs, c
 					.Padding(FMargin(4.0f, 0.0f))
 					.AutoWidth()
 					[
-						SNew(SExpanderArrow, SharedThis(this))
+						SAssignNew(ExpanderArrowPtr, SExpanderArrow, SharedThis(this))
 					]
 
 					+ SHorizontalBox::Slot()
 					.Padding(FMargin(4.0f, 0.0f))
 					.AutoWidth()
 					[
-						SNew(SCheckBox)
+						SAssignNew(CheckboxPtr, SCheckBox)
 						.IsChecked(true)
 					]
 
@@ -495,7 +549,7 @@ void SLevelSnapshotsEditorResultsField::Construct(const FArguments& InArgs, cons
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
-				SNew(SCheckBox)
+				SAssignNew(CheckboxPtr, SCheckBox)
 				.IsChecked(true)
 			]
 

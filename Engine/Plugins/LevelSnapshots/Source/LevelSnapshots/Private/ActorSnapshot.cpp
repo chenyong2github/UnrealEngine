@@ -286,7 +286,7 @@ AActor* FActorSnapshot::GetDeserializedActor() const
 		{
 			FActorSnapshotReader Reader(*this);
 
-			DeserializedObject->Serialize(Reader);
+			//DeserializedObject->Serialize(Reader);
 
 			return DeserializedObject;
 		}
