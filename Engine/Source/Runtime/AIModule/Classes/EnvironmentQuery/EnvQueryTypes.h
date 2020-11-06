@@ -1314,7 +1314,7 @@ struct AIMODULE_API FEQSParametrizedQueryExecutionRequest
 
 	bool IsValid() const { return bInitialized; }
 
-	int32 Execute(AActor& QueryOwner, const UBlackboardComponent* BlackboardComponent, FQueryFinishedSignature& QueryFinishedDelegate);
+	int32 Execute(UObject& QueryOwner, const UBlackboardComponent* BlackboardComponent, FQueryFinishedSignature& QueryFinishedDelegate);
 
 #if WITH_EDITOR
 	void PostEditChangeProperty(UObject& Owner, struct FPropertyChangedEvent& PropertyChangedEvent);

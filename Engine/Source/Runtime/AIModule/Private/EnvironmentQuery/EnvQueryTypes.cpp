@@ -411,7 +411,7 @@ void FEQSParametrizedQueryExecutionRequest::InitForOwnerAndBlackboard(UObject& O
 	}
 }
 
-int32 FEQSParametrizedQueryExecutionRequest::Execute(AActor& QueryOwner, const UBlackboardComponent* BlackboardComponent, FQueryFinishedSignature& QueryFinishedDelegate)
+int32 FEQSParametrizedQueryExecutionRequest::Execute(UObject& QueryOwner, const UBlackboardComponent* BlackboardComponent, FQueryFinishedSignature& QueryFinishedDelegate)
 {
 	if (bUseBBKeyForQueryTemplate)
 	{
