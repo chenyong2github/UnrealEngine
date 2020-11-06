@@ -1106,12 +1106,12 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 
 				for (int32 UVLayerIndex = 0; UVLayerIndex < FBXUVs.UniqueUVCount; UVLayerIndex++)
 				{
-					int32 UVDirectArrayCount = FBXUVs.LayerElementUV[UVLayerIndex]->GetDirectArray().GetCount();
-					int32 UVIndexArrayCount = FBXUVs.LayerElementUV[UVLayerIndex]->GetIndexArray().GetCount();
-
 					FUVID UVIDs[3] = {INDEX_NONE, INDEX_NONE, INDEX_NONE};
 					if (FBXUVs.LayerElementUV[UVLayerIndex] != NULL)
 					{
+						int32 UVDirectArrayCount = FBXUVs.LayerElementUV[UVLayerIndex]->GetDirectArray().GetCount();
+						int32 UVIndexArrayCount = FBXUVs.LayerElementUV[UVLayerIndex]->GetIndexArray().GetCount();
+
 						for (int32 VertexIndex = 0; VertexIndex < 3; ++VertexIndex)
 						{
 							int UVMapIndex = (FBXUVs.UVMappingMode[UVLayerIndex] == FbxLayerElement::eByControlPoint)
