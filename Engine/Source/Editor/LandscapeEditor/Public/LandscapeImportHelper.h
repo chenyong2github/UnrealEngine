@@ -17,7 +17,8 @@ struct FLandscapeImportFileDescriptor
 	FLandscapeImportFileDescriptor(const FString& InFilePath, const FIntPoint& InCoord)
 		: Coord(InCoord), FilePath(InFilePath){}
 
-	FLandscapeImportFileDescriptor() {}
+	FLandscapeImportFileDescriptor() 
+		: Coord(EForceInit::ForceInit) {}
 
 	/* Which tile does that descriptor represent */
 	UPROPERTY()
