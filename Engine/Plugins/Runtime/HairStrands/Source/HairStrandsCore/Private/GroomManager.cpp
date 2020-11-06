@@ -423,9 +423,13 @@ static void RunHairLODSelection(EWorldType::Type WorldType, const TArray<const F
 		// Compute the view where the screen size is maximale
 		const float PrevLODIndex = Instance->HairGroupPublicData->GetLODIndex();
 		float LODIndex = Instance->Strands.Modifier.LODForcedIndex; // check where this is updated 
+
+		// Insure that MinLOD is necessary taken into account if a force LOD is request (i.e., LODIndex>=0). If a Force LOD 
+		// is not resquested (i.e., LODIndex<0), the MinLOD is applied after ViewLODIndex has been determined in the codeblock below
+		const float MinLOD = FMath::Max(0, GHairStrandsMinLOD);
+		LODIndex = Instance->bUseCPULODSelection && LODIndex >= 0 ? FMath::Max(LODIndex, MinLOD) : LODIndex;
 		if (LODIndex < 0 && Instance->bUseCPULODSelection)
 		{
-			const float MinLOD = FMath::Max(0, GHairStrandsMinLOD);
 			const FSphere SphereBound = Instance->ProxyBounds ? Instance->ProxyBounds->GetSphere() : FSphere(0);
 			for (const FSceneView* View : Views)
 			{
