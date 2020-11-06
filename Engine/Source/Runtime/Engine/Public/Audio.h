@@ -99,6 +99,8 @@ namespace Audio
 	 * Typed identifier for Audio Device Id
 	 */
 	using FDeviceId = uint32;
+
+	struct FQuartzQuantizedRequestData;
 }
 
 enum ELoopingMode
