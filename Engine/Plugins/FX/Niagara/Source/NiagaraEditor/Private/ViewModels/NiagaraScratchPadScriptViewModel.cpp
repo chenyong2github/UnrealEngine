@@ -109,7 +109,7 @@ void FNiagaraScratchPadScriptViewModel::SetIsPendingRename(bool bInIsPendingRena
 
 void FNiagaraScratchPadScriptViewModel::SetScriptName(FText InScriptName)
 {
-	FString NewName = ObjectTools::SanitizeObjectName(InScriptName.ToString());
+	FString NewName = FNiagaraUtilities::SanitizeNameForObjectsAndPackages(InScriptName.ToString());
 	if (OriginalScript->GetName() != NewName)
 	{
 		FScopedTransaction RenameTransaction(LOCTEXT("RenameScriptTransaction", "Rename scratch pad script."));
