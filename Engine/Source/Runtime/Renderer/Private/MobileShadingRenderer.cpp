@@ -734,7 +734,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			// Finish rendering for each view, or the full stereo buffer if enabled
 			{
-				SCOPED_DRAW_EVENT(RHICmdList, PostProcessing);
+				RDG_EVENT_SCOPE(GraphBuilder, "PostProcessing");
 				SCOPE_CYCLE_COUNTER(STAT_FinishRenderViewTargetTime);
 
 				// Note that we should move this uniform buffer set up process right after the InitView to avoid any uniform buffer creation during the rendering after we porting all the passes to the RDG.
