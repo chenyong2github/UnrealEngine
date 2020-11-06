@@ -45,6 +45,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 
 		// Fixed Nanite Geometry Collection cooked data
 		GeometryCollectionNaniteCooked,
+			
+		// Added bCooked to UFontFace assets
+		AddedCookedBoolFontFaceAssets,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

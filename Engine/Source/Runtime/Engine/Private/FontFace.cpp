@@ -11,6 +11,7 @@
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"
 #include "UObject/EditorObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFontFace, Log, All);
 
@@ -23,23 +24,17 @@ void UFontFace::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 
-	FString OriginalSourceFilename;
-	if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject))
-	{
-		OriginalSourceFilename = MoveTemp(SourceFilename);
-		SourceFilename = GetCookedFilename();
-	}
-
 	Super::Serialize(Ar);
 
-	if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject))
+	bool bCooked = Ar.IsCooking();
+	if (Ar.CustomVer(FEditorObjectVersion::GUID) >= FUE5MainStreamObjectVersion::AddedCookedBoolFontFaceAssets)
 	{
-		SourceFilename = MoveTemp(OriginalSourceFilename);
+		Ar << bCooked;
 	}
 
 	if (Ar.IsLoading())
 	{
-		if (FPlatformProperties::RequiresCookedData())
+		if (FPlatformProperties::RequiresCookedData() || bCooked)
 		{
 			SourceFilename = GetCookedFilename();
 		}
