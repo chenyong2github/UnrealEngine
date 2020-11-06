@@ -621,14 +621,24 @@ namespace Audio
 			FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
 			// Unregister these source effect instances from their owning USoundEffectInstance on the next audio thread tick.
-			AsyncTask(ENamedThreads::AudioThread, [SourceEffects = MoveTemp(SourceInfo.SourceEffects)] () mutable
-			{
-				for (int32 i = 0; i < SourceEffects.Num(); ++i)
+ 			if (IsAudioThreadRunning())
+ 			{
+				AsyncTask(ENamedThreads::AudioThread, [SourceEffects = MoveTemp(SourceInfo.SourceEffects)]() mutable
 				{
-					USoundEffectPreset::UnregisterInstance(SourceEffects[i]);
-				}
-			});
-			
+					for (int32 i = 0; i < SourceEffects.Num(); ++i)
+					{
+						USoundEffectPreset::UnregisterInstance(SourceEffects[i]);
+					}
+				});
+ 			}
+ 			else
+ 			{
+ 				for (int32 i = 0; i < SourceInfo.SourceEffects.Num(); ++i)
+ 				{
+ 					USoundEffectPreset::UnregisterInstance(SourceInfo.SourceEffects[i]);
+ 				}
+ 			}
+
 			SourceInfo.SourceEffects.Reset();
 
 			for (int32 i = 0; i < SourceInfo.SourceEffectPresets.Num(); ++i)
@@ -2560,7 +2570,7 @@ namespace Audio
 							TArray<TSoundEffectSourcePtr> SourceEffects;
 							BuildSourceEffectChain(SourceId, InitData, InSourceEffectChain, SourceEffects);
 
-							SourceInfo.SourceEffects = SourceEffects;						
+							SourceInfo.SourceEffects = SourceEffects;
 							SourceInfo.SourceEffectPresets.Add(nullptr);
 						}
 					}
