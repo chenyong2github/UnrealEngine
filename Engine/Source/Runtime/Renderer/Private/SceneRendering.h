@@ -1435,11 +1435,7 @@ public:
 		{
 			return true;
 		}
-		else if (bIsInstancedStereoEnabled && !IStereoRendering::IsASecondaryPass(StereoPass))
-		{
-			return true;
-		}
-		else if (bIsMobileMultiViewEnabled && !IStereoRendering::IsASecondaryPass(StereoPass) && Family && Family->Views.Num() > 1)
+		else if ((bIsInstancedStereoEnabled || bIsMobileMultiViewEnabled) && !IStereoRendering::IsASecondaryPass(StereoPass))
 		{
 			return true;
 		}
