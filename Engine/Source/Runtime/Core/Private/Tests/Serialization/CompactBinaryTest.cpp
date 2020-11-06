@@ -928,8 +928,8 @@ bool FCbFieldRefTest::RunTest(const FString& Parameters)
 	// Test Field w/ Type from Shared Buffer
 	{
 		uint8 Payload[] = { uint8(ECbFieldType::Binary), 3, 4, 5, 6 }; // Size: 3, Data: 4/5/6
-		FSharedBufferRef ViewBuffer = FSharedBuffer::MakeView(MakeMemoryView(Payload));
-		FSharedBufferRef OwnedBuffer = FSharedBuffer::MakeOwned(ViewBuffer);
+		FSharedBufferPtr ViewBuffer = FSharedBuffer::MakeView(MakeMemoryView(Payload));
+		FSharedBufferPtr OwnedBuffer = FSharedBuffer::MakeOwned(ViewBuffer);
 		FSharedBufferConstPtr ViewBufferPtr = ViewBuffer;
 		FSharedBufferConstPtr OwnedBufferPtr = OwnedBuffer;
 

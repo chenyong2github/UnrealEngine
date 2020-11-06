@@ -117,22 +117,24 @@ static_assert(std::is_assignable<FSharedBufferConstWeakPtr, FSharedBufferConstWe
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static_assert(std::is_same<FSharedBufferRef, decltype(FSharedBuffer::Alloc(DeclVal<uint64>()))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::Alloc(DeclVal<uint64>()))>::value, "Invalid constructor");
 
-static_assert(std::is_same<FSharedBufferRef, decltype(FSharedBuffer::Clone(DeclVal<void*>(), 0))>::value, "Invalid constructor");
-static_assert(std::is_same<FSharedBufferRef, decltype(FSharedBuffer::Clone(DeclVal<const void*>(), 0))>::value, "Invalid constructor");
-static_assert(std::is_same<FSharedBufferRef, decltype(FSharedBuffer::Clone(*DeclVal<FSharedBufferRef>()))>::value, "Invalid constructor");
-static_assert(std::is_same<FSharedBufferRef, decltype(FSharedBuffer::Clone(*DeclVal<FSharedBufferConstRef>()))>::value, "Invalid constructor");
-static_assert(std::is_same<FSharedBufferRef, decltype(FSharedBuffer::Clone(DeclVal<FMutableMemoryView>()))>::value, "Invalid constructor");
-static_assert(std::is_same<FSharedBufferRef, decltype(FSharedBuffer::Clone(DeclVal<FConstMemoryView>()))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::Clone(DeclVal<void*>(), 0))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::Clone(DeclVal<const void*>(), 0))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::Clone(*DeclVal<FSharedBufferRef>()))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::Clone(*DeclVal<FSharedBufferConstRef>()))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::Clone(DeclVal<FMutableMemoryView>()))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::Clone(DeclVal<FConstMemoryView>()))>::value, "Invalid constructor");
 
-static_assert(std::is_same<FSharedBufferRef, decltype(FSharedBuffer::TakeOwnership(DeclVal<void*>(), 0, FMemory::Free))>::value, "Invalid constructor");
-static_assert(std::is_same<FSharedBufferConstRef, decltype(FSharedBuffer::TakeOwnership(DeclVal<const void*>(), 0, FMemory::Free))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::MakeView(DeclVal<FMutableMemoryView>()))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferConstPtr, decltype(FSharedBuffer::MakeView(DeclVal<FConstMemoryView>()))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::MakeView(DeclVal<void*>(), 0))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferConstPtr, decltype(FSharedBuffer::MakeView(DeclVal<const void*>(), 0))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferConstPtr, decltype(FSharedBuffer::MakeView(DeclVal<FConstMemoryView>(), DeclVal<const FSharedBuffer&>()))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferConstPtr, decltype(FSharedBuffer::MakeView(DeclVal<const void*>(), 0, DeclVal<const FSharedBuffer&>()))>::value, "Invalid constructor");
 
-static_assert(std::is_same<FSharedBufferRef, decltype(FSharedBuffer::MakeView(DeclVal<void*>(), 0))>::value, "Invalid constructor");
-static_assert(std::is_same<FSharedBufferConstRef, decltype(FSharedBuffer::MakeView(DeclVal<const void*>(), 0))>::value, "Invalid constructor");
-static_assert(std::is_same<FSharedBufferRef, decltype(FSharedBuffer::MakeView(DeclVal<FMutableMemoryView>()))>::value, "Invalid constructor");
-static_assert(std::is_same<FSharedBufferConstRef, decltype(FSharedBuffer::MakeView(DeclVal<FConstMemoryView>()))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::TakeOwnership(DeclVal<void*>(), 0, FMemory::Free))>::value, "Invalid constructor");
+static_assert(std::is_same<FSharedBufferConstPtr, decltype(FSharedBuffer::TakeOwnership(DeclVal<const void*>(), 0, FMemory::Free))>::value, "Invalid constructor");
 
 static_assert(std::is_same<void*, decltype(DeclVal<FSharedBuffer>().GetData())>::value, "Invalid accessor");
 static_assert(std::is_same<const void*, decltype(DeclVal<const FSharedBuffer>().GetData())>::value, "Invalid accessor");
@@ -149,10 +151,12 @@ static_assert(std::is_convertible<const FSharedBuffer, FConstMemoryView>::value,
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 static_assert(std::is_same<FSharedBufferRef, decltype(FSharedBuffer::MakeOwned(DeclVal<const FSharedBufferRef&>()))>::value, "Invalid conversion");
+static_assert(std::is_same<FSharedBufferRef, decltype(FSharedBuffer::MakeOwned(DeclVal<FSharedBufferRef&&>()))>::value, "Invalid conversion");
 static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::MakeOwned(DeclVal<const FSharedBufferPtr&>()))>::value, "Invalid conversion");
 static_assert(std::is_same<FSharedBufferPtr, decltype(FSharedBuffer::MakeOwned(DeclVal<FSharedBufferPtr&&>()))>::value, "Invalid conversion");
 
 static_assert(std::is_same<FSharedBufferConstRef, decltype(FSharedBuffer::MakeOwned(DeclVal<const FSharedBufferConstRef&>()))>::value, "Invalid conversion");
+static_assert(std::is_same<FSharedBufferConstRef, decltype(FSharedBuffer::MakeOwned(DeclVal<FSharedBufferConstRef&&>()))>::value, "Invalid conversion");
 static_assert(std::is_same<FSharedBufferConstPtr, decltype(FSharedBuffer::MakeOwned(DeclVal<const FSharedBufferConstPtr&>()))>::value, "Invalid conversion");
 static_assert(std::is_same<FSharedBufferConstPtr, decltype(FSharedBuffer::MakeOwned(DeclVal<FSharedBufferConstPtr&&>()))>::value, "Invalid conversion");
 
@@ -175,7 +179,7 @@ bool FSharedBufferTest::RunTest(const FString& Parameters)
 	// Test Size
 	{
 		constexpr uint64 Size = 64;
-		FSharedBufferRef Ref = FSharedBuffer::Alloc(64);
+		FSharedBufferRef Ref = FSharedBuffer::Alloc(64).ToSharedRef();
 		TestTrue(TEXT("FSharedBuffer(Size).IsOwned()"), Ref->IsOwned());
 		TestEqual(TEXT("FSharedBuffer(Size).GetSize()"), Ref->GetSize(), Size);
 	}
@@ -184,7 +188,7 @@ bool FSharedBufferTest::RunTest(const FString& Parameters)
 	{
 		constexpr uint64 Size = 64;
 		const uint8 Data[Size]{};
-		FSharedBufferRef Ref = FSharedBuffer::Clone(Data, Size);
+		FSharedBufferRef Ref = FSharedBuffer::Clone(Data, Size).ToSharedRef();
 		TestTrue(TEXT("FSharedBuffer::Clone().IsOwned()"), Ref->IsOwned());
 		TestEqual(TEXT("FSharedBuffer::Clone().GetSize()"), Ref->GetSize(), Size);
 		TestNotEqual(TEXT("FSharedBuffer::Clone().GetData()"), static_cast<const void*>(Ref->GetData()), static_cast<const void*>(Data));
@@ -194,17 +198,47 @@ bool FSharedBufferTest::RunTest(const FString& Parameters)
 	{
 		constexpr uint64 Size = 64;
 		uint8 Data[Size]{};
-		FSharedBufferRef Ref = FSharedBuffer::MakeView(Data, Size);
+		FSharedBufferRef Ref = FSharedBuffer::MakeView(Data, Size).ToSharedRef();
 		TestFalse(TEXT("FSharedBuffer::MakeView().IsOwned()"), Ref->IsOwned());
 		TestEqual(TEXT("FSharedBuffer::MakeView().GetSize()"), Ref->GetSize(), Size);
 		TestEqual(TEXT("FSharedBuffer::MakeView().GetData()"), Ref->GetData(), static_cast<void*>(Data));
+	}
+
+	// Test MakeView Outer
+	{
+		constexpr uint64 Size = 64;
+		FSharedBufferWeakPtr WeakPtr;
+		{
+			FSharedBufferConstPtr Ptr;
+			{
+				FSharedBufferRef OuterRef = FSharedBuffer::Alloc(Size).ToSharedRef();
+				Ptr = FSharedBuffer::MakeView(OuterRef->GetData(), OuterRef->GetSize() / 2, *OuterRef);
+				WeakPtr = OuterRef;
+			}
+			TestFalse(TEXT("FSharedBuffer::MakeView(Outer).IsOwned()"), Ptr->IsOwned());
+			TestFalse(TEXT("FSharedBuffer::MakeView(Outer).IsReadOnly()"), Ptr->IsReadOnly());
+			TestTrue(TEXT("FSharedBuffer::MakeView(Outer) Outer Valid"), WeakPtr.Pin().IsValid());
+		}
+		TestFalse(TEXT("FSharedBuffer::MakeView(Outer) Outer Not Valid"), WeakPtr.Pin().IsValid());
+	}
+
+	// Test MakeView Outer Read-Only
+	{
+		constexpr uint64 Size = 64;
+		FSharedBufferConstPtr Ptr;
+		{
+			FSharedBufferConstRef OuterRef = FSharedBuffer::MakeReadOnly(FSharedBuffer::Alloc(Size)).ToSharedRef();
+			Ptr = FSharedBuffer::MakeView(OuterRef->GetData(), OuterRef->GetSize() / 2, *OuterRef);
+		}
+		TestFalse(TEXT("FSharedBuffer::MakeView(Outer ReadOnly).IsOwned()"), Ptr->IsOwned());
+		TestTrue(TEXT("FSharedBuffer::MakeView(Outer ReadOnly).IsReadOnly()"), Ptr->IsReadOnly());
 	}
 
 	// Test TakeOwnership FMemory::Free
 	{
 		constexpr uint64 Size = 64;
 		void* const Data = FMemory::Malloc(Size);
-		FSharedBufferRef Ref = FSharedBuffer::TakeOwnership(Data, Size, FMemory::Free);
+		FSharedBufferRef Ref = FSharedBuffer::TakeOwnership(Data, Size, FMemory::Free).ToSharedRef();
 		TestTrue(TEXT("FSharedBuffer::TakeOwnership(FMemory::Free).IsOwned()"), Ref->IsOwned());
 		TestEqual(TEXT("FSharedBuffer::TakeOwnership(FMemory::Free).GetSize()"), Ref->GetSize(), Size);
 		TestEqual(TEXT("FSharedBuffer::TakeOwnership(FMemory::Free).GetData()"), Ref->GetData(), Data);
@@ -223,11 +257,35 @@ bool FSharedBufferTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("FSharedBuffer::TakeOwnership(Lambda) Deleted"), bDeleted);
 	}
 
+	// Test TakeOwnership BufferOwner
+	{
+		bool bDeleted = false;
+		class FTestBufferOwner final : public FSharedBuffer::FBufferOwner
+		{
+		public:
+			FTestBufferOwner(bool& bInDeletedRef)
+				: bDeletedRef(bInDeletedRef)
+			{
+			}
+
+		private:
+			virtual void Free(void* Data, uint64 Size) final
+			{
+				bDeletedRef = true;
+			}
+
+			bool& bDeletedRef;
+		};
+		constexpr uint64 Size = 64;
+		FSharedBuffer::TakeOwnership(nullptr, 0, FTestBufferOwner(bDeleted));
+		TestTrue(TEXT("FSharedBuffer::TakeOwnership(BufferOwner) Deleted"), bDeleted);
+	}
+
 	// Test MakeOwned
 	{
 		constexpr uint64 Size = 64;
 		uint8 Data[Size]{};
-		FSharedBufferRef Ref = FSharedBuffer::MakeOwned(FSharedBuffer::MakeView(Data, Size));
+		FSharedBufferRef Ref = FSharedBuffer::MakeOwned(FSharedBuffer::MakeView(Data, Size).ToSharedRef());
 		TestTrue(TEXT("FSharedBuffer::MakeOwned(Wrap).IsOwned()"), Ref->IsOwned());
 		TestEqual(TEXT("FSharedBuffer::MakeOwned(Wrap).GetSize()"), Ref->GetSize(), Size);
 		TestNotEqual(TEXT("FSharedBuffer::MakeOwned(Wrap).GetData()"), Ref->GetData(), static_cast<void*>(Data));
@@ -248,7 +306,7 @@ bool FSharedBufferTest::RunTest(const FString& Parameters)
 	{
 		// MakeReadOnly from a new reference.
 		constexpr uint64 Size = 64;
-		FSharedBufferConstRef Ref = FSharedBuffer::MakeReadOnly(FSharedBuffer::Alloc(Size));
+		FSharedBufferConstRef Ref = FSharedBuffer::MakeReadOnly(FSharedBuffer::Alloc(Size)).ToSharedRef();
 		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(AllocRef).IsOwned()"), Ref->IsOwned());
 		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(AllocRef).IsReadOnly()"), Ref->IsReadOnly());
 		TestEqual(TEXT("FSharedBuffer::MakeReadOnly(AllocRef).GetSize()"), Ref->GetSize(), Size);
@@ -292,6 +350,7 @@ bool FSharedBufferTest::RunTest(const FString& Parameters)
 		FSharedBufferConstPtr Ptr = FSharedBuffer::MakeReadOnly(MoveTemp(MutablePtr));
 		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(SharedRef).IsOwned()"), Ptr->IsOwned());
 		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(SharedRef).IsReadOnly()"), Ptr->IsReadOnly());
+		TestFalse(TEXT("FSharedBuffer::MakeReadOnly(SharedRef).IsReadOnly(SharedPtr)"), SharedPtr->IsReadOnly());
 		TestNotEqual(TEXT("FSharedBuffer::MakeReadOnly(SharedRef).GetData()"), Ptr->GetData(), Data);
 	}
 	{
@@ -305,13 +364,14 @@ bool FSharedBufferTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(WeakRef).IsOwned()"), Ptr->IsOwned());
 		TestTrue(TEXT("FSharedBuffer::MakeReadOnly(WeakRef).IsReadOnly()"), Ptr->IsReadOnly());
 		TestNotEqual(TEXT("FSharedBuffer::MakeReadOnly(WeakRef).GetData()"), Ptr->GetData(), Data);
+		TestFalse(TEXT("FSharedBuffer::MakeReadOnly(WeakRef).Pin().IsValid()"), WeakPtr.Pin().IsValid());
 	}
 
 	// Test MakeWritable
 	{
 		// MakeWritable from a new reference.
 		constexpr uint64 Size = 64;
-		FSharedBufferConstRef ConstRef = FSharedBuffer::MakeReadOnly(FSharedBuffer::Alloc(Size));
+		FSharedBufferConstRef ConstRef = FSharedBuffer::MakeReadOnly(FSharedBuffer::Alloc(Size)).ToSharedRef();
 		FSharedBufferRef Ref = FSharedBuffer::MakeWritable(MoveTemp(ConstRef));
 		TestTrue(TEXT("FSharedBuffer::MakeWritable(AllocRef).IsOwned()"), Ref->IsOwned());
 		TestFalse(TEXT("FSharedBuffer::MakeWritable(AllocRef).IsReadOnly()"), Ref->IsReadOnly());
@@ -357,7 +417,7 @@ bool FSharedBufferTest::RunTest(const FString& Parameters)
 		FSharedBufferConstPtr ConstPtr = FSharedBuffer::MakeReadOnly(FSharedBuffer::Alloc(Size));
 		FSharedBufferConstPtr SharedPtr = ConstPtr;
 		const void* const Data = ConstPtr->GetData();
-		FSharedBufferConstPtr Ptr = FSharedBuffer::MakeWritable(MoveTemp(ConstPtr));
+		FSharedBufferPtr Ptr = FSharedBuffer::MakeWritable(MoveTemp(ConstPtr));
 		TestTrue(TEXT("FSharedBuffer::MakeWritable(SharedRef).IsOwned()"), Ptr->IsOwned());
 		TestFalse(TEXT("FSharedBuffer::MakeWritable(SharedRef).IsReadOnly()"), Ptr->IsReadOnly());
 		TestNotEqual(TEXT("FSharedBuffer::MakeWritable(SharedRef).GetData()"), const_cast<const void*>(Ptr->GetData()), Data);
@@ -368,17 +428,18 @@ bool FSharedBufferTest::RunTest(const FString& Parameters)
 		FSharedBufferConstPtr ConstPtr = FSharedBuffer::MakeReadOnly(FSharedBuffer::Alloc(Size));
 		FSharedBufferConstWeakPtr WeakPtr = ConstPtr;
 		const void* const Data = ConstPtr->GetData();
-		FSharedBufferConstPtr Ptr = FSharedBuffer::MakeWritable(MoveTemp(ConstPtr));
+		FSharedBufferPtr Ptr = FSharedBuffer::MakeWritable(MoveTemp(ConstPtr));
 		TestTrue(TEXT("FSharedBuffer::MakeWritable(WeakRef).IsOwned()"), Ptr->IsOwned());
 		TestFalse(TEXT("FSharedBuffer::MakeWritable(WeakRef).IsReadOnly()"), Ptr->IsReadOnly());
 		TestNotEqual(TEXT("FSharedBuffer::MakeWritable(WeakRef).GetData()"), const_cast<const void*>(Ptr->GetData()), Data);
+		TestTrue(TEXT("FSharedBuffer::MakeWritable(WeakRef).Pin().IsValid()"), WeakPtr.Pin().IsValid());
 	}
 
 	// Test WeakPtr
 	{
 		FSharedBufferWeakPtr WeakPtr;
 		{
-			FSharedBufferRef Ref = FSharedBuffer::Alloc(0);
+			FSharedBufferRef Ref = FSharedBuffer::Alloc(0).ToSharedRef();
 			WeakPtr = Ref;
 			TestTrue(TEXT("FSharedBufferWeakPtr(Ref).Pin().IsValid()"), WeakPtr.Pin().IsValid());
 		}

@@ -70,7 +70,7 @@ void FCbWriter::Reset()
 FCbFieldRefIterator FCbWriter::Save() const
 {
 	const uint64 Size = SaveSize();
-	const FSharedBufferRef Buffer = FSharedBuffer::Alloc(Size);
+	const FSharedBufferPtr Buffer = FSharedBuffer::Alloc(Size);
 	const FMutableMemoryView View = Buffer->GetView();
 	SaveToMemory(View);
 	return FCbFieldRefIterator(FCbFieldRef(Buffer), View.RightChop(Size).GetData());

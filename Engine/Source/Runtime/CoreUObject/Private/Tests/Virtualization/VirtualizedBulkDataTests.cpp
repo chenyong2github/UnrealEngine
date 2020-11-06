@@ -38,7 +38,7 @@ bool FVirtualizationWrapperTestBasic::RunTest(const FString& Parameters)
 
 	// Create a basic bulkdata (but retain ownership of the buffer!)
 	FByteVirtualizedBulkData BulkData;
-	BulkData.UpdatePayload(FSharedBuffer::MakeView(SourceBuffer.Get(), BufferSize));
+	BulkData.UpdatePayload(FSharedBuffer::MakeView(SourceBuffer.Get(), BufferSize).ToSharedRef());
 
 	// Test access via callback
 	BulkData.GetData([this,BufferSize,&SourceBuffer](FSharedBufferConstPtr Payload)
@@ -55,7 +55,7 @@ bool FVirtualizationWrapperTestBasic::RunTest(const FString& Parameters)
 
 	// Create a new bulkdata object and copy by assignment (note we assign some junk data that will get overwritten)
 	FByteVirtualizedBulkData BulkDataAssignment;
-	BulkDataAssignment.UpdatePayload(FSharedBuffer::Alloc(128));
+	BulkDataAssignment.UpdatePayload(FSharedBuffer::Alloc(128).ToSharedRef());
 	BulkDataAssignment = BulkData;
 
 	// Test both bulkdata objects
@@ -111,7 +111,7 @@ bool FVirtualizationWrapperTestUpdatePayload::RunTest(const FString& Parameters)
 
 	// Pass the buffer to to bulkdata but retain ownership
 	FByteVirtualizedBulkData BulkData;
-	BulkData.UpdatePayload(FSharedBuffer::MakeView(OriginalData.Get(), BufferSize));
+	BulkData.UpdatePayload(FSharedBuffer::MakeView(OriginalData.Get(), BufferSize).ToSharedRef());
 
 	// Access the payload, edit it and push it back into the bulkdata object
 	{
@@ -124,7 +124,7 @@ bool FVirtualizationWrapperTestUpdatePayload::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Orginal buffer == Payload data"), FMemory::Memcmp(OriginalData.Get(), Payload->GetData(), Payload->GetSize()) == 0);
 
 		// Make a copy of the payload that we can edit
-		FSharedBufferRef EditablePayload = FSharedBuffer::Clone(*Payload);
+		FSharedBufferRef EditablePayload = FSharedBuffer::Clone(*Payload).ToSharedRef();
 
 		const uint8 NewValue = 255;
 		FMemory::Memset(EditablePayload->GetData(), NewValue, EditablePayload->GetSize());
@@ -151,7 +151,7 @@ bool FVirtualizationWrapperTestUpdatePayload::RunTest(const FString& Parameters)
 
 		// Update the bulkdata object with the original data but this time we give ownership of the buffer to
 		// the bulkdata object.
-		BulkData.UpdatePayload(FSharedBuffer::TakeOwnership(OriginalData.Release(), BufferSize, FMemory::Free));
+		BulkData.UpdatePayload(FSharedBuffer::TakeOwnership(OriginalData.Release(), BufferSize, FMemory::Free).ToSharedRef());
 
 		FSharedBufferConstPtr Payload = BulkData.GetData().Get();
 		TestEqual(TEXT("Updated payload length"), (int64)Payload->GetSize(), BufferSize);

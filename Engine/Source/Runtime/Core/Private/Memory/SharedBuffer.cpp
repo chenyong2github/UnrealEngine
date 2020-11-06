@@ -6,11 +6,12 @@ FSharedBufferRef FSharedBuffer::NewBuffer(
 	void* const Data,
 	const uint64 Size,
 	const ESharedBufferFlags Flags,
-	const uint32 DeleterSize)
+	const uint32 OwnerSize)
 {
-	checkf((DeleterSize == 0) == !(Flags & ESharedBufferFlags::HasDeleter), TEXT("Mismatch between DeleterSize %u and Flags."), DeleterSize);
+	checkf((OwnerSize > 0) == EnumHasAnyFlags(Flags, ESharedBufferFlags::HasBufferOwner),
+		TEXT("Mismatch between OwnerSize %u and Flags."), OwnerSize);
 
-	void* const BufferMemory = FMemory::Malloc(sizeof(FSharedBuffer) + DeleterSize, alignof(FSharedBuffer));
+	void* const BufferMemory = FMemory::Malloc(sizeof(FSharedBuffer) + OwnerSize, alignof(FSharedBuffer));
 
 	FSharedBuffer* const Buffer = new(BufferMemory) FSharedBuffer;
 	Buffer->Data = Data;
@@ -30,16 +31,16 @@ void FSharedBuffer::DeleteBuffer(FSharedBuffer* const Buffer)
 
 void FSharedBuffer::ReleaseData()
 {
-	if (IsOwned())
+	const ESharedBufferFlags Flags = GetFlags(ReferenceCountAndFlags);
+	if (EnumHasAnyFlags(Flags, ESharedBufferFlags::HasBufferOwner))
 	{
-		if (GetFlags(ReferenceCountAndFlags) & ESharedBufferFlags::HasDeleter)
-		{
-			reinterpret_cast<FSharedBufferDeleter*>(this + 1)->Free(Data);
-		}
-		else
-		{
-			FMemory::Free(Data);
-		}
+		FBufferOwner& BufferOwner = *reinterpret_cast<FBufferOwner*>(this + 1);
+		BufferOwner.Free(Data, Size);
+		BufferOwner.~FBufferOwner();
+	}
+	else if (EnumHasAnyFlags(Flags, ESharedBufferFlags::Owned))
+	{
+		FMemory::Free(Data);
 	}
 	Data = nullptr;
 	Size = 0;
