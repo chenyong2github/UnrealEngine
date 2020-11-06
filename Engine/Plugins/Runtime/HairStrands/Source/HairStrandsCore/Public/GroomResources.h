@@ -269,7 +269,7 @@ struct FHairStrandsRaytracingResource : public FRenderResource
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsRaytracingResource"); }
 
-	FRWBuffer PositionBuffer;
+	FRDGExternalBuffer PositionBuffer;
 	FRayTracingGeometry RayTracingGeometry;
 	uint32 VertexCount = 0;
 	bool bIsRTGeometryInitialized = false;
