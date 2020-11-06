@@ -6,6 +6,7 @@
 
 #include "RenderTargetPool.h"
 #include "RHIStaticStates.h"
+#include "Misc/OutputDeviceRedirector.h"
 #include "Hash/CityHash.h"
 
 /** The global render targets pool. */
