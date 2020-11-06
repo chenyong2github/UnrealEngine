@@ -13,6 +13,7 @@
 #include "IMediaModule.h"
 #include "IMediaPlayerFactory.h"
 #include "UObject/NameTypes.h"
+#include "HAL/PlatformProperties.h"
 
 #include "../../WebMMedia/Public/IWebMMediaModule.h"
 
@@ -124,6 +125,7 @@ public:
 		SupportedPlatforms.Add(TEXT("Linux"));
 		SupportedPlatforms.Add(TEXT("Mac"));
 		SupportedPlatforms.Add(TEXT("Windows"));
+		SupportedPlatforms.AddUnique(FPlatformProperties::IniPlatformName());
 
 		// supported schemes
 		SupportedUriSchemes.Add(TEXT("file"));
