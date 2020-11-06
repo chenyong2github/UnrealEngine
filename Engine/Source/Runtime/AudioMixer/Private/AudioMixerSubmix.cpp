@@ -5,6 +5,7 @@
 #include "Async/Async.h"
 #include "AudioMixerDevice.h"
 #include "AudioMixerSourceVoice.h"
+#include "AudioThread.h"
 #include "Sound/SoundEffectPreset.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundSubmix.h"
@@ -585,13 +586,24 @@ namespace Audio
 		}
 
 		// Unregister these source effect instances from their owning USoundEffectInstance on the next audio thread tick.
-		AsyncTask(ENamedThreads::AudioThread, [SubmixEffects = MoveTemp(SubmixEffectsToReset)]() mutable
+		// If the audio thread isn't currently active (ex. suspended), unregister immediately
+		if (IsAudioThreadRunning())
 		{
-			for (TSoundEffectSubmixPtr& SubmixPtr : SubmixEffects)
+			AsyncTask(ENamedThreads::AudioThread, [SubmixEffects = MoveTemp(SubmixEffectsToReset)]() mutable
+			{
+				for (TSoundEffectSubmixPtr& SubmixPtr : SubmixEffects)
+				{
+					USoundEffectPreset::UnregisterInstance(SubmixPtr);
+				}
+			});
+		}
+		else
+		{
+			for (TSoundEffectSubmixPtr& SubmixPtr : SubmixEffectsToReset)
 			{
 				USoundEffectPreset::UnregisterInstance(SubmixPtr);
 			}
-		});
+		}
 
 		NumSubmixEffects = 0;
 		EffectChains.Reset();
