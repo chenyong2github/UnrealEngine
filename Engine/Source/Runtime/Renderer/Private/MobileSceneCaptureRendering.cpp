@@ -440,7 +440,15 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 		{
 			// Copy the captured scene into the destination texture
 			SCOPED_DRAW_EVENT(RHICmdList, CaptureSceneColor);
-			CopyCaptureToTarget(RHICmdList, Target, TargetSize, View, ViewRect, FSceneRenderTargets::Get(RHICmdList).GetSceneColorTexture()->GetTexture2D(), bNeedsFlippedCopy, SceneRenderer);
+			// If multiview is enabled, the SceneColorTexture will be an array texture.
+			if (View.bIsMobileMultiViewEnabled)
+			{
+				CopyCaptureToTarget(RHICmdList, Target, TargetSize, View, ViewRect, FSceneRenderTargets::Get(RHICmdList).GetSceneColorTexture()->GetTexture2DArray(), bNeedsFlippedCopy, SceneRenderer);
+			}
+			else
+			{
+				CopyCaptureToTarget(RHICmdList, Target, TargetSize, View, ViewRect, FSceneRenderTargets::Get(RHICmdList).GetSceneColorTexture()->GetTexture2D(), bNeedsFlippedCopy, SceneRenderer);
+			}
 		}
 
 		FRDGBuilder GraphBuilder(RHICmdList);
