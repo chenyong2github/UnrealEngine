@@ -214,6 +214,9 @@ FRenderTargetPool::FRenderTargetPool()
 	, bEventRecordingActive(false)
 	, bEventRecordingStarted(false)
 	, CurrentEventRecordingTime(0)
+#if LOG_MAX_RENDER_TARGET_POOL_USAGE
+	, MaxUsedRenderTargetInKB(0)
+#endif
 {
 }
 
@@ -1049,10 +1052,24 @@ void FRenderTargetPool::TickPoolElements()
 		}
 	}
 
-	uint32 PeakFrameUsageInKb = AllocationLevelInKB + DeferredAllocationLevelInKB - UnusedAllocationLevelInKB;
-	CSV_CUSTOM_STAT(RenderTargetPool, UnusedMB, UnusedAllocationLevelInKB / 1024.0f, ECsvCustomStatOp::Set);
-	CSV_CUSTOM_STAT(RenderTargetPool, PeakUsedMB, PeakFrameUsageInKb / 1024.f, ECsvCustomStatOp::Set);
+	uint32 TotalFrameUsageInKb = AllocationLevelInKB + DeferredAllocationLevelInKB ;
 
+#if LOG_MAX_RENDER_TARGET_POOL_USAGE
+	if (TotalFrameUsageInKb > MaxUsedRenderTargetInKB)
+	{
+		MaxUsedRenderTargetInKB = TotalFrameUsageInKb;
+
+		if (MaxUsedRenderTargetInKB > MinimumPoolSizeInKB)
+		{
+			DumpMemoryUsage(*GLog);
+		}
+	}
+#endif
+
+	CSV_CUSTOM_STAT(RenderTargetPool, UnusedMB, UnusedAllocationLevelInKB / 1024.0f, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(RenderTargetPool, PeakUsedMB, (TotalFrameUsageInKb - UnusedAllocationLevelInKB) / 1024.f, ECsvCustomStatOp::Set);
+
+	
 	// we need to release something, take the oldest ones first
 	while (AllocationLevelInKB > MinimumPoolSizeInKB)
 	{
@@ -1209,10 +1226,16 @@ void FRenderTargetPool::FreeUnusedResources()
 	}
 
 	VerifyAllocationLevel();
+
+#if LOG_MAX_RENDER_TARGET_POOL_USAGE
+	MaxUsedRenderTargetInKB = 0;
+#endif
 }
 
 void FRenderTargetPool::DumpMemoryUsage(FOutputDevice& OutputDevice)
 {
+	uint32 UnusedAllocationInKB = 0;
+
 	OutputDevice.Logf(TEXT("Pooled Render Targets:"));
 	for (int32 i = 0; i < PooledRenderTargets.Num(); ++i)
 	{
@@ -1220,10 +1243,16 @@ void FRenderTargetPool::DumpMemoryUsage(FOutputDevice& OutputDevice)
 
 		if (Element)
 		{
+			uint32 ElementAllocationInKB = ComputeSizeInKB(*Element);
+			if (Element->UnusedForNFrames > 2)
+			{
+				UnusedAllocationInKB += ElementAllocationInKB;
+			}
+
 			check(!Element->IsSnapshot());
 			OutputDevice.Logf(
-				TEXT("  %6.3fMB %4dx%4d%s%s %2dmip(s) %s (%s) %s %s"),
-				ComputeSizeInKB(*Element) / 1024.0f,
+				TEXT("  %6.3fMB %4dx%4d%s%s %2dmip(s) %s (%s) %s %s Unused frames: %d"),
+				ElementAllocationInKB / 1024.0f,
 				Element->Desc.Extent.X,
 				Element->Desc.Extent.Y,
 				Element->Desc.Depth > 1 ? *FString::Printf(TEXT("x%3d"), Element->Desc.Depth) : (Element->Desc.IsCubemap() ? TEXT("cube") : TEXT("    ")),
@@ -1232,7 +1261,8 @@ void FRenderTargetPool::DumpMemoryUsage(FOutputDevice& OutputDevice)
 				Element->Desc.DebugName,
 				GPixelFormats[Element->Desc.Format].Name,
 				Element->IsTransient() ? TEXT("(transient)") : TEXT(""),
-				GSupportsTransientResourceAliasing ? *FString::Printf(TEXT("Frames since last discard: %d"), GFrameNumberRenderThread - Element->FrameNumberLastDiscard) : TEXT("")
+				GSupportsTransientResourceAliasing ? *FString::Printf(TEXT("Frames since last discard: %d"), GFrameNumberRenderThread - Element->FrameNumberLastDiscard) : TEXT(""),
+				Element->UnusedForNFrames
 				);
 		}
 	}
@@ -1240,7 +1270,7 @@ void FRenderTargetPool::DumpMemoryUsage(FOutputDevice& OutputDevice)
 	uint32 UsedKB=0;
 	uint32 PoolKB=0;
 	GetStats(NumTargets,PoolKB,UsedKB);
-	OutputDevice.Logf(TEXT("%.3fMB total, %.3fMB used, %d render targets"), PoolKB / 1024.f, UsedKB / 1024.f, NumTargets);
+	OutputDevice.Logf(TEXT("%.3fMB total, %.3fMB used, %.3fMB unused, %d render targets"), PoolKB / 1024.f, UsedKB / 1024.f, UnusedAllocationInKB / 1024.f, NumTargets);
 
 	uint32 DeferredTotal = 0;
 	OutputDevice.Logf(TEXT("Deferred Render Targets:"));
