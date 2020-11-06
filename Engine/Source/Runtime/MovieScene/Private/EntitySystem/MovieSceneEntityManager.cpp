@@ -414,6 +414,8 @@ void FEntityManager::Destroy()
 	AllocationsWithCapacity.Reset();
 	EntityAllocationMasks.Reset();
 	EntityAllocations.Reset();
+
+	OnStructureChanged();
 }
 
 FMovieSceneEntityID FEntityManager::AllocateEntity()
