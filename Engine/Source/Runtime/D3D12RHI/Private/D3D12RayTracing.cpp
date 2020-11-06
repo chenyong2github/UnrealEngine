@@ -385,12 +385,8 @@ inline FString GenerateShaderName(FRHIRayTracingShader* ShaderRHI)
 	return GenerateShaderName(*(Shader->EntryPoint), ShaderHash);
 }
 
-static FD3D12ShaderIdentifier GetShaderIdentifier(ID3D12StateObject* StateObject, const TCHAR* ExportName)
+static FD3D12ShaderIdentifier GetShaderIdentifier(ID3D12StateObjectProperties* PipelineProperties, const TCHAR* ExportName)
 {
-	TRefCountPtr<ID3D12StateObjectProperties> PipelineProperties;
-	HRESULT QueryInterfaceResult = StateObject->QueryInterface(IID_PPV_ARGS(PipelineProperties.GetInitReference()));
-	checkf(SUCCEEDED(QueryInterfaceResult), TEXT("Failed to query pipeline properties from the ray tracing pipeline state object. Result=%08x"), QueryInterfaceResult);
-
 	const void* ShaderIdData = PipelineProperties->GetShaderIdentifier(ExportName);
 	checkf(ShaderIdData, TEXT("Couldn't find requested export in the ray tracing shader pipeline"));
 
@@ -398,6 +394,15 @@ static FD3D12ShaderIdentifier GetShaderIdentifier(ID3D12StateObject* StateObject
 	Result.SetData(ShaderIdData);
 
 	return Result;
+}
+
+static FD3D12ShaderIdentifier GetShaderIdentifier(ID3D12StateObject* StateObject, const TCHAR* ExportName)
+{
+	TRefCountPtr<ID3D12StateObjectProperties> PipelineProperties;
+	HRESULT QueryInterfaceResult = StateObject->QueryInterface(IID_PPV_ARGS(PipelineProperties.GetInitReference()));
+	checkf(SUCCEEDED(QueryInterfaceResult), TEXT("Failed to query pipeline properties from the ray tracing pipeline state object. Result=%08x"), QueryInterfaceResult);
+
+	return GetShaderIdentifier(PipelineProperties, ExportName);
 }
 
 // Cache for ray tracing pipeline collection objects, containing single shaders that can be linked into full pipelines.
@@ -625,7 +630,9 @@ public:
 				{}, // ExistingCollections
 				D3D12_STATE_OBJECT_TYPE_COLLECTION);
 
-			Entry.Identifier = GetShaderIdentifier(Entry.StateObject, Entry.GetPrimaryExportNameChars());
+			// Shader identifier can be queried immediately here per PSO collection, however this does not work on old NVIDIA drivers (430.00).
+			// Therefore shader identifiers need to be queried from the final linked pipeline (JIRA DH-2182).
+			// Entry.Identifier = GetShaderIdentifier(Entry.StateObject, Entry.GetPrimaryExportNameChars());
 
 			CompileTimeCycles += FPlatformTime::Cycles64();
 
@@ -706,6 +713,7 @@ public:
 
 				checkf(Entry.StateObject != nullptr, TEXT("Failed to deserialize RTPSO"));
 
+				Entry.ExportNames.Add(Shader->EntryPoint);
 				Entry.Identifier = GetShaderIdentifier(Entry.StateObject, *Shader->EntryPoint);
 				Entry.bDeserialized = true;
 			}
@@ -1987,28 +1995,40 @@ public:
 
 		check(HitGroupEntries.Num() == InitializerHitGroups.Num());
 
+		auto GetEntryShaderIdentifier = [Properties = PipelineProperties.GetReference()](FD3D12RayTracingPipelineCache::FEntry* Entry) -> FD3D12ShaderIdentifier
+		{
+			if (Entry->Identifier.IsValid())
+			{
+				return Entry->Identifier;
+			}
+			else
+			{
+				return GetShaderIdentifier(Properties, Entry->GetPrimaryExportNameChars());
+			}
+		};
+
 		HitGroupShaders.Identifiers.SetNumUninitialized(InitializerHitGroups.Num());
 		for (int32 HitGroupIndex = 0; HitGroupIndex < HitGroupEntries.Num(); ++HitGroupIndex)
 		{
-			HitGroupShaders.Identifiers[HitGroupIndex] = HitGroupEntries[HitGroupIndex]->Identifier;
+			HitGroupShaders.Identifiers[HitGroupIndex] = GetEntryShaderIdentifier(HitGroupEntries[HitGroupIndex]);
 		}
 
 		RayGenShaders.Identifiers.SetNumUninitialized(RayGenShaderEntries.Num());
 		for (int32 ShaderIndex = 0; ShaderIndex < RayGenShaderEntries.Num(); ++ShaderIndex)
 		{
-			RayGenShaders.Identifiers[ShaderIndex] = RayGenShaderEntries[ShaderIndex]->Identifier;
+			RayGenShaders.Identifiers[ShaderIndex] = GetEntryShaderIdentifier(RayGenShaderEntries[ShaderIndex]);
 		}
 
 		MissShaders.Identifiers.SetNumUninitialized(MissShaderEntries.Num());
 		for (int32 ShaderIndex = 0; ShaderIndex < MissShaderEntries.Num(); ++ShaderIndex)
 		{
-			MissShaders.Identifiers[ShaderIndex] = MissShaderEntries[ShaderIndex]->Identifier;
+			MissShaders.Identifiers[ShaderIndex] = GetEntryShaderIdentifier(MissShaderEntries[ShaderIndex]);
 		}
 
 		CallableShaders.Identifiers.SetNumUninitialized(CallableShaderEntries.Num());
 		for (int32 ShaderIndex = 0; ShaderIndex < CallableShaderEntries.Num(); ++ShaderIndex)
 		{
-			CallableShaders.Identifiers[ShaderIndex] = CallableShaderEntries[ShaderIndex]->Identifier;
+			CallableShaders.Identifiers[ShaderIndex] = GetEntryShaderIdentifier(CallableShaderEntries[ShaderIndex]);
 		}
 
 		// Setup default shader binding table, which simply includes all provided RGS and MS plus a single default closest hit shader.
