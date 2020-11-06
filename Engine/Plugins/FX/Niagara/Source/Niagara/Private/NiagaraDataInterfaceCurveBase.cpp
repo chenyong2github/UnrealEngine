@@ -87,6 +87,10 @@ void UNiagaraDataInterfaceCurveBase::Serialize(FArchive& Ar)
 	{
 #if WITH_EDITORONLY_DATA
 		HasEditorData = !Ar.IsFilterEditorOnly();
+		if (HasEditorData && GetClass() != UNiagaraDataInterfaceCurveBase::StaticClass())
+		{
+			UpdateLUT(true);
+		}
 #endif
 		MarkRenderDataDirty();
 	}
