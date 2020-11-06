@@ -216,6 +216,11 @@ public:
 	FOnThreadStuck& GetOnThreadStuck() { return OnStuck; }
 	FOnThreadUnstuck& GetOnThreadUnstuck() { return OnUnstuck; }
 
+	/*
+	*  Get hang duration threshold.
+	*/
+	double GetHangDuration() const { return ConfigHangDuration; };
+
 	//~ Begin FRunnable Interface.
 	virtual bool Init();
 	virtual uint32 Run();
