@@ -63,6 +63,13 @@ UMovieSceneEntitySystemLinker::UMovieSceneEntitySystemLinker(const FObjectInitia
 void UMovieSceneEntitySystemLinker::Reset()
 {
 	Events.AbandonLinker.Broadcast(this);
+
+	Events.TagGarbage.Clear();
+	Events.CleanTaggedGarbage.Clear();
+	Events.AddReferencedObjects.Clear();
+	Events.AbandonLinker.Clear();
+	Events.CleanUpWorld.Clear();
+
 	SystemGraph.Shutdown();
 	EntitySystemsByGlobalGraphID.Reset();
 
@@ -291,7 +298,12 @@ UMovieSceneEntitySystem* UMovieSceneEntitySystemLinker::LinkSystem(TSubclassOf<U
 		return Existing;
 	}
 
-	UMovieSceneEntitySystem* NewSystem = NewObject<UMovieSceneEntitySystem>(this, InClassType.Get());
+	// We always create systems with a fixed name (since there should only ever be one of that name)
+	// This means we will recycle systems if they previously existed but are no longer used to avoid thrashing the GC
+	// Recycling will destruct + memzero + construct the object so we can be sure that previous state doesn't roll over
+	UClass* SystemClass = InClassType.Get();
+	FName   SystemName  = SystemClass->GetFName();
+	UMovieSceneEntitySystem* NewSystem = NewObject<UMovieSceneEntitySystem>(this, SystemClass, SystemName);
 
 	// If a system implements a hard depdency on another (through direct use of LinkSystem<>), we can't break the client code by returning null, but we can still warn that it should have checked whether it can call LinkSystem first
 	ensureMsgf(!EnumHasAnyFlags(NewSystem->GetExclusionContext(), SystemContext), TEXT("Attempting to link a system that should have been excluded - this is probably an explicit call to Link a system that should have been excluded."));
