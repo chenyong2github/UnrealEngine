@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	OpenGLVertexBuffer.cpp: OpenGL texture RHI implementation.
+	OpenGLTexture.cpp: OpenGL texture RHI implementation.
 =============================================================================*/
 
 #include "CoreMinimal.h"
@@ -15,6 +15,34 @@
 #if PLATFORM_ANDROID
 #include "ThirdParty/Android/detex/AndroidETC.h"
 #endif //PLATFORM_ANDROID
+
+static TAutoConsoleVariable<int32> CVarDeferTextureCreation(
+	TEXT("r.OpenGL.DeferTextureCreation"),
+	0,
+	TEXT("0: OpenGL textures are created immediately. \n")
+	TEXT("1: Where possible OpenGL textures are stored in system memory and created only when required for rendering. (avoiding some memory overhead from GL driver)"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarDeferTextureCreationExcludeMask(
+	TEXT("r.OpenGL.DeferTextureCreationExcludeFlags"),
+	~(TexCreate_SRGB | TexCreate_Transient | TexCreate_Streamable | TexCreate_OfflineProcessed),
+	TEXT("Deferred texture creation exclusion mask, any texture requested with flags in this mask will be excluded from deferred creation."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> DeferTextureCreationKeepLowerMipCount(
+	TEXT("r.OpenGL.DeferTextureCreationKeepLowerMipCount"),
+	7,
+	TEXT("Maximum number of texture mips to retain after a deferred texture has been created."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> DeferTextureCreationAllowEviction(
+	TEXT("r.OpenGL.DeferTextureCreationAllowEviction"),
+	1,
+	TEXT("Attempt to delete an OpenGL texture from memory after a texture reference discards it. (can be used to remove a streaming texture from driver memory when a texture is not longer streaming it)\n")
+	TEXT("requires r.OpenGL.DeferTextureCreation."),
+	ECVF_RenderThreadSafe);
+
+class FOpenGLDynamicRHI* FOpenGLTextureBase::OpenGLRHI = nullptr;
 
 /*-----------------------------------------------------------------------------
 	Texture allocator support.
@@ -360,11 +388,74 @@ FRHITexture* FOpenGLDynamicRHI::CreateOpenGLRHITextureOnly(const uint32 SizeX, c
 		Result = new FOpenGLTexture2D(this, 0, Target, -1, SizeX, SizeY, 0, NumMips, NumSamples, NumSamplesTileMem, 1, (EPixelFormat)Format, false, false, Flags, InClearValue);
 	}
 	OpenGLTextureAllocated(Result, Flags);
+
+	check(!GetOpenGLTextureFromRHITexture(Result)->EvictionParamsPtr.IsValid());
+
+	if (GetOpenGLTextureFromRHITexture(Result)->CanCreateAsEvicted())
+	{
+		GetOpenGLTextureFromRHITexture(Result)->EvictionParamsPtr = MakeUnique<FTextureEvictionParams>(NumMips);
+	}
+
 	return Result;
 }
 
+uint32 GTotalTexStorageSkipped = 0;
+uint32 GTotalCompressedTexStorageSkipped = 0;
 // Initalize the FRHITexture's GL resources and fill in state.
 void FOpenGLDynamicRHI::InitializeGLTexture(FRHITexture* Texture, uint32 SizeX, const uint32 SizeY, const bool bCubeTexture, const bool bArrayTexture, const bool bIsExternal, const uint8 Format, const uint32 NumMips, const uint32 NumSamples, const uint32 ArraySize, const ETextureCreateFlags Flags, const FClearValueBinding& InClearValue, FResourceBulkDataInterface* BulkData)
+{
+	VERIFY_GL_SCOPE();
+
+	const uint32 NumSamplesTileMem = bCubeTexture ? 1 : ((FOpenGLTexture2D*)Texture)->GetNumSamplesTileMem();
+	const bool TileMemDepth = NumSamplesTileMem > 1 && (Flags & TexCreate_DepthStencilTargetable);
+
+	GLuint TextureID = 0;
+	if (!TileMemDepth)
+	{
+		FOpenGL::GenTextures(1, &TextureID);
+	}
+	if (!GetOpenGLTextureFromRHITexture(Texture)->IsEvicted())
+	{
+		InitializeGLTextureInternal(TextureID, Texture, SizeX, SizeY, bCubeTexture, bArrayTexture, bIsExternal, Format, NumMips, NumSamples, ArraySize, Flags, InClearValue, BulkData);
+	}
+	else
+	{
+		// creating this as 'evicted'.
+		GTotalTexStorageSkipped++;
+		//check(!GetOpenGLTextureFromRHITexture(Texture)->IsEvicted());
+		{
+			EPixelFormat PixelFormat = Texture->GetFormat();
+			const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[PixelFormat];
+			bool bIsCompressed = GLFormat.bCompressed;
+			GTotalCompressedTexStorageSkipped += bIsCompressed ? 1 : 0;
+
+			if(BulkData)
+			{
+
+				check(!GLFormat.bCompressed);
+				const uint32 BlockSizeX = GPixelFormats[Format].BlockSizeX;
+				const uint32 BlockSizeY = GPixelFormats[Format].BlockSizeY;
+				uint8* Data = (uint8*)BulkData->GetResourceBulkData();
+				uint32 MipOffset = 0;
+				// copy bulk data to evicted mip store:
+				for (uint32 MipIndex = 0; MipIndex < NumMips; MipIndex++)
+				{
+					uint32 NumBlocksX = AlignArbitrary(FMath::Max<uint32>(1, (SizeX >> MipIndex)), BlockSizeX) / BlockSizeX;
+					uint32 NumBlocksY = AlignArbitrary(FMath::Max<uint32>(1, (SizeY >> MipIndex)), BlockSizeY) / BlockSizeY;
+					uint32 NumLayers = FMath::Max<uint32>(1, ArraySize);
+					uint32 MipDataSize = NumBlocksX * NumBlocksY * NumLayers * GPixelFormats[Format].BlockBytes;
+
+					GetOpenGLTextureFromRHITexture(Texture)->EvictionParamsPtr->SetMipData(MipIndex, &Data[MipOffset],MipDataSize);
+					MipOffset += MipDataSize;
+				}
+				BulkData->Discard();
+			}
+		}
+		GetOpenGLTextureFromRHITexture(Texture)->SetResource(TextureID);
+	}
+}
+
+void FOpenGLDynamicRHI::InitializeGLTextureInternal(GLuint& TextureID, FRHITexture* Texture, uint32 SizeX, const uint32 SizeY, const bool bCubeTexture, const bool bArrayTexture, const bool bIsExternal, const uint8 Format, const uint32 NumMips, const uint32 NumSamples, const uint32 ArraySize, const ETextureCreateFlags Flags, const FClearValueBinding& InClearValue, FResourceBulkDataInterface* BulkData)
 {
 	VERIFY_GL_SCOPE();
 
@@ -374,13 +465,9 @@ void FOpenGLDynamicRHI::InitializeGLTexture(FRHITexture* Texture, uint32 SizeX, 
 	const uint32 NumSamplesTileMem = bCubeTexture ? 1 : ((FOpenGLTexture2D*)Texture)->GetNumSamplesTileMem();
 	const bool TileMemDepth = NumSamplesTileMem > 1 && (Flags & TexCreate_DepthStencilTargetable);
 
-	GLuint TextureID = 0;
-	if (!TileMemDepth)
-	{
-		FOpenGL::GenTextures(1, &TextureID);
-	}
-		
-	const bool bSRGB = (Flags&TexCreate_SRGB) != 0;
+	check(TextureID || TileMemDepth);
+
+	const bool bSRGB = (Flags & TexCreate_SRGB) != 0;
 	const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[Format];
 	if (GLFormat.InternalFormat[bSRGB] == GL_NONE)
 	{
@@ -620,7 +707,7 @@ void FOpenGLDynamicRHI::InitializeGLTexture(FRHITexture* Texture, uint32 SizeX, 
 	{
 		//	FOpenGLTextureCube* TextureCube = new FOpenGLTextureCube(this, TextureID, Target, Attachment, SizeX, SizeY, 0, NumMips, 1, 1, ArraySize, (EPixelFormat)Format, true, bAllocatedStorage, Flags, InClearValue);
 		FOpenGLTextureCube* TextureCube = (FOpenGLTextureCube*)Texture;
-		TextureCube->Resource = TextureID;
+		TextureCube->SetResource(TextureID);
 		TextureCube->Target = Target;
 		TextureCube->Attachment = Attachment;
 		TextureCube->SetAllocatedStorage(bAllocatedStorage);
@@ -628,7 +715,7 @@ void FOpenGLDynamicRHI::InitializeGLTexture(FRHITexture* Texture, uint32 SizeX, 
 	else
 	{
 		FOpenGLTexture2D* Texture2D = (FOpenGLTexture2D*)Texture;
-		Texture2D->Resource = TextureID;
+		Texture2D->SetResource(TextureID);
 		Texture2D->Target = Target;
 		Texture2D->Attachment = Attachment;
 		Texture2D->SetAllocatedStorage(bAllocatedStorage);
@@ -683,7 +770,8 @@ void TOpenGLTexture<RHIResourceType>::Resolve(uint32 MipIndex,uint32 ArrayIndex)
 	
 	// Use a texture stage that's not likely to be used for draws, to avoid waiting
 	FOpenGLContextState& ContextState = OpenGLRHI->GetContextStateForCurrentContext();
-	OpenGLRHI->CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Target, Resource, -1, this->GetNumMips());
+
+	OpenGLRHI->CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Target, this->GetResource(), -1, this->GetNumMips());
 	
 	glBindBuffer( GL_PIXEL_PACK_BUFFER, PixelBuffer->Resource );
 
@@ -758,6 +846,7 @@ void* TOpenGLTexture<RHIResourceType>::Lock(uint32 InMipIndex,uint32 ArrayIndex,
 	
 	const uint32 MipBytes = GetLockSize(InMipIndex, ArrayIndex, LockMode, DestStride);
 
+	check(!IsEvicted() || ArrayIndex==0);
 	void* result = NULL;
 
 	const int32 BufferIndex = InMipIndex * (bCubemap ? 6 : 1) * this->GetEffectiveSizeZ() + ArrayIndex;
@@ -765,6 +854,15 @@ void* TOpenGLTexture<RHIResourceType>::Lock(uint32 InMipIndex,uint32 ArrayIndex,
 
 	// Should we use client-storage to improve update time on platforms that require it
 	const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[PixelFormat];
+	if (IsEvicted())
+	{
+		check(ArrayIndex == 0);
+		// check there's nothing already here?
+		ensure(InMipIndex >= (uint32)EvictionParamsPtr->MipImageData.Num() || EvictionParamsPtr->MipImageData[InMipIndex].Num() == 0);
+		EvictionParamsPtr->SetMipData(InMipIndex, 0, MipBytes);
+		return EvictionParamsPtr->MipImageData[InMipIndex].GetData();
+	}
+	else
 	{
 		// Standard path with a PBO mirroring ever slice of a texture to allow multiple simulataneous maps
 		bool bBufferExists = true;
@@ -869,7 +967,7 @@ void TOpenGLTexture<RHIResourceType>::Unlock(uint32 MipIndex,uint32 ArrayIndex)
 
 		// Use a texture stage that's not likely to be used for draws, to avoid waiting
 		FOpenGLContextState& ContextState = OpenGLRHI->GetContextStateForCurrentContext();
-		OpenGLRHI->CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Target, Resource, -1, this->GetNumMips());
+		OpenGLRHI->CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Target, GetResource(), -1, this->GetNumMips());
 
 		CachedBindPixelUnpackBuffer(0);
 
@@ -930,7 +1028,7 @@ void TOpenGLTexture<RHIResourceType>::Unlock(uint32 MipIndex,uint32 ArrayIndex)
 	{
 		// Use a texture stage that's not likely to be used for draws, to avoid waiting
 		FOpenGLContextState& ContextState = OpenGLRHI->GetContextStateForCurrentContext();
-		OpenGLRHI->CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Target, Resource, -1, this->GetNumMips());
+		OpenGLRHI->CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Target, GetResource(), -1, this->GetNumMips());
 
 		if (this->GetSizeZ())
 		{
@@ -1031,13 +1129,175 @@ void TOpenGLTexture<RHIResourceType>::Unlock(uint32 MipIndex,uint32 ArrayIndex)
 	CachedBindPixelUnpackBuffer(0);
 }
 
+
+uint32 GTotalEvictedMipMemStored = 0;
+uint32 GTotalEvictedMipMemDuplicated = 0;
+uint32 GTotalMipStoredCount = 0;
+uint32 GTotalMipRestores = 0;
+
+extern uint32 GTotalEvictedMipMemStored;
+extern uint32 GTotalTexStorageSkipped;
+
+float GMaxRestoreTime = 0.0f;
+float GAvgRestoreTime = 0.0f;
+uint32 GAvgRestoreCount = 0;
+
+template<typename RHIResourceType>
+void TOpenGLTexture<RHIResourceType>::RestoreEvictedGLResource(bool bAttemptToRetainMips)
+{
+//	double StartTime = FPlatformTime::Seconds();
+
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_OpenGLRestoreEvictedTextureTime);
+
+	check(!EvictionParamsPtr->bHasRestored);
+	EvictionParamsPtr->bHasRestored = true;
+
+	const FClearValueBinding ClearBinding = this->GetClearBinding();
+	OpenGLRHI->InitializeGLTextureInternal(GetResourceRef(), this, this->GetSizeX(), this->GetSizeY(), bCubemap, false, false, this->GetFormat(), this->GetNumMips(), this->GetNumSamples(), 0, this->GetFlags(), ClearBinding, nullptr);
+
+	EPixelFormat PixelFormat = this->GetFormat();
+	const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[PixelFormat];
+	const bool bSRGB = (this->GetFlags() & TexCreate_SRGB) != 0;
+	checkf(EvictionParamsPtr->MipImageData.Num() == this->GetNumMips(), TEXT("EvictionParamsPtr->MipImageData.Num() =%d, this->GetNumMips() = %d"), EvictionParamsPtr->MipImageData.Num(), this->GetNumMips());
+	
+	for (int i = EvictionParamsPtr->MipImageData.Num() - 1; i >= 0; i--)
+	{
+		auto& MipMem = EvictionParamsPtr->MipImageData[i];
+		if(MipMem.Num())
+		{
+			uint32 DestStride;
+			check(MipMem.Num() == GetLockSize(i, 0, EResourceLockMode::RLM_WriteOnly, DestStride));
+			void* pDest = Lock(i, 0, EResourceLockMode::RLM_WriteOnly, DestStride);
+			check(DestStride)
+			FMemory::Memcpy(pDest, MipMem.GetData(), MipMem.Num());
+			Unlock(i, 0);
+		}
+	}
+	
+	uint32 RetainMips = bAttemptToRetainMips && (this->GetFlags() & TexCreate_Streamable) && this->GetNumMips() > 1 && !this->IsAliased() ? DeferTextureCreationKeepLowerMipCount.GetValueOnAnyThread() : 0;
+
+	// keep the mips for streamable textures
+	EvictionParamsPtr->ReleaseMipData(RetainMips);
+#if GLDEBUG_LABELS_ENABLED
+	FAnsiCharArray& TextureDebugName = EvictionParamsPtr->GetDebugLabelName();
+	if(TextureDebugName.Num())
+	{
+		FOpenGL::LabelObject(GL_TEXTURE, this->GetResource(), TextureDebugName.GetData());
+		if (RetainMips == 0)
+		{
+			TextureDebugName.Empty();
+		}
+	}
+#endif
+
+	GTotalEvictedMipMemDuplicated += EvictionParamsPtr->GetTotalAllocated();
+// 	float ThisTime = (float)(FPlatformTime::Seconds() - StartTime);
+// 	GAvgRestoreCount++;
+// 	GMaxRestoreTime = FMath::Max(GMaxRestoreTime, ThisTime);
+// 	GAvgRestoreTime += ThisTime;
+}
+
+template<typename RHIResourceType>
+void TOpenGLTexture<RHIResourceType>::TryEvictGLResource()
+{
+	VERIFY_GL_SCOPE();
+	if (CanCreateAsEvicted() && EvictionParamsPtr->bHasRestored)
+	{
+
+		if (CanBeEvicted())
+		{
+			DeleteGLResource();
+
+			// create a new texture id.
+			EvictionParamsPtr->bHasRestored = false;
+			const FClearValueBinding ClearBinding = this->GetClearBinding();
+			// recreate the GL tex resource name (but not allocate the memory)
+			OpenGLRHI->InitializeGLTexture(this, this->GetSizeX(), this->GetSizeY(), bCubemap, false, false, this->GetFormat(), this->GetNumMips(), this->GetNumSamples(), 0, this->GetFlags(), ClearBinding, nullptr);
+			GTotalEvictedMipMemDuplicated -= EvictionParamsPtr->GetTotalAllocated();
+		}
+	}
+}
+
+static bool CanDeferTextureCreation()
+{
+	bool bCanDeferTextureCreation = CVarDeferTextureCreation.GetValueOnAnyThread() != 0;
+#if PLATFORM_ANDROID
+	static bool bDeferTextureCreationConfigRulesChecked = false;
+	static TOptional<bool> bConfigRulesCanDeferTextureCreation;
+	if (!bDeferTextureCreationConfigRulesChecked)
+	{
+		const FString* ConfigRulesDeferOpenGLTextureCreationStr = FAndroidMisc::GetConfigRulesVariable(TEXT("DeferOpenGLTextureCreation"));
+		if (ConfigRulesDeferOpenGLTextureCreationStr)
+		{
+			bConfigRulesCanDeferTextureCreation = ConfigRulesDeferOpenGLTextureCreationStr->Equals("true", ESearchCase::IgnoreCase);
+			UE_LOG(LogRHI, Log, TEXT("OpenGL deferred texture creation, set by config rules: %d"), (int)bConfigRulesCanDeferTextureCreation.GetValue());
+		}
+		else
+		{
+			UE_LOG(LogRHI, Log, TEXT("OpenGL deferred texture creation, no config rule set: %d"), (int)bCanDeferTextureCreation);
+		}
+		bDeferTextureCreationConfigRulesChecked = true;
+	}
+
+	if (bConfigRulesCanDeferTextureCreation.IsSet())
+	{
+		bCanDeferTextureCreation = bConfigRulesCanDeferTextureCreation.GetValue();
+	}
+#endif
+	return bCanDeferTextureCreation;
+}
+
+template<typename RHIResourceType>
+bool TOpenGLTexture<RHIResourceType>::CanCreateAsEvicted()
+{
+	// can run on RT.
+	bool bRet =
+		CanDeferTextureCreation()
+		&& FOpenGL::SupportsCopyImage()
+		&& this->GetFlags() // ignore TexCreate_None
+		&& (CVarDeferTextureCreationExcludeMask.GetValueOnAnyThread() & this->GetFlags())==0  // Anything outside of these flags cannot be evicted.
+		&& Target == GL_TEXTURE_2D
+		&& this->GetTexture2D(); // 2d only.
+
+	return bRet;
+}
+
+template<typename RHIResourceType>
+bool TOpenGLTexture<RHIResourceType>::CanBeEvicted()
+{
+	VERIFY_GL_SCOPE();
+	checkf(!CanCreateAsEvicted() || EvictionParamsPtr.IsValid(), TEXT("%p, CanCreateAsEvicted() %d, EvictionParamsPtr.IsValid() %d"), this, CanCreateAsEvicted(),EvictionParamsPtr.IsValid());
+
+	// if we're aliased check that there's no eviction data.
+	check(!CanCreateAsEvicted() || !this->IsAliased() || (EvictionParamsPtr->MipImageData.Num() == 0 && EvictionParamsPtr->MipImageData.Num() != this->GetNumMips()));
+
+	// cant evict if we're aliased, or there are mips are not backed by stored data.
+	bool bRet = CanCreateAsEvicted() && EvictionParamsPtr->MipImageData.Num() == this->GetNumMips() && EvictionParamsPtr->AreAllMipsPresent();
+
+	return bRet;
+}
+
 template<typename RHIResourceType>
 void TOpenGLTexture<RHIResourceType>::CloneViaCopyImage( TOpenGLTexture<RHIResourceType>* Src, uint32 InNumMips, int32 SrcOffset, int32 DstOffset)
 {
 	VERIFY_GL_SCOPE();
-	
+
 	check(FOpenGL::SupportsCopyImage());
 	
+	check(Src->CanCreateAsEvicted() == CanCreateAsEvicted());
+	if (CanCreateAsEvicted())
+	{
+		// Copy all mips that are present.
+		check(!Src->IsEvicted() || Src->EvictionParamsPtr->AreAllMipsPresent() );
+		EvictionParamsPtr->CloneMipData(*Src->EvictionParamsPtr, InNumMips, SrcOffset, DstOffset);
+
+		// the dest texture can remain evicted if: the src was also evicted or has all of the resident mips available or the dest texture has all mips already evicted.
+		if(IsEvicted() && (Src->IsEvicted() || Src->EvictionParamsPtr->AreAllMipsPresent() || EvictionParamsPtr->AreAllMipsPresent()))
+		{
+			return;
+		}
+	}
+
 	for (uint32 ArrayIndex = 0; ArrayIndex < this->GetEffectiveSizeZ(); ArrayIndex++)
 	{
 		// use the Copy Image functionality to copy mip level by mip level
@@ -1052,8 +1312,8 @@ void TOpenGLTexture<RHIResourceType>::CloneViaCopyImage( TOpenGLTexture<RHIResou
 			if(FOpenGL::AmdWorkaround() && ((MipSizeX < 4) || (MipSizeY < 4))) break;
 
 			// copy the texture data
-			FOpenGL::CopyImageSubData( Src->Resource, Src->Target, SrcMipIndex, 0, 0, ArrayIndex,
-									  Resource, Target, DstMipIndex, 0, 0, ArrayIndex, MipSizeX, MipSizeY, 1);
+			FOpenGL::CopyImageSubData(Src->GetResource(), Src->Target, SrcMipIndex, 0, 0, ArrayIndex,
+				GetResource(), Target, DstMipIndex, 0, 0, ArrayIndex, MipSizeX, MipSizeY, 1);
 		}
 	}
 	
@@ -1117,7 +1377,7 @@ void TOpenGLTexture<RHIResourceType>::CloneViaPBO( TOpenGLTexture<RHIResourceTyp
 			// Transfer data from texture to pixel buffer.
 			// This may be further optimized by caching information if surface content was changed since last lock.
 			// Use a texture stage that's not likely to be used for draws, to avoid waiting
-			OpenGLRHI->CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Src->Target, Src->Resource, -1, this->GetNumMips());
+			OpenGLRHI->CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Src->Target, Src->GetResource(), -1, this->GetNumMips());
 			
 			glBindBuffer( GL_PIXEL_PACK_BUFFER, PixelBuffer->Resource );
 			
@@ -1144,7 +1404,7 @@ void TOpenGLTexture<RHIResourceType>::CloneViaPBO( TOpenGLTexture<RHIResourceTyp
 				CachedBindPixelUnpackBuffer( PixelBuffer->Resource );
 				
 				// Use a texture stage that's not likely to be used for draws, to avoid waiting
-				OpenGLRHI->CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Target, Resource, -1, this->GetNumMips());
+				OpenGLRHI->CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Target, GetResource(), -1, this->GetNumMips());
 				
 				if( this->GetSizeZ() )
 				{
@@ -1244,6 +1504,7 @@ void TOpenGLTexture<RHIResourceType>::CloneViaPBO( TOpenGLTexture<RHIResourceTyp
 	CachedBindPixelUnpackBuffer(0);
 }
 
+template class TOpenGLTexture<FOpenGLBaseTexture>;
 
 /*-----------------------------------------------------------------------------
 	2D texture support.
@@ -1259,7 +1520,7 @@ void TOpenGLTexture<RHIResourceType>::CloneViaPBO( TOpenGLTexture<RHIResourceTyp
 */
 FTexture2DRHIRef FOpenGLDynamicRHI::RHICreateTexture2D(uint32 SizeX,uint32 SizeY,uint8 Format,uint32 NumMips,uint32 NumSamples,ETextureCreateFlags Flags, ERHIAccess InResourceState,FRHIResourceCreateInfo& Info)
 {
-	return (FRHITexture2D*)CreateOpenGLTexture(SizeX,SizeY,false,false,false,Format,NumMips,NumSamples,1,Flags,Info.ClearValueBinding,Info.BulkData);
+	return (FRHITexture2D*)CreateOpenGLTexture(SizeX, SizeY, false, false, false, Format, NumMips, NumSamples, 1, Flags, Info.ClearValueBinding, Info.BulkData);
 }
 
 /**
@@ -1565,6 +1826,7 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHITex
 		if (FRHITexture2D* Texture2DRHI = Texture->GetTexture2D())
 		{
 			FOpenGLTexture2D* Texture2D = ResourceCast(Texture2DRHI);
+			check(!Texture2D->IsEvicted());
 			FOpenGLShaderResourceView *View = 0;
 
 			if (FOpenGL::SupportsTextureView())
@@ -1581,7 +1843,7 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHITex
 					const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[Format == PF_Unknown ? Texture2D->GetFormat() : Format];
 					const bool bSRGB = (Texture2D->GetFlags()&TexCreate_SRGB) != 0;
 
-					FOpenGL::TextureView(Resource, Texture2D->Target, Texture2D->Resource, GLFormat.InternalFormat[bSRGB], MipLevel, NumMipLevels, 0, 1);
+					FOpenGL::TextureView(Resource, Texture2D->Target, Texture2D->GetResource(), GLFormat.InternalFormat[bSRGB], MipLevel, NumMipLevels, 0, 1);
 				}
 				else
 				{
@@ -1591,7 +1853,7 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHITex
 					const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[Texture2D->GetFormat()];
 
 					// create a second depth/stencil view
-					FOpenGL::TextureView(Resource, Texture2D->Target, Texture2D->Resource, GLFormat.InternalFormat[0], MipLevel, NumMipLevels, 0, 1);
+					FOpenGL::TextureView(Resource, Texture2D->Target, Texture2D->GetResource(), GLFormat.InternalFormat[0], MipLevel, NumMipLevels, 0, 1);
 
 					// Use a texture stage that's not likely to be used for draws, to avoid waiting
 					FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
@@ -1610,7 +1872,7 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHITex
 			else
 			{
 				uint32 const Target = Texture2D->Target;
-				GLuint Resource = Texture2D->Resource;
+				GLuint Resource = Texture2D->GetResource();
 
 				FRHITexture2D* DepthStencilTex = nullptr;
 
@@ -1688,13 +1950,13 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHITex
 				const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[Texture2DArray->GetFormat()];
 				const bool bSRGB = (Texture2DArray->GetFlags()&TexCreate_SRGB) != 0;
 
-				FOpenGL::TextureView(Resource, Texture2DArray->Target, Texture2DArray->Resource, GLFormat.InternalFormat[bSRGB], MipLevel, 1, 0, 1);
+				FOpenGL::TextureView(Resource, Texture2DArray->Target, Texture2DArray->GetResource(), GLFormat.InternalFormat[bSRGB], MipLevel, 1, 0, 1);
 
 				return new FOpenGLShaderResourceView(this, Resource, Texture2DArray->Target, MipLevel, true);
 			}
 			else
 			{
-				return new FOpenGLShaderResourceView(this, Texture2DArray->Resource, Texture2DArray->Target, MipLevel, false);
+				return new FOpenGLShaderResourceView(this, Texture2DArray->GetResource(), Texture2DArray->Target, MipLevel, false);
 			}
 		}
 		else if (FRHITextureCube* TextureCubeRHI = Texture->GetTextureCube())
@@ -1710,13 +1972,13 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHITex
 				const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[TextureCube->GetFormat()];
 				const bool bSRGB = (TextureCube->GetFlags()&TexCreate_SRGB) != 0;
 
-				FOpenGL::TextureView(Resource, TextureCube->Target, TextureCube->Resource, GLFormat.InternalFormat[bSRGB], MipLevel, 1, 0, 6);
+				FOpenGL::TextureView(Resource, TextureCube->Target, TextureCube->GetResource(), GLFormat.InternalFormat[bSRGB], MipLevel, 1, 0, 6);
 
 				return new FOpenGLShaderResourceView(this, Resource, TextureCube->Target, MipLevel, true);
 			}
 			else
 			{
-				return new FOpenGLShaderResourceView(this, TextureCube->Resource, TextureCube->Target, MipLevel, false);
+				return new FOpenGLShaderResourceView(this, TextureCube->GetResource(), TextureCube->Target, MipLevel, false);
 			}
 		}
 		else if (FRHITexture3D* Texture3DRHI = Texture->GetTexture3D())
@@ -1735,13 +1997,13 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHITex
 				const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[Texture3D->GetFormat()];
 				const bool bSRGB = (Texture3D->GetFlags()&TexCreate_SRGB) != 0;
 
-				FOpenGL::TextureView(Resource, Texture3D->Target, Texture3D->Resource, GLFormat.InternalFormat[bSRGB], MipLevel, 1, 0, 1);
+				FOpenGL::TextureView(Resource, Texture3D->Target, Texture3D->GetResource(), GLFormat.InternalFormat[bSRGB], MipLevel, 1, 0, 1);
 
 				return new FOpenGLShaderResourceView(this, Resource, Texture3D->Target, MipLevel, true);
 			}
 			else
 			{
-				return new FOpenGLShaderResourceView(this, Texture3D->Resource, Texture3D->Target, MipLevel, false);
+				return new FOpenGLShaderResourceView(this, Texture3D->GetResource(), Texture3D->Target, MipLevel, false);
 			}
 		}
 		else
@@ -1767,7 +2029,7 @@ void FOpenGLDynamicRHI::RHIGenerateMips(FRHITexture* SurfaceRHI)
 		FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
 		// Setup the texture on a disused unit
 		// need to figure out how to setup mips properly in no views case
-		CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Texture->Target, Texture->Resource, -1, 1);
+		CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Texture->Target, Texture->GetResource(), -1, 1);
 
 		FOpenGL::GenerateMipmap( Texture->Target);
 	}
@@ -1966,7 +2228,7 @@ void FOpenGLDynamicRHI::RHIUpdateTexture2D(FRHITexture2D* TextureRHI,uint32 MipI
 
 		// Use a texture stage that's not likely to be used for draws, to avoid waiting
 		FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
-		CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Texture->Target, Texture->Resource, 0, Texture->GetNumMips());
+		CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Texture->Target, Texture->GetResource(), 0, Texture->GetNumMips());
 		CachedBindPixelUnpackBuffer(ContextState, 0);
 
 		EPixelFormat PixelFormat = Texture->GetFormat();
@@ -2005,7 +2267,7 @@ void FOpenGLDynamicRHI::RHIUpdateTexture3D(FRHITexture3D* TextureRHI, uint32 Mip
 
 	// Use a texture stage that's not likely to be used for draws, to avoid waiting
 	FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
-	CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Texture->Target, Texture->Resource, 0, Texture->GetNumMips());
+	CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Texture->Target, Texture->GetResource(), 0, Texture->GetNumMips());
 	CachedBindPixelUnpackBuffer(ContextState, 0);
 
 	EPixelFormat PixelFormat = Texture->GetFormat();
@@ -2081,7 +2343,7 @@ void FOpenGLDynamicRHI::InvalidateTextureResourceInCache(GLuint Resource)
 	
 	TextureMipLimits.Remove(Resource);
 	
-	if (PendingState.DepthStencil && PendingState.DepthStencil->Resource == Resource)
+	if (PendingState.DepthStencil && PendingState.DepthStencil->GetResource() == Resource)
 	{
 		PendingState.DepthStencil = nullptr;
 	}
@@ -2145,12 +2407,20 @@ void FOpenGLDynamicRHI::RHIUnlockTextureCubeFace(FRHITextureCube* TextureCubeRHI
 
 void FOpenGLDynamicRHI::RHIBindDebugLabelName(FRHITexture* TextureRHI, const TCHAR* Name)
 {
+#if GLDEBUG_LABELS_ENABLED
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	if (ShouldRunGLRenderContextOpOnThisThread(RHICmdList))
 	{
 		VERIFY_GL_SCOPE();
 		FOpenGLTextureBase* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
-		FOpenGL::LabelObject(GL_TEXTURE, Texture->Resource, TCHAR_TO_ANSI(Name));
+		if (Texture->IsEvicted())
+		{
+			Texture->EvictionParamsPtr->SetDebugLabelName(TCHAR_TO_ANSI(Name));
+		}
+		else
+		{
+			FOpenGL::LabelObject(GL_TEXTURE, Texture->GetResource(), TCHAR_TO_ANSI(Name));
+		}
 	}
 	else
 	{
@@ -2161,9 +2431,17 @@ void FOpenGLDynamicRHI::RHIBindDebugLabelName(FRHITexture* TextureRHI, const TCH
 		{
 			VERIFY_GL_SCOPE();
 			FOpenGLTextureBase* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
-			FOpenGL::LabelObject(GL_TEXTURE, Texture->Resource, TextureDebugName.GetData());
+			if (Texture->IsEvicted())
+			{
+				Texture->EvictionParamsPtr->SetDebugLabelName(TextureDebugName);
+			}
+			else
+			{
+				FOpenGL::LabelObject(GL_TEXTURE, Texture->GetResource(), TextureDebugName.GetData());
+			}
 		});
 	}
+#endif
 }
 
 
@@ -2191,6 +2469,22 @@ void FOpenGLDynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureR
 	auto* TextureRef = (FOpenGLTextureReference*)TextureRefRHI;
 	if (TextureRef)
 	{
+		if( DeferTextureCreationAllowEviction.GetValueOnAnyThread() )
+		{
+			FRHITexture* OldTexture = TextureRef->GetReferencedTexture();
+			if(OldTexture)
+			{
+				FOpenGLTextureBase* OldTextureGL = GetOpenGLTextureFromRHITexture(OldTexture);
+				if(OldTextureGL->CanCreateAsEvicted())
+				{
+					RunOnGLRenderContextThread([OldTextureGL = OldTextureGL]()
+						{
+							OldTextureGL->TryEvictGLResource();
+						});
+				}
+			}
+		}
+
 		TextureRef->SetReferencedTexture(NewTextureRHI);
 	}
 }
@@ -2205,7 +2499,7 @@ void FOpenGLDynamicRHI::RHICopySubTextureRegion(FRHITexture2D* SourceTextureRHI,
 
 	// Use a texture stage that's not likely to be used for draws, to avoid waiting
 	FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
-	CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, DestinationTexture->Target, DestinationTexture->Resource, 0, DestinationTexture->GetNumMips());
+	CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, DestinationTexture->Target, DestinationTexture->GetResource(), 0, DestinationTexture->GetNumMips());
 	CachedBindPixelUnpackBuffer(ContextState, 0);
 
 	// Convert sub texture regions to GL types
@@ -2304,8 +2598,8 @@ void FOpenGLDynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITextur
 
 		for (uint32 MipIndex = 0; MipIndex < CopyInfo.NumMips; ++MipIndex)
 		{
-			FOpenGL::CopyImageSubData(SourceTexture->Resource, SourceTexture->Target, SrcMip, CopyInfo.SourcePosition.X, CopyInfo.SourcePosition.Y, SrcZOffset,
-				DestTexture->Resource, DestTexture->Target, DestMip, CopyInfo.DestPosition.X, CopyInfo.DestPosition.Y, DestZOffset,
+			FOpenGL::CopyImageSubData(SourceTexture->GetResource(), SourceTexture->Target, SrcMip, CopyInfo.SourcePosition.X, CopyInfo.SourcePosition.Y, SrcZOffset,
+				DestTexture->GetResource(), DestTexture->Target, DestMip, CopyInfo.DestPosition.X, CopyInfo.DestPosition.Y, DestZOffset,
 				Width, Height, Depth);
 
 			++SrcMip;
@@ -2332,7 +2626,7 @@ void FOpenGLDynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITextur
 
 	// Use a texture stage that's not likely to be used for draws, to avoid waiting
 	FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
-	CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, DestTexture->Target, DestTexture->Resource, 0, DestTextureRHI->GetNumMips());
+	CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, DestTexture->Target, DestTexture->GetResource(), 0, DestTextureRHI->GetNumMips());
 	CachedBindPixelUnpackBuffer(ContextState, 0);
 
 	// Bind source texture to an FBO to read from
@@ -2480,6 +2774,7 @@ FTextureRHIRef FOpenGLDynamicRHI::RHICreateAliasedTexture(FTextureRHIRef& Source
 
 void FOpenGLDynamicRHI::RHIAliasTextureResources(FRHITexture* DestRHITexture, FRHITexture* SrcRHITexture)
 {
+	VERIFY_GL_SCOPE();
 	FOpenGLTextureBase* DestTexture = GetOpenGLTextureFromRHITexture(DestRHITexture);
 	FOpenGLTextureBase* SrcTexture = GetOpenGLTextureFromRHITexture(SrcRHITexture);
 
@@ -2611,7 +2906,7 @@ void FOpenGLDynamicRHI::UnlockTexture2D_RenderThread(class FRHICommandListImmedi
 			FMemory::Free(Params.Buffer);
 			this->RHIUnlockTexture2D(Texture, MipIndex, bLockWithinMiptail);
 		};
-		ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)(GLCommand);
+		ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)(MoveTemp(GLCommand));
 	}
 }
 
@@ -2665,7 +2960,7 @@ void FOpenGLDynamicRHI::RHIUnlockTextureCubeFace_RenderThread(class FRHICommandL
 			FMemory::Free(Params.Buffer);
 			this->RHIUnlockTextureCubeFace(Texture, FaceIndex, ArrayIndex, MipIndex, bLockWithinMiptail);
 		};
-		ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)(GLCommand);
+		ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)(MoveTemp(GLCommand));
 	}
 }
 
@@ -2681,7 +2976,7 @@ void* FOpenGLDynamicRHI::LockTexture2DArray_RenderThread(class FRHICommandListIm
 	{
 		RHITHREAD_GLCOMMAND_PROLOGUE();
 		return this->RHILockTexture2DArray(Texture, ArrayIndex, MipIndex, LockMode, DestStride, bLockWithinMiptail);
-		RHITHREAD_GLCOMMAND_EPILOGUE_GET_RETURN(void *);
+		RHITHREAD_GLCOMMAND_EPILOGUE_GET_RETURN(void*);
 		Result = ReturnValue;
 		MipBytes = ResourceCast_Unfenced(Texture)->GetLockSize(MipIndex, ArrayIndex, LockMode, DestStride);
 	}
@@ -2721,8 +3016,102 @@ void FOpenGLDynamicRHI::UnlockTexture2DArray_RenderThread(class FRHICommandListI
 			FMemory::Free(Params.Buffer);
 			this->RHIUnlockTexture2DArray(Texture, ArrayIndex, MipIndex, bLockWithinMiptail);
 		};
-		ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)(GLCommand);
+		ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)(MoveTemp(GLCommand));
 	}
 }
 
 
+void LogTextureEvictionDebugInfo()
+{
+	UE_LOG(LogRHI, Warning, TEXT("txdbg: Texture mipmem %d. GTotalTexStorageSkipped %d, GTotalCompressedTexStorageSkipped %d, Total noncompressed = %d"), GTotalEvictedMipMemStored, GTotalTexStorageSkipped, GTotalCompressedTexStorageSkipped, GTotalTexStorageSkipped - GTotalCompressedTexStorageSkipped);
+	UE_LOG(LogRHI, Warning, TEXT("txdbg: Texture GTotalEvictedMipMemDuplicated %d"), GTotalEvictedMipMemDuplicated);
+	UE_LOG(LogRHI, Warning, TEXT("txdbg: Texture GTotalMipRestores %d, GTotalMipStoredCount %d"), GTotalMipRestores, GTotalMipStoredCount);
+	UE_LOG(LogRHI, Warning, TEXT("txdbg: Texture GAvgRestoreTime %f (%d), GMaxRestoreTime %f"), GAvgRestoreCount ? GAvgRestoreTime / GAvgRestoreCount : 0.f, GAvgRestoreCount, GMaxRestoreTime);
+
+	GAvgRestoreCount = 0;
+	GMaxRestoreTime = 0;
+	GAvgRestoreTime = 0;
+}
+
+FTextureEvictionParams::FTextureEvictionParams(uint32 NumMips) : bHasRestored(0), bIsDestructing(0)
+{
+	MipImageData.Reserve(NumMips);
+	MipImageData.SetNum(NumMips);
+}
+
+FTextureEvictionParams::~FTextureEvictionParams()
+{
+	VERIFY_GL_SCOPE();
+
+	if (bHasRestored)
+	{
+		GTotalEvictedMipMemDuplicated -= GetTotalAllocated();
+	}
+
+	for (int i = MipImageData.Num() - 1; i >= 0; i--)
+	{
+		GTotalEvictedMipMemStored -= MipImageData[i].Num();
+	}
+	GTotalMipStoredCount -= MipImageData.Num();
+}
+
+void FTextureEvictionParams::SetMipData(uint32 MipIndex, const void* Data, uint32 Bytes)
+{
+	checkf(Bytes, TEXT("MipIndex %d, Data %p, Bytes %d)"), MipIndex, Data, Bytes);
+
+	VERIFY_GL_SCOPE();
+	if (MipImageData[MipIndex].Num())
+	{
+		// already have data??
+		checkNoEntry();
+	}
+	else
+	{
+		GTotalMipStoredCount++;
+	}
+	MipImageData[MipIndex].Reserve(Bytes);
+	MipImageData[MipIndex].SetNumUninitialized(Bytes);
+	if(Data)
+	{
+		FMemory::Memcpy(MipImageData[MipIndex].GetData(), Data, Bytes);
+	}
+	GTotalEvictedMipMemStored += Bytes;
+}
+
+void FTextureEvictionParams::CloneMipData(const FTextureEvictionParams& Src, uint32 InNumMips, int32 SrcOffset, int DstOffset)
+{
+	VERIFY_GL_SCOPE();
+
+	int32 MaxMip = FMath::Min((int32)InNumMips, (int32)Src.MipImageData.Num() - SrcOffset);
+	for (int32 MipIndex = 0; MipIndex < MaxMip; ++MipIndex)
+	{
+		if (MipImageData[MipIndex + DstOffset].Num())
+		{
+			checkNoEntry();
+		}
+		else
+		{
+			GTotalMipStoredCount++;
+		}
+		MipImageData[MipIndex + DstOffset] = Src.MipImageData[MipIndex + SrcOffset];
+		GTotalEvictedMipMemStored += MipImageData[MipIndex + DstOffset].Num();
+	}
+}
+
+void FTextureEvictionParams::ReleaseMipData(uint32 RetainMips)
+{
+	VERIFY_GL_SCOPE();
+
+	for (int i = MipImageData.Num() - 1 - RetainMips; i >= 0; i--)
+	{
+		GTotalEvictedMipMemStored -= MipImageData[i].Num();
+		GTotalMipStoredCount -= MipImageData[i].Num() ? 1 : 0;
+		MipImageData[i].Empty();
+	}
+
+	// if we're retaining mips then keep entire MipImageData array to ensure there's no MipIndex confusion.
+	if (RetainMips == 0)
+	{
+		MipImageData.Empty();
+	}
+}
