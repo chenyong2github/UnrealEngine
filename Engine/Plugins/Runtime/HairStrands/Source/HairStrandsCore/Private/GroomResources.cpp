@@ -21,6 +21,7 @@
 #include "RenderGraph.h"
 #include "RenderGraphUtils.h"
 #include "RenderTargetPool.h"
+#include "GroomBindingBuilder.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////
 // FRWBuffer utils 
@@ -915,14 +916,10 @@ FArchive& operator<<(FArchive& Ar, FHairStrandsRootData::FMeshProjectionLOD& LOD
 	Ar << LOD.MeshSampleIndicesBuffer;
 	Ar << LOD.RestSamplePositionsBuffer;
 
-	//Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
-	/*if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::GroomAssetWithRbfWeights)
+	if (Ar.IsLoading())
 	{
-		Ar << LOD.SampleCount;
-		Ar << LOD.MeshInterpolationWeightsBuffer;
-		Ar << LOD.MeshSampleIndicesBuffer;
-		Ar << LOD.RestSamplePositionsBuffer;
-	}*/
+		FGroomBindingBuilder::BuildUniqueSections(LOD);
+	}
 	return Ar;
 }
 

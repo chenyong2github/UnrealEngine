@@ -17,6 +17,7 @@ uint MeshIndexOffset		[MAX_SECTION_COUNT];
 uint MeshUVsChannelOffset	[MAX_SECTION_COUNT];
 uint MeshUVsChannelCount	[MAX_SECTION_COUNT];
 uint MeshSectionBufferIndex	[MAX_SECTION_COUNT];
+uint MeshSectionIndices		[MAX_SECTION_COUNT];
 
 Buffer<uint> MeshIndexBuffer0;
 Buffer<uint> MeshIndexBuffer1;
@@ -170,11 +171,22 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	const uint SectionIndex = TriangleIndex.SectionIndex;
 
-	if (!(Pass_SectionStart <= SectionIndex && SectionIndex < Pass_SectionStart + Pass_SectionCount))
+	bool bValid = false;
+	uint SectionSlotIndex = 0;
+	for (uint It=0;It<Pass_SectionCount;++It)
+	{
+		if (MeshSectionIndices[It] == SectionIndex)
+		{
+			SectionSlotIndex = It;
+			bValid = true;
+			break;
+		}
+	}
+	
+	if (!bValid)
 		return;
 
 	// Compute the slod index of the resources for the section index (this is done in multiple pass
-	const uint SectionSlotIndex = SectionIndex - Pass_SectionStart;
 #if PERMUTATION_WITHUV == 1
 	const FHairMeshTriangleWithUVs Tri = GetTriangleData(TriangleIndex, SectionSlotIndex);
 

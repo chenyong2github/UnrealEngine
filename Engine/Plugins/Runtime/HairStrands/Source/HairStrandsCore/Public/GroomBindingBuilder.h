@@ -8,6 +8,7 @@
 #include "GroomSettings.h"
 #include "HairStrandsInterface.h"
 #include "HairStrandsMeshProjection.h"
+#include "HairStrandsDatas.h"
 
 struct FHairStrandsRestRootResource;
 
@@ -32,4 +33,7 @@ struct HAIRSTRANDSCORE_API FGroomBindingBuilder
 		const FTransform& LocalToWorld,
 		const FHairStrandsProjectionMeshData& TargetMeshData,
 		TArray<FHairStrandsRestRootResource*>& InRestRootResources);
+
+	// Update the root mesh projection data with unique valid mesh section IDs, based on the projection data
+	static void BuildUniqueSections(FHairStrandsRootData::FMeshProjectionLOD& LOD);
 };
