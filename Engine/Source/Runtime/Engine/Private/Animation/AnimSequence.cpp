@@ -4935,9 +4935,6 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 	const bool bPlayingForwards = MoveDelta > 0.f;
 	float CurrentMoveDelta = MoveDelta;
 
-	bool bOffsetInitialized = false;
-	float MarkerTimeOffset = 0.f;
-
 	// Hard to reproduce issue triggering this, ensure & clamp for now
 	ensureMsgf(CurrentTime >= 0.f && CurrentTime <= SequenceLength, TEXT("Current time inside of AdvanceMarkerPhaseAsLeader is out of range %.3f of 0.0 to %.3f\n    Sequence: %s"), CurrentTime, SequenceLength, *GetFullName());
 
@@ -4957,21 +4954,11 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 			}
 			const FAnimSyncMarker& NextSyncMarker = AuthoredSyncMarkers[NextMarker.MarkerIndex];
 			checkSlow(ValidMarkerNames.Contains(NextSyncMarker.MarkerName));
-			if (!bOffsetInitialized)
-			{
-				bOffsetInitialized = true;
-				if (NextSyncMarker.Time < CurrentTime)
-				{
-					MarkerTimeOffset = SequenceLength;
-				}
-			}
 
-			const float TimeToMarker = NextMarker.TimeToMarker;
-
-			if (CurrentMoveDelta > TimeToMarker)
+			if (CurrentMoveDelta > NextMarker.TimeToMarker)
 			{
 				CurrentTime = NextSyncMarker.Time;
-				CurrentMoveDelta -= TimeToMarker;
+				CurrentMoveDelta -= NextMarker.TimeToMarker;
 
 				PrevMarker.MarkerIndex = NextMarker.MarkerIndex;
 				PrevMarker.TimeToMarker = -CurrentMoveDelta;
@@ -4980,6 +4967,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 				MarkersPassed[PassedMarker].PassedMarkerName = NextSyncMarker.MarkerName;
 				MarkersPassed[PassedMarker].DeltaTimeWhenPassed = CurrentMoveDelta;
 
+				float MarkerTimeOffset = 0.f;
 				do
 				{
 					++NextMarker.MarkerIndex;
@@ -4991,7 +4979,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 							break;
 						}
 						NextMarker.MarkerIndex = 0;
-						MarkerTimeOffset += SequenceLength;
+						MarkerTimeOffset = SequenceLength;
 					}
 				} while (!ValidMarkerNames.Contains(AuthoredSyncMarkers[NextMarker.MarkerIndex].MarkerName));
 				if (NextMarker.MarkerIndex != -1)
@@ -5006,7 +4994,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 				{
 					CurrentTime += SequenceLength;
 				}
-				NextMarker.TimeToMarker = TimeToMarker - CurrentMoveDelta;
+				NextMarker.TimeToMarker -= CurrentMoveDelta;
 				PrevMarker.TimeToMarker -= CurrentMoveDelta;
 				break;
 			}
@@ -5026,21 +5014,11 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 			}
 			const FAnimSyncMarker& PrevSyncMarker = AuthoredSyncMarkers[PrevMarker.MarkerIndex];
 			checkSlow(ValidMarkerNames.Contains(PrevSyncMarker.MarkerName));
-			if (!bOffsetInitialized)
-			{
-				bOffsetInitialized = true;
-				if (PrevSyncMarker.Time > CurrentTime)
-				{
-					MarkerTimeOffset = -SequenceLength;
-				}
-			}
-
-			const float TimeToMarker = PrevMarker.TimeToMarker;
-
-			if (CurrentMoveDelta < TimeToMarker)
+			
+			if (CurrentMoveDelta < PrevMarker.TimeToMarker)
 			{
 				CurrentTime = PrevSyncMarker.Time;
-				CurrentMoveDelta -= TimeToMarker;
+				CurrentMoveDelta -= PrevMarker.TimeToMarker;
 
 				NextMarker.MarkerIndex = PrevMarker.MarkerIndex;
 				NextMarker.TimeToMarker = -CurrentMoveDelta;
@@ -5049,6 +5027,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 				MarkersPassed[PassedMarker].PassedMarkerName = PrevSyncMarker.MarkerName;
 				MarkersPassed[PassedMarker].DeltaTimeWhenPassed = CurrentMoveDelta;
 
+				float MarkerTimeOffset = 0.f;
 				do
 				{
 					--PrevMarker.MarkerIndex;
@@ -5075,7 +5054,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 				{
 					CurrentTime += SequenceLength;
 				}
-				PrevMarker.TimeToMarker = TimeToMarker - CurrentMoveDelta;
+				PrevMarker.TimeToMarker -= CurrentMoveDelta;
 				NextMarker.TimeToMarker -= CurrentMoveDelta;
 				break;
 			}
@@ -5714,14 +5693,16 @@ float UAnimSequence::GetCurrentTimeFromMarkers(FMarkerPair& PrevMarker, FMarkerP
 		PrevTime -= SequenceLength; //Account for looping
 	}
 	float CurrentTime = PrevTime + PositionBetweenMarkers * (NextTime - PrevTime);
+
+	PrevMarker.TimeToMarker = PrevTime - CurrentTime;
+	NextMarker.TimeToMarker = NextTime - CurrentTime;
+
 	if (CurrentTime < 0.f)
 	{
 		CurrentTime += SequenceLength;
 	}
 	CurrentTime = FMath::Clamp<float>(CurrentTime, 0, SequenceLength);
 
-	PrevMarker.TimeToMarker = PrevTime - CurrentTime;
-	NextMarker.TimeToMarker = NextTime - CurrentTime;
 	return CurrentTime;
 }
 
