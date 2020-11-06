@@ -442,6 +442,20 @@ static FAutoConsoleVariableRef CVarDumpShaderDebugSCWCommandLine(
 	TEXT("When set to 1, it will generate a file that can be used with ShaderCompileWorker's -directcompile.")
 	);
 
+static int32 GShaderMapCompilationTimeout = 30 * 60;
+static FAutoConsoleVariableRef CVarShaderMapCompilationTimeout(
+	TEXT("r.ShaderCompiler.ShadermapCompilationTimeout"),
+	GShaderMapCompilationTimeout,
+	TEXT("Maximum number of seconds a single shadermap (which can be comprised of multiple jobs) can be compiled after being considered hung.")
+);
+
+static int32 GCrashOnHungShaderMaps = 0;
+static FAutoConsoleVariableRef CVarCrashOnHungShaderMaps(
+	TEXT("r.ShaderCompiler.CrashOnHungShaderMaps"),
+	GCrashOnHungShaderMaps,
+	TEXT("If set to 1, the shader compiler will crash on hung shadermaps.")
+);
+
 static int32 GLogShaderCompilerStats = 0;
 static FAutoConsoleVariableRef CVarLogShaderCompilerStats(
 	TEXT("r.LogShaderCompilerStats"),
@@ -2659,10 +2673,10 @@ void FShaderCompilingManager::BlockOnShaderMapCompletion(const TArray<int32>& Sh
 
 				for (int32 ShaderMapIndex = 0; ShaderMapIndex < ShaderMapIdsToFinishCompiling.Num(); ShaderMapIndex++)
 				{
-					const FPendingShaderMapCompileResultsPtr* ResultsPtr = ShaderMapJobs.Find(ShaderMapIdsToFinishCompiling[ShaderMapIndex]);
+					FPendingShaderMapCompileResultsPtr* ResultsPtr = ShaderMapJobs.Find(ShaderMapIdsToFinishCompiling[ShaderMapIndex]);
 					if (ResultsPtr)
 					{
-						const FShaderMapCompileResults* Results = *ResultsPtr;
+						FShaderMapCompileResults* Results = *ResultsPtr;
 
 						if (Results->NumPendingJobs.GetValue() == 0)
 						{
@@ -2674,6 +2688,7 @@ void FShaderCompilingManager::BlockOnShaderMapCompletion(const TArray<int32>& Sh
 						}
 						else
 						{
+							Results->CheckIfHung();
 							NumPendingJobs += Results->NumPendingJobs.GetValue();
 						}
 					}
@@ -2755,7 +2770,7 @@ void FShaderCompilingManager::BlockOnAllShaderMapCompletion(TMap<int32, FShaderM
 
 				for (TMap<int32, FPendingShaderMapCompileResultsPtr>::TIterator It(ShaderMapJobs); It; ++It)
 				{
-					const FShaderMapCompileResults* Results = It.Value();
+					FShaderMapCompileResults* Results = It.Value();
 
 					if (Results->NumPendingJobs.GetValue() == 0)
 					{
@@ -2764,6 +2779,7 @@ void FShaderCompilingManager::BlockOnAllShaderMapCompletion(TMap<int32, FShaderM
 					}
 					else
 					{
+						Results->CheckIfHung();
 						NumPendingJobs += Results->NumPendingJobs.GetValue();
 					}
 				}
@@ -2795,6 +2811,12 @@ void FShaderCompilingManager::BlockOnAllShaderMapCompletion(TMap<int32, FShaderM
 			for (const auto& Thread : Threads)
 			{
 				NumActiveWorkers = Thread->CompilingLoop();
+			}
+
+			for (TMap<int32, FPendingShaderMapCompileResultsPtr>::TIterator It(ShaderMapJobs); It; ++It)
+			{
+				FShaderMapCompileResults* Results = It.Value();
+				Results->CheckIfHung();
 			}
 		} 
 		while (NumActiveWorkers > 0);
@@ -3331,6 +3353,34 @@ bool FShaderCompilingManager::HandlePotentialRetryOnError(TMap<int32, FShaderMap
 	}
 
 	return bRetryCompile;
+}
+
+void FShaderMapCompileResults::CheckIfHung()
+{
+	if (!bIsHung)
+	{
+		double DurationSoFar = FPlatformTime::Seconds() - TimeStarted;
+		if (DurationSoFar >= static_cast<double>(GShaderMapCompilationTimeout))
+		{
+			bIsHung = true;
+			if (GCrashOnHungShaderMaps)
+			{
+				UE_LOG(LogShaderCompilers, Fatal, TEXT("Crashing on a hung shadermap, time spent compiling: %f seconds, NumPendingJobs: %d, FinishedJobs: %d"),
+					DurationSoFar,
+					NumPendingJobs.GetValue(),
+					FinishedJobs.Num()
+				);
+			}
+			else
+			{
+				UE_LOG(LogShaderCompilers, Error, TEXT("Hung shadermap detected, time spent compiling: %f seconds, NumPendingJobs: %d, FinishedJobs: %d"),
+					DurationSoFar,
+					NumPendingJobs.GetValue(),
+					FinishedJobs.Num()
+				);
+			}
+		}
+	}
 }
 
 void FShaderCompilingManager::CancelCompilation(const TCHAR* MaterialName, const TArray<int32>& ShaderMapIdsToCancel)
