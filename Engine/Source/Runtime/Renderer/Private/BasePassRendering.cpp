@@ -255,17 +255,19 @@ void SetTranslucentRenderState(FMeshPassProcessorRenderState& DrawRenderState, c
 FMeshDrawCommandSortKey CalculateTranslucentMeshStaticSortKey(const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, uint16 MeshIdInPrimitive)
 {
 	uint16 SortKeyPriority = 0;
+	float DistanceOffset = 0.0f;
 
 	if (PrimitiveSceneProxy)
 	{
 		const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 		SortKeyPriority = (uint16)((int32)PrimitiveSceneInfo->Proxy->GetTranslucencySortPriority() - (int32)SHRT_MIN);
+		DistanceOffset = PrimitiveSceneInfo->Proxy->GetTranslucencySortDistanceOffset();
 	}
 
 	FMeshDrawCommandSortKey SortKey;
 	SortKey.Translucent.MeshIdInPrimitive = MeshIdInPrimitive;
 	SortKey.Translucent.Priority = SortKeyPriority;
-	SortKey.Translucent.Distance = 0; // View specific, so will be filled later inside VisibleMeshCommands.
+	SortKey.Translucent.Distance = *(uint32*)(&DistanceOffset); // View specific, so will be filled later inside VisibleMeshCommands.
 
 	return SortKey;
 }
