@@ -12,6 +12,8 @@
 #include "RendererInterface.h"
 #include "RenderGraphResources.h"
 
+#define LOG_MAX_RENDER_TARGET_POOL_USAGE !UE_BUILD_SHIPPING
+
 /** The reference to a pooled render target, use like this: TRefCountPtr<IPooledRenderTarget> */
 struct RENDERCORE_API FPooledRenderTarget : public IPooledRenderTarget
 {
@@ -392,6 +394,10 @@ private:
 	TArray<FRenderTargetPoolEvent> RenderTargetPoolEvents;
 	//
 	uint32 CurrentEventRecordingTime;
+
+#if LOG_MAX_RENDER_TARGET_POOL_USAGE
+	uint32 MaxUsedRenderTargetInKB;
+#endif
 
 	//
 	void AddDeallocEvents();
