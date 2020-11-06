@@ -353,6 +353,12 @@ namespace Audio
 				InitParams.QuantizedRequestData = *WaveInstance->QuantizedRequestData;
 			}
 
+			// Copy quantization request data
+			if (WaveInstance->QuantizedRequestData)
+			{
+				InitParams.QuantizedRequestData = *WaveInstance->QuantizedRequestData;
+			}
+
 			if (WaveInstance->bIsAmbisonics && (WaveData->NumChannels != 4))
 			{
 				UE_LOG(LogAudioMixer, Warning, TEXT("Sound wave %s was flagged as being ambisonics but had a channel count of %d. Currently the audio engine only supports FOA sources that have four channels."), *InWaveInstance->GetName(), WaveData->NumChannels);
