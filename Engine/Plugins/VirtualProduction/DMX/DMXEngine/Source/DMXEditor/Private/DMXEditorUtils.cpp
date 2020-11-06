@@ -944,9 +944,12 @@ void FDMXEditorUtils::ClearFixturePatchCachedData()
 		TArray<UDMXLibrary*> DMXLibraries = Subsystem->GetAllDMXLibraries();
 		for (UDMXLibrary* Library : DMXLibraries)
 		{
-			Library->ForEachEntityOfType<UDMXEntityFixturePatch>([](UDMXEntityFixturePatch* Patch) {
-				Patch->ClearCachedData();
+			if (Library != nullptr && Library->IsValidLowLevel())
+			{
+				Library->ForEachEntityOfType<UDMXEntityFixturePatch>([](UDMXEntityFixturePatch* Patch) {
+					Patch->ClearCachedData();
 				});
+			}
 		}
 	}
 }
