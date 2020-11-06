@@ -165,7 +165,7 @@ public:
 	static bool IsPerInstanceEngineParameter(const FNiagaraVariable& InVar, const FString& EmitterAlias);
 	static bool IsUserParameter(const FNiagaraVariable& InVar);
 	static bool IsRapidIterationParameter(const FNiagaraVariable& InVar);
-	static bool SplitRapidIterationParameterName(const FNiagaraVariable& InVar, FString& EmitterName, FString& FunctionCallName, FString& InputName);
+	static bool SplitRapidIterationParameterName(const FNiagaraVariable& InVar, ENiagaraScriptUsage InUsage, FString& EmitterName, FString& FunctionCallName, FString& InputName);
 	
 	/** Take an input string and make it hlsl safe.*/
 	static FString MakeSafeNamespaceString(const FString& InStr);

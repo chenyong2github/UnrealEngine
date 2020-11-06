@@ -1605,7 +1605,7 @@ void FNiagaraStackGraphUtilities::CleanUpStaleRapidIterationParameters(UNiagaraS
 			FString EmitterName;
 			FString FunctionCallName;
 			FString InputName;
-			if (FNiagaraParameterMapHistory::SplitRapidIterationParameterName(RapidIterationParameter, EmitterName, FunctionCallName, InputName))
+			if (FNiagaraParameterMapHistory::SplitRapidIterationParameterName(RapidIterationParameter, Script.GetUsage(), EmitterName, FunctionCallName, InputName))
 			{
 				if (EmitterName != OwningEmitter.GetUniqueEmitterName() || ValidFunctionCallNames.Contains(FunctionCallName) == false)
 				{
@@ -2243,7 +2243,7 @@ void FNiagaraStackGraphUtilities::MoveModule(UNiagaraScript& SourceScript, UNiag
 			FString FunctionCallName;
 			FString InputName;
 			if (FNiagaraParameterMapHistory::SplitRapidIterationParameterName(
-				ScriptRapidIterationParameter, EmitterName, FunctionCallName, InputName))
+				ScriptRapidIterationParameter, SourceScript.GetUsage(), EmitterName, FunctionCallName, InputName))
 			{
 				FGuid* NodeIdPtr = FunctionCallNameToNodeIdMap.Find(FunctionCallName);
 				if (NodeIdPtr != nullptr)
@@ -2413,7 +2413,7 @@ void FNiagaraStackGraphUtilities::MoveModule(UNiagaraScript& SourceScript, UNiag
 					FString OldEmitterName;
 					FString OldFunctionCallName;
 					FString InputName;
-					FNiagaraParameterMapHistory::SplitRapidIterationParameterName(RapidIterationParameter, OldEmitterName, OldFunctionCallName, InputName);
+					FNiagaraParameterMapHistory::SplitRapidIterationParameterName(RapidIterationParameter, SourceScript.GetUsage(), OldEmitterName, OldFunctionCallName, InputName);
 					FNiagaraParameterHandle ModuleHandle = FNiagaraParameterHandle::CreateModuleParameterHandle(*InputName);
 					FNiagaraParameterHandle AliasedModuleHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(ModuleHandle, TargetFunctionNode);
 					FNiagaraVariable TargetRapidIterationParameter = CreateRapidIterationParameter(EmitterName, TargetUsage, AliasedModuleHandle.GetParameterHandleString(), RapidIterationParameter.GetType());
@@ -2722,7 +2722,7 @@ void FNiagaraStackGraphUtilities::RenameReferencingParameters(UNiagaraSystem* Sy
 		for (FNiagaraVariable& Variable : RapidIterationVariables)
 		{
 			FString EmitterName, FunctionCallName, InputName;
-			if (FNiagaraParameterMapHistory::SplitRapidIterationParameterName(Variable, EmitterName, FunctionCallName, InputName))
+			if (FNiagaraParameterMapHistory::SplitRapidIterationParameterName(Variable, Script->GetUsage(), EmitterName, FunctionCallName, InputName))
 			{
 				if (EmitterName == OwningEmitterName && FunctionCallName == OldModuleName)
 				{
