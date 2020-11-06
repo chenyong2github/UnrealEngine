@@ -235,7 +235,7 @@ static void ClusterTriangles(
 			uint32 Hash = Murmur32( { Hash0, Hash1 } );
 
 			EdgeHash.Add_Concurrent( Hash, EdgeIndex );
-		}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
+		});
 
 	const int32 NumDwords = FMath::DivideAndRoundUp( BoundaryEdges.Num(), NumBitsPerDWORD );
 
@@ -296,7 +296,7 @@ static void ClusterTriangles(
 			{
 				BoundaryEdges.GetData()[ DwordIndex ] = Dword;
 			}
-		}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
+		});
 
 	FDisjointSet DisjointSet( NumTriangles );
 
@@ -380,8 +380,6 @@ static void ClusterTriangles(
 	Clusters.AddDefaulted( Partitioner.Ranges.Num() );
 
 	const bool bSingleThreaded = Partitioner.Ranges.Num() > 32;
-	const EParallelForFlags ThreadingFlags = bSingleThreaded ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None;
-	const EParallelForFlags PriorityFlags = IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::BuildClusters"));
 		ParallelFor( Partitioner.Ranges.Num(),
@@ -393,7 +391,7 @@ static void ClusterTriangles(
 
 				// Negative notes it's a leaf
 				Clusters[ Index ].EdgeLength *= -1.0f;
-			}, ThreadingFlags | PriorityFlags);
+			}, bSingleThreaded);
 	}
 
 	uint32 LeavesTime = FPlatformTime::Cycles();

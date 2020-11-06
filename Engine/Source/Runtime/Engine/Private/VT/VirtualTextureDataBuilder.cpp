@@ -617,9 +617,7 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 		// uses TaskGraph in combination with FAsyncTask.
 		bool bUsesTaskGraph = Compressor->UsesTaskGraph(TBSettings);
 
-		const EParallelForFlags ThreadingFlag = (bAllowAsync && !bUsesTaskGraph) ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread;
-		const EParallelForFlags PriorityFlag = IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority;
-
+		const bool bIsSingleThreaded = !bAllowAsync || bUsesTaskGraph;
 		ParallelFor(TileList.Num(), [&](int32 TileIndex)
 		{
 			const FVTSourceTileEntry& Tile = TileList[TileIndex];
@@ -684,7 +682,7 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 			{
 				GeneratedData.TilePayload[TileIndex] = MoveTemp(CompressedMip[0].RawData);
 			}
-		}, ThreadingFlag | PriorityFlag); // ParallelFor
+		}, bIsSingleThreaded);
 
 		if (BuildSettingsLayer0.bVirtualTextureEnableCompressZlib)
 		{

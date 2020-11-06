@@ -1425,6 +1425,11 @@ public:
 		return Result;
 	}
 
+	virtual bool IsCurrentThreadKnown() final override
+	{
+		return FPlatformTLS::GetTlsValue(PerThreadIDTLSSlot) != nullptr;
+	}
+
 	virtual ENamedThreads::Type GetCurrentThreadIfKnown(bool bLocalQueue) final override
 	{
 		ENamedThreads::Type Result = GetCurrentThread();

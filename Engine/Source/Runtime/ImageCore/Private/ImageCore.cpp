@@ -70,7 +70,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 					{
 						DestLum[TexelIndex] = SrcColors[TexelIndex].ToFColor(bDestIsGammaCorrected).R;
 					}
-				}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
+				});
 			}
 			break;
 
@@ -85,7 +85,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 				{
 					DestLum[TexelIndex] = FMath::Clamp(FMath::FloorToInt(SrcColors[TexelIndex].R * 65535.999f), 0, 65535);
 				}
-			}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
+			});
 		}
 		break;
 
@@ -100,7 +100,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 					{
 						DestColors[TexelIndex] = SrcColors[TexelIndex].ToFColor(bDestIsGammaCorrected);
 					}
-				}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
+				});
 			}
 			break;
 		
@@ -115,7 +115,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 					{
 						DestColors[TexelIndex] = SrcColors[TexelIndex].ToRGBE();
 					}
-				}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
+				});
 			}
 			break;
 		
@@ -132,7 +132,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 						DestColors[DestIndex + 2] = FMath::Clamp(FMath::FloorToInt(SrcColors[TexelIndex].B * 65535.999f), 0, 65535);
 						DestColors[DestIndex + 3] = FMath::Clamp(FMath::FloorToInt(SrcColors[TexelIndex].A * 65535.999f), 0, 65535);
 					}
-				}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
+				});
 			}
 			break;
 		
@@ -145,7 +145,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 					{
 						DestColors[TexelIndex] = FFloat16Color(SrcColors[TexelIndex]);
 					}
-				}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
+				});
 			}
 			break;
 
@@ -158,7 +158,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 					{
 						DestColors[TexelIndex] = FFloat16(SrcColors[TexelIndex].R);
 					}
-				}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
+				});
 			}
 			break;
 		}
@@ -216,7 +216,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 						{
 							DestColors[TexelIndex] = SrcColors[TexelIndex].ReinterpretAsLinear();
 						}
-					}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
+					});
 					break;
 				case EGammaSpace::sRGB:
 					ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels](int64 JobIndex)
@@ -227,7 +227,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 						{
 							DestColors[TexelIndex] = FLinearColor(SrcColors[TexelIndex]);
 						}
-					}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
+					});
 					break;
 				case EGammaSpace::Pow22:
 					for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)

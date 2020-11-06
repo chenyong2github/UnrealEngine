@@ -324,6 +324,9 @@ public:
 	/** Return the current thread type, if known. **/
 	virtual ENamedThreads::Type GetCurrentThreadIfKnown(bool bLocalQueue = false) = 0;
 
+	/** Return true if the current thread is known. **/
+	virtual bool IsCurrentThreadKnown() = 0;
+
 	/** 
 		Return the number of worker (non-named) threads PER PRIORITY SET.
 		This is useful for determining how many tasks to split a job into.

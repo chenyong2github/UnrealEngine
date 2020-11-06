@@ -196,6 +196,40 @@ namespace ParallelForImpl
 		return false;
 	}
 
+	inline ENamedThreads::Type GetBestDesiredThread(EParallelForFlags Flags)
+	{
+		const bool bBackgroundPriority = (Flags & EParallelForFlags::BackgroundPriority) != EParallelForFlags::None;
+		if (!bBackgroundPriority)
+		{
+			// Anything scheduled by the task graph is latency sensitive because it might impact the frame rate. Anything else is not (i.e. Worker / Background threads).
+			const ETaskTag LatencySensitiveTasks = 
+				ETaskTag::EStaticInit | 
+				ETaskTag::EGameThread | 
+				ETaskTag::ESlateThread | 
+				ETaskTag::EAudioThread | 
+				ETaskTag::ERenderingThread | 
+				ETaskTag::ERhiThread;
+
+			const bool bIsLatencySensitive = (FTaskTagScope::GetCurrentTag() & LatencySensitiveTasks) != ETaskTag::ENone;
+			if (bIsLatencySensitive)
+			{
+				// Keep the legacy behavior in this case
+				return ENamedThreads::AnyHiPriThreadHiPriTask;
+			}
+			// It's coming from a known worker thread, we'll keep the same task and thread priority in this case
+			else if (FTaskGraphInterface::Get().IsCurrentThreadKnown())
+			{
+				const ENamedThreads::Type CurrentThread = FTaskGraphInterface::Get().GetCurrentThreadIfKnown();
+				const ENamedThreads::Type CurrentTaskPrio = (ENamedThreads::Type)(CurrentThread & ENamedThreads::Type::TaskPriorityMask);
+				const ENamedThreads::Type CurrentThreadPrio = (ENamedThreads::Type)(CurrentThread & ENamedThreads::Type::ThreadPriorityMask);
+				return (ENamedThreads::Type)(ENamedThreads::AnyThread | CurrentTaskPrio | CurrentThreadPrio);
+			}
+		}
+
+		// Either the request comes from a totally unknown thread, or we've specifically been asked to be background
+		return ENamedThreads::AnyBackgroundThreadNormalTask;
+	}
+
 	template<typename FunctionType>
 	inline void ParallelForInternal(int32 Num, FunctionType Body, EParallelForFlags Flags)
 	{
@@ -219,8 +253,7 @@ namespace ParallelForImpl
 		}
 
 		const bool bPumpRenderingThread         = (Flags & EParallelForFlags::PumpRenderingThread) != EParallelForFlags::None;
-		const bool bBackgroundPriority          = (Flags & EParallelForFlags::BackgroundPriority) != EParallelForFlags::None;
-		const ENamedThreads::Type DesiredThread = bBackgroundPriority ? ENamedThreads::AnyBackgroundThreadNormalTask : ENamedThreads::AnyHiPriThreadHiPriTask;
+		const ENamedThreads::Type DesiredThread = GetBestDesiredThread(Flags);
 
 		TParallelForData<FunctionType>* DataPtr = new TParallelForData<FunctionType>(Num, AnyThreadTasks + 1, (Num > AnyThreadTasks + 1) && bPumpRenderingThread, Body, Flags);
 		TSharedRef<TParallelForData<FunctionType>, ESPMode::ThreadSafe> Data = MakeShareable(DataPtr);
@@ -283,8 +316,7 @@ namespace ParallelForImpl
 		}
 		check(Num);
 
-		const bool bBackgroundPriority = (Flags & EParallelForFlags::BackgroundPriority) != EParallelForFlags::None;
-		const ENamedThreads::Type DesiredThread = bBackgroundPriority ? ENamedThreads::AnyBackgroundThreadNormalTask : ENamedThreads::AnyHiPriThreadHiPriTask;
+		const ENamedThreads::Type DesiredThread = GetBestDesiredThread(Flags);
 
 		TParallelForData<FunctionType>* DataPtr = new TParallelForData<FunctionType>(Num, AnyThreadTasks, false, Body, Flags);
 		TSharedRef<TParallelForData<FunctionType>, ESPMode::ThreadSafe> Data = MakeShareable(DataPtr);
