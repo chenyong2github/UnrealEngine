@@ -128,7 +128,7 @@ static TAutoConsoleVariable<int32> CVarRayTracingStaticMeshesWPO(
 
 static TAutoConsoleVariable<int32> CVarRayTracingStaticMeshesWPOCulling(
 	TEXT("r.RayTracing.Geometry.StaticMeshes.WPO.Culling"),
-	0,
+	1,
 	TEXT("Enable culling for WPO evaluation for static meshes in ray tracing (default = 1 (Culling enabled))"));
 
 static TAutoConsoleVariable<float> CVarRayTracingStaticMeshesWPOCullingRadius(
