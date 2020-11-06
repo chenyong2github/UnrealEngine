@@ -1599,7 +1599,7 @@ public:
 		if (Gizmo)
 		{
 			GEditor->SelectNone(false, true);
-			GEditor->SelectActor(Gizmo, true, false, true);
+			GEditor->SelectActor(Gizmo, true, true, true);
 		}
 	}
 
