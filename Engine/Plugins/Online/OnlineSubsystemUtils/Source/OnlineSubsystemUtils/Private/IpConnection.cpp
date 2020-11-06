@@ -162,15 +162,21 @@ void UIpConnection::Tick(float DeltaSeconds)
 	if (CVarNetIpConnectionUseSendTasks.GetValueOnGameThread() != 0)
 	{
 		ISocketSubsystem* const SocketSubsystem = Driver->GetSocketSubsystem();
+		TArray<FSocketSendResult> ResultsCopy;
 
-		FScopeLock ScopeLock(&SocketSendResultsCriticalSection);
+		{
+			FScopeLock ScopeLock(&SocketSendResultsCriticalSection);
+
+			if (SocketSendResults.Num())
+			{
+				ResultsCopy = MoveTemp(SocketSendResults);
+			}
+		}
 		
-		for (const FSocketSendResult& Result : SocketSendResults)
+		for (const FSocketSendResult& Result : ResultsCopy)
 		{
 			HandleSocketSendResult(Result, SocketSubsystem);
 		}
-
-		SocketSendResults.Reset();
 	}
 
 	if (ResolutionState == EAddressResolutionState::TryNextAddress)
