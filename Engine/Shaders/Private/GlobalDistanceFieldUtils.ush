@@ -72,10 +72,7 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 
 	uint MinClipmapIndex = ComputeGlobalDistanceFieldClipmapIndex(TraceInput.WorldRayStart);
 	float MaxDistance = TraceInput.InitialMaxDistance;
-
-	// Bias
-	float RayStartDistance = max(TraceInput.MinTraceDistance, GlobalVolumeCenterAndExtent[MinClipmapIndex].w * GlobalVolumeTexelSize);
-	float MinRayTime = RayStartDistance;
+	float MinRayTime = TraceInput.MinTraceDistance;
 
 	LOOP
 	for (uint ClipmapIndex = MinClipmapIndex; ClipmapIndex < NumGlobalSDFClipmaps && TraceResult.HitTime < 0.0f; ++ClipmapIndex)
@@ -123,8 +120,8 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 				MaxDistance = max(DistanceField, MaxDistance);
 				float ExpandSurfaceTime = TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance ? SampleRayTime : MaxDistance;
 
-				float ExpandSurfaceFalloff = ExpandSurfaceDistance;
-				float ExpandSurfaceAmount = ExpandSurfaceDistance * saturate((ExpandSurfaceTime - ExpandSurfaceFalloff) / ExpandSurfaceFalloff);
+				const float ExpandSurfaceFalloff = 2.0f * ExpandSurfaceDistance;
+				const float ExpandSurfaceAmount = ExpandSurfaceDistance * saturate(ExpandSurfaceTime / ExpandSurfaceFalloff);
 
 				if (DistanceField < ExpandSurfaceAmount)
 				{

@@ -635,9 +635,6 @@ void RayTraceSingleMeshSDF(
 	float VolumeMinTraceDistance = VolumeMaxTraceDistance * (MinTraceDistance / MaxTraceDistance);
 	VolumeRayDirection /= VolumeMaxTraceDistance;
 
-	// Bias based on the SDF voxel size to prev hitting itself
-	VolumeMinTraceDistance = max(VolumeMinTraceDistance, DFObjectData.LocalSurfaceBias);
-
 	float2 IntersectionTimes = LineBoxIntersect(VolumeRayStart, VolumeRayEnd, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
 
 	IntersectionTimes *= VolumeMaxTraceDistance;
@@ -667,7 +664,8 @@ void RayTraceSingleMeshSDF(
 			// Expand the surface to find thin features, but only away from the start of the trace where it won't introduce incorrect self-occlusion
 			// This still causes incorrect self-occlusion at grazing angles
 			float ExpandSurfaceDistance = DFObjectData.LocalSurfaceBias;
-			float ExpandSurfaceAmount = ExpandSurfaceDistance * saturate((ExpandSurfaceTime - ExpandSurfaceDistance) / ExpandSurfaceDistance);
+			const float ExpandSurfaceFalloff = 2.0f * ExpandSurfaceDistance;
+			const float ExpandSurfaceAmount = ExpandSurfaceDistance * saturate(ExpandSurfaceTime / ExpandSurfaceFalloff);
 
 			if (DistanceField < ExpandSurfaceAmount)
 			{

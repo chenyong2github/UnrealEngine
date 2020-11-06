@@ -137,8 +137,9 @@ float ShadowRayTraceThroughCulledObjects(
 					{
 						// Expand the surface to find thin features, but only away from the start of the trace where it won't introduce incorrect self-occlusion
 						// This still causes incorrect self-occlusion at grazing angles
-						float ExpandSurfaceDistance = DFObjectData.LocalSurfaceBias;
-						float ExpandSurfaceAmount = ExpandSurfaceDistance * saturate((SampleRayTime - ExpandSurfaceDistance) / ExpandSurfaceDistance);
+						const float ExpandSurfaceDistance = DFObjectData.LocalSurfaceBias;
+						const float ExpandSurfaceFalloff = 2.0f * ExpandSurfaceDistance;
+						const float ExpandSurfaceAmount = ExpandSurfaceDistance * saturate(SampleRayTime / ExpandSurfaceFalloff);
 						DistanceField -= ExpandSurfaceAmount;
 					}
 
