@@ -16,8 +16,8 @@ public:
 		SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Experimental/ChaosVehiclesPlugin/Resources"));
 #endif
 
-		Set("ClassIcon.ChaosVehicles", new FSlateImageBrush(RootToContentDir(TEXT("ChaosVehicles_16x.png")), Icon16x16));
-		Set("ClassThumbnail.ChaosVehicles", new FSlateImageBrush(RootToContentDir(TEXT("ChaosVehicles_64x.png")), Icon64x64));
+		Set("ClassIcon.ChaosVehicles", new FSlateVectorImageBrush(RootToContentDir(TEXT("ChaosVehicles_16.svg")), Icon16x16));
+		Set("ClassThumbnail.ChaosVehicles", new FSlateVectorImageBrush(RootToContentDir(TEXT("ChaosVehicles_64.svg")), Icon64x64));
 
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	}

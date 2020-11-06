@@ -118,7 +118,7 @@ void FOpenColorIOEditorModule::CleanFeatureLevelDelegate()
 
 void FOpenColorIOEditorModule::RegisterStyle()
 {
-#define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(StyleInstance->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
+#define IMAGE_BRUSH_SVG(RelativePath, ...) FSlateVectorImageBrush(StyleInstance->RootToContentDir(RelativePath, TEXT(".svg")), __VA_ARGS__)
 
 	StyleInstance = MakeUnique<FSlateStyleSet>("OpenColorIOStyle");
 
@@ -128,11 +128,11 @@ void FOpenColorIOEditorModule::RegisterStyle()
 		StyleInstance->SetContentRoot(FPaths::Combine(Plugin->GetContentDir(), TEXT("Editor/Icons")));
 	}
 
-	const FVector2D Icon20x20(20.0f, 20.0f);
+	const FVector2D Icon16x16(16.0f, 16.0f);
 	const FVector2D Icon64x64(64.0f, 64.0f);
 
-	StyleInstance->Set("ClassThumbnail.OpenColorIOConfiguration", new IMAGE_BRUSH("OpenColorIOConfigIcon_64x", Icon64x64));
-	StyleInstance->Set("ClassIcon.OpenColorIOConfiguration", new IMAGE_BRUSH("OpenColorIOConfigIcon_20x", Icon20x20));
+	StyleInstance->Set("ClassThumbnail.OpenColorIOConfiguration", new IMAGE_BRUSH_SVG("OpenColorIOConfiguration_64", Icon64x64));
+	StyleInstance->Set("ClassIcon.OpenColorIOConfiguration", new IMAGE_BRUSH_SVG("OpenColorIOConfiguration_16", Icon16x16));
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleInstance.Get());
 

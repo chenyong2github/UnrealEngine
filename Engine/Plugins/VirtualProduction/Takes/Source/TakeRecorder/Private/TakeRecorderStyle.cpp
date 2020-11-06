@@ -134,32 +134,36 @@ FTakeRecorderStyle::FTakeRecorderStyle()
 
 	Set("TakeRecorder.TabIcon", new FSlateImageBrush(RootToContentDir(TEXT("TabIcon_16x.png")), Icon16x16));
 
+
 	Set("ClassIcon.TakePreset",      new FSlateImageBrush(RootToContentDir(TEXT("TakePreset_16x.png")), Icon16x16));
-	Set("ClassThumbnail.TakePreset", new FSlateImageBrush(RootToContentDir(TEXT("TakePreset_64x.png")), Icon64x64));
+	Set("ClassThumbnail.TakePreset", new FSlateVectorImageBrush(RootToContentDir(TEXT("AssetIcons/TakePreset_64.svg")), Icon64x64));
 
 	Set("ClassIcon.TakeRecorderActorSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderActorSource_16x.png")), Icon16x16));
-	Set("ClassThumbnail.TakeRecorderActorSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderActorSource_64x.png")), Icon64x64));
+	Set("ClassThumbnail.TakeRecorderActorSource", new FSlateVectorImageBrush(RootToContentDir(TEXT("AssetIcons/TakeRecorderActorSource_64.svg")), Icon64x64));
 
 	Set("ClassIcon.TakeRecorderCameraCutSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderCameraCutSource_16x.png")), Icon16x16));
 	Set("ClassThumbnail.TakeRecorderCameraCutSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderCameraCutSource_64x.png")), Icon64x64));
 
 	Set("ClassIcon.TakeRecorderLevelSequenceSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderLevelSequenceSource_16x.png")), Icon16x16));
-	Set("ClassThumbnail.TakeRecorderLevelSequenceSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderLevelSequenceSource_64x.png")), Icon64x64));
+	Set("ClassThumbnail.TakeRecorderLevelSequenceSource", new FSlateVectorImageBrush(RootToContentDir(TEXT("AssetIcons/TakeRecorderLevelSequenceSource_64.svg")), Icon64x64));
+
+	Set("ClassIcon.TakeRecorderLiveLinkSource", new FSlateVectorImageBrush(RootToContentDir(TEXT("AssetIcons/TakeRecorderLiveLinkSource_64.svg")), Icon16x16));
+	Set("ClassThumbnail.TakeRecorderLiveLinkSource", new FSlateVectorImageBrush(RootToContentDir(TEXT("AssetIcons/TakeRecorderLiveLinkSource_64.svg")), Icon64x64));
 
 	Set("ClassIcon.TakeRecorderMicrophoneAudioSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderMicrophoneAudioSource_16x.png")), Icon16x16));
-	Set("ClassThumbnail.TakeRecorderMicrophoneAudioSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderMicrophoneAudioSource_64x.png")), Icon64x64));
+	Set("ClassThumbnail.TakeRecorderMicrophoneAudioSource", new FSlateVectorImageBrush(RootToContentDir(TEXT("AssetIcons/TakeRecorderMicrophoneAudioSource_64.svg")), Icon64x64));
 
 	Set("ClassIcon.TakeRecorderLevelVisibilitySource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderLevelVisibilitySource_16x.png")), Icon16x16));
 	Set("ClassThumbnail.TakeRecorderLevelVisibilitySource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderLevelVisibilitySource_64x.png")), Icon64x64));
 
 	Set("ClassIcon.TakeRecorderNearbySpawnedActorSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderNearbySpawnedActorSource_16x.png")), Icon16x16));
-	Set("ClassThumbnail.TakeRecorderNearbySpawnedActorSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderNearbySpawnedActorSource_64x.png")), Icon64x64));
+	Set("ClassThumbnail.TakeRecorderNearbySpawnedActorSource", new FSlateVectorImageBrush(RootToContentDir(TEXT("AssetIcons/TakeRecorderNearbySpawnedActorSource_64.svg")), Icon64x64));
 
 	Set("ClassIcon.TakeRecorderPlayerSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderPlayerSource_16x.png")), Icon16x16));
 	Set("ClassThumbnail.TakeRecorderPlayerSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderPlayerSource_64x.png")), Icon64x64));
 
 	Set("ClassIcon.TakeRecorderWorldSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderWorldSource_16x.png")), Icon16x16));
-	Set("ClassThumbnail.TakeRecorderWorldSource", new FSlateImageBrush(RootToContentDir(TEXT("TakeRecorderWorldSource_64x.png")), Icon64x64));
+	Set("ClassThumbnail.TakeRecorderWorldSource", new FSlateVectorImageBrush(RootToContentDir(TEXT("AssetIcons/TakeRecorderWorldSource_64.svg")), Icon64x64));
 
 	Set("TakeRecorder.TabIcon", new FSlateImageBrush(RootToContentDir(TEXT("TabIcon_16x.png")), Icon16x16));
 
