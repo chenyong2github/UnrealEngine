@@ -398,6 +398,10 @@ void MainPS(
 #if OUTPUT_GAMMA_SPACE
 	FullSceneColor.rgb = sqrt(FullSceneColor.rgb);
 #endif
+
+#if !MATERIALBLENDING_MODULATE && USE_PREEXPOSURE
+	FullSceneColor.xyz *= View.PreExposure;
+#endif
 #endif
 	OutColor = FullSceneColor;
 }
