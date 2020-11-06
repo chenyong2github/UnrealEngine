@@ -474,7 +474,11 @@ namespace AutomationTool
 				CommandUtils.LogLog("Loading script DLL: {0}", AssemblyLocation);
 				try
 				{
+#if NET_CORE
+					Assembly Assembly = Assembly.LoadFile(AssemblyLocation.FullName);
+#else
 					Assembly Assembly = AppDomain.CurrentDomain.Load(AssemblyName.GetAssemblyName(AssemblyLocation.FullName));
+#endif
 					Assemblies.Add(Assembly);
 				}
 				catch (Exception Ex)
