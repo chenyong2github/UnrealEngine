@@ -109,7 +109,6 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	OverviewGraphViewModel->Initialize(this->AsShared());
 
 	SystemStackViewModel = NewObject<UNiagaraStackViewModel>(GetTransientPackage());
-	SystemStackViewModel->InitializeWithViewModels(this->AsShared(), TSharedPtr<FNiagaraEmitterHandleViewModel>(), FNiagaraStackViewModelOptions(true, false));
 	SystemStackViewModel->OnStructureChanged().AddSP(this, &FNiagaraSystemViewModel::StackViewModelStructureChanged);
 
 	ScriptScratchPadViewModel = NewObject<UNiagaraScratchPadViewModel>(GetTransientPackage());
@@ -593,7 +592,8 @@ void FNiagaraSystemViewModel::AddReferencedObjects(FReferenceCollector& Collecto
 
 void FNiagaraSystemViewModel::PostUndo(bool bSuccess)
 {
-	// Reset emitter handle view models to prevent accessing invalid handles if they were in the undo operation.
+	// Reset system stack and emitter handle view models to prevent accessing invalid data if they were in the undo operation.
+	SystemStackViewModel->Reset();
 	ResetEmitterHandleViewModelsAndTracks();
 	RefreshAll();
 	GetDefault<UEdGraphSchema_NiagaraSystemOverview>()->ForceVisualizationCacheClear();
@@ -1051,7 +1051,7 @@ void FNiagaraSystemViewModel::RefreshAll()
 	ResetCurveData();
 	InvalidateCachedCompileStatus();
 	ScriptScratchPadViewModel->RefreshScriptViewModels();
-	SystemStackViewModel->GetRootEntry()->RefreshChildren();
+	SystemStackViewModel->InitializeWithViewModels(this->AsShared(), TSharedPtr<FNiagaraEmitterHandleViewModel>(), FNiagaraStackViewModelOptions(true, false));
 	SelectionViewModel->Refresh();
 }
 
