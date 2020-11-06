@@ -43,9 +43,8 @@ struct FAudioVolumeSubmixSendSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AudioVolumeSubmixSends)
 	EAudioVolumeLocationState ListenerLocationState = EAudioVolumeLocationState::InsideTheVolume;
 
-	// The state the source needs to be in, relative to the audio volume, for this submix send list to be used for a given sound
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AudioVolumeSubmixSends)
-	EAudioVolumeLocationState SourceLocationState = EAudioVolumeLocationState::InsideTheVolume;
+	UPROPERTY()
+	EAudioVolumeLocationState SourceLocationState_DEPRECATED = EAudioVolumeLocationState::InsideTheVolume;
 
 	// Submix send array for sounds that are outside the audio volume when the listener is inside the volume
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AudioVolumeSubmixSends)
