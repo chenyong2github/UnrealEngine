@@ -332,7 +332,7 @@ void ADMXFixtureActorMatrix::GenerateMatrixMesh()
 	MatrixHead->ClearAllMeshSections();
 	GenerateMatrixCells();
 	GenerateMatrixBeam();
-	MatrixHead->SetRelativeLocation(FVector(MatrixWidth*-0.5f, MatrixHeight * -0.5f, 10));
+	MatrixHead->SetRelativeLocation(FVector(MatrixWidth*-0.5f, MatrixHeight * -0.5f, MatrixDepth * 0.5f));
 }
 
 void ADMXFixtureActorMatrix::SetDefaultMatrixFixtureState()
@@ -420,7 +420,7 @@ void ADMXFixtureActorMatrix::GenerateEditorMatrixMesh()
 		MatrixHead->ClearAllMeshSections();
 		GenerateMatrixCells();
 		GenerateMatrixBeam();
-		MatrixHead->SetRelativeLocation(FVector(MatrixWidth * -0.5f, MatrixHeight * -0.5f, 10));
+		MatrixHead->SetRelativeLocation(FVector(MatrixWidth * -0.5f, MatrixHeight * -0.5f, MatrixDepth * 0.5f));
 
 		// Assign MIC
 		MatrixHead->SetMaterial(0, LensMaterialInstance);
