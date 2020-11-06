@@ -62,6 +62,8 @@ namespace Windows
 {
 	// Typedefs for basic Windows types
 	typedef int32 BOOL;
+	typedef unsigned char BYTE;
+	typedef BYTE  BOOLEAN;
 	typedef unsigned long DWORD;
 	typedef DWORD* LPDWORD;
 	typedef long LONG;
@@ -120,12 +122,24 @@ namespace Windows
 	MINIMAL_WINDOWS_API void WINAPI ReleaseSRWLockShared(PSRWLOCK SRWLock);
 	MINIMAL_WINDOWS_API void WINAPI AcquireSRWLockExclusive(PSRWLOCK SRWLock);
 	MINIMAL_WINDOWS_API void WINAPI ReleaseSRWLockExclusive(PSRWLOCK SRWLock);
+	MINIMAL_WINDOWS_API BOOLEAN WINAPI TryAcquireSRWLockExclusive(PSRWLOCK SRWLock);
+	MINIMAL_WINDOWS_API BOOLEAN WINAPI TryAcquireSRWLockShared(PSRWLOCK SRWLock);
 
 	FORCEINLINE void WINAPI InitializeSRWLock(SRWLOCK* SRWLock)
 	{
 		InitializeSRWLock((PSRWLOCK)SRWLock);
 	}
 
+	FORCEINLINE BOOLEAN WINAPI TryAcquireSRWLockExclusive(SRWLOCK* SRWLock)
+	{
+		return TryAcquireSRWLockExclusive((PSRWLOCK)SRWLock);
+	}
+
+	FORCEINLINE BOOLEAN WINAPI TryAcquireSRWLockShared(SRWLOCK* SRWLock)
+	{
+		return TryAcquireSRWLockShared((PSRWLOCK)SRWLock);
+	}
+	
 	FORCEINLINE void WINAPI AcquireSRWLockShared(SRWLOCK* SRWLock)
 	{
 		AcquireSRWLockShared((PSRWLOCK)SRWLock);

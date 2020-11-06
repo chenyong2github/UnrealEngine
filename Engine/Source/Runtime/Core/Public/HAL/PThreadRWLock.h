@@ -14,6 +14,9 @@
 class FPThreadsRWLock
 {
 public:
+	FPThreadsRWLock(const FPThreadsRWLock&) = delete;
+	FPThreadsRWLock& operator=(const FPThreadsRWLock&) = delete;
+
 	FPThreadsRWLock()
 	{
 		int Err = pthread_rwlock_init(&Mutex, nullptr);

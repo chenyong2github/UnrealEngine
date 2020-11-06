@@ -39,6 +39,9 @@ template<class CriticalSection>
 class TGenericPlatformRWLock
 {
 public:
+	TGenericPlatformRWLock(const TGenericPlatformRWLock&) = delete;
+	TGenericPlatformRWLock& operator=(const TGenericPlatformRWLock&) = delete;
+
 	FORCEINLINE TGenericPlatformRWLock()
 	{
 	}

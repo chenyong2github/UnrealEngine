@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Misc/Guid.h"
 #include "Serialization/BulkData.h"
+#include "Templates/DontCopy.h"
 
 enum
 {
@@ -101,7 +102,7 @@ class FRawMeshBulkData
 {
 #if WITH_EDITOR
 	/** Protects simultaneous access to BulkData */
-	FRWLock       BulkDataLock;
+	TDontCopy<FRWLock> BulkDataLock;
 #endif
 	/** Internally store bulk data as bytes. */
 	FByteBulkData BulkData;

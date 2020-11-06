@@ -271,7 +271,7 @@ void FRawMeshBulkData::LoadRawMesh(FRawMesh& OutMesh)
 	{
 #if WITH_EDITOR
 		// A lock is required so we can safely load the raw data from multiple threads
-		FRWScopeLock ScopeLock(BulkDataLock, SLT_Write);
+		FRWScopeLock ScopeLock(BulkDataLock.Get(), SLT_Write);
 
 		// This allows any thread to be able to deserialize from the RawMesh directly
 		// from disk so we can unload bulk data from memory.

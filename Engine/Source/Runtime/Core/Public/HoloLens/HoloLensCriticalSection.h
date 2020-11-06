@@ -81,6 +81,9 @@ public:
 class FHoloLensRWLock
 {
 public:
+	FHoloLensRWLock(const FHoloLensRWLock&) = delete;
+	FHoloLensRWLock& operator=(const FHoloLensRWLock&) = delete;
+
 	FORCEINLINE FHoloLensRWLock(uint32 Level = 0)
 	{
 		Windows::InitializeSRWLock(&Mutex);

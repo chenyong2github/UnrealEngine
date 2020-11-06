@@ -80,6 +80,16 @@ namespace Windows
 		::AcquireSRWLockShared((::PSRWLOCK)SRWLock);
 	}
 
+	MINIMAL_WINDOWS_API BOOLEAN WINAPI TryAcquireSRWLockShared(PSRWLOCK SRWLock)
+	{
+		return ::TryAcquireSRWLockShared((::PSRWLOCK)SRWLock);
+	}
+
+	MINIMAL_WINDOWS_API BOOLEAN WINAPI TryAcquireSRWLockExclusive(PSRWLOCK SRWLock)
+	{
+		::TryAcquireSRWLockExclusive((::PSRWLOCK)SRWLock);
+	}
+
 	MINIMAL_WINDOWS_API void WINAPI ReleaseSRWLockShared(PSRWLOCK SRWLock)
 	{
 		::ReleaseSRWLockShared((::PSRWLOCK)SRWLock);

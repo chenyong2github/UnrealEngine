@@ -14,12 +14,9 @@ class FString;
  */
 class FWindowsCriticalSection
 {
-	/**
-	 * The windows specific critical section
-	 */
-	Windows::CRITICAL_SECTION CriticalSection;
-
 public:
+	FWindowsCriticalSection(const FWindowsCriticalSection&) = delete;
+	FWindowsCriticalSection& operator=(const FWindowsCriticalSection&) = delete;
 
 	/**
 	 * Constructor that initializes the aggregated critical section
@@ -70,8 +67,10 @@ public:
 	}
 
 private:
-	FWindowsCriticalSection(const FWindowsCriticalSection&);
-	FWindowsCriticalSection& operator=(const FWindowsCriticalSection&);
+	/**
+	 * The windows specific critical section
+	 */
+	Windows::CRITICAL_SECTION CriticalSection;
 };
 
 /** System-Wide Critical Section for windows using mutex */
@@ -110,6 +109,9 @@ private:
 class FWindowsRWLock
 {
 public:
+	FWindowsRWLock(const FWindowsRWLock&) = delete;
+	FWindowsRWLock& operator=(const FWindowsRWLock&) = delete;
+
 	FORCEINLINE FWindowsRWLock(uint32 Level = 0)
 	{
 		Windows::InitializeSRWLock(&Mutex);
@@ -117,6 +119,7 @@ public:
 	
 	FORCEINLINE ~FWindowsRWLock()
 	{
+		checkf(Windows::TryAcquireSRWLockExclusive(&Mutex), TEXT("Destroying a lock that is still held!"));
 	}
 	
 	FORCEINLINE void ReadLock()

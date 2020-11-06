@@ -382,7 +382,7 @@ void SSequencerEntityComponentSystemDebugSlot::Refresh()
 		}
 
 		FEntityInfo EntityInfo = Linker->EntityManager.GetEntity(CachedEntityID);
-		for (FComponentHeader ComponentHeader : EntityInfo.Data.Allocation->GetComponentHeaders())
+		for (const FComponentHeader& ComponentHeader : EntityInfo.Data.Allocation->GetComponentHeaders())
 		{
 			const FComponentTypeInfo& ComponentTypeInfo = Linker->GetComponents()->GetComponentTypeChecked(ComponentHeader.ComponentType);
 			const int32 ComponentBitIndex = ComponentHeader.ComponentType.BitIndex();
