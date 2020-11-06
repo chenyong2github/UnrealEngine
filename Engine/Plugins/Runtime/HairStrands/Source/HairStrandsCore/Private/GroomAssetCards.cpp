@@ -41,7 +41,7 @@ FHairGroupsProceduralCards::FHairGroupsProceduralCards()
 FHairGroupsCardsSourceDescription::FHairGroupsCardsSourceDescription()
 {
 	MaterialSlotName = NAME_None;
-	SourceType = EHairCardsSourceType::Procedural;
+	SourceType = EHairCardsSourceType::Imported;
 	ProceduralMeshKey.Empty();
 	ProceduralSettings = FHairGroupsProceduralCards();
 	GroupIndex = 0;
