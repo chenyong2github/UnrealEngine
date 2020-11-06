@@ -89,8 +89,8 @@ void UDMXSubsystem::SendDMX(UDMXEntityFixturePatch* FixturePatch, TMap<FDMXAttri
 					const IDMXProtocolPtr Protocol = Controller->DeviceProtocol.GetProtocol();
 					if (Protocol.IsValid())
 					{
-						bool bLoopback = !Protocol->IsReceiveDMXEnabled() || !Protocol->IsSendDMXEnabled();						
-						if (bLoopback)
+						bool bNeedsInternalLoopback = !Protocol->IsReceiveDMXEnabled() || !Protocol->IsSendDMXEnabled();						
+						if (bNeedsInternalLoopback)
 						{
 							Results.Add(Protocol->InputDMXFragment(Universe + Controller->RemoteOffset, DMXFragmentMap));
 						}
@@ -224,6 +224,12 @@ void UDMXSubsystem::SendDMXRaw(FDMXProtocolName SelectedProtocol, int32 RemoteUn
 		IDMXProtocolPtr Protocol = SelectedProtocol.GetProtocol();
 		if (Protocol.IsValid())
 		{
+			bool bNeedsInternalLoopback = !Protocol->IsReceiveDMXEnabled() || !Protocol->IsSendDMXEnabled();
+			if (bNeedsInternalLoopback)
+			{
+				Protocol->InputDMXFragment(RemoteUniverse, DMXFragmentMap);
+			}
+
 			OutResult = Protocol->SendDMXFragmentCreate(RemoteUniverse, DMXFragmentMap);
 		}
 	}
