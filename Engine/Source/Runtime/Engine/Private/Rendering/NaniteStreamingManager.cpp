@@ -290,7 +290,6 @@ FStreamingManager::FStreamingManager() :
 	MaxStreamingReadbackBuffers(4u),
 	ReadbackBuffersWriteIndex(0),
 	ReadbackBuffersNumPending(0),
-	NextRuntimeResourceID(0),
 	NextUpdateIndex(0),
 	NumRegisteredStreamingPages(0),
 	NumPendingPages(0),
@@ -299,6 +298,7 @@ FStreamingManager::FStreamingManager() :
 	,PrevUpdateTick(0)
 #endif
 {
+	NextRootPageVersion.SetNum(MAX_GPU_PAGES);
 }
 
 void FStreamingManager::InitRHI()
@@ -413,7 +413,10 @@ void FStreamingManager::Add( FResources* Resources )
 		Resources->RootPageIndex = RootPages.Allocator.Allocate( 1 );
 		RootPages.TotalUpload++;
 
-		Resources->RuntimeResourceID = Resources->RootPageIndex;
+		// Version root pages so we can disregard invalid streaming requests.
+		// TODO: We only need enough versions to cover the frame delay from the GPU, so most of the version bits can be reclaimed.
+		check(Resources->RootPageIndex < MAX_GPU_PAGES);
+		Resources->RuntimeResourceID = (NextRootPageVersion[Resources->RootPageIndex]++ << MAX_GPU_PAGES_BITS) | Resources->RootPageIndex;
 		RuntimeResourceMap.Add( Resources->RuntimeResourceID, Resources );
 		
 		PendingAdds.Add( Resources );

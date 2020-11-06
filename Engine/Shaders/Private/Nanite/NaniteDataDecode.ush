@@ -29,6 +29,7 @@
 #define MAX_VIEWS_PER_CULL_RASTERIZE_PASS_MASK	( ( 1 << MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS ) - 1 )	// must match define in NaniteResources.h
 #define MAX_VIEWS_PER_CULL_RASTERIZE_PASS		( 1 << MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS )			// must match define in NaniteResources.h
 #define MAX_GPU_PAGES_BITS						13														// must match define in NaniteResources.h
+#define	MAX_GPU_PAGES_MASK						( ( 1 << MAX_GPU_PAGES_BITS ) - 1 )						// must match define in NaniteResources.h
 #define	MAX_GPU_PAGES							( 1 << MAX_GPU_PAGES_BITS )								// must match define in NaniteResources.h
 #define MAX_INSTANCES_BITS						24														// must match define in NaniteResources.h
 #define MAX_NODES_PER_PRIMITIVE_BITS			16														// must match define in NaniteResources.h
@@ -678,7 +679,7 @@ FInstanceSceneData GetInstanceData( inout FVisibleCluster VisibleCluster )
 	if( VisibleCluster.Flags == (1 << NUM_CULLING_FLAG_BITS) )
 	{
 		const uint MaxStreamingPages = 1 << 12;
-		VisibleCluster.PageIndex = MaxStreamingPages + InstanceData.NaniteRuntimeResourceID;
+		VisibleCluster.PageIndex = MaxStreamingPages + (InstanceData.NaniteRuntimeResourceID & MAX_GPU_PAGES_MASK);
 	}
 
 	return InstanceData;

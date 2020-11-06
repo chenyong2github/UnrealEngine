@@ -15,7 +15,7 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 	// High bit flags it as an imposter
 	uint BaseCode = (1 << 31) | (1 << 7);
 	uint RootClusterCode = ( InstanceId << 8 ) | BaseCode;
-	uint RootClusterIndex = InstanceData.NaniteRuntimeResourceID;
+	uint RootClusterIndex = InstanceData.NaniteRuntimeResourceID & MAX_GPU_PAGES_MASK;
 
 	for( int y = Rect.Pixels.y; y <= Rect.Pixels.w; y++ )
 	{

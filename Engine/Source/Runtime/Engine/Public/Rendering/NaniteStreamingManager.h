@@ -160,7 +160,7 @@ private:
 	uint32					ReadbackBuffersWriteIndex;
 	uint32					ReadbackBuffersNumPending;
 
-	uint32					NextRuntimeResourceID;
+	TArray<uint32>			NextRootPageVersion;
 	uint32					NextUpdateIndex;
 	uint32					NumRegisteredStreamingPages;
 	uint32					NumPendingPages;
