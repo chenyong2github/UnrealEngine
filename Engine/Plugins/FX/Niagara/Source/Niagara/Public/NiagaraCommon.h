@@ -1096,6 +1096,8 @@ namespace FNiagaraUtilities
 
 	/** Converts a Niagara format into a ETextureRenderTargetFormat */
 	NIAGARA_API ETextureRenderTargetFormat BufferFormatToRenderTargetFormat(ENiagaraGpuBufferFormat NiagaraFormat);
+
+	NIAGARA_API FString SanitizeNameForObjectsAndPackages(const FString& InName);
 };
 
 USTRUCT()
