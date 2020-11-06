@@ -679,7 +679,15 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 				.TextStyle(&ToolBarStyle.LabelStyle)
 			]
 		]
-
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(FMargin(2, 0))
+		[
+			SNew(STextBlock)
+			.Visibility(this, &SDesignerView::GetCustomResolutionEntryVisibility)
+			.Text(LOCTEXT("Width", "Width"))
+		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
@@ -695,14 +703,17 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 			.OnValueChanged(this, &SDesignerView::OnCustomResolutionWidthChanged)
 			.Visibility(this, &SDesignerView::GetCustomResolutionEntryVisibility)
 			.MinDesiredValueWidth(50)
-			.LabelPadding(0)
 			.ToolTipText(LOCTEXT("CustomSize_WidthTooltip", "1+\tSets the width of the widget in the designer.\n0\tThe width will match the desired width of the widget."))
-			.Label()
-			[
-				SNumericEntryBox<int32>::BuildLabel(LOCTEXT("Width", "Width"), FLinearColor::White, SNumericEntryBox<int32>::RedLabelBackgroundColor)
-			]
 		]
-
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(FMargin(2, 0))
+		[
+			SNew(STextBlock)
+			.Visibility(this, &SDesignerView::GetCustomResolutionEntryVisibility)
+			.Text(LOCTEXT("Height", "Height"))
+		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
@@ -719,11 +730,6 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 			.Visibility(this, &SDesignerView::GetCustomResolutionEntryVisibility)
 			.MinDesiredValueWidth(50)
 			.ToolTipText(LOCTEXT("CustomSize_HeightTooltip", "1+\tSets the height of the widget in the designer.\n0\tThe height will match the desired height of the widget."))
-			.LabelPadding(0)
-			.Label()
-			[
-				SNumericEntryBox<int32>::BuildLabel(LOCTEXT("Height", "Height"), FLinearColor::White, SNumericEntryBox<int32>::GreenLabelBackgroundColor)
-			]
 		]
 	]
 

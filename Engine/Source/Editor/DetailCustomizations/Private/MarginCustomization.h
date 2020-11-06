@@ -36,9 +36,8 @@ private:
 	 * Make the widget for the specified property
 	 *
 	 * @param PropertyIndex	The index of the child property to the make the widget for
-	 * @param bDisplayLabel	True if the label is to be visible
 	 */
-	TSharedRef<SWidget> MakeChildPropertyWidget( int32 PropertyIndex, bool bDisplayLabel ) const;
+	TSharedRef<SWidget> MakeChildPropertyWidget( int32 PropertyIndex) const;
 
 	/**
 	 Get the margin property value as text

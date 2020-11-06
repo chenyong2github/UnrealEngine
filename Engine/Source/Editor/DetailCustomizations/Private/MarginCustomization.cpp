@@ -70,7 +70,7 @@ void FMarginStructCustomization::CustomizeChildren( TSharedRef<class IPropertyHa
 		]
 		.ValueContent()
 		[
-			MakeChildPropertyWidget( ChildIndex, false )
+			MakeChildPropertyWidget( ChildIndex )
 		];
 	}
 }
@@ -89,31 +89,24 @@ TSharedRef<SEditableTextBox> FMarginStructCustomization::MakePropertyWidget()
 	;
 }
 
-TSharedRef<SWidget> FMarginStructCustomization::MakeChildPropertyWidget( int32 PropertyIndex, bool bDisplayLabel ) const
+TSharedRef<SWidget> FMarginStructCustomization::MakeChildPropertyWidget( int32 PropertyIndex) const
 {
 	return
-		SNew( SNumericEntryBox<float> )
-		.Value( this, &FMarginStructCustomization::OnGetValue, PropertyIndex )
-		.Font( IDetailLayoutBuilder::GetDetailFont() )
-		.UndeterminedString( NSLOCTEXT( "PropertyEditor", "MultipleValues", "Multiple Values") )
-		.OnValueCommitted( const_cast<FMarginStructCustomization*>(this), &FMarginStructCustomization::OnValueCommitted, PropertyIndex )
-		.OnValueChanged( const_cast<FMarginStructCustomization*>(this), &FMarginStructCustomization::OnValueChanged, PropertyIndex )
-		.OnBeginSliderMovement( const_cast<FMarginStructCustomization*>(this), &FMarginStructCustomization::OnBeginSliderMovement )
-		.OnEndSliderMovement( const_cast<FMarginStructCustomization*>(this), &FMarginStructCustomization::OnEndSliderMovement )
-		.LabelVAlign( VAlign_Center )
-		.AllowSpin( bIsMarginUsingUVSpace ? true : false )
-		.MinValue( bIsMarginUsingUVSpace ? 0.0f : TNumericLimits<float>::Lowest() )
-		.MaxValue( bIsMarginUsingUVSpace ? 1.0f : TNumericLimits<float>::Max() )
-		.MinSliderValue( bIsMarginUsingUVSpace ? 0.0f : TNumericLimits<float>::Lowest() )
-		.MaxSliderValue( bIsMarginUsingUVSpace ? 1.0f : TNumericLimits<float>::Max()  )
-		.TypeInterface(NumericInterface)
-		.Label()
-		[
-			SNew( STextBlock )
-			.Font( IDetailLayoutBuilder::GetDetailFont() )
-			.Text( ChildPropertyHandles[ PropertyIndex ]->GetPropertyDisplayName() )
-			.Visibility( bDisplayLabel ? EVisibility::Visible : EVisibility::Collapsed )
-		];
+		SNew(SNumericEntryBox<float>)
+		.Value(this, &FMarginStructCustomization::OnGetValue, PropertyIndex)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.UndeterminedString(NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values"))
+		.OnValueCommitted(const_cast<FMarginStructCustomization*>(this), &FMarginStructCustomization::OnValueCommitted, PropertyIndex)
+		.OnValueChanged(const_cast<FMarginStructCustomization*>(this), &FMarginStructCustomization::OnValueChanged, PropertyIndex)
+		.OnBeginSliderMovement(const_cast<FMarginStructCustomization*>(this), &FMarginStructCustomization::OnBeginSliderMovement)
+		.OnEndSliderMovement(const_cast<FMarginStructCustomization*>(this), &FMarginStructCustomization::OnEndSliderMovement)
+		.LabelVAlign(VAlign_Center)
+		.AllowSpin(bIsMarginUsingUVSpace ? true : false)
+		.MinValue(bIsMarginUsingUVSpace ? 0.0f : TNumericLimits<float>::Lowest())
+		.MaxValue(bIsMarginUsingUVSpace ? 1.0f : TNumericLimits<float>::Max())
+		.MinSliderValue(bIsMarginUsingUVSpace ? 0.0f : TNumericLimits<float>::Lowest())
+		.MaxSliderValue(bIsMarginUsingUVSpace ? 1.0f : TNumericLimits<float>::Max())
+		.TypeInterface(NumericInterface);
 }
 
 FText FMarginStructCustomization::GetMarginText() const

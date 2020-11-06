@@ -130,14 +130,21 @@ void FRangeStructCustomization<NumericType>::CustomizeHeader(TSharedRef<IPropert
 	.MaxDesiredWidth(200.0f)
 	[
 		SNew(SVerticalBox)
-
 		+SVerticalBox::Slot()
 		.Padding(FMargin(0.0f, 3.0f, 0.0f, 2.0f))
 		[
 			SNew(SHorizontalBox)
-
 			+SHorizontalBox::Slot()
-			.Padding(FMargin(0.0f, 0.0f, 5.0f, 0.0f))
+			.Padding(FMargin(0.0f, 0.0f, 6.0f, 0.0f))
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Text(LOCTEXT("MinimumBoundLabel", "Min"))
+			]
+			+SHorizontalBox::Slot()
+			.Padding(FMargin(0.0f, 0.0f, 3.0f, 0.0f))
 			.VAlign(VAlign_Center)
 			[
 				SNew(SNumericEntryBox<NumericType>)
@@ -153,20 +160,12 @@ void FRangeStructCustomization<NumericType>::CustomizeHeader(TSharedRef<IPropert
 				.IsEnabled(this, &FRangeStructCustomization<NumericType>::OnQueryIfEnabled, LowerBoundTypeWeakPtr)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 				.AllowSpin(true)
-				.LabelVAlign(VAlign_Center)
-				.Label()
-				[
-					SNew(STextBlock)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.Text(LOCTEXT("MinimumBoundLabel", "Min"))
-				]
 			]
-
 			+SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
 			.AutoWidth()
 			[
-				SNew(SComboBox< TSharedPtr<FString> >)
+				SNew(SComboBox<TSharedPtr<FString>>)
 				.OptionsSource(&ComboBoxList)
 				.OnGenerateWidget(this, &FRangeStructCustomization<NumericType>::OnGenerateComboWidget)
 				.OnSelectionChanged(this, &FRangeStructCustomization<NumericType>::OnComboSelectionChanged, LowerBoundTypeWeakPtr)
@@ -182,9 +181,17 @@ void FRangeStructCustomization<NumericType>::CustomizeHeader(TSharedRef<IPropert
 		.Padding(FMargin(0.0f, 2.0f, 0.0f, 3.0f))
 		[
 			SNew(SHorizontalBox)
-
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(0.0f, 0.0f, 3.0f, 0.0f))
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Text(LOCTEXT("MaximumBoundLabel", "Max"))
+			]
 			+SHorizontalBox::Slot()
-			.Padding(FMargin(0.0f, 0.0f, 5.0f, 0.0f))
+			.Padding(FMargin(0.0f, 0.0f, 3.0f, 0.0f))
 			.VAlign(VAlign_Center)
 			[
 				SNew(SNumericEntryBox<NumericType>)
@@ -200,13 +207,6 @@ void FRangeStructCustomization<NumericType>::CustomizeHeader(TSharedRef<IPropert
 				.IsEnabled(this, &FRangeStructCustomization<NumericType>::OnQueryIfEnabled, UpperBoundTypeWeakPtr)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 				.AllowSpin(true)
-				.LabelVAlign(VAlign_Center)
-				.Label()
-				[
-					SNew(STextBlock)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.Text(LOCTEXT("MaximumBoundLabel", "Max"))
-				]
 			]
 
 			+SHorizontalBox::Slot()
