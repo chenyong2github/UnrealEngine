@@ -299,8 +299,17 @@ public:
 	/** Set the system toolkit command list. */
 	void SetToolkitCommands(const TSharedRef<FUICommandList>& InToolkitCommands);
 
-	/** Gets the stack module data for the provided module, for use in determining dependencies. */
-	const TArray<FNiagaraStackModuleData>& GetStackModuleData(UNiagaraStackEntry* ModuleEntry);
+	/** Gets the stack module data for the provided module stack entry, for use in determining dependencies. */
+	const TArray<FNiagaraStackModuleData>& GetStackModuleDataByModuleEntry(UNiagaraStackEntry* ModuleEntry);
+
+	/** Gets the stack module data for the provided emitter handled id, for use in determining dependencies. */
+	const TArray<FNiagaraStackModuleData>& GetStackModuleDataByEmitterHandleId(FGuid EmitterHandleId);
+
+	/** Get all non-event scripts which will execute for an emitter. */
+	void GetOrderedScriptsForEmitterHandleId(FGuid EmitterHandleId, TArray<UNiagaraScript*>& OutScripts);
+
+	/** Gets all non-event scripts which will execute for an emitter. */
+	void GetOrderedScriptsForEmitter(UNiagaraEmitter* Emitter, TArray<UNiagaraScript*>& OutScripts);
 
 	/** Gets the ViewModel for the system overview graph. */
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraOverviewGraphViewModel> GetOverviewGraphViewModel() const;
@@ -481,6 +490,8 @@ private:
 
 	/** Called whenever the map of messages associated with the managed Emitter/System changes. */
 	void RefreshAssetMessages();
+
+	const TArray<FNiagaraStackModuleData>& BuildAndCacheStackModuleData(FGuid EmitterHandleId, UNiagaraEmitter* Emitter);
 
 private:
 	/** The System being viewed and edited by this view model. */

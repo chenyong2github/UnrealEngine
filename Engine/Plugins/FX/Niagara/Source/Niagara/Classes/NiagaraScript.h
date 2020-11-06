@@ -547,8 +547,9 @@ public:
 #if WITH_EDITORONLY_DATA
 	NIAGARA_API TArray<ENiagaraParameterScope> GetUnsupportedParameterScopes() const;
 	NIAGARA_API TArray<ENiagaraScriptUsage> GetSupportedUsageContexts() const;
-	static NIAGARA_API TArray<ENiagaraScriptUsage> GetSupportedUsageContextsForBitmask(int32 InModuleUsageBitmask);
-	static NIAGARA_API bool IsSupportedUsageContextForBitmask(int32 InModuleUsageBitmask, ENiagaraScriptUsage InUsageContext);
+	static NIAGARA_API TArray<ENiagaraScriptUsage> GetSupportedUsageContextsForBitmask(int32 InModuleUsageBitmask, bool bIncludeHiddenUsages = false);
+	static NIAGARA_API bool IsSupportedUsageContextForBitmask(int32 InModuleUsageBitmask, ENiagaraScriptUsage InUsageContext, bool bIncludeHiddenUsages = false);
+	static NIAGARA_API bool ContainsEquivilentUsage(const TArray<ENiagaraScriptUsage>& Usages, ENiagaraScriptUsage InUsage);
 #endif
 
 	NIAGARA_API bool CanBeRunOnGpu() const;

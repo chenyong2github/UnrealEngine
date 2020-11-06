@@ -1648,26 +1648,39 @@ void FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(TArray<FNiagaraT
 	}
 }
 
-void FNiagaraStackGraphUtilities::GetScriptAssetsByDependencyProvided(ENiagaraScriptUsage AssetUsage, FName DependencyName, TArray<FAssetData>& OutAssets)
+bool DoesScriptAssetSupportUsage(const FAssetData& ScriptAsset, ENiagaraScriptUsage Usage)
 {
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	TArray<FAssetData> ScriptAssets;
-	AssetRegistryModule.Get().GetAssetsByClass(UNiagaraScript::StaticClass()->GetFName(), ScriptAssets);
-	
-	for (const FAssetData& ScriptAsset : ScriptAssets)
+	int32 ScriptUsageBitmask;
+	if (ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, ModuleUsageBitmask), ScriptUsageBitmask))
 	{
-		auto TagName = GET_MEMBER_NAME_CHECKED(UNiagaraScript, ProvidedDependencies);
+		TArray<ENiagaraScriptUsage> SupportedUsages = UNiagaraScript::GetSupportedUsageContextsForBitmask(ScriptUsageBitmask);
+		return SupportedUsages.Contains(Usage);
+	}
+	return false;
+}
 
+void FNiagaraStackGraphUtilities::GetModuleScriptAssetsByDependencyProvided(FName DependencyName, TOptional<ENiagaraScriptUsage> RequiredUsage, TArray<FAssetData>& OutAssets)
+{
+	FNiagaraEditorUtilities::FGetFilteredScriptAssetsOptions ScriptFilterOptions;
+	ScriptFilterOptions.bIncludeDeprecatedScripts = false;
+	ScriptFilterOptions.bIncludeNonLibraryScripts = true;
+	ScriptFilterOptions.ScriptUsageToInclude = ENiagaraScriptUsage::Module;
+	ScriptFilterOptions.TargetUsageToMatch = RequiredUsage;
+	TArray<FAssetData> ModuleAssets;
+	FNiagaraEditorUtilities::GetFilteredScriptAssets(ScriptFilterOptions, ModuleAssets);
+
+	for (const FAssetData& ModuleAsset : ModuleAssets)
+	{
 		FString ProvidedDependenciesString;
-		if(ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, ProvidedDependencies), ProvidedDependenciesString) && ProvidedDependenciesString.IsEmpty() == false)
+		if (ModuleAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, ProvidedDependencies), ProvidedDependenciesString) && ProvidedDependenciesString.IsEmpty() == false)
 		{
 			TArray<FString> DependencyStrings;
 			ProvidedDependenciesString.ParseIntoArray(DependencyStrings, TEXT(","));
-			for (FString DependencyString: DependencyStrings)
+			for (FString DependencyString : DependencyStrings)
 			{
 				if (FName(*DependencyString) == DependencyName)
 				{
-					OutAssets.Add(ScriptAsset);
+					OutAssets.Add(ModuleAsset);
 					break;
 				}
 			}
