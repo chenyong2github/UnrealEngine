@@ -86,6 +86,9 @@ public:
 	virtual void CheckForErrors() override;
 #endif // WITH_EDITOR
 
+protected:
+	void MarkRenderTargetsDirty();
+
 private:
 	template<class T>
 	friend class FGetActorsOfType;
@@ -102,8 +105,6 @@ private:
 	void OnActorChanged(AActor* Actor, bool bWeightmapSettingsChanged, bool bRebuildMesh);
 	void OnActorsAffectingLandscapeChanged();
 
-	void MarkDirty();
-	
 	TArray<TWeakInterfacePtr<IWaterBrushActorInterface>> ActorsAffectingLandscape;
 	FDelegateHandle OnWorldPostInitHandle;
 	FDelegateHandle OnLevelAddedToWorldHandle;
