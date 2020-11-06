@@ -1518,6 +1518,15 @@ void UPrimitiveComponent::SetTranslucentSortPriority(int32 NewTranslucentSortPri
 	}
 }
 
+void UPrimitiveComponent::SetTranslucencySortDistanceOffset(float NewTranslucencySortDistanceOffset)
+{
+	if ( !FMath::IsNearlyEqual(NewTranslucencySortDistanceOffset, TranslucencySortDistanceOffset) )
+	{
+		TranslucencySortDistanceOffset = NewTranslucencySortDistanceOffset;
+		MarkRenderStateDirty();
+	}
+}
+
 void UPrimitiveComponent::SetReceivesDecals(bool bNewReceivesDecals)
 {
 	if (bNewReceivesDecals != bReceivesDecals)

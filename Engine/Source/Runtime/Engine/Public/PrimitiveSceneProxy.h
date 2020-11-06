@@ -466,6 +466,7 @@ public:
 	inline float GetMaxDrawDistance() const { return MaxDrawDistance; }
 	inline int32 GetVisibilityId() const { return VisibilityId; }
 	inline int16 GetTranslucencySortPriority() const { return TranslucencySortPriority; }
+	inline float GetTranslucencySortDistanceOffset() const { return TranslucencySortDistanceOffset; }
 	inline bool HasMotionBlurVelocityMeshes() const { return bHasMotionBlurVelocityMeshes; }
 
 	inline int32 GetVirtualTextureLodBias() const { return VirtualTextureLodBias; }
@@ -752,6 +753,9 @@ private:
 
 	/** The translucency sort priority */
 	int16 TranslucencySortPriority;
+
+	/** Translucent sort distance offset */
+	float TranslucencySortDistanceOffset;
 
 	TEnumAsByte<EComponentMobility::Type> Mobility;
 	ELightmapType LightmapType;
