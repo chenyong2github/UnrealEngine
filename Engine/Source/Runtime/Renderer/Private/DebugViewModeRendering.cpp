@@ -377,7 +377,12 @@ void InitDebugViewModeInterfaces()
 
 #else // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-void RenderDebugViewMode(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, const FRenderTargetBindingSlots& RenderTargets) {}
+void RenderDebugViewMode(
+	FRDGBuilder& GraphBuilder,
+	TArrayView<const FViewInfo> Views,
+	FScene* Scene,
+	const FRenderTargetBindingSlots& RenderTargets)
+{}
 
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
