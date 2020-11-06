@@ -11,6 +11,7 @@
 #include "RenderingThread.h"
 #include "Engine/AssetUserData.h"
 #include "HairStrandsVertexFactory.h"
+#include "Misc/App.h"
 #include "Misc/Paths.h"
 #include "Serialization/LargeMemoryReader.h"
 #include "Serialization/LargeMemoryWriter.h"
@@ -606,7 +607,7 @@ void UGroomAsset::PostLoad()
 		bool bAsyncLoadEnabled = (GEnableGroomAsyncLoad > 0) && IsFullyCached();
 
 		// Some contexts like cooking and commandlets are not conducive to async load
-		bAsyncLoadEnabled = bAsyncLoadEnabled && !GIsCookerLoadingPackage && !IsRunningCommandlet();
+		bAsyncLoadEnabled = bAsyncLoadEnabled && !GIsCookerLoadingPackage && !IsRunningCommandlet() && !FApp::IsUnattended();
 		if (bAsyncLoadEnabled)
 		{
 			GroomAssetStrongPtr = TStrongObjectPtr<UGroomAsset>(this); // keeps itself alive while completing the async load
