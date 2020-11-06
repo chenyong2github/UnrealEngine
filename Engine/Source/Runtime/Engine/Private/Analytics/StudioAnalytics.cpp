@@ -47,8 +47,15 @@ void FStudioAnalytics::ApplyDefaultEventAttributes()
 {
 	if (Analytics.IsValid())
 	{
-		// Apply all the default attributes to the provider
-		Analytics->SetDefaultEventAttributes(MoveTemp(DefaultAttributes));
+		// Get the current attributes
+		TArray<FAnalyticsEventAttribute> CurrentDefaultAttributes = Analytics->GetDefaultEventAttributesSafe();
+
+		// Append any new attributes to our current ones
+		CurrentDefaultAttributes += MoveTemp(DefaultAttributes);
+		DefaultAttributes.Reset();
+
+		// Set the new default attributes in the provider
+		Analytics->SetDefaultEventAttributes(MoveTemp(CurrentDefaultAttributes));
 	}	
 }
 
