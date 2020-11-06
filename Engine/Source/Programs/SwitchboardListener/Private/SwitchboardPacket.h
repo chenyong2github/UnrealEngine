@@ -50,10 +50,14 @@ struct FSwitchboardStatePacket : public FSwitchboardPacket
 	{
 		Command = TEXT("state");
 		bAck = true;
+		Version = 0x00010000;
 	}
 
 	UPROPERTY()
 	TArray<FSwitchboardStateRunningProcess> RunningProcesses;
+
+	UPROPERTY()
+	uint32 Version;
 };
 
 USTRUCT()
