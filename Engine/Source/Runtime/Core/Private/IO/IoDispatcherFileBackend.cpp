@@ -892,9 +892,15 @@ TIoStatusOr<FIoMappedRegion> FFileIoStore::OpenMapped(const FIoChunkId& ChunkId,
 			check(BlockOffset > 0 && IsAligned(BlockOffset, FPlatformProperties::GetMemoryMappingAlignment()));
 
 			MappedFileRegion = MappedFileHandle->MapRegion(BlockOffset + Options.GetOffset(), ResolvedSize);
-			check(IsAligned(MappedFileRegion->GetMappedPtr(), FPlatformProperties::GetMemoryMappingAlignment()));
-			
-			return FIoMappedRegion { MappedFileHandle, MappedFileRegion };
+			if (MappedFileRegion != nullptr)
+			{
+				check(IsAligned(MappedFileRegion->GetMappedPtr(), FPlatformProperties::GetMemoryMappingAlignment()));
+				return FIoMappedRegion{ MappedFileHandle, MappedFileRegion };
+			}
+			else
+			{
+				return FIoStatus(EIoErrorCode::ReadError);
+			}
 		}
 	}
 
