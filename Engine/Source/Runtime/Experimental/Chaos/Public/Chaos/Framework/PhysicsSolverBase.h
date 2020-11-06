@@ -200,6 +200,11 @@ namespace Chaos
 			Owner = InOwner;
 		}
 
+		void SetUseAsync(const bool bInUseAsync)
+		{
+			bUseAsync = bInUseAsync;
+		}
+
 		void SetThreadingMode_External(EThreadingModeTemp InThreadingMode)
 		{
 			if(InThreadingMode != ThreadingMode)
@@ -373,7 +378,7 @@ namespace Chaos
 
 		bool IsUsingAsyncResults() const
 		{
-			return !ForceDisableAsyncPhysics && AsyncDt >= 0;
+			return !ForceDisableAsyncPhysics && bUseAsync && AsyncDt >= 0;
 		}
 
 	protected:
@@ -461,6 +466,7 @@ namespace Chaos
 
 		ETraits TraitIdx;
 
+		bool bUseAsync;
 		FReal AsyncDt;
 		TArray<TGeometryParticle<FReal, 3>*> UniqueIdxToGTParticles;
 
