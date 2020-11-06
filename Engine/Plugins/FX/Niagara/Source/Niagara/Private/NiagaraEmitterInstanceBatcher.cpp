@@ -130,7 +130,8 @@ NiagaraEmitterInstanceBatcher::NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::T
 	, ShaderPlatform(InShaderPlatform)
 	, GPUSortManager(InGPUSortManager)
 	// @todo REMOVE THIS HACK
-	, LastFrameThatDrainedData(GFrameNumberRenderThread)
+	, NumFramesWithUnprocessedTicks(0)
+	, LastFrameWithNewTicks(INDEX_NONE)
 	, NumAllocatedFreeIDListSizes(0)
 	, bFreeIDListSizesBufferCleared(false)
 {
@@ -340,11 +341,19 @@ void NiagaraEmitterInstanceBatcher::GiveSystemTick_RenderThread(FNiagaraGPUSyste
 	}
 
 	// @todo REMOVE THIS HACK
-
-	if (GFrameNumberRenderThread > LastFrameThatDrainedData + GNiagaraGpuMaxQueuedRenderFrames)
+	if (NumFramesWithUnprocessedTicks > (uint32)GNiagaraGpuMaxQueuedRenderFrames)
 	{
 		Tick.Destroy();
 		return;
+	}
+	
+	//Track the number of frames we add new ticks that go unprocessed.
+	//We want to avoid cases where many frames of ticks are processed at once.
+	//Though we must not prevent the initial tick when returning from a state of the game being paused or otherwise not ticked. For example, non-realtime viewports.
+	if (LastFrameWithNewTicks != GFrameNumberRenderThread)
+	{
+		++NumFramesWithUnprocessedTicks;
+		LastFrameWithNewTicks = GFrameNumberRenderThread;
 	}
 
 	// Now we consume DataInterface instance data.
@@ -1366,7 +1375,7 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 		BuildTickStagePasses(RHICmdList, ETickStage::PreInitViews);
 
 		// @todo REMOVE THIS HACK
-		LastFrameThatDrainedData = GFrameNumberRenderThread;
+		NumFramesWithUnprocessedTicks = 0;
 
 		if (GNiagaraAllowTickBeforeRender)
 		{
