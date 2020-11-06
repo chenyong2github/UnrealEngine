@@ -252,7 +252,8 @@ private:
 	TRefCountPtr<FNiagaraRHIUniformBufferLayout> EmitterCBufferLayout;
 
 	// @todo REMOVE THIS HACK
-	uint32 LastFrameThatDrainedData;
+	uint32 NumFramesWithUnprocessedTicks;
+	uint32 LastFrameWithNewTicks;
 	
 	TArray<FNiagaraGPUSystemTick> Ticks_RT;
 	FGlobalDistanceFieldParameterData GlobalDistanceFieldParams;
