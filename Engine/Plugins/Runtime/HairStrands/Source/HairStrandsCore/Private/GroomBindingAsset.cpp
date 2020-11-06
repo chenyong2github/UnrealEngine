@@ -595,7 +595,7 @@ FString UGroomBindingAsset::BuildDerivedDataKeySuffix(USkeletalMesh* InSource, U
 
 void UGroomBindingAsset::CacheDerivedDatas()
 {
-	if (!Groom->IsValid())
+	if (!Groom || !Groom->IsValid())
 	{
 		// The groom could be invalid if it's still being loaded asynchronously
 		return;
