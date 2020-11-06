@@ -35,6 +35,7 @@ struct FAssetThumbnailConfig
 		: bAllowFadeIn( false )
 		, bForceGenericThumbnail( false )
 		, bAllowHintText( true )
+		, bAllowRealTimeOnHovered( true )
 		, bAllowAssetSpecificThumbnailOverlay( false )
 		, ClassThumbnailBrushOverride( NAME_None )
 		, ThumbnailLabel( EThumbnailLabel::ClassName )
@@ -48,6 +49,7 @@ struct FAssetThumbnailConfig
 	bool bAllowFadeIn;
 	bool bForceGenericThumbnail;
 	bool bAllowHintText;
+	bool bAllowRealTimeOnHovered;
 	bool bAllowAssetSpecificThumbnailOverlay;
 	FName ClassThumbnailBrushOverride;
 	EThumbnailLabel::Type ThumbnailLabel;
@@ -123,6 +125,9 @@ public:
 	/** Re-renders this thumbnail */
 	UNREALED_API void RefreshThumbnail();
 
+	/** Updates if this thumbnail should be realtime rendered via the pool */
+	UNREALED_API void SetRealTime( bool bRealTime );
+
 	DECLARE_EVENT(FAssetThumbnail, FOnAssetDataChanged);
 	FOnAssetDataChanged& OnAssetDataChanged() { return AssetDataChangedEvent; }
 
@@ -154,7 +159,7 @@ public:
 	 * @param InMaxFrameTimeAllowance			The maximum number of seconds per tick to spend rendering thumbnails
 	 * @param InMaxRealTimeThumbnailsPerFrame	The maximum number of real-time thumbnails to render per tick
 	 */
-	UNREALED_API FAssetThumbnailPool( uint32 InNumInPool, const TAttribute<bool>& InAreRealTimeThumbnailsAllowed = true, double InMaxFrameTimeAllowance = 0.005, uint32 InMaxRealTimeThumbnailsPerFrame = 3 );
+	UNREALED_API FAssetThumbnailPool( uint32 InNumInPool, double InMaxFrameTimeAllowance = 0.005, uint32 InMaxRealTimeThumbnailsPerFrame = 3 );
 
 	/** Destructor to free all remaining resources */
 	UNREALED_API ~FAssetThumbnailPool();
@@ -210,6 +215,9 @@ public:
 
 	/** Re-renders the specified thumbnail */
 	UNREALED_API void RefreshThumbnail( const TSharedPtr<FAssetThumbnail>& ThumbnailToRefresh );
+
+	/** Enables/disables realtime thumbnail behavior */
+	UNREALED_API void SetRealTimeThumbnail(const TSharedPtr<FAssetThumbnail>& Thumbnail, bool bRealTimeThumbnail);
 
 private:
 

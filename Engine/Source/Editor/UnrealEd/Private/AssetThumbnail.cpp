@@ -42,11 +42,12 @@ class SAssetThumbnail : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS( SAssetThumbnail )
 		: _Style("AssetThumbnail")
-		, _ThumbnailPool(NULL)
+		, _ThumbnailPool(nullptr)
 		, _AllowFadeIn(false)
 		, _ForceGenericThumbnail(false)
 		, _AllowHintText(true)
 		, _AllowAssetSpecificThumbnailOverlay(false)
+		, _AllowRealTimeOnHovered(true)
 		, _Label(EThumbnailLabel::ClassName)
 		, _HighlightedText(FText::GetEmpty())
 		, _HintColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f))
@@ -62,6 +63,7 @@ public:
 		SLATE_ARGUMENT(bool, ForceGenericThumbnail)
 		SLATE_ARGUMENT(bool, AllowHintText)
 		SLATE_ARGUMENT(bool, AllowAssetSpecificThumbnailOverlay)
+		SLATE_ARGUMENT(bool, AllowRealTimeOnHovered)
 		SLATE_ARGUMENT(EThumbnailLabel::Type, Label)
 		SLATE_ATTRIBUTE(FText, HighlightedText)
 		SLATE_ATTRIBUTE(FLinearColor, HintColorAndOpacity)
@@ -79,6 +81,7 @@ public:
 		Label = InArgs._Label;
 		HintColorAndOpacity = InArgs._HintColorAndOpacity;
 		bAllowHintText = InArgs._AllowHintText;
+		bAllowRealTimeOnHovered = InArgs._AllowRealTimeOnHovered;
 		ThumbnailBrush = nullptr;
 		ClassIconBrush = nullptr;
 		AssetThumbnail = InArgs._AssetThumbnail;
@@ -280,15 +283,23 @@ public:
 		return FSlateColor( FLinearColor( Color.R, Color.G, Color.B, FMath::Lerp( 0.0f, 0.5f, Color.A ) ) );
 	}
 
-	// SWidget implementation
 	virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override
 	{
-		SCompoundWidget::OnMouseEnter(MyGeometry, MouseEvent);
+		SCompoundWidget::OnMouseEnter( MyGeometry, MouseEvent );
 
-		if (!GetDefault<UContentBrowserSettings>()->RealTimeThumbnails )
+		if ( bAllowRealTimeOnHovered )
 		{
-			// Update hovered thumbnails if we are not already updating them in real-time
-			AssetThumbnail->RefreshThumbnail();
+			AssetThumbnail->SetRealTime( true );
+		}
+	}
+	
+	virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override
+	{
+		SCompoundWidget::OnMouseLeave( MouseEvent );
+
+		if ( bAllowRealTimeOnHovered )
+		{
+			AssetThumbnail->SetRealTime( false );
 		}
 	}
 
@@ -684,6 +695,7 @@ private:
 
 	TAttribute< FLinearColor > HintColorAndOpacity;
 	bool bAllowHintText;
+	bool bAllowRealTimeOnHovered;
 
 	/** The name of the thumbnail which should be used instead of the class thumbnail. */
 	FName ClassThumbnailBrushOverride;
@@ -813,6 +825,7 @@ TSharedRef<SWidget> FAssetThumbnail::MakeThumbnailWidget( const FAssetThumbnailC
 		.HighlightedText(InConfig.HighlightedText)
 		.HintColorAndOpacity(InConfig.HintColorAndOpacity)
 		.AllowHintText(InConfig.bAllowHintText)
+		.AllowRealTimeOnHovered(InConfig.bAllowRealTimeOnHovered)
 		.ClassThumbnailBrushOverride(InConfig.ClassThumbnailBrushOverride)
 		.AllowAssetSpecificThumbnailOverlay(InConfig.bAllowAssetSpecificThumbnailOverlay)
 		.AssetTypeColorOverride(InConfig.AssetTypeColorOverride)
@@ -827,9 +840,16 @@ void FAssetThumbnail::RefreshThumbnail()
 	}
 }
 
-FAssetThumbnailPool::FAssetThumbnailPool( uint32 InNumInPool, const TAttribute<bool>& InAreRealTimeThumbnailsAllowed, double InMaxFrameTimeAllowance, uint32 InMaxRealTimeThumbnailsPerFrame )
-	: AreRealTimeThumbnailsAllowed( InAreRealTimeThumbnailsAllowed )
-	, NumInPool( InNumInPool )
+void FAssetThumbnail::SetRealTime(bool bRealTime)
+{
+	if (ThumbnailPool.IsValid() && AssetData.IsValid())
+	{
+		ThumbnailPool.Pin()->SetRealTimeThumbnail( SharedThis(this), bRealTime );
+	}
+}
+
+FAssetThumbnailPool::FAssetThumbnailPool( uint32 InNumInPool, double InMaxFrameTimeAllowance, uint32 InMaxRealTimeThumbnailsPerFrame )
+	: NumInPool( InNumInPool )
 	, MaxRealTimeThumbnailsPerFrame( InMaxRealTimeThumbnailsPerFrame )
 	, MaxFrameTimeAllowance( InMaxFrameTimeAllowance )
 {
@@ -948,9 +968,9 @@ void FAssetThumbnailPool::Tick( float DeltaTime )
 		RecentlyLoadedAssets.Empty();
 	}
 
-	// If we have dynamic thumbnails are we are done rendering the last batch of dynamic thumbnails, start a new batch as long as real-time thumbnails are enabled
+	// If we have dynamic thumbnails and we are done rendering the last batch of dynamic thumbnails, start a new batch as long as real-time thumbnails are enabled
 	const bool bIsInPIEOrSimulate = GEditor->PlayWorld != NULL || GEditor->bIsSimulatingInEditor;
-	const bool bShouldUseRealtimeThumbnails = AreRealTimeThumbnailsAllowed.Get() && GetDefault<UContentBrowserSettings>()->RealTimeThumbnails && !bIsInPIEOrSimulate;
+	const bool bShouldUseRealtimeThumbnails = GetDefault<UContentBrowserSettings>()->RealTimeThumbnails && !bIsInPIEOrSimulate;
 	if ( bShouldUseRealtimeThumbnails && RealTimeThumbnails.Num() > 0 && RealTimeThumbnailsToRender.Num() == 0 )
 	{
 		double CurrentTime = FPlatformTime::Seconds();
@@ -1037,9 +1057,6 @@ void FAssetThumbnailPool::Tick( float DeltaTime )
 							}
 
 							bLoadedThumbnail = true;
-
-							// Since this was rendered, add it to the list of thumbnails that can be rendered in real-time
-							RealTimeThumbnails.AddUnique(InfoRef);
 						}
 					}
 				
@@ -1348,13 +1365,37 @@ void FAssetThumbnailPool::RefreshThumbnail( const TSharedPtr<FAssetThumbnail>& T
 	const uint32 Width = ThumbnailToRefresh->GetSize().X;
 	const uint32 Height = ThumbnailToRefresh->GetSize().Y;
 
-	if ( ensure(AssetData.ObjectPath != NAME_None) && ensure(Width > 0) && ensure(Height > 0) )
+	if ( ensureAlways(AssetData.ObjectPath != NAME_None) && ensureAlways(Width > 0) && ensureAlways(Height > 0) )
 	{
 		FThumbId ThumbId( AssetData.ObjectPath, Width, Height ) ;
 		const TSharedRef<FThumbnailInfo>* ThumbnailInfoPtr = ThumbnailToTextureMap.Find( ThumbId );
 		if ( ThumbnailInfoPtr )
 		{
 			ThumbnailsToRenderStack.AddUnique(*ThumbnailInfoPtr);
+		}
+	}
+}
+
+void FAssetThumbnailPool::SetRealTimeThumbnail( const TSharedPtr<FAssetThumbnail>& Thumbnail, bool bRealTimeThumbnail )
+{
+	const FAssetData& AssetData = Thumbnail->GetAssetData();
+	const uint32 Width = Thumbnail->GetSize().X;
+	const uint32 Height = Thumbnail->GetSize().Y;
+
+	if ( ensureAlways(AssetData.ObjectPath != NAME_None) && ensureAlways(Width > 0) && ensureAlways(Height > 0) )
+	{
+		FThumbId ThumbId( AssetData.ObjectPath, Width, Height );
+		const TSharedRef<FThumbnailInfo>* ThumbnailInfoPtr = ThumbnailToTextureMap.Find( ThumbId );
+		if ( ThumbnailInfoPtr )
+		{
+			if ( bRealTimeThumbnail )
+			{
+				RealTimeThumbnails.AddUnique(*ThumbnailInfoPtr);
+			}
+			else
+			{
+				RealTimeThumbnails.Remove(*ThumbnailInfoPtr);
+			}
 		}
 	}
 }

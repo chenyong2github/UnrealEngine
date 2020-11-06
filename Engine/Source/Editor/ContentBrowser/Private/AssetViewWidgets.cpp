@@ -34,7 +34,6 @@
 #include "ContentBrowserLog.h"
 #include "ObjectTools.h"
 #include "AssetThumbnail.h"
-#include "Settings/ContentBrowserSettings.h"
 #include "ContentBrowserModule.h"
 #include "ContentBrowserUtils.h"
 #include "ContentBrowserDataSource.h"
@@ -1558,6 +1557,26 @@ void SAssetListItem::OnAssetDataChanged()
 	}
 }
 
+void SAssetListItem::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	SAssetViewItem::OnMouseEnter(MyGeometry, MouseEvent);
+
+	if (AssetThumbnail.IsValid())
+	{
+		AssetThumbnail->SetRealTime(true);
+	}
+}
+
+void SAssetListItem::OnMouseLeave(const FPointerEvent& MouseEvent)
+{
+	SAssetViewItem::OnMouseLeave(MouseEvent);
+
+	if (AssetThumbnail.IsValid())
+	{
+		AssetThumbnail->SetRealTime(false);
+	}
+}
+
 float SAssetListItem::GetExtraStateIconWidth() const
 {
 	return GetStateIconImageSize().Get();
@@ -1616,6 +1635,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 		FAssetThumbnailConfig ThumbnailConfig;
 		ThumbnailConfig.bAllowFadeIn = true;
 		ThumbnailConfig.bAllowHintText = InArgs._AllowThumbnailHintLabel;
+		ThumbnailConfig.bAllowRealTimeOnHovered = false; // we use our own OnMouseEnter/Leave for logical asset item
 		ThumbnailConfig.bForceGenericThumbnail = AssetItem->GetItem().GetItemTemporaryReason() == EContentBrowserItemFlags::Temporary_Creation;
 		ThumbnailConfig.bAllowAssetSpecificThumbnailOverlay = !ThumbnailConfig.bForceGenericThumbnail;
 		ThumbnailConfig.ThumbnailLabel = InArgs._ThumbnailLabel;
@@ -1750,6 +1770,26 @@ void SAssetTileItem::OnAssetDataChanged()
 		{
 			AssetThumbnail->SetAsset(FAssetData());
 		}
+	}
+}
+
+void SAssetTileItem::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	SAssetViewItem::OnMouseEnter(MyGeometry, MouseEvent);
+
+	if (AssetThumbnail.IsValid())
+	{
+		AssetThumbnail->SetRealTime( true );
+	}
+}
+
+void SAssetTileItem::OnMouseLeave(const FPointerEvent& MouseEvent)
+{
+	SAssetViewItem::OnMouseLeave(MouseEvent);
+
+	if (AssetThumbnail.IsValid())
+	{
+		AssetThumbnail->SetRealTime( false );
 	}
 }
 

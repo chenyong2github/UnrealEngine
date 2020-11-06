@@ -179,7 +179,7 @@ void SFoliagePalette::Construct(const FArguments& InArgs)
 
 	// Size of the thumbnail pool should be large enough to show a reasonable amount of foliage assets on screen at once,
 	// otherwise some thumbnail images will appear duplicated.
-	ThumbnailPool = MakeShareable(new FAssetThumbnailPool(64, TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SFoliagePalette::IsHovered))));
+	ThumbnailPool = MakeShared<FAssetThumbnailPool>(64);
 
 	TypeFilter = MakeShareable(new FoliageTypeTextFilter(
 		FoliageTypeTextFilter::FItemToStringArray::CreateSP(this, &SFoliagePalette::GetPaletteItemFilterString)));
@@ -466,7 +466,7 @@ void SFoliagePalette::UpdateThumbnailForType(UFoliageType* FoliageType)
 		{
 			const bool bItemIsSelected = GetActiveViewWidget()->IsItemSelected(Item);
 
-			Item = MakeShareable(new FFoliagePaletteItemModel(Item->GetTypeUIInfo(), SharedThis(this), ThumbnailPool, FoliageEditMode));
+			Item = MakeShared<FFoliagePaletteItemModel>(Item->GetTypeUIInfo(), SharedThis(this), ThumbnailPool, FoliageEditMode);
 			if (bItemIsSelected)
 			{
 				GetActiveViewWidget()->SetItemSelection(Item, true);

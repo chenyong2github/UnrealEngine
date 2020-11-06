@@ -413,6 +413,12 @@ public:
 	/** Handles committing a name change */
 	virtual void OnAssetDataChanged() override;
 
+	/** Handles realtime thumbnails */
+	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+
+	/** Handles realtime thumbnails */
+	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
+
 	/** Whether the widget should allow primitive tools to be displayed */
 	bool CanDisplayPrimitiveTools() const { return false; }
 
@@ -523,6 +529,12 @@ public:
 
 	/** Handles committing a name change */
 	virtual void OnAssetDataChanged() override;
+
+	/** Handles realtime thumbnails */
+	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+
+	/** Handles realtime thumbnails */
+	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
 
 	/** Whether the widget should allow primitive tools to be displayed */
 	bool CanDisplayPrimitiveTools() const { return true; }

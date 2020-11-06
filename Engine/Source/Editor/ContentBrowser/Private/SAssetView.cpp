@@ -219,7 +219,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	ThumbnailScaleRangeScalar = ( DisplaySize.Y / 2160 );
 
 	// Create a thumbnail pool for rendering thumbnails	
-	AssetThumbnailPool = MakeShareable( new FAssetThumbnailPool(1024, InArgs._AreRealTimeThumbnailsAllowed) );
+	AssetThumbnailPool = MakeShared<FAssetThumbnailPool>(1024);
 	NumOffscreenThumbnails = 64;
 	ListViewThumbnailResolution = 128;
 	ListViewThumbnailSize = 64;

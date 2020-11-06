@@ -500,7 +500,7 @@ TSharedPtr<FAssetThumbnailPool> SDetailsViewBase::GetThumbnailPool() const
 	if (!ThumbnailPool.IsValid())
 	{
 		// Create a thumbnail pool for the view if it doesnt exist.  This does not use resources of no thumbnails are used
-		ThumbnailPool = MakeShareable(new FAssetThumbnailPool(50, TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SDetailsView::IsHovered))));
+		ThumbnailPool = MakeShared<FAssetThumbnailPool>(50);
 	}
 
 	return ThumbnailPool;

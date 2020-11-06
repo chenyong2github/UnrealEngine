@@ -75,8 +75,7 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 	SortByColumn = SSearchTreeRow::NAME_ColumnName;
 	SortMode = EColumnSortMode::Ascending;
 
-	const bool bAreRealTimeThumbnailsAllowed = false;
-	ThumbnailPool = MakeShared<FAssetThumbnailPool>(AssetSearchConstants::ThumbnailPoolSize, bAreRealTimeThumbnailsAllowed);
+	ThumbnailPool = MakeShared<FAssetThumbnailPool>(AssetSearchConstants::ThumbnailPoolSize);
 
 	AssetRegistry = &FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 

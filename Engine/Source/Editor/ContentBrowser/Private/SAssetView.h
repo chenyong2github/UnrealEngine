@@ -63,7 +63,6 @@ class SAssetView : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS( SAssetView )
 		: _InitialCategoryFilter(EContentBrowserItemCategoryFilter::IncludeAll)
-		, _AreRealTimeThumbnailsAllowed(true)
 		, _ThumbnailLabel( EThumbnailLabel::ClassName )
 		, _AllowThumbnailHintLabel(true)
 		, _InitialViewType(EAssetViewType::Tile)
@@ -124,9 +123,6 @@ public:
 
 		/** The warning text to display when there are no assets to show */
 		SLATE_ATTRIBUTE( FText, AssetShowWarningText )
-
-		/** Attribute to determine if real-time thumbnails should be used */
-		SLATE_ATTRIBUTE( bool, AreRealTimeThumbnailsAllowed )
 
 		/** Attribute to determine what text should be highlighted */
 		SLATE_ATTRIBUTE( FText, HighlightedText )

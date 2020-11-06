@@ -84,8 +84,7 @@ SLevelEditor::SLevelEditor()
 	: World(nullptr)
 	, bNeedsRefresh(false)
 {
-	const bool bAreRealTimeThumbnailsAllowed = false;
-	ThumbnailPool = MakeShareable(new FAssetThumbnailPool(LevelEditorConstants::ThumbnailPoolSize, bAreRealTimeThumbnailsAllowed));
+	ThumbnailPool = MakeShared<FAssetThumbnailPool>(LevelEditorConstants::ThumbnailPoolSize);
 }
 
 void SLevelEditor::BindCommands()

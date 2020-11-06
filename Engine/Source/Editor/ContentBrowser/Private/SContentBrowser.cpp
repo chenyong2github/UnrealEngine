@@ -172,7 +172,6 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 		.OnItemsActivated(this, &SContentBrowser::OnItemsActivated)
 		.OnGetItemContextMenu(this, &SContentBrowser::GetItemContextMenu, EContentBrowserViewContext::AssetView)
 		.OnItemRenameCommitted(this, &SContentBrowser::OnItemRenameCommitted)
-		.AreRealTimeThumbnailsAllowed(this, &SContentBrowser::IsHovered)
 		.FrontendFilters(FrontendFilters)
 		.HighlightedText(this, &SContentBrowser::GetHighlightedText)
 		.ShowBottomToolbar(bShowBottomToolbar)
