@@ -393,6 +393,13 @@ public:
   /// \brief Sets the entry function.
   void setEntryFunction(SpirvFunction *fn) { entryFunction = fn; }
 
+  /// \brief Creates a variable for hull shader output patch with Workgroup
+  /// storage class, and registers the SPIR-V variable for the given decl.
+  SpirvInstruction *createHullMainOutputPatch(const ParmVarDecl *param,
+                                              const QualType retType,
+                                              uint32_t numOutputControlPoints,
+                                              SourceLocation loc);
+
   /// Raytracing specific functions
   /// \brief Handle specific implicit declarations present only in raytracing
   /// stages.
@@ -634,6 +641,15 @@ private:
   SpirvVariable *createSpirvStageVar(StageVar *, const NamedDecl *decl,
                                      const llvm::StringRef name,
                                      SourceLocation);
+
+  // UE Change Begin: Create intermediate output variable to communicate patch
+  // constant data in hull shader since workgroup memory is not allowed there.
+  SpirvVariable *
+  createSpirvIntermediateOutputStageVar(const NamedDecl *decl,
+                                        const llvm::StringRef name,
+                                        QualType asType, uint32_t arraySize);
+  // UE Change End: Create intermediate output variable to communicate patch
+  // constant data in hull shader since workgroup memory is not allowed there.
 
   /// Returns true if all vk:: attributes usages are valid.
   bool validateVKAttributes(const NamedDecl *decl);
