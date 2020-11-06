@@ -1957,13 +1957,18 @@ bool DeclResultIdMapper::createStageVars(
       }
     }
 
+	// UE Change Begin: Decorate with interpolation modes for input/output in
+    // tessellation shaders.
     // Decorate with interpolation modes for pixel shader input variables
     // or vertex shader output variables.
     if (((spvContext.isPS() && sigPoint->IsInput()) ||
-         (spvContext.isVS() && sigPoint->IsOutput())) &&
+         (spvContext.isVS() && sigPoint->IsOutput()) ||
+         (spvContext.isHS() || spvContext.isDS())) &&
         // BaryCoord*AMD buitins already encode the interpolation mode.
         semanticKind != hlsl::Semantic::Kind::Barycentrics)
       decorateInterpolationMode(decl, type, varInstr);
+    // UE Change End: Decorate with interpolation modes for input/output in
+    // tessellation shaders.
 
     if (asInput) {
       *value = spvBuilder.createLoad(evalType, varInstr, loc);
@@ -2643,6 +2648,52 @@ SpirvVariable *DeclResultIdMapper::getBuiltinVar(spv::BuiltIn builtIn,
   return var;
 }
 
+// UE Change Begin: Create intermediate output variable to communicate patch
+// constant data in hull shader since workgroup memory is not allowed there.
+SpirvVariable *DeclResultIdMapper::createSpirvIntermediateOutputStageVar(
+    const NamedDecl *decl, const llvm::StringRef name, QualType type,
+    uint32_t arraySize) {
+  const auto *semantic = hlsl::Semantic::GetByName(name);
+  SemanticInfo thisSemantic{name, semantic, name, 0,
+                               decl->getLocation()};
+
+  const auto *sigPoint = deduceSigPoint(
+      cast<DeclaratorDecl>(decl), /*asInput=*/false, spvContext.getCurrentShaderModelKind(), /*forPCF=*/false);
+
+  // Which semantic we should use for this decl
+  auto *semanticToUse = &thisSemantic;
+
+  const auto *builtinAttr = decl->getAttr<VKBuiltInAttr>();
+
+  StageVar stageVar(sigPoint, *semanticToUse, builtinAttr, type,
+                    /*getLocationCount(astContext, type)*/ /*locCount=*/1);
+  SpirvVariable *varInstr =
+      createSpirvStageVar(&stageVar, decl, name, semanticToUse->loc);
+
+  if (!varInstr)
+    return nullptr;
+
+  stageVar.setSpirvInstr(varInstr);
+  stageVar.setLocationAttr(decl->getAttr<VKLocationAttr>());
+  stageVar.setIndexAttr(decl->getAttr<VKIndexAttr>());
+  stageVars.push_back(stageVar);
+
+  // Emit OpDecorate* instructions to link this stage variable with the HLSL
+  // semantic it is created for
+  spvBuilder.decorateHlslSemantic(varInstr, stageVar.getSemanticStr());
+
+  // We have semantics attached to this decl, which means it must be a
+  // function/parameter/variable. All are DeclaratorDecls.
+  stageVarInstructions[cast<DeclaratorDecl>(decl)] = varInstr;
+
+  // Mark that we have used one index for this semantic
+  ++semanticToUse->index;
+
+  return varInstr;
+}
+// UE Change End: Create intermediate output variable to communicate patch
+// constant data in hull shader since workgroup memory is not allowed there.
+
 SpirvVariable *DeclResultIdMapper::createSpirvStageVar(
     StageVar *stageVar, const NamedDecl *decl, const llvm::StringRef name,
     SourceLocation srcLoc) {
@@ -3307,6 +3358,24 @@ void DeclResultIdMapper::createRayTracingNVImplicitVar(const VarDecl *varDecl) {
   constVal->setRValue(true);
   astDecls[varDecl].instr = constVal;
 }
+
+// UE Change Begin: Create intermediate output variable to communicate patch
+// constant data in hull shader since workgroup memory is not allowed there.
+SpirvInstruction *DeclResultIdMapper::createHullMainOutputPatch(
+    const ParmVarDecl *param, const QualType retType,
+    uint32_t numOutputControlPoints, SourceLocation loc) {
+  const QualType hullMainRetType = astContext.getConstantArrayType(
+      retType, llvm::APInt(32, numOutputControlPoints),
+      clang::ArrayType::Normal, 0);
+  SpirvInstruction *hullMainOutputPatch = createSpirvIntermediateOutputStageVar(
+      param, "temp.var.hullMainRetVal", hullMainRetType,
+      numOutputControlPoints);
+  assert(astDecls[param].instr == nullptr);
+  astDecls[param].instr = hullMainOutputPatch;
+  return hullMainOutputPatch;
+}
+// UE Change End: Create intermediate output variable to communicate patch
+// constant data in hull shader since workgroup memory is not allowed there.
 
 } // end namespace spirv
 } // end namespace clang

@@ -1778,7 +1778,7 @@ static void CompileShaderDXC(FShaderCompilerInput const& Input, FShaderCompilerO
 
 				for (auto const& Var : OutputVars)
 				{
-					if (Var->storage_class == SpvStorageClassOutput && Var->built_in == -1)
+					if (Var->storage_class == SpvStorageClassOutput && Var->built_in == -1 && !CrossCompiler::FShaderConductorContext::IsIntermediateSpirvOutputVariable(Var->name))
 					{
 						if (Frequency == HSF_PixelShader && strstr(Var->name, "SV_Target"))
 						{
