@@ -14,9 +14,9 @@ UENUM(BlueprintType)
 enum class EGroomNiagaraSolvers : uint8
 {
 	None = 0 UMETA(Hidden),
-	CosseratRods = 0x02 UMETA(DisplatName = "GroomRods"),
-	AngularSprings = 0x04 UMETA(DisplatName = "GroomSprings"),
-	CustomSolver = 0x08 UMETA(DisplatName = "CustomSolver")
+	CosseratRods = 0x02 UMETA(DisplayName = "Groom Rods"),
+	AngularSprings = 0x04 UMETA(DisplayName = "Groom Springs"),
+	CustomSolver = 0x08 UMETA(DisplayName = "Custom Solver")
 };
 
 /** Size of each strands*/
@@ -24,11 +24,11 @@ UENUM(BlueprintType)
 enum class EGroomStrandsSize : uint8
 {
 	None = 0 UMETA(Hidden),
-	Size2 = 0x02 UMETA(DisplatName = "2"),
-	Size4 = 0x04 UMETA(DisplatName = "4"),
-	Size8 = 0x08 UMETA(DisplatName = "8"),
-	Size16 = 0x10 UMETA(DisplatName = "16"),
-	Size32 = 0x20 UMETA(DisplatName = "32")
+	Size2 = 0x02 UMETA(DisplayName = "2"),
+	Size4 = 0x04 UMETA(DisplayName = "4"),
+	Size8 = 0x08 UMETA(DisplayName = "8"),
+	Size16 = 0x10 UMETA(DisplayName = "16"),
+	Size32 = 0x20 UMETA(DisplayName = "32")
 };
 
 /** List of interpolation type */
@@ -36,9 +36,9 @@ UENUM(BlueprintType)
 enum class EGroomInterpolationType : uint8
 {
 	None = 0 UMETA(Hidden),
-	RigidTransform = 0x02 UMETA(DisplatName = "RigidTransform"),
-	OffsetTransform = 0x04 UMETA(DisplatName = "OffsetTransform"),
-	SmoothTransform = 0x08 UMETA(DisplatName = "SmoothTransform")
+	RigidTransform = 0x02 UMETA(DisplayName = "Rigid Transform"),
+	OffsetTransform = 0x04 UMETA(DisplayName = "Offset Transform"),
+	SmoothTransform = 0x08 UMETA(DisplayName = "Smooth Transform")
 };
 
 USTRUCT(BlueprintType)
