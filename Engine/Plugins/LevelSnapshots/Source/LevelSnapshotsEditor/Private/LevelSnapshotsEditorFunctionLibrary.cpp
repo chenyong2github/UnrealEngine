@@ -34,7 +34,7 @@ void ULevelSnapshotsEditorFunctionLibrary::SaveLevelSnapshotToDisk(ULevelSnapsho
 	AssetTools.CreateUniqueAssetName(BasePackageName, TEXT(""), PackageName, AssetName);
 
 	// TODO. that is just for testing now
-	ULevelSnapshot* SnapshotAsset = NewObject<ULevelSnapshot>(CreatePackage(NULL, *PackageName), *AssetName, RF_Public, LevelSnapshot);
+	ULevelSnapshot* SnapshotAsset = NewObject<ULevelSnapshot>(CreatePackage(*PackageName), *AssetName, RF_Public, LevelSnapshot);
 	UWorld* World = GEditor->GetEditorWorldContext().World();
 	if (World != nullptr)
 	{

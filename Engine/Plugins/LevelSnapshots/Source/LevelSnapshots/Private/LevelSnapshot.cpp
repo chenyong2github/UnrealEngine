@@ -20,9 +20,12 @@ void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 		AActor* Actor = *It;
 
 		UE_LOG(LogTemp, Warning, TEXT("Found Valid Object - %s"), *Actor->GetPathName());
+		if (Actor->IsA(UWorld::StaticClass()))
+		{
+			continue;
+		}
 		SnapshotActor(Actor);
 	}
-
 }
 
 void ULevelSnapshot::SnapshotActor(AActor* TargetActor)
