@@ -583,8 +583,17 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 
 		if(MeshObject)
 		{
-			// Calculate new lod level
-			UpdateLODStatus();
+			// Clamp LOD within the VALID range
+			// This is just to re-verify if LOD is WITHIN the valid range
+			// Do not replace this with UpdateLODStatus, which could change the LOD 
+			//	without animated, causing random skinning issues
+			// This can happen if your MinLOD is not valid anymore after loading
+			// which causes meshes to be invisible
+			{
+				int32 MinLodIndex = ComputeMinLOD();
+				int32 MaxLODIndex = MeshObject->GetSkeletalMeshRenderData().LODRenderData.Num() - 1;
+				PredictedLODLevel = FMath::Clamp(PredictedLODLevel, MinLodIndex, MaxLODIndex);
+			}
 
 			// If we have a valid LOD, set up required data, during reimport we may try to create data before we have all the LODs
 			// imported, in that case we skip until we have all the LODs
