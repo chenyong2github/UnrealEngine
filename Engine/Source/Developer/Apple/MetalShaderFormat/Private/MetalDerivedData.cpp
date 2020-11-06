@@ -1497,7 +1497,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					
 					for (auto const& Var : OutputVars)
 					{
-						if (Var->storage_class == SpvStorageClassOutput && Var->built_in == -1)
+						if (Var->storage_class == SpvStorageClassOutput && Var->built_in == -1 && !CrossCompiler::FShaderConductorContext::IsIntermediateSpirvOutputVariable(Var->name))
 						{
 							unsigned Location = Var->location;
 							uint32 ArrayCount = 1;

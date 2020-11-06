@@ -26,16 +26,12 @@ struct FFlatTessellationHSToDS
 	// scale factors in tangent space
 	float3 DisplacementScale : Flat_DisplacementScales;
 
-	// Tessellation multiplier.
-	float TessellationMultiplier : Flat_TessellationMultiplier;
-
-	// World displacement falloff multiplier.
-	float WorldDisplacementMultiplier : Flat_WorldDisplacementMultiplier;
+	// Tessellation multiplier and World displacement falloff multiplier.
+	float2 TessellationAndWorldDisplacementMultiplier : Flat_TessellationAndWorldDisplacementMultiplier;
 
 #if DISPLACEMENT_ANTICRACK
 	// dominant edge and vertex data used to avoid cracking when displacing
-	FHullShaderConstantDominantVertexData DominantVertex : Flat_DominantVertex;
-	FHullShaderConstantDominantEdgeData DominantEdge : Flat_DominantEdge;
+	FHullShaderConstantDominantEdgeAndVertexData DominantEdgeAndVertex : Flat_DominantEdgeAndVertex;
 #endif
 };
 
@@ -65,10 +61,10 @@ struct FFlatTessellationHSToDS
 		float3 WorldPostion2 = I[2].PassSpecificData.Position.xyz;
 
 		float4 TessellationMultipliers;
-		TessellationMultipliers.x = 0.5 * (I[1].TessellationMultiplier + I[2].TessellationMultiplier);
-		TessellationMultipliers.y = 0.5 * (I[2].TessellationMultiplier + I[0].TessellationMultiplier);
-		TessellationMultipliers.z = 0.5 * (I[0].TessellationMultiplier + I[1].TessellationMultiplier);
-		TessellationMultipliers.w = 0.333 * (I[0].TessellationMultiplier + I[1].TessellationMultiplier + I[2].TessellationMultiplier);
+		TessellationMultipliers.x = 0.5 * (I[1].TessellationAndWorldDisplacementMultiplier.x + I[2].TessellationAndWorldDisplacementMultiplier.x);
+		TessellationMultipliers.y = 0.5 * (I[2].TessellationAndWorldDisplacementMultiplier.x + I[0].TessellationAndWorldDisplacementMultiplier.x);
+		TessellationMultipliers.z = 0.5 * (I[0].TessellationAndWorldDisplacementMultiplier.x + I[1].TessellationAndWorldDisplacementMultiplier.x);
+		TessellationMultipliers.w = 0.333 * (I[0].TessellationAndWorldDisplacementMultiplier.x + I[1].TessellationAndWorldDisplacementMultiplier.x + I[2].TessellationAndWorldDisplacementMultiplier.x);
 
 		//@todo: This should be vectorized and done in the MainHull shader.
 		float4 CompositeTessellationFactors = TessellationMultipliers * CalculateCompositeTessellationFactors(WorldPostion0,WorldPostion1,WorldPostion2);
@@ -104,8 +100,8 @@ struct FFlatTessellationHSToDS
 		const uint NextControlPointID = ControlPointID < 2 ? ControlPointID + 1 : 0; // (ControlPointID + 1) % 3
 
 		O.PassSpecificData = I[ControlPointID];
-		O.TessellationMultiplier = GetTessellationMultiplier( I[ControlPointID] );
-		O.WorldDisplacementMultiplier = GetTessellationWorldDisplacementMultiplier(I[ControlPointID], O.TessellationMultiplier);
+		O.TessellationAndWorldDisplacementMultiplier.x = GetTessellationMultiplier( I[ControlPointID] );
+		O.TessellationAndWorldDisplacementMultiplier.y = GetTessellationWorldDisplacementMultiplier(I[ControlPointID], O.TessellationAndWorldDisplacementMultiplier.x);
 
 #if DISPLACEMENT_ANTICRACK
 		// NextControlPointID is first opposite edge vert
@@ -117,11 +113,15 @@ struct FFlatTessellationHSToDS
 		const uint NextNeighborNextControlPointID = NextNeighborControlPointID + 1; // neighbor for second opposite edge vert
 
 		// Dominant vertex is provided explicitly
-		const uint DominantVertexControlPointID = 9 + ControlPointID;
-		O.DominantVertex = GenerateDominantVertexData(I[DominantVertexControlPointID]);
-
 		// we need the other verts from each prim to generate the edges, clock wise winding
-		O.DominantEdge = GenerateDominantEdgeData(I[NextControlPointID],I[NextNextControlPointID],I[NextNeighborControlPointID],I[NextNeighborNextControlPointID]);
+		const uint DominantVertexControlPointID = 9 + ControlPointID;
+		O.DominantEdgeAndVertex = GenerateDominantEdgeAndVertexData(
+			I[DominantVertexControlPointID],
+			I[NextControlPointID],
+			I[NextNextControlPointID],
+			I[NextNeighborControlPointID],
+			I[NextNeighborNextControlPointID]
+		);
 #endif	// DISPLACEMENT_ANTICRACK
 		
 		return O;
@@ -190,8 +190,7 @@ struct FFlatTessellationHSToDS
 			DisplacementTexCoords, DisplacementMaterialParameters.TangentToWorld,
 			GetNormalDS( TangentToLocal ), GetTangentDS( TangentToLocal ),
 			U, V, W,
-			I[0].DominantEdge, I[1].DominantEdge, I[2].DominantEdge,
-			I[0].DominantVertex, I[1].DominantVertex, I[2].DominantVertex );
+			I[0].DominantEdgeAndVertex, I[1].DominantEdgeAndVertex, I[2].DominantEdgeAndVertex );
 							
 		// Override texture coordinate 0.
 #if NUM_MATERIAL_TEXCOORDS
@@ -209,7 +208,7 @@ struct FFlatTessellationHSToDS
 
 		// world space displacement value.  This will likely use the tangent2world transform.
 		float3 WorldDisplacement = GetMaterialWorldDisplacement(DisplacementMaterialParameters);
-		float WorldDisplacementMultiplier = I[0].WorldDisplacementMultiplier*U + I[1].WorldDisplacementMultiplier*V + I[2].WorldDisplacementMultiplier*W;
+		float WorldDisplacementMultiplier = I[0].TessellationAndWorldDisplacementMultiplier.y*U + I[1].TessellationAndWorldDisplacementMultiplier.y*V + I[2].TessellationAndWorldDisplacementMultiplier.y*W;
 
 		WorldPosition.xyz += WorldDisplacement * WorldDisplacementMultiplier;
 

@@ -3,6 +3,10 @@
 /*=============================================================================
 	PNTriangles.usf: Shader fragments for PN-AEN triangles tessellation
 =============================================================================*/
+#ifdef DISPLACEMENT_ANTICRACK
+#undef DISPLACEMENT_ANTICRACK
+#define DISPLACEMENT_ANTICRACK 0
+#endif
 
 #define IN_CONTROL_POINTS 12
 #define OUT_CONTROL_POINTS 3  
@@ -28,16 +32,12 @@ struct FPNTessellationHSToDS
 	// scale factors in tangent space
 	float3 DisplacementScale	: PN_DisplacementScales;
 
-	// Tessellation multiplier.
-	float TessellationMultiplier : PN_TessellationMultiplier;
-
-	// World displacement falloff multiplier.
-	float WorldDisplacementMultiplier : PN_WorldDisplacementMultiplier;
+	// Tessellation multiplier and World displacement falloff multiplier.
+	float2 TessellationAndWorldDisplacementMultiplier : Flat_TessellationAndWorldDisplacementMultiplier;
 
 #if DISPLACEMENT_ANTICRACK
 	// dominant edge and vertex data used to avoid cracking when displacing
-	FHullShaderConstantDominantVertexData DominantVertex : PN_DominantVertex;
-	FHullShaderConstantDominantEdgeData DominantEdge : PN_DominantEdge;
+	FHullShaderConstantDominantEdgeAndVertexData DominantEdgeAndVertex : PN_DominantEdgeAndVertex;
 #endif
 };
 
@@ -83,10 +83,10 @@ float4 ComputeControlPoint(float4 PositionA, float4 PositionB, float4 NormalA)
 		O.WorldB111 = E + ((E - V) / 2.0f);
 
 		float4 TessellationMultipliers;
-		TessellationMultipliers.x = 0.5 * (I[1].TessellationMultiplier + I[2].TessellationMultiplier);
-		TessellationMultipliers.y = 0.5 * (I[2].TessellationMultiplier + I[0].TessellationMultiplier);
-		TessellationMultipliers.z = 0.5 * (I[0].TessellationMultiplier + I[1].TessellationMultiplier);
-		TessellationMultipliers.w = 0.333 * (I[0].TessellationMultiplier + I[1].TessellationMultiplier + I[2].TessellationMultiplier);
+		TessellationMultipliers.x = 0.5 * (I[1].TessellationAndWorldDisplacementMultiplier.x + I[2].TessellationAndWorldDisplacementMultiplier.x);
+		TessellationMultipliers.y = 0.5 * (I[2].TessellationAndWorldDisplacementMultiplier.x + I[0].TessellationAndWorldDisplacementMultiplier.x);
+		TessellationMultipliers.z = 0.5 * (I[0].TessellationAndWorldDisplacementMultiplier.x + I[1].TessellationAndWorldDisplacementMultiplier.x);
+		TessellationMultipliers.w = 0.333 * (I[0].TessellationAndWorldDisplacementMultiplier.x + I[1].TessellationAndWorldDisplacementMultiplier.x + I[2].TessellationAndWorldDisplacementMultiplier.x);
 
 		//@todo: This should be vectorized and done in the MainHull shader.
 		float4 CompositeTessellationFactors = TessellationMultipliers * CalculateCompositeTessellationFactors(B300.xyz,B030.xyz,B003.xyz);
@@ -127,8 +127,8 @@ float4 ComputeControlPoint(float4 PositionA, float4 PositionB, float4 NormalA)
 
 		O.PassSpecificData = I[ControlPointID];
 		O.WorldPosition[0] = I[ControlPointID].Position;
-		O.TessellationMultiplier = GetTessellationMultiplier( I[ControlPointID] );
-		O.WorldDisplacementMultiplier = GetTessellationWorldDisplacementMultiplier(I[ControlPointID], O.TessellationMultiplier);
+		O.TessellationAndWorldDisplacementMultiplier.x = GetTessellationMultiplier( I[ControlPointID] );
+		O.TessellationAndWorldDisplacementMultiplier.y = GetTessellationWorldDisplacementMultiplier(I[ControlPointID], O.TessellationAndWorldDisplacementMultiplier.x);
 
 #if DISPLACEMENT_ANTICRACK
 		// NextControlPointID is first opposite edge vert
@@ -140,11 +140,15 @@ float4 ComputeControlPoint(float4 PositionA, float4 PositionB, float4 NormalA)
 		const uint NextNeighborNextControlPointID = NextNeighborControlPointID+1; // neighbor for second opposite edge vert
 
 		// Dominant vertex is provided explicitly
-		const uint DominantVertexControlPointID = 9 + ControlPointID;
-		O.DominantVertex = GenerateDominantVertexData(I[DominantVertexControlPointID]);
-
 		// we need the other verts from each prim to generate the edges, clock wise winding
-		O.DominantEdge = GenerateDominantEdgeData(I[NextControlPointID],I[NextNextControlPointID],I[NextNeighborControlPointID],I[NextNeighborNextControlPointID]);
+		const uint DominantVertexControlPointID = 9 + ControlPointID;
+		O.DominantEdgeAndVertex = GenerateDominantEdgeAndVertexData(
+			I[DominantVertexControlPointID],
+			I[NextControlPointID],
+			I[NextNextControlPointID],
+			I[NextNeighborControlPointID],
+			I[NextNeighborNextControlPointID]
+		);
 #endif	// DISPLACEMENT_ANTICRACK
 
 		// AEN Computations
@@ -256,8 +260,7 @@ float4 ComputeControlPoint(float4 PositionA, float4 PositionB, float4 NormalA)
 		ApplyDominantData(	DisplacementTexCoords, DisplacementMaterialParameters.TangentToWorld,
 							GetNormalDS( TangentToLocal ), GetTangentDS( TangentToLocal ),
 							U, V, W,
-							I[0].DominantEdge, I[1].DominantEdge, I[2].DominantEdge,
-							I[0].DominantVertex, I[1].DominantVertex, I[2].DominantVertex
+							I[0].DominantEdgeAndVertex, I[1].DominantEdgeAndVertex, I[2].DominantEdgeAndVertex
 							);
 		
 		// Override texture coordinate 0.
@@ -276,7 +279,7 @@ float4 ComputeControlPoint(float4 PositionA, float4 PositionB, float4 NormalA)
 
 		// world space displacement value.  This will likely use the tangent2world transform.
 		float3 WorldDisplacement = GetMaterialWorldDisplacement(DisplacementMaterialParameters);
-		float WorldDisplacementMultiplier = I[0].WorldDisplacementMultiplier*U + I[1].WorldDisplacementMultiplier*V + I[2].WorldDisplacementMultiplier*W;
+		float WorldDisplacementMultiplier = I[0].TessellationAndWorldDisplacementMultiplier.y*U + I[1].TessellationAndWorldDisplacementMultiplier.y*V + I[2].TessellationAndWorldDisplacementMultiplier.y*W;
 		WorldPosition.xyz += WorldDisplacement * WorldDisplacementMultiplier;
 
 		#if USE_GLOBAL_CLIP_PLANE
