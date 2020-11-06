@@ -76,6 +76,9 @@ namespace Audio
 		/* Impulse response samples in interleaved format. */
 		TArray<float> Samples;
 
+		/* Normalization gain to apply to reverb output. */
+		float NormalizationVolume;
+
 		/* If true, input audio is mixed to match the channel format of the impulse response. 
 		 * If false, input audio is matched to equivalent audio channels of the impulse response. 
 		 */
