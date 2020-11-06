@@ -340,6 +340,7 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 	NewProcess->Name = InRunTask.Name;
 	NewProcess->Caller = InRunTask.Caller;
 	NewProcess->bUpdateClientsWithStdout = InRunTask.bUpdateClientsWithStdout;
+	NewProcess->UUID = InRunTask.TaskID; // Process ID is the same as the message ID.
 
 	if (!FPlatformProcess::CreatePipe(NewProcess->ReadPipe, NewProcess->WritePipe))
 	{
@@ -386,7 +387,6 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 
 	UE_LOG(LogSwitchboard, Display, TEXT("Started process %d: %s %s"), NewProcess->PID, *InRunTask.Command, *InRunTask.Arguments);
 
-	FGenericPlatformMisc::CreateGuid(NewProcess->UUID);
 	RunningProcesses.Add(NewProcess);
 
 	SendMessage(CreateProgramStartedMessage(NewProcess->UUID.ToString(), InRunTask.TaskID.ToString()), InRunTask.Recipient);
