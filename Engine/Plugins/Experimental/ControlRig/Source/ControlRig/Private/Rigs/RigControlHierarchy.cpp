@@ -438,22 +438,20 @@ void FRigControl::SetValueFromTransform(const FTransform& InTransform, ERigContr
 			GetValue(InValueType).Set<FTransformNoScale>(NoScale);
 			break;
 		}
-
 		case ERigControlType::EulerTransform:
 		{
 			//Find Diff of the rotation from current and just add that instead of setting so we can go over/under -180
 			FEulerTransform NewTransform(InTransform);
+
 			FEulerTransform CurrentEulerTransform = GetValue(InValueType).Get<FEulerTransform>();
-
-			FTransform CurrentFTransform = CurrentEulerTransform.ToFTransform();
-			FTransform Diff = InTransform.GetRelativeTransform(CurrentFTransform);
-			FRotator DeltaRot = Diff.GetRotation().Rotator();
-
-			FRotator CurrentRotWind, CurrentRotRem;
-			CurrentEulerTransform.Rotation.GetWindingAndRemainder(CurrentRotWind, CurrentRotRem);
+			FRotator CurrentWinding;
+			FRotator CurrentRotRemainder;
+			CurrentEulerTransform.Rotation.GetWindingAndRemainder(CurrentWinding, CurrentRotRemainder);
+			FRotator NewRotator = InTransform.GetRotation().Rotator();
+			FRotator DeltaRot = NewRotator - CurrentRotRemainder;
 			DeltaRot.Normalize();
-			//Add Diff
-			NewTransform.Rotation = CurrentEulerTransform.Rotation + DeltaRot;
+			const FRotator NewRotation(CurrentEulerTransform.Rotation + DeltaRot);
+			NewTransform.Rotation = NewRotation;
 			GetValue(InValueType).Set<FEulerTransform>(NewTransform);
 			break;
 		}
