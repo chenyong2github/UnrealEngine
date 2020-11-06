@@ -655,17 +655,6 @@ private:
 	bool ShouldRenderDistortion() const;
 	void RenderDistortion(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthTexture);
 
-	/** Renders world-space lightmap density instead of the normal color. */
-	void RenderLightMapDensities(FRDGBuilder& GraphBuilder, const FRenderTargetBindingSlots& RenderTargets);
-
-	/** Renders one of the EDebugViewShaderMode instead of the normal color. */
-	void RenderDebugViewMode(FRDGBuilder& GraphBuilder, const FRenderTargetBindingSlots& RenderTargets);
-
-	/** Updates the downsized depth buffer with the current full resolution depth buffer using a min/max checkerboard pattern. */
-	void UpdateHalfResDepthSurfaceCheckerboardMinMax(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture);
-
-	FRDGTextureRef CopyStencilToLightingChannelTexture(FRDGBuilder& GraphBuilder, FRDGTextureSRVRef SceneStencilTexture);
-
 	/** Renders capsule shadows for all per-object shadows using it for the given light. */
 	bool RenderCapsuleDirectShadows(
 		FRDGBuilder& GraphBuilder,

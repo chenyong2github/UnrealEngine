@@ -101,7 +101,7 @@ struct FCloudRenderContext
 	FVolumetricCloudRenderSceneInfo* CloudInfo;
 	FMaterialRenderProxy* CloudVolumeMaterialProxy;
 
-	TRefCountPtr<IPooledRenderTarget> SceneDepthZ;
+	FRDGTextureRef SceneDepthZ = nullptr;
 
 	///////////////////////////////////
 	// Per view parameters

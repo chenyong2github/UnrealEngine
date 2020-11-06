@@ -396,7 +396,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 					FMaterialRenderProxy* CloudVolumeMaterialProxy = CloudSceneProxy.GetCloudVolumeMaterial()->GetRenderProxy();
 					CloudRC.CloudInfo = &CloudInfo;
 					CloudRC.CloudVolumeMaterialProxy = CloudVolumeMaterialProxy;
-					CloudRC.SceneDepthZ = GSystemTextures.MaxFP16Depth;
+					CloudRC.SceneDepthZ = GSystemTextures.GetMaxFP16Depth(GraphBuilder);
 
 					CloudRC.MainView = &CubeView; /// This is only accessing data that is not changing between view oerientation. Such data are accessed from the ViewUniformBuffer. See CubeView comment above.
 

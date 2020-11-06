@@ -505,3 +505,4 @@ enum class FLightOcclusionType : uint8
 FLightOcclusionType GetLightOcclusionType(const FLightSceneProxy& Proxy);
 FLightOcclusionType GetLightOcclusionType(const FLightSceneInfoCompact& LightInfo);
 
+FRDGTextureRef CopyStencilToLightingChannelTexture(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FRDGTextureSRVRef SceneStencilTexture);

@@ -68,18 +68,22 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLightMapDensitiesPassParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-void FDeferredShadingSceneRenderer::RenderLightMapDensities(FRDGBuilder& GraphBuilder, const FRenderTargetBindingSlots& RenderTargets)
+void RenderLightMapDensities(
+	FRDGBuilder& GraphBuilder,
+	TArrayView<const FViewInfo> Views,
+	FScene* Scene,
+	const FRenderTargetBindingSlots& RenderTargets)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "LightMapDensity");
 
 	auto* PassParameters = GraphBuilder.AllocParameters<FLightMapDensitiesPassParameters>();
-	PassParameters->Pass = CreateLightmapDensityPassUniformBuffer(GraphBuilder, FeatureLevel);
+	PassParameters->Pass = CreateLightmapDensityPassUniformBuffer(GraphBuilder, Scene->GetFeatureLevel());
 	PassParameters->RenderTargets = RenderTargets;
 
 	// Draw the scene's emissive and light-map color.
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
-		FViewInfo& View = Views[ViewIndex];
+		const FViewInfo& View = Views[ViewIndex];
 		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
@@ -87,7 +91,7 @@ void FDeferredShadingSceneRenderer::RenderLightMapDensities(FRDGBuilder& GraphBu
 			{},
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[this, &View](FRHICommandList& RHICmdList)
+			[Scene, &View](FRHICommandList& RHICmdList)
 		{
 			Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);

@@ -91,13 +91,13 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDebugViewModePassParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-void FDeferredShadingSceneRenderer::RenderDebugViewMode(FRDGBuilder& GraphBuilder, const FRenderTargetBindingSlots& RenderTargets)
+void RenderDebugViewMode(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FScene* Scene, const FRenderTargetBindingSlots& RenderTargets)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "DebugViewMode");
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
-		FViewInfo& View = Views[ViewIndex];
+		const FViewInfo& View = Views[ViewIndex];
 		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
@@ -109,7 +109,7 @@ void FDeferredShadingSceneRenderer::RenderDebugViewMode(FRDGBuilder& GraphBuilde
 			{},
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[this, &View](FRHICommandList& RHICmdList)
+			[Scene, &View](FRHICommandList& RHICmdList)
 		{
 			Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
@@ -377,7 +377,7 @@ void InitDebugViewModeInterfaces()
 
 #else // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-void FDeferredShadingSceneRenderer::RenderDebugViewMode(FRDGBuilder& GraphBuilder, const FRenderTargetBindingSlots& RenderTargets) {}
+void RenderDebugViewMode(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, const FRenderTargetBindingSlots& RenderTargets) {}
 
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 

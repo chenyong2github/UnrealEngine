@@ -271,3 +271,9 @@ private:
 
 	FMeshPassProcessorRenderState PassDrawRenderState;
 };
+
+void RenderLightMapDensities(
+	FRDGBuilder& GraphBuilder,
+	TArrayView<const FViewInfo> Views,
+	FScene* Scene,
+	const FRenderTargetBindingSlots& RenderTargets);

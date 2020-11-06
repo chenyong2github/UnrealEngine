@@ -2616,3 +2616,75 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(
 		}
 	});
 }
+
+class FCopyStencilToLightingChannelsPS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FCopyStencilToLightingChannelsPS);
+	SHADER_USE_PARAMETER_STRUCT(FCopyStencilToLightingChannelsPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float>, SceneStencilTexture)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("STENCIL_LIGHTING_CHANNELS_SHIFT"), STENCIL_LIGHTING_CHANNELS_BIT_ID);
+		OutEnvironment.SetRenderTargetOutputFormat(0, PF_R16_UINT);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FCopyStencilToLightingChannelsPS, "/Engine/Private/DownsampleDepthPixelShader.usf", "CopyStencilToLightingChannelsPS", SF_Pixel);
+
+FRDGTextureRef CopyStencilToLightingChannelTexture(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FRDGTextureSRVRef SceneStencilTexture)
+{
+	bool bAnyViewUsesLightingChannels = false;
+
+	for (int32 ViewIndex = 0, ViewCount = Views.Num(); ViewIndex < ViewCount; ++ViewIndex)
+	{
+		bAnyViewUsesLightingChannels = bAnyViewUsesLightingChannels || Views[ViewIndex].bUsesLightingChannels;
+	}
+
+	FRDGTextureRef LightingChannelsTexture = nullptr;
+
+	if (bAnyViewUsesLightingChannels)
+	{
+		RDG_EVENT_SCOPE(GraphBuilder, "CopyStencilToLightingChannels");
+
+		{
+			check(SceneStencilTexture && SceneStencilTexture->Desc.Texture);
+			const FIntPoint TextureExtent = SceneStencilTexture->Desc.Texture->Desc.Extent;
+			const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(TextureExtent, PF_R16_UINT, FClearValueBinding::None, TexCreate_RenderTargetable | TexCreate_ShaderResource);
+			LightingChannelsTexture = GraphBuilder.CreateTexture(Desc, TEXT("LightingChannels"));
+		}
+
+		const ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ENoAction;
+
+		for (int32 ViewIndex = 0, ViewCount = Views.Num(); ViewIndex < ViewCount; ++ViewIndex)
+		{
+			const FViewInfo& View = Views[ViewIndex];
+			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+
+			auto* PassParameters = GraphBuilder.AllocParameters<FCopyStencilToLightingChannelsPS::FParameters>();
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(LightingChannelsTexture, View.DecayLoadAction(LoadAction));
+			PassParameters->SceneStencilTexture = SceneStencilTexture;
+			PassParameters->View = View.ViewUniformBuffer;
+
+			const FScreenPassTextureViewport Viewport(LightingChannelsTexture, View.ViewRect);
+
+			TShaderMapRef<FCopyStencilToLightingChannelsPS> PixelShader(View.ShaderMap);
+			AddDrawScreenPass(GraphBuilder, {}, View, Viewport, Viewport, PixelShader, PassParameters);
+		}
+	}
+
+	return LightingChannelsTexture;
+}

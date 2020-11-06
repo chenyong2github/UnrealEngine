@@ -1642,13 +1642,12 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 	const bool bSecondAtmosphereLightEnabled = CloudRC.bSecondAtmosphereLightEnabled;
 
 	uint32 NoiseFrameIndexModPattern = CloudRC.NoiseFrameIndexModPattern;
-	TRefCountPtr<IPooledRenderTarget> SceneDepthZ = CloudRC.SceneDepthZ;
 	FVolumeShadowingShaderParametersGlobal0 LightShadowShaderParams0 = CloudRC.LightShadowShaderParams0;
 	bool bSkipAerialPerspective = CloudRC.bSkipAerialPerspective;
 
 	FRenderVolumetricCloudGlobalParameters& VolumetricCloudParams = *GraphBuilder.AllocParameters<FRenderVolumetricCloudGlobalParameters>();
 	SetupDefaultRenderVolumetricCloudGlobalParameters(GraphBuilder, VolumetricCloudParams, CloudInfo, MainView);
-	VolumetricCloudParams.SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneDepthZ);
+	VolumetricCloudParams.SceneDepthTexture = CloudRC.SceneDepthZ;
 	VolumetricCloudParams.Light0Shadow = LightShadowShaderParams0;
 	VolumetricCloudParams.CloudShadowTexture0 = RenderViewPassParameters->CloudShadowTexture0;
 	VolumetricCloudParams.CloudShadowTexture1 = RenderViewPassParameters->CloudShadowTexture1;
@@ -1721,7 +1720,8 @@ void FSceneRenderer::RenderVolumetricCloud(
 	bool bSkipVolumetricRenderTarget,
 	bool bSkipPerPixelTracing,
 	FRDGTextureMSAA SceneColorTexture,
-	FRDGTextureMSAA SceneDepthTexture)
+	FRDGTextureMSAA SceneDepthTexture,
+	FRDGTextureRef HalfResolutionDepthCheckerboardMinMaxTexture)
 {
 	check(ShouldRenderVolumetricCloud(Scene, ViewFamily.EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
 
@@ -1742,9 +1742,7 @@ void FSceneRenderer::RenderVolumetricCloud(
 
 			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
-			TRefCountPtr<IPooledRenderTarget> SceneDepthZ = SceneContext.SceneDepthZ;
-			TRefCountPtr<IPooledRenderTarget> BlackDummy = GSystemTextures.BlackDummy;
-			FRDGTextureRef BlackDummyRDG = GraphBuilder.RegisterExternalTexture(BlackDummy);
+			FRDGTextureRef SceneDepthZ = SceneDepthTexture.Resolve;
 
 			FCloudRenderContext CloudRC;
 			CloudRC.CloudInfo = &CloudInfo;
@@ -1797,8 +1795,8 @@ void FSceneRenderer::RenderVolumetricCloud(
 					CloudRC.TracingCoordToZbufferCoordScaleBias = VRT.GetTracingCoordToZbufferCoordScaleBias();
 					CloudRC.NoiseFrameIndexModPattern = VRT.GetNoiseFrameIndexModPattern();
 
-					check(VRT.GetMode() != 0 || ViewInfo.HalfResDepthSurfaceCheckerboardMinMax.IsValid());
-					CloudRC.SceneDepthZ = VRT.GetMode() == 0 ? ViewInfo.HalfResDepthSurfaceCheckerboardMinMax : SceneDepthZ;
+					check(VRT.GetMode() != 0 || HalfResolutionDepthCheckerboardMinMaxTexture);
+					CloudRC.SceneDepthZ = VRT.GetMode() == 0 ? HalfResolutionDepthCheckerboardMinMaxTexture : SceneDepthZ;
 				}
 				else
 				{

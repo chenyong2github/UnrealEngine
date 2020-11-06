@@ -1292,8 +1292,6 @@ public:
 	float FurthestReflectionCaptureDistance;
 	TUniformBufferRef<FReflectionCaptureShaderData> ReflectionCaptureUniformBuffer;
 
-	TRefCountPtr<IPooledRenderTarget> HalfResDepthSurfaceCheckerboardMinMax;
-
 	// Sky / Atmosphere textures (transient owned by this view info) and pointer to constants owned by SkyAtmosphere proxy.
 	TRefCountPtr<IPooledRenderTarget> SkyAtmosphereCameraAerialPerspectiveVolume;
 	TRefCountPtr<IPooledRenderTarget> SkyAtmosphereViewLutTexture;
@@ -2007,22 +2005,14 @@ protected:
 		bool bSkipVolumetricRenderTarget,
 		bool bSkipPerPixelTracing,
 		FRDGTextureMSAA SceneColorTexture,
-		FRDGTextureMSAA SceneDepthTexture);
+		FRDGTextureMSAA SceneDepthTexture,
+		FRDGTextureRef HalfResolutionDepthCheckerboardMinMaxTexture);
 
 	/** Render notification to artist when a sky material is used but it might comtains the camera (and then the sky/background would look black).*/
 	void RenderSkyAtmosphereEditorNotifications(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture);
 
 	/** We should render on screen notification only if any of the scene contains a mesh using a sky material.*/
 	bool ShouldRenderSkyAtmosphereEditorNotifications();
-
-	/** Initialise volumetric render target.*/
-	void InitVolumetricRenderTargetForViews(FRDGBuilder& GraphBuilder);
-	/** Process the volumetric render target, generating the high resolution version.*/
-	void ReconstructVolumetricRenderTarget(FRDGBuilder& GraphBuilder);
-	/** Compose the volumetric render target over the scene.*/
-	void ComposeVolumetricRenderTargetOverScene(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthResolveTexture, bool bShouldRenderSingleLayerWater, const FSceneWithoutWaterTextures& WaterPassData);
-	/** Compose the volumetric render target over the scene from a view under water, in the water render target.*/
-	void ComposeVolumetricRenderTargetOverSceneUnderWater(FRDGBuilder& GraphBuilder, const FSceneWithoutWaterTextures& WaterPassData);
 
 	void ResolveSceneColor(FRHICommandListImmediate& RHICmdList);
 	void ResolveSceneDepth(FRHICommandListImmediate& RHICmdList);
@@ -2329,3 +2319,6 @@ void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 /** Resolves all views for scene color / depth. */
 void AddResolveSceneColorPass(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FRDGTextureMSAA SceneColor);
 void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FRDGTextureMSAA SceneDepth);
+
+/** Creates a half resolution checkerboard min / max depth buffer from the input full resolution depth buffer. */
+FRDGTextureRef CreateHalfResolutionDepthCheckerboardMinMax(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FRDGTextureRef SceneDepth);

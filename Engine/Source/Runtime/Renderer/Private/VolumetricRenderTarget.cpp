@@ -103,7 +103,7 @@ static void GetTextureSafeUvCoordBound(FRDGTextureRef Texture, FUintVector4& Tex
 	TextureValidUvRect.W = (float(TexSize.Y) - 0.51f) / float(TexSize.Y);
 };
 
-static bool AnyViewRequiresProcessing(TArray<FViewInfo>& Views)
+static bool AnyViewRequiresProcessing(TArrayView<FViewInfo> Views)
 {
 	bool bAnyViewRequiresProcessing = false;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -328,7 +328,7 @@ FUintVector4 FVolumetricRenderTargetViewStateData::GetTracingCoordToZbufferCoord
 	FSceneRenderer implementation.
 =============================================================================*/
 
-void FSceneRenderer::InitVolumetricRenderTargetForViews(FRDGBuilder& GraphBuilder)
+void InitVolumetricRenderTargetForViews(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views)
 {
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -433,7 +433,11 @@ IMPLEMENT_GLOBAL_SHADER(FReconstructVolumetricRenderTargetPS, "/Engine/Private/V
 
 //////////////////////////////////////////////////////////////////////////
 
-void FSceneRenderer::ReconstructVolumetricRenderTarget(FRDGBuilder& GraphBuilder)
+void ReconstructVolumetricRenderTarget(
+	FRDGBuilder& GraphBuilder,
+	TArrayView<FViewInfo> Views,
+	FRDGTextureRef SceneDepthTexture,
+	FRDGTextureRef HalfResolutionDepthCheckerboardMinMaxTexture)
 {
 	if (!AnyViewRequiresProcessing(Views))
 	{
@@ -480,7 +484,7 @@ void FSceneRenderer::ReconstructVolumetricRenderTarget(FRDGBuilder& GraphBuilder
 		PassParameters->CurrentTracingPixelOffset = VolumetricCloudRT.GetCurrentTracingPixelOffset();
 		PassParameters->DownSampleFactor = TracingVolumetricCloudRTDownSample;
 		PassParameters->VolumetricRenderTargetMode = VolumetricCloudRT.GetMode();
-		PassParameters->HalfResDepthTexture = VolumetricCloudRT.GetMode() == 0 ? GraphBuilder.RegisterExternalTexture(ViewInfo.HalfResDepthSurfaceCheckerboardMinMax) : GraphBuilder.RegisterExternalTexture(SceneDepthZ);
+		PassParameters->HalfResDepthTexture = VolumetricCloudRT.GetMode() == 0 ? HalfResolutionDepthCheckerboardMinMaxTexture : SceneDepthTexture;
 
 		GetTextureSafeUvCoordBound(SrcTracingVolumetric, PassParameters->TracingVolumetricTextureValidCoordRect, PassParameters->TracingVolumetricTextureValidUvRect);
 		GetTextureSafeUvCoordBound(PreviousFrameVolumetricTexture, PassParameters->PreviousFrameVolumetricTextureValidCoordRect, PassParameters->PreviousFrameVolumetricTextureValidUvRect);
@@ -548,7 +552,13 @@ IMPLEMENT_GLOBAL_SHADER(FComposeVolumetricRTOverScenePS, "/Engine/Private/Volume
 
 //////////////////////////////////////////////////////////////////////////
 
-void FSceneRenderer::ComposeVolumetricRenderTargetOverScene(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthResolveTexture, bool bShouldRenderSingleLayerWater, const FSceneWithoutWaterTextures& WaterPassData)
+void ComposeVolumetricRenderTargetOverScene(
+	FRDGBuilder& GraphBuilder,
+	TArrayView<FViewInfo> Views,
+	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef SceneDepthResolveTexture,
+	bool bShouldRenderSingleLayerWater,
+	const FSceneWithoutWaterTextures& WaterPassData)
 {
 	if (!AnyViewRequiresProcessing(Views))
 	{
@@ -610,7 +620,10 @@ void FSceneRenderer::ComposeVolumetricRenderTargetOverScene(FRDGBuilder& GraphBu
 
 //////////////////////////////////////////////////////////////////////////
 
-void FSceneRenderer::ComposeVolumetricRenderTargetOverSceneUnderWater(FRDGBuilder& GraphBuilder, const FSceneWithoutWaterTextures& WaterPassData)
+void ComposeVolumetricRenderTargetOverSceneUnderWater(
+	FRDGBuilder& GraphBuilder,
+	TArrayView<FViewInfo> Views,
+	const FSceneWithoutWaterTextures& WaterPassData)
 {
 	if (!AnyViewRequiresProcessing(Views))
 	{

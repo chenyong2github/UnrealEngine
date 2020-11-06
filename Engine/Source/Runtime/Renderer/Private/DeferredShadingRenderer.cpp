@@ -2053,7 +2053,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	if (bVolumetricRenderTargetRequired)
 	{
-		InitVolumetricRenderTargetForViews(GraphBuilder);
+		InitVolumetricRenderTargetForViews(GraphBuilder, Views);
 	}
 
 	if (bShouldRenderVolumetricCloud)
@@ -2346,7 +2346,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 #endif // RHI_RAYTRACING
 
 	// Copy lighting channels out of stencil before deferred decals which overwrite those values
-	FRDGTextureRef LightingChannelsTexture = CopyStencilToLightingChannelTexture(GraphBuilder, SceneStencilTexture);
+	FRDGTextureRef LightingChannelsTexture = CopyStencilToLightingChannelTexture(GraphBuilder, Views, SceneStencilTexture);
 
 	if (IsForwardShadingEnabled(ShaderPlatform))
 	{
@@ -2509,10 +2509,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderDeferredReflectionsAndSkyLightingHair(GraphBuilder, HairDatas);
 	}
 
+	FRDGTextureRef HalfResolutionDepthCheckerboardMinMaxTexture = nullptr;
+
 	if (bShouldRenderVolumetricCloud && IsVolumetricRenderTargetEnabled())
 	{
-		// The checkerboarded half resolution depth texture will be needed.
-		UpdateHalfResDepthSurfaceCheckerboardMinMax(GraphBuilder, SceneDepthTexture.Resolve);
+		HalfResolutionDepthCheckerboardMinMaxTexture = CreateHalfResolutionDepthCheckerboardMinMax(GraphBuilder, Views, SceneDepthTexture.Resolve);
 	}
 
 	if (bShouldRenderVolumetricCloud)
@@ -2520,9 +2521,10 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		// Generate the volumetric cloud render target
 		bool bSkipVolumetricRenderTarget = false;
 		bool bSkipPerPixelTracing = true;
-		RenderVolumetricCloud(GraphBuilder, GetSceneTextureShaderParameters(SceneTextures), bSkipVolumetricRenderTarget, bSkipPerPixelTracing, SceneColorTexture, SceneDepthTexture);
+		RenderVolumetricCloud(GraphBuilder, GetSceneTextureShaderParameters(SceneTextures), bSkipVolumetricRenderTarget, bSkipPerPixelTracing, SceneColorTexture, SceneDepthTexture, HalfResolutionDepthCheckerboardMinMaxTexture);
+
 		// Reconstruct the volumetric cloud render target to be ready to compose it over the scene
-		ReconstructVolumetricRenderTarget(GraphBuilder);
+		ReconstructVolumetricRenderTarget(GraphBuilder, Views, SceneDepthTexture.Resolve, HalfResolutionDepthCheckerboardMinMaxTexture);
 	}
 
 	const bool bShouldRenderTranslucency = ShouldRenderTranslucency();
@@ -2587,12 +2589,13 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		bool bSkipVolumetricRenderTarget = true;
 		bool bSkipPerPixelTracing = false;
-		RenderVolumetricCloud(GraphBuilder, GetSceneTextureShaderParameters(SceneTextures), bSkipVolumetricRenderTarget, bSkipPerPixelTracing, SceneColorTexture, SceneDepthTexture);
+		RenderVolumetricCloud(GraphBuilder, GetSceneTextureShaderParameters(SceneTextures), bSkipVolumetricRenderTarget, bSkipPerPixelTracing, SceneColorTexture, SceneDepthTexture, HalfResolutionDepthCheckerboardMinMaxTexture);
 	}
+
 	// or composite the off screen buffer over the scene.
 	if (bVolumetricRenderTargetRequired)
 	{
-		ComposeVolumetricRenderTargetOverScene(GraphBuilder, SceneColorTexture.Target, SceneDepthTexture.Target, bShouldRenderSingleLayerWater, SceneWithoutWaterTextures);
+		ComposeVolumetricRenderTargetOverScene(GraphBuilder, Views, SceneColorTexture.Target, SceneDepthTexture.Target, bShouldRenderSingleLayerWater, SceneWithoutWaterTextures);
 	}
 
 	FRendererModule& RendererModule = static_cast<FRendererModule&>(GetRendererModule());
@@ -2922,103 +2925,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	GraphBuilder.Execute();
 
 	ServiceLocalQueue();
-}
-
-/** Updates the downsized depth buffer with the current full resolution depth buffer. */
-void FDeferredShadingSceneRenderer::UpdateHalfResDepthSurfaceCheckerboardMinMax(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture)
-{
-	const uint32 DownscaleFactor = 2;
-	const FIntPoint SmallDepthExtent = GetDownscaledExtent(SceneDepthTexture->Desc.Extent, DownscaleFactor);
-	const FRDGTextureDesc SmallDepthDesc = FRDGTextureDesc::Create2D(SmallDepthExtent, PF_DepthStencil, FClearValueBinding::None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
-	FRDGTextureRef SmallDepthTexture = GraphBuilder.CreateTexture(SmallDepthDesc, TEXT("HalfResDepthSurfaceCheckerboardMinMax"));
-
-	for (FViewInfo& View : Views)
-	{
-		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-
-		const FScreenPassTexture SceneDepth(SceneDepthTexture, View.ViewRect);
-		const FScreenPassRenderTarget SmallDepth(SmallDepthTexture, GetDownscaledRect(View.ViewRect, DownscaleFactor), View.DecayLoadAction(ERenderTargetLoadAction::ENoAction));
-		AddDownsampleDepthPass(GraphBuilder, View, SceneDepth, SmallDepth, EDownsampleDepthFilter::Checkerboard);
-	}
-
-	TRefCountPtr<IPooledRenderTarget> SmallDepthTarget;
-	ConvertToUntrackedExternalTexture(GraphBuilder, SmallDepthTexture, SmallDepthTarget, ERHIAccess::SRVMask);
-	for (FViewInfo& View : Views)
-	{
-		View.HalfResDepthSurfaceCheckerboardMinMax = SmallDepthTarget;
-	}
-}
-
-class FCopyStencilToLightingChannelsPS : public FGlobalShader
-{
-public:
-	DECLARE_GLOBAL_SHADER(FCopyStencilToLightingChannelsPS);
-	SHADER_USE_PARAMETER_STRUCT(FCopyStencilToLightingChannelsPS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float>, SceneStencilTexture)
-		RENDER_TARGET_BINDING_SLOTS()
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{ 
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("STENCIL_LIGHTING_CHANNELS_SHIFT"), STENCIL_LIGHTING_CHANNELS_BIT_ID);
-		OutEnvironment.SetRenderTargetOutputFormat(0, PF_R16_UINT);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FCopyStencilToLightingChannelsPS, "/Engine/Private/DownsampleDepthPixelShader.usf", "CopyStencilToLightingChannelsPS", SF_Pixel);
-
-FRDGTextureRef FDeferredShadingSceneRenderer::CopyStencilToLightingChannelTexture(FRDGBuilder& GraphBuilder, FRDGTextureSRVRef SceneStencilTexture)
-{
-	bool bAnyViewUsesLightingChannels = false;
-
-	for (int32 ViewIndex = 0, ViewCount = Views.Num(); ViewIndex < ViewCount; ++ViewIndex)
-	{
-		bAnyViewUsesLightingChannels = bAnyViewUsesLightingChannels || Views[ViewIndex].bUsesLightingChannels;
-	}
-
-	FRDGTextureRef LightingChannelsTexture = nullptr;
-
-	if (bAnyViewUsesLightingChannels)
-	{
-		RDG_EVENT_SCOPE(GraphBuilder, "CopyStencilToLightingChannels");
-
-		{
-			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-
-			const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(SceneContext.GetBufferSizeXY(), PF_R16_UINT, FClearValueBinding::None, TexCreate_RenderTargetable | TexCreate_ShaderResource);
-			LightingChannelsTexture = GraphBuilder.CreateTexture(Desc, TEXT("LightingChannels"));
-		}
-
-		const ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ENoAction;
-
-		for (int32 ViewIndex = 0, ViewCount = Views.Num(); ViewIndex < ViewCount; ++ViewIndex)
-		{
-			const FViewInfo& View = Views[ViewIndex];
-			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-
-			auto* PassParameters = GraphBuilder.AllocParameters<FCopyStencilToLightingChannelsPS::FParameters>();
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(LightingChannelsTexture, View.DecayLoadAction(LoadAction));
-			PassParameters->SceneStencilTexture = SceneStencilTexture;
-			PassParameters->View = View.ViewUniformBuffer;
-
-			const FScreenPassTextureViewport Viewport(LightingChannelsTexture, View.ViewRect);
-
-			TShaderMapRef<FCopyStencilToLightingChannelsPS> PixelShader(View.ShaderMap);
-			AddDrawScreenPass(GraphBuilder, {}, View, Viewport, Viewport, PixelShader, PassParameters);
-		}
-	}
-
-	return LightingChannelsTexture;
 }
 
 #if RHI_RAYTRACING
