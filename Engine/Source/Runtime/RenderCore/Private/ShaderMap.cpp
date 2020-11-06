@@ -732,16 +732,16 @@ void FShaderMapContent::UpdateHash(FSHA1& Hasher) const
 {
 	for (int32 ShaderIndex = 0; ShaderIndex < Shaders.Num(); ++ShaderIndex)
 	{
-		const FHashedName& TypeName = ShaderTypes[ShaderIndex];
+		const uint64 TypeNameHash = ShaderTypes[ShaderIndex].GetHash();
 		const int32 PermutationId = ShaderPermutations[ShaderIndex];
-		Hasher.Update((uint8*)&TypeName, sizeof(TypeName));
+		Hasher.Update((uint8*)&TypeNameHash, sizeof(TypeNameHash));
 		Hasher.Update((uint8*)&PermutationId, sizeof(PermutationId));
 	}
 
 	for (const FShaderPipeline* Pipeline : GetShaderPipelines())
 	{
-		const FHashedName& TypeName = Pipeline->TypeName;
-		Hasher.Update((uint8*)&TypeName, sizeof(TypeName));
+		const uint64 TypeNameHash = Pipeline->TypeName.GetHash();
+		Hasher.Update((uint8*)&TypeNameHash, sizeof(TypeNameHash));
 	}
 }
 
