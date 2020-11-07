@@ -81,7 +81,9 @@ void UInAppPurchaseCallbackProxy::OnInAppPurchaseComplete(EInAppPurchaseState::T
 		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
 			FSimpleDelegateGraphTask::FDelegate::CreateLambda([=](){
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				OnInAppPurchaseComplete_Delayed();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			}),
 			GET_STATID(STAT_FSimpleDelegateGraphTask_DelayInAppPurchaseComplete), 
@@ -146,6 +148,7 @@ void UInAppPurchaseCallbackProxy::BeginDestroy()
 }
 
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UInAppPurchaseCallbackProxy* UInAppPurchaseCallbackProxy::CreateProxyObjectForInAppPurchase(class APlayerController* PlayerController, const FInAppPurchaseProductRequest& ProductRequest)
 {
 	UInAppPurchaseCallbackProxy* Proxy = NewObject<UInAppPurchaseCallbackProxy>();
@@ -153,3 +156,4 @@ UInAppPurchaseCallbackProxy* UInAppPurchaseCallbackProxy::CreateProxyObjectForIn
 	Proxy->Trigger(PlayerController, ProductRequest);
 	return Proxy;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
