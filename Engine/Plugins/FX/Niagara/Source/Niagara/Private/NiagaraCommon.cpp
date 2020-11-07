@@ -995,6 +995,27 @@ ETextureRenderTargetFormat FNiagaraUtilities::BufferFormatToRenderTargetFormat(E
 	return ETextureRenderTargetFormat::RTF_R32f;
 }
 
+FString FNiagaraUtilities::SanitizeNameForObjectsAndPackages(const FString& InName)
+{
+	FString SanitizedName = InName;
+
+	const TCHAR* InvalidObjectChar = INVALID_OBJECTNAME_CHARACTERS;
+	while (*InvalidObjectChar)
+	{
+		SanitizedName.ReplaceCharInline(*InvalidObjectChar, TCHAR('_'), ESearchCase::CaseSensitive);
+		++InvalidObjectChar;
+	}
+
+	const TCHAR* InvalidPackageChar = INVALID_LONGPACKAGE_CHARACTERS;
+	while (*InvalidPackageChar)
+	{
+		SanitizedName.ReplaceCharInline(*InvalidPackageChar, TCHAR('_'), ESearchCase::CaseSensitive);
+		++InvalidPackageChar;
+	}
+
+	return SanitizedName;
+}
+
 #if WITH_EDITORONLY_DATA
 void FNiagaraUtilities::PrepareRapidIterationParameters(const TArray<UNiagaraScript*>& Scripts, const TMap<UNiagaraScript*, UNiagaraScript*>& ScriptDependencyMap, const TMap<UNiagaraScript*, const UNiagaraEmitter*>& ScriptToEmitterMap)
 {
