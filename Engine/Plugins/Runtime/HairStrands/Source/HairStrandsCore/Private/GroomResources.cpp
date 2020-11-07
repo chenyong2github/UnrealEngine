@@ -1048,8 +1048,13 @@ FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairMeshes
 
 void FHairStrandsRaytracingResource::InitRHI()
 {
-	check(IsInRenderingThread());
-	CreateBuffer<FHairStrandsRaytracingFormat>(VertexCount, PositionBuffer, TEXT("HairStrandsRaytracing_PositionBuffer"));
+	if (GUsingNullRHI) { return; }
+	FMemMark Mark(FMemStack::Get());
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+	FRDGBuilder GraphBuilder(RHICmdList);
+
+	InternalCreateVertexBufferRDG<FHairStrandsRaytracingFormat>(GraphBuilder, VertexCount, PositionBuffer, TEXT("HairStrandsRaytracing_PositionBuffer"));
+	GraphBuilder.Execute();
 }
 
 void FHairStrandsRaytracingResource::ReleaseRHI()

@@ -987,8 +987,8 @@ class FHairRaytracingGeometryCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, DispatchCountX)
 		SHADER_PARAMETER(FVector, StrandHairWorldOffset)
 		SHADER_PARAMETER(float, StrandHairRadius)
-		SHADER_PARAMETER_SRV(Buffer, PositionBuffer)
-		SHADER_PARAMETER_UAV(RWBuffer, OutputPositionBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PositionBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutputPositionBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -1003,8 +1003,8 @@ static void AddGenerateRaytracingGeometryPass(
 	uint32 VertexCount,
 	float HairRadius,
 	const FVector& HairWorldOffset,
-	const FShaderResourceViewRHIRef& PositionBuffer,
-	const FUnorderedAccessViewRHIRef& OutPositionBuffer)
+	const FRDGBufferSRVRef& PositionBuffer,
+	const FRDGBufferUAVRef& OutPositionBuffer)
 {
 	const uint32 GroupSize = ComputeGroupSize();
 	const FIntVector DispatchCount = ComputeDispatchCount(VertexCount, GroupSize);
@@ -1120,7 +1120,8 @@ static void BuildHairAccelerationStructure_Strands(FRHICommandList& RHICmdList, 
 	Initializer.Segments.Add(Segment);
 
 	OutRayTracingGeometry->SetInitializer(Initializer);
-	OutRayTracingGeometry->InitRHI();
+	OutRayTracingGeometry->RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
+	RHICmdList.BuildAccelerationStructure(OutRayTracingGeometry->RayTracingGeometryRHI);
 }
 
 static void BuildHairAccelerationStructure_Cards(FRHICommandList& RHICmdList, 	
@@ -1470,14 +1471,15 @@ void ComputeHairStrandsInterpolation(
 		{
 			const float HairRadiusScaleRT = (GHairRaytracingRadiusScale > 0 ? GHairRaytracingRadiusScale : Instance->Strands.Modifier.HairRaytracingRadiusScale);
 
+			FRDGImportedBuffer Raytracing_PositionBuffer = Register(GraphBuilder, Instance->Strands.RenRaytracingResource->PositionBuffer, ERDGImportedBufferFlags::CreateViews);
 			AddGenerateRaytracingGeometryPass(
 				GraphBuilder,
 				ShaderMap,
 				Instance->Strands.RestResource->GetVertexCount(),
 				ScaleAndClipDesc.MaxOutHairRadius * HairRadiusScaleRT,
 				Instance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current),
-				Instance->Strands.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current).SRV,
-				Instance->Strands.RenRaytracingResource->PositionBuffer.UAV);
+				Strands_DeformedPosition.SRV,
+				Raytracing_PositionBuffer.UAV);
 
 			GraphBuilder.AddPass(
 			RDG_EVENT_NAME("HairStrandsUpdateBLAS"),
@@ -1487,7 +1489,8 @@ void ComputeHairStrandsInterpolation(
 				const bool bNeedFullBuild = !Instance->Strands.RenRaytracingResource->bIsRTGeometryInitialized;
 				if (bNeedFullBuild)
 				{
-					BuildHairAccelerationStructure_Strands(RHICmdList, Instance->Strands.RenRaytracingResource->VertexCount, Instance->Strands.RenRaytracingResource->PositionBuffer.Buffer, &Instance->Strands.RenRaytracingResource->RayTracingGeometry);
+					FVertexBufferRHIRef PositionBuffer(Instance->Strands.RenRaytracingResource->PositionBuffer.Buffer->GetVertexBufferRHI());
+					BuildHairAccelerationStructure_Strands(RHICmdList, Instance->Strands.RenRaytracingResource->VertexCount, PositionBuffer, &Instance->Strands.RenRaytracingResource->RayTracingGeometry);
 				}
 				else
 				{

@@ -597,7 +597,7 @@ public:
 						check(Segment.VertexBuffer.IsValid());
 					}
 				// Either use shadow only (no material evaluation) or full material evaluation during tracing
-				#if 1
+				#if 0
 					AddOpaqueRaytracingInstance(GetLocalToWorld(), GroupData.RayTracingGeometries_Cards[LODIndex], RaytracingInstanceMask_ThinShadow, OutRayTracingInstances);
 				#else
 					FHairGroupInstance* Instance = HairGroupInstances[GroupIt];
@@ -619,7 +619,7 @@ public:
 						check(Segment.VertexBuffer.IsValid());
 					}
 				// Either use shadow only (no material evaluation) or full material evaluation during tracing
-				#if 1
+				#if 0
 					AddOpaqueRaytracingInstance(GetLocalToWorld(), GroupData.RayTracingGeometries_Meshes[LODIndex], RaytracingInstanceMask_ThinShadow, OutRayTracingInstances);
 				#else
 					FHairGroupInstance* Instance = HairGroupInstances[GroupIt];
