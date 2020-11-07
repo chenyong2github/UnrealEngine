@@ -183,8 +183,9 @@ namespace Chaos
 
 			// PushOut needs to know if we applied restitution and static friction
 			ManifoldPoint.bActive = bActive;
+			ManifoldPoint.bWasEverActive = ManifoldPoint.bWasEverActive && bActive;											// Latched to on-state
 			ManifoldPoint.bInsideStaticFrictionCone = bActive && bInsideStaticFrictionCone;
-			ManifoldPoint.bRestitutionEnabled = bActive && (bApplyRestitution || ManifoldPoint.bRestitutionEnabled);		// Latches to on state when active
+			ManifoldPoint.bRestitutionEnabled = bActive && (bApplyRestitution || ManifoldPoint.bRestitutionEnabled);		// Latches to on-state
 			ManifoldPoint.NetImpulse = NetImpulse;
 
 			// If we applied any additional impulse, we need to go again next iteration

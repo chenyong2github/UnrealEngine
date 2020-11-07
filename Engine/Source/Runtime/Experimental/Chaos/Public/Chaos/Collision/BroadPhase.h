@@ -25,6 +25,16 @@ namespace Chaos
 		{
 		}
 
+		FReal GetBoundsThickness() const
+		{
+			return BoundsThickness;
+		}
+
+		FReal GetBoundsVelocityInflation()
+		{
+			return BoundsThicknessVelocityInflation;
+		}
+
 		/**
 		 * BoundsThickness is the distance at which we speculatively generate constraints, not a shape padding.
 		 */

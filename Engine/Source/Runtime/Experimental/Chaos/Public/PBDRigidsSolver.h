@@ -353,7 +353,7 @@ namespace Chaos
 		void SyncEvents_GameThread();
 
 		/**/
-		void PostTickDebugDraw() const;
+		void PostTickDebugDraw(FReal Dt) const;
 
 		// Visual debugger (VDB) push methods
 		void PostEvolutionVDBPush() const;

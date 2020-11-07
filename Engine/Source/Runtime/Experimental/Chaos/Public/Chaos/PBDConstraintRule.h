@@ -271,7 +271,7 @@ namespace Chaos
 		template<typename TVisitor>
 		void VisitIslandConstraints(const int32 Island, const TVisitor& Visitor) const
 		{
-			Visitor(GetIslandConstraints(Island));
+			Visitor(GetIslandConstraints(Island), Island);
 		}
 
 	private:
@@ -427,10 +427,15 @@ namespace Chaos
 					if (LevelToColorToConstraintListMap[Level].Contains(Color) && LevelToColorToConstraintListMap[Level][Color].Num())
 					{
 						const TArray<typename FConstraints::FConstraintContainerHandle*>& ConstraintHandles = GetLevelColorConstraints(LevelToColorToConstraintListMap, Level, Color);
-						Visitor(ConstraintHandles);
+						Visitor(ConstraintHandles, Island, Level, Color);
 					}
 				}
 			}
+		}
+
+		const FPBDConstraintColor GetGraphColor() const
+		{
+			return GraphColor;
 		}
 
 	private:
