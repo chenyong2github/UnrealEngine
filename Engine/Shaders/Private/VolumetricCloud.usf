@@ -18,6 +18,7 @@
 #include "/Engine/Generated/VertexFactory.ush"
 
 #include "ReflectionEnvironmentShared.ush"
+#include "ParticipatingMediaCommon.ush"
 
 
 struct RenderVolumetricCloudVSToPS
@@ -284,11 +285,6 @@ void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters,
 #undef Light0Shadow
 
 #endif
-
-float IsotropicPhase()
-{
-	return 1.0f / (4.0f * PI);
-}
 
 // TODO MAKE all phase function common between sky, cloud anmd volumetric
 float HgPhase(float G, float CosTheta)
