@@ -18,6 +18,10 @@ namespace Chaos
 
 	class FPBDCollisionConstraintHandle;
 
+	class FPBDConstraintColor;
+
+	class FPBDConstraintGraph;
+
 	class FPBDJointConstraintHandle;
 
 	class FPBDJointConstraints;
