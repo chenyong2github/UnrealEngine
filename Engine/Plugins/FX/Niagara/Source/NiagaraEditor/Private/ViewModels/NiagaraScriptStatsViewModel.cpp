@@ -805,7 +805,7 @@ void FNiagaraScriptStatsViewModel::BuildShaderPlatformDetails()
 			continue;
 		}
 
-		if (!FNiagaraUtilities::SupportsGPUParticles(ShaderPlatform))
+		if (!FNiagaraUtilities::SupportsComputeShaders(ShaderPlatform))
 		{
 			continue;
 		}
