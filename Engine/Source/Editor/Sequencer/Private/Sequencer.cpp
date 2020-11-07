@@ -705,6 +705,12 @@ void FSequencer::Tick(float InDeltaTime)
 		SetLocalTimeLooped(CurrentTime.Time + Offset);
 	}
 
+	// Reset to the root sequence if the focused sequence no longer exists. This can happen if either the subsequence has been deleted or the hierarchy has changed.
+	if (!GetFocusedMovieSceneSequence() || !GetFocusedMovieSceneSequence()->GetMovieScene())
+	{
+		PopToSequenceInstance(MovieSceneSequenceID::Root);
+	}
+
 	if (GetSelectionRange().IsEmpty() && GetLoopMode() == SLM_LoopSelectionRange)
 	{
 		Settings->SetLoopMode(SLM_Loop);
@@ -771,12 +777,6 @@ void FSequencer::Tick(float InDeltaTime)
 		{
 			EvaluateInternal(PlayPosition.GetCurrentPositionAsRange());
 		}
-	}
-
-	// Reset to the root sequence if the focused sequence no longer exists. This can happen if either the subsequence has been deleted or the hierarchy has changed.
-	if (!GetFocusedMovieSceneSequence())
-	{
-		PopToSequenceInstance(MovieSceneSequenceID::Root);
 	}
 
 	ISequenceRecorder& SequenceRecorder = FModuleManager::LoadModuleChecked<ISequenceRecorder>("SequenceRecorder");
@@ -6162,7 +6162,7 @@ void FSequencer::RemoveNodeGroupsCollectionChangedDelegate()
 {
 	UMovieSceneSequence* MovieSceneSequence = GetFocusedMovieSceneSequence();
 	UMovieScene* MovieScene = MovieSceneSequence ? MovieSceneSequence->GetMovieScene() : nullptr;
-	if (ensure(MovieScene))
+	if (MovieScene)
 	{
 		MovieScene->GetNodeGroups().OnNodeGroupCollectionChanged().RemoveAll(this);
 	}
