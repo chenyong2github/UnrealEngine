@@ -116,6 +116,11 @@ FSubmixEffectConvolutionReverb::FSubmixEffectConvolutionReverb(const USubmixEffe
 ,	bBypass(false)
 {
 	UpdateConvolutionReverb(InPreset);
+
+	if (nullptr != InPreset)
+	{
+		SetConvolutionReverbParameters(InPreset->GetSettings());
+	}
 }
 
 FSubmixEffectConvolutionReverb::~FSubmixEffectConvolutionReverb()
@@ -153,23 +158,28 @@ void FSubmixEffectConvolutionReverb::OnPresetChanged()
 	// FConvolutionReverbSettings represents runtime settings which do not need the 
 	// FConvlutionReverb object to be rebuilt. Some settings in FSubmixEffectConvolutionReverbSettings
 	// force a rebuild of FConvolutionReverb. Those are handled in USubmixEffectConvolutinReverbPreset::PostEditChangeProperty
+	SetConvolutionReverbParameters(Settings);
+}
+
+void FSubmixEffectConvolutionReverb::SetConvolutionReverbParameters(const FSubmixEffectConvolutionReverbSettings& InSettings)
+{
 	Audio::FConvolutionReverbSettings ReverbSettings;
 
-	float NewVolume = Audio::ConvertToLinear(Settings.NormalizationVolumeDb);
-	float NewRearChannelBleed = Audio::ConvertToLinear(Settings.SurroundRearChannelBleedDb);
+	float NewVolume = Audio::ConvertToLinear(InSettings.NormalizationVolumeDb);
+	float NewRearChannelBleed = Audio::ConvertToLinear(InSettings.SurroundRearChannelBleedDb);
 
-	if (Settings.bInvertRearChannelBleedPhase)
+	if (InSettings.bInvertRearChannelBleedPhase)
 	{
 		NewRearChannelBleed *= -1.f;
 	}
 
 	ReverbSettings.NormalizationVolume = NewVolume;
 	ReverbSettings.RearChannelBleed = NewRearChannelBleed;
-	ReverbSettings.bRearChannelFlip = Settings.bSurroundRearChannelFlip;
+	ReverbSettings.bRearChannelFlip = InSettings.bSurroundRearChannelFlip;
 
 	Params.SetParams(ReverbSettings);
 
-	bBypass = Settings.bBypass;
+	bBypass = InSettings.bBypass;
 }
 
 
@@ -439,6 +449,7 @@ FSubmixEffectConvolutionReverb::FVersionData FSubmixEffectConvolutionReverb::Upd
 				ConvReverbInitData.AlgorithmSettings.NumImpulseResponses = IR->NumChannels;
 				ConvReverbInitData.ImpulseSampleRate = IR->SampleRate;
 				ConvReverbInitData.bIsImpulseTrueStereo = IR->bTrueStereo && (IR->NumChannels % 2 == 0);
+				ConvReverbInitData.NormalizationVolume = Audio::ConvertToLinear(IR->NormalizationVolumeDb);
 			}
 
 			switch (InPreset->BlockSize)
@@ -483,7 +494,6 @@ void FSubmixEffectConvolutionReverb::SetConvolutionReverbIfCurrent(TUniquePtr<Au
 		if (ConvolutionReverb.IsValid())
 		{
 			ConvolutionReverb->SetSettings(GetParameters());
-
 		}
 	}
 }
@@ -561,12 +571,19 @@ FSubmixEffectConvolutionReverbSettings USubmixEffectConvolutionReverbPreset::Get
 void USubmixEffectConvolutionReverbPreset::SetSettings(const FSubmixEffectConvolutionReverbSettings& InSettings)
 {
 	Settings = InSettings;
+
+	if (nullptr != ImpulseResponse)
+	{
+		SetImpulseResponseSettings(ImpulseResponse);
+	}
+
 	UpdateSettings();
 }
 
 void USubmixEffectConvolutionReverbPreset::SetImpulseResponse(UAudioImpulseResponse* InImpulseResponse)
 {
 	ImpulseResponse = InImpulseResponse;
+	SetImpulseResponseSettings(InImpulseResponse);
 	RebuildConvolutionReverb();
 }
 
@@ -648,8 +665,6 @@ void USubmixEffectConvolutionReverbPreset::PreEditChange(FProperty* PropertyAbou
 
 void USubmixEffectConvolutionReverbPreset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
 	const FName ImpulseResponseFName = GET_MEMBER_NAME_CHECKED(USubmixEffectConvolutionReverbPreset, ImpulseResponse);
 
 	// If any of these properties are updated, the FConvolutionReverb object needs
@@ -674,11 +689,10 @@ void USubmixEffectConvolutionReverbPreset::PostEditChangeProperty(FPropertyChang
 			if (Name == ImpulseResponseFName)
 			{
 				BindToImpulseResponseObjectChange();
-
+				
 				if (nullptr != ImpulseResponse)
 				{
-					Settings.NormalizationVolumeDb = ImpulseResponse->NormalizationVolumeDb;
-					UpdateSettings();
+					SetImpulseResponseSettings(ImpulseResponse);
 				}
 			}
 
@@ -688,6 +702,8 @@ void USubmixEffectConvolutionReverbPreset::PostEditChangeProperty(FPropertyChang
 			}
 		}
 	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
 void USubmixEffectConvolutionReverbPreset::PostEditChangeImpulseProperty(FPropertyChangedEvent& PropertyChangedEvent) 
@@ -718,6 +734,15 @@ void USubmixEffectConvolutionReverbPreset::PostEditChangeImpulseProperty(FProper
 }
 
 #endif
+
+void USubmixEffectConvolutionReverbPreset::SetImpulseResponseSettings(UAudioImpulseResponse* InImpulseResponse)
+{
+	if (nullptr != InImpulseResponse)
+	{
+		// Set this value, but do not call UpdateSettings(). UpdateSettings() is handled elsewhere.
+		Settings.NormalizationVolumeDb = InImpulseResponse->NormalizationVolumeDb;
+	}
+}
 
 void USubmixEffectConvolutionReverbPreset::UpdateDeprecatedProperties()
 {
@@ -800,4 +825,6 @@ void USubmixEffectConvolutionReverbPreset::PostLoad()
 	// Bind to trigger new convolution algorithms when UAudioImpulseResponse object changes.
 	BindToImpulseResponseObjectChange();
 #endif
+
+	SetImpulseResponseSettings(ImpulseResponse);
 }
