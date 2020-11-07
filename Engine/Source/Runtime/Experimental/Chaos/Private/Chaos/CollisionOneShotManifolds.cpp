@@ -13,6 +13,9 @@
 
 namespace Chaos
 {
+	float Chaos_Manifold_PlaneContactNormalEpsilon = 0.001f;
+	FAutoConsoleVariableRef CVarChaos_Manifold_PlaneContactNormalEpsilon(TEXT("p.Chaos.Collision.Manifold.PlaneContactNormalEpsilon"), Chaos_Manifold_PlaneContactNormalEpsilon, TEXT("Normal tolerance used to distinguish face contacts from edge-edge contacts"));
+
 	namespace Collisions
 	{
 		// Forward delarations we need from CollisionRestitution.cpp
@@ -168,6 +171,18 @@ namespace Chaos
 			{
 				ReferenceFaceBox1 = false;
 			}
+
+			// Is this a vertex-plane or edge-edge contact? 
+			// For vertex-plane contacts, we use a convex face as the manifold plane
+			// For edge-edge contacts, we use the plane returned from GJK as the manifold plane
+			const FReal PlaneContactNormalEpsilon = Chaos_Manifold_PlaneContactNormalEpsilon;
+			const bool bIsPlaneContact = FMath::IsNearlyEqual(BestFaceNormalSizeInDirectionBox1, 1.0f, PlaneContactNormalEpsilon) || FMath::IsNearlyEqual(BestFaceNormalSizeInDirectionBox2, 1.0f, PlaneContactNormalEpsilon);
+			if (!bIsPlaneContact)
+			{
+				Constraint.AddOneshotManifoldContact(GJKContactPoint, bInInitialize);
+				return;
+			}
+
 
 			// Setup pointers to other box and reference box
 			const FRigidTransform3* RefBoxTM;
@@ -438,7 +453,50 @@ namespace Chaos
 
 			return NewClipPointCount;
 		}
-		
+
+		template <typename ConvexImplicitType1, typename ConvexImplicitType2>
+		FVec3* GenerateConvexManifoldClippedVertices(
+			const ConvexImplicitType1& RefConvex,
+			const ConvexImplicitType2& OtherConvex,
+			const FRigidTransform3& OtherToRefTransform,
+			const int32 RefPlaneIndex,
+			const int32 OtherPlaneIndex,
+			const FVec3& RefPlaneNormal,
+			const FVec3& RefPlanePos,
+			FVec3* VertexBuffer1,
+			FVec3* VertexBuffer2,
+			uint32& ContactPointCount,	// InOut
+			const uint32 MaxContactPointCount
+		)
+		{
+			// Populate the clipped vertices by the other face's vertices
+			TArrayView<const int32> OtherConvexFaceVertices = OtherConvex.GetPlaneVertices(OtherPlaneIndex);
+			ContactPointCount = FMath::Min(OtherConvexFaceVertices.Num(), (int32)MaxContactPointCount); // Number of face vertices
+			for (int32 VertexIndex = 0; VertexIndex < (int32)ContactPointCount; ++VertexIndex)
+			{
+				// Todo Check for Grey code
+				const FVec3 OtherVertex = OtherConvex.GetVertex(OtherConvexFaceVertices[VertexIndex]);
+				VertexBuffer1[VertexIndex] = OtherToRefTransform.TransformPositionNoScale(OtherVertex);
+			}
+
+			// Now clip against all planes that belong to the reference plane's, edges
+			// Note winding order matters here!
+			TArrayView<const int32> RefConvexFaceVertices = RefConvex.GetPlaneVertices(RefPlaneIndex);
+			int32 ClippingPlaneCount = RefConvexFaceVertices.Num();
+			FVec3 PrevPoint = RefConvex.GetVertex(RefConvexFaceVertices[ClippingPlaneCount - 1]);
+			for (int32 ClippingPlaneIndex = 0; ClippingPlaneIndex < ClippingPlaneCount; ++ClippingPlaneIndex)
+			{
+				FVec3 CurrentPoint = RefConvex.GetVertex(RefConvexFaceVertices[ClippingPlaneIndex]);
+				FVec3 ClippingPlaneNormal = -FVec3::CrossProduct(RefPlaneNormal, CurrentPoint - PrevPoint);
+				ClippingPlaneNormal.SafeNormalize();
+				ContactPointCount = ClipVerticesAgainstPlane(VertexBuffer1, VertexBuffer2, ContactPointCount, MaxContactPointCount, ClippingPlaneNormal, FVec3::DotProduct(CurrentPoint, ClippingPlaneNormal));
+				Swap(VertexBuffer1, VertexBuffer2); // VertexBuffer1 will now point to the latest
+				PrevPoint = CurrentPoint;
+			}
+
+			return VertexBuffer1;
+		}
+
 		template <typename ConvexImplicitType1, typename ConvexImplicitType2>
 		void ConstructConvexConvexOneShotManifold(
 			const ConvexImplicitType1& Convex1,
@@ -472,12 +530,30 @@ namespace Chaos
 			const TPlaneConcrete<FReal, 3> BestPlaneConvex2 = Convex2.GetPlane(MostOpposingPlaneIndexConvex2);
 			const FReal BestPlaneDotNormalConvex2 = FVec3::DotProduct(SeparationDirectionLocalConvex2, BestPlaneConvex2.Normal());
 
-			const FReal SmallBiasToPreventFeatureFlipping = 0.002; // This improves frame coherence by penalizing convex 1 in favour of convex 2
+			const FReal SmallBiasToPreventFeatureFlipping = 0.002f; // This improves frame coherence by penalizing convex 1 in favour of convex 2
 			bool ReferenceFaceConvex1 = true; // Is the reference face on convex1 or convex2?
 			if (BestPlaneDotNormalConvex2 + SmallBiasToPreventFeatureFlipping > BestPlaneDotNormalConvex1)
 			{
 				ReferenceFaceConvex1 = false;
 			}
+
+			// Is this a vertex-plane or edge-edge contact? 
+			// For vertex-plane contacts, we use a convex face as the manifold plane
+			// For edge-edge contacts, we use the plane returned from GJK as the manifold plane
+			const FReal PlaneContactNormalEpsilon = Chaos_Manifold_PlaneContactNormalEpsilon;
+			const bool bIsPlaneContact = FMath::IsNearlyEqual(BestPlaneDotNormalConvex1, 1.0f, PlaneContactNormalEpsilon) || FMath::IsNearlyEqual(BestPlaneDotNormalConvex2, 1.0f, PlaneContactNormalEpsilon);
+			if (!bIsPlaneContact)
+			{
+				Constraint.AddOneshotManifoldContact(GJKContactPoint, bInInitialize);
+				return;
+			}
+
+			// The manifold plane
+			const FVec3 RefSeparationDirection = ReferenceFaceConvex1 ? SeparationDirectionLocalConvex1 : SeparationDirectionLocalConvex2;
+			const FVec3 RefPlaneNormal = ReferenceFaceConvex1 ? BestPlaneConvex1.Normal() : BestPlaneConvex2.Normal();
+			const FVec3 RefPlanePosition = ReferenceFaceConvex1 ? BestPlaneConvex1.X() : BestPlaneConvex2.X();
+			//const FVec3 RefPlaneNormal = ReferenceFaceConvex1 ? -SeparationDirectionLocalConvex1 : SeparationDirectionLocalConvex2;
+			//const FVec3 RefPlanePosition = ReferenceFaceConvex1 ? GJKContactPoint.ShapeContactPoints[0] : GJKContactPoint.ShapeContactPoints[1];
 
 			// @todo(chaos): fix use of hard-coded max array size
 			// We will use a double buffer as an optimization
@@ -486,93 +562,50 @@ namespace Chaos
 			FVec3 ClippedVertices1[MaxContactPointCount];
 			FVec3 ClippedVertices2[MaxContactPointCount];
 			FVec3* ClippedVertices = nullptr;
-
 			const FRigidTransform3* RefConvexTM;
-			const FRigidTransform3* OtherConvexTM;
 			FRigidTransform3 ConvexOtherToRef;
 
-			// @todo(chaos): dedupe code below into a template func (currently duped because the two implicit types may be different, and there's no virtual API for GetVertex and GetPlaneVertices)
 			if (ReferenceFaceConvex1)
 			{
-				FVec3* VertexBuffer1 = ClippedVertices1;
-				FVec3* VertexBuffer2 = ClippedVertices2;
-
-				const ConvexImplicitType1* RefConvex = &Convex1;
-				const ConvexImplicitType2* OtherConvex = &Convex2;
-
 				RefConvexTM = &Convex1Transform;
-				OtherConvexTM = &Convex2Transform;
-				ConvexOtherToRef = OtherConvexTM->GetRelativeTransform(*RefConvexTM);
+				ConvexOtherToRef = Convex2Transform.GetRelativeTransform(Convex1Transform);
 
-				// Populate the clipped vertices by the other face's vertices
-				TArrayView<const int32> OtherConvexFaceVertices = OtherConvex->GetPlaneVertices(ReferenceFaceConvex1 ? MostOpposingPlaneIndexConvex2 : MostOpposingPlaneIndexConvex1);
-				ContactPointCount = FMath::Min(OtherConvexFaceVertices.Num(), (int32)MaxContactPointCount); // Number of face vertices
-				for (int32 VertexIndex = 0; VertexIndex < (int32)ContactPointCount; ++VertexIndex)
-				{
-					// Todo Check for Grey code
-					ClippedVertices1[VertexIndex] = OtherConvex->GetVertex(OtherConvexFaceVertices[VertexIndex]);
-					ClippedVertices1[VertexIndex] = ConvexOtherToRef.TransformPositionNoScale(ClippedVertices1[VertexIndex]);
-				}
-
-				// Now clip against all planes that belong to the reference plane's, edges
-				TArrayView<const int32> RefConvexFaceVertices = RefConvex->GetPlaneVertices(ReferenceFaceConvex1 ? MostOpposingPlaneIndexConvex1 : MostOpposingPlaneIndexConvex2);
-				int32 ClippingPlaneCount = RefConvexFaceVertices.Num();
-				for (int32 ClippingPlaneIndex = 0; ClippingPlaneIndex < ClippingPlaneCount; ++ClippingPlaneIndex)
-				{
-					// Note winding order matters here!
-					FVec3 PrevPoint = RefConvex->GetVertex(RefConvexFaceVertices[(ClippingPlaneIndex + ClippingPlaneCount - 1) % ClippingPlaneCount]);
-					FVec3 CurrentPoint = RefConvex->GetVertex(RefConvexFaceVertices[ClippingPlaneIndex]);
-					FVec3 PlaneNormal = -FVec3::CrossProduct(ReferenceFaceConvex1 ? BestPlaneConvex1.Normal() : BestPlaneConvex2.Normal(), CurrentPoint - PrevPoint);
-					PlaneNormal.SafeNormalize();
-					ContactPointCount = ClipVerticesAgainstPlane(VertexBuffer1, VertexBuffer2, ContactPointCount, MaxContactPointCount, PlaneNormal, FVec3::DotProduct(CurrentPoint, PlaneNormal));
-					Swap(VertexBuffer1, VertexBuffer2); // VertexBuffer1 will now point to the latest
-				}
-
-				ClippedVertices = VertexBuffer1;
+				ClippedVertices = GenerateConvexManifoldClippedVertices(
+					Convex1,
+					Convex2,
+					ConvexOtherToRef, 
+					MostOpposingPlaneIndexConvex1,
+					MostOpposingPlaneIndexConvex2,
+					RefPlaneNormal,
+					RefPlanePosition,
+					ClippedVertices1,
+					ClippedVertices2,
+					ContactPointCount,
+					MaxContactPointCount);
 			}
 			else
 			{
-				FVec3* VertexBuffer1 = ClippedVertices1;
-				FVec3* VertexBuffer2 = ClippedVertices2;
-
-				const ConvexImplicitType2* RefConvex = &Convex2;
-				const ConvexImplicitType1* OtherConvex = &Convex1;
-
 				RefConvexTM = &Convex2Transform;
-				OtherConvexTM = &Convex1Transform;
-				ConvexOtherToRef = OtherConvexTM->GetRelativeTransform(*RefConvexTM);
+				ConvexOtherToRef = Convex1Transform.GetRelativeTransform(Convex2Transform);
 
-				// Populate the clipped vertices by the other face's vertices
-				TArrayView<const int32> OtherConvexFaceVertices = OtherConvex->GetPlaneVertices(ReferenceFaceConvex1 ? MostOpposingPlaneIndexConvex2 : MostOpposingPlaneIndexConvex1);
-				ContactPointCount = FMath::Min(OtherConvexFaceVertices.Num(), (int32)MaxContactPointCount); // Number of face vertices
-				for (int32 VertexIndex = 0; VertexIndex < (int32)ContactPointCount; ++VertexIndex)
-				{
-					// Todo Check for Grey code
-					ClippedVertices1[VertexIndex] = OtherConvex->GetVertex(OtherConvexFaceVertices[VertexIndex]);
-					ClippedVertices1[VertexIndex] = ConvexOtherToRef.TransformPositionNoScale(ClippedVertices1[VertexIndex]);
-				}
-
-				// Now clip against all planes that belong to the reference plane's, edges
-				TArrayView<const int32> RefConvexFaceVertices = RefConvex->GetPlaneVertices(ReferenceFaceConvex1 ? MostOpposingPlaneIndexConvex1 : MostOpposingPlaneIndexConvex2);
-				int32 ClippingPlaneCount = RefConvexFaceVertices.Num();
-				for (int32 ClippingPlaneIndex = 0; ClippingPlaneIndex < ClippingPlaneCount; ++ClippingPlaneIndex)
-				{
-					// Note winding order matters here!
-					FVec3 PrevPoint = RefConvex->GetVertex(RefConvexFaceVertices[(ClippingPlaneIndex + ClippingPlaneCount - 1) % ClippingPlaneCount]);
-					FVec3 CurrentPoint = RefConvex->GetVertex(RefConvexFaceVertices[ClippingPlaneIndex]);
-					FVec3 PlaneNormal = -FVec3::CrossProduct(ReferenceFaceConvex1 ? BestPlaneConvex1.Normal() : BestPlaneConvex2.Normal(), CurrentPoint - PrevPoint);
-					PlaneNormal.SafeNormalize();
-					ContactPointCount = ClipVerticesAgainstPlane(VertexBuffer1, VertexBuffer2, ContactPointCount, MaxContactPointCount, PlaneNormal, FVec3::DotProduct(CurrentPoint, PlaneNormal));
-					Swap(VertexBuffer1, VertexBuffer2); // VertexBuffer1 will now point to the latest
-				}
-			
-				ClippedVertices = VertexBuffer1;
+				ClippedVertices = GenerateConvexManifoldClippedVertices(
+					Convex2,
+					Convex1,
+					ConvexOtherToRef,
+					MostOpposingPlaneIndexConvex2,
+					MostOpposingPlaneIndexConvex1,
+					RefPlaneNormal,
+					RefPlanePosition,
+					ClippedVertices1,
+					ClippedVertices2,
+					ContactPointCount,
+					MaxContactPointCount);
 			}
 			
 			// Reduce number of contacts to a maximum of 4
 			if (ContactPointCount > 4)
 			{
-				FRotation3 RotateSeperationToZ = FRotation3::FromRotatedVector(ReferenceFaceConvex1 ? SeparationDirectionLocalConvex1 : SeparationDirectionLocalConvex2, FVec3(0.0f, 0.0f, 1.0f));
+				FRotation3 RotateSeperationToZ = FRotation3::FromRotatedVector(RefPlaneNormal, FVec3(0.0f, 0.0f, 1.0f));
 				for (uint32 ContactPointIndex = 0; ContactPointIndex < ContactPointCount; ++ContactPointIndex)
 				{
 					ClippedVertices[ContactPointIndex] = RotateSeperationToZ * ClippedVertices[ContactPointIndex];
@@ -590,20 +623,18 @@ namespace Chaos
 			for (uint32 ContactPointIndex = 0; ContactPointIndex < ContactPointCount; ++ContactPointIndex)
 			{
 				FContactPoint ContactPoint;
-				const FVec3 VertexInReferenceCubeCoordinates = ClippedVertices[ContactPointIndex];
-				const TPlaneConcrete<FReal, 3> RefPlane = ReferenceFaceConvex1 ? BestPlaneConvex1 : BestPlaneConvex2;
-				const FVec3 RefFaceNormal = ReferenceFaceConvex1 ? BestPlaneConvex1.Normal() : BestPlaneConvex2.Normal();
-				FReal ReferencePlaneDistance = FVec3::DotProduct(RefPlane.X(), RefPlane.Normal());
-				FVec3 PointProjectedOntoReferenceFace = VertexInReferenceCubeCoordinates - (FVec3::DotProduct(VertexInReferenceCubeCoordinates, RefPlane.Normal()) - ReferencePlaneDistance) * RefPlane.Normal();
-				FVec3 ClippedPointInOtherCoordinates = ConvexOtherToRef.InverseTransformPositionNoScale(VertexInReferenceCubeCoordinates);
+				const FVec3 VertexInReferenceCoordinates = ClippedVertices[ContactPointIndex];
+				FVec3 PointProjectedOntoReferenceFace = VertexInReferenceCoordinates - FVec3::DotProduct(VertexInReferenceCoordinates - RefPlanePosition, RefPlaneNormal) * RefPlaneNormal;
+				FVec3 ClippedPointInOtherCoordinates = ConvexOtherToRef.InverseTransformPositionNoScale(VertexInReferenceCoordinates);
 
 				ContactPoint.ShapeContactPoints[0] = ReferenceFaceConvex1 ? PointProjectedOntoReferenceFace : ClippedPointInOtherCoordinates;
 				ContactPoint.ShapeContactPoints[1] = ReferenceFaceConvex1 ? ClippedPointInOtherCoordinates : PointProjectedOntoReferenceFace;
-				ContactPoint.ShapeContactNormal = ReferenceFaceConvex1 ? SeparationDirectionLocalConvex1 : SeparationDirectionLocalConvex2;
+				ContactPoint.ShapeContactNormal = RefSeparationDirection;
 				ContactPoint.ContactNormalOwnerIndex = ReferenceFaceConvex1 ? 0 : 1;
+
 				ContactPoint.Location = RefConvexTM->TransformPositionNoScale(PointProjectedOntoReferenceFace);
 				ContactPoint.Normal = GJKContactPoint.Normal;
-				ContactPoint.Phi = FVec3::DotProduct(PointProjectedOntoReferenceFace - VertexInReferenceCubeCoordinates, ReferenceFaceConvex1 ? SeparationDirectionLocalConvex1 : -SeparationDirectionLocalConvex2);
+				ContactPoint.Phi = FVec3::DotProduct(PointProjectedOntoReferenceFace - VertexInReferenceCoordinates, ReferenceFaceConvex1 ? SeparationDirectionLocalConvex1 : -SeparationDirectionLocalConvex2);
 
 				Constraint.AddOneshotManifoldContact(ContactPoint, bInInitialize);
 			}
