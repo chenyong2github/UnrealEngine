@@ -2604,6 +2604,7 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 			COOK_STAT(Timer.AddHit(DerivedData.Num()));
 			FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
 			Serialize(Ar, Owner, /*bCooked=*/ false);
+			check(NaniteResources.RootClusterPage.Num() == 0 || NaniteResources.bLZCompressed);
 
 			for (int32 LODIdx = 0; LODIdx < LODResources.Num(); ++LODIdx)
 			{
@@ -2652,6 +2653,7 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 			bLODsShareStaticLighting = Owner->CanLODsShareStaticLighting();
 			FMemoryWriter Ar(DerivedData, /*bIsPersistent=*/ true);
 			Serialize(Ar, Owner, /*bCooked=*/ false);
+			check(NaniteResources.RootClusterPage.Num() == 0 || NaniteResources.bLZCompressed);
 
 			for (int32 LODIdx = 0; LODIdx < LODResources.Num(); ++LODIdx)
 			{
@@ -4833,14 +4835,6 @@ void UStaticMesh::Serialize(FArchive& Ar)
 		else if (Ar.IsSaving())
 		{		
 			FStaticMeshRenderData& PlatformRenderData = GetPlatformStaticMeshRenderData(this, Ar.CookingTarget());
-
-			// HACK/TODO: Decompress data on platforms that already support LZ decompression in hardware.
-			// Meshes are ALWAYS cooked on the host platform, so just including compression in the DDC key would double cook times for platforms with hardware LZ.
-			// Needs to be revisited when new resource system lands.
-			if (Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::HardwareLZDecompression))
-			{
-				PlatformRenderData.NaniteResources.DecompressPages();
-			}
 
 			PlatformRenderData.Serialize(Ar, this, bCooked);
 

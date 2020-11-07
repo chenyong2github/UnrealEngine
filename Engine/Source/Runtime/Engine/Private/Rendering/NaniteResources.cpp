@@ -21,6 +21,7 @@
 #include "AI/Navigation/NavCollisionBase.h"
 #include "Misc/Compression.h"
 #include "HAL/LowLevelMemStats.h"
+#include "Interfaces/ITargetPlatform.h"
 
 DEFINE_GPU_STAT(NaniteStreaming);
 DEFINE_GPU_STAT(NaniteReadback);
@@ -127,64 +128,47 @@ void FResources::ReleaseResources()
 	);
 }
 
-void FResources::Serialize(FArchive& Ar, UObject* Owner)
+static void DecompressPages(FResources& Resources, TArray<uint8>& OutRootClusterPage, FByteBulkData& OutStreamableClusterPages, TArray<FPageStreamingState>& OutPageStreamingStates)
 {
-	LLM_SCOPE_BYTAG(Nanite);
-
-	// Note: this is all derived data, native versioning is not needed, but be sure to bump NANITE_DERIVEDDATA_VER when modifying!
-
-	FStripDataFlags StripFlags( Ar, 0 );
-	if( !StripFlags.IsDataStrippedForServer() )
-	{
-		Ar << RootClusterPage;
-		StreamableClusterPages.Serialize(Ar, Owner, 0);
-		Ar << ImposterAtlas;
-		Ar << HierarchyNodes;
-		Ar << PageStreamingStates;
-		Ar << PageDependencies;
-		Ar << bLZCompressed;
-	}
-}
-
-void FResources::DecompressPages()
-{
-	if (!bLZCompressed)
-		return;
+	check(Resources.bLZCompressed);
 
 	// Decompress root and streaming pages
-	const uint32 NumPages = PageStreamingStates.Num();
+	const uint32 NumPages = Resources.PageStreamingStates.Num();
 	
 	uint32 NewSizes[2] = {};
-	TArray<uint8> OldRootData = RootClusterPage;
-
-	uint8* StreamingDataPtr = (uint8*)StreamableClusterPages.Lock(LOCK_READ_WRITE);
-	TArray<uint8> OldStreamingData(StreamingDataPtr, StreamableClusterPages.GetBulkDataSize());
+	
+	TArray<uint8> StreamingData((uint8*)Resources.StreamableClusterPages.Lock(LOCK_READ_ONLY), Resources.StreamableClusterPages.GetBulkDataSize());
+	Resources.StreamableClusterPages.Unlock();
 
 	// Calculate new root and streaming buffer sizes
 	for (uint32 PageIndex = 0; PageIndex < NumPages; PageIndex++)
 	{
 		const bool bIsRootPage = PageIndex < NUM_ROOT_PAGES;
-		const FPageStreamingState& State = PageStreamingStates[PageIndex];
-		const TArray<uint8>& OldData = bIsRootPage ? OldRootData : OldStreamingData;
+		const FPageStreamingState& State = Resources.PageStreamingStates[PageIndex];
+		const TArray<uint8>& OldData = bIsRootPage ? Resources.RootClusterPage : StreamingData;
 		const FFixupChunk& FixupChunk = *(const FFixupChunk*)(OldData.GetData() + State.BulkOffset);
 		NewSizes[bIsRootPage] += FixupChunk.GetSize() + State.PageUncompressedSize;
 	}
 
-	StreamingDataPtr = (uint8*)StreamableClusterPages.Realloc(NewSizes[0]);
-	RootClusterPage.SetNumUninitialized(NewSizes[1]);
+	OutRootClusterPage.SetNumUninitialized(NewSizes[1]);
+	
+	OutStreamableClusterPages.Lock(LOCK_READ_WRITE);
+	uint8* StreamingDataPtr = (uint8*)OutStreamableClusterPages.Realloc(NewSizes[0]);
 
+	OutPageStreamingStates = Resources.PageStreamingStates;
+	
 	// Decompress data
 	uint32 UncompressedOffsets[2] = {};
 	for (uint32 PageIndex = 0; PageIndex < NumPages; PageIndex++)
 	{
 		const bool bIsRootPage = PageIndex < NUM_ROOT_PAGES;
-		const TArray<uint8>& OldData = bIsRootPage ? OldRootData : OldStreamingData;
+		const TArray<uint8>& OldData = bIsRootPage ? Resources.RootClusterPage : StreamingData;
 
-		FPageStreamingState& State = PageStreamingStates[PageIndex];
+		FPageStreamingState& State = OutPageStreamingStates[PageIndex];
 		const FFixupChunk& FixupChunk = *(const FFixupChunk*)(OldData.GetData() + State.BulkOffset);
 		const uint32 FixupChunkSize = FixupChunk.GetSize();
 
-		uint8* DstPtr = bIsRootPage ? RootClusterPage.GetData() : StreamingDataPtr;
+		uint8* DstPtr = bIsRootPage ? OutRootClusterPage.GetData() : StreamingDataPtr;
 		FMemory::Memcpy(DstPtr + UncompressedOffsets[bIsRootPage], &FixupChunk, FixupChunkSize);
 
 		verify(FCompression::UncompressMemory(NAME_LZ4, DstPtr + UncompressedOffsets[bIsRootPage] + FixupChunkSize, State.PageUncompressedSize, OldData.GetData() + State.BulkOffset + FixupChunkSize, State.BulkSize - FixupChunkSize));
@@ -195,9 +179,68 @@ void FResources::DecompressPages()
 	check(UncompressedOffsets[0] == NewSizes[0]);
 	check(UncompressedOffsets[1] == NewSizes[1]);
 
-	StreamableClusterPages.Unlock();
-	StreamableClusterPages.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
-	bLZCompressed = false;
+	OutStreamableClusterPages.Unlock();
+	OutStreamableClusterPages.ResetBulkDataFlags(Resources.StreamableClusterPages.GetBulkDataFlags());
+}
+
+void FResources::Serialize(FArchive& Ar, UObject* Owner)
+{
+	LLM_SCOPE_BYTAG(Nanite);
+
+	// Note: this is all derived data, native versioning is not needed, but be sure to bump NANITE_DERIVEDDATA_VER when modifying!
+	FStripDataFlags StripFlags( Ar, 0 );
+	if( !StripFlags.IsDataStrippedForServer() )
+	{
+		// HACK/TODO: Decompress data on platforms that already support LZ decompression in hardware.
+		// Meshes are ALWAYS cooked on the host platform, so just including compression in the DDC key would double cook times for platforms with hardware LZ.
+		// Needs to be revisited when new resource system lands.
+		bool bWantsUncompressedSave = false;
+		
+#if WITH_EDITOR
+		bWantsUncompressedSave = Ar.IsCooking() && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::HardwareLZDecompression) && RootClusterPage.Num() > 0 && !Ar.IsObjectReferenceCollector();
+		if (bWantsUncompressedSave && bLZCompressed)
+		{
+			// Decompress and serialize, but don't change the state of the resource itself
+			if (!bHasDecompressedData)
+			{
+				DecompressPages(*this, DecompressedRootClusterPage, DecompressedStreamableClusterPages, DecompressedPageStreamingStates);
+				bHasDecompressedData = true;
+			}
+			
+			bool bNewLZCompressed = false;
+			Ar << bNewLZCompressed;
+			Ar << DecompressedRootClusterPage;
+			DecompressedStreamableClusterPages.Serialize(Ar, Owner, 0);
+			Ar << DecompressedPageStreamingStates;
+		}
+		else
+#endif
+		{
+			check(!Ar.IsSaving() || RootClusterPage.Num() == 0 || (bWantsUncompressedSave == !bLZCompressed));
+
+			Ar << bLZCompressed;
+			Ar << RootClusterPage;
+			StreamableClusterPages.Serialize(Ar, Owner, 0);
+			Ar << PageStreamingStates;
+		}
+		
+		Ar << HierarchyNodes;
+		Ar << PageDependencies;
+		Ar << ImposterAtlas;
+		
+		check(!Ar.IsLoading() || RootClusterPage.Num() == 0 || bLZCompressed == !FPlatformProperties::SupportsHardwareLZDecompression());		
+
+#if WITH_EDITOR
+		if (Ar.IsLoading() && bHasDecompressedData)
+		{
+			// Cached decompressed data is no longer valid after loading new data. Clear it.
+			DecompressedRootClusterPage.Empty();
+			DecompressedPageStreamingStates.Empty();
+			DecompressedStreamableClusterPages.RemoveBulkData();
+			bHasDecompressedData = false;
+		}
+#endif
+	}
 }
 
 class FVertexFactory : public ::FVertexFactory

@@ -451,6 +451,10 @@ void UGeometryCollection::CreateSimulationDataImp(bool bCopyFromDDC)
 
 			NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
 			NaniteData->Serialize(ChaosAr, this);
+			for (Nanite::FResources& Resource : NaniteData->Resources)
+			{
+				check(Resource.RootClusterPage.Num() == 0 || Resource.bLZCompressed);
+			}
 		}
 	}
 }
@@ -704,15 +708,6 @@ void FGeometryCollectionNaniteData::Serialize(FArchive& Ar, UGeometryCollection*
 
 		for (int32 ResourceIndex = 0; ResourceIndex < NumNaniteResources; ++ResourceIndex)
 		{
-			
-#if WITH_EDITOR
-			// HACK/TODO: Decompress data on platforms that already support LZ decompression in hardware.
-			if (Ar.IsCooking() && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::HardwareLZDecompression))
-			{
-				Resources[ResourceIndex].DecompressPages();
-			}
-#endif
-
 			Resources[ResourceIndex].Serialize(Ar, Owner);
 		}
 	}

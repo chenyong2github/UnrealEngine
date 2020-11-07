@@ -319,12 +319,19 @@ struct FResources
 	int32	HierarchyOffset			= INDEX_NONE;
 	int32	RootPageIndex			= INDEX_NONE;
 	
+#if WITH_EDITOR
+	// HACK: Need to cache this because Geometry Collection might serialize the same object more than once.
+	// BulkData has to be kept alive for the duration of serialization and you are not allowed to update it more than once.
+	bool							bHasDecompressedData = false;
+	TArray<uint8>					DecompressedRootClusterPage;
+	TArray<FPageStreamingState>		DecompressedPageStreamingStates;
+	FByteBulkData					DecompressedStreamableClusterPages;
+#endif
+	
 	ENGINE_API void InitResources();
 	ENGINE_API void ReleaseResources();
 
 	ENGINE_API void Serialize(FArchive& Ar, UObject* Owner);
-
-	ENGINE_API void DecompressPages();
 };
 
 class FSceneProxyBase : public FPrimitiveSceneProxy
