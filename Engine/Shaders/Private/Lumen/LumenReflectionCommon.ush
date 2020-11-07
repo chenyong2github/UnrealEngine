@@ -74,7 +74,7 @@ float EncodeRayDistance(float HitDistance, bool bHit)
 
 float DecodeRayDistance(float Encoded, out bool bHit)
 {
-	bHit = Encoded < 0.0f;
+	bHit = asuint(Encoded) & 0x80000000;
 	return abs(Encoded);
 }
 
