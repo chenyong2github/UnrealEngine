@@ -17,6 +17,8 @@ struct FSwitchboardKillAllTask;
 struct FSwitchboardReceiveFileFromClientTask;
 struct FSwitchboardGetSyncStatusTask;
 struct FSwitchboardMessageFuture;
+struct FSwitchboardForceFocusTask;
+struct FSwitchboardFixExeFlagsTask;
 
 class FInternetAddr;
 class FSocket;
@@ -45,6 +47,8 @@ private:
 	bool ReceiveFileFromClient(const FSwitchboardReceiveFileFromClientTask& InReceiveFileFromClientTask);
 	bool SendFileToClient(const FSwitchboardSendFileToClientTask& InSendFileToClientTask);
 	bool GetSyncStatus(const FSwitchboardGetSyncStatusTask& InGetSyncStatusTask);
+	bool ForceFocus(const FSwitchboardForceFocusTask& ForceFocusTask);
+	bool FixExeFlags(const FSwitchboardFixExeFlagsTask& ForceFocusTask);
 	FRunningProcess* FindOrStartFlipModeMonitorForUUID(const FGuid& UUID);
 
 	void CleanUpDisconnectedSockets();

@@ -179,6 +179,7 @@ bool FSwitchboardListener::Tick()
 					StateRunningProcess.Name = RunningProcess->Name;
 					StateRunningProcess.Path = RunningProcess->Path;
 					StateRunningProcess.Caller = RunningProcess->Caller;
+					StateRunningProcess.Pid = RunningProcess->PID;
 
 					StatePacket.RunningProcesses.Add(MoveTemp(StateRunningProcess));
 				}
@@ -321,6 +322,16 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 			const FSwitchboardGetSyncStatusTask& GetSyncStatusTask = static_cast<const FSwitchboardGetSyncStatusTask&>(InTask);
 			return GetSyncStatus(GetSyncStatusTask);
 		}
+		case ESwitchboardTaskType::ForceFocus:
+		{
+			const FSwitchboardForceFocusTask& Task = static_cast<const FSwitchboardForceFocusTask&>(InTask);
+			return ForceFocus(Task);
+		}
+		case ESwitchboardTaskType::FixExeFlags:
+		{
+			const FSwitchboardFixExeFlagsTask& Task = static_cast<const FSwitchboardFixExeFlagsTask&>(InTask);
+			return FixExeFlags(Task);
+		}
 		default:
 		{
 			static const FString Response = TEXT("Unknown Command detected");
@@ -329,6 +340,216 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 		}
 	}
 	return false;
+}
+
+static bool SetFocusWindowByPID(uint32 ProcessId)
+{
+#if PLATFORM_WINDOWS
+	BOOL bResult = false;
+	HWND WindowHandle = GetTopWindow(0);
+
+	while (WindowHandle)
+	{
+		DWORD PID = 0;
+		DWORD ThreadId = GetWindowThreadProcessId(WindowHandle, &PID);
+
+		if (ThreadId != 0)
+		{
+			if (PID == ProcessId)
+			{
+				bResult = SetForegroundWindow(WindowHandle);
+				return bResult;
+			}
+		}
+
+		WindowHandle = GetNextWindow(WindowHandle, GW_HWNDNEXT);
+	}
+#endif // PLATFORM_WINDOWS
+
+	return false;
+}
+
+static uint32 FindPidInFocus()
+{
+#if PLATFORM_WINDOWS
+	HWND WindowHandle = GetForegroundWindow();
+
+	if (WindowHandle)
+	{
+		DWORD PID = 0;
+		DWORD ThreadId = GetWindowThreadProcessId(WindowHandle, &PID);
+
+		if (ThreadId != 0)
+		{
+			return PID;
+		}
+	}
+#endif // PLATFORM_WINDOWS
+
+	return 0;
+}
+
+#if PLATFORM_WINDOWS
+static TArray<FString> RegistryGetSubkeys(const HKEY Key)
+{
+	TArray<FString> Subkeys;
+	const uint32 MaxKeyLength = 1024;
+	TCHAR SubkeyName[MaxKeyLength];
+	DWORD KeyLength = MaxKeyLength;
+
+	while (!RegEnumKeyEx(Key, Subkeys.Num(), SubkeyName, &KeyLength, nullptr, nullptr, nullptr, nullptr))
+	{
+		Subkeys.Add(SubkeyName);
+		KeyLength = MaxKeyLength;
+	}
+
+	return Subkeys;
+}
+#endif // PLATFORM_WINDOWS
+
+#if PLATFORM_WINDOWS
+static TArray<FString> RegistryGetValueNames(const HKEY Key)
+{
+	TArray<FString> Names;
+	const uint32 MaxLength = 1024;
+	TCHAR ValueName[MaxLength];
+	DWORD ValueLength = MaxLength;
+
+	while (!RegEnumValue(Key, Names.Num(), ValueName, &ValueLength, nullptr, nullptr, nullptr, nullptr))
+	{
+		Names.Add(ValueName);
+		ValueLength = MaxLength;
+	}
+
+	return Names;
+}
+#endif // PLATFORM_WINDOWS
+
+#if PLATFORM_WINDOWS
+static FString RegistryGetStringValueData(const HKEY Key, const FString& ValueName)
+{
+	const uint32 MaxLength = 4096;
+	TCHAR ValueData[MaxLength];
+	DWORD ValueLength = MaxLength;
+
+	if (RegQueryValueEx(Key, *ValueName, 0, 0, LPBYTE(ValueData), &ValueLength))
+	{
+		return TEXT("");
+	}
+
+	ValueData[MaxLength - 1] = '\0';
+
+	return FString(ValueData);
+}
+#endif // PLATFORM_WINDOWS
+
+#if PLATFORM_WINDOWS
+static bool RegistrySetStringValueData(const HKEY Key, const FString& ValueName, const FString& ValueData)
+{
+	return !!RegSetValueEx(Key, *ValueName, 0, REG_SZ, LPBYTE(*ValueData), sizeof(TCHAR) * ValueData.Len());
+}
+#endif // PLATFORM_WINDOWS
+
+static bool DisableFullscreenOptimizationForProcess(const FRunningProcess* Process)
+{
+	// No point in continuing if there is no process to set the flags for.
+	if (!Process)
+	{
+		return false;
+	}
+
+	bool bDone = false;
+
+#if PLATFORM_WINDOWS
+
+	// This is the absolute path of the program we'll be looking for in the registry
+	const FString ProcessAbsolutePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*Process->Path);
+
+	// We expect program layers to be in a location like the following:
+	//   Computer\HKEY_USERS\S-1-5-21-4092791292-903758629-2457117007-1001\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers
+	// But the guid looking number above may vary.
+
+	// So we try all the keys immediately under HKEY_USERS
+	TArray<FString> KeyPaths = RegistryGetSubkeys(HKEY_USERS);
+
+	for (const FString& KeyPath : KeyPaths)
+	{
+		const FString LayersKeyPath = KeyPath + TEXT("\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers");
+
+		HKEY LayersKey;
+
+		// Check if the key exists
+		if (RegOpenKeyExW(HKEY_USERS, *LayersKeyPath, 0, KEY_ALL_ACCESS, &LayersKey))
+		{
+			continue;
+		}
+
+		// If the key exists, the Value Names are the paths to the programs
+
+		const TArray<FString> ProgramPaths = RegistryGetValueNames(LayersKey);
+
+		for (const FString& ProgramPath : ProgramPaths)
+		{
+			const FString ProgramAbsPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProgramPath);
+
+			// Check if this is the program we're looking for
+			if (ProcessAbsolutePath != ProgramAbsPath)
+			{
+				continue;
+			}
+
+			// If so, get the layers from the Value Data.
+
+			bDone = true;
+
+			FString ProgramLayers = RegistryGetStringValueData(LayersKey, ProgramPath);
+
+			TArray<FString> ProgramLayersArray;
+			ProgramLayers.ParseIntoArray(ProgramLayersArray, TEXT(" "));
+
+			// check if it is missing or not
+			bool bAlreadyDisabled = false;
+			for (const FString& ProgLayer : ProgramLayersArray)
+			{
+				if (ProgLayer == "DISABLEDXMAXIMIZEDWINDOWEDMODE")
+				{
+					bAlreadyDisabled = true;
+					break;
+				}
+			}
+
+			// if not already disabled, then let's disable it
+			if (!bAlreadyDisabled)
+			{
+				ProgramLayers = ProgramLayers + TEXT(" DISABLEDXMAXIMIZEDWINDOWEDMODE");
+				RegistrySetStringValueData(LayersKey, ProgramPath, ProgramLayers);
+				bDone = true;
+			}
+
+			// No need to look further.
+			break;
+		}
+
+		// If we're not done, the path to our executable does not exist as one of the regkey values, so we need to create it.
+		if (!bDone)
+		{
+			const FString ProgramLayers = TEXT("~ DISABLEDXMAXIMIZEDWINDOWEDMODE");
+			const FString ProgramAbsPath = ProcessAbsolutePath.Replace(TEXT("/"), TEXT("\\"));
+			RegistrySetStringValueData(LayersKey, ProgramAbsPath, ProgramLayers);
+			bDone = true;
+		}
+
+		RegCloseKey(LayersKey);
+
+		// If the already have done the deed, no need to iterate further
+		if (bDone)
+		{
+			break;
+		}
+	}
+#endif // PLATFORM_WINDOWS
+
+	return bDone;
 }
 
 bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
@@ -341,6 +562,7 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 	NewProcess->Caller = InRunTask.Caller;
 	NewProcess->bUpdateClientsWithStdout = InRunTask.bUpdateClientsWithStdout;
 	NewProcess->UUID = InRunTask.TaskID; // Process ID is the same as the message ID.
+	NewProcess->PID = 0; // default value
 
 	if (!FPlatformProcess::CreatePipe(NewProcess->ReadPipe, NewProcess->WritePipe))
 	{
@@ -380,25 +602,70 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 		UE_LOG(LogSwitchboard, Error, TEXT("%s"), *ErrorMsg);
 
 		// notify Switchboard
-		SendMessage(CreateProgramStartFailedMessage(ErrorMsg, InRunTask.TaskID.ToString()), InRunTask.Recipient);
+		SendMessage(
+			CreateTaskDeclinedMessage(
+				InRunTask, 
+				ErrorMsg, 
+				{
+					{ TEXT("puuid"), NewProcess->UUID.ToString() },
+				}
+			), 
+			InRunTask.Recipient
+		);
 
 		return false;
+	}
+
+	if (InRunTask.bForceWindowFocus)
+	{
+		Async(EAsyncExecution::Thread, [=]() {
+			// Wait an (unguaranteed) reasonable time for the window to be created
+			Sleep(5000);
+
+			// Set focus to it
+			SetFocusWindowByPID(NewProcess->PID);
+		});
 	}
 
 	UE_LOG(LogSwitchboard, Display, TEXT("Started process %d: %s %s"), NewProcess->PID, *InRunTask.Command, *InRunTask.Arguments);
 
 	RunningProcesses.Add(NewProcess);
 
-	SendMessage(CreateProgramStartedMessage(NewProcess->UUID.ToString(), InRunTask.TaskID.ToString()), InRunTask.Recipient);
-	return true;
+	// send message
+	{
+		FSwitchboardProgramStarted Packet;
 
+		Packet.Process.Uuid = NewProcess->UUID.ToString();
+		Packet.Process.Name = NewProcess->Name;
+		Packet.Process.Path = NewProcess->Path;
+		Packet.Process.Caller = NewProcess->Caller;
+		Packet.Process.Pid = NewProcess->PID;
+
+		for (const TPair<FIPv4Endpoint, TSharedPtr<FSocket>>& Connection : Connections)
+		{
+			const FIPv4Endpoint& ClientEndpoint = Connection.Key;
+			SendMessage(CreateMessage(Packet), ClientEndpoint);
+		}
+	}
+
+	return true;
 }
 
 bool FSwitchboardListener::KillProcess(const FSwitchboardKillTask& KillTask)
 {
 	if (EquivalentTaskFutureExists(KillTask.GetEquivalenceHash()))
 	{
-		SendMessage(CreateTaskDeclinedMessage(KillTask, "Duplicate"), KillTask.Recipient);
+		SendMessage(
+			CreateTaskDeclinedMessage(
+				KillTask,
+				TEXT("Duplicate"),
+				{
+					{ TEXT("puuid"), KillTask.ProgramID.ToString() },
+				}
+			),
+			KillTask.Recipient
+		);
+
 		return false;
 	}
 
@@ -472,16 +739,87 @@ bool FSwitchboardListener::KillProcess(const FSwitchboardKillTask& KillTask)
 		if (!bKilledProcess)
 		{
 			const FString KillError = FString::Printf(TEXT("Could not kill program with ID %s"), *ProgramID);
-			return CreateProgramKillFailedMessage(ProgramID, *KillError);
+
+			return CreateTaskDeclinedMessage(
+				KillTask,
+				KillError,
+				{
+					{ TEXT("puuid"), ProgramID },
+				}
+			);
 		}
 
-		return CreateProgramKilledMessage(ProgramID);
+		FSwitchboardProgramKilled Packet;
+
+		if (Process) // must be valid if it was killed
+		{
+			Packet.Process.Uuid = Process->UUID.ToString();
+			Packet.Process.Name = Process->Name;
+			Packet.Process.Path = Process->Path;
+			Packet.Process.Caller = Process->Caller;
+			Packet.Process.Pid = Process->PID;
+		}
+
+		return CreateMessage(Packet);
 	});
 
 	// Queue it to be sent when ready
 	MessagesFutures.Emplace(MoveTemp(MessageFuture));
 
 	return true;
+}
+
+bool FSwitchboardListener::FixExeFlags(const FSwitchboardFixExeFlagsTask& Task)
+{
+	if (EquivalentTaskFutureExists(Task.GetEquivalenceHash()))
+	{
+		SendMessage(	
+			CreateTaskDeclinedMessage(
+				Task,
+				TEXT("Duplicate"),
+				{
+					{ TEXT("puuid"), Task.ProgramID.ToString() },
+				}
+			),
+			Task.Recipient
+		);
+
+		return false;
+	}
+
+	// Look in RunningProcesses
+
+	TSharedPtr<FRunningProcess, ESPMode::ThreadSafe> Process;
+	{
+		auto* ProcessPtr = RunningProcesses.FindByPredicate([&Task](const TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>& InProcess)
+			{
+				check(InProcess.IsValid());
+				return !InProcess->bPendingKill && (InProcess->UUID == Task.ProgramID);
+			});
+
+		if (ProcessPtr)
+		{
+			Process = *ProcessPtr;
+		}
+	}
+
+	if (!Process.IsValid())
+	{
+		SendMessage(
+			CreateTaskDeclinedMessage(
+				Task,
+				TEXT("Could not find ProgramID"),
+				{
+					{ TEXT("puuid"), Task.ProgramID.ToString() },
+				}
+			),
+			Task.Recipient
+		);
+
+		return false;
+	}
+
+	return DisableFullscreenOptimizationForProcess(Process.Get());
 }
 
 
@@ -1053,59 +1391,6 @@ static void FillOutFlipMode(FSyncStatus& SyncStatus, FRunningProcess* FlipModeMo
 }
 #endif // PLATFORM_WINDOWS
 
-#if PLATFORM_WINDOWS
-static TArray<FString> RegistryGetSubkeys(const HKEY Key)
-{
-	TArray<FString> Subkeys;
-	const uint32 MaxKeyLength = 1024;
-	TCHAR SubkeyName[MaxKeyLength];
-	DWORD KeyLength = MaxKeyLength;
-
-	while (!RegEnumKeyEx(Key, Subkeys.Num(), SubkeyName, &KeyLength, nullptr, nullptr, nullptr, nullptr))
-	{
-		Subkeys.Add(SubkeyName);
-		KeyLength = MaxKeyLength;
-	}
-
-	return Subkeys;
-}
-#endif // PLATFORM_WINDOWS
-
-#if PLATFORM_WINDOWS
-static TArray<FString> RegistryGetValueNames(const HKEY Key)
-{
-	TArray<FString> Names;
-	const uint32 MaxLength = 1024;
-	TCHAR ValueName[MaxLength];
-	DWORD ValueLength = MaxLength;
-
-	while (!RegEnumValue(Key, Names.Num(), ValueName, &ValueLength, nullptr, nullptr, nullptr, nullptr))
-	{
-		Names.Add(ValueName);
-		ValueLength = MaxLength;
-	}
-
-	return Names;
-}
-#endif // PLATFORM_WINDOWS
-
-#if PLATFORM_WINDOWS
-static FString RegistryGetStringValueData(const HKEY Key, const FString& ValueName)
-{
-	const uint32 MaxLength = 4096;
-	TCHAR ValueData[MaxLength];
-	DWORD ValueLength = MaxLength;
-
-	if (RegQueryValueEx(Key, *ValueName, 0, 0, LPBYTE(ValueData), &ValueLength))
-	{
-		return TEXT("");
-	}
-
-	ValueData[MaxLength - 1] = '\0';
-
-	return FString(ValueData);
-}
-#endif // PLATFORM_WINDOWS
 
 #if PLATFORM_WINDOWS
 static void FillOutDisableFullscreenOptimizationForProcess(FSyncStatus& SyncStatus, const FRunningProcess* Process)
@@ -1189,7 +1474,11 @@ bool FSwitchboardListener::GetSyncStatus(const FSwitchboardGetSyncStatusTask& In
 	// Reject request if an equivalent one is already in our future
 	if (EquivalentTaskFutureExists(InGetSyncStatusTask.GetEquivalenceHash()))
 	{
-		SendMessage(CreateTaskDeclinedMessage(InGetSyncStatusTask, "Duplicate"), InGetSyncStatusTask.Recipient);
+		SendMessage(
+			CreateTaskDeclinedMessage(InGetSyncStatusTask, TEXT("Duplicate"),{}),
+			InGetSyncStatusTask.Recipient
+		);
+
 		return false;
 	}
 
@@ -1229,6 +1518,7 @@ bool FSwitchboardListener::GetSyncStatus(const FSwitchboardGetSyncStatusTask& In
 		FillOutTaskbarAutoHide(SyncStatus.Get());
 		FillOutSyncTopologies(SyncStatus.Get());
 		FillOutMosaicTopologies(SyncStatus.Get());
+		SyncStatus->PidInFocus = FindPidInFocus();
 		return CreateSyncStatusMessage(SyncStatus.Get());
 	});
 
@@ -1240,6 +1530,11 @@ bool FSwitchboardListener::GetSyncStatus(const FSwitchboardGetSyncStatusTask& In
 	SendMessage(CreateTaskDeclinedMessage(InGetSyncStatusTask, "Platform not supported"), InGetSyncStatusTask.Recipient);
 	return false;
 #endif // PLATFORM_WINDOWS
+}
+
+bool FSwitchboardListener::ForceFocus(const FSwitchboardForceFocusTask& ForceFocusTask)
+{
+	return SetFocusWindowByPID(ForceFocusTask.PID);
 }
 
 
@@ -1315,6 +1610,8 @@ void FSwitchboardListener::HandleRunningProcesses(TArray<TSharedPtr<FRunningProc
 				Packet.Process.Name = Process->Name;
 				Packet.Process.Path = Process->Path;
 				Packet.Process.Caller = Process->Caller;
+				Packet.Process.Pid = Process->PID;
+
 				Packet.PartialStdout = Output;
 
 				for (const TPair<FIPv4Endpoint, TSharedPtr<FSocket>>& Connection : Connections)
@@ -1345,6 +1642,7 @@ void FSwitchboardListener::HandleRunningProcesses(TArray<TSharedPtr<FRunningProc
 					Packet.Process.Name = Process->Name;
 					Packet.Process.Path = Process->Path;
 					Packet.Process.Caller = Process->Caller;
+					Packet.Process.Pid = Process->PID;
 					Packet.Returncode = ReturnCode;
 					Packet.Output = ProcessOutput;
 

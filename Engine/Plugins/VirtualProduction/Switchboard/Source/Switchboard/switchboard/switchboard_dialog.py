@@ -1,4 +1,5 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
+
 from .config import CONFIG, SETTINGS, DEFAULT_MAP_TEXT
 from . import config
 from . import config_osc as osc
@@ -586,15 +587,15 @@ class SwitchboardDialog(QtCore.QObject):
         """
         When a new device is added to the DeviceManger, connect its signals
         """
-        device.device_qt_handler.signal_device_connect_failed.connect(self.device_connect_failed)
-        device.device_qt_handler.signal_device_client_disconnected.connect(self.device_client_disconnected)
-        device.device_qt_handler.signal_device_project_changelist_changed.connect(self.device_project_changelist_changed)
-        device.device_qt_handler.signal_device_engine_changelist_changed.connect(self.device_engine_changelist_changed)
-        device.device_qt_handler.signal_device_status_changed.connect(self.device_status_changed)
-        device.device_qt_handler.signal_device_sync_failed.connect(self.device_sync_failed)
-        device.device_qt_handler.signal_device_is_recording_device_changed.connect(self.device_is_recording_device_changed)
-        device.device_qt_handler.signal_device_build_update.connect(self.device_build_update)
-        device.device_qt_handler.signal_device_sync_update.connect(self.device_sync_update)
+        device.device_qt_handler.signal_device_connect_failed.connect(self.device_connect_failed, QtCore.Qt.QueuedConnection)
+        device.device_qt_handler.signal_device_client_disconnected.connect(self.device_client_disconnected, QtCore.Qt.QueuedConnection)
+        device.device_qt_handler.signal_device_project_changelist_changed.connect(self.device_project_changelist_changed, QtCore.Qt.QueuedConnection)
+        device.device_qt_handler.signal_device_engine_changelist_changed.connect(self.device_engine_changelist_changed, QtCore.Qt.QueuedConnection)
+        device.device_qt_handler.signal_device_status_changed.connect(self.device_status_changed, QtCore.Qt.QueuedConnection)
+        device.device_qt_handler.signal_device_sync_failed.connect(self.device_sync_failed, QtCore.Qt.QueuedConnection)
+        device.device_qt_handler.signal_device_is_recording_device_changed.connect(self.device_is_recording_device_changed, QtCore.Qt.QueuedConnection)
+        device.device_qt_handler.signal_device_build_update.connect(self.device_build_update, QtCore.Qt.QueuedConnection)
+        device.device_qt_handler.signal_device_sync_update.connect(self.device_sync_update, QtCore.Qt.QueuedConnection)
 
         # Add the view
         self.device_list_widget.add_device_widget(device)

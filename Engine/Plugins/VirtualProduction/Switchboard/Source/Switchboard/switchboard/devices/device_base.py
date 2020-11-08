@@ -9,9 +9,7 @@ from PySide2 import QtCore, QtGui
 import pythonosc.udp_client
 
 from enum import IntEnum, IntFlag, unique, auto
-import os
-import random
-import socket
+import os, random, socket, threading
 
 @unique
 class DeviceStatus(IntEnum):
@@ -214,12 +212,26 @@ class Device(QtCore.QObject):
     def set_take(self, value):
         pass
 
+    @QtCore.Slot()
     def connect_listener(self):
+
+        # Ensure this code is run from the main thread
+        if threading.current_thread().name != 'MainThread':
+            QtCore.QMetaObject.invokeMethod(self, 'connect_listener', QtCore.Qt.QueuedConnection)
+            return
+
         # If the device was disconnected, set to closed
         if self.status == DeviceStatus.DISCONNECTED:
             self.status = DeviceStatus.CLOSED
 
+    @QtCore.Slot()
     def disconnect_listener(self):
+
+        # Ensure this code is run from the main thread
+        if threading.current_thread().name != 'MainThread':
+            QtCore.QMetaObject.invokeMethod(self, 'disconnect_listener', QtCore.Qt.QueuedConnection)
+            return
+
         self.status = DeviceStatus.DISCONNECTED
 
     def setup_osc_client(self, osc_port):
