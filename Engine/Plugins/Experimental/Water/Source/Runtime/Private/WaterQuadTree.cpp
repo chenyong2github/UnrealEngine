@@ -323,7 +323,7 @@ void FWaterQuadTree::FNode::AddNodes(FNodeData& InNodeData, const FBox& InMeshBo
 		{
 			const FNode& ChildNode = InNodeData.Nodes[Children[i]];
 
-			// If 0, compare agains current since there are no previous children
+			// If INVALID_PARENT, compare against current since there are no previous children
 			PrevChildNode = (PrevChildNode.ParentIndex == INVALID_PARENT ? ChildNode : PrevChildNode);
 
 			// If the child doesn't have a subtree with same water bodies, then this node doesn't either
@@ -349,11 +349,14 @@ void FWaterQuadTree::FNode::AddNodes(FNodeData& InNodeData, const FBox& InMeshBo
 
 bool FWaterQuadTree::FNode::QueryBaseHeightAtLocation(const FNodeData& InNodeData, const FVector2D& InWorldLocationXY, float& OutHeight) const
 {
-	OutHeight = InNodeData.WaterBodyRenderData[WaterBodyIndex].SurfaceBaseHeight;
-
-	if (HasCompleteSubtree)
+	// Early out if subtree is complete and of same waterbody. 
+	// Note: Since we prune the quadtree of anything below this condition, it means there are no more granular nodes to fetch below this. In theory we could skip the pruning and have slightly more accurate height sampling, since rivers might have leaf nodes with individual bounds.
+	// Same condition as leaf nodes
+	if (HasCompleteSubtree && IsSubtreeSameWaterBody)
 	{
-		// This node has a complete subtree, meaning all descendants have the same height so we stop here (leaf nodes always have HasCompleteSubtree == true) 
+		// Return "accurate" base height when there's a valid sample
+		OutHeight = InNodeData.WaterBodyRenderData[WaterBodyIndex].IsRiver() ? Bounds.Max.Z : InNodeData.WaterBodyRenderData[WaterBodyIndex].SurfaceBaseHeight;
+
 		return true;
 	}
 
@@ -372,6 +375,9 @@ bool FWaterQuadTree::FNode::QueryBaseHeightAtLocation(const FNodeData& InNodeDat
 			}
 		}
 	}
+
+	// Return regular base height when there's not valid sample
+	OutHeight = InNodeData.WaterBodyRenderData[WaterBodyIndex].SurfaceBaseHeight;
 
 	// Point is not in any of these children, return false
 	return false;
@@ -565,6 +571,43 @@ void FWaterQuadTree::BuildWaterTileInstanceData(const FTraversalDesc& InTraversa
 	TRACE_CPUPROFILER_EVENT_SCOPE(BuildWaterTileInstanceData);
 	check(bIsReadOnly);
 	NodeData.Nodes[0].SelectLOD(NodeData, TreeDepth, InTraversalDesc, Output);
+}
+
+bool FWaterQuadTree::QueryInterpolatedTileBaseHeightAtLocation(const FVector2D& InWorldLocationXY, float& OutHeight) const
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FWaterQuadTree::QueryInterpolatedTileBaseHeightAtLocation);
+
+	// Figure out what 4 samples to take
+	// Sample point grid is aligned with center of leaf node tiles. So offset the grid negative half a leaf tile
+	const FVector2D SampleGridWorldPosition(GetTileRegion().Min - FVector2D(GetLeafSize() * 0.5f));
+	const FVector2D CornerSampleGridPosition(InWorldLocationXY - SampleGridWorldPosition);
+	const FVector2D NormalizedGridPosition(CornerSampleGridPosition / GetLeafSize());
+	const FVector2D CornerSampleWorldPosition00 = FVector2D(FMath::Floor(NormalizedGridPosition.X), FMath::Floor(NormalizedGridPosition.Y)) * GetLeafSize() + SampleGridWorldPosition;
+	
+	// 4 world positions to use for sampling
+	FVector2D CornerSampleWorldPositions[] =
+	{
+		CornerSampleWorldPosition00 + FVector2D(0.0f, 0.0f),
+		CornerSampleWorldPosition00 + FVector2D(GetLeafSize(), 0.0f),
+		CornerSampleWorldPosition00 + FVector2D(0.0f, GetLeafSize()),
+		CornerSampleWorldPosition00 + FVector2D(GetLeafSize(), GetLeafSize())
+	};
+
+	// Sample 4 locations
+	float HeightSamples[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+	int32 NumValidSamples = 0;
+	for(int32 i = 0; i < 4; i++)
+	{
+		if (QueryTileBaseHeightAtLocation(CornerSampleWorldPositions[i], HeightSamples[i]))
+		{
+			NumValidSamples++;
+		}
+	}
+
+	// Return bilinear interpolated value
+	OutHeight = FMath::BiLerp(HeightSamples[0], HeightSamples[1], HeightSamples[2], HeightSamples[3], FMath::Frac(NormalizedGridPosition.X), FMath::Frac(NormalizedGridPosition.Y));
+
+	return NumValidSamples == 4;
 }
 
 bool FWaterQuadTree::QueryTileBaseHeightAtLocation(const FVector2D& InWorldLocationXY, float& OutWorldHeight) const
