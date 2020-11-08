@@ -123,7 +123,7 @@ export class DescriptionParser {
 		this.useDefaultFlow = other.useDefaultFlow
 		this.arguments = other.arguments
 		this.expandedMacros = other.expandedMacros
-		this.expandedMacroLines = other.expandedMacroLines
+		this.otherBotArguments = other.otherBotArguments
 
 		this.errors = other.errors
 	}
@@ -192,6 +192,7 @@ export class DescriptionParser {
 				for (const target of targets) {
 					const macroLines = this.macros[target.toLowerCase()]
 					if (macroLines) {
+						this.expandedMacros.push(target)
 						this.expandedMacroLines = [...this.expandedMacroLines, ...macroLines]
 					}
 					else {

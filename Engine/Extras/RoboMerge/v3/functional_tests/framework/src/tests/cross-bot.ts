@@ -40,7 +40,7 @@ function createStreams(p4: Perforce, test: FunctionalTest) {
 				await test.createStreamsAndWorkspaces(streams, DEPOT_NAME)
 
 				const mainClient = test.getClient('Main', 'testuser1', DEPOT_NAME)
-				for (const n of [1, 2, 3, 4, 5, 6, 7]) {
+				for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) {
 					await P4Util.addFileAndSubmit(mainClient, `test${n}.txt`, 'Initial content')
 				}
 
@@ -191,6 +191,8 @@ function getNextgenCommands() {
 }
 
 export class ComplexCrossBot extends ComplexBase {
+	test8EditRev = -1
+
 	constructor(p4: Perforce) {
 		super(p4)
 		complexBot = this
@@ -199,23 +201,32 @@ export class ComplexCrossBot extends ComplexBase {
 	async setup() {
 		await createStreams(this.p4, this)
 
-		await this.getClient('FNM', 'testuser1', DEPOT_NAME).sync()
 	}
 
 	async run() {
 		const client = this.getClient('FNM', 'testuser1', DEPOT_NAME)
+
+		await this.getClient('FNM', 'testuser1', DEPOT_NAME).sync()
+
 		await P4Util.editFile(client, 'test4.txt', 'Initial content\n\nMergeable line')
 		await P4Util.submit(client, `Edit\n#robomerge nextgen`)
+
+		// using macro in reconsider
+		this.test8EditRev = await P4Util.editFileAndSubmit(client, 'test8.txt', 'Initial content\n\nMergeable line', 'ignore')
 
 		// using macro
 		await P4Util.editFile(client, 'test5.txt', 'Initial content\n\nMergeable line')
 		await P4Util.submit(client, 'Edit\n' + getNextgenCommands().join('\n'))
+
+		await this.reconsider('FNM', this.test8EditRev, undefined, '#robomerge nextgen, DEM')
 	}
 
 	verify() {
 		return Promise.all([
 			this.checkHeadRevision('R26', 'test4.txt', 2, DEPOT_NAME),
 			this.checkHeadRevision('Plus', 'test4.txt', 2, DEPOT_NAME),
+			this.checkHeadRevision('R26', 'test8.txt', 2, DEPOT_NAME),
+			this.checkHeadRevision('Plus', 'test8.txt', 2, DEPOT_NAME),
 			this.checkHeadRevision('R26', 'test5.txt', 2, DEPOT_NAME),
 			this.checkHeadRevision('Plus', 'test5.txt', 2, DEPOT_NAME),
 			this.checkHeadRevision('FNM', 'test7.txt', 2, DEPOT_NAME),
