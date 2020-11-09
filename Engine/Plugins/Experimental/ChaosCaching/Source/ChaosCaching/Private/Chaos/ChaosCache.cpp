@@ -4,6 +4,13 @@
 #include "Chaos/ChaosCachingPlugin.h"
 #include "Components/PrimitiveComponent.h"
 
+UChaosCache::UChaosCache()
+	: CurrentRecordCount(0)
+	, CurrentPlaybackCount(0)
+{
+
+}
+
 void UChaosCache::FlushPendingFrames()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(QSTAT_CacheFlushPendingFrames);
@@ -447,7 +454,7 @@ FTransform FParticleTransformTrack::Evaluate(float InCacheTime) const
 				IndexBeyond = Algo::UpperBound(KeyTimestamps, InCacheTime);
 			}
 
-			if(IndexBeyond == INDEX_NONE)
+			if(IndexBeyond == INDEX_NONE || IndexBeyond >= KeyTimestamps.Num())
 			{
 				// Must be equal to the last key
 				return FTransform(RawTransformTrack.RotKeys.Last(), RawTransformTrack.PosKeys.Last());
