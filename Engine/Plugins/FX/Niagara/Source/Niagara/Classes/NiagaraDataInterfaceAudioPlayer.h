@@ -42,6 +42,7 @@ struct FAudioPlayerInterface_InstanceData
 	TArray<FName> ParameterNames;
 
 	int32 MaxPlaysPerTick = 0;
+	bool bStopWhenComponentIsDestroyed = true;
 };
 
 /** This Data Interface can be used to play one-shot audio effects driven by particle data. */
@@ -75,6 +76,10 @@ public:
 	 *  The particles to discard when over the limit are *not* chosen in a deterministic way. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Audio", meta=(EditCondition="bLimitPlaysPerTick", ClampMin="0", UIMin="0"))
     int32 MaxPlaysPerTick;
+
+	/** If false then it the audio component keeps playing after the niagara component was destroyed. Looping sounds are always stopped when the component is destroyed. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Audio")
+	bool bStopWhenComponentIsDestroyed = true;
 
 	//UObject Interface
 	virtual void PostInitProperties() override;

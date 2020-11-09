@@ -104,6 +104,7 @@ bool UNiagaraDataInterfaceAudioPlayer::InitPerInstanceData(void* PerInstanceData
 	{
 		PIData->MaxPlaysPerTick = MaxPlaysPerTick;
 	}
+	PIData->bStopWhenComponentIsDestroyed = bStopWhenComponentIsDestroyed;
 	return true;
 }
 
@@ -747,9 +748,11 @@ void UNiagaraDataInterfaceAudioPlayer::PlayPersistentAudio(FVectorVMContext& Con
 				{
 					SCOPE_CYCLE_COUNTER(STAT_NiagaraAudioDICreateSound);
 					USceneComponent* NiagaraComponent = SystemInstance->GetAttachComponent();
-					if (NiagaraComponent && InstanceData->SoundToPlay.IsValid())
+					TWeakObjectPtr<USoundBase> Sound = InstanceData->SoundToPlay;
+					if (NiagaraComponent && Sound.IsValid())
 					{
-						UAudioComponent* AudioComponent = UGameplayStatics::SpawnSoundAttached(InstanceData->SoundToPlay.Get(), NiagaraComponent, NAME_None, Position, Rotation, EAttachLocation::KeepWorldPosition, true, Volume, Pitch, StartTime, InstanceData->Attenuation.Get(), InstanceData->Concurrency.Get(), true);
+						bool bStopWithEffect = InstanceData->bStopWhenComponentIsDestroyed || Sound->IsLooping(); // we don't allow looping effects to outlive us because then they keep playing forever
+						UAudioComponent* AudioComponent = UGameplayStatics::SpawnSoundAttached(Sound.Get(), NiagaraComponent, NAME_None, Position, Rotation, EAttachLocation::KeepWorldPosition, bStopWithEffect, Volume, Pitch, StartTime, InstanceData->Attenuation.Get(), InstanceData->Concurrency.Get(), true);
 						if (FadeIn > 0.0)
 						{
 							AudioComponent->FadeIn(FadeIn, Volume, StartTime);
@@ -803,5 +806,6 @@ bool UNiagaraDataInterfaceAudioPlayer::CopyToInternal(UNiagaraDataInterface* Des
 	OtherTyped->bLimitPlaysPerTick = bLimitPlaysPerTick;
 	OtherTyped->MaxPlaysPerTick = MaxPlaysPerTick;
 	OtherTyped->ParameterNames = ParameterNames;
+	OtherTyped->bStopWhenComponentIsDestroyed = bStopWhenComponentIsDestroyed;
 	return true;
 }
