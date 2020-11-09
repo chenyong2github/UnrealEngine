@@ -67,7 +67,7 @@ DECLARE_DELEGATE_RetVal(bool, FInstallBundleManagerEnvironmentWantsPatchCheck);
 
 DECLARE_DELEGATE_OneParam(FInstallBundleGetInstallStateDelegate, FInstallBundleCombinedInstallState);
 
-class INSTALLBUNDLEMANAGER_API IInstallBundleManager
+class INSTALLBUNDLEMANAGER_API IInstallBundleManager : public TSharedFromThis<IInstallBundleManager>
 {
 public:
 	static FInstallBundleCompleteMultiDelegate InstallBundleUpdatedDelegate;  // Called when content is up to do date
@@ -77,7 +77,7 @@ public:
 	static FInstallBundleReleasedMultiDelegate RemovedDelegate; // Called when content has been physically removed
 	static FInstallBundleManagerOnPatchCheckComplete PatchCheckCompleteDelegate;
 
-	static IInstallBundleManager* GetPlatformInstallBundleManager();
+	static TSharedPtr<IInstallBundleManager> GetPlatformInstallBundleManager();
 
 	virtual ~IInstallBundleManager() {}
 

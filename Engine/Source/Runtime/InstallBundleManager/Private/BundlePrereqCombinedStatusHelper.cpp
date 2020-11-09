@@ -141,11 +141,12 @@ void FInstallBundleCombinedProgressTracker::UpdateBundleCache()
 		InstallBundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
 	}
 	
-	if (ensureAlwaysMsgf((nullptr != InstallBundleManager), TEXT("Invalid InstallBundleManager during UpdateBundleCache! Needs to be valid during run!")))
+	TSharedPtr<IInstallBundleManager> PinnedBundleManger = InstallBundleManager.Pin();
+	if (ensureAlwaysMsgf((nullptr != PinnedBundleManger), TEXT("Invalid InstallBundleManager during UpdateBundleCache! Needs to be valid during run!")))
 	{
 		for (FName& BundleName : RequiredBundleNames)
 		{
-			TOptional<FInstallBundleProgress> BundleProgress = InstallBundleManager->GetBundleProgress(BundleName);
+			TOptional<FInstallBundleProgress> BundleProgress = PinnedBundleManger->GetBundleProgress(BundleName);
 			
 			//Copy progress to the cache as long as we have progress to copy.
 			if (BundleProgress.IsSet())
@@ -290,10 +291,14 @@ void FInstallBundleCombinedProgressTracker::OnBundleInstallComplete(FInstallBund
 		FInstallBundleProgress& BundleCacheInfo = BundleStatusCache.FindOrAdd(CompletedBundleName);
 		BundleCacheInfo.Status = EInstallBundleStatus::Ready;
 		
-		TOptional<FInstallBundleProgress> BundleProgress = InstallBundleManager->GetBundleProgress(CompletedBundleName);
-		if (ensureAlwaysMsgf(BundleProgress.IsSet(), TEXT("Expected to find BundleProgress for completed bundle, but did not. Leaving old progress values")))
+		TSharedPtr<IInstallBundleManager> PinnedBundleManger = InstallBundleManager.Pin();
+		if (ensureAlwaysMsgf((nullptr != PinnedBundleManger), TEXT("Invalid InstallBundleManager during OnBundleInstallComplete! Needs to be valid during run!")))
 		{
-			BundleCacheInfo = BundleProgress.GetValue();
+			TOptional<FInstallBundleProgress> BundleProgress = PinnedBundleManger->GetBundleProgress(CompletedBundleName);
+			if (ensureAlwaysMsgf(BundleProgress.IsSet(), TEXT("Expected to find BundleProgress for completed bundle, but did not. Leaving old progress values")))
+			{
+				BundleCacheInfo = BundleProgress.GetValue();
+			}
 		}
 	}
 }
