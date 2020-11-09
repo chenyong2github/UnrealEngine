@@ -1686,19 +1686,19 @@ struct FPostProcessSettings
 	float AmbientOcclusionTemporalBlendWeight;
 
 	/** Enables ray tracing ambient occlusion. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Ambient Occlusion", meta = (editcondition = "bOverride_RayTracingAO", DisplayName = "Enabled"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Ambient Occlusion", meta = (editcondition = "bOverride_RayTracingAO", DisplayName = "Enabled"))
 	uint32 RayTracingAO : 1;
 
 	/** Sets the samples per pixel for ray tracing ambient occlusion. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Ambient Occlusion", meta = (ClampMin = "1", ClampMax = "64", editcondition = "bOverride_RayTracingAOSamplesPerPixel", DisplayName = "Samples Per Pixel"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Ambient Occlusion", meta = (ClampMin = "1", ClampMax = "64", editcondition = "bOverride_RayTracingAOSamplesPerPixel", DisplayName = "Samples Per Pixel"))
 	int32 RayTracingAOSamplesPerPixel;
 
 	/** Scalar factor on the ray-tracing ambient occlusion score. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Ambient Occlusion", meta = (ClampMin = "0.0", ClampMax = "1.0", editcondition = "bOverride_RayTracingAOIntensity", DisplayName = "Intensity"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Ambient Occlusion", meta = (ClampMin = "0.0", ClampMax = "1.0", editcondition = "bOverride_RayTracingAOIntensity", DisplayName = "Intensity"))
 	float RayTracingAOIntensity;
 
 	/** Defines the world-space search radius for occlusion rays. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Ambient Occlusion", meta = (ClampMin = "0.0", ClampMax = "10000.0", editcondition = "bOverride_RayTracingAORadius", DisplayName = "Radius"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Ambient Occlusion", meta = (ClampMin = "0.0", ClampMax = "10000.0", editcondition = "bOverride_RayTracingAORadius", DisplayName = "Radius"))
 	float RayTracingAORadius;
 
 	/** Adjusts indirect lighting color. (1,1,1) is default. (0,0,0) to disable GI. The show flag 'Global Illumination' must be enabled to use this property. */
@@ -1715,15 +1715,15 @@ struct FPostProcessSettings
 #endif
 
 	/** Sets the ray tracing global illumination type. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Global Illumination", meta = (editcondition = "bOverride_RayTracingGI", DisplayName = "Type"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Global Illumination", meta = (editcondition = "bOverride_RayTracingGI", DisplayName = "Type"))
 	ERayTracingGlobalIlluminationType RayTracingGIType;
 
 	/** Sets the ray tracing global illumination maximum bounces. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Global Illumination", meta = (ClampMin = "0", ClampMax = "50", editcondition = "bOverride_RayTracingGIMaxBounces", DisplayName = "Max. Bounces"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Global Illumination", meta = (ClampMin = "0", ClampMax = "50", editcondition = "bOverride_RayTracingGIMaxBounces", DisplayName = "Max. Bounces"))
 	int32 RayTracingGIMaxBounces;
 
 	/** Sets the samples per pixel for ray tracing global illumination. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Global Illumination", meta = (ClampMin = "1", ClampMax = "64", editcondition = "bOverride_RayTracingGISamplesPerPixel", DisplayName = "Samples Per Pixel"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Global Illumination", meta = (ClampMin = "1", ClampMax = "64", editcondition = "bOverride_RayTracingGISamplesPerPixel", DisplayName = "Samples Per Pixel"))
 	int32 RayTracingGISamplesPerPixel;
 
 	/** Color grading lookup table intensity. 0 = no intensity, 1=full intensity */
@@ -1859,7 +1859,7 @@ struct FPostProcessSettings
 	float LPVSpecularOcclusionIntensity;
 
 	/** Sets the reflections type */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Reflections", meta = (editcondition = "bOverride_ReflectionsType", DisplayName = "Type"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Reflections", meta = (editcondition = "bOverride_ReflectionsType", DisplayName = "Type"))
 	EReflectionsType ReflectionsType;
 
 	/** Enable/Fade/disable the Screen Space Reflection feature, in percent, avoid numbers between 0 and 1 fo consistency */
@@ -1879,24 +1879,24 @@ struct FPostProcessSettings
 	float RayTracingReflectionsMaxRoughness;
 
 	/** Sets the maximum number of ray tracing reflection bounces. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Reflections", meta = (ClampMin = "0", ClampMax = "50", editcondition = "bOverride_RayTracingReflectionsMaxBounces", DisplayName = "Max. Bounces"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Reflections", meta = (ClampMin = "0", ClampMax = "50", editcondition = "bOverride_RayTracingReflectionsMaxBounces", DisplayName = "Max. Bounces"))
 	int32 RayTracingReflectionsMaxBounces;
 
 	/** Sets the samples per pixel for ray traced reflections. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Reflections", meta = (ClampMin = "1", ClampMax = "64", editcondition = "bOverride_RayTracingReflectionsSamplesPerPixel", DisplayName = "Samples Per Pixel"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Reflections", meta = (ClampMin = "1", ClampMax = "64", editcondition = "bOverride_RayTracingReflectionsSamplesPerPixel", DisplayName = "Samples Per Pixel"))
 	int32 RayTracingReflectionsSamplesPerPixel;
 
 	/** Sets the reflected shadows type. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Reflections", meta = (editcondition = "bOverride_RayTracingReflectionsShadows", DisplayName = "Shadows"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Reflections", meta = (editcondition = "bOverride_RayTracingReflectionsShadows", DisplayName = "Shadows"))
 	EReflectedAndRefractedRayTracedShadows RayTracingReflectionsShadows;
 
 	/** Enables ray tracing translucency in reflections. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Reflections", meta = (editcondition = "bOverride_RayTracingReflectionsTranslucency", DisplayName = "Include Translucent Objects"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Reflections", meta = (editcondition = "bOverride_RayTracingReflectionsTranslucency", DisplayName = "Include Translucent Objects"))
 	uint8 RayTracingReflectionsTranslucency : 1;
 
 
 	/** Sets the translucency type */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Translucency", meta = (editcondition = "bOverride_TranslucencyType", DisplayName = "Type"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Translucency", meta = (editcondition = "bOverride_TranslucencyType", DisplayName = "Type"))
 	ETranslucencyType TranslucencyType;
 
 	/** Sets the maximum roughness until which ray tracing translucency will be visible (lower value is faster). Translucency contribution is smoothly faded when close to roughness threshold. This parameter behaves similarly to ScreenSpaceReflectionMaxRoughness. */
@@ -1904,29 +1904,29 @@ struct FPostProcessSettings
 	float RayTracingTranslucencyMaxRoughness;
 
 	/** Sets the maximum number of ray tracing refraction rays. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Translucency", meta = (ClampMin = "0", ClampMax = "50", editcondition = "bOverride_RayTracingTranslucencyRefractionRays", DisplayName = "Max. Refraction Rays"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Translucency", meta = (ClampMin = "0", ClampMax = "50", editcondition = "bOverride_RayTracingTranslucencyRefractionRays", DisplayName = "Max. Refraction Rays"))
 	int32 RayTracingTranslucencyRefractionRays;
 
 	/** Sets the samples per pixel for ray traced translucency. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Translucency", meta = (ClampMin = "1", ClampMax = "64", editcondition = "bOverride_RayTracingTranslucencySamplesPerPixel", DisplayName = "Samples Per Pixel"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Translucency", meta = (ClampMin = "1", ClampMax = "64", editcondition = "bOverride_RayTracingTranslucencySamplesPerPixel", DisplayName = "Samples Per Pixel"))
 	int32 RayTracingTranslucencySamplesPerPixel;
 
 	/** Sets the translucency shadows type. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Translucency", meta = (editcondition = "bOverride_RayTracingTranslucencyShadows", DisplayName = "Shadows"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Translucency", meta = (editcondition = "bOverride_RayTracingTranslucencyShadows", DisplayName = "Shadows"))
 	EReflectedAndRefractedRayTracedShadows RayTracingTranslucencyShadows;
 
 	/** Sets whether refraction should be enabled or not (if not rays will not scatter and only travel in the same direction as before the intersection event). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Translucency", meta = (editcondition = "bOverride_RayTracingTranslucencyRefraction", DisplayName = "Refraction"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Translucency", meta = (editcondition = "bOverride_RayTracingTranslucencyRefraction", DisplayName = "Refraction"))
 	uint8 RayTracingTranslucencyRefraction : 1;
 
 
 	// Path Tracing
 	/** Sets the path tracing maximum bounces */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|PathTracing", meta = (ClampMin = "0", ClampMax = "50", editcondition = "bOverride_PathTracingMaxBounces", DisplayName = "Max. Bounces"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|PathTracing", meta = (ClampMin = "0", ClampMax = "50", editcondition = "bOverride_PathTracingMaxBounces", DisplayName = "Max. Bounces"))
 	int32 PathTracingMaxBounces;
 
 	/** Sets the samples per pixel for the path tracer. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|PathTracing", meta = (ClampMin = "1", ClampMax = "64", editcondition = "bOverride_PathTracingSamplesPerPixel", DisplayName = "Samples Per Pixel"))
+	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|PathTracing", meta = (ClampMin = "1", ClampMax = "64", editcondition = "bOverride_PathTracingSamplesPerPixel", DisplayName = "Samples Per Pixel"))
 	int32 PathTracingSamplesPerPixel;
 
 
