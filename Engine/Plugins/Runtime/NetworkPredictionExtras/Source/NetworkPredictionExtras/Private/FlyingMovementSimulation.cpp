@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FlyingMovementSimulation.h"
+#include "NetworkPredictionTrace.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFlyingPawnSimulation, Log, All);
 
@@ -21,7 +22,8 @@ bool FFlyingMovementAuxState::ShouldReconcile(const FFlyingMovementAuxState& Aut
 bool FFlyingMovementSyncState::ShouldReconcile(const FFlyingMovementSyncState& AuthorityState) const
 {
 	const float ErrorTolerance = FlyingPawnSimCVars::ErrorTolerance;
-	return !AuthorityState.Location.Equals(Location, ErrorTolerance);
+	UE_NP_TRACE_RECONCILE(!AuthorityState.Location.Equals(Location, ErrorTolerance), "Loc:");
+	return false;
 }
 
 // -------------------------------------------------------------------------------------------------------

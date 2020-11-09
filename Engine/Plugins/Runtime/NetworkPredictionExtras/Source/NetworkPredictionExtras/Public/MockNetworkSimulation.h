@@ -21,8 +21,13 @@
 #include "NetworkPredictionModelDef.h"
 #include "NetworkPredictionComponent.h"
 #include "Misc/StringBuilder.h"
+#include "Stats/Stats2.h"
+#include "NetworkPredictionTrace.h"
 
 #include "MockNetworkSimulation.generated.h"
+
+DECLARE_STATS_GROUP(TEXT("NetworkPrediction"), STATGROUP_NetworkPrediction, STATCAT_Advanced);
+DECLARE_CYCLE_STAT(TEXT("NetworkPrediction_MockSimTick"), STAT_NetworkPrediction_MockSimTick, STATGROUP_NetworkPrediction);
 
 // -------------------------------------------------------------------------------------------------------------------------------
 //	Mock Network Simulation
@@ -84,7 +89,8 @@ struct FMockSyncState
 	// Compare this state with AuthorityState. return true if a reconcile (correction) should happen
 	bool ShouldReconcile(const FMockSyncState& AuthorityState) const
 	{
-		return FMath::Abs<float>(Total - AuthorityState.Total) > SMALL_NUMBER;
+		UE_NP_TRACE_RECONCILE(FMath::Abs<float>(Total - AuthorityState.Total) > SMALL_NUMBER, "Total:");
+		return false;
 	}
 
 	void ToString(FAnsiStringBuilderBase& Out) const
@@ -110,7 +116,8 @@ struct FMockAuxState
 
 	bool ShouldReconcile(const FMockAuxState& Authority) const
 	{
-		return Multiplier != Authority.Multiplier;
+		UE_NP_TRACE_RECONCILE(Multiplier != Authority.Multiplier, "Multiplier:");
+		return false;
 	}
 
 	void ToString(FAnsiStringBuilderBase& Out) const

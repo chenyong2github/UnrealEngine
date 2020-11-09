@@ -122,6 +122,7 @@ private:
 
 	int32 InstanceSpawnCounter = 1;
 	int32 TempClientSpawnCount = -2; // negative IDs for client to use before getting server assigned id
+	int32 LastFixedTickOffset = 0;
 
 	// ---------------------------------------
 

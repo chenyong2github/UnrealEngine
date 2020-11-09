@@ -752,10 +752,10 @@ struct FNetworkPredictionDriverBase
 	template<bool bEnable=HasPhysics()>
 	static typename TEnableIf<bEnable>::Type TracePhysicsStateRecv(const TConditionalState<PhysicsState>& RecvState, FAnsiStringBuilderBase& Builder)
 	{
-		PhysicsState::ToString(RecvState, Builder);
+		PhysicsState::ToString(RecvState.Get(), Builder);
 	}
 
-	template<bool bEnable =HasPhysics()>
+	template<bool bEnable=HasPhysics()>
 	static typename TEnableIf<!bEnable>::Type TracePhysicsStateRecv(const TConditionalState<PhysicsState>& RecvState, FAnsiStringBuilderBase& Builder) { }
 
 	// Current latest physics state

@@ -39,6 +39,8 @@ public:
 	void WriteSynthInput(uint32 SimulationId);
 	void WriteUserState(int32 TraceID, int32 Frame, uint64 EngineFrame, ENP_UserState Type, const TCHAR* UserStr);
 	void WritePIEStart();
+	void WriteReconcileStr(int32 TraceID, const TCHAR* UserStr);
+	void WriteReconcile(int32 TraceID, int32 LocalFrameOffset, bool bLocalOffsetFrameChanged);
 
 	void WriteSimulationConfig(int32 TraceID, uint64 EngineFrame, ENP_NetRole NetRole, bool bHasNetConnection, ENP_TickingPolicy TickingPolicy, ENP_NetworkLOD NetworkLOD, int32 ServiceMask);
 
