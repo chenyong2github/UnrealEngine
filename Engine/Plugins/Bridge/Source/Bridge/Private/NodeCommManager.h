@@ -17,7 +17,7 @@ public:
 
 //Dummy data structure, all json data to be converted to ustructs
 USTRUCT()
-struct FNodeSpawnInfo
+struct FBifrostNodeInfo
 {
 	GENERATED_USTRUCT_BODY();
 public:
