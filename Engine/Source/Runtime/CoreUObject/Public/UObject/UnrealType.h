@@ -2760,8 +2760,9 @@ public:
 
 using FFreezableScriptArray = TScriptArray<TMemoryImageAllocator<DEFAULT_ALIGNMENT>>;
 
-//@todo stever
-//static_assert(sizeof(FScriptArray) == sizeof(FFreezableScriptArray) && alignof(FScriptArray) == alignof(FFreezableScriptArray), "FScriptArray and FFreezableScriptArray are expected to be layout-compatible");
+#if !PLATFORM_ANDROID || !PLATFORM_32BITS
+	static_assert(sizeof(FScriptArray) == sizeof(FFreezableScriptArray) && alignof(FScriptArray) == alignof(FFreezableScriptArray), "FScriptArray and FFreezableScriptArray are expected to be layout-compatible");
+#endif
 
 
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
@@ -2840,16 +2841,18 @@ public:
 	{
 		if (EnumHasAnyFlags(ArrayFlags, EArrayPropertyFlags::UsesMemoryImageAllocator))
 		{
+			checkf(!PLATFORM_ANDROID || !PLATFORM_32BITS, TEXT("FFreezableScriptArray is not supported on Android 32 bit platform"));
+
 			for (int32 i = 0; i < this->ArrayDim; ++i)
 			{
-				new ((uint8*)Dest + i * this->ElementSize) FScriptArray;
+				new ((uint8*)Dest + i * this->ElementSize) FFreezableScriptArray;
 			}
 		}
 		else
 		{
 			for (int32 i = 0; i < this->ArrayDim; ++i)
 			{
-				new ((uint8*)Dest + i * this->ElementSize) FFreezableScriptArray;
+				new ((uint8*)Dest + i * this->ElementSize) FScriptArray;
 			}
 		}
 	}
@@ -2887,8 +2890,8 @@ private:
 
 using FFreezableScriptMap = TScriptMap<FMemoryImageSetAllocator>;
 
-//@todo stever
-//static_assert(sizeof(FScriptArray) == sizeof(FFreezableScriptArray) && alignof(FScriptArray) == alignof(FFreezableScriptArray), "FScriptArray and FFreezableScriptArray are expected to be layout-compatible");
+//@todo stever sizeof(FScriptMap) is 80 bytes, while sizeof(FFreezableScriptMap) is 56 bytes atm
+//static_assert(sizeof(FScriptMap) == sizeof(FFreezableScriptMap) && alignof(FScriptMap) == alignof(FFreezableScriptMap), "FScriptMap and FFreezableScriptMap are expected to be layout-compatible");
 
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
 typedef TProperty<FScriptMap, FProperty> FMapProperty_Super;
@@ -2954,6 +2957,25 @@ public:
 	virtual bool NetSerializeItem(FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData = NULL) const override;
 	virtual void ExportTextItem(FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const override;
 	virtual const TCHAR* ImportText_Internal(const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText) const override;
+	virtual void InitializeValueInternal(void* Dest) const override
+	{
+		if (EnumHasAnyFlags(MapFlags, EMapPropertyFlags::UsesMemoryImageAllocator))
+		{
+			checkf(false, TEXT("FFreezableScriptMap is not supported at the moment"));
+
+			for (int32 i = 0; i < this->ArrayDim; ++i)
+			{
+				new ((uint8*)Dest + i * this->ElementSize) FFreezableScriptMap;
+			}
+		}
+		else
+		{
+			for (int32 i = 0; i < this->ArrayDim; ++i)
+			{
+				new ((uint8*)Dest + i * this->ElementSize) FScriptMap;
+			}
+		}
+	}
 	virtual void CopyValuesInternal(void* Dest, void const* Src, int32 Count) const override;
 	virtual void ClearValueInternal(void* Data) const override;
 	virtual void DestroyValueInternal(void* Dest) const override;
