@@ -1422,7 +1422,7 @@ void* FMallocBinned::Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment )
 	const uint32 NewSizeUnmodified = NewSize;
 	if (NewSize)
 	{
-		NewSize = Align(Size, Alignment);
+		NewSize = Align(NewSize, Alignment);
 	}
 	MEM_TIME(MemTime -= FPlatformTime::Seconds());
 	UPTRINT BasePtr;
