@@ -81,6 +81,22 @@ struct FMeshUVChannelInfo
 		}
 	}
 
+	/** Returns whether the structure contains any valid LocalUVDensities. */
+	bool IsInitialized() const
+	{
+		if (bInitialized)
+		{
+			for (float Density : LocalUVDensities)
+			{
+				if (Density != 0)
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	UPROPERTY()
 	bool bInitialized;
 

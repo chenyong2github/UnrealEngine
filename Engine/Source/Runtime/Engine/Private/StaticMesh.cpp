@@ -2989,7 +2989,7 @@ void UStaticMesh::UpdateUVChannelData(bool bRebuildAll)
 			FMeshUVChannelInfo& UVChannelData = GetStaticMaterials()[MaterialIndex].UVChannelData;
 
 			// Skip it if we want to keep it.
-			if (UVChannelData.bInitialized && (!bRebuildAll || UVChannelData.bOverrideDensities))
+			if (UVChannelData.IsInitialized() && (!bRebuildAll || UVChannelData.bOverrideDensities))
 			{
 				continue;
 			}

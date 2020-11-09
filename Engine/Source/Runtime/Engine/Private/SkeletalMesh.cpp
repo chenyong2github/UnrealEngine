@@ -950,7 +950,7 @@ void USkeletalMesh::UpdateUVChannelData(bool bRebuildAll)
 			FMeshUVChannelInfo& UVChannelData = Materials[MaterialIndex].UVChannelData;
 
 			// Skip it if we want to keep it.
-			if (UVChannelData.bInitialized && (!bRebuildAll || UVChannelData.bOverrideDensities))
+			if (UVChannelData.IsInitialized() && (!bRebuildAll || UVChannelData.bOverrideDensities))
 				continue;
 
 			float WeightedUVDensities[TEXSTREAM_MAX_NUM_UVCHANNELS] = {0, 0, 0, 0};
