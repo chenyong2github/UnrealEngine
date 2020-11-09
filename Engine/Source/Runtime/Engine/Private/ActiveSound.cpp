@@ -67,6 +67,7 @@ FActiveSound::FActiveSound()
 	, bUpdatePlaybackTime(false)
 	, bIsPlayingAudio(false)
 	, bIsStopping(false)
+	, bHasNewBusSends(false)
 	, UserIndex(0)
 	, FadeOut(EFadeOut::None)
 	, bIsOccluded(false)
@@ -362,12 +363,34 @@ void FActiveSound::SetSourceBusSend(EBusSendType BusSendType, const FSoundSource
 		if (Info.SoundSourceBus == SendInfo.SoundSourceBus || Info.AudioBus == SendInfo.AudioBus)
 		{
 			Info.SendLevel = SendInfo.SendLevel;
+
+			bHasNewBusSends = true;
+			newBusSends.Add(TTuple<EBusSendType, FSoundSourceBusSendInfo>(BusSendType, SendInfo));
 			return;
 		}
 	}
 
 	// Otherwise, add it to the source bus send overrides
 	BusSendsOverride[(int32)BusSendType].Add(SendInfo);
+
+	bHasNewBusSends = true;
+	newBusSends.Add(TTuple<EBusSendType, FSoundSourceBusSendInfo>(BusSendType,SendInfo));
+}
+
+bool FActiveSound::HasNewBusSends() const
+{
+	return bHasNewBusSends;
+}
+
+TArray< TTuple<EBusSendType, FSoundSourceBusSendInfo> > const& FActiveSound::GetNewBusSends() const
+{
+	return newBusSends;
+}
+
+void FActiveSound::ResetNewBusSends()
+{
+	newBusSends.Empty();
+	bHasNewBusSends = false;
 }
 
 void FActiveSound::Stop()

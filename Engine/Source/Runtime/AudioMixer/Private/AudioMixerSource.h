@@ -62,7 +62,7 @@ namespace Audio
 	private:
 
 		/** Initializes the bus sends. */
-		void InitBusSends(FWaveInstance* InWaveInstance, FMixerSourceVoiceInitParams& InitParams);
+		void SetupBusData(TArray<FInitAudioBusSend>* OutAudioBusSends = nullptr);
 
 		/** Frees any resources for this sound source. */
 		void FreeResources();
@@ -120,26 +120,16 @@ namespace Audio
 		// so that distance-based level control can be calculated during rendering
 		struct FDynamicBusSendInfo
 		{
-			float SendLevel;
-			uint32 BusId;
-			ESourceBusSendLevelControlMethod BusSendLevelControlMethod;
-			EBusSendType BusSendType;
-			float MinSendLevel;
-			float MaxSendLevel;
-			float MinSendDistance;
-			float MaxSendDistance;
+			float SendLevel = 0.0f;
+			uint32 BusId = 0;
+			ESourceBusSendLevelControlMethod BusSendLevelControlMethod = ESourceBusSendLevelControlMethod::Manual;
+			EBusSendType BusSendType = EBusSendType::PreEffect;
+			float MinSendLevel = 0.0f;
+			float MaxSendLevel = 0.0f;
+			float MinSendDistance = 0.0f;
+			float MaxSendDistance = 0.0f;
 			FRuntimeFloatCurve CustomSendLevelCurve;
-
-			FDynamicBusSendInfo()
-				: SendLevel(0.0f)
-				, BusId(0)
-				, BusSendLevelControlMethod(ESourceBusSendLevelControlMethod::Manual)
-				, BusSendType(EBusSendType::PreEffect)
-				, MinSendLevel(0.0f)
-				, MaxSendLevel(0.0f)
-				, MinSendDistance(0.0f)
-				, MaxSendDistance(0.0f)
-			{}
+			bool bIsInit = true;
 		};
 
 		// Mapping of channel map types to channel maps. Determined by what submixes this source sends its audio to.

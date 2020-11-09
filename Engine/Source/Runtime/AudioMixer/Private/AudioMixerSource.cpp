@@ -201,7 +201,7 @@ namespace Audio
 			InitParams.bOutputToBusOnly = WaveInstance->bOutputToBusOnly;
 			DynamicBusSendInfos.Reset();
 
-			InitBusSends(WaveInstance, InitParams);
+			SetupBusData(InitParams.AudioBusSends);
 
 			// Don't set up any submixing if we're set to output to bus only
 			if (!InitParams.bOutputToBusOnly)
@@ -347,34 +347,53 @@ namespace Audio
 		return false;
 	}
 
-	void FMixerSource::InitBusSends(FWaveInstance* InWaveInstance, FMixerSourceVoiceInitParams& InitParams)
+	void FMixerSource::SetupBusData(TArray<FInitAudioBusSend>* OutAudioBusSends)
 	{
 		for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)
 		{
 			// And add all the source bus sends
-			for (FSoundSourceBusSendInfo& SendInfo : InWaveInstance->BusSends[BusSendType])
+			for (FSoundSourceBusSendInfo& SendInfo : WaveInstance->BusSends[BusSendType])
 			{
 				// Avoid redoing duplicate code for sending audio to source bus or audio bus. Most of it is the same other than the bus id.
-				auto InitBusSend = [this](FMixerSourceVoiceInitParams& InInitParams, const FSoundSourceBusSendInfo& InSendInfo, int32 InBusSendType, uint32 InBusId)
+				auto SetupBusSend = [this](TArray<FInitAudioBusSend>* AudioBusSends, const FSoundSourceBusSendInfo& InSendInfo, int32 InBusSendType, uint32 InBusId)
 				{
 					FInitAudioBusSend BusSend;
 					BusSend.AudioBusId = InBusId;
 					BusSend.SendLevel = InSendInfo.SendLevel;
-					InInitParams.AudioBusSends[InBusSendType].Add(BusSend);
 
-					FDynamicBusSendInfo DynamicBusSendInfo;
-					DynamicBusSendInfo.SendLevel = InSendInfo.SendLevel;
-					DynamicBusSendInfo.BusId = BusSend.AudioBusId;
-					DynamicBusSendInfo.BusSendLevelControlMethod = InSendInfo.SourceBusSendLevelControlMethod;
-					DynamicBusSendInfo.BusSendType = (EBusSendType)InBusSendType;
-					DynamicBusSendInfo.MinSendLevel = InSendInfo.MinSendLevel;
-					DynamicBusSendInfo.MaxSendLevel = InSendInfo.MaxSendLevel;
-					DynamicBusSendInfo.MinSendDistance = InSendInfo.MinSendDistance;
-					DynamicBusSendInfo.MaxSendDistance = InSendInfo.MaxSendDistance;
-					DynamicBusSendInfo.CustomSendLevelCurve = InSendInfo.CustomSendLevelCurve;
+					if (AudioBusSends)
+					{
+						AudioBusSends[InBusSendType].Add(BusSend);
+					}
+
+					FDynamicBusSendInfo NewDynamicBusSendInfo;
+					NewDynamicBusSendInfo.SendLevel = InSendInfo.SendLevel;
+					NewDynamicBusSendInfo.BusId = BusSend.AudioBusId;
+					NewDynamicBusSendInfo.BusSendLevelControlMethod = InSendInfo.SourceBusSendLevelControlMethod;
+					NewDynamicBusSendInfo.BusSendType = (EBusSendType)InBusSendType;
+					NewDynamicBusSendInfo.MinSendLevel = InSendInfo.MinSendLevel;
+					NewDynamicBusSendInfo.MaxSendLevel = InSendInfo.MaxSendLevel;
+					NewDynamicBusSendInfo.MinSendDistance = InSendInfo.MinSendDistance;
+					NewDynamicBusSendInfo.MaxSendDistance = InSendInfo.MaxSendDistance;
+					NewDynamicBusSendInfo.CustomSendLevelCurve = InSendInfo.CustomSendLevelCurve;
 
 					// Copy the bus SourceBusSendInfo structs to a local copy so we can update it in the update tick
-					DynamicBusSendInfos.Add(DynamicBusSendInfo);
+					bool bIsNew = true;
+					for (FDynamicBusSendInfo& BusSendInfo : DynamicBusSendInfos)
+					{
+						if (BusSendInfo.BusId == NewDynamicBusSendInfo.BusId)
+						{
+							BusSendInfo = NewDynamicBusSendInfo;
+							BusSendInfo.bIsInit = false;
+							bIsNew = false;
+							break;
+						}
+					}
+
+					if (bIsNew)
+					{
+						DynamicBusSendInfos.Add(NewDynamicBusSendInfo);
+					}
 
 					// Flag that we're sending audio to buses so we can check for updates to send levels
 					bSendingAudioToBuses = true;
@@ -397,7 +416,7 @@ namespace Audio
 					}
 
 					// Call lambda w/ the correctly derived bus id
-					InitBusSend(InitParams, SendInfo, BusSendType, BusId);
+					SetupBusSend(OutAudioBusSends, SendInfo, BusSendType, BusId);
 				}
 
 				if (SendInfo.AudioBus)
@@ -406,7 +425,7 @@ namespace Audio
 					uint32 BusId = SendInfo.AudioBus->GetUniqueID();
 
 					// Note we will be sending audio to both the specified source bus and the audio bus with the same send level
-					InitBusSend(InitParams, SendInfo, BusSendType, BusId);
+					SetupBusSend(OutAudioBusSends, SendInfo, BusSendType, BusId);
 				}
 			}
 		}
@@ -1146,9 +1165,26 @@ namespace Audio
 		// 2) check for any bus sends that are set to update non-manually
 		// 3) Cache previous send level and only do update if it's changed in any significant amount
 
+		SetupBusData();
+
 		if (!bSendingAudioToBuses)
 		{
 			return;
+		}
+
+		//If the user actively called a function that alters bus sends since the last update
+		FActiveSound* ActiveSound = WaveInstance->ActiveSound;
+		check(ActiveSound);
+
+		if (ActiveSound->HasNewBusSends())
+		{
+			TArray<TTuple<EBusSendType, FSoundSourceBusSendInfo>> NewBusSends = ActiveSound->GetNewBusSends();
+			for (TTuple<EBusSendType, FSoundSourceBusSendInfo>& newSend : NewBusSends)
+			{
+				MixerSourceVoice->SetAudioBusSendInfo(newSend.Key, newSend.Value.SoundSourceBus->GetUniqueID(), newSend.Value.SendLevel);
+			}
+
+			ActiveSound->ResetNewBusSends();
 		}
 
 		// If this source is sending its audio to a bus, we need to check if it needs to be updated
@@ -1156,11 +1192,7 @@ namespace Audio
 		{
 			float SendLevel = 0.0f;
 
-			if (DynamicBusSendInfo.BusSendLevelControlMethod == ESourceBusSendLevelControlMethod::Manual)
-			{
-				SendLevel = FMath::Clamp(DynamicBusSendInfo.SendLevel, 0.0f, 1.0f);
-			}
-			else
+			if (DynamicBusSendInfo.BusSendLevelControlMethod != ESourceBusSendLevelControlMethod::Manual)
 			{
 				// The alpha value is determined identically between linear and custom curve methods
 				const FVector2D SendRadialRange = { DynamicBusSendInfo.MinSendDistance, DynamicBusSendInfo.MaxSendDistance};
@@ -1176,15 +1208,17 @@ namespace Audio
 				{
 					SendLevel = FMath::Clamp(DynamicBusSendInfo.CustomSendLevelCurve.GetRichCurveConst()->Eval(Alpha), 0.0f, 1.0f);
 				}
+
+				// If the send level changed, then we need to send an update to the audio render thread
+				if (!FMath::IsNearlyEqual(SendLevel, DynamicBusSendInfo.SendLevel) || DynamicBusSendInfo.bIsInit)
+				{
+					DynamicBusSendInfo.SendLevel = SendLevel;
+					DynamicBusSendInfo.bIsInit = false;
+
+					MixerSourceVoice->SetAudioBusSendInfo(DynamicBusSendInfo.BusSendType, DynamicBusSendInfo.BusId, SendLevel);
+				}
 			}
 
-			// If the send level changed, then we need to send an update to the audio render thread
-			if (!FMath::IsNearlyEqual(SendLevel, DynamicBusSendInfo.SendLevel))
-			{
-				DynamicBusSendInfo.SendLevel = SendLevel;
-
-				MixerSourceVoice->SetAudioBusSendInfo(DynamicBusSendInfo.BusSendType, DynamicBusSendInfo.BusId, SendLevel);
-			}
 		}
 	}
 
