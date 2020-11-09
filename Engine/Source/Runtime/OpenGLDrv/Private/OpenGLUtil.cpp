@@ -78,6 +78,8 @@ DEFINE_STAT(STAT_OpenGLNumFreeUniformBuffers);
 DEFINE_STAT(STAT_OpenGLShaderFirstDrawTime);
 DEFINE_STAT(STAT_OpenGLProgramBinaryMemory);
 DEFINE_STAT(STAT_OpenGLProgramCount);
+DEFINE_STAT(STAT_OpenGLUseCachedProgramTime);
+DEFINE_STAT(STAT_OpenGLCreateProgramFromBinaryTime);
 
 DEFINE_STAT(STAT_OpenGLShaderLRUEvictTime);
 DEFINE_STAT(STAT_OpenGLShaderLRUMissTime);

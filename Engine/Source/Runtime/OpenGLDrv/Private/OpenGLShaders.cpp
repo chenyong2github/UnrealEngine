@@ -1618,6 +1618,8 @@ static bool GetProgramBinaryFromGLProgram(GLuint Program, TArray<uint8>& Program
 
 static bool CreateGLProgramFromBinary(GLuint& ProgramOUT, const TArray<uint8>& ProgramBinary)
 {
+	SCOPE_CYCLE_COUNTER(STAT_OpenGLCreateProgramFromBinaryTime)
+	
 	if (CVarStoreCompressedBinaries.GetValueOnAnyThread())
 	{
 		return CreateGLProgramFromCompressedBinary(ProgramOUT, ProgramBinary);
@@ -4631,6 +4633,8 @@ bool FOpenGLProgramBinaryCache::UseCachedProgram(GLuint& ProgramOUT, const FOpen
 
 bool FOpenGLProgramBinaryCache::UseCachedProgram_internal(GLuint& ProgramOUT, const FOpenGLProgramKey& ProgramKey, TArray<uint8>& CachedProgramBinaryOUT)
 {
+	SCOPE_CYCLE_COUNTER(STAT_OpenGLUseCachedProgramTime);
+	
 	FGLProgramBinaryFileCacheEntry** ProgramBinRefPtr = nullptr;
 
 	FScopeLock Lock(&GProgramBinaryCacheCS);
