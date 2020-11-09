@@ -4126,7 +4126,7 @@ uint32 FHLSLMaterialTranslator::AcquireVTStackIndex(
 			"TextureLoadVirtualPageTable("
 			"VIRTUALTEXTURE_PAGETABLE_%d,"
 			"VTPageTableUniform_Unpack(Material.VTPackedPageTableUniform[%d*2], Material.VTPackedPageTableUniform[%d*2+1]),"
-			"%s, %s, %s"
+			"%s, %s, %s,"
 			"0, Parameters.SvPosition.xy,"
 			"%d + LIGHTMAP_VT_ENABLED, Parameters.VirtualTextureFeedback)"),
 			StackIndex, StackIndex, StackIndex,
