@@ -17,7 +17,6 @@
 
 #include "ChaosVehicleMovementComponent.generated.h"
 
-using namespace Chaos;
 class CHAOSVEHICLES_API UChaosVehicleMovementComponent;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogVehicle, Log, All);
@@ -969,7 +968,7 @@ private:
 	{
 		PAerodynamicsSetup.DragCoefficient = this->DragCoefficient;
 		PAerodynamicsSetup.DownforceCoefficient = this->DownforceCoefficient;
-		PAerodynamicsSetup.AreaMetresSquared = Cm2ToM2(this->DragArea);
+		PAerodynamicsSetup.AreaMetresSquared = Chaos::Cm2ToM2(this->DragArea);
 	}
 	Chaos::FSimpleAerodynamicsConfig PAerodynamicsSetup;
 
