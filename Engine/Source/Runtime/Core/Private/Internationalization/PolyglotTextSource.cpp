@@ -162,8 +162,7 @@ void FPolyglotTextSource::LoadLocalizedResources(const ELocalizationLoadFlags In
 
 EQueryLocalizedResourceResult FPolyglotTextSource::QueryLocalizedResource(const ELocalizationLoadFlags InLoadFlags, TArrayView<const FString> InPrioritizedCultures, const FTextId InTextId, FTextLocalizationResource& InOutNativeResource, FTextLocalizationResource& InOutLocalizedResource)
 {
-	const FLocKey Identity = FString::Printf(TEXT("%s::%s"), InTextId.GetNamespace().GetChars(), InTextId.GetKey().GetChars());
-	if (const FPolyglotTextData* PolyglotTextData = PolyglotTextDataMap.Find(Identity))
+	if (const FPolyglotTextData* PolyglotTextData = PolyglotTextDataMap.Find(InTextId))
 	{
 		AddPolyglotDataToResource(*PolyglotTextData, InLoadFlags, InPrioritizedCultures, InOutNativeResource, InOutLocalizedResource);
 		return EQueryLocalizedResourceResult::Found;
@@ -175,7 +174,7 @@ void FPolyglotTextSource::RegisterPolyglotTextData(const FPolyglotTextData& InPo
 {
 	check(InPolyglotTextData.IsValid());
 
-	const FLocKey Identity = FString::Printf(TEXT("%s::%s"), *InPolyglotTextData.GetNamespace(), *InPolyglotTextData.GetKey());
+	const FTextId Identity = FTextId(FTextKey(*InPolyglotTextData.GetNamespace()), FTextKey(*InPolyglotTextData.GetKey()));
 	if (FPolyglotTextData* CurrentPolyglotData = PolyglotTextDataMap.Find(Identity))
 	{
 		UnregisterCultureNames(*CurrentPolyglotData);
