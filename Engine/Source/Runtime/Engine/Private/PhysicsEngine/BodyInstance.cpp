@@ -2587,27 +2587,27 @@ void FBodyInstance::SetBodyTransform(const FTransform& NewTransform, ETeleportTy
 				const bool bIsSimKinematic = bKinematic && bSimulated;
 
 				if(bIsSimKinematic && Teleport == ETeleportType::None)
-					{
+				{
 					Scene->SetKinematicTarget_AssumesLocked(this, NewTransform, true);
-					}
-					else
-					{
+				}
+				else
+				{
 					if(bIsSimKinematic)
-						{
+					{
 						FPhysicsInterface::SetKinematicTarget_AssumesLocked(Actor, NewTransform);
-						}
+					}
 
 					FPhysicsInterface::SetGlobalPose_AssumesLocked(Actor, NewTransform);
-					}
-			});
 				}
+			});
+		}
 		else if(Scene)
 		{
 			FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
 			{
 				FPhysicsInterface::SetGlobalPose_AssumesLocked(Actor, NewTransform);
 			});
-			}
+		}
 	}
 	else if(WeldParent)
 	{

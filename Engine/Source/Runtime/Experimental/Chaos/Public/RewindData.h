@@ -252,6 +252,7 @@ private:
 	TParticleStateProperty<FParticleDynamics,EParticleProperty::Dynamics> Dynamics;
 	TParticleStateProperty<FParticleDynamicMisc,EParticleProperty::DynamicMisc> DynamicsMisc;
 	TParticleStateProperty<FParticleMassProps,EParticleProperty::MassProps> MassProps;
+	TParticleStateProperty<FKinematicTarget, EParticleProperty::KinematicTarget> KinematicTarget;
 };
 
 class FGeometryParticleState

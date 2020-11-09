@@ -87,6 +87,11 @@ void FGeometryParticleStateBase::SyncSimWritablePropsFromSim(FDirtyPropData Mana
 		Data.SetV(Rigid.PreV());
 		Data.SetW(Rigid.PreW());
 	});
+
+	KinematicTarget.SyncRemoteData(Manager, Dirty, [&Rigid](auto& Data)
+	{
+		Data = Rigid.KinematicTarget();
+	});
 }
 
 void FGeometryParticleStateBase::SyncDirtyDynamics(FDirtyPropData& DestManager,const FParticleDirtyData& Dirty,const FConstDirtyPropData& SrcManager)
@@ -130,6 +135,15 @@ bool FGeometryParticleStateBase::IsSimWritableDesynced(TPBDRigidParticleHandle<F
 		}
 	}
 
+	if (KinematicTarget.IsSet())
+	{
+		const FKinematicTarget& Target = KinematicTarget.Read();
+		if (Target == Particle.KinematicTarget())
+		{
+			return true;
+		}
+	}
+
 	return false;
 }
 
@@ -154,6 +168,11 @@ void FGeometryParticleStateBase::SyncToParticle(TParticle& Particle) const
 			{
 				Rigid->ResetSmoothedVelocities();
 			}
+		});
+
+		KinematicTarget.SyncToParticle([Kinematic](const auto& Data)
+		{
+			Kinematic->SetKinematicTarget(Data);
 		});
 	}
 
@@ -216,6 +235,11 @@ void FGeometryParticleStateBase::SyncPrevFrame(FDirtyPropData& Manager,const FDi
 			{
 				Data.CopyFrom(*Kinematic);
 			});
+
+			KinematicTarget.SyncRemoteData(Manager, Dirty.ParticleData, [Kinematic](auto& Data)
+			{
+				Data = Kinematic->KinematicTarget();
+			});
 		}
 	}
 
@@ -261,6 +285,14 @@ void FGeometryParticleStateBase::SyncIfDirty(const FDirtyPropData& Manager,const
 				Data.CopyFrom(*Kinematic);
 			});
 		}
+
+		if (RewindState.KinematicTarget.IsSet())
+		{
+			KinematicTarget.SyncRemoteDataForced(Manager, [Kinematic](auto& Data)
+			{
+				Data = Kinematic->KinematicTarget();
+			});
+		}
 	}
 
 	if(auto Rigid = Particle->CastToRigidParticle())
@@ -304,6 +336,12 @@ bool FGeometryParticleStateBase::CoalesceState(const FGeometryParticleStateBase&
 		bCoalesced = true;
 	}
 
+	if (!KinematicTarget.IsSet() && LatestState.KinematicTarget.IsSet())
+	{
+		KinematicTarget = LatestState.KinematicTarget;
+		bCoalesced = true;
+	}
+
 	if(!MassProps.IsSet() && LatestState.MassProps.IsSet())
 	{
 		MassProps = LatestState.MassProps;
@@ -338,6 +376,11 @@ bool FGeometryParticleStateBase::IsDesynced(const FConstDirtyPropData& SrcManage
 		if(auto Kinematic = Handle.CastToKinematicParticle())
 		{
 			if(!Velocities.IsInSync(SrcManager,Flags,*Kinematic))
+			{
+				return true;
+			}
+
+			if (!KinematicTarget.IsInSync(SrcManager, Flags, *Kinematic))
 			{
 				return true;
 			}
