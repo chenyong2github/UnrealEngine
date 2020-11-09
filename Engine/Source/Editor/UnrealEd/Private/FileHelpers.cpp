@@ -1789,7 +1789,7 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<UPackage*>&
 				{
 					// Cannot add unsaved packages to source control
 					FString Filename;
-					if (!PackageToCheckOut->HasAnyPackageFlags(PKG_NewlyCreated) || FPackageName::DoesPackageExist(PackageToCheckOut->GetName(), nullptr, &Filename))
+					if (FPackageName::DoesPackageExist(PackageToCheckOut->GetName(), nullptr, &Filename))
 					{
 						bShowCheckoutError = false;
 						FinalPackageMarkForAddList.Add(PackageToCheckOut);
@@ -1798,6 +1798,13 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<UPackage*>&
 					{
 						// Silently skip package that has not been saved yet
 						// Expected when called by InternalCheckoutAndSavePackages before packages saved
+						bShowCheckoutError = false;
+					}
+				}
+				else if (SourceControlState->IsAdded())
+				{
+					if (!bErrorIfAlreadyCheckedOut)
+					{
 						bShowCheckoutError = false;
 					}
 				}
@@ -4441,6 +4448,7 @@ static bool InternalCheckoutAndSavePackages(const TArray<UPackage*>& PackagesToS
 			for (UPackage* Package : PackagesToSave)
 			{
 				// List unsaved packages that were not checked out
+				if (!PackagesCheckedOut.Contains(Package))
 				{
 					PackagesToMarkForAdd.Add(Package);
 				}
