@@ -16,6 +16,8 @@
 #include "Async/Async.h"
 #include "Async/ParallelFor.h"
 #include "Materials/MaterialInstance.h"
+#include "Materials/MaterialInstanceConstant.h"
+#include "MaterialEditor/MaterialEditorInstanceConstant.h"
 #include "RenderingThread.h"
 #include "RHISurfaceDataConversion.h"
 #include "Misc/ScopedSlowTask.h"
@@ -854,10 +856,19 @@ void FMaterialBakingModule::OnObjectModified(UObject* Object)
 
 	if (CVarUseMaterialProxyCaching.GetValueOnAnyThread())
 	{
-		if (Object && Object->IsA<UMaterialInterface>())
+		UMaterialInstance* MaterialToInvalidate = Cast<UMaterialInstance>(Object);
+		if (!MaterialToInvalidate)
 		{
-			UMaterialInterface* MaterialToInvalidate = Cast<UMaterialInterface>(Object);
+			// Check to see if the object is a material editor instance constant and if so, retrieve its source instance
+			UMaterialEditorInstanceConstant* EditorInstance = Cast<UMaterialEditorInstanceConstant>(Object);
+			if (EditorInstance && EditorInstance->SourceInstance)
+			{
+				MaterialToInvalidate = EditorInstance->SourceInstance;
+			}
+		}
 
+		if (MaterialToInvalidate)
+		{
 			// Search our proxy pool for materials or material instances that refer to MaterialToInvalidate
 			for (auto It = MaterialProxyPool.CreateIterator(); It; ++It)
 			{
