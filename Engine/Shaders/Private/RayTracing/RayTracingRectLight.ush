@@ -37,7 +37,7 @@ bool GenerateRectLightOcclusionRay(
 	float3 LightDirection = normalize(LightSamplePosition - WorldPosition);
 
 	// Light-normal culling
-	bool IsNormalCulled = dot(-LightDirection, -LightParameters.Direction) <= 0.0;
+	bool bIsValidRay = dot(-LightDirection, -LightParameters.Direction) >= 0.0;
 
 	// Apply normal perturbation when defining ray
 	RayDirection = LightDirection;
@@ -53,5 +53,5 @@ bool GenerateRectLightOcclusionRay(
 	FSphericalRect SphericalRect = BuildSphericalRect(Rect);
 	RayPdf = 1.0 / SphericalRect.SolidAngle;
 
-	return IsNormalCulled;
+	return bIsValidRay;
 }
