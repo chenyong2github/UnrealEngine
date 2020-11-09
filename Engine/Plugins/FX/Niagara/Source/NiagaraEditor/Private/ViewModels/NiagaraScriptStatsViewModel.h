@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RHIDefinitions.h"
 #include "Templates/SharedPointer.h"
 #include "NiagaraScriptStatsViewModel.generated.h"
 
