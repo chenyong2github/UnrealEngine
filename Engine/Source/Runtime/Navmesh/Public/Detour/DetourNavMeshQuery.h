@@ -749,12 +749,11 @@ public:
 	dtStatus getEdgeMidPoint(dtPolyRef from, const dtPoly* fromPoly, const dtMeshTile* fromTile,
 							 dtPolyRef to, const dtPoly* toPoly, const dtMeshTile* toTile,
 							 float* mid) const;
-private:
 	//@UE4 END
 
 	// Appends vertex to a straight path
 	dtStatus appendVertex(const float* pos, const unsigned char flags, const dtPolyRef ref,
-						  dtQueryResult& result) const;
+						  dtQueryResult& result, const bool bOverrideIdenticalPosition = true) const;
 
 	// Appends intermediate portal points to a straight path.
 	dtStatus appendPortals(const int startIdx, const int endIdx, const float* endPos, const dtPolyRef* path,
@@ -775,6 +774,7 @@ private:
 			&& m_linkFilter->isLinkAllowed(tile->offMeshCons[linkIdx].userId) == false);
 	}
 
+private:
 	const dtNavMesh* m_nav;							///< Pointer to navmesh data.
 	dtQuerySpecialLinkFilter* m_linkFilter;			///< Pointer to optional special link filter
 

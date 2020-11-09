@@ -23,6 +23,7 @@ class UNavAreaBase;
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogNavigation, Warning, All);
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogNavigationDataBuild, Log, All);
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogNavLink, Warning, All);
+ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogAStar, Warning, All);
 
 UENUM()
 enum class FNavigationSystemRunMode : uint8

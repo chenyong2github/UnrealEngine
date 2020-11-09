@@ -893,6 +893,16 @@ ENavigationQueryResult::Type FPImplRecastNavMesh::FindPath(const FVector& StartL
 	dtQueryResult PathResult;
 	const dtStatus FindPathStatus = NavQuery.findPath(StartPolyID, EndPolyID, &RecastStartPos.X, &RecastEndPos.X, CostLimit, QueryFilter, PathResult, 0);
 
+	return PostProcessPathInternal(FindPathStatus, Path, NavQuery, QueryFilter, StartPolyID, EndPolyID, RecastStartPos, RecastEndPos, PathResult);
+}
+
+
+ENavigationQueryResult::Type FPImplRecastNavMesh::PostProcessPathInternal(dtStatus FindPathStatus, FNavMeshPath& Path, 
+	const dtNavMeshQuery& NavQuery, const dtQueryFilter* QueryFilter, 
+	NavNodeRef StartPolyID, NavNodeRef EndPolyID, 
+	const FVector& RecastStartPos, const FVector& RecastEndPos, 
+	dtQueryResult& PathResult) const
+{
 	// check for special case, where path has not been found, and starting polygon
 	// was the one closest to the target
 	if (PathResult.size() == 1 && dtStatusDetail(FindPathStatus, DT_PARTIAL_RESULT))
