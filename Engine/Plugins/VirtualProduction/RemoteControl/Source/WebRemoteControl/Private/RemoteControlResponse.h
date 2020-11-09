@@ -16,7 +16,7 @@ struct FListPresetsResponse
 	
 	FListPresetsResponse() = default;
 
-	FListPresetsResponse(const TArray<URemoteControlPreset*>& InPresets)
+	FListPresetsResponse(const TArray<TSoftObjectPtr<URemoteControlPreset>>& InPresets)
 	{
 		Presets.Append(InPresets);
 	}
