@@ -716,7 +716,7 @@ namespace DatasmithRevitExporter
 				{
 					// Generate unique name for instances
 					FBaseElementData Instance = InstanceDataStack.Peek();
-					return $"{DocumentName}:{Instance.BaseElementType.UniqueId}:{Instance.GetHashCode()}";
+					return $"{DocumentName}:{CurrentElement.UniqueId}:{Instance.BaseElementType.UniqueId}:{InstanceDataStack.Count}";
 				}
 			}
 
