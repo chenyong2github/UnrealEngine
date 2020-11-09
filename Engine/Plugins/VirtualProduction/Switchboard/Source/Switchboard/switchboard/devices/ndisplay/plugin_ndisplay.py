@@ -12,7 +12,7 @@ from .ndisplay_monitor    import nDisplayMonitor
 
 from PySide2 import QtWidgets
 
-import os, traceback
+import os, traceback, json
 from pathlib import Path
 
 
@@ -55,7 +55,7 @@ class AddnDisplayDialog(AddDeviceDialog):
         start_path = str(Path.home())
         if SETTINGS.LAST_BROWSED_PATH and os.path.exists(SETTINGS.LAST_BROWSED_PATH):
             start_path = SETTINGS.LAST_BROWSED_PATH
-        cfg_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select nDisplay config file", start_path, "nDisplay Config (*.cfg)")
+        cfg_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select nDisplay config file", start_path, "nDisplay Config (*.cfg;*.ndisplay)")
         if len(cfg_path) > 0 and os.path.exists(cfg_path):
             self.config_file_field.setText(cfg_path)
             SETTINGS.LAST_BROWSED_PATH = os.path.dirname(cfg_path)
@@ -246,6 +246,8 @@ class DevicenDisplay(DeviceUnreal):
         ini_game = "-ini:Game:[/Script/EngineSettings.GeneralProjectSettings]:bUseBorderlessWindow=True"
 
         # fill in fixed arguments
+        #
+        # TODO: Consider -unattended to avoid crash window from appearing.
 
         args = [
             f'"{uproject}"',
@@ -327,8 +329,40 @@ class DevicenDisplay(DeviceUnreal):
         self.__class__.ndisplay_monitor.on_get_sync_status(device=self, message=message)
 
     @classmethod
-    def parse_config(cls, cfg_file):
+    def parse_config_json(cls, cfg_file):
+        ''' Parses nDisplay config file of type json
+        '''
 
+        js = json.loads(open(cfg_file, 'r').read())
+
+        nodes = []
+        cnodes = js['nDisplay']['cluster']['nodes']
+
+        for name, cnode in cnodes.items():
+
+            kwargs = {"ue_command_line": ""}
+
+            winx = int(cnode['window'].get('x', 0))
+            winy = int(cnode['window'].get('y', 0))
+            resx = int(cnode['window'].get('w', 0))
+            resy = int(cnode['window'].get('h', 0))
+
+            kwargs["window_position"] = (winx, winy)
+            kwargs["window_resolution"] = (resx, resy)
+            kwargs["fullscreen"] = bool(cnode.get('fullScreen', False)) # note the capital 'S'
+
+            nodes.append({
+                "name": name, 
+                "ip_address": cnode['host'], 
+                "kwargs": kwargs,
+            })
+
+        return nodes
+
+    @classmethod
+    def parse_config_cfg(cls, cfg_file):
+        ''' Parses nDisplay config file in the original format (currently version 23)
+        '''
         nodes = []
 
         cluster_node_lines = []
@@ -404,6 +438,27 @@ class DevicenDisplay(DeviceUnreal):
 
         return nodes
 
+    @classmethod
+    def parse_config(cls, cfg_file):
+        ''' Parses an nDisplay file and returns the nodes with the relevant information
+        '''
+
+        ext = os.path.splitext(cfg_file)[1].lower()
+
+        try:
+            if ext == '.ndisplay':
+                return cls.parse_config_json(cfg_file)
+
+            if ext == '.cfg':
+                return cls.parse_config_cfg(cfg_file)
+
+        except Exception as e:
+            LOGGER.error(f'Error while parsing nDisplay config file "{cfg_file}": {e}')
+            return []
+
+        LOGGER.error(f'Unknown nDisplay config file "{cfg_file}"')
+        return []
+
     def update_settings_controlled_by_config(self, cfg_file):
         ''' Updates settings that are exclusively controlled by the config file
         '''
@@ -437,7 +492,8 @@ class DevicenDisplay(DeviceUnreal):
         # Transfer config file
 
         source = cfg_file
-        destination = "%TEMP%/ndisplay/%RANDOM%.cfg"
+        ext = os.path.splitext(cfg_file)[1]
+        destination = f"%TEMP%/ndisplay/%RANDOM%.{ext}"
 
         if os.path.exists(source):
             self._last_issued_command_id, msg = message_protocol.create_send_file_message(source, destination)
