@@ -29,26 +29,19 @@ export void UpdatePositionBasedState(uniform FVector& MXcm,
 	{
 		const varying float IM = InvM[Index];
 
-		if(all(IM == 0.0f))
+		if(all(!IM))
 		{
 			continue;
 		}
 
-		varying FVector MX, MV;
-		float MM;
+		if(!IM)
+		{
+			continue;
+		}
 
-		if(IM == 0.0f)
-		{
-			MX = ZeroVector;
-			MV = ZeroVector;
-			MM = 0.0f;
-		}
-		else
-		{
-			MX = VectorGather(&X[Index]);
-			MV = VectorGather(&V[Index]);
-			MM = M[Index];
-		}
+		const varying FVector MX = VectorLoad(&X[extract(Index, 0)]);
+		const varying FVector MV = VectorLoad(&V[extract(Index, 0)]);
+		const varying float MM = M[Index];
 
 		Xcm = Xcm + (MX * MM);
 		Vcm = Vcm + (MV * MM);
@@ -72,26 +65,19 @@ export void UpdatePositionBasedState(uniform FVector& MXcm,
 	{
 		const varying float IM = InvM[Index];
 
-		if(all(IM == 0.0f))
+		if(all(!IM))
 		{
 			continue;
 		}
 
-		varying FVector MX, MV;
-		float MM;
+		if(!IM)
+		{
+			continue;
+		}
 
-		if(IM == 0.0f)
-		{
-			MX = ZeroVector;
-			MV = ZeroVector;
-			MM = 0.0f;
-		}
-		else
-		{
-			MX = VectorGather(&X[Index]);
-			MV = VectorGather(&V[Index]);
-			MM = M[Index];
-		}
+		const varying FVector MX = VectorLoad(&X[extract(Index, 0)]);
+		const varying FVector MV = VectorLoad(&V[extract(Index, 0)]);
+		const varying float MM = M[Index];
 
 		const varying FVector VX = MX - MXcm;
 		VL = VL + VectorCross(VX, MM * MV);
@@ -105,5 +91,5 @@ export void UpdatePositionBasedState(uniform FVector& MXcm,
 
 	const uniform float Det = MatrixDeterminant(I);
 
-	MOmega = Det < SMALL_NUMBER || !IsFinite(Det) ? ZeroVector : MatrixInverseTransformVector(I, L); // Calls FMatrix::InverseFast(), which tests against SMALL_NUMBER
+	MOmega = VectorSelect(Det < SMALL_NUMBER || !IsFinite(Det), ZeroVector, MatrixInverseTransformVector(I, L)); // Calls FMatrix::InverseFast(), which tests against SMALL_NUMBER
 }

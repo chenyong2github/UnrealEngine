@@ -3,7 +3,6 @@
 
 #include "Chaos/Matrix.h"
 #include "Chaos/PerParticleRule.h"
-#include "Chaos/PBDActiveView.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 
 namespace Chaos
@@ -19,10 +18,10 @@ namespace Chaos
 		virtual ~TPerParticleDampVelocity() {}
 
 		template<class T_PARTICLES>
-		void UpdatePositionBasedState(const TPBDActiveView<T_PARTICLES>& ParticlesActiveView);
+		void UpdatePositionBasedState(const T_PARTICLES& Particles, const int32 Offset, const int32 Range);
 
 		template<class T_PARTICLES>
-		UE_DEPRECATED(4.26, "Use TPBDActiveView instead")
+		UE_DEPRECATED(4.26, "Use offset range version instead")
 		inline void UpdatePositionBasedState(const T_PARTICLES& InParticles, const TArray<int32>& InActiveIndices)
 		{
 			static_assert(d == 3, "Damp Velocities currently only supports 3D vectors.");
@@ -120,10 +119,10 @@ namespace Chaos
 
 	protected:
 		mutable T MCoefficient;  // The mutable allows to be modified in derived classes Apply const functions
+		TVector<T, d> MXcm, MVcm, MOmega;
 
 	private:
 		TArray<int32> ActiveIndices;
-		TVector<T, d> MXcm, MVcm, MOmega;
 	};
 }
 

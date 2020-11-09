@@ -42,6 +42,9 @@ void TPBDEvolution<T, d>::AddGroups(int32 NumGroups)
 		MGroupSelfCollisionThicknesses[GroupId] = MSelfCollisionThickness;
 		MGroupCoefficientOfFrictions[GroupId] = MCoefficientOfFriction;
 		MGroupDampings[GroupId] = MDamping;
+		MGroupCenterOfMass[GroupId] = TVector<T,d>(0.);
+		MGroupVelocity[GroupId] = TVector<T,d>(0.);
+		MGroupAngularVelocity[GroupId] = TVector<T,d>(0.);
 	}
 }
 
@@ -72,12 +75,15 @@ TPBDEvolution<T, d>::TPBDEvolution(TPBDParticles<T, d>&& InParticles, TKinematic
 {
 	// Add group arrays
 	TArrayCollection::AddArray(&MGroupGravityForces);
+	TArrayCollection::AddArray(&MGroupVelocityFields);
 	TArrayCollection::AddArray(&MGroupForceRules);
 	TArrayCollection::AddArray(&MGroupCollisionThicknesses);
 	TArrayCollection::AddArray(&MGroupSelfCollisionThicknesses);
 	TArrayCollection::AddArray(&MGroupCoefficientOfFrictions);
 	TArrayCollection::AddArray(&MGroupDampings);
-	TArrayCollection::AddArray(&MGroupVelocityFields);
+	TArrayCollection::AddArray(&MGroupCenterOfMass);
+	TArrayCollection::AddArray(&MGroupVelocity);
+	TArrayCollection::AddArray(&MGroupAngularVelocity);
 	AddGroups(1);  // Add default group
 
 	// Add particle arrays
@@ -197,13 +203,19 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 	SCOPE_CYCLE_COUNTER(STAT_ChaosPBDVAdvanceTime);
 	TPerParticleInitForce<T, d> InitForceRule;
 	TPerParticleEulerStepVelocity<T, d> EulerStepVelocityRule;
-	TPerGroupDampVelocity<T, d> DampVelocityRule(MParticleGroupIds, MGroupDampings);
+	TPerGroupDampVelocity<T, d> DampVelocityRule(
+		MParticleGroupIds,
+		MGroupDampings,
+		MGroupCenterOfMass,
+		MGroupVelocity,
+		MGroupAngularVelocity);
+
 	TPerParticlePBDEulerStep<T, d> EulerStepRule;
 	TPerParticlePBDCollisionConstraint<T, d, EGeometryParticlesSimType::Other> CollisionRule(MCollisionParticlesActiveView, MCollided, MParticleGroupIds, MCollisionParticleGroupIds, MGroupCollisionThicknesses, MGroupCoefficientOfFrictions);
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDVelocityDampUpdateState);
-		DampVelocityRule.UpdatePositionBasedState(MParticlesActiveView);
+		DampVelocityRule.UpdateGroupPositionBasedState(MParticlesActiveView);
 	}	
 
 	{
