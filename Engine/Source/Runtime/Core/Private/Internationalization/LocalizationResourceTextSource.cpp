@@ -183,7 +183,7 @@ void FLocalizationResourceTextSource::LoadLocalizedResourcesFromPaths(TArrayView
 			if (LocMetaResource.LoadFromFile(LocalizationPath / LocMetaFilename))
 			{
 				// We skip loading the native text if we're transitioning to the native culture as there's no extra work that needs to be done
-				if (!InPrioritizedCultures.Contains(LocMetaResource.NativeCulture))
+				if (!LocMetaResource.NativeCulture.IsEmpty() && !InPrioritizedCultures.Contains(LocMetaResource.NativeCulture))
 				{
 					LoadLocalizationResourcesForCulture(InOutNativeResource, LocalizationPath, LocMetaResource.NativeCulture, FPaths::GetCleanFilename(LocMetaResource.NativeLocRes), BaseResourcePriority);
 				}

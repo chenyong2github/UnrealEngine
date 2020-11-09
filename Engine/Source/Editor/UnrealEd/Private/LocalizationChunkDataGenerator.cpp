@@ -95,6 +95,21 @@ void FLocalizationChunkDataGenerator::GenerateChunkDataFiles(const int32 InChunk
 		// We can skip empty non-primary chunks
 		if (!bIsPrimaryChunk && !bChunkHasText)
 		{
+			// We still need to write a dummy LocMeta file, so that FTextLocalizationManager::OnPakFileMounted validates that this chunked target has no data
+			// Without the dummy file it would early out and prevent any other chunked targets (that might have data for this chunk) from being loaded too!
+			{
+				const FString ChunkLocMetaFilename = ChunkTargetContentRoot / FString::Printf(TEXT("%s.locmeta"), *ChunkTargetName);
+
+				FTextLocalizationMetaDataResource ChunkDummyLocMeta;
+				if (ChunkDummyLocMeta.SaveToFile(ChunkLocMetaFilename))
+				{
+					OutChunkFilenames.Add(ChunkLocMetaFilename);
+				}
+				else
+				{
+					UE_LOG(LogLocalizationChunkDataGenerator, Error, TEXT("Failed to generate dummy meta-data for localization target '%s' when chunking localization data."), *ChunkTargetName);
+				}
+			}
 			continue;
 		}
 

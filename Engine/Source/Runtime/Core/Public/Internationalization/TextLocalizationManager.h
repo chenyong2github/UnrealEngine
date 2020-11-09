@@ -25,6 +25,14 @@ class FTextLocalizationResource;
 typedef TSharedRef<FString, ESPMode::ThreadSafe> FTextDisplayStringRef;
 typedef TSharedPtr<FString, ESPMode::ThreadSafe> FTextDisplayStringPtr;
 
+enum class ETextLocalizationManagerInitializedFlags : uint8
+{
+	None = 0,
+	Engine = 1<<0,
+	Game = 1<<1,
+};
+ENUM_CLASS_FLAGS(ETextLocalizationManagerInitializedFlags);
+
 /** Singleton class that manages display strings for FText. */
 class CORE_API FTextLocalizationManager
 {
@@ -66,7 +74,12 @@ private:
 	typedef TMap<FTextDisplayStringRef, FTextId> FNamespaceKeyLookupTable;
 
 private:
-	bool bIsInitialized;
+	ETextLocalizationManagerInitializedFlags InitializedFlags = ETextLocalizationManagerInitializedFlags::None;
+	
+	bool IsInitialized() const
+	{
+		return InitializedFlags != ETextLocalizationManagerInitializedFlags::None;
+	}
 
 	FCriticalSection SynchronizationObject;
 	FDisplayStringLookupTable DisplayStringLookupTable;
