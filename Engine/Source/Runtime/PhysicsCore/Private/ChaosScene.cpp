@@ -135,11 +135,11 @@ Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float,3>,float,3
 
 void FChaosScene::CopySolverAccelerationStructure()
 {
+	using namespace Chaos;
 	if(SceneSolver)
 	{
-		ExternalDataLock.WriteLock();
+		FPhysicsSceneGuardScopedWrite ScopedWrite(SceneSolver->GetExternalDataLock_External());
 		SceneSolver->UpdateExternalAccelerationStructure_External(SolverAccelerationStructure);
-		ExternalDataLock.WriteUnlock();
 	}
 }
 
@@ -170,12 +170,12 @@ void FChaosScene::Flush_AssumesLocked()
 void FChaosScene::RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor)
 {
 #if WITH_CHAOS
+	using namespace Chaos;
 	if(GetSpacialAcceleration() && Actor->UniqueIdx().IsValid())
 	{
-		ExternalDataLock.WriteLock();
+		FPhysicsSceneGuardScopedWrite ScopedWrite(SceneSolver->GetExternalDataLock_External());
 		Chaos::TAccelerationStructureHandle<float,3> AccelerationHandle(Actor);
 		GetSpacialAcceleration()->RemoveElementFrom(AccelerationHandle,Actor->SpatialIdx());
-		ExternalDataLock.WriteUnlock();
 	}
 #endif
 }
@@ -187,7 +187,7 @@ void FChaosScene::UpdateActorInAccelerationStructure(const FPhysicsActorHandle& 
 
 	if(GetSpacialAcceleration())
 	{
-		ExternalDataLock.WriteLock();
+		FPhysicsSceneGuardScopedWrite ScopedWrite(SceneSolver->GetExternalDataLock_External());
 
 		auto SpatialAcceleration = GetSpacialAcceleration();
 
@@ -207,7 +207,6 @@ void FChaosScene::UpdateActorInAccelerationStructure(const FPhysicsActorHandle& 
 		}
 
 		GetSolver()->UpdateParticleInAccelerationStructure_External(Actor,/*bDelete=*/false);
-		ExternalDataLock.WriteUnlock();
 	}
 #endif
 }
@@ -219,7 +218,7 @@ void FChaosScene::UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsA
 
 	if(GetSpacialAcceleration())
 	{
-		ExternalDataLock.WriteLock();
+		FPhysicsSceneGuardScopedWrite ScopedWrite(SceneSolver->GetExternalDataLock_External());
 
 		auto SpatialAcceleration = GetSpacialAcceleration();
 
@@ -253,8 +252,6 @@ void FChaosScene::UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsA
 				GetSolver()->UpdateParticleInAccelerationStructure_External(Actor,/*bDelete=*/false);
 			}
 		}
-
-		ExternalDataLock.WriteUnlock();
 	}
 #endif
 }
@@ -482,7 +479,7 @@ void FChaosScene::EndFrame()
 
 				{
 					SCOPE_CYCLE_COUNTER(STAT_SqUpdateMaterials);
-					Concrete.SyncQueryMaterials();
+					Concrete.SyncQueryMaterials_External();
 				}
 			});
 		}

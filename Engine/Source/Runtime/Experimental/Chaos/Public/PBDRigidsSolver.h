@@ -70,12 +70,6 @@ namespace Chaos
 	};
 
 	template<ELockType LockType>
-	struct TSolverQueryMaterialScope
-	{
-		TSolverQueryMaterialScope() = delete;
-	};
-
-	template<ELockType LockType>
 	struct TSolverSimMaterialScope
 	{
 		TSolverSimMaterialScope() = delete;
@@ -375,13 +369,13 @@ namespace Chaos
 		void DestroyMaterialMask(Chaos::FMaterialMaskHandle InHandle);
 
 		/** Access to the internal material mirrors */
-		const THandleArray<FChaosPhysicsMaterial>& GetQueryMaterials() const { return QueryMaterials; }
-		const THandleArray<FChaosPhysicsMaterialMask>& GetQueryMaterialMasks() const { return QueryMaterialMasks; }
+		const THandleArray<FChaosPhysicsMaterial>& GetQueryMaterials_External() const { return QueryMaterials_External; }
+		const THandleArray<FChaosPhysicsMaterialMask>& GetQueryMaterialMasks_External() const { return QueryMaterialMasks_External; }
 		const THandleArray<FChaosPhysicsMaterial>& GetSimMaterials() const { return SimMaterials; }
 		const THandleArray<FChaosPhysicsMaterialMask>& GetSimMaterialMasks() const { return SimMaterialMasks; }
 
 		/** Copy the simulation material list to the query material list, to be done when the SQ commits an update */
-		void SyncQueryMaterials();
+		void SyncQueryMaterials_External();
 
 		void FinalizeRewindData(const TParticleView<TPBDRigidParticles<FReal,3>>& DirtyParticles);
 		bool RewindUsesCollisionResimCache() const { return bUseCollisionResimCache; }
@@ -465,56 +459,13 @@ namespace Chaos
 		// There are two copies here to enable SQ to lock only the solvers that it needs to handle the material access during a query
 		// instead of having to lock the entire physics state of the runtime.
 		
-		THandleArray<FChaosPhysicsMaterial> QueryMaterials;
-		THandleArray<FChaosPhysicsMaterialMask> QueryMaterialMasks;
+		THandleArray<FChaosPhysicsMaterial> QueryMaterials_External;
+		THandleArray<FChaosPhysicsMaterialMask> QueryMaterialMasks_External;
 		THandleArray<FChaosPhysicsMaterial> SimMaterials;
 		THandleArray<FChaosPhysicsMaterialMask> SimMaterialMasks;
 
 		void ProcessSinglePushedData_Internal(FPushPhysicsData& PushData);
 		virtual void ProcessPushedData_Internal(const TArray<FPushPhysicsData*>& PushDataArray) override;
-	};
-
-	template<>
-	struct TSolverQueryMaterialScope<ELockType::Read>
-	{
-		TSolverQueryMaterialScope() = delete;
-
-
-		explicit TSolverQueryMaterialScope(FPhysicsSolverBase* InSolver)
-			: Solver(InSolver)
-		{
-			check(Solver);
-			Solver->QueryMaterialLock.ReadLock();
-		}
-
-		~TSolverQueryMaterialScope()
-		{
-			Solver->QueryMaterialLock.ReadUnlock();
-		}
-
-	private:
-		FPhysicsSolverBase* Solver;
-	};
-
-	template<>
-	struct TSolverQueryMaterialScope<ELockType::Write>
-	{
-		TSolverQueryMaterialScope() = delete;
-
-		explicit TSolverQueryMaterialScope(FPhysicsSolverBase* InSolver)
-			: Solver(InSolver)
-		{
-			check(Solver);
-			Solver->QueryMaterialLock.WriteLock();
-		}
-
-		~TSolverQueryMaterialScope()
-		{
-			Solver->QueryMaterialLock.WriteUnlock();
-		}
-
-	private:
-		FPhysicsSolverBase* Solver;
 	};
 
 	template<>

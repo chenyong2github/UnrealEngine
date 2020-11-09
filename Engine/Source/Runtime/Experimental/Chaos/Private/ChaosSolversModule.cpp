@@ -188,16 +188,17 @@ Chaos::TPBDRigidsSolver<Traits>* FChaosSolversModule::CreateSolver(UObject* InOw
 )
 {
 	LLM_SCOPE(ELLMTag::Chaos);
+	using namespace Chaos;
 
 	FChaosScopeSolverLock SolverScopeLock;
 	
-	Chaos::EMultiBufferMode SolverBufferMode = InThreadingMode == Chaos::EThreadingMode::SingleThread ? Chaos::EMultiBufferMode::Single : Chaos::EMultiBufferMode::Double;
+	EMultiBufferMode SolverBufferMode = InThreadingMode == EThreadingMode::SingleThread ? EMultiBufferMode::Single : EMultiBufferMode::Double;
 	
-	auto* NewSolver = new Chaos::TPBDRigidsSolver<Traits>(SolverBufferMode,InOwner);
+	auto* NewSolver = new TPBDRigidsSolver<Traits>(SolverBufferMode,InOwner);
 	AllSolvers.Add(NewSolver);
 
 	// Add The solver to the owner list
-	TArray<Chaos::FPhysicsSolverBase*>& OwnerSolverList = SolverMap.FindOrAdd(InOwner);
+	TArray<FPhysicsSolverBase*>& OwnerSolverList = SolverMap.FindOrAdd(InOwner);
 	OwnerSolverList.Add(NewSolver);
 
 #if CHAOS_CHECKED
@@ -208,13 +209,12 @@ Chaos::TPBDRigidsSolver<Traits>* FChaosSolversModule::CreateSolver(UObject* InOw
 
 	// Set up the material lists on the new solver, copying from the current master list
 	{
-		Chaos::FPhysicalMaterialManager& Manager =	Chaos::FPhysicalMaterialManager::Get();
-		NewSolver->QueryMaterialLock.WriteLock();
-		NewSolver->QueryMaterials = Manager.GetMasterMaterials();
-		NewSolver->QueryMaterialMasks = Manager.GetMasterMaterialMasks();
-		NewSolver->SimMaterials = Manager.GetMasterMaterials();
-		NewSolver->SimMaterialMasks = Manager.GetMasterMaterialMasks();
-		NewSolver->QueryMaterialLock.WriteUnlock();
+		FPhysicalMaterialManager& Manager =	Chaos::FPhysicalMaterialManager::Get();
+		FPhysicsSceneGuardScopedWrite ScopedWrite(NewSolver->GetExternalDataLock_External());
+		NewSolver->QueryMaterials_External = Manager.GetMasterMaterials_External();
+		NewSolver->QueryMaterialMasks_External = Manager.GetMasterMaterialMasks_External();
+		NewSolver->SimMaterials = Manager.GetMasterMaterials_External();
+		NewSolver->SimMaterialMasks = Manager.GetMasterMaterialMasks_External();
 	}
 
 	return NewSolver;

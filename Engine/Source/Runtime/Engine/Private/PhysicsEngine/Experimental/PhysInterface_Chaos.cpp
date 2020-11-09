@@ -103,16 +103,14 @@ Chaos::FChaosPhysicsMaterial* GetMaterialFromInternalFaceIndex(const FPhysicsSha
 		{
 			if(Materials.Num() == 1)
 			{
-				Chaos::TSolverQueryMaterialScope<Chaos::ELockType::Read> Scope(Solver);
-				return Solver->GetQueryMaterials().Get(Materials[0].InnerHandle);
+				return Solver->GetQueryMaterials_External().Get(Materials[0].InnerHandle);
 			}
 
 			uint8 Index = Shape.GetGeometry()->GetMaterialIndex(InternalFaceIndex);
 
 			if(Materials.IsValidIndex(Index))
 			{
-				Chaos::TSolverQueryMaterialScope<Chaos::ELockType::Read> Scope(Solver);
-				return Solver->GetQueryMaterials().Get(Materials[Index].InnerHandle);
+				return Solver->GetQueryMaterials_External().Get(Materials[Index].InnerHandle);
 			}
 		}
 	}
@@ -159,8 +157,7 @@ Chaos::FChaosPhysicsMaterial* GetMaterialFromInternalFaceIndexAndHitLocation(con
 							{
 								Chaos::FChaosPhysicsMaterialMask* Mask = nullptr;
 								{
-									Chaos::TSolverQueryMaterialScope<Chaos::ELockType::Read> Scope(Solver);
-									Mask = Solver->GetQueryMaterialMasks().Get(Shape.GetMaterialMasks()[Index].InnerHandle);
+									Mask = Solver->GetQueryMaterialMasks_External().Get(Shape.GetMaterialMasks()[Index].InnerHandle);
 								}
 
 								if (Mask && InternalFaceIndex < (uint32)BodySetup->FaceRemap.Num())
@@ -178,8 +175,7 @@ Chaos::FChaosPhysicsMaterial* GetMaterialFromInternalFaceIndexAndHitLocation(con
 											uint32 MaterialIdx = Shape.GetMaterialMaskMaps()[AdjustedMapIdx];
 											if (Shape.GetMaterialMaskMapMaterials().IsValidIndex(MaterialIdx))
 											{
-												Chaos::TSolverQueryMaterialScope<Chaos::ELockType::Read> Scope(Solver);
-												return Solver->GetQueryMaterials().Get(Shape.GetMaterialMaskMapMaterials()[MaterialIdx].InnerHandle);
+												return Solver->GetQueryMaterials_External().Get(Shape.GetMaterialMaskMapMaterials()[MaterialIdx].InnerHandle);
 											}
 										}
 									}
@@ -490,7 +486,8 @@ struct FScopedSceneLock_Chaos
 	FScopedSceneLock_Chaos(FPhysicsActorHandle const * InActorHandle, EPhysicsInterfaceScopedLockType InLockType)
 		: LockType(InLockType)
 	{
-		Scene = GetSceneForActor(InActorHandle);
+		auto Scene = GetSceneForActor(InActorHandle);
+		Solver = Scene ? Scene->GetSolver() : nullptr;
 		LockScene();
 	}
 
@@ -499,6 +496,7 @@ struct FScopedSceneLock_Chaos
 	{
 		FPhysScene_Chaos* SceneA = GetSceneForActor(InActorHandleA);
 		FPhysScene_Chaos* SceneB = GetSceneForActor(InActorHandleB);
+		FPhysScene_Chaos* Scene = nullptr;
 
 		if(SceneA == SceneB)
 		{
@@ -513,19 +511,21 @@ struct FScopedSceneLock_Chaos
 			UE_LOG(LogPhysics, Warning, TEXT("Attempted to aquire a physics scene lock for two paired actors that were not in the same scene. Skipping lock"));
 		}
 
+		Solver = Scene ? Scene->GetSolver() : nullptr;
 		LockScene();
 	}
 
 	FScopedSceneLock_Chaos(FPhysicsConstraintHandle const * InConstraintHandle, EPhysicsInterfaceScopedLockType InLockType)
-		: Scene(nullptr)
+		: Solver(nullptr)
 		, LockType(InLockType)
 	{
 		if (InConstraintHandle)
 		{
-			Scene = GetSceneForActor(InConstraintHandle);
+			auto Scene = GetSceneForActor(InConstraintHandle);
+			Solver = Scene ? Scene->GetSolver() : nullptr;
 		}
 #if CHAOS_CHECKED
-		if (!Scene)
+		if (!Solver)
 		{
 			UE_LOG(LogPhysics, Warning, TEXT("Failed to find Scene for constraint. Skipping lock"));
 		}
@@ -536,15 +536,16 @@ struct FScopedSceneLock_Chaos
 	FScopedSceneLock_Chaos(USkeletalMeshComponent* InSkelMeshComp, EPhysicsInterfaceScopedLockType InLockType)
 		: LockType(InLockType)
 	{
-		Scene = nullptr;
+		Solver = nullptr;
 
 		if(InSkelMeshComp)
 		{
 			for(FBodyInstance* BI : InSkelMeshComp->Bodies)
 			{
-				Scene = GetSceneForActor(&BI->GetPhysicsActorHandle());
+				auto Scene = GetSceneForActor(&BI->GetPhysicsActorHandle());
 				if(Scene)
 				{
+					Solver = Scene->GetSolver();
 					break;
 				}
 			}
@@ -554,7 +555,7 @@ struct FScopedSceneLock_Chaos
 	}
 
 	FScopedSceneLock_Chaos(FPhysScene_Chaos* InScene, EPhysicsInterfaceScopedLockType InLockType)
-		: Scene(InScene)
+		: Solver(InScene ? InScene->GetSolver() : nullptr)
 		, LockType(InLockType)
 	{
 		LockScene();
@@ -569,7 +570,7 @@ private:
 
 	void LockScene()
 	{
-		if(!Scene)
+		if(!Solver)
 		{
 			return;
 		}
@@ -577,17 +578,17 @@ private:
 		switch(LockType)
 		{
 		case EPhysicsInterfaceScopedLockType::Read:
-			Scene->ExternalDataLock.ReadLock();
+			Solver->GetExternalDataLock_External().ReadLock();
 			break;
 		case EPhysicsInterfaceScopedLockType::Write:
-			Scene->ExternalDataLock.WriteLock();
+			Solver->GetExternalDataLock_External().WriteLock();
 			break;
 		}
 	}
 
 	void UnlockScene()
 	{
-		if(!Scene)
+		if(!Solver)
 		{
 			return;
 		}
@@ -595,10 +596,10 @@ private:
 		switch(LockType)
 		{
 		case EPhysicsInterfaceScopedLockType::Read:
-			Scene->ExternalDataLock.ReadUnlock();
+			Solver->GetExternalDataLock_External().ReadUnlock();
 			break;
 		case EPhysicsInterfaceScopedLockType::Write:
-			Scene->ExternalDataLock.WriteUnlock();
+			Solver->GetExternalDataLock_External().WriteUnlock();
 			break;
 		}
 	}
@@ -631,7 +632,7 @@ private:
 		return nullptr;
 	}
 
-	FPhysScene_Chaos* Scene;
+	Chaos::FPBDRigidsSolver* Solver;
 	EPhysicsInterfaceScopedLockType LockType;
 };
 

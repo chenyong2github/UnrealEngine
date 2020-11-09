@@ -120,6 +120,7 @@ namespace Chaos
 		, PendingSpatialOperations_External(MakeUnique<FPendingSpatialDataQueue>())
 		, bPaused_External(false)
 		, Owner(InOwner)
+		, ExternalDataLock_External(new FPhysicsSceneGuard())
 		, TraitIdx(InTraitIdx)
 		, AsyncDt(DefaultAsyncDt)
 #if !UE_BUILD_SHIPPING

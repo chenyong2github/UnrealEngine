@@ -1234,14 +1234,16 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::SyncQueryMaterials()
+	void TPBDRigidsSolver<Traits>::SyncQueryMaterials_External()
 	{
 		// Using lock on sim material is an imprefect workaround, we may block while physics thread is updating sim materials in callbacks.
 		// QueryMaterials may be slightly stale. Need to rethink lifetime + ownership of materials for async case.
+		//acquire external data lock
+		FPhysicsSceneGuardScopedWrite ScopedWrite(GetExternalDataLock_External());
 		TSolverSimMaterialScope<ELockType::Read> SimMatLock(this);
-		TSolverQueryMaterialScope<ELockType::Write> QueryMatLock(this);
-		QueryMaterials = SimMaterials;
-		QueryMaterialMasks = SimMaterialMasks;
+		
+		QueryMaterials_External = SimMaterials;
+		QueryMaterialMasks_External = SimMaterialMasks;
 	}
 
 	template <typename Traits>

@@ -22,6 +22,7 @@ namespace Chaos
 {
 	class FPhysicsSolverBase;
 	struct FPendingSpatialDataQueue;
+	class FPhysicsSceneGuard;
 
 	extern CHAOS_API int32 UseAsyncInterpolation;
 	extern CHAOS_API int32 ForceDisableAsyncPhysics;
@@ -443,14 +444,16 @@ namespace Chaos
 		 * @see FChaosSolversModule::CreateSolver
 		 */
 		const UObject* Owner = nullptr;
-		FRWLock QueryMaterialLock;
+
+		//TODO: why is this needed? seems bad to read from solver directly, should be buffered
 		FRWLock SimMaterialLock;
+		
+		/** Scene lock object for external threads (non-physics) */
+		TUniquePtr<FPhysicsSceneGuard> ExternalDataLock_External;
 
 		friend FChaosSolversModule;
 		friend FPhysicsSolverAdvanceTask;
 
-		template<ELockType>
-		friend struct TSolverQueryMaterialScope;
 		template<ELockType>
 		friend struct TSolverSimMaterialScope;
 
@@ -472,6 +475,10 @@ namespace Chaos
 		/** Post advance happens after all processing and results generation has been completed */
 		FDelegateHandle AddPostAdvanceCallback(FSolverPostAdvance::FDelegate InDelegate);
 		bool            RemovePostAdvanceCallback(FDelegateHandle InHandle);
+
+		/** Get the lock used for external data manipulation. A better API would be to use scoped locks so that getting a write lock is non-const */
+		//NOTE: this is a const operation so that you can acquire a read lock on a const solver. The assumption is that non-const write operations are already marked non-const
+		FPhysicsSceneGuard& GetExternalDataLock_External() const { return *ExternalDataLock_External; }
 
 	protected:
 		/** Storage for events, see the Add/Remove pairs above for event timings */

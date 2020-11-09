@@ -173,4 +173,38 @@ namespace Chaos
 		TAtomic<uint32> CurrentWriterThreadId;
 		FRWLock InnerLock;
 	};
+
+	class FPhysicsSceneGuardScopedWrite
+	{
+	public:
+		FPhysicsSceneGuardScopedWrite(FPhysicsSceneGuard& InGuard)
+		: Guard(InGuard)
+		{
+			Guard.WriteLock();
+		}
+
+		~FPhysicsSceneGuardScopedWrite()
+		{
+			Guard.WriteUnlock();
+		}
+	private:
+		FPhysicsSceneGuard& Guard;
+	};
+
+	class FPhysicsSceneGuardScopedRead
+	{
+	public:
+		FPhysicsSceneGuardScopedRead(FPhysicsSceneGuard& InGuard)
+			: Guard(InGuard)
+		{
+			Guard.ReadLock();
+		}
+
+		~FPhysicsSceneGuardScopedRead()
+		{
+			Guard.ReadUnlock();
+		}
+	private:
+		FPhysicsSceneGuard& Guard;
+	};
 }
