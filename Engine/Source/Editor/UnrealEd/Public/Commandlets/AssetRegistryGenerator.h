@@ -166,11 +166,6 @@ public:
 	 */
 	int32 GetPakchunkIndex(int32 ChunkId) const;
 
-	/**
-	 * Returns the chunks
-	 */
-	void GetChunkAssignments(TArray<TSet<FName>>& OutAssignments) const;
-
 private:
 
 	/** State of the asset registry that is being built for this platform */
