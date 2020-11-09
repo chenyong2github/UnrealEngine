@@ -100,7 +100,7 @@ namespace Chaos
 			{
 				const TImplicitObjectScaled<FConvex, bInstanced>* Scaled = Shape->template GetObject<TImplicitObjectScaled<FConvex, bInstanced>>();
 				ScaleTM.SetScale3D(Scaled->GetScale());
-				DrawShapesImpl(ShapeTransform * ScaleTM, Scaled->GetUnscaledObject(), Color, Settings);
+				DrawShapesImpl(ScaleTM * ShapeTransform, Scaled->GetUnscaledObject(), Color, Settings);
 				break;
 			}
 			case ImplicitObjectType::TaperedCylinder:
