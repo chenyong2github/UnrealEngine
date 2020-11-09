@@ -75,26 +75,14 @@ public:
 	/** Field targets nodes buffer */
 	FRWBuffer TargetsOffsets;
 
-	/** Cells offsets buffer */
-	FRWBuffer CellsOffsets;
+	/** Bounds Min buffer */
+	FRWBuffer BoundsMin;
 
-	/** Cells Min buffer */
-	FRWBuffer CellsMin;
-
-	/** Cells max buffer */
-	FRWBuffer CellsMax;
+	/** Bounds max buffer */
+	FRWBuffer BoundsMax;
 
 	/** Field infos that will be used to allocate memory and to transfer information */
 	FPhysicsFieldInfos FieldInfos;
-
-	/** Bounds Cells offsets */
-	TArray<int32> DatasOffsets;
-
-	/** Min Bounds for each target/clipmap */
-	TArray<FIntVector4> DatasMin;
-
-	/** Max Bounds for each target/clipmap */
-	TArray<FIntVector4> DatasMax;
 
 	/** Default constructor. */
 	FPhysicsFieldResource(const int32 TargetCount, const TArray<EFieldPhysicsType>& TargetTypes,
@@ -109,11 +97,9 @@ public:
 
 	/** Update RHI resources. */
 	void UpdateResource(FRHICommandListImmediate& RHICmdList, const int32 NodesCount, const int32 ParamsCount,
-		const TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1>& TargetsOffsetsDatas, const TArray<int32>& NodesOffsetsDatas, const TArray<float>& NodesParamsDatas,
-		const TArray<FVector>& MinBoundsDatas, const TArray<FVector>& MaxBoundsDatas, const float TimeSeconds);
-
-	/** Update Bounds. */
-	void UpdateBounds(const TArray<FVector>& MinBounds, const TArray<FVector>& MaxBounds);
+		const TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1>& TargetsOffsetsDatas, 
+		const TArray<int32>& NodesOffsetsDatas, const TArray<float>& NodesParamsDatas,
+		const TArray<FVector4>& BoundsMinDatas, const TArray<FVector4>& BoundsMaxDatas, const float TimeSeconds);
 };
 
 
@@ -126,9 +112,6 @@ public:
 
 	/** Number of field node types. */
 	static const uint32 FieldsCount = FFieldNodeBase::ESerializationType::FieldNode_FReturnResultsTerminal + 1;
-
-	/** Max number of targets. */
-	static const uint32 TargetsCount = EFieldPhysicsType::Field_PhysicsType_Max;
 
 	/** Default constructor. */
 	FPhysicsFieldInstance()
@@ -165,7 +148,7 @@ public:
 	FPhysicsFieldResource* FieldResource = nullptr;
 
 	/** Targets offsets in the nodes array*/
-	TStaticArray<int32, TargetsCount + 1> TargetsOffsets;
+	TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1> TargetsOffsets;
 
 	/** Nodes offsets in the paramter array */
 	TArray<int32> NodesOffsets;
@@ -176,11 +159,11 @@ public:
 	/** List of all the field commands in the world */
 	TArray<FFieldSystemCommand> FieldCommands;
 
-	/** Min Bounds for each target/clipmap */
-	TArray<FVector> BoundsMin;
+	/** Min Bounds for each target */
+	TArray<FVector4> BoundsMin;
 
-	/** Max Bounds for each target/clipmap */
-	TArray<FVector> BoundsMax;
+	/** Max Bounds for each target */
+	TArray<FVector4> BoundsMax;
 };
 
 /**
