@@ -37,7 +37,9 @@ public:
 		int32			GripDeviceId;
 		int32			AimDeviceId;
 
-		FOpenXRController(FOpenXRHMD* HMD, XrActionSet InActionSet, const char* InName);
+		FOpenXRController(XrActionSet InActionSet, const char* InName);
+
+		void AddActionDevices(FOpenXRHMD* HMD);
 	};
 
 	struct FInteractionProfile
