@@ -209,56 +209,67 @@ struct FRCExposedFunctionDescription
 };
 
 USTRUCT()
-struct FRemoteControlTargetDescription
+struct FRCPresetLayoutGroupDescription
 {
 	GENERATED_BODY()
 
-	FRemoteControlTargetDescription() = default;
-	
-	FRemoteControlTargetDescription(const FRemoteControlTarget& Target)
-		: Name(Target.Alias)
+	FRCPresetLayoutGroupDescription() = default;
+
+	FRCPresetLayoutGroupDescription(const URemoteControlPreset* Preset, const FRemoteControlPresetGroup& Group)
+		: Name(Group.Name)
 	{
-		BoundObjects = Target.ResolveBoundObjects();
-		for (const FRemoteControlProperty& Property : Target.ExposedProperties)
+		checkSlow(Preset);
+		for (const FGuid& FieldId : Group.GetFields())
 		{
-			if (TOptional<FExposedProperty> ExposedProperty = Target.ResolveExposedProperty(Property.Id))
-			{
-				ExposedProperties.Emplace(Property, ExposedProperty->Property);
-			}
+			AddExposedField(Preset, FieldId);
 		}
-		Algo::TransformIf(Target.ExposedFunctions, ExposedFunctions, [] (const FRemoteControlFunction& Function) {return !!Function.Function;},  [] (const FRemoteControlFunction& Function) { return Function; });
 	}
 
-	FRemoteControlTargetDescription(URemoteControlPreset* Preset, FName FieldLabel)
+	FRCPresetLayoutGroupDescription(const URemoteControlPreset* Preset, const FRemoteControlPresetGroup& Group, const TArray<FName>& FieldLabels)
+		: Name(Group.Name)
 	{
-		Name = Preset->GetOwnerAlias(Preset->GetFieldId(FieldLabel));
-		BoundObjects = Preset->ResolvedBoundObjects(FieldLabel);
-		if (TOptional<FRemoteControlFunction> RemoteControlFunction = Preset->GetFunction(FieldLabel))
+		checkSlow(Preset);
+		for (FName FieldLabel : FieldLabels)
 		{
-			FRCExposedFunctionDescription FunctionDescription(RemoteControlFunction.GetValue());
-			ExposedFunctions.Emplace(MoveTemp(FunctionDescription));
+			AddExposedField(Preset, Preset->GetFieldId(FieldLabel));
 		}
-		else if (TOptional<FExposedProperty> ExposedProperty = Preset->ResolveExposedProperty(FieldLabel))
+	}
+
+public:
+	UPROPERTY()
+	FName Name;
+
+	UPROPERTY()
+	TArray<FRCExposedPropertyDescription> ExposedProperties;
+
+	UPROPERTY()
+	TArray<FRCExposedFunctionDescription> ExposedFunctions;
+
+private:
+	/** Add an exposed field to this group description. */
+	void AddExposedField(const URemoteControlPreset* Preset, const FGuid& FieldId)
+	{
+		if (TOptional<FRemoteControlField> Field = Preset->GetField(FieldId))
 		{
-			if (TOptional<FRemoteControlProperty> RemoteControlProperty = Preset->GetProperty(FieldLabel))
+			if (Field->FieldType == EExposedFieldType::Property)
 			{
-				FRCExposedPropertyDescription PropertyDescription(RemoteControlProperty.GetValue(), ExposedProperty->Property);
-				ExposedProperties.Emplace(MoveTemp(PropertyDescription));
+				TOptional<FRemoteControlProperty> RCProperty = Preset->GetProperty(Field->Label);
+				TOptional<FExposedProperty> UnderlyingProperty = Preset->ResolveExposedProperty(Field->Label);
+				if (RCProperty && UnderlyingProperty && UnderlyingProperty->Property)
+				{
+					ExposedProperties.Add(FRCExposedPropertyDescription{ MoveTemp(*RCProperty), UnderlyingProperty->Property });
+				}
+			}
+			else if (Field->FieldType == EExposedFieldType::Function)
+			{
+				TOptional<FRemoteControlFunction> RCFunction = Preset->GetFunction(Field->Label);
+				if (RCFunction && RCFunction->Function)
+				{
+					ExposedFunctions.Add(FRCExposedFunctionDescription{ MoveTemp(*RCFunction) });
+				}
 			}
 		}
 	}
-	
-	UPROPERTY()
-	FName Name;
-	
-	UPROPERTY()
-	TArray<UObject*> BoundObjects;
-	
-	UPROPERTY()
-	TArray<FRCExposedPropertyDescription> ExposedProperties;
-	
-	UPROPERTY()
-	TArray<FRCExposedFunctionDescription> ExposedFunctions;
 };
 
 USTRUCT()
@@ -275,10 +286,7 @@ struct FRCPresetDescription
 		Name = Preset->GetName();
 		Path = Preset->GetPathName();
 
-		for (const TPair<FName, FRemoteControlTarget>& SectionTuple : Preset->GetRemoteControlTargets())
-		{
-			ExposedObjects.Add(FRemoteControlTargetDescription{SectionTuple.Value});
-		}
+		Algo::Transform(Preset->Layout.GetGroups(), Groups, [Preset](const FRemoteControlPresetGroup& Group) { return FRCPresetLayoutGroupDescription{ Preset, Group }; });
 	}
 
 	UPROPERTY()
@@ -286,9 +294,9 @@ struct FRCPresetDescription
 
 	UPROPERTY()
 	FString Path;
-	
+
 	UPROPERTY()
-	TArray<FRemoteControlTargetDescription> ExposedObjects;
+	TArray<FRCPresetLayoutGroupDescription> Groups;
 };
 
 USTRUCT()
@@ -378,45 +386,6 @@ struct FRCObjectDescription
 
 	UPROPERTY()
 	FString Path;
-};
-
-USTRUCT()
-struct FRCPresetLayoutGroupDescription
-{
-	GENERATED_BODY()
-	
-	FRCPresetLayoutGroupDescription() = default;
-
-	FRCPresetLayoutGroupDescription(const URemoteControlPreset* Preset,	const FRemoteControlPresetGroup& Group)
-	{
-		Fields.Reserve(Group.GetFields().Num());
-		for (const FGuid& FieldId : Group.GetFields())
-		{
-			if (TOptional<FRemoteControlField> Field = Preset->GetField(FieldId))
-			{
-				Fields.Add(Field->Label);
-			}
-		}
-	}
-
-	UPROPERTY()
-	TArray<FName> Fields;
-};
-
-USTRUCT()
-struct FRCPresetLayoutDescription
-{
-	GENERATED_BODY()
-
-	FRCPresetLayoutDescription() = default;
-
-	FRCPresetLayoutDescription(const URemoteControlPreset* Preset, const FRemoteControlPresetLayout& Layout)
-	{
-		Algo::Transform(Layout.GetGroups(), Groups, [Preset](const FRemoteControlPresetGroup& Group) { return FRCPresetLayoutGroupDescription{Preset, Group}; });
-	}
-
-	UPROPERTY()
-	TArray<FRCPresetLayoutGroupDescription> Groups;
 };
 
 USTRUCT()

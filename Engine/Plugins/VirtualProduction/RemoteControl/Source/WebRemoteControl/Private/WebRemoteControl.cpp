@@ -260,13 +260,6 @@ void FWebRemoteControlModule::RegisterRoutes()
 		});
 
 	RegisterRoute({
-		TEXT("Get a remote control preset's layout."),
-		FHttpPath(TEXT("/remote/preset/:preset/layout")),
-		EHttpServerRequestVerbs::VERB_GET,
-		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleGetPresetLayoutRoute)
-		});
-
-	RegisterRoute({
 		TEXT("Get a list of available remote control presets."),
 		FHttpPath(TEXT("/remote/presets")),
 		EHttpServerRequestVerbs::VERB_GET,
@@ -842,27 +835,6 @@ bool FWebRemoteControlModule::HandleGetPresetRoute(const FHttpServerRequest& Req
 	if (URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(FName(*PresetName)))
 	{
 		WebRemoteControlUtils::SerializeResponse(FGetPresetResponse{ Preset }, Response->Body);
-		Response->Code = EHttpServerResponseCodes::Ok;
-	}
-	else
-	{
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Preset %s could not be found."), *PresetName), Response->Body);
-		Response->Code = EHttpServerResponseCodes::NotFound;
-	}
-
-	OnComplete(MoveTemp(Response));
-	return true;
-}
-
-bool FWebRemoteControlModule::HandleGetPresetLayoutRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
-{
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
-
-	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
-
-	if (URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(FName(*PresetName)))
-	{
-		WebRemoteControlUtils::SerializeResponse(FRCPresetLayoutDescription{ Preset, Preset->Layout }, Response->Body);
 		Response->Code = EHttpServerResponseCodes::Ok;
 	}
 	else
