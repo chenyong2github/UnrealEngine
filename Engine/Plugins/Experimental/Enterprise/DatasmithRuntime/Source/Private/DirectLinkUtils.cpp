@@ -9,8 +9,8 @@
 #include "DatasmithCore.h"
 #include "DatasmithTranslatorModule.h"
 #include "DirectLinkCommon.h"
+#include "DirectLinkConnectionRequestHandler.h"
 #include "DirectLinkLog.h"
-#include "DirectLinkSceneProvider.h"
 
 #include "HAL/CriticalSection.h"
 #include "Misc/SecureHash.h"
@@ -251,7 +251,7 @@ namespace DatasmithRuntime
 
 			check(ReceiverEndpoint.IsValid());
 
-			DestinationProxy->GetDestinationHandle() = ReceiverEndpoint->AddDestination(StreamName, DirectLink::EVisibility::Public, StaticCastSharedPtr<ISceneProvider>(DestinationProxy));
+			DestinationProxy->GetDestinationHandle() = ReceiverEndpoint->AddDestination(StreamName, DirectLink::EVisibility::Public, StaticCastSharedPtr<IConnectionRequestHandler>(DestinationProxy));
 
 			if (DestinationProxy->GetDestinationHandle().IsValid())
 			{
@@ -326,7 +326,7 @@ namespace DatasmithRuntime
 			{
 				if (FRawInfo::FEndpointInfo* EndPointInfoPtr = RawInfo.EndpointsInfo.Find(DataPointInfoPtr->EndpointAddress))
 				{
-					
+
 					return HashCombine(GetTypeHash(SourceHandle), GetTypeHash(DataPointInfoPtr->EndpointAddress));
 				}
 			}
