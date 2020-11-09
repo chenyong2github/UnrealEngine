@@ -1154,7 +1154,7 @@ bool InvokePythonCallableFromUnrealFunctionThunk(FPyObjectPtr InSelf, PyObject* 
 			// Step the property data to populate the local value
 			Stack.MostRecentPropertyAddress = nullptr;
 			void* LocalValue = Param->ContainerPtrToValuePtr<void>(LocalStruct);
-			Stack.StepCompiledIn<FProperty>(LocalValue);
+			Stack.StepCompiledIn(LocalValue, Param->GetClass());
 
 			// Output parameters (even const ones) need to read their data from the property address (if available) rather than the local struct
 			void* ValueAddress = LocalValue;
