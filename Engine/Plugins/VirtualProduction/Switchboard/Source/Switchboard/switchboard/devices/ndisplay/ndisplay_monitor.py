@@ -40,6 +40,7 @@ class nDisplayMonitor(QAbstractTableModel):
             ('SyncSource', 'The source of the GPU sync signal'),
             ('Mosaics'   , 'Display grids and their resolutions'),
             ('Taskbar'   , 'Whether the taskbar is set to auto hide or always on top. It is recommended to be consistent across the cluster'),
+            ('InFocus'   , 'Whether nDisplay instance window is in Focus. It is recommended to be in focus.'),
             ('ExeFlags'  , 'It is recommended to disable fullscreen opimizations on the unreal executable. Only available once the render node process is running. Expects "DISABLEDXMAXIMIZEDWINDOWEDMODE"'),
         ]
 
@@ -61,6 +62,9 @@ class nDisplayMonitor(QAbstractTableModel):
 
         if colname == 'Gpus':
             return self.ColorNormal if 'Synced' in value and 'Free' not in value else self.ColorWarning
+
+        if colname == 'InFocus':
+            return self.ColorNormal if 'yes' in value else self.ColorWarning
 
         if colname == 'ExeFlags':
             good_string = 'DISABLEDXMAXIMIZEDWINDOWEDMODE'
@@ -179,7 +183,7 @@ class nDisplayMonitor(QAbstractTableModel):
             # create message
 
             try:
-                program_id = device.programs_ids_with_name('unreal')[-1]
+                program_id = device.program_start_queue.running_puuids_named('unreal')[-1]
             except IndexError:
                 program_id = '00000000-0000-0000-0000-000000000000'
 
@@ -189,7 +193,7 @@ class nDisplayMonitor(QAbstractTableModel):
             device.unreal_client.send_message(msg)
 
     def devicedata_from_device(self, device):
-        '''Retrieves the devicedata and index for given device
+        ''' Retrieves the devicedata and index for given device
         '''
         for deviceIdx, hash_devicedata in enumerate(self.devicedatas.items()):
             device_hash, devicedata = hash_devicedata[0], hash_devicedata[1]
@@ -198,9 +202,12 @@ class nDisplayMonitor(QAbstractTableModel):
 
         raise KeyError
 
-    def populate_sync_data(self, data, message):
+    def populate_sync_data(self, devicedata, message):
         ''' Populates model data with message contents, which comes from 'get sync data' command.
         '''
+
+        data = devicedata['data']
+        device = devicedata['device']
 
         #
         # Sync Topology
@@ -300,6 +307,13 @@ class nDisplayMonitor(QAbstractTableModel):
             if time_since_flip_glitch < 1*60:
                 data['FlipMode'] = data['FlipMode'].split('\n')[0] + '\n' + str(int(time_since_flip_glitch))
 
+        # Window in focus or not
+        data['InFocus'] = 'no'
+        for prog in device.program_start_queue.running_programs_named('unreal'):
+            if prog.pid and prog.pid == syncStatus['pidInFocus']:
+                data['InFocus'] = 'yes'
+                break
+
         # Show Exe flags (like Disable Fullscreen Optimization)
         data['ExeFlags'] = '\n'.join([layer for layer in syncStatus['programLayers'][1:]])
 
@@ -328,10 +342,8 @@ class nDisplayMonitor(QAbstractTableModel):
         devicedata['time_last_update'] = time.time()
         devicedata['stale'] = False
 
-        data = devicedata['data']
-
         try:
-            self.populate_sync_data(data, message)
+            self.populate_sync_data(devicedata=devicedata, message=message)
         except KeyError:
             LOGGER.error(f"Error parsing 'get sync status' message and populating model data\n\n=== Traceback BEGIN ===\n{traceback.format_exc()}=== Traceback END ===\n")
             return
@@ -383,5 +395,29 @@ class nDisplayMonitor(QAbstractTableModel):
             return Qt.AlignRight
 
         return None
+
+    @QtCore.Slot()
+    def btnForceFocus_clicked(self):
+        ''' Forces focus on the nDisplay window if not already in focus
+        '''
+        for devicedata in self.devicedatas.values():
+            device = devicedata['device']
+            data = devicedata['data']
+
+            if data['InFocus'] != 'yes':
+                device.force_focus()
+
+    @QtCore.Slot()
+    def btnFixExeFlags_clicked(self):
+        ''' Tries to force the correct UE4Editor.exe flags
+        '''
+        for devicedata in self.devicedatas.values():
+            device = devicedata['device']
+            data = devicedata['data']
+
+            good_string = 'DISABLEDXMAXIMIZEDWINDOWEDMODE'
+
+            if good_string not in data['ExeFlags']:
+                device.fix_exe_flags()
 
     #~ QAbstractTableModel interface end
