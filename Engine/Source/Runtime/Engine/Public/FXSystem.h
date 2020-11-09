@@ -200,7 +200,7 @@ public:
 	 * Draw desired debug information related to the effects system on the render thread.
 	 * @param Canvas The canvas on which to draw.
 	 */
-	virtual void DrawDebug_RenderThread(FRHICommandListImmediate& RHICmdList, FCanvas* Canvas) {}
+	virtual void DrawDebug_RenderThread(class FRDGBuilder& GraphBuilder, const class FViewInfo& View, const struct FScreenPassRenderTarget& Output) {}
 
 	/**
 	 * Add a vector field to the FX system.

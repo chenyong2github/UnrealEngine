@@ -45,7 +45,7 @@ public:
 	bool ShouldDrawDebug() const;
 
 	// Draw all the debug information for the system
-	void DrawDebug(FRHICommandListImmediate& RHICmdList, FCanvas* Canvas);
+	void DrawDebug(class FRDGBuilder& GraphBuilder, const class FViewInfo& View, const struct FScreenPassRenderTarget& Output);
 
 private:
 	ERHIFeatureLevel::Type FeatureLevel;

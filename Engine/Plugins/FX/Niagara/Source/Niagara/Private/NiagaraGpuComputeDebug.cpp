@@ -3,12 +3,14 @@
 #include "NiagaraGpuComputeDebug.h"
 #include "NiagaraDebugShaders.h"
 
-#include "RHI.h"
-#include "ScreenRendering.h"
 #include "CanvasTypes.h"
 #include "CommonRenderResources.h"
+#include "RenderGraphBuilder.h"
+#include "RHI.h"
+#include "ScreenRendering.h"
 #include "Engine/Font.h"
 #include "Modules/ModuleManager.h"
+#include "Runtime/Renderer/Private/ScreenPass.h"
 
 int32 GNiagaraGpuComputeDebug_MaxTextureHeight = 128;
 static FAutoConsoleVariableRef CVarNiagaraGpuComputeDebug_MaxTextureHeight(
@@ -138,7 +140,7 @@ bool FNiagaraGpuComputeDebug::ShouldDrawDebug() const
 	return VisualizeTextures.Num() > 0;
 }
 
-void FNiagaraGpuComputeDebug::DrawDebug(FRHICommandListImmediate& RHICmdList, FCanvas* Canvas)
+void FNiagaraGpuComputeDebug::DrawDebug(class FRDGBuilder& GraphBuilder, const FViewInfo& View, const FScreenPassRenderTarget& Output)
 {
 	if (VisualizeTextures.Num() == 0)
 	{
@@ -147,19 +149,10 @@ void FNiagaraGpuComputeDebug::DrawDebug(FRHICommandListImmediate& RHICmdList, FC
 
 	++TickCounter;
 
-	IRendererModule* RendererModule = &FModuleManager::GetModuleChecked<IRendererModule>("Renderer");
-
 	const UFont* Font = GEngine->GetTinyFont();
 	const float FontHeight = Font->GetMaxCharHeight();
 
-	FRenderTarget* RenderTarget = Canvas->GetRenderTarget();
-	FIntPoint RenderTargetSize(RenderTarget->GetSizeXY().X, RenderTarget->GetSizeXY().Y);
-	FRHIRenderPassInfo RPInfo(RenderTarget->GetRenderTargetTexture(), ERenderTargetActions::Load_Store);
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("NiagaraVisualizeTextures"));
-
-	RHICmdList.SetViewport(0, 0, 0.0f, RenderTargetSize.X, RenderTargetSize.Y, 1.0f);
-
-	FIntPoint Location(10.0f, RenderTargetSize.Y - 10.0f);
+	FIntPoint Location(10.0f, Output.ViewRect.Height() - 10.0f);
 
 	for (const FNiagaraVisualizeTexture& VisualizeEntry : VisualizeTextures)
 	{
@@ -176,13 +169,19 @@ void FNiagaraGpuComputeDebug::DrawDebug(FRHICommandListImmediate& RHICmdList, FC
 
 		const int32 DisplayHeight = GNiagaraGpuComputeDebug_MaxTextureHeight > 0 ? GNiagaraGpuComputeDebug_MaxTextureHeight : TextureSize.Y;
 		Location.Y -= DisplayHeight;
-		NiagaraDebugShaders::VisualizeTexture(RHICmdList, Location, DisplayHeight, RenderTargetSize, VisualizeEntry.AttributesToVisualize, VisualizeEntry.Texture, VisualizeEntry.NumTextureAttributes, TickCounter);
+
+		NiagaraDebugShaders::VisualizeTexture(GraphBuilder, View, Output, Location, DisplayHeight, VisualizeEntry.AttributesToVisualize, VisualizeEntry.Texture, VisualizeEntry.NumTextureAttributes, TickCounter);
 
 		Location.Y -= FontHeight;
-		Canvas->DrawShadowedString(Location.X, Location.Y, *FString::Printf(TEXT("DataInterface: %s, System: %s"), *VisualizeEntry.SourceName.ToString(), *SystemName), Font, FLinearColor(1, 1, 1));
+
+		AddDrawCanvasPass(GraphBuilder, {}, View, Output,
+			[Location, SourceName=VisualizeEntry.SourceName.ToString(), SystemName, Font](FCanvas& Canvas)
+			{
+				Canvas.SetAllowSwitchVerticalAxis(true);
+				Canvas.DrawShadowedString(Location.X, Location.Y, *FString::Printf(TEXT("DataInterface: %s, System: %s"), *SourceName, *SystemName), Font, FLinearColor(1, 1, 1));
+			}
+		);
 
 		Location.Y -= 1.0f;
 	}
-
-	RHICmdList.EndRenderPass();
 }
