@@ -718,6 +718,99 @@ namespace Chaos
 			return GJKContactPoint(Box1, Box1TM, Box2, Box2TM, FVec3(1, 0, 0), ShapePadding);
 		}
 
+
+		// Reduce the number of contact points (in place)
+		// Prerequisites to calling this function:
+		// The points should be in a reference frame such that the z-axis is the in the direction of the separation vector
+		uint32 ReduceManifoldContactPoints(FVec3* Points, uint32 PointCount)
+		{
+			uint32 OutPointCount = 0;
+			if (PointCount <= 4)
+				return PointCount;
+			
+			// Point 1) Find the deepest contact point
+			{
+				uint32 DeepestPointIndex = 0;
+				FReal DeepestPointPhi = FLT_MAX;
+				for (uint32 PointIndex = 0; PointIndex < PointCount; PointIndex++)
+				{
+					if (Points[PointIndex].Z < DeepestPointPhi)
+					{
+						DeepestPointIndex = PointIndex;
+						DeepestPointPhi = Points[PointIndex].Z;
+					}
+				}
+				// Deepest point will be our first output point
+				Swap(Points[0], Points[DeepestPointIndex]);
+				++OutPointCount;
+			}			
+
+			// Point 2) Find the point with the largest distance to the deepest contact point (projected onto the separation plane)
+			{
+				uint32 FarthestPointIndex = 1;
+				FReal FarthestPointDistanceSQR = -1.0f;
+				for (uint32 PointIndex = 1; PointIndex < PointCount; PointIndex++)
+				{
+					FReal PointAToPointBSizeSQR = (Points[PointIndex] - Points[0]).SizeSquared2D();
+					if (PointAToPointBSizeSQR > FarthestPointDistanceSQR)
+					{
+						FarthestPointIndex = PointIndex;
+						FarthestPointDistanceSQR = PointAToPointBSizeSQR;
+					}
+				}
+				// Farthest point will be added now
+				Swap(Points[1], Points[FarthestPointIndex]);
+				++OutPointCount;
+			}
+
+			// Point 3) Largest triangle area
+			{
+				uint32 LargestTrianglePointIndex = 2;
+				FReal LargestTrianglePointSignedArea = 0.0f; // This will actually be double the signed area
+				FVec3 P0to1 = Points[1] - Points[0];
+				for (uint32 PointIndex = 2; PointIndex < PointCount; PointIndex++)
+				{
+					FReal TriangleSignedArea = (FVec3::CrossProduct(P0to1, Points[PointIndex] - Points[0])).Z; // Dot in direction of separation vector
+					if (FMath::Abs(TriangleSignedArea) > FMath::Abs(LargestTrianglePointSignedArea))
+					{
+						LargestTrianglePointIndex = PointIndex;
+						LargestTrianglePointSignedArea = TriangleSignedArea;
+					}
+				}
+				// Point causing the largest triangle will be added now
+				Swap(Points[2], Points[LargestTrianglePointIndex]);
+				++OutPointCount;
+				// Ensure the winding order is consistent
+				if (LargestTrianglePointSignedArea < 0)
+				{
+					Swap(Points[0], Points[1]);
+				}
+			}
+
+			// Point 4) Find the largest triangle connecting with our current triangle
+			{
+				uint32 LargestTrianglePointIndex = 3;
+				FReal LargestPositiveTrianglePointSignedArea = 0.0f;  
+				for (uint32 PointIndex = 3; PointIndex < PointCount; PointIndex++)
+				{
+					for (uint32 EdgeIndex = 0; EdgeIndex < 3; EdgeIndex++)
+					{
+						FReal TriangleSignedArea = (FVec3::CrossProduct(Points[PointIndex] - Points[EdgeIndex], Points[(EdgeIndex + 1) % 3] - Points[EdgeIndex])).Z; // Dot in direction of separation vector
+						if (TriangleSignedArea > LargestPositiveTrianglePointSignedArea)
+						{
+							LargestTrianglePointIndex = PointIndex;
+							LargestPositiveTrianglePointSignedArea = TriangleSignedArea;
+						}
+					}
+				}
+				// Point causing the largest positive triangle area will be added now
+				Swap(Points[3], Points[LargestTrianglePointIndex]);
+				++OutPointCount;
+			}
+
+			return OutPointCount; // This should always be 4
+		}
+
 		void ConstructBoxBoxOneShotManifold(
 			const FImplicitBox3& Box1,
 			const FRigidTransform3& Box1Transform, //world
@@ -740,6 +833,10 @@ namespace Chaos
 
 			// Use GJK only once
 			const FContactPoint GJKContactPoint = BoxBoxContactPoint(Box1, Box2, Box1Transform, Box2Transform, CullDistance, Constraint.Manifold.RestitutionPadding);
+
+			// ToDo: should we generate no contacts here?
+			//if (GJKContactPoint.Phi >= CullDistance)
+				//return;
 
 			FRigidTransform3 Box1TransformCenter = Box1Transform;
 			Box1TransformCenter.SetTranslation(Box1Transform.TransformPositionNoScale(Box1.GetCenter()));
@@ -833,7 +930,7 @@ namespace Chaos
 
 			ContactPointCount = 4; // Number of face vertices
 			const uint32 GrayCode[4] = {0, 1, 3, 2}; // Gray code to make sure we add vertices in correct order
-			FVec3 ClippedVertices[MaxContactPointCount];			
+			FVec3 ClippedVertices[MaxContactPointCount];
 			// Add the vertices in an order that will form a closed loop
 			const FRigidTransform3 BoxOtherToRef = OtherBoxTM->GetRelativeTransform(*RefBoxTM);
 			for (uint32 Vertex = 0; Vertex < ContactPointCount; Vertex++)
@@ -860,8 +957,22 @@ namespace Chaos
 				}
 			}
 
-			// TODO: Reduce number of contacts to a maximum of 4
+			// Reduce number of contacts to a maximum of 4
+			if (ContactPointCount > 4)
+			{
+				FRotation3 RotateSeperationToZ = FRotation3::FromRotatedVector(ReferenceFaceBox1 ? SeparationDirectionLocalBox1 : SeparationDirectionLocalBox2, FVec3(0.0f, 0.0f, 1.0f));
+				for (uint32 ContactPointIndex = 0; ContactPointIndex < ContactPointCount; ++ContactPointIndex)
+				{
+					ClippedVertices[ContactPointIndex] = RotateSeperationToZ * ClippedVertices[ContactPointIndex];
+				}
 
+				ContactPointCount = ReduceManifoldContactPoints(ClippedVertices, ContactPointCount);
+
+				for (uint32 ContactPointIndex = 0; ContactPointIndex < ContactPointCount; ++ContactPointIndex)
+				{
+					ClippedVertices[ContactPointIndex] = RotateSeperationToZ.Inverse() * ClippedVertices[ContactPointIndex];
+				}
+			}
 			
 			// Generate the contact points from the clipped vertices
 			for (uint32 ContactPointIndex = 0; ContactPointIndex < ContactPointCount; ++ContactPointIndex)
