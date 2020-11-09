@@ -304,6 +304,7 @@ void FLevelSequencePlaybackContext::UpdateCachedContextAndClient() const
 
 FLevelSequencePlaybackContext::FContextAndClient FLevelSequencePlaybackContext::GetPlaybackContextAndClient() const
 {
+	UpdateCachedContextAndClient();
 	return FContextAndClient(WeakCurrentContext.Get(), WeakCurrentClient.Get());
 }
 
