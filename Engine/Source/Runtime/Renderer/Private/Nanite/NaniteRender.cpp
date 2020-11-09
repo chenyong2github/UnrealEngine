@@ -2408,12 +2408,12 @@ void AddPass_InstanceHierarchyAndClusterCull(
 	{
 		RDG_GPU_STAT_SCOPE( GraphBuilder, NaniteInstanceCullVSM );
 
-		PageFlags		= GraphBuilder.RegisterExternalBuffer( VirtualShadowMapArray->PageFlags, TEXT("PageFlags") );
-		HPageFlags		= GraphBuilder.RegisterExternalBuffer( VirtualShadowMapArray->HPageFlags, TEXT("HPageFlags") );
+		PageFlags = VirtualShadowMapArray->PageFlagsRDG;
+		HPageFlags = VirtualShadowMapArray->HPageFlagsRDG;
 		if( VirtualShadowMapArray->HZBPageTable )
 			HZBPageTable	= GraphBuilder.RegisterExternalBuffer( VirtualShadowMapArray->HZBPageTable, TEXT("HZBPageTable") );
 		else
-			HZBPageTable	= GraphBuilder.RegisterExternalBuffer( VirtualShadowMapArray->PageTable, TEXT("HZBPageTable") );
+			HZBPageTable	= VirtualShadowMapArray->PageTableRDG;
 
 		FInstanceCullVSM_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInstanceCullVSM_CS::FParameters >();
 
@@ -2641,7 +2641,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		if (VirtualShadowMapArray)
 		{
 			PassParameters->VirtualShadowMap = VirtualTargetParameters;
-			PassParameters->OutDynamicCasterFlags = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->DynamicCasterPageFlags, TEXT("DynamicCasterFlags")), PF_R32_UINT);
+			PassParameters->OutDynamicCasterFlags = GraphBuilder.CreateUAV(VirtualShadowMapArray->DynamicCasterPageFlagsRDG, PF_R32_UINT);
 			PassParameters->HZBPageTable	= GraphBuilder.CreateSRV( HZBPageTable, PF_R32G32_UINT );
 		}
 
@@ -3106,10 +3106,10 @@ void CullRasterizeInner(
 	if (VirtualShadowMapArray)
 	{
 		VirtualTargetParameters.VirtualShadowMapCommon = VirtualShadowMapArray->CommonParameters;
-		VirtualTargetParameters.PageFlags = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->PageFlags), PF_R32_UINT);
-		VirtualTargetParameters.HPageFlags = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->HPageFlags), PF_R32_UINT);
-		VirtualTargetParameters.PageTable = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->PageTable));
-		VirtualTargetParameters.PageRectBounds = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->PageRectBounds));
+		VirtualTargetParameters.PageFlags = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageFlagsRDG, PF_R32_UINT);
+		VirtualTargetParameters.HPageFlags = GraphBuilder.CreateSRV(VirtualShadowMapArray->HPageFlagsRDG, PF_R32_UINT);
+		VirtualTargetParameters.PageTable = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageTableRDG);
+		VirtualTargetParameters.PageRectBounds = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageRectBoundsRDG);
 	}
 	FGPUSceneParameters GPUSceneParameters;
 	GPUSceneParameters.GPUSceneInstanceSceneData = Scene.GPUScene.InstanceDataBuffer.SRV;
@@ -3679,8 +3679,8 @@ void EmitFallbackShadowMapFromVSM(
 	PassParameters->ShadowMapID = ShadowMapID;
 	PassParameters->SourceOffset = FIntPoint( -DestRect.Min.X, -DestRect.Min.Y );
 
-	PassParameters->PageTable = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray.PageTable));
-	PassParameters->DepthBuffer = GraphBuilder.RegisterExternalTexture(VirtualShadowMapArray.PhysicalPagePool);
+	PassParameters->PageTable = GraphBuilder.CreateSRV(VirtualShadowMapArray.PageTableRDG);
+	PassParameters->DepthBuffer = VirtualShadowMapArray.PhysicalPagePoolRDG;
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding( DepthBuffer, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilNop );
 
 	FEmitShadowMapPS::FPermutationDomain PermutationVector;
@@ -3700,8 +3700,6 @@ void EmitFallbackShadowMapFromVSM(
 		nullptr,
 		TStaticDepthStencilState<true, CF_LessEqual>::GetRHI()
 	);
-
-	GraphBuilder.QueueTextureExtraction(PassParameters->DepthBuffer, &VirtualShadowMapArray.PhysicalPagePool);
 }
 
 void EmitCubemapShadow(

@@ -152,13 +152,11 @@ public:
 
 	void SetProjectionParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapSamplingParameters& OutParameters);
 
-	//
-	void GenerateIdentityPageTables(FRDGBuilder& GraphBuilder, uint32 MipLevel = INDEX_NONE);
 	void ClearPhysicalMemory(FRDGBuilder& GraphBuilder, FRDGTextureRef& PhysicalTexture, FVirtualShadowMapArrayCacheManager *VirtualShadowMapArrayCacheManager);
 	void MarkPhysicalPagesRendered(FRDGBuilder& GraphBuilder, const TArray<uint32, SceneRenderingAllocator> &VirtualShadowMapFlags);
 
 	//
-	void GeneratePageFlagsFromLightGrid(FRDGBuilder& GraphBuilder, 
+	void BuildPageAllocations(FRDGBuilder& GraphBuilder,
 		const TArray<FViewInfo> &Views, 
 		const FSortedLightSetSceneInfo& SortedLights, 
 		const TArray<FVisibleLightInfo, SceneRenderingAllocator> &VisibleLightInfos, 
@@ -174,23 +172,18 @@ public:
 	TArray<FVirtualShadowMap*, SceneRenderingAllocator> ShadowMaps;
 
 	// Large physical texture of depth format, say 4096^2 or whatever we think is enough texels to go around
-	TRefCountPtr<IPooledRenderTarget>	PhysicalPagePool;
+	FRDGTextureRef PhysicalPagePoolRDG = nullptr;
 	// Buffer that serves as the page table for all virtual shadow maps
-	TRefCountPtr<FRDGPooledBuffer>		PageTable;
+	FRDGBufferRef PageTableRDG = nullptr;
+
 	
 	// Buffer that stores flags (uints) marking each page that needs to be rendered and cache status, for all virtual shadow maps.
 	// Flag values defined in PageAccessCommon.ush: VSM_ALLOCATED_FLAG | VSM_INVALID_FLAG
-	TRefCountPtr<FRDGPooledBuffer>		PageFlags;
+	FRDGBufferRef PageFlagsRDG = nullptr;
 	// HPageFlags is a hierarchy over the PageFlags for quick query
-	TRefCountPtr<FRDGPooledBuffer>		HPageFlags;
+	FRDGBufferRef HPageFlagsRDG = nullptr;
 
-	TRefCountPtr<IPooledRenderTarget>	HZBPhysical;
-	TRefCountPtr<FRDGPooledBuffer>		HZBPageTable;
-
-	TRefCountPtr<IPooledRenderTarget>	DebugVisualizationOutput;
-	TRefCountPtr<IPooledRenderTarget>	DebugVisualizationProjectionOutput;
-	
-	TRefCountPtr<FRDGPooledBuffer>		AllocatedPagesOffset;
+	FRDGBufferRef AllocatedPagesOffsetRDG = nullptr;
 
 	static constexpr uint32 NumStats = 5;
 	// 0 - allocated pages
@@ -199,18 +192,29 @@ public:
 	// 3 - NumSms
 	// 4 - RandRobin invalidated
 
-	TRefCountPtr<FRDGPooledBuffer>		StatsBufferRef;
+	FRDGBufferRef StatsBufferRDG = nullptr;
 
 	// Allocation info for each page.
-	TRefCountPtr<FRDGPooledBuffer>		CachedPageInfos;
-	TRefCountPtr<FRDGPooledBuffer>		PhysicalPageMetaData;
+	FRDGBufferRef CachedPageInfosRDG = nullptr;
+	FRDGBufferRef PhysicalPageMetaDataRDG = nullptr;
 
 	// Buffer that stores flags marking each page that received dynamic geo.
-	TRefCountPtr<FRDGPooledBuffer>		DynamicCasterPageFlags;
-	
+	FRDGBufferRef DynamicCasterPageFlagsRDG = nullptr;
+
 	// uint4 buffer with one rect for each mip level in all SMs, calculated to bound committed pages
 	// Used to clip the rect size of clusters during culling.
-	TRefCountPtr<FRDGPooledBuffer>		PageRectBounds;
+	FRDGBufferRef PageRectBoundsRDG = nullptr;
 
-	TRefCountPtr<FRDGPooledBuffer>		ShadowMapProjectionDataBuffer;
+	FRDGBufferRef ShadowMapProjectionDataRDG = nullptr;
+
+	TRefCountPtr<IPooledRenderTarget>	HZBPhysical;
+	//FRDGTextureRef HZBPhysicalRDG = nullptr;
+	TRefCountPtr<FRDGPooledBuffer>		HZBPageTable;
+	//FRDGBufferRef HZBPageTableRDG = nullptr;
+
+	// Covnert also?
+	TRefCountPtr<IPooledRenderTarget>	DebugVisualizationOutput;
+	//FRDGBufferRef RDG = nullptr;
+	TRefCountPtr<IPooledRenderTarget>	DebugVisualizationProjectionOutput;
+	//FRDGBufferRef RDG = nullptr;
 };

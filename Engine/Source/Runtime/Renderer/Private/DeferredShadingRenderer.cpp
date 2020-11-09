@@ -2009,18 +2009,9 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		if (CVarEnableVirtualSM->GetValueOnRenderThread() != 0)
 		{
-			if (CVarEnableVirtualSM->GetValueOnRenderThread() > 1)
-			{
-				VirtualShadowMapArray.GenerateIdentityPageTables(GraphBuilder, CVarEnableVirtualSM->GetValueOnRenderThread() - 2);
-			}
-			else
-			{
-				ensureMsgf(AreLightsInLightGrid(), TEXT("Virtual shadow map setup requires local lights to be injected into the light grid (this may be caused by 'r.LightCulling.Quality=0')."));
-				// ensure(ShadowMapSetupDone)
-				{
-					VirtualShadowMapArray.GeneratePageFlagsFromLightGrid(GraphBuilder, Views, SortedLightSet, VisibleLightInfos, NaniteRasterResults, bPostBasePass, VirtualShadowMapArrayCacheManager);
-				}
-			}
+			ensureMsgf(AreLightsInLightGrid(), TEXT("Virtual shadow map setup requires local lights to be injected into the light grid (this may be caused by 'r.LightCulling.Quality=0')."));
+			// ensure(ShadowMapSetupDone)
+			VirtualShadowMapArray.BuildPageAllocations(GraphBuilder, Views, SortedLightSet, VisibleLightInfos, NaniteRasterResults, bPostBasePass, VirtualShadowMapArrayCacheManager);
 		}
 	};
 

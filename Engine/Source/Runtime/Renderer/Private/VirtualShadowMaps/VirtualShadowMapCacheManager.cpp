@@ -182,18 +182,20 @@ IMPLEMENT_GLOBAL_SHADER(FVirtualSmCopyStatsCS, "/Engine/Private/VirtualShadowMap
 
 void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray &VirtualShadowMapArray, FRDGBuilder& GraphBuilder)
 {
-	if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0)
+	if (VirtualShadowMapArray.PageTableRDG != nullptr && 
+		VirtualShadowMapArray.PhysicalPagePoolRDG != nullptr &&
+		CVarCacheVirtualSMs.GetValueOnRenderThread() != 0)
 	{
-		// TODO: All of these should be RDG buffers etc at this point, so queue an extraction pass.
-		PrevPageTable = VirtualShadowMapArray.PageTable;
-		PrevPageFlags = VirtualShadowMapArray.PageFlags;
-		PrevHPageFlags = VirtualShadowMapArray.HPageFlags;
+		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageTableRDG, &PrevPageTable);
+		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageFlagsRDG, &PrevPageFlags);
+		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.HPageFlagsRDG, &PrevHPageFlags);
 		
-		PrevPhysicalPagePool = VirtualShadowMapArray.PhysicalPagePool;
-		PrevPhysicalPageMetaData = VirtualShadowMapArray.PhysicalPageMetaData;
-		PrevDynamicCasterPageFlags = VirtualShadowMapArray.DynamicCasterPageFlags;
-		PrevShadowMapProjectionDataBuffer = VirtualShadowMapArray.ShadowMapProjectionDataBuffer;
-		PrevPageRectBounds = VirtualShadowMapArray.PageRectBounds;
+		GraphBuilder.QueueTextureExtraction(VirtualShadowMapArray.PhysicalPagePoolRDG, &PrevPhysicalPagePool);
+
+		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PhysicalPageMetaDataRDG, &PrevPhysicalPageMetaData);
+		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.DynamicCasterPageFlagsRDG, &PrevDynamicCasterPageFlags);
+		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.ShadowMapProjectionDataRDG, &PrevShadowMapProjectionDataBuffer);
+		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageRectBoundsRDG, &PrevPageRectBounds);
 		// Move cache entries to previous frame, this implicitly removes any that were not used
 		PrevCacheEntries = CacheEntries;
 		PrevCommonParameters = VirtualShadowMapArray.CommonParameters;
@@ -242,7 +244,7 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray
 
 		FVirtualSmCopyStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmCopyStatsCS::FParameters>();
 
-		PassParameters->InStatsBuffer = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray.StatsBufferRef), PF_R32_UINT);
+		PassParameters->InStatsBuffer = GraphBuilder.CreateSRV(VirtualShadowMapArray.StatsBufferRDG, PF_R32_UINT);
 		PassParameters->AccumulatedStatsBufferOut = GraphBuilder.CreateUAV(AccumulatedStatsBufferRDG, PF_R32_UINT);
 		PassParameters->NumStats = FVirtualShadowMapArray::NumStats;
 
@@ -444,17 +446,15 @@ void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBu
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "ProcessInstanceRangeInvalidation [%d ranges]", InstanceRanges.Num());
 
-		FVirtualSmInvalidateInstancePagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmInvalidateInstancePagesCS::FParameters>();
-
-		FRDGBufferRef InstanceRangesRDG = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceRanges"), InstanceRanges);
-		FRDGBufferRef DynamicCasterFlagsRDG = GraphBuilder.RegisterExternalBuffer(PrevDynamicCasterPageFlags, TEXT("DynamicCasterFlags"));
-
 		auto RegExtCreateSrv = [&GraphBuilder](const TRefCountPtr<FRDGPooledBuffer>& Buffer, const TCHAR* Name) -> FRDGBufferSRVRef
 		{
 			return GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(Buffer, Name));
 		};
 
+		FVirtualSmInvalidateInstancePagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmInvalidateInstancePagesCS::FParameters>();
+
 		PassParameters->CommonParameters = PrevCommonParameters;
+		FRDGBufferRef InstanceRangesRDG = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceRanges"), InstanceRanges);
 		PassParameters->InstanceRanges = GraphBuilder.CreateSRV(InstanceRangesRDG);
 		PassParameters->NumRemovedItems = InstanceRanges.Num();
 		PassParameters->ShadowMapProjectionData = RegExtCreateSrv(PrevShadowMapProjectionDataBuffer, TEXT("PrevShadowMapProjectionData"));
@@ -463,6 +463,7 @@ void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBu
 		PassParameters->HPageFlags = RegExtCreateSrv(PrevHPageFlags, TEXT("PrevHPageFlags"));
 		PassParameters->PageRectBounds = RegExtCreateSrv(PrevPageRectBounds, TEXT("PrevPageRectBounds"));
 
+		FRDGBufferRef DynamicCasterFlagsRDG = GraphBuilder.RegisterExternalBuffer(PrevDynamicCasterPageFlags, TEXT("DynamicCasterFlags"));
 		PassParameters->OutDynamicCasterFlags = GraphBuilder.CreateUAV(DynamicCasterFlagsRDG);
 
 		PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;

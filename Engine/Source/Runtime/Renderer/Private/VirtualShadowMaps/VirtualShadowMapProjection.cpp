@@ -112,7 +112,6 @@ static void AddPass_RenderVirtualShadowMapProjection(
 	check(ScissorRect.Area() > 0);
 		
 	FGlobalShaderMap* ShaderMap = View.ShaderMap;
-	TRefCountPtr<FRDGPooledBuffer> PageTable = VirtualShadowMapArray.PageTable;
 
 	FProjectionParameters* PassParameters = GraphBuilder.AllocParameters<FProjectionParameters>();
 	VirtualShadowMapArray.SetProjectionParameters(GraphBuilder, PassParameters->ProjectionParameters);
