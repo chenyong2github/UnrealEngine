@@ -75,7 +75,7 @@ export type PauseStatusFields = {
 	manual_pause: ManualPauseInfo // careful, startedAt gets written out as string
 }
 
-const MAX_RETRY_TIMEOUT_HOURS = 48
+const MAX_RETRY_TIMEOUT_HOURS = 48 // want to abandon auto retry for any integrations that take say >30 minutes, then bring this way down
 export class PauseState {
 	private _manualPauseInfo: ManualPauseInfo | null = null
 	private _blockagePauseInfo: BlockagePauseInfo | null = null

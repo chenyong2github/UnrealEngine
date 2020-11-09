@@ -100,8 +100,6 @@ type BotStatusFields = Partial<PauseStatusFields> & {
 
 	lastBlockage?: number
 
-	disallowSkip: boolean
-
 	// don't commit - added by preprocess
 	retry_cl?: number
 }
@@ -112,6 +110,11 @@ export type EdgeStatusFields = BotStatusFields & {
 	targetStream?: string
 	rootPath: string
 
+	resolver: string
+	disallowSkip: boolean
+	incognitoMode: boolean
+	excludeAuthors: string[]
+
 	headCL?: number
 	lastGoodCL?: number
 	lastGoodCLJobLink?: string
@@ -119,7 +122,6 @@ export type EdgeStatusFields = BotStatusFields & {
 }
 
 type NodeStatusFields = BotStatusFields & {
-		
 	queue: QueuedChange[]
 	headCL?: number
 
