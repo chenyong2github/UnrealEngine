@@ -17,6 +17,15 @@ class FStudioAnalytics : FNoncopyable
 public:
 	static ENGINE_API void SetProvider(TSharedRef<IAnalyticsProviderET> InAnalytics);
 
+	/** Add a list of attributes to the defaults */
+	static ENGINE_API void AddDefaultEventAttributes(TArray<FAnalyticsEventAttribute>&& Attributes);
+
+	/** Add a single attribute to the defaults */
+	static ENGINE_API void AddDefaultEventAttribute(const FAnalyticsEventAttribute& Attribute);
+
+	/** Applies the default attributes */
+	static ENGINE_API void ApplyDefaultEventAttributes();
+
 	/**
 	 * Return the provider instance. Not valid outside of Initialize/Shutdown calls.
 	 * Note: must check IsAvailable() first else this code will assert if the provider is not valid.
@@ -45,6 +54,7 @@ private:
 private:
 	static bool bInitialized;
 	static TSharedPtr<IAnalyticsProviderET> Analytics;
+	static TArray<FAnalyticsEventAttribute> DefaultAttributes;
 	static FThread TimerThread;
 	static volatile double TimeEstimation;
 };
