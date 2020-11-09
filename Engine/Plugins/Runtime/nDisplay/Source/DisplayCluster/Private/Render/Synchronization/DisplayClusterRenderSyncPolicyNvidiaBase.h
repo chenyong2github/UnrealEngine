@@ -25,6 +25,9 @@ private:
 	bool InitializeNvidiaSwapLock();
 
 private:
-	bool bNvApiInitialised = false;
-	bool bNvApiIBarrierSet = false;
+	bool bNvApiInitialized = false;
+	bool bNvApiBarrierSet  = false;
+
+	bool bNvDiagInit    = false;
+	bool bNvDiagPresent = false;
 };
