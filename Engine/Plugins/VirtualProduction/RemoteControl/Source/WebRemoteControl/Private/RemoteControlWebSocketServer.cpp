@@ -111,7 +111,7 @@ void FRCWebSocketServer::Broadcast(const TArray<uint8>& InUTF8Payload)
 	{
 		if (Connection.Socket)
 		{
-			Connection.Socket->Send(InUTF8Payload.GetData(), InUTF8Payload.Num());
+			Connection.Socket->Send(InUTF8Payload.GetData(), InUTF8Payload.Num(), /*PrependSize=*/false);
 		}
 	}
 }
@@ -120,7 +120,7 @@ void FRCWebSocketServer::Send(const FGuid& InTargetClientId, const TArray<uint8>
 {
 	if (FWebSocketConnection* Connection = Connections.FindByPredicate([&InTargetClientId](const FWebSocketConnection& InConnection) { return InConnection.Id == InTargetClientId; }))
 	{
-		Connection->Socket->Send(InUTF8Payload.GetData(), InUTF8Payload.Num());
+		Connection->Socket->Send(InUTF8Payload.GetData(), InUTF8Payload.Num(), /*PrependSize=*/false);
 	}
 }
 

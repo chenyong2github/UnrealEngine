@@ -19,7 +19,7 @@ public:
 	virtual void SetSocketClosedCallBack(FWebSocketInfoCallBack CallBack) = 0;
 
 	/** Send raw data to remote end point. */
-	virtual bool Send(const uint8* Data, uint32 Size) = 0;
+	virtual bool Send(const uint8* Data, uint32 Size, bool bPrependSize = true) = 0;
 
 	/** service libwebsocket.			   */
 	virtual void Tick() = 0;
