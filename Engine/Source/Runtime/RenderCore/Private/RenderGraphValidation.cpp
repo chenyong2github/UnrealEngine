@@ -557,10 +557,27 @@ void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 				}
 			break;
 			case UBMT_RDG_TEXTURE_ACCESS:
-			case UBMT_RDG_BUFFER_ACCESS:
-				if (FRDGResourceRef Resource = Parameter.GetAsResource())
+			{
+				const FRDGTextureAccess TextureAccess = Parameter.GetAsTextureAccess();
+				if (FRDGTextureRef Texture = TextureAccess.GetTexture())
 				{
-					Resource->MarkResourceAsUsed();
+					const ERHIAccess Access = TextureAccess.GetAccess();
+					if (EnumHasAnyFlags(Access, ERHIAccess::UAVMask))
+					{
+						Texture->TextureDebugData.bHasNeededUAV = true;
+					}
+					if (EnumHasAnyFlags(Access, ERHIAccess::RTV | ERHIAccess::DSVRead | ERHIAccess::DSVWrite))
+					{
+						Texture->TextureDebugData.bHasBeenBoundAsRenderTarget = true;
+					}
+					Texture->MarkResourceAsUsed();
+				}
+			}
+			break;
+			case UBMT_RDG_BUFFER_ACCESS:
+				if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
+				{
+					Buffer->MarkResourceAsUsed();
 				}
 			break;
 			case UBMT_RENDER_TARGET_BINDING_SLOTS:
