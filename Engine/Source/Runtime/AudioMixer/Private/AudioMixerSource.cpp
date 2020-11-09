@@ -204,43 +204,41 @@ namespace Audio
 			SetupBusData(InitParams.AudioBusSends);
 
 			// Don't set up any submixing if we're set to output to bus only
-			if (!InitParams.bOutputToBusOnly)
+	
+			// If we're spatializing using HRTF and its an external send, don't need to setup a default/base submix send to master or EQ submix
+			// We'll only be using non-default submix sends (e.g. reverb).
+			if (!(InitParams.bUseHRTFSpatialization && MixerDevice->bSpatializationIsExternalSend))
 			{
-				// If we're spatializing using HRTF and its an external send, don't need to setup a default/base submix send to master or EQ submix
-				// We'll only be using non-default submix sends (e.g. reverb).
-				if (!(InitParams.bUseHRTFSpatialization && MixerDevice->bSpatializationIsExternalSend))
-				{
-					FMixerSubmixWeakPtr SubmixPtr = WaveInstance->SoundSubmix
-						? MixerDevice->GetSubmixInstance(WaveInstance->SoundSubmix)
-						: MixerDevice->GetMasterSubmix();
+				FMixerSubmixWeakPtr SubmixPtr = WaveInstance->SoundSubmix
+					? MixerDevice->GetSubmixInstance(WaveInstance->SoundSubmix)
+					: MixerDevice->GetMasterSubmix();
 
+				FMixerSourceSubmixSend SubmixSend;
+				SubmixSend.Submix = SubmixPtr;
+				SubmixSend.SubmixSendStage = EMixerSourceSubmixSendStage::PostDistanceAttenuation;
+				SubmixSend.SendLevel = 1.0f;
+				SubmixSend.bIsMainSend = true;
+				SubmixSend.SoundfieldFactory = MixerDevice->GetFactoryForSubmixInstance(SubmixSend.Submix);
+				InitParams.SubmixSends.Add(SubmixSend);
+			}
+
+			// Add submix sends for this source
+			for (FSoundSubmixSendInfo& SendInfo : WaveInstance->SoundSubmixSends)
+			{
+				if (SendInfo.SoundSubmix != nullptr)
+				{
 					FMixerSourceSubmixSend SubmixSend;
-					SubmixSend.Submix = SubmixPtr;
+					SubmixSend.Submix = MixerDevice->GetSubmixInstance(SendInfo.SoundSubmix);
+
 					SubmixSend.SubmixSendStage = EMixerSourceSubmixSendStage::PostDistanceAttenuation;
-					SubmixSend.SendLevel = 1.0f;
-					SubmixSend.bIsMainSend = true;
+					if (SendInfo.SendStage == ESubmixSendStage::PreDistanceAttenuation)
+					{
+						SubmixSend.SubmixSendStage = EMixerSourceSubmixSendStage::PreDistanceAttenuation;
+					}
+					SubmixSend.SendLevel = SendInfo.SendLevel;
+					SubmixSend.bIsMainSend = false;
 					SubmixSend.SoundfieldFactory = MixerDevice->GetFactoryForSubmixInstance(SubmixSend.Submix);
 					InitParams.SubmixSends.Add(SubmixSend);
-				}
-
-				// Add submix sends for this source
-				for (FSoundSubmixSendInfo& SendInfo : WaveInstance->SoundSubmixSends)
-				{
-					if (SendInfo.SoundSubmix != nullptr)
-					{
-						FMixerSourceSubmixSend SubmixSend;
-						SubmixSend.Submix = MixerDevice->GetSubmixInstance(SendInfo.SoundSubmix);
-
-						SubmixSend.SubmixSendStage = EMixerSourceSubmixSendStage::PostDistanceAttenuation;
-						if (SendInfo.SendStage == ESubmixSendStage::PreDistanceAttenuation)
-						{
-							SubmixSend.SubmixSendStage = EMixerSourceSubmixSendStage::PreDistanceAttenuation;
-						}
-						SubmixSend.SendLevel = SendInfo.SendLevel;
-						SubmixSend.bIsMainSend = false;
-						SubmixSend.SoundfieldFactory = MixerDevice->GetFactoryForSubmixInstance(SubmixSend.Submix);
-						InitParams.SubmixSends.Add(SubmixSend);
-					}
 				}
 			}
 
@@ -1157,7 +1155,9 @@ namespace Audio
 				MixerSourceVoice->SetSubmixSendInfo(SubmixInstance, SendLevel);
 			}
 		}
- 	}
+ 		
+		MixerSourceVoice->SetOutputToBusOnly(WaveInstance->bOutputToBusOnly);
+	}
 
 	void FMixerSource::UpdateSourceBusSends()
 	{

@@ -459,6 +459,12 @@ public:
 	/** Whether or not the active sound is stopping. */
 	uint8 bIsStopping:1;
 
+	/** Whether or not we are overriding the output to bus option on sounds. */
+	uint8 bEnableOutputToBusOnlyOverride:1;
+
+	/** What the value of the override is. */
+	uint8 bOutputToBusOnlyOverride:1;
+
 	uint8 UserIndex;
 
 	/** Type of fade out currently being applied */
