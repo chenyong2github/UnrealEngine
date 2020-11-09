@@ -261,7 +261,7 @@ FCollisionStructureManager::NewImplicitLevelset(
 		if (FilledVolume < DomainVolume * 0.05)
 		{
 			const Chaos::TVector<float,3> Extent = LevelSet->BoundingBox().Extents();
-			ErrorReporter.ReportWarning(
+			ErrorReporter.ReportLog(
 				*FString::Printf(TEXT(
 					"Level set is small or empty:\n"
 					"    domain extent: (%g %g %g) volume: %g\n"
