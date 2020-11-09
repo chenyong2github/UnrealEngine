@@ -92,9 +92,10 @@ struct FRunningProcess
 	FString Name;
 	FString Caller;
 
-	TAtomic<bool> bPendingKill = false;
+	TAtomic<bool> bPendingKill;
 
 	FRunningProcess()
+		: bPendingKill(false)
 	{}
 
 	FRunningProcess(const FRunningProcess& InProcess)
