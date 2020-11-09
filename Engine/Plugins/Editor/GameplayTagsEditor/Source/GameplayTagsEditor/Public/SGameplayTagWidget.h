@@ -27,7 +27,7 @@ enum class EGameplayTagUIMode : uint8
 };
 
 /** Widget allowing user to tag assets with gameplay tags */
-class SGameplayTagWidget : public SCompoundWidget
+class GAMEPLAYTAGSEDITOR_API SGameplayTagWidget : public SCompoundWidget
 {
 public:
 
