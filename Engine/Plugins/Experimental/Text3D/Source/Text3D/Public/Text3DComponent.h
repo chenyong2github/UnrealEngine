@@ -228,7 +228,9 @@ public:
 	UStaticMeshComponent* GetGlyphMeshComponent(int32 Index);
 
 private:
+	UPROPERTY(Transient)
 	class USceneComponent* TextRoot;
+
 	FTextGenerated TextGeneratedDelegate;
 
 	bool bPendingBuild;
