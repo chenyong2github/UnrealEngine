@@ -254,7 +254,7 @@ void FSlateUser::ReleaseCapture(uint32 PointerIndex)
 		if (PointerIndex == FSlateApplication::CursorPointerIndex)
 		{
 			// If cursor capture changes, we should refresh the cursor state.
-			bQueryCursorRequested = true;
+			RequestCursorQuery();
 		}
 	}
 }
@@ -707,7 +707,7 @@ void FSlateUser::QueryCursor()
 		{
 			const bool bHasHardwareCursor = SlateApp.GetPlatformCursor() == Cursor;
 			const FVector2D CurrentCursorPosition = GetCursorPosition();
-			const FVector2D LastCursorPosition = GetPreviousCursorPosition();
+			const FVector2D LastCursorPosition = GetPreviousCursorPosition();			
 			
 			const TSet<FKey> EmptySet;
 			const FPointerEvent CursorEvent(

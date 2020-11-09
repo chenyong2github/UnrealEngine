@@ -2235,8 +2235,20 @@ int32 FWindowsApplication::ProcessDeferredMessage( const FDeferredWindowsMessage
 			// Mouse Cursor
 		case WM_SETCURSOR:
 			{
-				// WM_SETCURSOR - Sent to a window if the mouse causes the cursor to move within a window and mouse input is not captured.
-				return MessageHandler->OnCursorSet() ? 0 : 1;
+				// WM_SETCURSOR - Sent to a window if the mouse causes the cursor to move within a window and mouse input is not captured.						
+
+				// When we use the OSWindowBorder the only zone that "belongs" to Slate for cursor purposes is the Client Zone
+				if (CurrentNativeEventWindowPtr->GetDefinition().HasOSWindowBorder)
+				{
+					const UINT MouseWindowMessage = HIWORD(lParam);
+					const UINT CursorHitTestResult = LOWORD(lParam);
+
+					if (MouseWindowMessage == WM_MOUSEMOVE && CursorHitTestResult != HTCLIENT)
+					{
+						return 0;
+					}
+				}
+				return  MessageHandler->OnCursorSet() ? 1 : 0;
 			}
 			break;
 
