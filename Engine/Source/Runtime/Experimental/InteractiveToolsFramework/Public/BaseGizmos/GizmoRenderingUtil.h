@@ -32,6 +32,15 @@ namespace GizmoRenderingUtil
 		const FSceneViewFamily& ViewFamily,
 		uint32 VisibilityMap);
 
+
+	/**
+	 * Turn on/off the above global focused scene view tracking. When disabled, FindFocusedEditorSceneView()
+	 * will return the first visible FSceneView, or the first element of the Views array otherwise.
+	 * Enabled by default in Editor builds, disabled by default in Runtime builds.
+	 */
+	INTERACTIVETOOLSFRAMEWORK_API void SetGlobalFocusedSceneViewTrackingEnabled(bool bEnabled);
+
+
 	/**
 	 * @return Conversion factor between pixel and world-space coordinates at 3D point Location in View.
 	 * @warning This is a local estimate and is increasingly incorrect as the 3D point gets further from Location

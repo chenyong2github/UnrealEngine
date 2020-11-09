@@ -9,14 +9,24 @@ static const FSceneView* GlobalCurrentSceneView = nullptr;
 
 static FCriticalSection GlobalCurrentSceneViewLock;
 
-INTERACTIVETOOLSFRAMEWORK_API void GizmoRenderingUtil::SetGlobalFocusedEditorSceneView(const FSceneView* View)
+#if WITH_EDITOR
+static bool bGlobalUseCurrentSceneViewTracking = true;
+#else
+static bool bGlobalUseCurrentSceneViewTracking = false;
+#endif
+
+
+void GizmoRenderingUtil::SetGlobalFocusedEditorSceneView(const FSceneView* View)
 {
 	GlobalCurrentSceneViewLock.Lock();
 	GlobalCurrentSceneView = View;
 	GlobalCurrentSceneViewLock.Unlock();
 }
 
-
+void GizmoRenderingUtil::SetGlobalFocusedSceneViewTrackingEnabled(bool bEnabled)
+{
+	bGlobalUseCurrentSceneViewTracking = bEnabled;
+}
 
 
 const FSceneView* GizmoRenderingUtil::FindFocusedEditorSceneView(
@@ -24,15 +34,25 @@ const FSceneView* GizmoRenderingUtil::FindFocusedEditorSceneView(
 	const FSceneViewFamily& ViewFamily,
 	uint32 VisibilityMap)
 {
+	// we are likely being called from a rendering thread GetDynamicMeshElements() function
 	const FSceneView* GlobalEditorView = nullptr;
 	GlobalCurrentSceneViewLock.Lock();
 	GlobalEditorView = GlobalCurrentSceneView;
 	GlobalCurrentSceneViewLock.Unlock();
 
+	// if we only have one view, and we are not tracking active view, just use that one
+	if (bGlobalUseCurrentSceneViewTracking == false && Views.Num() == 1)
+	{
+		return Views[0];
+	}
+
+	// otherwise try to find the view that the game thread set for us
+	int32 VisibleViews = 0;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		if (VisibilityMap & (1 << ViewIndex))
 		{
+			VisibleViews++;
 			if (Views[ViewIndex] == GlobalEditorView)
 			{
 				return Views[ViewIndex];
@@ -40,7 +60,27 @@ const FSceneView* GizmoRenderingUtil::FindFocusedEditorSceneView(
 		}
 	}
 
-	return nullptr;
+	// if we did not find our view, but only one view is visible, we can speculatively return that one
+	if (bGlobalUseCurrentSceneViewTracking == false && VisibleViews == 1)
+	{
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			if (VisibilityMap & (1 << ViewIndex))
+			{
+				return Views[ViewIndex];
+			}
+		}
+	}
+
+	// ok give up
+	if (bGlobalUseCurrentSceneViewTracking == false)
+	{
+		return Views[0];
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 
