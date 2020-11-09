@@ -31,6 +31,10 @@
 #include "ShaderCompiler.h"
 #include "EngineUtils.h"
 
+#if WITH_EDITOR && !UE_BUILD_SHIPPING
+#include "Rendering/IRenderCaptureProvider.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "MoviePipeline"
 
 void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot)
@@ -231,6 +235,16 @@ void UMoviePipeline::RenderFrame()
 		}
 	}
 
+#if WITH_EDITOR && !UE_BUILD_SHIPPING
+	if (CachedOutputState.bCaptureRendering)
+	{
+		if (IRenderCaptureProvider::IsAvailable())
+		{
+			IRenderCaptureProvider::Get().StartCapturing();
+		}
+	}
+#endif
+
 	for (int32 TileY = 0; TileY < TileCount.Y; TileY++)
 	{
 		for (int32 TileX = 0; TileX < TileCount.X; TileX++)
@@ -370,6 +384,16 @@ void UMoviePipeline::RenderFrame()
 			}
 		}
 	}
+
+#if WITH_EDITOR && !UE_BUILD_SHIPPING
+	if (CachedOutputState.bCaptureRendering)
+	{
+		if (IRenderCaptureProvider::IsAvailable())
+		{
+			IRenderCaptureProvider::Get().StopCapturing();
+		}
+	}
+#endif
 
 	// Re-enable the progress widget so when the player viewport is drawn to the preview window, it shows.
 	SetProgressWidgetVisible(true);

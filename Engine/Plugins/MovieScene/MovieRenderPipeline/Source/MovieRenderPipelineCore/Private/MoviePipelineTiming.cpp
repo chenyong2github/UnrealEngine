@@ -19,6 +19,10 @@
 #include "MoviePipelineQueue.h"
 #include "MoviePipelineOutputSetting.h"
 
+#if WITH_EDITOR
+#include "MoviePipelineDebugSettings.h"
+#endif
+
 void UMoviePipeline::TickProducingFrames()
 {
 	// The callback for this function does not get registered until Initialization has been called, which sets
@@ -588,6 +592,19 @@ void UMoviePipeline::TickProducingFrames()
 			CachedOutputState.OutputFrameNumber++;
 			CachedOutputState.ShotOutputFrameNumber++;
 		}
+	
+#if WITH_EDITOR && !UE_BUILD_SHIPPING
+		{
+			UMoviePipelineDebugSettings* DebugSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineDebugSettings>();
+			if (DebugSettings->IsRenderDocEnabled())
+			{
+				if (CachedOutputState.OutputFrameNumber >= DebugSettings->CaptureStartFrame && CachedOutputState.OutputFrameNumber <= DebugSettings->CaptureEndFrame)
+				{
+					CachedOutputState.bCaptureRendering = true;
+				}
+			}
+		}
+#endif
 
 		// Check to see if we should be rendering this frame. If they are frame stepping (rendering every Nth frame) then we
 		// just disable rendering but otherwise let the game logic remain the same for evaluation consistency.
