@@ -105,8 +105,14 @@ namespace Chaos
 		Solver.AdvanceSolverBy(Dt);
 	}
 
-	CHAOS_API int32 UseAsyncResults = 0;
-	FAutoConsoleVariableRef CVarUseAsyncResults(TEXT("p.UseAsyncResults"),UseAsyncResults,TEXT("Whether to use async results"));
+	CHAOS_API float DefaultAsyncDt = -1;
+	FAutoConsoleVariableRef CVarDefaultAsyncDt(TEXT("p.DefaultAsyncDt"), DefaultAsyncDt,TEXT("Whether to use async results -1 means not async"));
+
+	CHAOS_API int32 UseAsyncInterpolation = 1;
+	FAutoConsoleVariableRef CVarUseAsyncInterpolation(TEXT("p.UseAsyncInterpolation"), UseAsyncInterpolation, TEXT("Whether to interpolate when async mode is enabled"));
+
+	CHAOS_API int32 ForceDisableAsyncPhysics = 0;
+	FAutoConsoleVariableRef CVarForceDisableAsyncPhysics(TEXT("p.ForceDisableAsyncPhysics"), ForceDisableAsyncPhysics, TEXT("Whether to force async physics off regardless of other settings"));
 
 	FPhysicsSolverBase::FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner,ETraits InTraitIdx)
 		: BufferMode(BufferingModeIn)
@@ -115,6 +121,7 @@ namespace Chaos
 		, bPaused_External(false)
 		, Owner(InOwner)
 		, TraitIdx(InTraitIdx)
+		, AsyncDt(DefaultAsyncDt)
 #if !UE_BUILD_SHIPPING
 		, bStealAdvanceTasksForTesting(false)
 #endif

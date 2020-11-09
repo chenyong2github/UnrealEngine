@@ -60,6 +60,7 @@ void FChaosMarshallingManager::Step_External(FReal ExternalDT)
 
 	//stored in reverse order for easy removal later. Might want to use a circular buffer if perf is bad here
 	//expecting queue to be fairly small (3,4 at most) so probably doesn't matter
+	ProducerData->ExternalDt = ExternalDT;
 	ExternalQueue.Insert(ProducerData,0);
 
 	ExternalTime_External += ExternalDT;
@@ -67,32 +68,42 @@ void FChaosMarshallingManager::Step_External(FReal ExternalDT)
 	PrepareExternalQueue_External();
 }
 
-TArray<FPushPhysicsData*> FChaosMarshallingManager::StepInternalTime_External(FReal InternalDt)
+TArray<FPushPhysicsData*> FChaosMarshallingManager::StepInternalTime_External(FReal InternalDt, bool bUseAsync)
 {
 	TArray<FPushPhysicsData*> PushDataUpToEnd;
 
 	if(Delay == 0)
 	{
-		SimTime_External += InternalDt;
-
-		//if dt is exactly 0 we still want to get first data so add an epsilon. todo: is there a better way to handle this?
-		const FReal EndTime = InternalDt == 0 ? SimTime_External + KINDA_SMALL_NUMBER : SimTime_External;
+		const FReal EndTime = SimTime_External + InternalDt;
 
 		//stored in reverse order so push from back to front
-		for(int32 Idx = ExternalQueue.Num() - 1; Idx >= 0; --Idx)
+
+		//see if we have enough inputs to proceed
+		int32 LatestIdx = INDEX_NONE;
+		for (int32 Idx = ExternalQueue.Num() - 1; Idx >= 0; --Idx)
 		{
-			if(ExternalQueue[Idx]->StartTime < EndTime)
+			if (ExternalQueue[Idx]->StartTime + ExternalQueue[Idx]->ExternalDt >= EndTime || !bUseAsync)	//in sync mode we always consume first input
+			{
+				LatestIdx = Idx;
+				break;
+			}
+		}
+
+		//if we do, consume them all and reorder
+		if(LatestIdx != INDEX_NONE)
+		{
+			for (int32 Idx = ExternalQueue.Num() - 1; Idx >= LatestIdx; --Idx)
 			{
 				FPushPhysicsData* PushData = ExternalQueue.Pop(/*bAllowShrinking=*/false);
 				PushDataUpToEnd.Add(PushData);
 				++InternalTimestamp_External;
 			}
-			else
-			{
-				//sorted so stop
-				break;
-			}
+
+			//consumed inputs for interval of InternalDt, so advance the sim time by that amount
+			SimTime_External += InternalDt;
 		}
+
+		
 	}
 	else
 	{

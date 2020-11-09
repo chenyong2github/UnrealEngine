@@ -85,6 +85,8 @@ public:
 	 * In the case of a resim, pending outputs can be thrown out if we know the callback will be re-run with old time stamps
 	 */
 	virtual void FreeOutputData_External(FSimCallbackOutput* Output) = 0;
+
+	FPhysicsSolverBase* GetSolver() { return Solver; }
 	
 protected:
 
@@ -102,8 +104,6 @@ protected:
 	 * Gets the current producer input data. This is what the external thread should be writing to
 	 */
 	FSimCallbackInput* GetProducerInputData_External();
-
-	FPhysicsSolverBase* GetSolver() { return Solver; }
 
 private:
 	

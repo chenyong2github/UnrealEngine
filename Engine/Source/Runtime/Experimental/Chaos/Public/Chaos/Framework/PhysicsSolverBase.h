@@ -20,11 +20,11 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FSolverPostAdvance, Chaos::FReal);
 
 namespace Chaos
 {
-
-	extern CHAOS_API int32 UseAsyncResults;
-
 	class FPhysicsSolverBase;
 	struct FPendingSpatialDataQueue;
+
+	extern CHAOS_API int32 UseAsyncInterpolation;
+	extern CHAOS_API int32 ForceDisableAsyncPhysics;
 
 	/**
 	 * Task responsible for processing the command buffer of a single solver and advancing it by
@@ -210,6 +210,16 @@ namespace Chaos
 			}
 		}
 
+		void EnableAsyncMode(FReal FixedDt)
+		{
+			AsyncDt = FixedDt;
+		}
+
+		void DisableAsyncMode()
+		{
+			AsyncDt = -1;
+		}
+
 		FChaosMarshallingManager& GetMarshallingManager() { return MarshallingManager; }
 
 		EThreadingModeTemp GetThreadingMode() const
@@ -220,11 +230,12 @@ namespace Chaos
 		FGraphEventRef AdvanceAndDispatch_External(FReal InDt)
 		{
 			const FReal DtWithPause = bPaused_External ? 0.0f : InDt;
+			const FReal InternalDt = UseAsyncInterpolation && IsUsingAsyncResults() ? AsyncDt : DtWithPause;
 
 			//make sure any GT state is pushed into necessary buffer
 			PushPhysicsState(DtWithPause);
 
-			TArray<FPushPhysicsData*> PushData = MarshallingManager.StepInternalTime_External(DtWithPause);
+			TArray<FPushPhysicsData*> PushData = MarshallingManager.StepInternalTime_External(InternalDt, IsUsingAsyncResults());
 
 			FGraphEventRef BlockingTasks = PendingTasks;
 
@@ -234,7 +245,7 @@ namespace Chaos
 				if(ThreadingMode == EThreadingModeTemp::SingleThread)
 				{
 					ensure(!PendingTasks || PendingTasks->IsComplete());	//if mode changed we should have already blocked
-					FPhysicsSolverAdvanceTask ImmediateTask(*this,MoveTemp(CommandQueue),MoveTemp(PushData), DtWithPause, MarshallingManager.GetExternalTimestampConsumed_External());
+					FPhysicsSolverAdvanceTask ImmediateTask(*this,MoveTemp(CommandQueue),MoveTemp(PushData), InternalDt, MarshallingManager.GetExternalTimestampConsumed_External());
 #if !UE_BUILD_SHIPPING
 					if (bStealAdvanceTasksForTesting)
 					{
@@ -256,9 +267,8 @@ namespace Chaos
 						Prereqs.Add(PendingTasks);
 					}
 
-					PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue), MoveTemp(PushData), InDt, MarshallingManager.GetExternalTimestampConsumed_External());
-					const bool bAsyncResults = !!UseAsyncResults;
-					if(!bAsyncResults)
+					PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue), MoveTemp(PushData), InternalDt, MarshallingManager.GetExternalTimestampConsumed_External());
+					if(IsUsingAsyncResults() == false)
 					{
 						BlockingTasks = PendingTasks;	//block right away
 					}
@@ -359,6 +369,11 @@ namespace Chaos
 		template <typename RigidLambda>
 		void PullPhysicsStateForEachDirtyProxy_External(const RigidLambda& RigidFunc);
 
+		bool IsUsingAsyncResults() const
+		{
+			return !ForceDisableAsyncPhysics && AsyncDt >= 0;
+		}
+
 	protected:
 		/** Mode that the results buffers should be set to (single, double, triple) */
 		EMultiBufferMode BufferMode;
@@ -441,6 +456,7 @@ namespace Chaos
 
 		ETraits TraitIdx;
 
+		FReal AsyncDt;
 		TArray<TGeometryParticle<FReal, 3>*> UniqueIdxToGTParticles;
 
 	public:

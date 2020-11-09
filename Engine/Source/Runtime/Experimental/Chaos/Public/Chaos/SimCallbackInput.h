@@ -44,6 +44,11 @@ private:
 	friend class ISimCallbackObject;
 };
 
+struct FSimCallbackNoInput : public FSimCallbackInput
+{
+	void Reset(){}
+};
+
 struct FSimCallbackNoOutput : public FSimCallbackOutput
 {
 	void Reset() {}

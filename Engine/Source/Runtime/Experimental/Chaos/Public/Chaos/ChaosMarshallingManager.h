@@ -184,6 +184,7 @@ struct FPushPhysicsData
 	FDirtyPropertiesManager DirtyPropertiesManager;
 	FDirtySet DirtyProxiesDataBuffer;
 	FReal StartTime;
+	FReal ExternalDt;
 
 	TArray<ISimCallbackObject*> SimCallbackObjectsToAdd;	//callback object registered at this specific time
 	TArray<ISimCallbackObject*> SimCallbackObjectsToRemove;	//callback object removed at this specific time
@@ -225,7 +226,7 @@ public:
 	void Step_External(FReal ExternalDT);
 
 	/** Step the internal time forward and get any push data associated with the time. Should only be called by external thread */
-	TArray<FPushPhysicsData*> StepInternalTime_External(FReal InternalDt);
+	TArray<FPushPhysicsData*> StepInternalTime_External(FReal InternalDt, bool bUseAsync = true);
 
 	/** Frees the push data back into the pool. Internal thread should call this when finished processing data*/
 	void FreeData_Internal(FPushPhysicsData* PushData);

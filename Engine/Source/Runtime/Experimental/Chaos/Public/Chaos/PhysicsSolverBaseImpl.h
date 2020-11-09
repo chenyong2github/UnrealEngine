@@ -14,7 +14,6 @@
 
 namespace Chaos
 {
-	extern CHAOS_API int UseAsyncResults;
 // Pulls physics state for each dirty particle and allows caller to do additional work if needed
 template <typename RigidLambda>
 void FPhysicsSolverBase::PullPhysicsStateForEachDirtyProxy_External(const RigidLambda& RigidFunc)
@@ -22,7 +21,7 @@ void FPhysicsSolverBase::PullPhysicsStateForEachDirtyProxy_External(const RigidL
 	using namespace Chaos;
 
 	FPullPhysicsData* PullData = nullptr;
-	if(UseAsyncResults)
+	if(IsUsingAsyncResults())
 	{
 		//todo: handle timestamp better here. For now we only expect 1 per frame, but editor may tick with 0 dt which gets no results
 		PullData = MarshallingManager.PopPullData_External();

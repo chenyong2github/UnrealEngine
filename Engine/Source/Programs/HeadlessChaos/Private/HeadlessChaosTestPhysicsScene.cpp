@@ -899,4 +899,61 @@ namespace ChaosTest {
 		EXPECT_EQ(Simulated->V(),FVec3(0,0,10));
 
 	}
+
+	GTEST_TEST(EngineInterface, SimInterpolated)
+	{
+		FChaosScene Scene(nullptr);
+		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+		Scene.GetSolver()->EnableAsyncMode(1);	//tick 1 dt at a time
+		const float FixedDT = 1;
+
+		FActorCreationParams Params;
+		Params.Scene = &Scene;
+
+		TGeometryParticle<FReal, 3>* Particle = nullptr;
+
+		FChaosEngineInterface::CreateActor(Params, Particle);
+
+		{
+			auto Sphere = MakeUnique<TSphere<FReal, 3>>(FVec3(0), 3);
+			Particle->SetGeometry(MoveTemp(Sphere));
+		}
+		TPBDRigidParticle<FReal, 3>* Simulated = static_cast<TPBDRigidParticle<FReal, 3>*>(Particle);
+
+		TArray<TGeometryParticle<FReal, 3>*> Particles = { Particle };
+		Scene.AddActorsToScene_AssumesLocked(Particles);
+		Simulated->SetObjectState(EObjectStateType::Dynamic);
+		Simulated->SetV(FVec3(0, 0, 10));
+
+		struct FCallback : public TSimCallbackObject<FSimCallbackNoInput>
+		{
+			virtual FSimCallbackOutput* OnPreSimulate_Internal(const FReal SimStart, const FReal DeltaSeconds, const TArrayView<const FSimCallbackInput*>& Inputs) override
+			{
+				if(Count < 3)
+				{
+					//we expect the dt to be 1, unless it's the final callback when solver is destroyed (that dt is always 0)
+					EXPECT_EQ(DeltaSeconds, 1);
+					EXPECT_EQ(SimStart, Count);
+				}
+				Count++;
+				return nullptr;
+			}
+
+			int32 Count = 0;
+		};
+
+		auto Callback = Scene.GetSolver()->CreateAndRegisterSimCallbackObject_External<FCallback>();
+
+		for(int32 i=0; i<12;i++)
+		{
+			FVec3 Grav(0, 0, 0);
+			Scene.SetUpForFrame(&Grav, FixedDT * 0.25, 99999, 99999, 10, false);
+			Scene.StartFrame();
+			Scene.EndFrame();
+		}
+
+		EXPECT_EQ(Callback->Count, 3);	//ticked GT 12 times, but at 1/4 the rate of physics dt so we only get 3 physics callbacks
+		EXPECT_NEAR(Simulated->X()[2], 10 * 12 * FixedDT * 0.25, 1e-2);
+		EXPECT_NEAR(Simulated->V()[2], 10, 1e-2);
+	}
 }
