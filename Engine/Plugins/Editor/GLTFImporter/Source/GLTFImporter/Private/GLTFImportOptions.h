@@ -16,6 +16,7 @@ class UGLTFImportOptions : public UObject
 
 public:
 	UPROPERTY(
+		BlueprintReadWrite,
 	    config, EditAnywhere, Category = Lightmaps,
 	    meta =
 	        (ToolTip =
@@ -23,6 +24,7 @@ public:
 	bool bGenerateLightmapUVs;
 
 	UPROPERTY(
+		BlueprintReadWrite,
 	    config, EditAnywhere, Category = AssetImporting,
 	    meta =
 	        (DisplayName = "Import Uniform Scale",
