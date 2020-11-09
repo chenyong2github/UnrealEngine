@@ -4345,7 +4345,7 @@ int32 ListContainer(
 	TArray<FString> CsvLines;
 	TArray<TPair<uint32, FString>> ContainerCsvLines;
 
-	CsvLines.Add(TEXT("PackageId, PackageName, Filename, ContainerName, Offset, Size, Hash"));
+	CsvLines.Add(TEXT("PackageId, PackageName, Filename, ContainerName, Offset, Size, CompressedSize, Hash"));
 
 	for (const FString& ContainerFilePath : ContainerFilePaths)
 	{
@@ -4382,24 +4382,26 @@ int32 ListContainer(
 			{
 				ContainerCsvLines.Emplace(TPair<uint32, FString>(
 					TocEntryIndex,
-					FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, 0x%s"),
+					FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, %lld, 0x%s"),
 					PackageId.ValueForDebugging(),
 					*PackageName,
 					*Filename,
 					*ContainerName,
 					ChunkInfo.ValueOrDie().Offset,
 					ChunkInfo.ValueOrDie().Size,
+					ChunkInfo.ValueOrDie().CompressedSize,
 					*ChunkInfo.ValueOrDie().Hash.ToString())));
 			}
 			else
 			{
 				ContainerCsvLines.Emplace(TPair<uint32, FString>(
 					TocEntryIndex,
-					FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, %s"),
+					FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, %lld, %s"),
 					PackageId.ValueForDebugging(),
 					*PackageName,
 					*Filename,
 					*ContainerName,
+					0,
 					0,
 					0,
 					TEXT("<NotFound>"))));
