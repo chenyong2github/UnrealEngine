@@ -10,6 +10,13 @@
 #include "VulkanMemory.h"
 #include "VulkanShaderResources.h"
 
+#if (UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#define VULKAN_VALIDATE_DESCRIPTORS_WRITTEN 0
+#else
+#define VULKAN_VALIDATE_DESCRIPTORS_WRITTEN 1
+#endif
+
+
 class FVulkanCommandBufferPool;
 
 // (AlwaysCompareData == true) because of CRC-32 hash collisions
@@ -1036,6 +1043,7 @@ protected:
 	bool WriteBuffer(uint32 DescriptorIndex, const FVulkanAllocation& Allocation, VkDeviceSize Offset, VkDeviceSize Range, uint32 DynamicOffset = 0)
 	{
 		check(DescriptorIndex < NumWrites);
+		SetWritten(DescriptorIndex);		
 		if (DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
 		{
 			check(WriteDescriptors[DescriptorIndex].descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER || WriteDescriptors[DescriptorIndex].descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
@@ -1092,6 +1100,7 @@ protected:
 	bool WriteTextureView(uint32 DescriptorIndex, const FVulkanTextureView& TextureView, VkImageLayout Layout)
 	{
 		check(DescriptorIndex < NumWrites);
+		SetWritten(DescriptorIndex);
 		if (DescriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
 		{
 			check(WriteDescriptors[DescriptorIndex].descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE || WriteDescriptors[DescriptorIndex].descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
@@ -1142,6 +1151,7 @@ protected:
 	{
 		check(DescriptorIndex < NumWrites);
 		check(WriteDescriptors[DescriptorIndex].descriptorType == DescriptorType);
+		SetWritten(DescriptorIndex);
 		WriteDescriptors[DescriptorIndex].pTexelBufferView = &View->View;
 		BufferViewReferences[DescriptorIndex] = View;
 		
@@ -1188,6 +1198,26 @@ protected:
 		const FVulkanSamplerState& DefaultSampler, const FVulkanTextureView& DefaultImageView);
 
 	friend class FVulkanCommonPipelineDescriptorState;
+	friend class FVulkanComputePipelineDescriptorState;
+	friend class FVulkanGraphicsPipelineDescriptorState;
+
+#if VULKAN_VALIDATE_DESCRIPTORS_WRITTEN
+	TArray<uint32, TInlineAllocator<2> > WrittenMask;
+	TArray<uint32, TInlineAllocator<2> > BaseWrittenMask;
+
+	void CheckAllWritten();
+	void Reset();
+	void SetWritten(uint32 DescriptorIndex);
+	void SetWrittenBase(uint32 DescriptorIndex);
+	void InitWrittenMasks(uint32 NumDescriptorWrites);
+#else
+	void Reset(){}
+	void CheckAllWritten() {}
+	void SetWritten(uint32 DescriptorIndex) {}
+	void SetWrittenBase(uint32 DescriptorIndex){}
+	void InitWrittenMasks(uint32 NumDescriptorWrites){}
+#endif
+
 };
 
 class FVulkanGenericDescriptorPool : FNoncopyable
