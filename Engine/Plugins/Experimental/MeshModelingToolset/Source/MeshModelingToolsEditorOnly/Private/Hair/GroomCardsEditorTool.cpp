@@ -217,27 +217,45 @@ void UGroomCardsEditorTool::OnTick(float DeltaTime)
 		}
 		else if (PendingAction == EEditGroomCardsToolActions::SelectionClear)
 		{
-			ControlPointsMechanic->SelectionClear();
+			if (ControlPointsMechanic)
+			{
+				ControlPointsMechanic->SelectionClear();
+			}
 		}
 		else if (PendingAction == EEditGroomCardsToolActions::SelectionFill)
 		{
-			ControlPointsMechanic->SelectionFill();
+			if (ControlPointsMechanic)
+			{
+				ControlPointsMechanic->SelectionFill();
+			}
 		}
 		else if (PendingAction == EEditGroomCardsToolActions::SelectionAddNext)
 		{
-			ControlPointsMechanic->SelectionGrowToNext();
+			if (ControlPointsMechanic)
+			{
+				ControlPointsMechanic->SelectionGrowToNext();
+			}
 		}
 		else if (PendingAction == EEditGroomCardsToolActions::SelectionAddPrevious)
 		{
-			ControlPointsMechanic->SelectionGrowToPrev();
+			if (ControlPointsMechanic)
+			{
+				ControlPointsMechanic->SelectionGrowToPrev();
+			}
 		}
 		else if (PendingAction == EEditGroomCardsToolActions::SelectionAddToEnd)
 		{
-			ControlPointsMechanic->SelectionGrowToEnd();
+			if (ControlPointsMechanic)
+			{
+				ControlPointsMechanic->SelectionGrowToEnd();
+			}
 		}
 		else if (PendingAction == EEditGroomCardsToolActions::SelectionAddToStart)
 		{
-			ControlPointsMechanic->SelectionGrowToStart();
+			if (ControlPointsMechanic)
+			{
+				ControlPointsMechanic->SelectionGrowToStart();
+			}
 		}
 		PendingAction = EEditGroomCardsToolActions::NoAction;
 	}
@@ -252,7 +270,10 @@ void UGroomCardsEditorTool::OnTick(float DeltaTime)
 	if (bSelectionStateDirty)
 	{
 		USimpleDynamicMeshComponent* DynamicMeshComponent = Cast<USimpleDynamicMeshComponent>(PreviewMesh->GetRootComponent());		// ugh
-		DynamicMeshComponent->FastNotifySecondaryTrianglesChanged();
+		if (DynamicMeshComponent)
+		{
+			DynamicMeshComponent->FastNotifySecondaryTrianglesChanged();
+		}
 		bSelectionStateDirty = false;
 	}
 
