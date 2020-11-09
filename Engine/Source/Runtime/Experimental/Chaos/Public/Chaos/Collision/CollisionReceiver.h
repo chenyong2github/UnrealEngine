@@ -6,6 +6,8 @@
 #include "Chaos/PBDRigidsSOAs.h"
 #include "Chaos/EvolutionResimCache.h"
 
+#include <atomic>
+
 namespace Chaos
 {
 	/**
@@ -15,30 +17,66 @@ namespace Chaos
 	class FAsyncCollisionReceiver
 	{
 	public:
+
+		struct FPerParticleData
+		{
+			TArray<FRigidBodyPointContactConstraint> Single;
+			TArray<FRigidBodySweptPointContactConstraint> SingleSwept;
+			TArray<FRigidBodyMultiPointContactConstraint> Multi;
+
+			void Reset()
+			{
+				Single.Reset();
+				SingleSwept.Reset();
+				Multi.Reset();
+			}
+		};
+
 		FAsyncCollisionReceiver(FPBDCollisionConstraints& InCollisionConstraints, FEvolutionResimCache* InResimCache)
 			: CollisionConstraints(InCollisionConstraints)
 			, ResimCache(InResimCache)
+			, NumSingle(0)
+			, NumSingleSwept(0)
+			, NumMulti(0)
 		{
 		}
 
 		/**
-		 * Called by a CollisionDetector (possibly in a task) when it finds collisions.
+		 * Called by a CollisionDetector (possibly in a task) when it finds collisions. This is the whole
+		 * collection for the provided particle index and it's never used beyond here so we can move
+		 * the whole container over per particle.
 		 */
-		void ReceiveCollisions(const FCollisionConstraintsArray& Constraints)
+		void ReceiveCollisions(FCollisionConstraintsArray&& Constraints, int32 EntryIndex)
 		{
-			for (const FRigidBodyPointContactConstraint& Constraint : Constraints.SinglePointConstraints)
-			{
-				SinglePointQueue.Enqueue(Constraint);
-			}
-			for (const FRigidBodySweptPointContactConstraint& Constraint : Constraints.SinglePointSweptConstraints)
-			{
-				SingleSweptPointQueue.Enqueue(Constraint);
-			}
+			FPerParticleData& Data = ParticleCache[EntryIndex];
 
-			for (const FRigidBodyMultiPointContactConstraint& Constraint : Constraints.MultiPointConstraints)
-			{
-				MultiPointQueue.Enqueue(Constraint);
-			}
+			NumSingle.fetch_add(Constraints.SinglePointConstraints.Num(), std::memory_order_relaxed);
+			NumSingleSwept.fetch_add(Constraints.SinglePointSweptConstraints.Num(), std::memory_order_relaxed);
+			NumMulti.fetch_add(Constraints.MultiPointConstraints.Num(), std::memory_order_relaxed);
+
+			Data.Single = MoveTemp(Constraints.SinglePointConstraints);
+			Data.SingleSwept = MoveTemp(Constraints.SinglePointSweptConstraints);
+			Data.Multi = MoveTemp(Constraints.MultiPointConstraints);
+		}
+
+		/**
+		 * Called by a CollisionDetector (possibly in a task) when it wants to append extra collisions
+		 * to an entry. This will be slower than just receiving a full container as above as we will
+		 * need to expand the array.
+		 * Make sure when calling append it's after all possible calls to Receive for that particle
+		 * or the array will be emptied as receive just moves the container into its internal store
+		 */
+		void AppendCollisions(const FCollisionConstraintsArray& Constraints, int32 EntryIndex)
+		{
+			FPerParticleData& Data = ParticleCache[EntryIndex];
+
+			NumSingle.fetch_add(Constraints.SinglePointConstraints.Num(), std::memory_order_relaxed);
+			NumSingleSwept.fetch_add(Constraints.SinglePointSweptConstraints.Num(), std::memory_order_relaxed);
+			NumMulti.fetch_add(Constraints.MultiPointConstraints.Num(), std::memory_order_relaxed);
+
+			Data.Single.Append(Constraints.SinglePointConstraints);
+			Data.SingleSwept.Append(Constraints.SinglePointSweptConstraints);
+			Data.Multi.Append(Constraints.MultiPointConstraints);
 		}
 
 		/**
@@ -46,53 +84,61 @@ namespace Chaos
 		 */
 		void ProcessCollisions()
 		{
-			// @todo(chaos) : Collision Constraints
-			//    This needs to be moved within the MidPhase (which does not exist yet). The 
-			//    NarrowPhase is creating temporary constraints for all interacting bodies 
-			//    even though we might already have those bodies within the constraint.
-			//    So there is a bunch of wasted computation when the CreateConstraints is called. 
-			FRigidBodyPointContactConstraint SinglePointConstraint;
-			while (SinglePointQueue.Dequeue(SinglePointConstraint))
+			FPBDCollisionConstraints::FConstraintAppendScope AppendHelper = CollisionConstraints.BeginAppendScope();
+
 			{
-				if (!CollisionConstraints.Contains(&SinglePointConstraint))
-				{
-					CollisionConstraints.AddConstraint(SinglePointConstraint);
-				}
+				AppendHelper.ReserveSingle(NumSingle.load(std::memory_order_relaxed));
+				AppendHelper.ReserveSingleSwept(NumSingleSwept.load(std::memory_order_relaxed));
+				AppendHelper.ReserveMulti(NumMulti.load(std::memory_order_relaxed));
 			}
-			FRigidBodySweptPointContactConstraint SinglePointSweptConstraint;
-			while (SingleSweptPointQueue.Dequeue(SinglePointSweptConstraint))
+
 			{
-				if (!CollisionConstraints.Contains(&SinglePointSweptConstraint))
+				for(FPerParticleData& Data : ParticleCache)
 				{
-					CollisionConstraints.AddConstraint(SinglePointSweptConstraint);
+					AppendHelper.Append(MoveTemp(Data.Single));
+					AppendHelper.Append(MoveTemp(Data.SingleSwept));
+					AppendHelper.Append(MoveTemp(Data.Multi));
+					Data.Reset();
 				}
 			}
 
-			FRigidBodyMultiPointContactConstraint MultiPointConstraint;
-			while (MultiPointQueue.Dequeue(MultiPointConstraint))
 			{
-				if (!CollisionConstraints.Contains(&MultiPointConstraint))
-				{
-					CollisionConstraints.AddConstraint(MultiPointConstraint);
-				}
-			}
+				QUICK_SCOPE_CYCLE_COUNTER(QSTAT_ResetParticleCache);
+				ParticleCache.Reset();
 
-			//TODO: worth adding an option to avoid when determinism unimportant?
-			CollisionConstraints.SortConstraints();
+				NumSingle.store(0, std::memory_order_relaxed);
+				NumSingleSwept.store(0, std::memory_order_relaxed);
+				NumMulti.store(0, std::memory_order_relaxed);
+			}
 
 			if(ResimCache)
 			{
 				ResimCache->SaveConstraints(CollisionConstraints.GetConstraintsArray());
 			}
+
+			return;
+		}
+
+		void Prepare(int32 NumMaxParticles)
+		{
+			ParticleCache.Reset(NumMaxParticles);
+			ParticleCache.SetNum(NumMaxParticles);
+		}
+
+		int32 CacheNum() const
+		{
+			return ParticleCache.Num();
 		}
 
 	private:
-		//todo(ocohen): use per thread buffer instead, need better support than ParallelFor for this
-		TQueue<FRigidBodyPointContactConstraint, EQueueMode::Mpsc> SinglePointQueue;
-		TQueue<FRigidBodySweptPointContactConstraint, EQueueMode::Mpsc> SingleSweptPointQueue;
-		TQueue<FRigidBodyMultiPointContactConstraint, EQueueMode::Mpsc> MultiPointQueue;
+
 		FPBDCollisionConstraints& CollisionConstraints;
 		FEvolutionResimCache* ResimCache;
+
+		TArray<FPerParticleData> ParticleCache;
+		std::atomic<int32> NumSingle;
+		std::atomic<int32> NumSingleSwept;
+		std::atomic<int32> NumMulti;
 	};
 
 
