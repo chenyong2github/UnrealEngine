@@ -120,7 +120,7 @@ const FOnlineUserPresence* USocialUser::FSubsystemUserInfo::GetPresenceInfo() co
 // USocialUser
 //////////////////////////////////////////////////////////////////////////
 
-TMap<TWeakObjectPtr<USocialUser>, FOnNewSocialUserInitialized> USocialUser::InitEventsByUser;
+TMap<TWeakObjectPtr<USocialUser>, TArray<FOnNewSocialUserInitialized>> USocialUser::InitEventsByUser;
 
 USocialUser::USocialUser()
 {}
@@ -176,7 +176,7 @@ void USocialUser::Initialize(const FUniqueNetIdRepl& PrimaryId)
 	}
 }
 
-void USocialUser::RegisterInitCompleteHandler(const FOnNewSocialUserInitialized::FDelegate& OnInitializationComplete)
+void USocialUser::RegisterInitCompleteHandler(const FOnNewSocialUserInitialized& OnInitializationComplete)
 {
 	if (ensure(OnInitializationComplete.IsBound()))
 	{
@@ -345,10 +345,13 @@ void USocialUser::TryBroadcastInitializationComplete()
 
 				bIsInitialized = true;
 
-				FOnNewSocialUserInitialized InitEvent;
-				if (InitEventsByUser.RemoveAndCopyValue(this, InitEvent))
+				TArray<FOnNewSocialUserInitialized> InitEvents;
+				if (InitEventsByUser.RemoveAndCopyValue(this, InitEvents))
 				{
-					InitEvent.Broadcast(*this);
+					for (FOnNewSocialUserInitialized& InitEvent : InitEvents)
+					{
+						InitEvent.ExecuteIfBound(*this);
+					}
 				}
 			}
 			else
@@ -1022,59 +1025,55 @@ bool USocialUser::ShowPlatformProfile()
 	return false;
 }
 
+void USocialUser::HandlePartyInviteReceived(const IOnlinePartyJoinInfo& Invite)
+{
+	ReceivedPartyInvites.Emplace(Invite.AsShared());
+	GetOwningToolkit().OnPartyInviteReceived().Broadcast(*this);
+}
+
+void USocialUser::HandlePartyInviteRemoved(const IOnlinePartyJoinInfo& Invite, EPartyInvitationRemovedReason Reason)
+{
+	ReceivedPartyInvites.Remove(Invite.AsShared());
+	// TODO? GetOwningToolkit().OnPartyInviteRemoved().Broadcast(*this);
+}
+
 TSharedPtr<const IOnlinePartyJoinInfo> USocialUser::GetPartyJoinInfo(const FOnlinePartyTypeId& PartyTypeId) const
 {
-	IOnlinePartyPtr PartyInterface = Online::GetPartyInterface(GetWorld());
-	if (PartyInterface.IsValid())
+	TSharedPtr<const IOnlinePartyJoinInfo> JoinInfo = nullptr;
+
+	if (IOnlinePartyPtr PartyInterface = Online::GetPartyInterface(GetWorld()))
 	{
 		const FUniqueNetIdRepl LocalUserId = GetOwningToolkit().GetLocalUserNetId(ESocialSubsystem::Primary);
 		const FUniqueNetIdRepl UserId = GetUserId(ESocialSubsystem::Primary);
 		if (ensure(LocalUserId.IsValid()) && ensure(UserId.IsValid()))
 		{
-			TSharedPtr<const IOnlinePartyJoinInfo> JoinInfo = PartyInterface->GetAdvertisedParty(*LocalUserId, *UserId, PartyTypeId);
-			if (!JoinInfo.IsValid())
-			{
-				// No advertised party info, check to see if this user has sent an invite
-				TArray<IOnlinePartyJoinInfoConstRef> AllPendingInvites;
-				if (PartyInterface->GetPendingInvites(*LocalUserId, AllPendingInvites))
-				{
-					for (const IOnlinePartyJoinInfoConstRef& InvitationJoinInfo : AllPendingInvites)
-					{
-						if (*InvitationJoinInfo->GetSourceUserId() == *UserId)
-						{
-							JoinInfo = InvitationJoinInfo;
-							break;
-						}
-					}
-				}
-			}
-
-			return JoinInfo;
+			JoinInfo = PartyInterface->GetAdvertisedParty(*LocalUserId, *UserId, PartyTypeId);
 		}
 	}
-	return nullptr;
+
+	// If no advertised party info, check to see if this user has sent an invite
+	if (!JoinInfo.IsValid())
+	{
+		for (const IOnlinePartyJoinInfoConstRef& Invite : ReceivedPartyInvites)
+		{
+			if (Invite->GetPartyTypeId() == PartyTypeId)
+			{
+				JoinInfo = Invite;
+				break;
+			}
+		}
+	}
+
+	return JoinInfo;
 }
 
 bool USocialUser::HasSentPartyInvite(const FOnlinePartyTypeId& PartyTypeId) const
 {
-	IOnlinePartyPtr PartyInterface = Online::GetPartyInterface(GetWorld());
-	if (PartyInterface.IsValid())
+	for (const IOnlinePartyJoinInfoConstRef& Invite : ReceivedPartyInvites)
 	{
-		const FUniqueNetIdRepl LocalUserId = GetOwningToolkit().GetLocalUserNetId(ESocialSubsystem::Primary);
-		const FUniqueNetIdRepl UserId = GetUserId(ESocialSubsystem::Primary);
-		if (ensure(LocalUserId.IsValid()) && UserId.IsValid())
+		if (Invite->GetPartyTypeId() == PartyTypeId)
 		{
-			TArray<IOnlinePartyJoinInfoConstRef> AllPendingInvites;
-			if (PartyInterface->GetPendingInvites(*LocalUserId, AllPendingInvites))
-			{
-				for (const IOnlinePartyJoinInfoConstRef& InvitationJoinInfo : AllPendingInvites)
-				{
-					if (*InvitationJoinInfo->GetSourceUserId() == *UserId && InvitationJoinInfo->GetPartyTypeId() == PartyTypeId)
-					{
-						return true;
-					}
-				}
-			}
+			return true;
 		}
 	}
 	return false;

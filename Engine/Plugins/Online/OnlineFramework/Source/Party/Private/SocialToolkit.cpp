@@ -453,7 +453,7 @@ void USocialToolkit::QueueUserDependentActionInternal(const FUniqueNetIdRepl& Su
 		}
 		else
 		{
-			User->RegisterInitCompleteHandler(FOnNewSocialUserInitialized::FDelegate::CreateLambda(UserActionFunc));
+			User->RegisterInitCompleteHandler(FOnNewSocialUserInitialized::CreateLambda(UserActionFunc));
 		}
 	}
 }
@@ -574,7 +574,8 @@ void USocialToolkit::OnOwnerLoggedIn()
 
 			if (IOnlinePartyPtr PartyInterface = OSS->GetPartyInterface())
 			{
-				PartyInterface->AddOnPartyInviteReceivedDelegate_Handle(FOnPartyInviteReceivedDelegate::CreateUObject(this, &USocialToolkit::HandlePartyInviteReceived));
+				PartyInterface->AddOnPartyInviteReceivedExDelegate_Handle(FOnPartyInviteReceivedExDelegate::CreateUObject(this, &USocialToolkit::HandlePartyInviteReceived));
+				PartyInterface->AddOnPartyInviteRemovedExDelegate_Handle(FOnPartyInviteRemovedExDelegate::CreateUObject(this, &USocialToolkit::HandlePartyInviteRemoved));
 			}
 
 			if (IOnlinePresencePtr PresenceInterface = OSS->GetPresenceInterface())
@@ -1008,51 +1009,44 @@ void USocialToolkit::HandleAcceptFriendInviteComplete(int32 LocalUserNum, bool b
 	OnAcceptFriendInviteComplete(InviterUserId, bWasSuccessful, ErrorStr);
 }
 
-void USocialToolkit::HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId)
+void USocialToolkit::HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, const IOnlinePartyJoinInfo& Invite)
 {
-	if (LocalUserId == *GetLocalUserNetId(ESocialSubsystem::Primary))
+	if (LocalUserId == GetLocalUserNetId(ESocialSubsystem::Primary))
 	{
 		// We really should know about the sender of the invite already, but queue it up in case we receive it during initial setup
-		QueueUserDependentActionInternal(SenderId.AsShared(), ESocialSubsystem::Primary,
-			[this, PartyId = PartyId.AsShared(), SenderId = SenderId.AsShared()] (USocialUser& User)
+		QueueUserDependentActionInternal(Invite.GetSourceUserId(), ESocialSubsystem::Primary,
+			[this, Invite = Invite.AsShared()] (USocialUser& User)
 			{
 				if (User.IsFriend(ESocialSubsystem::Primary))
 				{
 #if PARTY_PLATFORM_INVITE_PERMISSIONS
-					if (IOnlineSubsystem* Oss = GetSocialOss(ESocialSubsystem::Primary))
+					CanReceiveInviteFrom(User, Invite, [this, Invite, UserId = User.GetUserId(ESocialSubsystem::Primary)](const bool bResult)
 					{
-						if (IOnlinePartyPtr PartyInterface = Oss->GetPartyInterface())
-						{
-							TArray<IOnlinePartyJoinInfoConstRef> PendingInvites;
-							PartyInterface->GetPendingInvites(*GetLocalUserNetId(ESocialSubsystem::Primary), PendingInvites);
-							for (const IOnlinePartyJoinInfoConstRef& PendingInvite : PendingInvites)
-							{
-								if (*PendingInvite->GetPartyId() == *PartyId &&
-									*PendingInvite->GetSourceUserId() == *SenderId)
-								{
-									CanReceiveInviteFrom(User, PendingInvite, [this, PendingInvite, UserId = User.GetUserId(ESocialSubsystem::Primary)](const bool bResult)
-									{
-										UE_LOG(LogParty, Log, TEXT("USocialToolkit::HandlePartyInviteReceived LocalUser=[%s] Inviter=[%s] CanReceiveInviteFrom=[%s]"),
-											*GetLocalUserNetId(ESocialSubsystem::Primary).ToDebugString(), *UserId.ToDebugString(), *LexToString(bResult));
+						UE_LOG(LogParty, Log, TEXT("USocialToolkit::HandlePartyInviteReceived LocalUser=[%s] Inviter=[%s] CanReceiveInviteFrom=[%s]"),
+							*GetLocalUserNetId(ESocialSubsystem::Primary).ToDebugString(), *UserId.ToDebugString(), *LexToString(bResult));
 
-										if (bResult)
-										{
-											QueueUserDependentActionInternal(UserId, ESocialSubsystem::Primary,
-												[this](USocialUser& User)
-											{
-												OnPartyInviteReceived().Broadcast(User);
-											});
-										}
-									});
-								}
-							}
+						USocialUser* User = FindUser(UserId);
+						if (bResult && User)
+						{
+							User->HandlePartyInviteReceived(*Invite);
 						}
-					}
+					});
 #else
-					OnPartyInviteReceived().Broadcast(User);
+					User.HandlePartyInviteReceived(*Invite);
 #endif
 				}
 			});
+	}
+}
+
+void USocialToolkit::HandlePartyInviteRemoved(const FUniqueNetId& LocalUserId, const IOnlinePartyJoinInfo& Invite, EPartyInvitationRemovedReason Reason)
+{
+	if (LocalUserId == GetLocalUserNetId(ESocialSubsystem::Primary))
+	{
+		if (USocialUser* User = FindUser(Invite.GetSourceUserId()))
+		{
+			User->HandlePartyInviteRemoved(Invite, Reason);
+		}
 	}
 }
 
@@ -1134,7 +1128,7 @@ void USocialToolkit::HandleExistingPartyInvites(ESocialSubsystem SubsystemType)
 				PartyInterface->GetPendingInvites(*LocalUserId, PendingInvites);
 				for (const IOnlinePartyJoinInfoConstRef& PendingInvite : PendingInvites)
 				{
-					HandlePartyInviteReceived(*LocalUserId, *PendingInvite->GetPartyId(), *PendingInvite->GetSourceUserId());
+					HandlePartyInviteReceived(*LocalUserId, *PendingInvite);
 				}
 			}
 		}
