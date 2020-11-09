@@ -1106,6 +1106,8 @@ struct FCloudFileHeader
 	FString URL;
 	/** The chunk id this file represents */
 	uint32 ChunkID;
+	/** Pointers to externally-accessible representations of this file */
+	TMap<FString, FString> ExternalStorageIds;
 
 	/** Constructors */
 	FCloudFileHeader() :
@@ -1128,7 +1130,8 @@ struct FCloudFileHeader
 			DLName == Other.DLName &&
 			FileName == Other.FileName &&
 			URL == Other.URL &&
-			ChunkID == Other.ChunkID;
+			ChunkID == Other.ChunkID &&
+			ExternalStorageIds.OrderIndependentCompareEqual(Other.ExternalStorageIds);
 	}
 
 	bool operator<(const FCloudFileHeader& Other) const
