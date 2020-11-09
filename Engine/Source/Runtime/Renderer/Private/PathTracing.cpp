@@ -351,7 +351,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		// First time through, need to make a new texture
 		FRDGTextureDesc RadianceTextureDesc = FRDGTextureDesc::Create2D(
 			View.ViewRect.Size(),
-			PF_FloatRGBA,
+			PF_A32B32G32R32F,
 			FClearValueBinding::None,
 			TexCreate_ShaderResource | TexCreate_UAV);
 		RadianceTexture = GraphBuilder.CreateTexture(RadianceTextureDesc, TEXT("PathTracerRadiance"), ERDGTextureFlags::MultiFrame);
