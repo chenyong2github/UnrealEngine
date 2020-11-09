@@ -414,18 +414,20 @@ void DiffUtils::CompareUnrelatedSCS(const UBlueprint* Old, const TArray< FSCSRes
 
 static void AdvanceSetIterator( FScriptSetHelper& SetHelper, int32& Index)
 {
-	while(Index < SetHelper.GetMaxIndex() && !SetHelper.IsValidIndex(Index))
+	do
 	{
 		++Index;
 	}
+	while(Index < SetHelper.GetMaxIndex() && !SetHelper.IsValidIndex(Index));
 }
 
 static void AdvanceMapIterator( FScriptMapHelper& MapHelper, int32& Index)
 {
-	while(Index < MapHelper.GetMaxIndex() && !MapHelper.IsValidIndex(Index))
+	do
 	{
 		++Index;
 	}
+	while(Index < MapHelper.GetMaxIndex() && !MapHelper.IsValidIndex(Index));
 }
 
 static void IdenticalHelper(const FProperty* AProperty, const FProperty* BProperty, const void* AValue, const void* BValue, const FPropertySoftPath& RootPath, TArray<FPropertySoftPath>& DifferingSubProperties, bool bStaticArrayHandled = false)
@@ -518,8 +520,8 @@ static void IdenticalHelper(const FProperty* AProperty, const FProperty* BProper
 			const int32 SetSizeA = SetHelperA.Num();
 			const int32 SetSizeB = SetHelperB.Num();
 			
-			int32 SetIndexA = 0;
-			int32 SetIndexB = 0;
+			int32 SetIndexA = -1;
+			int32 SetIndexB = -1;
 
 			AdvanceSetIterator(SetHelperA, SetIndexA);
 			AdvanceSetIterator(SetHelperB, SetIndexB);
@@ -556,8 +558,8 @@ static void IdenticalHelper(const FProperty* AProperty, const FProperty* BProper
 			int32 MapSizeA = MapHelperA.Num();
 			int32 MapSizeB = MapHelperB.Num();
 			
-			int32 MapIndexA = 0;
-			int32 MapIndexB = 0;
+			int32 MapIndexA = -1;
+			int32 MapIndexB = -1;
 
 			AdvanceMapIterator(MapHelperA, MapIndexA);
 			AdvanceMapIterator(MapHelperB, MapIndexB);
