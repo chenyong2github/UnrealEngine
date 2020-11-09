@@ -856,7 +856,7 @@ void FMaterialBakingModule::OnObjectModified(UObject* Object)
 
 	if (CVarUseMaterialProxyCaching.GetValueOnAnyThread())
 	{
-		UMaterialInstance* MaterialToInvalidate = Cast<UMaterialInstance>(Object);
+		UMaterialInterface* MaterialToInvalidate = Cast<UMaterialInterface>(Object);
 		if (!MaterialToInvalidate)
 		{
 			// Check to see if the object is a material editor instance constant and if so, retrieve its source instance
