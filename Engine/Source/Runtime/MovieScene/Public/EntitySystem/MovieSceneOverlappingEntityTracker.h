@@ -203,6 +203,29 @@ struct TOverlappingEntityTracker
 		return nullptr;
 	}
 
+	bool NeedsRestoration(ParamType Key, bool bEnsureOutput = false) const
+	{
+		const uint16 ExistingOutput = FindOutputByKey(Key);
+		const bool bIsOutputValid = IsOutputValid(ExistingOutput);
+		ensure(bIsOutputValid || !bEnsureOutput);
+		if (bIsOutputValid)
+		{
+			return Outputs[ExistingOutput].Aggregate.bNeedsRestoration;
+		}
+		return false;
+	}
+
+	void SetNeedsRestoration(ParamType Key, bool bNeedsRestoration, bool bEnsureOutput = false)
+	{
+		const uint16 ExistingOutput = FindOutputByKey(Key);
+		const bool bIsOutputValid = IsOutputValid(ExistingOutput);
+		ensure(bIsOutputValid || !bEnsureOutput);
+		if (bIsOutputValid)
+		{
+			Outputs[ExistingOutput].Aggregate.bNeedsRestoration = bNeedsRestoration;
+		}
+	}
+
 protected:
 
 	void VisitLinkedAllocationImpl(const FEntityAllocation* Allocation, TRead<KeyType> ReadKeys)
@@ -301,6 +324,13 @@ protected:
 			InvalidatedOutputs.PadToNum(OutputIndex + 1, false);
 			InvalidatedOutputs[OutputIndex] = true;
 		}
+	}
+
+	bool IsOutputValid(uint16 OutputIndex)
+	{
+		return OutputIndex != NO_OUTPUT &&
+			(!InvalidatedOutputs.IsValidIndex(OutputIndex) ||
+			 !InvalidatedOutputs[OutputIndex]);
 	}
 
 	struct FOutput

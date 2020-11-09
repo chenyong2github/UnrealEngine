@@ -27,6 +27,8 @@ public:
 	virtual void SaveGlobalPreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents) {}
 
 	virtual void RestorePreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents) {}
+
+	virtual void DiscardPreAnimatedStateForObject(UObject& Object) {}
 };
 
 
@@ -73,6 +75,8 @@ public:
 	GENERATED_BODY()
 
 	UMovieSceneRestorePreAnimatedStateSystem(const FObjectInitializer& ObjInit);
+
+	MOVIESCENE_API void DiscardPreAnimatedStateForObject(UObject& Object);
 
 private:
 
