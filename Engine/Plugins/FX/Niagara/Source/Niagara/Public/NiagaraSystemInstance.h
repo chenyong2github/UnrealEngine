@@ -75,7 +75,7 @@ public:
 
 	void SetGpuComputeDebug(bool bEnableDebug);
 
-	void UpdatePrereqs();
+	UActorComponent* GetPrereqComponent() const;
 
 	//void RebindParameterCollection(UNiagaraParameterCollectionInstance* OldInstance, UNiagaraParameterCollectionInstance* NewInstance);
 	void BindParameters();
@@ -388,7 +388,6 @@ private:
 	TWeakObjectPtr<UNiagaraSystem> Asset;
 	FNiagaraUserRedirectionParameterStore* OverrideParameters;
 	TWeakObjectPtr<USceneComponent> AttachComponent;
-	UActorComponent* PrereqComponent;
 
 	FTransform WorldTransform;
 

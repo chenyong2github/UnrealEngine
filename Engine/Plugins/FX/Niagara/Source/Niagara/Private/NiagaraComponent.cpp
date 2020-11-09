@@ -1880,10 +1880,7 @@ void UNiagaraComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMateria
 void UNiagaraComponent::SetComponentTickEnabled(bool bEnabled)
 {
 	Super::SetComponentTickEnabled(bEnabled);
-	if (SystemInstance.IsValid())
-	{
-		SystemInstance->UpdatePrereqs();
-	}
+
 }
 
 void UNiagaraComponent::OnAttachmentChanged()
@@ -1895,28 +1892,19 @@ void UNiagaraComponent::OnAttachmentChanged()
 	// 	}
 
 	Super::OnAttachmentChanged();
-	if ( SystemInstance.IsValid() )
-	{
-		SystemInstance->UpdatePrereqs();
-	}
+
 }
 
 void UNiagaraComponent::OnChildAttached(USceneComponent* ChildComponent)
 {
 	Super::OnChildAttached(ChildComponent);
-	if (SystemInstance.IsValid())
-	{
-		SystemInstance->UpdatePrereqs();
-	}
+
 }
 
 void UNiagaraComponent::OnChildDetached(USceneComponent* ChildComponent)
 {
 	Super::OnChildDetached(ChildComponent);
-	if (SystemInstance.IsValid())
-	{
-		SystemInstance->UpdatePrereqs();
-	}
+
 }
 
 FNiagaraSystemInstance* UNiagaraComponent::GetSystemInstance() const

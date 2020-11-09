@@ -103,7 +103,6 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& 
 	, Asset(&InAsset)
 	, OverrideParameters(InOverrideParameters)
 	, AttachComponent(InAttachComponent)
-	, PrereqComponent(nullptr)
 	, TickBehavior(InTickBehavior)
 	, Age(0.0f)
 	, LastRenderTime(0.0f)
@@ -302,6 +301,7 @@ void FNiagaraSystemInstance::DumpTickInfo(FOutputDevice& Ar)
 	static const UEnum* TickingGroupEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ETickingGroup"));
 
 	FString PrereqInfo;
+	UActorComponent* PrereqComponent = GetPrereqComponent();
 	if (PrereqComponent != nullptr)
 	{
 		ETickingGroup PrereqTG = FMath::Max(PrereqComponent->PrimaryComponentTick.TickGroup, PrereqComponent->PrimaryComponentTick.EndTickGroup);
@@ -490,7 +490,6 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 	}
 	else
 	{
-		UpdatePrereqs();
 		const ETickingGroup TickGroup = CalculateTickGroup();
 		TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> NewSim = GetWorldManager()->GetSystemSimulation(TickGroup, System);
 
@@ -556,9 +555,9 @@ void FNiagaraSystemInstance::SetGpuComputeDebug(bool bEnableDebug)
 #endif
 }
 
-void FNiagaraSystemInstance::UpdatePrereqs()
+UActorComponent* FNiagaraSystemInstance::GetPrereqComponent() const
 {
-	PrereqComponent = AttachComponent.Get();
+	UActorComponent* PrereqComponent = AttachComponent.Get();
 
 	// This is to maintain legacy behavior (and perf benefit) of ticking in PrePhysics with unattached UNiagaraComponents that have no DI prereqs
 	// NOTE: This means that the system likely ticks with frame-behind transform if the component is moved, but likely doesn't manifest as an issue with local-space emitters
@@ -567,6 +566,7 @@ void FNiagaraSystemInstance::UpdatePrereqs()
 	{
 		PrereqComponent = NiagaraComponent->GetAttachParent();
 	}
+	return PrereqComponent;
 }
 
 void FNiagaraSystemInstance::Activate(EResetMode InResetMode)
@@ -657,7 +657,6 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(TUniquePtr< FNiagaraSystem
 
 		// Make sure we abandon any external interface at this point
 		SystemInstanceAllocation->OverrideParameters = nullptr;
-		SystemInstanceAllocation->PrereqComponent = nullptr;
 		SystemInstanceAllocation->OnPostTickDelegate.Unbind();
 		SystemInstanceAllocation->OnCompleteDelegate.Unbind();
 
@@ -1066,7 +1065,6 @@ void FNiagaraSystemInstance::ReInitInternal()
 	}
 	else
 	{
-		UpdatePrereqs();
 		const ETickingGroup TickGroup = CalculateTickGroup();
 		SystemSimulation = GetWorldManager()->GetSystemSimulation(TickGroup, System);
 	}
@@ -1666,7 +1664,7 @@ ETickingGroup FNiagaraSystemInstance::CalculateTickGroup() const
 		default:
 		case ENiagaraTickBehavior::UsePrereqs:
 			// Handle attached component tick group
-			if (PrereqComponent != nullptr)
+			if (UActorComponent * PrereqComponent = GetPrereqComponent())
 			{
 				//-TODO: This doesn't deal with 'DontCompleteUntil' on the prereq's tick, if we have to handle that it could mean continual TG demotion
 				ETickingGroup PrereqTG = ETickingGroup(FMath::Max(PrereqComponent->PrimaryComponentTick.TickGroup, PrereqComponent->PrimaryComponentTick.EndTickGroup) + 1);
