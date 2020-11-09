@@ -527,7 +527,7 @@ namespace Chaos
 					check(AvgContact.Phi >= CullingDistance);
 				}
 			}
-			else if (AvgContact.Phi < Contact.Phi)
+			else if (AvgContact.Phi < CullingDistance)
 			{
 				check(DeepestParticle >= 0);
 				TVector<float, 3> LocalPoint = SampleToObjectTM.TransformPositionNoScale(SampleParticles.X(DeepestParticle));
