@@ -333,7 +333,6 @@ class FParticleNonFrequentData
 {
 public:
 	FParticleNonFrequentData()
-	: MUserData(nullptr)
 	{
 
 	}
@@ -347,7 +346,6 @@ public:
 	void CopyFrom(const TOther& Other)
 	{
 		SetGeometry(Other.SharedGeometryLowLevel());
-		SetUserData(Other.UserData());
 		SetUniqueIdx(Other.UniqueIdx());
 		SetSpatialIdx(Other.SpatialIdx());
 #if CHAOS_CHECKED
@@ -359,7 +357,6 @@ public:
 	bool IsEqual(const TOther& Other) const
 	{
 		return Geometry() == Other.SharedGeometryLowLevel()
-			&& UserData() == Other.UserData()
 			&& UniqueIdx() == Other.UniqueIdx()
 			&& SpatialIdx() == Other.SpatialIdx()
 #if CHAOS_CHECKED
@@ -377,9 +374,6 @@ public:
 	const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return MGeometry;}
 	void SetGeometry(const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& InGeometry) { MGeometry = InGeometry;}
 
-	void* UserData() const { return MUserData; }
-	void SetUserData(void* InData){ MUserData = InData;}
-
 	const FUniqueIdx& UniqueIdx() const { return MUniqueIdx; }
 	void SetUniqueIdx(FUniqueIdx InIdx){ MUniqueIdx = InIdx; }
 
@@ -392,7 +386,6 @@ public:
 #endif
 private:
 	TSharedPtr<FImplicitObject,ESPMode::ThreadSafe> MGeometry;
-	void* MUserData;
 	FUniqueIdx MUniqueIdx;
 	FSpatialAccelerationIdx MSpatialIdx;
 

@@ -184,12 +184,6 @@ public:
 	}
 
 	template <typename TParticle>
-	void* UserData(const TParticle& Particle) const
-	{
-		return NonFrequentData.IsSet() ? NonFrequentData.Read().UserData() : Particle.UserData();
-	}
-
-	template <typename TParticle>
 	FUniqueIdx UniqueIdx(const TParticle& Particle) const
 	{
 		return NonFrequentData.IsSet() ? NonFrequentData.Read().UniqueIdx() : Particle.UniqueIdx();
@@ -347,11 +341,6 @@ public:
 	TSerializablePtr<FImplicitObject> Geometry() const
 	{
 		return State.Geometry(Particle);
-	}
-
-	void* UserData() const
-	{
-		return State.UserData(Particle);
 	}
 
 	FUniqueIdx UniqueIdx() const
