@@ -94,6 +94,7 @@ void UninitEngine()
 bool RunSwitchboardListener(int ArgC, TCHAR* ArgV[])
 {
 	FCommandLineOptions Options;
+
 	if (!ParseCommandLine(ArgC, ArgV, Options))
 	{
 		UE_LOG(LogSwitchboard, Warning, TEXT("No ip/port passed on command line!"));
@@ -101,7 +102,9 @@ bool RunSwitchboardListener(int ArgC, TCHAR* ArgV[])
 		Options.Address = FIPv4Address(0, 0, 0, 0);
 		Options.Port = 2980;
 	}
+
 	FSwitchboardListener Listener({ Options.Address, Options.Port });
+
 	if (!Listener.Init())
 	{
 		return false;
@@ -111,6 +114,7 @@ bool RunSwitchboardListener(int ArgC, TCHAR* ArgV[])
 	const float IdealFrameTime = 1.0f / 30.0f;
 
 	bool bListenerIsRunning = true;
+
 	while (bListenerIsRunning)
 	{
 		const double CurrentTime = FPlatformTime::Seconds();
@@ -141,11 +145,13 @@ bool RunSwitchboardListener(int ArgC, TCHAR* ArgV[])
 INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 {
 	const int32 InitResult = InitEngine(TEXT(""));
+
 	if (InitResult != 0)
 	{
 		UE_LOG(LogSwitchboard, Fatal, TEXT("Could not initialize engine, Error code: %d"), InitResult);
 		return InitResult;
 	}
+
 	UE_LOG(LogSwitchboard, Display, TEXT("Successfully initialized engine."));
 
 	if (!InitSocketSystem())
@@ -153,6 +159,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 		UE_LOG(LogSwitchboard, Fatal, TEXT("Could not initialize socket system!"));
 		return 1;
 	}
+
 	UE_LOG(LogSwitchboard, Display, TEXT("Successfully initialized socket system."));
 
 #if PLATFORM_WINDOWS
