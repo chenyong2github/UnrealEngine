@@ -180,14 +180,18 @@ class DeviceWidget(QtWidgets.QWidget):
         # Status Icon
         if status >= DeviceStatus.READY:
             self.status_icon.setPixmap(QtGui.QPixmap(f":/icons/images/status_green.png"))
+            self.status_icon.setToolTip("Ready to start recording")
         elif status == DeviceStatus.DISCONNECTED:
             pixmap = QtGui.QPixmap(f":/icons/images/status_blank_disabled.png")
             self.status_icon.setPixmap(pixmap)
+            self.status_icon.setToolTip("Disconnected")
         elif status == DeviceStatus.OPEN:
             pixmap = QtGui.QPixmap(f":/icons/images/status_orange.png")
             self.status_icon.setPixmap(pixmap)
+            self.status_icon.setToolTip("Device has been started")
         else:
-            self.status_icon.setPixmap(QtGui.QPixmap(f":/icons/images/status_blank.png"))
+            self.status_icon.setPixmap(QtGui.QPixmap(f":/icons/images/status_cyan.png"))
+            self.status_icon.setToolTip("Connected")
 
         # Device icon
         if status == DeviceStatus.DISCONNECTED:

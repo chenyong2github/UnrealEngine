@@ -86,12 +86,14 @@ class DeviceListWidget(QtWidgets.QListWidget):
         self.signal_connect_all_plugin_devices_toggled.emit(plugin_name, state)
 
     def add_header(self, label_name, show_open_button, show_connect_button, show_changelist):
-        device_item = QtWidgets.QListWidgetItem()
-        device_item.setSizeHint(QtCore.QSize(self.parent().width(), sb_widgets.DEVICE_HEADER_LIST_WIDGET_HEIGHT))
-        self.addItem(device_item)
         header_widget = DeviceWidgetHeader(label_name, show_open_button, show_connect_button, show_changelist)
         header_widget.signal_connect_all_toggled.connect(self.signal_connect_all_plugin_devices_toggled)
         header_widget.signal_open_all_toggled.connect(self.signal_open_all_plugin_devices_toggled)
+
+        device_item = QtWidgets.QListWidgetItem()
+        header_item_size = QtCore.QSize(header_widget.sizeHint().width(), sb_widgets.DEVICE_HEADER_LIST_WIDGET_HEIGHT)
+        device_item.setSizeHint(header_item_size)
+        self.addItem(device_item)
         self.setItemWidget(device_item, header_widget)
 
         return device_item
@@ -109,7 +111,8 @@ class DeviceListWidget(QtWidgets.QListWidget):
         header_row = self.row(header_item)
 
         device_item = QtWidgets.QListWidgetItem()
-        device_item.setSizeHint(QtCore.QSize(self.parent().width(), sb_widgets.DEVICE_LIST_WIDGET_HEIGHT))
+        device_item_size = QtCore.QSize(device.widget.sizeHint().width(), sb_widgets.DEVICE_LIST_WIDGET_HEIGHT)
+        device_item.setSizeHint(device_item_size)
         self.insertItem(header_row+1, device_item)
         self.setItemWidget(device_item, device.widget)
 
@@ -117,8 +120,8 @@ class DeviceListWidget(QtWidgets.QListWidget):
         self._device_widgets[device.device_hash] = device.widget
 
         self.signal_register_device_widget.emit(device.widget)
-        # Force an update to put it in the correct position
-        self.update_status(device, device.status)
+        # force the widget to update, to make sure status is correct
+        device.widget.update_status(device.status, device.status)
 
         return device.widget
 
@@ -147,13 +150,6 @@ class DeviceListWidget(QtWidgets.QListWidget):
 
     def device_widgets(self):
         return self._device_widgets.values()
-
-    def update_status(self, device, previous_status):
-        widget_item = self.widget_item_by_device(device)
-        device_widget = self.itemWidget(widget_item)
-
-        # Tell the widget to update
-        device_widget.update_status(device.status, previous_status)
 
     def update_category_status(self, category_name, devices):
         any_connected = False
