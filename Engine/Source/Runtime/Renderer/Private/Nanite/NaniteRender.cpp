@@ -1189,6 +1189,9 @@ class FEmitSceneDepthPS : public FNaniteShader
 	DECLARE_GLOBAL_SHADER(FEmitSceneDepthPS);
 	SHADER_USE_PARAMETER_STRUCT(FEmitSceneDepthPS, FNaniteShader);
 
+	class FVelocityExportDim : SHADER_PERMUTATION_BOOL("VELOCITY_EXPORT");
+	using FPermutationDomain = TShaderPermutationDomain<FVelocityExportDim>;
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportNanite(Parameters.Platform);
@@ -3908,7 +3911,9 @@ void EmitDepthTargets(
 		{
 			// Emit scene depth buffer and velocity mask
 			{
-				auto  PixelShader		= View.ShaderMap->GetShader<FEmitSceneDepthPS>();
+				FEmitSceneDepthPS::FPermutationDomain PermutationVectorPS;
+				PermutationVectorPS.Set<FEmitSceneDepthPS::FVelocityExportDim>(true);
+				auto  PixelShader		= View.ShaderMap->GetShader<FEmitSceneDepthPS>(PermutationVectorPS);
 				auto* PassParameters	= GraphBuilder.AllocParameters<FEmitSceneDepthPS::FParameters>();
 
 				PassParameters->View						= View.ViewUniformBuffer;
@@ -4709,9 +4714,16 @@ void DrawLumenMeshCapturePass(
 		FNaniteEmitDepthRectsParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteEmitDepthRectsParameters>();
 
 		PassParameters->PS.VisBuffer64 = RasterContext.VisBuffer64;
-		PassParameters->PS.RenderTargets.DepthStencil = FDepthStencilBinding(DepthAtlasTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilRead);
+		PassParameters->PS.RenderTargets.DepthStencil = FDepthStencilBinding(
+			DepthAtlasTexture,
+			ERenderTargetLoadAction::ELoad,
+			ERenderTargetLoadAction::ELoad,
+			FExclusiveDepthStencil::DepthWrite_StencilRead
+		);
 
-		auto PixelShader = SharedView->ShaderMap->GetShader<FEmitSceneDepthPS>();
+		FEmitSceneDepthPS::FPermutationDomain PermutationVectorPS;
+		PermutationVectorPS.Set<FEmitSceneDepthPS::FVelocityExportDim>(false);
+		auto PixelShader = SharedView->ShaderMap->GetShader<FEmitSceneDepthPS>(PermutationVectorPS);
 
 		FPixelShaderUtils::AddRasterizeToRectsPass(GraphBuilder,
 			SharedView->ShaderMap,

@@ -82,16 +82,20 @@ void EmitMaterialDepthPS(
 
 void EmitSceneDepthPS(
 	in float4  SvPosition		: SV_Position,
+#if VELOCITY_EXPORT
 	out uint   OutNaniteMask	: SV_Target0,
 	out float4 OutVelocity		: SV_Target1,
+#endif
 	out float  OutDepth			: SV_Depth
 )
 {
 	OutDepth = 0;
+#if VELOCITY_EXPORT
 	OutVelocity = 0;
 	OutNaniteMask = 0x0;
 
 	FNaniteView NaniteView = GetNaniteView(0);
+#endif
 
 	uint2 PixelPos = (uint2)SvPosition.xy;
 	UlongType VisPixel = VisBuffer64[PixelPos];
@@ -103,6 +107,7 @@ void EmitSceneDepthPS(
 
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
+#if VELOCITY_EXPORT
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster.InstanceId);
 		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
@@ -115,8 +120,9 @@ void EmitSceneDepthPS(
 		
 		const float3 Velocity = Calculate3DVelocity(ScreenPos, ScreenPosPrev);
 		OutVelocity = EncodeVelocityToTexture(Velocity);
-		OutDepth = asfloat(DepthInt);
 		OutNaniteMask = 0x1;
+#endif
+		OutDepth = asfloat(DepthInt);
 	}
 	else
 	{
