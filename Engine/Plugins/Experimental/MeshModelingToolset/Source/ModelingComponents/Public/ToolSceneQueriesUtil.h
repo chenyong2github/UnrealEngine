@@ -126,7 +126,8 @@ namespace ToolSceneQueriesUtil
 	 * @return true if a visible hit was found
 	 */
 	MODELINGCOMPONENTS_API bool FindNearestVisibleObjectHit(UWorld* World, FHitResult& HitResultOut, const FVector& Start, const FVector& End,
-		const TArray<UPrimitiveComponent*>* IgnoreComponents = nullptr );
+		const TArray<UPrimitiveComponent*>* IgnoreComponents = nullptr, 
+		const TArray<UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr);
 
 
 	/**
@@ -138,6 +139,7 @@ namespace ToolSceneQueriesUtil
 	 * @return true if a visible hit was found
 	 */
 	MODELINGCOMPONENTS_API bool FindNearestVisibleObjectHit(UWorld* World, FHitResult& HitResultOut, const FRay& Ray,
-		const TArray<UPrimitiveComponent*>* IgnoreComponents = nullptr);
+		const TArray<UPrimitiveComponent*>* IgnoreComponents = nullptr, 
+		const TArray<UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr);
 
 }

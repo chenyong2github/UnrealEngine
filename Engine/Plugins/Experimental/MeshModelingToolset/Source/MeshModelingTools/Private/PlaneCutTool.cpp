@@ -157,6 +157,14 @@ void UPlaneCutTool::Setup()
 	// click to set plane behavior
 	FSelectClickedAction* SetPlaneAction = new FSelectClickedAction();
 	SetPlaneAction->World = this->TargetWorld;
+
+	// Include the original components even though we made them invisible, since we want
+	// to be able to reposition the plane onto the original mesh.
+	for (const TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
+	{
+		SetPlaneAction->InvisibleComponentsToHitTest.Add(Target->GetOwnerComponent());
+	}
+
 	SetPlaneAction->OnClickedPositionFunc = [this](const FHitResult& Hit)
 	{
 		SetCutPlaneFromWorldPos(Hit.ImpactPoint, Hit.ImpactNormal, false);

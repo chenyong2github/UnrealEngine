@@ -260,23 +260,19 @@ void UMirrorTool::Setup()
 		}
 		});
 
-	// Set up ability to set a new plane location through Ctrl+clicking.
-	SetPlaneClickBehaviorTarget = MakeUnique<FSelectClickedAction>();
-	SetPlaneClickBehaviorTarget->World = this->TargetWorld;
-	SetPlaneClickBehaviorTarget->OnClickedPositionFunc = [this](const FHitResult& Hit)
+	// Modify the Ctrl+click set plane behavior to respond to our CtrlClickBehavior property
+	PlaneMechanic->SetPlaneCtrlClickBehaviorTarget->OnClickedPositionFunc = [this](const FHitResult& Hit)
 	{
 		bool bIgnoreNormal = (Settings->CtrlClickBehavior == EMirrorCtrlClickBehavior::Reposition);
 		PlaneMechanic->SetDrawPlaneFromWorldPos(Hit.ImpactPoint, Hit.ImpactNormal, bIgnoreNormal);
-
-		for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
-		{
-			Preview->InvalidateResult();
-		}
 	};
-	USingleClickInputBehavior* ClickToSetPlaneBehavior = NewObject<USingleClickInputBehavior>();
-	ClickToSetPlaneBehavior->ModifierCheckFunc = FInputDeviceState::IsCtrlKeyDown;
-	ClickToSetPlaneBehavior->Initialize(SetPlaneClickBehaviorTarget.Get());
-	AddInputBehavior(ClickToSetPlaneBehavior);
+	// Also include the original components in the ctrl+click hit testing even though we made them 
+	// invisible, since we want to be able to reposition the plane onto the original mesh.
+	for (const TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
+	{
+		PlaneMechanic->SetPlaneCtrlClickBehaviorTarget->InvisibleComponentsToHitTest.Add(Target->GetOwnerComponent());
+	}
+
 
 	// Add modifier button for snapping
 	UKeyAsModifierInputBehavior* SnapToggleBehavior = NewObject<UKeyAsModifierInputBehavior>();
