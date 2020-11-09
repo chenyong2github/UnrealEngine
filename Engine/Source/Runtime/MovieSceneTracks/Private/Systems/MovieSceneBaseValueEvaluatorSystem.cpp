@@ -38,7 +38,7 @@ UMovieSceneBaseValueEvaluatorSystem::UMovieSceneBaseValueEvaluatorSystem(const F
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		DefineImplicitPrerequisite(UMovieSceneGenericBoundObjectInstantiator::StaticClass(), GetClass());
+		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->BoundObject);
 	}
 }
 
