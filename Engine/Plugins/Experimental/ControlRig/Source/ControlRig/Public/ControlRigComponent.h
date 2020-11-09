@@ -179,7 +179,7 @@ class CONTROLRIG_API UControlRigComponent : public UPrimitiveComponent
 public:
 
 	/** The class of control rig to instantiate */
-	UPROPERTY(EditAnywhere, Category = ControlRig)
+	UPROPERTY(EditAnywhere, Category = ControlRig, meta = (DisallowCreateNew))
 	TSubclassOf<UControlRig> ControlRigClass;
 
 	/** Event fired after this component's ControlRig is initialized */
