@@ -64,7 +64,7 @@ public:
 	bool SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
 	/** Turn the input NiagaraVariable into the User namespaced version if needed, independent of whether or not it is in a redirection table.*/
-	static void MakeUserVariable(FNiagaraVariableBase& InVar);
+	NIAGARA_API static void MakeUserVariable(FNiagaraVariableBase& InVar);
 	static bool IsUserParameter(const FNiagaraVariableBase& InVar);
 
 private:

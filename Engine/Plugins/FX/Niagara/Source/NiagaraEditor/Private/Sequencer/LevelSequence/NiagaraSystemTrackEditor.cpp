@@ -89,17 +89,30 @@ void FNiagaraSystemTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBu
 		GetAnimatedParameters(*GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene(), ObjectBindings[0], AnimatedParameters);
 
 		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+
+		UNiagaraComponent* NiagaraComponent = BoundObjects.Num() == 1 ? Cast<UNiagaraComponent>(BoundObjects[0]) : nullptr;
 		for (const FNiagaraVariable& ParameterVariable : ParameterVariables)
 		{
 			if (ParameterVariable.GetType().IsDataInterface() == false &&
 				NiagaraEditorModule.CanCreateParameterTrackForType(*ParameterVariable.GetType().GetScriptStruct()) && 
 				AnimatedParameters.Contains(ParameterVariable) == false)
 			{
+				TArray<uint8> DefaultValueData;
+				DefaultValueData.AddZeroed(ParameterVariable.GetSizeInBytes());
+				if (NiagaraComponent != nullptr)
+				{
+					const uint8* OverrideParameterData = NiagaraComponent->GetOverrideParameters().GetParameterData(ParameterVariable);
+					if (OverrideParameterData != nullptr)
+					{
+						FMemory::Memcpy(DefaultValueData.GetData(), OverrideParameterData, ParameterVariable.GetSizeInBytes());
+					}
+				}
+
 				MenuBuilder.AddMenuEntry(
 					FText::Format(LOCTEXT("AddNiagaraParameterTrackFormat", "{0} Parameter Track"), FText::FromName(ParameterVariable.GetName())),
 					FText::Format(LOCTEXT("AddNiagaraSystemTrackToolTipFormat", "Add a track for animating the {0} parameter."), FText::FromName(ParameterVariable.GetName())),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateSP(this, &FNiagaraSystemTrackEditor::AddNiagaraParameterTrack, ObjectBindings, ParameterVariable))
+					FUIAction(FExecuteAction::CreateSP(this, &FNiagaraSystemTrackEditor::AddNiagaraParameterTrack, ObjectBindings, ParameterVariable, DefaultValueData))
 				);
 			}
 		}
@@ -161,7 +174,7 @@ void FNiagaraSystemTrackEditor::AddNiagaraSystemTrack(TArray<FGuid> ObjectBindin
 	GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 }
 
-void FNiagaraSystemTrackEditor::AddNiagaraParameterTrack(TArray<FGuid> ObjectBindings, FNiagaraVariable Parameter)
+void FNiagaraSystemTrackEditor::AddNiagaraParameterTrack(TArray<FGuid> ObjectBindings, FNiagaraVariable Parameter, TArray<uint8> DefaultValueData)
 {
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 	if (NiagaraEditorModule.CanCreateParameterTrackForType(*Parameter.GetType().GetScriptStruct()))
@@ -184,6 +197,8 @@ void FNiagaraSystemTrackEditor::AddNiagaraParameterTrack(TArray<FGuid> ObjectBin
 			ParameterTrack->SetDisplayName(FText::FromName(Parameter.GetName()));
 
 			UMovieSceneSection* ParameterSection = ParameterTrack->CreateNewSection();
+			ParameterTrack->SetSectionChannelDefaults(ParameterSection, DefaultValueData);
+			ParameterSection->SetRange(TRange<FFrameNumber>::All());
 			ParameterTrack->AddSection(*ParameterSection);
 		}
 
