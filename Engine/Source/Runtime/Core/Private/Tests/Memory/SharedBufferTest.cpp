@@ -162,6 +162,94 @@ static_assert(std::is_same<FSharedBufferConstPtr, decltype(FSharedBuffer::MakeOw
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferRef&>() == DeclVal<const FSharedBufferRef&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferRef&>() == DeclVal<const FSharedBufferPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferRef&>() == DeclVal<const FSharedBufferWeakPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferRef&>() == DeclVal<const FSharedBufferConstRef&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferRef&>() == DeclVal<const FSharedBufferConstPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferRef&>() == DeclVal<const FSharedBufferConstWeakPtr&>())>::value, "Invalid equality");
+
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferPtr&>() == DeclVal<const FSharedBufferRef&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferPtr&>() == DeclVal<const FSharedBufferPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferPtr&>() == DeclVal<const FSharedBufferWeakPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferPtr&>() == DeclVal<const FSharedBufferConstRef&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferPtr&>() == DeclVal<const FSharedBufferConstPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferPtr&>() == DeclVal<const FSharedBufferConstWeakPtr&>())>::value, "Invalid equality");
+
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferWeakPtr&>() == DeclVal<const FSharedBufferRef&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferWeakPtr&>() == DeclVal<const FSharedBufferPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferWeakPtr&>() == DeclVal<const FSharedBufferWeakPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferWeakPtr&>() == DeclVal<const FSharedBufferConstRef&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferWeakPtr&>() == DeclVal<const FSharedBufferConstPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferWeakPtr&>() == DeclVal<const FSharedBufferConstWeakPtr&>())>::value, "Invalid equality");
+
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstRef&>() == DeclVal<const FSharedBufferRef&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstRef&>() == DeclVal<const FSharedBufferPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstRef&>() == DeclVal<const FSharedBufferWeakPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstRef&>() == DeclVal<const FSharedBufferConstRef&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstRef&>() == DeclVal<const FSharedBufferConstPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstRef&>() == DeclVal<const FSharedBufferConstWeakPtr&>())>::value, "Invalid equality");
+
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstPtr&>() == DeclVal<const FSharedBufferRef&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstPtr&>() == DeclVal<const FSharedBufferPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstPtr&>() == DeclVal<const FSharedBufferWeakPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstPtr&>() == DeclVal<const FSharedBufferConstRef&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstPtr&>() == DeclVal<const FSharedBufferConstPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstPtr&>() == DeclVal<const FSharedBufferConstWeakPtr&>())>::value, "Invalid equality");
+
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstWeakPtr&>() == DeclVal<const FSharedBufferRef&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstWeakPtr&>() == DeclVal<const FSharedBufferPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstWeakPtr&>() == DeclVal<const FSharedBufferWeakPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstWeakPtr&>() == DeclVal<const FSharedBufferConstRef&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstWeakPtr&>() == DeclVal<const FSharedBufferConstPtr&>())>::value, "Invalid equality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstWeakPtr&>() == DeclVal<const FSharedBufferConstWeakPtr&>())>::value, "Invalid equality");
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferRef&>() != DeclVal<const FSharedBufferRef&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferRef&>() != DeclVal<const FSharedBufferPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferRef&>() != DeclVal<const FSharedBufferWeakPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferRef&>() != DeclVal<const FSharedBufferConstRef&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferRef&>() != DeclVal<const FSharedBufferConstPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferRef&>() != DeclVal<const FSharedBufferConstWeakPtr&>())>::value, "Invalid inequality");
+
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferPtr&>() != DeclVal<const FSharedBufferRef&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferPtr&>() != DeclVal<const FSharedBufferPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferPtr&>() != DeclVal<const FSharedBufferWeakPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferPtr&>() != DeclVal<const FSharedBufferConstRef&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferPtr&>() != DeclVal<const FSharedBufferConstPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferPtr&>() != DeclVal<const FSharedBufferConstWeakPtr&>())>::value, "Invalid inequality");
+
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferWeakPtr&>() != DeclVal<const FSharedBufferRef&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferWeakPtr&>() != DeclVal<const FSharedBufferPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferWeakPtr&>() != DeclVal<const FSharedBufferWeakPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferWeakPtr&>() != DeclVal<const FSharedBufferConstRef&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferWeakPtr&>() != DeclVal<const FSharedBufferConstPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferWeakPtr&>() != DeclVal<const FSharedBufferConstWeakPtr&>())>::value, "Invalid inequality");
+
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstRef&>() != DeclVal<const FSharedBufferRef&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstRef&>() != DeclVal<const FSharedBufferPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstRef&>() != DeclVal<const FSharedBufferWeakPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstRef&>() != DeclVal<const FSharedBufferConstRef&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstRef&>() != DeclVal<const FSharedBufferConstPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstRef&>() != DeclVal<const FSharedBufferConstWeakPtr&>())>::value, "Invalid inequality");
+
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstPtr&>() != DeclVal<const FSharedBufferRef&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstPtr&>() != DeclVal<const FSharedBufferPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstPtr&>() != DeclVal<const FSharedBufferWeakPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstPtr&>() != DeclVal<const FSharedBufferConstRef&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstPtr&>() != DeclVal<const FSharedBufferConstPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstPtr&>() != DeclVal<const FSharedBufferConstWeakPtr&>())>::value, "Invalid inequality");
+
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstWeakPtr&>() != DeclVal<const FSharedBufferRef&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstWeakPtr&>() != DeclVal<const FSharedBufferPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstWeakPtr&>() != DeclVal<const FSharedBufferWeakPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstWeakPtr&>() != DeclVal<const FSharedBufferConstRef&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstWeakPtr&>() != DeclVal<const FSharedBufferConstPtr&>())>::value, "Invalid inequality");
+static_assert(std::is_same<bool, decltype(DeclVal<const FSharedBufferConstWeakPtr&>() != DeclVal<const FSharedBufferConstWeakPtr&>())>::value, "Invalid inequality");
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 static_assert(std::is_same<uint32, decltype(GetTypeHash(DeclVal<const FSharedBufferRef>()))>::value, "Missing or invalid hash function");
 static_assert(std::is_same<uint32, decltype(GetTypeHash(DeclVal<const FSharedBufferConstRef>()))>::value, "Missing or invalid hash function");
 static_assert(std::is_same<uint32, decltype(GetTypeHash(DeclVal<const FSharedBufferPtr>()))>::value, "Missing or invalid hash function");
