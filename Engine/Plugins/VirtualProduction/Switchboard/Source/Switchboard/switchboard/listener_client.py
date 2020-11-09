@@ -27,12 +27,6 @@ class ListenerClient(object):
         self.command_accepted_delegate = None
         self.command_declined_delegate = None
 
-        self.program_started_delegate = None
-        self.program_start_failed_delegate = None
-        self.program_ended_delegate = None
-        self.program_killed_delegate = None
-        self.program_kill_failed_delegate = None
-
         self.vcs_init_completed_delegate = None
         self.vcs_init_failed_delegate = None
         self.vcs_report_revision_completed_delegate = None
@@ -187,25 +181,6 @@ class ListenerClient(object):
             else:
                 if self.command_declined_delegate:
                     self.command_declined_delegate(message_id, message["error"])
-
-        elif "program started" in message:
-            message_id = uuid.UUID(message['message id'])
-            if message['program started'] == True:
-                program_id = uuid.UUID(message['program id'])
-                if self.program_started_delegate:
-                    self.program_started_delegate(program_id, message_id)
-            else:
-                if self.program_start_failed_delegate:
-                    self.program_start_failed_delegate(message['error'], message_id)
-
-        elif "program killed" in message:
-            program_id = uuid.UUID(message['program id'])
-            if message['program killed'] == True:
-                if self.program_killed_delegate:
-                    self.program_killed_delegate(program_id)
-            else:
-                if self.program_kill_failed_delegate:
-                    self.program_kill_failed_delegate(program_id, message['error'])
 
         elif "vcs init complete" in message:
             if message['vcs init complete'] == True:
