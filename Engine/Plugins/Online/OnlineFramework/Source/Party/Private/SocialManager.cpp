@@ -15,6 +15,7 @@
 
 #include "OnlineSubsystem.h"
 #include "Interfaces/OnlineIdentityInterface.h"
+#include "Interfaces/OnlinePartyInterface.h"
 #include "OnlineSubsystemUtils.h"
 #include "Engine/LocalPlayer.h"
 #include "OnlineSubsystemSessionSettings.h"
@@ -748,7 +749,7 @@ void USocialManager::QueryPartyJoinabilityInternal(FJoinPartyAttempt& JoinAttemp
 		JoinAttempt.ActionTimeTracker.BeginStep(FJoinPartyAttempt::Step_QueryJoinability);
 
 		IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
-		PartyInterface->QueryPartyJoinability(*LocalUserId, *JoinAttempt.JoinInfo, FOnQueryPartyJoinabilityComplete::CreateUObject(this, &USocialManager::HandleQueryJoinabilityComplete, JoinAttempt.JoinInfo->GetPartyTypeId()));
+		PartyInterface->QueryPartyJoinability(*LocalUserId, *JoinAttempt.JoinInfo, FOnQueryPartyJoinabilityCompleteEx::CreateUObject(this, &USocialManager::HandleQueryJoinabilityComplete, JoinAttempt.JoinInfo->GetPartyTypeId()));
 	}
 	else
 	{
@@ -1015,13 +1016,13 @@ void USocialManager::OnRestorePartiesComplete(const FUniqueNetId& LocalUserId, c
 	OnRestoreComplete.ExecuteIfBound(Result.WasSuccessful());
 }
 
-void USocialManager::HandleQueryJoinabilityComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EJoinPartyCompletionResult Result, int32 NotApprovedReasonCode, FOnlinePartyTypeId PartyTypeId)
+void USocialManager::HandleQueryJoinabilityComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FQueryPartyJoinabilityResult& Result, FOnlinePartyTypeId PartyTypeId)
 {
 	ABORT_DURING_SHUTDOWN();
 
 	if (FJoinPartyAttempt* JoinAttempt = JoinAttemptsByTypeId.Find(PartyTypeId))
 	{
-		if (Result == EJoinPartyCompletionResult::Succeeded)
+		if (Result.EnumResult == EJoinPartyCompletionResult::Succeeded)
 		{
 			if (USocialParty* ExistingParty = GetPartyInternal(PartyTypeId, true))
 			{
@@ -1040,7 +1041,7 @@ void USocialManager::HandleQueryJoinabilityComplete(const FUniqueNetId& LocalUse
 		}
 		else
 		{
-			FinishJoinPartyAttempt(*JoinAttempt, FJoinPartyResult(Result, NotApprovedReasonCode));
+			FinishJoinPartyAttempt(*JoinAttempt, FJoinPartyResult(Result.EnumResult, Result.SubCode));
 		}
 	}
 }

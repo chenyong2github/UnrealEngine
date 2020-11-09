@@ -7,6 +7,7 @@
 #include "UObject/CoreOnline.h"
 #include "OnlineSubsystemTypes.h"
 #include "OnlineDelegateMacros.h"
+#include "OnlineError.h"
 
 typedef FString FChatRoomId;
 struct FOnlineError;
@@ -37,8 +38,9 @@ enum class ERejectPartyInvitationCompletionResult : int8;
 enum class ERequestPartyInvitationCompletionResult : int8;
 enum class ESendPartyInvitationCompletionResult : int8;
 enum class EUpdateConfigCompletionResult : int8;
-
 enum class EInvitationResponse : uint8;
+
+struct FQueryPartyJoinabilityResult;
 
 struct FAnalyticsEventAttribute;
 
@@ -794,6 +796,14 @@ DECLARE_DELEGATE_FourParams(FOnJoinPartyComplete, const FUniqueNetId& /*LocalUse
  */
 DECLARE_DELEGATE_FourParams(FOnQueryPartyJoinabilityComplete, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const EJoinPartyCompletionResult /*Result*/, const int32 /*NotApprovedReason*/);
 /**
+ * Party query joinability async task completed callback
+ *
+ * @param LocalUserId - id of user that initiated the request
+ * @param PartyId - id associated with the party
+ * @param Result - result of the operation
+ */
+DECLARE_DELEGATE_ThreeParams(FOnQueryPartyJoinabilityCompleteEx, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FQueryPartyJoinabilityResult& /*Result*/);
+/**
  * Party leave async task completed callback
  *
  * @param LocalUserId - id of user that initiated the request
@@ -1192,7 +1202,18 @@ public:
 	 * @param OnlinePartyJoinInfo - join information containing data such as party id, leader id
 	 * @param Delegate - called on completion
 	 */
-	virtual void QueryPartyJoinability(const FUniqueNetId& LocalUserId, const IOnlinePartyJoinInfo& OnlinePartyJoinInfo, const FOnQueryPartyJoinabilityComplete& Delegate = FOnQueryPartyJoinabilityComplete()) = 0;
+	virtual void QueryPartyJoinability(const FUniqueNetId& LocalUserId, const IOnlinePartyJoinInfo& OnlinePartyJoinInfo, const FOnQueryPartyJoinabilityComplete& Delegate);
+
+	/**
+	 * Query a party to check it's current joinability
+	 * Intended to be used before a call to LeaveParty (to leave your existing party, which would then be followed by JoinParty)
+	 * Note that the party's joinability can change from moment to moment so a successful response for this does not guarantee a successful JoinParty
+	 *
+	 * @param LocalUserId - user making the request
+	 * @param OnlinePartyJoinInfo - join information containing data such as party id, leader id
+	 * @param Delegate - called on completion
+	 */
+	virtual void QueryPartyJoinability(const FUniqueNetId& LocalUserId, const IOnlinePartyJoinInfo& OnlinePartyJoinInfo, const FOnQueryPartyJoinabilityCompleteEx& Delegate) = 0;
 
 	/**
 	 * Attempt to rejoin a former party
@@ -1266,8 +1287,11 @@ public:
 	 * @param RecipientId - id of the user being invited
 	 * @param bCanJoin - whether the player can attempt to join or not
 	 * @param DeniedResultCode - used when bCanJoin is false - client defined value to return when leader denies approval
+	 * @param PartyData - data to send back to the querying user
 	 */
-	virtual void RespondToQueryJoinability(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& RecipientId, bool bCanJoin, int32 DeniedResultCode = 0) = 0;
+	virtual void RespondToQueryJoinability(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& RecipientId, bool bCanJoin, int32 DeniedResultCode, FOnlinePartyDataConstPtr PartyData) = 0;
+	UE_DEPRECATED(4.26, "Use RespondToQueryJoinability with PartyData")
+	virtual void RespondToQueryJoinability(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& RecipientId, bool bCanJoin, int32 DeniedResultCode = 0);
 
 	/**
 	 * sends an invitation to a user that could not otherwise join a party
@@ -2016,6 +2040,21 @@ enum class EInvitationResponse : uint8
 	BadBuild,
 	Rejected,
 	Accepted
+};
+
+/**
+ * QueryPartyJoinability result
+ */
+struct FQueryPartyJoinabilityResult
+{
+	/** Online error representing the result of the operation */
+	FOnlineError Result;
+	/** Enum result */
+	EJoinPartyCompletionResult EnumResult = EJoinPartyCompletionResult::UnknownClientFailure;
+	/** Subcode for the EnumResult */
+	int32 SubCode = 0;
+	/** If successful, the party's data */
+	FOnlinePartyDataConstPtr PartyData;
 };
 
 /** @return the stringified version of the enum passed in */
