@@ -604,24 +604,26 @@ void FD3D12CommandContextBase::RHIEndFrame()
 		Device->GetDefaultFastAllocator().CleanupPages(FastAllocatorDeletionFrameLag);
 	}
 
+
 	for (uint32 GPUIndex : GPUMask)
 	{
 		Device = ParentAdapter->GetDevice(GPUIndex);
 		Device->GetCommandListManager().ReleaseResourceBarrierCommandListAllocator();
-
-		// Stop Timing at the very last moment
-		D3D12RHI::FD3DGPUProfiler& GPUProfiler = Device->GetGPUProfiler();
-		GPUProfiler.EndFrame(ParentAdapter->GetOwningRHI());
-		if (GPUIndex == 0)
-		{
-			// Multi-GPU support : For now, set GGPUFrameTime to GPU 0's frame time to be
-			// consistent with code that calls RHIGetGPUFrameCycles and is not MGPU-aware.
-			// Perhaps we should change it to get the max frame time of all GPUs?
-			GGPUFrameTime = GPUProfiler.GetGPUFrameCycles(GPUIndex);
-		}
 	}
 
 	UpdateMemoryStats();
+
+	// Stop Timing at the very last moment
+	D3D12RHI::FD3DGPUProfiler& GPUProfiler = Device->GetGPUProfiler();
+	GPUProfiler.EndFrame(ParentAdapter->GetOwningRHI());
+
+#if WITH_MGPU
+	// Multi-GPU support : For now, set GGPUFrameTime to GPU 0's frame time to be
+	// consistent with code that calls RHIGetGPUFrameCycles and is not MGPU-aware.
+	// Perhaps we should change it to get the max frame time of all GPUs?
+	// Only use this code if running on a multi GPU configuration.
+	GGPUFrameTime = GPUProfiler.GetGPUFrameCycles(0);
+#endif
 }
 
 void FD3D12CommandContextBase::SignalTransitionFences(TArrayView<const FRHITransition*> Transitions)
