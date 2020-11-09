@@ -1819,10 +1819,7 @@ protected:
 				return bHasWidgetForItem ? EScrollIntoViewResult::Success : EScrollIntoViewResult::Deferred;
 			}
 		}
-		else
-		{
-			return EScrollIntoViewResult::Deferred;
-		}
+
 		return EScrollIntoViewResult::Success;
 	}
 
