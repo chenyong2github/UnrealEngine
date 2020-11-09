@@ -732,6 +732,12 @@ void USkyLightComponent::UpdateSkyCaptureContentsArray(UWorld* WorldToUpdate, TA
 			CaptureComponent->SourceType == SLS_SpecifiedCubemap &&
 			CaptureComponent->Cubemap &&
 			CaptureComponent->Cubemap->IsDefaultTexture();
+
+		if (bIsCubemapCompiling)
+		{
+			// We should process this texture as soon as possible so we can have a proper skylight.
+			FTextureCompilingManager::Get().RequestPriorityChange(CaptureComponent->Cubemap, EQueuedWorkPriority::Highest);
+		}
 #endif
 
 		if (((!Owner || !Owner->GetLevel() || Owner->GetLevel()->bIsVisible) && CaptureComponent->GetWorld() == WorldToUpdate)
