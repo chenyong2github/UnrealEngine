@@ -620,7 +620,7 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 	{
 		Async(EAsyncExecution::Thread, [=]() {
 			// Wait an (unguaranteed) reasonable time for the window to be created
-			Sleep(5000);
+			FPlatformProcess::Sleep(5);
 
 			// Set focus to it
 			SetFocusWindowByPID(NewProcess->PID);
@@ -1527,7 +1527,7 @@ bool FSwitchboardListener::GetSyncStatus(const FSwitchboardGetSyncStatusTask& In
 
 	return true;
 #else
-	SendMessage(CreateTaskDeclinedMessage(InGetSyncStatusTask, "Platform not supported"), InGetSyncStatusTask.Recipient);
+	SendMessage(CreateTaskDeclinedMessage(InGetSyncStatusTask, "Platform not supported", {}), InGetSyncStatusTask.Recipient);
 	return false;
 #endif // PLATFORM_WINDOWS
 }
