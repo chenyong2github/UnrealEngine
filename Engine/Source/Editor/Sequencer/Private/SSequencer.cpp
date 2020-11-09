@@ -930,13 +930,15 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 								[
 									ScrollBar
 								]
+
+								+ SOverlay::Slot()
+								.VAlign(VAlign_Bottom)
+								[
+									SAssignNew(SequencerTreeFilterStatusBar, SSequencerTreeFilterStatusBar, InSequencer)	
+									.Visibility( EVisibility::SelfHitTestInvisible )				
+								]
 							]
 						]
-					]
-
-					+ SGridPanel::Slot(Column0, Row3, SGridPanel::Layer(10))
-					[
-						SAssignNew(SequencerTreeFilterStatusBar, SSequencerTreeFilterStatusBar, InSequencer)
 					]
 
 					// playback buttons
