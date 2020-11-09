@@ -109,9 +109,9 @@ public:
 	}
 
 	// The support position from the specified direction, excluding margins
-	FORCEINLINE TVector<T, d> Support2(const TVector<T, d>& Direction) const
+	FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction) const
 	{
-		return MObject->Support2(Direction);
+		return MObject->SupportCore(Direction);
 	}
 
 	virtual const TAABB<T, d> BoundingBox() const override 
@@ -529,9 +529,9 @@ public:
 		return Thickness > 0 ? TVector<T, d>(UnthickenedPt + Direction.GetSafeNormal() * Thickness) : UnthickenedPt;
 	}
 
-	FORCEINLINE_DEBUGGABLE TVector<T, d> Support2(const TVector<T, d>& Direction) const
+	FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction) const
 	{
-		return MObject->Support2(Direction * MScale) * MScale;
+		return MObject->SupportCore(Direction * MScale) * MScale;
 	}
 
 	const TVector<T, d>& GetScale() const { return MScale; }

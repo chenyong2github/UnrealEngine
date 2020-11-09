@@ -189,7 +189,7 @@ namespace Chaos
 			return Center + Normalized * (GetRadius() + Thickness);
 		}
 
-		FORCEINLINE const TVector<T, d>& Support2(const TVector<T, d>& Direction) const { return Center; }
+		FORCEINLINE const TVector<T, d>& SupportCore(const TVector<T, d>& Direction) const { return Center; }
 
 		virtual const TAABB<T, d> BoundingBox() const
 		{

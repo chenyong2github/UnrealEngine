@@ -381,7 +381,7 @@ namespace Chaos
 			return ChosenPt;
 		}
 
-		FORCEINLINE TVector<T, d> Support2(const TVector<T, d>& Direction) const
+		FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction) const
 		{
 			TVector<T, d> ChosenPt;
 			for (int Axis = 0; Axis < d; ++Axis)

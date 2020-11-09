@@ -77,7 +77,7 @@ namespace Chaos
 			return C;
 		}
 
-		FORCEINLINE_DEBUGGABLE TVector<T, 3> Support2(const TVector<T, 3>& Direction) const
+		FORCEINLINE_DEBUGGABLE TVector<T, 3> SupportCore(const TVector<T, 3>& Direction) const
 		{
 			const float DotA = TVector<T, 3>::DotProduct(A, Direction);
 			const float DotB = TVector<T, 3>::DotProduct(B, Direction);
