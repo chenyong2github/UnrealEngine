@@ -1,113 +1,80 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-import * as Path from 'path'
-import { FunctionalTest, P4Client, P4Util, RobomergeBranchSpec } from '../framework'
-import * as System from '../system'
-import { Perforce } from '../test-perforce'
+import { FunctionalTest, P4Client, P4Util, RobomergeBranchSpec, Stream } from '../framework'
 
 // const jsonlint: any = require('jsonlint')
 
-type PerClient = {
-	client: P4Client
-	textFilePath: string
-	binaryFilePath: string
-	collectionFilePath: string
-}
+export const streams: Stream[] = [
+	{name: 'Main', streamType: 'mainline'},
+	{name: 'DevBranch1', streamType: 'development', parent: 'Main'},
+	{name: 'DevBranch2', streamType: 'development', parent: 'Main'}
+]
+
+const TEXT_FILENAME = 'testfile.txt'
+const ASSET_FILENAME = 'fake.uasset'
+const COLLECTION_FILENAME = 'fake.collection'
 
 export class ConfirmBinaryStomp extends FunctionalTest {
 
-	private mainUser1: PerClient
-	private mainUser2: PerClient
+	// per user list
+	mainClient: P4Client[]
 
-	// Explicit Target
-	private devBranch1User1: PerClient
-	// Implicit Target
-	private devBranch2User1: PerClient
-
-	private perClient(user: string, stream: string) {
-		const client = this.p4Client(user, stream)
-		return {
-			client,
-			textFilePath: Path.join(client.root, 'textfile.txt'),
-			binaryFilePath: Path.join(client.root, 'fake.uasset'),
-			collectionFilePath: Path.join(client.root, 'fake.collection')
-		}
-	}
-
-	constructor(p4: Perforce) {
-		super(p4)
-
-		this.mainUser1 = this.perClient('testuser1', 'Main')
-		this.devBranch1User1 = this.perClient('testuser1', 'DevBranch1')
-		this.devBranch2User1 = this.perClient('testuser1', 'DevBranch2')
-		this.mainUser2 = this.perClient('testuser2', 'Main')
-	}
+	// per dev branch list
+	devClient: P4Client[]
 
 	async setup() {
 		// Set up depot
 
 		await this.p4.depot('stream', this.depotSpec())
-
-		// Setup streams
-		await this.p4.stream(this.streamSpec('Main', 'mainline'))
-		await this.p4.stream(this.streamSpec('DevBranch1', 'development', 'Main'))
-		await this.p4.stream(this.streamSpec('DevBranch2', 'development', 'Main'))
-
-		await this.mainUser1.client.create(P4Util.specForClient(this.mainUser1.client))
+		await this.createStreamsAndWorkspaces(streams, undefined, ['testuser1', 'testuser2'])
 
 		// Add base files
-		await System.writeFile(this.mainUser1.textFilePath, 'Simple functional test text file') 
-		await this.mainUser1.client.add('textfile.txt')
-		await System.writeFile(this.mainUser1.binaryFilePath, 'Simple functional test binary file') 
-		await this.mainUser1.client.add('fake.uasset', true)
-		await System.writeFile(this.mainUser1.collectionFilePath, 'Simple functional test collection file') 
-		await this.mainUser1.client.add('fake.collection')
+		this.mainClient = [this.getClient('Main', 'testuser1'), this.getClient('Main', 'testuser2')]
+		this.devClient = [this.getClient('DevBranch1'), this.getClient('DevBranch2')]
+		await Promise.all([
+			P4Util.addFile(this.mainClient[0], TEXT_FILENAME, 'text file content'),
+			P4Util.addFile(this.mainClient[0], ASSET_FILENAME, 'fake binary file content', true),
+			P4Util.addFile(this.mainClient[0], COLLECTION_FILENAME, 'collection content'),
+		])
 
-		await this.mainUser1.client.submit("Adding initial files 'textfile.txt', 'fake.uasset' and 'fake.collection'")
+		await this.mainClient[0].submit('Adding initial files')
 
 		// Populate DevBranch streams
-		await this.p4.populate(this.getStreamPath('DevBranch1'), `Initial branch of files from Main (${this.getStreamPath('Main')}) to DevBranch1 (${this.getStreamPath('DevBranch1')})`)
-		await this.p4.populate(this.getStreamPath('DevBranch2'), `Initial branch of files from Main (${this.getStreamPath('Main')}) to DevBranch2 (${this.getStreamPath('DevBranch2')})`)
+		await Promise.all([
+			this.p4.populate(this.getStreamPath('DevBranch1'), 'Initial branch of files from Main'),
+			this.p4.populate(this.getStreamPath('DevBranch2'), 'Initial branch of files from Main'),
+			this.mainClient[1].sync()
 
-		// Create Main workspace for testuser2 to create binary conflict
-		await this.mainUser2.client.create(P4Util.specForClient(this.mainUser2.client))
-		await this.mainUser2.client.sync()
+		])
 
+		await Promise.all([
+			this.devClient[0].sync(),
+			this.devClient[1].sync()
+		])
 
-		// Create DevBranch1 workspace for testuser1
-		await this.devBranch1User1.client.create(P4Util.specForClient(this.devBranch1User1.client))
-		await this.devBranch1User1.client.sync()
+		// Create future binary file conflict in dev branches
+		await Promise.all([
+			P4Util.editFile(this.devClient[0], ASSET_FILENAME, 'Changed content'),
+			P4Util.editFile(this.devClient[0], COLLECTION_FILENAME, 'Changed content'),
+			P4Util.editFile(this.devClient[1], ASSET_FILENAME, 'Changed content'),
+			P4Util.editFile(this.devClient[1], COLLECTION_FILENAME, 'Changed content')
+		])
 
-		// Create DevBranch2 workspace for testuser1
-		await this.devBranch2User1.client.create(P4Util.specForClient(this.devBranch2User1.client))
-		await this.devBranch2User1.client.sync()
-
-		// Create future binary file conflict in DevBranch1
-		await this.devBranch1User1.client.edit('fake.uasset')
-		await System.writeFile(this.devBranch1User1.binaryFilePath, 'Create second revision in DevBranch1 for binary file')
-		await this.devBranch1User1.client.edit('fake.collection')
-		await System.writeFile(this.devBranch1User1.collectionFilePath, 'Create second revision in DevBranch1 for collection file')
 		// This should result in a conflict on 'fake.uasset' in both streams so we can test stomp verification and execution for explicit targets!
-		await P4Util.submit(this.devBranch1User1.client, 'Creating second revision in DevBranch1 for both binary file and text file for merging')
-
-		// Create future binary file conflict in DevBranch2
-		await this.devBranch2User1.client.edit('fake.uasset')
-		await System.writeFile(this.devBranch2User1.binaryFilePath, 'Create second revision in DevBranch2 for binary file')
-		await this.devBranch2User1.client.edit('fake.collection')
-		await System.writeFile(this.devBranch2User1.collectionFilePath, 'Create second revision in DevBranch2 for collection file')
-
-		// This should result in a conflict on 'fake.uasset' in both streams so we can test stomp verification and execution for implicit targets!
-		await P4Util.submit(this.devBranch2User1.client, 'Creating second revision in DevBranch2 for both binary file and text file for merging')
+		await Promise.all([
+			P4Util.submit(this.devClient[0], 'Second revision in DevBranch1 for both binary file and collection file for merging'),
+			P4Util.submit(this.devClient[1], 'Second revision in DevBranch2 for both binary file and collection file for merging')
+		])
 	}
 
 	async run() {
 		// Create future binary file conflict
-		await this.mainUser2.client.edit('fake.uasset')
-		await System.writeFile(this.mainUser2.binaryFilePath, 'Create second revision in Main for binary file')
-		await this.mainUser2.client.edit('fake.collection')
-		await System.writeFile(this.mainUser2.collectionFilePath, 'Create second revision in Main for collection file')
+		await Promise.all([
+			P4Util.editFile(this.mainClient[1], ASSET_FILENAME, 'Conflicting content'),
+			P4Util.editFile(this.mainClient[1], COLLECTION_FILENAME, 'Conflicting content')
+		])
 
 		// Submit 
-		await this.mainUser2.client.submit(`Creating second revision in Main for binary and collection files\n#robomerge ${this.fullBranchName("DevBranch1")}`)
+		await this.mainClient[1].submit(`Creating second revision in Main for binary and collection files\n#robomerge ${this.fullBranchName("DevBranch1")}`)
 
 		// Now Main should be blocked for both DevBranch1 and DevBranch2
 	}
@@ -115,23 +82,23 @@ export class ConfirmBinaryStomp extends FunctionalTest {
 	getBranches(): RobomergeBranchSpec[] {
 		return [{
 			streamDepot: this.testName,
-			name: this.testName + 'Main',
+			name: this.fullBranchName('Main'),
 			streamName: 'Main',
-			flowsTo: [this.testName + 'DevBranch1', this.testName + 'DevBranch2'],
-			forceFlowTo: [this.testName + 'DevBranch2'],
+			flowsTo: [this.fullBranchName('DevBranch1'), this.fullBranchName('DevBranch2')],
+			forceFlowTo: [this.fullBranchName('DevBranch2')],
 			forceAll: false,
 			additionalSlackChannelForBlockages: this.testName
 		}, {
 			streamDepot: this.testName,
-			name: this.testName + 'DevBranch1',
+			name: this.fullBranchName('DevBranch1'),
 			streamName: 'DevBranch1',
-			flowsTo: [this.testName + 'Main'],
+			flowsTo: [this.fullBranchName('Main')],
 		},
 		{
 			streamDepot: this.testName,
-			name: this.testName + 'DevBranch2',
+			name: this.fullBranchName('DevBranch2'),
 			streamName: 'DevBranch2',
-			flowsTo: [this.testName + 'Main']
+			flowsTo: [this.fullBranchName('Main')]
 		}
 	]}
 
@@ -149,15 +116,18 @@ export class ConfirmBinaryStomp extends FunctionalTest {
 
 		await Promise.all([
 			this.ensureNotBlocked('Main', 'DevBranch1'),
-			this.ensureNotBlocked('Main', 'DevBranch2') 
+			this.ensureNotBlocked('Main', 'DevBranch2'),
+
+			this.checkDescriptionContainsEdit('DevBranch1', ['Second revision']),
+			this.checkDescriptionContainsEdit('DevBranch2', ['Second revision']),
 		])
 	}
 
 
 	private async performAndVerifyStomp(branch: string) {
 		await Promise.all([
-			this.checkHeadRevision(branch, 'fake.collection', 2),
-			this.checkHeadRevision(branch, 'fake.uasset', 2)
+			this.checkHeadRevision(branch, COLLECTION_FILENAME, 2),
+			this.checkHeadRevision(branch, ASSET_FILENAME, 2)
 		])
 
 		// verify stomp
@@ -165,18 +135,18 @@ export class ConfirmBinaryStomp extends FunctionalTest {
 
 		let files = result.verify.files
 
-		if (files[0].targetFileName === `//${this.testName}/${branch}/fake.collection` &&
-			files[1].targetFileName === `//${this.testName}/${branch}/fake.uasset`) {
+		if (files[0].targetFileName === `//${this.testName}/${branch}/${COLLECTION_FILENAME}` &&
+			files[1].targetFileName === `//${this.testName}/${branch}/${ASSET_FILENAME}`) {
 			this.info('Expected files were stomped')
 		}
 		else {
 			this.error(files ? JSON.stringify(files) : 'no files')
-			throw new Error('Stomp Verify returned unexpected values. Erroring...')
+			throw new Error(`Stomp verify returned unexpected values: ${JSON.stringify(result)}`)
 		}
 
 		await Promise.all([
-			this.checkHeadRevision(branch, 'fake.collection', 3),
-			this.checkHeadRevision(branch, 'fake.uasset', 3)
+			this.checkHeadRevision(branch, COLLECTION_FILENAME, 3),
+			this.checkHeadRevision(branch, ASSET_FILENAME, 3)
 		])
 	}
 }

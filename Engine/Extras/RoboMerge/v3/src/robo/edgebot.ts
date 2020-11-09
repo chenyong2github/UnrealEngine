@@ -916,7 +916,9 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			this.pauseState.applyStatus(status)
 		}
 
-		status.resolver = this.targetBranch.resolver
+		if (this.targetBranch.resolver) {
+			status.resolver = this.targetBranch.resolver
+		}
 		status.skipAllowed = !this.options.disallowSkip
 		status.incognitoMode = this.options.incognitoMode
 		status.excludeAuthors = this.options.excludeAuthors

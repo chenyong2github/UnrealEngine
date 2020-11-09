@@ -3,7 +3,7 @@ import * as Path from 'path';
 import { BranchState, EdgeState } from './BranchState';
 import * as bent from 'bent'
 import * as System from './system';
-import { Perforce, VERBOSE } from './test-perforce';
+import { Change, Perforce, VERBOSE } from './test-perforce';
 
 const getJson = bent('json')
 
@@ -512,6 +512,28 @@ export abstract class FunctionalTest {
 		}
 	}
 
+	async checkDescriptionContainsEdit(stream: string, requiredList?: string[], blacklist?: string[], depotName?: string) {
+		this.getClient(stream, undefined, depotName).changes(1)
+			.then((changes: Change[]) => {
+				const description = changes[0]!.description.toLowerCase()
+				for (const required of (requiredList || ['edited file'])) { // default to look for description in editFileAndSubmit
+					if (description.indexOf(required.toLowerCase()) < 0) {
+						this.error(description)
+						throw new Error(`Expected '${required}' to appear in description`)
+					}
+				}
+				if (blacklist) {
+					for (const bawal of blacklist) {
+						if (description.indexOf(bawal.toLowerCase()) >= 0) {
+							this.error(description)
+							throw new Error(`Unexpected '${bawal}' in description`)
+						}
+					}
+				}
+			})
+	}
+
+
 	async verifyStompRequest(source: string, target: string, edgeState: EdgeState) {
 		if (!edgeState.isBlocked()) {
 			throw new Error('edge must be blocked to stomp!')
@@ -532,6 +554,8 @@ export abstract class FunctionalTest {
 		try {
 			const post = bent('POST', 'json', 200, 400)
 			verifyResult = await post(url)
+
+			// console.dir(verifyResult)
 		}
 		catch (err) {
 			this.error(err)
@@ -625,10 +649,11 @@ export abstract class FunctionalTest {
 
 		if (!verifyResult.validRequest)
 		{
-			this.warn(
-				verifyResult.validRequest, verifyResult.nonBinaryFilesResolved, verifyResult.remainingAllBinary,
-				Array.isArray(verifyResult.files) ? verifyResult.files[0].targetFileName : `no files (${verifyResult.files})`)
-			throw new Error('Stomp Verify returned unexpected values. Erroring...')
+			this.warn(verifyResult.message)
+			// this.warn("nonBinaryFilesResolved=" + verifyResult.nonBinaryFilesResolved)
+			// this.warn("remainingAllBinary=" + verifyResult.remainingAllBinary)
+			// this.warn("files=" + (Array.isArray(verifyResult.files) ? verifyResult.files[0].targetFileName : `no files (${verifyResult.files})`))
+			throw new Error('Stomp verify returned unexpected values')
 		}
 
 		// attempt stomp
