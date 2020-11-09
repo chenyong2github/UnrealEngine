@@ -438,7 +438,10 @@ bool FSwitchboardListener::KillProcess(const FSwitchboardKillTask& KillTask)
 
 		// Clear bPendingKill
 
-		Process->bPendingKill = false;
+		if (Process)
+		{
+			Process->bPendingKill = false;
+		}
 
 		if (FlipModeMonitor)
 		{
@@ -506,11 +509,13 @@ bool FSwitchboardListener::KillProcessNow(FRunningProcess* InProcess, float Soft
 
 void FSwitchboardListener::KillAllProcessesNow()
 {
+	const float WaitSeconds = 0.050;
+
 	for (FRunningProcess& Process : RunningProcesses)
 	{
 		while (Process.bPendingKill)
 		{
-			FPlatformProcess::Sleep(0.050);
+			FPlatformProcess::Sleep(WaitSeconds);
 		}
 
 		KillProcessNow(&Process);
@@ -520,7 +525,7 @@ void FSwitchboardListener::KillAllProcessesNow()
 	{
 		while (Process.bPendingKill)
 		{
-			FPlatformProcess::Sleep(0.050);
+			FPlatformProcess::Sleep(WaitSeconds);
 		}
 
 		KillProcessNow(&Process);
@@ -1000,7 +1005,6 @@ static void FillOutFlipMode(FSyncStatus& SyncStatus, FRunningProcess* FlipModeMo
 
 	for (const FString& Line : Lines)
 	{
-		//UE_LOG(LogSwitchboard, Warning, TEXT("PresentMon: %s"), *Line);
 		Line.ParseIntoArray(Fields, TEXT(","), false);
 		
 		if (Fields.Num() != 15)
