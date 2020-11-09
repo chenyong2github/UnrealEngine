@@ -48,7 +48,7 @@ private:
 	UPROPERTY(EditAnywhere, Category=Variant)
 	UObject* Object;
 
-	UPROPERTY(EditAnywhere, instanced, Category=Variant)
+	UPROPERTY(EditAnywhere, Category=Variant)
 	UNiagaraDataInterface* DataInterface;
 
 	UPROPERTY(EditAnywhere, Category=Variant)
