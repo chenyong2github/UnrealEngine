@@ -7159,7 +7159,7 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 			FCoreDelegates::PakFileMountedCallback.Broadcast(InPakFilename);
 			FCoreDelegates::OnPakFileMounted.Broadcast(InPakFilename, Pak->PakchunkIndex);
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			static double OnPakFileMounted2Time = 0.0;
+			double OnPakFileMounted2Time = 0.0;
 			{
 				FScopedDurationTimer Timer(OnPakFileMounted2Time);
 				FCoreDelegates::OnPakFileMounted2.Broadcast(*Pak);
