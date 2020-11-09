@@ -25,8 +25,7 @@ public:
 		FIntPoint& ViewRectResolutionIn,
 		float UvNoiseScale,
 		int32 Mode,
-		int32 UpsamplingMode,
-		float TemporalFactor);
+		int32 UpsamplingMode);
 
 	FRDGTextureRef GetOrCreateVolumetricTracingRT(FRDGBuilder& GraphBuilder);
 	FRDGTextureRef GetOrCreateVolumetricTracingRTDepth(FRDGBuilder& GraphBuilder);
@@ -54,7 +53,6 @@ public:
 	float GetUvNoiseScale()		const { return UvNoiseScale; }
 	int32 GetMode()				const { return Mode; }
 	int32 GetUpsamplingMode()	const { return UpsamplingMode; }
-	float GetTemporalFactor()	const { return TemporalFactor; }
 
 private:
 
@@ -84,7 +82,6 @@ private:
 	float UvNoiseScale;
 	int32 Mode;
 	int32 UpsamplingMode;
-	float TemporalFactor;
 };
 
 

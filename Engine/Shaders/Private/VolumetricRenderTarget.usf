@@ -68,7 +68,6 @@ float4 DstVolumetricTextureSizeAndInvSize;
 int2 CurrentTracingPixelOffset;
 int VolumetricRenderTargetMode;
 int DownSampleFactor;
-float TemporalFactor;
 
 
 #define USE_YCOCG 0
@@ -411,10 +410,6 @@ void ComposeVolumetricRTOverScenePS(
 	return;
 
 #elif (PERMUTATION_UPSAMPLINGMODE==4 || PERMUTATION_UPSAMPLINGMODE==3 || PERMUTATION_UPSAMPLINGMODE==2)
-	// Jitter the source sample to add high frequency that can be resolved by TAA - 4 samples + depth test with linear sampling
-
-	float2 VolumeCoord = (VolumeUV - 0*VolumetricTextureSizeAndInvSize.zw * 0.5f);	// 0.5 is the scale between upsampled and fullres, we want to offset down one full res pixel
-	VolumeCoord = (floor(VolumeCoord * VolumetricTextureSizeAndInvSize.xy) + 0.5f); // bottom left of the squere of texels to consider, at texel center
 
 	const float UseWaterLinearDepthTexture = 100.0f;	// This must match SINGLE_LAYER_WATER_DEPTH_SCALE from SingleLayerWaterCommon.ush and SingleLayerWaterComposite.usf
 #if PERMUTATION_RENDER_UNDERWATER_BUFFER
@@ -472,6 +467,7 @@ void ComposeVolumetricRTOverScenePS(
 		clip(-1.0f);
 	}
 #elif PERMUTATION_UPSAMPLINGMODE==3
+	// Jitter the source sample to add high frequency that can be resolved by TAA - 4 samples + depth test with linear sampling
 
 #if 1
 	float4 VolumeRGBT0 = SafeSampleVolumetricTexture(VolumeUVOffset0);
@@ -521,6 +517,7 @@ void ComposeVolumetricRTOverScenePS(
 	}
 
 #elif PERMUTATION_UPSAMPLINGMODE==4
+	// Bilateral upsampling
 
 	int2 PixelPos = SVPos.xy;
 	int2 VolumeCoordUInt = PixelPos  / int(FullResolutionToVolumetricBufferResolutionScale.y);

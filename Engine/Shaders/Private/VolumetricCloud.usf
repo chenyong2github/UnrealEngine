@@ -787,7 +787,8 @@ bool TraceClouds(
 			{
 				PMC.TransmittanceToLight0[ms] *= exp(-OutOpticalDepth * (ms == 0 ? 1.0f : pow(MsExtinFactor, ms)));
 			}
-		#else // Use cloud shadowmap
+		#else 
+			// Use raymarched shadows
 			DebugShadowSampleCount++;
 			[unroll]
 			for (ms = 0; ms < MSCOUNT; ++ms)
@@ -1198,7 +1199,7 @@ struct CloudShadowTraceContext
 	float		FarDepthKm;
 	float		Strength;
 	float		DepthBias;
-	float		SampleClount;
+	float		SampleCount;
 	float4		SizeInvSize;
 	float4		TracingPixelScaleOffset;
 	float4		TracingSizeInvSize;
@@ -1222,7 +1223,7 @@ void MainPS(
 		TraceContext.FarDepthKm					= RenderVolumetricCloudParameters.CloudShadowmapFarDepthKm[LightIndex];
 		TraceContext.Strength					= RenderVolumetricCloudParameters.CloudShadowmapStrength[LightIndex];
 		TraceContext.DepthBias					= RenderVolumetricCloudParameters.CloudShadowmapDepthBias[LightIndex];
-		TraceContext.SampleClount				= RenderVolumetricCloudParameters.CloudShadowmapSampleClount[LightIndex];
+		TraceContext.SampleCount				= RenderVolumetricCloudParameters.CloudShadowmapSampleCount[LightIndex];
 		TraceContext.SizeInvSize				= RenderVolumetricCloudParameters.CloudShadowmapSizeInvSize[LightIndex];
 		TraceContext.TracingSizeInvSize			= RenderVolumetricCloudParameters.CloudShadowmapTracingSizeInvSize[LightIndex];
 		TraceContext.TracingPixelScaleOffset	= RenderVolumetricCloudParameters.CloudShadowmapTracingPixelScaleOffset[LightIndex];
@@ -1235,7 +1236,7 @@ void MainPS(
 		TraceContext.FarDepthKm					= RenderVolumetricCloudParameters.CloudSkyAOFarDepthKm;
 		TraceContext.Strength					= RenderVolumetricCloudParameters.CloudSkyAOStrength;
 		TraceContext.DepthBias					= 0.0f;
-		TraceContext.SampleClount				= RenderVolumetricCloudParameters.CloudSkyAOSampleClount;
+		TraceContext.SampleCount				= RenderVolumetricCloudParameters.CloudSkyAOSampleCount;
 		TraceContext.SizeInvSize				= RenderVolumetricCloudParameters.CloudSkyAOSizeInvSize;
 		TraceContext.TracingSizeInvSize			= TraceContext.SizeInvSize;
 		TraceContext.TracingPixelScaleOffset    = float4(1.0f, 1.0f, 0.0f, 0.0f);
@@ -1317,7 +1318,7 @@ void MainPS(
 
 	const float LayerHeight = CloudLayerParams.TopRadius - CloudLayerParams.BottomRadius;
 	const float ShadowLengthTest = TMax - TMin;
-	const float ShadowStepCount = TraceContext.SampleClount;
+	const float ShadowStepCount = TraceContext.SampleCount;
 	const float InvShadowStepCount = 1.0f / ShadowStepCount;
 	const float ShadowDtMeter = ShadowLengthTest * CENTIMETER_TO_METER / ShadowStepCount;
 	if (bTraceTop)

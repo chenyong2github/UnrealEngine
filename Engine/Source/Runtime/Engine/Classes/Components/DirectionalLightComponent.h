@@ -166,7 +166,7 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	FLinearColor AtmosphereSunDiskColorScale;
 
 	/**
-	 * Wether to apply atmosphere transmittance per pixel on opaque meshes, instead of using the light global transmittance.
+	 * Whether to apply atmosphere transmittance per pixel on opaque meshes, instead of using the light global transmittance.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay)
 	uint32 bPerPixelAtmosphereTransmittance : 1;
@@ -187,7 +187,7 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud)
 	uint32 bCastCloudShadows : 1;
 	/**
-	 * The overal strength of the cloud shadow, higher value will block more light.
+	 * The overall strength of the cloud shadow, higher value will block more light.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 1.0))
 	float CloudShadowStrength;
@@ -212,12 +212,12 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "1", ClampMin = "1"))
 	float CloudShadowExtent;
 	/**
-	 * Scale the cloud shadow map resolution. The resolution is still clamped to 'r.VolumetricCloud.ShadowMap.MaxResolution'.
+	 * Scale the cloud shadow map resolution, base resolution is 512. The resolution is still clamped to 'r.VolumetricCloud.ShadowMap.MaxResolution'.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "0.25", UIMax = "8", ClampMin = "0.25", SliderExponent = 1.0))
 	float CloudShadowMapResolutionScale;
 	/**
-	 * Scale the shadowm map tracing sample count.
+	 * Scale the shadow map tracing sample count.
 	 * The sample count resolution is still clamped according to scalability setting to 'r.VolumetricCloud.ShadowMap.RaySampleMaxCount'.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "0.25", UIMax = "8", ClampMin = "0.25", SliderExponent = 1.0))

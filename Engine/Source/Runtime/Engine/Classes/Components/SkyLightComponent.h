@@ -182,7 +182,7 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "1", ClampMin = "1"))
 	float CloudAmbientOcclusionExtent;
 	/**
-	 * Scale the cloud ambient occlusion map resolution. The resolution is still clamped to 'r.VolumetricCloud.ShadowMap.MaxResolution'.
+	 * Scale the cloud ambient occlusion map resolution, base resolution is 512. The resolution is still clamped to 'r.VolumetricCloud.SkyAO.MaxResolution'.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "0.25", UIMax = "8", ClampMin = "0.25", SliderExponent = 1.0))
 	float CloudAmbientOcclusionMapResolutionScale;
