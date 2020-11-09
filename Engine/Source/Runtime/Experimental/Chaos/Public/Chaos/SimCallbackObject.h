@@ -4,6 +4,7 @@
 #include "Containers/Queue.h"
 #include "Chaos/Defines.h"
 #include "Chaos/SimCallbackInput.h"
+#include "Chaos/CollisionResolutionTypes.h"
 
 namespace Chaos
 {
@@ -47,6 +48,21 @@ public:
 	}
 
 	/**
+	* Called once per simulation step.
+	* Inputs passed in are for the entire interval containing the step. So you may see multiple inputs for one step, or multiple steps for one input
+	* 
+	* NOTE: you must explicitly request contact modification when registering the callback for this to be called
+	*/
+	void ContactModification_Internal(const FReal SimTime, const FReal DeltaSeconds, const TArrayView<FPBDCollisionConstraintHandleModification>& Modifications)
+	{
+		//const_cast needed because c++ doesn't automatically promote const when double ptr
+		//what we want is const T** = t where t = T**. As you can see this is becoming MORE const so it's safe
+		auto ConstInputs = const_cast<const FSimCallbackInput**>(IntervalData.GetData());
+		TArrayView<const FSimCallbackInput*> ConstInputsView(ConstInputs, IntervalData.Num());
+		OnContactModification_Internal(SimTime, DeltaSeconds, ConstInputsView, Modifications);
+	}
+
+	/**
 	 * Free the output data. There is no API for allocating because that's done by the user directly in the callback.
 	 * Note that allocation is done on the internal thread, but freeing is done on the external thread.
 	 * A common pattern is to use a single producer single consumer thread safe queue to manage this.
@@ -60,6 +76,7 @@ protected:
 	ISimCallbackObject()
 	: bRunOnceMore(false)
 	, bPendingDelete(false)
+	, bContactModification(false)
 	, CurrentExternalInput_External(nullptr)
 	, Solver(nullptr)
 	{
@@ -83,6 +100,12 @@ private:
 	
 	virtual FSimCallbackOutput* OnPreSimulate_Internal(const FReal SimStart, const FReal DeltaSeconds, const TArrayView<const FSimCallbackInput*>& Inputs) = 0;
 
+	virtual void OnContactModification_Internal(const FReal SimTime, const FReal DeltaSeconds, const TArrayView<const FSimCallbackInput*>& Inputs, const TArrayView<FPBDCollisionConstraintHandleModification>& Modifications)
+	{
+		//registered for contact modification, but implementation is missing
+		check(false);
+	}
+
 	friend class FPhysicsSolverBase;
 
 	template <typename T>
@@ -92,6 +115,7 @@ private:
 
 	bool bRunOnceMore;
 	bool bPendingDelete;
+	bool bContactModification;
 
 	TArray<FSimCallbackInput*> IntervalData; //storage for current interval input data.
 	FSimCallbackInput* CurrentExternalInput_External;
@@ -99,6 +123,7 @@ private:
 
 	//putting this here so that user classes don't have to bother with non-default constructor
 	void SetSolver_External(FPhysicsSolverBase* InSolver) { Solver = InSolver;}
+	void SetContactModification(bool InContactModification) { bContactModification = InContactModification; }
 };
 
 /** Simple callback command object. Commands are typically passed in as lambdas and there's no need for data management. Should not be used directly, see FPhysicsSolverBase::EnqueueCommand */

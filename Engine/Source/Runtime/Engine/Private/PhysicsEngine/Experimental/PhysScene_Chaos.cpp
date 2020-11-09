@@ -70,10 +70,6 @@ DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"), STAT_Update
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPhysScene_ChaosSolver, Log, All);
 
-#if WITH_CHAOS
-Chaos::FCollisionModifierCallback FPhysScene_Chaos::CollisionModifierCallback;
-#endif // WITH_CHAOS
-
 void DumpHierarchyStats(const TArray<FString>& Args)
 {
 #if !UE_BUILD_SHIPPING
@@ -411,7 +407,6 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 
 	// Create replication manager
 	PhysicsReplication = PhysicsReplicationFactory.IsValid() ? PhysicsReplicationFactory->Create(this) : new FPhysicsReplication(this);
-	SceneSolver->GetEvolution()->SetCollisionModifierCallback(CollisionModifierCallback);
 
 	FPhysicsDelegates::OnPhysSceneInit.Broadcast(this);
 #endif
