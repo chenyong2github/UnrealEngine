@@ -3,6 +3,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Components/SceneComponent.h"
 #include "Text3DCharacterTransform.generated.h"
 
 
@@ -17,7 +18,7 @@ enum class EText3DCharacterEffectOrder : uint8
 
 
 UCLASS(ClassGroup=(Text3D), HideCategories = (Collision, Tags, Activation, Cooking), Meta = (BlueprintSpawnableComponent))
-class TEXT3D_API UText3DCharacterTransform : public UActorComponent
+class TEXT3D_API UText3DCharacterTransform : public USceneComponent
 {
 	GENERATED_BODY()
 
@@ -143,8 +144,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rotate")
 	void SetRotateEnd(FRotator Value);
 
-
 private:
+	class UText3DComponent* GetText3DComponent();
+
 	void ProcessEffect();
 
 	float GetEffectValue(int32 Index, int32 Total, EText3DCharacterEffectOrder Order, float Progress, float Range);
