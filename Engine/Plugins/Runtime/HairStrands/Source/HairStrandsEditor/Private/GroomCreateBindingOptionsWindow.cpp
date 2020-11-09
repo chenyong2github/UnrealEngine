@@ -153,14 +153,14 @@ TSharedPtr<SGroomCreateBindingOptionsWindow> SGroomCreateBindingOptionsWindow::D
 	return DisplayOptions(BindingOptions, EGroomBindingOptionsVisibility::BuildOptions, LOCTEXT("GroomBindingRebuildWindowTitle", "Groom Binding Options"), LOCTEXT("Build", "Create"));
 }
 
-UGroomBindingAsset* CreateGroomBindinAsset(UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints)
+UGroomBindingAsset* CreateGroomBindinAsset(UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints, const int32 MatchingSection)
 {
 	if (!GroomAsset || !TargetSkelMesh)
 	{
 		return nullptr;
 	}
 
-	UObject* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints);
+	UObject* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints, MatchingSection);
 
 	if (BindingAsset)
 	{

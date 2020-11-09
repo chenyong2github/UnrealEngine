@@ -8,4 +8,5 @@ UGroomCreateBindingOptions::UGroomCreateBindingOptions(const FObjectInitializer&
 	SourceSkeletalMesh = nullptr;
 	TargetSkeletalMesh = nullptr;
 	NumInterpolationPoints = 100;
+	MatchingSection = 0;
 }

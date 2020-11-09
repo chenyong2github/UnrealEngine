@@ -70,6 +70,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings", meta = (ClampMin = "0.01", UIMin = "0.01", UIMax = "1.0"))
 	int32 NumInterpolationPoints = 100;
 
+	/** Number of points used for the rbf interpolation */
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")
+	int32 MatchingSection = 0;
+
 	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairGroups", meta = (DisplayName = "Group"))
 	TArray<FGoomBindingGroupInfo> GroupInfos;
 
@@ -146,7 +150,7 @@ public:
 	/** Build/rebuild a binding asset */
 	void Build();
 
-	FString BuildDerivedDataKeySuffix(USkeletalMesh* Source, USkeletalMesh* Target, UGroomAsset* Groom, uint32 NumInterpolationPoints);
+	FString BuildDerivedDataKeySuffix(USkeletalMesh* Source, USkeletalMesh* Target, UGroomAsset* Groom, uint32 NumInterpolationPoints, const int32 MatchingSection);
 	void CacheDerivedDatas();
 	void InvalidateBinding();
 	void InvalidateBinding(class USkeletalMesh*);

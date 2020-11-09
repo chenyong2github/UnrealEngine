@@ -563,7 +563,7 @@ void UGroomBindingAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define GROOM_BINDING_DERIVED_DATA_VERSION TEXT("C1865BEF29E643BB9BC7DC87E8C7A512")
+#define GROOM_BINDING_DERIVED_DATA_VERSION TEXT("2E5B1E5E3A5C4B6092A60405206F46B1")
 
 namespace GroomBindingDerivedDataCacheUtils
 {
@@ -579,17 +579,18 @@ namespace GroomBindingDerivedDataCacheUtils
 	}
 }
 
-FString UGroomBindingAsset::BuildDerivedDataKeySuffix(USkeletalMesh* InSource, USkeletalMesh* InTarget, UGroomAsset* InGroom, uint32 InNumInterpolationPoints)
+FString UGroomBindingAsset::BuildDerivedDataKeySuffix(USkeletalMesh* InSource, USkeletalMesh* InTarget, UGroomAsset* InGroom, uint32 InNumInterpolationPoints, int32 InMatchingSection)
 {
 	FString SourceKey = InSource ? InSource->GetDerivedDataKey() : FString();
 	FString TargetKey = InTarget ? InTarget->GetDerivedDataKey() : FString();
 	FString GroomKey  = InGroom  ? InGroom->GetDerivedDataKey()  : FString();
 	FString PointKey  = FString::FromInt(InNumInterpolationPoints);
-	uint32 KeyLength  = SourceKey.Len() + TargetKey.Len() + GroomKey.Len() + PointKey.Len();
+	FString SectionKey = FString::FromInt(InMatchingSection);
+	uint32 KeyLength  = SourceKey.Len() + TargetKey.Len() + GroomKey.Len() + PointKey.Len() + SectionKey.Len();
 
 	FString KeySuffix;
 	KeySuffix.Reserve(KeyLength);
-	KeySuffix = SourceKey + TargetKey + GroomKey + PointKey;
+	KeySuffix = SourceKey + TargetKey + GroomKey + PointKey + SectionKey;
 	return KeySuffix;
 }
 
@@ -602,7 +603,7 @@ void UGroomBindingAsset::CacheDerivedDatas()
 	}
 
 	// List all the components which will need to be recreated to get the new binding information
-	const FString KeySuffix = BuildDerivedDataKeySuffix(SourceSkeletalMesh, TargetSkeletalMesh, Groom, NumInterpolationPoints);
+	const FString KeySuffix = BuildDerivedDataKeySuffix(SourceSkeletalMesh, TargetSkeletalMesh, Groom, NumInterpolationPoints, MatchingSection);
 	const FString DerivedDataKey = GroomBindingDerivedDataCacheUtils::BuildGroomBindingDerivedDataKey(KeySuffix);
 
 	if (DerivedDataKey != CachedDerivedDataKey)
