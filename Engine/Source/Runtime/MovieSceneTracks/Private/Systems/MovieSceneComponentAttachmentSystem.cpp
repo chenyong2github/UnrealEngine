@@ -3,6 +3,7 @@
 #include "Systems/MovieSceneComponentAttachmentSystem.h"
 #include "Systems/MovieScenePropertyInstantiator.h"
 #include "Systems/MovieSceneComponentTransformSystem.h"
+#include "Systems/MovieSceneComponentMobilitySystem.h"
 
 #include "EntitySystem/MovieSceneBoundObjectInstantiator.h"
 #include "EntitySystem/MovieSceneBoundSceneComponentInstantiator.h"
@@ -177,6 +178,7 @@ UMovieSceneComponentAttachmentSystem::UMovieSceneComponentAttachmentSystem(const
 		DefineImplicitPrerequisite(UMovieScenePropertyInstantiatorSystem::StaticClass(), GetClass());
 
 		DefineImplicitPrerequisite(UMovieSceneCachePreAnimatedStateSystem::StaticClass(), GetClass());
+		DefineImplicitPrerequisite(UMovieSceneComponentMobilitySystem::StaticClass(), GetClass());
 		DefineImplicitPrerequisite(GetClass(), UMovieSceneRestorePreAnimatedStateSystem::StaticClass());
 		DefineImplicitPrerequisite(GetClass(), UMovieScenePreAnimatedComponentTransformSystem::StaticClass());
 
