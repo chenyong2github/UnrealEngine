@@ -550,7 +550,7 @@ void USkeletalMeshComponent::OnRegister()
 	}
 
 	// Look up for the best simulation factory to support each asset
-	if (SkeletalMesh)
+	if (ClothingSimulationFactory && SkeletalMesh)
 	{
 		// Check whether all clothing assets are supported by the current factory
 		bool bSupportsAllAssets = true;
