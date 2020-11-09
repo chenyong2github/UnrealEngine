@@ -22,18 +22,26 @@
 #include "Particles/Location/ParticleModuleLocation.h"
 #include "Particles/Location/ParticleModuleLocationDirect.h"
 #include "Particles/Location/ParticleModuleLocationPrimitiveSphere.h"
+#include "Particles/Material/ParticleModuleMeshMaterial.h"
+#include "Particles/Modules/Location/ParticleModulePivotOffset.h"
 #include "Particles/Rotation/ParticleModuleRotation.h"
+#include "Particles/Rotation/ParticleModuleRotationOverLifetime.h"
 #include "Particles/Rotation/ParticleModuleMeshRotation.h"
+#include "Particles/RotationRate/ParticleModuleMeshRotationRate.h"
+#include "Particles/RotationRate/ParticleModuleMeshRotationRateMultiplyLife.h"
 #include "Particles/RotationRate/ParticleModuleRotationRate.h"
 #include "Particles/Size/ParticleModuleSize.h"
+#include "Particles/Size/ParticleModuleSizeScale.h"
 #include "Particles/Size/ParticleModuleSizeScaleBySpeed.h"
 #include "Particles/Size/ParticleModuleSizeMultiplyLife.h"
 #include "Particles/Spawn/ParticleModuleSpawn.h"
+#include "Particles/Spawn/ParticleModuleSpawnPerUnit.h"
 #include "Particles/SubUV/ParticleModuleSubUV.h"
 #include "Particles/SubUV/ParticleModuleSubUVMovie.h"
 #include "Particles/VectorField/ParticleModuleVectorFieldLocal.h"
 #include "Particles/VectorField/ParticleModuleVectorFieldRotationRate.h"
 #include "Particles/Velocity/ParticleModuleVelocity.h"
+#include "Particles/Velocity/ParticleModuleVelocityOverLifetime.h"
 #include "Particles/Acceleration/ParticleModuleAccelerationConstant.h"
 #include "Particles/TypeData/ParticleModuleTypeDataBase.h"
 #include "Particles/TypeData/ParticleModuleTypeDataGpu.h"
@@ -54,12 +62,16 @@
 #include "NiagaraEmitterFactoryNew.h"
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackEventScriptItemGroup.h"
+#include "NiagaraRendererProperties.h"
 #include "NiagaraRibbonRendererProperties.h"
 #include "NiagaraMeshRendererProperties.h"
+#include "NiagaraLightRendererProperties.h"
+#include "NiagaraComponentRendererProperties.h"
 #include "NiagaraDataInterfaceCurve.h"
 #include "NiagaraDataInterfaceVector2DCurve.h"
 #include "NiagaraDataInterfaceVectorCurve.h"
 #include "NiagaraDataInterfaceVector4Curve.h"
+#include "NiagaraDataInterfaceSkeletalMesh.h"
 #include "NiagaraMessages.h"
 #include "NiagaraTypes.h"
 #include "Math/InterpCurvePoint.h"
@@ -83,7 +95,6 @@
 #include "CascadeToNiagaraConverterModule.h"
 #include "Curves/RichCurve.h"
 #include "Engine/UserDefinedEnum.h"
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////	UFXConverterUtilitiesLibrary																			  /////
@@ -110,6 +121,31 @@ FName UFXConverterUtilitiesLibrary::GetNiagaraScriptInputTypeName(ENiagaraScript
 	};
 	checkf(false, TEXT("Tried to get FName for unknown ENiagaraScriptInputType!"));
 	return FName();
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleLocationPrimitiveBaseProps(
+	UParticleModuleLocationPrimitiveBase* ParticleModule
+	, bool& bOutPositiveX
+	, bool& bOutPositiveY
+	, bool& bOutPositiveZ
+	, bool& bOutNegativeX
+	, bool& bOutNegativeY
+	, bool& bOutNegativeZ
+	, bool& bOutSurfaceOnly
+	, bool& bOutVelocity
+	, UDistribution*& OutVelocityScale
+	, UDistribution*& OutStartLocation)
+{
+	bOutPositiveX = ParticleModule->Positive_X;
+	bOutPositiveY = ParticleModule->Positive_Y;
+	bOutPositiveZ = ParticleModule->Positive_Z;
+	bOutNegativeX = ParticleModule->Negative_X;
+	bOutNegativeY = ParticleModule->Negative_Y;
+	bOutNegativeZ  = ParticleModule->Negative_Z;
+	bOutSurfaceOnly = ParticleModule->SurfaceOnly;
+	bOutVelocity = ParticleModule->Velocity;
+	OutVelocityScale = ParticleModule->VelocityScale.Distribution;
+	OutStartLocation = ParticleModule->StartLocation.Distribution;
 }
 
 TArray<UParticleEmitter*> UFXConverterUtilitiesLibrary::GetCascadeSystemEmitters(const UParticleSystem* System)
@@ -287,10 +323,7 @@ UNiagaraScriptConversionContextInput* UFXConverterUtilitiesLibrary::CreateScript
 
 UNiagaraScriptConversionContextInput* UFXConverterUtilitiesLibrary::CreateScriptInputBool(bool Value)
 {
-	// Value of bool in Niagara is expressed as -1 for false. Explicitly initialize as an int32 value since it is the same size as a Niagara bool.
-	const int32 IntValue = Value ? 1 : -1;
-	
-	UNiagaraClipboardFunctionInput* NewInput = UNiagaraClipboardEditorScriptingUtilities::CreateIntLocalValueInput(GetTransientPackage(), FName(), false, false, IntValue);
+	UNiagaraClipboardFunctionInput* NewInput = UNiagaraClipboardEditorScriptingUtilities::CreateBoolLocalValueInput(GetTransientPackage(), FName(), false, false, Value);
 	const FNiagaraTypeDefinition& TargetTypeDef = FNiagaraTypeDefinition::GetBoolDef();
 	UNiagaraScriptConversionContextInput* Input = NewObject<UNiagaraScriptConversionContextInput>();
 	Input->Init(NewInput, ENiagaraScriptInputType::Bool, TargetTypeDef);
@@ -305,6 +338,21 @@ UNiagaraRibbonRendererProperties* UFXConverterUtilitiesLibrary::CreateRibbonRend
 UNiagaraMeshRendererProperties* UFXConverterUtilitiesLibrary::CreateMeshRendererProperties()
 {
 	return NewObject<UNiagaraMeshRendererProperties>();
+}
+
+UNiagaraLightRendererProperties* UFXConverterUtilitiesLibrary::CreateLightRendererProperties()
+{
+	return NewObject<UNiagaraLightRendererProperties>();
+}
+
+UNiagaraComponentRendererProperties* UFXConverterUtilitiesLibrary::CreateComponentRendererProperties()
+{
+	return NewObject<UNiagaraComponentRendererProperties>();
+}
+
+UNiagaraDataInterfaceSkeletalMesh* UFXConverterUtilitiesLibrary::CreateSkeletalMeshDataInterface()
+{
+	return NewObject<UNiagaraDataInterfaceSkeletalMesh>();
 }
 
 UNiagaraDataInterfaceCurve* UFXConverterUtilitiesLibrary::CreateFloatCurveDI(TArray<FRichCurveKeyBP> Keys)
@@ -488,6 +536,31 @@ void UFXConverterUtilitiesLibrary::GetParticleModuleSpawnProps(
 	bOutProcessSpawnBurst = ParticleModuleSpawn->bProcessBurstList;
 }
 
+void UFXConverterUtilitiesLibrary::GetParticleModuleSpawnPerUnitProps(
+	UParticleModuleSpawnPerUnit* ParticleModule
+	, float& OutUnitScalar
+	, float& OutMovementTolerance
+	, UDistribution*& OutSpawnPerUnit
+	, float& OutMaxFrameDistance
+	, bool& bOutIgnoreSpawnRateWhenMoving
+	, bool& bOutIgnoreMovementAlongX
+	, bool& bOutIgnoreMovementAlongY
+	, bool& bOutIgnoreMovementAlongZ
+	, bool& bOutProcessSpawnRate
+	, bool& bOutProcessBurstList)
+{
+	OutUnitScalar = ParticleModule->UnitScalar;
+	OutMovementTolerance = ParticleModule->MovementTolerance;
+	OutSpawnPerUnit = ParticleModule->SpawnPerUnit.Distribution;
+	OutMaxFrameDistance = ParticleModule->MaxFrameDistance;
+	bOutIgnoreSpawnRateWhenMoving = ParticleModule->bIgnoreSpawnRateWhenMoving;
+	bOutIgnoreMovementAlongX = ParticleModule->bIgnoreMovementAlongX;
+	bOutIgnoreMovementAlongY = ParticleModule->bIgnoreMovementAlongY;
+	bOutIgnoreMovementAlongZ = ParticleModule->bIgnoreMovementAlongZ;
+	bOutProcessSpawnRate = ParticleModule->bProcessSpawnRate;
+	bOutProcessBurstList = ParticleModule->bProcessBurstList;
+}
+
 void UFXConverterUtilitiesLibrary::GetParticleModuleRequiredPerRendererProps(
 	UParticleModuleRequired* ParticleModuleRequired
 	, UMaterialInterface*& OutMaterialInterface
@@ -502,6 +575,7 @@ void UFXConverterUtilitiesLibrary::GetParticleModuleRequiredPerRendererProps(
 	, UTexture2D*& OutCutoutTexture
 	, TEnumAsByte<ESubUVBoundingVertexCount>& OutBoundingMode
 	, TEnumAsByte<EOpacitySourceMode>& OutOpacitySourceMode
+	, TEnumAsByte< EEmitterNormalsMode>& OutEmitterNormalsMode
 	, float& OutAlphaThreshold)
 {
 	OutMaterialInterface = ParticleModuleRequired->Material;
@@ -604,14 +678,88 @@ void UFXConverterUtilitiesLibrary::GetParticleModuleVelocityProps(UParticleModul
 	bOutApplyOwnerScale = ParticleModule->bApplyOwnerScale;
 }
 
+void UFXConverterUtilitiesLibrary::GetParticleModuleVelocityOverLifetimeProps(
+	UParticleModuleVelocityOverLifetime* ParticleModule
+	, UDistribution*& OutVelOverLife
+	, bool& bOutAbsolute
+	, bool& bOutInWorldSpace
+	, bool& bOutApplyOwnerScale)
+{
+	OutVelOverLife = ParticleModule->VelOverLife.Distribution;
+	bOutAbsolute = ParticleModule->Absolute;
+	bOutInWorldSpace = ParticleModule->bInWorldSpace;
+	bOutApplyOwnerScale = ParticleModule->bApplyOwnerScale;
+}
+
 void UFXConverterUtilitiesLibrary::GetParticleModuleConstantAccelerationProps(UParticleModuleAccelerationConstant* ParticleModule, FVector& OutConstAcceleration)
 {
 	OutConstAcceleration = ParticleModule->Acceleration;
 }
 
-void UFXConverterUtilitiesLibrary::GetParticleModuleLocationPrimitiveSphereProps(UParticleModuleLocationPrimitiveSphere* ParticleModule, UDistribution*& OutStartRadius)
+void UFXConverterUtilitiesLibrary::GetParticleModuleLocationPrimitiveSphereProps(
+	UParticleModuleLocationPrimitiveSphere* ParticleModule
+	, UDistribution*& OutStartRadius
+	, bool& bOutPositiveX
+	, bool& bOutPositiveY
+	, bool& bOutPositiveZ
+	, bool& bOutNegativeX
+	, bool& bOutNegativeY
+	, bool& bOutNegativeZ
+	, bool& bOutSurfaceOnly
+	, bool& bOutVelocity
+	, UDistribution*& OutVelocityScale
+	, UDistribution*& OutStartLocation)
 {
 	OutStartRadius = ParticleModule->StartRadius.Distribution;
+	UFXConverterUtilitiesLibrary::GetParticleModuleLocationPrimitiveBaseProps(
+		ParticleModule, bOutPositiveX, bOutPositiveY, bOutPositiveZ
+		, bOutNegativeX, bOutNegativeY, bOutNegativeZ, bOutSurfaceOnly
+		, bOutVelocity, OutVelocityScale, OutStartLocation
+	);
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleLocationPrimitiveCylinderProps(
+	UParticleModuleLocationPrimitiveCylinder* ParticleModule
+	, bool& bOutRadialVelocity
+	, UDistribution*& OutStartRadius
+	, UDistribution*& OutStartHeight
+	, TEnumAsByte<CylinderHeightAxis>& OutHeightAxis
+	, bool& bOutPositiveX
+	, bool& bOutPositiveY
+	, bool& bOutPositiveZ
+	, bool& bOutNegativeX
+	, bool& bOutNegativeY
+	, bool& bOutNegativeZ
+	, bool& bOutSurfaceOnly
+	, bool& bOutVelocity
+	, UDistribution*& OutVelocityScale
+	, UDistribution*& OutStartLocation)
+{
+	bOutRadialVelocity = ParticleModule->RadialVelocity;
+	OutStartRadius = ParticleModule->StartRadius.Distribution;
+	OutStartHeight = ParticleModule->StartHeight.Distribution;
+	OutHeightAxis = ParticleModule->HeightAxis;
+	UFXConverterUtilitiesLibrary::GetParticleModuleLocationPrimitiveBaseProps(
+		ParticleModule, bOutPositiveX, bOutPositiveY, bOutPositiveZ
+		, bOutNegativeX, bOutNegativeY, bOutNegativeZ, bOutSurfaceOnly
+		, bOutVelocity, OutVelocityScale, OutStartLocation
+	);
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleVelocityInheritParentProps(
+	UParticleModuleVelocityInheritParent* ParticleModule
+	, UDistribution*& OutScale
+	, bool& bOutInWorldSpace
+	, bool& bOutApplyOwnerScale)
+{
+	OutScale = ParticleModule->Scale.Distribution;
+	bOutInWorldSpace = ParticleModule->bInWorldSpace;
+	bOutApplyOwnerScale = ParticleModule->bApplyOwnerScale;
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleOrientationAxisLockProps(UParticleModuleOrientationAxisLock* ParticleModule, TEnumAsByte<EParticleAxisLock>& OutLockAxisFlags)
+{
+	OutLockAxisFlags = ParticleModule->LockAxisFlags;
 }
 
 void UFXConverterUtilitiesLibrary::GetParticleModuleMeshRotationProps(UParticleModuleMeshRotation* ParticleModule, UDistribution*& OutStartRotation, bool& bOutInheritParentRotation)
@@ -657,6 +805,11 @@ void UFXConverterUtilitiesLibrary::GetParticleModuleCollisionProps(
 	bOutCollideOnlyIfVisible = ParticleModule->bCollideOnlyIfVisible;
 	bOutIgnoreSourceActor = ParticleModule->bIgnoreSourceActor;
 	OutMaxCollisionDistance = ParticleModule->MaxCollisionDistance;
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleSizeScaleProps(UParticleModuleSizeScale* ParticleModule, UDistribution*& OutSizeScale)
+{
+	OutSizeScale = ParticleModule->SizeScale.Distribution;
 }
 
 void UFXConverterUtilitiesLibrary::GetParticleModuleSizeScaleBySpeedProps(UParticleModuleSizeScaleBySpeed* ParticleModule, FVector2D& OutSpeedScale, FVector2D& OutMaxScale)
@@ -748,6 +901,27 @@ void UFXConverterUtilitiesLibrary::GetParticleModuleRotationProps(UParticleModul
 void UFXConverterUtilitiesLibrary::GetParticleModuleRotationRateProps(UParticleModuleRotationRate* ParticleModule, UDistribution*& OutStartRotationRate)
 {
 	OutStartRotationRate = ParticleModule->StartRotationRate.Distribution;
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleMeshRotationRateProps(UParticleModuleMeshRotationRate* ParticleModule, UDistribution*& OutStartRotationRate)
+{
+	OutStartRotationRate = ParticleModule->StartRotationRate.Distribution;
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleRotationOverLifetimeProps(UParticleModuleRotationOverLifetime* ParticleModule, UDistribution*& OutRotationOverLife, bool& bOutScale)
+{
+	OutRotationOverLife = ParticleModule->RotationOverLife.Distribution;
+	bOutScale = ParticleModule->Scale;
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleMeshRotationRateMultiplyLifeProps(UParticleModuleMeshRotationRateMultiplyLife* ParticleModule, UDistribution*& OutLifeMultiplier)
+{
+	OutLifeMultiplier = ParticleModule->LifeMultiplier.Distribution;
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModulePivotOffsetProps(UParticleModulePivotOffset* ParticleModule, FVector2D& OutPivotOffset)
+{
+	OutPivotOffset = ParticleModule->PivotOffset;
 }
 
 void UFXConverterUtilitiesLibrary::GetParticleModuleSubUVProps(
@@ -922,6 +1096,36 @@ void UFXConverterUtilitiesLibrary::GetParticleModuleLocationProps(
 	OutDistributeThreshold = ParticleModule->DistributeThreshold;
 }
 
+void UFXConverterUtilitiesLibrary::GetParticleModuleLocationBoneSocketProps(
+	UParticleModuleLocationBoneSocket* ParticleModule
+	, TEnumAsByte<ELocationBoneSocketSource>& OutSourceType
+	, FVector& OutUniversalOffset
+	, TArray<FLocationBoneSocketInfoBP>& OutSourceLocations
+	, TEnumAsByte<ELocationBoneSocketSelectionMethod>& OutSelectionMethod
+	, bool& bOutUpdatePositionEachFrame
+	, bool& bOutOrientMeshEmitters
+	, bool& bOutInheritBoneVelocity
+	, float& OutInheritVelocityScale
+	, FName& OutSkelMeshActorParamName
+	, int32& OutNumPreSelectedIndices
+	, USkeletalMesh*& OutEditorSkelMesh)
+{
+	OutSourceType = ParticleModule->SourceType;
+	OutUniversalOffset = ParticleModule->UniversalOffset;
+	for (const FLocationBoneSocketInfo& SourceLocation : ParticleModule->SourceLocations)
+	{
+		OutSourceLocations.Emplace(FLocationBoneSocketInfoBP(SourceLocation));
+	}
+	OutSelectionMethod = ParticleModule->SelectionMethod;
+	bOutUpdatePositionEachFrame = ParticleModule->bUpdatePositionEachFrame;
+	bOutOrientMeshEmitters = ParticleModule->bOrientMeshEmitters;
+	bOutInheritBoneVelocity = ParticleModule->bInheritBoneVelocity;
+	OutInheritVelocityScale = ParticleModule->InheritVelocityScale;
+	OutSkelMeshActorParamName = ParticleModule->SkelMeshActorParamName;
+	OutNumPreSelectedIndices = ParticleModule->NumPreSelectedIndices;
+	OutEditorSkelMesh = ParticleModule->EditorSkelMesh;
+}
+
 void UFXConverterUtilitiesLibrary::GetParticleModuleKillBoxProps(
 	UParticleModuleKillBox* ParticleModule
 	, UDistribution*& OutLowerLeftCorner
@@ -964,6 +1168,20 @@ void UFXConverterUtilitiesLibrary::GetParticleModuleLightProps(
 	OutVolumetricScatteringIntensity = ParticleModule->VolumetricScatteringIntensity;
 	bOutHighQualityLights = ParticleModule->bHighQualityLights;
 	bOutShadowCastingLights = ParticleModule->bShadowCastingLights;
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleMeshMaterialProps(UParticleModuleMeshMaterial* ParticleModule, TArray<UMaterialInterface*>& OutMeshMaterials)
+{
+	OutMeshMaterials = ParticleModule->MeshMaterials;
+}
+
+void UFXConverterUtilitiesLibrary::SetMeshRendererMaterialOverridesFromCascade(UNiagaraMeshRendererProperties* MeshRendererProps, TArray<UMaterialInterface*> MeshMaterials)
+{
+	for (UMaterialInterface* MeshMaterial : MeshMaterials)
+	{
+		FNiagaraMeshMaterialOverride& MeshMaterialOverride = MeshRendererProps->OverrideMaterials.Add_GetRef(FNiagaraMeshMaterialOverride());
+		MeshMaterialOverride.ExplicitMat = MeshMaterial;
+	}
 }
 
 void UFXConverterUtilitiesLibrary::GetDistributionMinMaxValues(
@@ -1131,6 +1349,35 @@ void UFXConverterUtilitiesLibrary::GetDistributionMinMaxValues(
 	}
 
 	bOutSuccess = false;
+}
+
+TArray<TEnumAsByte<EDistributionVectorLockFlags>> UFXConverterUtilitiesLibrary::GetDistributionLockedAxes(UDistribution* Distribution)
+{
+	TArray<TEnumAsByte<EDistributionVectorLockFlags>> OutLockAxesFlags;
+	if (UDistributionVectorConstant* DistributionVectorConstant = Cast<UDistributionVectorConstant>(Distribution))
+	{
+		OutLockAxesFlags.Add(DistributionVectorConstant->LockedAxes);
+	}
+	else if (UDistributionVectorUniform* DistributionVectorUniform = Cast<UDistributionVectorUniform>(Distribution))
+	{
+		OutLockAxesFlags.Add(DistributionVectorUniform->LockedAxes);
+	}
+	else if (UDistributionVectorConstantCurve* DistributionVectorConstantCurve = Cast<UDistributionVectorConstantCurve>(Distribution))
+	{
+		OutLockAxesFlags.Add(DistributionVectorConstantCurve->LockedAxes);
+	}
+	else if(UDistributionVectorUniformCurve* DistributionVectorUniformCurve = Cast<UDistributionVectorUniformCurve>(Distribution))
+	{
+		for (TEnumAsByte<EDistributionVectorLockFlags>& LockedAxis : DistributionVectorUniformCurve->LockedAxes)
+		{
+			OutLockAxesFlags.Add(LockedAxis);
+		}
+	}
+	else
+	{
+		OutLockAxesFlags.Add(EDistributionVectorLockFlags::EDVLF_None);
+	}
+	return OutLockAxesFlags;
 }
 
 void UFXConverterUtilitiesLibrary::GetDistributionType(
@@ -1321,7 +1568,7 @@ UNiagaraEmitterConversionContext* UNiagaraSystemConversionContext::AddEmptyEmitt
 {
 	UNiagaraEmitterFactoryNew* Factory = NewObject<UNiagaraEmitterFactoryNew>();
 	UPackage* Pkg = CreatePackage(nullptr);
-	FName NewEmitterName = FName(*NewEmitterNameString);
+	FName NewEmitterName = FNiagaraEditorUtilities::GetUniqueObjectName(System, UNiagaraEmitter::StaticClass(), NewEmitterNameString);
 	EObjectFlags Flags = RF_Public | RF_Standalone;
 	UNiagaraEmitter* NewEmitter = CastChecked<UNiagaraEmitter>(Factory->FactoryCreateNew(UNiagaraEmitter::StaticClass(), Pkg, NewEmitterName, Flags, NULL, GWarn));
 
@@ -1388,10 +1635,31 @@ UNiagaraScriptConversionContext* UNiagaraEmitterConversionContext::PrivateFindOr
 	return ScriptContext;
 }
 
+void UNiagaraEmitterConversionContext::RemoveModuleScriptsForAssets(TArray<FAssetData> ScriptsToRemove)
+{
+	TArray<FString> ScriptPathsToRemove;
+	for (const FAssetData& AssetData : ScriptsToRemove)
+	{
+		ScriptPathsToRemove.Add(AssetData.PackagePath.ToString());
+	}
+
+	for (int i = StackEntryAddActions.Num(); i > 0; --i)
+	{
+		if (StackEntryAddActions[i].Mode == EStackEntryAddActionMode::Module)
+		{
+			const FString& ScriptPathNameString = StackEntryAddActions[i].ScriptConversionContext->GetScript()->GetPathName();
+			if (ScriptPathsToRemove.Contains(ScriptPathNameString))
+			{
+				StackEntryAddActions.RemoveAt(i);
+			}
+		}
+	}
+}
+
 UNiagaraScriptConversionContext* UNiagaraEmitterConversionContext::FindModuleScript(FString ScriptNameString)
 {
 	const FName ScriptName = FName(ScriptNameString);
-	FStackEntryAddAction* StackEntryAddAction = StackEntryAddActions.FindByPredicate([&ScriptName](const FStackEntryAddAction& AddAction) {return AddAction.Mode == EStackEntryAddActionMode::Module && AddAction.ModuleName == ScriptName;});
+	FStackEntryAddAction* StackEntryAddAction = StackEntryAddActions.FindByPredicate([&ScriptName](const FStackEntryAddAction& AddAction) {return AddAction.Mode == EStackEntryAddActionMode::Module && AddAction.ModuleName == ScriptName; });
 	if (StackEntryAddAction != nullptr)
 	{
 		return StackEntryAddAction->ScriptConversionContext;
@@ -1399,12 +1667,12 @@ UNiagaraScriptConversionContext* UNiagaraEmitterConversionContext::FindModuleScr
 	return nullptr;
 }
 
-void UNiagaraEmitterConversionContext::AddModuleScript(UNiagaraScriptConversionContext* ScriptConversionContext, FString ScriptNameString, EScriptExecutionCategory ModuleScriptExecutionCategory)
+void UNiagaraEmitterConversionContext::AddModuleScript(FString ScriptNameString, UNiagaraScriptConversionContext* ScriptConversionContext, EScriptExecutionCategory ModuleScriptExecutionCategory)
 {
 	StackEntryAddActions.Emplace(ScriptConversionContext, FStackEntryID(ModuleScriptExecutionCategory), FName(ScriptNameString));
 }
 
-void UNiagaraEmitterConversionContext::AddModuleEventScript(UNiagaraScriptConversionContext* ScriptConversionContext, FString ScriptNameString, FNiagaraEventHandlerAddAction EventHandlerAddAction)
+void UNiagaraEmitterConversionContext::AddModuleEventScript(FString ScriptNameString, UNiagaraScriptConversionContext* ScriptConversionContext, FNiagaraEventHandlerAddAction EventHandlerAddAction)
 {
 	StackEntryAddActions.Emplace(ScriptConversionContext, FStackEntryID(EventHandlerAddAction), FName(ScriptNameString));
 }
@@ -1427,13 +1695,20 @@ void UNiagaraEmitterConversionContext::AddRenderer(FString RendererNameString, U
 }
 
 UNiagaraRendererProperties* UNiagaraEmitterConversionContext::FindRenderer(FString RendererNameString)
-	{
+{
 	UNiagaraRendererProperties** PropsPtr = RendererNameToStagedRendererPropertiesMap.Find(RendererNameString);
 	if (PropsPtr == nullptr)
 	{
 		return nullptr;
 	}
 	return *PropsPtr;
+}
+
+TArray<UNiagaraRendererProperties*> UNiagaraEmitterConversionContext::GetAllRenderers()
+{
+	TArray<UNiagaraRendererProperties*> OutRendererProperties;
+	RendererNameToStagedRendererPropertiesMap.GenerateValueArray(OutRendererProperties);
+	return OutRendererProperties;
 }
 
 void UNiagaraEmitterConversionContext::Log(FString Message, ENiagaraMessageSeverity Severity, bool bIsVerbose /*= false*/)
@@ -1636,7 +1911,7 @@ void UNiagaraEmitterConversionContext::InternalFinalizeStackEntryAddActions()
 		if (PastedFunctionCallNode != nullptr)
 		{
 			// Set the module enabled state
-			if (ScriptConversionContext->GetEnabled() == false)
+			if (ScriptConversionContext->GetModuleEnabled() == false)
 			{
 				FNiagaraStackGraphUtilities::SetModuleIsEnabled(*PastedFunctionCallNode, false);
 			}
@@ -1714,6 +1989,59 @@ void UNiagaraEmitterConversionContext::AddEventHandler(FNiagaraEventHandlerAddAc
 	EventHandlerAddActions.Add(EventHandlerAddAction);
 }
 
+void UNiagaraEmitterConversionContext::SetRendererBinding(UNiagaraRendererProperties* InRendererProperties, FName BindingName, FName VariableToBindName, ENiagaraRendererSourceDataMode SourceDataMode)
+{
+	if (UNiagaraComponentRendererProperties* ComponentRendererProperties = Cast<UNiagaraComponentRendererProperties>(InRendererProperties))
+	{
+		for (FNiagaraComponentPropertyBinding& ComponentPropertyBinding : ComponentRendererProperties->PropertyBindings)
+		{
+			if (ComponentPropertyBinding.PropertyName == BindingName)
+			{
+				ComponentPropertyBinding.AttributeBinding.SetValue(VariableToBindName, Emitter, SourceDataMode);
+				return;
+			}
+		}
+		UE_LOG(LogFXConverter, Error, TEXT("Tried to set component renderer binding \"%s\" but it was not supported for component!"), *BindingName.ToString());
+		return;
+	}
+
+	FProperty* ObjectProp = InRendererProperties->GetClass()->FindPropertyByName(BindingName);
+	if (!ObjectProp)
+	{
+		UE_LOG(LogFXConverter, Error, TEXT("Tried to set renderer binding \"%s\" but the property could not be found!"), *BindingName.ToString());
+		return;
+	}
+
+	FStructProperty* ObjectStructProp = CastField<FStructProperty>(ObjectProp);
+	if (!ObjectStructProp)
+	{
+		UE_LOG(LogFXConverter, Error, TEXT("Tried to set renderer binding \"%s\" but the property could be cast to a struct property!"), *BindingName.ToString());
+		return;
+	}
+
+	if (!ObjectStructProp->Struct)
+	{
+		UE_LOG(LogFXConverter, Error, TEXT("Tried to set renderer binding \"%s\" but the struct property did not have a valid UStruct!"), *BindingName.ToString());
+		return;
+	}
+
+	if (!ObjectStructProp->Struct->IsChildOf(FNiagaraVariableAttributeBinding::StaticStruct()))
+	{
+		UE_LOG(LogFXConverter, Error, TEXT("Tried to set renderer binding \"%s\" but the ustruct of the property was not a child of FNiagaraVariableAttributeBinding static struct!"), *BindingName.ToString());
+		return;
+	}
+
+	FNiagaraVariableAttributeBinding* AttributeBinding = ObjectStructProp->ContainerPtrToValuePtr<FNiagaraVariableAttributeBinding>(InRendererProperties);
+	if(!AttributeBinding)
+	{
+		UE_LOG(LogFXConverter, Error, TEXT("Tried to set renderer binding \"%s\" but failed to get the container to value ptr of the FPropertyStruct!"), *BindingName.ToString());
+		return;
+	}
+
+	AttributeBinding->SetValue(VariableToBindName, Emitter, SourceDataMode);
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////	UNiagaraScriptConversionContext																			  /////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1725,7 +2053,7 @@ void UNiagaraScriptConversionContext::Init(const FAssetData& InNiagaraScriptAsse
 		Log("Failed to create script! AssetData path was invalid!: " + InNiagaraScriptAssetData.PackagePath.ToString(), ENiagaraMessageSeverity::Error);
 		return;
 	}
-	bEnabled = true;
+	bModuleEnabled = true;
 
 	// Gather the inputs to this script and add them to the lookup table for validating UNiagaraScriptConversionContextInputs that are set.
 	TArray<UNiagaraNodeInput*> InputNodes;
