@@ -188,7 +188,7 @@ namespace UnrealGameSync
 				List<BadgeInfo> Badges = GetBadges(HitTest.Item, HitTest.SubItem);
 				foreach(BadgeInfo Badge in Badges)
 				{
-					if(Badge.Rectangle.Contains(e.Location))
+					if(Badge.Rectangle.Contains(e.Location) && Badge.OnClick != null)
 					{
 						Badge.OnClick();
 					}

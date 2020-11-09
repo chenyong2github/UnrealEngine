@@ -48,6 +48,7 @@ namespace UnrealGameSync
 		string Name { get; }
 		string Type { get; }
 		string DepotPath { get; }
+		string Target { get;  }
 
 		bool Exists();
 		bool TryGetArchivePathForChangeNumber(int ChangeNumber, out string ArchivePath);
@@ -60,20 +61,22 @@ namespace UnrealGameSync
 			public string Name { get; }
 			public string Type { get; }
 			public string DepotPath { get; }
+			public string Target { get; }
 			// TODO: executable/configuration?
 			public SortedList<int, string> ChangeNumberToFileRevision = new SortedList<int, string>();
 
-			public ArchiveInfo(string Name, string Type, string DepotPath)
+			public ArchiveInfo(string Name, string Type, string DepotPath, string Target)
 			{
 				this.Name = Name;
 				this.Type = Type;
 				this.DepotPath = DepotPath;
+				this.Target = Target;
 			}
 
 			public override bool Equals(object Other)
 			{
 				ArchiveInfo OtherArchive = Other as ArchiveInfo;
-				return OtherArchive != null && Name == OtherArchive.Name && Type == OtherArchive.Type && DepotPath == OtherArchive.DepotPath && Enumerable.SequenceEqual(ChangeNumberToFileRevision, OtherArchive.ChangeNumberToFileRevision);
+				return OtherArchive != null && Name == OtherArchive.Name && Type == OtherArchive.Type && DepotPath == OtherArchive.DepotPath && Target == OtherArchive.Target && Enumerable.SequenceEqual(ChangeNumberToFileRevision, OtherArchive.ChangeNumberToFileRevision);
 			}
 
 			public override int GetHashCode()
@@ -104,9 +107,11 @@ namespace UnrealGameSync
 					return false;
 				}
 
+				string Target = Object.GetValue("Target", null);
+
 				string Type = Object.GetValue("Type", null) ?? Name;
 
-				Info = new ArchiveInfo(Name, Type, DepotPath);
+				Info = new ArchiveInfo(Name, Type, DepotPath, Target);
 				return true;
 			}
 
@@ -568,7 +573,7 @@ namespace UnrealGameSync
 				string LegacyEditorArchivePath = ProjectConfigSection.GetValue("ZippedBinariesPath", null);
 				if (LegacyEditorArchivePath != null)
 				{
-					NewArchives.Add(new ArchiveInfo("Editor", "Editor", LegacyEditorArchivePath));
+					NewArchives.Add(new ArchiveInfo("Editor", "Editor", LegacyEditorArchivePath, null));
 				}
 
 				// New style

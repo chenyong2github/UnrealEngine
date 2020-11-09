@@ -37,6 +37,11 @@ namespace UnrealGameSync
 		public static readonly List<string> DefaultIssueApiUrls = new List<string>();
 
 		/// <summary>
+		/// The issue api to use for URL handler events
+		/// </summary>
+		public static readonly string UrlHandleIssueApi = null;
+
+		/// <summary>
 		/// Specifies the depot path to sync down the stable version of UGS from, without a trailing slash (eg. //depot/UnrealGameSync/bin). This is a site-specific setting. 
 		/// The UnrealGameSync executable should be located at Release/UnrealGameSync.exe under this path, with any dependent DLLs.
 		/// </summary>

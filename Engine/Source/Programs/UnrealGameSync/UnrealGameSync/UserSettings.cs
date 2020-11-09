@@ -864,7 +864,8 @@ namespace UnrealGameSync
 				Lines.Add(ViewLine);
 			}
 
-			foreach(WorkspaceSyncCategory Filter in UniqueIdToFilter.Values.OrderBy(x => x.Name))
+			HashSet<Guid> Enabled = new HashSet<Guid>();
+			foreach (WorkspaceSyncCategory Filter in UniqueIdToFilter.Values)
 			{
 				bool bEnable = Filter.bEnable;
 
@@ -880,13 +881,36 @@ namespace UnrealGameSync
 					bEnable = bWorkspaceEnable;
 				}
 
-				if (!bEnable)
+				if(bEnable)
+				{
+					EnableFilter(Filter.UniqueId, Enabled, UniqueIdToFilter);
+				}
+			}
+
+			foreach (WorkspaceSyncCategory Filter in UniqueIdToFilter.Values.OrderBy(x => x.Name))
+			{
+				if (!Enabled.Contains(Filter.UniqueId))
 				{
 					Lines.AddRange(Filter.Paths.Select(x => "-" + x.Trim()));
 				}
 			}
 
 			return Lines.ToArray();
+		}
+
+		static void EnableFilter(Guid UniqueId, HashSet<Guid> Enabled, Dictionary<Guid, WorkspaceSyncCategory> UniqueIdToFilter)
+		{
+			if(Enabled.Add(UniqueId))
+			{
+				WorkspaceSyncCategory Category;
+				if(UniqueIdToFilter.TryGetValue(UniqueId, out Category))
+				{
+					foreach(Guid RequiresUniqueId in Category.Requires)
+					{
+						EnableFilter(RequiresUniqueId, Enabled, UniqueIdToFilter);
+					}
+				}
+			}
 		}
 
 		static string EscapeText(string Text)

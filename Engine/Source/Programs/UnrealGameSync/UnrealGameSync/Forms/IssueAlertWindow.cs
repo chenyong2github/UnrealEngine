@@ -128,7 +128,7 @@ namespace UnrealGameSync
 			OwnerTextBuilder.AppendFormat(" Open for {0}.", Utility.FormatDurationMinutes((int)(NewIssue.RetrievedAt - NewIssue.CreatedAt).TotalMinutes));
 			string OwnerText = OwnerTextBuilder.ToString();
 
-			bool bNewIsWarning = Issue.Builds.Count > 0 && !Issue.Builds.Any(x => x.Outcome != IssueBuildOutcome.Warning);
+			bool bNewIsWarning = Issue.bIsWarning;
 
 			Issue = NewIssue;
 
@@ -243,23 +243,20 @@ namespace UnrealGameSync
 
 		public void LaunchUrl()
 		{
-			IssueBuildData LastBuild = Issue.Builds.OrderByDescending(x => x.Change).FirstOrDefault();
-			if(LastBuild != null)
+			string Url = Issue.BuildUrl;
+			if(String.IsNullOrEmpty(Url))
 			{
-				if (String.IsNullOrEmpty(LastBuild.ErrorUrl))
+				MessageBox.Show("No additional information is available");
+			}
+			else
+			{
+				try
 				{
-					MessageBox.Show("No additional information is available");
+					System.Diagnostics.Process.Start(Url);
 				}
-				else
+				catch (Exception Ex)
 				{
-					try
-					{
-						System.Diagnostics.Process.Start(LastBuild.ErrorUrl);
-					}
-					catch (Exception Ex)
-					{
-						MessageBox.Show(String.Format("Unable to launch '{0}' (Error: {1})", LastBuild.ErrorUrl, Ex.Message));
-					}
+					MessageBox.Show(String.Format("Unable to launch '{0}' (Error: {1})", Url, Ex.Message));
 				}
 			}
 		}

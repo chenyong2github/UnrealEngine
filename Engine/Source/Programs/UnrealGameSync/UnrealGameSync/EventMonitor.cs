@@ -859,8 +859,8 @@ namespace UnrealGameSync
 						// Fetch any new changes
 						if (NewMinChangeCopy < MinChange)
 						{
-							List<GetMetadataResponseV2> NewEvents = RESTApi.GET<List<GetMetadataResponseV2>>(ApiUrl, "metadata", String.Format("{0}&minchange={1}&maxchange={2}", CommonArgs, NewMinChangeCopy, NewMinChange));
-							foreach (GetMetadataResponseV2 NewEvent in NewEvents)
+							GetMetadataListResponseV2 NewEvents = RESTApi.GET<GetMetadataListResponseV2>(ApiUrl, "metadata", String.Format("{0}&minchange={1}&maxchange={2}", CommonArgs, NewMinChangeCopy, MinChange));
+							foreach (GetMetadataResponseV2 NewEvent in NewEvents.Items)
 							{
 								IncomingMetadata.Enqueue(NewEvent);
 							}

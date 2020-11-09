@@ -48,6 +48,7 @@ namespace UnrealGameSync
 
 	public class IssueData
 	{
+		public int Version;
 		public long Id;
 		public DateTime CreatedAt;
 		public DateTime RetrievedAt;
@@ -60,7 +61,8 @@ namespace UnrealGameSync
 		public int FixChange;
 		public DateTime? ResolvedAt;
 		public bool bNotify;
-		public List<IssueBuildData> Builds;
+		public bool bIsWarning;
+		public string BuildUrl;
 		public List<string> Streams;
 
 		HashSet<string> CachedProjects;
@@ -417,9 +419,22 @@ namespace UnrealGameSync
 				}
 
 				// Update all the builds for each issue
-				foreach(IssueData NewIssue in NewIssues)
+				foreach (IssueData NewIssue in NewIssues)
 				{
-					NewIssue.Builds = RESTApi.GET<List<IssueBuildData>>(ApiUrl, String.Format("issues/{0}/builds", NewIssue.Id));
+					if (NewIssue.Version == 0)
+					{
+						List<IssueBuildData> Builds = RESTApi.GET<List<IssueBuildData>>(ApiUrl, String.Format("issues/{0}/builds", NewIssue.Id));
+						if (Builds != null && Builds.Count > 0)
+						{
+							NewIssue.bIsWarning = !Builds.Any(x => x.Outcome != IssueBuildOutcome.Warning);
+
+							IssueBuildData LastBuild = Builds.OrderByDescending(x => x.Change).FirstOrDefault();
+							if (LastBuild != null && !String.IsNullOrEmpty(LastBuild.ErrorUrl))
+							{
+								NewIssue.BuildUrl = LastBuild.ErrorUrl;
+							}
+						}
+					}
 				}
 
 				// Apply any pending updates to this issue list, and update it

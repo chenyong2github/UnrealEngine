@@ -36,8 +36,9 @@
 			this.SplitContainer = new System.Windows.Forms.SplitContainer();
 			this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
 			this.groupBox1 = new System.Windows.Forms.GroupBox();
-			this.SyncAllProjects = new System.Windows.Forms.CheckBox();
 			this.IncludeAllProjectsInSolution = new System.Windows.Forms.CheckBox();
+			this.SyncAllProjects = new System.Windows.Forms.CheckBox();
+			this.tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
 			this.ViewGroupBox.SuspendLayout();
 			this.CategoriesGroupBox.SuspendLayout();
 			((System.ComponentModel.ISupportInitialize)(this.SplitContainer)).BeginInit();
@@ -46,6 +47,7 @@
 			this.SplitContainer.SuspendLayout();
 			this.tableLayoutPanel1.SuspendLayout();
 			this.groupBox1.SuspendLayout();
+			this.tableLayoutPanel2.SuspendLayout();
 			this.SuspendLayout();
 			// 
 			// ViewGroupBox
@@ -94,7 +96,8 @@
 			this.CategoriesGroupBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-			this.CategoriesGroupBox.Controls.Add(this.CategoriesCheckList);
+			this.CategoriesGroupBox.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+			this.CategoriesGroupBox.Controls.Add(this.tableLayoutPanel2);
 			this.CategoriesGroupBox.Location = new System.Drawing.Point(0, 88);
 			this.CategoriesGroupBox.Margin = new System.Windows.Forms.Padding(0, 3, 0, 0);
 			this.CategoriesGroupBox.Name = "CategoriesGroupBox";
@@ -105,17 +108,14 @@
 			// 
 			// CategoriesCheckList
 			// 
-			this.CategoriesCheckList.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
 			this.CategoriesCheckList.BorderStyle = System.Windows.Forms.BorderStyle.None;
 			this.CategoriesCheckList.CheckOnClick = true;
+			this.CategoriesCheckList.Dock = System.Windows.Forms.DockStyle.Fill;
 			this.CategoriesCheckList.FormattingEnabled = true;
 			this.CategoriesCheckList.IntegralHeight = false;
-			this.CategoriesCheckList.Location = new System.Drawing.Point(12, 26);
-			this.CategoriesCheckList.Margin = new System.Windows.Forms.Padding(7);
+			this.CategoriesCheckList.Location = new System.Drawing.Point(2, 2);
 			this.CategoriesCheckList.Name = "CategoriesCheckList";
-			this.CategoriesCheckList.Size = new System.Drawing.Size(986, 306);
+			this.CategoriesCheckList.Size = new System.Drawing.Size(248, 77);
 			this.CategoriesCheckList.Sorted = true;
 			this.CategoriesCheckList.TabIndex = 7;
 			// 
@@ -169,6 +169,16 @@
 			this.groupBox1.TabStop = false;
 			this.groupBox1.Text = "General";
 			// 
+			// IncludeAllProjectsInSolution
+			// 
+			this.IncludeAllProjectsInSolution.AutoSize = true;
+			this.IncludeAllProjectsInSolution.Location = new System.Drawing.Point(12, 48);
+			this.IncludeAllProjectsInSolution.Name = "IncludeAllProjectsInSolution";
+			this.IncludeAllProjectsInSolution.Size = new System.Drawing.Size(224, 19);
+			this.IncludeAllProjectsInSolution.TabIndex = 7;
+			this.IncludeAllProjectsInSolution.Text = "Include all synced projects in solution";
+			this.IncludeAllProjectsInSolution.UseVisualStyleBackColor = true;
+			// 
 			// SyncAllProjects
 			// 
 			this.SyncAllProjects.AutoSize = true;
@@ -179,15 +189,19 @@
 			this.SyncAllProjects.Text = "Sync all projects in stream";
 			this.SyncAllProjects.UseVisualStyleBackColor = true;
 			// 
-			// IncludeAllProjectsInSolution
+			// tableLayoutPanel2
 			// 
-			this.IncludeAllProjectsInSolution.AutoSize = true;
-			this.IncludeAllProjectsInSolution.Location = new System.Drawing.Point(12, 48);
-			this.IncludeAllProjectsInSolution.Name = "IncludeAllProjectsInSolution";
-			this.IncludeAllProjectsInSolution.Size = new System.Drawing.Size(224, 19);
-			this.IncludeAllProjectsInSolution.TabIndex = 7;
-			this.IncludeAllProjectsInSolution.Text = "Include all synced projects in solution";
-			this.IncludeAllProjectsInSolution.UseVisualStyleBackColor = true;
+			this.tableLayoutPanel2.ColumnCount = 1;
+			this.tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+			this.tableLayoutPanel2.Controls.Add(this.CategoriesCheckList, 0, 0);
+			this.tableLayoutPanel2.Dock = System.Windows.Forms.DockStyle.Fill;
+			this.tableLayoutPanel2.Location = new System.Drawing.Point(2, 10);
+			this.tableLayoutPanel2.Margin = new System.Windows.Forms.Padding(9);
+			this.tableLayoutPanel2.Name = "tableLayoutPanel2";
+			this.tableLayoutPanel2.RowCount = 1;
+			this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
+			this.tableLayoutPanel2.Size = new System.Drawing.Size(501, 160);
+			this.tableLayoutPanel2.TabIndex = 8;
 			// 
 			// SyncFilterControl
 			// 
@@ -210,6 +224,7 @@
 			this.tableLayoutPanel1.ResumeLayout(false);
 			this.groupBox1.ResumeLayout(false);
 			this.groupBox1.PerformLayout();
+			this.tableLayoutPanel2.ResumeLayout(false);
 			this.ResumeLayout(false);
 
 		}
@@ -226,5 +241,6 @@
 		private System.Windows.Forms.GroupBox groupBox1;
 		public System.Windows.Forms.CheckBox SyncAllProjects;
 		public System.Windows.Forms.CheckBox IncludeAllProjectsInSolution;
+		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel2;
 	}
 }
