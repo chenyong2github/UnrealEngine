@@ -467,14 +467,19 @@ public:
 	/** 
 	 * Access the 'active' actor lock.
 	 *
-	 * This is the actor locked to cinematics if any. Otherwise, it's the actor locked to the 
-	 * viewport via the viewport menus.
+	 * This returns the actor lock (as per GetActorLock) if that is the currently active lock. It is *not* the currently
+	 * active lock if there's a valid cinematic lock actor (as per GetCinematicActorLock), since cinematics take
+	 * precedence.
 	 * 
 	 * @return  The actor currently locked to the viewport and actively linked to the camera movements.
 	 */
 	TWeakObjectPtr<AActor> GetActiveActorLock() const
 	{
-		return ActorLocks.GetLock().LockedActor;
+		if (ActorLocks.CinematicActorLock.HasValidLockedActor())
+		{
+			return TWeakObjectPtr<AActor>();
+		}
+		return ActorLocks.ActorLock.LockedActor;
 	}
 	
 	/**
@@ -485,7 +490,7 @@ public:
 
 	/** 
 	 * Find the camera component that is driving this viewport, in the following order of preference:
-	 *		1. Matinee locked actor
+	 *		1. Cinematic locked actor
 	 *		2. User actor lock (if (bLockedCameraView is true)
 	 * 
 	 * @return  Pointer to a camera component to use for this viewport's view
