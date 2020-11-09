@@ -103,6 +103,8 @@ protected:
 	 */
 	FSimCallbackInput* GetProducerInputData_External();
 
+	FPhysicsSolverBase* GetSolver() { return Solver; }
+
 private:
 	
 	/**
