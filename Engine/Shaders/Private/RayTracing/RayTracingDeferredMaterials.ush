@@ -13,6 +13,23 @@ struct FRayIntersectionBookmark
 	uint Data[2];
 };
 
+#if DIM_AMD_HIT_TOKEN
+
+#include "/Engine/Shared/ThirdParty/AMD/ags_shader_intrinsics_dx12.h"
+
+#define TraceDeferredMaterialGatherRay(TLAS, RayFlags, InstanceInclusionMask, Ray, OutBookmark, InOutPayload){\
+	TraceRay(TLAS, RayFlags, InstanceInclusionMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray, InOutPayload);\
+	OutBookmark.Data[0] = AmdGetLastHitToken().x;\
+	OutBookmark.Data[1] = AmdGetLastHitToken().y;\
+}
+
+#define TraceDeferredMaterialShadingRay(TLAS, RayFlags, InstanceInclusionMask, Ray, Bookmark, InOutPayload){\
+	AmdSetHitToken(uint2(Bookmark.Data[0], Bookmark.Data[1]));\
+	TraceRay(TLAS, RayFlags, InstanceInclusionMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray, InOutPayload);\
+}
+
+#else // DIM_AMD_HIT_TOKEN
+
 #define TraceDeferredMaterialGatherRay(TLAS, RayFlags, InstanceInclusionMask, Ray, OutBookmark, InOutPayload){\
 	TraceRay(TLAS, RayFlags, InstanceInclusionMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray, InOutPayload);\
 	OutBookmark.Data[0] = asuint(InOutPayload.HitT);\
@@ -25,5 +42,7 @@ struct FRayIntersectionBookmark
 	BookmarkRay.TMax = asfloat(Bookmark.Data[1]) + 0.5f;\
 	TraceRay(TLAS, RayFlags, InstanceInclusionMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, BookmarkRay, InOutPayload);\
 }
+
+#endif // DIM_AMD_HIT_TOKEN
 
 #endif // OVERRIDE_RAYTRACINGDEFERREDMATERIALS_USH

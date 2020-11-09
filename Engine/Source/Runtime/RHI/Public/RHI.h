@@ -548,6 +548,9 @@ extern RHI_API bool GRHISupportsRayTracingPSOAdditions;
 /** Whether or not the RHI supports async building ray tracing acceleration structures. */
 extern RHI_API bool GRHISupportsRayTracingAsyncBuildAccelerationStructure;
 
+/** Whether or not the RHI supports the AMD Hit Token extension. */
+extern RHI_API bool GRHISupportsRayTracingAMDHitToken;
+
 /** Whether or not the RHI supports shader wave operations (shader model 6.0). */
 extern RHI_API bool GRHISupportsWaveOperations;
 

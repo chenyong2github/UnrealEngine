@@ -806,6 +806,8 @@ void FD3D12Adapter::InitializeDevices()
 
 					GRHISupportsRayTracing = true;
 
+					GRHISupportsRayTracingAMDHitToken = (OwningRHI->GetAmdSupportedExtensionFlags() & AGS_DX12_EXTENSION_INTRINSIC_RAY_TRACE_HIT_TOKEN) != 0;
+
 					if (D3D12Caps5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1
 						&& RootDevice7)
 					{

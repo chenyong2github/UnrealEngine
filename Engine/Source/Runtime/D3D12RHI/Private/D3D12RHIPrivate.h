@@ -955,6 +955,7 @@ public:
 
 	AGSContext* GetAmdAgsContext() { return AmdAgsContext; }
 	void SetAmdSupportedExtensionFlags(uint32 Flags) { AmdSupportedExtensionFlags = Flags; }
+	uint32 GetAmdSupportedExtensionFlags() const { return AmdSupportedExtensionFlags; }
 
 protected:
 

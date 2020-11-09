@@ -138,7 +138,8 @@ class FRayTracingDeferredReflectionsRGS : public FGlobalShader
 
 	class FDeferredMaterialMode : SHADER_PERMUTATION_ENUM_CLASS("DIM_DEFERRED_MATERIAL_MODE", EDeferredMaterialMode);
 	class FGenerateRays : SHADER_PERMUTATION_BOOL("DIM_GENERATE_RAYS"); // Whether to generate rays in the RGS or in a separate CS
-	using FPermutationDomain = TShaderPermutationDomain<FDeferredMaterialMode, FGenerateRays>;
+	class FAMDHitToken : SHADER_PERMUTATION_BOOL("DIM_AMD_HIT_TOKEN");
+	using FPermutationDomain = TShaderPermutationDomain<FDeferredMaterialMode, FGenerateRays, FAMDHitToken>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntPoint, RayTracingResolution)
@@ -186,6 +187,11 @@ class FRayTracingDeferredReflectionsRGS : public FGlobalShader
 			return false;
 		}
 
+		if (PermutationVector.Get<FAMDHitToken>() && !IsD3DPlatform(Parameters.Platform, false))
+		{
+			return false;
+		}
+
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
 
@@ -203,6 +209,9 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingDeferredReflections(const F
 	FRayTracingDeferredReflectionsRGS::FPermutationDomain PermutationVector;
 
 	const bool bGenerateRaysWithRGS = CVarRayTracingReflectionsGenerateRaysWithRGS.GetValueOnRenderThread() == 1;
+	const bool bHitTokenEnabled = CanUseRayTracingAMDHitToken();
+
+	PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FAMDHitToken>(bHitTokenEnabled);
 
 	{
 		PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::Gather);
@@ -224,7 +233,9 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingDeferredReflectionsDeferred
 	FRayTracingDeferredReflectionsRGS::FPermutationDomain PermutationVector;
 
 	const bool bGenerateRaysWithRGS = CVarRayTracingReflectionsGenerateRaysWithRGS.GetValueOnRenderThread() == 1;
+	const bool bHitTokenEnabled = CanUseRayTracingAMDHitToken();
 
+	PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FAMDHitToken>(bHitTokenEnabled);
 	PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::Gather);
 	PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FGenerateRays>(bGenerateRaysWithRGS);
 	auto RayGenShader = View.ShaderMap->GetShader<FRayTracingDeferredReflectionsRGS>(PermutationVector);
@@ -311,6 +322,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	CommonParameters.Forward                 = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 	CommonParameters.ReflectionMaxNormalBias = GetRaytracingMaxNormalBias();
 
+	const bool bHitTokenEnabled = CanUseRayTracingAMDHitToken();
+
 	// Generate sorted reflection rays
 
 	const uint32 TileAlignedNumRays          = TileAlignedResolution.X * TileAlignedResolution.Y;
@@ -340,6 +353,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 		PassParameters.RayHitDistanceOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->RayHitDistance);
 
 		FRayTracingDeferredReflectionsRGS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FAMDHitToken>(bHitTokenEnabled);
 		PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::Gather);
 		PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FGenerateRays>(bGenerateRaysWithRGS);
 
@@ -377,6 +391,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 		PassParameters.RayHitDistanceOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->RayHitDistance);
 
 		FRayTracingDeferredReflectionsRGS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FAMDHitToken>(bHitTokenEnabled);
 		PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::Shade);
 		PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FGenerateRays>(false);
 

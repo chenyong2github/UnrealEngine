@@ -850,6 +850,7 @@ bool GRHISupportsDynamicResolution = false;
 bool GRHISupportsRayTracing = false;
 bool GRHISupportsRayTracingPSOAdditions = false;
 bool GRHISupportsRayTracingAsyncBuildAccelerationStructure = false;
+bool GRHISupportsRayTracingAMDHitToken = false;
 bool GRHISupportsWaveOperations = false;
 int32 GRHIMinimumWaveSize = 4; // Minimum supported value in SM 6.0
 int32 GRHIMaximumWaveSize = 128; // Maximum supported value in SM 6.0
