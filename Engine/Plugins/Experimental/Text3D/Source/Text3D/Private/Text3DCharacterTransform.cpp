@@ -41,19 +41,19 @@ void UText3DCharacterTransform::OnRegister()
 		ProcessEffect();
 	}
 
-	UText3DComponent * TextComponent = Cast<UText3DComponent>(GetOwner()->GetRootComponent());
-	if (TextComponent)
+	UText3DComponent* Text3DComponent = GetText3DComponent();
+	if (Text3DComponent)
 	{
-		TextComponent->OnTextGenerated().AddUObject(this, &UText3DCharacterTransform::ProcessEffect);
+		Text3DComponent->OnTextGenerated().AddUObject(this, &UText3DCharacterTransform::ProcessEffect);
 	}
 }
 
 void UText3DCharacterTransform::OnUnregister()
 {
-	UText3DComponent * TextComponent = Cast<UText3DComponent>(GetOwner()->GetRootComponent());
-	if (TextComponent)
+	UText3DComponent* Text3DComponent = GetText3DComponent();
+	if (Text3DComponent)
 	{
-		TextComponent->OnTextGenerated().RemoveAll(this);
+		Text3DComponent->OnTextGenerated().RemoveAll(this);
 	}
 
 	Super::OnUnregister();
@@ -84,16 +84,16 @@ void UText3DCharacterTransform::PostEditChangeProperty(FPropertyChangedEvent& Pr
 
 void UText3DCharacterTransform::ProcessEffect()
 {
-	UText3DComponent * TextComponent = Cast<UText3DComponent>(GetOwner()->GetRootComponent());
-	if (!TextComponent)
+	UText3DComponent* Text3DComponent = GetText3DComponent();
+	if (!Text3DComponent)
 	{
 		return;
 	}
 
-	int32 Count = TextComponent->GetGlyphCount();
+	int32 Count = Text3DComponent->GetGlyphCount();
 	for (int32 Index = 0; Index < Count; Index++)
 	{
-		USceneComponent* GlyphComponent = TextComponent->GetGlyphMeshComponent(Index);
+		USceneComponent* GlyphComponent = Text3DComponent->GetGlyphMeshComponent(Index);
 		if (!GlyphComponent)
 		{
 			continue;
@@ -124,16 +124,16 @@ void UText3DCharacterTransform::ProcessEffect()
 
 void UText3DCharacterTransform::ResetLocation()
 {
-	UText3DComponent * TextComponent = Cast<UText3DComponent>(GetOwner()->GetRootComponent());
-	if (!TextComponent)
+	UText3DComponent* Text3DComponent = GetText3DComponent();
+	if (!Text3DComponent)
 	{
 		return;
 	}
 
-	int32 Count = TextComponent->GetGlyphCount();
+	int32 Count = Text3DComponent->GetGlyphCount();
 	for (int32 Index = 0; Index < Count; Index++)
 	{
-		USceneComponent* GlyphComponent = TextComponent->GetGlyphMeshComponent(Index);
+		USceneComponent* GlyphComponent = Text3DComponent->GetGlyphMeshComponent(Index);
 		if (GlyphComponent)
 		{
 			GlyphComponent->SetRelativeLocation(FVector::ZeroVector);
@@ -143,16 +143,16 @@ void UText3DCharacterTransform::ResetLocation()
 
 void UText3DCharacterTransform::ResetRotate()
 {
-	UText3DComponent * TextComponent = Cast<UText3DComponent>(GetOwner()->GetRootComponent());
-	if (!TextComponent)
+	UText3DComponent* Text3DComponent = GetText3DComponent();
+	if (!Text3DComponent)
 	{
 		return;
 	}
 
-	int32 Count = TextComponent->GetGlyphCount();
+	int32 Count = Text3DComponent->GetGlyphCount();
 	for (int32 Index = 0; Index < Count; Index++)
 	{
-		USceneComponent* GlyphComponent = TextComponent->GetGlyphMeshComponent(Index);
+		USceneComponent* GlyphComponent = Text3DComponent->GetGlyphMeshComponent(Index);
 		if (GlyphComponent)
 		{
 			GlyphComponent->SetRelativeRotation(FRotator::ZeroRotator);
@@ -162,16 +162,16 @@ void UText3DCharacterTransform::ResetRotate()
 
 void UText3DCharacterTransform::ResetScale()
 {
-	UText3DComponent * TextComponent = Cast<UText3DComponent>(GetOwner()->GetRootComponent());
-	if (!TextComponent)
+	UText3DComponent* Text3DComponent = GetText3DComponent();
+	if (!Text3DComponent)
 	{
 		return;
 	}
 
-	int32 Count = TextComponent->GetGlyphCount();
+	int32 Count = Text3DComponent->GetGlyphCount();
 	for (int32 Index = 0; Index < Count; Index++)
 	{
-		USceneComponent* GlyphComponent = TextComponent->GetGlyphMeshComponent(Index);
+		USceneComponent* GlyphComponent = Text3DComponent->GetGlyphMeshComponent(Index);
 		if (GlyphComponent)
 		{
 			GlyphComponent->SetRelativeScale3D(FVector(1.0f));
@@ -400,4 +400,21 @@ void UText3DCharacterTransform::SetRotateEnd(FRotator Value)
 		RotateEnd = Value;
 		ProcessEffect();
 	}
+}
+
+UText3DComponent* UText3DCharacterTransform::GetText3DComponent()
+{
+	UText3DComponent* Component = Cast<UText3DComponent>(GetAttachParent());
+	if (Component)
+	{
+		return Component;
+	}
+
+	AActor* Owner = GetOwner();
+	if (!Owner)
+	{
+		return nullptr;
+	}
+	
+	return Owner->FindComponentByClass<UText3DComponent>();
 }
