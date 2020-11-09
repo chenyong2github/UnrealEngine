@@ -1,14 +1,14 @@
 {
 	"FileVersion": 3,
 	"Version": 2,
-	"VersionName": "1.1",
+	"VersionName": "1.2",
 	"FriendlyName": "Rider Integration",
 	"Description": "Allows access to source code in Rider.",
 	"Category": "Programming",
 	"CreatedBy": "JetBrains",
 	"CreatedByURL": "https://www.jetbrains.com/",
-	"DocsURL": "",
-	"MarketplaceURL": "",
+	"DocsURL": "https://github.com/JetBrains/RiderSourceCodeAccess",
+	"MarketplaceURL" : "",
 	"SupportURL": "",
 	"EnabledByDefault": true,
 	"CanContainContent": false,
@@ -17,9 +17,9 @@
 	"Modules": [
 		{
 			"Name": "RiderSourceCodeAccess",
-			"Type": "UncookedOnly",
+			"Type": "EditorNoCommandlet",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64" ]
+			"WhitelistPlatforms": [ "Win64", "Mac" ]
 		}
 	]
 }
