@@ -1548,6 +1548,15 @@ public:
 				OutSceneColorHalfResViewRect);
 		}
 	}
+
+	virtual float GetMinUpsampleResolutionFraction() const override
+	{
+		return FSceneViewScreenPercentageConfig::kMinTAAUpsampleResolutionFraction;
+	}
+	virtual float GetMaxUpsampleResolutionFraction() const override
+	{
+		return FSceneViewScreenPercentageConfig::kMaxTAAUpsampleResolutionFraction;
+	}
 };
 
 // static
