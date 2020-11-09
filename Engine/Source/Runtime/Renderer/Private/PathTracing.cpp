@@ -79,6 +79,15 @@ TAutoConsoleVariable<int32> CVarPathTracingWiperMode(
 	ECVF_RenderThreadSafe 
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingProgressDisplay(
+	TEXT("r.PathTracing.ProgressDisplay"),
+	0,
+	TEXT("Enables an in-frame display of progress towards the defined sample per pixel limit. The indicator dissapears when the maximum is reached and sample accumulation has stopped (default = 0)\n")
+	TEXT("0: off (default)\n")
+	TEXT("1: on\n"),
+	ECVF_RenderThreadSafe
+);
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingData, "PathTracingData");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingLightData, "SceneLightsData");
 
@@ -259,6 +268,7 @@ class FPathTracingCompositorPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER(unsigned, Iteration)
 		SHADER_PARAMETER(unsigned, MaxSamples)
+		SHADER_PARAMETER(int, ProgressDisplayEnabled)
 
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -411,6 +421,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	FPathTracingCompositorPS::FParameters* DisplayParameters = GraphBuilder.AllocParameters<FPathTracingCompositorPS::FParameters>();
 	DisplayParameters->Iteration = PathTracingData.Iteration;
 	DisplayParameters->MaxSamples = MaxSPP;
+	DisplayParameters->ProgressDisplayEnabled = CVarPathTracingProgressDisplay.GetValueOnRenderThread();
 	DisplayParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	DisplayParameters->RadianceTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(RadianceTexture));
 	DisplayParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorOutputTexture, ERenderTargetLoadAction::ENoAction);
