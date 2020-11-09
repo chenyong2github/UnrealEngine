@@ -868,10 +868,6 @@ bool FNiagaraStackGraphUtilities::GetStackFunctionInputAndOutputVariables(UNiaga
 		// No builder histories; it is possible the script does not have a complete path from input to output node.
 		return false;
 	}
-	else if (ensureMsgf(Builder.Histories.Num() > 1, TEXT("Invalid Stack Graph - Function call node has invalid history count (more than one)!")))
-	{
-		return false;
-	}
 
 	for (int32 i = 0; i < Builder.Histories[0].Variables.Num(); ++i)
 	{
