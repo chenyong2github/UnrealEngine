@@ -1258,14 +1258,13 @@ class FEmitSceneDepthStencilPS : public FNaniteShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedView>, InViews)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, SOAStrides)
 		SHADER_PARAMETER(uint32, StencilClear)
 		SHADER_PARAMETER(uint32, StencilDecal)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageHeaders)
-
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -3870,6 +3869,7 @@ void EmitDepthTargets(
 			auto* PassParameters	= GraphBuilder.AllocParameters<FEmitSceneDepthStencilPS::FParameters>();
 
 			PassParameters->View						= View.ViewUniformBuffer;
+			PassParameters->InViews						= GraphBuilder.CreateSRV(CullingContext.ViewsBuffer);
 			PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
 			PassParameters->SOAStrides					= CullingContext.SOAStrides;
 			PassParameters->StencilClear				= DefaultStencil;
