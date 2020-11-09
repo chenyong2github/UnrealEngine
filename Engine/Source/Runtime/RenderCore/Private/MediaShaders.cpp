@@ -542,6 +542,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRGB10toYUVv210ConvertUB, )
 SHADER_PARAMETER(FMatrix, ColorTransform)
 SHADER_PARAMETER(uint32, LinearToSrgb)
 SHADER_PARAMETER(float, OnePixelDeltaX)
+SHADER_PARAMETER(float, PaddingScale)
 SHADER_PARAMETER_TEXTURE(Texture2D, Texture)
 SHADER_PARAMETER_SAMPLER(SamplerState, SamplerP)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -558,7 +559,13 @@ void FRGB10toYUVv210ConvertPS::SetParameters(FRHICommandList& CommandList, TRefC
 		UB.SamplerP = TStaticSamplerState<SF_Point>::GetRHI();
 		UB.LinearToSrgb = LinearToSrgb;
 		UB.Texture = RGBATexture;
-		UB.OnePixelDeltaX = 1.0f / float(RGBATexture->GetSizeX());
+
+		//Output texture will be based on a size dividable by 48 (i.e 1280 -> 1296) and divided by 6 (i.e 1296 / 6 = 216)
+		//To map output texture UVs, we get a scale from the source texture original size to the mapped output size
+		//And use the source texture size to get the pixel delta
+		const float PaddedResolution = uint32((RGBATexture->GetSizeX() + 47) / 48) * 48;
+		UB.OnePixelDeltaX = 1.0f / (float)RGBATexture->GetSizeX();
+		UB.PaddingScale = PaddedResolution / (float)RGBATexture->GetSizeX();
 	}
 
 	TUniformBufferRef<FRGB10toYUVv210ConvertUB> Data = TUniformBufferRef<FRGB10toYUVv210ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);

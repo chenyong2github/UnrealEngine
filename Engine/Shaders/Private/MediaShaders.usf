@@ -325,8 +325,8 @@ void RGB8toUYVY8ConvertPS(
 	float2 InUV : TEXCOORD0,
 	out float4 OutColor : SV_Target0)
 {
-	float3 RGB0 = RGB8toUYVY8ConvertUB.Texture.Sample(RGB8toUYVY8ConvertUB.SamplerP, float2(InUV.x, InUV.y)).rgb;
-	float3 RGB1 = RGB8toUYVY8ConvertUB.Texture.Sample(RGB8toUYVY8ConvertUB.SamplerP, float2(InUV.x + RGB8toUYVY8ConvertUB.OnePixelDeltaX, InUV.y)).rgb;
+	float3 RGB0 = RGB8toUYVY8ConvertUB.Texture.Sample(RGB8toUYVY8ConvertUB.SamplerP, float2(InUV.x + 0.5f * RGB8toUYVY8ConvertUB.OnePixelDeltaX, InUV.y)).rgb;
+	float3 RGB1 = RGB8toUYVY8ConvertUB.Texture.Sample(RGB8toUYVY8ConvertUB.SamplerP, float2(InUV.x + 1.5f * RGB8toUYVY8ConvertUB.OnePixelDeltaX, InUV.y)).rgb;
 
 	float3 YUV0 = RgbToYuv(RGB0, RGB8toUYVY8ConvertUB.ColorTransform, RGB8toUYVY8ConvertUB.LinearToSrgb);
 	float3 YUV1 = RgbToYuv(RGB1, RGB8toUYVY8ConvertUB.ColorTransform, RGB8toUYVY8ConvertUB.LinearToSrgb);
@@ -341,7 +341,7 @@ void RGB10toYUVv210ConvertPS(
 	float2 InUV : TEXCOORD0,
 	out uint4 OutColor : SV_Target0)
 {
-	float X = InUV.x - RGB10toYUVv210ConvertUB.OnePixelDeltaX * 2.5f;
+	float X = (InUV.x * RGB10toYUVv210ConvertUB.PaddingScale) - RGB10toYUVv210ConvertUB.OnePixelDeltaX * 2.5f;
 
 	float3 RGB0 = RGB10toYUVv210ConvertUB.Texture.Sample(RGB10toYUVv210ConvertUB.SamplerP, float2(X, InUV.y)).rgb;
 	float3 RGB1 = RGB10toYUVv210ConvertUB.Texture.Sample(RGB10toYUVv210ConvertUB.SamplerP, float2(X + RGB10toYUVv210ConvertUB.OnePixelDeltaX, InUV.y)).rgb;
