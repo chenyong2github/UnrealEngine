@@ -315,30 +315,11 @@ void FDatasmithStaticMeshImporter::BuildStaticMesh( UStaticMesh* StaticMesh )
 	BuildStaticMeshes({ StaticMesh });
 }
 
-void FDatasmithStaticMeshImporter::PostMeshBuild(UStaticMesh* StaticMesh)
-{
-	StaticMesh->ClearMeshDescriptions();
-}
-
 void FDatasmithStaticMeshImporter::BuildStaticMeshes(const TArray< UStaticMesh* >& StaticMeshes, TFunction<bool(UStaticMesh*)> ProgressCallback)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithStaticMeshImporter::BuildStaticMeshes);
 
-	TArray<FDelegateHandle> PostMeshBuildDelegateHandles;
-	PostMeshBuildDelegateHandles.SetNum(StaticMeshes.Num());
-
-	for (int32 StaticMeshIndex = 0; StaticMeshIndex < StaticMeshes.Num(); ++StaticMeshIndex)
-	{
-		// Release mesh descriptions as soon as they've been serialized and built to reduce memory footprint during import
-		PostMeshBuildDelegateHandles[StaticMeshIndex] = StaticMeshes[StaticMeshIndex]->OnPostMeshBuild().AddStatic(&FDatasmithStaticMeshImporter::PostMeshBuild);
-	}
-
 	UStaticMesh::BatchBuild(StaticMeshes, true, ProgressCallback);
-
-	for (int32 StaticMeshIndex = 0; StaticMeshIndex < StaticMeshes.Num(); ++StaticMeshIndex)
-	{
-		StaticMeshes[StaticMeshIndex]->OnPostMeshBuild().Remove(PostMeshBuildDelegateHandles[StaticMeshIndex]);
-	}
 }
 
 void FDatasmithStaticMeshImporter::ProcessCollision(UStaticMesh* StaticMesh, const TArray< FVector >& VertexPositions)

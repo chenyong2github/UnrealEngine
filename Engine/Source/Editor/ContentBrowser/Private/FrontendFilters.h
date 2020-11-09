@@ -12,6 +12,7 @@
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
 class FMenuBuilder;
+struct FAssetCompileData;
 
 /** A filter for text search */
 class FFrontendFilter_Text : public FFrontendFilter
@@ -271,7 +272,7 @@ class FFrontendFilter_InUseByLoadedLevels : public FFrontendFilter
 public:
 	/** Constructor/Destructor */
 	FFrontendFilter_InUseByLoadedLevels(TSharedPtr<FFrontendFilterCategory> InCategory);
-	~FFrontendFilter_InUseByLoadedLevels();
+	~FFrontendFilter_InUseByLoadedLevels() override;
 
 	// FFrontendFilter implementation
 	virtual FString GetName() const override { return TEXT("InUseByLoadedLevels"); }
@@ -288,8 +289,16 @@ public:
 	/** Handler for when an asset is renamed */
 	void OnAssetPostRename(const TArray<FAssetRenameData>& AssetsAndNames);
 
+	/** Handler for when assets are finished compiling */
+	void OnAssetPostCompile(const TArray<FAssetCompileData>& CompiledAssets);
+
 private:
-	bool bIsCurrentlyActive;
+	void Refresh();
+	void RegisterDelayedRefresh(float DelayInSeconds);
+	void UnregisterDelayedRefresh();
+	FDelegateHandle DelayedRefreshHandle;
+	bool bIsDirty = false;
+	bool bIsCurrentlyActive = false;
 };
 
 

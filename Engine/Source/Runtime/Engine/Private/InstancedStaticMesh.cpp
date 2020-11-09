@@ -1479,6 +1479,7 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 		PerInstanceSMData.Num() > 0 &&
 		// make sure we have an actual static mesh
 		GetStaticMesh() &&
+		GetStaticMesh()->IsCompiling() == false &&
 		GetStaticMesh()->HasValidRenderData();
 
 	if (bMeshIsValid)
@@ -1721,6 +1722,7 @@ void UInstancedStaticMeshComponent::ClearAllInstanceBodies()
 
 void UInstancedStaticMeshComponent::OnCreatePhysicsState()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UInstancedStaticMeshComponent::OnCreatePhysicsState)
 	check(InstanceBodies.Num() == 0);
 
 	FPhysScene* PhysScene = GetWorld()->GetPhysicsScene();
@@ -2704,7 +2706,7 @@ TArray<int32> UInstancedStaticMeshComponent::GetInstancesOverlappingBox(const FB
 
 bool UInstancedStaticMeshComponent::ShouldCreatePhysicsState() const
 {
-	return IsRegistered() && !IsBeingDestroyed() && GetStaticMesh() && (bAlwaysCreatePhysicsState || IsCollisionEnabled());
+	return IsRegistered() && !IsBeingDestroyed() && GetStaticMesh() && !GetStaticMesh()->IsCompiling() && (bAlwaysCreatePhysicsState || IsCollisionEnabled());
 }
 
 float UInstancedStaticMeshComponent::GetTextureStreamingTransformScale() const
@@ -2900,7 +2902,7 @@ void UInstancedStaticMeshComponent::InitPerInstanceRenderData(bool InitializeFro
 			InstanceUpdateCmdBuffer.Reset(); 
 			BuildRenderData(InstanceBufferData, HitProxies);
 		}
-			
+		
 		PerInstanceRenderData = MakeShareable(new FPerInstanceRenderData(InstanceBufferData, FeatureLevel, KeepInstanceBufferCPUAccess));
 		PerInstanceRenderData->HitProxies = MoveTemp(HitProxies);
 	}
@@ -2998,7 +3000,8 @@ bool UInstancedStaticMeshComponent::DoCustomNavigableGeometryExport(FNavigableGe
 
 void UInstancedStaticMeshComponent::GetNavigationData(FNavigationRelevantData& Data) const
 {
-	if (GetStaticMesh() && GetStaticMesh()->GetNavCollision())
+	// Navigation data will get refreshed once async compilation finishes
+	if (GetStaticMesh() && !GetStaticMesh()->IsCompiling() && GetStaticMesh()->GetNavCollision())
 	{
 		UNavCollisionBase* NavCollision = GetStaticMesh()->GetNavCollision();
 		if (NavCollision->IsDynamicObstacle())

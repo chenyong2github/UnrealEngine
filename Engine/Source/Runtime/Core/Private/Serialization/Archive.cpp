@@ -181,6 +181,7 @@ void FArchiveState::Reset()
 	ArIsCountingMemory					= false;
 	ArPortFlags							= 0;
 	ArShouldSkipBulkData				= false;
+	ArShouldSkipCompilingAssets			= false;
 	ArMaxSerializeSize					= 0;
 	ArIsFilterEditorOnly				= false;
 	ArIsSaveGame						= false;
@@ -239,6 +240,7 @@ void FArchiveState::CopyTrivialFArchiveStatusMembers(const FArchiveState& Archiv
 	ArIsCountingMemory                   = ArchiveToCopy.ArIsCountingMemory;
 	ArPortFlags                          = ArchiveToCopy.ArPortFlags;
 	ArShouldSkipBulkData                 = ArchiveToCopy.ArShouldSkipBulkData;
+	ArShouldSkipCompilingAssets          = ArchiveToCopy.ArShouldSkipCompilingAssets;
 	ArMaxSerializeSize                   = ArchiveToCopy.ArMaxSerializeSize;
 	ArIsFilterEditorOnly                 = ArchiveToCopy.ArIsFilterEditorOnly;
 	ArIsSaveGame                         = ArchiveToCopy.ArIsSaveGame;

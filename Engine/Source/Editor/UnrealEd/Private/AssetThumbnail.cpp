@@ -28,7 +28,8 @@
 #include "UnrealEdGlobals.h"
 #include "Slate/SlateTextures.h"
 #include "ObjectTools.h"
-
+#include "ShaderCompiler.h"
+#include "AssetCompilingManager.h"
 #include "IAssetTools.h"
 #include "AssetTypeActions_Base.h"
 #include "AssetToolsModule.h"
@@ -957,6 +958,7 @@ void FAssetThumbnailPool::Tick( float DeltaTime )
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FAssetThumbnailPool::Tick);
 	// If there were any assets loaded since last frame that we are currently displaying thumbnails for, push them on the render stack now.
 	if ( RecentlyLoadedAssets.Num() > 0 )
 	{
@@ -1025,8 +1027,14 @@ void FAssetThumbnailPool::Tick( float DeltaTime )
 					const FObjectThumbnail* ObjectThumbnail = NULL;
 					bool bLoadedThumbnail = false;
 
+					// Hold off thumbnail rendering during asset compilation to avoid making the game-thread slower than it already is.
+					// It will fallback on the thumbnail cached on disk during asset compile time, which is even better than showing wrong thumbnails.
+					const bool bAssetsBeingCompiled = 
+						(GShaderCompilingManager && GShaderCompilingManager->IsCompiling()) ||
+						FAssetCompilingManager::Get().GetNumRemainingAssets() > 0;
+
 					// If this is a loaded asset and we have a rendering info for it, render a fresh thumbnail here
-					if( InfoRef->AssetData.IsAssetLoaded() )
+					if( InfoRef->AssetData.IsAssetLoaded() && !bAssetsBeingCompiled)
 					{
 						UObject* Asset = InfoRef->AssetData.GetAsset();
 						FThumbnailRenderingInfo* RenderInfo = GUnrealEd->GetThumbnailManager()->GetRenderingInfo( Asset );

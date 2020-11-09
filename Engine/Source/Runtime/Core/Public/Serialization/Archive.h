@@ -287,6 +287,24 @@ public:
 		return ArIsPersistent;
 	}
 
+	/**
+	 * Set whether or not it is allowed to skip serialization on assets still being compiled to avoid waiting unless strictly necessary.
+	 * 
+	 * @param Enabled	Set to true to enable skip serialization on compiling assets.
+	 */
+	void SetShouldSkipCompilingAssets(bool Enabled)
+	{
+		ArShouldSkipCompilingAssets = Enabled;
+	}
+
+	/**
+	 * Returns true if it is allowed to skip serialization on assets still being compiled to avoid waiting unless strictly necessary. 
+	 */
+	FORCEINLINE bool ShouldSkipCompilingAssets() const
+	{
+		return ArShouldSkipCompilingAssets;
+	}
+
 	/** Returns true if this archive contains errors, which means that further serialization is generally not safe. */
 	FORCEINLINE bool IsError() const
 	{
@@ -715,6 +733,9 @@ private:
 
 	/** Whether this archive contains critical errors that cannot be recovered from */
 	uint8 ArIsCriticalError : 1;
+
+	/** Whether or not it is allowed to skip serialization on assets still being compiled to avoid waiting unless strictly necessary. */
+	uint8 ArShouldSkipCompilingAssets : 1;
 
 public:
 	/** Quickly tell if an archive contains script code. */
@@ -1955,7 +1976,8 @@ public:
 	using FArchiveState::SetEngineVer;
 	using FArchiveState::SetEngineNetVer;
 	using FArchiveState::SetGameNetVer;
-
+	using FArchiveState::ShouldSkipCompilingAssets;
+	
 private:
 	using FArchiveState::ArUE4Ver;
 	using FArchiveState::ArLicenseeUE4Ver;
@@ -1963,7 +1985,8 @@ private:
 	using FArchiveState::ArEngineNetVer;
 	using FArchiveState::ArGameNetVer;
 	using FArchiveState::CustomVersionContainer;
-
+protected:
+	using FArchiveState::SetShouldSkipCompilingAssets;
 public:
 	/** Custom property list attribute. If the flag below is set, only these properties will be iterated during serialization. If NULL, then no properties will be iterated. */
 	using FArchiveState::ArCustomPropertyList;

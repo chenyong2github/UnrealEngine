@@ -48,6 +48,8 @@ protected:
 	FRWLock Lock;
 	FThreadPoolPriorityQueue QueuedWork;
 
+	// Can be overriden to dynamically control the maximum concurrency
+	virtual int32 GetMaxConcurrency() const { return MaxConcurrency.Load(EMemoryOrder::Relaxed); }
 private:
 	struct FScheduledWork;
 

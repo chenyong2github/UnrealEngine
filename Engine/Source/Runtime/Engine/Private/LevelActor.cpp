@@ -9,6 +9,7 @@
 #include "Misc/App.h"
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"
+#include "Misc/Base64.h"
 #include "Misc/DateTime.h"
 #include "UObject/ScriptStackTracker.h"
 #include "EngineStats.h"
@@ -1678,10 +1679,13 @@ void UWorld::IssueEditorLoadWarnings()
 
 		if (Level->FixupOverrideVertexColorsCount > 0)
 		{
-			TotalLoadTimeFromFixups += Level->FixupOverrideVertexColorsTime;
+			const double LevelFixupTime  = ((double)Level->FixupOverrideVertexColorsTimeMS) / 1000.0;
+			const uint32 LevelFixupCount = Level->FixupOverrideVertexColorsCount;
+
+			TotalLoadTimeFromFixups += LevelFixupTime;
 			FFormatNamedArguments Arguments;
-			Arguments.Add(TEXT("LoadTime"), FText::FromString(FString::Printf(TEXT("%.1fs"), Level->FixupOverrideVertexColorsTime)));
-			Arguments.Add(TEXT("NumComponents"), FText::FromString(FString::Printf(TEXT("%u"), Level->FixupOverrideVertexColorsCount)));
+			Arguments.Add(TEXT("LoadTime"), FText::FromString(FString::Printf(TEXT("%.1fs"), LevelFixupTime)));
+			Arguments.Add(TEXT("NumComponents"), FText::FromString(FString::Printf(TEXT("%u"), LevelFixupCount)));
 			Arguments.Add(TEXT("LevelName"), FText::FromString(Level->GetOutermost()->GetName()));
 			
 			FMessageLog("MapCheck").Info()

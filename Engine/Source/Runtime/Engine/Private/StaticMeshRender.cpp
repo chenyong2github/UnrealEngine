@@ -2295,8 +2295,22 @@ FLODMask FStaticMeshSceneProxy::GetLODMask(const FSceneView* View) const
 
 FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 {
-	if (GetStaticMesh() == nullptr || GetStaticMesh()->GetRenderData() == nullptr)
+	if (GetStaticMesh() == nullptr)
 	{
+		UE_LOG(LogStaticMesh, Verbose, TEXT("Skipping CreateSceneProxy for StaticMeshComponent %s (StaticMesh is null)"), *GetFullName());
+		return nullptr;
+	}
+
+	// Prevent accessing the RenderData during async compilation. The RenderState will be recreated when compilation finishes.
+	if (GetStaticMesh()->IsCompiling())
+	{
+		UE_LOG(LogStaticMesh, Verbose, TEXT("Skipping CreateSceneProxy for StaticMeshComponent %s (StaticMesh is not ready)"), *GetFullName());
+		return nullptr;
+	}
+
+	if (GetStaticMesh()->GetRenderData() == nullptr)
+	{
+		UE_LOG(LogStaticMesh, Verbose, TEXT("Skipping CreateSceneProxy for StaticMeshComponent %s (RenderData is null)"), *GetFullName());
 		return nullptr;
 	}
 
@@ -2305,6 +2319,7 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 	// Should properly investigate - feels like a timing issue.
 	if (!GetStaticMesh()->GetRenderData()->IsInitialized())
 	{
+		UE_LOG(LogStaticMesh, Verbose, TEXT("Skipping CreateSceneProxy for StaticMeshComponent %s (RenderData is not initialized)"), *GetFullName());
 		return nullptr;
 	}
 
@@ -2318,6 +2333,7 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 	const FStaticMeshLODResourcesArray& LODResources = GetStaticMesh()->GetRenderData()->LODResources;
 	if (LODResources.Num() == 0	|| LODResources[FMath::Clamp<int32>(GetStaticMesh()->GetMinLOD().Default, 0, LODResources.Num()-1)].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
 	{
+		UE_LOG(LogStaticMesh, Verbose, TEXT("Skipping CreateSceneProxy for StaticMeshComponent %s (LOD problems)"), *GetFullName());
 		return nullptr;
 	}
 
@@ -2335,4 +2351,3 @@ bool UStaticMeshComponent::ShouldRecreateProxyOnUpdateTransform() const
 {
 	return (Mobility != EComponentMobility::Movable);
 }
-

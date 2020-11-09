@@ -153,6 +153,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "Settings/LevelEditorPlaySettings.h"
 #include "LandscapeSubsystem.h"
 #include "TextureCompiler.h"
+#include "StaticMeshCompiler.h"
 #endif
 // @todo this is here only due to circular dependency to AIModule. To be removed
 
@@ -10254,7 +10255,15 @@ float DrawMapWarnings(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanv
 	if (FTextureCompilingManager::Get().GetNumRemainingTextures() > 0)
 	{
 		SmallTextItem.SetColor(FLinearColor::White);
-		SmallTextItem.Text = FText::Format(LOCTEXT("TexturesCompilingFmt", "Textures Compiling ({0})"), FTextureCompilingManager::Get().GetNumRemainingTextures());
+		SmallTextItem.Text = FText::Format(LOCTEXT("TexturesCompilingFmt", "Preparing Textures ({0})"), FTextureCompilingManager::Get().GetNumRemainingTextures());
+		Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
+		MessageY += FontSizeY;
+	}
+
+	if (FStaticMeshCompilingManager::Get().GetNumRemainingMeshes() > 0)
+	{
+		SmallTextItem.SetColor(FLinearColor::White);
+		SmallTextItem.Text = FText::Format(LOCTEXT("StaticMeshCompilingFmt", "Preparing Static Meshes ({0})"), FStaticMeshCompilingManager::Get().GetNumRemainingMeshes());
 		Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
 		MessageY += FontSizeY;
 	}

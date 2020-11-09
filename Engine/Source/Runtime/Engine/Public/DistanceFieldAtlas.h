@@ -434,6 +434,8 @@ public:
 	}
 
 private:
+	void ProcessPendingTasks();
+
 	TUniquePtr<FQueuedThreadPool> ThreadPool;
 
 	/** Builds a single task with the given threadpool.  Called from the worker thread. */
@@ -441,6 +443,9 @@ private:
 
 	/** Game-thread managed list of tasks in the async system. */
 	TArray<FAsyncDistanceFieldTask*> ReferencedTasks;
+
+	/** Tasks that are waiting on static mesh compilation to proceed */
+	TArray<FAsyncDistanceFieldTask*> PendingTasks;
 
 	/** Tasks that have completed processing. */
 	// consider changing this from FIFO to Unordered, which may be faster

@@ -4096,7 +4096,7 @@ namespace ObjectTools
 	 *
 	 * @param SearchOption	 The search option for finding in use objects
 	 */
-	void TagInUseObjects( EInUseSearchOption SearchOption )
+	void TagInUseObjects( EInUseSearchOption SearchOption, EInUseSearchFlags InUseSearchFlags )
 	{
 		UWorld* World = GWorld;
 		TSet<UObject*> LevelPackages;
@@ -4197,8 +4197,14 @@ namespace ObjectTools
 			}
 		}
 
-		// Tag all objects that are referenced by objects in the levels were are searching.
-		FArchiveReferenceMarker Marker( ObjectsInLevels );
+		EArchiveReferenceMarkerFlags MarkerFlags = EArchiveReferenceMarkerFlags::None;
+		if ((InUseSearchFlags & EInUseSearchFlags::SkipCompilingAssets) != EInUseSearchFlags::None)
+		{
+			MarkerFlags |= EArchiveReferenceMarkerFlags::SkipCompilingAssets;
+		
+}
+		// Tag all objects that are referenced by objects in the levels we are searching.
+		FArchiveReferenceMarker Marker( ObjectsInLevels, MarkerFlags);
 	}
 
 	TSharedPtr<SWindow> OpenPropertiesForSelectedObjects( const TArray<UObject*>& SelectedObjects )
@@ -4357,6 +4363,8 @@ namespace ThumbnailTools
 		{
 			return;
 		}
+		
+		TRACE_CPUPROFILER_EVENT_SCOPE(ThumbnailTools::RenderThumbnail);
 
 		// Renderer must be initialized before generating thumbnails
 		check( GIsRHIInitialized );
@@ -4387,11 +4395,6 @@ namespace ThumbnailTools
 		}
 		check( RenderTargetResource != NULL );
 
-		if (GShaderCompilingManager)
-		{
-			GShaderCompilingManager->ProcessAsyncResults(false, true);
-		}
-
 		// Create a canvas for the render target and clear it to black
 		FCanvas Canvas( RenderTargetResource, NULL, FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime, GMaxRHIFeatureLevel );
 		Canvas.Clear( FLinearColor::Black );
@@ -4403,6 +4406,11 @@ namespace ThumbnailTools
 		// @todo CB: This helps but doesn't result in 100%-streamed-in resources every time! :(
 		if( InFlushMode == EThumbnailTextureFlushMode::AlwaysFlush )
 		{
+			if (GShaderCompilingManager)
+			{
+				GShaderCompilingManager->ProcessAsyncResults(false, true);
+			}
+
 			if (UTexture* Texture = Cast<UTexture>(InObject))
 			{
 				FTextureCompilingManager::Get().FinishCompilation({Texture});

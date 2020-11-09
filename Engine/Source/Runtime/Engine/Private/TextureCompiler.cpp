@@ -20,6 +20,7 @@
 #include "TextureDerivedDataTask.h"
 #include "Misc/IQueuedWork.h"
 #include "Components/PrimitiveComponent.h"
+#include "AssetCompilingManager.h"
 #include "LevelEditor.h"
 
 #define LOCTEXT_NAMESPACE "TextureCompiler"
@@ -185,13 +186,11 @@ FQueuedThreadPool* FTextureCompilingManager::GetThreadPool() const
 	{
 		TextureCompilingManagerImpl::EnsureInitializedCVars();
 
-		// Wrapping GThreadPool to give TextureThreadPool it's own set of priorities and allow Pausable functionality
-		// We're using GThreadPool instead of GLargeThreadPool because asset compilation is hard on total memory and memory bandwidth and can run slower when going wider than actual cores.
-		// All texture priorities will resolve to either Low or Lowest priority once being scheduled in the ThreadPool.
-		// Any asset supporting being built async should be scheduled lower than Normal on the LargeThreadPool to let non-async stuff go first
 		const auto TexturePriorityMapper = [](EQueuedWorkPriority TexturePriority) { return FMath::Max(TexturePriority, EQueuedWorkPriority::Low); };
 		const int32 MaxConcurrency = CVarAsyncTextureCompilationMaxConcurrency.GetValueOnAnyThread();
-		GTextureThreadPool = new FQueuedThreadPoolWrapper(GThreadPool, MaxConcurrency, TexturePriorityMapper);
+
+		// Textures will be scheduled on the asset thread pool, where concurrency limits might by dynamically adjusted depending on memory constraints.
+		GTextureThreadPool = new FQueuedThreadPoolWrapper(FAssetCompilingManager::Get().GetThreadPool(), MaxConcurrency, TexturePriorityMapper);
 
 		CVarAsyncTextureCompilation->SetOnChangedCallback(
 			FConsoleVariableDelegate::CreateLambda(
@@ -500,6 +499,20 @@ void FTextureCompilingManager::PostTextureCompilation(const TSet<UTexture*>& InC
 					}
 				}
 			}
+		}
+
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(OnAssetPostCompileEvent);
+
+			TArray<FAssetCompileData> AssetsData;
+			AssetsData.Reserve(InCompiledTextures.Num());
+
+			for (UTexture* Texture : InCompiledTextures)
+			{
+				AssetsData.Emplace(Texture);
+			}
+
+			FAssetCompilingManager::Get().OnAssetPostCompileEvent().Broadcast(AssetsData);
 		}
 	}
 }

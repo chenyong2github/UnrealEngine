@@ -4626,12 +4626,13 @@ void FLandscapeMeshProxySceneProxy::DestroyRenderThreadResources()
 
 FPrimitiveSceneProxy* ULandscapeMeshProxyComponent::CreateSceneProxy()
 {
-	if (GetStaticMesh() == NULL
-		|| GetStaticMesh()->GetRenderData() == NULL
+	if (GetStaticMesh() == nullptr 
+		|| GetStaticMesh()->IsCompiling()
+		|| GetStaticMesh()->GetRenderData() == nullptr
 		|| GetStaticMesh()->GetRenderData()->LODResources.Num() == 0
 		|| GetStaticMesh()->GetRenderData()->LODResources[0].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	return new FLandscapeMeshProxySceneProxy(this, LandscapeGuid, ProxyComponentBases, ProxyLOD);

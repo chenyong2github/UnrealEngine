@@ -182,7 +182,7 @@ void FQueuedThreadPoolWrapper::Schedule(FScheduledWork* Work)
 	}
 
 	// If a higher priority task comes in, try to retract a lower priority one if possible to make room
-	if (CurrentConcurrency >= MaxConcurrency.Load(EMemoryOrder::Relaxed) && (MaxTaskToSchedule == -1 || MaxTaskToSchedule > 0))
+	if (CurrentConcurrency >= GetMaxConcurrency() && (MaxTaskToSchedule == -1 || MaxTaskToSchedule > 0))
 	{
 		EQueuedWorkPriority NextWorkPriority;
 		IQueuedWork* NextWork = QueuedWork.Peek(&NextWorkPriority);
@@ -211,7 +211,7 @@ void FQueuedThreadPoolWrapper::Schedule(FScheduledWork* Work)
 		}
 	}
 
-	while (CurrentConcurrency < MaxConcurrency.Load(EMemoryOrder::Relaxed) && (MaxTaskToSchedule == -1 || MaxTaskToSchedule > 0))
+	while (CurrentConcurrency < GetMaxConcurrency() && (MaxTaskToSchedule == -1 || MaxTaskToSchedule > 0))
 	{
 		EQueuedWorkPriority WorkPriority;
 		IQueuedWork* InnerWork = QueuedWork.Dequeue(&WorkPriority);

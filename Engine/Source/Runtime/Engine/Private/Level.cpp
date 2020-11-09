@@ -322,7 +322,7 @@ ULevel::ULevel( const FObjectInitializer& ObjectInitializer )
 {
 #if WITH_EDITORONLY_DATA
 	LevelColor = FLinearColor::White;
-	FixupOverrideVertexColorsTime = 0;
+	FixupOverrideVertexColorsTimeMS = 0;
 	FixupOverrideVertexColorsCount = 0;
 	bUseExternalActors = false;
 	bContainsStableActorGUIDs = true;
@@ -1300,6 +1300,8 @@ void ULevel::MarkLevelComponentsRenderStateDirty()
 
 void ULevel::CreateModelComponents()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULevel::CreateModelComponents)
+
 	FScopedSlowTask SlowTask(10);
 	SlowTask.MakeDialogDelayed(3.0f);
 

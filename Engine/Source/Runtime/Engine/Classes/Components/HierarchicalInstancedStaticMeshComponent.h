@@ -211,7 +211,9 @@ public:
 	virtual void PostEditImport() override;
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& BoundTransform) const override;
+	
 #if WITH_EDITOR
+	virtual void PostStaticMeshCompilation() override;
 	virtual void PostEditUndo() override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif

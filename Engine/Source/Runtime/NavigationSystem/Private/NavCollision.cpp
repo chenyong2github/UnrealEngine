@@ -518,7 +518,10 @@ void UNavCollision::PostLoad()
 		Outer->ConditionalPostLoad();
 
 		UStaticMesh* StaticMeshOuter = Cast<UStaticMesh>(Outer);
-		if (StaticMeshOuter != NULL)
+		
+		// It's OK to skip this in case of StaticMesh pending compilation because it is also
+		// called by UStaticMesh::CreateNavCollision at the end of UStaticMesh's PostLoad.
+		if (StaticMeshOuter != nullptr && !StaticMeshOuter->IsCompiling())
 		{
 			Setup(StaticMeshOuter->GetBodySetup());
 		}

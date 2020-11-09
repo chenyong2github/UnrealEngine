@@ -27,7 +27,9 @@
 
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
+#include "AssetCompilingManager.h"
 #include "MeshUtilities.h"
+#include "StaticMeshCompiler.h"
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -1000,13 +1002,44 @@ FDistanceFieldAsyncQueue::FDistanceFieldAsyncQueue()
 {
 #if WITH_EDITOR
 	MeshUtilities = NULL;
-#endif
 
-	ThreadPool = MakeUnique<FQueuedThreadPoolWrapper>(GThreadPool, -1, [](EQueuedWorkPriority) { return EQueuedWorkPriority::Lowest; });
+	const int32 MaxConcurrency = -1;
+	// In Editor, we allow faster compilation by letting the asset compiler's scheduler organize work.
+	ThreadPool = MakeUnique<FQueuedThreadPoolWrapper>(FAssetCompilingManager::Get().GetThreadPool(), MaxConcurrency, [](EQueuedWorkPriority) { return EQueuedWorkPriority::Lowest; });
+#else
+	const int32 MaxConcurrency = 1;
+	ThreadPool = MakeUnique<FQueuedThreadPoolWrapper>(GThreadPool, MaxConcurrency, [](EQueuedWorkPriority) { return EQueuedWorkPriority::Lowest; });
+#endif
 }
 
 FDistanceFieldAsyncQueue::~FDistanceFieldAsyncQueue()
 {
+}
+
+void FDistanceFieldAsyncQueue::ProcessPendingTasks()
+{
+	FScopeLock Lock(&CriticalSection);
+	TArray<FAsyncDistanceFieldTask*> Tasks = MoveTemp(PendingTasks);
+	for (FAsyncDistanceFieldTask* Task : Tasks)
+	{
+		if (Task->GenerateSource && Task->GenerateSource->IsCompiling())
+		{
+			PendingTasks.Add(Task);
+		}
+		else
+		{
+			// To avoid deadlocks, we must queue the inner build tasks on another thread pool, so use the task graph.
+			AsyncPool(
+				*ThreadPool,
+				[this, Task]()
+				{
+					// Put on background thread to avoid interfering with game-thread bound tasks
+					FQueuedThreadPoolTaskGraphWrapper TaskGraphWrapper(ENamedThreads::AnyBackgroundThreadNormalTask);
+					Build(Task, TaskGraphWrapper);
+				}
+			);
+		}
+	}
 }
 
 void FDistanceFieldAsyncQueue::AddTask(FAsyncDistanceFieldTask* Task)
@@ -1023,23 +1056,33 @@ void FDistanceFieldAsyncQueue::AddTask(FAsyncDistanceFieldTask* Task)
 		ReferencedTasks.Add(Task);
 	}
 
-	auto BuildLambda = 
-		[this, Task]()
-		{
-			// To avoid deadlocks, we must queue the inner build tasks on another thread pool, so use the task graph.
-			// Put on background thread to avoid interfering with game-thread bound tasks
-			FQueuedThreadPoolTaskGraphWrapper TaskGraphWrapper(ENamedThreads::AnyBackgroundThreadNormalTask); 
-			Build(Task, TaskGraphWrapper);
-		};
-
-	// If we're already in worker threads, there is no need to launch an async task.
-	if (GUseAsyncDistanceFieldBuildQueue || !IsInGameThread())
+	// The Source Mesh's RenderData is not yet ready, postpone the build
+	if (Task->GenerateSource->IsCompiling())
 	{
-		AsyncPool(*ThreadPool, MoveTemp(BuildLambda));
+		// Array protection when called from multiple threads
+		FScopeLock Lock(&CriticalSection);
+		PendingTasks.Add(Task);
 	}
 	else
 	{
-		BuildLambda();
+		auto BuildLambda = 
+			[this, Task]()
+			{
+				// To avoid deadlocks, we must queue the inner build tasks on another thread pool, so use the task graph.
+				// Put on background thread to avoid interfering with game-thread bound tasks
+				FQueuedThreadPoolTaskGraphWrapper TaskGraphWrapper(ENamedThreads::AnyBackgroundThreadNormalTask); 
+				Build(Task, TaskGraphWrapper);
+			};
+
+		// If we're already in worker threads, there is no need to launch an async task.
+		if (GUseAsyncDistanceFieldBuildQueue || !IsInGameThread())
+		{
+			AsyncPool(*ThreadPool, MoveTemp(BuildLambda));
+		}
+		else
+		{
+			BuildLambda();
+		}
 	}
 #else
 	UE_LOG(LogStaticMesh,Fatal,TEXT("Tried to build a distance field without editor support (this should have been done during cooking)"));
@@ -1059,6 +1102,9 @@ void FDistanceFieldAsyncQueue::BlockUntilBuildComplete(UStaticMesh* StaticMesh, 
 	bool bHadToBlock = false;
 	double StartTime = 0;
 
+#if WITH_EDITOR
+	FStaticMeshCompilingManager::Get().FinishCompilation({ StaticMesh });
+#endif
 	do 
 	{
 		ProcessAsyncTasks();
@@ -1105,6 +1151,9 @@ void FDistanceFieldAsyncQueue::BlockUntilAllBuildsComplete()
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::BlockUntilAllBuildsComplete)
 	do 
 	{
+#if WITH_EDITOR
+		FStaticMeshCompilingManager::Get().FinishAllCompilation();
+#endif
 		ProcessAsyncTasks();
 		FPlatformProcess::Sleep(.01f);
 	} 
@@ -1158,6 +1207,8 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 {
 #if WITH_EDITOR
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::ProcessAsyncTasks);
+
+	ProcessPendingTasks();
 
 	FObjectCacheContextScope ObjectCacheScope;
 	const double MaxProcessingTime = 0.016f;

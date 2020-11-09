@@ -74,8 +74,6 @@ public:
 private:
 	static void ProcessCollision( UStaticMesh* StaticMesh, const TArray< FVector >& VertexPositions );
 
-	static void PostMeshBuild(UStaticMesh* StaticMesh);
-
 	/**
 	 * Applies the UMaterialInterfaces related to the IDatasmithMeshElement to the UStaticMesh.
 	 */

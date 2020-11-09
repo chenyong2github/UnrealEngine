@@ -89,8 +89,8 @@
 	#include "Settings/EditorExperimentalSettings.h"
 	#include "Interfaces/IEditorStyleModule.h"
 	#include "PIEPreviewDeviceProfileSelectorModule.h"
+	#include "AssetCompilingManager.h"
 	#include "Misc/QueuedThreadPoolWrapper.h"
-	#include "TextureCompiler.h"
 	#include "ShaderCompiler.h"
 
 	#if PLATFORM_WINDOWS
@@ -4197,7 +4197,7 @@ void FEngineLoop::Exit()
 	}
 
 #if WITH_EDITOR
-	FTextureCompilingManager::Get().Shutdown();
+	FAssetCompilingManager::Get().Shutdown();
 #endif
 
 	// Block till all outstanding resource streaming requests are fulfilled.
@@ -4977,7 +4977,7 @@ void FEngineLoop::Tick()
 				GCardRepresentationAsyncQueue->ProcessAsyncTasks(true);
 			}
 #if WITH_EDITOR
-			FTextureCompilingManager::Get().ProcessAsyncTasks(true);
+			FAssetCompilingManager::Get().ProcessAsyncTasks(true);
 #endif
 		}
 #if !UE_SERVER

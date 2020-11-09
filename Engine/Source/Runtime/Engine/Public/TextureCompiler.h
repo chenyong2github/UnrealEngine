@@ -72,6 +72,7 @@ public:
 	ENGINE_API void ProcessAsyncTasks(bool bLimitExecutionTime = false);
 
 private:
+	friend class FAssetCompilingManager;
 	bool bHasShutdown = false;
 	TArray<TSet<TWeakObjectPtr<UTexture>>> RegisteredTextureBuckets;
 

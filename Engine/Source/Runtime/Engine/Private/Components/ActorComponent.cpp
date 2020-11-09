@@ -37,6 +37,7 @@
 
 #if WITH_EDITOR
 #include "Kismet2/ComponentEditorUtils.h"
+#include "StaticMeshCompiler.h"
 #endif
 #include "ObjectTrace.h"
 
@@ -94,6 +95,15 @@ int32 GEnableDeferredPhysicsCreation = 0;
 
 void FRegisterComponentContext::Process()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRegisterComponentContext::Process)
+
+	bool bSingleThreaded = !FApp::ShouldUseThreadingForPerformance();
+#if WITH_EDITOR
+	// This is required for async static mesh compilation in case a scene proxy is not async aware.
+	// A stall until the compilation is finished might occur, and this is only supported on the game thread for now.
+	bSingleThreaded |= FStaticMeshCompilingManager().Get().IsAsyncStaticMeshCompilationEnabled();
+#endif
+
 	FSceneInterface* Scene = World->Scene;
 	const bool bAppCanEverRender = FApp::CanEverRender();
 
@@ -114,7 +124,7 @@ void FRegisterComponentContext::Process()
 				}
 			}
 		},
-		!FApp::ShouldUseThreadingForPerformance()
+		bSingleThreaded
 	);
 	AddPrimitiveBatches.Empty();
 }
@@ -140,14 +150,18 @@ void UpdateAllPrimitiveSceneInfosForSingleComponent(UActorComponent* InComponent
 
 void UpdateAllPrimitiveSceneInfosForScenes(TSet<FSceneInterface*> ScenesToUpdateAllPrimitiveSceneInfos)
 {
-	ENQUEUE_RENDER_COMMAND(UpdateAllPrimitiveSceneInfosCmd)(
-		[ScenesToUpdateAllPrimitiveSceneInfos](FRHICommandListImmediate& RHICmdList)
+	if (ScenesToUpdateAllPrimitiveSceneInfos.Num())
 	{
-		for (FSceneInterface* Scene : ScenesToUpdateAllPrimitiveSceneInfos)
-		{
-			Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
-		}
-	});
+		ENQUEUE_RENDER_COMMAND(UpdateAllPrimitiveSceneInfosCmd)(
+			[ScenesToUpdateAllPrimitiveSceneInfos](FRHICommandListImmediate& RHICmdList)
+			{
+				for (FSceneInterface* Scene : ScenesToUpdateAllPrimitiveSceneInfos)
+				{
+					Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
+				}
+			}
+		);
+	}
 }
 
 FGlobalComponentReregisterContext::FGlobalComponentReregisterContext()

@@ -205,6 +205,8 @@ public:
 	}
 
 private:
+	void ProcessPendingTasks();
+
 	TUniquePtr<FQueuedThreadPool> ThreadPool;
 
 	/** Builds a single task with the given threadpool.  Called from the worker thread. */
@@ -212,6 +214,9 @@ private:
 
 	/** Game-thread managed list of tasks in the async system. */
 	TArray<FAsyncCardRepresentationTask*> ReferencedTasks;
+
+	/** Tasks that are waiting on static mesh compilation to proceed */
+	TArray<FAsyncCardRepresentationTask*> PendingTasks;
 
 	/** Tasks that have completed processing. */
 	TLockFreePointerListLIFO<FAsyncCardRepresentationTask> CompletedTasks;

@@ -492,12 +492,20 @@ namespace ObjectTools
 		SO_LoadedLevels // Searches for in use objects referenced by all loaded levels
 	};
 
+	enum class EInUseSearchFlags : uint32
+	{
+		None = 0,
+		SkipCompilingAssets = 1, // Skip serialization of assets still being compiled, some data might be missing.
+	};
+	ENUM_CLASS_FLAGS(EInUseSearchFlags);
+
 	/**
 	 * Tags objects which are in use by levels specified by the search option
 	 *
-	 * @param SearchOption	 The search option for finding in use objects
+	 * @param SearchOption                  The search option for finding in use objects
+	 * @param bShouldSkipCompilingAssets    Whether to avoid stalls on assets still being compiled.
 	 */
-	UNREALED_API void TagInUseObjects( EInUseSearchOption SearchOption );
+	UNREALED_API void TagInUseObjects( EInUseSearchOption SearchOption, EInUseSearchFlags InUseSearchFlags = EInUseSearchFlags::None);
 
 	/**
 	 * Opens a property window for the selected objects

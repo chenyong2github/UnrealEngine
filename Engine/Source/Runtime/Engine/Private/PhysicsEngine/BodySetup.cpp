@@ -1172,6 +1172,17 @@ void UBodySetup::PostLoad()
 		}
 	}
 
+#if WITH_EDITOR
+	// UStaticMesh::PostLoad will always call CreatePhysicsMeshes()
+	// on its BodySetup in its own postload. We don't need to unnecessarily
+	// stall on async staticmesh compilation to perform it here.
+	UStaticMesh* StaticMesh = Cast<UStaticMesh>(GetOuter());
+	if (StaticMesh && StaticMesh->IsCompiling())
+	{
+		return;
+	}
+#endif
+
 	// Compress to whatever formats the active target platforms want
 	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
 	if (TPM)
@@ -1426,7 +1437,7 @@ FByteBulkData* UBodySetup::GetCookedData(FName Format, bool bRuntimeOnlyOptimize
 	FByteBulkData* Result = &UseCookedData->GetFormat(Format);
 	bool bIsRuntime = IsRuntime(this);
 
-#if /*WITH_PHYSX &&*/ WITH_EDITOR
+#if WITH_EDITOR
 	if (!bContainedData)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_PhysXCooking);
@@ -1441,17 +1452,21 @@ FByteBulkData* UBodySetup::GetCookedData(FName Format, bool bRuntimeOnlyOptimize
 		const EPhysXMeshCookFlags CookingFlags = bEligibleForRuntimeOptimization ? GetRuntimeOnlyCookOptimizationFlags() : EPhysXMeshCookFlags::Default;
 		FDerivedDataPhysXCooker* PhysicsDerivedCooker = new FDerivedDataPhysXCooker(Format, CookingFlags, this, bIsRuntime);
 #elif WITH_CHAOS 
-		FChaosDerivedDataCooker* PhysicsDerivedCooker = new FChaosDerivedDataCooker(this, Format);
+		// We do not want a FGCObject to be created to prevent garbage collection of our own UBodySetup*
+		// because the scope and lifetime is well defined and FGCObject can't be created on other threads
+		// during garbage collection, which would prevent this function from being run asynchronously.
+		const bool bUseRefHolder = false;
+		FChaosDerivedDataCooker* PhysicsDerivedCooker = new FChaosDerivedDataCooker(this, Format, bUseRefHolder);
 #else
 		static_assert(false, "No cooker defined for this physics interface");
 #endif
 			
 		GetDDCBuiltData(Result, *PhysicsDerivedCooker, this, bIsRuntime);
 	}
-#endif // WITH_PHYSX && WITH_EDITOR
+#endif // #if WITH_EDITOR
 
 	check(Result);
-	return Result->GetBulkDataSize() > 0 ? Result : NULL; // we don't return empty bulk data...but we save it to avoid thrashing the DDC
+	return Result->GetBulkDataSize() > 0 ? Result : nullptr; // we don't return empty bulk data...but we save it to avoid thrashing the DDC
 }
 
 void UBodySetup::GetGeometryDDCKey(FString& OutString) const

@@ -45,6 +45,7 @@
 #include "RendererInterface.h"
 #include "Engine/Texture2D.h"
 #include "Engine/LevelStreaming.h"
+#include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "ContentStreaming.h"
@@ -104,6 +105,7 @@
 	#include "Engine/LODActor.h"
 	#include "PIEPreviewDeviceProfileSelectorModule.h"
 	#include "Editor/FixupLazyObjectPtrForPIEArchive.h"
+	#include "AssetCompilingManager.h"
 #endif
 
 
@@ -865,23 +867,60 @@ void UWorld::PostDuplicate(bool bDuplicateForPIE)
 
 	if (bDuplicateForPIE)
 	{
-		// When PIE begins, check/log any problems with textures assigned to material instances
-		for (TObjectIterator<UPrimitiveComponent> It; It; ++It)
-		{
-			UPrimitiveComponent* Component = *It;
-			AActor* Owner = Component->GetOwner();
-			if (Owner != nullptr && !Owner->HasAnyFlags(RF_ClassDefaultObject) && Owner->IsInLevel(PersistentLevel))
+		// We use a weak ptr here in case the level gets destroyed before asset
+		// compilation finishes.
+		TWeakObjectPtr<ULevel> PersistentLevelPtr(PersistentLevel);
+		auto ValidateTextureOverridesForPIE =
+			[PersistentLevelPtr, FeatureLevel = FeatureLevel]()
 			{
-				TArray<UMaterialInterface*> Materials;
-				Component->GetUsedMaterials(Materials);
-				for (UMaterialInterface* Material : Materials)
+				ULevel* Level = PersistentLevelPtr.Get();
+				if (Level)
 				{
-					if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Material))
+					TRACE_CPUPROFILER_EVENT_SCOPE(ValidateTextureOverridesForPIE);
+
+					for (TObjectIterator<UPrimitiveComponent> It; It; ++It)
 					{
-						MaterialInstance->ValidateTextureOverrides(FeatureLevel);
+						UPrimitiveComponent* Component = *It;
+						AActor* Owner = Component->GetOwner();
+						if (Owner != nullptr && !Owner->HasAnyFlags(RF_ClassDefaultObject) && Owner->IsInLevel(Level))
+						{
+							TArray<UMaterialInterface*> Materials;
+							Component->GetUsedMaterials(Materials);
+							for (UMaterialInterface* Material : Materials)
+							{
+								if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Material))
+								{
+									MaterialInstance->ValidateTextureOverrides(FeatureLevel);
+								}
+							}
+						}
 					}
 				}
-			}
+			};
+
+		// When PIE begins, check/log any problems with textures assigned to material instances
+		// but wait until all assets are properly compiled to to so.
+		if (FAssetCompilingManager::Get().GetNumRemainingAssets() == 0)
+		{
+			ValidateTextureOverridesForPIE();
+		}
+		else
+		{
+			// Some assets are still being compiled, register to the event so we can do the validation
+			// once the compilation is finished.
+			TSharedPtr<FDelegateHandle> DelegateHandle = MakeShareable(new FDelegateHandle());
+			*DelegateHandle = FAssetCompilingManager::Get().OnAssetPostCompileEvent().AddWeakLambda(this,
+				[DelegateHandle, ValidateTextureOverridesForPIE](const TArray<FAssetCompileData>&)
+				{
+					if (FAssetCompilingManager::Get().GetNumRemainingAssets() == 0)
+					{
+						ValidateTextureOverridesForPIE();
+
+						// Must be the last line because it will destroy the lambda along with the capture
+						verify(FAssetCompilingManager::Get().OnAssetPostCompileEvent().Remove(*DelegateHandle));
+					}
+				}
+			);
 		}
 	}
 #endif // WITH_EDITOR
@@ -1849,6 +1888,8 @@ void UWorld::MarkObjectsPendingKill()
 
 UWorld* UWorld::CreateWorld(const EWorldType::Type InWorldType, bool bInformEngineOfWorld, FName WorldName, UPackage* InWorldPackage, bool bAddToRoot, ERHIFeatureLevel::Type InFeatureLevel, const InitializationValues* InIVS, bool bInSkipInitWorld)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorld::CreateWorld);
+
 	if (InFeatureLevel >= ERHIFeatureLevel::Num)
 	{
 		InFeatureLevel = GMaxRHIFeatureLevel;
@@ -7431,11 +7472,12 @@ void UWorld::GetLightMapsAndShadowMaps(ULevel* Level, TArray<UTexture2D*>& OutLi
 		FArchive& operator<<(class UObject*& Obj)
 		{
 			// Don't check null references or objects already visited. Also, skip UWorlds as they will pull in more levels than desired
-			if (Obj != NULL && Obj->HasAnyMarks(OBJECTMARK_TagExp) && !Obj->IsA(UWorld::StaticClass()))
+			// Also skip StaticMesh as it will cause stalls during async compilation and they do not contain any lightmaps anyway.
+			if (Obj != NULL && Obj->HasAnyMarks(OBJECTMARK_TagExp) && !Obj->IsA<UWorld>() && !Obj->IsA<UStaticMesh>())
 			{
-				if (Obj->IsA(ULightMapTexture2D::StaticClass()) ||
-					Obj->IsA(UShadowMapTexture2D::StaticClass()) ||
-					Obj->IsA(ULightMapVirtualTexture2D::StaticClass()))
+				if (Obj->IsA<ULightMapTexture2D>() ||
+					Obj->IsA<UShadowMapTexture2D>() ||
+					Obj->IsA<ULightMapVirtualTexture2D>())
 				{
 					UTexture2D* Tex = Cast<UTexture2D>(Obj);
 					if ( ensure(Tex) )
@@ -7458,7 +7500,8 @@ void UWorld::GetLightMapsAndShadowMaps(ULevel* Level, TArray<UTexture2D*>& OutLi
 			//			of FArchiveUObject that filters references by type.
 
 			// Don't check null references or objects already visited. Also, skip UWorlds as they will pull in more levels than desired
-			if (!Obj.IsNull() && !Obj.IsA<UWorld>())
+			// Also skip StaticMesh as it will cause stalls during async compilation and they do not contain any lightmaps anyway.
+			if (!Obj.IsNull() && !Obj.IsA<UWorld>() && !Obj->IsA<UStaticMesh>())
 			{
 				if (Obj.IsA<ULightMapTexture2D>() ||
 					Obj.IsA<UShadowMapTexture2D>() ||

@@ -21,6 +21,7 @@
 #include "AI/Navigation/NavRelevantInterface.h"
 #include "VT/RuntimeVirtualTextureEnum.h"
 #include "HitProxies.h"
+#include "Interfaces/Interface_AsyncCompilation.h"
 #include "PrimitiveComponent.generated.h"
 
 class AController;
@@ -171,7 +172,7 @@ DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams( FComponentEndTouchOverSigna
  * ShapeComponents generate geometry that is used for collision detection but are not rendered, while StaticMeshComponents and SkeletalMeshComponents contain pre-built geometry that is rendered, but can also be used for collision detection.
  */
 UCLASS(abstract, HideCategories=(Mobility, VirtualTexture), ShowCategories=(PhysicsVolume))
-class ENGINE_API UPrimitiveComponent : public USceneComponent, public INavRelevantInterface
+class ENGINE_API UPrimitiveComponent : public USceneComponent, public INavRelevantInterface, public IInterface_AsyncCompilation
 {
 	GENERATED_BODY()
 
@@ -2005,6 +2006,9 @@ public:
 	
 	/** Disable dynamic shadow casting if the primitive only casts indirect shadows, since dynamic shadows are always shadowing direct lighting */
 	virtual bool GetShadowIndirectOnly() const { return false; }
+	
+	/** Returns whether this component is still being compiled or dependent on other objects being compiled. */
+	virtual bool IsCompiling() const { return false; }
 
 #if WITH_EDITOR
 	/** Returns mask that represents in which views this primitive is hidden */

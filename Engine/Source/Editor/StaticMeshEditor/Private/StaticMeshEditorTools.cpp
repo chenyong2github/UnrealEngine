@@ -134,9 +134,7 @@ void FStaticMeshDetails::CustomizeDetails( class IDetailLayoutBuilder& DetailBui
 	NaniteSettings = MakeShareable(new FNaniteSettingsLayout(StaticMeshEditor));
 	NaniteSettings->AddToDetailsPanel(DetailBuilder);
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	TSharedRef<IPropertyHandle> BodyProp = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh,BodySetup));
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	TSharedRef<IPropertyHandle> BodyProp = DetailBuilder.GetProperty(UStaticMesh::GetBodySetupName());
 	BodyProp->MarkHiddenByCustomization();
 
 	static TArray<FName> HiddenBodyInstanceProps;
@@ -1829,10 +1827,7 @@ void FMeshSectionSettingsLayout::OnPasteSectionList(int32 CurrentLODIndex)
 
 		if (RenderData != nullptr && RenderData->LODResources.IsValidIndex(CurrentLODIndex))
 		{
-			// @todo: When SectionInfoMap moves location, this will need to be fixed up.
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(UStaticMesh::GetSectionInfoMapName());
 
 			GetStaticMesh().PreEditChange(Property);
 
@@ -1933,10 +1928,7 @@ void FMeshSectionSettingsLayout::OnPasteSectionItem(int32 CurrentLODIndex, int32
 
 		if (RenderData != nullptr && RenderData->LODResources.IsValidIndex(CurrentLODIndex))
 		{
-			// @todo: When SectionInfoMap moves location, this will need to be fixed up
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(UStaticMesh::GetSectionInfoMapName());
 
 			GetStaticMesh().PreEditChange(Property);
 
@@ -2030,9 +2022,7 @@ void FMeshSectionSettingsLayout::OnSectionChanged(int32 ForLODIndex, int32 Secti
 		FStaticMeshLODResources& LOD = RenderData->LODResources[LODIndex];
 		if (LOD.Sections.IsValidIndex(SectionIndex))
 		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(UStaticMesh::GetSectionInfoMapName());
 
 			GetStaticMesh().PreEditChange(Property);
 
@@ -2172,11 +2162,9 @@ void FMeshSectionSettingsLayout::OnSectionVisibleInRayTracingChanged(ECheckBoxSt
 	}
 	FScopedTransaction Transaction(TransactionTest);
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(UStaticMesh::GetSectionInfoMapName());
 
-		StaticMesh.PreEditChange(Property);
+	StaticMesh.PreEditChange(Property);
 	StaticMesh.Modify();
 
 	FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
@@ -2203,11 +2191,9 @@ void FMeshSectionSettingsLayout::OnSectionForceOpaqueFlagChanged( ECheckBoxState
 	}
 	FScopedTransaction Transaction(TransactionTest);
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(UStaticMesh::GetSectionInfoMapName());
 
-		StaticMesh.PreEditChange(Property);
+	StaticMesh.PreEditChange(Property);
 	StaticMesh.Modify();
 
 	FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
@@ -2234,9 +2220,7 @@ void FMeshSectionSettingsLayout::OnSectionCastShadowChanged(ECheckBoxState NewSt
 	}
 	FScopedTransaction Transaction(TransactionTest);
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(UStaticMesh::GetSectionInfoMapName());
 
 	StaticMesh.PreEditChange(Property);
 	StaticMesh.Modify();
@@ -2288,9 +2272,7 @@ void FMeshSectionSettingsLayout::OnSectionCollisionChanged(ECheckBoxState NewSta
 	}
 	FScopedTransaction Transaction(TransactionTest);
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(UStaticMesh::GetSectionInfoMapName());
 
 	StaticMesh.PreEditChange(Property);
 	StaticMesh.Modify();
@@ -2531,9 +2513,7 @@ void FMeshMaterialsLayout::AddToCategory(IDetailCategoryBuilder& CategoryBuilder
 
 void FMeshMaterialsLayout::OnCopyMaterialList()
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, StaticMaterials));
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(UStaticMesh::GetStaticMaterialsName());
 	check(Property != nullptr);
 
 	auto JsonValue = FJsonObjectConverter::UPropertyToJsonValue(Property, &GetStaticMesh().GetStaticMaterials(), 0, 0);
@@ -2567,9 +2547,7 @@ void FMeshMaterialsLayout::OnPasteMaterialList()
 
 	if (RootJsonValue.IsValid())
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, StaticMaterials));
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(UStaticMesh::GetStaticMaterialsName());
 		check(Property != nullptr);
 
 		GetStaticMesh().PreEditChange(Property);
@@ -2631,9 +2609,7 @@ void FMeshMaterialsLayout::OnPasteMaterialItem(int32 CurrentSlot)
 
 	if (RootJsonObject.IsValid())
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, StaticMaterials));
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(UStaticMesh::GetStaticMaterialsName());
 		check(Property != nullptr);
 
 		GetStaticMesh().PreEditChange(Property);

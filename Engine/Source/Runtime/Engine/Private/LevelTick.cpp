@@ -1104,21 +1104,33 @@ void UWorld::SendAllEndOfFrameUpdates()
 		[this]()
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_PostTickComponentUpdate_ForcedGameThread);
+
+			// To avoid any problems in case of reentrancy during the deferred update pass, we gather everything and clears the buffers first
+			// Reentrancy can occur if a render update need to force wait on an async resource and a progress bar ticks the game-thread during that time.
+			TArray< UActorComponent*> DeferredUpdates;
+			DeferredUpdates.Reserve(ComponentsThatNeedEndOfFrameUpdate_OnGameThread.Num());
+
 			for (UActorComponent* Component : ComponentsThatNeedEndOfFrameUpdate_OnGameThread)
 			{
 				if (Component)
 				{
 					if (Component->IsRegistered() && !Component->IsTemplate() && !Component->IsPendingKill())
 					{
-						Component->DoDeferredRenderUpdates_Concurrent();
+						DeferredUpdates.Add(Component);
 					}
 
 					check(Component->IsPendingKill() || Component->GetMarkedForEndOfFrameUpdateState() == EComponentMarkedForEndOfFrameUpdateState::MarkedForGameThread);
 					FMarkComponentEndOfFrameUpdateState::Set(Component, INDEX_NONE, EComponentMarkedForEndOfFrameUpdateState::Unmarked);
 				}
 			}
+
 			ComponentsThatNeedEndOfFrameUpdate_OnGameThread.Reset();
 			ComponentsThatNeedEndOfFrameUpdate.Reset();
+
+			for (UActorComponent* Component : DeferredUpdates)
+			{
+				Component->DoDeferredRenderUpdates_Concurrent();
+			}
 	};
 
 	if (CVarAllowAsyncRenderThreadUpdatesDuringGamethreadUpdates.GetValueOnGameThread() > 0)

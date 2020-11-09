@@ -23,6 +23,7 @@
 #include "MRUFavoritesList.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "HAL/FileManager.h"
+#include "AssetCompilingManager.h"
 
 /** Helper functions for frontend filters */
 namespace FrontendFilterHelper
@@ -1131,12 +1132,13 @@ bool FFrontendFilter_ShowRedirectors::PassesFilter(FAssetFilterType InItem) cons
 
 FFrontendFilter_InUseByLoadedLevels::FFrontendFilter_InUseByLoadedLevels(TSharedPtr<FFrontendFilterCategory> InCategory) 
 	: FFrontendFilter(InCategory)
-	, bIsCurrentlyActive(false)
 {
 	FEditorDelegates::MapChange.AddRaw(this, &FFrontendFilter_InUseByLoadedLevels::OnEditorMapChange);
 
 	IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
 	AssetTools.OnAssetPostRename().AddRaw(this, &FFrontendFilter_InUseByLoadedLevels::OnAssetPostRename);
+
+	FAssetCompilingManager::Get().OnAssetPostCompileEvent().AddRaw(this, &FFrontendFilter_InUseByLoadedLevels::OnAssetPostCompile);
 }
 
 FFrontendFilter_InUseByLoadedLevels::~FFrontendFilter_InUseByLoadedLevels()
@@ -1148,6 +1150,10 @@ FFrontendFilter_InUseByLoadedLevels::~FFrontendFilter_InUseByLoadedLevels()
 		IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
 		AssetTools.OnAssetPostRename().RemoveAll(this);
 	}
+
+	FAssetCompilingManager::Get().OnAssetPostCompileEvent().RemoveAll(this);
+
+	UnregisterDelayedRefresh();
 }
 
 void FFrontendFilter_InUseByLoadedLevels::ActiveStateChanged( bool bActive )
@@ -1156,14 +1162,92 @@ void FFrontendFilter_InUseByLoadedLevels::ActiveStateChanged( bool bActive )
 
 	if ( bActive )
 	{
-		ObjectTools::TagInUseObjects(ObjectTools::SO_LoadedLevels);
+		ObjectTools::TagInUseObjects(ObjectTools::SO_LoadedLevels, ObjectTools::EInUseSearchFlags::SkipCompilingAssets);
+		bIsDirty = false;
+	}
+}
+
+void FFrontendFilter_InUseByLoadedLevels::RegisterDelayedRefresh(float DelayInSeconds)
+{
+	UnregisterDelayedRefresh();
+
+	// The Editor might be unresponsive during heavy asset compilation so we 
+	// not only need a delay, but also a minimum amount of frames
+	// to pass until we call the actual refresh.
+	DelayedRefreshHandle = FTicker::GetCoreTicker().AddTicker(
+		TEXT("FFrontendFilter_InUseByLoadedLevels"),
+		0.0f,
+		[this, FireInTickCount = 16, DelayInSeconds](float DeltaTime) mutable
+		{
+			DelayInSeconds -= DeltaTime;
+			if (--FireInTickCount == 0 && DelayInSeconds <= 0.0f && FAssetCompilingManager::Get().GetNumRemainingAssets() == 0)
+			{
+				Refresh();
+				return false;
+			}
+
+			return true;
+		}
+	);
+}
+
+void FFrontendFilter_InUseByLoadedLevels::UnregisterDelayedRefresh()
+{
+	if (DelayedRefreshHandle.IsValid())
+	{
+		FTicker::GetCoreTicker().RemoveTicker(DelayedRefreshHandle);
+		DelayedRefreshHandle.Reset();
+	}
+}
+
+void FFrontendFilter_InUseByLoadedLevels::Refresh()
+{
+	if (bIsCurrentlyActive)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FFrontendFilter_InUseByLoadedLevels::Refresh);
+
+		// Update the tags identifying objects currently used by loaded levels
+		ObjectTools::TagInUseObjects(ObjectTools::SO_LoadedLevels, ObjectTools::EInUseSearchFlags::SkipCompilingAssets);
+		bIsDirty = false;
+		BroadcastChangedEvent();
+	}
+}
+
+void FFrontendFilter_InUseByLoadedLevels::OnAssetPostCompile(const TArray<FAssetCompileData>& CompiledAssets)
+{
+	if (bIsCurrentlyActive && !bIsDirty)
+	{
+		// Only StaticMesh requires that this filter be refreshed for now
+		for (const FAssetCompileData& CompileData : CompiledAssets)
+		{
+			if (CompileData.Asset.IsValid() && CompileData.Asset->IsA<UStaticMesh>())
+			{
+				bIsDirty = true;
+				break;
+			}
+		}
+	}
+
+	// TagInUseObjects is really slow, only trigger a filter refresh when all assets are finished compiling.
+	if (bIsDirty && FAssetCompilingManager::Get().GetNumRemainingAssets() == 0)
+	{
+		// Wait until we get some idle time to avoid refreshing too aggressively 
+		RegisterDelayedRefresh(2.0f);
+	}
+	else
+	{
+		// We're not idle anymore, unregister until we get to 0 assets again
+		UnregisterDelayedRefresh();
 	}
 }
 
 void FFrontendFilter_InUseByLoadedLevels::OnAssetPostRename(const TArray<FAssetRenameData>& AssetsAndNames)
 {
-	// Update the tags identifying objects currently used by loaded levels
-	ObjectTools::TagInUseObjects(ObjectTools::SO_LoadedLevels);
+	if (bIsCurrentlyActive)
+	{
+		// Update the tags identifying objects currently used by loaded levels
+		Refresh();
+	}
 }
 
 bool FFrontendFilter_InUseByLoadedLevels::PassesFilter(FAssetFilterType InItem) const
@@ -1199,8 +1283,7 @@ void FFrontendFilter_InUseByLoadedLevels::OnEditorMapChange( uint32 MapChangeFla
 {
 	if ( MapChangeFlags == MapChangeEventFlags::NewMap && bIsCurrentlyActive )
 	{
-		ObjectTools::TagInUseObjects(ObjectTools::SO_LoadedLevels);
-		BroadcastChangedEvent();
+		Refresh();
 	}
 }
 

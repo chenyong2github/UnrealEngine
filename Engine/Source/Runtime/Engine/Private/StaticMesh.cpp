@@ -43,6 +43,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "DynamicMeshBuilder.h"
 #include "Model.h"
+#include "Async/Async.h"
 #include "SplineMeshSceneProxy.h"
 #include "Templates/UniquePtr.h"
 
@@ -62,7 +63,11 @@
 #include "IMeshReductionInterfaces.h"
 #include "TessellationRendering.h"
 #include "Misc/MessageDialog.h"
-
+#include "StaticMeshCompiler.h"
+#include "HAL/PlatformStackWalk.h"
+#include "Hash/CityHash.h"
+#include "Misc/ScopeRWLock.h"
+#include "AssetCompilingManager.h"
 #endif // #if WITH_EDITOR
 
 #include "Engine/StaticMeshSocket.h"
@@ -167,6 +172,28 @@ static void FillMaterialName(const TArray<FStaticMaterial>& StaticMaterials, TMa
 }
 #endif
 
+/*-----------------------------------------------------------------------------
+	FStaticMeshAsyncBuildWorker
+-----------------------------------------------------------------------------*/
+
+#if WITH_EDITOR
+
+void FStaticMeshAsyncBuildWorker::DoWork()
+{
+	FStaticMeshAsyncBuildScope AsyncBuildScope(StaticMesh);
+
+	if (PostLoadContext.IsValid())
+	{
+		StaticMesh->ExecutePostLoadInternal(*PostLoadContext);
+	}
+
+	if (BuildContext.IsValid())
+	{
+		BuildContext->bHasRenderDataChanged = StaticMesh->ExecuteBuildInternal(true, nullptr);
+	}
+}
+
+#endif // #if WITH_EDITOR
 
 /*-----------------------------------------------------------------------------
 	FStaticMeshSectionAreaWeightedTriangleSamplerBuffer
@@ -2295,7 +2322,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // and set this new GUID as the version.
 #define STATICMESH_DERIVEDDATA_VER TEXT("B276A7E60B40410CA1E40553ED11D53B")
 
-static const FString& GetStaticMeshDerivedDataVersion()
+const FString& GetStaticMeshDerivedDataVersion()
 {
 	static FString CachedVersionString;
 	if (CachedVersionString.IsEmpty())
@@ -2779,6 +2806,9 @@ const float UStaticMesh::MinimumAutoLODPixelError = SMALL_NUMBER;
 
 UStaticMesh::UStaticMesh(const FObjectInitializer& ObjectInitializer)
 	: UStreamableRenderAsset(ObjectInitializer)
+#if WITH_EDITOR
+	, LockedProperties((uint32)EStaticMeshAsyncProperties::None)
+#endif
 {
 	ElementToIgnoreForTexFactor = -1;
 	bHasNavigationData=true;
@@ -2799,8 +2829,133 @@ UStaticMesh::UStaticMesh(const FObjectInitializer& ObjectInitializer)
 #endif
 }
 
+#if WITH_EDITOR
+
+namespace StaticMeshImpl
+{
+	struct FStackData
+	{
+		static const uint32 MaxDepth = 24;
+		uint64 Backtrace[MaxDepth]{0};
+		uint64 Cycles = 0;
+		int64  Count  = 0;
+	};
+
+	static FRWLock                  BackTracesLock;
+	static TMap<uint64, FStackData> BackTraces;
+
+	void SaveStack(uint64 Cycles)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(StaticMeshImpl::SaveStackHash);
+		
+		uint64 Backtrace[FStackData::MaxDepth];
+		const uint32 Depth = FPlatformStackWalk::CaptureStackBackTrace(Backtrace, FStackData::MaxDepth);
+		const uint64 StackHash = CityHash64(reinterpret_cast<const char*>(Backtrace), Depth * sizeof(Backtrace[0]));
+
+		// We're already in an editor-only slow path, we don't mind the locking performance.
+		FRWScopeLock Scope(BackTracesLock, SLT_Write);
+		FStackData& StackData = BackTraces.FindOrAdd(StackHash);
+		if (StackData.Count++ == 0)
+		{
+			FPlatformMemory::Memcpy(StackData.Backtrace, Backtrace, sizeof(StackData.Backtrace));
+		}
+		StackData.Cycles += Cycles;
+	}
+
+	void DumpStallStacks()
+	{
+		FRWScopeLock Scope(BackTracesLock, SLT_Write);
+		TArray<FStackData*> Stacks;
+		for (TPair<uint64, FStackData>& Pair : BackTraces)
+		{
+			Stacks.Add(&Pair.Value);
+		}
+		
+		Algo::SortBy(Stacks, [](const FStackData* StackData) { return StackData->Cycles; });
+
+		const int32 HumanReadableStringSize = 4096;
+		ANSICHAR HumanReadableString[HumanReadableStringSize];
+
+		int64 TotalCount = 0;
+		uint64 TotalCycles = 0;
+		for (FStackData* StackData : Stacks)
+		{
+			HumanReadableString[0] = '\0';
+
+			// Start at index 2 to Skip both the CaptureBackTrace and this function
+			for (int32 Index = 2; Index < FStackData::MaxDepth && StackData->Backtrace[Index]; ++Index)
+			{
+				FPlatformStackWalk::ProgramCounterToHumanReadableString(Index, StackData->Backtrace[Index], HumanReadableString, HumanReadableStringSize);
+				FCStringAnsi::Strncat(HumanReadableString, LINE_TERMINATOR_ANSI, HumanReadableStringSize);
+			}
+
+			TotalCount += StackData->Count;
+			TotalCycles += StackData->Cycles;
+			UE_LOG(LogStaticMesh, Display, TEXT("StaticMesh Stall Stack: (count: %llu, time: %s)\n%s"), StackData->Count, *FPlatformTime::PrettyTime(FPlatformTime::ToSeconds64(StackData->Cycles)), ANSI_TO_TCHAR(HumanReadableString));
+		}
+
+		UE_LOG(LogStaticMesh, Display, TEXT("StaticMesh Total Stalls: (count: %llu, time: %s)"), TotalCount, *FPlatformTime::PrettyTime(FPlatformTime::ToSeconds64(TotalCycles)));
+	}
+}
+
+static FAutoConsoleCommand CVarAsyncStaticMeshDumpStallStacks(
+	TEXT("Editor.AsyncStaticMeshDumpStallStacks"),
+	TEXT("Dump all the callstacks that have caused waits on async static mesh compilation."),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+	{
+		StaticMeshImpl::DumpStallStacks();
+	})
+);
+
+thread_local const UStaticMesh* FStaticMeshAsyncBuildScope::StaticMeshBeingAsyncCompiled = nullptr;
+
+void UStaticMesh::WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties AsyncProperties) const
+{
+	// Async static mesh builds are only supported on editor, no-op for other builds
+	if (IsCompiling() && (LockedProperties & (uint32)AsyncProperties) != 0 && FStaticMeshAsyncBuildScope::ShouldWaitOnLockedProperties(this))
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("StaticMeshCompilationStall %s"), ToString(AsyncProperties)));
+		
+		if (IsInGameThread())
+		{
+			UE_LOG(
+				LogStaticMesh,
+				Verbose,
+				TEXT("Accessing property %s of the StaticMesh while it is still being built asynchronously will force it to be compiled before continuing. "
+					 "For better performance, consider making the caller async aware so it can wait until the static mesh is ready to access this property."
+					 "To better understand where those calls are coming from, you can use Editor.AsyncStaticMeshDumpStallStacks on the console." ),
+				ToString(AsyncProperties)
+			);
+
+			uint64 StartTime = FPlatformTime::Cycles64();
+			FStaticMeshCompilingManager::Get().FinishCompilation({ const_cast<UStaticMesh*>(this) });
+			StaticMeshImpl::SaveStack(FPlatformTime::Cycles64() - StartTime);
+		}
+		else
+		{
+			// Trying to access a property from another thread that cannot force finish the compilation is invalid
+			ensureMsgf(
+				false,
+				TEXT("Accessing property %s of the StaticMesh while it is still being built asynchronously is only supported on the game-thread. "
+					 "To avoid any race-condition, consider finishing the compilation before pushing tasks to other threads or making higher-level game-thread code async aware so it "
+					 "schedules the task only when the static mesh's compilation is finished. If this is a blocker, you can disable async static mesh from the editor experimental settings."),
+				ToString(AsyncProperties)
+			);
+		}
+	}
+}
+
+#endif // WITH_EDITOR
+
+bool UStaticMesh::IsNavigationRelevant() const 
+{
+	return bHasNavigationData;
+}
+
 FStaticMeshRenderData* UStaticMesh::GetRenderData()
 {
+	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::RenderData);
+
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return RenderData.Get();
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2808,6 +2963,8 @@ FStaticMeshRenderData* UStaticMesh::GetRenderData()
 
 const FStaticMeshRenderData* UStaticMesh::GetRenderData() const
 {
+	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::RenderData);
+
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return RenderData.Get();
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2815,6 +2972,8 @@ const FStaticMeshRenderData* UStaticMesh::GetRenderData() const
 
 void UStaticMesh::SetRenderData(TUniquePtr<class FStaticMeshRenderData>&& InRenderData)
 {
+	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::RenderData);
+
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	RenderData = MoveTemp(InRenderData);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2822,6 +2981,8 @@ void UStaticMesh::SetRenderData(TUniquePtr<class FStaticMeshRenderData>&& InRend
 
 FStaticMeshOccluderData* UStaticMesh::GetOccluderData()
 {
+	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::OccluderData);
+
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return OccluderData.Get();
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2829,6 +2990,8 @@ FStaticMeshOccluderData* UStaticMesh::GetOccluderData()
 
 const FStaticMeshOccluderData* UStaticMesh::GetOccluderData() const
 {
+	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::OccluderData);
+
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return OccluderData.Get();
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2836,6 +2999,8 @@ const FStaticMeshOccluderData* UStaticMesh::GetOccluderData() const
 
 void UStaticMesh::SetOccluderData(TUniquePtr<class FStaticMeshOccluderData>&& InOccluderData)
 {
+	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::OccluderData);
+
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	OccluderData = MoveTemp(InOccluderData);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2913,11 +3078,12 @@ void UStaticMesh::InitResources()
 	LinkStreaming();
 
 #if	STATS
-	UStaticMesh* This = this;
+	// Compute size on the current thread to avoid the render thread causing a stall on accessing RenderData
+	// before it is released from async duty
+	const uint32 StaticMeshResourceSize = GetResourceSizeBytes(EResourceSizeMode::Exclusive);
 	ENQUEUE_RENDER_COMMAND(UpdateMemoryStats)(
-		[This](FRHICommandList& RHICmdList)
+		[StaticMeshResourceSize](FRHICommandList& RHICmdList)
 		{
-			const uint32 StaticMeshResourceSize = This->GetResourceSizeBytes( EResourceSizeMode::Exclusive );
 			INC_DWORD_STAT_BY( STAT_StaticMeshTotalMemory, StaticMeshResourceSize );
 			INC_DWORD_STAT_BY( STAT_StaticMeshTotalMemory2, StaticMeshResourceSize );
 		} );
@@ -3118,9 +3284,18 @@ void UStaticMesh::UpdateUVChannelData(bool bRebuildAll)
 		{
 			SetLightmapUVDensity(GetUVDensity(GetRenderData()->LODResources, GetLightMapCoordinateIndex()));
 
+			// This can potentially be run from any thread during async static mesh compilation
 			if (GEngine)
 			{
-				GEngine->TriggerStreamingDataRebuild();
+				if (IsInGameThread())
+				{
+					GEngine->TriggerStreamingDataRebuild();
+				}
+				else
+				{
+					// GEngine could be null by the time the task gets executed on the task graph.
+					Async(EAsyncExecution::TaskGraphMainThread, []() { if (GEngine) { GEngine->TriggerStreamingDataRebuild(); } });
+				}
 			}
 		}
 
@@ -3204,15 +3379,15 @@ void UStaticMesh::ReleaseResources()
 	if (GetRenderData())
 	{
 		GetRenderData()->ReleaseResources();
+
+		// insert a fence to signal when these commands completed
+		ReleaseResourcesFence.BeginFence();
 	}
 
 	if (GetOccluderData())
 	{
 		DEC_DWORD_STAT_BY( STAT_StaticMeshOccluderMemory, GetOccluderData()->GetResourceSizeBytes() );
 	}
-	
-	// insert a fence to signal when these commands completed
-	ReleaseResourcesFence.BeginFence();
 
 	bRenderingResourcesInitialized = false;
 }
@@ -3226,6 +3401,11 @@ void UStaticMesh::PreEditChange(FProperty* PropertyAboutToChange)
 	{
 		//Ignore re-entrant PostEditChange calls
 		return;
+	}
+
+	if (IsCompiling())
+	{
+		FStaticMeshCompilingManager::Get().FinishCompilation({ this });
 	}
 
 	Super::PreEditChange(PropertyAboutToChange);
@@ -3436,6 +3616,74 @@ void UStaticMesh::BroadcastNavCollisionChange()
 	}
 }
 
+FMeshSectionInfoMap& UStaticMesh::GetSectionInfoMap()
+{
+	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::SectionInfoMap);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return SectionInfoMap; 
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+const FMeshSectionInfoMap& UStaticMesh::GetSectionInfoMap() const
+{
+	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::SectionInfoMap);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return SectionInfoMap; 
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+FMeshSectionInfoMap& UStaticMesh::GetOriginalSectionInfoMap()
+{
+	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::OriginalSectionInfoMap);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return OriginalSectionInfoMap; 
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+const FMeshSectionInfoMap& UStaticMesh::GetOriginalSectionInfoMap() const
+{ 
+	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::OriginalSectionInfoMap);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return OriginalSectionInfoMap; 
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+int32 UStaticMesh::GetNumSourceModels() const
+{
+	return GetSourceModels().Num();
+}
+
+bool UStaticMesh::IsSourceModelValid(int32 Index) const
+{
+	return GetSourceModels().IsValidIndex(Index);
+}
+
+const TArray<FStaticMeshSourceModel>& UStaticMesh::GetSourceModels() const
+{
+	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::SourceModels);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return SourceModels;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+const FStaticMeshSourceModel& UStaticMesh::GetSourceModel(int32 Index) const
+{
+	return GetSourceModels()[Index];
+}
+
+TArray<FStaticMeshSourceModel>& UStaticMesh::GetSourceModels()
+{ 
+	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::SourceModels);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return SourceModels; 
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+FStaticMeshSourceModel& UStaticMesh::GetSourceModel(int32 Index)
+{ 
+	return GetSourceModels()[Index];
+}
+
 FStaticMeshSourceModel& UStaticMesh::AddSourceModel()
 {
 	int32 LodModelIndex = GetSourceModels().AddDefaulted();
@@ -3613,6 +3861,19 @@ bool UStaticMesh::FixLODRequiresAdjacencyInformation(const int32 LODIndex, const
 	return false;
 }
 
+bool UStaticMesh::TryCancelAsyncTasks()
+{
+	if (AsyncTask)
+	{
+		if (AsyncTask->IsDone() || AsyncTask->Cancel())
+		{
+			AsyncTask.Reset();
+		}
+	}
+
+	return AsyncTask == nullptr;
+}
+
 #endif // WITH_EDITOR
 
 void UStaticMesh::BeginDestroy()
@@ -3627,6 +3888,14 @@ void UStaticMesh::BeginDestroy()
 
 bool UStaticMesh::IsReadyForFinishDestroy()
 {
+#if WITH_EDITOR
+	// We're being garbage collected and might still have async tasks pending
+	if (!TryCancelAsyncTasks())
+	{
+		return false;
+	}
+#endif
+
 	if (!Super::IsReadyForFinishDestroy())
 	{
 		return false;
@@ -3665,6 +3934,22 @@ int32 UStaticMesh::GetNumSectionsWithCollision() const
 
 void UStaticMesh::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
+#if WITH_EDITORONLY_DATA
+	OutTags.Add(FAssetRegistryTag("NaniteEnabled", NaniteSettings.bEnabled ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+	OutTags.Add(FAssetRegistryTag("NanitePercent", FString::Printf(TEXT("%.1f"), NaniteSettings.PercentTriangles * 100.0f), FAssetRegistryTag::TT_Numerical));
+
+	if (AssetImportData)
+	{
+		OutTags.Add(FAssetRegistryTag(SourceFileTagName(), AssetImportData->GetSourceData().ToJson(), FAssetRegistryTag::TT_Hidden));
+	}
+#endif
+
+	// Avoid accessing properties being compiled, this function will get called again after compilation is finished.
+	if (IsCompiling())
+	{
+		return;
+	}
+
 	int32 NumTriangles = 0;
 	int32 NumVertices = 0;
 	int32 NumUVChannels = 0;
@@ -3718,16 +4003,6 @@ void UStaticMesh::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	OutTags.Add(FAssetRegistryTag("SectionsWithCollision", FString::FromInt(NumSectionsWithCollision), FAssetRegistryTag::TT_Numerical));
 	OutTags.Add(FAssetRegistryTag("DefaultCollision", DefaultCollisionName.ToString(), FAssetRegistryTag::TT_Alphabetical));
 	OutTags.Add(FAssetRegistryTag("CollisionComplexity", ComplexityString, FAssetRegistryTag::TT_Alphabetical));
-
-#if WITH_EDITORONLY_DATA
-	OutTags.Add(FAssetRegistryTag("NaniteEnabled", NaniteSettings.bEnabled ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
-	OutTags.Add(FAssetRegistryTag("NanitePercent", FString::Printf(TEXT("%.1f"), NaniteSettings.PercentTriangles * 100.0f), FAssetRegistryTag::TT_Numerical));
-
-	if (AssetImportData)
-	{
-		OutTags.Add( FAssetRegistryTag(SourceFileTagName(), AssetImportData->GetSourceData().ToJson(), FAssetRegistryTag::TT_Hidden) );
-	}
-#endif
 
 	Super::GetAssetRegistryTags(OutTags);
 }
@@ -4267,6 +4542,11 @@ void UStaticMesh::CommitMeshDescription(int32 LodIndex, const FCommitMeshDescrip
 	FStaticMeshSourceModel& SourceModel = GetSourceModel(LodIndex);
 	if (SourceModel.MeshDescription.IsValid())
 	{
+		if (LodIndex == 0)
+		{
+			CachedMeshDescriptionBounds = SourceModel.MeshDescription->GetBounds();
+		}
+
 		// Package up mesh description into bulk data
 		if (!SourceModel.MeshDescriptionBulkData.IsValid())
 		{
@@ -4630,6 +4910,7 @@ void UStaticMesh::CacheDerivedData()
 
 	// Conditionally create occluder data
 	SetOccluderData(FStaticMeshOccluderData::Build(this));
+	ReleaseAsyncProperty(EStaticMeshAsyncProperties::OccluderData);
 
 	// Additionally cache derived data for any other platforms we care about.
 	const TArray<ITargetPlatform*>& TargetPlatforms = TargetPlatformManager.GetActiveTargetPlatforms();
@@ -4648,9 +4929,18 @@ void UStaticMesh::CacheDerivedData()
 void UStaticMesh::CalculateExtendedBounds()
 {
 	FBoxSphereBounds Bounds(ForceInit);
-	if (GetRenderData())
+#if WITH_EDITOR
+	if (CachedMeshDescriptionBounds.IsSet())
 	{
-		Bounds = GetRenderData()->Bounds;
+		Bounds = CachedMeshDescriptionBounds.GetValue();
+	}
+	else
+#endif // #if WITH_EDITOR
+	{
+		if (GetRenderData())
+		{
+			Bounds = GetRenderData()->Bounds;
+		}
 	}
 
 	// Only apply bound extension if necessary, as it will result in a larger bounding sphere radius than retrieved from the render data
@@ -4694,6 +4984,12 @@ void UStaticMesh::Serialize(FArchive& Ar)
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::Serialize);
 
 	SCOPE_MS_ACCUMULATOR(STAT_StaticMesh_SerializeFull);
+
+	// Skip serialization for static mesh being compiled if told to do so.
+	if (Ar.ShouldSkipCompilingAssets() && IsCompiling())
+	{
+		return;
+	}
 
 	{
 		SCOPE_MS_ACCUMULATOR(STAT_StaticMesh_SerializeParent);
@@ -4834,6 +5130,12 @@ void UStaticMesh::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 		else if (Ar.IsSaving())
 		{		
+			// Make sure we're not trying to save something still being compiled
+			if (IsCompiling())
+			{
+				FStaticMeshCompilingManager::Get().FinishCompilation({this});
+			}
+
 			FStaticMeshRenderData& PlatformRenderData = GetPlatformStaticMeshRenderData(this, Ar.CookingTarget());
 
 			PlatformRenderData.Serialize(Ar, this, bCooked);
@@ -4958,6 +5260,25 @@ bool UStaticMesh::IsPostLoadThreadSafe() const
 	return false;
 }
 
+#if WITH_EDITOR
+
+bool UStaticMesh::IsAsyncTaskComplete() const
+{
+	return AsyncTask == nullptr || AsyncTask->IsWorkDone();
+}
+
+void UStaticMesh::AcquireAsyncProperty(EStaticMeshAsyncProperties AsyncProperties)
+{
+	LockedProperties |= (uint32)AsyncProperties;
+}
+
+void UStaticMesh::ReleaseAsyncProperty(EStaticMeshAsyncProperties AsyncProperties)
+{
+	LockedProperties &= ~(uint32)AsyncProperties;
+}
+
+#endif // WITH_EDITOR
+
 //
 //	UStaticMesh::PostLoad
 //
@@ -4967,7 +5288,61 @@ void UStaticMesh::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITOR
-	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::PostLoad);
+	FStaticMeshAsyncBuildScope AsyncBuildScope(this);
+#endif
+
+	FStaticMeshPostLoadContext Context;
+	BeginPostLoadInternal(Context);
+
+#if WITH_EDITOR
+	// IsBuiltAtRuntime must stay synchronous for now
+	if (!IsBuiltAtRuntime() && FStaticMeshCompilingManager::Get().IsAsyncCompilationAllowed(this))
+	{
+		FModuleManager::Get().LoadModuleChecked<IMeshUtilities>(TEXT("MeshUtilities"));
+ 
+		// Cache derived data for the running platform.
+		ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
+		ITargetPlatform* RunningPlatform = TargetPlatformManager.GetRunningTargetPlatform();
+		check(RunningPlatform);
+		IMeshBuilderModule::GetForPlatform(RunningPlatform);
+
+		FQueuedThreadPool* StaticMeshThreadPool = FStaticMeshCompilingManager::Get().GetThreadPool();
+		EQueuedWorkPriority BasePriority = FStaticMeshCompilingManager::Get().GetBasePriority(this);
+
+		// We assume that complex collision mesh are small and fast to compute so stalling
+		// on them should be fast. This is required to avoid stalling on the RenderData of the
+		// ComplexCollisionMesh during the async build of this mesh.
+		if (ComplexCollisionMesh && ComplexCollisionMesh->IsCompiling())
+		{
+			FStaticMeshCompilingManager::Get().FinishCompilation({ ComplexCollisionMesh });
+		}
+
+		AsyncTask = MakeUnique<FStaticMeshAsyncBuildTask>(this, MakeUnique<FStaticMeshPostLoadContext>(Context));
+		AsyncTask->StartBackgroundTask(StaticMeshThreadPool, BasePriority);
+		FStaticMeshCompilingManager::Get().AddStaticMeshes({this});
+	}
+	else
+#endif
+	{
+		ExecutePostLoadInternal(Context);
+		FinishPostLoadInternal(Context);
+	}
+}
+
+void UStaticMesh::BeginPostLoadInternal(FStaticMeshPostLoadContext& Context)
+{
+#if WITH_EDITOR
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::BeginPostLoadInternal);
+
+	// Make sure every static FString's are built and cached on the main thread
+	// before trying to access it from multiple threads
+	GetStaticMeshDerivedDataVersion();
+
+	// Lock all properties that should not be modified/accessed during async post-load
+	AcquireAsyncProperty();
+
+	// This scope allows us to use any locked properties without causing stalls
+	FStaticMeshAsyncBuildScope AsyncBuildScope(this);
 
 	if (GetNumSourceModels() > 0)
 	{
@@ -4988,7 +5363,8 @@ void UStaticMesh::PostLoad()
 		}
 	}
 
-	if (!GetOutermost()->bIsCookedForEditor)
+	Context.bIsCookedForEditor = GetOutermost()->bIsCookedForEditor;
+	if (!Context.bIsCookedForEditor)
 	{
 		// Needs to happen before 'CacheDerivedData'
 		if (GetLinkerUE4Version() < VER_UE4_BUILD_SCALE_VECTOR)
@@ -5047,32 +5423,75 @@ void UStaticMesh::PostLoad()
 			SetLODGroup(LODGroup);
 		}
 
+		FModuleManager::Get().LoadModule("NaniteBuilder");
 		IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
 		MeshUtilities.FixupMaterialSlotNames(this);
 
-		if (GetIsBuiltAtRuntime())
+		const int32 CustomVersion = GetLinkerCustomVersion(FReleaseObjectVersion::GUID);
+		if (GetLinkerUE4Version() < VER_UE4_STATIC_MESH_EXTENDED_BOUNDS || CustomVersion < FReleaseObjectVersion::StaticMeshExtendedBoundsFix)
 		{
-#if WITH_EDITOR
-			// If built at runtime, but an editor build, we cache the mesh descriptions so that they can be rebuilt within the editor if necessary.
-			// This is done through the fast build path for consistency
-			TArray<const FMeshDescription*> MeshDescriptions;
-			const int32 NumSourceModels = GetNumSourceModels();
-			MeshDescriptions.Reserve(NumSourceModels);
-			for (int32 SourceModelIndex = 0; SourceModelIndex < NumSourceModels; SourceModelIndex++)
-			{
-				MeshDescriptions.Add(GetMeshDescription(SourceModelIndex));
-			}
-			BuildFromMeshDescriptions(MeshDescriptions);
-#endif
+			// A stall is almost guaranteed during async build because mesh bounds are used extensively from a many different places.
+			Context.bShouldComputeExtendedBounds = true;
+			UE_LOG(LogStaticMesh, Warning, TEXT("%s should be resaved to improve async compilation performance."), *GetFullName());
 		}
 		else
 		{
-			// This, among many other things, will build a MeshDescription from the legacy RawMesh if one has not already been serialized,
-			// or, failing that, if there is not already one in the DDC. This will remain cached until the end of PostLoad(), upon which it
-			// is then released, and can be reloaded on demand.
-			CacheDerivedData();
+			// Do not stall on this property if it doesn't need to be recomputed after rebuild.
+			ReleaseAsyncProperty(EStaticMeshAsyncProperties::ExtendedBounds);
 		}
+	}
 
+	Context.bIsCookedForEditor = GetOutermost()->bIsCookedForEditor;
+	Context.bNeedsMaterialFixup = GStaticMeshesThatNeedMaterialFixup.Get(this);
+#endif
+	
+#if WITH_EDITORONLY_DATA
+	Context.bNeedsMeshUVDensityFix = GetLinkerCustomVersion(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::FixedMeshUVDensity;
+
+	// If any, make sure the ComplexCollisionMesh is loaded before creating the NavCollision
+	if (ComplexCollisionMesh && ComplexCollisionMesh != this)
+	{
+		ComplexCollisionMesh->ConditionalPostLoad();
+	}
+#endif //WITH_EDITORONLY_DATA
+
+	// We want to always have a BodySetup, its used for per-poly collision as well
+	if (GetBodySetup() == nullptr)
+	{
+		CreateBodySetup();
+	}
+}
+
+void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
+{
+#if WITH_EDITOR
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::ExecutePostLoadInternal)
+
+	if (IsBuiltAtRuntime())
+	{
+		// If built at runtime, but an editor build, we cache the mesh descriptions so that they can be rebuilt within the editor if necessary.
+		// This is done through the fast build path for consistency
+		TArray<const FMeshDescription*> MeshDescriptions;
+		const int32 NumSourceModels = GetNumSourceModels();
+		MeshDescriptions.Reserve(NumSourceModels);
+		for (int32 SourceModelIndex = 0; SourceModelIndex < NumSourceModels; SourceModelIndex++)
+		{
+			MeshDescriptions.Add(GetMeshDescription(SourceModelIndex));
+		}
+		BuildFromMeshDescriptions(MeshDescriptions);
+	}
+	else
+	{
+		// This, among many other things, will build a MeshDescription from the legacy RawMesh if one has not already been serialized,
+		// or, failing that, if there is not already one in the DDC. This will remain cached until the end of PostLoad(), upon which it
+		// is then released, and can be reloaded on demand.
+		CacheDerivedData();
+	}
+
+	GetBodySetup()->CreatePhysicsMeshes();
+
+	if (!Context.bIsCookedForEditor)
+	{
 		//Fix up the material to remove redundant material, this is needed since the material refactor where we do not have anymore copy of the materials
 		//in the materials list
 		if (GetRenderData() && bCleanUpRedundantMaterialPostLoad)
@@ -5145,7 +5564,7 @@ void UStaticMesh::PostLoad()
 			bCleanUpRedundantMaterialPostLoad = false;
 		}
 
-		if (GetRenderData() && GStaticMeshesThatNeedMaterialFixup.Get(this))
+		if (GetRenderData() && Context.bNeedsMaterialFixup)
 		{
 			FixupZeroTriangleSections();
 		}
@@ -5171,9 +5590,20 @@ void UStaticMesh::PostLoad()
 			FFormatNamedArguments Arguments;
 			Arguments.Add(TEXT("MinLOD"), FText::AsNumber(LocalMinLOD.Default));
 			Arguments.Add(TEXT("MinAvailLOD"), FText::AsNumber(MinAvailableLOD));
-			FMessageLog("LoadErrors").Warning()
-				->AddToken(FUObjectToken::Create(this))
-				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LoadError_BadMinLOD", "Min LOD value of {MinLOD} is out of range 0..{MinAvailLOD} and has been adjusted to {MinAvailLOD}. Please verify and resave the asset."), Arguments)));
+			TSharedRef<FUObjectToken> TokenRef = FUObjectToken::Create(this);
+			
+			// Make sure Slate gets called from the game thread
+			Async(
+				EAsyncExecution::TaskGraphMainThread,
+				// No choice to MoveTemp here, the SharedRef is not thread safe so it cannot
+				// be copied to another thread, only moved.
+				[Token = MoveTemp(TokenRef), Arguments]()
+				{
+					FMessageLog("LoadErrors").Warning()
+						->AddToken(Token)
+						->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LoadError_BadMinLOD", "Min LOD value of {MinLOD} is out of range 0..{MinAvailLOD} and has been adjusted to {MinAvailLOD}. Please verify and resave the asset."), Arguments)));
+				}
+			);
 
 			LocalMinLOD.Default = MinAvailableLOD;
 			bFixedMinLOD = true;
@@ -5187,10 +5617,21 @@ void UStaticMesh::PostLoad()
 				Arguments.Add(TEXT("MinLOD"), FText::AsNumber(It.Value()));
 				Arguments.Add(TEXT("MinAvailLOD"), FText::AsNumber(MinAvailableLOD));
 				Arguments.Add(TEXT("Platform"), FText::FromString(It.Key().ToString()));
-				FMessageLog("LoadErrors").Warning()
-					->AddToken(FUObjectToken::Create(this))
-					->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LoadError_BadMinLODOverride", "Min LOD override of {MinLOD} for {Platform} is out of range 0..{MinAvailLOD} and has been adjusted to {MinAvailLOD}. Please verify and resave the asset."), Arguments)));
+				TSharedRef<FUObjectToken> TokenRef = FUObjectToken::Create(this);
 
+				// Make sure Slate gets called from the game thread
+				Async(
+					EAsyncExecution::TaskGraphMainThread, 
+					// No choice to MoveTemp here, the SharedRef is not thread safe so it cannot
+					// be copied to another thread, only moved.
+					[Token = MoveTemp(TokenRef), Arguments]()
+					{ 
+						FMessageLog("LoadErrors").Warning()
+							->AddToken(Token)
+							->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LoadError_BadMinLODOverride", "Min LOD override of {MinLOD} for {Platform} is out of range 0..{MinAvailLOD} and has been adjusted to {MinAvailLOD}. Please verify and resave the asset."), Arguments)));
+					}
+				);
+				
 				It.Value() = MinAvailableLOD;
 				bFixedMinLOD = true;
 			}
@@ -5199,14 +5640,15 @@ void UStaticMesh::PostLoad()
 		if (bFixedMinLOD)
 		{
 			SetMinLOD(MoveTemp(LocalMinLOD));
-			FMessageLog("LoadErrors").Open();
+			// Make sure Slate gets called from the game thread
+			Async(EAsyncExecution::TaskGraphMainThread, []() { FMessageLog("LoadErrors").Open(); });
 		}
 	}
 
 #endif // #if WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
-	if (GetLinkerCustomVersion(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::FixedMeshUVDensity)
+	if (Context.bNeedsMeshUVDensityFix)
 	{
 		UpdateUVChannelData(true);
 	}
@@ -5214,29 +5656,16 @@ void UStaticMesh::PostLoad()
 
 	EnforceLightmapRestrictions();
 
-	if( FApp::CanEverRender() && !HasAnyFlags(RF_ClassDefaultObject) )
-	{
-		InitResources();
-	}
-	else
-	{
-		// Update any missing data when cooking.
-		UpdateUVChannelData(false);
 #if WITH_EDITOR
-		if (GetRenderData())
-		{
-			GetRenderData()->ResolveSectionInfo(this);
-		}
-#endif
-	}
-
-#if WITH_EDITOR
-	// Fix extended bounds if needed
-	const int32 CustomVersion = GetLinkerCustomVersion(FReleaseObjectVersion::GUID);
-	if (GetLinkerUE4Version() < VER_UE4_STATIC_MESH_EXTENDED_BOUNDS || CustomVersion < FReleaseObjectVersion::StaticMeshExtendedBoundsFix)
+	if (Context.bShouldComputeExtendedBounds)
 	{
 		CalculateExtendedBounds();
+		ReleaseAsyncProperty(EStaticMeshAsyncProperties::ExtendedBounds);
 	}
+
+	// Those are going to apply modifications to RenderData and should execute before we release
+	// the lock and send the InitResources.
+
 	// Conversion of LOD distance need valid bounds it must be call after the extended Bounds fixup
 	// Only required in an editor build as other builds process this in a different place
 	if (bRequiresLODDistanceConversion)
@@ -5295,28 +5724,43 @@ void UStaticMesh::PostLoad()
 			}
 		}
 	}
-#endif // #if WITH_EDITOR
+	ReleaseAsyncProperty(EStaticMeshAsyncProperties::SectionInfoMap);
+	ReleaseAsyncProperty(EStaticMeshAsyncProperties::OriginalSectionInfoMap);
 
-	// We want to always have a BodySetup, its used for per-poly collision as well
-	if (GetBodySetup() == nullptr)
-	{
-		CreateBodySetup();
-	}
-
-#if WITH_EDITOR
 	// Release cached mesh descriptions until they are loaded on demand
 	ClearMeshDescriptions();
-#endif
+	ReleaseAsyncProperty(EStaticMeshAsyncProperties::SourceModels);
+#endif // #if WITH_EDITOR
+}
 
-#if WITH_EDITORONLY_DATA
-	// If any, make sure the ComplexCollisionMesh is loaded before creating the NavCollision
-	if (ComplexCollisionMesh && ComplexCollisionMesh != this)
+void UStaticMesh::FinishPostLoadInternal(FStaticMeshPostLoadContext& Context)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::FinishPostLoad);
+
+	if( FApp::CanEverRender() && !HasAnyFlags(RF_ClassDefaultObject) )
 	{
-		ComplexCollisionMesh->ConditionalPostLoad();
+		// InitResources will send commands to other threads that will
+		// use our RenderData, we must mark it as ready to be used since
+		// we're not going to modify it anymore
+		ReleaseAsyncProperty(EStaticMeshAsyncProperties::RenderData);
+		InitResources();
 	}
-#endif //WITH_EDITORONLY_DATA
+	else
+	{
+		// Update any missing data when cooking.
+		UpdateUVChannelData(false);
+#if WITH_EDITOR
+		if (GetRenderData())
+		{
+			GetRenderData()->ResolveSectionInfo(this);
+		}
+#endif
+		ReleaseAsyncProperty(EStaticMeshAsyncProperties::RenderData);
+	}
 
 	CreateNavCollision();
+
+	ReleaseAsyncProperty();
 }
 
 void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescription, FStaticMeshLODResources& LODResources)
@@ -5525,7 +5969,6 @@ void UStaticMesh::BuildFromStaticMeshDescriptions(const TArray<UStaticMeshDescri
 bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*>& MeshDescriptions, const FBuildMeshDescriptionsParams& Params)
 {
 	// Set up
-
 	SetIsBuiltAtRuntime(true);
 	NeverStream = true;
 
@@ -6063,6 +6506,7 @@ void UStaticMesh::CreateNavCollision(const bool bIsUpdate)
 
 void UStaticMesh::SetNavCollision(UNavCollisionBase* InNavCollision)
 {
+	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::NavCollision);
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	NavCollision = InNavCollision;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -6070,6 +6514,7 @@ void UStaticMesh::SetNavCollision(UNavCollisionBase* InNavCollision)
 
 UNavCollisionBase* UStaticMesh::GetNavCollision() const
 {
+	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::NavCollision);
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return NavCollision; 
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS

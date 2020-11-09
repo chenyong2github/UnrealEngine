@@ -1961,6 +1961,14 @@ UHierarchicalInstancedStaticMeshComponent::~UHierarchicalInstancedStaticMeshComp
 }
 
 #if WITH_EDITOR
+
+void UHierarchicalInstancedStaticMeshComponent::PostStaticMeshCompilation()
+{
+	BuildTreeIfOutdated(false, true);
+
+	Super::PostStaticMeshCompilation();
+}
+
 void UHierarchicalInstancedStaticMeshComponent::PostEditUndo()
 {
 	Super::PostEditUndo();
@@ -2230,7 +2238,8 @@ bool UHierarchicalInstancedStaticMeshComponent::UpdateInstanceTransform(int32 In
 
 	bool Result = Super::UpdateInstanceTransform(InstanceIndex, NewInstanceTransform, bWorldSpace, bMarkRenderStateDirty, bTeleport);
 	
-	if (Result && GetStaticMesh() != nullptr)
+	// The tree will be fully rebuilt once the static mesh compilation is finished, no need for incremental update in that case.
+	if (Result && GetStaticMesh() && !GetStaticMesh()->IsCompiling() && GetStaticMesh()->HasValidRenderData())
 	{
 		const FBox NewInstanceBounds = GetStaticMesh()->GetBounds().GetBox().TransformBy(NewLocalTransform);
 		
@@ -2390,7 +2399,8 @@ int32 UHierarchicalInstancedStaticMeshComponent::AddInstance(const FTransform& I
 
 	int32 InstanceIndex = UInstancedStaticMeshComponent::AddInstance(InstanceTransform);
 
-	if (InstanceIndex != INDEX_NONE && GetStaticMesh() && GetStaticMesh()->HasValidRenderData())
+	// The tree will be fully rebuilt once the static mesh compilation is finished, no need for incremental update in that case.
+	if (InstanceIndex != INDEX_NONE && GetStaticMesh() && !GetStaticMesh()->IsCompiling() && GetStaticMesh()->HasValidRenderData())
 	{	
 		check(InstanceIndex == InstanceReorderTable.Num());
 
@@ -2424,7 +2434,8 @@ TArray<int32> UHierarchicalInstancedStaticMeshComponent::AddInstances(const TArr
 
 	TArray<int32> InstanceIndices = UInstancedStaticMeshComponent::AddInstances(InstanceTransforms, true);
 
-	if (InstanceIndices.Num() > 0 && GetStaticMesh() && GetStaticMesh()->HasValidRenderData())
+	// The tree will be fully rebuilt once the static mesh compilation is finished, no need for incremental update in that case.
+	if (InstanceIndices.Num() > 0 && GetStaticMesh() && !GetStaticMesh()->IsCompiling() && GetStaticMesh()->HasValidRenderData())
 	{
 		bIsOutOfDate = true;
 		bConcurrentChanges |= IsAsyncBuilding();
@@ -2600,7 +2611,8 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTree()
 		MarkRenderStateDirty();
 	}
 
-	if (PerInstanceSMData.Num() > 0 && GetStaticMesh() && GetStaticMesh()->HasValidRenderData())
+	// The tree will be fully rebuilt once the static mesh compilation is finished, no need for incremental update in that case.
+	if (PerInstanceSMData.Num() > 0 && GetStaticMesh() && !GetStaticMesh()->IsCompiling() && GetStaticMesh()->HasValidRenderData())
 	{
 		InitializeInstancingRandomSeed();
 		TArray<FMatrix> InstanceTransforms;
@@ -2725,7 +2737,7 @@ void UHierarchicalInstancedStaticMeshComponent::ApplyEmpty()
 	SortedInstances.Empty();
 	UnbuiltInstanceBoundsList.Empty();
 	BuiltInstanceBounds.Init();
-	CacheMeshExtendedBounds = GetStaticMesh() && GetStaticMesh()->HasValidRenderData() ? GetStaticMesh()->GetBounds() : FBoxSphereBounds(ForceInitToZero);
+	CacheMeshExtendedBounds = GetStaticMesh() && (GetStaticMesh()->IsCompiling() || GetStaticMesh()->HasValidRenderData()) ? GetStaticMesh()->GetBounds() : FBoxSphereBounds(ForceInitToZero);
 	InstanceUpdateCmdBuffer.Reset();
 	if (PerInstanceRenderData.IsValid())
 	{
@@ -2790,7 +2802,8 @@ void UHierarchicalInstancedStaticMeshComponent::ApplyBuildTree(FClusterBuilder& 
 
 bool UHierarchicalInstancedStaticMeshComponent::BuildTreeIfOutdated(bool Async, bool ForceUpdate)
 {
-	if (HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	// The tree will be fully rebuilt once the static mesh compilation is finished.
+	if (HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || (GetStaticMesh() && GetStaticMesh()->IsCompiling()))
 	{
 		return false;
 	}
@@ -2879,7 +2892,8 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTreeAsync()
 	}
 
 	// Verify that the mesh is valid before using it.
-	if (PerInstanceSMData.Num() > 0 && GetStaticMesh() && GetStaticMesh()->HasValidRenderData())
+	// The tree will be fully rebuilt once the static mesh compilation is finished, no need to do it now.
+	if (PerInstanceSMData.Num() > 0 && GetStaticMesh() && !GetStaticMesh()->IsCompiling() && GetStaticMesh()->HasValidRenderData())
 	{
 		double StartTime = FPlatformTime::Seconds();
 		
@@ -3018,6 +3032,7 @@ FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProx
 		(PerInstanceRenderData.IsValid()) &&
 		// make sure we have an actual static mesh
 		GetStaticMesh() &&
+		!GetStaticMesh()->IsCompiling() &&
 		GetStaticMesh()->HasValidRenderData(false);
 
 	if (bMeshIsValid)

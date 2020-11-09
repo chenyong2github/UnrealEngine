@@ -14,6 +14,8 @@
 #include "Templates/ScopedCallback.h"
 #include "Misc/WorldCompositionUtility.h"
 #include "Engine/MaterialMerging.h"
+#include <atomic>
+
 #include "Level.generated.h"
 
 class AActor;
@@ -663,8 +665,8 @@ public:
 	UPROPERTY()
 	FLinearColor LevelColor;
 
-	float FixupOverrideVertexColorsTime;
-	int32 FixupOverrideVertexColorsCount;
+	std::atomic<uint64> FixupOverrideVertexColorsTimeMS;
+	std::atomic<uint32> FixupOverrideVertexColorsCount;
 
 	UPROPERTY(transient)
 	bool bLevelOkayForPlacementWhileCheckedIn;

@@ -543,6 +543,7 @@ FPrimitiveSceneProxy* USplineMeshComponent::CreateSceneProxy()
 	const bool bMeshIsValid =
 		// make sure we have an actual staticmesh
 		GetStaticMesh() &&
+		GetStaticMesh()->IsCompiling() == false &&
 		GetStaticMesh()->HasValidRenderData();
 
 	if (bMeshIsValid)

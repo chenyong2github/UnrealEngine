@@ -9,6 +9,7 @@
 #include "Misc/Guid.h"
 #include "Templates/SubclassOf.h"
 #include "Interfaces/Interface_AssetUserData.h"
+#include "Interfaces/Interface_AsyncCompilation.h"
 #include "RenderCommandFence.h"
 #include "RenderResource.h"
 #include "Serialization/BulkData.h"
@@ -626,7 +627,7 @@ struct FTextureFormatSettings
 };
 
 UCLASS(abstract, MinimalAPI, BlueprintType)
-class UTexture : public UStreamableRenderAsset, public IInterface_AssetUserData
+class UTexture : public UStreamableRenderAsset, public IInterface_AssetUserData, public IInterface_AsyncCompilation
 {
 	GENERATED_UCLASS_BODY()
 
@@ -1044,8 +1045,12 @@ public:
 		return FGuid();
 	}
 
-	//~ Begin UObject Interface.
 #if WITH_EDITOR
+	//~ Begin AsyncCompilation Interface
+	virtual bool IsCompiling() const override { return IsDefaultTexture(); }
+	//~ End AsyncCompilation Interface
+
+	//~ Begin UObject Interface.
 	ENGINE_API virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;

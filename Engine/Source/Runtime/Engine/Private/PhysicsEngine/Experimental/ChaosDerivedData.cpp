@@ -21,6 +21,32 @@
 int32 EnableMeshClean = 1;
 FAutoConsoleVariableRef CVarEnableMeshClean(TEXT("p.EnableMeshClean"), EnableMeshClean, TEXT("Enable/Disable mesh cleanup during cook."));
 
+class FChaosDerivedDataCookerRefHolder : public FGCObject
+{
+public:
+	FChaosDerivedDataCookerRefHolder(FChaosDerivedDataCooker* InCooker)
+		: Cooker(InCooker)
+	{
+	}
+
+	// FGCObject Interface
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
+	{
+		if (Cooker && Cooker->Setup)
+		{
+			Collector.AddReferencedObject(Cooker->Setup);
+		}
+	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("ChaosDerivedDataCooker");
+	}
+	// End FGCObject Interface
+
+private:
+	FChaosDerivedDataCooker* Cooker;
+};
+
 const TCHAR* FChaosDerivedDataCooker::GetPluginName() const
 {
 	return TEXT("ChaosGeometryData");
@@ -80,19 +106,14 @@ bool FChaosDerivedDataCooker::Build(TArray<uint8>& OutData)
 	return bSucceeded;
 }
 
-void FChaosDerivedDataCooker::AddReferencedObjects(FReferenceCollector& Collector)
-{
-	if(Setup)
-	{
-		Collector.AddReferencedObject(Setup);
-	}
-}
-
-FChaosDerivedDataCooker::FChaosDerivedDataCooker(UBodySetup* InSetup, FName InFormat)
+FChaosDerivedDataCooker::FChaosDerivedDataCooker(UBodySetup* InSetup, FName InFormat, bool bInUseRefHolder)
 	: Setup(InSetup)
 	, RequestedFormat(InFormat)
 {
-
+	if (bInUseRefHolder)
+	{
+		RefHolder = MakeUnique<FChaosDerivedDataCookerRefHolder>(this);
+	}
 }
 
 TUniquePtr<Chaos::FTriangleMeshImplicitObject> FChaosDerivedDataCooker::BuildSingleTrimesh(const FTriMeshCollisionData& Desc, TArray<int32>& OutFaceRemap)

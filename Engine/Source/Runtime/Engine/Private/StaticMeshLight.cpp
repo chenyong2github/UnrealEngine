@@ -461,7 +461,8 @@ FStaticMeshStaticLightingMesh* UStaticMeshComponent::AllocateStaticLightingMesh(
 void UStaticMeshComponent::InvalidateLightingCacheDetailed(bool bInvalidateBuildEnqueuedLighting, bool bTranslationOnly)
 {
 #if WITH_EDITOR
-	if (HasStaticLighting() && HasValidSettingsForStaticLighting(false))
+	// If still compiling, static lighting is not registered and doesn't need unregistration
+	if (!IsCompiling() && HasStaticLighting() && HasValidSettingsForStaticLighting(false))
 	{
 		FStaticLightingSystemInterface::OnPrimitiveComponentUnregistered.Broadcast(this);
 	}
@@ -479,7 +480,8 @@ void UStaticMeshComponent::InvalidateLightingCacheDetailed(bool bInvalidateBuild
 	}
 
 #if WITH_EDITOR
-	if (HasStaticLighting() && HasValidSettingsForStaticLighting(false))
+	// If still compiling, static lighting will be registered when compilation finishes
+	if (!IsCompiling() && HasStaticLighting() && HasValidSettingsForStaticLighting(false))
 	{
 		FStaticLightingSystemInterface::OnPrimitiveComponentRegistered.Broadcast(this);
 	}

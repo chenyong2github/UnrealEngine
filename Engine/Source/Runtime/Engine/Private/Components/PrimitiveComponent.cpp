@@ -617,7 +617,8 @@ void UPrimitiveComponent::OnRegister()
 	}
 
 #if WITH_EDITOR
-	if (HasValidSettingsForStaticLighting(false))
+	// If still compiling, this will be called when compilation has finished.
+	if (!IsCompiling() && HasValidSettingsForStaticLighting(false))
 	{
 		FStaticLightingSystemInterface::OnPrimitiveComponentRegistered.Broadcast(this);
 	}

@@ -114,14 +114,24 @@ void FNavigationOctree::AddNode(UObject* ElementOb, INavRelevantInterface* NavEl
 			UActorComponent* ActorComp = Cast<UActorComponent>(ElementOb);
 			if (ActorComp)
 			{
-				if (bDoInstantGathering)
+				bool bIsActorCompiling = false;
+#if WITH_EDITOR
+				IInterface_AsyncCompilation* AsyncCompiledActor = Cast<IInterface_AsyncCompilation>(ActorComp);
+				bIsActorCompiling = AsyncCompiledActor && AsyncCompiledActor->IsCompiling();
+#endif
+				// Skip custom navigation export during async compilation, the node will be invalidated once
+				// compilation finishes.
+				if (!bIsActorCompiling)
 				{
-					ComponentExportDelegate.ExecuteIfBound(ActorComp, *Element.Data);
-				}
-				else
-				{
-					Element.Data->bPendingLazyGeometryGathering = true;
-					Element.Data->bSupportsGatheringGeometrySlices = NavElement && NavElement->SupportsGatheringGeometrySlices();
+					if (bDoInstantGathering)
+					{
+						ComponentExportDelegate.ExecuteIfBound(ActorComp, *Element.Data);
+					}
+					else
+					{
+						Element.Data->bPendingLazyGeometryGathering = true;
+						Element.Data->bSupportsGatheringGeometrySlices = NavElement && NavElement->SupportsGatheringGeometrySlices();
+					}
 				}
 			}
 		}

@@ -24,6 +24,7 @@
 #include "Collision.h"
 #include "IHierarchicalLODUtilities.h"
 #include "HierarchicalLODUtilitiesModule.h"
+#include "Rendering/StaticLightingSystemInterface.h"
 #endif
 #include "LightMap.h"
 #include "ShadowMap.h"
@@ -472,7 +473,7 @@ void UStaticMeshComponent::CheckForErrors()
 
 FBoxSphereBounds UStaticMeshComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
-	if(GetStaticMesh())
+	if (GetStaticMesh())
 	{
 		// Graphics bounds.
 		FBoxSphereBounds NewBounds = GetStaticMesh()->GetBounds().TransformBy(LocalToWorld);
@@ -803,7 +804,7 @@ float UStaticMeshComponent::GetTextureStreamingTransformScale() const
 
 void UStaticMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
-	if (bIgnoreInstanceForTextureStreaming || !GetStaticMesh() || !GetStaticMesh()->HasValidRenderData())
+	if (bIgnoreInstanceForTextureStreaming || !GetStaticMesh() || GetStaticMesh()->IsCompiling() || !GetStaticMesh()->HasValidRenderData())
 	{
 		return;
 	}
@@ -853,12 +854,12 @@ void UStaticMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCon
 
 UBodySetup* UStaticMeshComponent::GetBodySetup()
 {
-	if(GetStaticMesh())
+	if (GetStaticMesh())
 	{
 		return GetStaticMesh()->GetBodySetup();
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 bool UStaticMeshComponent::CanEditSimulatePhysics()
@@ -910,6 +911,12 @@ bool UStaticMeshComponent::DoesSocketExist(FName InSocketName) const
 }
 
 #if WITH_EDITOR
+
+bool UStaticMeshComponent::IsCompiling() const
+{
+	return GetStaticMesh() && GetStaticMesh()->IsCompiling();
+}
+
 bool UStaticMeshComponent::ShouldRenderSelected() const
 {
 	const bool bShouldRenderSelected = UMeshComponent::ShouldRenderSelected();
@@ -1183,12 +1190,13 @@ void UStaticMeshComponent::CachePaintedDataIfNecessary()
 
 bool UStaticMeshComponent::FixupOverrideColorsIfNecessary( bool bRebuildingStaticMesh )
 {
-
 	// Detect if there is a version mismatch between the source mesh and the component. If so, the component's LODs potentially
 	// need to have their override colors updated to match changes in the source mesh.
 
 	if ( RequiresOverrideVertexColorsFixup() )
 	{
+		double StartFixupTime = FPlatformTime::Seconds();
+
 		// Check if we are building the static mesh.  If so we dont need to reregister this component as its already unregistered and will be reregistered
 		// when the static mesh is done building.  Having nested reregister contexts is not supported.
 		if( bRebuildingStaticMesh )
@@ -1200,6 +1208,19 @@ bool UStaticMeshComponent::FixupOverrideColorsIfNecessary( bool bRebuildingStati
 			// Detach this component because rendering changes are about to be applied
 			FComponentReregisterContext ReregisterContext( this );
 			PrivateFixupOverrideColors();
+		}
+
+		AActor* Owner = GetOwner();
+
+		if (Owner)
+		{
+			ULevel* Level = Owner->GetLevel();
+
+			if (Level)
+			{
+				Level->FixupOverrideVertexColorsTimeMS += (uint64)((FPlatformTime::Seconds() - StartFixupTime) * 1000.0);
+				Level->FixupOverrideVertexColorsCount++;
+			}
 		}
 
 		return true;
@@ -1652,6 +1673,12 @@ bool UStaticMeshComponent::SupportsDitheredLODTransitions(ERHIFeatureLevel::Type
 
 void UStaticMeshComponent::UpdateCollisionFromStaticMesh()
 {
+	// The collision will be updated once the static mesh finish building
+	if (GetStaticMesh() && GetStaticMesh()->IsCompiling())
+	{
+		return;
+	}
+
 	if(bUseDefaultCollision && SupportsDefaultCollision())
 	{
 		if (UBodySetup* BodySetup = GetBodySetup())
@@ -1672,43 +1699,8 @@ void UStaticMeshComponent::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITORONLY_DATA
-	if ( GetStaticMesh() )
-	{
-		CachePaintedDataIfNecessary();
-
-		double StartFixupTime = FPlatformTime::Seconds();
-
-		if (FixupOverrideColorsIfNecessary())
-		{
-
-			AActor* Owner = GetOwner();
-
-			if (Owner)
-			{
-				ULevel* Level = Owner->GetLevel();
-
-				if (Level)
-				{
-					// Accumulate stats about the fixup so we don't spam log messages
-					Level->FixupOverrideVertexColorsTime += (float)(FPlatformTime::Seconds() - StartFixupTime);
-					Level->FixupOverrideVertexColorsCount++;
-				}
-			}
-		}
-	}
-#endif
-
-	// Empty after potential editor fix-up when we don't care about re-saving, e.g. game or client
-	if (!GIsEditor && !IsRunningCommandlet())
-	{
-		for (FStaticMeshComponentLODInfo& LOD : LODData)
-		{
-			LOD.PaintedVertices.Empty();
-		}
-	}
-
-#if WITH_EDITORONLY_DATA
 	// Remap the materials array if the static mesh materials may have been remapped to remove zero triangle sections.
+	// This will cause async static mesh compilation to stall but only if a fixup is actually required.
 	if (GetStaticMesh() && GetLinkerUE4Version() < VER_UE4_REMOVE_ZERO_TRIANGLE_SECTIONS && OverrideMaterials.Num())
 	{
 		if (GetStaticMesh()->HasValidRenderData()
@@ -1717,7 +1709,7 @@ void UStaticMeshComponent::PostLoad()
 			TArray<UMaterialInterface*> OldMaterials;
 			const TArray<int32>& MaterialIndexToImportIndex = GetStaticMesh()->GetRenderData()->MaterialIndexToImportIndex;
 
-			Exchange(OverrideMaterials,OldMaterials);
+			Exchange(OverrideMaterials, OldMaterials);
 			OverrideMaterials.Empty(MaterialIndexToImportIndex.Num());
 			for (int32 MaterialIndex = 0; MaterialIndex < MaterialIndexToImportIndex.Num(); ++MaterialIndex)
 			{
@@ -1737,7 +1729,23 @@ void UStaticMeshComponent::PostLoad()
 		}
 	}
 
+	// If currently compiling, those will be called once the static mesh compilation has finished
+	if (GetStaticMesh() && !GetStaticMesh()->IsCompiling())
+	{
+		CachePaintedDataIfNecessary();
+		
+		FixupOverrideColorsIfNecessary();
+	}
 #endif // #if WITH_EDITORONLY_DATA
+
+	// Empty after potential editor fix-up when we don't care about re-saving, e.g. game or client
+	if (!GIsEditor && !IsRunningCommandlet())
+	{
+		for (FStaticMeshComponentLODInfo& LOD : LODData)
+		{
+			LOD.PaintedVertices.Empty();
+		}
+	}
 
 	// Legacy content may contain a lightmap resolution of 0, which was valid when vertex lightmaps were supported, but not anymore with only texture lightmaps
 	OverriddenLightMapRes = FMath::Max(OverriddenLightMapRes, 4);
@@ -1749,6 +1757,40 @@ void UStaticMeshComponent::PostLoad()
 bool UStaticMeshComponent::IsPostLoadThreadSafe() const
 {
 	return false;
+}
+
+bool UStaticMeshComponent::ShouldCreateRenderState() const
+{
+	if (!Super::ShouldCreateRenderState())
+	{
+		UE_LOG(LogStaticMesh, Verbose, TEXT("ShouldCreateRenderState returned false for %s (Base class was false)"), *GetFullName());
+		return false;
+	}
+
+	// It is especially important to avoid creating a render state for an invalid or compiling static mesh.
+	// The shader compiler might try to replace materials on a component that has a render state but doesn't 
+	// even have a render proxy which would cause huge game-thread stalls in render state recreation code that 
+	// doesn't have to be run in the first place.
+	if (GetStaticMesh() == nullptr)
+	{
+		UE_LOG(LogStaticMesh, Verbose, TEXT("ShouldCreateRenderState returned false for %s (StaticMesh is null)"), *GetFullName());
+		return false;
+	}
+
+	// The render state will be recreated after compilation finishes in case it is skipped here.
+	if (GetStaticMesh()->IsCompiling())
+	{
+		UE_LOG(LogStaticMesh, Verbose, TEXT("ShouldCreateRenderState returned false for %s (StaticMesh is not ready)"), *GetFullName());
+		return false;
+	}
+	
+	return true;
+}
+
+bool UStaticMeshComponent::ShouldCreatePhysicsState() const
+{
+	// The physics state will be recreated after compilation finishes in case it is skipped here.
+	return Super::ShouldCreatePhysicsState() && GetStaticMesh() && !GetStaticMesh()->IsCompiling();
 }
 
 bool UStaticMeshComponent::SetStaticMesh(UStaticMesh* NewMesh)
@@ -1775,7 +1817,7 @@ bool UStaticMeshComponent::SetStaticMesh(UStaticMesh* NewMesh)
 	StaticMesh = NewMesh;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	if (StaticMesh != nullptr && StaticMesh->GetRenderData() != nullptr && FApp::CanEverRender() && !StaticMesh->HasAnyFlags(RF_ClassDefaultObject))
+	if (StaticMesh != nullptr && !GetStaticMesh()->IsCompiling() && StaticMesh->GetRenderData() != nullptr && FApp::CanEverRender() && !StaticMesh->HasAnyFlags(RF_ClassDefaultObject))
 	{
 		checkf(StaticMesh->GetRenderData()->IsInitialized(), TEXT("Uninitialized Renderdata for Mesh: %s, Mesh NeedsLoad: %i, Mesh NeedsPostLoad: %i, Mesh Loaded: %i, Mesh NeedInit: %i, Mesh IsDefault: %i")
 			, *StaticMesh->GetFName().ToString()
@@ -1788,7 +1830,17 @@ bool UStaticMeshComponent::SetStaticMesh(UStaticMesh* NewMesh)
 	}
 
 	// Need to send this to render thread at some point
-	MarkRenderStateDirty();
+	if (IsRenderStateCreated())
+	{
+		MarkRenderStateDirty();
+	}
+	// If we didn't have a valid StaticMesh assigned before
+	// our render state might not have been created so
+	// do it now.
+	else if (ShouldCreateRenderState())
+	{
+		RecreateRenderState_Concurrent();
+	}
 
 	// Update physics representation right away
 	RecreatePhysicsState();
@@ -2199,37 +2251,35 @@ UMaterialInterface* UStaticMeshComponent::GetMaterial(int32 MaterialIndex) const
 
 void UStaticMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const
 {
-	if( GetStaticMesh() && GetStaticMesh()->GetRenderData())
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMeshComponent::GetUsedMaterials);
+
+	if (GetStaticMesh() && GetStaticMesh()->GetRenderData())
 	{
-		TMap<int32, UMaterialInterface*> MapOfMaterials;
-		for (int32 LODIndex = 0; LODIndex < GetStaticMesh()->GetRenderData()->LODResources.Num(); LODIndex++)
+		FStaticMeshRenderData* RenderData = GetStaticMesh()->GetRenderData();
+
+		TSet<int32> UniqueIndex;
+		for (int32 LODIndex = 0, Num = RenderData->LODResources.Num(); LODIndex < Num; LODIndex++)
 		{
-			FStaticMeshLODResources& LODResources = GetStaticMesh()->GetRenderData()->LODResources[LODIndex];
+			FStaticMeshLODResources& LODResources = RenderData->LODResources[LODIndex];
 			for (int32 SectionIndex = 0; SectionIndex < LODResources.Sections.Num(); SectionIndex++)
 			{
 				// Get the material for each element at the current lod index
-				int32 MaterialIndex = LODResources.Sections[SectionIndex].MaterialIndex;
-				if (!MapOfMaterials.Contains(MaterialIndex))
-				{
-					MapOfMaterials.Add(MaterialIndex, GetMaterial(MaterialIndex));
-				}
+				UniqueIndex.Add(LODResources.Sections[SectionIndex].MaterialIndex);
 			}
 		}
-		if (MapOfMaterials.Num() > 0)
+
+		if (UniqueIndex.Num() > 0)
 		{
 			//We need to output the material in the correct order (follow the material index)
 			//So we sort the map with the material index
-			MapOfMaterials.KeySort([](int32 A, int32 B) {
+			UniqueIndex.Sort([](int32 A, int32 B) {
 				return A < B; // sort keys in order
 			});
 
-			//Preadd all the material item in the array
-			OutMaterials.AddZeroed(MapOfMaterials.Num());
-			//Set the value in the correct order
-			int32 MaterialIndex = 0;
-			for (auto Kvp : MapOfMaterials)
+			OutMaterials.Reserve(UniqueIndex.Num());
+			for (int32 MaterialIndex : UniqueIndex)
 			{
-				OutMaterials[MaterialIndex++] = Kvp.Value;
+				OutMaterials.Add(GetMaterial(MaterialIndex));
 			}
 		}
 	}
@@ -2342,9 +2392,11 @@ void UStaticMeshComponent::ApplyComponentInstanceData(FStaticMeshComponentInstan
 bool UStaticMeshComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const
 {
 	const FVector Scale3D = GetComponentToWorld().GetScale3D();
-	if (GetStaticMesh() && GetStaticMesh()->GetNavCollision() && !Scale3D.IsZero())
+
+	// Pending compilation, RecreatePhysicsState will be called to update the navigation system once compilation finishes.
+	if (!Scale3D.IsZero() && GetStaticMesh() && !GetStaticMesh()->IsCompiling() && GetStaticMesh()->GetNavCollision())
 	{
-		UNavCollisionBase* NavCollision = GetStaticMesh()->GetNavCollision();
+		const UNavCollisionBase* NavCollision = GetStaticMesh()->GetNavCollision();
 		const bool bExportAsObstacle = bOverrideNavigationExport ? bForceNavigationObstacle : NavCollision->IsDynamicObstacle();
 
 		if (bExportAsObstacle)
@@ -2407,7 +2459,7 @@ UMaterialInterface* UStaticMeshComponent::GetMaterialFromCollisionFaceIndex(int3
 
 bool UStaticMeshComponent::IsNavigationRelevant() const
 {
-	return GetStaticMesh() != nullptr && GetStaticMesh()->GetNavCollision() != nullptr && Super::IsNavigationRelevant();
+	return GetStaticMesh() != nullptr && GetStaticMesh()->IsNavigationRelevant() && Super::IsNavigationRelevant();
 }
 
 void UStaticMeshComponent::GetNavigationData(FNavigationRelevantData& Data) const
@@ -2415,7 +2467,9 @@ void UStaticMeshComponent::GetNavigationData(FNavigationRelevantData& Data) cons
 	Super::GetNavigationData(Data);
 
 	const FVector Scale3D = GetComponentToWorld().GetScale3D();
-	if (GetStaticMesh() && GetStaticMesh()->GetNavCollision() && !Scale3D.IsZero())
+	
+	// Navigation data will get refreshed once async static mesh compilation finishes
+	if (!Scale3D.IsZero() && GetStaticMesh() && !GetStaticMesh()->IsCompiling() && GetStaticMesh()->GetNavCollision())
 	{
 		UNavCollisionBase* NavCollision = GetStaticMesh()->GetNavCollision();
 		const bool bExportAsObstacle = bOverrideNavigationExport ? bForceNavigationObstacle : NavCollision->IsDynamicObstacle();
@@ -2428,6 +2482,34 @@ void UStaticMeshComponent::GetNavigationData(FNavigationRelevantData& Data) cons
 }
 
 #if WITH_EDITOR
+
+void UStaticMeshComponent::PostStaticMeshCompilation()
+{
+	CachePaintedDataIfNecessary();
+
+	FixupOverrideColorsIfNecessary(true);
+
+	UpdateCollisionFromStaticMesh();
+
+	RecreatePhysicsState();
+
+	FNavigationSystem::UpdateComponentData(*this);
+
+	if (IsRegistered())
+	{
+		FStaticLightingSystemInterface::OnPrimitiveComponentUnregistered.Broadcast(this);
+		if (HasValidSettingsForStaticLighting(false))
+		{
+			FStaticLightingSystemInterface::OnPrimitiveComponentRegistered.Broadcast(this);
+		}
+
+		if (ShouldCreateRenderState())
+		{
+			RecreateRenderState_Concurrent();
+		}
+	}
+}
+
 bool UStaticMeshComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const FEngineShowFlags& ShowFlags, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const
 {
 	if (!bConsiderOnlyBSP && ShowFlags.StaticMeshes && GetStaticMesh() != nullptr && GetStaticMesh()->HasValidRenderData())
@@ -2517,7 +2599,8 @@ bool UStaticMeshComponent::ComponentIsTouchingSelectionFrustum(const FConvexVolu
 
 	return false;
 }
-#endif
+
+#endif // #if WITH_EDITOR
 
 
 //////////////////////////////////////////////////////////////////////////
