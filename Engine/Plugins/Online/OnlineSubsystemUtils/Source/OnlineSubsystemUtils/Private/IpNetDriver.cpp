@@ -199,7 +199,8 @@ private:
 		, RecvMultiPacketCount(0)
 		, StartReceiveTime(InStartReceiveTime)
 		, bCheckReceiveTime(bInCheckReceiveTime)
-		, CheckReceiveTimePacketCountMask(bInCheckReceiveTime ? (FMath::RoundUpToPowerOfTwo(InDriver->NbPacketsBetweenReceiveTimeTest)-1) : 0)
+		, CheckReceiveTimePacketCount(bInCheckReceiveTime ? InDriver->NbPacketsBetweenReceiveTimeTest : 0)
+		, NumIterationUntilTimeTest(CheckReceiveTimePacketCount)
 		, BailOutTime(InStartReceiveTime + InDriver->MaxSecondsInReceive)
 		, bSlowFrameChecks(UIpNetDriver::OnNetworkProcessingCausingSlowFrame.IsBound())
 		, AlarmTime(InStartReceiveTime + GIpNetDriverMaxDesiredTimeSliceBeforeAlarmSecs)
@@ -337,10 +338,14 @@ private:
 			}
 		}
 
-		if (bCheckReceiveTime)
+		if (bCheckReceiveTime && IterationCount > 0)
 		{
-			if ((IterationCount & CheckReceiveTimePacketCountMask) == 0 && IterationCount > 0)
+			--NumIterationUntilTimeTest;
+			if (NumIterationUntilTimeTest <= 0)
 			{
+				// Restart the countdown until the next time check
+				NumIterationUntilTimeTest = CheckReceiveTimePacketCount;
+
 				const double CurrentTime = FPlatformTime::Seconds();
 
 				if (CurrentTime > BailOutTime)
@@ -649,8 +654,11 @@ private:
 	/** Whether or not to perform receive time limit checks */
 	const bool bCheckReceiveTime;
 
-	/** Receive time is checked every 'x' number of packets, with this mask used to count the packets ('x' is a power of 2) */
-	const int32 CheckReceiveTimePacketCountMask;
+	/** Receive time is checked every 'x' number of packets */
+	const int32 CheckReceiveTimePacketCount;
+
+	/** The number of packets left to process until we check if we went over our time budget */
+	int32 NumIterationUntilTimeTest;
 
 	/** The time at which to bail out of the receive loop, if it's time limited */
 	const double BailOutTime;
