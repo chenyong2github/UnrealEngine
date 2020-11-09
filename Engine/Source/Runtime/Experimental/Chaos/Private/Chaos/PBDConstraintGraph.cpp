@@ -165,7 +165,7 @@ void FPBDConstraintGraph::InitializeGraph(const TParticleView<TGeometryParticles
 	}
 	else
 	{
-		if (!ensure(NumNonDisabledParticles <= Nodes.Num()))
+		if (!CHAOS_ENSURE(NumNonDisabledParticles <= Nodes.Num()))
 		{
 			for (auto& Particle : Particles)
 			{
