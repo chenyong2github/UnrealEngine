@@ -30,6 +30,10 @@ float3 StrataForwardLighting(
 		for (int i = 0; i < Strata.Layers[l].BSDFCount; ++i)
 		{
 			FStrataBSDF BSDF = Strata.Layers[l].BSDFs[i];
+
+			// Sanitize BSDF before it is used for forward shading
+			StrataSanitizeBSDF(BSDF);
+
 			const float3 BSDFCoverage = BSDF.Weight;
 
 			// Create the BSDF context
