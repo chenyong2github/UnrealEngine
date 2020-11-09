@@ -130,7 +130,9 @@ namespace Chaos
 			return Neighbors;
 		}
 
+		/** Return the array of all cross segment indices for all pairs of adjacent triangles. */
 		CHAOS_API TArray<Chaos::TVector<int32, 2>> GetUniqueAdjacentPoints() const;
+		/** Return the array of bending element indices {i0, i1, i2, i3}, with {i0, i1} the segment indices and {i2, i3} the cross segment indices. */
 		CHAOS_API TArray<Chaos::TVector<int32, 4>> GetUniqueAdjacentElements() const;
 
 		/** The GetFaceNormals functions assume Counter Clockwise triangle windings in a Left Handed coordinate system
