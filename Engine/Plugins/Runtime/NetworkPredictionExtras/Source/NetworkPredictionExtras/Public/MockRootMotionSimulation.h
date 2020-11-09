@@ -9,6 +9,7 @@
 #include "NetworkPredictionReplicationProxy.h"
 #include "BaseMovementSimulation.h"
 #include "MockRootMotionSourceStore.h"
+#include "NetworkPredictionTrace.h"
 
 class UAnimInstance;
 
