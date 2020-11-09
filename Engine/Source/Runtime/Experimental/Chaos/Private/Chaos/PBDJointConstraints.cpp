@@ -43,7 +43,7 @@ namespace Chaos
 
 	
 	FPBDJointConstraintHandle::FPBDJointConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex)
-		: TContainerConstraintHandle<FPBDJointConstraints>(InConstraintContainer, InConstraintIndex)
+		: TContainerConstraintHandle<FPBDJointConstraints>(StaticType(), InConstraintContainer, InConstraintIndex)
 	{
 	}
 
@@ -111,6 +111,11 @@ namespace Chaos
 	TVector<TGeometryParticleHandle<float,3>*, 2> FPBDJointConstraintHandle::GetConstrainedParticles() const 
 	{ 
 		return ConstraintContainer->GetConstrainedParticles(ConstraintIndex); 
+	}
+
+	void FPBDJointConstraintHandle::SetConstraintEnabled(bool bInEnabled)
+	{
+		return ConstraintContainer->SetConstraintEnabled(ConstraintIndex, bInEnabled);
 	}
 
 	//
@@ -414,6 +419,11 @@ namespace Chaos
 		FConstraintContainerHandle* ConstraintHandle = Handles[ConstraintIndex];
 		if (ConstraintHandle != nullptr)
 		{
+			if (!ConstraintStates[ConstraintIndex].bDisabled)
+			{
+				ConstraintParticles[ConstraintIndex][0]->RemoveConstraintHandle(ConstraintHandle);
+				ConstraintParticles[ConstraintIndex][1]->RemoveConstraintHandle(ConstraintHandle);
+			}
 			// Release the handle for the freed constraint
 			HandleAllocator.FreeHandle(ConstraintHandle);
 			Handles[ConstraintIndex] = nullptr;
@@ -434,8 +444,27 @@ namespace Chaos
 	}
 
 	
-	void FPBDJointConstraints::RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
+	void FPBDJointConstraints::DisableConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
 	{
+		for (TGeometryParticleHandle<FReal, 3>* RemovedParticle : RemovedParticles)
+		{
+			for (FConstraintHandle* ConstraintHandle : RemovedParticle->ParticleConstraints())
+			{
+				ConstraintHandle->SetEnabled(false); // constraint lifespan is managed by the proxy
+				int ConstraintIndex = ConstraintHandle->GetConstraintIndex();
+				if (ConstraintIndex != INDEX_NONE)
+				{
+					if (ConstraintParticles[ConstraintIndex][0] == RemovedParticle)
+					{
+						ConstraintParticles[ConstraintIndex][0] = nullptr;
+					}
+					if (ConstraintParticles[ConstraintIndex][1] == RemovedParticle)
+					{
+						ConstraintParticles[ConstraintIndex][1] = nullptr;
+					}
+				}
+			}
+		}
 	}
 
 
@@ -697,6 +726,8 @@ namespace Chaos
 		{
 			for (int32 JointIndex = 0; JointIndex < NumConstraints(); ++JointIndex)
 			{
+				if (ConstraintStates[JointIndex].bDisabled) continue;
+
 				FJointSolverJointState& JointState = SolverConstraintStates[JointIndex];
 				const FPBDJointSettings& JointSettings = ConstraintSettings[JointIndex];
 
@@ -725,6 +756,8 @@ namespace Chaos
 		{
 			for (int32 JointIndex = 0; JointIndex < NumConstraints(); ++JointIndex)
 			{
+				if (ConstraintStates[JointIndex].bDisabled) continue;
+
 				const FPBDJointSettings& JointSettings = ConstraintSettings[JointIndex];
 
 				const FTransformPair& JointFrames = ConstraintFrames[JointIndex];
@@ -762,6 +795,8 @@ namespace Chaos
 		{
 			for (int32 JointIndex = 0; JointIndex < NumConstraints(); ++JointIndex)
 			{
+				if (ConstraintStates[JointIndex].bDisabled) continue;
+
 				FPBDJointState& JointState = ConstraintStates[JointIndex];
 				FJointSolverGaussSeidel& Solver = ConstraintSolvers[JointIndex];
 
@@ -838,6 +873,8 @@ namespace Chaos
 				SCOPE_CYCLE_COUNTER(STAT_Joints_Apply);
 				for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 				{
+					if ( ConstraintStates[ConstraintIndex].bDisabled) continue;
+
 					bActive |= ApplySingle(Dt, ConstraintIndex, Settings.ApplyPairIterations, It, NumIts);
 				}
 			}
@@ -869,6 +906,8 @@ namespace Chaos
 				SCOPE_CYCLE_COUNTER(STAT_Joints_ApplyPushOut);
 				for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 				{
+					if ( ConstraintStates[ConstraintIndex].bDisabled) continue;
+
 					bActive |= ApplyPushOutSingle(Dt, ConstraintIndex, Settings.ApplyPushOutPairIterations, It, NumIts);
 				}
 			}
@@ -1009,12 +1048,16 @@ namespace Chaos
 		SolverConstraints.SetNum(NumConstraints());
 		for (int32 JointIndex = 0; JointIndex < NumConstraints(); ++JointIndex)
 		{
+			if (ConstraintStates[JointIndex].bDisabled) continue;
+
 			const FPBDJointSettings& JointSettings = ConstraintSettings[JointIndex];
 			SolverConstraints[JointIndex].SetJointIndex(JointIndex);
 			SolverConstraints[JointIndex].AddPositionConstraints(SolverConstraintRowDatas, Settings, JointSettings);
 		}
 		for (int32 JointIndex = 0; JointIndex < NumConstraints(); ++JointIndex)
 		{
+			if (ConstraintStates[JointIndex].bDisabled) continue;
+
 			const FPBDJointSettings& JointSettings = ConstraintSettings[JointIndex];
 			SolverConstraints[JointIndex].AddRotationConstraints(SolverConstraintRowDatas, Settings, JointSettings);
 		}
@@ -1401,6 +1444,8 @@ namespace Chaos
 		ConstraintVertices.SetNumZeroed(NumConstraints());
 		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 		{
+			if ( ConstraintStates[ConstraintIndex].bDisabled) continue;
+
 			TPBDRigidParticleHandle<FReal, 3>* Particle0 = ConstraintParticles[ConstraintIndex][0]->CastToRigidParticle();
 			TPBDRigidParticleHandle<FReal, 3>* Particle1 = ConstraintParticles[ConstraintIndex][1]->CastToRigidParticle();
 
@@ -1427,6 +1472,8 @@ namespace Chaos
 		TMap<TPBDRigidParticleHandle<FReal, 3>*, TArray<int32>> ParticleConstraints; // Map of ParticleHandle -> Constraint Indices involving the particle
 		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 		{
+			if ( ConstraintStates[ConstraintIndex].bDisabled) continue;
+
 			TPBDRigidParticleHandle<FReal, 3>* Particle0 = ConstraintParticles[ConstraintIndex][0]->CastToRigidParticle();
 			TPBDRigidParticleHandle<FReal, 3>* Particle1 = ConstraintParticles[ConstraintIndex][1]->CastToRigidParticle();
 			if (Particle0 != nullptr)
@@ -1466,6 +1513,8 @@ namespace Chaos
 		// Set the constraint colors
 		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 		{
+			if ( ConstraintStates[ConstraintIndex].bDisabled) continue;
+
 			int32 VertexIndex = ConstraintVertices[ConstraintIndex];
 			ConstraintStates[ConstraintIndex].Island = Graph.GetVertexIsland(VertexIndex);
 			ConstraintStates[ConstraintIndex].IslandSize = Graph.GetVertexIslandSize(VertexIndex);
@@ -1482,6 +1531,8 @@ namespace Chaos
 		// Reset
 		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 		{
+			if ( ConstraintStates[ConstraintIndex].bDisabled) continue;
+
 			ConstraintStates[ConstraintIndex].Island = INDEX_NONE;
 			ConstraintStates[ConstraintIndex].Level = INDEX_NONE;
 			ConstraintStates[ConstraintIndex].Color = INDEX_NONE;
@@ -1497,6 +1548,8 @@ namespace Chaos
 		{
 			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 			{
+				if ( ConstraintStates[ConstraintIndex].bDisabled) continue;
+
 				ConstraintStates[ConstraintIndex].Batch = 0;
 			}
 			JointBatches.Reset();
@@ -1509,6 +1562,8 @@ namespace Chaos
 		TArray<TArray<int32>> IslandConstraints;
 		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 		{
+			if ( ConstraintStates[ConstraintIndex].bDisabled) continue;
+
 			int32 IslandIndex = ConstraintStates[ConstraintIndex].Island;
 			if (IslandIndex >= IslandConstraints.Num())
 			{
@@ -1595,6 +1650,8 @@ namespace Chaos
 		int32 BatchIndex = INDEX_NONE;
 		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 		{
+			if ( ConstraintStates[ConstraintIndex].bDisabled) continue;
+
 			int32 ConstraintBatchIndex = ConstraintStates[ConstraintIndex].Batch;
 			if (ConstraintBatchIndex != BatchIndex)
 			{

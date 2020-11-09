@@ -42,10 +42,20 @@ namespace Chaos
 
 		for (typename FConstraints::FConstraintContainerHandle * ConstraintHandle : Constraints.GetConstraintHandles())
 		{
-			ConstraintGraph->AddConstraint(ContainerId, ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+			if (ConstraintHandle->IsEnabled())
+			{
+				ConstraintGraph->AddConstraint(ContainerId, ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+			}
 		}
 
 	}
+
+	template<class T_CONSTRAINTS>
+	void TPBDConstraintGraphRuleImpl<T_CONSTRAINTS>::DisableConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
+	{
+		Constraints.DisableConstraints(RemovedParticles);
+	}
+
 
 	template<class T_CONSTRAINTS>
 	int32 TPBDConstraintGraphRuleImpl<T_CONSTRAINTS>::NumConstraints() const

@@ -152,9 +152,8 @@ namespace Chaos
 
 		virtual void SetUseContactGraph(const bool InUseContactGraph) {}
 
-		/** Remove all constraints associated with the specified particles */
-		// @todo(ccaulfield): remove uint version
-		virtual void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles) { }
+		/** Disable all constraints associated with the specified particles */
+		virtual void DisableConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles) { }
 
 		/** Remove all constraints */
 		virtual void ResetConstraints() {}
@@ -200,6 +199,8 @@ namespace Chaos
 		virtual void UpdatePositionBasedState(const FReal Dt) override;
 
 		virtual void AddToGraph() override;
+		
+		virtual void DisableConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles) override;
 
 		virtual int32 NumConstraints() const override;
 

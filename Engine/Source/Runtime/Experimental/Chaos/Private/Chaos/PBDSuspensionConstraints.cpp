@@ -4,7 +4,8 @@
 
 namespace Chaos
 {
-	FPBDSuspensionConstraintHandle::FPBDSuspensionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) : TContainerConstraintHandle<FPBDSuspensionConstraints>(InConstraintContainer, InConstraintIndex)
+	FPBDSuspensionConstraintHandle::FPBDSuspensionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) : 
+		TContainerConstraintHandle<FPBDSuspensionConstraints>(StaticType(), InConstraintContainer, InConstraintIndex)
 	{
 	}
 

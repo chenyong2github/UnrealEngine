@@ -74,6 +74,11 @@ namespace Chaos
 		void AddConstraint(const uint32 InContainerId, FConstraintHandle* InConstraintHandle, const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& InConstrainedParticles);
 
 		/**
+		 * Remove a constraint from the graph
+		 */
+		void RemoveConstraint(const uint32 InContainerId, FConstraintHandle* InConstraintHandle, const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& InConstrainedParticles);
+
+		/**
 		 * Add particles/constraints to their particle's already-assigned islands (if applicable).
 		 */
 		 // @todo(ccaulfield): InitializeIslands and ResetIslands are a bit confusing. Try to come up with better names.

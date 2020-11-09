@@ -29,6 +29,9 @@ namespace Chaos
 
 		FPBDJointConstraintHandle();
 		FPBDJointConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex);
+		static FConstraintHandle::EType StaticType() { return FConstraintHandle::EType::Joint; }
+
+		void SetConstraintEnabled(bool bEnabled);
 
 		void CalculateConstraintSpace(FVec3& OutXa, FMatrix33& OutRa, FVec3& OutXb, FMatrix33& OutRb) const;
 		int32 GetConstraintIsland() const;
@@ -44,7 +47,7 @@ namespace Chaos
 		const FPBDJointSettings& GetSettings() const;
 
 		void SetSettings(const FPBDJointSettings& Settings);
-		TVector<TGeometryParticleHandle<float,3>*, 2> GetConstrainedParticles() const;
+		TVector<TGeometryParticleHandle<float, 3>*, 2> GetConstrainedParticles() const;
 
 	protected:
 		using Base::ConstraintIndex;
@@ -111,9 +114,12 @@ namespace Chaos
 		 * Remove the specified constraint.
 		 */
 		void RemoveConstraint(int ConstraintIndex);
+		void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles) {}
 
-		// @todo(ccaulfield): rename/remove  this
-		void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles);
+		/*
+		* Disable the constraints attached to the input particles. 
+		*/
+		void DisableConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles);
 
 		/*
 		 * Whether the constraint is enabled

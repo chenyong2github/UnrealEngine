@@ -24,10 +24,13 @@ namespace ChaosTest {
 	{
 	public:
 		TMockGraphConstraintHandle(TMockGraphConstraints<T_TYPEID>* InConstraintContainer, int32 ConstraintIndex)
-			: FConstraintHandle(ConstraintIndex)
+			: FConstraintHandle(FConstraintHandle::EType::Invalid, ConstraintIndex)
 			, ConstraintContainer(InConstraintContainer)
 		{
 		}
+
+		virtual void SetEnabled(bool InEnabled) {};
+		virtual bool IsEnabled() const { return true; };
 
 		TMockGraphConstraints<T_TYPEID>* ConstraintContainer;
 	};

@@ -282,6 +282,35 @@ void FPBDConstraintGraph::AddConstraint(const uint32 InContainerId, FConstraintH
 }
 
 
+void FPBDConstraintGraph::RemoveConstraint(const uint32 InContainerId, FConstraintHandle* InConstraintHandle, const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& ConstrainedParticles)
+{
+	check(InConstraintHandle);
+
+	int32* PNodeIndex0 = (ConstrainedParticles[0]) ? ParticleToNodeIndex.Find(ConstrainedParticles[0]) : nullptr;
+	int32* PNodeIndex1 = (ConstrainedParticles[1]) ? ParticleToNodeIndex.Find(ConstrainedParticles[1]) : nullptr;
+	if (ensure(PNodeIndex0 || PNodeIndex1) )
+	{
+		if ( InContainerId < (uint32)Edges.Num() )
+		{
+			int32 Index0 = INDEX_NONE, Index1 = INDEX_NONE;
+			if (PNodeIndex0) 
+			{
+				Nodes[*PNodeIndex0].Edges.Remove(InContainerId);
+				Index0 = *PNodeIndex0;
+			}
+			if (PNodeIndex1)
+			{
+				Nodes[*PNodeIndex1].Edges.Remove(InContainerId);
+				Index1 = *PNodeIndex1;
+			}
+			if (Edges[InContainerId].FirstNode == Index0 && Edges[InContainerId].SecondNode == Index1)
+			{
+				Edges[InContainerId] = FGraphEdge();
+			}
+		}
+	}
+}
+
 const typename FPBDConstraintGraph::FConstraintData& FPBDConstraintGraph::GetConstraintData(int32 ConstraintDataIndex) const
 {
 	return Edges[ConstraintDataIndex].Data;

@@ -84,10 +84,6 @@ namespace Chaos
 		}
 	}
 
-	void FPBDRigidSpringConstraints::RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
-	{
-	}
-
 	void FPBDRigidSpringConstraints::UpdateDistance(int32 ConstraintIndex, const FVec3& Location0, const FVec3& Location1)
 	{
 		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = Constraints[ConstraintIndex];

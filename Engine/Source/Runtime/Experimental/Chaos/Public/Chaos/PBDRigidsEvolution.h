@@ -11,6 +11,7 @@
 #include "Chaos/Transform.h"
 #include "Chaos/Framework/DebugSubstep.h"
 #include "HAL/Event.h"
+#include "Chaos/PBDJointConstraints.h"
 #include "Chaos/PBDRigidsSOAs.h"
 #include "Chaos/SpatialAccelerationCollection.h"
 #include "Chaos/EvolutionTraits.h"
@@ -327,7 +328,7 @@ public:
 		RemoveParticleFromAccelerationStructure(*Particle);
 		Particles.DisableParticle(Particle);
 		ConstraintGraph.DisableParticle(Particle);
-		RemoveConstraints(TSet<TGeometryParticleHandle<FReal, 3>*>({ Particle }));
+		DisableConstraints(TSet<TGeometryParticleHandle<FReal, 3>*>({ Particle }));
 	}
 
 	CHAOS_API void FlushExternalAccelerationQueue(FAccelerationStructure& Acceleration,FPendingSpatialDataQueue& ExternalQueue);
@@ -340,7 +341,7 @@ public:
 			Particles.DisableParticle(Particle);
 			ConstraintGraph.DisableParticle(Particle);
 		}
-		RemoveConstraints(ParticlesIn);
+		DisableConstraints(ParticlesIn);
 	}
 
 	template <bool bPersistent>
@@ -390,8 +391,8 @@ public:
 	{
 		RemoveParticleFromAccelerationStructure(*Particle);
 		UniqueIndicesPendingRelease.Add(Particle->UniqueIdx());
+		DisableConstraints(TSet<TGeometryParticleHandle<FReal, 3>*>({ Particle }));
 		ConstraintGraph.RemoveParticle(Particle);
-		RemoveConstraints(TSet<TGeometryParticleHandle<FReal, 3>*>({ Particle }));
 		Particles.DestroyParticle(Particle);
 	}
 
@@ -428,7 +429,7 @@ public:
 		}
 
 		ConstraintGraph.DisableParticles(InParticles);
-		RemoveConstraints(InParticles);
+		DisableConstraints(InParticles);
 	}
 
 	CHAOS_API void WakeIsland(const int32 Island)
@@ -441,16 +442,23 @@ public:
 		}*/
 	}
 
-	// @todo(ccaulfield): Remove the uint version
-	CHAOS_API void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
+	CHAOS_API void DisableConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
 	{
-		// Only remove constraints if we have the possibility of rewinding state. Otherwise they will be rebuilt next frame
-		if(ChaosClusteringChildrenInheritVelocity < 1.0f)
+		for (TGeometryParticleHandle<FReal, 3>* ParticleHandle : RemovedParticles)
 		{
-			for(FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+			for (FConstraintHandle* BaseConstraintHandle : ParticleHandle->ParticleConstraints())
 			{
-				ConstraintRule->RemoveConstraints(RemovedParticles);
+				if (FPBDJointConstraintHandle* ConstraintHandle = BaseConstraintHandle->As<FPBDJointConstraintHandle>())
+				{
+					ConstraintGraph.RemoveConstraint(ConstraintHandle->GetConstraintIndex(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+				}
 			}
+		}
+
+
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->DisableConstraints(RemovedParticles);
 		}
 	}
 

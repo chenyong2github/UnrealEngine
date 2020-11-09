@@ -214,6 +214,7 @@ namespace ImmediatePhysics_Chaos
 
 	FJointHandle::~FJointHandle()
 	{
+		ConstraintHandle->SetConstraintEnabled(false);
 		ConstraintHandle->RemoveConstraint();
 	}
 
