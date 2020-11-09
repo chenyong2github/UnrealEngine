@@ -2844,7 +2844,12 @@ namespace CrossCompiler
 		FString ErrorString;
 		if (ConvertScBlobToFString(&ErrorBlob, ErrorString))
 		{
-			FShaderConductorContext::ConvertErrorString(ErrorString, OutErrors);
+			// Convert FString into array of FString (one for each line)
+			TArray<FString> ErrorStringLines;
+			ErrorString.ParseIntoArray(ErrorStringLines, TEXT("\n"));
+
+			// Forward parsed array of lines to primary conversion function
+			FShaderConductorContext::ConvertCompileErrors(MoveTemp(ErrorStringLines), OutErrors);
 		}
 	}
 
@@ -3171,12 +3176,8 @@ namespace CrossCompiler
 		return (Intermediates->ShaderSource.Num() > 0 ? (Intermediates->ShaderSource.Num() - 1) : 0);
 	}
 
-	void FShaderConductorContext::ConvertErrorString(const FString& InErrorString, TArray<FShaderCompilerError>& OutErrors)
+	void FShaderConductorContext::ConvertCompileErrors(TArray<FString>&& ErrorStringLines, TArray<FShaderCompilerError>& OutErrors)
 	{
-		// Convert FString into array of FString (one for each line)
-		TArray<FString> ErrorStringLines;
-		InErrorString.ParseIntoArray(ErrorStringLines, TEXT("\n"));
-
 		// Returns whether the specified line in the 'ErrorStringLines' array has a line marker.
 		auto HasErrorLineMarker = [&ErrorStringLines](int32 LineIndex)
 		{
@@ -3277,7 +3278,7 @@ namespace CrossCompiler
 		return 0; // Dummy
 	}
 
-	void FShaderConductorContext::ConvertErrorString(const FString& InErrorString, TArray<FShaderCompilerError>& OutErrors)
+	void FShaderConductorContext::ConvertCompileErrors(const TArray<FString>& ErrorStringLines, TArray<FShaderCompilerError>& OutErrors)
 	{
 		// Dummy
 	}
