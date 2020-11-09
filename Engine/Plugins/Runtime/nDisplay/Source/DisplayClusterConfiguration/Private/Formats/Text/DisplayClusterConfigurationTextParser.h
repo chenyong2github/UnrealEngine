@@ -87,4 +87,5 @@ protected:
 	}
 
 	UObject* ConfigDataOwner = nullptr;
+	FString  ConfigFile;
 };

@@ -12,6 +12,14 @@
 class UStaticMesh;
 struct FPropertyChangedChainEvent;
 
+
+UENUM()
+enum class EDisplayClusterConfigurationDataSource : uint8
+{
+	Text UMETA(DisplayName = "Text file"),
+	Json UMETA(DisplayName = "JSON file")
+};
+
 UENUM()
 enum class EDisplayClusterConfigurationKeyboardReflectionType : uint8
 {
@@ -589,6 +597,12 @@ public:
 	float MaxLagTime;
 };
 
+struct FDisplayClusterConfigurationDataMetaInfo
+{
+	EDisplayClusterConfigurationDataSource DataSource;
+	FString FilePath;
+};
+
 
 ////////////////////////////////////////////////////////////////
 // Main configuration data container
@@ -610,6 +624,8 @@ public:
 	bool GetProjectionPolicy(const FString& NodeId, const FString& ViewportId, FDisplayClusterConfigurationProjection& OutProjection) const;
 
 public:
+	FDisplayClusterConfigurationDataMetaInfo Meta;
+
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	FDisplayClusterConfigurationInfo Info;
 

@@ -78,7 +78,7 @@ public:
 	{ }
 
 public:
-	void InitializeFromConfig(UDisplayClusterConfigurationData* ConfigData);
+	void InitializeFromConfig(const UDisplayClusterConfigurationData* ConfigData);
 	void InitializeFromConfig(const FString& ConfigFile);
 
 public:
@@ -155,7 +155,7 @@ protected:
 	// Initializes the actor on spawn and load
 	void InitializeRootActor();
 	// Creates all hierarchy objects declared in a config file
-	virtual bool BuildHierarchy(UDisplayClusterConfigurationData* ConfigData);
+	virtual bool BuildHierarchy(const UDisplayClusterConfigurationData* ConfigData);
 	// Cleans current hierarchy
 	virtual void CleanupHierarchy();
 
@@ -180,7 +180,7 @@ private:
 	mutable FCriticalSection InternalsSyncScope;
 
 	UPROPERTY(Transient)
-	UDisplayClusterConfigurationData* CurrentConfigData;
+	const UDisplayClusterConfigurationData* CurrentConfigData;
 
 	UPROPERTY()
 	UDisplayClusterSyncTickComponent* SyncTickComponent;
@@ -219,7 +219,7 @@ public:
 		RebuildPreview();
 	}
 
-	UDisplayClusterConfigurationData* GetConfigData() const
+	const UDisplayClusterConfigurationData* GetConfigData() const
 	{
 		return CurrentConfigData;
 	}

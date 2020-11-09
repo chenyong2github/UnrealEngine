@@ -79,7 +79,7 @@ void FDisplayClusterRenderManager::Release()
 	//@note: No need to release our RenderDevice. It will be released in a safe way by TSharedPtr.
 }
 
-bool FDisplayClusterRenderManager::StartSession(const FString& InConfigPath, const FString& InNodeId)
+bool FDisplayClusterRenderManager::StartSession(const UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId)
 {
 	if (CurrentOperationMode == EDisplayClusterOperationMode::Disabled)
 	{

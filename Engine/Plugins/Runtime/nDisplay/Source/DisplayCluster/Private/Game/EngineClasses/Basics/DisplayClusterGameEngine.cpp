@@ -7,6 +7,7 @@
 #include "Config/IPDisplayClusterConfigManager.h"
 #include "Input/IPDisplayClusterInputManager.h"
 
+#include "DisplayClusterConfigurationTypes.h"
 #include "IDisplayClusterConfiguration.h"
 
 #include "Misc/App.h"
@@ -53,17 +54,17 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 		// Clean the file path before using it
 		DisplayClusterHelpers::str::TrimStringValue(ConfigPath);
 
+		// Load config data
+		const UDisplayClusterConfigurationData* ConfigData = IDisplayClusterConfiguration::Get().LoadConfig(ConfigPath);
+		if (!ConfigData)
+		{
+			FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::KillImmediately, FString("An error occurred during loading the configuration file"));
+		}
+
 		// Extract node ID from command line
 		if (!FParse::Value(FCommandLine::Get(), DisplayClusterStrings::args::Node, NodeId))
 		{
 			UE_LOG(LogDisplayClusterEngine, Log, TEXT("Node ID is not specified. Trying to resolve from host address..."));
-
-			// Load config data. This data is temporary and required to resolve node ID only.
-			const UDisplayClusterConfigurationData* ConfigData = IDisplayClusterConfiguration::Get().LoadConfig(ConfigPath);
-			if (!ConfigData)
-			{
-				FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::KillImmediately, FString("An error occurred during loading the configuration file"));
-			}
 
 			// Find node ID based on the host address
 			if (!GetResolvedNodeId(ConfigData, NodeId))
@@ -78,7 +79,7 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 		DisplayClusterHelpers::str::TrimStringValue(NodeId);
 
 		// Start game session
-		if (!GDisplayCluster->StartSession(ConfigPath, NodeId))
+		if (!GDisplayCluster->StartSession(ConfigData, NodeId))
 		{
 			FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::KillImmediately, FString("Couldn't start DisplayCluster session"));
 		}

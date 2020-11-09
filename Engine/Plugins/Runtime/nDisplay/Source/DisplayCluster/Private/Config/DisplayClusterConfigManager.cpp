@@ -6,7 +6,7 @@
 #include "Misc/DisplayClusterGlobals.h"
 #include "Cluster/IPDisplayClusterClusterManager.h"
 
-#include "IDisplayClusterConfiguration.h"
+#include "DisplayClusterConfigurationTypes.h"
 
 #include "Misc/Paths.h"
 
@@ -29,20 +29,16 @@ void FDisplayClusterConfigManager::Release()
 {
 }
 
-bool FDisplayClusterConfigManager::StartSession(const FString& InConfigPath, const FString& InNodeId)
+bool FDisplayClusterConfigManager::StartSession(const UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId)
 {
-	ConfigPath = InConfigPath;
 	ClusterNodeId = InNodeId;
 
-	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Starting session with config: %s"), *ConfigPath);
-	ConfigData.Reset(IDisplayClusterConfiguration::Get().LoadConfig(ConfigPath));
-
+	ConfigData.Reset(InConfigData);
 	return ConfigData.IsValid();
 }
 
 void FDisplayClusterConfigManager::EndSession()
 {
-	ConfigPath.Empty();
 	ClusterNodeId.Empty();
 	ConfigData.Reset(nullptr);
 }
