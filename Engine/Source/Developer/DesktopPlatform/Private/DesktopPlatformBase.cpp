@@ -1469,6 +1469,13 @@ FString FDesktopPlatformBase::GetUnrealBuildToolProjectFileName(const FString& R
 
 FString FDesktopPlatformBase::GetUnrealBuildToolExecutableFilename(const FString& RootDir) const
 {
+	FString Entry;
+	if( GConfig->GetString( TEXT("PlatformPaths"), TEXT("UnrealBuildTool"), Entry, GEngineIni ))
+	{
+		FString NewPath = FPaths::ConvertRelativePathToFull(RootDir / Entry);
+		return NewPath;
+	}
+
 	return FPaths::ConvertRelativePathToFull(RootDir / TEXT("Engine/Binaries/DotNET/UnrealBuildTool.exe"));
 }
 
