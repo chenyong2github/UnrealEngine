@@ -3,6 +3,15 @@
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 
+
+void UDMXPixelMappingRootComponent::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	// Explicitly reset the children, needed to clear entangled references in these
+	Children.Reset();
+}
+
 const FName& UDMXPixelMappingRootComponent::GetNamePrefix()
 {
 	static FName NamePrefix = TEXT("Root");

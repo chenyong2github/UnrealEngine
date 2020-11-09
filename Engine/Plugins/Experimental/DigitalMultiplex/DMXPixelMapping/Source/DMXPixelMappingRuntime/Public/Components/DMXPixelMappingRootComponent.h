@@ -13,6 +13,12 @@ class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingRootComponent
 	: public UDMXPixelMappingBaseComponent
 {
 	GENERATED_BODY()
+
+protected:
+	// ~Begin UObject Interface
+	virtual void BeginDestroy() override;
+	// ~End UObject Interface
+
 public:
 	//~ Begin UDMXPixelMappingBaseComponent implementation
 	virtual const FName& GetNamePrefix() override;
