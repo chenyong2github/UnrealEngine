@@ -1949,6 +1949,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	ParallelFor(NumGeometries, [&](int32 GeometryIndex)
 	//for (int32 GeometryIndex = 0; GeometryIndex < NumGeometries; GeometryIndex++)
 	{
+		// Need a new error reporter for parallel for loop here as it wouldn't be thread-safe to write to the prefix
+		Chaos::FErrorReporter LocalErrorReporter;
 		const int32 TransformGroupIndex = TransformIndex[GeometryIndex];
 
 		const float Volume_i = MassPropertiesArray[GeometryIndex].Volume;
@@ -1958,8 +1960,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 			if (DesiredDensity * Volume_i > SharedParams.MaximumMassClamp)
 			{
 				// For rigid bodies outside of range just defaut to a clamped bounding box, and warn the user.
-				ErrorReporter.ReportError(*FString::Printf(TEXT("Geometry has invalid mass (too large)")));
-				ErrorReporter.HandleLatestError();
+				LocalErrorReporter.ReportError(*FString::Printf(TEXT("Geometry has invalid mass (too large)")));
+				LocalErrorReporter.HandleLatestError();
 
 				CollectionSimulatableParticles[TransformGroupIndex] = false;
 			}
@@ -2048,10 +2050,10 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 
 				if (SizeSpecificData.ImplicitType == EImplicitTypeEnum::Chaos_Implicit_LevelSet)
 				{
-					ErrorReporter.SetPrefix(BaseErrorPrefix + " | Transform Index: " + FString::FromInt(TransformGroupIndex) + " of " + FString::FromInt(TransformIndex.Num()));
+					LocalErrorReporter.SetPrefix(BaseErrorPrefix + " | Transform Index: " + FString::FromInt(TransformGroupIndex) + " of " + FString::FromInt(TransformIndex.Num()));
 					CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
 						FCollisionStructureManager::NewImplicitLevelset(
-							ErrorReporter,
+							LocalErrorReporter,
 							MassSpaceParticles,
 							*TriMesh,
 							InstanceBoundingBox,
