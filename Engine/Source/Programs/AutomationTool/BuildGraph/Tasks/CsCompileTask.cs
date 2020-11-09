@@ -124,7 +124,7 @@ namespace AutomationTool.Tasks
 			{
 				Properties["Configuration"] = Parameters.Configuration;
 			}
-			if (!String.IsNullOrEmpty(Parameters.Properties))
+			if(!String.IsNullOrEmpty(Parameters.Properties))
 			{
 				foreach (string Property in Parameters.Properties.Split(';'))
 				{
