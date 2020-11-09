@@ -34,7 +34,7 @@ void Main(
 	OPTIONAL_VertexID
 	out VS_OUTPUT_TYPE Output
 )
-#if HAIR_RENDER_MODE == RENDER_MODE_MSAA_VISIBILITY && VF_STRAND_HAIR
+#if HAIR_RENDER_MODE == RENDER_MODE_MSAA_VISIBILITY && HAIR_STRAND_MESH_FACTORY
 {
 	ResolvedView = ResolveView();
 
@@ -60,7 +60,7 @@ void Main(
 	// #hair_todo: This is a hack/quick term solution, in order to generate valide light/view direction in the case of hair strand factory, as this is used for alighning the strand with the view.
 	//ResolvedView.TranslatedWorldCameraOrigin = -HairVisibilityPass.LightDirection * 1000; // Hack for strand rendering which use the camera position for deriving the view vector for forcing strand view facing
 	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
-#if VF_STRAND_HAIR
+#if HAIR_STRAND_MESH_FACTORY
 	// Use a raw position (rather than quad facing position) as the pre-position is not expanded into quad (for perf. reason)
 	float4 WorldPositionRaw = VertexFactoryGetWorldPositionRaw(Input, VFIntermediates);
 #else
@@ -68,7 +68,7 @@ void Main(
 #endif
 	
 	bool bUseStableRasterization = false;
-#if VF_STRAND_HAIR
+#if HAIR_STRAND_MESH_FACTORY
 	bUseStableRasterization = UseStableRasterization();
 #endif
 
@@ -90,7 +90,7 @@ void Main(
 	}
 	#endif
 
-#if VF_STRAND_HAIR
+#if HAIR_STRAND_MESH_FACTORY
 	FHairViewInfo HairViewInfo;
 	HairViewInfo.TranslatedWorldCameraOrigin = ResolvedView.TranslatedWorldCameraOrigin;
 	HairViewInfo.ViewForward = ResolvedView.ViewForward;
@@ -122,7 +122,7 @@ void Main(
 #else
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
 
-  #ifdef VF_STRAND_HAIR
+  #ifdef HAIR_STRAND_MESH_FACTORY
 	Output.WorldStrandRadius = VFIntermediates.HairDimensions.y;
   #else
 	Output.WorldStrandRadius = 1;

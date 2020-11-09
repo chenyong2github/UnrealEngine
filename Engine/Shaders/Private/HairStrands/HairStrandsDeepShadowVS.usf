@@ -46,7 +46,7 @@ void Main(
 	OPTIONAL_VertexID
 	out VS_OUTPUT_TYPE Output
 )
-#if defined(VF_STRAND_HAIR) && MESH_RENDER_MODE == MESH_RENDER_VOXEL && SUPPORT_TANGENT_PROPERTY == 0 && SUPPORT_MATERIAL_PROPERTY == 0
+#if defined(HAIR_STRAND_MESH_FACTORY) && MESH_RENDER_MODE == MESH_RENDER_VOXEL && SUPPORT_TANGENT_PROPERTY == 0 && SUPPORT_MATERIAL_PROPERTY == 0
 {
 	ResolvedView = ResolveView();
 	
@@ -100,7 +100,7 @@ void Main(
 	float4x4 WorldToClipMatrix = DeepRasterPass.CPU_WorldToClipMatrix;
 #endif
 
-#ifdef VF_STRAND_HAIR	
+#ifdef HAIR_STRAND_MESH_FACTORY	
 	const FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo, ResolvedView.HairRenderInfoBits);
 
 	FHairViewInfo HairViewInfo;
@@ -140,7 +140,7 @@ void Main(
 
 	Output.Position = mul(WorldPosition, WorldToClipMatrix);
 
-#if MESH_RENDER_MODE == MESH_RENDER_VOXEL && defined(VF_STRAND_HAIR)
+#if MESH_RENDER_MODE == MESH_RENDER_VOXEL && defined(HAIR_STRAND_MESH_FACTORY)
 	if (HairRenderInfo.bIsGPUDriven)
 	{
 		Output.Position.xy += float2(1, 1);
@@ -158,7 +158,7 @@ void Main(
 #endif
 
 	float HairCoverage = 1;
-  #ifdef VF_STRAND_HAIR	
+  #ifdef HAIR_STRAND_MESH_FACTORY	
 	const float CurrentDepth = Output.Position.z / Output.Position.w;
 	const float PixelRadius = HairRenderInfo.bIsOrthoView ? HairRenderInfo.RadiusAtDepth1Primary : (CurrentDepth * HairRenderInfo.RadiusAtDepth1Primary);
 	const float StrandRealRadius = VFIntermediates.HairDimensions.y;

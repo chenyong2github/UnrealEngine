@@ -36,7 +36,7 @@ struct FVertexFactoryInterpolantsVSToPS
 		nointerpolation uint LightmapDataIndex : LIGHTMAP_ID;
 	#endif
 #endif
-#if VF_STRAND_HAIR || VF_CARDS_HAIR
+#if HAIR_STRAND_MESH_FACTORY || HAIR_CARD_MESH_FACTORY
 	nointerpolation uint HairPrimitiveId	: HAIR_PRIMITIVE_ID; // Control point ID
 	float2 HairPrimitiveUV					: HAIR_PRIMITIVE_UV; // U: parameteric distance between the two surrounding control points. V: parametric distance along the width.
 #endif

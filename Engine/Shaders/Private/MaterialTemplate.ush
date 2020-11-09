@@ -16,6 +16,8 @@
 #include "/Engine/Private/PhysicsFieldSampler.ush"
 #include "/Engine/Private/SceneData.ush"
 #include "/Engine/Private/HairShadingCommon.ush"
+#include "/Engine/Private/HairStrands/HairCardsAttributeCommon.ush"
+#include "/Engine/Private/HairStrands/HairStrandsAttributeCommon.ush"
 #include "/Engine/Private/Strata/Strata.ush"
 
 #if USES_SPEEDTREE
@@ -121,6 +123,8 @@
 #define MATERIALBLENDING_ANY_TRANSLUCENT (MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE)
 
 #define IS_MESHPARTICLE_FACTORY (PARTICLE_MESH_FACTORY || NIAGARA_MESH_FACTORY)
+
+#define IS_HAIR_FACTORY (HAIR_STRAND_MESH_FACTORY || HAIR_CARD_MESH_FACTORY)
 
 /**
  * Parameters used by vertex and pixel shaders to access particle properties.
@@ -313,7 +317,7 @@ struct FMaterialPixelParameters
 	uint PrimitiveId;
 
 	// Actual primitive Id
-#if VF_STRAND_HAIR || VF_CARDS_HAIR
+#if IS_HAIR_FACTORY
 	uint	HairPrimitiveId;	// Control point ID
 	float2	HairPrimitiveUV;	// U: parametric distance between the two surrounding control point. V: parametric distance along hair width
 #endif
@@ -1064,23 +1068,9 @@ float3 MaterialExpressionBlackBody( float Temp )
 	return mul( XYZtoRGB, float3( X, Y, Z ) ) * pow( 0.0004 * Temp, 4 );
 }
 
-
-#if VF_STRAND_HAIR || VF_CARDS_HAIR
-float  GetHairStrandsDepth(uint HairPrimitiveId, float2 VertexUV, float InDeviceZ);
-float  GetHairStrandsCoverage(uint HairPrimitiveId, float2 VertexUV);
-float2 GetHairStrandsRootUV(uint HairPrimitiveId, float2 VertexUV);
-float2 GetHairStrandsUV(uint HairPrimitiveId, float2 VertexUV);
-float2 GetHairStrandsDimensions(uint HairPrimitiveId, float2 VertexUV);
-float  GetHairStrandsSeed(uint HairPrimitiveId, float2 VertexUV);
-float  GetHairStrandsRoughness(uint HairPrimitiveId, float2 HairPrimitiveUV);
-float3 GetHairStrandsBaseColor(uint HairPrimitiveId, float2 HairPrimitiveUV);
-float3 GetHairStrandsTangent(uint HairPrimitiveId, float2 HairPrimitiveUV, half3x3 TangentToWorld, bool bUseTangentSpace);
-float4 GetHairStrandsAuxilaryData(uint HairPrimitiveId, float2 VertexUV);
-#endif
-
 float2 MaterialExpressionGetHairRootUV(FMaterialPixelParameters Parameters)
 {
-#if VF_STRAND_HAIR || VF_CARDS_HAIR
+#if IS_HAIR_FACTORY
 	return GetHairStrandsRootUV(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return float2(0, 0);
@@ -1089,7 +1079,7 @@ float2 MaterialExpressionGetHairRootUV(FMaterialPixelParameters Parameters)
 
 float2 MaterialExpressionGetHairUV(FMaterialPixelParameters Parameters)
 {	
-#if VF_STRAND_HAIR || VF_CARDS_HAIR
+#if IS_HAIR_FACTORY
 	return GetHairStrandsUV(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return float2(0,0);
@@ -1098,7 +1088,7 @@ float2 MaterialExpressionGetHairUV(FMaterialPixelParameters Parameters)
 
 float2 MaterialExpressionGetHairDimensions(FMaterialPixelParameters Parameters)
 {
-#if VF_STRAND_HAIR || VF_CARDS_HAIR
+#if IS_HAIR_FACTORY
 	return GetHairStrandsDimensions(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return float2(0, 0);
@@ -1107,7 +1097,7 @@ float2 MaterialExpressionGetHairDimensions(FMaterialPixelParameters Parameters)
 
 float MaterialExpressionGetHairSeed(FMaterialPixelParameters Parameters)
 {
-#if VF_STRAND_HAIR || VF_CARDS_HAIR
+#if IS_HAIR_FACTORY
 	return GetHairStrandsSeed(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return 0;
@@ -1116,7 +1106,7 @@ float MaterialExpressionGetHairSeed(FMaterialPixelParameters Parameters)
 
 float3 MaterialExpressionGetHairBaseColor(FMaterialPixelParameters Parameters)
 {
-#if VF_STRAND_HAIR || VF_CARDS_HAIR
+#if IS_HAIR_FACTORY
 	return GetHairStrandsBaseColor(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return float3(0,0,0);
@@ -1125,7 +1115,7 @@ float3 MaterialExpressionGetHairBaseColor(FMaterialPixelParameters Parameters)
 
 float MaterialExpressionGetHairRoughness(FMaterialPixelParameters Parameters)
 {
-#if VF_STRAND_HAIR || VF_CARDS_HAIR
+#if IS_HAIR_FACTORY
 	return GetHairStrandsRoughness(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return 0;
@@ -1139,16 +1129,16 @@ float MaterialExpressionGetHairDepth(FMaterialVertexParameters Parameters)
 
 float MaterialExpressionGetHairDepth(FMaterialPixelParameters Parameters)
 {
-#if VF_CARDS_HAIR
+#if IS_HAIR_FACTORY
 	return GetHairStrandsDepth(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV, Parameters.SvPosition.z);
 #else
-	return 0; // TODO for VF_STRAND_HAIR?
+	return 0; 
 #endif
 }
 
 float MaterialExpressionGetHairCoverage(FMaterialPixelParameters Parameters)
 {
-#if VF_CARDS_HAIR || VF_STRAND_HAIR
+#if IS_HAIR_FACTORY
 	return GetHairStrandsCoverage(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return 0;
@@ -1157,21 +1147,20 @@ float MaterialExpressionGetHairCoverage(FMaterialPixelParameters Parameters)
 
 float3 MaterialExpressionGetHairTangent(FMaterialPixelParameters Parameters, bool bUseTangentSpace)
 {
-#if VF_STRAND_HAIR
+#if HAIR_STRAND_MESH_FACTORY
 	return bUseTangentSpace ? float3(0,1,0) : Parameters.TangentToWorld[2];
-#elif VF_CARDS_HAIR
+#elif HAIR_CARD_MESH_FACTORY
 	return GetHairStrandsTangent(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV, Parameters.TangentToWorld, bUseTangentSpace);
 #else
 	return 0;
-#endif
-	
+#endif	
 }
 
 float2 MaterialExpressionGetAtlasUVs(FMaterialPixelParameters Parameters)
 {
-#if VF_STRAND_HAIR
+#if HAIR_STRAND_MESH_FACTORY
 	return float2(0,0);
-#elif VF_CARDS_HAIR
+#elif HAIR_CARD_MESH_FACTORY
 	return Parameters.HairPrimitiveUV;
 #else
 	return 0;
@@ -1181,7 +1170,7 @@ float2 MaterialExpressionGetAtlasUVs(FMaterialPixelParameters Parameters)
 
 float4 MaterialExpressionGetHairAuxilaryData(FMaterialPixelParameters Parameters)
 {
-#if VF_CARDS_HAIR
+#if HAIR_CARD_MESH_FACTORY
 	return GetHairStrandsAuxilaryData(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return 0;
