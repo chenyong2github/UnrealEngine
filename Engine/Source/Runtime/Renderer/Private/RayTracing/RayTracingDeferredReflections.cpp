@@ -11,7 +11,6 @@
  * - Apply lighting to produce the final reflection buffer [TODO; all lighting currently done in material eval RGS]
  * 
  * Other features that are currently not implemented, but may be in the future:
- * - Screen percentage (i.g. half-resolution ray traced reflections)
  * - Shadow maps instead of ray traced shadows
  * 
  * Features that will never be supported due to performance:
@@ -93,6 +92,7 @@ class FGenerateReflectionRaysCS : public FGlobalShader
 	SHADER_PARAMETER(float, ReflectionMaxNormalBias)
 	SHADER_PARAMETER(float, ReflectionMaxRoughness)
 	SHADER_PARAMETER(float, ReflectionSmoothBias)
+	SHADER_PARAMETER(int, UpscaleFactor)
 	SHADER_PARAMETER(int, GlossyReflections)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
@@ -148,6 +148,7 @@ class FRayTracingDeferredReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER(float, ReflectionMaxRoughness)
 		SHADER_PARAMETER(float, ReflectionSmoothBias)
 		SHADER_PARAMETER(float, AnyHitMaxRoughness)
+		SHADER_PARAMETER(int, UpscaleFactor)
 		SHADER_PARAMETER(int, GlossyReflections)
 		SHADER_PARAMETER(int, ShouldDoDirectLighting)
 		SHADER_PARAMETER(int, ShouldDoEmissiveAndIndirectLighting)
@@ -255,6 +256,7 @@ static void AddGenerateReflectionRaysPass(
 	PassParameters->ReflectionMaxNormalBias = CommonParameters.ReflectionMaxNormalBias;
 	PassParameters->ReflectionMaxRoughness  = CommonParameters.ReflectionMaxRoughness;
 	PassParameters->ReflectionSmoothBias    = CommonParameters.ReflectionSmoothBias;
+	PassParameters->UpscaleFactor           = CommonParameters.UpscaleFactor;
 	PassParameters->GlossyReflections       = CommonParameters.GlossyReflections;
 	PassParameters->ViewUniformBuffer       = CommonParameters.ViewUniformBuffer;
 	PassParameters->SceneTextures           = CommonParameters.SceneTextures;
@@ -284,8 +286,12 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 {
 	const bool bGenerateRaysWithRGS = CVarRayTracingReflectionsGenerateRaysWithRGS.GetValueOnRenderThread()==1;
 
+	int32 UpscaleFactor = int32(1.0f / Options.ResolutionFraction);
+	ensure(Options.ResolutionFraction == 1.0 / UpscaleFactor);
+	FIntPoint RayTracingResolution = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), UpscaleFactor);
+
 	FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(
-		FSceneRenderTargets::Get_FrameConstantsOnly().GetBufferSizeXY(),
+		RayTracingResolution,
 		PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 0, 0, 0)),
 		TexCreate_ShaderResource | TexCreate_UAV);
 
@@ -293,12 +299,11 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	OutputDesc.Format                 = PF_R16F;
 	OutDenoiserInputs->RayHitDistance = GraphBuilder.CreateTexture(OutputDesc, TEXT("RayTracingReflectionsHitDistance"));
 
-	const FIntPoint RayTracingResolution = View.ViewRect.Size();
-
 	const uint32 SortTileSize             = 64; // Ray sort tile is 32x32, material sort tile is 64x64, so we use 64 here (tile size is not configurable).
 	const FIntPoint TileAlignedResolution = FIntPoint::DivideAndRoundUp(RayTracingResolution, SortTileSize) * SortTileSize;
 
 	FRayTracingDeferredReflectionsRGS::FParameters CommonParameters;
+	CommonParameters.UpscaleFactor           = UpscaleFactor;
 	CommonParameters.RayTracingResolution    = RayTracingResolution;
 	CommonParameters.TileAlignedResolution   = TileAlignedResolution;
 	CommonParameters.GlossyReflections       = CVarRayTracingReflectionsGlossy.GetValueOnRenderThread();
