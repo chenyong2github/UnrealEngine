@@ -134,10 +134,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Direction Angular Spread", Category = "Directions", UIMin = 0, ClampMin = 0, Units = deg))
 	float DirectionAngularSpreadDeg = 1325.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, UIMax = 10000.0, Category = "Steepness"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, UIMax = 1.0, Category = "Steepness"))
 	float SmallWaveSteepness = 0.4f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, UIMax = 10000.0, Category = "Steepness"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, UIMax = 1.0, Category = "Steepness"))
 	float LargeWaveSteepness = 0.2f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, UIMax = 100.0, Category = "Steepness"))
