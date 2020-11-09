@@ -1150,7 +1150,7 @@ private:
 	uint32 ShadowBufferSize;
 };
 
-class FD3D12GPUFence : public FRHIGPUFence
+class D3D12RHI_API FD3D12GPUFence : public FRHIGPUFence
 {
 public:
 	FD3D12GPUFence(FName InName, FD3D12Fence* InFence)
