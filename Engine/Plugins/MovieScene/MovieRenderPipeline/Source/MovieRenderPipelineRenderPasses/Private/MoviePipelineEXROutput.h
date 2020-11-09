@@ -114,6 +114,7 @@ public:
 	{
 		OutputFormat = EImageFormat::EXR;
 		Compression = EEXRCompressionFormat::PIZ;
+		bMultilayer = true;
 	}
 
 	virtual void OnRecieveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame) override;
@@ -124,4 +125,10 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EXR")
 	EEXRCompressionFormat Compression;
+
+	/**
+	* Should we write all render passes to the same exr file? Not all software supports multi-layer exr files.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EXR")
+	bool bMultilayer;
 };
