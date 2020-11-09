@@ -1335,7 +1335,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 #if PLATFORM_HOLOLENS
 	bIsMobileMultiViewEnabled = bMobileMultiView && GRHISupportsArrayIndexFromAnyShader;
 #else
-	bIsMobileMultiViewEnabled = bMobileMultiView && RHISupportsMobileMultiView(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]);
+	bIsMobileMultiViewEnabled = bMobileMultiView && RHISupportsMobileMultiView(GMaxRHIShaderPlatform);
 #endif
 	// Enumerate the viewport configurations
 	uint32 ConfigurationCount;
@@ -1955,7 +1955,14 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 	check(IsInRenderingThread());
 
 	// We need to ensure we can sample from the texture in CopyTexture
-	Flags |= TexCreate_ShaderResource | TexCreate_SRGB;
+	Flags |= TexCreate_ShaderResource;
+
+	// On mobile without HDR all render targets need to be marked sRGB
+	bool MobileHWsRGB = IsMobileColorsRGB() && IsMobilePlatform(GMaxRHIShaderPlatform);
+	if (MobileHWsRGB)
+	{
+		TargetableTextureFlags |= TexCreate_SRGB;
+	}
 
 	FClearValueBinding ClearColor = (SelectedEnvironmentBlendMode == XR_ENVIRONMENT_BLEND_MODE_OPAQUE) ? FClearValueBinding::Black : FClearValueBinding::Transparent;
 
