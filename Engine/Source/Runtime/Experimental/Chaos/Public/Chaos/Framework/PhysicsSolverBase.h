@@ -146,6 +146,24 @@ namespace Chaos
 			RegisterSimOneShotCallback(Func);
 		}
 
+		//Used as helper for GT to go from unique idx back to gt particle
+		//If GT deletes a particle, this function will return null (that's a good thing when consuming async outputs as GT may have already deleted the particle we care about)
+		//Note: if the physics solver has been advanced after the particle was freed on GT, the index may have been freed and reused.
+		//In this case instead of getting a nullptr you will get an unrelated (wrong) GT particle
+		//Because of this we keep the index alive for as long as the async callback can lag behind. This way as long as you immediately consume the output, you will always be sure the unique index was not released.
+		//Practically the flow should always be like this:
+		//advance the solver and trigger callbacks. Callbacks write to outputs. Consume the outputs on GT and use this function _before_ advancing solver again
+		TGeometryParticle<FReal, 3>* UniqueIdxToGTParticle_External(const FUniqueIdx& UniqueIdx) const
+		{
+			TGeometryParticle<FReal, 3>* Result = nullptr;
+			if (ensure(UniqueIdx.Idx < UniqueIdxToGTParticles.Num()))	//asking for particle on index that has never been allocated
+			{
+				Result = UniqueIdxToGTParticles[UniqueIdx.Idx];
+			}
+
+			return Result;
+		}
+
 		//Ensures that any running tasks finish.
 		void WaitOnPendingTasks_External()
 		{
@@ -269,20 +287,28 @@ namespace Chaos
 				if (!Callback->bPendingDelete)
 				{
 					Callback->PreSimulate_Internal(SimTime, Dt);
-					
-
-					if (Callback->bRunOnceMore)
-					{
-						Callback->bPendingDelete = true;
-					}
 				}
 			}
 		}
 
-		void FreeCallbacksData_Internal()
+		void FreeCallbacksData_Internal(float SimTime, float DeltaTime)
 		{
+			//final post solve call. TODO: move this out of here, just putting it here for now because we're forced to call callbacks manually during destroy
+			for(ISimCallbackObject* Callback : ContactModifiers)
+			{
+				if (!Callback->bPendingDelete)
+				{
+					Callback->PostSimulate_Internal(SimTime, DeltaTime);
+				}
+			}
+
 			for (ISimCallbackObject* Callback : SimCallbackObjects)
 			{
+				if (Callback->bRunOnceMore)
+				{
+					Callback->bPendingDelete = true;
+				}
+
 				for (FSimCallbackInput* Input : Callback->IntervalData)
 				{
 					Callback->FreeInputData_Internal(Input);
@@ -415,6 +441,8 @@ namespace Chaos
 
 		ETraits TraitIdx;
 
+		TArray<TGeometryParticle<FReal, 3>*> UniqueIdxToGTParticles;
+
 	public:
 		/** Events */
 		/** Pre advance is called before any physics processing or simulation happens in a given physics update */
@@ -435,6 +463,9 @@ namespace Chaos
 		FSolverPreBuffer EventPreBuffer;
 		FSolverPostAdvance EventPostSolve;
 
+		void TrackGTParticle_External(TGeometryParticle<FReal, 3>& Particle);
+		void ClearGTParticle_External(TGeometryParticle<FReal, 3>& Particle);
+		
 
 #if !UE_BUILD_SHIPPING
 	// Solver testing utility

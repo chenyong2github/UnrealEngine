@@ -277,7 +277,7 @@ namespace Chaos
 				RewindData->FinishFrame();
 			}
 
-			MSolver->FreeCallbacksData_Internal();
+			MSolver->FreeCallbacksData_Internal(MSolver->GetSolverTime(), MDeltaTime);	//question: is SolverTime the right thing to pass in here?
 
 			MSolver->GetSolverTime() += MDeltaTime;
 			MSolver->GetCurrentFrame()++;
@@ -376,6 +376,7 @@ namespace Chaos
 		IPhysicsProxyBase* ProxyBase;
 
 		GTParticle->SetUniqueIdx(GetEvolution()->GenerateUniqueIdx());
+		TrackGTParticle_External(*GTParticle);
 		//Chaos::FParticlePropertiesData& RemoteParticleData = *DirtyPropertiesManager->AccessProducerBuffer()->NewRemoteParticleProperties();
 		//Chaos::FShapeRemoteDataContainer& RemoteShapeContainer = *DirtyPropertiesManager->AccessProducerBuffer()->NewRemoteShapeContainer();
 
@@ -421,6 +422,8 @@ namespace Chaos
 
 		// Grab the particle's type
 		const EParticleType InParticleType = GTParticle->ObjectType();
+
+		ClearGTParticle_External(*GTParticle);
 
 		UpdateParticleInAccelerationStructure_External(GTParticle, /*bDelete=*/true);
 
