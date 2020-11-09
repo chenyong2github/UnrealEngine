@@ -1532,6 +1532,9 @@ static VkRenderPass CreateRenderPass(FVulkanDevice& InDevice, const FVulkanRende
 	VkSubpassDescription SubpassDescriptions[8];
 	VkSubpassDependency SubpassDependencies[8];
 
+	//0b11 for 2, 0b1111 for 4, and so on
+	uint32 MultiviewMask = ( 0b1 << RTLayout.GetMultiViewCount() ) - 1;
+
 	const bool bDeferredShadingSubpass = RTLayout.GetSubpassHint() == ESubpassHint::DeferredShadingSubpass;
 	const bool bDepthReadSubpass =  RTLayout.GetSubpassHint() == ESubpassHint::DepthReadSubpass;
 		
@@ -1675,13 +1678,13 @@ static VkRenderPass CreateRenderPass(FVulkanDevice& InDevice, const FVulkanRende
 	Bit mask that specifies which view rendering is broadcast to
 	0011 = Broadcast to first and second view (layer)
 	*/
-	const uint32_t ViewMask[2] = { 0b00000011, 0b00000011 };
+	const uint32_t ViewMask[2] = { MultiviewMask, MultiviewMask };
 
 	/*
 	Bit mask that specifices correlation between views
 	An implementation may use this for optimizations (concurrent render)
 	*/
-	const uint32_t CorrelationMask = 0b00000011;
+	const uint32_t CorrelationMask = MultiviewMask;
 
 	VkRenderPassMultiviewCreateInfo MultiviewInfo;
 	if (RTLayout.GetIsMultiView())

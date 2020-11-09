@@ -804,6 +804,9 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 	ERenderTargetActions ColorTargetAction = ERenderTargetActions::Clear_Store;
 	EDepthStencilTargetActions DepthTargetAction = EDepthStencilTargetActions::ClearDepthStencil_DontStoreDepthStencil;
 	bool bMobileMSAA = NumMSAASamples > 1;
+
+	static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
+	const bool bIsMultiViewApplication = (CVarMobileMultiView && CVarMobileMultiView->GetValueOnAnyThread() != 0);
 	
 	if (bGammaSpace && !bRenderToSceneColor)
 	{
@@ -872,7 +875,9 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 	SceneColorRenderPassInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
 	SceneColorRenderPassInfo.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
 	SceneColorRenderPassInfo.bOcclusionQueries = SceneColorRenderPassInfo.NumOcclusionQueries != 0;
-	SceneColorRenderPassInfo.bMultiviewPass = View.bIsMobileMultiViewEnabled;
+
+	//if the scenecolor isn't multiview but the app is, need to render as a single-view multiview due to shaders
+	SceneColorRenderPassInfo.MultiViewCount = View.bIsMobileMultiViewEnabled ? 2 : (bIsMultiViewApplication ? 1 : 0);
 
 	RHICmdList.BeginRenderPass(SceneColorRenderPassInfo, TEXT("SceneColorRendering"));
 	
@@ -1070,7 +1075,7 @@ FRHITexture* FMobileSceneRenderer::RenderDeferred(FRHICommandListImmediate& RHIC
 	BasePassInfo.bOcclusionQueries = BasePassInfo.NumOcclusionQueries != 0;
 	BasePassInfo.FoveationTexture = nullptr;
 	BasePassInfo.bIsMSAA = false;
-	BasePassInfo.bMultiviewPass = false;
+	BasePassInfo.MultiViewCount = false;
 
 	RHICmdList.BeginRenderPass(BasePassInfo, TEXT("BasePassRendering"));
 	

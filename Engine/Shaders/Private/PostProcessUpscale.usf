@@ -33,6 +33,9 @@ SamplerState SceneColorSampler;
 Texture2D PointSceneColorTexture;
 SamplerState PointSceneColorSampler;
 
+//in a multiview case, PointSceneColorTexture is an array texture
+Texture2DArray PointSceneColorTextureArray;
+
 // to avoid compiler errors on the PS
 #ifndef TESS_RECT_X
 	#define TESS_RECT_X 1
@@ -122,9 +125,17 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 #if METHOD == UPSCALE_METHOD_NEAREST
 	// Nearest sampling (not blurry but blocky, more for testing)
 	#if ES3_1_PROFILE
-		OutColor = Texture2DSample(PointSceneColorTexture, PointSceneColorSampler, UVAndScreenPos.xy);
+		#if MOBILE_MULTI_VIEW
+			OutColor = Texture2DArraySample(PointSceneColorTextureArray, PointSceneColorSampler, vec3(UVAndScreenPos.xy,0));
+		#else
+			OutColor = Texture2DSample(PointSceneColorTexture, PointSceneColorSampler, UVAndScreenPos.xy);
+		#endif
 	#else
-		OutColor = PointSceneColorTexture.SampleLevel(PointSceneColorSampler, UVAndScreenPos.xy, 0, int2(0, 0));
+		#if MOBILE_MULTI_VIEW
+			OutColor = PointSceneColorTextureArray.SampleLevel(PointSceneColorSampler, vec3(UVAndScreenPos.xy,0), 0, int2(0, 0));
+		#else
+			OutColor = PointSceneColorTexture.SampleLevel(PointSceneColorSampler, UVAndScreenPos.xy, 0, int2(0, 0));
+		#endif
 	#endif
 
 #elif METHOD == UPSCALE_METHOD_BILINEAR
