@@ -29,6 +29,8 @@ namespace OSSConsoleVariables
 
 FOnlineAsyncTaskManager::FOnlineAsyncTaskManager() :
 	ActiveTask(nullptr),
+	MaxParallelTasks(8),
+	bReloadMaxParallelTasksConfig(false),
 	WorkEvent(nullptr),
 	PollingInterval(POLLING_INTERVAL_MS),
 	bRequestingExit(false),
@@ -45,6 +47,8 @@ bool FOnlineAsyncTaskManager::Init(void)
 	{
 		PollingInterval = (uint32)PollingConfig;
 	}
+
+	GConfig->GetInt(TEXT("OnlineSubsystem"), TEXT("MaxParallelTasks"), MaxParallelTasks, GEngineIni);
 
 	return WorkEvent != nullptr;
 }
@@ -120,11 +124,9 @@ void FOnlineAsyncTaskManager::AddToOutQueue(FOnlineAsyncItem* CompletedItem)
 
 void FOnlineAsyncTaskManager::AddToParallelTasks(FOnlineAsyncTask* NewTask)
 {
-	NewTask->Initialize();
+	bReloadMaxParallelTasksConfig = true;
 
-	FScopeLock LockParallelTasks(&ParallelTasksLock);
-
-	ParallelTasks.Add( NewTask );
+	QueuedParallelTasks.Enqueue(NewTask);
 }
 
 void FOnlineAsyncTaskManager::RemoveFromParallelTasks(FOnlineAsyncTask* OldTask)
@@ -138,6 +140,27 @@ void FOnlineAsyncTaskManager::GameTick()
 {
 	// assert if not game thread
 	check(IsInGameThread());
+
+	if (bReloadMaxParallelTasksConfig)
+	{
+		bReloadMaxParallelTasksConfig = false;
+		GConfig->GetInt(TEXT("OnlineSubsystem"), TEXT("MaxParallelTasks"), MaxParallelTasks, GEngineIni);
+	}
+
+	int32 NumParallelTasksToStart = 0;
+	{
+		FScopeLock LockParallelTasks(&ParallelTasksLock);
+		NumParallelTasksToStart = MaxParallelTasks - ParallelTasks.Num();
+	}
+
+	FOnlineAsyncTask* ParallelTask = nullptr;
+	while (NumParallelTasksToStart-- > 0 && QueuedParallelTasks.Dequeue(ParallelTask))
+	{
+		ParallelTask->Initialize();
+
+		FScopeLock LockParallelTasks(&ParallelTasksLock);
+		ParallelTasks.Add(ParallelTask);
+	}
 
 	FOnlineAsyncItem* Item = nullptr;
 	int32 CurrentQueueSize = 0;
