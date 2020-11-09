@@ -75,7 +75,7 @@ public:
 
 struct FLevelSnapshotsEditorResultsRowGroup : public FLevelSnapshotsEditorResultsRow, public TSharedFromThis<FLevelSnapshotsEditorResultsRowGroup>
 {
-	FLevelSnapshotsEditorResultsRowGroup(const FString& InObjectPath, const FActorSnapshot& InActorSnapshot)
+	FLevelSnapshotsEditorResultsRowGroup(const FString& InObjectPath, const FLevelSnapshot_Actor& InActorSnapshot)
 		: ObjectPath(InObjectPath)
 		, ActorSnapshot(InActorSnapshot)
 	{}
@@ -86,7 +86,7 @@ struct FLevelSnapshotsEditorResultsRowGroup : public FLevelSnapshotsEditorResult
 
 public:
 	FString ObjectPath;
-	FActorSnapshot ActorSnapshot;
+	FLevelSnapshot_Actor ActorSnapshot;
 
 	/** This group's fields' widget. */
 	TArray<TSharedPtr<SLevelSnapshotsEditorResultsField>> Fields;

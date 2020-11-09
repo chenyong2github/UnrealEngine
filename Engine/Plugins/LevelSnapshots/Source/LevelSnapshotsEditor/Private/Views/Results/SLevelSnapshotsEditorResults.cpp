@@ -365,7 +365,7 @@ void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSna
 
 	if (InLevelSnapshot != nullptr)
 	{
-		for (const TPair<FString, FActorSnapshot>& ActorSnapshotPair : InLevelSnapshot->ActorSnapshots)
+		for (const TPair<FString, FLevelSnapshot_Actor>& ActorSnapshotPair : InLevelSnapshot->ActorSnapshots)
 		{
 			TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> NewGroup = MakeShared<FLevelSnapshotsEditorResultsRowGroup>(ActorSnapshotPair.Key, ActorSnapshotPair.Value);
 
@@ -383,7 +383,7 @@ void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSna
 				Objects.Add(ActorObjectPtr.Get());
 				RowGenerator->SetObjects(Objects);
 
-				for (const TPair<FName, FInternalPropertySnapshot>& PropertyPair : ActorSnapshotPair.Value.Properties)
+				for (const TPair<FName, FInternalPropertySnapshot>& PropertyPair : ActorSnapshotPair.Value.Base.Properties)
 				{
 					FString PropertyString = PropertyPair.Key.ToString();
 
@@ -443,17 +443,7 @@ FReply SLevelSnapshotsEditorResults::SetAllGroupsUnselected()
 
 FReply SLevelSnapshotsEditorResults::SetAllGroupsCollapsed()
 {
-	for (TSharedPtr<FLevelSnapshotsEditorResultsRowGroup, ESPMode::Fast> Group : FieldGroups)
-	{
-		if (Group->GetType() == FLevelSnapshotsEditorResultsRow::Group && Group->GroupWidget)
-		{
-			// There is no method to set expansion directly, but we can check to see if it is expanded and if so, toggle it closed
-			if (Group->GroupWidget->IsItemExpanded())
-			{
-				Group->GroupWidget->ToggleExpansion();
-			}
-		}
-	}
+	ResultList->ClearExpandedItems();
 
 	return FReply::Handled();
 }
@@ -521,7 +511,7 @@ void SLevelSnapshotsEditorResultsRowGroup::Construct(const FArguments& InArgs, c
 					+ SHorizontalBox::Slot()
 					.Padding(FMargin(10.0f, 0.0f))
 					[
-						SNew(SLevelSnapshotsEditorResultsGroup, FieldGroup->ActorSnapshot.ObjectName.ToString(), FieldGroup->ActorSnapshot)
+						SNew(SLevelSnapshotsEditorResultsGroup, FieldGroup->ActorSnapshot.Base.ObjectName.ToString(), FieldGroup->ActorSnapshot)
 					]
 				]
 			]

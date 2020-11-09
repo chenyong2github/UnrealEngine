@@ -3,6 +3,7 @@
 #include "ActorSnapshot.h"
 
 #include "HAL/UnrealMemory.h"
+#include "LevelSnapshot.h"
 #include "LevelSnapshotFilters.h"
 #include "Serialization/ArchiveSerializedPropertyChain.h"
 
@@ -25,16 +26,33 @@ bool FSerializedActorData::Serialize(FArchive& Ar)
 
 class FActorSnapshotReader : public FArchiveUObject
 {
+	// Internal Helper class
+	struct FPropertyInfo
+	{
+		FName PropertyPath;
+		FProperty* Property;
+		uint32 PropertyDepth;
+	};
 
 public:
-	FActorSnapshotReader(const FActorSnapshot& InSnapshot, const ULevelSnapshotFilter* InFilter = nullptr)
-		: Snapshot(InSnapshot)
+	FActorSnapshotReader(const FBaseObjectInfo& InObjectInfo, const ULevelSnapshotFilter* InFilter = nullptr)
+		: ObjectInfo(InObjectInfo)
 		, Offset(0)
 		, Filter(InFilter)
 	{
 		this->SetWantBinaryPropertySerialization(false);
 		this->SetIsLoading(true);
 		this->SetIsTransacting(true);
+	}
+
+	virtual FString GetArchiveName() const override
+	{
+		return TEXT("FActorSnapshotReader");
+	}
+
+	virtual int64 TotalSize() override
+	{
+		return ObjectInfo.SerializedData.Data.Num();
 	}
 
 	virtual int64 Tell() override
@@ -44,40 +62,48 @@ public:
 
 	virtual void Seek(int64 InPos) override
 	{
-		checkSlow(Offset <= Snapshot.SerializedData.Data.Num());
+		checkSlow(Offset <= ObjectInfo.SerializedData.Data.Num());
 		Offset = InPos;
 	}
 
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 	{
-		if (!InProperty)
-		{
-			return true;
-		}
+		bool bShouldSkipProperty = FArchiveUObject::ShouldSkipProperty(InProperty);
 
-		if (Filter)
+		if (!bShouldSkipProperty && Filter)
 		{
-			FSoftClassPath SoftClassPath(Snapshot.ObjectClassPathName);
+			FSoftClassPath SoftClassPath(ObjectInfo.ObjectClassPathName);
 			UClass* ActorClass = SoftClassPath.ResolveClass();
 
 			FString PropertyName = InProperty->GetName();
 
-			return !Filter->IsPropertyValid(Snapshot.ObjectName, ActorClass, PropertyName);
+			bShouldSkipProperty = !Filter->IsPropertyValid(ObjectInfo.ObjectName, ActorClass, PropertyName);
 		}
 
-		return false;
+		return bShouldSkipProperty;
 	}
 
 private:
 
 	virtual void Serialize(void* Data, int64 Num) override
 	{
-		if (Num && !IsError())
+		if (Num)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Reader Serialize!"));
-			if (Offset + Num <= Snapshot.SerializedData.Data.Num())
+			if (Offset + Num <= ObjectInfo.SerializedData.Data.Num())
 			{
-				FMemory::Memcpy(Data, &Snapshot.SerializedData.Data[(int32)Offset], Num);
+				if (const FInternalPropertySnapshot* MatchingProperty = FindMatchingProperty())
+				{					
+					if (MatchingProperty->PropertyPath.ToString().Contains("bHidden"))
+					{
+						FString ObjectName = ObjectInfo.ObjectName.ToString();
+						FString PropertyPath = MatchingProperty->PropertyPath.ToString();
+						bool bBool = *(bool*)&ObjectInfo.SerializedData.Data[(int32)Offset];
+						UE_LOG(LogTemp, Warning, TEXT("\tObject: %s\n\tProperty: %s\n\tValue = %s"), 
+							*ObjectName, *PropertyPath, bBool ? TEXT("True") : TEXT("False"));
+					}
+				}
+
+				FMemory::Memcpy(Data, &ObjectInfo.SerializedData.Data[(int32)Offset], Num);
 				Offset += Num;
 			}
 			else
@@ -87,15 +113,30 @@ private:
 		}
 	}
 
+	const FInternalPropertySnapshot* FindMatchingProperty() const
+	{
+		for (auto& PropertyEntry : ObjectInfo.Properties)
+		{
+			const FInternalPropertySnapshot& PropertySnapshot = PropertyEntry.Value;
+
+			if (PropertySnapshot.DataOffset == Offset)
+			{
+				return &PropertySnapshot;
+			}
+		}
+
+		return nullptr;
+	};
+
 	FArchive& operator<<(class FName& Name) override
 	{
 		int32 NameIndex;
 
 		(FArchive&)*this << NameIndex;
 
-		if (Snapshot.ReferencedNames.IsValidIndex(NameIndex))
+		if (ObjectInfo.ReferencedNames.IsValidIndex(NameIndex))
 		{
-			Name = Snapshot.ReferencedNames[NameIndex];
+			Name = ObjectInfo.ReferencedNames[NameIndex];
 		}
 		else
 		{
@@ -110,9 +151,9 @@ private:
 
 		(FArchive&)*this << ObjectIndex;
 
-		if (Snapshot.ReferencedObjects.IsValidIndex(ObjectIndex))
+		if (ObjectInfo.ReferencedObjects.IsValidIndex(ObjectIndex))
 		{
-			const FSoftObjectPath ObjectPath = Snapshot.ReferencedObjects[ObjectIndex];
+			const FSoftObjectPath ObjectPath = ObjectInfo.ReferencedObjects[ObjectIndex];
 			Object = ObjectPath.ResolveObject();
 
 			if (!Object)
@@ -129,7 +170,7 @@ private:
 		return (FArchive&)*this;
 	}
 
-	const FActorSnapshot& Snapshot;
+	const FBaseObjectInfo& ObjectInfo;
 	int64 Offset;
 	const ULevelSnapshotFilter* Filter;
 };
@@ -145,8 +186,8 @@ class FActorSnapshotWriter : public FArchiveUObject
 	};
 
 public:
-	FActorSnapshotWriter(FActorSnapshot& InSnapshot)
-		: Snapshot(InSnapshot)
+	FActorSnapshotWriter(FBaseObjectInfo& InObjectInfo)
+		: ObjectInfo(InObjectInfo)
 		, Offset(0)
 	{
 		this->SetWantBinaryPropertySerialization(false);
@@ -161,7 +202,7 @@ public:
 
 	virtual void Seek(int64 InPos) override
 	{
-		checkSlow(Offset <= Snapshot.SerializedData.Data.Num());
+		checkSlow(Offset <= ObjectInfo.SerializedData.Data.Num());
 		Offset = InPos;
 	}
 
@@ -170,25 +211,34 @@ private:
 	{
 		if (Num)
 		{
-			int32 ToAlloc = Offset + (int32)Num - Snapshot.SerializedData.Data.Num();
+			int32 ToAlloc = Offset + (int32)Num - ObjectInfo.SerializedData.Data.Num();
 			if (ToAlloc > 0)
 			{
-				Snapshot.SerializedData.Data.AddUninitialized(ToAlloc);
+				ObjectInfo.SerializedData.Data.AddUninitialized(ToAlloc);
 
 				FInternalPropertySnapshot& Property = GetProperty();
+
+				// Track this property offset in the serialized data, if actually allocated for it, and this isn't a seek back in the stream
+				Property.AppendSerializedData((uint32)Offset, (uint32)ToAlloc);
+
+				if (Property.PropertyPath.ToString().Contains("bHidden"))
+				{
+					FString ObjectName = ObjectInfo.ObjectName.ToString();
+					FString PropertyPath = Property.PropertyPath.ToString();
+					bool bBool = *(bool*)SerData;
+					UE_LOG(LogTemp, Warning, TEXT("\tObject: %s\n\tProperty: %s\n\tValue = %s"),
+						*ObjectName, *PropertyPath, bBool ? TEXT("True") : TEXT("False"));
+				}
 
 				// if we are in a property block
 				if (!Property.PropertyPath.Get())
 				{
-					// Track this property offset in the serialized data, if actually allocated for it, and this isn't a seek back in the stream
-					Property.AppendSerializedData((uint32)Offset, (uint32)ToAlloc);
-
 					// Map the start and end of the property block
-					Snapshot.PropertyBlockStart = FMath::Min(Snapshot.PropertyBlockStart, (uint32)Offset);
-					Snapshot.PropertyBlockEnd = FMath::Max(Snapshot.PropertyBlockEnd, (uint32)(Offset + ToAlloc));
+					ObjectInfo.PropertyBlockStart = FMath::Min(ObjectInfo.PropertyBlockStart, (uint32)Offset);
+					ObjectInfo.PropertyBlockEnd = FMath::Max(ObjectInfo.PropertyBlockEnd, (uint32)(Offset + ToAlloc));
 				}
 			}
-			FMemory::Memcpy(&Snapshot.SerializedData.Data[(int32)Offset], SerData, Num);
+			FMemory::Memcpy(&ObjectInfo.SerializedData.Data[(int32)Offset], SerData, Num);
 			Offset += Num;
 		}
 	}
@@ -196,13 +246,14 @@ private:
 	FInternalPropertySnapshot& GetProperty()
 	{
 		FPropertyInfo PropInfo = BuildPropertyInfo();
-		if (FInternalPropertySnapshot* PropertySnapshot = Snapshot.Properties.Find(PropInfo.PropertyPath))
+
+		if (FInternalPropertySnapshot* PropertySnapshot = ObjectInfo.Properties.Find(PropInfo.PropertyPath))
 		{
 			return *PropertySnapshot;
 		}
 		else
 		{
-			return Snapshot.Properties.Add(MoveTemp(PropInfo.PropertyPath), FInternalPropertySnapshot(PropInfo.Property, PropInfo.PropertyDepth));
+			return ObjectInfo.Properties.Add(MoveTemp(PropInfo.PropertyPath), FInternalPropertySnapshot(PropInfo.Property, PropInfo.PropertyDepth));
 		}
 	}
 
@@ -223,7 +274,7 @@ private:
 
 	FArchive& operator<<(class FName& N) override
 	{
-		int32 NameIndex = Snapshot.ReferencedNames.AddUnique(N);
+		int32 NameIndex = ObjectInfo.ReferencedNames.AddUnique(N);
 
 		// Track this name index as part of this property
 		GetProperty().AddNameReference(Offset, NameIndex);
@@ -235,14 +286,14 @@ private:
 		int32 ObjectIndex = INDEX_NONE;
 		if (Res)
 		{
-			if (AActor* TargetActor = Cast<AActor>((UObject*)Snapshot.ObjectAddress))
+			if (AActor* TargetActor = Cast<AActor>((UObject*)ObjectInfo.ObjectAddress))
 			{
 				if (Res->IsInOuter(TargetActor))
 				{
 					UE_LOG(LogTemp, Warning, TEXT("Referenced Object is owned by the target actor: %s"), *Res->GetName());
 				}
 			}
-			ObjectIndex = Snapshot.ReferencedObjects.AddUnique(Res);
+			ObjectIndex = ObjectInfo.ReferencedObjects.AddUnique(Res);
 		}
 
 		// Track this object index as part of this property
@@ -251,46 +302,96 @@ private:
 		return (FArchive&)*this << ObjectIndex;
 	}
 
-	FActorSnapshot& Snapshot;
+	FBaseObjectInfo& ObjectInfo;
 	int64 Offset;
 };
 
 
-FActorSnapshot::FActorSnapshot(AActor* TargetActor)
-	: ObjectName(TargetActor ? TargetActor->GetFName() : FName())
-	, ObjectOuterPathName(TargetActor && TargetActor->GetOuter() ? TargetActor->GetOuter()->GetPathName() : FString()) // TODO: can optimize GetPathName?
-	, ObjectClassPathName(TargetActor ? TargetActor->GetClass()->GetPathName() : FString())
-	, ObjectFlags(TargetActor ? (uint32)TargetActor->GetFlags() : 0)
-	, InternalObjectFlags(TargetActor ? (uint32)TargetActor->GetInternalFlags() : 0)
-	, ObjectAddress((uint64)TargetActor)
-	, InternalIndex(TargetActor ? TargetActor->GetUniqueID() : 0)
-	, PropertyBlockStart(0)
-	, PropertyBlockEnd(0)
+FLevelSnapshot_Actor::FLevelSnapshot_Actor(AActor* TargetActor)
+	: Base(TargetActor)
 {
-	FActorSnapshotWriter Writer(*this);
+	FActorSnapshotWriter Writer(Base);
 
 	TargetActor->Serialize(Writer);
+
+	TArray<UActorComponent*> Components;
+	TargetActor->GetComponents<UActorComponent>(Components);
+
+	for (UActorComponent* Component : Components)
+	{
+		if (Component)
+		{
+			ComponentSnapshots.Add(Component->GetPathName(), FLevelSnapshot_Component(Component));
+		}
+	}
 }
 
-AActor* FActorSnapshot::GetDeserializedActor() const
+AActor* FLevelSnapshot_Actor::GetDeserializedActor() const
 {
-	FSoftClassPath SoftClassPath(ObjectClassPathName);
+	AActor* DeserializedActor = nullptr;
+
+	FSoftClassPath SoftClassPath(Base.ObjectClassPathName);
 
 	if (UClass* TargetClass = SoftClassPath.ResolveClass())
 	{
 		//void* DeserializationBuffer = FMemory::Malloc(TargetClass->GetStructureSize());
 
-		AActor* DeserializedObject = NewObject<AActor>(GetTransientPackage(), TargetClass, NAME_None, EObjectFlags::RF_Transient);
+		DeserializedActor = NewObject<AActor>(GetTransientPackage(), TargetClass, NAME_None, EObjectFlags::RF_Transient);
+		
+		Deserialize(DeserializedActor);
+	}
 
-		if (DeserializedObject)
+	return DeserializedActor;;
+}
+
+void FLevelSnapshot_Actor::Deserialize(AActor* TargetActor) const
+{
+	if (!TargetActor)
+	{
+		return;
+	}
+
+#if WITH_EDITOR
+	TargetActor->Modify(true);
+#endif
+
+	FActorSnapshotReader Reader(Base);
+
+	TargetActor->Serialize(Reader);
+
+	// Deserialize all the components
+
+	TArray<UActorComponent*> Components;
+	TargetActor->GetComponents<UActorComponent>(Components);
+
+	for (UActorComponent* Component : Components)
+	{
+		if (const FLevelSnapshot_Component* ComponentSnapshot = ComponentSnapshots.Find(Component->GetPathName()))
 		{
-			FActorSnapshotReader Reader(*this);
+			UE_LOG(LogTemp, Warning, TEXT("Deserializing Component: %s"), *ComponentSnapshot->Base.ObjectName.ToString());
 
-			//DeserializedObject->Serialize(Reader);
+			FActorSnapshotReader ComponentReader(ComponentSnapshot->Base);
 
-			return DeserializedObject;
+			Component->Serialize(ComponentReader);
 		}
 	}
 
-	return nullptr;;
+	TargetActor->UpdateComponentTransforms();
+	TargetActor->PostLoad();
+}
+
+FLevelSnapshot_Component::FLevelSnapshot_Component(UActorComponent* TargetComponent)
+	: Base(TargetComponent)
+{
+	if (USceneComponent* SceneComponent = Cast<USceneComponent>(TargetComponent))
+	{
+		if (USceneComponent* ParentComponent = SceneComponent->GetAttachParent())
+		{
+			ParentComponentPath = ParentComponent->GetPathName();
+		}
+	}
+
+	FActorSnapshotWriter Writer(Base);
+
+	TargetComponent->Serialize(Writer);
 }

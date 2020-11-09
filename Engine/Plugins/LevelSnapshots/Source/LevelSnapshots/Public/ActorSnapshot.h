@@ -4,19 +4,12 @@
 
 #include "CoreMinimal.h"
 
+#include "BaseObjectInfo.h"
 #include "PropertySnapshot.h"
 
 #include "ActorSnapshot.generated.h"
 
-USTRUCT()
-struct FSerializedActorData
-{
-	GENERATED_BODY()
-
-	bool Serialize(FArchive& Ar);
-
-	TArray<uint8> Data;
-};
+class ULevelSnapshot;
 
 /**
  * TypeTraits to define FSerializedActorData with a Serialize function
@@ -31,66 +24,44 @@ struct TStructOpsTypeTraits<FSerializedActorData> : public TStructOpsTypeTraitsB
 };
 
 USTRUCT()
-struct LEVELSNAPSHOTS_API FActorSnapshot
+struct LEVELSNAPSHOTS_API FLevelSnapshot_Component
 {
 	GENERATED_BODY()
 
-	FActorSnapshot() = default;
+	FLevelSnapshot_Component() = default;
 
 	// Initialize the snapshot from a given actor
-	explicit FActorSnapshot(AActor* TargetActor);
+	explicit FLevelSnapshot_Component(UActorComponent* TargetComponent);
+
+	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
+	FBaseObjectInfo Base;
+
+	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
+	FString ParentComponentPath;
+};
+
+USTRUCT()
+struct LEVELSNAPSHOTS_API FLevelSnapshot_Actor
+{
+	GENERATED_BODY()
+
+	FLevelSnapshot_Actor() = default;
+
+	// Initialize the snapshot from a given actor
+	explicit FLevelSnapshot_Actor(AActor* TargetActor);
 
 	AActor* GetDeserializedActor() const;
 
-	/** The name of the object when it was serialized */
+	void Deserialize(AActor* TargetActor) const;
+
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	FName ObjectName;
+	FBaseObjectInfo Base;
 
-	/** The outer path name of the object when it was serialized */
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	FString ObjectOuterPathName;
+	TMap<FString, FLevelSnapshot_Component> ComponentSnapshots;
 
-	/** The path name of the object's class. */
-	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	FString ObjectClassPathName;
-
-	/** The object flags that would be loaded from an package file. */
-	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	uint32 ObjectFlags;
-
-	/** The object internal flags. i.e IsPendingKill */
-	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	uint32 InternalObjectFlags;
-
-	/** The object pointer address used to help identify renamed/moved object. */
-	UPROPERTY()
-	uint64 ObjectAddress;
-
-	/** The object internal index in the global object array used to help identify renamed/moved object. */
-	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	uint32 InternalIndex;
-
-	/** List of references to other objects, captured as soft object paths. */
-	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	TArray<FSoftObjectPath> ReferencedObjects;
-
-	/** List of references to names. */
-	UPROPERTY()
-	TArray<FName> ReferencedNames;
-
-	/** Map of property scopes found in this object snapshot. */
-	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	TMap<FName, FInternalPropertySnapshot> Properties;
-
-	/** Calculated offset of where the property blocks start in the snapshot data buffer. */
-	UPROPERTY()
-	uint32 PropertyBlockStart = 0;
-
-	/** Calculated offset of where the property blocks end in the snapshot data buffer. */
-	UPROPERTY()
-	uint32 PropertyBlockEnd = 0;
-
-	/** Actor Snapshot data buffer. */
-	UPROPERTY()
-	FSerializedActorData SerializedData;
+	bool operator==(const FLevelSnapshot_Actor& OtherSnapshot) const 
+	{
+		return OtherSnapshot.Base == this->Base;
+	};
 };

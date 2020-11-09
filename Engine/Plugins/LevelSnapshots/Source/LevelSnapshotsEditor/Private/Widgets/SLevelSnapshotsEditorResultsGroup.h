@@ -19,11 +19,11 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const FString& InObjectPath, const FActorSnapshot& InActorSnapshot);
+	void Construct(const FArguments& InArgs, const FString& InObjectPath, const FLevelSnapshot_Actor& InActorSnapshot);
 
 private:
 	FString ObjectPath;
 
-	FActorSnapshot ActorSnapshot;
+	FLevelSnapshot_Actor ActorSnapshot;
 };
 

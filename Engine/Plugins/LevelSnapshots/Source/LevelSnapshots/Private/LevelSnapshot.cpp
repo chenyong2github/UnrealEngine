@@ -19,16 +19,18 @@ void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 	{
 		AActor* Actor = *It;
 
-		UE_LOG(LogTemp, Warning, TEXT("Found Valid Object - %s"), *Actor->GetPathName());
-		if (Actor->IsA(UWorld::StaticClass()))
+		// For now only snapshot the actors which would be visible in the scene outliner to avoid complications with special hidden actors
+		if (Actor->IsListedInSceneOutliner())
 		{
-			continue;
+
+			UE_LOG(LogTemp, Warning, TEXT("Found Valid Object - %s"), *Actor->GetPathName());
+			SnapshotActor(Actor);
 		}
-		SnapshotActor(Actor);
 	}
+
 }
 
 void ULevelSnapshot::SnapshotActor(AActor* TargetActor)
 {
-	ActorSnapshots.Add(TargetActor->GetPathName(), FActorSnapshot(TargetActor));
+	FLevelSnapshot_Actor& NewSnapshot = ActorSnapshots.Add(TargetActor->GetPathName(), FLevelSnapshot_Actor(TargetActor));
 }

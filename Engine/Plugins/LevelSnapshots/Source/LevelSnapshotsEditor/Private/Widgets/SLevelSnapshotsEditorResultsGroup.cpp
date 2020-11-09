@@ -6,13 +6,13 @@ SLevelSnapshotsEditorResultsGroup::~SLevelSnapshotsEditorResultsGroup()
 {
 }
 
-void SLevelSnapshotsEditorResultsGroup::Construct(const FArguments& InArgs, const FString& InObjectPath, const FActorSnapshot& InActorSnapshot)
+void SLevelSnapshotsEditorResultsGroup::Construct(const FArguments& InArgs, const FString& InObjectPath, const FLevelSnapshot_Actor& InActorSnapshot)
 {
 	ObjectPath = InObjectPath;
 	ActorSnapshot = InActorSnapshot;
 
 	ChildSlot
-		[
-			SNew(STextBlock).Text(FText::FromString(ObjectPath))
-		];
+	[
+		SNew(STextBlock).Text(FText::FromString(ObjectPath))
+	];
 }

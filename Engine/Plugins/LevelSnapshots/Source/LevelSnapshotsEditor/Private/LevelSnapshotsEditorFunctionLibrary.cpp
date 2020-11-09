@@ -35,13 +35,13 @@ void ULevelSnapshotsEditorFunctionLibrary::SaveLevelSnapshotToDisk(ULevelSnapsho
 
 	// TODO. that is just for testing now
 	ULevelSnapshot* SnapshotAsset = NewObject<ULevelSnapshot>(CreatePackage(*PackageName), *AssetName, RF_Public, LevelSnapshot);
-	UWorld* World = GEditor->GetEditorWorldContext().World();
-	if (World != nullptr)
-	{
-		SnapshotAsset->MapName = World->GetMapName();
+	//UWorld* World = GEditor->GetEditorWorldContext().World();
+	//if (World != nullptr)
+	//{
+	//	SnapshotAsset->MapName = World->GetMapName();
 
-		SnapshotAsset->SnapshotWorld(World);
-	}
+	//	SnapshotAsset->SnapshotWorld(World);
+	//}
 
 
 	if (SnapshotAsset)
