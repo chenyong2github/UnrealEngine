@@ -421,6 +421,11 @@ namespace PyUtil
 	bool IsModuleImported(const TCHAR* InModuleName, PyObject** OutPyModule = nullptr);
 
 	/**
+	 * Get the path to the Python interpreter executable of the Python SDK this plugin was compiled against.
+	 */
+	FString GetInterpreterExecutablePath(bool* OutIsEnginePython = nullptr);
+
+	/**
 	 * Ensure that the given path is on the sys.path list.
 	 */
 	void AddSystemPath(const FString& InPath);

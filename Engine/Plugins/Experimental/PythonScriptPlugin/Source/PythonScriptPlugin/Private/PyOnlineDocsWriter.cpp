@@ -309,16 +309,13 @@ void FPyOnlineDocsWriter::GenerateFiles(const FString& InPythonStubPath)
 
 	UE_LOG(LogPython, Display, TEXT("  ... finished generating Sphinx files."));
 
+	bool bIsEnginePython = false;
+	const FString PythonPath = PyUtil::GetInterpreterExecutablePath(&bIsEnginePython);
+	
+	// We only use Sphinx on the version embedded in UE rather than as an executed external 
+	// process since other installs, paths and environment variables may act in unexpected ways.
 	FString Commandline = FCommandLine::Get();
-	bool bUseSphinx = Commandline.Contains(TEXT("-NoHTML")) == false;
-
-	if (bUseSphinx)
-	{
-		// We only use Sphinx on the version embedded in UE rather than as an executed external 
-		// process since other installs, paths and environment variables may act in unexpected ways.
-		FString PythonPath = UTF8_TO_TCHAR(UE_PYTHON_DIR);
-		bUseSphinx = PythonPath.Contains(TEXT("{ENGINE_DIR}"), ESearchCase::CaseSensitive);
-	}
+	bool bUseSphinx = bIsEnginePython && Commandline.Contains(TEXT("-NoHTML")) == false;
 
 	if (bUseSphinx)
 	{
@@ -331,22 +328,6 @@ void FPyOnlineDocsWriter::GenerateFiles(const FString& InPythonStubPath)
 		// installed then it will determine that quickly and move on to using it.
 		// More info on using pip within Python here:
 		//   https://pip.pypa.io/en/stable/user_guide/#using-pip-from-your-program
-
-		// Build the full Python directory (UE_PYTHON_DIR may be relative to UE engine directory for portability)
-		FString PythonRootPath = UTF8_TO_TCHAR(UE_PYTHON_DIR);
-		PythonRootPath.ReplaceInline(TEXT("{ENGINE_DIR}"), *FPaths::EngineDir(), ESearchCase::CaseSensitive);
-		FPaths::NormalizeDirectoryName(PythonRootPath);
-		FPaths::RemoveDuplicateSlashes(PythonRootPath);
-
-		FString PythonPath = PythonRootPath;
-#if PLATFORM_WINDOWS
-		PythonPath /= TEXT("python.exe");
-#elif PLATFORM_MAC || PLATFORM_LINUX
-		PythonPath /= TEXT("bin/python");
-#else
-		static_assert(false, "Python not supported on this platform!");
-#endif
-		PythonPath = FPaths::ConvertRelativePathToFull(PythonPath);
 
 		// Update pip and install Sphinx
 		{

@@ -991,6 +991,33 @@ bool IsModuleImported(const TCHAR* InModuleName, PyObject** OutPyModule)
 	return false;
 }
 
+FString GetInterpreterExecutablePath(bool* OutIsEnginePython)
+{
+	// Build the full Python directory (UE_PYTHON_DIR may be relative to UE engine directory for portability)
+	FString PythonPath = UTF8_TO_TCHAR(UE_PYTHON_DIR);
+	
+	if (OutIsEnginePython)
+	{
+		*OutIsEnginePython = PythonPath.Contains(TEXT("{ENGINE_DIR}"), ESearchCase::CaseSensitive);
+	}
+	PythonPath.ReplaceInline(TEXT("{ENGINE_DIR}"), *FPaths::EngineDir(), ESearchCase::CaseSensitive);
+
+	FPaths::NormalizeDirectoryName(PythonPath);
+	FPaths::RemoveDuplicateSlashes(PythonPath);
+
+#if PLATFORM_WINDOWS
+	PythonPath /= TEXT("python.exe");
+#elif PLATFORM_MAC || PLATFORM_LINUX
+	PythonPath /= TEXT("bin/python");
+#else
+	static_assert(false, "Python not supported on this platform!");
+#endif
+
+	PythonPath = FPaths::ConvertRelativePathToFull(PythonPath);
+
+	return PythonPath;
+}
+
 void AddSystemPath(const FString& InPath)
 {
 	if (PyObject* PyPathList = PySys_GetObject(PyCStrCast("path")))
