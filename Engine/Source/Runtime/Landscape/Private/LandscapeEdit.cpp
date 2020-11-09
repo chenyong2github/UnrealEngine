@@ -3714,38 +3714,65 @@ void ULandscapeInfo::GetUsedPaintLayers(const FGuid& InLayerGuid, TArray<ULandsc
 
 void ALandscapeProxy::EditorApplyScale(const FVector& DeltaScale, const FVector* PivotLocation, bool bAltDown, bool bShiftDown, bool bCtrlDown)
 {
-	FVector ModifiedScale = DeltaScale;
-
-	// Lock X and Y scaling to the same value
-	ModifiedScale.X = ModifiedScale.Y = (FMath::Abs(DeltaScale.X) > FMath::Abs(DeltaScale.Y)) ? DeltaScale.X : DeltaScale.Y;
-
-	// Correct for attempts to scale to 0 on any axis
+	FVector ModifiedDeltaScale = DeltaScale;
 	FVector CurrentScale = GetRootComponent()->GetRelativeScale3D();
+	
+	// Lock X and Y scaling to the same value :
+	FVector2D XYDeltaScaleAbs(FMath::Abs(DeltaScale.X), FMath::Abs(DeltaScale.Y));
+	// Preserve the sign of the chosen delta :
+	bool bFavorX = (XYDeltaScaleAbs.X > XYDeltaScaleAbs.Y);
+
 	if (AActor::bUsePercentageBasedScaling)
 	{
-		if (ModifiedScale.X == -1)
+		// Correct for attempts to scale to 0 on any axis
+		float XYDeltaScale = bFavorX ? DeltaScale.X : DeltaScale.Y;
+		if (XYDeltaScale == -1.0f)
 		{
-			ModifiedScale.X = ModifiedScale.Y = -(CurrentScale.X - 1) / CurrentScale.X;
+			XYDeltaScale = XYDeltaScale = -(CurrentScale.X - 1) / CurrentScale.X;
 		}
-		if (ModifiedScale.Z == -1)
+		if (ModifiedDeltaScale.Z == -1)
 		{
-			ModifiedScale.Z = -(CurrentScale.Z - 1) / CurrentScale.Z;
+			ModifiedDeltaScale.Z = -(CurrentScale.Z - 1) / CurrentScale.Z;
 		}
+
+		ModifiedDeltaScale.X = ModifiedDeltaScale.Y = XYDeltaScale;
 	}
 	else
 	{
-		if (ModifiedScale.X == -CurrentScale.X)
+		// The absolute value of X and Y must be preserved so make sure they are preserved in case they flip from positive to negative (e.g.: a (-X, X) scale is accepted) : 
+		float SignMultiplier = FMath::Sign(CurrentScale.X) * FMath::Sign(CurrentScale.Y);
+		FVector2D NewScale(FVector2D::ZeroVector);
+		if (bFavorX)
 		{
-			CurrentScale.X += 1;
-			CurrentScale.Y += 1;
+			NewScale.X = CurrentScale.X + DeltaScale.X;
+			if (NewScale.X == 0.0f)
+			{
+				// Correct for attempts to scale to 0 on this axis : doubly-increment the scale to avoid reaching 0 :
+				NewScale.X += DeltaScale.X;
+			}
+			NewScale.Y = SignMultiplier * NewScale.X;
 		}
-		if (ModifiedScale.Z == -CurrentScale.Z)
+		else
 		{
-			CurrentScale.Z += 1;
+			NewScale.Y = CurrentScale.Y + DeltaScale.Y;
+			if (NewScale.Y == 0.0f)
+			{
+				// Correct for attempts to scale to 0 on this axis : doubly-increment the scale to avoid reaching 0 :
+				NewScale.Y += DeltaScale.Y;
+			}
+			NewScale.X = SignMultiplier * NewScale.Y;
+		}
+
+		ModifiedDeltaScale.X = NewScale.X - CurrentScale.X;
+		ModifiedDeltaScale.Y = NewScale.Y - CurrentScale.Y;
+
+		if (ModifiedDeltaScale.Z == -CurrentScale.Z)
+		{
+			ModifiedDeltaScale.Z += 1;
 		}
 	}
 
-	Super::EditorApplyScale(ModifiedScale, PivotLocation, bAltDown, bShiftDown, bCtrlDown);
+	Super::EditorApplyScale(ModifiedDeltaScale, PivotLocation, bAltDown, bShiftDown, bCtrlDown);
 
 	// We need to regenerate collision objects, they depend on scale value 
 	for (ULandscapeHeightfieldCollisionComponent* Comp : CollisionComponents)
