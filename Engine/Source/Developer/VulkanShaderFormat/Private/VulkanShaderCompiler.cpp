@@ -917,7 +917,7 @@ static void ConvertToNEWHeader(FOLDVulkanCodeHeader& OLDHeader,
 						FVulkanShaderHeader::FPackedGlobalInfo& PackedGlobalInfo = OutHeader.PackedGlobals[HeaderPackedGlobalIndex];
 						PackedGlobalInfo.PackedTypeIndex = CrossCompiler::PackedTypeNameToTypeIndex(OLDHeader.NEWPackedUBToVulkanBindingIndices[BufferIndex].TypeName);
 						PackedGlobalInfo.PackedUBIndex = BufferIndex;
-						check(Size > 0);
+						checkf(Size > 0, TEXT("Assertion failed for shader parameter: %s"), *ParameterName);
 						PackedGlobalInfo.ConstantDataSizeInFloats = Size / sizeof(float);
 #if VULKAN_ENABLE_BINDING_DEBUG_NAMES
 						PackedGlobalInfo.DebugName = ParameterName;
@@ -2113,35 +2113,37 @@ static void GatherSpirvReflectionBindings(
 	}
 }
 
-static FString ConvertMetaDataTypeSpecifier(const SpvReflectTypeDescription& TypeSpecifier, bool bBaseTypeOnly = false)
+static void ConvertMetaDataTypeSpecifierPrimary(const SpvReflectTypeDescription& TypeSpecifier, FString& OutTypeName, uint32& OutTypeBitWidth, bool bBaseTypeOnly)
 {
-	FString TypeName;
-
 	// Generate prefix for base type
 	if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_BOOL)
 	{
-		TypeName += TEXT('b');
+		OutTypeName += TEXT('b');
+		OutTypeBitWidth = 8;
 	}
 	else if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_INT)
 	{
 		if (TypeSpecifier.traits.numeric.scalar.signedness)
 		{
-			TypeName += TEXT('i');
+			OutTypeName += TEXT('i');
 		}
 		else
 		{
-			TypeName += TEXT('u');
+			OutTypeName += TEXT('u');
 		}
+		OutTypeBitWidth = 32;
 	}
 	else if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_FLOAT)
 	{
 		if (TypeSpecifier.traits.numeric.scalar.width == 16)
 		{
-			TypeName += TEXT('h');
+			OutTypeName += TEXT('h');
+			OutTypeBitWidth = 16;
 		}
 		else
 		{
-			TypeName += TEXT('f');
+			OutTypeName += TEXT('f');
+			OutTypeBitWidth = 32;
 		}
 	}
 
@@ -2153,7 +2155,7 @@ static FString ConvertMetaDataTypeSpecifier(const SpvReflectTypeDescription& Typ
 			static const TCHAR* VectorDims = TEXT("1234");
 			const uint32 VectorSize = TypeSpecifier.traits.numeric.vector.component_count;
 			check(VectorSize >= 1 && VectorSize <= 4);
-			TypeName += VectorDims[VectorSize - 1];
+			OutTypeName += VectorDims[VectorSize - 1];
 		}
 		else if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
 		{
@@ -2169,10 +2171,20 @@ static FString ConvertMetaDataTypeSpecifier(const SpvReflectTypeDescription& Typ
 		}
 		else
 		{
-			TypeName += TEXT('1'); // add single scalar component
+			OutTypeName += TEXT('1'); // add single scalar component
 		}
 	}
+}
 
+static FString ConvertMetaDataTypeSpecifier(const SpvReflectTypeDescription& TypeSpecifier, uint32* OutTypeBitWidth = nullptr, bool bBaseTypeOnly = false)
+{
+	FString TypeName;
+	uint32 TypeBitWidth = sizeof(float) * 8;
+	ConvertMetaDataTypeSpecifierPrimary(TypeSpecifier, TypeName, TypeBitWidth, bBaseTypeOnly);
+	if (OutTypeBitWidth)
+	{
+		*OutTypeBitWidth = TypeBitWidth;
+	}
 	return TypeName;
 }
 
@@ -2518,18 +2530,19 @@ static void BuildShaderOutputFromSpirv(
 			{
 				const SpvReflectBlockVariable* Member = &(Binding->block.members[MemberIndex]);
 
-				const uint32 MbrOffset = Member->absolute_offset / sizeof(float);
-				const uint32 MbrSize = Member->size / sizeof(float);
 				const FString MemberName(ANSI_TO_TCHAR(Member->name));
-				const FString TypeSpecifier = ConvertMetaDataTypeSpecifier(*Member->type_description, true);
+				uint32 MemberTypeBitWidth = sizeof(float) * 8;
+				const FString TypeSpecifier = ConvertMetaDataTypeSpecifier(*Member->type_description, &MemberTypeBitWidth, true);
+				const uint32 MemberOffset = Member->absolute_offset / sizeof(float);
+				const uint32 MemberComponentCount = Member->size * 8 / MemberTypeBitWidth;
 
 				MbrString += FString::Printf(
 					TEXT("%s%s(%s:%u,%u)"),
 					MbrString.Len() ? TEXT(",") : TEXT(""),
 					*MemberName,
 					TEXT("h"),//*TypeSpecifier,
-					MbrOffset,
-					MbrSize
+					MemberOffset,
+					MemberComponentCount
 				);
 			}
 
@@ -3045,7 +3058,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	{
 		for (const auto& Error : Output.Errors)
 		{
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s\n"), *Error.GetErrorString());
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s\n"), *Error.GetErrorStringWithLineMarker());
 		}
 		ensure(bSuccess);
 	}
