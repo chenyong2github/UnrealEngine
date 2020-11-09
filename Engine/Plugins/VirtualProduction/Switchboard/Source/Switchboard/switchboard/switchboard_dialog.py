@@ -975,7 +975,7 @@ class SwitchboardDialog(QtCore.QObject):
     def device_status_changed(self, device, previous_status):
 
         # Update the device widget
-        self.device_list_widget.update_status(device, previous_status)
+        device.widget.update_status(device.status, previous_status)
 
         devices = self.device_manager.devices_of_type(device.device_type)
         self.device_list_widget.update_category_status(device.category_name, devices)
