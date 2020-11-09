@@ -29,7 +29,10 @@ public:
 	virtual void StartMeshUpdates() = 0;
 	virtual struct FOpenXRMeshUpdate* AllocateMeshUpdate(FGuid InGuidMeshUpdate) = 0;
 	virtual void RemoveMesh(FGuid InGuidMeshUpdate) = 0;
+	virtual struct FOpenXRPlaneUpdate* AllocatePlaneUpdate(FGuid InGuidPlaneUpdate) = 0;
+	virtual void RemovePlane(FGuid InGuidPlaneUpdate) = 0;
 	virtual void EndMeshUpdates() = 0;
+	virtual void ObjectUpdated(FOpenXRARTrackedGeometryData* InUpdate) = 0;
 };
 
 // Base class for ARTrackedGeometryData
@@ -41,7 +44,8 @@ struct FOpenXRARTrackedGeometryData : public FNoncopyable
 	{
 		Unknown,
 		Mesh,
-		QRCode
+		QRCode,
+		Plane
 	};
 	const EDataType DataType;
 	FGuid Id;
@@ -87,6 +91,20 @@ struct FOpenXRMeshUpdate : public FOpenXRARTrackedGeometryData
 
 	FOpenXRMeshUpdate() :
 		FOpenXRARTrackedGeometryData(EDataType::Mesh)
+	{
+	}
+
+	OPENXRAR_API virtual UARTrackedGeometry* ConstructNewTrackedGeometry(TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARSupportInterface) override;
+	OPENXRAR_API virtual void UpdateTrackedGeometry(UARTrackedGeometry* TrackedGeometry, TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARSupportInterface) override;
+};
+
+struct FOpenXRPlaneUpdate : public FOpenXRARTrackedGeometryData
+{
+	EARObjectClassification Type = EARObjectClassification::NotApplicable;
+	FVector Extent;
+
+	FOpenXRPlaneUpdate() :
+		FOpenXRARTrackedGeometryData(EDataType::Plane)
 	{
 	}
 

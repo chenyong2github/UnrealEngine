@@ -52,6 +52,9 @@ enum class EARCaptureType : uint8
 
 	/** Spatial mapping so the app can selectively turn off discovering surfaces */
 	SpatialMapping,
+
+	/** Capture detailed information about the scene with all surfaces like walls, floors and so on*/
+	SceneUnderstanding,
 };
 
 

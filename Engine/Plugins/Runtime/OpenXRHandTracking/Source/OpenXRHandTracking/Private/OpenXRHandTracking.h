@@ -54,7 +54,7 @@ public:
 	virtual const void* OnGetSystem(XrInstance InInstance, const void* InNext) override;
 	virtual const void* OnCreateSession(XrInstance InInstance, XrSystemId InSystem, const void* InNext) override;
 	virtual const void* OnBeginSession(XrSession InSession, const void* InNext) override;
-	virtual void PostSyncActions(XrSession InSession, XrTime DisplayTime, XrSpace TrackingSpace) override;
+	virtual void UpdateDeviceLocations(XrSession InSession, XrTime DisplayTime, XrSpace TrackingSpace) override;
 
 	/** IMotionController interface */
 	virtual bool GetControllerOrientationAndPosition(const int32 ControllerIndex, const FName MotionSource, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const override;

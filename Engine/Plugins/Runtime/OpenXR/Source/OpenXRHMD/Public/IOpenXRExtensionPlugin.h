@@ -6,6 +6,7 @@
 #include "Features/IModularFeatures.h"
 #include "ARTypes.h"
 #include "ARTextures.h"
+#include "ARTraceResult.h"
 
 #include <openxr/openxr.h>
 
@@ -89,6 +90,11 @@ public:
 	virtual bool IsEnabled() const
 	{
 		return false;
+	}
+
+	virtual TArray<FARTraceResult> OnLineTraceTrackedObjects(const TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARCompositionComponent, const FVector Start, const FVector End, const EARLineTraceChannels TraceChannels)
+	{
+		return {};
 	}
 };
 
@@ -248,6 +254,11 @@ public:
 	virtual const void* OnSyncActions(XrSession InSession, const void* InNext)
 	{
 		return InNext;
+	}
+
+	// OpenXRHMD::OnStartGameFrame
+	virtual void UpdateDeviceLocations(XrSession InSession, XrTime DisplayTime, XrSpace TrackingSpace)
+	{
 	}
 
 	// FOpenXRInput::Tick, game thread, after xrSyncActions

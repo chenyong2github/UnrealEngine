@@ -16,6 +16,7 @@
 #define LOCTEXT_NAMESPACE "OpenXRAR"
 
 DECLARE_CYCLE_STAT(TEXT("Process Mesh Updates"), STAT_FOpenXRARSystem_ProcessMeshUpdates, STATGROUP_OPENXRAR);
+DECLARE_CYCLE_STAT(TEXT("Process Plane Updates"), STAT_FOpenXRARSystem_ProcessPlaneUpdates, STATGROUP_OPENXRAR);
 DECLARE_CYCLE_STAT(TEXT("ARTrackedGeometry Added"), STAT_FOpenXRARSystem_ARTrackedGeometryAdded_GameThread, STATGROUP_OPENXRAR);
 DECLARE_CYCLE_STAT(TEXT("ARTrackedGeometry Updated"), STAT_FOpenXRARSystem_ARTrackedGeometryUpdated_GameThread, STATGROUP_OPENXRAR);
 DECLARE_CYCLE_STAT(TEXT("ARTrackedGeometry Removed"), STAT_FOpenXRARSystem_ARTrackedGeometryRemoved_GameThread, STATGROUP_OPENXRAR);
@@ -55,11 +56,37 @@ void FOpenXRARSystem::SetTrackingSystem(TSharedPtr<FXRTrackingSystemBase, ESPMod
 		if (QRCapture == nullptr)
 		{
 			QRCapture = Plugin->GetCustomCaptureSupport(EARCaptureType::QRCode);
+			if (QRCapture != nullptr)
+			{
+				CustomCaptureSupports.Emplace(QRCapture);
+			}
 		}
 
 		if (CamCapture == nullptr)
 		{
 			CamCapture = Plugin->GetCustomCaptureSupport(EARCaptureType::Camera);
+			if (CamCapture != nullptr)
+			{
+				CustomCaptureSupports.Emplace(CamCapture);
+			}
+		}
+
+		if (SpatialMappingCapture == nullptr)
+		{
+			SpatialMappingCapture = Plugin->GetCustomCaptureSupport(EARCaptureType::SpatialMapping);
+			if (SpatialMappingCapture != nullptr)
+			{
+				CustomCaptureSupports.Emplace(SpatialMappingCapture);
+			}
+		}
+
+		if (SceneUnderstandingCapture == nullptr)
+		{
+			SceneUnderstandingCapture = Plugin->GetCustomCaptureSupport(EARCaptureType::SceneUnderstanding);
+			if (SceneUnderstandingCapture != nullptr)
+			{
+				CustomCaptureSupports.Emplace(SceneUnderstandingCapture);
+			}
 		}
 	}
 
@@ -349,7 +376,24 @@ TArray<FARTraceResult> FOpenXRARSystem::OnLineTraceTrackedObjects(const FVector2
 
 TArray<FARTraceResult> FOpenXRARSystem::OnLineTraceTrackedObjects(const FVector Start, const FVector End, EARLineTraceChannels TraceChannels)
 {
-	return {};
+	if (!TrackingSystem)
+	{
+		return {};
+	}
+
+	TArray<FARTraceResult> Results;
+
+	for (auto CustomCapture : CustomCaptureSupports)
+	{
+		Results += CustomCapture->OnLineTraceTrackedObjects(TrackingSystem->GetARCompositionComponent(), Start, End, TraceChannels);
+	}
+
+	Results.Sort([](const FARTraceResult& A, const FARTraceResult& B)
+	{
+		return A.GetDistanceFromCamera() < B.GetDistanceFromCamera();
+	});
+
+	return Results;
 }
 
 TArray<UARTrackedGeometry*> FOpenXRARSystem::OnGetAllTrackedGeometries() const
@@ -367,7 +411,7 @@ void FOpenXRARSystem::StartMeshUpdates()
 {
 	CurrentUpdateSync.Lock();
 	CurrentUpdate = new FMeshUpdateSet();
-
+	SUCurrentPlaneUpdate = new FPlaneUpdateSet();
 }
 
 FOpenXRMeshUpdate* FOpenXRARSystem::AllocateMeshUpdate(FGuid InGuidMeshUpdate)
@@ -383,6 +427,22 @@ void FOpenXRARSystem::RemoveMesh(FGuid InGuidMeshUpdate)
 {
 	auto GTTask = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(this, &FOpenXRARSystem::RemoveMesh_GameThread, InGuidMeshUpdate);
 	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(GTTask, GET_STATID(STAT_FOpenXRARSystem_ProcessMeshUpdates), nullptr, ENamedThreads::GameThread);
+}
+
+FOpenXRPlaneUpdate* FOpenXRARSystem::AllocatePlaneUpdate(FGuid InGuidPlaneUpdate)
+{
+	FOpenXRPlaneUpdate* PlaneUpdate = new FOpenXRPlaneUpdate();
+	PlaneUpdate->Id = InGuidPlaneUpdate;
+
+	SUCurrentPlaneUpdate->GuidToPlaneUpdateList.Add(PlaneUpdate->Id, PlaneUpdate);
+	return PlaneUpdate;
+}
+
+void FOpenXRARSystem::RemovePlane(FGuid InGuidPlaneUpdate)
+{
+	//RemoveMesh_GameThread is capable to remove all tracked geometries like meshes and planes
+	auto GTTask = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(this, &FOpenXRARSystem::RemoveMesh_GameThread, InGuidPlaneUpdate);
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(GTTask, GET_STATID(STAT_FOpenXRARSystem_ProcessPlaneUpdates), nullptr, ENamedThreads::GameThread);
 }
 
 void FOpenXRARSystem::EndMeshUpdates()
@@ -404,9 +464,29 @@ void FOpenXRARSystem::EndMeshUpdates()
 		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(MeshProcessTask, GET_STATID(STAT_FOpenXRARSystem_ProcessMeshUpdates), nullptr, ENamedThreads::GameThread);
 	}
 
+	bNeedsThreadQueueing = true;
+	{
+		FScopeLock sl(&SUPlaneUpdateListSync);
+		SUPlaneUpdateList.Add(SUCurrentPlaneUpdate);
+		bNeedsThreadQueueing = MeshUpdateList.Num() == 1;
+	}
+	SUCurrentPlaneUpdate = nullptr;
+
+	if (bNeedsThreadQueueing)
+	{
+		// Queue a game thread processing update
+		auto MeshProcessTask = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(this, &FOpenXRARSystem::ProcessSUPlaneUpdates_GameThread);
+		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(MeshProcessTask, GET_STATID(STAT_FOpenXRARSystem_ProcessPlaneUpdates), nullptr, ENamedThreads::GameThread);
+	}
+
 	CurrentUpdateSync.Unlock();
 }
 
+void FOpenXRARSystem::ObjectUpdated(FOpenXRARTrackedGeometryData* InUpdate)
+{
+	auto Task = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(this, &FOpenXRARSystem::OnObjectUpdated_GameThread, InUpdate);
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(Task, GET_STATID(STAT_FOpenXRARSystem_ProcessPlaneUpdates), nullptr, ENamedThreads::GameThread);
+}
 
 void FOpenXRARSystem::RemoveMesh_GameThread(FGuid InGuidMeshUpdate)
 {
@@ -512,6 +592,110 @@ void FOpenXRARSystem::AddOrUpdateMesh_GameThread(FOpenXRMeshUpdate* CurrentMesh)
 	}
 }
 
+void FOpenXRARSystem::ProcessSUPlaneUpdates_GameThread()
+{
+	FPlaneUpdateSet* UpdateToProcess = nullptr;
+	bool bIsDone = false;
+	while (!bIsDone)
+	{
+		// Lock our game thread queue to pull the next set of updates
+		{
+			FScopeLock sl(&SUPlaneUpdateListSync);
+			if (SUPlaneUpdateList.Num() > 0)
+			{
+				UpdateToProcess = SUPlaneUpdateList[0];
+				SUPlaneUpdateList.RemoveAt(0);
+			}
+			else
+			{
+				bIsDone = true;
+			}
+		}
+		// It's possible that a previous call handled the updates since we loop
+		if (UpdateToProcess != nullptr)
+		{
+			// Iterate through the list of updates processing them
+			for (TMap<FGuid, FOpenXRPlaneUpdate*>::TConstIterator Iter(UpdateToProcess->GuidToPlaneUpdateList); Iter; ++Iter)
+			{
+				FOpenXRPlaneUpdate* CurrentPlaneUpdate = Iter.Value();
+				AddOrUpdatePlane_GameThread(CurrentPlaneUpdate);
+				delete CurrentPlaneUpdate;
+			}
+
+			// This update is done, so delete it
+			delete UpdateToProcess;
+			UpdateToProcess = nullptr;
+		}
+	}
+}
+
+void FOpenXRARSystem::AddOrUpdatePlane_GameThread(FOpenXRPlaneUpdate* CurrentPlaneUpdate)
+{
+	bool bIsAdd = false;
+
+	FTrackedGeometryGroup* FoundTrackedGeometryGroup = TrackedGeometryGroups.Find(CurrentPlaneUpdate->Id);
+	if (FoundTrackedGeometryGroup == nullptr)
+	{
+		// We haven't seen this one before so add it to our set
+		UARTrackedGeometry* NewARTrackedGeometery = CurrentPlaneUpdate->ConstructNewTrackedGeometry(nullptr);
+		FTrackedGeometryGroup TrackedGeometryGroup(NewARTrackedGeometery);
+		TrackedGeometryGroups.Add(CurrentPlaneUpdate->Id, TrackedGeometryGroup);
+
+		FoundTrackedGeometryGroup = TrackedGeometryGroups.Find(CurrentPlaneUpdate->Id);
+		check(FoundTrackedGeometryGroup);
+
+		bIsAdd = true;
+
+		AARActor::RequestSpawnARActor(CurrentPlaneUpdate->Id, SessionConfig->GetPlaneComponentClass());
+	}
+
+	UARTrackedGeometry* NewUpdatedGeometry = FoundTrackedGeometryGroup->TrackedGeometry;
+	CurrentPlaneUpdate->UpdateTrackedGeometry(NewUpdatedGeometry, TrackingSystem->GetARCompositionComponent());
+
+	// Trigger the proper notification delegate
+	if (!bIsAdd)
+	{
+		UARComponent* NewUpdatedARComponent = FoundTrackedGeometryGroup->ARComponent;
+		if (NewUpdatedARComponent)
+		{
+			NewUpdatedARComponent->Update(NewUpdatedGeometry);
+			TriggerOnTrackableUpdatedDelegates(NewUpdatedGeometry);
+		}
+	}
+}
+
+void FOpenXRARSystem::OnObjectUpdated_GameThread(FOpenXRARTrackedGeometryData* InUpdate)
+{
+	FTrackedGeometryGroup* FoundTrackedGeometryGroup = TrackedGeometryGroups.Find(InUpdate->Id);
+	if (FoundTrackedGeometryGroup == nullptr)
+	{
+		return;
+	}
+
+	UARTrackedGeometry* NewUpdatedGeometry = FoundTrackedGeometryGroup->TrackedGeometry;
+	UARComponent* NewUpdatedARComponent = FoundTrackedGeometryGroup->ARComponent;
+
+	if (NewUpdatedGeometry == nullptr)
+	{
+		return;
+	}
+
+	// Update the tracking data, it MUST be done after UpdateMesh
+	NewUpdatedGeometry->UpdateTrackedGeometry(TrackingSystem->GetARCompositionComponent().ToSharedRef(),
+		GFrameCounter,
+		FPlatformTime::Seconds(),
+		InUpdate->LocalToTrackingTransform,
+		TrackingSystem->GetARCompositionComponent()->GetAlignmentTransform());
+	// Mark this as a world mesh that isn't recognized as a particular scene type, since it is loose triangles
+	NewUpdatedGeometry->SetTrackingState(InUpdate->TrackingState);
+
+	// Trigger the proper notification delegate
+	if (NewUpdatedARComponent)
+	{
+		NewUpdatedARComponent->Update(NewUpdatedGeometry);
+		TriggerOnTrackableUpdatedDelegates(NewUpdatedGeometry);
+	}
+}
 
 void FOpenXRARSystem::ClearTrackedGeometries()
 {
@@ -667,11 +851,25 @@ bool FOpenXRARSystem::OnToggleARCapture(const bool bOnOff, const EARCaptureType 
 		{
 			return CamCapture->OnToggleARCapture(bOnOff);
 		}
+		break;
 	case EARCaptureType::QRCode:
 		if (QRCapture)
 		{
 			return QRCapture->OnToggleARCapture(bOnOff);
 		}
+		break;
+	case EARCaptureType::SpatialMapping:
+		if (SpatialMappingCapture)
+		{
+			return SpatialMappingCapture->OnToggleARCapture(bOnOff);
+		}
+		break;
+	case EARCaptureType::SceneUnderstanding:
+		if (SceneUnderstandingCapture)
+		{
+			return SceneUnderstandingCapture->OnToggleARCapture(bOnOff);
+		}
+		break;
 	}
 
 	return false;

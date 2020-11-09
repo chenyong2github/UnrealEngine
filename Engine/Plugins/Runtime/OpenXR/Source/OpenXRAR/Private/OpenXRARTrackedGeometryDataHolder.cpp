@@ -36,7 +36,7 @@ UARTrackedGeometry* FOpenXRMeshUpdate::ConstructNewTrackedGeometry(TSharedPtr<FA
 {
 	check(IsInGameThread());
 
-	UARTrackedGeometry* NewMesh = NewObject<UARTrackedGeometry>();
+	UARMeshGeometry* NewMesh = NewObject<UARMeshGeometry>();
 	NewMesh->UniqueId = Id;
 	return NewMesh;
 };
@@ -67,6 +67,73 @@ void FOpenXRMeshUpdate::UpdateTrackedGeometry(UARTrackedGeometry* TrackedGeometr
 	// Mark this as a world mesh that isn't recognized as a particular scene type, since it is loose triangles
 	UpdatedGeometry->SetObjectClassification(Type);
 	UpdatedGeometry->SetTrackingState(TrackingState);
+}
 
-	check(false); // Meshes are currently handled with a unique codepath.
+UARTrackedGeometry* FOpenXRPlaneUpdate::ConstructNewTrackedGeometry(TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARSupportInterface)
+{
+	check(IsInGameThread());
+
+	UARPlaneGeometry* NewPlane = NewObject<UARPlaneGeometry>();
+	NewPlane->UniqueId = Id;
+	return NewPlane;
+}
+
+void FOpenXRPlaneUpdate::UpdateTrackedGeometry(UARTrackedGeometry* TrackedGeometry, TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARSupportInterface)
+{
+	// Add the occlusion geo if configured
+	if (ARSupportInterface->GetSessionConfig().bGenerateMeshDataFromTrackedGeometry)
+	{
+		if (auto MRMesh = TrackedGeometry->GetUnderlyingMesh())
+		{
+			// Generate the mesh from the reference image's sizes
+			TArray<FVector> Vertices;
+			Vertices.Reset(4);
+			Vertices.Add(Extent);
+			Vertices.Add(FVector(Extent.X, -Extent.Y, Extent.Z));
+			Vertices.Add(FVector(-Extent.X, -Extent.Y, Extent.Z));
+			Vertices.Add(FVector(-Extent.X, Extent.Y, Extent.Z));
+
+			// Two triangles
+			TArray<MRMESH_INDEX_TYPE> Indices;
+			Indices.Reset(6);
+			Indices.Add(0);
+			Indices.Add(1);
+			Indices.Add(2);
+			Indices.Add(2);
+			Indices.Add(3);
+			Indices.Add(0);
+
+			// MRMesh takes ownership of the data in the arrays at this point
+			MRMesh->UpdateMesh(LocalToTrackingTransform.GetLocation(), LocalToTrackingTransform.GetRotation(), LocalToTrackingTransform.GetScale3D(), Vertices, Indices);
+		}
+	}
+
+	UARPlaneGeometry* NewPlane = Cast<UARPlaneGeometry>(TrackedGeometry);
+
+	// Update the tracking data, it MUST be done after UpdateMesh
+	if (NewPlane)
+	{
+		NewPlane->UpdateTrackedGeometry(ARSupportInterface.ToSharedRef(),
+			GFrameCounter,
+			FPlatformTime::Seconds(),
+			LocalToTrackingTransform,
+			ARSupportInterface->GetAlignmentTransform(),
+			FVector::ZeroVector,
+			Extent);
+
+	}
+	else
+	{
+		TrackedGeometry->UpdateTrackedGeometry(ARSupportInterface.ToSharedRef(),
+			GFrameCounter,
+			FPlatformTime::Seconds(),
+			LocalToTrackingTransform,
+			ARSupportInterface->GetAlignmentTransform());
+
+	}
+
+	// Mark this as a world mesh that isn't recognized as a particular scene type, since it is loose triangles
+	TrackedGeometry->SetObjectClassification(Type);
+	// This must be called AFTER UpdateTrackedGeometry because UpdateTrackedGeometry silently assign Tracked state even if tracking lost
+	TrackedGeometry->SetTrackingState(TrackingState); 
 }
