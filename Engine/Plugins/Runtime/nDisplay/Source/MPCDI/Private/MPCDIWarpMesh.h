@@ -14,8 +14,8 @@ public:
 	// Raise the flag [mutable bIsStaticMeshChanged] for the changed mesh geometry and store the new mesh name in [mutable StaticMeshName]
 	UStaticMeshComponent* GetOrFindWarpMeshComponent() const;
 
-	// Clear flags [bIsStaticMeshChanged]
-	void ResetWarpMeshComponent();
+	// remove ref, set as nullptr
+	void ResetMeshComponent();
 
 	// Save ComponentPtr, clear flags [bIsStaticMeshChanged] and save StaticMeshName
 	bool SetWarpMeshComponent(UStaticMeshComponent* ComponentPtr);
@@ -23,6 +23,10 @@ public:
 	// Detect mesh object changes for warp logic
 	bool IsWarpMeshChanged() const
 		{ return bIsStaticMeshChanged; }
+
+protected:
+	// Clear flags [bIsStaticMeshChanged]
+	void ResetWarpMeshChangedFlag();
 
 private:
 	// Compares the assigned static mesh object by name, and raise for changed [mutable] bIsStaticMeshChanged

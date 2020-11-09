@@ -68,8 +68,8 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 	CurrentWorld = InWorld;
 
 	// Find nDisplay root actor
-	DisplayClusterRootActor = FindDisplayClusterRootActor(InWorld);
-	if (!DisplayClusterRootActor)
+	ADisplayClusterRootActor* RootActor = FindDisplayClusterRootActor(InWorld);
+	if (!RootActor)
 	{
 		// Also search inside streamed levels
 		const TArray<ULevelStreaming*>& StreamingLevels = InWorld->GetStreamingLevels();
@@ -79,10 +79,10 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 			{
 				// Look for the actor in those sub-levels that have been loaded already
 				const TSoftObjectPtr<UWorld>& SubWorldAsset = StreamingLevel->GetWorldAsset();
-				DisplayClusterRootActor = FindDisplayClusterRootActor(SubWorldAsset.Get());
+				RootActor = FindDisplayClusterRootActor(SubWorldAsset.Get());
 			}
 
-			if (DisplayClusterRootActor)
+			if (RootActor)
 			{
 				// Ok, we found it in a sublevel
 				break;
@@ -93,11 +93,13 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 	// In cluster mode we spawn root actor if no actors found
 	if (GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster)
 	{
-		if (!DisplayClusterRootActor)
+		if (!RootActor)
 		{
-			DisplayClusterRootActor = Cast<ADisplayClusterRootActor>(CurrentWorld->SpawnActor(ADisplayClusterRootActor::StaticClass()));
+			RootActor = Cast<ADisplayClusterRootActor>(CurrentWorld->SpawnActor(ADisplayClusterRootActor::StaticClass()));
 		}
 	}
+
+	DisplayClusterRootActorRef.SetSceneActor(RootActor);
 
 	return true;
 }
@@ -105,7 +107,7 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 void FDisplayClusterGameManager::EndScene()
 {
 	FScopeLock Lock(&InternalsSyncScope);
-	DisplayClusterRootActor = nullptr;
+	DisplayClusterRootActorRef.ResetSceneActor();
 	CurrentWorld = nullptr;
 }
 
@@ -116,7 +118,7 @@ void FDisplayClusterGameManager::EndScene()
 ADisplayClusterRootActor* FDisplayClusterGameManager::GetRootActor() const
 {
 	FScopeLock Lock(&InternalsSyncScope);
-	return DisplayClusterRootActor;
+	return Cast<ADisplayClusterRootActor>(DisplayClusterRootActorRef.GetOrFindSceneActor());
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -126,12 +128,13 @@ ADisplayClusterRootActor* FDisplayClusterGameManager::FindDisplayClusterRootActo
 {
 	if (InWorld && InWorld->PersistentLevel)
 	{
-		for (AActor* const Actor : InWorld->PersistentLevel->Actors)
+		UClass* DisplayClusterRootActorClass = StaticLoadClass(UObject::StaticClass(), nullptr, TEXT("/Script/DisplayCluster.DisplayClusterRootActor"), NULL, LOAD_None, NULL);
+		if (DisplayClusterRootActorClass)
 		{
-			if (Actor && !Actor->IsPendingKill())
+			for (TActorIterator<AActor> It(InWorld, DisplayClusterRootActorClass, EActorIteratorFlags::SkipPendingKill); It; ++It)
 			{
-				ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(Actor);
-				if (RootActor)
+				ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(*It);
+				if (RootActor != nullptr && !RootActor->IsTemplate())
 				{
 					UE_LOG(LogDisplayClusterGame, Log, TEXT("Found root actor - %s"), *RootActor->GetName());
 					return RootActor;

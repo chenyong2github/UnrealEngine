@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
+#include "Misc/DisplayClusterObjectRef.h"
 
 class USceneComponent;
 
@@ -24,12 +25,12 @@ public:
 
 	const USceneComponent* const GetOriginComp() const
 	{
-		return PolicyOriginComp;
+		return PolicyOriginComponentRef.GetOrFindSceneComponent();
 	}
 
 	void SetOriginComp(USceneComponent* OriginComp)
 	{
-		PolicyOriginComp = OriginComp;
+		PolicyOriginComponentRef.SetSceneComponent(OriginComp);
 	}
 
 	TMap<FString, FString>& GetParameters()
@@ -44,12 +45,12 @@ public:
 
 protected:
 	void InitializeOriginComponent(const FString& OriginCopmId);
+	void ReleaseOriginComponent();
 
 private:
 	// Added 'Policy' prefix to avoid "... hides class name ..." warnings in child classes
 	FString PolicyViewportId;
 	FString PolicyOriginCompId;
-	USceneComponent* PolicyOriginComp = nullptr;
-
 	TMap<FString, FString> Parameters;
+	FDisplayClusterSceneComponentRef PolicyOriginComponentRef;
 };

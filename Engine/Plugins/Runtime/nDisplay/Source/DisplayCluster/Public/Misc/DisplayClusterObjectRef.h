@@ -16,6 +16,10 @@
 class FDisplayClusterActorRef
 {
 public:
+	virtual ~FDisplayClusterActorRef()
+	{ }
+
+public:
 	bool IsDefinedSceneActor() const
 	{
 		return !ActorPtr.IsExplicitlyNull() && !WorldPtr.IsExplicitlyNull() && !ActorClassName.IsEmpty() && !ActorName.IsNone();
@@ -161,6 +165,15 @@ protected:
 class FDisplayClusterSceneComponentRef
 	: public FDisplayClusterActorRef
 {
+public:
+	FDisplayClusterSceneComponentRef()
+	{ }
+
+	FDisplayClusterSceneComponentRef(USceneComponent* InComponent)
+	{
+		SetSceneComponent(InComponent);
+	}
+
 public:
 	bool IsDefinedSceneComponent() const
 	{

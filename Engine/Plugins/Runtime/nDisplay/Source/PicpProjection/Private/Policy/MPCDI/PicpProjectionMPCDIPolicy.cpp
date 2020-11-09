@@ -54,6 +54,8 @@ void FPicpProjectionMPCDIPolicy::StartScene(UWorld* World)
 void FPicpProjectionMPCDIPolicy::EndScene()
 {
 	check(IsInGameThread());
+
+	ReleaseOriginComponent();
 }
 
 bool FPicpProjectionMPCDIPolicy::HandleAddViewport(const FIntPoint& InViewportSize, const uint32 InViewsAmount)

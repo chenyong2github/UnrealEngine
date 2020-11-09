@@ -36,6 +36,8 @@ void FDisplayClusterProjectionEasyBlendPolicyBase::StartScene(UWorld* World)
 void FDisplayClusterProjectionEasyBlendPolicyBase::EndScene()
 {
 	check(IsInGameThread());
+
+	ReleaseOriginComponent();
 }
 
 bool FDisplayClusterProjectionEasyBlendPolicyBase::HandleAddViewport(const FIntPoint& ViewportSize, const uint32 ViewsAmount)

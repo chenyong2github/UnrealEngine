@@ -44,6 +44,8 @@ void FDisplayClusterProjectionMPCDIPolicy::StartScene(UWorld* World)
 void FDisplayClusterProjectionMPCDIPolicy::EndScene()
 {
 	check(IsInGameThread());
+
+	ReleaseOriginComponent();
 }
 
 bool FDisplayClusterProjectionMPCDIPolicy::HandleAddViewport(const FIntPoint& InViewportSize, const uint32 InViewsAmount)

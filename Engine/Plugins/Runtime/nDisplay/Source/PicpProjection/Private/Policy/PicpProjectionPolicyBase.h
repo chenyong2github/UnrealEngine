@@ -29,6 +29,7 @@ public:
 
 protected:
 	void InitializeOriginComponent(const FString& OriginCopmId);
+	void ReleaseOriginComponent();
 
 
 	const USceneComponent* const GetOriginComp() const
