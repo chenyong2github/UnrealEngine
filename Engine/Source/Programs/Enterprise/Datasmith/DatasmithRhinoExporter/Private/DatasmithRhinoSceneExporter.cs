@@ -47,7 +47,7 @@ namespace DatasmithRhino
 			}
 			catch (Exception e)
 			{
-				RhinoApp.WriteLine("An unexpected error has occured:")
+				RhinoApp.WriteLine("An unexpected error has occured:");
 				RhinoApp.WriteLine(e.ToString());
 				return Rhino.PlugIns.WriteFileResult.Failure;
 			}
