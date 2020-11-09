@@ -604,7 +604,7 @@ void FD3D12DynamicRHI::Init()
 		check(AmdSupportedExtensionFlags == 0);
 
 		// agsInit should be called before D3D device creation
-		agsInit(&AmdAgsContext, nullptr, nullptr);
+		agsInit(AGS_MAKE_VERSION(AMD_AGS_VERSION_MAJOR, AMD_AGS_VERSION_MINOR, AMD_AGS_VERSION_PATCH), nullptr, &AmdAgsContext, nullptr);
 	}
 #endif
 
