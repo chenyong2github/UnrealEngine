@@ -132,6 +132,16 @@ public:
 		NetIdStringToListEntryMap.Add(InNetId, InListEntry);
 	}
 
+	void Remove(const FString& InNetId, ListClass InListEntry)
+	{
+		const ListClass* Found = NetIdStringToListEntryMap.Find(InNetId);
+		if (Found != nullptr)
+		{
+			NetIdStringToListEntryMap.Remove(InNetId);
+		}
+		ListEntries.Remove(InListEntry);
+	}
+
 	void UpdateNetIdStr(const FString& PrevNetId, const FString& NewNetId)
 	{
 		ListClass ListEntry = NetIdStringToListEntryMap[PrevNetId];
