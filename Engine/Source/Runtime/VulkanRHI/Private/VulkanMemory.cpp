@@ -1615,7 +1615,7 @@ namespace VulkanRHI
 
 	uint64 FVulkanResourceHeap::EvictOne(FVulkanDevice& Device)
 	{
-		for(uint32 Index = MAX_BUCKETS - 2; Index >= 0; Index--)
+		for(int32 Index = MAX_BUCKETS - 2; Index >= 0; Index--)
 		{
 			TArray<FVulkanSubresourceAllocator*>& Pages = ActivePages[Index];
 			for (int32 Index2 = 0; Index2 < Pages.Num(); ++Index2)
