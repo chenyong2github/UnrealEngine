@@ -71,21 +71,14 @@ class ListenerClient(object):
             return False
         return False
 
-    @is_connected.setter
-    def is_connected(self, value):
-        if value == self.is_connected:
-            return
-
-        if value:
-            self.connect()
-        else:
-            self.disconnect()
-
     def connect(self, ip_address=None):
+
+        self.disconnect()
+
         if ip_address:
             self.ip_address = ip_address
         elif not self.ip_address:
-            LOGGER.debug('No ip_address was given. Cannot connect')
+            LOGGER.debug('No ip_address has been set. Cannot connect')
             return False
 
         self.close_socket = False
@@ -93,12 +86,14 @@ class ListenerClient(object):
 
         try:
             LOGGER.info(f"Connecting to {self.ip_address}:{self.port}")
+
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect(self.server_address)
 
             # Create a thread that waits for messages from the server
             self.handle_connection_thread = Thread(target=self.handle_connection)
             self.handle_connection_thread.start()
+
         except OSError:
             LOGGER.error(f"Socket Error: {self.ip_address}:{self.port}")
             self.socket = None
@@ -115,52 +110,64 @@ class ListenerClient(object):
             self.handle_connection_thread.join()
 
     def handle_connection(self):
+
         buffer = []
+        keepalive_timeout = 1.0
+
         while self.is_connected:
+
             try:
                 rlist = [self.socket]
-                wlist = [self.socket] if len(self.message_queue) > 0 else []
+                wlist = []
                 xlist = []
-                timeout = 0.1
+                read_timeout = 0.1
 
-                read_sockets, write_sockets, _ = select.select(rlist, wlist, xlist, timeout)
+                read_sockets, _, _ = select.select(rlist, wlist, xlist, read_timeout)
 
-                if len(self.message_queue) and len(write_sockets):
+                while len(self.message_queue):
                     message_bytes = self.message_queue.pop()
-                    for ws in write_sockets:
-                        ws.send(message_bytes)
-                        self.last_activity = datetime.datetime.now()
-
-                received_data = []
+                    self.socket.sendall(message_bytes)
+                    self.last_activity = datetime.datetime.now()
+                
                 for rs in read_sockets:
                     received_data = rs.recv(self.buffer_size).decode()
                     self.process_received_data(buffer, received_data)
                     self.last_activity = datetime.datetime.now()
 
                 delta = datetime.datetime.now() - self.last_activity
-                if delta.total_seconds() > 2:
-                    _, msg = message_protocol.create_keep_alive_message()
-                    self.send_message(msg)
 
-                if self.close_socket and (len(self.message_queue) == 0 or (len(write_sockets) == 0 and len(wlist) > 0)):
+                if delta.total_seconds() > keepalive_timeout:
+                    _, msg = message_protocol.create_keep_alive_message()
+                    self.socket.sendall(msg)
+
+                if self.close_socket and len(self.message_queue) == 0:
                     self.socket.shutdown(socket.SHUT_RDWR)
                     self.socket.close()
+                    self.socket = None
+
                     if self.disconnect_delegate:
                         self.disconnect_delegate(unexpected=False, exception=None)
-                    self.socket = None
+
                     break
 
             except ConnectionResetError as e:
+
                 self.socket.shutdown(socket.SHUT_RDWR)
                 self.socket.close()
                 self.socket = None
+
                 if self.disconnect_delegate:
                     self.disconnect_delegate(unexpected=True, exception=e)
+
                 return # todo: this needs to send a signal back to the main thread so the thread can be joined
-            except OSError as e: # likely a socket error, so self.socket is not usuable any longer
+
+            except OSError as e: # likely a socket error, so self.socket is not useable any longer
+
                 self.socket = None
+
                 if self.disconnect_delegate:
                     self.disconnect_delegate(unexpected=True, exception=e)
+
                 return
 
     def route_message(self, message):

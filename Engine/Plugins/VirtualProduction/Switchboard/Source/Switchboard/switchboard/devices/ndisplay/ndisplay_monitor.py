@@ -143,8 +143,12 @@ class nDisplayMonitor(QAbstractTableModel):
                 continue
 
             # create message
-            uuid_zero = '00000000-0000-0000-0000-000000000000'
-            program_id = device._running_remote_program_ids.get("unreal", uuid_zero)
+
+            try:
+                program_id = device.programs_ids_with_name('unreal')[-1]
+            except IndexError:
+                program_id = '00000000-0000-0000-0000-000000000000'
+
             _, msg = message_protocol.create_get_sync_status_message(program_id)
 
             # send get sync status message
