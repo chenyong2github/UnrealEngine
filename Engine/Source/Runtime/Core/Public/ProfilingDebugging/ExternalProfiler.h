@@ -79,13 +79,13 @@ private:
 	friend class FScopedExternalProfilerBase;
 };
 
-class FActiveExternalProfilerBase
+class CORE_API FActiveExternalProfilerBase
 {
 public:	
 
-	CORE_API static FExternalProfiler* GetActiveProfiler() { return ActiveProfiler;	};
+	static FExternalProfiler* GetActiveProfiler() { return ActiveProfiler;	};
 
-	CORE_API static FExternalProfiler* InitActiveProfiler();
+	static FExternalProfiler* InitActiveProfiler();
 private:
 	/** Static: True if we've tried to initialize a profiler already */
 	static bool bDidInitialize;
