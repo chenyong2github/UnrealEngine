@@ -38,11 +38,7 @@ public:
 	static uint32 GetGroupSize(EShaderPlatform Platform)
 	{
 		//-TODO: Should come from DDPI
-		if (Platform == SP_PS4)
-		{
-			return 64;
-		}
-		return 32;
+		return 64;
 	}
 
 	static void ModifyCompilationEnvironment(const FNiagaraShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
