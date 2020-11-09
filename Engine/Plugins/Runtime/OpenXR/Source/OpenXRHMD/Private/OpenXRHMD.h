@@ -250,6 +250,7 @@ private:
 	bool					bIsRunning;
 	bool					bIsReady;
 	bool					bIsRendering;
+	bool					bIsSynchronized;
 	bool					bDepthExtensionSupported;
 	bool					bHiddenAreaMaskSupported;
 	bool					bViewConfigurationFovSupported;
@@ -280,6 +281,7 @@ private:
 	FPipelinedLayerState	PipelinedLayerStateRendering;
 	FPipelinedLayerState	PipelinedLayerStateRHI;
 
+	FCriticalSection		DeviceMutex;
 	TArray<FDeviceSpace>	DeviceSpaces;
 
 	TRefCountPtr<FOpenXRRenderBridge> RenderBridge;
