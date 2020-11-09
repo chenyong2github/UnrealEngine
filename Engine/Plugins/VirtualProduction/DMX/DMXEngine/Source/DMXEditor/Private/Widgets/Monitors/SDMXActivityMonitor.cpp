@@ -265,7 +265,7 @@ void SDMXActivityMonitor::Tick(const FGeometry& AllottedGeometry, const double I
 		{
 			const IDMXUniverseSignalMap& InboundSignalMap = DMXProtocolPtr->GameThreadGetInboundSignals();
 
-			for (const TPair<int32, TSharedPtr<FDMXSignal>> UniverseSingalKvp : InboundSignalMap)
+			for (const TPair<int32, TSharedPtr<FDMXSignal>>& UniverseSingalKvp : InboundSignalMap)
 			{
 				const TSharedRef<SDMXActivityInUniverse>& ActivityWidget = GetOrCreateActivityWidget(UniverseSingalKvp.Value->UniverseID);
 				ActivityWidget->VisualizeInputBuffer(UniverseSingalKvp.Value->ChannelData);
