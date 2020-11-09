@@ -272,23 +272,25 @@ void FGeometryCollectionTreeItemComponent::GetChildrenForBone(FGeometryCollectio
 
 FText FGeometryCollectionTreeItemComponent::GetDisplayNameForBone(const FGuid& Guid) const
 {
-	if(FGeometryCollection* Collection = Component->GetRestCollection()->GetGeometryCollection().Get())
+	if (const UGeometryCollection* RestCollection = Component->GetRestCollection())
 	{
-		const TManagedArray<FString>& BoneNames = Collection->BoneName;
-		
-		if(const int32* BoneIndex = GuidIndexMap.Find(Guid))
+		if (FGeometryCollection* Collection = RestCollection->GetGeometryCollection().Get())
 		{
-			if(*BoneIndex < BoneNames.Num())
+			const TManagedArray<FString>& BoneNames = Collection->BoneName;
+
+			if (const int32* BoneIndex = GuidIndexMap.Find(Guid))
 			{
-				return FText::FromString(BoneNames[*BoneIndex]);
-			}
-			else
-			{
-				return FText::Format(LOCTEXT("BoneNameNotFound", "Bone Name Not Found: Index {0}"), (*BoneIndex));
+				if (*BoneIndex < BoneNames.Num())
+				{
+					return FText::FromString(BoneNames[*BoneIndex]);
+				}
+				else
+				{
+					return FText::Format(LOCTEXT("BoneNameNotFound", "Bone Name Not Found: Index {0}"), (*BoneIndex));
+				}
 			}
 		}
 	}
-
 	return LOCTEXT("BoneNotFound", "Bone Not Found, Invalid Geometry Collection");
 }
 
