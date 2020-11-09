@@ -312,6 +312,7 @@ uint32 FVulkanDescriptorSetWriter::SetupDescriptorWrites(
 
 	BufferViewReferences.Empty(NumWrites);
 	BufferViewReferences.AddDefaulted(NumWrites);
+	InitWrittenMasks(NumWrites);
 
 	uint32 DynamicOffsetIndex = 0;
 
@@ -334,6 +335,7 @@ uint32 FVulkanDescriptorSetWriter::SetupDescriptorWrites(
 			InWriteDescriptors->pBufferInfo = InBufferInfo++;
 			break;
 		case VK_DESCRIPTOR_TYPE_SAMPLER:
+			SetWrittenBase(Index); //samplers have a default setting, don't assert on those yet.
 		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
 		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
