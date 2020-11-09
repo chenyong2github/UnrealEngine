@@ -188,10 +188,11 @@ template<class T>
 TArray<TVector<int32, 2>> TTriangleMesh<T>::GetUniqueAdjacentPoints() const
 {
 	TArray<TVector<int32, 2>> BendingConstraints;
-	auto BendingElements = GetUniqueAdjacentElements();
-	for (const auto& Element : BendingElements)
+	const TArray<TVector<int32, 4>> BendingElements = GetUniqueAdjacentElements();
+	BendingConstraints.Reset(BendingElements.Num());
+	for (const TVector<int32, 4>& Element : BendingElements)
 	{
-		BendingConstraints.Add(TVector<int32, 2>(Element[2], Element[3]));
+		BendingConstraints.Emplace(Element[2], Element[3]);
 	}
 	return BendingConstraints;
 }
@@ -199,64 +200,34 @@ TArray<TVector<int32, 2>> TTriangleMesh<T>::GetUniqueAdjacentPoints() const
 template<class T>
 TArray<TVector<int32, 4>> TTriangleMesh<T>::GetUniqueAdjacentElements() const
 {
-	TArray<TVector<int32, 4>> BendingConstraints;
-	TSet<TArray<int32>> BendingElements;
-	GetPointToTriangleMap(); // build MPointToTriangleMap
-	for (int32 SurfaceIndex = MStartIdx; SurfaceIndex < MStartIdx + MNumIndices; ++SurfaceIndex)
+	// Build a map with a list of opposite points for every edges
+	TMap<TVector<int32, 2> /*Edge*/, TArray<int32> /*OppositePoints*/> EdgeMap;
+
+	auto SortedEdge = [](int32 P0, int32 P1) { return P0 <= P1 ? TVector<int32, 2>(P0, P1) : TVector<int32, 2>(P1, P0); };
+
+	for (const TVector<int32, 3>& Element : MElements)
 	{
-		TMap<int32, TArray<int32>> SubPointToTriangleMap;
-		for (auto TriangleIndex : MPointToTriangleMap[SurfaceIndex - MStartIdx])  // Access MPointToTriangleMap with local index
+		EdgeMap.FindOrAdd(SortedEdge(Element[0], Element[1])).AddUnique(Element[2]);
+		EdgeMap.FindOrAdd(SortedEdge(Element[1], Element[2])).AddUnique(Element[0]);
+		EdgeMap.FindOrAdd(SortedEdge(Element[2], Element[0])).AddUnique(Element[1]);
+	}
+
+	// Build constraints
+	TArray<TVector<int32, 4>> BendingConstraints;
+	for (const TPair<TVector<int32, 2>, TArray<int32>>& EdgeOppositePoints : EdgeMap)
+	{
+		const TVector<int32, 2>& Edge = EdgeOppositePoints.Key;
+		const TArray<int32>& OppositePoints = EdgeOppositePoints.Value;
+
+		for (int32 Index0 = 0; Index0 < OppositePoints.Num(); ++Index0)
 		{
-			SubPointToTriangleMap.FindOrAdd(MElements[TriangleIndex][0]).Add(TriangleIndex);
-			SubPointToTriangleMap.FindOrAdd(MElements[TriangleIndex][1]).Add(TriangleIndex);
-			SubPointToTriangleMap.FindOrAdd(MElements[TriangleIndex][2]).Add(TriangleIndex);
-		}
-		for (auto OtherIndex : SubPointToTriangleMap)
-		{
-			if (SurfaceIndex == OtherIndex.Key)
-				continue;
-			if (OtherIndex.Value.Num() == 1)
-				continue; // We are at an edge
-			check(OtherIndex.Value.Num() == 2);
-			int32 Tri1 = OtherIndex.Value[0];
-			int32 Tri2 = OtherIndex.Value[1];
-			int32 Tri1Pt = -1, Tri2Pt = -1;
-			if (MElements[Tri1][0] != SurfaceIndex && MElements[Tri1][0] != OtherIndex.Key)
+			for (int32 Index1 = Index0 + 1; Index1 < OppositePoints.Num(); ++Index1)
 			{
-				Tri1Pt = MElements[Tri1][0];
+				BendingConstraints.Add({ Edge[0], Edge[1], OppositePoints[Index0], OppositePoints[Index1] });
 			}
-			else if (MElements[Tri1][1] != SurfaceIndex && MElements[Tri1][1] != OtherIndex.Key)
-			{
-				Tri1Pt = MElements[Tri1][1];
-			}
-			else if (MElements[Tri1][2] != SurfaceIndex && MElements[Tri1][2] != OtherIndex.Key)
-			{
-				Tri1Pt = MElements[Tri1][2];
-			}
-			check(Tri1Pt != -1);
-			if (MElements[Tri2][0] != SurfaceIndex && MElements[Tri2][0] != OtherIndex.Key)
-			{
-				Tri2Pt = MElements[Tri2][0];
-			}
-			else if (MElements[Tri2][1] != SurfaceIndex && MElements[Tri2][1] != OtherIndex.Key)
-			{
-				Tri2Pt = MElements[Tri2][1];
-			}
-			else if (MElements[Tri2][2] != SurfaceIndex && MElements[Tri2][2] != OtherIndex.Key)
-			{
-				Tri2Pt = MElements[Tri2][2];
-			}
-			check(Tri2Pt != -1);
-			auto BendingArray = TArray<int32>({SurfaceIndex, OtherIndex.Key, Tri1Pt, Tri2Pt});
-			BendingArray.Sort();
-			if (BendingElements.Contains(BendingArray))
-			{
-				continue;
-			}
-			BendingElements.Add(BendingArray);
-			BendingConstraints.Add(TVector<int32, 4>({SurfaceIndex, OtherIndex.Key, Tri1Pt, Tri2Pt}));
 		}
 	}
+
 	return BendingConstraints;
 }
 
