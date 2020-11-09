@@ -9,6 +9,7 @@
 #include "Chaos/PhysicalMaterials.h"
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/CollisionFilterData.h"
+#include "Chaos/KinematicTargets.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
 #include "UObject/ExternalPhysicsMaterialCustomObjectVersion.h"
 
@@ -16,6 +17,8 @@ class FName;
 
 namespace Chaos
 {
+
+using FKinematicTarget = TKinematicTarget<float, 3>;
 
 enum class EResimType: uint8;
 
