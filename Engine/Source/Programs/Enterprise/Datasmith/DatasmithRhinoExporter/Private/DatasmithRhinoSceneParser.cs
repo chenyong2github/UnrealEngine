@@ -222,7 +222,8 @@ namespace DatasmithRhino
 		public Rhino.FileIO.FileWriteOptions ExportOptions { get; private set; }
 		public bool bIsInWorksession {
 			get {
-				return Environment.OSVersion.Platform != PlatformID.MacOSX //Worksession is not implemented on Mac, calling the API throws exception.
+				//Only check for worksession on Windows, the feature is not implemented on Mac and calling the API throws exception.
+				return Environment.OSVersion.Platform == PlatformID.Win32NT 
 					&& RhinoDocument.Worksession != null
 					&& RhinoDocument.Worksession.ModelCount > 1;
 			}
