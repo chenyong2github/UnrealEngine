@@ -318,7 +318,7 @@ public:
 			return CellDetails.CellColor;
 		}
 
-		return FColor::White;
+		return FLinearColor::White;
 	}
 
 	bool GetCellWrapText(const FName ColumnName) const
