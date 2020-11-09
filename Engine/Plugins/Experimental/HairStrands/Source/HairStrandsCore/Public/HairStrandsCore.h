@@ -7,6 +7,9 @@
 
 class UStaticMesh;
 class UTexture2D;
+class UGroomAsset;
+class UGroomBindingAsset;
+class USkeletalMesh;
 
 //typedef UTexture2D* (TCreateTextureHelper*)(FName Package, const FIntPoint& Resolution);
 typedef void (*TTextureAllocation)(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount);
@@ -26,7 +29,6 @@ struct FHairAssetHelper
 	TRegisterAsset RegisterAsset;
 	TSaveAsset SaveAsset;
 };
-
 
 /** Implements the HairStrands module  */
 class FHairStrandsCore : public IModuleInterface
@@ -49,6 +51,11 @@ public:
 	static UTexture2D* CreateTexture(const FString& PackgeName, const FIntPoint& Resolution, const FString& Suffix, TTextureAllocation TextureAllocation);
 	static void ResizeTexture(UTexture2D* InTexture, const FIntPoint& Resolution, TTextureAllocation TextureAllocation);
 	static UStaticMesh* CreateStaticMesh(const FString& InPackageName, const FString& Suffix);
+
+	// Create binding asset from groom asset and skeletal asset. These functions are only valid when build with the editor. They will return null asset otherwise
+	HAIRSTRANDSCORE_API static UGroomBindingAsset* CreateGroomBindingAsset(UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints);
+	HAIRSTRANDSCORE_API static UGroomBindingAsset* CreateGroomBindingAsset(const FString& InPackageName, UObject* InParent, UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints);
+
 	static void SaveAsset(UObject* Object);
 #endif
 };

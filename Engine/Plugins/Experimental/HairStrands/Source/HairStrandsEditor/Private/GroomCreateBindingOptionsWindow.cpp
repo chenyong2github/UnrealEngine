@@ -22,6 +22,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Editor.h"
 #include "GroomBindingAsset.h"
+#include "HairStrandsCore.h"
 
 #define LOCTEXT_NAMESPACE "GroomCreateBindingOptionsWindow"
 
@@ -152,63 +153,6 @@ TSharedPtr<SGroomCreateBindingOptionsWindow> SGroomCreateBindingOptionsWindow::D
 	return DisplayOptions(BindingOptions, EGroomBindingOptionsVisibility::BuildOptions, LOCTEXT("GroomBindingRebuildWindowTitle", "Groom Binding Options"), LOCTEXT("Build", "Create"));
 }
 
-static UObject* InternalCreateNewBindAsset(FName InAssetName, FName InPackageName, UObject* InParent, UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints)
-{
-	if (!TargetSkelMesh)
-	{
-		return nullptr;
-	}
-
-	FString Name = InAssetName.ToString();
-	FString PackageName = InPackageName.ToString();
-
-	if (InAssetName == NAME_None)
-	{
-		FString Suffix;
-		if (SourceSkelMesh)
-		{
-			Suffix += TEXT("_") + SourceSkelMesh->GetName();
-		}
-		if (TargetSkelMesh)
-		{
-			Suffix += TEXT("_") + TargetSkelMesh->GetName();
-		}
-		Suffix += TEXT("_Binding");
-
-		// Get a unique package and asset name
-		FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
-		AssetToolsModule.Get().CreateUniqueAssetName(GroomAsset->GetOutermost()->GetName(), Suffix, PackageName, Name);
-	}
-
-	UPackage* Package = Cast<UPackage>(InParent);
-	if (InParent == nullptr && !PackageName.IsEmpty())
-	{
-		// Then find/create it.
-		Package = CreatePackage(*PackageName);
-		if (!ensure(Package))
-		{
-			// There was a problem creating the package
-			return nullptr;
-		}
-	}
-	  
-	if (UGroomBindingAsset* NewAsset = NewObject<UGroomBindingAsset>(Package, *Name, RF_Public | RF_Standalone | RF_Transactional))
-	{
-		NewAsset->Groom = GroomAsset;
-		NewAsset->SourceSkeletalMesh = SourceSkelMesh;
-		NewAsset->TargetSkeletalMesh = TargetSkelMesh;
-		NewAsset->HairGroupDatas.Reserve(GroomAsset->HairGroupsData.Num());
-		NewAsset->NumInterpolationPoints = NumInterpolationPoints;
-		NewAsset->MarkPackageDirty();
-
-		// Notify the asset registry
-		FAssetRegistryModule::AssetCreated(NewAsset);
-		return NewAsset;
-	}
-
-	return nullptr;
-}
-
 UGroomBindingAsset* CreateGroomBindinAsset(UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints)
 {
 	if (!GroomAsset || !TargetSkelMesh)
@@ -216,7 +160,7 @@ UGroomBindingAsset* CreateGroomBindinAsset(UGroomAsset* GroomAsset, USkeletalMes
 		return nullptr;
 	}
 
-	UObject* BindingAsset = InternalCreateNewBindAsset(NAME_None, NAME_None, nullptr, GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints);
+	UObject* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints);
 
 	if (BindingAsset)
 	{
@@ -231,31 +175,6 @@ UGroomBindingAsset* CreateGroomBindinAsset(UGroomAsset* GroomAsset, USkeletalMes
 	}
 
 	return (UGroomBindingAsset*) BindingAsset;
-}
-
-UGroomBindingAsset* CreateGroomBindinAsset(const FString& InDesiredPackagePath, UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints)
-{
-	if (!GroomAsset || !TargetSkelMesh)
-	{
-		return nullptr;
-	}
-
-	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	FString UniquePackageName;
-	FString UniqueAssetName;
-	AssetToolsModule.Get().CreateUniqueAssetName(InDesiredPackagePath, TEXT(""), UniquePackageName, UniqueAssetName);
-	UObject* BindingAsset = InternalCreateNewBindAsset(*UniqueAssetName, *UniquePackageName, nullptr, GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints);
-
-	if (BindingAsset)
-	{
-		TArray<UObject*> CreatedObjects;
-		CreatedObjects.Add(BindingAsset);
-
-		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-		ContentBrowserModule.Get().SyncBrowserToAssets(CreatedObjects);
-	}
-
-	return (UGroomBindingAsset*)BindingAsset;
 }
 
 #undef LOCTEXT_NAMESPACE
