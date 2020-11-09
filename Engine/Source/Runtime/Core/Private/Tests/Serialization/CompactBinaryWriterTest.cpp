@@ -882,6 +882,21 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterOwnedReadOnlyTest, "System.Core.Serialization.CbWriter.OwnedReadOnly", CompactBinaryWriterTestFlags)
+bool FCbWriterOwnedReadOnlyTest::RunTest(const FString& Parameters)
+{
+	FCbWriter Writer;
+	Writer.BeginObject();
+	Writer.EndObject();
+	FCbObjectRef Object = Writer.Save().AsObjectRef();
+	TestTrue(TEXT("FCbWriter().Save().IsOwned()"), Object.IsOwned());
+	TestTrue(TEXT("FCbWriter().Save().IsReadOnly()"), Object.IsReadOnly());
+
+	return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterStreamTest, "System.Core.Serialization.CbWriter.Stream", CompactBinaryWriterTestFlags)
 bool FCbWriterStreamTest::RunTest(const FString& Parameters)
 {

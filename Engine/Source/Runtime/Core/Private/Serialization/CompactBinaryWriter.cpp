@@ -70,10 +70,10 @@ void FCbWriter::Reset()
 FCbFieldRefIterator FCbWriter::Save() const
 {
 	const uint64 Size = SaveSize();
-	const FSharedBufferPtr Buffer = FSharedBuffer::Alloc(Size);
-	const FMutableMemoryView View = Buffer->GetView();
-	SaveToMemory(View);
-	return FCbFieldRefIterator(FCbFieldRef(Buffer), View.RightChop(Size).GetData());
+	FSharedBufferPtr MutableBuffer = FSharedBuffer::Alloc(Size);
+	SaveToMemory(MutableBuffer->GetView());
+	FSharedBufferConstPtr ConstBuffer = FSharedBuffer::MakeReadOnly(MoveTemp(MutableBuffer));
+	return FCbFieldRefIterator(FCbFieldRef(MoveTemp(ConstBuffer)), ConstBuffer->GetView().RightChop(Size).GetData());
 }
 
 FCbFieldIterator FCbWriter::SaveToMemory(const FMutableMemoryView Buffer) const

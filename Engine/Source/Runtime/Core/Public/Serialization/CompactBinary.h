@@ -836,10 +836,22 @@ public:
 	{
 		if (!IsOwned())
 		{
+			MakeReadOnly();
+		}
+	}
+
+	/** Whether this reference is backed by a read-only buffer. */
+	inline bool IsReadOnly() const { return BufferPtr && BufferPtr->IsReadOnly(); }
+
+	/** Clone the value, if necessary, to a read-only buffer. */
+	inline void MakeReadOnly()
+	{
+		if (!IsReadOnly())
+		{
 			FSharedBufferPtr Buffer = FSharedBuffer::Alloc(BaseType::Size());
 			BaseType::CopyTo(*Buffer);
 			static_cast<BaseType&>(*this) = BaseType(Buffer->GetData(), BaseType::GetCopyType());
-			BufferPtr = MoveTemp(Buffer);
+			BufferPtr = FSharedBuffer::MakeReadOnly(MoveTemp(Buffer));
 		}
 	}
 
@@ -892,11 +904,13 @@ public:
 	}
 
 	/** Construct a value and take ownership its memory. */
-	template <typename DeleterType>
-	static inline RefType TakeOwnership(const void* const Data, DeleterType&& Deleter)
+	template <typename DeleteFunctionOrBufferOwnerType>
+	static inline RefType TakeOwnership(const void* const Data, DeleteFunctionOrBufferOwnerType&& DeleteFunctionOrBufferOwner)
 	{
 		const BaseType Value(Data);
-		return RefType(Value, FSharedBuffer::TakeOwnership(Data, Value.Size(), Forward<DeleterType>(Deleter)));
+		FSharedBufferConstPtr Buffer = FSharedBuffer::TakeOwnership(Data, Value.Size(),
+			Forward<DeleteFunctionOrBufferOwnerType>(DeleteFunctionOrBufferOwner));
+		return RefType(Value, FSharedBuffer::MakeReadOnly(MoveTemp(Buffer)));
 	}
 };
 
