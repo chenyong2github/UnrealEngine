@@ -1638,6 +1638,56 @@ NavNodeRef FPImplRecastNavMesh::FindNearestPoly(FVector const& Loc, FVector cons
 	return INVALID_NAVNODEREF;
 }
 
+bool FPImplRecastNavMesh::FindPolysAroundCircle(const FVector& CenterPos, const NavNodeRef CenterNodeRef, const float Radius, const FNavigationQueryFilter& Filter, const UObject* Owner, TArray<NavNodeRef>* OutPolys, TArray<NavNodeRef>* OutPolysParent, TArray<float>* OutPolysCost, int* OutPolysCount) const
+{
+	// sanity check
+	if (DetourNavMesh == NULL || NavMeshOwner == NULL || CenterNodeRef == INVALID_NAVNODEREF)
+	{
+		return false;
+	}
+
+	// limit max number of polys found by that function
+	// if you need more, please scan manually using ARecastNavMesh::GetPolyNeighbors for A*/Dijkstra loop
+	const int32 MaxSearchLimit = 4096;
+	const int32 MaxSearchNodes = Filter.GetMaxSearchNodes();
+	ensureMsgf(MaxSearchNodes > 0 && MaxSearchNodes <= MaxSearchLimit, TEXT("MaxSearchNodes:%d is not within range: 0..%d"), MaxSearchNodes, MaxSearchLimit);
+
+	FRecastSpeciaLinkFilter LinkFilter(FNavigationSystem::GetCurrent<UNavigationSystemV1>(NavMeshOwner->GetWorld()), Owner);
+	INITIALIZE_NAVQUERY(NavQuery, Filter.GetMaxSearchNodes(), LinkFilter);
+
+	const dtQueryFilter* QueryFilter = ((const FRecastQueryFilter*)(Filter.GetImplementation()))->GetAsDetourQueryFilter();
+	if (ensure(QueryFilter))
+	{
+		if (OutPolys)
+		{
+			OutPolys->Reset();
+			OutPolys->AddUninitialized(MaxSearchNodes);
+		}
+
+		if (OutPolysParent)
+		{
+			OutPolysParent->Reset();
+			OutPolysParent->AddUninitialized(MaxSearchNodes);
+		}
+
+		if (OutPolysCost)
+		{
+			OutPolysCost->Reset();
+			OutPolysCost->AddUninitialized(MaxSearchNodes);
+		}
+
+		float RecastLoc[3];
+		Unr2RecastVector(CenterPos, RecastLoc);
+		const dtStatus Status = NavQuery.findPolysAroundCircle(CenterNodeRef, RecastLoc, Radius, QueryFilter, OutPolys ? OutPolys->GetData() : nullptr, OutPolysParent ? OutPolysParent->GetData() : nullptr, OutPolysCost ? OutPolysCost->GetData() : nullptr, OutPolysCount, MaxSearchNodes);
+		if (dtStatusSucceed(Status))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool FPImplRecastNavMesh::GetPolysWithinPathingDistance(FVector const& StartLoc, const float PathingDistance, 
 	const FNavigationQueryFilter& Filter, const UObject* Owner,
 	TArray<NavNodeRef>& FoundPolys, FRecastDebugPathfindingData* OutDebugData) const
@@ -1645,8 +1695,7 @@ bool FPImplRecastNavMesh::GetPolysWithinPathingDistance(FVector const& StartLoc,
 	ensure(PathingDistance > 0.0f && "PathingDistance <= 0 doesn't make sense");
 	
 	// limit max number of polys found by that function
-	// if you need some, please scan manually using ARecastNavMesh::GetPolyNeighbors for A*/Dijkstra loop
-	// 
+	// if you need more, please scan manually using ARecastNavMesh::GetPolyNeighbors for A*/Dijkstra loop
 	const int32 MaxSearchLimit = 4096;
 	const int32 MaxSearchNodes = Filter.GetMaxSearchNodes();
 	ensureMsgf(MaxSearchNodes > 0 && MaxSearchNodes <= MaxSearchLimit, TEXT("MaxSearchNodes:%d is not within range: 0..%d"), MaxSearchNodes, MaxSearchLimit);
