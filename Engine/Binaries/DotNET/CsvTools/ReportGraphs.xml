@@ -115,22 +115,6 @@
 			<statString>AndroidCPU/CPUFreqGroup0 AndroidCPU/CPUFreqGroup1 AndroidCPU/CPUFreqGroup2 AndroidCPU/CPUFreqGroup3</statString>
 		</graph>
 
-		<graph title="GPU cycles / frame" showAverages="1" hideStatPrefix="AndroidGPU/" mainStat="frametime" maxy="0">
-			<statString>AndroidGPU/GPUCyclesMln AndroidGPU/VertexCyclesMln AndroidGPU/FragmentCyclesMln</statString>
-		</graph>
-		
-		<graph title="Pixels / frame" showAverages="1" hideStatPrefix="AndroidGPU/" maxy="0">
-			<statString>AndroidGPU/PixelsMln</statString>
-		</graph>
-		
-		<graph title="Shader cycles / frame" showAverages="1" hideStatPrefix="AndroidGPU/" maxy="0">
-			<statString>AndroidGPU/ShaderCyclesMln AndroidGPU/ShaderArithmeticCyclesMln AndroidGPU/ShaderLoadStoreCyclesMln AndroidGPU/ShaderTextureCyclesMln</statString>
-		</graph>
-		
-		<graph title="GPU bandwidth / frame" showAverages="1" hideStatPrefix="AndroidGPU/" stacked="1" maxy="0">
-			<statString>AndroidGPU/ExternalMemoryReadMB AndroidGPU/ExternalMemoryWriteMB</statString>
-		</graph>
-
 	</graphGroup>
 
 </graphGroups>
