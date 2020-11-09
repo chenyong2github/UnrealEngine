@@ -326,14 +326,13 @@ FRayTracingShaderRHIRef FD3D12DynamicRHI::RHICreateRayTracingShader(TArrayView<c
 		Shader->bPrecompiledPSO = true;
 	}
 
-	Shader->Code = Code;
-
-	const uint8* CodePtr = Shader->Code.GetData() + Offset;
-	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
+	// Copy the native shader data only, skipping any of our own headers.
+	TArrayView<const uint8> NativeShaderCode = MakeArrayView(Code.GetData() + Offset, ShaderCode.GetActualShaderCodeSize() - Offset);
+	Shader->Code = TArray<uint8>(NativeShaderCode);
 
 	D3D12_SHADER_BYTECODE ShaderBytecode;
-	ShaderBytecode.pShaderBytecode = CodePtr;
-	ShaderBytecode.BytecodeLength = CodeSize;
+	ShaderBytecode.pShaderBytecode = Shader->Code.GetData();
+	ShaderBytecode.BytecodeLength = Shader->Code.Num();
 
 	Shader->ShaderBytecode.SetShaderBytecode(ShaderBytecode);
 
