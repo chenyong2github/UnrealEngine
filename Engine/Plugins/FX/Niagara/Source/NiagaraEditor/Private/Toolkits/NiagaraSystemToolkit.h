@@ -29,6 +29,7 @@ class FMenuBuilder;
 class ISequencer;
 class FNiagaraMessageLogViewModel;
 class FNiagaraSystemToolkitParameterPanelViewModel;
+class FNiagaraScriptStatsViewModel;
 
 /** Viewer/editor for a NiagaraSystem
 */
@@ -122,6 +123,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_MessageLog(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_SystemOverview(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_ScratchPad(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_ScriptStats(const FSpawnTabArgs& Args);
 
 	/** Builds the toolbar widget */
 	void ExtendToolbar();	
@@ -183,6 +185,9 @@ private:
 	TSharedPtr<FNiagaraMessageLogViewModel> NiagaraMessageLogViewModel;
 	TSharedPtr<class SWidget> NiagaraMessageLog;
 
+	/** Display for script stats on selected platforms */
+	TSharedPtr<FNiagaraScriptStatsViewModel> ScriptStats;
+
 	/** The command list for this editor */
 	TSharedPtr<FUICommandList> EditorCommands;
 
@@ -216,6 +221,7 @@ public:
 	static const FName MessageLogTabID;
 	static const FName SystemOverviewTabID;
 	static const FName ScratchPadTabID;
+	static const FName ScriptStatsTabID;
 
 private:
 	static bool bShowLibraryOnly;
