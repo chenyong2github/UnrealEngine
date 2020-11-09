@@ -417,7 +417,7 @@ void AWaterBrushManager::UpdateTransform(const FTransform& Transform)
 	bKillCache = true;
 }
 
-bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderContext& BrushActorRenderContext)
+bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderContext& BrushActorRenderContext, bool bClearMIDs)
 {
 	AWaterBody* WaterBody = BrushActorRenderContext.GetActorAs<AWaterBody>();
 	check(WaterBody->GetWaterBodyType() == EWaterBodyType::River);
@@ -443,23 +443,30 @@ bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderConte
 
 	for (int32 MIDIndex = 0; MIDIndex < NumSplineMids; ++MIDIndex)
 	{
-		check(MIDIndex < SplineMeshComponents.Num());
-		RiverSplineMIDs[MIDIndex] = FWaterUtils::GetOrCreateTransientMID(RiverSplineMIDs[MIDIndex], TEXT("RiverSplineMID"), RenderRiverSplineDepthMaterial);
-		UMaterialInstanceDynamic* TempMID = RiverSplineMIDs[MIDIndex];
-		if (TempMID != nullptr)
+		if (bClearMIDs)
 		{
-			const float Offset = BrushActorRenderContext.WaterBrushActor->GetWaterHeightmapSettings().FalloffSettings.ZOffset;
-			TempMID->SetScalarParameterValue(FName(TEXT("DepthA")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex, FName(TEXT("Depth"))) + Offset);
-			TempMID->SetScalarParameterValue(FName(TEXT("DepthB")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex + 1, FName(TEXT("Depth"))) + Offset);
-			TempMID->SetScalarParameterValue(FName(TEXT("VelA")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex, FName(TEXT("WaterVelocityScalar"))));
-			TempMID->SetScalarParameterValue(FName(TEXT("VelB")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex + 1, FName(TEXT("WaterVelocityScalar"))));
-
-			SplineMeshComponents[MIDIndex]->SetMaterial(0, TempMID);
+			SplineMeshComponents[MIDIndex]->SetMaterial(0, nullptr);
 		}
 		else
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("Invalid River spline material for Water Brush."));
-			return false;
+			check(MIDIndex < SplineMeshComponents.Num());
+			RiverSplineMIDs[MIDIndex] = FWaterUtils::GetOrCreateTransientMID(RiverSplineMIDs[MIDIndex], TEXT("RiverSplineMID"), RenderRiverSplineDepthMaterial);
+			UMaterialInstanceDynamic* TempMID = RiverSplineMIDs[MIDIndex];
+			if (TempMID != nullptr)
+			{
+				const float Offset = BrushActorRenderContext.WaterBrushActor->GetWaterHeightmapSettings().FalloffSettings.ZOffset;
+				TempMID->SetScalarParameterValue(FName(TEXT("DepthA")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex, FName(TEXT("Depth"))) + Offset);
+				TempMID->SetScalarParameterValue(FName(TEXT("DepthB")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex + 1, FName(TEXT("Depth"))) + Offset);
+				TempMID->SetScalarParameterValue(FName(TEXT("VelA")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex, FName(TEXT("WaterVelocityScalar"))));
+				TempMID->SetScalarParameterValue(FName(TEXT("VelB")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex + 1, FName(TEXT("WaterVelocityScalar"))));
+
+				SplineMeshComponents[MIDIndex]->SetMaterial(0, TempMID);
+			}
+			else
+			{
+				UE_LOG(LogWaterEditor, Error, TEXT("Invalid River spline material for Water Brush."));
+				return false;
+			}
 		}
 	}
 
@@ -468,7 +475,7 @@ bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderConte
 
 void AWaterBrushManager::CaptureRiverDepthAndVelocity(const FBrushActorRenderContext& BrushActorRenderContext)
 {
-	if (!SetupRiverSplineRenderMIDs(BrushActorRenderContext))
+	if (!SetupRiverSplineRenderMIDs(BrushActorRenderContext, /*bClearMIDs = */false))
 	{
 		UE_LOG(LogWaterEditor, Error, TEXT("Error in setup River spline render material for Water Brush. Aborting CaptureRiverDepthAndVelocity."));
 		return;
@@ -492,6 +499,9 @@ void AWaterBrushManager::CaptureRiverDepthAndVelocity(const FBrushActorRenderCon
 
 	CaptureMeshDepth(SplineMeshComponents);
 	WaterBody->SetIsTemporarilyHiddenInEditor(Hidden);
+
+	// Cleanup the spline components at the end (we're not supposed to have modified the water actors) :
+	SetupRiverSplineRenderMIDs(BrushActorRenderContext, /*bClearMIDs = */true);
 }
 
 void AWaterBrushManager::DrawCanvasShape(const FBrushActorRenderContext& BrushActorRenderContext)
