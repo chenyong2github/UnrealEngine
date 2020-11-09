@@ -30,7 +30,8 @@ public:
 		UGroomAsset* InGroomAsset,
 		USkeletalMesh* InSkeletalMesh,
 		int32 InNumInterpolationPoints = 100,
-		USkeletalMesh* InSourceSkeletalMeshForTransfer = nullptr);
+		USkeletalMesh* InSourceSkeletalMeshForTransfer = nullptr,
+		int32 InMatchingSection = 0);
 
 	/**
 	 * Create a new groom binding asset within the contents space of the project. The asset name will be auto generated based on the groom asset name and the skeletal asset name
@@ -44,5 +45,6 @@ public:
 		UGroomAsset* InGroomAsset,
 		USkeletalMesh* InSkeletalMesh,
 		int32 InNumInterpolationPoints = 100,
-		USkeletalMesh* InSourceSkeletalMeshForTransfer = nullptr);
+		USkeletalMesh* InSourceSkeletalMeshForTransfer = nullptr,
+		int32 InMatchingSection = 0);
 };

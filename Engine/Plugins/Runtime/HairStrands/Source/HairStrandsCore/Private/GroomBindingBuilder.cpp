@@ -291,7 +291,7 @@ namespace GroomBinding_RBFWeighting
 		WeightsInverse = WeightsMatrix.inverse();
 	}
 
-	static void UpdateInterpolationWeights(const FWeightsBuilder& InterpolationWeights, const FPointsSampler& PointsSampler, const uint32 LODIndex, FHairStrandsRootData& RootDatas)
+	void UpdateInterpolationWeights(const FWeightsBuilder& InterpolationWeights, const FPointsSampler& PointsSampler, const uint32 LODIndex, FHairStrandsRootData& RootDatas)
 	{
 		FHairStrandsRootData::FMeshProjectionLOD& CPULOD = RootDatas.MeshProjectionLODs[LODIndex];
 		CPULOD.MeshSampleIndicesBuffer.SetNum(PointsSampler.SampleIndices.Num());
@@ -307,7 +307,7 @@ namespace GroomBinding_RBFWeighting
 		}
 	}
 
-	static void FillLocalValidPoints(FSkeletalMeshLODRenderData& LODRenderData, const uint32 TargetSection,
+	void FillLocalValidPoints(FSkeletalMeshLODRenderData& LODRenderData, const int32 TargetSection,
 		const FHairStrandsRootData::FMeshProjectionLOD& ProjectionLOD, TArray<bool>& ValidPoints)
 	{
 		TArray<uint32> TriangleIndices; 
@@ -316,13 +316,15 @@ namespace GroomBinding_RBFWeighting
 
 		ValidPoints.Init(false, LODRenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices());
 
+		const bool ValidSection = (TargetSection >= 0 && TargetSection < LODRenderData.RenderSections.Num());
+
 		const TArray<uint32>& RootBuffers = ProjectionLOD.RootTriangleIndexBuffer;
 		for (int32 RootIt = 0; RootIt < RootBuffers.Num(); ++RootIt)
 		{
 			uint32 SectionIndex  = 0;
 			uint32 TriangleIndex = 0;
 			FHairStrandsRootUtils::DecodeTriangleIndex(RootBuffers[RootIt], TriangleIndex, SectionIndex);
-			if (SectionIndex == TargetSection)
+			if (!ValidSection || (ValidSection && (SectionIndex == TargetSection) ) )
 			{
 				for (uint32 VertexIt = 0; VertexIt < 3; ++VertexIt)
 				{
@@ -333,25 +335,31 @@ namespace GroomBinding_RBFWeighting
 		}
 	}
 
-	static void FillGlobalValidPoints(FSkeletalMeshLODRenderData& LODRenderData, const uint32 TargetSection, TArray<bool>& ValidPoints)
+	void FillGlobalValidPoints(FSkeletalMeshLODRenderData& LODRenderData, const int32 TargetSection, TArray<bool>& ValidPoints)
 	{
 		TArray<uint32> TriangleIndices; 
 		TriangleIndices.SetNum(LODRenderData.MultiSizeIndexContainer.GetIndexBuffer()->Num());
 		LODRenderData.MultiSizeIndexContainer.GetIndexBuffer(TriangleIndices);
-
-		ValidPoints.Init(false, LODRenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices());
-
-		for (uint32 TriangleIt = 0; TriangleIt < LODRenderData.RenderSections[TargetSection].NumTriangles; ++TriangleIt)
+		if (TargetSection >= 0 && TargetSection < LODRenderData.RenderSections.Num())
 		{
-			for (uint32 VertexIt = 0; VertexIt < 3; ++VertexIt)
+			ValidPoints.Init(false, LODRenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices());
+
+			for (uint32 TriangleIt = 0; TriangleIt < LODRenderData.RenderSections[TargetSection].NumTriangles; ++TriangleIt)
 			{
-				const uint32 VertexIndex = TriangleIndices[LODRenderData.RenderSections[TargetSection].BaseIndex + 3 * TriangleIt + VertexIt];
-				ValidPoints[VertexIndex] = true;
+				for (uint32 VertexIt = 0; VertexIt < 3; ++VertexIt)
+				{
+					const uint32 VertexIndex = TriangleIndices[LODRenderData.RenderSections[TargetSection].BaseIndex + 3 * TriangleIt + VertexIt];
+					ValidPoints[VertexIndex] = true;
+				}
 			}
+		}
+		else
+		{
+			ValidPoints.Init(true, LODRenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices());
 		}
 	}
 
-	static void Build(UGroomBindingAsset* BindingAsset, FSkeletalMeshRenderData* TargetRenderData, TArray<TArray<FVector>>& TransferedPositions)
+	void ComputeInterpolationWeights(UGroomBindingAsset* BindingAsset, FSkeletalMeshRenderData* TargetRenderData, TArray<TArray<FVector>>& TransferedPositions)
 	{
 		UGroomAsset* GroomAsset = BindingAsset->Groom;
 
@@ -361,19 +369,18 @@ namespace GroomBinding_RBFWeighting
 		const uint32 MeshLODCount= BindingAsset->TargetSkeletalMesh->GetLODNum();
 		const uint32 MaxSamples  = BindingAsset->NumInterpolationPoints;
 
-		const uint32 TargetSection = 0;
-		const bool LocalSamples = false;
 		for (uint32 LODIndex = 0; LODIndex < MeshLODCount; ++LODIndex)
 		{
 			FSkeletalMeshLODRenderData& LODRenderData = TargetRenderData->LODRenderData[LODIndex];
 
-			TArray<FSkelMeshRenderSection>& RenderSections = LODRenderData.RenderSections;
-			const int32 NumVertices = (RenderSections.Num() > TargetSection) ? RenderSections[TargetSection].NumVertices : 0;
-
+			int32 TargetSection = -1;
+			bool GlobalSamples = false;
 			FVector* PositionsPointer = nullptr;
 			if (TransferedPositions.Num() == MeshLODCount)
 			{
 				PositionsPointer = TransferedPositions[LODIndex].GetData();
+				GlobalSamples = true;
+				TargetSection = BindingAsset->MatchingSection;
 			}
 			else
 			{
@@ -381,7 +388,7 @@ namespace GroomBinding_RBFWeighting
 				PositionsPointer = static_cast<FVector*>(VertexBuffer.GetVertexData());
 			}
 
-			if (LocalSamples)
+			if (!GlobalSamples)
 			{
 				TArray<bool> ValidPoints;
 				for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
@@ -393,29 +400,6 @@ namespace GroomBinding_RBFWeighting
 
 					FWeightsBuilder InterpolationWeights(SampleCount, SampleCount,
 						PointsSampler.SamplePositions.GetData(), PointsSampler.SamplePositions.GetData());
-
-					//const FVector Displace(0.0,0.0,10.0);
-					//TArray<FVector> Deltas; Deltas.Init(FVector::ZeroVector, SampleCount );
-					//for (uint32 i = 0; i < SampleCount; ++i)
-					//{
-					//	Deltas[i] = FVector(0,0,0);
-					//	for (uint32 j = 0; j < SampleCount; ++j)
-					//	{
-					//		Deltas[i] += InterpolationWeights.InverseEntries[SampleCount * i + j] * Displace;
-					//	}
-					//	UE_LOG(LogHairStrands, Log, TEXT("[Groom] Sample Deltas[%d] = %s"), i, *Deltas[i].ToString());
-					//}
-					//for (uint32 i = 0; i < GroomAsset->HairGroupsData[GroupIt].HairSimulationData.StrandsPoints.Num(); ++i)
-					//{
-					//	FVector Offset(0,0,0);
-					//	for (uint32 j = 0; j < SampleCount; ++j)
-					//	{
-					//		const FVector DeltaPosition = GroomAsset->HairGroupsData[GroupIt].HairSimulationData.StrandsPoints.PointsPosition[i] - PointsSampler.SamplePositions[j];
-					//		const float FunctionValue = FMath::Sqrt(FVector::FVector::DotProductProduct(DeltaPosition, DeltaPosition)+1.0);
-					//		Offset += FunctionValue * Deltas[j];
-					//	}
-					//	UE_LOG(LogHairStrands, Log, TEXT("[Groom] Sample Displace[%d] = %s"), i, *Offset.ToString());
-					//}
 
 					UpdateInterpolationWeights(InterpolationWeights, PointsSampler, LODIndex, OutHairGroupDatas[GroupIt].SimRootData);
 					UpdateInterpolationWeights(InterpolationWeights, PointsSampler, LODIndex, OutHairGroupDatas[GroupIt].RenRootData);
@@ -1211,12 +1195,12 @@ namespace GroomBinding_Transfer
 	void Transfer(
 		const FSkeletalMeshRenderData* InSourceMeshRenderData,
 		const FSkeletalMeshRenderData* InTargetMeshRenderData,
-		TArray<TArray<FVector>>& OutTransferredPositions)
+		TArray<TArray<FVector>>& OutTransferredPositions, const int32 MatchingSection)
 	{
 		const uint32 ChannelIndex = 0;
 		const uint32 SourceLODIndex = 0;
-		const uint32 SourceSectionId = 0;
-		const int32 TargetSectionId = 0;
+		const int32 SourceSectionId = FMath::Min(MatchingSection, InSourceMeshRenderData->LODRenderData[SourceLODIndex].RenderSections.Num()-1);
+		const int32 TargetSectionId = SourceSectionId;
 
 		// Notes:
 		// LODs are transfered using the LOD0 of the source mesh, as the LOD count can mismatch between source and target meshes.
@@ -1418,7 +1402,7 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 		GroomBinding_Transfer::Transfer( 
 			SourceSkeletalMesh->GetResourceForRendering(),
 			TargetSkeletalMesh->GetResourceForRendering(),
-			TransferredPositions);
+			TransferredPositions, BindingAsset->MatchingSection);
 
 		SlowTask.EnterProgressFrame();
 	}
@@ -1461,7 +1445,7 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 		}
 	}
 
-	GroomBinding_RBFWeighting::Build(BindingAsset, TargetSkeletalMesh->GetResourceForRendering(), TransferredPositions);
+	GroomBinding_RBFWeighting::ComputeInterpolationWeights(BindingAsset, TargetSkeletalMesh->GetResourceForRendering(), TransferredPositions);
 	SlowTask.EnterProgressFrame();
 
 	UpdateGroupInfos(BindingAsset);
@@ -1507,7 +1491,7 @@ namespace GroomBinding_GPU
 		RHIUnlockVertexBuffer(OutBuffer.Buffer);
 	}
 
-	static void ReadbackGroupData(
+	void ReadbackGroupData(
 		FHairStrandsRootData& OutCPUData,
 		FHairStrandsRestRootResource* InGPUData)
 	{
@@ -1567,238 +1551,6 @@ namespace GroomBinding_GPU
 		}
 	}
 
-	struct FPointsSampler
-	{
-		FPointsSampler(TArray<bool>& ValidPoints, const FVector* PointPositions, const int32 NumSamples);
-
-		/** Build the sample position from the sample indices */
-		void BuildPositions(const FVector* PointPositions);
-
-		/** Compute the furthest point */
-		void FurthestPoint(const int32 NumPoints, const FVector* PointPositions, const uint32 SampleIndex, TArray<bool>& ValidPoints, TArray<float>& PointsDistance);
-
-		/** Compute the starting point */
-		int32 StartingPoint(const TArray<bool>& ValidPoints, int32& NumPoints) const;
-
-		/** List of sampled points */
-		TArray<uint32> SampleIndices;
-
-		/** List of sampled positions */
-		TArray<FVector> SamplePositions;
-	};
-
-	int32 FPointsSampler::StartingPoint(const TArray<bool>& ValidPoints, int32& NumPoints) const
-	{
-		int32 StartIndex = -1;
-		NumPoints = 0;
-		for (int32 i = 0; i < ValidPoints.Num(); ++i)
-		{
-			if (ValidPoints[i])
-			{
-				++NumPoints;
-				if (StartIndex == -1)
-				{
-					StartIndex = i;
-				}
-			}
-		}
-		return StartIndex;
-	}
-
-	void FPointsSampler::BuildPositions(const FVector* PointPositions)
-	{
-		SamplePositions.SetNum(SampleIndices.Num());
-		for (int32 i = 0; i < SampleIndices.Num(); ++i)
-		{
-			SamplePositions[i] = PointPositions[SampleIndices[i]];
-		}
-	}
-
-	void FPointsSampler::FurthestPoint(const int32 NumPoints, const FVector* PointPositions, const uint32 SampleIndex, TArray<bool>& ValidPoints, TArray<float>& PointsDistance)
-	{
-		float FurthestDistance = 0.0;
-		uint32 PointIndex = 0;
-		for (int32 j = 0; j < NumPoints; ++j)
-		{
-			if (ValidPoints[j])
-			{
-				PointsDistance[j] = FMath::Min((PointPositions[SampleIndices[SampleIndex - 1]] - PointPositions[j]).Size(), PointsDistance[j]);
-				if (PointsDistance[j] >= FurthestDistance)
-				{
-					PointIndex = j;
-					FurthestDistance = PointsDistance[j];
-				}
-			}
-		}
-		ValidPoints[PointIndex] = false;
-		SampleIndices[SampleIndex] = PointIndex;
-	}
-
-	FPointsSampler::FPointsSampler(TArray<bool>& ValidPoints, const FVector* PointPositions, const int32 NumSamples)
-	{
-		int32 NumPoints = 0;
-		int32 StartIndex = StartingPoint(ValidPoints, NumPoints);
-
-		const int32 SamplesCount = FMath::Min(NumPoints, NumSamples);
-		if (SamplesCount != 0)
-		{
-			SampleIndices.SetNum(SamplesCount);
-			SampleIndices[0] = StartIndex;
-			ValidPoints[StartIndex] = false;
-
-			TArray<float> PointsDistance;
-			PointsDistance.Init(MAX_FLT, ValidPoints.Num());
-
-			for (int32 i = 1; i < SamplesCount; ++i)
-			{
-				FurthestPoint(ValidPoints.Num(), PointPositions, i, ValidPoints, PointsDistance);
-			}
-			BuildPositions(PointPositions);
-		}
-	}
-
-	struct FWeightsBuilder
-	{
-		FWeightsBuilder(const uint32 NumRows, const uint32 NumColumns,
-			const FVector* SourcePositions, const FVector* TargetPositions);
-
-		using EigenMatrix = Eigen::Map<Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>;
-
-		/** Compute the weights by inverting the matrix*/
-		void ComputeWeights(const uint32 NumRows, const uint32 NumColumns);
-
-		/** Entries in the dense structure */
-		TArray<float> MatrixEntries;
-
-		/** Entries of the matrix inverse */
-		TArray<float> InverseEntries;
-	};
-
-	FWeightsBuilder::FWeightsBuilder(const uint32 NumRows, const uint32 NumColumns,
-		const FVector* SourcePositions, const FVector* TargetPositions)
-	{
-		const uint32 PolyRows = NumRows + 4;
-		const uint32 PolyColumns = NumColumns + 4;
-
-		MatrixEntries.Init(0.0, PolyRows * PolyColumns);
-		InverseEntries.Init(0.0, PolyRows * PolyColumns);
-		TArray<float>& LocalEntries = MatrixEntries;
-		ParallelFor(NumRows,
-			[
-				NumRows,
-				NumColumns,
-				PolyRows,
-				PolyColumns,
-				SourcePositions,
-				TargetPositions,
-				&LocalEntries
-			] (uint32 RowIndex)
-			{
-				int32 EntryIndex = RowIndex * PolyColumns;
-				for (uint32 j = 0; j < NumColumns; ++j)
-				{
-					const float FunctionScale = (SourcePositions[RowIndex] - TargetPositions[j]).Size();
-					LocalEntries[EntryIndex++] = FMath::Sqrt(FunctionScale * FunctionScale + 1.0);
-				}
-				LocalEntries[EntryIndex++] = 1.0;
-				LocalEntries[EntryIndex++] = SourcePositions[RowIndex].X;
-				LocalEntries[EntryIndex++] = SourcePositions[RowIndex].Y;
-				LocalEntries[EntryIndex++] = SourcePositions[RowIndex].Z;
-
-				EntryIndex = NumRows * PolyColumns + RowIndex;
-				LocalEntries[EntryIndex] = 1.0;
-
-				EntryIndex += PolyColumns;
-				LocalEntries[EntryIndex] = SourcePositions[RowIndex].X;
-
-				EntryIndex += PolyColumns;
-				LocalEntries[EntryIndex] = SourcePositions[RowIndex].Y;
-
-				EntryIndex += PolyColumns;
-				LocalEntries[EntryIndex] = SourcePositions[RowIndex].Z;
-
-				const float REGUL_VALUE = 1e-4;
-				EntryIndex = NumRows * PolyColumns + NumColumns;
-				LocalEntries[EntryIndex] = REGUL_VALUE;
-
-				EntryIndex += PolyColumns + 1;
-				LocalEntries[EntryIndex] = REGUL_VALUE;
-
-				EntryIndex += PolyColumns + 1;
-				LocalEntries[EntryIndex] = REGUL_VALUE;
-
-				EntryIndex += PolyColumns + 1;
-				LocalEntries[EntryIndex] = REGUL_VALUE;
-
-			});
-		ComputeWeights(PolyRows, PolyColumns);
-	}
-
-	void FWeightsBuilder::ComputeWeights(const uint32 NumRows, const uint32 NumColumns)
-	{
-		EigenMatrix WeightsMatrix(MatrixEntries.GetData(), NumRows, NumColumns);
-		EigenMatrix WeightsInverse(InverseEntries.GetData(), NumColumns, NumRows);
-
-		WeightsInverse = WeightsMatrix.inverse();
-	}
-
-	void UpdateInterpolationWeights(const FWeightsBuilder& InterpolationWeights, const FPointsSampler& PointsSampler, const uint32 LODIndex, FHairStrandsRootData& RootDatas)
-	{
-		FHairStrandsRootData::FMeshProjectionLOD& CPULOD = RootDatas.MeshProjectionLODs[LODIndex];
-		CPULOD.MeshSampleIndicesBuffer.SetNum(PointsSampler.SampleIndices.Num());
-		CPULOD.MeshInterpolationWeightsBuffer.SetNum(InterpolationWeights.InverseEntries.Num());
-		CPULOD.RestSamplePositionsBuffer.SetNum(PointsSampler.SampleIndices.Num());
-
-		CPULOD.SampleCount = PointsSampler.SampleIndices.Num();
-		CPULOD.MeshSampleIndicesBuffer = PointsSampler.SampleIndices;
-		CPULOD.MeshInterpolationWeightsBuffer = InterpolationWeights.InverseEntries;
-		for (int32 i = 0; i < PointsSampler.SamplePositions.Num(); ++i)
-		{
-			CPULOD.RestSamplePositionsBuffer[i] = FVector4(PointsSampler.SamplePositions[i], 1.0f);
-		}
-	}
-
-	void FillLocalValidPoints(FSkeletalMeshLODRenderData& LODRenderData, const uint32 TargetSection,
-		const FHairStrandsRootData::FMeshProjectionLOD& ProjectionLOD, TArray<bool>& ValidPoints)
-	{
-		TArray<uint32> TriangleIndices; TriangleIndices.SetNum(LODRenderData.MultiSizeIndexContainer.GetIndexBuffer()->Num());
-		LODRenderData.MultiSizeIndexContainer.GetIndexBuffer(TriangleIndices);
-
-		ValidPoints.Init(false, LODRenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices());
-
-		const TArray<uint32>& RootBuffers = ProjectionLOD.RootTriangleIndexBuffer;
-		for (int32 RootIt = 0; RootIt < RootBuffers.Num(); ++RootIt)
-		{
-			const uint32 SectionIndex = (RootBuffers[RootIt] >> 28) & 0xF;
-			const uint32 TriangleIndex = RootBuffers[RootIt] & 0xFFFFFFF;
-			if (SectionIndex == TargetSection)
-			{
-				for (uint32 VertexIt = 0; VertexIt < 3; ++VertexIt)
-				{
-					const uint32 VertexIndex = TriangleIndices[LODRenderData.RenderSections[SectionIndex].BaseIndex + 3 * TriangleIndex + VertexIt];
-					ValidPoints[VertexIndex] = true;
-				}
-			}
-		}
-	}
-
-	void FillGlobalValidPoints(FSkeletalMeshLODRenderData& LODRenderData, const uint32 TargetSection, TArray<bool>& ValidPoints)
-	{
-		TArray<uint32> TriangleIndices; TriangleIndices.SetNum(LODRenderData.MultiSizeIndexContainer.GetIndexBuffer()->Num());
-		LODRenderData.MultiSizeIndexContainer.GetIndexBuffer(TriangleIndices);
-
-		ValidPoints.Init(false, LODRenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices());
-
-		for (uint32 TriangleIt = 0; TriangleIt < LODRenderData.RenderSections[TargetSection].NumTriangles; ++TriangleIt)
-		{
-			for (uint32 VertexIt = 0; VertexIt < 3; ++VertexIt)
-			{
-				const uint32 VertexIndex = TriangleIndices[LODRenderData.RenderSections[TargetSection].BaseIndex + 3 * TriangleIt + VertexIt];
-				ValidPoints[VertexIndex] = true;
-			}
-		}
-	}
-
 	void ComputeInterpolationWeights(UGroomBindingAsset* BindingAsset, FSkeletalMeshRenderData* TargetRenderData, TArray<FRWBuffer>& TransferedPositions)
 	{
 		UGroomAsset* GroomAsset = BindingAsset->Groom;
@@ -1829,14 +1581,13 @@ namespace GroomBinding_GPU
 			}
 		}
 
-		const uint32 TargetSection = 0;
 		const bool LocalSamples = false;
 		for (uint32 LODIndex = 0; LODIndex < MeshLODCount; ++LODIndex)
 		{
 			FSkeletalMeshLODRenderData& LODRenderData = TargetRenderData->LODRenderData[LODIndex];
 
-			TArray<FSkelMeshRenderSection>& RenderSections = LODRenderData.RenderSections;
-			const int32 NumVertices = (RenderSections.Num() > TargetSection) ? RenderSections[TargetSection].NumVertices : 0;
+			int32 TargetSection = -1;
+			bool GlobalSamples = false;
 
 			TArray<FVector> SourcePositions;
 			FVector* PositionsPointer = nullptr;
@@ -1844,6 +1595,8 @@ namespace GroomBinding_GPU
 			{
 				ReadbackBuffer(SourcePositions, TransferedPositions[LODIndex]);
 				PositionsPointer = SourcePositions.GetData();
+				GlobalSamples = true;
+				TargetSection = BindingAsset->MatchingSection;
 			}
 			else
 			{
@@ -1856,39 +1609,16 @@ namespace GroomBinding_GPU
 				TArray<bool> ValidPoints;
 				for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 				{
-					FillLocalValidPoints(LODRenderData, TargetSection, OutHairGroupDatas[GroupIt].RenRootData.MeshProjectionLODs[LODIndex], ValidPoints);
+					GroomBinding_RBFWeighting::FillLocalValidPoints(LODRenderData, TargetSection, OutHairGroupDatas[GroupIt].RenRootData.MeshProjectionLODs[LODIndex], ValidPoints);
 
-					FPointsSampler PointsSampler(ValidPoints, PositionsPointer, MaxSamples);
+					GroomBinding_RBFWeighting::FPointsSampler PointsSampler(ValidPoints, PositionsPointer, MaxSamples);
 					const uint32 SampleCount = PointsSampler.SamplePositions.Num();
 
-					FWeightsBuilder InterpolationWeights(SampleCount, SampleCount,
+					GroomBinding_RBFWeighting::FWeightsBuilder InterpolationWeights(SampleCount, SampleCount,
 						PointsSampler.SamplePositions.GetData(), PointsSampler.SamplePositions.GetData());
 
-					//const FVector Displace(0.0,0.0,10.0);
-					//TArray<FVector> Deltas; Deltas.Init(FVector::ZeroVector, SampleCount );
-					//for (uint32 i = 0; i < SampleCount; ++i)
-					//{
-					//	Deltas[i] = FVector(0,0,0);
-					//	for (uint32 j = 0; j < SampleCount; ++j)
-					//	{
-					//		Deltas[i] += InterpolationWeights.InverseEntries[SampleCount * i + j] * Displace;
-					//	}
-					//	UE_LOG(LogHairStrands, Log, TEXT("[Groom] Sample Deltas[%d] = %s"), i, *Deltas[i].ToString());
-					//}
-					//for (uint32 i = 0; i < GroomAsset->HairGroupsData[GroupIt].HairSimulationData.StrandsPoints.Num(); ++i)
-					//{
-					//	FVector Offset(0,0,0);
-					//	for (uint32 j = 0; j < SampleCount; ++j)
-					//	{
-					//		const FVector DeltaPosition = GroomAsset->HairGroupsData[GroupIt].HairSimulationData.StrandsPoints.PointsPosition[i] - PointsSampler.SamplePositions[j];
-					//		const float FunctionValue = FMath::Sqrt(FVector::DotProduct(DeltaPosition, DeltaPosition)+1.0);
-					//		Offset += FunctionValue * Deltas[j];
-					//	}
-					//	UE_LOG(LogHairStrands, Log, TEXT("[Groom] Sample Displace[%d] = %s"), i, *Offset.ToString());
-					//}
-
-					UpdateInterpolationWeights(InterpolationWeights, PointsSampler, LODIndex, OutHairGroupDatas[GroupIt].SimRootData);
-					UpdateInterpolationWeights(InterpolationWeights, PointsSampler, LODIndex, OutHairGroupDatas[GroupIt].RenRootData);
+					GroomBinding_RBFWeighting::UpdateInterpolationWeights(InterpolationWeights, PointsSampler, LODIndex, OutHairGroupDatas[GroupIt].SimRootData);
+					GroomBinding_RBFWeighting::UpdateInterpolationWeights(InterpolationWeights, PointsSampler, LODIndex, OutHairGroupDatas[GroupIt].RenRootData);
 
 					const uint32 CardsLODCount = OutHairGroupDatas[GroupIt].CardsRootData.Num();
 					for (uint32 CardsLODIt = 0; CardsLODIt < CardsLODCount; ++CardsLODIt)
@@ -1904,18 +1634,18 @@ namespace GroomBinding_GPU
 			{
 				TArray<bool> ValidPoints;
 
-				FillGlobalValidPoints(LODRenderData, TargetSection, ValidPoints);
+				GroomBinding_RBFWeighting::FillGlobalValidPoints(LODRenderData, TargetSection, ValidPoints);
 
-				FPointsSampler PointsSampler(ValidPoints, PositionsPointer, MaxSamples);
+				GroomBinding_RBFWeighting::FPointsSampler PointsSampler(ValidPoints, PositionsPointer, MaxSamples);
 				const uint32 SampleCount = PointsSampler.SamplePositions.Num();
 
-				FWeightsBuilder InterpolationWeights(SampleCount, SampleCount,
+				GroomBinding_RBFWeighting::FWeightsBuilder InterpolationWeights(SampleCount, SampleCount,
 					PointsSampler.SamplePositions.GetData(), PointsSampler.SamplePositions.GetData());
 
 				for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 				{
-					UpdateInterpolationWeights(InterpolationWeights, PointsSampler, LODIndex, OutHairGroupDatas[GroupIt].SimRootData);
-					UpdateInterpolationWeights(InterpolationWeights, PointsSampler, LODIndex, OutHairGroupDatas[GroupIt].RenRootData);
+					GroomBinding_RBFWeighting::UpdateInterpolationWeights(InterpolationWeights, PointsSampler, LODIndex, OutHairGroupDatas[GroupIt].SimRootData);
+					GroomBinding_RBFWeighting::UpdateInterpolationWeights(InterpolationWeights, PointsSampler, LODIndex, OutHairGroupDatas[GroupIt].RenRootData);
 
 					const uint32 CardsLODCount = OutHairGroupDatas[GroupIt].CardsRootData.Num();
 					for (uint32 CardsLODIt = 0; CardsLODIt < CardsLODCount; ++CardsLODIt)
@@ -1947,6 +1677,7 @@ namespace GroomBinding_GPU
 
 #endif
 #endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main entry (GPU path)
 #if GPU_BINDING

@@ -157,7 +157,7 @@ UStaticMesh* FHairStrandsCore::CreateStaticMesh(const FString& InPackageName, co
 	return nullptr;
 }
 
-UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(const FString& InPackageName, UObject* InParent, UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints)
+UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(const FString& InPackageName, UObject* InParent, UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints, const int32 MatchingSection)
 {
 #if WITH_EDITOR
 	if (!TargetSkelMesh || !GroomAsset)
@@ -206,6 +206,7 @@ UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(const FString& InP
 		Out->TargetSkeletalMesh = TargetSkelMesh;
 		Out->HairGroupDatas.Reserve(GroomAsset->HairGroupsData.Num());
 		Out->NumInterpolationPoints = NumInterpolationPoints;
+		Out->MatchingSection = MatchingSection;
 		Out->MarkPackageDirty();
 		HairStrandsCore_AssetHelper.RegisterAsset(Out);
 		return Out;
@@ -214,9 +215,9 @@ UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(const FString& InP
 	return nullptr;
 }
 
-UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints)
+UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints, const int32 MatchingSection)
 {
-	return CreateGroomBindingAsset(FString(), nullptr, GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints);
+	return CreateGroomBindingAsset(FString(), nullptr, GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints, MatchingSection);
 }
 
 void FHairStrandsCore::SaveAsset(UObject* Object)

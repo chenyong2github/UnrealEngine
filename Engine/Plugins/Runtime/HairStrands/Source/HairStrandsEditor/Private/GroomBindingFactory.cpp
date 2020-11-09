@@ -20,6 +20,7 @@ UObject* UGroomBindingFactory::FactoryCreateNew(UClass* InClass, UObject* InPare
 	GroomBinding->TargetSkeletalMesh = nullptr;
 	GroomBinding->SourceSkeletalMesh = nullptr;
 	GroomBinding->NumInterpolationPoints = 100;
+	GroomBinding->MatchingSection = 0;
 
 	return GroomBinding;
 }

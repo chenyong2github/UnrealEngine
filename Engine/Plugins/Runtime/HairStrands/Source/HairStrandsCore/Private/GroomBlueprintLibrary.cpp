@@ -9,7 +9,8 @@ UGroomBindingAsset* UGroomBlueprintLibrary::CreateNewGroomBindingAssetWithPath(
 	UGroomAsset* InGroomAsset,
 	USkeletalMesh* InSkeletalMesh,
 	int32 InNumInterpolationPoints,
-	USkeletalMesh* InSourceSkeletalMeshForTransfer)
+	USkeletalMesh* InSourceSkeletalMeshForTransfer,
+	int32 InMatchingSection)
 {
 #if WITH_EDITOR
 	if (!InGroomAsset || !InSkeletalMesh)
@@ -17,7 +18,7 @@ UGroomBindingAsset* UGroomBlueprintLibrary::CreateNewGroomBindingAssetWithPath(
 		return nullptr;
 	}
 
-	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(InDesiredPackagePath, nullptr, InGroomAsset, InSourceSkeletalMeshForTransfer, InSkeletalMesh, InNumInterpolationPoints);
+	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(InDesiredPackagePath, nullptr, InGroomAsset, InSourceSkeletalMeshForTransfer, InSkeletalMesh, InNumInterpolationPoints, InMatchingSection);
 	if (BindingAsset)
 	{
 		BindingAsset->Build();
@@ -33,7 +34,8 @@ UGroomBindingAsset* UGroomBlueprintLibrary::CreateNewGroomBindingAsset(
 	UGroomAsset* InGroomAsset,
 	USkeletalMesh* InSkeletalMesh,
 	int32 InNumInterpolationPoints,
-	USkeletalMesh* InSourceSkeletalMeshForTransfer)
+	USkeletalMesh* InSourceSkeletalMeshForTransfer,
+	int32 InMatchingSection)
 {
 #if WITH_EDITOR
 	if (!InGroomAsset || !InSkeletalMesh)
@@ -41,7 +43,7 @@ UGroomBindingAsset* UGroomBlueprintLibrary::CreateNewGroomBindingAsset(
 		return nullptr;
 	}
 
-	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(InGroomAsset, InSourceSkeletalMeshForTransfer, InSkeletalMesh, InNumInterpolationPoints);
+	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(InGroomAsset, InSourceSkeletalMeshForTransfer, InSkeletalMesh, InNumInterpolationPoints, InMatchingSection);
 	if (BindingAsset)
 	{
 		BindingAsset->Build();
