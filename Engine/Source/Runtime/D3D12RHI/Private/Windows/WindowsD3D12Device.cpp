@@ -78,9 +78,20 @@ int32 GMinimumDriverVersionForRayTracingNVIDIA = 0;
 static FAutoConsoleVariableRef CVarMinDriverVersionForRayTracingNVIDIA(
 	TEXT("r.D3D12.DXR.MinimumDriverVersionNVIDIA"),
 	GMinimumDriverVersionForRayTracingNVIDIA,
-	TEXT("Sets the minimum driver version required to enable ray tracing."),
+	TEXT("Sets the minimum driver version required to enable ray tracing on NVIDIA GPUs."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
+
+// Use AGS_MAKE_VERSION() macro to define the version.
+// i.e. AGS_MAKE_VERSION(major, minor, patch) ((major << 22) | (minor << 12) | patch)
+int32 GMinimumDriverVersionForRayTracingAMD = 0;
+static FAutoConsoleVariableRef CVarMinDriverVersionForRayTracingAMD(
+	TEXT("r.D3D12.DXR.MinimumDriverVersionAMD"),
+	GMinimumDriverVersionForRayTracingAMD,
+	TEXT("Sets the minimum driver version required to enable ray tracing on AMD GPUs."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
 
 static inline int D3D12RHI_PreferAdapterVendor()
 {
@@ -598,13 +609,14 @@ void FD3D12DynamicRHI::Init()
 
 #if AMD_API_ENABLE
 	// Initialize the AMD AGS utility library, when running on an AMD device
+	AGSGPUInfo AmdAgsGpuInfo = {};
 	if (IsRHIDeviceAMD() && bAllowVendorDevice)
 	{
 		check(AmdAgsContext == nullptr);
 		check(AmdSupportedExtensionFlags == 0);
 
 		// agsInit should be called before D3D device creation
-		agsInit(AGS_MAKE_VERSION(AMD_AGS_VERSION_MAJOR, AMD_AGS_VERSION_MINOR, AMD_AGS_VERSION_PATCH), nullptr, &AmdAgsContext, nullptr);
+		agsInit(AGS_MAKE_VERSION(AMD_AGS_VERSION_MAJOR, AMD_AGS_VERSION_MINOR, AMD_AGS_VERSION_PATCH), nullptr, &AmdAgsContext, &AmdAgsGpuInfo);
 	}
 #endif
 
@@ -698,6 +710,22 @@ void FD3D12DynamicRHI::Init()
 		}
 	}
 #endif
+
+#if !PLATFORM_CPU_ARM_FAMILY
+	if (GRHISupportsRayTracing
+		&& IsRHIDeviceAMD()
+		&& GMinimumDriverVersionForRayTracingAMD > 0
+		&& AmdAgsContext
+		&& AmdAgsGpuInfo.radeonSoftwareVersion)
+	{
+		if (agsCheckDriverVersion(AmdAgsGpuInfo.radeonSoftwareVersion, GMinimumDriverVersionForRayTracingAMD) == AGS_SOFTWAREVERSIONCHECK_OLDER)
+		{
+			GRHISupportsRayTracing = false;
+
+			UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled because the driver is too old"));
+		}
+	}
+#endif // !PLATFORM_CPU_ARM_FAMILY
 
 	GTexturePoolSize = 0;
 
