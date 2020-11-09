@@ -2059,7 +2059,7 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 			bNeedsSetupAndTeardown = true;
 		}
 
-		// Handle reading/writing to the StageContext. namespace
+		// Handle reading/writing to the StackContext. namespace
 		if (CDO->SupportsIterationSourceNamespaceAttributesHLSL())
 		{
 			if (ReadVars.Num() > 0)
@@ -2074,7 +2074,7 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 			}
 		}
 		
-		// If it wasn't previously added, let's go ahead and do so. Maybe they are solely using the StageContext namespace.
+		// If it wasn't previously added, let's go ahead and do so. Maybe they are solely using the StackContext namespace.
 		if (DataInterfaceOwnerIndex == INDEX_NONE && bNeedsDIOwner)
 		{
 			DataInterfaceOwnerIndex = RegisterDataInterface(IterationSourceVar, CDO, true, false);
@@ -2087,16 +2087,16 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 			return;
 		}
 
-		// It is an invalid state to use the IterationSource and StageContext namespace without implementing SupportsIterationSourceNamespaceAttributesHLSL
+		// It is an invalid state to use the IterationSource and StackContext namespace without implementing SupportsIterationSourceNamespaceAttributesHLSL
 		if (ReadVars.Num() > 0 && !bNeedsAttributeRead)
 		{
-			Error(FText::Format(LOCTEXT("CannotUseContextRead", "Variable {0} cannot be used in conjunction with StageContext namespace variable reads! It must implement SupportsIterationSourceNamespaceAttributesHLSL."), FText::FromName(TranslationStage.IterationSource)), nullptr, nullptr);
+			Error(FText::Format(LOCTEXT("CannotUseContextRead", "Variable {0} cannot be used in conjunction with StackContext namespace variable reads! It must implement SupportsIterationSourceNamespaceAttributesHLSL."), FText::FromName(TranslationStage.IterationSource)), nullptr, nullptr);
 			return;
 		}
 
 		if (WriteVars.Num() > 0 && !bNeedsAttributeWrite)
 		{
-			Error(FText::Format(LOCTEXT("CannotUseContextWrite", "Variable {0} cannot be used in conjunction with StageContext namespace variable writes! It must implement SupportsIterationSourceNamespaceAttributesHLSL."), FText::FromName(TranslationStage.IterationSource)), nullptr, nullptr);
+			Error(FText::Format(LOCTEXT("CannotUseContextWrite", "Variable {0} cannot be used in conjunction with StackContext namespace variable writes! It must implement SupportsIterationSourceNamespaceAttributesHLSL."), FText::FromName(TranslationStage.IterationSource)), nullptr, nullptr);
 			return;
 		}
 
@@ -8239,50 +8239,7 @@ TArray<FName> FHlslNiagaraTranslator::ConditionPropertyPath(const FNiagaraTypeDe
 //////////////////////////////////////////////////////////////////////////
 
 
-FString FHlslNiagaraTranslator::CompileDataInterfaceFunction(UNiagaraDataInterface* DataInterface, FNiagaraFunctionSignature& Signature)
-{
-	//For now I'm compiling data interface functions like this. 
-	//Not the prettiest thing in the world but it'll suffice for now.
 
-	if (UNiagaraDataInterfaceCurve* Curve = Cast<UNiagaraDataInterfaceCurve>(DataInterface))
-	{
-		//For now, VM only which needs no body. GPU will need a body.
-		return TEXT("");
-	}
-	else if (UNiagaraDataInterfaceVectorCurve* VecCurve = Cast<UNiagaraDataInterfaceVectorCurve>(DataInterface))
-	{
-		//For now, VM only which needs no body. GPU will need a body.
-		return TEXT("");
-	}
-	else if (UNiagaraDataInterfaceColorCurve* ColorCurve = Cast<UNiagaraDataInterfaceColorCurve>(DataInterface))
-	{
-		//For now, VM only which needs no body. GPU will need a body.
-		return TEXT("");
-	}
-	else if (UNiagaraDataInterfaceVector2DCurve* Vec2DCurve = Cast<UNiagaraDataInterfaceVector2DCurve>(DataInterface))
-	{
-		//For now, VM only which needs no body. GPU will need a body.
-		return TEXT("");
-	}
-	else if (UNiagaraDataInterfaceVector4Curve* Vec4Curve = Cast<UNiagaraDataInterfaceVector4Curve>(DataInterface))
-	{
-		//For now, VM only which needs no body. GPU will need a body.
-		return TEXT("");
-	}
-	else if (UNiagaraDataInterfaceStaticMesh* Mesh = Cast<UNiagaraDataInterfaceStaticMesh>(DataInterface))
-	{
-		return TEXT("");
-	}
-	else if (UNiagaraDataInterfaceCurlNoise* Noise = Cast<UNiagaraDataInterfaceCurlNoise>(DataInterface))
-	{
-		return TEXT("");
-	}
-	else
-	{
-		return TEXT("");
-		check(0);
-	}
-}
 
 
 
