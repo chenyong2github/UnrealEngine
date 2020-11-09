@@ -7,12 +7,6 @@ public class DisplayClusterProjection : ModuleRules
 {
 	public DisplayClusterProjection(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"../../../../../Engine/Source/Runtime/Windows/D3D11RHI/Private",
-				"../../../../../Engine/Source/Runtime/Windows/D3D11RHI/Private/Windows",
-			});
-
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
 				"DisplayClusterConfiguration"
@@ -28,7 +22,6 @@ public class DisplayClusterProjection : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"D3D11RHI",
 				"Composure",
 				"DisplayCluster",
 				"MPCDI",
@@ -44,10 +37,33 @@ public class DisplayClusterProjection : ModuleRules
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
 
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"D3D11RHI",
+				"D3D12RHI"
+			});
+
+			// Required for some private headers needed for the rendering support.
+			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
+			PrivateIncludePaths.AddRange(
+			new string[] {
+				Path.Combine(EngineDir, @"Source\Runtime\Windows\D3D11RHI\Private"),
+				Path.Combine(EngineDir, @"Source\Runtime\Windows\D3D11RHI\Private\Windows"),
+				Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Private"),
+				Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Private\Windows")
+			});
+
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
+		}
+
 		AddThirdPartyDependencies(ROTargetRules);
 	}
 
@@ -60,6 +76,10 @@ public class DisplayClusterProjection : ModuleRules
 			// EasyBlend
 			PrivateIncludePaths.Add(Path.Combine(ThirdPartyPath, "EasyBlend", "Include"));
 			RuntimeDependencies.Add(Path.Combine(ThirdPartyPath, "EasyBlend", "DLL", "mplEasyBlendSDKDX1164.dll"));
+
+			// VIOSO
+			PrivateIncludePaths.Add(Path.Combine(ThirdPartyPath, "VIOSO", "Include"));
+			RuntimeDependencies.Add(Path.Combine(ThirdPartyPath, "VIOSO", "DLL", "VIOSOWarpBlend64.dll"));
 
 			// Domeprojection
 			PrivateIncludePaths.Add(Path.Combine(ThirdPartyPath, "Domeprojection", "Include"));

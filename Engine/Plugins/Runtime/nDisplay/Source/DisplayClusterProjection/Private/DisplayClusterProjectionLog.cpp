@@ -9,5 +9,6 @@ DEFINE_LOG_CATEGORY(LogDisplayClusterProjectionSimple);
 DEFINE_LOG_CATEGORY(LogDisplayClusterProjectionMPCDI);
 DEFINE_LOG_CATEGORY(LogDisplayClusterProjectionMesh);
 DEFINE_LOG_CATEGORY(LogDisplayClusterProjectionEasyBlend);
+DEFINE_LOG_CATEGORY(LogDisplayClusterProjectionVIOSO);
 DEFINE_LOG_CATEGORY(LogDisplayClusterProjectionManual);
 DEFINE_LOG_CATEGORY(LogDisplayClusterProjectionDomeprojection);

@@ -21,6 +21,22 @@ namespace DisplayClusterProjectionStrings
 			static constexpr auto Scale  = TEXT("scale");
 		}
 
+		namespace VIOSO
+		{
+			static constexpr auto Origin = TEXT("origin");
+
+			static constexpr auto INIFile     = TEXT("inifile");
+			static constexpr auto ChannelName = TEXT("channel");
+
+			static constexpr auto File         = TEXT("file");
+			static constexpr auto CalibIndex   = TEXT("index");
+			static constexpr auto CalibAdapter = TEXT("adapter");
+
+			static constexpr auto Gamma = TEXT("gamma");
+
+			static constexpr auto BaseMatrix = TEXT("base");
+		}
+
 		namespace manual
 		{
 			static constexpr auto Rotation     = TEXT("rot");
@@ -60,6 +76,7 @@ namespace DisplayClusterProjectionStrings
 		static constexpr auto MPCDI          = TEXT("mpcdi");
 		static constexpr auto Mesh           = TEXT("mesh");
 		static constexpr auto EasyBlend      = TEXT("easyblend");
+		static constexpr auto VIOSO          = TEXT("vioso");
 		static constexpr auto Manual         = TEXT("manual");
 		static constexpr auto Domeprojection = TEXT("domeprojection");
 	}
