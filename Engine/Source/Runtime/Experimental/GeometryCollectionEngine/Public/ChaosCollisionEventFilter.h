@@ -7,8 +7,6 @@
 #include "EventsData.h"
 #include "ChaosCollisionEventFilter.generated.h"
 
-using namespace Chaos;
-
 // A collision event data structure
 USTRUCT(BlueprintType)
 struct FChaosCollisionEventData

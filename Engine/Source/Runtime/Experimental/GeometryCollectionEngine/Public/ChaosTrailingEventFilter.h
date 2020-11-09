@@ -7,8 +7,6 @@
 #include "EventsData.h"
 #include "ChaosTrailingEventFilter.generated.h"
 
-using namespace Chaos;
-
 // A trailing event data structure. 
 USTRUCT(BlueprintType)
 struct FChaosTrailingEventData
