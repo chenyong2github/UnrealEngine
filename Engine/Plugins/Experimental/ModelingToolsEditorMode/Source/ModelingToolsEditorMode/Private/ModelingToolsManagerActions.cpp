@@ -102,6 +102,9 @@ void FModelingToolsManagerCommands::RegisterCommands()
 
 	UI_COMMAND(BeginGroomToMeshTool, "HairHelmet", "Start the Hair Helmet Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginGenerateLODMeshesTool, "GenLODs", "Start the Generate LOD Meshes Tool", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BeginGroomCardsToMeshTool, "CardsToMesh", "Start the Hair Cards to Mesh Tool", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BeginGroomMeshToCardsTool, "MeshToCards", "Start the Mesh to Hair Cards Tool", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BeginGroomCardsEditorTool, "CardsEditor", "Start the Cards Editor Tool", EUserInterfaceActionType::Button, FInputChord());
 
 	UI_COMMAND(AcceptActiveTool, "Accept", "Accept the active tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CancelActiveTool, "Cancel", "Cancel the active tool", EUserInterfaceActionType::Button, FInputChord());

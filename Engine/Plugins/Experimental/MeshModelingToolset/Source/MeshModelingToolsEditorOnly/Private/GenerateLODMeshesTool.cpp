@@ -64,18 +64,21 @@ UGenerateLODMeshesToolProperties::UGenerateLODMeshesToolProperties()
 	// hardcoded for hair helmet
 
 	FLODLevelGenerateSettings LOD0;
+	LOD0.SimplifierType = ESimplifyType::UE4Standard;
 	LOD0.TargetMode = ESimplifyTargetType::VertexCount;
 	LOD0.TargetPercentage = 50;
 	LOD0.TargetCount = 500;
 	LODLevels.Add(LOD0);
 
 	FLODLevelGenerateSettings LOD1;
+	LOD1.SimplifierType = ESimplifyType::UE4Standard;
 	LOD1.TargetMode = ESimplifyTargetType::VertexCount;
 	LOD1.TargetPercentage = 30;
 	LOD1.TargetCount = 250;
 	LODLevels.Add(LOD1);
 
 	FLODLevelGenerateSettings LOD2;
+	LOD2.SimplifierType = ESimplifyType::UE4Standard;
 	LOD2.TargetMode = ESimplifyTargetType::VertexCount;
 	LOD2.TargetPercentage = 15;
 	LOD2.TargetCount = 150;
@@ -277,17 +280,17 @@ TUniquePtr<FDynamicMeshOperator> FGenerateLODOperatorFactory::MakeNewOperator()
 
 	UGenerateLODMeshesToolProperties* SimplifyProperties = ParentTool->SimplifyProperties;
 
+	Op->SimplifierType = LODSettings.SimplifierType;
 	Op->TargetMode = LODSettings.TargetMode;
 	Op->TargetCount = LODSettings.TargetCount;
 	Op->TargetPercentage = LODSettings.TargetPercentage;
+	Op->bReproject = LODSettings.bReproject;
 
 	Op->TargetEdgeLength = SimplifyProperties->TargetEdgeLength;
-	Op->SimplifierType = SimplifyProperties->SimplifierType;
 	Op->bDiscardAttributes = SimplifyProperties->bDiscardAttributes;
 	Op->bPreventNormalFlips = SimplifyProperties->bPreventNormalFlips;
 	Op->bPreserveSharpEdges = SimplifyProperties->bPreserveSharpEdges;
 	Op->bAllowSeamCollapse = !SimplifyProperties->bPreserveSharpEdges;
-	Op->bReproject = SimplifyProperties->bReproject;
 	Op->MeshBoundaryConstraint = (EEdgeRefineFlags)SimplifyProperties->MeshBoundaryConstraint;
 	Op->GroupBoundaryConstraint = (EEdgeRefineFlags)SimplifyProperties->GroupBoundaryConstraint;
 	Op->MaterialBoundaryConstraint = (EEdgeRefineFlags)SimplifyProperties->MaterialBoundaryConstraint;

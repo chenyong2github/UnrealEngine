@@ -239,27 +239,40 @@ void UGroomToMeshTool::RecalculateMesh()
 {
 	TSharedPtr<FDynamicMesh3> CurrentResult = UpdateVoxelization();
 
-	if (Settings->bApplyMorphology)
+	// helper to only use NewMesh if it was valid, otherwise ignore it
+	auto SelectValidMesh = [](TSharedPtr<FDynamicMesh3> CurrentMesh, TSharedPtr<FDynamicMesh3> NewMesh)
 	{
-		CurrentResult = UpdateMorphology(CurrentResult);
+		if (NewMesh->TriangleCount() > 0)
+		{
+			return NewMesh;
+		}
+		return CurrentMesh;
+	};
+
+	if (Settings->bApplyMorphology && CurrentResult->TriangleCount() > 0)
+	{
+		CurrentResult = SelectValidMesh(CurrentResult, UpdateMorphology(CurrentResult));
 	}
 
-	if (Settings->bClipToHead)
+	if (Settings->bClipToHead && CurrentResult->TriangleCount() > 0)
 	{
-		CurrentResult = UpdateClipMesh(CurrentResult);
+		CurrentResult = SelectValidMesh(CurrentResult, UpdateClipMesh(CurrentResult));
 	}
 
-	if (Settings->bSmooth)
+	if (Settings->bSmooth && CurrentResult->TriangleCount() > 0)
 	{
-		CurrentResult = UpdateSmoothing(CurrentResult);
+		CurrentResult = SelectValidMesh(CurrentResult, UpdateSmoothing(CurrentResult));
 	}
 
-	if (Settings->bSimplify)
+	if (Settings->bSimplify && CurrentResult->TriangleCount() > 0)
 	{
-		CurrentResult = UpdateSimplification(CurrentResult);
+		CurrentResult = SelectValidMesh(CurrentResult, UpdateSimplification(CurrentResult));
 	}
 
-	CurrentResult = UpdatePostprocessing(CurrentResult);
+	if (CurrentResult->TriangleCount() > 0)
+	{
+		CurrentResult = SelectValidMesh(CurrentResult, UpdatePostprocessing(CurrentResult));
+	}
 
 	UpdatePreview(CurrentResult);
 }
@@ -469,17 +482,21 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateVoxelization()
 	for (int32 k = 0; k < Lines.Num(); ++k)
 	{
 		Seeds.Add( Lines[k].Segment.EndPoint() + Lines[k].GetRadius()*Lines[k].Segment.Direction );
+		Seeds.Add( Lines[k].Segment.StartPoint() - Lines[k].GetRadius()*Lines[k].Segment.Direction );
 	}
 
 	MarchingCubes.Implicit = [&Blend](const FVector3d& Pt) { return Blend.Value(Pt); };
 
-	//MarchingCubes.bParallelCompute = false;
-	//MarchingCubes.Generate();
 	MarchingCubes.GenerateContinuation(Seeds);
+
+	// if we found zero triangles, try again w/ full grid search
+	if (MarchingCubes.Triangles.Num() == 0)
+	{
+		MarchingCubes.Generate();
+	}
 
 	// clear implicit function...
 	MarchingCubes.Implicit = nullptr;
-
 
 	CurrentVoxelizeResult = MakeShared<FDynamicMesh3>(&MarchingCubes);
 	CachedVoxelizeSettings = NewSettings;
@@ -503,7 +520,7 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateMorphology(TSharedPtr<FDynamic
 
 	CachedMorphologyResult = MakeShared<FDynamicMesh3>(*InputMesh);
 
-	if (NewSettings.CloseDist > 0)
+	if (NewSettings.CloseDist > 0 && CachedMorphologyResult->TriangleCount() > 0)
 	{
 		TImplicitMorphology<FDynamicMesh3> ImplicitMorphology;
 		ImplicitMorphology.MorphologyOp = TImplicitMorphology<FDynamicMesh3>::EMorphologyOp::Close;
@@ -513,10 +530,14 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateMorphology(TSharedPtr<FDynamic
 		ImplicitMorphology.SetCellSizesAndDistance(CachedMorphologyResult->GetCachedBounds(), NewSettings.CloseDist, NewSettings.VoxelCount, NewSettings.VoxelCount);
 
 		CachedMorphologyResult = MakeShared<FDynamicMesh3>(&ImplicitMorphology.Generate());
+		if (CachedMorphologyResult->TriangleCount() == 0)
+		{
+			CachedPostprocessResult = MakeShared<FDynamicMesh3>(*InputMesh);
+		}
 	}
 
 
-	if (NewSettings.OpenDist > 0)
+	if (NewSettings.OpenDist > 0 && CachedMorphologyResult->TriangleCount() > 0)
 	{
 		TImplicitMorphology<FDynamicMesh3> ImplicitMorphology;
 		ImplicitMorphology.MorphologyOp = TImplicitMorphology<FDynamicMesh3>::EMorphologyOp::Open;
@@ -526,8 +547,11 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateMorphology(TSharedPtr<FDynamic
 		ImplicitMorphology.SetCellSizesAndDistance(CachedMorphologyResult->GetCachedBounds(), NewSettings.OpenDist, NewSettings.VoxelCount, NewSettings.VoxelCount);
 
 		CachedMorphologyResult = MakeShared<FDynamicMesh3>(&ImplicitMorphology.Generate());
+		if (CachedMorphologyResult->TriangleCount() == 0)
+		{
+			CachedPostprocessResult = MakeShared<FDynamicMesh3>(*InputMesh);
+		}
 	}
-
 
 	CachedMorphologySettings = NewSettings;
 	return CachedMorphologyResult;
@@ -1275,18 +1299,28 @@ void UGroomToMeshTool::UpdatePreview(TSharedPtr<FDynamicMesh3> ResultMesh)
 	CurrentMesh = FDynamicMesh3(*ResultMesh);
 
 	// compute normals
-	FMeshNormals::InitializeOverlayToPerVertexNormals(CurrentMesh.Attributes()->PrimaryNormals(), false);
-
-	if (Settings->bShowSideBySide)
+	if (CurrentMesh.TriangleCount() == 0)
 	{
-		FAxisAlignedBox3d Bounds = CurrentMesh.GetBounds();
-		FDynamicMesh3 TmpMesh(CurrentMesh);
-		MeshTransforms::Translate(TmpMesh, Bounds.Width() * FVector3d::UnitX());
-		PreviewMesh->UpdatePreview(&TmpMesh);
+		GetToolManager()->DisplayMessage(LOCTEXT("NoTrianglesWarning", "The Output Mesh does not contain any triangles with the current settings"), EToolMessageLevel::UserWarning);
+		PreviewMesh->UpdatePreview(&CurrentMesh);
 	}
 	else
 	{
-		PreviewMesh->UpdatePreview(&CurrentMesh);
+		GetToolManager()->DisplayMessage({}, EToolMessageLevel::UserWarning);
+
+		FMeshNormals::InitializeOverlayToPerVertexNormals(CurrentMesh.Attributes()->PrimaryNormals(), false);
+
+		if (Settings->bShowSideBySide)
+		{
+			FAxisAlignedBox3d Bounds = CurrentMesh.GetBounds();
+			FDynamicMesh3 TmpMesh(CurrentMesh);
+			MeshTransforms::Translate(TmpMesh, Bounds.Width() * FVector3d::UnitX());
+			PreviewMesh->UpdatePreview(&TmpMesh);
+		}
+		else
+		{
+			PreviewMesh->UpdatePreview(&CurrentMesh);
+		}
 	}
 
 	UpdateLineSet();
