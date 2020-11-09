@@ -109,7 +109,7 @@ FNiagaraVariable FNiagaraVariable::ResolveAliases(const FNiagaraVariable& InVar,
 		TMap<FString, FString>::TConstIterator It = InAliases.CreateConstIterator();
 		while (It)
 		{
-			if (SplitName[i].Equals(It.Key()))
+			if (SplitName[i].Equals(*It.Key()))
 			{
 				SplitName[i] = It.Value();
 			}
@@ -122,7 +122,7 @@ FNiagaraVariable FNiagaraVariable::ResolveAliases(const FNiagaraVariable& InVar,
 		TMap<FString, FString>::TConstIterator It = InStartOnlyAliases.CreateConstIterator();
 		while (It)
 		{
-			if (SplitName[0].Equals(It.Key()))
+			if (SplitName[0].Equals(*It.Key()))
 			{
 				SplitName[0] = It.Value();
 			}
