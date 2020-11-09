@@ -361,9 +361,15 @@ void FUnixPlatformMisc::RequestExit(bool Force)
 	{
 		// Lets set our selfs to request exit as the generic platform request exit could log
 		// This is deprecated but one of the few excpetions to leave around for now as we dont want to UE_LOG as that may allocate memory
+		// ShouldRequestExit *should* only be used this way in cases where non-reentrant code is required
+#if UE_SET_REQUEST_EXIT_ON_TICK_ONLY
+		extern bool GShouldRequestExit;
+		GShouldRequestExit = 1;
+#else
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		GIsRequestingExit = 1;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif // UE_SET_REQUEST_EXIT_ON_TICK_ONLY
 	}
 	else
 	{

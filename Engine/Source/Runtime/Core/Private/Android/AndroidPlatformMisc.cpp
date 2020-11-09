@@ -2982,5 +2982,15 @@ bool FAndroidMisc::SupportsBackbufferSampling()
 	return CachedAndroidOpenGLSupportsBackbufferSampling == 1;
 }
 
-
-
+void FAndroidMisc::NonReentrantRequestExit()
+{
+#if UE_SET_REQUEST_EXIT_ON_TICK_ONLY
+	// Cheating here to grab access to this. This function should only be used in extreme cases in which non-reentrant functions are needed (ie. crash handling/signal handler)
+	extern bool GShouldRequestExit;
+	GShouldRequestExit = true;
+#else
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	GIsRequestingExit = true;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif // UE_SET_REQUEST_EXIT_ON_TICK_ONLY
+}

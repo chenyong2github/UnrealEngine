@@ -4595,8 +4595,8 @@ static inline void EndFrameRenderThread(FRHICommandListImmediate& RHICmdList, ui
 
 void FEngineLoop::Tick()
 {
-    // make sure to catch any FMemStack uses outside of UWorld::Tick
-    FMemMark MemStackMark(FMemStack::Get());
+	// make sure to catch any FMemStack uses outside of UWorld::Tick
+	FMemMark MemStackMark(FMemStack::Get());
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST && MALLOC_GT_HOOKS
 	FScopedSampleMallocChurn ChurnTracker;
@@ -4605,6 +4605,8 @@ void FEngineLoop::Tick()
 	LLM(FLowLevelMemTracker::Get().UpdateStatsPerFrame());
 
 	LLM_SCOPE(ELLMTag::EngineMisc);
+
+	BeginExitIfRequested();
 
 	// Send a heartbeat for the diagnostics thread
 	FThreadHeartBeat::Get().HeartBeat(true);
