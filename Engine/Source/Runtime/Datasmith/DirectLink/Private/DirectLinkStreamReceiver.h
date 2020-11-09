@@ -14,10 +14,10 @@ struct FDirectLinkMsg_DeltaMessage;
 
 namespace DirectLink
 {
-class ISceneReceiver;
 
 
-class DIRECTLINK_API FStreamReceiver : public IStreamCommunicationInterface
+class FStreamReceiver
+	: public IStreamReceiver
 {
 public:
 	FStreamReceiver(
@@ -26,7 +26,7 @@ public:
 		FStreamPort ReceiverStreamPort,
 		const TSharedRef<ISceneReceiver>& Consumer);
 
-	void HandleDeltaMessage(FDirectLinkMsg_DeltaMessage& Message);
+	virtual void HandleDeltaMessage(FDirectLinkMsg_DeltaMessage& Message) override;
 
 	virtual FCommunicationStatus GetCommunicationStatus() const override;
 

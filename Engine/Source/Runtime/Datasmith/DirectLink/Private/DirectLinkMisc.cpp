@@ -13,6 +13,9 @@
 namespace DirectLink
 {
 
+uint8 GetCurrentProtocolVersion() { return 9; }
+uint8 GetMinSupportedProtocolVersion() { return 9; }
+
 
 
 const FString& GetDumpPath()

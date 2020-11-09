@@ -15,11 +15,6 @@ namespace DirectLink
 class FDeltaReceiver
 	: public IDeltaConsumer
 {
-	IDeltaProducer* DeltaProducer = nullptr;
-	TSharedRef<ISceneReceiver> Receiver;
-	int32 SyncCycle = 0;
-	FSceneSnapshot SceneSnapshot;
-
 public:
 	FDeltaReceiver(const TSharedRef<ISceneReceiver>& Receiver)
 		: Receiver(Receiver)
@@ -99,6 +94,12 @@ public:
 			Receiver->FinalSnapshot(SceneSnapshot);
 		}
 	}
+
+private:
+	IDeltaProducer* DeltaProducer = nullptr;
+	TSharedRef<ISceneReceiver> Receiver;
+	int32 SyncCycle = 0;
+	FSceneSnapshot SceneSnapshot;
 };
 
 

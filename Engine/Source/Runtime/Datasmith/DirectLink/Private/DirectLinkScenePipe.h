@@ -55,7 +55,7 @@ public:
 	}
 
 public: // IDeltaConsumer API
-	virtual void SetDeltaProducer(IDeltaProducer* Producer) override;
+	virtual void SetDeltaProducer(IDeltaProducer* Producer) override {}
 	virtual void SetupScene(FSetupSceneArg& SetupSceneArg) override;
 	virtual void OpenDelta(FOpenDeltaArg& OpenDeltaArg) override;
 	virtual void OnSetElement(FSetElementArg& SetElementArg) override;
@@ -63,28 +63,18 @@ public: // IDeltaConsumer API
 	virtual void OnCloseDelta(FCloseDeltaArg& CloseDeltaArg) override;
 
 public:
-	void HandleHaveListMessage(const FDirectLinkMsg_HaveListMessage& Message);
 	int32 GetSentDeltaMessageCount() const { return NextMessageNumber; }
 
 private:
 	void Send(FDirectLinkMsg_DeltaMessage* Message);
-
 	void InitSetElementBuffer();
 	void SendSetElementBuffer();
 
-	void DelegateHaveListMessage(const FDirectLinkMsg_HaveListMessage& Message);
-
 private:
-	// sent message ordering
+	// message ordering
 	int8 BatchNumber = 0;
 	int32 NextMessageNumber;
 	TArray<uint8> SetElementBuffer;
-
-	// received message ordering
-	TMap<int32, FDirectLinkMsg_HaveListMessage> MessageBuffer;
-	int32 NextTransmitableMessageIndex = 0;
-	int32 CurrentBatchCode = 0;
-	IDeltaProducer* DeltaProducer = nullptr;
 };
 
 
@@ -135,5 +125,10 @@ private:
 	FCommunicationStatus CurrentCommunicationStatus;
 };
 
+
+FArchive& operator << (FArchive& Ar, FSceneIdentifier& SceneId);
+FArchive& operator << (FArchive& Ar, IDeltaConsumer::FSetupSceneArg& SetupSceneArg);
+FArchive& operator << (FArchive& Ar, IDeltaConsumer::FOpenDeltaArg& OpenDeltaArg);
+FArchive& operator << (FArchive& Ar, IDeltaConsumer::FCloseDeltaArg& CloseDeltaArg);
 
 } // namespace DirectLink

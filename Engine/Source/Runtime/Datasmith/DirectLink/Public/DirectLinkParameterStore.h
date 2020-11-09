@@ -10,7 +10,6 @@
 #include "Logging/LogMacros.h"
 #include "Serialization/MemoryReader.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogParameterStore, Log, All);
 
 namespace DirectLink
 {
@@ -50,7 +49,7 @@ private:
 /**
  * Diffable, and serializable to a buffer
  */
-class FParameterStoreSnapshot
+class DIRECTLINK_API FParameterStoreSnapshot
 {
 public:
 	void SerializeAll(FArchive& Ar);
@@ -100,7 +99,6 @@ private:
 	};
 	TArray<FParameterDetails> Parameters;
 };
-
 
 
 

@@ -7,4 +7,3 @@
 #include "Modules/ModuleManager.h"
 
 IMPLEMENT_MODULE(FDirectLinkModule, DirectLink);
-

@@ -12,6 +12,26 @@ struct FReferenceSnapshot;
 
 
 /**
+ * Data shared by all element of a given scene.
+ * The scene is uniquely identified by this element.
+ * Within this scene, all elements ids are unique. To ensure this property,
+ * this shared state is responsible for the id attribution.
+ * Id 0 is considered invalid (see InvalidId).
+ */
+class DIRECTLINK_API FSceneGraphSharedState
+{
+public:
+	FSceneGraphId MakeId() { return ++LastElementId; }
+	const FGuid& GetGuid() const { return SceneId.SceneGuid; }
+	const FSceneIdentifier& GetSceneId() const { return SceneId; }
+
+protected:
+	FSceneGraphId LastElementId = InvalidId;
+	FSceneIdentifier SceneId{FGuid::NewGuid(), FString()};
+};
+
+
+/**
  * Represents a scene part.
  * #ue_directlink_doc: full doc pass
  * 	- sharedState concept
@@ -61,7 +81,7 @@ private:
 	TArray<FNamedReferenceProxy> ReferenceProxies;
 };
 
-class IReferenceResolutionProvider // #ue_directlink_design: improve: ClaimRef in the ds shared state
+class DIRECTLINK_API IReferenceResolutionProvider // #ue_directlink_design: improve: ClaimRef in the ds shared state
 {
 public:
 	virtual ~IReferenceResolutionProvider() = default;

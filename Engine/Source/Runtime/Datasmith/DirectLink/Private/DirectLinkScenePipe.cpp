@@ -2,8 +2,8 @@
 
 #include "DirectLinkScenePipe.h"
 
-#include "DirectLinkLog.h"
 #include "DirectLinkElementSnapshot.h"
+#include "DirectLinkLog.h"
 #include "DirectLinkMessages.h"
 #include "DirectLinkSceneSnapshot.h"
 
@@ -21,7 +21,7 @@ namespace Internal
 
 int32 GetDeltaMessageTargetSizeByte()
 {
-	static int32 i = 64*1024; // #ue_directlink_config
+	static int32 i = 64*1024;
 	return i;
 }
 
@@ -153,12 +153,6 @@ void FPipeBase::SendInternal(MessageType* Message, int32 ByteSizeHint)
 }
 
 
-void FScenePipeToNetwork::SetDeltaProducer(IDeltaProducer* Producer)
-{
-	check(Producer);
-	DeltaProducer = Producer;
-}
-
 
 void FScenePipeToNetwork::SetupScene(FSetupSceneArg& SetupSceneArg)
 {
@@ -198,12 +192,6 @@ void FScenePipeToNetwork::OpenDelta(FOpenDeltaArg& OpenDeltaArg)
 void FScenePipeToNetwork::Send(FDirectLinkMsg_DeltaMessage* Message)
 {
 	Internal::CompressInline(*Message);
-	SendInternal(Message, Message->Payload.Num());
-}
-
-
-void FScenePipeFromNetwork::Send(FDirectLinkMsg_HaveListMessage* Message)
-{
 	SendInternal(Message, Message->Payload.Num());
 }
 
@@ -494,6 +482,45 @@ void FScenePipeFromNetwork::DelegateDeltaMessage(FDirectLinkMsg_DeltaMessage& Me
 		default:
 			ensure(false);
 	}
+}
+
+
+void FScenePipeFromNetwork::Send(FDirectLinkMsg_HaveListMessage* Message)
+{
+	// #ue_directlink_sync compression ?
+	SendInternal(Message, Message->Payload.Num());
+}
+
+
+FArchive& operator<<(FArchive& Ar, FSceneIdentifier& SceneId)
+{
+	Ar << SceneId.SceneGuid;
+	Ar << SceneId.DisplayName;
+	return Ar;
+}
+
+
+FArchive& operator<<(FArchive& Ar, IDeltaConsumer::FSetupSceneArg& SetupSceneArg)
+{
+	Ar << SetupSceneArg.SceneId;
+	Ar << SetupSceneArg.bExpectHaveList;
+	Ar << SetupSceneArg.SyncCycle;
+	return Ar;
+}
+
+
+FArchive& operator<<(FArchive& Ar, IDeltaConsumer::FOpenDeltaArg& OpenDeltaArg)
+{
+	Ar << OpenDeltaArg.bBasedOnNewScene;
+	Ar << OpenDeltaArg.ElementCountHint;
+	return Ar;
+}
+
+
+FArchive& operator<<(FArchive& Ar, IDeltaConsumer::FCloseDeltaArg& CloseDeltaArg)
+{
+	Ar << CloseDeltaArg.bCancelled;
+	return Ar;
 }
 
 

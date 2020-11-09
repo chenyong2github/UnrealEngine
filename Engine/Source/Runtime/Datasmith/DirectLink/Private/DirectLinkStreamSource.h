@@ -3,25 +3,25 @@
 #pragma once
 
 #include "DirectLinkCommon.h"
-#include "DirectLinkStream.h"
+#include "DirectLinkStreamConnectionPoint.h"
 
 
 namespace DirectLink
 {
 class FSceneSnapshot;
-class FStreamSender;
 class ISceneGraphNode;
+class IStreamSender;
 
 
 /**
  * Define a content source.
  * A source is linked to N Destinations through Streams, and uses Senders to write on them.
  */
-class FStreamSource : public FStreamEndpoint
+class FStreamSource : public FStreamConnectionPoint
 {
 public:
 	FStreamSource(const FString& Name, EVisibility Visibility)
-		: FStreamEndpoint(Name, Visibility)
+		: FStreamConnectionPoint(Name, Visibility)
 	{}
 
 	// Defines the content, which is a root node and its referenced tree.
@@ -31,12 +31,12 @@ public:
 	void Snapshot();
 
 	// Link a stream to this source (via a sender)
-	void LinkSender(const TSharedPtr<FStreamSender>& Sender);
+	void LinkSender(const TSharedPtr<IStreamSender>& Sender);
 
 private:
 	ISceneGraphNode* Root = nullptr;
 	FRWLock SendersLock;
-	TArray<TSharedPtr<FStreamSender>> Senders;
+	TArray<TSharedPtr<IStreamSender>> Senders;
 	FRWLock CurrentSnapshotLock;
 	TSharedPtr<FSceneSnapshot> CurrentSnapshot;
 };

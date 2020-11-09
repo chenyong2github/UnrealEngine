@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DirectLinkParameterStore.h"
+
+#include "DirectLinkLog.h"
 #include "DirectLinkSceneGraphNode.h"
+
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "Templates/UnrealTemplate.h"
 
-DEFINE_LOG_CATEGORY(LogParameterStore);
 
 
 namespace DirectLink
@@ -66,7 +68,7 @@ void FParameterStore::Update(const FParameterStoreSnapshot& NewValues)
 			}
 			else
 			{
-				UE_LOG(LogParameterStore, Warning, TEXT("Update property issue [%s]: incompatible types."), *ParamUpdate.Name.ToString());
+				UE_LOG(LogDirectLink, Warning, TEXT("Update property issue [%s]: incompatible types."), *ParamUpdate.Name.ToString());
 			}
 		}
 	}
@@ -94,7 +96,7 @@ private:
 void FParameterStoreSnapshot::SerializeAll(FArchive& Ar)
 {
 	// Note: Changes to this implementation impacts version handling
-	// see DirectLink::kCurrentProtocolVersion and DirectLink::kMinSupportedProtocolVersion
+	// see DirectLink::GetCurrentProtocolVersion and DirectLink::GetMinSupportedProtocolVersion
 
 	if (Ar.IsSaving())
 	{

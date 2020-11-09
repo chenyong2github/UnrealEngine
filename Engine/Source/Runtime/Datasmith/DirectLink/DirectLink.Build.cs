@@ -8,11 +8,11 @@ namespace UnrealBuildTool.Rules
 		{
 			PublicDependencyModuleNames.AddRange(new string[]{
 				"Core",
+				"CoreUObject",
 				"Messaging",
 			});
 
 			PrivateDependencyModuleNames.AddRange(new string[]{
-				"CoreUObject",
 				"MessagingCommon",
 			});
 		}

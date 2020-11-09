@@ -13,7 +13,7 @@
 
 #include "DirectLinkCommon.h"
 #include "DirectLinkEndpoint.h"
-#include "DirectLinkScenePipe.h"
+#include "DirectLinkParameterStore.h"
 #include "DirectLinkSceneSnapshot.h"
 
 #include "HAL/FileManager.h"

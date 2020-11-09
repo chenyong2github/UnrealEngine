@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "DirectLinkStreamSender.h"
-#include "DirectLinkStreamReceiver.h"
+#include "DirectLinkStreamCommunicationInterface.h"
 
 #include "CoreTypes.h"
 #include "IMessageContext.h"
@@ -12,8 +11,6 @@
 
 namespace DirectLink
 {
-
-
 
 struct FStreamDescription
 {
@@ -33,10 +30,9 @@ struct FStreamDescription
 	FMessageAddress RemoteAddress;
 	FStreamPort RemoteStreamPort = 0;
 	EConnectionState Status = EConnectionState::Uninitialized;
-	double LastRemoteLifeSign = 0; // as returned by FPlatformTime::Seconds()
-	 // #ue_directlink_streams implement old connection pruning
-	TUniquePtr<FStreamReceiver> Receiver; // #ue_directlink_cleanup not required outside of the internal thread
-	TSharedPtr<FStreamSender> Sender;
+
+	TUniquePtr<IStreamReceiver> Receiver;
+	TSharedPtr<IStreamSender> Sender;
 };
 
 } // namespace DirectLink

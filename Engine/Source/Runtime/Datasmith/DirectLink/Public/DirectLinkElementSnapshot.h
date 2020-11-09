@@ -5,19 +5,22 @@
 #include "DirectLinkCommon.h"
 #include "DirectLinkParameterStore.h"
 
-#include "Containers/Array.h"
-#include "CoreTypes.h"
-#include "UObject/NameTypes.h"
-
 
 
 namespace DirectLink
 {
 
-class ISceneGraphNode;
-class FParameterStore;
 
-struct FReferenceSnapshot
+enum class ESerializationStatus
+{
+	Ok,
+	StreamError,
+	VersionMinNotRespected,
+	VersionMaxNotRespected,
+};
+
+
+struct DIRECTLINK_API FReferenceSnapshot
 {
 	void Serialize(FArchive& Ar);
 	FElementHash Hash() const;
@@ -32,11 +35,12 @@ struct FReferenceSnapshot
 };
 
 
+
 class DIRECTLINK_API FElementSnapshot
 {
 public:
 	FElementSnapshot() = default;
-	FElementSnapshot(const ISceneGraphNode& Node);
+	FElementSnapshot(const class ISceneGraphNode& Node);
 
 	friend FArchive& operator<<(FArchive& Ar, FElementSnapshot& This);
 

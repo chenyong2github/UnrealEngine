@@ -9,6 +9,9 @@
 namespace DirectLink
 {
 
+// this constant must never change, it's used as a marker in a byte stream
+static constexpr uint8 kMagic = 0xd1;
+
 FElementSnapshot::FElementSnapshot(const ISceneGraphNode& Node)
 {
 	NodeId = Node.GetNodeId();
@@ -82,7 +85,7 @@ DirectLink::FElementHash FReferenceSnapshot::Hash() const
 ESerializationStatus FElementSnapshot::Serialize(FArchive& Ar)
 {
 	uint8 Magic = kMagic;
-	uint8 SerialVersion = kCurrentProtocolVersion;
+	uint8 SerialVersion = GetCurrentProtocolVersion();
 
 	if (Ar.IsSaving())
 	{
@@ -102,11 +105,11 @@ ESerializationStatus FElementSnapshot::Serialize(FArchive& Ar)
 		}
 
 		Ar << SerialVersion;
-		if (SerialVersion > kCurrentProtocolVersion)
+		if (SerialVersion > GetCurrentProtocolVersion())
 		{
 			return ESerializationStatus::VersionMaxNotRespected;
 		}
-		if (SerialVersion < kMinSupportedProtocolVersion)
+		if (SerialVersion < GetMinSupportedProtocolVersion())
 		{
 			return ESerializationStatus::VersionMinNotRespected;
 		}

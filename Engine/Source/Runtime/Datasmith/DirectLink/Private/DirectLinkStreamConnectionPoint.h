@@ -9,10 +9,10 @@ namespace DirectLink
 {
 
 
-class FStreamEndpoint
+class FStreamConnectionPoint
 {
 public:
-	FStreamEndpoint(const FString& Name, EVisibility Visibility)
+	FStreamConnectionPoint(const FString& Name, EVisibility Visibility)
 		: Name(Name)
 		, Id(FGuid::NewGuid())
 		, Visibility(Visibility)
