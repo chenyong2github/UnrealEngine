@@ -1,4 +1,4 @@
-#!/Users/devqa/.pyenv/versions/3.7.7/bin/python3.7
+#!/tmp/Python3/Deploy/bin/python3.7
 # -*- python -*-
 
 # Keep this script in sync with python-config.sh.in

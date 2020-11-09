@@ -28,14 +28,14 @@ MODLIBS=           $(LOCALMODLIBS) $(BASEMODLIBS)
 
 # === Variables set by configure
 VERSION=	3.7
-srcdir=		.
+srcdir=		..
+VPATH=		..
+abs_srcdir=	/tmp/Python3/Python-3.7.7/UEBuild/..
+abs_builddir=	/tmp/Python3/Python-3.7.7/UEBuild
 
-abs_srcdir=	/var/folders/5l/l7jhjs9n0y1bl5qj2341ssc00000gp/T/python-build.20200730112651.22441/Python-3.7.7
-abs_builddir=	/var/folders/5l/l7jhjs9n0y1bl5qj2341ssc00000gp/T/python-build.20200730112651.22441/Python-3.7.7
 
-
-CC=		clang
-CXX=		clang++
+CC=		gcc
+CXX=		g++
 MAINCC=		$(CC)
 LINKCC=		$(PURIFY) $(MAINCC)
 AR=		ar
@@ -73,15 +73,15 @@ INSTALL_DATA=	${INSTALL} -m 644
 # Also, making them read-only seems to be a good idea...
 INSTALL_SHARED= ${INSTALL} -m 555
 
-MKDIR_P=	./install-sh -c -d
+MKDIR_P=	../install-sh -c -d
 
 MAKESETUP=      $(srcdir)/Modules/makesetup
 
 # Compiler options
 OPT=		-DNDEBUG -g -fwrapv -O3 -Wall
 BASECFLAGS=	 -Wno-unused-result -Wsign-compare -Wunreachable-code
-BASECPPFLAGS=	
-CONFIGURE_CFLAGS=	-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include -I/usr/local/opt/openssl@1.1/include 
+BASECPPFLAGS=	-IObjects -IInclude -IPython
+CONFIGURE_CFLAGS=	-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.15.sdk -mmacosx-version-min=10.14 -gdwarf-2 -I/tmp/zlib/Deploy/include -Wno-error=implicit-function-declaration
 # CFLAGS_NODIST is used for building the interpreter and stdlib C extensions.
 # Use it when a compiler flag should _not_ be part of the distutils CFLAGS
 # once Python is installed (Issue #21121).
@@ -90,8 +90,8 @@ CONFIGURE_CFLAGS_NODIST= -std=c99 -Wextra -Wno-unused-result -Wno-unused-paramet
 # Use it when a linker flag should _not_ be part of the distutils LDFLAGS
 # once Python is installed (bpo-35257)
 CONFIGURE_LDFLAGS_NODIST=
-CONFIGURE_CPPFLAGS=	-I/usr/local/opt/readline/include -I/usr/local/opt/readline/include -I/Users/devqa/.pyenv/versions/3.7.7/include 
-CONFIGURE_LDFLAGS=	-L/usr/local/opt/readline/lib -L/usr/local/opt/readline/lib -L/Users/devqa/.pyenv/versions/3.7.7/lib -L/usr/local/opt/openssl@1.1/lib
+CONFIGURE_CPPFLAGS=	-mmacosx-version-min=10.14 -gdwarf-2 -I/tmp/zlib/Deploy/include -Wno-error=implicit-function-declaration
+CONFIGURE_LDFLAGS=	/tmp/zlib/Deploy/lib/libz.a -mmacosx-version-min=10.14
 # Avoid assigning CFLAGS, LDFLAGS, etc. so users can use them on the
 # command line to append to these values without stomping the pre-set
 # values.
@@ -131,7 +131,7 @@ MULTIARCH=	darwin
 MULTIARCH_CPPFLAGS = -DMULTIARCH=\"darwin\"
 
 # Install prefix for architecture-independent files
-prefix=		/Users/devqa/.pyenv/versions/3.7.7
+prefix=		/tmp/Python3/Deploy
 
 # Install prefix for architecture-dependent files
 exec_prefix=	${prefix}
@@ -141,7 +141,7 @@ datarootdir=    ${prefix}/share
 
 # Expanded directories
 BINDIR=		${exec_prefix}/bin
-LIBDIR=		/Users/devqa/.pyenv/versions/3.7.7/lib
+LIBDIR=		${exec_prefix}/lib
 MANDIR=		${datarootdir}/man
 INCLUDEDIR=	${prefix}/include
 CONFINCLUDEDIR=	$(exec_prefix)/include
@@ -175,7 +175,7 @@ PYTHONFRAMEWORKINSTALLDIR=
 # Deployment target selected during configure, to be checked
 # by distutils. The export statement is needed to ensure that the
 # deployment target is active during build.
-MACOSX_DEPLOYMENT_TARGET=10.15
+MACOSX_DEPLOYMENT_TARGET=10.14
 export MACOSX_DEPLOYMENT_TARGET
 
 # Option to install to strip binaries
@@ -188,15 +188,15 @@ LIPO_32BIT_FLAGS=
 OTHER_LIBTOOL_OPT=
 
 # Environment to run shared python without installed libraries
-RUNSHARED=       DYLD_LIBRARY_PATH=/var/folders/5l/l7jhjs9n0y1bl5qj2341ssc00000gp/T/python-build.20200730112651.22441/Python-3.7.7
+RUNSHARED=       DYLD_LIBRARY_PATH=/tmp/Python3/Python-3.7.7/UEBuild
 
 # ensurepip options
 ENSUREPIP=      upgrade
 
 # OpenSSL options for setup.py so sysconfig can pick up AC_SUBST() vars.
-OPENSSL_INCLUDES=-I/usr/local/opt/openssl@1.1/include
+OPENSSL_INCLUDES=-I/tmp/OpenSSL/Deploy/x86_64/include
 OPENSSL_LIBS=-lssl -lcrypto
-OPENSSL_LDFLAGS=-L/usr/local/opt/openssl@1.1/lib
+OPENSSL_LDFLAGS=-L/tmp/OpenSSL/Deploy/x86_64/lib
 
 # Modes for directories, executables and data files created by the
 # install process.  Default to user-only-writable for all file types.
@@ -205,7 +205,7 @@ EXEMODE=	755
 FILEMODE=	644
 
 # configure script arguments
-CONFIG_ARGS=	 '--prefix=/Users/devqa/.pyenv/versions/3.7.7' '--enable-shared' '--without-pymalloc' '--libdir=/Users/devqa/.pyenv/versions/3.7.7/lib' '--with-openssl=/usr/local/opt/openssl@1.1' 'CC=clang' 'CFLAGS=-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include -I/usr/local/opt/openssl@1.1/include ' 'LDFLAGS=-L/usr/local/opt/readline/lib -L/usr/local/opt/readline/lib -L/Users/devqa/.pyenv/versions/3.7.7/lib -L/usr/local/opt/openssl@1.1/lib' 'CPPFLAGS=-I/usr/local/opt/readline/include -I/usr/local/opt/readline/include -I/Users/devqa/.pyenv/versions/3.7.7/include ' 'PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig/:'
+CONFIG_ARGS=	 '--prefix=/tmp/Python3/Deploy' '--without-pymalloc' '--enable-shared' '--with-openssl=/tmp/OpenSSL/Deploy/x86_64' 'CFLAGS=-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.15.sdk -mmacosx-version-min=10.14 -gdwarf-2 -I/tmp/zlib/Deploy/include -Wno-error=implicit-function-declaration' 'CPPFLAGS=-mmacosx-version-min=10.14 -gdwarf-2 -I/tmp/zlib/Deploy/include -Wno-error=implicit-function-declaration' 'LDFLAGS=/tmp/zlib/Deploy/lib/libz.a -mmacosx-version-min=10.14'
 
 
 # Subdirectories with code
@@ -249,8 +249,8 @@ PYTHON_FOR_REGEN=python3
 UPDATE_FILE=python3 $(srcdir)/Tools/scripts/update_file.py
 PYTHON_FOR_BUILD=./$(BUILDPYTHON) -E
 _PYTHON_HOST_PLATFORM=
-BUILD_GNU_TYPE=	x86_64-apple-darwin19.0.0
-HOST_GNU_TYPE=	x86_64-apple-darwin19.0.0
+BUILD_GNU_TYPE=	x86_64-apple-darwin20.1.0
+HOST_GNU_TYPE=	x86_64-apple-darwin20.1.0
 
 # Tcl and Tk config info from --with-tcltk-includes and -libs options
 TCLTK_INCLUDES=	
@@ -278,6 +278,7 @@ SITEPATH=
 DESTPATH=
 MACHDESTLIB=$(BINLIBDEST)
 DESTLIB=$(LIBDEST)
+
 
 
 ##########################################################################

@@ -127,7 +127,14 @@ public class Python3 : ModuleRules
 		{
 			PotentialSDKs.AddRange(
 				new PythonSDKPaths[] {
-					new PythonSDKPaths(Path.Combine(PythonBinaryTPSDir, "Mac"), new List<string>() { Path.Combine(PythonSourceTPSDir, "Mac", "include") }, new List<string>() { Path.Combine(PythonBinaryTPSDir, "Mac", "libpython3.7.dylib") }),
+					new PythonSDKPaths(
+						Path.Combine(PythonBinaryTPSDir, "Mac"),
+						new List<string>() {
+							Path.Combine(PythonSourceTPSDir, "Mac", "include")
+						},
+						new List<string>() {
+							Path.Combine(PythonBinaryTPSDir, "Mac", "lib", "libpython3.7.dylib")
+						}),
 				}
 			);
 		}
