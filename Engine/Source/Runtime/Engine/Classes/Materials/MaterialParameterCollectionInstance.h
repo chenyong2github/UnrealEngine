@@ -11,6 +11,8 @@
 #include "UObject/Object.h"
 #include "MaterialParameterCollectionInstance.generated.h"
 
+struct FCollectionScalarParameter;
+struct FCollectionVectorParameter;
 class FMaterialParameterCollectionInstanceResource;
 class UMaterialParameterCollection;
 
@@ -39,6 +41,10 @@ class ENGINE_API UMaterialParameterCollectionInstance : public UObject
 	bool GetScalarParameterValue(FName ParameterName, float& OutParameterValue) const;
 	bool GetVectorParameterValue(FName ParameterName, FLinearColor& OutParameterValue) const;
 
+	/** Alternate Get method for parameter values where the Collection parameter is provided */
+	bool GetScalarParameterValue(const FCollectionScalarParameter& Parameter, float& OutParameterValue) const;
+	bool GetVectorParameterValue(const FCollectionVectorParameter& Parameter, FLinearColor& OutParameterValue) const;
+
 	class FMaterialParameterCollectionInstanceResource* GetResource()
 	{
 		return Resource;
@@ -49,10 +55,18 @@ class ENGINE_API UMaterialParameterCollectionInstance : public UObject
 		return Collection;
 	}
 
-	DECLARE_MULTICAST_DELEGATE(FOnParametersUpdated);
-	FOnParametersUpdated& OnParametersUpdated()
+	using ScalarParameterUpdate = TPair<FName, float>;
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnScalarParameterUpdated, ScalarParameterUpdate);
+	FOnScalarParameterUpdated& OnScalarParameterUpdated()
 	{
-		return ParametersUpdatedDelegate;
+		return ScalarParameterUpdatedDelegate;
+	}
+
+	using VectorParameterUpdate = TPair<FName, FLinearColor>;
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnVectorParameterUpdated, VectorParameterUpdate);
+	FOnVectorParameterUpdated& OnVectorParameterUpdated()
+	{
+		return VectorParameterUpdatedDelegate;
 	}
 
 	void UpdateRenderState(bool bRecreateUniformBuffer);
@@ -80,8 +94,11 @@ protected:
 	/** Instance resource which stores the rendering thread representation of this instance. */
 	FMaterialParameterCollectionInstanceResource* Resource;
 
-	/** Delegate for when parameter values are updated */
-	FOnParametersUpdated ParametersUpdatedDelegate;
+	/** Delegate for when a scalar parameter value is updated */
+	FOnScalarParameterUpdated ScalarParameterUpdatedDelegate;
+
+	/** Delegate for when a vector parameter value is updated */
+	FOnVectorParameterUpdated VectorParameterUpdatedDelegate;
 
 	/** Boils down the instance overrides and default values into data to be set on the uniform buffer. */
 	void GetParameterData(TArray<FVector4>& ParameterData) const;
