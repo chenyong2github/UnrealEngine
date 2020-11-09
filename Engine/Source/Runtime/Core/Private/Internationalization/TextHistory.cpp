@@ -1938,7 +1938,7 @@ const TCHAR* FTextHistory_AsCurrency::ReadFromBuffer(const TCHAR* Buffer, const 
 		// We need to convert the "base" value back to its pre-divided version
 		const FDecimalNumberFormattingRules& FormattingRules = Culture.GetCurrencyFormattingRules(CurrencyCode);
 		const FNumberFormattingOptions& FormattingOptions = FormattingRules.CultureDefaultFormattingOptions;
-		SourceValue = BaseValue / FastDecimalFormat::Pow10(FormattingOptions.MaximumFractionalDigits);
+		SourceValue = BaseValue / static_cast<double>(FastDecimalFormat::Pow10(FormattingOptions.MaximumFractionalDigits));
 
 		PrepareDisplayStringForRebuild(OutDisplayString);
 		return Buffer;
@@ -1976,7 +1976,7 @@ bool FTextHistory_AsCurrency::WriteToBuffer(FString& Buffer, FTextDisplayStringP
 	// We need to convert the value back to its "base" version
 	const FDecimalNumberFormattingRules& FormattingRules = Culture.GetCurrencyFormattingRules(CurrencyCode);
 	const FNumberFormattingOptions& FormattingOptions = FormattingRules.CultureDefaultFormattingOptions;
-	const int64 BaseVal = static_cast<int64>(DividedValue * FastDecimalFormat::Pow10(FormattingOptions.MaximumFractionalDigits));
+	const int64 BaseVal = static_cast<int64>(DividedValue * static_cast<double>(FastDecimalFormat::Pow10(FormattingOptions.MaximumFractionalDigits)));
 
 	// Produces LOCGEN_CURRENCY(..., "...", "...")
 	Buffer += TEXT("LOCGEN_CURRENCY(");

@@ -51,5 +51,5 @@ CORE_API float FHashTable::AverageSearch() const
 		SumAvgSearch += NumInBucket * ( NumInBucket + 1 );
 		NumElements  += NumInBucket;
 	}
-	return ( 0.5f * SumAvgSearch ) / NumElements;
+	return (float)( SumAvgSearch >> 1 ) / (float)NumElements;
 }

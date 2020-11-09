@@ -165,25 +165,25 @@ public:
 
 		// empty array
 		{
-			Algo::Transform(TestData, TestArray, [](int i) { return FMath::DegreesToRadians(i); });
+			Algo::Transform(TestData, TestArray, [](int i) { return FMath::DegreesToRadians((float)i); });
 			check(TestArray.Num() == NumTestObjects);
 			for (int i = 0; i < TestArray.Num(); ++i)
 			{
-				check(TestArray[i] == FMath::DegreesToRadians(TestData[i]));
+				check(TestArray[i] == FMath::DegreesToRadians((float)TestData[i]));
 			}
 		}
 
 		// existing data
 		{
-			Algo::Transform(TestData2, TestArray, [](int i) { return FMath::DegreesToRadians(i); });
+			Algo::Transform(TestData2, TestArray, [](int i) { return FMath::DegreesToRadians((float)i); });
 			check(TestArray.Num() == NumTestObjects * 2);
 			for (int i = 0; i < NumTestObjects; ++i)
 			{
-				check(TestArray[i] == FMath::DegreesToRadians(TestData[i]));
+				check(TestArray[i] == FMath::DegreesToRadians((float)TestData[i]));
 			}
 			for (int i = 0; i < NumTestObjects; ++i)
 			{
-				check(TestArray[i + NumTestObjects] == FMath::DegreesToRadians(TestData2[i]));
+				check(TestArray[i + NumTestObjects] == FMath::DegreesToRadians((float)TestData2[i]));
 			}
 		}
 
@@ -241,13 +241,13 @@ public:
 
 		// empty array
 		{
-			Algo::TransformIf(TestData, TestArray, [](int i) { return (i % 2) == 0; }, [](int i) { return FMath::DegreesToRadians(i); });
+			Algo::TransformIf(TestData, TestArray, [](int i) { return (i % 2) == 0; }, [](int i) { return FMath::DegreesToRadians((float)i); });
 			int j = 0;
 			for (int i = 0; i < NumTestObjects; ++i)
 			{
 				if (TestData[i] % 2 == 0)
 				{
-					check(TestArray[j] == FMath::DegreesToRadians(TestData[i]));
+					check(TestArray[j] == FMath::DegreesToRadians((float)TestData[i]));
 					++j;
 				}
 			}
@@ -255,13 +255,13 @@ public:
 
 		// existing data
 		{
-			Algo::TransformIf(TestData2, TestArray, [](int i) { return (i % 2) == 0; }, [](int i) { return FMath::DegreesToRadians(i); });
+			Algo::TransformIf(TestData2, TestArray, [](int i) { return (i % 2) == 0; }, [](int i) { return FMath::DegreesToRadians((float)i); });
 			int j = 0;
 			for (int i = 0; i < NumTestObjects; ++i)
 			{
 				if (TestData[i] % 2 == 0)
 				{
-					check(TestArray[j] == FMath::DegreesToRadians(TestData[i]));
+					check(TestArray[j] == FMath::DegreesToRadians((float)TestData[i]));
 					++j;
 				}
 			}
@@ -269,7 +269,7 @@ public:
 			{
 				if (TestData2[i] % 2 == 0)
 				{
-					check(TestArray[j] == FMath::DegreesToRadians(TestData2[i]));
+					check(TestArray[j] == FMath::DegreesToRadians((float)TestData2[i]));
 					++j;
 				}
 			}

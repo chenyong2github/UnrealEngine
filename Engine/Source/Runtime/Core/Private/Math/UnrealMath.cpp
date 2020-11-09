@@ -1150,7 +1150,7 @@ float FVector::EvaluateBezier(const FVector* ControlPoints, int32 NumPoints, TAr
 	check( NumPoints >= 2 );
 
 	// var q is the change in t between successive evaluations.
-	const float q = 1.f/(NumPoints-1); // q is dependent on the number of GAPS = POINTS-1
+	const float q = 1.f/(float)(NumPoints-1); // q is dependent on the number of GAPS = POINTS-1
 
 	// recreate the names used in the derivation
 	const FVector& P0 = ControlPoints[0];
@@ -1201,7 +1201,7 @@ float FLinearColor::EvaluateBezier(const FLinearColor* ControlPoints, int32 NumP
 	check( NumPoints >= 2 );
 
 	// var q is the change in t between successive evaluations.
-	const float q = 1.f/(NumPoints-1); // q is dependent on the number of GAPS = POINTS-1
+	const float q = 1.f/(float)(NumPoints-1); // q is dependent on the number of GAPS = POINTS-1
 
 	// recreate the names used in the derivation
 	const FLinearColor& P0 = ControlPoints[0];
@@ -3026,7 +3026,7 @@ float Val(const FString& Value)
 		if( Char >= TEXT("0") && Char <= TEXT("9") )
 		{
 			RetValue *= 10;
-			RetValue += FCString::Atoi( *Char );
+			RetValue += (float)FCString::Atoi( *Char );
 		}
 		else 
 		{

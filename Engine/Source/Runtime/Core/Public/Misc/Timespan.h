@@ -203,7 +203,7 @@ public:
 	 */
 	FTimespan operator*(double Scalar) const
 	{
-		return FTimespan((int64)(Ticks * Scalar));
+		return FTimespan((int64)((double)Ticks * Scalar));
 	}
 
 	/**
@@ -214,7 +214,7 @@ public:
 	 */
 	FTimespan& operator*=(double Scalar)
 	{
-		Ticks = (int64)(Ticks * Scalar);
+		Ticks = (int64)((double)Ticks * Scalar);
 		return *this;
 	}
 
@@ -226,7 +226,7 @@ public:
 	 */
 	FTimespan operator/(double Scalar) const
 	{
-		return FTimespan((int64)(Ticks / Scalar));
+		return FTimespan((int64)((double)Ticks / Scalar));
 	}
 
 	/**
@@ -237,7 +237,7 @@ public:
 	 */
 	FTimespan& operator/=(double Scalar)
 	{
-		Ticks = (int64)(Ticks / Scalar);
+		Ticks = (int64)((double)Ticks / Scalar);
 		return *this;
 	}
 

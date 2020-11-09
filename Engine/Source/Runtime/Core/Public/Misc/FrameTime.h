@@ -215,8 +215,8 @@ FORCEINLINE_DEBUGGABLE FFrameTime& operator-=(FFrameTime& LHS, FFrameTime RHS)
 	// Ensure SubFrame is always between 0 and 1
 	// Note that the difference between frame -1.5 and 1.5 is 2, not 3, since sub frame positions are always positive
 	const float        NewSubFrame     = LHS.SubFrame - RHS.SubFrame;
-	const int          FlooredSubFrame = FMath::FloorToInt(NewSubFrame);
-	LHS.FrameNumber  = LHS.FrameNumber - RHS.FrameNumber + FFrameNumber(FlooredSubFrame);
+	const float        FlooredSubFrame = FMath::FloorToFloat(NewSubFrame);
+	LHS.FrameNumber  = LHS.FrameNumber - RHS.FrameNumber + FFrameNumber(FMath::TruncToInt(FlooredSubFrame));
 	LHS.SubFrame = NewSubFrame - FlooredSubFrame;
 
 	return LHS;
@@ -228,8 +228,8 @@ FORCEINLINE_DEBUGGABLE FFrameTime operator-(FFrameTime A, FFrameTime B)
 	// Ensure SubFrame is always between 0 and 1
 	// Note that the difference between frame -1.5 and 1.5 is 2, not 3, since sub frame positions are always positive
 	const float        NewSubFrame     = A.SubFrame - B.SubFrame;
-	const int          FlooredSubFrame = FMath::FloorToInt(NewSubFrame);
-	const FFrameNumber NewFrameNumber  = A.FrameNumber - B.FrameNumber + FFrameNumber(FlooredSubFrame);
+	const float        FlooredSubFrame = FMath::FloorToFloat(NewSubFrame);
+	const FFrameNumber NewFrameNumber  = A.FrameNumber - B.FrameNumber + FFrameNumber(FMath::TruncToInt(FlooredSubFrame));
 
 	return FFrameTime(NewFrameNumber, NewSubFrame - FlooredSubFrame);
 }

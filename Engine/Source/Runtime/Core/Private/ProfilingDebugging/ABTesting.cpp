@@ -190,7 +190,7 @@ const TCHAR* FABTest::TickAndGetCommand()
 
 					// this ABS here gives us better data but makes it one sided, so the 90% confidence interval is at index 80/100 etc
 					// it is legit because we could have easily done the inverse permutation
-					float SampleDiff = FMath::Abs(((ResampleAccumulators[ResampleIndex]) / float(ResampleCount[ResampleIndex]) / 1000.0f) - (float(Opposite) / float(OppositeCount) / 1000.0f));
+					float SampleDiff = FMath::Abs((float(ResampleAccumulators[ResampleIndex]) / float(ResampleCount[ResampleIndex]) / 1000.0f) - (float(Opposite) / float(OppositeCount) / 1000.0f));
 					Scores.Add(SampleDiff);
 
 				}
