@@ -63,14 +63,14 @@ namespace Tools.DotNETCommon
 		public bool TryGetOutputFile(out FileReference File)
 		{
 			DirectoryReference OutputDir;
-			if(!TryGetOutputDir(out OutputDir))
+			if (!TryGetOutputDir(out OutputDir))
 			{
 				File = null;
 				return false;
 			}
 
 			string AssemblyName;
-			if(!TryGetAssemblyName(out AssemblyName))
+			if (!TryGetAssemblyName(out AssemblyName))
 			{
 				File = null;
 				return false;
@@ -139,7 +139,7 @@ namespace Tools.DotNETCommon
 			FindCompiledBuildProducts(OutputDir, BuildProducts);
 
 			// Add the referenced assemblies which are marked to be copied into the output directory. This only happens for the main project, and does not happen for referenced projects.
-			foreach(KeyValuePair<FileReference, bool> Reference in References)
+			foreach (KeyValuePair<FileReference, bool> Reference in References)
 			{
 				if (Reference.Value)
 				{
@@ -149,10 +149,10 @@ namespace Tools.DotNETCommon
 			}
 
 			// Copy the build products for any referenced projects. Note that this does NOT operate recursively.
-			foreach(KeyValuePair<FileReference, bool> ProjectReference in ProjectReferences)
+			foreach (KeyValuePair<FileReference, bool> ProjectReference in ProjectReferences)
 			{
 				CsProjectInfo OtherProjectInfo;
-				if(ProjectFileToInfo.TryGetValue(ProjectReference.Key, out OtherProjectInfo))
+				if (ProjectFileToInfo.TryGetValue(ProjectReference.Key, out OtherProjectInfo))
 				{
 					OtherProjectInfo.FindCompiledBuildProducts(OutputDir, BuildProducts);
 				}
@@ -206,10 +206,10 @@ namespace Tools.DotNETCommon
 		private void FindCopiedContent(DirectoryReference OutputDir, HashSet<FileReference> OutputFiles, Dictionary<FileReference, CsProjectInfo> ProjectFileToInfo)
 		{
 			// Copy any referenced projects too.
-			foreach(KeyValuePair<FileReference, bool> ProjectReference in ProjectReferences)
+			foreach (KeyValuePair<FileReference, bool> ProjectReference in ProjectReferences)
 			{
 				CsProjectInfo OtherProjectInfo;
-				if(ProjectFileToInfo.TryGetValue(ProjectReference.Key, out OtherProjectInfo))
+				if (ProjectFileToInfo.TryGetValue(ProjectReference.Key, out OtherProjectInfo))
 				{
 					OtherProjectInfo.FindCopiedContent(OutputDir, OutputFiles, ProjectFileToInfo);
 				}
@@ -322,7 +322,7 @@ namespace Tools.DotNETCommon
 		public static CsProjectInfo Read(FileReference File, Dictionary<string, string> Properties)
 		{
 			CsProjectInfo Project;
-			if(!TryRead(File, Properties, out Project))
+			if (!TryRead(File, Properties, out Project))
 			{
 				throw new Exception(String.Format("Unable to read '{0}'", File));
 			}
@@ -437,7 +437,7 @@ namespace Tools.DotNETCommon
 			{
 				// Don't include embedded assemblies; they aren't referenced externally by the compiled executable
 				bool bEmbedInteropTypes = GetChildElementBoolean(ParentElement, "EmbedInteropTypes", false);
-				if(!bEmbedInteropTypes)
+				if (!bEmbedInteropTypes)
 				{
 					FileReference AssemblyFile = FileReference.Combine(BaseDirectory, HintPath);
 					bool bPrivate = GetChildElementBoolean(ParentElement, "Private", !bEmbedInteropTypes);
@@ -551,7 +551,7 @@ namespace Tools.DotNETCommon
 		/// <returns></returns>
 		static IEnumerable<FileReference> FindMatchingFiles(FileReference InPath)
 		{
-			List<FileReference> FoundFiles = new List<FileReference>();		
+			List<FileReference> FoundFiles = new List<FileReference>();
 
 			// split off the drive root
 			string DriveRoot = Path.GetPathRoot(InPath.FullName);
@@ -684,7 +684,7 @@ namespace Tools.DotNETCommon
 			string[] Tokens = Tokenize(Condition);
 
 			char[] TokenQuotes = new[] { '\'', '(', ')', '{', '}', '[', ']' };
-			
+
 			// Try to evaluate it. We only support a very limited class of condition expressions at the moment, but it's enough to parse standard projects
 			bool bResult;
 
@@ -736,17 +736,17 @@ namespace Tools.DotNETCommon
 			{
 				// Find the end of the variable name, accounting for changes in scope
 				int EndIdx = Idx + 2;
-				for(int Depth = 1; Depth > 0; EndIdx++)
+				for (int Depth = 1; Depth > 0; EndIdx++)
 				{
-					if(EndIdx == NewText.Length)
+					if (EndIdx == NewText.Length)
 					{
 						throw new Exception("Encountered end of string while expanding properties");
 					}
-					else if(NewText[EndIdx] == '(')
+					else if (NewText[EndIdx] == '(')
 					{
 						Depth++;
 					}
-					else if(NewText[EndIdx] == ')')
+					else if (NewText[EndIdx] == ')')
 					{
 						Depth--;
 					}
@@ -756,7 +756,7 @@ namespace Tools.DotNETCommon
 				string[] Tokens = Tokenize(NewText.Substring(Idx + 2, (EndIdx - 1) - (Idx + 2)));
 
 				// Make sure the first token is a valid property name
-				if(Tokens.Length == 0 || !(Char.IsLetter(Tokens[0][0]) || Tokens[0][0] == '_'))
+				if (Tokens.Length == 0 || !(Char.IsLetter(Tokens[0][0]) || Tokens[0][0] == '_'))
 				{
 					throw new Exception(String.Format("Invalid property name '{0}' in .csproj file", Tokens[0]));
 				}
@@ -770,7 +770,7 @@ namespace Tools.DotNETCommon
 
 				// Evaluate any functions within it
 				int TokenIdx = 1;
-				while(TokenIdx + 3 < Tokens.Length && Tokens[TokenIdx] == "." && Tokens[TokenIdx + 2] == "(")
+				while (TokenIdx + 3 < Tokens.Length && Tokens[TokenIdx] == "." && Tokens[TokenIdx + 2] == "(")
 				{
 					// Read the method name
 					string MethodName = Tokens[TokenIdx + 1];
@@ -780,18 +780,18 @@ namespace Tools.DotNETCommon
 
 					// Parse any arguments
 					List<object> Arguments = new List<object>();
-					if(Tokens[TokenIdx] != ")")
+					if (Tokens[TokenIdx] != ")")
 					{
 						Arguments.Add(ParseArgument(Tokens[TokenIdx]));
 						TokenIdx++;
 
-						while(TokenIdx + 1 < Tokens.Length && Tokens[TokenIdx] == ",")
+						while (TokenIdx + 1 < Tokens.Length && Tokens[TokenIdx] == ",")
 						{
 							Arguments.Add(ParseArgument(Tokens[TokenIdx + 2]));
 							TokenIdx += 2;
 						}
 
-						if(Tokens[TokenIdx] != ")")
+						if (Tokens[TokenIdx] != ")")
 						{
 							throw new Exception("Missing closing parenthesis in condition");
 						}
@@ -805,7 +805,7 @@ namespace Tools.DotNETCommon
 					{
 						Value = typeof(string).InvokeMember(MethodName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.InvokeMethod, Type.DefaultBinder, Value, Arguments.ToArray()).ToString();
 					}
-					catch(Exception Ex)
+					catch (Exception Ex)
 					{
 						throw new Exception(String.Format("Unable to evaluate condition '{0}'", Text), Ex);
 					}
@@ -817,7 +817,7 @@ namespace Tools.DotNETCommon
 				}
 
 				// Make sure there's nothing left over
-				if(TokenIdx != Tokens.Length)
+				if (TokenIdx != Tokens.Length)
 				{
 					throw new Exception(String.Format("Unable to parse token '{0}'", NewText));
 				}
@@ -839,14 +839,14 @@ namespace Tools.DotNETCommon
 		static object ParseArgument(string Token)
 		{
 			// Try to parse a string
-			if(Token.Length > 2 && Token[0] == '\'' && Token[Token.Length - 1] == '\'')
+			if (Token.Length > 2 && Token[0] == '\'' && Token[Token.Length - 1] == '\'')
 			{
 				return Token.Substring(1, Token.Length - 2);
 			}
 
 			// Try to parse an integer
 			int Value;
-			if(int.TryParse(Token, out Value))
+			if (int.TryParse(Token, out Value))
 			{
 				return Value;
 			}
@@ -863,9 +863,9 @@ namespace Tools.DotNETCommon
 		static string[] Tokenize(string Condition)
 		{
 			List<string> Tokens = new List<string>();
-			for (int Idx = 0; Idx < Condition.Length; )
+			for (int Idx = 0; Idx < Condition.Length;)
 			{
-				if(Char.IsWhiteSpace(Condition[Idx]))
+				if (Char.IsWhiteSpace(Condition[Idx]))
 				{
 					// Whitespace
 					Idx++;
@@ -886,13 +886,13 @@ namespace Tools.DotNETCommon
 				{
 					// Quoted string
 					int StartIdx = Idx++;
-					for(;;Idx++)
+					for (; ; Idx++)
 					{
-						if(Idx == Condition.Length)
+						if (Idx == Condition.Length)
 						{
 							throw new Exception(String.Format("Missing end quote in condition string ('{0}')", Condition));
 						}
-						if(Condition[Idx] == '\'')
+						if (Condition[Idx] == '\'')
 						{
 							break;
 						}
@@ -900,11 +900,11 @@ namespace Tools.DotNETCommon
 					Idx++;
 					Tokens.Add(Condition.Substring(StartIdx, Idx - StartIdx));
 				}
-				else if(Char.IsLetterOrDigit(Condition[Idx]) || Condition[Idx] == '_')
+				else if (Char.IsLetterOrDigit(Condition[Idx]) || Condition[Idx] == '_')
 				{
 					// Identifier or number
 					int StartIdx = Idx++;
-					while(Idx < Condition.Length && (Char.IsLetterOrDigit(Condition[Idx]) || Condition[Idx] == '_'))
+					while (Idx < Condition.Length && (Char.IsLetterOrDigit(Condition[Idx]) || Condition[Idx] == '_'))
 					{
 						Idx++;
 					}
@@ -930,17 +930,17 @@ namespace Tools.DotNETCommon
 			const string HexChars = "0123456789abcdef";
 
 			string NewText = Text;
-			if(NewText != null)
+			if (NewText != null)
 			{
-				for(int Idx = 0; Idx + 2 < NewText.Length; Idx++)
+				for (int Idx = 0; Idx + 2 < NewText.Length; Idx++)
 				{
-					if(NewText[Idx] == '%')
+					if (NewText[Idx] == '%')
 					{
 						int UpperDigitIdx = HexChars.IndexOf(Char.ToLowerInvariant(NewText[Idx + 1]));
-						if(UpperDigitIdx != -1)
+						if (UpperDigitIdx != -1)
 						{
 							int LowerDigitIdx = HexChars.IndexOf(Char.ToLowerInvariant(NewText[Idx + 2]));
-							if(LowerDigitIdx != -1)
+							if (LowerDigitIdx != -1)
 							{
 								char NewChar = (char)((UpperDigitIdx << 4) | LowerDigitIdx);
 								NewText = NewText.Substring(0, Idx) + NewChar + NewText.Substring(Idx + 3);
@@ -968,7 +968,7 @@ namespace Tools.DotNETCommon
 		{
 			// Get the output assembly and pdb file
 			FileReference OutputFile;
-			if(!Project.TryGetOutputFile(out OutputFile))
+			if (!Project.TryGetOutputFile(out OutputFile))
 			{
 				throw new Exception(String.Format("Unable to get output file for {0}", Project.ProjectPath));
 			}
@@ -978,7 +978,7 @@ namespace Tools.DotNETCommon
 			List<FileReference> DependentFiles = new List<FileReference> { Project.ProjectPath, OutputFile, DebugFile };
 
 			DependentFiles.AddRange(Project.CompileReferences);
-	
+
 			if (!Hasher.AddFiles(DependentFiles, HashType))
 			{
 				return false;
