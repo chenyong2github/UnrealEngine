@@ -5,6 +5,7 @@
 #include "EngineGlobals.h"
 #include "PhysicsPublic.h"
 #include "PhysxUserData.h"
+#include "PhysicsEngine/RigidBodyIndexPair.h"
 #include "Physics/PhysicsInterfaceTypes.h"
 
 class ISQAccelerator;

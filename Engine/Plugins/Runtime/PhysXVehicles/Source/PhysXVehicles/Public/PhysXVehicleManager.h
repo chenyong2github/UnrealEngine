@@ -20,7 +20,9 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 /**
  * Manages vehicles and tire surface data for all scenes
  */
-class UE_DEPRECATED(4.26, "PhysX is deprecated. Use the FChaosVehicleManager from the ChaosVehiclePhysics Plugin.") PHYSXVEHICLES_API FPhysXVehicleManager
+
+class UE_DEPRECATED(4.26, "PhysX is deprecated. Use the FChaosVehicleManager from the ChaosVehiclePhysics Plugin.") FPhysXVehicleManager;
+class PHYSXVEHICLES_API FPhysXVehicleManager
 {
 public:
 
