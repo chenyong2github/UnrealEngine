@@ -45,7 +45,7 @@ bool FActiveExternalProfilerBase::bDidInitialize = false;
 
 FExternalProfiler* FActiveExternalProfilerBase::ActiveProfiler = NULL;
 
-FExternalProfiler* FActiveExternalProfilerBase::GetActiveProfiler()
+FExternalProfiler* FActiveExternalProfilerBase::InitActiveProfiler()
 {
 	// Create profiler on demand.
 	if (ActiveProfiler == NULL && !bDidInitialize)
