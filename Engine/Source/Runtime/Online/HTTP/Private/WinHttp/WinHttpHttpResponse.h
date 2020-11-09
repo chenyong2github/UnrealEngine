@@ -32,6 +32,9 @@ public:
 	virtual FString GetContentAsString() const override;
 	//~ End IHttpResponse Interface
 
+	void AppendHeader(const FString& HeaderKey, const FString& HeaderValue) { Headers.Add(HeaderKey, HeaderValue); }
+	void AppendPayload(const TArray<uint8>& InPayload) { Payload.Append(InPayload); }
+
 protected:
 	/** The URL we requested data from*/
 	FString Url;

@@ -21,7 +21,7 @@ using FStringKeyValueMap = TMap<FString, FString>;
 
 DECLARE_DELEGATE_TwoParams(FWinHttpConnectionHttpOnDataTransferred, int32 /*BytesSent*/, int32 /*BytesReceived*/);
 DECLARE_DELEGATE_TwoParams(FWinHttpConnectionHttpOnHeaderReceived, const FString& /*HeaderKey*/, const FString& /*HeaderValue*/);
-DECLARE_DELEGATE_FourParams(FWinHttpConnectionHttpOnRequestComplete, EHttpRequestStatus::Type /*CompletionStatus*/, EHttpResponseCodes::Type /*HttpStatusCode*/, FStringKeyValueMap& /*Headers*/, TArray<uint8>& /*Contents*/);
+DECLARE_DELEGATE_OneParam(FWinHttpConnectionHttpOnRequestComplete, EHttpRequestStatus::Type /*CompletionStatus*/);
 
 class HTTP_API FWinHttpConnectionHttp
 	: public IWinHttpConnection
@@ -49,6 +49,19 @@ public:
 	virtual bool IsComplete() const override;
 	virtual void PumpMessages() override;
 	//~ End IWinHttpConnection Interface
+
+	
+	/** Provides the current known response code. */
+	EHttpResponseCodes::Type GetResponseCode() const { return ResponseCode; }
+	/** 
+	 * Gets the last chunk that is ready for processing on the game thread.
+	 * The caller should either use MoveTemp or call Reset after retrieving the data.
+	 */
+	TArray<uint8>& GetLastChunk() { return GameThreadChunk; }
+	/** Provides the current known response content length. */
+	int32 GetResponseContentLength() const { return ResponseContentLength; }
+	/** Provides the current known headers received. */
+	const TMap<FString, FString>& GetHeadersReceived() const { return HeadersReceived; }
 
 	/// Request Events
 
@@ -183,6 +196,8 @@ protected:
 
 	/// Callback handling
 
+	/** Handles storing the server's IP Address if needed */
+	virtual void HandleConnectedToServer(const wchar_t* ServerIP);
 	/** Handles validating request now that we have server information (certificates, etc) */
 	void HandleSendingRequest();
 	/** Handles SOMETHING not sure yet*/
@@ -295,10 +310,14 @@ private:
 	EHttpResponseCodes::Type ResponseCode = EHttpResponseCodes::Unknown;
 	/** The headers we received from our request */
 	TMap<FString, FString> HeadersReceived;
-	/** The body of the response from our request */
-	TArray<uint8> ResponseBody;
-	/** The amount of bytes we've written to ResponseBody so far */
-	int32 ResponseBytesWritten = 0;
+	/** The current chunk being built in the WinHTTP thread. Always access within a critical section. */
+	TArray<uint8> CurrentChunk;
+	/** The current chunk being built for consumption on the game thread. Only access on the game thread. */
+	TArray<uint8> GameThreadChunk;
+	/** The content length from the response headers, or 0. */
+	int32 ResponseContentLength = 0;
+	/** */
+	int32 BytesWrittenToGameThreadChunk = 0;
 	/** The amount of bytes that are available to read from WinHttpReadData now */
 	TOptional<int32> ResponseBytesAvailable;
 	

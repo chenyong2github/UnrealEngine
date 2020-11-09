@@ -10,7 +10,7 @@
 
 class FRequestPayload;
 class FWinHttpHttpResponse;
-class IWinHttpConnection;
+class FWinHttpConnectionHttp;
 
 using FStringKeyValueMap = TMap<FString, FString>;
 
@@ -53,7 +53,9 @@ public:
 protected:
 	void HandleDataTransferred(int32 BytesSent, int32 BytesReceived);
 	void HandleHeaderReceived(const FString& HeaderKey, const FString& HeaderValue);
-	void HandleRequestComplete(EHttpRequestStatus::Type CompletionStatus, EHttpResponseCodes::Type HttpStatusCode, FStringKeyValueMap& Headers, TArray<uint8>& Contents);
+	void HandleRequestComplete(EHttpRequestStatus::Type CompletionStatus);
+
+	void UpdateResponseBody(bool bForceResponseExist = false);
 
 	void FinishRequest();
 
@@ -88,11 +90,11 @@ private:
 	EHttpRequestStatus::Type State = EHttpRequestStatus::NotStarted;
 
 	/** */
-	TSharedPtr<IWinHttpConnection, ESPMode::ThreadSafe> Connection;
+	TSharedPtr<FWinHttpConnectionHttp, ESPMode::ThreadSafe> Connection;
 
 	/** */
 	TSharedPtr<FWinHttpHttpResponse, ESPMode::ThreadSafe> Response;
-	
+
 	/** */
 	int32 TotalBytesSent = 0;
 
