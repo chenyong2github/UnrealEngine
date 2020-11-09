@@ -1,0 +1,376 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>rzc</name>
+    </assembly>
+    <members>
+        <member name="T:Microsoft.Extensions.CommandLineUtils.ArgumentEscaper">
+            <summary>
+            A utility for escaping arguments for new processes.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Extensions.CommandLineUtils.ArgumentEscaper.EscapeAndConcatenate(System.Collections.Generic.IEnumerable{System.String})">
+            <summary>
+            Undo the processing which took place to create string[] args in Main, so that the next process will
+            receive the same string[] args.
+            </summary>
+            <remarks>
+            See https://blogs.msdn.microsoft.com/twistylittlepassagesallalike/2011/04/23/everyone-quotes-command-line-arguments-the-wrong-way/
+            </remarks>
+            <param name="args">The arguments to concatenate.</param>
+            <returns>The escaped arguments, concatenated.</returns>
+        </member>
+        <member name="T:Microsoft.Extensions.CommandLineUtils.DotNetMuxer">
+            <summary>
+            Utilities for finding the "dotnet.exe" file from the currently running .NET Core application
+            </summary>
+        </member>
+        <member name="P:Microsoft.Extensions.CommandLineUtils.DotNetMuxer.MuxerPath">
+            <summary>
+            The full filepath to the .NET Core muxer.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Extensions.CommandLineUtils.DotNetMuxer.MuxerPathOrDefault">
+            <summary>
+            Finds the full filepath to the .NET Core muxer,
+            or returns a string containing the default name of the .NET Core muxer ('dotnet').
+            </summary>
+            <returns>The path or a string named 'dotnet'.</returns>
+        </member>
+        <member name="T:Microsoft.AspNetCore.Razor.Tools.ConcurrentLruCache`2">
+            <summary>
+            Cache with a fixed size that evicts the least recently used members.
+            Thread-safe.
+            This was taken from https://github.com/dotnet/roslyn/blob/749c0ec135d7d080658dc1aa794d15229c3d10d2/src/Compilers/Core/Portable/InternalUtilities/ConcurrentLruCache.cs.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ConcurrentLruCache`2.#ctor(System.Collections.Generic.KeyValuePair{`0,`1}[])">
+            <summary>
+            Create cache from an array. The cache capacity will be the size
+            of the array. All elements of the array will be added to the 
+            cache. If any duplicate keys are found in the array a
+            <see cref="T:System.ArgumentException"/> will be thrown.
+            </summary>
+        </member>
+        <member name="P:Microsoft.AspNetCore.Razor.Tools.ConcurrentLruCache`2.TestingEnumerable">
+            <summary>
+            For testing. Very expensive.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ConcurrentLruCache`2.UnsafeTryGetValue(`0,`1@)">
+            <summary>
+            Doesn't lock.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ConcurrentLruCache`2.UnsafeEvictLastNode">
+            <summary>
+            Expects non-empty cache. Does not lock.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ConcurrentLruCache`2.UnsafeAdd(`0,`1)">
+            <summary>
+            Doesn't lock.
+            </summary>
+        </member>
+        <member name="F:Microsoft.AspNetCore.Razor.Tools.ConnectionResult.Reason.CompilationNotStarted">
+            <summary>
+            There was an error creating the request object and a compilation was never created.
+            </summary>
+        </member>
+        <member name="F:Microsoft.AspNetCore.Razor.Tools.ConnectionResult.Reason.CompilationCompleted">
+            <summary>
+            The compilation completed and results were provided to the client.
+            </summary>
+        </member>
+        <member name="F:Microsoft.AspNetCore.Razor.Tools.ConnectionResult.Reason.ClientDisconnect">
+            <summary>
+            The compilation process was initiated and the client disconnected before the results could be provided to them.
+            </summary>
+        </member>
+        <member name="F:Microsoft.AspNetCore.Razor.Tools.ConnectionResult.Reason.ClientException">
+            <summary>
+            There was an unhandled exception processing the result.
+            </summary>
+        </member>
+        <member name="F:Microsoft.AspNetCore.Razor.Tools.ConnectionResult.Reason.ClientShutdownRequest">
+            <summary>
+            There was a request from the client to shutdown the server.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.DefaultRequestDispatcher.WaitForAnyCompletion(System.Threading.CancellationToken)">
+            <summary>
+            The server farms out work to Task values and this method needs to wait until at least one of them
+            has completed.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.DefaultRequestDispatcher.HandleCompletedConnections">
+            <summary>
+            Checks the completed connection objects.
+            </summary>
+            <returns>False if the server needs to begin shutting down</returns>
+        </member>
+        <member name="F:Microsoft.AspNetCore.Razor.Tools.DefaultRequestDispatcher.State.Running">
+            <summary>
+            Server running and accepting all requests
+            </summary>
+        </member>
+        <member name="F:Microsoft.AspNetCore.Razor.Tools.DefaultRequestDispatcher.State.ShuttingDown">
+            <summary>
+            Server processing existing requests, responding to shutdown commands but is not accepting
+            new build requests.
+            </summary>
+        </member>
+        <member name="F:Microsoft.AspNetCore.Razor.Tools.DefaultRequestDispatcher.State.Completed">
+            <summary>
+            Server is done.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.EventBus.UpdateKeepAlive(System.TimeSpan)">
+            <summary>
+            Called when the server updates the keep alive value.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.EventBus.ConnectionListening">
+            <summary>
+            Called each time the server listens for new connections.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.EventBus.ConnectionReceived">
+            <summary>
+            Called when a connection to the server occurs.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.EventBus.ConnectionCompleted(System.Int32)">
+            <summary>
+            Called when one or more connections have completed processing.  The number of connections
+            processed is provided in <paramref name="count"/>.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.EventBus.CompilationCompleted">
+            <summary>
+            Called when a compilation is completed successfully and the response is written to the stream.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.EventBus.ConnectionRudelyEnded">
+            <summary>
+            Called when a bad client connection was detected and the server will be shutting down as a 
+            result.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.EventBus.KeepAliveReached">
+            <summary>
+            Called when the server is shutting down because the keep alive timeout was reached.
+            </summary>
+        </member>
+        <member name="F:Microsoft.AspNetCore.Razor.Tools.RequestDispatcher.DefaultServerKeepAlive">
+            <summary>
+            Default time the server will stay alive after the last request disconnects.
+            </summary>
+        </member>
+        <member name="F:Microsoft.AspNetCore.Razor.Tools.RequestDispatcher.GCTimeout">
+            <summary>
+            Time to delay after the last connection before initiating a garbage collection
+            in the server.
+            </summary>
+        </member>
+        <member name="T:Microsoft.AspNetCore.Razor.Tools.CompletedServerResponse">
+            <summary>
+            Represents a Response from the server. A response is as follows.
+            
+             Field Name         Type            Size (bytes)
+            --------------------------------------------------
+             Length             UInteger        4
+             ReturnCode         Integer         4
+             Output             String          Variable
+             ErrorOutput        String          Variable
+            
+            Strings are encoded via a character count prefix as a 
+            32-bit integer, followed by an array of characters.
+            
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.MismatchedVersionServerResponse.AddResponseBody(System.IO.BinaryWriter)">
+            <summary>
+            MismatchedVersion has no body.
+            </summary>
+        </member>
+        <member name="T:Microsoft.AspNetCore.Razor.Tools.NativeMethods">
+            <summary>
+            Interop methods.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.RejectedServerResponse.AddResponseBody(System.IO.BinaryWriter)">
+            <summary>
+            RejectedResponse has no body.
+            </summary>
+        </member>
+        <member name="T:Microsoft.AspNetCore.Razor.Tools.RequestArgument">
+            <summary>
+            A command line argument to the compilation. 
+            An argument is formatted as follows:
+            
+             Field Name         Type            Size (bytes)
+            --------------------------------------------------
+             ID                 UInteger        4
+             Index              UInteger        4
+             Value              String          Variable
+            
+            Strings are encoded via a length prefix as a signed
+            32-bit integer, followed by an array of characters.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ServerConnection.GetTempPath(System.String)">
+            <summary>
+            Gets the value of the temporary path for the current environment assuming the working directory
+            is <paramref name="workingDir"/>.  This function must emulate <see cref="M:System.IO.Path.GetTempPath"/> as 
+            closely as possible.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ServerConnection.TryProcessRequest(Microsoft.AspNetCore.Razor.Tools.Client,Microsoft.AspNetCore.Razor.Tools.ServerRequest,System.Threading.CancellationToken)">
+            <summary>
+            Try to process the request using the server. Returns a null-containing Task if a response
+            from the server cannot be retrieved.
+            </summary>
+        </member>
+        <member name="T:Microsoft.AspNetCore.Razor.Tools.PlatformInformation">
+            <summary>
+            This class provides simple properties for determining whether the current platform is Windows or Unix-based.
+            We intentionally do not use System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(...) because
+            it incorrectly reports 'true' for 'Windows' in desktop builds running on Unix-based platforms via Mono.
+            </summary>
+        </member>
+        <member name="T:Microsoft.AspNetCore.Razor.Tools.ServerLogger">
+            <summary>
+            Class for logging information about what happens in the server and client parts of the 
+            Razor command line compiler and build tasks. Useful for debugging what is going on.
+            </summary>
+            <remarks>
+            To use the logging, set the environment variable RAZORBUILDSERVER_LOG to the name
+            of a file to log to. This file is logged to by both client and server components.
+            </remarks>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ServerLogger.#cctor">
+            <summary>
+            Static class initializer that initializes logging.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ServerLogger.Initialize(System.String)">
+            <summary>
+            Set the logging prefix that describes our role.
+            Typically a 3-letter abbreviation. If logging happens before this, it's logged with "---".
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ServerLogger.LogException(System.Exception,System.String)">
+            <summary>
+            Log an exception. Also logs information about inner exceptions.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ServerLogger.Log(System.String,System.Object[])">
+            <summary>
+            Log a line of text to the logging file, with string.Format arguments.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ServerLogger.Log(System.String)">
+            <summary>
+            Log a line of text to the logging file.
+            </summary>
+            <param name="message"></param>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ServerLogger.GetLoggingPrefix">
+            <summary>
+            Get the string that prefixes all log entries. Shows the process, thread, and time.
+            </summary>
+        </member>
+        <member name="P:Microsoft.AspNetCore.Razor.Tools.ServerPaths.ClientDirectory">
+            <summary>
+            The path which contains the Razor compiler binaries and response files.
+            </summary>
+        </member>
+        <member name="P:Microsoft.AspNetCore.Razor.Tools.ServerPaths.WorkingDirectory">
+            <summary>
+            The path in which the Razor compilation takes place.
+            </summary>
+        </member>
+        <member name="P:Microsoft.AspNetCore.Razor.Tools.ServerPaths.TempDirectory">
+            <summary>
+            The temporary directory a compilation should use instead of <see cref="M:System.IO.Path.GetTempPath"/>.  The latter
+            relies on global state individual compilations should ignore.
+            </summary>
+        </member>
+        <member name="F:Microsoft.AspNetCore.Razor.Tools.ServerProtocol.ProtocolVersion">
+            <summary>
+            The version number for this protocol.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ServerProtocol.ReadLengthPrefixedString(System.IO.BinaryReader)">
+            <summary>
+            Read a string from the Reader where the string is encoded
+            as a length prefix (signed 32-bit integer) followed by
+            a sequence of characters.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ServerProtocol.WriteLengthPrefixedString(System.IO.BinaryWriter,System.String)">
+            <summary>
+            Write a string to the Writer where the string is encoded
+            as a length prefix (signed 32-bit integer) follows by
+            a sequence of characters.
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ServerProtocol.ReadAllAsync(System.IO.Stream,System.Byte[],System.Int32,System.Threading.CancellationToken)">
+            <summary>
+            This task does not complete until we are completely done reading.
+            </summary>
+        </member>
+        <member name="T:Microsoft.AspNetCore.Razor.Tools.ServerRequest">
+            <summary>
+            Represents a request from the client. A request is as follows.
+            
+             Field Name         Type                Size (bytes)
+            ----------------------------------------------------
+             Length             Integer             4
+             Argument Count     UInteger            4
+             Arguments          Argument[]          Variable
+            
+            See <see cref="T:Microsoft.AspNetCore.Razor.Tools.RequestArgument"/> for the format of an
+            Argument.
+            
+            </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ServerRequest.ReadAsync(System.IO.Stream,System.Threading.CancellationToken)">
+            <summary>
+            Read a Request from the given stream.
+            
+            The total request size must be less than 1MB.
+            </summary>
+            <returns>null if the Request was too large, the Request otherwise.</returns>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ServerRequest.WriteAsync(System.IO.Stream,System.Threading.CancellationToken)">
+            <summary>
+            Write a Request to the stream.
+            </summary>
+        </member>
+        <member name="T:Microsoft.AspNetCore.Razor.Tools.ServerResponse">
+             <summary>
+             Base class for all possible responses to a request.
+             The ResponseType enum should list all possible response types
+             and ReadResponse creates the appropriate response subclass based
+             on the response type sent by the client.
+             The format of a response is:
+            
+             Field Name       Field Type          Size (bytes)
+             -------------------------------------------------
+             responseLength   int (positive)      4  
+             responseType     enum ResponseType   4
+             responseBody     Response subclass   variable
+             </summary>
+        </member>
+        <member name="M:Microsoft.AspNetCore.Razor.Tools.ServerResponse.ReadAsync(System.IO.Stream,System.Threading.CancellationToken)">
+            <summary>
+            May throw exceptions if there are pipe problems.
+            </summary>
+            <param name="stream"></param>
+            <param name="cancellationToken"></param>
+            <returns></returns>
+        </member>
+    </members>
+</doc>

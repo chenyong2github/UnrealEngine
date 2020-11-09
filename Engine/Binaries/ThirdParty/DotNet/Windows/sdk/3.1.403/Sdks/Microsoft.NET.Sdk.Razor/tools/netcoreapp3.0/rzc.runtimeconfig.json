@@ -1,0 +1,10 @@
+{
+  "runtimeOptions": {
+    "tfm": "netcoreapp3.0",
+    "framework": {
+      "name": "Microsoft.NETCore.App",
+      "version": "3.1.9"
+    },
+    "rollForwardOnNoCandidateFx": 2
+  }
+}
