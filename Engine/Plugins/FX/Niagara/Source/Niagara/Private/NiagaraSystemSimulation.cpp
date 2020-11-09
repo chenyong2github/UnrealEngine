@@ -107,6 +107,14 @@ static FAutoConsoleVariableRef CVarNiagaraBatchGPUTickSubmit(
 	ECVF_Default
 );
 
+static float GNiagaraSkipTickDeltaSeconds = 0.0f;
+static FAutoConsoleVariableRef CVarNiagaraSkipTickDeltaSeconds(
+	TEXT("fx.Niagara.SkipTickDeltaSeconds"),
+	GNiagaraSkipTickDeltaSeconds,
+	TEXT("When none zero we skip all ticks with a delta seconds less than equal to this number."),
+	ECVF_Default
+);
+
 //////////////////////////////////////////////////////////////////////////
 // Task priorities for simulation tasks
 
@@ -810,6 +818,11 @@ void FNiagaraSystemSimulation::FlushTickBatch(FNiagaraSystemSimulationTickContex
 void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent)
 {
 	if ((PendingSystemInstances.Num() == 0 && SystemInstances.Num() == 0) || !bCanExecute)
+	{
+		return;
+	}
+
+	if ((GNiagaraSkipTickDeltaSeconds > 0.0f) && (DeltaSeconds <= GNiagaraSkipTickDeltaSeconds))
 	{
 		return;
 	}
