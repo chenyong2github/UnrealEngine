@@ -993,6 +993,33 @@ UEdGraphPin& FNiagaraStackGraphUtilities::GetOrCreateStackFunctionInputOverrideP
 	return *OverridePin;
 }
 
+bool FNiagaraStackGraphUtilities::IsOverridePinForFunction(UEdGraphPin& OverridePin, UNiagaraNodeFunctionCall& FunctionCallNode)
+{
+	if (OverridePin.PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryMisc ||
+		OverridePin.PinType.PinSubCategoryObject == FNiagaraTypeDefinition::GetParameterMapStruct())
+	{
+		return false;
+	}
+
+	FNiagaraParameterHandle InputHandle(OverridePin.PinName);
+	return InputHandle.GetNamespace().ToString() == FunctionCallNode.GetFunctionName();
+}
+
+TArray<UEdGraphPin*> FNiagaraStackGraphUtilities::GetOverridePinsForFunction(UNiagaraNodeParameterMapSet& OverrideNode, UNiagaraNodeFunctionCall& FunctionCallNode)
+{
+	TArray<UEdGraphPin*> OverridePins;
+	TArray<UEdGraphPin*> OverrideNodeInputPins;
+	OverrideNode.GetInputPins(OverrideNodeInputPins);
+	for (UEdGraphPin* OverrideNodeInputPin : OverrideNodeInputPins)
+	{
+		if(IsOverridePinForFunction(*OverrideNodeInputPin, FunctionCallNode))
+		{
+			OverridePins.Add(OverrideNodeInputPin);
+		}
+	}
+	return OverridePins;
+}
+
 void FNiagaraStackGraphUtilities::RemoveNodesForStackFunctionInputOverridePin(UEdGraphPin& StackFunctionInputOverridePin)
 {
 	TArray<TWeakObjectPtr<UNiagaraDataInterface>> RemovedDataObjects;
@@ -1023,16 +1050,11 @@ void FNiagaraStackGraphUtilities::RemoveNodesForStackFunctionInputOverridePin(UE
 				UNiagaraNodeParameterMapSet* DynamicInputNodeOverrideNode = Cast<UNiagaraNodeParameterMapSet>(DynamicInputNodeInputPin->LinkedTo[0]->GetOwningNode());
 				if (DynamicInputNodeOverrideNode != nullptr)
 				{
-					FPinCollectorArray InputPins;
-					DynamicInputNodeOverrideNode->GetInputPins(InputPins);
-					for (UEdGraphPin* InputPin : InputPins)
+					TArray<UEdGraphPin*> DynamicInputOverridePins = GetOverridePinsForFunction(*DynamicInputNodeOverrideNode, *DynamicInputNode);
+					for(UEdGraphPin* DynamicInputOverridePin : DynamicInputOverridePins)
 					{
-						FNiagaraParameterHandle InputHandle(InputPin->PinName);
-						if (InputHandle.GetNamespace().ToString() == DynamicInputNode->GetFunctionName())
-						{
-							RemoveNodesForStackFunctionInputOverridePin(*InputPin, OutRemovedDataObjects);
-							DynamicInputNodeOverrideNode->RemovePin(InputPin);
-						}
+						RemoveNodesForStackFunctionInputOverridePin(*DynamicInputOverridePin, OutRemovedDataObjects);
+						DynamicInputNodeOverrideNode->RemovePin(DynamicInputOverridePin);
 					}
 
 					FPinCollectorArray NewInputPins;
@@ -1146,16 +1168,22 @@ void FNiagaraStackGraphUtilities::SetDynamicInputForFunctionInput(UEdGraphPin& O
 	UNiagaraNodeFunctionCall* FunctionCallNode = FunctionCallNodeCreator.CreateNode();
 	FunctionCallNode->FunctionScript = DynamicInput;
 	FunctionCallNodeCreator.Finalize();
+
+	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
+	FNiagaraTypeDefinition InputType = NiagaraSchema->PinToTypeDefinition(&OverridePin);
+
+	if (DynamicInput == nullptr)
+	{
+		// If there is no dynamic input script we need to add default pins so that the function call node can be connected properly.
+		FunctionCallNode->CreatePin(EGPD_Input, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("InputMap"));
+		FunctionCallNode->CreatePin(EGPD_Output, NiagaraSchema->TypeDefinitionToPinType(InputType), TEXT("Output"));
+	}
+
 	FunctionCallNode->SetEnabledState(OverrideNode->GetDesiredEnabledState(), OverrideNode->HasUserSetTheEnabledState());
 
 	UEdGraphPin* FunctionCallInputPin = FNiagaraStackGraphUtilities::GetParameterMapInputPin(*FunctionCallNode);
 	FPinCollectorArray FunctionCallOutputPins;
 	FunctionCallNode->GetOutputPins(FunctionCallOutputPins);
-
-	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
-
-	FNiagaraTypeDefinition InputType = NiagaraSchema->PinToTypeDefinition(&OverridePin);
-
 
 	UEdGraphPin* OverrideNodeInputPin = FNiagaraStackGraphUtilities::GetParameterMapInputPin(*OverrideNode);
 	UEdGraphPin* PreviousStackNodeOutputPin = nullptr;
@@ -1363,7 +1391,7 @@ bool FNiagaraStackGraphUtilities::FindScriptModulesInStack(FAssetData ModuleScri
 	return OutFunctionCalls.Num() > 0;
 }
 
-UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(FAssetData ModuleScriptAsset, UNiagaraNodeOutput& TargetOutputNode, int32 TargetIndex)
+UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(FAssetData ModuleScriptAsset, UNiagaraNodeOutput& TargetOutputNode, int32 TargetIndex, FString SuggestedName)
 {
 	UEdGraph* Graph = TargetOutputNode.GetGraph();
 	Graph->Modify();
@@ -1373,11 +1401,28 @@ UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(FA
 	NewModuleNode->FunctionScriptAssetObjectPath = ModuleScriptAsset.ObjectPath;
 	ModuleNodeCreator.Finalize();
 
+	if (NewModuleNode->FunctionScript == nullptr)
+	{
+		// If the module script is null, add parameter map inputs and outputs so that the node can be wired into the graph correctly.
+		const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
+		NewModuleNode->CreatePin(EGPD_Input, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("InputMap"));
+		NewModuleNode->CreatePin(EGPD_Output, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("OutputMap"));
+		if (SuggestedName.IsEmpty())
+		{
+			SuggestedName = TEXT("InvalidScript");
+		}
+	}
+
+	if (SuggestedName.IsEmpty() == false)
+	{
+		NewModuleNode->SuggestName(SuggestedName);
+	}
+
 	ConnectModuleNode(*NewModuleNode, TargetOutputNode, TargetIndex);
 	return NewModuleNode;
 }
 
-UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(UNiagaraScript* ModuleScript, UNiagaraNodeOutput& TargetOutputNode, int32 TargetIndex)
+UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(UNiagaraScript* ModuleScript, UNiagaraNodeOutput& TargetOutputNode, int32 TargetIndex, FString SuggestedName)
 {
 	UEdGraph* Graph = TargetOutputNode.GetGraph();
 	Graph->Modify();
@@ -1386,6 +1431,23 @@ UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(UN
 	UNiagaraNodeFunctionCall* NewModuleNode = ModuleNodeCreator.CreateNode();
 	NewModuleNode->FunctionScript = ModuleScript;
 	ModuleNodeCreator.Finalize();
+
+	if (NewModuleNode->FunctionScript == nullptr)
+	{
+		// If the module script is null, add parameter map inputs and outputs so that the node can be wired into the graph correctly.
+		const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
+		NewModuleNode->CreatePin(EGPD_Input, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("InputMap"));
+		NewModuleNode->CreatePin(EGPD_Output, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("OutputMap"));
+		if (SuggestedName.IsEmpty())
+		{
+			SuggestedName = TEXT("InvalidScript");
+		}
+	}
+
+	if (SuggestedName.IsEmpty() == false)
+	{
+		NewModuleNode->SuggestName(SuggestedName);
+	}
 
 	ConnectModuleNode(*NewModuleNode, TargetOutputNode, TargetIndex);
 	return NewModuleNode;
