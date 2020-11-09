@@ -21,7 +21,7 @@ public:
 	: NumberPlanarCuts(3) {}
 
 	/** Number of Clusters - Cluster Voronoi Method */
-	UPROPERTY(EditAnywhere, Category = PlaneCut, meta = (DisplayName = "Number of Cuts", UIMin = "1", UIMax = "2000", ClampMin = "1"))
+	UPROPERTY(EditAnywhere, Category = PlaneCut, meta = (DisplayName = "Number of Cuts", UIMin = "1", UIMax = "20", ClampMin = "1"))
 	int32 NumberPlanarCuts;
 
 	/** Actor to be used for voronoi bounds or plane cutting  */

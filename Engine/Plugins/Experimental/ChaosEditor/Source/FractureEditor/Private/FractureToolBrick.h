@@ -68,15 +68,15 @@ public:
 	EFractureBrickProjection Up;
 
 	/** Brick length */
-	UPROPERTY(EditAnywhere, Category = Brick)
+	UPROPERTY(EditAnywhere, Category = Brick, meta = (UIMin = "0.1", UIMax = "500.0", ClampMin = "0.001"))
 	float BrickLength;
 
 	/** Brick Height */
-	UPROPERTY(EditAnywhere, Category = Brick)
+	UPROPERTY(EditAnywhere, Category = Brick, meta = (UIMin = "0.1", UIMax = "500.0", ClampMin = "0.001"))
 	float BrickHeight;
 
 	/** Brick Height */
-	UPROPERTY(EditAnywhere, Category = Brick)
+	UPROPERTY(EditAnywhere, Category = Brick, meta = (UIMin = "0.1", UIMax = "500.0", ClampMin = "0.001"))
 	float BrickDepth;
 
 	UPROPERTY()
