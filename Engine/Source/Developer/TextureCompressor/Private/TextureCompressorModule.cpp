@@ -2186,6 +2186,23 @@ public:
 	{
 	}
 
+	virtual bool UsesTaskGraph(const FTextureBuildSettings& BuildSettings) const override
+	{
+		const ITextureFormat* TextureFormat = nullptr;
+		ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
+		if (TPM)
+		{
+			TextureFormat = TPM->FindTextureFormat(BuildSettings.TextureFormatName);
+		}
+
+		if (TextureFormat)
+		{
+			return TextureFormat->UsesTaskGraph();
+		}
+
+		return false;
+	}
+
 	virtual bool BuildTexture(
 		const TArray<FImage>& SourceMips,
 		const TArray<FImage>& AssociatedNormalSourceMips,
