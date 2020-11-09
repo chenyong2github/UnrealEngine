@@ -615,7 +615,15 @@ void ComposeVolumetricRTOverScenePS(
 	float4 VolumeRGBT3 = SafeLoadVolumetricTexture(VolumeCoord3);
 	float2 VolumeFrontDepth3 = SafeLoadVolumetricDepthTexture(VolumeCoord3);
 
-	PixelDistanceFromViewKm = min(PixelDistanceFromViewKm, max(max(VolumeFrontDepth0.y, VolumeFrontDepth1.y),max(VolumeFrontDepth2.y, VolumeFrontDepth3.y))); // clamp to the maximum of the read depth to avoid no depth matching
+	// clamp to the maximum of the read depth to avoid no depth matching
+	PixelDistanceFromViewKm = min(PixelDistanceFromViewKm, max(max(VolumeFrontDepth0.y, VolumeFrontDepth1.y),max(VolumeFrontDepth2.y, VolumeFrontDepth3.y))); 
+
+	// Then also clamp the read cloud depth just in case the depthbuffer has receive some more opaque meshes (eg. water mesh)
+	VolumeFrontDepth0 = min(PixelDistanceFromViewKm, VolumeFrontDepth0);
+	VolumeFrontDepth1 = min(PixelDistanceFromViewKm, VolumeFrontDepth1);
+	VolumeFrontDepth2 = min(PixelDistanceFromViewKm, VolumeFrontDepth2);
+	VolumeFrontDepth3 = min(PixelDistanceFromViewKm, VolumeFrontDepth3);
+
 	float4 depth4Diff;
 	depth4Diff.x = PixelDistanceFromViewKm - VolumeFrontDepth0.y;
 	depth4Diff.y = PixelDistanceFromViewKm - VolumeFrontDepth1.y;
