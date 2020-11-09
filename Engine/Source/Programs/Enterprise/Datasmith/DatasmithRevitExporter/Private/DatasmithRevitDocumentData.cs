@@ -928,6 +928,7 @@ namespace DatasmithRevitExporter
 							}
 						}
 
+						ExistingActor?.ResetTags();
 						ElementData.InitializePivotPlacement(ref InWorldTransform);
 						ElementData.InitializeElement(InWorldTransform, ElementData);
 					}
