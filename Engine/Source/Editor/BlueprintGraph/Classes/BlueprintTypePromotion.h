@@ -150,6 +150,9 @@ private:
 
 	static FTypePromotion* Instance;
 
+	/** Delegate to handle that will be used to refresh the op table when a module has changed */
+	FDelegateHandle OnModulesChangedDelegateHandle;
+
 	/** A map of 'Type' to its 'available promotions'. See ctor for creation */
 	TMap<FName, TArray<FName>> PromotionTable;
 
