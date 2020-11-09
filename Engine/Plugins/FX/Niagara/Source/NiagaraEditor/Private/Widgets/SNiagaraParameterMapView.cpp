@@ -525,13 +525,14 @@ void SNiagaraParameterMapView::CollectAllActions(FGraphActionListBuilderBase& Ou
 	}
 
 	TMap<FNiagaraVariable, TArray<FNiagaraGraphParameterReferenceCollection>> ParameterEntries;
+	TArray<FName> CustomIterationSourceNamespaces;
 	if (ToolkitType == SCRIPT)
 	{
-		CollectAllActionsForScriptToolkit(ParameterEntries);
+		CollectAllActionsForScriptToolkit(ParameterEntries, CustomIterationSourceNamespaces);
 	}
 	else if (ToolkitType == SYSTEM)
 	{
-		CollectAllActionsForSystemToolkit(ParameterEntries);
+		CollectAllActionsForSystemToolkit(ParameterEntries, CustomIterationSourceNamespaces);
 	}
 
 	ParameterEntries.KeySort([](const FNiagaraVariable& A, const FNiagaraVariable& B) { return A.GetName().LexicalLess(B.GetName()); });
@@ -552,6 +553,7 @@ void SNiagaraParameterMapView::CollectAllActions(FGraphActionListBuilderBase& Ou
 		}
 
 		bool bIsExternallyReferenced = false;
+		bool bIsSourcedFromCustomStackContext = false;
 		for (const FNiagaraGraphParameterReferenceCollection& ReferenceCollection : ParameterEntry.Value)
 		{
 			for (const FNiagaraGraphParameterReference& ParameterReference : ReferenceCollection.ParameterReferences)
@@ -585,16 +587,26 @@ void SNiagaraParameterMapView::CollectAllActions(FGraphActionListBuilderBase& Ou
 			}
 		}
 
+		for (const FName& CustomIterationNamespace : CustomIterationSourceNamespaces)
+		{
+			if (Parameter.IsInNameSpace(CustomIterationNamespace))
+			{
+				bIsSourcedFromCustomStackContext = true;
+				break;
+			}
+		}
+
 		const FText Name = FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(Parameter.GetName());
 		const FText Tooltip = FText::Format(TooltipFormat, Name, Parameter.GetType().GetNameText());
 		TSharedPtr<FNiagaraParameterAction> ParameterAction(new FNiagaraParameterAction(Parameter, ParameterEntry.Value, FText::GetEmpty(), Name, Tooltip, 0, FText(), ParametersWithNamespaceModifierRenamePending, Section));
 		ParameterAction->bIsExternallyReferenced = bIsExternallyReferenced;
+		ParameterAction->bIsSourcedFromCustomStackContext = bIsSourcedFromCustomStackContext;
 		OutAllActions.AddAction(ParameterAction);
 		LastCollectedParameters.Add(Parameter);
 	}
 }
 
-void SNiagaraParameterMapView::CollectAllActionsForScriptToolkit(TMap<FNiagaraVariable, TArray<FNiagaraGraphParameterReferenceCollection>>& OutParameterEntries)
+void SNiagaraParameterMapView::CollectAllActionsForScriptToolkit(TMap<FNiagaraVariable, TArray<FNiagaraGraphParameterReferenceCollection>>& OutParameterEntries, TArray<FName>& OutCustomIterationSourceNamespaces)
 {
 	// For scripts we use the reference maps cached in the graph to collect parameters.
 	for (auto& GraphWeakPtr : Graphs)
@@ -621,7 +633,7 @@ void SNiagaraParameterMapView::CollectAllActionsForScriptToolkit(TMap<FNiagaraVa
 	}
 }
 
-void SNiagaraParameterMapView::CollectAllActionsForSystemToolkit(TMap<FNiagaraVariable, TArray<FNiagaraGraphParameterReferenceCollection>>& OutParameterEntries)
+void SNiagaraParameterMapView::CollectAllActionsForSystemToolkit(TMap<FNiagaraVariable, TArray<FNiagaraGraphParameterReferenceCollection>>& OutParameterEntries, TArray<FName>& OutCustomIterationSourceNamespaces)
 {
 	// For systems we need to collect the user parameters if a system is selected, and then we use parameter map traversal
 	// to find the compile time parameters.
@@ -708,7 +720,15 @@ void SNiagaraParameterMapView::CollectAllActionsForSystemToolkit(TMap<FNiagaraVa
 			Builder.BeginUsage(StageUsage, StageName);
 			NodeToTraverse->BuildParameterMapHistory(Builder, true, false);
 			Builder.EndUsage();
-			
+
+			for (int32 HistoryIdx = 0; HistoryIdx < Builder.Histories.Num(); HistoryIdx++)
+			{
+				for (const FName& Namespace : Builder.Histories[HistoryIdx].IterationNamespaceOverridesEncountered)
+				{
+					OutCustomIterationSourceNamespaces.AddUnique(Namespace);
+				}
+			}
+
 			TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection> ReferenceCollectionsForTraversedNode;
 			if (Builder.Histories.Num() == 1)
 			{

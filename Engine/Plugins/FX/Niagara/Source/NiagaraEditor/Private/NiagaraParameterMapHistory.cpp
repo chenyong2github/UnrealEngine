@@ -735,6 +735,20 @@ bool FNiagaraParameterMapHistory::ShouldIgnoreVariableDefault(const FNiagaraVari
 	return bShouldBeIgnored;
 }
 
+bool FNiagaraParameterMapHistory::IsVariableFromCustomIterationNamespaceOverride(const FNiagaraVariable& InVar) const
+{
+	for (const FName& Name : IterationNamespaceOverridesEncountered)
+	{
+		if (Name.IsValid())
+		{
+			if (InVar.IsInNameSpace(Name))
+				return true;
+		}
+	}
+	return false;
+}
+
+
 FNiagaraParameterMapHistoryBuilder::FNiagaraParameterMapHistoryBuilder()
 {
 	ContextuallyVisitedNodes.AddDefaulted(1);
@@ -746,9 +760,13 @@ FNiagaraParameterMapHistoryBuilder::FNiagaraParameterMapHistoryBuilder()
 
 void FNiagaraParameterMapHistoryBuilder::BuildParameterMaps(const UNiagaraNodeOutput* OutputNode, bool bRecursive)
 {
-	RelevantScriptUsageContext.Emplace(OutputNode->GetUsage());
+	
+	TOptional<FName> StackContextAlias = OutputNode->GetStackContextOverride();
+	BeginUsage(OutputNode->GetUsage(), StackContextAlias.Get(ScriptUsageContextNameStack.Num() > 0 ? ScriptUsageContextNameStack.Top() : NAME_None));
+
 	OutputNode->BuildParameterMapHistory(*this, bRecursive);
-	RelevantScriptUsageContext.Pop();
+
+	EndUsage();
 }
 
 void FNiagaraParameterMapHistoryBuilder::EnableScriptWhitelist(bool bInEnable, ENiagaraScriptUsage InScriptType)
@@ -788,6 +806,12 @@ ENiagaraScriptUsage FNiagaraParameterMapHistoryBuilder::GetBaseUsageContext()con
 int32 FNiagaraParameterMapHistoryBuilder::CreateParameterMap()
 {
 	int32 RetValue = Histories.AddDefaulted(1);
+	FName StackName = ScriptUsageContextNameStack.Num() > 0 ? ScriptUsageContextNameStack.Top() : NAME_None;
+
+	if (StackName.IsValid())
+	{
+		Histories[RetValue].IterationNamespaceOverridesEncountered.AddUnique(StackName);
+	}
 	return RetValue;
 }
 
@@ -975,6 +999,7 @@ void FNiagaraParameterMapHistoryBuilder::BeginUsage(ENiagaraScriptUsage InUsage,
 {
 	RelevantScriptUsageContext.Push(InUsage);
 	ScriptUsageContextNameStack.Push(InStageName);
+		
 	BuildCurrentAliases();
 }
 

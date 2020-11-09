@@ -62,6 +62,7 @@ struct NIAGARAEDITOR_API FNiagaraParameterAction : public FEdGraphSchemaAction
 {
 	FNiagaraParameterAction()
 		: bIsExternallyReferenced(false)
+		, bIsSourcedFromCustomStackContext(false)
 	{
 	}
 
@@ -87,6 +88,8 @@ struct NIAGARAEDITOR_API FNiagaraParameterAction : public FEdGraphSchemaAction
 	TArray<FNiagaraGraphParameterReferenceCollection> ReferenceCollection;
 
 	bool bIsExternallyReferenced;
+
+	bool bIsSourcedFromCustomStackContext;
 
 private:
 	TWeakPtr<TArray<FName>> ParameterWithNamespaceModifierRenamePendingWeak;

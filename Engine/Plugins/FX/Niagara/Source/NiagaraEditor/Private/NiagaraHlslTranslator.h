@@ -332,6 +332,8 @@ public:
 
 	bool ShouldDoSpawnOnlyLogic() const;
 	bool IsRelevantToSpawnForStage(const FNiagaraParameterMapHistory& InHistory, const FNiagaraVariable& InAliasedVar, const FNiagaraVariable& InVar) const;
+
+	bool IsExternalConstantNamespace(const FNiagaraVariable& InVar, ENiagaraScriptUsage InTargetUsage, uint32 InTargetBitmask);
 	int32 CurrentCallID = 0;
 	bool bCallIDInitialized = false;
 };

@@ -1723,10 +1723,10 @@ void UNiagaraStackFunctionInput::GetNamespacesForNewWriteParameters(TArray<FName
 {
 	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningFunctionCallNode);
 	bool bIsEditingSystem = GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset;
-
+	TOptional<FName> StackContextNamespace = OutputNode->GetStackContextOverride();
 	FNiagaraStackGraphUtilities::GetNamespacesForNewWriteParameters(
 		bIsEditingSystem ? FNiagaraStackGraphUtilities::EStackEditContext::System : FNiagaraStackGraphUtilities::EStackEditContext::Emitter,
-		OutputNode->GetUsage(), OutNamespacesForNewParameters);
+		OutputNode->GetUsage(), StackContextNamespace, OutNamespacesForNewParameters);
 }
 
 UNiagaraStackFunctionInput::FOnValueChanged& UNiagaraStackFunctionInput::OnValueChanged()

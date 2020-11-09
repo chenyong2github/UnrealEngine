@@ -4514,6 +4514,18 @@ bool FHlslNiagaraTranslationStage::ShouldDoSpawnOnlyLogic() const
 	return false;
 }
 
+bool FHlslNiagaraTranslationStage::IsExternalConstantNamespace(const FNiagaraVariable& InVar, ENiagaraScriptUsage InTargetUsage, uint32 InTargetBitmask)
+{
+	if (FNiagaraParameterMapHistory::IsExternalConstantNamespace(InVar, InTargetUsage, InTargetBitmask))
+	{
+		if (IterationSource != NAME_None && InVar.IsInNameSpace(IterationSource))
+			return false;
+		else
+			return true;
+	}
+	return false;
+}
+
 bool FHlslNiagaraTranslationStage::IsRelevantToSpawnForStage(const FNiagaraParameterMapHistory& InHistory, const FNiagaraVariable& InAliasedVar, const FNiagaraVariable& InVar) const
 {
 	if (InHistory.IsPrimaryDataSetOutput(InAliasedVar, ScriptUsage) && UNiagaraScript::IsSpawnScript(ScriptUsage))
@@ -4837,7 +4849,7 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 			}
 
 			FString VarName = Var.GetName().ToString();
-			if (FNiagaraParameterMapHistory::IsExternalConstantNamespace(Var, CompileOptions.TargetUsage, CompileOptions.GetTargetUsageBitmask()))
+			if (TranslationStages[ActiveStageIdx].IsExternalConstantNamespace(Var, CompileOptions.TargetUsage, CompileOptions.GetTargetUsageBitmask()))
 			{
 				Error(FText::Format(LOCTEXT("SetSystemConstantFail", "Cannot Set external constant, Type: {0} Variable: {1}"), Var.GetType().GetNameText(), FText::FromName(Var.GetName())), SetNode, nullptr);
 				continue;

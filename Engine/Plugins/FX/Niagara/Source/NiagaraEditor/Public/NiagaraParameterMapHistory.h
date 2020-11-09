@@ -46,6 +46,7 @@ public:
 
 	TArray<FNiagaraVariable> VariablesWithOriginalAliasesIntact;
 
+
 	/** Used parameter collections identified during the traversal. TODO: Need to ensure these cannot be GCd if the asset is deleted while it's being used in an in flight compilation. */
 	TArray<UNiagaraParameterCollection*> ParameterCollections;
 	/** Cached off contents of used parameter collections, in case they change during threaded compilation. */
@@ -73,6 +74,11 @@ public:
 
 	/** List of emitter namespaces encountered as this parameter map was built.*/
 	TArray<FString> EmitterNamespacesEncountered;
+
+	/** List of all the custom iteration source override namespaces encountered */
+	TArray<FName> IterationNamespaceOverridesEncountered;
+
+	bool IsVariableFromCustomIterationNamespaceOverride(const FNiagaraVariable& InVar) const;
 	
 	/**
 	* Called in a depth-first traversal to identify a given Niagara Parameter Map pin that was touched during traversal.
