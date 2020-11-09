@@ -63,7 +63,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Should format JSON files in human readable form, or use packed one without indents
 		/// </summary>
-		[CommandLine("-Minimize", Value = "Yes")]
+		[CommandLine("-Minimize", Value = "Compact")]
 		private JsonWriterStyle Minimize = JsonWriterStyle.Readable;
 
 		public RiderProjectFileGenerator(FileReference InOnlyGameProject,
