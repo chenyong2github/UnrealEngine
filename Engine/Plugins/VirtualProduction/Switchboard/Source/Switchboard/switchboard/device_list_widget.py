@@ -1,5 +1,7 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
+
 import switchboard.switchboard_widgets as sb_widgets
+from switchboard.switchboard_logging import LOGGER
 
 from PySide2 import QtCore, QtGui, QtWidgets
 
@@ -123,7 +125,12 @@ class DeviceListWidget(QtWidgets.QListWidget):
         header_rows.sort()
         current_header_row = header_rows[header_rows.index(current_row)-1]
 
-        new_device_header = self._header_by_category_name[device.category_name]
+        try:
+            new_device_header = self._header_by_category_name[device.category_name]
+        except KeyError:
+            LOGGER.warning(f'No header for category "{device.category_name}" for device "{device.name}"')
+            return None
+
         new_header_row = self.row(new_device_header)
 
         if new_header_row is current_header_row:

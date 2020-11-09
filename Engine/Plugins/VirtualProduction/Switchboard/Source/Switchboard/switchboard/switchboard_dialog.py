@@ -824,7 +824,7 @@ class SwitchboardDialog(QtCore.QObject):
         if not device:
             return
 
-        if device.device_type == 'iPhone':
+        if device.device_type == 'LiveLinkFace':
             device.look_for_device = True
         else:
             device.connect_listener()
@@ -846,7 +846,7 @@ class SwitchboardDialog(QtCore.QObject):
         if not device:
             return
 
-        if device.device_type == 'iPhone':
+        if device.device_type == 'LiveLinkFace':
             device.look_for_device = False
         else:
             device.disconnect_listener()
@@ -1297,9 +1297,9 @@ class SwitchboardDialog(QtCore.QObject):
         device.connect_listener()
 
     def osc_battery(self, ip_address, command, value):
-        # The Battery command is used to handshake with the iPhone. Don't reject it if it's not connected 
+        # The Battery command is used to handshake with LiveLinkFace. Don't reject it if it's not connected 
         device = self.device_manager.device_with_ip_address(ip_address[0])
-        #device = self._device_from_ip_address(ip_address, command)
+        
         if not device:
             return
 

@@ -51,7 +51,7 @@ class Device(QtCore.QObject):
     def __init__(self, name, ip_address, **kwargs):
         super().__init__()
 
-        self._name = name  # Assigned name: iPhoneRed, iPhoneGreen, Record Box
+        self._name = name  # Assigned name
         self.device_qt_handler = DeviceQtHandler()
 
         self.setting_ip_address = Setting("ip_address", 'IP address', ip_address)

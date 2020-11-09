@@ -391,7 +391,7 @@ class Config(object):
     def multiuser_server_path(self):
         return os.path.normpath(os.path.join(self.ENGINE_DIR.get_value(), 'Binaries/Win64', self.MULTIUSER_SERVER_EXE))
 
-    # todo-dara: find a way to do this directly in the iphone plugin code
+    # todo-dara: find a way to do this directly in the LiveLinkFace plugin code
     def unreal_device_ip_addresses(self):
         unreal_ips = []
         for (device_type, device_name), (settings, overrides) in self._device_settings.items():
