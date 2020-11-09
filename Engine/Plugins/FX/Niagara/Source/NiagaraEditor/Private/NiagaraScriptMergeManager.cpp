@@ -199,20 +199,10 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const UNiag
 	UNiagaraNodeParameterMapSet* OverrideNode = FNiagaraStackGraphUtilities::GetStackFunctionOverrideNode(*FunctionCallNode);
 	if (OverrideNode != nullptr)
 	{
-		FPinCollectorArray OverridePins;
-		OverrideNode->GetInputPins(OverridePins);
-		for (UEdGraphPin* OverridePin : OverridePins)
+		for(UEdGraphPin* OverridePin : FNiagaraStackGraphUtilities::GetOverridePinsForFunction(*OverrideNode, *FunctionCallNode))
 		{
-			if (OverridePin->PinType.PinCategory != UEdGraphSchema_Niagara::PinCategoryMisc &&
-				OverridePin->PinType.PinSubCategoryObject != FNiagaraTypeDefinition::GetParameterMapStruct())
-			{
-				FNiagaraParameterHandle InputHandle(OverridePin->PinName);
-				if (InputHandle.GetNamespace().ToString() == FunctionCallNode->GetFunctionName())
-				{
-					InputOverrides.Add(MakeShared<FNiagaraStackFunctionInputOverrideMergeAdapter>(InOwningEmitter, *OwningScript.Get(), *FunctionCallNode.Get(), *OverridePin));
-					AliasedInputsAdded.Add(OverridePin->PinName);
-				}
-			}
+			InputOverrides.Add(MakeShared<FNiagaraStackFunctionInputOverrideMergeAdapter>(InOwningEmitter, *OwningScript.Get(), *FunctionCallNode.Get(), *OverridePin));
+			AliasedInputsAdded.Add(*OverridePin->PinName.ToString());
 		}
 	}
 
@@ -2305,7 +2295,7 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddMod
 			FunctionScript = AddModule->GetFunctionCallNode()->FunctionScript;
 		}
 
-		AddedModuleNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(FunctionScript, TargetOutputNode, AddModule->GetStackIndex());
+		AddedModuleNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(FunctionScript, TargetOutputNode, AddModule->GetStackIndex(), AddModule->GetFunctionCallNode()->GetFunctionName());
 		AddedModuleNode->NodeGuid = AddModule->GetFunctionCallNode()->NodeGuid; // Synchronize the node Guid across runs so that the compile id's sync up.
 		Results.bModifiedGraph = true;
 	}

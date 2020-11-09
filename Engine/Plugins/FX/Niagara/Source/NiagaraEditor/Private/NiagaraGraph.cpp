@@ -507,7 +507,7 @@ FName UNiagaraGraph::StandardizeName(FName Name, ENiagaraScriptUsage Usage, bool
 		NameParts.Add(NAME_None);
 	}
 
-	FName Namespace;
+	TOptional<FName> Namespace;
 	if (NameParts[0] == FNiagaraConstants::EngineNamespace ||
 		NameParts[0] == FNiagaraConstants::ParameterCollectionNamespace ||
 		NameParts[0] == FNiagaraConstants::UserNamespace ||
@@ -657,7 +657,7 @@ FName UNiagaraGraph::StandardizeName(FName Name, ENiagaraScriptUsage Usage, bool
 		}
 	}
 
-	checkf(Namespace != NAME_None, TEXT("No namespace picked."));
+	checkf(Namespace.IsSet(), TEXT("No namespace picked in %s."), *Name.ToString());
 
 	NameParts.Remove(FNiagaraConstants::ModuleNamespace);
 	if (NameParts.Num() == 0)
@@ -682,7 +682,7 @@ FName UNiagaraGraph::StandardizeName(FName Name, ENiagaraScriptUsage Usage, bool
 	}
 
 	// Last, combine it with the namespace(s) chosen above.
-	return *FString::Printf(TEXT("%s.%s"), *Namespace.ToString(), *ParameterName);
+	return *FString::Printf(TEXT("%s.%s"), *Namespace.GetValue().ToString(), *ParameterName);
 }
 
 void UNiagaraGraph::StandardizeParameterNames()
