@@ -27,14 +27,29 @@ export void UpdatePositionBasedState(uniform FVector& MXcm,
 
 	foreach(Index = Offset ... Range)
 	{
-		if(!InvM[Index])
+		const varying float IM = InvM[Index];
+
+		if(all(IM == 0.0f))
 		{
 			continue;
 		}
 
-		const varying FVector MX = VectorLoad(&X[extract(Index, 0)]);
-		const varying FVector MV = VectorLoad(&V[extract(Index, 0)]);
-		const varying float MM = M[Index];
+		varying FVector MX, MV;
+		float MM;
+
+		if(IM == 0.0f)
+		{
+			MX = ZeroVector;
+			MV = ZeroVector;
+			MM = 0.0f;
+		}
+		else
+		{
+			MX = VectorGather(&X[Index]);
+			MV = VectorGather(&V[Index]);
+			MM = M[Index];
+		}
+
 		Xcm = Xcm + (MX * MM);
 		Vcm = Vcm + (MV * MM);
 		Mcm += MM;
@@ -50,26 +65,43 @@ export void UpdatePositionBasedState(uniform FVector& MXcm,
 		MVcm = MVcm / MMcm;
 	}
 
-	uniform FVector L = ZeroVector;
-	uniform FMatrix33 I = Matrix33Zero;
+	varying FVector VL = ZeroVector;
+	varying FMatrix33 VI = Matrix33Zero;
 
-	for(uniform int Index = Offset; Index < Range; Index++)
+	foreach(Index = Offset ... Range)
 	{
-		if(!InvM[Index])
+		const varying float IM = InvM[Index];
+
+		if(all(IM == 0.0f))
 		{
 			continue;
 		}
 
-		const uniform FVector MX = X[Index];
-		const uniform FVector MV = V[Index];
-		const uniform float MM = M[Index];
+		varying FVector MX, MV;
+		float MM;
 
-		const uniform FVector VX = MX - MXcm;
-		L = L + VectorCross(VX, MM * MV);
+		if(IM == 0.0f)
+		{
+			MX = ZeroVector;
+			MV = ZeroVector;
+			MM = 0.0f;
+		}
+		else
+		{
+			MX = VectorGather(&X[Index]);
+			MV = VectorGather(&V[Index]);
+			MM = M[Index];
+		}
 
-		const uniform FMatrix33 Mat = SetMatrix33(0, VX.V[2], -VX.V[1], -VX.V[2], 0, VX.V[0], VX.V[1], -VX.V[0], 0);
-		I = AddAB(I, Multiply(MultiplyABt(Mat, Mat), MM));
+		const varying FVector VX = MX - MXcm;
+		VL = VL + VectorCross(VX, MM * MV);
+
+		const varying FMatrix33 Mat = SetMatrix33(0, VX.V[2], -VX.V[1], -VX.V[2], 0, VX.V[0], VX.V[1], -VX.V[0], 0);
+		VI = AddAB(VI, Multiply(MultiplyABt(Mat, Mat), MM));
 	}
+
+	const uniform FVector L = VectorReduceAdd(VL);
+	const uniform FMatrix33 I = MatrixReduceAdd(VI);
 
 	const uniform float Det = MatrixDeterminant(I);
 

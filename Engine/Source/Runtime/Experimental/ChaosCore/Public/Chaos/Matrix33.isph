@@ -18,6 +18,14 @@ inline uniform FMatrix33 SetMatrix33(
 	return SetMatrix(SetVector4(x00, x01, x02, 0), SetVector4(x10, x11, x12, 0), SetVector4(x20, x21, x22, 0), Float0001);
 }
 
+inline FMatrix33 SetMatrix33(
+	const float x00, const float x10, const float x20,
+	const float x01, const float x11, const float x21,
+	const float x02, const float x12, const float x22)
+{
+	return SetMatrix(SetVector4(x00, x01, x02, 0.0f), SetVector4(x10, x11, x12, 0.0f), SetVector4(x20, x21, x22, 0.0f), Float0001);
+}
+
 inline uniform FMatrix33 SetMatrix33(
 	const uniform float x00, const uniform float x10, const uniform float x20,
 	const uniform float x11, const uniform float x21, const uniform float x22)
@@ -32,6 +40,11 @@ inline uniform FMatrix33 SetMatrix33(
 }
 
 inline uniform FMatrix33 SetMatrix33(const uniform FVector4& x0, const uniform FVector4& x1, const uniform FVector4& x2)
+{
+	return SetMatrix(x0, x1, x2, Float0001);
+}
+
+inline FMatrix33 SetMatrix33(const FVector4& x0, const FVector4& x1, const FVector4& x2)
 {
 	return SetMatrix(x0, x1, x2, Float0001);
 }
@@ -53,6 +66,23 @@ inline uniform FMatrix33 MultiplyAB(const uniform FMatrix33& L, const uniform FM
 	return SetMatrix33(x0, x1, x2);
 }
 
+inline FMatrix33 MultiplyAB(const FMatrix33& L, const FMatrix33& R)
+{
+	const FVector4 L0 = SetVector4(L.M[0], L.M[1], L.M[2], L.M[3]);
+	const FVector4 L1 = SetVector4(L.M[4], L.M[5], L.M[6], L.M[7]);
+	const FVector4 L2 = SetVector4(L.M[8], L.M[9], L.M[10], L.M[11]);
+
+	FVector4 x0 = SetVector4(R.M[0]) * L0 + SetVector4(R.M[1]) * L1 + SetVector4(R.M[2]) * L2;
+	FVector4 x1 = SetVector4(R.M[4]) * L0 + SetVector4(R.M[5]) * L1 + SetVector4(R.M[6]) * L2;
+	FVector4 x2 = SetVector4(R.M[8]) * L0 + SetVector4(R.M[9]) * L1 + SetVector4(R.M[10]) * L2;
+
+	x0.V[3] = 0;
+	x1.V[3] = 0;
+	x2.V[3] = 0;
+
+	return SetMatrix33(x0, x1, x2);
+}
+
 inline uniform FMatrix33 MultiplyABt(const uniform FMatrix33& L, const uniform FMatrix33& R)
 {
 	const uniform FVector4 L0 = SetVector4(L.M[0], L.M[1], L.M[2], L.M[3]);
@@ -62,6 +92,23 @@ inline uniform FMatrix33 MultiplyABt(const uniform FMatrix33& L, const uniform F
 	uniform FVector4 x0 = SetVector4(R.M[0]) * L0 + SetVector4(R.M[4]) * L1 + SetVector4(R.M[8]) * L2;
 	uniform FVector4 x1 = SetVector4(R.M[1]) * L0 + SetVector4(R.M[5]) * L1 + SetVector4(R.M[9]) * L2;
 	uniform FVector4 x2 = SetVector4(R.M[2]) * L0 + SetVector4(R.M[6]) * L1 + SetVector4(R.M[10]) * L2;
+
+	x0.V[3] = 0;
+	x1.V[3] = 0;
+	x2.V[3] = 0;
+
+	return SetMatrix33(x0, x1, x2);
+}
+
+inline FMatrix33 MultiplyABt(const FMatrix33& L, const FMatrix33& R)
+{
+	const FVector4 L0 = SetVector4(L.M[0], L.M[1], L.M[2], L.M[3]);
+	const FVector4 L1 = SetVector4(L.M[4], L.M[5], L.M[6], L.M[7]);
+	const FVector4 L2 = SetVector4(L.M[8], L.M[9], L.M[10], L.M[11]);
+
+	FVector4 x0 = SetVector4(R.M[0]) * L0 + SetVector4(R.M[4]) * L1 + SetVector4(R.M[8]) * L2;
+	FVector4 x1 = SetVector4(R.M[1]) * L0 + SetVector4(R.M[5]) * L1 + SetVector4(R.M[9]) * L2;
+	FVector4 x2 = SetVector4(R.M[2]) * L0 + SetVector4(R.M[6]) * L1 + SetVector4(R.M[10]) * L2;
 
 	x0.V[3] = 0;
 	x1.V[3] = 0;
@@ -101,6 +148,15 @@ inline uniform FMatrix33 Multiply(const uniform FMatrix33& L, const uniform floa
 	);
 }
 
+inline FMatrix33 Multiply(const FMatrix33& L, const float R)
+{
+	return SetMatrix33(
+		L.M[0] * R, L.M[1] * R, L.M[2] * R,
+		L.M[4] * R, L.M[5] * R, L.M[6] * R,
+		L.M[8] * R, L.M[9] * R, L.M[10] * R
+	);
+}
+
 inline uniform FMatrix33 AddAB(const uniform FMatrix33& L, const uniform FMatrix33& R)
 {
 	const uniform FVector4 L0 = SetVector4(L.M[0], L.M[1], L.M[2], L.M[3]);
@@ -114,6 +170,27 @@ inline uniform FMatrix33 AddAB(const uniform FMatrix33& L, const uniform FMatrix
 	uniform FVector4 x0 = R0 + L0;
 	uniform FVector4 x1 = R1 + L1;
 	uniform FVector4 x2 = R2 + L2;
+
+	x0.V[3] = 0;
+	x1.V[3] = 0;
+	x2.V[3] = 0;
+
+	return SetMatrix33(x0, x1, x2);
+}
+
+inline FMatrix33 AddAB(const FMatrix33& L, const FMatrix33& R)
+{
+	const FVector4 L0 = SetVector4(L.M[0], L.M[1], L.M[2], L.M[3]);
+	const FVector4 L1 = SetVector4(L.M[4], L.M[5], L.M[6], L.M[7]);
+	const FVector4 L2 = SetVector4(L.M[8], L.M[9], L.M[10], L.M[11]);
+
+	const FVector4 R0 = SetVector4(R.M[0], R.M[1], R.M[2], R.M[3]);
+	const FVector4 R1 = SetVector4(R.M[4], R.M[5], R.M[6], R.M[7]);
+	const FVector4 R2 = SetVector4(R.M[8], R.M[9], R.M[10], R.M[11]);
+
+	FVector4 x0 = R0 + L0;
+	FVector4 x1 = R1 + L1;
+	FVector4 x2 = R2 + L2;
 
 	x0.V[3] = 0;
 	x1.V[3] = 0;

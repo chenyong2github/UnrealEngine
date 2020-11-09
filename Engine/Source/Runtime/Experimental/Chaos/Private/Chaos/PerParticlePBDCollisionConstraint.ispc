@@ -78,14 +78,6 @@ static inline bool VectorNormalize(FVector &V)
 	return false;
 }
 
-static inline FVector GetSafeNormal(const FVector &V)
-{
-	//We want N / ||N|| and to avoid inf
-	//So we want N / ||N|| < 1 / eps => N eps < ||N||, but this is clearly true for all eps < 1 and N > 0
-	float SizeSqr = VectorSizeSquared(V);
-	return VectorSelect(SizeSqr <= FLT_MIN, ForwardVector, V / sqrt(SizeSqr));
-}
-
 static inline void PhiWithNormalSphere(const uniform uint8 *uniform TypedObjectPtr, const FVector &PhiWithNormalInput, FVector &Normal, float &Phi, const uniform float Radius)
 {
 	const uniform FVector Center = *((const uniform FVector *uniform)&TypedObjectPtr[0]);
@@ -125,9 +117,9 @@ static inline void PhiWithNormalTaperedCapsule(const uniform uint8 *uniform Type
 		const FVector v = PhiWithNormalInput - (MPlane1.MPlaneConcrete.MNormal * Distance1 + MPlane1.MPlaneConcrete.MX);
 		if (VectorSize(v) > MRadius1)
 		{
-			const FVector Corner = GetSafeNormal(v) * MRadius1 + MPlane1.MPlaneConcrete.MX;
+			const FVector Corner = VectorGetSafeNormal(v) * MRadius1 + MPlane1.MPlaneConcrete.MX;
 			const FVector CornerVector = PhiWithNormalInput - Corner;
-			Normal = GetSafeNormal(CornerVector);
+			Normal = VectorGetSafeNormal(CornerVector);
 			Phi = VectorSize(CornerVector);
 		}
 		else
@@ -141,9 +133,9 @@ static inline void PhiWithNormalTaperedCapsule(const uniform uint8 *uniform Type
 		const FVector v = PhiWithNormalInput - (MPlane2.MPlaneConcrete.MNormal * Distance2 + MPlane2.MPlaneConcrete.MX);
 		if (VectorSize(v) > MRadius2)
 		{
-			const FVector Corner = GetSafeNormal(v) * MRadius2 + MPlane2.MPlaneConcrete.MX;
+			const FVector Corner = VectorGetSafeNormal(v) * MRadius2 + MPlane2.MPlaneConcrete.MX;
 			const FVector CornerVector = PhiWithNormalInput - Corner;
-			Normal = GetSafeNormal(CornerVector);
+			Normal = VectorGetSafeNormal(CornerVector);
 			Phi = VectorSize(CornerVector);
 		}
 		else
@@ -159,7 +151,7 @@ static inline void PhiWithNormalTaperedCapsule(const uniform uint8 *uniform Type
 	}
 	else
 	{
-		Normal = GetSafeNormal(SideVector);
+		Normal = VectorGetSafeNormal(SideVector);
 		Phi = SideDistance;
 	}
 }
