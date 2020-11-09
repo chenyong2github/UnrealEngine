@@ -173,6 +173,8 @@ void EmitSceneDepthStencilPS
 	uint2 PixelPos = (uint2)SvPosition.xy;
 	UlongType VisPixel = VisBuffer64[PixelPos];
 
+	FNaniteView NaniteView = GetNaniteView(0);
+
 	uint DepthInt = 0;
 	uint VisibleClusterIndex = 0;
 	uint TriIndex = 0;
