@@ -82,6 +82,7 @@ public:
 	}
 
 	static bool SupportsStandardSwapchain();
+	static bool RequiresRenderingBackBuffer();
 	static EPixelFormat GetPixelFormatForNonDefaultSwapchain();
 
 	static bool SupportsTimestampRenderQueries();

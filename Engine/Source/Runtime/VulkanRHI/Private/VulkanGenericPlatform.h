@@ -45,6 +45,7 @@ public:
 	static void SetupFeatureLevels();
 
 	static bool SupportsStandardSwapchain() { return true; }
+	static bool RequiresRenderingBackBuffer() { return true; }
 	static EPixelFormat GetPixelFormatForNonDefaultSwapchain()
 	{
 		checkf(0, TEXT("Platform Requires Standard Swapchain!"));
