@@ -159,6 +159,7 @@ namespace ChaosTest {
 
 		// Execute first enqueued advance task
 		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
+		Scene.GetSolver()->GetEvolution()->FlushSpatialAcceleration();
 
 		// No EndFrame called after PT execution, stamp should still be 0.
 		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(), 0);
@@ -172,6 +173,7 @@ namespace ChaosTest {
 		// PT catches up during this frame
 		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
 		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
+		Scene.GetSolver()->GetEvolution()->FlushSpatialAcceleration();
 		Scene.EndFrame();
 		
 		// New structure should be at 3 as PT/GT are in sync.
@@ -205,17 +207,20 @@ namespace ChaosTest {
 		// First PT task finished this frame, we are two behind, now at time 1.
 		Scene.StartFrame();
 		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
+		Scene.GetSolver()->GetEvolution()->FlushSpatialAcceleration();
 		Scene.EndFrame();
 		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(),1);
 
 		// Remaining two PT tasks finish, we are caught up, but still time 1 as EndFrame has not updated our structure.
 		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
 		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
+		Scene.GetSolver()->GetEvolution()->FlushSpatialAcceleration();
 		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(),1);
 
 		// PT task this frame finishes before EndFrame, putting us at 4, in sync with GT.
 		Scene.StartFrame();
 		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
+		Scene.GetSolver()->GetEvolution()->FlushSpatialAcceleration();
 		Scene.EndFrame();
 		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(),4);
 	}
