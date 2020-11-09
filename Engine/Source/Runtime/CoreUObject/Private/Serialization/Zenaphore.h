@@ -20,10 +20,14 @@ public:
 	{
 	}
 
+	~FZenaphoreWaiter();
+
 	void Wait();
 
 private:
 	friend class FZenaphore;
+
+	void WaitInternal();
 
 	FZenaphore& Outer;
 	FZenaphoreWaiterNode WaiterNode;
@@ -40,6 +44,8 @@ public:
 
 private:
 	friend class FZenaphoreWaiter;
+
+	void NotifyInternal(FZenaphoreWaiterNode* Waiter);
 
 	FEvent* Event;
 	FCriticalSection Mutex;
