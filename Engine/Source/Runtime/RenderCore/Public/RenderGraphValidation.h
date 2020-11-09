@@ -62,10 +62,10 @@ public:
 	/** Attempts to mark a resource for clobbering. If already marked, returns false.  */
 	bool TryMarkForClobber(FRDGParentResourceRef Resource) const;
 
-private:
 	/** Traverses all resources in the pass and marks whether they are externally accessible by user pass implementations. */
 	static void SetAllowRHIAccess(const FRDGPass* Pass, bool bAllowAccess);
 
+private:
 	/** List of tracked resources for validation prior to shutdown. */
 	TArray<FRDGTextureRef, SceneRenderingAllocator> TrackedTextures;
 	TArray<FRDGBufferRef, SceneRenderingAllocator> TrackedBuffers;
