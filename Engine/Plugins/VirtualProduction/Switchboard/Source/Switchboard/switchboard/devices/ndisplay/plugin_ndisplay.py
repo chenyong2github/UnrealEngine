@@ -211,7 +211,6 @@ class DevicenDisplay(DeviceUnreal):
             DevicenDisplay.csettings['ndisplay_cmd_args'],
             DevicenDisplay.csettings['ndisplay_exec_cmds'],
             CONFIG.ENGINE_DIR, 
-            CONFIG.BUILD_ENGINE, 
             CONFIG.SOURCE_CONTROL_WORKSPACE, 
             CONFIG.UPROJECT_PATH,
         ]

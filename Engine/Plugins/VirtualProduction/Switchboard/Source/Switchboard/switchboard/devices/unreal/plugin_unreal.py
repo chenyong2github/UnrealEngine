@@ -1,6 +1,6 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 from switchboard import config_osc as osc
-from switchboard import message_protocol
+from switchboard import message_protocol, p4_utils
 from switchboard.config import CONFIG, Setting, SETTINGS, DEFAULT_MAP_TEXT
 from switchboard.devices.device_base import Device, DeviceStatus
 from switchboard.devices.device_widget_base import DeviceWidget
@@ -79,11 +79,14 @@ class DeviceUnreal(Device):
 
         self.setting_ip_address.signal_setting_changed.connect(self.on_setting_ip_address_changed)
         DeviceUnreal.csettings['port'].signal_setting_changed.connect(self.on_setting_port_changed)
+        CONFIG.BUILD_ENGINE.signal_setting_changed.connect(self.on_build_engine_changed)
 
         self.auto_connect = False
         self.start_build_after_sync = False
 
-        self.inflight_changelist = 0
+        self.inflight_project_cl = 0
+        self.inflight_engine_cl = 0
+        self.scheduled_sync_operations = {}
 
         # Set a delegate method if the device gets a disconnect signal
         self.unreal_client.disconnect_delegate = self.on_listener_disconnect
@@ -109,7 +112,6 @@ class DeviceUnreal(Device):
             DeviceUnreal.csettings['command_line_arguments'],
             DeviceUnreal.csettings['exec_cmds'],
             CONFIG.ENGINE_DIR,
-            CONFIG.BUILD_ENGINE,
             CONFIG.SOURCE_CONTROL_WORKSPACE,
             CONFIG.UPROJECT_PATH,
         ]
@@ -131,6 +133,14 @@ class DeviceUnreal(Device):
         if not DeviceUnreal.csettings['port'].is_overriden(self.name):
             LOGGER.info(f"Updating Port for ListenerClient to {new_port}")
             self.unreal_client.port = new_port
+
+    def on_build_engine_changed(self, _, build_engine):
+        if build_engine:
+            self.widget.engine_changelist_label.show()
+            if self.status != DeviceStatus.DISCONNECTED:
+                self._request_engine_changelist_number()
+        else:
+            self.widget.engine_changelist_label.hide()
 
     def set_slate(self, value):
         if not self.is_recording_device:
@@ -161,6 +171,8 @@ class DeviceUnreal(Device):
 
         self._request_roles_file()
         self._request_project_changelist_number()
+        if CONFIG.BUILD_ENGINE.get_value():
+            self._request_engine_changelist_number()
 
     def _request_roles_file(self):
         uproject_path = CONFIG.UPROJECT_PATH.get_value(self.name)
@@ -176,7 +188,20 @@ class DeviceUnreal(Device):
         formatstring = "%change%"
         args = f'-F "{formatstring}" -c {client_name} cstat {p4_path}/...#have'
 
-        program_name = "cstat"
+        program_name = "cstat_project"
+        mid, msg = message_protocol.create_start_process_message(prog_path="p4", prog_args=args, prog_name=program_name, caller=self.name)
+        self._remote_programs_start_queue[mid] = program_name
+
+        self.unreal_client.send_message(msg)
+
+    def _request_engine_changelist_number(self):
+        client_name = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(self.name)
+        p4_path = p4_utils.p4_where(client_name, CONFIG.ENGINE_DIR.get_value(self.name))
+
+        formatstring = "%change%"
+        args = f'-F "{formatstring}" -c {client_name} cstat {p4_path}/...#have'
+
+        program_name = "cstat_engine"
         mid, msg = message_protocol.create_start_process_message(prog_path="p4", prog_args=args, prog_name=program_name, caller=self.name)
         self._remote_programs_start_queue[mid] = program_name
 
@@ -186,32 +211,70 @@ class DeviceUnreal(Device):
         super().disconnect_listener()
         self.unreal_client.disconnect()
 
-    def sync(self, changelist):
+    def sync(self, engine_cl, project_cl):
+        if not engine_cl and not project_cl:
+            LOGGER.warning(f"Neither project nor engine changelist is selected. There is nothing to sync!")
+            return
+
+        if engine_cl:
+            self._sync_engine(engine_cl)
+            self.status = DeviceStatus.SYNCING
+
+        if project_cl:
+            self._sync_project(project_cl)
+            if self.status != DeviceStatus.SYNCING:
+                self.status = DeviceStatus.SYNCING
+
+    def _sync_engine(self, engine_cl):
         project_name = os.path.basename(os.path.dirname(CONFIG.UPROJECT_PATH.get_value(self.name)))
-        LOGGER.info(f"{self.name}: Syncing project {project_name} to revision {changelist}")
-        self.inflight_changelist = changelist
+        LOGGER.info(f"{self.name}: Syncing engine of project {project_name} to revision {engine_cl}")
+        self.inflight_engine_cl = engine_cl
+        # when no uproject is specified to the UAT SyncProject script, it will go into EngineOnly mode and only sync the engine
+        # as well as all loose files one directoy up from the engine directory.
+        sync_tool = f'{os.path.normpath(os.path.join(CONFIG.ENGINE_DIR.get_value(self.name), "Build", "BatchFiles", "RunUAT.bat"))}'
+        sync_args = f'-P4 SyncProject -cl={engine_cl} -threads=8 -generate'
+
+        LOGGER.info(f"{self.name}: Sending engine sync command: {sync_tool} {sync_args}")
+        program_name = "sync_engine"
+        mid, msg = message_protocol.create_start_process_message(prog_path=sync_tool, prog_args=sync_args, prog_name=program_name, caller=self.name)
+        self._remote_programs_start_queue[mid] = program_name
+        self.unreal_client.send_message(msg)
+
+    def _sync_project(self, project_cl):
+        project_name = os.path.basename(os.path.dirname(CONFIG.UPROJECT_PATH.get_value(self.name)))
+        LOGGER.info(f"{self.name}: Syncing project {project_name} to revision {project_cl}")
+        self.inflight_project_cl = project_cl
 
         sync_tool = ""
         sync_args = ""
 
-        # for installed/vanilla engine we directly call p4 to sync the project itself. RunUAT only works when the engine itself is in p4.
-        engine_needs_building = CONFIG.BUILD_ENGINE.get_value(self.name)
+        # todo: UAT has been fixed to work from vanilla engine now. though it requires help finding the correct workspace.
+        # the only way this can be done is by setting the environment variable uebp_CLIENT to whatever we have in CONFIG.SOURCE_CONTROL_WORKSPACE.
+        # however that needs to happen on the listener machines, so we would need a way to (platform-independently) set env variables when
+        # running commands and extend the protocol to include setting env vars as well.
+        # alternatively we could try running commands through cmd /V /C "set uebp_CLIENT=CONFIG.SOURCE_CONTROL_WORKSPACE&& EXE ARGS"
+        # but that would only work for Windows and thus require us to know what the listener machine's OS is.
+        engine_under_source_control = CONFIG.BUILD_ENGINE.get_value()
 
-        if engine_needs_building:
+        if engine_under_source_control:
             sync_tool = f'{os.path.normpath(os.path.join(CONFIG.ENGINE_DIR.get_value(self.name), "Build", "BatchFiles", "RunUAT.bat"))}'
-            sync_args = f'-P4 SyncProject -project="{CONFIG.UPROJECT_PATH.get_value(self.name)}" -cl={changelist} -threads=8 -generate'
+            sync_args = f'-P4 SyncProject -project="{CONFIG.UPROJECT_PATH.get_value(self.name)}" -projectonly -cl={project_cl} -threads=8 -generate'
         else:
+            # for installed/vanilla engine we directly call p4 to sync the project itself.
             p4_path = CONFIG.P4_PATH.get_value()
             workspace = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(self.name)
             sync_tool = "p4"
-            sync_args = f"-c{workspace} sync {p4_path}/...@{changelist}"
+            sync_args = f"-c{workspace} sync {p4_path}/...@{project_cl}"
 
-        LOGGER.info(f"{self.name}: Sending sync command: {sync_tool} {sync_args}")
-        program_name = "sync"
-        mid, msg = message_protocol.create_start_process_message(prog_path=sync_tool, prog_args=sync_args, prog_name=program_name, caller=self.name)
-        self._remote_programs_start_queue[mid] = program_name
-        self.unreal_client.send_message(msg)
-        self.status = DeviceStatus.SYNCING
+        program_name = "sync_project"
+        if self.status == DeviceStatus.SYNCING: # engine is already syncing
+            LOGGER.info(f"{self.name}: Project sync will start once engine is done syncing")
+            self.scheduled_sync_operations[program_name] = [sync_tool, sync_args]
+        else:
+            LOGGER.info(f"{self.name}: Sending project sync command: {sync_tool} {sync_args}")
+            mid, msg = message_protocol.create_start_process_message(prog_path=sync_tool, prog_args=sync_args, prog_name=program_name, caller=self.name)
+            self._remote_programs_start_queue[mid] = program_name
+            self.unreal_client.send_message(msg)
 
     def build(self):
         if self.status == DeviceStatus.SYNCING:
@@ -304,7 +367,7 @@ class DeviceUnreal(Device):
         LOGGER.error(f"Could not start {program_name}: {error}")
         if program_name in ["sync", "build"]:
             self.status = DeviceStatus.CLOSED
-            self.changelist = self.changelist # force to show existing changelist to hide building/syncing
+            self.project_changelist = self.project_changelist # force to show existing project_changelist to hide building/syncing
 
     def on_program_ended(self, program_id, returncode, output):
 
@@ -316,20 +379,42 @@ class DeviceUnreal(Device):
         if program_name == "unreal":
             self.status = DeviceStatus.CLOSED
 
-        elif program_name == "sync":
-            self.status = DeviceStatus.CLOSED
+        elif "sync" in program_name:
             if returncode != 0:
                 LOGGER.error(f"{self.name}: Project was not synced successfully!")
                 for line in output.splitlines():
                     LOGGER.error(f"{self.name}: {line}")
                 self.device_qt_handler.signal_device_sync_failed.emit(self)
             else:
-                LOGGER.info(f"{self.name}: Project was synced successfully")
-                self.changelist = self.inflight_changelist
+                if "sync_engine" == program_name:
+                    LOGGER.info(f"{self.name}: Engine was synced successfully")
+                    if len(self.scheduled_sync_operations) > 0:
+                        op = self.scheduled_sync_operations.pop("sync_project")
+                        sync_tool = op[0]
+                        sync_args = op[1]
+                        LOGGER.info(f"{self.name}: Sending sync command: {sync_tool} {sync_args}")
+                        mid, msg = message_protocol.create_start_process_message(prog_path=sync_tool, prog_args=sync_args, prog_name="sync_project", caller=self.name)
+                        self._remote_programs_start_queue[mid] = "sync_project"
+                        self.unreal_client.send_message(msg)
+                    else:
+                        self.engine_changelist = self.inflight_engine_cl
+                        self.inflight_engine_cl = 0
+                        self.project_changelist = self.project_changelist
+
+                elif "sync_project" == program_name:
+                    LOGGER.info(f"{self.name}: Project was synced successfully")
+                    self.project_changelist = self.inflight_project_cl
+                    self.inflight_project_cl = 0
+                    if CONFIG.BUILD_ENGINE.get_value():
+                        self.engine_changelist = self.engine_changelist
+                        self.inflight_engine_cl = 0
+
+            if self.inflight_project_cl == 0 and self.inflight_engine_cl == 0:
+                # everything is done syncing
+                self.status = DeviceStatus.CLOSED
                 if self.start_build_after_sync:
                     self.start_build_after_sync = False
                     self.build()
-            self.inflight_changelist = 0
 
         elif program_name == "build":
             if returncode == 0:
@@ -342,9 +427,11 @@ class DeviceUnreal(Device):
                         LOGGER.error(f"{self.name}: {line}")
 
             self.status = DeviceStatus.CLOSED
-            self.changelist = self.changelist # forces an update to the changelist field (to hide the Building state)
+            self.project_changelist = self.project_changelist # forces an update to the changelist field (to hide the Building state)
+            if CONFIG.BUILD_ENGINE.get_value():
+                self.engine_changelist = self.engine_changelist
 
-        elif program_name == "cstat":
+        elif "cstat" in program_name:
 
             changelists = [line.strip() for line in output.split()]
 
@@ -360,9 +447,14 @@ class DeviceUnreal(Device):
                 LOGGER.error(f"{self.name}: Could not retrieve changelists for project. Are the Source Control Settings correctly configured?")
                 return
 
-            project_name = os.path.basename(os.path.dirname(CONFIG.UPROJECT_PATH.get_value(self.name)))
-            LOGGER.info(f"{self.name}: Project {project_name} is on revision {current_changelist}")
-            self.changelist = current_changelist
+            if program_name.endswith("project"):
+                project_name = os.path.basename(os.path.dirname(CONFIG.UPROJECT_PATH.get_value(self.name)))
+                LOGGER.info(f"{self.name}: Project {project_name} is on revision {current_changelist}")
+                self.project_changelist = current_changelist
+            elif program_name.endswith("engine"):
+                project_name = os.path.basename(os.path.dirname(CONFIG.UPROJECT_PATH.get_value(self.name)))
+                LOGGER.info(f"{self.name}: Engine used for project {project_name} is on revision {current_changelist}")
+                self.engine_changelist = current_changelist
 
     def on_program_kill_failed(self, program_id, error):
         self._running_remote_program_ids["unreal"].pop(program_id)
@@ -426,11 +518,20 @@ class DeviceWidgetUnreal(DeviceWidget):
     def _add_control_buttons(self):
         super()._add_control_buttons()
 
-        self.changelist_label = QtWidgets.QLabel()
-        self.changelist_label.setFont(QtGui.QFont("Roboto", 10))
+        changelist_layout = QtWidgets.QVBoxLayout()
+        self.project_changelist_label = QtWidgets.QLabel()
+        self.project_changelist_label.setFont(QtGui.QFont("Roboto", 10))
+        self.project_changelist_label.setToolTip("Current Project Changelist")
+        changelist_layout.addWidget(self.project_changelist_label)
+
+        self.engine_changelist_label = QtWidgets.QLabel()
+        self.engine_changelist_label.setFont(QtGui.QFont("Roboto", 10))
+        self.engine_changelist_label.setToolTip("Current Engine Changelist")
+        changelist_layout.addWidget(self.engine_changelist_label)
+
         spacer = QtWidgets.QSpacerItem(0, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
 
-        self.layout.addWidget(self.changelist_label)
+        self.layout.addLayout(changelist_layout)
 
         self.sync_button = self.add_control_button(':/icons/images/icon_sync.png',
                                                     icon_disabled=':/icons/images/icon_sync_disabled.png',
@@ -471,7 +572,8 @@ class DeviceWidgetUnreal(DeviceWidget):
         self.sync_button.setDisabled(True)
         self.build_button.setDisabled(True)
 
-        self.changelist_label.hide()
+        self.project_changelist_label.hide()
+        self.engine_changelist_label.hide()
         self.sync_button.hide()
 
     def can_sync(self):
@@ -510,7 +612,8 @@ class DeviceWidgetUnreal(DeviceWidget):
         self.connect_button.setToolTip("Connect to listener")
 
         # Don't show the changelist
-        self.changelist_label.hide()
+        self.project_changelist_label.hide()
+        self.engine_changelist_label.hide()
         self.sync_button.hide()
 
         # Disable the buttons
@@ -524,8 +627,6 @@ class DeviceWidgetUnreal(DeviceWidget):
     def update_status(self, status, previous_status):
         super().update_status(status, previous_status)
 
-        #self.changelist_label.setText('')
-
         if status == DeviceStatus.CLOSED:
             self.open_button.setDisabled(False)
             self.open_button.setChecked(False)
@@ -535,12 +636,14 @@ class DeviceWidgetUnreal(DeviceWidget):
             self.open_button.setDisabled(True)
             self.sync_button.setDisabled(True)
             self.build_button.setDisabled(True)
-            self.changelist_label.setText('Syncing')
+            self.engine_changelist_label.hide()
+            self.project_changelist_label.setText('Syncing')
         elif status == DeviceStatus.BUILDING:
             self.open_button.setDisabled(True)
             self.sync_button.setDisabled(True)
             self.build_button.setDisabled(True)
-            self.changelist_label.setText('Building')
+            self.engine_changelist_label.hide()
+            self.project_changelist_label.setText('Building')
         elif status == DeviceStatus.OPEN:
             self.open_button.setDisabled(False)
             self.open_button.setChecked(True)
@@ -557,19 +660,33 @@ class DeviceWidgetUnreal(DeviceWidget):
         else:
             self.open_button.setToolTip("Start Unreal")
 
-    def update_changelist(self, value):
-        self.changelist_label.setText(value)
+    def update_project_changelist(self, value):
+        self.project_changelist_label.setText(f"P: {value}")
 
-        self.changelist_label.show()
+        self.project_changelist_label.show()
         self.sync_button.show()
         self.build_button.show()
 
-    def changelist_display_warning(self, b):
+    def update_engine_changelist(self, value):
+        self.engine_changelist_label.setText(f"E: {value}")
+        self.engine_changelist_label.show()
+
+        self.sync_button.show()
+        self.build_button.show()
+
+    def project_changelist_display_warning(self, b):
         if b:
-            self.changelist_label.setProperty("error", True)
+            self.project_changelist_label.setProperty("error", True)
         else:
-            self.changelist_label.setProperty("error", False)
-        self.changelist_label.setStyle(self.changelist_label.style())
+            self.project_changelist_label.setProperty("error", False)
+        self.project_changelist_label.setStyle(self.project_changelist_label.style())
+
+    def engine_changelist_display_warning(self, b):
+        if b:
+            self.engine_changelist_label.setProperty("error", True)
+        else:
+            self.engine_changelist_label.setProperty("error", False)
+        self.engine_changelist_label.setStyle(self.engine_changelist_label.style())
 
     def sync_button_clicked(self):
         self.signal_device_widget_sync.emit(self)

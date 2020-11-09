@@ -34,7 +34,18 @@ def p4_stream_root(client):
 
 
 @p4_login
-def p4_latest_changelist(p4_path, num_changelists=1):
+def p4_where(client, local_path):
+    """Returns depot path of local file."""
+    p4_command = f'p4 -ztag -c {client} -F "%depotFile%" where {local_path}'
+    LOGGER.info(f"Executing: {p4_command}")
+    p4_result = subprocess.check_output(p4_command).decode()
+    if p4_result:
+        return p4_result.strip()
+    return None
+
+
+@p4_login
+def p4_latest_changelist(p4_path, num_changelists=10):
     """
     Return (num_changelists) latest CLs
     """
