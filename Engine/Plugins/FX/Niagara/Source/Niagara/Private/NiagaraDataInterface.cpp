@@ -50,6 +50,21 @@ void UNiagaraDataInterface::PostEditChangeProperty(struct FPropertyChangedEvent&
 	RefreshErrors();
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
+
+void UNiagaraDataInterface::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	Super::PostDuplicate(DuplicateMode);
+
+	// This is a hack to work around an issue where components are being configured with the CopyPropertiesForUnrelatedObjects
+	// where the component being copied is transient and the target component is not transient.  In this case the data interfaces
+	// in the override parameter store have the transient flag set on the source object, and it is not cleared when they are 
+	// copied to the non transient component.  This is currently the case when the component is spawned by sequencer, but may
+	// happen in other situations as well.
+	if (HasAllFlags(RF_Transient) && GetOuter()->HasAllFlags(RF_Transient) == false)
+	{
+		ClearFlags(RF_Transient);
+	}
+}
 #endif
 
 bool UNiagaraDataInterface::CopyTo(UNiagaraDataInterface* Destination) const 
