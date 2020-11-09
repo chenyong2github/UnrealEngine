@@ -20,30 +20,34 @@ static void WriteRawToTexture_RenderThread(FTexture2DDynamicResource* TextureRes
 {
 	check(IsInRenderingThread());
 
-	FRHITexture2D* TextureRHI = TextureResource->GetTexture2DRHI();
-
-	int32 Width = TextureRHI->GetSizeX();
-	int32 Height = TextureRHI->GetSizeY();
-
-	uint32 DestStride = 0;
-	uint8* DestData = reinterpret_cast<uint8*>(RHILockTexture2D(TextureRHI, 0, RLM_WriteOnly, DestStride, false, false));
-
-	for (int32 y = 0; y < Height; y++)
+	if (TextureResource)
 	{
-		uint8* DestPtr = &DestData[((int64)Height - 1 - y) * DestStride];
+		FRHITexture2D* TextureRHI = TextureResource->GetTexture2DRHI();
 
-		const FColor* SrcPtr = &((FColor*)(RawData->GetData()))[((int64)Height - 1 - y) * Width];
-		for (int32 x = 0; x < Width; x++)
+		int32 Width = TextureRHI->GetSizeX();
+		int32 Height = TextureRHI->GetSizeY();
+
+		uint32 DestStride = 0;
+		uint8* DestData = reinterpret_cast<uint8*>(RHILockTexture2D(TextureRHI, 0, RLM_WriteOnly, DestStride, false, false));
+
+		for (int32 y = 0; y < Height; y++)
 		{
-			*DestPtr++ = SrcPtr->B;
-			*DestPtr++ = SrcPtr->G;
-			*DestPtr++ = SrcPtr->R;
-			*DestPtr++ = SrcPtr->A;
-			SrcPtr++;
+			uint8* DestPtr = &DestData[((int64)Height - 1 - y) * DestStride];
+
+			const FColor* SrcPtr = &((FColor*)(RawData->GetData()))[((int64)Height - 1 - y) * Width];
+			for (int32 x = 0; x < Width; x++)
+			{
+				*DestPtr++ = SrcPtr->B;
+				*DestPtr++ = SrcPtr->G;
+				*DestPtr++ = SrcPtr->R;
+				*DestPtr++ = SrcPtr->A;
+				SrcPtr++;
+			}
 		}
+
+		RHIUnlockTexture2D(TextureRHI, 0, false, false);
 	}
 
-	RHIUnlockTexture2D(TextureRHI, 0, false, false);
 	delete RawData;
 }
 
@@ -112,13 +116,19 @@ void UAsyncTaskDownloadImage::HandleImageRequest(FHttpRequestPtr HttpRequest, FH
 						Texture->UpdateResource();
 
 						FTexture2DDynamicResource* TextureResource = static_cast<FTexture2DDynamicResource*>(Texture->Resource);
-						ENQUEUE_RENDER_COMMAND(FWriteRawDataToTexture)(
-							[TextureResource, RawData](FRHICommandListImmediate& RHICmdList)
-							{
-								WriteRawToTexture_RenderThread(TextureResource, RawData);
-							});
-						
-						OnSuccess.Broadcast(Texture);
+						if (TextureResource)
+						{
+							ENQUEUE_RENDER_COMMAND(FWriteRawDataToTexture)(
+								[TextureResource, RawData](FRHICommandListImmediate& RHICmdList)
+								{
+									WriteRawToTexture_RenderThread(TextureResource, RawData);
+								});
+						}
+						else
+						{
+							delete RawData;
+						}
+						OnSuccess.Broadcast(Texture);						
 						return;
 					}
 				}
