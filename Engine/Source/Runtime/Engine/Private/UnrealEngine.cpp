@@ -386,6 +386,18 @@ static FAutoConsoleVariableRef GSupressWarningsInOnScreenDisplayCVar(
 	ECVF_Default
 );
 
+// Should we TrimMemory in the middle of LoadMap - this can reduce memory spike during startup at the expense of load time 
+// if some objects need to be reloaded due to a GC happening partway through
+int32 GDelayTrimMemoryDuringMapLoadMode = 0;
+static FAutoConsoleVariableRef GDelayTrimMemoryDuringMapLoadModeCVar(
+	TEXT("Engine.DelayTrimMemoryDuringMapLoadMode"),
+	GDelayTrimMemoryDuringMapLoadMode,
+	TEXT("0: TrimMemory during LoadMap as normal\n")
+	TEXT("1: Delay TrimMemory until the end of LoadMap (initial boot up)\n")
+	TEXT("2: Delay TrimMemory in _every_ LoadMap call"),
+	ECVF_Default
+);
+
 /** Whether texture memory has been corrupted because we ran out of memory in the pool. */
 bool GIsTextureMemoryCorrupted = false;
 
@@ -12786,7 +12798,10 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	}
 
 	// trim memory to clear up allocations from the previous level (also flushes rendering)
-	TrimMemory();
+	if (GDelayTrimMemoryDuringMapLoadMode == 0)
+	{
+		TrimMemory();
+	}
 
 	// Cancels the Forced StreamType for textures using a timer.
 	if (!IStreamingManager::HasShutdown())
@@ -12801,9 +12816,12 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	// Dump info
-
-	VerifyLoadMapWorldCleanup();
+	// if we aren't trimming memory above, then the world won't be fully cleaned up at this point, so don't bother checking
+	if (GDelayTrimMemoryDuringMapLoadMode == 0)
+	{
+		// Dump info
+		VerifyLoadMapWorldCleanup();
+	}
 
 #endif
 
@@ -13145,6 +13163,18 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	UE_LOG(LogLoad, Log, TEXT("Took %f seconds to LoadMap(%s)"), StopTime - StartTime, *URL.Map);
 	FLoadTimeTracker::Get().DumpRawLoadTimes();
 	WorldContext.OwningGameInstance->LoadComplete(StopTime - StartTime, *URL.Map);
+
+	// perform the delayed TrimMemory if desired
+	if (GDelayTrimMemoryDuringMapLoadMode != 0)
+	{
+		TrimMemory();
+
+		if (GDelayTrimMemoryDuringMapLoadMode == 1)
+		{
+			// all future map loads should be normal
+			GDelayTrimMemoryDuringMapLoadMode = 0;
+		}
+	}
 
 	// Successfully started local level.
 	return true;
