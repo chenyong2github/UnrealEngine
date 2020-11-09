@@ -7957,6 +7957,9 @@ void FBlueprintEditor::CollapseNodesIntoGraph(UEdGraphNode* InGatewayNode, UK2No
 
 				// Remove the node, it has no place in the new graph
 				InCollapsableNodes.Remove(Node);
+
+				// Also break all links so that we don't try to reconnect to it from the new graph
+				Node->BreakAllNodeLinks();
 				break;
 			}
 		}
