@@ -1,0 +1,19 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#pragma once
+#include "CoreMinimal.h"
+#include "NodePort.generated.h"
+
+UCLASS()
+class UNodePort :
+	public UObject
+{
+	GENERATED_UCLASS_BODY()
+public:
+	FString PortFilePath = FPaths::Combine(FPaths::EnginePluginsDir(), TEXT("Bridge"), TEXT("Content"), TEXT("node_port.txt"));
+	bool bIsNodeRunning;
+	UFUNCTION()
+		FString GetNodePort();
+
+	UFUNCTION()
+		bool IsNodeRunning();
+};
