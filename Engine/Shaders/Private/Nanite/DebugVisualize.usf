@@ -9,7 +9,7 @@ RWTexture2D<float4>		DebugOutput;
 Texture2D<UlongType>	VisBuffer64;
 Texture2D<UlongType>	DbgBuffer64;
 Texture2D<uint>			DbgBuffer32;
-Texture2D<uint>			VelocityMask;
+Texture2D<uint>			NaniteMask;
 Texture2D<float>		SceneDepth;
 int4					VisualizeConfig;
 
@@ -66,8 +66,8 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 
 	FNaniteView NaniteView = GetNaniteView( 0 );
 
-	const float4 UnpackedVelocityMask = Unpack_R10G10B10A2_UNORM_To_Float4(VelocityMask[PixelPos.xy]);
-	const bool IsUnOccluded = UnpackedVelocityMask.a > 0.0f /* Is Nanite */;
+	const bool IsUnOccluded = NaniteMask[PixelPos.xy] == 0x1;
+	const float3 Velocity = float3(0.0f, 0.0f, 0.0f);
 
 	float3 Result = float3(0, 0, 0);
 	if (VisibleClusterIndex != 0xFFFFFFFF && (!GetCompositeWithSceneDepth() | IsUnOccluded))

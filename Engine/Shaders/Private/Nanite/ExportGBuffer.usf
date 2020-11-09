@@ -2,6 +2,7 @@
 
 #include "../Common.ush"
 #include "../SceneData.ush"
+#include "../VelocityCommon.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../BRDF.ush"
 #include "NaniteDataDecode.ush"
@@ -18,7 +19,7 @@ uint StencilClear;
 uint StencilDecal;
 
 Texture2D<UlongType> VisBuffer64;
-Texture2D<uint> VelocityMask;
+Texture2D<uint> NaniteMask;
 
 // TODO: Can likely be removed
 void MarkStencilPS(
@@ -51,9 +52,8 @@ void EmitMaterialDepthPS(
 {
 	uint2 PixelPos = (uint2)SvPosition.xy;
 
-#if VELOCITY_MASK
-	float4 UnpackedMask = Unpack_R10G10B10A2_UNORM_To_Float4(VelocityMask[PixelPos]);
-	const bool UnOccluded = UnpackedMask.a > 0.0f /* Is Nanite */;
+#if NANITE_MASK
+	const bool UnOccluded = NaniteMask[PixelPos] == 0x1;
 #else
 	const bool UnOccluded = true;
 #endif
@@ -81,13 +81,17 @@ void EmitMaterialDepthPS(
 }
 
 void EmitSceneDepthPS(
-	in float4 SvPosition		: SV_Position,
-	out uint OutVelocityMask	: SV_Target0,
-	out float OutDepth			: SV_Depth
+	in float4  SvPosition		: SV_Position,
+	out uint   OutNaniteMask	: SV_Target0,
+	out float4 OutVelocity		: SV_Target1,
+	out float  OutDepth			: SV_Depth
 )
 {
 	OutDepth = 0;
-	OutVelocityMask = 0;
+	OutVelocity = 0;
+	OutNaniteMask = 0x0;
+
+	FNaniteView NaniteView = GetNaniteView(0);
 
 	uint2 PixelPos = (uint2)SvPosition.xy;
 	UlongType VisPixel = VisBuffer64[PixelPos];
@@ -99,10 +103,20 @@ void EmitSceneDepthPS(
 
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
-		// TODO: Calculate velocity vectors
-		const float3 Velocity = float3(0.30f, 0.60f, 0.90f); // [0...1 range]
-		OutVelocityMask = Pack_Float4_To_R10G10B10A2_UNORM(float4(Velocity, 1.0f /* Is Nanite */));
+		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
+		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster.InstanceId);
+		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+
+		const float4 ScreenPos = SvPositionToScreenPosition(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
+		const float3 WorldPos  = SvPositionToWorld(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
+		const float4 LocalPos  = mul(float4(WorldPos.xyz, 1.0f), InstanceData.WorldToLocal);
+
+		const float4 ScreenPosPrev = mul(float4(LocalPos.xyz, 1), InstanceDynamicData.PrevLocalToClip);
+		
+		const float3 Velocity = Calculate3DVelocity(ScreenPos, ScreenPosPrev);
+		OutVelocity = EncodeVelocityToTexture(Velocity);
 		OutDepth = asfloat(DepthInt);
+		OutNaniteMask = 0x1;
 	}
 	else
 	{
@@ -111,8 +125,8 @@ void EmitSceneDepthPS(
 }
 
 void EmitSceneStencilPS(
-	in float4 SvPosition		: SV_Position,
-	out float OutDepth			: SV_Depth
+	in float4 SvPosition	: SV_Position,
+	out float OutDepth		: SV_Depth
 )
 {
 	OutDepth = 0;
@@ -130,6 +144,8 @@ void EmitSceneStencilPS(
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster);
 
+		// TODO: Move this into 'NaniteMask' to avoid the extra cluster decode, and to touch less memory
+		// by skipping the vbuffer (64b -> 8b)
 		if (GetPrimitiveData(InstanceData.PrimitiveId).DecalReceiverMask > 0 && View.ShowDecalsMask > 0)
 		{
 			OutDepth = asfloat(DepthInt);
@@ -147,10 +163,11 @@ void EmitSceneStencilPS(
 
 void EmitSceneDepthStencilPS
 (
-	in float4 SvPosition		: SV_Position,
-	out uint  OutVelocityMask	: SV_Target0,
-	out float OutDepth			: SV_Depth,
-	out uint  OutStencil		: SV_StencilRef // Requires GRHISupportsStencilRefFromPixelShader
+	in float4  SvPosition		: SV_Position,
+	out uint   OutNaniteMask	: SV_Target0,
+	out float4 OutVelocity		: SV_Target1,
+	out float  OutDepth			: SV_Depth,
+	out uint   OutStencil		: SV_StencilRef // Requires GRHISupportsStencilRefFromPixelShader
 )
 {
 	uint2 PixelPos = (uint2)SvPosition.xy;
@@ -165,6 +182,18 @@ void EmitSceneDepthStencilPS
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster.InstanceId);
+		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+
+		const float4 ScreenPos = SvPositionToScreenPosition(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
+		const float3 WorldPos  = SvPositionToWorld(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
+		const float4 LocalPos  = mul(float4(WorldPos.xyz, 1.0f), InstanceData.WorldToLocal);
+
+		const float4 ScreenPosPrev = mul(float4(LocalPos.xyz, 1), InstanceDynamicData.PrevLocalToClip);
+		
+		const float3 Velocity = Calculate3DVelocity(ScreenPos, ScreenPosPrev);
+		OutVelocity = EncodeVelocityToTexture(Velocity);
+		OutDepth = asfloat(DepthInt);
+		OutNaniteMask = 0x1;
 
 		if (GetPrimitiveData(InstanceData.PrimitiveId).DecalReceiverMask > 0 && View.ShowDecalsMask > 0)
 		{
@@ -174,12 +203,6 @@ void EmitSceneDepthStencilPS
 		{
 			OutStencil = StencilClear;
 		}
-
-		// TODO: Calculate velocity vectors
-		const float3 Velocity = float3(0.30f, 0.60f, 0.90f); // [0...1 range]
-		OutVelocityMask = Pack_Float4_To_R10G10B10A2_UNORM(float4(Velocity, 1.0f /* Is Nanite */));
-
-		OutDepth = asfloat(DepthInt);
 	}
 	else
 	{

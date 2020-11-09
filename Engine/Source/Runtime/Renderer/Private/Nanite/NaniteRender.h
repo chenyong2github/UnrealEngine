@@ -469,7 +469,8 @@ struct FRasterResults
 	TRefCountPtr<IPooledRenderTarget>	DbgBuffer32;
 
 	TRefCountPtr<IPooledRenderTarget>	MaterialDepth;
-	TRefCountPtr<IPooledRenderTarget>	VelocityMask;
+	TRefCountPtr<IPooledRenderTarget>	NaniteMask;
+	TRefCountPtr<IPooledRenderTarget>	VelocityBuffer;
 };
 
 FCullingContext	InitCullingContext(
@@ -618,7 +619,8 @@ void EmitDepthTargets(
 	const FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
 	TRefCountPtr<IPooledRenderTarget>& OutMaterialDepth,
-	TRefCountPtr<IPooledRenderTarget>& OutVelocityMask
+	TRefCountPtr<IPooledRenderTarget>& OutNaniteMask,
+	TRefCountPtr<IPooledRenderTarget>& OutVelocityBuffer
 );
 
 void DrawBasePass(

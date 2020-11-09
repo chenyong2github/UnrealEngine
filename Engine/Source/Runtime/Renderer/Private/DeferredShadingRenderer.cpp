@@ -1940,7 +1940,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 					CullingContext,
 					RasterContext,
 					RasterResults.MaterialDepth,
-					RasterResults.VelocityMask
+					RasterResults.NaniteMask,
+					RasterResults.VelocityBuffer
 				);
 
 				if (!bIsEarlyDepthComplete && bTwoPassOcclusion && View.ViewState)
