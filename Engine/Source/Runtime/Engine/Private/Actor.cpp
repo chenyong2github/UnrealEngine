@@ -2989,11 +2989,11 @@ void AActor::DisableComponentsSimulatePhysics()
 
 void AActor::PreRegisterAllComponents()
 {
-	FNavigationSystem::OnActorRegistered(*this);
 }
 
 void AActor::PostRegisterAllComponents() 
 {
+	FNavigationSystem::OnActorRegistered(*this);
 }
 
 /** Util to call OnComponentCreated on components */
