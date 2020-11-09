@@ -71,7 +71,13 @@ struct PROJECTS_API FPluginReferenceDescriptor
 
 	/** Writes a descriptor to JSON */
 	void Write(TJsonWriter<>& Writer) const;
+	
+	/** Updates the given json object with values in this descriptor */
+	void UpdateJson(FJsonObject& JsonObject) const;
 
-	/** Writes an array of modules to JSON */
-	static void WriteArray(TJsonWriter<>& Writer, const TCHAR* Name, const TArray<FPluginReferenceDescriptor>& Modules);
+	/** Writes an array of plugin references to JSON */
+	static void WriteArray(TJsonWriter<>& Writer, const TCHAR* ArrayName, const TArray<FPluginReferenceDescriptor>& Plugins);
+
+	/** Updates an array of plugin references in the specified JSON field (indexed by plugin name) */
+	static void UpdateArray(FJsonObject& JsonObject, const TCHAR* ArrayName, const TArray<FPluginReferenceDescriptor>& Plugins);
 };

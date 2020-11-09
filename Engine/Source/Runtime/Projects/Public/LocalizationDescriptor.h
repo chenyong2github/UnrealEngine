@@ -68,10 +68,16 @@ struct PROJECTS_API FLocalizationTargetDescriptor
 	static bool ReadArray(const FJsonObject& InObject, const TCHAR* InName, TArray<FLocalizationTargetDescriptor>& OutTargets, FText& OutFailReason);
 
 	/** Writes a descriptor to JSON */
-	void Write(TJsonWriter<>& InWriter) const;
+	void Write(TJsonWriter<>& Writer) const;
+
+	/** Updates the given json object with values in this descriptor */
+	void UpdateJson(FJsonObject& JsonObject) const;
 
 	/** Writes an array of targets to JSON */
-	static void WriteArray(TJsonWriter<>& InWriter, const TCHAR* InName, const TArray<FLocalizationTargetDescriptor>& InTargets);
+	static void WriteArray(TJsonWriter<>& Writer, const TCHAR* ArrayName, const TArray<FLocalizationTargetDescriptor>& Descriptors);
+
+	/** Updates an array of descriptors in the specified JSON field (indexed by name) */
+	static void UpdateArray(FJsonObject& JsonObject, const TCHAR* ArrayName, const TArray<FLocalizationTargetDescriptor>& Descriptors);
 
 	/** Returns true if we should load this localization target based upon the current runtime environment */
 	bool ShouldLoadLocalizationTarget() const;
