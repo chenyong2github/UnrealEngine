@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/CoreOnline.h"
+#include "OnlineSubsystem.h"
 #include "Interfaces/OnlineAchievementsInterface.h"
 
 class FOnlineSubsystemEOSPlus;
@@ -16,7 +17,7 @@ class FOnlineAchievementsEOSPlus :
 {
 public:
 	FOnlineAchievementsEOSPlus() = delete;
-	virtual ~FOnlineAchievementsEOSPlus() = default;
+	virtual ~FOnlineAchievementsEOSPlus();
 
 // IOnlineAchievements Interface
 	virtual void WriteAchievements(const FUniqueNetId& PlayerId, FOnlineAchievementsWriteRef& WriteObject, const FOnAchievementsWrittenDelegate& Delegate = FOnAchievementsWrittenDelegate())  override;
@@ -31,14 +32,16 @@ public:
 // ~IOnlineAchievements Interface
 
 PACKAGE_SCOPE:
-	FOnlineAchievementsEOSPlus(FOnlineSubsystemEOSPlus* InSubsystem)
-		: EOSPlus(InSubsystem)
-	{
-	}
+	FOnlineAchievementsEOSPlus(FOnlineSubsystemEOSPlus* InSubsystem);
+
+	void OnAchievementUnlocked(const FUniqueNetId& PlayerId, const FString& AchievementId);
 
 private:
 	/** Reference to the owning EOS plus subsystem */
 	FOnlineSubsystemEOSPlus* EOSPlus;
+	/** Since we're going to bind to delegates, we need to hold onto these */
+	IOnlineAchievementsPtr BaseAchievementsInterface;
+	IOnlineAchievementsPtr EosAchievementsInterface;
 };
 
 typedef TSharedPtr<FOnlineAchievementsEOSPlus, ESPMode::ThreadSafe> FOnlineAchievementsEOSPlusPtr;

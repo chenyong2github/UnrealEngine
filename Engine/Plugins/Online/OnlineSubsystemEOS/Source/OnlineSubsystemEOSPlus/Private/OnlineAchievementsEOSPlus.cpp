@@ -7,80 +7,65 @@
 
 FOnAchievementsWrittenDelegate Ignored;
 
+FOnlineAchievementsEOSPlus::FOnlineAchievementsEOSPlus(FOnlineSubsystemEOSPlus* InSubsystem)
+	: EOSPlus(InSubsystem)
+{
+	BaseAchievementsInterface = EOSPlus->BaseOSS->GetAchievementsInterface();
+	check(BaseAchievementsInterface.IsValid());
+	EosAchievementsInterface = EOSPlus->EosOSS->GetAchievementsInterface();
+	check(EosAchievementsInterface.IsValid());
+
+	BaseAchievementsInterface->AddOnAchievementUnlockedDelegate_Handle(FOnAchievementUnlockedDelegate::CreateRaw(this, &FOnlineAchievementsEOSPlus::OnAchievementUnlocked));
+}
+
+FOnlineAchievementsEOSPlus::~FOnlineAchievementsEOSPlus()
+{
+	BaseAchievementsInterface->ClearOnAchievementUnlockedDelegates(this);
+}
+
+void FOnlineAchievementsEOSPlus::OnAchievementUnlocked(const FUniqueNetId& PlayerId, const FString& AchievementId)
+{
+	TriggerOnAchievementUnlockedDelegates(PlayerId, AchievementId);
+}
+
 void FOnlineAchievementsEOSPlus::WriteAchievements(const FUniqueNetId& PlayerId, FOnlineAchievementsWriteRef& WriteObject, const FOnAchievementsWrittenDelegate& Delegate)
 {
-	IOnlineAchievementsPtr Achievements = EOSPlus->BaseOSS->GetAchievementsInterface();
-	if (Achievements.IsValid())
-	{
-		Achievements->WriteAchievements(PlayerId, WriteObject, Delegate);
-	}
+	BaseAchievementsInterface->WriteAchievements(PlayerId, WriteObject, Delegate);
 	if (GetDefault<UEOSSettings>()->bMirrorAchievementsToEOS)
 	{
 		// Mirror the achievement data to EOS
-		IOnlineAchievementsPtr EOSAchievements = EOSPlus->EosOSS->GetAchievementsInterface();
-		if (EOSAchievements.IsValid())
-		{
-			EOSAchievements->WriteAchievements(PlayerId, WriteObject, Ignored);
-		}
+		EosAchievementsInterface->WriteAchievements(PlayerId, WriteObject, Ignored);
 	}
 }
 
 void FOnlineAchievementsEOSPlus::QueryAchievements(const FUniqueNetId& PlayerId, const FOnQueryAchievementsCompleteDelegate& Delegate)
 {
-	IOnlineAchievementsPtr Achievements = EOSPlus->BaseOSS->GetAchievementsInterface();
-	if (Achievements.IsValid())
-	{
-		Achievements->QueryAchievements(PlayerId, Delegate);
-	}
+	BaseAchievementsInterface->QueryAchievements(PlayerId, Delegate);
 }
 
 void FOnlineAchievementsEOSPlus::QueryAchievementDescriptions(const FUniqueNetId& PlayerId, const FOnQueryAchievementsCompleteDelegate& Delegate)
 {
-	IOnlineAchievementsPtr Achievements = EOSPlus->BaseOSS->GetAchievementsInterface();
-	if (Achievements.IsValid())
-	{
-		Achievements->QueryAchievements(PlayerId, Delegate);
-	}
+	BaseAchievementsInterface->QueryAchievements(PlayerId, Delegate);
 }
 
 EOnlineCachedResult::Type FOnlineAchievementsEOSPlus::GetCachedAchievement(const FUniqueNetId& PlayerId, const FString& AchievementId, FOnlineAchievement& OutAchievement)
 {
-	IOnlineAchievementsPtr Achievements = EOSPlus->BaseOSS->GetAchievementsInterface();
-	if (Achievements.IsValid())
-	{
-		return Achievements->GetCachedAchievement(PlayerId, AchievementId, OutAchievement);
-	}
-	return EOnlineCachedResult::NotFound;
+	return BaseAchievementsInterface->GetCachedAchievement(PlayerId, AchievementId, OutAchievement);
 }
 
 EOnlineCachedResult::Type FOnlineAchievementsEOSPlus::GetCachedAchievements(const FUniqueNetId& PlayerId, TArray<FOnlineAchievement>& OutAchievements)
 {
-	IOnlineAchievementsPtr Achievements = EOSPlus->BaseOSS->GetAchievementsInterface();
-	if (Achievements.IsValid())
-	{
-		return Achievements->GetCachedAchievements(PlayerId, OutAchievements);
-	}
-	return EOnlineCachedResult::NotFound;
+	return BaseAchievementsInterface->GetCachedAchievements(PlayerId, OutAchievements);
 }
 
 EOnlineCachedResult::Type FOnlineAchievementsEOSPlus::GetCachedAchievementDescription(const FString& AchievementId, FOnlineAchievementDesc& OutAchievementDesc)
 {
-	IOnlineAchievementsPtr Achievements = EOSPlus->BaseOSS->GetAchievementsInterface();
-	if (Achievements.IsValid())
-	{
-		return Achievements->GetCachedAchievementDescription(AchievementId, OutAchievementDesc);
-	}
-	return EOnlineCachedResult::NotFound;
+	return BaseAchievementsInterface->GetCachedAchievementDescription(AchievementId, OutAchievementDesc);
 }
 
 #if !UE_BUILD_SHIPPING
 bool FOnlineAchievementsEOSPlus::ResetAchievements(const FUniqueNetId& PlayerId)
 {
-	IOnlineAchievementsPtr Achievements = EOSPlus->BaseOSS->GetAchievementsInterface();
-	if (Achievements.IsValid())
-	{
-		return Achievements->ResetAchievements(PlayerId);
-	}
-	return false;
+	return BaseAchievementsInterface->ResetAchievements(PlayerId);
 }
 #endif
