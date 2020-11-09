@@ -431,16 +431,38 @@ private:
 					return true;
 
 				case CharType('}'):
-					OutToken = EJsonToken::CurlyClose; ParseState.Pop();
-					return true;
+					{
+						OutToken = EJsonToken::CurlyClose;
+						if (ParseState.Num())
+						{
+							ParseState.Pop();
+							return true;
+						}
+						else
+						{
+							SetErrorMessage(TEXT("Unknown state reached while parsing Json token."));
+							return false;
+						}
+					}
 
 				case CharType('['):
 					OutToken = EJsonToken::SquareOpen; ParseState.Push( EJson::Array );
 					return true;
 
 				case CharType(']'):
-					OutToken = EJsonToken::SquareClose; ParseState.Pop();
-					return true;
+					{
+						OutToken = EJsonToken::SquareClose;
+						if (ParseState.Num())
+						{
+							ParseState.Pop();
+							return true;
+						}
+						else
+						{
+							SetErrorMessage(TEXT("Unknown state reached while parsing Json token."));
+							return false;
+						}
+					}
 
 				case CharType(':'):
 					OutToken = EJsonToken::Colon;

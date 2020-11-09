@@ -631,6 +631,12 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 		TEXT(	"},")
 		TEXT(	"\"Value\":true"));
 
+	// Missing curly brace
+	FailureInputs.Add(TEXT("}"));
+
+	// Missing bracket
+	FailureInputs.Add(TEXT("]"));
+
 	// Extra last character
 	FailureInputs.Add(
 		TEXT("{")
