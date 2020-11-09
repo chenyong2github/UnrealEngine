@@ -1616,9 +1616,9 @@ void FClothingSimulation::DebugDrawWindForces(FPrimitiveDrawInterface* PDI) cons
 		{
 			const TVector<int32, 3>& Element = Elements[ElementIndex];
 			const TVector<float, 3> Position = LocalSpaceLocation + (
-				Positions[Element[0]] +
-				Positions[Element[1]] +
-				Positions[Element[2]]) / 3.f;
+				Positions[Element.X - Offset] +
+				Positions[Element.Y - Offset] +
+				Positions[Element.Z - Offset]) / 3.f;
 			const TVector<float, 3>& Force = Forces[ElementIndex] * 10.f;
 			DrawLine(PDI, Position, Position + Force, FColor::Green);
 		}
