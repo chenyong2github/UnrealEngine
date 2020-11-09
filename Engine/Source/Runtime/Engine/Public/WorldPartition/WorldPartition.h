@@ -116,6 +116,7 @@ public:
 
 	void LoadEditorCells(const FBox& Box);
 	void UnloadEditorCells(const FBox& Box);
+	bool RefreshLoadedEditorCells();
 
 	bool IsPreCooked() const { return bIsPreCooked; }
 	void SetIsPreCooked(bool bInIsPreCooked) { bIsPreCooked = bInIsPreCooked; }
@@ -206,6 +207,8 @@ private:
 	void UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, bool bShouldBeLoaded);
 	void HashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);
+	bool ShouldActorBeLoaded(const FWorldPartitionActorDesc* ActorDesc) const;
+	bool UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartitionEditorCell*>&)> GetCellsToProcess, bool bIsCellShouldBeLoaded);
 #endif
 
 	UWorldPartitionStreamingPolicy* GetStreamingPolicy() const;

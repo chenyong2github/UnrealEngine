@@ -12,6 +12,7 @@ UDataLayer::UDataLayer(const FObjectInitializer& ObjectInitializer)
 , DataLayerLabel(GetFName())
 , bIsVisible(true)
 , bIsDynamicallyLoaded(true)
+, bIsDynamicallyLoadedInEditor(true)
 #endif
 {
 }
@@ -43,6 +44,15 @@ void UDataLayer::SetIsDynamicallyLoaded(bool bInIsDynamicallyLoaded)
 	{
 		Modify();
 		bIsDynamicallyLoaded = bInIsDynamicallyLoaded;
+	}
+}
+
+void UDataLayer::SetIsDynamicallyLoadedInEditor(bool bInIsDynamicallyLoadedInEditor)
+{
+	if (bIsDynamicallyLoadedInEditor != bInIsDynamicallyLoadedInEditor && (!bInIsDynamicallyLoadedInEditor || bIsDynamicallyLoaded))
+	{
+		Modify(false);
+		bIsDynamicallyLoadedInEditor = bInIsDynamicallyLoadedInEditor;
 	}
 }
 

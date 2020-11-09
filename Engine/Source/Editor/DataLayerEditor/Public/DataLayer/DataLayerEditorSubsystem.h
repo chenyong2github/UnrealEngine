@@ -466,7 +466,7 @@ public:
 	 * @param	DataLayer				The DataLayer to affect.
 	 * @param	bIsDynamicallyLoaded	If true the DataLayer will affect runtime streaming and actors will only be loaded if the DataLayer is active.
 	 */
-	virtual void SetDataLayerIsDynamicallyLoaded(UDataLayer* DataLayer, const bool bIsDynamicallyLoaded);
+	virtual bool SetDataLayerIsDynamicallyLoaded(UDataLayer* DataLayer, const bool bIsDynamicallyLoaded);
 
 	/**
 	 * Changes the IsDynamicallyLoaded flag of the DataLayers to the provided state
@@ -474,21 +474,55 @@ public:
 	 * @param	DataLayers				The DataLayers to affect
 	 * @param	bIsDynamicallyLoaded	If true the DataLayer will affect runtime streaming and actors will only be loaded if the DataLayer is active.
 	 */
-	virtual void SetDataLayersIsDynamicallyLoaded(const TArray<UDataLayer*>& DataLayers, const bool bIsDynamicallyLoaded);
+	virtual bool SetDataLayersIsDynamicallyLoaded(const TArray<UDataLayer*>& DataLayers, const bool bIsDynamicallyLoaded);
 
 	/**
 	 * Toggles the DataLayer's IsDynamicallyLoaded flag
 	 *
 	 * @param DataLayer	The DataLayer to affect
 	 */
-	virtual void ToggleDataLayerIsDynamicallyLoaded(UDataLayer* DataLayer);
+	virtual bool ToggleDataLayerIsDynamicallyLoaded(UDataLayer* DataLayer);
 
 	/**
 	 * Toggles the IsDynamicallyLoaded flag of all of the DataLayers
 	 *
 	 * @param	DataLayers	The DataLayers to affect
 	 */
-	virtual void ToggleDataLayersIsDynamicallyLoaded(const TArray<UDataLayer*>& DataLayers);
+	virtual bool ToggleDataLayersIsDynamicallyLoaded(const TArray<UDataLayer*>& DataLayers);
+
+	/**
+	 * Changes the DataLayer's IsDynamicallyLoadedInEditor flag to the provided state
+	 *
+	 * @param	DataLayer						The DataLayer to affect.
+	 * @param	bIsDynamicallyLoadedInEditor	The new value of the flag IsDynamicallyLoadedInEditor.
+	 *											If the DataLayer is DynamicallyLoaded, the Editor loading will consider this DataLayer to load or not an Actor.
+	 *											An Actor will not be loaded in the Editor if all its DataLayers are DynamicallyLoaded and not DynamicallyLoadedInEditor.
+	 */
+	virtual bool SetDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor);
+
+	/**
+	 * Changes the IsDynamicallyLoadedInEditor flag of the DataLayers to the provided state
+	 *
+	 * @param	DataLayers						The DataLayers to affect
+	 * @param	bIsDynamicallyLoadedInEditor	The new value of the flag IsDynamicallyLoadedInEditor.
+	 *											If the DataLayer is DynamicallyLoaded, the Editor loading will consider this DataLayer to load or not an Actor.
+	 *											An Actor will not be loaded in the Editor if all its DataLayers are DynamicallyLoaded and not DynamicallyLoadedInEditor.
+	 */
+	virtual bool SetDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsDynamicallyLoadedInEditor);
+
+	/**
+	 * Toggles the DataLayer's IsDynamicallyLoadedInEditor flag
+	 *
+	 * @param DataLayer	The DataLayer to affect
+	 */
+	virtual bool ToggleDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer);
+
+	/**
+	 * Toggles the IsDynamicallyLoadedInEditor flag of all of the DataLayers
+	 *
+	 * @param	DataLayers	The DataLayers to affect
+	 */
+	virtual bool ToggleDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers);
 
 	/**
 	 * Set the visibility of all DataLayers to true
@@ -594,6 +628,11 @@ public:
 	void PostUndoRedo();
 
 private:
+
+	bool SetDataLayerIsDynamicallyLoadedInternal(UDataLayer* DataLayer, const bool bIsDynamicallyLoaded);
+	bool SetDataLayerIsDynamicallyLoadedInEditorInternal(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor);
+	bool RefreshWorldPartitionEditorCells();
+	void UpdateDataLayerEditorPerProjectUserSettings();
 
 	/** Fires whenever one or more DataLayer changes */
 	FOnDataLayerChanged DataLayerChanged;

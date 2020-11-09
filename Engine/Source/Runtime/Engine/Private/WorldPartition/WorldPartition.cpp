@@ -554,81 +554,147 @@ void UWorldPartition::LoadEditorCells(const FBox& Box)
 	}
 }
 
+bool UWorldPartition::RefreshLoadedEditorCells()
+{
+	auto GetCellsToRefresh = [this](TArray<UWorldPartitionEditorCell*>& CellsToRefresh)
+	{
+		CellsToRefresh.Add(EditorHash->GetAlwaysLoadedCell());
+		EditorHash->ForEachCell([&CellsToRefresh](UWorldPartitionEditorCell* Cell)
+		{
+			if (Cell->bLoaded)
+			{
+				CellsToRefresh.Add(Cell);
+			}
+		});
+		return !CellsToRefresh.IsEmpty();
+	};
+
+	return UpdateEditorCells(GetCellsToRefresh, /*bIsCellShouldBeLoaded*/true);
+}
+
 void UWorldPartition::UnloadEditorCells(const FBox& Box)
 {
-	TArray<UWorldPartitionEditorCell*> CellsToUnload;
-	if (EditorHash->GetIntersectingCells(Box, CellsToUnload))
+	auto GetCellsToUnload = [this, Box](TArray<UWorldPartitionEditorCell*>& CellsToUnload)
 	{
-		FWorldPartionCellUpdateContext CellUpdateContext(this);
-		
-		TSet<UPackage*> ModifiedPackages;
-		TMap<FWorldPartitionActorDesc*, int32> UnloadCount;
-	
-		int32 NumActorsToUnload = Algo::TransformAccumulate(CellsToUnload, [&UnloadCount](UWorldPartitionEditorCell* Cell)
-		{ 
-			for (FWorldPartitionActorDesc* ActorDesc : Cell->LoadedActors)
+		return EditorHash->GetIntersectingCells(Box, CellsToUnload) > 0;
+	};
+
+	UpdateEditorCells(GetCellsToUnload, /*bIsCellShouldBeLoaded*/false);
+}
+
+bool UWorldPartition::UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartitionEditorCell*>&)> GetCellsToProcess, bool bIsCellShouldBeLoaded)
+{
+	FWorldPartionCellUpdateContext CellUpdateContext(this);
+
+	TArray<UWorldPartitionEditorCell*> CellsToProcess;
+	if (!GetCellsToProcess(CellsToProcess))
+	{
+		return true;
+	}
+
+	TSet<UPackage*> ModifiedPackages;
+	TMap<FWorldPartitionActorDesc*, int32> UnloadCount;
+
+	for (UWorldPartitionEditorCell* Cell : CellsToProcess)
+	{
+		for (FWorldPartitionActorDesc* ActorDesc : Cell->LoadedActors)
+		{
+			if (!bIsCellShouldBeLoaded || !ShouldActorBeLoaded(ActorDesc))
 			{
 				UnloadCount.FindOrAdd(ActorDesc, 0)++;
 			}
-						
-			return Cell->LoadedActors.Num(); 
-		}, 0);
-		
-		for (const TPair<FWorldPartitionActorDesc*, int32> Pair : UnloadCount)
-		{
-			FWorldPartitionActorDesc* ActorDesc = Pair.Key;
-			// Only prompt if the actor will get unloaded by the unloading cells
-			if (ActorDesc->GetLoadedRefCount() == Pair.Value)
-			{
-				AActor* LoadedActor = ActorDesc->GetActor();
-				check(LoadedActor);
-				UPackage* ActorPackage = LoadedActor->GetExternalPackage();
-				if (ActorPackage && ActorPackage->IsDirty())
-				{
-					ModifiedPackages.Add(ActorPackage);
-				}
-			}
-		}
-		
-		// Make sure we save modified actor packages before unloading
-		FEditorFileUtils::EPromptReturnCode RetCode = FEditorFileUtils::PR_Success;
-		if (ModifiedPackages.Num())
-		{
-			const bool bCheckDirty = false;
-			const bool bAlreadyCheckedOut = false;
-			const bool bCanBeDeclined = true;
-			const bool bPromptToSave = true;
-			const FText Title = LOCTEXT("SaveActorsTitle", "Save Actor(s)");
-			const FText Message = LOCTEXT("SaveActorsMessage", "Save Actor(s) before unloading them.");
-
-			RetCode = FEditorFileUtils::PromptForCheckoutAndSave(ModifiedPackages.Array(), bCheckDirty, bPromptToSave, Title, Message, nullptr, bAlreadyCheckedOut, bCanBeDeclined);
-			if (RetCode == FEditorFileUtils::PR_Cancelled)
-			{
-				return;
-			}
-
-			check(RetCode != FEditorFileUtils::PR_Failure);
-		}
-
-		GEditor->SelectNone(true, true);
-
-		// At this point, cells might have changed due to saving deleted actors
-		CellsToUnload.Empty(CellsToUnload.Num());
-		if (EditorHash->GetIntersectingCells(Box, CellsToUnload))
-		{	
-			FScopedSlowTask SlowTask(NumActorsToUnload, LOCTEXT("UnloadingCells", "Unloading cells..."));
-			SlowTask.MakeDialog();
-
-			for (UWorldPartitionEditorCell* Cell: CellsToUnload)
-			{
-				SlowTask.EnterProgressFrame(Cell->LoadedActors.Num());
-				UpdateLoadingEditorCell(Cell, false);
-			}
-		
-			GEditor->ResetTransaction(LOCTEXT("UnloadingEditorCellsResetTrans", "Unloading Cells"));
 		}
 	}
+
+	bool bIsUpdateUnloadingActors = false;
+
+	for (const TPair<FWorldPartitionActorDesc*, int32> Pair : UnloadCount)
+	{
+		FWorldPartitionActorDesc* ActorDesc = Pair.Key;
+		// Only prompt if the actor will get unloaded by the unloading cells
+		if (ActorDesc->GetLoadedRefCount() == Pair.Value)
+		{
+			AActor* LoadedActor = ActorDesc->GetActor();
+			check(LoadedActor);
+			UPackage* ActorPackage = LoadedActor->GetExternalPackage();
+			if (ActorPackage && ActorPackage->IsDirty())
+			{
+				ModifiedPackages.Add(ActorPackage);
+			}
+			bIsUpdateUnloadingActors = true;
+		}
+	}
+
+	// Make sure we save modified actor packages before unloading
+	FEditorFileUtils::EPromptReturnCode RetCode = FEditorFileUtils::PR_Success;
+	if (ModifiedPackages.Num())
+	{
+		const bool bCheckDirty = false;
+		const bool bAlreadyCheckedOut = false;
+		const bool bCanBeDeclined = true;
+		const bool bPromptToSave = true;
+		const FText Title = LOCTEXT("SaveActorsTitle", "Save Actor(s)");
+		const FText Message = LOCTEXT("SaveActorsMessage", "Save Actor(s) before unloading them.");
+
+		RetCode = FEditorFileUtils::PromptForCheckoutAndSave(ModifiedPackages.Array(), bCheckDirty, bPromptToSave, Title, Message, nullptr, bAlreadyCheckedOut, bCanBeDeclined);
+		if (RetCode == FEditorFileUtils::PR_Cancelled)
+		{
+			return false;
+		}
+
+		check(RetCode != FEditorFileUtils::PR_Failure);
+	}
+
+	if (bIsUpdateUnloadingActors)
+	{
+		GEditor->SelectNone(true, true);
+	}
+
+	// At this point, cells might have changed due to saving deleted actors
+	CellsToProcess.Empty(CellsToProcess.Num());
+	if (!GetCellsToProcess(CellsToProcess))
+	{
+		return true;
+	}
+
+	FScopedSlowTask SlowTask(CellsToProcess.Num(), LOCTEXT("UpdatingCells", "Updating cells..."));
+	SlowTask.MakeDialog();
+
+	for (UWorldPartitionEditorCell* Cell : CellsToProcess)
+	{
+		SlowTask.EnterProgressFrame(1);
+		UpdateLoadingEditorCell(Cell, bIsCellShouldBeLoaded);
+	}
+
+	if (bIsUpdateUnloadingActors)
+	{
+		GEditor->ResetTransaction(LOCTEXT("UnloadingEditorCellsResetTrans", "Unloading Cells"));
+	}
+
+	return true;
 }
+
+bool UWorldPartition::ShouldActorBeLoaded(const FWorldPartitionActorDesc* ActorDesc) const
+{
+	if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld()))
+	{
+		uint32 NumValidLayers = 0;
+		for (const FName& DataLayerName : ActorDesc->GetDataLayers())
+		{
+			if (const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayerName))
+			{
+				if (DataLayer->IsDynamicallyLoadedInEditor())
+				{
+					return true;
+				}
+				NumValidLayers++;
+			}
+		}
+		return !NumValidLayers;
+	}
+
+	return true;
+};
 
 // Loads actors in Editor cell
 void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, bool bShouldBeLoaded)
@@ -683,32 +749,40 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 			// or directly referenced by a loaded cell.
 			check(Actor || !ActorDesc->GetLoadedRefCount());
 
-			bool bIsAlreadyInLoadedActors = false;
-			Cell->LoadedActors.Add(ActorDesc, &bIsAlreadyInLoadedActors);
-
-			if (bIsAlreadyInLoadedActors)
+			// Filter actor against DataLayers
+			if (ShouldActorBeLoaded(ActorDesc))
 			{
-				// We already hold a reference to this actor
-				check(Actor);
-				check(ActorDesc->GetLoadedRefCount());
-				UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Skipped already loaded actor %s"), *Actor->GetFullName());
-			}
-			else
-			{
-				const uint32 ActorRefCount = ActorDesc->AddLoadedRefCount();
+				bool bIsAlreadyInLoadedActors = false;
+				Cell->LoadedActors.Add(ActorDesc, &bIsAlreadyInLoadedActors);
 
-				if (ActorRefCount == 1)
+				if (bIsAlreadyInLoadedActors)
 				{
-					// Register actor
-					Actor = RegisterActor(ActorDesc);
+					// We already hold a reference to this actor
+					check(Actor);
+					check(ActorDesc->GetLoadedRefCount());
+					UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Skipped already loaded actor %s"), *Actor->GetFullName());
 				}
 				else
 				{
-					check(Actor);
-					UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Referenced unloaded actor %s(%d)"), *Actor->GetFullName(), ActorRefCount);
-				}
+					const uint32 ActorRefCount = ActorDesc->AddLoadedRefCount();
 
-				check(Actor && Actor->GetActorGuid() == ActorDesc->GetGuid());
+					if (ActorRefCount == 1)
+					{
+						// Register actor
+						Actor = RegisterActor(ActorDesc);
+					}
+					else
+					{
+						check(Actor);
+						UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Referenced unloaded actor %s(%d)"), *Actor->GetFullName(), ActorRefCount);
+					}
+
+					check(Actor && Actor->GetActorGuid() == ActorDesc->GetGuid());
+				}
+			}
+			else if (Cell->LoadedActors.Remove(ActorDesc))
+			{
+				UnloadActor(ActorDesc, Actor);
 			}
 		}
 	}

@@ -7,7 +7,7 @@
 #include "DataLayerActorTreeItem.h"
 #include "DataLayerTreeItem.h"
 #include "DataLayerMode.h"
-#include "DataLayerModeSettings.h"
+#include "WorldPartition/DataLayer/DataLayerEditorPerProjectUserSettings.h"
 #include "DataLayerOutlinerIsDynamicallyLoadedColumn.h"
 #include "DataLayerOutlinerDeleteButtonColumn.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
@@ -19,8 +19,7 @@
 
 void SDataLayerBrowser::Construct(const FArguments& InArgs)
 {
-	const UDataLayerModeSettings* SharedSettings = GetDefault<UDataLayerModeSettings>();
-	Mode = SharedSettings->bShowDataLayerContent ? EDataLayerBrowserMode::DataLayerContents : EDataLayerBrowserMode::DataLayers;
+	Mode = GetDefault<UDataLayerEditorPerProjectUserSettings>()->GetShowDataLayerContent() ? EDataLayerBrowserMode::DataLayerContents : EDataLayerBrowserMode::DataLayers;
 
 	auto ToggleDataLayerContents = [this]()
 	{
@@ -149,9 +148,7 @@ void SDataLayerBrowser::SetupDataLayerMode(EDataLayerBrowserMode InNewMode)
 
 	Mode = InNewMode;
 	
-	UDataLayerModeSettings* SharedSettings = GetMutableDefault<UDataLayerModeSettings>();
-	SharedSettings->bShowDataLayerContent = Mode == EDataLayerBrowserMode::DataLayerContents;
-	SharedSettings->SaveConfig();
+	GetMutableDefault<UDataLayerEditorPerProjectUserSettings>()->SetShowDataLayerContent(Mode == EDataLayerBrowserMode::DataLayerContents);
 
 	ModeChanged.Broadcast(Mode);
 }

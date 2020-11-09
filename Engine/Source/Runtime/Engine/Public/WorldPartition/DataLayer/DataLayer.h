@@ -20,6 +20,8 @@ public:
 	void SetDataLayerLabel(FName InDataLayerLabel);
 	void SetVisible(bool bInIsVisible);
 	void SetIsDynamicallyLoaded(bool bInIsDynamicallyLoaded);
+	void SetIsDynamicallyLoadedInEditor(bool bInIsDynamicallyLoadedInEditor);
+	bool IsDynamicallyLoadedInEditor() const { return !IsDynamicallyLoaded() || bIsDynamicallyLoadedInEditor; }
 #endif
 	
 	FName GetDataLayerLabel() const  { return DataLayerLabel; }
@@ -35,7 +37,13 @@ private:
 	UPROPERTY()
 	uint32 bIsVisible : 1;
 
-	/** Whether the layer can affect actor loading or not when layer is activated */
+	/** Whether the DataLayer affects actor runtime loading */
 	UPROPERTY()
 	uint32 bIsDynamicallyLoaded : 1;
+
+#if WITH_EDITORONLY_DATA
+	/** Whether the DataLayer affects actor editor loading */
+	UPROPERTY(Transient)
+	uint32 bIsDynamicallyLoadedInEditor : 1;
+#endif
 };

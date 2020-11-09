@@ -7,6 +7,9 @@
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "EngineUtils.h"
+#if WITH_EDITOR
+#include "WorldPartition/DataLayer/DataLayerEditorPerProjectUserSettings.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "WorldDataLayers"
 
@@ -190,7 +193,19 @@ void AWorldDataLayers::PostLoad()
 {
 	Super::PostLoad();
 
-#if !WITH_EDITOR
+#if WITH_EDITOR
+	// Initialize DataLayer's IsDynamicallyLoadedInEditor based on DataLayerEditorPerProjectUserSettings
+	if (const FDataLayerNames* SettingsDataLayersNotLoadedInEditor = GetDefault<UDataLayerEditorPerProjectUserSettings>()->GetWorldDataLayersNotLoadedInEditor(GetWorld()))
+	{
+		for (const FName& DataLayerName : SettingsDataLayersNotLoadedInEditor->DataLayers)
+		{
+			if (UDataLayer* DataLayer = const_cast<UDataLayer*>(GetDataLayerFromName(DataLayerName)))
+			{
+				DataLayer->SetIsDynamicallyLoadedInEditor(false);
+			}
+		}
+	}
+#else
 	// Build acceleration tables
 	for (const UDataLayer* DataLayer : WorldDataLayers)
 	{
