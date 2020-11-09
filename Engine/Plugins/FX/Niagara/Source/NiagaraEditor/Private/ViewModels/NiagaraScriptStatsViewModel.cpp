@@ -772,7 +772,6 @@ void FNiagaraScriptStatsViewModel::BuildShaderPlatformDetails()
 	TArray<EShaderPlatform, TInlineAllocator<SP_StaticPlatform_Last + 1>> ValidShaderPlatforms;
 	ValidShaderPlatforms.Add(SP_PCD3D_SM5);
 	ValidShaderPlatforms.Add(SP_VULKAN_SM5);
-	ValidShaderPlatforms.Add(SP_OPENGL_SM5);
 	ValidShaderPlatforms.Add(SP_OPENGL_ES3_1_ANDROID); 
 	ValidShaderPlatforms.Add(SP_VULKAN_ES3_1_ANDROID);
 	ValidShaderPlatforms.Add(SP_VULKAN_SM5_ANDROID);
