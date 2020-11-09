@@ -92,7 +92,7 @@ void UK2Node_GetDMXAttributeValues::AllocateDefaultPins()
 	K2Schema->ConstructBasicPinTooltip(*OutputAttributesMapPin, LOCTEXT("OutputAttributesMap", "Output Attribute Map."), OutputAttributesMapPin->PinToolTip);
 
 	UEdGraphPin* OutputIsSuccessPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Boolean, TEXT(""), OutputIsSuccessPinName);
-	K2Schema->ConstructBasicPinTooltip(*OutputIsSuccessPin, LOCTEXT("OutputIsSuccessPin", "Is SuccessP"), OutputIsSuccessPin->PinToolTip);
+	K2Schema->ConstructBasicPinTooltip(*OutputIsSuccessPin, LOCTEXT("OutputIsSuccessPin", "Is Success"), OutputIsSuccessPin->PinToolTip);
 
 	Super::AllocateDefaultPins();
 }
@@ -149,11 +149,35 @@ void UK2Node_GetDMXAttributeValues::ExpandNode(FKismetCompilerContext& CompilerC
 	GetAttributesMapNode->AllocateDefaultPins();
 
 	// Function pins
-	UEdGraphPin* GetAttributesMapNodeSelfPin = GetAttributesMapNode->FindPinChecked(UEdGraphSchema_K2::PN_Self);
+	UEdGraphPin* GetAttributesMapNodeSelfPin = GetAttributesMapNode->FindPin(UEdGraphSchema_K2::PN_Self);
+	if (GetAttributesMapNodeSelfPin == nullptr)
+	{
+		CompilerContext.MessageLog.Error(*LOCTEXT("MissingSelfPin", "Self: Pin doesn't exists. @@").ToString(), this);
+		return;
+	}
+
 	UEdGraphPin* GetAttributesMapNodeExecPin = GetAttributesMapNode->GetExecPin();
-	UEdGraphPin* GetAttributesMapNodeInFixturePatchPin = GetAttributesMapNode->FindPinChecked(TEXT("InFixturePatch"));
-	UEdGraphPin* GetAttributesMapNodeOutAttributesMapPin = GetAttributesMapNode->FindPinChecked(TEXT("OutAttributesMap"));
-	UEdGraphPin* GetAttributesMapNodeOutIsSuccessPin = GetAttributesMapNode->FindPinChecked(UEdGraphSchema_K2::PN_ReturnValue);
+	UEdGraphPin* GetAttributesMapNodeInFixturePatchPin = GetAttributesMapNode->FindPin(TEXT("InFixturePatch"));
+	if (GetAttributesMapNodeInFixturePatchPin == nullptr)
+	{
+		CompilerContext.MessageLog.Error(*LOCTEXT("MissingInFixturePatchPin", "InFixturePatch: Pin doesn't exists. @@").ToString(), this);
+		return;
+	}
+
+	UEdGraphPin* GetAttributesMapNodeOutAttributesMapPin = GetAttributesMapNode->FindPin(TEXT("OutAttributesMap"));
+	if (GetAttributesMapNodeOutAttributesMapPin == nullptr)
+	{
+		CompilerContext.MessageLog.Error(*LOCTEXT("MissingOutAttributesMapPin", "OutAttributesMap: Pin doesn't exists. @@").ToString(), this);
+		return;
+	}
+
+	UEdGraphPin* GetAttributesMapNodeOutIsSuccessPin = GetAttributesMapNode->FindPin(UEdGraphSchema_K2::PN_ReturnValue);
+	if (GetAttributesMapNodeOutIsSuccessPin == nullptr)
+	{
+		CompilerContext.MessageLog.Error(*LOCTEXT("MissingReturnValuePin", "ReturnValueMap: Pin doesn't exists. @@").ToString(), this);
+		return;
+	}
+
 	UEdGraphPin* GetAttributesMapNodeThenPin = GetAttributesMapNode->GetThenPin();
 
 	// Hook up inputs
@@ -175,7 +199,8 @@ void UK2Node_GetDMXAttributeValues::ExpandNode(FKismetCompilerContext& CompilerC
 		// Call Attributes for dmx function values
 		for (const TSharedPtr<FUserPinInfo>& PinInfo : UserDefinedPins)
 		{
-			UEdGraphPin* Pin = FindPinChecked(PinInfo->PinName);
+			UEdGraphPin* Pin = FindPin(PinInfo->PinName);
+			if (Pin != nullptr)
 			{
 				if (Pin->Direction == EGPD_Output)
 				{
@@ -185,6 +210,11 @@ void UK2Node_GetDMXAttributeValues::ExpandNode(FKismetCompilerContext& CompilerC
 				{
 					NamePairs.Add(Pin);
 				}
+			}
+			else
+			{
+				CompilerContext.MessageLog.Error(*LOCTEXT("MissingDefinedPinPin", "DefinedPin: Pin doesn't exists. @@").ToString(), this);
+				return;
 			}
 		}
 
@@ -201,11 +231,34 @@ void UK2Node_GetDMXAttributeValues::ExpandNode(FKismetCompilerContext& CompilerC
 			GetAttributesValueNode->FunctionReference.SetExternalMember(GetAttributesValueName, UDMXSubsystem::StaticClass());
 			GetAttributesValueNode->AllocateDefaultPins();
 
-			UEdGraphPin* GetAttributesValueSelfPin = GetAttributesValueNode->FindPinChecked(UEdGraphSchema_K2::PN_Self);
+			UEdGraphPin* GetAttributesValueSelfPin = GetAttributesValueNode->FindPin(UEdGraphSchema_K2::PN_Self);
+			if (GetAttributesValueSelfPin == nullptr)
+			{
+				CompilerContext.MessageLog.Error(*LOCTEXT("MissingSelfPin", "Self: Pin doesn't exists. @@").ToString(), this);
+				return;
+			}
+
 			UEdGraphPin* GetAttributesValueExecPin = GetAttributesValueNode->GetExecPin();
-			UEdGraphPin* GetAttributesValueNodeOutInAttributePin = GetAttributesValueNode->FindPinChecked(TEXT("FunctionAttributeName"));
-			UEdGraphPin* GetAttributesValueNodeOutAttributesMapPin = GetAttributesValueNode->FindPinChecked(TEXT("InAttributesMap"));
-			UEdGraphPin* GetAttributesValueNodeOutValuePin = GetAttributesValueNode->FindPinChecked(UEdGraphSchema_K2::PN_ReturnValue);
+			UEdGraphPin* GetAttributesValueNodeOutInAttributePin = GetAttributesValueNode->FindPin(TEXT("FunctionAttributeName"));
+			if (GetAttributesValueNodeOutInAttributePin == nullptr)
+			{
+				CompilerContext.MessageLog.Error(*LOCTEXT("MissingFunctionAttributeNamePin", "FunctionAttributeName: Pin doesn't exists. @@").ToString(), this);
+				return;
+			}
+
+			UEdGraphPin* GetAttributesValueNodeOutAttributesMapPin = GetAttributesValueNode->FindPin(TEXT("InAttributesMap"));
+			if (GetAttributesValueNodeOutAttributesMapPin == nullptr)
+			{
+				CompilerContext.MessageLog.Error(*LOCTEXT("MissingInAttributesMapPin", "InAttributesMap: Pin doesn't exists. @@").ToString(), this);
+				return;
+			}
+
+			UEdGraphPin* GetAttributesValueNodeOutValuePin = GetAttributesValueNode->FindPin(UEdGraphSchema_K2::PN_ReturnValue);
+			if (GetAttributesValueNodeOutValuePin == nullptr)
+			{
+				CompilerContext.MessageLog.Error(*LOCTEXT("MissingReturnValuePin", "ReturnValueMap: Pin doesn't exists. @@").ToString(), this);
+				return;
+			}
 			UEdGraphPin* GetAttributesValueNodeThenPin = GetAttributesValueNode->GetThenPin();
 
 			// Input
@@ -316,7 +369,13 @@ bool UK2Node_GetDMXAttributeValues::ModifyUserDefinedPinDefaultValue(TSharedPtr<
 
 UEdGraphPin* UK2Node_GetDMXAttributeValues::GetInputDMXFixturePatchPin() const
 {
-	UEdGraphPin* Pin = FindPinChecked(InputDMXFixturePatchPinName);
+	UEdGraphPin* Pin = FindPin(InputDMXFixturePatchPinName);
+	if (Pin == nullptr)
+	{
+		UE_LOG_DMXBLUEPRINTGRAPH(Error, TEXT("No InputDMXFixturePatchPin found"));
+		return nullptr;
+	}
+
 	check(Pin->Direction == EGPD_Input);
 
 	return Pin;
@@ -324,7 +383,13 @@ UEdGraphPin* UK2Node_GetDMXAttributeValues::GetInputDMXFixturePatchPin() const
 
 UEdGraphPin* UK2Node_GetDMXAttributeValues::GetOutputAttributesMapPin() const
 {
-	UEdGraphPin* Pin = FindPinChecked(OutputAttributesMapPinName);
+	UEdGraphPin* Pin = FindPin(OutputAttributesMapPinName);
+	if (Pin == nullptr)
+	{
+		UE_LOG_DMXBLUEPRINTGRAPH(Error, TEXT("No OutputAttributesMapPin found"));
+		return nullptr;
+	}
+
 	check(Pin->Direction == EGPD_Output);
 
 	return Pin;
@@ -332,7 +397,13 @@ UEdGraphPin* UK2Node_GetDMXAttributeValues::GetOutputAttributesMapPin() const
 
 UEdGraphPin* UK2Node_GetDMXAttributeValues::GetOutputIsSuccessPin() const
 {
-	UEdGraphPin* Pin = FindPinChecked(OutputIsSuccessPinName);
+	UEdGraphPin* Pin = FindPin(OutputIsSuccessPinName);
+	if (Pin == nullptr)
+	{
+		UE_LOG_DMXBLUEPRINTGRAPH(Error, TEXT("No OutputIsSuccessPin found"));
+		return nullptr;
+	}
+
 	check(Pin->Direction == EGPD_Output);
 
 	return Pin;
@@ -342,7 +413,13 @@ UEdGraphPin* UK2Node_GetDMXAttributeValues::GetThenPin() const
 {
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
-	UEdGraphPin* Pin = FindPinChecked(UEdGraphSchema_K2::PN_Then);
+	UEdGraphPin* Pin = FindPin(UEdGraphSchema_K2::PN_Then);
+	if (Pin == nullptr)
+	{
+		UE_LOG_DMXBLUEPRINTGRAPH(Error, TEXT("No ThenPin found"));
+		return nullptr;
+	}
+
 	check(Pin->Direction == EGPD_Output);
 	return Pin;
 }
