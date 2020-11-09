@@ -755,12 +755,18 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 			// @todo-threadsafety Think of a better way to do this!
 			const TArray<UNiagaraDataInterface*>& DataInterfaces = GPUContext->CombinedParamStore.GetDataInterfaces();
 			InstanceData->DataInterfaceProxies.Reserve(DataInterfaces.Num());
-			//UE_LOG(LogNiagara, Log, TEXT("InitTick %s %d"), GPUContext->GetDebugSimName())
+			InstanceData->IterationDataInterfaceProxies.Reserve(DataInterfaces.Num());
+
 			for (UNiagaraDataInterface* DI : DataInterfaces)
 			{
-				check(DI->GetProxy());
-				InstanceData->DataInterfaceProxies.Add(DI->GetProxy());
-				//UE_LOG(LogNiagara, Log, TEXT("Proxy %p for DI %p"), DI->GetProxy(), DI);
+				FNiagaraDataInterfaceProxy* DIProxy = DI->GetProxy();
+				check(DIProxy);
+				InstanceData->DataInterfaceProxies.Add(DIProxy);
+
+				if ( FNiagaraDataInterfaceProxyRW* RWProxy = DIProxy->AsIterationProxy() )
+				{
+					InstanceData->IterationDataInterfaceProxies.Add(RWProxy);
+				}
 			}
 		}
 	}
@@ -1041,7 +1047,7 @@ bool FNiagaraComputeExecutionContext::IsIterationStage(FNiagaraDataInterfaceProx
 	return false;
 }
 
-FNiagaraDataInterfaceProxy* FNiagaraComputeExecutionContext::FindIterationInterface(const TArray<FNiagaraDataInterfaceProxy*>& InProxies, uint32 CurrentStage) const
+FNiagaraDataInterfaceProxyRW* FNiagaraComputeExecutionContext::FindIterationInterface(const TArray<FNiagaraDataInterfaceProxyRW*>& InProxies, uint32 CurrentStage) const
 {
 	const FSimulationStageMetaData* MetaData = GetSimStageMetaData(CurrentStage);
 	if (MetaData)
@@ -1049,7 +1055,7 @@ FNiagaraDataInterfaceProxy* FNiagaraComputeExecutionContext::FindIterationInterf
 		if (MetaData->IterationSource.IsNone()) // Per particle iteration...
 			return nullptr;
 
-		for (FNiagaraDataInterfaceProxy* Proxy : InProxies)
+		for (FNiagaraDataInterfaceProxyRW* Proxy : InProxies)
 		{
 			if (Proxy->SourceDIName == MetaData->IterationSource)
 				return Proxy;
@@ -1061,9 +1067,8 @@ FNiagaraDataInterfaceProxy* FNiagaraComputeExecutionContext::FindIterationInterf
 	}
 	else if (SimStageInfo.Num() == 0)
 	{
-
 		// Fallback to old shader stages
-		for (FNiagaraDataInterfaceProxy* Proxy : InProxies)
+		for (FNiagaraDataInterfaceProxyRW* Proxy : InProxies)
 		{
 			if (Proxy->IsIterationStage_DEPRECATED(CurrentStage))
 				return Proxy;
@@ -1200,14 +1205,12 @@ bool FNiagaraComputeInstanceData::IsIterationStage(FNiagaraDataInterfaceProxy* D
 	return false;
 }
 
-FNiagaraDataInterfaceProxy* FNiagaraComputeInstanceData::FindIterationInterface(uint32 SimulationStageIndex) const
+FNiagaraDataInterfaceProxyRW* FNiagaraComputeInstanceData::FindIterationInterface(uint32 SimulationStageIndex) const
 {
-
 	if (bUsesOldShaderStages)
 	{
-		FNiagaraDataInterfaceProxy* IterationInterface = nullptr;
-
-		for (FNiagaraDataInterfaceProxy* Interface : DataInterfaceProxies)
+		FNiagaraDataInterfaceProxyRW* IterationInterface = nullptr;
+		for (FNiagaraDataInterfaceProxyRW* Interface : IterationDataInterfaceProxies)
 		{
 			if (Interface->IsIterationStage_DEPRECATED(SimulationStageIndex))
 			{
@@ -1221,11 +1224,12 @@ FNiagaraDataInterfaceProxy* FNiagaraComputeInstanceData::FindIterationInterface(
 				}
 			}
 		}
+
 		return IterationInterface;
 	}
 	else if (bUsesSimStages)
 	{
-		return Context->FindIterationInterface(DataInterfaceProxies, SimulationStageIndex);
+		return Context->FindIterationInterface(IterationDataInterfaceProxies, SimulationStageIndex);
 	}
 	return nullptr;
 }

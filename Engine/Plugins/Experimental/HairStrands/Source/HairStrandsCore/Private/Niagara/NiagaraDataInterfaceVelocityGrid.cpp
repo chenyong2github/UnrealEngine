@@ -233,16 +233,6 @@ bool UNiagaraDataInterfaceVelocityGrid::InitPerInstanceData(void* PerInstanceDat
 	FNDIVelocityGridData* InstanceData = new (PerInstanceData) FNDIVelocityGridData();
 	check(InstanceData);
 
-	const FIntVector ElementCount = GridSize + FIntVector(1, 1, 1);
-
-	FNDIVelocityGridProxy* ThisProxy = GetProxyAs<FNDIVelocityGridProxy>();
-	ENQUEUE_RENDER_COMMAND(FNiagaraDIPushInitialInstanceDataToRT) (
-		[ThisProxy, InstanceID = SystemInstance->GetId(), ElementCount](FRHICommandListImmediate& CmdList)
-	{
-		ThisProxy->SetElementCount(ElementCount);
-	}
-	);
-
 	return InstanceData->Init(this->GridSize, NumAttributes, SystemInstance);
 }
 
@@ -273,16 +263,6 @@ bool UNiagaraDataInterfaceVelocityGrid::PerInstanceTick(void* PerInstanceData, F
 
 		if (InstanceData->NeedResize)
 		{
-			const FIntVector ElementCount = InstanceData->GridSize + FIntVector(1, 1, 1);
-
-			FNDIVelocityGridProxy* ThisProxy = GetProxyAs<FNDIVelocityGridProxy>();
-			ENQUEUE_RENDER_COMMAND(FNiagaraDIPushInitialInstanceDataToRT) (
-				[ThisProxy, InstanceID = SystemInstance->GetId(), ElementCount](FRHICommandListImmediate& CmdList)
-			{
-				ThisProxy->SetElementCount(ElementCount);
-			}
-			);
-
 			InstanceData->Resize();
 		}
 	}
@@ -775,5 +755,14 @@ void FNDIVelocityGridProxy::ResetData(FRHICommandList& RHICmdList, const FNiagar
 	}
 }
 
+// Get the element count for this instance
+FIntVector FNDIVelocityGridProxy::GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const
+{
+	if  ( const FNDIVelocityGridData* ProxyData = SystemInstancesToProxyData.Find(SystemInstanceID) )
+	{
+		return FIntVector(ProxyData->GridSize.X + 1, ProxyData->GridSize.Y + 1, ProxyData->GridSize.Z + 1);
+	}
+	return FIntVector::ZeroValue;
+}
 
 #undef LOCTEXT_NAMESPACE

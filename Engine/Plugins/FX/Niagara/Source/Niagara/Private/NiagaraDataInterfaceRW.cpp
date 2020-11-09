@@ -76,9 +76,7 @@ UNiagaraDataInterfaceGrid3D::UNiagaraDataInterfaceGrid3D(FObjectInitializer cons
 	, SetResolutionMethod(ESetResolutionMethod::Independent)	
 	, WorldBBoxSize(100., 100., 100.)
 {
-	Proxy.Reset(new FNiagaraDataInterfaceProxyRW());
 }
-
 
 void UNiagaraDataInterfaceGrid3D::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
@@ -500,7 +498,6 @@ UNiagaraDataInterfaceGrid2D::UNiagaraDataInterfaceGrid2D(FObjectInitializer cons
 	, SetGridFromMaxAxis(false)	
 	, WorldBBoxSize(100., 100.)
 {
-	Proxy.Reset(new FNiagaraDataInterfaceProxyRW());	
 }
 
 #if WITH_EDITOR

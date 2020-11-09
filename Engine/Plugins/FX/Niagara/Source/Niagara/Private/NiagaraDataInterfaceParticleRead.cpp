@@ -126,7 +126,7 @@ struct FNDIParticleRead_RenderInstanceData
 	uint32 bWarnFailedToFindAcquireTag : 1;
 };
 
-struct FNiagaraDataInterfaceProxyParticleRead : public FNiagaraDataInterfaceProxy
+struct FNiagaraDataInterfaceProxyParticleRead : public FNiagaraDataInterfaceProxyRW
 {
 	virtual void ConsumePerInstanceDataFromGameThread(void* Data, const FNiagaraSystemInstanceID& InstanceID) override
 	{
@@ -172,12 +172,9 @@ struct FNiagaraDataInterfaceProxyParticleRead : public FNiagaraDataInterfaceProx
 		return SystemsRenderData.Find(InstanceID);
 	}
 
-	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override
+	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override
 	{
-		uint32 ParticleCount = 0;
-		uint32 InstanceCountOffset = INDEX_NONE;
-
-		FNDIParticleRead_RenderInstanceData* InstanceData = SystemsRenderData.Find(Context.SystemInstanceID);
+		const FNDIParticleRead_RenderInstanceData* InstanceData = SystemsRenderData.Find(SystemInstanceID);
 		if (ensure(InstanceData))
 		{
 			if ( InstanceData->SourceEmitterGPUContext != nullptr )
@@ -186,15 +183,32 @@ struct FNiagaraDataInterfaceProxyParticleRead : public FNiagaraDataInterfaceProx
 				{
 					if ( const FNiagaraDataBuffer* CurrentData = SourceDataSet->GetCurrentData() )
 					{
-						ParticleCount = CurrentData->GetNumInstances();
-						InstanceCountOffset = CurrentData->GetGPUInstanceCountBufferOffset();
+						return FIntVector(CurrentData->GetNumInstances(), 1, 1);
+					}
+				}
+			}
+		}
+		return FIntVector::ZeroValue;
+	}
+
+	virtual uint32 GetGPUInstanceCountOffset(FNiagaraSystemInstanceID SystemInstanceID) const override
+	{
+		const FNDIParticleRead_RenderInstanceData* InstanceData = SystemsRenderData.Find(SystemInstanceID);
+		if (ensure(InstanceData))
+		{
+			if ( InstanceData->SourceEmitterGPUContext != nullptr )
+			{
+				if ( FNiagaraDataSet* SourceDataSet = InstanceData->SourceEmitterGPUContext->MainDataSet )
+				{
+					if ( const FNiagaraDataBuffer* CurrentData = SourceDataSet->GetCurrentData() )
+					{
+						return CurrentData->GetGPUInstanceCountBufferOffset();
 					}
 				}
 			}
 		}
 
-		SetElementCount(ParticleCount);
-		SetGPUInstanceCountOffset(InstanceCountOffset);
+		return INDEX_NONE;
 	}
 
 private:

@@ -10,6 +10,7 @@
 #include "NiagaraWorldManager.h"
 #include "NiagaraShaderParticleID.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraDataInterfaceRW.h"
 #if WITH_EDITOR
 #include "NiagaraGpuComputeDebug.h"
 #endif
@@ -107,7 +108,7 @@ namespace NiagaraEmitterInstanceBatcherLocal
 		return ETickStage::PreInitViews;
 	}
 
-	static bool ShouldRunStage(const FNiagaraGPUSystemTick* Tick, FNiagaraComputeExecutionContext* Context, FNiagaraDataInterfaceProxy* IterationInterface, uint32 StageIndex)
+	static bool ShouldRunStage(const FNiagaraGPUSystemTick* Tick, FNiagaraComputeExecutionContext* Context, FNiagaraDataInterfaceProxyRW* IterationInterface, uint32 StageIndex)
 	{
 		if (!IterationInterface || Context->SpawnStages.Num() == 0)
 		{
@@ -444,7 +445,7 @@ bool NiagaraEmitterInstanceBatcher::ResetDataInterfaces(const FNiagaraGPUSystemT
 	return ValidSpawnStage;
 }
 
-FNiagaraDataInterfaceProxy* NiagaraEmitterInstanceBatcher::FindIterationInterface(FNiagaraComputeInstanceData* Instance, const uint32 SimulationStageIndex) const
+FNiagaraDataInterfaceProxyRW* NiagaraEmitterInstanceBatcher::FindIterationInterface(FNiagaraComputeInstanceData* Instance, const uint32 SimulationStageIndex) const
 {
 	// Determine if the iteration is outputting to a custom data size
 	return Instance->FindIterationInterface(SimulationStageIndex);
@@ -538,21 +539,20 @@ void NiagaraEmitterInstanceBatcher::DispatchStage(FDispatchInstance& DispatchIns
 	const FNiagaraShaderRef ComputeShader = Context->GPUScript_RT->GetShader(PermutationId);
 
 	const uint32 DefaultSimulationStageIndex = Instance->Context->DefaultSimulationStageIndex;
-	FNiagaraDataInterfaceProxy* IterationInterface = Instance->SimStageData[StageIndex].AlternateIterationSource;
+	FNiagaraDataInterfaceProxyRW* IterationInterface = Instance->SimStageData[StageIndex].AlternateIterationSource;
 	if (!IterationInterface)
 	{
 		Run(Tick, Instance, 0, Instance->SimStageData[StageIndex].DestinationNumInstances, ComputeShader, RHICmdList, ViewUniformBuffer, Instance->SpawnInfo, false, DefaultSimulationStageIndex, StageIndex, nullptr, StageIndex > 0);
 	}
 	else
 	{
+		const FIntVector ElementCount = IterationInterface->GetElementCount(Tick.SystemInstanceID);
+		const uint64 TotalNumInstances = ElementCount.X * ElementCount.Y * ElementCount.Z;
+
 		// Verify the number of elements isn't higher that what we can handle
-		checkf(
-			uint64(IterationInterface->ElementCount.X) * uint64(IterationInterface->ElementCount.Y) * uint64(IterationInterface->ElementCount.Z) < uint64(TNumericLimits<int32>::Max()),
-			TEXT("ElementCount(%d, %d, %d) for IterationInterface(%s) overflows an int32 this is not allowed"),
-			IterationInterface->ElementCount.X, IterationInterface->ElementCount.Y, IterationInterface->ElementCount.Z, *IterationInterface->SourceDIName.ToString()
-		);
-		const uint32 TotalNumInstances = IterationInterface->ElementCount.X * IterationInterface->ElementCount.Y * IterationInterface->ElementCount.Z;
-		Run(Tick, Instance, 0, TotalNumInstances, ComputeShader, RHICmdList, ViewUniformBuffer, Instance->SpawnInfo, false, DefaultSimulationStageIndex, StageIndex, IterationInterface);
+		checkf(TotalNumInstances < uint64(TNumericLimits<int32>::Max()), TEXT("ElementCount(%d, %d, %d) for IterationInterface(%s) overflows an int32 this is not allowed"), ElementCount.X, ElementCount.Y, ElementCount.Z, *IterationInterface->SourceDIName.ToString());
+
+		Run(Tick, Instance, 0, uint32(TotalNumInstances), ComputeShader, RHICmdList, ViewUniformBuffer, Instance->SpawnInfo, false, DefaultSimulationStageIndex, StageIndex, IterationInterface);
 	}
 
 	// for long running dispatches we may want to issue a hint to the command list to break things up
@@ -627,7 +627,7 @@ void NiagaraEmitterInstanceBatcher::BuildDispatchGroups(FOverlappableTicks& Over
 
 				FDispatchGroup* StageGroup = DispatchGroups.IsValidIndex(StageGroupIndex) ? &DispatchGroups[StageGroupIndex] : &DispatchGroups.AddDefaulted_GetRef();
 
-				FNiagaraDataInterfaceProxy* IterationInterface = InstanceData.SimStageData[iStage].AlternateIterationSource;
+				FNiagaraDataInterfaceProxyRW* IterationInterface = InstanceData.SimStageData[iStage].AlternateIterationSource;
 				if (!IterationInterface)
 				{
 					if (FNiagaraDataBuffer* DestinationData = InstanceData.SimStageData[iStage].Destination)
@@ -1065,7 +1065,7 @@ void NiagaraEmitterInstanceBatcher::BuildTickStagePasses(FRHICommandListImmediat
 							InstanceData.SimStageData[SimulationStageIndex].DestinationNumInstances = DestinationNumInstances;
 
 							// Determine if the iteration is outputting to a custom data size
-							FNiagaraDataInterfaceProxy* IterationInterface = FindIterationInterface(&InstanceData, SimulationStageIndex);
+							FNiagaraDataInterfaceProxyRW* IterationInterface = FindIterationInterface(&InstanceData, SimulationStageIndex);
 							InstanceData.SimStageData[SimulationStageIndex].AlternateIterationSource = IterationInterface;
 
 							if (!NiagaraEmitterInstanceBatcherLocal::ShouldRunStage(Tick, ExecContext, IterationInterface, SimulationStageIndex))
@@ -1720,7 +1720,7 @@ void NiagaraEmitterInstanceBatcher::SetConstantBuffers(FRHICommandList &RHICmdLi
 /* Kick off a simulation/spawn run
  */
 void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData* Instance, uint32 UpdateStartInstance, const uint32 TotalNumInstances, const FNiagaraShaderRef& Shader,
-	FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const FNiagaraGpuSpawnInfo& SpawnInfo, bool bCopyBeforeStart, uint32 DefaultSimulationStageIndex, uint32 SimulationStageIndex, FNiagaraDataInterfaceProxy* IterationInterface, bool HasRunParticleStage)
+	FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const FNiagaraGpuSpawnInfo& SpawnInfo, bool bCopyBeforeStart, uint32 DefaultSimulationStageIndex, uint32 SimulationStageIndex, FNiagaraDataInterfaceProxyRW* IterationInterface, bool HasRunParticleStage)
 {
 	FNiagaraComputeExecutionContext* Context = Instance->Context;
 
@@ -1839,7 +1839,7 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 
 		if (IterationInterface)
 		{
-			const uint32 IterationInstanceCountOffset = IterationInterface->GPUInstanceCountOffset;
+			const uint32 IterationInstanceCountOffset = IterationInterface->GetGPUInstanceCountOffset(Tick.SystemInstanceID);
 			SimulationStageIterationInfo.X = IterationInstanceCountOffset;
 			SimulationStageIterationInfo.Y = IterationInstanceCountOffset == INDEX_NONE ? TotalNumInstances : 0;
 			if (const FSimulationStageMetaData* StageMetaData = Instance->SimStageData[SimulationStageIndex].StageMetaData)
