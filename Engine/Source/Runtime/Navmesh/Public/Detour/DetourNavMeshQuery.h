@@ -424,7 +424,7 @@ public:
 	///  @param[out]	resultParent	The reference ids of the parent polygons for each result. 
 	///  								Zero if a result polygon has no parent. [opt]
 	///  @param[out]	resultCost		The search cost from @p centerPos to the polygon. [opt]
-	///  @param[out]	resultCount		The number of polygons found. [opt]
+	///  @param[out]	resultCount		The number of polygons found.
 	///  @param[in]		maxResult		The maximum number of polygons the result arrays can hold.
 	/// @returns The status flags for the query.
 	dtStatus findPolysAroundCircle(dtPolyRef startRef, const float* centerPos, const float radius,
