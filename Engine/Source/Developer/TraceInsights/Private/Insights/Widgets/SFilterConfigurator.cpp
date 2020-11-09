@@ -160,8 +160,9 @@ void SFilterConfigurator::Construct(const FArguments& InArgs, TSharedPtr<FFilter
 
 	TreeViewHeaderRow->InsertColumn(ColumnArgs, 0);
 
+	OnViewModelDestroyedHandle = InFilterConfiguratorViewModel->GetOnDestroyedEvent().AddSP(this, &SFilterConfigurator::RequestClose);
 	OriginalFilterConfiguratorViewModel = InFilterConfiguratorViewModel;
-	FilterConfiguratorViewModel = MakeShared<FFilterConfigurator>(*OriginalFilterConfiguratorViewModel);
+	FilterConfiguratorViewModel = MakeShared<FFilterConfigurator>(*InFilterConfiguratorViewModel);
 
 	GroupNodes.Add(FilterConfiguratorViewModel->GetRootNode());
 }
@@ -195,12 +196,13 @@ TSharedRef<ITableRow> SFilterConfigurator::TreeView_OnGenerateRow(FFilterConfigu
 
 FReply SFilterConfigurator::OK_OnClicked()
 {
-	*OriginalFilterConfiguratorViewModel = *FilterConfiguratorViewModel;
-	if (ParentTab.IsValid())
+	TSharedPtr<FFilterConfigurator> OriginalFilterVM = OriginalFilterConfiguratorViewModel.Pin();
+	if (OriginalFilterVM.IsValid())
 	{
-		ParentTab.Pin()->RequestCloseTab();
-		ParentTab.Reset();
+		*OriginalFilterVM = *FilterConfiguratorViewModel;
 	}
+
+	RequestClose();
 
 	return FReply::Handled();
 }
@@ -209,13 +211,27 @@ FReply SFilterConfigurator::OK_OnClicked()
 
 FReply SFilterConfigurator::Cancel_OnClicked()
 {
-	if (ParentTab.IsValid())
-	{
-		ParentTab.Pin()->RequestCloseTab();
-		ParentTab.Reset();
-	}
+	RequestClose();
 
 	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SFilterConfigurator::RequestClose()
+{
+	TSharedPtr<SDockTab> ParentTabSharedPtr = ParentTab.Pin();
+	if (ParentTabSharedPtr.IsValid())
+	{
+		ParentTabSharedPtr->RequestCloseTab();
+		ParentTabSharedPtr.Reset();
+	}
+
+	TSharedPtr<FFilterConfigurator> OriginalFilterVM = OriginalFilterConfiguratorViewModel.Pin();
+	if (OriginalFilterVM.IsValid())
+	{
+		OriginalFilterVM->GetOnDestroyedEvent().Remove(OnViewModelDestroyedHandle);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

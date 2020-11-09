@@ -52,6 +52,8 @@ public:
 	void SetParentTab(const TSharedPtr<SDockTab> InTab) { ParentTab = InTab; }
 	const TWeakPtr<SDockTab> GetParentTab() { return ParentTab; };
 
+	void RequestClose();
+
 private:
 	void InitCommandList();
 
@@ -61,7 +63,7 @@ private:
 
 private:
 
-	TSharedPtr<class FFilterConfigurator> OriginalFilterConfiguratorViewModel;
+	TWeakPtr<class FFilterConfigurator> OriginalFilterConfiguratorViewModel;
 
 	TSharedPtr<class FFilterConfigurator> FilterConfiguratorViewModel;
 
@@ -78,6 +80,8 @@ private:
 	TArray<FFilterConfiguratorNodePtr> GroupNodes;
 
 	TWeakPtr<SDockTab> ParentTab;
+
+	FDelegateHandle OnViewModelDestroyedHandle;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

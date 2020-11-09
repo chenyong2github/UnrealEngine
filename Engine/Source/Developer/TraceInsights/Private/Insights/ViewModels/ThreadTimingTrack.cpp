@@ -613,6 +613,16 @@ INSIGHTS_IMPLEMENT_RTTI(FThreadTimingTrack)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FThreadTimingTrack::~FThreadTimingTrack()
+{
+	if (FilterConfigurator.IsValid())
+	{
+		FilterConfigurator->GetOnChangesCommitedEvent().Remove(OnFilterChangesCommitedHandle);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FThreadTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context)
 {
 	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
@@ -1323,7 +1333,7 @@ void FThreadTimingTrack::OnFilterTrackClicked()
 		FilterConfigurator->AddFilter(EFilterField::Duration);
 		FilterConfigurator->AddFilter(EFilterField::EventType);
 
-		FilterConfigurator->SetOnChangesCommitedCallback([this]()
+		OnFilterChangesCommitedHandle = FilterConfigurator->GetOnChangesCommitedEvent().AddLambda([this]()
 			{
 				this->SetDirtyFlag();
 			});

@@ -116,7 +116,7 @@ public:
 	{
 	}
 
-	virtual ~FThreadTimingTrack() {}
+	virtual ~FThreadTimingTrack();
 
 	const TCHAR* GetGroupName() const { return GroupName; };
 
@@ -165,6 +165,7 @@ private:
 	uint32 ThreadId;
 
 	TSharedPtr<class FFilterConfigurator> FilterConfigurator;
+	FDelegateHandle OnFilterChangesCommitedHandle;
 
 	// Search cache
 	mutable TTimingEventSearchCache<Trace::FTimingProfilerEvent> SearchCache;

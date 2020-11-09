@@ -2,6 +2,8 @@
 
 #include "FilterConfigurator.h"
 
+#include "Insights/Widgets/SFilterConfigurator.h"
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FFilterConfigurator::FFilterConfigurator()
@@ -9,6 +11,13 @@ FFilterConfigurator::FFilterConfigurator()
 	RootNode = MakeShared<FFilterConfiguratorNode>(TEXT(""), true);
 	AvailableFilters = MakeShared<TArray<TSharedPtr<FFilter>>>();
 	RootNode->SetAvailableFilters(AvailableFilters);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FFilterConfigurator::~FFilterConfigurator()
+{
+	OnDestroyedEvent.Broadcast();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -25,11 +34,9 @@ FFilterConfigurator& FFilterConfigurator::operator=(const FFilterConfigurator& O
 	RootNode = MakeShared<FFilterConfiguratorNode>(*Other.RootNode);
 	RootNode->SetGroupPtrForChildren();
 	AvailableFilters = Other.AvailableFilters;
+	OnDestroyedEvent = Other.OnDestroyedEvent;
 
-	if (OnChangesCommitedCallback)
-	{
-		OnChangesCommitedCallback();
-	}
+	OnChangesCommitedEvent.Broadcast();
 
 	RootNode->ProcessFilter();
 
