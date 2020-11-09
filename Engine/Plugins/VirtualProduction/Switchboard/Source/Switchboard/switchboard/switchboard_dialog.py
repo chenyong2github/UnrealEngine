@@ -929,10 +929,12 @@ class SwitchboardDialog(QtCore.QObject):
 
     @QtCore.Slot(object)
     def device_status_changed(self, device, previous_status):
-        LOGGER.debug(f'{device.name}: device status change: {device.status.name}')
 
         # Update the device widget
         self.device_list_widget.update_status(device, previous_status)
+
+        if previous_status != device.status:
+            LOGGER.debug(f'{device.name}: device status change: {device.status.name}')
 
         if previous_status == DeviceStatus.RECORDING and device.status >= DeviceStatus.OPEN:
             self.device_record_stop_confirm(device)
