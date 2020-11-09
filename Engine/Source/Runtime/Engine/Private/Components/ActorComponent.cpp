@@ -749,7 +749,11 @@ void UActorComponent::PreEditChange(FProperty* PropertyThatWillChange)
 		if( !IsPendingKill() )
 		{
 			// One way this check can fail is that component subclass does not call Super::PostEditChangeProperty
-			check(!EditReregisterContexts.Find(this));
+			checkf(!EditReregisterContexts.Find(this),
+				TEXT("UActorComponent::PreEditChange(this=%s, owner actor class=%s) already had PreEditChange called on it with no matching PostEditChange; You might be missing a call to Super::PostEditChangeProperty in your PostEditChangeProperty implementation"),
+				*GetFullNameSafe(this),
+				(GetOwner() != nullptr) ? *GetOwner()->GetClass()->GetName() : TEXT("no owner"));
+
 			EditReregisterContexts.Add(this,new FComponentReregisterContext(this));
 		}
 		else
