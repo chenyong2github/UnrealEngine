@@ -86,16 +86,16 @@ FConstMemoryView FCbField::AsMemoryView() const
 {
 	const uint32 TypeSize = FCbFieldType::HasFieldType(Type) ? sizeof(ECbFieldType) : 0;
 	const uint32 NameSize = FCbFieldType::HasFieldName(Type) ? NameLen + MeasureVarUInt(NameLen) : 0;
-	const uint64 LocalPayloadSize = PayloadSize();
-	return MakeMemoryView(static_cast<const uint8*>(Payload) - TypeSize - NameSize, TypeSize + NameSize + PayloadSize());
+	const uint64 LocalPayloadSize = GetPayloadSize();
+	return MakeMemoryView(static_cast<const uint8*>(Payload) - TypeSize - NameSize, TypeSize + NameSize + GetPayloadSize());
 }
 
-uint64 FCbField::Size() const
+uint64 FCbField::GetSize() const
 {
 	return AsMemoryView().GetSize();
 }
 
-uint64 FCbField::PayloadSize() const
+uint64 FCbField::GetPayloadSize() const
 {
 	switch (FCbFieldType::GetType(Type))
 	{
@@ -446,7 +446,7 @@ FConstMemoryView FCbArray::AsMemoryView() const
 	return MakeMemoryView(Payload, PayloadSizeByteCount + PayloadSize);
 }
 
-uint64 FCbArray::Size() const
+uint64 FCbArray::GetSize() const
 {
 	return sizeof(ECbFieldType) + AsMemoryView().GetSize();
 }
@@ -516,7 +516,7 @@ FConstMemoryView FCbObject::AsMemoryView() const
 	return MakeMemoryView(Payload, PayloadSizeByteCount + PayloadSize);
 }
 
-uint64 FCbObject::Size() const
+uint64 FCbObject::GetSize() const
 {
 	return sizeof(ECbFieldType) + AsMemoryView().GetSize();
 }
@@ -546,7 +546,7 @@ FCbField FCbObject::Find(const FAnsiStringView Name) const
 {
 	for (const FCbField Field : *this)
 	{
-		if (Name.Equals(Field.Name(), ESearchCase::CaseSensitive))
+		if (Name.Equals(Field.GetName(), ESearchCase::CaseSensitive))
 		{
 			return Field;
 		}
@@ -558,7 +558,7 @@ FCbField FCbObject::FindIgnoreCase(const FAnsiStringView Name) const
 {
 	for (const FCbField Field : *this)
 	{
-		if (Name.Equals(Field.Name(), ESearchCase::IgnoreCase))
+		if (Name.Equals(Field.GetName(), ESearchCase::IgnoreCase))
 		{
 			return Field;
 		}
@@ -763,7 +763,7 @@ static void ValidateCbObject(FConstMemoryView& View, ECbValidateMode Mode, ECbVa
 				{
 					if (Field.HasName())
 					{
-						Names.Add(Field.Name());
+						Names.Add(Field.GetName());
 					}
 					else
 					{

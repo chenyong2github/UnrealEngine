@@ -378,13 +378,13 @@ public:
 	CORE_API explicit FCbField(const void* Data, ECbFieldType Type = ECbFieldType::HasFieldType);
 
 	/** Name of the field if it has one, otherwise empty. */
-	constexpr inline FAnsiStringView Name() const
+	constexpr inline FAnsiStringView GetName() const
 	{
 		return FAnsiStringView(static_cast<const ANSICHAR*>(Payload) - NameLen, NameLen);
 	}
 
 	/** Size of the field in bytes. */
-	CORE_API uint64 Size() const;
+	CORE_API uint64 GetSize() const;
 
 	/**
 	 * Whether this field is identical to the other field.
@@ -506,7 +506,7 @@ protected:
 	constexpr inline ECbFieldType GetType() const { return Type; }
 	constexpr inline ECbFieldType GetCopyType() const { return Type; }
 	constexpr inline const void* GetPayload() const { return Payload; }
-	inline const void* GetPayloadEnd() const { return static_cast<const uint8*>(Payload) + PayloadSize(); }
+	inline const void* GetPayloadEnd() const { return static_cast<const uint8*>(Payload) + GetPayloadSize(); }
 
 	inline void Assign(const void* InData, const ECbFieldType InType)
 	{
@@ -516,7 +516,7 @@ protected:
 	}
 
 	/**
-	 * Copy the field into a buffer of at least Size() bytes.
+	 * Copy the field into a buffer of at least GetSize() bytes.
 	 *
 	 * The field type will only be copied if HasFieldType is set.
 	 */
@@ -527,7 +527,7 @@ protected:
 
 private:
 	/** Size of the field payload in bytes. That is the field excluding its type and name. */
-	CORE_API uint64 PayloadSize() const;
+	CORE_API uint64 GetPayloadSize() const;
 
 	/** Parameters for converting to an integer. */
 	struct FIntegerParams
@@ -612,7 +612,7 @@ public:
 	CORE_API explicit FCbArray(const void* Data, ECbFieldType Type = ECbFieldType::HasFieldType);
 
 	/** Size of the array in bytes if serialized by itself with no name. */
-	CORE_API uint64 Size() const;
+	CORE_API uint64 GetSize() const;
 
 	/** Number of items in the array. */
 	CORE_API uint64 Num() const;
@@ -634,7 +634,7 @@ public:
 protected:
 	inline ECbFieldType GetCopyType() const { return FCbFieldType::GetType(Type) | ECbFieldType::HasFieldType; }
 
-	/** Copy the array into a buffer of at least Size() bytes. */
+	/** Copy the array into a buffer of at least GetSize() bytes. */
 	CORE_API void CopyTo(FMutableMemoryView Buffer) const;
 
 	/** Create a view of the payload, excluding the type or the name of the outer field. */
@@ -677,7 +677,7 @@ public:
 	CORE_API explicit FCbObject(const void* Data, ECbFieldType Type = ECbFieldType::HasFieldType);
 
 	/** Size of the object in bytes if serialized by itself with no name. */
-	CORE_API uint64 Size() const;
+	CORE_API uint64 GetSize() const;
 
 	/** Create an iterator for the fields of this object. */
 	CORE_API FCbFieldIterator CreateIterator() const;
@@ -713,7 +713,7 @@ public:
 protected:
 	inline ECbFieldType GetCopyType() const { return FCbFieldType::GetType(Type) | ECbFieldType::HasFieldType; }
 
-	/** Copy the object into a buffer of at least Size() bytes. */
+	/** Copy the object into a buffer of at least GetSize() bytes. */
 	CORE_API void CopyTo(FMutableMemoryView Buffer) const;
 
 	/** Create a view of the payload, excluding the type or the name of the outer field. */
@@ -750,7 +750,7 @@ public:
 	{
 		if (ValueBuffer->IsOwned())
 		{
-			BufferPtr = ValueBuffer;
+			Buffer = ValueBuffer;
 		}
 	}
 
@@ -762,7 +762,7 @@ public:
 			static_cast<BaseType&>(*this) = BaseType(ValueBuffer->GetData());
 			if (ValueBuffer->IsOwned())
 			{
-				BufferPtr = ValueBuffer;
+				Buffer = ValueBuffer;
 			}
 		}
 	}
@@ -775,7 +775,7 @@ public:
 			static_cast<BaseType&>(*this) = BaseType(ValueBuffer->GetData());
 			if (ValueBuffer->IsOwned())
 			{
-				BufferPtr = MoveTemp(ValueBuffer);
+				Buffer = MoveTemp(ValueBuffer);
 			}
 		}
 	}
@@ -795,7 +795,7 @@ public:
 			check(ValueBuffer->GetView().Contains(BaseType::AsMemoryView()));
 			if (ValueBuffer->IsOwned())
 			{
-				BufferPtr = ValueBuffer;
+				Buffer = ValueBuffer;
 			}
 		}
 	}
@@ -809,7 +809,7 @@ public:
 			check(ValueBuffer->GetView().Contains(BaseType::AsMemoryView()));
 			if (ValueBuffer->IsOwned())
 			{
-				BufferPtr = MoveTemp(ValueBuffer);
+				Buffer = MoveTemp(ValueBuffer);
 			}
 		}
 	}
@@ -817,19 +817,19 @@ public:
 	/** Construct a value that holds a reference to the buffer of the outer that contains it. */
 	template <typename OtherBaseType>
 	inline TCbBufferRef(const BaseType& Value, const TCbBufferRef<OtherBaseType>& OuterRef)
-		: TCbBufferRef(Value, OuterRef.BufferPtr)
+		: TCbBufferRef(Value, OuterRef.Buffer)
 	{
 	}
 
 	/** Construct a value that holds a reference to the buffer of the outer that contains it. */
 	template <typename OtherBaseType>
 	inline TCbBufferRef(const BaseType& Value, TCbBufferRef<OtherBaseType>&& OuterRef)
-		: TCbBufferRef(Value, MoveTemp(OuterRef.BufferPtr))
+		: TCbBufferRef(Value, MoveTemp(OuterRef.Buffer))
 	{
 	}
 
 	/** Whether this reference has ownership of the memory in its buffer. */
-	inline bool IsOwned() const { return BufferPtr && BufferPtr->IsOwned(); }
+	inline bool IsOwned() const { return Buffer && Buffer->IsOwned(); }
 
 	/** Clone the value, if necessary, to a buffer that this reference has ownership of. */
 	inline void MakeOwned()
@@ -841,28 +841,28 @@ public:
 	}
 
 	/** Whether this reference is backed by a read-only buffer. */
-	inline bool IsReadOnly() const { return BufferPtr && BufferPtr->IsReadOnly(); }
+	inline bool IsReadOnly() const { return Buffer && Buffer->IsReadOnly(); }
 
 	/** Clone the value, if necessary, to a read-only buffer. */
 	inline void MakeReadOnly()
 	{
 		if (!IsReadOnly())
 		{
-			FSharedBufferPtr Buffer = FSharedBuffer::Alloc(BaseType::Size());
-			BaseType::CopyTo(*Buffer);
-			static_cast<BaseType&>(*this) = BaseType(Buffer->GetData(), BaseType::GetCopyType());
-			BufferPtr = FSharedBuffer::MakeReadOnly(MoveTemp(Buffer));
+			FSharedBufferPtr MutableBuffer = FSharedBuffer::Alloc(BaseType::GetSize());
+			BaseType::CopyTo(*MutableBuffer);
+			static_cast<BaseType&>(*this) = BaseType(MutableBuffer->GetData(), BaseType::GetCopyType());
+			Buffer = FSharedBuffer::MakeReadOnly(MoveTemp(MutableBuffer));
 		}
 	}
 
 	/** The buffer (if any) that contains this value. */
-	inline const FSharedBufferConstPtr& Buffer() const { return BufferPtr; }
+	inline const FSharedBufferConstPtr& GetBuffer() const { return Buffer; }
 
 private:
 	template <typename OtherType>
 	friend class TCbBufferRef;
 
-	FSharedBufferConstPtr BufferPtr;
+	FSharedBufferConstPtr Buffer;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -908,7 +908,7 @@ public:
 	static inline RefType TakeOwnership(const void* const Data, DeleteFunctionOrBufferOwnerType&& DeleteFunctionOrBufferOwner)
 	{
 		const BaseType Value(Data);
-		FSharedBufferConstPtr Buffer = FSharedBuffer::TakeOwnership(Data, Value.Size(),
+		FSharedBufferConstPtr Buffer = FSharedBuffer::TakeOwnership(Data, Value.GetSize(),
 			Forward<DeleteFunctionOrBufferOwnerType>(DeleteFunctionOrBufferOwner));
 		return RefType(Value, FSharedBuffer::MakeReadOnly(MoveTemp(Buffer)));
 	}
@@ -953,7 +953,7 @@ public:
 	inline FCbFieldRefIterator CreateRefIterator() const
 	{
 		FCbFieldIterator It = CreateIterator();
-		return FCbFieldRefIterator(FCbFieldRef(It, Buffer()), It);
+		return FCbFieldRefIterator(FCbFieldRef(It, GetBuffer()), It);
 	}
 };
 
@@ -969,7 +969,7 @@ public:
 	inline FCbFieldRefIterator CreateRefIterator() const
 	{
 		FCbFieldIterator It = CreateIterator();
-		return FCbFieldRefIterator(FCbFieldRef(It, Buffer()), It);
+		return FCbFieldRefIterator(FCbFieldRef(It, GetBuffer()), It);
 	}
 
 	/** Find a field by case-sensitive name comparison. */

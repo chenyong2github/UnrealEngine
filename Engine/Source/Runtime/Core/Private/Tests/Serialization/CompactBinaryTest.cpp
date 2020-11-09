@@ -123,7 +123,7 @@ protected:
 	void TestField(TArrayView<const uint8> Payload, T ExpectedValue = T(), T DefaultValue = T())
 	{
 		FCbField Field(Payload.GetData(), FieldType);
-		TestEqual(TEXT("FCbField::Size()"), Field.Size(), uint64(Payload.Num()));
+		TestEqual(TEXT("FCbField::GetSize()"), Field.GetSize(), uint64(Payload.Num()));
 		TestTrue(TEXT("FCbField::HasValue()"), Field.HasValue());
 		TestFalse(TEXT("FCbField::HasError() == false"), Field.HasError());
 		TestEqual(TEXT("FCbField::GetError() == None"), Field.GetError(), ECbFieldError::None);
@@ -181,8 +181,8 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		static_assert(!DefaultField.HasValue(), "Error in HasValue()");
 		static_assert(!DefaultField.HasError(), "Error in HasError()");
 		static_assert(DefaultField.GetError() == ECbFieldError::None, "Error in GetError()");
-		TestEqual(TEXT("FCbField()::Size() == 0"), DefaultField.Size(), uint64(0));
-		TestEqual(TEXT("FCbField()::Name().Len() == 0"), DefaultField.Name().Len(), 0);
+		TestEqual(TEXT("FCbField()::GetSize() == 0"), DefaultField.GetSize(), uint64(0));
+		TestEqual(TEXT("FCbField()::GetName().Len() == 0"), DefaultField.GetName().Len(), 0);
 		TestFalse(TEXT("!FCbField()::HasName()"), DefaultField.HasName());
 		TestFalse(TEXT("!FCbField()::HasValue()"), DefaultField.HasValue());
 		TestFalse(TEXT("!FCbField()::HasError()"), DefaultField.HasError());
@@ -192,8 +192,8 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 	// Test FCbField(None)
 	{
 		FCbField NoneField(nullptr, ECbFieldType::None);
-		TestEqual(TEXT("FCbField(None)::Size() == 0"), NoneField.Size(), uint64(0));
-		TestEqual(TEXT("FCbField(None)::Name().Len() == 0"), NoneField.Name().Len(), 0);
+		TestEqual(TEXT("FCbField(None)::GetSize() == 0"), NoneField.GetSize(), uint64(0));
+		TestEqual(TEXT("FCbField(None)::GetName().Len() == 0"), NoneField.GetName().Len(), 0);
 		TestFalse(TEXT("!FCbField(None)::HasName()"), NoneField.HasName());
 		TestFalse(TEXT("!FCbField(None)::HasValue()"), NoneField.HasValue());
 		TestFalse(TEXT("!FCbField(None)::HasError()"), NoneField.HasError());
@@ -205,8 +205,8 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		constexpr ECbFieldType FieldType = ECbFieldType::None | ECbFieldType::HasFieldName;
 		constexpr const ANSICHAR NoneBytes[] = { ANSICHAR(FieldType), 4, 'N', 'a', 'm', 'e' };
 		FCbField NoneField(NoneBytes);
-		TestEqual(TEXT("FCbField(None|Type|Name)::Size()"), NoneField.Size(), uint64(sizeof(NoneBytes)));
-		TestEqual(TEXT("FCbField(None|Type|Name)::Name()"), NoneField.Name(), "Name"_ASV);
+		TestEqual(TEXT("FCbField(None|Type|Name)::GetSize()"), NoneField.GetSize(), uint64(sizeof(NoneBytes)));
+		TestEqual(TEXT("FCbField(None|Type|Name)::GetName()"), NoneField.GetName(), "Name"_ASV);
 		TestTrue(TEXT("FCbField(None|Type|Name)::HasName()"), NoneField.HasName());
 		TestFalse(TEXT("!FCbField(None|Type|Name)::HasValue()"), NoneField.HasValue());
 	}
@@ -216,8 +216,8 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		constexpr ECbFieldType FieldType = ECbFieldType::None;
 		constexpr const ANSICHAR NoneBytes[] = { ANSICHAR(FieldType) };
 		FCbField NoneField(NoneBytes);
-		TestEqual(TEXT("FCbField(None|Type)::Size()"), NoneField.Size(), uint64(sizeof(NoneBytes)));
-		TestEqual(TEXT("FCbField(None|Type)::Name()"), NoneField.Name().Len(), 0);
+		TestEqual(TEXT("FCbField(None|Type)::GetSize()"), NoneField.GetSize(), uint64(sizeof(NoneBytes)));
+		TestEqual(TEXT("FCbField(None|Type)::GetName()"), NoneField.GetName().Len(), 0);
 		TestFalse(TEXT("FCbField(None|Type)::HasName()"), NoneField.HasName());
 		TestFalse(TEXT("!FCbField(None|Type)::HasValue()"), NoneField.HasValue());
 	}
@@ -227,8 +227,8 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		constexpr ECbFieldType FieldType = ECbFieldType::None | ECbFieldType::HasFieldName;
 		constexpr const ANSICHAR NoneBytes[] = { 4, 'N', 'a', 'm', 'e' };
 		FCbField NoneField(NoneBytes, FieldType);
-		TestEqual(TEXT("FCbField(None|Name)::Size()"), NoneField.Size(), uint64(sizeof(NoneBytes)));
-		TestEqual(TEXT("FCbField(None|Name)::Name()"), NoneField.Name(), "Name"_ASV);
+		TestEqual(TEXT("FCbField(None|Name)::GetSize()"), NoneField.GetSize(), uint64(sizeof(NoneBytes)));
+		TestEqual(TEXT("FCbField(None|Name)::GetName()"), NoneField.GetName(), "Name"_ASV);
 		TestTrue(TEXT("FCbField(None|Name)::HasName()"), NoneField.HasName());
 		TestFalse(TEXT("!FCbField(None|Name)::HasValue()"), NoneField.HasValue());
 	}
@@ -242,7 +242,7 @@ bool FCbFieldNullTest::RunTest(const FString& Parameters)
 	// Test FCbField(Null)
 	{
 		FCbField NullField(nullptr, ECbFieldType::Null);
-		TestEqual(TEXT("FCbField(Null)::Size() == 0"), NullField.Size(), uint64(0));
+		TestEqual(TEXT("FCbField(Null)::GetSize() == 0"), NullField.GetSize(), uint64(0));
 		TestTrue(TEXT("FCbField(Null)::IsNull()"), NullField.IsNull());
 		TestTrue(TEXT("FCbField(Null)::HasValue()"), NullField.HasValue());
 		TestFalse(TEXT("!FCbField(Null)::HasError()"), NullField.HasError());
@@ -263,13 +263,13 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 {
 	auto TestIntObject = [this](const FCbObject& Object, int32 ExpectedNum, uint64 ExpectedPayloadSize)
 	{
-		TestEqual(TEXT("FCbField(Object)::AsObject().Size()"), Object.Size(), ExpectedPayloadSize + sizeof(ECbFieldType));
+		TestEqual(TEXT("FCbField(Object)::AsObject().GetSize()"), Object.GetSize(), ExpectedPayloadSize + sizeof(ECbFieldType));
 
 		int32 ActualNum = 0;
 		for (FCbFieldIterator It = Object.CreateIterator(); It; ++It)
 		{
 			++ActualNum;
-			TestNotEqual(TEXT("FCbField(Object) Iterator Name"), It->Name().Len(), 0);
+			TestNotEqual(TEXT("FCbField(Object) Iterator Name"), It->GetName().Len(), 0);
 			TestEqual(TEXT("FCbField(Object) Iterator"), It->AsInt32(), ActualNum);
 		}
 		TestEqual(TEXT("FCbField(Object)::AsObject().CreateIterator() -> Count"), ActualNum, ExpectedNum);
@@ -278,7 +278,7 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 		for (FCbField Field : Object)
 		{
 			++ActualNum;
-			TestNotEqual(TEXT("FCbField(Object) Iterator Name"), Field.Name().Len(), 0);
+			TestNotEqual(TEXT("FCbField(Object) Iterator Name"), Field.GetName().Len(), 0);
 			TestEqual(TEXT("FCbField(Object) Range"), Field.AsInt32(), ActualNum);
 		}
 		TestEqual(TEXT("FCbField(Object)::AsObject() Range -> Count"), ActualNum, ExpectedNum);
@@ -363,14 +363,14 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 		const uint8 ObjectType = uint8(ECbFieldType::Object | ECbFieldType::HasFieldName);
 		const uint8 Buffer[] = { ObjectType, 3, 'K', 'e', 'y', 4, uint8(ECbFieldType::HasFieldName | ECbFieldType::IntegerPositive), 1, 'F', 8 };
 		const FCbObject Object(Buffer);
-		TestEqual(TEXT("FCbObject(ObjectWithName)::Size()"), Object.Size(), uint64(6));
+		TestEqual(TEXT("FCbObject(ObjectWithName)::GetSize()"), Object.GetSize(), uint64(6));
 		const FCbObjectRef ObjectClone = FCbObjectRef::Clone(Object);
-		TestEqual(TEXT("FCbObjectRef(ObjectWithName)::Size()"), ObjectClone.Size(), uint64(6));
+		TestEqual(TEXT("FCbObjectRef(ObjectWithName)::GetSize()"), ObjectClone.GetSize(), uint64(6));
 		TestTrue(TEXT("FCbObject::Equals()"), Object.Equals(ObjectClone));
 		for (FCbFieldRefIterator It = ObjectClone.CreateRefIterator(); It; ++It)
 		{
 			FCbFieldRef Field = *It;
-			TestEqual(TEXT("FCbObjectRef::CreateRefIterator().Name()"), Field.Name(), "F"_ASV);
+			TestEqual(TEXT("FCbObjectRef::CreateRefIterator().GetName()"), Field.GetName(), "F"_ASV);
 			TestEqual(TEXT("FCbObjectRef::CreateRefIterator().AsInt32()"), Field.AsInt32(), 8);
 			TestTrue(TEXT("FCbObjectRef::CreateRefIterator().IsOwned()"), Field.IsOwned());
 		}
@@ -387,7 +387,7 @@ bool FCbFieldArrayTest::RunTest(const FString& Parameters)
 {
 	auto TestIntArray = [this](FCbArray Array, int32 ExpectedNum, uint64 ExpectedPayloadSize)
 	{
-		TestEqual(TEXT("FCbField(Array)::AsArray().Size()"), Array.Size(), ExpectedPayloadSize + sizeof(ECbFieldType));
+		TestEqual(TEXT("FCbField(Array)::AsArray().GetSize()"), Array.GetSize(), ExpectedPayloadSize + sizeof(ECbFieldType));
 		TestEqual(TEXT("FCbField(Array)::AsArray().Num()"), Array.Num(), uint64(ExpectedNum));
 
 		int32 ActualNum = 0;
@@ -465,9 +465,9 @@ bool FCbFieldArrayTest::RunTest(const FString& Parameters)
 		const uint8 ArrayType = uint8(ECbFieldType::Array | ECbFieldType::HasFieldName);
 		const uint8 Buffer[] = { ArrayType, 3, 'K', 'e', 'y', 3, 1, uint8(ECbFieldType::IntegerPositive), 8 };
 		const FCbArray Array(Buffer);
-		TestEqual(TEXT("Array(ArrayWithName)::Size()"), Array.Size(), uint64(5));
+		TestEqual(TEXT("Array(ArrayWithName)::GetSize()"), Array.GetSize(), uint64(5));
 		const FCbArrayRef ArrayClone = FCbArrayRef::Clone(Array);
-		TestEqual(TEXT("FCbArrayRef(ArrayWithName)::Size()"), ArrayClone.Size(), uint64(5));
+		TestEqual(TEXT("FCbArrayRef(ArrayWithName)::GetSize()"), ArrayClone.GetSize(), uint64(5));
 		TestTrue(TEXT("FCbArray::Equals()"), Array.Equals(ArrayClone));
 		for (FCbFieldRefIterator It = ArrayClone.CreateRefIterator(); It; ++It)
 		{
@@ -1465,22 +1465,22 @@ bool FCbFieldParseTest::RunTest(const FString& Parameters)
 		for (FCbFieldIterator It = Object.CreateIterator(); It;)
 		{
 			const FCbFieldIterator Last = It;
-			if (It.Name().Equals("A"_ASV))
+			if (It.GetName().Equals("A"_ASV))
 			{
 				A = It.AsUInt32();
 				++It;
 			}
-			if (It.Name().Equals("B"_ASV))
+			if (It.GetName().Equals("B"_ASV))
 			{
 				B = It.AsUInt32();
 				++It;
 			}
-			if (It.Name().Equals("C"_ASV))
+			if (It.GetName().Equals("C"_ASV))
 			{
 				C = It.AsUInt32();
 				++It;
 			}
-			if (It.Name().Equals("D"_ASV))
+			if (It.GetName().Equals("D"_ASV))
 			{
 				D = It.AsUInt32();
 				++It;
