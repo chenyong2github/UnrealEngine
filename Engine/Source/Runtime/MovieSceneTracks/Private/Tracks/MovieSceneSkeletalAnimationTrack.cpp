@@ -16,6 +16,9 @@
 #include "Animation/CustomAttributesRuntime.h"
 #include "SkeletalDebugRendering.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "BoneContainer.h"
+#include "Animation/AnimationPoseData.h"
+#include "Animation/CustomAttributesRuntime.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneSkeletalAnimationTrack"
 
@@ -479,7 +482,22 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 				AnimSection->SetBoneIndexForRootMotionCalculations(bBlendFirstChildOfRoot);
 			}
 		}
+		//set up pose from first section.
+		TArray<FBoneIndexType> RequiredBoneIndexArray;
+		const FCurveEvaluationOption CurveEvalOption;
+		UMovieSceneSkeletalAnimationSection* FirstSection = Cast<UMovieSceneSkeletalAnimationSection>(AnimationSections[0]);
+		UAnimSequenceBase* AnimSequence = (FirstSection->Params.Animation);
+		RequiredBoneIndexArray.AddUninitialized(AnimSequence->GetSkeleton()->GetReferenceSkeleton().GetNum());
+		for (int32 BoneIndex = 0; BoneIndex < RequiredBoneIndexArray.Num(); ++BoneIndex)
+		{
+			RequiredBoneIndexArray[BoneIndex] = BoneIndex;
+		}
 
+		FBoneContainer BoneContainer(RequiredBoneIndexArray, CurveEvalOption, *AnimSequence->GetSkeleton());
+		FCompactPose OutPose;
+		OutPose.ResetToRefPose(BoneContainer);
+
+		
 		TArray< UMovieSceneSkeletalAnimationSection*> SectionsAtCurrentTime;
 
 		RootMotionParams.StartFrame = AnimationSections[0]->GetInclusiveStartFrame();
@@ -510,8 +528,11 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 				{
 					UMovieSceneSkeletalAnimationSection* AnimSection = CastChecked<UMovieSceneSkeletalAnimationSection>(Section);
 				
-					bool bIsAdditive;
-					if (AnimSection->GetRootMotionTransform(FrameNumber.FrameNumber, TickResolution, bIsAdditive, CurrentTransform, CurrentWeight))
+					FBlendedCurve OutCurve;
+					FStackCustomAttributes TempAttributes;
+					FAnimationPoseData AnimationPoseData(OutPose, OutCurve, TempAttributes);
+					bool bIsAdditive = false;
+					if (AnimSection->GetRootMotionTransform(FrameNumber.FrameNumber, TickResolution, AnimationPoseData, bIsAdditive, CurrentTransform, CurrentWeight))
 					{
 						if (!bIsAdditive)
 						{
