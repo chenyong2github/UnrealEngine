@@ -1646,6 +1646,10 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.IncludeStarterContent"),
 				LOCTEXT("IncludeStarterContent", "With Starter Content")));
 		}
+		else
+		{
+			bCopyStarterContent = false;
+		}
 
 		TSharedRef<SWidget> Enum = SNew(SOverlay)
 			+ SOverlay::Slot()
