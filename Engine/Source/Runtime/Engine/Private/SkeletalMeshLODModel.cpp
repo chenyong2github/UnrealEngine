@@ -547,6 +547,12 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSourceSectionUserData& S)
 	{
 		Ar << S.RecomputeTangentsVertexMaskChannel;
 	}
+ 	else
+	{
+		// Our default is to use the green vertex color channel 
+		S.RecomputeTangentsVertexMaskChannel = ESkinVertexColorChannel::Green;
+	}
+
 	Ar << S.bCastShadow;
 	Ar << S.bDisabled;
 	Ar << S.GenerateUpToLodIndex;
