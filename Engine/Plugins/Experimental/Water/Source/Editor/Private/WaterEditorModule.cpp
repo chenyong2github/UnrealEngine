@@ -153,14 +153,18 @@ void FWaterEditorModule::OnWaterBodyAddedToWorld(AActor* Actor)
 					// If the water manager doesn't exist, spawn it now in the same level as the landscape
 					for (ALandscape* Landscape : TActorRange<ALandscape>(ActorWorld))
 					{
+						FString BrushActorString = FString::Format(TEXT("{0}_{1}"), { Landscape->GetActorLabel(), WaterBrushClassPtr->GetName() } );
+						FName BrushActorName = MakeUniqueObjectName(Landscape->GetOuter(), WaterBrushClassPtr, FName(BrushActorString));
 						FActorSpawnParameters SpawnParams;
+						SpawnParams.Name = BrushActorName;
 						SpawnParams.OverrideLevel = Landscape->GetLevel();
 						AWaterLandscapeBrush* NewBrush = (WaterBrushActorFactory != nullptr) 
-							? CastChecked<AWaterLandscapeBrush>(WaterBrushActorFactory->CreateActor(ActorWorld, ActorWorld->PersistentLevel, FTransform::Identity))
+							? CastChecked<AWaterLandscapeBrush>(WaterBrushActorFactory->CreateActor(ActorWorld, SpawnParams.OverrideLevel, FTransform::Identity, RF_Transactional, BrushActorName))
 							: ActorWorld->SpawnActor<AWaterLandscapeBrush>(WaterBrushClassPtr, SpawnParams);
 						if (NewBrush)
 						{
 							bHasWaterManager = true;
+							NewBrush->SetActorLabel(BrushActorString);
 							NewBrush->SetTargetLandscape(Landscape);
 						}
 						break;
