@@ -788,30 +788,30 @@ bool FEditorAnalyticsSession::FindSession(const uint32 InSessionProcessId, FEdit
 	return false;
 }
 
-void FEditorAnalyticsSession::SaveExitCode(int32 InExitCode)
+bool FEditorAnalyticsSession::SaveExitCode(int32 InExitCode)
 {
 	if (!ensure(IsLocked()))
 	{
-		return;
+		return false;
 	}
 
 	ExitCode.Emplace(InExitCode);
 	FString ExitCodeStr = FString::Printf(TFormatSpecifier<decltype(InExitCode)>::GetFormatSpecifier(), InExitCode);
 
 	const FString StorageLocation = EditorAnalyticsUtils::GetSessionStorageLocation(SessionId);
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::ExitCodeStoreKey, ExitCodeStr);
+	return FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::ExitCodeStoreKey, ExitCodeStr);
 }
 
-void FEditorAnalyticsSession::SaveMonitorExceptCode(int32 InExceptCode)
+bool FEditorAnalyticsSession::SaveMonitorExceptCode(int32 InExceptCode)
 {
 	if (!ensure(IsLocked()))
 	{
-		return;
+		return false;
 	}
 
 	MonitorExceptCode.Emplace(InExceptCode);
 	FString ExceptCodeStr = FString::Printf(TFormatSpecifier<decltype(InExceptCode)>::GetFormatSpecifier(), InExceptCode);
 
 	const FString StorageLocation = EditorAnalyticsUtils::GetSessionStorageLocation(SessionId);
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::MonitorExceptCodeStoreKey, ExceptCodeStr);
+	return FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::MonitorExceptCodeStoreKey, ExceptCodeStr);
 }

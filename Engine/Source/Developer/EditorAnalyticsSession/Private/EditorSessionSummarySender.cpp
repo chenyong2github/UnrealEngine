@@ -260,7 +260,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 				FRegexMatcher CrashMatcher(CrashPattern, MonitorLog->Get<0>());
 				if (CrashMatcher.FindNext())
 				{
-					AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), CrashMatcher.GetCaptureGroup(1)); // Report the first exception code found in the log.
+					AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), FCString::Atoi(*CrashMatcher.GetCaptureGroup(1))); // Report the first exception code found in the log.
 					MonitorExceptCode.Reset(); // Except code was added, prevent adding it again below.
 				}
 				else
@@ -285,7 +285,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 				FRegexMatcher ExitCodeMatcher(ExitCodePattern, MonitorLog->Get<0>());
 				if (ExitCodeMatcher.FindNext())
 				{
-					AnalyticsAttributes.Emplace(TEXT("ExitCode"), ExitCodeMatcher.GetCaptureGroup(1));
+					AnalyticsAttributes.Emplace(TEXT("ExitCode"), FCString::Atoi(*ExitCodeMatcher.GetCaptureGroup(1)));
 				}
 			}
 		}

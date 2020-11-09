@@ -180,17 +180,19 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 
 	/**
 	 * Persist the Editor exit code corresponding of this session in the key-store value.
+	 * @return true if the exit code is persisted with the session data.
 	 * @node This function should only be called by the out of process monitor when the process exit value is known.
 	 */
-	void SaveExitCode(int32 ExitCode);
+	bool SaveExitCode(int32 ExitCode);
 
 	/**
 	 * Set the exception code that caused the monitor application to crash. When the monitoring application raises
 	 * and catches an unexpected exception, it tries to save the exception code it in the session before dying.
+	 * @return true if the exception code is persisted with the session data.
 	 * @note This is to diagnose the cases where CrashReportClientEditor send the summary event delayed and without
 	 *       the Editor exit code.
 	 */
-	void SaveMonitorExceptCode(int32 ExceptCode);
+	bool SaveMonitorExceptCode(int32 ExceptCode);
 
 private:
 	static FSystemWideCriticalSection* StoredValuesLock;

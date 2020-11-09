@@ -1040,20 +1040,9 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					if (FEditorAnalyticsSession::FindSession(MonitorPid, MonitoredSession))
 					{
 						bMonitoredSessionLoaded = true;
-						if (MonitoredProcessExitCode.IsSet())
+						if (!MonitoredSession.SaveExitCode(MonitoredProcessExitCode.IsSet() ? MonitoredProcessExitCode.GetValue() : ECrashExitCodes::MonitoredApplicationExitCodeNotAvailable))
 						{
-							// Persist the real Editor exit code.
-							MonitoredSession.SaveExitCode(MonitoredProcessExitCode.GetValue());
-						}
-						else if (!bMonitoredProcessExited)
-						{
-							// Persist a custom exit code - Editor is still running, but CRC was requested to exit. (ex. The user clicked the 'Close Without Sending' but the Editor is not exited yet)
-							MonitoredSession.SaveExitCode(ECrashExitCodes::MonitoredApplicationStillRunning);
-						}
-						else
-						{
-							// Persist the custom exit code - Editor is not running anymore, but CRC could not read it.
-							MonitoredSession.SaveExitCode(ECrashExitCodes::MonitoredApplicationExitCodeNotAvailable);
+							FDiagnosticLogger::Get().LogEvent(TEXT("MTBF/ExitCodeNotSaved"));
 						}
 					}
 					else
