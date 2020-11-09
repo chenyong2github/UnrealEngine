@@ -37,18 +37,14 @@ const FText FDMXActivityMonitorConstants::MonitoredSourceInputText = LOCTEXT("Mo
 const FName FDMXActivityMonitorConstants::MonitoredSourceOutputName = FName("Output");
 const FText FDMXActivityMonitorConstants::MonitoredSourceOutputText = LOCTEXT("MonitorSourceOutputText", "Output");
 
-SDMXActivityMonitor::~SDMXActivityMonitor()
-{
-	// Async tasks need be canceled before destruction.
-	check(bCanDestroy);
-}
-
 void SDMXActivityMonitor::Construct(const FArguments& InArgs)
 {
 	MonitoredSourceNamesSource.Add(MakeShared<FName>(FDMXActivityMonitorConstants::MonitoredSourceInputName));
 	MonitoredSourceNamesSource.Add(MakeShared<FName>(FDMXActivityMonitorConstants::MonitoredSourceOutputName));
 
 	LoadMonitorSettings();
+
+	SetCanTick(true);
 
 	ChildSlot
 		[
@@ -261,24 +257,21 @@ void SDMXActivityMonitor::Construct(const FArguments& InArgs)
 		];
 }
 
-void SDMXActivityMonitor::CancelAsyncTasks(TSharedRef<class SDockTab> InParentTab)
+void SDMXActivityMonitor::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	CancelAsyncTasks();
-}
-
-void SDMXActivityMonitor::CancelAsyncTasks()
-{
-	if (IDMXProtocolPtr Protocol = ProtocolName.GetProtocol())
+	if (!IsEngineExitRequested() && FSlateApplication::IsInitialized())
 	{
-		// Unbind from buffer updates
-		IDMXProtocol::FOnUniverseInputBufferUpdated& OnUniverseInputBufferUpdated = Protocol->GetOnUniverseInputBufferUpdated();
-		OnUniverseInputBufferUpdated.Remove(OnUniverseInputBufferUpdatedHandle);
+		if (IDMXProtocolPtr DMXProtocolPtr = IDMXProtocol::Get(ProtocolName))
+		{
+			const IDMXUniverseSignalMap& InboundSignalMap = DMXProtocolPtr->GameThreadGetInboundSignals();
 
-		IDMXProtocol::FOnUniverseOutputBufferUpdated& OnUniverseOutputBufferUpdated = Protocol->GetOnUniverseOutputBufferUpdated();
-		OnUniverseOutputBufferUpdated.Remove(OnUniverseOutputBufferUpdatedHandle);
+			for (const TPair<int32, TSharedPtr<FDMXSignal>> UniverseSingalKvp : InboundSignalMap)
+			{
+				const TSharedRef<SDMXActivityInUniverse>& ActivityWidget = GetOrCreateActivityWidget(UniverseSingalKvp.Value->UniverseID);
+				ActivityWidget->VisualizeInputBuffer(UniverseSingalKvp.Value->ChannelData);
+			}
+		}
 	}
-
-	bCanDestroy = true;
 }
 
 TSharedRef<ITableRow> SDMXActivityMonitor::OnGenerateUniverseRow(TSharedPtr<SDMXActivityInUniverse> ActivityWidget, const TSharedRef<STableViewBase>& OwnerTable)
@@ -355,51 +348,8 @@ void SDMXActivityMonitor::SaveMonitorSettings() const
 	DMXEditorSettings->SaveConfig();
 }
 
-void SDMXActivityMonitor::OnInputBufferUpdated(FName Protocol, uint16 UniverseID, const TArray<uint8>& Values)
-{
-	// Call on Game Thread as we need to interact with the UI.
-	if (UniverseID >= MinUniverseID && UniverseID <= MaxUniverseID && Protocol == ProtocolName)
-	{
-		AsyncTask(ENamedThreads::GameThread, [this, Protocol, UniverseID, Values]() {
-				VisualizeInputBuffer(Protocol, UniverseID, Values);
-			});
-	}
-}
-
-void SDMXActivityMonitor::VisualizeInputBuffer(FName Protocol, uint16 UniverseID, const TArray<uint8>& Values)
-{
-	// We may get callbacks from OnInputBufferUpdated when slate is not initialized or engine is shutting down
-	if (!IsEngineExitRequested() && FSlateApplication::IsInitialized())
-	{
-		const TSharedRef<SDMXActivityInUniverse>& ActivityWidget = GetOrCreateActivityWidget(UniverseID);
-		ActivityWidget->VisualizeInputBuffer(Values);
-	}
-}
-
-void SDMXActivityMonitor::OnOutputBufferUpdated(FName Protocol, uint16 UniverseID, const TArray<uint8>& Values)
-{
-	if (UniverseID >= MinUniverseID && UniverseID <= MaxUniverseID && Protocol == ProtocolName)
-	{
-		// Call on Game Thread as we need to interact with the UI.
-		AsyncTask(ENamedThreads::GameThread, [this, Protocol, UniverseID, Values]() {
-				VisualizeOutputBuffer(Protocol, UniverseID, Values);
-			});
-	}
-}
-
-void SDMXActivityMonitor::VisualizeOutputBuffer(FName Protocol, uint16 UniverseID, const TArray<uint8>& Values)
-{
-	if (!IsEngineExitRequested())
-	{
-		const TSharedRef<SDMXActivityInUniverse>& BufferView = GetOrCreateActivityWidget(UniverseID);
-		BufferView->VisualizeOutputBuffer(Values);
-	}
-}
-
 void SDMXActivityMonitor::SetProtocol(FName NewProtocolName)
 {
-	CancelAsyncTasks();
-
 	FDMXProtocolName NewDMXProtocolName(NewProtocolName);
 	check(NewProtocolName.IsValid());
 
@@ -407,34 +357,6 @@ void SDMXActivityMonitor::SetProtocol(FName NewProtocolName)
 	IDMXProtocolPtr NewProtocol = NewDMXProtocolName.GetProtocol();
 	check(NewProtocol.IsValid());
 	ProtocolName = NewDMXProtocolName;
-
-	if (OldProtocol.IsValid())
-	{
-		// Unbind previous bindings
-		IDMXProtocol::FOnUniverseInputBufferUpdated& OnUniverseInputBufferUpdated = OldProtocol->GetOnUniverseInputBufferUpdated();
-		OnUniverseInputBufferUpdated.Remove(OnUniverseInputBufferUpdatedHandle);
-
-		IDMXProtocol::FOnUniverseOutputBufferUpdated& OnUniverseOutputBufferUpdated = OldProtocol->GetOnUniverseOutputBufferUpdated();
-		OnUniverseOutputBufferUpdated.Remove(OnUniverseOutputBufferUpdatedHandle);
-	}
-
-	// Setup new binding depending on the monitor's source
-	check(MonitoredSourceName.IsValid());
-	if (*MonitoredSourceName == FDMXActivityMonitorConstants::MonitoredSourceInputName)
-	{
-		IDMXProtocol::FOnUniverseInputBufferUpdated& OnUniverseInputBufferUpdated = NewProtocol->GetOnUniverseInputBufferUpdated();
-		OnUniverseInputBufferUpdatedHandle = OnUniverseInputBufferUpdated.AddSP(this, &SDMXActivityMonitor::OnInputBufferUpdated);
-
-	}
-	else if (*MonitoredSourceName == FDMXActivityMonitorConstants::MonitoredSourceOutputName)
-	{
-		IDMXProtocol::FOnUniverseOutputBufferUpdated& OnUniverseOutputBufferUpdated = NewProtocol->GetOnUniverseOutputBufferUpdated();
-		OnUniverseOutputBufferUpdatedHandle = OnUniverseOutputBufferUpdated.AddSP(this, &SDMXActivityMonitor::OnOutputBufferUpdated);
-	}
-	else
-	{
-		UE_LOG_DMXEDITOR(Fatal, TEXT("Invalid Monitored Source Name."));
-	}
 
 	if (IDMXProtocolPtr Protocol = ProtocolName.GetProtocol())
 	{
@@ -551,6 +473,8 @@ void SDMXActivityMonitor::OnMaxUniverseIDCommitted(uint32 NewValue, ETextCommit:
 
 FReply SDMXActivityMonitor::OnClearButtonClicked()
 {
+	FDMXEditorUtils::ZeroAllDMXBuffers();
+
 	ClearDisplay();
 
 	return FReply::Handled();

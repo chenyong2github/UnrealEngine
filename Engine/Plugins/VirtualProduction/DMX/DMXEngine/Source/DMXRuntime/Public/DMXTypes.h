@@ -2,11 +2,25 @@
 
 #pragma once
 
+#include "DMXAttribute.h"
+
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
+
 #include "DMXTypes.generated.h"
 
 class UDMXLibrary;
+
+
+// FDMXAttributeValueMap is required to pass the map by ref in delegates
+USTRUCT(BlueprintType, Category = "DMX")
+struct DMXRUNTIME_API FDMXNormalizedAttributeValueMap
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "DMX")
+	TMap<FDMXAttributeName, float> Map;
+};
 
 USTRUCT(BlueprintType)
 struct FDMXRequestBase

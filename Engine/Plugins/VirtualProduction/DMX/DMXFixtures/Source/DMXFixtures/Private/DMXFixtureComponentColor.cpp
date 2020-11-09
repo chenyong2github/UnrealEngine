@@ -4,6 +4,7 @@
 #include "DMXFixtureComponentColor.h"
 
 UDMXFixtureComponentColor::UDMXFixtureComponentColor()
+	: CurrentTargetColorRef(nullptr)
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	BitResolution = 255;
@@ -45,12 +46,6 @@ void UDMXFixtureComponentColor::SetTargetColor(FLinearColor NewColor)
 	CurrentTargetColorRef->G = NewColor.G;
 	CurrentTargetColorRef->B = NewColor.B;
 	CurrentTargetColorRef->A = NewColor.A;
-}
-
-FLinearColor UDMXFixtureComponentColor::RemapColor(int R, int G, int B, int A)
-{
-	FLinearColor NewColor(float(R) / BitResolution, float(G) / BitResolution, float(B) / BitResolution, float(A) / BitResolution);
-	return NewColor;
 }
 
 // Set bit resolution based on DMX signal format mapping

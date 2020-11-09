@@ -45,7 +45,6 @@ ADMXFixtureActorMatrix::ADMXFixtureActorMatrix()
 	YCells = 1;
 	MatrixDataSize = 0;
 
-	MatrixData = nullptr;
 	TextureRegion = nullptr;
 }
 
@@ -53,9 +52,6 @@ ADMXFixtureActorMatrix::~ADMXFixtureActorMatrix()
 {
 	if (TextureRegion)
 		delete TextureRegion;
-
-	if (MatrixData)
-		delete MatrixData;
 }
 
 #if WITH_EDITOR
@@ -71,10 +67,10 @@ void ADMXFixtureActorMatrix::InitializeMatrixFixture()
 	GetComponents<UStaticMeshComponent>(StaticMeshComponents);
 
 	// Create dynamic materials
-	DynamicMaterialLens = UMaterialInstanceDynamic::Create(LensMaterialInstance, NULL);
-	DynamicMaterialBeam = UMaterialInstanceDynamic::Create(BeamMaterialInstance, NULL);
-	DynamicMaterialSpotLight = UMaterialInstanceDynamic::Create(SpotLightMaterialInstance, NULL);
-	DynamicMaterialPointLight = UMaterialInstanceDynamic::Create(PointLightMaterialInstance, NULL);
+	DynamicMaterialLens = UMaterialInstanceDynamic::Create(LensMaterialInstance, nullptr);
+	DynamicMaterialBeam = UMaterialInstanceDynamic::Create(BeamMaterialInstance, nullptr);
+	DynamicMaterialSpotLight = UMaterialInstanceDynamic::Create(SpotLightMaterialInstance, nullptr);
+	DynamicMaterialPointLight = UMaterialInstanceDynamic::Create(PointLightMaterialInstance, nullptr);
 
 	float Quality = 1.0f;
 	switch (QualityLevel)
@@ -105,7 +101,9 @@ void ADMXFixtureActorMatrix::InitializeMatrixFixture()
 	// Create array to hold data in bgra order
 	NbrTextureRows = 2;	// using 2 rows to store dmx data
 	MatrixDataSize = NbrCells * 4 * NbrTextureRows;
-	MatrixData = new uint8[MatrixDataSize];
+
+	MatrixData.Reset(MatrixDataSize);
+	MatrixData.AddZeroed(MatrixDataSize);
 	for (int i = 0; i < MatrixDataSize; i++)
 	{
 		MatrixData[i] = 128;
@@ -125,6 +123,8 @@ void ADMXFixtureActorMatrix::InitializeMatrixFixture()
 	MatrixDataTexture->AddressY = TextureAddress::TA_Clamp;
 	MatrixDataTexture->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
 	MatrixDataTexture->UpdateResource(); //to initialize resource
+
+	check(!TextureRegion);
 	TextureRegion = new FUpdateTextureRegion2D(0, 0, 0, 0, TextureWidth, TextureHeight);
 
 	// Push fixture data into materials and lights
@@ -177,12 +177,12 @@ void ADMXFixtureActorMatrix::InitializeMatrixFixture()
 // DMX Data is packed based on this convention
 // texture row index 0: RGBColor / Dimmer (4 channels total)
 // texture row index 1: Pan / Tilt  (2 channels total)
-void ADMXFixtureActorMatrix::UpdateMatrixData(int RowIndex, int CellIndex, int ChannelIndex, uint8 Value)
+void ADMXFixtureActorMatrix::UpdateMatrixData(int32 RowIndex, int32 CellIndex, int32 ChannelIndex, float Value)
 {
-	int index = (RowIndex * XCells * YCells * 4) + (CellIndex * 4) + ChannelIndex;
-	if (index < MatrixDataSize)
+	int32 Index = (RowIndex * XCells * YCells * 4) + (CellIndex * 4) + ChannelIndex;
+	if (Index < MatrixDataSize)
 	{
-		MatrixData[index] = Value;
+		MatrixData[Index] = FMath::RoundToInt(Value * 255);
 	}
 }
 
@@ -196,17 +196,14 @@ void ADMXFixtureActorMatrix::PushFixtureMatrixCellData(TArray<FDMXCell> Cells)
 		TInlineComponentArray<UDMXFixtureComponent*> DMXComponents;
 		GetComponents<UDMXFixtureComponent>(DMXComponents);
 
-		// get subsystem
-		UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
-
 		// get fixture patch
 		UDMXEntityFixturePatch* FixturePatch = DMX->GetFixturePatch();
 
 		for (int CurrentCellIndex = 0; CurrentCellIndex < Cells.Num(); CurrentCellIndex++)
 		{
-			TMap<FDMXAttributeName, int32> PixelAttributesMap;
-			FDMXCell Pixel = Cells[CurrentCellIndex];
-			DMXSubsystem->GetMatrixCellValue(FixturePatch, Pixel.Coordinate, PixelAttributesMap);
+			TMap<FDMXAttributeName, float> NormalizedValuePerAttribute;
+			const FDMXCell& Cell = Cells[CurrentCellIndex];
+			FixturePatch->GetNormalizedMatrixCellValues(Cell.Coordinate, NormalizedValuePerAttribute);
 
 			for (auto& DMXComponent : DMXComponents)
 			{
@@ -219,31 +216,27 @@ void ADMXFixtureActorMatrix::PushFixtureMatrixCellData(TArray<FDMXCell> Cells)
 					UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent);
 					if(ColorComponent)
 					{
-						int* d1 = PixelAttributesMap.Find(ColorComponent->ChannelName1.Name);
-						int* d2 = PixelAttributesMap.Find(ColorComponent->ChannelName2.Name);
-						int* d3 = PixelAttributesMap.Find(ColorComponent->ChannelName3.Name);
-						int* d4 = PixelAttributesMap.Find(ColorComponent->ChannelName4.Name);
+						const float* FirstTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->ChannelName1);
+						const float* SecondTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->ChannelName2);
+						const float* ThirdTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->ChannelName3);
+						const float* FourthTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->ChannelName4);
 
-						// 255 if channel not found
-						int r = (d1) ? *d1 : ColorComponent->BitResolution;
-						int g = (d2) ? *d2 : ColorComponent->BitResolution;
-						int b = (d3) ? *d3 : ColorComponent->BitResolution;
-						int a = (d4) ? *d4 : ColorComponent->BitResolution;
+						// 1.f if channel not found
+						const float r = (FirstTargetValuePtr) ? *FirstTargetValuePtr : 1.f;
+						const float g = (SecondTargetValuePtr) ? *SecondTargetValuePtr : 1.f;
+						const float b = (ThirdTargetValuePtr) ? *ThirdTargetValuePtr : 1.f;
+						const float a = (FourthTargetValuePtr) ? *FourthTargetValuePtr : 1.f;
 
-						FLinearColor NewTargetColor = ColorComponent->RemapColor(r, g, b, a);
+						FLinearColor NewTargetColor(r, g, b, a);
 						if (ColorComponent->IsColorValid(NewTargetColor))
 						{
 							ColorComponent->SetTargetColor(NewTargetColor);
 
 							// pack data in Matrix structure
-							uint8 Red = FMath::FloorToInt(NewTargetColor.R * 255);
-							uint8 Green = FMath::FloorToInt(NewTargetColor.G * 255);
-							uint8 Blue = FMath::FloorToInt(NewTargetColor.B * 255);
-							uint8 Dimmer = FMath::FloorToInt(NewTargetColor.A * 255);
-							UpdateMatrixData(0, CurrentCellIndex, 0, Blue);
-							UpdateMatrixData(0, CurrentCellIndex, 1, Green);
-							UpdateMatrixData(0, CurrentCellIndex, 2, Red);
-							UpdateMatrixData(0, CurrentCellIndex, 3, Dimmer);
+							UpdateMatrixData(0, CurrentCellIndex, 0, NewTargetColor.B);
+							UpdateMatrixData(0, CurrentCellIndex, 1, NewTargetColor.G);
+							UpdateMatrixData(0, CurrentCellIndex, 2, NewTargetColor.R);
+							UpdateMatrixData(0, CurrentCellIndex, 3, NewTargetColor.A);
 						}
 					}
 
@@ -251,7 +244,7 @@ void ADMXFixtureActorMatrix::PushFixtureMatrixCellData(TArray<FDMXCell> Cells)
 					UDMXFixtureComponentSingle* SingleComponent = Cast<UDMXFixtureComponentSingle>(DMXComponent);
 					if(SingleComponent)
 					{
-						int* d1 = PixelAttributesMap.Find(SingleComponent->DMXChannel.Name.Name);
+						float* d1 = NormalizedValuePerAttribute.Find(SingleComponent->DMXChannel.Name.Name);
 						int ChannelIndex = 0;
 						if (d1)
 						{
@@ -260,28 +253,23 @@ void ADMXFixtureActorMatrix::PushFixtureMatrixCellData(TArray<FDMXCell> Cells)
 								float TargetValue = SingleComponent->RemapValue(*d1);
 								if (SingleComponent->IsTargetValid(TargetValue))
 								{
-									uint8 Dimmer = FMath::FloorToInt(TargetValue * 255);
-									UpdateMatrixData(0, CurrentCellIndex, 3, Dimmer);
+									UpdateMatrixData(0, CurrentCellIndex, 3, TargetValue);
 								}
 							}
-
-							if (SingleComponent->DMXChannel.Name.Name == FName("Pan"))
+							else if (SingleComponent->DMXChannel.Name.Name == FName("Pan"))
 							{
-								float TargetValue = float(*d1) / SingleComponent->DMXChannel.BitResolution;
+								float TargetValue = SingleComponent->RemapValue(*d1);
 								if (SingleComponent->IsTargetValid(TargetValue))
 								{
-									uint8 Pan = FMath::FloorToInt(TargetValue * 255);
-									UpdateMatrixData(1, CurrentCellIndex, 0, Pan);
+									UpdateMatrixData(1, CurrentCellIndex, 0, TargetValue);
 								}
 							}
-
-							if (SingleComponent->DMXChannel.Name.Name == FName("Tilt"))
+							else if (SingleComponent->DMXChannel.Name.Name == FName("Tilt"))
 							{
-								float TargetValue = float(*d1) / SingleComponent->DMXChannel.BitResolution;
+								float TargetValue = SingleComponent->RemapValue(*d1);
 								if (SingleComponent->IsTargetValid(TargetValue))
 								{
-									uint8 Tilt = FMath::FloorToInt(TargetValue * 255);
-									UpdateMatrixData(1, CurrentCellIndex, 1, Tilt);
+									UpdateMatrixData(1, CurrentCellIndex, 1, TargetValue);
 								}
 							}
 						}
@@ -321,7 +309,7 @@ void ADMXFixtureActorMatrix::UpdateDynamicTexture()
 	if (MatrixDataTexture)
 	{
 		int NbrCells = XCells * YCells;
-		UpdateMatrixTexture(MatrixData, MatrixDataTexture, 0, 1, *TextureRegion, NbrCells * 4, 4);
+		UpdateMatrixTexture(MatrixData.GetData(), MatrixDataTexture, 0, 1, *TextureRegion, NbrCells * 4, 4);
 	}
 }
 

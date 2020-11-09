@@ -70,9 +70,7 @@ public:
 
 	/** Returns the currently assigned protocol for this controller */
 	UFUNCTION(BlueprintPure, Category = "DMX")
-	FName GetProtocol() const { return DeviceProtocol.Name; }
-
-	FDMXBufferPtr GetInputDMXBuffer(int32 LocalUniverseID) const;
+	const FName& GetProtocol() const { return DeviceProtocol.Name; }
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

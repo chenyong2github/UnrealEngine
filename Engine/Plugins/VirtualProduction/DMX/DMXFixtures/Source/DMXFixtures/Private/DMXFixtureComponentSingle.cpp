@@ -23,10 +23,10 @@ void UDMXFixtureComponentSingle::InitCells(int NCells)
 	}
 }
 
-float UDMXFixtureComponentSingle::RemapValue(int Value)
+float UDMXFixtureComponentSingle::RemapValue(float Alpha)
 {
-	float Alpha = float(Value)/DMXChannel.BitResolution;
 	float Remapped = FMath::Lerp(DMXChannel.MinValue, DMXChannel.MaxValue, Alpha);
+
 	return Remapped;
 }
 
@@ -50,25 +50,6 @@ void UDMXFixtureComponentSingle::SetRangeValue()
 	for (auto& Cell : Cells)
 	{
 		Cell.ChannelInterpolation[0].RangeValue = FMath::Abs(DMXChannel.MaxValue - DMXChannel.MinValue);
-	}
-}
-
-// Set bit resolution based on DMX signal format mapping
-void UDMXFixtureComponentSingle::SetBitResolution(TMap<FDMXAttributeName, EDMXFixtureSignalFormat> Map)
-{
-	EDMXFixtureSignalFormat* format = Map.Find(DMXChannel.Name);
-	if (format != nullptr)
-	{
-		unsigned int BitResolution;
-		switch (*format)
-		{
-			case(EDMXFixtureSignalFormat::E8Bit): BitResolution = 255; break;
-			case(EDMXFixtureSignalFormat::E16Bit): BitResolution = 65535; break;
-			case(EDMXFixtureSignalFormat::E24Bit): BitResolution = 16777215; break;
-			case(EDMXFixtureSignalFormat::E32Bit): BitResolution = 4294967295; break;
-			default: BitResolution = 255;
-		}
-		DMXChannel.BitResolution = BitResolution;
 	}
 }
 

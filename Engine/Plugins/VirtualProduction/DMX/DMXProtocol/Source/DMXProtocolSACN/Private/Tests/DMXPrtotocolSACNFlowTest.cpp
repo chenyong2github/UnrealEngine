@@ -39,9 +39,6 @@ struct DMXPrtotocolSACNHelper
 		}
 
 		// Call tick on a single thread to force create listen sockets.
-		UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
-		bReceiveThread = ProtocolSettings->bUseSeparateReceivingThread;
-		ProtocolSettings->bUseSeparateReceivingThread = false;
 		Universe->Tick(0.f);
 	}
 
@@ -53,7 +50,6 @@ struct DMXPrtotocolSACNHelper
 		}
 
 		UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
-		ProtocolSettings->bUseSeparateReceivingThread = bReceiveThread;
 	}
 
 	FDMXProtocolSACN* DMXProtocol;
@@ -62,7 +58,6 @@ struct DMXPrtotocolSACNHelper
 	uint16 UniverseID;
 	uint8 FixtureChannels[6] = { 1, 2, 3, 4, 5, 6 };
 	uint8 FixtureValues[6] = { 255, 155, 50, 100, 200, 220 };
-	bool bReceiveThread;
 	
 	/** Pointer to running automation test instance */
 	FAutomationTestBase* Test;

@@ -2,15 +2,220 @@
 
 #include "Library/DMXEntityFixturePatch.h"
 
+#include "DMXProtocolConstants.h"
+#include "DMXStats.h"
+#include "DMXTypes.h"
+#include "DMXUtils.h"
+#include "Interfaces/IDMXProtocol.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityController.h"
 #include "Library/DMXEntityFixtureType.h"
-#include "DMXProtocolConstants.h"
-#include "Interfaces/IDMXProtocol.h"
+
+DECLARE_LOG_CATEGORY_CLASS(DMXEntityFixturePatchLog, Log, All);
+
+DECLARE_CYCLE_STAT(TEXT("FixturePatch cache DMX values"), STAT_DMXFixturePatchCacheDMXValues, STATGROUP_DMX);
+DECLARE_CYCLE_STAT(TEXT("FixturePatch cache normalized values"), STAT_DMXFixturePatchCacheNormalizedValues, STATGROUP_DMX);
+DECLARE_CYCLE_STAT(TEXT("FixturePatch get relevant Controllers"), STAT_DMXFixturePatchGetRelevantControllers, STATGROUP_DMX);
 
 #define LOCTEXT_NAMESPACE "DMXEntityFixturePatch"
 
-DECLARE_LOG_CATEGORY_CLASS(DMXEntityFixtureTypePatchLog, Log, All);
+UDMXEntityFixturePatch::UDMXEntityFixturePatch()
+	: UniverseID(1)
+	, bAutoAssignAddress(true)
+	, ManualStartingAddress(1)
+	, AutoStartingAddress(1)
+	, ActiveMode(0)
+{
+#if WITH_EDITOR
+	bTickInEditor = false;
+#endif
+
+	CachedDMXValues.Reserve(DMX_UNIVERSE_SIZE);
+}
+
+void UDMXEntityFixturePatch::Tick(float DeltaTime)
+{
+	// Note: This directly inherits TickableGameObject, Super::Tick wouldn't make sense here. 
+
+	if (UpdateCachedDMXValues())
+	{
+		// Only update cached normalized values if cached dmx values changed
+		UpdateCachedNormalizedAttributeValues();
+
+		// Only broadcast changed values
+		OnFixturePatchReceivedDMX.Broadcast(this, CachedNormalizedValuesPerAttribute);
+	}
+}
+
+bool UDMXEntityFixturePatch::UpdateCachedDMXValues()
+{
+	SCOPE_CYCLE_COUNTER(STAT_DMXFixturePatchCacheDMXValues);
+
+	// CachedRelevantController only exists to improve performance, profiler showed significant benefits.
+	// Since the controller may change in editor, in such builds we need to test each tick for relevant ones.
+	// In non-editor builds we can layout the API so that it prevents from any runtime changes -> @TODO.
+	//
+	// Summary:
+	// In editor builds: CachedRelevantController is updated each tick
+	// In non-editor builds: CachedRelevantController is cached in the first tick only 
+	//
+	// This should help understand code below.
+	// @TODO cache relevant controllers at editor time so the clutter here is not needed. Then refactor into smaller parts.
+
+	bool bValuesChanged = false;
+
+#if WITH_EDITOR
+	// In editor builds reset CachedRelevantController each tick to handle changes in the library and its controllers
+	CachedRelevantController = nullptr;
+#endif // WITH_EDITOR
+
+	if (CachedRelevantController)
+	{
+		// Runtime only, optimized for performance
+		const FName& Protocol = CachedRelevantController->GetProtocol();
+		if (IDMXProtocolPtr DMXProtocolPtr = IDMXProtocol::Get(Protocol))
+		{
+			const IDMXUniverseSignalMap& InboundSignalMap = DMXProtocolPtr->GameThreadGetInboundSignals();
+			const int32 FixturePatchRemoteUniverse = CachedRelevantController->RemoteOffset + UniverseID;
+
+			if (InboundSignalMap.Contains(FixturePatchRemoteUniverse))
+			{
+				const TSharedPtr<FDMXSignal>& Signal = InboundSignalMap[FixturePatchRemoteUniverse];
+				CachedLastDMXSignal = Signal;
+
+				const int32 StartingIndex = GetStartingChannel() - 1;
+				const int32 NumChannels = GetChannelSpan();
+
+				// In cases where the user changes the num channels of the fixutre type, we have to restart the receiver
+				if (NumChannels != CachedDMXValues.Num())
+				{
+					CachedDMXValues.SetNum(NumChannels, false);
+				}
+
+				// Copy the data to the dmx buffer
+				TArray<uint8> NewValuesArray(&Signal->ChannelData[StartingIndex], NumChannels);
+
+				// Update only if values changed
+				if (NewValuesArray != CachedDMXValues)
+				{
+					// Move the new values. Profiler shows benefits of MoveTemp in debug and development builds
+					CachedDMXValues = MoveTemp(NewValuesArray);
+
+					bValuesChanged = true;
+				}
+			}
+		}
+	}
+	else
+	{
+		UDMXEntityController* ControllerInUse = nullptr;
+		for (UDMXEntityController* Controller : GetRelevantControllers())
+		{
+#if !WITH_EDITOR
+			// Non-Editor builds cache the controller, then early out and rerun this tick function as if it was called with the CachedRelevantController
+			CachedRelevantController = Controller;
+			UpdateCachedDMXValues();
+#endif // !WITH_EDITOR
+
+			// If several controllers are sending we let the user know of the conflict, but do not try to merge the signals.
+			if (ControllerInUse)
+			{
+				UE_LOG(DMXEntityFixturePatchLog, Warning, TEXT("More than one controller sending data to %s. Using one arbitrarily, may differ for each run."), *GetDisplayName());
+				return false;
+			}
+			ControllerInUse = Controller;
+
+			FName Protocol = Controller->GetProtocol();
+			if (IDMXProtocolPtr DMXProtocolPtr = IDMXProtocol::Get(Protocol))
+			{
+				const IDMXUniverseSignalMap& InboundSignalMap = DMXProtocolPtr->GameThreadGetInboundSignals();
+				const int32 FixturePatchRemoteUniverse = Controller->RemoteOffset + UniverseID;
+
+				if (InboundSignalMap.Contains(FixturePatchRemoteUniverse))
+				{
+					const TSharedPtr<FDMXSignal>& Signal = InboundSignalMap[FixturePatchRemoteUniverse];
+					CachedLastDMXSignal = Signal;
+
+					const int32 StartingIndex = GetStartingChannel() - 1;
+					const int32 NumChannels = GetChannelSpan();
+
+					// In cases where the user changes the num channels of the fixutre type, we have to restart the receiver
+					if (NumChannels != CachedDMXValues.Num())
+					{
+						CachedDMXValues.SetNum(NumChannels, false);
+					}
+
+					// Copy the data to the dmx buffer
+					TArray<uint8> NewValuesArray(&Signal->ChannelData[StartingIndex], NumChannels);
+
+					// Update only if values changed
+					if (NewValuesArray != CachedDMXValues)
+					{
+						// Move the new values. Profiler shows benefits of MoveTemp in debug and development builds
+						CachedDMXValues = MoveTemp(NewValuesArray);
+
+						bValuesChanged = true;
+					}
+				}
+			}
+		}
+	}
+
+	return bValuesChanged;
+}
+
+void UDMXEntityFixturePatch::UpdateCachedNormalizedAttributeValues()
+{
+	SCOPE_CYCLE_COUNTER(STAT_DMXFixturePatchCacheNormalizedValues);
+
+	CachedNormalizedValuesPerAttribute.Map.Reset();
+
+	if (ParentFixtureTypeTemplate && CanReadActiveMode())
+	{
+		const FDMXFixtureMode& Mode = ParentFixtureTypeTemplate->Modes[ActiveMode];
+
+		for (const FDMXFixtureFunction& Function : Mode.Functions)
+		{
+			const int32 FunctionStartIndex = Function.Channel - 1;
+			const int32 FunctionLastIndex = FunctionStartIndex + UDMXEntityFixtureType::NumChannelsToOccupy(Function.DataType) - 1;
+			if (FunctionLastIndex >= CachedDMXValues.Num())
+			{
+				break;
+			}
+
+			const uint32 IntValue = UDMXEntityFixtureType::BytesToFunctionValue(Function, CachedDMXValues.GetData() + FunctionStartIndex);
+			const float NormalizedValue = (float)IntValue / (float)UDMXEntityFixtureType::GetDataTypeMaxValue(Function.DataType);
+
+			CachedNormalizedValuesPerAttribute.Map.Add(Function.Attribute, NormalizedValue);
+		}
+	}
+}
+
+TStatId UDMXEntityFixturePatch::GetStatId() const
+{
+	RETURN_QUICK_DECLARE_CYCLE_STAT(UDMXPixelMappingBaseComponent, STATGROUP_Tickables);
+}
+
+bool UDMXEntityFixturePatch::IsTickableInEditor() const
+{
+#if WITH_EDITOR
+	return bTickInEditor;
+#endif // WITH_EDITOR
+
+#if !WITH_EDITOR
+	return false;
+#endif //!WITH_EDITOR
+}
+
+bool UDMXEntityFixturePatch::IsTickableWhenPaused() const
+{
+	return false;
+}
+
+bool UDMXEntityFixturePatch::IsTickable() const
+{
+	return OnFixturePatchReceivedDMX.IsBound();
+}
 
 int32 UDMXEntityFixturePatch::GetChannelSpan() const
 {
@@ -47,15 +252,16 @@ int32 UDMXEntityFixturePatch::GetEndingChannel() const
 
 int32 UDMXEntityFixturePatch::GetRemoteUniverse() const
 {
-	if (GetRelevantControllers().Num() > 0)
+	if (UDMXEntityController* RelevantController = GetFirstRelevantController())
 	{
-		return GetRelevantControllers()[0]->RemoteOffset + UniverseID;
+		return RelevantController->RemoteOffset + UniverseID;
 	}
 	return -1;
 }
 
 TArray<FName> UDMXEntityFixturePatch::GetAllFunctionsInActiveMode() const
 {
+	// DEPRECATED 4.26, FString conversion to FName is lossy
 	TArray<FName> NameArray;
 
 	if (!CanReadActiveMode())
@@ -90,16 +296,15 @@ TArray<FDMXAttributeName> UDMXEntityFixturePatch::GetAllAttributesInActiveMode()
 	NameArray.Reserve(Functions.Num());
 	for (const FDMXFixtureFunction& Function : Functions)
 	{
-		if (UDMXEntityFixtureType::GetFunctionLastChannel(Function) <= Mode.ChannelSpan)
-		{
-			NameArray.Add(Function.Attribute);
-		}
+		NameArray.Add(Function.Attribute);
 	}
+
 	return NameArray;
 }
 
 TMap<FName, FDMXAttributeName> UDMXEntityFixturePatch::GetFunctionAttributesMap() const
 {
+	// DEPRECATED 4.26, FString conversion to FName is lossy
 	TMap<FName, FDMXAttributeName> AttributeMap;
 
 	if (!CanReadActiveMode())
@@ -178,12 +383,9 @@ TMap<FDMXAttributeName, int32> UDMXEntityFixturePatch::GetAttributeChannelAssign
 	ChannelMap.Reserve(Functions.Num());
 	for (const FDMXFixtureFunction& Function : Functions)
 	{
-		if (UDMXEntityFixtureType::GetFunctionLastChannel(Function) <= Mode.ChannelSpan)
-		{
-			ChannelMap.Add(Function.Attribute, Function.Channel);
-		}
 		ChannelMap.Add(Function.Attribute, Function.Channel + GetStartingChannel() - 1);
 	}
+
 	return ChannelMap;
 }
 
@@ -266,8 +468,7 @@ TMap<int32, uint8> UDMXEntityFixturePatch::ConvertAttributeMapToRawMap(const TMa
 	for (const TPair<FDMXAttributeName, int32>& Elem : FunctionMap)
 	{
 		// Search for a function with Attribute == Elem.Key.Attribute
-		const FDMXFixtureFunction* FunctionPtr = Functions.FindByPredicate([&Elem](const FDMXFixtureFunction& Function)
-		{
+		const FDMXFixtureFunction* FunctionPtr = Functions.FindByPredicate([&Elem](const FDMXFixtureFunction& Function) {
 			return Elem.Key == Function.Attribute;
 		});
 
@@ -412,7 +613,7 @@ const FDMXFixtureFunction* UDMXEntityFixturePatch::GetAttributeFunction(const FD
 {
 	if (!CanReadActiveMode())
 	{
-		UE_LOG(DMXEntityFixtureTypePatchLog, Warning, TEXT("%S: Can't read the active Mode from the Fixture Type"), __FUNCTION__);
+		UE_LOG(DMXEntityFixturePatchLog, Warning, TEXT("%S: Can't read the active Mode from the Fixture Type"), __FUNCTION__);
 		return nullptr;
 	}
 
@@ -451,6 +652,14 @@ const FDMXFixtureFunction* UDMXEntityFixturePatch::GetAttributeFunction(const FD
 
 UDMXEntityController* UDMXEntityFixturePatch::GetFirstRelevantController() const
 {
+#if !WITH_EDITOR
+	// Non-Editor builds return the cached relevant controller, if it exists
+	if (CachedRelevantController)
+	{
+		return CachedRelevantController;
+	}
+#endif // !WITH_EDITOR
+
 	// Parent library may be null if the patch was deleted from the library but is still referenced elsewhere
 	if (ParentLibrary.IsValid())
 	{
@@ -471,23 +680,36 @@ UDMXEntityController* UDMXEntityFixturePatch::GetFirstRelevantController() const
 
 TArray<UDMXEntityController*> UDMXEntityFixturePatch::GetRelevantControllers() const
 {
+	SCOPE_CYCLE_COUNTER(STAT_DMXFixturePatchGetRelevantControllers);
+
+#if !WITH_EDITOR
+	// Non-Editor builds return the cached relevant controller only, if it exists
+	if (CachedRelevantController)
+	{
+		return TArray<UDMXEntityController*>({ CachedRelevantController });
+	}
+#endif // !WITH_EDITOR
+
 	TArray<UDMXEntityController*> RetVal;
 	if (ParentLibrary.IsValid())
 	{
-		ParentLibrary->ForEachEntityOfType<UDMXEntityController>([&](UDMXEntityController* Controller)
+		for (UDMXEntity* Entity : ParentLibrary->GetEntities())
 		{
-			if (IsInControllerRange(Controller))
+			if (UDMXEntityController* Controller = Cast<UDMXEntityController>(Entity))
 			{
-				RetVal.Add(Controller);
+				if (IsInControllerRange(Controller))
+				{
+					RetVal.Add(Controller);
+				}
 			}
-		});
+		}
 	}
 	else
 	{
-		UE_LOG(DMXEntityFixtureTypePatchLog, Fatal, TEXT("Parent library is null!"));
+		UE_LOG(DMXEntityFixturePatchLog, Fatal, TEXT("Parent library is null!"));
 	}
 
-	return RetVal;
+	return MoveTemp(RetVal);
 }
 
 bool UDMXEntityFixturePatch::IsInControllersRange(const TArray<UDMXEntityController*>& InControllers) const
@@ -504,122 +726,495 @@ bool UDMXEntityFixturePatch::IsInControllersRange(const TArray<UDMXEntityControl
 
 int32 UDMXEntityFixturePatch::GetAttributeValue(FDMXAttributeName Attribute, bool& bSuccess)
 {
-	bSuccess = false;
-
-	const FDMXFixtureFunction* AttributeFunction = GetAttributeFunction(Attribute);
-	if (AttributeFunction == nullptr)
+	if (const FDMXFixtureFunction* FunctionPtr = GetAttributeFunction(Attribute))
 	{
-		return 0;
-	}
-
-	// Use the device protocol from the first Controller affecting this Patch
-	UDMXEntityController* Controller = GetFirstRelevantController();
-	if (Controller == nullptr)
-	{
-		UE_LOG(DMXEntityFixtureTypePatchLog, Warning, TEXT("%S: No valid Controller was found"), __FUNCTION__);
-		return 0;
-	}
-
-	FDMXBufferPtr InputDMXBuffer = Controller->GetInputDMXBuffer(UniverseID);
-	if (!InputDMXBuffer.IsValid())
-	{
-		UE_LOG(DMXEntityFixtureTypePatchLog, Warning, TEXT("%S: InputDMXBuffer Not Valid"), __FUNCTION__);
-		return 0;
-	}
-
-	uint32 ResultValue = 0;
-	InputDMXBuffer->AccessDMXData([&](TArray<uint8>& DMXData)
+		const int32 FunctionStartIndex = FunctionPtr->Channel - 1;
+		const int32 FunctionLastIndex = FunctionStartIndex + UDMXEntityFixtureType::NumChannelsToOccupy(FunctionPtr->DataType) - 1;
+		if (FunctionLastIndex < CachedDMXValues.Num())
 		{
-			const int32 FixtureChannelStart = GetStartingChannel() - 1;
-			const int32 FunctionStartIndex = AttributeFunction->Channel - 1 + FixtureChannelStart;
-			const int32 FunctionLastIndex = FunctionStartIndex + UDMXEntityFixtureType::NumChannelsToOccupy(AttributeFunction->DataType) - 1;
-			if (FunctionLastIndex >= DMXData.Num())
-			{
-				return;
-			}
-
-			ResultValue = UDMXEntityFixtureType::BytesToFunctionValue(*AttributeFunction, DMXData.GetData() + FunctionStartIndex);
 			bSuccess = true;
-		});
 
-	return static_cast<int32>(ResultValue);
+			return UDMXEntityFixtureType::BytesToFunctionValue(*FunctionPtr, CachedDMXValues.GetData() + FunctionStartIndex);
+		}
+	}
+
+	bSuccess = false;
+	return 0;
+}
+
+float UDMXEntityFixturePatch::GetNormalizedAttributeValue(FDMXAttributeName Attribute, bool& bSuccess)
+{
+	const float* ValuePtr = CachedNormalizedValuesPerAttribute.Map.Find(Attribute);
+	if (ValuePtr)
+	{
+		bSuccess = true;
+		return *ValuePtr;
+	}
+	bSuccess = false;
+	return 0.0f;
 }
 
 void UDMXEntityFixturePatch::GetAttributesValues(TMap<FDMXAttributeName, int32>& AttributesValues)
 {
 	AttributesValues.Reset();
 
-	if (!CanReadActiveMode())
+	if (ParentFixtureTypeTemplate && CanReadActiveMode())
 	{
-		UE_LOG(DMXEntityFixtureTypePatchLog, Warning, TEXT("%S: Can't read the active Mode from the Fixture Type"), __FUNCTION__);
-		return;
-	}
+		const FDMXFixtureMode& Mode = ParentFixtureTypeTemplate->Modes[ActiveMode];
 
-	// No need for any search if there are no Functions on the active Mode.
-	if (ParentFixtureTypeTemplate->Modes[ActiveMode].Functions.Num() == 0)
-	{
-		return;
-	}
-
-	// Use the device protocol from the first Controller affecting this Patch
-	UDMXEntityController* Controller = GetFirstRelevantController();
-	if (Controller == nullptr)
-	{
-		UE_LOG(DMXEntityFixtureTypePatchLog, Warning, TEXT("%S: No valid Controller was found"), __FUNCTION__);
-		return;
-	}
-
-	FDMXBufferPtr InputDMXBuffer = Controller->GetInputDMXBuffer(UniverseID);
-	if (!InputDMXBuffer.IsValid())
-	{
-		UE_LOG(DMXEntityFixtureTypePatchLog, Warning, TEXT("%S: InputDMXBuffer Not Valid"), __FUNCTION__);
-		return;
-	}
-
-	const FDMXFixtureMode& Mode = ParentFixtureTypeTemplate->Modes[ActiveMode];
-	const int32 FixtureChannelStart = GetStartingChannel() - 1;
-
-	// Search the Function mapped to the selected Attribute
-	for (const FDMXFixtureFunction& Function : Mode.Functions)
-	{
-		if (Function.Channel > DMX_MAX_ADDRESS)
+		for (const FDMXFixtureFunction& Function : Mode.Functions)
 		{
-			// Following functions will have even higher Channels, so we can stop iterating
-			break;
-		}
+			const int32 FunctionStartIndex = Function.Channel - 1;
+			const int32 FunctionLastIndex = FunctionStartIndex + UDMXEntityFixtureType::NumChannelsToOccupy(Function.DataType) - 1;
+			if (FunctionLastIndex >= CachedDMXValues.Num())
+			{
+				break;
+			}
 
-		if (!UDMXEntityFixtureType::IsFunctionInModeRange(Function, Mode, FixtureChannelStart))
-		{
-			// We reached the functions outside the valid channels for this mode
-			break;
+			const uint32 IntValue = UDMXEntityFixtureType::BytesToFunctionValue(Function, CachedDMXValues.GetData() + FunctionStartIndex);
+			AttributesValues.Add(Function.Attribute, IntValue);
 		}
+	}
+}
 
-		if (FDMXAttributeName::IsValid(Function.Attribute.GetName()))
+void UDMXEntityFixturePatch::GetNormalizedAttributesValues(FDMXNormalizedAttributeValueMap& NormalizedAttributesValues)
+{
+	NormalizedAttributesValues = CachedNormalizedValuesPerAttribute;
+}
+
+bool UDMXEntityFixturePatch::SendMatrixCellValue(const FIntPoint& CellCoordinate, const FDMXAttributeName& Attribute, int32 Value)
+{
+	const FDMXFixtureMatrix* const FixtureMatrixPtr = AccessFixtureMatrixValidated();
+
+	if (!FixtureMatrixPtr)
+	{
+		return false;
+	}
+
+	const FDMXFixtureMatrix& FixtureMatrix = *FixtureMatrixPtr;
+
+	if (!AreCoordinatesValid(FixtureMatrix, CellCoordinate))
+	{
+		return false;
+	}
+
+	TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
+	GetMatrixCellChannelsAbsolute(CellCoordinate, AttributeNameChannelMap);
+
+	IDMXFragmentMap DMXFragmentMap;
+	for (const FDMXFixtureCellAttribute& CellAttribute : FixtureMatrix.CellAttributes)
+	{
+		if (!AttributeNameChannelMap.Contains(Attribute))
 		{
 			continue;
 		}
 
-		InputDMXBuffer->AccessDMXData([&](TArray<uint8>& DMXData)
-		{
-			const int32 FunctionStartIndex = Function.Channel - 1 + FixtureChannelStart;
-			const int32 FunctionLastIndex = FunctionStartIndex + UDMXEntityFixtureType::NumChannelsToOccupy(Function.DataType) - 1;
-			if (FunctionLastIndex >= DMXData.Num())
-			{
-				return;
-			}
+		int32 FirstChannel = AttributeNameChannelMap[Attribute];
+		int32 LastChannel = FirstChannel + UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType) - 1;
 
-			const uint32 ResultValue = UDMXEntityFixtureType::BytesToFunctionValue(Function, DMXData.GetData() + FunctionStartIndex);
-			AttributesValues.Add(Function.Attribute, ResultValue);
-		});
-	};
+		TArray<uint8> ByteArr;
+		ByteArr.AddZeroed(4);
+		UDMXEntityFixtureType::IntToBytes(CellAttribute.DataType, CellAttribute.bUseLSBMode, Value, ByteArr.GetData());
+
+		int32 ByteOffset = 0;
+		for (int32 Channel = FirstChannel; Channel <= LastChannel; Channel++)
+		{
+			DMXFragmentMap.Add(Channel, ByteArr[ByteOffset]);
+			ByteOffset++;
+		}
+
+		TArray<UDMXEntityController*> RelevantControllers = GetRelevantControllers();
+		TArray<EDMXSendResult> Results;
+		TSet<uint32> UniversesUsed;
+
+		Results.Reserve(RelevantControllers.Num());
+		UniversesUsed.Reserve(RelevantControllers.Num());
+
+		// Send using the Remote Offset from each Controller with this Fixture's Universe in its range
+		for (const UDMXEntityController* Controller : RelevantControllers)
+		{
+			const uint32 RemoteUniverse = UniverseID + Controller->RemoteOffset;
+			if (!UniversesUsed.Contains(RemoteUniverse))
+			{
+				IDMXProtocolPtr Protocol = Controller->DeviceProtocol.GetProtocol();
+				if (Protocol.IsValid())
+				{
+					// If sent DMX will not be looped back via network, input it directly
+					bool bCanLoopback = Protocol->IsReceiveDMXEnabled() && Protocol->IsSendDMXEnabled();
+					if (!bCanLoopback)
+					{
+						Protocol->InputDMXFragment(RemoteUniverse, DMXFragmentMap);
+					}
+
+					Results.Add(Protocol->SendDMXFragment(RemoteUniverse, DMXFragmentMap));
+
+					UniversesUsed.Add(RemoteUniverse); // Avoid setting values in the same Universe more than once
+				}
+			}
+		}
+
+		for (const EDMXSendResult& Result : Results)
+		{
+			if (Result != EDMXSendResult::Success)
+			{
+				UE_LOG(DMXEntityFixturePatchLog, Error, TEXT("Error while sending DMX Packet"));
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
-UDMXEntityFixturePatch::UDMXEntityFixturePatch()
-	: UniverseID(1)
-	, bAutoAssignAddress(true)
-	, ManualStartingAddress(1)
-	, AutoStartingAddress(1)
-	, ActiveMode(0)
-{}
+bool UDMXEntityFixturePatch::SendNormalizedMatrixCellValue(const FIntPoint& CellCoordinate, const FDMXAttributeName& Attribute, float Value)
+{
+	const FDMXFixtureMatrix* FixtureMatrixPtr = AccessFixtureMatrixValidated();
+
+	if (!FixtureMatrixPtr)
+	{
+		return false;
+	}
+
+	const FDMXFixtureMatrix& FixtureMatrix = *FixtureMatrixPtr;
+
+	const FDMXFixtureCellAttribute* const ExistingAttributePtr = FixtureMatrix.CellAttributes.FindByPredicate([&Attribute](const FDMXFixtureCellAttribute& TestedCellAttribute) {
+		return TestedCellAttribute.Attribute == Attribute;
+		});
+
+	if (ExistingAttributePtr)
+	{
+		const FDMXFixtureCellAttribute& ExistingAttribute = *ExistingAttributePtr;
+
+		Value = FMath::Clamp(Value, 0.0f, 1.0f);
+		const uint32 IntValue = UDMXEntityFixtureType::GetDataTypeMaxValue(ExistingAttribute.DataType) * Value;
+
+		SendMatrixCellValue(CellCoordinate, Attribute, IntValue);
+
+		return true;
+	}
+	
+	return false;
+}
+
+bool UDMXEntityFixturePatch::GetMatrixCellValues(const FIntPoint& CellCoordinate, TMap<FDMXAttributeName, int32>& ValuePerAttribute)
+{
+	ValuePerAttribute.Reset();
+
+	const FDMXFixtureMatrix* const FixtureMatrixPtr = AccessFixtureMatrixValidated();
+
+	if (!FixtureMatrixPtr)
+	{
+		return false;
+	}
+
+	const FDMXFixtureMatrix& FixtureMatrix = *FixtureMatrixPtr;
+
+	if (!AreCoordinatesValid(FixtureMatrix, CellCoordinate))
+	{
+		return false;
+	}
+
+	const TArray<UDMXEntityController*>&& RelevantControllers = GetRelevantControllers();
+
+	TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
+	GetMatrixCellChannelsAbsolute(CellCoordinate, AttributeNameChannelMap);
+
+	for (const UDMXEntityController* Controller : RelevantControllers)
+	{
+		IDMXProtocolPtr Protocol = Controller->DeviceProtocol.GetProtocol();
+		TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> ProtocolUniverse = Protocol->GetUniverseById(UniverseID);
+		check(ProtocolUniverse.IsValid());
+
+		const IDMXUniverseSignalMap& InboundSignalMap = Protocol->GameThreadGetInboundSignals();
+		const int32 FixturePatchRemoteUniverse = GetRemoteUniverse();
+
+		if (InboundSignalMap.Contains(FixturePatchRemoteUniverse))
+		{
+			const TSharedPtr<FDMXSignal>& Signal = InboundSignalMap[FixturePatchRemoteUniverse];
+
+			for (const FDMXFixtureCellAttribute& CellAttribute : FixtureMatrix.CellAttributes)
+			{
+				TArray<uint8> ChannelValues;
+				for (const TPair<FDMXAttributeName, int32>& AttributeNameChannelKvp : AttributeNameChannelMap)
+				{
+					if (CellAttribute.Attribute != AttributeNameChannelKvp.Key)
+					{
+						continue;
+					}
+
+					int32 FirstChannel = AttributeNameChannelKvp.Value;
+					int32 LastChannel = FirstChannel + UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType) - 1;
+
+					for (int32 Channel = FirstChannel; Channel <= LastChannel; Channel++)
+					{
+						int32 ChannelIndex = Channel - 1;
+
+						check(Signal->ChannelData.IsValidIndex(ChannelIndex));
+						ChannelValues.Add(Signal->ChannelData[ChannelIndex]);
+					}
+				}
+
+				const int32 Value = UDMXEntityFixtureType::BytesToInt(CellAttribute.DataType, CellAttribute.bUseLSBMode, ChannelValues.GetData());
+
+				ValuePerAttribute.Add(CellAttribute.Attribute, Value);
+			}
+		}
+	}
+
+	return true;
+}
+
+bool UDMXEntityFixturePatch::GetNormalizedMatrixCellValues(const FIntPoint& CellCoordinate, TMap<FDMXAttributeName, float>& NormalizedValuePerAttribute)
+{
+	NormalizedValuePerAttribute.Reset();
+
+	const FDMXFixtureMatrix* FixtureMatrixPtr = AccessFixtureMatrixValidated();
+
+	if (!FixtureMatrixPtr)
+	{
+		return false;
+	}
+	const FDMXFixtureMatrix& FixtureMatrix = *FixtureMatrixPtr;
+
+	TMap<FDMXAttributeName, int32> ValuePerAttribute;
+	if (GetMatrixCellValues(CellCoordinate, ValuePerAttribute))
+	{
+		for (const TPair<FDMXAttributeName, int32>& AttributeValueKvp : ValuePerAttribute)
+		{
+			const FDMXAttributeName& AttributeName = AttributeValueKvp.Key;
+
+			const FDMXFixtureCellAttribute* const ExistingAttributePtr = FixtureMatrix.CellAttributes.FindByPredicate([&AttributeName](const FDMXFixtureCellAttribute& TestedCellAttribute) {
+				return TestedCellAttribute.Attribute == AttributeName;
+				});
+
+			if (ExistingAttributePtr)
+			{
+				const float NormalizedValue = (float)AttributeValueKvp.Value / (float)UDMXEntityFixtureType::GetDataTypeMaxValue(ExistingAttributePtr->DataType);
+
+				NormalizedValuePerAttribute.Add(AttributeValueKvp.Key, NormalizedValue);
+			}
+		}
+	}
+
+	return true;
+}
+
+bool UDMXEntityFixturePatch::GetMatrixCellChannelsRelative(const FIntPoint& CellCoordinate, TMap<FDMXAttributeName, int32>& AttributeChannelMap)
+{
+	const FDMXFixtureMatrix* const FixtureMatrixPtr = AccessFixtureMatrixValidated();
+
+	if (!FixtureMatrixPtr)
+	{
+		return false;
+	}
+
+	const FDMXFixtureMatrix& FixtureMatrix = *FixtureMatrixPtr;
+
+	if (!AreCoordinatesValid(FixtureMatrix, CellCoordinate))
+	{
+		return false;
+	}
+
+	TArray<int32> Channels;
+	for (const FDMXFixtureCellAttribute& CellAttribute : FixtureMatrix.CellAttributes)
+	{
+		if (!FixtureMatrix.GetChannelsFromCell(CellCoordinate, CellAttribute.Attribute, Channels))
+		{
+			continue;
+		}
+
+		check(Channels.IsValidIndex(0));
+			
+		if (Channels[0] > DMX_MAX_ADDRESS)
+		{
+			break;
+		}
+
+		AttributeChannelMap.Add(CellAttribute.Attribute, Channels[0]);
+	}
+
+	return true;
+}
+
+bool UDMXEntityFixturePatch::GetMatrixCellChannelsAbsolute(const FIntPoint& CellCoordinate /* Cell X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap)
+{
+	int32 PatchStartingChannelOffset = GetStartingChannel() - 1;
+	if(GetMatrixCellChannelsRelative(CellCoordinate, AttributeChannelMap))
+	{
+		for (TPair<FDMXAttributeName, int32>& AttributeChannelKvp : AttributeChannelMap)
+		{
+			int32 Channel = AttributeChannelKvp.Value + PatchStartingChannelOffset;
+			if (Channel > DMX_MAX_ADDRESS)
+			{
+				break;
+			}
+
+			AttributeChannelKvp.Value = Channel;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool UDMXEntityFixturePatch::GetMatrixProperties(FDMXFixtureMatrix& MatrixProperties)
+{
+	FDMXFixtureMatrix* FixtureMatrixPtr = AccessFixtureMatrixValidated();
+
+	if (FixtureMatrixPtr)
+	{
+		MatrixProperties = *FixtureMatrixPtr;
+		return true;
+	}
+
+	return false;
+}
+
+bool UDMXEntityFixturePatch::GetCellAttributes(TArray<FDMXAttributeName>& CellAttributeNames)
+{
+	const FDMXFixtureMatrix* const FixtureMatrixPtr = AccessFixtureMatrixValidated();
+
+	if (!FixtureMatrixPtr)
+	{
+		return false;
+	}
+
+	const FDMXFixtureMatrix& FixtureMatrix = *FixtureMatrixPtr;
+
+	for (const FDMXFixtureCellAttribute& CellAtrribute : FixtureMatrix.CellAttributes)
+	{
+		if (!CellAtrribute.Attribute.IsNone())
+		{
+			CellAttributeNames.Add(CellAtrribute.Attribute);
+		}
+			
+	}
+		
+	return true;
+}
+
+bool UDMXEntityFixturePatch::GetMatrixCell(const FIntPoint& CellCoordinate, FDMXCell& OutCell)
+{
+	const FDMXFixtureMatrix* const FixtureMatrixPtr = AccessFixtureMatrixValidated();
+
+	if (!FixtureMatrixPtr)
+	{
+		return false;
+	}
+
+	const FDMXFixtureMatrix& FixtureMatrix = *FixtureMatrixPtr;
+
+	TArray<int32> AllIDs;
+	TArray<int32> OrderedIDs;
+
+	int32 XCells = FixtureMatrix.XCells;
+	int32 YCells = FixtureMatrix.YCells;
+
+	for (int32 YCell = 0; YCell < YCells; YCell++)
+	{
+		for (int32 XCell = 0; XCell < XCells; XCell++)
+		{
+			AllIDs.Add(XCell + YCell * XCell);
+		}
+	}
+
+	FDMXUtils::PixelMappingDistributionSort(FixtureMatrix.PixelMappingDistribution, XCells, YCells, AllIDs, OrderedIDs);
+
+	FDMXCell Cell;
+	Cell.Coordinate = CellCoordinate;
+	Cell.CellID = OrderedIDs[CellCoordinate.Y + CellCoordinate.X * XCells] + 1;
+		
+	OutCell = Cell;
+
+	return true;
+}
+
+bool UDMXEntityFixturePatch::GetAllMatrixCells(TArray<FDMXCell>& Cells)
+{
+	const FDMXFixtureMatrix* const FixtureMatrixPtr = AccessFixtureMatrixValidated();
+
+	if (!FixtureMatrixPtr)
+	{
+		return false;
+	}
+
+	const FDMXFixtureMatrix& FixtureMatrix = *FixtureMatrixPtr;
+
+	TArray<int32> AllIDs;
+	TArray<int32> OrderedIDs;
+
+	int32 XCells = FixtureMatrix.XCells;
+	int32 YCells = FixtureMatrix.YCells;
+
+	for (int32 YCell = 0; YCell < YCells; YCell++)
+	{
+		for (int32 XCell = 0; XCell < XCells; XCell++)
+		{
+			AllIDs.Add(XCell + YCell * XCells);
+		}
+	}
+
+	FDMXUtils::PixelMappingDistributionSort(FixtureMatrix.PixelMappingDistribution, XCells, YCells, AllIDs, OrderedIDs);
+
+	for (int32 YCell = 0; YCell < YCells; YCell++)
+	{
+		for (int32 XCell = 0; XCell < XCells; XCell++)
+		{
+
+			FDMXCell Cell;
+
+			Cell.Coordinate = FIntPoint(XCell, YCell);
+			Cell.CellID = OrderedIDs[YCell + XCell * YCells] + 1;
+
+			Cells.Add(Cell);
+		}
+	}
+
+	return true;
+}
+
+FDMXFixtureMatrix* UDMXEntityFixturePatch::AccessFixtureMatrixValidated()
+{
+	if (!ParentFixtureTypeTemplate)
+	{
+		UE_LOG(DMXEntityFixturePatchLog, Error, TEXT("Fixture Patch %s has no parent fixture type assigned"), *GetDisplayName());
+		return nullptr;
+	}
+
+	if (!ParentFixtureTypeTemplate->bFixtureMatrixEnabled)
+	{
+		UE_LOG(DMXEntityFixturePatchLog, Error, TEXT("Fixture Patch %s is not a Matrix Fixture"), *GetDisplayName());
+		return nullptr;
+	}
+
+	if (CanReadActiveMode() == false)
+	{
+		UE_LOG(DMXEntityFixturePatchLog, Error, TEXT("Invalid active Mode in Fixture Patch %s"), *GetDisplayName());
+		return nullptr;
+	}
+
+	FDMXFixtureMode& RelevantMode = ParentFixtureTypeTemplate->Modes[ActiveMode];
+
+	return &RelevantMode.FixtureMatrixConfig;
+}
+
+bool UDMXEntityFixturePatch::AreCoordinatesValid(const FDMXFixtureMatrix& FixtureMatrix, const FIntPoint& Coordinate, bool bLogged)
+{
+	bool bValidX = Coordinate.X < FixtureMatrix.XCells && Coordinate.X >= 0;
+	bool bValidY = Coordinate.Y < FixtureMatrix.YCells && Coordinate.Y >= 0;
+
+	if (bValidX && bValidY)
+	{
+		return true;
+	}
+
+	if (bLogged)
+	{
+		UE_LOG(DMXEntityFixturePatchLog, Error, TEXT("Invalid X Coordinate for patch (requested %d, expected in range 0-%d)."), Coordinate.X, FixtureMatrix.XCells - 1);
+	}
+
+	return false;
+}
 
 #undef LOCTEXT_NAMESPACE

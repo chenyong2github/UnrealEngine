@@ -11,6 +11,8 @@
 #include "Interfaces/IDMXProtocolRDM.h"
 #include "Interfaces/IDMXProtocolTransport.h"
 
+class FDMXSignal;
+
 /**
  * Delegate used when a network interface has been changed
  *
@@ -88,6 +90,9 @@ public:
 	 */
 	virtual const FName& GetProtocolName() const = 0;
 	
+
+	virtual const IDMXUniverseSignalMap& GameThreadGetInboundSignals() const = 0;
+
 	/**
 	 * Get the Protocol Sender Interface
 	 * Sender interface holds the functionality to queue and physically send the DMX buffer
@@ -251,7 +256,7 @@ public:
 	/**
 	 * Zeroes Input DMX Buffers in all active Universes
 	 */
-	virtual void ZeroInputBuffers() = 0;
+	virtual void ClearInputBuffers() = 0;
 
 	/**
 	 * Zeroes Output DMX Buffers in all active Universes
@@ -290,8 +295,5 @@ public:
 public:
 	/** Delegate used for listening to a network interface changes  */
 	static FOnNetworkInterfaceChanged OnNetworkInterfaceChanged;
-
-	/** Delegate used for listening to a receiving thread changes  */
-	static FOnReceivingThreadChanged OnReceivingThreadChanged;
 };
 

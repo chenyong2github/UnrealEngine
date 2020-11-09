@@ -53,17 +53,13 @@ public:
 
 	SLATE_END_ARGS()
 
-	/** Destructor */
-	virtual ~SDMXActivityMonitor();
-
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs);
 
-	/** Cancels all asynchronous tasks, can be called by a parent SDockTab */
-	void CancelAsyncTasks(TSharedRef<class SDockTab> InParentTab);
-
-	/** Cancels all asynchronous tasks */
-	void CancelAsyncTasks();
+protected:
+	//~ Begin SWidget interface
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	//~End of SWidget interface
 
 private:
 	/** Initialize values from DMX Protocol Settings */
@@ -72,9 +68,6 @@ private:
 	/** Saves settings of the monitor in config */
 	void SaveMonitorSettings() const;
 
-	/** Set to false while async operations are ongoing */
-	bool bCanDestroy = true;
-
 private:
 	/** Sets the protocol to be monitored */
 	void SetProtocol(FName NewProtocolName);
@@ -82,14 +75,8 @@ private:
 	/** Returns a buffer view for specified universe ID, creates one if it doesn't exist yet */
 	TSharedRef<SDMXActivityInUniverse> GetOrCreateActivityWidget(uint16 UniverseID);
 
-	/** Called when an input buffer was updated */
-	void OnInputBufferUpdated(FName Protocol, uint16 UniverseID, const TArray<uint8>& Values);
-
 	/** Visualizes an input buffer */
 	void VisualizeInputBuffer(FName Protocol, uint16 UniverseID, const TArray<uint8>& Values);
-
-	/** Called when an output buffer was updated */
-	void OnOutputBufferUpdated(FName Protocol, uint16 UniverseID, const TArray<uint8>& Values);
 
 	/** Visualizes output buffer */
 	void VisualizeOutputBuffer(FName InProtocol, uint16 InUniverseID, const TArray<uint8>& Values);

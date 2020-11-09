@@ -45,7 +45,6 @@ public:
 	ADMXFixtureActor();
 
 	bool HasBeenInitialized;
-	bool ForceInitialFixtureState;	//snap to target values when initializing
 	float LensRadius;
 	void FeedFixtureData();
 	void SetDefaultFixtureState();
@@ -55,6 +54,7 @@ public:
 	TEnumAsByte<EDMXFixtureQualityLevel> QualityLevel;
 
 	// HIERARCHY---------------------------------
+	UPROPERTY()
 	USceneComponent* Base;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DMX Light Fixture")
@@ -67,7 +67,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
 	void InitializeFixture(UStaticMeshComponent* StaticMeshLens, UStaticMeshComponent* StaticMeshBeam);
 
+	/** Pushes DMX Values to the Fixture. Expects normalized values in the range of 0.0f - 1.0f */
 	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
+	void PushNormalizedValuesPerAttribute(const FDMXNormalizedAttributeValueMap& ValuePerAttributeMap);
+
+protected:
+	/*
+	 * Pushes DMX Values to the Fixture. Does not interpolate, causing fixtures to jump to the value directly. 
+	 * Useful for initalization when data is first received.
+	 */
+	virtual void ReInitalizeAttributeValueNoInterp(const FDMXAttributeName& AttributeName, float Value);
+
+	/** Contains all attributes that were received at least once and got initalized  */
+	TSet<FDMXAttributeName> InitializedAttributes;
+
+	/** Holds invalid attributes. Helps ignoring attributes that don't exist */
+	TSet<FDMXAttributeName> InvalidAttributes;
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "DMX Fixture", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.26. Use PushDMXValuesPerAttribute instead."))
 	void PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap);
 
 	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")

@@ -15,7 +15,7 @@
 
 class FSocket;
 class FDMXProtocolUniverseArtNet;
-class FDMXProtocolReceivingRunnable;
+class FDMXProtocolArtNetReceivingRunnable;
 
 class DMXPROTOCOLARTNET_API FDMXProtocolArtNet
 	: public IDMXProtocol
@@ -31,7 +31,8 @@ public:
 	//~ End IDMXProtocolBase implementation
 
 	//~ Begin IDMXProtocol implementation
-	virtual const FName& GetProtocolName() const override;
+	virtual const FName& GetProtocolName() const override;	
+	virtual const IDMXUniverseSignalMap& GameThreadGetInboundSignals() const override;
 	virtual TSharedPtr<FJsonObject> GetSettings() const override;
 	virtual TSharedPtr<IDMXProtocolSender> GetSenderInterface() const override;
 	virtual EDMXSendResult InputDMXFragment(uint16 UniverseID, const IDMXFragmentMap& DMXFragment) override;
@@ -54,7 +55,7 @@ public:
 	virtual uint16 GetMinUniverseID() const override;
 	virtual uint16 GetMaxUniverses() const override;
 	virtual void GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObject& OutSettings) const override;
-	virtual void ZeroInputBuffers() override;
+	virtual void ClearInputBuffers() override;
 	virtual void ZeroOutputBuffers() override;
 
 	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnUniverseInputBufferUpdated, FOnUniverseInputBufferUpdated);
@@ -162,9 +163,6 @@ private:
 
 	uint32 GetUniverseAddr(FString UnicastAddress) const;
 
-	/** Handle the changes in the project settings */
-	void OnReceivingThreadChanged(int32 ReceivingRefreshRate, bool bInUseSeparateReceivingThread);
-
 	/** Release receiving thread and all resources */
 	void ReleaseArtNetReceiver();
 
@@ -178,7 +176,9 @@ private:
 
 	TSharedPtr<IDMXProtocolSender> ArtNetSender;
 	TSharedPtr<IDMXProtocolReceiver> ArtNetReceiver;
-	TSharedPtr<FDMXProtocolReceivingRunnable> ReceivingRunnable;
+	TSharedPtr<FDMXProtocolArtNetReceivingRunnable, ESPMode::ThreadSafe> ReceivingRunnable;
+
+	IDMXUniverseSignalMap EmptyBufferDummy;
 
 	/** Holds the network socket used to transport packages. */
 	FSocket* BroadcastSocket;
@@ -212,8 +212,5 @@ private:
 
 	FDelegateHandle NetworkInterfaceChangedHandle;
 
-	FOnReceivingThreadChangedDelegate ReceivingThreadChangedDelegate;
-
 	const TCHAR* NetworkErrorMessagePrefix;
 };
-

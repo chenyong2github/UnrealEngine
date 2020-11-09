@@ -47,17 +47,13 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Fixture Settings", Meta = (DisplayName = "Fixture Attributes"))
 	TSet<FDMXAttribute> Attributes;
 
-	/** Rate at which DMX is sent, in Hz from epsilon to 1000. 44Hz by standIf set to 0, DMX is sent instantly (not recommended). */
-	UPROPERTY(Config, EditAnywhere, Category = "DMX|Sending Settings", Meta = (ClampMin = "0", ClampMax = "1000"))
-	int32 SendingRefreshRate;
+	/** Rate at which DMX is sent, in Hz from 1 to 1000. 44Hz is recommended. */
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Sending Settings", Meta = (ClampMin = "1", ClampMax = "1000"))
+	uint32 SendingRefreshRate;
 
-	/** Rate at which DMX is received, in Hz from epsilon to 1000. If set to 0, a receive event is raised for each inbound DMX packet (not recommended). */
-	UPROPERTY(Config, EditAnywhere, Category = "DMX|Receiving Settings", Meta = (ClampMin = "0", ClampMax = "1000", EditCondition = "bUseSeparateReceivingThread"))
-	int32 ReceivingRefreshRate;
-
-	/** If true, received DMX packets are handled in a separate thread */
-	UPROPERTY(Config, EditAnywhere, Category = "DMX|Receiving Settings")
-	bool bUseSeparateReceivingThread;
+	/** Rate at which DMX is received, in Hz from 1 to 1000. 44Hz is recommended */
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Receiving Settings", Meta = (ClampMin = "1", ClampMax = "1000", EditCondition = "bUseSeparateReceivingThread"))
+	uint32 ReceivingRefreshRate;
 
 	/** Returns whether send DMX is currently enabled, considering runtime override */
 	bool IsSendDMXEnabled() const { return bOverrideSendDMXEnabled; }

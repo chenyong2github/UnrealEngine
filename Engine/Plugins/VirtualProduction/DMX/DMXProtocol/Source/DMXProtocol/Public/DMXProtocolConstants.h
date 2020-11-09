@@ -44,7 +44,6 @@ enum EDMUniverseDirection
 #define DMX_MAX_PACKET_SIZE 2048u
 #define DMX_MAX_FUNCTION_SIZE ((int32)sizeof(int32))
 
-
 #define DMX_K2_CATEGORY_NAME "DMX"
 
 namespace DMXJsonFieldNames

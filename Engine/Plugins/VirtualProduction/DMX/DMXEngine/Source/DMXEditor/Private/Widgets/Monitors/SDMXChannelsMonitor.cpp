@@ -6,7 +6,7 @@
 #include "DMXEditorSettings.h"
 #include "DMXEditorUtils.h"
 #include "DetailLayoutBuilder.h"
-#include "Interfaces/IDMXProtocolUniverse.h"
+#include "DMXProtocolCommon.h"
 #include "Widgets/SNameListPicker.h"
 #include "Widgets/SDMXChannel.h"
 
@@ -203,6 +203,11 @@ FReply SDMXChannelsMonitor::OnClearButtonClicked()
 {
 	FDMXEditorUtils::ZeroAllDMXBuffers();
 
+	Buffer.Reset(DMX_UNIVERSE_SIZE);
+	Buffer.AddZeroed(DMX_UNIVERSE_SIZE);
+
+	UpdateChannelValueWidgets();
+
 	return FReply::Handled();
 }
 
@@ -250,47 +255,21 @@ void SDMXChannelsMonitor::Tick(const FGeometry& AllottedGeometry, const double I
 	UpdateBuffer();
 }
 
-void SDMXChannelsMonitor::StartListenToUniverse()
-{
-	IDMXProtocolPtr Protocol = ProtocolName.GetProtocol();
-
-	IDMXProtocolUniversePtr Universe = Protocol->GetUniverseById(UniverseID);
-	
-	if (!Universe)
-	{
-		FJsonObject UniverseSettings;
-		Protocol->GetDefaultUniverseSettings(UniverseID, UniverseSettings);
-		Protocol->AddUniverse(UniverseSettings);
-	}
-}
-
 void SDMXChannelsMonitor::UpdateBuffer()
 {
 	if (IDMXProtocolPtr DMXProtocolPtr = IDMXProtocol::Get(ProtocolName))
 	{
-		if (IDMXProtocolUniversePtr Universe = DMXProtocolPtr->GetUniverseById(UniverseID))
+		const IDMXUniverseSignalMap& InboundSignalMap = DMXProtocolPtr->GameThreadGetInboundSignals();
+
+		if (InboundSignalMap.Contains(UniverseID))
 		{
-			if (FDMXBufferPtr DMXBuffer = Universe->GetInputDMXBuffer())
+			const TSharedPtr<FDMXSignal>& Signal = InboundSignalMap[UniverseID];
+
+			if (Signal->ChannelData != Buffer)
 			{
-				// Only update on an incremented sequence ID
-				uint32 BufferSequenceID = DMXBuffer->GetSequenceID();
-				if (BufferSequenceID != UISequenceID)
-				{
-					// Copy the buffer
-					DMXBuffer->AccessDMXData([this](TArray<uint8>& InData) {
-							FMemory::Memcpy(Buffer.GetData(), InData.GetData(), DMX_UNIVERSE_SIZE);
-						});
-
-					// Update UI
-					UpdateChannelValueWidgets();
-				}
-
-				UISequenceID = BufferSequenceID;
+				Buffer = Signal->ChannelData;
+				UpdateChannelValueWidgets();
 			}
-		}
-		else
-		{
-			StartListenToUniverse();
 		}
 	}
 }

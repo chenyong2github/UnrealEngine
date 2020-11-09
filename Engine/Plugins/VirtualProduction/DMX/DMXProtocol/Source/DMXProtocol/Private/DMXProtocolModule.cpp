@@ -25,7 +25,6 @@ DEFINE_LOG_CATEGORY(LogDMXProtocol);
 
 /**  IDMXProtocol.h static declarations */
 FOnNetworkInterfaceChanged IDMXProtocol::OnNetworkInterfaceChanged;
-FOnReceivingThreadChanged IDMXProtocol::OnReceivingThreadChanged;
 
 const TCHAR* FDMXProtocolModule::BaseModuleName = TEXT("DMXProtocol");
 const FString FDMXProtocolModule::LocalHostIpAddress = TEXT("127.0.0.1");
@@ -34,7 +33,6 @@ const TMap<FName, IDMXProtocolPtr>& FDMXProtocolModule::GetProtocols() const
 {
 	return DMXProtocols;
 }
-
 
 #if WITH_EDITOR
 class FDMXProtocolSettingsCustomization : public IDetailCustomization

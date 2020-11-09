@@ -8,11 +8,45 @@
 #include "DMXNameListItem.h"
 
 #include "Dom/JsonObject.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
 #include "HAL/CriticalSection.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "Misc/App.h"
+#include "Misc/Timecode.h"
 #include "Templates/Atomic.h"
 
 #include "DMXProtocolTypes.generated.h"
+
+/** A single, generic DMX signal */
+class FDMXSignal
+	: public TSharedFromThis<FDMXSignal>
+{
+public:
+	FDMXSignal()
+		: Timestamp()
+		, UniverseID(0)
+		, ChannelData()
+	{
+		ChannelData.Reserve(DMX_UNIVERSE_SIZE);
+	}
+
+	FDMXSignal(const FTimecode& InTimestamp, int32 InUniverseID, const TArray<uint8>& InChannelData)
+		: Timestamp(InTimestamp)
+		, UniverseID(InUniverseID)
+		, ChannelData(InChannelData)
+	{}
+
+	FDMXSignal(const FTimecode& InTimestamp, int32 InUniverseID, TArray<uint8>&& InChannelData)
+		: Timestamp(InTimestamp)
+		, UniverseID(InUniverseID)
+		, ChannelData(InChannelData)
+	{}
+
+	FTimecode Timestamp;
+
+	int32 UniverseID;
+
+	TArray<uint8> ChannelData;
+};
 
 UENUM(BlueprintType, Category = "DMX")
 enum class EDMXSendResult : uint8

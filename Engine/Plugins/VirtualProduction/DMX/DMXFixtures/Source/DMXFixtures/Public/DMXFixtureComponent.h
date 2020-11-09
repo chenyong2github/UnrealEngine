@@ -18,28 +18,24 @@ struct FDMXChannelData
 {
 	GENERATED_BODY()
 
-	unsigned int BitResolution;
-
 	UPROPERTY(EditAnywhere, Category = "DMX Channel")
-		FDMXAttributeName Name;
+	FDMXAttributeName Name;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Channel")
-		float MinValue;
+	float MinValue;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Channel")
-		float MaxValue;
+	float MaxValue;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Channel")
-		float DefaultValue;
+	float DefaultValue;
 
 	FDMXChannelData()
 	{
-		BitResolution = 255;
 		MinValue = 0.0f;
 		MaxValue = 1.0f;
 		DefaultValue = 0.0f;
 	}
-
 };
 
 
@@ -62,34 +58,34 @@ public:
 
 	// Parameters---------------------------------------
 	UPROPERTY(EditAnywhere, Category = "DMX Parameters", meta=(DisplayPriority = 0))
-		bool IsEnabled;
+	bool IsEnabled;
 
 	UPROPERTY(EditAnywhere, Category = "DMX Parameters", meta = (DisplayPriority = 1))
-		bool UsingMatrixData;
+	bool UsingMatrixData;
 
 	UPROPERTY(EditAnywhere, Category = "DMX Parameters")
-		float SkipThreshold;
+	float SkipThreshold;
 
 	UPROPERTY(EditAnywhere, Category = "DMX Parameters")
-		bool UseInterpolation;
+	bool UseInterpolation;
 
 	UPROPERTY(EditAnywhere, Category = "DMX Parameters")
-		float InterpolationScale;
+	float InterpolationScale;
 
 	// Functions-----------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-		class ADMXFixtureActor* GetParentFixtureActor();
+	class ADMXFixtureActor* GetParentFixtureActor();
 
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-		TArray<FLinearColor> GetTextureCenterColors(UTexture2D* TextureAtlas, int numTextures);
+	TArray<FLinearColor> GetTextureCenterColors(UTexture2D* TextureAtlas, int numTextures);
 
 	// Blueprint event
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")
-		void InterpolateComponent(float DeltaSeconds);
+	void InterpolateComponent(float DeltaSeconds);
 
 	// Blueprint event
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")
-		void InitializeComponent();
+	void InitializeComponent();
 
 	void Initialize();
 	void ApplySpeedScale();

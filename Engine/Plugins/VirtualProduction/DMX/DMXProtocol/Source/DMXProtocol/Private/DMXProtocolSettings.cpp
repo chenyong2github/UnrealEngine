@@ -11,7 +11,6 @@ UDMXProtocolSettings::UDMXProtocolSettings()
 	: InterfaceIPAddress(TEXT("0.0.0.0"))
 	, SendingRefreshRate(DMX_MAX_REFRESH_RATE)
 	, ReceivingRefreshRate(DMX_MAX_REFRESH_RATE)
-	, bUseSeparateReceivingThread(true)
 	, bDefaultReceiveDMXEnabled(true)
 	, bDefaultSendDMXEnabled(true)
 	, bOverrideReceiveDMXEnabled(true)
@@ -99,11 +98,6 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InterfaceIPAddress))
 	{
 		IDMXProtocol::OnNetworkInterfaceChanged.Broadcast(InterfaceIPAddress);
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, bUseSeparateReceivingThread) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, ReceivingRefreshRate))
-	{
-		IDMXProtocol::OnReceivingThreadChanged.Broadcast(ReceivingRefreshRate, bUseSeparateReceivingThread);
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, FixtureCategories))
 	{

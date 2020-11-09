@@ -24,6 +24,7 @@ DECLARE_CYCLE_STAT(TEXT("Art-Net Packages Enqueue To Send"), STAT_ArtNetPackages
 
 using namespace ArtNet;
 
+
 FDMXProtocolArtNet::FDMXProtocolArtNet(const FName& InProtocolName, const FJsonObject& InSettings)
 	: bShouldSendDMX(false)
 	, bShouldReceiveDMX(false)
@@ -53,8 +54,6 @@ bool FDMXProtocolArtNet::Init()
 
 	// Set Network Interface listener
 	NetworkInterfaceChangedHandle = IDMXProtocol::OnNetworkInterfaceChanged.AddRaw(this, &FDMXProtocolArtNet::OnNetworkInterfaceChanged);
-	ReceivingThreadChangedDelegate = FOnReceivingThreadChangedDelegate::CreateRaw(this, &FDMXProtocolArtNet::OnReceivingThreadChanged);
-	IDMXProtocol::OnReceivingThreadChanged.Add(ReceivingThreadChangedDelegate);
 
 	// Set Network Interface
 	FString ErrorMessage;
@@ -69,8 +68,6 @@ bool FDMXProtocolArtNet::Init()
 bool FDMXProtocolArtNet::Shutdown()
 {
 	ReleaseArtNetReceiver();
-
-	IDMXProtocol::OnReceivingThreadChanged.Remove(ReceivingThreadChangedDelegate.GetHandle());
 
 	ReleaseNetworkInterface();
 	IDMXProtocol::OnNetworkInterfaceChanged.Remove(NetworkInterfaceChangedHandle);
@@ -174,11 +171,11 @@ void FDMXProtocolArtNet::GetDefaultUniverseSettings(uint16 InUniverseID, FJsonOb
 	OutSettings.SetArrayField(DMXJsonFieldNames::DMXIpAddresses, IpAddresses); // Broadcast IP address
 }
 
-void FDMXProtocolArtNet::ZeroInputBuffers()
+void FDMXProtocolArtNet::ClearInputBuffers()
 {
-	for (const TPair<uint32, TSharedPtr<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe>>& UniverseIDUniverseKvP : UniverseManager->GetAllUniverses())
+	if (ReceivingRunnable.IsValid())
 	{
-		UniverseIDUniverseKvP.Value->ZeroInputDMXBuffer();
+		ReceivingRunnable->ClearBuffers();
 	}
 }
 
@@ -240,6 +237,12 @@ void FDMXProtocolArtNet::OnNetworkInterfaceChanged(const FString& InInterfaceIPA
 
 bool FDMXProtocolArtNet::RestartNetworkInterface(const FString& InInterfaceIPAddress, FString& OutErrorMessage)
 {
+	// Depending on settings, create a receiver with its own thread
+	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+	check(ProtocolSettings);
+
+	ReceivingRunnable = FDMXProtocolArtNetReceivingRunnable::CreateNew(ProtocolSettings->ReceivingRefreshRate);
+
 	FScopeLock Lock(&SocketsCS);
 
 	// Clean the error message
@@ -364,19 +367,6 @@ bool FDMXProtocolArtNet::CreateDMXListener(FString& OutErrorMessage)
 	// Save New socket;
 	ListeningSocket = NewListeningSocket;
 
-	// Depending on settings, create a receiver with its own thread
-	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
-	check(ProtocolSettings);
-
-	if (ProtocolSettings->bUseSeparateReceivingThread)
-	{
-		ReceivingRunnable = MakeShared<FDMXProtocolReceivingRunnable>(this, ProtocolSettings->ReceivingRefreshRate);
-	}
-	else
-	{
-		ReleaseArtNetReceiver();
-	}
-
 	FTimespan ThreadWaitTime = FTimespan::FromMilliseconds(0);
 	ArtNetReceiver = MakeShared<FDMXProtocolReceiverArtNet>(*ListeningSocket, this, ThreadWaitTime);
 	ArtNetReceiver->OnDataReceived().BindRaw(this, &FDMXProtocolArtNet::OnDataReceived);
@@ -405,6 +395,16 @@ const FName& FDMXProtocolArtNet::GetProtocolName() const
 	return ProtocolName;
 }
 
+const IDMXUniverseSignalMap& FDMXProtocolArtNet::GameThreadGetInboundSignals() const
+{
+	if (ReceivingRunnable.IsValid())
+	{
+		return ReceivingRunnable->GameThread_GetInputBuffer();
+	}
+
+	return EmptyBufferDummy;
+}
+
 TSharedPtr<FJsonObject> FDMXProtocolArtNet::GetSettings() const
 {
 	return Settings;
@@ -414,20 +414,16 @@ EDMXSendResult FDMXProtocolArtNet::InputDMXFragment(uint16 UniverseID, const IDM
 {
 	uint16 FinalInputUniverseID = GetFinalSendUniverseID(UniverseID);
 
-	TSharedPtr<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(FinalInputUniverseID);
-	if (!Universe.IsValid())
+	if (ReceivingRunnable.IsValid() && IsInGameThread())
 	{
-		return EDMXSendResult::ErrorGetUniverse;
+		ReceivingRunnable->GameThread_InputDMXFragment(UniverseID, DMXFragment);
 	}
-
-	const FDMXBufferPtr& InputBuffer = Universe->GetInputDMXBuffer();
-	check(InputBuffer.IsValid());
-
-	InputBuffer->AccessDMXData([this, InputBuffer, UniverseID, &DMXFragment](TArray<uint8>& Buffer) {
-		InputBuffer->SetDMXFragment(DMXFragment);
-		OnUniverseInputBufferUpdated.Broadcast(ProtocolName, UniverseID, Buffer);
-		});
-
+	else
+	{
+		// Only implemented for game thread
+		checkNoEntry();
+	}
+	
 	return EDMXSendResult::Success;
 }
 
@@ -517,7 +513,7 @@ EDMXSendResult FDMXProtocolArtNet::SendDMXZeroUniverse(uint16 InUniverseID, bool
 
 uint16 FDMXProtocolArtNet::GetFinalSendUniverseID(uint16 InUniverseID) const
 {
-	// GlobalSACNUniverseOffset clamp between 0 and 65535(max uint16) 
+	// GlobalArtNetUniverseOffset clamp between 0 and 65535(max uint16) 
 	return InUniverseID + GetDefault<UDMXProtocolSettings>()->GlobalArtNetUniverseOffset;
 }
 
@@ -799,21 +795,13 @@ bool FDMXProtocolArtNet::HandleDataPacket(const FArrayReaderPtr& Buffer)
 
 		// Reset Position
 		Buffer->Seek(0);
-	}
 
-	if (bUseSeparateReceivingThread)
-	{
+		FDMXProtocolArtNetDMXPacket ArtNetDMXPacket;
+		*Buffer << ArtNetDMXPacket;
+
 		if (ReceivingRunnable.IsValid())
 		{
-			ReceivingRunnable->PushNewTask(UniverseId, Buffer);
-		}
-	}
-	else
-	{
-		// Write data to input DMX buffer universe if exists, otherwise creates a default universe
-		if (TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> Universe = GetUniverseByIdCreateDefault(UniverseId))
-		{
-			Universe->HandleReplyPacket(Buffer);
+			ReceivingRunnable->PushDMXPacket(UniverseId, ArtNetDMXPacket);
 		}
 	}
 
@@ -848,7 +836,6 @@ bool FDMXProtocolArtNet::HandleRdm(const FArrayReaderPtr& Buffer)
 	return true;
 }
 
-
 uint32 FDMXProtocolArtNet::GetUniverseAddr(FString UnicastAddress) const
 {
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
@@ -868,20 +855,6 @@ uint32 FDMXProtocolArtNet::GetUniverseAddr(FString UnicastAddress) const
 	}
 
 	return ReturnAddress;
-}
-
-void FDMXProtocolArtNet::OnReceivingThreadChanged(int32 ReceivingRefreshRate, bool bInUseSeparateReceivingThread)
-{
-	bUseSeparateReceivingThread = bInUseSeparateReceivingThread;
-
-	if (bInUseSeparateReceivingThread)
-	{
-		ReceivingRunnable = MakeShared<FDMXProtocolReceivingRunnable>(this, ReceivingRefreshRate);
-	}
-	else
-	{
-		ReleaseArtNetReceiver();
-	}
 }
 
 void FDMXProtocolArtNet::ReleaseArtNetReceiver()

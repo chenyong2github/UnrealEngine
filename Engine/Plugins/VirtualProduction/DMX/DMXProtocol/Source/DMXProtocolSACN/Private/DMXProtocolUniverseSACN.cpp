@@ -7,6 +7,7 @@
 #include "DMXProtocolTypes.h"
 #include "DMXProtocolTransportSACN.h"
 #include "DMXProtocolSettings.h"
+#include "DMXProtocolSACNReceivingRunnable.h"
 
 #include "Common/UdpSocketBuilder.h"
 #include "Serialization/ArrayReader.h"
@@ -15,14 +16,13 @@
 #include "DMXProtocolSACNUtils.h"
 #include "DMXStats.h"
 
-// Stats
 DECLARE_MEMORY_STAT(TEXT("SACN Input And Output Buffer Memory"), STAT_SACNInputAndOutputBufferMemory, STATGROUP_DMX);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("SACN Universes Count"), STAT_SACNUniversesCount, STATGROUP_DMX);
 DECLARE_CYCLE_STAT(TEXT("SACN Packages Recieved"), STAT_SACNPackagesRecieved, STATGROUP_DMX);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("SACN Packages Recieved Total"), STAT_SACNPackagesRecievedTotal, STATGROUP_DMX);
 
-FDMXProtocolUniverseSACN::FDMXProtocolUniverseSACN(IDMXProtocolPtr InDMXProtocol, const FJsonObject& InSettings)
-	: WeakDMXProtocol(InDMXProtocol)
+FDMXProtocolUniverseSACN::FDMXProtocolUniverseSACN(TWeakPtr<FDMXProtocolSACN, ESPMode::ThreadSafe> DMXProtocolSACN, const FJsonObject& InSettings)
+	: WeakDMXProtocol(DMXProtocolSACN)
 	, bShouldReceiveDMX(true)
 	, HighestReceivedPriority(0)
 	, ListeningSocket(nullptr)
@@ -68,7 +68,11 @@ FDMXProtocolUniverseSACN::~FDMXProtocolUniverseSACN()
 
 IDMXProtocolPtr FDMXProtocolUniverseSACN::GetProtocol() const
 {
-	return WeakDMXProtocol.Pin();
+	if (IDMXProtocolPtr Protocol = WeakDMXProtocol.Pin())
+	{
+		return StaticCastSharedPtr<IDMXProtocol>(Protocol);
+	}
+	return nullptr;
 }
 
 FDMXBufferPtr FDMXProtocolUniverseSACN::GetInputDMXBuffer() const
@@ -140,10 +144,7 @@ void FDMXProtocolUniverseSACN::Tick(float DeltaTime)
 	{
 		const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
 
-		if (!ProtocolSettings->bUseSeparateReceivingThread)
-		{
-			ReceiveIncomingData();
-		}
+		ReceiveIncomingData();
 	}
 }
 
@@ -254,41 +255,23 @@ void FDMXProtocolUniverseSACN::OnDataReceived(const FArrayReaderPtr& Buffer)
 
 void FDMXProtocolUniverseSACN::HandleReplyPacket(const FArrayReaderPtr& Buffer)
 {
-	bool bCopySuccessful = false;
-
 	// Copy the data from incoming socket buffer to SACN universe
 	SetLayerPackets(Buffer);
 
 	// Ignore packets of lower priority than the highest one we received.
-	if (HighestReceivedPriority < IncomingDMXFramingLayer.Priority)
+	if (HighestReceivedPriority > IncomingDMXFramingLayer.Priority)
 	{
 		return;
 	}
 	HighestReceivedPriority = IncomingDMXFramingLayer.Priority;
 
-	// Access the buffer thread-safe
-	InputDMXBuffer->AccessDMXData([this, &bCopySuccessful](TArray<uint8>& InData)
+	// Make sure we copy same amount of data
+	if (WeakDMXProtocol.IsValid())
 	{
-		// Make sure we copy same amount of data
-		if (InData.Num() == ACN_DMX_SIZE)
+		if (TSharedPtr<FDMXProtocolSACNReceivingRunnable, ESPMode::ThreadSafe> ReceivingRunnable = WeakDMXProtocol.Pin()->GetReceivingRunnable())
 		{
-			InputDMXBuffer->SetDMXBuffer(IncomingDMXDMPLayer.DMX, ACN_DMX_SIZE);
-			GetProtocol()->GetOnUniverseInputBufferUpdated().Broadcast(GetProtocol()->GetProtocolName(), UniverseID, InData);
-			bCopySuccessful = true;
+			ReceivingRunnable->PushDMXPacket(GetUniverseID(), IncomingDMXDMPLayer);
 		}
-		else
-		{
-			UE_LOG_DMXPROTOCOL(Error, TEXT("%s: Size of incoming DMX buffer is wrong! Expected: %d; Found: %d")
-				, NetworkErrorMessagePrefix
-				, ACN_DMX_SIZE
-				, InData.Num());
-			bCopySuccessful = false;
-		}
-	});
-
-	if (bCopySuccessful)
-	{
-		GetProtocol()->GetOnPacketReceived().Broadcast(GetProtocol()->GetProtocolName(), UniverseID, *Buffer);
 	}
 }
 

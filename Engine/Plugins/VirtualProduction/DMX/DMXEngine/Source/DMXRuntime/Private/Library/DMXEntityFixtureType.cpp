@@ -301,6 +301,8 @@ uint8 UDMXEntityFixtureType::NumChannelsToOccupy(EDMXFixtureSignalFormat DataTyp
 		return 4;
 
 	default:
+		// Unhandled type
+		checkNoEntry();
 		break;
 	}
 	return 1;

@@ -5,6 +5,7 @@
 #include "DMXEditorLog.h"
 #include "DMXProtocolSettings.h"
 #include "DMXSubsystem.h"
+#include "DMXTypes.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityFixturePatch.h"
@@ -73,16 +74,6 @@ void UMovieSceneDMXLibraryTrackRecorder::CreateTrack(UMovieScene* InMovieScene, 
 		}
 	}
 
-	// Listen to DMX
-	for (UDMXEntityController* Controller : Library->GetEntitiesTypeCast<UDMXEntityController>())
-	{
-		IDMXProtocolPtr Protocol = IDMXProtocol::Get(Controller->GetProtocol());
-		Protocol->GetOnUniverseInputBufferUpdated().AddUObject(this, &UMovieSceneDMXLibraryTrackRecorder::OnReceiveDMX);
-	}
-
-	//check(DMXLibraryTrack->GetAllSections().Num() > 0);
-	//UMovieSceneDMXLibrarySection* DMXSection = CastChecked<UMovieSceneDMXLibrarySection>(CachedDMXLibraryTrack->GetAllSections()[0]);
-
 	// Erase existing animation in the track related to the Fixture Patches we're going to record.
 	// This way, the user can record different Patches incrementally, one at a time.
 	DMXLibrarySection->ForEachPatchFunctionChannels(
@@ -127,7 +118,7 @@ void UMovieSceneDMXLibraryTrackRecorder::CreateTrack(UMovieScene* InMovieScene, 
 		DMXLibrarySection->AddFixturePatch(Patch);
 	}
 
-	// Mark the track as recording to prevent its evaluation from sending DMX data
+	// Mark the track as recording. Also prevents its evaluation from sending DMX data
 	DMXLibrarySection->SetIsRecording(true);
 }
 
@@ -138,6 +129,19 @@ void UMovieSceneDMXLibraryTrackRecorder::SetSectionStartTimecodeImpl(const FTime
 
 	if (DMXLibrarySection.IsValid())
 	{
+		// Start listen to the patches
+		DMXLibrarySection->ForEachPatchFunctionChannels(
+			[&](UDMXEntityFixturePatch* Patch, TArray<FDMXFixtureFunctionChannel>& FunctionChannels)
+			{
+				Patch->OnFixturePatchReceivedDMX.RemoveAll(this);
+				Patch->OnFixturePatchReceivedDMX.AddUObject(this, &UMovieSceneDMXLibraryTrackRecorder::OnReceiveDMX);
+			});
+		DMXLibrarySection->ForEachPatchFunctionChannels(
+			[&](UDMXEntityFixturePatch* Patch, TArray<FDMXFixtureFunctionChannel>& FunctionChannels)
+			{
+				Patch->SetTickInEditor(true);
+			});	
+
 		DMXLibrarySection->TimecodeSource = FMovieSceneTimecodeSource(InSectionStartTimecode);
 
 		FTakeRecorderParameters Parameters;
@@ -159,6 +163,19 @@ UMovieSceneSection* UMovieSceneDMXLibraryTrackRecorder::GetMovieSceneSection() c
 void UMovieSceneDMXLibraryTrackRecorder::StopRecordingImpl()
 {
 	DMXLibrarySection->SetIsRecording(false);
+
+	// Stop listen to the patches
+	DMXLibrarySection->ForEachPatchFunctionChannels(
+		[&](UDMXEntityFixturePatch* Patch, TArray<FDMXFixtureFunctionChannel>& FunctionChannels)
+		{
+			Patch->OnFixturePatchReceivedDMX.RemoveAll(this);
+			Patch->OnFixturePatchReceivedDMX.AddUObject(this, &UMovieSceneDMXLibraryTrackRecorder::OnReceiveDMX);
+		});
+	DMXLibrarySection->ForEachPatchFunctionChannels(
+		[&](UDMXEntityFixturePatch* Patch, TArray<FDMXFixtureFunctionChannel>& FunctionChannels)
+		{
+			Patch->SetTickInEditor(false);
+		});
 }
 
 void UMovieSceneDMXLibraryTrackRecorder::FinalizeTrackImpl()
@@ -180,106 +197,55 @@ void UMovieSceneDMXLibraryTrackRecorder::FinalizeTrackImpl()
 
 void UMovieSceneDMXLibraryTrackRecorder::RecordSampleImpl(const FQualifiedFrameTime& CurrentFrameTime)
 {
-	FFrameRate   TickResolution = DMXLibrarySection->GetTypedOuter<UMovieScene>()->GetTickResolution();
-	FFrameNumber FrameTime = CurrentFrameTime.ConvertTo(TickResolution).FloorToFrame();
-
-	double DeltaSeconds = static_cast<double>(CurrentFrameTime.Rate.Denominator) / static_cast<double>(CurrentFrameTime.Rate.Numerator / 1000.0f);
-	
-	// Accept to lag two frames behind, but no more
-	double NextFrameTimeSeconds = FPlatformTime::Seconds() + DeltaSeconds * 2.0f;
-
-	TSharedPtr<FDMXTrackRecorderSample, ESPMode::ThreadSafe> Sample;
-
-	while (Buffer.Dequeue(Sample))
+	if (Buffer.Num() == 0)
 	{
-		double CurrentTimeSeconds = FPlatformTime::Seconds();
+		return;
+	}
 
-		// Drop frames when running off sync.
-		if (CurrentTimeSeconds > NextFrameTimeSeconds)
+	TMap<FDMXAttributeName, int32> AttributeValueMap;
+	DMXLibrarySection->ForEachPatchFunctionChannels([&](UDMXEntityFixturePatch* Patch, TArray<FDMXFixtureFunctionChannel>& FunctionChannels)
+	{
+		const TSharedPtr<FDMXSignal>* SignalPtr = Buffer.Find(Patch);
+
+		if (SignalPtr)
 		{
-			UE_LOG(LogDMXEditor, Warning, TEXT("Buffer overflow in DMX Track recorder, dropping frame %i"), CurrentFrameTime.Time.GetFrame().Value);
-			Buffer.Empty();
-			break;
-		}
+			const TSharedPtr<FDMXSignal>& Signal = *SignalPtr;
 
-		FFrameNumber KeyTime = Sample->FrameTime.ConvertTo(TickResolution).FloorToFrame();
-		DMXLibrarySection->ExpandToFrame(KeyTime);
+			FTakeRecorderParameters Parameters;
+			Parameters.User = GetDefault<UTakeRecorderUserSettings>()->Settings;
+			Parameters.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
 
-		DMXLibrarySection->ForEachPatchFunctionChannels(
-			[&](UDMXEntityFixturePatch* Patch, TArray<FDMXFixtureFunctionChannel>& FunctionChannels)
+			FFrameRate TickResolution = MovieScene->GetTickResolution();
+			FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+			FFrameNumber SignalFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(Signal->Timestamp.ToFrameNumber(DisplayRate)), DisplayRate, TickResolution).FloorToFrame() : MovieScene->GetPlaybackRange().GetLowerBoundValue();
+			DMXLibrarySection->ExpandToFrame(SignalFrame);
+
+			AttributeValueMap.Reset();
+			for (FDMXFixtureFunctionChannel& Channel : FunctionChannels)
 			{
-				if (Patch->UniverseID != Sample->UniverseID)
+				if (Channel.IsCellFunction())
 				{
-					return;
-				}
-
-				UDMXEntityFixtureType* ParentFixtureType = Patch->ParentFixtureTypeTemplate;
-
-				const FDMXFixtureMode& Mode = ParentFixtureType->Modes[Patch->ActiveMode];
-				const int32 PatchStartingChannel = Patch->GetStartingChannel() - 1;
-
-				for (FDMXFixtureFunctionChannel& Channel : FunctionChannels)
-				{
-					if(Channel.IsCellFunction())
+					FDMXFixtureMatrix MatrixProperties;
+					if (!Patch->GetMatrixProperties(MatrixProperties))
 					{
-						for (const FDMXFixtureCellAttribute& CellAttribute : Mode.FixtureMatrixConfig.CellAttributes)
-						{
-							UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
-							check(DMXSubsystem);
-
-							TMap<FDMXAttributeName, int32> AttributeNameValueMap;
-							DMXSubsystem->GetMatrixCellValue(Patch, Channel.CellCoordinate, AttributeNameValueMap);
-
-							int32* ValuePtr = AttributeNameValueMap.Find(Channel.AttributeName);
-							if (ValuePtr)
-							{
-								if (Channel.Channel.GetValues().Num() > 0)
-								{
-									if (Channel.Channel.GetValues().Last().Value == static_cast<float>(*ValuePtr))
-									{
-										// Don't record unchanged values
-										continue;
-									}
-									else
-									{
-										// Set the previous value one frame ahead to avoid blending between keys.
-										Channel.Channel.AddLinearKey(KeyTime - 1, static_cast<float>(Channel.Channel.GetValues().Last().Value));
-									}
-								}
-
-								Channel.Channel.AddLinearKey(KeyTime, static_cast<float>(*ValuePtr));
-							}
-						}
+						continue;
 					}
-					else
+
+					for (const FDMXFixtureCellAttribute& CellAttribute : MatrixProperties.CellAttributes)
 					{
-						for (const FDMXFixtureFunction& Function : Mode.Functions)
+						UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
+						check(DMXSubsystem);
+
+						TMap<FDMXAttributeName, int32> AttributeNameValueMap;
+						Patch->GetMatrixCellValues(Channel.CellCoordinate, AttributeNameValueMap);
+
+						int32* ValuePtr = AttributeNameValueMap.Find(Channel.AttributeName);
+						if (ValuePtr)
 						{
-							if (Function.Attribute != Channel.AttributeName)
-							{
-								continue;
-							}
-
-							if (Function.Channel > DMX_MAX_ADDRESS)
-							{
-								UE_LOG(LogDMXEditor, Error, TEXT("%s: Function Channel %d is higher than %d"), __FUNCTION__, Function.Channel, DMX_MAX_ADDRESS);
-								return;
-							}
-
-							if (!UDMXEntityFixtureType::IsFunctionInModeRange(Function, Mode, PatchStartingChannel))
-							{
-								// We reached the functions outside the valid channels for this mode
-								break;
-							}
-
-							const int32 FunctionStartIndex = Function.Channel - 1 + PatchStartingChannel;
-							const int32 FunctionLastIndex = FunctionStartIndex + UDMXEntityFixtureType::NumChannelsToOccupy(Function.DataType) - 1;
-							check(FunctionLastIndex < Sample->Data.Num());
-
-							const uint32 ChannelValue = UDMXEntityFixtureType::BytesToFunctionValue(Function, Sample->Data.GetData() + FunctionStartIndex);
 							if (Channel.Channel.GetValues().Num() > 0)
 							{
-								if (Channel.Channel.GetValues().Last().Value == static_cast<float>(ChannelValue))
+								if (Channel.Channel.GetValues().Last().Value == static_cast<float>(*ValuePtr))
 								{
 									// Don't record unchanged values
 									continue;
@@ -287,48 +253,54 @@ void UMovieSceneDMXLibraryTrackRecorder::RecordSampleImpl(const FQualifiedFrameT
 								else
 								{
 									// Set the previous value one frame ahead to avoid blending between keys.
-									Channel.Channel.AddLinearKey(KeyTime - 1, static_cast<float>(Channel.Channel.GetValues().Last().Value));
+									Channel.Channel.AddLinearKey(SignalFrame - 1, static_cast<float>(Channel.Channel.GetValues().Last().Value));
 								}
 							}
 
-							Channel.Channel.AddLinearKey(KeyTime, static_cast<float>(ChannelValue));
+							Channel.Channel.AddLinearKey(SignalFrame, static_cast<float>(*ValuePtr));
 						}
 					}
 				}
-		});
-	}
+				else
+				{
+					AttributeValueMap.Reset();
+					Patch->GetAttributesValues(AttributeValueMap);
+
+					const int32* ValuePtr = AttributeValueMap.Find(Channel.AttributeName);
+
+					if (ValuePtr)
+					{
+						if (Channel.Channel.GetValues().Num() > 0)
+						{
+							if (Channel.Channel.GetValues().Last().Value == static_cast<float>(*ValuePtr))
+							{
+								// Don't record unchanged values
+								continue;
+							}
+							else
+							{
+								// Set the previous value one frame ahead to avoid blending between keys.
+								Channel.Channel.AddLinearKey(SignalFrame - 1, static_cast<float>(Channel.Channel.GetValues().Last().Value));
+							}
+						}
+
+						Channel.Channel.AddLinearKey(SignalFrame, static_cast<float>(*ValuePtr));
+					}
+				}
+			}
+		}
+	});
+
+	Buffer.Reset();
 }
 
-void UMovieSceneDMXLibraryTrackRecorder::OnReceiveDMX(FName ProtocolName, uint16 UniverseID, const TArray<uint8>& InputBuffer)
+void UMovieSceneDMXLibraryTrackRecorder::OnReceiveDMX(UDMXEntityFixturePatch* FixturePatch, const FDMXNormalizedAttributeValueMap& NormalizedValuePerAttribute)
 {
-	if (!DMXLibrarySection->GetIsRecording())
+	const TSharedPtr<FDMXSignal>& Signal = FixturePatch->GetLastReceivedDMXSignal();
+
+	if (Signal.IsValid())
 	{
-		return;
-	}
-
-	// Don't record when there's no changes in the buffer
-	TArray<uint8>* PreviousBufferPtr = PreviousSamplesPerUniverse.Find(UniverseID);
-	if (PreviousBufferPtr && *PreviousBufferPtr == InputBuffer)
-	{
-		return;
-	}
-
-	TSharedPtr<FDMXTrackRecorderSample, ESPMode::ThreadSafe> Sample = MakeShared<FDMXTrackRecorderSample, ESPMode::ThreadSafe>();
-
-	Sample->UniverseID = UniverseID;
-	Sample->Data = InputBuffer;
-
-	GetFrameTimeThreadSafe(Sample->FrameTime);
-
-	Buffer.Enqueue(Sample);
-
-	if (PreviousBufferPtr)
-	{
-		PreviousSamplesPerUniverse[UniverseID] = InputBuffer;
-	}
-	else
-	{
-		PreviousSamplesPerUniverse.Add(UniverseID, InputBuffer);
+		Buffer.FindOrAdd(FixturePatch) = Signal;
 	}
 }
 
@@ -352,11 +324,4 @@ bool UMovieSceneDMXLibraryTrackRecorder::LoadRecordedFile(const FString& FileNam
 {
 	UE_LOG_DMXEDITOR(Warning, TEXT("Loading recorded file for DMX Library tracks is not supported."));
 	return false;
-}
-
-void UMovieSceneDMXLibraryTrackRecorder::GetFrameTimeThreadSafe(FQualifiedFrameTime& OutFrameTime)
-{
-	FScopeLock Lock(&FrameTimeCritSec);
-
-	OutFrameTime = FQualifiedFrameTime(FApp::GetTimecode(), FApp::GetTimecodeFrameRate());
 }
