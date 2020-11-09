@@ -1,7 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXFixtureActor.h"
+
+#include "DMXStats.h"
+
 #include "Components/StaticMeshComponent.h"
+
+DECLARE_CYCLE_STAT(TEXT("FixtureActor Push Normalized Values"), STAT_FixtureActorPushNormalizedValuesPerAttribute, STATGROUP_DMX);
 
 ADMXFixtureActor::ADMXFixtureActor()
 {
@@ -130,7 +135,6 @@ void ADMXFixtureActor::SetDefaultFixtureState()
 			float Channel2TargetValue = DoubleComponent->DMXChannel2.DefaultValue;
 			DoubleComponent->SetTarget(0, Channel1TargetValue);
 			DoubleComponent->SetTarget(1, Channel2TargetValue);
-			DoubleComponent->SetComponent(Channel1TargetValue, Channel2TargetValue);
 		}
 
 		// Color Component 
@@ -222,6 +226,8 @@ void ADMXFixtureActor::InterpolateDMXComponents(float DeltaSeconds)
 
 void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttributeValueMap& ValuePerAttribute)
 {
+	SCOPE_CYCLE_COUNTER(STAT_FixtureActorPushNormalizedValuesPerAttribute);
+
 	for (const TPair<FDMXAttributeName, float>& AttributeValueKvp : ValuePerAttribute.Map)
 	{
 		ReInitalizeAttributeValueNoInterp(AttributeValueKvp.Key, AttributeValueKvp.Value);
@@ -263,24 +269,39 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 				if (DoubleComponent)
 				{
 					const float* FirstTargetValuePtr = ValuePerAttribute.Map.Find(DoubleComponent->DMXChannel1.Name);
-					const float* SecondTargetValuePtr = ValuePerAttribute.Map.Find(DoubleComponent->DMXChannel2.Name);
-					if (FirstTargetValuePtr && SecondTargetValuePtr)
+					if (FirstTargetValuePtr)
 					{
 						float Channel1RemappedValue = DoubleComponent->RemapValue(0, *FirstTargetValuePtr);
-						float Channel2RemappedValue = DoubleComponent->RemapValue(1, *SecondTargetValuePtr);
 
-						if (DoubleComponent->IsTargetValid(0, Channel1RemappedValue) && DoubleComponent->IsTargetValid(1, Channel2RemappedValue))
+						if (DoubleComponent->IsTargetValid(0, Channel1RemappedValue))
 						{
 							if (DoubleComponent->UseInterpolation)
 							{
 								DoubleComponent->Push(0, Channel1RemappedValue);
-								DoubleComponent->Push(1, Channel2RemappedValue);
 							}
 							else
 							{
 								DoubleComponent->SetTarget(0, Channel1RemappedValue);
+								DoubleComponent->SetComponentChannel1(Channel1RemappedValue);
+							}
+						}
+					}
+
+					const float* SecondTargetValuePtr = ValuePerAttribute.Map.Find(DoubleComponent->DMXChannel2.Name);
+					if (SecondTargetValuePtr)
+					{
+						float Channel2RemappedValue = DoubleComponent->RemapValue(1, *SecondTargetValuePtr);
+
+						if (DoubleComponent->IsTargetValid(1, Channel2RemappedValue))
+						{
+							if (DoubleComponent->UseInterpolation)
+							{
+								DoubleComponent->Push(1, Channel2RemappedValue);
+							}
+							else
+							{
 								DoubleComponent->SetTarget(1, Channel2RemappedValue);
-								DoubleComponent->SetComponent(Channel1RemappedValue, Channel2RemappedValue);
+								DoubleComponent->SetComponentChannel2(Channel2RemappedValue);
 							}
 						}
 					}
@@ -290,22 +311,25 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 				UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent);
 				if(ColorComponent)
 				{
-					const float* FirstTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->ChannelName1);
-					const float* SecondTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->ChannelName2);
-					const float* ThirdTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->ChannelName3);
-					const float* FourthTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->ChannelName4);
-
-					// 1.f if channel not found
-					const float r = (FirstTargetValuePtr) ? *FirstTargetValuePtr : 1.f;
-					const float g = (SecondTargetValuePtr) ? *SecondTargetValuePtr : 1.f;
-					const float b = (ThirdTargetValuePtr) ? *ThirdTargetValuePtr : 1.f;
-					const float a = (FourthTargetValuePtr) ? *FourthTargetValuePtr : 1.f;
-
-					FLinearColor NewTargetColor(r, g, b, a);
-					if (ColorComponent->IsColorValid(NewTargetColor))
+					if (FLinearColor* CurrentTargetColorPtr = ColorComponent->CurrentTargetColorRef)
 					{
-						ColorComponent->SetTargetColor(NewTargetColor);
-						ColorComponent->SetComponent(NewTargetColor);
+						const float* FirstTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->ChannelName1);
+						const float* SecondTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->ChannelName2);
+						const float* ThirdTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->ChannelName3);
+						const float* FourthTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->ChannelName4);
+
+						// 1.f if channel not found
+						const float r = (FirstTargetValuePtr) ? *FirstTargetValuePtr : CurrentTargetColorPtr->R;
+						const float g = (SecondTargetValuePtr) ? *SecondTargetValuePtr : CurrentTargetColorPtr->G;
+						const float b = (ThirdTargetValuePtr) ? *ThirdTargetValuePtr : CurrentTargetColorPtr->B;
+						const float a = (FourthTargetValuePtr) ? *FourthTargetValuePtr : CurrentTargetColorPtr->A;
+
+						FLinearColor NewTargetColor(r, g, b, a);
+						if (ColorComponent->IsColorValid(NewTargetColor))
+						{
+							ColorComponent->SetTargetColor(NewTargetColor);
+							ColorComponent->SetComponent(NewTargetColor);
+						}
 					}
 				}
 			}

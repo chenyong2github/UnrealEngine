@@ -2,8 +2,12 @@
 
 #include "DMXFixtureActorMatrix.h"
 
+#include "DMXStats.h"
+
 #include "Rendering/Texture2DResource.h"
 #include "Components/StaticMeshComponent.h"
+
+DECLARE_CYCLE_STAT(TEXT("Fixture Actor Matrix Push Fixture Matrix Cell Data"), STAT_FixtureActorMatrixPushFixtureMatrixCellData, STATGROUP_DMX);
 
 void UpdateMatrixTexture(uint8* MatrixData, UTexture2D* DynamicTexture, int32 MipIndex, uint32 NumRegions, FUpdateTextureRegion2D Region, uint32 SrcPitch, uint32 SrcBpp)
 {
@@ -190,6 +194,8 @@ void ADMXFixtureActorMatrix::UpdateMatrixData(int32 RowIndex, int32 CellIndex, i
 // Cells should always come in following [top-left to bottom-right] convention
 void ADMXFixtureActorMatrix::PushFixtureMatrixCellData(TArray<FDMXCell> Cells)
 {
+	SCOPE_CYCLE_COUNTER(STAT_FixtureActorMatrixPushFixtureMatrixCellData);
+
 	if (HasBeenInitialized)
 	{
 		// Get current components (supports PIE)

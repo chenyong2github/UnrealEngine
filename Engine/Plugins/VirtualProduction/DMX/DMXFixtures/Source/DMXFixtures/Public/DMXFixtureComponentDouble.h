@@ -49,13 +49,9 @@ public:
 	virtual void InitCells(int NCells) override;
 	virtual void SetRangeValue() override;
 
-	// Sets both values of the component
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX", Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated 4.26. Use SetComponentChannel1 and SetComponentChannel2 instead."))
-	void SetComponent(float Channel1Value, float Channel2Value);
-
 	// Sets first value of the component
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")
-	void SetComponentChannel1(float Channel1Valuee);
+	void SetComponentChannel1(float Channel1Value);
 
 	// Sets second value of the component
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")
