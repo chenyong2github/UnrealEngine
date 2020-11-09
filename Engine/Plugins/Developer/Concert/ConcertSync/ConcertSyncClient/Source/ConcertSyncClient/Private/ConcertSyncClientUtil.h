@@ -94,7 +94,5 @@ namespace ConcertSyncClientUtil
 
 	UWorld* GetCurrentWorld();
 
-	UObject* FindAssetInPackage(const UPackage* InPackage);
-
 	void FillPackageInfo(UPackage* InPackage, UObject* InAsset, const EConcertPackageUpdateType InPackageUpdateType, FConcertPackageInfo& OutPackageInfo);
 }
