@@ -278,9 +278,10 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	int32 UpscaleFactor = int32(1.0f / Options.ResolutionFraction);
 	ensure(Options.ResolutionFraction == 1.0 / UpscaleFactor);
 	FIntPoint RayTracingResolution = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), UpscaleFactor);
+	FIntPoint RayTracingBufferSize = SceneTextures.SceneDepthBuffer->Desc.Extent / UpscaleFactor;
 
 	FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(
-		RayTracingResolution,
+		RayTracingBufferSize,
 		PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 0, 0, 0)),
 		TexCreate_ShaderResource | TexCreate_UAV);
 
