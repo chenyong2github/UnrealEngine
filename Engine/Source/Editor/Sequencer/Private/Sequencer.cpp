@@ -143,6 +143,7 @@
 #include "SSequencerGroupManager.h"
 
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieScenePreAnimatedStateSystem.h"
 
 
 #define LOCTEXT_NAMESPACE "Sequencer"
@@ -5532,16 +5533,33 @@ bool FSequencer::OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> N
 		
 		if (bKeepState)
 		{
+			using namespace UE::MovieScene;
+
+			UMovieSceneEntitySystemLinker* EntitySystemLinker = RootTemplateInstance.GetEntitySystemLinker();
+			check(EntitySystemLinker);
+
+			UMovieSceneRestorePreAnimatedStateSystem* RestorePreAnimatedStateSystem = EntitySystemLinker->FindSystem<UMovieSceneRestorePreAnimatedStateSystem>();
+
 			for (TWeakObjectPtr<> WeakObject : FindBoundObjects(BindingToRemove, ActiveTemplateIDs.Top()))
 			{
 				TArray<UObject*> SubObjects;
 				GetObjectsWithOuter(WeakObject.Get(), SubObjects);
+
 				PreAnimatedState.DiscardAndRemoveEntityTokensForObject(*WeakObject.Get());
+				if (RestorePreAnimatedStateSystem)
+				{
+					RestorePreAnimatedStateSystem->DiscardPreAnimatedStateForObject(*WeakObject.Get());
+				}
+
 				for (UObject* SubObject : SubObjects)
 				{
 					if (SubObject)
 					{
 						PreAnimatedState.DiscardAndRemoveEntityTokensForObject(*SubObject);
+						if (RestorePreAnimatedStateSystem)
+						{
+							RestorePreAnimatedStateSystem->DiscardPreAnimatedStateForObject(*SubObject);
+						}
 					}
 				}
 			}
