@@ -36,15 +36,13 @@ DEFINE_STAT(STAT_Binned_NanoMallocPages_WastePeak);
 #define PLAT_SMALL_BLOCK_POOL_SIZE 0
 #endif //PLATFORM_IOS
 
-/** Information about a piece of free memory. 8 bytes */
-struct FMallocBinned::FFreeMem
+/** Information about a piece of free memory. 16 bytes */
+struct alignas(16) FMallocBinned::FFreeMem
 {
 	/** Next or MemLastPool[], always in order by pool. */
 	FFreeMem*	Next;
 	/** Number of consecutive free blocks here, at least 1. */
 	uint32		NumFreeBlocks;
-	/** make the struct 16 bytes for better alignment */
-	uint32		Padding;
 };
 
 // Memory pool info. 32 bytes.
@@ -157,6 +155,7 @@ struct FMallocBinned::Private
 {
 	/** Default alignment for binned allocator */
 	enum { DEFAULT_BINNED_ALLOCATOR_ALIGNMENT = sizeof(FFreeMem) };
+	static_assert(DEFAULT_BINNED_ALLOCATOR_ALIGNMENT == 16, "Default alignment should be 16 bytes");
 	enum { PAGE_SIZE_LIMIT = PLAT_PAGE_SIZE_LIMIT };
 	// BINNED_ALLOC_POOL_SIZE can be increased beyond 64k to cause binned malloc to allocate
 	// the small size bins in bigger chunks. If OS Allocation is slow, increasing
@@ -693,7 +692,8 @@ struct FMallocBinned::Private
 			}
 		}
 		BINNED_PEAK_STATCOUNTER(Allocator.UsedPeak, BINNED_ADD_STATCOUNTER(Allocator.UsedCurrent, Table->BlockSize));
-		return Align(Free, Alignment);
+		check(IsAligned(Free, Alignment));
+		return Free;
 	}
 
 	/**
@@ -1233,12 +1233,11 @@ FMallocBinned::FMallocBinned(uint32 InPageSize, uint64 AddressLimit)
 	// Block sizes should be close to even divisors of the POOL_SIZE, and well distributed. They must be 16-byte aligned as well.
 	static const uint32 BlockSizes[POOL_COUNT] =
 	{
-		8,		16,		32,		48,		64,		80,		96,		112,
-		128,	160,	192,	224,	256,	288,	320,	384,
-		448,	512,	576,	640,	704,	768,	896,	1024,
-		1168,	1360,	1632,	2048,	2336,	2720,	3264,	4096,
-		4672,	5456,	6544,	8192,	9360,	10912,	13104,	16384,
-		21840,	32768
+		16,		32,		48,		64,		80,		96,		112,	128,
+		160,	192,	224,	256,	288,	320,	384,	448,
+		512,	576,	640,	704,	768,	896,	1024,	1168,
+		1360,	1632,	2048,	2336,	2720,	3264,	4096,	4672,
+		5456,	6544,	8192,	9360,	10912,	13104,	16384,	21840,	32768
 	};
 
 	for( uint32 i = 0; i < POOL_COUNT; i++ )
@@ -1246,6 +1245,7 @@ FMallocBinned::FMallocBinned(uint32 InPageSize, uint64 AddressLimit)
 		PoolTable[i].FirstPool = nullptr;
 		PoolTable[i].ExhaustedPool = nullptr;
 		PoolTable[i].BlockSize = BlockSizes[i];
+		check(IsAligned(BlockSizes[i], Private::DEFAULT_BINNED_ALLOCATOR_ALIGNMENT));
 #if STATS
 		PoolTable[i].MinRequest = PoolTable[i].BlockSize;
 #endif
@@ -1289,15 +1289,8 @@ void* FMallocBinned::Malloc(SIZE_T Size, uint32 Alignment)
 
 	Private::FlushPendingFrees(*this);
 
-	// Handle DEFAULT_ALIGNMENT for binned allocator.
-	if (Alignment == DEFAULT_ALIGNMENT)
-	{
-		Alignment = Private::DEFAULT_BINNED_ALLOCATOR_ALIGNMENT;
-	}
-
 	Alignment = FMath::Max<uint32>(Alignment, Private::DEFAULT_BINNED_ALLOCATOR_ALIGNMENT);
-	SIZE_T SpareBytesCount = FMath::Min<SIZE_T>(Private::DEFAULT_BINNED_ALLOCATOR_ALIGNMENT, Size);
-	Size = FMath::Max<SIZE_T>(PoolTable[0].BlockSize, Size + (Alignment - SpareBytesCount));
+	Size = Align(Size, Alignment);
 	MEM_TIME(MemTime -= FPlatformTime::Seconds());
 	
 	BINNED_INCREMENT_STATCOUNTER(CurrentAllocs);
@@ -1377,10 +1370,10 @@ void* FMallocBinned::Malloc(SIZE_T Size, uint32 Alignment)
 		else
 		{
 			// Use OS for large allocations.
-			UPTRINT AlignedSize = Align(Size,PageSize);
+			UPTRINT AlignedSize = Align(Size, PageSize);
 			SIZE_T ActualPoolSize; //TODO: use this to reduce waste?
 			Free = (FFreeMem*)Private::OSAlloc(*this, AlignedSize, ActualPoolSize);
-			if( !Free )
+			if (!Free)
 			{
 				Private::OutOfMemory(AlignedSize);
 			}
@@ -1413,7 +1406,7 @@ void* FMallocBinned::Malloc(SIZE_T Size, uint32 Alignment)
 			BINNED_PEAK_STATCOUNTER(UsedPeak, BINNED_ADD_STATCOUNTER(UsedCurrent, Size));
 			BINNED_PEAK_STATCOUNTER(WastePeak, BINNED_ADD_STATCOUNTER(WasteCurrent, (int64)(AlignedSize - Size)));
 		}
-		
+
 #if USE_OS_SMALL_BLOCK_ALLOC
 		check(!FPlatformMemory::PtrIsOSMalloc(Free));
 #endif
@@ -1425,18 +1418,11 @@ void* FMallocBinned::Malloc(SIZE_T Size, uint32 Alignment)
 
 void* FMallocBinned::Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment )
 {
-	// Handle DEFAULT_ALIGNMENT for binned allocator.
-	if (Alignment == DEFAULT_ALIGNMENT)
-	{
-		Alignment = Private::DEFAULT_BINNED_ALLOCATOR_ALIGNMENT;
-	}
-
 	Alignment = FMath::Max<uint32>(Alignment, Private::DEFAULT_BINNED_ALLOCATOR_ALIGNMENT);
 	const uint32 NewSizeUnmodified = NewSize;
-	SIZE_T SpareBytesCount = FMath::Min<SIZE_T>(Private::DEFAULT_BINNED_ALLOCATOR_ALIGNMENT, NewSize);
 	if (NewSize)
 	{
-		NewSize = FMath::Max<SIZE_T>(PoolTable[0].BlockSize, NewSize + (Alignment - SpareBytesCount));
+		NewSize = Align(Size, Alignment);
 	}
 	MEM_TIME(MemTime -= FPlatformTime::Seconds());
 	UPTRINT BasePtr;
@@ -1470,7 +1456,7 @@ void* FMallocBinned::Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment )
 				if (NewSizeUnmodified > MemSizeToPoolTable[Pool->TableIndex]->BlockSize || NewSizeUnmodified <= MemSizeToPoolTable[Pool->TableIndex - 1]->BlockSize)
 				{
 					NewPtr = Malloc(NewSizeUnmodified, Alignment);
-					FMemory::Memcpy(NewPtr, Ptr, FMath::Min<SIZE_T>(NewSizeUnmodified, MemSizeToPoolTable[Pool->TableIndex]->BlockSize - (Alignment - SpareBytesCount)));
+					FMemory::Memcpy(NewPtr, Ptr, FMath::Min<SIZE_T>(NewSizeUnmodified, MemSizeToPoolTable[Pool->TableIndex]->BlockSize));
 					Free( Ptr );
 				}
 				else if (((UPTRINT)Ptr & (UPTRINT)(Alignment - 1)) != 0)
@@ -1548,7 +1534,7 @@ bool FMallocBinned::GetAllocationSize(void *Original, SIZE_T &SizeOut)
 	}
 #endif
 #endif
-	
+
 	UPTRINT BasePtr;
 	FPoolInfo* Pool = Private::FindPoolInfo(*this, (UPTRINT)Original, BasePtr);
 	PTRINT OffsetFromBase = (PTRINT)Original - (PTRINT)BasePtr;
@@ -1574,15 +1560,8 @@ bool FMallocBinned::GetAllocationSize(void *Original, SIZE_T &SizeOut)
 
 SIZE_T FMallocBinned::QuantizeSize(SIZE_T Size, uint32 Alignment)
 {
-	// Handle DEFAULT_ALIGNMENT for binned allocator.
-	if (Alignment == DEFAULT_ALIGNMENT)
-	{
-		Alignment = Private::DEFAULT_BINNED_ALLOCATOR_ALIGNMENT;
-	}
-
 	Alignment = FMath::Max<uint32>(Alignment, Private::DEFAULT_BINNED_ALLOCATOR_ALIGNMENT);
-	SIZE_T SpareBytesCount = FMath::Min<SIZE_T>(Private::DEFAULT_BINNED_ALLOCATOR_ALIGNMENT, Size);
-	Size = FMath::Max<SIZE_T>(PoolTable[0].BlockSize, Size + (Alignment - SpareBytesCount));
+	Size = Align(Size, Alignment);
 
 	SIZE_T Result;
 #if USE_OS_SMALL_BLOCK_ALLOC && !USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS

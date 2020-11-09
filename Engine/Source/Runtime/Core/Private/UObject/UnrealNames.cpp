@@ -34,6 +34,11 @@ PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 #ifndef FNAME_WRITE_PROTECT_PAGES
 #define FNAME_WRITE_PROTECT_PAGES 0
 #endif
+#if FNAME_WRITE_PROTECT_PAGES
+#	define FNAME_BLOCK_ALIGNMENT FPlatformMemory::GetConstants().PageSize
+#else
+#	define FNAME_BLOCK_ALIGNMENT alignof(FNameEntry)
+#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealNames, Log, All);
 
@@ -271,7 +276,7 @@ public:
 	FNameEntryAllocator()
 	{
 		LLM_SCOPE(ELLMTag::FName);
-		Blocks[0] = (uint8*)FMemory::MallocPersistentAuxiliary(BlockSizeBytes, FPlatformMemory::GetConstants().PageSize);
+		Blocks[0] = (uint8*)FMemory::MallocPersistentAuxiliary(BlockSizeBytes, FNAME_BLOCK_ALIGNMENT);
 	}
 
 	~FNameEntryAllocator()
@@ -404,7 +409,7 @@ private:
 
 	static uint8* AllocBlock()
 	{
-		return (uint8*)FMemory::MallocPersistentAuxiliary(BlockSizeBytes, FPlatformMemory::GetConstants().PageSize);
+		return (uint8*)FMemory::MallocPersistentAuxiliary(BlockSizeBytes, FNAME_BLOCK_ALIGNMENT);
 	}
 	
 	void AllocateNewBlock()
