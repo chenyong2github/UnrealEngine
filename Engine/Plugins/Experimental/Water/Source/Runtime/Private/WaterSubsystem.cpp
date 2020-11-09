@@ -50,6 +50,13 @@ static FAutoConsoleVariableRef CVarFreezeWaves(
 	ECVF_Cheat
 );
 
+static TAutoConsoleVariable<int32> CVarOverrideWavesTime(
+	TEXT("r.Water.OverrideWavesTime"),
+	-1.0f,
+	TEXT("Forces the time used for waves if >= 0.0"),
+	ECVF_Cheat
+);
+
 // Underwater post process CVars : 
 static int32 EnableUnderwaterPostProcess = 1;
 static FAutoConsoleVariableRef CVarEnableUnderwaterPostProcess(
@@ -332,6 +339,12 @@ bool UWaterSubsystem::IsWaterRenderingEnabled() const
 
 float UWaterSubsystem::GetWaterTimeSeconds() const
 {
+	float ForceWavesTimeValue = CVarOverrideWavesTime.GetValueOnGameThread();
+	if (ForceWavesTimeValue >= 0.0f)
+	{
+		return ForceWavesTimeValue;
+	}
+
 	if (UWorld* World = GetWorld())
 	{
 		if (World->IsGameWorld() && bUsingSmoothedTime)
