@@ -7,6 +7,7 @@
 
 #include "Async/ParallelFor.h"
 #include "MeshTransforms.h"
+#include "Spatial/SparseDynamicOctree3.h"
 
 #include "Algo/RemoveIf.h"
 
@@ -205,7 +206,10 @@ bool FMeshBoolean::Compute()
 {
 	// copy meshes
 	FDynamicMesh3 CutMeshB(*Meshes[1]);
-	*Result = *Meshes[0];
+	if (Result != Meshes[0])
+	{
+		*Result = *Meshes[0];
+	}
 	FDynamicMesh3* CutMesh[2]{ Result, &CutMeshB }; // just an alias to keep things organized
 
 	// transform the copies to a shared space (centered at the origin)
@@ -477,6 +481,44 @@ bool FMeshBoolean::Compute()
 			int OtherMeshIdx = 1 - MeshIdx;
 			FDynamicMesh3& OtherMesh = *CutMesh[OtherMeshIdx];
 
+
+			FSparseDynamicOctree3 EdgeOctree;
+			EdgeOctree.RootDimension = .25;
+			EdgeOctree.SetMaxTreeDepth(7);
+			auto EdgeBounds = [&OtherMesh](int EID)
+			{
+				FDynamicMesh3::FEdge Edge = OtherMesh.GetEdge(EID);
+				FVector3d A = OtherMesh.GetVertex(Edge.Vert.A);
+				FVector3d B = OtherMesh.GetVertex(Edge.Vert.B);
+				if (A.X > B.X)
+				{
+					Swap(A.X, B.X);
+				}
+				if (A.Y > B.Y)
+				{
+					Swap(A.Y, B.Y);
+				}
+				if (A.Z > B.Z)
+				{
+					Swap(A.Z, B.Z);
+				}
+				return FAxisAlignedBox3d(A, B);
+			};
+			auto AddEdge = [&EdgeOctree, &OtherMesh, EdgeBounds](int EID)
+			{
+				EdgeOctree.InsertObject(EID, EdgeBounds(EID));
+			};
+			auto UpdateEdge = [&EdgeOctree, &OtherMesh, EdgeBounds](int EID)
+			{
+				EdgeOctree.ReinsertObject(EID, EdgeBounds(EID));
+			};
+			for (int EID : CutBoundaryEdges[OtherMeshIdx])
+			{
+				AddEdge(EID);
+			}
+			TArray<int> EdgesInRange;
+
+
 			// mapping from OtherMesh VIDs to ProcessMesh VIDs
 			// used to ensure we only keep the best match, in cases where multiple boundary vertices map to a given vertex on the other mesh boundary
 			TMap<int, int> FoundMatches;
@@ -521,7 +563,11 @@ bool FMeshBoolean::Compute()
 				if (NearestVID == FDynamicMesh3::InvalidID)
 				{
 					// vertex had no match -- try to split edge to match it
-					int OtherEID = FindNearestEdge(OtherMesh, CutBoundaryEdges[OtherMeshIdx], Pos);
+					FAxisAlignedBox3d QueryBox(Pos, SnapTolerance);
+					EdgesInRange.Reset();
+					EdgeOctree.RangeQuery(QueryBox, EdgesInRange);
+
+					int OtherEID = FindNearestEdge(OtherMesh, EdgesInRange, Pos);
 					if (OtherEID != FDynamicMesh3::InvalidID)
 					{
 						FVector3d EdgePts[2];
@@ -537,6 +583,8 @@ bool FMeshBoolean::Compute()
 								FoundMatches.Add(SplitInfo.NewVertex, BoundaryVID);
 								OtherMesh.SetVertex(SplitInfo.NewVertex, Pos);
 								CutBoundaryEdges[OtherMeshIdx].Add(SplitInfo.NewEdges.A);
+								UpdateEdge(OtherEID);
+								AddEdge(SplitInfo.NewEdges.A);
 								// Note: Do not update PossUnmatchedBdryVerts with the new vertex, because it is already matched by construction
 								// Likewise do not update the pointhash -- we don't want it to find vertices that were already perfectly matched
 							}
@@ -582,8 +630,11 @@ bool FMeshBoolean::Compute()
 		FMeshIndexMappings IndexMaps;
 		Editor.AppendMesh(CutMesh[1], IndexMaps);
 
-		bool bWeldSuccess = MergeEdges(IndexMaps, CutMesh, CutBoundaryEdges, AllVIDMatches);
-		bSuccess = bSuccess && bWeldSuccess;
+		if (bWeldSharedEdges)
+		{
+			bool bWeldSuccess = MergeEdges(IndexMaps, CutMesh, CutBoundaryEdges, AllVIDMatches);
+			bSuccess = bSuccess && bWeldSuccess;
+		}
 	}
 	else
 	{

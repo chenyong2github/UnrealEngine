@@ -58,6 +58,9 @@ public:
 	/** Put the Result mesh in the same space as the input.  If true, ResultTransform will be the identity transform. */
 	bool bPutResultInInputSpace = true;
 
+	/** Weld newly-created cut edges where the input meshes meet.  If false, the input meshes will remain topologically disconnected. */
+	bool bWeldSharedEdges = true;
+
 	/** Set this to be able to cancel running operation */
 	FProgressCancel* Progress = nullptr;
 
