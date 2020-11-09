@@ -155,6 +155,8 @@ public:
 		FTileIntersectionResources* TileIntersectionResources = View.ViewState->AOTileIntersectionResources;
 		SetSRVParameter(RHICmdList, ShaderRHI, TileConeDepthRanges, TileIntersectionResources->TileConeDepthRanges.SRV);
 
+		RHICmdList.Transition(FRHITransitionInfo(TileIntersectionResources->CulledTileDataArray.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+
 		TileIntersectionParameters.Set(RHICmdList, ShaderRHI, *TileIntersectionResources);
 
 		extern float GAOConeHalfAngle;
@@ -306,7 +308,9 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, BentNormalNormalizeFactor, BentNormalNormalizeFactorValue);
 
 		FAOScreenGridResources* ScreenGridResources = View.ViewState->AOScreenGridResources;
-				
+			
+		RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources->ScreenGridConeVisibility.UAV, ERHIAccess::Unknown, ERHIAccess::UAVMask));
+
 		// Note: no transition, want to overlap object cone tracing and global DF cone tracing since both shaders use atomics to ScreenGridConeVisibility
 		RHICmdList.BeginUAVOverlap(ScreenGridResources->ScreenGridConeVisibility.UAV);
 
@@ -317,6 +321,8 @@ public:
 	{
 		ScreenGridConeVisibility.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
 		RHICmdList.EndUAVOverlap(View.ViewState->AOScreenGridResources->ScreenGridConeVisibility.UAV);
+
+		RHICmdList.Transition(FRHITransitionInfo(View.ViewState->AOScreenGridResources->ScreenGridConeVisibility.UAV, ERHIAccess::UAVMask, ERHIAccess::SRVMask));
 	}
 
 private:
@@ -566,7 +572,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 				SCOPED_DRAW_EVENT(RHICmdList, ConeTraceObjects);
 				FTileIntersectionResources* TileIntersectionResources = ((FSceneViewState*)View.State)->AOTileIntersectionResources;
 
-				RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources->ScreenGridConeVisibility.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+				RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources->ScreenGridConeVisibility.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 
 				if (bUseGlobalDistanceField)
 				{
