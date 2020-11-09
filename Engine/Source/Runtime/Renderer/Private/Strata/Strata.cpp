@@ -10,7 +10,7 @@
 #include "UniformBuffer.h"
 #include "SceneTextureParameters.h"
 
-
+//PRAGMA_DISABLE_OPTIMIZATION
 
 // The project setting for Strata
 static TAutoConsoleVariable<int32> CVarStrata(
@@ -50,8 +50,9 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 
 		// Previous GBuffer when complete was 28bytes
 		// check out Strata.ush to see how this is computed
-		const uint32 MaterialConservativeByteCountPerPixel = 129u;
-		StrataSceneData.MaxBytesPerPixel = FMath::DivideAndRoundUp(MaterialConservativeByteCountPerPixel, 4u) * 4u;
+		const uint32 MaterialConservativeByteCountPerPixel = 97u;
+		const uint32 RoundToValue = 4u;
+		StrataSceneData.MaxBytesPerPixel = FMath::DivideAndRoundUp(MaterialConservativeByteCountPerPixel, RoundToValue) * RoundToValue;
 	}
 	else
 	{
