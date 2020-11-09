@@ -711,7 +711,7 @@ void FD3D12DynamicRHI::Init()
 	}
 #endif
 
-#if !PLATFORM_CPU_ARM_FAMILY
+#if AMD_API_ENABLE
 	if (GRHISupportsRayTracing
 		&& IsRHIDeviceAMD()
 		&& GMinimumDriverVersionForRayTracingAMD > 0
@@ -725,7 +725,7 @@ void FD3D12DynamicRHI::Init()
 			UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled because the driver is too old"));
 		}
 	}
-#endif // !PLATFORM_CPU_ARM_FAMILY
+#endif // AMD_API_ENABLE
 
 	GTexturePoolSize = 0;
 
