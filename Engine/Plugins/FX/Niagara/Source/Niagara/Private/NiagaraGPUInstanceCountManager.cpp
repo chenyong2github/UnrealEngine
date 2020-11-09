@@ -236,7 +236,9 @@ void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RH
 		{
 			DrawIndirectBuffer.Release();
 			AllocatedDrawIndirectArgs = RecommendedDrawIndirectArgsCount;
-			DrawIndirectBuffer.Initialize(sizeof(uint32), RecommendedDrawIndirectArgsCount * NIAGARA_DRAW_INDIRECT_ARGS_SIZE, EPixelFormat::PF_R32_UINT, BUF_Static | BUF_DrawIndirect, TEXT("NiagaraGPUDrawIndirectArgs"));
+			TResourceArray<uint32> InitData;
+			InitData.AddZeroed(RecommendedDrawIndirectArgsCount * NIAGARA_DRAW_INDIRECT_ARGS_SIZE);
+			DrawIndirectBuffer.Initialize(sizeof(uint32), RecommendedDrawIndirectArgsCount * NIAGARA_DRAW_INDIRECT_ARGS_SIZE, EPixelFormat::PF_R32_UINT, BUF_Static | BUF_DrawIndirect, TEXT("NiagaraGPUDrawIndirectArgs"), &InitData);
 			// The rest of the code expects this to be in the IndirectArgs state.
 			RHICmdList.Transition(FRHITransitionInfo(DrawIndirectBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::IndirectArgs));
 		}
