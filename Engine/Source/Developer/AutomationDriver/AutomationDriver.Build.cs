@@ -16,7 +16,6 @@ public class AutomationDriver : ModuleRules
             new string[] {
                 "Developer/AutomationDriver/Private",
                 "Developer/AutomationDriver/Private/Locators",
-                "Developer/AutomationDriver/Private/Specs",
                 "Developer/AutomationDriver/Private/MetaData",
             }
         );
