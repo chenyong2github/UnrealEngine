@@ -104,6 +104,12 @@ bool UEditorUtilitySubsystem::TryRun(UObject* Asset)
 		return false;
 	}
 
+	if (ObjectClass->IsChildOf(AActor::StaticClass()))
+	{
+		UE_LOG(LogEditorUtilityBlueprint, Warning, TEXT("Could not run because functions on actors can only be called when spawned in a world: %s"), *Asset->GetPathName());
+		return false;
+	}
+
 	static const FName RunFunctionName("Run");
 	UFunction* RunFunction = ObjectClass->FindFunctionByName(RunFunctionName);
 	if (RunFunction)
@@ -118,6 +124,27 @@ bool UEditorUtilitySubsystem::TryRun(UObject* Asset)
 	else
 	{
 		UE_LOG(LogEditorUtilityBlueprint, Warning, TEXT("Missing function named 'Run': %s"), *Asset->GetPathName());
+	}
+
+	return false;
+}
+
+bool UEditorUtilitySubsystem::CanRun(UObject* Asset) const
+{
+	UClass* ObjectClass = Asset->GetClass();
+	if (UBlueprint* Blueprint = Cast<UBlueprint>(Asset))
+	{
+		ObjectClass = Blueprint->GeneratedClass;
+	}
+
+	if (ObjectClass)
+	{
+		if (ObjectClass->IsChildOf(AActor::StaticClass()))
+		{
+			return false;
+		}
+
+		return true;
 	}
 
 	return false;

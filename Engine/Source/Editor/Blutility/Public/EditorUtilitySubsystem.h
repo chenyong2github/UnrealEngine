@@ -43,6 +43,9 @@ public:
 	bool TryRun(UObject* Asset);
 
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
+	bool CanRun(UObject* Asset) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
 	UEditorUtilityWidget* SpawnAndRegisterTabAndGetID(class UEditorUtilityWidgetBlueprint* InBlueprint, FName& NewTabID);
 
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
