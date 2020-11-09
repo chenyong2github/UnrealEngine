@@ -5220,6 +5220,13 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 			GeneralIoWriterSettings.CompressionBlockAlignment = PatchPaddingAlignment;
 		}
 	}
+	
+	// Temporary, this command-line allows us to explicitly override the value otherwise shared between pak building and iostore
+	uint64 IOStorePatchPaddingAlignment = 0;
+	if (ParseSizeArgument(CmdLine, TEXT("-iostorepatchpaddingalign="), IOStorePatchPaddingAlignment))
+	{
+		GeneralIoWriterSettings.CompressionBlockAlignment = IOStorePatchPaddingAlignment;
+	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Using memory mapping alignment '%ld'"), GeneralIoWriterSettings.MemoryMappingAlignment);
 	UE_LOG(LogIoStore, Display, TEXT("Using compression block size '%ld'"), GeneralIoWriterSettings.CompressionBlockSize);
