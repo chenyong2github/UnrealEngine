@@ -48,12 +48,22 @@ FShaderPlatformSettings::FShaderPlatformSettings(
 
 void FShaderPlatformSettings::ClearResources()
 {
+	TArray<TRefCountPtr<FMaterial>> MaterialsToDeleteOnRenderThread;
+
 	// free material resources
 	for (int32 i = 0; i < EMaterialQualityLevel::Num; ++i)
 	{
-		if (PlatformData[i].MaterialResourcesStats != nullptr)
+		FMaterialResourceStats* Resource = PlatformData[i].MaterialResourcesStats;
+		if (Resource != nullptr)
 		{
-			delete PlatformData[i].MaterialResourcesStats;
+			if (Resource->PrepareDestroy_GameThread())
+			{
+				MaterialsToDeleteOnRenderThread.Add(Resource);
+			}
+			else
+			{
+				delete Resource;
+			}
 			PlatformData[i].MaterialResourcesStats = nullptr;
 		}
 
@@ -62,6 +72,8 @@ void FShaderPlatformSettings::ClearResources()
 		PlatformData[i].bCompilingShaders = false;
 		PlatformData[i].bNeedShaderRecompilation = true;
 	}
+
+	FMaterial::DeleteMaterialsOnRenderThread(MaterialsToDeleteOnRenderThread);
 }
 
 FText FShaderPlatformSettings::GetSelectedShaderViewComboText(EMaterialQualityLevel::Type QualityLevel) const
