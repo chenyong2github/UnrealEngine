@@ -138,6 +138,16 @@ void UMovieScenePreAnimatedComponentTransformSystem::SaveGlobalPreAnimatedState(
 	Definition.Handler->SaveGlobalPreAnimatedState(Definition, Linker);
 }
 
+void UMovieScenePreAnimatedComponentTransformSystem::DiscardPreAnimatedStateForObject(UObject& Object)
+{
+	using namespace UE::MovieScene;
+
+	TrackedTransforms.SetNeedsRestoration(&Object, false);
+
+	TransformsToRestore.RemoveAll([&Object](const TTuple<UObject*, FIntermediate3DTransform>& Pair) -> bool
+			{ return Pair.Get<0>() == &Object; });
+}
+
 
 UMovieSceneComponentTransformSystem::UMovieSceneComponentTransformSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)

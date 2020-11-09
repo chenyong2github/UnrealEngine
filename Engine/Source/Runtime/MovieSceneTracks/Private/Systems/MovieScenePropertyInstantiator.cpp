@@ -724,3 +724,18 @@ void UMovieScenePropertyInstantiatorSystem::RestorePreAnimatedState(FSystemTaskP
 
 	RestorePreAnimatedStateTasks.Empty();
 }
+
+void UMovieScenePropertyInstantiatorSystem::DiscardPreAnimatedStateForObject(UObject& Object)
+{
+	using namespace UE::MovieScene;
+
+	for (FObjectPropertyInfo& PropertyInfo : ResolvedProperties)
+	{
+		if (PropertyInfo.BoundObject == &Object && PropertyInfo.bWantsRestoreState)
+		{
+			Linker->EntityManager.RemoveComponent(PropertyInfo.PropertyEntityID, BuiltInComponents->Tags.RestoreState);
+			PropertyInfo.bWantsRestoreState = false;
+		}
+	}
+}
+

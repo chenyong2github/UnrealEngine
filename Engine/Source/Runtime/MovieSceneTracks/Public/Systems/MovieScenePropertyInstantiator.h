@@ -84,6 +84,8 @@ private:
 
 	virtual void RestorePreAnimatedState(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 
+	virtual void DiscardPreAnimatedStateForObject(UObject& Object) override;
+
 private:
 
 	using FChannelMask     = TBitArray<TFixedAllocator< 1 >>;
