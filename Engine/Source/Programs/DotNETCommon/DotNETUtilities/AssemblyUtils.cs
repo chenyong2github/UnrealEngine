@@ -99,25 +99,30 @@ namespace Tools.DotNETCommon
 			// Initialize our cache of assemblies by enumerating all files in the given folder.
 			foreach (string DiscoveredAssembly in Directory.EnumerateFiles(RootDirectory, Pattern, SearchOption.AllDirectories))
 			{
-				string AssemblyName = Path.GetFileNameWithoutExtension(DiscoveredAssembly);
-				DateTime AssemblyLastWriteTime = File.GetLastWriteTimeUtc(DiscoveredAssembly);
-				if (AssemblyLocationCache.ContainsKey(AssemblyName))
-				{
-					// We already have this assembly in our cache. Only replace it if the discovered file is newer (to avoid stale assemblies breaking stuff).
-					if (AssemblyLastWriteTime > AssemblyWriteTimes[AssemblyName])
-					{
-						AssemblyLocationCache[AssemblyName] = DiscoveredAssembly;
-						AssemblyWriteTimes[AssemblyName] = AssemblyLastWriteTime;
-					}
-				}
-				else
-				{
-					// This is the first copy of this assembly ... add it to our cache.
-					AssemblyLocationCache.Add(AssemblyName, DiscoveredAssembly);
-					AssemblyWriteTimes.Add(AssemblyName, AssemblyLastWriteTime);
-				}
+				AddFileToAssemblyCache(DiscoveredAssembly);
 			}
 
+		}
+
+		public static void AddFileToAssemblyCache(string AssemblyPath)
+		{
+			string AssemblyName = Path.GetFileNameWithoutExtension(AssemblyPath);
+			DateTime AssemblyLastWriteTime = File.GetLastWriteTimeUtc(AssemblyPath);
+			if (AssemblyLocationCache.ContainsKey(AssemblyName))
+			{
+				// We already have this assembly in our cache. Only replace it if the discovered file is newer (to avoid stale assemblies breaking stuff).
+				if (AssemblyLastWriteTime > AssemblyWriteTimes[AssemblyName])
+				{
+					AssemblyLocationCache[AssemblyName] = AssemblyPath;
+					AssemblyWriteTimes[AssemblyName] = AssemblyLastWriteTime;
+				}
+			}
+			else
+			{
+				// This is the first copy of this assembly ... add it to our cache.
+				AssemblyLocationCache.Add(AssemblyName, AssemblyPath);
+				AssemblyWriteTimes.Add(AssemblyName, AssemblyLastWriteTime);
+			}
 		}
 
 		// Map of assembly name to path on disk

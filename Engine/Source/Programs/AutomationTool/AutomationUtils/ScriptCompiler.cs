@@ -475,7 +475,8 @@ namespace AutomationTool
 				try
 				{
 #if NET_CORE
-					Assembly Assembly = Assembly.LoadFile(AssemblyLocation.FullName);
+					AssemblyUtils.AddFileToAssemblyCache(AssemblyLocation.FullName);
+					Assembly Assembly = AppDomain.CurrentDomain.Load(AssemblyName.GetAssemblyName(AssemblyLocation.FullName));
 #else
 					Assembly Assembly = AppDomain.CurrentDomain.Load(AssemblyName.GetAssemblyName(AssemblyLocation.FullName));
 #endif
