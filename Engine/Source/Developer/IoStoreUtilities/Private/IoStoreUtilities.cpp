@@ -4218,6 +4218,9 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 		EIoContainerFlags TargetContainerFlags = TargetReader->GetContainerFlags();
 
 		FIoContainerSettings ContainerSettings;
+
+		ContainerSettings.ContainerFlags |= EIoContainerFlags::Indexed;
+
 		ContainerSettings.ContainerId = TargetReader->GetContainerId();
 		if (Arguments.bSign || EnumHasAnyFlags(TargetContainerFlags, EIoContainerFlags::Signed))
 		{
