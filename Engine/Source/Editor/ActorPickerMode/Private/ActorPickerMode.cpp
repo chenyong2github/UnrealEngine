@@ -56,7 +56,10 @@ void FActorPickerModeModule::OnApplicationDeactivated(const bool IsActive) const
 
 void FActorPickerModeModule::EndActorPickingMode() const
 {
-	GLevelEditorModeTools().DeactivateMode(FBuiltinEditorModes::EM_ActorPicker);
+	if (IsInActorPickingMode())
+	{
+		GLevelEditorModeTools().DeactivateMode(FBuiltinEditorModes::EM_ActorPicker);
+	}
 }
 
 bool FActorPickerModeModule::IsInActorPickingMode() const
