@@ -230,8 +230,8 @@ static void ReleaseUniformBuffer(bool bEmulatedBufferData, GLuint Resource, uint
 		};
 
 		RunOnGLRenderContextThread(MoveTemp(DeleteGLBuffer));
-		DecrementBufferMemory(GL_UNIFORM_BUFFER, /*bIsStructuredBuffer=*/ false, AllocatedSize);
 	}
+	DecrementBufferMemory(GL_UNIFORM_BUFFER, /*bIsStructuredBuffer=*/ false, AllocatedSize);
 }
 
 // Does per-frame global updating for the uniform buffer pool.
