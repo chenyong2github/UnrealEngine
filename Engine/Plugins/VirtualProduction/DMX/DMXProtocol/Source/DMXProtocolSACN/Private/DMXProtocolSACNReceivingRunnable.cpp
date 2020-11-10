@@ -7,11 +7,12 @@
 #include "Interfaces/IDMXProtocolUniverse.h"
 #include "Packets/DMXProtocolE131PDUPacket.h"
 
+#include "Async/Async.h"
 #include "Async/AsyncWork.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Misc/App.h"
 #include "Misc/ScopeLock.h"
 #include "Templates/SharedPointer.h"
-
 
 FDMXProtocolSACNReceivingRunnable::FDMXProtocolSACNReceivingRunnable(uint32 InReceivingRefreshRate, const TSharedRef<FDMXProtocolSACN, ESPMode::ThreadSafe>& InProtocolSACN)
 	: Thread(nullptr)
@@ -56,7 +57,7 @@ void FDMXProtocolSACNReceivingRunnable::ClearBuffers()
 
 void FDMXProtocolSACNReceivingRunnable::PushDMXPacket(uint16 InUniverse, const FDMXProtocolE131DMPLayerPacket& E131DMPLayerPacket)
 {
-	TSharedPtr<FDMXSignal> DMXSignal = MakeShared<FDMXSignal>(FApp::GetTimecode(), InUniverse, TArray<uint8>(E131DMPLayerPacket.DMX, DMX_UNIVERSE_SIZE));
+	TSharedPtr<FDMXSignal> DMXSignal = MakeShared<FDMXSignal>(FApp::GetCurrentTime(), InUniverse, TArray<uint8>(E131DMPLayerPacket.DMX, DMX_UNIVERSE_SIZE));
 
 	Queue.Enqueue(DMXSignal);
 }
@@ -84,7 +85,7 @@ void FDMXProtocolSACNReceivingRunnable::GameThread_InputDMXFragment(uint16 Unive
 	}
 	else
 	{
-		GameThreadOnlyBuffer.Add(UniverseID, MakeShared<FDMXSignal>(FApp::GetTimecode(), UniverseID, Channels));
+		GameThreadOnlyBuffer.Add(UniverseID, MakeShared<FDMXSignal>(FApp::GetCurrentTime(), UniverseID, Channels));
 	}
 }
 
@@ -144,15 +145,15 @@ void FDMXProtocolSACNReceivingRunnable::Update()
 	TSharedPtr<FDMXProtocolSACNReceivingRunnable, ESPMode::ThreadSafe> ThisSP = SharedThis(this);
 
 	AsyncTask(ENamedThreads::GameThread, [ThisSP]() {
-		// Drop frames if they're more than one frame behind the current frame (2 frames)
-		FFrameRate FrameRate = FFrameRate(1.0f, ThisSP->ReceivingRefreshRate);
-		double TolerableFrameTimeSeconds = FApp::GetTimecode().ToTimespan(FrameRate).GetTotalSeconds() + FrameRate.AsDecimal() * 2.0f;
+
+		// Drop signals if they're more than one frame behind the current rate (2 frames)
+		double TolerableTimeSeconds = FApp::GetCurrentTime() + 2.f / ThisSP->ReceivingRefreshRate;
 
 		TSharedPtr<FDMXSignal> Signal;
-		while(ThisSP->Queue.Dequeue(Signal))
+		while (ThisSP->Queue.Dequeue(Signal))
 		{
-			double SignalFrameTimeSeconds = Signal->Timestamp.ToTimespan(FrameRate).GetTotalSeconds();
-			if (SignalFrameTimeSeconds > TolerableFrameTimeSeconds)
+			double SignalTimeSeconds = Signal->Timestamp;
+			if (SignalTimeSeconds > TolerableTimeSeconds)
 			{
 				ThisSP->Queue.Empty();
 

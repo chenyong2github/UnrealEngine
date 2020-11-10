@@ -18,6 +18,7 @@
 #include "Engine/Engine.h"
 #include "Engine/TimecodeProvider.h"
 #include "Features/IModularFeatures.h"
+#include "Misc/App.h"
 #include "Modules/ModuleManager.h"
 #include "MovieSceneFolder.h"
 
@@ -148,6 +149,7 @@ void UMovieSceneDMXLibraryTrackRecorder::SetSectionStartTimecodeImpl(const FTime
 		FFrameRate TickResolution = MovieScene->GetTickResolution();
 		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 
+		RecordStartTime = FApp::GetCurrentTime();
 		RecordStartFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(InSectionStartTimecode.ToFrameNumber(DisplayRate)), DisplayRate, TickResolution).FloorToFrame() : MovieScene->GetPlaybackRange().GetLowerBoundValue();
 	}
 }
@@ -207,7 +209,7 @@ void UMovieSceneDMXLibraryTrackRecorder::RecordSampleImpl(const FQualifiedFrameT
 		if (SignalPtr)
 		{
 			const TSharedPtr<FDMXSignal>& Signal = *SignalPtr;
-
+		
 			FTakeRecorderParameters Parameters;
 			Parameters.User = GetDefault<UTakeRecorderUserSettings>()->Settings;
 			Parameters.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
@@ -215,7 +217,18 @@ void UMovieSceneDMXLibraryTrackRecorder::RecordSampleImpl(const FQualifiedFrameT
 			FFrameRate TickResolution = MovieScene->GetTickResolution();
 			FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 
-			FFrameNumber SignalFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(Signal->Timestamp.ToFrameNumber(DisplayRate)), DisplayRate, TickResolution).FloorToFrame() : MovieScene->GetPlaybackRange().GetLowerBoundValue();
+			const FFrameNumber SignalFrame = [this, &Parameters, &CurrentFrameTime, &TickResolution, &Signal]() -> FFrameNumber
+			{
+				if (Parameters.Project.bStartAtCurrentTimecode)
+				{
+					return ((Signal->Timestamp - RecordStartTime) * TickResolution).FloorToFrame() + RecordStartFrame;
+				}
+				else
+				{
+					return ((Signal->Timestamp - RecordStartTime) * TickResolution).FloorToFrame();
+				}
+			}();
+
 			DMXLibrarySection->ExpandToFrame(SignalFrame);
 
 			AttributeValueMap.Reset();
