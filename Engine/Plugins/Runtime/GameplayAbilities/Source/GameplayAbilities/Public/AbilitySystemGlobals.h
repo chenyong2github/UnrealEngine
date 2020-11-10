@@ -161,6 +161,19 @@ class GAMEPLAYABILITIES_API UAbilitySystemGlobals : public UObject
 	/** Returns true if ability costs are ignored, returns false otherwise. Always returns false in shipping builds. */
 	bool ShouldIgnoreCosts() const;
 
+	/** Show all abilities currently assigned to the local player */
+	UFUNCTION(exec)
+	void ListPlayerAbilities();
+	/** Force server activation of a specific player ability (useful for cheat testing) */
+	UFUNCTION(exec)
+	void ServerActivatePlayerAbility(FString AbilityNameMatch);
+	/** Force server deactivation of a specific player ability (useful for cheat testing) */
+	UFUNCTION(exec)
+	void ServerEndPlayerAbility(FString AbilityNameMatch);
+	/** Force server cancellation of a specific player ability (useful for cheat testing) */
+	UFUNCTION(exec)
+	void ServerCancelPlayerAbility(FString AbilityNameMatch);
+
 	/** Called when debug strings are available, to write them to the display */
 	DECLARE_MULTICAST_DELEGATE(FOnClientServerDebugAvailable);
 	FOnClientServerDebugAvailable OnClientServerDebugAvailable;
@@ -289,7 +302,8 @@ protected:
 	virtual void ReloadAttributeDefaults();
 	virtual void AllocAttributeSetInitter();
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#define WITH_ABILITY_CHEATS		(!(UE_BUILD_SHIPPING || UE_BUILD_TEST))
+#if WITH_ABILITY_CHEATS
 	// data used for ability system cheat commands
 
 	/** If we should ignore the cooldowns when activating abilities in the ability system. Set with ToggleIgnoreAbilitySystemCooldowns() */
@@ -297,7 +311,7 @@ protected:
 
 	/** If we should ignore the costs when activating abilities in the ability system. Set with ToggleIgnoreAbilitySystemCosts() */
 	bool bIgnoreAbilitySystemCosts;
-#endif // #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // WITH_ABILITY_CHEATS
 
 	/** Whether the game should allow the usage of gameplay mod evaluation channels or not */
 	UPROPERTY(config)
