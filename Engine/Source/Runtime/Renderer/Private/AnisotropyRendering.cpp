@@ -16,11 +16,18 @@ static FAutoConsoleVariableRef CVarAnisotropicMaterials(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
+static TAutoConsoleVariable<int32> CVarSupportAnisotropicMaterials(
+	TEXT("r.SupportAnisotropicMaterials"),
+	1,
+	TEXT("If true, allow use of anisotropic materials."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+	);
+
 bool SupportsAnisotropicMaterials(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatform ShaderPlatform)
 {
 	return GAnisotropicMaterials
 		&& FeatureLevel >= ERHIFeatureLevel::SM5
-		&& FDataDrivenShaderPlatformInfo::GetSupportsAnisotropicMaterials(ShaderPlatform);
+		&& (CVarSupportAnisotropicMaterials->GetBool() != 0);
 }
 
 static bool IsAnisotropyPassCompatible(FMaterialShaderParameters MaterialParameters)
