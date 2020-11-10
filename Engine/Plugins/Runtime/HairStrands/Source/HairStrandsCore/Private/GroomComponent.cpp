@@ -2255,8 +2255,11 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 		if (GetAttachSocketName() != BoneName)
 		{
 			AttachToComponent(RegisteredSkeletalMeshComponent, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), BoneName);
-			const FVector BoneLocation = RegisteredSkeletalMeshComponent->GetBoneLocation(BoneName, EBoneSpaces::ComponentSpace);
-			const FQuat BoneRotation = RegisteredSkeletalMeshComponent->GetBoneQuaternion(BoneName, EBoneSpaces::ComponentSpace);
+			const uint32 BoneIndex = RegisteredSkeletalMeshComponent->GetBoneIndex(BoneName);
+			const FMatrix BoneTransformRaw = RegisteredSkeletalMeshComponent->SkeletalMesh->GetComposedRefPoseMatrix(BoneIndex);
+			const FVector BoneLocation = BoneTransformRaw.GetOrigin();
+			const FQuat BoneRotation = BoneTransformRaw.ToQuat();
+
 			FTransform BoneTransform = FTransform::Identity;
 			BoneTransform.SetLocation(BoneLocation);
 			BoneTransform.SetRotation(BoneRotation);
