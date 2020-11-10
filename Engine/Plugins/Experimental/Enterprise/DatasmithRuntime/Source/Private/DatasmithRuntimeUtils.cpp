@@ -598,11 +598,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			if (AuxillaryData->bIsCompleted)
 			{
-				AssetData.AddState(EDatasmithRuntimeAssetState::Completed);
+				AssetData.AddState(EAssetState::Completed);
 			}
 			else
 			{
-				AssetData.ClearState(EDatasmithRuntimeAssetState::Completed);
+				AssetData.ClearState(EAssetState::Completed);
 			}
 		}
 	}
@@ -650,7 +650,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 						TMap<FSceneGraphId, FAssetData>& AssetsMapping = *(SceneMappings[RegistryKey.Pair[0]]);
 
 						ensure(AssetsMapping.Contains(RegistryKey.Pair[1]));
-						AssetsMapping[RegistryKey.Pair[1]].AddState(EDatasmithRuntimeAssetState::Completed);
+						AssetsMapping[RegistryKey.Pair[1]].AddState(EAssetState::Completed);
 					}
 				}
 				else
@@ -663,7 +663,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 						TMap<FSceneGraphId, FAssetData>& AssetsMapping = *(SceneMappings[RegistryKey.Pair[0]]);
 
 						ensure(AssetsMapping.Contains(RegistryKey.Pair[1]));
-						AssetsMapping[RegistryKey.Pair[1]].ClearState(EDatasmithRuntimeAssetState::Completed);
+						AssetsMapping[RegistryKey.Pair[1]].ClearState(EAssetState::Completed);
 					}
 				}
 
@@ -690,7 +690,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					TMap<FSceneGraphId, FAssetData>& AssetsMapping = *(SceneMappings[RegistryKey.Pair[0]]);
 
 					ensure(AssetsMapping.Contains(RegistryKey.Pair[1]));
-					bIsCompleted |= AssetsMapping[RegistryKey.Pair[1]].HasState(EDatasmithRuntimeAssetState::Completed);
+					bIsCompleted |= AssetsMapping[RegistryKey.Pair[1]].HasState(EAssetState::Completed);
 				}
 
 				return bIsCompleted;

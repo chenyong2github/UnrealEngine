@@ -25,8 +25,6 @@ namespace DatasmithRuntime
 {
 	extern void UpdateMaterials(TSet<FSceneGraphId>& MaterialElementSet, TMap< FSceneGraphId, FAssetData >& AssetDataList);
 
-	constexpr EDatasmithRuntimeWorkerTask::Type NonAsyncTasks = EDatasmithRuntimeWorkerTask::LightComponentCreate | EDatasmithRuntimeWorkerTask::MeshComponentCreate | EDatasmithRuntimeWorkerTask::MaterialAssign | EDatasmithRuntimeWorkerTask::TextureCreate | EDatasmithRuntimeWorkerTask::TextureAssign;
-
 #ifdef LIVEUPDATE_TIME_LOGGING
 	Timer::Timer(double InTimeOrigin, const char* InText)
 		: TimeOrigin(InTimeOrigin)
@@ -57,13 +55,13 @@ namespace DatasmithRuntime
 
 	FSceneImporter::FSceneImporter(ADatasmithRuntimeActor* InDatasmithRuntimeActor)
 		: RootComponent( InDatasmithRuntimeActor->GetRootComponent() )
-		, TasksToComplete( EDatasmithRuntimeWorkerTask::NoTask )
+		, TasksToComplete( EWorkerTask::NoTask )
 		, OverallProgress(InDatasmithRuntimeActor->Progress)
 	{
 		SceneKey = GetTypeHash(FGuid::NewGuid());
 		FAssetRegistry::RegisterMapping(SceneKey, &AssetDataList);
 
-		FAssetData::EmptyAsset.SetState(EDatasmithRuntimeAssetState::Processed | EDatasmithRuntimeAssetState::Completed);
+		FAssetData::EmptyAsset.SetState(EAssetState::Processed | EAssetState::Completed);
 	}
 
 	FSceneImporter::~FSceneImporter()
@@ -95,7 +93,7 @@ namespace DatasmithRuntime
 
 		SceneElement = InSceneElement;
 
-		TasksToComplete |= SceneElement.IsValid() ? EDatasmithRuntimeWorkerTask::CollectSceneData : EDatasmithRuntimeWorkerTask::NoTask;
+		TasksToComplete |= SceneElement.IsValid() ? EWorkerTask::CollectSceneData : EWorkerTask::NoTask;
 
 #ifdef LIVEUPDATE_TIME_LOGGING
 		GlobalStartTime = FPlatformTime::Seconds();
@@ -106,8 +104,23 @@ namespace DatasmithRuntime
 	{
 		if (IDatasmithElement* Element = InElementPtr.Get())
 		{
+			FString AssetKey = AssetPrefix + Element->GetName();
 			FSceneGraphId ElementId = Element->GetNodeId();
-			AssetElementMapping.Add( AssetPrefix + Element->GetName(), ElementId );
+			if (AssetElementMapping.Contains(AssetKey))
+			{
+				TSharedPtr<IDatasmithElement>& ExistingElement = Elements[AssetElementMapping[AssetKey]];
+				if (ExistingElement->CalculateElementHash(true) == Element->CalculateElementHash(true))
+				{
+					return;
+				}
+				else
+				{
+					UE_LOG(LogDatasmithRuntime, Error, TEXT("Found duplicate element: %s with different data"), Element->GetName());
+					ensure(false);
+				}
+			}
+
+			AssetElementMapping.Add( AssetKey, ElementId );
 
 			Elements.Add( ElementId, MoveTemp( InElementPtr ) );
 
@@ -204,7 +217,7 @@ namespace DatasmithRuntime
 			);
 		}
 
-		TasksToComplete |= EDatasmithRuntimeWorkerTask::SetupTasks;
+		TasksToComplete |= EWorkerTask::SetupTasks;
 	}
 
 	void FSceneImporter::SetupTasks()
@@ -251,7 +264,7 @@ namespace DatasmithRuntime
 		{
 			ImageReaderInitialize();
 
-			TasksToComplete |= EDatasmithRuntimeWorkerTask::TextureLoad;
+			TasksToComplete |= EWorkerTask::TextureLoad;
 		}
 	}
 
@@ -272,7 +285,7 @@ namespace DatasmithRuntime
 		ensure(ActorDataList.Contains(ElementId));
 		FActorData& ActorData = ActorDataList[ElementId];
 
-		if (ActorData.HasState(EDatasmithRuntimeAssetState::Processed))
+		if (ActorData.HasState(EAssetState::Processed))
 		{
 			return;
 		}
@@ -303,7 +316,7 @@ namespace DatasmithRuntime
 		}
 		else
 		{
-			ActorData.SetState(EDatasmithRuntimeAssetState::Processed);
+			ActorData.SetState(EAssetState::Processed);
 		}
 	}
 
@@ -311,13 +324,13 @@ namespace DatasmithRuntime
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::Tick);
 
-		if (TasksToComplete == EDatasmithRuntimeWorkerTask::NoTask)
+		if (TasksToComplete == EWorkerTask::NoTask)
 		{
 			return;
 		}
 
 		// Full reset of the world. Resume tasks on next tick
-		if (TasksToComplete & EDatasmithRuntimeWorkerTask::ResetScene)
+		if (EnumHasAnyFlags( TasksToComplete, EWorkerTask::ResetScene))
 		{
 			// Wait for ongoing tasks to be completed
 			for (TFuture<bool>& OnGoingTask : OnGoingTasks)
@@ -327,7 +340,7 @@ namespace DatasmithRuntime
 
 			OnGoingTasks.Empty();
 
-			DeleteData();
+			bool bGarbageCollect = DeleteData();
 
 			Elements.Empty();
 			AssetElementMapping.Empty();
@@ -336,17 +349,21 @@ namespace DatasmithRuntime
 			TextureDataList.Empty();
 			ActorDataList.Empty();
 
-			TasksToComplete &= ~EDatasmithRuntimeWorkerTask::ResetScene;
+			bGarbageCollect |= FAssetRegistry::CleanUp();
+
+			TasksToComplete &= ~EWorkerTask::ResetScene;
 
 			// If there is no more tasks to complete, delete assets which are not used
-			if (TasksToComplete == EDatasmithRuntimeWorkerTask::NoTask)
+			if (bGarbageCollect)
 			{
-				bGarbageCollect |= FAssetRegistry::CleanUp();
-
-				if (bGarbageCollect && !IsGarbageCollecting())
+				if (!IsGarbageCollecting())
 				{
 					CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-					bGarbageCollect = false;
+				}
+				else
+				{
+					// Post-pone garbage collection for next frame
+					TasksToComplete = EWorkerTask::GarbageCollect;
 				}
 			}
 
@@ -377,32 +394,46 @@ namespace DatasmithRuntime
 		// Execute work by chunk of 10 milliseconds timespan
 		double EndTime = FPlatformTime::Seconds() + 0.02;
 
-		if (TasksToComplete & EDatasmithRuntimeWorkerTask::CollectSceneData)
+		if (EnumHasAnyFlags( TasksToComplete, EWorkerTask::GarbageCollect))
 		{
-			CollectSceneData();
-			TasksToComplete &= ~EDatasmithRuntimeWorkerTask::CollectSceneData;
+			// Do not take any risk, wait for next frame to continue the process
+			if (IsGarbageCollecting())
+			{
+				return;
+			}
+
+			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+			TasksToComplete &= ~EWorkerTask::GarbageCollect;
 		}
 
 		bool bContinue = FPlatformTime::Seconds() < EndTime;
 
-		if (bContinue && !ActionQueues[UPDATE_QUEUE].IsEmpty())
+		if (EnumHasAnyFlags( TasksToComplete, EWorkerTask::CollectSceneData))
 		{
-			ProcessQueue(UPDATE_QUEUE, EndTime, EDatasmithRuntimeWorkerTask::UpdateElement, EDatasmithRuntimeWorkerTask::SetupTasks);
+			CollectSceneData();
+			TasksToComplete &= ~EWorkerTask::CollectSceneData;
 		}
 
 		bContinue = FPlatformTime::Seconds() < EndTime;
 
-		if (bContinue && (TasksToComplete & EDatasmithRuntimeWorkerTask::SetupTasks))
+		if (bContinue && !ActionQueues[UPDATE_QUEUE].IsEmpty())
+		{
+			ProcessQueue(UPDATE_QUEUE, EndTime, EWorkerTask::UpdateElement, EWorkerTask::SetupTasks);
+		}
+
+		bContinue = FPlatformTime::Seconds() < EndTime;
+
+		if (bContinue && EnumHasAnyFlags( TasksToComplete, EWorkerTask::SetupTasks))
 		{
 			SetupTasks();
-			TasksToComplete &= ~EDatasmithRuntimeWorkerTask::SetupTasks;
+			TasksToComplete &= ~EWorkerTask::SetupTasks;
 		}
 
 		bContinue = FPlatformTime::Seconds() < EndTime;
 
 		if (bContinue && !ActionQueues[MESH_QUEUE].IsEmpty())
 		{
-			ProcessQueue(MESH_QUEUE, EndTime, EDatasmithRuntimeWorkerTask::MeshCreate);
+			ProcessQueue(MESH_QUEUE, EndTime, EWorkerTask::MeshCreate);
 		}
 
 		bContinue = FPlatformTime::Seconds() < EndTime;
@@ -414,7 +445,7 @@ namespace DatasmithRuntime
 			{
 				if (!ActionQueues[MATERIAL_QUEUE].Dequeue(ActionTask))
 				{
-					TasksToComplete &= ~EDatasmithRuntimeWorkerTask::MaterialCreate;
+					TasksToComplete &= ~EWorkerTask::MaterialCreate;
 					UpdateMaterials(MaterialElementSet, AssetDataList);
 
 					break;
@@ -430,7 +461,7 @@ namespace DatasmithRuntime
 
 		if (bContinue && !ActionQueues[TEXTURE_QUEUE].IsEmpty())
 		{
-			ProcessQueue(TEXTURE_QUEUE, EndTime, EDatasmithRuntimeWorkerTask::TextureLoad);
+			ProcessQueue(TEXTURE_QUEUE, EndTime, EWorkerTask::TextureLoad);
 		}
 
 		bContinue = FPlatformTime::Seconds() < EndTime;
@@ -442,7 +473,7 @@ namespace DatasmithRuntime
 			{
 				if (!ActionQueues[NONASYNC_QUEUE].Dequeue(ActionTask))
 				{
-					TasksToComplete &= ~NonAsyncTasks;
+					TasksToComplete &= ~EWorkerTask::NonAsyncTasks;
 
 					break;
 				}
@@ -467,47 +498,77 @@ namespace DatasmithRuntime
 
 		bContinue = FPlatformTime::Seconds() < EndTime;
 
-		if (bContinue && !ActionQueues[DELETE_QUEUE].IsEmpty())
+		// Flag used to avoid deleting components and associated assets in the same frame
+		bool bHasComponentToDelete = ActionQueues[DELETE_QUEUE_C].IsEmpty();
+
+		if (bContinue && !ActionQueues[DELETE_QUEUE_C].IsEmpty())
 		{
 			FActionTask ActionTask;
 			while (FPlatformTime::Seconds() < EndTime)
 			{
-				if (!ActionQueues[DELETE_QUEUE].Dequeue(ActionTask))
+				if (!ActionQueues[DELETE_QUEUE_C].Dequeue(ActionTask))
 				{
+					TasksToComplete &= ~EWorkerTask::DeleteComponent;
 					break;
 				}
 
-				bGarbageCollect |= ActionTask.Execute(FAssetData::EmptyAsset);
+				if (ActionTask.Execute(FAssetData::EmptyAsset))
+				{
+					TasksToComplete |= EWorkerTask::GarbageCollect;
+				}
 			}
 		}
 
-		bContinue = FPlatformTime::Seconds() < EndTime;
-
-		if(bContinue && ActionQueues[DELETE_QUEUE].IsEmpty() && bGarbageCollect)
+		// Force a garbage collection if we are done with the components
+		if (ActionQueues[DELETE_QUEUE_C].IsEmpty() && EnumHasAnyFlags(TasksToComplete, EWorkerTask::GarbageCollect))
 		{
-			bGarbageCollect &= !IsGarbageCollecting();
-
-			if (bGarbageCollect)
+			if (!IsGarbageCollecting())
 			{
 				CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-				bGarbageCollect = false;
+				TasksToComplete &= ~EWorkerTask::GarbageCollect;
 			}
 		}
 
-		if (TasksToComplete == EDatasmithRuntimeWorkerTask::NoTask && SceneElement.IsValid())
+		// Do not continue if there are still components to garbage collect
+		bContinue = FPlatformTime::Seconds() < EndTime && !(TasksToComplete & EWorkerTask::GarbageCollect);
+
+		if (bContinue && !ActionQueues[DELETE_QUEUE_A].IsEmpty())
 		{
+			FActionTask ActionTask;
+			while (FPlatformTime::Seconds() < EndTime)
+			{
+				if (!ActionQueues[DELETE_QUEUE_A].Dequeue(ActionTask))
+				{
+					TasksToComplete &= ~EWorkerTask::DeleteAsset;
+					break;
+				}
+
+				ActionTask.Execute(FAssetData::EmptyAsset);
+			}
+		}
+
+		if (TasksToComplete == EWorkerTask::NoTask && SceneElement.IsValid())
+		{
+			// Delete assets which has not been reused on the last processing
+			if (FAssetRegistry::CleanUp())
+			{
+				if (!IsGarbageCollecting())
+				{
+					CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+				}
+				else
+				{
+					// Garbage collection has not been performed. Do it on next frame
+					TasksToComplete = EWorkerTask::GarbageCollect;
+					return;
+				}
+			}
+
 			TRACE_BOOKMARK(TEXT("Load complete - %s"), *SceneElement->GetName());
 
 			OnGoingTasks.Empty();
 
 			LastSceneGuid = SceneElement->GetSharedState()->GetGuid();
-
-			// Delete assets which has not been reused on the last import
-			if (FAssetRegistry::CleanUp() && !IsGarbageCollecting())
-			{
-				CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-				bGarbageCollect = false;
-			}
 
 			Cast<ADatasmithRuntimeActor>(RootComponent->GetOwner())->OnImportEnd();
 #ifdef LIVEUPDATE_TIME_LOGGING
@@ -522,7 +583,7 @@ namespace DatasmithRuntime
 			// Return if async tasks are not completed
 			for (TFuture<bool>& OnGoingTask : OnGoingTasks)
 			{
-				if (!OnGoingTask.IsReady() && TasksToComplete != EDatasmithRuntimeWorkerTask::NoTask)
+				if (!OnGoingTask.IsReady() && TasksToComplete != EWorkerTask::NoTask)
 				{
 					ensure(false);
 					break;
@@ -535,7 +596,7 @@ namespace DatasmithRuntime
 	{
 		bIncrementalUpdate = !bIsNewScene;
 
-		TasksToComplete = EDatasmithRuntimeWorkerTask::NoTask;
+		TasksToComplete = EWorkerTask::NoTask;
 
 		// Clear all cached data if it is a new scene
 		if (bIsNewScene)
@@ -543,7 +604,7 @@ namespace DatasmithRuntime
 			SceneElement.Reset();
 			LastSceneGuid = FGuid();
 
-			TasksToComplete = EDatasmithRuntimeWorkerTask::ResetScene;
+			TasksToComplete = EWorkerTask::ResetScene;
 		}
 		// Clean up referencer of all assets as it may change on an update
 		else
@@ -576,6 +637,7 @@ namespace DatasmithRuntime
 #ifdef LIVEUPDATE_TIME_LOGGING
 		GlobalStartTime = FPlatformTime::Seconds();
 #endif
+		UE_LOG(LogDatasmithRuntime, Log, TEXT("Incremental update..."));
 
 		Reset(false);
 
@@ -587,7 +649,15 @@ namespace DatasmithRuntime
 			FSceneGraphId ElementId = SceneElement->GetTexture(Index)->GetNodeId();
 			if (this->Elements.Contains(ElementId))
 			{
-				this->Elements[ElementId] = SceneElement->GetTexture(Index);
+				TSharedPtr<IDatasmithElement> TextureElement = SceneElement->GetTexture(Index);
+
+				AssetElementMapping.FindOrAdd(TexturePrefix + TextureElement->GetName()) = TextureElement->GetNodeId();
+				if (FCString::Strcmp(Elements[ElementId]->GetName(), TextureElement->GetName()))
+				{
+					AssetElementMapping.Remove(TexturePrefix + TextureElement->GetName());
+				}
+
+				Elements[ElementId] = TextureElement;
 			}
 		}
 
@@ -596,6 +666,14 @@ namespace DatasmithRuntime
 			FSceneGraphId ElementId = SceneElement->GetMaterial(Index)->GetNodeId();
 			if (this->Elements.Contains(ElementId))
 			{
+				TSharedPtr<IDatasmithElement> MaterialElement = SceneElement->GetMaterial(Index);
+
+				AssetElementMapping.FindOrAdd( MaterialPrefix + MaterialElement->GetName()) = MaterialElement->GetNodeId();
+				if (FCString::Strcmp(Elements[ElementId]->GetName(), MaterialElement->GetName()))
+				{
+					AssetElementMapping.Remove(MaterialPrefix + MaterialElement->GetName());
+				}
+
 				this->Elements[ElementId] = SceneElement->GetMaterial(Index);
 			}
 		}
@@ -605,6 +683,14 @@ namespace DatasmithRuntime
 			FSceneGraphId ElementId = SceneElement->GetMesh(Index)->GetNodeId();
 			if (this->Elements.Contains(ElementId))
 			{
+				TSharedPtr<IDatasmithElement> MeshElement = SceneElement->GetMesh(Index);
+
+				AssetElementMapping.FindOrAdd( MeshPrefix + MeshElement->GetName()) = MeshElement->GetNodeId();
+				if (FCString::Strcmp(Elements[ElementId]->GetName(), MeshElement->GetName()))
+				{
+					AssetElementMapping.Remove(MeshPrefix + MeshElement->GetName());
+				}
+
 				this->Elements[ElementId] = SceneElement->GetMesh(Index);
 			}
 		}
@@ -621,6 +707,19 @@ namespace DatasmithRuntime
 					}
 				}
 			);
+		}
+
+		// Mark assets which are about to be deleted
+		for (DirectLink::FSceneGraphId& ElementId : UpdateContext.Deletions)
+		{
+			if (AssetDataList.Contains(ElementId))
+			{
+				AssetDataList[ElementId].AddState(EAssetState::PendingDelete);
+			}
+			else if (ActorDataList.Contains(ElementId))
+			{
+				ActorDataList[ElementId].AddState(EAssetState::PendingDelete);
+			}
 		}
 
 		if (UpdateContext.Additions.Num() > 0)
@@ -687,7 +786,7 @@ namespace DatasmithRuntime
 				);
 			}
 
-			TasksToComplete |= EDatasmithRuntimeWorkerTask::SetupTasks;
+			TasksToComplete |= EWorkerTask::SetupTasks;
 		}
 
 		if (UpdateContext.Updates.Num() > 0)
@@ -707,7 +806,7 @@ namespace DatasmithRuntime
 						{
 							FAssetData& MaterialData = this->AssetDataList[ElementId];
 
-							MaterialData.SetState(EDatasmithRuntimeAssetState::Unknown);
+							MaterialData.SetState(EAssetState::Unknown);
 
 							this->ProcessMaterialData(MaterialData);
 
@@ -720,7 +819,7 @@ namespace DatasmithRuntime
 						{
 							FAssetData& MeshData = this->AssetDataList[ElementId];
 
-							MeshData.SetState(EDatasmithRuntimeAssetState::Unknown);
+							MeshData.SetState(EAssetState::Unknown);
 
 							this->ProcessMeshData(MeshData);
 
@@ -735,7 +834,7 @@ namespace DatasmithRuntime
 						{
 							FAssetData& TextureData = this->AssetDataList[ElementId];
 
-							TextureData.SetState(EDatasmithRuntimeAssetState::Unknown);
+							TextureData.SetState(EAssetState::Unknown);
 
 							this->ProcessTextureData(ElementId);
 
@@ -747,7 +846,7 @@ namespace DatasmithRuntime
 						ensure(ActorDataList.Contains(ElementId));
 						FActorData& ActorData = ActorDataList[ElementId];
 
-						ActorData.SetState(EDatasmithRuntimeAssetState::Unknown);
+						ActorData.SetState(EAssetState::Unknown);
 
 						TaskFunc = [this, ElementId, ParentId = ActorData.ParentId](UObject*, const FReferencer&) -> EActionResult::Type
 						{
@@ -760,7 +859,7 @@ namespace DatasmithRuntime
 
 									if (Elements.Contains(ElementId))
 									{
-										ActorDataList[ElementId].SetState(EDatasmithRuntimeAssetState::Unknown);
+										ActorDataList[ElementId].SetState(EAssetState::Unknown);
 									}
 								}
 							);
@@ -778,35 +877,13 @@ namespace DatasmithRuntime
 
 					AddToQueue(UPDATE_QUEUE, { MoveTemp(TaskFunc), FReferencer() } );
 
-					TasksToComplete |= EDatasmithRuntimeWorkerTask::SetupTasks;
+					TasksToComplete |= EWorkerTask::SetupTasks;
 				}
 			}
 		}
 
 		if (UpdateContext.Deletions.Num() > 0)
 		{
-			// Sort array of elements to delete based on dependency. Less dependency first
-			Algo::SortBy(UpdateContext.Deletions, [&](DirectLink::FSceneGraphId& ElementId) -> int64
-				{
-					if (TSharedPtr<IDatasmithElement>* ElementPtr = Elements.Find(ElementId))
-					{
-						if ((*ElementPtr)->IsA(EDatasmithElementType::BaseMaterial))
-						{
-							return 1;
-						}
-						else if ((*ElementPtr)->IsA(EDatasmithElementType::StaticMesh))
-						{
-							return 2;
-						}
-						else if ((*ElementPtr)->IsA(EDatasmithElementType::Texture))
-						{
-							return 0;
-						}
-					}
-
-					return 4;
-				});
-
 			FActionTaskFunction TaskFunc = [this](UObject*, const FReferencer& Referencer) -> EActionResult::Type
 			{
 				return this->DeleteElement(Referencer.GetId());
@@ -816,20 +893,38 @@ namespace DatasmithRuntime
 			{
 				if (Elements.Contains(ElementId))
 				{
-					AddToQueue(DELETE_QUEUE, { TaskFunc, FReferencer(ElementId) } );
+					if (AssetDataList.Contains(ElementId))
+					{
+						if (!AssetDataList[ElementId].HasState(EAssetState::PendingDelete))
+						{
+							continue;
+						}
+
+						AddToQueue(DELETE_QUEUE_A, { TaskFunc, FReferencer(ElementId) } );
+						TasksToComplete |= EWorkerTask::DeleteAsset;
+					}
+					else if (ActorDataList.Contains(ElementId))
+					{
+						AddToQueue(DELETE_QUEUE_C, { TaskFunc, FReferencer(ElementId) } );
+						TasksToComplete |= EWorkerTask::DeleteComponent;
+					}
+					else
+					{
+						TSharedPtr<IDatasmithElement> Element = Elements[ElementId];
+						UE_LOG(LogDatasmithRuntime, Error, TEXT("Element %d (%s) was not found"), ElementId, Element->GetName());
+						ensure(false);
+					}
 				}
 			}
-
-			bGarbageCollect = ActionQueues[DELETE_QUEUE].IsEmpty();
 		}
 
 		return true;
 	}
 
 
-	void FSceneImporter::DeleteData()
+	bool FSceneImporter::DeleteData()
 	{
-		bGarbageCollect = false;
+		bool bGarbageCollect = false;
 
 		for (TPair< FSceneGraphId, FActorData >& Pair : ActorDataList)
 		{
@@ -840,6 +935,8 @@ namespace DatasmithRuntime
 		{
 			bGarbageCollect |= DeleteAsset(Entry.Value);
 		}
+
+		return bGarbageCollect;
 	}
 
 	EActionResult::Type FSceneImporter::DeleteElement(FSceneGraphId ElementId)
@@ -851,11 +948,7 @@ namespace DatasmithRuntime
 			return EActionResult::Failed;
 		}
 
-		const bool bIsAsset = ElementPtr->IsA(EDatasmithElementType::BaseMaterial) ||
-			ElementPtr->IsA(EDatasmithElementType::StaticMesh) ||
-			ElementPtr->IsA(EDatasmithElementType::Texture);
-
-		if (bIsAsset)
+		if (AssetDataList.Contains(ElementId))
 		{
 			FAssetData AssetData(DirectLink::InvalidId);
 			if (!AssetDataList.RemoveAndCopyValue(ElementId, AssetData))
@@ -869,7 +962,6 @@ namespace DatasmithRuntime
 			if (ElementPtr->IsA(EDatasmithElementType::Texture))
 			{
 				AssetPrefixedName = TexturePrefix + ElementPtr->GetName();
-				//ensure(TextureDataList.Remove(ElementId) > 0);
 				int32 Index = TextureDataList.Remove(ElementId);
 				if (Index == 0)
 				{
@@ -897,12 +989,11 @@ namespace DatasmithRuntime
 			return DeleteAsset(AssetData) ? EActionResult::Succeeded : EActionResult::Failed;
 		}
 
-		ensure(ElementPtr->IsA(EDatasmithElementType::Actor));
+		ensure(ActorDataList.Contains(ElementId));
 
 		FActorData ActorData(DirectLink::InvalidId);
 		if (!ActorDataList.RemoveAndCopyValue(ElementId, ActorData))
 		{
-			ensure(false);
 			return EActionResult::Failed;
 		}
 
@@ -954,7 +1045,7 @@ namespace DatasmithRuntime
 
 	bool FSceneImporter::ProcessCameraActorData(FActorData& ActorData, IDatasmithCameraActorElement* CameraElement)
 	{
-		if (ActorData.HasState(EDatasmithRuntimeAssetState::Processed))
+		if (ActorData.HasState(EAssetState::Processed))
 		{
 			return true;
 		}
@@ -1083,7 +1174,7 @@ namespace DatasmithRuntime
 			}
 		}
 #endif
-		ActorData.SetState(EDatasmithRuntimeAssetState::Processed | EDatasmithRuntimeAssetState::Completed);
+		ActorData.SetState(EAssetState::Processed | EAssetState::Completed);
 
 		return true;
 	}
