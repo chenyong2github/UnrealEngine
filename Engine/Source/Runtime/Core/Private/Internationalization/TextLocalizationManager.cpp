@@ -931,6 +931,16 @@ void FTextLocalizationManager::OnPakFileMounted(const IPakFile& PakFile)
 		return;
 	}
 	
+	// If we're being notified so early that even InitEngineTextLocalization hasn't run, then we can't safely make the queries below as things like GConfig may not be available yet!
+	if (!IsInitialized())
+	{
+		// Track this so that full resource refreshes (eg, changing culture) work as expected
+		LocResTextSource->RegisterChunkId(ChunkId);
+
+		UE_LOG(LogTextLocalizationManager, Verbose, TEXT("Skipped loading localization data for chunk %d (from PAK '%s') as the localization manager isn't ready"), ChunkId, *PakFile.PakGetPakFilename());
+		return;
+	}
+
 	// Note: We only allow game localization targets to be chunked, and the layout is assumed to follow our standard pattern (as used by the localization dashboard and FLocTextHelper)
 	const TArray<FString> ChunkedLocalizationTargets = FLocalizationResourceTextSource::GetChunkedLocalizationTargets();
 
