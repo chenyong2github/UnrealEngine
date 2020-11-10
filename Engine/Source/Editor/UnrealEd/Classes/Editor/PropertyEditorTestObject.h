@@ -356,6 +356,9 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(EditAnywhere, Category=ArraysOfProperties)
 	int32 StaticArrayOfIntsWithEnumLabels[ArrayIndex_MAX];
 
+	UPROPERTY(VisibleAnywhere, Category = AdvancedProperties)
+	FFloatRange FloatRange;
+
 	// This is a float property tooltip that is overridden
 	UPROPERTY(EditAnywhere, Category=AdvancedProperties, meta=(ClampMin="0.0", ClampMax="100.0", UIMin="0.0", UIMax="50.0", ToolTip="This is a custom tooltip that should be shown"))
 	float FloatPropertyWithClampedRange;
@@ -458,6 +461,9 @@ class UPropertyEditorTestObject : public UObject
 
 	UPROPERTY(EditAnywhere, Category=AssetPropertyTests)
 	UMaterialInterface* AnyMaterialInterface;
+
+	UPROPERTY(EditAnywhere, Category = AssetPropertyTests, meta=(DisplayThumbnail=false))
+	UMaterialInterface* MaterialNoThumbnail;
 
 	UPROPERTY(EditAnywhere, Category=AssetPropertyTests)
 	AActor* OnlyActorsAllowed;

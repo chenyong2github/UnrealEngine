@@ -2999,17 +2999,13 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 			.SetColorAndOpacity(FColor( 96, 194, 253, 255 ).ReinterpretAsLinear())
 		);
 	
-		Set( "PropertyEditor.AssetName", FTextBlockStyle(NormalText)
-			.SetFont( DEFAULT_FONT( "Regular", 12 ) )
-			.SetColorAndOpacity( FLinearColor::White )
-			.SetShadowOffset( FVector2D(1,1) )
-			.SetShadowColorAndOpacity( FLinearColor::Black )
-		);
 
 		Set( "PropertyEditor.AssetName.ColorAndOpacity", FLinearColor::White );
 
-		Set( "PropertyEditor.AssetThumbnailLight", new BOX_BRUSH( "ContentBrowser/ThumbnailLight", FMargin( 5.0f / 64.0f ), SelectionColor ) );
-		Set( "PropertyEditor.AssetThumbnailShadow", new BOX_BRUSH( "ContentBrowser/ThumbnailShadow", FMargin( 4.0f / 64.0f ) ) );
+		Set("PropertyEditor.AssetThumbnailBorder", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::InputOutline, 1.0f));
+		Set("PropertyEditor.AssetThumbnailBorderHovered", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::Hover2, 1.0f));
+		Set("PropertyEditor.AssetTileItem.DropShadow", new BOX_BRUSH("Starship/ContentBrowser/drop-shadow", FMargin(4.0f / 64.0f)));
+
 		Set( "PropertyEditor.AssetClass", FTextBlockStyle(NormalText)
 			.SetFont( DEFAULT_FONT( "Regular", 10 ) )
 			.SetColorAndOpacity( FLinearColor::White )
@@ -3119,20 +3115,19 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		Set( "PropertyWindow.FilteredEditConstColor", new FSlateColorBrush( FColor( 152, 152, 152, 80 ).ReinterpretAsLinear() * FColor(0,255,0,255).ReinterpretAsLinear() ) );
 		Set( "PropertyWindow.CategoryBackground", new BOX_BRUSH( "/PropertyView/CategoryBackground", FMargin(4.f/16.f) ) );
 		Set( "PropertyWindow.CategoryForeground", FLinearColor::Black );
-		Set( "PropertyWindow.Button_Browse", new IMAGE_BRUSH( "Icons/lens_12x", Icon12x12 ) );
-		Set( "PropertyWindow.Button_CreateNewBlueprint", new IMAGE_BRUSH( "Icons/PlusSymbol_12x", Icon12x12 ) );
-		Set( "PropertyWindow.Button_Use", new IMAGE_BRUSH( "Icons/assign_12x", Icon12x12 ) );
+		Set( "PropertyWindow.Button_Browse", new CORE_IMAGE_BRUSH_SVG("Starship/Common/search", Icon16x16));
+		Set( "PropertyWindow.Button_Use", new CORE_IMAGE_BRUSH_SVG("Starship/Common/circle-arrow-left", Icon16x16));
 		Set( "PropertyWindow.Button_Delete", new IMAGE_BRUSH("Icons/Cross_12x", Icon12x12 ) );
 		Set( "PropertyWindow.Button_Clear", new IMAGE_BRUSH( "Icons/Cross_12x", Icon12x12 ) );
-		Set( "PropertyWindow.Button_Edit", new IMAGE_BRUSH( "Icons/wrench_16x", Icon12x12 ) );
+		Set( "PropertyWindow.Button_Edit", new IMAGE_BRUSH_SVG("Starship/Common/edit", Icon16x16));
 		Set( "PropertyWindow.Button_EmptyArray", new IMAGE_BRUSH( "Icons/empty_set_12x", Icon12x12 ) );
-		Set( "PropertyWindow.Button_AddToArray", new IMAGE_BRUSH( "Icons/PlusSymbol_12x", Icon12x12 ) );
-		Set( "PropertyWindow.Button_RemoveFromArray", new IMAGE_BRUSH( "Icons/MinusSymbol_12x", Icon12x12 ) );
+		Set( "PropertyWindow.Button_AddToArray", new CORE_IMAGE_BRUSH_SVG("Starship/Common/plus-circle", Icon16x16));
+		Set( "PropertyWindow.Button_RemoveFromArray", new IMAGE_BRUSH_SVG("Starship/Common/minus", Icon16x16));
 		Set( "PropertyWindow.Button_Ellipsis", new IMAGE_BRUSH( "Icons/ellipsis_12x", Icon12x12 ) );
 		Set( "PropertyWindow.Button_PickAsset", new IMAGE_BRUSH( "Icons/pillarray_12x", Icon12x12 ) );
 		Set( "PropertyWindow.Button_PickActor", new IMAGE_BRUSH( "Icons/levels_16x", Icon12x12 ) );
 		Set( "PropertyWindow.Button_PickActorInteractive", new IMAGE_BRUSH( "Icons/eyedropper_16px", Icon12x12 ) );
-		Set( "PropertyWindow.Button_Refresh", new IMAGE_BRUSH("Icons/refresh_12x", Icon12x12 ) );
+
 		Set( "PropertyWindow.WindowBorder", new BOX_BRUSH( "Common/GroupBorder", FMargin(4.0f/16.0f) ) );
 
 		Set( "DetailsView.NameChangeCommitted", new BOX_BRUSH( "Common/EditableTextSelectionBackground", FMargin(4.f/16.f) ) );

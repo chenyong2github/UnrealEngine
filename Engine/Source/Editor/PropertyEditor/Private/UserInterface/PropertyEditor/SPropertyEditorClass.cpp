@@ -71,7 +71,7 @@ private:
 
 void SPropertyEditorClass::GetDesiredWidth(float& OutMinDesiredWidth, float& OutMaxDesiredWidth)
 {
-	OutMinDesiredWidth = 125.0f;
+	OutMinDesiredWidth = 200.0f;
 	OutMaxDesiredWidth = 400.0f;
 }
 
@@ -198,7 +198,6 @@ void SPropertyEditorClass::Construct(const FArguments& InArgs, const TSharedPtr<
 
 	SAssignNew(ComboButton, SComboButton)
 		.OnGetMenuContent(this, &SPropertyEditorClass::GenerateClassPicker)
-		.ContentPadding(FMargin(2.0f, 2.0f))
 		.ToolTipText(this, &SPropertyEditorClass::GetDisplayValueAsString)
 		.ButtonContent()
 		[

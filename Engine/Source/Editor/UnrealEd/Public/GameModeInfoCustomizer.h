@@ -155,16 +155,19 @@ public:
 			]
 
 			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
 			.AutoWidth()
 			[
 				PropertyCustomizationHelpers::MakeUseSelectedButton(FSimpleDelegate::CreateSP(this, &FGameModeInfoCustomizer::OnUseSelectedGameModeClicked))
 			]
 			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
 			.AutoWidth()
 			[
 				PropertyCustomizationHelpers::MakeBrowseButton(FSimpleDelegate::CreateSP(this, &FGameModeInfoCustomizer::OnBrowseGameModeClicked))
 			]
 			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
 			.AutoWidth()
 			[
 				PropertyCustomizationHelpers::MakeNewBlueprintButton(FSimpleDelegate::CreateSP(this, &FGameModeInfoCustomizer::OnClickNewGameMode))

@@ -163,7 +163,6 @@ public:
 			// Constructs the UI for bitmask property editing.
 			SAssignNew(PrimaryWidget, SComboButton)
 			.ComboButtonStyle(&ComboBoxStyle.ComboButtonStyle)
-			.ContentPadding(FMargin(4.0, 2.0))
 			.ToolTipText_Lambda([this, CreateBitmaskFlagsArray, Property]
 			{
 				TOptional<NumericType> Value = OnGetValue();

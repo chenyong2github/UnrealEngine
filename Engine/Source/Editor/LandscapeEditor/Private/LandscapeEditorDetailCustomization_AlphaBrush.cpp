@@ -66,7 +66,7 @@ public:
 		[
 			SNew(SBorder)
 			.Padding(4.0f)
-			.BorderImage( FEditorStyle::GetBrush("PropertyEditor.AssetThumbnailShadow") )
+			.BorderImage( FEditorStyle::GetBrush("PropertyEditor.AssetTileItem.DropShadow") )
 			.OnMouseDoubleClick(this, &STextureMaskThumbnail::OnAssetThumbnailDoubleClick)
 			//.OnClicked_Static(&FLandscapeEditorDetailCustomization_AlphaBrush::OnTextureButtonClicked)
 			[

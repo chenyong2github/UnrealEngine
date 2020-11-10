@@ -2577,7 +2577,7 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 				//Pass an empty material list owner (owner can be use by the asset picker filter. In this case we do not need it)
 				TArray<FAssetData> MaterialListOwner;
 				MaterialListOwner.Add(SkelMesh);
-				MaterialCategory.AddCustomBuilder(MakeShareable(new FMaterialList(MaterialCategory.GetParentLayout(), MaterialListDelegates, MaterialListOwner, false, true, true)));
+				MaterialCategory.AddCustomBuilder(MakeShareable(new FMaterialList(MaterialCategory.GetParentLayout(), MaterialListDelegates, MaterialListOwner, false, true)));
 			}
 		}
 

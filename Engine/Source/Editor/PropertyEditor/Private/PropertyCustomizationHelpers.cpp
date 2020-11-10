@@ -67,6 +67,7 @@ namespace PropertyCustomizationHelpers
 				.OnClicked( this, &SPropertyEditorButton::OnClick )
 				.ToolTipText( InArgs._Text )
 				.ForegroundColor( FSlateColor::UseForeground() )
+				.ContentPadding(0)
 				.IsFocusable(InArgs._IsFocusable)
 				[ 
 					SNew( SImage )
@@ -156,7 +157,7 @@ namespace PropertyCustomizationHelpers
 			SNew( SPropertyEditorButton )
 			.Text( LOCTEXT( "DeleteButtonLabel", "Delete") )
 			.ToolTipText( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "DeleteButtonToolTipText", "Delete") : OptionalToolTipText )
-			.Image( FEditorStyle::GetBrush("PropertyWindow.Button_Delete") )
+			.Image( FEditorStyle::GetBrush("Icons.X") )
 			.OnClickAction( OnDeleteClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
@@ -218,7 +219,7 @@ namespace PropertyCustomizationHelpers
 			SNew( SPropertyEditorButton )
 			.Text( LOCTEXT( "NewBlueprintButtonLabel", "New Blueprint") )
 			.ToolTipText( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "NewBlueprintButtonToolTipText", "Create New Blueprint") : OptionalToolTipText )
-			.Image( FEditorStyle::GetBrush("PropertyWindow.Button_CreateNewBlueprint") )
+			.Image( FEditorStyle::GetBrush("Icons.PlusCircle") )
 			.OnClickAction( OnNewBlueprintClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
@@ -457,7 +458,7 @@ void SObjectPropertyEntryBox::Construct( const FArguments& InArgs )
 	const TArray<FAssetData>& OwnerAssetDataArray = InArgs._OwnerAssetDataArray;
 
 	bool bDisplayThumbnail = InArgs._DisplayThumbnail;
-	FIntPoint ThumbnailSize(64, 64);
+	FIntPoint ThumbnailSize(48, 48);
 	if (InArgs._ThumbnailSizeOverride.IsSet())
 	{
 		ThumbnailSize = InArgs._ThumbnailSizeOverride.Get();

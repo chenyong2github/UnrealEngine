@@ -107,6 +107,14 @@ bool SPropertyEditorAsset::ShouldDisplayThumbnail(const FArguments& InArgs, cons
 	return bShowThumbnail;
 }
 
+const FSlateBrush* SPropertyEditorAsset::GetThumbnailBorder() const
+{
+	static const FName HoveredBorderName("PropertyEditor.AssetThumbnailBorderHovered");
+	static const FName RegularBorderName("PropertyEditor.AssetThumbnailBorder");
+
+	return ThumbnailBorder->IsHovered() ? FAppStyle::Get().GetBrush(HoveredBorderName) : FAppStyle::Get().GetBrush(RegularBorderName);
+}
+
 void SPropertyEditorAsset::InitializeClassFilters(const FProperty* Property)
 {
 	if (Property == nullptr)
@@ -405,12 +413,9 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 
 	AssetComboButton = SNew(SComboButton)
 		.ToolTipText(TooltipAttribute)
-		.ButtonStyle( FEditorStyle::Get(), "PropertyEditor.AssetComboStyle" )
-		.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 		.OnGetMenuContent( this, &SPropertyEditorAsset::OnGetMenuContent )
 		.OnMenuOpenChanged( this, &SPropertyEditorAsset::OnMenuOpenChanged )
-		.IsEnabled( IsEnabledAttribute )
-		.ContentPadding(2.0f)
+		.IsEnabled(IsEnabledAttribute)
 		.ButtonContent()
 		[
 			SNew(SHorizontalBox)
@@ -429,7 +434,6 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 			[
 				// Show the name of the asset or actor
 				SNew(STextBlock)
-				.TextStyle( FEditorStyle::Get(), "PropertyEditor.AssetClass" )
 				.Font( FEditorStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle ) )
 				.Text(this,&SPropertyEditorAsset::OnGetAssetName)
 			]
@@ -443,7 +447,7 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 	TSharedPtr<SWidget> ButtonBoxWrapper;
 	TSharedRef<SHorizontalBox> ButtonBox = SNew( SHorizontalBox );
 	
-	TSharedPtr<SVerticalBox> CustomContentBox;
+	TSharedPtr<SHorizontalBox> CustomContentBox;
 
 	if(ShouldDisplayThumbnail(InArgs, ObjectClass))
 	{
@@ -466,93 +470,72 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 		}
 
 		ValueContentBox->AddSlot()
-		.Padding( 0.0f, 0.0f, 2.0f, 0.0f )
+		.Padding(FMargin(0,5,5,5))
 		.AutoWidth()
 		.VAlign(VAlign_Center)
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
+			SNew(SBorder)
+			.Visibility(EVisibility::SelfHitTestInvisible)
+			.Padding(FMargin(0.0f, 0.0f, 4.0f, 4.0f))
+			.BorderImage(FAppStyle::Get().GetBrush("PropertyEditor.AssetTileItem.DropShadow"))
 			[
-				SAssignNew( ThumbnailBorder, SBorder )
-				.Padding( 5.0f )
-				.BorderImage( this, &SPropertyEditorAsset::GetThumbnailBorder )
-				.OnMouseDoubleClick( this, &SPropertyEditorAsset::OnAssetThumbnailDoubleClick )
+				SNew(SOverlay)
+				+SOverlay::Slot()
+				.Padding(1)
 				[
-					SNew( SBox )
-					.ToolTipText(TooltipAttribute)
-					.WidthOverride( InArgs._ThumbnailSize.X ) 
-					.HeightOverride( InArgs._ThumbnailSize.Y )
+					SAssignNew(ThumbnailBorder, SBorder)
+					.Padding(0)
+					.BorderImage(FStyleDefaults::GetNoBrush())
+					.OnMouseDoubleClick(this, &SPropertyEditorAsset::OnAssetThumbnailDoubleClick)
 					[
-						AssetThumbnail->MakeThumbnailWidget(AssetThumbnailConfig)
+						SNew(SBox)
+						.ToolTipText(TooltipAttribute)
+						.WidthOverride(InArgs._ThumbnailSize.X)
+						.HeightOverride(InArgs._ThumbnailSize.Y)
+						[
+							AssetThumbnail->MakeThumbnailWidget(AssetThumbnailConfig)
+						]
 					]
+				]
+				+ SOverlay::Slot()
+				[
+					SNew(SImage)
+					.Image(this, &SPropertyEditorAsset::GetThumbnailBorder)
 				]
 			]
 		];
 
-		if(InArgs._DisplayCompactSize)
-		{
-			ValueContentBox->AddSlot()
+	
+		ValueContentBox->AddSlot()
+		.Padding(FMargin(0.0f, 5.0f))
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
 			[
-				SNew( SBox )
-				.VAlign( VAlign_Center )
+				AssetComboButton.ToSharedRef()
+			]
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
+			[
+				SAssignNew(CustomContentBox, SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
 				[
-					SAssignNew( CustomContentBox, SVerticalBox )
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(0.0f, 4.0f, 0.0f, 0.0f)
+					SAssignNew(ButtonBoxWrapper, SBox)
+					.Padding(FMargin(0.0f, 2.0f, 4.0f, 2.0f))
 					[
-						SNew(SHorizontalBox)
-						+SHorizontalBox::Slot()
-						.FillWidth(1.0f)
-						.VAlign(VAlign_Center)
-						[
-							AssetComboButton.ToSharedRef()
-						]
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						[
-							SAssignNew(ButtonBoxWrapper, SBox)
-							.Padding(FMargin(0.0f, 2.0f, 4.0f, 2.0f))
-							[
-								ButtonBox
-							]
-						]
+						ButtonBox
 					]
 				]
-			];
-		}
-		else
-		{
-			ValueContentBox->AddSlot()
-			[
-				SNew( SBox )
-				.VAlign( VAlign_Center )
-				[
-					SAssignNew( CustomContentBox, SVerticalBox )
-					+ SVerticalBox::Slot()
-					.Padding(0.0f, 4.0f, 0.0f, 0.0f)
-					[
-						AssetComboButton.ToSharedRef()
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SAssignNew(ButtonBoxWrapper, SBox)
-						.Padding( FMargin( 0.0f, 2.0f, 4.0f, 2.0f ) )
-						[
-							ButtonBox
-						]
-					]
-				]
-			];
-		}
+			]
+		];
 	}
 	else
 	{
 		ValueContentBox->AddSlot()
 		[
-			SAssignNew( CustomContentBox, SVerticalBox )
+			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
 			.VAlign( VAlign_Center )
 			[
@@ -565,11 +548,17 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 				.AutoWidth()
 				[
 					SAssignNew(ButtonBoxWrapper, SBox)
-					.Padding( FMargin( 4.f, 0.f ) )
+					.Padding(FMargin(4.0f,0.0f))
 					[
 						ButtonBox
 					]
 				]
+			]
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
+			.AutoHeight()
+			[
+				SAssignNew(CustomContentBox, SHorizontalBox)
 			]
 		];
 	}
@@ -634,18 +623,6 @@ void SPropertyEditorAsset::GetDesiredWidth( float& OutMinDesiredWidth, float &Ou
 	OutMinDesiredWidth = 250.f;
 	// No max width
 	OutMaxDesiredWidth = 350.f;
-}
-
-const FSlateBrush* SPropertyEditorAsset::GetThumbnailBorder() const
-{
-	if ( ThumbnailBorder->IsHovered() )
-	{
-		return FEditorStyle::GetBrush("PropertyEditor.AssetThumbnailLight");
-	}
-	else
-	{
-		return FEditorStyle::GetBrush("PropertyEditor.AssetThumbnailShadow");
-	}
 }
 
 const FSlateBrush* SPropertyEditorAsset::GetStatusIcon() const

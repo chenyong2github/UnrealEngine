@@ -171,7 +171,7 @@ void FGroomMaterialDetails::AddMaterials(IDetailLayoutBuilder& DetailLayout)
 			//Pass an empty material list owner (owner can be use by the asset picker filter. In this case we do not need it)
 			TArray<FAssetData> MaterialListOwner;
 			MaterialListOwner.Add(GroomAsset);
-			MaterialCategory.AddCustomBuilder(MakeShareable(new FMaterialList(MaterialCategory.GetParentLayout(), MaterialListDelegates, MaterialListOwner, false, true, true)));
+			MaterialCategory.AddCustomBuilder(MakeShareable(new FMaterialList(MaterialCategory.GetParentLayout(), MaterialListDelegates, MaterialListOwner, false, true)));
 		}
 	}
 }

@@ -11,6 +11,8 @@
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Images/SImage.h"
+#include "Styling/SlateIconFinder.h"
 
 #define LOCTEXT_NAMESPACE "PropertyCustomizationHelpers"
 
@@ -112,10 +114,9 @@ public:
 		FOnGenerateWidgetsForMaterial InOnGenerateWidgetsForMaterial, 
 		FOnResetMaterialToDefaultClicked InOnResetToDefaultClicked,
 		int32 InMultipleMaterialCount,
-		bool bShowUsedTextures,
-		bool bDisplayCompactSize)
+		bool bShowUsedTextures)
 	{
-		return MakeShareable( new FMaterialItemView( Material, InOnMaterialChanged, InOnGenerateNameWidgetsForMaterial, InOnGenerateWidgetsForMaterial, InOnResetToDefaultClicked, InMultipleMaterialCount, bShowUsedTextures, bDisplayCompactSize) );
+		return MakeShareable( new FMaterialItemView( Material, InOnMaterialChanged, InOnGenerateNameWidgetsForMaterial, InOnGenerateWidgetsForMaterial, InOnResetToDefaultClicked, InMultipleMaterialCount, bShowUsedTextures) );
 	}
 
 	TSharedRef<SWidget> CreateNameContent()
@@ -142,74 +143,55 @@ public:
 
 	TSharedRef<SWidget> CreateValueContent( const TSharedPtr<FAssetThumbnailPool>& ThumbnailPool, const TArray<FAssetData>& OwnerAssetDataArray)
 	{
-		FIntPoint ThumbnailSize(64, 64);
-
 		return
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding( 0.0f )
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Fill)
 			[
-				SNew(SVerticalBox)
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding( 0.0f )
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Fill)
+				SNew(SObjectPropertyEntryBox)
+				.ObjectPath(this, &FMaterialItemView::OnGetObjectPath)
+				.AllowClear(false)
+				.AllowedClass(UMaterialInterface::StaticClass())
+				.OnObjectChanged(this, &FMaterialItemView::OnSetObject)
+				.ThumbnailPool(ThumbnailPool)
+				.DisplayCompactSize(true)
+				.OwnerAssetDataArray(OwnerAssetDataArray)
+				.CustomContentSlot()
 				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.FillWidth(1.0f)
+					SNew( SBox )
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
 					[
-						SNew( SObjectPropertyEntryBox )
-						.ObjectPath(this, &FMaterialItemView::OnGetObjectPath)
-						.AllowClear(false)
-						.AllowedClass(UMaterialInterface::StaticClass())
-						.OnObjectChanged(this, &FMaterialItemView::OnSetObject)
-						.ThumbnailPool(ThumbnailPool)
-						.DisplayCompactSize(bDisplayCompactSize)
-						.OwnerAssetDataArray(OwnerAssetDataArray)
-						.CustomContentSlot()
+						SNew(SHorizontalBox)
+						+SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.Padding(0.0f, 0.0f, 3.0f, 0.0f)
+						.AutoWidth()
 						[
-							SNew( SBox )
-							.HAlign(HAlign_Left)
+							// Add a menu for displaying all textures 
+							SNew(SComboButton)
+							.OnGetMenuContent(this, &FMaterialItemView::OnGetTexturesMenuForMaterial)
+							.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
 							.VAlign(VAlign_Center)
+							.IsEnabled( this, &FMaterialItemView::IsTexturesMenuEnabled )
+							.Visibility(bShowUsedTextures ? EVisibility::Visible : EVisibility::Hidden)
+							.ButtonContent()
 							[
-								SNew(SHorizontalBox)
-								+SHorizontalBox::Slot()
-								.VAlign(VAlign_Center)
-								.Padding(0.0f, 0.0f, 3.0f, 0.0f)
-								.AutoWidth()
-								[
-									// Add a menu for displaying all textures 
-									SNew( SComboButton )
-									.OnGetMenuContent( this, &FMaterialItemView::OnGetTexturesMenuForMaterial )
-									.VAlign(VAlign_Center)
-									.ContentPadding(2)
-									.IsEnabled( this, &FMaterialItemView::IsTexturesMenuEnabled )
-									.Visibility( bShowUsedTextures ? EVisibility::Visible : EVisibility::Hidden )
-									.ButtonContent()
-									[
-										SNew( STextBlock )
-										.Font( IDetailLayoutBuilder::GetDetailFont() )
-										.ToolTipText( LOCTEXT("ViewTexturesToolTip", "View the textures used by this material" ) )
-										.Text( LOCTEXT("ViewTextures","Textures") )
-									]
-								]
-								+SHorizontalBox::Slot()
-								.Padding(3.0f, 0.0f)
-								.FillWidth(1.0f)
-								[
-									OnGenerateCustomMaterialWidgets.IsBound() && bDisplayCompactSize ? OnGenerateCustomMaterialWidgets.Execute(MaterialItem.Material.Get(), MaterialItem.SlotIndex) : StaticCastSharedRef<SWidget>(SNullWidget::NullWidget)
-								]
+								SNew(SImage)
+								.Image(FSlateIconFinder::FindIconBrushForClass(UTexture2D::StaticClass()))
+								.ColorAndOpacity(FSlateColor::UseForeground())
 							]
 						]
+						+SHorizontalBox::Slot()
+						.Padding(3.0f, 0.0f)
+						.FillWidth(1.0f)
+						[
+							OnGenerateCustomMaterialWidgets.IsBound() ? OnGenerateCustomMaterialWidgets.Execute(MaterialItem.Material.Get(), MaterialItem.SlotIndex) : SNullWidget::NullWidget
+						]
 					]
-				]
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(2)
-				.VAlign( VAlign_Center )
-				[
-					OnGenerateCustomMaterialWidgets.IsBound() && !bDisplayCompactSize ? OnGenerateCustomMaterialWidgets.Execute( MaterialItem.Material.Get(), MaterialItem.SlotIndex ) : StaticCastSharedRef<SWidget>( SNullWidget::NullWidget )
 				]
 			];
 	}
@@ -245,8 +227,7 @@ private:
 						FOnGenerateWidgetsForMaterial& InOnGenerateMaterialWidgets, 
 						FOnResetMaterialToDefaultClicked& InOnResetToDefaultClicked,
 						int32 InMultipleMaterialCount,
-						bool bInShowUsedTextures,
-						bool bInDisplayCompactSize)
+						bool bInShowUsedTextures)
 						
 		: MaterialItem( InMaterial )
 		, OnMaterialChanged( InOnMaterialChanged )
@@ -255,7 +236,6 @@ private:
 		, OnResetToDefaultClicked( InOnResetToDefaultClicked )
 		, MultipleMaterialCount( InMultipleMaterialCount )
 		, bShowUsedTextures( bInShowUsedTextures )
-		, bDisplayCompactSize(bInDisplayCompactSize)
 	{
 
 	}
@@ -341,17 +321,15 @@ private:
 	FOnResetMaterialToDefaultClicked OnResetToDefaultClicked;
 	int32 MultipleMaterialCount;
 	bool bShowUsedTextures;
-	bool bDisplayCompactSize;
 };
 
 
-FMaterialList::FMaterialList(IDetailLayoutBuilder& InDetailLayoutBuilder, FMaterialListDelegates& InMaterialListDelegates, const TArray<FAssetData>& InOwnerAssetDataArray, bool bInAllowCollapse, bool bInShowUsedTextures, bool bInDisplayCompactSize)
+FMaterialList::FMaterialList(IDetailLayoutBuilder& InDetailLayoutBuilder, FMaterialListDelegates& InMaterialListDelegates, const TArray<FAssetData>& InOwnerAssetDataArray, bool bInAllowCollapse, bool bInShowUsedTextures)
 	: MaterialListDelegates( InMaterialListDelegates )
 	, DetailLayoutBuilder( InDetailLayoutBuilder )
 	, MaterialListBuilder( new FMaterialListBuilder )
 	, bAllowCollpase(bInAllowCollapse)
 	, bShowUsedTextures(bInShowUsedTextures)
-	, bDisplayCompactSize(bInDisplayCompactSize)
 	, OwnerAssetDataArray(InOwnerAssetDataArray)
 {
 }
@@ -588,7 +566,7 @@ void FMaterialList::AddMaterialItem( FDetailWidgetRow& Row, int32 CurrentSlot, c
 {
 	uint32 NumMaterials = MaterialListBuilder->GetNumMaterialsInSlot(CurrentSlot);
 
-	TSharedRef<FMaterialItemView> NewView = FMaterialItemView::Create( Item, MaterialListDelegates.OnMaterialChanged, MaterialListDelegates.OnGenerateCustomNameWidgets, MaterialListDelegates.OnGenerateCustomMaterialWidgets, MaterialListDelegates.OnResetMaterialToDefaultClicked, NumMaterials, bShowUsedTextures, bDisplayCompactSize);
+	TSharedRef<FMaterialItemView> NewView = FMaterialItemView::Create( Item, MaterialListDelegates.OnMaterialChanged, MaterialListDelegates.OnGenerateCustomNameWidgets, MaterialListDelegates.OnGenerateCustomMaterialWidgets, MaterialListDelegates.OnResetMaterialToDefaultClicked, NumMaterials, bShowUsedTextures);
 
 	TSharedPtr<SWidget> RightSideContent;
 	if( bDisplayLink )

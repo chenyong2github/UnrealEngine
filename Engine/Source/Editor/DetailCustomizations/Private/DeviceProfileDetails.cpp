@@ -725,7 +725,7 @@ void FDeviceProfileConsoleVariablesPropertyDetails::CreateRowWidgetForCVarProper
 			.IsFocusable(false)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Delete"))
+				.Image(FEditorStyle::GetBrush("Icons.X"))
 			]
 		]
 	];
