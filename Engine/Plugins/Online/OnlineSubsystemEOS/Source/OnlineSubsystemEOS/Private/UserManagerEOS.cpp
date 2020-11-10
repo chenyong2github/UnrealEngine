@@ -946,6 +946,7 @@ bool FUserManagerEOS::ReadFriendsList(int32 LocalUserNum, const FString& ListNam
 		}
 
 		Delegate.ExecuteIfBound(LocalUserNum, bWasSuccessful, ListName, ErrorString);
+		TriggerOnFriendsChangeDelegates(LocalUserNum);
 	};
 	EOS_Friends_QueryFriends(EOSSubsystem->FriendsHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 
@@ -995,6 +996,7 @@ void FUserManagerEOS::FriendStatusChanged(const EOS_Friends_OnFriendsUpdateInfo*
 			Friend->SetInviteStatus(EInviteStatus::PendingInbound);
 			TriggerOnInviteReceivedDelegates(*LocalEOSID, *OnlineUser->GetUserId());
 		}
+		TriggerOnFriendsChangeDelegates(LocalUserNum);
 	}
 }
 
