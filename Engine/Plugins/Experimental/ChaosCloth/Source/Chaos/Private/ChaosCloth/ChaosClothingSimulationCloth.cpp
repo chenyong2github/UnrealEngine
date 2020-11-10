@@ -588,6 +588,11 @@ const TArray<TConstArrayView<float>>& FClothingSimulationCloth::GetWeightMaps(co
 	return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex].WeightMaps : EmptyWeightMaps;
 }
 
+int32 FClothingSimulationCloth::GetReferenceBoneIndex() const
+{
+	return Mesh ? Mesh->GetReferenceBoneIndex() : INDEX_NONE;
+}
+
 void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 {
 	check(Solver);

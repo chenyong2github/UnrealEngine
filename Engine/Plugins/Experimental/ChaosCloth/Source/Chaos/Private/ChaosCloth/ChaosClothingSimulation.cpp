@@ -454,10 +454,14 @@ void FClothingSimulation::GetSimulationData(
 		OutData.Reset();
 	}
 
-	// Retrieve cloths' particle positions
-	const FTransform& OwnerTransform = InOwnerComponent->GetComponentTransform();
+	// Get the solver's local space
 	const TVector<float, 3>& LocalSpaceLocation = Solver->GetLocalSpaceLocation();
 
+	// Retrieve the component transforms
+	const FTransform& OwnerTransform = InOwnerComponent->GetComponentTransform();
+	const TArray<FTransform>& ComponentSpaceTransforms = InOverrideComponent ? InOverrideComponent->GetComponentSpaceTransforms() : InOwnerComponent->GetComponentSpaceTransforms();
+
+	// Set the simulation data for each of the cloths
 	for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
 	{
 		const int32 AssetIndex = Cloth->GetGroupId();
@@ -468,20 +472,41 @@ void FClothingSimulation::GetSimulationData(
 			continue;
 		}
 
-		// Output data in component space
-		Data.ComponentRelativeTransform = FTransform::Identity;
-		Data.Transform = OwnerTransform;
+		// Get the reference bone index for this cloth
+		const int32 ReferenceBoneIndex = Cloth->GetReferenceBoneIndex();
+		if (!ComponentSpaceTransforms.IsValidIndex(ReferenceBoneIndex))
+		{
+			UE_LOG(LogSkeletalMesh, Warning, TEXT("Failed to write back clothing simulation data for component % as bone transforms are invalid."), *InOwnerComponent->GetName());
+			OutData.Reset();
+			return;
+		}
 
+		// Get the reference transform used in the current animation pose
+		FTransform ReferenceBoneTransform = ComponentSpaceTransforms[ReferenceBoneIndex];
+		ReferenceBoneTransform *= OwnerTransform;
+		ReferenceBoneTransform.SetScale3D(FVector(1.0f));  // Scale is already baked in the cloth mesh
+
+		// Set the world space transform to be this cloth's reference bone
+		Data.Transform = ReferenceBoneTransform;
+		Data.ComponentRelativeTransform = ReferenceBoneTransform.GetRelativeTransform(OwnerTransform);
+
+		// Retrieve the last reference space transform used for this cloth
+		// Note: This won't necessary match the current bone reference transform when the simulation is paused,
+		//       and still allows for the correct positioning of the sim data while the component is animated.
+		const TRigidTransform<float, 3>& ReferenceSpaceTransform = Cloth->GetReferenceSpaceTransform();
+
+		// Copy positions and normals
 		Data.Positions = Cloth->GetParticlePositions(Solver.Get());
 		Data.Normals = Cloth->GetParticleNormals(Solver.Get());
 
+		// Transform into the cloth reference simulation space used at the time of simulation
 		if (bChaos_GetSimData_ISPC_Enabled)
 		{
 #if INTEL_ISPC
 			ispc::GetClothingSimulationData(
 				(ispc::FVector*)Data.Positions.GetData(),
 				(ispc::FVector*)Data.Normals.GetData(),
-				(ispc::FTransform&)OwnerTransform,
+				(ispc::FTransform&)ReferenceSpaceTransform,
 				(ispc::FVector&)LocalSpaceLocation,
 				Data.Positions.Num());
 #endif
@@ -490,8 +515,8 @@ void FClothingSimulation::GetSimulationData(
 		{
 			for (int32 Index = 0; Index < Data.Positions.Num(); ++Index)
 			{
-				Data.Positions[Index] = OwnerTransform.InverseTransformPosition(Data.Positions[Index] + LocalSpaceLocation);  // Move into world space first
-				Data.Normals[Index] = OwnerTransform.InverseTransformVector(-Data.Normals[Index]);  // Normals are inverted due to how barycentric coordinates are calculated (see GetPointBaryAndDist in ClothingMeshUtils.cpp)
+				Data.Positions[Index] = ReferenceSpaceTransform.InverseTransformPosition(Data.Positions[Index] + LocalSpaceLocation);  // Move into world space first
+				Data.Normals[Index] = ReferenceSpaceTransform.InverseTransformVector(-Data.Normals[Index]);  // Normals are inverted due to how barycentric coordinates are calculated (see GetPointBaryAndDist in ClothingMeshUtils.cpp)
 			}
 		}
 	}
