@@ -25,6 +25,8 @@
 #include "HAL/IConsoleManager.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Serialization/MemoryImage.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 #include "Hash/CityHash.h"
 #include "Templates/AlignmentTemplates.h"
 
@@ -107,8 +109,9 @@ union FNameBuffer
 struct FNameStringView
 {
 	FNameStringView() : Data(nullptr), Len(0), bIsWide(false) {}
-	FNameStringView(const ANSICHAR* Str, uint32 Len_) : Ansi(Str), Len(Len_), bIsWide(false) {}
-	FNameStringView(const WIDECHAR* Str, uint32 Len_) : Wide(Str), Len(Len_), bIsWide(true) {}
+	FNameStringView(const ANSICHAR* Str, uint32 InLen) : Ansi(Str), Len(InLen), bIsWide(false) {}
+	FNameStringView(const WIDECHAR* Str, uint32 InLen) : Wide(Str), Len(InLen), bIsWide(true) {}
+	FNameStringView(const void* InData, uint32 InLen, bool bInIsWide) : Data(InData), Len(InLen), bIsWide(bInIsWide) {}
 
 	union
 	{
@@ -331,6 +334,7 @@ public:
 	template<class ScopeLock>
 	FNameEntryHandle Create(FNameStringView Name, TOptional<FNameEntryId> ComparisonId, FNameEntryHeader Header)
 	{
+		FPlatformMisc::Prefetch(Blocks[CurrentBlock]);
 		FNameEntryHandle Handle = Allocate<ScopeLock>(FNameEntry::GetDataOffset() + Name.BytesWithoutTerminator());
 		FNameEntry& Entry = Resolve(Handle);
 
@@ -435,6 +439,8 @@ private:
 		{
 			Blocks[CurrentBlock] = AllocBlock();
 		}
+
+		FPlatformMisc::Prefetch(Blocks[CurrentBlock]);
 	}
 
 	mutable FRWLock Lock;
@@ -447,10 +453,11 @@ private:
 // Reducing contention matters when multiple threads create FNames in parallel.
 // Contention exists in some tool scenarios, for instance between main thread
 // and asset data gatherer thread during editor startup.
+// At runtime the async loading thread contends with game thread during asset loading.
 #if WITH_CASE_PRESERVING_NAME
 enum { FNamePoolShardBits = 10 };
 #else
-enum { FNamePoolShardBits = 4 };
+enum { FNamePoolShardBits = 8 };
 #endif
 
 enum { FNamePoolShards = 1 << FNamePoolShardBits };
@@ -476,15 +483,18 @@ struct FNameHash
 	FNameEntryHeader EntryProbeHeader; // Helps cull equality checks when probing inspects entries
 
 	static constexpr uint64 AlgorithmId = 0xC1640000;
+	static constexpr uint32 ShardMask = FNamePoolShards - 1;
+
+	static uint32 GetShardIndex(uint64 Hash)
+	{
+		return static_cast<uint32>(Hash >> 32) & ShardMask;
+	}
 
 	template<class CharType>
 	static uint64 GenerateHash(const CharType* Str, int32 Len)
 	{
 		return CityHash64(reinterpret_cast<const char*>(Str), Len * sizeof(CharType));
 	}
-
-	template<class CharType>
-	static uint64 GenerateLowerCaseHash(const CharType* Str, uint32 Len);
 
 	template<class CharType>
 	FNameHash(const CharType* Str, int32 Len)
@@ -502,7 +512,6 @@ struct FNameHash
 		// @see FNameSlot::Used()
 		uint32 IsNoneBit = IsAnsiNone(Str, Len) << FNameSlot::ProbeHashShift;
 
-		static constexpr uint32 ShardMask = FNamePoolShards - 1;
 		static_assert((ShardMask & FNameSlot::ProbeHashMask) == 0, "Masks overlap");
 
 		ShardIndex = Hi & ShardMask;
@@ -563,7 +572,7 @@ struct FNameHash
 };
 
 template<class CharType>
-FORCENOINLINE uint64 FNameHash::GenerateLowerCaseHash(const CharType* Str, uint32 Len)
+FORCENOINLINE uint64 GenerateLowerCaseHash(const CharType* Str, uint32 Len)
 {
 	CharType LowerStr[NAME_SIZE];
 	for (uint32 I = 0; I < Len; ++I)
@@ -572,6 +581,11 @@ FORCENOINLINE uint64 FNameHash::GenerateLowerCaseHash(const CharType* Str, uint3
 	}
 
 	return FNameHash::GenerateHash(LowerStr, Len);
+}
+
+static uint64 GenerateLowerCaseHash(FNameStringView Name)
+{
+	return Name.bIsWide ? GenerateLowerCaseHash(Name.Wide, Name.Len) : GenerateLowerCaseHash(Name.Ansi, Name.Len);
 }
 
 template<class CharType>
@@ -612,9 +626,16 @@ struct FNameValue
 		, Hash(InHash)
 	{}
 
+	FNameValue(FNameStringView InName, uint64 InHash)
+	: Name(InName)
+	, Hash(Name.bIsWide ? FNameHash(Name.Wide, Name.Len, InHash) : FNameHash(Name.Ansi, Name.Len, InHash))
+	{}
+
 	FNameStringView Name;
 	FNameHash Hash;
-	TOptional<FNameEntryId> ComparisonId;
+#if WITH_CASE_PRESERVING_NAME
+	FNameEntryId ComparisonId;
+#endif
 };
 
 using FNameComparisonValue = FNameValue<ENameCase::IgnoreCase>;
@@ -622,11 +643,31 @@ using FNameComparisonValue = FNameValue<ENameCase::IgnoreCase>;
 using FNameDisplayValue = FNameValue<ENameCase::CaseSensitive>;
 #endif
 
-// For prelocked batch insertions
+FORCEINLINE TOptional<FNameEntryId> GetExistingComparisonId(const FNameComparisonValue& Value)  { return TOptional<FNameEntryId>(); }
+#if WITH_CASE_PRESERVING_NAME
+FORCEINLINE TOptional<FNameEntryId> GetExistingComparisonId(const FNameDisplayValue& Value)		{ return Value.ComparisonId; }
+#endif
+
+// For pre-locked batch operations
 struct FNullScopeLock
 {
 	FNullScopeLock(FRWLock&) {}
 };
+
+// One name to be loaded in a large batch
+template<ENameCase Sensitivity>
+struct FNameLoad
+{
+	FNameValue<Sensitivity> In;
+	FNameEntryId* Out = nullptr;
+	bool bInReuseComparisonEntry = false;
+	bool bOutCreatedNewEntry = false;
+};
+
+using FNameComparisonLoad = FNameLoad<ENameCase::IgnoreCase>;
+#if WITH_CASE_PRESERVING_NAME
+using FNameDisplayLoad = FNameLoad<ENameCase::CaseSensitive>;
+#endif
 
 class alignas(PLATFORM_CACHE_LINE_SIZE) FNamePoolShardBase : FNoncopyable
 {
@@ -654,13 +695,8 @@ public:
 	}
 
 	uint32 Capacity() const	{ return CapacityMask + 1; }
-
 	uint32 NumCreated() const { return NumCreatedEntries; }
 	uint32 NumCreatedWide() const { return NumCreatedWideEntries; }
-
-	// Used for batch insertion together with Insert<FNullScopeLock>()
-	void BatchLock() const	 { Lock.WriteLock(); }
-	void BatchUnlock() const { Lock.WriteUnlock(); }
 
 protected:
 	enum { LoadFactorQuotient = 9, LoadFactorDivisor = 10 }; // I.e. realloc slots when 90% full
@@ -703,22 +739,22 @@ public:
 			return Slot.GetId();
 		}
 
-		FNameEntryId NewEntryId = Entries->Create<ScopeLock>(Value.Name, Value.ComparisonId, Value.Hash.EntryProbeHeader);
-
-		ClaimSlot(Slot, FNameSlot(NewEntryId, Value.Hash.SlotProbeHash));
-
-		++NumCreatedEntries;
-		NumCreatedWideEntries += Value.Name.bIsWide;
 		bCreatedNewEntry = true;
-
-		return NewEntryId;
+		return CreateAndInsertEntry<ScopeLock>(Slot, Value);
 	}
 
 	void InsertExistingEntry(FNameHash Hash, FNameEntryId ExistingId)
 	{
+		InsertExistingEntryImpl<FWriteScopeLock>(Hash, ExistingId);
+	}
+
+private:
+	template<class ShardScopeLock>
+	void InsertExistingEntryImpl(FNameHash Hash, FNameEntryId ExistingId)
+	{
 		FNameSlot NewLookup(ExistingId, Hash.SlotProbeHash);
 
-		FRWScopeLock _(Lock, FRWScopeLockType::SLT_Write);
+		ShardScopeLock _(Lock);
 		 
 		FNameSlot& Slot = Probe(Hash.UnmaskedSlotIndex, [=](FNameSlot Old) { return Old == NewLookup; });
 		if (!Slot.Used())
@@ -727,27 +763,122 @@ public:
 		}
 	}
 
-	void Reserve(uint32 Num)
+public:
+	void InsertBatch(const TArrayView<FNameLoad<Sensitivity>> Batch)
 	{
-		uint32 WantedCapacity = FMath::RoundUpToPowerOfTwo(Num * LoadFactorDivisor / LoadFactorQuotient);
+		if (Batch.Num() <= 0)
+		{
+			return;
+		}
+
+		uint32 ProbeLookAhead = FMath::Min(Batch.Num() - 1, 4);
 
 		FWriteScopeLock _(Lock);
+		
+		// Prefetch first items and prepare an iterator that's ProbeLookAhead items ahead
+		for (uint32 BatchIdx = 0; BatchIdx < ProbeLookAhead; ++BatchIdx)
+		{
+			ProbePrefetch(Batch[BatchIdx].In);
+		}
+		const FNameLoad<Sensitivity>* PrefetchIt = Batch.GetData() + ProbeLookAhead;
+
+		// Resolve existing entries
+		uint32 NumNewSlots = 0;
+		for (FNameLoad<Sensitivity>& Request : Batch)
+		{
+			// Note that this is compiled out for ENameCase::IgnoreCase
+			if (Sensitivity == ENameCase::CaseSensitive && Request.bInReuseComparisonEntry)
+			{
+				// Reuse comparison id as display id
+				check(*Request.Out == GetExistingComparisonId(Request.In));
+				Request.bOutCreatedNewEntry = false;
+				++NumNewSlots;
+			}
+			else
+			{
+				// Prefetch next item and increment iterator unless we're at the last item.
+				// Prefetching the last item a few times is much faster than branching.
+				ProbePrefetch(PrefetchIt->In);
+				PrefetchIt += PrefetchIt != &Batch.Last();
+				
+				// Probe and write Request.Out without branching.
+				// It'll be overwritten below if bOutCreatedNewEntry is false.
+				FNameSlot Slot = Probe(Request.In);
+				*Request.Out = Slot.GetId();
+				Request.bOutCreatedNewEntry = !Slot.Used();
+				NumNewSlots += !Slot.Used();
+			}
+		}
+
+		// Create and insert new entries
+		if (NumNewSlots > 0)
+		{
+			ReserveImpl<FNullScopeLock>(UsedSlots + NumNewSlots);
+
+			Entries->BatchLock();
+			for (FNameLoad<Sensitivity>& Request : Batch)
+			{
+				FPlatformMisc::Prefetch(Request.In.Name.Data);
+
+				if (Sensitivity == ENameCase::CaseSensitive && Request.bInReuseComparisonEntry)
+				{
+					InsertExistingEntryImpl<FNullScopeLock>(Request.In.Hash, GetExistingComparisonId(Request.In).GetValue());
+				}
+				else if (Request.bOutCreatedNewEntry)
+				{
+					// Check Slot.Used() since batch may contain duplicates
+					FNameSlot& Slot = Probe(Request.In);
+					Request.bOutCreatedNewEntry = !Slot.Used();
+					*Request.Out = Slot.Used() ? Slot.GetId() : CreateAndInsertEntry<FNullScopeLock>(Slot, Request.In);
+				}
+			}
+			Entries->BatchUnlock();
+		}
+	}
+
+	void Reserve(uint32 Num)
+	{
+		ReserveImpl<FWriteScopeLock>(Num);
+	}
+
+private:
+	template<class ShardScopeLock>
+	void ReserveImpl(uint32 Num)
+	{
+		// Num + 1 to compensate for division rounding down
+		uint32 WantedCapacity = FMath::RoundUpToPowerOfTwo((Num + 1) * LoadFactorDivisor / LoadFactorQuotient);
+
+		ShardScopeLock _(Lock);
 		if (WantedCapacity > Capacity())
 		{
 			Grow(WantedCapacity);
 		}
 	}
 
-private:
 	void ClaimSlot(FNameSlot& UnusedSlot, FNameSlot NewValue)
 	{
+		checkSlow(!UnusedSlot.Used());
+
 		UnusedSlot = NewValue;
 
 		++UsedSlots;
-		if (UsedSlots * LoadFactorDivisor >= LoadFactorQuotient * Capacity())
+		if (UsedSlots * LoadFactorDivisor > LoadFactorQuotient * Capacity())
 		{
 			Grow();
 		}
+	}
+
+	template<class EntryScopeLock>
+	FNameEntryId CreateAndInsertEntry(FNameSlot& Slot, const FNameValue<Sensitivity>& Value)
+	{
+		FNameEntryId NewEntryId = Entries->Create<EntryScopeLock>(Value.Name, GetExistingComparisonId(Value), Value.Hash.EntryProbeHeader);
+
+		ClaimSlot(Slot, FNameSlot(NewEntryId, Value.Hash.SlotProbeHash));
+
+		++NumCreatedEntries;
+		NumCreatedWideEntries += Value.Name.bIsWide;
+		
+		return NewEntryId;
 	}
 
 	void Grow()
@@ -758,31 +889,59 @@ private:
 	void Grow(const uint32 NewCapacity)
 	{
 		LLM_SCOPE(ELLMTag::FName);
-		FNameSlot* const OldSlots = Slots;
+		TArrayView<FNameSlot> OldSlots(Slots, Capacity());
 		const uint32 OldUsedSlots = UsedSlots;
-		const uint32 OldCapacity = Capacity();
 
 		Slots = (FNameSlot*)FMemory::Malloc(NewCapacity * sizeof(FNameSlot), alignof(FNameSlot));
 		memset(Slots, 0, NewCapacity * sizeof(FNameSlot));
 		UsedSlots = 0;
 		CapacityMask = NewCapacity - 1;
 
-
-		for (uint32 OldIdx = 0; OldIdx < OldCapacity; ++OldIdx)
+		// Prefetch FNameEntry* before rehashing. Yielded 2.4x rehash speedup on a Gen5 console.
+		constexpr uint32 PrefetchDepth = 8;
+		FNameSlot PrefetchedSlots[PrefetchDepth];
+		uint32 NumPrefetched = 0;
+		
+		for (FNameSlot OldSlot : OldSlots)
 		{
-			const FNameSlot& OldSlot = OldSlots[OldIdx];
 			if (OldSlot.Used())
 			{
-				FNameHash Hash = Rehash(OldSlot.GetId());
-				FNameSlot& NewSlot = Probe(Hash.UnmaskedSlotIndex, [](FNameSlot Slot) { return false; });
-				NewSlot = OldSlot;
-				++UsedSlots;
+				FPlatformMisc::Prefetch(&Entries->Resolve(OldSlot.GetId()));
+				PrefetchedSlots[NumPrefetched] = OldSlot;
+		
+				if (++NumPrefetched == PrefetchDepth)
+				{
+					for (FNameSlot PrefetchedSlot : PrefetchedSlots)
+					{
+						RehashAndInsert(PrefetchedSlot);
+					}
+
+					NumPrefetched = 0;
+				}
 			}
 		}
 
+		for (FNameSlot PrefetchedSlot : MakeArrayView(PrefetchedSlots, NumPrefetched))
+		{
+			RehashAndInsert(PrefetchedSlot);
+		}
+
+
 		check(OldUsedSlots == UsedSlots);
 
-		FMemory::Free(OldSlots);
+		FMemory::Free(OldSlots.GetData());
+	}
+
+	void ProbePrefetch(const FNameValue<Sensitivity>& Value) const
+	{
+		// Prefetch name data and FNameSlot*
+		FPlatformMisc::Prefetch(Value.Name.Data);
+		FPlatformMisc::Prefetch(Slots + FNameHash::GetProbeStart(Value.Hash.UnmaskedSlotIndex, CapacityMask));
+		
+		// Prefetching the FNameEntry* might help, but it involves waiting for FNameSlot* 
+		// and potentially a branch if we don't want to prefetch null pointers for unused slots.
+		// Would probably need two prefetch passes to see a perf increase from this and
+		// I'd rather avoid even more prefetching complexity. --jtorp
 	}
 
 	/** Find slot containing value or the first free slot that should be used to store it  */
@@ -808,11 +967,18 @@ private:
 		}
 	}
 
-	OUTLINE_DECODE_BUFFER FNameHash Rehash(FNameEntryId EntryId)
+	FORCENOINLINE // Doesn't impact performance and makes sampling profiles more informative
+	void RehashAndInsert(FNameSlot OldSlot)
 	{
-		const FNameEntry& Entry = Entries->Resolve(EntryId);
+		check(OldSlot.Used());
+
+		const FNameEntry& Entry = Entries->Resolve(OldSlot.GetId());
 		FNameBuffer DecodeBuffer;
-		return HashName<Sensitivity>(Entry.MakeView(DecodeBuffer));
+		FNameStringView Name = Entry.MakeView(DecodeBuffer);
+		FNameHash Hash = HashName<Sensitivity>(Name);
+		FNameSlot& NewSlot = Probe(Hash.UnmaskedSlotIndex, [](FNameSlot Slot) { return false; });
+		NewSlot = OldSlot;
+		++UsedSlots;
 	}
 };
 
@@ -833,10 +999,13 @@ public:
 
 	bool			IsValid(FNameEntryHandle Handle) const;
 
-	void			BatchLock();
-	FNameEntryId	BatchStore(const FNameComparisonValue& ComparisonValue);
-	void			BatchUnlock();
-
+	FNameEntryId	StoreValue(const FNameComparisonValue& Value);
+	void			StoreBatch(uint32 ShardIdx, TArrayView<FNameComparisonLoad> Batch)	{ ComparisonShards[ShardIdx].InsertBatch(Batch); }
+#if WITH_CASE_PRESERVING_NAME
+	FNameEntryId	StoreValue(const FNameDisplayValue& Value, bool bReuseComparisonId);
+	void			StoreBatch(uint32 ShardIdx, TArrayView<FNameDisplayLoad> Batch)		{ DisplayShards[ShardIdx].InsertBatch(Batch); }
+	bool			ReuseComparisonEntry(bool bAddedComparisonEntry, const FNameDisplayValue& DisplayValue);
+#endif
 	/// Stats and debug related functions ///
 
 	uint32			NumEntries() const;
@@ -946,8 +1115,7 @@ FNameEntryId FNamePool::Store(FNameStringView Name)
 {
 #if WITH_CASE_PRESERVING_NAME
 	FNameDisplayValue DisplayValue(Name);
-	FNamePoolShard<ENameCase::CaseSensitive>& DisplayShard = DisplayShards[DisplayValue.Hash.ShardIndex];
-	if (FNameEntryId Existing = DisplayShard.Find(DisplayValue))
+	if (FNameEntryId Existing = DisplayShards[DisplayValue.Hash.ShardIndex].Find(DisplayValue))
 	{
 		return Existing;
 	}
@@ -960,48 +1128,48 @@ FNameEntryId FNamePool::Store(FNameStringView Name)
 	FNameEntryId ComparisonId = ComparisonShards[ComparisonValue.Hash.ShardIndex].Insert(ComparisonValue, bAdded);
 
 #if WITH_CASE_PRESERVING_NAME
-	// Check if ComparisonId can be used as DisplayId
-	if (bAdded || EqualsSameDimensions<ENameCase::CaseSensitive>(Resolve(ComparisonId), Name))
-	{
-		DisplayShard.InsertExistingEntry(DisplayValue.Hash, ComparisonId);
-		return ComparisonId;
-	}
-	else
-	{
-		DisplayValue.ComparisonId = ComparisonId;
-		return DisplayShard.Insert(DisplayValue, bAdded);
-	}
+	DisplayValue.ComparisonId = ComparisonId;
+	return StoreValue(DisplayValue, bAdded);
 #else
 	return ComparisonId;
 #endif
 }
 
-void FNamePool::BatchLock()
+FORCEINLINE FNameEntryId FNamePool::StoreValue(const FNameComparisonValue& ComparisonValue)
 {
-	for (const FNamePoolShardBase& Shard : ComparisonShards)
+	bool bAdded = false;
+	FNameEntryId ComparisonId = ComparisonShards[ComparisonValue.Hash.ShardIndex].Insert(ComparisonValue, bAdded);
+
+#if WITH_CASE_PRESERVING_NAME
+	FNameDisplayValue DisplayValue(ComparisonValue.Name);
+	DisplayValue.ComparisonId = ComparisonId;
+	return StoreValue(DisplayValue, bAdded);
+#else
+	return ComparisonId;
+#endif
+}
+
+#if WITH_CASE_PRESERVING_NAME
+bool FNamePool::ReuseComparisonEntry(bool bAddedComparisonEntry, const FNameDisplayValue& DisplayValue)
+{
+	return bAddedComparisonEntry || EqualsSameDimensions<ENameCase::CaseSensitive>(Resolve(DisplayValue.ComparisonId), DisplayValue.Name);
+}
+
+FORCEINLINE FNameEntryId FNamePool::StoreValue(const FNameDisplayValue& DisplayValue, bool bAddedComparisonEntry)
+{
+	FNamePoolShard<ENameCase::CaseSensitive>& DisplayShard = DisplayShards[DisplayValue.Hash.ShardIndex];
+
+	if (ReuseComparisonEntry(bAddedComparisonEntry, DisplayValue))
 	{
-		Shard.BatchLock();
+		DisplayShard.InsertExistingEntry(DisplayValue.Hash, DisplayValue.ComparisonId);
+		return DisplayValue.ComparisonId;
 	}
-
-	// Acquire entry allocator lock after shard locks
-	Entries.BatchLock();
-}
-
-FORCEINLINE FNameEntryId FNamePool::BatchStore(const FNameComparisonValue& ComparisonValue)
-{
-	bool bCreatedNewEntry;
-	return ComparisonShards[ComparisonValue.Hash.ShardIndex].Insert<FNullScopeLock>(ComparisonValue, bCreatedNewEntry);
-}
-
-void FNamePool::BatchUnlock()
-{
-	Entries.BatchUnlock();
-
-	for (int32 Idx = FNamePoolShards - 1; Idx >= 0; --Idx)
+	else
 	{
-		ComparisonShards[Idx].BatchUnlock();
+		return DisplayShard.Insert(DisplayValue, bAddedComparisonEntry);
 	}
 }
+#endif
 
 uint32 FNamePool::NumEntries() const
 {
@@ -2637,6 +2805,16 @@ bool operator==(const FLazyName& A, const FLazyName& B)
 	FName batch serialization
 -----------------------------------------------------------------------------*/
 
+constexpr bool CanCastUtf16ToWideCharWithoutConversion()
+{
+#if PLATFORM_LITTLE_ENDIAN
+	return sizeof(WIDECHAR) == sizeof(UTF16CHAR);
+#else
+	return false;
+#endif
+}
+
+
 /**
  * FNameStringView sibling with UTF16 Little-Endian wide strings instead of WIDECHAR 
  *
@@ -2671,6 +2849,17 @@ struct FNameSerializedView
 
 	uint32 Len;
 	bool bIsUtf16;
+
+	uint32 NumBytes() const
+	{
+		return bIsUtf16 ? sizeof(UTF16CHAR) * Len : sizeof(ANSICHAR) * Len; 
+	}
+
+	FORCEINLINE FNameStringView CastToNameView() const
+	{
+		check(CanCastUtf16ToWideCharWithoutConversion());
+		return FNameStringView(Data, Len, /* bIsWide */ bIsUtf16);
+	}
 };
 
 static uint8* AddUninitializedBytes(TArray<uint8>& Out, uint32 Bytes)
@@ -2692,15 +2881,6 @@ static void AddValue(TArray<uint8>& Out, T Value)
 	*AddUninitializedElements<T>(Out, 1) = Value;
 }
 
-template<typename T>
-static void AlignTo(TArray<uint8>& Out)
-{
-	if (uint32 UnpaddedBytes = Out.Num() % sizeof(T))
-	{
-		Out.AddZeroed(sizeof(T) - UnpaddedBytes);
-	}
-}
-
 static uint32 GetRequiredUtf16Padding(const uint8* Ptr)
 {
 	return UPTRINT(Ptr) & 1u;
@@ -2708,6 +2888,7 @@ static uint32 GetRequiredUtf16Padding(const uint8* Ptr)
 
 struct FSerializedNameHeader
 {
+	FSerializedNameHeader() {}
 	FSerializedNameHeader(uint32 Len, bool bIsUtf16)
 	{
 		static_assert(NAME_SIZE < 0x8000u, "");
@@ -2725,6 +2906,11 @@ struct FSerializedNameHeader
 	uint32 Len() const
 	{
 		return ((Data[0] & 0x7Fu) << 8) + Data[1];
+	}
+
+	uint32 NumBytes() const
+	{
+		return IsUtf16() ? sizeof(UTF16CHAR) * Len() : sizeof(ANSICHAR) * Len(); 
 	}
 
 	uint8 Data[2];
@@ -2751,45 +2937,19 @@ FNameSerializedView LoadNameHeader(const uint8*& InOutIt)
 
 #if ALLOW_NAME_BATCH_SAVING
 
-static FNameSerializedView SaveAnsiName(TArray<uint8>& Out, const ANSICHAR* Src, uint32 Len)
-{
-	ANSICHAR* Dst = AddUninitializedElements<ANSICHAR>(Out, Len);
-	FMemory::Memcpy(Dst, Src, Len * sizeof(ANSICHAR));
-
-	return FNameSerializedView(Dst, Len);
-}
-
-static FNameSerializedView SaveUtf16Name(TArray<uint8>& Out, const WIDECHAR* Src, uint32 Len)
+static void SaveHeaderAndName(TArray<uint8>& Out, FNameStringView Name)
 {
 	// Align to UTF16CHAR after header
-	AlignTo<UTF16CHAR>(Out);
-	
-#if !PLATFORM_LITTLE_ENDIAN
-	#error TODO: Implement saving code units as Little-Endian on Big-Endian platforms
-#endif
+	uint32 PadBytes	= Name.bIsWide ? (Out.Num() + sizeof(FSerializedNameHeader)) % sizeof(UTF16CHAR) : 0;
+	uint32 NameBytes = Name.BytesWithoutTerminator();
 
-	// This is a no-op when sizeof(UTF16CHAR) == sizeof(WIDECHAR), which it usually is
-	FTCHARToUTF16 Utf16String(Src, Len);
+	uint8* HeaderData = AddUninitializedBytes(Out, sizeof(FSerializedNameHeader) + PadBytes + NameBytes);
+	uint8* PadData = HeaderData + sizeof(FSerializedNameHeader);
+	uint8* NameData = PadData + PadBytes;
 
-	UTF16CHAR* Dst = AddUninitializedElements<UTF16CHAR>(Out, Utf16String.Length());
-	FMemory::Memcpy(Dst, Utf16String.Get(), Utf16String.Length() * sizeof(UTF16CHAR));
-
-	return FNameSerializedView(Dst, Len);
-}
-
-static FNameSerializedView SaveAnsiOrUtf16Name(TArray<uint8>& Out, FNameStringView Name)
-{
-	void* HeaderData = AddUninitializedBytes(Out, sizeof(FSerializedNameHeader));
 	new (HeaderData) FSerializedNameHeader(Name.Len, Name.bIsWide);
-
-	if (Name.bIsWide)
-	{
-		return SaveUtf16Name(Out, Name.Wide, Name.Len);
-	}
-	else
-	{
-		return SaveAnsiName(Out, Name.Ansi, Name.Len);
-	}
+	FMemory::Memzero(PadData, PadBytes);
+	FMemory::Memcpy(NameData, Name.Data, NameBytes);
 }
 
 void SaveNameBatch(TArrayView<const FNameEntryId> Names, TArray<uint8>& OutNameData, TArray<uint8>& OutHashData)
@@ -2804,14 +2964,53 @@ void SaveNameBatch(TArrayView<const FNameEntryId> Names, TArray<uint8>& OutNameD
 	FNameBuffer CustomDecodeBuffer;
 	for (FNameEntryId EntryId : Names)
 	{
-		FNameStringView InMemoryName = GetNamePoolPostInit().Resolve(EntryId).MakeView(CustomDecodeBuffer);
-		FNameSerializedView SavedName = SaveAnsiOrUtf16Name(OutNameData, InMemoryName);
+		FNameStringView Name = GetNamePoolPostInit().Resolve(EntryId).MakeView(CustomDecodeBuffer);
 
-		uint64 LowerHash = SavedName.bIsUtf16 ? FNameHash::GenerateLowerCaseHash(SavedName.Utf16, SavedName.Len)
-											  : FNameHash::GenerateLowerCaseHash(SavedName.Ansi,  SavedName.Len);
+		SaveHeaderAndName(OutNameData, Name);
 
-		AddValue(OutHashData, INTEL_ORDER64(LowerHash));
+		AddValue(OutHashData, GenerateLowerCaseHash(Name));
 	}
+}
+
+void SaveNameBatch(TArrayView<const FNameEntryId> Names, FArchive& Ar)
+{
+	// Save Num and bail if zero
+	uint32 Num = Names.Num();
+	Ar << Num;
+
+	if (Num == 0)
+	{
+		return;
+	}
+
+	// Prepare hashes, headers and strings to be saved
+	TArray<uint64> Hashes;
+	TArray<FSerializedNameHeader> Headers;
+	TArray<uint8> Strings;
+	Hashes.Reserve(Num);
+	Headers.Reserve(Num);
+	Strings.Reserve(Num * 40 /* guesstimate */);
+
+	FNameBuffer Buffer;
+	for (FNameEntryId EntryId : Names)
+	{
+		FNameStringView Name = GetNamePoolPostInit().Resolve(EntryId).MakeView(Buffer);
+
+		Hashes.Add(GenerateLowerCaseHash(Name));
+		Headers.Add(FSerializedNameHeader(Name.Len, Name.bIsWide));
+		Strings.Append(reinterpret_cast<const uint8*>(Name.Data), Name.BytesWithoutTerminator());
+	}
+
+	// Save metadata and data 
+	uint32 NumStringBytes = Strings.Num();
+	Ar << NumStringBytes;
+
+	uint64 HashVersion = FNameHash::AlgorithmId;
+	Ar << HashVersion;
+
+	Ar.Serialize(Hashes.GetData(), Num * Hashes.GetTypeSize());
+	Ar.Serialize(Headers.GetData(), Num * Headers.GetTypeSize());
+	Ar.Serialize(Strings.GetData(), Strings.Num());
 }
 
 #endif // WITH_EDITOR
@@ -2839,14 +3038,14 @@ static FNameEntryId BatchLoadNameWithoutHash(const UTF16CHAR* Str, uint32 Len)
 
 	FNameStringView Name(Temp, Len);
 	FNameHash Hash = HashName<ENameCase::IgnoreCase>(Name);
-	return GetNamePoolPostInit().BatchStore(FNameComparisonValue(Name, Hash));
+	return GetNamePoolPostInit().StoreValue(FNameComparisonValue(Name, Hash));
 }
 
 static FNameEntryId BatchLoadNameWithoutHash(const ANSICHAR* Str, uint32 Len)
 {
 	FNameStringView Name(Str, Len);
 	FNameHash Hash = HashName<ENameCase::IgnoreCase>(Name);
-	return GetNamePoolPostInit().BatchStore(FNameComparisonValue(Name, Hash));
+	return GetNamePoolPostInit().StoreValue(FNameComparisonValue(Name, Hash));
 }
 
 static FNameEntryId BatchLoadNameWithoutHash(const FNameSerializedView& Name)
@@ -2861,7 +3060,7 @@ FNameEntryId BatchLoadNameWithHash(const CharType* Str, uint32 Len, uint64 InHas
 	FNameStringView Name(Str, Len);
 	FNameHash Hash(Str, Len, InHash);
 	checkfSlow(Hash == HashName<ENameCase::IgnoreCase>(Name), TEXT("Precalculated hash was wrong"));
-	return GetNamePoolPostInit().BatchStore(FNameComparisonValue(Name, Hash));
+	return GetNamePoolPostInit().StoreValue(FNameComparisonValue(Name, Hash));
 }
 
 static FNameEntryId BatchLoadNameWithHash(const FNameSerializedView& InName, uint64 InHash)
@@ -2885,6 +3084,302 @@ static FNameEntryId BatchLoadNameWithHash(const FNameSerializedView& InName, uin
 	}
 }
 
+static void LoadInterleavedNameBatchInInputOrder(TArray<FNameEntryId>& Out, TArrayView<const uint8> Names)
+{
+	TArray<FNameEntryId>::TIterator OutIt(Out);
+	const uint8* NameIt = Names.GetData();
+	const uint8* NameEnd = Names.GetData() + Names.Num();
+
+	while (NameIt < NameEnd)
+	{
+		FNameSerializedView Name = LoadNameHeader(/* in-out */ NameIt);
+		*OutIt++ = BatchLoadNameWithoutHash(Name);
+	}
+
+	check(NameIt == NameEnd);
+	check(OutIt.GetIndex() == Out.Num());
+}
+
+static void LoadInterleavedNameBatchInInputOrder(TArray<FNameEntryId>& Out, TArrayView<const uint64> Hashes, TArrayView<const uint8> Names)
+{
+	check(Hashes.Num() == Out.Num());
+
+	TArray<FNameEntryId>::TIterator OutIt(Out);
+	const uint8* NameIt = Names.GetData();
+
+	for (uint64 Hash : Hashes)
+	{
+		check(NameIt < Names.end());
+		FNameSerializedView Name = LoadNameHeader(/* in-out */ NameIt);
+		*OutIt++ = BatchLoadNameWithHash(Name, INTEL_ORDER64(Hash));
+	}
+
+	check(NameIt == Names.end());
+}
+
+static bool CanUseSavedHashes(uint64 HashVersion)
+{
+	return HashVersion == FNameHash::AlgorithmId && CanCastUtf16ToWideCharWithoutConversion();
+}
+
+static FNameSerializedView LoadName(FArchive& Ar, FSerializedNameHeader Header, uint8* OutNameBuffer)
+{
+	FNameSerializedView Name(OutNameBuffer, Header.Len(), !!Header.IsUtf16());
+	Ar.Serialize(OutNameBuffer, Name.NumBytes());
+	return Name;
+}
+
+static FNameSerializedView LoadHeaderAndName(FArchive& Ar, uint8* OutNameBuffer)
+{
+	FSerializedNameHeader Header;
+	Ar.Serialize(&Header, sizeof(Header));
+	return LoadName(Ar, Header, OutNameBuffer);
+}
+
+static void LoadSeparatedNameBatchInInputOrder(	TArray<FNameEntryId>& Out,
+												const uint64* Hashes,
+												TArrayView<const FSerializedNameHeader> Headers, 
+												TArrayView<const uint8> Strings)
+{
+	check(Out.Num() == Headers.Num());
+	TArray<FNameEntryId>::TIterator OutIt(Out);
+	const uint8* StringIt = Strings.GetData();
+	for (FSerializedNameHeader Header : Headers)
+	{
+		FNameSerializedView Name(StringIt, Header.Len(), !!Header.IsUtf16());
+		StringIt += Name.NumBytes();
+		*OutIt++ = BatchLoadNameWithHash(Name, INTEL_ORDER64(*Hashes++));
+	}
+	check(StringIt == Strings.end());
+}
+
+static void LoadSeparatedNameBatchInInputOrder(	TArray<FNameEntryId>& Out,
+												TArrayView<const FSerializedNameHeader> Headers, 
+												TArrayView<const uint8> Strings)
+{
+	check(Out.Num() == Headers.Num());
+
+	TArray<FNameEntryId>::TIterator OutIt(Out);
+	const uint8* StringIt = Strings.GetData();
+	for (FSerializedNameHeader Header : Headers)
+	{
+		FNameSerializedView Name(StringIt, Header.Len(), !!Header.IsUtf16());
+		StringIt += Name.NumBytes();
+		*OutIt++ = BatchLoadNameWithoutHash(Name);
+	}
+	check(StringIt == Strings.end());
+}
+
+// @param Loads are sorted in shard order
+template<class LoadType>
+void LoadOneBatchPerShard(TArray<LoadType>& Loads)
+{
+	FNamePool& Pool = GetNamePoolPostInit();
+
+	LoadType* BatchIt = &Loads[0];
+	for (LoadType& Load : Loads)
+	{
+		if (Load.In.Hash.ShardIndex != BatchIt->In.Hash.ShardIndex)
+		{
+			Pool.StoreBatch(BatchIt->In.Hash.ShardIndex, TArrayView<LoadType>(BatchIt, &Load - BatchIt));
+			BatchIt = &Load;
+		}
+	}
+
+	TArrayView<LoadType> LastBatch(BatchIt, &Loads.Last() + 1 - BatchIt);
+	Pool.StoreBatch(BatchIt->In.Hash.ShardIndex, LastBatch);
+
+	check(BatchIt + LastBatch.Num() == Loads.GetData() + Loads.Num());
+}
+
+
+#if WITH_CASE_PRESERVING_NAME
+
+FORCENOINLINE // To help profiling
+static void LoadDisplayNames(const TArray<FNameComparisonLoad>& ComparisonLoads)
+{
+	FNamePool& Pool = GetNamePoolPostInit();
+
+	// Hash display names and prepare load requests
+	TArray<FNameDisplayLoad> DisplayLoads;
+	DisplayLoads.Reserve(ComparisonLoads.Num());
+	for (const FNameComparisonLoad& ComparisonLoad : ComparisonLoads)
+	{
+		FNameDisplayValue DisplayValue(ComparisonLoad.In.Name);
+		DisplayValue.ComparisonId = *ComparisonLoad.Out;
+
+		bool bReuseEntry = Pool.ReuseComparisonEntry(ComparisonLoad.bOutCreatedNewEntry, DisplayValue);
+		DisplayLoads.Emplace(FNameDisplayLoad {DisplayValue, ComparisonLoad.Out, bReuseEntry});
+	}
+
+	// Sort loads in shard order
+	Algo::HeapSort(DisplayLoads, [](const FNameDisplayLoad& A, const FNameDisplayLoad& B) { return A.In.Hash.ShardIndex < B.In.Hash.ShardIndex; });
+
+	LoadOneBatchPerShard(DisplayLoads);
+}
+
+#endif  // WITH_CASE_PRESERVING_NAME
+
+
+
+static void LoadInterleavedNameBatchInShardOrder(	TArray<FNameEntryId>& Out,
+													TArrayView<const uint64> Hashes,
+													TArrayView<const uint8> HeadersAndStrings)
+{
+	check(CanCastUtf16ToWideCharWithoutConversion());
+	check(Out.Num() == Hashes.Num());
+
+	const uint32 Num = Out.Num();
+
+	// Number of names per shard + index into ShardSortedLoads
+	struct FShardTarget
+	{
+		uint32 Num;
+		uint32 SortIdx;
+	}
+	Targets[FNamePoolShards] = {};
+	
+	// Generate name views and count names / shard
+	TArray<FNameStringView> Names;
+	Names.SetNumUninitialized(Num);
+	const uint8* NameIt = HeadersAndStrings.GetData();
+	for (uint32 Idx = 0; Idx < Num; ++Idx)
+	{
+		uint64 Hash = INTEL_ORDER64(Hashes[Idx]);
+		Targets[FNameHash::GetShardIndex(Hash)].Num++;
+		Names[Idx] = LoadNameHeader(/* in-out */ NameIt).CastToNameView(); 
+	}
+	check(NameIt == HeadersAndStrings.end());
+
+	// Set starting index per shard
+	uint32 SortIdx = 0;
+	for (FShardTarget& Target : Targets)
+	{
+		Target.SortIdx = SortIdx;
+		SortIdx += Target.Num;
+	}
+	check(SortIdx == Num);
+
+	// Prepare batch loading requests sorted by shard index
+	TArray<FNameComparisonLoad> ShardSortedLoads;
+	ShardSortedLoads.SetNumUninitialized(Num);
+	for (uint32 Idx = 0; Idx < Num; ++Idx)
+	{
+		uint64 Hash = INTEL_ORDER64(Hashes[Idx]);
+		FShardTarget& Target = Targets[FNameHash::GetShardIndex(Hash)];
+
+		ShardSortedLoads[Target.SortIdx] = FNameComparisonLoad {FNameComparisonValue(Names[Idx], Hash), &Out[Idx]};
+
+		++Target.SortIdx;
+	}
+	
+	// Loop over shard and load batches
+	FNamePool& Pool = GetNamePoolPostInit();
+	FNameComparisonLoad* LoadIt = ShardSortedLoads.GetData();
+	for (FShardTarget& Target : Targets)
+	{
+		TArrayView<FNameComparisonLoad> Batch(LoadIt, Target.Num);
+		LoadIt += Target.Num;
+		Pool.StoreBatch(&Target - Targets, Batch);
+	}
+	check(LoadIt == ShardSortedLoads.GetData() + ShardSortedLoads.Num());
+
+#if WITH_CASE_PRESERVING_NAME
+	LoadDisplayNames(ShardSortedLoads);
+#endif
+}
+
+static void LoadSeparatedNameBatchInShardOrder(	TArray<FNameEntryId>& Out,
+												const uint64* Hashes,
+												TArrayView<const FSerializedNameHeader> Headers, 
+												TArrayView<const uint8> Strings)											
+{
+	check(CanCastUtf16ToWideCharWithoutConversion());
+	check(Out.Num() == Headers.Num());
+
+	// Number of names and bytes per shard + indices into shard sorted arrays
+	struct FShardTarget
+	{
+		uint32 NumNames;
+		uint32 NumBytes;
+		uint32 NameIdx;
+		uint32 ByteIdx;
+	}
+	Targets[FNamePoolShards] = {};
+
+	// Count names and bytes per shard
+	for (int32 Idx = 0; Idx < Headers.Num(); ++Idx)
+	{
+		FShardTarget& Target = Targets[FNameHash::GetShardIndex(INTEL_ORDER64(Hashes[Idx]))];
+		++Target.NumNames;
+		Target.NumBytes += Headers[Idx].NumBytes();
+	}
+
+	// Find name and byte start offsets per shard
+	uint32 ByteIdx = 0;
+	uint32 NameIdx = 0;
+
+	for (FShardTarget& Target : Targets)
+	{
+		Target.NameIdx = NameIdx;
+		Target.ByteIdx = ByteIdx;
+		
+		NameIdx += Target.NumNames;
+		ByteIdx += Target.NumBytes;
+	}
+	
+	const uint32 NumBytes = ByteIdx;
+	const uint32 NumNames = NameIdx;
+	
+	check(NumNames == Headers.Num());
+	check(NumBytes == Strings.Num());
+
+	// Sort headers in shard order, scatter read name data in shard order 
+	// and save the input order in OutIndices
+
+	TArray<FNameComparisonLoad> ShardSortedLoads;
+	TArray<uint8> ShardSortedStrings;
+	ShardSortedLoads.SetNumUninitialized(NumNames);
+	ShardSortedStrings.SetNumUninitialized(NumBytes);
+
+	const uint8* UnsortedStringsIt = Strings.GetData();
+	for (uint32 Idx = 0; Idx < NumNames; ++Idx)
+	{
+		FSerializedNameHeader Header = Headers[Idx];
+		uint64 Hash = INTEL_ORDER64(Hashes[Idx]);
+
+		// Copy name data in read order
+		FShardTarget& Target = Targets[FNameHash::GetShardIndex(Hash)];
+		void* NameData = &ShardSortedStrings[Target.ByteIdx];
+		const FNameStringView Name(NameData, Header.Len(), !!Header.IsUtf16());
+
+		FMemory::Memcpy(NameData, UnsortedStringsIt, Name.BytesWithoutTerminator());
+		UnsortedStringsIt += Name.BytesWithoutTerminator();
+
+		// Prepare batch loading request
+		ShardSortedLoads[Target.NameIdx] = FNameComparisonLoad {FNameComparisonValue(Name, Hash), &Out[Idx]};
+
+		++Target.NameIdx;
+		Target.ByteIdx += Name.BytesWithoutTerminator();
+	}
+	check(UnsortedStringsIt == Strings.end());
+	
+	// Loop over shards and issue batch loads
+	FNamePool& Pool = GetNamePoolPostInit();
+	FNameComparisonLoad* LoadIt = ShardSortedLoads.GetData();
+	for (FShardTarget& Target : Targets)
+	{
+		TArrayView<FNameComparisonLoad> Batch(LoadIt, Target.NumNames);
+		LoadIt += Target.NumNames;
+		Pool.StoreBatch(&Target - Targets, Batch);
+	}
+	check(LoadIt == ShardSortedLoads.GetData() + ShardSortedLoads.Num());
+
+#if WITH_CASE_PRESERVING_NAME
+	LoadDisplayNames(ShardSortedLoads);
+#endif
+}
+
 void LoadNameBatch(TArray<FNameEntryId>& OutNames, TArrayView<const uint8> NameData, TArrayView<const uint8> HashData)
 {
 	check(IsAligned(NameData.GetData(), sizeof(uint64)));
@@ -2892,39 +3387,72 @@ void LoadNameBatch(TArray<FNameEntryId>& OutNames, TArrayView<const uint8> NameD
 	check(IsAligned(HashData.Num(), sizeof(uint64)));
 	check(HashData.Num() > 0);
 
-	const uint8* NameIt = NameData.GetData();
-	const uint8* NameEnd = NameData.GetData() + NameData.Num();
-
 	const uint64* HashDataIt = reinterpret_cast<const uint64*>(HashData.GetData());
 	uint64 HashVersion = INTEL_ORDER64(HashDataIt[0]);
-	TArrayView<const uint64> Hashes = MakeArrayView(HashDataIt + 1, HashData.Num() / sizeof(uint64) - 1);
+	const uint32 Num = HashData.Num() / sizeof(uint64) - 1;
+	TArrayView<const uint64> Hashes = MakeArrayView(HashDataIt + 1, Num);
 
-	OutNames.Empty(Hashes.Num());
+	OutNames.SetNumUninitialized(Num);
 
-	GetNamePoolPostInit().BatchLock();
-
-	if (HashVersion == FNameHash::AlgorithmId)
+	if (!CanUseSavedHashes(HashVersion))
 	{
-		for (uint64 Hash : Hashes)
-		{
-			check(NameIt < NameEnd);
-			FNameSerializedView Name = LoadNameHeader(/* in-out */ NameIt);
-			OutNames.Add(BatchLoadNameWithHash(Name, INTEL_ORDER64(Hash)));
-		}
+		LoadInterleavedNameBatchInInputOrder(OutNames, NameData);
+	}
+	else if (Num < FNamePoolShards)
+	{
+		LoadInterleavedNameBatchInInputOrder(OutNames, Hashes, NameData);
 	}
 	else
 	{
-		while (NameIt < NameEnd)
-		{
-			FNameSerializedView Name = LoadNameHeader(/* in-out */ NameIt);
-			OutNames.Add(BatchLoadNameWithoutHash(Name));
-		}
+		LoadInterleavedNameBatchInShardOrder(OutNames, Hashes, NameData);
+	}
+}
+
+TArray<FNameEntryId> LoadNameBatch(FArchive& Ar)
+{
+	uint32 Num = 0;
+	Ar << Num;
+
+	if (Num == 0)
+	{
+		return {};
+	}
+		
+	uint32 NumStringBytes = 0;
+	Ar << NumStringBytes;
+
+	uint64 HashVersion = 0;
+	Ar << HashVersion;
+
+	// Allocate and load hashes, headers and string data in one go
+	uint32 NumHashBytes = sizeof(uint64) * Num;
+	uint32 NumHeaderBytes = sizeof(FSerializedNameHeader) * Num;
+	TArray<uint8> Data;
+	Data.SetNumUninitialized(NumHashBytes + NumHeaderBytes + NumStringBytes);
+	Ar.Serialize(Data.GetData(), Data.Num());
 	
+	TArrayView<const uint64> Hashes(reinterpret_cast<const uint64*>(Data.GetData()), Num);
+	TArrayView<const FSerializedNameHeader> Headers(reinterpret_cast<const FSerializedNameHeader*>(Hashes.end()), Num);
+	TArrayView<const uint8> Strings(reinterpret_cast<const uint8*>(Headers.end()), NumStringBytes);
+	check(&Data.Last() ==  &Strings.Last());
+
+	TArray<FNameEntryId> Out;
+	Out.SetNumUninitialized(Headers.Num());
+
+	if (!CanUseSavedHashes(HashVersion))
+	{
+		LoadSeparatedNameBatchInInputOrder(Out, Headers, Strings);
+	}
+	else if (Num < FNamePoolShards)
+	{
+		LoadSeparatedNameBatchInInputOrder(Out, Hashes.GetData(), Headers, Strings);
+	}
+	else
+	{
+		LoadSeparatedNameBatchInShardOrder(Out, Hashes.GetData(), Headers, Strings);
 	}
 
-	GetNamePoolPostInit().BatchUnlock();
-
-	check(NameIt == NameEnd);
+	return Out;
 }
 
 #if 0 && ALLOW_NAME_BATCH_SAVING  
@@ -2961,7 +3489,7 @@ static TArray<uint8> ReadBlobFile(const TCHAR* FileName)
 }
 
 CORE_API int SaveNameBatchTestFiles();
-CORE_API int LoadNameBatchTestFiles();
+CORE_API int LoadNameBatchTestFiles(bool bArchivePath);
 
 int SaveNameBatchTestFiles()
 {
@@ -2984,21 +3512,37 @@ int SaveNameBatchTestFiles()
 	WriteBlobFile(TEXT("TestNameBatch.Names"), NameData);
 	WriteBlobFile(TEXT("TestNameBatch.Hashes"), HashData);
 
+	TArray<uint8> ArchData;
+	FMemoryWriter ArchWriter(ArchData);
+	SaveNameBatch(MakeArrayView(NameEntries), ArchWriter);
+	WriteBlobFile(TEXT("TestNameBatch.Archive"), ArchData);
+
 	return NameEntries.Num();
 }
 
-int LoadNameBatchTestFiles()
+int LoadNameBatchTestFiles(bool bArchivePath)
 {
-	TArray<uint8> NameData = ReadBlobFile(TEXT("TestNameBatch.Names"));
-	TArray<uint8> HashData = ReadBlobFile(TEXT("TestNameBatch.Hashes"));
-
-	TArray<FNameEntryId> NameEntries;
-	if (HashData.Num())
+	if (bArchivePath)
 	{
-		ReserveNameBatch(NameData.Num(), HashData.Num());
-		PerfTestLoadNameBatch(NameEntries, MakeArrayView(NameData), MakeArrayView(HashData));
+		TArray<uint8> ArchData = ReadBlobFile(TEXT("TestNameBatch.Archive"));
+		FMemoryReader ArchReader(ArchData);
+		TArray<FNameEntryId> NameEntries = LoadNameBatch(ArchiveReader);
+		return NameEntries.Num();
 	}
-	return NameEntries.Num();
+	else
+	{
+		TArray<uint8> NameData = ReadBlobFile(TEXT("TestNameBatch.Names"));
+		TArray<uint8> HashData = ReadBlobFile(TEXT("TestNameBatch.Hashes"));
+
+		TArray<FNameEntryId> NameEntries;
+		if (HashData.Num())
+		{
+			ReserveNameBatch(NameData.Num(), HashData.Num());
+			PerfTestLoadNameBatch(NameEntries, MakeArrayView(NameData), MakeArrayView(HashData));
+		}
+
+		return NameEntries.Num();
+	}
 }
 
 #endif
@@ -3085,6 +3629,36 @@ static void TestNameBatch()
 	
 	check(NameData == NameData2);
 	check(HashData == HashData2);
+
+	// Test FArchive-based Load/SaveNameBatch()
+
+	auto TestArchiveRoundtrip = [](const TArray<FNameEntryId>& Names)
+	{
+		TArray<uint8> ArchiveData;
+		FMemoryWriter ArchiveWriter(ArchiveData);
+		SaveNameBatch(MakeArrayView(Names), ArchiveWriter);
+
+		FMemoryReader ArchiveReader(ArchiveData);
+		TArray<FNameEntryId> ArchiveRoundtrippedNames = LoadNameBatch(ArchiveReader);
+		
+		check(ArchiveRoundtrippedNames == Names);
+	};
+
+	TestArchiveRoundtrip(Names);
+	
+	TArray<FNameEntryId> LargeBatch = Names;
+	for (char C1 = 'A'; C1 <= 'z' ; ++C1)
+	{
+		for (char C2 = 'A'; C2 < 'z'; ++C2)
+		{
+			char Str[]  = {C1, C2, '\0'};
+
+			// Use display index to get some duplicate comparison ids like "aa" and "aA"
+			LargeBatch.Add(FName(Str).GetDisplayIndex());
+		}
+	}
+	check(LargeBatch.Num() > FNamePoolShards);
+	TestArchiveRoundtrip(LargeBatch);
 
 #endif // ALLOW_NAME_BATCH_SAVING
 }
