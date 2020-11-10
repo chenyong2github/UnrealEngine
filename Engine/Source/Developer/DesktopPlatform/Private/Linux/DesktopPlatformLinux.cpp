@@ -419,7 +419,7 @@ bool FDesktopPlatformLinux::RunUnrealBuildTool(const FText& Description, const F
 	OutExitCode = 1;
 
 	// Get the path to UBT
-	FString UnrealBuildToolPath = RootDir / TEXT("Engine/Binaries/DotNET/UnrealBuildTool.exe");
+	FString UnrealBuildToolPath = GetUnrealBuildToolExecutableFilename(RootDir);
 	if(IFileManager::Get().FileSize(*UnrealBuildToolPath) < 0)
 	{
 		Warn->Logf(ELogVerbosity::Error, TEXT("Couldn't find UnrealBuildTool at '%s'"), *UnrealBuildToolPath);
