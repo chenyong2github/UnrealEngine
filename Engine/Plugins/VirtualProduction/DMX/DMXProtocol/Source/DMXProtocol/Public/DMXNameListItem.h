@@ -92,7 +92,7 @@ struct DMXPROTOCOL_API FDMXNameListItem
 	virtual ~FDMXNameListItem() = default;
 
 	/** Label of the item this struct represents */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "DMX")
 	FName Name;
 
 	/** The name representation of this object */
