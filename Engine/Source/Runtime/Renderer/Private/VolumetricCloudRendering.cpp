@@ -956,7 +956,11 @@ public:
 		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
 		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
 
-		check(Material.GetMaterialDomain() == MD_Volume);
+		if(Material.GetMaterialDomain() != MD_Volume)
+		{
+			// Skip in this case. This can happens when the material is compiled and a fallback is provided.
+			return;
+		}
 
 		const ERasterizerFillMode MeshFillMode = FM_Solid;
 		const ERasterizerCullMode MeshCullMode = CM_None;
