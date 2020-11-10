@@ -76,7 +76,7 @@ struct FEOSSettings
 };
 
 UCLASS(Config=Engine, DefaultConfig)
-class UEOSSettings :
+class ONLINESUBSYSTEMEOS_API UEOSSettings :
 	public UObject
 {
 	GENERATED_BODY()
@@ -111,6 +111,30 @@ public:
 	/** Per artifact SDK settings. A game might have a FooStaging, FooQA, and public Foo artifact */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Settings")
 	TArray<FArtifactSettings> Artifacts;
+
+	/** Set to true to have Epic Accounts used (friends list will be unified with the default platform) */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Crossplay Settings", DisplayName="Use Epic Account Services")
+	bool bUseEAS;
+
+	/** Set to true to have EOS Connect APIs used to link accounts for crossplay */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Crossplay Settings", DisplayName="Use Crossplatform User IDs")
+	bool bUseEOSConnect;
+
+	/** Set to true to write stats to EOS as well as the default platform */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Crossplay Settings")
+	bool bMirrorStatsToEOS;
+
+	/** Set to true to write achievement data to EOS as well as the default platform */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Crossplay Settings")
+	bool bMirrorAchievementsToEOS;
+
+	/** Set to true to use EOS for session registration with data mirrored to the default platform */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Crossplay Settings", DisplayName="Use Crossplay Sessions")
+	bool bUseEOSSessions;
+
+	/** Set to true to have Epic Accounts presence information updated when the default platform is updated */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Crossplay Settings")
+	bool bMirrorPresenceToEAS;
 
 	/** Find the Settings for an artifact by name */
 	static bool GetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings);
