@@ -494,7 +494,7 @@ bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime Curr
 				bIsAdditive = AnimSequence->GetAdditiveAnimType() != EAdditiveAnimationType::AAT_None;
 				if (!bIsAdditive)
 				{
-					AnimSequence->GetBoneTransform(OutTransform, TempRootBoneIndex.GetValue(), CurrentTimeSeconds, true);
+					AnimSequence->GetBoneTransform(OutTransform, TempRootBoneIndex.GetValue(), CurrentTimeSeconds, false /*make sure it's not raw*/);
 				}
 				else
 				{
