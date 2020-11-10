@@ -30,8 +30,6 @@ public:
 
 	void RegisterInstance(FNetworkPredictionID ID)
 	{
-		npCheckfSlow(!TIsVoidType<InputType>::Value, TEXT("ModelDef %s with null InputCmd type was registered for local input service."), ModelDef::GetName());
-
 		TInstanceData<ModelDef>* InstanceData = DataStore->Instances.Find(ID);
 		npCheckSlow(InstanceData);
 
@@ -109,10 +107,6 @@ public:
 
 			npCheckSlow(Remote.View);
 			npCheckSlow(Remote.View->PendingInputCmd);
-			npCheckSlow(Remote.View->PendingFrame >= 0);
-			
-			UE_NP_TRACE_PRODUCE_INPUT(Remote.TraceID);
-			UE_NP_TRACE_PUSH_INPUT_FRAME(Remote.View->PendingFrame);
 
 			TServerRecvData_Fixed<ModelDef>& ServerRecvData = DataStore->ServerRecv.GetByIndexChecked(Remote.ServerRecvIdx);
 			if (ServerRecvData.LastRecvFrame == INDEX_NONE)
@@ -126,7 +120,7 @@ public:
 			// Check overflow
 			if (NumBufferedInputCmds >= ServerRecvData.InputBuffer.Capacity())
 			{
-				UE_NP_TRACE_SYSTEM_FAULT("[Remote.Input] overflow %d %d -> %d", ServerRecvData.LastRecvFrame, ServerRecvData.LastConsumedFrame, ServerRecvData.LastRecvFrame - ServerRecvData.LastConsumedFrame);
+				//UE_LOG(LogNetworkPrediction, Warning, TEXT("[Remote.Input] overflow %d %d -> %d"), ServerRecvData.LastRecvFrame, ServerRecvData.LastConsumedFrame, ServerRecvData.LastRecvFrame - ServerRecvData.LastConsumedFrame );
 				ServerRecvData.LastConsumedFrame = ServerRecvData.LastRecvFrame - ServerRecvData.InputBuffer.Capacity() + 1;
 			}
 
@@ -136,8 +130,7 @@ public:
 				if (NumBufferedInputCmds < Remote.FaultLimit)
 				{
 					// Skip this instance because it is in fault. We will use the prev input for this frame.
-					//UE_NP_TRACE_SYSTEM_FAULT("[Remote.Input]   Input in Fault. Total buffered cmds: %d/%d", NumBufferedInputCmds, Remote.FaultLimit);
-					UE_NP_TRACE_BUFFERED_INPUT(NumBufferedInputCmds, true);
+					//UE_LOG(LogNetworkPrediction, Warning, TEXT("[Remote.Input]   Input in Fault. Total buffered cmds: %d/%d"), NumBufferedInputCmds, Remote.FaultLimit);
 					continue;
 				}
 				Remote.bFault = false;
@@ -149,15 +142,17 @@ public:
 				Remote.bFault = true;
 				Remote.FaultLimit = FMath::Min(Remote.FaultLimit+1, ServerRecvData.InputBuffer.Capacity());
 
-				UE_NP_TRACE_SYSTEM_FAULT("[Remote.Input] New Fault. No cmds to process. New FaultLimit=%d", Remote.FaultLimit);
-				UE_NP_TRACE_BUFFERED_INPUT(0, true);
+				//UE_LOG(LogNetworkPrediction, Warning, TEXT("[Remote.Input] New Fault. No cmds to process. New FaultLimit=%d"), Remote.FaultLimit);
 				continue;
 			}
 
 			// Consume next InputCmd
 			ServerRecvData.InputBuffer[++ServerRecvData.LastConsumedFrame].CopyTo((InputType*)Remote.View->PendingInputCmd);
 
-			UE_NP_TRACE_BUFFERED_INPUT(NumBufferedInputCmds, false);
+			// Trace: should probably be its own event that traces what client frame number we used or if we have fault, etc
+			npEnsure(Remote.View->PendingFrame >= 0);
+			UE_NP_TRACE_PUSH_INPUT_FRAME(Remote.View->PendingFrame);
+			UE_NP_TRACE_PRODUCE_INPUT(Remote.TraceID);
 			UE_NP_TRACE_USER_STATE_INPUT(ModelDef, (InputType*)Remote.View->PendingInputCmd);
 		}
 	}

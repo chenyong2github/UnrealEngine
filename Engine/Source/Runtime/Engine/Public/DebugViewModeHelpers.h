@@ -12,7 +12,6 @@
 
 class UMaterialInterface;
 struct FSlowTask;
-struct FMeshMaterialShaderPermutationParameters;
 
 /** 
  * Enumeration for different Quad Overdraw visualization mode.
@@ -39,7 +38,6 @@ enum EDebugViewShaderMode
 ENGINE_API bool AllowDebugViewVSDSHS(EShaderPlatform Platform);
 /** Returns true if the shader mode can be enabled. This is only for UI elements as no shader platform is actually passed. */
 ENGINE_API bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode, EShaderPlatform Platform, ERHIFeatureLevel::Type FeatureLevel);
-ENGINE_API bool ShouldCompileDebugViewModeShader(EDebugViewShaderMode ShaderMode, const FMeshMaterialShaderPermutationParameters& Parameters);
 #else
 FORCEINLINE bool AllowDebugViewVSDSHS(EShaderPlatform Platform)  { return false; }
 FORCEINLINE bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode, EShaderPlatform Platform, ERHIFeatureLevel::Type FeatureLevel) { return false; }
@@ -47,17 +45,10 @@ FORCEINLINE bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode, EShad
 
 ENGINE_API int32 GetNumActorsInWorld(UWorld* InWorld);
 ENGINE_API bool GetUsedMaterialsInWorld(UWorld* InWorld, OUT TSet<UMaterialInterface*>& OutMaterials, FSlowTask* Task);
-ENGINE_API bool CompileDebugViewModeShaders(EDebugViewShaderMode Mode, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, TSet<UMaterialInterface*>& Materials, FSlowTask* ProgressTask);
+ENGINE_API bool CompileDebugViewModeShaders(EDebugViewShaderMode Mode, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, bool bFullRebuild, bool bWaitForPreviousShaders, TSet<UMaterialInterface*>& Materials, FSlowTask* ProgressTask);
+ENGINE_API void UpdateDebugViewModeShaders();
+ENGINE_API void ClearDebugViewMaterials(UMaterialInterface* InMaterialInterface);
+
 ENGINE_API bool WaitForShaderCompilation(const FText& Message, FSlowTask* ProgressTask);
 
-UE_DEPRECATED(4.26, "Parameters bFullRebuild and bWaitForPreviousShaders should no longer be used")
-inline bool CompileDebugViewModeShaders(EDebugViewShaderMode Mode, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, bool bFullRebuild, bool bWaitForPreviousShaders, TSet<UMaterialInterface*>& Materials, FSlowTask* ProgressTask)
-{
-	return CompileDebugViewModeShaders(Mode, QualityLevel, FeatureLevel, Materials, ProgressTask);
-}
 
-UE_DEPRECATED(4.26, "ClearDebugViewMaterials() should no longer be called")
-inline void ClearDebugViewMaterials(UMaterialInterface*) {}
-
-UE_DEPRECATED(4.26, "UpdateDebugViewModeShaders() should no longer be called")
-inline void UpdateDebugViewModeShaders() {}

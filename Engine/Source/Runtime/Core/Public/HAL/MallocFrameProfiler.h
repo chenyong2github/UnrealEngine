@@ -33,20 +33,15 @@ protected:
 protected:
 	bool bEnabled;
 	uint32 FrameCount;
-	uint32 EntriesToOutput;
 
-	struct FCallStackStats
+	struct FCallStackUsageCount
 	{
 		int32 CallStackIndex = 0;
-		int32 Mallocs = 0;
-		int32 Frees = 0;
 		int32 UsageCount = 0;
-		int32 UniqueFrames = 0;
-		int32 LastFrameSeen = 0;
 	};
 
 	TMap<void*, int32> TrackedCurrentAllocations;
-	TArray<FCallStackStats> CallStackStatsArray;
+	TArray<FCallStackUsageCount> CallStackIndexUsageCountArray;
 };
 
 extern CORE_API FMallocFrameProfiler* GMallocFrameProfiler;

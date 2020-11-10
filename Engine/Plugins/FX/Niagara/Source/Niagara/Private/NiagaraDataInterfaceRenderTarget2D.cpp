@@ -12,7 +12,6 @@
 #if WITH_EDITOR
 #include "NiagaraGpuComputeDebug.h"
 #endif
-#include "NiagaraStats.h"
 #include "Engine/TextureRenderTarget2D.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRenderTarget2D"
@@ -27,23 +26,9 @@ const FName UNiagaraDataInterfaceRenderTarget2D::SetSizeFunctionName("SetRenderT
 const FName UNiagaraDataInterfaceRenderTarget2D::GetSizeFunctionName("GetRenderTargetSize");
 const FName UNiagaraDataInterfaceRenderTarget2D::LinearToIndexName("LinearToIndex");
 
+
 FNiagaraVariableBase UNiagaraDataInterfaceRenderTarget2D::ExposedRTVar;
 
-int32 GNiagaraReleaseResourceOnRemove = true;
-static FAutoConsoleVariableRef CVarNiagaraReleaseResourceOnRemove(
-	TEXT("fx.Niagara.RenderTarget.ReleaseResourceOnRemove"),
-	GNiagaraReleaseResourceOnRemove,
-	TEXT("Releases the render target resource once it is removed from the manager list rather than waiting for a GC."),
-	ECVF_Default
-);
-
-float GNiagaraRenderTargetResolutionMultiplier = 1.0f;
-static FAutoConsoleVariableRef CVarNiagaraRenderTargetResolutionMultiplier(
-	TEXT("fx.Niagara.RenderTarget.ResolutionMultiplier"),
-	GNiagaraRenderTargetResolutionMultiplier,
-	TEXT("Optional global modifier to Niagara render target resolution."),
-	ECVF_Default
-);
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
 struct FNiagaraDataInterfaceParametersCS_RenderTarget2D : public FNiagaraDataInterfaceParametersCS
@@ -126,29 +111,6 @@ IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_RenderTarget2D);
 
 IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceRenderTarget2D, FNiagaraDataInterfaceParametersCS_RenderTarget2D);
 
-/*--------------------------------------------------------------------------------------------------------------------------*/
-
-#if STATS
-DECLARE_MEMORY_STAT(TEXT("Niagara RT2D data interface memory"), STAT_NiagaraRT2DMemory, STATGROUP_Niagara);
-
-void FRenderTarget2DRWInstanceData_RenderThread::UpdateMemoryStats()
-{
-	DEC_MEMORY_STAT_BY(STAT_NiagaraRT2DMemory, MemorySize);
-
-	MemorySize = 0;
-	if (TextureReferenceRHI.IsValid())
-	{
-		if (FRHITexture* RHITexture = TextureReferenceRHI->GetReferencedTexture())
-		{
-			MemorySize = RHIComputeMemorySize(RHITexture);
-		}
-	}
-
-	INC_MEMORY_STAT_BY(STAT_NiagaraRT2DMemory, MemorySize);
-}
-#endif
-
-/*--------------------------------------------------------------------------------------------------------------------------*/
 
 UNiagaraDataInterfaceRenderTarget2D::UNiagaraDataInterfaceRenderTarget2D(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -378,10 +340,9 @@ bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceD
 {
 	check(Proxy);
 
-	extern float GNiagaraRenderTargetResolutionMultiplier;
 	FRenderTarget2DRWInstanceData_GameThread* InstanceData = new (PerInstanceData) FRenderTarget2DRWInstanceData_GameThread();
-	InstanceData->Size.X = FMath::Clamp<int>(int(float(Size.X) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxTextureDimensions);
-	InstanceData->Size.Y = FMath::Clamp<int>(int(float(Size.Y) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxTextureDimensions);
+	InstanceData->Size.X = FMath::Clamp<int>(Size.X, 1, GMaxTextureDimensions);
+	InstanceData->Size.Y = FMath::Clamp<int>(Size.Y, 1, GMaxTextureDimensions);
 	InstanceData->Format = bOverrideFormat ? OverrideRenderTargetFormat : GetDefault<UNiagaraSettings>()->DefaultRenderTargetFormat;
 	InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter);
 #if WITH_EDITORONLY_DATA
@@ -426,10 +387,6 @@ bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceD
 #endif
 			TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 			TargetData->UAV.SafeRelease();
-
-#if STATS
-			TargetData->UpdateMemoryStats();
-#endif
 		}
 	);
 	return true;
@@ -446,25 +403,14 @@ void UNiagaraDataInterfaceRenderTarget2D::DestroyPerInstanceData(void* PerInstan
 	ENQUEUE_RENDER_COMMAND(FNiagaraDIDestroyInstanceData) (
 		[RT_Proxy, InstanceID=SystemInstance->GetId(), Batcher=SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
 		{
-#if STATS
-			FRenderTarget2DRWInstanceData_RenderThread* TargetData = RT_Proxy->SystemInstancesToProxyData_RT.Find(InstanceID);
-			if ( ensure(TargetData != nullptr) )
-			{
-				TargetData->TextureReferenceRHI = nullptr;
-				TargetData->UpdateMemoryStats();
-			}
-#endif
 			//check(ThisProxy->SystemInstancesToProxyData.Contains(InstanceID));
 			RT_Proxy->SystemInstancesToProxyData_RT.Remove(InstanceID);
 		}
 	);
 
 	// Make sure to clear out the reference to the render target if we created one.
-	UTextureRenderTarget2D* ExistingRenderTarget = nullptr;
-	if ( ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && GNiagaraReleaseResourceOnRemove)
-	{
-		ExistingRenderTarget->ReleaseResource();
-	}
+	FNiagaraSystemInstanceID SysId = SystemInstance->GetId();
+	ManagedRenderTargets.Remove(SysId);
 }
 
 
@@ -495,7 +441,6 @@ void UNiagaraDataInterfaceRenderTarget2D::SetSize(FVectorVMContext& Context)
 	FNDIInputParam<int> InSizeY(Context);
 	FNDIOutputParam<FNiagaraBool> OutSuccess(Context);
 
-	extern float GNiagaraRenderTargetResolutionMultiplier;
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
 	{
 		const int SizeX = InSizeX.GetAndAdvance();
@@ -504,8 +449,8 @@ void UNiagaraDataInterfaceRenderTarget2D::SetSize(FVectorVMContext& Context)
 		OutSuccess.SetAndAdvance(bSuccess);
 		if (bSuccess)
 		{
-			InstData->Size.X = FMath::Clamp<int>(int(float(SizeX) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxTextureDimensions);
-			InstData->Size.Y = FMath::Clamp<int>(int(float(SizeY) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxTextureDimensions);
+			InstData->Size.X = FMath::Clamp<int>(SizeX, 1, GMaxTextureDimensions);
+			InstData->Size.Y = FMath::Clamp<int>(SizeY, 1, GMaxTextureDimensions);
 		}
 	}
 }
@@ -549,12 +494,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 				if ( InstanceData->TargetTexture != UserTargetTexture )
 				{
 					InstanceData->TargetTexture = UserTargetTexture;
-
-					UTextureRenderTarget2D* ExistingRenderTarget = nullptr;
-					if ( ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && GNiagaraReleaseResourceOnRemove)
-					{
-						ExistingRenderTarget->ReleaseResource();
-					}
+					ManagedRenderTargets.Remove(SystemInstance->GetId());
 				}
 			}
 			else
@@ -575,11 +515,6 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 				InstanceData->TargetTexture->InitAutoFormat(InstanceData->Size.X, InstanceData->Size.Y);
 				InstanceData->TargetTexture->UpdateResourceImmediate(true);
 				bUpdateRT = true;
-
-				//////////////////////////////////////////////////////////////////////////
-				//-TOFIX: Workaround FORT-315375 GT / RT Race
-				SystemInstance->RequestMaterialRecache();
-				//////////////////////////////////////////////////////////////////////////
 			}
 		}
 
@@ -599,9 +534,6 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 	#endif
 						TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 						TargetData->UAV.SafeRelease();
-#if STATS
-						TargetData->UpdateMemoryStats();
-#endif
 					}
 				}
 			);

@@ -18,7 +18,6 @@
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
-#include "MovieSceneSpawnableAnnotation.h"
 #include "Algo/Transform.h"
 #include "Algo/Copy.h"
 #include "Containers/Union.h"
@@ -290,22 +289,10 @@ void F3DAttachTrackEditor::ActorSocketPicked(const FName SocketName, USceneCompo
 		{
 			ConstraintBindingID = ActorPickerID.ExistingBindingID;
 		}
-		else if (AActor* Actor = ActorPickerID.ActorPicked.Get())
+		else if (ActorPickerID.ActorPicked.IsValid())
 		{
-			TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
-
-			TOptional<FMovieSceneSpawnableAnnotation> Spawnable = FMovieSceneSpawnableAnnotation::Find(Actor);
-			if (Spawnable.IsSet())
-			{
-				// Check whether the spawnable is underneath the current sequence, if so, we can remap it to a local sequence ID
-				ConstraintBindingID = FMovieSceneObjectBindingID(Spawnable->ObjectBindingID, Spawnable->SequenceID);
-				ConstraintBindingID.TryAndMakeLocalTo(SequencerPtr->GetFocusedTemplateID(), *SequencerPtr);
-			}
-			else
-			{
-				FGuid ParentActorId = FindOrCreateHandleToObject(Actor).Handle;
-				ConstraintBindingID = FMovieSceneObjectBindingID(ParentActorId, MovieSceneSequenceID::Root, EMovieSceneObjectBindingSpace::Local);
-			}
+			FGuid ParentActorId = FindOrCreateHandleToObject(ActorPickerID.ActorPicked.Get()).Handle;
+			ConstraintBindingID = FMovieSceneObjectBindingID(ParentActorId, MovieSceneSequenceID::Root, EMovieSceneObjectBindingSpace::Local);
 		}
 
 		if (ConstraintBindingID.IsValid())
@@ -1134,23 +1121,12 @@ FKeyPropertyResult F3DAttachTrackEditor::AddKeyInternal( FFrameNumber KeyTime, c
 	{
 		ConstraintBindingID = ActorPickerID.ExistingBindingID;
 	}
-	else if (AActor* Actor = ActorPickerID.ActorPicked.Get())
+	else if (ActorPickerID.ActorPicked.IsValid())
 	{
-		TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
-
-		TOptional<FMovieSceneSpawnableAnnotation> Spawnable = FMovieSceneSpawnableAnnotation::Find(Actor);
-		if (Spawnable.IsSet())
-		{
-			// Check whether the spawnable is underneath the current sequence, if so, we can remap it to a local sequence ID
-			ConstraintBindingID = FMovieSceneObjectBindingID(Spawnable->ObjectBindingID, Spawnable->SequenceID);
-			ConstraintBindingID.TryAndMakeLocalTo(SequencerPtr->GetFocusedTemplateID(), *SequencerPtr);
-		}
-		else
-		{
-			FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToObject(ActorPickerID.ActorPicked.Get());
-			KeyPropertyResult.bHandleCreated |= HandleResult.bWasCreated;
-			ConstraintBindingID = FMovieSceneObjectBindingID(HandleResult.Handle, MovieSceneSequenceID::Root, EMovieSceneObjectBindingSpace::Local);
-		}
+		FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToObject(ActorPickerID.ActorPicked.Get());
+		FGuid ParentActorId = HandleResult.Handle;
+		KeyPropertyResult.bHandleCreated |= HandleResult.bWasCreated;
+		ConstraintBindingID = FMovieSceneObjectBindingID(ParentActorId, MovieSceneSequenceID::Root, EMovieSceneObjectBindingSpace::Local);
 	}
 
 	if (!ConstraintBindingID.IsValid())
@@ -1158,7 +1134,6 @@ FKeyPropertyResult F3DAttachTrackEditor::AddKeyInternal( FFrameNumber KeyTime, c
 		return KeyPropertyResult;
 	}
 
-	FMovieSceneSequenceID CurrentSequenceID = GetSequencer()->GetFocusedTemplateID();
 	UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
 
 	// It's possible that the objects bound to this parent binding ID are null, in which case there will be no compensation
@@ -1166,12 +1141,11 @@ FKeyPropertyResult F3DAttachTrackEditor::AddKeyInternal( FFrameNumber KeyTime, c
 
 	FWorldTransformEvaluator ParentTransformEval(SharedThis(this), ParentActor, SocketName);
 
+	FGuid ParentActorHandle = GetSequencer()->GetHandleToObject(ParentActor, false);
 	TOptional<TArrayView<FMovieSceneFloatChannel*>> ParentChannels;
-
-	// If the constraint exists within this sequence, we can perform transform compensation
-	if (ConstraintBindingID.ResolveLocalToRoot(CurrentSequenceID,*GetSequencer()).GetSequenceID() == CurrentSequenceID)
+	if (ParentActorHandle.IsValid())
 	{
-		UMovieScene3DTransformTrack* ParentTransformTrack = MovieScene->FindTrack<UMovieScene3DTransformTrack>(ConstraintBindingID.GetGuid());
+		UMovieScene3DTransformTrack* ParentTransformTrack = MovieScene->FindTrack<UMovieScene3DTransformTrack>(ParentActorHandle);
 		if (ParentTransformTrack && ParentTransformTrack->GetAllSections().Num() == 1)
 		{
 			ParentChannels = ParentTransformTrack->GetAllSections()[0]->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();

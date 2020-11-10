@@ -31,7 +31,6 @@
 #include "Chaos/Public/EventManager.h"
 #include "Chaos/Public/RewindData.h"
 #include "PhysicsSettingsCore.h"
-#include "Chaos/PhysicsSolverBaseImpl.h"
 
 #include "ProfilingDebugging/CsvProfiler.h"
 
@@ -47,8 +46,7 @@ FChaosScene::FChaosScene(
 	, const FName& DebugName
 #endif
 )
-	: SolverAccelerationStructure(nullptr)
-	, ChaosModule(nullptr)
+	: ChaosModule(nullptr)
 	, SceneSolver(nullptr)
 	, Owner(OwnerPtr)
 {
@@ -125,21 +123,21 @@ void FChaosScene::AddPieModifiedObject(UObject* InObj)
 
 const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float,3>,float,3>* FChaosScene::GetSpacialAcceleration() const
 {
-	return SolverAccelerationStructure;
+	return SolverAccelerationStructure.Get();
 }
 
 Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float,3>,float,3>* FChaosScene::GetSpacialAcceleration()
 {
-	return SolverAccelerationStructure;
+	return SolverAccelerationStructure.Get();
 }
 
 void FChaosScene::CopySolverAccelerationStructure()
 {
-	using namespace Chaos;
 	if(SceneSolver)
 	{
-		FPhysicsSceneGuardScopedWrite ScopedWrite(SceneSolver->GetExternalDataLock_External());
+		ExternalDataLock.WriteLock();
 		SceneSolver->UpdateExternalAccelerationStructure_External(SolverAccelerationStructure);
+		ExternalDataLock.WriteUnlock();
 	}
 }
 
@@ -170,12 +168,12 @@ void FChaosScene::Flush_AssumesLocked()
 void FChaosScene::RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor)
 {
 #if WITH_CHAOS
-	using namespace Chaos;
 	if(GetSpacialAcceleration() && Actor->UniqueIdx().IsValid())
 	{
-		FPhysicsSceneGuardScopedWrite ScopedWrite(SceneSolver->GetExternalDataLock_External());
+		ExternalDataLock.WriteLock();
 		Chaos::TAccelerationStructureHandle<float,3> AccelerationHandle(Actor);
 		GetSpacialAcceleration()->RemoveElementFrom(AccelerationHandle,Actor->SpatialIdx());
+		ExternalDataLock.WriteUnlock();
 	}
 #endif
 }
@@ -187,7 +185,7 @@ void FChaosScene::UpdateActorInAccelerationStructure(const FPhysicsActorHandle& 
 
 	if(GetSpacialAcceleration())
 	{
-		FPhysicsSceneGuardScopedWrite ScopedWrite(SceneSolver->GetExternalDataLock_External());
+		ExternalDataLock.WriteLock();
 
 		auto SpatialAcceleration = GetSpacialAcceleration();
 
@@ -207,6 +205,7 @@ void FChaosScene::UpdateActorInAccelerationStructure(const FPhysicsActorHandle& 
 		}
 
 		GetSolver()->UpdateParticleInAccelerationStructure_External(Actor,/*bDelete=*/false);
+		ExternalDataLock.WriteUnlock();
 	}
 #endif
 }
@@ -218,7 +217,7 @@ void FChaosScene::UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsA
 
 	if(GetSpacialAcceleration())
 	{
-		FPhysicsSceneGuardScopedWrite ScopedWrite(SceneSolver->GetExternalDataLock_External());
+		ExternalDataLock.WriteLock();
 
 		auto SpatialAcceleration = GetSpacialAcceleration();
 
@@ -252,6 +251,8 @@ void FChaosScene::UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsA
 				GetSolver()->UpdateParticleInAccelerationStructure_External(Actor,/*bDelete=*/false);
 			}
 		}
+
+		ExternalDataLock.WriteUnlock();
 	}
 #endif
 }
@@ -339,34 +340,29 @@ void FChaosScene::StartFrame()
 #endif
 }
 
-void FChaosScene::OnSyncBodies()
+void FChaosScene::OnSyncBodies(int32 SyncTimestamp, Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor)
 {
-	GetSolver()->PullPhysicsStateForEachDirtyProxy_External([](auto){});
-}
+	using namespace Chaos;
+	//simple implementation that pulls data over. Used for unit testing, engine has its own version of this
+	const FPBDRigidDirtyParticlesBufferOut* DirtyParticleBuffer = Accessor.GetSolverOutData();
 
-bool FChaosScene::AreAnyTasksPending() const
-{
-	if (!IsCompletionEventComplete())
+	for(FSingleParticlePhysicsProxy<TPBDRigidParticle<float,3> >* Proxy : DirtyParticleBuffer->DirtyGameThreadParticles)
 	{
-		return true;
+		Proxy->PullFromPhysicsState(SyncTimestamp);
 	}
 
-	const Chaos::FPBDRigidsSolver* Solver = GetSolver();
-	if (Solver && Solver->AreAnyTasksPending())
+	for(IPhysicsProxyBase* ProxyBase : DirtyParticleBuffer->PhysicsParticleProxies)
 	{
-		return true;
+		if(ProxyBase->GetType() == EPhysicsProxyType::GeometryCollectionType)
+		{
+			FGeometryCollectionPhysicsProxy* GCProxy = static_cast<FGeometryCollectionPhysicsProxy*>(ProxyBase);
+			GCProxy->PullFromPhysicsState(SyncTimestamp);
+		} else
+		{
+			ensure(false); // Unhandled physics only particle proxy!
+		}
 	}
-	
-	return false;
-}
 
-void FChaosScene::BeginDestroy()
-{
-	Chaos::FPBDRigidsSolver* Solver = GetSolver();
-	if (Solver)
-	{
-		Solver->BeginDestroy();
-	}
 }
 
 bool FChaosScene::IsCompletionEventComplete() const
@@ -387,7 +383,21 @@ void FChaosScene::SyncBodies(TSolver* Solver)
 {
 #if WITH_CHAOS
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SyncBodies"),STAT_SyncBodies,STATGROUP_Physics);
-	OnSyncBodies();
+	const int32 SolverSyncTimestamp = Solver->GetMarshallingManager().GetExternalTimestampConsumed_External();
+	Chaos::FPBDRigidDirtyParticlesBufferAccessor Accessor(Solver->GetDirtyParticlesBuffer());
+	OnSyncBodies(SolverSyncTimestamp, Accessor);
+	//
+	// @todo(chaos) : Add Dirty Constraints Support
+	//
+	// This is temporary constraint code until the DirtyParticleBuffer
+	// can be updated to support constraints. In summary : The 
+	// FDirtyPropertiesManager is going to be updated to support a 
+	// FDirtySet that is specific to a TConstraintProperties class.
+	//
+	for (FJointConstraintPhysicsProxy* Proxy : Solver->GetJointConstraintPhysicsProxy_External())
+	{
+		Proxy->PullFromPhysicsState(SolverSyncTimestamp);
+	}
 #endif
 }
 
@@ -479,7 +489,7 @@ void FChaosScene::EndFrame()
 
 				{
 					SCOPE_CYCLE_COUNTER(STAT_SqUpdateMaterials);
-					Concrete.SyncQueryMaterials_External();
+					Concrete.SyncQueryMaterials();
 				}
 			});
 		}

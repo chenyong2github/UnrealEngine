@@ -263,18 +263,6 @@ void UWorldThumbnailRenderer::GetView(UWorld* World, FSceneViewFamily* ViewFamil
 			ensureMsgf(false, TEXT("Unknown thumbnail CameraMode"));
 		}
 
-		ensureMsgf(!ViewRotationMatrix.ContainsNaN(), TEXT("Nans found on ViewRotationMatrix"));
-		if (ViewRotationMatrix.ContainsNaN())
-		{
-			ViewRotationMatrix.SetIdentity();
-		}
-
-		ensureMsgf(!ProjectionMatrix.ContainsNaN(), TEXT("Nans found on ProjectionMatrix"));
-		if (ProjectionMatrix.ContainsNaN())
-		{
-			ProjectionMatrix.SetIdentity();
-		}
-
 		FSceneViewInitOptions ViewInitOptions;
 		ViewInitOptions.ViewFamily = ViewFamily;
 		ViewInitOptions.SetViewRectangle(ViewRect);

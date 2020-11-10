@@ -234,10 +234,6 @@ class UTimelineTemplate : public UObject
 	UPROPERTY(duplicatetransient)
 	FGuid	TimelineGuid;
 
-	/** Allow control of Timeline component TickGroup assignment via TimelineTemplates */
-	UPROPERTY()
-	TEnumAsByte<ETickingGroup> TimelineTickGroup;
-
 	/** Find the index of a float track */
 	int32 FindFloatTrackIndex(FName FloatTrackName) const;
 	

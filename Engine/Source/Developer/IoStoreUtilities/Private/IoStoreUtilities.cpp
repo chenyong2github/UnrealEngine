@@ -17,7 +17,7 @@
 #include "Misc/Base64.h"
 #include "Misc/AES.h"
 #include "Misc/CoreDelegates.h"
-#include "Misc/KeyChainUtilities.h"
+#include "Misc/IEngineCrypto.h"
 #include "Modules/ModuleManager.h"
 #include "Serialization/Archive.h"
 #include "Serialization/BulkDataManifest.h"
@@ -73,6 +73,137 @@ struct FReleasedPackages
 	TMap<FPackageId, FName> PackageIdToName;
 };
 
+struct FNamedAESKey
+{
+	FString Name;
+	FGuid Guid;
+	FAES::FAESKey Key;
+
+	bool IsValid() const
+	{
+		return Key.IsValid();
+	}
+};
+
+struct FKeyChain
+{
+	FRSAKeyHandle SigningKey = InvalidRSAKeyHandle;
+	TMap<FGuid, FNamedAESKey> EncryptionKeys;
+	const FNamedAESKey* MasterEncryptionKey = nullptr;
+};
+
+static void ApplyEncryptionKeys(const FKeyChain& KeyChain)
+{
+	if (KeyChain.EncryptionKeys.Contains(FGuid()))
+	{
+		FAES::FAESKey DefaultKey = KeyChain.EncryptionKeys[FGuid()].Key;
+		FCoreDelegates::GetPakEncryptionKeyDelegate().BindLambda([DefaultKey](uint8 OutKey[32]) { FMemory::Memcpy(OutKey, DefaultKey.Key, sizeof(DefaultKey.Key)); });
+	}
+
+	for (const TMap<FGuid, FNamedAESKey>::ElementType& Key : KeyChain.EncryptionKeys)
+	{
+		if (Key.Key.IsValid())
+		{
+			// Deprecated version
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			FCoreDelegates::GetRegisterEncryptionKeyDelegate().ExecuteIfBound(Key.Key, Key.Value.Key);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+			// New version
+			FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().Broadcast(Key.Key, Key.Value.Key);
+		}
+	}
+}
+
+static FRSAKeyHandle ParseRSAKeyFromJson(TSharedPtr<FJsonObject> InObj)
+{
+	TSharedPtr<FJsonObject> PublicKey = InObj->GetObjectField(TEXT("PublicKey"));
+	TSharedPtr<FJsonObject> PrivateKey = InObj->GetObjectField(TEXT("PrivateKey"));
+
+	FString PublicExponentBase64, PrivateExponentBase64, PublicModulusBase64, PrivateModulusBase64;
+
+	if (   PublicKey->TryGetStringField("Exponent", PublicExponentBase64)
+		&& PublicKey->TryGetStringField("Modulus", PublicModulusBase64)
+		&& PrivateKey->TryGetStringField("Exponent", PrivateExponentBase64)
+		&& PrivateKey->TryGetStringField("Modulus", PrivateModulusBase64))
+	{
+		check(PublicModulusBase64 == PrivateModulusBase64);
+
+		TArray<uint8> PublicExponent, PrivateExponent, Modulus;
+		FBase64::Decode(PublicExponentBase64, PublicExponent);
+		FBase64::Decode(PrivateExponentBase64, PrivateExponent);
+		FBase64::Decode(PublicModulusBase64, Modulus);
+
+		return FRSA::CreateKey(PublicExponent, PrivateExponent, Modulus);
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+static void LoadKeyChainFromFile(const FString& InFilename, FKeyChain& OutCryptoSettings)
+{
+	TUniquePtr<FArchive> File;
+	File.Reset(IFileManager::Get().CreateFileReader(*InFilename));
+
+	UE_CLOG(File == nullptr, LogIoStore, Fatal, TEXT("Specified crypto keys cache '%s' does not exist!"), *InFilename);
+	TSharedPtr<FJsonObject> RootObject;
+	TSharedRef<TJsonReader<char>> Reader = TJsonReaderFactory<char>::Create(File.Get());
+	if (FJsonSerializer::Deserialize(Reader, RootObject))
+	{
+		const TSharedPtr<FJsonObject>* EncryptionKeyObject;
+		if (RootObject->TryGetObjectField(TEXT("EncryptionKey"), EncryptionKeyObject))
+		{
+			FString EncryptionKeyBase64;
+			if ((*EncryptionKeyObject)->TryGetStringField(TEXT("Key"), EncryptionKeyBase64))
+			{
+				if (EncryptionKeyBase64.Len() > 0)
+				{
+					TArray<uint8> Key;
+					FBase64::Decode(EncryptionKeyBase64, Key);
+					check(Key.Num() == sizeof(FAES::FAESKey::Key));
+					FNamedAESKey NewKey;
+					NewKey.Name = TEXT("Default");
+					NewKey.Guid = FGuid();
+					FMemory::Memcpy(NewKey.Key.Key, &Key[0], sizeof(FAES::FAESKey::Key));
+					OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
+				}
+			}
+		}
+
+		const TSharedPtr<FJsonObject>* SigningKey = nullptr;
+		if (RootObject->TryGetObjectField(TEXT("SigningKey"), SigningKey))
+		{
+			OutCryptoSettings.SigningKey = ParseRSAKeyFromJson(*SigningKey);
+		}
+
+		const TArray<TSharedPtr<FJsonValue>>* SecondaryEncryptionKeyArray = nullptr;
+		if (RootObject->TryGetArrayField(TEXT("SecondaryEncryptionKeys"), SecondaryEncryptionKeyArray))
+		{
+			for (TSharedPtr<FJsonValue> EncryptionKeyValue : *SecondaryEncryptionKeyArray)
+			{
+				FNamedAESKey NewKey;
+				TSharedPtr<FJsonObject> SecondaryEncryptionKeyObject = EncryptionKeyValue->AsObject();
+				FGuid::Parse(SecondaryEncryptionKeyObject->GetStringField(TEXT("Guid")), NewKey.Guid);
+				NewKey.Name = SecondaryEncryptionKeyObject->GetStringField(TEXT("Name"));
+				FString KeyBase64 = SecondaryEncryptionKeyObject->GetStringField(TEXT("Key"));
+
+				TArray<uint8> Key;
+				FBase64::Decode(KeyBase64, Key);
+				check(Key.Num() == sizeof(FAES::FAESKey::Key));
+				FMemory::Memcpy(NewKey.Key.Key, &Key[0], sizeof(FAES::FAESKey::Key));
+
+				check(!OutCryptoSettings.EncryptionKeys.Contains(NewKey.Guid) || OutCryptoSettings.EncryptionKeys[NewKey.Guid].Key == NewKey.Key);
+				OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
+			}
+		}
+		UE_LOG(LogIoStore, Display, TEXT("Parsed '%d' crypto keys from '%s'"), OutCryptoSettings.EncryptionKeys.Num(), *InFilename);
+	}
+	FGuid EncryptionKeyOverrideGuid;
+	OutCryptoSettings.MasterEncryptionKey = OutCryptoSettings.EncryptionKeys.Find(EncryptionKeyOverrideGuid);
+}
+
 static void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 {
 	OutCryptoSettings.SigningKey = InvalidRSAKeyHandle;
@@ -83,7 +214,7 @@ static void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 	if (FParse::Value(CmdLine, TEXT("cryptokeys="), CryptoKeysCacheFilename))
 	{
 		UE_LOG(LogIoStore, Display, TEXT("Parsing crypto keys from a crypto key cache file '%s'"), *CryptoKeysCacheFilename);
-		KeyChainUtilities::LoadKeyChainFromFile(CryptoKeysCacheFilename, OutCryptoSettings);
+		LoadKeyChainFromFile(CryptoKeysCacheFilename, OutCryptoSettings);
 	}
 	else if (FParse::Param(CmdLine, TEXT("encryptionini")))
 	{
@@ -4380,7 +4511,7 @@ int32 ListContainer(
 	TArray<FString> CsvLines;
 	TArray<TPair<uint32, FString>> ContainerCsvLines;
 
-	CsvLines.Add(TEXT("PackageId, PackageName, Filename, ContainerName, Offset, Size, CompressedSize, Hash"));
+	CsvLines.Add(TEXT("PackageId, PackageName, Filename, ContainerName, Offset, Size, Hash"));
 
 	for (const FString& ContainerFilePath : ContainerFilePaths)
 	{
@@ -4423,26 +4554,24 @@ int32 ListContainer(
 			{
 				ContainerCsvLines.Emplace(TPair<uint32, FString>(
 					TocEntryIndex,
-					FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, %lld, 0x%s"),
+					FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, 0x%s"),
 					PackageId.ValueForDebugging(),
 					*PackageName,
 					*Filename,
 					*ContainerName,
 					ChunkInfo.ValueOrDie().Offset,
 					ChunkInfo.ValueOrDie().Size,
-					ChunkInfo.ValueOrDie().CompressedSize,
 					*ChunkInfo.ValueOrDie().Hash.ToString())));
 			}
 			else
 			{
 				ContainerCsvLines.Emplace(TPair<uint32, FString>(
 					TocEntryIndex,
-					FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, %lld, %s"),
+					FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, %s"),
 					PackageId.ValueForDebugging(),
 					*PackageName,
 					*Filename,
 					*ContainerName,
-					0,
 					0,
 					0,
 					TEXT("<NotFound>"))));
@@ -5493,7 +5622,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	FKeyChain PatchKeyChain;
 	if (FParse::Value(FCommandLine::Get(), TEXT("PatchCryptoKeys="), PatchReferenceCryptoKeysFilename))
 	{
-		KeyChainUtilities::LoadKeyChainFromFile(PatchReferenceCryptoKeysFilename, Arguments.PatchKeyChain);
+		LoadKeyChainFromFile(PatchReferenceCryptoKeysFilename, Arguments.PatchKeyChain);
 	}
 
 	FString GameOrderFilePath;
@@ -5549,29 +5678,25 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 
 	ParseSizeArgument(CmdLine, TEXT("-alignformemorymapping="), GeneralIoWriterSettings.MemoryMappingAlignment, DefaultMemoryMappingAlignment);
 	ParseSizeArgument(CmdLine, TEXT("-compressionblocksize="), GeneralIoWriterSettings.CompressionBlockSize, DefaultCompressionBlockSize);
-		
-	GeneralIoWriterSettings.CompressionBlockAlignment = DefaultCompressionBlockAlignment;
-	
-	uint64 BlockAlignment = 0;
-	if (ParseSizeArgument(CmdLine, TEXT("-blocksize="), BlockAlignment))
+	bool bUseDefaultCompressionBlockAlignment = true;
+	if (ParseSizeArgument(CmdLine, TEXT("-blocksize="), GeneralIoWriterSettings.CompressionBlockAlignment))
 	{
-		GeneralIoWriterSettings.CompressionBlockAlignment = BlockAlignment;
+		bUseDefaultCompressionBlockAlignment = false;
 	}
-	
+
 	uint64 PatchPaddingAlignment = 0;
-	if (ParseSizeArgument(CmdLine, TEXT("-patchpaddingalign="), PatchPaddingAlignment))
+	if (ParseSizeArgument(CmdLine, TEXT("-patchpaddingalign"), PatchPaddingAlignment))
 	{
-		if (PatchPaddingAlignment < GeneralIoWriterSettings.CompressionBlockAlignment)
+		bUseDefaultCompressionBlockAlignment = false;
+		if (!GeneralIoWriterSettings.CompressionBlockAlignment || PatchPaddingAlignment < GeneralIoWriterSettings.CompressionBlockAlignment)
 		{
 			GeneralIoWriterSettings.CompressionBlockAlignment = PatchPaddingAlignment;
 		}
 	}
-	
-	// Temporary, this command-line allows us to explicitly override the value otherwise shared between pak building and iostore
-	uint64 IOStorePatchPaddingAlignment = 0;
-	if (ParseSizeArgument(CmdLine, TEXT("-iostorepatchpaddingalign="), IOStorePatchPaddingAlignment))
+
+	if (bUseDefaultCompressionBlockAlignment)
 	{
-		GeneralIoWriterSettings.CompressionBlockAlignment = IOStorePatchPaddingAlignment;
+		GeneralIoWriterSettings.CompressionBlockAlignment = DefaultCompressionBlockAlignment;
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Using memory mapping alignment '%ld'"), GeneralIoWriterSettings.MemoryMappingAlignment);

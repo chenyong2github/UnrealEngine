@@ -42,7 +42,6 @@ struct FRayTracingPrimaryRaysOptions
 
 
 #if RHI_RAYTRACING
-
 extern bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 extern int32 GetForceRayTracingEffectsCVarValue();
 extern FRayTracingPrimaryRaysOptions GetRayTracingTranslucencyOptions();
@@ -60,9 +59,8 @@ extern bool EnableRayTracingShadowTwoSidedGeometry();
 extern float GetRaytracingMaxNormalBias();
 
 extern bool CanUseRayTracingLightingMissShader(EShaderPlatform ShaderPlatform);
-extern bool CanUseRayTracingAMDHitToken();
 
-#else // RHI_RAYTRACING
+#else
 
 FORCEINLINE bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
 {
@@ -119,9 +117,4 @@ FORCEINLINE bool CanUseRayTracingLightingMissShader(EShaderPlatform)
 	return false;
 }
 
-FORCEINLINE bool CanUseRayTracingAMDHitToken()
-{
-	return false;
-}
-
-#endif // RHI_RAYTRACING
+#endif

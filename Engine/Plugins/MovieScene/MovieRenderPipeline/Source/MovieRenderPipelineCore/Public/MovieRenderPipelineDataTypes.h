@@ -542,7 +542,6 @@ public:
 	{
 		TimeData.ResetPerFrameData();
 		bSkipRendering = false;
-		bCaptureRendering = false;
 		bDiscardRenderResult = false;
 		SourceFrameNumber = 0;
 		SourceTimeCode = FTimecode();
@@ -569,11 +568,6 @@ public:
 	* and simply omit rendering them. This increases consistency with non-skipped renders, and will be useful for consistency when rendering on a farm.
 	*/
 	bool bSkipRendering;
-
-	/**
-	* If true, and a IRenderCaptureProvider is available, trigger a capture of the rendering process of this frame.
-	*/
-	bool bCaptureRendering;
 
 	/**
 	* If this is true, then the frame will be rendered but the results discarded and not sent to the accumulator. This is used for render warmup frames

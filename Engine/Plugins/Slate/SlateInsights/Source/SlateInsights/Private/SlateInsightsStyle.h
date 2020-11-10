@@ -5,7 +5,6 @@
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
-#include "Styling/CoreStyle.h"
 
 namespace UE
 {

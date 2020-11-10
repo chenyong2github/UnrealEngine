@@ -38,16 +38,16 @@ private:
 };
 
 /**
- * A camera shake pattern that plays a sequencer animation.
+ * A camera shake that plays a sequencer animation.
  */
-UCLASS()
-class TEMPLATESEQUENCE_API USequenceCameraShakePattern : public UCameraShakePattern
+UCLASS(Blueprintable)
+class TEMPLATESEQUENCE_API USequenceCameraShake : public UCameraShakeBase
 {
 public:
 
 	GENERATED_BODY()
 
-	USequenceCameraShakePattern(const FObjectInitializer& ObjInit);
+	USequenceCameraShake(const FObjectInitializer& ObjInit);
 
 public:
 
@@ -87,11 +87,11 @@ public:
 private:
 
 	// UCameraShakeBase interface
-	virtual void GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const override;
-	virtual void StartShakePatternImpl(const FCameraShakeStartParams& Params) override;
-	virtual void UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult) override;
-	virtual void StopShakePatternImpl(const FCameraShakeStopParams& Params) override;
-	virtual void TeardownShakePatternImpl() override;
+	virtual void GetShakeInfoImpl(FCameraShakeInfo& OutInfo) const override;
+	virtual void StartShakeImpl() override;
+	virtual void UpdateShakeImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult) override;
+	virtual void StopShakeImpl(bool bImmediately) override;
+	virtual void TeardownShakeImpl() override;
 
 	static void RegisterCameraStandIn();
 
@@ -209,4 +209,3 @@ private:
 	/** Movie player status. */
 	TEnumAsByte<EMovieScenePlayerStatus::Type> Status;
 };
-

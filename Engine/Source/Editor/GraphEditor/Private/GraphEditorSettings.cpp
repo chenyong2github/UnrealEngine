@@ -76,10 +76,6 @@ UGraphEditorSettings::UGraphEditorSettings( const FObjectInitializer& ObjectInit
 	TraceReleasePeriod = 1.5f;
 	TraceReleaseExponent = 1.4f;
 
-	// Comment nodes
-	DefaultCommentNodeMoveMode = ECommentBoxMode::GroupMovement;
-	bShowCommentBubbleWhenZoomedOut = false;
-
 	// Blueprint editor graph node title colors
 	EventNodeTitleColor = FLinearColor(1.f, 0.0f, 0.0f, 1.0f);
 	FunctionCallNodeTitleColor = FLinearColor(0.190525f, 0.583898f, 1.0f, 1.0f);

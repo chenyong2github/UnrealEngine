@@ -5105,14 +5105,6 @@ float FAsyncLoadingThread::GetAsyncLoadPercentage(const FName& PackageName)
  */
 void FAsyncLoadingThread::NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject)
 {
-	FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
-	if (!ThreadContext.AsyncPackage)
-	{
-		// Something is creating objects on the async loading thread outside of the actual async loading code
-		// e.g. ShaderCodeLibrary::OnExternalReadCallback doing FTaskGraphInterface::Get().WaitUntilTaskCompletes(Event);
-		return;
-	}
-
 	// Mark objects created during async loading process (e.g. from within PostLoad or CreateExport) as async loaded so they 
 	// cannot be found. This requires also keeping track of them so we can remove the async loading flag later one when we 
 	// finished routing PostLoad to all objects.
@@ -5120,7 +5112,8 @@ void FAsyncLoadingThread::NotifyConstructedDuringAsyncLoading(UObject* Object, b
 	{
 		Object->SetInternalFlags(EInternalObjectFlags::AsyncLoading);
 	}
-
+	FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
+	check(ThreadContext.AsyncPackage); // Otherwise something is wrong and we're creating objects outside of async loading code
 	FAsyncPackage* AsyncPackage = static_cast<FAsyncPackage*>(ThreadContext.AsyncPackage);
 	AsyncPackage->AddObjectReference(Object);
 	if (GEventDrivenLoaderEnabled)

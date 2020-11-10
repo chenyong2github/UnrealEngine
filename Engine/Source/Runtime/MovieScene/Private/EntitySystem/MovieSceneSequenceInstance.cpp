@@ -78,14 +78,14 @@ void FSequenceInstance::InitializeLegacyEvaluator(UMovieSceneEntitySystemLinker*
 	IMovieScenePlayer* Player = GetPlayer();
 	check(Player);
 
-	UMovieSceneCompiledDataManager*     CompiledDataManager = Player->GetEvaluationTemplate().GetCompiledDataManager();
-	const FMovieSceneCompiledDataEntry& CompiledEntry       = CompiledDataManager->GetEntryRef(CompiledDataID);
+	UMovieSceneCompiledDataManager* CompiledDataManager = Player->GetEvaluationTemplate().GetCompiledDataManager();
+	FMovieSceneCompiledDataEntry    CompiledEntry       = CompiledDataManager->GetEntry(CompiledDataID);
 
 	if (EnumHasAnyFlags(CompiledEntry.AccumulatedMask, EMovieSceneSequenceCompilerMask::EvaluationTemplate))
 	{
 		if (!LegacyEvaluator)
 		{
-			LegacyEvaluator = MakeUnique<FMovieSceneTrackEvaluator>(CompiledEntry.GetSequence(), CompiledDataID, CompiledDataManager);
+			LegacyEvaluator = MakeUnique<FMovieSceneTrackEvaluator>(CompiledEntry.GetSequence(), CompiledDataManager);
 		}
 	}
 	else if (LegacyEvaluator)
@@ -104,7 +104,7 @@ void FSequenceInstance::InvalidateCachedData(UMovieSceneEntitySystemLinker* Link
 
 	UMovieSceneCompiledDataManager* CompiledDataManager = Player->GetEvaluationTemplate().GetCompiledDataManager();
 
-	UMovieSceneSequence* Sequence = CompiledDataManager->GetEntryRef(CompiledDataID).GetSequence();
+	UMovieSceneSequence* Sequence = CompiledDataManager->GetEntry(CompiledDataID).GetSequence();
 	Player->State.AssignSequence(SequenceID, *Sequence, *Player);
 
 	if (SequenceID == MovieSceneSequenceID::Root)
@@ -170,11 +170,6 @@ void FSequenceInstance::Start(UMovieSceneEntitySystemLinker* Linker, const FMovi
 void FSequenceInstance::Update(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext)
 {
 	SCOPE_CYCLE_COUNTER(MovieSceneEval_SequenceInstanceUpdate);
-
-#if STATS || ENABLE_STATNAMEDEVENTS
-	const bool bShouldTrackObject = Stats::IsThreadCollectingData();
-	FScopeCycleCounterUObject ContextScope(bShouldTrackObject ? GetPlayer()->AsUObject() : nullptr);
-#endif
 
 	bHasEverUpdated = true;
 

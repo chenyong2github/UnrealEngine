@@ -217,7 +217,7 @@ void FD3D12CommandContext::RHIPushEvent(const TCHAR* Name, FColor Color)
 
 #if NV_AFTERMATH
 		// Only track aftermath for default context?
-		if (IsDefaultContext() && GDX12NVAfterMathEnabled && GDX12NVAfterMathMarkers)
+		if (IsDefaultContext() && GDX12NVAfterMathEnabled)
 			GFSDK_Aftermath_SetEventMarker(CommandListHandle.AftermathCommandContext(), &GPUEventStack[0], GPUEventStack.Num() * sizeof(uint32));
 #endif // NV_AFTERMATH		
 	}

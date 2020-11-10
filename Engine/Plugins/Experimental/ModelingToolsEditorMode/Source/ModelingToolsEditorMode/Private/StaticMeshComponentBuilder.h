@@ -47,21 +47,21 @@ public:
 		NewStaticMesh->GetSourceModel(0).BuildSettings.bRecomputeTangents = true;
 		this->MeshDescription = NewStaticMesh->CreateMeshDescription(0);
 
-		if (NewStaticMesh->GetBodySetup() == nullptr)
+		if (NewStaticMesh->BodySetup == nullptr)
 		{
 			NewStaticMesh->CreateBodySetup();
 		}
-		if (NewStaticMesh->GetBodySetup() != nullptr)
+		if (NewStaticMesh->BodySetup != nullptr)
 		{
 			// enable complex as simple collision to use mesh directly
-			NewStaticMesh->GetBodySetup()->CollisionTraceFlag = ECollisionTraceFlag::CTF_UseComplexAsSimple;
+			NewStaticMesh->BodySetup->CollisionTraceFlag = ECollisionTraceFlag::CTF_UseComplexAsSimple;
 		}
 
 		// add a material slot. Must always have one material slot.
 		int AddMaterialCount = FMath::Max(1, NumMaterialSlots);
 		for (int MatIdx = 0; MatIdx < AddMaterialCount; MatIdx++)
 		{
-			NewStaticMesh->GetStaticMaterials().Add(FStaticMaterial());
+			NewStaticMesh->StaticMaterials.Add(FStaticMaterial());
 		}
 	}
 

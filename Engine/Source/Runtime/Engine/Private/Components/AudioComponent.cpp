@@ -1504,25 +1504,6 @@ void UAudioComponent::SetLowPassFilterFrequency(float InLowPassFilterFrequency)
 	}
 }
 
-void UAudioComponent::SetOutputToBusOnly(bool bInOutputToBusOnly)
-{
-	if (FAudioDevice* AudioDevice = GetAudioDevice())
-	{
-		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetOutputToBusOnly"), STAT_AudioSetOutputToBusOnly, STATGROUP_AudioThreadCommands);
-
-		const uint64 MyAudioComponentID = AudioComponentID;
-		FAudioThread::RunCommandOnAudioThread([AudioDevice, MyAudioComponentID, bInOutputToBusOnly]()
-		{
-			FActiveSound* ActiveSound = AudioDevice->FindActiveSound(MyAudioComponentID);
-			if (ActiveSound)
-			{
-				ActiveSound->bEnableOutputToBusOnlyOverride = true;
-				ActiveSound->bOutputToBusOnlyOverride = bInOutputToBusOnly;
-			}
-		}, GET_STATID(STAT_AudioSetOutputToBusOnly));
-	}
-}
-
 bool UAudioComponent::HasCookedFFTData() const
 {
 	if (Sound)

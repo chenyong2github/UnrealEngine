@@ -1091,9 +1091,8 @@ public:
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
-		const FMaterial& Material = MaterialProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialProxy);
 		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
+		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, *MaterialProxy->GetMaterial(View.GetFeatureLevel()), View);
 
 		HeightfieldDescriptionParameters.Set(RHICmdList, ShaderRHI, GetHeightfieldDescriptionsSRV(), NumHeightfieldsValue);
 		GlobalHeightfieldParameters.Set(RHICmdList, ShaderRHI, Atlas);
@@ -1162,7 +1161,7 @@ void FHeightfieldLightingViewInfo::ComputeLighting(FRDGBuilder& GraphBuilder, co
 		{
 			const bool bApplyLightFunction = (View.Family->EngineShowFlags.LightFunctions &&
 				LightSceneInfo.Proxy->GetLightFunctionMaterial() &&
-				LightSceneInfo.Proxy->GetLightFunctionMaterial()->GetIncompleteMaterialWithFallback(FeatureLevel).IsLightFunction());
+				LightSceneInfo.Proxy->GetLightFunctionMaterial()->GetMaterial(FeatureLevel)->IsLightFunction());
 
 			const FMaterialRenderProxy* MaterialProxy = bApplyLightFunction ?
 				LightSceneInfo.Proxy->GetLightFunctionMaterial() :
@@ -1173,7 +1172,7 @@ void FHeightfieldLightingViewInfo::ComputeLighting(FRDGBuilder& GraphBuilder, co
 			const float SkyLightIndirectScale = ShouldRenderDeferredDynamicSkyLight(Scene, *View.Family) ? Scene->SkyLight->IndirectLightingIntensity : 0;
 
 			// Skip rendering if the DefaultLightFunctionMaterial isn't compiled yet
-			if (MaterialProxy->GetIncompleteMaterialWithFallback(FeatureLevel).IsLightFunction())
+			if (MaterialProxy->GetMaterial(FeatureLevel)->IsLightFunction())
 			{
 				RHICmdList.SetViewport(0, 0, 0.0f, LightingAtlasSize.X, LightingAtlasSize.Y, 1.0f);
 
@@ -1188,8 +1187,8 @@ void FHeightfieldLightingViewInfo::ComputeLighting(FRDGBuilder& GraphBuilder, co
 
 				TShaderMapRef<FHeightfieldComponentQuadVS> VertexShader(View.ShaderMap);
 
-				const FMaterial& Material = MaterialProxy->GetMaterialWithFallback(FeatureLevel, MaterialProxy);
-				const FMaterialShaderMap* MaterialShaderMap = Material.GetRenderingThreadShaderMap();
+				const FMaterial* Material = MaterialProxy->GetMaterial(FeatureLevel);
+				const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
 				TShaderRef<FLightHeightfieldsPS> PixelShader = MaterialShaderMap->GetShader<FLightHeightfieldsPS>();
 
 				for (TMap<FHeightfieldComponentTextures, TArray<FHeightfieldComponentDescription>>::TConstIterator It(Heightfield.ComponentDescriptions); It; ++It)

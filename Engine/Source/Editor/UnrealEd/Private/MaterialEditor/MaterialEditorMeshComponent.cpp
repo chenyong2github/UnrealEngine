@@ -12,11 +12,11 @@ FBoxSphereBounds UMaterialEditorMeshComponent::CalcBounds(const FTransform& Loca
 		FBoxSphereBounds NewBounds = GetStaticMesh()->GetBounds().TransformBy(LocalToWorld);
 
 		// Add bounds of collision geometry (if present).
-		if (GetStaticMesh()->GetBodySetup())
+		if (GetStaticMesh()->BodySetup)
 		{
 			// Use more accurate but expensive bounds function for the material editor only
 			FBoxSphereBounds AggGeomBounds;
-			GetStaticMesh()->GetBodySetup()->AggGeom.CalcBoxSphereBounds(AggGeomBounds, LocalToWorld);
+			GetStaticMesh()->BodySetup->AggGeom.CalcBoxSphereBounds(AggGeomBounds, LocalToWorld);
 			if (AggGeomBounds.SphereRadius != 0.f)
 			{
 				NewBounds = Union(NewBounds,AggGeomBounds);

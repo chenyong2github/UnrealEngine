@@ -273,51 +273,34 @@ void FMeshDecalMeshProcessor::Process(
 	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 	FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
 
-	const EMaterialTessellationMode MaterialTessellationMode = MaterialResource.GetTessellationMode();
-
-	const bool bNeedsHSDS = RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
-		&& VertexFactoryType->SupportsTessellationShaders()
-		&& MaterialTessellationMode != MTM_NoTessellation;
-
-	FMaterialShaderTypes ShaderTypes;
-	ShaderTypes.AddShaderType<FMeshDecalsVS>();
-	//MeshDecalPassShaders.VertexShader = MaterialResource.GetShader<FMeshDecalsVS>(VertexFactoryType, 0, false);
-
-	if (bNeedsHSDS)
-	{
-		ShaderTypes.AddShaderType<FMeshDecalsDS>();
-		ShaderTypes.AddShaderType<FMeshDecalsHS>();
-		//MeshDecalPassShaders.DomainShader = MaterialResource.GetShader<FMeshDecalsDS>(VertexFactoryType, 0, false);
-		//MeshDecalPassShaders.HullShader = MaterialResource.GetShader<FMeshDecalsHS>(VertexFactoryType, 0, false);
-	}
-
-	if (PassDecalStage == DRS_Emissive)
-	{
-		ShaderTypes.AddShaderType<FMeshDecalsEmissivePS>();
-		//MeshDecalPassShaders.PixelShader = MaterialResource.GetShader<FMeshDecalsEmissivePS>(VertexFactoryType, 0, false);
-	}
-	else
-	{
-		ShaderTypes.AddShaderType<FMeshDecalsPS>();
-		//MeshDecalPassShaders.PixelShader = MaterialResource.GetShader<FMeshDecalsPS>(VertexFactoryType, 0, false);
-	}
-
-	FMaterialShaders Shaders;
-	if (!MaterialResource.TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
-	{
-		// Skip rendering if any shaders missing
-		return;
-	}
 
 	TMeshProcessorShaders<
 		FMeshDecalsVS,
 		FMeshDecalsHS,
 		FMeshDecalsDS,
 		FMeshDecalsPS> MeshDecalPassShaders;
-	Shaders.TryGetVertexShader(MeshDecalPassShaders.VertexShader);
-	Shaders.TryGetPixelShader(MeshDecalPassShaders.PixelShader);
-	Shaders.TryGetHullShader(MeshDecalPassShaders.HullShader);
-	Shaders.TryGetDomainShader(MeshDecalPassShaders.DomainShader);
+
+	const EMaterialTessellationMode MaterialTessellationMode = MaterialResource.GetTessellationMode();
+
+	const bool bNeedsHSDS = RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
+		&& VertexFactoryType->SupportsTessellationShaders()
+		&& MaterialTessellationMode != MTM_NoTessellation;
+
+	if (bNeedsHSDS)
+	{
+		MeshDecalPassShaders.DomainShader = MaterialResource.GetShader<FMeshDecalsDS>(VertexFactoryType);
+		MeshDecalPassShaders.HullShader = MaterialResource.GetShader<FMeshDecalsHS>(VertexFactoryType);
+	}
+
+	MeshDecalPassShaders.VertexShader = MaterialResource.GetShader<FMeshDecalsVS>(VertexFactoryType);
+	if (PassDecalStage == DRS_Emissive)
+	{
+		MeshDecalPassShaders.PixelShader = MaterialResource.GetShader<FMeshDecalsEmissivePS>(VertexFactoryType);
+	}
+	else
+	{
+		MeshDecalPassShaders.PixelShader = MaterialResource.GetShader<FMeshDecalsPS>(VertexFactoryType);
+	}
 
 	FMeshMaterialShaderElementData ShaderElementData;
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, true);

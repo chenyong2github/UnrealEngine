@@ -125,7 +125,7 @@ struct TServerRecvData_Fixed
 	int32 TraceID = INDEX_NONE;
 
 	TServerRecvData_Fixed()
-		: InputBuffer(32) {} // fixme
+		: InputBuffer(64) {} // fixme
 };
 
 // Data the server receives from an independent ticking AP client

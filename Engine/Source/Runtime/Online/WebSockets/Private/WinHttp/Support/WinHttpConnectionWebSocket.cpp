@@ -12,7 +12,6 @@
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <errhandlingapi.h>
-#include <WinHttp.h>
 
 // MS recommends reading in 8kB chunks to match one of their buffer sizes
 #define UE_WINHTTP_READ_BUFFER_BYTES (8*1024)
@@ -463,13 +462,7 @@ void FWinHttpConnectionWebSocket::WriteData(const int32 MaxMessagesToWrite)
 			if (ErrorCode != NO_ERROR)
 			{
 				FWinHttpWebSocketErrorHelper::LogWinHttpWebSocketSendFailure(ErrorCode);
-				// Handle ERROR_WINHTTP_TIMEOUT to show a proper message
-				if(ErrorCode == ERROR_WINHTTP_TIMEOUT)
-				{
-					ReceivedCloseInfo.Emplace(ErrorCode, FString("errors.com.epicgames.winhttp.timeout"));
 
-					bHasPendingDelegate = true;
-				}
 				bWebSocketWriteInProgress = false;
 				PendingMessage.Reset();
 				FinishRequest(EHttpRequestStatus::Failed);

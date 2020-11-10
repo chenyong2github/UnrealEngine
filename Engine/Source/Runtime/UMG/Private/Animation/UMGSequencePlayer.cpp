@@ -434,7 +434,7 @@ void UUMGSequencePlayer::ApplyLatentActions()
 		UUMGSequenceTickManager* TickManager = Widget ? Widget->AnimationTickManager : nullptr;
 		if (TickManager)
 		{
-			TickManager->RunLatentActions();
+			TickManager->RunLatentActions(this, RootTemplateInstance.GetEntitySystemRunner());
 		}
 	}
 	else

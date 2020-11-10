@@ -1051,7 +1051,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 	// Collect all material assignments, referenced by the sections' material indices
 	bool bHasMaterialAssignments = false;
 	pxr::VtArray< std::string > MaterialAssignments;
-	for(const FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials())
+	for(const FStaticMaterial& StaticMaterial : StaticMesh->StaticMaterials )
 	{
 		FString AssignedMaterialPathName;
 		if ( UMaterialInterface* Material = StaticMaterial.MaterialInterface )

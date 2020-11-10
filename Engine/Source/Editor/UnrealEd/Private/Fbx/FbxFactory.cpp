@@ -1490,10 +1490,10 @@ namespace ImportCompareHelper
 	void FillStaticMeshCompareData(UnFbx::FFbxImporter* FFbxImporter, UStaticMesh* StaticMesh, UFbxImportUI* ImportUI)
 	{
 		//Fill the currrent asset data
-		ImportUI->MaterialCompareData.CurrentAsset.Reserve(StaticMesh->GetStaticMaterials().Num());
-		for (int32 MaterialIndex = 0; MaterialIndex < StaticMesh->GetStaticMaterials().Num(); ++MaterialIndex)
+		ImportUI->MaterialCompareData.CurrentAsset.Reserve(StaticMesh->StaticMaterials.Num());
+		for (int32 MaterialIndex = 0; MaterialIndex < StaticMesh->StaticMaterials.Num(); ++MaterialIndex)
 		{
-			const FStaticMaterial& Material = StaticMesh->GetStaticMaterials()[MaterialIndex];
+			const FStaticMaterial& Material = StaticMesh->StaticMaterials[MaterialIndex];
 			FMaterialData MaterialData;
 			MaterialData.MaterialIndex = MaterialIndex;
 			MaterialData.ImportedMaterialSlotName = Material.ImportedMaterialSlotName;

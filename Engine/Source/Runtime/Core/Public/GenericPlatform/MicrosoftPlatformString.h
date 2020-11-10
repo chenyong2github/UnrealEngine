@@ -21,10 +21,6 @@
 
 struct FMicrosoftPlatformString : public FGenericPlatformString
 {
-	using FGenericPlatformString::Stricmp;
-	using FGenericPlatformString::Strncmp;
-	using FGenericPlatformString::Strnicmp;
-
 	/** 
 	 * Wide character implementation 
 	 **/

@@ -355,15 +355,6 @@ void UScrollBox::SetWheelScrollMultiplier(float NewWheelScrollMultiplier)
 	}
 }
 
-void UScrollBox::SetScrollWhenFocusChanges(EScrollWhenFocusChanges NewScrollWhenFocusChanges)
-{
-	ScrollWhenFocusChanges = NewScrollWhenFocusChanges;
-	if (MyScrollBox)
-	{
-		MyScrollBox->SetScrollWhenFocusChanges(NewScrollWhenFocusChanges);
-	}
-}
-
 void UScrollBox::EndInertialScrolling()
 {
 	if (MyScrollBox.IsValid())

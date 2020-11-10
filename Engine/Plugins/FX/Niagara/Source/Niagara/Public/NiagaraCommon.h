@@ -1054,15 +1054,9 @@ namespace FNiagaraUtilities
 	}
 
 	// Whether the platform supports GPU particles. A static function that doesn't not rely on any runtime switches.
-	inline bool SupportsComputeShaders(EShaderPlatform ShaderPlatform)
-	{
-		return RHISupportsComputeShaders(ShaderPlatform);
-	}
-
-	// DEPRECATED, use SupportsComputeShaders instead!
 	inline bool SupportsGPUParticles(EShaderPlatform ShaderPlatform)
 	{
-		return SupportsComputeShaders(ShaderPlatform);
+		return RHISupportsComputeShaders(ShaderPlatform);
 	}
 
 	// Whether GPU particles are currently allowed. Could change depending on config and runtime switches.

@@ -846,9 +846,8 @@ public:
 		
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
-		const FMaterial& Material = MaterialProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialProxy);
 		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
+		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, *MaterialProxy->GetMaterial(View.GetFeatureLevel()), View);
 		
 		VolumeShadowingParameters.Set(RHICmdList, ShaderRHI, View, LightSceneInfo, ShadowMap, InnerSplitIndex, bDynamicallyShadowed);
 
@@ -1368,7 +1367,7 @@ void SetInjectionShader(
 {
 	check(ShadowMap || !bDynamicallyShadowed);
 
-	const FMaterialShaderMap* MaterialShaderMap = MaterialProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialProxy).GetRenderingThreadShaderMap();
+	const FMaterialShaderMap* MaterialShaderMap = MaterialProxy->GetMaterial(View.GetFeatureLevel())->GetRenderingThreadShaderMap();
 	TShaderRef<FMaterialShader> PixelShader;
 
 	const bool Directional = InjectionType == LightType_Directional;
@@ -1471,14 +1470,14 @@ static void AddLightForInjection(
 
 		const bool bApplyLightFunction = (SceneRenderer.ViewFamily.EngineShowFlags.LightFunctions &&
 			LightSceneInfo.Proxy->GetLightFunctionMaterial() && 
-			LightSceneInfo.Proxy->GetLightFunctionMaterial()->GetIncompleteMaterialWithFallback(FeatureLevel).IsLightFunction());
+			LightSceneInfo.Proxy->GetLightFunctionMaterial()->GetMaterial(FeatureLevel)->IsLightFunction());
 
 		const FMaterialRenderProxy* MaterialProxy = bApplyLightFunction ? 
 			LightSceneInfo.Proxy->GetLightFunctionMaterial() : 
 			UMaterial::GetDefaultMaterial(MD_LightFunction)->GetRenderProxy();
 
 		// Skip rendering if the DefaultLightFunctionMaterial isn't compiled yet
-		if (MaterialProxy->GetIncompleteMaterialWithFallback(FeatureLevel).IsLightFunction())
+		if (MaterialProxy->GetMaterial(FeatureLevel)->IsLightFunction())
 		{
 			FTranslucentLightInjectionData InjectionData;
 			InjectionData.LightSceneInfo = &LightSceneInfo;

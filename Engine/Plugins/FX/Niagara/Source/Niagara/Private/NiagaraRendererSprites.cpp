@@ -239,7 +239,7 @@ FNiagaraRendererSprites::FCPUSimParticleDataAllocation FNiagaraRendererSprites::
 		if (GbEnableMinimalGPUBuffers)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSpritesCPUSimMemCopy);
-			CPUSimParticleDataAllocation.ParticleData = TransferDataToGPU(DynamicReadBuffer, RendererLayout, SourceParticleData);
+			CPUSimParticleDataAllocation.ParticleData = TransferDataToGPU(DynamicReadBuffer, RendererLayout, SourceParticleData);			
 		}
 		else
 		{
@@ -469,7 +469,7 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreatePerViewUniformBuff
 }
 
 void FNiagaraRendererSprites::SetVertexFactoryParticleData(
-	FNiagaraSpriteVertexFactory& OutVertexFactory, 
+	FNiagaraSpriteVertexFactory& OutVertexFactory,
 	int32& OutCulledGPUParticleCountOffset,
 	FNiagaraDynamicDataSprites* DynamicDataSprites, 
 	FCPUSimParticleDataAllocation& CPUSimParticleDataAllocation,
@@ -507,7 +507,7 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 
 		FMaterialRenderProxy* MaterialRenderProxy = DynamicDataSprites->Material;
 		check(MaterialRenderProxy);
-		EBlendMode BlendMode = MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).GetBlendMode();
+		EBlendMode BlendMode = MaterialRenderProxy->GetMaterial(FeatureLevel)->GetBlendMode();
 		OutVertexFactory.SetSortedIndices(nullptr, 0xFFFFFFFF);
 
 		const bool bHasTranslucentMaterials = IsTranslucentBlendMode(BlendMode);
@@ -525,7 +525,7 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 		{
 			SortInfo.ParticleCount = NumInstances;
 			SortInfo.SortMode = SortMode;
-			SortInfo.SetSortFlags(GNiagaraGPUSortingUseMaxPrecision != 0, bHasTranslucentMaterials); 
+			SortInfo.SetSortFlags(GNiagaraGPUSortingUseMaxPrecision != 0, bHasTranslucentMaterials);
 			SortInfo.SortAttributeOffset = bShouldSort ? SortVariable.GetGPUOffset() : INDEX_NONE;
 			SortInfo.ViewOrigin = View->ViewMatrices.GetViewOrigin();
 			SortInfo.ViewDirection = View->GetViewDirection();
@@ -766,6 +766,7 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 
 void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraRender);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSprites);
 	PARTICLE_PERF_STAT_CYCLES(SceneProxy->PerfAsset, GetDynamicMeshElements);
 	check(SceneProxy);
@@ -804,7 +805,7 @@ void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVi
 #endif
 	FMaterialRenderProxy* MaterialRenderProxy = DynamicDataSprites->Material;
 	check(MaterialRenderProxy);
-	const EBlendMode BlendMode = MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).GetBlendMode();
+	const EBlendMode BlendMode = MaterialRenderProxy->GetMaterial(FeatureLevel)->GetBlendMode();
 	const bool bShouldSort = SortMode != ENiagaraSortMode::None && (BlendMode == BLEND_AlphaComposite || BlendMode == BLEND_AlphaHoldout || BlendMode == BLEND_Translucent || !bSortOnlyWhenTranslucent);
 	const bool bNeedCustomSort = bShouldSort && (SortMode == ENiagaraSortMode::CustomAscending || SortMode == ENiagaraSortMode::CustomDecending);
 	const bool bNeedsGPUVis = !bVisTagInParamStore && RendererVisTagOffset != INDEX_NONE && GNiagaraGPUCulling && FNiagaraUtilities::AllowComputeShaders(Batcher->GetShaderPlatform());
@@ -868,6 +869,7 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 		return;
 	}
 
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraRender);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSprites);
 	check(SceneProxy);
 

@@ -338,9 +338,6 @@ private:
 	/** Callback when a track item is scrolled into view */
 	void OnItemScrolledIntoView( TSharedPtr<FTimelineEdTrack> InTrackNode, const TSharedPtr<ITableRow>& InWidget );
 
-	/** Callback when the TimelineTickGroup is changed via Editor controls */
-	void OnTimelineTickGroupChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo);
-
 	/** Checks if you can rename the selected track */
 	bool CanRenameSelectedTrack() const;
 	/** Informs the selected track that the user wants to rename it */

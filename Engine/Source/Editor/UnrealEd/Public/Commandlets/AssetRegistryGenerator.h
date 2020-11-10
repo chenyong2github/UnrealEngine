@@ -145,7 +145,7 @@ public:
 	/** 
 	 * Writes out CookerOpenOrder.log file 
 	 */
-	bool WriteCookerOpenOrder(FSandboxPlatformFile* InSandboxFile);
+	bool WriteCookerOpenOrder();
 
 	/**
 	 * Follows an assets dependency chain to build up a list of package names in the same order as the runtime would attempt to load them

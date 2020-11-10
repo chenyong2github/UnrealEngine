@@ -108,7 +108,7 @@ void UMovieSceneSpawnablesSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 	// Step 1 - iterate all pending spawnables and spawn their objects if necessary
 	auto SpawnNewObjects = [InstanceRegistry](FInstanceHandle InstanceHandle, const FGuid& SpawnableBindingID)
 	{
-		SCOPE_CYCLE_COUNTER(MovieSceneEval_SpawnSpawnables)
+		SCOPE_CYCLE_COUNTER(MovieSceneEval_DestroySpawnables)
 
 		const FSequenceInstance& SequenceInstance = InstanceRegistry->GetInstance(InstanceHandle);
 
@@ -169,7 +169,7 @@ void UMovieSceneSpawnablesSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 	// Step 2 - destroy any spawnable objects that are no longer relevant
 	auto DestroyOldSpawnables = [InstanceRegistry](FInstanceHandle InstanceHandle, const FGuid& SpawnableObjectID)
 	{
-		SCOPE_CYCLE_COUNTER(MovieSceneEval_DestroySpawnables)
+		SCOPE_CYCLE_COUNTER(MovieSceneEval_SpawnSpawnables)
 
 		if (ensure(InstanceRegistry->IsHandleValid(InstanceHandle)))
 		{

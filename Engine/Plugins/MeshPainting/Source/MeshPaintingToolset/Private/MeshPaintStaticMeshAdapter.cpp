@@ -78,7 +78,7 @@ bool FMeshPaintStaticMeshComponentAdapter::Initialize()
 	check(ReferencedStaticMesh == StaticMeshComponent->GetStaticMesh());
 	if (MeshLODIndex < ReferencedStaticMesh->GetNumLODs())
 	{
-		LODModel = &(ReferencedStaticMesh->GetRenderData()->LODResources[MeshLODIndex]);
+		LODModel = &(ReferencedStaticMesh->RenderData->LODResources[MeshLODIndex]);
 		return FBaseMeshPaintComponentAdapter::Initialize();
 	}
 
@@ -364,7 +364,7 @@ void FMeshPaintStaticMeshComponentAdapter::PreEdit()
 		for (int32 Index = MeshLODIndex; Index < MaxIndex; ++Index)
 		{
 			FStaticMeshComponentLODInfo& InstanceMeshLODInfo = StaticMeshComponent->LODData[Index];
-			FStaticMeshLODResources& LODResource = StaticMesh->GetRenderData()->LODResources[Index];
+			FStaticMeshLODResources& LODResource = StaticMesh->RenderData->LODResources[Index];
 
 			// Destroy the instance vertex  color array if it doesn't fit
 			if (InstanceMeshLODInfo.OverrideVertexColors
@@ -401,7 +401,7 @@ void FMeshPaintStaticMeshComponentAdapter::PreEdit()
 		// See if the component has to cache its mesh vertex positions associated with override colors
 #if WITH_EDITOR
 		StaticMeshComponent->CachePaintedDataIfNecessary();
-		StaticMeshComponent->StaticMeshDerivedDataKey = StaticMesh->GetRenderData()->DerivedDataKey;
+		StaticMeshComponent->StaticMeshDerivedDataKey = StaticMesh->RenderData->DerivedDataKey;
 #endif
 	}
 	else

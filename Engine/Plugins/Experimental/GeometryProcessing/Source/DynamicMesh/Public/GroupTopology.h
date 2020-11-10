@@ -16,28 +16,9 @@ class FGroupTopology;
  */
 struct DYNAMICMESH_API FGroupTopologySelection
 {
-	TSet<int32> SelectedGroupIDs;
-	TSet<int32> SelectedCornerIDs;
-	TSet<int32> SelectedEdgeIDs;
-
-	/**
-	 * These are helper methods to get out a value when you know you only have one, or you don't
-	 * care which one of the existing ones you grab. 
-	 * They only exist because TSet doesn't have a clean way to grab one arbitrary element
-	 * besides *TSet<int32>::TConstIterator(MySet). The hope is that these are slightly cleaner.
-	 */
-	int32 GetASelectedGroupID() const
-	{
-		return SelectedGroupIDs.Num() > 0 ? *TSet<int32>::TConstIterator(SelectedGroupIDs) : IndexConstants::InvalidID;
-	}
-	int32 GetASelectedCornerID() const
-	{
-		return SelectedCornerIDs.Num() > 0 ? *TSet<int32>::TConstIterator(SelectedCornerIDs) : IndexConstants::InvalidID;
-	}
-	int32 GetASelectedEdgeID() const
-	{
-		return SelectedEdgeIDs.Num() > 0 ? *TSet<int32>::TConstIterator(SelectedEdgeIDs) : IndexConstants::InvalidID;
-	}
+	TArray<int32> SelectedGroupIDs;
+	TArray<int32> SelectedCornerIDs;
+	TArray<int32> SelectedEdgeIDs;
 
 	FGroupTopologySelection() { Clear(); }
 	
@@ -55,20 +36,35 @@ struct DYNAMICMESH_API FGroupTopologySelection
 
 	void Append(const FGroupTopologySelection& Selection)
 	{
-		SelectedCornerIDs.Append(Selection.SelectedCornerIDs);
-		SelectedEdgeIDs.Append(Selection.SelectedEdgeIDs);
-		SelectedGroupIDs.Append(Selection.SelectedGroupIDs);
+		for (int32 i : Selection.SelectedCornerIDs)
+		{
+			SelectedCornerIDs.AddUnique(i);
+		}
+		for (int32 i : Selection.SelectedEdgeIDs)
+		{
+			SelectedEdgeIDs.AddUnique(i);
+		}
+		for (int32 i : Selection.SelectedGroupIDs)
+		{
+			SelectedGroupIDs.AddUnique(i);
+		}
 	}
 
 
 	void Remove(const FGroupTopologySelection& Selection)
 	{
-		// Note: difference assembles a new set by inserting everything that's not
-		// removed. We could do removals in a loop instead, which would be faster
-		// for large selections, esp when removing few things.
-		SelectedCornerIDs = SelectedCornerIDs.Difference(Selection.SelectedCornerIDs);
-		SelectedEdgeIDs = SelectedEdgeIDs.Difference(Selection.SelectedEdgeIDs);
-		SelectedGroupIDs = SelectedGroupIDs.Difference(Selection.SelectedGroupIDs);
+		for (int32 i : Selection.SelectedCornerIDs)
+		{
+			SelectedCornerIDs.RemoveSwap(i);
+		}
+		for (int32 i : Selection.SelectedEdgeIDs)
+		{
+			SelectedEdgeIDs.RemoveSwap(i);
+		}
+		for (int32 i : Selection.SelectedGroupIDs)
+		{
+			SelectedGroupIDs.RemoveSwap(i);
+		}
 	}
 
 
@@ -88,23 +84,20 @@ struct DYNAMICMESH_API FGroupTopologySelection
 		}
 	}
 
-	/** Returns true if this selection contains every element in the passed in selection */
-	bool Contains(const FGroupTopologySelection& Selection) const
-	{
-		return SelectedCornerIDs.Includes(Selection.SelectedCornerIDs)
-			&& SelectedEdgeIDs.Includes(Selection.SelectedEdgeIDs)
-			&& SelectedGroupIDs.Includes(Selection.SelectedGroupIDs);
-	}
 
 	inline bool IsSelectedTriangle(const FDynamicMesh3* Mesh, const FGroupTopology* Topology, int32 TriangleID) const;
 
 
 private:
-	void ToggleItem(TSet<int32>& Set, int32 Item)
+	void ToggleItem(TArray<int32>& List, int32 Item)
 	{
-		if (Set.Remove(Item) == 0)
+		if (List.Contains(Item))
 		{
-			Set.Add(Item);
+			List.RemoveSwap(Item);
+		}
+		else
+		{
+			List.Add(Item);
 		}
 	}
 };
@@ -285,59 +278,13 @@ public:
 	/** Add all the groups connected to the given Mesh Vertices to the GroupsOut list */
 	void FindVertexNbrGroups(const TArray<int>& VertexIDs, TArray<int>& GroupsOut) const;
 
-	/**
-	 * Call EdgeFunc for each boundary edge of the given Group  (no order defined). 
-	 * Templated so it works with both lambdas or TFunctions. Defined here to avoid
-	 * dll explicit instantiation woes.
-	 */
-	template <typename FuncTakingFGroupEdgeAndInt>
-	void ForGroupEdges(int GroupID, const FuncTakingFGroupEdgeAndInt& EdgeFunc) const
-	{
-		const FGroup* Group = FindGroupByID(GroupID);
-		ensure(Group != nullptr);
-		if (Group != nullptr)
-		{
-			for (const FGroupBoundary& Boundary : Group->Boundaries)
-			{
-				for (int EdgeIndex : Boundary.GroupEdges)
-				{
-					EdgeFunc(Edges[EdgeIndex], EdgeIndex);
-				}
-			}
-		}
-	}
+	/** Call EdgeFunc for each boundary edge of the given Group  (no order defined) */
+	void ForGroupEdges(int GroupID, 
+		const TFunction<void(const FGroupEdge& Edge, int EdgeIndex)>& EdgeFunc) const;
 
-	/** 
-	 * Call EdgeFunc for each boundary edge of each of the given Groups (no order defined). 
-	 * Templated so that it can be used with either sets (such as selections) or lists, and
-	 * works with both lambdas or TFunctions. Defined here to avoid dll explicit instantiation woes.
-	 */
-	template <typename IntIterableContainerType, typename FuncTakingFGroupEdgeAndInt>
-	void ForGroupSetEdges(const IntIterableContainerType& GroupIDs,
-		const FuncTakingFGroupEdgeAndInt& EdgeFunc) const
-	{
-		TArray<int> DoneEdges;
-
-		for (int GroupID : GroupIDs)
-		{
-			const FGroup* Group = FindGroupByID(GroupID);
-			ensure(Group != nullptr);
-			if (Group != nullptr)
-			{
-				for (const FGroupBoundary& Boundary : Group->Boundaries)
-				{
-					for (int EdgeIndex : Boundary.GroupEdges)
-					{
-						if (DoneEdges.Contains(EdgeIndex) == false)
-						{
-							EdgeFunc(Edges[EdgeIndex], EdgeIndex);
-							DoneEdges.Add(EdgeIndex);
-						}
-					}
-				}
-			}
-		}
-	}
+	/** Call EdgeFunc for each boundary edge of each of the given Groups (no order defined) */
+	void ForGroupSetEdges(const TArray<int>& GroupIDs,
+		const TFunction<void(const FGroupEdge& Edge, int EdgeIndex)>& EdgeFunc) const;
 
 	/** Add all the vertices of the given GroupID to the Vertices set */
 	void CollectGroupVertices(int GroupID, TSet<int>& Vertices) const;
@@ -385,6 +332,10 @@ protected:
 	int FindExistingGroupEdge(int GroupID, int OtherGroupID, int FirstVertexID, int SecondVertexID);
 	void GetAllVertexGroups(int32 VertexID, TArray<int32>& GroupsOut) const;
 };
+
+
+
+
 
 FIndex2i FGroupTopology::MakeEdgeID(int MeshEdgeID) const
 {

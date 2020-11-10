@@ -83,10 +83,12 @@ public:
 			// Volumetric self shadow mesh commands need to be generated every frame, as they depend on single frame uniform buffers with self shadow data.
 			const bool bSupportsCachingMeshDrawCommands = SupportsCachingMeshDrawCommands(*StaticMesh, FeatureLevel) && !PrimitiveSceneProxy->CastsVolumetricTranslucentShadow();
 
-			const FMaterial& Material = Mesh.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
-			bool bUseSkyMaterial = Material.IsSky();
-			bool bUseSingleLayerWaterMaterial = Material.GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
-			bool bUseAnisotropy = Material.GetShadingModels().HasAnyShadingModel({MSM_DefaultLit, MSM_ClearCoat}) && Material.MaterialUsesAnisotropy_RenderThread();
+			const FMaterial* Material = Mesh.MaterialRenderProxy->GetMaterial(FeatureLevel);
+
+			bool bUseSkyMaterial = Mesh.MaterialRenderProxy->GetMaterial(FeatureLevel)->IsSky();
+			bool bUseSingleLayerWaterMaterial = Material->GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
+			bool bUseAnisotropy = Material->GetShadingModels().HasAnyShadingModel({MSM_DefaultLit, MSM_ClearCoat}) && Material->MaterialUsesAnisotropy_RenderThread();
+
 			FStaticMeshBatchRelevance* StaticMeshRelevance = new(PrimitiveSceneInfo->StaticMeshRelevances) FStaticMeshBatchRelevance(
 				*StaticMesh, 
 				ScreenSize, 
@@ -392,7 +394,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 		}
 	}
 
-	if (!FParallelMeshDrawCommandPass::IsOnDemandShaderCreationEnabled())
+	if (!RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform))
 	{
 		FGraphicsMinimalPipelineStateId::InitializePersistentIds();
 	}

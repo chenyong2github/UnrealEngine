@@ -294,7 +294,7 @@ UStaticMesh* CreateImposterStaticMesh(UStaticMeshComponent* InComponent, UMateri
 		StaticMesh->InitResources();
 
 		// make sure it has a new lighting guid
-		StaticMesh->SetLightingGuid();
+		StaticMesh->LightingGuid = FGuid::NewGuid();
 
 		// Set it to use textured lightmaps. Note that Build Lighting will do the error-checking (texcoordindex exists for all LODs, etc).
 		StaticMesh->LightMapResolution = InProxySettings.LightMapResolution;
@@ -329,7 +329,7 @@ UStaticMesh* CreateImposterStaticMesh(UStaticMeshComponent* InComponent, UMateri
 
 		// Commit mesh description and materials list to static mesh
 		StaticMesh->CommitMeshDescription(0);
-		StaticMesh->SetStaticMaterials({ InMaterial });
+		StaticMesh->StaticMaterials = { InMaterial };
 
 		//Set the Imported version before calling the build
 		StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
@@ -493,7 +493,7 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 			FProjectStatus ProjectStatus;
 			if (IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && (ProjectStatus.IsTargetPlatformSupported(TEXT("Android")) || ProjectStatus.IsTargetPlatformSupported(TEXT("IOS"))))
 			{
-				if (MainMesh->GetRenderData() && MainMesh->GetRenderData()->LODResources.Num() && MainMesh->GetRenderData()->LODResources[0].IndexBuffer.Is32Bit())
+				if (MainMesh->RenderData.IsValid() && MainMesh->RenderData->LODResources.Num() && MainMesh->RenderData->LODResources[0].IndexBuffer.Is32Bit())
 				{
 					FMessageLog("HLODResults").Warning()
 						->AddToken(FUObjectToken::Create(LODActor))
@@ -1042,7 +1042,7 @@ int32 FHierarchicalLODUtilities::GetLODLevelForScreenSize(const UStaticMeshCompo
 {
 	check(StaticMeshComponent != nullptr && StaticMeshComponent->GetStaticMesh() != nullptr);
 
-	const FStaticMeshRenderData* RenderData = StaticMeshComponent->GetStaticMesh()->GetRenderData();
+	const FStaticMeshRenderData* RenderData = StaticMeshComponent->GetStaticMesh()->RenderData.Get();
 	checkf(RenderData != nullptr, TEXT("StaticMesh in StaticMeshComponent %s contains invalid render data"), *StaticMeshComponent->GetName());
 	checkf(StaticMeshComponent->GetStaticMesh()->GetNumSourceModels() > 0, TEXT("StaticMesh in StaticMeshComponent %s contains no SourceModels"), *StaticMeshComponent->GetName());
 
@@ -1053,12 +1053,7 @@ AHierarchicalLODVolume* FHierarchicalLODUtilities::CreateVolumeForLODActor(ALODA
 {
 	FBox BoundingBox = InLODActor->GetComponentsBoundingBox(true);
 
-	// If no world is provided, spawn the volume in the same level as InLODActor
-	UWorld* WorldToSpawnIn = InWorld ? InWorld : InLODActor->GetWorld();
-	FActorSpawnParameters ActorSpawnParameters;
-	ActorSpawnParameters.OverrideLevel = InWorld == nullptr ? InLODActor->GetLevel() : nullptr;
-
-	AHierarchicalLODVolume* Volume = WorldToSpawnIn->SpawnActor<AHierarchicalLODVolume>(AHierarchicalLODVolume::StaticClass(), FTransform(BoundingBox.GetCenter()), ActorSpawnParameters);
+	AHierarchicalLODVolume* Volume = InWorld->SpawnActor<AHierarchicalLODVolume>(AHierarchicalLODVolume::StaticClass(), FTransform(BoundingBox.GetCenter()));
 
 	// this code builds a brush for the new actor
 	Volume->PreEditChange(NULL);
@@ -1076,7 +1071,7 @@ AHierarchicalLODVolume* FHierarchicalLODUtilities::CreateVolumeForLODActor(ALODA
 	CubeBuilder->Y = BoundingBox.GetSize().Y * 1.5f;
 	CubeBuilder->Z = BoundingBox.GetSize().Z * 1.5f;
 
-	Volume->BrushBuilder->Build(WorldToSpawnIn, Volume);
+	Volume->BrushBuilder->Build(InWorld, Volume);
 
 	FBSPOps::csgPrepMovingBrush(Volume);
 

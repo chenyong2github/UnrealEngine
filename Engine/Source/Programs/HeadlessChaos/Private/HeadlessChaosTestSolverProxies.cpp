@@ -44,6 +44,9 @@ namespace ChaosTest {
 		::ChaosTest::SetParticleSimDataToCollide({ Particle.Get() });
 
 		Solver->AdvanceAndDispatch_External(100.0f);
+
+		Solver->BufferPhysicsResults();
+		Solver->FlipBuffers();
 		Solver->UpdateGameThreadStructures();
 
 		// Make sure game thread data has changed
@@ -60,6 +63,64 @@ namespace ChaosTest {
 
 		Module->DestroySolver(Solver);		
 	}
+
+	template<typename Traits, class T>
+	void SingleParticleProxyTaskGraphTest()
+	{
+		//
+		// DISABLED TEST
+		//
+		// There is currently no way to execute a TaskGraph or DedicatedThread simulation in a unit test.
+		// This test should be enabled when TaskGraph simulation is supported for unit tests.
+		//
+
+		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(TVector<float, 3>(0), 10));
+
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+
+		// Make a solver
+		auto* Solver = Module->CreateSolver<Traits>(nullptr, EThreadingMode::DedicatedThread);
+		
+		// Make a particle
+
+		TUniquePtr<Chaos::TPBDRigidParticle<float, 3>> Particle = Chaos::TPBDRigidParticle<float, 3>::CreateParticle();
+		Particle->SetGeometry(Sphere);
+		Particle->SetX(TVector<float, 3>(0, 0, 0));
+		Solver->RegisterObject(Particle.Get());
+
+		Particle->SetV(TVector<float, 3>(0, 0, 10));
+		Solver->AddDirtyProxy(Particle->GetProxy());
+
+		int32 Counter = 0;
+		while (Particle->X().Size() == 0.f)
+		{
+			// This might not be the correct way to advance when using the TaskGraph.
+			//TODO: use event returned
+			Solver->AdvanceAndDispatch_External(100.0f);
+
+
+			Solver->BufferPhysicsResults();
+			Solver->FlipBuffers();
+			Solver->UpdateGameThreadStructures();
+
+			EXPECT_LE(Counter++, 5);
+		}
+
+		// Make sure game thread data has changed
+		TVector<float, 3> V = Particle->V();
+		EXPECT_EQ(V.X, 0.f);
+		EXPECT_GT(V.Z, 0.f);
+
+		TVector<float, 3> X = Particle->X();
+		EXPECT_EQ(X.X, 0.f);
+		EXPECT_GT(X.Z, 0.f);
+
+		// Throw out the proxy
+		Solver->UnregisterObject(Particle.Get());
+
+		Module->DestroySolver(Solver);
+	}
+
 
 	template<typename Traits, class T>
 	void SingleParticleProxyWakeEventPropergationTest()
@@ -96,6 +157,9 @@ namespace ChaosTest {
 		while (Particle2->GetWakeEvent() == EWakeEventEntry::None && LoopCount++ < 20)
 		{
 			Solver->AdvanceAndDispatch_External(100.0f);
+
+			Solver->BufferPhysicsResults();
+			Solver->FlipBuffers();
 			Solver->UpdateGameThreadStructures();
 		}
 
@@ -121,4 +185,10 @@ namespace ChaosTest {
 		ChaosTest::SingleParticleProxySingleThreadTest<TypeParam,float>();
 		ChaosTest::SingleParticleProxyWakeEventPropergationTest<TypeParam,float>();
 	}
+
+	TYPED_TEST(AllTraits,DISABLED_SingleParticleProxyTests)
+	{
+		ChaosTest::SingleParticleProxyTaskGraphTest<TypeParam,float>();
+	}
+
 }

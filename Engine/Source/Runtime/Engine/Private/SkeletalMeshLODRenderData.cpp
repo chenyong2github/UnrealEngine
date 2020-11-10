@@ -270,13 +270,6 @@ void FSkeletalMeshLODRenderData::ReleaseResources()
 	
 	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, SkinWeightProfilesData.GetResourcesSize());
 	SkinWeightProfilesData.ReleaseResources();
-
-#if RHI_RAYTRACING
-	if (IsRayTracingEnabled())
-	{
-		BeginReleaseResource(&StaticRayTracingGeometry);
-	}
-#endif
 }
 
 void FSkeletalMeshLODRenderData::IncrementMemoryStats(bool bNeedsVertexColors)

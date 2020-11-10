@@ -21,7 +21,6 @@ FPhysicsDelegatesCore::FOnUpdatePhysXMaterial FPhysicsDelegatesCore::OnUpdatePhy
 #include "Chaos/PBDJointConstraintData.h"
 #include "Chaos/PBDSuspensionConstraintData.h"
 #include "Chaos/Collision/CollisionConstraintFlags.h"
-#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PBDRigidsSolver.h"
 
 bool bEnableChaosJointConstraints = true;
@@ -287,8 +286,7 @@ void FChaosEngineInterface::AddDisabledCollisionsFor_AssumesLocked(const TMap<FP
 			TArray< FPhysicsActorHandle >& DisabledCollisions = Elem.Value;
 			Chaos::FPhysicsSolver* Solver = ActorReference->GetProxy()->GetSolver<Chaos::FPhysicsSolver>();
 			Chaos::FIgnoreCollisionManager& CollisionManager = Solver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
-			int32 ExternalTimestamp = Solver->GetMarshallingManager().GetExternalTimestamp_External();
-			Chaos::FIgnoreCollisionManager::FPendingMap& PendingMap = CollisionManager.GetPendingActivationsForGameThread(ExternalTimestamp);
+			Chaos::FIgnoreCollisionManager::FPendingMap& PendingMap = CollisionManager.GetPendingActivationsForGameThread();
 			if (PendingMap.Contains(ActorReference))
 			{
 				PendingMap.Remove(ActorReference);
@@ -306,8 +304,7 @@ void FChaosEngineInterface::RemoveDisabledCollisionsFor_AssumesLocked(TArray< FP
 		{
 			Chaos::FPhysicsSolver* Solver = Handle->GetProxy()->GetSolver<Chaos::FPhysicsSolver>();
 			Chaos::FIgnoreCollisionManager& CollisionManager = Solver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
-			int32 ExternalTimestamp = Solver->GetMarshallingManager().GetExternalTimestamp_External();
-			Chaos::FIgnoreCollisionManager::FParticleArray& PendingMap = CollisionManager.GetPendingDeactivationsForGameThread(ExternalTimestamp);
+			Chaos::FIgnoreCollisionManager::FParticleArray& PendingMap = CollisionManager.GetPendingDeactivationsForGameThread();
 			if (!PendingMap.Contains(Handle))
 			{
 				PendingMap.Add(Handle);
@@ -594,16 +591,6 @@ FVector FChaosEngineInterface::GetWorldVelocityAtPoint_AssumesLocked(const FPhys
 	return FVector(0);
 }
 
-#if WITH_CHAOS
-FVector FChaosEngineInterface::GetWorldVelocityAtPoint_AssumesLocked(const Chaos::TKinematicGeometryParticleHandle<float, 3>* Kinematic, const FVector& InPoint)
-{
-	const Chaos::TPBDRigidParticleHandle<float, 3>* Rigid = Kinematic->CastToRigidParticle();
-	const Chaos::FVec3 COM = Rigid ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Rigid) : Chaos::FParticleUtilitiesGT::GetActorWorldTransform(Rigid).GetTranslation();
-	const Chaos::FVec3 Diff = InPoint - COM;
-	return Kinematic->V() - Chaos::FVec3::CrossProduct(Diff, Kinematic->W());
-}
-#endif
-
 FTransform FChaosEngineInterface::GetComTransform_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
 	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
@@ -809,15 +796,6 @@ void FChaosEngineInterface::SetGravityEnabled_AssumesLocked(const FPhysicsActorH
 	}
 }
 
-void FChaosEngineInterface::SetOneWayInteraction_AssumesLocked(const FPhysicsActorHandle& InHandle, bool InOneWayInteraction)
-{
-	Chaos::TPBDRigidParticle<float, 3>* Rigid = InHandle->CastToRigidParticle();
-	if (Rigid)
-	{
-		Rigid->SetOneWayInteraction(InOneWayInteraction);
-	}
-}
-
 float FChaosEngineInterface::GetSleepEnergyThreshold_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
 	return 0;
@@ -948,8 +926,9 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateConstraint(const FPhysicsA
 				auto* JointConstraint = new Chaos::FJointConstraint();
 				ConstraintRef.Constraint = JointConstraint;
 
-				JointConstraint->SetParticleProxies({ InActorRef1->GetProxy(),InActorRef2->GetProxy() });
-				JointConstraint->SetJointTransforms({ InLocalFrame1,InLocalFrame2 });
+				Chaos::FJointConstraint::FParticlePair JointParticles ={InActorRef1,InActorRef2};
+				JointConstraint->SetParticles({InActorRef1,InActorRef2});
+				JointConstraint->SetJointTransforms({InLocalFrame1,InLocalFrame2});
 
 				Chaos::FPhysicsSolver* Solver = InActorRef1->GetProxy()->GetSolver<Chaos::FPhysicsSolver>();
 				checkSlow(Solver == InActorRef2->GetProxy()->GetSolver<Chaos::FPhysicsSolver>());
@@ -989,7 +968,7 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateConstraint(const FPhysicsA
 			JointConstraint->SetKinematicEndPoint(KinematicEndPoint, Scene->GetSolver());
 			ConstraintRef.Constraint = JointConstraint;
 
-			JointConstraint->SetParticleProxies({ KinematicEndPoint->GetProxy(), ValidParticle->GetProxy() });
+			JointConstraint->SetParticles({ KinematicEndPoint, ValidParticle });
 
 			Chaos::FJointConstraint::FTransformPair TransformPair = { InLocalFrame2, InLocalFrame1};
 			if (bSwapped)
@@ -1023,7 +1002,7 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateSuspension(const FPhysicsA
 				auto* SuspensionConstraint = new Chaos::FSuspensionConstraint();
 				ConstraintRef.Constraint = SuspensionConstraint;
 
-				SuspensionConstraint->SetParticleProxies({ InActorRef->GetProxy(),nullptr });
+				SuspensionConstraint->SetParticles({ InActorRef, nullptr });
 				SuspensionConstraint->SetLocation( InLocalFrame );
 
 				Chaos::FPhysicsSolver* Solver = InActorRef->GetProxy()->GetSolver<Chaos::FPhysicsSolver>();
@@ -1062,7 +1041,8 @@ void FChaosEngineInterface::ReleaseConstraint(FPhysicsConstraintHandle& InConstr
 
 					Solver->UnregisterObject(Constraint);
 
-					InConstraintRef.Constraint = nullptr; // freed by the joint constraint physics proxy
+					delete InConstraintRef.Constraint;
+					InConstraintRef.Constraint = nullptr;
 				}
 			}
 		}
@@ -1077,7 +1057,8 @@ void FChaosEngineInterface::ReleaseConstraint(FPhysicsConstraintHandle& InConstr
 
 					Solver->UnregisterObject(Constraint);
 
-					InConstraintRef.Constraint = nullptr;  // freed by the joint constraint physics proxy
+					delete InConstraintRef.Constraint;
+					InConstraintRef.Constraint = nullptr;
 				}
 			}
 
@@ -1105,50 +1086,22 @@ FTransform FChaosEngineInterface::GetLocalPose(const FPhysicsConstraintHandle& I
 	return FTransform::Identity;
 }
 
-Chaos::TGeometryParticle<Chaos::FReal, 3>*
-GetParticleFromProxy(IPhysicsProxyBase* ProxyBase)
-{
-	if (ProxyBase)
-	{
-		if (ProxyBase->GetType() == EPhysicsProxyType::SingleGeometryParticleType)
-		{
-			return ((FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<Chaos::FReal, 3>>*)ProxyBase)->GetParticle();
-		}
-		else if (ProxyBase->GetType() == EPhysicsProxyType::SingleRigidParticleType)
-		{
-			return ((FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<Chaos::FReal, 3>>*)ProxyBase)->GetParticle();
-		}
-		else if (ProxyBase->GetType() == EPhysicsProxyType::SingleKinematicParticleType)
-		{
-			return ((FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<Chaos::FReal, 3>>*)ProxyBase)->GetParticle();
-		}
-	}
-	return nullptr;
-}
-
-
-FTransform FChaosEngineInterface::GetGlobalPose(const FPhysicsConstraintHandle& InConstraintRef, EConstraintFrame::Type InFrame)
+FTransform FChaosEngineInterface::GetGlobalPose(const FPhysicsConstraintHandle& InConstraintRef,EConstraintFrame::Type InFrame)
 {
 	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
 		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
-			Chaos::FConstraintBase::FProxyBasePair BasePairs = Constraint->GetParticleProxies();
+			const Chaos::FJointConstraint::FParticlePair& Particles = Constraint->GetParticles();
 			const Chaos::FJointConstraint::FTransformPair& M = Constraint->GetJointTransforms();
 
 			if (InFrame == EConstraintFrame::Frame1)
 			{
-				if (Chaos::TGeometryParticle<Chaos::FReal, 3>* Particle = GetParticleFromProxy(BasePairs[0]))
-				{
-					return FTransform(Particle->R(), Particle->X()) * M[0];
-				}
+				return FTransform(Particles[0]->R(), Particles[0]->X())*M[0];
 			}
 			else if (InFrame == EConstraintFrame::Frame2)
 			{
-				if (Chaos::TGeometryParticle<Chaos::FReal, 3>* Particle = GetParticleFromProxy(BasePairs[1]))
-				{
-					return FTransform(Particle->R(), Particle->X()) * M[1];
-				}
+				return FTransform(Particles[1]->R(), Particles[1]->X())*M[1];
 			}
 		}
 	}

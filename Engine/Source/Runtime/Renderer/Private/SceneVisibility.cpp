@@ -3648,24 +3648,7 @@ void UpdateReflectionSceneData(FScene* Scene)
 }
 
 #if !UE_BUILD_SHIPPING
-static uint32 GetDrawCountFromPrimitiveSceneInfo(FScene* Scene, const FPrimitiveSceneInfo* PrimitiveSceneInfo)
-{
-	uint32 DrawCount = 0;
-	for (const FCachedMeshDrawCommandInfo& CachedCommand : PrimitiveSceneInfo->StaticMeshCommandInfos)
-	{
-		if (CachedCommand.MeshPass != EMeshPass::BasePass)
-			continue;
-
-		if (CachedCommand.StateBucketId != INDEX_NONE || CachedCommand.CommandIndex >= 0)
-		{
-			DrawCount++;
-		}
-	}
-
-	return DrawCount;
-}
-
-void FSceneRenderer::DumpPrimitives(const FViewCommands& ViewCommands)
+ void FSceneRenderer::DumpPrimitives(const FViewCommands& ViewCommands)
 {
 	if (!bDumpPrimitivesNextFrame)
 	{
@@ -3674,22 +3657,9 @@ void FSceneRenderer::DumpPrimitives(const FViewCommands& ViewCommands)
 
 	bDumpPrimitivesNextFrame = false;
 
-	struct FPrimitiveInfo
-	{
-		FString		Name;
-		uint32		DrawCount;
-
-		bool operator<(const FPrimitiveInfo& other) const
-		{
-			return Name < other.Name;
-		}
-	};
-
-	TArray<FPrimitiveInfo> Primitives;
-	Primitives.Reserve(ViewCommands.MeshCommands[EMeshPass::BasePass].Num() + ViewCommands.DynamicMeshCommandBuildRequests[EMeshPass::BasePass].Num());
-
-	FScopeLock Lock(&Scene->CachedMeshDrawCommandLock[EMeshPass::BasePass]);
-
+	TArray<FString> Names;
+	Names.Reserve(ViewCommands.MeshCommands[EMeshPass::BasePass].Num() + ViewCommands.DynamicMeshCommandBuildRequests[EMeshPass::BasePass].Num());
+	
 	for (const FVisibleMeshDrawCommand& Mesh : ViewCommands.MeshCommands[EMeshPass::BasePass])
 	{
 		int32 PrimitiveId = Mesh.DrawPrimitiveId;
@@ -3698,9 +3668,7 @@ void FSceneRenderer::DumpPrimitives(const FViewCommands& ViewCommands)
 			const FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene->Primitives[PrimitiveId];
 			FString FullName = PrimitiveSceneInfo->ComponentForDebuggingOnly->GetFullName();
 
-			uint32 DrawCount = GetDrawCountFromPrimitiveSceneInfo(Scene, PrimitiveSceneInfo);
-
-			Primitives.Add({ MoveTemp(FullName), DrawCount });
+			Names.Add(MoveTemp(FullName));
 		}
 	}
 
@@ -3709,22 +3677,18 @@ void FSceneRenderer::DumpPrimitives(const FViewCommands& ViewCommands)
 		const FPrimitiveSceneInfo* PrimitiveSceneInfo = StaticMeshBatch->PrimitiveSceneInfo;
 		FString FullName = PrimitiveSceneInfo->ComponentForDebuggingOnly->GetFullName();
 
-		uint32 DrawCount = GetDrawCountFromPrimitiveSceneInfo(Scene, PrimitiveSceneInfo);
-
-		Primitives.Add({ MoveTemp(FullName), DrawCount });
+		Names.Add(MoveTemp(FullName));
 	}
 
-	Primitives.Sort();
+	Names.Sort();
 
 	FDiagnosticTableViewer DrawViewer(*FDiagnosticTableViewer::GetUniqueTemporaryFilePath(TEXT("Primitives")), true);
 	DrawViewer.AddColumn(TEXT("Name"));
-	DrawViewer.AddColumn(TEXT("NumDraws"));
 	DrawViewer.CycleRow();
 
-	for (const FPrimitiveInfo& Primitive : Primitives)
+	for (const FString& FullName : Names)
 	{
-		DrawViewer.AddColumn(*Primitive.Name);
-		DrawViewer.AddColumn(*FString::Printf(TEXT("%d"), Primitive.DrawCount));
+		DrawViewer.AddColumn(*FullName);
 		DrawViewer.CycleRow();
 	}
 }

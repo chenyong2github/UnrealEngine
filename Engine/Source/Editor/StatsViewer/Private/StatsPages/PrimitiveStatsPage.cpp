@@ -96,12 +96,12 @@ struct PrimitiveStatsGenerator
 			Resource = Mesh;
 
 			// Calculate vertex color memory on the actual mesh.
-			if( Mesh && Mesh->GetRenderData())
+			if( Mesh && Mesh->RenderData )
 			{
 				// Accumulate memory for each LOD
-				for( int32 LODIndex = 0; LODIndex < Mesh->GetRenderData()->LODResources.Num(); ++LODIndex )
+				for( int32 LODIndex = 0; LODIndex < Mesh->RenderData->LODResources.Num(); ++LODIndex )
 				{
-					VertexColorMem += Mesh->GetRenderData()->LODResources[LODIndex].VertexBuffers.ColorVertexBuffer.GetAllocatedSize();
+					VertexColorMem += Mesh->RenderData->LODResources[LODIndex].VertexBuffers.ColorVertexBuffer.GetAllocatedSize();
 				}
 			}
 
@@ -299,11 +299,11 @@ struct PrimitiveStatsGenerator
 				if( StaticMeshComponent )
 				{
 					UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-					if( StaticMesh && StaticMesh->GetRenderData())
+					if( StaticMesh && StaticMesh->RenderData )
 					{
-						for( int32 SectionIndex=0; SectionIndex<StaticMesh->GetRenderData()->LODResources[0].Sections.Num(); SectionIndex++ )
+						for( int32 SectionIndex=0; SectionIndex<StaticMesh->RenderData->LODResources[0].Sections.Num(); SectionIndex++ )
 						{
-							const FStaticMeshSection& StaticMeshSection = StaticMesh->GetRenderData()->LODResources[0].Sections[SectionIndex];
+							const FStaticMeshSection& StaticMeshSection = StaticMesh->RenderData->LODResources[0].Sections[SectionIndex];
 							NewStatsEntry->Triangles	+= StaticMeshSection.NumTriangles;
 							NewStatsEntry->Sections++;
 						}

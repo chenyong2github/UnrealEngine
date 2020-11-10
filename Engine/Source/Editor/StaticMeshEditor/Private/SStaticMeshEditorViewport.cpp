@@ -39,7 +39,7 @@ void SStaticMeshEditorViewport::Construct(const FArguments& InArgs)
 
 	if (StaticMesh)
 	{
-		PreviewScene->SetFloorOffset(-StaticMesh->GetExtendedBounds().Origin.Z + StaticMesh->GetExtendedBounds().BoxExtent.Z);
+		PreviewScene->SetFloorOffset(-StaticMesh->ExtendedBounds.Origin.Z + StaticMesh->ExtendedBounds.BoxExtent.Z);
 	}
 
 	// restore last used feature level

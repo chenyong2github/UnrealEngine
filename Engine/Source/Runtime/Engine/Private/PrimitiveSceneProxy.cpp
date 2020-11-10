@@ -55,8 +55,8 @@ bool SupportsCachingMeshDrawCommands(const FMeshBatch& MeshBatch, ERHIFeatureLev
 	{
 		// External textures get mapped to immutable samplers (which are part of the PSO); the mesh must go through the dynamic path, as the media player might not have
 		// valid textures/samplers the first few calls; once they're available the PSO needs to get invalidated and recreated with the immutable samplers.
-		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
-		const FMaterialShaderMap* ShaderMap = Material.GetRenderingThreadShaderMap();
+		const FMaterial* Material = MeshBatch.MaterialRenderProxy->GetMaterial(FeatureLevel);
+		const FMaterialShaderMap* ShaderMap = Material->GetRenderingThreadShaderMap();
 		if (ShaderMap)
 		{
 			const FUniformExpressionSet& ExpressionSet = ShaderMap->GetUniformExpressionSet();
@@ -82,7 +82,6 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 #endif
 	CustomPrimitiveData(InComponent->GetCustomPrimitiveData())
 ,	TranslucencySortPriority(FMath::Clamp(InComponent->TranslucencySortPriority, SHRT_MIN, SHRT_MAX))
-,	TranslucencySortDistanceOffset(InComponent->TranslucencySortDistanceOffset)
 ,	Mobility(InComponent->Mobility)
 ,	LightmapType(InComponent->LightmapType)
 ,	StatId()
@@ -343,8 +342,7 @@ FPrimitiveViewRelevance FPrimitiveSceneProxy::GetViewRelevance(const FSceneView*
 
 void FPrimitiveSceneProxy::UpdateUniformBuffer()
 {
-	// stat disabled by default due to low-value/high-frequency
-	//QUICK_SCOPE_CYCLE_COUNTER(STAT_FPrimitiveSceneProxy_UpdateUniformBuffer);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPrimitiveSceneProxy_UpdateUniformBuffer);
 
 	// Skip expensive primitive uniform buffer creation for proxies whose vertex factories only use GPUScene for primitive data
 	if (DoesVFRequirePrimitiveUniformBuffer())

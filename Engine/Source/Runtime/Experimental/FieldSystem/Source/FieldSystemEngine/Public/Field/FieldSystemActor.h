@@ -14,7 +14,7 @@
 #include "FieldSystemActor.generated.h"
 
 
-UCLASS(meta=(ChildCanTick))
+UCLASS()
 class FIELDSYSTEMENGINE_API AFieldSystemActor: public AActor
 {
 	GENERATED_UCLASS_BODY()

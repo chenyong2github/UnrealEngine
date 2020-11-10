@@ -371,7 +371,7 @@ FReply SRadialSlider::OnMouseButtonDown( const FGeometry& MyGeometry, const FPoi
 {
 	if ((MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton) && !IsLocked())
 	{
-		CachedCursor = GetCursor().Get(EMouseCursor::Default);
+		CachedCursor = Cursor.Get().Get(EMouseCursor::Default);
 		OnInputStarted(MyGeometry, MouseEvent.GetLastScreenSpacePosition());
 
 		OnMouseCaptureBegin.ExecuteIfBound();
@@ -449,7 +449,7 @@ FReply SRadialSlider::OnTouchMoved(const FGeometry& MyGeometry, const FPointerEv
 	{
 		if (FSlateApplication::Get().HasTraveledFarEnoughToTriggerDrag(InTouchEvent, PressedScreenSpaceTouchDownPosition, EOrientation::Orient_Horizontal))
 		{
-			CachedCursor = GetCursor().Get(EMouseCursor::Default);
+			CachedCursor = Cursor.Get().Get(EMouseCursor::Default);
 			OnMouseCaptureBegin.ExecuteIfBound();
 
 			CommitValue(PositionToValue(MyGeometry, InTouchEvent.GetScreenSpacePosition()));

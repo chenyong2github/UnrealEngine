@@ -116,11 +116,6 @@ public:
 
 	MOVIESCENE_API void BeginDestroy();
 
-#if WITH_EDITOR
-	MOVIESCENE_API void SetEmulatedNetworkMask(EMovieSceneServerClientMask InNewMask, IMovieScenePlayer& Player);
-	MOVIESCENE_API EMovieSceneServerClientMask GetEmulatedNetworkMask() const;
-#endif
-
 private:
 
 	static UMovieSceneEntitySystemLinker* ConstructEntityLinker(IMovieScenePlayer& Player);
@@ -147,10 +142,6 @@ private:
 	FMovieSceneSequenceID RootID;
 
 	FMovieSceneCompiledDataID CompiledDataID;
-
-#if WITH_EDITOR
-	EMovieSceneServerClientMask EmulatedNetworkMask;
-#endif
 };
 
 template<>

@@ -1510,8 +1510,8 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportStaticMesh(void* VoidFbx
 	}
 
 	// preserve settings in navcollision subobject
-	UNavCollisionBase* NavCollision = Mesh->GetNavCollision() ?
-		(UNavCollisionBase*)StaticDuplicateObject(Mesh->GetNavCollision(), GetTransientPackage()) :
+	UNavCollisionBase* NavCollision = Mesh->NavCollision ?
+		(UNavCollisionBase*)StaticDuplicateObject(Mesh->NavCollision, GetTransientPackage()) :
 		nullptr;
 
 	// preserve extended bound settings
@@ -1545,7 +1545,7 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportStaticMesh(void* VoidFbx
 
 		if (NavCollision)
 		{
-			Mesh->SetNavCollision(NavCollision);
+			Mesh->NavCollision = NavCollision;
 			NavCollision->Rename(nullptr, Mesh, REN_DontCreateRedirectors | REN_DoNotDirty);
 		}
 

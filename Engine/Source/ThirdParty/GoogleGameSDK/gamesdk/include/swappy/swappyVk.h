@@ -22,8 +22,9 @@
 
 #pragma once
 
-#include "jni.h"
 #include "swappy_common.h"
+
+#include "jni.h"
 
 #define VK_NO_PROTOTYPES 1
 #include <vulkan/vulkan.h>
@@ -52,41 +53,45 @@ extern "C" {
  * can be called twice, once to identify the number of required extensions, and
  * again with application-allocated memory that the function can write into.
  *
- * @param[in]    physicalDevice          - The VkPhysicalDevice associated with
- * the available extensions.
+ * @param[in]    physicalDevice          - The VkPhysicalDevice associated with the
+ *                    available extensions.
  * @param[in]    availableExtensionCount - This is the returned value of
  *                    pPropertyCount from vkEnumerateDeviceExtensionProperties.
  * @param[in]    pAvailableExtensions    - This is the returned value of
  *                    pProperties from vkEnumerateDeviceExtensionProperties.
- * @param[inout] pRequiredExtensionCount - If pRequiredExtensions is nullptr,
- * the function sets this to the number of extensions that are required.  If
- * pRequiredExtensions is non-nullptr, this is the number of required extensions
- * that the function should write into pRequiredExtensions.
- * @param[inout] pRequiredExtensions - If non-nullptr, this is
- * application-allocated memory into which the function will write the names of
+ * @param[inout] pRequiredExtensionCount - If pRequiredExtensions is nullptr, the
+ *                    function sets this to the number of extensions that are
+ *                    required.  If pRequiredExtensions is non-nullptr, this
+ *                    is the number of required extensions that the function
+ *                    should write into pRequiredExtensions.
+ * @param[inout] pRequiredExtensions - If non-nullptr, this is application-allocated
+ *                    memory into which the function will write the names of
  *                    required extensions.  It is a pointer to an array of
  *                    char* strings (i.e. the same as
  *                    VkDeviceCreateInfo::ppEnabledExtensionNames).
  */
 void SwappyVk_determineDeviceExtensions(
-    VkPhysicalDevice physicalDevice, uint32_t availableExtensionCount,
+    VkPhysicalDevice       physicalDevice,
+    uint32_t               availableExtensionCount,
     VkExtensionProperties* pAvailableExtensions,
-    uint32_t* pRequiredExtensionCount, char** pRequiredExtensions);
+    uint32_t*              pRequiredExtensionCount,
+    char**                 pRequiredExtensions);
 
 /**
  * @brief Tell Swappy the queueFamilyIndex used to create a specific VkQueue
  *
- * Swappy needs to know the queueFamilyIndex used for creating a specific
- * VkQueue so it can use it when presenting.
+ * Swappy needs to know the queueFamilyIndex used for creating a specific VkQueue
+ * so it can use it when presenting.
  *
  * @param[in]  device            - The VkDevice associated with the queue
  * @param[in]  queue             - A device queue.
- * @param[in]  queueFamilyIndex  - The queue family index used to create the
- * VkQueue.
+ * @param[in]  queueFamilyIndex  - The queue family index used to create the VkQueue.
  *
  */
-void SwappyVk_setQueueFamilyIndex(VkDevice device, VkQueue queue,
-                                  uint32_t queueFamilyIndex);
+void SwappyVk_setQueueFamilyIndex(
+        VkDevice    device,
+        VkQueue     queue,
+        uint32_t    queueFamilyIndex);
 
 // TBD: For now, SwappyVk assumes only one VkSwapchainKHR per VkDevice, and that
 // applications don't re-create swapchains.  Is this long-term sufficient?
@@ -97,8 +102,12 @@ void SwappyVk_setQueueFamilyIndex(VkDevice device, VkQueue queue,
  * @private
  */
 bool SwappyVk_initAndGetRefreshCycleDuration_internal(
-    JNIEnv* env, jobject jactivity, VkPhysicalDevice physicalDevice,
-    VkDevice device, VkSwapchainKHR swapchain, uint64_t* pRefreshDuration);
+        JNIEnv*          env,
+        jobject          jactivity,
+        VkPhysicalDevice physicalDevice,
+        VkDevice         device,
+        VkSwapchainKHR   swapchain,
+        uint64_t*        pRefreshDuration);
 
 /**
  * @brief Initialize SwappyVk for a given device and swapchain, and obtain the
@@ -118,57 +127,56 @@ bool SwappyVk_initAndGetRefreshCycleDuration_internal(
  * refresh rate of the display (e.g. 16,666,666 nanoseconds corresponds to a
  * 60Hz display, 11,111,111 nsec corresponds to a 90Hz display).
  *
- * @param[in]  env - JNIEnv that is assumed to be from AttachCurrentThread
- * function
+ * @param[in]  env - JNIEnv that is assumed to be from AttachCurrentThread function
  * @param[in]  jactivity - NativeActivity object handle, used for JNI
- * @param[in]  physicalDevice   - The VkPhysicalDevice associated with the
- * swapchain
+ * @param[in]  physicalDevice   - The VkPhysicalDevice associated with the swapchain
  * @param[in]  device    - The VkDevice associated with the swapchain
- * @param[in]  swapchain - The VkSwapchainKHR the application wants Swappy to
- * swap
+ * @param[in]  swapchain - The VkSwapchainKHR the application wants Swappy to swap
  * @param[out] pRefreshDuration - The returned refresh cycle duration
  *
- * @return bool            - true if the value returned by pRefreshDuration is
- * valid, otherwise false if an error.
+ * @return bool            - true if the value returned by pRefreshDuration is valid,
+ *                    otherwise false if an error.
  */
 static inline bool SwappyVk_initAndGetRefreshCycleDuration(
-    JNIEnv* env, jobject jactivity, VkPhysicalDevice physicalDevice,
-    VkDevice device, VkSwapchainKHR swapchain, uint64_t* pRefreshDuration) {
-    // This call ensures that the header and the linked library are from the
-    // same version (if not, a linker error will be triggered because of an
-    // undefined symbol).
+        JNIEnv*          env,
+        jobject          jactivity,
+        VkPhysicalDevice physicalDevice,
+        VkDevice         device,
+        VkSwapchainKHR   swapchain,
+        uint64_t*        pRefreshDuration) {
+    // This call ensures that the header and the linked library are from the same version
+    // (if not, a linker error will be triggered because of an undefined symbol).
     SWAPPY_VERSION_SYMBOL();
-    return SwappyVk_initAndGetRefreshCycleDuration_internal(
-        env, jactivity, physicalDevice, device, swapchain, pRefreshDuration);
+    return SwappyVk_initAndGetRefreshCycleDuration_internal(env, jactivity, physicalDevice, device,
+                                           swapchain, pRefreshDuration);
 }
 
 /**
- * @brief Tell Swappy which ANativeWindow to use when calling to ANativeWindow_*
- * API.
+ * @brief Tell Swappy which ANativeWindow to use when calling to ANativeWindow_* API.
  * @param[in]  device    - The VkDevice associated with the swapchain
- * @param[in]  swapchain - The VkSwapchainKHR the application wants Swappy to
- * swap
- * @param[in]  window    - The ANativeWindow that was used to create the
- * VkSwapchainKHR
- */
-void SwappyVk_setWindow(VkDevice device, VkSwapchainKHR swapchain,
-                        ANativeWindow* window);
+ * @param[in]  swapchain - The VkSwapchainKHR the application wants Swappy to swap
+ * @param[in]  window    - The ANativeWindow that was used to create the VkSwapchainKHR
+*/
+void SwappyVk_setWindow(
+        VkDevice       device,
+        VkSwapchainKHR swapchain,
+        ANativeWindow* window);
 
 /**
- * @brief Tell Swappy the duration of that each presented image should be
- * visible.
+ * @brief Tell Swappy the duration of that each presented image should be visible.
  *
  * If your application presents to more than one swapchain at a time, you must
  * call this for each swapchain before presenting to it.
  *
  * @param[in]  device    - The VkDevice associated with the swapchain
- * @param[in]  swapchain - The VkSwapchainKHR the application wants Swappy to
- * swap
+ * @param[in]  swapchain - The VkSwapchainKHR the application wants Swappy to swap
  * @param[in]  swap_ns   - The duration of that each presented image should be
  *                    visible in nanoseconds
  */
-void SwappyVk_setSwapIntervalNS(VkDevice device, VkSwapchainKHR swapchain,
-                                uint64_t swap_ns);
+void SwappyVk_setSwapIntervalNS(
+        VkDevice       device,
+        VkSwapchainKHR swapchain,
+        uint64_t       swap_ns);
 
 /**
  * @brief Tell Swappy to present one or more images to corresponding swapchains.
@@ -188,31 +196,24 @@ void SwappyVk_setSwapIntervalNS(VkDevice device, VkSwapchainKHR swapchain,
  *                    information about what image(s) to present on which
  *                    swapchain(s).
  */
-VkResult SwappyVk_queuePresent(VkQueue queue,
-                               const VkPresentInfoKHR* pPresentInfo);
+VkResult SwappyVk_queuePresent(
+        VkQueue                 queue,
+        const VkPresentInfoKHR* pPresentInfo);
 
 /**
- * @brief Destroy the SwappyVk instance associated with a swapchain.
+ * @brief Destroy SwappyVk instance associated to the swapchain
  *
- * This API is expected to be called before calling vkDestroySwapchainKHR()
+ * This API is expected to be called before calling to vkDestroySwapchainKHR()
  * so Swappy can cleanup its internal state.
- *
- * @param[in]  device    - The VkDevice associated with SwappyVk
- * @param[in]  swapchain - The VkSwapchainKHR the application wants Swappy to
- * destroy
- */
-void SwappyVk_destroySwapchain(VkDevice device, VkSwapchainKHR swapchain);
-
-/**
- * @brief Destroy any swapchains associated with the device and clean up the
- * device's resources
- *
- * This function should be called after SwappyVk_destroySwapchain if you no
- * longer need the device.
+ * Note that if you only have one swapchain for the device,
+ * this function will also clean up any resources associated with the device.
  *
  * @param[in]  device     - The VkDevice associated with SwappyVk
+ * @param[in]  swapchain - The VkSwapchainKHR the application wants Swappy to swap
  */
-void SwappyVk_destroyDevice(VkDevice device);
+void SwappyVk_destroySwapchain(
+        VkDevice                device,
+        VkSwapchainKHR          swapchain);
 
 /**
  * @brief Enables Auto-Swap-Interval feature for all instances.
@@ -238,9 +239,9 @@ void SwappyVk_setAutoPipelineMode(bool enabled);
  * @brief Sets the maximal swap duration for all instances.
  *
  * Sets the maximal duration for Auto-Swap-Interval in milliseconds.
- * If SwappyVk is operating in Auto-Swap-Interval and the frame duration is
- * longer than the provided duration, SwappyVk will not do any pacing and just
- * submit the frame as soon as possible.
+ * If SwappyVk is operating in Auto-Swap-Interval and the frame duration is longer
+ * than the provided duration, SwappyVk will not do any pacing and just submit the
+ * frame as soon as possible.
  *
  * @param[in]  max_swap_ns - maximal swap duration in milliseconds.
  */
@@ -263,7 +264,7 @@ uint64_t SwappyVk_getFenceTimeoutNS();
  *
  * @param[in]  tracer - Collection of callback functions
  */
-void SwappyVk_injectTracer(const SwappyTracer* tracer);
+void SwappyVk_injectTracer(const SwappyTracer *tracer);
 
 /**
  * @brief A structure enabling you to provide your own Vulkan function wrappers
@@ -275,25 +276,24 @@ typedef struct SwappyVkFunctionProvider {
     /**
      * @brief Callback to initialize the function provider.
      *
-     * This function is called by Swappy before any functions are requested.
-     * E.g. so you can call dlopen on the Vulkan library.
+     * This function is called by Swappy before any functions are requested. E.g. so you can
+     * call dlopen on the Vulkan library.
      */
     bool (*init)();
 
     /**
      * @brief Callback to get the address of a function.
      *
-     * This function is called by Swappy to get the address of a Vulkan
-     * function.
+     * This function is called by Swappy to get the address of a Vulkan function.
      * @param name The null-terminated name of the function.
      */
     void* (*getProcAddr)(const char* name);
 
     /**
      * @brief Callback to close any resources owned by the function provider.
-     *
-     * This function is called by Swappy when no more functions will be
-     * requested, e.g. so you can call dlclose on the Vulkan library.
+     * 
+     * This function is called by Swappy when no more functions will be requested,
+     * e.g. so you can call dlclose on the Vulkan library.
      */
     void (*close)();
 } SwappyVkFunctionProvider;
@@ -301,25 +301,17 @@ typedef struct SwappyVkFunctionProvider {
 /**
  * @brief Set the Vulkan function provider.
  *
- * This enables you to provide an object that will be used to look up Vulkan
- * functions, e.g. to hook usage of these functions.
+ * This enables you to provide an object that will be used to look up Vulkan functions, e.g. to
+ * hook usage of these functions.
  *
  * To use this functionality, you *must* call this function before any others.
- *
- * Usage of this function is entirely optional. If you do not use it, the Vulkan
- * functions required by Swappy will be dynamically loaded from libvulkan.so.
+ * 
+ * Usage of this function is entirely optional. If you do not use it, the Vulkan functions required
+ * by Swappy will be dynamically loaded from libvulkan.so.
  *
  * @param[in] provider - provider object
  */
-void SwappyVk_setFunctionProvider(
-    const SwappyVkFunctionProvider* pSwappyVkFunctionProvider);
-
-/**
- * @brief Get the swap interval value, in nanoseconds, for a given swapchain.
- *
- * @param[in] swapchain - the swapchain to query
- */
-uint64_t SwappyVk_getSwapIntervalNS(VkSwapchainKHR swapchain);
+void SwappyVk_setFunctionProvider(const SwappyVkFunctionProvider* pSwappyVkFunctionProvider);
 
 #ifdef __cplusplus
 }  // extern "C"

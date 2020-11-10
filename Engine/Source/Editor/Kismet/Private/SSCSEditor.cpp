@@ -3957,6 +3957,15 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 		SNew(SVerticalBox)
 
 		+ SVerticalBox::Slot()
+		.Padding(0)
+		.AutoHeight()
+		[
+			SAssignNew(ExtensionPanel, SExtensionPanel)
+			.ExtensionPanelID("SCSEditor")
+			.ExtensionContext(ExtensionContext)
+		]
+
+		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.VAlign(VAlign_Top)
 		.Padding(0)
@@ -3973,7 +3982,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 						.VAlign(VAlign_Top)
 					[
 						SAssignNew(ButtonBox, SHorizontalBox)
-
+				
 						+ SHorizontalBox::Slot()
 						.Padding( 3.0f, 3.0f )
 						.AutoWidth()
@@ -3987,17 +3996,8 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 							.IsEnabled(AllowEditing)
 						]
 
-						+ SHorizontalBox::Slot()
-						.Padding(0)
-						.AutoWidth()
-						[
-							SAssignNew(ExtensionPanel, SExtensionPanel)
-							.ExtensionPanelID("SCSEditor.NextToAddComponentButton")
-							.ExtensionContext(ExtensionContext)
-						]
-
 						//
-						// horizontal slot index #2 => reserved for BP-editor search bar (see 'ButtonBox' and 'SearchBarHorizontalSlotIndex' usage below)
+						// horizontal slot (index) #1 => reserved for BP-editor search bar (see 'ButtonBox' usage below)
 
 						+ SHorizontalBox::Slot()
 						.FillWidth(1.0f)
@@ -4107,7 +4107,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 	// insert the search bar, depending on which editor this widget is in (depending on convert/edit button visibility)
 	if (bInlineSearchBarWithButtons)
 	{
-		static const int32 SearchBarHorizontalSlotIndex = 2;
+		const int32 SearchBarHorizontalSlotIndex = 1;
 
 		ButtonBox->InsertSlot(SearchBarHorizontalSlotIndex)
 			.FillWidth(1.0f)
@@ -4119,7 +4119,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 	}
 	else
 	{
-		static const int32 SearchBarVerticalSlotIndex = 1;
+		const int32 SearchBarVerticalSlotIndex = 1;
 
 		HeaderBox->InsertSlot(SearchBarVerticalSlotIndex)
 			.VAlign(VAlign_Center)
@@ -5534,17 +5534,28 @@ void SSCSEditor::ClearSelection()
 
 void SSCSEditor::SaveSCSCurrentState( USimpleConstructionScript* SCSObj )
 {
-	if (SCSObj)
+	if( SCSObj )
 	{
-		SCSObj->SaveToTransactionBuffer();
+		SCSObj->Modify();
+
+		const TArray<USCS_Node*>& SCS_RootNodes = SCSObj->GetRootNodes();
+		for(int32 i = 0; i < SCS_RootNodes.Num(); ++i)
+		{
+			SaveSCSNode( SCS_RootNodes[i] );
+		}
 	}
 }
 
 void SSCSEditor::SaveSCSNode( USCS_Node* Node )
 {
-	if (Node)
+	if( Node )
 	{
-		Node->SaveToTransactionBuffer();
+		Node->Modify();
+
+		for ( USCS_Node* ChildNode : Node->GetChildNodes() )
+		{
+			SaveSCSNode( ChildNode );
+		}
 	}
 }
 
@@ -6248,8 +6259,6 @@ bool SSCSEditor::CanDeleteNodes() const
 
 void SSCSEditor::OnDeleteNodes()
 {
-	const FScopedTransaction Transaction( LOCTEXT("RemoveComponents", "Remove Components") );
-
 	// Invalidate any active component in the visualizer
 	GUnrealEd->ComponentVisManager.ClearActiveComponentVis();
 
@@ -6307,7 +6316,7 @@ void SSCSEditor::OnDeleteNodes()
 			}
 		}
 
-		//const FScopedTransaction Transaction(LOCTEXT("SetNodeEnabledState", "Set Node Enabled State"));
+		const FScopedTransaction Transaction(LOCTEXT("SetNodeEnabledState", "Set Node Enabled State"));
 
 		for (int32 i = 0; i < SelectedNodes.Num(); ++i)
 		{
@@ -6346,7 +6355,7 @@ void SSCSEditor::OnDeleteNodes()
 	}
 	else    // EComponentEditorMode::ActorInstance
 	{
-	//	const FScopedTransaction Transaction(LOCTEXT("SetNodeEnabledState", "Set Node Enabled State"));
+		const FScopedTransaction Transaction(LOCTEXT("SetNodeEnabledState", "Set Node Enabled State"));
 
 		if (AActor* ActorInstance = GetActorContext())
 		{

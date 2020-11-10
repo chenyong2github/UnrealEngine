@@ -41,12 +41,6 @@ namespace AutomationTool.Tasks
 		public string Target;
 
 		/// <summary>
-		/// Properties for the command
-		/// </summary>
-		[TaskParameter(Optional = true)]
-		public string Properties;
-
-		/// <summary>
 		/// Additional options to pass to the compiler.
 		/// </summary>
 		[TaskParameter(Optional = true)]
@@ -123,24 +117,6 @@ namespace AutomationTool.Tasks
 			if(!String.IsNullOrEmpty(Parameters.Configuration))
 			{
 				Properties["Configuration"] = Parameters.Configuration;
-			}
-			if(!String.IsNullOrEmpty(Parameters.Properties))
-			{
-				foreach (string Property in Parameters.Properties.Split(';'))
-				{
-					if (!String.IsNullOrWhiteSpace(Property))
-					{
-						int EqualsIdx = Property.IndexOf('=');
-						if (EqualsIdx == -1)
-						{
-							Log.TraceWarning("Missing '=' in property assignment");
-						}
-						else
-						{
-							Properties[Property.Substring(0, EqualsIdx).Trim()] = Property.Substring(EqualsIdx + 1).Trim();
-						}
-					}
-				}
 			}
 
 			// Build the arguments and run the build

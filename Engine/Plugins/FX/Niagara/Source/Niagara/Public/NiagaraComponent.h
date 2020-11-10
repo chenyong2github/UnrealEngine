@@ -154,7 +154,6 @@ protected:
 	//virtual void OnAttachmentChanged() override;
 
 	void UpdateEmitterMaterials(bool bForceUpdateEmitterMaterials = false);
-
 public:
 	/**
 	* True if we should automatically attach to AutoAttachParent when activated, and detach from our parent when completed.
@@ -618,9 +617,6 @@ private:
 
 	/** True if UpdateEmitterMaterials needs to be called*/
 	uint32 bNeedsUpdateEmitterMaterials : 1;
-
-	/** True if we need to force our materials to recache */
-	uint32 bNeedsMaterialRecache : 1;
 
 	/** Restore relative transform from auto attachment and optionally detach from parent (regardless of whether it was an auto attachment). */
 	void CancelAutoAttachment(bool bDetachFromParent);

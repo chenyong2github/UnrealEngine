@@ -14,8 +14,6 @@ bool FTextLocalizationResourceGenerator::GenerateLocMeta(const FLocTextHelper& I
 	// Populate the meta-data
 	OutLocMeta.NativeCulture = InLocTextHelper.GetNativeCulture();
 	OutLocMeta.NativeLocRes = OutLocMeta.NativeCulture / InResourceName;
-	OutLocMeta.CompiledCultures = InLocTextHelper.GetAllCultures();
-	OutLocMeta.CompiledCultures.Sort();
 
 	return true;
 }

@@ -89,13 +89,6 @@
 
 #define LOCTEXT_NAMESPACE "Material"
 
-static TAutoConsoleVariable<int32> CVarMaterialParameterLegacyChecks(
-	TEXT("r.MaterialParameterLegacyChecks"),
-	0,
-	TEXT("When enabled, sanity check new material parameter logic against legacy path.\n")
-	TEXT("Note that this can be slow"),
-	ECVF_RenderThreadSafe);
-
 #if WITH_EDITOR
 const FMaterialsWithDirtyUsageFlags FMaterialsWithDirtyUsageFlags::DefaultAnnotation;
 
@@ -335,26 +328,30 @@ public:
 		});
 	}
 
-	virtual const FMaterialRenderProxy* GetFallback(ERHIFeatureLevel::Type InFeatureLevel) const override
+	// FMaterialRenderProxy interface.
+	virtual const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const
 	{
-		const FMaterialRenderProxy* Fallback = &GetFallbackRenderProxy();
-		if (Fallback == this)
-		{ 
-			// If we are the default material, must not try to fall back to the default material in an error state as that will be infinite recursion
-			return nullptr;
-		}
-		return Fallback;
-	}
-
-	virtual const FMaterial* GetMaterialNoFallback(ERHIFeatureLevel::Type InFeatureLevel) const override
-	{
-		checkSlow(IsInParallelRenderingThread());
-		const FMaterial* MaterialResource = Material->GetMaterialResource(InFeatureLevel);
+		const FMaterialResource* MaterialResource = Material->GetMaterialResource(InFeatureLevel);
 		if (MaterialResource && MaterialResource->GetRenderingThreadShaderMap())
 		{
-			return MaterialResource;
+			// Verify that compilation has been finalized, the rendering thread shouldn't be touching it otherwise
+			checkSlow(MaterialResource->GetRenderingThreadShaderMap()->IsCompilationFinalized());
+			// The shader map reference should have been NULL'ed if it did not compile successfully
+			checkSlow(MaterialResource->GetRenderingThreadShaderMap()->CompiledSuccessfully());
+			return *MaterialResource;
 		}
-		return nullptr;
+
+		// If we are the default material, must not try to fall back to the default material in an error state as that will be infinite recursion
+		check(!Material->IsDefaultMaterial());
+
+		OutFallbackMaterialRenderProxy = &GetFallbackRenderProxy();
+		return OutFallbackMaterialRenderProxy->GetMaterialWithFallback(InFeatureLevel, OutFallbackMaterialRenderProxy);
+	}
+
+	virtual FMaterial* GetMaterialNoFallback(ERHIFeatureLevel::Type InFeatureLevel) const
+	{
+		checkSlow(IsInParallelRenderingThread());
+		return Material->GetMaterialResource(InFeatureLevel);
 	}
 
 	virtual UMaterialInterface* GetMaterialInterface() const override
@@ -759,6 +756,7 @@ void ProcessSerializedInlineShaderMaps(UMaterialInterface* Owner, TArray<FMateri
 		// Nothing to process
 		return;
 	}
+
 	UMaterialInstance* OwnerMaterialInstance = Cast<UMaterialInstance>(Owner);
 	UMaterial* OwnerMaterial = nullptr;
 	if (OwnerMaterialInstance)
@@ -2143,7 +2141,7 @@ bool UMaterial::GetScalarParameterValue(const FHashedMaterialParameterInfo& Para
 {
 	const bool bResult = GetScalarParameterValue_New(ParameterInfo, OutValue, bOveriddenOnly);
 #if WITH_EDITOR
-	if (GIsClient && CVarMaterialParameterLegacyChecks.GetValueOnAnyThread())
+	if (GIsClient)
 	{
 		// Expressions may not be loaded on server, and cached data is not updated...results will be incorrect
 		float OldValue = 0.0f;
@@ -2282,7 +2280,7 @@ bool UMaterial::GetVectorParameterValue(const FHashedMaterialParameterInfo& Para
 {
 	const bool bResult = GetVectorParameterValue_New(ParameterInfo, OutValue, bOveriddenOnly);
 #if WITH_EDITOR
-	if (GIsClient && CVarMaterialParameterLegacyChecks.GetValueOnAnyThread())
+	if (GIsClient)
 	{
 		// Expressions may not be loaded on server, and cached data is not updated...results will be incorrect
 		FLinearColor OldValue(ForceInitToZero);
@@ -2405,7 +2403,7 @@ bool UMaterial::GetTextureParameterValue(const FHashedMaterialParameterInfo& Par
 {
 	const bool bResult = GetTextureParameterValue_New(ParameterInfo, OutValue, bOveriddenOnly);
 #if WITH_EDITOR
-	if (GIsClient && CVarMaterialParameterLegacyChecks.GetValueOnAnyThread())
+	if (GIsClient)
 	{
 		// Expressions may not be loaded on server, and cached data is not updated...results will be incorrect
 		UTexture* OldValue = nullptr;
@@ -2510,7 +2508,7 @@ bool UMaterial::GetRuntimeVirtualTextureParameterValue(const FHashedMaterialPara
 {
 	const bool bResult = GetRuntimeVirtualTextureParameterValue_New(ParameterInfo, OutValue, bOveriddenOnly);
 #if WITH_EDITOR
-	if (GIsClient && CVarMaterialParameterLegacyChecks.GetValueOnAnyThread())
+	if (GIsClient)
 	{
 		// Expressions may not be loaded on server, and cached data is not updated...results will be incorrect
 		URuntimeVirtualTexture* OldValue = nullptr;
@@ -2628,7 +2626,7 @@ bool UMaterial::GetFontParameterValue(const FHashedMaterialParameterInfo& Parame
 {
 	const bool bResult = GetFontParameterValue_New(ParameterInfo, OutFontValue, OutFontPage, bOveriddenOnly);
 #if WITH_EDITOR
-	if (GIsClient && CVarMaterialParameterLegacyChecks.GetValueOnAnyThread())
+	if (GIsClient)
 	{
 		// Expressions may not be loaded on server, and cached data is not updated...results will be incorrect
 		UFont* OldValue = nullptr;
@@ -3013,6 +3011,10 @@ bool UMaterial::IsTextureForceRecompileCacheRessource(UTexture *Texture)
 
 void UMaterial::UpdateMaterialShaderCacheAndTextureReferences()
 {
+	// If the material changes, then the debug view material must reset to prevent parameters mismatch
+	void ClearDebugViewMaterials(UMaterialInterface*);
+	ClearDebugViewMaterials(this);
+
 	//Cancel any current compilation jobs that are in flight for this material.
 	CancelOutstandingCompilation();
 
@@ -3038,7 +3040,7 @@ void UMaterial::UpdateMaterialShaderCacheAndTextureReferences()
 
 #endif //WITH_EDITOR
 
-void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId, EMaterialShaderPrecompileMode PrecompileMode)
+void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId)
 {
 #if WITH_EDITOR
 	// Always rebuild the shading model field on recompile
@@ -3088,14 +3090,13 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId, EMaterialSh
 				if (!PackageFileName.IsNone() && ReloadMaterialResource(&Tmp, PackageFileName.ToString(), OffsetToFirstResource, FeatureLevel, ActiveQualityLevel))
 				{
 					CurrentResource->SetInlineShaderMap(Tmp.GetGameThreadShaderMap());
-					CurrentResource->UpdateInlineShaderMapIsComplete();
 				}
 			}
 #endif // STORE_ONLY_ACTIVE_SHADERMAPS
 
 			ResourcesToCache.Reset();
 			ResourcesToCache.Add(CurrentResource);
-			CacheShadersForResources(ShaderPlatform, ResourcesToCache, PrecompileMode);
+			CacheShadersForResources(ShaderPlatform, ResourcesToCache);
 		}
 
 		FString AdditionalFormatToCache = GCompileMaterialsForShaderFormatCVar->GetString();
@@ -3169,12 +3170,12 @@ void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, T
 		NewResourcesToCache.Add(NewResource);
 	}
 
-	CacheShadersForResources(ShaderPlatform, NewResourcesToCache, EMaterialShaderPrecompileMode::Background, TargetPlatform);
+	CacheShadersForResources(ShaderPlatform, NewResourcesToCache, TargetPlatform);
 
 	OutCachedMaterialResources.Append(NewResourcesToCache);
 }
 
-void UMaterial::CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, EMaterialShaderPrecompileMode PrecompileMode, const ITargetPlatform* TargetPlatform)
+void UMaterial::CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, const ITargetPlatform* TargetPlatform)
 {
 #if WITH_EDITOR
 	check(!HasAnyFlags(RF_NeedPostLoad));
@@ -3182,7 +3183,7 @@ void UMaterial::CacheShadersForResources(EShaderPlatform ShaderPlatform, const T
 	for (int32 ResourceIndex = 0; ResourceIndex < ResourcesToCache.Num(); ResourceIndex++)
 	{
 		FMaterialResource* CurrentResource = ResourcesToCache[ResourceIndex];
-		const bool bSuccess = CurrentResource->CacheShaders(ShaderPlatform, PrecompileMode, TargetPlatform);
+		const bool bSuccess = CurrentResource->CacheShaders(ShaderPlatform, TargetPlatform);
 
 		if (!bSuccess)
 		{
@@ -3843,7 +3844,6 @@ void UMaterial::PropagateDataToMaterialProxy()
 {
 	UpdateMaterialRenderProxy(*DefaultMaterialInstance);
 }
-
 #if WITH_EDITOR
 void UMaterial::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPlatform )
 {
@@ -3897,13 +3897,15 @@ bool UMaterial::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetP
 void UMaterial::ClearCachedCookedPlatformData( const ITargetPlatform *TargetPlatform )
 {
 	// Make sure that all CacheShaders render thead commands are finished before we destroy FMaterialResources.
-	// TODO - is this needed, since we're using DeferredDeleteArray now?
 	FlushRenderingCommands();
 
 	TArray<FMaterialResource*> *CachedMaterialResourcesForPlatform = CachedMaterialResourcesForCooking.Find( TargetPlatform );
-	if ( CachedMaterialResourcesForPlatform != nullptr)
+	if ( CachedMaterialResourcesForPlatform != NULL )
 	{
-		FMaterial::DeferredDeleteArray(*CachedMaterialResourcesForPlatform);
+		for (int32 CachedResourceIndex = 0; CachedResourceIndex < CachedMaterialResourcesForPlatform->Num(); CachedResourceIndex++)
+		{
+			delete (*CachedMaterialResourcesForPlatform)[CachedResourceIndex];
+		}
 	}
 	CachedMaterialResourcesForCooking.Remove( TargetPlatform );
 }
@@ -3911,18 +3913,19 @@ void UMaterial::ClearCachedCookedPlatformData( const ITargetPlatform *TargetPlat
 void UMaterial::ClearAllCachedCookedPlatformData()
 {
 	// Make sure that all CacheShaders render thead commands are finished before we destroy FMaterialResources.
-	// TODO - is this needed, since we're using DeferredDeleteArray now?
 	FlushRenderingCommands();
 
-	for ( auto& It : CachedMaterialResourcesForCooking )
+	for ( auto It : CachedMaterialResourcesForCooking )
 	{
 		TArray<FMaterialResource*> &CachedMaterialResourcesForPlatform = It.Value;
-		FMaterial::DeferredDeleteArray(CachedMaterialResourcesForPlatform);
+		for (int32 CachedResourceIndex = 0; CachedResourceIndex < CachedMaterialResourcesForPlatform.Num(); CachedResourceIndex++)
+		{
+			delete (CachedMaterialResourcesForPlatform)[CachedResourceIndex];
+		}
 	}
 	CachedMaterialResourcesForCooking.Empty();
 }
-#endif // WITH_EDITOR
-
+#endif
 #if WITH_EDITOR
 bool UMaterial::CanEditChange(const FProperty* InProperty) const
 {
@@ -4111,6 +4114,10 @@ void UMaterial::PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyCh
 	// FMaterialUpdateContext present.
 	FlushRenderingCommands();
 
+	// If the material changes, then the debug view material must reset to prevent parameters mismatch
+	void ClearDebugViewMaterials(UMaterialInterface*);
+	ClearDebugViewMaterials(this);
+
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
@@ -4182,7 +4189,7 @@ void UMaterial::PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyCh
 
 		// When redirecting an object pointer, we trust that the DDC hash will detect the change and that we don't need to force a recompile.
 		const bool bRegenerateId = PropertyChangedEvent.ChangeType != EPropertyChangeType::Redirected && EffectOnShaders != EPostEditChangeEffectOnShaders::DoesNotInvalidate;
-		CacheResourceShadersForRendering(bRegenerateId, EMaterialShaderPrecompileMode::None);
+		CacheResourceShadersForRendering(bRegenerateId);
 
 		// Ensure that the ReferencedTextureGuids array is up to date.
 		if (GIsEditor)
@@ -4605,36 +4612,26 @@ bool UMaterial::CopyExpressionParameters(UMaterialExpression* Source, UMaterialE
 
 void UMaterial::BeginDestroy()
 {
-	TArray<TRefCountPtr<FMaterialResource>> ResourcesToDestroy;
+#if UE_CHECK_FMATERIAL_LIFETIME
 	for (FMaterialResource* Resource : MaterialResources)
 	{
 		Resource->SetOwnerBeginDestroyed();
-		if (Resource->PrepareDestroy_GameThread())
-		{
-			ResourcesToDestroy.Add(Resource);
-		}
 	}
+#endif // UE_CHECK_FMATERIAL_LIFETIME
 
 	Super::BeginDestroy();
 
-	if (DefaultMaterialInstance || ResourcesToDestroy.Num() > 0)
+	if (DefaultMaterialInstance)
 	{
 		ReleasedByRT = false;
+
 		FMaterialRenderProxy* LocalResource = DefaultMaterialInstance;
 		FThreadSafeBool* Released = &ReleasedByRT;
 		ENQUEUE_RENDER_COMMAND(BeginDestroyCommand)(
-			[ResourcesToDestroy = MoveTemp(ResourcesToDestroy), LocalResource, Released](FRHICommandListImmediate& RHICmdList) mutable
+		[LocalResource, Released](FRHICommandListImmediate& RHICmdList)
 		{
-			if (LocalResource)
-			{
-				LocalResource->MarkForGarbageCollection();
-				LocalResource->ReleaseResource();
-			}
-
-			for (FMaterialResource* Resource : ResourcesToDestroy)
-			{
-				Resource->PrepareDestroy_RenderThread();
-			}
+			LocalResource->MarkForGarbageCollection();
+			LocalResource->ReleaseResource();
 
 			*Released = true;
 		});
@@ -4909,10 +4906,6 @@ void UMaterial::CompileMaterialsForRemoteRecompile(
 
 	// Wait until all compilation is finished and all of the gathered FMaterialResources have their GameThreadShaderMap up to date
 	GShaderCompilingManager->FinishAllCompilation();
-
-	// This is heavy handed, but wait until we've set the render thread shader map before proceeding to delete the FMaterialResource below.
-	// This is code that should be run on the cooker so shouldn't be a big deal.
-	FlushRenderingCommands();
 
 	for(TMap<FString, TArray<FMaterialResource*> >::TIterator It(CompilingResources); It; ++It)
 	{
@@ -5699,7 +5692,7 @@ static void ListSceneColorMaterials()
 		for (TObjectIterator<UMaterialInterface> It; It; ++It)
 		{
 			UMaterialInterface* Mat = *It;
-			const FMaterial* MatRes = Mat->GetRenderProxy()->GetMaterialNoFallback(FeatureLevel);
+			const FMaterial* MatRes = Mat->GetRenderProxy()->GetMaterial(FeatureLevel);
 			if (MatRes && MatRes->RequiresSceneColorCopy_GameThread())
 			{
 				UMaterial* BaseMat = Mat->GetMaterial();

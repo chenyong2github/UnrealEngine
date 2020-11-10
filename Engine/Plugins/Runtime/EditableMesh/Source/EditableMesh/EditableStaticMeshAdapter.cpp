@@ -52,7 +52,7 @@ void UEditableStaticMeshAdapter::InitEditableStaticMesh( UEditableMesh* Editable
 			this->StaticMesh = ComponentStaticMesh;
 			this->OriginalStaticMesh = ComponentStaticMesh;
 
-			const FStaticMeshRenderData& StaticMeshRenderData = *StaticMesh->GetRenderData();
+			const FStaticMeshRenderData& StaticMeshRenderData = *StaticMesh->RenderData;
 			if( StaticMeshLODIndex >= 0 && StaticMeshLODIndex < StaticMeshRenderData.LODResources.Num() )
 			{
 				{
@@ -61,7 +61,7 @@ void UEditableStaticMeshAdapter::InitEditableStaticMesh( UEditableMesh* Editable
 					// date as we perform live edits to the geometry.  Later, we should probably get this updated as we go, or 
 					// lazily update the buffers when committing a final change or saving.  Without clearing these values, some
 					// graphical artifacts will be visible while editing the mesh (flickering shadows, for example.)
-					FStaticMeshLODResources& StaticMeshLOD = StaticMesh->GetRenderData()->LODResources[ StaticMeshLODIndex ];
+					FStaticMeshLODResources& StaticMeshLOD = StaticMesh->RenderData->LODResources[ StaticMeshLODIndex ];
 					StaticMeshLOD.bHasAdjacencyInfo = false;
 					StaticMeshLOD.bHasDepthOnlyIndices = false;
 					StaticMeshLOD.bHasReversedIndices = false;
@@ -251,7 +251,7 @@ void UEditableStaticMeshAdapter::InitEditableStaticMesh( UEditableMesh* Editable
 					FName MaterialAssetName = "";
 					if (RenderingSection.MaterialIndex != INDEX_NONE)
 					{
-						FStaticMaterial& StaticMaterial = StaticMesh->GetStaticMaterials()[RenderingSection.MaterialIndex];
+						FStaticMaterial& StaticMaterial = StaticMesh->StaticMaterials[RenderingSection.MaterialIndex];
 						MaterialInterface = StaticMaterial.MaterialInterface;
 						MaterialSlotName = StaticMaterial.ImportedMaterialSlotName;
 						MaterialAssetName = FName(*MaterialInterface->GetPathName());
@@ -405,7 +405,7 @@ void UEditableStaticMeshAdapter::InitializeFromEditableMesh( const UEditableMesh
 		RenderingPolygonGroup.RenderingSectionIndex = RenderingSectionIndex;
 
 		const FName SlotName = MeshDescription->PolygonGroupAttributes().GetAttribute<FName>( PolygonGroupID, MeshAttribute::PolygonGroup::ImportedMaterialSlotName );
-		RenderingPolygonGroup.MaterialIndex = StaticMesh->GetStaticMaterials().IndexOfByPredicate(
+		RenderingPolygonGroup.MaterialIndex = StaticMesh->StaticMaterials.IndexOfByPredicate(
 			[ &SlotName ]( const FStaticMaterial& StaticMaterial )
 			{
 				return StaticMaterial.ImportedMaterialSlotName == SlotName;
@@ -997,7 +997,7 @@ void UEditableStaticMeshAdapter::UpdateBounds( const UEditableMesh* EditableMesh
 		this->CachedBoundingBoxAndSphere = BoundingBoxAndSphere;
 	}
 	
-	FStaticMeshRenderData& StaticMeshRenderData = *StaticMesh->GetRenderData();
+	FStaticMeshRenderData& StaticMeshRenderData = *StaticMesh->RenderData;
 	StaticMeshRenderData.Bounds = CachedBoundingBoxAndSphere;
 	StaticMesh->CalculateExtendedBounds();
 }
@@ -1013,12 +1013,12 @@ void UEditableStaticMeshAdapter::UpdateCollision()
 		return;
 	}
 
-	if( StaticMesh->GetBodySetup() == nullptr )
+	if( StaticMesh->BodySetup == nullptr )
 	{
 		StaticMesh->CreateBodySetup();
 	}
 
-	UBodySetup* BodySetup = StaticMesh->GetBodySetup();
+	UBodySetup* BodySetup = StaticMesh->BodySetup;
 
 	// Return of body setup creation failed
 	if( !BodySetup )
@@ -1604,7 +1604,7 @@ void UEditableStaticMeshAdapter::DeletePolygonTriangles( const UEditableMesh* Ed
 
 inline const FStaticMeshLODResources& UEditableStaticMeshAdapter::GetStaticMeshLOD() const
 {
-	const FStaticMeshRenderData& StaticMeshRenderData = *StaticMesh->GetRenderData();
+	const FStaticMeshRenderData& StaticMeshRenderData = *StaticMesh->RenderData;
 	const FStaticMeshLODResources& StaticMeshLOD = StaticMeshRenderData.LODResources[ StaticMeshLODIndex ];
 	return StaticMeshLOD;
 }
@@ -1612,7 +1612,7 @@ inline const FStaticMeshLODResources& UEditableStaticMeshAdapter::GetStaticMeshL
 
 FStaticMeshLODResources& UEditableStaticMeshAdapter::GetStaticMeshLOD()
 {
-	FStaticMeshRenderData& StaticMeshRenderData = *StaticMesh->GetRenderData();
+	FStaticMeshRenderData& StaticMeshRenderData = *StaticMesh->RenderData;
 	FStaticMeshLODResources& StaticMeshLOD = StaticMeshRenderData.LODResources[ StaticMeshLODIndex ];
 	return StaticMeshLOD;
 }
@@ -1631,7 +1631,7 @@ void UEditableStaticMeshAdapter::OnCreatePolygonGroups( const UEditableMesh* Edi
 	for( const FPolygonGroupID& PolygonGroupID : PolygonGroupIDs )
 	{
 		UMaterialInterface* Material = LoadObject<UMaterialInterface>( nullptr, *PolygonGroupMaterialAssetSlotNames[ PolygonGroupID ].ToString() );
-		const int32 MaterialIndex = StaticMesh->GetStaticMaterials().Emplace(
+		const int32 MaterialIndex = StaticMesh->StaticMaterials.Emplace(
 			Material,
 			PolygonGroupImportedMaterialSlotNames[ PolygonGroupID ]
 #if WITH_EDITORONLY_DATA
@@ -1707,19 +1707,19 @@ void UEditableStaticMeshAdapter::OnSetPolygonGroupAttribute( const UEditableMesh
 	const FName ImportedMaterialSlotName = MeshDescription->PolygonGroupAttributes().GetAttribute<FName>( PolygonGroupID, MeshAttribute::PolygonGroup::ImportedMaterialSlotName, 0 );
 	const FName MaterialAssetName = MeshDescription->PolygonGroupAttributes().GetAttribute<FName>( PolygonGroupID, MeshAttribute::PolygonGroup::MaterialAssetName, 0 );
 
-	const int32 MaterialIndex = StaticMesh->GetStaticMaterials().IndexOfByPredicate(
+	const int32 MaterialIndex = StaticMesh->StaticMaterials.IndexOfByPredicate(
 		[ &ImportedMaterialSlotName ]( const FStaticMaterial& StaticMaterial ) { return StaticMaterial.ImportedMaterialSlotName == ImportedMaterialSlotName; }
 	);
 	check( MaterialIndex != INDEX_NONE );
 
 	if ( Attribute.AttributeName == MeshAttribute::PolygonGroup::ImportedMaterialSlotName )
 	{
-		StaticMesh->GetStaticMaterials()[ RenderingPolygonGroup.MaterialIndex ].ImportedMaterialSlotName = ImportedMaterialSlotName;
+		StaticMesh->StaticMaterials[ RenderingPolygonGroup.MaterialIndex ].ImportedMaterialSlotName = ImportedMaterialSlotName;
 	}
 	else if( Attribute.AttributeName == MeshAttribute::PolygonGroup::MaterialAssetName )
 	{
 		UMaterialInterface* Material = LoadObject<UMaterialInterface>( nullptr, *MaterialAssetName.ToString() );
-		StaticMesh->GetStaticMaterials()[ RenderingPolygonGroup.MaterialIndex ] = FStaticMaterial(
+		StaticMesh->StaticMaterials[ RenderingPolygonGroup.MaterialIndex ] = FStaticMaterial(
 			Material,
 			ImportedMaterialSlotName
 #if WITH_EDITORONLY_DATA

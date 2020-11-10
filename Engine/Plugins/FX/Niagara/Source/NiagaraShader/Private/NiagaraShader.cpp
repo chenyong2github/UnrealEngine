@@ -158,11 +158,6 @@ void FNiagaraShaderMapId::GetScriptHash(FSHAHash& OutHash) const
 		HashState.Update(ReferencedCompileHashes[Index].Hash, FNiagaraCompileHash::HashSize);
 	}
 
-	for (const FShaderTypeDependency& Dependency : ShaderTypeDependencies)
-	{
-		HashState.Update(Dependency.SourceHash.Hash, sizeof(Dependency.SourceHash));
-	}
-
 	//ParameterSet.UpdateHash(HashState);		// will need for static switches
 	
 	HashState.Final();
@@ -213,11 +208,6 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 		{
 			return false;
 		}
-	}
-
-	if (ShaderTypeDependencies != ReferenceSet.ShaderTypeDependencies)
-	{
-		return false;
 	}
 
 	/*
@@ -310,12 +300,6 @@ void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 		}
 	}
 
-	for (const FShaderTypeDependency& Dependency : ShaderTypeDependencies)
-	{
-		KeyString += TEXT("_");
-		KeyString += Dependency.SourceHash.ToString();
-	}
-
 	/*
 	ParameterSet.AppendKeyString(KeyString);
 
@@ -338,22 +322,18 @@ TMap<const FShaderCompileJob*, TArray<FNiagaraDataInterfaceGPUParamInfo> > FNiag
  * Enqueues a compilation for a new shader of this type.
  * @param script - The script to link the shader with.
  */
-void FNiagaraShaderType::BeginCompileShader(
+TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> FNiagaraShaderType::BeginCompileShader(
 	uint32 ShaderMapId,
 	int32 PermutationId,
 	const FNiagaraShaderScript* Script,
-	FSharedShaderCompilerEnvironment* CompilationEnvironment,
+	FShaderCompilerEnvironment* CompilationEnvironment,
 	EShaderPlatform Platform,
-	TArray<FShaderCommonCompileJobPtr>& NewJobs,
+	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 	FShaderTarget Target,
 	TArray<FNiagaraDataInterfaceGPUParamInfo>& InDIParamInfo
 	)
 {
-	FShaderCompileJob* NewJob = GShaderCompilingManager->PrepareShaderCompileJob(ShaderMapId, FShaderCompileJobKey(this, nullptr, PermutationId), EShaderCompileJobPriority::Normal);
-	if (!NewJob)
-	{
-		return;
-	}
+	FShaderCompileJob* NewJob = new FShaderCompileJob(ShaderMapId, nullptr, this, PermutationId);
 
 	//NewJob->DIParamInfo = InDIParamInfo;	// from hlsl translation and need to be passed to the FNiagaraShader on completion
 
@@ -384,8 +364,6 @@ void FNiagaraShaderType::BeginCompileShader(
 		NewJob->Input.Environment.SetDefine(TEXT("USE_SIMULATION_STAGES"), bUsesOldShaderStages ? 1 : 0);
 	}
 
-	NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_COMPRESSED_ATTRIBUTES_ENABLED"), Script->GetUsesCompressedAttributes() ? 1 : 0);
-
 	AddReferencedUniformBufferIncludes(NewJob->Input.Environment, NewJob->Input.SourceFilePrefix, (EShaderPlatform)Target.Platform);
 	
 	FShaderCompilerEnvironment& ShaderEnvironment = NewJob->Input.Environment;
@@ -399,23 +377,24 @@ void FNiagaraShaderType::BeginCompileShader(
 	// Allow the shader type to modify the compile environment.
 	SetupCompileEnvironment(Platform, Script, ShaderEnvironment);
 
+	TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> ShaderJob(NewJob);
 	::GlobalBeginCompileShader(
 		Script->GetFriendlyName(),
 		nullptr,
 		this,
 		nullptr,//ShaderPipeline,
-		0, // PermutationId
 		TEXT("/Plugin/FX/Niagara/Private/NiagaraEmitterInstanceShader.usf"),
 		TEXT("SimulateMainComputeCS"),
 		FShaderTarget(GetFrequency(), Platform),
-		NewJob->Input
+		ShaderJob,
+		NewJobs
 	);
 
 	ExtraParamInfo.Add(NewJob, InDIParamInfo);
-	NewJobs.Add(FShaderCommonCompileJobPtr(NewJob));
+	return ShaderJob;
 }
 
-void FNiagaraShaderType::CacheUniformBufferIncludes(TMap<const TCHAR*, FCachedUniformBufferDeclaration>& Cache, EShaderPlatform Platform) const
+void FNiagaraShaderType::CacheUniformBufferIncludes(TMap<const TCHAR*, FCachedUniformBufferDeclaration>& Cache, EShaderPlatform Platform)
 {
 	for (TMap<const TCHAR*, FCachedUniformBufferDeclaration>::TIterator It(Cache); It; ++It)
 	{
@@ -425,7 +404,7 @@ void FNiagaraShaderType::CacheUniformBufferIncludes(TMap<const TCHAR*, FCachedUn
 		{
 			if (It.Key() == StructIt->GetShaderVariableName())
 			{
-				BufferDeclaration.Declaration = MakeShared<FString, ESPMode::ThreadSafe>();
+				BufferDeclaration.Declaration = MakeShared<FString>();
 				CreateUniformBufferShaderDeclaration(StructIt->GetShaderVariableName(), **StructIt, Platform, *BufferDeclaration.Declaration.Get());
 				break;
 			}
@@ -435,7 +414,7 @@ void FNiagaraShaderType::CacheUniformBufferIncludes(TMap<const TCHAR*, FCachedUn
 
 
 
-void FNiagaraShaderType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform) const
+void FNiagaraShaderType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform)
 {
 	// Cache uniform buffer struct declarations referenced by this shader type's files
 	if (!bCachedUniformBufferStructDeclarations)
@@ -485,7 +464,7 @@ FShader* FNiagaraShaderType::FinishCompileShader(
 	const FSHAHash& ShaderMapHash,
 	const FShaderCompileJob& CurrentJob,
 	const FString& InDebugDescription
-	) const
+	)
 {
 	check(CurrentJob.bSucceeded);
 
@@ -495,7 +474,7 @@ FShader* FNiagaraShaderType::FinishCompileShader(
 		check(false);
 	}
 
-	FShader* Shader = ConstructCompiled(FNiagaraShaderType::CompiledShaderInitializerType(this, CurrentJob.Key.PermutationId, CurrentJob.Output, ShaderMapHash, InDebugDescription, DIParamInfo));
+	FShader* Shader = ConstructCompiled(FNiagaraShaderType::CompiledShaderInitializerType(this, CurrentJob.PermutationId, CurrentJob.Output, ShaderMapHash, InDebugDescription, DIParamInfo));
 	//CurrentJob.Output.ParameterMap.VerifyBindingsAreComplete(GetName(), CurrentJob.Output.Target, nullptr); // b/c we don't bind data interfaces yet...
 
 	return Shader;
@@ -656,7 +635,7 @@ void FNiagaraShaderMap::RestoreShadersFromMemory(const TArray<uint8>& ShaderData
 void FNiagaraShaderMap::Compile(
 	FNiagaraShaderScript* Script,
 	const FNiagaraShaderMapId& InShaderMapId,
-	TRefCountPtr<FSharedShaderCompilerEnvironment> CompilationEnvironment,
+	TRefCountPtr<FShaderCompilerEnvironment> CompilationEnvironment,
 	const FNiagaraComputeShaderCompilationOutput& InNiagaraCompilationOutput,
 	EShaderPlatform InPlatform,
 	bool bSynchronousCompile,
@@ -706,9 +685,10 @@ void FNiagaraShaderMap::Compile(
 			AssignContent(NewContent);
 
 			uint32 NumShaders = 0;
-			TArray<FShaderCommonCompileJobPtr> NewJobs;
+			TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> NewJobs;
 	
 			// Iterate over all shader types.
+			TMap<FShaderType*, TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> SharedShaderJobs;
 			for(TLinkedList<FShaderType*>::TIterator ShaderTypeIt(FShaderType::GetTypeList());ShaderTypeIt;ShaderTypeIt.Next())
 			{
 				FNiagaraShaderType* ShaderType = ShaderTypeIt->GetNiagaraShaderType();
@@ -722,7 +702,7 @@ void FNiagaraShaderMap::Compile(
 						// Only compile the shader if we don't already have it
 						if (!NewContent->HasShader(ShaderType, PermutationId))
 						{
-							ShaderType->BeginCompileShader(
+							TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> Job = ShaderType->BeginCompileShader(
 								CompilingId,
 								PermutationId, 
 								Script,
@@ -732,6 +712,7 @@ void FNiagaraShaderMap::Compile(
 								FShaderTarget(ShaderType->GetFrequency(), InPlatform),
 								Script->GetDataInterfaceParamInfo()
 							);
+							SharedShaderJobs.Add(ShaderType, Job);
 						}
 						NumShaders++;
 					}
@@ -776,16 +757,16 @@ void FNiagaraShaderMap::Compile(
 	}
 }
 
-FShader* FNiagaraShaderMap::ProcessCompilationResultsForSingleJob(const TRefCountPtr<class FShaderCommonCompileJob>& SingleJob, const FSHAHash& ShaderMapHash)
+FShader* FNiagaraShaderMap::ProcessCompilationResultsForSingleJob(TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> SingleJob, const FSHAHash& ShaderMapHash)
 {
-	auto CurrentJob = SingleJob->GetSingleShaderJob();
+	TSharedRef<FShaderCompileJob, ESPMode::ThreadSafe> CurrentJob = StaticCastSharedRef<FShaderCompileJob>(SingleJob);
 	check(CurrentJob->Id == CompilingId);
 
 	GetResourceCode()->AddShaderCompilerOutput(CurrentJob->Output);
 
 	FShader* Shader = nullptr;
 
-	const FNiagaraShaderType* NiagaraShaderType = CurrentJob->Key.ShaderType->GetNiagaraShaderType();
+	FNiagaraShaderType* NiagaraShaderType = CurrentJob->ShaderType->GetNiagaraShaderType();
 	check(NiagaraShaderType);
 	Shader = NiagaraShaderType->FinishCompileShader(ShaderMapHash, *CurrentJob, GetContent()->FriendlyName);
 	bCompiledSuccessfully = CurrentJob->bSucceeded;
@@ -794,11 +775,11 @@ FShader* FNiagaraShaderMap::ProcessCompilationResultsForSingleJob(const TRefCoun
 
 	// UE-67395 - we had a case where we polluted the DDC with a shader containing no bytecode.
 	check(Shader && Shader->GetCodeSize() > 0);
-	check(!GetContent()->HasShader(NiagaraShaderType, CurrentJob->Key.PermutationId));
-	return GetMutableContent()->FindOrAddShader(NiagaraShaderType->GetHashedName(), CurrentJob->Key.PermutationId, Shader);
+	check(!GetContent()->HasShader(NiagaraShaderType, CurrentJob->PermutationId));
+	return GetMutableContent()->FindOrAddShader(NiagaraShaderType->GetHashedName(), CurrentJob->PermutationId, Shader);
 }
 
-bool FNiagaraShaderMap::ProcessCompilationResults(const TArray<FShaderCommonCompileJobPtr>& InCompilationResults, int32& InOutJobIndex, float& TimeBudget)
+bool FNiagaraShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& InCompilationResults, int32& InOutJobIndex, float& TimeBudget)
 {
 	check(InOutJobIndex < InCompilationResults.Num());
 

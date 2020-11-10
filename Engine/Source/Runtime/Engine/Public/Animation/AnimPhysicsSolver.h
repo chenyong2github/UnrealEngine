@@ -412,9 +412,6 @@ class ENGINE_API FAnimPhys
 {
 public:
 
-	// Runtime cvar toggle for detailed/verbose profiling
-	static bool bEnableDetailedStats;
-
 	/** Calculates the volume of a shape
 	 *  @param InVertices Verts in the shape
 	 *  @param InTriangles Triangles represented in InVertices

@@ -30,7 +30,8 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileDebugViewModeShader(DVSM_PrimitiveDistanceAccuracy, Parameters);
+		// See FDebugViewModeMaterialProxy::GetFriendlyName()
+		return AllowDebugViewShaderMode(DVSM_PrimitiveDistanceAccuracy, Parameters.Platform, Parameters.MaterialParameters.FeatureLevel) && Parameters.MaterialParameters.bMaterialIsPrimitiveDistanceAccuracy;
 	}
 
 	FPrimitiveDistanceAccuracyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
@@ -56,14 +57,7 @@ class FPrimitiveDistanceAccuracyInterface : public FDebugViewModeInterface
 public:
 
 	FPrimitiveDistanceAccuracyInterface() : FDebugViewModeInterface(TEXT("PrimitiveDistanceAccuracy"), false, false, false) {}
-	virtual void AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel,
-		EMaterialTessellationMode InMaterialTessellationMode,
-		const FVertexFactoryType* InVertexFactoryType,
-		FMaterialShaderTypes& OutShaderTypes) const override
-	{
-		AddDebugViewModeShaderTypes(InFeatureLevel, InMaterialTessellationMode, InVertexFactoryType, OutShaderTypes);
-		OutShaderTypes.AddShaderType<FPrimitiveDistanceAccuracyPS>();
-	}
+	virtual TShaderRef<FDebugViewModePS> GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const override { return InMaterial->GetShader<FPrimitiveDistanceAccuracyPS>(VertexFactoryType); }
 
 	virtual void GetDebugViewModeShaderBindings(
 		const FDebugViewModePS& ShaderBase,

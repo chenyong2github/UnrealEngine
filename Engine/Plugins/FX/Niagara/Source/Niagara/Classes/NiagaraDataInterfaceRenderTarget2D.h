@@ -39,19 +39,12 @@ struct FRenderTarget2DRWInstanceData_RenderThread
 #endif
 	}
 
-#if STATS
-	void UpdateMemoryStats();
-#endif
-
 	FIntPoint Size = FIntPoint(EForceInit::ForceInitToZero);
 	
 	FTextureReferenceRHIRef TextureReferenceRHI;
 	FUnorderedAccessViewRHIRef UAV;
 #if WITH_EDITORONLY_DATA
 	uint32 bPreviewTexture : 1;
-#endif
-#if STATS
-	uint64 MemorySize = 0;
 #endif
 };
 
@@ -140,6 +133,6 @@ public:
 protected:
 	static FNiagaraVariableBase ExposedRTVar;
 	
-	UPROPERTY(Transient, DuplicateTransient)
-	TMap<uint64, UTextureRenderTarget2D*> ManagedRenderTargets;
+	UPROPERTY(Transient)
+	TMap< uint64, UTextureRenderTarget2D*> ManagedRenderTargets;
 };

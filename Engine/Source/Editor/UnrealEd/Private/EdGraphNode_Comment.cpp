@@ -17,7 +17,7 @@ UEdGraphNode_Comment::UEdGraphNode_Comment(const FObjectInitializer& ObjectIniti
 	NodeWidth = 400.0f;
 	NodeHeight = 100.0f;
 	FontSize = 18;
-	CommentColor = FLinearColor::White;
+	CommentColor = GetDefault<UGraphEditorSettings>()->DefaultCommentNodeTitleColor;
 	bColorCommentBubble = false;
 	MoveMode = ECommentBoxMode::GroupMovement;
 
@@ -49,13 +49,10 @@ void UEdGraphNode_Comment::PostEditChangeProperty(FPropertyChangedEvent& Propert
 
 void UEdGraphNode_Comment::PostPlacedNewNode()
 {
-	const UGraphEditorSettings* GraphEditorSettings = GetDefault<UGraphEditorSettings>();
-
+	//@TODO: Consider making the default value we use here a preference
 	// This is done here instead of in the constructor so we can later change the default for newly placed
 	// instances without changing all of the existing ones (due to delta serialization)
-	MoveMode = GraphEditorSettings->DefaultCommentNodeMoveMode;
-	CommentColor = GraphEditorSettings->DefaultCommentNodeTitleColor;
-	bCommentBubbleVisible_InDetailsPanel = GraphEditorSettings->bShowCommentBubbleWhenZoomedOut;
+	MoveMode = ECommentBoxMode::GroupMovement;
 
 	NodeComment = NSLOCTEXT("K2Node", "CommentBlock_NewEmptyComment", "Comment").ToString();
 }

@@ -36,8 +36,6 @@ enum EViewTargetBlendFunction
 	VTBlend_EaseOut,
 	/** Camera smoothly accelerates and decelerates.  Ease amount controlled by BlendExp. */
 	VTBlend_EaseInOut,
-	/** The game's camera system has already performed the blending. Engine should not blend at all */
-	VTBlend_PreBlended,
 	VTBlend_MAX,
 };
 

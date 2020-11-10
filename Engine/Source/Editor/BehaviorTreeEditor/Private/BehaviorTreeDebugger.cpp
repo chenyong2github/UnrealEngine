@@ -861,7 +861,7 @@ void FBehaviorTreeDebugger::StepForwardInto()
 #endif
 }
 
-static void ForEachGameWorld(const TFunction<void(UWorld*)>& Func)
+void ForEachGameWorld(const TFunction<void(UWorld*)>& Func)
 {
 	for (const FWorldContext& PieContext : GUnrealEd->GetWorldContexts())
 	{
@@ -873,7 +873,7 @@ static void ForEachGameWorld(const TFunction<void(UWorld*)>& Func)
 	}
 }
 
-static bool AreAllGameWorldPaused()
+bool AreAllGameWorldPaused()
 {
 	bool bPaused = true;
 	ForEachGameWorld([&](UWorld* World)

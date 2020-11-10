@@ -7,7 +7,6 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "Templates/SubclassOf.h"
-#include "Containers/Queue.h"
 
 #include "EditorUtilitySubsystem.generated.h"
 
@@ -43,9 +42,6 @@ public:
 	bool TryRun(UObject* Asset);
 
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
-	bool CanRun(UObject* Asset) const;
-
-	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
 	UEditorUtilityWidget* SpawnAndRegisterTabAndGetID(class UEditorUtilityWidgetBlueprint* InBlueprint, FName& NewTabID);
 
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
@@ -75,28 +71,19 @@ public:
 
 	void RemoveTaskFromActiveList(UEditorUtilityTask* Task);
 
-	void RegisterReferencedObject(UObject* ObjectToReference);
-	void UnregisterReferencedObject(UObject* ObjectToReference);
-
 protected:
 	bool Tick(float DeltaTime);
 
-	void ProcessRunTaskCommands();
-
 	void RunTaskCommand(const TArray<FString>& Params, UWorld* InWorld, FOutputDevice& Ar);
-	void CancelAllTasksCommand(const TArray<FString>& Params, UWorld* InWorld, FOutputDevice& Ar);
 
 	UClass* FindClassByName(const FString& RawTargetName);
 	UClass* FindBlueprintClass(const FString& TargetNameRaw);
 
 private:
 	IConsoleObject* RunTaskCommandObject = nullptr;
-	IConsoleObject* CancelAllTasksCommandObject = nullptr;
 	
 	UPROPERTY()
 	TMap<UObject* /*Asset*/, UObject* /*Instance*/> ObjectInstances;
-
-	TQueue< TArray<FString> > RunTaskCommandBuffer;
 
 	UPROPERTY(Transient)
 	TArray<UEditorUtilityTask*> PendingTasks;
@@ -105,8 +92,4 @@ private:
 	UEditorUtilityTask* ActiveTask;
 
 	FDelegateHandle TickerHandle;
-
-	/** List of objects that are being kept alive by this subsystem. */
-	UPROPERTY()
-	TSet<UObject*> ReferencedObjects;
 };

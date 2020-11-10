@@ -1157,7 +1157,7 @@ UParticleSystemComponent* UGameplayStatics::SpawnEmitterAttached(UParticleSystem
 	return PSC;
 }
 
-void UGameplayStatics::BreakHitResult(const FHitResult& Hit, bool& bBlockingHit, bool& bInitialOverlap, float& Time, float& Distance, FVector& Location, FVector& ImpactPoint, FVector& Normal, FVector& ImpactNormal, UPhysicalMaterial*& PhysMat, AActor*& HitActor, UPrimitiveComponent*& HitComponent, FName& HitBoneName, int32& HitItem, int32& ElementIndex, int32& FaceIndex, FVector& TraceStart, FVector& TraceEnd)
+void UGameplayStatics::BreakHitResult(const FHitResult& Hit, bool& bBlockingHit, bool& bInitialOverlap, float& Time, float& Distance, FVector& Location, FVector& ImpactPoint, FVector& Normal, FVector& ImpactNormal, UPhysicalMaterial*& PhysMat, AActor*& HitActor, UPrimitiveComponent*& HitComponent, FName& HitBoneName, int32& HitItem, int32& FaceIndex, FVector& TraceStart, FVector& TraceEnd)
 {
 	SCOPE_CYCLE_COUNTER(STAT_BreakHitResult);
 	bBlockingHit = Hit.bBlockingHit;
@@ -1173,13 +1173,12 @@ void UGameplayStatics::BreakHitResult(const FHitResult& Hit, bool& bBlockingHit,
 	HitComponent = Hit.GetComponent();
 	HitBoneName = Hit.BoneName;
 	HitItem = Hit.Item;
-	ElementIndex = Hit.ElementIndex;
 	TraceStart = Hit.TraceStart;
 	TraceEnd = Hit.TraceEnd;
 	FaceIndex = Hit.FaceIndex;
 }
 
-FHitResult UGameplayStatics::MakeHitResult(bool bBlockingHit, bool bInitialOverlap, float Time, float Distance, FVector Location, FVector ImpactPoint, FVector Normal, FVector ImpactNormal, class UPhysicalMaterial* PhysMat, class AActor* HitActor, class UPrimitiveComponent* HitComponent, FName HitBoneName, int32 HitItem, int32 ElementIndex, int32 FaceIndex, FVector TraceStart, FVector TraceEnd)
+FHitResult UGameplayStatics::MakeHitResult(bool bBlockingHit, bool bInitialOverlap, float Time, float Distance, FVector Location, FVector ImpactPoint, FVector Normal, FVector ImpactNormal, class UPhysicalMaterial* PhysMat, class AActor* HitActor, class UPrimitiveComponent* HitComponent, FName HitBoneName, int32 HitItem, int32 FaceIndex, FVector TraceStart, FVector TraceEnd)
 {
 	SCOPE_CYCLE_COUNTER(STAT_MakeHitResult);
 	FHitResult Hit;
@@ -1196,7 +1195,6 @@ FHitResult UGameplayStatics::MakeHitResult(bool bBlockingHit, bool bInitialOverl
 	Hit.Component = HitComponent;
 	Hit.BoneName = HitBoneName;
 	Hit.Item = HitItem;
-	Hit.ElementIndex = ElementIndex;
 	Hit.TraceStart = TraceStart;
 	Hit.TraceEnd = TraceEnd;
 	Hit.FaceIndex = FaceIndex;
@@ -1698,37 +1696,9 @@ void UGameplayStatics::PrimeSound(USoundBase* InSound)
 	}
 	else if (USoundWave* InSoundWave = Cast<USoundWave>(InSound))
 	{
-#if WITH_EDITORONLY_DATA
-		InSoundWave->CachePlatformData(false); // (an ensure told me to do this)
-#endif // WITH_EDITORONLY_DATA
-
 		if (InSoundWave->GetNumChunks() > 1)
 		{
-			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(InSoundWave, 1, [](EAudioChunkLoadResult) {});
-		}
-	}
-}
-
-void UGameplayStatics::PrimeAllSoundsInSoundClass(class USoundClass* InSoundClass)
-{
-	for (TObjectIterator<USoundWave> Itr; Itr; ++Itr)
-	{
-		const USoundClass* SoundClass = Itr->GetSoundClass();	
-		if (SoundClass && (SoundClass->GetName() == InSoundClass->GetName()))
-		{
-			PrimeSound(*Itr);
-		}
-	}
-}
-
-void UGameplayStatics::UnRetainAllSoundsInSoundClass(USoundClass* InSoundClass)
-{
-	for (TObjectIterator<USoundWave> Itr; Itr; ++Itr)
-	{
-		const USoundClass* SoundClass = Itr->GetSoundClass();
-		if (SoundClass && (SoundClass->GetName() == InSoundClass->GetName()))
-		{
-			Itr->ReleaseCompressedAudio();
+			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(InSoundWave, 1, TFunction<void(EAudioChunkLoadResult)>());
 		}
 	}
 }

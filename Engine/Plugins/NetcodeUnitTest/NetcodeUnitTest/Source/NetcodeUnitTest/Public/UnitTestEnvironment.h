@@ -20,7 +20,6 @@ class NETCODEUNITTEST_API FUnitTestEnvironment
 {
 	friend class FNetcodeUnitTest;
 	friend class UUnitTestManager;
-	friend class UClientUnitTest;
 
 public:
 	FUnitTestEnvironment()

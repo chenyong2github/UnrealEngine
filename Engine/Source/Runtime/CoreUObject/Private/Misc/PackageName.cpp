@@ -385,7 +385,6 @@ private:
 		// Allow the plugin manager to mount new content paths by exposing access through a delegate.  PluginManager is 
 		// a Core class, but content path functionality is added at the CoreUObject level.
 		IPluginManager::Get().SetRegisterMountPointDelegate( IPluginManager::FRegisterMountPointDelegate::CreateStatic( &FPackageName::RegisterMountPoint ) );
-		IPluginManager::Get().SetUnRegisterMountPointDelegate( IPluginManager::FRegisterMountPointDelegate::CreateStatic( &FPackageName::UnRegisterMountPoint ) );
 	}
 };
 
@@ -1506,26 +1505,11 @@ void FPackageName::IteratePackagesInDirectory(const FString& RootDir, const FPac
 	IFileManager::Get().IterateDirectoryStatRecursively(*RootDir, PackageVisitor);
 }
 
-void FPackageName::QueryRootContentPaths(TArray<FString>& OutRootContentPaths, bool bIncludeReadOnlyRoots, bool bWithoutLeadingSlashes, bool bWithoutTrailingSlashes)
+void FPackageName::QueryRootContentPaths( TArray<FString>& OutRootContentPaths )
 {
 	const FLongPackagePathsSingleton& Paths = FLongPackagePathsSingleton::Get();
+	const bool bIncludeReadOnlyRoots = false;	// Don't include Script or Temp paths
 	Paths.GetValidLongPackageRoots( OutRootContentPaths, bIncludeReadOnlyRoots );
-
-	if (bWithoutTrailingSlashes || bWithoutLeadingSlashes)
-	{
-		for (FString& It : OutRootContentPaths)
-		{
-			if (bWithoutTrailingSlashes && It.Len() > 1 && It[It.Len() - 1] == TEXT('/'))
-			{
-				It.RemoveAt(It.Len() - 1, /*Count*/ 1, /*bAllowShrinking*/ false);
-			}
-
-			if (bWithoutLeadingSlashes && It.Len() > 1 && It[0] == TEXT('/'))
-			{
-				It.RemoveAt(0, /*Count*/ 1, /*bAllowShrinking*/ false);
-			}
-		}
-	}
 }
 
 void FPackageName::EnsureContentPathsAreRegistered()
@@ -1553,8 +1537,7 @@ bool FPackageName::ParseExportTextPath(const FString& InExportTextPath, FString*
 	return false;
 }
 
-template<class T>
-bool ParseExportTextPathImpl(const T& InExportTextPath, T* OutClassName, T* OutObjectPath)
+bool FPackageName::ParseExportTextPath(FStringView InExportTextPath, FStringView* OutClassName, FStringView* OutObjectPath)
 {
 	int32 Index;
 	if (InExportTextPath.FindChar('\'', Index))
@@ -1576,25 +1559,14 @@ bool ParseExportTextPathImpl(const T& InExportTextPath, T* OutClassName, T* OutO
 	return false;
 }
 
-bool FPackageName::ParseExportTextPath(FWideStringView InExportTextPath, FWideStringView* OutClassName, FWideStringView* OutObjectPath)
-{
-	return ParseExportTextPathImpl(InExportTextPath, OutClassName, OutObjectPath);
-}
-
-bool FPackageName::ParseExportTextPath(FAnsiStringView InExportTextPath, FAnsiStringView* OutClassName, FAnsiStringView* OutObjectPath)
-{
-	return ParseExportTextPathImpl(InExportTextPath, OutClassName, OutObjectPath);
-}
-
 bool FPackageName::ParseExportTextPath(const TCHAR* InExportTextPath, FStringView* OutClassName, FStringView* OutObjectPath)
 {
 	return ParseExportTextPath(FStringView(InExportTextPath), OutClassName, OutObjectPath);
 }
 
-template <class T>
-T ExportTextPathToObjectPathImpl(const T& InExportTextPath)
+FStringView FPackageName::ExportTextPathToObjectPath(FStringView InExportTextPath)
 {
-	T ObjectPath;
+	FStringView ObjectPath;
 	if (FPackageName::ParseExportTextPath(InExportTextPath, nullptr, &ObjectPath))
 	{
 		return ObjectPath;
@@ -1604,19 +1576,16 @@ T ExportTextPathToObjectPathImpl(const T& InExportTextPath)
 	return InExportTextPath;
 }
 
-FWideStringView FPackageName::ExportTextPathToObjectPath(FWideStringView InExportTextPath)
-{
-	return ExportTextPathToObjectPathImpl(InExportTextPath);
-}
-
-FAnsiStringView FPackageName::ExportTextPathToObjectPath(FAnsiStringView InExportTextPath)
-{
-	return ExportTextPathToObjectPathImpl(InExportTextPath);
-}
-
 FString FPackageName::ExportTextPathToObjectPath(const FString& InExportTextPath)
 {
-	return ExportTextPathToObjectPathImpl(InExportTextPath);
+	FString ObjectPath;
+	if ( FPackageName::ParseExportTextPath(InExportTextPath, NULL, &ObjectPath) )
+	{
+		return ObjectPath;
+	}
+	
+	// Could not parse the export text path. Could already be an object path, just return it back.
+	return InExportTextPath;
 }
 
 FString FPackageName::ExportTextPathToObjectPath(const TCHAR* InExportTextPath)
@@ -1624,8 +1593,7 @@ FString FPackageName::ExportTextPathToObjectPath(const TCHAR* InExportTextPath)
 	return ExportTextPathToObjectPath(FString(InExportTextPath));
 }
 
-template<class T>
-T ObjectPathToPackageNameImpl(const T& InObjectPath)
+FString FPackageName::ObjectPathToPackageName(const FString& InObjectPath)
 {
 	// Check for package delimiter
 	int32 ObjectDelimiterIdx;
@@ -1636,21 +1604,6 @@ T ObjectPathToPackageNameImpl(const T& InObjectPath)
 
 	// No object delimiter. The path must refer to the package name directly.
 	return InObjectPath;
-}
-
-FWideStringView FPackageName::ObjectPathToPackageName(FWideStringView InObjectPath)
-{
-	return ObjectPathToPackageNameImpl(InObjectPath);
-}
-
-FAnsiStringView FPackageName::ObjectPathToPackageName(FAnsiStringView InObjectPath)
-{
-	return ObjectPathToPackageNameImpl(InObjectPath);
-}
-
-FString FPackageName::ObjectPathToPackageName(const FString& InObjectPath)
-{
-	return ObjectPathToPackageNameImpl(InObjectPath);
 }
 
 template<class T>
@@ -1679,7 +1632,7 @@ FString FPackageName::ObjectPathToObjectName(const FString& InObjectPath)
 	return ObjectPathToObjectNameImpl(InObjectPath);
 }
 
-FWideStringView FPackageName::ObjectPathToObjectName(FWideStringView InObjectPath)
+FStringView FPackageName::ObjectPathToObjectName(FStringView InObjectPath)
 {
 	return ObjectPathToObjectNameImpl(InObjectPath);
 }

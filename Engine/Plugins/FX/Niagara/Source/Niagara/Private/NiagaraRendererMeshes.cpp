@@ -77,7 +77,7 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	UStaticMesh* Mesh = Properties->ParticleMesh;
 	check(Mesh);
 
-	MeshRenderData = Mesh->GetRenderData();
+	MeshRenderData = Mesh->RenderData.Get();
 	FacingMode = Properties->FacingMode;
 	PivotOffset = Properties->PivotOffset;
 	PivotOffsetSpace = Properties->PivotOffsetSpace;
@@ -93,7 +93,7 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	bEnableCulling = bEnableFrustumCulling;
 	DistanceCullRange = FVector2D(0, FLT_MAX);
 	RendererVisibility = Properties->RendererVisibility;	
-	LocalCullingSphere = Mesh->GetExtendedBounds().GetSphere();
+	LocalCullingSphere = Mesh->ExtendedBounds.GetSphere();
 
 	if (Properties->bEnableCameraDistanceCulling)
 	{
@@ -201,6 +201,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 {
 	check(SceneProxy);
 
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraRender);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderMeshes);
 	PARTICLE_PERF_STAT_CYCLES(SceneProxy->PerfAsset, GetDynamicMeshElements);
 
@@ -238,7 +239,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 	for (FMaterialRenderProxy* MaterialProxy : DynamicDataMesh->Materials)
 	{
 		check(MaterialProxy);
-		EBlendMode BlendMode = MaterialProxy->GetIncompleteMaterialWithFallback(FeatureLevel).GetBlendMode();
+		EBlendMode BlendMode = MaterialProxy->GetMaterial(FeatureLevel)->GetBlendMode();
 		bHasTranslucentMaterials |= IsTranslucentBlendMode(BlendMode);
 	}
 
@@ -339,7 +340,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 
 				PerViewUniformParameters.bLocalSpace = bLocalSpace;
 				PerViewUniformParameters.PrevTransformAvailable = false;
-				PerViewUniformParameters.DeltaSeconds = ViewFamily.DeltaWorldTime;				
+				PerViewUniformParameters.DeltaSeconds = ViewFamily.DeltaWorldTime;
 
 				// Calculate pivot offset
 				FVector WorldSpacePivotOffset = FVector(0, 0, 0);
@@ -381,7 +382,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 
 				PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
 				PerViewUniformParameters.SizeDataOffset = INDEX_NONE;
-				PerViewUniformParameters.DefaultPos = bLocalSpace ? FVector4(0.0f, 0.0f, 0.0f, 1.0f) : FVector4(SceneProxy->GetLocalToWorld().GetOrigin());
+				PerViewUniformParameters.DefaultPos = bLocalSpace ? FVector4(0.0f, 0.0f, 0.0f, 1.0f) : FVector4(SceneProxy->GetLocalToWorld().GetOrigin());				
 				PerViewUniformParameters.SubImageSize = FVector4(SubImageSize.X, SubImageSize.Y, 1.0f / SubImageSize.X, 1.0f / SubImageSize.Y);
 				PerViewUniformParameters.SubImageBlendMode = bSubImageBlend;
 				PerViewUniformParameters.FacingMode = (uint32)FacingMode;
@@ -672,6 +673,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		return;
 	}
 
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraRender);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderMeshes);
 	check(SceneProxy);
 
@@ -913,6 +915,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 
 FNiagaraDynamicDataBase* FNiagaraRendererMeshes::GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderGT);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraGenMeshVertexData);
 
 	const UNiagaraMeshRendererProperties* Properties = CastChecked<const UNiagaraMeshRendererProperties>(InProperties);

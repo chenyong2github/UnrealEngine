@@ -60,8 +60,6 @@ void UUnitTestActorChannel::NotifyActorChannelOpen(AActor* InActor, FInBunch& In
 {
 	APlayerController* PC = Cast<APlayerController>(InActor);
 
-	InActor->SetNetDriverName(Connection->Driver->NetDriverName);
-
 	// Override 'UNetConnection::HandleClientPlayer', as called through PlayerController::OnActorChannelOpen
 	if (PC != nullptr)
 	{

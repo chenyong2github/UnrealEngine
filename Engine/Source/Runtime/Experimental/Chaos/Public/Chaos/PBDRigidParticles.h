@@ -52,11 +52,11 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 	CHAOS_API virtual ~TPBDRigidParticles()
 	{}
 
-	const TVector<T, d>& P(const int32 index) const { return MP[index]; }
-	TVector<T, d>& P(const int32 index) { return MP[index]; }
+	CHAOS_API const TVector<T, d>& P(const int32 index) const { return MP[index]; }
+	CHAOS_API TVector<T, d>& P(const int32 index) { return MP[index]; }
 
-	const TRotation<T, d>& Q(const int32 index) const { return MQ[index]; }
-	TRotation<T, d>& Q(const int32 index) { return MQ[index]; }
+	CHAOS_API const TRotation<T, d>& Q(const int32 index) const { return MQ[index]; }
+	CHAOS_API TRotation<T, d>& Q(const int32 index) { return MQ[index]; }
 
 	CHAOS_API const TVector<T, d>& PreV(const int32 index) const { return MPreV[index]; }
 	CHAOS_API TVector<T, d>& PreV(const int32 index) { return MPreV[index]; }
@@ -66,10 +66,10 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 
     // Must be reinterpret cast instead of static_cast as it's a forward declare
 	typedef TPBDRigidParticleHandle<T, d> THandleType;
-	const THandleType* Handle(int32 Index) const { return reinterpret_cast<const THandleType*>(TGeometryParticles<T,d>::Handle(Index)); }
+	CHAOS_API const THandleType* Handle(int32 Index) const { return reinterpret_cast<const THandleType*>(TGeometryParticles<T,d>::Handle(Index)); }
 
 	//cannot be reference because double pointer would allow for badness, but still useful to have non const access to handle
-	THandleType* Handle(int32 Index) { return reinterpret_cast<THandleType*>(TGeometryParticles<T, d>::Handle(Index)); }
+	CHAOS_API THandleType* Handle(int32 Index) { return reinterpret_cast<THandleType*>(TGeometryParticles<T, d>::Handle(Index)); }
 
 	CHAOS_API void SetSleeping(int32 Index, bool bSleeping)
 	{

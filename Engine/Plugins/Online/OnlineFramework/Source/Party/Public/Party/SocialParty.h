@@ -35,12 +35,12 @@ public:
 	FPartyRepData() {}
 	void SetOwningParty(const class USocialParty& InOwnerParty);
 
-	const FPartyPlatformSessionInfo* FindSessionInfo(const FString& SessionType) const;
+	const FPartyPlatformSessionInfo* FindSessionInfo(FName PlatformOssName) const;
 	const TArray<FPartyPlatformSessionInfo>& GetPlatformSessions() const { return PlatformSessions; }
 	FSimpleMulticastDelegate& OnPlatformSessionsChanged() const { return OnPlatformSessionsChangedEvent; } 
 
-	void UpdatePlatformSessionInfo(FPartyPlatformSessionInfo&& SessionInfo);
-	void ClearPlatformSessionInfo(const FString& SessionType);
+	void UpdatePlatformSessionInfo(const FPartyPlatformSessionInfo& SessionInfo);
+	void ClearPlatformSessionInfo(const FName PlatformOssName);
 
 protected:
 	virtual bool CanEditData() const override;
@@ -307,8 +307,8 @@ private:
 
 	void SetIsRequestingShutdown(bool bInRequestingShutdown);
 
-	void CreatePlatformSession(const FString& SessionType);
-	void UpdatePlatformSessionLeader(const FString& SessionType);
+	void CreatePlatformSession(FName PlatformOssName);
+	void UpdatePlatformSessionLeader(FName PlatformOssName);
 
 	void HandlePreClientTravel(const FString& PendingURL, ETravelType TravelType, bool bIsSeamlessTravel);
 

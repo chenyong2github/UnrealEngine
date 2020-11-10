@@ -7724,6 +7724,12 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 
 		DefaultWorldFeatureLevel = EffectiveFeatureLevel;
 		PreviewFeatureLevelChanged.Broadcast(EffectiveFeatureLevel);
+
+		// The feature level changed, so existing debug view materials are invalid and need to be rebuilt.
+		// This process must follow the PreviewFeatureLevelChanged event, because any listeners need
+		// opportunity to switch to the new feature level first.
+		void ClearDebugViewMaterials(UMaterialInterface*);
+		ClearDebugViewMaterials(nullptr);
 	}
 	else if (bChangedPreviewShaderPlatform)
 	{

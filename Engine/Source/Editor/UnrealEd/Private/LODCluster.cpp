@@ -152,7 +152,7 @@ FLODCluster FLODCluster::operator+(const FLODCluster& Other) const
 	return UnionCluster;
 }
 
-FLODCluster& FLODCluster::operator+=(const FLODCluster& Other)
+FLODCluster FLODCluster::operator+=(const FLODCluster& Other)
 {
 	MergeClusters(Other);
 	return *this;
@@ -162,10 +162,10 @@ FLODCluster FLODCluster::operator-(const FLODCluster& Other) const
 {
 	FLODCluster Cluster(*this);
 	Cluster.SubtractCluster(Other);
-	return Cluster;
+	return *this;
 }
 
-FLODCluster& FLODCluster::operator-=(const FLODCluster& Other)
+FLODCluster FLODCluster::operator-=(const FLODCluster& Other)
 {
 	SubtractCluster(Other);
 	return *this;

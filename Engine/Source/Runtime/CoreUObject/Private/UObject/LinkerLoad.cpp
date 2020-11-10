@@ -103,14 +103,6 @@ static FAutoConsoleVariableRef CVarAllowCookedDataInEditorBuilds(
 	ECVF_Default
 );
 
-int32 GEnforcePackageCompatibleVersionCheck = 1;
-static FAutoConsoleVariableRef CEnforcePackageCompatibleVersionCheck(
-	TEXT("s.EnforcePackageCompatibleVersionCheck"),
-	GEnforcePackageCompatibleVersionCheck,
-	TEXT("If true, package loading will fail if the version stored in the package header is newer than the current engine version"),
-	ECVF_Default
-);
-
 /**
 * Test whether the given package index is a valid import or export in this package
 */
@@ -1202,7 +1194,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 		return LINKER_Failed;
 	}
 	// Don't load packages that are only compatible with an engine version newer than the current one.
-	if (GEnforcePackageCompatibleVersionCheck && !FEngineVersion::Current().IsCompatibleWith(Summary.CompatibleWithEngineVersion))
+	if (!FEngineVersion::Current().IsCompatibleWith(Summary.CompatibleWithEngineVersion))
 	{
 		UE_LOG(LogLinker, Warning, TEXT("Asset '%s' has been saved with engine version newer than current and therefore can't be loaded. CurrEngineVersion: %s AssetEngineVersion: %s"), *Filename, *FEngineVersion::Current().ToString(), *Summary.CompatibleWithEngineVersion.ToString());
 		return LINKER_Failed;

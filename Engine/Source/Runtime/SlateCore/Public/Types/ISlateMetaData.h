@@ -11,8 +11,8 @@ class ISlateMetaData
 {
 public:
 	/** Check if this metadata operation can cast safely to the specified template type */
-	template<class TType>
-	bool IsOfType() const
+	template<class TType> 
+	bool IsOfType() const 
 	{
 		return IsOfTypeImpl(TType::GetTypeId());
 	}
@@ -24,7 +24,7 @@ protected:
 	/**
 	 * Checks whether this drag and drop operation can cast safely to the specified type.
 	 */
-	virtual bool IsOfTypeImpl(const FName& Type) const
+	virtual bool IsOfTypeImpl( const FName& Type ) const
 	{
 		return false;
 	}
@@ -44,16 +44,16 @@ protected:
 	static const FName& GetTypeId() { static FName Type(TEXT(#TYPE)); return Type; } \
 	virtual bool IsOfTypeImpl(const FName& Type) const override { return GetTypeId() == Type || BASE::IsOfTypeImpl(Type); }
 
- /**
-  * Simple tagging metadata
-  */
+/**
+ * Simple tagging metadata
+ */
 class FTagMetaData : public ISlateMetaData
 {
 public:
 	SLATE_METADATA_TYPE(FTagMetaData, ISlateMetaData)
 
-		FTagMetaData(FName InTag)
-		: Tag(InTag)
+	FTagMetaData(FName InTag)
+	 : Tag(InTag)
 	{
 	}
 

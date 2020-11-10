@@ -70,8 +70,6 @@ class FPhysicsSolverBase;
 
 namespace Chaos
 {
-class FPhysicsSolverBase;
-
 	/**
 	 * List of solver tasks stub for non debug builds.
 	 */

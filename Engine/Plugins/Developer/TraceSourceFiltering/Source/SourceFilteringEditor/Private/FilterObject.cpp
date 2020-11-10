@@ -19,7 +19,7 @@
 
 FFilterObject::FFilterObject(IDataSourceFilterInterface& InFilter, TSharedRef<ISessionSourceFilterService> InSessionFilterService) : SessionFilterService(InSessionFilterService)
 {
-	WeakInterface = &InFilter;
+	WeakInterface = InFilter;
 }
 
 FText FFilterObject::GetDisplayText() const

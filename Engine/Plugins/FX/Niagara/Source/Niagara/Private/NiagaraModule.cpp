@@ -720,10 +720,10 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	UScriptStruct* SpawnInfoStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraSpawnInfo"));
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(SpawnInfoStruct), true, false, false);
 
-	FNiagaraTypeRegistry::Register(UObjectDef, false, false, false);
-	FNiagaraTypeRegistry::Register(UMaterialDef, false, false, false);
-	FNiagaraTypeRegistry::Register(UTextureDef, false, false, false);
-	FNiagaraTypeRegistry::Register(UTextureRenderTargetDef, false, false, false);
+	FNiagaraTypeRegistry::Register(UObjectDef, true, false, false);
+	FNiagaraTypeRegistry::Register(UMaterialDef, true, false, false);
+	FNiagaraTypeRegistry::Register(UTextureDef, true, false, false);
+	FNiagaraTypeRegistry::Register(UTextureRenderTargetDef, true, false, false);
 	FNiagaraTypeRegistry::Register(FNiagaraRandInfo::StaticStruct(), true, true, false);
 	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), true, true, false);
 

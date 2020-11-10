@@ -46,9 +46,6 @@ TAutoConsoleVariable<float> CVarConstraintAngularStiffnessScale(
 	TEXT("The multiplier of constraint angular stiffness in simulation. Default: 100000"),
 	ECVF_ReadOnly);
 
-bool bEnableSkeletalMeshConstraints = false;
-FAutoConsoleVariableRef CVarEnableSkeletalMeshConstraints(TEXT("p.EnableSkeletalMeshConstraints"), bEnableSkeletalMeshConstraints, TEXT("Enable skeletal mesh constraints defined within the Physics Asset Editor"));
-
 /** Handy macro for setting BIT of VAR based on the bool CONDITION */
 #define SET_DRIVE_PARAM(VAR, CONDITION, BIT)   (VAR) = (CONDITION) ? ((VAR) | (BIT)) : ((VAR) & ~(BIT))
 
@@ -389,10 +386,8 @@ bool FConstraintInstance::CreateJoint_AssumesLocked(const FPhysicsActorHandle& I
 	
 	checkf(Local2.IsValid() && !Local2.ContainsNaN(), TEXT("%s"), *Local2.ToString());
 
-	if (bEnableSkeletalMeshConstraints)
-	{
-		ConstraintHandle = FPhysicsInterface::CreateConstraint(InActorRef1, InActorRef2, Local1, Local2);
-	}
+	ConstraintHandle = FPhysicsInterface::CreateConstraint(InActorRef1, InActorRef2, Local1, Local2);
+
 	if(!ConstraintHandle.IsValid())
 	{
 		UE_LOG(LogPhysics, Log, TEXT("FConstraintInstance::CreatePxJoint_AssumesLocked - Invalid 6DOF joint (%s)"), *JointName.ToString());

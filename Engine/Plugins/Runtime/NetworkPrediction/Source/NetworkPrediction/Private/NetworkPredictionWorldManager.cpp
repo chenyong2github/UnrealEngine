@@ -104,12 +104,6 @@ void UNetworkPredictionWorldManager::ReconcileSimulationsPostNetworkUpdate()
 
 	ActiveInstance = this;
 
-	// Trace Local->Server offset. We need to trace this so that we can flag reconciles that happened
-	// due to this (usually caused by server being starved for input)
-	const bool OffsetChanged = (LastFixedTickOffset != FixedTickState.Offset);
-	UE_NP_TRACE_FIXED_TICK_OFFSET(FixedTickState.Offset, OffsetChanged);
-	LastFixedTickOffset = FixedTickState.Offset;
-
 	// -------------------------------------------------------------------------
 	//	Non-rollback reconcile services
 	// -------------------------------------------------------------------------
@@ -189,7 +183,7 @@ void UNetworkPredictionWorldManager::ReconcileSimulationsPostNetworkUpdate()
 				FServiceTimeStep ServiceStep = FixedTickState.GetNextServiceTimeStep();
 			
 				const int32 ServerInputFrame = Frame + FixedTickState.Offset;
-				UE_NP_TRACE_PUSH_TICK(Step.TotalSimulationTime, FixedTickState.FixedStepMS, Step.Frame);
+				UE_NP_TRACE_PUSH_TICK(Step.TotalSimulationTime, FixedTickState.FixedStepMS, Step.Frame, FixedTickState.Offset);
 
 				// Everyone must apply corrections and flush as necessary before anyone runs the next sim tick
 				// bFirstStep will indicate that even if they don't have a correction, they need to rollback their historic state
@@ -303,7 +297,7 @@ void UNetworkPredictionWorldManager::BeginNewSimulationFrame(UWorld* InWorld, EL
 				Ptr->ProduceInput(FixedTickState.FixedStepMS);
 			}
 
-			UE_NP_TRACE_PUSH_TICK(Step.TotalSimulationTime, FixedTickState.FixedStepMS, Step.Frame);
+			UE_NP_TRACE_PUSH_TICK(Step.TotalSimulationTime, FixedTickState.FixedStepMS, Step.Frame, FixedTickState.Offset);
 
 			for (TUniquePtr<ILocalTickService>& Ptr : Services.FixedTick.Array)
 			{
@@ -350,7 +344,7 @@ void UNetworkPredictionWorldManager::BeginNewSimulationFrame(UWorld* InWorld, EL
 
 		FNetSimTimeStep Step = VariableTickState.GetNextTimeStep(PendingFrameData);
 		FServiceTimeStep ServiceStep = VariableTickState.GetNextServiceTimeStep(PendingFrameData);
-		UE_NP_TRACE_PUSH_TICK(Step.TotalSimulationTime, Step.StepMS, Step.Frame);
+		UE_NP_TRACE_PUSH_TICK(Step.TotalSimulationTime, Step.StepMS, Step.Frame, 0);
 
 		for (TUniquePtr<ILocalTickService>& Ptr : Services.IndependentLocalTick.Array)
 		{
@@ -536,6 +530,8 @@ void UNetworkPredictionWorldManager::InitPhysicsCapture()
 void UNetworkPredictionWorldManager::AdvancePhysicsResimFrame(int32& PhysicsFrame)
 {
 	Physics.Solver->AdvanceAndDispatch_External(FixedTickState.PhysicsRewindData->GetDeltaTimeForFrame(PhysicsFrame));
+	Physics.Solver->BufferPhysicsResults();
+	Physics.Solver->FlipBuffers();
 	Physics.Solver->UpdateGameThreadStructures();
 	PhysicsFrame++;
 }

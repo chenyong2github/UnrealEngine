@@ -67,8 +67,6 @@ TAutoConsoleVariable<int32> CVarEnableClothPhysicsUseTaskThread(TEXT("p.ClothPhy
 TAutoConsoleVariable<int32> CVarClothPhysicsTickWaitForParallelClothTask(TEXT("p.ClothPhysics.WaitForParallelClothTask"), 0, TEXT("If 1, always wait for cloth task completion in the Cloth Tick function. If 0, wait at end-of-frame updates instead if allowed by component settings"));
 TAutoConsoleVariable<int32> CVarEnableKinematicDeferralPrePhysicsCondition(TEXT("p.EnableKinematicDeferralPrePhysicsCondition"), 1, TEXT("If is 1, and deferral would've been disallowed due to EUpdateTransformFlags, allow if in PrePhysics tick. If 0, condition is unchanged."));
 
-TAutoConsoleVariable<int32> CVarDisableSkeletalMeshCollisionFiltering(TEXT("p.DisableSkeletalMeshCollisionFiltering"), 1, TEXT("If is 1, we are not using skeletal mesh collision filtering system. If 0, it is on."));
-
 //This is the total cloth time split up among multiple computation (updating gpu, updating sim, etc...)
 DECLARE_CYCLE_STAT(TEXT("Cloth Total"), STAT_ClothTotalTime, STATGROUP_Physics);
 DECLARE_CYCLE_STAT(TEXT("Cloth Writeback"), STAT_ClothWriteback, STATGROUP_Physics);
@@ -535,11 +533,6 @@ void USkeletalMeshComponent::OnConstraintBrokenWrapper(int32 ConstraintIndex)
 
 void USkeletalMeshComponent::InitCollisionRelationships()
 {
-	if (CVarDisableSkeletalMeshCollisionFiltering.GetValueOnGameThread() == 1)
-	{
-		return;
-	}
-
 #if WITH_CHAOS
 	if (UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset())
 	{
@@ -593,11 +586,6 @@ void USkeletalMeshComponent::InitCollisionRelationships()
 
 void USkeletalMeshComponent::TermCollisionRelationships()
 {
-	if (CVarDisableSkeletalMeshCollisionFiltering.GetValueOnGameThread() == 1)
-	{
-		return;
-	}
-
 #if WITH_CHAOS
 	if (UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset())
 	{

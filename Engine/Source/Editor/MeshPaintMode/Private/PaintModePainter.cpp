@@ -343,7 +343,7 @@ void FPaintModePainter::PasteVertexColors()
 				/** Try and apply copied vertex colors for each LOD in the mesh */
 				for (int32 LODIndex = 0; LODIndex < NumLods; ++LODIndex)
 				{
-					FStaticMeshLODResources& LodRenderData = Mesh->GetRenderData()->LODResources[LODIndex];
+					FStaticMeshLODResources& LodRenderData = Mesh->RenderData->LODResources[LODIndex];
 					FStaticMeshComponentLODInfo& ComponentLodInfo = Component->LODData[LODIndex];
 
 					const int32 NumLodsInCopyBuffer = PasteColors->PerLODVertexColorData.Num();
@@ -383,7 +383,7 @@ void FPaintModePainter::PasteVertexColors()
 
 				/** Update cached paint data on static mesh component and update DDC key */
 				Component->CachePaintedDataIfNecessary();
-				Component->StaticMeshDerivedDataKey = Mesh->GetRenderData()->DerivedDataKey;
+				Component->StaticMeshDerivedDataKey = Mesh->RenderData->DerivedDataKey;
 			}
 		}
 	}
@@ -2122,7 +2122,7 @@ void FPaintModePainter::PropagateVertexColorsToAsset()
 		{
 			checkf(Component != nullptr, TEXT("Invalid Static Mesh Component"));
 			UStaticMesh* Mesh = Component->GetStaticMesh();
-			for (int32 LODIndex = 0; LODIndex < Mesh->GetRenderData()->LODResources.Num(); LODIndex++)
+			for (int32 LODIndex = 0; LODIndex < Mesh->RenderData->LODResources.Num(); LODIndex++)
 			{
 				// Will not be guaranteed to match render data as user can paint to a specific LOD index
 				if (Component->LODData.IsValidIndex(LODIndex))

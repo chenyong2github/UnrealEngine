@@ -2390,7 +2390,7 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 			case ELandscapeViewMode::LOD:
 			{
 
-				const bool bMaterialModifiesMeshPosition = Mesh.MaterialRenderProxy->GetIncompleteMaterialWithFallback(View->GetFeatureLevel()).MaterialModifiesMeshPosition_RenderThread();
+				const bool bMaterialModifiesMeshPosition = Mesh.MaterialRenderProxy->GetMaterial(View->GetFeatureLevel())->MaterialModifiesMeshPosition_RenderThread();
 
 				auto& TemplateMesh = bIsWireframe ? Mesh : MeshTools;
 				for (int32 i = 0; i < TemplateMesh.Elements.Num(); i++)
@@ -4622,9 +4622,9 @@ void FLandscapeMeshProxySceneProxy::DestroyRenderThreadResources()
 FPrimitiveSceneProxy* ULandscapeMeshProxyComponent::CreateSceneProxy()
 {
 	if (GetStaticMesh() == NULL
-		|| GetStaticMesh()->GetRenderData() == NULL
-		|| GetStaticMesh()->GetRenderData()->LODResources.Num() == 0
-		|| GetStaticMesh()->GetRenderData()->LODResources[0].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
+		|| GetStaticMesh()->RenderData == NULL
+		|| GetStaticMesh()->RenderData->LODResources.Num() == 0
+		|| GetStaticMesh()->RenderData->LODResources[0].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
 	{
 		return NULL;
 	}

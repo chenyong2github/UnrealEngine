@@ -101,21 +101,14 @@ void FComplexityAccumulateInterface::GetDebugViewModeShaderBindings(
 	}
 }
 
-
-
-void FComplexityAccumulateInterface::AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel,
-	EMaterialTessellationMode InMaterialTessellationMode,
-	const FVertexFactoryType* InVertexFactoryType,
-	FMaterialShaderTypes& OutShaderTypes) const
+TShaderRef<FDebugViewModePS> FComplexityAccumulateInterface::GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const
 {
-	AddDebugViewModeShaderTypes(InFeatureLevel, InMaterialTessellationMode, InVertexFactoryType, OutShaderTypes);
-
 	FComplexityAccumulatePS::FPermutationDomain PermutationVector;
-	EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[InFeatureLevel];
-	FComplexityAccumulatePS::EQuadOverdraw QuadOverdraw = AllowDebugViewShaderMode(DVSM_QuadComplexity, ShaderPlatform, InFeatureLevel) ? FComplexityAccumulatePS::EQuadOverdraw::Enable : FComplexityAccumulatePS::EQuadOverdraw::Disable;
+	FStaticFeatureLevel FeatureLevel = InMaterial->GetFeatureLevel();
+	EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
+	FComplexityAccumulatePS::EQuadOverdraw QuadOverdraw = AllowDebugViewShaderMode(DVSM_QuadComplexity, ShaderPlatform, FeatureLevel) ? FComplexityAccumulatePS::EQuadOverdraw::Enable : FComplexityAccumulatePS::EQuadOverdraw::Disable;
 	PermutationVector.Set<FComplexityAccumulatePS::FQuadOverdraw>(QuadOverdraw);
-
-	OutShaderTypes.AddShaderType<FComplexityAccumulatePS>(PermutationVector.ToDimensionValueId());
+	return InMaterial->GetShader<FComplexityAccumulatePS>(VertexFactoryType, PermutationVector);
 }
 
 void FComplexityAccumulateInterface::SetDrawRenderState(EBlendMode BlendMode, FRenderState& DrawRenderState, bool bHasDepthPrepassForMaskedMaterial) const

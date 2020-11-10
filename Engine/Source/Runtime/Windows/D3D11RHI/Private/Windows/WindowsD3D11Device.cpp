@@ -8,7 +8,6 @@
 #include "Misc/CommandLine.h"
 #include "Misc/EngineVersion.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
-#include "Windows/WindowsPlatformCrashContext.h"
 	#include <delayimp.h>
 	#if !PLATFORM_HOLOLENS
 	#include "nvapi.h"
@@ -27,12 +26,10 @@ THIRD_PARTY_INCLUDES_START
 #include "dxgi1_6.h"
 THIRD_PARTY_INCLUDES_END
 #include "RHIValidation.h"
-#include "HAL/ExceptionHandling.h"
 
 #if NV_AFTERMATH
 bool GDX11NVAfterMathEnabled = false;
 bool GNVAftermathModuleLoaded = false;
-bool GDX11NVAfterMathMarkers = false;
 #endif
 
 #if INTEL_METRICSDISCOVERY
@@ -195,13 +192,12 @@ static FCreateDXGIFactory2 CreateDXGIFactory2FnPtr = nullptr;
  * doesn't have VistaSP2/DX10, calling CreateDXGIFactory1 will throw an exception.
  * We use SEH to detect that case and fail gracefully.
  */
-static void SafeCreateDXGIFactory(IDXGIFactory1** DXGIFactory1, bool bWithDebug)
+static void SafeCreateDXGIFactory(IDXGIFactory1** DXGIFactory1)
 {
 #if !defined(D3D11_CUSTOM_VIEWPORT_CONSTRUCTOR) || !D3D11_CUSTOM_VIEWPORT_CONSTRUCTOR
 	__try
 	{
-		bool bQuadBufferStereoRequested = FParse::Param(FCommandLine::Get(), TEXT("quad_buffer_stereo"));
-		if (FPlatformMisc::VerifyWindowsVersion(8, 1) && (bQuadBufferStereoRequested || bWithDebug))
+		if (FParse::Param(FCommandLine::Get(), TEXT("quad_buffer_stereo")))
 		{
 			// CreateDXGIFactory2 is only available on Win8.1+, find it if it exists
 			HMODULE DxgiDLL = (HMODULE)FPlatformProcess::GetDllHandle(TEXT("dxgi.dll"));
@@ -213,25 +209,20 @@ static void SafeCreateDXGIFactory(IDXGIFactory1** DXGIFactory1, bool bWithDebug)
 #pragma warning(pop)
 				FPlatformProcess::FreeDllHandle(DxgiDLL);
 			}
-
-			if (bQuadBufferStereoRequested)
+			if (CreateDXGIFactory2FnPtr)
 			{
-				if (CreateDXGIFactory2FnPtr)
-				{
-					bIsQuadBufferStereoEnabled = true;
-				}
-				else
-				{
-					UE_LOG(LogD3D11RHI, Warning, TEXT("Win8.1 or above is required for quad_buffer_stereo support."));
-				}
+				bIsQuadBufferStereoEnabled = true;
+			}
+			else
+			{
+				UE_LOG(LogD3D11RHI, Warning, TEXT("Win8.1 or above ir required for quad_buffer_stereo support."));
 			}
 		}
 
-		// IDXGIFactory2 required for dx11.1 active stereo and DXGI debug (dxgi1.3)
-		if (CreateDXGIFactory2FnPtr)
+		// IDXGIFactory2 required for dx11.1 active stereo (dxgi1.2)
+		if (bIsQuadBufferStereoEnabled && CreateDXGIFactory2FnPtr)
 		{
-			uint32 Flags = bWithDebug ? DXGI_CREATE_FACTORY_DEBUG : 0;
-			CreateDXGIFactory2FnPtr(Flags, __uuidof(IDXGIFactory2), (void**)DXGIFactory1);
+			CreateDXGIFactory2FnPtr(0, __uuidof(IDXGIFactory2), (void**)DXGIFactory1);
 		}
 		else
 		{
@@ -490,7 +481,7 @@ static void SetHDRMonitorModeAMD(uint32 IHVDisplayIndex, bool bEnableHDR, EDispl
 		AGSReturnCode AmdStatus = agsSetDisplayMode(AmdInfo.AmdAgsContext, AmdHDRDeviceIndex, AmdHDRDisplayIndex, &HDRDisplaySettings);
 
 		// Ignore expected failures caused by insufficient driver version
-		if (AmdStatus != AGS_SUCCESS && AmdStatus != AGS_LEGACY_DRIVER)
+		if (AmdStatus != AGS_SUCCESS && AmdStatus != AGS_ERROR_LEGACY_DRIVER)
 		{
 			UE_LOG(LogD3D11RHI, Warning, TEXT("agsSetDisplayMode returned (%x)"), int(AmdStatus));
 		}
@@ -843,7 +834,7 @@ void FD3D11DynamicRHIModule::FindAdapter()
 
 	// Try to create the DXGIFactory1.  This will fail if we're not running Vista SP2 or higher.
 	TRefCountPtr<IDXGIFactory1> DXGIFactory1;
-	SafeCreateDXGIFactory(DXGIFactory1.GetInitReference(), D3D11RHI_ShouldCreateWithD3DDebug());
+	SafeCreateDXGIFactory(DXGIFactory1.GetInitReference());
 	if(!DXGIFactory1)
 	{
 		return;
@@ -1052,7 +1043,7 @@ FDynamicRHI* FD3D11DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 #endif
 
 	TRefCountPtr<IDXGIFactory1> DXGIFactory1;
-	SafeCreateDXGIFactory(DXGIFactory1.GetInitReference(), D3D11RHI_ShouldCreateWithD3DDebug());
+	SafeCreateDXGIFactory(DXGIFactory1.GetInitReference());
 	check(DXGIFactory1);
 
 	GD3D11RHI = new FD3D11DynamicRHI(DXGIFactory1,ChosenAdapter.MaxSupportedFeatureLevel,ChosenAdapter.AdapterIndex,ChosenDescription);
@@ -1175,26 +1166,9 @@ void FD3D11DynamicRHI::StartNVAftermath()
 
 	if (bShouldStart)
 	{
-		static IConsoleVariable* MarkersCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.Markers"));
-		static IConsoleVariable* CallstackCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.Callstack"));
-		static IConsoleVariable* ResourcesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.ResourceTracking"));
-		static IConsoleVariable* TrackAllCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.TrackAll"));
-		
-		const bool bEnableInEditor = GIsEditor && !FParse::Param(FCommandLine::Get(), TEXT("nogpucrashdebugging"));
-		const bool bEnableMarkers = FParse::Param(FCommandLine::Get(), TEXT("aftermathmarkers")) || (MarkersCVar && MarkersCVar->GetInt()) || bEnableInEditor;
-		const bool bEnableCallstack = FParse::Param(FCommandLine::Get(), TEXT("aftermathcallstack")) || (CallstackCVar && CallstackCVar->GetInt());
-		const bool bEnableResources = FParse::Param(FCommandLine::Get(), TEXT("aftermathresources")) || (ResourcesCVar && ResourcesCVar->GetInt());
-		const bool bEnableAll = FParse::Param(FCommandLine::Get(), TEXT("aftermathall")) || (TrackAllCVar && TrackAllCVar->GetInt());
-
-		uint32 Flags = GFSDK_Aftermath_FeatureFlags_Minimum;
-
-		Flags |= bEnableMarkers ? GFSDK_Aftermath_FeatureFlags_EnableMarkers : 0;
-		Flags |= bEnableCallstack ? GFSDK_Aftermath_FeatureFlags_CallStackCapturing : 0;
-		Flags |= bEnableResources ? GFSDK_Aftermath_FeatureFlags_EnableResourceTracking : 0;
-		Flags |= bEnableAll ? GFSDK_Aftermath_FeatureFlags_Maximum : 0;
-
 		GFSDK_Aftermath_Result Result = GFSDK_Aftermath_DX11_Initialize(
-			GFSDK_Aftermath_Version_API, (GFSDK_Aftermath_FeatureFlags)Flags, Direct3DDevice);
+			GFSDK_Aftermath_Version_API, GFSDK_Aftermath_FeatureFlags_Maximum,
+			Direct3DDevice);
 
 		if (GFSDK_Aftermath_SUCCEED(Result)) //-V547 Expression is always true -- confirmed false positive, fix coming in future PVS version (v6.24)
 		{
@@ -1203,6 +1177,7 @@ void FD3D11DynamicRHI::StartNVAftermath()
 			if (GFSDK_Aftermath_SUCCEED(Result)) //-V547 Expression is always true -- confirmed false positive, fix coming in future PVS version (v6.24)
 			{
 				UE_LOG(LogD3D11RHI, Log, TEXT("[Aftermath] Enabled and primed"));
+				SetEmitDrawEvents(true);
 			}
 			else
 			{
@@ -1214,12 +1189,6 @@ void FD3D11DynamicRHI::StartNVAftermath()
 		{
 			UE_LOG(LogD3D11RHI, Log, TEXT("[Aftermath] Failed to initialize. Result=%08x"), Result);
 			GDX11NVAfterMathEnabled = false;
-		}
-
-		if (GDX11NVAfterMathEnabled && (bEnableMarkers || bEnableAll))
-		{
-			SetEmitDrawEvents(true);
-			GDX11NVAfterMathMarkers = true;
 		}
 	}
 }
@@ -1250,69 +1219,15 @@ void FD3D11DynamicRHI::StopNVAftermath()
 	}
 }
 
-static void D3D11AftermathCrashCallback(const void* InGPUCrashDump, const uint32_t InGPUCrashDumpSize, void* InUserData)
-{
-	// decode the GPU marker stack data
-	if (GDynamicRHI)
-	{
-		GDynamicRHI->CheckGpuHeartbeat();
-	}
-
-	// Write out crash dump to project log dir - exception handling code will take care of copying it to the correct location
-	const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UE4GPUAftermathMinidumpName);
-
-	// Just use raw windows file routines for the GPU minidump (TODO: refactor to our own functions?)
-	HANDLE FileHandle = CreateFileW(*GPUMiniDumpPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (FileHandle != INVALID_HANDLE_VALUE)
-	{
-		WriteFile(FileHandle, InGPUCrashDump, InGPUCrashDumpSize, nullptr, nullptr);
-	}
-	CloseHandle(FileHandle);
-
-	// Report the GPU crash which will raise the exception
-	ReportGPUCrash(TEXT("Aftermath GPU Crash dump Triggered"), 0);
-}
-
-void EnableNVAftermathCrashDumps()
-{
-	if (GNVAftermathModuleLoaded)
-	{
-		static IConsoleVariable* GPUCrashDump = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDump"));
-		if (FParse::Param(FCommandLine::Get(), TEXT("gpucrashdump")) || (GPUCrashDump && GPUCrashDump->GetInt()))
-		{
-
-			GFSDK_Aftermath_Result Result = GFSDK_Aftermath_EnableGpuCrashDumps(
-				GFSDK_Aftermath_Version_API,
-				GFSDK_Aftermath_GpuCrashDumpWatchedApiFlags_DX,
-				GFSDK_Aftermath_GpuCrashDumpFeatureFlags_Default,
-				D3D11AftermathCrashCallback,
-				nullptr, //Shader debug callback
-				nullptr, // description callback
-				nullptr); // user data
-
-			if (Result == GFSDK_Aftermath_Result_Success)
-			{
-				UE_LOG(LogD3D11RHI, Log, TEXT("[Aftermath] Aftermath crash dumping enabled"));
-			}
-			else
-			{
-				UE_LOG(LogD3D11RHI, Log, TEXT("[Aftermath] Aftermath crash dumping failed to initialize (%x)"), Result);
-			}
-		}
-	}
-}
-
 #define CACHE_NV_AFTERMATH_ENABLED() CacheNVAftermathEnabled()
 #define START_NV_AFTERMATH() StartNVAftermath()
 #define STOP_NV_AFTERMATH() StopNVAftermath()
-#define ENABLE_NV_AFTERMATH_CRASH_DUMPS() EnableNVAftermathCrashDumps()
 
 #else
 
 #define CACHE_NV_AFTERMATH_ENABLED()
 #define START_NV_AFTERMATH()
 #define STOP_NV_AFTERMATH()
-#define ENABLE_NV_AFTERMATH_CRASH_DUMPS()
 
 #endif
 
@@ -1761,7 +1676,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			check(AmdAgsContext == NULL);
 
 			// agsInit should be called before D3D device creation
-			if (agsInit(AGS_MAKE_VERSION(AMD_AGS_VERSION_MAJOR, AMD_AGS_VERSION_MINOR, AMD_AGS_VERSION_PATCH), nullptr, &AmdAgsContext, &AmdInfo.AmdGpuInfo) == AGS_SUCCESS)
+			if (agsInit(&AmdAgsContext, NULL, &AmdInfo.AmdGpuInfo) == AGS_SUCCESS)
 			{
 				AmdInfo.AmdAgsContext = AmdAgsContext;
 				bool bFoundMatchingDevice = false;
@@ -1879,11 +1794,6 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			CreateIntelMetricsDiscovery();
 		}
 #endif
-		if (IsRHIDeviceNVIDIA())
-		{
-			// crash dump hooks need to be attached before device creation
-			ENABLE_NV_AFTERMATH_CRASH_DUMPS();
-		}
 
 		if (!bDeviceCreated)
 		{

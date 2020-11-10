@@ -30,15 +30,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = SelectionFilter)
 	bool bSelectVertices = true;
 
-	/** When true, will select edge loops. Edge loops are paths along a string of valence-4 vertices. */
-	UPROPERTY(EditAnywhere, Category = SelectionFilter, meta = (EditCondition = "bSelectEdges"))
-	bool bSelectEdgeLoops = false;
-
-	/** When true, will select rings of edges that are opposite each other across a quad face. */
-	UPROPERTY(EditAnywhere, Category = SelectionFilter, meta = (EditCondition = "bSelectEdges"))
-	bool bSelectEdgeRings = false;
-
-
 	// The following were originally in their own category, all marked as AdvancedDisplay. However, since there wasn't a non-AdvancedDisplay
 	// property in the category, they started out as expanded and could not be collapsed.
 	// The alternative approach, used below, is to have them in a nested category, which starts out as collapsed. This works nicely.
@@ -105,11 +96,6 @@ public:
 	void SetShouldSelectEdgeLoopsFunc(TFunction<bool(void)> Func)
 	{
 		ShouldSelectEdgeLoopsFunc = Func;
-	}
-
-	void SetShouldSelectEdgeRingsFunc(TFunction<bool(void)> Func)
-	{
-		ShouldSelectEdgeRingsFunc = Func;
 	}
 
 	/**
@@ -217,16 +203,7 @@ protected:
 	TFunction<FDynamicMeshAABBTree3*()> GetSpatialFunc;
 
 	TFunction<bool(void)> GetAddToSelectionModifierStateFunc;
-
-	// When bSelectEdgeLoops is true, this function is tested to see if we should select edge loops,
-	// to allow edge loop selection to be toggled with some key (setting bSelectEdgeLoops to
-	// false overrides this function).
-	TFunction<bool(void)> ShouldSelectEdgeLoopsFunc = []() {return true; };
-
-	// When bSelectEdgeRings is true, this function is tested to see if we should select edge rings,
-	// to allow edge ring selection to be toggled with some key (setting bSelectEdgeRings to
-	// false overrides this function).
-	TFunction<bool(void)> ShouldSelectEdgeRingsFunc = []() {return true; };
+	TFunction<bool(void)> ShouldSelectEdgeLoopsFunc = []() {return false; };
 
 	FTransform3d TargetTransform;
 

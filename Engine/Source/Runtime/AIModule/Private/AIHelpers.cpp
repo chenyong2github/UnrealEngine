@@ -61,16 +61,8 @@ namespace FAISystem
 		const float DistToTargetSq = ActorToTarget.SizeSquared();
 		if (DistToTargetSq <= FarClippingRadiusSq && DistToTargetSq >= NearClippingRadiusSq)
 		{
-			// Will return true if squared distance to Target is smaller than SMALL_NUMBER
-			if (DistToTargetSq < SMALL_NUMBER)
-			{
-				return true;
-			}
-			
-			// Calculate the normal here instead of calling GetUnsafeNormal as we already have the DistToTargetSq (optim)
-			const FVector DirectionToTargetNormal = ActorToTarget * FMath::InvSqrt(DistToTargetSq);
-
-			return FVector::DotProduct(DirectionToTargetNormal, ConeDirectionNormal) > PeripheralVisionAngleCos;
+			const FVector DirectionToTarget = ActorToTarget.GetUnsafeNormal();
+			return FVector::DotProduct(DirectionToTarget, ConeDirectionNormal) > PeripheralVisionAngleCos;
 		}
 
 		return false;

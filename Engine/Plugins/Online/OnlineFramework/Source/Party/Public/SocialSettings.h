@@ -15,32 +15,11 @@ struct FSocialPlatformDescription
 
 	FSocialPlatformDescription() { };
 
-	/**
-	 * The name of this platform
-	 * @see IOnlineSubsystem::GetLocalPlatformName
-	 */
 	UPROPERTY()
-	FString Name;
+	FString SocialPlatformTypeName;
 
-	/** The type of this platform.  For example DESKTOP or MOBILE */
 	UPROPERTY()
-	FString PlatformType;
-
-	/** The online subsystem this platform uses */
-	UPROPERTY()
-	FName OnlineSubsystem;
-
-	/** The session type this platform uses */
-	UPROPERTY()
-	FString SessionType;
-
-	/** The external association type for this platform */
-	UPROPERTY()
-	FString ExternalAccountType;
-
-	/** The crossplay pool this platform belongs to */
-	UPROPERTY()
-	FString CrossplayPool;
+	FString SocialPlatformName;
 };
 
 /**

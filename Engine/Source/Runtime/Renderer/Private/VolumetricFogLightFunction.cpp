@@ -52,9 +52,8 @@ public:
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
-		const FMaterial& Material = MaterialProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialProxy);
 		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
+		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, *MaterialProxy->GetMaterial(View.GetFeatureLevel()), View);
 
 		LightFunctionParameters.Set(RHICmdList, ShaderRHI, LightSceneInfo, 1.0f);
 
@@ -201,7 +200,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 
 		const FMaterialRenderProxy* MaterialProxy = DirectionalLightSceneInfo->Proxy->GetLightFunctionMaterial();
 
-		if (MaterialProxy && MaterialProxy->GetIncompleteMaterialWithFallback(Scene->GetFeatureLevel()).IsLightFunction())
+		if (MaterialProxy && MaterialProxy->GetMaterial(Scene->GetFeatureLevel())->IsLightFunction())
 		{
 			FRDGTextureDesc LightFunctionTextureDesc = FRDGTextureDesc::Create2D(LightFunctionResolution, PF_G8, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_RenderTargetable);
 			LightFunctionTextureDesc.Flags |= GFastVRamConfig.VolumetricFog;
@@ -220,9 +219,8 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 				ERDGPassFlags::Raster,
 				[PassParameters, &View, MaterialProxy, LightFunctionResolution, DirectionalLightSceneInfo, WorldToShadowValue, this](FRHICommandListImmediate& RHICmdList)
 			{
-				const FMaterialRenderProxy* MaterialProxyForRendering = MaterialProxy;
-				const FMaterial& Material = MaterialProxyForRendering->GetMaterialWithFallback(Scene->GetFeatureLevel(), MaterialProxyForRendering);
-				SCOPED_DRAW_EVENTF(RHICmdList, LightFunction, TEXT("LightFunction %ux%u Material=%s"), LightFunctionResolution.X, LightFunctionResolution.Y, *Material.GetFriendlyName());
+				const FMaterial* Material = MaterialProxy->GetMaterial(Scene->GetFeatureLevel());
+				SCOPED_DRAW_EVENTF(RHICmdList, LightFunction, TEXT("LightFunction %ux%u Material=%s"), LightFunctionResolution.X, LightFunctionResolution.Y, *Material->GetFriendlyName());
 
 				RHICmdList.SetViewport(0, 0, 0.0f, LightFunctionResolution.X, LightFunctionResolution.Y, 1.0f);
 
@@ -233,7 +231,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-				const FMaterialShaderMap* MaterialShaderMap = Material.GetRenderingThreadShaderMap();
+				const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
 				TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 				TShaderRef<FVolumetricFogLightFunctionPS> PixelShader = MaterialShaderMap->GetShader<FVolumetricFogLightFunctionPS>();
 
@@ -244,7 +242,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 				VertexShader->SetParameters(RHICmdList, View.ViewUniformBuffer);
-				PixelShader->SetParameters(RHICmdList, View, DirectionalLightSceneInfo, MaterialProxyForRendering, FVector2D(1.0f / LightFunctionResolution.X, 1.0f / LightFunctionResolution.Y), WorldToShadowValue.Inverse());
+				PixelShader->SetParameters(RHICmdList, View, DirectionalLightSceneInfo, MaterialProxy, FVector2D(1.0f / LightFunctionResolution.X, 1.0f / LightFunctionResolution.Y), WorldToShadowValue.Inverse());
 
 				DrawRectangle(
 					RHICmdList,

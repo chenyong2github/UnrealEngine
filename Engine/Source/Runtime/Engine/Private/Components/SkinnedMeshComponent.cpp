@@ -1960,7 +1960,7 @@ void USkinnedMeshComponent::UpdateMasterBoneMap()
 
 FTransform USkinnedMeshComponent::GetSocketTransform(FName InSocketName, ERelativeTransformSpace TransformSpace) const
 {
-	//QUICK_SCOPE_CYCLE_COUNTER(USkinnedMeshComponent_GetSocketTransform);
+	QUICK_SCOPE_CYCLE_COUNTER(USkinnedMeshComponent_GetSocketTransform);
 
 	FTransform OutSocketTransform = GetComponentTransform();
 

@@ -31,17 +31,6 @@ int GetComponentLinearIndex()
 #endif
 }
 
-/* Get current Lod for this section instance. */
-float GetSectionLod(uint ComponentIndex)
-{
-#if FIXED_GRID
-	// Fixed grid has fixed Lod
-	return LandscapeFixedGrid.LodValues.x;
-#else
-	return min(LandscapeContinuousLODParameters.SectionLOD[ComponentIndex] + View.FarShadowStaticMeshLODBias, LandscapeParameters.LastLOD);
-#endif
-}
-
 /**
  * x = Current mesh LOD
  * y = unused
@@ -58,7 +47,7 @@ float4 GetLodValues(uint ComponentIndex)
 	return float4(0, 0, LandscapeParameters.SubsectionSizeVertsLayerUVPan.xy);
 #else
 	// Get Lod for the current section and infer the values
-	uint Lod = (uint)floor(GetSectionLod(ComponentIndex));
+	uint Lod = (uint)floor(LandscapeContinuousLODParameters.SectionLOD[ComponentIndex]);
 	float LodSubSectionSizeQuads = (float)((LandscapeParameters.SubsectionSizeVerts >> Lod) - 1);
 	return float4(Lod, 0, LodSubSectionSizeQuads, rcp(LodSubSectionSizeQuads));
 #endif
@@ -88,6 +77,17 @@ float2 GetSectionTessellationFalloff(uint ComponentIndex)
 	return float2(
 		LandscapeContinuousLODParameters.SectionTessellationFalloffC[ComponentIndex],
 		LandscapeContinuousLODParameters.SectionTessellationFalloffK[ComponentIndex]);
+#endif
+}
+
+/* Get current Lod for this section instance. */
+float GetSectionLod(uint ComponentIndex)
+{
+#if FIXED_GRID
+	// Fixed grid has fixed Lod
+	return LandscapeFixedGrid.LodValues.x;
+#else
+	return min(LandscapeContinuousLODParameters.SectionLOD[ComponentIndex] + View.FarShadowStaticMeshLODBias, LandscapeParameters.LastLOD);
 #endif
 }
 

@@ -142,7 +142,7 @@ void FCanvasTriangleRendererItem::FRenderData::RenderTriangles(
 
 	InitTriangleMesh(View, bNeedsToSwitchVerticalAxis);
 
-	SCOPED_DRAW_EVENTF(RHICmdList, CanvasDrawTriangles, *MaterialRenderProxy->GetIncompleteMaterialWithFallback(GMaxRHIFeatureLevel).GetFriendlyName());
+	SCOPED_DRAW_EVENTF(RHICmdList, CanvasDrawTriangles, *MaterialRenderProxy->GetMaterial(GMaxRHIFeatureLevel)->GetFriendlyName());
 
 	for (int32 TriIdx = 0; TriIdx < Triangles.Num(); TriIdx++)
 	{

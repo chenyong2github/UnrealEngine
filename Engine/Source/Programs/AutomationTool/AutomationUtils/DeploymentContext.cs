@@ -272,16 +272,6 @@ public class DeploymentContext //: ProjectParams
 	public List<string> IniSectionBlacklist = null;
 
 	/// <summary>
-	/// List of ini suffixes to always stage
-	/// </summary>
-	public List<string> IniSuffixWhitelist = null;
-
-	/// <summary>
-	/// List of ini suffixes to never stage
-	/// </summary>
-	public List<string> IniSuffixBlacklist = null;
-
-	/// <summary>
 	/// List of localization targets that are not included in staged build. By default, all project Content/Localization targets are automatically staged.
 	/// This list is read from the +BlacklistLocalizationTargets=... array in the [Staging] section of *Game.ini files.
 	/// </summary>
@@ -508,38 +498,6 @@ public class DeploymentContext //: ProjectParams
 		// Read the config blacklists
 		GameIni.GetArray(IniPath, "IniKeyBlacklist", out IniKeyBlacklist);
 		GameIni.GetArray(IniPath, "IniSectionBlacklist", out IniSectionBlacklist);
-
-		// TODO: Drive these lists from a config file
-		IniSuffixWhitelist = new List<string>
-		{
-			".ini",
-			"compat.ini",
-			"deviceprofiles.ini",
-			"engine.ini",
-			"enginechunkoverrides.ini",
-			"game.ini",
-			"gameplaytags.ini",
-			"gameusersettings.ini",
-			"hardware.ini",
-			"input.ini",
-			"scalability.ini",
-			"runtimeoptions.ini",
-			"installbundle.ini"
-		};
-
-		IniSuffixBlacklist = new List<string>
-		{
-			"crypto.ini",
-			"editor.ini",
-			"editorgameagnostic.ini",
-			"editorkeybindings.ini",
-			"editorlayout.ini",
-			"editorperprojectusersettings.ini",
-			"editorsettings.ini",
-			"editorusersettings.ini",
-			"lightmass.ini",
-			"pakfilerules.ini"
-		};
 
 		// If we were configured to use manifests across the whole project, then this platform should use manifests.
 		// Otherwise, read whether we are generating chunks from the ProjectPackagingSettings ini.

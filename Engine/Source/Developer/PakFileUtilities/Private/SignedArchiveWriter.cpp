@@ -47,7 +47,7 @@ bool FSignedArchiveWriter::Close()
 
 	FArchive* SignatureWriter = IFileManager::Get().CreateFileWriter(*PakSignaturesFilename);
 	FPakSignatureFile SignatureFile;
-	SignatureFile.SetChunkHashesAndSign(ChunkHashes, SignatureData, SigningKey);
+	SignatureFile.SetChunkHashesAndSign(ChunkHashes, SigningKey);
 	SignatureFile.Serialize(*SignatureWriter);
 	delete SignatureWriter;
 

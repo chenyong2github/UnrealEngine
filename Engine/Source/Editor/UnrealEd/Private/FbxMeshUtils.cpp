@@ -106,7 +106,7 @@ namespace FbxMeshUtils
 
 		UnFbx::FBXImportOptions* ImportOptions = FFbxImporter->GetImportOptions();
 		
-		bool IsReimport = BaseStaticMesh->GetRenderData()->LODResources.Num() > LODLevel;
+		bool IsReimport = BaseStaticMesh->RenderData->LODResources.Num() > LODLevel;
 		UFbxStaticMeshImportData* ImportData = Cast<UFbxStaticMeshImportData>(BaseStaticMesh->AssetImportData);
 		if (ImportData != nullptr)
 		{

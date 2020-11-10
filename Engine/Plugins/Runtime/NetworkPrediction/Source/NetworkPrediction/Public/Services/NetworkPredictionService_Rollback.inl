@@ -6,7 +6,6 @@
 namespace NetworkPredictionCVars
 {
 	NETSIM_DEVCVAR_SHIPCONST_INT(ForceReconcile, 0, "np.ForceReconcile", "Force a single reconcile");
-	NETSIM_DEVCVAR_SHIPCONST_INT(SkipReconcile, 0, "np.SkipReconcile", "Skip all reconciles");
 	NETSIM_DEVCVAR_SHIPCONST_INT(PrintReconciles, 0, "np.PrintReconciles", "Print reconciles to log");
 }
 
@@ -105,7 +104,7 @@ public:
 
 				if (FNetworkPredictionDriver<ModelDef>::ShouldReconcilePhysics(PhysicsFrame, TickState->PhysicsRewindData, InstanceData.Info.Driver, ClientRecvData.Physics))
 				{
-					UE_NP_TRACE_SHOULD_RECONCILE(ClientRecvData.TraceID);
+					UE_NP_TRACE_SHOULD_RECONCILE(ClientRecvData.TraceID); // TODO: need a way to trace physics state
 					bDoRollback = true;
 
 					if (NetworkPredictionCVars::PrintReconciles())
@@ -121,7 +120,7 @@ public:
 				}
 			}
 
-			if ((bDoRollback || NetworkPredictionCVars::ForceReconcile() > 0) && !NetworkPredictionCVars::SkipReconcile())
+			if (bDoRollback || NetworkPredictionCVars::ForceReconcile() > 0)
 			{
 				RollbackFrame = (RollbackFrame == INDEX_NONE) ? LocalFrame : FMath::Min(RollbackFrame, LocalFrame);
 			}
@@ -332,7 +331,7 @@ public:
 
 					TTickUtil<ModelDef>::DoTick(Instance, InputFrameData, OutputFrameData, Step, EndTimeMS, ESimulationTickContext::Resimulate);
 
-					UE_NP_TRACE_PUSH_TICK(Step.TotalSimulationTime, Step.StepMS, Step.Frame);
+					UE_NP_TRACE_PUSH_TICK(Step.TotalSimulationTime, Step.StepMS, Step.Frame, 0);
 					UE_NP_TRACE_SIM_TICK(ClientRecvData.TraceID);
 				}
 			}

@@ -9,7 +9,7 @@
 
 #define LOCTEXT_NAMESPACE "MaterialGraphNode_Knot"
 
-static const char* PC_Wildcard = "wildcard";
+const char* PC_Wildcard = "wildcard";
 
 /////////////////////////////////////////////////////
 // UMaterialGraphNode_Knot

@@ -3027,25 +3027,17 @@ struct FPakSignatureFile
 	// SHA1 hash of the chunk CRC data. Only valid after calling DecryptSignatureAndValidate
 	FSHAHash DecryptedHash;
 
-	// The actual array of data that was encrypted in the RSA block. Contains the chunk table hash and also other custom data related to the pak file
-	TArray<uint8> SignatureData;
-
 	// CRCs of each contiguous 64kb block of the pak file
 	TArray<TPakChunkHash> ChunkHashes;
 	
 	/**
 	 * Initialize and hash the CRC list then use the provided private key to encrypt the hash
 	 */
-	void SetChunkHashesAndSign(const TArray<TPakChunkHash>& InChunkHashes, const TArrayView<uint8>& InSignatureData, const FRSAKeyHandle InKey)
+	void SetChunkHashesAndSign(const TArray<TPakChunkHash>& InChunkHashes, const FRSAKeyHandle InKey)
 	{
 		ChunkHashes = InChunkHashes;
-		SignatureData = InSignatureData;
 		DecryptedHash = ComputeCurrentMasterHash();
-
-		TArray<uint8> NewSignatureData;
-		NewSignatureData.Append(SignatureData);
-		NewSignatureData.Append(DecryptedHash.Hash, UE_ARRAY_COUNT(FSHAHash::Hash));
-		FRSA::EncryptPrivate(NewSignatureData, EncryptedHash, InKey);
+		FRSA::EncryptPrivate(TArrayView<const uint8>(DecryptedHash.Hash, UE_ARRAY_COUNT(FSHAHash::Hash)), EncryptedHash, InKey);
 	}
 
 	/**
@@ -3080,11 +3072,11 @@ struct FPakSignatureFile
 		}
 		else
 		{
-			int32 BytesDecrypted = FRSA::DecryptPublic(EncryptedHash, SignatureData, InKey);
-			if (BytesDecrypted > (int32)UE_ARRAY_COUNT(FSHAHash::Hash))
+			TArray<uint8> Decrypted;
+			int32 BytesDecrypted = FRSA::DecryptPublic(EncryptedHash, Decrypted, InKey);
+			if (BytesDecrypted == UE_ARRAY_COUNT(FSHAHash::Hash))
 			{
-				FMemory::Memcpy(DecryptedHash.Hash, SignatureData.GetData() + SignatureData.Num() - UE_ARRAY_COUNT(FSHAHash::Hash), UE_ARRAY_COUNT(FSHAHash::Hash));
-				SignatureData.SetNum(SignatureData.Num() - UE_ARRAY_COUNT(FSHAHash::Hash));
+				FMemory::Memcpy(DecryptedHash.Hash, Decrypted.GetData(), Decrypted.Num());
 				FSHAHash CurrentHash = ComputeCurrentMasterHash();
 				if (DecryptedHash == CurrentHash)
 				{

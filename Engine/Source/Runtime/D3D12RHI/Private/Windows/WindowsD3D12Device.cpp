@@ -30,12 +30,6 @@
 
 #include "ShaderCompiler.h"
 
-#if NV_GEFORCENOW
-THIRD_PARTY_INCLUDES_START
-#include "GfnRuntimeSdk_CAPI.h"
-THIRD_PARTY_INCLUDES_END
-#endif
-
 #pragma comment(lib, "d3d12.lib")
 
 IMPLEMENT_MODULE(FD3D12DynamicRHIModule, D3D12RHI);
@@ -56,42 +50,7 @@ static FAutoConsoleVariableRef CVarDX12NVAfterMathBufferSize(
 	TEXT("Use NV Aftermath for GPU crash analysis in D3D12"),
 	ECVF_ReadOnly
 );
-int32 GDX12NVAfterMathTrackResources = 0;
-static FAutoConsoleVariableRef CVarDX12NVAfterMathTrackResources(
-	TEXT("r.DX12NVAfterMathTrackResources"),
-	GDX12NVAfterMathTrackResources,
-	TEXT("Enable NV Aftermath resource tracing in D3D12"),
-	ECVF_ReadOnly
-);
-int32 GDX12NVAfterMathMarkers = 0;
 #endif
-
-int32 GMinimumWindowsBuildVersionForRayTracing = 0;
-static FAutoConsoleVariableRef CVarMinBuildVersionForRayTracing(
-	TEXT("r.D3D12.DXR.MinimumWindowsBuildVersion"),
-	GMinimumWindowsBuildVersionForRayTracing,
-	TEXT("Sets the minimum Windows build version required to enable ray tracing."),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe
-);
-
-int32 GMinimumDriverVersionForRayTracingNVIDIA = 0;
-static FAutoConsoleVariableRef CVarMinDriverVersionForRayTracingNVIDIA(
-	TEXT("r.D3D12.DXR.MinimumDriverVersionNVIDIA"),
-	GMinimumDriverVersionForRayTracingNVIDIA,
-	TEXT("Sets the minimum driver version required to enable ray tracing on NVIDIA GPUs."),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe
-);
-
-// Use AGS_MAKE_VERSION() macro to define the version.
-// i.e. AGS_MAKE_VERSION(major, minor, patch) ((major << 22) | (minor << 12) | patch)
-int32 GMinimumDriverVersionForRayTracingAMD = 0;
-static FAutoConsoleVariableRef CVarMinDriverVersionForRayTracingAMD(
-	TEXT("r.D3D12.DXR.MinimumDriverVersionAMD"),
-	GMinimumDriverVersionForRayTracingAMD,
-	TEXT("Sets the minimum driver version required to enable ray tracing on AMD GPUs."),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe
-);
-
 
 static inline int D3D12RHI_PreferAdapterVendor()
 {
@@ -609,14 +568,13 @@ void FD3D12DynamicRHI::Init()
 
 #if AMD_API_ENABLE
 	// Initialize the AMD AGS utility library, when running on an AMD device
-	AGSGPUInfo AmdAgsGpuInfo = {};
 	if (IsRHIDeviceAMD() && bAllowVendorDevice)
 	{
 		check(AmdAgsContext == nullptr);
 		check(AmdSupportedExtensionFlags == 0);
 
 		// agsInit should be called before D3D device creation
-		agsInit(AGS_MAKE_VERSION(AMD_AGS_VERSION_MAJOR, AMD_AGS_VERSION_MINOR, AMD_AGS_VERSION_PATCH), nullptr, &AmdAgsContext, &AmdAgsGpuInfo);
+		agsInit(&AmdAgsContext, nullptr, nullptr);
 	}
 #endif
 
@@ -647,30 +605,6 @@ void FD3D12DynamicRHI::Init()
 	}
 #endif
 
-	// Disable ray tracing for Windows build versions
-
-	bool bIsRunningNvidiaGFN = false;
-#if NV_GEFORCENOW
-	const GfnRuntimeSdk::GfnRuntimeError GfnResult = GfnRuntimeSdk::gfnInitializeRuntimeSdk(GfnRuntimeSdk::gfnDefaultLanguage);
-	const bool bGfnRuntimeSDKInitialized = GfnResult == GfnRuntimeSdk::gfnSuccess || GfnResult == GfnRuntimeSdk::gfnInitSuccessClientOnly;
-	if (bGfnRuntimeSDKInitialized && GfnRuntimeSdk::gfnIsRunningInCloud())
-	{
-		UE_LOG(LogRHI, Log, TEXT("GeForceNow cloud instance running. Ray Tracing Windows build version check disabled"));
-		bIsRunningNvidiaGFN = true;
-		GfnRuntimeSdk::gfnShutdownRuntimeSdk();
-	}
-#endif
-
-	if (GRHISupportsRayTracing
-		&& GMinimumWindowsBuildVersionForRayTracing > 0
-		&& !FPlatformMisc::VerifyWindowsVersion(10, 0, GMinimumWindowsBuildVersionForRayTracing)
-		&& !bIsRunningNvidiaGFN)
-	{
-		GRHISupportsRayTracing = false;
-
-		UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled because it requires Windows 10 version %u"), (uint32)GMinimumWindowsBuildVersionForRayTracing);
-	}
-
 #if NV_API_ENABLE
 	if (IsRHIDeviceNVIDIA() && bAllowVendorDevice)
 	{
@@ -688,42 +622,8 @@ void FD3D12DynamicRHI::Init()
 		{
 			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to initialize NVAPI"));
 		}
-
-		// Disable ray tracing for old Nvidia drivers
-		if (GRHISupportsRayTracing
-			&& GMinimumDriverVersionForRayTracingNVIDIA > 0
-			&& NvStatus == NVAPI_OK)
-		{
-			NvU32 DriverVersion = UINT32_MAX;
-			NvAPI_ShortString BranchString("");
-			if (NvAPI_SYS_GetDriverAndBranchVersion(&DriverVersion, BranchString) == NVAPI_OK)
-			{
-				if (DriverVersion < (uint32)GMinimumDriverVersionForRayTracingNVIDIA)
-				{
-					GRHISupportsRayTracing = false;
-
-					UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled because the driver is too old"));
-				}
-			}
-		}
 	}
 #endif
-
-#if !PLATFORM_CPU_ARM_FAMILY
-	if (GRHISupportsRayTracing
-		&& IsRHIDeviceAMD()
-		&& GMinimumDriverVersionForRayTracingAMD > 0
-		&& AmdAgsContext
-		&& AmdAgsGpuInfo.radeonSoftwareVersion)
-	{
-		if (agsCheckDriverVersion(AmdAgsGpuInfo.radeonSoftwareVersion, GMinimumDriverVersionForRayTracingAMD) == AGS_SOFTWAREVERSIONCHECK_OLDER)
-		{
-			GRHISupportsRayTracing = false;
-
-			UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled because the driver is too old"));
-		}
-	}
-#endif // !PLATFORM_CPU_ARM_FAMILY
 
 	GTexturePoolSize = 0;
 

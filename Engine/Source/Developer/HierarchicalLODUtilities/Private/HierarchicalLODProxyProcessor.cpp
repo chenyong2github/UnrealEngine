@@ -73,7 +73,7 @@ bool FHierarchicalLODProxyProcessor::Tick(float DeltaTime)
 		FProjectStatus ProjectStatus;
 		if (IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && (ProjectStatus.IsTargetPlatformSupported(TEXT("Android")) || ProjectStatus.IsTargetPlatformSupported(TEXT("IOS"))))
 		{
-			if (MainMesh->GetRenderData() && MainMesh->GetRenderData()->LODResources.Num() && MainMesh->GetRenderData()->LODResources[0].IndexBuffer.Is32Bit())
+			if (MainMesh->RenderData.IsValid() && MainMesh->RenderData->LODResources.Num() && MainMesh->RenderData->LODResources[0].IndexBuffer.Is32Bit())
 			{
 				FMessageLog("HLODResults").Warning()
 					->AddToken(FUObjectToken::Create(Data->LODActor))

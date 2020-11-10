@@ -36,7 +36,6 @@ private:
 	int32 CachedFramePace = 60;
 	int32 CachedRefreshRate = 60;
 	int32 CachedSyncInterval = 1;
-	struct ANativeWindow* CachedNativeWindow = nullptr;
 
 	// legacy framepacer state
 	int32 DesiredSyncIntervalRelativeTo60Hz = -1;

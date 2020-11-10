@@ -2604,9 +2604,7 @@ bool FEditorFileUtils::LoadMap(const FString& InFilename, bool LoadAsTemplate, b
 	const double MapLoadTime = FStudioAnalytics::GetAnalyticSeconds() - LoadStartTime;
 	UE_LOG(LogFileHelpers, Log, TEXT("Loading map '%s' took %.3f"), *FPaths::GetBaseFilename(Filename), MapLoadTime);
 
-	FStudioAnalytics::FireEvent_Loading(TEXT("LoadMap"), MapLoadTime, {
-		FAnalyticsEventAttribute(TEXT("MapName"), FPaths::GetBaseFilename(Filename))
-	});
+	FStudioAnalytics::FireEvent_Loading(TEXT("LoadMap"), MapLoadTime, { FAnalyticsEventAttribute(TEXT("MapName"), FPaths::GetBaseFilename(Filename)) });
 
 	if (GUnrealEd)
 	{

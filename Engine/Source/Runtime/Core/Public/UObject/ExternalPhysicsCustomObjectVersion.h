@@ -132,9 +132,6 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		// Removed unused full bounds from AABBTree
 		RemovedAABBTreeFullBounds,
 
-		// Added one-way interaction flag
-		AddOneWayInteraction,
-
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

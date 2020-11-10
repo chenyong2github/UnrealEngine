@@ -54,8 +54,8 @@ typedef INIT_ONCE H5TS_once_t;
 #define H5TS_CALL_CONV WINAPI
 
 /* Functions */
-#define H5TS_get_thread_local_value(key) ((key != TLS_OUT_OF_INDEXES) ? TlsGetValue( key ) : 0)
-#define H5TS_set_thread_local_value(key, value)	if(key != TLS_OUT_OF_INDEXES) TlsSetValue( key, value )
+#define H5TS_get_thread_local_value(key)	TlsGetValue( key )
+#define H5TS_set_thread_local_value(key, value)	TlsSetValue( key, value )
 #define H5TS_attr_init(attr_ptr) 0
 #define H5TS_attr_setscope(attr_ptr, scope) 0
 #define H5TS_attr_destroy(attr_ptr) 0

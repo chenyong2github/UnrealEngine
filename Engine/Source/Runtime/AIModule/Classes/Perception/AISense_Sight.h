@@ -77,14 +77,11 @@ struct FAISightQuery
 
 	FVector LastSeenLocation;
 
-	/** User data that can be used inside the IAISightTargetInterface::TestVisibilityFrom method to store a persistence state */ 
-	mutable int32 UserData; 
-
 	uint64 bLastResult:1;
 	uint64 LastProcessedFrameNumber :63;
 
 	FAISightQuery(FPerceptionListenerID ListenerId = FPerceptionListenerID::InvalidID(), FAISightTarget::FTargetId Target = FAISightTarget::InvalidTargetId)
-		: ObserverId(ListenerId), TargetId(Target), Score(0), Importance(0), LastSeenLocation(FAISystem::InvalidLocation), UserData(0), bLastResult(false), LastProcessedFrameNumber(GFrameCounter)
+		: ObserverId(ListenerId), TargetId(Target), Score(0), Importance(0), LastSeenLocation(FAISystem::InvalidLocation), bLastResult(false), LastProcessedFrameNumber(GFrameCounter)
 	{
 	}
 

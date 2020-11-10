@@ -568,10 +568,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	void SetLowPassFilterFrequency(float InLowPassFilterFrequency);
 
-	/** Sets whether or not to output the audio to bus only. */
-	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetOutputToBusOnly(bool bInOutputToBusOnly);
-
 	/** Queries if the sound wave playing in this audio component has cooked FFT data. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	bool HasCookedFFTData() const;

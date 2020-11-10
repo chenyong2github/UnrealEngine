@@ -83,9 +83,9 @@ void FStaticMeshComponentTarget::CommitMaterialSetUpdate(const FComponentMateria
 	check(bSavedToTransactionBuffer);
 	
 	int NewNumMaterials = MaterialSet.Materials.Num();
-	if (NewNumMaterials != StaticMesh->GetStaticMaterials().Num())
+	if (NewNumMaterials != StaticMesh->StaticMaterials.Num())
 	{
-		StaticMesh->GetStaticMaterials().SetNum(NewNumMaterials);
+		StaticMesh->StaticMaterials.SetNum(NewNumMaterials);
 	}
 	for (int k = 0; k < NewNumMaterials; ++k)
 	{

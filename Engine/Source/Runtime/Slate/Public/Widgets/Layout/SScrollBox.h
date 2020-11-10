@@ -45,9 +45,6 @@ enum class EDescendantScrollDestination : uint8
 	* slack.
 	*/
 	Center,
-
-	/** Always scroll the widget so it appears at the bottom/Right of the scrollable area. */
-	BottomOrRight,
 };
 
 /** Set behavior when user focus changes inside this scroll box */
@@ -194,8 +191,6 @@ public:
 	void SetAnimateWheelScrolling(bool bInAnimateWheelScrolling);
 
 	void SetWheelScrollMultiplier(float NewWheelScrollMultiplier);
-	
-	void SetScrollWhenFocusChanges(EScrollWhenFocusChanges NewScrollWhenFocusChanges);
 
 	float GetScrollOffset() const;
 
@@ -471,9 +466,7 @@ public:
 	TPanelChildren<SScrollBox::FSlot> Children;
 
 protected:
-	// Begin SWidget overrides.
 	virtual FVector2D ComputeDesiredSize(float) const override;
-	// End SWidget overrides.
 
 private:
 

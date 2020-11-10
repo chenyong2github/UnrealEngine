@@ -199,7 +199,7 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		*Texture.Source.GetIdString(),
 		*CompositeTextureStr,
 		(uint32)NUM_INLINE_DERIVED_MIPS,
-		(TextureFormat == NULL) ? TEXT("") : *TextureFormat->GetDerivedDataKeyString(Texture, &BuildSettings)
+		(TextureFormat == NULL) ? TEXT("") : *TextureFormat->GetDerivedDataKeyString(Texture)
 		);
 
 	// Add key data for extra layers beyond the first
@@ -221,7 +221,7 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		OutKeySuffix.Append(FString::Printf(TEXT("%s%d%s_"),
 			*LayerBuildSettings.TextureFormatName.GetPlainNameString(),
 			LayerVersion,
-			(LayerTextureFormat == NULL) ? TEXT("") : *LayerTextureFormat->GetDerivedDataKeyString(Texture, &LayerBuildSettings)));
+			(LayerTextureFormat == NULL) ? TEXT("") : *LayerTextureFormat->GetDerivedDataKeyString(Texture)));
 	}
 
 	if (BuildSettings.bVirtualStreamable)

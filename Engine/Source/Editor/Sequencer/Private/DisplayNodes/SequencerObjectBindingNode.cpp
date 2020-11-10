@@ -110,67 +110,6 @@ void GetKeyablePropertyPaths(UClass* Class, void* ValuePtr, UStruct* PropertySou
 	}
 }
 
-namespace
-{
-
-struct FMovieSceneSpawnableFlagCheckState
-{
-	FSequencer* Sequencer;
-	UMovieScene* MovieScene;
-	bool FMovieSceneSpawnable::*PtrToFlag;
-
-	ECheckBoxState operator()() const
-	{
-		ECheckBoxState CheckState = ECheckBoxState::Undetermined;
-		for (TSharedRef<FSequencerDisplayNode> Node : Sequencer->GetSelection().GetSelectedOutlinerNodes())
-		{
-			if (Node->GetType() == ESequencerNode::Object)
-			{
-				FMovieSceneSpawnable* SelectedSpawnable = MovieScene->FindSpawnable(static_cast<const FSequencerObjectBindingNode&>(Node.Get()).GetObjectBinding());
-				if (SelectedSpawnable)
-				{
-					if (CheckState != ECheckBoxState::Undetermined && SelectedSpawnable->*PtrToFlag != ( CheckState == ECheckBoxState::Checked ))
-					{
-						return ECheckBoxState::Undetermined;
-					}
-					CheckState = SelectedSpawnable->*PtrToFlag ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-				}
-			}
-		}
-		return CheckState;
-	}
-};
-
-struct FMovieSceneSpawnableFlagToggler
-{
-	FSequencer* Sequencer;
-	UMovieScene* MovieScene;
-	bool FMovieSceneSpawnable::*PtrToFlag;
-	FText TransactionText;
-
-	void operator()() const
-	{
-		FScopedTransaction Transaction(TransactionText);
-
-		const ECheckBoxState CheckState = FMovieSceneSpawnableFlagCheckState{Sequencer, MovieScene, PtrToFlag}();
-
-		MovieScene->Modify();
-		for (TSharedRef<FSequencerDisplayNode> Node : Sequencer->GetSelection().GetSelectedOutlinerNodes())
-		{
-			if (Node->GetType() == ESequencerNode::Object)
-			{
-				FMovieSceneSpawnable* SelectedSpawnable = MovieScene->FindSpawnable(static_cast<const FSequencerObjectBindingNode&>(Node.Get()).GetObjectBinding());
-				if (SelectedSpawnable)
-				{
-					SelectedSpawnable->*PtrToFlag = (CheckState == ECheckBoxState::Unchecked);
-				}
-			}
-		}
-	}
-};
-
-} // anon-namespace
-
 
 struct PropertyMenuData
 {
@@ -242,41 +181,100 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 				FNewMenuDelegate::CreateSP(this, &FSequencerObjectBindingNode::AddSpawnLevelMenu)
 			);
 
+			auto ContinuouslyRespawnCheckState = [Sequencer, MovieScene]
+			{
+				ECheckBoxState CheckState = ECheckBoxState::Undetermined;
+				for (TSharedRef<FSequencerDisplayNode> Node : Sequencer->GetSelection().GetSelectedOutlinerNodes())
+				{
+					if (Node->GetType() == ESequencerNode::Object)
+					{
+						FMovieSceneSpawnable* SelectedSpawnable = MovieScene->FindSpawnable(static_cast<const FSequencerObjectBindingNode&>(Node.Get()).GetObjectBinding());
+						if (SelectedSpawnable)
+						{
+							if (CheckState != ECheckBoxState::Undetermined && SelectedSpawnable->bContinuouslyRespawn != ( CheckState == ECheckBoxState::Checked ))
+							{
+								return ECheckBoxState::Undetermined;
+							}
+							CheckState = SelectedSpawnable->bContinuouslyRespawn ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+						}
+					}
+				}
+				return CheckState;
+			};
+
+			auto ToggleContinuouslyRespawn = [Sequencer, MovieScene, ContinuouslyRespawnCheckState]
+			{
+				FScopedTransaction Transaction(LOCTEXT("SetContinuouslyRespawn", "Set Continuously Respawn"));
+
+				bool bNewValue = ContinuouslyRespawnCheckState() == ECheckBoxState::Unchecked;
+				MovieScene->Modify();
+				for (TSharedRef<FSequencerDisplayNode> Node : Sequencer->GetSelection().GetSelectedOutlinerNodes())
+				{
+					if (Node->GetType() == ESequencerNode::Object)
+					{
+						FMovieSceneSpawnable* SelectedSpawnable = MovieScene->FindSpawnable(static_cast<const FSequencerObjectBindingNode&>(Node.Get()).GetObjectBinding());
+						if (SelectedSpawnable)
+						{
+							SelectedSpawnable->bContinuouslyRespawn = bNewValue;
+						}
+					}
+				}
+			};
+
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("ContinuouslyRespawn", "Continuously Respawn"),
 				LOCTEXT("ContinuouslyRespawnTooltip", "When enabled, this spawnable will always be respawned if it gets destroyed externally. When disabled, this object will only ever be spawned once for each spawn key even if it is destroyed externally"),
 				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateLambda(FMovieSceneSpawnableFlagToggler{Sequencer, MovieScene, &FMovieSceneSpawnable::bContinuouslyRespawn, LOCTEXT("ContinuouslyRespawnTransaction", "Set Continuously Respawn")}),
-					FCanExecuteAction(),
-					FGetActionCheckState::CreateLambda(FMovieSceneSpawnableFlagCheckState{Sequencer, MovieScene, &FMovieSceneSpawnable::bContinuouslyRespawn})
-				),
+				FUIAction(FExecuteAction::CreateLambda(ToggleContinuouslyRespawn), FCanExecuteAction(), FGetActionCheckState::CreateLambda(ContinuouslyRespawnCheckState)),
 				NAME_None,
 				EUserInterfaceActionType::ToggleButton
 			);
+
+			auto EvaluateTracksWhenNotSpawnedCheckState = [Sequencer, MovieScene]
+			{
+				ECheckBoxState CheckState = ECheckBoxState::Undetermined;
+				for (TSharedRef<FSequencerDisplayNode> Node : Sequencer->GetSelection().GetSelectedOutlinerNodes())
+				{
+					if (Node->GetType() == ESequencerNode::Object)
+					{
+						FMovieSceneSpawnable* SelectedSpawnable = MovieScene->FindSpawnable(static_cast<const FSequencerObjectBindingNode&>(Node.Get()).GetObjectBinding());
+						if (SelectedSpawnable)
+						{
+							if (CheckState != ECheckBoxState::Undetermined && SelectedSpawnable->bEvaluateTracksWhenNotSpawned != ( CheckState == ECheckBoxState::Checked ))
+							{
+								return ECheckBoxState::Undetermined;
+							}
+							CheckState = SelectedSpawnable->bEvaluateTracksWhenNotSpawned ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+						}
+					}
+				}
+				return CheckState;
+			};
+
+			auto ToggleEvaluateTracksWhenNotSpawned = [Sequencer, MovieScene, EvaluateTracksWhenNotSpawnedCheckState]
+			{
+				FScopedTransaction Transaction(LOCTEXT("EvaluateTracksWhenNotSpawned_Transaction", "Evaluate Tracks When Not Spawned"));
+
+				bool bNewValue = EvaluateTracksWhenNotSpawnedCheckState() == ECheckBoxState::Unchecked;
+				MovieScene->Modify();
+				for (TSharedRef<FSequencerDisplayNode> Node : Sequencer->GetSelection().GetSelectedOutlinerNodes())
+				{
+					if (Node->GetType() == ESequencerNode::Object)
+					{
+						FMovieSceneSpawnable* SelectedSpawnable = MovieScene->FindSpawnable(static_cast<const FSequencerObjectBindingNode&>(Node.Get()).GetObjectBinding());
+						if (SelectedSpawnable)
+						{
+							SelectedSpawnable->bEvaluateTracksWhenNotSpawned = bNewValue;
+						}
+					}
+				}
+			};
 
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("EvaluateTracksWhenNotSpawned", "Evaluate Tracks When Not Spawned"),
 				LOCTEXT("EvaluateTracksWhenNotSpawnedTooltip", "When enabled, any tracks on this object binding or its children will still be evaluated even when the object is not spawned."),
 				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateLambda(FMovieSceneSpawnableFlagToggler{Sequencer, MovieScene, &FMovieSceneSpawnable::bEvaluateTracksWhenNotSpawned, LOCTEXT("EvaluateTracksWhenNotSpawned_Transaction", "Evaluate Tracks When Not Spawned")}),
-					FCanExecuteAction(),
-					FGetActionCheckState::CreateLambda(FMovieSceneSpawnableFlagCheckState{Sequencer, MovieScene, &FMovieSceneSpawnable::bEvaluateTracksWhenNotSpawned})
-				),
-				NAME_None,
-				EUserInterfaceActionType::ToggleButton
-			);
-
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("NetAddressable", "Net Addressable"),
-				LOCTEXT("NetAddressableTooltip", "When enabled, this spawnable will be spawned using a unique name that allows it to be addressed by the server and client (useful for relative movement calcualtions on spawned props)"),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateLambda(FMovieSceneSpawnableFlagToggler{Sequencer, MovieScene, &FMovieSceneSpawnable::bNetAddressableName, LOCTEXT("NetAddressableTransaction", "Set Net Addressable")}),
-					FCanExecuteAction(),
-					FGetActionCheckState::CreateLambda(FMovieSceneSpawnableFlagCheckState{Sequencer, MovieScene, &FMovieSceneSpawnable::bNetAddressableName})
-				),
+				FUIAction(FExecuteAction::CreateLambda(ToggleEvaluateTracksWhenNotSpawned), FCanExecuteAction(), FGetActionCheckState::CreateLambda(EvaluateTracksWhenNotSpawnedCheckState)),
 				NAME_None,
 				EUserInterfaceActionType::ToggleButton
 			);

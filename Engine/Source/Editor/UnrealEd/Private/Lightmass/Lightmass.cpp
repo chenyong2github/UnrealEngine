@@ -1314,17 +1314,17 @@ void FLightmassExporter::WriteStaticMeshes()
 		const UStaticMesh* StaticMesh = StaticMeshes[StaticMeshIndex];
 
 		Lightmass::FBaseMeshData BaseMeshData;
-		BaseMeshData.Guid = StaticMesh->GetLightingGuid();
+		BaseMeshData.Guid = StaticMesh->LightingGuid;
 
 		// create a channel name to write the mesh out to
 		FString NewChannelName = Lightmass::CreateChannelName(BaseMeshData.Guid, Lightmass::LM_STATICMESH_VERSION, Lightmass::LM_STATICMESH_EXTENSION);
 
 		// Warn the user if there is an invalid lightmap UV channel specified.
 		if( StaticMesh->LightMapCoordinateIndex > 0
-			&& StaticMesh->GetRenderData()
-			&& StaticMesh->GetRenderData()->LODResources.Num() > 0 )
+			&& StaticMesh->RenderData
+			&& StaticMesh->RenderData->LODResources.Num() > 0 )
 		{
-			const FStaticMeshLODResources& RenderData = StaticMesh->GetRenderData()->LODResources[0];
+			const FStaticMeshLODResources& RenderData = StaticMesh->RenderData->LODResources[0];
 			if( StaticMesh->LightMapCoordinateIndex >= (int32)RenderData.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() )
 			{
 				FMessageLog("LightingResults").Warning()
@@ -1346,12 +1346,12 @@ void FLightmassExporter::WriteStaticMeshes()
 
 				Lightmass::FStaticMeshData StaticMeshData;
 				StaticMeshData.LightmapCoordinateIndex = StaticMesh->LightMapCoordinateIndex;
-				StaticMeshData.NumLODs = StaticMesh->GetRenderData()->LODResources.Num();
+				StaticMeshData.NumLODs = StaticMesh->RenderData->LODResources.Num();
 				Swarm.WriteChannel( Channel, &StaticMeshData, sizeof(StaticMeshData) );
-				for (int32 LODIndex = 0; LODIndex < StaticMesh->GetRenderData()->LODResources.Num(); LODIndex++)
+				for (int32 LODIndex = 0; LODIndex < StaticMesh->RenderData->LODResources.Num(); LODIndex++)
 				{
 					TArray<uint32> Indices;
-					const FStaticMeshLODResources& RenderData = StaticMesh->GetRenderData()->LODResources[LODIndex];
+					const FStaticMeshLODResources& RenderData = StaticMesh->RenderData->LODResources[LODIndex];
 
 					RenderData.IndexBuffer.GetCopy(Indices);
 					Lightmass::FStaticMeshLODData SMLODData;
@@ -1788,9 +1788,9 @@ void FLightmassExporter::WriteMeshInstances( int32 Channel )
 			// get the meshindex from the component
 			MeshId = ComponentToIDMap.Find(Primitive);
 
-			if (StaticMesh->GetRenderData() && SMLightingMesh->LODIndex < StaticMesh->GetRenderData()->LODResources.Num())
+			if (StaticMesh->RenderData && SMLightingMesh->LODIndex < StaticMesh->RenderData->LODResources.Num())
 			{
-				const FStaticMeshLODResources& LODRenderData = StaticMesh->GetRenderData()->LODResources[SMLightingMesh->LODIndex];
+				const FStaticMeshLODResources& LODRenderData = StaticMesh->RenderData->LODResources[SMLightingMesh->LODIndex];
 				for (int32 SectionIndex = 0; SectionIndex < LODRenderData.Sections.Num(); SectionIndex++)
 				{
 					const FStaticMeshSection& Section = LODRenderData.Sections[ SectionIndex ];
@@ -1830,7 +1830,7 @@ void FLightmassExporter::WriteMeshInstances( int32 Channel )
 		SMInstanceMeshData.LocalToWorld = SMLightingMesh->LocalToWorld;
 		SMInstanceMeshData.bReverseWinding = SMLightingMesh->bReverseWinding;
 		SMInstanceMeshData.bShouldSelfShadow = true;
-		SMInstanceMeshData.StaticMeshGuid = SMLightingMesh->StaticMesh->GetLightingGuid();
+		SMInstanceMeshData.StaticMeshGuid = SMLightingMesh->StaticMesh->LightingGuid;
 		const FSplineMeshParams* SplineParams = SMLightingMesh->GetSplineParameters();
 		if (SplineParams && StaticMesh)
 		{
@@ -4507,7 +4507,7 @@ UStaticMesh* FLightmassProcessor::FindStaticMesh(FGuid& Guid)
 		for (int32 SMIdx = 0; SMIdx < Exporter->StaticMeshes.Num(); SMIdx++)
 		{
 			const UStaticMesh* StaticMesh = Exporter->StaticMeshes[SMIdx];
-			if (StaticMesh && (StaticMesh->GetLightingGuid() == Guid))
+			if (StaticMesh && (StaticMesh->LightingGuid == Guid))
 			{
 				return (UStaticMesh*)StaticMesh;
 			}

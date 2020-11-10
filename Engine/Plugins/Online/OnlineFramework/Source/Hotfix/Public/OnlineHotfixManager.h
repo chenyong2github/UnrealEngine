@@ -168,11 +168,9 @@ protected:
 	 * because there's no simple undo for objects that were loaded and possibly rooted
 	 */
 	uint32 ChangedOrRemovedPakCount;
-	/** Our passed-in World */
-	TWeakObjectPtr<UWorld> OwnerWorld;
 
-	virtual void Init();
-	virtual void Cleanup();
+	void Init();
+	void Cleanup();
 	/** Looks at each file returned via the hotfix and processes them */
 	void ApplyHotfix();
 	/** Cleans up and fires the delegate indicating it's done */
@@ -213,9 +211,6 @@ protected:
 	virtual void PostInitProperties() override;
 
 	bool IsMapLoaded(const FString& MapName);
-
-	/** @return our current world */
-	UWorld* GetWorld() const override;
 
 protected:
 	/**

@@ -241,8 +241,6 @@
 #include "Materials/MaterialExpressionShaderStageSwitch.h"
 #include "Materials/MaterialExpressionReflectionCapturePassSwitch.h"
 #include "Materials/MaterialUniformExpressions.h"
-#include "Materials/MaterialExpressionReflectionCapturePassSwitch.h"
-#include "Materials/MaterialExpressionSamplePhysicsField.h"
 #include "EditorSupportDelegates.h"
 #include "MaterialCompiler.h"
 #if WITH_EDITOR
@@ -15615,153 +15613,6 @@ void UMaterialExpressionDistanceFieldGradient::GetCaption(TArray<FString>& OutCa
 #endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////////////
-// UMaterialExpressionSamplePhysicsVectorField
-///////////////////////////////////////////////////////////////////////////////
-
-UMaterialExpressionSamplePhysicsVectorField::UMaterialExpressionSamplePhysicsVectorField(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	// Structure to hold one-time initialization
-	struct FConstructorStatics
-	{
-		FText NAME_Utility;
-		FConstructorStatics()
-			: NAME_Utility(LOCTEXT("Utility", "Utility"))
-		{
-		}
-	};
-	static FConstructorStatics ConstructorStatics;
-
-	FieldTarget = EFieldVectorType::Vector_LinearForce;
-
-#if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Utility);
-#endif
-}
-
-#if WITH_EDITOR
-int32 UMaterialExpressionSamplePhysicsVectorField::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	int32 PositionArg = INDEX_NONE;
-
-	if (WorldPosition.GetTracedInput().Expression)
-	{
-		PositionArg = WorldPosition.Compile(Compiler);
-	}
-	else
-	{
-		PositionArg = Compiler->WorldPosition(WPT_Default);
-	}
-
-	return Compiler->SamplePhysicsField(PositionArg, EFieldOutputType::Field_Output_Vector, static_cast<uint8>(FieldTarget));
-}
-
-void UMaterialExpressionSamplePhysicsVectorField::GetCaption(TArray<FString>& OutCaptions) const
-{
-	OutCaptions.Add(TEXT("SamplePhysicsVectorField"));
-}
-#endif // WITH_EDITOR
-
-///////////////////////////////////////////////////////////////////////////////
-// UMaterialExpressionSamplePhysicsScalarField
-///////////////////////////////////////////////////////////////////////////////
-
-UMaterialExpressionSamplePhysicsScalarField::UMaterialExpressionSamplePhysicsScalarField(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	// Structure to hold one-time initialization
-	struct FConstructorStatics
-	{
-		FText NAME_Utility;
-		FConstructorStatics()
-			: NAME_Utility(LOCTEXT("Utility", "Utility"))
-		{
-		}
-	};
-	static FConstructorStatics ConstructorStatics;
-
-	FieldTarget = EFieldScalarType::Scalar_DynamicConstraint;
-
-#if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Utility);
-#endif
-}
-
-#if WITH_EDITOR
-int32 UMaterialExpressionSamplePhysicsScalarField::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	int32 PositionArg = INDEX_NONE;
-
-	if (WorldPosition.GetTracedInput().Expression)
-	{
-		PositionArg = WorldPosition.Compile(Compiler);
-	}
-	else
-	{
-		PositionArg = Compiler->WorldPosition(WPT_Default);
-	}
-
-	return Compiler->SamplePhysicsField(PositionArg, EFieldOutputType::Field_Output_Scalar, static_cast<uint8>(FieldTarget));
-}
-
-void UMaterialExpressionSamplePhysicsScalarField::GetCaption(TArray<FString>& OutCaptions) const
-{
-	OutCaptions.Add(TEXT("SamplePhysicsScalarField"));
-}
-#endif // WITH_EDITOR
-
-
-///////////////////////////////////////////////////////////////////////////////
-// UMaterialExpressionSamplePhysicsIntegerField
-///////////////////////////////////////////////////////////////////////////////
-
-UMaterialExpressionSamplePhysicsIntegerField::UMaterialExpressionSamplePhysicsIntegerField(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	// Structure to hold one-time initialization
-	struct FConstructorStatics
-	{
-		FText NAME_Utility;
-		FConstructorStatics()
-			: NAME_Utility(LOCTEXT("Utility", "Utility"))
-		{
-		}
-	};
-	static FConstructorStatics ConstructorStatics;
-
-	FieldTarget = EFieldIntegerType::Integer_DynamicState;
-
-#if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Utility);
-#endif
-}
-
-#if WITH_EDITOR
-int32 UMaterialExpressionSamplePhysicsIntegerField::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	int32 PositionArg = INDEX_NONE;
-
-	if (WorldPosition.GetTracedInput().Expression)
-	{
-		PositionArg = WorldPosition.Compile(Compiler);
-	}
-	else
-	{
-		PositionArg = Compiler->WorldPosition(WPT_Default);
-	}
-
-	return Compiler->SamplePhysicsField(PositionArg, EFieldOutputType::Field_Output_Integer, static_cast<uint8>(FieldTarget));
-}
-
-void UMaterialExpressionSamplePhysicsIntegerField::GetCaption(TArray<FString>& OutCaptions) const
-{
-	OutCaptions.Add(TEXT("SamplePhysicsScalarField"));
-}
-#endif // WITH_EDITOR
-
-
-
-///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionDistance
 ///////////////////////////////////////////////////////////////////////////////
 UMaterialExpressionDistance::UMaterialExpressionDistance(const FObjectInitializer& ObjectInitializer)
@@ -18270,6 +18121,7 @@ void UMaterialExpressionVolumetricAdvancedMaterialInput::GetCaption(TArray<FStri
 	OutCaptions.Add(TEXT("Volumetric Advanced Input"));
 }
 #endif // WITH_EDITOR
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionReflectionCapturePassSwitch

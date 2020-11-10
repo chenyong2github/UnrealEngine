@@ -43,7 +43,6 @@ float LODTransitionEnd;
 uint bTransmissionSamplingDistanceCulling;
 uint TransmissionSamplingTechnique;
 uint RejectionSamplingTrials;
-uint bAcceptFirstHit;
 
 #define TransmissionSampling_ConstantTrackingInfiniteDomain 0
 #define TransmissionSampling_ConstantTrackingFiniteDomain 1
@@ -426,11 +425,9 @@ FOcclusionResult ComputeOcclusion(
 			RayFlags |= RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
 		}
 
-		uint RayFlagsForOpaque = bAcceptFirstHit != 0 ? RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH : 0;
-
 		FMinimalPayload MinimalPayload = TraceVisibilityRay(
 			TLAS,
-			RayFlags | RayFlagsForOpaque,
+			RayFlags,
 			RaytracingMask,
 			PixelCoord,
 			Ray);

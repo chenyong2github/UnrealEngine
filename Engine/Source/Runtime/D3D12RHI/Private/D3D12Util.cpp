@@ -426,7 +426,7 @@ static bool LogDREDData(ID3D12Device* Device)
 
 			uint32 TracedCommandLists = 0;
 			auto Node = Dred.BreadcrumbHead;
-			while (Node && Node->pLastBreadcrumbValue)
+			while (Node)
 			{
 				int32 LastCompletedOp = *Node->pLastBreadcrumbValue;
 
@@ -461,7 +461,7 @@ static bool LogDREDData(ID3D12Device* Device)
 						}
 
 						const TCHAR* OpName = (BreadcrumbOp < UE_ARRAY_COUNT(OpNames)) ? OpNames[BreadcrumbOp] : TEXT("Unknown Op");
-						UE_LOG(LogD3D12RHI, Error, TEXT("\tOp: %d, %s%s%s"), Op, OpName, *ContextStr, (Op + 1 == LastCompletedOp) ? TEXT(" - LAST COMPLETED") : TEXT(""));
+						UE_LOG(LogD3D12RHI, Error, TEXT("\tOp: %d, %s%s%s"), Op, OpName, *ContextStr, (Op + 1 == LastCompletedOp) ? TEXT(" - Last completed") : TEXT(""));
 					}
 				}
 
@@ -637,9 +637,6 @@ namespace D3D12RHI
 
 			// Report the GPU crash which will raise the exception (only interesting if we have a GPU dump)
 			ReportGPUCrash(TEXT("Aftermath GPU Crash dump Triggered"), 0);
-
-			// Force shutdown, we can't do anything useful anymore.
-			FPlatformMisc::RequestExit(true);
 		}
 #endif // PLATFORM_WINDOWS
 
@@ -656,14 +653,15 @@ namespace D3D12RHI
 
 		const FString& ErrorString = GetD3D12ErrorString(D3DResult, Device);
 		UE_LOG(LogD3D12RHI, Error, TEXT("%s failed \n at %s:%u \n with error %s\n%s"), ANSI_TO_TCHAR(Code), ANSI_TO_TCHAR(Filename), Line, *ErrorString, *Message);
-		
-		if (D3DResult == E_OUTOFMEMORY)
+
+		// Terminate with device removed or hung then try and get the current GPU state and dump to log
+		if (D3DResult == DXGI_ERROR_DEVICE_REMOVED || D3DResult == DXGI_ERROR_DEVICE_HUNG)
+		{	 
+			TerminateOnGPUCrash(Device, nullptr, 0);
+		}
+		else if (D3DResult == E_OUTOFMEMORY)
 		{
 			TerminateOnOutOfMemory(D3DResult, false);
-		}
-		else
-		{
-			TerminateOnGPUCrash(Device, nullptr, 0);
 		}
 
 		// Make sure the log is flushed!

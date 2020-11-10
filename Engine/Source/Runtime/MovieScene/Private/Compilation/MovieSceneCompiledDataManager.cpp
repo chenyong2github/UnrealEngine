@@ -168,8 +168,6 @@ struct FGatherParameters
 
 	/** Whether the current sequence is receiving hierarchical easing from some parent sequence */
 	bool bHasHierarchicalEasing;
-
-	EMovieSceneServerClientMask NetworkMask;
 };
 
 /** Parameter structure used for gathering entities for a given time or range */
@@ -282,11 +280,19 @@ UMovieSceneCompiledDataManager::UMovieSceneCompiledDataManager()
 	IConsoleManager::Get().RegisterConsoleVariableSink_Handle(FConsoleCommandDelegate::CreateUObject(this, &UMovieSceneCompiledDataManager::ConsoleVariableSink));
 
 	ReallocationVersion = 0;
-	NetworkMask = EMovieSceneServerClientMask::All;
 }
 
-void UMovieSceneCompiledDataManager::DestroyAllData()
+void UMovieSceneCompiledDataManager::ConsoleVariableSink()
 {
+	FGuid NewCompilerVersion;
+	const bool bParsed = FGuid::Parse(GMovieSceneCompilerVersion, NewCompilerVersion);
+	ensureMsgf(bParsed, TEXT("Invalid compiler version specific - this will break any persistent compiled data"));
+
+	if (CompilerVersion == NewCompilerVersion)
+	{
+		return;
+	}
+
 	// Eradicate all compiled data
 	for (int32 Index = 0; Index < CompiledDataEntries.GetMaxIndex(); ++Index)
 	{
@@ -299,22 +305,10 @@ void UMovieSceneCompiledDataManager::DestroyAllData()
 		}
 	}
 
-	Hierarchies.Empty();
-	TrackTemplates.Empty();
-	TrackTemplateFields.Empty();
-	EntityComponentFields.Empty();
-}
-
-void UMovieSceneCompiledDataManager::ConsoleVariableSink()
-{
-	FGuid NewCompilerVersion;
-	const bool bParsed = FGuid::Parse(GMovieSceneCompilerVersion, NewCompilerVersion);
-	ensureMsgf(bParsed, TEXT("Invalid compiler version specific - this will break any persistent compiled data"));
-
-	if (CompilerVersion != NewCompilerVersion)
-	{
-		DestroyAllData();
-	}
+	Hierarchies.Empty();;
+	TrackTemplates.Empty();;
+	TrackTemplateFields.Empty();;
+	EntityComponentFields.Empty();;
 }
 
 void UMovieSceneCompiledDataManager::CopyCompiledData(UMovieSceneSequence* Sequence)
@@ -405,32 +399,20 @@ void UMovieSceneCompiledDataManager::LoadCompiledData(UMovieSceneSequence* Seque
 	}
 }
 
-void UMovieSceneCompiledDataManager::SetEmulatedNetworkMask(EMovieSceneServerClientMask NewMask)
-{
-	DestroyAllData();
-	NetworkMask = NewMask;
-}
-
 void UMovieSceneCompiledDataManager::Reset(UMovieSceneSequence* Sequence)
 {
-	FMovieSceneCompiledDataID DataID = SequenceToDataIDs.FindRef(Sequence);
+	FMovieSceneCompiledDataID DataID = GetDataID(Sequence);
 	if (DataID.IsValid())
 	{
-		DestroyData(DataID);
-		SequenceToDataIDs.Remove(Sequence);
+		DestroyTemplate(DataID);
 	}
-}
-
-FMovieSceneCompiledDataID UMovieSceneCompiledDataManager::FindDataID(UMovieSceneSequence* Sequence) const
-{
-	return SequenceToDataIDs.FindRef(Sequence);
 }
 
 FMovieSceneCompiledDataID UMovieSceneCompiledDataManager::GetDataID(UMovieSceneSequence* Sequence)
 {
 	check(Sequence);
 
-	FMovieSceneCompiledDataID ExistingDataID = FindDataID(Sequence);
+	FMovieSceneCompiledDataID ExistingDataID = SequenceToDataIDs.FindRef(Sequence);
 	if (ExistingDataID.IsValid())
 	{
 		return ExistingDataID;
@@ -472,32 +454,6 @@ FMovieSceneCompiledDataID UMovieSceneCompiledDataManager::GetSubDataID(FMovieSce
 }
 
 
-#if WITH_EDITOR
-
-UMovieSceneCompiledDataManager* UMovieSceneCompiledDataManager::GetPrecompiledData(EMovieSceneServerClientMask EmulatedMask)
-{
-	ensureMsgf(!GExitPurge, TEXT("Attempting to access precompiled data manager during shutdown - this is undefined behavior since the manager may have already been destroyed, or could be unconstrictible"));
-
-	if (EmulatedMask == EMovieSceneServerClientMask::Client)
-	{
-		static UMovieSceneCompiledDataManager* GEmulatedClientDataManager = NewObject<UMovieSceneCompiledDataManager>(GetTransientPackage(), "EmulatedClientDataManager", RF_MarkAsRootSet);
-		GEmulatedClientDataManager->NetworkMask = EMovieSceneServerClientMask::Client;
-		return GEmulatedClientDataManager;
-	}
-
-	if (EmulatedMask == EMovieSceneServerClientMask::Server)
-	{
-		static UMovieSceneCompiledDataManager* GEmulatedServerDataManager = NewObject<UMovieSceneCompiledDataManager>(GetTransientPackage(), "EmulatedServerDataManager", RF_MarkAsRootSet);
-		GEmulatedServerDataManager->NetworkMask = EMovieSceneServerClientMask::Server;
-		return GEmulatedServerDataManager;
-	}
-
-	static UMovieSceneCompiledDataManager* GPrecompiledDataManager = NewObject<UMovieSceneCompiledDataManager>(GetTransientPackage(), "PrecompiledDataManager", RF_MarkAsRootSet);
-	return GPrecompiledDataManager;
-}
-
-#else // WITH_EDITOR
-
 UMovieSceneCompiledDataManager* UMovieSceneCompiledDataManager::GetPrecompiledData()
 {
 	ensureMsgf(!GExitPurge, TEXT("Attempting to access precompiled data manager during shutdown - this is undefined behavior since the manager may have already been destroyed, or could be unconstrictible"));
@@ -506,11 +462,14 @@ UMovieSceneCompiledDataManager* UMovieSceneCompiledDataManager::GetPrecompiledDa
 	return GPrecompiledDataManager;
 }
 
-#endif // WITH_EDITOR
 
-void UMovieSceneCompiledDataManager::DestroyData(FMovieSceneCompiledDataID DataID)
+void UMovieSceneCompiledDataManager::DestroyTemplate(FMovieSceneCompiledDataID DataID)
 {
 	check(DataID.IsValid() && CompiledDataEntries.IsValidIndex(DataID.Value));
+
+	const FMovieSceneCompiledDataEntry& Entry = CompiledDataEntries[DataID.Value];
+
+	SequenceToDataIDs.Remove(Entry.SequenceKey);
 
 	Hierarchies.Remove(DataID.Value);
 	TrackTemplates.Remove(DataID.Value);
@@ -518,17 +477,8 @@ void UMovieSceneCompiledDataManager::DestroyData(FMovieSceneCompiledDataID DataI
 	EntityComponentFields.Remove(DataID.Value);
 
 	CompiledDataEntries.RemoveAt(DataID.Value);
-}
 
-void UMovieSceneCompiledDataManager::DestroyTemplate(FMovieSceneCompiledDataID DataID)
-{
-	check(DataID.IsValid() && CompiledDataEntries.IsValidIndex(DataID.Value));
-
-	// Remove the lookup entry for this sequence/network mask combination
-	const FMovieSceneCompiledDataEntry& Entry = CompiledDataEntries[DataID.Value];
-	SequenceToDataIDs.Remove(Entry.SequenceKey);
-
-	DestroyData(DataID);
+	++ReallocationVersion;
 }
 
 bool UMovieSceneCompiledDataManager::IsDirty(const FMovieSceneCompiledDataEntry& Entry) const
@@ -544,7 +494,7 @@ bool UMovieSceneCompiledDataManager::IsDirty(const FMovieSceneCompiledDataEntry&
 		{
 			if (UMovieSceneSequence* SubSequence = Pair.Value.GetSequence())
 			{
-				FMovieSceneCompiledDataID SubDataID = FindDataID(SubSequence);
+				FMovieSceneCompiledDataID SubDataID = SequenceToDataIDs.FindRef(SubSequence);
 				if (!SubDataID.IsValid() || CompiledDataEntries[SubDataID.Value].CompiledSignature != SubSequence->GetSignature())
 				{
 					return true;
@@ -568,7 +518,7 @@ bool UMovieSceneCompiledDataManager::IsDirty(FMovieSceneCompiledDataID CompiledD
 
 bool UMovieSceneCompiledDataManager::IsDirty(UMovieSceneSequence* Sequence) const
 {
-	FMovieSceneCompiledDataID ExistingDataID = FindDataID(Sequence);
+	FMovieSceneCompiledDataID ExistingDataID = SequenceToDataIDs.FindRef(Sequence);
 	if (ExistingDataID.IsValid())
 	{
 		FMovieSceneCompiledDataEntry Entry = CompiledDataEntries[ExistingDataID.Value];
@@ -608,7 +558,6 @@ void UMovieSceneCompiledDataManager::Compile(FMovieSceneCompiledDataID DataID, U
 
 	Entry.AccumulatedFlags = Sequence->GetFlags();
 	Params.TemplateGenerator.Reset(&Entry);
-	Params.NetworkMask = NetworkMask;
 
 	// ---------------------------------------------------------------------------------------------------
 	// Step 1 - Always ensure the hierarchy information is completely up to date first
@@ -1125,10 +1074,9 @@ void UMovieSceneCompiledDataManager::GatherTrack(const FMovieSceneBinding* Objec
 	}
 }
 
-bool UMovieSceneCompiledDataManager::CompileHierarchy(UMovieSceneSequence* Sequence, FMovieSceneSequenceHierarchy* InOutHierarchy, EMovieSceneServerClientMask InNetworkMask)
+bool UMovieSceneCompiledDataManager::CompileHierarchy(UMovieSceneSequence* Sequence, FMovieSceneSequenceHierarchy* InOutHierarchy)
 {
 	FGatherParameters Params;
-	Params.NetworkMask = InNetworkMask;
 	return CompileHierarchy(Sequence, Params, InOutHierarchy);
 }
 
@@ -1189,15 +1137,13 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 			continue;
 		}
 
-		// Note: we always compile FMovieSceneSubSequenceData for all entries of a hierarchy, even if excluded from the network mask
-		// to ensure that hierarchical information is still available when emulating different network masks
-
 		UMovieSceneSequence* SubSequence = SubSection->GetSequence();
 		if (!SubSequence)
 		{
 			continue;
 		}
 
+		
 		const FMovieSceneSequenceID InnerSequenceID = RootPath->Remap(SubSection->GetSequenceID());
 
 		SectionToID.Add(SubSection, InnerSequenceID);
@@ -1230,14 +1176,7 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 	{
 		for (const FMovieSceneTrackEvaluationFieldEntry& Entry : SubTrack->GetEvaluationField().Entries)
 		{
-			UMovieSceneSubSection* SubSection  = Cast<UMovieSceneSubSection>(Entry.Section);
-			if (!SubSection || SubSection->GetSequence() == nullptr)
-			{
-				continue;
-			}
-
-			EMovieSceneServerClientMask NewMask = Params.NetworkMask & SubSection->GetNetworkMask();
-			if (NewMask == EMovieSceneServerClientMask::None)
+			if (!Cast<UMovieSceneSubSection>(Entry.Section)->GetSequence())
 			{
 				continue;
 			}
@@ -1260,7 +1199,6 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 			FGatherParameters SubParams = Params.CreateForSubData(*SubData, SubSequenceID);
 			SubParams.SetClampRange(EffectiveRange);
 			SubParams.Flags |= Entry.Flags;
-			SubParams.NetworkMask = NewMask;
 
 			RootPath->Push(SubData->DeterministicSequenceID);
 			CompileHierarchyImpl(SubData->GetSequence(), SubParams, Operand, RootPath, InOutHierarchy);

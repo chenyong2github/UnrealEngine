@@ -55,15 +55,13 @@ public:
 	void Bind(UWorld* World);
 
 private:
-	void RefreshSourceParameters(UWorld* World, const TArray<TPair<FName, float>>& ScalarParameters, const TArray<TPair<FName, FLinearColor>>& VectorParameters);
+	void RefreshSourceParameters(UWorld* World);
 	bool EnsureNotBoundToMaterialParameterCollection(FName InVariableName, FString CallingFunction) const;
 
 	UPROPERTY()
 	FNiagaraParameterStore ParameterStorage;
 
-	FRWLock DirtyParameterLock;
-	TArray<TPair<FName, float>> DirtyScalarParameters;
-	TArray<TPair<FName, FLinearColor>> DirtyVectorParameters;
+	bool SourceInstanceDirtied = false;
 
 	//TODO: These overrides should be settable per platform.
 	//UPROPERTY()

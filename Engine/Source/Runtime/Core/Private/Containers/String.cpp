@@ -179,14 +179,14 @@ void FString::TrimToNullTerminator()
 
 int32 FString::Find(const TCHAR* SubStr, ESearchCase::Type SearchCase, ESearchDir::Type SearchDir, int32 StartPosition) const
 {
-	if (SubStr == nullptr)
+	if ( SubStr == nullptr )
 	{
 		return INDEX_NONE;
 	}
 	if( SearchDir == ESearchDir::FromStart)
 	{
 		const TCHAR* Start = **this;
-		if (StartPosition != INDEX_NONE && Len() > 0)
+		if ( StartPosition != INDEX_NONE )
 		{
 			Start += FMath::Clamp(StartPosition, 0, Len() - 1);
 		}

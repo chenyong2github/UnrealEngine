@@ -17,7 +17,6 @@
 #include "NetworkPredictionTrace.h"
 #include "Components/PrimitiveComponent.h"
 #include "PhysicsEngine/BodyInstance.h"
-#include "Containers/StringConv.h"
 
 #if WITH_CHAOS
 
@@ -103,51 +102,52 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 		npCheckSlow(BodyInstance);
 		FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
 
-		auto CompareVector = [](const FVector& Local, const FVector& Authority, const float Tolerance, const FAnsiStringView& DebugStr)
+		auto CompareVector = [](const FVector& Local, const FVector& Authority, const float Tolerance, const TCHAR* DebugStr)
 		{
 			const FVector Delta = Local - Authority;
-
-			/*
 			if (Delta.SizeSquared() > (Tolerance * Tolerance))
 			{
-				UE_NP_TRACE_SYSTEM_FAULT("Physics Compare mismatch %s", StringCast<TCHAR>(DebugStr.GetData(), DebugStr.Len()).Get());
+				//UE_NP_TRACE_SIM(0);
+				UE_NP_TRACE_SYSTEM_FAULT("Physics Compare mismatch %s", DebugStr);
 				UE_NP_TRACE_SYSTEM_FAULT("   Pred: %s", *Local.ToString());				
 				UE_NP_TRACE_SYSTEM_FAULT("   Auth: %s", *Authority.ToString());
 				UE_NP_TRACE_SYSTEM_FAULT("   Delta: %s (%.f)", *Delta.ToString(), Delta.Size());
+				return true;
 			}
-			*/
 
-
-			UE_NP_TRACE_RECONCILE(Delta.SizeSquared() > (Tolerance * Tolerance), DebugStr);
-			
 			return false;
 		};
 
-		auto CompareQuat = [](const FQuat& Local, const FQuat& Authority, const float Tolerance, const FAnsiStringView& DebugStr)
+		auto CompareQuat = [](const FQuat& Local, const FQuat& Authority, const float Tolerance, const TCHAR* DebugStr)
 		{
 			const float Error = FQuat::ErrorAutoNormalize(Local, Authority);
-			UE_NP_TRACE_RECONCILE(Error > Tolerance, DebugStr);			
+			if (Error > Tolerance)
+			{
+				//UE_NP_TRACE_SYSTEM_FAULT("Physics Compare mismatch %s", DebugStr);
+				return true;
+			}
+
 			return false;
 		};
 
 		const Chaos::FGeometryParticleState LocalState = RewindData->GetPastStateAtFrame(*Handle, PhysicsFrame);
 
-		if (CompareVector(LocalState.X(), RecvState->Location, NetworkPredictionPhysicsCvars::ToleranceX(), "X:"))
+		if (CompareVector(LocalState.X(), RecvState->Location, NetworkPredictionPhysicsCvars::ToleranceX(), TEXT("Position")))
 		{
 			return true;
 		}
 
-		if (CompareVector(LocalState.V(), RecvState->LinearVelocity, NetworkPredictionPhysicsCvars::ToleranceV(), "V:"))
+		if (CompareVector(LocalState.V(), RecvState->LinearVelocity, NetworkPredictionPhysicsCvars::ToleranceV(), TEXT("LinearVelocity")))
 		{
 			return true;
 		}
 
-		if (CompareVector(LocalState.W(), RecvState->AngularVelocity, NetworkPredictionPhysicsCvars::ToleranceW(), "W:"))
+		if (CompareVector(LocalState.W(), RecvState->AngularVelocity, NetworkPredictionPhysicsCvars::ToleranceW(), TEXT("AngularVelocity")))
 		{
 			return true;
 		}
 
-		if (CompareQuat(LocalState.R(), RecvState->Rotation, NetworkPredictionPhysicsCvars::ToleranceR(), "R:"))
+		if (CompareQuat(LocalState.R(), RecvState->Rotation, NetworkPredictionPhysicsCvars::ToleranceR(), TEXT("Rotation")))
 		{
 			return true;
 		}
@@ -239,7 +239,7 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 	static void EndInterpolation(UPrimitiveComponent* Driver);
 
 	// Networked state to string
-	static void ToString(const FNetworkPredictionPhysicsState* RecvState, FAnsiStringBuilderBase& Builder)
+	static void ToString(FNetworkPredictionPhysicsState* RecvState, FAnsiStringBuilderBase& Builder)
 	{
 		ToStringInternal(RecvState->Location, RecvState->Rotation, RecvState->LinearVelocity, RecvState->AngularVelocity, Builder);
 	}
@@ -256,25 +256,12 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 	// Current state to string
 	static void ToString(FBodyInstance* BodyInstance, FAnsiStringBuilderBase& Builder)
 	{
-		if (BodyInstance)
+		FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
+		
+		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = Handle->CastToKinematicParticle();
+		if (npEnsure(Kinematic))
 		{
-			FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
-			if (Handle)
-			{
-				Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = Handle->CastToKinematicParticle();
-				if (npEnsure(Kinematic))
-				{
-					ToStringInternal(Kinematic->X(), Kinematic->R(), Kinematic->V(), Kinematic->W(), Builder);
-				}
-			}
-			else
-			{
-				Builder.Append("Null PhysicsActorHandle\n");
-			}
-		}
-		else
-		{
-			Builder.Append("Null BodyInstance\n");
+			ToStringInternal(Kinematic->X(), Kinematic->R(), Kinematic->V(), Kinematic->W(), Builder);
 		}
 	}
 
@@ -299,7 +286,7 @@ private:
 // ------------------------------------------------------------------------------------------------------
 // Generic model def for physics actors with no backing simulation
 // ------------------------------------------------------------------------------------------------------
-struct NETWORKPREDICTION_API FGenericPhysicsModelDef : FNetworkPredictionModelDef
+struct FGenericPhysicsModelDef : FNetworkPredictionModelDef
 {
 	NP_MODEL_BODY();
 

@@ -11,7 +11,6 @@ const TCHAR* LexToString(EInstallBundleSourceType Type)
 	static const TCHAR* Strings[] =
 	{
 		TEXT("Bulk"),
-		TEXT("Launcher"),
 		TEXT("BuildPatchServices"),
 #if WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
 		TEXT("Platform"),
@@ -101,7 +100,6 @@ const TCHAR* LexToString(EInstallBundleReleaseResult Result)
 	{
 		TEXT("OK"),
 		TEXT("ManifestArchiveError"),
-		TEXT("UserCancelledError"),
 	};
 
 	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleReleaseResult::Count) == UE_ARRAY_COUNT(Strings), "");

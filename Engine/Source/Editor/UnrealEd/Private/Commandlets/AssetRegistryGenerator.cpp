@@ -495,11 +495,10 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 
 					struct FFilePaths
 					{
-						FFilePaths(const FString& InFilename, FString&& InRelativeFilename, uint64 InFileOpenOrder) : Filename(InFilename), RelativeFilename(MoveTemp(InRelativeFilename)), FileOpenOrder(InFileOpenOrder)
+						FFilePaths(const FString& InFilename, FString&& InRelativeFilename) : Filename(InFilename), RelativeFilename(MoveTemp(InRelativeFilename))
 						{ }
 						FString Filename;
 						FString RelativeFilename;
-						uint64 FileOpenOrder;
 					};
 
 					TArray<FFilePaths> SortedFiles;
@@ -514,31 +513,12 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 							RelativeFilename = FPaths::SetExtension(RelativeFilename, TEXT("uasset")); // only use the uassets to decide which pak file these guys should live in
 						}
 						RelativeFilename.ToLowerInline();
-						uint64 FileOpenOrder = OrderMap.GetFileOrder(RelativeFilename, true);
-						/*if (FileOpenOrder != MAX_uint64)
-						{
-							UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Found file open order for %s, %ll"), *RelativeFilename, FileOpenOrder);
-						}
-						else
-						{
-							UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Didn't find openorder for %s"), *RelativeFilename, FileOpenOrder);
-						}*/
-						SortedFiles.Add(FFilePaths(ChunkFilename, MoveTemp(RelativeFilename), FileOpenOrder));
+						SortedFiles.Add(FFilePaths(ChunkFilename, MoveTemp(RelativeFilename)));
 					}
 
 					SortedFiles.Sort([&OrderMap, &CookedDirectory, &RelativePath](const FFilePaths& A, const FFilePaths& B)
 					{
-						uint64 AOrder = A.FileOpenOrder;
-						uint64 BOrder = B.FileOpenOrder;
-
-						if (AOrder == MAX_uint64 && BOrder == MAX_uint64)
-						{
-							return A.RelativeFilename.Compare(B.RelativeFilename) < 0;
-						}
-						else 
-						{
-							return AOrder < BOrder;
-						}
+						return OrderMap.GetFileOrder(A.RelativeFilename, true) < OrderMap.GetFileOrder(B.RelativeFilename, true);
 					});
 
 					ChunkFilenames.Empty(SortedFiles.Num());
@@ -1399,47 +1379,7 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 	return true;
 }
 
-class FPackageCookerOpenOrderVisitor : public IPlatformFile::FDirectoryVisitor
-{
-	const FSandboxPlatformFile* SandboxFile;
-	const FString& PlatformSandboxPath;
-	const TSet<FString>& ValidExtensions;
-	TMultiMap<FString, FString>& PackageExtensions;
-public:
-	FPackageCookerOpenOrderVisitor(
-		const FSandboxPlatformFile* InSandboxFile,
-		const FString& InPlatformSandboxPath,
-		const TSet<FString>& InValidExtensions,
-		TMultiMap<FString, FString>& OutPackageExtensions) :
-		SandboxFile(InSandboxFile),
-		PlatformSandboxPath(InPlatformSandboxPath),
-		ValidExtensions(InValidExtensions),
-		PackageExtensions(OutPackageExtensions)
-	{}
-
-	virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory)
-	{
-		if (bIsDirectory)
-			return true;
-
-		FString Filename = FilenameOrDirectory;
-		FString FileExtension = FPaths::GetExtension(Filename, true);
-
-		if (ValidExtensions.Contains(FileExtension))
-		{
-			Filename.ReplaceInline(*PlatformSandboxPath, *SandboxFile->GetSandboxDirectory());
-			FString AssetSourcePath = SandboxFile->ConvertFromSandboxPath(*Filename);
-			FString StandardAssetSourcePath = FPaths::CreateStandardFilename(AssetSourcePath);
-			FString PackageName = FPackageName::FilenameToLongPackageName(StandardAssetSourcePath);
-
-			PackageExtensions.AddUnique(PackageName, StandardAssetSourcePath);
-		}
-
-		return true;
-	}
-};
-
-bool FAssetRegistryGenerator::WriteCookerOpenOrder(FSandboxPlatformFile* InSandboxFile)
+bool FAssetRegistryGenerator::WriteCookerOpenOrder()
 {
 	TSet<FName> PackageNameSet;
 	TSet<FName> MapList;
@@ -1506,42 +1446,14 @@ bool FAssetRegistryGenerator::WriteCookerOpenOrder(FSandboxPlatformFile* InSandb
 		{
 			AddAssetToFileOrderRecursive(PackageName, FileOrder, EncounteredNames, PackageNameSet, MapList);
 		}
-		
-		// Iterate sandbox folder and generate a map from package name to cooked files
-		const TArray<FString> ValidExtensions =
-		{
-			TEXT(".uasset"),
-			TEXT(".uexp"),
-			TEXT(".ubulk"),
-			TEXT(".uptnl"),
-			TEXT(".umap"),
-			TEXT(".ufont")
-		};
-		const TSet<FString> ValidExtensionSet(ValidExtensions);
-
-		const FString SandboxPath = InSandboxFile->GetSandboxDirectory();
-		const FString Platform = TargetPlatform->PlatformName();
-		FString PlatformSandboxPath = SandboxPath.Replace(TEXT("[Platform]"), *Platform);
-
-		TMultiMap<FString, FString> CookedPackageFilesMap;
-		FPackageCookerOpenOrderVisitor PackageSearch(InSandboxFile, PlatformSandboxPath, ValidExtensionSet, CookedPackageFilesMap);
-		IFileManager::Get().IterateDirectoryRecursively(*PlatformSandboxPath, PackageSearch);
 
 		int32 CurrentIndex = 0;
 		for (FName PackageName : FileOrder)
 		{
-			TArray<FString> CookedFiles;
-			CookedPackageFilesMap.MultiFind(PackageName.ToString(), CookedFiles);
-			CookedFiles.Sort([&ValidExtensions](const FString& A, const FString& B)
-			{
-				return ValidExtensions.IndexOfByKey(FPaths::GetExtension(A, true)) < ValidExtensions.IndexOfByKey(FPaths::GetExtension(B, true));
-			});
-
-			for (const FString& CookedFile : CookedFiles)
-			{
-				FString Line = FString::Printf(TEXT("\"%s\" %i\n"), *CookedFile, CurrentIndex++);
-				CookerFileOrderString.Append(Line);
-			}
+			bool bIsMap = MapList.Contains(PackageName);
+			FString Filename = FPackageName::LongPackageNameToFilename(PackageName.ToString(), bIsMap ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension());
+			FString Line = FString::Printf(TEXT("\"%s\" %i\n"), *Filename, CurrentIndex++);
+			CookerFileOrderString.Append(Line);
 		}
 	}
 

@@ -569,12 +569,6 @@ inline bool ForceSimpleSkyDiffuse(const FStaticShaderPlatform Platform)
 	return !!(GSimpleSkyDiffusePlatformMask & (1ull << Platform));
 }
 
-inline bool VelocityEncodeDepth(const FStaticShaderPlatform Platform)
-{
-	extern RENDERCORE_API uint64 GVelocityEncodeDepthPlatformMask;
-	return !!(GVelocityEncodeDepthPlatformMask & (1ull << Platform));
-}
-
 /** Unit cube vertex buffer (VertexDeclarationFVector4) */
 RENDERCORE_API FVertexBufferRHIRef& GetUnitCubeVertexBuffer();
 

@@ -41,29 +41,7 @@ FRigUnit_MathQuaternionFromTwoVectors_Execute()
 FRigUnit_MathQuaternionToAxisAndAngle_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	Value.GetNormalized().ToAxisAndAngle(Axis, Angle);
-	if (Axis.IsNearlyZero())
-	{
-		Axis = FVector(1.f, 0.f, 0.f);
-		Angle = 0.f;
-	}
-
-
-	float AngleSign = Angle < 0.f ? -1.f : 1.f;
-	Angle = FMath::Abs(Angle);
-
-	static const float TWO_PI = PI * 2.f;
-	if (Angle > TWO_PI)
-	{
-		Angle = FMath::Fmod(Angle, TWO_PI);
-	}
-	if (Angle > PI)
-	{
-		Angle = TWO_PI - Angle;
-		AngleSign = -AngleSign;
-	}
-
-	Angle = Angle * AngleSign;
+	Value.ToAxisAndAngle(Axis, Angle);
 }
 
 FRigUnit_MathQuaternionScale_Execute()

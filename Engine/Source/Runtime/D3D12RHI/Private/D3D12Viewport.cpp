@@ -1016,11 +1016,7 @@ void FD3D12CommandContextBase::RHIEndDrawingViewport(FRHIViewport* ViewportRHI, 
 	ParentAdapter->SubmissionGapRecorder.SetPresentSlotIdx(CurrentSlotIdx);
 #endif
 
-	bool bNativelyPresented = false; 
-	if (!RHI.RHIIsRenderingSuspended())
-	{
-		bNativelyPresented = Viewport->Present(bLockToVsync);
-	}
+	const bool bNativelyPresented = Viewport->Present(bLockToVsync);
 
 	// Multi-GPU support : here each GPU wait's for it's own frame completion. Note that even in AFR, each GPU renders an (empty) frame.
 	if (bNativelyPresented)

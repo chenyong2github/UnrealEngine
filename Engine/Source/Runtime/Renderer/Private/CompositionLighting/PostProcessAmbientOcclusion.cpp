@@ -139,7 +139,6 @@ static TAutoConsoleVariable<float> CVarGTAOPauseJitter(
 	TEXT("Whether to pause Jitter when Temporal filter is off \n "),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-
 static TAutoConsoleVariable<int32> CVarGTAOUpsample(
 	TEXT("r.GTAO.Upsample"),
 	1,

@@ -13,7 +13,6 @@ FPhysicsAssetEditorAnimInstanceProxy::FPhysicsAssetEditorAnimInstanceProxy()
 	: TargetActor(nullptr)
 	, HandleActor(nullptr)
 	, HandleJoint(nullptr)
-	, FloorActor(nullptr)
 {
 }
 
@@ -22,7 +21,6 @@ FPhysicsAssetEditorAnimInstanceProxy::FPhysicsAssetEditorAnimInstanceProxy(UAnim
 	, TargetActor(nullptr)
 	, HandleActor(nullptr)
 	, HandleJoint(nullptr)
-	, FloorActor(nullptr)
 {
 }
 
@@ -41,8 +39,6 @@ void FPhysicsAssetEditorAnimInstanceProxy::Initialize(UAnimInstance* InAnimInsta
 	{
 		SolverIterations = PhysicsAsset->SolverIterations;
 	}
-
-	FloorActor = nullptr;
 #endif
 }
 
@@ -179,38 +175,6 @@ void FPhysicsAssetEditorAnimInstanceProxy::UpdateDriveSettings(bool bLinearSoft,
 	if (HandleJoint != nullptr)
 	{
 		HandleJoint->SetSoftLinearSettings(bLinearSoft, LinearStiffness, LinearDamping);
-	}
-#endif
-}
-
-void FPhysicsAssetEditorAnimInstanceProxy::CreateSimulationFloor(FBodyInstance* FloorBodyInstance, const FTransform& Transform)
-{
-#if WITH_CHAOS && !PHYSICS_INTERFACE_PHYSX
-	using namespace Chaos;
-
-	DestroySimulationFloor();
-
-	ImmediatePhysics::FSimulation* Simulation = RagdollNode.GetSimulation();
-	if (Simulation != nullptr)
-	{
-		FloorActor = Simulation->CreateKinematicActor(FloorBodyInstance, Transform);
-		if (FloorActor != nullptr)
-		{
-			Simulation->AddToCollidingPairs(FloorActor);
-		}
-	}
-#endif
-}
-
-void FPhysicsAssetEditorAnimInstanceProxy::DestroySimulationFloor()
-{
-#if WITH_CHAOS && !PHYSICS_INTERFACE_PHYSX
-	using namespace Chaos;
-	ImmediatePhysics::FSimulation* Simulation = RagdollNode.GetSimulation();
-	if ((Simulation != nullptr) && (FloorActor != nullptr))
-	{
-		Simulation->DestroyActor(FloorActor);
-		FloorActor = nullptr;
 	}
 #endif
 }

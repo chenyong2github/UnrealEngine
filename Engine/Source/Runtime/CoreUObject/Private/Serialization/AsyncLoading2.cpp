@@ -199,26 +199,16 @@ static TSet<FPackageId> GAsyncLoading2_DebugPackageIds;
 static FString GAsyncLoading2_DebugPackageNamesString;
 static TSet<FPackageId> GAsyncLoading2_VerbosePackageIds;
 static FString GAsyncLoading2_VerbosePackageNamesString;
-static int32 GAsyncLoading2_VerboseLogFilter = 2; //None=0,Filter=1,All=2
 #if !UE_BUILD_SHIPPING
 static void ParsePackageNames(const FString& PackageNamesString, TSet<FPackageId>& PackageIds)
 {
 	TArray<FString> Args;
 	const TCHAR* Delimiters[] = { TEXT(","), TEXT(" ") };
 	PackageNamesString.ParseIntoArray(Args, Delimiters, UE_ARRAY_COUNT(Delimiters), true);
-	PackageIds.Reserve(PackageIds.Num() + Args.Num());
+	PackageIds.Empty(Args.Num());
 	for (const FString& PackageName : Args)
 	{
-		if (PackageName.Len() > 0 && FChar::IsDigit(PackageName[0]))
-		{
-			uint64 Value;
-			LexFromString(Value, *PackageName);
-			PackageIds.Add(*(FPackageId*)(&Value));
-		}
-		else
-		{
-			PackageIds.Add(FPackageId::FromName(FName(*PackageName)));
-		}
+		PackageIds.Add(FPackageId::FromName(FName(*PackageName)));
 	}
 }
 static FAutoConsoleVariableRef CVar_DebugPackageNames(
@@ -227,10 +217,8 @@ static FAutoConsoleVariableRef CVar_DebugPackageNames(
 	TEXT("Add debug breaks for all listed package names, also automatically added to s.VerbosePackageNames."),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* Variable)
 	{
-		GAsyncLoading2_DebugPackageIds.Reset();
 		ParsePackageNames(Variable->GetString(), GAsyncLoading2_DebugPackageIds);
 		ParsePackageNames(Variable->GetString(), GAsyncLoading2_VerbosePackageIds);
-		GAsyncLoading2_VerboseLogFilter = GAsyncLoading2_VerbosePackageIds.Num() > 0 ? 1 : 2;
 	}),
 	ECVF_Default);
 static FAutoConsoleVariableRef CVar_VerbosePackageNames(
@@ -239,21 +227,15 @@ static FAutoConsoleVariableRef CVar_VerbosePackageNames(
 	TEXT("Restrict verbose logging to listed package names."),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* Variable)
 	{
-		GAsyncLoading2_VerbosePackageIds.Reset();
 		ParsePackageNames(Variable->GetString(), GAsyncLoading2_VerbosePackageIds);
-		GAsyncLoading2_VerboseLogFilter = GAsyncLoading2_VerbosePackageIds.Num() > 0 ? 1 : 2;
 	}),
 	ECVF_Default);
 #endif
 
 #define UE_ASYNC_PACKAGE_DEBUG(PackageDesc) \
-if (GAsyncLoading2_DebugPackageIds.Contains((PackageDesc).DiskPackageId)) \
-{ \
-	UE_DEBUG_BREAK(); \
-}
-
-#define UE_ASYNC_UPACKAGE_DEBUG(UPackage) \
-if (GAsyncLoading2_DebugPackageIds.Contains((UPackage)->GetPackageId())) \
+if ((GAsyncLoading2_VerbosePackageIds.Num() > 0) && \
+	(GAsyncLoading2_DebugPackageIds.Contains((PackageDesc).CustomPackageId) || \
+	 GAsyncLoading2_DebugPackageIds.Contains((PackageDesc).DiskPackageId))) \
 { \
 	UE_DEBUG_BREAK(); \
 }
@@ -262,9 +244,10 @@ if (GAsyncLoading2_DebugPackageIds.Contains((UPackage)->GetPackageId())) \
 // using constexpr gave the same warning, and the disable comment can can't be used in a macro: //-V501 
 // warning V501: There are identical sub-expressions 'ELogVerbosity::Verbose' to the left and to the right of the '<' operator.
 #define UE_ASYNC_PACKAGE_LOG(Verbosity, PackageDesc, LogDesc, Format, ...) \
-if ((ELogVerbosity::Type(ELogVerbosity::Verbosity & ELogVerbosity::VerbosityMask) < ELogVerbosity::Verbose) || \
-	(GAsyncLoading2_VerboseLogFilter == 2) || \
-	(GAsyncLoading2_VerboseLogFilter == 1 && GAsyncLoading2_VerbosePackageIds.Contains((PackageDesc).DiskPackageId))) \
+if (GAsyncLoading2_VerbosePackageIds.Num() == 0 || \
+	(ELogVerbosity::Type(ELogVerbosity::Verbosity & ELogVerbosity::VerbosityMask) < ELogVerbosity::Verbose) || \
+	GAsyncLoading2_VerbosePackageIds.Contains((PackageDesc).CustomPackageId) || \
+	GAsyncLoading2_VerbosePackageIds.Contains((PackageDesc).DiskPackageId)) \
 { \
 	if (!(PackageDesc).CustomPackageName.IsNone()) \
 	{ \
@@ -1262,10 +1245,12 @@ struct FPackageImportStore
 private:
 	void AddAsyncFlags(UPackage* ImportedPackage)
 	{
-		UE_ASYNC_UPACKAGE_DEBUG(ImportedPackage);
+		// const FPackageStoreEntry& ImportEntry = GlobalPackageStore.GetStoreEntry(InPackageId);
+		// UObject* ImportedPackage = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(ImportEntry.Name), true);
 		
 		if (GUObjectArray.IsDisregardForGC(ImportedPackage))
 		{
+			// UE_LOG(LogStreaming, Display, TEXT("Skipping AddAsyncFlags for persistent package: %s"), *ImportedPackage->GetPathName());
 			return;
 		}
 		ForEachObjectWithOuter(ImportedPackage, [](UObject* Object)
@@ -1282,10 +1267,12 @@ private:
 
 	void ClearAsyncFlags(UPackage* ImportedPackage)
 	{
-		UE_ASYNC_UPACKAGE_DEBUG(ImportedPackage);
+		// const FPackageStoreEntry& ImportEntry = GlobalPackageStore.GetStoreEntry(InPackageId);
+		// UObject* ImportedPackage = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(ImportEntry.Name), true);
 
 		if (GUObjectArray.IsDisregardForGC(ImportedPackage))
 		{
+			// UE_LOG(LogStreaming, Display, TEXT("Skipping ClearAsyncFlags for persistent package: %s"), *ImportedPackage->GetPathName());
 			return;
 		}
 		ForEachObjectWithOuter(ImportedPackage, [](UObject* Object)
@@ -2639,7 +2626,6 @@ void FAsyncLoadingThread2::InitializeLoading()
 		FParse::Value(FCommandLine::Get(), TEXT("-s.VerbosePackageNames="), VerbosePackageNamesString);
 		ParsePackageNames(VerbosePackageNamesString, GAsyncLoading2_VerbosePackageIds);
 		ParsePackageNames(DebugPackageNamesString, GAsyncLoading2_VerbosePackageIds);
-		GAsyncLoading2_VerboseLogFilter = GAsyncLoading2_VerbosePackageIds.Num() > 0 ? 1 : 2;
 	}
 
 	FileOpenLogWrapper = (FPlatformFileOpenLog*)(FPlatformFileManager::Get().FindPlatformFile(FPlatformFileOpenLog::GetTypeName()));
@@ -5082,7 +5068,6 @@ void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectIte
 			if (Object->GetOuter())
 			{
 				// TRACE_CPUPROFILER_EVENT_SCOPE(PackageStoreRemovePublicExport);
-				// UE_ASYNC_UPACKAGE_DEBUG(Object->GetOutermost());
 				GlobalPackageStore.RemovePublicExport(Object);
 				++PublicExportCount;
 			}
@@ -5090,7 +5075,6 @@ void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectIte
 			{
 				// TRACE_CPUPROFILER_EVENT_SCOPE(PackageStoreRemovePackage);
 				UPackage* Package = static_cast<UPackage*>(Object);
-				UE_ASYNC_UPACKAGE_DEBUG(Package);
 				GlobalPackageStore.RemovePackage(Package);
 				++PackageCount;
 			}
@@ -5105,11 +5089,10 @@ void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectIte
 	if (RemovedLoadedPackageCount > 0 || RemovedPublicExportCount > 0)
 	{
 		UE_LOG(LogStreaming, Display,
-			TEXT("%f ms for processing %d/%d objects in NotifyUnreachableObjects(Queued=%d,Async=%d). ")
+			TEXT("%f ms for processing %d/%d objects in NotifyUnreachableObjects. ")
 			TEXT("Removed %d/%d (%d->%d tracked) packages and %d/%d (%d->%d tracked) public exports."),
 			(FPlatformTime::Seconds() - StartTime) * 1000,
 			PublicExportCount + PackageCount, UnreachableObjects.Num(),
-			GetNumQueuedPackages(), GetNumAsyncPackages(),
 			RemovedLoadedPackageCount, PackageCount, OldLoadedPackageCount, NewLoadedPackageCount,
 			RemovedPublicExportCount, PublicExportCount, OldPublicExportCount, NewPublicExportCount);
 	}
@@ -5117,8 +5100,7 @@ void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectIte
 	{
 		UE_LOG(LogStreaming, Display, TEXT("%f ms for skipping %d/%d objects in NotifyUnreachableObjects."),
 			(FPlatformTime::Seconds() - StartTime) * 1000,
-			PublicExportCount + PackageCount, UnreachableObjects.Num(),
-			GetNumQueuedPackages(), GetNumAsyncPackages());
+			PublicExportCount + PackageCount, UnreachableObjects.Num());
 	}
 
 #if ALT2_VERIFY_ASYNC_FLAGS
@@ -5797,8 +5779,6 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingUntilCompleteFromGa
 		TimeLimit = 60 * 60;
 	}
 
-	double TimeLoadingPackage = 0.0f;
-
 	while (IsAsyncLoading() && TimeLimit > 0 && !CompletionPredicate())
 	{
 		double TickStartTime = FPlatformTime::Seconds();
@@ -5810,17 +5790,11 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingUntilCompleteFromGa
 		if (IsMultithreaded())
 		{
 			// Update the heartbeat and sleep. If we're not multithreading, the heartbeat is updated after each package has been processed
-			// only update the heartbeat up to the limit of the hang detector to ensure if we get stuck in this loop that the hang detector gets a chance to trigger
-			if (TimeLoadingPackage < FThreadHeartBeat::Get().GetHangDuration())
-			{
-				FThreadHeartBeat::Get().HeartBeat();
-			}
+			FThreadHeartBeat::Get().HeartBeat();
 			FPlatformProcess::SleepNoStats(0.0001f);
 		}
 
-		double TimeDelta = (FPlatformTime::Seconds() - TickStartTime);
-		TimeLimit -= TimeDelta;
-		TimeLoadingPackage += TimeDelta;
+		TimeLimit -= (FPlatformTime::Seconds() - TickStartTime);
 	}
 
 	return TimeLimit <= 0 ? EAsyncPackageState::TimeOut : EAsyncPackageState::Complete;

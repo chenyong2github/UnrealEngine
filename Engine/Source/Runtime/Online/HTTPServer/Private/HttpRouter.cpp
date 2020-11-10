@@ -45,11 +45,6 @@ FHttpRouteHandle FHttpRouter::BindRoute(const FHttpPath& HttpPath,  const EHttpS
 
 void FHttpRouter::UnbindRoute(const FHttpRouteHandle& RouteHandle)
 {
-	if (!ensure(RouteHandle.IsValid()))
-	{
-		return;
-	}
-
 	if (FRouteQueryResult QueryResult = RequestHandlerRegistrar.QueryRoute(RouteHandle->Path, RouteHandle->Verbs))
 	{
 		// Ensure caller is unbinding a route they actually own

@@ -32,7 +32,7 @@ struct FNetSerializeParams
 // Redirects NetSerialize to a dynamically set NetSerializeFunc.
 // This is how we hook into the replication systems role-based serialization
 USTRUCT()
-struct NETWORKPREDICTION_API FReplicationProxy
+struct FReplicationProxy
 {
 	GENERATED_BODY()
 
@@ -85,7 +85,7 @@ struct FReplicationProxySet
 //	and move them into the real buffers on the component in the RPC body (via ::NetSerialzeToProxy).
 // -------------------------------------------------------------------------------------------------------------------------------
 USTRUCT()
-struct NETWORKPREDICTION_API FServerReplicationRPCParameter
+struct FServerReplicationRPCParameter
 {
 	GENERATED_BODY()
 
@@ -119,7 +119,7 @@ struct TStructOpsTypeTraits<FServerReplicationRPCParameter> : public TStructOpsT
 // This is really a temp measure to make the system easier to drop in/try in a project without messing with your engine settings.
 // (bandwidth optimizations have not been done yet and the system in general hasn't been stressed with packetloss / gaps in command streams)
 // So, you are free to use this in your own code but it may be removed one day. Hopefully in general bandwidth limiting will also become more robust.
-struct NETWORKPREDICTION_API FScopedBandwidthLimitBypass
+struct FScopedBandwidthLimitBypass
 {
 	FScopedBandwidthLimitBypass(AActor* OwnerActor);
 	~FScopedBandwidthLimitBypass();

@@ -186,16 +186,16 @@ void FOpenColorIOShaderMapId::AppendKeyString(FString& OutKeyString) const
  * Enqueues a compilation for a new shader of this type.
  * @param InColorTransform - The ColorTransform to link the shader with.
  */
-FOpenColorIOShaderCompileJob* FOpenColorIOShaderType::BeginCompileShader(
+FShaderCompileJob* FOpenColorIOShaderType::BeginCompileShader(
 	uint32 InShaderMapId,
 	const FOpenColorIOTransformResource* InColorTransform,
-	FSharedShaderCompilerEnvironment* InCompilationEnvironment,
+	FShaderCompilerEnvironment* InCompilationEnvironment,
 	EShaderPlatform InPlatform,
-	TArray<TSharedRef<FOpenColorIOShaderCompileJob, ESPMode::ThreadSafe>>& OutNewJobs,
+	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& OutNewJobs,
 	FShaderTarget InTarget
 	)
 {
-	FOpenColorIOShaderCompileJob* NewJob = new FOpenColorIOShaderCompileJob(InShaderMapId, this);
+	FShaderCompileJob* NewJob = new FShaderCompileJob(InShaderMapId, nullptr, this, /* PermutationId = */ 0);
 
 	NewJob->Input.SharedEnvironment = InCompilationEnvironment;
 	NewJob->Input.Target = InTarget;
@@ -220,15 +220,14 @@ FOpenColorIOShaderCompileJob* FOpenColorIOShaderType::BeginCompileShader(
 		InColorTransform->GetFriendlyName(),
 		nullptr,
 		this,
-		nullptr,//ShaderPipeline
-		0, // PermutationId
+		nullptr,//ShaderPipeline,
 		TEXT("/Plugin/OpenColorIO/Private/OpenColorIOShader.usf"),
 		TEXT("MainPS"),
 		FShaderTarget(GetFrequency(), InPlatform),
-		NewJob->Input
+		TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>(NewJob),
+		OutNewJobs
 	);
 
-	OutNewJobs.Add(FOpenColorIOShaderCompileJobSharedRef(NewJob));
 	return NewJob;
 }
 
@@ -239,7 +238,7 @@ FOpenColorIOShaderCompileJob* FOpenColorIOShaderType::BeginCompileShader(
  */
 FShader* FOpenColorIOShaderType::FinishCompileShader(
 	const FSHAHash& InShaderMapHash,
-	const FOpenColorIOShaderCompileJob& InCurrentJob,
+	const FShaderCompileJob& InCurrentJob,
 	const FString& InDebugDescription
 	)
 {
@@ -247,7 +246,7 @@ FShader* FOpenColorIOShaderType::FinishCompileShader(
 
 	const int32 PermutationId = 0;
 	FShader* Shader = ConstructCompiled(FOpenColorIOShaderType::CompiledShaderInitializerType(this, PermutationId, InCurrentJob.Output, InShaderMapHash, InDebugDescription));
-	InCurrentJob.Output.ParameterMap.VerifyBindingsAreComplete(GetName(), InCurrentJob.Output.Target, nullptr);
+	InCurrentJob.Output.ParameterMap.VerifyBindingsAreComplete(GetName(), InCurrentJob.Output.Target, InCurrentJob.VFType);
 
 	return Shader;
 }
@@ -357,7 +356,7 @@ void FOpenColorIOShaderMap::SaveToDerivedDataCache()
 */
 void FOpenColorIOShaderMap::Compile(FOpenColorIOTransformResource* InColorTransform
 									, const FOpenColorIOShaderMapId& InShaderMapId
-									, TRefCountPtr<FSharedShaderCompilerEnvironment> InCompilationEnvironment
+									, TRefCountPtr<FShaderCompilerEnvironment> InCompilationEnvironment
 									, const FOpenColorIOCompilationOutput& InOpenColorIOCompilationOutput
 									, EShaderPlatform InPlatform
 									, bool bSynchronousCompile
@@ -408,10 +407,10 @@ void FOpenColorIOShaderMap::Compile(FOpenColorIOTransformResource* InColorTransf
 			AssignContent(NewContent);
 
 			uint32 NumShaders = 0;
-			TArray<TSharedRef<FOpenColorIOShaderCompileJob, ESPMode::ThreadSafe>> NewJobs;
+			TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> NewJobs;
 	
 			// Iterate over all shader types.
-			TMap<FShaderType*, FOpenColorIOShaderCompileJob*> SharedShaderJobs;
+			TMap<FShaderType*, FShaderCompileJob*> SharedShaderJobs;
 			for(TLinkedList<FShaderType*>::TIterator ShaderTypeIt(FShaderType::GetTypeList());ShaderTypeIt;ShaderTypeIt.Next())
 			{
 				FOpenColorIOShaderType* ShaderType = ShaderTypeIt->GetOpenColorIOShaderType();
@@ -474,7 +473,7 @@ void FOpenColorIOShaderMap::Compile(FOpenColorIOTransformResource* InColorTransf
 	}
 }
 
-FShader* FOpenColorIOShaderMap::ProcessCompilationResultsForSingleJob(FOpenColorIOShaderCompileJob& CurrentJob, const FSHAHash& InShaderMapHash)
+FShader* FOpenColorIOShaderMap::ProcessCompilationResultsForSingleJob(FShaderCompileJob& CurrentJob, const FSHAHash& InShaderMapHash)
 {
 	check(CurrentJob.Id == CompilingId);
 
@@ -493,7 +492,7 @@ FShader* FOpenColorIOShaderMap::ProcessCompilationResultsForSingleJob(FOpenColor
 	return GetMutableContent()->FindOrAddShader(OpenColorIOShaderType->GetHashedName(), 0, Shader);
 }
 
-bool FOpenColorIOShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FOpenColorIOShaderCompileJob, ESPMode::ThreadSafe>>& InCompilationResults, int32& InOutJobIndex, float& InOutTimeBudget)
+bool FOpenColorIOShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& InCompilationResults, int32& InOutJobIndex, float& InOutTimeBudget)
 {
 	check(InOutJobIndex < InCompilationResults.Num());
 
@@ -504,7 +503,7 @@ bool FOpenColorIOShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FO
 
 	do
 	{
-		ProcessCompilationResultsForSingleJob(StaticCastSharedRef<FOpenColorIOShaderCompileJob>(InCompilationResults[InOutJobIndex]).Get(), ShaderMapHash);
+		ProcessCompilationResultsForSingleJob(StaticCastSharedRef<FShaderCompileJob>(InCompilationResults[InOutJobIndex]).Get(), ShaderMapHash);
 
 		InOutJobIndex++;
 		

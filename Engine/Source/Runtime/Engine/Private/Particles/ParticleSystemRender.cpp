@@ -1115,7 +1115,7 @@ void FDynamicSpriteEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 					{
 						SCOPE_CYCLE_COUNTER(STAT_FDynamicSpriteEmitterData_GetDynamicMeshElementsEmitter_GetParticleOrderData);
 						// If material is using unlit translucency and the blend mode is translucent then we need to sort (back to front)
-						const FMaterial* Material = MaterialResource ? &MaterialResource->GetIncompleteMaterialWithFallback(FeatureLevel) : nullptr;
+						const FMaterial* Material = MaterialResource ? MaterialResource->GetMaterial(FeatureLevel) : nullptr;
 
 						if (Material && 
 							(Material->GetBlendMode() == BLEND_Translucent || Material->GetBlendMode() == BLEND_AlphaComposite || Material->GetBlendMode() == BLEND_AlphaHoldout ||
@@ -1515,7 +1515,7 @@ FParticleVertexFactoryBase* FDynamicMeshEmitterData::BuildVertexFactory(const FP
 {
 	FParticleVertexFactoryBase* PoolVertexFactory = GParticleVertexFactoryPool.GetParticleVertexFactory(PVFT_Mesh, InOwnerProxy->GetScene().GetFeatureLevel(), this);
 	const uint32 LODIdx = GetMeshLODIndexFromProxy(InOwnerProxy);
-	SetupVertexFactory((FMeshParticleVertexFactory*)PoolVertexFactory, StaticMesh->GetRenderData()->LODResources[LODIdx], LODIdx);
+	SetupVertexFactory((FMeshParticleVertexFactory*)PoolVertexFactory, StaticMesh->RenderData->LODResources[LODIdx], LODIdx);
 	return PoolVertexFactory;
 }
 
@@ -1558,10 +1558,10 @@ uint32 FDynamicMeshEmitterData::GetMeshLODIndexFromProxy(const FParticleSystemSc
 {
 	// Determine first available LOD level, top level can be stripped per platform
 	check(IsInRenderingThread());
-	int32 FirstAvailableLOD = StaticMesh->GetRenderData()->CurrentFirstLODIdx;
-	for (; FirstAvailableLOD < StaticMesh->GetRenderData()->LODResources.Num(); FirstAvailableLOD++)
+	int32 FirstAvailableLOD = StaticMesh->RenderData->CurrentFirstLODIdx;
+	for (; FirstAvailableLOD < StaticMesh->RenderData->LODResources.Num(); FirstAvailableLOD++)
 	{
-		if (StaticMesh->GetRenderData()->LODResources[FirstAvailableLOD].GetNumVertices() > 0)
+		if (StaticMesh->RenderData->LODResources[FirstAvailableLOD].GetNumVertices() > 0)
 		{
 			break;
 		}
@@ -1572,7 +1572,7 @@ uint32 FDynamicMeshEmitterData::GetMeshLODIndexFromProxy(const FParticleSystemSc
 		return FirstAvailableLOD;
 	}
 	const int32 EffectiveMinLOD = StaticMesh->MinLOD.GetValue();
-	const int32 MaxLOD = StaticMesh->GetRenderData()->LODResources.Num() - 1;
+	const int32 MaxLOD = StaticMesh->RenderData->LODResources.Num() - 1;
 	const int32 ClampedMinLOD = FMath::Clamp(EffectiveMinLOD, FirstAvailableLOD, MaxLOD);
 	const int32 MeshLOD = (InOwnerProxy->MeshEmitterLODIndices.IsValidIndex(EmitterIndex)) ? InOwnerProxy->MeshEmitterLODIndices[EmitterIndex] : 0;
 	return FMath::Clamp(MeshLOD, ClampedMinLOD, MaxLOD);
@@ -1584,7 +1584,7 @@ FParticleVertexFactoryBase *FDynamicMeshEmitterData::CreateVertexFactory(ERHIFea
 
 	VertexFactory->SetParticleFactoryType(PVFT_Mesh);
 	const uint32 LODIdx = GetMeshLODIndexFromProxy(InOwnerProxy);
-	SetupVertexFactory(VertexFactory, StaticMesh->GetRenderData()->LODResources[LODIdx], LODIdx);
+	SetupVertexFactory(VertexFactory, StaticMesh->RenderData->LODResources[LODIdx], LODIdx);
 
 	const int32 InstanceVertexStride = GetDynamicVertexStride(InFeatureLevel);
 	const int32 DynamicParameterVertexStride = bUsesDynamicParameter ? GetDynamicParameterVertexStride() : 0;
@@ -1743,7 +1743,7 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 			check(StaticMesh != nullptr);
 
 			const uint32 ChosenLODIdx = GetMeshLODIndexFromProxy(Proxy);
-			const FStaticMeshLODResources& LODModel = StaticMesh->GetRenderData()->LODResources[ChosenLODIdx];
+			const FStaticMeshLODResources& LODModel = StaticMesh->RenderData->LODResources[ChosenLODIdx];
 			if (ChosenLODIdx != MeshVertexFactory->GetLODIdx())
 			{
 				SetupVertexFactory(MeshVertexFactory, LODModel, ChosenLODIdx);
@@ -2377,7 +2377,7 @@ void FDynamicMeshEmitterData::GetInstanceData(void* InstanceData, void* DynamicP
 				ParticlePos = Proxy->GetLocalToWorld().TransformPosition(ParticlePos);
 			}
 			FVector ParticleSize = TransMat.GetScaleVector();
-			int32 LODIndexToUse = ComputeStaticMeshLOD(StaticMesh->GetRenderData(), ParticlePos, ParticleSize.Size()*0.5f*StaticMesh->GetBounds().SphereRadius, *View, 0, TotalLODSizeScale);
+			int32 LODIndexToUse = ComputeStaticMeshLOD(StaticMesh->RenderData.Get(), ParticlePos, ParticleSize.Size()*0.5f*StaticMesh->GetBounds().SphereRadius, *View, 0, TotalLODSizeScale);
 			LODIndexToUse = FMath::Min(LODIndexToUse, StaticMesh->GetNumLODs() - 1);
 			LastCalculatedMeshLOD = LODIndexToUse < LastCalculatedMeshLOD ? LODIndexToUse : LastCalculatedMeshLOD;
 		}

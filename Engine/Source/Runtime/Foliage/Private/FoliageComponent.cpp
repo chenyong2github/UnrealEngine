@@ -65,9 +65,9 @@ FPrimitiveSceneProxy* UInteractiveFoliageComponent::CreateSceneProxy()
 {
 	// If a static mesh does not exist then this component cannot be added to the scene.
 	if(GetStaticMesh() == NULL
-		|| GetStaticMesh()->GetRenderData() == NULL
-		|| GetStaticMesh()->GetRenderData()->LODResources.Num() == 0
-		|| GetStaticMesh()->GetRenderData()->LODResources[0].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
+		|| GetStaticMesh()->RenderData == NULL
+		|| GetStaticMesh()->RenderData->LODResources.Num() == 0
+		|| GetStaticMesh()->RenderData->LODResources[0].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
 	{
 		return NULL;
 	}

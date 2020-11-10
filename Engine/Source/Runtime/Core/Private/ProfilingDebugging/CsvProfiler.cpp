@@ -83,14 +83,6 @@ TAutoConsoleVariable<int32> CVarCsvContinuousWrites(
 	ECVF_Default
 );
 
-TAutoConsoleVariable<int32> CVarCsvForceExit(
-	TEXT("csv.ForceExit"),
-	0,
-	TEXT("If 1, do a forced exit when if exitOnCompletion is enabled"),
-	ECVF_Default
-);
-
-
 #if UE_BUILD_SHIPPING
 TAutoConsoleVariable<int32> CVarCsvShippingContinuousWrites(
 	TEXT("csv.Shipping.ContinuousWrites"),
@@ -1664,11 +1656,11 @@ public:
 		}
 	}
 
-	static FORCENOINLINE FCsvProfilerThreadData* CreateTLSData(const FString* InThreadName = nullptr)
+	static FORCENOINLINE FCsvProfilerThreadData* CreateTLSData()
 	{
 		FScopeLock Lock(&TlsCS);
 
-		FSharedPtr ProfilerThreadPtr = MakeShareable(new FCsvProfilerThreadData(InThreadName));
+		FSharedPtr ProfilerThreadPtr = MakeShareable(new FCsvProfilerThreadData());
 		FPlatformTLS::SetTlsValue(TlsSlot, ProfilerThreadPtr.Get());
 
 		// Keep a weak reference to this thread data in the global array.
@@ -1681,12 +1673,12 @@ public:
 		return ProfilerThreadPtr.Get();
 	}
 
-	static CSV_PROFILER_INLINE FCsvProfilerThreadData& Get(const FString* InThreadName = nullptr)
+	static CSV_PROFILER_INLINE FCsvProfilerThreadData& Get()
 	{
 		FCsvProfilerThreadData* ProfilerThread = (FCsvProfilerThreadData*)FPlatformTLS::GetTlsValue(TlsSlot);
 		if (UNLIKELY(!ProfilerThread))
 		{
-			ProfilerThread = CreateTLSData(InThreadName);
+			ProfilerThread = CreateTLSData();
 		}
 		return *ProfilerThread;
 	}
@@ -1707,9 +1699,9 @@ public:
 		}
 	}
 
-	FCsvProfilerThreadData(const FString* InThreadName = nullptr)
+	FCsvProfilerThreadData()
 		: ThreadId(FPlatformTLS::GetCurrentThreadId())
-		, ThreadName((InThreadName==nullptr) ? FThreadManager::GetThreadName(ThreadId) : *InThreadName)
+		, ThreadName(FThreadManager::GetThreadName(ThreadId))
 		, DataProcessor(nullptr)
 	{
 	}
@@ -2639,7 +2631,11 @@ void FCsvProfiler::BeginFrame()
 					SetMetadata(TEXT("ExtraDevelopmentMemoryMB"), *FString::FromInt(ExtraDevelopmentMemoryMB)); 
 #endif
 
-					SetMetadata(TEXT("PGOEnabled"), FPlatformMisc::IsPGOEnabled() ? TEXT("1") : TEXT("0"));
+#if PLATFORM_COMPILER_OPTIMIZATION_PG
+					SetMetadata(TEXT("PGOEnabled"), TEXT("1"));
+#else
+					SetMetadata(TEXT("PGOEnabled"), TEXT("0"));
+#endif
 
 					GCsvStatCounts = !!CVarCsvStatCounts.GetValueOnGameThread();
 
@@ -2810,8 +2806,7 @@ void FCsvProfiler::EndFrame()
 
 			if (bCaptureEnded && (GCsvExitOnCompletion || FParse::Param(FCommandLine::Get(), TEXT("ExitAfterCsvProfiling"))))
 			{
-				bool bForceExit = !!CVarCsvForceExit.GetValueOnGameThread();
-				FPlatformMisc::RequestExit(bForceExit);
+				FPlatformMisc::RequestExit(false);
 			}
 		}
 	}
@@ -3090,7 +3085,7 @@ void FCsvProfiler::RecordEvent(int32 CategoryIndex, const FString& EventText)
 	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CategoryIndex])
 	{
 		LLM_SCOPE(ELLMTag::CsvProfiler);
-		UE_LOG(LogCsvProfiler, Display, TEXT("CSVEvent \"%s\" [Frame %d]"), *EventText, FCsvProfiler::Get()->GetCaptureFrameNumber());
+		UE_LOG(LogCsvProfiler, Display, TEXT("CSVEvent [Frame %d] : \"%s\""), FCsvProfiler::Get()->GetCaptureFrameNumber(), *EventText);
 		FCsvProfilerThreadData::Get().AddEvent(EventText, CategoryIndex);
 	}
 }
@@ -3108,11 +3103,6 @@ void FCsvProfiler::SetMetadata(const TCHAR* Key, const TCHAR* Value)
 
 	FScopeLock Lock(&CsvProfiler->MetadataCS);
 	CsvProfiler->MetadataMap.FindOrAdd(KeyLower) = Value;
-}
-
-void FCsvProfiler::SetThreadName(const FString& InThreadName)
-{
-	FCsvProfilerThreadData::Get(&InThreadName);
 }
 
 void FCsvProfiler::RecordEventAtTimestamp(int32 CategoryIndex, const FString& EventText, uint64 Cycles64)

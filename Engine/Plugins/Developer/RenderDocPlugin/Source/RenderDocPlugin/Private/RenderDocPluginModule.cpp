@@ -240,9 +240,7 @@ void FRenderDocPluginModule::StartupModule()
 	RenderDocAPI = Loader.RenderDocAPI;
 	check(RenderDocAPI);
 
-	IModularFeatures::Get().RegisterModularFeature(IRenderCaptureProvider::GetModularFeatureName(), (IRenderCaptureProvider*)this);
-
-	IModularFeatures::Get().RegisterModularFeature(IInputDeviceModule::GetModularFeatureName(), (IInputDeviceModule*)this);
+	IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
 	DelayedCaptureTick = 0;
 	DelayedCaptureSeconds = 0.0;
 	CaptureFrameCount = 0;
@@ -605,17 +603,10 @@ FString FRenderDocPluginModule::GetNewestCapture()
 	return FPaths::ConvertRelativePathToFull(OutString);
 }
 
-void FRenderDocPluginModule::StopCapturing(const FString* DestPath)
-{
-	EndCapture(nullptr, DestPath ? *DestPath : FString(), ELaunchAfterCapture::No);
-}
-
 void FRenderDocPluginModule::ShutdownModule()
 {
 	if (GUsingNullRHI)
 		return;
-
-	IModularFeatures::Get().UnregisterModularFeature(IRenderCaptureProvider::GetModularFeatureName(), (IRenderCaptureProvider*)this);
 
 	UnBindCaptureCallbacks();
 

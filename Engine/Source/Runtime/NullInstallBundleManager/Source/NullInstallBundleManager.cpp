@@ -76,7 +76,7 @@ class FNullInstallBundleManager : public IInstallBundleManager
 	{
 	}
 
-	virtual void CancelUpdateContent(TArrayView<const FName> BundleNames) override
+	virtual void CancelUpdateContent(TArrayView<const FName> BundleNames, EInstallBundleCancelFlags Flags) override
 	{
 	}
 

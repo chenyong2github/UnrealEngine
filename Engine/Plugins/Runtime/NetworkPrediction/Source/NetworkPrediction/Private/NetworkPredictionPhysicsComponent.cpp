@@ -54,15 +54,10 @@ void UNetworkPredictionPhysicsComponent::InitializeComponent()
 		ReplicationProxy.Init(&NetworkPredictionProxy, EReplicationProxyTarget::SimulatedProxy);
 
 		// Init NP proxy with generic physics def
-		InitializeNetworkPredictionProxy();
+		NetworkPredictionProxy.Init<FGenericPhysicsModelDef>(GetWorld(), GetReplicationProxies(), nullptr, UpdatedPrimitive);
 
 		CheckOwnerRoleChange();
 	}
-}
-
-void UNetworkPredictionPhysicsComponent::InitializeNetworkPredictionProxy()
-{
-	NetworkPredictionProxy.Init<FGenericPhysicsModelDef>(GetWorld(), GetReplicationProxies(), nullptr, UpdatedPrimitive);
 }
 
 void UNetworkPredictionPhysicsComponent::EndPlay(const EEndPlayReason::Type Reason)

@@ -564,24 +564,78 @@ void FPyWrapperTypeRegistry::NotifyModulesDirtied(const TSet<FName>& InDirtyModu
 	}
 }
 
-void FPyWrapperTypeRegistry::UpdateGenerateWrappedTypeForRename(const FName InOldTypeRegistryName, const UObject* InObj)
+void FPyWrapperTypeRegistry::UpdateGenerateWrappedTypeForRename(const FName InOldName, const UObject* InObj)
 {
-	const FName TypeRegistryName = PyGenUtil::GetAssetTypeRegistryName(InObj);
+	FName TypeRegistryName;
+	{
+		if (const UClass* Class = Cast<const UClass>(InObj))
+		{
+			TypeRegistryName = PyGenUtil::GetTypeRegistryName(Class);
+		}
 
-	TSharedPtr<PyGenUtil::FGeneratedWrappedType> GeneratedWrappedType = GeneratedWrappedTypes.FindAndRemoveChecked(InOldTypeRegistryName);
+		if (const UScriptStruct* Struct = Cast<const UScriptStruct>(InObj))
+		{
+			TypeRegistryName = PyGenUtil::GetTypeRegistryName(Struct);
+		}
+
+		if (const UEnum* Enum = Cast<const UEnum>(InObj))
+		{
+			TypeRegistryName = PyGenUtil::GetTypeRegistryName(Enum);
+		}
+
+		if (const UFunction* Func = Cast<const UFunction>(InObj))
+		{
+			if (Func->HasAnyFunctionFlags(FUNC_Delegate))
+			{
+				TypeRegistryName = PyGenUtil::GetTypeRegistryName(Func);
+			}
+		}
+	}
+
+	TSharedPtr<PyGenUtil::FGeneratedWrappedType> GeneratedWrappedType = GeneratedWrappedTypes.FindAndRemoveChecked(InOldName);
 	check(!TypeRegistryName.IsNone() && !GeneratedWrappedTypes.Contains(TypeRegistryName));
 	GeneratedWrappedTypes.Add(TypeRegistryName, GeneratedWrappedType);
 }
 
-void FPyWrapperTypeRegistry::RemoveGenerateWrappedTypeForDelete(const FName InTypeRegistryName)
+void FPyWrapperTypeRegistry::RemoveGenerateWrappedTypeForDelete(const UObject* InObj)
 {
-	TSharedPtr<PyGenUtil::FGeneratedWrappedType> GeneratedWrappedType = GeneratedWrappedTypes.FindRef(InTypeRegistryName);
-	const FString PythonTypeName = UTF8_TO_TCHAR(GeneratedWrappedType->TypeName.GetData());
+	FName TypeRegistryName;
+	FString PythonTypeName;
+	{
+		if (const UClass* Class = Cast<const UClass>(InObj))
+		{
+			TypeRegistryName = PyGenUtil::GetTypeRegistryName(Class);
+			PythonTypeName = PyGenUtil::GetClassPythonName(Class);
+		}
+
+		if (const UScriptStruct* Struct = Cast<const UScriptStruct>(InObj))
+		{
+			TypeRegistryName = PyGenUtil::GetTypeRegistryName(Struct);
+			PythonTypeName = PyGenUtil::GetStructPythonName(Struct);
+		}
+
+		if (const UEnum* Enum = Cast<const UEnum>(InObj))
+		{
+			TypeRegistryName = PyGenUtil::GetTypeRegistryName(Enum);
+			PythonTypeName = PyGenUtil::GetEnumPythonName(Enum);
+		}
+
+		if (const UFunction* Func = Cast<const UFunction>(InObj))
+		{
+			if (Func->HasAnyFunctionFlags(FUNC_Delegate))
+			{
+				TypeRegistryName = PyGenUtil::GetTypeRegistryName(Func);
+				PythonTypeName = PyGenUtil::GetDelegatePythonName(Func);
+			}
+		}
+	}
+
+	TSharedPtr<PyGenUtil::FGeneratedWrappedType> GeneratedWrappedType = GeneratedWrappedTypes.FindRef(TypeRegistryName);
 	GeneratedWrappedType->Reset();
 
 	// Fill the type with dummy information and re-finalize it as an empty stub
 	GeneratedWrappedType->TypeName = PyGenUtil::TCHARToUTF8Buffer(*FString::Printf(TEXT("%s_DELETED"), *PythonTypeName));
-	GeneratedWrappedType->TypeDoc = PyGenUtil::TCHARToUTF8Buffer(*FString::Printf(TEXT("%s was deleted!"), *InTypeRegistryName.ToString()));
+	GeneratedWrappedType->TypeDoc = PyGenUtil::TCHARToUTF8Buffer(*FString::Printf(TEXT("%s was deleted!"), *InObj->GetPathName()));
 	GeneratedWrappedType->Finalize();
 }
 

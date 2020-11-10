@@ -45,9 +45,6 @@ public:
 	virtual void OnClassListUpdated();
 
 protected:
-	virtual void FixupPastedNodes(const TSet<UEdGraphNode*>& NewPastedGraphNodes, const TMap<FGuid/*New*/, FGuid/*Old*/>& NewToOldNodeMapping);
-
-protected:
 
 	/** Currently focused graph */
 	TWeakPtr<SGraphEditor> UpdateGraphEdPtr;

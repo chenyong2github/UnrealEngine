@@ -316,8 +316,6 @@ protected:
 		Success,
 		/** The function did not have enough data to scroll the given item into view, so it should be deferred until the next Tick */
 		Deferred,
-		/** The function failed to scroll to the specified item.*/
-		Failure
 	};
 
 	/**

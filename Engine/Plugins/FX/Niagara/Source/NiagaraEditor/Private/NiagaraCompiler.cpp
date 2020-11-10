@@ -1166,7 +1166,7 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 	}
 	CompileResults.DumpDebugInfoPath = Input.DumpDebugInfoPath;
 
-	uint32 JobID = FShaderCommonCompileJob::GetNextJobId();
+	int32 JobID = FShaderCommonCompileJob::GetNextJobId();
 	CompilationJob = MakeUnique<FNiagaraCompilerJob>();
 	CompilationJob->TranslatorOutput = TranslatorOutput ? *TranslatorOutput : FNiagaraTranslatorOutput();
 
@@ -1205,21 +1205,17 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 		}
 		if (NiagaraShaderType)
 		{
-			TRefCountPtr<FShaderCompileJob> Job = GShaderCompilingManager->PrepareShaderCompileJob(JobID, FShaderCompileJobKey(NiagaraShaderType), EShaderCompileJobPriority::Normal);
-			if (Job)
+			TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> NewJobs;
+			CompilationJob->ShaderCompileJob = MakeShared<FShaderCompileJob, ESPMode::ThreadSafe>(JobID, nullptr, NiagaraShaderType, 0);
+			Input.ShaderFormat = FName(TEXT("VVM_1_0"));
+			if (GNiagaraSkipVectorVMBackendOptimizations != 0)
 			{
-				TArray<FShaderCommonCompileJobPtr> NewJobs;
-				CompilationJob->ShaderCompileJob = Job;
-				Input.ShaderFormat = FName(TEXT("VVM_1_0"));
-				if (GNiagaraSkipVectorVMBackendOptimizations != 0)
-				{
-					Input.Environment.CompilerFlags.Add(CFLAG_SkipOptimizations);
-				}
-				Job->Input = Input;
-				NewJobs.Add(FShaderCommonCompileJobPtr(Job));
-
-				GShaderCompilingManager->SubmitJobs(NewJobs, FString(), FString());
+				Input.Environment.CompilerFlags.Add(CFLAG_SkipOptimizations);
 			}
+			CompilationJob->ShaderCompileJob->Input = Input;
+			NewJobs.Add(StaticCastSharedPtr<FShaderCommonCompileJob>(CompilationJob->ShaderCompileJob).ToSharedRef());
+
+			GShaderCompilingManager->AddJobs(NewJobs, true, false, FString(), FString(), true);
 			bJobScheduled = true;
 		}
 	}

@@ -257,34 +257,16 @@ static void appNoop()
 {
 }
 
-// This should be left non static to allow *edge* cases only in Core to extern and set this.
-bool GShouldRequestExit = false;
-
-void CORE_API BeginExitIfRequested()
-{
-	if (UNLIKELY(GShouldRequestExit))
-	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		GIsRequestingExit = true;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-}
-
 void CORE_API RequestEngineExit(const TCHAR* ReasonString)
 {
 	ensureMsgf(ReasonString && FCString::Strlen(ReasonString) > 4, TEXT("RequestEngineExit must be given a valid reason (reason \"%s\""), ReasonString);
 
 	FGenericCrashContext::SetEngineExit(true);
 
-#if UE_SET_REQUEST_EXIT_ON_TICK_ONLY
-	UE_LOG(LogCore, Log, TEXT("Engine exit requested (reason: %s%s)"), ReasonString, GShouldRequestExit ? TEXT("; note: exit was already requested") : TEXT(""));
-	GShouldRequestExit = true;
-#else
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UE_LOG(LogCore, Log, TEXT("Engine exit requested (reason: %s%s)"), ReasonString, GIsRequestingExit ? TEXT("; note: exit was already requested") : TEXT(""));
 	GIsRequestingExit = true;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif // UE_SET_REQUEST_EXIT_ON_TICK_ONLY
 }
 
 void CORE_API RequestEngineExit(const FString& ReasonString)
@@ -664,6 +646,9 @@ DEFINE_STAT(STAT_TaskGraph_RenderStalls);
 
 DEFINE_STAT(STAT_TaskGraph_GameTasks);
 DEFINE_STAT(STAT_TaskGraph_GameStalls);
+
+DEFINE_STAT(STAT_FlushThreadedLogs);
+DEFINE_STAT(STAT_PumpMessages);
 
 DEFINE_STAT(STAT_CPUTimePct);
 DEFINE_STAT(STAT_CPUTimePctRelative);

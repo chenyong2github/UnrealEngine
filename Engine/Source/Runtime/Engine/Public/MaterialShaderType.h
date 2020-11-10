@@ -22,13 +22,11 @@
 		);
 
 class FMaterial;
-class FMaterialShaderMap;
 class FShaderCommonCompileJob;
 class FShaderCompileJob;
 class FUniformExpressionSet;
 class FVertexFactoryType;
 struct FMaterialShaderParameters;
-enum class EShaderCompileJobPriority : uint8;
 
 DECLARE_DELEGATE_RetVal_OneParam(FString, FShadingModelToStringDelegate, EMaterialShadingModel)
 
@@ -66,13 +64,13 @@ public:
 		const FString DebugDescription;
 
 		CompiledShaderInitializerType(
-			const FShaderType* InType,
+			FShaderType* InType,
 			int32 InPermutationId,
 			const FShaderCompilerOutput& CompilerOutput,
 			const FUniformExpressionSet& InUniformExpressionSet,
 			const FSHAHash& InMaterialShaderMapHash,
 			const FShaderPipelineType* InShaderPipeline,
-			const FVertexFactoryType* InVertexFactoryType,
+			FVertexFactoryType* InVertexFactoryType,
 			const FString& InDebugDescription
 			)
 		: FGlobalShaderType::CompiledShaderInitializerType(InType,InPermutationId,CompilerOutput,InMaterialShaderMapHash,InShaderPipeline,InVertexFactoryType)
@@ -114,28 +112,26 @@ public:
 	 * Enqueues a compilation for a new shader of this type.
 	 * @param Material - The material to link the shader with.
 	 */
-	void BeginCompileShader(
-		EShaderCompileJobPriority Priority,
+	class FShaderCompileJob* BeginCompileShader(
 		uint32 ShaderMapId,
 		int32 PermutationId,
 		const FMaterial* Material,
-		FSharedShaderCompilerEnvironment* MaterialEnvironment,
+		FShaderCompilerEnvironment* MaterialEnvironment,
+		const FShaderPipelineType* ShaderPipeline,
 		EShaderPlatform Platform,
-		EShaderPermutationFlags PermutationFlags,
-		TArray<TRefCountPtr<FShaderCommonCompileJob>>& NewJobs,
+		TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 		const FString& DebugDescription,
 		const FString& DebugExtension
-	) const;
+		);
 
 	static void BeginCompileShaderPipeline(
-		EShaderCompileJobPriority Priority,
 		uint32 ShaderMapId,
 		EShaderPlatform Platform,
-		EShaderPermutationFlags PermutationFlags,
 		const FMaterial* Material,
-		FSharedShaderCompilerEnvironment* MaterialEnvironment,
+		FShaderCompilerEnvironment* MaterialEnvironment,
 		const FShaderPipelineType* ShaderPipeline,
-		TArray<TRefCountPtr<FShaderCommonCompileJob>>& NewJobs,
+		const TArray<const FShaderType*>& ShaderStages,
+		TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 		const FString& DebugDescription,
 		const FString& DebugExtension
 	);
@@ -151,7 +147,7 @@ public:
 		const FShaderCompileJob& CurrentJob,
 		const FShaderPipelineType* ShaderPipeline,
 		const FString& InDebugDescription
-		) const;
+		);
 
 	/**
 	 * Checks if the shader type should be cached for a particular platform and material.
@@ -159,80 +155,15 @@ public:
 	 * @param Material - The material to check.
 	 * @return True if this shader type should be cached.
 	 */
-	bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, int32 PermutationId, EShaderPermutationFlags Flags) const;
+	bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, int32 PermutationId) const;
 
-	static bool ShouldCompilePipeline(const FShaderPipelineType* ShaderPipelineType, EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, EShaderPermutationFlags Flags);
+	static bool ShouldCompilePipeline(const FShaderPipelineType* ShaderPipelineType, EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters);
 
+protected:
 	/**
 	 * Sets up the environment used to compile an instance of this shader type.
 	 * @param Platform - Platform to compile for.
 	 * @param Environment - The shader compile environment that the function modifies.
 	 */
-	void SetupCompileEnvironment(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, int32 PermutationId, EShaderPermutationFlags Flags, FShaderCompilerEnvironment& Environment) const;
-};
-
-struct FMaterialShaderTypes
-{
-	const FShaderPipelineType* PipelineType;
-	const FShaderType* ShaderType[SF_NumGraphicsFrequencies];
-	int32 PermutationId[SF_NumGraphicsFrequencies];
-
-	inline FMaterialShaderTypes() : PipelineType(nullptr) { FMemory::Memzero(ShaderType); FMemory::Memzero(PermutationId); }
-
-	inline const FShaderType* AddShaderType(const FShaderType* InType, int32 InPermutationId = 0)
-	{
-		const EShaderFrequency Frequency = InType->GetFrequency();
-		check(ShaderType[Frequency] == nullptr);
-		ShaderType[Frequency] = InType;
-		PermutationId[Frequency] = InPermutationId;
-		return InType;
-	}
-
-	template<typename ShaderType>
-	inline const FShaderType* AddShaderType(int32 InPermutationId = 0)
-	{
-		return AddShaderType(&ShaderType::StaticType, InPermutationId);
-	}
-};
-
-struct FMaterialShaders
-{
-	const FShaderMapBase* ShaderMap;
-	FShaderPipeline* Pipeline;
-	FShader* Shaders[SF_NumGraphicsFrequencies];
-
-	inline FMaterialShaders() : ShaderMap(nullptr), Pipeline(nullptr) { FMemory::Memzero(Shaders); }
-
-	bool TryGetPipeline(FShaderPipelineRef& OutPipeline) const
-	{
-		if (Pipeline)
-		{
-			OutPipeline = FShaderPipelineRef(Pipeline, *ShaderMap);
-			return true;
-		}
-		return false;
-	}
-
-	template<typename ShaderType>
-	inline bool TryGetShader(EShaderFrequency InFrequency, TShaderRef<ShaderType>& OutShader) const
-	{
-		FShader* Shader = Shaders[InFrequency];
-		if (Shader)
-		{
-			checkSlow(Shader->GetFrequency() == InFrequency);
-			OutShader = TShaderRef<ShaderType>(static_cast<ShaderType*>(Shader), *ShaderMap);
-			// FTypeLayoutDesc::operator== doesn't work correctly in all cases, when dealing with inline/templated types
-			//checkfSlow(OutShader.GetType()->GetLayout().IsDerivedFrom(StaticGetTypeLayoutDesc<ShaderType>()), TEXT("Invalid cast of shader type '%s' to '%s'"),
-			//	OutShader.GetType()->GetName(),
-			//	StaticGetTypeLayoutDesc<ShaderType>().Name);
-			return true;
-		}
-		return false;
-	}
-
-	template<typename ShaderType> inline bool TryGetVertexShader(TShaderRef<ShaderType>& OutShader) const { return TryGetShader(SF_Vertex, OutShader); }
-	template<typename ShaderType> inline bool TryGetPixelShader(TShaderRef<ShaderType>& OutShader) const { return TryGetShader(SF_Pixel, OutShader); }
-	template<typename ShaderType> inline bool TryGetGeometryShader(TShaderRef<ShaderType>& OutShader) const { return TryGetShader(SF_Geometry, OutShader); }
-	template<typename ShaderType> inline bool TryGetHullShader(TShaderRef<ShaderType>& OutShader) const { return TryGetShader(SF_Hull, OutShader); }
-	template<typename ShaderType> inline bool TryGetDomainShader(TShaderRef<ShaderType>& OutShader) const { return TryGetShader(SF_Domain, OutShader); }
+	void SetupCompileEnvironment(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, int32 PermutationId, FShaderCompilerEnvironment& Environment);
 };

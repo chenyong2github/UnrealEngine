@@ -666,7 +666,7 @@ FUniformBufferRHIRef FOpenGLDynamicRHI::RHICreateUniformBuffer(const void* Conte
 					}
 					else
 					{
-						ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)(MoveTemp(CacheGLUniformBuffer));
+						ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)(CacheGLUniformBuffer);
 					}
 				}
 			}

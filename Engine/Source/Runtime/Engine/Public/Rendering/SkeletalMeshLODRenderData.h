@@ -145,15 +145,6 @@ public:
 	FByteBulkData BulkData;
 #endif
 
-#if RHI_RAYTRACING
-	/** Game thread reference counter of static skeletal mesh objects referencing this render data */
-	int32 NumReferencingStaticSkeletalMeshObjects = 0;
-	/** Same as NumReferencingStaticSkeletalMeshObjects, but on render thread to determine lifetime of resources in mesh streaming */
-	bool bReferencedByStaticSkeletalMeshObjects_RenderThread = false;
-	/** Static ray tracing geometry, only initialized when bRenderStatic = true on any skeletal mesh scene proxy*/
-	FRayTracingGeometry StaticRayTracingGeometry;
-#endif
-
 	/**
 	* Initialize the LOD's render resources.
 	*

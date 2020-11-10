@@ -209,11 +209,11 @@ struct TEntityBuilderImpl<TIntegerSequence<int, Indices...>, T...> : IEntityBuil
 
 	virtual void GenerateType(FEntityManager* EntityManager, FComponentMask& OutMask) override final
 	{
-		VisitTupleElements([&OutMask](auto& In){ In.AccumulateMask(OutMask); }, this->Payload);
 		if (bAddMutualComponents)
 		{
 			EntityManager->GetComponents()->Factories.ComputeMutuallyInclusiveComponents(OutMask);
 		}
+		VisitTupleElements([&OutMask](auto& In){ In.AccumulateMask(OutMask); }, this->Payload);
 	}
 
 	virtual void Initialize(FEntityManager* EntityManager, const FEntityInfo& Entity) override final

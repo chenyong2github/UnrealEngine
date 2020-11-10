@@ -105,7 +105,6 @@ public:
 		return NewEffectPtr;
 	}
 
-	// Creates a sound effect instance and initializes it
 	template <typename TInitData, typename TSoundEffectType>
 	static TSharedPtr<TSoundEffectType, ESPMode::ThreadSafe> CreateInstance(const TInitData& InInitData, USoundEffectPreset& InOutPreset)
 	{

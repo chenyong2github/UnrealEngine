@@ -24,7 +24,7 @@ void FMeshVertexPainter::PaintVerticesSingleColor(UStaticMeshComponent* StaticMe
 		StaticMeshComponent->RemoveInstanceVertexColorsFromLOD(LODIndex);
 		check(LODInfo.OverrideVertexColors == nullptr);
 
-		const FStaticMeshLODResources& LODModel = StaticMeshComponent->GetStaticMesh()->GetRenderData()->LODResources[LODIndex];
+		const FStaticMeshLODResources& LODModel = StaticMeshComponent->GetStaticMesh()->RenderData->LODResources[LODIndex];
 		const FPositionVertexBuffer& PositionVertexBuffer = LODModel.VertexBuffers.PositionVertexBuffer;
 		const uint32 NumVertices = PositionVertexBuffer.GetNumVertices();
 
@@ -65,7 +65,7 @@ void FMeshVertexPainter::PaintVerticesLerpAlongAxis(UStaticMeshComponent* Static
 		StaticMeshComponent->RemoveInstanceVertexColorsFromLOD(LODIndex);
 		check(LODInfo.OverrideVertexColors == nullptr);
 
-		const FStaticMeshLODResources& LODModel = StaticMeshComponent->GetStaticMesh()->GetRenderData()->LODResources[LODIndex];
+		const FStaticMeshLODResources& LODModel = StaticMeshComponent->GetStaticMesh()->RenderData->LODResources[LODIndex];
 		const FPositionVertexBuffer& PositionVertexBuffer = LODModel.VertexBuffers.PositionVertexBuffer;
 		const uint32 NumVertices = PositionVertexBuffer.GetNumVertices();
 

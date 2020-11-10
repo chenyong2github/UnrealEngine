@@ -2,7 +2,6 @@
 
 #include "OnlineUserCloudInterfaceIOS.h"
 #include "HAL/PlatformProcess.h"
-#include "Misc/ScopeLock.h"
 #include "PlatformFeatures.h"
 
 @implementation IOSCloudStorage

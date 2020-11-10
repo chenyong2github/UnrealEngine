@@ -18,13 +18,16 @@
 #include "Shader.h"
 #include "StaticParameterSet.h"
 #include "Templates/RefCounting.h"
-#include "OpenColorIOShaderCompilationManager.h"
+#include "ShaderCompiler.h"
+
+
 
 class FOpenColorIOTransformResource;
 class FOpenColorIOShaderMap;
 class FOpenColorIOPixelShader;
 class FOpenColorIOPixelShader_RDG;
 class FOpenColorIOShaderMapId;
+
 
 /** Stores outputs from the color transform compile that need to be saved. */
 class FOpenColorIOCompilationOutput
@@ -160,7 +163,7 @@ public:
 	OPENCOLORIO_API void Compile(
 		FOpenColorIOTransformResource* InColorTransform,
 		const FOpenColorIOShaderMapId& InShaderMapId,
-		TRefCountPtr<FSharedShaderCompilerEnvironment> InCompilationEnvironment,
+		TRefCountPtr<FShaderCompilerEnvironment> InCompilationEnvironment,
 		const FOpenColorIOCompilationOutput& InOpenColorIOCompilationOutput,
 		EShaderPlatform InPlatform,
 		bool bSynchronousCompile,
@@ -168,7 +171,7 @@ public:
 		);
 
 	/** Sorts the incoming compiled jobs into the appropriate OCIO shader maps, and finalizes this shader map so that it can be used for rendering. */
-	bool ProcessCompilationResults(const TArray<TSharedRef<FOpenColorIOShaderCompileJob, ESPMode::ThreadSafe>>& InCompilationResults, int32& InOutResultIndex, float& InOutTimeBudget);
+	bool ProcessCompilationResults(const TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& InCompilationResults, int32& InOutResultIndex, float& InOutTimeBudget);
 
 	/**
 	 * Checks whether the shader map is missing any shader types necessary for the given color transform.
@@ -193,6 +196,7 @@ public:
 
 	/** Registers a OpenColorIO shader map in the global map so it can be used by OpenColorIO ColorTransform. */
 	void Register(EShaderPlatform InShaderPlatform);
+
 	// Reference counting.
 	OPENCOLORIO_API  void AddRef();
 	OPENCOLORIO_API  void Release();
@@ -282,7 +286,7 @@ private:
 
 	uint32 bHasFrozenContent : 1;
 
-	FShader* ProcessCompilationResultsForSingleJob(FOpenColorIOShaderCompileJob& InSingleJob, const FSHAHash& InShaderMapHash);
+	FShader* ProcessCompilationResultsForSingleJob(FShaderCompileJob& InSingleJob, const FSHAHash& InShaderMapHash);
 
 	bool IsOpenColorIOShaderComplete(const FOpenColorIOTransformResource* InColorTransform, const FOpenColorIOShaderType* InShaderType, bool bSilent);
 

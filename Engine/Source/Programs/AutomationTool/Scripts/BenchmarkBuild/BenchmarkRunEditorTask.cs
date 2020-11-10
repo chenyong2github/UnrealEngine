@@ -87,6 +87,11 @@ namespace AutomationTool.Benchmark
 			string LogArg = string.Format("-log={0}.log", MakeValidFileName(GetFullTaskName()).Replace(" ", "_"));
 			string Arguments = string.Format("{0} {1} -execcmds=\"automation runtest System.Maps.PIE;Quit\" -stdout -FullStdOutLogOutput -unattended {2}", ProjectArg, EditorArgs, LogArg);
 
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoSharedDDC))
+			{
+				Arguments += (" -ddc=noshared");
+			}
+
 			if (!bIsWarming && TaskOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
 			{
 				Arguments += (" -noshaderddc");

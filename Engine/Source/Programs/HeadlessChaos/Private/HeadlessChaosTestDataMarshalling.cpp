@@ -11,9 +11,6 @@
 
 #include "Modules/ModuleManager.h"
 #include "Chaos/ChaosMarshallingManager.h"
-#include "Chaos/Framework/PhysicsSolverBase.h"
-#include "Chaos/PullPhysicsDataImp.h"
-#include "Chaos/Framework/ChaosResultsManager.h"
 
 namespace ChaosTest
 {
@@ -46,9 +43,6 @@ namespace ChaosTest
 		BuffersSeen.Empty();
 		InternalDt = ExternalDt * 0.5f;
 		//tick internal dt twice as fast, should only get data every other step
-#if 0
-		//sub-stepping not supported yet
-		//TODO: fix this
 		for(int Step = 0; Step < 10; ++Step)
 		{
 			const auto DataWritten = Manager.GetProducerData_External();
@@ -71,7 +65,6 @@ namespace ChaosTest
 				}
 			}
 		}
-#endif
 
 		BuffersSeen.Empty();
 		InternalDt = ExternalDt * 2;
@@ -105,53 +98,37 @@ namespace ChaosTest
 		
 		int Count = 0;
 		float Time = 0;
-		const float Dt = 1 / 30.f;
-
-		struct FDummyInt : public FSimCallbackInput
+		FSimCallbackHandle* Callback = &Solver->RegisterSimCallback([&Count, &Time](const TArray<FSimCallbackData*>& Data)
 		{
-			void Reset() {}
-			int32 Data;
-		};
+			EXPECT_EQ(Data.Num(),1);
+			EXPECT_EQ(Data[0]->Data.Int, Count);
+			++Count;
+			EXPECT_EQ(Time,Data[0]->GetStartTime());
+		});
 
-		struct FCallback : public TSimCallbackObject<FDummyInt>
-		{
-			virtual FSimCallbackOutput* OnPreSimulate_Internal(const float StartTime, const float DeltaTime, const TArrayView<const FSimCallbackInput*>& Inputs) override
-			{
-				EXPECT_EQ(1 / 30.f, DeltaTime);
-				EXPECT_EQ(Inputs.Num(), 1);
-				EXPECT_EQ(static_cast<const FDummyInt*>(Inputs[0])->Data, *CountPtr);
-				++(*CountPtr);
-				EXPECT_EQ(*Time, Inputs[0]->GetExternalTime());
-				return nullptr;
-			}
-
-			mutable int32* CountPtr;	//mutable because callback shouldn't have side effects, but for testing this is the easiest way
-			float* Time;
-		};
-
-		FCallback* Callback = Solver->CreateAndRegisterSimCallbackObject_External<FCallback>();
-		Callback->CountPtr = &Count;
-		Callback->Time = &Time;
-
+		const float Dt = 1/30.f;
 
 		for(int Step = 0; Step < 10; ++Step)
 		{
-			Callback->GetProducerInputData_External()->Data = Step;
-			
+			Solver->FindOrCreateCallbackProducerData(*Callback).Data.Int = Step;
 			Solver->AdvanceAndDispatch_External(Dt);
-			Solver->UpdateGameThreadStructures();
 			Time += Dt;
+
+			Solver->BufferPhysicsResults();
+			Solver->FlipBuffers();
 		}
 		
 		EXPECT_EQ(Count,10);
 
-		Solver->UnregisterAndFreeSimCallbackObject_External(Callback);
+		Solver->UnregisterSimCallback(*Callback);
 
 		for(int Step = 0; Step < 10; ++Step)
 		{
 			Solver->AdvanceAndDispatch_External(Dt);
-			Solver->UpdateGameThreadStructures();
 			Time += Dt;
+
+			Solver->BufferPhysicsResults();
+			Solver->FlipBuffers();
 		}
 
 		EXPECT_EQ(Count,10);
@@ -177,123 +154,12 @@ namespace ChaosTest
 			});
 
 			Solver->AdvanceAndDispatch_External(1/30.f);
-			Solver->UpdateGameThreadStructures();
+
+			Solver->BufferPhysicsResults();
+			Solver->FlipBuffers();
 		}
 
 		EXPECT_EQ(Count,11);
 
 	}
-
-	GTEST_TEST(DataMarshalling, InterpolatedPullData)
-	{
-		{
-			FChaosMarshallingManager MarshallingManager;
-			FChaosResultsManager ResultsManager;
-
-			const float ExternalDt = 1 / 30.f;
-			float ExternalTime = 0;
-
-			for (int Step = 0; Step < 10; ++Step)
-			{
-				const float StartTime = ExternalTime;	//external time we would have kicked the sim task off with
-				ExternalTime += ExternalDt;
-				MarshallingManager.FinalizePullData_Internal(Step, StartTime, ExternalDt);
-				//in sync mode the external time we pass in doesn't matter
-				FPullPhysicsData* Next = ResultsManager.PullSyncPhysicsResults_External(MarshallingManager);
-				EXPECT_EQ(Next->ExternalStartTime, StartTime);
-			}
-		}
-		{
-			FChaosMarshallingManager MarshallingManager;
-			FChaosResultsManager ResultsManager;
-
-			const float ExternalDt = 1 / 30.f;
-			float ExternalTime = 0;
-
-			for (int Step = 0; Step < 10; ++Step)
-			{
-				const float StartTime = ExternalTime;	//external time we would have kicked the sim task off with
-				ExternalTime += ExternalDt;
-				MarshallingManager.FinalizePullData_Internal(Step, StartTime, ExternalDt);
-				const FChaosInterpolationResults& Results = ResultsManager.PullAsyncPhysicsResults_External(MarshallingManager, ExternalTime);
-				EXPECT_EQ(Results.Alpha, 1);	//async mode but no buffer so no interpolation
-				EXPECT_EQ(Results.Next->ExternalStartTime, StartTime);	//async mode but no buffer so should appear the same as sync
-			}
-		}
-
-		{
-			FChaosMarshallingManager MarshallingManager;
-			FChaosResultsManager ResultsManager;
-
-			float PreTime;
-			const float ExternalDt = 1 / 30.f;
-			float ExternalTime = 0;
-			const float Delay = ExternalDt * 2 + 1e-2;
-
-			for (int Step = 0; Step < 10; ++Step)
-			{
-				const float StartTime = ExternalTime;	//external time we would have kicked the sim task off with
-				ExternalTime += ExternalDt;
-				const float RenderTime = ExternalTime - Delay;
-				MarshallingManager.FinalizePullData_Internal(Step, StartTime, ExternalDt);
-				FChaosInterpolationResults Results = ResultsManager.PullAsyncPhysicsResults_External(MarshallingManager, RenderTime);
-				if(RenderTime < 0)
-				{
-					EXPECT_LT(Step, 2);	//first two frames treat as sync mode since we don't have enough delay
-					EXPECT_EQ(Results.Alpha, 1);
-					EXPECT_EQ(Results.Next, nullptr);
-				}
-				else
-				{
-					//after first two frames we have enough to interpolate
-					EXPECT_GE(Step, 2);
-					EXPECT_GT(Results.Next->ExternalEndTime, RenderTime);
-				}
-
-				PreTime = StartTime;
-			}
-		}
-
-		{
-			FChaosMarshallingManager MarshallingManager;
-			FChaosResultsManager ResultsManager;
-
-			float PreTime;
-			const float ExternalDt = 1 / 30.f;
-			float ExternalTime = 0;
-			const float Delay = ExternalDt * 2 + 1e-2;
-
-			int InnerStepTotal = 0;
-			for (int Step = 0; Step < 10; ++Step)
-			{
-				const float StartTime = ExternalTime;	//external time we would have kicked the sim task off with
-				ExternalTime += ExternalDt;
-				const float RenderTime = ExternalTime - Delay;
-
-				//even if we have multiple smaller results, interpolate as needed
-				const float InnerDt = ExternalDt / 3.f;
-				for(int InnerStep = 0; InnerStep < 3; ++InnerStep)
-				{
-					MarshallingManager.FinalizePullData_Internal(InnerStepTotal++, StartTime + InnerDt * InnerStep, InnerDt);
-				}
-
-				FChaosInterpolationResults Results = ResultsManager.PullAsyncPhysicsResults_External(MarshallingManager, RenderTime);
-				if (RenderTime < 0)
-				{
-					EXPECT_LT(Step, 2);	//first two frames treat as sync mode since we don't have enough delay
-					EXPECT_EQ(Results.Alpha, 1);
-					EXPECT_EQ(Results.Next, nullptr);	//until we have enough results we just use the first result
-				}
-				else
-				{
-					//after first two frames we have enough to interpolate
-					EXPECT_GE(Step, 2);
-					EXPECT_GT(Results.Next->ExternalEndTime, RenderTime);
-				}
-
-				PreTime = StartTime;
-			}
-		}
-	}
-
 }

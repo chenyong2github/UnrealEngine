@@ -333,7 +333,7 @@ namespace Gauntlet
 		/// <returns></returns>
 		public bool HasRequestExit()
 		{
-			string[] Completion = GetAllMatchingLines("F[a-zA-Z0-9]+::RequestExit");
+			string[] Completion = GetAllMatchingLines("F.+::RequestExit");
 			string[] ErrorCompletion = GetAllMatchingLines("StaticShutdownAfterError");
 
 			return Completion.Length > 0 && ErrorCompletion.Length == 0;

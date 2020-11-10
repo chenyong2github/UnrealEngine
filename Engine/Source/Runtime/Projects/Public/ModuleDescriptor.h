@@ -191,14 +191,8 @@ struct PROJECTS_API FModuleDescriptor
 	/** Writes a descriptor to JSON */
 	void Write(TJsonWriter<>& Writer) const;
 
-	/** Updates the given json object with values in this descriptor */
-	void UpdateJson(FJsonObject& JsonObject) const;
-
 	/** Writes an array of modules to JSON */
-	static void WriteArray(TJsonWriter<>& Writer, const TCHAR* ArrayName, const TArray<FModuleDescriptor>& Modules);
-
-	/** Updates an array of module descriptors in the specified JSON field (indexed by module name) */
-	static void UpdateArray(FJsonObject& JsonObject, const TCHAR* ArrayName, const TArray<FModuleDescriptor>& Modules);
+	static void WriteArray(TJsonWriter<>& Writer, const TCHAR* Name, const TArray<FModuleDescriptor>& Modules);
 
 	/** Tests whether the module should be built for the given target */
 	bool IsCompiledInConfiguration(const FString& Platform, EBuildConfiguration Configuration, const FString& TargetName, EBuildTargetType TargetType, bool bBuildDeveloperTools, bool bBuildRequiresCookedData) const;

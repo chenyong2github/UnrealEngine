@@ -52,10 +52,10 @@ static void GetStaticLightingVertex(
 /** Initialization constructor. */
 FStaticMeshStaticLightingMesh::FStaticMeshStaticLightingMesh(const UStaticMeshComponent* InPrimitive,int32 InLODIndex,const TArray<ULightComponent*>& InRelevantLights):
 	FStaticLightingMesh(
-		InPrimitive->GetStaticMesh()->GetRenderData()->LODResources[InLODIndex].GetNumTriangles(),
-		InPrimitive->GetStaticMesh()->GetRenderData()->LODResources[InLODIndex].GetNumTriangles(),
-		InPrimitive->GetStaticMesh()->GetRenderData()->LODResources[InLODIndex].GetNumVertices(),
-		InPrimitive->GetStaticMesh()->GetRenderData()->LODResources[InLODIndex].GetNumVertices(),
+		InPrimitive->GetStaticMesh()->RenderData->LODResources[InLODIndex].GetNumTriangles(),
+		InPrimitive->GetStaticMesh()->RenderData->LODResources[InLODIndex].GetNumTriangles(),
+		InPrimitive->GetStaticMesh()->RenderData->LODResources[InLODIndex].GetNumVertices(),
+		InPrimitive->GetStaticMesh()->RenderData->LODResources[InLODIndex].GetNumVertices(),
 		0,
 		!!(InPrimitive->CastShadow | InPrimitive->bCastHiddenShadow),
 		false,
@@ -67,7 +67,7 @@ FStaticMeshStaticLightingMesh::FStaticMeshStaticLightingMesh(const UStaticMeshCo
 	LODIndex(InLODIndex),
 	StaticMesh(InPrimitive->GetStaticMesh()),
 	Primitive(InPrimitive),
-	LODRenderData(InPrimitive->GetStaticMesh()->GetRenderData()->LODResources[InLODIndex]),
+	LODRenderData(InPrimitive->GetStaticMesh()->RenderData->LODResources[InLODIndex]),
 	bReverseWinding(InPrimitive->GetComponentTransform().GetDeterminant() < 0.0f)
 {
 	LODIndexBuffer = LODRenderData.IndexBuffer.GetArrayView();
@@ -319,10 +319,10 @@ void UStaticMeshComponent::GetStaticLightingInfo(FStaticLightingPrimitiveInfo& O
 
 		TArray<FStaticMeshStaticLightingMesh*> StaticLightingMeshes;
 		bool bCanLODsShareStaticLighting = GetStaticMesh()->CanLODsShareStaticLighting();
-		int32 NumLODs = bCanLODsShareStaticLighting ? 1 : GetStaticMesh()->GetRenderData()->LODResources.Num();
+		int32 NumLODs = bCanLODsShareStaticLighting ? 1 : GetStaticMesh()->RenderData->LODResources.Num();
 		for(int32 LODIndex = 0;LODIndex < NumLODs;LODIndex++)
 		{
-			const FStaticMeshLODResources& LODRenderData = GetStaticMesh()->GetRenderData()->LODResources[LODIndex];
+			const FStaticMeshLODResources& LODRenderData = GetStaticMesh()->RenderData->LODResources[LODIndex];
 			// Figure out whether we are storing the lighting/ shadowing information in a texture or vertex buffer.
 			bool bValidTextureMap;
 			if( (BaseLightMapWidth > 0) && (BaseLightMapHeight > 0) 
@@ -399,9 +399,9 @@ ELightMapInteractionType UStaticMeshComponent::GetStaticLightingType() const
 		else
 		{
 			// Process each LOD separately.
-			for(int32 LODIndex = 0;LODIndex < GetStaticMesh()->GetRenderData()->LODResources.Num();LODIndex++)
+			for(int32 LODIndex = 0;LODIndex < GetStaticMesh()->RenderData->LODResources.Num();LODIndex++)
 			{
-				const FStaticMeshLODResources& LODRenderData = GetStaticMesh()->GetRenderData()->LODResources[LODIndex];
+				const FStaticMeshLODResources& LODRenderData = GetStaticMesh()->RenderData->LODResources[LODIndex];
 
 				// Figure out whether we are storing the lighting/ shadowing information in a texture or vertex buffer.
 				int32		LightMapWidth	= 0;

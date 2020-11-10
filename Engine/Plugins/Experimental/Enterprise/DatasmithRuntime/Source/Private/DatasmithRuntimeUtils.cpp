@@ -187,13 +187,13 @@ namespace DatasmithRuntime
 #if WITH_EDITORONLY_DATA
 			StaticMesh->bCustomizedCollision = true;
 #endif
-			if (!ensure(StaticMesh->GetBodySetup()))
+			if (!ensure(StaticMesh->BodySetup))
 			{
 				return;
 			}
 
 			// Convex elements must be removed first since the re-import process uses the same flow
-			FKAggregateGeom& AggGeom = StaticMesh->GetBodySetup()->AggGeom;
+			FKAggregateGeom& AggGeom = StaticMesh->BodySetup->AggGeom;
 			AggGeom.ConvexElems.Reset();
 			FKConvexElem& ConvexElem = AggGeom.ConvexElems.AddDefaulted_GetRef();
 

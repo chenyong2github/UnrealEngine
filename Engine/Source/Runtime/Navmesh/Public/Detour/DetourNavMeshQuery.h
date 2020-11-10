@@ -424,7 +424,7 @@ public:
 	///  @param[out]	resultParent	The reference ids of the parent polygons for each result. 
 	///  								Zero if a result polygon has no parent. [opt]
 	///  @param[out]	resultCost		The search cost from @p centerPos to the polygon. [opt]
-	///  @param[out]	resultCount		The number of polygons found.
+	///  @param[out]	resultCount		The number of polygons found. [opt]
 	///  @param[in]		maxResult		The maximum number of polygons the result arrays can hold.
 	/// @returns The status flags for the query.
 	dtStatus findPolysAroundCircle(dtPolyRef startRef, const float* centerPos, const float radius,
@@ -749,11 +749,12 @@ public:
 	dtStatus getEdgeMidPoint(dtPolyRef from, const dtPoly* fromPoly, const dtMeshTile* fromTile,
 							 dtPolyRef to, const dtPoly* toPoly, const dtMeshTile* toTile,
 							 float* mid) const;
+private:
 	//@UE4 END
 
 	// Appends vertex to a straight path
 	dtStatus appendVertex(const float* pos, const unsigned char flags, const dtPolyRef ref,
-						  dtQueryResult& result, const bool bOverrideIdenticalPosition = true) const;
+						  dtQueryResult& result) const;
 
 	// Appends intermediate portal points to a straight path.
 	dtStatus appendPortals(const int startIdx, const int endIdx, const float* endPos, const dtPolyRef* path,
@@ -774,7 +775,6 @@ public:
 			&& m_linkFilter->isLinkAllowed(tile->offMeshCons[linkIdx].userId) == false);
 	}
 
-private:
 	const dtNavMesh* m_nav;							///< Pointer to navmesh data.
 	dtQuerySpecialLinkFilter* m_linkFilter;			///< Pointer to optional special link filter
 

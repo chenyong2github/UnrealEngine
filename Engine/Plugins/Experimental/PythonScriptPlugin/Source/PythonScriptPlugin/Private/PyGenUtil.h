@@ -1008,11 +1008,8 @@ namespace PyGenUtil
 	/** Given a property and its default value, convert it into something that could be used in a Python script */
 	FString PythonizeDefaultValue(const FProperty* InProp, const FString& InDefaultValue, const uint32 InFlags = EPythonizeValueFlags::None);
 
-	/** Get the type that should be used with the Python type registry for an asset (eg, a Blueprint asset should use its generated class) */
-	const UObject* GetAssetTypeRegistryType(const UObject* InObj);
-
-	/** Get the name that should be used with the Python type registry for an asset (this uses the package path name, as assets may not have unique names) */
-	FName GetAssetTypeRegistryName(const UObject* InObj);
+	/** Get the type that should be used with the Python type registry (eg, a Blueprint asset should use its generated class) */
+	const UObject* GetTypeRegistryType(const UObject* InObj);
 
 	/** Get the name that should be used by the given class when registered with the Python type registry */
 	FName GetTypeRegistryName(const UClass* InClass);

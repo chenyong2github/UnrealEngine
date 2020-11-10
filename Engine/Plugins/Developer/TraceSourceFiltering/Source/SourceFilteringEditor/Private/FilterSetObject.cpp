@@ -22,8 +22,8 @@
 
 FFilterSetObject::FFilterSetObject(IDataSourceFilterSetInterface& InFilterSet, IDataSourceFilterInterface& InFilter, const TArray<TSharedPtr<IFilterObject>>& InChildFilters, TSharedRef<ISessionSourceFilterService> InSessionFilterService) : ChildFilters(InChildFilters), SessionFilterService(InSessionFilterService), FilterSetModeEnumPtr(FindObject<UEnum>(ANY_PACKAGE, TEXT("EFilterSetMode"), true))
 {
-	WeakFilter = &InFilter;
-	WeakFilterSet = &InFilterSet;
+	WeakFilter = InFilter;
+	WeakFilterSet = InFilterSet;
 }
 
 FText FFilterSetObject::GetDisplayText() const

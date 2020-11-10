@@ -96,11 +96,6 @@ struct FMovieSceneObjectBindingID
 	 */
 	MOVIESCENE_API FMovieSceneObjectBindingID ResolveLocalToRoot(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player) const;
 
-	/**
-	 * Attempt to reinterpret this binding ID so that it is local to the specified sequence ID. Ineffectual if this binding is Space == Root
-	 */
-	MOVIESCENE_API void TryAndMakeLocalTo(FMovieSceneSequenceID MakeRelativeTo, IMovieScenePlayer& Player);
-
 public:
 
 	friend uint32 GetTypeHash(const FMovieSceneObjectBindingID& A)

@@ -4562,12 +4562,12 @@ int32 FHLSLMaterialTranslator::TextureSample(
 	}
 
 	const FString UVs = CoerceParameter(CoordinateIndex, UVsType);
-	const bool bStoreTexCoordScales = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE;
-	const bool bStoreAvailableVTLevel = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE;
+	const bool bStoreTexCoordScales = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE && Material && Material->GetShaderMapUsage() == EMaterialShaderMapUsage::DebugViewMode;
+	const bool bStoreAvailableVTLevel = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE && Material && Material->GetShaderMapUsage() == EMaterialShaderMapUsage::DebugViewMode;
 
 	if (bStoreTexCoordScales)
 	{
-		AddCodeChunk(MCT_Float, TEXT("MaterialStoreTexCoordScale(Parameters, %s, %d)"), *UVs, (int)TextureReferenceIndex);
+		AddCodeChunk(MCT_Float, TEXT("StoreTexCoordScale(Parameters.TexCoordScalesParams, %s, %d)"), *UVs, (int)TextureReferenceIndex);
 	}
 
 	int32 VTStackIndex = INDEX_NONE;
@@ -4693,7 +4693,7 @@ int32 FHLSLMaterialTranslator::TextureSample(
 	if (bStoreTexCoordScales)
 	{
 		FString SamplingCode = CoerceParameter(SamplingCodeIndex, MCT_Float4);
-		AddCodeChunk(MCT_Float, TEXT("MaterialStoreTexSample(Parameters, %s, %d)"), *SamplingCode, (int)TextureReferenceIndex);
+		AddCodeChunk(MCT_Float, TEXT("StoreTexSample(Parameters.TexCoordScalesParams, %s, %d)"), *SamplingCode, (int)TextureReferenceIndex);
 	}
 
 	return SamplingCodeIndex;
@@ -6563,7 +6563,6 @@ int32 FHLSLMaterialTranslator::ShadowReplace(int32 Default, int32 Shadow)
 	return AddCodeChunk(ResultType, TEXT("(GetShadowReplaceState() ? (%s) : (%s))"), *GetParameterCode(Shadow), *GetParameterCode(Default));
 }
 
-
 int32 FHLSLMaterialTranslator::ReflectionCapturePassSwitch(int32 Default, int32 Reflection)
 {
 	if (Default == INDEX_NONE || Reflection == INDEX_NONE)
@@ -6965,43 +6964,6 @@ int32 FHLSLMaterialTranslator::DistanceFieldGradient(int32 PositionArg)
 	MaterialCompilationOutput.bUsesGlobalDistanceField = true;
 
 	return AddCodeChunk(MCT_Float3, TEXT("GetDistanceFieldGradientGlobal(%s)"), *GetParameterCode(PositionArg));
-}
-
-int32 FHLSLMaterialTranslator::SamplePhysicsField(int32 PositionArg, const int32 OutputType, const int32 TargetIndex)
-{
-	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-
-	if (PositionArg == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-
-	if (TargetIndex != INDEX_NONE)
-	{
-		if (OutputType == EFieldOutputType::Field_Output_Vector)
-		{
-			return AddCodeChunk(MCT_Float3, TEXT("MatPhysicsField_SamplePhysicsVectorField(%s,%d)"), *GetParameterCode(PositionArg), static_cast<uint8>(TargetIndex));
-		}
-		else if (OutputType == EFieldOutputType::Field_Output_Scalar)
-		{
-			return AddCodeChunk(MCT_Float, TEXT("MatPhysicsField_SamplePhysicsScalarField(%s,%d)"), *GetParameterCode(PositionArg), static_cast<uint8>(TargetIndex));
-		}
-		else if (OutputType == EFieldOutputType::Field_Output_Integer)
-		{
-			return AddCodeChunk(MCT_Float, TEXT("MatPhysicsField_SamplePhysicsIntegerField(%s,%d)"), *GetParameterCode(PositionArg), static_cast<uint8>(TargetIndex));
-		}
-		else
-		{
-			return INDEX_NONE;
-		}
-	}
-	else
-	{
-		return INDEX_NONE;
-	}
 }
 
 int32 FHLSLMaterialTranslator::AtmosphericFogColor( int32 WorldPosition )

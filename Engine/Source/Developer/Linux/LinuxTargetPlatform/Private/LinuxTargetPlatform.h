@@ -56,7 +56,7 @@ public:
 #endif
 
 #if WITH_ENGINE
-		FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *this->IniPlatformName());
+		FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *this->PlatformName());
 		TextureLODSettings = nullptr;
 		StaticMeshLODSettings.Initialize(EngineSettings);
 

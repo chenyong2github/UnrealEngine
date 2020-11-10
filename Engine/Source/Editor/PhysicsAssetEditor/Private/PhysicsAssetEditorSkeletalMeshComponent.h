@@ -78,9 +78,6 @@ class UPhysicsAssetEditorSkeletalMeshComponent : public UDebugSkelMeshComponent
 	virtual void UpdateHandleTransform(const FTransform& NewTransform);
 	virtual void UpdateDriveSettings(bool bLinearSoft, float LinearStiffness, float LinearDamping);
 
-	/** Sim setup */
-	virtual void CreateSimulationFloor(FBodyInstance* FloorBodyInstance, const FTransform& Transform);
-
 public:
 	virtual bool CanOverrideCollisionProfile() const override { return false;  }
 };

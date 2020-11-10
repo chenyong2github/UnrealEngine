@@ -36,11 +36,18 @@
 /**
  * Class for rendering the material on the preview mesh in the Material Editor
  */
-class FPreviewMaterial : public FMaterialResource
+class FPreviewMaterial : public FMaterialResource, public FMaterialRenderProxy
 {
 public:
-	virtual ~FPreviewMaterial()
+	FPreviewMaterial()
+	:	FMaterialResource()
 	{
+	}
+	
+	~FPreviewMaterial()
+	{
+		BeginReleaseResource(this);
+		FlushRenderingCommands();
 	}
 
 	/**
@@ -53,7 +60,7 @@ public:
 	 *
 	 * @return true if the shader should be compiled
 	 */
-	virtual bool ShouldCache(EShaderPlatform Platform, const FShaderType* ShaderType, const FVertexFactoryType* VertexFactoryType) const override
+	virtual bool ShouldCache(EShaderPlatform Platform, const FShaderType* ShaderType, const FVertexFactoryType* VertexFactoryType) const
 	{
 		// only generate the needed shaders (which should be very restrictive for fast recompiling during editing)
 		// @todo: Add a FindShaderType by fname or something
@@ -219,7 +226,41 @@ public:
 	/**
 	 * Should shaders compiled for this material be saved to disk?
 	 */
-	virtual bool IsPersistent() const override { return false; }
+	virtual bool IsPersistent() const { return false; }
+
+	// FMaterialRenderProxy interface
+	virtual const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type FeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const override
+	{
+		if(GetRenderingThreadShaderMap())
+		{
+			return *this;
+		}
+		else
+		{
+			OutFallbackMaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+			return OutFallbackMaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, OutFallbackMaterialRenderProxy);
+		}
+	}
+
+	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const
+	{
+		return Material->GetRenderProxy()->GetVectorValue(ParameterInfo, OutValue, Context);
+	}
+
+	virtual bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const
+	{
+		return Material->GetRenderProxy()->GetScalarValue(ParameterInfo, OutValue, Context);
+	}
+
+	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const
+	{
+		return Material->GetRenderProxy()->GetTextureValue(ParameterInfo,OutValue,Context);
+	}
+
+	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
+	{
+		return Material->GetRenderProxy()->GetTextureValue(ParameterInfo, OutValue, Context);
+	}
 };
 
 /** Implementation of Preview Material functions*/
@@ -304,9 +345,6 @@ void UMaterialEditorPreviewParameters::RegenerateArrays()
 	ParameterGroups.Empty();
 	if (PreviewMaterial)
 	{
-		// This can run before UMaterial::PostEditChangeProperty has a chance to run, so explicitly call UpdateCachedExpressionData here
-		PreviewMaterial->UpdateCachedExpressionData();
-
 		// Only operate on base materials
 		UMaterial* ParentMaterial = PreviewMaterial;
 

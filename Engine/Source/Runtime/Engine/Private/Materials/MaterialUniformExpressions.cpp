@@ -85,9 +85,6 @@ static void GetTextureParameterValue(const FHashedMaterialParameterInfo& Paramet
 		UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
 		if (!Interface || !Interface->GetTextureParameterDefaultValue(ParameterInfo, Value))
 		{
-		}
-		else
-		{
 			Value = GetIndexedTexture<UTexture>(Context.Material, TextureIndex);
 		}
 
@@ -107,31 +104,6 @@ static void GetTextureParameterValue(const FHashedMaterialParameterInfo& Paramet
 
 		UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
 		if (!Interface || !Interface->GetRuntimeVirtualTextureParameterDefaultValue(ParameterInfo, Value))
-		}
-
-		OutValue = Value;
-	}
-}
-
-static void GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32 TextureIndex, const FMaterialRenderContext& Context, const URuntimeVirtualTexture*& OutValue)
-{
-	if (ParameterInfo.Name.IsNone())
-	{
-		OutValue = GetIndexedTexture<URuntimeVirtualTexture>(Context.Material, TextureIndex);
-	}
-	else if (!Context.MaterialRenderProxy || !Context.MaterialRenderProxy->GetTextureValue(ParameterInfo, &OutValue, Context))
-	{
-		URuntimeVirtualTexture* Value = nullptr;
-
-		if (AreExperimentalMaterialLayersEnabled())
-		{
-			UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
-			if (!Interface || !Interface->GetRuntimeVirtualTextureParameterDefaultValue(ParameterInfo, Value))
-			{
-				Value = GetIndexedTexture<URuntimeVirtualTexture>(Context.Material, TextureIndex);
-			}
-		}
-		else
 		{
 			Value = GetIndexedTexture<URuntimeVirtualTexture>(Context.Material, TextureIndex);
 		}
@@ -1104,8 +1076,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 
 	if (UniformBufferLayout.ConstantBufferSize > 0)
 	{
-		// stat disabled by default due to low-value/high-frequency
-		//QUICK_SCOPE_CYCLE_COUNTER(STAT_FUniformExpressionSet_FillUniformBuffer);
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FUniformExpressionSet_FillUniformBuffer);
 
 		void* BufferCursor = TempBuffer;
 		check(BufferCursor <= TempBuffer + TempBufferSize);

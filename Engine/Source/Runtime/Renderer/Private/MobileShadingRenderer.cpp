@@ -134,14 +134,15 @@ static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 				FMaterialRenderProxy* Proxy = DataPtr->GetMaterialInterface()->GetRenderProxy();
 				check(Proxy);
 
-				const FMaterial& Material = Proxy->GetIncompleteMaterialWithFallback(View.GetFeatureLevel());
-				if (Material.IsStencilTestEnabled())
+				const FMaterial* Material = Proxy->GetMaterial(View.GetFeatureLevel());
+				check(Material);
+				if (Material->IsStencilTestEnabled())
 				{
 					bUsesCustomDepthStencil = true;
 					break;
 				}
 
-				const FMaterialShaderMap* MaterialShaderMap = Material.GetRenderingThreadShaderMap();
+				const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
 				if (MaterialShaderMap->UsesSceneTexture(PPI_CustomDepth) || MaterialShaderMap->UsesSceneTexture(PPI_CustomStencil))
 				{
 					bUsesCustomDepthStencil = true;

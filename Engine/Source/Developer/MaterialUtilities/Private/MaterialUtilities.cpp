@@ -490,18 +490,17 @@ public:
 
 	////////////////
 	// FMaterialRenderProxy interface.
-	virtual const FMaterial* GetMaterialNoFallback(ERHIFeatureLevel::Type InFeatureLevel) const override
+	virtual const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type FeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const override
 	{
-		if (GetRenderingThreadShaderMap())
+		if(GetRenderingThreadShaderMap())
 		{
-			return this;
+			return *this;
 		}
-		return nullptr;
-	}
-
-	virtual const FMaterialRenderProxy* GetFallback(ERHIFeatureLevel::Type InFeatureLevel) const override
-	{
-		return UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+		else
+		{
+			OutFallbackMaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+			return OutFallbackMaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, OutFallbackMaterialRenderProxy);
+		}
 	}
 
 	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override

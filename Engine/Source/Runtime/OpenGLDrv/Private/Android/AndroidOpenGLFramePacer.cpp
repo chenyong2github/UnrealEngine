@@ -13,9 +13,9 @@
 #if USE_ANDROID_OPENGL_SWAPPY
 #include "Android/AndroidJNI.h"
 #include "Android/AndroidApplication.h"
-#include "swappy/swappyGL.h"
-#include "swappy/swappyGL_extra.h"
-#include "swappy/swappy_common.h"
+#include "swappyGL.h"
+#include "swappyGL_extra.h"
+#include "swappy_common.h"
 #endif
 
 #include "AndroidEGL.h"
@@ -53,7 +53,7 @@ void FAndroidOpenGLFramePacer::InitSwappy()
 		JNIEnv* Env = FAndroidApplication::GetJavaEnv();
 		if (ensure(Env))
 		{
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Init Swappy: version %d"), Swappy_version());
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Init Swappy"));
 			SwappyGL_init(Env, FJavaWrapper::GameActivityThis);
 		}
 		bSwappyInit = true;
@@ -99,7 +99,7 @@ bool ShouldUseGPUFencesToLimitLatency()
 	return FAndroidPlatformRHIFramePacer::CVarDisableOpenGLGPUSync.GetValueOnAnyThread() == 0; // otherwise just based on the FAndroidPlatformRHIFramePacer::CVar; thought to be bad to use GPU fences on PowerVR
 }
 
-static uint32 NextFrameIDSlot = 1;
+static uint32 NextFrameIDSlot = 0;
 #define NUM_FRAMES_TO_MONITOR (4)
 static EGLuint64KHR FrameIDs[NUM_FRAMES_TO_MONITOR] = { 0 };
 
@@ -113,14 +113,23 @@ bool FAndroidOpenGLFramePacer::SupportsFramePaceInternal(int32 QueryFramePace, i
 #if USE_ANDROID_OPENGL_SWAPPY
 	if (FAndroidPlatformRHIFramePacer::CVarUseSwappyForFramePacing.GetValueOnAnyThread() == 1)
 	{
-		TArray<int32> RefreshRates = FAndroidMisc::GetSupportedNativeDisplayRefreshRates();
-		RefreshRates.Sort();
-		FString RefreshRatesString;
-		for (int32 Rate : RefreshRates)
+		int NumRates = Swappy_getSupportedRefreshRates(nullptr, 0);
+		TArray<uint64> RefreshRatesNs;
+		RefreshRatesNs.AddZeroed(NumRates);
+		Swappy_getSupportedRefreshRates((uint64_t*)RefreshRatesNs.GetData(), NumRates);
+		TArray<int32> RefreshRates;
+		RefreshRates.Empty(NumRates);
+		FString DebugString = TEXT("Supported Refresh Rates:");
+		for (uint64 RateNs : RefreshRatesNs)
 		{
-			RefreshRatesString += FString::Printf(TEXT(" %d"), Rate);
+			if (RateNs > 0)
+			{
+				int32 RefreshRate = FMath::DivideAndRoundNearest(1000000000ull, RateNs);
+				RefreshRates.Add(RefreshRate);
+				DebugString += FString::Printf(TEXT(" %d (%ld ns)"), RefreshRate, RateNs);
+			}
 		}
-		UE_LOG(LogRHI, Log, TEXT("Supported Refresh Rates:%s"), *RefreshRatesString);
+		UE_LOG(LogRHI, Log, TEXT("%s"), *DebugString);
 
 		for (int32 Rate : RefreshRates)
 		{
@@ -136,6 +145,7 @@ bool FAndroidOpenGLFramePacer::SupportsFramePaceInternal(int32 QueryFramePace, i
 		// check if we want to use naive frame pacing at less than a multiple of supported refresh rate
 		if (FAndroidPlatformRHIFramePacer::CVarSupportNonVSyncMultipleFrameRates.GetValueOnAnyThread() == 1)
 		{
+			RefreshRates.Sort();
 			for (int32 Rate : RefreshRates)
 			{
 				if (Rate > QueryFramePace)
@@ -189,19 +199,10 @@ bool FAndroidOpenGLFramePacer::SwapBuffers(bool bLockToVsync)
 			SupportsFramePaceInternal(CurrentFramePace, CachedRefreshRate, CachedSyncInterval);
 		}
 
-		ANativeWindow* CurrentNativeWindow = AndroidEGL::GetInstance()->GetNativeWindow();
-		if (CurrentNativeWindow != CachedNativeWindow)
-		{
-			CachedNativeWindow = CurrentNativeWindow;
-			UE_LOG(LogRHI, Verbose, TEXT("Swappy - setting native window %p"), CachedNativeWindow);
-			SwappyGL_setWindow(CurrentNativeWindow);
-		}
-
 		SwappyGL_setAutoSwapInterval(false);
 		if (CachedSyncInterval != 0)
 		{
 			// Multiple of sync interval, use swappy directly
-			UE_LOG(LogRHI, Verbose, TEXT("Setting swappy to interval of %" PRId64 " (%d fps)"), (int64)(1000000000L) / (int64)CurrentFramePace, CurrentFramePace);
 			SwappyGL_setSwapIntervalNS((1000000000L) / (int64)CurrentFramePace);
 		}
 		else
@@ -326,23 +327,10 @@ bool FAndroidOpenGLFramePacer::SwapBuffers(bool bLockToVsync)
 					QUICK_SCOPE_CYCLE_COUNTER(STAT_StallForEmulatedSyncInterval);
 					float MinTimeBetweenFrames = (float(DesiredSyncIntervalRelativeToDevice) / DriverRefreshRate);
 
-					for (;;)
+					float ThisTime = FPlatformTime::Seconds() - LastTimeEmulatedSync;
+					if (ThisTime > 0 && ThisTime < MinTimeBetweenFrames)
 					{
-						float ThisTime = FPlatformTime::Seconds() - LastTimeEmulatedSync;
-						// sleep only when there is substantial time left to a next sync interval
-						// for a small duration rely on eglSwapBuffers
-						if (ThisTime > 0.001f && ThisTime < MinTimeBetweenFrames)
-						{
-							// do not sleep for too long, poll occlussion queries from time to time as RT might be waiting for them
-							float SleepDuration = FMath::Min(MinTimeBetweenFrames - ThisTime, 0.003f);
-							FPlatformProcess::Sleep(SleepDuration);
-						}
-						else
-						{
-							break;
-						}
-
-						static_cast<FOpenGLDynamicRHI*>(GDynamicRHI)->RHIPollOcclusionQueries();
+						FPlatformProcess::Sleep(MinTimeBetweenFrames - ThisTime);
 					}
 				}
 			}

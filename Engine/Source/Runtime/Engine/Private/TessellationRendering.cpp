@@ -41,10 +41,13 @@ bool MaterialRenderingRequiresAdjacencyInformation_RenderingThread(UMaterialInte
 		FMaterialRenderProxy* MaterialRenderProxy = Material->GetRenderProxy();
 		if (ensureMsgf(MaterialRenderProxy, TEXT("Could not determine if RequiresAdjacencyInformation. Invalid MaterialRenderProxy on Material '%s'"), *GetNameSafe(Material)))
 		{
-			const FMaterial& MaterialResource = MaterialRenderProxy->GetIncompleteMaterialWithFallback(InFeatureLevel);
-			EMaterialTessellationMode TessellationMode = MaterialResource.GetTessellationMode();
-			bool bEnableCrackFreeDisplacement = MaterialResource.IsCrackFreeDisplacementEnabled();
-			return TessellationMode == MTM_PNTriangles || (TessellationMode == MTM_FlatTessellation && bEnableCrackFreeDisplacement);
+			const FMaterial* MaterialResource = MaterialRenderProxy->GetMaterial(InFeatureLevel);
+			if (ensureMsgf(MaterialResource, TEXT("Could not determine if RequiresAdjacencyInformation. Invalid MaterialResource on Material '%s'"), *GetNameSafe(Material)))
+			{
+				EMaterialTessellationMode TessellationMode = MaterialResource->GetTessellationMode();
+				bool bEnableCrackFreeDisplacement = MaterialResource->IsCrackFreeDisplacementEnabled();
+				return TessellationMode == MTM_PNTriangles || (TessellationMode == MTM_FlatTessellation && bEnableCrackFreeDisplacement);
+			}
 		}
 	}
 	return false;

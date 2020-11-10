@@ -14,8 +14,6 @@ extern ANIMGRAPHRUNTIME_API TAutoConsoleVariable<int32> CVarEnableRigidBodyNode;
 extern ANIMGRAPHRUNTIME_API TAutoConsoleVariable<int32> CVarEnableRigidBodyNodeSimulation;
 extern ANIMGRAPHRUNTIME_API TAutoConsoleVariable<int32> CVarRigidBodyLODThreshold;
 
-#define ENABLE_RBAN_PERF_LOGGING (1 && !NO_LOGGING && !UE_BUILD_SHIPPING)
-
 /** Determines in what space the simulation should run */
 UENUM()
 enum class ESimulationSpace : uint8
@@ -323,10 +321,6 @@ private:
 	float WorldTimeSeconds;
 	float LastEvalTimeSeconds;
 
-#if ENABLE_RBAN_PERF_LOGGING
-	float LastPerfWarningTimeSeconds;
-#endif
-
 	float AccumulatedDeltaTime;
 	float AnimPhysicsMinDeltaTime;
 	bool bSimulateAnimPhysicsAfterReset;
@@ -425,15 +419,13 @@ private:
 	FCSPose<FCompactHeapPose> CapturedFrozenPose;
 	FBlendedHeapCurve CapturedFrozenCurves;
 
-	FVector PreviousComponentLinearVelocity;
-
 	// Used by the world-space to simulation-space motion transfer system in Component- or Bone-Space sims
-	FTransform SimSpacePreviousComponentToWorld;
-	FTransform SimSpacePreviousBoneToComponent;
-	FVector SimSpacePreviousComponentLinearVelocity;
-	FVector SimSpacePreviousComponentAngularVelocity;
-	FVector SimSpacePreviousBoneLinearVelocity;
-	FVector SimSpacePreviousBoneAngularVelocity;
+	FTransform PreviousComponentToWorld;
+	FTransform PreviousBoneToComponent;
+	FVector PreviousComponentLinearVelocity;
+	FVector PreviousComponentAngularVelocity;
+	FVector PreviousBoneLinearVelocity;
+	FVector PreviousBoneAngularVelocity;
 };
 
 #if WITH_EDITORONLY_DATA

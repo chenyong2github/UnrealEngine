@@ -20,7 +20,6 @@ class FPartyPlatformSessionManager : public TSharedFromThis<FPartyPlatformSessio
 {
 public:
 	static bool DoesOssNeedPartySession(FName OssName);
-	static TOptional<FString> GetOssPartySessionType(FName OssName);
 	static TSharedRef<FPartyPlatformSessionManager> Create(USocialManager& InSocialManager);
 
 	DECLARE_DELEGATE_TwoParams(FOnFindSessionAttemptComplete, bool, const FOnlineSessionSearchResult&);
@@ -44,7 +43,7 @@ private:
 	void HandlePartyJoined(USocialParty& NewParty);
 	void HandleMonitorShutdownComplete(TSharedRef<FPartyPlatformSessionMonitor> Monitor);
 
-#if PARTY_PLATFORM_SESSIONS_PSN
+#if PLATFORM_PS4
 	bool bHasAlreadyRequeriedPSNFriends = false;
 	void HandleReadPSNFriendsListComplete(int32 LocalUserNum, bool bWasSuccessful, const FString& ListName, const FString& ErrorStr, FSessionId OriginalSessionId, FUniqueNetIdRepl SessionOwnerId, FOnFindSessionAttemptComplete OnAttemptComplete);
 #endif
@@ -121,9 +120,6 @@ private:
 
 	/** Do we have a console session update queued? */
 	bool bHasQueuedSessionUpdate = false;
-
-	/** Did we miss a session update while we were creating? */
-	bool bMissedSessionUpdateDuringCreate = false;
 
 	static const FName Step_FindSession;
 	static const FName Step_JoinSession;

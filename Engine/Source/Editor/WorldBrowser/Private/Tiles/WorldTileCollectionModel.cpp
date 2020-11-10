@@ -2146,7 +2146,7 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 			{
 				StaticMesh->InitResources();
 				// make sure it has a new lighting guid
-				StaticMesh->SetLightingGuid();
+				StaticMesh->LightingGuid = FGuid::NewGuid();
 
 				// Set it to use textured lightmaps. Note that Build Lighting will do the error-checking (texcoordindex exists for all LODs, etc).
 				StaticMesh->LightMapResolution = 64;
@@ -2161,7 +2161,7 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 				SrcModel.BuildSettings.bUseFullPrecisionUVs = false;
 
 				//Assign the proxy material to the static mesh
-				StaticMesh->GetStaticMaterials().Add(FStaticMaterial(StaticLandscapeMaterial));
+				StaticMesh->StaticMaterials.Add(FStaticMaterial(StaticLandscapeMaterial));
 
 				//Set the Imported version before calling the build
 				StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;

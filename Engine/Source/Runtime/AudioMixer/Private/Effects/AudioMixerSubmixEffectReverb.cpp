@@ -13,8 +13,6 @@
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 
-DEFINE_STAT(STAT_AudioMixerSubmixReverb);
-
 static int32 DisableSubmixReverbCVarFast = 0;
 static FAutoConsoleVariableRef CVarDisableSubmixReverb(
 	TEXT("au.DisableReverbSubmix"),
@@ -129,6 +127,7 @@ void FSubmixEffectReverb::OnPresetChanged()
 void FSubmixEffectReverb::OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData)
 {
 	LLM_SCOPE(ELLMTag::AudioMixer);
+	CSV_SCOPED_TIMING_STAT(Audio, SubmixReverb);
 
 	check(InData.NumChannels == 2);
  	if (OutData.NumChannels < 2 || DisableSubmixReverbCVarFast == 1)
@@ -136,9 +135,6 @@ void FSubmixEffectReverb::OnProcessAudio(const FSoundEffectSubmixInputData& InDa
 		// Not supported
 		return;
 	}
-
-	CSV_SCOPED_TIMING_STAT(Audio, SubmixReverb);
-	SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixReverb);
 
 	UpdateParameters();
 

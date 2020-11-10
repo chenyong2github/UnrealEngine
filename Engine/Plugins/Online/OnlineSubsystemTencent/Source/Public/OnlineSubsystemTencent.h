@@ -85,7 +85,6 @@ public:
 	virtual IOnlineTournamentPtr GetTournamentInterface() const override;
 	virtual IMessageSanitizerPtr GetMessageSanitizer(int32 LocalUserNum, FString& OutAuthTypeToExclude) const override;
 	virtual FText GetOnlineServiceName() const override;
-	virtual FText GetSocialPlatformName() const override;
 
 	virtual bool Init() override;
 	virtual void PreUnload() override;

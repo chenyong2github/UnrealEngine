@@ -68,17 +68,17 @@ bool TValueOrErrorTest::RunTest(const FString& Parameters)
 	}
 	TestEqual(TEXT("TValueOrError MakeValue Move Destruct Count"), ValueCount, 0);
 
-	// Test MakeValue Proxy
-	{
-		FTestType ValueOrError = MakeValue(2, 6, 8);
-		TestEqual(TEXT("TValueOrError MakeValue Proxy Construct Count"), ValueCount, 1);
-		TestEqual(TEXT("TValueOrError MakeValue Proxy TryGetValue"), ValueOrError.TryGetValue(), &ValueOrError.GetValue());
-		TestEqual(TEXT("TValueOrError MakeValue Proxy GetValue"), ValueOrError.GetValue().Value, 16);
-		TestFalse(TEXT("TValueOrError MakeValue Proxy HasError"), ValueOrError.HasError());
-		TestTrue(TEXT("TValueOrError MakeValue Proxy HasValue"), ValueOrError.HasValue());
-		TestTrue(TEXT("TValueOrError MakeValue Proxy TryGetError"), ValueOrError.TryGetError() == nullptr);
-	}
-	TestEqual(TEXT("TValueOrError MakeValue Proxy Destruct Count"), ValueCount, 0);
+	//// Test MakeValue Proxy
+	//{
+	//	FTestType ValueOrError = MakeValue(2, 6, 8);
+	//	TestEqual(TEXT("TValueOrError MakeValue Proxy Construct Count"), ValueCount, 1);
+	//	TestEqual(TEXT("TValueOrError MakeValue Proxy TryGetValue"), ValueOrError.TryGetValue(), &ValueOrError.GetValue());
+	//	TestEqual(TEXT("TValueOrError MakeValue Proxy GetValue"), ValueOrError.GetValue().Value, 16);
+	//	TestFalse(TEXT("TValueOrError MakeValue Proxy HasError"), ValueOrError.HasError());
+	//	TestTrue(TEXT("TValueOrError MakeValue Proxy HasValue"), ValueOrError.HasValue());
+	//	TestTrue(TEXT("TValueOrError MakeValue Proxy TryGetError"), ValueOrError.TryGetError() == nullptr);
+	//}
+	//TestEqual(TEXT("TValueOrError MakeValue Proxy Destruct Count"), ValueCount, 0);
 
 	// Test StealValue
 	{
@@ -103,21 +103,21 @@ bool TValueOrErrorTest::RunTest(const FString& Parameters)
 	}
 	TestEqual(TEXT("TValueOrError MakeError Move Destruct Count"), ErrorCount, 0);
 
-	// Test MakeError Proxy
-	{
-		FTestType ValueOrError = MakeError(4, 12);
-		TestEqual(TEXT("TValueOrError MakeError Proxy Construct Count"), ErrorCount, 1);
-		TestEqual(TEXT("TValueOrError MakeError Proxy TryGetError"), ValueOrError.TryGetError(), &ValueOrError.GetError());
-		TestEqual(TEXT("TValueOrError MakeError Proxy GetError"), ValueOrError.GetError().Error, 16);
-		TestFalse(TEXT("TValueOrError MakeError Proxy HasValue"), ValueOrError.HasValue());
-		TestTrue(TEXT("TValueOrError MakeError Proxy HasError"), ValueOrError.HasError());
-		TestTrue(TEXT("TValueOrError MakeError Proxy TryGetValue"), ValueOrError.TryGetValue() == nullptr);
-	}
-	TestEqual(TEXT("TValueOrError MakeError Proxy Destruct Count"), ErrorCount, 0);
+	//// Test MakeError Proxy
+	//{
+	//	FTestType ValueOrError = MakeError(4, 12);
+	//	TestEqual(TEXT("TValueOrError MakeError Proxy Construct Count"), ErrorCount, 1);
+	//	TestEqual(TEXT("TValueOrError MakeError Proxy TryGetError"), ValueOrError.TryGetError(), &ValueOrError.GetError());
+	//	TestEqual(TEXT("TValueOrError MakeError Proxy GetError"), ValueOrError.GetError().Error, 16);
+	//	TestFalse(TEXT("TValueOrError MakeError Proxy HasValue"), ValueOrError.HasValue());
+	//	TestTrue(TEXT("TValueOrError MakeError Proxy HasError"), ValueOrError.HasError());
+	//	TestTrue(TEXT("TValueOrError MakeError Proxy TryGetValue"), ValueOrError.TryGetValue() == nullptr);
+	//}
+	//TestEqual(TEXT("TValueOrError MakeError Proxy Destruct Count"), ErrorCount, 0);
 
 	// Test StealError
 	{
-		FTestType ValueOrError = MakeError();
+		FTestType ValueOrError = MakeError(FTestError());
 		FTestError Error = ValueOrError.StealError();
 		TestEqual(TEXT("TValueOrError StealError Construct Count"), ErrorCount, 1);
 		TestEqual(TEXT("TValueOrError StealError GetError"), Error.Error, 1);
@@ -128,22 +128,22 @@ bool TValueOrErrorTest::RunTest(const FString& Parameters)
 
 	// Test Assignment
 	{
-		FTestType ValueOrError = MakeValue();
-		ValueOrError = MakeValue();
+		FTestType ValueOrError = MakeValue(FTestValue());
+		ValueOrError = MakeValue(FTestValue());
 		TestEqual(TEXT("TValueOrError Assignment Value Count 1"), ValueCount, 1);
 		TestEqual(TEXT("TValueOrError Assignment Value GetValue 2"), ValueOrError.GetValue().Value, 2);
 		TestEqual(TEXT("TValueOrError Assignment Error Count 0"), ErrorCount, 0);
-		ValueOrError = MakeError();
+		ValueOrError = MakeError(FTestError());
 		TestEqual(TEXT("TValueOrError Assignment Value Count 0"), ValueCount, 0);
 		TestEqual(TEXT("TValueOrError Assignment Error Count 1"), ErrorCount, 1);
-		ValueOrError = MakeError();
+		ValueOrError = MakeError(FTestError());
 		TestEqual(TEXT("TValueOrError Assignment Value Count 0"), ValueCount, 0);
 		TestEqual(TEXT("TValueOrError Assignment Value GetError 2"), ValueOrError.GetError().Error, 2);
 		TestEqual(TEXT("TValueOrError Assignment Error Count 1"), ErrorCount, 1);
-		ValueOrError = MakeValue();
+		ValueOrError = MakeValue(FTestValue());
 		TestEqual(TEXT("TValueOrError Assignment Value Count 1"), ValueCount, 1);
 		TestEqual(TEXT("TValueOrError Assignment Error Count 0"), ErrorCount, 0);
-		FTestType UnsetValueOrError = MakeValue();
+		FTestType UnsetValueOrError = MakeValue(FTestValue());
 		UnsetValueOrError.StealValue();
 		ValueOrError = MoveTemp(UnsetValueOrError);
 		TestEqual(TEXT("TValueOrError Assignment Value Count 0"), ValueCount, 0);
@@ -160,18 +160,6 @@ bool TValueOrErrorTest::RunTest(const FString& Parameters)
 		TValueOrError<FTestMoveOnly, FTestMoveOnly> Error = MakeError(FTestMoveOnly());
 		FTestMoveOnly MovedValue = MoveTemp(Value).GetValue();
 		FTestMoveOnly MovedError = MoveTemp(Error).GetError();
-	}
-
-	// Test Integer Value/Error
-	{
-		TValueOrError<int32, int32> ValueOrError = MakeValue();
-		TestEqual(TEXT("TValueOrError Integer Error Zero"), ValueOrError.GetValue(), 0);
-		ValueOrError = MakeValue(1);
-		TestEqual(TEXT("TValueOrError Integer Value One"), ValueOrError.GetValue(), 1);
-		ValueOrError = MakeError();
-		TestEqual(TEXT("TValueOrError Integer Error Zero"), ValueOrError.GetError(), 0);
-		ValueOrError = MakeError(1);
-		TestEqual(TEXT("TValueOrError Integer Error One"), ValueOrError.GetError(), 1);
 	}
 
 	return true;

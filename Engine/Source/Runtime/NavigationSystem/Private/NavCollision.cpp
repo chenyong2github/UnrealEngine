@@ -238,9 +238,9 @@ void UNavCollision::GatherCollision()
 	ClearCollision();
 
 	UStaticMesh* StaticMeshOuter = Cast<UStaticMesh>(GetOuter());
-	if (bGatherConvexGeometry && StaticMeshOuter && StaticMeshOuter->GetBodySetup())
+	if (bGatherConvexGeometry && StaticMeshOuter && StaticMeshOuter->BodySetup)
 	{
-		NavigationHelper::GatherCollision(StaticMeshOuter->GetBodySetup(), this);
+		NavigationHelper::GatherCollision(StaticMeshOuter->BodySetup, this);
 	}
 
 	FKAggregateGeom SimpleGeom;
@@ -520,7 +520,7 @@ void UNavCollision::PostLoad()
 		UStaticMesh* StaticMeshOuter = Cast<UStaticMesh>(Outer);
 		if (StaticMeshOuter != NULL)
 		{
-			Setup(StaticMeshOuter->GetBodySetup());
+			Setup(StaticMeshOuter->BodySetup);
 		}
 	}
 }

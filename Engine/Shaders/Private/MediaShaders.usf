@@ -366,26 +366,6 @@ void RGB10toYUVv210ConvertPS(
 }
 
 
-// shader to convert RGB to Y component of YUV
-void RGB8toY8ConvertPS(	float4 InPosition : SV_POSITION,
-	float2 InUV : TEXCOORD0,
-	out float OutColor : SV_Target0)
-{
-	float3 RGB = RGB8toY8ConvertUB.Texture.Sample(RGB8toY8ConvertUB.SamplerP, float2(InUV.x, InUV.y)).rgb;
-
-	float3 TempRGB = RGB;
-	if (RGB8toY8ConvertUB.LinearToSrgb == 1)
-	{
-		TempRGB = LinearToSrgb(RGB);
-	}
-
-	// transform rgb to single y/u/v component
-	float		TColor = dot(RGB8toY8ConvertUB.ColorTransform.xyz, TempRGB) + RGB8toY8ConvertUB.ColorTransform.w;
-
-	OutColor = clamp(TColor, 0.0f, 1.0f);
-}
-
-
 // shader to invert alpha
 void InvertAlphaPS(
 	float4 InPosition : SV_POSITION,

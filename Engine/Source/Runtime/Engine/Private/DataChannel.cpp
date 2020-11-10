@@ -238,11 +238,6 @@ bool UChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseReason)
 		InPartialBunch = NULL;
 	}
 
-	if (ChIndex != INDEX_NONE && Connection->IsReservingDestroyedChannels())
-	{
-		Connection->AddReservedChannel(ChIndex);
-	}
-
 	// Remove from connection's channel table.
 	verifySlow(Connection->OpenChannels.Remove(this) == 1);
 	Connection->StopTickingChannel(this);
@@ -431,7 +426,7 @@ bool UChannel::ReceivedSequencedBunch( FInBunch& Bunch )
 			UE_LOG(LogNet, Log, TEXT("UChannel::ReceivedSequencedBunch: Bunch.bClose == true. ChIndex == 0. Calling ConditionalCleanUp.") );
 		}
 
-		UE_LOG(LogNetTraffic, Log, TEXT("UChannel::ReceivedSequencedBunch: Bunch.bClose == true. Calling ConditionalCleanUp. ChIndex: %i Reason: %s"), ChIndex, LexToString(Bunch.CloseReason));
+		UE_LOG(LogNetTraffic, Log, TEXT("UChannel::ReceivedSequencedBunch: Bunch.bClose == true. Calling ConditionalCleanUp. ChIndex: %i"), ChIndex );
 
 		ConditionalCleanUp(false, Bunch.CloseReason);
 		return true;
@@ -1985,7 +1980,7 @@ int64 UActorChannel::Close(EChannelCloseReason Reason)
 						Actor->NetDormancy = DORM_DormantAll;
 					}
 
-					ensureMsgf(Actor->NetDormancy > DORM_Awake, TEXT("Dormancy should have been canceled if game code changed NetDormancy: %s [%s]"), *GetFullNameSafe(Actor), *UEnum::GetValueAsString(TEXT("/Script/Engine.ENetDormancy"), Actor->NetDormancy));
+					check( Actor->NetDormancy > DORM_Awake ); // Dormancy should have been canceled if game code changed NetDormancy
 					Connection->Driver->NotifyActorFullyDormantForConnection(Actor, Connection);
 				}
 
@@ -2669,7 +2664,7 @@ void UActorChannel::ReceivedBunch( FInBunch & Bunch )
 		{
 			if (Connection->KeepProcessingActorChannelBunchesMap.Contains(ActorNetGUID))
 			{
-				UE_LOG(LogNet, Verbose, TEXT("UActorChannel::ReceivedBunch: Queuing bunch because another channel (that closed) is processing bunches for this guid still. ActorNetGUID: %s"), *ActorNetGUID.ToString());
+				UE_LOG(LogNet, Log, TEXT("UActorChannel::ReceivedBunch: Queuing bunch because another channel (that closed) is processing bunches for this guid still. ActorNetGUID: %s"), *ActorNetGUID.ToString());
 			}
 
 			if (QueuedBunches.Num() == 0)

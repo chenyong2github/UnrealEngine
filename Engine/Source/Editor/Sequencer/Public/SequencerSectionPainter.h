@@ -75,11 +75,8 @@ public:
 
 	/** Whether the section is hovered or not */
 	bool bIsHighlighted;
-
+	
 	/** Whether the section is selected or not */
 	bool bIsSelected;
-
-	/** Whether the section is to be drawn semi-transparent or not */
-	float GhostAlpha;
 };
 

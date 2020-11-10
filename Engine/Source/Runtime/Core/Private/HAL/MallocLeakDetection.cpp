@@ -491,15 +491,10 @@ void FMallocLeakDetection::Malloc(void* Ptr, SIZE_T Size)
 }
 
 void FMallocLeakDetection::Realloc(void* OldPtr, SIZE_T OldSize, void* NewPtr, SIZE_T NewSize)
-{
-	if (bCaptureAllocs || OpenPointers.Num())
+{	
+	if (bRecursive == false && (bCaptureAllocs || OpenPointers.Num()))
 	{
 		FScopeLock Lock(&AllocatedPointersCritical);
-
-		if (bRecursive)
-		{
-			return;
-		}
 
 		// realloc may return the same pointer, if so skip this
 	

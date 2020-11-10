@@ -24,14 +24,11 @@
 #include "NiagaraEditorStyle.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "NiagaraEditorUtilities.h"
-#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraGeneratedCodeView"
 
-void SNiagaraGeneratedCodeView::Construct(const FArguments& InArgs, TSharedRef<FNiagaraSystemViewModel> InSystemViewModel, TSharedPtr<SDockTab> InOwnerTab)
+void SNiagaraGeneratedCodeView::Construct(const FArguments& InArgs, TSharedRef<FNiagaraSystemViewModel> InSystemViewModel)
 {
-	OwnerTab = InOwnerTab;
-
 	TabState = 0;
 	ScriptEnum = StaticEnum<ENiagaraScriptUsage>();
 	ensure(ScriptEnum);
@@ -183,16 +180,7 @@ void SNiagaraGeneratedCodeView::Construct(const FArguments& InArgs, TSharedRef<F
 		]
 	]; // this->ChildSlot
 	UpdateUI();
-}
-
-void SNiagaraGeneratedCodeView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	//If our parent tab is in the foreground then do the expensive slate UI update if needed.
-	if (OwnerTab && OwnerTab->IsForeground() && bUIUpdatePending)
-	{
-		UpdateUI_Internal();
-	}
-	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+	DoSearch(SearchBox->GetText());
 }
 
 FText SNiagaraGeneratedCodeView::GetCurrentScriptNameText() const
@@ -339,19 +327,17 @@ void SNiagaraGeneratedCodeView::OnSearchTextCommitted(const FText& InFilterText,
 void SNiagaraGeneratedCodeView::OnCodeCompiled()
 {
 	UpdateUI();
+	DoSearch(SearchBox->GetText());
 }
 
 void SNiagaraGeneratedCodeView::SystemSelectionChanged()
 {
 	UpdateUI();
+	DoSearch(SearchBox->GetText());
 }
 
 void SNiagaraGeneratedCodeView::UpdateUI()
 {
-	//Mark the UI as needing an update. We now do the very expensive slate updates from Tick() iside UIUpdate_Internal.
-	//This way we can avoid refreshing this UI constantly when this tab isn't even in view.
-	bUIUpdatePending = true;
-
 	TArray<UNiagaraScript*> Scripts;
 	TArray<uint32> ScriptDisplayTypes;
 	UNiagaraSystem& System = SystemViewModel->GetSystem();
@@ -485,16 +471,8 @@ void SNiagaraGeneratedCodeView::UpdateUI()
 			GeneratedCode[i].UsageName = FText::Format(LOCTEXT("UsageName", "{0}{1}"), ScriptEnum->GetDisplayNameTextByValue((int64)Scripts[i]->Usage), bIsAssembly ? AssemblyIdText : FText::GetEmpty());
 		}
 
-		//We now do the very expensive slate stuff inside Update UI_Internal
-	}
-}
 
-void SNiagaraGeneratedCodeView::UpdateUI_Internal()
-{
-	bUIUpdatePending = false;
 
-	for (int32 i = 0; i < GeneratedCode.Num(); i++)
-	{
 		if (!GeneratedCode[i].HorizontalScrollBar.IsValid())
 		{
 			GeneratedCode[i].HorizontalScrollBar = SNew(SScrollBar)
@@ -548,8 +526,6 @@ void SNiagaraGeneratedCodeView::UpdateUI_Internal()
 				GeneratedCode[i].Container.ToSharedRef()
 			];		
 	}
-
-	DoSearch(SearchBox->GetText());
 }
 
 SNiagaraGeneratedCodeView::~SNiagaraGeneratedCodeView()

@@ -104,7 +104,7 @@
 
 
 #include "Particles/ParticleEventManager.h"
-#include "PhysicsField/PhysicsFieldComponent.h"
+
 #include "EngineModule.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "Net/DataChannel.h"
@@ -453,8 +453,7 @@ void UWorld::Serialize( FArchive& Ar )
 		
 		Ar << LineBatcher;
 		Ar << PersistentLineBatcher;
-		Ar << ForegroundLineBatcher;  
-		Ar << PhysicsField;
+		Ar << ForegroundLineBatcher;
 
 		Ar << MyParticleEventManager;
 		Ar << GameState;
@@ -506,7 +505,6 @@ void UWorld::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collecto
 		Collector.AddReferencedObject( This->LineBatcher, This );
 		Collector.AddReferencedObject( This->PersistentLineBatcher, This );
 		Collector.AddReferencedObject( This->ForegroundLineBatcher, This );
-		Collector.AddReferencedObject( This->PhysicsField, This);
 		Collector.AddReferencedObject( This->MyParticleEventManager, This );
 		Collector.AddReferencedObject( This->GameState, This );
 		Collector.AddReferencedObject( This->AuthorityGameMode, This );
@@ -882,13 +880,6 @@ void UWorld::BeginDestroy()
 		}
 	}
 
-	if (PhysicsScene != nullptr)
-	{
-		// Tell PhysicsScene to stop kicking off async work so we can cleanup after pending work is complete.
-		PhysicsScene->BeginDestroy();
-	}
-
-
 	if (Scene)
 	{
 		Scene->UpdateParameterCollections(TArray<FMaterialParameterCollectionInstanceResource*>());
@@ -994,28 +985,6 @@ void UWorld::FinishDestroy()
 	}
 
 	Super::FinishDestroy();
-}
-
-bool UWorld::IsReadyForFinishDestroy()
-{
-#if WITH_CHAOS
-
-	// In single threaded, task will never complete unless we wait on it, allow FinishDestroy so we can wait on task, otherwise this will hang GC.
-	// In multi threaded, we cannot wait in FinishDestroy, as this may schedule another task that is unsafe during GC.
-	const bool bIsSingleThreadEnvironment = FPlatformProcess::SupportsMultithreading() == false;
-	if (bIsSingleThreadEnvironment == false)
-	{
-		if (PhysicsScene != nullptr)
-		{
-			if (PhysicsScene->AreAnyTasksPending())
-			{
-				return false;
-			}
-		}
-	}
-#endif
-
-	return Super::IsReadyForFinishDestroy();
 }
 
 void UWorld::PostLoad()
@@ -1507,6 +1476,7 @@ void UWorld::InitWorld(const InitializationValues IVS)
 		AvoidanceManager = NewObject<UAvoidanceManager>(this, GEngine->AvoidanceManagerClass);
 	}
 
+
 	SetupParameterCollectionInstances();
 
 	if (PersistentLevel->GetOuter() != this)
@@ -1577,6 +1547,11 @@ void UWorld::InitWorld(const InitializationValues IVS)
 #endif
 
 	bAllowAudioPlayback = IVS.bAllowAudioPlayback;
+#if WITH_EDITOR
+	// Disable audio playback on PIE dedicated server
+	bAllowAudioPlayback = bAllowAudioPlayback && (GetNetMode() != NM_DedicatedServer);
+#endif // WITH_EDITOR
+
 	bDoDelayedUpdateCullDistanceVolumes = false;
 
 #if WITH_EDITOR
@@ -1891,8 +1866,6 @@ void UWorld::RemoveActor(AActor* Actor, bool bShouldModifyLevel) const
 		}
 		
 		CheckLevel->Actors[ActorListIndex] = nullptr;
-
-		CheckLevel->ActorsForGC.RemoveSwap(Actor);
 	}
 
 	// Remove actor from network list
@@ -1939,11 +1912,6 @@ void UWorld::ClearWorldComponents()
 	{
 		ForegroundLineBatcher->UnregisterComponent();
 	}
-
-	if (PhysicsField && PhysicsField->IsRegistered())
-	{
-		PhysicsField->UnregisterComponent();
-	}
 }
 
 
@@ -1982,20 +1950,6 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 		if(!ForegroundLineBatcher->IsRegistered())	
 		{
 			ForegroundLineBatcher->RegisterComponentWithWorld(this, Context);
-		}
-
-		static IConsoleVariable* PhysicsFieldEnableClipmapCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PhysicsField.EnableField"));
-		if (PhysicsFieldEnableClipmapCVar && PhysicsFieldEnableClipmapCVar->GetInt() == 1)
-		{
-			if (!PhysicsField)
-			{
-				PhysicsField = NewObject<UPhysicsFieldComponent>();
-			}
-
-			if (!PhysicsField->IsRegistered())
-			{
-				PhysicsField->RegisterComponentWithWorld(this, Context);
-			}
 		}
 	}
 
@@ -5849,11 +5803,6 @@ bool UWorld::SetNewWorldOrigin(FIntVector InNewOriginLocation)
 		ForegroundLineBatcher->ApplyWorldOffset(Offset, true);
 	}
 
-	if (PhysicsField)
-	{
-		PhysicsField->ApplyWorldOffset(Offset, true);
-	}
-
 	FIntVector PreviosWorldOriginLocation = OriginLocation;
 	// Set new world origin
 	OriginLocation = InNewOriginLocation;
@@ -7315,21 +7264,12 @@ void UWorld::GetLightMapsAndShadowMaps(ULevel* Level, TArray<UTexture2D*>& OutLi
 			ArIsObjectReferenceCollector = true;
 			ArIsModifyingWeakAndStrongReferences = true; // While we are not modifying them, we want to follow weak references as well
 
-			// Don't bother searching through the object's references if there's no objects of the types we're looking for
-			TArray<UObject*> Objects;
-			GetObjectsOfClass(ULightMapTexture2D::StaticClass(), Objects);
-			GetObjectsOfClass(UShadowMapTexture2D::StaticClass(), Objects);
-			GetObjectsOfClass(ULightMapVirtualTexture2D::StaticClass(), Objects);
-
-			if (Objects.Num())
+			for (FObjectIterator It; It; ++It)
 			{
-				for (FObjectIterator It; It; ++It)
-				{
-					It->Mark(OBJECTMARK_TagExp);
-				}
-
-				*this << InSearch;
+				It->Mark(OBJECTMARK_TagExp);
 			}
+
+			*this << InSearch;
 		}
 
 		FArchive& operator<<(class UObject*& Obj)

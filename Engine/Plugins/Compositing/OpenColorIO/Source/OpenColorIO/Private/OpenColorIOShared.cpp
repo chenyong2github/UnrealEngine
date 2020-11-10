@@ -109,7 +109,14 @@ OPENCOLORIO_API void FOpenColorIOTransformResource::GetShaderMapId(EShaderPlatfo
 		OutId.ShaderCodeHash = ShaderCodeHash;
 		OutId.SetShaderDependencies(ShaderTypes, InPlatform);
 #if WITH_EDITOR
-		OutId.LayoutParams.InitializeForPlatform(TargetPlatform);
+		if (TargetPlatform)
+		{
+			OutId.LayoutParams.InitializeForPlatform(TargetPlatform->IniPlatformName(), TargetPlatform->HasEditorOnlyData());
+		}
+		else
+		{
+			OutId.LayoutParams.InitializeForCurrent();
+		}
 #else
 		if (TargetPlatform != nullptr)
 		{
@@ -400,7 +407,7 @@ bool FOpenColorIOTransformResource::BeginCompileShaderMap(const FOpenColorIOShad
 #endif
 
 	// Create a shader compiler environment for the material that will be shared by all jobs from this material
-	TRefCountPtr<FSharedShaderCompilerEnvironment> MaterialEnvironment = new FSharedShaderCompilerEnvironment();
+	TRefCountPtr<FShaderCompilerEnvironment> MaterialEnvironment = new FShaderCompilerEnvironment();
 
 	// Compile the shaders for the transform.
 	FOpenColorIOCompilationOutput CompilationOutput;

@@ -455,11 +455,8 @@ public:
 	 * Queries all of the root content paths, like "/Game/", "/Engine/", and any dynamically added paths
 	 *
 	 * @param	OutRootContentPaths	[Out] List of content paths
-	 * @param	bIncludeReadOnlyRoots	  Include read only root content paths such as "/Temp/"
-	 * @param	bWithoutLeadingSlashes	  Strip slash at start of each path to end up with "Game/"
-	 * @param	bWithoutTrailingSlashes	  Strip trailing slash at end of each path to end up with "/Game"
 	 */
-	static void QueryRootContentPaths( TArray<FString>& OutRootContentPaths, bool bIncludeReadOnlyRoots = false, bool bWithoutLeadingSlashes = false, bool bWithoutTrailingSlashes = false);
+	static void QueryRootContentPaths( TArray<FString>& OutRootContentPaths );
 	
 	/** If the FLongPackagePathsSingleton is not created yet, this function will create it and thus allow mount points to be added */
 	static void EnsureContentPathsAreRegistered();
@@ -472,8 +469,7 @@ public:
 	 * @param OutObjectPath The path to the object.
 	 * @return True if the supplied export text path could be parsed
 	 */
-	static bool ParseExportTextPath(FWideStringView InExportTextPath, FWideStringView* OutClassName, FWideStringView* OutObjectPath);
-	static bool ParseExportTextPath(FAnsiStringView InExportTextPath, FAnsiStringView* OutClassName, FAnsiStringView* OutObjectPath);
+	static bool ParseExportTextPath(FStringView InExportTextPath, FStringView* OutClassName, FStringView* OutObjectPath);
 	static bool ParseExportTextPath(const FString& InExportTextPath, FString* OutClassName, FString* OutObjectPath);	
 	static bool ParseExportTextPath(const TCHAR* InExportTextPath, FStringView* OutClassName, FStringView* OutObjectPath);
 
@@ -484,23 +480,19 @@ public:
 	 * @param InExportTextPath The export text path for an object. Takes on the form: ClassName'ObjectPath'
 	 * @return The path to the object referred to by the supplied export path.
 	 */
-	static FWideStringView	ExportTextPathToObjectPath(FWideStringView InExportTextPath);
-	static FAnsiStringView	ExportTextPathToObjectPath(FAnsiStringView InExportTextPath);
-	static FString			ExportTextPathToObjectPath(const FString& InExportTextPath);
-	static FString			ExportTextPathToObjectPath(const TCHAR* InExportTextPath);
+	static FStringView	ExportTextPathToObjectPath(FStringView InExportTextPath);
+	static FString		ExportTextPathToObjectPath(const FString& InExportTextPath);
+	static FString		ExportTextPathToObjectPath(const TCHAR* InExportTextPath);
 
 	/** 
 	 * Returns the name of the package referred to by the specified object path
 	 */
-	static FWideStringView ObjectPathToPackageName(FWideStringView InObjectPath);
-	static FAnsiStringView ObjectPathToPackageName(FAnsiStringView InObjectPath);
 	static FString ObjectPathToPackageName(const FString& InObjectPath);
 
 	/** 
 	 * Returns the name of the object referred to by the specified object path
 	 */
-	static FWideStringView ObjectPathToObjectName(FWideStringView InObjectPath);
-	static FAnsiStringView ObjectPathToObjectName(FAnsiStringView InObjectPath);
+	static FStringView ObjectPathToObjectName(FStringView InObjectPath);
 	static FString ObjectPathToObjectName(const FString& InObjectPath);
 
 	/**

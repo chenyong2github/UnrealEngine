@@ -66,10 +66,8 @@ float2 ComputeWeightedTextureAverageAlphaSubRegion(
 	uint2 RectMax)
 {
 	if( ((SubRectMax.x - SubRectMin.x)==0) || ((SubRectMax.y - SubRectMin.y)==0) )
-	{
 		return float2(0.0, 0.0000000001f);
-	}
-	
+
 	// The inverse of the Region of Interest size.
 	const float InvRectWidth = 1.f / float(RectMax.x - RectMin.x);
 	const float InvRectHeight = 1.f / float(RectMax.y - RectMin.y);

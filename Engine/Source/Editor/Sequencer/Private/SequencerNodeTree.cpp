@@ -191,26 +191,6 @@ void FSequencerNodeTree::RefreshNodes(UMovieScene* MovieScene)
 		}
 	}
 
-	// Remove mute/solo markers for any nodes that no longer exist
-	if(!MovieScene->IsReadOnly())
-	{
-		for (auto It = MovieScene->GetSoloNodes().CreateIterator(); It; ++It)
-		{
-			if (!GetNodeAtPath(*It))
-			{
-				It.RemoveCurrent();
-			}
-		}
-
-		for (auto It = MovieScene->GetMuteNodes().CreateIterator(); It; ++It)
-		{
-			if (!GetNodeAtPath(*It))
-			{
-				It.RemoveCurrent();
-			}
-		}
-	}
-
 	// Re-filter the tree after updating 
 	// @todo sequencer: Newly added sections may need to be visible even when there is a filter
 	bFilterUpdateRequested = true;

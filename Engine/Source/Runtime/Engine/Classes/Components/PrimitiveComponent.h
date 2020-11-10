@@ -599,16 +599,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category=Rendering)
 	int32 TranslucencySortPriority;
 
-	/**
-	 * Modified sort distance offset for translucent objects in world units.
-	 * A positive number will move the sort distance further and a negative number will move the distance closer.
-	 *
-	 * Ignored if the object is not translucent.
-	 * Warning: Adjusting this value will prevent the renderer from correctly sorting based on distance.  Only modify this value if you are certain it will not cause visual artifacts.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = Rendering)
-	float TranslucencySortDistanceOffset = 0.0f;
-
 	/** Used for precomputed visibility */
 	UPROPERTY()
 	int32 VisibilityId;
@@ -1494,10 +1484,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	void SetCastShadow(bool NewCastShadow);
 
-	/** Changes the value of CastHiddenShadow. */
-	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	void SetCastHiddenShadow(bool NewCastHiddenShadow);
-
 	/** Changes the value of CastInsetShadow. */
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	void SetCastInsetShadow(UPARAM(DisplayName="CastInsetShadow") bool bInCastInsetShadow);
@@ -1517,10 +1503,6 @@ public:
 	/** Changes the value of TranslucentSortPriority. */
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	void SetTranslucentSortPriority(int32 NewTranslucentSortPriority);
-
-	/** Changes the value of TranslucencySortDistanceOffset. */
-	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	void SetTranslucencySortDistanceOffset(float NewTranslucencySortDistanceOffset);
 
 	/** Changes the value of bReceivesDecals. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering")

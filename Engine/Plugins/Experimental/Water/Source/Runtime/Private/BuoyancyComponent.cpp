@@ -598,6 +598,7 @@ FVector UBuoyancyComponent::ComputeWaterForce(const float DeltaTime, const FVect
 	}
 	return FVector::ZeroVector;
 }
+
 FVector UBuoyancyComponent::ComputeLinearDragForce(const FVector& PhyiscsVelocity) const
 {
 	FVector DragForce = FVector::ZeroVector;

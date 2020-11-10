@@ -14,48 +14,35 @@ namespace BuildPatchServices
 		virtual uint64 GetDownloadSize(const FString& Identifier) const override
 		{
 			checkSlow(IsInGameThread());
-
-			FGuid ChunkGUID;
-			bool bFoundGUID = FBuildPatchUtils::GetGUIDFromFilename(Identifier, ChunkGUID);
-
 			uint64 DownloadSize = INDEX_NONE;
-			if (bFoundGUID)
+			const uint64* DownloadSizePtr = DownloadSizes.Find(Identifier);
+			if (DownloadSizePtr != nullptr)
 			{
-				for (int32 i = Manifests.Num() - 1; i >= 0; --i)
-				{
-					const FBuildPatchAppManifestPtr& Manifest = Manifests[i];
-					const BuildPatchServices::FChunkInfo* ChunkInfo = Manifest->GetChunkInfo(ChunkGUID);
-					if (ChunkInfo)
-					{
-						DownloadSize = ChunkInfo->FileSize;
-						break;
-					}
-				}
+				DownloadSize = *DownloadSizePtr;
 			}
 			return DownloadSize;
 		}
 		// End IDataSizeProvider
 
 		// Begin IChunkDataSizeProvider
-		virtual void AddManifestData(FBuildPatchAppManifestPtr Manifest) override
+		virtual void AddManifestData(const FBuildPatchAppManifest* Manifest) override
 		{
 			check(IsInGameThread());
-
-			if (Manifest)
+			if (Manifest != nullptr)
 			{
-				int32 Index = Manifests.Find(Manifest);
-				if (Index != INDEX_NONE)
+				TSet<FGuid> DataList;
+				Manifest->GetDataList(DataList);
+				for (const FGuid& DataId : DataList)
 				{
-					Manifests.RemoveAt(Index, 1, false);
+					FString CleanFilename = FPaths::GetCleanFilename(FBuildPatchUtils::GetDataFilename(*Manifest, TEXT(""), DataId));
+					DownloadSizes.Add(MoveTemp(CleanFilename), Manifest->GetDataSize(DataId));
 				}
-
-				Manifests.Add(MoveTemp(Manifest));  // Last manifest added always goes on the end
 			}
 		}
 		// End IChunkDataSizeProvider
 
 	private:
-		TArray<FBuildPatchAppManifestPtr> Manifests;
+		TMap<FString, uint64> DownloadSizes;
 	};
 	
 	IChunkDataSizeProvider* FChunkDataSizeProviderFactory::Create()

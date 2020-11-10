@@ -1198,22 +1198,6 @@ public:
 	 */
 	void SetIgnoreActorBunches(bool bInIgnoreActorBunches, TSet<FNetworkGUID>&& InIgnoredBunchGuids);
 
-	/**
-	 * Sets whether or not we should track released channel indices, see also SetIgnoreReservedChannels
-	 * Should only be used with InternalAck.
-	 */
-	void SetReserveDestroyedChannels(bool bInReserveChannels);
-
-	bool IsReservingDestroyedChannels() const { return bReserveDestroyedChannels; }
-
-	void AddReservedChannel(int32 ChIndex) { ReservedChannels.Add(ChIndex); }
-
-	/**
-	 * Sets whether or not GetFreeChannelIndex should ignore reserved channels
-	 * Should only be used with InternalAck.
-	 */
-	void SetIgnoreReservedChannels(bool bInIgnoreReservedChannels);
-
 	/** Returns the OutgoingBunches array, only to be used by UChannel::SendBunch */
 	TArray<FOutBunch *>& GetOutgoingBunches() { return OutgoingBunches; }
 
@@ -1437,12 +1421,6 @@ private:
 	TSet<int32> IgnoredBunchChannels;
 
 	bool bIgnoreActorBunches;
-
-	/** Set of channel index values to reserve so GetFreeChannelIndex won't use them */
-	TSet<int32> ReservedChannels;
-
-	bool bReserveDestroyedChannels;
-	bool bIgnoreReservedChannels;
 
 	/** This is only used in UChannel::SendBunch. It's a member so that we can preserve the allocation between calls, as an optimization, and in a thread-safe way to be compatible with demo.ClientRecordAsyncEndOfFrame */
 	TArray<FOutBunch*> OutgoingBunches;

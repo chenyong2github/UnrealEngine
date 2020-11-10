@@ -129,8 +129,6 @@ public:
 		// loop until the app is ready to quit
 		while (!IsEngineExitRequested())
 		{
-			BeginExitIfRequested();
-
 			Slate.PumpMessages();
 			Slate.Tick();
 

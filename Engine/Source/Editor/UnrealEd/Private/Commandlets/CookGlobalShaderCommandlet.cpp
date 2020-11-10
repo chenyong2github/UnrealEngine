@@ -160,8 +160,7 @@ int32 UCookGlobalShadersCommandlet::Main(const FString& Params)
 		UE_LOG(LogCookGlobalShaders, Log, TEXT("Cooking Global Shaders..."));
 		FString OutputDir = FPaths::ProjectSavedDir() / TEXT("CookGlobalShaders") / PlatformName;
 		const TArray<FString> MaterialsToLoad;
-		const TArray<FODSCRequestPayload> ShadersToLoad;
-		RecompileShadersForRemote(PlatformName, SP_NumPlatforms, OutputDir, MaterialsToLoad, ShadersToLoad, nullptr, nullptr);
+		RecompileShadersForRemote(PlatformName, SP_NumPlatforms, OutputDir, MaterialsToLoad, nullptr, nullptr);
 
 		// Are we copying the built files somewhere?
 		if (DeviceHelper != nullptr)

@@ -842,10 +842,6 @@ public:
 		return MakeShareable(new FJsonStringReader(MoveTemp(JsonString)));
 	}
 
-	const FString& GetSourceString() const
-	{
-		return Content;
-	}
 public:
 
 	virtual ~FJsonStringReader() = default;

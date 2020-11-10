@@ -205,22 +205,6 @@ inline FFrameTime ClampToDiscreteRange(FFrameTime InTime, const TRange<FFrameNum
 }
 
 
-/** 
- * Convert a frame number range into a frame time range
- */
-inline TRange<FFrameTime> ConvertToFrameTimeRange(const TRange<FFrameNumber>& InRange)
-{
-	TRange<FFrameTime> Result;
-	if (InRange.HasLowerBound())
-	{
-		Result.SetLowerBound(TRangeBound<FFrameTime>(InRange.GetLowerBoundValue()));
-	}
-	if (InRange.HasUpperBound())
-	{
-		Result.SetUpperBound(TRangeBound<FFrameTime>(InRange.GetUpperBoundValue()));
-	}
-	return Result;
-}
 
 } // namespace MovieScene
 } // namespace UE

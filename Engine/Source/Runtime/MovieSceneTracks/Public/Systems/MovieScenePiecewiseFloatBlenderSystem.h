@@ -14,43 +14,71 @@ namespace UE
 {
 namespace MovieScene
 {
-	struct FAccumulationResult;
-
-	/** Blend result struct that stores the cumulative sum of pre-weighted values, alongside the total weight */
 	struct FBlendResult
 	{
-		/** Cumulative sum of blend values pre-multiplied with each value's weight. */
 		float Total = 0.f;
-		/** Cumulative sum of weights. */
 		float Weight = 0.f;
 	};
 
-	/** Buffer used for accumulating additive-from-base values */
-	struct FAdditiveFromBaseBuffer
+	struct FBlendedValuesTaskData
 	{
-		TArray<FBlendResult> Buffer;
-		TComponentTypeID<float> BaseComponent;
+		FBlendedValuesTaskData(UE::MovieScene::TComponentTypeID<float> InResultComponent) 
+			: ResultComponent(InResultComponent)
+		{}
+
+		FBlendResult GetAbsoluteResult(uint16 BlendID) const
+		{
+			checkf(bTasksComplete, TEXT("Attempting to access task data while tasks are still in progress - this is a threading policy violation. Clients must wait on FBlendedValuesTaskData::Prerequisites prior to accessing task data."));
+			return Absolutes ? Absolutes.GetValue()[BlendID] : FBlendResult{};
+		}
+		FBlendResult GetRelativeResult(uint16 BlendID) const
+		{
+			checkf(bTasksComplete, TEXT("Attempting to access task data while tasks are still in progress - this is a threading policy violation. Clients must wait on FBlendedValuesTaskData::Prerequisites prior to accessing task data."));
+			return Relatives ? Relatives.GetValue()[BlendID] : FBlendResult{};
+		}
+		FBlendResult GetAdditiveResult(uint16 BlendID) const
+		{
+			checkf(bTasksComplete, TEXT("Attempting to access task data while tasks are still in progress - this is a threading policy violation. Clients must wait on FBlendedValuesTaskData::Prerequisites prior to accessing task data."));
+			return Additives ? Additives.GetValue()[BlendID] : FBlendResult{};
+		}
+		FBlendResult GetAdditiveFromBaseResult(uint16 BlendID) const
+		{
+			checkf(bTasksComplete, TEXT("Attempting to access task data while tasks are still in progress - this is a threading policy violation. Clients must wait on FBlendedValuesTaskData::Prerequisites prior to accessing task data."));
+			return AdditivesFromBase ? AdditivesFromBase.GetValue()[BlendID] : FBlendResult{};
+		}
+
+	private:
+		friend UMovieScenePiecewiseFloatBlenderSystem;
+
+		UE::MovieScene::TComponentTypeID<float> ResultComponent;
+		TOptional<TArray<FBlendResult>> Absolutes;
+		TOptional<TArray<FBlendResult>> Relatives;
+		TOptional<TArray<FBlendResult>> Additives;
+		TOptional<TArray<FBlendResult>> AdditivesFromBase;
+		bool bTasksComplete = true;
 	};
 
-	/** Struct that maintains accumulation buffers for each blend type, one buffer per float result component type */
-	struct FAccumulationBuffers
+	struct FTaskDataSchedule
 	{
-		bool IsEmpty() const;
+		FGraphEventRef GetPrerequisite() const
+		{
+			return Prerequisite;
+		}
 
-		void Reset();
+		const FBlendedValuesTaskData* GetData() const
+		{
+			return Impl.Get();
+		}
 
-		FAccumulationResult FindResults(FComponentTypeID InComponentType) const;
+	private:
 
-		/** Map from Float Result component type -> Absolute blend accumulation buffer for that channel type */
-		TSortedMap<FComponentTypeID, TArray<FBlendResult>> Absolute;
-		/** Map from Float Result component type -> Relative blend accumulation buffer for that channel type */
-		TSortedMap<FComponentTypeID, TArray<FBlendResult>> Relative;
-		/** Map from Float Result component type -> Additive blend accumulation buffer for that channel type */
-		TSortedMap<FComponentTypeID, TArray<FBlendResult>> Additive;
-		/** Map from Float Result component type -> Additive From Base blend accumulation buffer for that channel type */
-		TSortedMap<FComponentTypeID, FAdditiveFromBaseBuffer> AdditiveFromBase;
+		friend UMovieScenePiecewiseFloatBlenderSystem;
+
+		// Heap allocated so that reallocation of the BlendResultsByType map doesn't move any of the arrays
+		TUniquePtr<FBlendedValuesTaskData> Impl;
+
+		FGraphEventRef Prerequisite;
 	};
-
 } // namespace MovieScene
 } // namespace UE
 
@@ -70,26 +98,41 @@ public:
 	virtual void OnLink() override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 
+	const UE::MovieScene::FTaskDataSchedule* RetrieveTaskData(TComponentTypeID<float> InComponentType) const
+	{
+		return TaskDataByType.Find(InComponentType);
+	}
+
 	virtual FGraphEventRef DispatchDecomposeTask(const UE::MovieScene::FFloatDecompositionParams& Params, UE::MovieScene::FAlignedDecomposedFloat* Output) override;
 
 private:
 
-	void ReinitializeAccumulationBuffers();
-	void ZeroAccumulationBuffers();
 
-	/** Buffers that contain accumulated blend values, separated by blend type */
-	UE::MovieScene::FAccumulationBuffers AccumulationBuffers;
+	struct FChannelData
+	{
+		FChannelData()
+		{
+			bEnabled = false;
+			bHasAbsolutes = false;
+			bHasRelatives = false;
+			bHasAdditives = false;
+			bHasAdditivesFromBase = false;
+		}
 
-	/** Mask that contains FloatResult components that have BlendChannelInput components */
-	UE::MovieScene::FComponentMask BlendedResultMask;
+		TComponentTypeID<float> ResultComponent;
+		TComponentTypeID<float> BaseValueComponent;
 
-	/** Mask that contains property tags for any property type that has has at least one BlendChannelOutput */
-	UE::MovieScene::FComponentMask BlendedPropertyMask;
+		bool bEnabled : 1;
+		bool bHasAbsolutes : 1;
+		bool bHasRelatives : 1;
+		bool bHasAdditives : 1;
+		bool bHasAdditivesFromBase : 1;
+	};
+	TArray<FChannelData, TInlineAllocator<10>> ChannelData;
 
-	/** Cache state that is used to invalidate and reset the accumulation buffers when the entity manager has structurally changed */
+	TMap<TComponentTypeID<float>, UE::MovieScene::FTaskDataSchedule> TaskDataByType;
+
 	UE::MovieScene::FCachedEntityManagerState ChannelRelevancyCache;
-
-	/** Bit array specifying FCompositePropertyTypeID's for properties contained within BlendedPropertyMask */
-	TBitArray<> CachedRelevantProperties;
+	TArray<int32> CachedRelevantProperties;
 };
 

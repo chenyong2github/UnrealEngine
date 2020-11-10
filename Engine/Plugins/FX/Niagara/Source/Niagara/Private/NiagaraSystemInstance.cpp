@@ -21,7 +21,6 @@
 #include "Editor.h"
 #endif
 
-
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Deactivate [GT]"), STAT_NiagaraSystemDeactivate, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Complete [GT]"), STAT_NiagaraSystemComplete, STATGROUP_Niagara);
@@ -107,6 +106,7 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& 
 	, Asset(&InAsset)
 	, OverrideParameters(InOverrideParameters)
 	, AttachComponent(InAttachComponent)
+	, PrereqComponent(nullptr)
 	, TickBehavior(InTickBehavior)
 	, Age(0.0f)
 	, LastRenderTime(0.0f)
@@ -314,7 +314,6 @@ void FNiagaraSystemInstance::DumpTickInfo(FOutputDevice& Ar)
 	static const UEnum* TickingGroupEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ETickingGroup"));
 
 	FString PrereqInfo;
-	UActorComponent* PrereqComponent = GetPrereqComponent();
 	if (PrereqComponent != nullptr)
 	{
 		ETickingGroup PrereqTG = FMath::Max(PrereqComponent->PrimaryComponentTick.TickGroup, PrereqComponent->PrimaryComponentTick.EndTickGroup);
@@ -503,6 +502,7 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 	}
 	else
 	{
+		UpdatePrereqs();
 		const ETickingGroup TickGroup = CalculateTickGroup();
 		TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> NewSim = GetWorldManager()->GetSystemSimulation(TickGroup, System);
 
@@ -568,9 +568,9 @@ void FNiagaraSystemInstance::SetGpuComputeDebug(bool bEnableDebug)
 #endif
 }
 
-UActorComponent* FNiagaraSystemInstance::GetPrereqComponent() const
+void FNiagaraSystemInstance::UpdatePrereqs()
 {
-	UActorComponent* PrereqComponent = AttachComponent.Get();
+	PrereqComponent = AttachComponent.Get();
 
 	// This is to maintain legacy behavior (and perf benefit) of ticking in PrePhysics with unattached UNiagaraComponents that have no DI prereqs
 	// NOTE: This means that the system likely ticks with frame-behind transform if the component is moved, but likely doesn't manifest as an issue with local-space emitters
@@ -579,7 +579,6 @@ UActorComponent* FNiagaraSystemInstance::GetPrereqComponent() const
 	{
 		PrereqComponent = NiagaraComponent->GetAttachParent();
 	}
-	return PrereqComponent;
 }
 
 void FNiagaraSystemInstance::Activate(EResetMode InResetMode)
@@ -670,6 +669,7 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(TUniquePtr< FNiagaraSystem
 
 		// Make sure we abandon any external interface at this point
 		SystemInstanceAllocation->OverrideParameters = nullptr;
+		SystemInstanceAllocation->PrereqComponent = nullptr;
 		SystemInstanceAllocation->OnPostTickDelegate.Unbind();
 		SystemInstanceAllocation->OnCompleteDelegate.Unbind();
 
@@ -786,11 +786,6 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 
 	// Wait for any async operations, can complete the system
 	WaitForAsyncTickAndFinalize();
-
-	//////////////////////////////////////////////////////////////////////////
-	//-TOFIX: Workaround FORT-315375 GT / RT Race
-	bRequestMaterialRecache = false;
-	//////////////////////////////////////////////////////////////////////////
 
 	LastRenderTime = World->GetTimeSeconds();
 
@@ -1080,6 +1075,7 @@ void FNiagaraSystemInstance::ReInitInternal()
 	}
 	else
 	{
+		UpdatePrereqs();
 		const ETickingGroup TickGroup = CalculateTickGroup();
 		SystemSimulation = GetWorldManager()->GetSystemSimulation(TickGroup, System);
 	}
@@ -1685,7 +1681,7 @@ ETickingGroup FNiagaraSystemInstance::CalculateTickGroup() const
 		default:
 		case ENiagaraTickBehavior::UsePrereqs:
 			// Handle attached component tick group
-			if (UActorComponent * PrereqComponent = GetPrereqComponent())
+			if (PrereqComponent != nullptr)
 			{
 				//-TODO: This doesn't deal with 'DontCompleteUntil' on the prereq's tick, if we have to handle that it could mean continual TG demotion
 				ETickingGroup PrereqTG = ETickingGroup(FMath::Max(PrereqComponent->PrimaryComponentTick.TickGroup, PrereqComponent->PrimaryComponentTick.EndTickGroup) + 1);
@@ -2485,15 +2481,6 @@ void FNiagaraSystemInstance::ResetComponentRenderPool()
 
 bool FNiagaraSystemInstance::FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeeded)
 {
-	//////////////////////////////////////////////////////////////////////////
-	//-TOFIX: Workaround FORT-315375 GT / RT Race
-	if ( bRequestMaterialRecache )
-	{
-		OnExecuteMaterialRecacheDelegate.ExecuteIfBound();
-		bRequestMaterialRecache = false;
-	}
-	//////////////////////////////////////////////////////////////////////////
-
 	if (bNeedsFinalize)//We can come in here twice in one tick if the GT calls WaitForAsync() while there is a GT finalize task in the queue.
 	{
 		FNiagaraCrashReporterScope CRScope(this);

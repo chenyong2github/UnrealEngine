@@ -173,7 +173,7 @@ void FCanvasTileRendererItem::FRenderData::RenderTiles(
 	check(IsInRenderingThread());
 
 	SCOPED_GPU_STAT(RHICmdList, CanvasDrawTile);
-	SCOPED_DRAW_EVENTF(RHICmdList, CanvasDrawTile, *MaterialRenderProxy->GetIncompleteMaterialWithFallback(GMaxRHIFeatureLevel).GetFriendlyName());
+	SCOPED_DRAW_EVENTF(RHICmdList, CanvasDrawTile, *MaterialRenderProxy->GetMaterial(GMaxRHIFeatureLevel)->GetFriendlyName());
 	TRACE_CPUPROFILER_EVENT_SCOPE(CanvasDrawTile);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CanvasDrawTile)
 

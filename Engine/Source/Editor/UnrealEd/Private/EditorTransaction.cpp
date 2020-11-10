@@ -339,9 +339,7 @@ void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner, TArrayView<cons
 		{
 			CurrentSerializedObject.SetObject(CurrentObject);
 			FWriter Writer(CurrentSerializedObject, bWantsBinarySerialization, Properties);
-			// although it would be preferable to use SerializeScriptProperties, this cause a false diff between the first snapshot and the base object
-			// since they were serialized with different algo and we don't record enough context to make the comparison appropriately
-			SerializeObject(Writer);
+			CurrentObject->SerializeScriptProperties(Writer);
 		}
 
 		// Diff against the correct serialized data depending on whether we already had a snapshot

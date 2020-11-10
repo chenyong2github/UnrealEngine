@@ -31,7 +31,6 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("# GPU Particles"), STAT_NiagaraGPUParticles, ST
 DECLARE_DWORD_COUNTER_STAT(TEXT("# GPU Sorted Particles"), STAT_NiagaraGPUSortedParticles, STATGROUP_Niagara);
 DECLARE_DWORD_COUNTER_STAT(TEXT("# GPU Sorted Buffers"), STAT_NiagaraGPUSortedBuffers, STATGROUP_Niagara);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Readback latency (frames)"), STAT_NiagaraReadbackLatency, STATGROUP_Niagara);
-DECLARE_DWORD_COUNTER_STAT(TEXT("# GPU Dispatches"), STAT_NiagaraGPUDispatches, STATGROUP_Niagara);
 
 DECLARE_GPU_STAT_NAMED(NiagaraGPU, TEXT("Niagara"));
 DECLARE_GPU_STAT_NAMED(NiagaraGPUSimulation, TEXT("Niagara GPU Simulation"));
@@ -69,11 +68,11 @@ static FAutoConsoleVariableRef CVarNiagaraGpuMaxQueuedRenderFrames(
 	ECVF_Default
 );
 
-int32 GNiagaraGpuSubmitCommandHint = WITH_EDITOR ? 10 : 0;
+int32 GNiagaraGpuSubmitCommandHint = 10;
 static FAutoConsoleVariableRef CVarNiagaraGpuSubmitCommandHint(
 	TEXT("fx.NiagaraGpuSubmitCommandHint"),
 	GNiagaraGpuSubmitCommandHint,
-	TEXT("If greater than zero, we use this value to submit commands after the number of dispatches have been issued."),
+	TEXT("If non-zero, a hint will be issued between the set number of dispatches within sequence of shader stages.\n"),
 	ECVF_Default
 );
 
@@ -563,6 +562,12 @@ void NiagaraEmitterInstanceBatcher::DispatchStage(FDispatchInstance& DispatchIns
 		checkf(TotalNumInstances < uint64(TNumericLimits<int32>::Max()), TEXT("ElementCount(%d, %d, %d) for IterationInterface(%s) overflows an int32 this is not allowed"), ElementCount.X, ElementCount.Y, ElementCount.Z, *IterationInterface->SourceDIName.ToString());
 
 		Run(Tick, Instance, 0, uint32(TotalNumInstances), ComputeShader, RHICmdList, ViewUniformBuffer, Instance->SpawnInfo, false, DefaultSimulationStageIndex, StageIndex, IterationInterface);
+	}
+
+	// for long running dispatches we may want to issue a hint to the command list to break things up
+	if (GNiagaraGpuSubmitCommandHint && ((StageIndex + 1) % GNiagaraGpuSubmitCommandHint) == 0)
+	{
+		RHICmdList.SubmitCommandsHint();
 	}
 }
 
@@ -1350,7 +1355,6 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 #endif
 	
 	LLM_SCOPE(ELLMTag::Niagara);
-	TotalDispatchesThisFrame = 0;
 
 	// Reset the list of GPUSort tasks and release any resources they hold on to.
 	// It might be worth considering doing so at the end of the render to free the resources immediately.
@@ -1876,8 +1880,6 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 		SetConstantBuffers(RHICmdList, Shader, Tick, Instance);
 
 		DispatchComputeShader(RHICmdList, Shader.GetShader(), ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
-
-		INC_DWORD_STAT(STAT_NiagaraGPUDispatches);
 	}
 
 	// Unset UAV parameters.
@@ -1887,18 +1889,6 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	Shader->InstanceCountsParam.UnsetUAV(RHICmdList, ComputeShader);
 
 	ResetEmptyUAVPools(RHICmdList);
-
-
-	// Optionally submit commands to the GPU
-	// This can be used to avoid accidental TDR detection in the editor especially when issuing multiple ticks in the same frame
-	if (GNiagaraGpuSubmitCommandHint > 0)
-	{
-		++TotalDispatchesThisFrame;
-		if ((TotalDispatchesThisFrame % GNiagaraGpuSubmitCommandHint) == 0)
-		{
-			RHICmdList.SubmitCommandsHint();
-		}
-	}
 }
 
 FGPUSortManager* NiagaraEmitterInstanceBatcher::GetGPUSortManager() const

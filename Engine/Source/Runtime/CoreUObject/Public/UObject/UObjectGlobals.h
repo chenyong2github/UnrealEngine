@@ -584,13 +584,6 @@ COREUOBJECT_API int32 GetNumAsyncPackages();
 COREUOBJECT_API bool IsLoading();
 
 /**
- * Allows or disallows async loading (for example async loading is not allowed after the final flush on exit)
- *
- * @param bAllowAsyncLoading true if async loading should be allowed, false otherwise
- */
-COREUOBJECT_API void SetAsyncLoadingAllowed(bool bAllowAsyncLoading);
-
-/**
  * State of the async package after the last tick.
  */
 namespace EAsyncPackageState

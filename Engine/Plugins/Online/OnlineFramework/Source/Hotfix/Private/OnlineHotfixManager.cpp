@@ -197,11 +197,6 @@ UOnlineHotfixManager* UOnlineHotfixManager::Get(UWorld* World)
 			HotfixManager = NewObject<UOnlineHotfixManager>(GetTransientPackage(), HotfixManagerClass);
 			OnlineSub->SetNamedInterface(NAME_HotfixManager, HotfixManager);
 		}
-
-		if (World)
-		{
-			HotfixManager->OwnerWorld = World;
-		}
 		return HotfixManager;
 	}
 	return nullptr;
@@ -1449,7 +1444,7 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 						bool bAddAssetToHotfixedList = false;
 
 						// Find or load the asset
-						UObject* Asset = FPackageName::IsValidLongPackageName(AssetPath, true) ? StaticLoadObject(AssetClass, nullptr, *AssetPath) : nullptr;
+						UObject* Asset = StaticLoadObject(AssetClass, nullptr, *AssetPath);
 						if (Asset != nullptr)
 						{
 							const FString RowUpdate(TEXT("RowUpdate"));
@@ -1823,11 +1818,6 @@ void UOnlineHotfixManager::HotfixTableUpdate(UObject* Asset, const FString& Asse
 	{
 		ProblemStrings.Add(TEXT("We can't do a table update on this asset (for example, Curve Float cannot be table updated)."));
 	}
-}
-
-UWorld* UOnlineHotfixManager::GetWorld() const
-{
-	return OwnerWorld.IsValid() ? OwnerWorld.Get() : nullptr;
 }
 
 struct FHotfixManagerExec :

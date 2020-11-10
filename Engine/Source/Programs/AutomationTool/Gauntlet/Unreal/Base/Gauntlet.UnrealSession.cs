@@ -1260,16 +1260,8 @@ namespace Gauntlet
 
 				string DestPath = Path.Combine(OutputPath, FolderName);
 
-				if (!App.Role.IsNullRole())
-				{
-					Log.VeryVerbose("Calling SaveRoleArtifacts, Role: {0}  Artifact Path: {1}", App.ToString(), App.AppInstance.ArtifactPath);
-					var Artifacts = SaveRoleArtifacts(Context, App, DestPath);
-					AllArtifacts.Add(Artifacts);
-				}
-				else 
-				{
-					Log.Verbose("Skipping SaveRoleArtifacts for Null Role: {0}", App.ToString());
-				}
+				var Artifacts = SaveRoleArtifacts(Context, App, DestPath);
+				AllArtifacts.Add(Artifacts);
 			}
 
 			return AllArtifacts;

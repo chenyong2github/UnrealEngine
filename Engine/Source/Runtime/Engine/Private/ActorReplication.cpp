@@ -498,14 +498,9 @@ void AActor::OnSubobjectDestroyFromReplication(UObject *Subobject)
 	}
 }
 
-void AActor::SetNetAddressable()
-{
-	bForceNetAddressable = 1;
-}
-
 bool AActor::IsNameStableForNetworking() const
 {
-	return IsNetStartupActor() || HasAnyFlags( RF_ClassDefaultObject | RF_ArchetypeObject ) || bForceNetAddressable != 0;
+	return IsNetStartupActor() || HasAnyFlags( RF_ClassDefaultObject | RF_ArchetypeObject );
 }
 
 bool AActor::IsSupportedForNetworking() const

@@ -4378,60 +4378,6 @@ class SDPIScalingTest : public SCompoundWidget
 	SVerticalBox::FSlot* ScalerSlot;
 };
 
-class SGlobalInvalidationTest : public SCompoundWidget
-{
-	SLATE_BEGIN_ARGS(SGlobalInvalidationTest)
-	{}
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs)
-	{
-		ChildSlot
-		.Padding(10)
-		[
-			SNew(SVerticalBox)
-
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SButton)
-				.Text_Lambda([]() {
-					return FText::Format(LOCTEXT("ToggleInvalidationMode", "Toggle Slate Global Invalidation [{0}]"),
-						GSlateEnableGlobalInvalidation ? LOCTEXT("Off", "Off") : LOCTEXT("On", "On"));
-				})
-				.OnClicked_Lambda([this]()
-				{
-					FSlateApplication::Get().ToggleGlobalInvalidation(!GSlateEnableGlobalInvalidation);
-					return FReply::Handled();
-				})
-			]
-
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.HAlign(HAlign_Left)
-			[
-				SNew(SBox)
-				.WidthOverride(200)
-				.HeightOverride(150)
-				[
-					SNew(SScrollBox)
-
-					+ SScrollBox::Slot()[SNew(SButton).Text(LOCTEXT("Button", "Button"))]
-					+ SScrollBox::Slot()[SNew(SButton).Text(LOCTEXT("Button", "Button"))]
-					+ SScrollBox::Slot()[SNew(SButton).Text(LOCTEXT("Button", "Button"))]
-					+ SScrollBox::Slot()[SNew(SButton).Text(LOCTEXT("Button", "Button"))]
-					+ SScrollBox::Slot()[SNew(SButton).Text(LOCTEXT("Button", "Button"))]
-					+ SScrollBox::Slot()[SNew(SButton).Text(LOCTEXT("Button", "Button"))]
-					+ SScrollBox::Slot()[SNew(SButton).Text(LOCTEXT("Button", "Button"))]
-					+ SScrollBox::Slot()[SNew(SButton).Text(LOCTEXT("Button", "Button"))]
-					+ SScrollBox::Slot()[SNew(SButton).Text(LOCTEXT("Button", "Button"))]
-					+ SScrollBox::Slot()[SNew(SButton).Text(LOCTEXT("Button", "Button"))]
-				]
-			]
-		];
-	}
-};
-
 class SInvalidationTest : public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SInvalidationTest)
@@ -4444,34 +4390,6 @@ class SInvalidationTest : public SCompoundWidget
 		.Padding(10)
 		[
 			SNew(SVerticalBox)
-
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("OpenSlateGlobalInvalidationTestWindow", "Open Slate Global Invalidation Test Window"))
-				.OnClicked_Lambda([this]()
-				{
-					TSharedRef<SWindow> TestWindow = SNew(SWindow)
-					.ClientSize(FVector2D(640,480))
-					.AutoCenter(EAutoCenter::PrimaryWorkArea)
-					[
-						SNew(SGlobalInvalidationTest)
-					];
-
-					TestWindow->SetAllowFastUpdate(true);
-
-					FSlateApplication::Get().AddWindow( TestWindow );
-					return FReply::Handled();
-				})
-			]
-
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("Invalidation Panels", "INVALIDATION PANELS"))
-			]
 
 			+ SVerticalBox::Slot()
 			.AutoHeight()

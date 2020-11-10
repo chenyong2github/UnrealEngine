@@ -788,17 +788,6 @@ struct FRootMotionReset
 	}
 };
 
-extern void DecompressPose(FCompactPose& OutPose,
-							const FCompressedAnimSequence& CompressedData,
-							const FAnimExtractContext& ExtractionContext,
-							USkeleton* Skeleton,
-							float SequenceLength,
-							EAnimInterpolationType Interpolation,
-							bool bIsBakedAdditive,
-							const TArray<FTransform>& RetargetTransforms,
-							FName SourceName,
-							const FRootMotionReset& RootMotionReset);
-
 extern void DecompressPose(	FCompactPose& OutPose,
 							const FCompressedAnimSequence& CompressedData,
 							const FAnimExtractContext& ExtractionContext,

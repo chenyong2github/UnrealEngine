@@ -166,20 +166,6 @@ FDelegateHandle IOnlinePartySystem::AddOnPartyMemberDataReceivedDelegate_Handle(
 	return OnPartyMemberDataReceivedDelegates.Add(FOnPartyMemberDataReceivedDelegate::CreateLambda(DeprecationHelperLambda));
 }
 
-void IOnlinePartySystem::QueryPartyJoinability(const FUniqueNetId& LocalUserId, const IOnlinePartyJoinInfo& OnlinePartyJoinInfo, const FOnQueryPartyJoinabilityComplete& Delegate)
-{
-	// Default implementation will call the ex version.
-	QueryPartyJoinability(LocalUserId, OnlinePartyJoinInfo, FOnQueryPartyJoinabilityCompleteEx::CreateLambda([Delegate](const FUniqueNetId& LambdaLocalUserId, const FOnlinePartyId& LambdaPartyId, const FQueryPartyJoinabilityResult& QueryPartyJoinabilityResult)
-	{
-		Delegate.ExecuteIfBound(LambdaLocalUserId, LambdaPartyId, QueryPartyJoinabilityResult.EnumResult, QueryPartyJoinabilityResult.SubCode);
-	}));
-}
-
-void IOnlinePartySystem::RespondToQueryJoinability(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& RecipientId, bool bCanJoin, int32 DeniedResultCode)
-{
-	RespondToQueryJoinability(LocalUserId, PartyId, RecipientId, bCanJoin, DeniedResultCode, FOnlinePartyDataConstPtr());
-}
-
 bool FPartyConfiguration::operator==(const FPartyConfiguration& Other) const
 {
 	return JoinRequestAction == Other.JoinRequestAction &&

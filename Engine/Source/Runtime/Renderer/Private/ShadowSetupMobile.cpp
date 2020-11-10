@@ -67,8 +67,8 @@ static bool EnableStaticMeshCSMVisibilityState(bool bMovableLight, const FPrimit
 		if (bMovableLight || CouldStaticMeshEverReceiveCSMFromStationaryLight(View.GetFeatureLevel(), PrimitiveSceneInfo, StaticMesh))
 		{
 			const FMaterialRenderProxy* MaterialRenderProxy = StaticMesh.MaterialRenderProxy;
-			const FMaterial& Material = MaterialRenderProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialRenderProxy);
-			if (Material.GetShadingModels().IsLit())
+			const FMaterial* Material = MaterialRenderProxy->GetMaterial(View.GetFeatureLevel());
+			if (Material->GetShadingModels().IsLit())
 			{
 				// CSM enabled list
 				MobileCSMVisibilityInfo.MobileCSMStaticMeshVisibilityMap[StaticMesh.Id] = MobileCSMVisibilityInfo.MobileNonCSMStaticMeshVisibilityMap[StaticMesh.Id];

@@ -282,11 +282,6 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 
 	Particles.ClearTransientDirty();
 
-	//for now we never allow solver to schedule more than two tasks back to back
-	//this means we only need to keep indices alive for one aditional frame
-	//TODO: make this more robust/general
-	Base::ReleasePendingIndices();
-
 #if !UE_BUILD_SHIPPING
 	if (SerializeEvolution)
 	{
@@ -326,12 +321,12 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_CCDHack);
-		CCDHack(Dt, Particles.GetActiveParticlesView(), InternalAcceleration);
+		CCDHack(Dt, Particles.GetActiveParticlesView(), InternalAcceleration.Get());
 	}
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_DetectCollisions);
-		CollisionDetector.GetBroadPhase().SetSpatialAcceleration(InternalAcceleration);
+		CollisionDetector.GetBroadPhase().SetSpatialAcceleration(InternalAcceleration.Get());
 
 		CollisionStats::FStatData StatData(bPendingHierarchyDump);
 
@@ -351,10 +346,10 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 		PrepareIteration(Dt);
 	}
 
-	if(CollisionModifiers)
+	if (CollisionModifierCallback)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_CollisionModifierCallback);
-		CollisionConstraints.ApplyCollisionModifier(*CollisionModifiers);
+		CollisionConstraints.ApplyCollisionModifier(CollisionModifierCallback);
 	}
 
 	{
@@ -522,7 +517,7 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 }
 
 template <typename Traits>
-TPBDRigidsEvolutionGBF<Traits>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal,3>& InParticles,THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, const TArray<ISimCallbackObject*>* InCollisionModifiers, bool InIsSingleThreaded)
+TPBDRigidsEvolutionGBF<Traits>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal,3>& InParticles,THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials,bool InIsSingleThreaded)
 	: Base(InParticles, SolverPhysicsMaterials, DefaultNumIterations, DefaultNumPushOutIterations, InIsSingleThreaded)
 	, Clustering(*this, Particles.GetClusteredParticles())
 	, CollisionConstraints(InParticles, Collided, PhysicsMaterials, PerParticlePhysicsMaterials, DefaultNumCollisionPairIterations, DefaultNumCollisionPushOutPairIterations, DefaultCollisionCullDistance)
@@ -535,7 +530,6 @@ TPBDRigidsEvolutionGBF<Traits>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal,3>& 
 	, PostApplyCallback(nullptr)
 	, PostApplyPushOutCallback(nullptr)
 	, CurrentStepResimCacheImp(nullptr)
-	, CollisionModifiers(InCollisionModifiers)
 {
 	CollisionConstraints.SetCanDisableContacts(!!CollisionDisableCulledContacts);
 

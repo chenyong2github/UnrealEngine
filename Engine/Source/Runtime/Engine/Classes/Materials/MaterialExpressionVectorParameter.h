@@ -14,7 +14,7 @@ class UMaterialExpressionVectorParameter : public UMaterialExpressionParameter
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionVectorParameter)
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionVectorParameter, meta=(OnlyUpdateOnInteractionEnd))
 	FLinearColor DefaultValue;
 
 	UPROPERTY(EditAnywhere, Category=CustomPrimitiveData)

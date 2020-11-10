@@ -13,6 +13,7 @@
 #include "Misc/ScopeTryLock.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
+
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 
@@ -31,17 +32,6 @@ FAutoConsoleVariableRef CVarBypassAllSubmixEffects(
 	TEXT("When set to 1, all submix effects will be bypassed.\n")
 	TEXT("1: Submix Effects are disabled."),
 	ECVF_Default);
-
-// Define profiling categories for submixes. 
-DEFINE_STAT(STAT_AudioMixerSubmixes);
-DEFINE_STAT(STAT_AudioMixerEndpointSubmixes);
-DEFINE_STAT(STAT_AudioMixerSubmixChildren);
-DEFINE_STAT(STAT_AudioMixerSubmixSource);
-DEFINE_STAT(STAT_AudioMixerSubmixEffectProcessing);
-DEFINE_STAT(STAT_AudioMixerSubmixBufferListeners);
-DEFINE_STAT(STAT_AudioMixerSubmixSoundfieldChildren);
-DEFINE_STAT(STAT_AudioMixerSubmixSoundfieldSources);
-DEFINE_STAT(STAT_AudioMixerSubmixSoundfieldProcessors);
 
 namespace Audio
 {
@@ -259,6 +249,7 @@ namespace Audio
 						if (EffectPreset)
 						{
 							++NumSubmixEffects;
+
 
 							FSoundEffectSubmixInitData InitData;
 							InitData.DeviceID = MixerDevice->DeviceID;
@@ -1040,7 +1031,6 @@ namespace Audio
 		// Mix all submix audio into this submix's input scratch buffer
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixChildren);
-			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixChildren);
 
 			// First loop this submix's child submixes mixing in their output into this submix's dry/wet buffers.
 			TArray<uint32> ToRemove;
@@ -1065,7 +1055,6 @@ namespace Audio
 
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixSource);
-			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixSource);
 
 			// Loop through this submix's sound sources
 			for (const auto& MixerSourceVoiceIter : MixerSourceVoices)
@@ -1092,7 +1081,6 @@ namespace Audio
 			if (!BypassAllSubmixEffectsCVar && EffectChains.Num() > 0)
 			{		
 				CSV_SCOPED_TIMING_STAT(Audio, SubmixEffectProcessing);
-				SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixEffectProcessing);
 
 				float SampleRate = MixerDevice->GetSampleRate();
 				check(SampleRate > 0.0f);
@@ -1209,7 +1197,7 @@ namespace Audio
 			{
 				MixBufferDownToMono(InputBuffer, NumChannels, MonoMixBuffer);
 				SpectrumAnalyzer->PushAudio(MonoMixBuffer.GetData(), MonoMixBuffer.Num());
-				SpectrumAnalyzer->PerformAsyncAnalysisIfPossible(true);
+				SpectrumAnalyzer->PerformAnalysisIfPossible(true, true);
 			}
 		}
 
@@ -1264,8 +1252,6 @@ namespace Audio
 		if(const USoundSubmix* SoundSubmix = Cast<const USoundSubmix>(OwningSubmixObject))
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixBufferListeners);
-			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixBufferListeners);
-
 			double AudioClock = MixerDevice->GetAudioTime();
 			float SampleRate = MixerDevice->GetSampleRate();
 			FScopeLock Lock(&BufferListenerCriticalSection);
@@ -1352,7 +1338,6 @@ namespace Audio
 		// Mix all submix audio into OutputAudio.
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixSoundfieldChildren);
-			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixSoundfieldChildren);
 
 			// If we are mixing down all non-soundfield child submixes,
 			// Set up the scratch buffer so that we can sum all non-soundfield child submixes to it.
@@ -1388,7 +1373,6 @@ namespace Audio
 		// Mix all source sends into OutputAudio.
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixSoundfieldSources);
-			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixSoundfieldSources);
 
 			check(SoundfieldStreams.Mixer.IsValid());
 
@@ -1419,7 +1403,6 @@ namespace Audio
 		// Run soundfield processors.
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixSoundfieldProcessors);
-			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixSoundfieldProcessors);
 
 			for (auto& EffectData : SoundfieldStreams.EffectProcessors)
 			{
@@ -1875,7 +1858,7 @@ namespace Audio
 
 		{
 			FScopeLock SpectrumAnalyzerLock(&SpectrumAnalyzerCriticalSection);
-			SpectrumAnalyzer = MakeShared<FAsyncSpectrumAnalyzer, ESPMode::ThreadSafe>(AudioSpectrumAnalyzerSettings, MixerDevice->GetSampleRate());
+			SpectrumAnalyzer.Reset(new FSpectrumAnalyzer(AudioSpectrumAnalyzerSettings, MixerDevice->GetSampleRate()));
 
 
 			for (FSpectrumAnalysisDelegateInfo& DelegateInfo : SpectralAnalysisDelegates)
@@ -2082,7 +2065,7 @@ namespace Audio
 						{
 							// This lock ensures that the spectrum analyzer's analysis buffer doesn't
 							// change in this scope. 
-							Audio::FAsyncSpectrumAnalyzerScopeLock AnalyzerLock(SpectrumAnalyzer.Get());
+							Audio::FSpectrumAnalyzerScopeLock AnalyzerLock(SpectrumAnalyzer.Get());
 
 							if (ensure(DelegateInfo.SpectrumBandExtractor.IsValid()))
 							{

@@ -32,13 +32,6 @@ void UEditorUtilitySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		ECVF_Default
 	);
 
-	CancelAllTasksCommandObject = IConsoleManager::Get().RegisterConsoleCommand(
-		TEXT("CancelAllTasks"),
-		TEXT(""),
-		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateUObject(this, &UEditorUtilitySubsystem::CancelAllTasksCommand),
-		ECVF_Default
-	);
-
 	IMainFrameModule& MainFrameModule = IMainFrameModule::Get();
 	if (MainFrameModule.IsWindowInitialized())
 	{
@@ -104,12 +97,6 @@ bool UEditorUtilitySubsystem::TryRun(UObject* Asset)
 		return false;
 	}
 
-	if (ObjectClass->IsChildOf(AActor::StaticClass()))
-	{
-		UE_LOG(LogEditorUtilityBlueprint, Warning, TEXT("Could not run because functions on actors can only be called when spawned in a world: %s"), *Asset->GetPathName());
-		return false;
-	}
-
 	static const FName RunFunctionName("Run");
 	UFunction* RunFunction = ObjectClass->FindFunctionByName(RunFunctionName);
 	if (RunFunction)
@@ -124,27 +111,6 @@ bool UEditorUtilitySubsystem::TryRun(UObject* Asset)
 	else
 	{
 		UE_LOG(LogEditorUtilityBlueprint, Warning, TEXT("Missing function named 'Run': %s"), *Asset->GetPathName());
-	}
-
-	return false;
-}
-
-bool UEditorUtilitySubsystem::CanRun(UObject* Asset) const
-{
-	UClass* ObjectClass = Asset->GetClass();
-	if (UBlueprint* Blueprint = Cast<UBlueprint>(Asset))
-	{
-		ObjectClass = Blueprint->GeneratedClass;
-	}
-
-	if (ObjectClass)
-	{
-		if (ObjectClass->IsChildOf(AActor::StaticClass()))
-		{
-			return false;
-		}
-
-		return true;
 	}
 
 	return false;
@@ -256,11 +222,6 @@ bool UEditorUtilitySubsystem::Tick(float DeltaTime)
 		ActiveTask->StartExecutingTask();
 	}
 
-	if (ActiveTask && ActiveTask->WasCancelRequested())
-	{
-		ActiveTask->FinishExecutingTask();
-	}
-
 	return true;
 }
 
@@ -294,18 +255,6 @@ void UEditorUtilitySubsystem::RunTaskCommand(const TArray<FString>& Params, UWor
 	else
 	{
 		UE_LOG(LogEditorUtilityBlueprint, Error, TEXT("No task specified.  RunTask <Name of Task>"));
-	}
-}
-
-void UEditorUtilitySubsystem::CancelAllTasksCommand(const TArray<FString>& Params, UWorld* InWorld, FOutputDevice& Ar)
-{
-	PendingTasks.Reset();
-
-	if (ActiveTask)
-	{
-		ActiveTask->RequestCancel();
-		ActiveTask->FinishExecutingTask();
-		ActiveTask = nullptr;
 	}
 }
 
@@ -346,16 +295,6 @@ void UEditorUtilitySubsystem::RemoveTaskFromActiveList(UEditorUtilityTask* Task)
 			UE_LOG(LogEditorUtilityBlueprint, Log, TEXT("Task %s completed"), *GetPathNameSafe(Task));
 		}
 	}
-}
-
-void UEditorUtilitySubsystem::RegisterReferencedObject(UObject* ObjectToReference)
-{
-	ReferencedObjects.Add(ObjectToReference);
-}
-
-void UEditorUtilitySubsystem::UnregisterReferencedObject(UObject* ObjectToReference)
-{
-	ReferencedObjects.Remove(ObjectToReference);
 }
 
 UClass* UEditorUtilitySubsystem::FindClassByName(const FString& RawTargetName)

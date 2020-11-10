@@ -268,12 +268,6 @@ void ReconstructVolumetricRenderTargetPS(
 					}
 #endif
 				}
-
-				if (!(all(IsFinite(RGBA)) && all(IsFinite(Depths))))
-				{
-					RGBA = float4(0.0f, 0.0f, 0.0f, 1.0f);
-					Depths = float2(1000.0f, 1000.0f);
-				}
 			}
 		}
 		else
@@ -447,7 +441,7 @@ void ComposeVolumetricRTOverScenePS(
 #if PERMUTATION_RENDER_CAMERA_UNDERWATER
 	// Now check that we are compositing a pixel that is not "water" to avoid applying clouds twice (they are already composited with the behind water layer scene).
 	// We also lack depth information behind the water surface now so the composition would be wrong anyway.
-	float WaterTestPixelLinearDepth = WaterLinearDepthTexture.SampleLevel(LinearTextureSampler, ScreenUV, 0).r * UseWaterLinearDepthTexture;
+	float WaterTestPixelLinearDepth = WaterLinearDepthTexture.SampleLevel(LinearTextureSampler, VolumeUV, 0).r * UseWaterLinearDepthTexture;
 	if (WaterTestPixelLinearDepth > PixelDistanceFromView)
 	{
 		// This pixel contains water, so skip it because clouds have already been composited in the "behind water scene color".
@@ -618,11 +612,12 @@ void ComposeVolumetricRTOverScenePS(
 	float4 VolumeRGBT3 = SafeLoadVolumetricTexture(VolumeCoord3);
 	float2 VolumeFrontDepth3 = SafeLoadVolumetricDepthTexture(VolumeCoord3);
 
-	// clamp to the maximum of the read depth to avoid no depth matching
-	PixelDistanceFromViewKm = min(PixelDistanceFromViewKm, max(max(VolumeFrontDepth0.y, VolumeFrontDepth1.y),max(VolumeFrontDepth2.y, VolumeFrontDepth3.y)));
-
-	float4 Depth4 = float4(VolumeFrontDepth0.y, VolumeFrontDepth1.y, VolumeFrontDepth2.y, VolumeFrontDepth3.y);
-	float4 depth4Diff = PixelDistanceFromViewKm - Depth4;
+	PixelDistanceFromViewKm = min(PixelDistanceFromViewKm, max(max(VolumeFrontDepth0.y, VolumeFrontDepth1.y),max(VolumeFrontDepth2.y, VolumeFrontDepth3.y))); // clamp to the maximum of the read depth to avoid no depth matching
+	float4 depth4Diff;
+	depth4Diff.x = PixelDistanceFromViewKm - VolumeFrontDepth0.y;
+	depth4Diff.y = PixelDistanceFromViewKm - VolumeFrontDepth1.y;
+	depth4Diff.z = PixelDistanceFromViewKm - VolumeFrontDepth2.y;
+	depth4Diff.w = PixelDistanceFromViewKm - VolumeFrontDepth3.y;
 	depth4Diff = abs(depth4Diff);
 	float MaxDepth4Diff = max(max(depth4Diff.x, depth4Diff.y), max(depth4Diff.z, depth4Diff.w));
 
@@ -630,63 +625,24 @@ void ComposeVolumetricRTOverScenePS(
 	float4 DataAcc = 0;
 
 	const float weightMultiplier = 10000.0f;
+	float4 weights = 1.0f / (depth4Diff * weightMultiplier + 1.0f);
+	const float weightsSum = dot(weights, float4(1.0f, 1.0f, 1.0f, 1.0f));
 	const float ThresholdToBilinear = PixelDistanceFromViewKm * 0.1;
-
 	if (MaxDepth4Diff > ThresholdToBilinear)
 	{
-		const float ConsideredFarWaterDistanceKm = 1.0f;				// We only apply the fix for pixel that are further than 1km
-		const float NotRenderedPixelDistanceKm = 500.0f;				// We assume pixel have a depth great than that are far depth pixel
-		if (any(Depth4 > NotRenderedPixelDistanceKm)					// Some pixels have non rendered pixel...
-			&& !all(Depth4 > NotRenderedPixelDistanceKm)				// ...but not all (in this case we want to fall back to bilinear filtering).
-			&& PixelDistanceFromViewKm > ConsideredFarWaterDistanceKm)	// Only treat this way pixel that are far enough to not mix up close object with far water.
-		{
-			// This is a special case / hack added for to fix some visual issues encoutnered with water as of today.
-			// Water is render after checker boarded minmax depth is taken for cloud rendering (because clouds also needs to be rendered within the water pass).
-			// As such, the reconstructure fails a taking a matching color for a matching depth (cloud depth = 1000km but water is closer, less than 2 kilometers).
-			// This does not handle all the cases but fixes current issues with the water system.
-			// ==> this code can be removed when we automatically fix up edges of objects to have sharp silhouette under strong conflicting motion.
-			const float AcceptanceOffsetKm = 0.001f;
-			if (VolumeFrontDepth0.y > (PixelDistanceFromViewKm - AcceptanceOffsetKm))
-			{
-				DataAcc += VolumeRGBT0;
-				ValidSampleCount++;
-			}
-			if (VolumeFrontDepth1.y > (PixelDistanceFromViewKm - AcceptanceOffsetKm))
-			{
-				DataAcc += VolumeRGBT1;
-				ValidSampleCount++;
-			}
-			if (VolumeFrontDepth2.y > (PixelDistanceFromViewKm - AcceptanceOffsetKm))
-			{
-				DataAcc += VolumeRGBT2;
-				ValidSampleCount++;
-			}
-			if (VolumeFrontDepth3.y > (PixelDistanceFromViewKm - AcceptanceOffsetKm))
-			{
-				DataAcc += VolumeRGBT3;
-				ValidSampleCount++;
-			}
-			//DataAcc = float4(1.0, 1.0, 0, 0); 
-		}
+		// Depth discontinuities edges
+		weights/= weightsSum;
 
-		if(ValidSampleCount == 0)
-		{
-			// Depth discontinuities edges
-			float4 weights = 1.0f / (depth4Diff * weightMultiplier + 1.0f);
-			const float weightsSum = dot(weights, float4(1.0f, 1.0f, 1.0f, 1.0f));
-			weights /= weightsSum;
-
-			ValidSampleCount = weightsSum > 0.0f ? 1.0 : 0.0f;
-			DataAcc = weights.x * VolumeRGBT0 + weights.y * VolumeRGBT1 + weights.z * VolumeRGBT2 + weights.w * VolumeRGBT3;
-			//DataAcc = float4(1.0, 0, 0, 0); 
-		}
+		ValidSampleCount = weightsSum > 0.0f ? 1.0 : 0.0f;
+		DataAcc = weights.x * VolumeRGBT0 + weights.y * VolumeRGBT1 + weights.z * VolumeRGBT2 + weights.w * VolumeRGBT3;
+		//DataAcc += float4(0.1, 0, 0, 0); 
 	}
 	else
 	{
 		// Now do a bilinear sample to have a soft look region without depth edges.
 		ValidSampleCount = 1.0;
 		DataAcc = SafeSampleVolumetricTexture((float2(VolumeCoord0) + 0.25 + (float2(OffsetX, OffsetY) * 0.5 + 0.5) * 0.5) * VolumetricTextureSizeAndInvSize.zw);
-		//DataAcc = float4(0, 1.0, 0, 0);
+		//DataAcc += float4(0, 0.1, 0, 0);
 
 		if (UvOffsetScale>0.0)
 		{

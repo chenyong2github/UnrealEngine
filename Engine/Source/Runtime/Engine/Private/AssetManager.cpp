@@ -622,7 +622,7 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 				TTuple<FPrimaryAssetType, FPrimaryAssetType> ConflictPair(PrimaryAssetType, PrimaryAssetId.PrimaryAssetType);
 				if (!IssuedWarnings.Contains(ConflictPair))
 				{
-					FString ConflictMsg = FString::Printf(TEXT("Ignoring PrimaryAssetType %s - Conflicts with %s - Asset: %s"), *PrimaryAssetType.ToString(), *PrimaryAssetId.PrimaryAssetType.ToString(), *Data.AssetName.ToString());
+					FString ConflictMsg = FString::Printf(TEXT("Ignoring PrimaryAssetType %s - Conflicts with %s"), *PrimaryAssetType.ToString(), *PrimaryAssetId.PrimaryAssetType.ToString());
 
 					UE_LOG(LogAssetManager, Warning, TEXT("%s"), *ConflictMsg);
 					IssuedWarnings.Add(ConflictPair);
@@ -719,12 +719,11 @@ void UAssetManager::UpdateCachedAssetData(const FPrimaryAssetId& PrimaryAssetId,
 		NameData.AssetPtr = FSoftObjectPtr(NewAssetPath); // This will have _C
 
 		// If the types don't match, update the registry
-		IAssetRegistry& LocalAssetRegistry = GetAssetRegistry();
 		FPrimaryAssetId SavedId = NewAssetData.GetPrimaryAssetId();
-		FPrimaryAssetId ObjectPathId = LocalAssetRegistry.GetAssetByObjectPath(NameData.AssetDataPath, true).GetPrimaryAssetId();
-		if (SavedId != PrimaryAssetId || (ObjectPathId.IsValid() && SavedId != ObjectPathId))
+
+		if (SavedId != PrimaryAssetId)
 		{
-			LocalAssetRegistry.SetPrimaryAssetIdForObjectPath(NameData.AssetDataPath, PrimaryAssetId);
+			GetAssetRegistry().SetPrimaryAssetIdForObjectPath(NameData.AssetDataPath, PrimaryAssetId);
 		}
 
 		if (bIsBulkScanning)
@@ -1468,7 +1467,7 @@ TSharedPtr<FStreamableHandle> UAssetManager::PreloadPrimaryAssets(const TArray<F
 
 	ReturnHandle = LoadAssetList(PathsToLoad.Array(), MoveTemp(DelegateToCall), Priority, DebugName);
 
-	if (!ensureMsgf(ReturnHandle.IsValid(), TEXT("Requested preload of Primary Asset with no referenced assets! DebugName:%s"), *DebugName))
+	if (!ensureMsgf(ReturnHandle.IsValid(), TEXT("Requested preload of Primary Asset with no referenced assets!")))
 	{
 		return nullptr;
 	}
@@ -2745,8 +2744,6 @@ void UAssetManager::ScanPrimaryAssetTypesFromConfig()
 		ScanPathsForPrimaryAssets(TypeInfo.PrimaryAssetType, TypeInfo.AssetScanPaths, TypeInfo.AssetBaseClassLoaded, TypeInfo.bHasBlueprintClasses, TypeInfo.bIsEditorOnly, false);
 
 		SetPrimaryAssetTypeRules(TypeInfo.PrimaryAssetType, TypeInfo.Rules);
-
-		FPlatformApplicationMisc::PumpMessages(IsInGameThread());
 	}
 
 	StopBulkScanning();

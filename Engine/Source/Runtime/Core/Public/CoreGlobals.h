@@ -253,23 +253,8 @@ extern CORE_API bool GIsSlowTask;
 extern CORE_API bool GSlowTaskOccurred;
 extern CORE_API bool GIsGuarded;
 
-/**
-* Set this to true to only allow setting RequestingExit at the start of the Engine tick
-*   This will remove the chance for undefined behaviour when setting RequestExit
-*
-* This needs to proved out on all platforms/use cases before this can moved to default
-*/
-#ifndef UE_SET_REQUEST_EXIT_ON_TICK_ONLY
-	#define UE_SET_REQUEST_EXIT_ON_TICK_ONLY 0
-#endif
-
 UE_DEPRECATED(4.24, "Please use IsEngineExitRequested()/RequestEngineExit(const FString&)")
 extern CORE_API bool GIsRequestingExit;
-
-/**
- * This will check if a RequestExit has come in, if it has will set GIsRequestingExit.
- */
-extern CORE_API void BeginExitIfRequested();
 
 FORCEINLINE bool IsEngineExitRequested()
 {

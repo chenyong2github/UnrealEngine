@@ -24,7 +24,7 @@ void DrawFrameNumberHint(FSequencerSectionPainter& InPainter, FFrameTime Current
 	const float MajorTickHeight = 9.0f;
 	FVector2D TextOffset(TextPosition, InPainter.SectionGeometry.Size.Y - (MajorTickHeight + TextSize.Y));
 
-	const FLinearColor DrawColor = FEditorStyle::GetSlateColor("SelectionColor").GetColor(FWidgetStyle()).CopyWithNewOpacity(InPainter.GhostAlpha);
+	const FLinearColor DrawColor = FEditorStyle::GetSlateColor("SelectionColor").GetColor(FWidgetStyle());
 	const FVector2D BoxPadding = FVector2D(4.0f, 2.0f);
 	// draw time string
 
@@ -34,7 +34,7 @@ void DrawFrameNumberHint(FSequencerSectionPainter& InPainter, FFrameTime Current
 		InPainter.SectionGeometry.ToPaintGeometry(TextOffset - BoxPadding, TextSize + 2.0f * BoxPadding),
 		FEditorStyle::GetBrush("WhiteBrush"),
 		ESlateDrawEffect::None,
-		FLinearColor::Black.CopyWithNewOpacity(0.5f * InPainter.GhostAlpha)
+		FLinearColor::Black.CopyWithNewOpacity(0.5f)
 	);
 
 	ESlateDrawEffect DrawEffects = InPainter.bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;

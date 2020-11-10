@@ -88,12 +88,12 @@ namespace Chaos
 		OnMaterialMaskUpdated.Broadcast(InHandle);
 	}
 
-	const Chaos::THandleArray<FChaosPhysicsMaterial>& FPhysicalMaterialManager::GetMasterMaterials_External() const
+	const Chaos::THandleArray<FChaosPhysicsMaterial>& FPhysicalMaterialManager::GetMasterMaterials() const
 	{
 		return Materials;
 	}
 
-	const Chaos::THandleArray<FChaosPhysicsMaterialMask>& FPhysicalMaterialManager::GetMasterMaterialMasks_External() const
+	const Chaos::THandleArray<FChaosPhysicsMaterialMask>& FPhysicalMaterialManager::GetMasterMaterialMasks() const
 	{
 		return MaterialMasks;
 	}

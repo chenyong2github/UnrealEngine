@@ -323,7 +323,6 @@ namespace Audio
 		if (SoundBuffer->NumChannels > 0)
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, InitSources);
-			SCOPE_CYCLE_COUNTER(STAT_AudioSourceInitTime);
 
 			AUDIO_MIXER_CHECK(MixerDevice);
 			MixerSourceVoice = MixerDevice->GetMixerSourceVoice();
@@ -346,12 +345,6 @@ namespace Audio
 
 			FActiveSound* ActiveSound = WaveInstance->ActiveSound;
 			InitParams.ModulationSettings = ModulationUtils::GetRoutedModulation(*WaveInstance, *WaveData, ActiveSound);
-
-			// Copy quantization request data
-			if (WaveInstance->QuantizedRequestData)
-			{
-				InitParams.QuantizedRequestData = *WaveInstance->QuantizedRequestData;
-			}
 
 			// Copy quantization request data
 			if (WaveInstance->QuantizedRequestData)
@@ -426,41 +419,43 @@ namespace Audio
 			SetupBusData(InitParams.AudioBusSends);
 
 			// Don't set up any submixing if we're set to output to bus only
-	
-			// If we're spatializing using HRTF and its an external send, don't need to setup a default/base submix send to master or EQ submix
-			// We'll only be using non-default submix sends (e.g. reverb).
-			if (!(InitParams.bUseHRTFSpatialization && MixerDevice->bSpatializationIsExternalSend))
+			if (!InitParams.bOutputToBusOnly)
 			{
-				FMixerSubmixWeakPtr SubmixPtr = WaveInstance->SoundSubmix
-					? MixerDevice->GetSubmixInstance(WaveInstance->SoundSubmix)
-					: MixerDevice->GetMasterSubmix();
-
-				FMixerSourceSubmixSend SubmixSend;
-				SubmixSend.Submix = SubmixPtr;
-				SubmixSend.SubmixSendStage = EMixerSourceSubmixSendStage::PostDistanceAttenuation;
-				SubmixSend.SendLevel = 1.0f;
-				SubmixSend.bIsMainSend = true;
-				SubmixSend.SoundfieldFactory = MixerDevice->GetFactoryForSubmixInstance(SubmixSend.Submix);
-				InitParams.SubmixSends.Add(SubmixSend);
-			}
-
-			// Add submix sends for this source
-			for (FSoundSubmixSendInfo& SendInfo : WaveInstance->SoundSubmixSends)
-			{
-				if (SendInfo.SoundSubmix != nullptr)
+				// If we're spatializing using HRTF and its an external send, don't need to setup a default/base submix send to master or EQ submix
+				// We'll only be using non-default submix sends (e.g. reverb).
+				if (!(InitParams.bUseHRTFSpatialization && MixerDevice->bSpatializationIsExternalSend))
 				{
-					FMixerSourceSubmixSend SubmixSend;
-					SubmixSend.Submix = MixerDevice->GetSubmixInstance(SendInfo.SoundSubmix);
+					FMixerSubmixWeakPtr SubmixPtr = WaveInstance->SoundSubmix
+						? MixerDevice->GetSubmixInstance(WaveInstance->SoundSubmix)
+						: MixerDevice->GetMasterSubmix();
 
+					FMixerSourceSubmixSend SubmixSend;
+					SubmixSend.Submix = SubmixPtr;
 					SubmixSend.SubmixSendStage = EMixerSourceSubmixSendStage::PostDistanceAttenuation;
-					if (SendInfo.SendStage == ESubmixSendStage::PreDistanceAttenuation)
-					{
-						SubmixSend.SubmixSendStage = EMixerSourceSubmixSendStage::PreDistanceAttenuation;
-					}
-					SubmixSend.SendLevel = SendInfo.SendLevel;
-					SubmixSend.bIsMainSend = false;
+					SubmixSend.SendLevel = 1.0f;
+					SubmixSend.bIsMainSend = true;
 					SubmixSend.SoundfieldFactory = MixerDevice->GetFactoryForSubmixInstance(SubmixSend.Submix);
 					InitParams.SubmixSends.Add(SubmixSend);
+				}
+
+				// Add submix sends for this source
+				for (FSoundSubmixSendInfo& SendInfo : WaveInstance->SoundSubmixSends)
+				{
+					if (SendInfo.SoundSubmix != nullptr)
+					{
+						FMixerSourceSubmixSend SubmixSend;
+						SubmixSend.Submix = MixerDevice->GetSubmixInstance(SendInfo.SoundSubmix);
+
+						SubmixSend.SubmixSendStage = EMixerSourceSubmixSendStage::PostDistanceAttenuation;
+						if (SendInfo.SendStage == ESubmixSendStage::PreDistanceAttenuation)
+						{
+							SubmixSend.SubmixSendStage = EMixerSourceSubmixSendStage::PreDistanceAttenuation;
+						}
+						SubmixSend.SendLevel = SendInfo.SendLevel;
+						SubmixSend.bIsMainSend = false;
+						SubmixSend.SoundfieldFactory = MixerDevice->GetFactoryForSubmixInstance(SubmixSend.Submix);
+						InitParams.SubmixSends.Add(SubmixSend);
+					}
 				}
 			}
 
@@ -653,7 +648,6 @@ namespace Audio
 	void FMixerSource::Update()
 	{
 		CSV_SCOPED_TIMING_STAT(Audio, UpdateSources);
-		SCOPE_CYCLE_COUNTER(STAT_AudioUpdateSources);
 
 		LLM_SCOPE(ELLMTag::AudioMixer);
 
@@ -1355,9 +1349,7 @@ namespace Audio
 				MixerSourceVoice->SetSubmixSendInfo(SubmixInstance, SendLevel);
 			}
 		}
- 		
-		MixerSourceVoice->SetOutputToBusOnly(WaveInstance->bOutputToBusOnly);
-	}
+ 	}
 
 	void FMixerSource::UpdateSourceBusSends()
 	{

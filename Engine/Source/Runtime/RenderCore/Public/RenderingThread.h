@@ -232,7 +232,7 @@ private:
 template<typename TSTR, typename LAMBDA>
 FORCEINLINE_DEBUGGABLE void EnqueueUniqueRenderCommand(LAMBDA&& Lambda)
 {
-	//QUICK_SCOPE_CYCLE_COUNTER(STAT_EnqueueUniqueRenderCommand);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_EnqueueUniqueRenderCommand);
 	typedef TEnqueueUniqueRenderCommandType<TSTR, LAMBDA> EURCType;
 
 #if 0 // UE_SERVER && UE_BUILD_DEBUG

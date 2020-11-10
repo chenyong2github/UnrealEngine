@@ -1160,11 +1160,11 @@ bool APartyBeaconHost::HasCrossplayOptOutReservation() const
 	return false;
 }
 
-int32 APartyBeaconHost::GetReservationPlatformCount(const FString& InPlatform, bool bIncludeMappedPlatforms) const
+int32 APartyBeaconHost::GetReservationPlatformCount(const FString& InPlatform) const
 {
 	if (State)
 	{
-		return State->GetReservationPlatformCount(InPlatform, bIncludeMappedPlatforms);
+		return State->GetReservationPlatformCount(InPlatform);
 	}
 
 	return 0;

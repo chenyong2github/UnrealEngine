@@ -73,8 +73,8 @@ struct FMaterialShaderPermutationParameters : public FShaderPermutationParameter
 {
 	FMaterialShaderParameters MaterialParameters;
 
-	FMaterialShaderPermutationParameters(EShaderPlatform InPlatform, const FMaterialShaderParameters& InMaterialParameters, int32 InPermutationId, EShaderPermutationFlags InFlags)
-		: FShaderPermutationParameters(InPlatform, InPermutationId, InFlags)
+	FMaterialShaderPermutationParameters(EShaderPlatform InPlatform, const FMaterialShaderParameters& InMaterialParameters, int32 InPermutationId)
+		: FShaderPermutationParameters(InPlatform, InPermutationId)
 		, MaterialParameters(InMaterialParameters)
 	{}
 };

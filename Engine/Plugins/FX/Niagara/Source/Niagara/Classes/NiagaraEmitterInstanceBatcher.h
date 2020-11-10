@@ -293,8 +293,6 @@ private:
 	uint32 NumTicksThatRequireDepthBuffer = 0;
 	uint32 NumTicksThatRequireEarlyViewData = 0;
 
-	int32 TotalDispatchesThisFrame = 0;
-
 	TArray<FNiagaraComputeSharedContext*> ContextsPerStage[(int)ETickStage::Max];
 	TArray<FNiagaraGPUSystemTick*> TicksPerStage[(int)ETickStage::Max];
 

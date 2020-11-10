@@ -33,10 +33,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		// Both of these debug view modes use this shader
-		return
-			ShouldCompileDebugViewModeShader(DVSM_OutputMaterialTextureScales, Parameters) ||
-			ShouldCompileDebugViewModeShader(DVSM_MaterialTextureScaleAccuracy, Parameters);
+		return Parameters.MaterialParameters.bIsMaterialTexCoordScale && AllowDebugViewShaderMode(DVSM_OutputMaterialTextureScales, Parameters.Platform, Parameters.MaterialParameters.FeatureLevel);
 	}
 
 	FMaterialTexCoordScalePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
@@ -75,13 +72,9 @@ public:
 		bool InNeedsInstructionCount		// Whether FDebugViewModePS::GetDebugViewModeShaderBindings() will use the num of instructions.
 	) : FDebugViewModeInterface(TEXT("MaterialTexCoordScale"), InNeedsOnlyLocalVertexFactor, InNeedsMaterialProperties, InNeedsInstructionCount) {}
 
-	virtual void AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel,
-		EMaterialTessellationMode InMaterialTessellationMode,
-		const FVertexFactoryType* InVertexFactoryType,
-		FMaterialShaderTypes& OutShaderTypes) const override
+	virtual TShaderRef<FDebugViewModePS> GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const override
 	{
-		AddDebugViewModeShaderTypes(InFeatureLevel, InMaterialTessellationMode, InVertexFactoryType, OutShaderTypes);
-		OutShaderTypes.AddShaderType<FMaterialTexCoordScalePS>();
+		return InMaterial->GetShader<FMaterialTexCoordScalePS>(VertexFactoryType);
 	}
 
 	virtual void GetDebugViewModeShaderBindings(

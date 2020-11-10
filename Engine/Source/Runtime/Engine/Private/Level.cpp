@@ -812,8 +812,6 @@ void ULevel::CreateCluster()
 	// we keep a separate array for referencing unclustered actors (ActorsForGC).
 	if (FPlatformProperties::RequiresCookedData() && GCreateGCClusters && GActorClusteringEnabled && !bActorClusterCreated)
 	{
-		ActorsForGC.Reset();
-
 		TArray<AActor*> ClusterActors;
 
 		for (int32 ActorIndex = Actors.Num() - 1; ActorIndex >= 0; --ActorIndex)

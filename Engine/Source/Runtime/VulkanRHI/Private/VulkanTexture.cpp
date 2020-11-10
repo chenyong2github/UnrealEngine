@@ -2024,13 +2024,12 @@ VkImageView FVulkanTextureView::StaticCreate(FVulkanDevice& Device, VkImage InIm
 	ViewInfo.format = Format;
 
 #if VULKAN_SUPPORTS_ASTC_DECODE_MODE
-	VkImageViewASTCDecodeModeEXT DecodeMode;
-	if (Device.GetOptionalExtensions().HasEXTASTCDecodeMode && IsAstcLdrFormat(Format) && !IsAstcSrgbFormat(Format))
+	VkImageViewASTCDecodeModeEXT decodeMode;
+	if (Device.GetOptionalExtensions().HasEXTASTCDecodeMode && Format == VK_FORMAT_R8G8B8A8_UNORM)
 	{
-		ZeroVulkanStruct(DecodeMode, VK_STRUCTURE_TYPE_IMAGE_VIEW_ASTC_DECODE_MODE_EXT);
-		DecodeMode.decodeMode = VK_FORMAT_R8G8B8A8_UNORM;
-		DecodeMode.pNext = ViewInfo.pNext;
-		ViewInfo.pNext = &DecodeMode;
+		ZeroVulkanStruct(decodeMode, VK_STRUCTURE_TYPE_IMAGE_VIEW_ASTC_DECODE_MODE_EXT);
+		decodeMode.decodeMode = VK_FORMAT_R8G8B8A8_UNORM;
+		ViewInfo.pNext = &decodeMode;
 	}
 #endif
 
@@ -2069,7 +2068,6 @@ VkImageView FVulkanTextureView::StaticCreate(FVulkanDevice& Device, VkImage InIm
 		FMemory::Memzero(&ConversionInfo, sizeof(VkSamplerYcbcrConversionInfo));
 		ConversionInfo.conversion = Device.CreateSamplerColorConversion(ConversionCreateInfo);
 		ConversionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO;
-		ConversionInfo.pNext = ViewInfo.pNext;
 		ViewInfo.pNext = &ConversionInfo;
 	}
 #endif

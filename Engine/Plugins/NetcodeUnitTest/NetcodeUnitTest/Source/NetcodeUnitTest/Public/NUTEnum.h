@@ -18,9 +18,8 @@ enum class EMinClientFlags : uint32
 	AcceptActors			= 0x00000001,	// Whether or not to accept actor channels (acts as whitelist-only with NotifyAllowNetActor)
 	AcceptRPCs				= 0x00000002,	// Whether or not to accept execution of any actor RPC's (they are all blocked by default)
 	SendRPCs				= 0x00000004,	// Whether or not to allow RPC sending (NOT blocked by default, @todo JohnB: Add send hook)
-	AcceptRepNotifies		= 0x00000008,	// Whether or not to accept execution of RepNotify's on Actors (blocked by default)
-	SkipControlJoin			= 0x00000010,	// Whether or not to skip sending NMT_Join upon connect (or NMT_BeaconJoin for beacons)
-	BeaconConnect			= 0x00000020,	// Whether or not to connect to the servers beacon (greatly limits the connection)
+	SkipControlJoin			= 0x00000008,	// Whether or not to skip sending NMT_Join upon connect (or NMT_BeaconJoin for beacons)
+	BeaconConnect			= 0x00000010,	// Whether or not to connect to the servers beacon (greatly limits the connection)
 
 	/** Minimal-client events */
 	NotifyNetActors			= 0x00000100,	// Whether or not to trigger a 'NotifyNetActor' event, AFTER creation of actor channel actor

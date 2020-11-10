@@ -263,7 +263,7 @@ public:
 					// (note: this may be incorrect if there are multiple sections...in that case I think we have to
 					//  first find section whose accumulated index range would contain .FaceIndexX)
 					UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
-					FStaticMeshLODResources& LOD = StaticMesh->GetRenderData()->LODResources[0];
+					FStaticMeshLODResources& LOD = StaticMesh->RenderData->LODResources[0];
 					FIndexArrayView Indices = LOD.IndexBuffer.GetArrayView();
 					int32 TriIdx = 3 * HitResult.FaceIndex;
 					FVector Positions[3];

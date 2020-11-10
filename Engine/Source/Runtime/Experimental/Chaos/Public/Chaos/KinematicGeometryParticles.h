@@ -47,10 +47,10 @@ class TKinematicGeometryParticlesImp : public TGeometryParticlesImp<T, d, SimTyp
 	}
 
 	typedef TKinematicGeometryParticleHandle<T, d> THandleType;
-	CHAOS_API const THandleType* Handle(int32 Index) const;
+	const THandleType* Handle(int32 Index) const;
 
 	//cannot be reference because double pointer would allow for badness, but still useful to have non const access to handle
-	CHAOS_API THandleType* Handle(int32 Index);
+	THandleType* Handle(int32 Index);
 
 	CHAOS_API virtual void Serialize(FChaosArchive& Ar) override
 	{

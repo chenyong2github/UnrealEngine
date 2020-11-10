@@ -452,7 +452,6 @@ void FSceneRenderer::ReconstructVolumetricRenderTarget(FRDGBuilder& GraphBuilder
 		{
 			continue;
 		}
-
 		FVolumetricRenderTargetViewStateData& VolumetricCloudRT = ViewInfo.ViewState->VolumetricCloudRenderTarget;
 
 		FRDGTextureRef DstVolumetric = VolumetricCloudRT.GetOrCreateDstVolumetricReconstructRT(GraphBuilder);
@@ -557,6 +556,12 @@ void FSceneRenderer::ComposeVolumetricRenderTargetOverScene(FRDGBuilder& GraphBu
 
 	FRHIBlendState* PreMultipliedColorTransmittanceBlend = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
 
+	FRDGTextureRef SceneWaterDepthTexture = GSystemTextures.GetDepthDummy(GraphBuilder);
+	if (bShouldRenderSingleLayerWater)
+	{
+		SceneWaterDepthTexture = WaterPassData.DepthTexture;
+	}
+
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& ViewInfo = Views[ViewIndex];
@@ -590,7 +595,7 @@ void FSceneRenderer::ComposeVolumetricRenderTargetOverScene(FRDGBuilder& GraphBu
 		PassParameters->FullResolutionToVolumetricBufferResolutionScale = FVector2D(1.0f / float(GetMainDownsampleFactor(VRTMode)), float(GetMainDownsampleFactor(VRTMode)));
 		GetTextureSafeUvCoordBound(PassParameters->VolumetricTexture, PassParameters->VolumetricTextureValidCoordRect, PassParameters->VolumetricTextureValidUvRect);
 
-		PassParameters->WaterLinearDepthTexture = WaterPassData.DepthTexture;
+		PassParameters->WaterLinearDepthTexture = SceneWaterDepthTexture;
 		if (bShouldRenderSingleLayerWater)
 		{
 			const FSceneWithoutWaterTextures::FView& WaterPassViewData = WaterPassData.Views[ViewIndex];

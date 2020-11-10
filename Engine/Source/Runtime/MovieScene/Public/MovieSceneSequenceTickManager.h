@@ -17,15 +17,14 @@ class MOVIESCENE_API FMovieSceneLatentActionManager
 public:
 	void AddLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
 	void ClearLatentActions(UObject* Object);
-	void ClearLatentActions();
 
 	void RunLatentActions(FMovieSceneEntitySystemRunner& Runner);
+	void RunLatentActions(FMovieSceneEntitySystemRunner& Runner, const UObject* Object);
 
 	bool IsEmpty() const { return LatentActions.Num() == 0; }
 
 private:
 	TArray<FMovieSceneSequenceLatentActionDelegate> LatentActions;
-
 	bool bIsRunningLatentActions = false;
 };
 
@@ -44,7 +43,7 @@ public:
 	FMovieSceneEntitySystemRunner& GetRunner() { return Runner; }
 
 	void AddLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
-	void RunLatentActions();
+	void RunLatentActions(const UObject* Object, FMovieSceneEntitySystemRunner& InRunner);
 
 	void ClearLatentActions(UObject* Object);
 

@@ -4,9 +4,7 @@
 #include "Camera/CameraShake.h"
 #include "Camera/CameraShakeSourceComponent.h"
 #include "Camera/PlayerCameraManager.h"
-#include "Engine/Canvas.h"
 #include "Engine/Engine.h"
-#include "DisplayDebugHelpers.h"
 #include "EngineGlobals.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -279,30 +277,4 @@ void UCameraModifier_CameraShake::RemoveAllCameraShakes(bool bImmediately)
 		// Clear ActiveShakes array
 		ActiveShakes.Empty();
 	}
-}
-
-void UCameraModifier_CameraShake::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos)
-{
-	Canvas->SetDrawColor(FColor::Yellow);
-	UFont* DrawFont = GEngine->GetSmallFont();
-	
-	int Indentation = 1;
-	int LineNumber = FMath::CeilToInt(YPos / YL);
-
-	Canvas->DrawText(DrawFont, FString::Printf(TEXT("Modifier_CameraShake %s, Alpha:%f"), *GetNameSafe(this), Alpha), Indentation * YL, (LineNumber++) * YL);
-
-	Indentation = 2;
-	for (int i = 0; i < ActiveShakes.Num(); i++)
-	{
-		FActiveCameraShakeInfo& ShakeInfo = ActiveShakes[i];
-
-		if (ShakeInfo.ShakeInstance != nullptr)
-		{
-			Canvas->DrawText(DrawFont, FString::Printf(TEXT("[%d] %s Source:%s"), i, *GetNameSafe(ShakeInfo.ShakeInstance), *GetNameSafe(ShakeInfo.ShakeSource.Get())), Indentation* YL, (LineNumber++)* YL);
-		}
-	}
-
-	YPos = LineNumber * YL;
-
-	Super::DisplayDebug(Canvas, DebugDisplay, YL, YPos);
 }

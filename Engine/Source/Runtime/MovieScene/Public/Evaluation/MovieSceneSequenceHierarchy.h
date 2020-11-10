@@ -279,12 +279,6 @@ struct FMovieSceneSequenceHierarchy
 	{
 		Tree.Data.AddUnique(RootSpaceRange, FMovieSceneSubSequenceTreeEntry{ InSequenceID, InFlags });
 	}
-	
-	/** Get all sub-sequence IDs */
-	void AllSubSequenceIDs(TArray<FMovieSceneSequenceID>& OutSequenceIDs) const
-	{
-		Hierarchy.GetKeys(OutSequenceIDs);
-	}
 
 	/** Access to all the subsequence data */
 	const TMap<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& AllSubSequenceData() const

@@ -74,7 +74,6 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 		.AdditionalCommands(ReferenceViewerActions)
 		.GraphToEdit(GraphObj)
 		.GraphEvents(GraphEvents)
-		.ShowGraphStateOverlay(false)
 		.OnNavigateHistoryBack(FSimpleDelegate::CreateSP(this, &SReferenceViewer::GraphNavigateHistoryBack))
 		.OnNavigateHistoryForward(FSimpleDelegate::CreateSP(this, &SReferenceViewer::GraphNavigateHistoryForward));
 

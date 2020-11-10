@@ -59,12 +59,6 @@ public:
 	/** Finish updating an instance. */
 	void FinishInstance(FInstanceHandle InInstanceHandle);
 
-	/** Access this runner's currently executing phase */
-	UE::MovieScene::ESystemPhase GetCurrentPhase() const
-	{
-		return CurrentPhase;
-	}
-
 public:
 
 	UMovieSceneEntitySystemLinker* GetLinker() { return Linker; }
@@ -126,12 +120,9 @@ private:
 
 	uint64 LastInstantiationVersion = 0;
 
-	TGraphTask<FNullGraphTask>* CompletionTask;
-
 	bool bCanQueueEventTriggers;
 	FMovieSceneEntitySystemEventTriggers EventTriggers;
 
 	ENamedThreads::Type GameThread;
-
-	UE::MovieScene::ESystemPhase CurrentPhase;
+	TGraphTask<FNullGraphTask>* CompletionTask;
 };

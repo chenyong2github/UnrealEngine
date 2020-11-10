@@ -34,16 +34,12 @@ class SAssetTileView;
 class SComboButton;
 class UFactory;
 struct FPropertyChangedEvent;
-struct FToolMenuContext;
 
 /** Fires whenever the asset view is asked to start to create a temporary item */
 DECLARE_DELEGATE_OneParam(FOnAssetViewNewItemRequested, const FContentBrowserItem& /*NewItem*/);
 
 /** Fires whenever one of the "Search" options changes, useful for modifying search criteria to match */
 DECLARE_DELEGATE(FOnSearchOptionChanged);
-
-/** Fires whenever asset view options menu is being opened, gives chance for external code to set additional context */
-DECLARE_DELEGATE_OneParam(FOnExtendAssetViewOptionsMenuContext, FToolMenuContext&);
 
 /**
  * A widget to display a list of filtered assets
@@ -109,9 +105,6 @@ public:
 		/** Called when an asset item's tooltip is closing */
 		SLATE_EVENT(FOnAssetToolTipClosing, OnAssetToolTipClosing)
 
-		/** Called when opening view options menu */
-		SLATE_EVENT(FOnExtendAssetViewOptionsMenuContext, OnExtendAssetViewOptionsMenuContext)
-
 		/** Initial set of item categories that this view should show - may be adjusted further by things like CanShowClasses or legacy delegate bindings */
 		SLATE_ARGUMENT( EContentBrowserItemCategoryFilter, InitialCategoryFilter )
 
@@ -132,9 +125,6 @@ public:
 
 		/** The filter collection used to further filter down assets returned from the backend */
 		SLATE_ARGUMENT( TSharedPtr<FAssetFilterCollectionType>, FrontendFilters )
-
-		/** Show path view filters submenu in view options menu */
-		SLATE_ARGUMENT( bool, bShowPathViewFilters )
 
 		/** The initial base sources filter */
 		SLATE_ARGUMENT( FSourcesData, InitialSourcesData )
@@ -814,9 +804,6 @@ private:
 	TSharedPtr<FBlacklistPaths> FolderBlacklist;
 	TSharedPtr<FAssetFilterCollectionType> FrontendFilters;
 
-	/** Show path view filters submenu in view options menu  */
-	bool bShowPathViewFilters;
-
 	/** If true, the source items will be refreshed next frame. Very slow. */
 	bool bSlowFullListRefreshRequested;
 
@@ -870,9 +857,6 @@ private:
 
 	/** Called when a search option changes to notify that results should be rebuilt */
 	FOnSearchOptionChanged OnSearchOptionsChanged;
-
-	/** Called when opening view options menu */
-	FOnExtendAssetViewOptionsMenuContext OnExtendAssetViewOptionsMenuContext;
 
 	/** When true, filtered list items will be sorted next tick. Provided another sort hasn't happened recently or we are renaming an asset */
 	bool bPendingSortFilteredItems;

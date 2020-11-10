@@ -30,6 +30,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "GameProjectGenerationModule.h"
+#include "GameProjectUtils.h"
 #include "PluginBrowserModule.h"
 #include "SFilePathBlock.h"
 #include "Interfaces/IProjectManager.h"
@@ -560,9 +561,66 @@ void SNewPluginWizard::ValidateFullPluginPath()
 	bIsPluginPathValid = bIsNewPathValid;
 	FilePathBlock->SetFolderPathError(FolderPathError);
 
-	// Check for issues with name. Fail silently if text is empty
+	// Check for issues with name
+	bIsPluginNameValid = false;
+	bool bIsNewNameValid = true;
 	FText PluginNameError;
-	bIsPluginNameValid = !GetCurrentPluginName().IsEmpty() && FPluginUtils::ValidateNewPluginNameAndLocation(GetCurrentPluginName().ToString(), PluginFolderPath, &PluginNameError);
+
+	// Fail silently if text is empty
+	if (GetCurrentPluginName().IsEmpty())
+	{
+		bIsNewNameValid = false;
+	}
+
+	// Don't allow commas, dots, etc...
+	FString IllegalCharacters;
+	if (bIsNewNameValid && !GameProjectUtils::NameContainsOnlyLegalCharacters(GetCurrentPluginName().ToString(), IllegalCharacters))
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("IllegalCharacters"), FText::FromString(IllegalCharacters));
+		PluginNameError = FText::Format(LOCTEXT("WrongPluginNameErrorText", "Plugin name cannot contain illegal characters like: \"{IllegalCharacters}\""), Args);
+		bIsNewNameValid = false;
+	}
+
+	// Fail if name doesn't begin with alphabetic character.
+	if (bIsNewNameValid && !FChar::IsAlpha(GetCurrentPluginName().ToString()[0]))
+	{
+		PluginNameError = LOCTEXT("PluginNameMustBeginWithACharacter", "Plugin names must begin with an alphabetic character.");
+		bIsNewNameValid = false;
+	}
+
+	if (bIsNewNameValid)
+	{
+		const FString& TestPluginName = GetCurrentPluginName().ToString();
+
+		// Check to see if a a compiled plugin with this name exists (at any path)
+		const TArray<TSharedRef<IPlugin>> Plugins = IPluginManager::Get().GetDiscoveredPlugins();
+		for (const TSharedRef<IPlugin>& Plugin : Plugins)
+		{
+			if (Plugin->GetName() == TestPluginName)
+			{
+				PluginNameError = LOCTEXT("PluginNameExistsErrorText", "A plugin with this name already exists!");
+				bIsNewNameValid = false;
+				break;
+			}
+		}
+	}
+
+	// Check to see if a .uplugin exists at this path (in case there is an uncompiled or disabled plugin)
+	if (bIsNewNameValid)
+	{
+		const FString TestPluginPath = GetPluginFilenameWithPath();
+		if (!TestPluginPath.IsEmpty())
+		{
+			if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*TestPluginPath))
+			{
+				PluginNameError = LOCTEXT("PluginPathExistsErrorText", "A plugin already exists at this path!");
+				bIsNewNameValid = false;
+			}
+		}
+	}
+
+	bIsPluginNameValid = bIsNewNameValid;
 	FilePathBlock->SetNameError(PluginNameError);
 }
 
@@ -579,6 +637,19 @@ FText SNewPluginWizard::GetPluginDestinationPath() const
 FText SNewPluginWizard::GetCurrentPluginName() const
 {
 	return PluginNameText;
+}
+
+FString SNewPluginWizard::GetPluginFilenameWithPath() const
+{
+	if (PluginFolderPath.IsEmpty() || PluginNameText.IsEmpty())
+	{
+		// Don't even try to assemble the path or else it may be relative to the binaries folder!
+		return TEXT("");
+	}
+	else
+	{
+		return FPluginUtils::GetPluginFilePath(PluginFolderPath, PluginNameText.ToString());
+	}
 }
 
 ECheckBoxState SNewPluginWizard::IsEnginePlugin() const

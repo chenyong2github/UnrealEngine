@@ -291,15 +291,15 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** The output volume of the submix (in dB). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixLevel, meta = (ClampMin = "-160.0", ClampMax = "0.0", UIMin = "-60.0", UIMax = "0.0", EditCondition = "GainMode == EGainParamMode::Decibels", DisplayName = "Output Volume (dB)", EditConditionHides))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixLevel, meta = (ClampMin = "-120.0", ClampMax = "0.0", UIMin = "-60.0", UIMax = "0.0", EditCondition = "GainMode == EGainParamMode::Decibels", DisplayName = "Output Volume (dB)", EditConditionHides))
 	float OutputVolumeDB;
 
 	/** The wet level of the submix  (in dB). Applied after submix effects and analysis are performed. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixLevel, meta = (ClampMin = "-160.0", ClampMax = "0.0", UIMin = "-60.0", UIMax = "0.0", EditCondition = "GainMode == EGainParamMode::Decibels", DisplayName = "Wet Level (dB)", EditConditionHides))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixLevel, meta = (ClampMin = "-120.0", ClampMax = "0.0", UIMin = "-60.0", UIMax = "0.0", EditCondition = "GainMode == EGainParamMode::Decibels", DisplayName = "Wet Level (dB)", EditConditionHides))
 	float WetLevelDB;
 
 	/** The dry level of the submix  (in dB)s. Applied before submix effects and analysis are performed. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixLevel, meta = (ClampMin = "-160.0", ClampMax = "0.0", UIMin = "-60.0", UIMax = "0.0", EditCondition = "GainMode == EGainParamMode::Decibels", DisplayName = "Dry Level (dB)", EditConditionHides))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixLevel, meta = (ClampMin = "-120.0", ClampMax = "0.0", UIMin = "-60.0", UIMax = "0.0", EditCondition = "GainMode == EGainParamMode::Decibels", DisplayName = "Dry Level (dB)", EditConditionHides))
 	float DryLevelDB;
 #endif
 

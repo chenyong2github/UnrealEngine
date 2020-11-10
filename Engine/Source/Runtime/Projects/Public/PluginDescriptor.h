@@ -113,11 +113,6 @@ struct PROJECTS_API FPluginDescriptor
 	/** Dependent plugins */
 	TArray<FPluginReferenceDescriptor> Plugins;
 
-#if WITH_EDITOR
-	/** Cached json for custom data */
-	TSharedPtr<FJsonObject> CachedJson;
-#endif
-
 	/** Constructor. */
 	FPluginDescriptor();
 
@@ -138,15 +133,6 @@ struct PROJECTS_API FPluginDescriptor
 
 	/** Writes a descriptor to JSON */
 	void Write(TJsonWriter<>& Writer) const;
-
-	/** Updates the given json object with values in this descriptor */
-	void UpdateJson(FJsonObject& JsonObject) const;
-
-	/**
-	 * Updates the content of the specified plugin file with values in this descriptor
-	 * (hence preserving json fields that the plugin descriptor doesn't know about)
-	 */
-	bool UpdatePluginFile(const FString& FileName, FText& OutFailReason) const;
 
 	/** Determines whether the plugin supports the given platform */
 	bool SupportsTargetPlatform(const FString& Platform) const;

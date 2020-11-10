@@ -251,7 +251,7 @@ bool UDataprepMergeActorsOperation::MergeStaticMeshActors(UWorld* World, const T
 	{
 		if(UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(PrimitiveComponent))
 		{
-			if(StaticMeshComponent->GetStaticMesh()->GetRenderData() == nullptr)
+			if(StaticMeshComponent->GetStaticMesh()->RenderData == nullptr)
 			{
 				StaticMeshes.Add(StaticMeshComponent->GetStaticMesh());
 			}
@@ -326,7 +326,7 @@ void UDataprepCreateProxyMeshOperation::OnExecution_Implementation(const FDatapr
 	{
 		if(UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(PrimitiveComponent))
 		{
-			if(StaticMeshComponent->GetStaticMesh()->GetRenderData() == nullptr)
+			if(StaticMeshComponent->GetStaticMesh()->RenderData == nullptr)
 			{
 				StaticMeshes.Add(StaticMeshComponent->GetStaticMesh());
 			}
@@ -546,7 +546,7 @@ void UDataprepDeleteUnusedAssetsOperation::OnExecution_Implementation(const FDat
 					{
 						UsedAssets.Add(StaticMesh);
 
-						for(FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials())
+						for(FStaticMaterial& StaticMaterial : StaticMesh->StaticMaterials)
 						{
 							if(UMaterialInterface* MaterialInterface = StaticMaterial.MaterialInterface)
 							{
@@ -695,9 +695,9 @@ void UDataprepSpawnActorsAtLocation::OnExecution_Implementation(const FDataprepC
 				StaticMeshComponent->UnregisterComponent();
 
 				StaticMeshComponent->SetStaticMesh(StaticMesh);
-				if (StaticMesh->GetRenderData())
+				if (StaticMesh->RenderData)
 				{
-					StaticMeshComponent->StaticMeshDerivedDataKey = StaticMesh->GetRenderData()->DerivedDataKey;
+					StaticMeshComponent->StaticMeshDerivedDataKey = StaticMesh->RenderData->DerivedDataKey;
 				}
 
 				// Init Component

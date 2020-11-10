@@ -24,12 +24,11 @@ class ENGINE_API UBlueprintAsyncActionBase : public UObject
 	 * This allows having an action stay alive until SetReadyToDestroy is manually called, allowing it to be used inside loops or if the calling BP goes away
 	 */
 	virtual void RegisterWithGameInstance(UObject* WorldContextObject);
+	virtual void RegisterWithGameInstance(UGameInstance* GameInstance);
 
 	/** Call when the action is completely done, this makes the action free to delete, and will unregister it with the game instance */
 	virtual void SetReadyToDestroy();
 
 protected:
-	virtual void RegisterWithGameInstance(UGameInstance* GameInstance);
-
 	TWeakObjectPtr<UGameInstance> RegisteredWithGameInstance;
 };

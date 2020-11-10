@@ -26,7 +26,6 @@
 #include "KeyDrawParams.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Tracks/MovieScenePropertyTrack.h"
-#include "Sections/MovieSceneSubSection.h"
 
 double SSequencerSection::SectionSelectionThrobEndTime = 0;
 double SSequencerSection::KeySelectionThrobEndTime = 0;
@@ -81,9 +80,6 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 			float Lum = FinalTint.ComputeLuminance() * 0.2f;
 			FinalTint = FinalTint + FLinearColor(Lum, Lum, Lum, 0.f);
 		}
-
-		FinalTint.A *= GhostAlpha;
-
 		return FinalTint;
 	}
 
@@ -276,8 +272,6 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 
 			SelectionColor = SelectionColor.GetValue().HSVToLinearRGB();
 		}
-
-		SelectionColor->A *= GhostAlpha;
 	}
 
 	void DrawBlendType()
@@ -1054,14 +1048,6 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 	Painter.LayerId = LayerId;
 	Painter.bParentEnabled = bEnabled;
 	Painter.bIsHighlighted = IsSectionHighlighted(SectionObject, Hotspot);
-	if (UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(SectionObject))
-	{
-		if (( SubSection->GetNetworkMask() & GetSequencer().GetEvaluationTemplate().GetEmulatedNetworkMask() ) == EMovieSceneServerClientMask::None)
-		{
-			Painter.GhostAlpha = .3f;
-		}
-	}
-	
 	auto& Selection = ParentSectionArea->GetSequencer().GetSelection();
 	Painter.bIsSelected = Selection.IsSelected(SectionObject);
 
@@ -1185,7 +1171,7 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 			SectionTitle,
 			FontInfo,
 			DrawEffects,
-			FLinearColor(0,0,0,.5f * Painter.GhostAlpha)
+			FLinearColor(0,0,0,.5f)
 		);
 
 		FSlateDrawElement::MakeText(
@@ -1198,7 +1184,7 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 			SectionTitle,
 			FontInfo,
 			DrawEffects,
-			FColor(200, 200, 200, static_cast<uint8>(Painter.GhostAlpha * 255))
+			FColor(200, 200, 200)
 		);
 	}
 

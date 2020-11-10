@@ -1415,11 +1415,6 @@ bool ARecastNavMesh::DoesNodeContainLocation(NavNodeRef NodeRef, const FVector& 
 	return bResult; 
 }
 
-bool ARecastNavMesh::FindPolysAroundCircle(const FVector& CenterPos, const NavNodeRef CenterNodeRef, const float Radius, const FSharedConstNavQueryFilter& Filter, const UObject* QueryOwner, TArray<NavNodeRef>* OutPolys, TArray<NavNodeRef>* OutPolysParent, TArray<float>* OutPolysCost, int32* OutPolysCount) const
-{
-	return RecastNavMeshImpl ? RecastNavMeshImpl->FindPolysAroundCircle(CenterPos, CenterNodeRef, Radius, GetRightFilterRef(Filter), QueryOwner, OutPolys, OutPolysParent, OutPolysCost, OutPolysCount) : false;
-}
-
 NavNodeRef ARecastNavMesh::FindNearestPoly(FVector const& Loc, FVector const& Extent, FSharedConstNavQueryFilter Filter, const UObject* QueryOwner) const
 {
 	NavNodeRef PolyRef = 0;
@@ -2489,7 +2484,7 @@ void ARecastNavMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 
 			UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
 			if (!HasAnyFlags(RF_ClassDefaultObject)
-				&& NavSys && NavSys->GetIsAutoUpdateEnabled()
+				&& NavSys->GetIsAutoUpdateEnabled()
 				&& PropName != GET_MEMBER_NAME_CHECKED(ARecastNavMesh, MaxSimultaneousTileGenerationJobsCount))
 			{
 				RebuildAll();

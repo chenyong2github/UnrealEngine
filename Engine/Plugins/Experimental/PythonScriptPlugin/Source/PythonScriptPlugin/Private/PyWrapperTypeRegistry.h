@@ -383,10 +383,10 @@ public:
 	void NotifyModulesDirtied(const TSet<FName>& InDirtyModules) const;
 
 	/** Called when an asset that is registered with the type registry has been renamed */
-	void UpdateGenerateWrappedTypeForRename(const FName InOldTypeRegistryName, const UObject* InObj);
+	void UpdateGenerateWrappedTypeForRename(const FName InOldName, const UObject* InObj);
 
 	/** Called when an asset that is registered with the type registry is deleted */
-	void RemoveGenerateWrappedTypeForDelete(const FName InTypeRegistryName);
+	void RemoveGenerateWrappedTypeForDelete(const UObject* InObj);
 
 	/** Generate a wrapped type for the given object (if it's a valid type to be wrapped) */
 	PyTypeObject* GenerateWrappedTypeForObject(const UObject* InObj, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const EPyTypeGenerationFlags InGenerationFlags = EPyTypeGenerationFlags::None);

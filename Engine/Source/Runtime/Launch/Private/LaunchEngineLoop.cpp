@@ -5,7 +5,6 @@
 #include "HAL/PlatformStackWalk.h"
 #include "HAL/PlatformOutputDevices.h"
 #include "HAL/LowLevelMemTracker.h"
-#include "HAL/MallocFrameProfiler.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/QueuedThreadPool.h"
@@ -170,10 +169,6 @@
 
 #if WITH_AUTOMATION_WORKER
 	#include "IAutomationWorkerModule.h"
-#endif
-
-#if WITH_ODSC
-	#include "ODSC/ODSCManager.h"
 #endif
 #endif  //WITH_ENGINE
 
@@ -1145,13 +1140,9 @@ private:
 	}
 
 	TSet<FFileInPakFileHistory> History;
-	FCriticalSection HistoryLock;
 
 	void OnFileOpenedForRead(const TCHAR* PakFileName, const TCHAR* FileName)
 	{
-		//UE_LOG(LogInit, Warning, TEXT("OnFileOpenedForRead %u: %s - %s"), FPlatformTLS::GetCurrentThreadId(), PakFileName, FileName);
-
-		FScopeLock ScopeLock(&HistoryLock);
 		History.Emplace(FFileInPakFileHistory{ PakFileName, FileName });
 	}
 
@@ -1168,18 +1159,6 @@ public:
 
 	void DumpHistory()
 	{
-		FScopeLock ScopeLock(&HistoryLock);
-
-		History.Sort([](const FFileInPakFileHistory& A, const FFileInPakFileHistory& B)
-		{
-			if (A.PakFileName == B.PakFileName)
-			{
-				return A.FileName < B.FileName;
-			}
-
-			return A.PakFileName < B.PakFileName;
-		});
-
 		const FString SavePath = FPaths::ProjectLogDir() / TEXT("FilesLoadedFromPakFiles.csv");
 
 		FArchive* Writer = IFileManager::Get().CreateFileWriter(*SavePath, FILEWRITE_NoFail);
@@ -1595,15 +1574,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	if (FParse::Param(FCommandLine::Get(), TEXT("emitdrawevents")))
 	{
 		SetEmitDrawEvents(true);
-	}
-
-	// Activates malloc frame profiler from the command line 
-	// Recommend enabling bGenerateSymbols to ensure callstacks can resolve and bRetainFramePointers to ensure frame pointers remain valid.
-	// Also disabling the hitch detector ALLOW_HITCH_DETECTION=0 helps ensure quicker more accurate runs.
-	if (FParse::Param(FCommandLine::Get(), TEXT("mallocframeprofiler")))
-	{
-		GMallocFrameProfilerEnabled = true;
-		GMalloc = FMallocFrameProfiler::OverrideIfEnabled(GMalloc);
 	}
 #endif // !UE_BUILD_SHIPPING
 
@@ -2615,29 +2585,22 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
-#if WITH_ODSC
-	check(!GODSCManager);
-	GODSCManager = new FODSCManager();
-#endif
 
 	bool bEnableShaderCompile = !FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
 
-	if (!FPlatformProperties::RequiresCookedData())
+	if (bEnableShaderCompile && !FPlatformProperties::RequiresCookedData())
 	{
+		check(!GShaderCompilerStats);
+		GShaderCompilerStats = new FShaderCompilerStats();
+
+		check(!GShaderCompilingManager);
+		GShaderCompilingManager = new FShaderCompilingManager();
+
 		check(!GDistanceFieldAsyncQueue);
 		GDistanceFieldAsyncQueue = new FDistanceFieldAsyncQueue();
 
-		if (bEnableShaderCompile)
-		{
-			check(!GShaderCompilerStats);
-			GShaderCompilerStats = new FShaderCompilerStats();
-
-			check(!GShaderCompilingManager);
-			GShaderCompilingManager = new FShaderCompilingManager();
-
-			// Shader hash cache is required only for shader compilation.
-			InitializeShaderHashCache();
-		}
+		// Shader hash cache is required only for shader compilation.
+		InitializeShaderHashCache();
 	}
 
 	{
@@ -2835,8 +2798,6 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 
 #if WITH_ENGINE
 	{
-		TSharedPtr<IInstallBundleManager> BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
-
 #if !UE_SERVER// && !UE_EDITOR
 		if (!IsRunningDedicatedServer() && !IsRunningCommandlet())
 		{
@@ -2860,6 +2821,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 				}
 			}
 
+			IInstallBundleManager* BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
 			if (BundleManager != nullptr && !BundleManager->IsNullInterface())
 			{
 				IInstallBundleManager::InstallBundleCompleteDelegate.AddStatic(
@@ -2979,6 +2941,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 
 		//Now that our EarlyStartupScreen is finished, lets take the necessary steps to mount paks, apply .ini cvars, and open the shader libraries if we installed content we expect to handle
 		//If using a bundle manager, assume its handling all this stuff and that we don't have to do it.
+		IInstallBundleManager* BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
 		if (BundleManager == nullptr || BundleManager->IsNullInterface())
 		{
 			// Mount Paks that were installed during EarlyStartupScreen
@@ -3024,7 +2987,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 			}
 		}
 
-		BeginInitGameTextLocalization();
+		InitGameTextLocalization();
 
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Initial UObject load"), STAT_InitialUObjectLoad, STATGROUP_LoadTime);
 
@@ -3041,7 +3004,6 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 		    FModuleManager::Get().LoadModule("AssetRegistry");
 		}
 #endif
-		EndInitGameTextLocalization();
 
 		FEmbeddedCommunication::ForceTick(5);
 
@@ -4142,9 +4104,6 @@ void FEngineLoop::Exit()
 
 	// Make sure we're not in the middle of loading something.
 	{
-		// From now on it's not allowed to request new async loads
-		SetAsyncLoadingAllowed(false);
-
 		bool bFlushOnExit = true;
 		if (GConfig)
 		{
@@ -4153,7 +4112,7 @@ void FEngineLoop::Exit()
 		}
 		if (bFlushOnExit)
 		{
-			FlushAsyncLoading();
+	FlushAsyncLoading();
 		}
 		else
 		{
@@ -4346,14 +4305,7 @@ void DumpEarlyReads(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads, boo
 	if (bForceQuitAfterEarlyReads)
 	{
 		GLog->Flush();
-		if (GEngine)
-		{
-			GEngine->DeferredCommands.Emplace(TEXT("Quit force"));
-		}
-		else
-		{
-			FPlatformMisc::RequestExit(true);
-		}
+		GEngine->DeferredCommands.Emplace(TEXT("Quit force"));
 	}
 }
 
@@ -4606,8 +4558,8 @@ static inline void EndFrameRenderThread(FRHICommandListImmediate& RHICmdList, ui
 
 void FEngineLoop::Tick()
 {
-	// make sure to catch any FMemStack uses outside of UWorld::Tick
-	FMemMark MemStackMark(FMemStack::Get());
+    // make sure to catch any FMemStack uses outside of UWorld::Tick
+    FMemMark MemStackMark(FMemStack::Get());
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST && MALLOC_GT_HOOKS
 	FScopedSampleMallocChurn ChurnTracker;
@@ -4616,8 +4568,6 @@ void FEngineLoop::Tick()
 	LLM(FLowLevelMemTracker::Get().UpdateStatsPerFrame());
 
 	LLM_SCOPE(ELLMTag::EngineMisc);
-
-	BeginExitIfRequested();
 
 	// Send a heartbeat for the diagnostics thread
 	FThreadHeartBeat::Get().HeartBeat(true);
@@ -4792,7 +4742,7 @@ void FEngineLoop::Tick()
 			});
 
 		{
-			//QUICK_SCOPE_CYCLE_COUNTER(STAT_PumpMessages);
+			SCOPE_CYCLE_COUNTER(STAT_PumpMessages);
 			FPlatformApplicationMisc::PumpMessages(true);
 		}
 
@@ -5799,15 +5749,6 @@ void FEngineLoop::AppPreExit( )
 		delete GShaderCompilerStats;
 		GShaderCompilerStats = nullptr;
 	}
-
-#if WITH_ODSC
-	if (GODSCManager)
-	{
-		delete GODSCManager;
-		GODSCManager = nullptr;
-	}
-#endif
-
 #endif
 
 #if !(IS_PROGRAM || WITH_EDITOR)

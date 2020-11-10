@@ -22,12 +22,12 @@
 
 #pragma once
 
+#include "swappy_common.h"
+
+#include <stdint.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <jni.h>
-#include <stdint.h>
-
-#include "swappy_common.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,17 +37,15 @@ extern "C" {
 bool SwappyGL_init_internal(JNIEnv *env, jobject jactivity);
 
 /**
- * @brief Initialize Swappy, getting the required Android parameters from the
- * display subsystem via JNI.
+ * @brief Initialize Swappy, getting the required Android parameters from the display subsystem via JNI.
  * @param env The JNI environment where Swappy is used
  * @param jactivity The activity where Swappy is used
  * @return false if Swappy failed to initialize.
  * @see SwappyGL_destroy
  */
-static inline bool SwappyGL_init(JNIEnv *env, jobject jactivity) {
-    // This call ensures that the header and the linked library are from the
-    // same version (if not, a linker error will be triggered because of an
-    // undefined symbolP).
+static inline bool SwappyGL_init(JNIEnv *env, jobject jactivity)  {
+    // This call ensures that the header and the linked library are from the same version
+    // (if not, a linker error will be triggered because of an undefined symbolP).
     SWAPPY_VERSION_SYMBOL();
     return SwappyGL_init_internal(env, jactivity);
 }
@@ -66,20 +64,14 @@ bool SwappyGL_isEnabled();
 void SwappyGL_destroy();
 
 /**
- * @brief Tell Swappy which ANativeWindow to use when calling to ANativeWindow_*
- * API.
- * @param window ANativeWindow that was used to create the EGLSurface.
- * @return true on success, false if Swappy was not initialized.
+ * @brief Tell Swappy which ANativeWindow to use when calling to ANativeWindow_* API.
+ * @param window ANativeWindow that was used to create the EGLSurface
  */
-bool SwappyGL_setWindow(ANativeWindow *window);
+bool SwappyGL_setWindow(ANativeWindow* window);
 
 /**
- * @brief Replace calls to eglSwapBuffers with this. Swappy will wait for the
- * previous frame's buffer to be processed by the GPU before actually calling
- * eglSwapBuffers.
- * @return true on success or false if
- * 1) Swappy is not initialized or 2) eglSwapBuffers did not return EGL_TRUE.
- * In the latter case, eglGetError can be used to get the error code.
+ * @brief Replace calls to eglSwapBuffers with this. Swappy will wait for the previous frame's
+ * buffer to be processed by the GPU before actually calling eglSwapBuffers.
  */
 bool SwappyGL_swap(EGLDisplay display, EGLSurface surface);
 
@@ -90,20 +82,18 @@ void SwappyGL_setUseAffinity(bool tf);
 /**
  * @brief Override the swap interval
  *
- * By default, Swappy will adjust the swap interval based on actual frame
- * rendering time.
+ * By default, Swappy will adjust the swap interval based on actual frame rendering time.
  *
- * If an app wants to override the swap interval calculated by Swappy, it can
- * call this function:
+ * If an app wants to override the swap interval calculated by Swappy, it can call
+ * this function:
  *
  * * This will temporarily override Swappy's frame timings but, unless
- *   `SwappyGL_setAutoSwapInterval(false)` is called, the timings will continue
- * to be be updated dynamically, so the swap interval may change.
+ *   `SwappyGL_setAutoSwapInterval(false)` is called, the timings will continue to be be updated
+ *   dynamically, so the swap interval may change.
  *
- * * This set the **minimal** interval to run. For example,
- * `SwappyGL_setSwapIntervalNS(SWAPPY_SWAP_30FPS)` will not allow Swappy to swap
- * faster, even if auto mode decides that it can. But it can go slower if auto
- * mode is on.
+ * * This set the **minimal** interval to run. For example, `SwappyGL_setSwapIntervalNS(SWAPPY_SWAP_30FPS)`
+ *   will not allow Swappy to swap faster, even if auto mode decides that it can. But it can go slower
+ *   if auto mode is on.
  *
  * @param swap_ns The new swap interval value, in nanoseconds.
  */

@@ -15,7 +15,6 @@ class FSHA1;
 class FMemoryImageWriter;
 class FMemoryUnfreezeContent;
 class FPointerTableBase;
-class ITargetPlatform;
 struct FTypeLayoutDesc;
 struct FPlatformTypeLayoutParameters;
 
@@ -125,7 +124,7 @@ struct FFieldLayoutDesc
 
 struct FTypeLayoutDesc
 {
-	typedef void (FDestroyFunc)(void* Object, const FTypeLayoutDesc& TypeDesc, const FPointerTableBase* PtrTable);
+	typedef void (FDestroyFunc)(void* Object, const FTypeLayoutDesc& TypeDesc);
 	typedef void (FWriteFrozenMemoryImageFunc)(FMemoryImageWriter& Writer, const void* Object, const FTypeLayoutDesc& TypeDesc, const FTypeLayoutDesc& DerivedTypeDesc);
 	typedef void (FUnfrozenCopyFunc)(const FMemoryUnfreezeContent& Context, const void* Object, const FTypeLayoutDesc& TypeDesc, void* OutDst);
 	typedef uint32 (FAppendHashFunc)(const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher);
@@ -139,8 +138,7 @@ struct FTypeLayoutDesc
 	static CORE_API void Register(FTypeLayoutDesc& TypeDesc);
 	static CORE_API const FTypeLayoutDesc* Find(uint64 NameHash);
 
-	CORE_API uint32 GetOffsetToBase(const FTypeLayoutDesc& BaseTypeDesc) const;
-	CORE_API bool IsDerivedFrom(const FTypeLayoutDesc& BaseTypeDesc) const;
+	uint32 CORE_API GetOffsetToBase(const FTypeLayoutDesc& BaseTypeDesc) const;
 
 	const FTypeLayoutDesc* HashNext;
 	const TCHAR* Name;
@@ -179,6 +177,27 @@ inline uint32 GetBaseOffset()
 	T* Derived = reinterpret_cast<T*>(Dummy);
 	return (uint32)((uint64)static_cast<Base*>(Derived) - (uint64)Derived);
 }
+
+template<typename T, bool HasNonTrivialDestructor>
+struct TAssignDestroyHelper
+{
+	UE_STATIC_ONLY(TAssignDestroyHelper);
+	static FORCEINLINE void Do(FTypeLayoutDesc& TypeDesc) {}
+};
+
+template<typename T>
+struct TAssignDestroyHelper<T, true>
+{
+	UE_STATIC_ONLY(TAssignDestroyHelper);
+
+	static void Destroy(void* Object, const FTypeLayoutDesc&)
+	{
+		static_cast<T*>(Object)->~T();
+	}
+
+	static FORCEINLINE void Do(FTypeLayoutDesc& TypeDesc) { TypeDesc.DestroyFunc = &Destroy; }
+};
+
 
 /**
  * Access to a global default object is required in order to patch vtables
@@ -260,12 +279,6 @@ namespace Freeze
 	CORE_API uint32 AppendHashForNameAndSize(const TCHAR* Name, uint32 Size, FSHA1& Hasher);
 	CORE_API void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const void* Object, uint32 Size);
 	CORE_API void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, void*, const FTypeLayoutDesc&);
-
-	// Override for types that need access to a PointerTable in order to destroy frozen data
-	FORCEINLINE void CleanupObject(void* Object, const FPointerTableBase* PtrTable) {}
-
-	template<typename T>
-	FORCEINLINE void CallDestructor(T* Object) { Object->~T(); }
 
 	template<typename T>
 	FORCEINLINE void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const T& Object, const FTypeLayoutDesc& TypeDesc)
@@ -547,10 +560,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	UE_DECLARE_INTERNAL_LINK_BASE(InternalLinkType) { UE_STATIC_ONLY(InternalLinkType); static FORCEINLINE void Initialize(FTypeLayoutDesc& TypeDesc) {} }
 
 #define INTERNAL_DECLARE_INLINE_TYPE_LAYOUT(T, InInterface) \
-	private: static void InternalDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable) { \
-		Freeze::CleanupObject(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object), PtrTable); \
-		Freeze::CallDestructor(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object)); \
-	} \
 	public: static FTypeLayoutDesc& StaticGetTypeLayout() { \
 		static_assert(TValidateInterfaceHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T), ETypeLayoutInterface::InInterface>::Value, #InInterface " is invalid interface for " #T); \
 		alignas(FTypeLayoutDesc) static uint8 TypeBuffer[sizeof(FTypeLayoutDesc)] = { 0 }; \
@@ -563,11 +572,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			TypeDesc.AppendHashFunc = &Freeze::DefaultAppendHash; \
 			TypeDesc.GetTargetAlignmentFunc = &Freeze::DefaultGetTargetAlignment; \
 			TypeDesc.ToStringFunc = &Freeze::DefaultToString; \
-			TypeDesc.DestroyFunc = &InternalDestroy; \
 			TypeDesc.Size = sizeof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
 			TypeDesc.Alignment = alignof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
 			TypeDesc.Interface = ETypeLayoutInterface::InInterface; \
 			TypeDesc.SizeFromFields = ~0u; \
+			TAssignDestroyHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T), TIsTriviallyDestructible<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)>::Value>::Do(TypeDesc); \
 			TypeDesc.GetDefaultObjectFunc = &TGetDefaultObjectHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T), ETypeLayoutInterface::InInterface>::Do; \
 			InternalLinkType<1>::Initialize(TypeDesc); \
 			InternalInitializeBases<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)>(TypeDesc); \
@@ -578,7 +587,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	INTERNAL_DECLARE_TYPE_LAYOUT_COMMON(T, InInterface)
 
 #define INTERNAL_DECLARE_TYPE_LAYOUT(T, InInterface, RequiredAPI) \
-	private: static void InternalDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable); \
 	public: RequiredAPI static FTypeLayoutDesc& StaticGetTypeLayout(); \
 	public: INTERNAL_LAYOUT_INTERFACE_PREFIX(InInterface)(RequiredAPI) const FTypeLayoutDesc& GetTypeLayout() const INTERNAL_LAYOUT_INTERFACE_SUFFIX(InInterface) \
 	INTERNAL_DECLARE_TYPE_LAYOUT_COMMON(T, InInterface)
@@ -599,10 +607,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #define DECLARE_EXPORTED_TYPE_LAYOUT_EXPLICIT_BASES(T, RequiredAPI, Interface, ...) INTERNAL_DECLARE_LAYOUT_EXPLICIT_BASES(T, __VA_ARGS__); INTERNAL_DECLARE_TYPE_LAYOUT(T, Interface, RequiredAPI)
 
 #define INTERNAL_IMPLEMENT_TYPE_LAYOUT_COMMON(TemplatePrefix, T) \
-	PREPROCESSOR_REMOVE_OPTIONAL_PARENS(TemplatePrefix) void PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)::InternalDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable) { \
-		Freeze::CleanupObject(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object), PtrTable); \
-		Freeze::CallDestructor(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object)); \
-	} \
 	PREPROCESSOR_REMOVE_OPTIONAL_PARENS(TemplatePrefix) FTypeLayoutDesc& PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)::StaticGetTypeLayout() { \
 		static_assert(TValidateInterfaceHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T), InterfaceType>::Value, "Invalid interface for " #T); \
 		alignas(FTypeLayoutDesc) static uint8 TypeBuffer[sizeof(FTypeLayoutDesc)] = { 0 }; \
@@ -615,11 +619,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			TypeDesc.AppendHashFunc = &Freeze::DefaultAppendHash; \
 			TypeDesc.GetTargetAlignmentFunc = &Freeze::DefaultGetTargetAlignment; \
 			TypeDesc.ToStringFunc = &Freeze::DefaultToString; \
-			TypeDesc.DestroyFunc = &InternalDestroy; \
 			TypeDesc.Size = sizeof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
 			TypeDesc.Alignment = alignof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
 			TypeDesc.Interface = InterfaceType; \
 			TypeDesc.SizeFromFields = ~0u; \
+			TAssignDestroyHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T), TIsTriviallyDestructible<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)>::Value>::Do(TypeDesc); \
 			TypeDesc.GetDefaultObjectFunc = &TGetDefaultObjectHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T), InterfaceType>::Do; \
 			InternalLinkType<1>::Initialize(TypeDesc); \
 			InternalInitializeBases<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)>(TypeDesc); \
@@ -685,14 +689,14 @@ inline const FTypeLayoutDesc& StaticGetTypeLayoutDesc() { return TStaticGetTypeL
 template<typename T>
 inline const FTypeLayoutDesc& GetTypeLayoutDesc(const FPointerTableBase*, const T& Object) { return TGetTypeLayoutHelper<T>::Do(Object); }
 
-CORE_API extern void InternalDeleteObjectFromLayout(void* Object, const FTypeLayoutDesc& TypeDesc, const FPointerTableBase* PtrTable, bool bIsFrozen);
+CORE_API extern void InternalDeleteObjectFromLayout(void* Object, const FTypeLayoutDesc& TypeDesc, bool bIsFrozen);
 
 template<typename T>
-inline void DeleteObjectFromLayout(T* Object, const FPointerTableBase* PtrTable = nullptr, bool bIsFrozen = false)
+inline void DeleteObjectFromLayout(T* Object, FPointerTableBase* PtrTable = nullptr, bool bIsFrozen = false)
 {
 	check(Object);
 	const FTypeLayoutDesc& TypeDesc = GetTypeLayoutDesc(PtrTable, *Object);
-	InternalDeleteObjectFromLayout(Object, TypeDesc, PtrTable, bIsFrozen);
+	InternalDeleteObjectFromLayout(Object, TypeDesc, bIsFrozen);
 }
 
 #define DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT(TemplatePrefix, T) \
@@ -714,10 +718,6 @@ inline void DeleteObjectFromLayout(T* Object, const FPointerTableBase* PtrTable 
 		static void CallToString(const void* Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext) { \
 			return Freeze::IntrinsicToString(*static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T) const*>(Object), TypeDesc, LayoutParams, OutContext); \
 		} \
-		static void CallDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable) { \
-			Freeze::CleanupObject(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object), PtrTable); \
-			Freeze::CallDestructor(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object)); \
-		} \
 		static const FTypeLayoutDesc& Do() { \
 			alignas(FTypeLayoutDesc) static uint8 TypeBuffer[sizeof(FTypeLayoutDesc)] = { 0 }; \
 			FTypeLayoutDesc& TypeDesc = *(FTypeLayoutDesc*)TypeBuffer; \
@@ -730,11 +730,11 @@ inline void DeleteObjectFromLayout(T* Object, const FPointerTableBase* PtrTable 
 				TypeDesc.AppendHashFunc = &CallAppendHash; \
 				TypeDesc.GetTargetAlignmentFunc = &CallGetTargetAlignment; \
 				TypeDesc.ToStringFunc = &CallToString; \
-				TypeDesc.DestroyFunc = &CallDestroy; \
 				TypeDesc.Size = sizeof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
 				TypeDesc.Alignment = alignof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
 				TypeDesc.Interface = ETypeLayoutInterface::NonVirtual; \
 				TypeDesc.SizeFromFields = sizeof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
+				TAssignDestroyHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T), TIsTriviallyDestructible<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)>::Value>::Do(TypeDesc); \
 			} \
 			return TypeDesc; } }; \
 	PREPROCESSOR_REMOVE_OPTIONAL_PARENS(TemplatePrefix) struct TGetTypeLayoutHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)> { \
@@ -750,7 +750,6 @@ inline void DeleteObjectFromLayout(T* Object, const FPointerTableBase* PtrTable 
 		static uint32 CallAppendHash(const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher); \
 		static uint32 CallGetTargetAlignment(const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams); \
 		static void CallToString(const void* Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext); \
-		static void CallDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable); \
 		RequiredAPI static const FTypeLayoutDesc& Do(); }; \
 	PREPROCESSOR_REMOVE_OPTIONAL_PARENS(TemplatePrefix) struct TGetTypeLayoutHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)> { \
 		UE_STATIC_ONLY(TGetTypeLayoutHelper); \
@@ -772,10 +771,6 @@ inline void DeleteObjectFromLayout(T* Object, const FPointerTableBase* PtrTable 
 		void TStaticGetTypeLayoutHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)>::CallToString(const void* Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext) { \
 			return Freeze::IntrinsicToString(*static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T) const*>(Object), TypeDesc, LayoutParams, OutContext); \
 		} \
-		void TStaticGetTypeLayoutHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)>::CallDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable) { \
-			Freeze::CleanupObject(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object), PtrTable); \
-			Freeze::CallDestructor(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object)); \
-		} \
 		const FTypeLayoutDesc& TStaticGetTypeLayoutHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)>::Do() { \
 			alignas(FTypeLayoutDesc) static uint8 TypeBuffer[sizeof(FTypeLayoutDesc)] = { 0 }; \
 			FTypeLayoutDesc& TypeDesc = *(FTypeLayoutDesc*)TypeBuffer; \
@@ -788,11 +783,11 @@ inline void DeleteObjectFromLayout(T* Object, const FPointerTableBase* PtrTable 
 				TypeDesc.AppendHashFunc = &CallAppendHash; \
 				TypeDesc.GetTargetAlignmentFunc = &CallGetTargetAlignment; \
 				TypeDesc.ToStringFunc = &CallToString; \
-				TypeDesc.DestroyFunc = &CallDestroy; \
 				TypeDesc.Size = sizeof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
 				TypeDesc.Alignment = alignof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
 				TypeDesc.Interface = ETypeLayoutInterface::NonVirtual; \
 				TypeDesc.SizeFromFields = sizeof(PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)); \
+				TAssignDestroyHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T), TIsTriviallyDestructible<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)>::Value>::Do(TypeDesc); \
 			} \
 			return TypeDesc; }
 
@@ -883,10 +878,6 @@ struct FPlatformTypeLayoutParameters
 
 	CORE_API bool IsCurrentPlatform() const;
 	CORE_API void InitializeForArchive(FArchive& Ar);
-
-	/** Initializes for the given platform, or for current platform if TargetPlatform is nullptr */
-	CORE_API void InitializeForPlatform(const ITargetPlatform* TargetPlatform);
-
 	CORE_API void InitializeForPlatform(const FString& PlatformName, bool bHasEditorOnlyData);
 	CORE_API void InitializeForCurrent();
 	CORE_API void InitializeForMSVC();

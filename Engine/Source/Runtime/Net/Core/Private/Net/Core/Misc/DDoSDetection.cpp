@@ -133,7 +133,6 @@ void FDDoSDetection::InitConfig()
 
 				CurState.SeverityCategory = CurCategory;
 
-				GConfig->GetBool(*CurSection, TEXT("bSendEscalateAnalytics"), CurState.bSendEscalateAnalytics, GEngineIni);
 				GConfig->GetInt(*CurSection, TEXT("EscalateQuotaPacketsPerSec"), CurState.EscalateQuotaPacketsPerSec, GEngineIni);
 				GConfig->GetInt(*CurSection, TEXT("EscalateQuotaDisconnPacketsPerSec"), CurState.EscalateQuotaDisconnPacketsPerSec, GEngineIni);
 				GConfig->GetInt(*CurSection, TEXT("EscalateQuotaBadPacketsPerSec"), CurState.EscalateQuotaBadPacketsPerSec, GEngineIni);
@@ -244,7 +243,7 @@ void FDDoSDetection::UpdateSeverity(bool bEscalate)
 
 		if (bEscalate && ActiveState > WorstActiveState)
 		{
-			if (bDDoSAnalytics && CurState.bSendEscalateAnalytics)
+			if (bDDoSAnalytics)
 			{
 				NotifySeverityEscalation.ExecuteIfBound(CurState.SeverityCategory);
 			}

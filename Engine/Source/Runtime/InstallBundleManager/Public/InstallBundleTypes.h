@@ -12,7 +12,6 @@
 enum class EInstallBundleSourceType : int
 {
 	Bulk,
-	Launcher,
 	BuildPatchServices,
 #if WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
 	Platform,
@@ -147,7 +146,6 @@ enum class EInstallBundleReleaseResult
 {
 	OK,
 	ManifestArchiveError,
-	UserCancelledError,
 	Count,
 };
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleReleaseResult Result);
@@ -164,6 +162,13 @@ struct FInstallBundleRequestInfo
 	EInstallBundleRequestInfoFlags InfoFlags = EInstallBundleRequestInfoFlags::None;
 	TArray<FName> BundlesEnqueued;
 };
+
+enum class EInstallBundleCancelFlags : uint32
+{
+	None = 0,
+	Resumable = (1 << 0),
+};
+ENUM_CLASS_FLAGS(EInstallBundleCancelFlags);
 
 enum class EInstallBundlePauseFlags : uint32
 {

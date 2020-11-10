@@ -933,8 +933,6 @@ public:
 	 */
 	static const TCHAR* GamePersistentDownloadDir();
 
-	static const TCHAR* GeneratedConfigDir();
-
 	static const TCHAR* GetUBTPlatform();
 
 	static const TCHAR* GetUBTTarget();
@@ -1476,11 +1474,6 @@ public:
 		return 60;
 	}
 	
-	/**
-	 * Returns true if PGO is currently enabled
-	 */
-	static bool IsPGOEnabled();
-
 #if !UE_BUILD_SHIPPING
 	/**
 	 * Returns any platform specific warning messages we want printed on screen

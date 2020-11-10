@@ -520,10 +520,10 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	private StoreHelper IapStoreHelper;
 	
 	private MemoryAdvisor MemAdvisor;
-	private static final int MemoryAdvisorPollDelayMs = 10000;
+	private static final int MemoryAdvisorPollDelayMs = 100;
 	private static final int ProcessMemoryInfoPollDelayMs = 10000;
 	private long LastMemoryInfoPollTime;
-	private MemoryAdvisor.MemoryState MemState = MemoryAdvisor.MemoryState.UNKNOWN;
+	private MemoryAdvisor.MemoryState MemState = MemoryAdvisor.MemoryState.OK;
 
 //$${gameActivityClassAdditions}$$
 
@@ -2249,8 +2249,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	@Override
 	public void onCreate(Bundle savedInstanceState)
 	{
-		Logger.RegisterCallback(this);
-
 		// Grab a reference to the asset manager
 		AssetManagerReference = this.getAssets();
 
@@ -2358,6 +2356,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				}
 			}
 		}
+
+		Logger.RegisterCallback(this);
 		
 		// Suppress java logs in Shipping builds
 		if (bIsShipping)
@@ -2366,20 +2366,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 		
 		MemAdvisor = new MemoryAdvisor(this);
-		JSONObject DeviceInfo = MemAdvisor.getDeviceInfo(this);
-		JSONObject DeviceProfile = DeviceInfo.optJSONObject("deviceProfile");
-		if (DeviceProfile != null)
-		{
-			JSONObject Advice = MemAdvisor.getAdvice();
-			final int MB = 1024 * 1024;
-			int AvailableEstimateMB = (int)(MemoryAdvisor.availabilityEstimate(Advice) / MB);
-			nativeSetEstimatedAvailableMemoryMB(AvailableEstimateMB);
-			Log.debug("[MemoryAdvisor] Device finderprint is: `" + DeviceProfile.optString("fingerprint", "FAILED") + "` matched device is `" + DeviceProfile.optString("matched", "FAILED") + ". Estimated available memory is " + AvailableEstimateMB + " MB");
-		}
-		else
-		{
-			Log.error("[MemoryAdvisor] Cannot detect device profile");
-		}
 		LastMemoryInfoPollTime = System.currentTimeMillis();
 
 		// update memory stats every 10 seconds
@@ -2388,36 +2374,25 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			public void run()
 			{
 				JSONObject Advice = MemAdvisor.getAdvice();
-				MemoryAdvisor.MemoryState CurrentMemoryState = MemoryAdvisor.getMemoryState(Advice);
-				if ((CurrentMemoryState != MemState) || (CurrentMemoryState == MemoryAdvisor.MemoryState.CRITICAL))
+				MemoryAdvisor.MemoryState CurrentMemoryState = MemoryAdvisor.getMemoryState(Advice);				
+				if (CurrentMemoryState != MemState)
 				{
-					final int MB = 1024 * 1024;
-					int AvailableEstimateMB = (int)(MemoryAdvisor.availabilityEstimate(Advice) / MB);
-					if (CurrentMemoryState != MemState)
-					{
-						nativeSetEstimatedAvailableMemoryMB(AvailableEstimateMB);
-						int OomScore = Advice.optJSONObject("metrics").optJSONObject("proc").optInt("oom_score", -1);
-						nativeSetOomScore(OomScore);
-					}
-
 					switch (CurrentMemoryState)
 					{
+						case UNKNOWN:
+							Log.warn("Cannot determine memory state");
+							nativeOnMemoryWarningChanged(_activity, -1);
+							break;
 						case OK:
-							Log.warn("[MemoryAdvisor] Significant amount of memory is available for allocation. Estimate is " + AvailableEstimateMB + " MB");
-							nativeOnMemoryWarningChanged(0);
+							nativeOnMemoryWarningChanged(_activity, 0);
 							break;
 						case APPROACHING_LIMIT:
-							Log.warn("[MemoryAdvisor] Approaching memory limit. Estimated available memory is " + AvailableEstimateMB + " MB");
-							nativeOnMemoryWarningChanged(1);
+							Log.warn("Approaching memory limit. Estimated available memory is " + MemoryAdvisor.availabilityEstimate(Advice) + " bytes");
+							nativeOnMemoryWarningChanged(_activity, 1);
 							break;
 						case CRITICAL:
-							Log.warn("[MemoryAdvisor] Critical memory limit. Estimated available memory is " + AvailableEstimateMB + " MB");
-							nativeOnMemoryWarningChanged(2);
-							break;
-						case UNKNOWN:
-						default:
-							Log.error("[MemoryAdvisor] Unexpected memory state: " + CurrentMemoryState);
-							nativeOnMemoryWarningChanged(-1);
+							Log.warn("Critical memory limit. Estimated available memory is " + MemoryAdvisor.availabilityEstimate(Advice) + " bytes");
+							nativeOnMemoryWarningChanged(_activity, 2);
 							break;
 					}
 					
@@ -3187,7 +3162,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				public void onThermalStatusChanged(int status) 
 				{
 					Log.debug("=== Thermal status changed to " + status);
-					nativeOnThermalStatusChangedListener(status);
+					nativeOnThermalStatusChangedListener(null, status);
 				}
 			});
 		}
@@ -3729,7 +3704,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				Log.debug("==============> GameActive.onTrimMemory(" + level + ") called!");
 				break;
 		}
-		nativeOnTrimMemory(level);
 	}
 
 	@Override
@@ -6429,11 +6403,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public native void nativeOnInitialDownloadStarted();
 	public native void nativeOnInitialDownloadCompleted();
 	
-	public native void nativeOnThermalStatusChangedListener(int status);
-	public native void nativeOnMemoryWarningChanged(int status);
-	public native void nativeOnTrimMemory(int MemoryTrimValue);
-	public native void nativeSetEstimatedAvailableMemoryMB(int Estimate);
-	public native void nativeSetOomScore(int OomScore);
+	public native void nativeOnThermalStatusChangedListener(GameActivity activity, int status);
+	public native void nativeOnMemoryWarningChanged(GameActivity activity, int status);
 
 	static
 	{

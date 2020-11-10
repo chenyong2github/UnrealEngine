@@ -13,8 +13,7 @@ class UBTNode;
 
 namespace BlueprintNodeHelpers
 {
-	AIMODULE_API FString CollectPropertyDescription(const UObject* Ob, const UClass* StopAtClass, const TArray<FProperty*>& InPropertiesToSkip);
-	AIMODULE_API FString CollectPropertyDescription(const UObject* Ob, const UClass* StopAtClass, TFunctionRef<bool(FProperty* /*TestProperty*/)> ShouldSkipProperty);
+	AIMODULE_API FString CollectPropertyDescription(const UObject* Ob, const UClass* StopAtClass, const TArray<FProperty*>& PropertyData);
 	AIMODULE_API void CollectPropertyData(const UObject* Ob, const UClass* StopAtClass, TArray<FProperty*>& PropertyData);
 	AIMODULE_API uint16 GetPropertiesMemorySize(const TArray<FProperty*>& PropertyData);
 

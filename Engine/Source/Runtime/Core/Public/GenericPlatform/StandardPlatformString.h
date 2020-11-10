@@ -18,10 +18,6 @@
 **/
 struct FStandardPlatformString : public FGenericPlatformString
 {
-	using FGenericPlatformString::Stricmp;
-	using FGenericPlatformString::Strncmp;
-	using FGenericPlatformString::Strnicmp;
-
 	template <typename CharType>
 	static inline CharType* Strupr(CharType* Dest, SIZE_T DestCount)
 	{

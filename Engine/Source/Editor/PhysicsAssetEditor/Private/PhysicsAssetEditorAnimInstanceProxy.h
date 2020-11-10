@@ -39,8 +39,6 @@ public:
 	virtual void Ungrab();
 	virtual void UpdateHandleTransform(const FTransform& NewTransform);
 	virtual void UpdateDriveSettings(bool bLinearSoft, float LinearStiffness, float LinearDamping);
-	virtual void CreateSimulationFloor(FBodyInstance* FloorBodyInstance, const FTransform& Transform);
-	virtual void DestroySimulationFloor();
 
 private:
 	void ConstructNodes();
@@ -52,5 +50,4 @@ private:
 	ImmediatePhysics::FActorHandle* TargetActor;
 	ImmediatePhysics::FActorHandle* HandleActor;
 	ImmediatePhysics::FJointHandle* HandleJoint;
-	ImmediatePhysics::FActorHandle* FloorActor;
 };

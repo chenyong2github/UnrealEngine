@@ -4,7 +4,7 @@
 
 #include "UObject/Interface.h"
 #include "UObject/ObjectMacros.h"
-#include "Engine/EngineTypes.h"
+
 #include "MovieSceneSequenceID.h"
 #include "IMovieScenePlaybackClient.generated.h"
 
@@ -37,12 +37,4 @@ public:
 	 * Retrieve the optional instance data that should be used for this evaluation
 	 */
 	virtual UObject* GetInstanceData() const = 0;
-
-	/**
-	 * Whether this playback client wants a specific aspect ratio axis constraint during playback.
-	 */
-	virtual TOptional<EAspectRatioAxisConstraint> GetAspectRatioAxisConstraint() const
-	{
-		return TOptional<EAspectRatioAxisConstraint>();
-	}
 };

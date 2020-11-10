@@ -506,8 +506,6 @@ int32 AndroidMain(struct android_app* state)
 	}
 #endif
 
-	FAndroidStats::Init();
-
 	BootTimingPoint("Tick loop starting");
 	DumpBootTiming();
 	// tick until done
@@ -535,7 +533,6 @@ int32 AndroidMain(struct android_app* state)
 		}
 #endif
 	}
-	
 	FAppEventManager::GetInstance()->TriggerEmptyQueue();
 
 	UE_LOG(LogAndroid, Log, TEXT("Exiting"));
@@ -1469,7 +1466,9 @@ static void OnAppCommandCB(struct android_app* app, int32_t cmd)
 				FCoreDelegates::ApplicationWillTerminateDelegate.Broadcast();
 			}, TStatId(), NULL, ENamedThreads::GameThread);
 			FTaskGraphInterface::Get().WaitUntilTaskCompletes(WillTerminateTask);
-			FAndroidMisc::NonReentrantRequestExit();
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			GIsRequestingExit = true; //destroy immediately. Game will shutdown.
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}));
 
 

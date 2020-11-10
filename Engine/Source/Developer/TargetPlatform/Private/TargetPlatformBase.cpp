@@ -31,11 +31,6 @@ bool FTargetPlatformBase::UsesBasePassVelocity() const
 	return CVar ? (CVar->GetInt() != 0) : false;
 }
 
-bool FTargetPlatformBase::VelocityEncodeDepth() const
-{
-	return true;
-}
-
 bool FTargetPlatformBase::UsesSelectiveBasePassOutputs() const
 {
 	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SelectiveBasePassOutputs"));

@@ -123,7 +123,7 @@ namespace LandscapeCookStats
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("307EBBCF9AD644059520051B212C3A87")
+#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("F96002C1787F44878795B534CEE2F902")
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -302,15 +302,14 @@ void ULandscapeComponent::CheckGenerateLandscapePlatformData(bool bIsCooking, co
 			// The DDC is only useful when cooking (see else).
 
 			COOK_STAT(auto Timer = LandscapeCookStats::UsageStats.TimeSyncWork());
-// Temporarily disabling DDC use. See FORT-317076.
-// 			if (PlatformData.LoadFromDDC(NewSourceHash, this))
-// 			{
-// 				COOK_STAT(Timer.AddHit(PlatformData.GetPlatformDataSize()));
-// 			}
-// 			else
+			if (PlatformData.LoadFromDDC(NewSourceHash, this))
+			{
+				COOK_STAT(Timer.AddHit(PlatformData.GetPlatformDataSize()));
+			}
+			else
 			{
 				GeneratePlatformVertexData(TargetPlatform);
-// 				PlatformData.SaveToDDC(NewSourceHash, this);
+				PlatformData.SaveToDDC(NewSourceHash, this);
 				COOK_STAT(Timer.AddMiss(PlatformData.GetPlatformDataSize()));
 			}
 		}

@@ -6,7 +6,6 @@
 #include "SocialTypes.h"
 #include "User/ISocialUserList.h"
 #include "OnlineSubsystem.h"
-#include "Interfaces/OnlinePartyInterface.h"
 #include "Interfaces/OnlinePresenceInterface.h"
 
 #include "SocialToolkit.generated.h"
@@ -132,7 +131,7 @@ PARTY_SCOPE:
 
 	void HandleUserInvalidated(USocialUser& InvalidUser);
 
-#if PARTY_PLATFORM_SESSIONS_PSN
+#if PLATFORM_PS4
 	void NotifyPSNFriendsListRebuilt();
 #endif
 
@@ -221,11 +220,7 @@ private:	// Handlers
 	void HandleDeleteFriendComplete(int32 LocalPlayer, bool bWasSuccessful, const FUniqueNetId& FormerFriendId, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType);
 	void HandleAcceptFriendInviteComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& InviterUserId, const FString& ListName, const FString& ErrorStr);
 
-	void HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, const IOnlinePartyJoinInfo& Invite);
-	void HandlePartyInviteRemoved(const FUniqueNetId& LocalUserId, const IOnlinePartyJoinInfo& Invite, EPartyInvitationRemovedReason Reason);
-#if PARTY_PLATFORM_INVITE_PERMISSIONS
-	void CanReceiveInviteFrom(USocialUser& SocialUser, const IOnlinePartyJoinInfoConstRef& Invite, TFunction<void(const bool /*bResult*/)>&& CompletionFunc);
-#endif
+	void HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId);
 
 	void HandleBlockPlayerComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& BlockedPlayerID, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType);
 	void HandleUnblockPlayerComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UnblockedPlayerID, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType);

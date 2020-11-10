@@ -73,9 +73,6 @@ struct FStreamedAudioChunk
 		: DataSize(0)
 		, AudioDataSize(0)
 		, CacheLookupID(InvalidAudioStreamCacheLookupID)
-#if WITH_EDITORONLY_DATA
-		, bLoadedFromCookedPackage(false)
-#endif // #if WITH_EDITORONLY_DATA
 	{
 	}
 
@@ -85,9 +82,6 @@ struct FStreamedAudioChunk
 #if WITH_EDITORONLY_DATA
 	/** Key if stored in the derived data cache. */
 	FString DerivedDataKey;
-
-	/** True if this chunk was loaded from a cooked package. */
-	bool bLoadedFromCookedPackage;
 
 	/**
 	 * Place chunk data in the derived data cache associated with the provided

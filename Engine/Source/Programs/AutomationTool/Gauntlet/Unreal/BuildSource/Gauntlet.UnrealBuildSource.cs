@@ -424,7 +424,7 @@ namespace Gauntlet
 			Config.CommandLine = GenerateProcessedCommandLine(Config.CommandLine);
 
 			// Now add the project (the above code doesn't handle arguments without a leading - so do this last
-			bool IsContentOnlyProject = (Config.Build != null) && ((Config.Build.Flags & BuildFlags.ContentOnlyProject) == BuildFlags.ContentOnlyProject);
+			bool IsContentOnlyProject = (Config.Build.Flags & BuildFlags.ContentOnlyProject) == BuildFlags.ContentOnlyProject;
 
 			// Add in editor - TODO, should this be in the editor build?
 			if (Role.RoleType.UsesEditor() || IsContentOnlyProject)

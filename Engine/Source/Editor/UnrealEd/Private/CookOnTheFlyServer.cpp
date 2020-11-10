@@ -3486,19 +3486,17 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 
 					if (DiffModeHelper.IsRunningCookDiff())
 					{
-						FSavePackageContext* const SavePackageContext = (IsCookByTheBookMode() && SavePackageContexts.Num() > 0) ? SavePackageContexts[PlatformIndex] : nullptr;
-
 						DiffModeHelper.ProcessPackage(Package);
 
 						// When looking for deterministic cook issues, first serialize the package to memory and do a simple diff with the existing package
 						uint32 DiffSaveFlags = SaveFlags | SAVE_DiffOnly;
 						FArchiveDiffMap DiffMap;
-						Result = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, DiffSaveFlags, Target, FDateTime::MinValue(), false, &DiffMap, SavePackageContext);
+						Result = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, DiffSaveFlags, Target, FDateTime::MinValue(), false, &DiffMap);
 						if (Result == ESavePackageResult::DifferentContent)
 						{
 							// If the simple memory diff was not identical, collect callstacks for all Serialize calls and dump differences to log
 							DiffSaveFlags = SaveFlags | SAVE_DiffCallstack;
-							Result = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, DiffSaveFlags, Target, FDateTime::MinValue(), false, &DiffMap, SavePackageContext);
+							Result = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, DiffSaveFlags, Target, FDateTime::MinValue(), false, &DiffMap);
 						}
 					}
 					else
@@ -3931,7 +3929,7 @@ void GetVersionFormatNumbersForIniVersionStrings(TMap<FString, FString>& IniVers
 void GetAdditionalCurrentIniVersionStrings( const ITargetPlatform* TargetPlatform, TMap<FString, FString>& IniVersionMap )
 {
 	FConfigFile EngineSettings;
-	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
+	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *TargetPlatform->PlatformName());
 
 	TArray<FString> VersionedRValues;
 	EngineSettings.GetArray(TEXT("/Script/UnrealEd.CookerSettings"), TEXT("VersionedIntRValues"), VersionedRValues);
@@ -5515,7 +5513,6 @@ void UCookOnTheFlyServer::SaveGlobalShaderMapFiles(const TArrayView<const ITarge
 			RecompileData.ShaderPlatform == -1 ? SP_NumPlatforms : (EShaderPlatform)RecompileData.ShaderPlatform, //-V547
 			OutputDir, 
 			RecompileData.MaterialsToLoad, 
-			RecompileData.ShadersToRecompile,
 			RecompileData.MeshMaterialMaps, 
 			RecompileData.ModifiedFiles);
 	}
@@ -6016,7 +6013,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(WriteCookerOpenOrder);
 					if (!IsCookFlagSet(ECookInitializationFlags::Iterative))
 					{
-						Generator.WriteCookerOpenOrder(SandboxFile.Get());
+						Generator.WriteCookerOpenOrder();
 					}
 				}
 				// now that we have the asset registry and cooking open order, we have enough information to split the shader library
@@ -7380,7 +7377,6 @@ void UCookOnTheFlyServer::HandleNetworkFileServerRecompileShaders(const FShaderR
 		RecompileData.ShaderPlatform == -1 ? SP_NumPlatforms : (EShaderPlatform)RecompileData.ShaderPlatform,
 		OutputDir, 
 		RecompileData.MaterialsToLoad, 
-		RecompileData.ShadersToRecompile,
 		RecompileData.MeshMaterialMaps, 
 		RecompileData.ModifiedFiles,
 		RecompileData.bCompileChangedShaders);
@@ -7890,9 +7886,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 						}
 								
 						GIsCookerLoadingPackage = true;
-						FSavePackageContext* const SavePackageContext = (IsCookByTheBookMode() && SavePackageContexts.Num() > 0) ? SavePackageContexts[PlatformIndex] : nullptr;
-						FSavePackageResultStruct SaveResult = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, SaveFlags, Target, FDateTime::MinValue(), 
-																			false, /*DiffMap*/ nullptr,	SavePackageContext);
+						FSavePackageResultStruct SaveResult = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, SaveFlags, Target, FDateTime::MinValue(), false);
 						GIsCookerLoadingPackage = false;
 
 						if (SaveResult == ESavePackageResult::Success && UAssetManager::IsValid())

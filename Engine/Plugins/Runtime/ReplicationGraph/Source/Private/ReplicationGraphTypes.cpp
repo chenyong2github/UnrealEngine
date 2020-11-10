@@ -226,6 +226,53 @@ void FActorRepList::Release()
 	}
 }
 
+void FActorRepListRefView::RequestNewList(int32 NewSize, bool CopyExistingContent)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(RepList_RequestNewList);
+	FActorRepList* NewList = &GActorListAllocator.RequestList(NewSize > 0 ? NewSize : InitialListSize);
+	if (CopyExistingContent)
+	{
+		FMemory::Memcpy((uint8*)NewList->Data, (uint8*)CachedData, CachedNum * sizeof(FActorRepListType) );
+		NewList->Num = CachedNum;
+	}
+	else
+	{
+		repCheck(NewList->Num == 0);
+		CachedNum = 0;
+	}
+	RepList = NewList;
+	CachedData = RepList->Data;
+	CachedMax = RepList->Max;
+}
+
+void FActorRepListRefView::CopyContentsFrom(const FActorRepListRefView& Source)
+{
+	const int32 NewNum = Source.CachedNum;
+
+	FActorRepList* NewList = &GActorListAllocator.RequestList(Source.Num());
+	FMemory::Memcpy((uint8*)NewList->Data, (uint8*)Source.CachedData, NewNum * sizeof(FActorRepListType) );
+	NewList->Num = NewNum;
+
+	RepList = NewList;	
+
+	CachedData = NewList->Data;
+	CachedMax = NewList->Max;
+	CachedNum = NewNum;
+}
+
+void FActorRepListRefView::AppendContentsFrom(const FActorRepListRefView& Source)
+{
+	const int32 NewNum = CachedNum + Source.CachedNum;
+	if (NewNum > CachedMax)
+	{
+		RequestNewList(NewNum, true);
+	}
+
+	FMemory::Memcpy((uint8*)&CachedData[CachedNum], (uint8*)Source.CachedData, Source.CachedNum * sizeof(FActorRepListType));
+	RepList->Num = NewNum;
+	CachedNum = NewNum;
+}
+
 bool FActorRepListRefView::VerifyContents_Slow() const
 {
 	for (FActorRepListType Actor : *this)
@@ -248,20 +295,6 @@ bool FActorRepListRefView::VerifyContents_Slow() const
 	return true;
 }
 
-FString FActorRepListRefView::BuildDebugString() const
-{
-	FString Str;
-	if (Num() > 0)
-	{
-		Str += GetActorRepListTypeDebugString(RepList[0]);
-		for (int32 i = 1; i < Num(); ++i)
-		{
-			Str += TEXT(", ") + GetActorRepListTypeDebugString(RepList[i]);
-		}
-	}
-	return Str;
-}
-
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 void PrintRepListStats(int32 mode)
 {
@@ -279,7 +312,7 @@ void PrintRepListDetails(int32 PoolSize, int32 BlockIdx, int32 ListIdx)
 
 void PreAllocateRepList(int32 ListSize, int32 NumLists)
 {
-	// nothing
+	GActorListAllocator.PreAllocateLists(ListSize, NumLists);
 }
 
 void CountReplicationGraphSharedBytes_Private(FArchive& Ar)
@@ -473,87 +506,3 @@ void FGlobalActorReplicationInfoMap::AddDependentActor(AActor* Parent, AActor* C
 	}
 }
 
-bool FActorRepListStatCollector::WasNodeVisited(const UReplicationGraphNode* NodeToVisit)
-{
-	const bool* Visited = VisitedNodes.Find(NodeToVisit);
-	return (Visited != nullptr);
-}
-
-void FActorRepListStatCollector::FlagNodeVisited(const UReplicationGraphNode* NodeToVisit)
-{
-	VisitedNodes.Add(NodeToVisit, true);
-}
-
-void FActorRepListStatCollector::VisitRepList(const UReplicationGraphNode* NodeToVisit, const FActorRepListRefView& RepList)
-{
-	if (WasNodeVisited(NodeToVisit))
-	{
-		return;
-	}
-
-	FRepListStats& ClassStats = PerClassStats.FindOrAdd(NodeToVisit->GetClass()->GetFName());
-
-	ClassStats.NumLists++;
-	const uint32 ListSize = (uint32)RepList.RepList.Num();
-	ClassStats.NumActors += ListSize;
-	ClassStats.NumSlack += RepList.RepList.GetSlack();
-	ClassStats.NumBytes += RepList.RepList.GetAllocatedSize();
-	ClassStats.MaxListSize = FMath::Max(ClassStats.MaxListSize, ListSize);
-}
-
-void FActorRepListStatCollector::VisitStreamingLevelCollection(const UReplicationGraphNode* NodeToVisit, const FStreamingLevelActorListCollection& StreamingLevelList)
-{
-	if (WasNodeVisited(NodeToVisit))
-	{
-		return;
-	}
-
-	FRepListStats& ClassStats = PerClassStats.FindOrAdd(NodeToVisit->GetClass()->GetFName());
-
-	// Collect the StreamingLevel stats
-	for (const FStreamingLevelActorListCollection::FStreamingLevelActors& LevelList : StreamingLevelList.StreamingLevelLists)
-	{
-		const uint32 ListSize = (uint32)LevelList.ReplicationActorList.RepList.Num();
-		const uint32 ListSlack = LevelList.ReplicationActorList.RepList.GetSlack();
-		const uint32 ListBytes = LevelList.ReplicationActorList.RepList.GetAllocatedSize();
-
-		{
-			FRepListStats& StreamingLevelStats = PerStreamingLevelStats.FindOrAdd(LevelList.StreamingLevelName);
-
-			StreamingLevelStats.NumLists++;
-			StreamingLevelStats.NumActors += ListSize;
-			StreamingLevelStats.NumSlack += ListSlack;
-			StreamingLevelStats.NumBytes += ListBytes;
-			StreamingLevelStats.MaxListSize = FMath::Max(StreamingLevelStats.MaxListSize, ListSize);
-		}
-
-		{
-			ClassStats.NumLists++;
-			ClassStats.NumActors += ListSize;
-			ClassStats.NumSlack += ListSlack;
-			ClassStats.NumBytes += ListBytes;
-			ClassStats.MaxListSize = FMath::Max(ClassStats.MaxListSize, ListSize);
-		}
-	}
-}
-
-void FActorRepListStatCollector::VisitExplicitStreamingLevelList(FName ListOwnerName, FName StreamingLevelName, const FActorRepListRefView& RepList)
-{
-	const uint32 ListSize = (uint32)RepList.RepList.Num();
-	const uint32 ListSlack = RepList.RepList.GetSlack();
-	const uint32 ListBytes = RepList.RepList.GetAllocatedSize();
-
-	FRepListStats& ClassStats = PerClassStats.FindOrAdd(ListOwnerName);
-	ClassStats.NumLists++;
-	ClassStats.NumActors += ListSize;
-	ClassStats.NumSlack += ListSlack;
-	ClassStats.NumBytes += ListBytes;
-	ClassStats.MaxListSize = FMath::Max(ClassStats.MaxListSize, ListSize);
-	
-	FRepListStats& StreamingLevelStats = PerStreamingLevelStats.FindOrAdd(StreamingLevelName);
-	StreamingLevelStats.NumLists++;
-	StreamingLevelStats.NumActors += ListSize;
-	StreamingLevelStats.NumSlack += ListSlack;
-	StreamingLevelStats.NumBytes += ListBytes;
-	StreamingLevelStats.MaxListSize = FMath::Max(StreamingLevelStats.MaxListSize, ListSize);
-}

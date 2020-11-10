@@ -413,7 +413,7 @@ int32 UMediaSoundComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 			if (bSpectralAnalysisEnabled)
 			{
 				SpectrumAnalyzer.PushAudio(BufferToUseForAnalysis, NumFrames);
-				SpectrumAnalyzer.PerformAsyncAnalysisIfPossible(true);
+				SpectrumAnalyzer.PerformAnalysisIfPossible(true, true);
 			}
 
 			{
@@ -486,10 +486,8 @@ TArray<FMediaSoundComponentSpectralData> UMediaSoundComponent::GetSpectralData()
 {
 	if (bSpectralAnalysisEnabled)
 	{
-		// Locks analyzer output buffer during access to frequency data.
-		Audio::FAsyncSpectrumAnalyzerScopeLock AnalyzerBufferLock(&SpectrumAnalyzer);
-
 		TArray<FMediaSoundComponentSpectralData> SpectralData;
+		SpectrumAnalyzer.LockOutputBuffer();
 
 		for (float Frequency : FrequenciesToAnalyze)
 		{
@@ -498,6 +496,7 @@ TArray<FMediaSoundComponentSpectralData> UMediaSoundComponent::GetSpectralData()
 			Data.Magnitude = SpectrumAnalyzer.GetMagnitudeForFrequency(Frequency);
 			SpectralData.Add(Data);
 		}
+		SpectrumAnalyzer.UnlockOutputBuffer();
 
 		return SpectralData;
 	}
@@ -509,10 +508,8 @@ TArray<FMediaSoundComponentSpectralData> UMediaSoundComponent::GetNormalizedSpec
 {
 	if (bSpectralAnalysisEnabled)
 	{
-		// Locks analyzer output buffer during access to frequency data.
-		Audio::FAsyncSpectrumAnalyzerScopeLock AnalyzerBufferLock(&SpectrumAnalyzer);
-
 		TArray<FMediaSoundComponentSpectralData> SpectralData;
+		SpectrumAnalyzer.LockOutputBuffer();
 
 		for (float Frequency : FrequenciesToAnalyze)
 		{
@@ -521,6 +518,7 @@ TArray<FMediaSoundComponentSpectralData> UMediaSoundComponent::GetNormalizedSpec
 			Data.Magnitude = SpectrumAnalyzer.GetNormalizedMagnitudeForFrequency(Frequency);
 			SpectralData.Add(Data);
 		}
+		SpectrumAnalyzer.UnlockOutputBuffer();
 
 		return SpectralData;
 	}

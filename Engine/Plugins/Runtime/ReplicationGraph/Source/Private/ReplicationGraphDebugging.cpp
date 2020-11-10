@@ -45,23 +45,6 @@
  *	
  */
 
-namespace RepGraphDebugging
-{
-	UReplicationGraph* FindReplicationGraphHelper()
-	{
-		UReplicationGraph* Graph = nullptr;
-		for (TObjectIterator<UReplicationGraph> It; It; ++It)
-		{
-			if (It->NetDriver && It->NetDriver->GetNetMode() != NM_Client)
-			{
-				Graph = *It;
-				break;
-			}
-		}
-		return Graph;
-	}
-}
-
 // ----------------------------------------------------------
 //	Console Commands
 // ----------------------------------------------------------
@@ -681,33 +664,6 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetDebugActorConnectionCmd(TEXT("
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------------------------------
 
-#if !(UE_BUILD_SHIPPING)
-FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetCellSize(TEXT("Net.RepGraph.Spatial.SetCellSize"), TEXT(""),
-FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
-{
-	float NewGridSize = 0.f;
-	if (Args.Num() > 0)
-	{
-		LexFromString(NewGridSize, *Args[0]);
-	}
-
-	if (NewGridSize <= 0.f)
-	{
-		return;
-	}
-
-	for (TObjectIterator<UReplicationGraphNode_GridSpatialization2D> It; It; ++It)
-	{
-		UReplicationGraphNode_GridSpatialization2D* Node = *It;
-		if (Node && Node->HasAnyFlags(RF_ClassDefaultObject) == false)
-		{
-			Node->CellSize = NewGridSize;
-			Node->ForceRebuild();
-		}
-	}
-}));
-#endif
-
 #if !(UE_BUILD_SHIPPING | UE_BUILD_TEST)
 FAutoConsoleCommandWithWorldAndArgs NetRepGraphForceRebuild(TEXT("Net.RepGraph.Spatial.ForceRebuild"),TEXT(""),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
@@ -724,6 +680,35 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphForceRebuild(TEXT("Net.RepGraph.S
 	})
 );
 
+FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetCellSize(TEXT("Net.RepGraph.Spatial.SetCellSize"),TEXT(""),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		float NewGridSize = 0.f;
+		if (Args.Num() > 0 )
+		{
+			LexFromString(NewGridSize, *Args[0]);
+		}
+
+		if (NewGridSize <= 0.f)
+		{
+			return;
+		}
+
+		for (TObjectIterator<UReplicationGraphNode_GridSpatialization2D> It; It; ++It)
+		{
+			UReplicationGraphNode_GridSpatialization2D* Node = *It;
+			if (Node && Node->HasAnyFlags(RF_ClassDefaultObject) == false)
+			{
+				Node->CellSize = NewGridSize;
+				Node->ForceRebuild();
+			}
+		}
+	})
+);
+
+
+
+
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------------------------------
@@ -733,6 +718,7 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphForceRebuild(TEXT("Net.RepGraph.S
 FAutoConsoleCommand RepDriverListsAddTestmd(TEXT("Net.RepGraph.Lists.AddTest"), TEXT(""), FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray< FString >& Args) 
 { 
 	static FActorRepListRefView List;
+	List.PrepareForWrite(true);
 
 	int32 Num = 1;
 	if (Args.Num() > 0 )
@@ -746,6 +732,16 @@ FAutoConsoleCommand RepDriverListsAddTestmd(TEXT("Net.RepGraph.Lists.AddTest"), 
 	}
 }));
 
+FAutoConsoleCommand RepDriverListsStatsCmd(TEXT("Net.RepGraph.Lists.Stats"), TEXT(""), FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray< FString >& Args) 
+{ 
+	int32 Mode = 0;
+	if (Args.Num() > 0 )
+	{
+		LexFromString(Mode,*Args[0]);
+	}
+
+	PrintRepListStats(Mode);
+}));
 
 FAutoConsoleCommand RepDriverListDetailsCmd(TEXT("Net.RepGraph.Lists.Details"), TEXT(""), FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray< FString >& Args) 
 { 
@@ -875,6 +871,19 @@ FAutoConsoleCommand RepDriverStarvListCmd(TEXT("Net.RepGraph.StarvedList"), TEXT
 	}
 }));
 
+UReplicationGraph* FindReplicationGraphHelper()
+{
+	UReplicationGraph* Graph = nullptr;
+	for (TObjectIterator<UReplicationGraph> It; It; ++It)
+	{
+		if (It->NetDriver && It->NetDriver->GetNetMode() != NM_Client)
+		{
+			Graph = *It;
+			break;
+		}
+	}
+	return Graph;
+}
 
 // --------------------------------------------------------------------------------------------------------------------------------------------
 //	Graph Debugging: help log/debug the state of the Replication Graph
@@ -1015,22 +1024,6 @@ void UReplicationGraph::LogConnectionGraphNodes(FReplicationGraphDebugInfo& Debu
 	}
 }
 
-void UReplicationGraph::CollectRepListStats(FActorRepListStatCollector& StatCollector) const
-{
-	for (const UReplicationGraphNode* Node : GlobalGraphNodes)
-	{
-		Node->DoCollectActorRepListStats(StatCollector);
-	}
-
-	for (const UNetReplicationGraphConnection* ConnectionManager : Connections)
-	{
-		for (UReplicationGraphNode* Node : ConnectionManager->ConnectionGraphNodes)
-		{
-			Node->DoCollectActorRepListStats(StatCollector);
-		}
-	}
-}
-
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 AReplicationGraphDebugActor* UReplicationGraph::CreateDebugActor() const
 {
@@ -1062,7 +1055,7 @@ void UReplicationGraphNode::LogNode(FReplicationGraphDebugInfo& DebugInfo, const
 
 void LogActorRepList(FReplicationGraphDebugInfo& DebugInfo, FString Prefix, const FActorRepListRefView& List)
 {
-	if (List.Num() <= 0)
+	if (List.IsValid() == false || List.Num() <= 0)
 	{
 		return;
 	}
@@ -1134,12 +1127,6 @@ void UReplicationGraphNode_TearOff_ForConnection::LogNode(FReplicationGraphDebug
 	DebugInfo.PushIndent();
 	LogActorRepList(DebugInfo, TEXT("TearOff"), ReplicationActorList);
 	DebugInfo.PopIndent();
-}
-
-void UReplicationGraphNode_TearOff_ForConnection::OnCollectActorRepListStats(FActorRepListStatCollector& StatsCollector) const
-{
-	StatsCollector.VisitRepList(this, ReplicationActorList);
-	Super::OnCollectActorRepListStats(StatsCollector);
 }
 
 // --------------------------------------------------------------------------------------------------------------------------------------------
@@ -1235,7 +1222,7 @@ TFunction<void()> LogPrioritizedListHelper(FOutputDevice& Ar, const TArray< FStr
 		}
 	};
 
-	UReplicationGraph* Graph = RepGraphDebugging::FindReplicationGraphHelper();
+	UReplicationGraph* Graph = FindReplicationGraphHelper();
 	if (!Graph)
 	{
 		UE_LOG(LogReplicationGraph, Warning, TEXT("Could not find valid Replication Graph."));
@@ -1327,7 +1314,7 @@ FAutoConsoleCommand RepGraphPrintAllCmd(TEXT("Net.RepGraph.PrintAll"), TEXT(""),
 
 	Args = InArgs;
 
-	UReplicationGraph* Graph = RepGraphDebugging::FindReplicationGraphHelper();
+	UReplicationGraph* Graph = FindReplicationGraphHelper();
 	if (!Graph)
 	{
 		UE_LOG(LogReplicationGraph, Warning, TEXT("Could not find valid Replication Graph."));
@@ -1379,79 +1366,6 @@ FAutoConsoleCommand RepGraphPrintAllCmd(TEXT("Net.RepGraph.PrintAll"), TEXT(""),
 	});
 	
 }));
-
-FAutoConsoleCommand RepDriverListsStatsCmd(TEXT("Net.RepGraph.Lists.Stats"), TEXT(""), FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray< FString >& Args)
-{
-	UReplicationGraph* Graph = RepGraphDebugging::FindReplicationGraphHelper();
-	if (!Graph)
-	{
-		UE_LOG(LogReplicationGraph, Warning, TEXT("Could not find valid Replication Graph."));
-		return;
-	}
-
-	FActorRepListStatCollector StatCollector;
-	Graph->CollectRepListStats(StatCollector);
-
-	UE_LOG(LogReplicationGraph, Display, TEXT("Printing ActorRepList stats of %s"), *Graph->GetName());
-	StatCollector.PrintCollectedData(*GLog);
-}));
-
-void FActorRepListStatCollector::PrintCollectedData(FOutputDevice& Ar)
-{
-	auto SortByBiggestNumLists = [](const FRepListStats& lhs, const FRepListStats& rhs) -> bool
-	{
-		return lhs.NumLists >= rhs.NumLists;
-	};
-
-	// Print per class stats
-	{
-		Ar.Logf(TEXT(""));
-		Ar.Logf(TEXT("======   Node Class stats ======"));
-		PerClassStats.ValueStableSort(SortByBiggestNumLists);
-
-		for (TMap<FName, FRepListStats>::TConstIterator It(PerClassStats); It; ++It)
-		{
-			FName NodeName = It.Key();
-			const FRepListStats& NodeStats = It.Value();
-
-			Ar.Logf(TEXT("%s Lists(%u) Avg Actors per list (%.2f) Biggest List (%d) Avg slack (%.2f) Total bytes (%.3f mb)"),
-				*NodeName.ToString(),
-				NodeStats.NumLists,
-				(float)NodeStats.NumActors / (float)NodeStats.NumLists,
-				NodeStats.MaxListSize,
-				(float)NodeStats.NumSlack / (float)NodeStats.NumLists,
-				(float)NodeStats.NumBytes / (1024.f * 1024.f)
-			);
-		}
-
-		Ar.Logf(TEXT("====================================="));
-	}
-
-	// Print per-streaming level stats
-	{
-		Ar.Logf(TEXT(""));
-		Ar.Logf(TEXT("======   Streaming level stats ======"));
-		PerStreamingLevelStats.ValueStableSort(SortByBiggestNumLists);
-
-		for (TMap<FName, FRepListStats>::TConstIterator It(PerStreamingLevelStats); It; ++It)
-		{
-			FName LevelName = It.Key();
-			const FRepListStats& NodeStats = It.Value();
-
-			Ar.Logf(TEXT("%s Lists(%u) Avg Actors per list (%.2f) Biggest List (%d) Avg slack (%.2f) Total bytes (%.3f mb)"),
-				*LevelName.ToString(),
-				NodeStats.NumLists,
-				(float)NodeStats.NumActors / (float)NodeStats.NumLists,
-				NodeStats.MaxListSize,
-				(float)NodeStats.NumSlack / (float)NodeStats.NumLists,
-				(float)NodeStats.NumBytes / (1024.f * 1024.f)
-			);
-		}
-
-		Ar.Logf(TEXT("====================================="));
-	}
-
-}
 
 
 // --------------------------------------------------------------------------------------------------------------------------------------------

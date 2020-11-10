@@ -15,13 +15,35 @@ static bool ShouldPreferD3D12()
 	if (!GIsEditor)
 	{
 		bool bPreferD3D12 = false;
-		if (GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bUseD3D12InGame"), bPreferD3D12, GGameUserSettingsIni))
+		if (GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bPreferD3D12InGame"), bPreferD3D12, GGameUserSettingsIni))
 		{
 			return bPreferD3D12;
 		}
 	}
 
+#if 0
+	bool bPreferD3D12 = false;
+	if (GIsEditor)
+	{
+		GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bPreferD3D12InEditor"), bPreferD3D12, GEngineIni);
+	}
+	else
+	{
+		GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bPreferD3D12InGame"), bPreferD3D12, GEngineIni);
+	}
+
+	int32 MinNumCPUCores = 0;
+	GConfig->GetInt(TEXT("D3DRHIPreference"), TEXT("con.MinNumCPUCores"), MinNumCPUCores, GEngineIni);
+	const bool bHasEnoughCPUCores = FPlatformMisc::NumberOfCoresIncludingHyperthreads() >= MinNumCPUCores;
+
+	int32 MinPhysicalMemGB = 0;
+	GConfig->GetInt(TEXT("D3DRHIPreference"), TEXT("con.MinPhysicalMemGB"), MinPhysicalMemGB, GEngineIni);
+	const bool bHasEnoughMem = FPlatformMemory::GetConstants().TotalPhysical >= MinPhysicalMemGB * (1llu << 30);
+
+	return bPreferD3D12 && bHasEnoughCPUCores && bHasEnoughMem;
+#else
 	return false;
+#endif
 }
 
 static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFeatureLevel, const TCHAR*& LoadedRHIModuleName)

@@ -6,12 +6,6 @@ DEFINE_LOG_CATEGORY(LogNetworkPredictionCues);
 
 FGlobalCueTypeTable FGlobalCueTypeTable::Singleton;
 
-FGlobalCueTypeTable::FRegisteredCueTypeInfo& FGlobalCueTypeTable::GetRegistedTypeInfo()
-{
-	static FGlobalCueTypeTable::FRegisteredCueTypeInfo PendingCueTypes;
-	return PendingCueTypes;
-}
-
 // ------------------------------------------------------------------------------------------------------------------------------------------
 //	Mock Cue example: Minimal example of NetSimCue pipeline
 //		(1)	- How to define cue types and traits

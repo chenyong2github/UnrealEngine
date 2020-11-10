@@ -44,14 +44,6 @@ class ENGINE_API UDeviceProfile : public UTextureLODSettings
 
 public:
 
-	/* Need to add missing entries in TextureLODGroups to match enum TextureGroup when the device profile is reloaded*/
-	virtual void PostReloadConfig(class FProperty* PropertyThatWasLoaded) override
-	{
-		Super::PostReloadConfig(PropertyThatWasLoaded);
-
-		ValidateTextureLODGroups();
-	}
-
 	/** The collection of CVars which is set from this profile */
 	UPROPERTY(EditAnywhere, config, Category=ConsoleVariables)
 	TArray<FString> CVars;

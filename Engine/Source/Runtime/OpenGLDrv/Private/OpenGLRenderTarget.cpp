@@ -52,7 +52,7 @@ public:
 		{
 			FMemory::Memzero(RenderTargets[RenderTargetIndex]); // since memcmp is used, we need to zero memory
 			RenderTargets[RenderTargetIndex].Texture = InRenderTargets[RenderTargetIndex];
-			RenderTargets[RenderTargetIndex].Resource = (InRenderTargets[RenderTargetIndex]) ? InRenderTargets[RenderTargetIndex]->GetResource() : 0;
+			RenderTargets[RenderTargetIndex].Resource = (InRenderTargets[RenderTargetIndex]) ? InRenderTargets[RenderTargetIndex]->Resource : 0;
 			RenderTargets[RenderTargetIndex].MipmapLevel = InRenderTargetMipmapLevels[RenderTargetIndex];
 			RenderTargets[RenderTargetIndex].ArrayIndex = (InRenderTargetArrayIndices == NULL || InRenderTargetArrayIndices[RenderTargetIndex] == -1) ? ALL_SLICES : InRenderTargetArrayIndices[RenderTargetIndex];
 		}
@@ -116,7 +116,7 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 	}
 
 	// Check for rendering to screen back buffer.
-	if(0 < NumSimultaneousRenderTargets && RenderTargets[0] && RenderTargets[0]->GetResource() == GL_NONE)
+	if(0 < NumSimultaneousRenderTargets && RenderTargets[0] && RenderTargets[0]->Resource == GL_NONE)
 	{
 		// Use the default framebuffer (screen back/depth buffer)
 		return GL_NONE;
@@ -150,23 +150,23 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 		const uint32 NumSamplesTileMem = RenderTarget2D->GetNumSamplesTileMem();
 		if (NumSamplesTileMem > 1)
 		{
-			glFramebufferTextureMultisampleMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, RenderTarget->GetResource(), 0, NumSamplesTileMem, 0, 2);
+			glFramebufferTextureMultisampleMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, RenderTarget->Resource, 0, NumSamplesTileMem, 0, 2);
 			VERIFY_GL(glFramebufferTextureMultisampleMultiviewOVR);
 
 			if (DepthStencilTarget)
 			{
-				glFramebufferTextureMultisampleMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, DepthStencilTarget->GetResource(), 0, NumSamplesTileMem, 0, 2);
+				glFramebufferTextureMultisampleMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, DepthStencilTarget->Resource, 0, NumSamplesTileMem, 0, 2);
 				VERIFY_GL(glFramebufferTextureMultisampleMultiviewOVR);
 			}
 		}
 		else
 		{
-			glFramebufferTextureMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, RenderTarget->GetResource(), 0, 0, 2);
+			glFramebufferTextureMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, RenderTarget->Resource, 0, 0, 2);
 			VERIFY_GL(glFramebufferTextureMultiviewOVR);
 
 			if (DepthStencilTarget)
 			{
-				glFramebufferTextureMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, DepthStencilTarget->GetResource(), 0, 0, 2);
+				glFramebufferTextureMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, DepthStencilTarget->Resource, 0, 0, 2);
 				VERIFY_GL(glFramebufferTextureMultiviewOVR);
 			}
 		}
@@ -209,13 +209,13 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 				{
 					// GL_EXT_multisampled_render_to_texture requires GL_COLOR_ATTACHMENT0
 					check(RenderTargetIndex == 0);
-					glFramebufferTexture2DMultisampleEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->GetResource(), MipmapLevels[RenderTargetIndex], NumSamplesTileMem);
+					glFramebufferTexture2DMultisampleEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->Resource, MipmapLevels[RenderTargetIndex], NumSamplesTileMem);
 					VERIFY_GL(glFramebufferTexture2DMultisampleEXT);
 				}
 				else
 #endif
 				{
-					FOpenGL::FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->GetResource(), MipmapLevels[RenderTargetIndex]);
+					FOpenGL::FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->Resource, MipmapLevels[RenderTargetIndex]);
 				}
 				break;
 			}
@@ -223,10 +223,10 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 			case GL_TEXTURE_2D_ARRAY:
 			case GL_TEXTURE_CUBE_MAP:
 			case GL_TEXTURE_CUBE_MAP_ARRAY:
-				FOpenGL::FramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->GetResource(), MipmapLevels[RenderTargetIndex]);
+				FOpenGL::FramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Resource, MipmapLevels[RenderTargetIndex]);
 				break;
 			default:
-				FOpenGL::FramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, GL_RENDERBUFFER, RenderTarget->GetResource());
+				FOpenGL::FramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, GL_RENDERBUFFER, RenderTarget->Resource);
 				break;
 			}
 		}
@@ -249,30 +249,30 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 				{
 					// GL_EXT_multisampled_render_to_texture requires GL_COLOR_ATTACHMENT0
 					check(RenderTargetIndex == 0);
-					glFramebufferTexture2DMultisampleEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->GetResource(), MipmapLevels[RenderTargetIndex], NumSamplesTileMem);
+					glFramebufferTexture2DMultisampleEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->Resource, MipmapLevels[RenderTargetIndex], NumSamplesTileMem);
 					VERIFY_GL(glFramebufferTexture2DMultisampleEXT);
 				}
 				else
 #endif
 				{
-					FOpenGL::FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->GetResource(), MipmapLevels[RenderTargetIndex]);
+					FOpenGL::FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->Resource, MipmapLevels[RenderTargetIndex]);
 				}
 				break;
 			}
 			case GL_TEXTURE_3D:
-				FOpenGL::FramebufferTexture3D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->GetResource(), MipmapLevels[RenderTargetIndex], ArrayIndices[RenderTargetIndex]);
+				FOpenGL::FramebufferTexture3D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->Resource, MipmapLevels[RenderTargetIndex], ArrayIndices[RenderTargetIndex]);
 				break;
 			case GL_TEXTURE_CUBE_MAP:
 				check( ArrayIndices[RenderTargetIndex] < 6);
-				FOpenGL::FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, GL_TEXTURE_CUBE_MAP_POSITIVE_X + ArrayIndices[RenderTargetIndex], RenderTarget->GetResource(), MipmapLevels[RenderTargetIndex]);
+				FOpenGL::FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, GL_TEXTURE_CUBE_MAP_POSITIVE_X + ArrayIndices[RenderTargetIndex], RenderTarget->Resource, MipmapLevels[RenderTargetIndex]);
 				break;
 			case GL_TEXTURE_2D_ARRAY:
 			case GL_TEXTURE_CUBE_MAP_ARRAY:
-				FOpenGL::FramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->GetResource(), MipmapLevels[RenderTargetIndex], ArrayIndices[RenderTargetIndex]);
+				FOpenGL::FramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Resource, MipmapLevels[RenderTargetIndex], ArrayIndices[RenderTargetIndex]);
 				break;
 			default:
 				check( ArrayIndices[RenderTargetIndex] == 0);
-				FOpenGL::FramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, GL_RENDERBUFFER, RenderTarget->GetResource());
+				FOpenGL::FramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, GL_RENDERBUFFER, RenderTarget->Resource);
 				break;
 			}
 		}
@@ -289,7 +289,7 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 #endif
 		case GL_TEXTURE_2D_MULTISAMPLE:
 		{
-				FOpenGL::FramebufferTexture2D(GL_FRAMEBUFFER, DepthStencilTarget->Attachment, DepthStencilTarget->Target, DepthStencilTarget->GetResource(), 0);
+			FOpenGL::FramebufferTexture2D(GL_FRAMEBUFFER, DepthStencilTarget->Attachment, DepthStencilTarget->Target, DepthStencilTarget->Resource, 0);
 			break;
 		}
 		case GL_RENDERBUFFER:
@@ -298,8 +298,8 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 			const uint32 NumSamplesTileMem = DepthStencilTarget2D->GetNumSamplesTileMem();
 			if (NumSamplesTileMem > 1)
 			{	
-				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, DepthStencilTarget->GetResource());
-					glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, DepthStencilTarget->GetResource());
+				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, DepthStencilTarget->Resource);
+				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, DepthStencilTarget->Resource);
 				VERIFY_GL(glFramebufferRenderbuffer);
 			}
 			break;
@@ -308,10 +308,10 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 		case GL_TEXTURE_2D_ARRAY:
 		case GL_TEXTURE_CUBE_MAP:
 		case GL_TEXTURE_CUBE_MAP_ARRAY:
-			FOpenGL::FramebufferTexture(GL_FRAMEBUFFER, DepthStencilTarget->Attachment, DepthStencilTarget->GetResource(), 0);
+			FOpenGL::FramebufferTexture(GL_FRAMEBUFFER, DepthStencilTarget->Attachment, DepthStencilTarget->Resource, 0);
 			break;
 		default:
-				FOpenGL::FramebufferRenderbuffer(GL_FRAMEBUFFER, DepthStencilTarget->Attachment, GL_RENDERBUFFER, DepthStencilTarget->GetResource());
+			FOpenGL::FramebufferRenderbuffer(GL_FRAMEBUFFER, DepthStencilTarget->Attachment, GL_RENDERBUFFER, DepthStencilTarget->Resource);
 			break;
 		}
 	}
@@ -357,7 +357,7 @@ void ReleaseOpenGLFramebuffers(FOpenGLDynamicRHI* Device, FRHITexture* TextureRH
 			FOpenGLFramebufferKey Key = It.Key();
 
 			const FOpenGLTextureBase* DepthStencilTarget = Key.GetDepthStencilTarget();
-			if( DepthStencilTarget && DepthStencilTarget->Target == Texture->Target && DepthStencilTarget->GetResource() == Texture->GetResource() )
+			if( DepthStencilTarget && DepthStencilTarget->Target == Texture->Target && DepthStencilTarget->Resource == Texture->Resource )
 			{
 				bPurgeFramebuffer = true;
 			}
@@ -366,7 +366,7 @@ void ReleaseOpenGLFramebuffers(FOpenGLDynamicRHI* Device, FRHITexture* TextureRH
 				for( uint32 RenderTargetIndex = 0; RenderTargetIndex < MaxSimultaneousRenderTargets; ++RenderTargetIndex )
 				{
 					const FOpenGLTextureBase* RenderTarget = Key.GetRenderTarget(RenderTargetIndex);
-					if( RenderTarget && RenderTarget->Target == Texture->Target && RenderTarget->GetResource() == Texture->GetResource() )
+					if( RenderTarget && RenderTarget->Target == Texture->Target && RenderTarget->Resource == Texture->Resource )
 					{
 						bPurgeFramebuffer = true;
 						break;
@@ -527,13 +527,13 @@ void FOpenGLDynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FR
 			// CopyImageSubData seems like a better analog to what UE wants in most cases
 			// It has no interactions with any other state, and there is no filtering/conversion
 			// It does not support MSAA resolves though
-			FOpenGL::CopyImageSubData(	SourceTexture->GetResource(),
+			FOpenGL::CopyImageSubData(	SourceTexture->Resource,
 										SourceTexture->Target,
 										MipmapLevel,
 										SrcRect.Min.X,
 										SrcRect.Min.Y,
 										SrcIndex,
-										DestTexture->GetResource(),
+										DestTexture->Resource,
 										DestTexture->Target,
 										MipmapLevel,
 										DestRect.Min.X,
@@ -1004,7 +1004,7 @@ void FOpenGLDynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI,FIntRect
 
 		glBindFramebuffer(UGL_READ_FRAMEBUFFER, SourceFramebuffer);
 
-		FOpenGL::FramebufferTextureLayer(UGL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, Texture->GetResource(), MipmapLevel, Index);
+		FOpenGL::FramebufferTextureLayer(UGL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, Texture->Resource, MipmapLevel, Index);
 	}
 	else
 	{
@@ -1091,7 +1091,7 @@ void FOpenGLDynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI,FIntRe
 	// Copy the pixels within the specified region, minimizing the amount of data that needs to be transferred from GPU to CPU memory
 	for ( uint32 Z=0; Z < SizeZ; ++Z )
 	{
-		FOpenGL::FramebufferTextureLayer(UGL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, Texture->GetResource(), MipmapLevel, ZMinMax.X + Z);
+		FOpenGL::FramebufferTextureLayer(UGL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, Texture->Resource, MipmapLevel, ZMinMax.X + Z);
 		FOpenGL::ReadBuffer(SourceFramebuffer == 0 ? GL_BACK : GL_COLOR_ATTACHMENT0);
 		FOpenGL::CopyTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, Z, Rect.Min.X, Rect.Min.Y, SizeX, SizeY );
 	}

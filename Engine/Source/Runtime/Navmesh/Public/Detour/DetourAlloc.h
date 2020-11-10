@@ -61,7 +61,7 @@ NAVMESH_API void* dtAlloc(int size, dtAllocHint hint);
 /// @see dtAlloc
 NAVMESH_API void dtFree(void* ptr);
 
-NAVMESH_API void dtMemCpy(void* dst, void* src, int size);
+void dtMemCpy(void* dst, void* src, int size);
 
 /// A simple helper class used to delete an array when it goes out of scope.
 /// @note This class is rarely if ever used by the end user.

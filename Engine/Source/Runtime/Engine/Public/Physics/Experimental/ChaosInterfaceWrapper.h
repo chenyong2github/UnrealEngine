@@ -5,7 +5,6 @@
 #include "Chaos/ParticleHandleFwd.h"
 #include "PhysicsInterfaceUtilsCore.h"
 #include "CollisionQueryFilterCallbackCore.h"
-#include "Chaos/PBDRigidsEvolutionFwd.h"
 //todo: move this include into an impl header
 
 class FPhysScene_Chaos;
@@ -29,7 +28,7 @@ struct FScopedSceneReadLock
 	FScopedSceneReadLock(FPhysScene_Chaos& SceneIn);
 	~FScopedSceneReadLock();
 
-	Chaos::FPBDRigidsSolver* Solver;
+	FPhysScene_Chaos& Scene;
 };
 #endif
 

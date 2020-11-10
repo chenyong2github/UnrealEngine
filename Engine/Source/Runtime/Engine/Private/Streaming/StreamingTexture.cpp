@@ -23,10 +23,7 @@ FStreamingRenderAsset::FStreamingRenderAsset(
 	UpdateStaticData(Settings);
 	UpdateDynamicData(NumStreamedMips, NumLODGroups, Settings, false);
 
-	// In the editor, some paths can recreate the FStreamingRenderAsset, which could potentiallly trigger the unkown ref heuristic.
-	// To prevent this, we consider that the asset bindings where reset when creating the FStreamingRenderAsset.
-	// In game, we set it to FLT_MAX so that unkown ref heurisitic can kick in immeditaly (otherwise it incurs a 5 sec penalty on async loading)
-	InstanceRemovedTimestamp = GIsEditor ? FApp::GetCurrentTime() : -FLT_MAX;
+	InstanceRemovedTimestamp = FApp::GetCurrentTime();
 	DynamicBoostFactor = 1.f;
 
 	bHasUpdatePending = InRenderAsset && InRenderAsset->bHasStreamingUpdatePending;
@@ -82,7 +79,7 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 					// Screen sizes stored on assets are 2R/D where R is the radius of bounding spheres and D is the
 					// distance from view origins to bounds origins. The factor calculated by the streamer, however,
 					// is R/D so multiply 0.5 here
-					LODScreenSizes[ResourceState.MaxNumLODs - LODIndex - 1] = StaticMesh->GetRenderData()->ScreenSize[LODIndex + ResourceState.AssetLODBias].GetValue() * 0.5f;
+					LODScreenSizes[ResourceState.MaxNumLODs - LODIndex - 1] = StaticMesh->RenderData->ScreenSize[LODIndex + ResourceState.AssetLODBias].GetValue() * 0.5f;
 				}
 			}
 			else if (RenderAssetType == EStreamableRenderAssetType::SkeletalMesh)

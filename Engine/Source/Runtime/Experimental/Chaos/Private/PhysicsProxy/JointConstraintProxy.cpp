@@ -11,21 +11,20 @@
 #include "Chaos/Serializable.h"
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/Framework/MultiBufferResource.h"
-#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsSolver.h"
-#include "Chaos/PullPhysicsDataImp.h"
 
 
 template< class CONSTRAINT_TYPE >
 TJointConstraintProxy<CONSTRAINT_TYPE>::TJointConstraintProxy(CONSTRAINT_TYPE* InConstraint, TJointConstraintProxy<CONSTRAINT_TYPE>::FConstraintHandle* InHandle, UObject* InOwner)
 	: Base(InOwner)
-	, Constraint(InConstraint) // This proxy assumes ownership of the Constraint, and will free it during DestroyOnPhysicsThread
+	, Constraint(InConstraint)
 	, Handle(InHandle)
 	, bInitialized(false)
 {
 	check(Constraint!=nullptr);
 	Constraint->SetProxy(this);
 	JointSettingsBuffer = Constraint->GetJointSettings();
+	OutputBuffer = Chaos::FMultiBufferFactory< FOutputData >::CreateBuffer(Chaos::EMultiBufferMode::Double);
 
 }
 
@@ -46,37 +45,16 @@ EPhysicsProxyType TJointConstraintProxy<CONSTRAINT_TYPE>::ConcreteType()
 
 /**/
 template< class CONSTRAINT_TYPE>
-void TJointConstraintProxy<CONSTRAINT_TYPE>::BufferPhysicsResults(Chaos::FDirtyJointConstraintData& Buffer)
+void TJointConstraintProxy<CONSTRAINT_TYPE>::BufferPhysicsResults()
 {
 }
 
 /**/
 template< class CONSTRAINT_TYPE>
-bool TJointConstraintProxy<CONSTRAINT_TYPE>::PullFromPhysicsState(const Chaos::FDirtyJointConstraintData& Buffer, const int32 SolverSyncTimestamp)
+bool TJointConstraintProxy<CONSTRAINT_TYPE>::PullFromPhysicsState(const int32 SolverSyncTimestamp)
 {
 }
 
-template< class CONSTRAINT_TYPE>
-Chaos::TGeometryParticleHandle<Chaos::FReal, 3>*
-TJointConstraintProxy<CONSTRAINT_TYPE>::GetParticleHandleFromProxy(IPhysicsProxyBase* ProxyBase)
-{
-	if (ProxyBase)
-	{
-		if (ProxyBase->GetType() == EPhysicsProxyType::SingleGeometryParticleType)
-		{
-			return ((FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<Chaos::FReal, 3>>*)ProxyBase)->GetHandle();
-		}
-		else if (ProxyBase->GetType() == EPhysicsProxyType::SingleRigidParticleType)
-		{
-			return ((FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<Chaos::FReal, 3>>*)ProxyBase)->GetHandle();
-		}
-		else if (ProxyBase->GetType() == EPhysicsProxyType::SingleKinematicParticleType)
-		{
-			return ((FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<Chaos::FReal, 3>>*)ProxyBase)->GetHandle();
-		}
-	}
-	return nullptr;
-}
 
 template<>
 EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType()
@@ -84,39 +62,41 @@ EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType()
 	return EPhysicsProxyType::JointConstraintType;
 }
 
-
 /**/
 template<>
-void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults(Chaos::FDirtyJointConstraintData& Buffer)
+void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults()
 {
-	Buffer.SetProxy(*this);
 	if (Constraint != nullptr && Constraint->IsValid() )
 	{
 		if (Handle != nullptr && Handle->IsValid())
 		{
-			Buffer.OutputData.bIsBroken = !Handle->IsConstraintEnabled();
-			Buffer.OutputData.Force = Handle->GetLinearImpulse();
-			Buffer.OutputData.Torque = Handle->GetAngularImpulse();
+			FOutputData* Buffer = OutputBuffer->AccessProducerBuffer();
+			Buffer->bIsBroken = !Handle->IsConstraintEnabled();
+			Buffer->Force = Handle->GetLinearImpulse();
+			Buffer->Torque = Handle->GetAngularImpulse();
 		}
 	}
 }
 
 /**/
 template<>
-bool TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState(const Chaos::FDirtyJointConstraintData& Buffer, const int32 SolverSyncTimestamp)
+bool TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState(const int32 SolverSyncTimestamp)
 {
 	if (Constraint != nullptr && Constraint->IsValid())
 	{
 		if (Handle != nullptr && Handle->IsValid())
 		{
-			Constraint->GetOutputData().bIsBroken = Buffer.OutputData.bIsBroken;
-			Constraint->GetOutputData().Force = Buffer.OutputData.Force;
-			Constraint->GetOutputData().Torque = Buffer.OutputData.Torque;
+			FOutputData* Buffer = OutputBuffer->AccessProducerBuffer();
+			Constraint->GetOutputData().bIsBroken = Buffer->bIsBroken;
+			Constraint->GetOutputData().Force = Buffer->Force;
+			Constraint->GetOutputData().Torque = Buffer->Torque;
 		}
 	}
 
-	return true;
+	return true;	//todo: consider timestamp
 }
+
+
 
 template < >
 template < class Trait >
@@ -128,19 +108,18 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(C
 		auto& JointConstraints = InSolver->GetJointConstraints();
 		if (Constraint != nullptr)
 		{
-			Chaos::FConstraintBase::FProxyBasePair& BasePairs = Constraint->GetParticleProxies();
-
-			Chaos::TGeometryParticleHandle<Chaos::FReal, 3>* Handle0 = GetParticleHandleFromProxy(BasePairs[0]);
-			Chaos::TGeometryParticleHandle<Chaos::FReal, 3>* Handle1 = GetParticleHandleFromProxy(BasePairs[1]);
-			if (Handle0 && Handle1)
+			auto Particles = Constraint->GetParticles();
+			if (Particles[0] && Particles[0]->Handle())
 			{
-				Handle = JointConstraints.AddConstraint({ Handle0,Handle1 }, Constraint->GetJointTransforms());
-				Handle->SetSettings(JointSettingsBuffer);
+				if (Particles[1] && Particles[1]->Handle())
+				{
+					Handle = JointConstraints.AddConstraint({ Particles[0]->Handle() , Particles[1]->Handle() }, Constraint->GetJointTransforms());
+					Handle->SetSettings(JointSettingsBuffer);
 
-				Handle0->AddConstraintHandle(Handle);
-				Handle1->AddConstraintHandle(Handle);
+					Particles[0]->Handle()->AddConstraintHandle(Handle);
+					Particles[1]->Handle()->AddConstraintHandle(Handle);
+				}
 			}
-
 		}
 	}
 }
@@ -153,9 +132,6 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chao
 	{
 		auto& JointConstraints = InSolver->GetJointConstraints();
 		JointConstraints.RemoveConstraint(Handle->GetConstraintIndex());
-
-		delete Constraint;
-		Constraint = nullptr;
 	}
 }
 
@@ -297,18 +273,16 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 			{
 				if (!JointSettingsBuffer.bCollisionEnabled)
 				{
-					Chaos::FConstraintBase::FProxyBasePair& BasePairs = Constraint->GetParticleProxies();
-					Chaos::TGeometryParticleHandle<Chaos::FReal, 3>* Handle0 = GetParticleHandleFromProxy(BasePairs[0]);
-					Chaos::TGeometryParticleHandle<Chaos::FReal, 3>* Handle1 = GetParticleHandleFromProxy(BasePairs[1]);
+					auto Particles = Constraint->GetParticles();
 
 					// Three pieces of state to update on the physics thread. 
 					// .. Mask on the particle array
 					// .. Constraint collisions enabled array
 					// .. IgnoreCollisionsManager
-					if (Handle0 && Handle1)
+					if (Particles[0]->Handle() && Particles[1]->Handle())
 					{
-						Chaos::TPBDRigidParticleHandle<FReal, 3>* ParticleHandle0 = Handle0->CastToRigidParticle();
-						Chaos::TPBDRigidParticleHandle<FReal, 3>* ParticleHandle1 = Handle1->CastToRigidParticle();
+						Chaos::TPBDRigidParticleHandle<FReal, 3>* ParticleHandle0 = Particles[0]->Handle()->CastToRigidParticle();
+						Chaos::TPBDRigidParticleHandle<FReal, 3>* ParticleHandle1 = Particles[1]->Handle()->CastToRigidParticle();
 
 						if (ParticleHandle0 && ParticleHandle1)
 						{

@@ -6,8 +6,6 @@ NiagaraSimulationShader.usf:
 #pragma warning(disable:4008)
 #include "/Engine/Public/Platform.ush"
 
-#include "NiagaraShaderVersion.ush"
-
 
 #if GPU_SIMULATION
 	#include "/Engine/Private/Common.ush"

@@ -13,7 +13,6 @@
 #include "/Engine/Private/DepthOfFieldCommon.ush"
 #include "/Engine/Private/CircleDOFCommon.ush"
 #include "/Engine/Private/GlobalDistanceFieldShared.ush"
-#include "/Engine/Private/PhysicsFieldSampler.ush"
 #include "/Engine/Private/SceneData.ush"
 #include "/Engine/Private/HairShadingCommon.ush"
 
@@ -352,17 +351,6 @@ struct FMaterialPixelParameters
 	float3 VolumeSampleConservativeDensity;
 #endif
 };
-
-/**
- * Compile out calls to StoreTexCoordScale if we're not doing texcoord scale analysis
- */
-#if TEX_COORD_SCALE_ANALYSIS
-#define MaterialStoreTexCoordScale(Parameters, UV, TextureReferenceIndex) StoreTexCoordScale(Parameters.TexCoordScalesParams, UV, TextureReferenceIndex)
-#define MaterialStoreTexSample(Parameters, UV, TextureReferenceIndex) StoreTexSample(Parameters.TexCoordScalesParams, UV, TextureReferenceIndex)
-#else
-#define MaterialStoreTexCoordScale(Parameters, UV, TextureReferenceIndex) 1.0f
-#define MaterialStoreTexSample(Parameters, UV, TextureReferenceIndex) 1.0f
-#endif
 
 // @todo compat hack
 FMaterialPixelParameters MakeInitializedMaterialPixelParameters()

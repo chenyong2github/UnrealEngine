@@ -284,25 +284,10 @@ protected:
 	 * This configures the Mcp backend correctly
 	 */
 	virtual void StartPlatformEnvironmentCheck();
-
-#if UPDATEMANAGER_PLATFORM_ENVIRONMENT_DETECTION
 	/**
-	 * Platform specific implementation of platform environment detection
-	 * @return true if the detection began.  false if the detection did not begin and we should continue the checks.
+	 * Callback for loging in on console which is needed for the environment check
 	 */
-	bool DetectPlatformEnvironment();
-
-	/**
-	 * Platform specific callback for logging in on console which is needed for the platform environment detection
-	 */
-	virtual void DetectPlatformEnvironment_OnLoginConsoleComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& Error);
-#endif
-
-	/**
-	 * Callback when detecting platform environment completes
-	 */
-	void OnDetectPlatformEnvironmentComplete(const FOnlineError& Result);
-
+	virtual void PlatformEnvironmentCheck_OnLoginConsoleComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& Error);
 
 	/**
 	 * Preload game assets after patch/hotfix check is complete but before game is alerted
@@ -343,9 +328,10 @@ protected:
 	virtual void OnApplicationHasReactivated();
 
 protected:
+
 	/** true if we've already detected the backend environment */
 	UPROPERTY()
-	bool bPlatformEnvironmentDetected = !UPDATEMANAGER_PLATFORM_ENVIRONMENT_DETECTION; // Default to true if we do not need to detect
+	bool bPlatformEnvironmentDetected;
 
 	/** Has the first update completed */
 	UPROPERTY()
@@ -373,9 +359,7 @@ protected:
 	FDelegateHandle HotfixCompleteDelegateHandle;
 	FDelegateHandle HotfixProgressDelegateHandle;
 	FDelegateHandle HotfixProcessedFileDelegateHandle;
-#if UPDATEMANAGER_PLATFORM_ENVIRONMENT_DETECTION
 	FDelegateHandle OnLoginConsoleCompleteHandle;
-#endif
 
 	/** The time at which we started the initial load after updates completed */
 	double LoadStartTime;

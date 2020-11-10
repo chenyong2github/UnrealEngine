@@ -583,16 +583,16 @@ void UEditMeshPolygonsTool::UpdateDeformerFromSelection(const FGroupTopologySele
 	if (Selection.SelectedCornerIDs.Num() > 0)
 	{
 		//Add all the the Corner's adjacent poly-groups (NbrGroups) to the ongoing array of groups.
-		LinearDeformer.SetActiveHandleCorners(Selection.SelectedCornerIDs.Array());
+		LinearDeformer.SetActiveHandleCorners(Selection.SelectedCornerIDs);
 	}
 	else if (Selection.SelectedEdgeIDs.Num() > 0)
 	{
 		//Add all the the edge's adjacent poly-groups (NbrGroups) to the ongoing array of groups.
-		LinearDeformer.SetActiveHandleEdges(Selection.SelectedEdgeIDs.Array());
+		LinearDeformer.SetActiveHandleEdges(Selection.SelectedEdgeIDs);
 	}
 	else if (Selection.SelectedGroupIDs.Num() > 0)
 	{
-		LinearDeformer.SetActiveHandleFaces(Selection.SelectedGroupIDs.Array());
+		LinearDeformer.SetActiveHandleFaces(Selection.SelectedGroupIDs);
 	}
 }
 
@@ -828,6 +828,7 @@ void UEditMeshPolygonsTool::PrecomputeTopology()
 		[this]() { return &GetSpatial(); },
 		[this]() { return GetShiftToggle(); }
 		);
+	SelectionMechanic->SetShouldSelectEdgeLoopsFunc([this]() { return CommonProps->bSelectEdgeLoops; });
 
 	LinearDeformer.Initialize(Mesh, Topology.Get());
 }
@@ -2073,8 +2074,9 @@ bool UEditMeshPolygonsTool::BeginMeshEdgeEditChange(TFunctionRef<bool(int32)> Gr
 		return false;
 	}
 	ActiveEdgeSelection.Reserve(NumEdges);
-	for (int32 EdgeID : ActiveSelection.SelectedEdgeIDs)
+	for (int32 k = 0; k < NumEdges; ++k)
 	{
+		int32 EdgeID = ActiveSelection.SelectedEdgeIDs[k];
 		if (GroupEdgeIDFilterFunc(EdgeID))
 		{
 			FSelectedEdge& Edge = ActiveEdgeSelection.Emplace_GetRef();

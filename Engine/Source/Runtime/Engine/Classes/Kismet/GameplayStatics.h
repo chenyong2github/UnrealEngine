@@ -761,14 +761,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio")
 	static void PrimeSound(USoundBase* InSound);
 
-	/** Primes the sound sound waves in the given USoundClass, caching the first chunk of streamed audio. **/
-	UFUNCTION(BlueprintCallable, Category = "Audio")
-	static void PrimeAllSoundsInSoundClass(class USoundClass* InSoundClass);
-
-	/** Iterate through all soundwaves an release and handles to retained chunks. (if the chunk is not being played, the chunk will be up for eviction) **/
-	UFUNCTION(BlueprintCallable, Category = "Audio")
-	static void UnRetainAllSoundsInSoundClass(class USoundClass* InSoundClass);
-
 	/** Overrides the sound class adjuster in the given sound mix. If the sound class does not exist in the input sound mix, the sound class adjustment will be added to the sound mix.
 	 * @param InSoundMixModifier The sound mix to modify.
 	 * @param InSoundClass The sound class to override (or add) in the sound mix.
@@ -877,11 +869,10 @@ public:
 	 * @param HitComponent	PrimitiveComponent hit by the trace.
 	 * @param HitBoneName	Name of the bone hit (valid only if we hit a skeletal mesh).
 	 * @param HitItem		Primitive-specific data recording which item in the primitive was hit
-	 * @param ElementIndex	If colliding with a primitive with multiple parts, index of the part that was hit.
 	 * @param FaceIndex		If colliding with trimesh or landscape, index of face that was hit.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Collision", meta=(NativeBreakFunc, AdvancedDisplay="3"))
-	static void BreakHitResult(const struct FHitResult& Hit, bool& bBlockingHit, bool& bInitialOverlap, float& Time, float& Distance, FVector& Location, FVector& ImpactPoint, FVector& Normal, FVector& ImpactNormal, class UPhysicalMaterial*& PhysMat, class AActor*& HitActor, class UPrimitiveComponent*& HitComponent, FName& HitBoneName, int32& HitItem, int32& ElementIndex, int32& FaceIndex, FVector& TraceStart, FVector& TraceEnd);
+	static void BreakHitResult(const struct FHitResult& Hit, bool& bBlockingHit, bool& bInitialOverlap, float& Time, float& Distance, FVector& Location, FVector& ImpactPoint, FVector& Normal, FVector& ImpactNormal, class UPhysicalMaterial*& PhysMat, class AActor*& HitActor, class UPrimitiveComponent*& HitComponent, FName& HitBoneName, int32& HitItem, int32& FaceIndex, FVector& TraceStart, FVector& TraceEnd);
 
 	/** 
 	 *	Create a HitResult struct
@@ -899,11 +890,10 @@ public:
 	 * @param HitComponent	PrimitiveComponent hit by the trace.
 	 * @param HitBoneName	Name of the bone hit (valid only if we hit a skeletal mesh).
 	 * @param HitItem		Primitive-specific data recording which item in the primitive was hit
-	 * @param ElementIndex	If colliding with a primitive with multiple parts, index of the part that was hit.
 	 * @param FaceIndex		If colliding with trimesh or landscape, index of face that was hit.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Collision", meta = (NativeMakeFunc, AdvancedDisplay="2", Normal="0,0,1", ImpactNormal="0,0,1"))
-	static FHitResult MakeHitResult(bool bBlockingHit, bool bInitialOverlap, float Time, float Distance, FVector Location, FVector ImpactPoint, FVector Normal, FVector ImpactNormal, class UPhysicalMaterial* PhysMat, class AActor* HitActor, class UPrimitiveComponent* HitComponent, FName HitBoneName, int32 HitItem, int32 ElementIndex, int32 FaceIndex, FVector TraceStart, FVector TraceEnd);
+	static FHitResult MakeHitResult(bool bBlockingHit, bool bInitialOverlap, float Time, float Distance, FVector Location, FVector ImpactPoint, FVector Normal, FVector ImpactNormal, class UPhysicalMaterial* PhysMat, class AActor* HitActor, class UPrimitiveComponent* HitComponent, FName HitBoneName, int32 HitItem, int32 FaceIndex, FVector TraceStart, FVector TraceEnd);
 
 
 	/** Returns the EPhysicalSurface type of the given Hit. 

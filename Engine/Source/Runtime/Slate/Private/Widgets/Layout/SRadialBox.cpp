@@ -40,7 +40,6 @@ void SRadialBox::Construct( const FArguments& InArgs )
 	bUseAllottedWidth = InArgs._UseAllottedWidth;
 	StartingAngle = InArgs._StartingAngle;
 	bDistributeItemsEvenly = InArgs._bDistributeItemsEvenly;
-	SectorCentralAngle = NormalizeAngle(InArgs._SectorCentralAngle);
 	AngleBetweenItems = InArgs._AngleBetweenItems;
 
 	for ( int32 ChildIndex=0; ChildIndex < InArgs.Slots.Num(); ++ChildIndex )
@@ -94,12 +93,8 @@ void SRadialBox::FChildArranger::Arrange()
 {
 	const int32 NumItems = RadialBox.Slots.Num();
 	const float Radius = RadialBox.PreferredWidth.Get() / 2.f;
-
-	int32 TargetNumItems = FMath::Max(1, NumItems);
-	const bool bIsFullCircumference = RadialBox.SectorCentralAngle >= 360.f;
-	const float DegreeIncrements = RadialBox.bDistributeItemsEvenly? RadialBox.SectorCentralAngle / TargetNumItems : RadialBox.AngleBetweenItems;
-	const float EqualDistributionOffset = RadialBox.bDistributeItemsEvenly && !bIsFullCircumference ? DegreeIncrements / 2.f : 0.f;
-	float DegreeOffset = (RadialBox.StartingAngle + EqualDistributionOffset) * (-1.f);
+	const float DegreeIncrements = RadialBox.bDistributeItemsEvenly? 360.f / NumItems : RadialBox.AngleBetweenItems;
+	float DegreeOffset = RadialBox.StartingAngle * (-1.f) ;
 
 	//Offset to create the elements based on the middle of the widget as starting point
 	const float MiddlePointOffset = RadialBox.PreferredWidth.Get() / 2.f;
@@ -119,9 +114,8 @@ void SRadialBox::FChildArranger::Arrange()
 
 		const FVector2D DesiredSizeOfSlot = Widget->GetDesiredSize();
 
-		float SmallestSide = FMath::Min(DesiredSizeOfSlot.X / 2.f, DesiredSizeOfSlot.Y / 2.f);
-		ArrangementData.SlotOffset.X = (Radius - SmallestSide) * FMath::Cos(FMath::DegreesToRadians(DegreeOffset)) + MiddlePointOffset - DesiredSizeOfSlot.X / 2.f;
-		ArrangementData.SlotOffset.Y = (Radius - SmallestSide)* FMath::Sin(FMath::DegreesToRadians(DegreeOffset)) + MiddlePointOffset - DesiredSizeOfSlot.Y / 2.f;
+		ArrangementData.SlotOffset.X = (Radius - DesiredSizeOfSlot.X / 2.f) * FMath::Cos(FMath::DegreesToRadians(DegreeOffset)) + MiddlePointOffset - DesiredSizeOfSlot.X / 2.f;
+		ArrangementData.SlotOffset.Y = (Radius - DesiredSizeOfSlot.Y / 2.f )* FMath::Sin(FMath::DegreesToRadians(DegreeOffset)) + MiddlePointOffset - DesiredSizeOfSlot.Y / 2.f;
 		ArrangementData.SlotSize.X = DesiredSizeOfSlot.X;
 		ArrangementData.SlotSize.Y = DesiredSizeOfSlot.Y;
 
@@ -171,10 +165,4 @@ FChildren* SRadialBox::GetChildren()
 void SRadialBox::SetUseAllottedWidth(bool bInUseAllottedWidth)
 {
 	bUseAllottedWidth = bInUseAllottedWidth;
-}
-
-int32 SRadialBox::NormalizeAngle(int32 Angle) const
-{
-	int32 NormalizedAngle = Angle % 360;
-	return NormalizedAngle < 0 ? NormalizedAngle + 360 : NormalizedAngle;
 }

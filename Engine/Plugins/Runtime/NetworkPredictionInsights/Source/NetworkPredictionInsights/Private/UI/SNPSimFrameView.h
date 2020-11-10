@@ -120,12 +120,6 @@ struct FSimulationActorGroup
 	float ValueY; // untransformed by viewport/scrolling value
 };
 
-enum ESimFrameContentType
-{
-	FrameNumber,
-	NumBufferedInputCmds
-};
-
 // The overall processed data that the Simulation Frame Widget uses to draw
 struct FSimulationFrameView
 {
@@ -138,8 +132,6 @@ struct FSimulationFrameView
 	uint64 HeadEngineFrame = 0;
 	FSimTime PresentableTimeMS = 0; // The "current" time that everything is anchored around
 	TArray<FSimulationActorGroup> ActorGroups;
-
-	ESimFrameContentType ContentType = ESimFrameContentType::FrameNumber;
 };
 
 // Cached data about what we are hovering over
@@ -452,10 +444,4 @@ private:
 	void SortActorGroupToTop(const FSimulationActorGroup* Group);
 
 	TArray<FSimNetActorID> UserSortedNetActors;
-
-	bool IsFrameContentView_FrameNumber() const { return SimulationFrameView.ContentType == ESimFrameContentType::FrameNumber; }
-	bool IsFrameContentView_BufferedInputCmds() const { return SimulationFrameView.ContentType == ESimFrameContentType::NumBufferedInputCmds; }
-
-	void SetFrameContentView_FrameNumber() { SimulationFrameView.ContentType = ESimFrameContentType::FrameNumber; bIsStateDirty = true;}
-	void SetFrameContentView_NumBufferdInputCmds() { SimulationFrameView.ContentType = ESimFrameContentType::NumBufferedInputCmds; bIsStateDirty = true; }
 };

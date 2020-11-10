@@ -12,7 +12,7 @@ static void StaticMeshToSlateRenderData(const UStaticMesh& DataSource, TArray<FS
 	OutExtentMin = FVector2D(FLT_MAX, FLT_MAX);
 	OutExtentMax = FVector2D(-FLT_MAX, -FLT_MAX);
 
-	const FStaticMeshLODResources& LOD = DataSource.GetRenderData()->LODResources[0];
+	const FStaticMeshLODResources& LOD = DataSource.RenderData->LODResources[0];
 	const int32 NumSections = LOD.Sections.Num();
 	if (NumSections > 1)
 	{

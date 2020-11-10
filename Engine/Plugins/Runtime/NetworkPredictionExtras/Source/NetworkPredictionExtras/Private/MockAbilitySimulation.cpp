@@ -62,19 +62,25 @@ public:
 
 bool FMockAbilitySyncState::ShouldReconcile(const FMockAbilitySyncState& AuthorityState) const
 {
-	UE_NP_TRACE_RECONCILE(Stamina != AuthorityState.Stamina, "Stamina:");
+	if (Stamina != AuthorityState.Stamina)
+	{
+		return true;
+	}
 
 	return FFlyingMovementSyncState::ShouldReconcile(AuthorityState);
 }
 
 bool FMockAbilityAuxState::ShouldReconcile(const FMockAbilityAuxState& AuthorityState) const
 {
-	UE_NP_TRACE_RECONCILE(MaxStamina != AuthorityState.MaxStamina, "MaxStamina:");
-	UE_NP_TRACE_RECONCILE(StaminaRegenRate != AuthorityState.StaminaRegenRate, "StaminaRegenRate:");
-	UE_NP_TRACE_RECONCILE(DashTimeLeft != AuthorityState.DashTimeLeft, "DashTimeLeft:");
-	UE_NP_TRACE_RECONCILE(BlinkWarmupLeft != AuthorityState.BlinkWarmupLeft, "BlinkWarmupLeft:");
-	UE_NP_TRACE_RECONCILE(PrimaryCooldown != AuthorityState.PrimaryCooldown, "PrimaryCooldown:");
-	UE_NP_TRACE_RECONCILE(bIsSprinting != AuthorityState.bIsSprinting, "bIsSprinting:");
+	if (MaxStamina != AuthorityState.MaxStamina
+		|| StaminaRegenRate != AuthorityState.StaminaRegenRate
+		|| DashTimeLeft != AuthorityState.DashTimeLeft
+		|| BlinkWarmupLeft != AuthorityState.BlinkWarmupLeft
+		|| PrimaryCooldown != AuthorityState.PrimaryCooldown
+		|| bIsSprinting != AuthorityState.bIsSprinting)
+	{
+		return true;
+	}
 	
 	return FFlyingMovementAuxState::ShouldReconcile(AuthorityState);
 }

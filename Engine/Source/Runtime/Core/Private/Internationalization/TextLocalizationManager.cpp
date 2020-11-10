@@ -23,7 +23,6 @@
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
 #include "Templates/UniquePtr.h"
-#include "Async/TaskGraphInterfaces.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextLocalizationManager, Log, All);
 
@@ -359,10 +358,10 @@ void InitEngineTextLocalization()
 	ELocalizationLoadFlags ApplyLocLoadFlags = LocLoadFlags;
 	ApplyLocLoadFlags |= FApp::IsGame() ? ELocalizationLoadFlags::Game : ELocalizationLoadFlags::None;
 
-	// Setting InitializedFlags to None ensures we don't pick up the culture change
+	// Setting bIsInitialized to false ensures we don't pick up the culture change
 	// notification if ApplyDefaultCultureSettings changes the default culture
 	{
-		TGuardValue<ETextLocalizationManagerInitializedFlags> InitializedFlagsGuard(FTextLocalizationManager::Get().InitializedFlags, ETextLocalizationManagerInitializedFlags::None);
+		TGuardValue<bool> IsInitializedGuard(FTextLocalizationManager::Get().bIsInitialized, false);
 		ApplyDefaultCultureSettings(ApplyLocLoadFlags);
 	}
 
@@ -379,12 +378,10 @@ void InitEngineTextLocalization()
 #endif
 
 	FTextLocalizationManager::Get().LoadLocalizationResourcesForCulture(FInternationalization::Get().GetCurrentLanguage()->GetName(), LocLoadFlags);
-	FTextLocalizationManager::Get().InitializedFlags |= ETextLocalizationManagerInitializedFlags::Engine;
+	FTextLocalizationManager::Get().bIsInitialized = true;
 }
 
-static FGraphEventRef InitGameTextLocalizationTask;
-
-void BeginInitGameTextLocalization()
+void InitGameTextLocalization()
 {
 	if (!FApp::IsGame())
 	{
@@ -399,11 +396,11 @@ void BeginInitGameTextLocalization()
 	// Refresh the cached config data before applying the default culture, as the game may have patched in new config data since the cache was built
 	FInternationalization::Get().RefreshCachedConfigData();
 
-	// Setting InitializedFlags to None ensures we don't pick up the culture change
+	// Setting bIsInitialized to false ensures we don't pick up the culture change
 	// notification if ApplyDefaultCultureSettings changes the default culture
 	const FString PreviousLanguage = FInternationalization::Get().GetCurrentLanguage()->GetName();
 	{
-		TGuardValue<ETextLocalizationManagerInitializedFlags> InitializedFlagsGuard(FTextLocalizationManager::Get().InitializedFlags, ETextLocalizationManagerInitializedFlags::None);
+		TGuardValue<bool> IsInitializedGuard(FTextLocalizationManager::Get().bIsInitialized, false);
 		ApplyDefaultCultureSettings(ELocalizationLoadFlags::Game);
 	}
 	const FString CurrentLanguage = FInternationalization::Get().GetCurrentLanguage()->GetName();
@@ -415,45 +412,16 @@ void BeginInitGameTextLocalization()
 	if (PreviousLanguage != CurrentLanguage)
 	{
 		// If the active language changed, then we also need to reload the Engine and Additional localization data 
-		// too, as this wouldn't have happened when the culture changed above due to the InitializedFlags guard
+		// too, as this wouldn't have happened when the culture changed above due to the bIsInitialized guard
 		LocLoadFlags |= ELocalizationLoadFlags::Engine;
 		LocLoadFlags |= ELocalizationLoadFlags::Additional;
 	}
 
-	FTextLocalizationManager::Get().InitializedFlags |= ETextLocalizationManagerInitializedFlags::Initializing;
-	auto TaskLambda = [LocLoadFlags, InitializedFlags = FTextLocalizationManager::Get().InitializedFlags]()
-	{
-		SCOPED_BOOT_TIMING("InitGameTextLocalization");
-
-		FTextLocalizationManager::Get().LoadLocalizationResourcesForCulture(FInternationalization::Get().GetCurrentLanguage()->GetName(), LocLoadFlags);
-		FTextLocalizationManager::Get().InitializedFlags = (InitializedFlags & ~ETextLocalizationManagerInitializedFlags::Initializing) | ETextLocalizationManagerInitializedFlags::Game;
-		//FTextLocalizationManager::Get().DumpMemoryInfo();
-		FTextLocalizationManager::Get().CompactDataStructures();
-		//FTextLocalizationManager::Get().DumpMemoryInfo();
-	};
-	if (FTaskGraphInterface::IsRunning())
-	{
-		InitGameTextLocalizationTask = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(TaskLambda), TStatId());
-	}
-	else
-	{
-		TaskLambda();
-	}
-}
-
-void EndInitGameTextLocalization()
-{
-	SCOPED_BOOT_TIMING("WaitForInitGameTextLocalization");
-	if (InitGameTextLocalizationTask)
-	{
-		FTaskGraphInterface::Get().WaitUntilTaskCompletes(InitGameTextLocalizationTask);
-	}
-}
-
-void InitGameTextLocalization()
-{
-	BeginInitGameTextLocalization();
-	EndInitGameTextLocalization();
+	FTextLocalizationManager::Get().LoadLocalizationResourcesForCulture(FInternationalization::Get().GetCurrentLanguage()->GetName(), LocLoadFlags);
+	FTextLocalizationManager::Get().bIsInitialized = true;
+	//FTextLocalizationManager::Get().DumpMemoryInfo();
+	FTextLocalizationManager::Get().CompactDataStructures();
+	//FTextLocalizationManager::Get().DumpMemoryInfo();
 }
 
 FTextLocalizationManager& FTextLocalizationManager::Get()
@@ -468,7 +436,9 @@ void FTextLocalizationManager::TearDown()
 }
 
 FTextLocalizationManager::FTextLocalizationManager()
-	: TextRevisionCounter(0)
+	: bIsInitialized(false)
+	, SynchronizationObject()
+	, TextRevisionCounter(0)
 	, LocResTextSource(MakeShared<FLocalizationResourceTextSource>())
 	, PolyglotTextSource(MakeShared<FPolyglotTextSource>())
 {
@@ -539,8 +509,6 @@ TArray<FString> FTextLocalizationManager::GetLocalizedCultureNames(const ELocali
 
 void FTextLocalizationManager::RegisterTextSource(const TSharedRef<ILocalizedTextSource>& InLocalizedTextSource, const bool InRefreshResources)
 {
-	ensureMsgf(!IsInitializing(), TEXT("Localized text source registered during game text initialization"));
-
 	LocalizedTextSources.Add(InLocalizedTextSource);
 	LocalizedTextSources.StableSort([](const TSharedPtr<ILocalizedTextSource>& InLocalizedTextSourceOne, const TSharedPtr<ILocalizedTextSource>& InLocalizedTextSourceTwo)
 	{
@@ -663,7 +631,7 @@ FTextDisplayStringRef FTextLocalizationManager::GetDisplayString(const FTextKey&
 	}
 
 #if ENABLE_LOC_TESTING
-	const bool bShouldLEETIFYAll = IsInitialized() && FInternationalization::Get().GetCurrentLanguage()->GetName() == FLeetCulture::StaticGetName();
+	const bool bShouldLEETIFYAll = bIsInitialized && FInternationalization::Get().GetCurrentLanguage()->GetName() == FLeetCulture::StaticGetName();
 
 	// Attempt to set bShouldLEETIFYUnlocalizedString appropriately, only once, after the commandline is initialized and parsed.
 	static bool bShouldLEETIFYUnlocalizedString = false;
@@ -758,7 +726,7 @@ FTextDisplayStringRef FTextLocalizationManager::GetDisplayString(const FTextKey&
 	else
 	{
 		// Don't log warnings about unlocalized strings if the system hasn't been initialized - we simply don't have localization data yet.
-		if (IsInitialized())
+		if (bIsInitialized)
 		{
 			UE_LOG(LogTextLocalizationManager, Verbose, TEXT("An attempt was made to get a localized string (Namespace:%s, Key:%s, Source:%s), but it did not exist."), TextId.GetNamespace().GetChars(), TextId.GetKey().GetChars(), SourceString ? **SourceString : TEXT(""));
 		}
@@ -934,8 +902,6 @@ void FTextLocalizationManager::UpdateFromLocalizationResource(const FTextLocaliz
 
 void FTextLocalizationManager::RefreshResources()
 {
-	ensureMsgf(!IsInitializing(), TEXT("Reloading text localization resources during game text initialization"));
-
 	ELocalizationLoadFlags LocLoadFlags = ELocalizationLoadFlags::None;
 	LocLoadFlags |= (WITH_EDITOR ? ELocalizationLoadFlags::Editor : ELocalizationLoadFlags::None);
 	LocLoadFlags |= (FApp::IsGame() ? ELocalizationLoadFlags::Game : ELocalizationLoadFlags::None);
@@ -958,91 +924,34 @@ void FTextLocalizationManager::OnPakFileMounted(const IPakFile& PakFile)
 		return;
 	}
 
-	UE_LOG(LogTextLocalizationManager, Verbose, TEXT("Request to load localization data for chunk %d (from PAK '%s')"), ChunkId, *PakFile.PakGetPakFilename());
-
-	// Skip this request if we've already loaded the data for this chunk via the request for a previous PAK sub-file load notification
-	if (LocResTextSource->HasRegisteredChunkId(ChunkId))
-	{
-		UE_LOG(LogTextLocalizationManager, Verbose, TEXT("Skipped loading localization data for chunk %d (from PAK '%s') as this chunk has already been processed"), ChunkId, *PakFile.PakGetPakFilename());
-		return;
-	}
-	
-	// If we're being notified so early that even InitEngineTextLocalization hasn't run, then we can't safely make the queries below as things like GConfig may not be available yet!
-	if (!IsInitialized())
-	{
-		// Track this so that full resource refreshes (eg, changing culture) work as expected
-		LocResTextSource->RegisterChunkId(ChunkId);
-
-		UE_LOG(LogTextLocalizationManager, Verbose, TEXT("Skipped loading localization data for chunk %d (from PAK '%s') as the localization manager isn't ready"), ChunkId, *PakFile.PakGetPakFilename());
-		return;
-	}
-
-	ensureMsgf(!IsInitializing(), TEXT("Pak file mounted during game text initialization"));
-
-	// Note: We only allow game localization targets to be chunked, and the layout is assumed to follow our standard pattern (as used by the localization dashboard and FLocTextHelper)
-	const TArray<FString> ChunkedLocalizationTargets = FLocalizationResourceTextSource::GetChunkedLocalizationTargets();
-
-	// Check to see whether all the required localization data is now available
-	// This may not be the case if this PAK was split into multiple sub-files, and the localization data was split between them
-	TArray<FString> PrioritizedLocalizationPaths;
-	for (const FString& LocalizationTarget : ChunkedLocalizationTargets)
-	{
-		const FString ChunkedLocalizationTargetName = TextLocalizationResourceUtil::GetLocalizationTargetNameForChunkId(LocalizationTarget, ChunkId);
-
-		FString ChunkedLocalizationTargetPath = FPaths::ProjectContentDir() / TEXT("Localization") / ChunkedLocalizationTargetName;
-		if (!IFileManager::Get().DirectoryExists(*ChunkedLocalizationTargetPath))
-		{
-			UE_LOG(LogTextLocalizationManager, Verbose, TEXT("Skipped loading localization data for chunk %d (from PAK '%s') as the localization directory for '%s' was not yet available"), ChunkId, *PakFile.PakGetPakFilename(), *ChunkedLocalizationTargetName);
-			return;
-		}
-
-		FTextLocalizationMetaDataResource LocMetaResource;
-		{
-			const FString LocMetaFilename = ChunkedLocalizationTargetPath / FString::Printf(TEXT("%s.locmeta"), *ChunkedLocalizationTargetName);
-			if (!IFileManager::Get().FileExists(*LocMetaFilename))
-			{
-				UE_LOG(LogTextLocalizationManager, Verbose, TEXT("Skipped loading localization data for chunk %d (from PAK '%s') as the LocMeta file for '%s' was not yet available"), ChunkId, *PakFile.PakGetPakFilename(), *ChunkedLocalizationTargetName);
-				return;
-			}
-			if (!LocMetaResource.LoadFromFile(LocMetaFilename))
-			{
-				UE_LOG(LogTextLocalizationManager, Verbose, TEXT("Skipped loading localization data for chunk %d (from PAK '%s') as the LocMeta file for '%s' failed to load"), ChunkId, *PakFile.PakGetPakFilename(), *ChunkedLocalizationTargetName);
-				return;
-			}
-		}
-
-		for (const FString& CompiledCulture : LocMetaResource.CompiledCultures)
-		{
-			const FString LocResFilename = ChunkedLocalizationTargetPath / CompiledCulture / FString::Printf(TEXT("%s.locres"), *ChunkedLocalizationTargetName);
-			if (!IFileManager::Get().FileExists(*LocResFilename))
-			{
-				UE_LOG(LogTextLocalizationManager, Verbose, TEXT("Skipped loading localization data for chunk %d (from PAK '%s') as the '%s' LocRes file for '%s' was not yet available"), ChunkId, *PakFile.PakGetPakFilename(), *CompiledCulture, *ChunkedLocalizationTargetName);
-				return;
-			}
-		}
-
-		PrioritizedLocalizationPaths.Add(MoveTemp(ChunkedLocalizationTargetPath));
-	}
-
 	// Track this so that full resource refreshes (eg, changing culture) work as expected
 	LocResTextSource->RegisterChunkId(ChunkId);
 
-	if (!EnumHasAnyFlags(InitializedFlags, ETextLocalizationManagerInitializedFlags::Game))
+	UE_LOG(LogTextLocalizationManager, Verbose, TEXT("Request to load localization data for chunk %d (from PAK '%s')"), ChunkId, *PakFile.PakGetPakFilename());
+
+	if (!bIsInitialized)
 	{
-		// If we've not yet initialized game localization then don't bother patching, as the full initialization path will load the data for this chunk
+		// If we're not yet initialized then don't bother patching, as the full initialization path will load the data for this chunk
 		return;
 	}
 
 	// Load the resources from each target in this chunk
+	// Note: We only allow game localization targets to be chunked, and the layout is assumed to follow our standard pattern (as used by the localization dashboard and FLocTextHelper)
+	const TArray<FString> ChunkedLocalizationTargets = FLocalizationResourceTextSource::GetChunkedLocalizationTargets();
 	const TArray<FString> PrioritizedCultureNames = FInternationalization::Get().GetPrioritizedCultureNames(FInternationalization::Get().GetCurrentLanguage()->GetName());
 	const ELocalizationLoadFlags LocLoadFlags = ELocalizationLoadFlags::Game;
 	FTextLocalizationResource UnusedNativeResource;
 	FTextLocalizationResource LocalizedResource;
-	for (const FString& PrioritizedLocalizationPath : PrioritizedLocalizationPaths)
 	{
-		UE_LOG(LogTextLocalizationManager, Verbose, TEXT("Loading chunked localization data from '%s'"), *PrioritizedLocalizationPath);
+		TArray<FString> PrioritizedLocalizationPaths;
+		for (const FString& LocalizationTarget : ChunkedLocalizationTargets)
+		{
+			const FString LocalizationTargetForChunk = TextLocalizationResourceUtil::GetLocalizationTargetNameForChunkId(LocalizationTarget, ChunkId);
+			PrioritizedLocalizationPaths.Add(FPaths::ProjectContentDir() / TEXT("Localization") / LocalizationTargetForChunk);
+			UE_LOG(LogTextLocalizationManager, Verbose, TEXT("Loading chunked localization data from '%s'"), *PrioritizedLocalizationPaths.Last());
+		}
+		LocResTextSource->LoadLocalizedResourcesFromPaths(TArrayView<FString>(), PrioritizedLocalizationPaths, TArrayView<FString>(), LocLoadFlags, PrioritizedCultureNames, UnusedNativeResource, LocalizedResource);
 	}
-	LocResTextSource->LoadLocalizedResourcesFromPaths(TArrayView<FString>(), PrioritizedLocalizationPaths, TArrayView<FString>(), LocLoadFlags, PrioritizedCultureNames, UnusedNativeResource, LocalizedResource);
 
 	// Allow any higher priority text sources to override the text loaded for the chunk (eg, to allow polyglot hot-fixes to take priority)
 	// Note: If any text sources don't support dynamic queries, then we must do a much slower full refresh instead :(
@@ -1090,14 +999,12 @@ void FTextLocalizationManager::OnPakFileMounted(const IPakFile& PakFile)
 
 void FTextLocalizationManager::OnCultureChanged()
 {
-    if (!IsInitialized())
+    if (!bIsInitialized)
 	{
 		// Ignore culture changes while the text localization manager is still being initialized
 		// The correct data will be loaded by EndInitTextLocalization
 		return;
 	}
-
-	ensureMsgf(!IsInitializing(), TEXT("Culture changed during game text initialization"));
 
 	ELocalizationLoadFlags LocLoadFlags = ELocalizationLoadFlags::None;
 	LocLoadFlags |= (WITH_EDITOR ? ELocalizationLoadFlags::Editor : ELocalizationLoadFlags::None);

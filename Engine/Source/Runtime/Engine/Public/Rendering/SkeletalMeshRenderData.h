@@ -102,11 +102,6 @@ public:
 		return PendingFirstIdx == INDEX_NONE ? nullptr : &LODRenderData[PendingFirstIdx];
 	}
 
-	bool IsInitialized() const
-	{
-		return bInitialized;
-	}
-
 private:
 
 	/** Count the number of LODs that are inlined and not streamable. Starting from the last LOD and stopping at the first non inlined LOD. */

@@ -34,7 +34,6 @@ void FAnimSequenceDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	/////////////////////////////////////////////////////////////////////////////////
 	IDetailCategoryBuilder& AnimationCategory = DetailBuilder.EditCategory("Animation");
 	RetargetSourceNameHandler = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UAnimSequence, RetargetSource));
-	RetargetSourceAssetHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UAnimSequence, RetargetSourceAsset));
 
 	// first create profile combo list
 	RetargetSourceComboList.Empty();
@@ -116,35 +115,7 @@ void FAnimSequenceDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		]	
 	];
 
-	AnimationCategory.AddCustomRow(RetargetSourceAssetHandle->GetPropertyDisplayName())
-	.NameContent()
-	[
-		RetargetSourceAssetHandle->CreatePropertyNameWidget()
-	]
-	.ValueContent()
-	.HAlign(EHorizontalAlignment::HAlign_Fill)
-	[
-		SNew(SVerticalBox)
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(EHorizontalAlignment::HAlign_Left)
-		[
-			RetargetSourceAssetHandle->CreatePropertyValueWidget()
-		]
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(EHorizontalAlignment::HAlign_Left)
-		[
-			SNew(SButton)
-			.Text(LOCTEXT("UpdateRetargetSourceAssetDataButton", "Update"))
-			.ToolTipText(LOCTEXT("UpdateRetargetSourceAssetDataButtonToolTip", "Updates retargeting data for RetargetSourceAsset. This is updated automatically at save, but you can click here to update without saving."))
-			.Visibility(this, &FAnimSequenceDetails::UpdateRetargetSourceAssetDataVisibility)
-			.OnClicked(this, &FAnimSequenceDetails::UpdateRetargetSourceAssetData)
-		]
-	];
-
 	DetailBuilder.HideProperty(RetargetSourceNameHandler);
-	DetailBuilder.HideProperty(RetargetSourceAssetHandle);
 
 	/////////////////////////////////////////////////////////////////////////////
 	// Additive settings category
@@ -334,28 +305,6 @@ TSharedPtr<FString> FAnimSequenceDetails::GetRetargetSourceString(FName Retarget
 	}
 
 	return RetargetSourceComboList[0];
-}
-
-EVisibility FAnimSequenceDetails::UpdateRetargetSourceAssetDataVisibility() const
-{
-	for (const TWeakObjectPtr<UAnimSequence>& WeakAnimSequence : SelectedAnimSequences)
-	{
-		if (UAnimSequence* AnimSequence = WeakAnimSequence.Get())
-		{
-			if (!AnimSequence->RetargetSourceAsset.IsNull())
-			{
-				return EVisibility::Visible;
-			}
-		}
-	}
-
-	return EVisibility::Collapsed;
-}
-
-FReply FAnimSequenceDetails::UpdateRetargetSourceAssetData()
-{
-	RetargetSourceAssetHandle->NotifyPostChange();
-	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////

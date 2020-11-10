@@ -104,7 +104,7 @@ namespace DatasmithRuntime
 			return this->AssignMaterial(Referencer, Cast<UMaterialInstanceDynamic>(Object));
 		};
 
-		TArray< FStaticMaterial >& StaticMaterials = StaticMesh->GetStaticMaterials();
+		TArray< FStaticMaterial >& StaticMaterials = StaticMesh->StaticMaterials;
 
 		if (!bUsingStaticMeshFromCache)
 		{
@@ -145,7 +145,7 @@ namespace DatasmithRuntime
 		}
 
 		// Create BodySetup in game thread to avoid allocating during a garbage collect later on
-		if (StaticMesh->GetBodySetup() == nullptr)
+		if (StaticMesh->BodySetup == nullptr)
 		{
 			StaticMesh->CreateBodySetup();
 		}
@@ -227,7 +227,7 @@ namespace DatasmithRuntime
 				return this->AssignMaterial(Referencer, Cast<UMaterialInstanceDynamic>(Object));
 			};
 
-			TArray< FStaticMaterial >& StaticMaterials = StaticMesh->GetStaticMaterials();
+			TArray< FStaticMaterial >& StaticMaterials = StaticMesh->StaticMaterials;
 
 			TMap<FString, int32> SlotMapping;
 			SlotMapping.Reserve(StaticMaterials.Num());
@@ -583,7 +583,7 @@ namespace DatasmithRuntime
 		StaticMesh->ClearMeshDescriptions();
 #endif
 
-		check(StaticMesh->GetRenderData() && StaticMesh->GetRenderData()->IsInitialized());
+		check(StaticMesh->RenderData && StaticMesh->RenderData->IsInitialized());
 
 		MeshData.ClearState(EAssetState::Building);
 		FAssetRegistry::SetObjectCompletion(StaticMesh, true);
@@ -644,7 +644,7 @@ namespace DatasmithRuntime
 		// There are override materials, make sure the slots are allocated
 		if (MeshActorElement->GetMaterialOverridesCount() > 0)
 		{
-			OverrideMaterials.SetNum(StaticMesh->GetStaticMaterials().Num());
+			OverrideMaterials.SetNum(StaticMesh->StaticMaterials.Num());
 			for (int32 Index = 0; Index < OverrideMaterials.Num(); ++Index)
 			{
 				OverrideMaterials[Index] = nullptr;
@@ -697,7 +697,7 @@ namespace DatasmithRuntime
 			// Static mesh can be null if creation failed
 			if (UStaticMesh* StaticMesh = MeshData.GetObject<UStaticMesh>())
 			{
-				TArray< FStaticMaterial >& StaticMaterials = StaticMesh->GetStaticMaterials();
+				TArray< FStaticMaterial >& StaticMaterials = StaticMesh->StaticMaterials;
 
 				if (!StaticMaterials.IsValidIndex(Referencer.Slot))
 				{

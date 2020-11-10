@@ -205,11 +205,6 @@ FText FOnlineSubsystemTencent::GetOnlineServiceName() const
 	return NSLOCTEXT("FOnlineSubsystemTencent", "OnlineServiceName", "Tencent");
 }
 
-FText FOnlineSubsystemTencent::GetSocialPlatformName() const
-{
-	return NSLOCTEXT("FOnlineSubsystemTencent", "SocialPlatformName", "WeGame Friends");
-}
-
 bool FOnlineSubsystemTencent::Init()
 {
 	UE_LOG_ONLINE(Verbose, TEXT("FOnlineSubsystemTencent::Init() Name: %s"), *InstanceName.ToString());

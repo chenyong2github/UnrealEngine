@@ -835,7 +835,7 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 							double LastNetConnPacketTime = (ServerConn != nullptr ? ServerConn->LastReceiveRealtime : 0.0);
 
 							// The server may send multiple restart handshake packets, so have a 10 second delay between accepting them
-							bPassedDelayCheck = (CurrentTime - LastClientSendTimestamp) > 10.0;
+							bPassedDelayCheck = ((CurrentTime - LastClientSendTimestamp) - 10.0) > 0.0;
 
 							// Some clients end up sending packets duplicated over multiple IP's, triggering the restart handshake.
 							// Detect this by checking if any restart handshake requests have been received in roughly the last second
@@ -845,8 +845,8 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 							double LastNetConnPacketTimeDiff = CurrentTime - LastNetConnPacketTime;
 
 							bPassedDualIPCheck = LastRestartPacketTimestamp == 0.0 ||
-													LastRestartPacketTimeDiff > 1.1 ||
-													LastNetConnPacketTimeDiff > 1.0;
+													((LastRestartPacketTimeDiff) - 1.1) > 0.0 ||
+													((LastNetConnPacketTimeDiff) - 1.0) > 0.0;
 
 #if RESTART_HANDSHAKE_DIAGNOSTICS
 							if (bPassedDualIPCheck)
@@ -859,32 +859,6 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 
 						LastRestartPacketTimestamp = CurrentTime;
 
-						auto WithinHandshakeLogLimit = [&Driver = Driver]() -> bool
-							{
-								const double LogCountPeriod = 30.0;
-								const int8 MaxLogCount = 3;
-
-								static double LastLogStartTime = 0.0;
-								static int32 LogCounter = 0;
-
-								double CurTimeApprox = Driver->GetElapsedTime();
-								bool bWithinLimit = false;
-
-								if ((CurTimeApprox - LastLogStartTime) > LogCountPeriod)
-								{
-									LastLogStartTime = CurTimeApprox;
-									LogCounter = 1;
-									bWithinLimit = true;
-								}
-								else if (LogCounter < MaxLogCount)
-								{
-									LogCounter++;
-									bWithinLimit = true;
-								}
-
-								return bWithinLimit;
-							};
-
 						if (!bRestartedHandshake && bPassedDelayCheck && bPassedDualIPCheck)
 						{
 							UE_LOG(LogHandshake, Log, TEXT("Beginning restart handshake process."));
@@ -894,23 +868,20 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 							SetState(Handler::Component::State::UnInitialized);
 							NotifyHandshakeBegin();
 						}
-						else if (WithinHandshakeLogLimit())
+						else if (bRestartedHandshake)
 						{
-							if (bRestartedHandshake)
-							{
-								UE_LOG(LogHandshake, Log, TEXT("Ignoring restart handshake request, while already restarted (this is normal)."));
-							}
-#if !UE_BUILD_SHIPPING
-							else if (!bPassedDelayCheck)
-							{
-								UE_LOG(LogHandshake, Log, TEXT("Ignoring restart handshake request, due to < 10 seconds since last handshake."));
-							}
-							else // if (!bPassedDualIPCheck)
-							{
-								UE_LOG(LogHandshake, Log, TEXT("Ignoring restart handshake request, due to recent NetConnection packets."));
-							}
-#endif
+							UE_LOG(LogHandshake, Log, TEXT("Ignoring restart handshake request, while already restarted (this is normal)."));
 						}
+#if !UE_BUILD_SHIPPING
+						else if (!bPassedDelayCheck)
+						{
+							UE_LOG(LogHandshake, Log, TEXT("Ignoring restart handshake request, due to < 10 seconds since last handshake."));
+						}
+						else // if (!bPassedDualIPCheck)
+						{
+							UE_LOG(LogHandshake, Log, TEXT("Ignoring restart handshake request, due to recent NetConnection packets."));
+						}
+#endif
 					}
 					else
 					{

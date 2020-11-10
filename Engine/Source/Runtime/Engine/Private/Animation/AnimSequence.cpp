@@ -901,12 +901,6 @@ void UAnimSequence::PreSave(const class ITargetPlatform* TargetPlatform)
 	}
 
 	WaitOnExistingCompression(); // Wait on updated data
-
-	const bool bIsCooking = (TargetPlatform != nullptr);
-	if (!bIsCooking)
-	{
-		UpdateRetargetSourceAsset();
-	}
 #endif
 
 	Super::PreSave(TargetPlatform);
@@ -1201,11 +1195,6 @@ void UAnimSequence::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 
 	if(PropertyChangedEvent.Property)
 	{
-		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimSequence, RetargetSourceAsset))
-		{
-			UpdateRetargetSourceAsset();
-		}
-
 		const bool bChangedRefFrameIndex = PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimSequence, RefFrameIndex);
 
 		if (bChangedRefFrameIndex)
@@ -1607,7 +1596,7 @@ void UAnimSequence::GetBonePose(FAnimationPoseData& OutAnimationPoseData, const 
 		// if retargeting is disabled, we initialize pose with 'Retargeting Source' ref pose.
 		if (bDisableRetargeting)
 		{
-			TArray<FTransform> const& AuthoredOnRefSkeleton = GetRetargetTransforms();
+			TArray<FTransform> const& AuthoredOnRefSkeleton = MySkeleton->GetRefLocalPoses(RetargetSource);
 			TArray<FBoneIndexType> const& RequireBonesIndexArray = RequiredBones.GetBoneIndicesArray();
 
 			int32 const NumRequiredBones = RequireBonesIndexArray.Num();
@@ -1659,7 +1648,7 @@ void UAnimSequence::GetBonePose(FAnimationPoseData& OutAnimationPoseData, const 
 			}
 		}
 
-		BuildPoseFromRawData(AnimationData, TrackToSkeletonMapTable, OutPose, ExtractionContext.CurrentTime, Interpolation, NumFrames, SequenceLength, GetRetargetTransformsSourceName(), GetRetargetTransforms());
+		BuildPoseFromRawData(AnimationData, TrackToSkeletonMapTable, OutPose, ExtractionContext.CurrentTime, Interpolation, NumFrames, SequenceLength, RetargetSource);
 
 		if ((ExtractionContext.bExtractRootMotion && RootMotionReset.bEnableRootMotion) || RootMotionReset.bForceRootLock)
 		{
@@ -1672,8 +1661,7 @@ void UAnimSequence::GetBonePose(FAnimationPoseData& OutAnimationPoseData, const 
 	}
 #endif // WITH_EDITOR
 
-	DecompressPose(OutPose, CompressedData, ExtractionContext, GetSkeleton(), SequenceLength, Interpolation, bIsBakedAdditive, GetRetargetTransforms(), GetRetargetTransformsSourceName(), RootMotionReset);
-
+	DecompressPose(OutPose, CompressedData, ExtractionContext, GetSkeleton(), SequenceLength, Interpolation, bIsBakedAdditive, RetargetSource, GetFName(), RootMotionReset);
 	GetCustomAttributes(OutAnimationPoseData, ExtractionContext, false);
 }
 
@@ -1876,58 +1864,10 @@ void UAnimSequence::GetBonePose_AdditiveMeshRotationOnly(FAnimationPoseData& Out
 	FCustomAttributesRuntime::SubtractAttributes(BaseAttributes, OutAttributes);
 }
 
-#if WITH_EDITORONLY_DATA
-void UAnimSequence::UpdateRetargetSourceAsset()
-{
-	USkeletalMesh* SourceReferenceMesh = RetargetSourceAsset.LoadSynchronous();
-	const USkeleton* MySkeleton = GetSkeleton();
-	if (SourceReferenceMesh && MySkeleton)
-	{
-		FAnimationRuntime::MakeSkeletonRefPoseFromMesh(SourceReferenceMesh, MySkeleton, RetargetSourceAssetReferencePose);
-	}
-	else
-	{
-		RetargetSourceAssetReferencePose.Empty();
-	}
-}
-#endif // WITH_EDITORONLY_DATA
-
-const TArray<FTransform>& UAnimSequence::GetRetargetTransforms() const
-{
-	if (RetargetSource.IsNone() && RetargetSourceAssetReferencePose.Num() > 0)
-	{
-		return RetargetSourceAssetReferencePose;
-	}
-	else
-	{
-		const USkeleton* MySkeleton = GetSkeleton();
-		if (MySkeleton)
-		{
-			return MySkeleton->GetRefLocalPoses(RetargetSource);
-		}
-		else
-		{
-			static TArray<FTransform> EmptyTransformArray;
-			return EmptyTransformArray;
-		}
-	}
-}
-
-FName UAnimSequence::GetRetargetTransformsSourceName() const
-{
-	if (RetargetSource.IsNone() && RetargetSourceAssetReferencePose.Num() > 0)
-	{
-		return GetOutermost()->GetFName();
-	}
-	else
-	{
-		return RetargetSource;
-	}
-}
-
 void UAnimSequence::RetargetBoneTransform(FTransform& BoneTransform, const int32 SkeletonBoneIndex, const FCompactPoseBoneIndex& BoneIndex, const FBoneContainer& RequiredBones, const bool bIsBakedAdditive) const
 {
-	FAnimationRuntime::RetargetBoneTransform(GetSkeleton(), GetRetargetTransformsSourceName(), GetRetargetTransforms(), BoneTransform, SkeletonBoneIndex, BoneIndex, RequiredBones, bIsBakedAdditive);
+	const USkeleton* MySkeleton = GetSkeleton();
+	FAnimationRuntime::RetargetBoneTransform(MySkeleton, RetargetSource, BoneTransform, SkeletonBoneIndex, BoneIndex, RequiredBones, bIsBakedAdditive);
 }
 
 #if WITH_EDITOR

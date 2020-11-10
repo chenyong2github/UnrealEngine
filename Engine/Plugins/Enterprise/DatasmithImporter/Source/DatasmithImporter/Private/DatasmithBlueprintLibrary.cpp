@@ -1054,9 +1054,9 @@ int32 UDatasmithStaticMeshBlueprintLibrary::ComputeLightmapResolution(UStaticMes
 		return 0;
 	}
 
-	const FRawStaticIndexBuffer& IndexBuffer = StaticMesh->GetRenderData()->LODResources[0].IndexBuffer;
-	const FPositionVertexBuffer& PositionBuffer = StaticMesh->GetRenderData()->LODResources[0].VertexBuffers.PositionVertexBuffer;
-	const FStaticMeshVertexBuffer& VertexBuffer = StaticMesh->GetRenderData()->LODResources[0].VertexBuffers.StaticMeshVertexBuffer;
+	const FRawStaticIndexBuffer& IndexBuffer = StaticMesh->RenderData->LODResources[0].IndexBuffer;
+	const FPositionVertexBuffer& PositionBuffer = StaticMesh->RenderData->LODResources[0].VertexBuffers.PositionVertexBuffer;
+	const FStaticMeshVertexBuffer& VertexBuffer = StaticMesh->RenderData->LODResources[0].VertexBuffers.StaticMeshVertexBuffer;
 
 	if (VertexBuffer.GetNumTexCoords() <= (uint32)StaticMesh->LightMapCoordinateIndex)
 	{

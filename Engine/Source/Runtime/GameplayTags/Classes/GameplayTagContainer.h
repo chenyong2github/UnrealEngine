@@ -834,7 +834,7 @@ protected:
 	void AddParentsForTag(const FGameplayTag& Tag);
 
 	/** Array of gameplay tags */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category=GameplayTags, SaveGame)
+	UPROPERTY(BlueprintReadWrite, Category=GameplayTags, SaveGame) // Change to VisibleAnywhere after fixing up games
 	TArray<FGameplayTag> GameplayTags;
 
 	/** Array of expanded parent tags, in addition to GameplayTags. Used to accelerate parent searches. May contain duplicates in some cases */

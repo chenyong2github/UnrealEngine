@@ -204,6 +204,8 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 			// Force enable view family show flag for HighDPI derived's screen percentage.
 			ViewFamily.EngineShowFlags.ScreenPercentage = true;
 		}
+
+		UpdateDebugViewModeShaders();
 #endif
 
 		// Gather Scene View Extensions

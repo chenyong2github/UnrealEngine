@@ -23,7 +23,6 @@ UMovieSceneSubSection::UMovieSceneSubSection()
 	, TimeScale_DEPRECATED(DeprecatedMagicNumber)
 	, PrerollTime_DEPRECATED(DeprecatedMagicNumber)
 {
-	NetworkMask = (uint8)(EMovieSceneServerClientMask::Server | EMovieSceneServerClientMask::Client);
 }
 
 FMovieSceneSequenceTransform UMovieSceneSubSection::OuterToInnerTransform() const

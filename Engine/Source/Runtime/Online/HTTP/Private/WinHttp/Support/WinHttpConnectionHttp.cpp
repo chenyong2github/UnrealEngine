@@ -16,7 +16,6 @@
 #include <errhandlingapi.h>
 
 #define UE_WINHTTP_WRITE_BUFFER_BYTES (8*1024)
-#define UE_WINHTTP_READ_BUFFER_BYTES (8*1024)
 
 void CALLBACK UE_WinHttpStatusHttpCallback(HINTERNET hInternet, DWORD_PTR dwContext, DWORD dwInternetStatus, LPVOID lpvStatusInformation, DWORD dwStatusInformationLength)
 {
@@ -220,25 +219,6 @@ void FWinHttpConnectionHttp::PumpMessages()
 		return;
 	}
 
-	if (CurrentChunk.Num() > 0)
-	{
-		// This is safe because currently CurrentChunk is only accessed within 
-		// a SyncObject critical section.
-		BytesWrittenToGameThreadChunk += CurrentChunk.Num();
-		if (GameThreadChunk.Num() == 0)
-		{
-			GameThreadChunk = MoveTemp(CurrentChunk);
-		}
-		else
-		{
-			GameThreadChunk.Append(CurrentChunk);
-		}
-		const int32 ReserveChunkSize = ResponseContentLength >= BytesWrittenToGameThreadChunk 
-			? (ResponseContentLength - BytesWrittenToGameThreadChunk) 
-			: UE_WINHTTP_READ_BUFFER_BYTES;
-		CurrentChunk.Reset(ReserveChunkSize);
-	}
-
 	// Process Data Transfer callbacks
 	if (BytesToReportSent.IsSet() || BytesToReportReceived.IsSet())
 	{
@@ -251,7 +231,7 @@ void FWinHttpConnectionHttp::PumpMessages()
 		OnDataTransferredHandler.ExecuteIfBound(BytesSent, BytesReceived);
 		if (bRequestCancelled)
 		{
-			// If we get canceled in our callback, don't send any more messages
+			// If we get cancelled in our callback, don't send any more messages
 			return;
 		}
 	}
@@ -267,7 +247,7 @@ void FWinHttpConnectionHttp::PumpMessages()
 			OnHeaderReceivedHandler.ExecuteIfBound(HeaderKey, HeadersReceived.FindChecked(HeaderKey));
 			if (bRequestCancelled)
 			{
-				// If we get canceled in our callback, don't send any more messages
+				// If we get cancelled in our callback, don't send any more messages
 				return;
 			}
 		}
@@ -279,10 +259,22 @@ void FWinHttpConnectionHttp::PumpMessages()
 		FWinHttpConnectionHttpOnRequestComplete LocalCompleteHandler = MoveTemp(OnRequestCompleteHandler);
 		OnRequestCompleteHandler.Unbind();
 
-		LocalCompleteHandler.ExecuteIfBound(FinalState.GetValue());
+		if (FinalState == EHttpRequestStatus::Succeeded)
+		{
+			// Only send ReponseBody if we were successful
+			LocalCompleteHandler.ExecuteIfBound(FinalState.GetValue(), ResponseCode, HeadersReceived, ResponseBody);
+		}
+		else
+		{
+			// We do not want to give access to ResponseBody unless our request was successfully completed, as it may still be being written to
+			// or may be a partial result. It is worth noting that Success here means the request completed, not that it was a 200 status code;
+			// the server still could have returned a failure response.
+			TArray<uint8> EmptyResponse;
+			LocalCompleteHandler.ExecuteIfBound(FinalState.GetValue(), ResponseCode, HeadersReceived, EmptyResponse);
+		}
 		if (bRequestCancelled)
 		{
-			// If we get canceled in our callback, don't send any more messages
+			// If we get cancelled in our callback, don't send any more messages
 			return;
 		}
 	}
@@ -524,10 +516,8 @@ bool FWinHttpConnectionHttp::SetHeaders(const TMap<FString, FString>& Headers)
 		if (!WinHttpAddRequestHeaders(RequestHandle.Get(), TCHAR_TO_WCHAR(*HeaderBuffer), HeadersLength, Flags))
 		{
 			const DWORD ErrorCode = GetLastError();
-			// ERROR_WINHTTP_HEADER_NOT_FOUND can be returned if `Value` is empty and the header does not exist.
-			// The latest WinHttp implementation sees this as a request to delete the header. This is done because
-			// according to the latest HTTP1.1 RFC (7230) a blank header is not allowed.
-			// Therefore, acknowleding the fact that a blank header was not added is valid.
+
+			// Attempted to set an empty header value - This normally deletes an existing header by the same name, but one did not exist.
 			if (HeaderPair.Value.IsEmpty() && ErrorCode == ERROR_WINHTTP_HEADER_NOT_FOUND)
 			{
 				UE_LOG(LogWinHttp, Verbose, TEXT("WinHttp Http[%p]: Ignoring request to clear header as it was not set. HeaderKey=[%s]"), this, *HeaderPair.Key);
@@ -578,10 +568,8 @@ bool FWinHttpConnectionHttp::SetHeader(const FString& Key, const FString& Value)
 	if (!WinHttpAddRequestHeaders(RequestHandle.Get(), TCHAR_TO_WCHAR(*HeaderBuffer), HeaderLength, Flags))
 	{
 		const DWORD ErrorCode = GetLastError();
-		// ERROR_WINHTTP_HEADER_NOT_FOUND can be returned if `Value` is empty and the header does not exist.
-		// The latest WinHttp implementation sees this as a request to delete the header. This is done because
-		// according to the latest HTTP1.1 RFC (7230) a blank header is not allowed.
-		// Therefore, acknowleding the fact that a blank header was not added is valid.
+
+		// Attempted to set an empty header value - This normally deletes an existing header by the same name, but one did not exist.
 		if (Value.IsEmpty() && ErrorCode == ERROR_WINHTTP_HEADER_NOT_FOUND)
 		{
 			UE_LOG(LogWinHttp, Verbose, TEXT("WinHttp Http[%p]: Ignoring request to clear header as it was not set. HeaderKey=[%s]"), this, *Key);
@@ -676,6 +664,8 @@ void FWinHttpConnectionHttp::IncrementReceivedByteCounts(const int32 AmountRecei
 	{
 		BytesToReportReceived.GetValue() += AmountReceived;
 	}
+
+	ResponseBytesWritten += AmountReceived;
 
 	bHasPendingDelegate = true;
 }
@@ -852,13 +842,9 @@ bool FWinHttpConnectionHttp::ProcessResponseHeaders()
 		OutHeaderByteSize = sizeof(ContentLength);
 		if (WinHttpQueryHeaders(RequestHandle.Get(), InfoLevel, HeaderName, BufferDestination, &OutHeaderByteSize, OutHeaderIndex))
 		{
-			// It's ok if this fails, it just means we don't have a content-length header (such as when the response is chunk-encoded, for example)
-			if (ContentLength > 0)
-			{
-				ResponseContentLength = ContentLength;
-			}
+			// It's ok if this fails, it just means we don't have a content-length header (such as when the reponse is chunk-encoded, for example)
+			ResponseBody.Reserve(ContentLength);
 		}
-		CurrentChunk.Reserve(ResponseContentLength > 0 ? ResponseContentLength : UE_WINHTTP_READ_BUFFER_BYTES);
 	}
 
 	// Nothing above was async, so we can move to the next action state now
@@ -899,11 +885,18 @@ bool FWinHttpConnectionHttp::RequestNextResponseBodyChunkData()
 		return true;
 	}
 
-	int32 ResponseBytesWritten = CurrentChunk.Num();
-	CurrentChunk.AddUninitialized(NumBytesAvailable);
+	// Microsoft recommends a receive buffer of 8KB, but we're just going to write the data into the response directly and keep track of how
+	// much data is actually good via ResponseBytesWritten.
+
+	// Check if we need to resize our buffer
+	const int32 BufferSizeAvailable = ResponseBody.Num() - ResponseBytesWritten;
+	if (BufferSizeAvailable < NumBytesAvailable)
+	{
+		ResponseBody.AddUninitialized(NumBytesAvailable - BufferSizeAvailable);
+	}
 
 	CurrentAction = EState::WaitForNextResponseBodyChunkData;
-	if (!WinHttpReadData(RequestHandle.Get(), CurrentChunk.GetData() + ResponseBytesWritten, NumBytesAvailable, NULL))
+	if (!WinHttpReadData(RequestHandle.Get(), ResponseBody.GetData() + ResponseBytesWritten, NumBytesAvailable, NULL))
 	{
 		const DWORD ErrorCode = GetLastError();
 		FWinHttpErrorHelper::LogWinHttpReadDataFailure(ErrorCode);
@@ -952,11 +945,6 @@ bool FWinHttpConnectionHttp::FinishRequest(const EHttpRequestStatus::Type NewFin
 	RequestHandle.Reset();
 	ConnectionHandle.Reset();
 	return true;
-}
-
-void FWinHttpConnectionHttp::HandleConnectedToServer(const wchar_t* ServerIP)
-{
-	UE_LOG(LogWinHttp, VeryVerbose, TEXT("WinHttp Http[%p]: Callback Status=[CONNECTED_TO_SERVER] ServerIP=[%s]"), this, WCHAR_TO_TCHAR(ServerIP));
 }
 
 void FWinHttpConnectionHttp::HandleSendingRequest()
@@ -1088,6 +1076,12 @@ void FWinHttpConnectionHttp::HandleReadComplete(const uint32 NumBytesRead)
 
 	IncrementReceivedByteCounts(NumBytesRead);
 
+	// Make sure our response body matches the size of bytes written to it
+	if (ResponseBody.Num() > ResponseBytesWritten)
+	{
+		ResponseBody.SetNumUninitialized(ResponseBytesWritten, false);
+	}
+
 	CurrentAction = EState::RequestNextResponseBodyChunkSize;
 }
 
@@ -1172,15 +1166,6 @@ void FWinHttpConnectionHttp::HandleHttpStatusCallback(HINTERNET ResourceHandle, 
 
 	switch (Status)
 	{
-		case EWinHttpCallbackStatus::ConnectedToServer:
-		{
-			check(StatusInformationLength > 0);
-			check(StatusInformation != nullptr);
-
-			const wchar_t* const ServerIPString = static_cast<const wchar_t*>(StatusInformation);
-			HandleConnectedToServer(ServerIPString);
-			return;
-		}
 		case EWinHttpCallbackStatus::SendingRequest:
 		{
 			HandleSendingRequest();
@@ -1241,8 +1226,6 @@ void FWinHttpConnectionHttp::HandleHttpStatusCallback(HINTERNET ResourceHandle, 
 		case EWinHttpCallbackStatus::ResolvingName:
 		{
 			check(StatusInformationLength > 0);
-			check(StatusInformation != nullptr);
-
 			const wchar_t* const ServerName = static_cast<const wchar_t*>(StatusInformation);
 			UE_LOG(LogWinHttp, VeryVerbose, TEXT("WinHttp Http[%p]: Callback Status=[%s] ServerName=[%s]"), this, LexToString(Status), WCHAR_TO_TCHAR(ServerName));
 			return;
@@ -1250,8 +1233,6 @@ void FWinHttpConnectionHttp::HandleHttpStatusCallback(HINTERNET ResourceHandle, 
 		case EWinHttpCallbackStatus::NameResolved:
 		{
 			check(StatusInformationLength > 0);
-			check(StatusInformation != nullptr);
-
 			const wchar_t* const ServerIPString = static_cast<const wchar_t*>(StatusInformation);
 			UE_LOG(LogWinHttp, VeryVerbose, TEXT("WinHttp Http[%p]: Callback Status=[%s] ServerIP=[%s]"), this, LexToString(Status), WCHAR_TO_TCHAR(ServerIPString));
 			return;
@@ -1265,6 +1246,7 @@ void FWinHttpConnectionHttp::HandleHttpStatusCallback(HINTERNET ResourceHandle, 
 			return;
 		}
 		case EWinHttpCallbackStatus::ConnectingToServer:
+		case EWinHttpCallbackStatus::ConnectedToServer:
 		case EWinHttpCallbackStatus::ReceivingResponse:
 		case EWinHttpCallbackStatus::ResponseReceived:
 		case EWinHttpCallbackStatus::ClosingConnection:

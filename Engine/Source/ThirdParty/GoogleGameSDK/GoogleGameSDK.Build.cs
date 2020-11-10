@@ -16,7 +16,7 @@ public class GoogleGameSDK : ModuleRules
 			PublicAdditionalLibraries.Add(GoogleGameSDKPath + "/gamesdk/libs/armeabi-v7a_API24_NDK21_cpp_shared_Release/libgamesdk.a");
 			PublicAdditionalLibraries.Add(GoogleGameSDKPath + "/gamesdk/libs/x86_64_API24_NDK21_cpp_shared_Release/libgamesdk.a");
 			PublicAdditionalLibraries.Add(GoogleGameSDKPath + "/gamesdk/libs/x86_API24_NDK21_cpp_shared_Release/libgamesdk.a");
-			PublicIncludePaths.Add(GoogleGameSDKPath + "/gamesdk/include");
+			PublicIncludePaths.Add(GoogleGameSDKPath + "/gamesdk/include/swappy");
 
             // Register Plugin Language
             string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);

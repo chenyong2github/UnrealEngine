@@ -889,11 +889,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	TimeForForceRedraw = 0.0;
 
 	const bool bConstrainAspectRatio = bUseControllingActorViewInfo && ControllingActorViewInfo.bConstrainAspectRatio;
-	EAspectRatioAxisConstraint AspectRatioAxisConstraint = GetDefault<ULevelEditorViewportSettings>()->AspectRatioAxisConstraint;
-	if (bUseControllingActorViewInfo && ControllingActorAspectRatioAxisConstraint.IsSet())
-	{
-		AspectRatioAxisConstraint = ControllingActorAspectRatioAxisConstraint.GetValue();
-	}
+	const EAspectRatioAxisConstraint AspectRatioAxisConstraint = GetDefault<ULevelEditorViewportSettings>()->AspectRatioAxisConstraint;
 
 	AWorldSettings* WorldSettings = nullptr;
 	if( GetScene() != nullptr && GetScene()->GetWorld() != nullptr )
@@ -3780,6 +3776,8 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	ViewFamily.EngineShowFlags = UseEngineShowFlags;
 
 	ViewFamily.bIsHDR = Viewport->IsHDRViewport();
+
+	UpdateDebugViewModeShaders();
 
 	if( ModeTools->GetActiveMode( FBuiltinEditorModes::EM_InterpEdit ) == 0 || !AllowsCinematicControl() )
 	{

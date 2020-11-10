@@ -795,9 +795,9 @@ void* FMallocBinned2::MallocExternalLarge(SIZE_T Size, uint32 Alignment)
 	Alignment = FMath::Max<uint32>(Alignment, BINNED2_MINIMUM_ALIGNMENT);
 	Size = Align(FMath::Max((SIZE_T)1, Size), Alignment);
 
-	checkf(FMath::IsPowerOfTwo(Alignment), TEXT("Invalid Malloc alignment: '%u' is not a power of two"), Alignment);
-	checkf(Alignment <= PageSize, TEXT("Invalid Malloc alignment: '%u' is greater than the page size '%u'"), Alignment, PageSize);
-	checkf(FMallocBinned2::FPoolInfo::IsSupportedSize(Size), TEXT("Invalid Malloc size: '%" SIZE_T_FMT "'"), Size);
+	check(FMath::IsPowerOfTwo(Alignment));
+	check(Alignment <= PageSize);
+	check(FMallocBinned2::FPoolInfo::IsSupportedSize(Size));
 
 	UPTRINT AlignedSize = Align(Size, OsAllocationGranularity);
 
@@ -906,9 +906,9 @@ void* FMallocBinned2::ReallocExternal(void* Ptr, SIZE_T NewSize, uint32 Alignmen
 	Alignment = FMath::Max<uint32>(Alignment, BINNED2_MINIMUM_ALIGNMENT);
 	NewSize = Align(FMath::Max((SIZE_T)1, NewSize), Alignment);
 
-	checkf(FMath::IsPowerOfTwo(Alignment), TEXT("Invalid Realloc alignment: '%u' is not a power of two"), Alignment);
-	checkf(Alignment <= PageSize, TEXT("Invalid Realloc alignment: '%u' is greater than the page size '%u'"), Alignment, PageSize);
-	checkf(FMallocBinned2::FPoolInfo::IsSupportedSize(NewSize), TEXT("Invalid Realloc size: '%" SIZE_T_FMT "'"), NewSize);
+	check(FMath::IsPowerOfTwo(Alignment));
+	check(Alignment <= PageSize);
+	check(FMallocBinned2::FPoolInfo::IsSupportedSize(NewSize));
 
 #if BINNED2_ALLOCATOR_STATS
 	AllocatedLargePoolMemory += ((int64)NewSize) - ((int64)PoolOSRequestedBytes);

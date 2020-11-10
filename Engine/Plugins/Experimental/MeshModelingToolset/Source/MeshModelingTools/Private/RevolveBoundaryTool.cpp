@@ -50,7 +50,7 @@ TUniquePtr<FDynamicMeshOperator> URevolveBoundaryOperatorFactory::MakeNewOperato
 	const FGroupTopologySelection& ActiveSelection = RevolveBoundaryTool->SelectionMechanic->GetActiveSelection();
 	if (ActiveSelection.SelectedEdgeIDs.Num() == 1)
 	{
-		int32 EdgeID = ActiveSelection.GetASelectedEdgeID();
+		int32 EdgeID = ActiveSelection.SelectedEdgeIDs[0];
 		if (RevolveBoundaryTool->Topology->IsBoundaryEdge(EdgeID))
 		{
 			const TArray<int32>& VertexIndices = RevolveBoundaryTool->Topology->GetGroupEdgeVertices(EdgeID);
@@ -161,7 +161,7 @@ void URevolveBoundaryTool::OnClicked(const FInputDeviceRay& ClickPos)
 		if (bAlignAxisOnClick)
 		{
 			const FGroupTopologySelection& Selection = SelectionMechanic->GetActiveSelection();
-			int32 ClickedEid = Topology->GetGroupEdgeEdges(Selection.GetASelectedEdgeID())[HitResult.Item];
+			int32 ClickedEid = Topology->GetGroupEdgeEdges(Selection.SelectedEdgeIDs[0])[HitResult.Item];
 			
 			FVector3d VertexA, VertexB;
 			OriginalMesh->GetEdgeV(ClickedEid, VertexA, VertexB);

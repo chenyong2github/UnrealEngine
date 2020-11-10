@@ -99,14 +99,6 @@ TAutoConsoleVariable<float> CVarRcvThreadSleepTimeForWaitableErrorsInSeconds(
 	0.0f, // When > 0 => sleep. When == 0 => yield (if platform supports it). When < 0 => disabled
 	TEXT("Time the receive thread will sleep when a waitable error is returned by a socket operation."));
 
-TAutoConsoleVariable<int32> CVarRcvThreadShouldSleepForLongRecvErrors(
-	TEXT("net.RcvThreadShouldSleepForLongRecvErrors"),
-	0,
-	TEXT("Whether or not the receive thread should sleep for RecvFrom errors which are expected to last a long time. ")
-		TEXT("0 = don't sleep, 1 = sleep, 2 = exit receive thread.")
-	);
-
-
 #if !UE_BUILD_SHIPPING
 TAutoConsoleVariable<int32> CVarNetDebugDualIPs(
 	TEXT("net.DebugDualIPs"),
@@ -131,14 +123,6 @@ namespace IPNetDriverInternal
 	bool ShouldSleepOnWaitError(ESocketErrors SocketError)
 	{
 		return SocketError == ESocketErrors::SE_NO_ERROR || SocketError == ESocketErrors::SE_EWOULDBLOCK || SocketError == ESocketErrors::SE_TRY_AGAIN;
-	}
-
-	/**
-	 * Receive errors which are expected to last a long time and risk spinning the receive thread, which may or may not be recoverable
-	 */
-	bool IsLongRecvError(ESocketErrors SocketError)
-	{
-		return SocketError == SE_ENETDOWN;
 	}
 }
 
@@ -199,8 +183,7 @@ private:
 		, RecvMultiPacketCount(0)
 		, StartReceiveTime(InStartReceiveTime)
 		, bCheckReceiveTime(bInCheckReceiveTime)
-		, CheckReceiveTimePacketCount(bInCheckReceiveTime ? InDriver->NbPacketsBetweenReceiveTimeTest : 0)
-		, NumIterationUntilTimeTest(CheckReceiveTimePacketCount)
+		, CheckReceiveTimePacketCountMask(bInCheckReceiveTime ? (FMath::RoundUpToPowerOfTwo(InDriver->NbPacketsBetweenReceiveTimeTest)-1) : 0)
 		, BailOutTime(InStartReceiveTime + InDriver->MaxSecondsInReceive)
 		, bSlowFrameChecks(UIpNetDriver::OnNetworkProcessingCausingSlowFrame.IsBound())
 		, AlarmTime(InStartReceiveTime + GIpNetDriverMaxDesiredTimeSliceBeforeAlarmSecs)
@@ -338,14 +321,10 @@ private:
 			}
 		}
 
-		if (bCheckReceiveTime && IterationCount > 0)
+		if (bCheckReceiveTime)
 		{
-			--NumIterationUntilTimeTest;
-			if (NumIterationUntilTimeTest <= 0)
+			if ((IterationCount & CheckReceiveTimePacketCountMask) == 0 && IterationCount > 0)
 			{
-				// Restart the countdown until the next time check
-				NumIterationUntilTimeTest = CheckReceiveTimePacketCount;
-
 				const double CurrentTime = FPlatformTime::Seconds();
 
 				if (CurrentTime > BailOutTime)
@@ -654,11 +633,8 @@ private:
 	/** Whether or not to perform receive time limit checks */
 	const bool bCheckReceiveTime;
 
-	/** Receive time is checked every 'x' number of packets */
-	const int32 CheckReceiveTimePacketCount;
-
-	/** The number of packets left to process until we check if we went over our time budget */
-	int32 NumIterationUntilTimeTest;
+	/** Receive time is checked every 'x' number of packets, with this mask used to count the packets ('x' is a power of 2) */
+	const int32 CheckReceiveTimePacketCountMask;
 
 	/** The time at which to bail out of the receive loop, if it's time limited */
 	const double BailOutTime;
@@ -1810,7 +1786,6 @@ uint32 UIpNetDriver::FReceiveThreadRunnable::Run()
 {
 	const FTimespan Timeout = FTimespan::FromMilliseconds(CVarNetIpNetDriverReceiveThreadPollTimeMS.GetValueOnAnyThread());
 	const float SleepTimeForWaitableErrorsInSec = CVarRcvThreadSleepTimeForWaitableErrorsInSeconds.GetValueOnAnyThread();
-	const int32 ActionForLongRecvErrors = CVarRcvThreadShouldSleepForLongRecvErrors.GetValueOnAnyThread();
 
 	UE_LOG(LogNet, Log, TEXT("UIpNetDriver::FReceiveThreadRunnable::Run starting up."));
 
@@ -1869,21 +1844,6 @@ uint32 UIpNetDriver::FReceiveThreadRunnable::Run()
 					IncomingPacket.Error = RecvFromError;
 					const bool bSuccess = DispatchPacket(MoveTemp(IncomingPacket), BytesRead);
 					bReceiveQueueFull = !bSuccess;
-				}
-
-				if (IPNetDriverInternal::IsLongRecvError(RecvFromError))
-				{
-					if (ActionForLongRecvErrors == 1)
-					{
-						if (SleepTimeForWaitableErrorsInSec >= 0.f)
-						{
-							FPlatformProcess::SleepNoStats(SleepTimeForWaitableErrorsInSec);
-						}
-					}
-					else if (ActionForLongRecvErrors == 2)
-					{
-						break;
-					}
 				}
 			}
 		}

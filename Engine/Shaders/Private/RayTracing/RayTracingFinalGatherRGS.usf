@@ -21,6 +21,7 @@
 #define USE_REPROJECTION 1
 #define USE_NEIGHBOR_SAMPLES 1
 #define USE_TEMPORAL_SAMPLES 1
+#define USE_NEIGHBOR_VISIBILITY_TEST 0
 
 
 uint SampleIndex;
@@ -33,8 +34,6 @@ float MaxNormalBias;
 float FinalGatherDistance;
 uint GatherFilterWidth;
 uint GatherPointIterations;
-float DepthRejectionKernel;
-float NormalRejectionKernel;
 
 RaytracingAccelerationStructure TLAS;
 
@@ -47,22 +46,6 @@ RWTexture2D<float2> RWGlobalIlluminationRayDistanceUAV;
 uint DispatchThreadIdToLinearIndex(uint2 DispatchThreadId)
 {
 	return DispatchThreadId.y * GatherPointsResolution.x + DispatchThreadId.x;
-}
-
-bool ShouldBilateralReject(float2 PixelCoord, float Z, float LocalZ, float3 WorldNormal, float3 LocalWorldNormal)
-{
-	// Gather points dimension guard
-	if (any(PixelCoord < 0) || any(PixelCoord > View.BufferSizeAndInvSize.xy - int2(1, 1))) return true;
-
-	// Depth deviation check
-	float DepthDeviation = abs(Z - LocalZ);
-	if (DepthDeviation > DepthRejectionKernel) return true;
-
-	// Normal deviation check
-	float NormalDeviation = 1.0 - saturate(dot(WorldNormal, LocalWorldNormal));
-	if (NormalDeviation > NormalRejectionKernel) return true;
-
-	return false;
 }
 
 RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
@@ -286,22 +269,17 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 
 				int2 LocalIndex = int2(LocalSampleIndex0 % GatherFilterWidth, LocalSampleIndex0 / GatherFilterWidth);
 
-#if 0
-				// Preserve original stratification domain
+#if 1
+				// Preserve stratification domain
 				//int2 GlobalIndex = DispatchThreadId - (DispatchThreadId % GatherFilterWidth) + LocalIndex;
 				int2 GlobalIndex = GatherPointCentroid - (GatherPointCentroid % GatherFilterWidth) + LocalIndex;
 #else
-				// Ignore stratifaction domain and respect local neighborhood instead
+				// Respect local neighborhood, destroying stratification properties
 				int2 Midpoint2 = GatherFilterWidth / 2;
 				LocalIndex -= Midpoint2;
 				int2 GlobalIndex = DispatchThreadId + LocalIndex;
-				if (any(GlobalIndex < 0) || any(GlobalIndex > View.BufferSizeAndInvSize.xy - 1)) continue;
+				if (any(GlobalIndex < 0) || any(GlobalIndex > View.BufferSizeAndInvSize.xy)) continue;
 #endif
-				// Apply temporal bilateral rejection criteria to prevent haloing around occluding objects
-				uint2 LocalPixelCoord = GetPixelCoord(GlobalIndex, UpscaleFactor);
-				float LocalDeviceZ = SceneDepthTexture.Load(int3(LocalPixelCoord, 0)).r;
-				float3 LocalWorldNormal = DecodeNormal(GBufferATexture.Load(int3(LocalPixelCoord, 0)).xyz);
-				if (ShouldBilateralReject(LocalPixelCoord, DeviceZ, LocalDeviceZ, WorldNormal, LocalWorldNormal)) continue;
 
 				ValidSamplesPerPixel++;
 				uint GatherPointsIndex = DispatchThreadIdToLinearIndex(GlobalIndex);

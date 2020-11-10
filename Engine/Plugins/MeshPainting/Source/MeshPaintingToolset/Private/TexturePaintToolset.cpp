@@ -117,11 +117,11 @@ bool UTexturePaintToolset::GenerateSeamMask(UMeshComponent* MeshComponent, int32
 	check(StaticMeshComponent != nullptr);
 	check(StaticMeshComponent->GetStaticMesh() != nullptr);
 	check(SeamRenderTexture != nullptr);
-	check(StaticMeshComponent->GetStaticMesh()->GetRenderData()->LODResources[PaintingMeshLODIndex].VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() > (uint32)UVSet);
+	check(StaticMeshComponent->GetStaticMesh()->RenderData->LODResources[PaintingMeshLODIndex].VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() > (uint32)UVSet);
 
 	bool RetVal = false;
 
-	FStaticMeshLODResources& LODModel = StaticMeshComponent->GetStaticMesh()->GetRenderData()->LODResources[PaintingMeshLODIndex];
+	FStaticMeshLODResources& LODModel = StaticMeshComponent->GetStaticMesh()->RenderData->LODResources[PaintingMeshLODIndex];
 
 	const uint32 Width = SeamRenderTexture->GetSurfaceWidth();
 	const uint32 Height = SeamRenderTexture->GetSurfaceHeight();
@@ -441,7 +441,7 @@ void UTexturePaintToolset::RetrieveMeshSectionsForMaterialIndices(const UMeshCom
 		{
 			//@TODO: Find a better way to move this generically to the adapter
 			check(StaticMeshComponent->GetStaticMesh()->GetNumLODs() > (int32)LODIndex);
-			const FStaticMeshLODResources& LODModel = StaticMeshComponent->GetStaticMesh()->GetRenderData()->LODResources[LODIndex];
+			const FStaticMeshLODResources& LODModel = StaticMeshComponent->GetStaticMesh()->RenderData->LODResources[LODIndex];
 			const int32 NumSections = LODModel.Sections.Num();
 
 			FTexturePaintMeshSectionInfo Info;

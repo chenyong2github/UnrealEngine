@@ -140,34 +140,29 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 	const FString AssetBaseName = FPackageName::GetShortName(Data->MergeData->ProxyBasePackageName);
 	const FString AssetBasePath = Data->MergeData->InOuter ? TEXT("") : FPackageName::GetLongPackagePath(Data->MergeData->ProxyBasePackageName) + TEXT("/");
 
-	UMaterialInstanceConstant* ProxyMaterial = nullptr;
+	// Retrieve flattened material data
+	FFlattenMaterial& FlattenMaterial = Data->Material;
 
-	if (!Data->RawMesh.IsEmpty())
+	// Resize flattened material
+	FMaterialUtilities::ResizeFlattenMaterial(FlattenMaterial, Data->MergeData->InProxySettings);
+
+	// Optimize flattened material
+	FMaterialUtilities::OptimizeFlattenMaterial(FlattenMaterial);
+
+	// Create a new proxy material instance
+	UMaterialInstanceConstant* ProxyMaterial = ProxyMaterialUtilities::CreateProxyMaterialInstance(Data->MergeData->InOuter, Data->MergeData->InProxySettings.MaterialSettings, Data->MergeData->BaseMaterial, FlattenMaterial, AssetBasePath, AssetBaseName, OutAssetsToSync);
+
+	for (IMeshMergeExtension* Extension : Owner->MeshMergeExtensions)
 	{
-		// Retrieve flattened material data
-		FFlattenMaterial& FlattenMaterial = Data->Material;
+		Extension->OnCreatedProxyMaterial(Data->MergeData->StaticMeshComponents, ProxyMaterial);
+	}
 
-		// Resize flattened material
-		FMaterialUtilities::ResizeFlattenMaterial(FlattenMaterial, Data->MergeData->InProxySettings);
-
-		// Optimize flattened material
-		FMaterialUtilities::OptimizeFlattenMaterial(FlattenMaterial);
-
-		// Create a new proxy material instance
-		ProxyMaterial = ProxyMaterialUtilities::CreateProxyMaterialInstance(Data->MergeData->InOuter, Data->MergeData->InProxySettings.MaterialSettings, Data->MergeData->BaseMaterial, FlattenMaterial, AssetBasePath, AssetBaseName, OutAssetsToSync);
-
-		for (IMeshMergeExtension* Extension : Owner->MeshMergeExtensions)
-		{
-			Extension->OnCreatedProxyMaterial(Data->MergeData->StaticMeshComponents, ProxyMaterial);
-		}
-
-		// Set material static lighting usage flag if project has static lighting enabled
-		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
-		const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnGameThread() != 0);
-		if (bAllowStaticLighting)
-		{
-			ProxyMaterial->CheckMaterialUsage(MATUSAGE_StaticLighting);
-		}
+	// Set material static lighting usage flag if project has static lighting enabled
+	static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+	const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnGameThread() != 0);
+	if (bAllowStaticLighting)
+	{
+		ProxyMaterial->CheckMaterialUsage(MATUSAGE_StaticLighting);
 	}
 
 	// Construct proxy static mesh
@@ -188,7 +183,7 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 	FString OutputPath = StaticMesh->GetPathName();
 
 	// make sure it has a new lighting guid
-	StaticMesh->SetLightingGuid();
+	StaticMesh->LightingGuid = FGuid::NewGuid();
 
 	// Set it to use textured lightmaps. Note that Build Lighting will do the error-checking (texcoordindex exists for all LODs, etc).
 	StaticMesh->LightMapResolution = Data->MergeData->InProxySettings.LightMapResolution;
@@ -234,17 +229,14 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 		FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(SourceModelIndex, Data->RawMesh);
 		if (ensure(MeshDescription))
 		{
-			if (ProxyMaterial)
+			// Make sure the Proxy material have a valid ImportedMaterialSlotName
+			//The proxy material must be add only once and is always the first slot of the HLOD mesh
+			FStaticMaterial NewMaterial(ProxyMaterial);
+			if (MeshDescription->PolygonGroups().Num() > 0)
 			{
-				// Make sure the Proxy material have a valid ImportedMaterialSlotName
-				//The proxy material must be add only once and is always the first slot of the HLOD mesh
-				FStaticMaterial NewMaterial(ProxyMaterial);
-				if (MeshDescription->PolygonGroups().Num() > 0)
-				{
-					NewMaterial.ImportedMaterialSlotName = PolygonGroupMaterialSlotName[MeshDescription->PolygonGroups().GetFirstValidID()];
-				}
-				StaticMesh->GetStaticMaterials().Add(NewMaterial);
+				NewMaterial.ImportedMaterialSlotName = PolygonGroupMaterialSlotName[MeshDescription->PolygonGroups().GetFirstValidID()];
 			}
+			StaticMesh->StaticMaterials.Add(NewMaterial);
 
 			StaticMesh->CommitMeshDescription(SourceModelIndex);
 		}
@@ -275,7 +267,7 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 			{
 				NewMaterial.ImportedMaterialSlotName = PolygonGroupMaterialSlotName[Data->RawMesh.PolygonGroups().GetFirstValidID()];
 			}
-			StaticMesh->GetStaticMaterials().Add(NewMaterial);
+			StaticMesh->StaticMaterials.Add(NewMaterial);
 		}
 	}
 	else
@@ -295,16 +287,16 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 		FName PolygonGroupName = PolygonGroupImportedMaterialSlotNames[PolygonGroupID];
 		if (PolygonGroupName != NAME_None)
 		{
-			for (int32 MaterialIndex = 0; MaterialIndex < StaticMesh->GetStaticMaterials().Num(); ++MaterialIndex)
+			for (int32 MaterialIndex = 0; MaterialIndex < StaticMesh->StaticMaterials.Num(); ++MaterialIndex)
 			{
-				if (StaticMesh->GetStaticMaterials()[MaterialIndex].ImportedMaterialSlotName == PolygonGroupName)
+				if (StaticMesh->StaticMaterials[MaterialIndex].ImportedMaterialSlotName == PolygonGroupName)
 				{
 					PolygonGroupMaterialIndex = MaterialIndex;
 					break;
 				}
 			}
 		}
-		if (!StaticMesh->GetStaticMaterials().IsValidIndex(PolygonGroupMaterialIndex))
+		if (!StaticMesh->StaticMaterials.IsValidIndex(PolygonGroupMaterialIndex))
 		{
 			PolygonGroupMaterialIndex = 0;
 		}

@@ -938,7 +938,7 @@ TSharedRef<SWindow> FSlateUser::GetOrCreateTooltipWindow()
 
 void FSlateUser::NotifyTouchStarted(const FPointerEvent& TouchEvent)
 {
-	UE_CLOG(PointerPositionsByIndex.Contains(TouchEvent.GetPointerIndex()), LogSlate, Error, TEXT("SlateUser [%d] notified of a touch starting for pointer [%d] without finding out it ever ended."), TouchEvent.GetUserIndex(), TouchEvent.GetPointerIndex());
+	UE_CLOG(PointerPositionsByIndex.Contains(TouchEvent.GetUserIndex()), LogSlate, Error, TEXT("SlateUser [%d] notified of a touch starting for pointer [%d] without finding out it ever ended."));
 	
 	GestureDetector.OnTouchStarted(TouchEvent.GetPointerIndex(), TouchEvent.GetScreenSpacePosition());
 	PointerPositionsByIndex.FindOrAdd(TouchEvent.GetPointerIndex()) = TouchEvent.GetScreenSpacePosition();

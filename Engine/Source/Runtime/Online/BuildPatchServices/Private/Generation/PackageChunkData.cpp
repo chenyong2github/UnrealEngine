@@ -343,7 +343,7 @@ namespace BuildPatchServices
 		}
 		ManifestSet.Reset(FBuildManifestSetFactory::Create({ FInstallerAction::MakeInstall(Manifest.ToSharedRef()) }));
 		FileOperationTracker->OnManifestSelection(ManifestSet.Get());
-		ChunkDataSizeProvider->AddManifestData(Manifest);
+		ChunkDataSizeProvider->AddManifestData(Manifest.Get());
 		BeginPackageProcess();
 	}
 

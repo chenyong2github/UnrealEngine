@@ -46,9 +46,6 @@ void FWinHttpWebSocketErrorHelper::LogWinHttpWebSocketSendFailure(const uint32 E
 		case ERROR_INVALID_PARAMETER:
 			UE_LOG(LogWinHttp, Error, TEXT("WinHttpWebSocketSend failed due to an invalid parameter"));
 			break;
-		case ERROR_WINHTTP_TIMEOUT:
-			UE_LOG(LogWinHttp, Error, TEXT("WinHttpWebSocketSend failed due to a timeout"));
-			break;
 		default:
 			UE_LOG(LogWinHttp, Error, TEXT("WinHttpWebSocketSend failed due to an unknown error (%u)"), ErrorCode);
 			break;
@@ -80,9 +77,6 @@ void FWinHttpWebSocketErrorHelper::LogWinHttpWebSocketShutdownFailure(const uint
 	{
 		case ERROR_IO_PENDING:
 			UE_LOG(LogWinHttp, Error, TEXT("WinHttpWebSocketShutdown will complete asynchronously"));
-			break;
-		case ERROR_WINHTTP_TIMEOUT:
-			UE_LOG(LogWinHttp, Error, TEXT("WinHttpWebSocketShutdown failed due to a timeout"));
 			break;
 		default:
 			UE_LOG(LogWinHttp, Error, TEXT("WinHttpWebSocketShutdown failed due to an unknown error (%u)"), ErrorCode);

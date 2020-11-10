@@ -13,7 +13,7 @@ static TAutoConsoleVariable<int32> CVarD3D12GPUTimeout(
 );
 
 static int32 GD3D12ExecuteCommandListTask = 0;
-static FAutoConsoleVariableRef CVarD3D12ExecuteCommandListTask(
+static TAutoConsoleVariable<int32> CVarD3D12ExecuteCommandListTask(
 	TEXT("r.D3D12.ExecuteCommandListTask"),
 	GD3D12ExecuteCommandListTask,
 	TEXT("0: Execute command lists on RHI Thread instead of separate task!\n")

@@ -42,7 +42,6 @@
 #include "EventsData.h"
 #include "EventManager.h"
 #include "RewindData.h"
-#include "Chaos/PhysicsSolverBaseImpl.h"
 
 
 #if !UE_BUILD_SHIPPING
@@ -69,6 +68,10 @@ DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"), STAT_Update
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPhysScene_ChaosSolver, Log, All);
+
+#if WITH_CHAOS
+Chaos::FCollisionModifierCallback FPhysScene_Chaos::CollisionModifierCallback;
+#endif // WITH_CHAOS
 
 void DumpHierarchyStats(const TArray<FString>& Args)
 {
@@ -407,6 +410,7 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 
 	// Create replication manager
 	PhysicsReplication = PhysicsReplicationFactory.IsValid() ? PhysicsReplicationFactory->Create(this) : new FPhysicsReplication(this);
+	SceneSolver->GetEvolution()->SetCollisionModifierCallback(CollisionModifierCallback);
 
 	FPhysicsDelegates::OnPhysSceneInit.Broadcast(this);
 #endif
@@ -1657,46 +1661,66 @@ void FPhysScene_Chaos::KillVisualDebugger()
 
 }
 
-void FPhysScene_Chaos::OnSyncBodies()
+void FPhysScene_Chaos::OnSyncBodies(const int32 SolverSyncTimestamp, Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor)
 {
 	using namespace Chaos;
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SyncBodies"), STAT_SyncBodies, STATGROUP_Physics);
 	TArray<FPhysScenePendingComponentTransform_Chaos> PendingTransforms;
 	TSet<FGeometryCollectionPhysicsProxy*> GCProxies;
 
-	GetSolver()->PullPhysicsStateForEachDirtyProxy_External([&PendingTransforms](FRigidParticlePhysicsProxy* Proxy)
 	{
-		TPBDRigidParticle<float,3>* DirtyParticle = Proxy->GetParticle();
-
-		if(FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(DirtyParticle->UserData()))
+		const FPBDRigidDirtyParticlesBufferOut* DirtyParticleBuffer = Accessor.GetSolverOutData();
+		for (FSingleParticlePhysicsProxy<TPBDRigidParticle<float, 3>>* Proxy : DirtyParticleBuffer->DirtyGameThreadParticles)
 		{
-			if(BodyInstance->OwnerComponent.IsValid())
+			if(Proxy->PullFromPhysicsState(SolverSyncTimestamp))
 			{
-				UPrimitiveComponent* OwnerComponent = BodyInstance->OwnerComponent.Get();
-				if(OwnerComponent != nullptr)
-				{
-					bool bPendingMove = false;
-					if(BodyInstance->InstanceBodyIndex == INDEX_NONE)
-					{
-						TRigidTransform<float,3> NewTransform(DirtyParticle->X(),DirtyParticle->R());
+				TPBDRigidParticle<float,3>* DirtyParticle = Proxy->GetParticle();
 
-						if(!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
+				if(FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(DirtyParticle->UserData()))
+				{
+					if(BodyInstance->OwnerComponent.IsValid())
+					{
+						UPrimitiveComponent* OwnerComponent = BodyInstance->OwnerComponent.Get();
+						if(OwnerComponent != nullptr)
 						{
-							bPendingMove = true;
-							const FVector MoveBy = NewTransform.GetLocation() - OwnerComponent->GetComponentTransform().GetLocation();
-							const FQuat NewRotation = NewTransform.GetRotation();
-							PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent,MoveBy,NewRotation,Proxy->GetWakeEvent()));
+							bool bPendingMove = false;
+							if(BodyInstance->InstanceBodyIndex == INDEX_NONE)
+							{
+								TRigidTransform<float,3> NewTransform(DirtyParticle->X(),DirtyParticle->R());
+
+								if(!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
+								{
+									bPendingMove = true;
+									const FVector MoveBy = NewTransform.GetLocation() - OwnerComponent->GetComponentTransform().GetLocation();
+									const FQuat NewRotation = NewTransform.GetRotation();
+									PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent,MoveBy,NewRotation,Proxy->GetWakeEvent()));
+								}
+							}
+
+							if(Proxy->GetWakeEvent() != Chaos::EWakeEventEntry::None && !bPendingMove)
+							{
+								PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent,Proxy->GetWakeEvent()));
+							}
+							Proxy->ClearEvents();
 						}
 					}
-
-					if(Proxy->GetWakeEvent() != Chaos::EWakeEventEntry::None && !bPendingMove)
-					{
-						PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent,Proxy->GetWakeEvent()));
-					}
-					Proxy->ClearEvents();
 				}
 			}
 		}
-	});
+
+		for (IPhysicsProxyBase* ProxyBase : DirtyParticleBuffer->PhysicsParticleProxies) 
+		{
+			if(ProxyBase->GetType() == EPhysicsProxyType::GeometryCollectionType)
+			{
+				FGeometryCollectionPhysicsProxy* GCProxy = static_cast<FGeometryCollectionPhysicsProxy*>(ProxyBase);
+				GCProxy->PullFromPhysicsState(SolverSyncTimestamp);
+			}
+			else
+			{
+				ensure(false); // Unhandled physics only particle proxy!
+			}
+		}
+	}
 
 	for (const FPhysScenePendingComponentTransform_Chaos& ComponentTransform : PendingTransforms)
 	{
@@ -1758,6 +1782,8 @@ void FPhysScene_Chaos::ResimNFrames(const int32 NumFramesRequested)
 				for(int Frame = FirstFrame; Frame < LatestFrame; ++Frame)
 				{
 					Solver->AdvanceAndDispatch_External(RewindData->GetDeltaTimeForFrame(Frame));
+					Solver->BufferPhysicsResults();
+					Solver->FlipBuffers();
 					Solver->UpdateGameThreadStructures();
 				}
 

@@ -97,9 +97,6 @@ FAutoConsoleVariableRef ExtraAudioMixerDeviceLogging(
 	TEXT("0: no logging, 1: logging every 500 callbacks \n"),
 	ECVF_Default);
 
-// Stat definitions for profiling audio mixer 
-DEFINE_STAT(STAT_AudioMixerRenderAudio);
-
 namespace Audio
 {
 	int32 sRenderInstanceIds = 0;
@@ -189,7 +186,6 @@ namespace Audio
 		}
 
 		CSV_SCOPED_TIMING_STAT(Audio, RenderAudio);
-		SCOPE_CYCLE_COUNTER(STAT_AudioMixerRenderAudio);
 
 		// Zero the buffer
 		FPlatformMemory::Memzero(RenderBuffer.GetData(), RenderBuffer.Num() * sizeof(float));

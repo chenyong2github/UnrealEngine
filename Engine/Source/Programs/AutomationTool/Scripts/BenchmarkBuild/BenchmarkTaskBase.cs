@@ -161,7 +161,7 @@ namespace AutomationTool.Benchmark
 		None = 0,
 		WarmDDC = 1 << 0,
 		ColdDDC = 1 << 1,
-		//NoDDC = 1 << 2,
+		NoSharedDDC = 1 << 2,
 		NoShaderDDC = 1 << 3,
 		HotDDC = 1 << 4,
 		NoXGE = 1 << 5,			// don't use XGE for shader compilation
@@ -204,6 +204,11 @@ namespace AutomationTool.Benchmark
 			if (TaskOptions.HasFlag(DDCTaskOptions.HotDDC))
 			{
 				TaskModifiers.Add("hotddc");
+			}
+
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoSharedDDC))
+			{
+				TaskModifiers.Add("noddc");
 			}
 
 			if (TaskOptions.HasFlag(DDCTaskOptions.NoShaderDDC))

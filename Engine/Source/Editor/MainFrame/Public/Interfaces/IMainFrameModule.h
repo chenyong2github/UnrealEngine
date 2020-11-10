@@ -188,23 +188,6 @@ public:
 	 */
 	virtual void ShowDelayedMainFrame() = 0;
 
-	/**
-	 * Delegate for determining if the editor can be closed
-	 */
-	DECLARE_DELEGATE_RetVal(bool, FMainFrameCanCloseEditor);
-
-	/**
-	 * Register a new callback for determining if the editor can be closed
-	 */
-	virtual FDelegateHandle RegisterCanCloseEditor(const FMainFrameCanCloseEditor& InDelegate) = 0;
-
-	/**
-	 * Unregister a callback for determining if the editor can be closed
-	 */
-	virtual void UnregisterCanCloseEditor(FDelegateHandle InHandle) = 0;
-
-	virtual bool ExecuteCanCloseEditorDelegates() = 0;
-
 public:
 
 	/**

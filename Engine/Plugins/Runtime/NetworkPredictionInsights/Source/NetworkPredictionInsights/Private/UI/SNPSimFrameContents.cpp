@@ -5,9 +5,6 @@
 #include "Widgets/Input/SEditableText.h"
 #include "Widgets/SBoxPanel.h"
 #include "INetworkPredictionProvider.h"
-#include "Widgets/Text/SMultiLineEditableText.h"
-#include "Framework/Text/RichTextLayoutMarshaller.h"
-#include "EditorStyleSet.h"
 
 #define LOCTEXT_NAMESPACE "SNPSimFrameContents"
 
@@ -65,35 +62,16 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 		FLinearColor Color = FLinearColor::White;
 	};
 
-	auto MakeUserStateWidget = [&](const FUserStateWidgetInfo& Info, const TCHAR* HighlightUserStr, bool bHighlightAsWarning)
+	auto MakeUserStateWidget = [&](const FUserStateWidgetInfo& Info)
 	{
 		FString HeaderText;
 		FString UserStr;
 		uint64 EngineFrameHyperLink = 0;
 		if (Info.State)
 		{
+			// style=\"Hyperlink\"
 			HeaderText = FString::Printf(TEXT("%s [Sim: %d. <a id=\"engine\">Engine: %d</>. %s]"), Info.Heading, Info.State->SimFrame, Info.State->EngineFrame, LexToString(Info.State->Source));
 			UserStr = Info.State->UserStr;
-			
-			if (HighlightUserStr)
-			{
-				const int32 StartIdx = UserStr.Find(HighlightUserStr);
-				if (StartIdx != INDEX_NONE)
-				{
-					if (bHighlightAsWarning)
-					{
-						UserStr.InsertAt(StartIdx, TEXT("<TextBlock.ShadowedTextWarning>"));
-					}
-					else
-					{
-						UserStr.InsertAt(StartIdx, TEXT("<RichTextBlock.Bold>"));
-					}
-					
-					const int32 EndIdx = UserStr.Find(TEXT("\n"), ESearchCase::IgnoreCase, ESearchDir::FromStart, StartIdx);
-					UserStr.InsertAt(EndIdx == INDEX_NONE ? UserStr.Len()-1 : EndIdx, TEXT("</>"));
-				}
-			}
-
 			if (Info.State->OOBStr)
 			{
 				UserStr += FString::Printf(TEXT("\nOOB Mod:\n%s"), Info.State->OOBStr);
@@ -108,12 +86,6 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 		
 		const FTextBlockStyle& TextStyle = FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
 
-		TSharedRef<FRichTextLayoutMarshaller> RichTextMarshaller = FRichTextLayoutMarshaller::Create(
-			TArray<TSharedRef<ITextDecorator>>(), 
-			//&FCoreStyle::Get()
-			&FEditorStyle::Get()
-			);		
-
 		return SNew(SVerticalBox)
 			+SVerticalBox::Slot()
 			.AutoHeight()
@@ -127,7 +99,6 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 				*/
 				SNew( SRichTextBlock )
 				.Text(FText::FromString(HeaderText))
-				//.HighlightText( FText::FromString(TEXT("Loc:")))
 				//.TextStyle(&TextStyle)
 				//.AutoWrapText(true)
 				//.DecoratorStyleSet( &FEditorStyle::Get() )
@@ -139,22 +110,14 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 			.AutoHeight()
 			.HAlign(HAlign_Left)
 			[
-				/*
 				SNew(SEditableText)
 				.IsReadOnly(true)
 				.Text(FText::FromString(UserStr))
 				.ColorAndOpacity(Info.Color)
-				*/
-
-				SNew(SMultiLineEditableText)
-				.Text(FText::FromString(UserStr))
-				.Marshaller(RichTextMarshaller)
-				.IsReadOnly(true)
 			];
-			
 	};
 
-	auto AddUserStateVSlots = [&](const TArrayView<const FUserStateWidgetInfo>& Source, const TCHAR* HighlightUserStr=nullptr, bool bHighlightAsWarning=false)
+	auto AddUserStateVSlots = [&](const TArrayView<const FUserStateWidgetInfo>& Source)
 	{
 		TSharedPtr<SVerticalBox> VBox;
 		ContentsHBoxPtr->AddSlot()
@@ -175,7 +138,7 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 				.VAlign(VAlign_Top)
 				.Padding(4.0f, 4.0f, 4.0f, 4.0f)
 				[
-					MakeUserStateWidget(Info, HighlightUserStr, bHighlightAsWarning)
+					MakeUserStateWidget(Info)
 				];
 			}
 		};
@@ -199,20 +162,17 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 	SimInfoText += FString::Format(TEXT(
 		"{0}\n"
 		"Sim Group: {1}\n"
-		"SimID: {2}\n"
-		"TraceID: {3}\n"
-		"NetRole: {4}\n"
-		"ServiceMask: {5}\n"
-		"TickingMode: {6}\n"
-		""),
+		"GameInstanceId: {2}\n"
+		"SimID: {3}\n"
+		"TraceID: {4}\n"
+		"NetRole: {5}"),
 	{
 		*InContent.SimView->ConstData.DebugName,
 		*GroupNameStr,
+		InContent.SimView->ConstData.GameInstanceId,
 		InContent.SimView->ConstData.ID.SimID,
 		InContent.SimView->TraceID,
-		*NetRoleStr,
-		InContent.SimView->SparseData->ServiceMask,
-		LexToString(InContent.SimView->SparseData->TickingPolicy)
+		*NetRoleStr
 	});
 
 	TSharedPtr<SVerticalBox> VertBox;
@@ -236,34 +196,69 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 	];
 
 	// -------------------------------------------------------------
+	//	End of Frame
+	// -------------------------------------------------------------
+	uint64 EngineFrame = (InContent.SimTick ? InContent.SimTick->EngineFrame : (InContent.NetRecv ? InContent.NetRecv->EngineFrame : 0));
+	const FSimulationData::FEngineFrame* EOFState = nullptr;
+	if (EngineFrame > 0)
+	{
+		for (auto It = InContent.SimView->EOFState.GetIteratorFromEnd(); It; --It)
+		{
+			if (It->EngineFrame == EngineFrame)
+			{
+				EOFState = &*It;
+				break;
+			}
+		}
+
+		if (EOFState)
+		{
+			FString EOFText = FString::Format(TEXT(
+			"EngineFrame {0}\n"
+			"EngineFrameDeltaTime: {1}\n"
+			"BufferSize: {2}\n"
+			"PendingTickFrame: {3}\n"
+			"LatestInputFrame: {4}\n"
+			"TotalSimTime: {5}\n"
+			"AllowedSimTime: {6}"),
+			{
+				EOFState->EngineFrame,
+				EOFState->EngineFrameDeltaTime,
+				EOFState->BufferSize,
+				EOFState->PendingTickFrame,
+				EOFState->LatestInputFrame,
+				EOFState->TotalSimTime,
+				EOFState->AllowedSimTime
+			});
+
+			/*
+			for (const FSimulationData::FSystemFault& Fault : EOFState->SystemFaults)
+			{
+				EOFText.Append(Fault.Str);
+				EOFText.Append(TEXT("\n"));
+			}
+			*/
+
+			VertBox->AddSlot()
+			.AutoHeight()
+			.VAlign(VAlign_Top)
+			.HAlign(HAlign_Left)
+			.Padding(4.0f, 4.0f, 4.0f, 4.0f)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(EOFText))
+			];
+		}
+	}
+
+	// -------------------------------------------------------------
 	//	Simulation Tick
 	// -------------------------------------------------------------
 	if (InContent.SimTick)
 	{
-		TSharedRef<FRichTextLayoutMarshaller> RichTextMarshaller = FRichTextLayoutMarshaller::Create(
-			TArray<TSharedRef<ITextDecorator>>(), &FEditorStyle::Get());
-
 		FString TickText;
 
 		const FSimulationData::FTick& SimTick = *InContent.SimTick;
-		FString ReconcileStr;
-
-		bool bHighlightAsWarning = true;
-
-		if (SimTick.bReconcileDueToOffsetChange || SimTick.ReconcileStr)
-		{
-			ReconcileStr = "Required Reconcile:\n";
-			if (SimTick.bReconcileDueToOffsetChange)
-			{
-				bHighlightAsWarning = false; // Offset change is what caused offset, not user code 
-				ReconcileStr += TEXT("  <TextBlock.ShadowedTextWarning>InputCmd Offset Changed!</>\n");
-			}
-			if (SimTick.ReconcileStr)
-			{
-				ReconcileStr += TEXT("  ");
-				ReconcileStr += SimTick.ReconcileStr;
-			}
-		}
 
 		TickText += FString::Format(TEXT(
 			"Simulation Frame {0}\n"
@@ -271,26 +266,20 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 			"Start Simulation MS: {2}\n"
 			"End Simulation MS: {3}\n"
 			"Delta Simulation MS: {4}\n"
-			"Num Buffered InputCmds: {5}\n"
-			"Input Buffer Fault: {6}\n"
-			"Repredict: {7}\n"
-			"Confirmed Engine Frame: {8}\n"
-			"Trashed Engine Frame: {9}\n"
-			"GFrameNumber: {10}\n\n"
-			"{11}\n\n"),
+			"Repredict: {5}\n"
+			"Confirmed Engine Frame: {6}\n"
+			"Trashed Engine Frame: {7}\n"
+			"GFrameNumber: {8}\n\n"),
 		{
 			SimTick.OutputFrame,
 			SimTick.LocalOffsetFrame,
 			SimTick.StartMS,
 			SimTick.EndMS,
 			(SimTick.EndMS - SimTick.StartMS),
-			SimTick.NumBufferedInputCmds,
-			SimTick.bInputFault,
 			SimTick.bRepredict,
 			SimTick.ConfirmedEngineFrame,
 			SimTick.TrashedEngineFrame,
-			SimTick.EngineFrame,
-			ReconcileStr
+			SimTick.EngineFrame
 		});
 
 		VertBox->AddSlot()
@@ -300,14 +289,8 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 		.HAlign(HAlign_Left)
 		.Padding(4.0f, 4.0f, 4.0f, 4.0f)
 		[
-			/*
 			SNew(STextBlock)
 			.Text(FText::FromString(TickText))
-			*/
-			SNew(SMultiLineEditableText)
-			.Text(FText::FromString(TickText))
-			.Marshaller(RichTextMarshaller)
-			.IsReadOnly(true)
 		];
 
 
@@ -325,18 +308,18 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 
 		const FSimulationData::FUserState* InPhysicsState = InContent.SimView->UserData.Get(ENP_UserState::Physics, InputFrame, InContent.SimTick->EngineFrame, (uint8)ENP_UserStateSource::NetRecv);
 
-		AddUserStateVSlots( { FUserStateWidgetInfo{ InputCmd, TEXT("Input Cmd"), FLinearColor::White } });
-		AddUserStateVSlots( { FUserStateWidgetInfo{ InSyncState, TEXT("In Sync"), FLinearColor::White }, FUserStateWidgetInfo{ InAuxState, TEXT("In Aux"), FLinearColor::White } }, SimTick.ReconcileStr, bHighlightAsWarning);
+		AddUserStateVSlots( { FUserStateWidgetInfo{ InputCmd, TEXT("Input Cmd"), FLinearColor::White } } );
+		AddUserStateVSlots( { FUserStateWidgetInfo{ InSyncState, TEXT("In Sync"), FLinearColor::White }, FUserStateWidgetInfo{ InAuxState, TEXT("In Aux"), FLinearColor::White } });
 
-		AddUserStateVSlots( { FUserStateWidgetInfo{ InPhysicsState, TEXT("Physics"), FLinearColor::White } }, SimTick.ReconcileStr, bHighlightAsWarning);
+		AddUserStateVSlots( { FUserStateWidgetInfo{ InPhysicsState, TEXT("Physics"), FLinearColor::White } } );
 
 		if (InAuxState != OutAuxState)
 		{
-			AddUserStateVSlots( { FUserStateWidgetInfo{ OutSyncState, TEXT("Out Sync"), FLinearColor::White }, FUserStateWidgetInfo{ OutAuxState, TEXT("Out Aux"), FLinearColor::White } });
+			AddUserStateVSlots( { FUserStateWidgetInfo{ OutSyncState, TEXT("Out Sync"), FLinearColor::White }, FUserStateWidgetInfo{ OutAuxState, TEXT("Out Aux"), FLinearColor::White } } );
 		}
 		else
 		{
-			AddUserStateVSlots( { FUserStateWidgetInfo{ OutSyncState, TEXT("Out Sync"), FLinearColor::White }, FUserStateWidgetInfo{ OutAuxState, TEXT("Out Aux (No Change)"), FLinearColor::Gray} });
+			AddUserStateVSlots( { FUserStateWidgetInfo{ OutSyncState, TEXT("Out Sync"), FLinearColor::White }, FUserStateWidgetInfo{ OutAuxState, TEXT("Out Aux (No Change)"), FLinearColor::Gray} } );
 		}
 	}
 
@@ -383,7 +366,6 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 		const FSimulationData::FUserState* RecvInputCmd = InContent.SimView->UserData.Get(ENP_UserState::Input, InContent.NetRecv->Frame, InContent.NetRecv->EngineFrame, Mask);
 		const FSimulationData::FUserState* RecvSyncState = InContent.SimView->UserData.Get(ENP_UserState::Sync, InContent.NetRecv->Frame, InContent.NetRecv->EngineFrame, Mask);
 		const FSimulationData::FUserState* RecvAuxState = InContent.SimView->UserData.Get(ENP_UserState::Aux, InContent.NetRecv->Frame, InContent.NetRecv->EngineFrame, Mask);
-		const FSimulationData::FUserState* RecvPhysicsState = InContent.SimView->UserData.Get(ENP_UserState::Physics, InContent.NetRecv->Frame, InContent.NetRecv->EngineFrame, Mask);
 
 		auto SelectColor = [](const FSimulationData::FUserState* UserState)
 		{
@@ -393,9 +375,8 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 		AddUserStateVSlots( { 
 			FUserStateWidgetInfo{ RecvInputCmd, TEXT("Recv InputCmd"), SelectColor(RecvInputCmd) },
 			FUserStateWidgetInfo{ RecvSyncState, TEXT("Recv Sync"), SelectColor(RecvSyncState) }, 
-			FUserStateWidgetInfo{ RecvAuxState, TEXT("Recv Aux"), SelectColor(RecvAuxState) },
-			FUserStateWidgetInfo{ RecvPhysicsState, TEXT("Recv Physics"), SelectColor(RecvAuxState) },
-		});
+			FUserStateWidgetInfo{ RecvAuxState, TEXT("Recv Aux"), SelectColor(RecvAuxState) } } 
+		);
 	}
 
 
@@ -426,6 +407,29 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 			.Text(FText::FromString(FaultString))
 		];
 	}
+
+	if (EOFState && EOFState->SystemFaults.Num() > 0)
+	{
+		FString FaultString = TEXT("Engine Frame Faults:\n");
+
+		for (const FSimulationData::FSystemFault& Fault : EOFState->SystemFaults)
+		{
+			FaultString.Append(Fault.Str);
+			FaultString.Append(TEXT("\n"));
+		}
+
+		SystemFaultsVBoxPtr->AddSlot()
+		.AutoHeight()
+		.VAlign(VAlign_Top)
+		.HAlign(HAlign_Left)
+		.Padding(4.0f, 4.0f, 4.0f, 4.0f)
+		[
+			SNew(SEditableText)
+			.IsReadOnly(true)
+			.Text(FText::FromString(FaultString))
+		];
+	}
+
 }
 
 

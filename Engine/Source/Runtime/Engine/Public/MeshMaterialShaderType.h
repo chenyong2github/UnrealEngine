@@ -15,8 +15,6 @@ class FShaderCommonCompileJob;
 class FShaderCompileJob;
 class FUniformExpressionSet;
 class FVertexFactoryType;
-class FMeshMaterialShader;
-enum class EShaderCompileJobPriority : uint8;
 
 /**
  * A shader meta type for material-linked shaders which use a vertex factory.
@@ -26,16 +24,16 @@ class FMeshMaterialShaderType : public FShaderType
 public:
 	struct CompiledShaderInitializerType : FMaterialShaderType::CompiledShaderInitializerType
 	{
-		const FVertexFactoryType* VertexFactoryType;
+		FVertexFactoryType* VertexFactoryType;
 		CompiledShaderInitializerType(
-			const FShaderType* InType,
+			FShaderType* InType,
 			int32 PermutationId,
 			const FShaderCompilerOutput& CompilerOutput,
 			const FUniformExpressionSet& InUniformExpressionSet,
 			const FSHAHash& InMaterialShaderMapHash,
 			const FString& InDebugDescription,
 			const FShaderPipelineType* InShaderPipeline,
-			const FVertexFactoryType* InVertexFactoryType
+			FVertexFactoryType* InVertexFactoryType
 			):
 			FMaterialShaderType::CompiledShaderInitializerType(InType,PermutationId,CompilerOutput,InUniformExpressionSet,InMaterialShaderMapHash,InShaderPipeline,InVertexFactoryType,InDebugDescription),
 			VertexFactoryType(InVertexFactoryType)
@@ -77,31 +75,29 @@ public:
 	 * @param Material - The material to link the shader with.
 	 * @param VertexFactoryType - The vertex factory to compile with.
 	 */
-	void BeginCompileShader(
-		EShaderCompileJobPriority Priority,
+	class FShaderCompileJob* BeginCompileShader(
 		uint32 ShaderMapId,
 		int32 PermutationId,
 		EShaderPlatform Platform,
-		EShaderPermutationFlags PermutationFlags,
 		const FMaterial* Material,
-		FSharedShaderCompilerEnvironment* MaterialEnvironment,
-		const FVertexFactoryType* VertexFactoryType,
-		TArray<TRefCountPtr<FShaderCommonCompileJob>>& NewJobs,
+		FShaderCompilerEnvironment* MaterialEnvironment,
+		FVertexFactoryType* VertexFactoryType,
+		const FShaderPipelineType* ShaderPipeline,
+		TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 		FString DebugDescription,
 		FString DebugExtension
-		) const;
+		);
 
 	static void BeginCompileShaderPipeline(
-		EShaderCompileJobPriority Priority,
 		uint32 ShaderMapId,
 		int32 PermutationId,
 		EShaderPlatform Platform,
-		EShaderPermutationFlags PermutationFlags,
 		const FMaterial* Material,
-		FSharedShaderCompilerEnvironment* MaterialEnvironment,
-		const FVertexFactoryType* VertexFactoryType,
+		FShaderCompilerEnvironment* MaterialEnvironment,
+		FVertexFactoryType* VertexFactoryType,
 		const FShaderPipelineType* ShaderPipeline,
-		TArray<TRefCountPtr<FShaderCommonCompileJob>>& NewJobs,
+		const TArray<FMeshMaterialShaderType*>& ShaderStages,
+		TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 		FString DebugDescription,
 		FString DebugExtension
 		);
@@ -117,7 +113,7 @@ public:
 		const FShaderCompileJob& CurrentJob,
 		const FShaderPipelineType* ShaderPipeline,
 		const FString& InDebugDescription
-		) const;
+		);
 
 	/**
 	 * Checks if the shader type should be cached for a particular platform, material, and vertex factory type.
@@ -126,17 +122,17 @@ public:
 	 * @param VertexFactoryType - The vertex factory type to check.
 	 * @return True if this shader type should be cached.
 	 */
-	bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, const FVertexFactoryType* VertexFactoryType, int32 PermutationId, EShaderPermutationFlags Flags) const;
+	bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, const FVertexFactoryType* VertexFactoryType, int32 PermutationId) const;
 
-	static bool ShouldCompileVertexFactoryPermutation(const FVertexFactoryType* VertexFactoryType, EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, EShaderPermutationFlags Flags);
+	static bool ShouldCompileVertexFactoryPermutation(const FVertexFactoryType* VertexFactoryType, EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters);
 
-	static bool ShouldCompilePipeline(const FShaderPipelineType* ShaderPipelineType, EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, const FVertexFactoryType* VertexFactoryType, EShaderPermutationFlags Flags);
+	static bool ShouldCompilePipeline(const FShaderPipelineType* ShaderPipelineType, EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, const FVertexFactoryType* VertexFactoryType);
 
+protected:
 	/**
 	 * Sets up the environment used to compile an instance of this shader type.
 	 * @param Platform - Platform to compile for.
 	 * @param Environment - The shader compile environment that the function modifies.
 	 */
-	void SetupCompileEnvironment(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, const FVertexFactoryType* VertexFactoryType, int32 PermutationId, EShaderPermutationFlags PermutationFlags, FShaderCompilerEnvironment& Environment) const;
+	void SetupCompileEnvironment(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, const FVertexFactoryType* VertexFactoryType, int32 PermutationId, FShaderCompilerEnvironment& Environment);
 };
-

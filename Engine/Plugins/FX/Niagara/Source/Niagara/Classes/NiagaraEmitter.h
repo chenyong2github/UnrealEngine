@@ -541,6 +541,8 @@ public:
 	NIAGARA_API void SetParent(UNiagaraEmitter& InParent);
 
 	NIAGARA_API	void Reparent(UNiagaraEmitter& InParent);
+
+	NIAGARA_API void NotifyScratchPadScriptsChanged();
 #endif
 
 	void OnScalabilityCVarChanged();

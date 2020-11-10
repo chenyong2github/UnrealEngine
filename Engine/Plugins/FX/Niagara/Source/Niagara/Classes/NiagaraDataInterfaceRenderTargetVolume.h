@@ -131,6 +131,6 @@ protected:
 
 	static FNiagaraVariableBase ExposedRTVar;
 	
-	UPROPERTY(Transient, DuplicateTransient)
+	UPROPERTY(Transient)
 	TMap<uint64, UTextureRenderTargetVolume*> ManagedRenderTargets;
 };

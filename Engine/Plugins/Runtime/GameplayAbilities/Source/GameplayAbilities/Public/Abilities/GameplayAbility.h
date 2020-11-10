@@ -416,20 +416,12 @@ public:
 	/** Returns current ability level for non instanced abilities. You must call this version in these contexts! */
 	int32 GetAbilityLevel(FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo) const;
 
-	/** Returns current ability level for non instanced abilities. You must call this version in these contexts! */
-	UFUNCTION(BlueprintCallable, Category = Ability, meta = (DisplayName = "GetAbilityLevelNonInstanced", ReturnDisplayName = "AbilityLevel"))
-	int32 GetAbilityLevel_BP(FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo& ActorInfo) const;
-
 	/** Retrieves the SourceObject associated with this ability. Can only be called on instanced abilities. */
 	UFUNCTION(BlueprintCallable, Category = Ability)
 	UObject* GetCurrentSourceObject() const;
 
 	/** Retrieves the SourceObject associated with this ability. Callable on non instanced */
 	UObject* GetSourceObject(FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo) const;
-
-	/** Retrieves the SourceObject associated with this ability. Callable on non instanced */
-	UFUNCTION(BlueprintCallable, Category = Ability, meta = (DisplayName = "GetSourceObjectNonInstanced", ReturnDisplayName = "SourceObject"))
-	UObject* GetSourceObject_BP(FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo& ActorInfo) const;
 
 	// --------------------------------------
 	//	Interaction with ability system component
@@ -532,7 +524,7 @@ protected:
 	
 	/** Returns true if this ability can be activated right now. Has no side effects */
 	UFUNCTION(BlueprintImplementableEvent, Category = Ability, DisplayName="CanActivateAbility", meta=(ScriptName="CanActivateAbility"))
-	bool K2_CanActivateAbility(FGameplayAbilityActorInfo ActorInfo, const FGameplayAbilitySpecHandle Handle, FGameplayTagContainer& RelevantTags) const;
+	bool K2_CanActivateAbility(FGameplayAbilityActorInfo ActorInfo, FGameplayTagContainer& RelevantTags) const;
 
 	bool bHasBlueprintCanUse;
 
@@ -564,7 +556,7 @@ protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData);
 
 	/** Do boilerplate init stuff and then call ActivateAbility */
-	virtual void PreActivate(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, FOnGameplayAbilityEnded::FDelegate* OnGameplayAbilityEndedDelegate, const FGameplayEventData* TriggerEventData = nullptr);
+	virtual void PreActivate(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, FOnGameplayAbilityEnded::FDelegate* OnGameplayAbilityEndedDelegate);
 
 	/** Executes PreActivate and ActivateAbility */
 	void CallActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, FOnGameplayAbilityEnded::FDelegate* OnGameplayAbilityEndedDelegate = nullptr, const FGameplayEventData* TriggerEventData = nullptr);
@@ -855,10 +847,6 @@ protected:
 	/** True if the ability is currently active. For instance per owner abilities */
 	UPROPERTY()
 	bool bIsActive;
-	
-	/** True if the end ability has been called, but has not yet completed. */
-	UPROPERTY()
-	bool bIsAbilityEnding = false;
 
 	/** True if the ability is currently cancelable, if not will only be canceled by hard EndAbility calls */
 	UPROPERTY()

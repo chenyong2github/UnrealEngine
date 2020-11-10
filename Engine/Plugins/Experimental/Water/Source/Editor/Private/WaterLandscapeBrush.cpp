@@ -47,7 +47,7 @@ void AWaterLandscapeBrush::AddActorInternal(AActor* Actor, const UWorld* ThisWor
 		}
 
 		IWaterBrushActorInterface* WaterBrushActor = CastChecked<IWaterBrushActorInterface>(Actor);
-		ActorsAffectingLandscape.Add(TWeakInterfacePtr<IWaterBrushActorInterface>(WaterBrushActor));
+		ActorsAffectingLandscape.Add(TWeakInterfacePtr<IWaterBrushActorInterface>(*WaterBrushActor));
 
 		if (InCache)
 		{
@@ -68,7 +68,7 @@ void AWaterLandscapeBrush::RemoveActorInternal(AActor* Actor)
 
 	const bool bMarkPackageDirty = false;
 	Modify(bMarkPackageDirty);
-	int32 Index = ActorsAffectingLandscape.IndexOfByKey(TWeakInterfacePtr<IWaterBrushActorInterface>(WaterBrushActor));
+	int32 Index = ActorsAffectingLandscape.IndexOfByKey(TWeakInterfacePtr<IWaterBrushActorInterface>(*WaterBrushActor));
 	if (Index != INDEX_NONE)
 	{
 		ActorsAffectingLandscape.RemoveAt(Index);
@@ -161,7 +161,7 @@ void AWaterLandscapeBrush::OnActorChanged(AActor* Actor, bool bWeightmapSettings
 {
 	bool bAffectsLandscape = IsActorAffectingLandscape(Actor);
 	IWaterBrushActorInterface* WaterBrushActor = CastChecked<IWaterBrushActorInterface>(Actor);
-	int32 ActorIndex = ActorsAffectingLandscape.IndexOfByKey(TWeakInterfacePtr<IWaterBrushActorInterface>(WaterBrushActor));
+	int32 ActorIndex = ActorsAffectingLandscape.IndexOfByKey(TWeakInterfacePtr<IWaterBrushActorInterface>(*WaterBrushActor));
 	// if the actor went from affecting landscape to non-affecting landscape (and vice versa), update the brush
 	bool bForceUpdateBrush = false;
 	if (bAffectsLandscape != (ActorIndex != INDEX_NONE))

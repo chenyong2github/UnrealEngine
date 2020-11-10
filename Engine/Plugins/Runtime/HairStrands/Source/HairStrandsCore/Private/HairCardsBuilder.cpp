@@ -3947,20 +3947,20 @@ void ExportGeometry(const FHairCardsDatas& InCardsData, UStaticMesh* OutStaticMe
 
 	FMeshDescription* MeshDesc = OutStaticMesh->CreateMeshDescription(0);
 	*MeshDesc = MeshDescription;
-	if (OutStaticMesh->GetBodySetup() == nullptr)
+	if (OutStaticMesh->BodySetup == nullptr)
 	{
 		OutStaticMesh->CreateBodySetup();
 	}
-	if (OutStaticMesh->GetBodySetup() != nullptr)
+	if (OutStaticMesh->BodySetup != nullptr)
 	{
 		// enable complex as simple collision to use mesh directly
-		OutStaticMesh->GetBodySetup()->CollisionTraceFlag = ECollisionTraceFlag::CTF_UseComplexAsSimple;
+		OutStaticMesh->BodySetup->CollisionTraceFlag = ECollisionTraceFlag::CTF_UseComplexAsSimple;
 	}
 
 	// add a material slot. Must always have one material slot.
-	if (OutStaticMesh->GetStaticMaterials().Num() == 0)
+	if (OutStaticMesh->StaticMaterials.Num() == 0)
 	{
-		OutStaticMesh->GetStaticMaterials().Add(FStaticMaterial());
+		OutStaticMesh->StaticMaterials.Add(FStaticMaterial());
 	}
 
 	// assuming we have updated the LOD 0 MeshDescription, tell UStaticMesh about this

@@ -26,7 +26,6 @@
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/FileRegions.h"
 #include "Misc/ICompressionFormat.h"
-#include "Misc/KeyChainUtilities.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, PakFileUtilities);
 
@@ -62,6 +61,26 @@ volatile int64 GDDCSyncWriteTime = 0;
 int64 GDDCHits = 0;
 int64 GDDCMisses = 0;
 #endif
+
+struct FNamedAESKey
+{
+	FString Name;
+	FGuid Guid;
+	FAES::FAESKey Key;
+
+	bool IsValid() const
+	{
+		return Key.IsValid();
+	}
+};
+
+struct FKeyChain
+{
+	FRSAKeyHandle SigningKey = InvalidRSAKeyHandle;
+	TMap<FGuid, FNamedAESKey> EncryptionKeys;
+	const FNamedAESKey* MasterEncryptionKey = nullptr;
+};
+
 
 class FThreadLocalScratchSpace
 {
@@ -627,6 +646,9 @@ struct FCompressedFileBuffer
 	TUniquePtr<uint8[]>		CompressedBuffer;
 };
 
+void LoadKeyChainFromFile(const FString& InFilename, FKeyChain& OutCryptoSettings);
+void ApplyEncryptionKeys(const FKeyChain& KeyChain);
+
 template <class T>
 bool ReadSizeParam(const TCHAR* CmdLine, const TCHAR* ParamStr, T& SizeOut)
 {
@@ -1152,8 +1174,8 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 			FKeyChain ExtractedPakKeys;
 			if ( FParse::Value(CmdLine, TEXT("extractedpakcryptokeys="), ExtractedPakKeysFile) )
 			{
-				KeyChainUtilities::LoadKeyChainFromFile(ExtractedPakKeysFile, ExtractedPakKeys);
-				KeyChainUtilities::ApplyEncryptionKeys(ExtractedPakKeys);
+				LoadKeyChainFromFile(ExtractedPakKeysFile, ExtractedPakKeys);
+				ApplyEncryptionKeys(ExtractedPakKeys);
 			}
 
 			TMap<FString, FFileInfo> FileHashes;
@@ -1510,6 +1532,93 @@ TEncryptionInt ParseEncryptionIntFromJson(TSharedPtr<FJsonObject> InObj, const T
 	}
 }
 
+FRSAKeyHandle ParseRSAKeyFromJson(TSharedPtr<FJsonObject> InObj)
+{
+	TSharedPtr<FJsonObject> PublicKey = InObj->GetObjectField(TEXT("PublicKey"));
+	TSharedPtr<FJsonObject> PrivateKey = InObj->GetObjectField(TEXT("PrivateKey"));
+
+	FString PublicExponentBase64, PrivateExponentBase64, PublicModulusBase64, PrivateModulusBase64;
+
+	if (   PublicKey->TryGetStringField("Exponent", PublicExponentBase64)
+		&& PublicKey->TryGetStringField("Modulus", PublicModulusBase64)
+		&& PrivateKey->TryGetStringField("Exponent", PrivateExponentBase64)
+		&& PrivateKey->TryGetStringField("Modulus", PrivateModulusBase64))
+	{
+		check(PublicModulusBase64 == PrivateModulusBase64);
+
+		TArray<uint8> PublicExponent, PrivateExponent, Modulus;
+		FBase64::Decode(PublicExponentBase64, PublicExponent);
+		FBase64::Decode(PrivateExponentBase64, PrivateExponent);
+		FBase64::Decode(PublicModulusBase64, Modulus);
+
+		return FRSA::CreateKey(PublicExponent, PrivateExponent, Modulus);
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+void LoadKeyChainFromFile(const FString& InFilename, FKeyChain& OutCryptoSettings)
+{
+	FArchive* File = IFileManager::Get().CreateFileReader(*InFilename);
+	UE_CLOG(File == nullptr, LogPakFile, Fatal, TEXT("Specified crypto keys cache '%s' does not exist!"), *InFilename);
+	TSharedPtr<FJsonObject> RootObject;
+	TSharedRef<TJsonReader<char>> Reader = TJsonReaderFactory<char>::Create(File);
+	if (FJsonSerializer::Deserialize(Reader, RootObject))
+	{
+		const TSharedPtr<FJsonObject>* EncryptionKeyObject;
+		if (RootObject->TryGetObjectField(TEXT("EncryptionKey"), EncryptionKeyObject))
+		{
+			FString EncryptionKeyBase64;
+			if ((*EncryptionKeyObject)->TryGetStringField(TEXT("Key"), EncryptionKeyBase64))
+			{
+				if (EncryptionKeyBase64.Len() > 0)
+				{
+					TArray<uint8> Key;
+					FBase64::Decode(EncryptionKeyBase64, Key);
+					check(Key.Num() == sizeof(FAES::FAESKey::Key));
+					FNamedAESKey NewKey;
+					NewKey.Name = TEXT("Default");
+					NewKey.Guid = FGuid();
+					FMemory::Memcpy(NewKey.Key.Key, &Key[0], sizeof(FAES::FAESKey::Key));
+					OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
+				}
+			}
+		}
+
+		const TSharedPtr<FJsonObject>* SigningKey = nullptr;
+		if (RootObject->TryGetObjectField(TEXT("SigningKey"), SigningKey))
+		{
+			OutCryptoSettings.SigningKey = ParseRSAKeyFromJson(*SigningKey);
+		}
+
+		const TArray<TSharedPtr<FJsonValue>>* SecondaryEncryptionKeyArray = nullptr;
+		if (RootObject->TryGetArrayField(TEXT("SecondaryEncryptionKeys"), SecondaryEncryptionKeyArray))
+		{
+			for (TSharedPtr<FJsonValue> EncryptionKeyValue : *SecondaryEncryptionKeyArray)
+			{
+				FNamedAESKey NewKey;
+				TSharedPtr<FJsonObject> SecondaryEncryptionKeyObject = EncryptionKeyValue->AsObject();
+				FGuid::Parse(SecondaryEncryptionKeyObject->GetStringField(TEXT("Guid")), NewKey.Guid);
+				NewKey.Name = SecondaryEncryptionKeyObject->GetStringField(TEXT("Name"));
+				FString KeyBase64 = SecondaryEncryptionKeyObject->GetStringField(TEXT("Key"));
+
+				TArray<uint8> Key;
+				FBase64::Decode(KeyBase64, Key);
+				check(Key.Num() == sizeof(FAES::FAESKey::Key));
+				FMemory::Memcpy(NewKey.Key.Key, &Key[0], sizeof(FAES::FAESKey::Key));
+
+				check(!OutCryptoSettings.EncryptionKeys.Contains(NewKey.Guid) || OutCryptoSettings.EncryptionKeys[NewKey.Guid].Key == NewKey.Key);
+				OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
+			}
+		}
+	}
+	delete File;
+	FGuid EncryptionKeyOverrideGuid;
+	OutCryptoSettings.MasterEncryptionKey = OutCryptoSettings.EncryptionKeys.Find(EncryptionKeyOverrideGuid);
+}
+
 void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 {
 	OutCryptoSettings.SigningKey = InvalidRSAKeyHandle;
@@ -1520,7 +1629,7 @@ void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 	if (FParse::Value(CmdLine, TEXT("cryptokeys="), CryptoKeysCacheFilename))
 	{
 		UE_LOG(LogPakFile, Display, TEXT("Parsing crypto keys from a crypto key cache file"));
-		KeyChainUtilities::LoadKeyChainFromFile(CryptoKeysCacheFilename, OutCryptoSettings);
+		LoadKeyChainFromFile(CryptoKeysCacheFilename, OutCryptoSettings);
 	}
 	else if (FParse::Param(CmdLine, TEXT("encryptionini")))
 	{
@@ -1693,6 +1802,29 @@ void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 		FGuid::Parse(EncryptionKeyOverrideGuidString, EncryptionKeyOverrideGuid);
 	}
 	OutCryptoSettings.MasterEncryptionKey = OutCryptoSettings.EncryptionKeys.Find(EncryptionKeyOverrideGuid);
+}
+
+void ApplyEncryptionKeys(const FKeyChain& KeyChain)
+{
+	if (KeyChain.EncryptionKeys.Contains(FGuid()))
+	{
+		FAES::FAESKey DefaultKey = KeyChain.EncryptionKeys[FGuid()].Key;
+		FCoreDelegates::GetPakEncryptionKeyDelegate().BindLambda([DefaultKey](uint8 OutKey[32]) { FMemory::Memcpy(OutKey, DefaultKey.Key, sizeof(DefaultKey.Key)); });
+	}
+
+	for (const TMap<FGuid, FNamedAESKey>::ElementType& Key : KeyChain.EncryptionKeys)
+	{
+		if (Key.Key.IsValid())
+		{
+			// Deprecated version
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			FCoreDelegates::GetRegisterEncryptionKeyDelegate().ExecuteIfBound(Key.Key, Key.Value.Key);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+			// New version
+			FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().Broadcast(Key.Key, Key.Value.Key);
+		}
+	}
 }
 
 /**
@@ -2584,13 +2716,6 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 	if (TotalEncryptedFiles < TotalRequestedEncryptedFiles)
 	{
 		UE_LOG(LogPakFile, Display, TEXT("%d files requested encryption, but no AES key was supplied! Encryption was skipped for these files"), TotalRequestedEncryptedFiles);
-	}
-
-	if (CmdLineParameters.bSign)
-	{
-		TArray<uint8> SignatureData;
-		SignatureData.Append(Info.IndexHash.Hash, UE_ARRAY_COUNT(FSHAHash::Hash));
-		((FSignedArchiveWriter*)PakFileHandle.Get())->SetSignatureData(SignatureData);
 	}
 
 	PakFileHandle->Close();
@@ -4741,7 +4866,7 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 
 	FKeyChain KeyChain;
 	LoadKeyChain(CmdLine, KeyChain);
-	KeyChainUtilities::ApplyEncryptionKeys(KeyChain);
+	ApplyEncryptionKeys(KeyChain);
 
 	bool IsTestCommand = FParse::Param(CmdLine, TEXT("Test"));
 	bool IsVerifyCommand = FParse::Param(CmdLine, TEXT("Verify"));
@@ -5127,8 +5252,8 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 
 			if (FParse::Value(FCommandLine::Get(), TEXT("PatchCryptoKeys="), PatchReferenceCryptoKeysFilename))
 			{
-				KeyChainUtilities::LoadKeyChainFromFile(PatchReferenceCryptoKeysFilename, PatchKeyChain);
-				KeyChainUtilities::ApplyEncryptionKeys(PatchKeyChain);
+				LoadKeyChainFromFile(PatchReferenceCryptoKeysFilename, PatchKeyChain);
+				ApplyEncryptionKeys(PatchKeyChain);
 			}
 			else
 			{
@@ -5151,7 +5276,7 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 				}
 			}
 
-			KeyChainUtilities::ApplyEncryptionKeys(KeyChain);
+			ApplyEncryptionKeys(KeyChain);
 
 
 			if (UsedEncryptionKeys.Num() == 1)

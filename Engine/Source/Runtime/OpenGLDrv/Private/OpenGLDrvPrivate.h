@@ -84,8 +84,6 @@ DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Uniform buffer pool num free"),STAT_
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Time for first draw of shader programs"), STAT_OpenGLShaderFirstDrawTime,STATGROUP_OpenGLRHI, );
 DECLARE_MEMORY_STAT_EXTERN(TEXT("Program binary memory"), STAT_OpenGLProgramBinaryMemory, STATGROUP_OpenGLRHI, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("GL Program count"), STAT_OpenGLProgramCount, STATGROUP_OpenGLRHI, );
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Program get from cache time"),STAT_OpenGLUseCachedProgramTime,STATGROUP_OpenGLRHI, );
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Program create from binary time"),STAT_OpenGLCreateProgramFromBinaryTime,STATGROUP_OpenGLRHI, );
 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Program LRU cache eviction time"), STAT_OpenGLShaderLRUEvictTime, STATGROUP_OpenGLRHI, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Program LRU cache miss time"), STAT_OpenGLShaderLRUMissTime, STATGROUP_OpenGLRHI, );

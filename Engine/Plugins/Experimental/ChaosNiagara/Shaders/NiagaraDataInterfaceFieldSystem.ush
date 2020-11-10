@@ -1,0 +1,920 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+NiagaraDataInterfaceFieldSystem.ush 
+=============================================================================*/
+
+#pragma once
+
+/* -----------------------------------------------------------------
+ * Field System constants and context
+ * -----------------------------------------------------------------
+ */
+
+ #define USE_BAKED_FIELD 1
+
+struct FDIFieldSystemContext
+{
+	Buffer<float>		FieldNodesParamsBuffer;
+	Buffer<int>			FieldNodesOffsetsBuffer;
+	Buffer<int>			FieldCommandsNodesBuffer;
+	Texture3D<float4>	VectorFieldTexture;
+	SamplerState		VectorFieldSampler;
+	Texture3D<float>	ScalarFieldTexture;
+	SamplerState		ScalarFieldSampler;
+	Texture3D<int>		IntegerFieldTexture;
+	SamplerState		IntegerFieldSampler;
+	int3				FieldDimensions;
+	float3				MinBounds;
+	float3				MaxBounds;
+}; 
+
+#define DIFieldSystem_DECLARE_CONSTANTS(NAME)\
+Buffer<float>		FieldNodesParamsBuffer_##NAME;\
+Buffer<int>			FieldNodesOffsetsBuffer_##NAME;\
+Buffer<int>			FieldCommandsNodesBuffer_##NAME;\
+Texture3D<float4>	VectorFieldTexture_##NAME;\
+SamplerState		VectorFieldSampler_##NAME;\
+Texture3D<float>	ScalarFieldTexture_##NAME;\
+SamplerState		ScalarFieldSampler_##NAME;\
+Texture3D<int>		IntegerFieldTexture_##NAME;\
+SamplerState		IntegerFieldSampler_##NAME;\
+int3				FieldDimensions_##NAME;\
+float3				MinBounds_##NAME;\
+float3				MaxBounds_##NAME;\
+
+#define DIFieldSystem_MAKE_CONTEXT(NAME)\
+FDIFieldSystemContext DIContext; \
+DIContext.FieldNodesParamsBuffer = FieldNodesParamsBuffer_##NAME;\
+DIContext.FieldNodesOffsetsBuffer = FieldNodesOffsetsBuffer_##NAME;\
+DIContext.FieldCommandsNodesBuffer = FieldCommandsNodesBuffer_##NAME;\
+DIContext.VectorFieldTexture = VectorFieldTexture_##NAME;\
+DIContext.VectorFieldSampler = VectorFieldSampler_##NAME;\
+DIContext.ScalarFieldTexture = ScalarFieldTexture_##NAME;\
+DIContext.ScalarFieldSampler = ScalarFieldSampler_##NAME;\
+DIContext.IntegerFieldTexture = IntegerFieldTexture_##NAME;\
+DIContext.IntegerFieldSampler = IntegerFieldSampler_##NAME;\
+DIContext.FieldDimensions = FieldDimensions_##NAME;\
+DIContext.MinBounds = MinBounds_##NAME;\
+DIContext.MaxBounds = MaxBounds_##NAME;\
+
+/* -----------------------------------------------------------------
+ * Field System defines
+ * -----------------------------------------------------------------
+ */
+
+#define MAX_DATAS 64
+
+#define NUM_VECTOR_TYPES 4
+#define NUM_SCALAR_TYPES 0
+#define NUM_INTEGER_TYPES 0
+
+#define NONE_TYPE 0
+#define RESULTS_TYPE 1
+#define INTEGER_TYPE 2
+#define SCALAR_TYPE 3
+#define VECTOR_TYPE 4
+
+#define NONE_STATE 0
+#define DYNAMIC_STATE 1
+#define	LINEAR_FORCE 2
+#define	EXTERNAL_CLUSTER_STRAIN	3
+#define	FIELD_KILL 4
+#define	LINEAR_VELOCITY 5
+#define	ANGULAR_VELOCITY 6
+#define	ANGULAR_TORQUE 7
+#define	INTERNAL_CLUSTER_STRAIN 8
+#define	DISABLE_THRESHOLD 9
+#define	SLEEPING_THRESHOLD 10
+#define	POSITION_STATIC 11
+#define	POSITION_ANIMATED 12
+#define	POSITION_TARGET 13
+#define	DYNAMIC_CONSTRAINT 14
+#define	COLLISION_GROUP 15
+#define	ACTIVATE_DISABLED 16
+
+#define VECTOR_LINEARFORCE 0
+#define VECTOR_LINEARVELOCITY 1
+#define VECTOR_ANGULARVELOCITY 2
+#define VECTOR_ANGULARTORQUE 3
+#define VECTOR_POSITIONTARGET 4 
+
+#define SCALAR_EXTERNALCLUSTERSTRAIN 0
+#define SCALAR_FIELDKILL 1
+#define SCALAR_SLEEPINGTHRESHOLD 2
+#define SCALAR_DISABLETHRESHOLD 3
+#define SCALAR_INTERNALCLUSTERSTRAIN 4
+#define SCALAR_DYNAMICCONSTRAINT 5
+
+#define INTEGER_DYNAMICSTATE 0
+#define INTEGER_ACTIVATEDISABLED 1
+#define INTEGER_COLLISIONGROUP 2
+#define INTEGER_POSITIONANIMATED 3
+#define INTEGER_POSITIONSTATIC 4
+
+#define NONE_FIELD 0
+#define UNIFORM_INTEGER 1
+#define RADIAL_MASK_INTEGER 2
+#define UNIFORM_SCALAR 3
+#define RADIAL_FALLOFF_SCALAR 4
+#define PLANE_FALLOFF_SCALAR 5
+#define BOX_FALLOFF_SCALAR 6
+#define NOISE_SCALAR 7
+#define UNIFORM_VECTOR 8
+#define RADIAL_VECTOR 9
+#define RANDOM_VECTOR 10
+#define SUM_SCALAR 11
+#define SUM_VECTOR 12
+#define CONVERSION_FIELD 13
+#define CULLING_FIELD 14
+
+#define SET_ALWAYS 0
+#define SET_IFF_NOT_INTERIOR 1
+#define SET_IFF_NOT_EXTERIOR 2
+
+#define FALLOFF_NONE 0 
+#define FALLOFF_LINEAR 1
+#define FALLOFF_INVERSE 2
+#define FALLOFF_SQUARED 3
+#define FALLOFF_LOGARITHMIC 4
+
+#define MULTIPLY_OP 0
+#define DIVIDE_OP 1
+#define ADD_OP 2
+#define SUBTRACT_OP 3
+
+#define CULLING_INSIDE 0
+#define CULLING_OUTSIDE 1
+
+/* -----------------------------------------------------------------
+ * Quat utils
+ * -----------------------------------------------------------------
+ */
+
+float3 FieldRotateVectorByQuat(in float3 Vector, in float4 Quat)
+{
+	float3 T = 2.0 * cross(Quat.xyz,Vector);
+	return Vector + Quat.w * T + cross(Quat.xyz,T);
+}
+
+float3 FieldUnRotateVectorByQuat(in float3 Vector, in float4 Quat)
+{
+	float3 T = 2.0 * cross(Quat.xyz,Vector);
+	return Vector - Quat.w * T + cross(Quat.xyz,T);
+}
+
+/* -----------------------------------------------------------------
+ * Uniform Integer Field
+ * -----------------------------------------------------------------
+ */
+
+#define UNIFORM_INTEGER_MAGNITUDE 0
+
+void DIFieldSystem_EvaluateUniformInteger(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+						inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	ContextDatas[DatasIndex++] = DIContext.FieldNodesParamsBuffer[NodeOffset+UNIFORM_INTEGER_MAGNITUDE];
+}
+
+/* -----------------------------------------------------------------
+ * Radial Int Mask Field
+ * -----------------------------------------------------------------
+ */
+
+#define RADIAL_MASK_INTEGER_RADIUS 0
+#define RADIAL_MASK_INTEGER_POSITIONX 1
+#define RADIAL_MASK_INTEGER_POSITIONY 2
+#define RADIAL_MASK_INTEGER_POSITIONZ 3
+#define RADIAL_MASK_INTEGER_INTERIOR_VALUE 4
+#define RADIAL_MASK_INTEGER_EXTERIOR_VALUE 5
+#define RADIAL_MASK_INTEGER_SET_MASK_CONDITION 6
+
+void DIFieldSystem_EvaluateRadialMaskInteger(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+					inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	const float3  DeltaPosition = float3(DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_MASK_INTEGER_POSITIONX],
+										 DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_MASK_INTEGER_POSITIONY],
+										 DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_MASK_INTEGER_POSITIONZ]) - SamplePosition;
+	const float DistanceSquared = dot(DeltaPosition,DeltaPosition);
+	const int DeltaResult = (DistanceSquared < DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_MASK_INTEGER_RADIUS]*
+											 DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_MASK_INTEGER_RADIUS]) ? 
+											 DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_MASK_INTEGER_INTERIOR_VALUE] : 
+											 DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_MASK_INTEGER_EXTERIOR_VALUE];
+	const int MaskCondition = DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_MASK_INTEGER_SET_MASK_CONDITION];
+	
+	ContextDatas[DatasIndex++] =  (MaskCondition == SET_ALWAYS) ? DeltaResult :
+					 (MaskCondition == SET_IFF_NOT_INTERIOR && DeltaResult != DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_MASK_INTEGER_INTERIOR_VALUE]) ? DeltaResult :
+					 (MaskCondition == SET_IFF_NOT_EXTERIOR && DeltaResult != DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_MASK_INTEGER_EXTERIOR_VALUE]) ? DeltaResult : 0;
+}
+
+/* -----------------------------------------------------------------
+ * Uniform Scalar Field
+ * -----------------------------------------------------------------
+ */
+
+#define UNIFORM_SCALAR_MAGNITUDE 0
+
+void DIFieldSystem_EvaluateUniformScalar(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+					inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	ContextDatas[DatasIndex++] = DIContext.FieldNodesParamsBuffer[NodeOffset+UNIFORM_SCALAR_MAGNITUDE];
+}
+
+/* -----------------------------------------------------------------
+ * Common Falloff functions
+ * -----------------------------------------------------------------
+ */
+
+void SetFalloffValue( in int FieldFalloff, in float FieldMagnitude, in float DeltaDistance, out float OutNodeResult)
+{
+	if(FieldFalloff == FALLOFF_NONE)
+	{
+		OutNodeResult = FieldMagnitude;
+	}
+	else if(FieldFalloff == FALLOFF_LINEAR)
+	{
+		OutNodeResult = FieldMagnitude * DeltaDistance;
+	}
+	else if(FieldFalloff == FALLOFF_SQUARED)
+	{
+		OutNodeResult = FieldMagnitude * DeltaDistance * DeltaDistance;
+	}
+	else if(FieldFalloff == FALLOFF_INVERSE && DeltaDistance > 1e-6)
+	{
+		OutNodeResult = FieldMagnitude / DeltaDistance;
+	}
+	else if(FieldFalloff == FALLOFF_LOGARITHMIC)
+	{
+		OutNodeResult = FieldMagnitude * log(DeltaDistance+1.0) / log(10.0);
+	}
+	else 
+	{
+		OutNodeResult = 0.0;
+	}
+}
+
+/* -----------------------------------------------------------------
+ * Radial Falloff Field
+ * -----------------------------------------------------------------
+ */
+
+ #define RADIAL_FALLOFF_MAGNITUDE 0
+ #define RADIAL_FALLOFF_MIN_RANGE 1
+ #define RADIAL_FALLOFF_MAX_RANGE 2
+ #define RADIAL_FALLOFF_DEFAULT 3
+ #define RADIAL_FALLOFF_RADIUS 4
+ #define RADIAL_FALLOFF_POSITIONX 5
+ #define RADIAL_FALLOFF_POSITIONY 6
+ #define RADIAL_FALLOFF_POSITIONZ 7
+ #define RADIAL_FALLOFF_FALLOFF 8
+
+void DIFieldSystem_EvaluateRadialFalloffScalar(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+							inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	float ScalarDatas = DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_FALLOFF_DEFAULT];
+
+	const float3 DeltaPosition = float3(DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_FALLOFF_POSITIONX],
+									    DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_FALLOFF_POSITIONY],
+										DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_FALLOFF_POSITIONZ]) - SamplePosition;
+	const float LocalDistance = length(DeltaPosition);
+	const float FieldRadius = DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_FALLOFF_RADIUS];
+	
+	if(FieldRadius > 0.0 && LocalDistance < FieldRadius)
+	{
+		const float DeltaDistance = 1.0 - LocalDistance / FieldRadius; 
+
+		SetFalloffValue(DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_FALLOFF_FALLOFF], 
+						DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_FALLOFF_MAGNITUDE], 
+						DeltaDistance, ScalarDatas );
+	}
+	ContextDatas[DatasIndex++] = ScalarDatas;
+}
+
+/* -----------------------------------------------------------------
+ * Plane Falloff Field
+ * -----------------------------------------------------------------
+ */
+
+ #define PLANE_FALLOFF_MAGNITUDE 0
+ #define PLANE_FALLOFF_MIN_RANGE 1
+ #define PLANE_FALLOFF_MAX_RANGE 2
+ #define PLANE_FALLOFF_DEFAULT 3
+ #define PLANE_FALLOFF_DISTANCE 4
+ #define PLANE_FALLOFF_POSITIONX 5
+ #define PLANE_FALLOFF_POSITIONY 6
+ #define PLANE_FALLOFF_POSITIONZ 7
+ #define PLANE_FALLOFF_NORMALX 8
+ #define PLANE_FALLOFF_NORMALY 9
+ #define PLANE_FALLOFF_NORMALZ 10
+ #define PLANE_FALLOFF_FALLOFF 11
+
+void DIFieldSystem_EvaluatePlaneFalloffScalar(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+					inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	float ScalarDatas = DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_FALLOFF_DEFAULT];
+
+	const float3 PlaneBase = float3(DIContext.FieldNodesParamsBuffer[NodeOffset+PLANE_FALLOFF_POSITIONX],
+								    DIContext.FieldNodesParamsBuffer[NodeOffset+PLANE_FALLOFF_POSITIONY],
+								    DIContext.FieldNodesParamsBuffer[NodeOffset+PLANE_FALLOFF_POSITIONZ]);
+
+	const float3 PlaneNormal = float3(DIContext.FieldNodesParamsBuffer[NodeOffset+PLANE_FALLOFF_NORMALX],
+							          DIContext.FieldNodesParamsBuffer[NodeOffset+PLANE_FALLOFF_NORMALY],
+								      DIContext.FieldNodesParamsBuffer[NodeOffset+PLANE_FALLOFF_NORMALZ]);
+
+	const float PlaneOffset = dot(PlaneBase,PlaneNormal);
+
+	const float LocalDistance = dot(PlaneNormal,SamplePosition)-PlaneOffset;
+	const float PlaneDistance = DIContext.FieldNodesParamsBuffer[NodeOffset+PLANE_FALLOFF_DISTANCE];
+
+	if(PlaneDistance > 0.0 && LocalDistance > -PlaneDistance && LocalDistance < 0.0)
+	{
+		const float DeltaDistance = 1.0 + LocalDistance / PlaneDistance;
+		
+		SetFalloffValue(DIContext.FieldNodesParamsBuffer[NodeOffset+PLANE_FALLOFF_FALLOFF], 
+						DIContext.FieldNodesParamsBuffer[NodeOffset+PLANE_FALLOFF_MAGNITUDE], DeltaDistance, 
+						ScalarDatas );
+	}
+	ContextDatas[DatasIndex++] = ScalarDatas;
+}
+
+/* -----------------------------------------------------------------
+ * Box Falloff Field
+ * -----------------------------------------------------------------
+ */
+
+ #define BOX_FALLOFF_MAGNITUDE 0
+ #define BOX_FALLOFF_MIN_RANGE 1
+ #define BOX_FALLOFF_MAX_RANGE 2
+ #define BOX_FALLOFF_DEFAULT 3
+ #define BOX_FALLOFF_ROTATIONX 4
+ #define BOX_FALLOFF_ROTATIONY 5
+ #define BOX_FALLOFF_ROTATIONZ 6
+ #define BOX_FALLOFF_ROTATIONW 7
+ #define BOX_FALLOFF_TRANSLATIONX 8
+ #define BOX_FALLOFF_TRANSLATIONY 9
+ #define BOX_FALLOFF_TRANSLATIONZ 10
+ #define BOX_FALLOFF_SCALEX 11
+ #define BOX_FALLOFF_SCALEY 12
+ #define BOX_FALLOFF_SCALEZ 13
+ #define BOX_FALLOFF_FALLOFF 14
+ 
+void DIFieldSystem_EvaluateBoxFalloffScalar(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset,
+					inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	float ScalarDatas = DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_FALLOFF_DEFAULT];
+
+	const float4 BoxRotation = float4(DIContext.FieldNodesParamsBuffer[NodeOffset+BOX_FALLOFF_ROTATIONX],
+								      DIContext.FieldNodesParamsBuffer[NodeOffset+BOX_FALLOFF_ROTATIONY],
+								      DIContext.FieldNodesParamsBuffer[NodeOffset+BOX_FALLOFF_ROTATIONZ],
+									  DIContext.FieldNodesParamsBuffer[NodeOffset+BOX_FALLOFF_ROTATIONW]);
+
+	const float3 BoxTranslation = float3(DIContext.FieldNodesParamsBuffer[NodeOffset+BOX_FALLOFF_TRANSLATIONX],
+							             DIContext.FieldNodesParamsBuffer[NodeOffset+BOX_FALLOFF_TRANSLATIONY],
+								         DIContext.FieldNodesParamsBuffer[NodeOffset+BOX_FALLOFF_TRANSLATIONZ]);
+
+	const float3 BoxScale = float3(DIContext.FieldNodesParamsBuffer[NodeOffset+BOX_FALLOFF_SCALEX],
+							       DIContext.FieldNodesParamsBuffer[NodeOffset+BOX_FALLOFF_SCALEY],
+								   DIContext.FieldNodesParamsBuffer[NodeOffset+BOX_FALLOFF_SCALEZ]);
+
+	const float3 InverseScale = float3( BoxScale.x != 0.0 ? 1.0 / BoxScale.x : 0.0,
+										BoxScale.y != 0.0 ? 1.0 / BoxScale.y : 0.0,
+										BoxScale.z != 0.0 ? 1.0 / BoxScale.z : 0.0);
+
+	const float3 LocalPosition = FieldUnRotateVectorByQuat(SamplePosition-BoxTranslation,BoxRotation) * InverseScale;
+
+	const float3 DeltaPosition = abs(LocalPosition) - float3(1.0,1.0,1.0);
+	const int ClosestAxis = ((DeltaPosition.x > DeltaPosition.y) && (DeltaPosition.x > DeltaPosition.z)) ? 0 : ( DeltaPosition.y > DeltaPosition.z) ? 1 : 2;
+	const float OutsideDistance = length(max(DeltaPosition,0.0));
+
+	const float LocalDistance = OutsideDistance + min(DeltaPosition[ClosestAxis],0.0);
+
+	if(LocalDistance < 0.0)
+	{
+		const float DeltaDistance = 1.0 + LocalDistance;
+		
+		SetFalloffValue(DIContext.FieldNodesParamsBuffer[NodeOffset+BOX_FALLOFF_FALLOFF], 
+						DIContext.FieldNodesParamsBuffer[NodeOffset+BOX_FALLOFF_MAGNITUDE], 
+						DeltaDistance, ScalarDatas);
+	}
+	ContextDatas[DatasIndex++] = ScalarDatas;
+}
+
+/* -----------------------------------------------------------------
+ * Noise Field
+ * -----------------------------------------------------------------
+ */
+
+ #define NOISE_MIN_RANGE 0
+ #define NOISE_MAX_RANGE 1
+ #define NOISE_ROTATIONX 2
+ #define NOISE_ROTATIONY 3
+ #define NOISE_ROTATIONZ 4
+ #define NOISE_ROTATIONW 5
+ #define NOISE_TRANSLATIONX 6
+ #define NOISE_TRANSLATIONY 7
+ #define NOISE_TRANSLATIONZ 8
+ #define NOISE_SCALEX 9
+ #define NOISE_SCALEY 10
+ #define NOISE_SCALEZ 11
+ 
+void DIFieldSystem_EvaluateNoiseScalar(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+				in float3 MinBound, in float3 MaxBound, inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	const float4 NoiseRotation = float4(DIContext.FieldNodesParamsBuffer[NodeOffset+NOISE_ROTATIONX],
+								        DIContext.FieldNodesParamsBuffer[NodeOffset+NOISE_ROTATIONY],
+								        DIContext.FieldNodesParamsBuffer[NodeOffset+NOISE_ROTATIONZ],
+									    DIContext.FieldNodesParamsBuffer[NodeOffset+NOISE_ROTATIONW]);
+
+	const float3 NoiseScale = float3(DIContext.FieldNodesParamsBuffer[NodeOffset+NOISE_SCALEX],
+							         DIContext.FieldNodesParamsBuffer[NodeOffset+NOISE_SCALEY],
+								     DIContext.FieldNodesParamsBuffer[NodeOffset+NOISE_SCALEZ]);
+
+	const float3 DeltaBound = MaxBound - MinBound;
+	const float3 LocalVector = FieldRotateVectorByQuat((SamplePosition-MinBound) * NoiseScale, NoiseRotation);
+
+	const float3 LocalCoord = float3( (DeltaBound.x != 0.0) ? LocalVector.x / DeltaBound.x : 0.0,
+									  (DeltaBound.y != 0.0) ? LocalVector.y / DeltaBound.y : 0.0,
+									  (DeltaBound.z != 0.0) ? LocalVector.z / DeltaBound.z : 0.0);
+
+	const float3 ReducedCoord = min(max(LocalCoord,0.0),1.0);
+
+	const float NoiseValue = FastGradientPerlinNoise3D_TEX(ReducedCoord);
+	ContextDatas[DatasIndex++] = NoiseValue * (DIContext.FieldNodesParamsBuffer[NodeOffset+NOISE_MAX_RANGE] - 
+								  DIContext.FieldNodesParamsBuffer[NodeOffset+NOISE_MIN_RANGE]) / 2.0
+				+ DIContext.FieldNodesParamsBuffer[NodeOffset+NOISE_MIN_RANGE];
+}
+
+
+/* -----------------------------------------------------------------
+ * Uniform Vector Field
+ * -----------------------------------------------------------------
+ */
+
+ #define UNIFORM_VECTOR_MAGNITUDE 0
+ #define UNIFORM_VECTOR_DIRECTIONX 1
+ #define UNIFORM_VECTOR_DIRECTIONY 2
+ #define UNIFORM_VECTOR_DIRECTIONZ 3
+ 
+void DIFieldSystem_EvaluateUniformVector(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+				inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	const float3 VectorDatas = DIContext.FieldNodesParamsBuffer[NodeOffset+UNIFORM_VECTOR_MAGNITUDE] * float3(
+										DIContext.FieldNodesParamsBuffer[NodeOffset+UNIFORM_VECTOR_DIRECTIONX],
+								        DIContext.FieldNodesParamsBuffer[NodeOffset+UNIFORM_VECTOR_DIRECTIONY],
+								        DIContext.FieldNodesParamsBuffer[NodeOffset+UNIFORM_VECTOR_DIRECTIONZ]);
+
+	ContextDatas[DatasIndex++] = VectorDatas.x;
+	ContextDatas[DatasIndex++] = VectorDatas.y;
+	ContextDatas[DatasIndex++] = VectorDatas.z;
+}
+
+/* -----------------------------------------------------------------
+ * Radial Vector Field
+ * -----------------------------------------------------------------
+ */
+
+ #define RADIAL_VECTOR_MAGNITUDE 0
+ #define RADIAL_VECTOR_POSITIONX 1
+ #define RADIAL_VECTOR_POSITIONY 2
+ #define RADIAL_VECTOR_POSITIONZ 3
+ 
+void DIFieldSystem_EvaluateRadialVector(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+				inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	const float3 RadialDirection = SamplePosition - float3(
+										DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_VECTOR_POSITIONX],
+								        DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_VECTOR_POSITIONY],
+								        DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_VECTOR_POSITIONZ]);
+	const float DirectionLength = length(RadialDirection);
+	const float3 VectorDatas = (DirectionLength != 0.0) ?  DIContext.FieldNodesParamsBuffer[NodeOffset+RADIAL_VECTOR_MAGNITUDE] *
+					RadialDirection / DirectionLength : float3(0,0,0);
+
+	ContextDatas[DatasIndex++] = VectorDatas.x;
+	ContextDatas[DatasIndex++] = VectorDatas.y;
+	ContextDatas[DatasIndex++] = VectorDatas.z;
+}
+
+/* -----------------------------------------------------------------
+ * Random Vector Field
+ * -----------------------------------------------------------------
+ */
+
+ #define RANDOM_VECTOR_MAGNITUDE 0
+ 
+void DIFieldSystem_EvaluateRandomVector(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+				inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	const float3 RadialDirection = float3(Rand3DPCG16(int3(SamplePosition))) / 0xffff - 0.5;
+
+	const float DirectionLength = length(RadialDirection);
+	const float3 VectorDatas = (DirectionLength != 0.0) ?  DIContext.FieldNodesParamsBuffer[NodeOffset+RANDOM_VECTOR_MAGNITUDE] *
+					RadialDirection / DirectionLength : float3(0,0,0);
+
+	ContextDatas[DatasIndex++] = VectorDatas.x;
+	ContextDatas[DatasIndex++] = VectorDatas.y;
+	ContextDatas[DatasIndex++] = VectorDatas.z;
+}
+
+/* -----------------------------------------------------------------
+ * Sum Scalar Field
+ * -----------------------------------------------------------------
+ */
+
+ #define SUM_SCALAR_MAGNITUDE 0
+ #define SUM_SCALAR_RIGHT 1
+ #define SUM_SCALAR_LEFT 2
+ #define SUM_SCALAR_OPERATION 3
+
+void DIFieldSystem_EvaluateSumScalar(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+				inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	const bool HasRight = DIContext.FieldNodesParamsBuffer[NodeOffset+SUM_SCALAR_RIGHT];
+	const bool HasLeft = DIContext.FieldNodesParamsBuffer[NodeOffset+SUM_SCALAR_LEFT];
+
+	DatasIndex -= HasRight + HasLeft;
+
+	const int FieldOperation = DIContext.FieldNodesParamsBuffer[NodeOffset+SUM_SCALAR_OPERATION];
+
+	int OffsetIndex = DatasIndex;
+	const float ScalarRight = HasRight? ContextDatas[OffsetIndex] : 0.0;
+	OffsetIndex += HasRight;
+	const float ScalarLeft = HasLeft ? ContextDatas[OffsetIndex] : 0.0;
+
+	float ScalarDatas = 0.0;
+	if(FieldOperation == MULTIPLY_OP)
+	{
+		ScalarDatas = ScalarRight * ScalarLeft;
+	}
+	else if(FieldOperation == DIVIDE_OP)
+	{
+		ScalarDatas = ScalarLeft / ScalarRight;
+	}
+	else if(FieldOperation == ADD_OP)
+	{
+		ScalarDatas = ScalarRight + ScalarLeft;
+	}
+	else if(FieldOperation == SUBTRACT_OP)
+	{
+		ScalarDatas = ScalarLeft - ScalarRight;
+	}
+	ContextDatas[DatasIndex++] = ScalarDatas * DIContext.FieldNodesParamsBuffer[NodeOffset+SUM_SCALAR_MAGNITUDE];
+}
+
+/* -----------------------------------------------------------------
+ * Sum Vector Field
+ * -----------------------------------------------------------------
+ */
+
+ #define SUM_VECTOR_MAGNITUDE 0
+ #define SUM_VECTOR_SCALAR 1
+ #define SUM_VECTOR_RIGHT 2
+ #define SUM_VECTOR_LEFT 3
+ #define SUM_VECTOR_OPERATION 4
+
+void DIFieldSystem_EvaluateSumVector(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+				inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	const bool HasScalar = DIContext.FieldNodesParamsBuffer[NodeOffset+SUM_VECTOR_SCALAR];
+	const bool HasRight = DIContext.FieldNodesParamsBuffer[NodeOffset+SUM_VECTOR_RIGHT];
+	const bool HasLeft = DIContext.FieldNodesParamsBuffer[NodeOffset+SUM_VECTOR_LEFT];
+
+	DatasIndex -= HasScalar + HasRight * 3 + HasLeft * 3;
+
+	const int FieldOperation = DIContext.FieldNodesParamsBuffer[NodeOffset+SUM_VECTOR_OPERATION];
+
+	int OffsetIndex = DatasIndex;
+	const float ScalarMagnitude = HasScalar ? ContextDatas[OffsetIndex] : 1.0;
+	OffsetIndex += HasScalar;
+	const float3 VectorRight = HasRight ? float3(ContextDatas[OffsetIndex],ContextDatas[OffsetIndex+1],ContextDatas[OffsetIndex+2]) : float3(0,0,0);
+	OffsetIndex += HasRight * 3;
+	const float3 VectorLeft = HasLeft ? float3(ContextDatas[OffsetIndex],ContextDatas[OffsetIndex+1],ContextDatas[OffsetIndex+2]) : float3(0,0,0);
+
+	float3 VectorDatas = float3(0.0,0.0,0.0);
+	if(FieldOperation == MULTIPLY_OP)
+	{
+		VectorDatas = VectorRight * VectorLeft;
+	}
+	else if(FieldOperation == DIVIDE_OP)
+	{
+		VectorDatas = VectorLeft / VectorRight;
+	}
+	else if(FieldOperation == ADD_OP)
+	{
+		VectorDatas = VectorRight + VectorLeft;
+	}
+	else if(FieldOperation == SUBTRACT_OP)
+	{
+		VectorDatas = VectorLeft - VectorRight;
+	}
+
+	VectorDatas *= ScalarMagnitude * DIContext.FieldNodesParamsBuffer[NodeOffset+SUM_VECTOR_MAGNITUDE];
+
+	ContextDatas[DatasIndex++] = VectorDatas.x;
+	ContextDatas[DatasIndex++] = VectorDatas.y;
+	ContextDatas[DatasIndex++] = VectorDatas.z;
+}
+
+/* -----------------------------------------------------------------
+ * Conversion Scalar
+ * -----------------------------------------------------------------
+ */
+ #define CONVERSION_INPUT 0
+
+void DIFieldSystem_EvaluateConversionScalar(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+				inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	// conversion in the same DatasIndex
+}
+
+/* -----------------------------------------------------------------
+ * Conversion Integer
+ * -----------------------------------------------------------------
+ */
+
+void DIFieldSystem_EvaluateConversionInteger(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+				inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	// conversion in the same DatasIndex
+}
+
+/* -----------------------------------------------------------------
+ * Culling Integer
+ * -----------------------------------------------------------------
+ */
+
+#define CULLING_SCALAR 0
+#define CULLING_INPUT 1
+#define CULLING_OPERATION 2
+
+void DIFieldSystem_EvaluateCullingInteger(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+				inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	const bool HasScalar = DIContext.FieldNodesParamsBuffer[NodeOffset+CULLING_SCALAR];
+	const bool HasInput = DIContext.FieldNodesParamsBuffer[NodeOffset+CULLING_INPUT];
+
+	DatasIndex -= HasScalar+HasInput;
+
+    int OffsetIndex = DatasIndex;
+	const float CullingScalar = HasScalar ? ContextDatas[OffsetIndex] : 0.0;
+	OffsetIndex += CullingScalar;
+	const int InputInteger = HasInput ? ContextDatas[OffsetIndex] : 0.0;
+
+	const int CullingOperation = DIContext.FieldNodesParamsBuffer[NodeOffset+CULLING_OPERATION];
+	const bool ValidSample = ((CullingOperation == CULLING_OUTSIDE) && (CullingScalar != 0.0)) ||
+							 ((CullingOperation == CULLING_INSIDE) && (CullingScalar == 0.0));
+
+	ContextDatas[DatasIndex++] = ValidSample ? InputInteger : 0;
+}
+
+/* -----------------------------------------------------------------
+ * Culling Scalar
+ * -----------------------------------------------------------------
+ */
+
+void DIFieldSystem_EvaluateCullingScalar(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+				inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	const bool HasScalar = DIContext.FieldNodesParamsBuffer[NodeOffset+CULLING_SCALAR];
+	const bool HasInput = DIContext.FieldNodesParamsBuffer[NodeOffset+CULLING_INPUT];
+
+	DatasIndex -= HasScalar+HasInput;
+
+	int OffsetIndex = DatasIndex;
+	const float CullingScalar = HasScalar ? ContextDatas[OffsetIndex] : 0.0;
+	OffsetIndex += CullingScalar;
+	const float InputScalar = HasInput ? ContextDatas[OffsetIndex] : 0.0;
+
+	const int CullingOperation = DIContext.FieldNodesParamsBuffer[NodeOffset+CULLING_OPERATION];
+	const bool ValidSample = ((CullingOperation == CULLING_OUTSIDE) && (CullingScalar != 0.0)) ||
+							 ((CullingOperation == CULLING_INSIDE) && (CullingScalar == 0.0));
+
+	ContextDatas[DatasIndex++] = ValidSample ? InputScalar : 0.0;
+}
+
+/* -----------------------------------------------------------------
+ * Culling Vector
+ * -----------------------------------------------------------------
+ */
+
+void DIFieldSystem_EvaluateCullingVector(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+				inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	const bool HasScalar = DIContext.FieldNodesParamsBuffer[NodeOffset+CULLING_SCALAR];
+	const bool HasInput = DIContext.FieldNodesParamsBuffer[NodeOffset+CULLING_INPUT];
+
+	DatasIndex -= HasScalar+HasInput*3;
+
+	int OffsetIndex = DatasIndex;
+	const float CullingScalar = HasScalar ? ContextDatas[OffsetIndex] : 0.0;
+	OffsetIndex += CullingScalar;
+	const float3 InputVector = HasInput ? float3(ContextDatas[OffsetIndex],ContextDatas[OffsetIndex+1],ContextDatas[OffsetIndex+2]) : float3(0,0,0);
+
+	const int CullingOperation = DIContext.FieldNodesParamsBuffer[NodeOffset+CULLING_OPERATION];
+	const bool ValidSample = ((CullingOperation == CULLING_OUTSIDE) && (CullingScalar != 0.0)) ||
+							 ((CullingOperation == CULLING_INSIDE) && (CullingScalar == 0.0));
+
+	ContextDatas[DatasIndex++] = ValidSample ? InputVector.x : 0.0;
+	ContextDatas[DatasIndex++] = ValidSample ? InputVector.y : 0.0;
+	ContextDatas[DatasIndex++] = ValidSample ? InputVector.z : 0.0;
+}
+
+/* -----------------------------------------------------------------
+ * Nodes evaluation
+ * -----------------------------------------------------------------
+ */
+
+void DIFieldSystem_EvaluateFieldNodeInteger(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+		inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	const int NodeType = DIContext.FieldNodesParamsBuffer[NodeOffset];
+
+	if(NodeType == UNIFORM_INTEGER)
+	{
+		DIFieldSystem_EvaluateUniformInteger(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+	else if(NodeType == RADIAL_MASK_INTEGER)
+	{
+		DIFieldSystem_EvaluateRadialMaskInteger(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+	else if(NodeType == CONVERSION_FIELD)
+	{
+		DIFieldSystem_EvaluateConversionInteger(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+	else if(NodeType == CULLING_FIELD)
+	{
+		DIFieldSystem_EvaluateCullingInteger(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+}
+
+void DIFieldSystem_EvaluateFieldNodeScalar(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+		in float3 MinBound, in float3 MaxBound, inout float ContextDatas[MAX_DATAS], inout int DatasIndex)
+{
+	const int NodeType = DIContext.FieldNodesParamsBuffer[NodeOffset];
+
+	if(NodeType == UNIFORM_SCALAR)
+	{
+		DIFieldSystem_EvaluateUniformScalar(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+	else if(NodeType == RADIAL_FALLOFF_SCALAR)
+	{
+		DIFieldSystem_EvaluateRadialFalloffScalar(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+	else if(NodeType == PLANE_FALLOFF_SCALAR)
+	{
+		DIFieldSystem_EvaluatePlaneFalloffScalar(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+	else if(NodeType == BOX_FALLOFF_SCALAR)
+	{
+		DIFieldSystem_EvaluateBoxFalloffScalar(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+	else if(NodeType == NOISE_SCALAR)
+	{	
+		DIFieldSystem_EvaluateNoiseScalar(DIContext,SamplePosition,NodeOffset+1,MinBound,MaxBound,ContextDatas,DatasIndex);
+	}
+	else if(NodeType == SUM_SCALAR)
+	{
+		DIFieldSystem_EvaluateSumScalar(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+	else if(NodeType == CONVERSION_FIELD)
+	{
+		DIFieldSystem_EvaluateConversionScalar(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+	else if(NodeType == CULLING_FIELD)
+	{
+		DIFieldSystem_EvaluateCullingScalar(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+}
+
+void DIFieldSystem_EvaluateFieldNodeVector(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+				 inout float ContextDatas[MAX_DATAS], inout int DatasIndex )
+{
+	const int NodeType = DIContext.FieldNodesParamsBuffer[NodeOffset];
+
+	if(NodeType == UNIFORM_VECTOR)
+	{
+		DIFieldSystem_EvaluateUniformVector(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+	else if(NodeType == RADIAL_VECTOR)
+	{
+		DIFieldSystem_EvaluateRadialVector(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+	else if(NodeType == RANDOM_VECTOR)
+	{
+		DIFieldSystem_EvaluateRandomVector(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+	else if(NodeType == SUM_VECTOR)
+	{
+		DIFieldSystem_EvaluateSumVector(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+	else if(NodeType == CULLING_FIELD)
+	{
+		DIFieldSystem_EvaluateCullingVector(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+}
+
+void DIFieldSystem_EvaluateFieldNodeDatas(in FDIFieldSystemContext DIContext, in float3 SamplePosition, in int NodeOffset, 
+				in float3 MinBound, in float3 MaxBound, inout float ContextDatas[MAX_DATAS], inout int DatasIndex )
+{
+	const int DatasType = DIContext.FieldNodesParamsBuffer[NodeOffset];
+
+	if(DatasType == SCALAR_TYPE)
+	{
+		DIFieldSystem_EvaluateFieldNodeScalar(DIContext,SamplePosition,NodeOffset+1,MinBound,MaxBound,ContextDatas,DatasIndex);
+	}
+	else if(DatasType == INTEGER_TYPE)
+	{
+		DIFieldSystem_EvaluateFieldNodeInteger(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+	else if(DatasType == VECTOR_TYPE)
+	{
+		DIFieldSystem_EvaluateFieldNodeVector(DIContext,SamplePosition,NodeOffset+1,ContextDatas,DatasIndex);
+	}
+}
+
+
+void DIFieldSystem_SampleFieldDatas(in FDIFieldSystemContext DIContext, in float3 SamplePosition,
+				in float3 MinBound, in float3 MaxBound, in int CommandType, in int DataType,
+				inout float ContextDatas[MAX_DATAS], inout int DatasIndex )
+{
+	const int CommandBegin = DIContext.FieldCommandsNodesBuffer[CommandType];
+	const int CommandEnd = DIContext.FieldCommandsNodesBuffer[CommandType+1];
+	const int CommandSize = CommandEnd-CommandBegin;
+
+	for(int ContextIndex = 0; ContextIndex < MAX_DATAS; ++ContextIndex)
+	{
+		ContextDatas[ContextIndex] = 0;
+	}
+	if((CommandSize != 0) && 
+		(DIContext.FieldNodesParamsBuffer[DIContext.FieldNodesOffsetsBuffer[CommandEnd-1]] == DataType))
+	{
+		for(int NodeIndex = CommandBegin; NodeIndex < CommandEnd; ++NodeIndex )
+		{
+			const int NodeOffset = DIContext.FieldNodesOffsetsBuffer[NodeIndex];
+			DIFieldSystem_EvaluateFieldNodeDatas(DIContext,SamplePosition,NodeOffset,MinBound,MaxBound,ContextDatas,DatasIndex);
+		}
+	}
+}
+
+float3 DIFieldSystem_SampleFieldVector(in FDIFieldSystemContext DIContext, in float3 SamplePosition,
+				in int CommandType, in int CommandIndex)
+{
+#if USE_BAKED_FIELD == 0
+	float ContextDatas[MAX_DATAS];
+	int DatasIndex = 0;
+
+	DIFieldSystem_SampleFieldDatas(DIContext, SamplePosition, DIContext.MinBounds, DIContext.MaxBounds, CommandType, VECTOR_TYPE, ContextDatas, DatasIndex );
+	return (DatasIndex == 3) ? float3(ContextDatas[0],ContextDatas[1],ContextDatas[2]) : float3(0,0,0);
+#else
+	float3 SamplePoint = (DIContext.MaxBounds != DIContext.MinBounds) ? (SamplePosition - DIContext.MinBounds) / 
+				(DIContext.MaxBounds-DIContext.MinBounds) : float3(0,0,0);
+	SamplePoint = clamp(SamplePoint,float3(0,0,0), float3(1,1,1));
+
+	SamplePoint.z = (NUM_VECTOR_TYPES != 0) ? 
+		(SamplePoint.z * (1.0 - 1.0 / DIContext.FieldDimensions.z) + CommandIndex) / NUM_VECTOR_TYPES : SamplePoint.z;
+
+	return DIContext.VectorFieldTexture.SampleLevel(DIContext.VectorFieldSampler,SamplePoint,0).xyz;
+#endif
+}
+
+float DIFieldSystem_SampleFieldScalar(in FDIFieldSystemContext DIContext, in float3 SamplePosition,
+				in int CommandType, in int CommandIndex)
+{
+#if USE_BAKED_FIELD == 0
+	float ContextDatas[MAX_DATAS];
+	int DatasIndex = 0;
+
+	DIFieldSystem_SampleFieldDatas(DIContext, SamplePosition, DIContext.MinBounds, DIContext.MaxBounds, CommandType, SCALAR_TYPE, ContextDatas, DatasIndex );
+	return (DatasIndex == 1) ? ContextDatas[0] : 0;
+#else
+	float3 SamplePoint = (DIContext.MaxBounds != DIContext.MinBounds) ? (SamplePosition - DIContext.MinBounds) / 
+				(DIContext.MaxBounds-DIContext.MinBounds) : float3(0,0,0);
+	SamplePoint = clamp(SamplePoint,float3(0,0,0), float3(1,1,1));
+
+	SamplePoint.z = (NUM_SCALAR_TYPES != 0) ? 
+		(SamplePoint.z * (1.0 - 1.0 / DIContext.FieldDimensions.z) + CommandIndex) / NUM_SCALAR_TYPES : SamplePoint.z;
+
+	return DIContext.ScalarFieldTexture.Sample(DIContext.ScalarFieldSampler,SamplePoint);
+#endif
+}
+
+int DIFieldSystem_SampleFieldInteger(in FDIFieldSystemContext DIContext, in float3 SamplePosition,
+				in int CommandType, in int CommandIndex)
+{
+#if USE_BAKED_FIELD == 0
+	float ContextDatas[MAX_DATAS];
+	int DatasIndex = 0; 
+
+	DIFieldSystem_SampleFieldDatas(DIContext, SamplePosition, DIContext.MinBounds, DIContext.MaxBounds, CommandType, INTEGER_TYPE, ContextDatas, DatasIndex );
+	return (DatasIndex == 1) ? ContextDatas[0] : 0;
+
+#else
+	float3 SamplePoint = (DIContext.MaxBounds != DIContext.MinBounds) ? (SamplePosition - DIContext.MinBounds) / 
+				(DIContext.MaxBounds-DIContext.MinBounds) : float3(0,0,0);
+	SamplePoint = clamp(SamplePoint,float3(0,0,0), float3(1,1,1));
+
+	SamplePoint.z = (NUM_INTEGER_TYPES != 0) ? 
+		(SamplePoint.z * (1.0 - 1.0 / DIContext.FieldDimensions.z) + CommandIndex) / NUM_INTEGER_TYPES : SamplePoint.z;
+
+	return DIContext.IntegerFieldTexture.Sample(DIContext.IntegerFieldSampler,SamplePoint);
+#endif
+}

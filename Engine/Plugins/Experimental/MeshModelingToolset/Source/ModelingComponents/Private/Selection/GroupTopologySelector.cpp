@@ -10,8 +10,6 @@
 bool IsOccluded(const FGeometrySet3::FNearest& ClosestElement, const FVector3d& ViewOrigin, const FDynamicMeshAABBTree3* Spatial);
 void AddNewEdgeLoopEdgesFromCorner(const FGroupTopology& Topology, int32 EdgeID, int32 CornerID, TSet<int32>& EdgeSet);
 bool GetNextEdgeLoopEdge(const FGroupTopology& Topology, int32 IncomingEdgeID, int32 CornerID, int32& NextEdgeIDOut);
-void AddNewEdgeRingEdges(const FGroupTopology& Topology, int32 StartEdgeID, int32 ForwardGroupID, TSet<int32>& EdgeSet);
-bool GetQuadOppositeEdge(const FGroupTopology& Topology, int32 EdgeIDIn, int32 GroupID, int32& OppositeEdgeIDOut);
 
 FGroupTopologySelector::FGroupTopologySelector()
 {
@@ -597,7 +595,10 @@ bool FGroupTopologySelector::ExpandSelectionByEdgeLoops(FGroupTopologySelection&
 
 	if (EdgeSet.Num() > OriginalNumEdges)
 	{
-		Selection.SelectedEdgeIDs.Append(EdgeSet);
+		for (int32 EdgeID : EdgeSet)
+		{
+			Selection.SelectedEdgeIDs.AddUnique(EdgeID);
+		}
 		return true;
 	}
 	else
@@ -679,90 +680,6 @@ bool GetNextEdgeLoopEdge(const FGroupTopology& Topology, int32 IncomingEdgeID, i
 			}
 		}
 	}
-	return false;
-}
-
-bool FGroupTopologySelector::ExpandSelectionByEdgeRings(FGroupTopologySelection& Selection)
-{
-	TSet<int32> EdgeSet(Selection.SelectedEdgeIDs);
-	int32 OriginalNumEdges = Selection.SelectedEdgeIDs.Num();
-	for (int32 Eid : Selection.SelectedEdgeIDs)
-	{
-		const FGroupTopology::FGroupEdge& Edge = Topology->Edges[Eid];
-
-		// Go forward and backward adding edges
-		if (Edge.Groups[0] != IndexConstants::InvalidID)
-		{
-			AddNewEdgeRingEdges(*Topology, Eid, Edge.Groups[0], EdgeSet);
-		}
-		if (Edge.Groups[0] != IndexConstants::InvalidID)
-		{
-			AddNewEdgeRingEdges(*Topology, Eid, Edge.Groups[1], EdgeSet);
-		}
-	}
-
-	if (EdgeSet.Num() > OriginalNumEdges)
-	{
-		Selection.SelectedEdgeIDs.Append(EdgeSet);
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
-void AddNewEdgeRingEdges(const FGroupTopology& Topology, int32 StartEdgeID, int32 ForwardGroupID, TSet<int32>& EdgeSet)
-{
-	int32 CurrentEdgeID = StartEdgeID;
-	int32 CurrentForwardGroupID = ForwardGroupID;
-	while (true)
-	{
-		if (ForwardGroupID == IndexConstants::InvalidID)
-		{
-			break; // Reached a boundary
-		}
-
-		int32 NextEdgeID;
-		if (!GetQuadOppositeEdge(Topology, CurrentEdgeID, CurrentForwardGroupID, NextEdgeID))
-		{
-			break; // Probably not a quad
-		}
-		if (EdgeSet.Contains(NextEdgeID))
-		{
-			break; // Either we finished the loop, or we'll continue it from another selection
-		}
-
-		EdgeSet.Add(NextEdgeID);
-
-		CurrentEdgeID = NextEdgeID;
-		const FGroupTopology::FGroupEdge& Edge = Topology.Edges[CurrentEdgeID];
-		CurrentForwardGroupID = (Edge.Groups[0] == CurrentForwardGroupID) ? Edge.Groups[1] : Edge.Groups[0];
-	}
-}
-
-bool GetQuadOppositeEdge(const FGroupTopology& Topology, int32 EdgeIDIn, int32 GroupID, int32& OppositeEdgeIDOut)
-{
-	const FGroupTopology::FGroup* Group = Topology.FindGroupByID(GroupID);
-	check(Group);
-
-	// Find the boundary that contains this edge
-	for (int32 i = 0; i < Group->Boundaries.Num(); ++i)
-	{
-		const FGroupTopology::FGroupBoundary& Boundary = Group->Boundaries[i];
-		int32 EdgeIndex = Boundary.GroupEdges.IndexOfByKey(EdgeIDIn);
-		if (EdgeIndex != INDEX_NONE)
-		{
-			if (Boundary.GroupEdges.Num() != 4)
-			{
-				return false;
-			}
-
-			OppositeEdgeIDOut = Boundary.GroupEdges[(EdgeIndex + 2) % 4];
-			return true;
-		}
-	}
-	check(false); // No boundary of the given group contained the given edge
 	return false;
 }
 

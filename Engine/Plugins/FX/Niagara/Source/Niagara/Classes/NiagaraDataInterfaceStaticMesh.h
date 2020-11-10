@@ -224,7 +224,7 @@ struct FNDIStaticMesh_InstanceData
 	{
 		UStaticMesh* Mesh = StaticMesh.Get();
 		check(Mesh); // sanity - should have been checked for GC earlier
-		return Mesh->GetRenderData()->GetCurrentFirstLOD(MinLOD);
+		return Mesh->RenderData->GetCurrentFirstLOD(MinLOD);
 	}
 };
 

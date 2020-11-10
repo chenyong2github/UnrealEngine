@@ -830,9 +830,9 @@ void ALODActor::AddSubActors(const TArray<AActor*>& InActors)
 			for (UStaticMeshComponent* Component : StaticMeshComponents)
 			{
 				const UStaticMesh* StaticMesh = (Component) ? Component->GetStaticMesh() : nullptr;
-				if (StaticMesh && StaticMesh->GetRenderData() && StaticMesh->GetRenderData()->LODResources.Num() > 0)
+				if (StaticMesh && StaticMesh->RenderData && StaticMesh->RenderData->LODResources.Num() > 0)
 				{
-					NumTrianglesInSubActors += StaticMesh->GetRenderData()->LODResources[0].GetNumTriangles();
+					NumTrianglesInSubActors += StaticMesh->RenderData->LODResources[0].GetNumTriangles();
 				}
 				Component->MarkRenderStateDirty();
 			}
@@ -862,9 +862,9 @@ const bool ALODActor::RemoveSubActor(AActor* InActor)
 			for (UStaticMeshComponent* Component : StaticMeshComponents)
 			{
 				const UStaticMesh* StaticMesh = (Component) ? Component->GetStaticMesh() : nullptr;
-				if (StaticMesh && StaticMesh->GetRenderData() && StaticMesh->GetRenderData()->LODResources.Num() > 0)
+				if (StaticMesh && StaticMesh->RenderData && StaticMesh->RenderData->LODResources.Num() > 0)
 				{
-					NumTrianglesInSubActors -= StaticMesh->GetRenderData()->LODResources[0].GetNumTriangles();
+					NumTrianglesInSubActors -= StaticMesh->RenderData->LODResources[0].GetNumTriangles();
 				}
 
 				Component->MarkRenderStateDirty();
@@ -1020,9 +1020,9 @@ void ALODActor::SetStaticMesh(class UStaticMesh* InStaticMesh)
 		StaticMeshComponent->SetMobility(EComponentMobility::Static);
 
 		ensure(StaticMeshComponent->GetStaticMesh() == InStaticMesh);
-		if (InStaticMesh && InStaticMesh->GetRenderData() && InStaticMesh->GetRenderData()->LODResources.Num() > 0)
+		if (InStaticMesh && InStaticMesh->RenderData && InStaticMesh->RenderData->LODResources.Num() > 0)
 		{
-			NumTrianglesInMergedMesh = InStaticMesh->GetRenderData()->LODResources[0].GetNumTriangles();
+			NumTrianglesInMergedMesh = InStaticMesh->RenderData->LODResources[0].GetNumTriangles();
 		}
 	}
 }
@@ -1131,7 +1131,7 @@ bool IsImposter(const UStaticMeshComponent* InComponent)
 	}
 
 	const int32 LODIndex = StaticMesh->GetNumLODs() - 1;
-	const FStaticMeshLODResources& StaticMeshLOD = StaticMesh->GetRenderData()->LODResources[LODIndex];
+	const FStaticMeshLODResources& StaticMeshLOD = StaticMesh->RenderData->LODResources[LODIndex];
 
 	if (StaticMeshLOD.Sections.Num() != 1)
 	{
@@ -1154,7 +1154,7 @@ UMaterialInterface* ALODActor::GetImposterMaterial(const UStaticMeshComponent* I
 		const int32 LODIndex = StaticMesh->GetNumLODs() - 1;
 
 		// Retrieve the sections, we're expect 1 for imposter meshes
-		const FStaticMeshLODResources::FStaticMeshSectionArray& Sections = StaticMesh->GetRenderData()->LODResources[LODIndex].Sections;
+		const FStaticMeshLODResources::FStaticMeshSectionArray& Sections = StaticMesh->RenderData->LODResources[LODIndex].Sections;
 		if (Sections.Num() == 1)
 		{
 			// Retrieve material for this section

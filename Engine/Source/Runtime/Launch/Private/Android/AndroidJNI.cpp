@@ -2018,32 +2018,15 @@ JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_RouteServiceIntent(JNIEnv* je
 	}
 }
 
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnThermalStatusChangedListener(JNIEnv* jenv, jobject thiz, jint Status)
+JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnThermalStatusChangedListener(JNIEnv* jenv, jobject thiz, jint status)
 {
-	FAndroidStats::OnThermalStatusChanged(Status);
+	FAndroidStats::OnThermalStatusChanged(status);
 }
 
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnMemoryWarningChanged(JNIEnv* jenv, jobject thiz, jint Status)
+JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnMemoryWarningChanged(JNIEnv* jenv, jobject thiz, jint status)
 {
-	FAndroidMisc::UpdateOSMemoryStatus(FAndroidMisc::EOSMemoryStatusCategory::MemoryAdvisorState, Status);
-	FAndroidStats::OnMemoryWarningChanged(Status);
+	FAndroidStats::OnMemoryWarningChanged(status);
 }
-
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnTrimMemory(JNIEnv* jenv, jobject thiz, jint MemoryTrimValue)
-{
-	FAndroidMisc::UpdateOSMemoryStatus(FAndroidMisc::EOSMemoryStatusCategory::OSTrim, MemoryTrimValue);
-}
-
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetEstimatedAvailableMemoryMB(JNIEnv* jenv, jobject thiz, jint Estimate)
-{
-	FAndroidMisc::UpdateOSMemoryStatus(FAndroidMisc::EOSMemoryStatusCategory::MemoryAdvisorEstimateMB, Estimate);
-}
-
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetOomScore(JNIEnv* jenv, jobject thiz, jint OomScore)
-{
-	FAndroidMisc::UpdateOSMemoryStatus(FAndroidMisc::EOSMemoryStatusCategory::OomScore, OomScore);
-}
-
 
 class FAndroidEmbeddedExec : public FSelfRegisteringExec
 {

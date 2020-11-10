@@ -9,7 +9,6 @@
 #include "HAL/ThreadSafeBool.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/SingleThreadRunnable.h"
-#include "Stats/Stats.h"
 #include "AudioMixerNullDevice.h"
 #include "DSP/ParamInterpolator.h"
 #include "DSP/BufferVectorOperations.h"
@@ -44,12 +43,6 @@
 #define AUDIO_MIXER_MAX_OUTPUT_CHANNELS				8			// Max number of speakers/channels supported (7.1)
 
 #define AUDIO_MIXER_DEFAULT_DEVICE_INDEX			INDEX_NONE
-
-// Cycle stats for audio mixer
-DECLARE_STATS_GROUP(TEXT("AudioMixer"), STATGROUP_AudioMixer, STATCAT_Advanced);
-
-// Tracks the time for the full render block 
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Render Audio"), STAT_AudioMixerRenderAudio, STATGROUP_AudioMixer, AUDIOMIXERCORE_API);
 
 namespace EAudioMixerChannel
 {

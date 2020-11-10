@@ -26,8 +26,6 @@ struct CORE_API FTextLocalizationResourceVersion
 	{
 		/** Initial format. */
 		Initial = 0,
-		/** Added complete list of cultures compiled for the localization target. */
-		AddedCompiledCultures,
 
 		LatestPlusOne,
 		Latest = LatestPlusOne - 1

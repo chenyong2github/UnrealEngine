@@ -233,10 +233,9 @@ struct FPartyPlatformSessionInfo
 	GENERATED_BODY();
 
 public:
-
-	/** The platform session type (because in a crossplay party, members can be in different session types) */
+	/** The name of the OSS the platform session is for (because in a crossplay party, members can be part of different platform OSS') */
 	UPROPERTY()
-	FString SessionType;
+	FName OssName;
 
 	/** The platform session id. Will be unset if it is not yet available to be joined. */
 	UPROPERTY()
@@ -246,7 +245,8 @@ public:
 	UPROPERTY()
 	FUniqueNetIdRepl OwnerPrimaryId;
 
-	bool operator==(const FString& InSessionType) const;
+	void operator=(const FPartyPlatformSessionInfo& Other);
+	bool operator==(FName PlatformOssName) const;
 	bool operator==(const FPartyPlatformSessionInfo& Other) const;
 	bool operator!=(const FPartyPlatformSessionInfo& Other) const { return !(*this == Other); }
 

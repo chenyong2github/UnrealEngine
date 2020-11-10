@@ -19,7 +19,6 @@
 #include "Templates/UniquePtr.h"
 #include "StaticMeshResources.h"
 #include "PerPlatformProperties.h"
-#include "RenderAssetUpdate.h"
 #include "MeshTypes.h"
 
 #include "StaticMesh.generated.h"
@@ -231,7 +230,7 @@ struct FStaticMeshSourceModel
 	FString SourceImportFilename;
 
 #if WITH_EDITORONLY_DATA
-	/** Whether this LOD was imported in the same file as the base mesh. */
+	/** Weather this LOD was imported in the same file as the base mesh. */
 	UPROPERTY()
 	bool bImportWithBaseMesh;
 #endif
@@ -512,32 +511,21 @@ class UStaticMesh : public UStreamableRenderAsset, public IInterface_CollisionDa
 	/** Notification when anything changed */
 	DECLARE_MULTICAST_DELEGATE(FOnMeshChanged);
 #endif
-public:
+
 	/** Pointer to the data used to render this static mesh. */
-	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetRenderData() or UStaticMesh::SetRenderData().")
 	TUniquePtr<class FStaticMeshRenderData> RenderData;
-	
-	ENGINE_API FStaticMeshRenderData* GetRenderData();
-	ENGINE_API const FStaticMeshRenderData* GetRenderData() const;
-	ENGINE_API void SetRenderData(TUniquePtr<class FStaticMeshRenderData>&& InRenderData);
 
 	/** Pointer to the occluder data used to rasterize this static mesh for software occlusion. */
-	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetOccluderData() or UStaticMesh::SetOccluderData().")
 	TUniquePtr<class FStaticMeshOccluderData> OccluderData;
-
-	ENGINE_API FStaticMeshOccluderData* GetOccluderData();
-	ENGINE_API const FStaticMeshOccluderData* GetOccluderData() const;
-	ENGINE_API void SetOccluderData(TUniquePtr<class FStaticMeshOccluderData>&& InOccluderData);
 
 #if WITH_EDITORONLY_DATA
 	static const float MinimumAutoLODPixelError;
 
-private:
 	/** Imported raw mesh bulk data. */
+	UE_DEPRECATED(4.24, "Please do not access this member directly; use UStaticMesh::GetSourceModel(LOD) or UStaticMesh::GetSourceModels().")
 	UPROPERTY()
 	TArray<FStaticMeshSourceModel> SourceModels;
 
-public:
 	/** Map of LOD+Section index to per-section info. */
 	UE_DEPRECATED(4.24, "Please do not access this member directly; use UStaticMesh::GetSectionInfoMap().")
 	UPROPERTY()
@@ -572,25 +560,10 @@ public:
 
 	UPROPERTY()
 	TArray<FMaterialRemapIndex> MaterialRemapIndexPerImportVersion;
-
+	
 	/* The lightmap UV generation version used during the last derived data build */
-	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetLightmapUVVersion() or UStaticMesh::SetLightmapUVVersion().")
 	UPROPERTY()
 	int32 LightmapUVVersion;
-
-	int32 GetLightmapUVVersion() const
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return LightmapUVVersion;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	void SetLightmapUVVersion(int32 InLightmapUVVersion)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		LightmapUVVersion = InLightmapUVVersion;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
 
 	/** If true, the screen sizees at which LODs swap are computed automatically. */
 	UPROPERTY()
@@ -642,57 +615,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=StaticMesh, meta=(UIMin = "0.0", UIMax = "3.0"))
 	float LpvBiasMultiplier;
 
-	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetStaticMaterials() or UStaticMesh::SetStaticMaterials().")
-	UPROPERTY(BlueprintGetter = GetStaticMaterials, BlueprintSetter = SetStaticMaterials, Category = StaticMesh)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMesh)
 	TArray<FStaticMaterial> StaticMaterials;
 
-	static FName GetStaticMaterialsName()
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return GET_MEMBER_NAME_CHECKED(UStaticMesh, StaticMaterials);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-	
-	TArray<FStaticMaterial>& GetStaticMaterials()
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return StaticMaterials;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	UFUNCTION(BlueprintGetter)
-	const TArray<FStaticMaterial>& GetStaticMaterials() const
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return StaticMaterials;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	UFUNCTION(BlueprintSetter)
-	void SetStaticMaterials(const TArray<FStaticMaterial>& InStaticMaterials)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		StaticMaterials = InStaticMaterials;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetLightmapUVDensity() or UStaticMesh::SetLightmapUVDensity().")
 	UPROPERTY()
 	float LightmapUVDensity;
-
-	void SetLightmapUVDensity(float InLightmapUVDensity)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		LightmapUVDensity = InLightmapUVDensity;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	float GetLightmapUVDensity() const
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return LightmapUVDensity;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
 
 	UPROPERTY(EditAnywhere, Category=StaticMesh, meta=(ClampMax = 4096, ToolTip="The light map resolution", FixedIncrement="4.0"))
 	int32 LightMapResolution;
@@ -706,23 +633,8 @@ public:
 	float DistanceFieldSelfShadowBias;
 
 	// Physics data.
-	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetBodySetup() or UStaticMesh::SetBodySetup().")
 	UPROPERTY(EditAnywhere, transient, duplicatetransient, Instanced, Category = StaticMesh)
 	class UBodySetup* BodySetup;
-
-	UBodySetup* GetBodySetup() const
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return BodySetup;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	void SetBodySetup(UBodySetup* InBodySetup)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		BodySetup = InBodySetup;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
 
 	/** 
 	 *	Specifies which mesh LOD to use for complex (per-poly) collision. 
@@ -768,23 +680,9 @@ public:
 	/**
 	 * If true, StaticMesh has been built at runtime
 	 */
-	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetIsBuiltAtRuntime() or UStaticMesh::SetIsBuiltAtRuntime().")
 	UPROPERTY()
 	uint8 bIsBuiltAtRuntime : 1;
 
-	bool GetIsBuiltAtRuntime() const
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return bIsBuiltAtRuntime;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	void SetIsBuiltAtRuntime(bool InIsBuiltAtRuntime)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		bIsBuiltAtRuntime = InIsBuiltAtRuntime;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
 protected:
 	/** Tracks whether InitResources has been called, and rendering resources are initialized. */
 	uint8 bRenderingResourcesInitialized:1;
@@ -842,29 +740,7 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 	/** Unique ID for tracking/caching this mesh during distributed lighting */
-	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetLightingGuid() or UStaticMesh::SetLightingGuid().")
 	FGuid LightingGuid;
-
-	const FGuid& GetLightingGuid() const
-	{
-#if WITH_EDITORONLY_DATA
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return LightingGuid;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#else
-		static const FGuid NullGuid( 0, 0, 0, 0 );
-		return NullGuid;
-#endif // WITH_EDITORONLY_DATA
-	}
-
-	void SetLightingGuid(const FGuid& InLightingGuid = FGuid::NewGuid())
-	{
-#if WITH_EDITORONLY_DATA
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		LightingGuid = InLightingGuid;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif // WITH_EDITORONLY_DATA
-	}
 
 	/**
 	 *	Array of named socket locations, set up in editor and used as a shortcut instead of specifying
@@ -882,32 +758,10 @@ public:
 	/** Bound extension values in the negative direction of XYZ, positive value increases bound size */
 	UPROPERTY(EditDefaultsOnly, AdvancedDisplay, Category = StaticMesh)
 	FVector NegativeBoundsExtension;
-	
 	/** Original mesh bounds extended with Positive/NegativeBoundsExtension */
-	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetExtendedBounds() or UStaticMesh::SetExtendedBounds.")
 	UPROPERTY()
 	FBoxSphereBounds ExtendedBounds;
 
-	const FBoxSphereBounds& GetExtendedBounds() const
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return ExtendedBounds;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-protected:
-	void SetExtendedBounds(const FBoxSphereBounds& InExtendedBounds)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		ExtendedBounds = InExtendedBounds;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-#if WITH_EDITOR
-		OnExtendedBoundsChanged.Broadcast(InExtendedBounds);
-#endif
-	}
-
-public:
 #if WITH_EDITOR
 	FOnExtendedBoundsChanged OnExtendedBoundsChanged;
 	FOnMeshChanged OnMeshChanged;
@@ -1090,13 +944,9 @@ public:
 	ENGINE_API int32 GetNumUVChannels(int32 LODIndex);
 
 	/** Pre-build navigation collision */
-	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetNavCollision() or UStaticMesh::SetNavCollision().")
 	UPROPERTY(VisibleAnywhere, transient, duplicatetransient, Instanced, Category = Navigation)
 	UNavCollisionBase* NavCollision;
-
-	ENGINE_API void SetNavCollision(UNavCollisionBase*);
-	ENGINE_API UNavCollisionBase* GetNavCollision() const;
-
+public:
 	/**
 	 * Default constructor
 	 */
@@ -1108,7 +958,10 @@ public:
 	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	ENGINE_API virtual void PostEditUndo() override;
 	ENGINE_API virtual void GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const override;
+	
+	UFUNCTION(BlueprintCallable, Category = "StaticMesh")
 	ENGINE_API void SetLODGroup(FName NewGroup, bool bRebuildImmediately = true);
+	
 	ENGINE_API void BroadcastNavCollisionChange();
 
 	FOnExtendedBoundsChanged& GetOnExtendedBoundsChanged() { return OnExtendedBoundsChanged; }
@@ -1344,9 +1197,27 @@ public:
 	 */
 	ENGINE_API void CreateNavCollision(const bool bIsUpdate = false);
 
+	FORCEINLINE const UNavCollisionBase* GetNavCollision() const { return NavCollision; }
+
 	/** Configures this SM as bHasNavigationData = false and clears stored NavCollision */
 	ENGINE_API void MarkAsNotHavingNavigationData();
 
+	const FGuid& GetLightingGuid() const
+	{
+#if WITH_EDITORONLY_DATA
+		return LightingGuid;
+#else
+		static const FGuid NullGuid( 0, 0, 0, 0 );
+		return NullGuid;
+#endif // WITH_EDITORONLY_DATA
+	}
+
+	void SetLightingGuid()
+	{
+#if WITH_EDITORONLY_DATA
+		LightingGuid = FGuid::NewGuid();
+#endif // WITH_EDITORONLY_DATA
+	}
 
 	/**
 	 *	Add a socket object in this StaticMesh.

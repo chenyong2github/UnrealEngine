@@ -7,12 +7,9 @@
 #include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundSubmixSend.h"
-#include "Stats/Stats.h"
 
 #include "AudioMixerSubmixEffectDynamicsProcessor.generated.h"
 
-// The time it takes to process the master dynamics.
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Dynamics"), STAT_AudioMixerSubmixDynamics, STATGROUP_AudioMixer, AUDIOMIXER_API);
 
 namespace Audio
 {

@@ -11,7 +11,6 @@
 #include "Shader.h"
 #include "VertexFactory.h"
 #include "ShaderCodeLibrary.h"
-#include "Misc/ScopeLock.h"
 
 IMPLEMENT_TYPE_LAYOUT(FShaderParameter);
 IMPLEMENT_TYPE_LAYOUT(FShaderResourceParameter);
@@ -328,49 +327,25 @@ RENDERCORE_API void CacheUniformBufferIncludes(TMap<const TCHAR*,FCachedUniformB
 	}
 }
 
-static const uint32 NumUniformBufferLocks = 16u;
-static FCriticalSection UniformBufferLocks[NumUniformBufferLocks];
-
-void FShaderType::FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables)
-{
-	if (bCachedUniformBufferStructDeclarations)
-	{
-		const uint32 LockIndex = HashedName.GetHash() % NumUniformBufferLocks;
-		FScopeLock Lock(&UniformBufferLocks[LockIndex]);
-		if (bCachedUniformBufferStructDeclarations)
-		{
-			ReferencedUniformBufferStructsCache.Empty();
-			GenerateReferencedUniformBuffers(SourceFilename, Name, ShaderFileToUniformBufferVariables, ReferencedUniformBufferStructsCache);
-			bCachedUniformBufferStructDeclarations = false;
-		}
-	}
-}
-
-void FShaderType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform) const
+void FShaderType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform)
 {
 	// Cache uniform buffer struct declarations referenced by this shader type's files
 	if (!bCachedUniformBufferStructDeclarations)
 	{
-		const uint32 LockIndex = HashedName.GetHash() % NumUniformBufferLocks;
-		FScopeLock Lock(&UniformBufferLocks[LockIndex]);
-		if (!bCachedUniformBufferStructDeclarations)
-		{
-			CacheUniformBufferIncludes(ReferencedUniformBufferStructsCache, Platform);
-			bCachedUniformBufferStructDeclarations = true;
-		}
+		CacheUniformBufferIncludes(ReferencedUniformBufferStructsCache, Platform);
+		bCachedUniformBufferStructDeclarations = true;
 	}
 
 	FString UniformBufferIncludes;
 
-	for (TMap<const TCHAR*,FCachedUniformBufferDeclaration>::TConstIterator It(ReferencedUniformBufferStructsCache); It; ++It)
+	for (TMap<const TCHAR*,FCachedUniformBufferDeclaration>::TIterator It(ReferencedUniformBufferStructsCache); It; ++It)
 	{
-		const FCachedUniformBufferDeclaration& Value = It.Value();
-		check(Value.Declaration.Get() != NULL);
-		check(!Value.Declaration.Get()->IsEmpty());
+		check(It.Value().Declaration.Get() != NULL);
+		check(!It.Value().Declaration.Get()->IsEmpty());
 		UniformBufferIncludes += FString::Printf(TEXT("#include \"/Engine/Generated/UniformBuffers/%s.ush\"") LINE_TERMINATOR, It.Key());
 		OutEnvironment.IncludeVirtualPathToExternalContentsMap.Add(
-			FString::Printf(TEXT("/Engine/Generated/UniformBuffers/%s.ush"),It.Key()),
-			Value.Declaration
+			*FString::Printf(TEXT("/Engine/Generated/UniformBuffers/%s.ush"),It.Key()),
+			It.Value().Declaration
 			);
 
 		for (TLinkedList<FShaderParametersMetadata*>::TIterator StructIt(FShaderParametersMetadata::GetStructList()); StructIt; StructIt.Next())
@@ -455,38 +430,18 @@ void FShaderType::GetShaderStableKeyParts(FStableShaderKeyAndValue& SaveKeyVal)
 #endif
 }
 
-void FVertexFactoryType::FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables)
-{
-	if (bCachedUniformBufferStructDeclarations)
-	{
-		const uint32 LockIndex = HashedName.GetHash() % NumUniformBufferLocks;
-		FScopeLock Lock(&UniformBufferLocks[LockIndex]);
-		if (bCachedUniformBufferStructDeclarations)
-		{
-			ReferencedUniformBufferStructsCache.Empty();
-			GenerateReferencedUniformBuffers(ShaderFilename, Name, ShaderFileToUniformBufferVariables, ReferencedUniformBufferStructsCache);
-			bCachedUniformBufferStructDeclarations = false;
-		}
-	}
-}
-
-void FVertexFactoryType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform) const
+void FVertexFactoryType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform)
 {
 	// Cache uniform buffer struct declarations referenced by this shader type's files
 	if (!bCachedUniformBufferStructDeclarations)
 	{
-		const uint32 LockIndex = HashedName.GetHash() % NumUniformBufferLocks;
-		FScopeLock Lock(&UniformBufferLocks[LockIndex]);
-		if (!bCachedUniformBufferStructDeclarations)
-		{
-			CacheUniformBufferIncludes(ReferencedUniformBufferStructsCache, Platform);
-			bCachedUniformBufferStructDeclarations = true;
-		}
+		CacheUniformBufferIncludes(ReferencedUniformBufferStructsCache, Platform);
+		bCachedUniformBufferStructDeclarations = true;
 	}
 
 	FString UniformBufferIncludes;
 
-	for (TMap<const TCHAR*,FCachedUniformBufferDeclaration>::TConstIterator It(ReferencedUniformBufferStructsCache); It; ++It)
+	for (TMap<const TCHAR*,FCachedUniformBufferDeclaration>::TIterator It(ReferencedUniformBufferStructsCache); It; ++It)
 	{
 		check(It.Value().Declaration.Get() != NULL);
 		check(!It.Value().Declaration.Get()->IsEmpty());

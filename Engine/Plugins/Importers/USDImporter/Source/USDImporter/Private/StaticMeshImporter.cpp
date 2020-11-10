@@ -165,7 +165,7 @@ void FUSDStaticMeshImportState::ProcessMaterials(int32 LODIndex)
 		}
 		else
 		{
-			NewMesh->GetStaticMaterials().Add(StaticMaterial);
+			NewMesh->StaticMaterials.Add(StaticMaterial);
 		}
 	}
 	if (LODIndex > 0)
@@ -219,7 +219,7 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 		NewMesh->AssetImportData->Update(UFactory::GetCurrentFilename());
 	}
 
-	NewMesh->GetStaticMaterials().Empty();
+	NewMesh->StaticMaterials.Empty();
 
 	TArray<FUSDImportMaterialInfo> Materials;
 	FUSDStaticMeshImportState State(ImportContext, Materials);

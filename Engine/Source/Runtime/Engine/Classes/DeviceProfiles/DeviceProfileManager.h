@@ -30,7 +30,7 @@ public:
 	 * Startup and select the active device profile
 	 * Then Init the CVars from this profile and it's Device profile parent tree.
 	 */
-	static void InitializeCVarsForActiveDeviceProfile(bool bPushSettings=false, bool bIsDeviceProfilePreview = false);
+	static void InitializeCVarsForActiveDeviceProfile(bool bPushSettings=false, bool bForceDeviceProfilePriority = false);
 
 	/**
 	 * Reapplies the device profile. Useful when configs have changed (i.e. hotfix)
@@ -74,7 +74,7 @@ public:
 	/**
 	* Overrides the device profile. The original profile can be restored with RestoreDefaultDeviceProfile
 	*/
-	void SetOverrideDeviceProfile(UDeviceProfile* DeviceProfile, bool bIsDeviceProfilePreview = false);
+	void SetOverrideDeviceProfile(UDeviceProfile* DeviceProfile, bool bForceDeviceProfilePriority = false);
 
 	/**
 	* Restore the device profile to the default for this device

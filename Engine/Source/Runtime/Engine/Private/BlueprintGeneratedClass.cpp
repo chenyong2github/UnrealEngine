@@ -1065,8 +1065,6 @@ void UBlueprintGeneratedClass::CreateTimelineComponent(AActor* Actor, const UTim
 	NewTimeline->SetTimelineLength(TimelineTemplate->TimelineLength); // copy length
 	NewTimeline->SetTimelineLengthMode(TimelineTemplate->LengthMode);
 
-	NewTimeline->PrimaryComponentTick.TickGroup = TimelineTemplate->TimelineTickGroup;
-
 	// Find property with the same name as the template and assign the new Timeline to it
 	UClass* ActorClass = Actor->GetClass();
 	FObjectPropertyBase* Prop = FindFProperty<FObjectPropertyBase>(ActorClass, TimelineTemplate->GetVariableName());

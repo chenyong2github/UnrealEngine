@@ -54,10 +54,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Light Rendering")
 	uint32 bAffectsTranslucency : 1;
 
-	/** When checked, will treat the alpha value of the particle's color as a multiplier of the light's brightness. */
-	UPROPERTY(EditAnywhere, Category = "Light Rendering")
-	uint32 bAlphaScalesBrightness : 1;
-
 	/** A factor used to scale each particle light radius */
 	UPROPERTY(EditAnywhere, Category = "Light Rendering", meta = (UIMin = "0"))
 	float RadiusScale;

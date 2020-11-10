@@ -379,7 +379,7 @@ bool D3D12RHI::FD3DGPUProfiler::CheckGpuHeartbeat() const
 			if (Status != GFSDK_Aftermath_Device_Status_Active)
 			{
 				GIsGPUCrashed = true;
-				const TCHAR* AftermathReason[] = { TEXT("Active"), TEXT("Timeout"), TEXT("OutOfMemory"), TEXT("PageFault"), TEXT("Stopped"), TEXT("Reset"), TEXT("Unknown"), TEXT("DmaFault") };
+				const TCHAR* AftermathReason[] = { TEXT("Active"), TEXT("Timeout"), TEXT("OutOfMemory"), TEXT("PageFault"), TEXT("Unknown") };
 				if (Status < UE_ARRAY_COUNT(AftermathReason))
 				{
 					UE_LOG(LogRHI, Error, TEXT("[Aftermath] Status: %s"), AftermathReason[Status]);
@@ -398,22 +398,22 @@ bool D3D12RHI::FD3DGPUProfiler::CheckGpuHeartbeat() const
 					UE_LOG(LogRHI, Error, TEXT("[Aftermath] Scanning %d command lists for dumps"), ContextDataOut.Num());
 					for (GFSDK_Aftermath_ContextData& ContextData : ContextDataOut)
 					{
-						if (ContextData.status == GFSDK_Aftermath_Context_Status_Executing || Status == GFSDK_Aftermath_Device_Status_PageFault)
+						if (ContextData.status == GFSDK_Aftermath_Context_Status_Executing)
 						{
+							UE_LOG(LogRHI, Error, TEXT("[Aftermath] GPU Stack Dump"));
 							uint32 NumCRCs = ContextData.markerSize / sizeof(uint32);
 							uint32* Data = (uint32*)ContextData.markerData;
+							for (uint32 i = 0; i < NumCRCs; i++)
+							{
+								const FString* Frame = CachedEventStrings.Find(Data[i]);
+								if (Frame != nullptr)
+								{
+									UE_LOG(LogRHI, Error, TEXT("[Aftermath] %i: %s"), i, *(*Frame));
+								}
+							}
 							if (NumCRCs > 0)
 							{
-								UE_LOG(LogRHI, Error, TEXT("[Aftermath] Begin GPU Stack Dump"));
-								for (uint32 i = 0; i < NumCRCs; i++)
-								{
-									const FString* Frame = CachedEventStrings.Find(Data[i]);
-									if (Frame != nullptr)
-									{
-										UE_LOG(LogRHI, Error, TEXT("[Aftermath] %i: %s"), i, *(*Frame));
-									}
-								}
-								UE_LOG(LogRHI, Error, TEXT("[Aftermath] End GPU Stack Dump"));
+								UE_LOG(LogRHI, Error, TEXT("[Aftermath] GPU Stack Dump"));
 							}
 						}
 					}

@@ -12,19 +12,6 @@
 
 #if RHI_RAYTRACING
 
-static TAutoConsoleVariable<int32> CVarRayTracingAMDHitToken(
-	TEXT("r.RayTracing.AMDHitToken"),
-	1,
-	TEXT("Whether to allow the AMD HitToken extension"),
-	ECVF_RenderThreadSafe
-);
-
-bool CanUseRayTracingAMDHitToken()
-{
-	return GRHISupportsRayTracingAMDHitToken
-		&& CVarRayTracingAMDHitToken.GetValueOnRenderThread() != 0;
-}
-
 class FRayTracingDeferredMaterialCHS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FRayTracingDeferredMaterialCHS)

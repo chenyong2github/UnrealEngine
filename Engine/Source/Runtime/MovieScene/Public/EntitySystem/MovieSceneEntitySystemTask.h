@@ -699,14 +699,12 @@ struct TEntityTaskComponentsImpl<TIntegerSequence<int, Indices...>, T...>
 		if (IsValid())
 		{
 			const uint64 SystemSerial = EntityManager->GetSystemSerial();
-			for (FEntityAllocationIteratorItem Item : EntityManager->Iterate(&Filter))
+			for (FEntityAllocation* Allocation : EntityManager->Iterate(&Filter))
 			{
-				FEntityAllocation* Allocation = Item;
-
 				// Lock on the components we want to access
 				Lock(Allocation);
 
-				FEntityIterationResult Result = (InCallback(Item, Accessors.template Get<Indices>()...), FEntityIterationResult{});
+				FEntityIterationResult Result = (InCallback(Allocation, Accessors.template Get<Indices>()...), FEntityIterationResult{});
 
 				// Unlock from the components we wanted to access
 				Unlock(Allocation, SystemSerial);
@@ -1237,14 +1235,12 @@ struct TEntityAllocationTaskBase
 
 		PreTask(&TaskImplInstance);
 
-		for (FEntityAllocationIteratorItem Item : EntityManager->Iterate(&ComponentFilter.GetFilter()))
+		for (FEntityAllocation* Allocation : EntityManager->Iterate(&ComponentFilter.GetFilter()))
 		{
-			FEntityAllocation* Allocation = Item;
-
 			// Lock on the components we want to access
 			ComponentFilter.GetComponents().Lock(Allocation);
 
-			Caller::ForEachAllocation(TaskImplInstance, Item, ComponentFilter.GetComponents());
+			Caller::ForEachAllocation(TaskImplInstance, Allocation, ComponentFilter.GetComponents());
 
 			// Unlock from the components we wanted to access
 			ComponentFilter.GetComponents().Unlock(Allocation, SystemSerial);
@@ -1360,9 +1356,9 @@ struct TEntityTaskCaller_AutoExpansion<TaskImpl, TIntegerSequence<int, Indices..
 	}
 
 	template<typename... ComponentTypes>
-	FORCEINLINE static void ForEachAllocation(TaskImpl& TaskImplInstance, FEntityAllocationIteratorItem Item, const TEntityTaskComponents<ComponentTypes...>& Components)
+	FORCEINLINE static void ForEachAllocation(TaskImpl& TaskImplInstance, const FEntityAllocation* Allocation, const TEntityTaskComponents<ComponentTypes...>& Components)
 	{
-		TaskImplInstance.ForEachAllocation(Item, Components.template GetAccessor<Indices>()...);
+		TaskImplInstance.ForEachAllocation(Allocation, Components.template GetAccessor<Indices>()...);
 	}
 };
 
@@ -1384,9 +1380,9 @@ struct TEntityTaskCaller<TaskImpl, NumComponents, false>
 	}
 
 	template<typename... ComponentTypes>
-	FORCEINLINE static void ForEachAllocation(TaskImpl& TaskImplInstance, FEntityAllocationIteratorItem Item, const TEntityTaskComponents<ComponentTypes...>& Components)
+	FORCEINLINE static void ForEachAllocation(TaskImpl& TaskImplInstance, const FEntityAllocation* Allocation, const TEntityTaskComponents<ComponentTypes...>& Components)
 	{
-		TaskImplInstance.ForEachAllocation(Item, Components);
+		TaskImplInstance.ForEachAllocation(Allocation, Components);
 	}
 };
 

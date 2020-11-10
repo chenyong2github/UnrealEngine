@@ -106,19 +106,22 @@ FPoseData* FPoseDataContainer::FindOrAddPoseData(FSmartName PoseName)
 	return &Poses[PoseIndex];
 }
 
-FTransform FPoseDataContainer::GetDefaultTransform(const FName& InTrackName, USkeleton* InSkeleton, const TArray<FTransform>& RefPose) const
+FTransform FPoseDataContainer::GetDefaultTransform(const FName& InTrackName, USkeleton* InSkeleton, const FName& InRetargetSourceName) const
 {
-	if (InSkeleton)
+	int32 SkeletonIndex = InSkeleton->GetReferenceSkeleton().FindBoneIndex(InTrackName);
+	if (SkeletonIndex != INDEX_NONE)
 	{
-		int32 SkeletonIndex = InSkeleton->GetReferenceSkeleton().FindBoneIndex(InTrackName);
-		return GetDefaultTransform(SkeletonIndex, RefPose);
+		return GetDefaultTransform(SkeletonIndex, InSkeleton, InRetargetSourceName);
 	}
 
 	return FTransform::Identity;
 }
 
-FTransform FPoseDataContainer::GetDefaultTransform(int32 SkeletonIndex, const TArray<FTransform>& RefPose) const
+FTransform FPoseDataContainer::GetDefaultTransform(int32 SkeletonIndex, USkeleton* InSkeleton, const FName& InRetargetSourceName) const
 {
+	// now insert default refpose
+	const TArray<FTransform>& RefPose = InSkeleton->GetRefLocalPoses(InRetargetSourceName);
+
 	if (RefPose.IsValidIndex(SkeletonIndex))
 	{
 		return RefPose[SkeletonIndex];
@@ -144,7 +147,7 @@ void FPoseDataContainer::AddOrUpdatePose(const FSmartName& InPoseName, const TAr
 	// for now we only supports same tracks
 }
 
-bool FPoseDataContainer::InsertTrack(const FName& InTrackName, USkeleton* InSkeleton, const TArray<FTransform>& RefPose)
+bool FPoseDataContainer::InsertTrack(const FName& InTrackName, USkeleton* InSkeleton, FName& InRetargetSourceName)
 {
 	check(InSkeleton);
 
@@ -160,7 +163,7 @@ bool FPoseDataContainer::InsertTrack(const FName& InTrackName, USkeleton* InSkel
 			TrackIndex = Tracks.Num() - 1;
 
 			// now insert default refpose
-			const FTransform DefaultPose = GetDefaultTransform(SkeletonIndex, RefPose);
+			const FTransform DefaultPose = GetDefaultTransform(SkeletonIndex, InSkeleton, InRetargetSourceName);
 
 			for (auto& PoseData : Poses)
 			{
@@ -288,7 +291,7 @@ void FPoseDataContainer::RetrieveSourcePoseFromExistingPose(bool bAdditive, int3
 }
 
 // this marks dirty tracks for each pose 
-void FPoseDataContainer::ConvertToFullPose(USkeleton* InSkeleton, const TArray<FTransform>& RefPose)
+void FPoseDataContainer::ConvertToFullPose(USkeleton* InSkeleton, FName& InRetargetSourceName)
 {
 	// first create pose buffer that only has valid data
 	for (auto& Pose : Poses)
@@ -301,7 +304,7 @@ void FPoseDataContainer::ConvertToFullPose(USkeleton* InSkeleton, const TArray<F
 			for (int32 TrackIndex = 0; TrackIndex < Tracks.Num(); ++TrackIndex)
 			{
 				// we only add to local space poses if it's not same as default pose
-				FTransform DefaultTransform = GetDefaultTransform(Tracks[TrackIndex], InSkeleton, RefPose);
+				FTransform DefaultTransform = GetDefaultTransform(Tracks[TrackIndex], InSkeleton, InRetargetSourceName);
 				if (!Pose.SourceLocalSpacePose[TrackIndex].Equals(DefaultTransform, KINDA_SMALL_NUMBER))
 				{
 					int32 NewIndex = Pose.LocalSpacePose.Add(Pose.SourceLocalSpacePose[TrackIndex]);
@@ -417,7 +420,7 @@ void UPoseAsset::GetBaseAnimationPose(FAnimationPoseData& OutAnimationPoseData) 
 			{
 				FTransform& OutTransform = OutPose[LocalBoneIndices.CompactBoneIndex];
 				OutTransform = PoseTransform[TrackIndex];
-				FAnimationRuntime::RetargetBoneTransform(MySkeleton, GetRetargetTransformsSourceName(), GetRetargetTransforms(), OutTransform, LocalBoneIndices.SkeletonBoneIndex, LocalBoneIndices.CompactBoneIndex, RequiredBones, false);
+				FAnimationRuntime::RetargetBoneTransform(MySkeleton, RetargetSource, OutTransform, LocalBoneIndices.SkeletonBoneIndex, LocalBoneIndices.CompactBoneIndex, RequiredBones, false);
 			}
 		}
 
@@ -710,7 +713,7 @@ bool UPoseAsset::GetAnimationPose(struct FAnimationPoseData& OutAnimationPoseDat
 					{
 						continue;
 					}
-					FAnimationRuntime::RetargetBoneTransform(MySkeleton, GetRetargetTransformsSourceName(), GetRetargetTransforms(), BlendedBoneTransform[TrackIndex], LocalBoneIndices.SkeletonBoneIndex, LocalBoneIndices.CompactBoneIndex, RequiredBones, bAdditivePose);
+					FAnimationRuntime::RetargetBoneTransform(MySkeleton, RetargetSource, BlendedBoneTransform[TrackIndex], LocalBoneIndices.SkeletonBoneIndex, LocalBoneIndices.CompactBoneIndex, RequiredBones, bAdditivePose);
 					OutPose[LocalBoneIndices.CompactBoneIndex] = BlendedBoneTransform[TrackIndex];
 					OutPose[LocalBoneIndices.CompactBoneIndex].NormalizeRotation();
 				}
@@ -813,18 +816,6 @@ void UPoseAsset::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
 	Super::Serialize(Ar);
-}
-
-void UPoseAsset::PreSave(const ITargetPlatform* TargetPlatform)
-{
-#if WITH_EDITOR
-	const bool bIsCooking = (TargetPlatform != nullptr);
-	if (!bIsCooking)
-	{
-		UpdateRetargetSourceAsset();
-	}
-#endif // WITH_EDITOR
-	Super::PreSave(TargetPlatform);
 }
 
 void UPoseAsset::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
@@ -1088,19 +1079,7 @@ void UPoseAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 	if (PropertyChangedEvent.Property)
 	{
-		bool bConvertToAdditivePose = false;
-		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPoseAsset, RetargetSourceAsset))
-		{
-			bConvertToAdditivePose = true;
-			UpdateRetargetSourceAsset();
-		}
-
 		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPoseAsset, RetargetSource))
-		{
-			bConvertToAdditivePose = true;
-		}
-
-		if (bConvertToAdditivePose)
 		{
 			USkeleton* MySkeleton = GetSkeleton();
 			if (MySkeleton)
@@ -1124,7 +1103,7 @@ void UPoseAsset::CombineTracks(const TArray<FName>& NewTracks)
 				// if we don't have it, then we'll have to add this track and then 
 				// right now it doesn't have to be in the hierarchy
 				// @todo: it is probably best to keep the hierarchy of the skeleton, so in the future, we might like to sort this by track after
-				PoseContainer.InsertTrack(NewTrack, MySkeleton, GetRetargetTransforms());
+				PoseContainer.InsertTrack(NewTrack, MySkeleton, RetargetSource);
 			}
 		}
 	}
@@ -1380,7 +1359,7 @@ int32 UPoseAsset::DeleteCurves(TArray<FName> CurveNamesToDelete)
 
 void UPoseAsset::ConvertToFullPose()
 {
-	PoseContainer.ConvertToFullPose(GetSkeleton(), GetRetargetTransforms());
+	PoseContainer.ConvertToFullPose(GetSkeleton(), RetargetSource);
 	bAdditivePose = false;
 }
 
@@ -1475,55 +1454,6 @@ void UPoseAsset::RecacheTrackmap()
 				--TrackIndex;
 			}
 		}
-	}
-}
-
-#if WITH_EDITORONLY_DATA
-void UPoseAsset::UpdateRetargetSourceAsset()
-{
-	USkeletalMesh* SourceReferenceMesh = RetargetSourceAsset.LoadSynchronous();
-	const USkeleton* MySkeleton = GetSkeleton();
-	if (SourceReferenceMesh && MySkeleton)
-	{
-		FAnimationRuntime::MakeSkeletonRefPoseFromMesh(SourceReferenceMesh, MySkeleton, RetargetSourceAssetReferencePose);
-	}
-	else
-	{
-		RetargetSourceAssetReferencePose.Empty();
-	}
-}
-#endif // WITH_EDITORONLY_DATA
-
-const TArray<FTransform>& UPoseAsset::GetRetargetTransforms() const
-{
-	if (RetargetSource.IsNone() && RetargetSourceAssetReferencePose.Num() > 0)
-	{
-		return RetargetSourceAssetReferencePose;
-	}
-	else
-	{
-		const USkeleton* MySkeleton = GetSkeleton();
-		if (MySkeleton)
-		{
-			return MySkeleton->GetRefLocalPoses(RetargetSource);
-		}
-		else
-		{
-			static TArray<FTransform> EmptyTransformArray;
-			return EmptyTransformArray;
-		}
-	}
-}
-
-FName UPoseAsset::GetRetargetTransformsSourceName() const
-{
-	if (RetargetSource.IsNone() && RetargetSourceAssetReferencePose.Num() > 0)
-	{
-		return GetOutermost()->GetFName();
-	}
-	else
-	{
-		return RetargetSource;
 	}
 }
 
@@ -1633,7 +1563,7 @@ bool UPoseAsset::GetBasePoseTransform(TArray<FTransform>& OutBasePose, TArray<fl
 			for (int32 TrackIndex = 0; TrackIndex < PoseContainer.Tracks.Num(); ++TrackIndex)
 			{
 				const FName& TrackName = PoseContainer.Tracks[TrackIndex];
-				OutBasePose[TrackIndex] = PoseContainer.GetDefaultTransform(TrackName, MySkeleton, GetRetargetTransforms());
+				OutBasePose[TrackIndex] = PoseContainer.GetDefaultTransform(TrackName, MySkeleton, RetargetSource);
 			}
 		}
 		else

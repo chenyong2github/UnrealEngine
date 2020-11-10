@@ -1061,9 +1061,6 @@ static_assert(SP_NumPlatforms <= sizeof(GDBufferPlatformMask) * 8, "GDBufferPlat
 RENDERCORE_API uint64 GBasePassVelocityPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GBasePassVelocityPlatformMask) * 8, "GBasePassVelocityPlatformMask must be large enough to support all shader platforms");
 
-RENDERCORE_API uint64 GVelocityEncodeDepthPlatformMask = 0;
-static_assert(SP_NumPlatforms <= sizeof(GVelocityEncodeDepthPlatformMask) * 8, "GVelocityEncodeDepthPlatformMask must be large enough to support all shader platforms");
-
 RENDERCORE_API uint64 GSelectiveBasePassOutputsPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GSelectiveBasePassOutputsPlatformMask) * 8, "GSelectiveBasePassOutputsPlatformMask must be large enough to support all shader platforms");
 
@@ -1199,15 +1196,6 @@ RENDERCORE_API void RenderUtilsInit()
 				{
 					GSimpleSkyDiffusePlatformMask &= ~Mask;
 				}
-
-				if (TargetPlatform->VelocityEncodeDepth())
-				{
-					GVelocityEncodeDepthPlatformMask |= Mask;
-				}
-				else
-				{
-					GVelocityEncodeDepthPlatformMask &= ~Mask;
-				}
 			}
 		}
 	}
@@ -1250,9 +1238,9 @@ RENDERCORE_API void RenderUtilsInit()
 				}
 				else
 				{
-					GUseRayTracing = false;
+					GUseRayTracing = true;
 
-					UE_LOG(LogRendererCore, Log, TEXT("Ray tracing is disabled for the game. Reason: r.RayTracing=1, but user setting r.RayTracing.EnableInGame is not present (default false)."));
+					UE_LOG(LogRendererCore, Log, TEXT("Ray tracing is enabled for the game. Reason: r.RayTracing=1 and r.RayTracing.EnableInGame is not present (default true)."));
 				}
 			}
 

@@ -17,15 +17,12 @@
 #include "ContentBrowserDataFilter.h"
 #include "ContentBrowserDelegates.h"
 #include "Delegates/DelegateCombinations.h"
-#include "SFilterList.h"
-#include "ContentBrowserPluginFilters.h"
 
 class FSourcesSearch;
 struct FHistoryData;
 class FTreeItem;
 class FContentBrowserSingleton;
 class FBlacklistPaths;
-class UToolMenu;
 
 typedef TTextFilter< const FString& > FolderTextFilter;
 
@@ -35,9 +32,6 @@ typedef TTextFilter< const FString& > FolderTextFilter;
 class SPathView : public SCompoundWidget
 {
 public:
-	/** Delegate for when plugin filters have changed */
-	DECLARE_DELEGATE( FOnFrontendPluginFilterChanged );
-
 	SLATE_BEGIN_ARGS( SPathView )
 		: _InitialCategoryFilter(EContentBrowserItemCategoryFilter::IncludeAll)
 		, _FocusSearchBoxWhenOpened(true)
@@ -88,9 +82,6 @@ public:
 
 		/** Optional external search. Will hide and replace our internal search UI */
 		SLATE_ARGUMENT( TSharedPtr<FSourcesSearch>, ExternalSearch )
-
-		/** The plugin filter collection */
-		SLATE_ARGUMENT( TSharedPtr<FPluginFilterCollectionType>, PluginPathFilters)
 
 	SLATE_END_ARGS()
 
@@ -184,8 +175,6 @@ public:
 		return TreeTitle;
 	}
 
-	void PopulatePathViewFiltersMenu(UToolMenu* Menu);
-
 protected:
 	/** Expands all parents of the specified item */
 	void RecursiveExpandParents(const TSharedPtr<FTreeItem>& Item);
@@ -273,18 +262,6 @@ private:
 
 	/** One-off active timer to repopulate the path view */
 	EActiveTimerReturnType TriggerRepopulate(double InCurrentTime, float InDeltaTime);
-
-	/** Sets the active state of a filter. */
-	void SetPluginPathFilterActive(const TSharedRef<FContentBrowserPluginFilter>& Filter, bool bActive);
-
-	/** Unchecks all plugin filters. */
-	void ResetPluginPathFilters();
-
-	/** Toggle plugin filter. */
-	void PluginPathFilterClicked(TSharedRef<FContentBrowserPluginFilter> Filter);
-
-	/** Returns true if filter is being used. */
-	bool IsPluginPathFilterInUse(TSharedRef<FContentBrowserPluginFilter> Filter) const;
 
 protected:
 	/** A helper class to manage PreventTreeItemChangedDelegateCount by incrementing it when constructed (on the stack) and decrementing when destroyed */
@@ -379,12 +356,6 @@ private:
 
 	/** The title of this path view */
 	FText TreeTitle;
-
-	/** The filter collection used to filter plugins */
-	TSharedPtr<FPluginFilterCollectionType> PluginPathFilters;
-
-	/** Plugins filters that are currently active */
-	TArray< TSharedRef<FContentBrowserPluginFilter> > AllPluginPathFilters;
 };
 
 

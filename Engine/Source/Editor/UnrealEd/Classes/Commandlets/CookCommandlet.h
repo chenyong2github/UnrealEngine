@@ -53,8 +53,6 @@ class UCookCommandlet
 	bool bVerboseCookerWarnings;
 	/** only clean up objects which are not in use by the cooker when we gc (false will enable full gc) */
 	bool bPartialGC;
-	/** Do not cook any shaders.  Shader maps will be empty */
-	bool bNoShaderCooking;
 	/** All commandline tokens */
 	TArray<FString> Tokens;
 	/** All commandline switches */

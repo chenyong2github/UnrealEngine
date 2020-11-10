@@ -270,7 +270,7 @@ void FNiagaraRendererRibbons::GenerateIndexBuffer(
 
 	FMaterialRenderProxy* MaterialRenderProxy = DynamicData->Material;
 	check(MaterialRenderProxy);
-	const EBlendMode BlendMode = MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).GetBlendMode();
+	const EBlendMode BlendMode = MaterialRenderProxy->GetMaterial(FeatureLevel)->GetBlendMode();
 
 	TValue* CurrentIndexBuffer = (TValue*)InOutIndexAllocation.Buffer;
 	if (IsTranslucentBlendMode(BlendMode) && DynamicData->MultiRibbonInfos.Num())
@@ -290,6 +290,7 @@ void FNiagaraRendererRibbons::GenerateIndexBuffer(
 
 void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraRender);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderRibbons);
 	PARTICLE_PERF_STAT_CYCLES(SceneProxy->PerfAsset, GetDynamicMeshElements);
 
@@ -1097,6 +1098,7 @@ void FNiagaraRendererRibbons::GetDynamicRayTracingInstances(FRayTracingMaterialG
 		return;
 	}
 
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraRender);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderRibbons);
 	check(SceneProxy);
 

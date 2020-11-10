@@ -11,19 +11,6 @@
 #include "CameraShakeBase.generated.h"
 
 class APlayerCameraManager;
-class UCameraShakePattern;
-
-/**
- * Parameters for starting a camera shake.
- */
-USTRUCT(BlueprintType)
-struct ENGINE_API FCameraShakeStartParams
-{
-	GENERATED_BODY()
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
-	bool bIsRestarting = false;
-};
 
 /**
  * Parameters for updating a camera shake.
@@ -41,19 +28,14 @@ struct ENGINE_API FCameraShakeUpdateParams
 	{}
 
 	/** The time elapsed since last update */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float DeltaTime = 0.f;
 	/** The dynamic scale being passed down from the camera manger for this shake */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float DynamicScale = 1.f;
 	/** The auto-computed blend in/out scale, when blending is handled by base class (see UCameraShakeBase::GetShakeInfo) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float BlendingWeight = 1.f;
 	/** The total scale to apply to the camera shake during the current update. Equals ShakeScale * DynamicScale * BlendingWeight */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float TotalScale = 1.f;
 	/** The current view that this camera shake should modify */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	FMinimalViewInfo POV;
 };
 
@@ -102,18 +84,6 @@ struct ENGINE_API FCameraShakeUpdateResult
 };
 
 /**
- * Parameters for stopping a camera shake.
- */
-USTRUCT(BlueprintType)
-struct ENGINE_API FCameraShakeStopParams
-{
-	GENERATED_BODY()
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
-	bool bImmediately = false;
-};
-
-/**
  * Camera shake duration type.
  */
 UENUM()
@@ -135,24 +105,16 @@ struct ENGINE_API FCameraShakeDuration
 {
 	GENERATED_BODY()
 
-	/** Returns an infinite shake duration */
 	static FCameraShakeDuration Infinite() { return FCameraShakeDuration { 0.f, ECameraShakeDurationType::Infinite }; }
-	/** Returns a custom shake duration */
 	static FCameraShakeDuration Custom() { return FCameraShakeDuration { 0.f, ECameraShakeDurationType::Custom }; }
 
-	/** Creates a new shake duration */
 	FCameraShakeDuration() : Duration(0.f), Type(ECameraShakeDurationType::Fixed) {}
-	/** Creates a new shake duration */
 	FCameraShakeDuration(float InDuration, ECameraShakeDurationType InType = ECameraShakeDurationType::Fixed) : Duration(InDuration), Type(InType) {}
 	
-	/** Returns whether this duration is a fixed time */
 	bool IsFixed() const { return Type == ECameraShakeDurationType::Fixed; }
-	/** Returns whether this duration is infinite */
 	bool IsInfinite() const { return Type == ECameraShakeDurationType::Infinite; }
-	/** Returns whether this duration is custom */
 	bool IsCustom() const { return Type == ECameraShakeDurationType::Custom; }
 
-	/** When the duration is fixed, return the duration time */
 	float Get() const { check(Type == ECameraShakeDurationType::Fixed); return Duration; }
 
 private:
@@ -185,22 +147,27 @@ struct ENGINE_API FCameraShakeInfo
 };
 
 /**
- * Base class for a camera shake. A camera shake contains a root shake "pattern" which is
- * the object that contains the actual logic driving how the camera is shaken. Keeping the two
- * separate makes it possible to completely change how a shake works without having to create
- * a completely different asset.
+ * A CameraShake is an asset that defines how to shake the camera in 
+ * a particular way. CameraShakes can be authored as either oscillating shakes, 
+ * animated shakes, or both.
+ *
+ * An oscillating shake will sinusoidally vibrate various camera parameters over time. Each location
+ * and rotation axis can be oscillated independently with different parameters to create complex and
+ * random-feeling shakes. These are easier to author and tweak, but can still feel mechanical and are
+ * limited to vibration-style shakes, such as earthquakes.
+ *
+ * Animated shakes play keyframed camera animations.  These can take more effort to author, but enable
+ * more natural-feeling results and things like directional shakes.  For instance, you can have an explosion
+ * to the camera's right push it primarily to the left.
  */
-UCLASS(Abstract, Blueprintable, EditInlineNew)
+UCLASS(abstract, Blueprintable, EditInlineNew)
 class ENGINE_API UCameraShakeBase : public UObject
 {
 	GENERATED_BODY()
 
 public:
 
-	/** Create a new instance of a camera shake */
 	UCameraShakeBase(const FObjectInitializer& ObjectInitializer);
-	
-public:
 
 	/**
 	 * Gets the duration of this camera shake in seconds.
@@ -263,29 +230,12 @@ public:
 	 *  If true to only allow a single instance of this shake class to play at any given time.
 	 *  Subsequent attempts to play this shake will simply restart the timer.
 	 */
-	UPROPERTY(EditAnywhere, Category=CameraShake)
+	UPROPERTY(EditAnywhere, Category = CameraShake)
 	bool bSingleInstance;
 
 	/** The overall scale to apply to the shake. Only valid when the shake is active. */
-	UPROPERTY(transient, BlueprintReadWrite, Category=CameraShake)
+	UPROPERTY(transient, BlueprintReadWrite, Category = CameraShake)
 	float ShakeScale;
-
-	/** Gets the root pattern of this camera shake */
-	UFUNCTION(BlueprintPure, Category="CameraShake")
-	UCameraShakePattern* GetRootShakePattern() const { return RootShakePattern; }
-
-	/** Sets the root pattern of this camera shake */
-	UFUNCTION(BlueprintCallable, Category="CameraShake")
-	void SetRootShakePattern(UCameraShakePattern* InPattern);
-
-	/** Creates a new pattern of the given type and sets it as the root one on this shake */
-	template<typename ShakePatternType>
-	ShakePatternType* ChangeRootShakePattern()
-	{
-		ShakePatternType* ShakePattern = NewObject<ShakePatternType>(this);
-		SetRootShakePattern(ShakePattern);
-		return ShakePattern;
-	}
 
 public:
 
@@ -307,7 +257,11 @@ public:
 	/** Tears down this camera shake before destruction or recycling */
 	void TeardownShake();
 
-public:
+protected:
+
+	void ApplyPlaySpace(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult) const;
+	void ApplyScale(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult) const;
+	void ApplyScale(float Scale, FCameraShakeUpdateResult& InOutResult) const;
 
 	/** Gets the current camera manager. Will be null if the shake isn't active. */
 	APlayerCameraManager* GetCameraManager() const { return CameraManager; }
@@ -319,29 +273,17 @@ public:
 	/** Sets the current play space matrix. This method has no effect if the shake isn't active, or if its play space isn't UserDefined. */
 	void SetUserPlaySpaceMatrix(const FMatrix& InMatrix) { UserPlaySpaceMatrix = InMatrix; }
 
-protected:
-
-	/** Applies all the appropriate auto-scaling to the current shake offset (only if the result is "relative") */
-	void ApplyScale(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult) const;
-
-	/** Applies the given scale to the current shake offset (only if the result is "relative") */
-	void ApplyScale(float Scale, FCameraShakeUpdateResult& InOutResult) const;
-
-	/** Applies any appropriate system-wide limits */
-	void ApplyLimits(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult) const;
-
-	/**
-	 * Modifies the current shake offset to be oriented in the current shake's play space (only if the result is "relative")
-	 *
-	 * Note that this modifies the result and makes it "absolute".
-	 */
-	void ApplyPlaySpace(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult) const;
-
 private:
 
-	/** The root pattern for this camera shake */
-	UPROPERTY(EditAnywhere, Instanced, Category=CameraShake)
-	UCameraShakePattern* RootShakePattern;
+	// UCameraShakeBase interface
+	virtual void GetShakeInfoImpl(FCameraShakeInfo& OutInfo) const {}
+	virtual void StartShakeImpl() {}
+	virtual void UpdateShakeImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult) {}
+	virtual bool IsFinishedImpl() const { return true; }
+	virtual void StopShakeImpl(bool bImmediately) {}
+	virtual void TeardownShakeImpl()  {}
+
+private:
 
 	/** The camera manager owning this camera shake. Only valid when the shake is active. */
 	UPROPERTY(transient)
@@ -375,52 +317,3 @@ private:
 	};
 	FCameraShakeState State;
 };
-
-/**
- * A shake "pattern" defines how a camera should be effectively shaken. Examples of shake patterns
- * are sinewave oscillation, perlin noise, or FBX animation.
- *
- */
-UCLASS(Abstract, EditInlineNew)
-class ENGINE_API UCameraShakePattern : public UObject
-{
-	GENERATED_BODY()
-
-public:
-
-	/** Constructor for a shake pattern */
-	UCameraShakePattern(const FObjectInitializer& ObjectInitializer);
-
-	/** Gets information about this shake pattern */
-	void GetShakePatternInfo(FCameraShakeInfo& OutInfo) const;
-	/** Called when the shake pattern starts */
-	void StartShakePattern(const FCameraShakeStartParams& Params);
-	/** Updates the shake pattern, which should add its generated offset to the given result */
-	void UpdateShakePattern(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult);
-	/** Returns whether this shake pattern is finished */
-	bool IsFinished() const;
-	/** Called when the shake pattern is manually stopped */
-	void StopShakePattern(const FCameraShakeStopParams& Params);
-	/** Call when the shake pattern is discard, either after naturally finishing or being stopped manually */
-	void TeardownShakePattern();
-
-protected:
-
-	/** Gets the shake pattern's parent shake */
-	UCameraShakeBase* GetShakeInstance() const;
-
-	/** Gets the shake pattern's parent shake */
-	template<typename InstanceType>
-	InstanceType* GetShakeInstance() const { return Cast<InstanceType>(GetShakeInstance()); }
-
-private:
-
-	// UCameraShakePattern interface
-	virtual void GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const {}
-	virtual void StartShakePatternImpl(const FCameraShakeStartParams& Params) {}
-	virtual void UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult) {}
-	virtual bool IsFinishedImpl() const { return true; }
-	virtual void StopShakePatternImpl(const FCameraShakeStopParams& Params) {}
-	virtual void TeardownShakePatternImpl()  {}
-};
-

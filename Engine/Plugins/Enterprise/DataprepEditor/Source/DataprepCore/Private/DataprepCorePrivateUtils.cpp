@@ -76,7 +76,7 @@ void DataprepCorePrivateUtils::BuildStaticMeshes(TSet<UStaticMesh*>& StaticMeshe
 	{
 		for(UStaticMesh* StaticMesh : StaticMeshes)
 		{
-			if(StaticMesh && (!StaticMesh->GetRenderData() || !StaticMesh->GetRenderData()->IsInitialized()))
+			if(StaticMesh && (!StaticMesh->RenderData.IsValid() || !StaticMesh->RenderData->IsInitialized()))
 			{
 				BuiltMeshes.Add( StaticMesh );
 			}
@@ -157,7 +157,7 @@ void DataprepCorePrivateUtils::BuildStaticMeshes(TSet<UStaticMesh*>& StaticMeshe
 				SourceModels[SourceModelIndex].BuildSettings = PrevBuildSettings[SourceModelIndex];
 			}
 
-			if(FStaticMeshRenderData* RenderData = StaticMesh->GetRenderData())
+			if(FStaticMeshRenderData* RenderData = StaticMesh->RenderData.Get())
 			{
 				for ( FStaticMeshLODResources& LODResources : RenderData->LODResources )
 				{
@@ -175,7 +175,7 @@ void DataprepCorePrivateUtils::ClearAssets(const TArray<TWeakObjectPtr<UObject>>
 		if(UStaticMesh* StaticMesh = Cast<UStaticMesh>(ObjectPtr.Get()))
 		{
 			StaticMesh->PreEditChange( nullptr );
-			StaticMesh->SetRenderData( nullptr );
+			StaticMesh->RenderData.Reset(nullptr);
 		}
 	}
 }

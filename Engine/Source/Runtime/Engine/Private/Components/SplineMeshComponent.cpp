@@ -105,8 +105,8 @@ void FSplineMeshSceneProxy::InitVertexFactory(USplineMeshComponent* InComponent,
 		return;
 	}
 
-	FStaticMeshLODResources* RenderData2 = &InComponent->GetStaticMesh()->GetRenderData()->LODResources[InLODIndex];
-	FStaticMeshVertexFactories* VertexFactories = &InComponent->GetStaticMesh()->GetRenderData()->LODVertexFactories[InLODIndex];
+	FStaticMeshLODResources* RenderData2 = &InComponent->GetStaticMesh()->RenderData->LODResources[InLODIndex];
+	FStaticMeshVertexFactories* VertexFactories = &InComponent->GetStaticMesh()->RenderData->LODVertexFactories[InLODIndex];
 
 	// Skip LODs that have their render data stripped (eg. platform MinLod settings)
 	if (RenderData2->VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
@@ -895,7 +895,7 @@ void USplineMeshComponent::GetMeshId(FString& OutMeshId)
 void USplineMeshComponent::OnCreatePhysicsState()
 {
 	// With editor code we can recreate the collision if the mesh changes
-	const FGuid MeshBodySetupGuid = (GetStaticMesh() != nullptr ? GetStaticMesh()->GetBodySetup()->BodySetupGuid : FGuid());
+	const FGuid MeshBodySetupGuid = (GetStaticMesh() != nullptr ? GetStaticMesh()->BodySetup->BodySetupGuid : FGuid());
 	if (CachedMeshBodySetupGuid != MeshBodySetupGuid)
 	{
 		RecreateCollision();
@@ -930,9 +930,9 @@ bool USplineMeshComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExp
 	// the NavCollision is supposed to be faster than exporting the regular collision,
 	// but I'm not sure that's true here, as the regular collision is pre-distorted to the spline
 
-	if (GetStaticMesh() != nullptr && GetStaticMesh()->GetNavCollision() != nullptr)
+	if (GetStaticMesh() != nullptr && GetStaticMesh()->NavCollision != nullptr)
 	{
-		UNavCollisionBase* NavCollision = GetStaticMesh()->GetNavCollision();
+		UNavCollisionBase* NavCollision = GetStaticMesh()->NavCollision;
 
 		if (ensure(!NavCollision->IsDynamicObstacle()))
 		{
@@ -991,7 +991,7 @@ void USplineMeshComponent::RecreateCollision()
 	{
 		if (BodySetup == NULL)
 		{
-			BodySetup = DuplicateObject<UBodySetup>(GetStaticMesh()->GetBodySetup(), this);
+			BodySetup = DuplicateObject<UBodySetup>(GetStaticMesh()->BodySetup, this);
 			BodySetup->SetFlags(RF_Transactional);
 			BodySetup->InvalidatePhysicsData();
 		}
@@ -1000,11 +1000,11 @@ void USplineMeshComponent::RecreateCollision()
 			const bool bDirtyPackage = false;
 			BodySetup->Modify(bDirtyPackage);
 			BodySetup->InvalidatePhysicsData();
-			BodySetup->CopyBodyPropertiesFrom(GetStaticMesh()->GetBodySetup());
-			BodySetup->CollisionTraceFlag = GetStaticMesh()->GetBodySetup()->CollisionTraceFlag;
+			BodySetup->CopyBodyPropertiesFrom(GetStaticMesh()->BodySetup);
+			BodySetup->CollisionTraceFlag = GetStaticMesh()->BodySetup->CollisionTraceFlag;
 		}
-		BodySetup->BodySetupGuid = GetStaticMesh()->GetBodySetup()->BodySetupGuid;
-		CachedMeshBodySetupGuid = GetStaticMesh()->GetBodySetup()->BodySetupGuid;
+		BodySetup->BodySetupGuid = GetStaticMesh()->BodySetup->BodySetupGuid;
+		CachedMeshBodySetupGuid = GetStaticMesh()->BodySetup->BodySetupGuid;
 
 		if (BodySetup->GetCollisionTraceFlag() == CTF_UseComplexAsSimple)
 		{

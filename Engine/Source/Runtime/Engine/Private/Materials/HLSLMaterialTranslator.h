@@ -27,7 +27,6 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Hash/CityHash.h"
 #include "VT/RuntimeVirtualTexture.h"
-#include "Field/FieldSystemTypes.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Materials/MaterialExpressionSceneTexture.h"
@@ -741,7 +740,6 @@ protected:
 	virtual int32 GetHairColorFromMelanin(int32 Melanin, int32 Redness, int32 DyeColor) override;
 	virtual int32 DistanceToNearestSurface(int32 PositionArg) override;
 	virtual int32 DistanceFieldGradient(int32 PositionArg) override;
-	virtual int32 SamplePhysicsField(int32 PositionArg, const int32 OutputType, const int32 TargetIndex) override;
 	virtual int32 AtmosphericFogColor(int32 WorldPosition) override;
 	virtual int32 AtmosphericLightVector() override;
 	virtual int32 AtmosphericLightColor() override;

@@ -601,7 +601,7 @@ void FUsdLevelSequenceHelperImpl::CreateSubSequenceSection( ULevelSequence& Sequ
 
 	if ( StageActor->LevelSequence )
 	{
-		UMovieSceneCompiledDataManager::CompileHierarchy( StageActor->LevelSequence, &SequenceHierarchyCache, EMovieSceneServerClientMask::All );
+		UMovieSceneCompiledDataManager::CompileHierarchy( StageActor->LevelSequence, &SequenceHierarchyCache );
 
 		for ( const TTuple< FMovieSceneSequenceID, FMovieSceneSubSequenceData >& Pair : SequenceHierarchyCache.AllSubSequenceData() )
 		{
@@ -629,7 +629,7 @@ void FUsdLevelSequenceHelperImpl::RemoveSubSequenceSection( ULevelSequence& Sequ
 
 			if ( StageActor->LevelSequence )
 			{
-				UMovieSceneCompiledDataManager::CompileHierarchy( StageActor->LevelSequence, &SequenceHierarchyCache, EMovieSceneServerClientMask::All );
+				UMovieSceneCompiledDataManager::CompileHierarchy( StageActor->LevelSequence, &SequenceHierarchyCache );
 			}
 		}
 	}

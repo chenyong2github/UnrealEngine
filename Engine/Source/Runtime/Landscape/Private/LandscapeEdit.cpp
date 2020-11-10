@@ -6246,13 +6246,7 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 		UTexture2D* CurrentWeightmapTexture = MobileWeightNormalmapTexture;
 		MobileWeightmapTextures.Add(CurrentWeightmapTexture);
 		int32 CurrentChannel = 0;
-
-		// Give normal map a full texture if this doesn't increase the overall allocation count.
-		// This then saves a texture slot because we don't need to sample a combined normalmap/weightmap texture with two different sampler settings.
-		int32 NumTexturesCombinedNormal = FMath::DivideAndRoundUp(MobileWeightmapLayerAllocations.Num() + 2, 4);
-		int32 NumTexturesIsolatedNormal = 1 + FMath::DivideAndRoundUp(MobileWeightmapLayerAllocations.Num(), 4);
-		bool bIsolateNormalMap = NumTexturesCombinedNormal == NumTexturesIsolatedNormal;
-		int32 RemainingChannels = bIsolateNormalMap ? 0 : 2;
+		int32 RemainingChannels = 2;
 
 		MobileBlendableLayerMask = 0;
 
@@ -6796,8 +6790,7 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	TArray<FLandscapeVertexRef> VertexOrder;
 	VertexOrder.Empty(NumVertices);
 
-	// Can't stream if using hole data since at least mip 0 will have holes and we don't support streaming any other mip if mip 0 isn't streamed.
-	const bool bStreamLandscapeMeshLODs = TargetPlatform && TargetPlatform->SupportsFeature(ETargetPlatformFeatures::LandscapeMeshLODStreaming) && NumHoleLods == 0;
+	const bool bStreamLandscapeMeshLODs = TargetPlatform && TargetPlatform->SupportsFeature(ETargetPlatformFeatures::LandscapeMeshLODStreaming);
 	const int32 MaxLODClamp = FMath::Min((uint32)GetLandscapeProxy()->MaxLODLevel, (uint32)MAX_MESH_LOD_COUNT - 1u);
 	const int32 NumStreamingLODs = bStreamLandscapeMeshLODs ? FMath::Min(MaxLOD, MaxLODClamp) : 0;
 	TArray<int32> StreamingLODVertStartOffsets;
@@ -6883,7 +6876,9 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 
 	for (int32 Idx = 0; Idx < NumVertices; Idx++)
 	{
-		if (StreamingLODIdx >= 0 && Idx >= StreamingLODVertStartOffsets[StreamingLODIdx])
+		if (StreamingLODIdx >= 0
+			&& (StreamingLODIdx >= NumHoleLods - 1)
+			&& Idx >= StreamingLODVertStartOffsets[StreamingLODIdx])
 		{
 			const int32 EndIdx = StreamingLODIdx - 1 < 0 || StreamingLODIdx == NumHoleLods - 1 ?
 				FMath::Square(SizeVerts) :

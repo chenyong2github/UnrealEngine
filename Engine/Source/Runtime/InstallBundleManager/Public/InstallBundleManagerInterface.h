@@ -67,15 +67,17 @@ DECLARE_DELEGATE_RetVal(bool, FInstallBundleManagerEnvironmentWantsPatchCheck);
 
 DECLARE_DELEGATE_OneParam(FInstallBundleGetInstallStateDelegate, FInstallBundleCombinedInstallState);
 
-class INSTALLBUNDLEMANAGER_API IInstallBundleManager : public TSharedFromThis<IInstallBundleManager>
+class INSTALLBUNDLEMANAGER_API IInstallBundleManager
 {
 public:
-	static FInstallBundleCompleteMultiDelegate InstallBundleCompleteDelegate; // Called when a content request is complete
+	static FInstallBundleCompleteMultiDelegate InstallBundleUpdatedDelegate;  // Called when content is up to do date
+	static FInstallBundleCompleteMultiDelegate InstallBundleCompleteDelegate; // Called when content is ready to use
 	static FInstallBundlePausedMultiDelegate PausedBundleDelegate;
-	static FInstallBundleReleasedMultiDelegate ReleasedDelegate; // Called when content release request is complete
+	static FInstallBundleReleasedMultiDelegate ReleasedDelegate; // Called when content has been released
+	static FInstallBundleReleasedMultiDelegate RemovedDelegate; // Called when content has been physically removed
 	static FInstallBundleManagerOnPatchCheckComplete PatchCheckCompleteDelegate;
 
-	static TSharedPtr<IInstallBundleManager> GetPlatformInstallBundleManager();
+	static IInstallBundleManager* GetPlatformInstallBundleManager();
 
 	virtual ~IInstallBundleManager() {}
 
@@ -112,8 +114,8 @@ public:
 	void CancelRequestRemoveContentOnNextInit(FName BundleName);
 	virtual void CancelRequestRemoveContentOnNextInit(TArrayView<const FName> BundleNames) = 0;
 
-	void CancelUpdateContent(FName BundleName);
-	virtual void CancelUpdateContent(TArrayView<const FName> BundleNames) = 0;
+	void CancelUpdateContent(FName BundleName, EInstallBundleCancelFlags Flags);
+	virtual void CancelUpdateContent(TArrayView<const FName> BundleNames, EInstallBundleCancelFlags Flags) = 0;
 
 	void PauseUpdateContent(FName BundleName);
 	virtual void PauseUpdateContent(TArrayView<const FName> BundleNames) = 0;

@@ -69,12 +69,9 @@ namespace Chaos
 				const float MinDeltaVelocityForHitEvents = FChaosSolversModule::GetModule()->GetSettingsProvider().GetMinDeltaVelocityForHitEvents();
 				for (const Chaos::FPBDCollisionConstraintHandle * ContactHandle : CollisionRule.GetConstConstraintHandles())
 				{
-					if (ContactHandle->GetType() == FCollisionConstraintBase::FType::SinglePoint ||
-						ContactHandle->GetType() == FCollisionConstraintBase::FType::SinglePointSwept)
+					if (ContactHandle->GetType() == FCollisionConstraintBase::FType::SinglePoint)
 					{
-						const FRigidBodyPointContactConstraint& Constraint = (ContactHandle->GetType() == FCollisionConstraintBase::FType::SinglePoint) ?
-							ContactHandle->GetPointContact() :
-							*ContactHandle->GetSweptPointContact().As<FRigidBodyPointContactConstraint>();
+						const FRigidBodyPointContactConstraint& Constraint = ContactHandle->GetPointContact();
 
 						// Since Clustered GCs can be unioned the particleIndex representing the union 
 						// is not associated with a PhysicsProxy
@@ -160,12 +157,9 @@ namespace Chaos
 				{
 					for (int32 IdxCollision = 0; IdxCollision < ValidCollisionHandles.Num(); ++IdxCollision)
 					{
-						if (ValidCollisionHandles[IdxCollision]->GetType() == FCollisionConstraintBase::FType::SinglePoint ||
-							ValidCollisionHandles[IdxCollision]->GetType() == FCollisionConstraintBase::FType::SinglePointSwept)
+						if (ValidCollisionHandles[IdxCollision]->GetType() == FCollisionConstraintBase::FType::SinglePoint)
 						{
-							const FRigidBodyPointContactConstraint& Constraint = (ValidCollisionHandles[IdxCollision]->GetType() == FCollisionConstraintBase::FType::SinglePoint) ? 
-								ValidCollisionHandles[IdxCollision]->GetPointContact() :
-								*ValidCollisionHandles[IdxCollision]->GetSweptPointContact().As<FRigidBodyPointContactConstraint>();
+							Chaos::FRigidBodyPointContactConstraint const& Constraint = ValidCollisionHandles[IdxCollision]->GetPointContact();
 
 							TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
 							TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];

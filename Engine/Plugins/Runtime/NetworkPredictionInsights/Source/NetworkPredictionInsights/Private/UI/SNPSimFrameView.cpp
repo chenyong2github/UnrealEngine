@@ -159,8 +159,8 @@ void FSimFrameViewDrawHelper::DrawCached(const FSimulationFrameView& View, float
 
 		if (W >= MinWidthForEmbeddedText)
 		{
-			const FString Text = View.ContentType == ESimFrameContentType::FrameNumber ? FString::Printf(TEXT("%d"), Source.Tick.OutputFrame) : FString::Printf(TEXT("%d"), Source.Tick.NumBufferedInputCmds);
-			DrawContext.DrawText(X+2, Y, Text, Font, FLinearColor::Black);
+			const FString Text = FString::Printf(TEXT("%d"), Source.Tick.OutputFrame);
+			DrawContext.DrawText(X, Y, Text, Font, FLinearColor::Black);
 		}
 	};
 
@@ -425,15 +425,39 @@ void SNPSimFrameView::BuildSimulationView_ActorGroups(const FFilteredDataCollect
 	TArray<FSimulationActorGroup>& ActorGroups = SimulationFrameView.ActorGroups;
 	SimulationFrameView.HeadEngineFrame = FilteredDataCollection.LastEngineFrame;
 
-	// -----------------------------------------------------------------------------------------------------------
-	// Populate ActorGroups (grouping of simulations by their underlying ID, across all clients and server)
-	// -----------------------------------------------------------------------------------------------------------
+	auto InitTrack = [&](FSimulationActorGroup& Group, const TSharedRef<FSimulationData::FRestrictedView>& View)
+	{
+		Group.SimulationTracks.Emplace( FSimulationTrack{View});
+		Group.MaxAllowedSimTime = FMath::Max(Group.MaxAllowedSimTime, View->Ticks.GetLast().EndMS); // EOFSTate
+		Group.MaxEngineFrame = FMath::Max(Group.MaxEngineFrame, View->Ticks.GetLast().EngineFrame); // EOFSTate
+
+		SimulationFrameView.HeadEngineFrame = FMath::Max(SimulationFrameView.HeadEngineFrame, Group.MaxEngineFrame);
+	};
+
+	auto PopulateTracks = [&](FSimulationActorGroup& Group, ENP_NetRole SubTrackRole)
+	{
+		for (int32 idx=0; idx < FilteredDataCollection.Simulations.Num(); ++idx)
+		{
+			const auto& SimView = FilteredDataCollection.Simulations[idx];
+			const auto& SparseData = SimView->SparseData;
+
+			// Find unused match on SimID and role
+			if (SimView->ConstData.ID == Group.ID && SparseData->NetRole == SubTrackRole)
+			{
+				InitTrack(Group, SimView);
+			}
+		}
+	};
+
+	// ---------------------------------------------------------------------------------------------
+	// Build Actor Groups. Put the authority sim first, then AP, then SP
+	// ---------------------------------------------------------------------------------------------
+	
 	for (const auto& SimView : FilteredDataCollection.Simulations)
 	{
 		const auto& SparseData = SimView->SparseData;
 		if (ActorGroups.FindByPredicate([&](const FSimulationActorGroup& Existing) { return Existing.ID == SimView->ConstData.ID; }) == nullptr)
 		{
-			// ID not found in the ActorGroups, add it. Are there any AP simulations for this group?
 			const bool bHasAutoProxy = FilteredDataCollection.Simulations.FindByPredicate([&](TSharedRef<FSimulationData::FRestrictedView>& SearchSimView) -> bool
 			{
 				return (SearchSimView->ConstData.ID == SimView->ConstData.ID) && (SearchSimView->SparseData->NetRole == ENP_NetRole::AutonomousProxy);
@@ -443,7 +467,6 @@ void SNPSimFrameView::BuildSimulationView_ActorGroups(const FFilteredDataCollect
 		}
 	}
 
-	// Sort the actor group: the user can explicitly sort specific simulations. Otherwise bubble up AP-having sims, then by group ID.
 	ActorGroups.Sort([this](const FSimulationActorGroup& A, const FSimulationActorGroup& B)
 	{
 		// Explicit sorting first
@@ -455,195 +478,259 @@ void SNPSimFrameView::BuildSimulationView_ActorGroups(const FFilteredDataCollect
 		}
 
 		// Score them
-		int32 ScoreA = A.bHasAutoProxy ? 100 : 0;
-		int32 ScoreB = B.bHasAutoProxy ? 100 : 0;
+		int32 ScoreA = A.ID.PIESession * 10000;
+		int32 ScoreB = B.ID.PIESession * 10000;		
+
+		ScoreA += A.bHasAutoProxy ? 100 : 0;
+		ScoreB += B.bHasAutoProxy ? 100 : 0;
 		
 		ScoreA += A.ID.SimID < B.ID.SimID ? 1 : -1;
 		return ScoreA > ScoreB;
 	});
 
-	// -----------------------------------------------------------------------------------------------------------
-	// Populate Simulation Tracks within the actor groups
-	// -----------------------------------------------------------------------------------------------------------
-
-	// The network-role order we want to display simulations within a group
 	TArray<ENP_NetRole> TrackRoleOrder = {ENP_NetRole::Authority, ENP_NetRole::AutonomousProxy, ENP_NetRole::SimulatedProxy};
 
 	for (FSimulationActorGroup& Group : ActorGroups)
 	{
 		for (ENP_NetRole Role : TrackRoleOrder)
 		{
-			for (int32 idx=0; idx < FilteredDataCollection.Simulations.Num(); ++idx)
+			PopulateTracks(Group, Role);
+		}
+	}
+							
+	// ---------------------------------------------------------------------------------------------
+	// Determine what the primary GameInstance ID that everything should be anchored around is
+	// ---------------------------------------------------------------------------------------------
+	
+	TMap<int32, int32> PIESessionToAuthorityGameInstanceIDMap;
+	for (FSimulationActorGroup& Group : ActorGroups)
+	{
+		for (const FSimulationTrack& Track : Group.SimulationTracks)
+		{
+			const FSimulationData::FSparse& SparseData = Track.View->SparseData.Get();
+
+			static ENP_NetRole TargetRole = ENP_NetRole::Authority;
+			if (SparseData.NetRole == TargetRole && PIESessionToAuthorityGameInstanceIDMap.Contains(Track.View->ConstData.ID.PIESession) == false)
 			{
-				const auto& SimView = FilteredDataCollection.Simulations[idx];
-				const auto& SparseData = SimView->SparseData;
-
-				// Find unused match on SimID and role
-				if (SimView->ConstData.ID == Group.ID && SparseData->NetRole == Role)
-				{
-					Group.SimulationTracks.Emplace( FSimulationTrack{SimView});
-					Group.MaxAllowedSimTime = FMath::Max(Group.MaxAllowedSimTime, SimView->GetMaxSimTime());
-					Group.MaxEngineFrame = FMath::Max(Group.MaxEngineFrame, SimView->GetMaxEngineFrame());
-
-					SimulationFrameView.HeadEngineFrame = FMath::Max(SimulationFrameView.HeadEngineFrame, Group.MaxEngineFrame);
-				}
+				PIESessionToAuthorityGameInstanceIDMap.Add(Track.View->ConstData.ID.PIESession, Track.View->ConstData.GameInstanceId);
+				break;
 			}
 		}
 	}
 
+	// ---------------------------------------------------------------------------------------------
+	// Now that we know who to base around, calc the offset for each group
+	// This is tricky. There is no global simulation time to easily look at (since sims can tick at different, arbitrary rates)
+	// There is also no guarantee about simulation lifespans overlapping. We can have distinct
+	// "islands" of simulations.	
+	//
+	// The goal here is to align each actor group based on where the presentable game instances's simulation
+	// was at the latest engine frame that we are viewing. So SimA and SimB's last tick will be shown in alignment, 
+	// for the presentable game instance, even if SimB has been starved and not ticked for a few frames: the idea is
+	// the last tick is what we are showing and we are currently looking at a snapshot of the simulation at some Max engine frame.
+	// ---------------------------------------------------------------------------------------------
+	SimulationFrameView.PresentableTimeMS = 0;
 
-	// -----------------------------------------------------------------------------------------------------------
-	// Calculate offsets
-	//
-	//	All we are doing here is setting FSimulationActorGroup::OffsetSimTimeMS to offset independent ticking times so 
-	//	that everything lines up in the UI.
-	//
-	//	Problem: independent ticking simulations' SimTime do not line up with each other or with the fixed ticking sims.
-	//	(They tick on their own based on client frame rate. Their "total sim time" is local to the sim only. Our job here
-	//	is to correlate these sim times and offset these actor groups (via FSimulationActorGroup::OffsetSimTimeMS) so that
-	//	the tracks line up in the UI.
-	//
-	// -----------------------------------------------------------------------------------------------------------
-
-	auto IsGroupAPIndependentTick = [](FSimulationActorGroup& Group)
+	// Represents a range or island of simulation time. We will use Engine Frames to determine these ranges
+	struct FEngineFrameRange
 	{
-		return Group.SimulationTracks.Num() == 0 ? false :
-			Group.SimulationTracks[0].View->SparseData->TickingPolicy == ENP_TickingPolicy::Independent && Group.bHasAutoProxy;
+		struct FViewItem
+		{
+			FSimulationActorGroup& Group;
+			TSharedRef<FSimulationData::FRestrictedView> View;
+			int32 SimTimeOffset = 0;
+			uint64 ViewMin;
+			uint64 ViewMax;
+		};
+		
+		TArray<FViewItem> Views;
+		uint64 Min; // Min of all views in this range
+		uint64 Max; // Max of all views in this range
 	};
 
-	SimulationFrameView.PresentableTimeMS = 0;
-	
+	TArray<FEngineFrameRange> PresentableRanges;
+
+	// -------------------------------------------------------
+	// Build the PresentableRanges list
+	// -------------------------------------------------------
 	for (FSimulationActorGroup& Group : ActorGroups)
 	{
-		Group.OffsetSimTimeMS = 0;
-
-		if (IsGroupAPIndependentTick(Group))
+		for (const FSimulationTrack& Track : Group.SimulationTracks)
 		{
-			// AP controlled independent ticking sim requires an offset.
-			// Find the AuthorityTrack
-			const FSimulationTrack* AuthorityTrack = nullptr;
-			uint64 AuthTrackMin = 0;
-			uint64 AuthTrackMax = 0;
-
-			for (const FSimulationTrack& Track : Group.SimulationTracks)
-			{
-				if (Track.View->SparseData->NetRole == ENP_NetRole::Authority)
-				{
-					AuthorityTrack = &Track;
-					AuthTrackMin = Track.View->Ticks.GetFirst().EngineFrame;
-					AuthTrackMax = Track.View->Ticks.GetLast().EngineFrame;
-					break;
-				}
-			}
-
-			if (!AuthorityTrack)
+			/*
+			if (!PIESessionToAuthorityGameInstanceIDMap.Contains(Group.ID.PIESession))
 			{
 				continue;
 			}
+			*/
 
-			// function that aligns the authoritytrack to Track
-			auto AttemptOffsetGroupByTrack = [&Group, AuthorityTrack, AuthTrackMin, AuthTrackMax](const FSimulationTrack& Track)
+			if (Track.View->ConstData.GameInstanceId == PIESessionToAuthorityGameInstanceIDMap.FindChecked(Group.ID.PIESession)) // We only care about the PresentableGameInstance simulation of this group
 			{
-				if (Track.View->SparseData->NetRole == ENP_NetRole::Authority)
+				// Minus two is a fudge factor to avoid weirdness when processing live feeds where some sims may be ahead of others
+				const uint64 ThisTrackMin = Track.View->Ticks.GetFirst().EngineFrame;		// EOFState
+				const uint64 ThisTrackMax = Track.View->Ticks.GetLast().EngineFrame;		// EOFState
+				FEngineFrameRange* PresentableRange = PresentableRanges.FindByPredicate([ThisTrackMin, ThisTrackMax](const FEngineFrameRange& R)
 				{
-					const uint64 ThisTrackMin = Track.View->Ticks.GetFirst().EngineFrame;
-					const uint64 ThisTrackMax = Track.View->Ticks.GetLast().EngineFrame;
+					return !(R.Max < ThisTrackMin || R.Min > ThisTrackMax);
+				});
 
-					// Do they overlap at all?
-					if (ThisTrackMax < AuthTrackMin || ThisTrackMin > AuthTrackMax)
-					{
-						return false;
-					}
-
-					auto FindIdx = [](const TRestrictedPageArrayView<FSimulationData::FTick>& TickStateView, uint64 EngineFrame)
-					{
-						const FSimulationData::FTick* Found = nullptr;
-						for (auto It = TickStateView.GetIteratorFromEnd(); It; --It)
-						{
-							if (It->EngineFrame <= EngineFrame)
-							{
-								Found = &*It;
-								break;
-							}
-						}
-
-						return Found;
-					};
-
-					// Find common EngineFrame data
-					const uint64 Max = FMath::Min(AuthTrackMax, ThisTrackMax);
-					const FSimulationData::FTick* BaseState = FindIdx(Track.View->Ticks, Max);
-					const FSimulationData::FTick* CurrentState = FindIdx(AuthorityTrack->View->Ticks, Max);
-
-					// Calculate Delta
-					const FSimTime BaseSimMS = BaseState->EndMS;
-					const FSimTime CurrentSimMS = CurrentState->EndMS;
-					const FSimTime Delta = BaseSimMS - CurrentSimMS;
-
-					// Set the offset
-					Group.OffsetSimTimeMS = Delta;
-					
-					return true;
-				}
-				return false;
-			};
-			
-			// Find a track in another group to align to.
-			//	-Ideally it is a non AP independent tick sim
-			//	-If that doesn't exist, we use the first AP sim
-			bool bResolvedOffset = false;
-			for (FSimulationActorGroup& FixedTickGroup : ActorGroups)
-			{
-				if (IsGroupAPIndependentTick(FixedTickGroup) == false)
+				if (PresentableRange)
 				{
-					// Calculate SimTime offset based on this group
-					for (const FSimulationTrack& Track : FixedTickGroup.SimulationTracks)
-					{
-						if (AttemptOffsetGroupByTrack(Track))
-						{
-							bResolvedOffset = true;
-							break;
-						}
-					}
-
-					if (bResolvedOffset)
-					{
-						break;
-					}
+					PresentableRange->Views.Add({Group, Track.View, 0, ThisTrackMin, ThisTrackMax});
+					PresentableRange->Min = FMath::Min(PresentableRange->Min, ThisTrackMin);
+					PresentableRange->Max = FMath::Max(PresentableRange->Max, ThisTrackMax);
 				}
-			}
-
-			if (!bResolvedOffset)
-			{
-				if (ActorGroups.Num() > 0 && &ActorGroups[0] != &Group)
+				else 
 				{
-					for (const FSimulationTrack& Track : ActorGroups[0].SimulationTracks)
-					{
-						if (AttemptOffsetGroupByTrack(Track))
-						{
-							bResolvedOffset = true;
-							break;
-						}
-					}
+					PresentableRange = &PresentableRanges.Emplace_GetRef(FEngineFrameRange{{{Group, Track.View, 0, ThisTrackMin, ThisTrackMax}}, ThisTrackMin, ThisTrackMax});
 				}
+				
+				break;
 			}
 		}
+	}
 
-		for (const FSimulationTrack& Track : Group.SimulationTracks)
+	PresentableRanges.Sort([](const FEngineFrameRange& A, const FEngineFrameRange& B)
+	{
+		return A.Max < B.Max;
+	});
+
+	// -------------------------------------------------------
+	//	Now within each range/island of time, calculate each view within range's OffsetSimTimeMS
+	//	This is the mount of time to shift its simulation timeline so it is line with with the primary sim.
+	// -------------------------------------------------------
+	for (int32 RangeIdx=0; RangeIdx < PresentableRanges.Num(); ++RangeIdx)
+	{
+		FEngineFrameRange& Range = PresentableRanges[RangeIdx];
+		
+		// Go through each subsequent view in this range and find a common engine frame with a previous simulation track
+		for (int32 idx=1; idx < Range.Views.Num(); ++idx)
 		{
-			SimulationFrameView.PresentableTimeMS = FMath::Max(SimulationFrameView.PresentableTimeMS, Track.View->GetMaxSimTime());			
+			bool bFound = false;
+			for (int32 j=0; j < idx; ++j)
+			{
+				FEngineFrameRange::FViewItem& Current = Range.Views[idx]; // The view we are processing
+				FEngineFrameRange::FViewItem& Base = Range.Views[j];	// The attempted base view (will be prior in the list)
+
+				if (Base.ViewMax < Current.ViewMin || Base.ViewMin > Current.ViewMax)
+				{
+					// No overlap here, so move on to another
+					continue;
+				}
+				
+				auto FindIdx = [](const TRestrictedPageArrayView<FSimulationData::FTick>& TickStateView, uint64 EngineFrame) // EOFState
+				{
+					const FSimulationData::FTick* Found = nullptr;
+					for (auto It = TickStateView.GetIteratorFromEnd(); It; --It)
+					{
+						if (It->EngineFrame <= EngineFrame)
+						{
+							Found = &*It;
+							break;
+						}
+					}
+
+					return Found;
+				};
+
+				// Find common EngineFrame data
+				const uint64 Max = FMath::Min(Current.ViewMax, Base.ViewMax);
+				const FSimulationData::FTick* BaseState = FindIdx(Base.View->Ticks, Max);
+				const FSimulationData::FTick* CurrentState = FindIdx(Current.View->Ticks, Max);
+
+				check(BaseState && CurrentState);
+
+				// Compute difference in ProcessedSimulationTime at the end of this engine frame
+				const FSimTime BaseSimMS = BaseState->EndMS;
+				const FSimTime CurrentSimMS = CurrentState->EndMS;
+				const FSimTime Delta = BaseSimMS - CurrentSimMS;
+
+				// This is the final amount to offset this groups local sim time to align it properly with the primary simulation in this range
+				Current.Group.OffsetSimTimeMS = Delta;
+
+				bFound = true;
+				break;
+			}
+			
+			// Should find something, else the ranges have not been calculated right
+			check(bFound);
 		}
+	}
+
+	// Still need to offset the presentable groups themselves so that they don't overlap
+	FSimTime PrevSimTime = 0;
+	for (int32 RangeIdx=0; RangeIdx < PresentableRanges.Num(); ++RangeIdx)
+	{
+		FEngineFrameRange& Range = PresentableRanges[RangeIdx];
+		FSimTime MinOffset = TNumericLimits<int32>::Max();
+		for (FEngineFrameRange::FViewItem& View : Range.Views)
+		{
+			View.Group.OffsetSimTimeMS += PrevSimTime;
+			MinOffset = FMath::Min(MinOffset, View.Group.OffsetSimTimeMS);
+		}
+
+		PrevSimTime = Range.Views[0].View->Ticks.GetLast().EndMS + 1000; // EOFState
+		if (MinOffset < 0)
+		{
+			PrevSimTime += -MinOffset;
+		}
+	}
+
+
+	
+	// Set presentable line, this is where the gray/light gray line is drawn
+	if (ActorGroups.Num() > 0)
+	{
+		FSimTime EndMS = 0;
+		if(ActorGroups[0].SimulationTracks.Num() > 0)
+		{
+			EndMS = ActorGroups[0].SimulationTracks[0].View->Ticks.GetLast().EndMS;
+		}
+
+		SimulationFrameView.PresentableTimeMS = ActorGroups[0].OffsetSimTimeMS + EndMS; // EOFState
 	}
 
 	// Calc ViewportMaxSimTimeMS
+	ViewportMaxSimTimeMS = TNumericLimits<uint32>::Min();
+	ViewportMinSimTimeMS = TNumericLimits<uint32>::Max();
 	for (FSimulationActorGroup& Group : ActorGroups)
 	{
+		//Group.OffsetSimTimeMS = SimulationFrameView.PresentableTimeMS - Group.PresentableSimTimeMS;
 		ViewportMaxSimTimeMS = FMath::Max(ViewportMaxSimTimeMS, Group.MaxAllowedSimTime + Group.OffsetSimTimeMS);
+		ViewportMinSimTimeMS = FMath::Min(ViewportMinSimTimeMS, Group.OffsetSimTimeMS);
 	}
 
-
+	// Now build out the tracks for each actor group we created
 	BuildSimulationView_Tracks();
 }
+
+// Much simpler version of the offset calculating code but does not work for simulations with non overlapping lifespans
+#if 0
+// Now that we know who to base around, calc the presentable time for each actor group
+SimulationFrameView.PresentableTimeMS = 0;
+uint64 PresentableGFrame = 0; // Engine frame we are using to calculate presentable time
+for (FSimulationActorGroup& Group : ActorGroups)
+{
+	for (const FSimulationTrack& Track : Group.SimulationTracks)
+	{
+		if (Track.View->ConstData.GameInstanceId == PresentableGameInstanceId)
+		{
+			FSimTime LastProcessedSimTimeMS = Track.View->EOFState.GetLast().TotalSimTime;
+			Group.PresentableSimTimeMS = Track.View->EOFState.GetLast().TotalSimTime;
+			SimulationFrameView.PresentableTimeMS = FMath::Max(SimulationFrameView.PresentableTimeMS, Group.PresentableSimTimeMS);
+			break;
+		}
+	}
+}
+
+// Calc ViewportMaxSimTimeMS
+for (FSimulationActorGroup& Group : ActorGroups)
+{
+	Group.OffsetSimTimeMS = SimulationFrameView.PresentableTimeMS - Group.PresentableSimTimeMS;
+	ViewportMaxSimTimeMS = FMath::Max(ViewportMaxSimTimeMS, Group.MaxAllowedSimTime + Group.OffsetSimTimeMS);
+}
+
+#endif
 
 // -----------------------------------------------------------------------------------------------------------
 //	Builds out the actual Simulation Tracks and SubTracks that each group will display.
@@ -782,16 +869,8 @@ void SNPSimFrameView::BuildSimulationView_Tracks()
 				}
 				else
 				{
-					if (Tick.bInputFault)
-					{
-						FrameStatus = ESimFrameStatus::Trashed;
-						PulseFrameNum = Tick.EngineFrame;
-					}
-					else
-					{
-						FrameStatus = ESimFrameStatus::Confirmed;
-						PulseFrameNum = Tick.EngineFrame;
-					}
+					FrameStatus = ESimFrameStatus::Confirmed;
+					PulseFrameNum = Tick.EngineFrame;
 				}
 
 				const bool bPulseFrame = (PulseFrameNum == SimulationFrameView.HeadEngineFrame);
@@ -1063,17 +1142,15 @@ int32 SNPSimFrameView::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 													"End Simulation MS: {2}\n"
 													"Delta Simulation MS: {3}\n"
 													"Repredict: {4}\n"
-													"Input Fault: {5}\n"
-													"Confirmed Engine Frame: {6}\n"
-													"Trashed Engine Frame: {7}\n"
-													"GFrameNumber: {8}\n\n"),
+													"Confirmed Engine Frame: {5}\n"
+													"Trashed Engine Frame: {6}\n"
+													"GFrameNumber: {7}\n\n"),
 					{
 						HoverView.Tick->OutputFrame,
 						HoverView.Tick->StartMS,
 						HoverView.Tick->EndMS,
 						(HoverView.Tick->EndMS - HoverView.Tick->StartMS),
 						HoverView.Tick->bRepredict,
-						HoverView.Tick->bInputFault,
 						HoverView.Tick->ConfirmedEngineFrame,
 						HoverView.Tick->TrashedEngineFrame,
 						HoverView.Tick->EngineFrame
@@ -1098,7 +1175,7 @@ int32 SNPSimFrameView::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 						HoverView.NetRecv->EngineFrame
 					});
 
-				NumLines += 6;
+				NumLines += 5;
 			}
 
 			
@@ -1639,32 +1716,6 @@ void SNPSimFrameView::OnGetOptionsMenu(FMenuBuilder& Builder)
 					  FIsActionChecked::CreateSP(this, &SNPSimFrameView::LinearSimFrameView)),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
-		);
-	}
-	Builder.EndSection();
-
-	Builder.BeginSection(NAME_None, LOCTEXT("SimulationFrameContentViewLabel", "Simulation Frame Contents"));
-	{
-		Builder.AddMenuEntry(
-			LOCTEXT("FrameViewLabel","Frame Number"), 
-			LOCTEXT("FrameViewLabelToolTip", "Display Simulation Frames number in the tick boxes."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SNPSimFrameView::SetFrameContentView_FrameNumber),
-					  FCanExecuteAction(),
-					  FIsActionChecked::CreateSP(this, &SNPSimFrameView::IsFrameContentView_FrameNumber)),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton
-		);
-
-		Builder.AddMenuEntry(
-			LOCTEXT("BufferedInputCmdsViewLabel","Buffered InputCmds"), 
-			LOCTEXT("BufferedInputCmdsViewLabelToolTip", "Display number of buffered InputCmds in the tick boxes."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SNPSimFrameView::SetFrameContentView_NumBufferdInputCmds),
-					  FCanExecuteAction(),
-					  FIsActionChecked::CreateSP(this, &SNPSimFrameView::IsFrameContentView_BufferedInputCmds)),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton
 		);
 	}
 	Builder.EndSection();

@@ -30,7 +30,7 @@ void BeginMeshDrawEvent_Inner(FRHICommandList& RHICmdList, const FPrimitiveScene
 			MeshEvent, 
 			TEXT("%s %s"), 
 			// Note: this is the parent's material name, not the material instance
-			*Mesh.MaterialRenderProxy->GetIncompleteMaterialWithFallback(PrimitiveSceneProxy ? PrimitiveSceneProxy->GetScene().GetFeatureLevel() : GMaxRHIFeatureLevel).GetFriendlyName(),
+			*Mesh.MaterialRenderProxy->GetMaterial(PrimitiveSceneProxy ? PrimitiveSceneProxy->GetScene().GetFeatureLevel() : GMaxRHIFeatureLevel)->GetFriendlyName(),
 			PrimitiveSceneProxy->GetResourceName().IsValid() ? *PrimitiveSceneProxy->GetResourceName().ToString() : TEXT(""));
 
 		bool bIssueAdditionalDrawEvents = false;
@@ -52,7 +52,7 @@ void BeginMeshDrawEvent_Inner(FRHICommandList& RHICmdList, const FPrimitiveScene
 			MaterialEvent, 
 			MeshEvent, 
 			// Note: this is the parent's material name, not the material instance
-			*Mesh.MaterialRenderProxy->GetIncompleteMaterialWithFallback(GMaxRHIFeatureLevel).GetFriendlyName());
+			*Mesh.MaterialRenderProxy->GetMaterial(GMaxRHIFeatureLevel)->GetFriendlyName());
 	}
 }
 
@@ -1405,7 +1405,7 @@ void ApplyViewModeOverrides(
 		return;
 	}
 
-	const bool bMaterialModifiesMeshPosition = Mesh.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).MaterialModifiesMeshPosition_RenderThread();
+	const bool bMaterialModifiesMeshPosition = Mesh.MaterialRenderProxy->GetMaterial(FeatureLevel)->MaterialModifiesMeshPosition_RenderThread();
 
 	if (EngineShowFlags.Wireframe)
 	{
@@ -1448,12 +1448,11 @@ void ApplyViewModeOverrides(
 	else if (!EngineShowFlags.Materials)
 	{
 		// Don't render unlit translucency when in 'lighting only' viewmode.
-		const FMaterial& Mat = Mesh.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
-		if (Mat.GetShadingModels().IsLit()
+		if (Mesh.MaterialRenderProxy->GetMaterial(FeatureLevel)->GetShadingModels().IsLit()
 			// Don't render translucency in 'lighting only', since the viewmode works by overriding with an opaque material
 			// This would cause a mismatch of the material's blend mode with the primitive's view relevance,
 			// And make faint particles block the view
-			&& !IsTranslucentBlendMode(Mat.GetBlendMode()))
+			&& !IsTranslucentBlendMode(Mesh.MaterialRenderProxy->GetMaterial(FeatureLevel)->GetBlendMode()))
 		{
 			// When materials aren't shown, apply the same basic material to all meshes.
 			bool bTextureMapped = false;

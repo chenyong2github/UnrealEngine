@@ -60,9 +60,9 @@ int32 FAndroidPlatformRHIFramePacer::InternalFramePace = 0;
 
 void FAndroidPlatformRHIFramePacer::Init(IAndroidFramePacer* InFramePacer)
 {
-	TArray<int32> RefreshRates = FAndroidMisc::GetSupportedNativeDisplayRefreshRates();
+	TArray<int> RefreshRates = FAndroidMisc::GetSupportedNativeDisplayRefreshRates();
 	FString RefreshRatesString;
-	for (int32 Rate : RefreshRates)
+	for (int Rate : RefreshRates)
 	{
 		RefreshRatesString += FString::Printf(TEXT("%d "), Rate);
 	}

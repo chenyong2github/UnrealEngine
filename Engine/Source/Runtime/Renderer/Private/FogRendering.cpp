@@ -37,13 +37,6 @@ static TAutoConsoleVariable<int32> CVarFog(
 	TEXT(" 1: enabled (default)"),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-static TAutoConsoleVariable<bool> CVarFogUseDepthBounds(
-	TEXT("r.FogUseDepthBounds"),
-	true,
-	TEXT("Allows enable depth bounds optimization on fog full screen pass.\n")
-	TEXT(" false: disabled\n")
-	TEXT(" true: enabled (default)"),
-	ECVF_RenderThreadSafe);
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FFogUniformParameters, "FogStruct");
 
@@ -409,26 +402,6 @@ static void SetFogShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateIni
 	}
 	else
 	{
-		GraphicsPSOInit.bDepthBounds = GSupportsDepthBoundsTest && CVarFogUseDepthBounds.GetValueOnAnyThread();
-
-		if (GraphicsPSOInit.bDepthBounds)
-		{
-			const FMatrix Projection = View.ViewMatrices.GetProjectionMatrix();
-			const FVector4 FogStartPoint4 = FVector4(0.0f, 0.0f, View.ExponentialFogParameters.W, 1.f);
-			const FVector4 FogStartPoint4Clip = Projection.TransformFVector4(FogStartPoint4);
-			float FogCDistanceClip = FogStartPoint4Clip.Z / FogStartPoint4Clip.W;
-
-
-			if (bool(ERHIZBuffer::IsInverted))
-			{
-				RHICmdList.SetDepthBounds(0.0f, FogCDistanceClip);
-			}
-			else
-			{
-				RHICmdList.SetDepthBounds(FogCDistanceClip, 1.0f);
-			}
-		}
-
 		if (View.FogInscatteringColorCubemap)
 		{
 			TShaderMapRef<TExponentialHeightFogPS<EHeightFogFeature::InscatteringTexture> > ExponentialHeightFogPixelShader(View.ShaderMap);

@@ -276,9 +276,6 @@ public:
 	 */
 	void UsePlatformCursorForCursorUser(bool bUsePlatformCursor);
 
-	/** Changes the cursor type to Default (Visible) or None (Not Visible)*/
-	void SetPlatformCursorVisibility(bool bNewVisibility);
-
 	/** Polls game devices for input */
 	void PollGameDeviceState();
 

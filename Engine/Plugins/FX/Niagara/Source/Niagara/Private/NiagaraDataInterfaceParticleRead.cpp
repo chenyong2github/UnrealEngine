@@ -391,7 +391,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 					else if (CheckHalfVariableType(Var.GetType(), AttributeType))
 					{
 						const FNiagaraVariableLayoutInfo& Layout = SourceEmitterVariableLayouts[VarIdx];
-						InstanceData->AttributeIndices[AttrNameIdx] = Layout.HalfComponentStart;
+						InstanceData->AttributeIndices[AttrNameIdx] = Layout.FloatComponentStart;
 						InstanceData->AttributeCompressed[AttrNameIdx] = 1;
 					}
 					else
@@ -655,7 +655,8 @@ bool UNiagaraDataInterfaceParticleRead::InitPerInstanceData(void* PerInstanceDat
 
 	if (PIData->EmitterInstance == nullptr)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Source emitter '%s' not found. System: %s"), *EmitterName, *GetFullNameSafe(SystemInstance->GetSystem()));
+		UE_LOG(LogNiagara, Error, TEXT("Source emitter '%s' not found."), *EmitterName);
+		return false;
 	}
 
 	FNiagaraDataInterfaceProxyParticleRead* ThisProxy = GetProxyAs<FNiagaraDataInterfaceProxyParticleRead>();
@@ -1154,11 +1155,7 @@ void UNiagaraDataInterfaceParticleRead::GetVMExternalFunction(const FVMExternalF
 		return;
 	}
 
-	TArrayView<const FNiagaraVariable> EmitterVariables;
-	if (PIData->EmitterInstance)
-	{
-		EmitterVariables = PIData->EmitterInstance->GetData().GetVariables();
-	}
+	TArrayView<const FNiagaraVariable> EmitterVariables = PIData->EmitterInstance->GetData().GetVariables();
 
 	const FName AttributeToRead = FunctionSpecifier->Value;
 
@@ -1215,7 +1212,7 @@ void UNiagaraDataInterfaceParticleRead::GetVMExternalFunction(const FVMExternalF
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadID)::Bind(this, OutFunc, AttributeToRead);
 		FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetIDDef(), AttributeToRead);
-		bBindSuccessful = EmitterVariables.Find(VariableToRead) != INDEX_NONE;
+		bBindSuccessful = PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE;
 	}
 	//
 	// Get attribute by index
@@ -1270,7 +1267,7 @@ void UNiagaraDataInterfaceParticleRead::GetVMExternalFunction(const FVMExternalF
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadIDByIndex)::Bind(this, OutFunc, AttributeToRead);
 		FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetIDDef(), AttributeToRead);
-		bBindSuccessful = EmitterVariables.Find(VariableToRead) != INDEX_NONE;
+		bBindSuccessful = PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE;
 	}
 
 	if (!bBindSuccessful)
@@ -1285,7 +1282,7 @@ void UNiagaraDataInterfaceParticleRead::GetNumSpawnedParticles(FVectorVMContext&
 	VectorVM::FExternalFuncRegisterHandler<int32> OutNumSpawned(Context);
 
 	const FNiagaraEmitterInstance* EmitterInstance = InstData.Get()->EmitterInstance;
-	const FNiagaraDataBuffer* CurrentData = EmitterInstance ? EmitterInstance->GetData().GetCurrentData() : nullptr;
+	const FNiagaraDataBuffer* CurrentData = EmitterInstance->GetData().GetCurrentData();
 	const int32 NumSpawned = CurrentData ? CurrentData->GetNumSpawnedInstances() : 0;
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
@@ -1304,9 +1301,9 @@ void UNiagaraDataInterfaceParticleRead::GetSpawnedIDAtIndex(FVectorVMContext& Co
 	VectorVM::FExternalFuncRegisterHandler<int32> OutIDAcquireTag(Context);
 
 	FNiagaraEmitterInstance* EmitterInstance = InstData.Get()->EmitterInstance;
-	const TArray<int32>* SpawnedIDsTable = EmitterInstance ? &EmitterInstance->GetData().GetSpawnedIDsTable() : nullptr;
-	int32 NumSpawned = SpawnedIDsTable ? SpawnedIDsTable->Num() : 0;
-	int32 IDAcquireTag = EmitterInstance ? EmitterInstance->GetData().GetIDAcquireTag() : 0;
+	const TArray<int32>& SpawnedIDsTable = EmitterInstance->GetData().GetSpawnedIDsTable();
+	int32 NumSpawned = SpawnedIDsTable.Num();
+	int32 IDAcquireTag = EmitterInstance->GetData().GetIDAcquireTag();
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
 	{
@@ -1317,7 +1314,7 @@ void UNiagaraDataInterfaceParticleRead::GetSpawnedIDAtIndex(FVectorVMContext& Co
 		if (SpawnIndex >= 0 && SpawnIndex < NumSpawned)
 		{
 			ValidValue.SetValue(true);
-			IDValue.Index = (*SpawnedIDsTable)[SpawnIndex];
+			IDValue.Index = SpawnedIDsTable[SpawnIndex];
 			IDValue.AcquireTag = IDAcquireTag;
 		}
 		else
@@ -1339,7 +1336,7 @@ void UNiagaraDataInterfaceParticleRead::GetNumParticles(FVectorVMContext& Contex
 	VectorVM::FExternalFuncRegisterHandler<int32> OutNumParticles (Context);
 
 	const FNiagaraEmitterInstance* EmitterInstance = InstData.Get()->EmitterInstance;
-	const FNiagaraDataBuffer* CurrentData = EmitterInstance ? EmitterInstance->GetData().GetCurrentData() : nullptr;
+	const FNiagaraDataBuffer* CurrentData = EmitterInstance->GetData().GetCurrentData();
 	const int32 NumParticles = CurrentData ? CurrentData->GetNumInstances() : 0;
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
@@ -1356,7 +1353,7 @@ void UNiagaraDataInterfaceParticleRead::GetParticleIndex(FVectorVMContext& Conte
 	VectorVM::FExternalFuncRegisterHandler<int32> OutIndex(Context);
 
 	const FNiagaraEmitterInstance* EmitterInstance = InstData.Get()->EmitterInstance;
-	const FNiagaraDataBuffer* CurrentData = EmitterInstance ? EmitterInstance->GetData().GetCurrentData() : nullptr;
+	const FNiagaraDataBuffer* CurrentData = EmitterInstance->GetData().GetCurrentData();
 
 	if (!CurrentData)
 	{
@@ -1680,7 +1677,7 @@ void UNiagaraDataInterfaceParticleRead::GetParameterDefinitionHLSL(const FNiagar
 		"Buffer<int> {IDToIndexTableName};\n"
 		"Buffer<float> {InputFloatBufferName};\n"
 		"Buffer<int> {InputIntBufferName};\n"
-		"Buffer<half> {InputHalfBufferName};\n"
+		"Buffer<float> {InputHalfBufferName};\n"
 		"int4 {AttributeIndicesName}[{AttributeInt4Count}];\n"
 		"int4 {AttributeCompressedName}[{AttributeInt4Count}];\n\n"
 	);
@@ -1807,18 +1804,16 @@ static bool GenerateGetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& Par
 		FString FetchHalfCode = GenerateFetchValueHLSL(NumComponents, VectorComponentNames, ComponentTypeName, InputHalfBufferName, ParticleStrideHalfName, true);
 		FetchValueCode = FString(
 			TEXT(
-			"#if NIAGARA_COMPRESSED_ATTRIBUTES_ENABLED\n"
 			"        BRANCH\n"
-			"        if ({AttributeCompressedName}[{AttributeIndexGroup}]{AttributeIndexComponent})\n"
+			"        if (!{AttributeCompressedName}[{AttributeIndexGroup}]{AttributeIndexComponent})\n"
 			"        {\n"
 			)) +
-			FetchHalfCode + TEXT(
+			FetchFloatCode + TEXT(
 			"        }\n"
 			"        else\n"
-			"#endif //NIAGARA_COMPRESSED_ATTRIBUTES_ENABLED\n"
 			"        {\n"
 			) +
-			FetchFloatCode + TEXT(
+			FetchHalfCode + TEXT(
 			"        }\n"
 			);
 	}

@@ -423,11 +423,6 @@ public:
 	virtual bool ForcesSimpleSkyDiffuse() const = 0;
 
 	/**
-	* Gets whether the platform will encode depth velocity.
-	*/
-	virtual bool VelocityEncodeDepth() const = 0;
-
-	/**
 	* Gets down sample mesh distance field divider.
 	*
 	* @return 1 if platform does not need to downsample mesh distance fields

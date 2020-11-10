@@ -129,15 +129,6 @@ void ScreenSpaceReflections(
 		return;
 	}
 
-#if SSR_QUALITY == 0
-	// visualize SSR
-
-	float PatternMask = ((PixelPos.x / 4 + PixelPos.y / 4) % 2);
-
-	OutColor = lerp(float4(1, 0, 0, 1), float4(1, 1 ,0, 1), PatternMask) * 0.2f;
-	return;
-#endif
-
 	float a = Roughness * Roughness;
 	float a2 = a * a;
 	

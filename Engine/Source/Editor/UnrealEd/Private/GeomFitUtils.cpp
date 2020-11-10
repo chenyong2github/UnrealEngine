@@ -44,7 +44,7 @@ static void AddVertexIfNotPresent(TArray<FVector> &vertices, FVector &newVertex)
 static bool PromptToRemoveExistingCollision(UStaticMesh* StaticMesh)
 {
 	check(StaticMesh);
-	UBodySetup* bs = StaticMesh->GetBodySetup();
+	UBodySetup* bs = StaticMesh->BodySetup;
 	if(bs && (bs->AggGeom.GetElementCount() > 0))
 	{
 		// If we already have some simplified collision for this mesh - check before we clobber it.
@@ -62,7 +62,7 @@ static bool PromptToRemoveExistingCollision(UStaticMesh* StaticMesh)
 	{
 		// Otherwise, create one here.
 		StaticMesh->CreateBodySetup();
-		bs = StaticMesh->GetBodySetup();
+		bs = StaticMesh->BodySetup;
 	}
 	return true;
 }
@@ -85,7 +85,7 @@ int32 GenerateKDopAsSimpleCollision(UStaticMesh* StaticMesh, const TArray<FVecto
 		return INDEX_NONE;
 	}
 
-	UBodySetup* bs = StaticMesh->GetBodySetup();
+	UBodySetup* bs = StaticMesh->BodySetup;
 
 	// Do k- specific stuff.
 	int32 kCount = Dirs.Num();
@@ -98,7 +98,7 @@ int32 GenerateKDopAsSimpleCollision(UStaticMesh* StaticMesh, const TArray<FVecto
 	TempModel->Initialize(nullptr, 1);
 
 	// For each vertex, project along each kdop direction, to find the max in that direction.
-	const FStaticMeshLODResources& RenderData = StaticMesh->GetRenderData()->LODResources[0];
+	const FStaticMeshLODResources& RenderData = StaticMesh->RenderData->LODResources[0];
 	for(int32 i=0; i<RenderData.GetNumVertices(); i++)
 	{
 		for(int32 j=0; j<kCount; j++)
@@ -204,7 +204,7 @@ int32 GenerateBoxAsSimpleCollision(UStaticMesh* StaticMesh)
 		return INDEX_NONE;
 	}
 
-	UBodySetup* bs = StaticMesh->GetBodySetup();
+	UBodySetup* bs = StaticMesh->BodySetup;
 
 	// Calculate bounding Box.
 	FVector Center, Extents;
@@ -387,7 +387,7 @@ int32 GenerateSphereAsSimpleCollision(UStaticMesh* StaticMesh)
 		return INDEX_NONE;
 	}
 
-	UBodySetup* bs = StaticMesh->GetBodySetup();
+	UBodySetup* bs = StaticMesh->BodySetup;
 	FSphere bSphere, bSphere2, bestSphere;
 	FVector unitVec = bs->BuildScale3D;
 
@@ -528,7 +528,7 @@ int32 GenerateSphylAsSimpleCollision(UStaticMesh* StaticMesh)
 		return INDEX_NONE;
 	}
 
-	UBodySetup* bs = StaticMesh->GetBodySetup();
+	UBodySetup* bs = StaticMesh->BodySetup;
 
 	FSphere sphere;
 	float length;

@@ -108,7 +108,6 @@ FMaterialInstanceResource::FMaterialInstanceResource(UMaterialInstance* InOwner)
 {
 }
 
-#if 0
 const FMaterial& FMaterialInstanceResource::GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const
 {
 	checkSlow(IsInParallelRenderingThread());
@@ -121,7 +120,7 @@ const FMaterial& FMaterialInstanceResource::GetMaterialWithFallback(ERHIFeatureL
 			FMaterialResource* StaticPermutationResource = FindMaterialResource(Owner->StaticPermutationMaterialResources, InFeatureLevel, ActiveQualityLevel, true);
 			if (StaticPermutationResource)
 			{
-				if (StaticPermutationResource->IsRenderingThreadShaderMapComplete())
+				if (StaticPermutationResource->GetRenderingThreadShaderMap())
 				{
 					// Verify that compilation has been finalized, the rendering thread shouldn't be touching it otherwise
 					checkSlow(StaticPermutationResource->GetRenderingThreadShaderMap()->IsCompilationFinalized());
@@ -151,37 +150,8 @@ const FMaterial& FMaterialInstanceResource::GetMaterialWithFallback(ERHIFeatureL
 	OutFallbackMaterialRenderProxy = FallbackMaterial->GetRenderProxy();
 	return OutFallbackMaterialRenderProxy->GetMaterialWithFallback(InFeatureLevel, OutFallbackMaterialRenderProxy);
 }
-#endif // 0
 
-const FMaterialRenderProxy* FMaterialInstanceResource::GetFallback(ERHIFeatureLevel::Type InFeatureLevel) const
-{
-	if (Parent)
-	{
-		if (Owner->bHasStaticPermutationResource)
-		{
-			EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
-			FMaterialResource* StaticPermutationResource = FindMaterialResource(Owner->StaticPermutationMaterialResources, InFeatureLevel, ActiveQualityLevel, true);
-			if (StaticPermutationResource)
-			{
-				EMaterialDomain Domain = (EMaterialDomain)StaticPermutationResource->GetMaterialDomain();
-				UMaterial* FallbackMaterial = UMaterial::GetDefaultMaterial(Domain);
-				//there was an error, use the default material's resource
-				return FallbackMaterial->GetRenderProxy();
-			}
-		}
-		else
-		{
-			//use the parent's material resource
-			return Parent->GetRenderProxy()->GetFallback(InFeatureLevel);
-		}
-	}
-
-	// No Parent, or no StaticPermutationResource. This seems to happen if the parent is in the process of using the default material since it's being recompiled or failed to do so.
-	UMaterial* FallbackMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
-	return FallbackMaterial->GetRenderProxy();
-}
-
-const FMaterial* FMaterialInstanceResource::GetMaterialNoFallback(ERHIFeatureLevel::Type InFeatureLevel) const
+FMaterial* FMaterialInstanceResource::GetMaterialNoFallback(ERHIFeatureLevel::Type InFeatureLevel) const
 {
 	checkSlow(IsInParallelRenderingThread());
 
@@ -189,23 +159,20 @@ const FMaterial* FMaterialInstanceResource::GetMaterialNoFallback(ERHIFeatureLev
 	{
 		if (Owner->bHasStaticPermutationResource)
 		{
-			EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
-			const FMaterialResource* StaticPermutationResource = FindMaterialResource(Owner->StaticPermutationMaterialResources, InFeatureLevel, ActiveQualityLevel, true);
-			if (StaticPermutationResource && StaticPermutationResource->GetRenderingThreadShaderMap())
-			{
-				return StaticPermutationResource;
-			}
+			const EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
+			return FindMaterialResource(Owner->StaticPermutationMaterialResources, InFeatureLevel, ActiveQualityLevel, true);
 		}
 		else
 		{
-			const FMaterialRenderProxy* ParentProxy = Parent->GetRenderProxy();
+			FMaterialRenderProxy* ParentProxy = Parent->GetRenderProxy();
+
 			if (ParentProxy)
 			{
 				return ParentProxy->GetMaterialNoFallback(InFeatureLevel);
 			}
 		}
 	}
-	return nullptr;
+	return NULL;
 }
 
 UMaterialInterface* FMaterialInstanceResource::GetMaterialInterface() const
@@ -1604,7 +1571,7 @@ bool UMaterialInstance::CheckMaterialUsage(const EMaterialUsage Usage)
 		bool bUsageSetSuccessfully = Material->SetMaterialUsage(bNeedsRecompile, Usage);
 		if (bNeedsRecompile)
 		{
-			CacheResourceShadersForRendering(EMaterialShaderPrecompileMode::None);
+			CacheResourceShadersForRendering();
 			MarkPackageDirty();
 		}
 		return bUsageSetSuccessfully;
@@ -2662,7 +2629,7 @@ void UMaterialInstance::ForceRecompileForRendering()
 }
 #endif // WITH_EDITOR
 
-void UMaterialInstance::InitStaticPermutation(EMaterialShaderPrecompileMode PrecompileMode)
+void UMaterialInstance::InitStaticPermutation()
 {
 	UpdateOverridableBaseProperties();
 
@@ -2674,10 +2641,10 @@ void UMaterialInstance::InitStaticPermutation(EMaterialShaderPrecompileMode Prec
 	if ( FApp::CanEverRender() ) 
 	{
 		// Cache shaders for the current platform to be used for rendering
-		CacheResourceShadersForRendering(PrecompileMode, ResourcesToFree);
+		CacheResourceShadersForRendering(ResourcesToFree);
 	}
 
-	FMaterial::DeferredDeleteArray(ResourcesToFree);
+	DeleteDeferredResources(ResourcesToFree);
 }
 
 void UMaterialInstance::UpdateOverridableBaseProperties()
@@ -2793,7 +2760,7 @@ FMaterialResource* UMaterialInstance::AllocatePermutationResource()
 	return new FMaterialResource();
 }
 
-void UMaterialInstance::CacheResourceShadersForRendering(EMaterialShaderPrecompileMode PrecompileMode, FMaterialResourceDeferredDeletionArray& OutResourcesToFree)
+void UMaterialInstance::CacheResourceShadersForRendering(FMaterialResourceDeferredDeletionArray& OutResourcesToFree)
 {
 	check(IsInGameThread() || IsAsyncLoading());
 
@@ -2836,14 +2803,13 @@ void UMaterialInstance::CacheResourceShadersForRendering(EMaterialShaderPrecompi
 				if (!PackageFileName.IsNone() && ReloadMaterialResource(&Tmp, PackageFileName.ToString(), OffsetToFirstResource, FeatureLevel, ActiveQualityLevel))
 				{
 					CurrentResource->SetInlineShaderMap(Tmp.GetGameThreadShaderMap());
-					CurrentResource->UpdateInlineShaderMapIsComplete();
 				}
 			}
 #endif // STORE_ONLY_ACTIVE_SHADERMAPS
 
 			ResourcesToCache.Reset();
 			ResourcesToCache.Add(CurrentResource);
-			CacheShadersForResources(ShaderPlatform, ResourcesToCache, PrecompileMode);
+			CacheShadersForResources(ShaderPlatform, ResourcesToCache);
 		}
 	}
 
@@ -2852,14 +2818,29 @@ void UMaterialInstance::CacheResourceShadersForRendering(EMaterialShaderPrecompi
 	InitResources();
 }
 
-void UMaterialInstance::CacheResourceShadersForRendering(EMaterialShaderPrecompileMode PrecompileMode)
+void UMaterialInstance::DeleteDeferredResources(FMaterialResourceDeferredDeletionArray& ResourcesToFree)
 {
-	FMaterialResourceDeferredDeletionArray ResourcesToFree;
-	CacheResourceShadersForRendering(PrecompileMode, ResourcesToFree);
-	FMaterial::DeferredDeleteArray(ResourcesToFree);
+	if (ResourcesToFree.Num())
+	{
+		ENQUEUE_RENDER_COMMAND(CmdFreeMaterialResources)(
+			[ResourcesToFreeRT = MoveTemp(ResourcesToFree)](FRHICommandList&)
+		{
+			for (int32 Idx = 0; Idx < ResourcesToFreeRT.Num(); ++Idx)
+			{
+				delete ResourcesToFreeRT[Idx];
+			}
+		});
+	}
 }
 
-void UMaterialInstance::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FMaterialResource*>& OutCachedMaterialResources, EMaterialShaderPrecompileMode PrecompileMode, const ITargetPlatform* TargetPlatform)
+void UMaterialInstance::CacheResourceShadersForRendering()
+{
+	FMaterialResourceDeferredDeletionArray ResourcesToFree;
+	CacheResourceShadersForRendering(ResourcesToFree);
+	DeleteDeferredResources(ResourcesToFree);
+}
+
+void UMaterialInstance::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FMaterialResource*>& OutCachedMaterialResources, const ITargetPlatform* TargetPlatform)
 {
 	if (bHasStaticPermutationResource)
 	{
@@ -2901,13 +2882,13 @@ void UMaterialInstance::CacheResourceShadersForCooking(EShaderPlatform ShaderPla
 			NewResourcesToCache.Add(NewResource);
 		}
 
-		CacheShadersForResources(ShaderPlatform, NewResourcesToCache, PrecompileMode, TargetPlatform);
+		CacheShadersForResources(ShaderPlatform, NewResourcesToCache, TargetPlatform);
 
 		OutCachedMaterialResources.Append(NewResourcesToCache);
 	}
 }
 
-void UMaterialInstance::CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, EMaterialShaderPrecompileMode PrecompileMode, const ITargetPlatform* TargetPlatform)
+void UMaterialInstance::CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, const ITargetPlatform* TargetPlatform)
 {
 	UMaterial* BaseMaterial = GetMaterial();
 #if WITH_EDITOR
@@ -2923,7 +2904,7 @@ void UMaterialInstance::CacheShadersForResources(EShaderPlatform ShaderPlatform,
 	{
 		FMaterialResource* CurrentResource = ResourcesToCache[ResourceIndex];
 
-		const bool bSuccess = CurrentResource->CacheShaders(ShaderPlatform, PrecompileMode, TargetPlatform);
+		const bool bSuccess = CurrentResource->CacheShaders(ShaderPlatform, TargetPlatform);
 
 		if (!bSuccess)
 		{
@@ -3230,7 +3211,7 @@ void UMaterialInstance::BeginCacheForCookedPlatformData( const ITargetPlatform *
 		{
 			const EShaderPlatform TargetShaderPlatform = ShaderFormatToLegacyShaderPlatform(DesiredShaderFormats[FormatIndex]);
 
-			CacheResourceShadersForCooking(TargetShaderPlatform, *CachedMaterialResourcesForPlatform, EMaterialShaderPrecompileMode::Background, TargetPlatform);
+			CacheResourceShadersForCooking(TargetShaderPlatform, *CachedMaterialResourcesForPlatform, TargetPlatform );
 		}
 	}
 }
@@ -3255,13 +3236,15 @@ bool UMaterialInstance::IsCachedCookedPlatformDataLoaded( const ITargetPlatform*
 void UMaterialInstance::ClearCachedCookedPlatformData( const ITargetPlatform *TargetPlatform )
 {
 	// Make sure that all CacheShaders render thead commands are finished before we destroy FMaterialResources.
-	// TODO - is this needed, since we're using DeferredDeleteArray now?
 	FlushRenderingCommands();
 
 	TArray<FMaterialResource*> *CachedMaterialResourcesForPlatform = CachedMaterialResourcesForCooking.Find( TargetPlatform );
-	if ( CachedMaterialResourcesForPlatform != nullptr )
+	if ( CachedMaterialResourcesForPlatform != NULL )
 	{
-		FMaterial::DeferredDeleteArray(*CachedMaterialResourcesForPlatform);
+		for (int32 CachedResourceIndex = 0; CachedResourceIndex < CachedMaterialResourcesForPlatform->Num(); CachedResourceIndex++)
+		{
+			delete (*CachedMaterialResourcesForPlatform)[CachedResourceIndex];
+		}
 	}
 	CachedMaterialResourcesForCooking.Remove( TargetPlatform );
 }
@@ -3270,13 +3253,15 @@ void UMaterialInstance::ClearCachedCookedPlatformData( const ITargetPlatform *Ta
 void UMaterialInstance::ClearAllCachedCookedPlatformData()
 {
 	// Make sure that all CacheShaders render thead commands are finished before we destroy FMaterialResources.
-	// TODO - is this needed, since we're using DeferredDeleteArray now?
 	FlushRenderingCommands();
 
-	for ( auto& It : CachedMaterialResourcesForCooking )
+	for ( auto It : CachedMaterialResourcesForCooking )
 	{
 		TArray<FMaterialResource*> &CachedMaterialResourcesForPlatform = It.Value;
-		FMaterial::DeferredDeleteArray(CachedMaterialResourcesForPlatform);
+		for (int32 CachedResourceIndex = 0; CachedResourceIndex < CachedMaterialResourcesForPlatform.Num(); CachedResourceIndex++)
+		{
+			delete (CachedMaterialResourcesForPlatform)[CachedResourceIndex];
+		}
 	}
 
 	CachedMaterialResourcesForCooking.Empty();
@@ -3581,37 +3566,26 @@ void UMaterialInstance::PostLoad()
 
 void UMaterialInstance::BeginDestroy()
 {
-	TArray<TRefCountPtr<FMaterialResource>> ResourcesToDestroy;
+#if UE_CHECK_FMATERIAL_LIFETIME
 	for (FMaterialResource* CurrentResource : StaticPermutationMaterialResources)
 	{
 		CurrentResource->SetOwnerBeginDestroyed();
-		if (CurrentResource->PrepareDestroy_GameThread())
-		{
-			ResourcesToDestroy.Add(CurrentResource);
-		}
 	}
+#endif // UE_CHECK_FMATERIAL_LIFETIME
 
 	Super::BeginDestroy();
 
-	if (Resource || ResourcesToDestroy.Num() > 0)
+	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		ReleasedByRT = false;
 
 		FMaterialRenderProxy* LocalResource = Resource;
 		FThreadSafeBool* Released = &ReleasedByRT;
 		ENQUEUE_RENDER_COMMAND(BeginDestroyCommand)(
-		[ResourcesToDestroy = MoveTemp(ResourcesToDestroy), LocalResource, Released](FRHICommandListImmediate& RHICmdList)
+		[LocalResource, Released](FRHICommandListImmediate& RHICmdList)
 		{
-			if (LocalResource)
-			{
-				LocalResource->MarkForGarbageCollection();
-				LocalResource->ReleaseResource();
-			}
-
-			for (FMaterialResource* CurrentResource : ResourcesToDestroy)
-			{
-				CurrentResource->PrepareDestroy_RenderThread();
-			}
+			LocalResource->MarkForGarbageCollection();
+			LocalResource->ReleaseResource();
 
 			*Released = true;
 		});		
@@ -3706,7 +3680,7 @@ void UMaterialInstance::SetParentInternal(UMaterialInterface* NewParent, bool Re
 			{
 				FMaterialResourceDeferredDeletionArray ResourcesToFree;
 				ResourcesToFree = MoveTemp(StaticPermutationMaterialResources);
-				FMaterial::DeferredDeleteArray(ResourcesToFree);
+				DeleteDeferredResources(ResourcesToFree);
 				StaticPermutationMaterialResources.Reset();
 			}
 			InitStaticPermutation();
@@ -3982,7 +3956,7 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 		StaticParameters = CompareParameters;
 
 		UpdateCachedLayerParameters();
-		CacheResourceShadersForRendering(EMaterialShaderPrecompileMode::None);
+		CacheResourceShadersForRendering();
 		RecacheUniformExpressions(true);
 
 		if (MaterialUpdateContext != nullptr)

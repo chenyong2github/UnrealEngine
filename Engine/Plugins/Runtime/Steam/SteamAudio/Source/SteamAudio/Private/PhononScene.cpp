@@ -605,7 +605,7 @@ namespace SteamAudio
 
 		uint32 NumVerts = 0;
 
-		FStaticMeshLODResources& LODModel = StaticMeshComponent->GetStaticMesh()->GetRenderData()->LODResources[0];
+		FStaticMeshLODResources& LODModel = StaticMeshComponent->GetStaticMesh()->RenderData->LODResources[0];
 		auto Indices = LODModel.IndexBuffer.GetArrayView();
 
 		for (const FStaticMeshSection& Section : LODModel.Sections)
@@ -991,12 +991,12 @@ namespace SteamAudio
 
 		if (StaticMeshActor == nullptr || StaticMeshActor->GetStaticMeshComponent() == nullptr ||
 			StaticMeshActor->GetStaticMeshComponent()->GetStaticMesh() == nullptr ||
-			StaticMeshActor->GetStaticMeshComponent()->GetStaticMesh()->GetRenderData() == nullptr)
+			StaticMeshActor->GetStaticMeshComponent()->GetStaticMesh()->RenderData == nullptr)
 		{
 			return NumTriangles;
 		}
 
-		const auto& LODModel = StaticMeshActor->GetStaticMeshComponent()->GetStaticMesh()->GetRenderData()->LODResources[0];
+		const auto& LODModel = StaticMeshActor->GetStaticMeshComponent()->GetStaticMesh()->RenderData->LODResources[0];
 		for (const auto& Section : LODModel.Sections)
 		{
 			NumTriangles += Section.NumTriangles;

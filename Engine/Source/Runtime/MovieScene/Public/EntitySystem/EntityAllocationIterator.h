@@ -12,37 +12,10 @@ namespace MovieScene
 
 struct FEntityAllocation;
 class FEntityManager;
-struct FEntityAllocationIterator;
 
 
-struct FEntityAllocationIteratorItem
+struct FEntityAllocationIteratorState
 {
-	MOVIESCENE_API FEntityAllocation* GetAllocation() const;
-
-	MOVIESCENE_API const FComponentMask& GetAllocationType() const;
-
-	operator FEntityAllocation*() const
-	{
-		return GetAllocation();
-	}
-
-	operator const FComponentMask&() const
-	{
-		return GetAllocationType();
-	}
-
-private:
-	friend FEntityAllocationIterator;
-
-	FEntityAllocationIteratorItem(const FEntityManager* InManager, int32 InAllocationIndex)
-		: Manager(InManager), AllocationIndex(InAllocationIndex)
-	{}
-
-	/** Entity manager being iterated */
-	const FEntityManager* Manager;
-
-	/** Current allocation index or Manager->EntityAllocationMasks.GetMaxIndex() when finished */
-	int32 AllocationIndex;
 };
 
 /**
@@ -75,7 +48,7 @@ struct MOVIESCENE_API FEntityAllocationIterator
 	/**
 	 * Retrieve the entity allocation that this iterator represents. Only valid if this iterator != end()
 	 */
-	FEntityAllocationIteratorItem operator*() const;
+	FEntityAllocation* operator*() const;
 
 
 	/**

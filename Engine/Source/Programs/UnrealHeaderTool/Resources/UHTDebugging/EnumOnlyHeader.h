@@ -73,30 +73,3 @@ enum struct alignas(8) EAlignedCppEnumStruct : uint8
 	TwentyThree,
 	TwentyFour
 };
-
-UENUM()
-enum UE_DEPRECATED(1.23, "Deprecated") EDeprecatedEnum
-{
-	TwentyFive,
-	TwentySix,
-	TwentySeven
-};
-
-UENUM()
-enum class UE_DEPRECATED(1.23, "Deprecated") EDeprecatedEnumClass
-{
-	TwentyEight,
-	TwnetyNine,
-	Thirty
-};
-
-UENUM()
-namespace UE_DEPRECATED(1.23, "Deprecated") EDeprecatedNamespacedEnum
-{
-	enum Type
-	{
-		ThirtyOne,
-		ThirtyTwo,
-		ThirtyThree
-	};
-}

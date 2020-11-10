@@ -97,21 +97,6 @@ void UPanelExtensionSubsystem::UnregisterPanelFactory(FName Identifier, FName Ex
 	}
 }
 
-bool UPanelExtensionSubsystem::IsPanelFactoryRegistered(FName Identifier, FName ExtensionPanelID) const
-{
-	for (auto& AssetPair : ExtensionPointMap)
-	{
-		if (ExtensionPanelID == NAME_None || AssetPair.Key == ExtensionPanelID)
-		{
-			if (AssetPair.Value.FindByPredicate([Identifier](const FPanelExtensionFactory& Factory) { return Factory.Identifier == Identifier; }))
-			{
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
 TSharedRef<SWidget> UPanelExtensionSubsystem::CreateWidget(FName ExtensionPanelID, FWeakObjectPtr ExtensionContext)
 {
 	const TArray<FPanelExtensionFactory>* ExtensionArray = ExtensionPointMap.Find(ExtensionPanelID);

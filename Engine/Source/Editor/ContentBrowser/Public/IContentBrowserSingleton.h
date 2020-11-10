@@ -17,13 +17,9 @@
 
 class FViewport;
 class UFactory;
-class IPlugin;
 
 typedef const FContentBrowserItem& FAssetFilterType;
 typedef TFilterCollection<FAssetFilterType> FAssetFilterCollectionType;
-
-typedef const TSharedRef<IPlugin>& FPluginFilterType;
-typedef TFilterCollection<FPluginFilterType> FPluginFilterCollectionType;
 
 class UFactory;
 

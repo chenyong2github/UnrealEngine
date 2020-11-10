@@ -567,12 +567,3 @@ void UPhysicsAssetEditorSkeletalMeshComponent::UpdateDriveSettings(bool bLinearS
 		PhatPreviewInstance->UpdateDriveSettings(bLinearSoft, LinearStiffness, LinearDamping);
 	}
 }
-
-void UPhysicsAssetEditorSkeletalMeshComponent::CreateSimulationFloor(FBodyInstance* FloorBodyInstance, const FTransform& Transform)
-{
-	UPhysicsAssetEditorAnimInstance* PhatPreviewInstance = Cast<UPhysicsAssetEditorAnimInstance>(PreviewInstance);
-	if (PhatPreviewInstance != nullptr)
-	{
-		PhatPreviewInstance->CreateSimulationFloor(FloorBodyInstance, Transform);
-	}
-}

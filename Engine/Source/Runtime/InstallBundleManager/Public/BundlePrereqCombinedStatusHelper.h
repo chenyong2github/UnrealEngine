@@ -3,46 +3,28 @@
 
 #include "CoreMinimal.h"
 #include "InstallBundleManagerInterface.h"
-#include "InstallBundleUtils.h"
 
 //Handles calculating the bundle status by combining progress from all of its
 //Prerequisites. Allows you to display one progress percent that is weighted based on all
 //bundles' values.
-class INSTALLBUNDLEMANAGER_API FInstallBundleCombinedProgressTracker
+class INSTALLBUNDLEMANAGER_API FBundlePrereqCombinedStatusHelper
 {
 public:
-
-	//Collapses all the bundle manager states into one of a few states so that you can show simple text based on this enum
-	enum class ECombinedBundleStatus : int32
-	{
-		Unknown, 
-		Initializing, 
-		Updating, 
-		Finishing, 
-		Finished,
-		Count
-	};
-	friend const TCHAR* LexToString(ECombinedBundleStatus Status)
-	{
-		static const TCHAR* Strings[] =
-		{
-			TEXT("Unknown"),
-			TEXT("Initializing"),
-			TEXT("Updating"),
-			TEXT("Finishing"),
-			TEXT("Finished"),
-			TEXT("Count")
-		};
-
-		static_assert(InstallBundleUtil::CastToUnderlying(ECombinedBundleStatus::Count) == UE_ARRAY_COUNT(Strings) - 1, "");
-		return Strings[InstallBundleUtil::CastToUnderlying(Status)];
-	}
-
 	//provide all our needed combined status information in 1 struct
-	struct FCombinedProgress
+	struct FCombinedBundleStatus
 	{
+		//Collapses all the bundle manager states into one of a few states so that you can show simple text based on this enum
+		enum class ECombinedBundleStateEnum : int32
+		{
+			Unknown
+			,Initializing
+			,Updating
+			,Finishing
+			,Finished
+		};
+		
 		float ProgressPercent = 0.0f;
-		ECombinedBundleStatus CombinedStatus = ECombinedBundleStatus::Unknown;
+		ECombinedBundleStateEnum CombinedState = ECombinedBundleStateEnum::Unknown;
 		EInstallBundlePauseFlags CombinedPauseFlags = EInstallBundlePauseFlags::None;
 		bool bIsPaused = false;
 		bool bDoesCurrentStateSupportPausing = false;
@@ -50,20 +32,20 @@ public:
 	};
 	
 public:
-	FInstallBundleCombinedProgressTracker();
-	~FInstallBundleCombinedProgressTracker();
+	FBundlePrereqCombinedStatusHelper();
+	~FBundlePrereqCombinedStatusHelper();
 	
-	FInstallBundleCombinedProgressTracker(const FInstallBundleCombinedProgressTracker& Other);
-	FInstallBundleCombinedProgressTracker(FInstallBundleCombinedProgressTracker&& Other);
+	FBundlePrereqCombinedStatusHelper(const FBundlePrereqCombinedStatusHelper& Other);
+	FBundlePrereqCombinedStatusHelper(FBundlePrereqCombinedStatusHelper&& Other);
 	
-	FInstallBundleCombinedProgressTracker& operator=(const FInstallBundleCombinedProgressTracker& Other);
-	FInstallBundleCombinedProgressTracker& operator=(FInstallBundleCombinedProgressTracker&& Other);
+	FBundlePrereqCombinedStatusHelper& operator=(const FBundlePrereqCombinedStatusHelper& Other);
+	FBundlePrereqCombinedStatusHelper& operator=(FBundlePrereqCombinedStatusHelper&& Other);
 	
 	//Setup tracking for all bundles required in the supplied BundleContentState
 	void SetBundlesToTrackFromContentState(const FInstallBundleCombinedContentState& BundleContentState, TArrayView<FName> BundlesToTrack);
 	
 	//Get current CombinedBundleStatus for everything setup to track
-	const FCombinedProgress& GetCurrentCombinedProgress() const;
+	const FCombinedBundleStatus& GetCurrentCombinedState() const;
 	
 	//Useful for resolving tick order issue
 	void ForceTick() { Tick(0); }
@@ -92,8 +74,10 @@ private:
 	//Bundle weights that determine what % of the overall install each bundle represents
 	TMap<FName, float> CachedBundleWeights;
 	
-	FCombinedProgress CurrentCombinedProgress;
+	FCombinedBundleStatus CurrentCombinedStatus;
 	
-	TWeakPtr<IInstallBundleManager> InstallBundleManager;
+	bool bBundleNeedsUpdate = false;
+	
+	IInstallBundleManager* InstallBundleManager = nullptr;
 	FDelegateHandle TickHandle;
 };

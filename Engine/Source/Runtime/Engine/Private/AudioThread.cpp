@@ -132,7 +132,6 @@ static int32 AudioThreadSuspendCount = 0;
 
 void FAudioThread::SuspendAudioThread()
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
 	check(!GIsAudioThreadSuspended.Load() || CVarSuspendAudioThread.GetValueOnGameThread() != 0);
 	if (bIsAudioThreadRunning.Load())
@@ -147,14 +146,10 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		bIsAudioThreadRunning = false;
 	}
 	check(!bIsAudioThreadRunning.Load());
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FAudioThread::ResumeAudioThread()
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
 	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
 	if (GIsAudioThreadSuspended.Load() && CVarSuspendAudioThread.GetValueOnGameThread() == 0)
 	{
@@ -163,8 +158,6 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		bIsAudioThreadRunning = true;
 	}
 	ProcessAllCommands();
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FAudioThread::OnPreGarbageCollect()

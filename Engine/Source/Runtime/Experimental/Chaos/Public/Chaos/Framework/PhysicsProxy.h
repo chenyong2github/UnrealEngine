@@ -69,6 +69,7 @@ public:
 	void StartFrameCallback(const float InDt, const float InTime) { static_cast<Concrete*>(this)->StartFrameCallback(InDt, InTime); }
 	void EndFrameCallback(const float InDt) { static_cast<Concrete*>(this)->EndFrameCallback(InDt); }
 	void CreateRigidBodyCallback(FParticlesType& InOutParticles) { static_cast<Concrete*>(this)->CreateRigidBodyCallback(InOutParticles); }
+	void ParameterUpdateCallback(FParticlesType& InParticles, const float InTime) { static_cast<Concrete*>(this)->ParameterUpdateCallback(InParticles, InTime); }
 	void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs) { static_cast<Concrete*>(this)->DisableCollisionsCallback(InPairs); }
 	void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex) { static_cast<Concrete*>(this)->AddForceCallback(InParticles, InDt, InIndex); }
 
@@ -84,7 +85,7 @@ public:
 
 	/** Returns the concrete type of the derived class*/
 	EPhysicsProxyType ConcreteType() { return static_cast<Concrete*>(this)->ConcreteType(); }
-	
+
 	/**
 	 * CONTEXT: GAMETHREAD
 	* Returns a new unmanaged allocation of the data saved on the handle, otherwise nullptr
@@ -108,7 +109,37 @@ public:
 	* they may "overaccumulate".
 	*/
 	void ClearAccumulatedData() { static_cast<Concrete*>(this)->ClearAccumulatedData(); }
-	
+
+	/**
+	 * CONTEXT: PHYSICSTHREAD
+	 * Called per-tick after the simulation has completed. The proxy should cache the results of their
+	 * simulation into the local buffer. 
+	 */
+	void BufferPhysicsResults() { static_cast<Concrete*>(this)->BufferPhysicsResults(); }
+
+	/**
+	 * CONTEXT: PHYSICSTHREAD (Write Locked)
+	 * Called by the physics thread to signal that it is safe to perform any double-buffer flips here.
+	 * The physics thread has pre-locked an RW lock for this operation so the game thread won't be reading
+	 * the data
+	 */
+	void FlipBuffer() { static_cast<Concrete*>(this)->FlipBuffer(); }
+
+	/**
+	 * CONTEXT: GAMETHREAD (Read Locked)
+	 * Perform a similar operation to Sync, but take the data from a gamethread-safe buffer. This will be called
+	 * from the game thread when it cannot sync to the physics thread. The simulation is very likely to be running
+	 * when this happens so never read any physics thread data here!
+	 *
+	 * SyncTimestamp indicates which inputs the solver used to generate these results. Proxy can stomp results if needed
+	 * For example of particle has been deleted, or a position was set manually by game thread, the proxy ignores the solver results
+	 * Returns true if the data was pulled. If false is returned the proxy's particle pointer may be dangling so do not read from it. Skip sync entirely
+	 *
+	 * Note: A read lock will have been acquired for this - so the physics thread won't force a buffer flip while this
+	 * sync is ongoing
+	 */
+	bool PullFromPhysicsState(const int32 SolverSyncTimestamp) { return static_cast<Concrete*>(this)->PullFromPhysicsState(SolverSyncTimestamp); }
+
 	/**
 	 * CONTEXT: GAMETHREAD
 	 * Called during the gamethread sync after the proxy has been removed from its solver

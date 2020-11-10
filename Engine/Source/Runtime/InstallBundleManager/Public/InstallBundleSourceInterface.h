@@ -53,8 +53,8 @@ public:
 	virtual FString GetContentVersion() const = 0;
 
 	// Finds all dependencies for InBundleName, including InBundleName
-	// SkippedUnknownBundles contains any unknown bundles that may have been found
-	virtual TSet<FName> GetBundleDependencies(FName InBundleName, TSet<FName>* SkippedUnknownBundles = nullptr) const = 0;
+	// Sets bSkippedUnknownBundles if information for InBundleName or a dependency can't be found
+	virtual TSet<FName> GetBundleDependencies(FName InBundleName, bool* bSkippedUnknownBundles /*= nullptr*/) const = 0;
 
 	// Gets the state of content on disk
 	// BundleNames contains all dependencies and has been deduped
@@ -103,7 +103,7 @@ public:
 	virtual bool CancelRequestRemoveContentOnNextInit(TArrayView<const FName> BundleNames) { return false; }
 
 	// Cancel the install for the specified bundles
-	virtual void CancelBundles(TArrayView<const FName> BundleNames) {}
+	virtual void CancelBundles(TArrayView<const FName> BundleNames, EInstallBundleCancelFlags Flags) {}
 
 	// User Pause/Resume bundles.
 	virtual void UserPauseBundles(TArrayView<const FName> BundleNames) {}

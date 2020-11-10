@@ -684,31 +684,31 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 
 	// Find the first LOD with any vertices (ie that haven't been stripped)
 	int FirstAvailableLOD = 0;
-	for (; FirstAvailableLOD < InComponent->GetStaticMesh()->GetRenderData()->LODResources.Num(); FirstAvailableLOD++)
+	for (; FirstAvailableLOD < InComponent->GetStaticMesh()->RenderData->LODResources.Num(); FirstAvailableLOD++)
 	{
-		if (InComponent->GetStaticMesh()->GetRenderData()->LODResources[FirstAvailableLOD].GetNumVertices() > 0)
+		if (InComponent->GetStaticMesh()->RenderData->LODResources[FirstAvailableLOD].GetNumVertices() > 0)
 		{
 			break;
 		}
 	}
 
-	Instance->ClampedMinLOD = FMath::Clamp(EffectiveMinLOD, FirstAvailableLOD, InComponent->GetStaticMesh()->GetRenderData()->LODResources.Num() - 1);
+	Instance->ClampedMinLOD = FMath::Clamp(EffectiveMinLOD, FirstAvailableLOD, InComponent->GetStaticMesh()->RenderData->LODResources.Num() - 1);
 
 	Instance->AllocateLightmaps(Lightmaps);
 
 	FStaticMeshInstanceRenderState InstanceRenderState;
 	InstanceRenderState.ComponentUObject = Instance->ComponentUObject;
-	InstanceRenderState.RenderData = Instance->ComponentUObject->GetStaticMesh()->GetRenderData().Get();
+	InstanceRenderState.RenderData = Instance->ComponentUObject->GetStaticMesh()->RenderData.Get();
 	InstanceRenderState.LocalToWorld = InComponent->GetRenderMatrix();
 	InstanceRenderState.WorldBounds = InComponent->Bounds;
 	InstanceRenderState.ActorPosition = InComponent->GetAttachmentRootActor() ? InComponent->GetAttachmentRootActor()->GetActorLocation() : FVector(ForceInitToZero);
 	InstanceRenderState.LocalBounds = InComponent->CalcBounds(FTransform::Identity);
 	InstanceRenderState.bCastShadow = InComponent->CastShadow && InComponent->bCastStaticShadow;
-	InstanceRenderState.LODOverrideColorVertexBuffers.AddZeroed(InComponent->GetStaticMesh()->GetRenderData()->LODResources.Num());
-	InstanceRenderState.LODOverrideColorVFUniformBuffers.AddDefaulted(InComponent->GetStaticMesh()->GetRenderData()->LODResources.Num());
+	InstanceRenderState.LODOverrideColorVertexBuffers.AddZeroed(InComponent->GetStaticMesh()->RenderData->LODResources.Num());
+	InstanceRenderState.LODOverrideColorVFUniformBuffers.AddDefaulted(InComponent->GetStaticMesh()->RenderData->LODResources.Num());
 	InstanceRenderState.ClampedMinLOD = Instance->ClampedMinLOD;
 
-	for (int32 LODIndex = Instance->ClampedMinLOD; LODIndex < FMath::Min(InComponent->LODData.Num(), InComponent->GetStaticMesh()->GetRenderData()->LODResources.Num()); LODIndex++)
+	for (int32 LODIndex = Instance->ClampedMinLOD; LODIndex < FMath::Min(InComponent->LODData.Num(), InComponent->GetStaticMesh()->RenderData->LODResources.Num()); LODIndex++)
 	{
 		const FStaticMeshComponentLODInfo& ComponentLODInfo = InComponent->LODData[LODIndex];
 
@@ -716,9 +716,9 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 		if (ComponentLODInfo.OverrideVertexColors)
 		{
 			bool bBroken = false;
-			for (int32 SectionIndex = 0; SectionIndex < InComponent->GetStaticMesh()->GetRenderData()->LODResources[LODIndex].Sections.Num(); SectionIndex++)
+			for (int32 SectionIndex = 0; SectionIndex < InComponent->GetStaticMesh()->RenderData->LODResources[LODIndex].Sections.Num(); SectionIndex++)
 			{
-				const FStaticMeshSection& Section = InComponent->GetStaticMesh()->GetRenderData()->LODResources[LODIndex].Sections[SectionIndex];
+				const FStaticMeshSection& Section = InComponent->GetStaticMesh()->RenderData->LODResources[LODIndex].Sections[SectionIndex];
 				if (Section.MaxVertexIndex >= ComponentLODInfo.OverrideVertexColors->GetNumVertices())
 				{
 					bBroken = true;
@@ -854,7 +854,7 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 		{
 			if (InstanceRenderStateRef->LODOverrideColorVertexBuffers[LODIndex] != nullptr)
 			{
-				const FLocalVertexFactory* LocalVF = &InstanceRenderStateRef->ComponentUObject->GetStaticMesh()->GetRenderData()->LODVertexFactories[LODIndex].VertexFactoryOverrideColorVertexBuffer;
+				const FLocalVertexFactory* LocalVF = &InstanceRenderStateRef->ComponentUObject->GetStaticMesh()->RenderData->LODVertexFactories[LODIndex].VertexFactoryOverrideColorVertexBuffer;
 				InstanceRenderStateRef->LODOverrideColorVFUniformBuffers[LODIndex] = CreateLocalVFUniformBuffer(LocalVF, LODIndex, InstanceRenderStateRef->LODOverrideColorVertexBuffers[LODIndex], 0, 0);
 			}
 		}
@@ -1018,7 +1018,7 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 
 	FInstanceGroupRenderState InstanceRenderState;
 	InstanceRenderState.ComponentUObject = Instance->ComponentUObject;
-	InstanceRenderState.RenderData = Instance->ComponentUObject->GetStaticMesh()->GetRenderData();
+	InstanceRenderState.RenderData = Instance->ComponentUObject->GetStaticMesh()->RenderData.Get();
 	InstanceRenderState.InstancedRenderData = MakeUnique<FInstancedStaticMeshRenderData>(Instance->ComponentUObject, ERHIFeatureLevel::SM5);
 	InstanceRenderState.LocalToWorld = InComponent->GetRenderMatrix();
 	InstanceRenderState.WorldBounds = InComponent->Bounds;

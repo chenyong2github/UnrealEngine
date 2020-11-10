@@ -745,6 +745,8 @@ void FCSPose<PoseType>::SafeSetCSBoneTransforms(const TArray<struct FBoneTransfo
 template<class PoseType>
 void FCSPose<PoseType>::LocalBlendCSBoneTransforms(const TArray<struct FBoneTransform>& BoneTransforms, float Alpha)
 {
+	SCOPE_CYCLE_COUNTER(STAT_LocalBlendCSBoneTransforms);
+
 	// if Alpha is small enough, skip
 	if (Alpha < ZERO_ANIMWEIGHT_THRESH)
 	{
@@ -953,4 +955,3 @@ void FCSPose<PoseType>::ConvertComponentPosesToLocalPosesSafe(FCSPose<PoseType>&
 
 // Populate InOutPose based on raw animation data. 
 extern void BuildPoseFromRawData(const TArray<FRawAnimSequenceTrack>& InAnimationData, const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable, FCompactPose& InOutPose, float InTime, EAnimInterpolationType Interpolation, int32 NumFrames, float SequenceLength, FName RetargetSource);
-extern void BuildPoseFromRawData(const TArray<FRawAnimSequenceTrack>& InAnimationData, const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable, FCompactPose& InOutPose, float InTime, EAnimInterpolationType Interpolation, int32 NumFrames, float SequenceLength, FName SourceName, const TArray<FTransform>& RetargetTransforms);

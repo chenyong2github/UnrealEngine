@@ -13,8 +13,6 @@ namespace Chaos { class FErrorReporter; }
 namespace Chaos
 {
 
-struct FMTDInfo;
-
 template<class T>
 class TTriangleMesh;
 
@@ -27,7 +25,7 @@ class TCapsule;
 class FConvex;
 
 template<class T, int d>
-class TLevelSet final : public FImplicitObject
+class CHAOS_API TLevelSet final : public FImplicitObject
 {
   public:
 	using FImplicitObject::SignedDistance;

@@ -1036,16 +1036,16 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				const FSceneView& ActiveSceneView = *SceneViews[ActiveSceneIndex];
 
 				FSlateMaterialResource* MaterialShaderResource = (FSlateMaterialResource*)ShaderResource;
-				if (const FMaterialRenderProxy* MaterialRenderProxy = MaterialShaderResource->GetRenderProxy())
+				if (FMaterialRenderProxy* MaterialRenderProxy = MaterialShaderResource->GetRenderProxy())
 				{
 					MaterialShaderResource->CheckForStaleResources();
 
-					const FMaterial& Material = MaterialRenderProxy->GetMaterialWithFallback(ActiveSceneView.GetFeatureLevel(), MaterialRenderProxy);
+					const FMaterial* Material = MaterialRenderProxy->GetMaterial(ActiveSceneView.GetFeatureLevel());
 
-					TShaderRef<FSlateMaterialShaderPS> PixelShader = GetMaterialPixelShader(&Material, ShaderType);
+					TShaderRef<FSlateMaterialShaderPS> PixelShader = GetMaterialPixelShader(Material, ShaderType);
 
 					const bool bUseInstancing = RenderBatch.InstanceCount > 0 && RenderBatch.InstanceData != nullptr;
-					TShaderRef<FSlateMaterialShaderVS> VertexShader = GetMaterialVertexShader(&Material, bUseInstancing);
+					TShaderRef<FSlateMaterialShaderVS> VertexShader = GetMaterialVertexShader(Material, bUseInstancing);
 
 					if (VertexShader.IsValid() && PixelShader.IsValid() && IsSceneTexturesValid(RHICmdList))
 					{
@@ -1074,9 +1074,9 @@ void FSlateRHIRenderingPolicy::DrawElements(
 						else
 #endif
 						{
-							PixelShader->SetBlendState(GraphicsPSOInit, &Material);
+							PixelShader->SetBlendState(GraphicsPSOInit, Material);
 							FSlateShaderResource* MaskResource = MaterialShaderResource->GetTextureMaskResource();
-							if (MaskResource && (Material.GetBlendMode() == EBlendMode::BLEND_Opaque || Material.GetBlendMode() == EBlendMode::BLEND_Masked))
+							if (MaskResource && (Material->GetBlendMode() == EBlendMode::BLEND_Opaque || Material->GetBlendMode() == EBlendMode::BLEND_Masked))
 							{
 								// Font materials require some form of translucent blending
 								GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_InverseDestAlpha, BF_One>::GetRHI();
@@ -1095,9 +1095,9 @@ void FSlateRHIRenderingPolicy::DrawElements(
 								QUICK_SCOPE_CYCLE_COUNTER(Slate_SetMaterialShaderParams);
 								VertexShader->SetViewProjection(RHICmdList, ViewProjection);
 								VertexShader->SetVerticalAxisMultiplier(RHICmdList, bSwitchVerticalAxis ? -1.0f : 1.0f);
-								VertexShader->SetMaterialShaderParameters(RHICmdList, ActiveSceneView, MaterialRenderProxy, &Material);
+								VertexShader->SetMaterialShaderParameters(RHICmdList, ActiveSceneView, MaterialRenderProxy, Material);
 
-								PixelShader->SetParameters(RHICmdList, ActiveSceneView, MaterialRenderProxy, &Material, ShaderParams.PixelParams);
+								PixelShader->SetParameters(RHICmdList, ActiveSceneView, MaterialRenderProxy, Material, ShaderParams.PixelParams);
 								const float FinalGamma = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::ReverseGamma) ? 1.0f / EngineGamma : EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1.0f : DisplayGamma;
 								const float FinalContrast = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1 : DisplayContrast;
 								PixelShader->SetDisplayGammaAndContrast(RHICmdList, FinalGamma, FinalContrast);

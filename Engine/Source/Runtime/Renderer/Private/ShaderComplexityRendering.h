@@ -49,7 +49,23 @@ public:
 		const FPermutationDomain PermutationVector(Parameters.PermutationId);
 		const bool bQuadOverdraw = PermutationVector.Get<FComplexityAccumulatePS::FQuadOverdraw>() == FComplexityAccumulatePS::EQuadOverdraw::Enable;
 
-		return ShouldCompileDebugViewModeShader(bQuadOverdraw ? DVSM_QuadComplexity : DVSM_ShaderComplexity, Parameters);
+		// See FDebugViewModeMaterialProxy::GetFriendlyName()
+		if (AllowDebugViewShaderMode(bQuadOverdraw ? DVSM_QuadComplexity : DVSM_ShaderComplexity, Parameters.Platform, Parameters.MaterialParameters.FeatureLevel))
+		{
+			// If it comes from FDebugViewModeMaterialProxy, compile it.
+			if (Parameters.MaterialParameters.bMaterialIsComplexityAccumulate)
+			{
+				return true;
+			}
+			// Otherwise we only cache it if this for the shader complexity.
+			else if (GCacheShaderComplexityShaders)
+			{
+				return !FDebugViewModeInterface::AllowFallbackToDefaultMaterial(Parameters.MaterialParameters.TessellationMode,
+					Parameters.MaterialParameters.bHasVertexPositionOffsetConnected,
+					Parameters.MaterialParameters.bHasPixelDepthOffsetConnected) || Parameters.MaterialParameters.bIsDefaultMaterial;
+			}
+		}
+		return false;
 	}
 
 	FComplexityAccumulatePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
@@ -87,10 +103,7 @@ public:
 		, bShowQuadComplexity(InShowQuadComplexity)
 	{}
 
-	virtual void AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel,
-		EMaterialTessellationMode InMaterialTessellationMode,
-		const FVertexFactoryType* InVertexFactoryType,
-		FMaterialShaderTypes& OutShaderTypes) const override;
+	virtual TShaderRef<FDebugViewModePS> GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const override;
 	virtual void SetDrawRenderState(EBlendMode BlendMode, FRenderState& DrawRenderState, bool bHasDepthPrepassForMaskedMaterial) const;
 
 	virtual void GetDebugViewModeShaderBindings(

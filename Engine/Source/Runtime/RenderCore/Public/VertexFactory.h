@@ -408,8 +408,7 @@ public:
 	* Calls the function ptr for the shader type on the given environment
 	* @param Environment - shader compile environment to modify
 	*/
-	void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment) const
-	{
+	void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment){
 		// Set up the mapping from VertexFactory.usf to the vertex factory type's source code.
 		FString VertexFactoryIncludeString = FString::Printf( TEXT("#include \"%s\""), GetShaderFilename() );
 		OutEnvironment.IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/VertexFactory.ush"), VertexFactoryIncludeString);
@@ -419,7 +418,7 @@ public:
 		(*ModifyCompilationEnvironmentRef)(Parameters, OutEnvironment);
 	}
 
-	void ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors) const
+	void ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors)
 	{
 		(*ValidateCompiledResultRef)(this, Platform, ParameterMap, OutErrors);
 	}
@@ -433,9 +432,15 @@ public:
 	}
 
 	/** Adds include statements for uniform buffers that this shader type references, and builds a prefix for the shader file with the include statements. */
-	RENDERCORE_API void AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform) const;
+	RENDERCORE_API void AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform);
 
-	RENDERCORE_API void FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables);
+	void FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables)
+	{
+		ReferencedUniformBufferStructsCache.Empty();
+		GenerateReferencedUniformBuffers(ShaderFilename, Name, ShaderFileToUniformBufferVariables, ReferencedUniformBufferStructsCache);
+		bCachedUniformBufferStructDeclarations = false;
+	}
+
 	const TMap<const TCHAR*, FCachedUniformBufferDeclaration>& GetReferencedUniformBufferStructsCache() const
 	{
 		return ReferencedUniformBufferStructsCache;
@@ -473,10 +478,10 @@ private:
 	 * These are derived from source files so they need to be flushed when editing and recompiling shaders on the fly. 
 	 * FVertexFactoryType::Initialize will add an entry for each referenced uniform buffer, but the declarations are added on demand as shaders are compiled.
 	 */
-	mutable TMap<const TCHAR*, FCachedUniformBufferDeclaration> ReferencedUniformBufferStructsCache;
+	TMap<const TCHAR*, FCachedUniformBufferDeclaration> ReferencedUniformBufferStructsCache;
 
 	/** Tracks what platforms ReferencedUniformBufferStructsCache has had declarations cached for. */
-	mutable FThreadSafeBool bCachedUniformBufferStructDeclarations;
+	bool bCachedUniformBufferStructDeclarations;
 };
 
 /**

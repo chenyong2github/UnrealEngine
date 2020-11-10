@@ -7,6 +7,7 @@
 
 namespace Insights { class ITimingViewSession; }
 namespace Insights { class IAnalysisSession; }
+namespace Insights { class IAnalysisSession; }
 
 class FMenuBuilder;
 

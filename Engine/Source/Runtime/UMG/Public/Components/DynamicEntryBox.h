@@ -70,6 +70,7 @@ public:
 	TFunction<void(UUserWidget*)> OnPreviewEntryCreatedFunc;
 #endif
 
+protected:
 	virtual void SynchronizeProperties() override;
 
 private:

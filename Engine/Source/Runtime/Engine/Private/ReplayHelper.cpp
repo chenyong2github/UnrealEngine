@@ -628,9 +628,6 @@ void FReplayHelper::SaveCheckpoint(UNetConnection* Connection)
 
 	PackageMapClient->SavePackageMapExportAckStatus(CheckpointSaveContext.CheckpointAckState);
 
-	Connection->SetIgnoreReservedChannels(true);
-	Connection->SetReserveDestroyedChannels(true);
-
 	// We are now processing checkpoint actors	
 	CheckpointSaveContext.CheckpointSaveState = ECheckpointSaveState::ProcessCheckpointActors;
 	CheckpointSaveContext.TotalCheckpointSaveTimeSeconds = 0;
@@ -718,8 +715,6 @@ void FReplayHelper::TickCheckpoint(UNetConnection* Connection)
 			{
 				SCOPED_NAMED_EVENT(FReplayHelper_ProcessCheckpointActors, FColor::Green);
 
-				Connection->SetReserveDestroyedChannels(false);
-
 				// Save the replicated server time so we can restore it after the checkpoint has been serialized.
 				// This preserves the existing behavior and prevents clients from receiving updated server time
 				// more often than the normal update rate.
@@ -763,8 +758,6 @@ void FReplayHelper::TickCheckpoint(UNetConnection* Connection)
 					PackageMapClient->OverridePackageMapExportAckStatus(nullptr);
 				}
 
-				Connection->SetReserveDestroyedChannels(true);
-
 				// We are done processing for this frame so  store the TotalCheckpointSave time here to be true to the old behavior which did not account for the	actual saving time of the check point
 				CheckpointSaveContext.TotalCheckpointReplicationTimeSeconds += (FPlatformTime::Seconds() - Params.StartCheckpointTime);
 
@@ -772,9 +765,6 @@ void FReplayHelper::TickCheckpoint(UNetConnection* Connection)
 				if (CheckpointSaveContext.PendingCheckpointActors.Num() == 0)
 				{
 					CheckpointSaveContext.CheckpointSaveState = ECheckpointSaveState::SerializeDeletedStartupActors;
-
-					Connection->SetReserveDestroyedChannels(false);
-					Connection->SetIgnoreReservedChannels(false);
 				}
 			}
 			break;
@@ -1247,7 +1237,7 @@ bool FReplayHelper::ReplicateCheckpointActor(AActor* ToReplicate, UNetConnection
 
 	UActorChannel* ActorChannel = Connection->FindActorChannelRef(ToReplicate);
 
-	if (ActorChannel == nullptr && ToReplicate->NetDormancy > DORM_Awake)
+	if (ActorChannel == nullptr && ToReplicate->NetDormancy != DORM_Awake)
 	{
 		// Create a new channel for this actor.
 		ActorChannel = Cast<UActorChannel>(Connection->CreateChannelByName(NAME_Actor, EChannelCreateFlags::OpenedLocally));

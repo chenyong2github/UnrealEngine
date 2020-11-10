@@ -74,8 +74,6 @@ int RunSlateViewer( const TCHAR* CommandLine )
 	// loop while the server does the rest
 	while (!IsEngineExitRequested())
 	{
-		BeginExitIfRequested();
-
 		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 		FStats::AdvanceFrame(false);
 		FTicker::GetCoreTicker().Tick(FApp::GetDeltaTime());

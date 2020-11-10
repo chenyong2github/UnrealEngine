@@ -28,7 +28,7 @@ public:
 
 	void AddLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
 	void ClearLatentActions(UObject* Object);
-	void RunLatentActions();
+	void RunLatentActions(const UObject* Object, FMovieSceneEntitySystemRunner& InRunner);
 
 	static UUMGSequenceTickManager* Get(UObject* PlaybackContext);
 

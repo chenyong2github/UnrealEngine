@@ -142,21 +142,4 @@ public:
 	 * @return Whether the plugin search path was modified
 	 */
 	static bool AddToPluginSearchPathIfNeeded(const FString& Dir, bool bRefreshPlugins = false, bool bUpdateProjectFile = false);
-
-	/**
-	 * Validate that the plugin name is valid, that the name isn't already used by a registered plugin
-	 * and optionally that there isn't an unregistered plugin with that name that exists at the specified location.
-	 * @param PluginName Plugin name
-	 * @param PluginLocation Optional directory in which to look for a plugin that might not be registered
-	 * @param FailReason Optional output text describing why the validation failed
-	 * @return
-	 */
-	static bool ValidateNewPluginNameAndLocation(const FString& PluginName, const FString& PluginLocation = FString(), FText* FailReason = nullptr);
-
-	/**
-	 * Returns whether the specified plugin name is valid, regardless of whether it's already used
-	 * @param PluginName Plugin name
-	 * @param FailReason Optional output text specifying what is wrong with the plugin name
-	 */
-	static bool IsValidPluginName(const FString& PluginName, FText* FailReason = nullptr);
 };

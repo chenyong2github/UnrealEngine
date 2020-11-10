@@ -15,13 +15,9 @@
 #include "Application/ActiveTimerHandle.h"
 #include "Input/HittestGrid.h"
 #include "Debugging/SlateDebugging.h"
-#include "Debugging/WidgetList.h"
 #include "Widgets/SWindow.h"
 #include "Trace/SlateTrace.h"
-#include "Types/SlateCursorMetaData.h"
-#include "Types/SlateMouseEventsMetaData.h"
 #include "Types/ReflectionMetadata.h"
-#include "Types/SlateToolTipMetaData.h"
 #include "Stats/Stats.h"
 #include "Containers/StringConv.h"
 #include "Misc/ScopeRWLock.h"
@@ -34,11 +30,9 @@
 #endif
 
 // Enabled to assign FindWidgetMetaData::FoundWidget to the widget that has the matching reflection data 
-#ifndef UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA
-	#define UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA 0
-#endif
+#define WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA 0
 
-#if UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA
+#if WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA
 namespace FindWidgetMetaData
 {
 	SWidget* FoundWidget = nullptr;
@@ -55,7 +49,6 @@ DEFINE_STAT(STAT_SlateTickWidgets);
 DEFINE_STAT(STAT_SlatePrepass);
 DEFINE_STAT(STAT_SlateTotalWidgets);
 DEFINE_STAT(STAT_SlateSWidgetAllocSize);
-DEFINE_STAT(STAT_SlateGetMetaData);
 
 DECLARE_CYCLE_STAT(TEXT("SWidget::CreateStatID"), STAT_Slate_CreateStatID, STATGROUP_Slate);
 
@@ -193,6 +186,11 @@ namespace SlateTraceMetaData
 }
 #endif
 
+FName NAME_MouseButtonDown(TEXT("MouseButtonDown"));
+FName NAME_MouseButtonUp(TEXT("MouseButtonUp"));
+FName NAME_MouseMove(TEXT("MouseMove"));
+FName NAME_MouseDoubleClick(TEXT("MouseDoubleClick"));
+
 SWidget::SWidget()
 	: bIsHovered(false)
 	, bCanSupportFocus(true)
@@ -225,6 +223,8 @@ SWidget::SWidget()
 	, RenderOpacity(1.0f)
 	, RenderTransform()
 	, RenderTransformPivot(FVector2D::ZeroVector)
+	, Cursor( TOptional<EMouseCursor::Type>() )
+	, ToolTip()
 #if UE_SLATE_WITH_WIDGET_UNIQUE_IDENTIFIER
 	, UniqueIdentifier(++SlateTraceMetaData::UniqueIdGenerator)
 #endif
@@ -238,14 +238,12 @@ SWidget::SWidget()
 		INC_DWORD_STAT(STAT_SlateTotalWidgetsPerFrame);
 	}
 
-	UE_SLATE_DEBUG_WIDGETLIST_ADD_WIDGET(this);
 	UE_TRACE_SLATE_WIDGET_ADDED(this);
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 SWidget::~SWidget()
 {
-#if UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA
+#if WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA
 	if (FindWidgetMetaData::FoundWidget == this)
 	{
 		FindWidgetMetaData::FoundWidget = nullptr;
@@ -289,12 +287,10 @@ SWidget::~SWidget()
 	StatIDStringStorage = nullptr;
 #endif
 
-	UE_SLATE_DEBUG_WIDGETLIST_REMOVE_WIDGET(this);
 	UE_TRACE_SLATE_WIDGET_REMOVED(this);
 	DEC_DWORD_STAT(STAT_SlateTotalWidgets);
 	DEC_MEMORY_STAT_BY(STAT_SlateSWidgetAllocSize, AllocSize);
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void SWidget::Construct(
 	const TAttribute<FText>& InToolTipText,
@@ -313,6 +309,23 @@ void SWidget::Construct(
 	const TArray<TSharedRef<ISlateMetaData>>& InMetaData
 )
 {
+	if ( InToolTip.IsValid() )
+	{
+		// If someone specified a fancy widget tooltip, use it.
+		ToolTip = InToolTip;
+	}
+	else if ( InToolTipText.IsSet() )
+	{
+		// If someone specified a text binding, make a tooltip out of it
+		ToolTip = FSlateApplicationBase::Get().MakeToolTip(InToolTipText);
+	}
+	else if( !ToolTip.IsValid() || (ToolTip.IsValid() && ToolTip->IsEmpty()) )
+	{	
+		// We don't have a tooltip.
+		ToolTip.Reset();
+	}
+
+	Cursor = InCursor;
 	EnabledState = InEnabledState;
 	Visibility = InVisibility;
 	RenderOpacity = InRenderOpacity;
@@ -322,20 +335,7 @@ void SWidget::Construct(
 	bForceVolatile = InForceVolatile;
 	Clipping = InClipping;
 	FlowDirectionPreference = InFlowPreference;
-	MetaData.Append(InMetaData);
-
-	if (InToolTip.IsValid())
-	{
-		// If someone specified a fancy widget tooltip, use it.
-		SetToolTip(InToolTip);
-	}
-	else if (InToolTipText.IsSet())
-	{
-		// If someone specified a text binding, make a tooltip out of it
-		SetToolTipText(InToolTipText);
-	}
-
-	SetCursor(InCursor);
+	MetaData = InMetaData;
 
 #if WITH_ACCESSIBILITY
 	if (InAccessibleData.IsSet())
@@ -427,11 +427,11 @@ FReply SWidget::OnPreviewMouseButtonDown( const FGeometry& MyGeometry, const FPo
 
 FReply SWidget::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if (TSharedPtr<FSlateMouseEventsMetaData> Data = GetMetaData<FSlateMouseEventsMetaData>())
+	if (const FPointerEventHandler* Event = GetPointerEvent(NAME_MouseButtonDown))
 	{
-		if (Data->MouseButtonDownHandle.IsBound() )
+		if ( Event->IsBound() )
 		{
-			return Data->MouseButtonDownHandle.Execute(MyGeometry, MouseEvent);
+			return Event->Execute(MyGeometry, MouseEvent);
 		}
 	}
 	return FReply::Unhandled();
@@ -439,11 +439,11 @@ FReply SWidget::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEve
 
 FReply SWidget::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if (TSharedPtr<FSlateMouseEventsMetaData> Data = GetMetaData<FSlateMouseEventsMetaData>())
+	if (const FPointerEventHandler* Event = GetPointerEvent(NAME_MouseButtonUp) )
 	{
-		if (Data->MouseButtonUpHandle.IsBound())
+		if ( Event->IsBound() )
 		{
-			return Data->MouseButtonUpHandle.Execute(MyGeometry, MouseEvent);
+			return Event->Execute(MyGeometry, MouseEvent);
 		}
 	}
 	return FReply::Unhandled();
@@ -451,11 +451,11 @@ FReply SWidget::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent
 
 FReply SWidget::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if (TSharedPtr<FSlateMouseEventsMetaData> Data = GetMetaData<FSlateMouseEventsMetaData>())
+	if (const FPointerEventHandler* Event = GetPointerEvent(NAME_MouseMove) )
 	{
-		if (Data->MouseMoveHandle.IsBound())
+		if ( Event->IsBound() )
 		{
-			return Data->MouseMoveHandle.Execute(MyGeometry, MouseEvent);
+			return Event->Execute(MyGeometry, MouseEvent);
 		}
 	}
 	return FReply::Unhandled();
@@ -463,11 +463,11 @@ FReply SWidget::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& Mo
 
 FReply SWidget::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if (TSharedPtr<FSlateMouseEventsMetaData> Data = GetMetaData<FSlateMouseEventsMetaData>())
+	if ( const FPointerEventHandler* Event = GetPointerEvent(NAME_MouseDoubleClick) )
 	{
-		if (Data->MouseDoubleClickHandle.IsBound())
+		if ( Event->IsBound() )
 		{
-			return Data->MouseDoubleClickHandle.Execute(MyGeometry, MouseEvent);
+			return Event->Execute(MyGeometry, MouseEvent);
 		}
 	}
 	return FReply::Unhandled();
@@ -477,13 +477,10 @@ void SWidget::OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& Mo
 {
 	bIsHovered = true;
 
-	if (TSharedPtr<FSlateMouseEventsMetaData> Data = GetMetaData<FSlateMouseEventsMetaData>())
+	if (MouseEnterHandler.IsBound())
 	{
-		if (Data->MouseEnterHandler.IsBound())
-		{
-			// A valid handler is assigned; let it handle the event.
-			Data->MouseEnterHandler.Execute(MyGeometry, MouseEvent);
-		}
+		// A valid handler is assigned; let it handle the event.
+		MouseEnterHandler.Execute(MyGeometry, MouseEvent);
 	}
 }
 
@@ -491,13 +488,10 @@ void SWidget::OnMouseLeave( const FPointerEvent& MouseEvent )
 {
 	bIsHovered = false;
 
-	if (TSharedPtr<FSlateMouseEventsMetaData> Data = GetMetaData<FSlateMouseEventsMetaData>())
+	if (MouseLeaveHandler.IsBound())
 	{
-		if (Data->MouseLeaveHandler.IsBound())
-		{
-			// A valid handler is assigned; let it handle the event.
-			Data->MouseLeaveHandler.Execute(MouseEvent);
-		}
+		// A valid handler is assigned; let it handle the event.
+		MouseLeaveHandler.Execute(MouseEvent);
 	}
 }
 
@@ -508,7 +502,7 @@ FReply SWidget::OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& 
 
 FCursorReply SWidget::OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const
 {
-	TOptional<EMouseCursor::Type> TheCursor = GetCursor();
+	TOptional<EMouseCursor::Type> TheCursor = Cursor.Get();
 	return ( TheCursor.IsSet() )
 		? FCursorReply::Cursor( TheCursor.GetValue() )
 		: FCursorReply::Unhandled();
@@ -1081,63 +1075,24 @@ const FGeometry& SWidget::GetPaintSpaceGeometry() const
 	return PersistentState.AllottedGeometry;
 }
 
-namespace Private
-{
-	TSharedPtr<FSlateToolTipMetaData> FindOrAddToolTipMetaData(SWidget* Widget)
-	{
-		TSharedPtr<FSlateToolTipMetaData> Data = Widget->GetMetaData<FSlateToolTipMetaData>();
-		if (!Data)
-		{
-			Data = MakeShared<FSlateToolTipMetaData>();
-			Widget->AddMetadata(Data.ToSharedRef());
-		}
-		return Data;
-	}
-}
-
 void SWidget::SetToolTipText(const TAttribute<FText>& ToolTipText)
 {
-	if (ToolTipText.IsSet())
-	{
-		Private::FindOrAddToolTipMetaData(this)->ToolTip = FSlateApplicationBase::Get().MakeToolTip(ToolTipText);
-	}
-	else
-	{
-		RemoveMetaData<FSlateToolTipMetaData>();
-	}
+	ToolTip = FSlateApplicationBase::Get().MakeToolTip(ToolTipText);
 }
 
 void SWidget::SetToolTipText( const FText& ToolTipText )
 {
-	if (ToolTipText.IsEmptyOrWhitespace())
-	{
-		Private::FindOrAddToolTipMetaData(this)->ToolTip = FSlateApplicationBase::Get().MakeToolTip(ToolTipText);
-	}
-	else
-	{
-		RemoveMetaData<FSlateToolTipMetaData>();
-	}
+	ToolTip = FSlateApplicationBase::Get().MakeToolTip(ToolTipText);
 }
 
 void SWidget::SetToolTip( const TSharedPtr<IToolTip> & InToolTip )
 {
-	if (InToolTip)
-	{
-		Private::FindOrAddToolTipMetaData(this)->ToolTip = InToolTip;
-	}
-	else
-	{
-		RemoveMetaData<FSlateToolTipMetaData>();
-	}
+	ToolTip = InToolTip;
 }
 
 TSharedPtr<IToolTip> SWidget::GetToolTip()
 {
-	if (TSharedPtr<FSlateToolTipMetaData> Data = GetMetaData<FSlateToolTipMetaData>())
-	{
-		return Data->ToolTip;
-	}
-	return TSharedPtr<IToolTip>();
+	return ToolTip;
 }
 
 void SWidget::OnToolTipClosing()
@@ -1213,30 +1168,7 @@ void SWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 
 void SWidget::SetCursor( const TAttribute< TOptional<EMouseCursor::Type> >& InCursor )
 {
-	// If bounded or has a valid optional value
-	if (InCursor.IsBound() || InCursor.Get().IsSet())
-	{
-		TSharedPtr<FSlateCursorMetaData> Data = GetMetaData<FSlateCursorMetaData>();
-		if (!Data)
-		{
-			Data = MakeShared<FSlateCursorMetaData>();
-			AddMetadata(Data.ToSharedRef());
-		}
-		Data->Cursor = InCursor;
-	}
-	else
-	{
-		RemoveMetaData<FSlateCursorMetaData>();
-	}
-}
-
-TOptional<EMouseCursor::Type> SWidget::GetCursor() const
-{
-	if (TSharedPtr<FSlateCursorMetaData> Data = GetMetaData<FSlateCursorMetaData>())
-	{
-		return Data->Cursor.Get();
-	}
-	return TOptional<EMouseCursor::Type>();
+	Cursor = InCursor;
 }
 
 void SWidget::SetDebugInfo( const ANSICHAR* InType, const ANSICHAR* InFile, int32 OnLine, size_t InAllocSize )
@@ -1668,58 +1600,70 @@ void SWidget::ExecuteActiveTimers(double CurrentTime, float DeltaTime)
 	}
 }
 
-namespace Private
+const FPointerEventHandler* SWidget::GetPointerEvent(const FName EventName) const
 {
-	TSharedPtr<FSlateMouseEventsMetaData> FindOrAddMouseEventsMetaData(SWidget* Widget)
+	auto* FoundPair = PointerEvents.FindByPredicate([&EventName](const auto& TestPair) {return TestPair.Key == EventName; });
+	if (FoundPair)
 	{
-		TSharedPtr<FSlateMouseEventsMetaData> Data = Widget->GetMetaData<FSlateMouseEventsMetaData>();
-		if (!Data)
-		{
-			Data = MakeShared<FSlateMouseEventsMetaData>();
-			Widget->AddMetadata(Data.ToSharedRef());
-		}
-		return Data;
+		return &FoundPair->Value;
 	}
+	return nullptr;
+}
+
+void SWidget::SetPointerEvent(const FName EventName, FPointerEventHandler& InEvent)
+{
+	// Find the event name and if found, replace the delegate
+	auto* FoundPair = PointerEvents.FindByPredicate([&EventName](const auto& TestPair) {return TestPair.Key == EventName; });
+	if (FoundPair)
+	{
+		FoundPair->Value = InEvent;
+	}
+	else
+	{
+		PointerEvents.Emplace(EventName, InEvent);
+	}
+
 }
 
 void SWidget::SetOnMouseButtonDown(FPointerEventHandler EventHandler)
 {
-	Private::FindOrAddMouseEventsMetaData(this)->MouseButtonDownHandle = EventHandler;
+	SetPointerEvent(NAME_MouseButtonDown, EventHandler);
 }
 
 void SWidget::SetOnMouseButtonUp(FPointerEventHandler EventHandler)
 {
-	Private::FindOrAddMouseEventsMetaData(this)->MouseButtonUpHandle = EventHandler;
+	SetPointerEvent(NAME_MouseButtonUp, EventHandler);
 }
 
 void SWidget::SetOnMouseMove(FPointerEventHandler EventHandler)
 {
-	Private::FindOrAddMouseEventsMetaData(this)->MouseMoveHandle = EventHandler;
+	SetPointerEvent(NAME_MouseMove, EventHandler);
 }
 
 void SWidget::SetOnMouseDoubleClick(FPointerEventHandler EventHandler)
 {
-	Private::FindOrAddMouseEventsMetaData(this)->MouseDoubleClickHandle = EventHandler;
+	SetPointerEvent(NAME_MouseDoubleClick, EventHandler);
 }
 
 void SWidget::SetOnMouseEnter(FNoReplyPointerEventHandler EventHandler)
 {
-	Private::FindOrAddMouseEventsMetaData(this)->MouseEnterHandler = EventHandler;
+	MouseEnterHandler = EventHandler;
 }
 
 void SWidget::SetOnMouseLeave(FSimpleNoReplyPointerEventHandler EventHandler)
 {
-	Private::FindOrAddMouseEventsMetaData(this)->MouseLeaveHandler = EventHandler;
+	MouseLeaveHandler = EventHandler;
 }
 
 void SWidget::AddMetadataInternal(const TSharedRef<ISlateMetaData>& AddMe)
 {
 	MetaData.Add(AddMe);
 
-#if UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA || UE_SLATE_TRACE_ENABLED
+
+#if WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA || UE_SLATE_TRACE_ENABLED
 	if (AddMe->IsOfType<FReflectionMetaData>())
 	{
-#if UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA
+#if WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA
 		TSharedRef<FReflectionMetaData> Reflection = StaticCastSharedRef<FReflectionMetaData>(AddMe);
 		if (Reflection->Name == FindWidgetMetaData::WidgeName && Reflection->Asset.Get() && Reflection->Asset.Get()->GetFName() == FindWidgetMetaData::AssetName)
 		{
@@ -1789,17 +1733,11 @@ FText SWidget::GetAccessibleText(EAccessibleType AccessibleType) const
 	case EAccessibleBehavior::Summary:
 		return GetAccessibleSummary();
 	case EAccessibleBehavior::ToolTip:
-	{
-		//TODO should use GetToolTip
-		if (TSharedPtr<FSlateToolTipMetaData> Data = GetMetaData<FSlateToolTipMetaData>())
+		if (ToolTip.IsValid() && !ToolTip->IsEmpty())
 		{
-			if (Data->ToolTip && !Data->ToolTip->IsEmpty())
-			{
-				return Data->ToolTip->GetContentWidget()->GetAccessibleText(EAccessibleType::Main);
-			}
+			return ToolTip->GetContentWidget()->GetAccessibleText(EAccessibleType::Main);
 		}
 		break;
-	}
 	case EAccessibleBehavior::Auto:
 		// Auto first checks if custom text was set. This should never happen with user-defined values as custom should be
 		// used instead in that case - however, this will be used for widgets with special default text such as TextBlocks.
@@ -1928,5 +1866,4 @@ bool SWidget::IsChildWidgetCulled(const FSlateRect& MyCullingRect, const FArrang
 }
 
 #endif
-
-#undef UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA
+#undef WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA

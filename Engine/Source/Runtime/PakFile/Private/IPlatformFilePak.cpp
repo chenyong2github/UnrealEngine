@@ -5043,23 +5043,8 @@ void FPakFile::Initialize(FArchive* Reader, bool bLoadIndex)
 			}
 		}
 
-		if (Decryptor.IsValid())
-		{
-			TSharedPtr<const FPakSignatureFile, ESPMode::ThreadSafe> SignatureFile = Decryptor->GetSignatures();
-			if (SignatureFile->SignatureData.Num() == UE_ARRAY_COUNT(FSHAHash::Hash))
-			{
-				bIsValid = (FMemory::Memcmp(SignatureFile->SignatureData.GetData(), Info.IndexHash.Hash, SignatureFile->SignatureData.Num()) == 0);
-			}
-			else
-			{
-				bIsValid = false;
-			}
-		}
-		else
-		{
-			// LoadIndex should crash in case of an error, so just assume everything is ok if we got here.
-			bIsValid = true;
-		}
+		// LoadIndex should crash in case of an error, so just assume everything is ok if we got here.
+		bIsValid = true;
 	}
 }
 
@@ -6574,7 +6559,7 @@ const FPakEntryLocation* FPakFile::FindLocationFromIndex(const FString& FullPath
 
 FPakFile::EFindResult FPakFile::Find(const FString& FullPath, FPakEntry* OutEntry) const
 {
-	//QUICK_SCOPE_CYCLE_COUNTER(PakFileFind);
+	QUICK_SCOPE_CYCLE_COUNTER(PakFileFind);
 
 	const FPakEntryLocation* PakEntryLocation;
 #if ENABLE_PAKFILE_RUNTIME_PRUNING_VALIDATE
@@ -7179,7 +7164,7 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 			FCoreDelegates::PakFileMountedCallback.Broadcast(InPakFilename);
 			FCoreDelegates::OnPakFileMounted.Broadcast(InPakFilename, Pak->PakchunkIndex);
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			double OnPakFileMounted2Time = 0.0;
+			static double OnPakFileMounted2Time = 0.0;
 			{
 				FScopedDurationTimer Timer(OnPakFileMounted2Time);
 				FCoreDelegates::OnPakFileMounted2.Broadcast(*Pak);

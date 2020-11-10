@@ -2387,7 +2387,7 @@ FString PythonizeDefaultValue(const FProperty* InProp, const FString& InDefaultV
 	return PythonizeValue(InProp, PropValue.GetValue(), InFlags);
 }
 
-const UObject* GetAssetTypeRegistryType(const UObject* InObj)
+const UObject* GetTypeRegistryType(const UObject* InObj)
 {
 	if (const UBlueprintCore* BlueprintAsset = Cast<const UBlueprintCore>(InObj))
 	{
@@ -2397,30 +2397,24 @@ const UObject* GetAssetTypeRegistryType(const UObject* InObj)
 	return InObj;
 }
 
-FName GetAssetTypeRegistryName(const UObject* InObj)
-{
-	// Note: If this changes then the functions in FPythonScriptPlugin that deal with FAssetData also need updating!
-	return InObj->GetOutermost()->GetFName();
-}
-
 FName GetTypeRegistryName(const UClass* InClass)
 {
 	return IsBlueprintGeneratedClass(InClass)
-		? GetAssetTypeRegistryName(InClass)
+		? InClass->GetOutermost()->GetFName()
 		: InClass->GetFName();
 }
 
 FName GetTypeRegistryName(const UScriptStruct* InStruct)
 {
 	return IsBlueprintGeneratedStruct(InStruct)
-		? GetAssetTypeRegistryName(InStruct)
+		? InStruct->GetOutermost()->GetFName()
 		: InStruct->GetFName();
 }
 
 FName GetTypeRegistryName(const UEnum* InEnum)
 {
 	return IsBlueprintGeneratedEnum(InEnum)
-		? GetAssetTypeRegistryName(InEnum)
+		? InEnum->GetOutermost()->GetFName()
 		: InEnum->GetFName();
 }
 

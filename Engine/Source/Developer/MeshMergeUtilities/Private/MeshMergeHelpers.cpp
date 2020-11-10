@@ -61,7 +61,7 @@ void FMeshMergeHelpers::ExtractSections(const UStaticMeshComponent* Component, i
 	const UStaticMesh* StaticMesh = Component->GetStaticMesh();
 
 	TArray<FName> MaterialSlotNames;
-	for (const FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials())
+	for (const FStaticMaterial& StaticMaterial : StaticMesh->StaticMaterials)
 	{
 #if WITH_EDITOR
 		MaterialSlotNames.Add(StaticMaterial.ImportedMaterialSlotName);
@@ -70,7 +70,7 @@ void FMeshMergeHelpers::ExtractSections(const UStaticMeshComponent* Component, i
 #endif
 	}
 
-	for (const FStaticMeshSection& MeshSection : StaticMesh->GetRenderData()->LODResources[LODIndex].Sections)
+	for (const FStaticMeshSection& MeshSection : StaticMesh->RenderData->LODResources[LODIndex].Sections)
 	{
 		// Retrieve material for this section
 		UMaterialInterface* StoredMaterial = Component->GetMaterial(MeshSection.MaterialIndex);
@@ -148,7 +148,7 @@ void FMeshMergeHelpers::ExtractSections(const UStaticMesh* StaticMesh, int32 LOD
 {
 	static UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 
-	for (const FStaticMeshSection& MeshSection : StaticMesh->GetRenderData()->LODResources[LODIndex].Sections)
+	for (const FStaticMeshSection& MeshSection : StaticMesh->RenderData->LODResources[LODIndex].Sections)
 	{
 		// Retrieve material for this section
 		UMaterialInterface* StoredMaterial = StaticMesh->GetMaterial(MeshSection.MaterialIndex);
@@ -161,9 +161,9 @@ void FMeshMergeHelpers::ExtractSections(const UStaticMesh* StaticMesh, int32 LOD
 		SectionInfo.Material = StoredMaterial;
 		SectionInfo.MaterialIndex = MeshSection.MaterialIndex;
 #if WITH_EDITOR
-		SectionInfo.MaterialSlotName = StaticMesh->GetStaticMaterials().IsValidIndex(MeshSection.MaterialIndex) ? StaticMesh->GetStaticMaterials()[MeshSection.MaterialIndex].ImportedMaterialSlotName : NAME_None;
+		SectionInfo.MaterialSlotName = StaticMesh->StaticMaterials.IsValidIndex(MeshSection.MaterialIndex) ? StaticMesh->StaticMaterials[MeshSection.MaterialIndex].ImportedMaterialSlotName : NAME_None;
 #else
-		SectionInfo.MaterialSlotName = StaticMesh->GetStaticMaterials().IsValidIndex(MeshSection.MaterialIndex) ? StaticMesh->GetStaticMaterials()[MeshSection.MaterialIndex].MaterialSlotName : NAME_None;
+		SectionInfo.MaterialSlotName = StaticMesh->StaticMaterials.IsValidIndex(MeshSection.MaterialIndex) ? StaticMesh->StaticMaterials[MeshSection.MaterialIndex].MaterialSlotName : NAME_None;
 #endif
 		
 
@@ -214,7 +214,7 @@ void FMeshMergeHelpers::RetrieveMesh(const UStaticMeshComponent* StaticMeshCompo
 	const bool bImportedMesh = StaticMesh->IsMeshDescriptionValid(LODIndex);
 		
 	// Export the raw mesh data using static mesh render data
-	ExportStaticMeshLOD(StaticMesh->GetRenderData()->LODResources[LODIndex], RawMesh, StaticMesh->GetStaticMaterials());
+	ExportStaticMeshLOD(StaticMesh->RenderData->LODResources[LODIndex], RawMesh, StaticMesh->StaticMaterials);
 
 	// Make sure the raw mesh is not irreparably malformed.
 	if (RawMesh.VertexInstances().Num() <= 0)
@@ -396,7 +396,7 @@ void FMeshMergeHelpers::RetrieveMesh(const UStaticMesh* StaticMesh, int32 LODInd
 	}
 	else
 	{
-		ExportStaticMeshLOD(StaticMesh->GetRenderData()->LODResources[LODIndex], RawMesh, StaticMesh->GetStaticMaterials());
+		ExportStaticMeshLOD(StaticMesh->RenderData->LODResources[LODIndex], RawMesh, StaticMesh->StaticMaterials);
 	}
 
 	// Make sure the raw mesh is not irreparably malformed.
@@ -1072,7 +1072,7 @@ bool FMeshMergeHelpers::PropagatePaintedColorsToRawMesh(const UStaticMeshCompone
 		StaticMeshComponent->LODData[LODIndex].OverrideVertexColors != nullptr)
 	{
 		FColorVertexBuffer& ColorVertexBuffer = *StaticMeshComponent->LODData[LODIndex].OverrideVertexColors;
-		FStaticMeshLODResources& RenderModel = StaticMesh->GetRenderData()->LODResources[LODIndex];
+		FStaticMeshLODResources& RenderModel = StaticMesh->RenderData->LODResources[LODIndex];
 
 		if (ColorVertexBuffer.GetNumVertices() == RenderModel.GetNumVertices())
 		{	

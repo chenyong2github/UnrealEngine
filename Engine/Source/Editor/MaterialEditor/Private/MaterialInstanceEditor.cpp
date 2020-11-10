@@ -638,6 +638,7 @@ FMaterialInstanceEditor::~FMaterialInstanceEditor()
 		UPackage* Package = MaterialEditorInstance->SourceInstance->GetOutermost();
 		if (Package && Package->IsDirty() && Package != GetTransientPackage())
 		{
+			ClearDebugViewMaterials(MaterialEditorInstance->SourceInstance);
 			FMaterialEditorUtilities::BuildTextureStreamingData(MaterialEditorInstance->SourceInstance);
 		}
 	}

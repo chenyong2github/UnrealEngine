@@ -131,7 +131,6 @@ public:
 	virtual FName GetInstanceName() const override { return InstanceName; }
 	virtual bool IsEnabled() const override;
 	virtual void ReloadConfigs(const TSet<FString>& /*ConfigSections*/) override {};
-	virtual FText GetSocialPlatformName() const override;
 
 	// FTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;

@@ -122,7 +122,6 @@ private:
 
 	int32 InstanceSpawnCounter = 1;
 	int32 TempClientSpawnCount = -2; // negative IDs for client to use before getting server assigned id
-	int32 LastFixedTickOffset = 0;
 
 	// ---------------------------------------
 
@@ -228,10 +227,7 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 
 					if (FNetworkPredictionDriverBase<ModelDef>::HasSimulation())
 					{
-						if (FNetworkPredictionDriverBase<ModelDef>::HasInput())
-						{
-							ServiceMask |= ENetworkPredictionService::IndependentLocalInput;
-						}
+						ServiceMask |= ENetworkPredictionService::IndependentLocalInput;
 						ServiceMask |= ENetworkPredictionService::IndependentLocalTick;
 						ServiceMask |= ENetworkPredictionService::IndependentLocalFinalize;
 					}
@@ -246,7 +242,6 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 				BindNetSend_IndependentLocal<TIndependentTickReplicator_SP<ModelDef>>(ID, RepProxies.Replay, DataStore);
 				
 				npCheckf(FNetworkPredictionDriverBase<ModelDef>::HasSimulation(), TEXT("AP must have Simulation."));
-				npCheckf(FNetworkPredictionDriverBase<ModelDef>::HasInput(), TEXT("AP sim doesn't have Input?"));
 
 				ServiceMask |= ENetworkPredictionService::IndependentLocalInput;
 				ServiceMask |= ENetworkPredictionService::IndependentLocalTick;
@@ -258,7 +253,6 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 			}
 			case ENetRole::ROLE_SimulatedProxy:
 			{
-				BindClientNetRecv_Independent<TIndependentTickReplicator_AP<ModelDef>>(ID, RepProxies.AutonomousProxy, DataStore, Role);
 				BindClientNetRecv_Independent<TIndependentTickReplicator_SP<ModelDef>>(ID, RepProxies.SimulatedProxy, DataStore, Role);
 				BindNetSend_IndependentLocal<TIndependentTickReplicator_SP<ModelDef>>(ID, RepProxies.Replay, DataStore);
 
@@ -290,10 +284,7 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 					BindServerNetRecv_Fixed<ModelDef>(ID, RepProxies.ServerRPC, DataStore);
 					BindNetSend_Fixed<TFixedTickReplicator_AP<ModelDef>>(ID, RepProxies.AutonomousProxy, DataStore);
 
-					if (FNetworkPredictionDriverBase<ModelDef>::HasInput())
-					{
-						ServiceMask |= bHasNetConnection ? ENetworkPredictionService::FixedInputRemote : ENetworkPredictionService::FixedInputLocal;
-					}
+					ServiceMask |= bHasNetConnection ? ENetworkPredictionService::FixedInputRemote : ENetworkPredictionService::FixedInputLocal;
 				}
 				
 				BindNetSend_Fixed<TFixedTickReplicator_SP<ModelDef>>(ID, RepProxies.SimulatedProxy, DataStore);
@@ -303,11 +294,8 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 			case ENetRole::ROLE_AutonomousProxy:
 			{
 				npCheckf(FNetworkPredictionDriverBase<ModelDef>::HasSimulation(), TEXT("AP must have Simulation."));
-				npCheckf(FNetworkPredictionDriverBase<ModelDef>::HasInput(), TEXT("AP sim doesn't have Input?"));
 
 				BindClientNetRecv_Fixed<TFixedTickReplicator_AP<ModelDef>>(ID, RepProxies.AutonomousProxy, DataStore, Role);
-				BindClientNetRecv_Fixed<TFixedTickReplicator_SP<ModelDef>>(ID, RepProxies.SimulatedProxy, DataStore, Role);
-
 				BindNetSend_Fixed<TFixedTickReplicator_Server<ModelDef>>(ID, RepProxies.ServerRPC, DataStore);
 				BindNetSend_Fixed<TFixedTickReplicator_SP<ModelDef>>(ID, RepProxies.Replay, DataStore);
 				
@@ -318,9 +306,7 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 			}
 			case ENetRole::ROLE_SimulatedProxy:
 			{
-				BindClientNetRecv_Fixed<TFixedTickReplicator_AP<ModelDef>>(ID, RepProxies.AutonomousProxy, DataStore, Role);
 				BindClientNetRecv_Fixed<TFixedTickReplicator_SP<ModelDef>>(ID, RepProxies.SimulatedProxy, DataStore, Role);
-
 				BindNetSend_Fixed<TFixedTickReplicator_SP<ModelDef>>(ID, RepProxies.Replay, DataStore);
 				break;
 			}

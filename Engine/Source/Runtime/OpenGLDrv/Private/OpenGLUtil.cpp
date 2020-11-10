@@ -26,7 +26,7 @@ void VerifyOpenGLResult(GLenum ErrorCode, const TCHAR* Msg1, const TCHAR* Msg2, 
 		};
 
 		uint32 ErrorIndex = FMath::Min<uint32>(ErrorCode - GL_INVALID_ENUM, UE_ARRAY_COUNT(ErrorStrings) - 1);
-		UE_LOG(LogRHI,Warning,TEXT("%s(%u): %s%s failed with error %s (0x%x)"),
+		UE_LOG(LogRHI,Fatal,TEXT("%s(%u): %s%s failed with error %s (0x%x)"),
 			Filename,Line,Msg1,Msg2,ErrorStrings[ErrorIndex],ErrorCode);
 	}
 }
@@ -78,8 +78,6 @@ DEFINE_STAT(STAT_OpenGLNumFreeUniformBuffers);
 DEFINE_STAT(STAT_OpenGLShaderFirstDrawTime);
 DEFINE_STAT(STAT_OpenGLProgramBinaryMemory);
 DEFINE_STAT(STAT_OpenGLProgramCount);
-DEFINE_STAT(STAT_OpenGLUseCachedProgramTime);
-DEFINE_STAT(STAT_OpenGLCreateProgramFromBinaryTime);
 
 DEFINE_STAT(STAT_OpenGLShaderLRUEvictTime);
 DEFINE_STAT(STAT_OpenGLShaderLRUMissTime);
@@ -155,7 +153,7 @@ void DecrementBufferMemory(GLenum Type, bool bStructuredBuffer, uint32 NumBytes)
 }
 
 // Run passed function on whichever thread owns the render context.
-void RunOnGLRenderContextThread(TUniqueFunction<void(void)> GLFunc, bool bWaitForCompletion)
+void RunOnGLRenderContextThread(TFunction<void(void)> GLFunc, bool bWaitForCompletion)
 {
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	if (ShouldRunGLRenderContextOpOnThisThread(RHICmdList))

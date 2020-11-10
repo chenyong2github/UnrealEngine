@@ -47,42 +47,41 @@ namespace Chaos
 		}
 	}
 
-	void FIgnoreCollisionManager::PopStorageData_Internal(int32 ExternalTimestamp)
+	void FIgnoreCollisionManager::FlipBufferPreSolve()
 	{
-		FStorageData* StorageData;
-		while(StorageDataQueue.Peek(StorageData) && StorageData->ExternalTimestamp <= ExternalTimestamp)
+		BufferedData->FlipProducer();
+
+		// Merge
+		for (auto& Elem : BufferedData->GetConsumerBuffer()->PendingActivations)
 		{
-			for (auto& Elem : StorageData->PendingActivations)
+			if( PendingActivations.Contains(Elem.Key) )
 			{
-				if (PendingActivations.Contains(Elem.Key))
+				// the case where the key already existed should be avoided
+				// but the implementation is here for completeness. 
+				for (auto& Val : Elem.Value)
 				{
-					// the case where the key already existed should be avoided
-					// but the implementation is here for completeness. 
-					for (auto& Val : Elem.Value)
+					if (!PendingActivations[Elem.Key].Contains(Val))
 					{
-						if (!PendingActivations[Elem.Key].Contains(Val))
-						{
-							PendingActivations[Elem.Key].Add(Val);
-						}
+						PendingActivations[Elem.Key].Add(Val);
 					}
 				}
-				else
-				{
-					PendingActivations.Add(Elem.Key, Elem.Value);
-				}
 			}
-
-			for (auto& Item : StorageData->PendingDeactivations)
+			else
 			{
-				if (!PendingDeactivations.Contains(Item))
-				{
-					PendingDeactivations.Add(Item);
-				}
+				PendingActivations.Add(Elem.Key, Elem.Value);
 			}
-
-			StorageDataQueue.Pop();
-			ReleaseStorageData(StorageData);
 		}
+
+		for (auto& Item : BufferedData->GetConsumerBuffer()->PendingDeactivations)
+		{
+			if (!PendingDeactivations.Contains(Item))
+			{
+				PendingDeactivations.Add(Item);
+			}
+		}
+
+		BufferedData->GetConsumerBufferMutable()->PendingActivations.Empty();
+		BufferedData->GetConsumerBufferMutable()->PendingDeactivations.Empty();
 	}
 
 	void FIgnoreCollisionManager::ProcessPendingQueues()

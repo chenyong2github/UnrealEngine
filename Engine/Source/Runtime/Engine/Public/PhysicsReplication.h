@@ -9,12 +9,6 @@
 
 #include "Engine/EngineTypes.h"
 #include "Physics/PhysicsInterfaceDeclares.h"
-#include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
-
-namespace Chaos
-{
-	struct FSimCallbackInput;
-}
 
 class FPhysScene_PhysX;
 
@@ -46,29 +40,16 @@ struct FReplicatedPhysicsTarget
 #endif
 };
 
-#if WITH_CHAOS
-/** Final computed desired state passed into the physics sim */
-struct FAsyncPhysicsDesiredState
-{
-	FTransform WorldTM;
-	FVector LinearVelocity;
-	FVector AngularVelocity;
-	FRigidParticlePhysicsProxy* Proxy;
-	bool bShouldSleep;
-};
-#endif
-
 struct FBodyInstance;
 struct FRigidBodyErrorCorrection;
 class UWorld;
 class UPrimitiveComponent;
-class FPhysicsReplicationAsyncCallback;
 
 class ENGINE_API FPhysicsReplication
 {
 public:
 	FPhysicsReplication(FPhysScene* PhysScene);
-	virtual ~FPhysicsReplication();
+	virtual ~FPhysicsReplication() {}
 
 	/** Tick and update all body states according to replicated targets */
 	void Tick(float DeltaSeconds);
@@ -99,20 +80,8 @@ private:
 	/** Get the ping from  */
 	float GetOwnerPing(const AActor* const Owner, const FReplicatedPhysicsTarget& Target) const;
 
-#if WITH_CHAOS
-	static void ApplyAsyncDesiredState(float DeltaSeconds, const TArrayView<const Chaos::FSimCallbackInput*>& IntervalData);
-#endif
-
 private:
 	TMap<TWeakObjectPtr<UPrimitiveComponent>, FReplicatedPhysicsTarget> ComponentToTargets;
 	FPhysScene* PhysScene;
-
-#if WITH_CHAOS
-	FPhysicsReplicationAsyncCallback* AsyncCallback;
-	
-	void PrepareAsyncData_External(const FRigidBodyErrorCorrection& ErrorCorrection);	//prepare async data for writing. Call on external thread (i.e. game thread)
-	struct FAsyncPhysicsRepCallbackData* CurAsyncData;	//async data being written into before we push into callback
-	friend FPhysicsReplicationAsyncCallback;
-#endif
 
 };

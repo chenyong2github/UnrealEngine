@@ -7,7 +7,6 @@
 #include "UObject/ScriptMacros.h"
 #include "IMovieScenePlayer.h"
 #include "MovieScene.h"
-#include "MovieSceneSequenceTickManager.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "IMovieScenePlaybackClient.h"
 #include "Misc/QualifiedFrameTime.h"
@@ -516,7 +515,7 @@ protected:
 	FFrameTime GetLastValidTime() const;
 
 	bool NeedsQueueLatentAction() const;
-	void QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
+	void QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate) const;
 	void RunLatentActions();
 
 protected:
@@ -604,9 +603,6 @@ protected:
 	/** Set to true when the player is currently in the main level update */
 	uint32 bIsMainLevelUpdate : 1;
 
-	/** Flag that allows the player to tick its time controller without actually evaluating the sequence */
-	uint32 bSkipNextUpdate : 1;
-
 	/** The sequence to play back */
 	UPROPERTY(transient)
 	UMovieSceneSequence* Sequence;
@@ -650,9 +646,6 @@ protected:
 	/** Global tick manager, held here to keep it alive while world sequences are in play */
 	UPROPERTY(transient)
 	UMovieSceneSequenceTickManager* TickManager;
-
-	/** Local latent action manager for when we're running a blocking sequence */
-	FMovieSceneLatentActionManager LatentActionManager;
 
 	/** (Optional) Externally supplied time controller */
 	TSharedPtr<FMovieSceneTimeController> TimeController;

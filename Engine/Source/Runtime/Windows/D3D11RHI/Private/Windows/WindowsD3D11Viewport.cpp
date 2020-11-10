@@ -57,8 +57,6 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 	// Ensure that the D3D device has been created.
 	D3DRHI->InitD3DDevice();
 
-	PixelFormat = InD3DRHI->GetDisplayFormat(InPreferredPixelFormat);
-
 	// Create a backbuffer/swapchain for each viewport
 	TRefCountPtr<IDXGIDevice> DXGIDevice;
 	VERIFYD3D11RESULT_EX( D3DRHI->GetDevice()->QueryInterface(IID_PPV_ARGS(DXGIDevice.GetInitReference())), D3DRHI->GetDevice() );
@@ -84,7 +82,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 			}
 		}
 	}
-
+	uint32 BufferCount = GSwapChainBufferCount;
 	// If requested, keep a handle to a DXGIOutput so we can force that display on fullscreen swap
 	uint32 DisplayIndex = D3DRHI->GetHDRDetectedDisplayIndex();
 	bForcedFullscreenDisplay = FParse::Value(FCommandLine::Get(), TEXT("FullscreenDisplay="), DisplayIndex);
@@ -221,24 +219,11 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 				const TCHAR* D3DFormatString = GetD3D11TextureFormatString(SwapChainDesc.BufferDesc.Format);
 
 				UE_LOG(LogD3D11RHI, Error,
-					TEXT("CreateSwapChain failed with E_INVALIDARG: \n")
+					TEXT("CreateSwapChain invalid arguments: \n")
 					TEXT(" Size:%ix%i Format:%s(0x%08X) \n")
 					TEXT(" Windowed:%i SwapEffect:%i Flags: 0x%08X"),
 					SwapChainDesc.BufferDesc.Width, SwapChainDesc.BufferDesc.Height, D3DFormatString, SwapChainDesc.BufferDesc.Format,
 					SwapChainDesc.Windowed, SwapChainDesc.SwapEffect, SwapChainDesc.Flags);
-
-				{
-					UINT FormatSupport = 0;
-					HRESULT FormatSupportResult = D3DRHI->GetDevice()->CheckFormatSupport(SwapChainDesc.BufferDesc.Format, &FormatSupport);
-					if (SUCCEEDED(FormatSupportResult))
-					{
-						UE_LOG(LogD3D11RHI, Error, TEXT("CheckFormatSupport(%s): 0x%08x"), D3DFormatString, FormatSupport);
-					}
-					else
-					{
-						UE_LOG(LogD3D11RHI, Error, TEXT("CheckFormatSupport(%s) failed: 0x%08x"), D3DFormatString, FormatSupportResult);
-					}
-				}
 			}
 			VERIFYD3D11RESULT_EX(CreateSwapChainResult, D3DRHI->GetDevice());
 		}

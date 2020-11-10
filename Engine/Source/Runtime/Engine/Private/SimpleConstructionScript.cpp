@@ -743,22 +743,6 @@ UBlueprint* USimpleConstructionScript::GetBlueprint() const
 }
 #endif
 
-#if WITH_EDITOR
-void USimpleConstructionScript::SaveToTransactionBuffer()
-{
-	Modify();
-
-	const TArray<USCS_Node*>& SCS_RootNodes = GetRootNodes();
-	for (USCS_Node* Node : GetRootNodes())
-	{
-		if (Node)
-		{
-			Node->SaveToTransactionBuffer();
-		}
-	}
-}
-#endif //if WITH_EDITOR
-
 UClass* USimpleConstructionScript::GetOwnerClass() const
 {
 	if (UClass* OwnerClass = Cast<UClass>(GetOuter()))

@@ -57,51 +57,20 @@ FSubSectionPainterResult FSubSectionPainterUtil::PaintSection(TSharedPtr<const I
     uint32 LayerId = InPainter.LayerId;
     FMargin ContentPadding = Params.ContentPadding;
 
-    FText TrackNumText, NetworkText;
     if (Params.bShowTrackNum)
     {
-        TrackNumText = FText::Format(LOCTEXT("NumTracksFormat", "{0} track(s)"), FText::AsNumber(NumTracks));
-    }
-
-    EMovieSceneServerClientMask NetworkMask = SectionObject.GetNetworkMask();
-    if (NetworkMask == EMovieSceneServerClientMask::Client)
-    {
-        NetworkText = LOCTEXT("SubSectionClientOnlyText", "(client only)");
-    }
-    else if (NetworkMask == EMovieSceneServerClientMask::Server)
-    {
-        NetworkText = LOCTEXT("SubSectionServerOnlyText", "(server only)");
-    }
-
-    FText SectionText;
-    if (!TrackNumText.IsEmpty() || !NetworkText.IsEmpty())
-    {
-        SectionText = FText::Format(LOCTEXT("SectionTextFormat", "{0} {1}"), TrackNumText, NetworkText);
-    }
-    else if (!TrackNumText.IsEmpty())
-    {
-        SectionText = TrackNumText;
-    }
-    else
-    {
-        SectionText = NetworkText;
-    }
-
-
-    if (!SectionText.IsEmpty())
-    {
         FSlateDrawElement::MakeText(
-            InPainter.DrawElements,
-            ++LayerId,
-            InPainter.SectionGeometry.ToPaintGeometry(
-                FVector2D(InPainter.SectionGeometry.Size.X, GetFontHeight()),
-                FSlateLayoutTransform(TopLeft + FVector2D(ContentPadding.Left, ContentPadding.Top) + FVector2D(11.f, GetFontHeight()*2.f))
-            ),
-            SectionText,
-            FontInfo,
-            DrawEffects,
-            FColor(200, 200, 200, static_cast<uint8>(255 * InPainter.GhostAlpha))
-        );
+                InPainter.DrawElements,
+                ++LayerId,
+                InPainter.SectionGeometry.MakeChild(
+                    FVector2D(InPainter.SectionGeometry.Size.X, GetFontHeight()),
+                    FSlateLayoutTransform(TopLeft + FVector2D(ContentPadding.Left, ContentPadding.Top) + FVector2D(11.f, GetFontHeight()*2.f))
+                    ).ToPaintGeometry(),
+                FText::Format(LOCTEXT("NumTracksFormat", "{0} track(s)"), FText::AsNumber(NumTracks)),
+                FontInfo,
+                DrawEffects,
+                FColor(200, 200, 200)
+                );
     }
 
     if (Params.bDrawFrameNumberHintWhenSelected && InPainter.bIsSelected && Sequencer.IsValid())
@@ -125,8 +94,6 @@ FSubSectionPainterResult FSubSectionPainterUtil::PaintSection(TSharedPtr<const I
 
 void FSubSectionPainterUtil::DoPaintNonLoopingSection(const UMovieSceneSubSection& SectionObject, const UMovieSceneSequence& InnerSequence, FSequencerSectionPainter& InPainter, ESlateDrawEffect DrawEffects)
 {
-    const uint8 GhostAlpha = static_cast<uint8>(255 * InPainter.GhostAlpha);
-
     const FFrameNumber SectionStartFrame = SectionObject.GetInclusiveStartFrame();
 
     const TRange<FFrameNumber> SectionRange = SectionObject.GetRange();
@@ -165,7 +132,7 @@ void FSubSectionPainterUtil::DoPaintNonLoopingSection(const UMovieSceneSubSectio
                     ),
                 FEditorStyle::GetBrush("WhiteBrush"),
                 DrawEffects,
-                FColor(32, 128, 32, GhostAlpha)	// 120, 75, 50 (HSV)
+                FColor(32, 128, 32)	// 120, 75, 50 (HSV)
                 );
     }
 
@@ -197,7 +164,7 @@ void FSubSectionPainterUtil::DoPaintNonLoopingSection(const UMovieSceneSubSectio
                     ),
                 FEditorStyle::GetBrush("WhiteBrush"),
                 DrawEffects,
-                FColor(128, 32, 32, GhostAlpha)	// 0, 75, 50 (HSV)
+                FColor(128, 32, 32)	// 0, 75, 50 (HSV)
                 );
     }
 }
@@ -226,8 +193,6 @@ void FSubSectionPainterUtil::DoPaintLoopingSection(const UMovieSceneSubSection& 
 
     FFrameNumber CurOffsetFrame = FMath::Max(OuterSubSeqFirstLoopLength, FFrameNumber(0));
 
-    const uint8 GhostAlpha = static_cast<uint8>(255 * InPainter.GhostAlpha);
-
     // Draw separators where the sub-sequence is looping. To be consistent with the non-looping case, we draw a red and green
     // separator back to back.
     uint32 MaxLoopBoundaries = 100;
@@ -243,7 +208,7 @@ void FSubSectionPainterUtil::DoPaintLoopingSection(const UMovieSceneSubSection& 
             ),
             FEditorStyle::GetBrush("WhiteBrush"),
             DrawEffects,
-            FColor(32, 128, 32, GhostAlpha)	// 120, 75, 50 (HSV)
+            FColor(32, 128, 32)	// 120, 75, 50 (HSV)
         );
         if (CurOffset > 0)
         {
@@ -256,7 +221,7 @@ void FSubSectionPainterUtil::DoPaintLoopingSection(const UMovieSceneSubSection& 
                 ),
                 FEditorStyle::GetBrush("WhiteBrush"),
                 DrawEffects,
-                FColor(128, 32, 32, GhostAlpha)	// 0, 75, 50 (HSV)
+                FColor(128, 32, 32)	// 0, 75, 50 (HSV)
             );
         }
 

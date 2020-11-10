@@ -91,9 +91,10 @@ public:
 	virtual FString GetFriendlyName() const override { return Owner->GetName(); }
 
 	// FMaterialRenderProxy interface.
+	/** Get the FMaterial to use for rendering.  Must return a valid FMaterial, even if it had to fall back to the default material. */
+	virtual const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type FeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const override;
 	/** Get the FMaterial that should be used for rendering, but might not be in a valid state to actually use.  Can return NULL. */
-	virtual const FMaterial* GetMaterialNoFallback(ERHIFeatureLevel::Type FeatureLevel) const override;
-	virtual const FMaterialRenderProxy* GetFallback(ERHIFeatureLevel::Type InFeatureLevel) const override;
+	virtual FMaterial* GetMaterialNoFallback(ERHIFeatureLevel::Type FeatureLevel) const override;
 	virtual UMaterialInterface* GetMaterialInterface() const override;
 	
 	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override;

@@ -53,18 +53,18 @@ FString FStaticMeshAdapter::GetBaseName() const
 
 FName FStaticMeshAdapter::GetMaterialSlotName(int32 MaterialIndex) const
 {
-	return StaticMesh->GetStaticMaterials()[MaterialIndex].MaterialSlotName;
+	return StaticMesh->StaticMaterials[MaterialIndex].MaterialSlotName;
 }
 
 FName FStaticMeshAdapter::GetImportedMaterialSlotName(int32 MaterialIndex) const
 {
-	return StaticMesh->GetStaticMaterials()[MaterialIndex].ImportedMaterialSlotName;
+	return StaticMesh->StaticMaterials[MaterialIndex].ImportedMaterialSlotName;
 }
 
 void FStaticMeshAdapter::SetMaterial(int32 MaterialIndex, UMaterialInterface* Material)
 {
-	const FStaticMaterial& OriginalMaterialSlot = StaticMesh->GetStaticMaterials()[MaterialIndex];
-	StaticMesh->GetStaticMaterials()[MaterialIndex] = FStaticMaterial(Material, OriginalMaterialSlot.MaterialSlotName, OriginalMaterialSlot.ImportedMaterialSlotName);
+	const FStaticMaterial& OriginalMaterialSlot = StaticMesh->StaticMaterials[MaterialIndex];
+	StaticMesh->StaticMaterials[MaterialIndex] = FStaticMaterial(Material, OriginalMaterialSlot.MaterialSlotName, OriginalMaterialSlot.ImportedMaterialSlotName);
 }
 
 void FStaticMeshAdapter::RemapMaterialIndex(int32 LODIndex, int32 SectionIndex, int32 NewMaterialIndex)
@@ -76,7 +76,7 @@ void FStaticMeshAdapter::RemapMaterialIndex(int32 LODIndex, int32 SectionIndex, 
 
 int32 FStaticMeshAdapter::AddMaterial(UMaterialInterface* Material)
 {
-	int32 Index = StaticMesh->GetStaticMaterials().Emplace(Material);
+	int32 Index = StaticMesh->StaticMaterials.Emplace(Material);
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
 	MeshUtilities.FixupMaterialSlotNames(StaticMesh);
 	return Index;
@@ -84,7 +84,7 @@ int32 FStaticMeshAdapter::AddMaterial(UMaterialInterface* Material)
 
 int32 FStaticMeshAdapter::AddMaterial(UMaterialInterface* Material, const FName& SlotName, const FName& ImportedSlotName)
 {
-	int32 Index = StaticMesh->GetStaticMaterials().Emplace(Material, SlotName, ImportedSlotName);
+	int32 Index = StaticMesh->StaticMaterials.Emplace(Material, SlotName, ImportedSlotName);
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
 	MeshUtilities.FixupMaterialSlotNames(StaticMesh);
 	return Index;

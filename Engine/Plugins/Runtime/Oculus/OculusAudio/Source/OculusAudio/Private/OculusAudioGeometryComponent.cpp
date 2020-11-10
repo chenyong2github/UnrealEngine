@@ -199,7 +199,7 @@ void UOculusAudioGeometryComponent::AppendStaticMesh(UStaticMesh* Mesh,
 	const int32 FirstIndex = MergedIndices.Num();
 
 	// Lowest LOD
-	const FStaticMeshLODResources& Model = Mesh->GetRenderData()->LODResources[0];
+	const FStaticMeshLODResources& Model = Mesh->RenderData->LODResources[0];
 	const FPositionVertexBuffer& VertexBuffer = Model.VertexBuffers.PositionVertexBuffer;
 	const int32 VertexCount = VertexBuffer.GetNumVertices();
 

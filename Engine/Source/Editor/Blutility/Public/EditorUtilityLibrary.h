@@ -8,84 +8,10 @@
 #include "UObject/Object.h"
 #include "UObject/ScriptMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "Kismet/BlueprintAsyncActionBase.h"
 #include "EditorUtilityLibrary.generated.h"
 
 class AActor;
 class UEditorPerProjectUserSettings;
-
-UCLASS()
-class BLUTILITY_API UEditorUtilityBlueprintAsyncActionBase : public UBlueprintAsyncActionBase
-{
-	GENERATED_UCLASS_BODY()
-
-public:
-	virtual void RegisterWithGameInstance(UObject* WorldContextObject) override;
-	virtual void SetReadyToDestroy() override;
-};
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAsyncDelayComplete);
-
-UCLASS()
-class BLUTILITY_API UAsyncEditorDelay : public UEditorUtilityBlueprintAsyncActionBase
-{
-	GENERATED_UCLASS_BODY()
-
-public:
-#if WITH_EDITOR
-
-	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"))
-	static UAsyncEditorDelay* AsyncEditorDelay(float Seconds);
-
-#endif
-
-public:
-
-	UPROPERTY(BlueprintAssignable)
-	FAsyncDelayComplete Complete;
-
-public:
-
-	void Start(float Seconds);
-
-private:
-
-	bool HandleComplete(float DeltaTime);
-};
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FAsyncEditorWaitForGameWorldEvent, UWorld*, World);
-
-UCLASS()
-class BLUTILITY_API UAsyncEditorWaitForGameWorld : public UEditorUtilityBlueprintAsyncActionBase
-{
-	GENERATED_UCLASS_BODY()
-
-public:
-#if WITH_EDITOR
-
-	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"))
-	static UAsyncEditorWaitForGameWorld* AsyncWaitForGameWorld(int32 Index = 0, bool Server = false);
-
-#endif
-
-public:
-
-	UPROPERTY(BlueprintAssignable)
-	FAsyncEditorWaitForGameWorldEvent Complete;
-
-public:
-
-	void Start(int32 Index, bool Server);
-
-private:
-
-	bool OnTick(float DeltaTime);
-
-	int32 Index;
-	bool Server;
-};
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDownloadImageDelegate, UTexture2DDynamic*, Texture);
 
 // Expose editor utility functions to Blutilities 
 UCLASS()
@@ -94,8 +20,6 @@ class BLUTILITY_API UEditorUtilityLibrary : public UBlueprintFunctionLibrary
 	GENERATED_UCLASS_BODY()
 
 public:
-#if WITH_EDITOR
-
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
 	static TArray<AActor*> GetSelectionSet();
 
@@ -126,5 +50,4 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Development|Editor")
 	AActor* GetActorReference(FString PathToActor);
 
-#endif
 };

@@ -2038,7 +2038,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 	FReceivingRepState* ReceivingRepState = RepState->GetReceivingRepState();
 	const bool bHasQueuedBunches = OwningChannel && OwningChannel->QueuedBunches.Num() > 0;
 
-	checkf(bHasQueuedBunches || ReceivingRepState->RepNotifies.Num() == 0 || Connection->Driver->ShouldSkipRepNotifies(),
+	checkf(bHasQueuedBunches || ReceivingRepState->RepNotifies.Num() == 0,
 		TEXT("Failed RepState RepNotifies check. Num=%d. Object=%s. Channel QueuedBunches=%d"),
 		ReceivingRepState->RepNotifies.Num(), *Object->GetFullName(), OwningChannel ? OwningChannel->QueuedBunches.Num() : 0);
 

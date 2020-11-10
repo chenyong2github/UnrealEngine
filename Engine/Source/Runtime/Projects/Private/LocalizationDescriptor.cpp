@@ -4,28 +4,8 @@
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Dom/JsonObject.h"
-#include "Serialization/JsonSerializer.h"
-#include "JsonUtils/JsonObjectArrayUpdater.h"
 
 #define LOCTEXT_NAMESPACE "LocalizationDescriptor"
-
-namespace LocalizationDescriptor
-{
-	FString GetDescriptorKey(const FLocalizationTargetDescriptor& Descriptor)
-	{
-		return Descriptor.Name;
-	}
-
-	bool TryGetDescriptorJsonObjectKey(const FJsonObject& JsonObject, FString& OutKey)
-	{
-		return JsonObject.TryGetStringField(TEXT("Name"), OutKey);
-	}
-
-	void UpdateDescriptorJsonObject(const FLocalizationTargetDescriptor& Descriptor, FJsonObject& JsonObject)
-	{
-		Descriptor.UpdateJson(JsonObject);
-	}
-}
 
 ELocalizationTargetDescriptorLoadingPolicy::Type ELocalizationTargetDescriptorLoadingPolicy::FromString(const TCHAR *String)
 {
@@ -134,42 +114,25 @@ bool FLocalizationTargetDescriptor::ReadArray(const FJsonObject& InObject, const
 	return bResult;
 }
 
-void FLocalizationTargetDescriptor::Write(TJsonWriter<>& Writer) const
+void FLocalizationTargetDescriptor::Write(TJsonWriter<>& InWriter) const
 {
-	TSharedRef<FJsonObject> DescriptorJsonObject = MakeShared<FJsonObject>();
-	UpdateJson(*DescriptorJsonObject);
-
-	FJsonSerializer::Serialize(DescriptorJsonObject, Writer);
+	InWriter.WriteObjectStart();
+	InWriter.WriteValue(TEXT("Name"), Name);
+	InWriter.WriteValue(TEXT("LoadingPolicy"), FString(ELocalizationTargetDescriptorLoadingPolicy::ToString(LoadingPolicy)));
+	InWriter.WriteObjectEnd();
 }
 
-void FLocalizationTargetDescriptor::UpdateJson(FJsonObject& JsonObject) const
+void FLocalizationTargetDescriptor::WriteArray(TJsonWriter<>& InWriter, const TCHAR* InName, const TArray<FLocalizationTargetDescriptor>& InTargets)
 {
-	JsonObject.SetStringField(TEXT("Name"), Name);
-	JsonObject.SetStringField(TEXT("LoadingPolicy"), FString(ELocalizationTargetDescriptorLoadingPolicy::ToString(LoadingPolicy)));
-}
-
-void FLocalizationTargetDescriptor::WriteArray(TJsonWriter<>& Writer, const TCHAR* ArrayName, const TArray<FLocalizationTargetDescriptor>& Descriptors)
-{
-	if (Descriptors.Num() > 0)
+	if (InTargets.Num() > 0)
 	{
-		Writer.WriteArrayStart(ArrayName);
-		for (const FLocalizationTargetDescriptor& Descriptor : Descriptors)
+		InWriter.WriteArrayStart(InName);
+		for (const FLocalizationTargetDescriptor& Target : InTargets)
 		{
-			Descriptor.Write(Writer);
+			Target.Write(InWriter);
 		}
-		Writer.WriteArrayEnd();
+		InWriter.WriteArrayEnd();
 	}
-}
-
-void FLocalizationTargetDescriptor::UpdateArray(FJsonObject& JsonObject, const TCHAR* ArrayName, const TArray<FLocalizationTargetDescriptor>& Descriptors)
-{
-	typedef FJsonObjectArrayUpdater<FLocalizationTargetDescriptor, FString> FLocTargetDescJsonArrayUpdater;
-
-	FLocTargetDescJsonArrayUpdater::Execute(
-		JsonObject, ArrayName, Descriptors,
-		FLocTargetDescJsonArrayUpdater::FGetElementKey::CreateStatic(LocalizationDescriptor::GetDescriptorKey),
-		FLocTargetDescJsonArrayUpdater::FTryGetJsonObjectKey::CreateStatic(LocalizationDescriptor::TryGetDescriptorJsonObjectKey),
-		FLocTargetDescJsonArrayUpdater::FUpdateJsonObject::CreateStatic(LocalizationDescriptor::UpdateDescriptorJsonObject));
 }
 
 bool FLocalizationTargetDescriptor::ShouldLoadLocalizationTarget() const

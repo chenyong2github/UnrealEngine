@@ -184,8 +184,6 @@ public:
 	/**
 	 * Create an FString from a contiguous range of characters
 	 *
-	 * Use this constructor for types like FStringView, FStringBuilderBase, TStringBuilder.
-	 *
 	 * @param Other The contiguous character range to copy from
 	 */
 	template <typename CharRangeType, typename TEnableIf<TIsCharRangeNotCArray<CharRangeType>::Value>::Type* = nullptr>
@@ -202,8 +200,6 @@ public:
 
 	/**
 	 * Create an FString from a contiguous range of characters, with extra slack at the end of the string
-	 *
-	 * Use this constructor for types like FStringView, FStringBuilderBase, TStringBuilder.
 	 *
 	 * @param Other The contiguous character range to copy from
 	 * @param ExtraSlack The number of extra characters to reserve space for in the new string
@@ -273,8 +269,6 @@ public:
 
 	/**
 	 * Copy assignment from a contiguous range of characters
-	 *
-	 * Use this for types like FStringView, FStringBuilderBase, TStringBuilder.
 	 */
 	template <typename CharRangeType, typename TEnableIf<TIsTCharRangeNotCArray<CharRangeType>::Value>::Type* = nullptr>
 	FString& operator=(CharRangeType&& Other)

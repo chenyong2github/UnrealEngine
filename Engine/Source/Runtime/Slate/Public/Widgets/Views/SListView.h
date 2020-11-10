@@ -1810,18 +1810,11 @@ protected:
 			TListTypeTraits<ItemType>::ResetPtr(ItemToScrollIntoView);
 		}
 
-		if (TListTypeTraits<ItemType>::IsPtrValid(ItemToNotifyWhenInView))
+		if (this->bEnableAnimatedScrolling && TListTypeTraits<ItemType>::IsPtrValid(ItemToNotifyWhenInView))
 		{
-			if (this->bEnableAnimatedScrolling)
-			{
-				// When we have a target item we're shooting for, we haven't succeeded with the scroll until a widget for it exists
-				const bool bHasWidgetForItem = WidgetFromItem(TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(ItemToNotifyWhenInView)).IsValid();
-				return bHasWidgetForItem ? EScrollIntoViewResult::Success : EScrollIntoViewResult::Deferred;
-			}
-		}
-		else
-		{
-			return EScrollIntoViewResult::Failure;
+			// When we have a target item we're shooting for, we haven't succeeded with the scroll until a widget for it exists
+			const bool bHasWidgetForItem = WidgetFromItem(TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(ItemToNotifyWhenInView)).IsValid();
+			return bHasWidgetForItem ? EScrollIntoViewResult::Success : EScrollIntoViewResult::Deferred;
 		}
 		return EScrollIntoViewResult::Success;
 	}
@@ -1834,18 +1827,14 @@ protected:
 			ItemType NonNullItemToNotifyWhenInView = TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType( ItemToNotifyWhenInView );
 			TSharedPtr<ITableRow> Widget = WidgetGenerator.GetWidgetForItem(NonNullItemToNotifyWhenInView);
 			
-			if (Widget.IsValid())
+			if (bNavigateOnScrollIntoView && Widget.IsValid())
 			{
-				if (bNavigateOnScrollIntoView)
-				{
-					SelectorItem = NonNullItemToNotifyWhenInView;
-					NavigateToWidget(UserRequestingScrollIntoView, Widget->AsWidget());
-				}
-			
-				OnItemScrolledIntoView.ExecuteIfBound(NonNullItemToNotifyWhenInView, Widget);
+				SelectorItem = NonNullItemToNotifyWhenInView;
+				NavigateToWidget(UserRequestingScrollIntoView, Widget->AsWidget());
 			}
-
 			bNavigateOnScrollIntoView = false;
+
+			OnItemScrolledIntoView.ExecuteIfBound(NonNullItemToNotifyWhenInView, Widget);
 
 			TListTypeTraits<ItemType>::ResetPtr(ItemToNotifyWhenInView);
 		}

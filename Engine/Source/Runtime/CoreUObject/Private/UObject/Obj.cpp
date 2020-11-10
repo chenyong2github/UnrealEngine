@@ -220,77 +220,71 @@ bool UObject::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags
 	{
 		ResetLoaders( GetOuter() );
 	}
-
 	FName OldName = GetFName();
+
 	FName NewName;
-	bool bCreateRedirector = false;
-	UObject* OldOuter = nullptr;
 
+	if (InName == nullptr)
 	{
-		// Make sure that for the remainder of the duration of the rename operation nothing else is going to modify the UObject hash tables.
-		FScopedUObjectHashTablesLock HashTablesLock;
-
-		if (InName == nullptr)
+		// If null, null is passed in, then we are deliberately trying to get a new name
+		// Otherwise if the outer is changing, try and maintain the name
+		if (NewOuter && StaticFindObjectFastInternal(nullptr, NewOuter, OldName) == nullptr)
 		{
-			// If null, null is passed in, then we are deliberately trying to get a new name
-			// Otherwise if the outer is changing, try and maintain the name
-			if (NewOuter && StaticFindObjectFastInternal(nullptr, NewOuter, OldName) == nullptr)
-			{
-				NewName = OldName;
-			}
-			else
-			{
-				NewName = MakeUniqueObjectName(NameScopeOuter ? NameScopeOuter : GetOuter(), GetClass());
-			}
+			NewName = OldName;
 		}
 		else
 		{
-			NewName = FName(InName);
+			NewName = MakeUniqueObjectName( NameScopeOuter ? NameScopeOuter : GetOuter(), GetClass() );
 		}
-
-		//UE_LOG(LogObj, Log,  TEXT("Renaming %s to %s"), *OldName.ToString(), *NewName.ToString() );
-
-		if (!(Flags & REN_NonTransactional))
-		{
-			// Mark touched packages as dirty.
-			if (Flags & REN_DoNotDirty)
-			{
-				// This will only mark dirty if in a transaction,
-				// the object is transactional, and the object is
-				// not in a PlayInEditor package.
-				Modify(false);
-			}
-			else
-			{
-				// This will maintain previous behavior...
-				// Which was to directly call MarkPackageDirty
-				Modify(true);
-			}
-		}
-
-		OldOuter = GetOuter();
-
-		if (HasAnyFlags(RF_Public))
-		{
-			const bool bUniquePathChanged = ((NewOuter != NULL && OldOuter != NewOuter) || (OldName != NewName));
-			const bool bRootPackage = GetClass() == UPackage::StaticClass() && OldOuter == NULL;
-			const bool bRedirectionAllowed = !FApp::IsGame() && ((Flags & REN_DontCreateRedirectors) == 0);
-
-			// We need to create a redirector if we changed the Outer or Name of an object that can be referenced from other packages
-			// [i.e. has the RF_Public flag] so that references to this object are not broken.
-			bCreateRedirector = bRootPackage == false && bUniquePathChanged == true && bRedirectionAllowed == true && bIsCaseOnlyChange == false;
-		}
-
-		if (NewOuter)
-		{
-			if (!(Flags & REN_DoNotDirty))
-			{
-				NewOuter->MarkPackageDirty();
-			}
-		}
-
-		LowLevelRename(NewName, NewOuter);
 	}
+	else
+	{
+		NewName = FName(InName);
+	}
+
+	//UE_LOG(LogObj, Log,  TEXT("Renaming %s to %s"), *OldName.ToString(), *NewName.ToString() );
+
+	if ( !(Flags & REN_NonTransactional) )
+	{
+		// Mark touched packages as dirty.
+		if (Flags & REN_DoNotDirty)
+		{
+			// This will only mark dirty if in a transaction,
+			// the object is transactional, and the object is
+			// not in a PlayInEditor package.
+			Modify(false);
+		}
+		else
+		{
+			// This will maintain previous behavior...
+			// Which was to directly call MarkPackageDirty
+			Modify(true);
+		}
+	}
+
+	bool bCreateRedirector = false;
+	UObject* OldOuter = GetOuter();
+
+	if ( HasAnyFlags(RF_Public) )
+	{
+		const bool bUniquePathChanged	= ((NewOuter != NULL && OldOuter != NewOuter) || (OldName != NewName));
+		const bool bRootPackage			= GetClass() == UPackage::StaticClass() && OldOuter == NULL;
+		const bool bRedirectionAllowed = !FApp::IsGame() && ((Flags & REN_DontCreateRedirectors) == 0);
+
+		// We need to create a redirector if we changed the Outer or Name of an object that can be referenced from other packages
+		// [i.e. has the RF_Public flag] so that references to this object are not broken.
+		bCreateRedirector = bRootPackage == false && bUniquePathChanged == true && bRedirectionAllowed == true && bIsCaseOnlyChange == false;
+	}
+
+	if( NewOuter )
+	{
+		if (!(Flags & REN_DoNotDirty))
+		{
+			NewOuter->MarkPackageDirty();
+		}
+	}
+
+	LowLevelRename(NewName,NewOuter);
 
 	// Create the redirector AFTER renaming the object. Two objects of different classes may not have the same fully qualified name.
 	if (bCreateRedirector)

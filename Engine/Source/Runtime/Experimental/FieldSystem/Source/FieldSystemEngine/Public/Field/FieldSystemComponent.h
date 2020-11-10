@@ -41,12 +41,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Field")
 	UFieldSystem* FieldSystem;
 
-	UPROPERTY(EditAnywhere, Category = "Field")
-	bool IsGlobalField;
-
-	UPROPERTY(EditAnywhere, Category = "Field")
-	bool IsChaosField;
-
 	//
 	// Blueprint based field interface
 	//
@@ -151,27 +145,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Field")
 	void ApplyPhysicsField(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field);
 
-	UFUNCTION(BlueprintCallable, Category = "Field")
-	void AddPersistentField(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field);
-
-	UFUNCTION(BlueprintCallable, Category = "Field")
-	void RemovePersistentFields();
-
 	//
 	// Blueprint Construction based field interface
 	//
 
-	UFUNCTION(BlueprintCallable, Category = "Field Construction")
-	void AddFieldCommand(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field);
-
+	/**
+	*  ClearFieldSystem
+	*/
 	UFUNCTION(BlueprintCallable, Category = "Field Construction")
 	void ResetFieldSystem();
 
-	/** List of all the field used in the construction script*/
+	/**
+	*  ApplyPhysicsField
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Field Construction")
+	void AddFieldCommand(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field);
 	TArray< FFieldSystemCommand > BlueprintBufferedCommands;
-
-	/** List of all the peristent fields */
-	TArray< FFieldSystemCommand > PersistentFields;
 
 	/** List of solvers this field will affect. An empty list makes this field affect all solvers. */
 	UPROPERTY(EditAnywhere, Category = Field)

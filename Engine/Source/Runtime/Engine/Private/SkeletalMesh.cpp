@@ -869,7 +869,7 @@ void USkeletalMesh::InitResources()
 void USkeletalMesh::ReleaseResources()
 {
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();
-	if (SkelMeshRenderData && SkelMeshRenderData->IsInitialized())
+	if (SkelMeshRenderData)
 	{
 
 		if(GIsEditor && !GIsPlayInEditorWorld)
@@ -879,10 +879,10 @@ void USkeletalMesh::ReleaseResources()
 		}
 
 		SkelMeshRenderData->ReleaseResources();
-
-		// insert a fence to signal when these commands completed
-		ReleaseResourcesFence.BeginFence();
 	}
+
+	// insert a fence to signal when these commands completed
+	ReleaseResourcesFence.BeginFence();
 }
 
 #if WITH_EDITORONLY_DATA
@@ -950,7 +950,7 @@ void USkeletalMesh::UpdateUVChannelData(bool bRebuildAll)
 			FMeshUVChannelInfo& UVChannelData = Materials[MaterialIndex].UVChannelData;
 
 			// Skip it if we want to keep it.
-			if (UVChannelData.IsInitialized() && (!bRebuildAll || UVChannelData.bOverrideDensities))
+			if (UVChannelData.bInitialized && (!bRebuildAll || UVChannelData.bOverrideDensities))
 				continue;
 
 			float WeightedUVDensities[TEXSTREAM_MAX_NUM_UVCHANNELS] = {0, 0, 0, 0};
@@ -1397,11 +1397,8 @@ void USkeletalMesh::BeginDestroy()
 #endif // #if WITH_APEX_CLOTHING
 #endif // WITH_EDITORONLY_DATA
 
-	// Release the mesh's render resources now if no pending streaming op.
-	if (!HasPendingInitOrStreaming())
-	{
-		ReleaseResources();
-	}
+	// Release the mesh's render resources.
+	ReleaseResources();
 }
 
 bool USkeletalMesh::IsReadyForFinishDestroy()
@@ -1410,8 +1407,6 @@ bool USkeletalMesh::IsReadyForFinishDestroy()
 	{
 		return false;
 	}
-
-	ReleaseResources();
 
 	// see if we have hit the resource flush fence
 	return ReleaseResourcesFence.IsFenceComplete();
@@ -4885,21 +4880,6 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 
 	// Skip primitive uniform buffer if we will be using local vertex factory which gets it's data from GPUScene.
 	bVFRequiresPrimitiveUniformBuffer = !((bIsCPUSkinned || bRenderStatic) && UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel));
-
-#if RHI_RAYTRACING
-	if (IsRayTracingEnabled())
-	{
-		if (bRenderStatic)
-		{
-			RayTracingGeometries.AddDefaulted(SkeletalMeshRenderData->LODRenderData.Num());
-			for (int32 LODIndex = 0; LODIndex < SkeletalMeshRenderData->LODRenderData.Num(); LODIndex++)
-			{
-				ensure(SkeletalMeshRenderData->LODRenderData[LODIndex].NumReferencingStaticSkeletalMeshObjects > 0);
-				RayTracingGeometries[LODIndex] = &SkeletalMeshRenderData->LODRenderData[LODIndex].StaticRayTracingGeometry;
-			}
-		}
-	}
-#endif
 }
 
 
@@ -5102,7 +5082,6 @@ void FSkeletalMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 				#endif
 					MeshElement.Type = PT_TriangleList;
 					MeshElement.LODIndex = LODIndex;
-					MeshElement.SegmentIndex = SectionIndex;
 						
 					BatchElement.FirstIndex = Section.BaseIndex;
 					BatchElement.MinVertexIndex = Section.BaseVertexIndex;
@@ -5372,7 +5351,8 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 			Mesh.VisualizeLODIndex = LODIndex;
 		#endif
 
-			if (ensureMsgf(Mesh.MaterialRenderProxy, TEXT("GetDynamicElementsSection with invalid MaterialRenderProxy. Owner:%s LODIndex:%d UseMaterialIndex:%d"), *GetOwnerName().ToString(), LODIndex, SectionElementInfo.UseMaterialIndex))
+			if ( ensureMsgf(Mesh.MaterialRenderProxy, TEXT("GetDynamicElementsSection with invalid MaterialRenderProxy. Owner:%s LODIndex:%d UseMaterialIndex:%d"), *GetOwnerName().ToString(), LODIndex, SectionElementInfo.UseMaterialIndex) &&
+				 ensureMsgf(Mesh.MaterialRenderProxy->GetMaterial(FeatureLevel), TEXT("GetDynamicElementsSection with invalid FMaterial. Owner:%s LODIndex:%d UseMaterialIndex:%d"), *GetOwnerName().ToString(), LODIndex, SectionElementInfo.UseMaterialIndex) )
 			{
 				Collector.AddMesh(ViewIndex, Mesh);
 			}

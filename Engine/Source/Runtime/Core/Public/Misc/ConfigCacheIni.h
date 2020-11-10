@@ -445,7 +445,7 @@ public:
 	CORE_API static void OverrideFromCommandline(FConfigFile* File, const FString& Filename);
 
 	/** Checks the command line for any overridden config file settings */
-	CORE_API static bool OverrideFileFromCommandline(FString& Filename);
+	CORE_API static void OverrideFileFromCommandline(FString& Filename);
 
 	/** Appends a new INI file to the SourceIniHierarchy and combines it */
 	CORE_API void AddDynamicLayerToHeirarchy(const FString& Filename);
@@ -917,6 +917,11 @@ public:
 	 * Works even if the variable is registered after the ini file was loaded.
 	 */
 	static void LoadConsoleVariablesFromINI();
+	
+	/**
+	 * Less than ideal solution for allowing user settings to be saved on all platforms
+	 */
+	static FString GetGameUserSettingsDir();
 
 	/**
 	 * Save the current config cache state into a file for bootstrapping other processes.

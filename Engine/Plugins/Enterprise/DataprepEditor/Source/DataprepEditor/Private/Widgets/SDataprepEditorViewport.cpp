@@ -345,7 +345,7 @@ void SDataprepEditorViewport::UpdateScene()
 		{
 			if( UStaticMesh* StaticMesh = MeshComponent->GetStaticMesh() )
 			{
-				if( !StaticMesh->GetRenderData() || !StaticMesh->GetRenderData()->IsInitialized())
+				if( !StaticMesh->RenderData.IsValid() || !StaticMesh->RenderData->IsInitialized())
 				{
 					++InvalidStaticMeshesCount;
 					MeshComponent = nullptr;
@@ -376,7 +376,7 @@ void SDataprepEditorViewport::UpdateScene()
 				{
 					const UStaticMesh* StaticMesh = SceneMeshComponent->GetStaticMesh();
 					const FTransform& ComponentToWorldTransform = SceneMeshComponent->GetComponentTransform();
-					SceneBounds += StaticMesh->GetExtendedBounds().GetBox().TransformBy( ComponentToWorldTransform );
+					SceneBounds += StaticMesh->ExtendedBounds.GetBox().TransformBy( ComponentToWorldTransform );
 				}
 			}
 
@@ -434,13 +434,13 @@ void SDataprepEditorViewport::UpdateScene()
 						PreviewMeshComponent->SetRelativeTransform( ComponentToWorldTransform );
 
 						// Apply preview material to preview static mesh component
-						for(int32 Index = 0; Index < StaticMesh->GetStaticMaterials().Num(); ++Index)
+						for(int32 Index = 0; Index < StaticMesh->StaticMaterials.Num(); ++Index)
 						{
 							UMaterialInterface* MaterialInterface = SceneMeshComponent->GetMaterial(Index);
 
 							if(MaterialInterface == nullptr)
 							{
-								MaterialInterface = StaticMesh->GetStaticMaterials()[Index].MaterialInterface;
+								MaterialInterface = StaticMesh->StaticMaterials[Index].MaterialInterface;
 							}
 
 							PreviewMeshComponent->SetMaterial( Index, MaterialInterface );
@@ -592,8 +592,8 @@ void SDataprepEditorViewport::UpdateOverlayText()
 		if(UStaticMeshComponent* MeshComponent = PreviewMeshComponent.Get())
 		{
 			UStaticMesh* StaticMesh = MeshComponent->GetStaticMesh();
-			TrianglesCount += StaticMesh->GetRenderData()->LODResources[0].GetNumTriangles();
-			VerticesCount += StaticMesh->GetRenderData()->LODResources[0].GetNumVertices();
+			TrianglesCount += StaticMesh->RenderData->LODResources[0].GetNumTriangles();
+			VerticesCount += StaticMesh->RenderData->LODResources[0].GetNumVertices();
 			StaticMeshes.Add(StaticMesh);
 		}
 	}
@@ -740,7 +740,7 @@ void SDataprepEditorViewport::OnFocusViewportToSelection()
 		{
 			const UStaticMesh* StaticMesh = SelectedComponent->GetStaticMesh();
 			const FTransform& ComponentToWorldTransform = SelectedComponent->GetComponentTransform();
-			SelectionBounds += StaticMesh->GetExtendedBounds().GetBox().TransformBy( ComponentToWorldTransform );
+			SelectionBounds += StaticMesh->ExtendedBounds.GetBox().TransformBy( ComponentToWorldTransform );
 		}
 	}
 
@@ -1080,13 +1080,13 @@ void SDataprepEditorViewport::ApplyRenderingMaterial()
 
 		UStaticMesh* StaticMesh = SceneMeshComponent->GetStaticMesh();
 
-		for(int32 Index = 0; Index < StaticMesh->GetStaticMaterials().Num(); ++Index)
+		for(int32 Index = 0; Index < StaticMesh->StaticMaterials.Num(); ++Index)
 		{
 			UMaterialInterface* MaterialInterface = SceneMeshComponent->GetMaterial(Index);
 
 			if(MaterialInterface == nullptr)
 			{
-				MaterialInterface = StaticMesh->GetStaticMaterials()[Index].MaterialInterface;
+				MaterialInterface = StaticMesh->StaticMaterials[Index].MaterialInterface;
 			}
 
 			PreviewMeshComponent->SetMaterial( Index, RenderingMaterial ? RenderingMaterial : MaterialInterface );
@@ -1108,7 +1108,7 @@ void SDataprepEditorViewport::ApplyRenderingMaterial()
 					{
 						UStaticMesh* StaticMesh = PreviewMeshComponent->GetStaticMesh();
 
-						for(int32 Index = 0; Index < StaticMesh->GetStaticMaterials().Num(); ++Index)
+						for(int32 Index = 0; Index < StaticMesh->StaticMaterials.Num(); ++Index)
 						{
 							PreviewMeshComponent->SetMaterial( Index, TransparentMaterial.Get() );
 						}
@@ -1542,12 +1542,12 @@ void FDataprepEditorViewportCommands::RegisterCommands()
 // Copied from UStaticMeshComponent::CreateSceneProxy
 FPrimitiveSceneProxy* UCustomStaticMeshComponent::CreateSceneProxy()
 {
-	if (GetStaticMesh() == nullptr || GetStaticMesh()->GetRenderData() == nullptr)
+	if (GetStaticMesh() == nullptr || GetStaticMesh()->RenderData == nullptr)
 	{
 		return nullptr;
 	}
 
-	const FStaticMeshLODResourcesArray& LODResources = GetStaticMesh()->GetRenderData()->LODResources;
+	const FStaticMeshLODResourcesArray& LODResources = GetStaticMesh()->RenderData->LODResources;
 	if (LODResources.Num() == 0	|| LODResources[FMath::Clamp<int32>(GetStaticMesh()->MinLOD.Default, 0, LODResources.Num()-1)].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
 	{
 		return nullptr;
@@ -1575,7 +1575,7 @@ namespace DataprepEditor3DPreviewUtils
 
 		for(UStaticMesh* StaticMesh : StaticMeshes)
 		{
-			if(StaticMesh && (!StaticMesh->GetRenderData() || !StaticMesh->GetRenderData()->IsInitialized()))
+			if(StaticMesh && (!StaticMesh->RenderData.IsValid() || !StaticMesh->RenderData->IsInitialized()))
 			{
 				BuiltMeshes.Add( StaticMesh );
 			}
@@ -1645,7 +1645,7 @@ namespace DataprepEditor3DPreviewUtils
 					SourceModels[SourceModelIndex].BuildSettings = PrevBuildSettings[SourceModelIndex];
 				}
 
-				for ( FStaticMeshLODResources& LODResources : StaticMesh->GetRenderData()->LODResources )
+				for ( FStaticMeshLODResources& LODResources : StaticMesh->RenderData->LODResources )
 				{
 					LODResources.bHasColorVertexData = true;
 				}

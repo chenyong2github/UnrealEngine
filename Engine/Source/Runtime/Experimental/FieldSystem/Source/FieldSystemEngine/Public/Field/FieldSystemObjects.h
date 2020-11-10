@@ -225,56 +225,6 @@ public:
 
 };
 
-/**
-* UWaveScalar
-**/
-UCLASS(ClassGroup = "Field", meta = (BlueprintSpawnableComponent), ShowCategories = ("Field"))
-class FIELDSYSTEMENGINE_API UWaveScalar : public UFieldNodeFloat
-{
-	GENERATED_BODY()
-public:
-
-	UWaveScalar()
-		: Super()
-		, Magnitude(1.0)
-		, Position(0,0,0)
-		, Wavelength(10000)
-		, Period(1.0)
-		, Time(0.0)
-		, Function(EWaveFunctionType::Field_Wave_Cosine)
-		, Falloff(EFieldFalloffType::Field_Falloff_Linear)
-	{}
-
-	virtual ~UWaveScalar() {}
-
-	virtual FFieldNodeBase* NewEvaluationGraph(TArray<const UFieldNodeBase*>& Nodes) const override;
-
-	UFUNCTION(BlueprintPure, Category = "Field", meta = (Magnitude = "1.0", Wavelength = "1000", Period = "1"))
-	UWaveScalar* SetWaveScalar(float Magnitude, FVector Position, float Wavelength, float Period, float Time, EWaveFunctionType Function, EFieldFalloffType Falloff);
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
-	float Magnitude;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
-	FVector Position;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
-	float Wavelength;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
-	float Period;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
-	float Time;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
-	TEnumAsByte<EWaveFunctionType> Function;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
-	TEnumAsByte<EFieldFalloffType> Falloff;
-};
-
-
 
 /**
 * RadialFalloff

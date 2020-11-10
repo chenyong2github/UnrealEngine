@@ -191,24 +191,6 @@ static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationFinalGatherSo
 	TEXT("5: 4096 Elements (Default)\n"),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationFinalGatherEnableNeighborVisbilityTest(
-	TEXT("r.RayTracing.GlobalIllumination.FinalGather.EnableNeighborVisibilityTest"),
-	0,
-	TEXT("Enables neighbor visibility tests when FilterWidth > 0 (default = 0)")
-);
-
-static TAutoConsoleVariable<float> CVarRayTracingGlobalIlluminationFinalGatherDepthRejectionKernel(
-	TEXT("r.RayTracing.GlobalIllumination.FinalGather.DepthRejectionKernel"),
-	1.0e-2,
-	TEXT("Gather point relative Z-depth rejection tolerance (default = 1.0e-2)\n")
-);
-
-static TAutoConsoleVariable<float> CVarRayTracingGlobalIlluminationFinalGatherNormalRejectionKernel(
-	TEXT("r.RayTracing.GlobalIllumination.FinalGather.NormalRejectionKernel"),
-	0.2,
-	TEXT("Gather point WorldNormal rejection tolerance (default = 1.0e-2)\n")
-);
-
 static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationDirectionalLight(
 	TEXT("r.RayTracing.GlobalIllumination.Lights.DirectionalLight"),
 	1,
@@ -617,9 +599,8 @@ class FRayTracingGlobalIlluminationFinalGatherRGS : public FGlobalShader
 
 	class FUseAttenuationTermDim : SHADER_PERMUTATION_BOOL("USE_ATTENUATION_TERM");
 	class FEnableTwoSidedGeometryDim : SHADER_PERMUTATION_BOOL("ENABLE_TWO_SIDED_GEOMETRY");
-	class FEnableNeighborVisibilityTestDim : SHADER_PERMUTATION_BOOL("USE_NEIGHBOR_VISIBILITY_TEST");
 
-	using FPermutationDomain = TShaderPermutationDomain<FUseAttenuationTermDim, FEnableTwoSidedGeometryDim, FEnableNeighborVisibilityTestDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FUseAttenuationTermDim, FEnableTwoSidedGeometryDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -637,8 +618,6 @@ class FRayTracingGlobalIlluminationFinalGatherRGS : public FGlobalShader
 		SHADER_PARAMETER(float, DiffuseThreshold)
 		SHADER_PARAMETER(float, MaxNormalBias)
 		SHADER_PARAMETER(float, FinalGatherDistance)
-		SHADER_PARAMETER(float, DepthRejectionKernel)
-		SHADER_PARAMETER(float, NormalRejectionKernel)
 
 		// Reprojection data
 		SHADER_PARAMETER_STRUCT_REF(FGatherPointData, GatherPointData)
@@ -720,15 +699,11 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingGlobalIllumination(const FV
 				OutRayGenShaders.Add(CreateGatherPointsRayGenerationShader.GetRayTracingShader());
 			}
 
-			for (int EnableNeighborVisibilityTest = 0; EnableNeighborVisibilityTest < 2; ++EnableNeighborVisibilityTest)
-			{
-				FRayTracingGlobalIlluminationFinalGatherRGS::FPermutationDomain GatherPassPermutationVector;
-				GatherPassPermutationVector.Set<FRayTracingGlobalIlluminationFinalGatherRGS::FUseAttenuationTermDim>(UseAttenuationTerm == 1);
-				GatherPassPermutationVector.Set<FRayTracingGlobalIlluminationFinalGatherRGS::FEnableTwoSidedGeometryDim>(EnableTwoSidedGeometry == 1);
-				GatherPassPermutationVector.Set<FRayTracingGlobalIlluminationFinalGatherRGS::FEnableNeighborVisibilityTestDim>(EnableNeighborVisibilityTest == 1);
-				TShaderMapRef<FRayTracingGlobalIlluminationFinalGatherRGS> GatherPassRayGenerationShader(View.ShaderMap, GatherPassPermutationVector);
-				OutRayGenShaders.Add(GatherPassRayGenerationShader.GetRayTracingShader());
-			}
+			FRayTracingGlobalIlluminationFinalGatherRGS::FPermutationDomain GatherPassPermutationVector;
+			GatherPassPermutationVector.Set<FRayTracingGlobalIlluminationFinalGatherRGS::FUseAttenuationTermDim>(UseAttenuationTerm == 1);
+			GatherPassPermutationVector.Set<FRayTracingGlobalIlluminationFinalGatherRGS::FEnableTwoSidedGeometryDim>(EnableTwoSidedGeometry == 1);
+			TShaderMapRef<FRayTracingGlobalIlluminationFinalGatherRGS> GatherPassRayGenerationShader(View.ShaderMap, GatherPassPermutationVector);
+			OutRayGenShaders.Add(GatherPassRayGenerationShader.GetRayTracingShader());
 		}
 	}
 
@@ -1201,8 +1176,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationFinalGathe
 	PassParameters->DiffuseThreshold = GRayTracingGlobalIlluminationDiffuseThreshold;
 	PassParameters->MaxNormalBias = GetRaytracingMaxNormalBias();
 	PassParameters->FinalGatherDistance = GRayTracingGlobalIlluminationFinalGatherDistance;
-	PassParameters->DepthRejectionKernel = CVarRayTracingGlobalIlluminationFinalGatherDepthRejectionKernel.GetValueOnRenderThread();
-	PassParameters->NormalRejectionKernel = CVarRayTracingGlobalIlluminationFinalGatherNormalRejectionKernel.GetValueOnRenderThread();
 	PassParameters->UpscaleFactor = UpscaleFactor;
 	PassParameters->RenderTileOffsetX = 0;
 	PassParameters->RenderTileOffsetY = 0;
@@ -1248,7 +1221,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationFinalGathe
 	FRayTracingGlobalIlluminationFinalGatherRGS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FRayTracingGlobalIlluminationFinalGatherRGS::FUseAttenuationTermDim>(true);
 	PermutationVector.Set<FRayTracingGlobalIlluminationFinalGatherRGS::FEnableTwoSidedGeometryDim>(CVarRayTracingGlobalIlluminationEnableTwoSidedGeometry.GetValueOnRenderThread() != 0);
-	PermutationVector.Set<FRayTracingGlobalIlluminationFinalGatherRGS::FEnableNeighborVisibilityTestDim>(CVarRayTracingGlobalIlluminationFinalGatherEnableNeighborVisbilityTest.GetValueOnRenderThread() != 0);
 	TShaderMapRef<FRayTracingGlobalIlluminationFinalGatherRGS> RayGenerationShader(GetGlobalShaderMap(FeatureLevel), PermutationVector);
 	ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 

@@ -18,10 +18,7 @@
 #include "Util/ProgressCancel.h"
 #include "Util/IndexUtil.h"
 
-// Forward declarations of local helper functions. Normally these would be marked as static or
-// in an anonymous namespace, but apparently this could still result in clashes due to unity builds.
-namespace GroupEdgeInserterLocals {
-
+// Forward declarations of local helper functions
 bool GetEdgeLoopOpposingEdgeAndCorner(const FGroupTopology& Topology, int32 GroupID, int32 GroupEdgeIDIn,
 	int32 CornerIDIn, int32& GroupEdgeIDOut, int32& CornerIDOut, int32& BoundaryIndexOut);
 bool InsertEdgeLoopEdgesInDirection(const FGroupEdgeInserter::FEdgeLoopInsertionParams& Params,
@@ -49,11 +46,11 @@ bool ConnectMultipleUsingRetriangulation(
 	const TArray <FGroupEdgeInserter::FGroupEdgeSplitPoint>& EndPoints,
 	TSet<int32>* ConnectionEidsOut, int32& NumGroupsCreated, FProgressCancel* Progress);
 bool DeleteGroupTrianglesAndGetLoop(FDynamicMesh3& Mesh, const FGroupTopology& Topology, int32 GroupID,
-	const FGroupTopology::FGroupBoundary& GroupBoundary, TArray<int32>& BoundaryVerticesOut,
+	const FGroupTopology::FGroupBoundary& GroupBoundary, TArray<int32>& BoundaryVerticesOut, 
 	TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>>& BoundaryVidUVMapsOut, FProgressCancel* Progress);
 void AppendInclusiveRangeWrapAround(const TArray<int32>& InputArray, TArray<int32>& OutputArray,
 	int32 StartIndex, int32 InclusiveEndIndex);
-bool RetriangulateLoop(FDynamicMesh3& Mesh, const TArray<int32>& LoopVertices,
+bool RetriangulateLoop(FDynamicMesh3& Mesh, const TArray<int32>& LoopVertices, 
 	int32 NewGroupID, TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>>& VidUVMaps);
 
 bool ConnectMultipleUsingPlaneCut(FDynamicMesh3& Mesh,
@@ -61,7 +58,7 @@ bool ConnectMultipleUsingPlaneCut(FDynamicMesh3& Mesh,
 	const FGroupTopology::FGroupBoundary& GroupBoundary,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& StartPoints,
 	const TArray <FGroupEdgeInserter::FGroupEdgeSplitPoint>& EndPoints,
-	double VertexTolerance, TSet<int32>* ConnectionEidsOut,
+	double VertexTolerance, TSet<int32>* ConnectionEidsOut, 
 	int32& NumGroupsCreated, FProgressCancel* Progress);
 bool EmbedPlaneCutPath(FDynamicMesh3& Mesh, int32 GroupID,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& StartPoint,
@@ -75,10 +72,8 @@ bool GetPlaneCutPath(const FDynamicMesh3& Mesh, int32 GroupID,
 bool InsertSingleWithRetriangulation(FDynamicMesh3& Mesh, FGroupTopology& Topology,
 	int32 GroupID, int32 BoundaryIndex,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& StartPoint,
-	const FGroupEdgeInserter::FGroupEdgeSplitPoint& EndPoint,
+	const FGroupEdgeInserter::FGroupEdgeSplitPoint& EndPoint, 
 	TSet<int32>* NewEidsOut, FProgressCancel* Progress);
-}
-using namespace GroupEdgeInserterLocals;
 
 /** Inserts an edge loop into a mesh, where an edge loop is a sequence of (group) edges across quads. */
 bool FGroupEdgeInserter::InsertEdgeLoops(const FEdgeLoopInsertionParams& Params, TSet<int32>* NewEidsOut, FProgressCancel* Progress)
@@ -158,8 +153,6 @@ bool FGroupEdgeInserter::InsertEdgeLoops(const FEdgeLoopInsertionParams& Params,
 
 	return Params.Topology->RebuildTopology() && bSuccess;
 }
-
-namespace GroupEdgeInserterLocals {
 
 /**
  * Given a group edge and the (adjoining) quad-like group across which we want to continue an edge loop,
@@ -365,10 +358,14 @@ void InsertNewVertexEndpoints(
 	{
 		// Reverse order and update lengths to be TotalLength-length. Could do in one pass but then
 		// don't forget to modify the middle.
-		Algo::Reverse(PerVertexLengths);
-		Algo::ForEach(PerVertexLengths, [TotalLength](double& Length) {
+		for (int i = 0; i < PerVertexLengths.Num()/2; ++i)
+		{
+			Swap(PerVertexLengths[i], PerVertexLengths[PerVertexLengths.Num() - 1 - i]);
+		}
+		for (double& Length : PerVertexLengths)
+		{
 			Length = TotalLength - Length;
-			});
+		}
 	}
 
 	// We're going to walk forward selecting existing vertices or adding new ones as we go along.
@@ -957,7 +954,6 @@ bool CreateNewGroups(FDynamicMesh3& Mesh, TSet<int32>& PathEids, int32 OriginalG
 
 	return true;
 }
-}//end namespace GroupEdgeInserterLocals
 
 /** Inserts a group edge into a given group. */
 bool FGroupEdgeInserter::InsertGroupEdge(FGroupEdgeInsertionParams& Params, TSet<int32>* NewEidsOut, FProgressCancel* Progress)
@@ -1019,8 +1015,6 @@ bool FGroupEdgeInserter::InsertGroupEdge(FGroupEdgeInsertionParams& Params, TSet
 
 	return true;
 }
-
-namespace GroupEdgeInserterLocals {
 
 /** Helper function. Not used when inserting multiple edges at once into a group to avoid continuously retriangulating and deleting. */
 bool InsertSingleWithRetriangulation(FDynamicMesh3& Mesh, FGroupTopology& Topology, 
@@ -1438,4 +1432,3 @@ bool GetPlaneCutPath(const FDynamicMesh3& Mesh, int32 GroupID,
 
 	return true;
 }
-}//end namespace GroupEdgeInserterLocals

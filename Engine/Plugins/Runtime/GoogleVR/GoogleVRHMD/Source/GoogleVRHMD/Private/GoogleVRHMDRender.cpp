@@ -451,7 +451,7 @@ bool FGoogleVRHMDCustomPresent::AllocateRenderTargetTexture(uint32 Index, uint32
 	if (TextureSet)
 	{
 		// Reassign the resource to 0 before destroy the texture since we are managing those resrouce in GVR.
-		TextureSet->SetResource(0);
+		TextureSet->Resource = 0;
 	}
 
 	static int32 MobileMSAAValue = GetMobileMSAASampleSetting();
@@ -580,7 +580,7 @@ void FGoogleVRHMDCustomPresent::BeginRendering(const gvr_mat4f& RenderingHeadPos
 		GLint TextureId = 0;
 		glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &TextureId);
 		//override the texture set in custom present to the texture id we just bind so that unreal could render to it.
-		TextureSet->SetResource(TextureId);
+		TextureSet->Resource = TextureId;
 	}
 }
 
@@ -595,7 +595,7 @@ void FGoogleVRHMDCustomPresent::FinishRendering()
 		if (CurrentFrameViewportList)
 		{
 			gvr_frame_submit(&CurrentFrame, CurrentFrameViewportList, CurrentFrameRenderHeadPose);
-			TextureSet->SetResource(0);
+			TextureSet->Resource = 0;
 		}
 	}
 }

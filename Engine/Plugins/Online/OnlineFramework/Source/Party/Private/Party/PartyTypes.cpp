@@ -11,19 +11,26 @@
 
 bool FPartyPlatformSessionInfo::operator==(const FPartyPlatformSessionInfo& Other) const
 {
-	return SessionType == Other.SessionType
+	return OssName == Other.OssName
 		&& SessionId == Other.SessionId
 		&& OwnerPrimaryId == Other.OwnerPrimaryId;
 }
 
-bool FPartyPlatformSessionInfo::operator==(const FString& InSessionType) const
+bool FPartyPlatformSessionInfo::operator==(FName PlatformOssName) const
 {
-	return SessionType == InSessionType;
+	return OssName == PlatformOssName;
+}
+
+void FPartyPlatformSessionInfo::operator=(const FPartyPlatformSessionInfo& Other)
+{
+	OssName = Other.OssName;
+	SessionId = Other.SessionId;
+	OwnerPrimaryId = Other.OwnerPrimaryId;
 }
 
 FString FPartyPlatformSessionInfo::ToDebugString() const
 {
-	return FString::Printf(TEXT("SessionType=[%s], SessionId=[%s], OwnerPrimaryId=[%s]"), *SessionType, *SessionId, *OwnerPrimaryId.ToDebugString());
+	return FString::Printf(TEXT("OssName=[%s], SessionId=[%s], OwnerPrimaryId=[%s]"), *OssName.ToString(), *SessionId, *OwnerPrimaryId.ToDebugString());
 }
 
 bool FPartyPlatformSessionInfo::IsSessionOwner(const UPartyMember& PartyMember) const

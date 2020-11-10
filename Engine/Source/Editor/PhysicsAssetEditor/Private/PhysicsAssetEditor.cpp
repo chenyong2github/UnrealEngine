@@ -2578,7 +2578,7 @@ void FPhysicsAssetEditor::OnAssetSelectedFromStaticMeshAssetPicker( const FAsset
 	{
 		UStaticMesh* SM = Cast<UStaticMesh>(AssetData.GetAsset());
 
-		if (SM && SM->GetBodySetup() && SM->GetBodySetup()->AggGeom.GetElementCount() > 0)
+		if (SM && SM->BodySetup && SM->BodySetup->AggGeom.GetElementCount() > 0)
 		{
 			SharedData->PhysicsAsset->Modify();
 
@@ -2586,7 +2586,7 @@ void FPhysicsAssetEditor::OnAssetSelectedFromStaticMeshAssetPicker( const FAsset
 			{
 				UBodySetup* BaseSetup = SharedData->PhysicsAsset->SkeletalBodySetups[SharedData->SelectedBodies[SelectedBodyIndex].Index];
 				BaseSetup->Modify();
-				BaseSetup->AddCollisionFrom(SM->GetBodySetup());
+				BaseSetup->AddCollisionFrom(SM->BodySetup);
 				BaseSetup->InvalidatePhysicsData();
 				BaseSetup->CreatePhysicsMeshes();
 			}

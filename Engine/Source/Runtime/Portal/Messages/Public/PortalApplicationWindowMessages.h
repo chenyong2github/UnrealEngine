@@ -29,7 +29,7 @@ struct FPortalApplicationWindowNavigateToResponse
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category="Message")
-	bool Result = false;
+	bool Result;
 
 	FPortalApplicationWindowNavigateToResponse() { }
 	FPortalApplicationWindowNavigateToResponse(bool InResult)

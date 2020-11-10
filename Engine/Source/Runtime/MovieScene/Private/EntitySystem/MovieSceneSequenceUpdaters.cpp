@@ -196,7 +196,7 @@ void FSequenceUpdater_Flat::DissectContext(UMovieSceneEntitySystemLinker* Linker
 	if (!CachedDeterminismFences.IsSet())
 	{
 		UMovieSceneCompiledDataManager* CompiledDataManager = InPlayer->GetEvaluationTemplate().GetCompiledDataManager();
-		TArrayView<const FFrameTime>    DeterminismFences   = CompiledDataManager->GetEntryRef(CompiledDataID).DeterminismFences;
+		TArrayView<const FFrameTime>    DeterminismFences   = CompiledDataManager->GetEntry(CompiledDataID).DeterminismFences;
 
 		if (DeterminismFences.Num() != 0)
 		{
@@ -311,8 +311,8 @@ void FSequenceUpdater_Hierarchical::DissectContext(UMovieSceneEntitySystemLinker
 	TArray<FFrameTime>   RootDissectionTimes;
 
 	{
-		const FMovieSceneCompiledDataEntry& DataEntry       = CompiledDataManager->GetEntryRef(CompiledDataID);
-		TArrayView<const FFrameTime>        TraversedFences = GetFencesWithinRange(DataEntry.DeterminismFences, Context.GetFrameNumberRange());
+		TArrayView<const FFrameTime> RootDeterminismFences = CompiledDataManager->GetEntry(CompiledDataID).DeterminismFences;
+		TArrayView<const FFrameTime> TraversedFences       = GetFencesWithinRange(RootDeterminismFences, Context.GetFrameNumberRange());
 
 		UE::MovieScene::DissectRange(TraversedFences, Context.GetRange(), OutDissections);
 	}
@@ -345,7 +345,7 @@ void FSequenceUpdater_Hierarchical::DissectContext(UMovieSceneEntitySystemLinker
 					continue;
 				}
 
-				TArrayView<const FFrameTime> SubDeterminismFences = CompiledDataManager->GetEntryRef(SubDataID).DeterminismFences;
+				TArrayView<const FFrameTime> SubDeterminismFences = CompiledDataManager->GetEntry(SubDataID).DeterminismFences;
 				if (SubDeterminismFences.Num() > 0)
 				{
 					TRange<FFrameTime>   InnerRange           = SubData->RootToSequenceTransform.TransformRangeUnwarped(RootClampRange);
@@ -452,7 +452,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 		RootInstance.SetContext(RootContext);
 
 		const FMovieSceneEntityComponentField* RootComponentField = CompiledDataManager->FindEntityComponentField(RootCompiledDataID);
-		UMovieSceneSequence* RootSequence = CompiledDataManager->GetEntryRef(RootCompiledDataID).GetSequence();
+		UMovieSceneSequence* RootSequence = InPlayer->GetEvaluationTemplate().GetSequence(RootOverrideSequenceID);
 
 		if (RootSequence == nullptr)
 		{

@@ -61,9 +61,6 @@ struct NETCORE_API FDDoSPacketCounters
  */
 struct NETCORE_API FDDoSState
 {
-	/** Whether or not to send analytics when escalating to this state */
-	bool bSendEscalateAnalytics;
-
 	/** The number of packets/sec before the next stage of DDoS detection is triggered */
 	int32 EscalateQuotaPacketsPerSec;
 
@@ -90,8 +87,7 @@ struct NETCORE_API FDDoSState
 
 
 	FDDoSState()
-		: bSendEscalateAnalytics(true)
-		, EscalateQuotaPacketsPerSec(-1)
+		: EscalateQuotaPacketsPerSec(-1)
 		, EscalateQuotaDisconnPacketsPerSec(-1)
 		, EscalateQuotaBadPacketsPerSec(-1)
 		, EscalateTimeQuotaMSPerFrame(-1)
@@ -136,7 +132,6 @@ struct NETCORE_API FDDoSStateConfig : public FDDoSState
 
 	void ApplyState(FDDoSState& Target)
 	{
-		Target.bSendEscalateAnalytics				= bSendEscalateAnalytics;
 		Target.EscalateQuotaPacketsPerSec			= EscalateQuotaPacketsPerSec;
 		Target.EscalateQuotaDisconnPacketsPerSec	= EscalateQuotaDisconnPacketsPerSec;
 		Target.EscalateQuotaBadPacketsPerSec		= EscalateQuotaBadPacketsPerSec;

@@ -13,7 +13,6 @@
 #include "Styling/SlateBrush.h"
 #include "AssetThumbnail.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Editor.h"
 #endif
 #include "NiagaraSettings.h"
 

@@ -3571,7 +3571,6 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 
 	{
 		TGuardValue<bool> FastForward(bIsFastForwarding, true);
-		FScopedAllowExistingChannelIndex ScopedAllowExistingChannelIndex(ServerConnection);
 
 		if (bDeltaCheckpoint)
 		{
@@ -3587,28 +3586,24 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 					{
 						if (UActorChannel* ActorChannel = DemoConnection->GetOpenChannelMap().FindRef(ChannelPair.Key))
 						{
-							if (AActor* Actor = ActorChannel->GetActor())
-							{
-								if (LocalLevels.Contains(Actor->GetLevel()))
-								{
-									ActorChannel->ConditionalCleanUp(true, ChannelPair.Value);
-								}
-							}
+							ActorChannel->ConditionalCleanUp(true, ChannelPair.Value);
 						}
 					}
 				}
 
 				check(DeltaCheckpointPacketIntervals[i].IsValid());
-				check(ReadPacketsHelper.Packets.IsValidIndex(DeltaCheckpointPacketIntervals[i].Min));
-				check(ReadPacketsHelper.Packets.IsValidIndex(DeltaCheckpointPacketIntervals[i].Min + DeltaCheckpointPacketIntervals[i].Size()));
 
-				ProcessFastForwardPackets(MakeArrayView<FPlaybackPacket>(&ReadPacketsHelper.Packets[DeltaCheckpointPacketIntervals[i].Min], DeltaCheckpointPacketIntervals[i].Size() + 1), LevelIndices);
+				{
+					FScopedAllowExistingChannelIndex ScopedAllowExistingChannelIndex(ServerConnection);
+					ProcessFastForwardPackets(MakeArrayView<FPlaybackPacket>(&ReadPacketsHelper.Packets[DeltaCheckpointPacketIntervals[i].Min], DeltaCheckpointPacketIntervals[i].Size()), LevelIndices);
+				}
 			}
 
 			DemoConnection->GetOpenChannelMap().Empty();
 		}
 		else
 		{
+			FScopedAllowExistingChannelIndex ScopedAllowExistingChannelIndex(ServerConnection);
 			ProcessFastForwardPackets(ReadPacketsHelper.Packets, LevelIndices);
 		}
 	}
@@ -4794,7 +4789,6 @@ void UDemoNetDriver::InitDestroyedStartupActors()
 					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					DeletedNetStartupActors.Add(Info.FullName);
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
-					ReplayHelper.DeletedNetStartupActors.Add(Info.FullName);
 					ReplayHelper.RecordingDeltaCheckpointData.DestroyedNetStartupActors.Add(Info.FullName);
 				}
 			}
@@ -4953,10 +4947,9 @@ void UDemoNetDriver::NotifyActorChannelOpen(UActorChannel* Channel, AActor* Acto
 
 void UDemoNetDriver::NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason)
 {
-	// channels can be cleaned up during the checkpoint record (dormancy), make sure to skip those
-	if (IsRecording() && HasDeltaCheckpoints() && (ReplayHelper.GetCheckpointSaveState() == FReplayHelper::ECheckpointSaveState::Idle))
+	if (IsRecording() && HasDeltaCheckpoints() && Channel)
 	{
-		if (Channel && Channel->bOpenedForCheckpoint)
+		if (Channel->bOpenedForCheckpoint)
 		{
 			ReplayHelper.RecordingDeltaCheckpointData.ChannelsToClose.Add(Channel->ActorNetGUID, CloseReason);
 		}

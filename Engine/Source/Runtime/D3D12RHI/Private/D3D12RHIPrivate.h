@@ -54,11 +54,8 @@ DECLARE_LOG_CATEGORY_EXTERN(LogD3D12GapRecorder, Log, All);
 #if NV_AFTERMATH
 #define GFSDK_Aftermath_WITH_DX12 1
 #include "GFSDK_Aftermath.h"
-#include "GFSDK_Aftermath_GpuCrashdump.h"
 #undef GFSDK_Aftermath_WITH_DX12
 extern int32 GDX12NVAfterMathEnabled;
-extern int32 GDX12NVAfterMathTrackResources;
-extern int32 GDX12NVAfterMathMarkers;
 #endif
 
 #include "D3D12Residency.h"
@@ -452,7 +449,6 @@ public:
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewWriteMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D) override final;
 
 	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format) override final;
-	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* Buffer) override final;
 	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer) override final;
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBuffer) override final;
 	virtual FTextureCubeRHIRef RHICreateTextureCube_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo) override;
@@ -955,7 +951,6 @@ public:
 
 	AGSContext* GetAmdAgsContext() { return AmdAgsContext; }
 	void SetAmdSupportedExtensionFlags(uint32 Flags) { AmdSupportedExtensionFlags = Flags; }
-	uint32 GetAmdSupportedExtensionFlags() const { return AmdSupportedExtensionFlags; }
 
 protected:
 

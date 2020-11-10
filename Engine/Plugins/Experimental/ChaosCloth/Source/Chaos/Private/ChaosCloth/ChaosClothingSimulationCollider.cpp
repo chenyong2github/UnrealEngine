@@ -20,10 +20,6 @@
 #include "PhysXIncludes.h"
 #endif
 
-#if PHYSICS_INTERFACE_PHYSX
-#include "PhysXPublic.h"
-#endif
-
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Update Collider"), STAT_ChaosClothingSimulationColliderUpdate, STATGROUP_ChaosCloth);
 
 using namespace Chaos;

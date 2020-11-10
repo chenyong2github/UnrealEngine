@@ -258,12 +258,7 @@ void FNiagaraSystemViewportClient::DrawParticleCounts(UNiagaraComponent* Compone
 			const int32 MaxCount = EmitterInstance->GetEmitterHandle().GetInstance()->GetMaxParticleCountEstimate();
 			const bool IsIsolated = EmitterInstance->GetEmitterHandle().IsIsolated();
 			const bool IsEnabled = EmitterInstance->GetEmitterHandle().GetIsEnabled();
-			const ENiagaraExecutionState ExecutionState = EmitterInstance->GetExecutionState();
-			const FString EmitterExecutionString = UEnum::GetValueAsString(ExecutionState);
-			const int32 EmitterExecutionStringValueIndex = EmitterExecutionString.Find(TEXT("::"));
-			const TCHAR* EmitterExecutionText = EmitterExecutionStringValueIndex == INDEX_NONE ? *EmitterExecutionString : *EmitterExecutionString + EmitterExecutionStringValueIndex + 2;
-
-			TextItem.Text = FText::FromString(FString::Printf(TEXT("%i Current, %i Max (est.) - [%s] [%s]"), CurrentCount, MaxCount, *EmitterName.ToString(), EmitterExecutionText));
+			TextItem.Text = FText::FromString(FString::Printf(TEXT("%i Current, %i Max (est.) - [%s]"), CurrentCount, MaxCount, *EmitterName.ToString()));
 			TextItem.Position = FVector2D(CurrentX, CurrentY);
 			TextItem.bOutlined = IsIsolated;
 			TextItem.OutlineColor = FLinearColor(0.7f, 0.0f, 0.0f);

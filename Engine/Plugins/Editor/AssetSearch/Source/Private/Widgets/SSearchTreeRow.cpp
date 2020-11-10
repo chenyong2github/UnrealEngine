@@ -171,13 +171,11 @@ FReply SSearchTreeRow::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, c
 	{
 		FSoftObjectPath ReferencePath(BrowserObject->GetObjectPath()); 
 		UObject* Object = ReferencePath.TryLoad();
-		
-		if (Object && Object->GetTypedOuter<UBlueprint>())  
+		if (Object->GetTypedOuter<UBlueprint>())  
 		{
 			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(Object, false); 
 		}
-
-		if (Object && (Object->GetTypedOuter<UMaterial>() || Object->GetTypedOuter<UMaterialFunction>()))
+		if (Object->GetTypedOuter<UMaterial>() || Object->GetTypedOuter<UMaterialFunction>())
 		{
 			const FString& AssetPathName = ReferencePath.GetAssetPathString();
 			UPackage* Package = LoadPackage(NULL, *AssetPathName, LOAD_NoRedirects);

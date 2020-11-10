@@ -28,12 +28,7 @@ class FNetworkPredictionModule : public INetworkPredictionModule
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	void OnModulesChanged(FName ModuleThatChanged, EModuleChangeReason ReasonForChange);
-	void FinalizeNetworkPredictionTypes();
-
 	FDelegateHandle PieHandle;
-	FDelegateHandle ModulesChangedHandle;
-	FDelegateHandle WorldPreInitHandle;
 };
 
 void FNetworkPredictionModule::StartupModule()
@@ -50,28 +45,14 @@ void FNetworkPredictionModule::StartupModule()
 		}
 	});
 
-	ModulesChangedHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FNetworkPredictionModule::OnModulesChanged);
-
-	// Finalize types if the engine is up and running, or register for callback for when it is
-	if (GIsRunning)
+	FCoreDelegates::OnPostEngineInit.AddLambda([]()
 	{
-		FinalizeNetworkPredictionTypes();
-	}
-	else
-	{
-		FCoreDelegates::OnPostEngineInit.AddLambda([this]()
-		{
-			this->FinalizeNetworkPredictionTypes();
-		});
-	}
-	
-	this->WorldPreInitHandle = FWorldDelegates::OnPreWorldInitialization.AddLambda([this](UWorld* World, const UWorld::InitializationValues IVS)
-	{
-		UE_NP_TRACE_WORLD_PREINIT();
+		FGlobalCueTypeTable::Get().FinalizeTypes();
+		FNetworkPredictionModelDefRegistry::Get().FinalizeTypes();
 	});
 
 #if WITH_EDITOR
-	PieHandle = FEditorDelegates::PreBeginPIE.AddLambda([](const bool bBegan)
+	PieHandle = FEditorDelegates::PreBeginPIE.AddLambda([this](const bool bBegan)
 	{
 		UE_NP_TRACE_PIE_START();
 	});
@@ -91,18 +72,6 @@ void FNetworkPredictionModule::StartupModule()
 
 void FNetworkPredictionModule::ShutdownModule()
 {
-	if (ModulesChangedHandle.IsValid())
-	{
-		FModuleManager::Get().OnModulesChanged().Remove(ModulesChangedHandle);
-		ModulesChangedHandle.Reset();
-	}
-
-	if (WorldPreInitHandle.IsValid())
-	{
-		FWorldDelegates::OnPreWorldInitialization.Remove(WorldPreInitHandle);
-		WorldPreInitHandle.Reset();
-	}
-
 #if WITH_EDITOR
 	FEditorDelegates::PreBeginPIE.Remove(PieHandle);
 
@@ -111,32 +80,6 @@ void FNetworkPredictionModule::ShutdownModule()
 		SettingsModule->UnregisterSettings("Project", "Project", "Network Prediction");
 	}
 #endif
-}
-
-void FNetworkPredictionModule::OnModulesChanged(FName ModuleThatChanged, EModuleChangeReason ReasonForChange)
-{
-	// If we haven't finished loading, don't do per module finalizing
-	if (GIsRunning == false)
-	{
-		return;
-	}
-
-	switch (ReasonForChange)
-	{
-	case EModuleChangeReason::ModuleLoaded:
-		FinalizeNetworkPredictionTypes();
-		break;
-
-	case EModuleChangeReason::ModuleUnloaded:
-		FinalizeNetworkPredictionTypes();
-		break;
-	}
-}
-
-void FNetworkPredictionModule::FinalizeNetworkPredictionTypes()
-{
-	FGlobalCueTypeTable::Get().FinalizeCueTypes();
-	FNetworkPredictionModelDefRegistry::Get().FinalizeTypes();
 }
 
 IMPLEMENT_MODULE( FNetworkPredictionModule, NetworkPrediction )

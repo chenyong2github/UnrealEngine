@@ -510,7 +510,7 @@ private:
 
 	bool ProcessCompilationResult(FEmitterCompiledScriptPair& ScriptPair, bool bWait, bool bDoNotApply);
 
-	bool CompilationResultsValid(FNiagaraSystemCompileRequest& CompileRequest) const;
+	bool CompilationResultsValid(const FNiagaraSystemCompileRequest& CompileRequest) const;
 
 	void InitEmitterCompiledData();
 

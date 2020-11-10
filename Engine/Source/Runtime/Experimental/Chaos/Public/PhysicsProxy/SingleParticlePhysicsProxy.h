@@ -10,7 +10,6 @@
 #include "PhysicsCoreTypes.h"
 #include "Chaos/Defines.h"
 #include "Chaos/EvolutionTraits.h"
-#include "Chaos/PullPhysicsDataImp.h"
 
 namespace Chaos
 {
@@ -19,8 +18,6 @@ namespace Chaos
 
 	template <typename Traits>
 	class TPBDRigidsEvolutionGBF;
-
-	struct FDirtyRigidParticleData;
 }
 
 class FInitialState
@@ -82,14 +79,6 @@ public:
 	void BufferCommand(Chaos::FPhysicsSolver* InSolver, const FFieldSystemCommand& InCommand) {}
 	void SyncBeforeDestroy() {}
 	void OnRemoveFromScene() {}
-
-	void SetPullDataInterpIdx_External(const int32 Idx)
-	{
-		PullDataInterpIdx_External = Idx;
-	}
-
-	int32 GetPullDataInterpIdx_External() const { return PullDataInterpIdx_External; }
-
 	// END DELETE ME
 
 	/**/
@@ -146,13 +135,10 @@ public:
 	void ClearAccumulatedData();
 
 	/**/
-	void BufferPhysicsResults(Chaos::FDirtyRigidParticleData&);
+	void BufferPhysicsResults();
 
 	/**/
-	void BufferPhysicsResults_External(Chaos::FDirtyRigidParticleData&);
-
-	/**/
-	bool PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData = nullptr, const float* Alpha = nullptr);
+	bool PullFromPhysicsState(const int32 SolverSyncTimestamp);
 
 	/**/
 	bool IsDirty();
@@ -188,9 +174,6 @@ private:
 	TUniquePtr<Chaos::IBufferResource<FStorageData>> BufferedData;
 	//TUniquePtr<Chaos::IBufferResource<FPropertiesDataHolder>> PropertiesData;
 	//TUniquePtr<Chaos::FDoubleBuffer<FPropertiesDataHolder>> PropertiesData;
-
-	//Used by interpolation code
-	int32 PullDataInterpIdx_External;
 };
 
 
@@ -199,13 +182,10 @@ template< >
 void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ClearAccumulatedData();
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::BufferPhysicsResults(Chaos::FDirtyRigidParticleData& PullData);
+CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::BufferPhysicsResults();
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::BufferPhysicsResults_External(Chaos::FDirtyRigidParticleData& PullData);
-
-template< >
-CHAOS_API bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData, const float* Alpha);
+CHAOS_API bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PullFromPhysicsState(const int32 SolverSyncTimestamp);
 
 template< >
 bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::IsDirty();
@@ -233,13 +213,10 @@ template< >
 void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::ClearAccumulatedData();
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::BufferPhysicsResults(Chaos::FDirtyRigidParticleData& PullData);
+CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::BufferPhysicsResults();
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::BufferPhysicsResults_External(Chaos::FDirtyRigidParticleData& PullData);
-
-template< >
-CHAOS_API bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData, const float* Alpha);
+CHAOS_API bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PullFromPhysicsState(const int32 SolverSyncTimestamp);
 
 template< >
 bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::IsDirty();
@@ -259,13 +236,10 @@ template< >
 void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ClearAccumulatedData();
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::BufferPhysicsResults(Chaos::FDirtyRigidParticleData&);
+CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::BufferPhysicsResults();
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::BufferPhysicsResults_External(Chaos::FDirtyRigidParticleData& PullData);
-
-template< >
-CHAOS_API bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData, const float* Alpha);
+CHAOS_API bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPhysicsState(const int32 SolverSyncTimestamp);
 
 template< >
 bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::IsDirty();

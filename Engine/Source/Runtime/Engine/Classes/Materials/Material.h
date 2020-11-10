@@ -1495,7 +1495,7 @@ private:
 	 * The results will be applied to this FMaterial in the renderer when they are finished compiling.
 	 * Note: This modifies material variables used for rendering and is assumed to be called within a FMaterialUpdateContext!
 	 */
-	void CacheResourceShadersForRendering(bool bRegenerateId, EMaterialShaderPrecompileMode PrecompileMode = EMaterialShaderPrecompileMode::Default);
+	void CacheResourceShadersForRendering(bool bRegenerateId);
 
 	/**
 	 * Cache resource shaders for cooking on the given shader platform.
@@ -1507,7 +1507,7 @@ private:
 	void CacheResourceShadersForCooking(EShaderPlatform Platform, TArray<FMaterialResource*>& OutCachedMaterialResources, const ITargetPlatform* TargetPlatform = nullptr);
 
 	/** Caches shader maps for an array of material resources. */
-	void CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, EMaterialShaderPrecompileMode PrecompileMode = EMaterialShaderPrecompileMode::Default, const ITargetPlatform* TargetPlatform = nullptr);
+	void CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, const ITargetPlatform* TargetPlatform = nullptr);
 
 #if WITH_EDITOR
 	/**

@@ -12,11 +12,8 @@
 FReply SVisualLoggerTimelineBar::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	TimelineOwner.Pin()->OnMouseButtonDown(MyGeometry, MouseEvent);
-	FReply Reply = TimeSliderController->OnMouseButtonDown(*this, MyGeometry, MouseEvent);
-	bool bHandleLeftMouseButton = MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton;
-
-	// Only snap to closest item for the left button. We keep right button to pan.
-	if (Reply.IsEventHandled() && bHandleLeftMouseButton)
+	FReply Replay = TimeSliderController->OnMouseButtonDown(*this, MyGeometry, MouseEvent);
+	if (Replay.IsEventHandled())
 	{
 		FName RowName = TimelineOwner.Pin()->GetName();
 		FVisualLoggerDBRow& DBRow = FVisualLoggerDatabase::Get().GetRowByName(RowName);
@@ -28,18 +25,15 @@ FReply SVisualLoggerTimelineBar::OnMouseButtonDown(const FGeometry& MyGeometry, 
 			TimeSliderController->CommitScrubPosition(Items[ClosestItem].Entry.TimeStamp, false);
 		}
 	}
-	return Reply;
+	return Replay;
 }
 
 FReply SVisualLoggerTimelineBar::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	TimelineOwner.Pin()->OnMouseButtonUp(MyGeometry, MouseEvent);
 
-	// Only snap to closest item for the left button. We keep right button to pan.
-	FReply Reply = TimeSliderController->OnMouseButtonUp(*this, MyGeometry, MouseEvent);
-	bool bHandleLeftMouseButton = MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton;
-
-	if (Reply.IsEventHandled() && bHandleLeftMouseButton)
+	FReply  Replay = TimeSliderController->OnMouseButtonUp(*this, MyGeometry, MouseEvent);
+	if (Replay.IsEventHandled())
 	{
 		FName RowName = TimelineOwner.Pin()->GetName();
 		FVisualLoggerDBRow& DBRow = FVisualLoggerDatabase::Get().GetRowByName(RowName);
@@ -51,7 +45,7 @@ FReply SVisualLoggerTimelineBar::OnMouseButtonUp(const FGeometry& MyGeometry, co
 			TimeSliderController->CommitScrubPosition(Items[ClosestItem].Entry.TimeStamp, false);
 		}
 	}
-	return Reply;
+	return Replay;
 }
 
 FReply SVisualLoggerTimelineBar::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)

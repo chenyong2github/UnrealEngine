@@ -6,7 +6,6 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "EdGraph/EdGraphPin.h"
-#include "EdGraphNode_Comment.h"
 #include "Layout/Margin.h"
 #include "GraphEditorSettings.generated.h"
 
@@ -322,12 +321,4 @@ public:
 	/** If a key press (default Tab) should open the create node context menu when the mouse is on top of blank areas of the graph (defaults to true) */
 	UPROPERTY(config, EditAnywhere, Category=ContextMenu)
 	bool bOpenCreateMenuOnBlankGraphAreas;
-
-/** Whether a comment node should move any fully enclosed nodes around when it is moved */
-	UPROPERTY(EditAnywhere, config, Category = CommentNodes)
-	TEnumAsByte<ECommentBoxMode::Type> DefaultCommentNodeMoveMode;
-
-	/** Whether to show a zoom-invariant comment bubble when zoomed out (making the comment node's text readable at any distance) */
-	UPROPERTY(EditAnywhere, config, Category = CommentNodes)
-	bool bShowCommentBubbleWhenZoomedOut;
 };

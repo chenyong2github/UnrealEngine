@@ -1132,7 +1132,7 @@ namespace HLODOutliner
 			FLODActorItem* ActorItem = (FLODActorItem*)(SelectedItem.Get());
 			ALODActor* LODActor = ActorItem->LODActor.Get();
 
-			AHierarchicalLODVolume* Volume = HierarchicalLODUtilities->CreateVolumeForLODActor(LODActor, nullptr);
+			AHierarchicalLODVolume* Volume = HierarchicalLODUtilities->CreateVolumeForLODActor(LODActor, CurrentWorld.Get());
 			check(Volume);
 		}		
 	}

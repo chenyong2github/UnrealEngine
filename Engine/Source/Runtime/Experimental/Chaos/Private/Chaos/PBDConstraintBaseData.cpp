@@ -7,7 +7,7 @@ namespace Chaos
 	FConstraintBase::FConstraintBase(EConstraintType InType)
 		: Type(InType)
 		, Proxy(nullptr)
-		, ConnectedParticleProxy({ nullptr, nullptr })
+		, Particles({ nullptr, nullptr })
 	{
 	}
 
@@ -28,5 +28,12 @@ namespace Chaos
 		}
 	}
 
-} // Chaos
+	FConstraintBase::FParticlePair FConstraintBase::GetParticles() { return Particles; }
+	const FConstraintBase::FParticlePair FConstraintBase::GetParticles() const { return Particles; }
+	void FConstraintBase::SetParticles(const Chaos::FConstraintBase::FParticlePair& InParticles)
+	{
+		Particles[0] = InParticles[0];
+		Particles[1] = InParticles[1];
+	}
 
+} // Chaos

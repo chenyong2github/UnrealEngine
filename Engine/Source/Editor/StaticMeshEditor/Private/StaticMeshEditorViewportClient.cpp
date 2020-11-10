@@ -310,9 +310,9 @@ void FStaticMeshEditorViewportClient::TrackingStarted( const struct FInputEventS
 			if (!TransText.IsEmpty())
 			{
 				GEditor->BeginTransaction(TransText);
-				if (StaticMesh->GetBodySetup())
+				if (StaticMesh->BodySetup)
 				{
-					StaticMesh->GetBodySetup()->Modify();
+					StaticMesh->BodySetup->Modify();
 				}
 			}
 		}
@@ -489,17 +489,17 @@ void FStaticMeshEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDraw
 
 	TSharedPtr<IStaticMeshEditor> StaticMeshEditor = StaticMeshEditorPtr.Pin();
 
-	if(!StaticMesh->GetRenderData() || !StaticMesh->GetRenderData()->LODResources.IsValidIndex(StaticMeshEditor->GetCurrentLODIndex()))
+	if(!StaticMesh->RenderData || !StaticMesh->RenderData->LODResources.IsValidIndex(StaticMeshEditor->GetCurrentLODIndex()))
 	{
 		// Guard against corrupted meshes
 		return;
 	}
 
 	// Draw simple shapes if we are showing simple, or showing complex but using simple as complex
-	if (StaticMesh->GetBodySetup() && (bShowSimpleCollision || (bShowComplexCollision && StaticMesh->GetBodySetup()->CollisionTraceFlag == ECollisionTraceFlag::CTF_UseSimpleAsComplex)))
+	if (StaticMesh->BodySetup && (bShowSimpleCollision || (bShowComplexCollision && StaticMesh->BodySetup->CollisionTraceFlag == ECollisionTraceFlag::CTF_UseSimpleAsComplex)))
 	{
 		// Ensure physics mesh is created before we try and draw it
-		StaticMesh->GetBodySetup()->CreatePhysicsMeshes();
+		StaticMesh->BodySetup->CreatePhysicsMeshes();
 
 		const FColor SelectedColor(20, 220, 20);
 		const FColor UnselectedColor(0, 125, 0);
@@ -507,7 +507,7 @@ void FStaticMeshEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDraw
 		const FVector VectorScaleOne(1.0f);
 
 		// Draw bodies
-		FKAggregateGeom* AggGeom = &StaticMesh->GetBodySetup()->AggGeom;
+		FKAggregateGeom* AggGeom = &StaticMesh->BodySetup->AggGeom;
 
 		for (int32 i = 0; i < AggGeom->SphereElems.Num(); ++i)
 		{
@@ -562,7 +562,7 @@ void FStaticMeshEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDraw
 		}
 	}
 
-	if (bShowComplexCollision && StaticMesh->ComplexCollisionMesh && StaticMesh->GetBodySetup()->CollisionTraceFlag != ECollisionTraceFlag::CTF_UseSimpleAsComplex)
+	if (bShowComplexCollision && StaticMesh->ComplexCollisionMesh && StaticMesh->BodySetup->CollisionTraceFlag != ECollisionTraceFlag::CTF_UseSimpleAsComplex)
 	{
 		const FColor SelectedColor(20, 20, 220);
 		const FColor UnselectedColor(0, 0, 125);
@@ -612,7 +612,7 @@ void FStaticMeshEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDraw
 
 	if( bDrawNormals || bDrawTangents || bDrawBinormals || bDrawVertices )
 	{
-		FStaticMeshLODResources& LODModel = StaticMesh->GetRenderData()->LODResources[StaticMeshEditor->GetCurrentLODIndex()];
+		FStaticMeshLODResources& LODModel = StaticMesh->RenderData->LODResources[StaticMeshEditor->GetCurrentLODIndex()];
 		FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
 		uint32 NumIndices = Indices.Num();
 
@@ -674,13 +674,13 @@ void FStaticMeshEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDraw
 			}
 		}
 
-		if (StaticMesh->GetNavCollision()
+		if (StaticMesh->NavCollision 
 			&& StaticMesh->bHasNavigationData)
 		{
 			// Draw the static mesh's body setup (simple collision)
 			FTransform GeomTransform(StaticMeshComponent->GetComponentTransform());
 			FColor NavCollisionColor = FColor(118, 84, 255, 255);
-			StaticMesh->GetNavCollision()->DrawSimpleGeom(PDI, GeomTransform, FColorList::LimeGreen);
+			StaticMesh->NavCollision->DrawSimpleGeom(PDI, GeomTransform, FColorList::LimeGreen);
 		}
 	}
 }
@@ -810,7 +810,7 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 	{
 		int32 LOD = StaticMeshEditor->GetCurrentLODLevel();
 		return (LOD == 0) ?
-			ComputeStaticMeshLOD(StaticMesh->GetRenderData(), StaticMeshComponent->Bounds.Origin, StaticMeshComponent->Bounds.SphereRadius, View, StaticMesh->MinLOD.Default)
+			ComputeStaticMeshLOD(StaticMesh->RenderData.Get(), StaticMeshComponent->Bounds.Origin, StaticMeshComponent->Bounds.SphereRadius, View, StaticMesh->MinLOD.Default)
 			:
 			LOD - 1;
 	}();
@@ -845,11 +845,11 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 	TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
 		FText::Format(NSLOCTEXT("UnrealEd", "UVChannels_F", "UV Channels:  {0}"), FText::AsNumber(StaticMeshEditorPtr.Pin()->GetNumUVChannels(CurrentLODLevel)))));
 
-	if(StaticMesh->GetRenderData() && StaticMesh->GetRenderData()->LODResources.Num() > 0 )
+	if(StaticMesh->RenderData && StaticMesh->RenderData->LODResources.Num() > 0 )
 	{
-		if (StaticMesh->GetRenderData()->LODResources[0].DistanceFieldData != nullptr )
+		if (StaticMesh->RenderData->LODResources[0].DistanceFieldData != nullptr )
 		{
-			const FDistanceFieldVolumeData& VolumeData = *(StaticMesh->GetRenderData()->LODResources[0].DistanceFieldData);
+			const FDistanceFieldVolumeData& VolumeData = *(StaticMesh->RenderData->LODResources[0].DistanceFieldData);
 
 			if (VolumeData.Size.GetMax() > 0)
 			{
@@ -884,10 +884,10 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 		FText::AsNumber(int32(StaticMesh->GetBounds().BoxExtent.Z * 2.0f)))));
 
 	// Show the number of collision primitives
-	if(StaticMesh->GetBodySetup())
+	if(StaticMesh->BodySetup)
 	{
 		TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
-			FText::Format(NSLOCTEXT("UnrealEd", "NumPrimitives_F", "Num Collision Primitives:  {0}"), FText::AsNumber(StaticMesh->GetBodySetup()->AggGeom.GetElementCount()))));
+			FText::Format(NSLOCTEXT("UnrealEd", "NumPrimitives_F", "Num Collision Primitives:  {0}"), FText::AsNumber(StaticMesh->BodySetup->AggGeom.GetElementCount()))));
 	}
 
 	if (StaticMeshComponent && StaticMeshComponent->SectionIndexPreview != INDEX_NONE)
@@ -901,13 +901,13 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
  	int32 Y = 30;
 	// Make sure draws to the canvas are not rendered upside down.
 	Canvas.SetAllowSwitchVerticalAxis(false);
-	if (StaticMesh->GetBodySetup() && (!(StaticMesh->GetBodySetup()->bHasCookedCollisionData || StaticMesh->GetBodySetup()->bNeverNeedsCookedCollisionData) || StaticMesh->GetBodySetup()->bFailedToCreatePhysicsMeshes))
+	if (StaticMesh->BodySetup && (!(StaticMesh->BodySetup->bHasCookedCollisionData || StaticMesh->BodySetup->bNeverNeedsCookedCollisionData) || StaticMesh->BodySetup->bFailedToCreatePhysicsMeshes))
 	{
 		static const FText Message = NSLOCTEXT("Renderer", "NoCookedCollisionObject", "NO COOKED COLLISION OBJECT: TOO SMALL?");
 		Canvas.DrawShadowedText(X, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 	}
 
-	if(bDrawUVs && StaticMesh->GetRenderData()->LODResources.Num() > 0)
+	if(bDrawUVs && StaticMesh->RenderData->LODResources.Num() > 0)
 	{
 		const int32 YPos = 160;
 		DrawUVsForMesh(Viewport, &Canvas, YPos);
@@ -919,11 +919,11 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 void FStaticMeshEditorViewportClient::DrawUVsForMesh(FViewport* InViewport, FCanvas* InCanvas, int32 InTextYPos )
 {
 	//use the overridden LOD level
-	const uint32 LODLevel = FMath::Clamp(StaticMeshComponent->ForcedLodModel - 1, 0, StaticMesh->GetRenderData()->LODResources.Num() - 1);
+	const uint32 LODLevel = FMath::Clamp(StaticMeshComponent->ForcedLodModel - 1, 0, StaticMesh->RenderData->LODResources.Num() - 1);
 
 	int32 UVChannel = StaticMeshEditorPtr.Pin()->GetCurrentUVChannel();
 
-	DrawUVs(InViewport, InCanvas, InTextYPos, LODLevel, UVChannel, SelectedEdgeTexCoords[UVChannel], StaticMeshComponent->GetStaticMesh()->GetRenderData(), NULL);
+	DrawUVs(InViewport, InCanvas, InTextYPos, LODLevel, UVChannel, SelectedEdgeTexCoords[UVChannel], StaticMeshComponent->GetStaticMesh()->RenderData.Get(), NULL);
 }
 
 void FStaticMeshEditorViewportClient::MouseMove(FViewport* InViewport,int32 x, int32 y)
@@ -991,7 +991,7 @@ void FStaticMeshEditorViewportClient::ProcessClick(class FSceneView& InView, cla
 
 			ClearSelectedSockets = false;
 		}
-		else if (HitProxy->IsA(HSMECollisionProxy::StaticGetType()) && StaticMesh->GetBodySetup())
+		else if (HitProxy->IsA(HSMECollisionProxy::StaticGetType()) && StaticMesh->BodySetup)
 		{
 			HSMECollisionProxy* CollisionProxy = (HSMECollisionProxy*)HitProxy;			
 
@@ -1029,7 +1029,7 @@ void FStaticMeshEditorViewportClient::ProcessClick(class FSceneView& InView, cla
 				TSharedPtr<IStaticMeshEditor> StaticMeshEditor = StaticMeshEditorPtr.Pin();
 				if (StaticMeshEditor.IsValid())
 				{
-					FStaticMeshLODResources& LODModel = StaticMesh->GetRenderData()->LODResources[StaticMeshEditor->GetCurrentLODIndex()];
+					FStaticMeshLODResources& LODModel = StaticMesh->RenderData->LODResources[StaticMeshEditor->GetCurrentLODIndex()];
 					FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
 					const uint32 Index = Indices[VertexProxy->Index];
 
@@ -1079,7 +1079,7 @@ void FStaticMeshEditorViewportClient::ProcessClick(class FSceneView& InView, cla
 				const uint32 LODLevel = FMath::Clamp( StaticMeshComponent->ForcedLodModel - 1, 0, StaticMeshComponent->GetStaticMesh()->GetNumLODs() - 1 );
 				if (StaticMeshComponent->GetStaticMesh()->HasValidRenderData(true, LODLevel))
 				{
-					FStaticMeshLODResources& RenderData = StaticMeshComponent->GetStaticMesh()->GetRenderData()->LODResources[LODLevel];
+					FStaticMeshLODResources& RenderData = StaticMeshComponent->GetStaticMesh()->RenderData->LODResources[LODLevel];
 
 					int32 NumBackFacingTriangles = 0;
 					uint32 IndexBufferIndex = 0;

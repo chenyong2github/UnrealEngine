@@ -143,7 +143,7 @@ UNiagaraDataInterfaceChaosDestruction::UNiagaraDataInterfaceChaosDestruction(FOb
 	Solvers.Reset();
 
 	Proxy.Reset(new FNiagaraDataInterfaceProxyChaosDestruction());
-	MarkRenderDataDirty();
+	PushToRenderThread();
 }
 
 void UNiagaraDataInterfaceChaosDestruction::PostInitProperties()
@@ -159,7 +159,7 @@ void UNiagaraDataInterfaceChaosDestruction::PostInitProperties()
 	LastSpawnedPointID = -1;
 	LastSpawnTime = -1.f;
 	TimeStampOfLastProcessedData = -1.f;
-	MarkRenderDataDirty();
+	PushToRenderThread();
 }
 
 void UNiagaraDataInterfaceChaosDestruction::PostLoad()
@@ -170,7 +170,7 @@ void UNiagaraDataInterfaceChaosDestruction::PostLoad()
 	LastSpawnTime = -1.f;
 	TimeStampOfLastProcessedData = -1.f;
 
-	MarkRenderDataDirty();
+	PushToRenderThread();
 }
 
 void UNiagaraDataInterfaceChaosDestruction::BeginDestroy()
@@ -274,7 +274,7 @@ void UNiagaraDataInterfaceChaosDestruction::PostEditChangeProperty(struct FPrope
 		}
 	}
 
-	MarkRenderDataDirty();
+	PushToRenderThread();
 }
 
 #endif
@@ -336,7 +336,7 @@ bool UNiagaraDataInterfaceChaosDestruction::CopyToInternal(UNiagaraDataInterface
 		DestinationChaosDestruction->LastSpawnTime = LastSpawnTime;
 		DestinationChaosDestruction->TimeStampOfLastProcessedData = TimeStampOfLastProcessedData;
 		DestinationChaosDestruction->SolverTime = SolverTime;
-		DestinationChaosDestruction->MarkRenderDataDirty();
+		DestinationChaosDestruction->PushToRenderThread();
 
 		return true;
 	}
@@ -3937,7 +3937,7 @@ static void SetBuffer(FRHICommandList& CmdList,
 	SetSRVParameter(CmdList, Shader, Param, Buffer.SRV);
 }
 
-void UNiagaraDataInterfaceChaosDestruction::PushToRenderThreadImpl()
+void UNiagaraDataInterfaceChaosDestruction::PushToRenderThread()
 {
 	check(Proxy);
 	FNiagaraDataInterfaceProxyChaosDestruction* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyChaosDestruction>();

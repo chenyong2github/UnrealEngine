@@ -3,27 +3,28 @@
 #include "InstallBundleManagerInterface.h"
 #include "InstallBundleManagerModule.h"
 
+FInstallBundleCompleteMultiDelegate IInstallBundleManager::InstallBundleUpdatedDelegate;
 FInstallBundleCompleteMultiDelegate IInstallBundleManager::InstallBundleCompleteDelegate;
 
 FInstallBundlePausedMultiDelegate IInstallBundleManager::PausedBundleDelegate;
 
 FInstallBundleReleasedMultiDelegate IInstallBundleManager::ReleasedDelegate;
+FInstallBundleReleasedMultiDelegate IInstallBundleManager::RemovedDelegate;
 
 FInstallBundleManagerOnPatchCheckComplete IInstallBundleManager::PatchCheckCompleteDelegate;
 
-TSharedPtr<IInstallBundleManager> IInstallBundleManager::GetPlatformInstallBundleManager()
+IInstallBundleManager* IInstallBundleManager::GetPlatformInstallBundleManager()
 {
-	static IInstallBundleManagerModule* Module = nullptr;
+	static IInstallBundleManager* Manager = nullptr;
 	static bool bCheckedIni = false;
 
-	if (Module)
-	{
-		return Module->GetInstallBundleManager();
-	}
+	if (Manager)
+		return Manager;
 
 	if (!bCheckedIni && !GEngineIni.IsEmpty())
 	{
 		FString ModuleName;
+		IInstallBundleManagerModule* Module = nullptr;
 #if WITH_EDITOR
 		GConfig->GetString(TEXT("InstallBundleManager"), TEXT("EditorModuleName"), ModuleName, GEngineIni);
 #else
@@ -33,17 +34,16 @@ TSharedPtr<IInstallBundleManager> IInstallBundleManager::GetPlatformInstallBundl
 		if (FModuleManager::Get().ModuleExists(*ModuleName))
 		{
 			Module = FModuleManager::LoadModulePtr<IInstallBundleManagerModule>(*ModuleName);
+			if (Module)
+			{
+				Manager = Module->GetInstallBundleManager();
+			}
 		}
 
 		bCheckedIni = true;
 	}
 
-	if (Module)
-	{
-		return Module->GetInstallBundleManager();
-	}
-
-	return {};
+	return Manager;
 }
 
 TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> IInstallBundleManager::RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags)
@@ -81,9 +81,9 @@ void IInstallBundleManager::CancelRequestRemoveContentOnNextInit(FName BundleNam
 	CancelRequestRemoveContentOnNextInit(MakeArrayView(&BundleName, 1));
 }
 
-void IInstallBundleManager::CancelUpdateContent(FName BundleName)
+void IInstallBundleManager::CancelUpdateContent(FName BundleName, EInstallBundleCancelFlags Flags)
 {
-	CancelUpdateContent(MakeArrayView(&BundleName, 1));
+	CancelUpdateContent(MakeArrayView(&BundleName, 1), Flags);
 }
 
 void IInstallBundleManager::PauseUpdateContent(FName BundleName)

@@ -596,11 +596,7 @@ void UNiagaraComponentPool::PooledComponentDestroyed(UNiagaraComponent* Componen
 
 void UNiagaraComponentPool::RemoveComponentsBySystem(UNiagaraSystem* System)
 {
-	if ( FNCPool* NCPool = WorldParticleSystemPools.Find(System) )
-	{
-		NCPool->Cleanup(true);
-		WorldParticleSystemPools.Remove(System);
-	}
+	WorldParticleSystemPools.Remove(System);
 }
 
 void UNiagaraComponentPool::Dump()

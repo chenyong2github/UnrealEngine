@@ -89,7 +89,7 @@ static FORCEINLINE bool UseShaderPipelines(ERHIFeatureLevel::Type InFeatureLevel
 }
 
 template <bool bPositionOnly, bool bUsesMobileColorValue>
-bool GetDepthPassShaders(
+void GetDepthPassShaders(
 	const FMaterial& Material,
 	FVertexFactoryType* VertexFactoryType,
 	ERHIFeatureLevel::Type FeatureLevel,
@@ -99,81 +99,74 @@ bool GetDepthPassShaders(
 	TShaderRef<FDepthOnlyPS<bUsesMobileColorValue>>& PixelShader,
 	FShaderPipelineRef& ShaderPipeline)
 {
-	FMaterialShaderTypes ShaderTypes;
-	ShaderTypes.AddShaderType<TDepthOnlyVS<bPositionOnly>>();
-
 	if (bPositionOnly && !bUsesMobileColorValue)
 	{
-		ShaderTypes.PipelineType = &DepthPosOnlyNoPixelPipeline;
-		/*ShaderPipeline = UseShaderPipelines(FeatureLevel) ? Material.GetShaderPipeline(&DepthPosOnlyNoPixelPipeline, VertexFactoryType) : FShaderPipelineRef();
+		ShaderPipeline = UseShaderPipelines(FeatureLevel) ? Material.GetShaderPipeline(&DepthPosOnlyNoPixelPipeline, VertexFactoryType) : FShaderPipelineRef();
 		VertexShader = ShaderPipeline.IsValid()
 			? ShaderPipeline.GetShader<TDepthOnlyVS<bPositionOnly> >()
-			: Material.GetShader<TDepthOnlyVS<bPositionOnly> >(VertexFactoryType, 0, false);
-		return VertexShader.IsValid();*/
+			: Material.GetShader<TDepthOnlyVS<bPositionOnly> >(VertexFactoryType);
 	}
 	else
 	{
 		const bool bNeedsPixelShader = bUsesMobileColorValue || !Material.WritesEveryPixel() || Material.MaterialUsesPixelDepthOffset() || Material.IsTranslucencyWritingCustomDepth();
-		if (bNeedsPixelShader)
-		{
-			ShaderTypes.AddShaderType<FDepthOnlyPS<bUsesMobileColorValue>>();
-		}
 
 		const EMaterialTessellationMode TessellationMode = Material.GetTessellationMode();
 		if (RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
 			&& VertexFactoryType->SupportsTessellationShaders() 
 			&& TessellationMode != MTM_NoTessellation)
 		{
-			ShaderTypes.AddShaderType<FDepthOnlyHS>();
-			ShaderTypes.AddShaderType<FDepthOnlyDS>();
-
-			/*ShaderPipeline = FShaderPipelineRef();
-			VertexShader = Material.GetShader<TDepthOnlyVS<bPositionOnly> >(VertexFactoryType, 0, false);
-			HullShader = Material.GetShader<FDepthOnlyHS>(VertexFactoryType, 0, false);
-			DomainShader = Material.GetShader<FDepthOnlyDS>(VertexFactoryType, 0, false);
+			ShaderPipeline = FShaderPipelineRef();
+			VertexShader = Material.GetShader<TDepthOnlyVS<bPositionOnly> >(VertexFactoryType);
+			HullShader = Material.GetShader<FDepthOnlyHS>(VertexFactoryType);
+			DomainShader = Material.GetShader<FDepthOnlyDS>(VertexFactoryType);
 			if (bNeedsPixelShader)
 			{
-				PixelShader = Material.GetShader<FDepthOnlyPS<bUsesMobileColorValue>>(VertexFactoryType, 0, false);
+				PixelShader = Material.GetShader<FDepthOnlyPS<bUsesMobileColorValue>>(VertexFactoryType);
 			}
-
-			return VertexShader.IsValid() && HullShader.IsValid() && DomainShader.IsValid() && (!bNeedsPixelShader || PixelShader.IsValid());*/
 		}
 		else
 		{
+			HullShader.Reset();
+			DomainShader.Reset();
+			bool bUseShaderPipelines = UseShaderPipelines(FeatureLevel);
 			if (bNeedsPixelShader)
 			{
 				if (bUsesMobileColorValue)
 				{
-					ShaderTypes.PipelineType = &DepthWithColorOutputPipeline;
+					ShaderPipeline = bUseShaderPipelines ? Material.GetShaderPipeline(&DepthWithColorOutputPipeline, VertexFactoryType, false) : FShaderPipelineRef();
 				}
 				else
 				{
-					ShaderTypes.PipelineType = &DepthNoColorOutputPipeline;
+					ShaderPipeline = bUseShaderPipelines ? Material.GetShaderPipeline(&DepthNoColorOutputPipeline, VertexFactoryType, false) : FShaderPipelineRef();
 				}
 			}
 			else
 			{
-				ShaderTypes.PipelineType = &DepthNoPixelPipeline;
+				ShaderPipeline = bUseShaderPipelines ? Material.GetShaderPipeline(&DepthNoPixelPipeline, VertexFactoryType, false) : FShaderPipelineRef();
+			}
+
+			if (ShaderPipeline.IsValid())
+			{
+				VertexShader = ShaderPipeline.GetShader<TDepthOnlyVS<bPositionOnly> >();
+				if (bNeedsPixelShader)
+				{
+					PixelShader = ShaderPipeline.GetShader<FDepthOnlyPS<bUsesMobileColorValue>>();
+				}
+			}
+			else
+			{
+				VertexShader = Material.GetShader<TDepthOnlyVS<bPositionOnly> >(VertexFactoryType);
+				if (bNeedsPixelShader)
+				{
+					PixelShader = Material.GetShader<FDepthOnlyPS<bUsesMobileColorValue>>(VertexFactoryType);
+				}
 			}
 		}
 	}
-
-	FMaterialShaders Shaders;
-	if (!Material.TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
-	{
-		return false;
-	}
-
-	Shaders.TryGetPipeline(ShaderPipeline);
-	Shaders.TryGetVertexShader(VertexShader);
-	Shaders.TryGetPixelShader(PixelShader);
-	Shaders.TryGetHullShader(HullShader);
-	Shaders.TryGetDomainShader(DomainShader);
-	return true;
 }
 
 #define IMPLEMENT_GetDepthPassShaders( bPositionOnly, bUsesMobileColorValue ) \
-	template bool GetDepthPassShaders< bPositionOnly, bUsesMobileColorValue >( \
+	template void GetDepthPassShaders< bPositionOnly, bUsesMobileColorValue >( \
 		const FMaterial& Material, \
 		FVertexFactoryType* VertexFactoryType, \
 		ERHIFeatureLevel::Type FeatureLevel, \
@@ -826,7 +819,7 @@ FMeshDrawCommandSortKey CalculateDepthPassMeshStaticSortKey(EBlendMode BlendMode
 }
 
 template<bool bPositionOnly>
-bool FDepthPassMeshProcessor::Process(
+void FDepthPassMeshProcessor::Process(
 	const FMeshBatch& RESTRICT MeshBatch,
 	uint64 BatchElementMask,
 	int32 StaticMeshId,
@@ -847,7 +840,7 @@ bool FDepthPassMeshProcessor::Process(
 
 	FShaderPipelineRef ShaderPipeline;
 
-	if (!GetDepthPassShaders<bPositionOnly, false>(
+	GetDepthPassShaders<bPositionOnly, false>(
 		MaterialResource,
 		VertexFactory->GetType(),
 		FeatureLevel,
@@ -855,10 +848,8 @@ bool FDepthPassMeshProcessor::Process(
 		DepthPassShaders.DomainShader,
 		DepthPassShaders.VertexShader,
 		DepthPassShaders.PixelShader,
-		ShaderPipeline))
-	{
-		return false;
-	}
+		ShaderPipeline
+		);
 
 	FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);
 
@@ -885,57 +876,6 @@ bool FDepthPassMeshProcessor::Process(
 		SortKey,
 		bPositionOnly ? EMeshPassFeatures::PositionOnly : EMeshPassFeatures::Default,
 		ShaderElementData);
-
-	return true;
-}
-
-bool FDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material)
-{
-	const EBlendMode BlendMode = Material.GetBlendMode();
-	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
-	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
-	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
-
-	bool bResult = true;
-	if (!bIsTranslucent
-		&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInDepthPass())
-		&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
-		&& ShouldIncludeMaterialInDefaultOpaquePass(Material))
-	{
-		if (BlendMode == BLEND_Opaque
-			&& EarlyZPassMode != DDM_MaskedOnly
-			&& MeshBatch.VertexFactory->SupportsPositionOnlyStream()
-			&& !Material.MaterialModifiesMeshPosition_RenderThread()
-			&& Material.WritesEveryPixel())
-		{
-			const FMaterialRenderProxy& DefaultProxy = *UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-			const FMaterial& DefaultMaterial = *DefaultProxy.GetMaterialNoFallback(FeatureLevel);
-			bResult = Process<true>(MeshBatch, BatchElementMask, StaticMeshId, BlendMode, PrimitiveSceneProxy, DefaultProxy, DefaultMaterial, MeshFillMode, MeshCullMode);
-		}
-		else
-		{
-			const bool bMaterialMasked = !Material.WritesEveryPixel() || Material.IsTranslucencyWritingCustomDepth();
-
-			if((!bMaterialMasked && EarlyZPassMode != DDM_MaskedOnly) || (bMaterialMasked && EarlyZPassMode != DDM_NonMaskedOnly))
-			{
-				const FMaterialRenderProxy* EffectiveMaterialRenderProxy = &MaterialRenderProxy;
-				const FMaterial* EffectiveMaterial = &Material;
-
-				if (!bMaterialMasked && !Material.MaterialModifiesMeshPosition_RenderThread())
-				{
-					// Override with the default material for opaque materials that are not two sided
-					EffectiveMaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-					EffectiveMaterial = EffectiveMaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
-					check(EffectiveMaterial);
-				}
-
-				bResult = Process<false>(MeshBatch, BatchElementMask, StaticMeshId, BlendMode, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode);
-			}
-		}
-	}
-
-	return bResult;
 }
 
 void FDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
@@ -969,19 +909,50 @@ void FDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 	if (bDraw)
 	{
 		// Determine the mesh's material and blend mode.
-		const FMaterialRenderProxy* MaterialRenderProxy = MeshBatch.MaterialRenderProxy;
-		while (MaterialRenderProxy)
+		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
+		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
+
+		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
+
+		const EBlendMode BlendMode = Material.GetBlendMode();
+		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
+		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
+		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+
+		if (!bIsTranslucent
+			&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInDepthPass())
+			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
+			&& ShouldIncludeMaterialInDefaultOpaquePass(Material))
 		{
-			const FMaterial* Material = MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
-			if (Material && Material->GetRenderingThreadShaderMap())
+			if (BlendMode == BLEND_Opaque
+				&& EarlyZPassMode != DDM_MaskedOnly
+				&& MeshBatch.VertexFactory->SupportsPositionOnlyStream()
+				&& !Material.MaterialModifiesMeshPosition_RenderThread()
+				&& Material.WritesEveryPixel())
 			{
-				if (TryAddMeshBatch(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, *MaterialRenderProxy, *Material))
+				const FMaterialRenderProxy& DefaultProxy = *UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+				const FMaterial& DefaultMaterial = *DefaultProxy.GetMaterial(FeatureLevel);
+				Process<true>(MeshBatch, BatchElementMask, StaticMeshId, BlendMode, PrimitiveSceneProxy, DefaultProxy, DefaultMaterial, MeshFillMode, MeshCullMode);
+			}
+			else
+			{
+				const bool bMaterialMasked = !Material.WritesEveryPixel() || Material.IsTranslucencyWritingCustomDepth();
+				if((!bMaterialMasked && EarlyZPassMode != DDM_MaskedOnly) || (bMaterialMasked && EarlyZPassMode != DDM_NonMaskedOnly))
 				{
-					break;
+					const FMaterialRenderProxy* EffectiveMaterialRenderProxy = &MaterialRenderProxy;
+					const FMaterial* EffectiveMaterial = &Material;
+
+					if (!bMaterialMasked && !Material.MaterialModifiesMeshPosition_RenderThread())
+					{
+						// Override with the default material for opaque materials that are not two sided
+						EffectiveMaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+						EffectiveMaterial = EffectiveMaterialRenderProxy->GetMaterial(FeatureLevel);
+					}
+
+					Process<false>(MeshBatch, BatchElementMask, StaticMeshId, BlendMode, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode);
 				}
 			}
-
-			MaterialRenderProxy = MaterialRenderProxy->GetFallback(FeatureLevel);
 		}
 	}
 }

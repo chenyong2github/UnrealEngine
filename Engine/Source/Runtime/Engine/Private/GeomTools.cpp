@@ -17,7 +17,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogGeomTools, Log, All);
 static FClipSMVertex GetVert(const UStaticMesh* StaticMesh, int32 VertIndex)
 {
 	FClipSMVertex Result;
-	const FStaticMeshLODResources& LODModel = StaticMesh->GetRenderData()->LODResources[0];
+	FStaticMeshLODResources& LODModel = StaticMesh->RenderData->LODResources[0];
 	Result.Pos = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(VertIndex);
 	Result.TangentX = LODModel.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(VertIndex);
 	Result.TangentY = LODModel.VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(VertIndex);
@@ -70,7 +70,7 @@ FClipSMVertex InterpolateVert(const FClipSMVertex& V0, const FClipSMVertex& V1, 
 /** Extracts the triangles from a static-mesh as clippable triangles. */
 void FGeomTools::GetClippableStaticMeshTriangles(TArray<FClipSMTriangle>& OutClippableTriangles,const UStaticMesh* StaticMesh)
 {
-	const FStaticMeshLODResources& RenderData = StaticMesh->GetRenderData()->LODResources[0];
+	const FStaticMeshLODResources& RenderData = StaticMesh->RenderData->LODResources[0];
 	FIndexArrayView Indices = RenderData.IndexBuffer.GetArrayView();
 	for(int32 SectionIndex = 0;SectionIndex < RenderData.Sections.Num();SectionIndex++)
 	{

@@ -89,7 +89,7 @@ void UPartyMember::InitializePartyMember(const FOnlinePartyMemberConstRef& InOss
 		bHasReceivedInitialData = IsLocalPlayer();
 
 		OnInitializationComplete().Add(OnInitComplete);
-		SocialUser->RegisterInitCompleteHandler(FOnNewSocialUserInitialized::CreateUObject(this, &UPartyMember::HandleSocialUserInitialized));
+		SocialUser->RegisterInitCompleteHandler(FOnNewSocialUserInitialized::FDelegate::CreateUObject(this, &UPartyMember::HandleSocialUserInitialized));
 
 		UE_LOG(LogParty, Verbose, TEXT("Created new party member [%s]"), *ToDebugString());
 	}

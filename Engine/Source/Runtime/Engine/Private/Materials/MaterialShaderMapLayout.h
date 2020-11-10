@@ -10,7 +10,6 @@ class FShaderType;
 class FShaderPipelineType;
 class FVertexFactoryType;
 struct FMaterialShaderParameters;
-enum class EShaderPermutationFlags : uint32;
 
 class FShaderLayoutEntry
 {
@@ -45,4 +44,4 @@ public:
 	FSHAHash ShaderMapHash;
 };
 
-const FMaterialShaderMapLayout& AcquireMaterialShaderMapLayout(EShaderPlatform Platform, EShaderPermutationFlags Flags, const FMaterialShaderParameters& MaterialParameters);
+const FMaterialShaderMapLayout& AcquireMaterialShaderMapLayout(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters);

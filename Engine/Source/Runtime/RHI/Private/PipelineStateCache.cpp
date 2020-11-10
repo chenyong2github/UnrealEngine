@@ -1333,8 +1333,6 @@ FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(
 {
 	LLM_SCOPE(ELLMTag::PSO);
 
-	checkf(OriginalInitializer.BoundShaderState.VertexShaderRHI, TEXT("GraphicsPipelineState must include a vertex shader"));
-
 	FGraphicsPipelineStateInitializer NewInitializer;
 	const FGraphicsPipelineStateInitializer* Initializer = &OriginalInitializer;
 

@@ -83,41 +83,30 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 	// stopping, etc.), we might see some blocking (immediate) evaluations running here.
 	//
 
+	for (auto WidgetIter = WeakUserWidgets.CreateIterator(); WidgetIter; ++WidgetIter)
 	{
-	#if STATS || ENABLE_STATNAMEDEVENTS
-		const bool bShouldTrackObject = Stats::IsThreadCollectingData();
-		FScopeCycleCounterUObject ContextScope(bShouldTrackObject ? this : nullptr);
-	#endif
-
-		for (auto WidgetIter = WeakUserWidgets.CreateIterator(); WidgetIter; ++WidgetIter)
+		UUserWidget* UserWidget = WidgetIter->Get();
+		if (!UserWidget)
 		{
-			UUserWidget* UserWidget = WidgetIter->Get();
-			if (!UserWidget)
-			{
-				WidgetIter.RemoveCurrent();
-			}
-			else if (!UserWidget->IsConstructed())
-			{
-				UserWidget->TearDownAnimations();
-				UserWidget->AnimationTickManager = nullptr;
+			WidgetIter.RemoveCurrent();
+		}
+		else if (!UserWidget->IsConstructed())
+		{
+			UserWidget->TearDownAnimations();
+			UserWidget->AnimationTickManager = nullptr;
 
-				WidgetIter.RemoveCurrent();
-			}
-			else
+			WidgetIter.RemoveCurrent();
+		}
+		else
+		{
+#if WITH_EDITOR
+			const bool bTickAnimations = !UserWidget->IsDesignTime();
+#else
+			const bool bTickAnimations = true;
+#endif
+			if (bTickAnimations && UserWidget->IsVisible())
 			{
-	#if STATS || ENABLE_STATNAMEDEVENTS
-				FScopeCycleCounterUObject WidgetContextScope(bShouldTrackObject ? UserWidget : nullptr);
-	#endif
-
-	#if WITH_EDITOR
-				const bool bTickAnimations = !UserWidget->IsDesignTime();
-	#else
-				const bool bTickAnimations = true;
-	#endif
-				if (bTickAnimations && UserWidget->IsVisible())
-				{
-					UserWidget->TickActionsAndAnimation(DeltaSeconds);
-				}
+				UserWidget->TickActionsAndAnimation(DeltaSeconds);
 			}
 		}
 	}
@@ -177,9 +166,9 @@ void UUMGSequenceTickManager::ClearLatentActions(UObject* Object)
 	LatentActionManager.ClearLatentActions(Object);
 }
 
-void UUMGSequenceTickManager::RunLatentActions()
+void UUMGSequenceTickManager::RunLatentActions(const UObject* Object, FMovieSceneEntitySystemRunner& InRunner)
 {
-	LatentActionManager.RunLatentActions(Runner);
+	LatentActionManager.RunLatentActions(InRunner, Object);
 }
 
 UUMGSequenceTickManager* UUMGSequenceTickManager::Get(UObject* PlaybackContext)

@@ -18,8 +18,8 @@ struct FVisualLoggerTimeSliderArgs
 
 	FVisualLoggerTimeSliderArgs()
 		: ScrubPosition(0)
-		, ViewRange(TRange<float>(0.0f, 5.0f))
-		, ClampRange(TRange<float>(0.0f, 5.0f))
+		, ViewRange( TRange<float>(0.0f, 5.0f) )
+		, ClampRange( TRange<float>(-FLT_MAX/2.f, FLT_MAX/2.f) )
 		, AllowZoom(true)
 		, CursorSize(0.05f)
 	{}

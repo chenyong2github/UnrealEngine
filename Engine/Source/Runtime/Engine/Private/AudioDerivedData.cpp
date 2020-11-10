@@ -838,17 +838,6 @@ int32 FStreamedAudioPlatformData::GetChunkFromDDC(int32 ChunkIndex, uint8** OutC
 			AsyncHandle = DDC.GetAsynchronous(*Chunk.DerivedDataKey, TEXT("Unknown SoundWave"_SV));
 		}
 	}
-	else if (Chunk.bLoadedFromCookedPackage)
-	{
-		if (Chunk.BulkData.IsBulkDataLoaded() || bMakeSureChunkIsLoaded)
-		{
-			if (OutChunkData)
-			{
-				ChunkDataSize = Chunk.BulkData.GetBulkDataSize();
-				Chunk.BulkData.GetCopy((void**)OutChunkData, true);
-			}
-		}
-	}
 
 	// Wait for async DDC to complete
 	// TODO: Not necessary since bMakeSureChunkIsLoaded was introduced. 

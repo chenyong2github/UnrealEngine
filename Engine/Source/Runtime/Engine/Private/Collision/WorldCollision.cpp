@@ -225,6 +225,19 @@ bool UWorld::OverlapAnyTestByObjectType(const FVector& Pos, const FQuat& Rot, co
 }
 
 // profile interfaces
+static void GetCollisionProfileChannelAndResponseParams(FName ProfileName, ECollisionChannel &CollisionChannel, FCollisionResponseParams &ResponseParams)
+{
+	if (UCollisionProfile::GetChannelAndResponseParams(ProfileName, CollisionChannel, ResponseParams))
+	{
+		return;
+	}
+
+	// No profile found
+	UE_LOG(LogPhysics, Warning, TEXT("COLLISION PROFILE [%s] is not found"), *ProfileName.ToString());
+
+	CollisionChannel = ECC_WorldStatic;
+	ResponseParams = FCollisionResponseParams::DefaultResponseParam;
+}
 
 bool UWorld::LineTraceTestByProfile(const FVector& Start, const FVector& End, FName ProfileName, const struct FCollisionQueryParams& Params) const
 {

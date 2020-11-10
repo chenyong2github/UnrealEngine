@@ -543,7 +543,7 @@ public:
  */
 
 template <typename LightMapPolicyType>
-bool GetBasePassShaders(
+void GetBasePassShaders(
 	const FMaterial& Material, 
 	FVertexFactoryType* VertexFactoryType, 
 	LightMapPolicyType LightMapPolicy, 
@@ -563,61 +563,41 @@ bool GetBasePassShaders(
 		&& VertexFactoryType->SupportsTessellationShaders() 
 		&& MaterialTessellationMode != MTM_NoTessellation;
 
-	FMaterialShaderTypes ShaderTypes;
 	if (bNeedsHSDS)
 	{
-		ShaderTypes.AddShaderType<TBasePassDS<LightMapPolicyType>>();
-		//DomainShader = Material.GetShader<TBasePassDS<LightMapPolicyType > >(VertexFactoryType, 0, false);
+		DomainShader = Material.GetShader<TBasePassDS<LightMapPolicyType > >(VertexFactoryType);
 		
 		// Metal requires matching permutations, but no other platform should worry about this complication.
 		if (bEnableAtmosphericFog && DomainShader.IsValid() && IsMetalPlatform(EShaderPlatform(DomainShader->GetTarget().Platform)))
 		{
-			ShaderTypes.AddShaderType<TBasePassHS<LightMapPolicyType, true>>();
-			//HullShader = Material.GetShader<TBasePassHS<LightMapPolicyType, true > >(VertexFactoryType, 0, false);
+			HullShader = Material.GetShader<TBasePassHS<LightMapPolicyType, true > >(VertexFactoryType);
 		}
 		else
 		{
-			ShaderTypes.AddShaderType<TBasePassHS<LightMapPolicyType, false>>();
-			//HullShader = Material.GetShader<TBasePassHS<LightMapPolicyType, false > >(VertexFactoryType, 0, false);
+			HullShader = Material.GetShader<TBasePassHS<LightMapPolicyType, false > >(VertexFactoryType);
 		}
 	}
 
 	if (bEnableAtmosphericFog)
 	{
-		ShaderTypes.AddShaderType<TBasePassVS<LightMapPolicyType, true>>();
-		//VertexShader = Material.GetShader<TBasePassVS<LightMapPolicyType, true> >(VertexFactoryType, 0, false);
+		VertexShader = Material.GetShader<TBasePassVS<LightMapPolicyType, true> >(VertexFactoryType);
 	}
 	else
 	{
-		ShaderTypes.AddShaderType<TBasePassVS<LightMapPolicyType, false>>();
-		//VertexShader = Material.GetShader<TBasePassVS<LightMapPolicyType, false> >(VertexFactoryType, 0, false);
+		VertexShader = Material.GetShader<TBasePassVS<LightMapPolicyType, false> >(VertexFactoryType);
 	}
 	if (bEnableSkyLight)
 	{
-		ShaderTypes.AddShaderType<TBasePassPS<LightMapPolicyType, true>>();
-		//PixelShader = Material.GetShader<TBasePassPS<LightMapPolicyType, true> >(VertexFactoryType, 0, false);
+		PixelShader = Material.GetShader<TBasePassPS<LightMapPolicyType, true> >(VertexFactoryType);
 	}
 	else
 	{
-		ShaderTypes.AddShaderType<TBasePassPS<LightMapPolicyType, false>>();
-		//PixelShader = Material.GetShader<TBasePassPS<LightMapPolicyType, false> >(VertexFactoryType, 0, false);
+		PixelShader = Material.GetShader<TBasePassPS<LightMapPolicyType, false> >(VertexFactoryType);
 	}
-
-	FMaterialShaders Shaders;
-	if (!Material.TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
-	{
-		return false;
-	}
-
-	Shaders.TryGetVertexShader(VertexShader);
-	Shaders.TryGetPixelShader(PixelShader);
-	Shaders.TryGetHullShader(HullShader);
-	Shaders.TryGetDomainShader(DomainShader);
-	return true;
 }
 
 template <>
-bool GetBasePassShaders<FUniformLightMapPolicy>(
+void GetBasePassShaders<FUniformLightMapPolicy>(
 	const FMaterial& Material, 
 	FVertexFactoryType* VertexFactoryType, 
 	FUniformLightMapPolicy LightMapPolicy, 
@@ -668,9 +648,7 @@ public:
 
 private:
 
-	bool TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material);
-
-	bool AddMeshBatchForSimpleForwardShading(
+	void AddMeshBatchForSimpleForwardShading(
 		const FMeshBatch& RESTRICT MeshBatch,
 		uint64 BatchElementMask,
 		int32 StaticMeshId,
@@ -686,7 +664,7 @@ private:
 		ERasterizerCullMode MeshCullMode);
 
 	template<typename LightMapPolicyType>
-	bool Process(
+	void Process(
 		const FMeshBatch& RESTRICT MeshBatch,
 		uint64 BatchElementMask,
 		int32 StaticMeshId,

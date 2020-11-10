@@ -54,7 +54,6 @@ void FPoseAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	/////////////////////////////////////////////////////////////////////////////////
 	IDetailCategoryBuilder& AnimationCategory = DetailBuilder.EditCategory("Animation");
 	RetargetSourceNameHandler = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPoseAsset, RetargetSource));
-	RetargetSourceAssetHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UAnimSequence, RetargetSourceAsset));
 
 	// first create profile combo list
 	RetargetSourceComboList.Empty();
@@ -111,35 +110,7 @@ void FPoseAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		]	
 	];
 
-	AnimationCategory.AddCustomRow(RetargetSourceAssetHandle->GetPropertyDisplayName())
-	.NameContent()
-	[
-		RetargetSourceAssetHandle->CreatePropertyNameWidget()
-	]
-	.ValueContent()
-	.HAlign(EHorizontalAlignment::HAlign_Fill)
-	[
-		SNew(SVerticalBox)
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(EHorizontalAlignment::HAlign_Left)
-		[
-			RetargetSourceAssetHandle->CreatePropertyValueWidget()
-		]
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(EHorizontalAlignment::HAlign_Left)
-		[
-			SNew(SButton)
-			.Text(LOCTEXT("UpdateRetargetSourceAssetDataButton", "Update"))
-			.ToolTipText(LOCTEXT("UpdateRetargetSourceAssetDataButtonToolTip", "Updates retargeting data for RetargetSourceAsset. This is updated automatically at save, but you can click here to update without saving."))
-			.Visibility(this, &FPoseAssetDetails::UpdateRetargetSourceAssetDataVisibility)
-			.OnClicked(this, &FPoseAssetDetails::UpdateRetargetSourceAssetData)
-		]
-	];
-
 	DetailBuilder.HideProperty(RetargetSourceNameHandler);
-	DetailBuilder.HideProperty(RetargetSourceAssetHandle);
 	/////////////////////////////////////////////////////////////////////////////
 	// Additive settings category
 	/////////////////////////////////////////////////////////////////////////////
@@ -559,25 +530,6 @@ void FPoseAssetDetails::CachePoseAssetData()
 	 }
 
 	 return RetargetSourceComboList[0];
- }
-
- EVisibility FPoseAssetDetails::UpdateRetargetSourceAssetDataVisibility() const
- {
-	 if (UPoseAsset* Pose = PoseAsset.Get())
-	 {
-		 if (!Pose->RetargetSourceAsset.IsNull())
-		 {
-			 return EVisibility::Visible;
-		 }
-	 }
-
-	 return EVisibility::Collapsed;
- }
-
- FReply FPoseAssetDetails::UpdateRetargetSourceAssetData()
- {
-	 RetargetSourceAssetHandle->NotifyPostChange();
-	 return FReply::Handled();
  }
 
  bool FPoseAssetDetails::CanApplySettings() const

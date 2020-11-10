@@ -467,7 +467,7 @@ void UParticleLODLevel::UpdateModuleLists()
 			UParticleSpriteEmitter* SpriteEmitter = Cast<UParticleSpriteEmitter>(GetOuter());
 			if (SpriteEmitter && (MeshTD->bOverrideMaterial == false))
 			{
-				FStaticMeshSection& Section = MeshTD->Mesh->GetRenderData()->LODResources[0].Sections[0];
+				FStaticMeshSection& Section = MeshTD->Mesh->RenderData->LODResources[0].Sections[0];
 				UMaterialInterface* Material = MeshTD->Mesh->GetMaterial(Section.MaterialIndex);
 				if (Material)
 				{
@@ -7561,7 +7561,7 @@ void UParticleLODLevel::GetUsedMaterials(TArray<UMaterialInterface*>& OutMateria
 
 		if (MeshTypeData && MeshTypeData->Mesh)
 		{
-			const FStaticMeshLODResources& LODModel = MeshTypeData->Mesh->GetRenderData()->LODResources[0];
+			const FStaticMeshLODResources& LODModel = MeshTypeData->Mesh->RenderData->LODResources[0];
 
 			// Gather the materials applied to the LOD.
 			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)

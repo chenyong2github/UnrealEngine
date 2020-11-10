@@ -545,7 +545,6 @@ void SNPWindow::PopulateFilteredDataView()
 					
 				}
 			}
-
 			check(PIESessionOptions.Num() > 0);
 			const uint64 FilteredPieSession = SelectedPIESession == -1 ? *PIESessionOptions.Last() : SelectedPIESession;
 
@@ -585,12 +584,20 @@ void SNPWindow::PopulateFilteredDataView()
 					SimMinEngineFrame = FMath::Min<uint64>(SimMinEngineFrame, SimData->Ticks[0].EngineFrame);
 					SimMaxEngineFrame = FMath::Max<uint64>(SimMinEngineFrame, SimData->Ticks[SimData->Ticks.Num()-1].EngineFrame);
 				}
-				
+				/*
+				if (SimData->EOFState.Num() > 0)
+				{
+					SimMinEngineFrame = FMath::Min<uint64>(SimMinEngineFrame, SimData->EOFState[0].EngineFrame);
+					SimMaxEngineFrame = FMath::Max<uint64>(SimMinEngineFrame, SimData->EOFState[SimData->EOFState.Num()-1].EngineFrame);
+				}
+				*/
+				/*
 				if (SimData->NetRecv.Num() > 0)
 				{
 					SimMinEngineFrame = FMath::Min<uint64>(SimMinEngineFrame, SimData->NetRecv[0].EngineFrame);
 					SimMaxEngineFrame = FMath::Max<uint64>(SimMinEngineFrame, SimData->NetRecv[SimData->NetRecv.Num()-1].EngineFrame);
 				}
+				*/
 
 				if (SimMaxEngineFrame < SimMinEngineFrame)
 				{

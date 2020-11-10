@@ -190,6 +190,8 @@ TMap<void*, int32> GFastPoolSizeMap;
 
 FORCEINLINE static void* FastParticleSmallBlockAlloc(size_t AllocSize)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_PARTALLOC);
+
 	if (GEnableFastPools)
 	{
 		FScopeLock S(&GFastPoolsCriticalSection);
@@ -3811,7 +3813,7 @@ void FParticleMeshEmitterInstance::GetMeshMaterials(
 {
 	if (MeshTypeData && MeshTypeData->Mesh)
 	{
-		const FStaticMeshLODResources& LODModel = MeshTypeData->Mesh->GetRenderData()->LODResources[0];
+		const FStaticMeshLODResources& LODModel = MeshTypeData->Mesh->RenderData->LODResources[0];
 
 		// Gather the materials applied to the LOD.
 		for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)

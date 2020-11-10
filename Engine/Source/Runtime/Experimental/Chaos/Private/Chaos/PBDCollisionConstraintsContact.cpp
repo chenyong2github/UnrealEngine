@@ -94,8 +94,8 @@ namespace Chaos
 			, const FVec3& VectorToPoint2
 			, const TPBDRigidParticleHandle<FReal, 3>* PBDRigid0
 			, const TPBDRigidParticleHandle<FReal, 3>* PBDRigid1
-			, bool bIsInfiniteMass0
-			, bool bIsInfiniteMass1
+			, bool bIsRigidDynamic0
+			, bool bIsRigidDynamic1
 			, const FRotation3& Q0
 			, const FRotation3& Q1
 			, const FMatrix33& WorldSpaceInvI1
@@ -107,21 +107,21 @@ namespace Chaos
 			FReal NormalVelocityChange = FVec3::DotProduct(ContactVelocityChange, ContactNormal);
 			FVec3 FinalAngularVelocity = FMath::Sign(AngularNormal) * FMath::Max((FReal)0, FMath::Abs(AngularNormal) - AngularFriction * NormalVelocityChange) * ContactNormal + FMath::Max((FReal)0, AngularTangent.Size() - AngularFriction * NormalVelocityChange) * AngularTangent.GetSafeNormal();
 			FVec3 Delta = FinalAngularVelocity - RelativeAngularVelocity;
-			if (bIsInfiniteMass0 && !bIsInfiniteMass1)
+			if (!bIsRigidDynamic0 && bIsRigidDynamic1)
 			{
 				FMatrix33 WorldSpaceI2 = Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->I());
 				FVec3 ImpulseDelta = PBDRigid1->M() * FVec3::CrossProduct(VectorToPoint2, Delta);
 				Impulse += ImpulseDelta;
 				AngularImpulse += WorldSpaceI2 * Delta - FVec3::CrossProduct(VectorToPoint2, ImpulseDelta);
 			}
-			else if (!bIsInfiniteMass0 && bIsInfiniteMass1)
+			else if (bIsRigidDynamic0 && !bIsRigidDynamic1)
 			{
 				FMatrix33 WorldSpaceI1 = Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->I());
 				FVec3 ImpulseDelta = PBDRigid0->M() * FVec3::CrossProduct(VectorToPoint1, Delta);
 				Impulse += ImpulseDelta;
 				AngularImpulse += WorldSpaceI1 * Delta - FVec3::CrossProduct(VectorToPoint1, ImpulseDelta);
 			}
-			else if (!bIsInfiniteMass0 && !bIsInfiniteMass1)
+			else if (bIsRigidDynamic0 && bIsRigidDynamic1)
 			{
 				FMatrix33 Cross1(0, VectorToPoint1.Z, -VectorToPoint1.Y, -VectorToPoint1.Z, 0, VectorToPoint1.X, VectorToPoint1.Y, -VectorToPoint1.X, 0);
 				FMatrix33 Cross2(0, VectorToPoint2.Z, -VectorToPoint2.Y, -VectorToPoint2.Z, 0, VectorToPoint2.X, VectorToPoint2.Y, -VectorToPoint2.X, 0);
@@ -207,11 +207,6 @@ namespace Chaos
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
 
-			const bool bOneWayInteraction0 = bIsRigidDynamic0 && PBDRigid0->OneWayInteraction();
-			const bool bOneWayInteraction1 = bIsRigidDynamic1 && PBDRigid1->OneWayInteraction();
-			const bool bInfiniteMass0 = !bIsRigidDynamic0 || (!bOneWayInteraction0 && bOneWayInteraction1);
-			const bool bInfiniteMass1 = !bIsRigidDynamic1 || (bOneWayInteraction0 && !bOneWayInteraction1);
-
 			const FVec3 ZeroVector = FVec3(0);
 
 			const FVec3 VectorToPoint1 = Contact.Location - P0;
@@ -221,13 +216,11 @@ namespace Chaos
 			const FVec3 RelativeVelocity = Body1Velocity - Body2Velocity;  // Do not early out on negative normal velocity since there can still be an accumulated impulse
 			*IterationParameters.NeedsAnotherIteration = true;
 
-			const FMatrix33 WorldSpaceInvI1 = !bInfiniteMass0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
-			const FMatrix33 WorldSpaceInvI2 = !bInfiniteMass1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
-			const FReal InvM1 = !bInfiniteMass0 ? PBDRigid0->InvM() : 0.f;
-			const FReal InvM2 = !bInfiniteMass1 ? PBDRigid1->InvM() : 0.f;
+			const FMatrix33 WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
+			const FMatrix33 WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
 			const FMatrix33 Factor =
-			    (!bInfiniteMass0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, InvM1) : FMatrix33(0)) +
-			    (!bInfiniteMass1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, InvM2) : FMatrix33(0));
+				(bIsRigidDynamic0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : FMatrix33(0)) +
+				(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : FMatrix33(0));
 			FVec3 AngularImpulse(0);
 
 			FReal RelativeNormalVelocityForRestitution = FVec3::DotProduct(RelativeVelocity, Contact.Normal); // Relative velocity in direction of the normal as used by restitution
@@ -305,8 +298,8 @@ namespace Chaos
 								VectorToPoint2,
 								PBDRigid0,
 								PBDRigid1,
-								bInfiniteMass0,
-								bInfiniteMass1,
+								bIsRigidDynamic0,
+								bIsRigidDynamic1,
 								Q0,
 								Q1,
 								WorldSpaceInvI1,
@@ -360,22 +353,22 @@ namespace Chaos
 			DV0 = FVec3(0);
 			DW0 = FVec3(0);
 
-			if (!bInfiniteMass0)
+			if (bIsRigidDynamic0)
 			{
 				// Velocity update for next step
 				const FVec3 NetAngularImpulse = FVec3::CrossProduct(VectorToPoint1, OutDeltaImpulse) + AngularImpulse;
-				DV0 = InvM1 * OutDeltaImpulse;
+				DV0 = PBDRigid0->InvM() * OutDeltaImpulse;
 				DW0 = WorldSpaceInvI1 * NetAngularImpulse;
 			}
 
 			DV1 = FVec3(0);
 			DW1 = FVec3(0);
 
-			if (!bInfiniteMass1)
+			if (bIsRigidDynamic1)
 			{
 				// Velocity update for next step
 				const FVec3 NetAngularImpulse = FVec3::CrossProduct(VectorToPoint2, -OutDeltaImpulse) - AngularImpulse;
-				DV1 = -InvM2 * OutDeltaImpulse;
+				DV1 = -PBDRigid1->InvM() * OutDeltaImpulse;
 				DW1 = WorldSpaceInvI2 * NetAngularImpulse;
 			}
 
@@ -453,10 +446,6 @@ namespace Chaos
 
 			bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
 			bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
-			const bool bOneWayInteraction0 = bIsRigidDynamic0 && PBDRigid0->OneWayInteraction();
-			const bool bOneWayInteraction1 = bIsRigidDynamic1 && PBDRigid1->OneWayInteraction();
-			const bool bInfiniteMass0 = !bIsRigidDynamic0 || (!bOneWayInteraction0 && bOneWayInteraction1);
-			const bool bInfiniteMass1 = !bIsRigidDynamic1 || (bOneWayInteraction0 && !bOneWayInteraction1);
 
 			const FVec3 ZeroVector = FVec3(0);
 			FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
@@ -488,13 +477,11 @@ namespace Chaos
 			{
 				*IterationParameters.NeedsAnotherIteration = true;
 
-				FMatrix33 WorldSpaceInvI1 = !bInfiniteMass0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
-				FMatrix33 WorldSpaceInvI2 = !bInfiniteMass1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
-				FReal InvM1 = !bInfiniteMass0 ? PBDRigid0->InvM() : 0.f;
-				FReal InvM2 = !bInfiniteMass1 ? PBDRigid1->InvM() : 0.f;
+				FMatrix33 WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
+				FMatrix33 WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
 				FMatrix33 Factor =
-				    (!bInfiniteMass0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, InvM1) : FMatrix33(0)) +
-				    (!bInfiniteMass1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, InvM2) : FMatrix33(0));
+					(bIsRigidDynamic0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : FMatrix33(0)) +
+					(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : FMatrix33(0));
 				FVec3 Impulse;
 				FVec3 AngularImpulse(0);
 				
@@ -525,8 +512,8 @@ namespace Chaos
 								VectorToPoint2,
 								PBDRigid0,
 								PBDRigid1,
-								bInfiniteMass0,
-								bInfiniteMass1,
+								bIsRigidDynamic0,
+								bIsRigidDynamic1,
 								Q0,
 								Q1,
 								WorldSpaceInvI1,
@@ -583,7 +570,7 @@ namespace Chaos
 				{
 					// Velocity update for next step
 					FVec3 NetAngularImpulse = FVec3::CrossProduct(VectorToPoint1, Impulse) + AngularImpulse;
-					FVec3 DV = InvM1 * Impulse;
+					FVec3 DV = PBDRigid0->InvM() * Impulse;
 					FVec3 DW = WorldSpaceInvI1 * NetAngularImpulse;
 					PBDRigid0->V() += DV;
 					PBDRigid0->W() += DW;
@@ -597,7 +584,7 @@ namespace Chaos
 				{
 					// Velocity update for next step
 					FVec3 NetAngularImpulse = FVec3::CrossProduct(VectorToPoint2, -Impulse) - AngularImpulse;
-					FVec3 DV = -InvM2 * Impulse;
+					FVec3 DV = -PBDRigid1->InvM() * Impulse;
 					FVec3 DW = WorldSpaceInvI2 * NetAngularImpulse;
 					PBDRigid1->V() += DV;
 					PBDRigid1->W() += DW;
@@ -623,10 +610,6 @@ namespace Chaos
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
 			bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
 			bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
-			const bool bOneWayInteraction0 = bIsRigidDynamic0 && PBDRigid0->OneWayInteraction();
-			const bool bOneWayInteraction1 = bIsRigidDynamic1 && PBDRigid1->OneWayInteraction();
-			const bool bInfiniteMass0 = !bIsRigidDynamic0 || (!bOneWayInteraction0 && bOneWayInteraction1);
-			const bool bInfiniteMass1 = !bIsRigidDynamic1 || (bOneWayInteraction0 && !bOneWayInteraction1);
 
 //#if INTEL_ISPC
 //			if (bChaos_Collision_ISPC_Enabled)
@@ -713,13 +696,13 @@ namespace Chaos
 					}
 				}
 			
-				FReal InvM0 = !bInfiniteMass0 ? PBDRigid0->InvM() : 0.0f;
-				FReal InvM1 = !bInfiniteMass1 ? PBDRigid1->InvM() : 0.0f;
-				FMatrix33 InvI0 = !bInfiniteMass0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
-				FMatrix33 InvI1 = !bInfiniteMass1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
+				FReal InvM0 = bIsRigidDynamic0 ? PBDRigid0->InvM() : 0.0f;
+				FReal InvM1 = bIsRigidDynamic1 ? PBDRigid1->InvM() : 0.0f;
+				FMatrix33 InvI0 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
+				FMatrix33 InvI1 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
 				FMatrix33 ContactInvI =
-				    (!bInfiniteMass0 ? ComputeFactorMatrix3(VectorToPoint0, InvI0, InvM0) : FMatrix33(0)) +
-				    (!bInfiniteMass1 ? ComputeFactorMatrix3(VectorToPoint1, InvI1, InvM1) : FMatrix33(0));
+					(bIsRigidDynamic0 ? ComputeFactorMatrix3(VectorToPoint0, InvI0, InvM0) : FMatrix33(0)) +
+					(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint1, InvI1, InvM1) : FMatrix33(0));
 
 				// Calculate the normal correction
 				FVec3 NormalError = Contact.Phi * Contact.Normal;
@@ -931,14 +914,8 @@ namespace Chaos
 		{
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
-			const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
-			const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
-
-			const bool bOneWayInteraction0 = bIsRigidDynamic0 && PBDRigid0->OneWayInteraction();
-			const bool bOneWayInteraction1 = bIsRigidDynamic1 && PBDRigid1->OneWayInteraction();
-			const bool bInfiniteMass0 = !bIsRigidDynamic0 || (!bOneWayInteraction0 && bOneWayInteraction1);
-			const bool bInfiniteMass1 = !bIsRigidDynamic1 || (bOneWayInteraction0 && !bOneWayInteraction1);
-
+			const bool bIsRigidDynamic0 = PBDRigid0 && (PBDRigid0->ObjectState() == EObjectStateType::Dynamic);
+			const bool bIsRigidDynamic1 = PBDRigid1 && (PBDRigid1->ObjectState() == EObjectStateType::Dynamic);
 			bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0->GeometryParticleHandle());
 			bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1->GeometryParticleHandle());
 			// In the case of two objects which are at the same level in shock propagation which end
@@ -951,7 +928,7 @@ namespace Chaos
 				IsTemporarilyStatic1 = false;
 			}
 
-			if ((bInfiniteMass0 || IsTemporarilyStatic0) && (bInfiniteMass1 || IsTemporarilyStatic1))
+			if ((!bIsRigidDynamic0 || IsTemporarilyStatic0) && (!bIsRigidDynamic1 || IsTemporarilyStatic1))
 			{
 				return;
 			}
@@ -980,26 +957,27 @@ namespace Chaos
 					AccumulatedImpulse,
 					DV0, DW0, DV1, DW1);
 
-				if (!bInfiniteMass0)
+				if (bIsRigidDynamic0)
 				{
 					PBDRigid0->V() += DV0;
 					PBDRigid0->W() += DW0;
 				}
-				if (!bInfiniteMass1)
+				if (bIsRigidDynamic1)
 				{
 					PBDRigid1->V() += DV1;
 					PBDRigid1->W() += DW1;
 				}
 			}
 
-			FMatrix33 WorldSpaceInvI1 = !bInfiniteMass0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
-			FMatrix33 WorldSpaceInvI2 = !bInfiniteMass1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
+
+			FMatrix33 WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
+			FMatrix33 WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
 			
 			FVec3 VectorToPoint1 = Contact.Location - P0;
 			FVec3 VectorToPoint2 = Contact.Location - P1;
 			FMatrix33 Factor =
-				(!bInfiniteMass0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : FMatrix33(0)) +
-				(!bInfiniteMass1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : FMatrix33(0));
+				(bIsRigidDynamic0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : FMatrix33(0)) +
+				(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : FMatrix33(0));
 			
 			const FVec3  Error = -Contact.Phi * Contact.Normal;
 			const FVec3 DeltaImpulseDt = FMatrix33(Factor.Inverse()) * Error;
@@ -1013,7 +991,7 @@ namespace Chaos
 
 			FVec3 AngularImpulse1 = FVec3::CrossProduct(VectorToPoint1, ClippedDeltaImpulseDt);
 			FVec3 AngularImpulse2 = FVec3::CrossProduct(VectorToPoint2, -ClippedDeltaImpulseDt);
-			if (!IsTemporarilyStatic0 && !bInfiniteMass0)
+			if (!IsTemporarilyStatic0 && bIsRigidDynamic0)
 			{
 				const FVec3 Correction = PBDRigid0->InvM() * ClippedDeltaImpulseDt;
 				P0 += Correction;
@@ -1021,7 +999,7 @@ namespace Chaos
 				Q0.Normalize();
 				FParticleUtilities::SetCoMWorldTransform(Particle0, P0, Q0);
 			}
-			if (!IsTemporarilyStatic1 && !bInfiniteMass1)
+			if (!IsTemporarilyStatic1 && bIsRigidDynamic1)
 			{
 				P1 -= PBDRigid1->InvM() * ClippedDeltaImpulseDt;
 				Q1 = FRotation3::FromVector(WorldSpaceInvI2 * AngularImpulse2) * Q1;
@@ -1055,10 +1033,6 @@ namespace Chaos
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
 			const bool bIsRigidDynamic0 = PBDRigid0 && (PBDRigid0->ObjectState() == EObjectStateType::Dynamic) && !IsTemporarilyStatic0;
 			const bool bIsRigidDynamic1 = PBDRigid1 && (PBDRigid1->ObjectState() == EObjectStateType::Dynamic) && !IsTemporarilyStatic1;
-			const bool bOneWayInteraction0 = bIsRigidDynamic0 && PBDRigid0->OneWayInteraction();
-			const bool bOneWayInteraction1 = bIsRigidDynamic1 && PBDRigid1->OneWayInteraction();
-			const bool bInfiniteMass0 = !bIsRigidDynamic0 || (!bOneWayInteraction0 && bOneWayInteraction1);
-			const bool bInfiniteMass1 = !bIsRigidDynamic1 || (bOneWayInteraction0 && !bOneWayInteraction1);
 
 			const FVec3 ZeroVector = FVec3(0);
 			FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
@@ -1076,15 +1050,13 @@ namespace Chaos
 				return AccumulatedImpulse;
 			}
 
-			FMatrix33 WorldSpaceInvI1 = !bInfiniteMass0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
-			FMatrix33 WorldSpaceInvI2 = !bInfiniteMass1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
-			FReal InvM1 = !bInfiniteMass0 ? PBDRigid0->InvM() : 0.f;
-			FReal InvM2 = !bInfiniteMass1 ? PBDRigid1->InvM() : 0.f;
+			FMatrix33 WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
+			FMatrix33 WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
 			FVec3 VectorToPoint1 = Contact.Location - P0;
 			FVec3 VectorToPoint2 = Contact.Location - P1;
 			FMatrix33 Factor =
-			    (!bInfiniteMass0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, InvM1) : FMatrix33(0)) +
-			    (!bInfiniteMass1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, InvM2) : FMatrix33(0));
+				(bIsRigidDynamic0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : FMatrix33(0)) +
+				(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : FMatrix33(0));
 			FReal Numerator = FMath::Min((FReal)(IterationParameters.Iteration + 2), (FReal)IterationParameters.NumIterations);
 			FReal ScalingFactor = Numerator / (FReal)IterationParameters.NumIterations;
 
@@ -1096,11 +1068,11 @@ namespace Chaos
 			if (RelativeVelocityDotNormal < 0)
 			{
 				*IterationParameters.NeedsAnotherIteration = true;
-			
+
 				const FVec3 ImpulseNumerator = -FVec3::DotProduct(RelativeVelocity, Contact.Normal) * Contact.Normal * ScalingFactor;
 				const FVec3 FactorContactNormal = Factor * Contact.Normal;
 				FReal ImpulseDenominator = FVec3::DotProduct(Contact.Normal, FactorContactNormal);
-				if (!ensureMsgf(FMath::Abs(ImpulseDenominator) > SMALL_NUMBER, 
+				if (!ensureMsgf(FMath::Abs(ImpulseDenominator) > SMALL_NUMBER,
 					TEXT("ApplyPushout Contact:%s\n\nParticle:%s\n\nLevelset:%s\n\nFactor*Contact.Normal:%s, ImpulseDenominator:%f"),
 					*Contact.ToString(),
 					*Particle0->ToString(),
@@ -1119,7 +1091,7 @@ namespace Chaos
 				if (bIsRigidDynamic0)
 				{
 					FVec3 AngularImpulse = FVec3::CrossProduct(VectorToPoint1, VelocityFixImpulse);
-					PBDRigid0->V() += InvM1 * VelocityFixImpulse;
+					PBDRigid0->V() += PBDRigid0->InvM() * VelocityFixImpulse;
 					PBDRigid0->W() += WorldSpaceInvI1 * AngularImpulse;
 
 				}
@@ -1127,7 +1099,7 @@ namespace Chaos
 				if (bIsRigidDynamic1)
 				{
 					FVec3 AngularImpulse = FVec3::CrossProduct(VectorToPoint2, -VelocityFixImpulse);
-					PBDRigid1->V() -= InvM2 * VelocityFixImpulse;
+					PBDRigid1->V() -= PBDRigid1->InvM() * VelocityFixImpulse;
 					PBDRigid1->W() += WorldSpaceInvI2 * AngularImpulse;
 				}
 
@@ -1139,14 +1111,14 @@ namespace Chaos
 			FVec3 AngularImpulse2 = FVec3::CrossProduct(VectorToPoint2, -Impulse);
 			if (bIsRigidDynamic0)
 			{
-				P0 += InvM1 * Impulse;
+				P0 += PBDRigid0->InvM() * Impulse;
 				Q0 = FRotation3::FromVector(WorldSpaceInvI1 * AngularImpulse1) * Q0;
 				Q0.Normalize();
 				FParticleUtilities::SetCoMWorldTransform(Particle0, P0, Q0);
 			}
 			if (bIsRigidDynamic1)
 			{
-				P1 -= InvM2 * Impulse;
+				P1 -= PBDRigid1->InvM() * Impulse;
 				Q1 = FRotation3::FromVector(WorldSpaceInvI2 * AngularImpulse2) * Q1;
 				Q1.Normalize();
 				FParticleUtilities::SetCoMWorldTransform(Particle1, P1, Q1);

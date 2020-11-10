@@ -93,12 +93,14 @@ public:
 	FORCEINLINE FGCScopeLock()
 		: bPreviousGabageCollectingFlagValue(GIsGarbageCollecting)
 	{
+		void LockUObjectHashTables();
 		LockUObjectHashTables();
 		GIsGarbageCollecting = true;
 	}
 	FORCEINLINE ~FGCScopeLock()
 	{
 		GIsGarbageCollecting = bPreviousGabageCollectingFlagValue;
+		void UnlockUObjectHashTables();
 		UnlockUObjectHashTables();
 	}
 };

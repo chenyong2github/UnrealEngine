@@ -318,7 +318,7 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 #endif
 
 	    MinLOD = Mesh->MinLOD.GetValue();
-	    CachedLODIdx = Mesh->GetRenderData()->GetCurrentFirstLODIdx(MinLOD);
+	    CachedLODIdx = Mesh->RenderData->GetCurrentFirstLODIdx(MinLOD);
 
 		bMeshAllowsCpuAccess = Mesh->bAllowCPUAccess;
 		bIsCpuUniformlyDistributedSampling = Mesh->bSupportUniformlyDistributedSampling;
@@ -423,7 +423,7 @@ bool FNDIStaticMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceStaticMesh*
 	{
 		// Currently we only reset if the cached LOD was streamed out, to avoid performance hits. To revisit.
 		// We could probably just recache the data derived from the LOD instead of resetting everything.
-		if (Mesh->GetRenderData()->GetCurrentFirstLODIdx(MinLOD) > CachedLODIdx)
+		if (Mesh->RenderData->GetCurrentFirstLODIdx(MinLOD) > CachedLODIdx)
 		{
 			return true;
 		}

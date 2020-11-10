@@ -463,6 +463,56 @@ void FGroupTopology::CollectGroupBoundaryVertices(int GroupID, TSet<int>& Vertic
 
 
 
+
+
+void FGroupTopology::ForGroupEdges(int GroupID,
+	const TFunction<void(const FGroupEdge& Edge, int EdgeIndex)>& EdgeFunc) const
+{
+	const FGroup* Group = FindGroupByID(GroupID);
+	ensure(Group != nullptr);
+	if (Group != nullptr)
+	{
+		for (const FGroupBoundary& Boundary : Group->Boundaries)
+		{
+			for (int EdgeIndex : Boundary.GroupEdges)
+			{
+				EdgeFunc(Edges[EdgeIndex], EdgeIndex);
+			}
+		}
+	}
+}
+
+
+
+void FGroupTopology::ForGroupSetEdges(const TArray<int>& GroupIDs,
+	const TFunction<void(const FGroupEdge& Edge, int EdgeIndex)>& EdgeFunc) const
+{
+	TArray<int> DoneEdges;
+
+	for (int GroupID : GroupIDs)
+	{
+		const FGroup* Group = FindGroupByID(GroupID);
+		ensure(Group != nullptr);
+		if (Group != nullptr)
+		{
+			for (const FGroupBoundary& Boundary : Group->Boundaries)
+			{
+				for (int EdgeIndex : Boundary.GroupEdges)
+				{
+					if (DoneEdges.Contains(EdgeIndex) == false)
+					{
+						EdgeFunc(Edges[EdgeIndex], EdgeIndex);
+						DoneEdges.Add(EdgeIndex);
+					}
+				}
+			}
+		}
+	}
+}
+
+
+
+
 bool FGroupTopology::ExtractGroupEdges(FGroup& Group)
 {
 	FMeshRegionBoundaryLoops BdryLoops(Mesh, Group.Triangles, true);
@@ -651,18 +701,17 @@ FFrame3d FGroupTopology::GetSelectionFrame(const FGroupTopologySelection& Select
 	FFrame3d StartFrame = (InitialLocalFrame) ? (*InitialLocalFrame) : FFrame3d();
 	if (NumEdges == 1)
 	{
-		int32 EdgeID = Selection.GetASelectedEdgeID();
 		FVector3d Tangent;
-		if (GetGroupEdgeTangent(EdgeID, Tangent))
+		if (GetGroupEdgeTangent(Selection.SelectedEdgeIDs[0], Tangent))
 		{
 			StartFrame.ConstrainedAlignAxis(0, Tangent, StartFrame.Z());
 		}
-		StartFrame.Origin = GetEdgeMidpoint(EdgeID);
+		StartFrame.Origin = GetEdgeMidpoint(Selection.SelectedEdgeIDs[0]);
 		return StartFrame;
 	}
 	if (NumCorners == 1)
 	{
-		StartFrame.Origin = Mesh->GetVertex(Corners[Selection.GetASelectedCornerID()].VertexID);
+		StartFrame.Origin = Mesh->GetVertex(Corners[Selection.SelectedCornerIDs[0]].VertexID);
 		return StartFrame;
 	}
 

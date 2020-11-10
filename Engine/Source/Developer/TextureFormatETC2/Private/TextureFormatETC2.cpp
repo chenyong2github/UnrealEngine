@@ -144,24 +144,6 @@ class FTextureFormatETC2 : public ITextureFormat
 		return FTextureFormatCompressorCaps(); // Default capabilities.
 	}
 
-	virtual EPixelFormat GetPixelFormatForImage(const struct FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const override
-	{
-		if (BuildSettings.TextureFormatName == GTextureFormatNameETC2_RGB ||
-			(BuildSettings.TextureFormatName == GTextureFormatNameAutoETC2 && !bImageHasAlphaChannel))
-		{
-			return PF_ETC2_RGB;
-		}
-
-		if (BuildSettings.TextureFormatName == GTextureFormatNameETC2_RGBA ||
-				(BuildSettings.TextureFormatName == GTextureFormatNameAutoETC2 && bImageHasAlphaChannel))
-		{
-			return PF_ETC2_RGBA;
-		}
-
-		UE_LOG(LogTextureFormatETC2, Fatal, TEXT("Unhandled texture format '%s' given to FTextureFormatAndroid::GetPixelFormatForImage()"), *BuildSettings.TextureFormatName.ToString());
-		return PF_Unknown;
-	}
-
 	virtual bool CompressImage(
 		const FImage& InImage,
 		const struct FTextureBuildSettings& BuildSettings,
@@ -172,7 +154,21 @@ class FTextureFormatETC2 : public ITextureFormat
 		FImage Image;
 		InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetGammaSpace());
 
-		EPixelFormat CompressedPixelFormat = GetPixelFormatForImage(BuildSettings, Image, bImageHasAlphaChannel);
+		EPixelFormat CompressedPixelFormat = PF_Unknown;
+
+		if (BuildSettings.TextureFormatName == GTextureFormatNameETC2_RGB ||
+		   (BuildSettings.TextureFormatName == GTextureFormatNameAutoETC2 && !bImageHasAlphaChannel))
+		{
+			CompressedPixelFormat = PF_ETC2_RGB;
+		}
+		else
+		if (BuildSettings.TextureFormatName == GTextureFormatNameETC2_RGBA ||
+		   (BuildSettings.TextureFormatName == GTextureFormatNameAutoETC2 && bImageHasAlphaChannel))
+		{
+			CompressedPixelFormat = PF_ETC2_RGBA;
+		}
+
+		check(CompressedPixelFormat != PF_Unknown);
 
 		bool bCompressionSucceeded = true;
 		int32 SliceSize = Image.SizeX * Image.SizeY;

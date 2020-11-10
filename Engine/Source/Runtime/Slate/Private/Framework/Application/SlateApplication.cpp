@@ -796,8 +796,7 @@ FSlateApplication::FSlateApplication()
 	{
 		CVarGlobalInvalidation->SetOnChangedCallback(FConsoleVariableDelegate::CreateLambda([this](IConsoleVariable* Variable)
 		{
-			UE_TRACE_SLATE_BOOKMARK(TEXT("GlobalInvalidationChanged"));
-			OnGlobalInvalidationToggledEvent.Broadcast(GSlateEnableGlobalInvalidation != 0);
+			OnGlobalInvalidationToggledEvent.Broadcast(GSlateEnableGlobalInvalidation);
 		}));
 	}
 }
@@ -949,14 +948,6 @@ void FSlateApplication::UsePlatformCursorForCursorUser(bool bUsePlatformCursor)
 				SlateUser->OverrideCursor(bUsePlatformCursor ? PlatformApplication->Cursor : MakeShared<FFauxSlateCursor>());
 			}
 		}
-	}
-}
-
-void FSlateApplication::SetPlatformCursorVisibility(bool bNewVisibility)
-{
-	if (PlatformApplication && PlatformApplication->Cursor)
-	{
-		PlatformApplication->Cursor->SetType(bNewVisibility ? EMouseCursor::Default : EMouseCursor::None);
 	}
 }
 

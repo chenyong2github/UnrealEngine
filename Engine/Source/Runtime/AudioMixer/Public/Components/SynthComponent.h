@@ -122,10 +122,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	virtual void SetLowPassFilterFrequency(float InLowPassFilterFrequency);
 
-	/** Sets whether or not the synth component outputs its audio to any source or audio buses. */
-	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetOutputToBusOnly(bool bInOutputToBusOnly);
-
 	/** Auto destroy this component on completion */
 	UPROPERTY()
 	uint8 bAutoDestroy : 1;

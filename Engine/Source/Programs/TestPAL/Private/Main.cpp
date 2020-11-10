@@ -14,8 +14,6 @@
 #include "HAL/MallocPoisonProxy.h"
 #include "HAL/ThreadSafeCounter64.h"
 
-#include "Misc/Fork.h"
-
 DEFINE_LOG_CATEGORY(LogTestPAL);
 
 IMPLEMENT_APPLICATION(TestPAL, "TestPAL");
@@ -39,7 +37,6 @@ IMPLEMENT_APPLICATION(TestPAL, "TestPAL");
 #define ARG_STRINGS_ALLOCATION_TEST			"stringsallocation"
 #define ARG_CREATEGUID_TEST					"createguid"
 #define ARG_THREADSTACK_TEST				"threadstack"
-#define ARG_FORK_TEST						"fork"
 
 namespace TestPAL
 {
@@ -1574,44 +1571,6 @@ int32 ThreadTraceTest(const TCHAR* CommandLine)
 	return 0;
 }
 
-int32 ForkTest(const TCHAR* CommandLine)
-{
-	// Only supported on Linux
-	if (PLATFORM_LINUX)
-	{
-		FPlatformMisc::SetCrashHandler(NULL);
-		FPlatformMisc::SetGracefulTerminationHandler();
-
-		GEngineLoop.PreInit(CommandLine);
-
-		if (FPlatformProcess::SupportsMultithreading())
-		{
-			UE_LOG(LogTestPAL, Error, TEXT("WaitAndFork is only supported with '-nothreading' command line"));
-		}
-		else
-		{
-			UE_LOG(LogTestPAL, Warning, TEXT("About to fork. Press Ctrl+C to close parent process"));
-
-			FPlatformProcess::EWaitAndForkResult Result = FPlatformProcess::WaitAndFork();
-
-			if (Result == FPlatformProcess::EWaitAndForkResult::Child)
-			{
-				UE_LOG(LogTestPAL, Display, TEXT("Child process: %d IsChildProcess: %d"), FPlatformProcess::GetCurrentProcessId(), FForkProcessHelper::IsForkedChildProcess());
-			}
-			else
-			{
-				// parent, WaitAndFork holds the parent process to spawn more children until the we are closing
-				UE_LOG(LogTestPAL, Display, TEXT("Parent process: %d IsChildProcess: %d"), FPlatformProcess::GetCurrentProcessId(), FForkProcessHelper::IsForkedChildProcess());
-			}
-		}
-
-		FEngineLoop::AppPreExit();
-		FEngineLoop::AppExit();
-	}
-
-	return 0;
-}
-
 /**
  * Selects and runs one of test cases.
  *
@@ -1701,10 +1660,6 @@ int32 MultiplexedMain(int32 ArgC, char* ArgV[])
 		{
 			return ThreadTraceTest(*TestPAL::CommandLine);
 		}
-		else if (!FCStringAnsi::Strcmp(ArgV[IdxArg], ARG_FORK_TEST))
-		{
-			return ForkTest(*TestPAL::CommandLine);
-		}
 	}
 
 	FPlatformMisc::SetCrashHandler(NULL);
@@ -1733,12 +1688,6 @@ int32 MultiplexedMain(int32 ArgC, char* ArgV[])
 	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test string allocations."), UTF8_TO_TCHAR(ARG_STRINGS_ALLOCATION_TEST));
 	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test CreateGuid."), UTF8_TO_TCHAR(ARG_CREATEGUID_TEST));
 	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test ThreadWalkStackAndDump and CaptureThreadBackTrace."), UTF8_TO_TCHAR(ARG_THREADSTACK_TEST));
-
-	if (PLATFORM_LINUX)
-	{
-		UE_LOG(LogTestPAL, Warning, TEXT("  %s: test WaitAndFork"), UTF8_TO_TCHAR(ARG_FORK_TEST));
-	}
-
 	UE_LOG(LogTestPAL, Warning, TEXT(""));
 	UE_LOG(LogTestPAL, Warning, TEXT("Pass one of those to run an appropriate test."));
 

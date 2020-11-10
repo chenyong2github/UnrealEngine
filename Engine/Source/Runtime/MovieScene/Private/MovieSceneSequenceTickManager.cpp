@@ -88,9 +88,9 @@ void UMovieSceneSequenceTickManager::AddLatentAction(FMovieSceneSequenceLatentAc
 	LatentActionManager.AddLatentAction(Delegate);
 }
 
-void UMovieSceneSequenceTickManager::RunLatentActions()
+void UMovieSceneSequenceTickManager::RunLatentActions(const UObject* Object, FMovieSceneEntitySystemRunner& InRunner)
 {
-	LatentActionManager.RunLatentActions(Runner);
+	LatentActionManager.RunLatentActions(InRunner, Object);
 }
 
 UMovieSceneSequenceTickManager* UMovieSceneSequenceTickManager::Get(UObject* PlaybackContext)
@@ -136,21 +136,11 @@ void FMovieSceneLatentActionManager::ClearLatentActions(UObject* Object)
 	}
 }
 
-void FMovieSceneLatentActionManager::ClearLatentActions()
-{
-	if (ensureMsgf(!bIsRunningLatentActions, TEXT("Can't clear latent actions while they are running!")))
-	{
-		LatentActions.Reset();
-	}
-}
-
 void FMovieSceneLatentActionManager::RunLatentActions(FMovieSceneEntitySystemRunner& Runner)
 {
 	if (bIsRunningLatentActions)
 	{
-		// If someone is asking to run latent actions while we are running latent actions, we
-		// can just safely bail out... if they have just queued more latent actions, we will 
-		// naturally get to them as we make our way through the list.
+		// We're already running latent actions... no need to run them again in a nested loop.
 		return;
 	}
 
@@ -197,5 +187,53 @@ void FMovieSceneLatentActionManager::RunLatentActions(FMovieSceneEntitySystemRun
 			break;
 		}
 	}
+}
+
+void FMovieSceneLatentActionManager::RunLatentActions(FMovieSceneEntitySystemRunner& Runner, const UObject* Object)
+{
+	check(Object);
+
+	if (bIsRunningLatentActions)
+	{
+		// We are already running latent actions for all players. We'll get to this one soon.
+		return;
+	}
+
+	int32 Index = 0;
+	int32 NumLoopsLeft = CVarMovieSceneMaxLatentActionLoops.GetValueOnGameThread();
+	while (NumLoopsLeft > 0)
+	{
+		// Look for the first latent action that is bound to the given object.
+		bool bFoundMatching = false;
+		while (Index < LatentActions.Num())
+		{
+			const FMovieSceneSequenceLatentActionDelegate& Delegate = LatentActions[Index];
+			UObject* BoundObject = Delegate.GetUObject();
+			if (ensure(BoundObject) && (BoundObject == Object))
+			{
+				Delegate.ExecuteIfBound();
+				bFoundMatching = true;
+				LatentActions.RemoveAt(Index);
+				break;
+			}
+
+			++Index;
+		}
+
+		// If we didn't find anything, we're done!
+		if (!bFoundMatching)
+		{
+			break;
+		}
+
+		Runner.Flush();
+
+		// Now loop over and keep searching for more matching latent actions. We leave our
+		// index to where it was, since we know that delegates bound to the given object
+		// are appended at the end of the array, so we don't have to search the beginning
+		// again.
+	}
+	ensureMsgf(NumLoopsLeft > 0,
+			TEXT("Detected possible infinite loop! Are you requeuing the same latent action over and over?"));
 }
 

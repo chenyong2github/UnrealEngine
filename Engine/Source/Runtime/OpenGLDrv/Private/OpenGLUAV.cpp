@@ -256,8 +256,7 @@ FOpenGLTextureUnorderedAccessView::FOpenGLTextureUnorderedAccessView(FRHITexture
 	FOpenGLTextureBase* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
 	const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[TextureRHI->GetFormat()];
 
-	check(!Texture->CanBeEvicted() && !Texture->IsEvicted());
-	this->Resource = Texture->GetResource();
+	this->Resource = Texture->Resource;
 	this->Format = GLFormat.InternalFormat[0];
 	this->UnrealFormat = TextureRHI->GetFormat();
 	this->bLayered = (Texture->Target == GL_TEXTURE_3D);

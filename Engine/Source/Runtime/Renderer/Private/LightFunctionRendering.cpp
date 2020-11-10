@@ -98,12 +98,11 @@ public:
 		LightFunctionParameters2.Bind(Initializer.ParameterMap,TEXT("LightFunctionParameters2"));
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FLightSceneInfo* LightSceneInfo, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material, bool bRenderingPreviewShadowIndicator, float ShadowFadeFraction )
+	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FLightSceneInfo* LightSceneInfo, const FMaterialRenderProxy* MaterialProxy, bool bRenderingPreviewShadowIndicator, float ShadowFadeFraction )
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-
 		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
+		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, *MaterialProxy->GetMaterial(View.GetFeatureLevel()), View);
 
 		// Set the transform from screen space to light space.
 		if ( SvPositionToLight.IsBound() )
@@ -200,7 +199,7 @@ bool FSceneRenderer::CheckForLightFunction( const FLightSceneInfo* LightSceneInf
 {
 	// NOTE: The extra check is necessary because there could be something wrong with the material.
 	if( LightSceneInfo->Proxy->GetLightFunctionMaterial() && 
-		LightSceneInfo->Proxy->GetLightFunctionMaterial()->GetIncompleteMaterialWithFallback(Scene->GetFeatureLevel()).IsLightFunction())
+		LightSceneInfo->Proxy->GetLightFunctionMaterial()->GetMaterial(Scene->GetFeatureLevel())->IsLightFunction())
 	{
 		FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
 		for (int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
@@ -266,26 +265,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FRenderLightFunctionForMaterialParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-static bool TryGetLightFunctionShaders(ERHIFeatureLevel::Type InFeatureLevel, FMaterialRenderProxy const*& OutMaterialProxy, FMaterial const*& OutMaterial, FMaterialShaders& OutShaders)
-{
-	while (OutMaterialProxy)
-	{
-		OutMaterial = OutMaterialProxy->GetMaterialNoFallback(InFeatureLevel);
-		if (OutMaterial && OutMaterial->IsLightFunction())
-		{
-			FMaterialShaderTypes ShaderTypes;
-			ShaderTypes.AddShaderType<FLightFunctionVS>();
-			ShaderTypes.AddShaderType<FLightFunctionPS>();
-			if (OutMaterial->TryGetShaders(ShaderTypes, nullptr, OutShaders))
-			{
-				return true;
-			}
-		}
-		OutMaterialProxy = OutMaterialProxy->GetFallback(InFeatureLevel);
-	}
-	return false;
-}
-
 bool FDeferredShadingSceneRenderer::RenderLightFunctionForMaterial(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureRef SceneDepthTexture,
@@ -300,15 +279,20 @@ bool FDeferredShadingSceneRenderer::RenderLightFunctionForMaterial(
 	check(ScreenShadowMaskTexture);
 	check(LightSceneInfo);
 
-	FMaterialShaders MaterialShaders;
-	const FMaterialRenderProxy* MaterialProxyForRendering = MaterialProxy;
-	const FMaterial* MaterialForRendering = nullptr;
-	if (!TryGetLightFunctionShaders(Scene->GetFeatureLevel(), MaterialProxyForRendering, MaterialForRendering, MaterialShaders))
+	if (!MaterialProxy)
+	{
+		return false;
+	}
+
+	const FMaterial* Material = MaterialProxy->GetMaterial(Scene->GetFeatureLevel());
+
+	if (!Material->IsLightFunction())
 	{
 		return false;
 	}
 
 	const FLightSceneProxy* LightSceneProxy = LightSceneInfo->Proxy;
+	const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
 
 	// Render to the light attenuation buffer for all views.
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -326,10 +310,10 @@ bool FDeferredShadingSceneRenderer::RenderLightFunctionForMaterial(
 			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
 
 			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("LightFunction Material=%s", *MaterialForRendering->GetFriendlyName()),
+				RDG_EVENT_NAME("LightFunction Material=%s", *Material->GetFriendlyName()),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[&View, LightSceneInfo, LightSceneProxy, MaterialProxyForRendering, MaterialForRendering, MaterialShaders, bLightAttenuationCleared, bProjectingForForwardShading, bRenderingPreviewShadowsIndicator](FRHICommandList& RHICmdList)
+				[&View, LightSceneInfo, LightSceneProxy, MaterialProxy, MaterialShaderMap, bLightAttenuationCleared, bProjectingForForwardShading, bRenderingPreviewShadowsIndicator](FRHICommandList& RHICmdList)
 			{
 				FSphere LightBounds = LightSceneProxy->GetBoundingSphere();
 
@@ -353,10 +337,8 @@ bool FDeferredShadingSceneRenderer::RenderLightFunctionForMaterial(
 					RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
 					// Set the states to modulate the light function with the render target.
-					TShaderRef<FLightFunctionVS> VertexShader;
-					TShaderRef<FLightFunctionPS> PixelShader;
-					MaterialShaders.TryGetVertexShader(VertexShader);
-					MaterialShaders.TryGetPixelShader(PixelShader);
+					TShaderRef<FLightFunctionVS> VertexShader = MaterialShaderMap->GetShader<FLightFunctionVS>();
+					TShaderRef<FLightFunctionPS> PixelShader = MaterialShaderMap->GetShader<FLightFunctionPS>();
 
 					FGraphicsPipelineStateInitializer GraphicsPSOInit;
 					RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -406,7 +388,7 @@ bool FDeferredShadingSceneRenderer::RenderLightFunctionForMaterial(
 					// Render a bounding light sphere.
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 					VertexShader->SetParameters(RHICmdList, View, LightSceneInfo);
-					PixelShader->SetParameters(RHICmdList, View, LightSceneInfo, MaterialProxyForRendering, *MaterialForRendering, bRenderingPreviewShadowsIndicator, FadeAlpha);
+					PixelShader->SetParameters(RHICmdList, View, LightSceneInfo, MaterialProxy, bRenderingPreviewShadowsIndicator, FadeAlpha);
 
 					// Project the light function using a sphere around the light
 					//@todo - could use a cone for spotlights

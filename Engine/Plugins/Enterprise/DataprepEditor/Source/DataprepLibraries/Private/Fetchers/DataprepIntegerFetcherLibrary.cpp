@@ -26,9 +26,9 @@ int32 UDataprepTriangleCountFetcher::Fetch_Implementation(const UObject* Object,
 				return 0;
 			}
 
-			check( StaticMesh->GetRenderData() );
+			check( StaticMesh->RenderData );
 
-			return StaticMesh->GetRenderData()->LODResources[0].GetNumTriangles();
+			return StaticMesh->RenderData->LODResources[0].GetNumTriangles();
 		};
 
 		int TriangleCount = 0;
@@ -84,9 +84,9 @@ int32 UDataprepVertexCountFetcher::Fetch_Implementation(const UObject* Object, b
 				return 0;
 			}
 
-			check( StaticMesh->GetRenderData());
+			check( StaticMesh->RenderData );
 
-			return StaticMesh->GetRenderData()->LODResources[0].GetNumVertices();
+			return StaticMesh->RenderData->LODResources[0].GetNumVertices();
 		};
 
 		int VertexCount = 0;

@@ -52,12 +52,12 @@ private:
 };
 
 
-FMovieSceneTrackEvaluator::FMovieSceneTrackEvaluator(UMovieSceneSequence* InRootSequence, FMovieSceneCompiledDataID InRootCompiledDataID, UMovieSceneCompiledDataManager* InCompiledDataManager)
+FMovieSceneTrackEvaluator::FMovieSceneTrackEvaluator(UMovieSceneSequence* InRootSequence, UMovieSceneCompiledDataManager* InCompiledDataManager)
 	: RootSequence(InRootSequence)
-	, RootCompiledDataID(InRootCompiledDataID)
 	, RootID(MovieSceneSequenceID::Root)
 	, CompiledDataManager(InCompiledDataManager)
 {
+	RootCompiledDataID = CompiledDataManager->GetDataID(InRootSequence);
 	CachedReallocationVersion = 0;
 }
 
@@ -147,7 +147,7 @@ void FMovieSceneTrackEvaluator::ConstructEvaluationPtrCache()
 			for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : RootHierarchy->AllSubSequenceData())
 			{
 				UMovieSceneSequence*                 SubSequence = Pair.Value.GetSequence();
-				FMovieSceneCompiledDataID            SubDataID   = CompiledDataManager->FindDataID(SubSequence);
+				FMovieSceneCompiledDataID            SubDataID   = CompiledDataManager->GetDataID(SubSequence);
 				const FMovieSceneEvaluationTemplate* SubTemplate = CompiledDataManager->FindTrackTemplate(SubDataID);
 				if (SubTemplate)
 				{
@@ -185,7 +185,7 @@ const FMovieSceneEvaluationGroup* FMovieSceneTrackEvaluator::SetupFrame(UMovieSc
 		check(RootHierarchy);
 
 		// Evaluate Sub Sequences in Isolation is turned on
-		FMovieSceneCompiledDataID OverrideRootDataID = CompiledDataManager->FindDataID(OverrideRootSequence);
+		FMovieSceneCompiledDataID OverrideRootDataID = CompiledDataManager->GetDataID(OverrideRootSequence);
 		OverrideRootField = CompiledDataManager->FindTrackTemplateField(OverrideRootDataID);
 		if (const FMovieSceneSubSequenceData* OverrideSubData = RootHierarchy->FindSubData(InOverrideRootID))
 		{

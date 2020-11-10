@@ -20,7 +20,7 @@
 TArray<TWeakObjectPtr<UNiagaraLightRendererProperties>> UNiagaraLightRendererProperties::LightRendererPropertiesToDeferredInit;
 
 UNiagaraLightRendererProperties::UNiagaraLightRendererProperties()
-	: bUseInverseSquaredFalloff(1), bAffectsTranslucency(0), bAlphaScalesBrightness(0), RadiusScale(1.0f), ColorAdd(FVector(0.0f, 0.0f, 0.0f))
+	: bUseInverseSquaredFalloff(1), bAffectsTranslucency(0), RadiusScale(1.0f), ColorAdd(FVector(0.0f, 0.0f, 0.0f))
 {
 	AttributeBindings.Reserve(6);
 	AttributeBindings.Add(&LightRenderingEnabledBinding);

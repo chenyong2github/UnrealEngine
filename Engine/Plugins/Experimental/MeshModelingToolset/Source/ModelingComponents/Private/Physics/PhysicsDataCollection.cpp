@@ -15,7 +15,7 @@ void FPhysicsDataCollection::InitializeFromComponent(const UActorComponent* Comp
 	const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 	
 	SourceComponent = StaticMeshComponent;
-	BodySetup = StaticMesh->GetBodySetup();
+	BodySetup = StaticMesh->BodySetup;
 
 	ExternalScale3D = FVector(1.f, 1.f, 1.f);
 

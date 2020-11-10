@@ -25,26 +25,26 @@ void FPartyRepData::SetOwningParty(const USocialParty& InOwnerParty)
 	OwnerParty = &InOwnerParty;
 }
 
-const FPartyPlatformSessionInfo* FPartyRepData::FindSessionInfo(const FString& SessionType) const
+const FPartyPlatformSessionInfo* FPartyRepData::FindSessionInfo(FName PlatformOssName) const
 {
-	return PlatformSessions.FindByKey(SessionType);
+	return PlatformSessions.FindByKey(PlatformOssName);
 }
 
-void FPartyRepData::UpdatePlatformSessionInfo(FPartyPlatformSessionInfo&& SessionInfo)
+void FPartyRepData::UpdatePlatformSessionInfo(const FPartyPlatformSessionInfo& SessionInfo)
 {
 	bool bDidModifyRepData = false;
-	if (FPartyPlatformSessionInfo* ExistingInfo = PlatformSessions.FindByKey(SessionInfo.SessionType))
+	if (FPartyPlatformSessionInfo* ExistingInfo = PlatformSessions.FindByKey(SessionInfo.OssName))
 	{
 		if (*ExistingInfo != SessionInfo)
 		{
-			*ExistingInfo = MoveTemp(SessionInfo);
+			*ExistingInfo = SessionInfo;
 			bDidModifyRepData = true;
 		}
 	}
 	else
 	{
 		bDidModifyRepData = true;
-		PlatformSessions.Emplace(MoveTemp(SessionInfo));
+		PlatformSessions.Add(SessionInfo);
 	}
 
 	if (bDidModifyRepData)
@@ -54,9 +54,9 @@ void FPartyRepData::UpdatePlatformSessionInfo(FPartyPlatformSessionInfo&& Sessio
 	}
 }
 
-void FPartyRepData::ClearPlatformSessionInfo(const FString& SessionType)
+void FPartyRepData::ClearPlatformSessionInfo(const FName PlatformOssName)
 {
-	const int32 NumRemoved = PlatformSessions.RemoveAll([&SessionType] (const FPartyPlatformSessionInfo& Info) { return Info.SessionType == SessionType; });
+	const int32 NumRemoved = PlatformSessions.RemoveAll([&PlatformOssName] (const FPartyPlatformSessionInfo& Info) { return Info.OssName == PlatformOssName; });
 	if (NumRemoved > 0)
 	{
 		OnDataChanged.ExecuteIfBound();
@@ -364,7 +364,7 @@ bool USocialParty::CanPromoteMember(const UPartyMember& PartyMember) const
 
 bool USocialParty::CanPromoteMemberInternal(const UPartyMember& PartyMember) const
 {
-	return IsLocalPlayerPartyLeader() && bIsMemberPromotionPossible && !PartyMember.IsPartyLeader() && !PartyMember.IsLocalPlayer();
+	return IsLocalPlayerPartyLeader() && bIsMemberPromotionPossible && !PartyMember.IsPartyLeader();
 }
 
 bool USocialParty::TryPromoteMember(const UPartyMember& PartyMember)
@@ -584,35 +584,40 @@ void USocialParty::OnLocalPlayerIsLeaderChanged(bool bIsLeader)
 		// It's possible that membership changes resulting in this promotion also require updates to the session info
 		//	If we found out about the changes in membership before learning we're the leader, we were unable to update the rep data accordingly
 		//	So, upon becoming leader, we must do a sweep to account for any such changes we missed out on
-		TArray<FString> SessionsToUpdate;
-		TArray<FString> SessionsToCreate;
+		TArray<FName> SessionsToUpdate;
+		TArray<FName> SessionsToCreate;
 		for (UPartyMember* Member : GetPartyMembers())
 		{
-			const FUserPlatform& MemberPlatform = Member->GetRepData().GetPlatform();
-			const FString& MemberSessionType = MemberPlatform.GetPlatformDescription().SessionType;
-			if (!MemberSessionType.IsEmpty())
+			FName PlatformOssName = Member->GetPlatformOssName();
+			if (!PlatformOssName.IsNone())
 			{
-				if (GetRepData().FindSessionInfo(MemberSessionType))
+				if (GetRepData().FindSessionInfo(PlatformOssName))
 				{
-					SessionsToUpdate.AddUnique(MemberSessionType);
+					SessionsToUpdate.AddUnique(PlatformOssName);
 				}
-				else
+				else if (FPartyPlatformSessionManager::DoesOssNeedPartySession(PlatformOssName))
 				{
-					SessionsToCreate.AddUnique(MemberSessionType);
+					SessionsToCreate.AddUnique(PlatformOssName);
 				}
 			}
 		}
 		for (const FPartyPlatformSessionInfo& PlatformSessionInfo : GetRepData().GetPlatformSessions())
 		{
-			SessionsToUpdate.AddUnique(PlatformSessionInfo.SessionType);
+			// Not using AddUnique so we can log if we are catching OSSs to remove
+			// TODO: Remove logging when we are sure this is fixed
+			if (!SessionsToUpdate.Contains(PlatformSessionInfo.OssName))
+			{
+				UE_LOG(LogParty, Verbose, TEXT("OnLocalPlayerIsLeaderChanged: Adding existing platform OSS [%s] which has no members"), *PlatformSessionInfo.OssName.ToString());
+				SessionsToUpdate.Add(PlatformSessionInfo.OssName);
+			}
 		}
-		for (const FString& SessionType : SessionsToUpdate)
+		for (FName PlatformOssName : SessionsToUpdate)
 		{
-			UpdatePlatformSessionLeader(SessionType);
+			UpdatePlatformSessionLeader(PlatformOssName);
 		}
-		for (const FString& SessionType : SessionsToCreate)
+		for (FName PlatformOssName : SessionsToCreate)
 		{
-			CreatePlatformSession(SessionType);
+			CreatePlatformSession(PlatformOssName);
 		}
 	}
 	else
@@ -819,7 +824,7 @@ void USocialParty::HandleJoinabilityQueryReceived(const FUniqueNetId& LocalUserI
 		UE_LOG(LogParty, VeryVerbose, TEXT("[%s] Responding to approval request for %s with %s"), *PartyId.ToString(), *PrimaryJoiningUser->GetUserId()->ToString(), JoinabilityInfo.CanJoin() ? TEXT("approved") : TEXT("denied"));
 
 		const IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
-		PartyInterface->RespondToQueryJoinability(LocalUserId, PartyId, *PrimaryJoiningUser->GetUserId(), JoinabilityInfo.CanJoin(), JoinabilityInfo.GetDenialReason(), FOnlinePartyDataConstPtr());		
+		PartyInterface->RespondToQueryJoinability(LocalUserId, PartyId, *PrimaryJoiningUser->GetUserId(), JoinabilityInfo.CanJoin(), JoinabilityInfo.GetDenialReason());		
 	}
 }
 
@@ -961,10 +966,9 @@ void USocialParty::HandleMemberInitialized(UPartyMember* Member)
 void USocialParty::HandleMemberPlatformUniqueIdChanged(const FUniqueNetIdRepl& NewPlatformUniqueId, UPartyMember* Member)
 {
 	const FName MemberPlatformOssName = NewPlatformUniqueId.GetType();
-	TOptional<FString> SessionType = FPartyPlatformSessionManager::GetOssPartySessionType(MemberPlatformOssName);
-	if (SessionType && !GetRepData().FindSessionInfo(SessionType.GetValue()))
+	if (FPartyPlatformSessionManager::DoesOssNeedPartySession(MemberPlatformOssName) && !GetRepData().FindSessionInfo(MemberPlatformOssName))
 	{
-		CreatePlatformSession(MoveTemp(SessionType.GetValue()));
+		CreatePlatformSession(MemberPlatformOssName);
 	}
 }
 
@@ -972,8 +976,8 @@ void USocialParty::HandleMemberSessionIdChanged(const FSessionId& NewSessionId, 
 {
 	check(IsLocalPlayerPartyLeader());
 
-	TOptional<FString> SessionType = FPartyPlatformSessionManager::GetOssPartySessionType(Member->GetPlatformOssName());
-	const FPartyPlatformSessionInfo* PlatformSessionInfo = SessionType ? GetRepData().FindSessionInfo(SessionType.GetValue()) : nullptr;
+	const FName PlatformOssName = Member->GetPlatformOssName();
+	const FPartyPlatformSessionInfo* PlatformSessionInfo = GetRepData().FindSessionInfo(PlatformOssName);
 	if (ensure(PlatformSessionInfo))
 	{
 		if (PlatformSessionInfo->IsSessionOwner(*Member))
@@ -982,7 +986,7 @@ void USocialParty::HandleMemberSessionIdChanged(const FSessionId& NewSessionId, 
 			{
 				//@todo DanH Sessions: I don't think this is possible - we leave the party before leaving the session. Can a player get booted from a session without DC-ing completely? #required
 				ensure(false);
-				UpdatePlatformSessionLeader(SessionType.GetValue());
+				UpdatePlatformSessionLeader(PlatformOssName);
 			}
 			else if (PlatformSessionInfo->SessionId.IsEmpty() || PlatformSessionInfo->SessionId != NewSessionId)
 			{
@@ -990,7 +994,7 @@ void USocialParty::HandleMemberSessionIdChanged(const FSessionId& NewSessionId, 
 				// But if the owner created a different session for whatever reason in an edge case, update accordingly to stay accurate
 				FPartyPlatformSessionInfo ModifiedSessionInfo = *PlatformSessionInfo;
 				ModifiedSessionInfo.SessionId = NewSessionId;
-				GetMutableRepData().UpdatePlatformSessionInfo(MoveTemp(ModifiedSessionInfo));
+				GetMutableRepData().UpdatePlatformSessionInfo(ModifiedSessionInfo);
 			}
 		}
 	}
@@ -1113,11 +1117,7 @@ void USocialParty::HandlePartyMemberExited(const FUniqueNetId& LocalUserId, cons
 
 				OnPartyMemberLeft().Broadcast(&LeftMember, ExitReason);
 
-				TOptional<FString> SessionType = FPartyPlatformSessionManager::GetOssPartySessionType(LeftMember.GetPlatformOssName());
-				if (SessionType)
-				{
-					UpdatePlatformSessionLeader(SessionType.GetValue());
-				}
+				UpdatePlatformSessionLeader(LeftMember.GetPlatformOssName());
 				LeftMember.NotifyRemovedFromParty(ExitReason);
 				LeftMember.MarkPendingKill();
 
@@ -1760,15 +1760,15 @@ void USocialParty::FinalizePartyLeave(EMemberExitedReason Reason)
 	PartyMembersById.Reset();
 }
 
-void USocialParty::CreatePlatformSession(const FString& SessionType)
+void USocialParty::CreatePlatformSession(FName PlatformOssName)
 {
-	if (ensure(!SessionType.IsEmpty() &&
-		!GetRepData().FindSessionInfo(SessionType)))
+	if (ensure(FPartyPlatformSessionManager::DoesOssNeedPartySession(PlatformOssName) &&
+		!GetRepData().FindSessionInfo(PlatformOssName)))
 	{
 		FUniqueNetIdRepl OwnerPrimaryId;
 		for (UPartyMember* Member : GetPartyMembers())
 		{
-			if (SessionType == Member->GetRepData().GetPlatform().GetPlatformDescription().SessionType)
+			if (Member->GetPlatformOssName() == PlatformOssName)
 			{
 				OwnerPrimaryId = Member->GetPrimaryNetId();
 				if (Member->IsLocalPlayer())
@@ -1781,21 +1781,21 @@ void USocialParty::CreatePlatformSession(const FString& SessionType)
 		if (ensure(OwnerPrimaryId.IsValid()))
 		{
 			FPartyPlatformSessionInfo NewSessionInfo;
-			NewSessionInfo.SessionType = SessionType;
+			NewSessionInfo.OssName = PlatformOssName;
 			NewSessionInfo.OwnerPrimaryId = OwnerPrimaryId;
-			GetMutableRepData().UpdatePlatformSessionInfo(MoveTemp(NewSessionInfo));
+			GetMutableRepData().UpdatePlatformSessionInfo(NewSessionInfo);
 		}
 	}
 }
 
-void USocialParty::UpdatePlatformSessionLeader(const FString& SessionType)
+void USocialParty::UpdatePlatformSessionLeader(FName PlatformOssName)
 {
 	if (!IsLocalPlayerPartyLeader())
 	{
 		return;
 	}
 
-	if (const FPartyPlatformSessionInfo* PlatformSessionInfo = GetRepData().FindSessionInfo(SessionType))
+	if (const FPartyPlatformSessionInfo* PlatformSessionInfo = GetRepData().FindSessionInfo(PlatformOssName))
 	{
 		UPartyMember* NewSessionOwner = nullptr;
 		for (UPartyMember* PartyMember : GetPartyMembers())
@@ -1818,18 +1818,18 @@ void USocialParty::UpdatePlatformSessionLeader(const FString& SessionType)
 
 		if (NewSessionOwner)
 		{
-			UE_LOG(LogParty, Verbose, TEXT("Party [%s] updating session owner on platform [%s] to [%s]"), *ToDebugString(), *SessionType, *NewSessionOwner->ToDebugString(false));
+			UE_LOG(LogParty, Verbose, TEXT("Party [%s] updating session owner on platform [%s] to [%s]"), *ToDebugString(), *PlatformOssName.ToString(), *NewSessionOwner->ToDebugString(false));
 
 			FPartyPlatformSessionInfo ModifiedSessionInfo = *PlatformSessionInfo;
 			ModifiedSessionInfo.OwnerPrimaryId = NewSessionOwner->GetPrimaryNetId();
-			GetMutableRepData().UpdatePlatformSessionInfo(MoveTemp(ModifiedSessionInfo));
+			GetMutableRepData().UpdatePlatformSessionInfo(ModifiedSessionInfo);
 		}
 		else
 		{
-			UE_LOG(LogParty, Verbose, TEXT("Party [%s] no longer has any members on platform [%s], clearing session info entry."), *ToDebugString(), *SessionType);
+			UE_LOG(LogParty, Verbose, TEXT("Party [%s] no longer has any members on platform [%s], clearing session info entry."), *ToDebugString(), *PlatformOssName.ToString());
 
 			PlatformSessionInfo = nullptr;
-			GetMutableRepData().ClearPlatformSessionInfo(SessionType);
+			GetMutableRepData().ClearPlatformSessionInfo(PlatformOssName);
 		}
 	}
 }

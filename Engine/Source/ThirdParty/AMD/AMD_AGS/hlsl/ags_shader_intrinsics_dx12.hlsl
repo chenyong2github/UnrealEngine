@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2020 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2019 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -90,13 +90,9 @@ RWByteAddressBuffer AmdExtD3DShaderIntrinsicsUAV : register(u0, AmdExtD3DShaderI
 #define AmdExtD3DShaderIntrinsicsOpcode_WaveReduce        0x12
 #define AmdExtD3DShaderIntrinsicsOpcode_WaveScan          0x13
 #define AmdExtD3DShaderIntrinsicsOpcode_LoadDwAtAddr      0x14
+
 #define AmdExtD3DShaderIntrinsicsOpcode_DrawIndex         0x17
 #define AmdExtD3DShaderIntrinsicsOpcode_AtomicU64         0x18
-#define AmdExtD3DShaderIntrinsicsOpcode_GetWaveSize       0x19
-#define AmdExtD3DShaderIntrinsicsOpcode_BaseInstance      0x1a
-#define AmdExtD3DShaderIntrinsicsOpcode_BaseVertex        0x1b
-#define AmdExtD3DShaderIntrinsicsOpcode_FloatConversion   0x1c
-#define AmdExtD3DShaderIntrinsicsOpcode_ReadlaneAt        0x1d
 
 /**
 ***********************************************************************************************************************
@@ -257,17 +253,6 @@ RWByteAddressBuffer AmdExtD3DShaderIntrinsicsUAV : register(u0, AmdExtD3DShaderI
 
 /**
 ***********************************************************************************************************************
-*   AmdExtD3DShaderIntrinsicsFloatConversion defines for supported rounding modes from float to float16 conversions.
-*   To be used as an input AmdExtD3DShaderIntrinsicsOpcode_FloatConversion instruction
-***********************************************************************************************************************
-*/
-#define AmdExtD3DShaderIntrinsicsFloatConversionOp_FToF16Near    0x01
-#define AmdExtD3DShaderIntrinsicsFloatConversionOp_FToF16NegInf  0x02
-#define AmdExtD3DShaderIntrinsicsFloatConversionOp_FToF16PlusInf 0x03
-
-
-/**
-***********************************************************************************************************************
 *   MakeAmdShaderIntrinsicsInstruction
 *
 *   Creates instruction from supplied opcode and immediate data.
@@ -342,7 +327,6 @@ float AmdExtD3DShaderIntrinsics_ReadlaneF(float src, uint laneId)
     return asfloat(retVal);
 }
 
-
 /**
 ***********************************************************************************************************************
 *   AmdExtD3DShaderIntrinsics_ReadlaneU
@@ -375,25 +359,6 @@ uint AmdExtD3DShaderIntrinsics_ReadlaneU(uint src, uint laneId)
 uint AmdExtD3DShaderIntrinsics_LaneId()
 {
     uint instruction = MakeAmdShaderIntrinsicsInstruction(AmdExtD3DShaderIntrinsicsOpcode_LaneId, 0, 0);
-
-    uint retVal;
-    AmdExtD3DShaderIntrinsicsUAV.InterlockedCompareExchange(instruction, 0, 0, retVal);
-    return retVal;
-}
-
-/**
-***********************************************************************************************************************
-*   AmdExtD3DShaderIntrinsics_GetWaveSize
-*
-*   Returns the wave size for the current shader, including active, inactive and helper lanes.
-*
-*   Available if CheckSupport(AmdExtD3DShaderIntrinsicsSupport_GetWaveSize) returned S_OK.
-*
-***********************************************************************************************************************
-*/
-uint AmdExtD3DShaderIntrinsics_GetWaveSize()
-{
-    uint instruction = MakeAmdShaderIntrinsicsInstruction(AmdExtD3DShaderIntrinsicsOpcode_GetWaveSize, 0, 0);
 
     uint retVal;
     AmdExtD3DShaderIntrinsicsUAV.InterlockedCompareExchange(instruction, 0, 0, retVal);
@@ -1276,184 +1241,6 @@ uint AmdExtD3DShaderIntrinsics_GetDrawIndex()
 
     return retVal;
 }
-
-/**
-***********************************************************************************************************************
-*   AmdExtD3DShaderIntrinsics_GetBaseInstance
-*
-*   The following function is available if CheckSupport(AmdExtD3DShaderIntrinsicsSupport_BaseInstance) returned S_OK.
-*
-*   Returns the StartInstanceLocation parameter passed to direct or indirect drawing commands.
-*
-*   Available in vertex shader stage only.
-*
-***********************************************************************************************************************
-*/
-uint AmdExtD3DShaderIntrinsics_GetBaseInstance()
-{
-    uint retVal;
-
-    uint instruction;
-    instruction = MakeAmdShaderIntrinsicsInstruction(AmdExtD3DShaderIntrinsicsOpcode_BaseInstance,
-        AmdExtD3DShaderIntrinsicsOpcodePhase_0,
-        0);
-    AmdExtD3DShaderIntrinsicsUAV.InterlockedCompareExchange(instruction, 0, 0, retVal);
-
-    return retVal;
-}
-
-/**
-***********************************************************************************************************************
-*   AmdExtD3DShaderIntrinsics_GetBaseVertex
-*
-*   The following function is available if CheckSupport(AmdExtD3DShaderIntrinsicsSupport_BaseVertex) returned S_OK.
-*
-*   For non-indexed draw commands, returns the StartVertexLocation parameter. For indexed draw commands, returns the
-*   BaseVertexLocation parameter.
-*
-*   Available in vertex shader stage only.
-*
-***********************************************************************************************************************
-*/
-uint AmdExtD3DShaderIntrinsics_GetBaseVertex()
-{
-    uint retVal;
-
-    uint instruction;
-    instruction = MakeAmdShaderIntrinsicsInstruction(AmdExtD3DShaderIntrinsicsOpcode_BaseVertex,
-        AmdExtD3DShaderIntrinsicsOpcodePhase_0,
-        0);
-    AmdExtD3DShaderIntrinsicsUAV.InterlockedCompareExchange(instruction, 0, 0, retVal);
-
-    return retVal;
-}
-
-
-
-/**
-***********************************************************************************************************************
-*   AmdExtD3DShaderIntrinsics_ReadlaneAt : uint
-*
-*   The following function is available if CheckSupport(AmdExtD3DShaderIntrinsicsSupport_ReadlaneAt) returned S_OK.
-*
-*   Returns the value of the source for the given lane index within the specified wave.  The lane index
-*   can be non-uniform across the wave.
-*
-***********************************************************************************************************************
-*/
-uint AmdExtD3DShaderIntrinsics_ReadlaneAt(uint src, uint laneId)
-{
-    uint retVal;
-
-    uint instruction;
-    instruction = MakeAmdShaderIntrinsicsInstruction(AmdExtD3DShaderIntrinsicsOpcode_ReadlaneAt,
-                                                     AmdExtD3DShaderIntrinsicsOpcodePhase_0,
-                                                     0);
-    AmdExtD3DShaderIntrinsicsUAV.InterlockedCompareExchange(instruction, src, laneId, retVal);
-
-    return retVal;
-}
-
-/**
-***********************************************************************************************************************
-*   AmdExtD3DShaderIntrinsics_ReadlaneAt : int
-***********************************************************************************************************************
-*/
-int AmdExtD3DShaderIntrinsics_ReadlaneAt(int src, uint laneId)
-{
-    uint retVal;
-
-    uint instruction;
-    instruction = MakeAmdShaderIntrinsicsInstruction(AmdExtD3DShaderIntrinsicsOpcode_ReadlaneAt,
-                                                     AmdExtD3DShaderIntrinsicsOpcodePhase_0,
-                                                     0);
-    AmdExtD3DShaderIntrinsicsUAV.InterlockedCompareExchange(instruction, asuint(src), laneId, retVal);
-
-    return asint(retVal);
-}
-
-/**
-***********************************************************************************************************************
-*   AmdExtD3DShaderIntrinsics_ReadlaneAt : float
-***********************************************************************************************************************
-*/
-float AmdExtD3DShaderIntrinsics_ReadlaneAt(float src, uint laneId)
-{
-    uint retVal;
-
-    uint instruction;
-    instruction = MakeAmdShaderIntrinsicsInstruction(AmdExtD3DShaderIntrinsicsOpcode_ReadlaneAt,
-                                                     AmdExtD3DShaderIntrinsicsOpcodePhase_0,
-                                                     0);
-    AmdExtD3DShaderIntrinsicsUAV.InterlockedCompareExchange(instruction, asuint(src), laneId, retVal);
-
-    return asfloat(retVal);
-}
-
-/**
-***********************************************************************************************************************
-*   AmdExtD3DShaderIntrinsics_ConvertF32toF16
-*
-*   The following functions are available if CheckSupport(AmdExtD3DShaderIntrinsicsSupport_FloatConversion) returned
-*   S_OK.
-*
-*   Converts 32bit floating point numbers into 16bit floating point number using a specified rounding mode
-*
-*   Available in all shader stages.
-*
-***********************************************************************************************************************
-*/
-
-/**
-***********************************************************************************************************************
-*   AmdExtD3DShaderIntrinsics_ConvertF32toF16 - helper to convert f32 to f16 number
-***********************************************************************************************************************
-*/
-uint3 AmdExtD3DShaderIntrinsics_ConvertF32toF16(in uint convOp, in float3 val)
-{
-    uint instruction = MakeAmdShaderIntrinsicsInstruction(AmdExtD3DShaderIntrinsicsOpcode_FloatConversion,
-                                                          AmdExtD3DShaderIntrinsicsOpcodePhase_0,
-                                                          convOp);
-
-    uint3 retVal;
-    AmdExtD3DShaderIntrinsicsUAV.InterlockedCompareExchange(instruction, asuint(val.x), 0, retVal.x);
-    AmdExtD3DShaderIntrinsicsUAV.InterlockedCompareExchange(instruction, asuint(val.y), 0, retVal.y);
-    AmdExtD3DShaderIntrinsicsUAV.InterlockedCompareExchange(instruction, asuint(val.z), 0, retVal.z);
-
-    return retVal;
-}
-
-/**
-***********************************************************************************************************************
-*   AmdExtD3DShaderIntrinsics_ConvertF32toF16Near - convert f32 to f16 number using nearest rounding mode
-***********************************************************************************************************************
-*/
-uint3 AmdExtD3DShaderIntrinsics_ConvertF32toF16Near(in float3 inVec)
-{
-    return AmdExtD3DShaderIntrinsics_ConvertF32toF16(AmdExtD3DShaderIntrinsicsFloatConversionOp_FToF16Near, inVec);
-}
-
-/**
-***********************************************************************************************************************
-*   AmdExtD3DShaderIntrinsics_ConvertF32toF16Near - convert f32 to f16 number using -inf rounding mode
-***********************************************************************************************************************
-*/
-uint3 AmdExtD3DShaderIntrinsics_ConvertF32toF16NegInf(in float3 inVec)
-{
-    return AmdExtD3DShaderIntrinsics_ConvertF32toF16(AmdExtD3DShaderIntrinsicsFloatConversionOp_FToF16NegInf, inVec);
-}
-
-/**
-***********************************************************************************************************************
-*   AmdExtD3DShaderIntrinsics_ConvertF32toF16Near - convert f32 to f16 number using +inf rounding mode
-***********************************************************************************************************************
-*/
-uint3 AmdExtD3DShaderIntrinsics_ConvertF32toF16PosInf(in float3 inVec)
-{
-    return AmdExtD3DShaderIntrinsics_ConvertF32toF16(AmdExtD3DShaderIntrinsicsFloatConversionOp_FToF16PlusInf, inVec);
-}
-
-
 
 /**
 ***********************************************************************************************************************
@@ -3894,97 +3681,6 @@ uint4 AmdExtD3DShaderIntrinsics_WavePostfixMax(uint4 src)
                                               AmdExtD3DShaderIntrinsicsWaveOp_Inclusive,
                                               src);
 }
-
-
-//=====================================================================================================================
-struct AmdExtRtHitToken
-{
-    uint dword[2];
-};
-
-/**
-***********************************************************************************************************************
-* @brief
-*    AmdExtD3DShaderIntrinsicsRT structure when included in a Ray Tracing payload will indicate to the driver
-*    that the dwords are already supplied in AmdExtRtHitTokenIn and only requires a call to intersect
-*    ray, bypassing the traversal of the acceleration structure.
-***********************************************************************************************************************
-*/
-struct AmdExtRtHitTokenIn : AmdExtRtHitToken { };
-
-/**
-***********************************************************************************************************************
-* @brief
-*    AmdExtD3DShaderIntrinsicsRT structure when included in a Ray Tracing payload will indicate to the driver
-*    that the dwords must be patched into the payload after traversal.  The application can store this
-*    data in a buffer which can then be used for hit group sorting so shading divergence can be avoided.
-***********************************************************************************************************************
-*/
-struct AmdExtRtHitTokenOut : AmdExtRtHitToken { };
-
-/**
-***********************************************************************************************************************
-* @brief
-*    Group shared memory reserved for temprary storage of hit tokens. Not intended to touched by the app shader.
-*    Application shader must only use the extension functions defined below to access the hit tokens
-*
-***********************************************************************************************************************
-*/
-groupshared AmdExtRtHitToken AmdHitToken;
-
-/**
-***********************************************************************************************************************
-* @brief
-*    Accessor function to obtain the hit tokens from the last call to TraceRays(). The data returned by this
-*    function only guarantees valid values for the last call to TraceRays() prior to calling this function.
-*
-***********************************************************************************************************************
-*/
-uint2 AmdGetLastHitToken()
-{
-    return uint2(AmdHitToken.dword[0], AmdHitToken.dword[1]);
-}
-
-/**
-***********************************************************************************************************************
-* @brief
-*    This function initialises hit tokens for subsequent TraceRays() call. Note, any TraceRay() that intends to use
-*    these hit tokens must include this function call in the same basic block. Applications can use a convenience macro
-*    defined below to enforce that.
-*
-***********************************************************************************************************************
-*/
-void AmdSetHitToken(uint2 token)
-{
-    AmdHitToken.dword[0] = token.x;
-    AmdHitToken.dword[1] = token.y;
-}
-
-/**
-***********************************************************************************************************************
-* @brief
-*    Convenience macro for calling TraceRays that uses the hit token
-*
-***********************************************************************************************************************
-*/
-#define AmdTraceRay(accelStruct,                    \
-                    rayFlags,                       \
-                    instanceInclusionMask,          \
-                    rayContributionToHitGroupIndex, \
-                    geometryMultiplier,             \
-                    missShaderIndex,                \
-                    ray,                            \
-                    payload,                        \
-                    token)                          \
-AmdSetHitToken(token);                              \
-TraceRay(accelStruct,                               \
-         rayFlags,                                  \
-         instanceInclusionMask,                     \
-         rayContributionToHitGroupIndex,            \
-         geometryMultiplier,                        \
-         missShaderIndex,                           \
-         ray,                                       \
-         payload);                                  \
 
 
 #endif // _AMDEXTD3DSHADERINTRINICS_HLSL

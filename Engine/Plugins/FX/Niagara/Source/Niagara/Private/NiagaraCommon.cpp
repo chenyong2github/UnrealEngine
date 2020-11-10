@@ -763,7 +763,7 @@ void FNiagaraMaterialAttributeBinding::CacheValues(const UNiagaraEmitter* InEmit
 
 bool FNiagaraUtilities::AllowGPUParticles(EShaderPlatform ShaderPlatform)
 {
-	return SupportsComputeShaders(ShaderPlatform) && GNiagaraAllowGPUParticles && GNiagaraAllowComputeShaders && GRHISupportsDrawIndirect;
+	return SupportsGPUParticles(ShaderPlatform) && GNiagaraAllowGPUParticles && GNiagaraAllowComputeShaders && GRHISupportsDrawIndirect;
 }
 
 bool FNiagaraUtilities::AllowComputeShaders(EShaderPlatform ShaderPlatform)

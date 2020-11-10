@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSharedCloudInterfaceIOS.h"
-#include "Misc/ScopeLock.h"
 
 //
 // SharedCloud interface implementation

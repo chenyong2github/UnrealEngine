@@ -51,8 +51,6 @@ public:
 	bool IsInitialized() const { return bInitialized; }
 	void SetInitialized() { bInitialized = true; }
 
-	static Chaos::TGeometryParticleHandle<Chaos::FReal, 3>* GetParticleHandleFromProxy(IPhysicsProxyBase* ProxyBase);
-
 	//
 	//  Lifespan Management
 	//

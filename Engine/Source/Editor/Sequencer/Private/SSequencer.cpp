@@ -92,7 +92,6 @@
 #include "MovieSceneCopyableTrack.h"
 #include "IPropertyRowGenerator.h"
 #include "Fonts/FontMeasure.h"
-#include "Compilation/MovieSceneCompiledDataManager.h"
 #include "SequencerTrackFilters.h"
 #include "SequencerTrackFilterExtension.h"
 #include "SequencerCustomizationManager.h"
@@ -2025,78 +2024,6 @@ TSharedRef<SWidget> SSequencer::MakeActionsMenu()
 	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleShowStretchBox);
 
 	MenuBuilder.EndSection();
-
-	MenuBuilder.BeginSection( "NetworkingOptions", LOCTEXT( "NetworkingOptionsHeader", "Networking" ) );
-	{
-		auto SetNetworkMode = [WeakSequencer = SequencerPtr](EMovieSceneServerClientMask InMode)
-		{
-			TSharedPtr<FSequencer> SequencerPin = WeakSequencer.Pin();
-			if (SequencerPin)
-			{
-				// When changing the enumlated network mode, we have to re-initialize and re-compile the 
-				// sequence data to ensure that the emulation is reading the correct client/server/all data
-				FMovieSceneRootEvaluationTemplateInstance& Template = SequencerPin->GetEvaluationTemplate();
-
-				UMovieSceneSequence* RootSequence = Template.GetRootSequence();
-
-				// Destroy the old template
-				Template.Finish(*SequencerPin);
-				// Set the new emulation mode
-				Template.SetEmulatedNetworkMask(InMode, *SequencerPin);
-				// Since sequencer owns its own compiled data manager, it's ok to override the mask here and reset everything
-				Template.GetCompiledDataManager()->SetEmulatedNetworkMask(InMode);
-				// Reinitialize the template again
-				Template.Initialize(*RootSequence, *SequencerPin, Template.GetCompiledDataManager());
-			}
-		};
-		auto IsNetworkModeChecked = [WeakSequencer = SequencerPtr](EMovieSceneServerClientMask InMode)
-		{
-			TSharedPtr<FSequencer> SequencerPin = WeakSequencer.Pin();
-			if (SequencerPin)
-			{
-				return InMode == SequencerPin->GetEvaluationTemplate().GetEmulatedNetworkMask();
-			}
-			return false;
-		};
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("NetworkEmulationAllLabel", "Do not emulate (default)"),
-			LOCTEXT("NetworkEmulationAllTooltip", "Play this sequence with all sub sequences, regardless of their network mask."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda(SetNetworkMode, EMovieSceneServerClientMask::All),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda(IsNetworkModeChecked, EMovieSceneServerClientMask::All)
-			),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("NetworkEmulationClientLabel", "Emulate as Client"),
-			LOCTEXT("NetworkEmulationClientTooltip", "Plays this sequence as if it were being played on a client (excludes server only cinematics)."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda(SetNetworkMode, EMovieSceneServerClientMask::Client),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda(IsNetworkModeChecked, EMovieSceneServerClientMask::Client)
-			),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("NetworkEmulationServerLabel", "Emulate as Server"),
-			LOCTEXT("NetworkEmulationServerTooltip", "Plays this sequence as if it were being played on a server (excludes client only cinematics)."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda(SetNetworkMode, EMovieSceneServerClientMask::Server),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda(IsNetworkModeChecked, EMovieSceneServerClientMask::Server)
-			),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton);
-	}
-	MenuBuilder.EndSection();
-
 
 	if (SequencerPtr.Pin()->IsLevelEditorSequencer())
 	{

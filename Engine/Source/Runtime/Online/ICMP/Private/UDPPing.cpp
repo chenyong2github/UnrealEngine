@@ -205,8 +205,6 @@ private:
 	int NumValidRepliesReceived;
 	bool bCancelOperation;
 
-	double MinPingSendWaitTimeMs;
-
 	ISocketSubsystem* SocketSubsystem;
 
 	TArray<FIcmpTarget> Targets;
@@ -274,6 +272,7 @@ const double FUdpPingWorker::MaxInactivityWaitTimeSecs = 60.0 * 10.0; // 10 minu
 
 int FUdpPingWorker::SequenceNum = 0;
 
+
 FUdpPingWorker::FUdpPingWorker(ISocketSubsystem *const InSocketSub, const TArray<FIcmpTarget>& InTargets, float InTimeout,
 	const FGotResultDelegate& InGotResultDelegate, const FStatusDelegate& InCompletionDelegate)
 	: FRunnable()
@@ -281,7 +280,6 @@ FUdpPingWorker::FUdpPingWorker(ISocketSubsystem *const InSocketSub, const TArray
 	, NumAwaitingReplies(0)
 	, NumValidRepliesReceived(0)
 	, bCancelOperation(false)
-	, MinPingSendWaitTimeMs(0)
 	, SocketSubsystem(InSocketSub)
 	, Targets(InTargets)
 	, GotResultDelegate(InGotResultDelegate)
@@ -305,9 +303,6 @@ bool FUdpPingWorker::Init()
 	NumAwaitingReplies = 0;
 	NumValidRepliesReceived = 0;
 	bCancelOperation = false;
-
-	MinPingSendWaitTimeMs = FUdpPingWorker::SendWaitTime.GetTotalMilliseconds();
-	GConfig->GetDouble(TEXT("Ping"), TEXT("MinPingSendWaitTimeMs"), MinPingSendWaitTimeMs, GEngineIni);
 
 	return true;
 }
@@ -486,8 +481,7 @@ bool FUdpPingWorker::SendPings(ISocketSubsystem& SocketSub)
 
 	bool bDone = false;
 
-	uint64 LastSendActivityTimeCycles = FPlatformTime::Cycles64();
-	int NumSkippedPings = -1;
+	double LastSendActivityTimeSecs = FPlatformTime::Seconds();
 
 	while (!bDone && !IsCanceled())
 	{
@@ -562,29 +556,16 @@ bool FUdpPingWorker::SendPings(ISocketSubsystem& SocketSub)
 				// More pings to send out.
 
 				// Check for inactivity.
-				const double DeltaSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - LastSendActivityTimeCycles);
-				if (DeltaSeconds > MaxInactivityWaitTimeSecs)
+				const double NowSecs = FPlatformTime::Seconds();
+				if ((NowSecs - LastSendActivityTimeSecs) > MaxInactivityWaitTimeSecs)
 				{
 					// Waiting too long for availability to send any more pings, so abort the whole send/recv loop.
 					// Allows task thread to complete with "canceled" status.
 					UE_LOG(LogPing, Warning, TEXT("SendPings; aborting due to inactivity after %.4f seconds"),
-						DeltaSeconds);
+						(NowSecs - LastSendActivityTimeSecs));
 
 					bCancelOperation = true;
 					break;
-				}
-
-				const double DeltaMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - LastSendActivityTimeCycles);
-				if (DeltaMs < MinPingSendWaitTimeMs && NumSkippedPings >= 0)
-				{
-					// Skip sending pings for a bit (but continue receiving) to not spam traffic.
-					++NumSkippedPings;
-					continue;
-				}
-
-				if (NumSkippedPings > 0)
-				{
-					UE_LOG(LogPing, VeryVerbose, TEXT("SendPings: paused sending pings for %d iterations (for %.4f ms, configured wait time is %.4f ms); resuming sends"), NumSkippedPings, DeltaMs, MinPingSendWaitTimeMs);
 				}
 
 				// Send ping for current target in progress table.
@@ -592,13 +573,12 @@ bool FUdpPingWorker::SendPings(ISocketSubsystem& SocketSub)
 				FProgress& Progress = ItSend->Value;
 
 				const ESendStatus Status = SendPing(SocketSub, SendBuf, SendDataSize, Progress);
-				NumSkippedPings = 0;
 
 				if ((ESendStatus::Ok == Status) || (ESendStatus::NoTarget == Status))
 				{
 					// Don't wait/block here; poll for is-reply-data-available in loop until received or timeout.
 
-					LastSendActivityTimeCycles = FPlatformTime::Cycles64();
+					LastSendActivityTimeSecs = FPlatformTime::Seconds();
 
 					// Advance to next send target address.
 					++ItSend;

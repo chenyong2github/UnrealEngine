@@ -266,7 +266,7 @@ void FDumpFPSChartToEndpoint::DumpChart(double InWallClockTimeFromStartOfChartin
 
 	for (int32 NumBins = Chart.DynamicResHistogram.GetNumBins(), BinIndex = 0; BinIndex < NumBins; ++BinIndex)
 	{
-		// Get the sub of this and all subsequent bins data. This is O(N^2), but we only have a few bins... 
+		// Get the sub of this and all subsequent bins data. This is O(N^2), but we only have 5 bins... 
 		int32 ChartEntryCount = 0;
 		for (int BinIndex2 = BinIndex; BinIndex2 < NumBins; BinIndex2++)
 		{
@@ -655,8 +655,8 @@ void FPerformanceTrackingChart::Reset(const FDateTime& InStartTime)
 	}
 
 	{
-		FHistogramBuilder Builder(DynamicResHistogram, 0.0);
-		const double DynamicResMaxPercentages[] = { 60.0, 70.0, 80.0, 90.0, 100.0 };
+		FHistogramBuilder Builder(DynamicResHistogram, 60.0);
+		const double DynamicResMaxPercentages[] = { 70.0, 80.0, 90.0, 100.0 };
 
 		for (double MaxPercentage : DynamicResMaxPercentages)
 		{
@@ -678,7 +678,6 @@ void FPerformanceTrackingChart::AccumulateWith(const FPerformanceTrackingChart& 
 {
 	FrametimeHistogram += Chart.FrametimeHistogram;
 	HitchTimeHistogram += Chart.HitchTimeHistogram;
-	DynamicResHistogram += Chart.DynamicResHistogram;
 	NumFramesBound_GameThread += Chart.NumFramesBound_GameThread;
 	NumFramesBound_RenderThread += Chart.NumFramesBound_RenderThread;
 	NumFramesBound_RHIThread += Chart.NumFramesBound_RHIThread;

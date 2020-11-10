@@ -71,7 +71,7 @@ public:
  **/
 struct UNREALED_API FHierarchicalLODBuilder
 {
-	FHierarchicalLODBuilder(UWorld* InWorld, bool bInPersistentLevelOnly = false);
+	FHierarchicalLODBuilder(UWorld* InWorld);
 
 	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */
 	FHierarchicalLODBuilder();
@@ -216,9 +216,6 @@ private:
 
 	/** Owning world HLODs are created for */
 	UWorld*	World;
-
-	/** Whether we should build HLOD for all sublevels or only the persistent level */
-	bool bPersistentLevelOnly;
 
 	/** Array of LOD clusters created for the HierachicalLODVolumes found within the level */
 	TMap<AHierarchicalLODVolume*, FLODCluster> HLODVolumeClusters;	

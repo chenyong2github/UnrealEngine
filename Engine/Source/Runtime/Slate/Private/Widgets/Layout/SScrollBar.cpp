@@ -48,13 +48,16 @@ void SScrollBar::Construct(const FArguments& InArgs)
 						.HAlign(HorizontalAlignment)
 						.VAlign(VerticalAlignment)
 						[
-							SAssignNew(TopImage, SImage)
+							SNew(SImage)
+							.ColorAndOpacity(this, &SScrollBar::GetTrackOpacity)
 							.Image(TopBrush)
 						]
 					]
 					.ThumbSlot()
 					[
 						SAssignNew(DragThumb, SBorder)
+						.BorderImage(this, &SScrollBar::GetDragThumbImage)
+						.ColorAndOpacity(this, &SScrollBar::GetThumbOpacity)
 						.HAlign(HAlign_Center)
 						.VAlign(VAlign_Center)
 						.Padding(0)
@@ -69,7 +72,8 @@ void SScrollBar::Construct(const FArguments& InArgs)
 						.HAlign(HorizontalAlignment)
 						.VAlign(VerticalAlignment)
 						[
-							SAssignNew(BottomImage, SImage)
+							SNew(SImage)
+							.ColorAndOpacity(this, &SScrollBar::GetTrackOpacity)
 							.Image(BottomBrush)
 						]
 					]
@@ -78,7 +82,7 @@ void SScrollBar::Construct(const FArguments& InArgs)
 		]
 	);
 
-	SetEnabled(TAttribute<bool>( Track.ToSharedRef(), &SScrollBarTrack::IsNeeded ));
+	this->EnabledState = TAttribute<bool>( Track.ToSharedRef(), &SScrollBarTrack::IsNeeded );
 	SetScrollBarAlwaysVisible(InArgs._AlwaysShowScrollbar);
 	bAlwaysShowScrollbarTrack = InArgs._AlwaysShowScrollbarTrack;
 }
@@ -98,17 +102,6 @@ void SScrollBar::SetState( float InOffsetFraction, float InThumbSizeFraction )
 
 		LastInteractionTime = FSlateApplication::Get().GetCurrentTime();
 	}
-}
-
-void SScrollBar::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	SBorder::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
-
-	DragThumb->SetBorderImage(GetDragThumbImage());
-	DragThumb->SetColorAndOpacity(GetThumbOpacity());
-
-	TopImage->SetColorAndOpacity(GetTrackOpacity());
-	BottomImage->SetColorAndOpacity(GetTrackOpacity());
 }
 
 FReply SScrollBar::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
@@ -380,8 +373,8 @@ void SScrollBar::SetScrollBarAlwaysVisible(bool InAlwaysVisible)
 
 void SScrollBar::SetScrollBarTrackAlwaysVisible(bool InAlwaysVisible)
 {
-	// Doesn't need to be invalidated here, tick updates these values.
 	bAlwaysShowScrollbarTrack = InAlwaysVisible;
+	Invalidate(EInvalidateWidget::Layout);
 }
 
 bool SScrollBar::AlwaysShowScrollbar() const

@@ -24,7 +24,7 @@ public:
 	virtual void Construct(const FArguments& InArgs, const TSharedRef<IAutomationDriverSpecSuiteViewModel>& InViewModel) override
 	{
 		ViewModel = InViewModel;
-		AddMetadata(FDriverMetaData::Id("Suite"));
+		MetaData.Add(FDriverMetaData::Id("Suite"));
 
 		SAssignNew(WindowContents, SVerticalBox)
 		+ SVerticalBox::Slot()

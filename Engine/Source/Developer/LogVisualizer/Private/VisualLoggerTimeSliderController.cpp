@@ -86,9 +86,6 @@ FVisualLoggerTimeSliderController::FVisualLoggerTimeSliderController(const FVisu
 
 float FVisualLoggerTimeSliderController::DetermineOptimalSpacing(float InPixelsPerInput, uint32 MinTick, float MinTickSpacing) const
 {
-	if (InPixelsPerInput == 0.0f)
-		return MinTickSpacing;
-
 	uint32 CurStep = 0;
 
 	// Start with the smallest spacing
@@ -333,7 +330,7 @@ FReply FVisualLoggerTimeSliderController::OnMouseButtonDown( SWidget& WidgetOwne
 FReply FVisualLoggerTimeSliderController::OnMouseButtonUp( SWidget& WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
 	bool bHandleLeftMouseButton = MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && WidgetOwner.HasMouseCapture();
-	bool bHandleRightMouseButton = MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && WidgetOwner.HasMouseCapture() && TimeSliderArgs.AllowZoom;
+	bool bHandleRightMouseButton = MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && WidgetOwner.HasMouseCapture() && TimeSliderArgs.AllowZoom ;
 	
 	if ( bHandleRightMouseButton )
 	{
@@ -344,6 +341,8 @@ FReply FVisualLoggerTimeSliderController::OnMouseButtonUp( SWidget& WidgetOwner,
 		}
 		
 		bPanning = false;
+		FReply::Handled().CaptureMouse(WidgetOwner.AsShared()).UseHighPrecisionMouseMovement(WidgetOwner.AsShared());
+
 		return FReply::Handled().ReleaseMouseCapture();
 	}
 	else if ( bHandleLeftMouseButton )
@@ -420,25 +419,35 @@ FReply FVisualLoggerTimeSliderController::OnMouseMove( SWidget& WidgetOwner, con
 				FVector2D InputDelta;
 				InputDelta.X = ScreenDelta.X/ScaleInfo.PixelsPerInput;
 
-				const TRange<float> NewViewRange = TRange<float>(LocalViewRangeMin - InputDelta.X, LocalViewRangeMax - InputDelta.X);
-				TRange<float> LocalClampRange = TimeSliderArgs.ClampRange.Get();
+				float NewViewOutputMin = LocalViewRangeMin - InputDelta.X;
+				float NewViewOutputMax = LocalViewRangeMax - InputDelta.X;
 
-				// Do not try to pan outside the clamp range to prevent undesired zoom
-				if (LocalClampRange.Contains(NewViewRange))
+				float LocalClampMin = TimeSliderArgs.ClampRange.Get().GetLowerBoundValue();
+				float LocalClampMax = TimeSliderArgs.ClampRange.Get().GetUpperBoundValue();
+
+				// Clamp the range
+				if ( NewViewOutputMin < LocalClampMin )
 				{
-					TimeSliderArgs.OnViewRangeChanged.ExecuteIfBound(NewViewRange);
-					if (Scrollbar.IsValid())
-					{
-						float InOffsetFraction = (NewViewRange.GetLowerBoundValue() - LocalClampRange.GetLowerBoundValue()) / LocalClampRange.Size<float>();
-						float InThumbSizeFraction = NewViewRange.Size<float>() / LocalClampRange.Size<float>();
-						Scrollbar->SetState(InOffsetFraction, InThumbSizeFraction);
-					}
+					NewViewOutputMin = LocalClampMin;
+				}
+			
+				if ( NewViewOutputMax > LocalClampMax )
+				{
+					NewViewOutputMax = LocalClampMax;
+				}
 
-					if (!TimeSliderArgs.ViewRange.IsBound())
-					{
-						// The  output is not bound to a delegate so we'll manage the value ourselves
-						TimeSliderArgs.ViewRange.Set(NewViewRange);
-					}
+				TimeSliderArgs.OnViewRangeChanged.ExecuteIfBound(TRange<float>(NewViewOutputMin, NewViewOutputMax));
+				if (Scrollbar.IsValid())
+				{
+					float InOffsetFraction = (NewViewOutputMin - LocalClampMin) / (LocalClampMax - LocalClampMin);
+					float InThumbSizeFraction = (NewViewOutputMax - NewViewOutputMin) / (LocalClampMax - LocalClampMin);
+					Scrollbar->SetState(InOffsetFraction, InThumbSizeFraction);
+				}
+
+				if( !TimeSliderArgs.ViewRange.IsBound() )
+				{	
+					// The  output is not bound to a delegate so we'll manage the value ourselves
+					TimeSliderArgs.ViewRange.Set( TRange<float>( NewViewOutputMin, NewViewOutputMax ) );
 				}
 			}
 		}
@@ -550,7 +559,7 @@ void FVisualLoggerTimeSliderController::SetClampRange(float MinValue, float MaxV
 
 FReply FVisualLoggerTimeSliderController::OnMouseWheel( SWidget& WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	FReply ReturnValue = FReply::Unhandled();
+	FReply ReturnValue = FReply::Unhandled();;
 
 	if (MouseEvent.IsLeftShiftDown())
 	{
@@ -575,7 +584,7 @@ FReply FVisualLoggerTimeSliderController::OnMouseWheel( SWidget& WidgetOwner, co
 			float NewViewOutputMin = LocalViewRangeMin - (OutputChange * MouseFractionX);
 			float NewViewOutputMax = LocalViewRangeMax + (OutputChange * (1.0f - MouseFractionX));
 
-			if (NewViewOutputMin < NewViewOutputMax)
+			if( FMath::Abs( OutputChange ) > 0.01f && NewViewOutputMin < NewViewOutputMax )
 			{
 				float LocalClampMin = TimeSliderArgs.ClampRange.Get().GetLowerBoundValue();
 				float LocalClampMax = TimeSliderArgs.ClampRange.Get().GetUpperBoundValue();

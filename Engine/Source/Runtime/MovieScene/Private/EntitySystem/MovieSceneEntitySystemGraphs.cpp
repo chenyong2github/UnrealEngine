@@ -494,8 +494,6 @@ int32 FMovieSceneEntitySystemGraph::RemoveIrrelevantSystems(UMovieSceneEntitySys
 
 void FMovieSceneEntitySystemGraph::UpdateCache()
 {
-	using namespace UE::MovieScene;
-
 	if (PreviousSerialNumber == SerialNumber)
 	{
 		return;
@@ -536,23 +534,15 @@ void FMovieSceneEntitySystemGraph::UpdateCache()
 
 	for (uint16 NodeID : DepthFirstSearch.PostNodes)
 	{
-		ESystemPhase SystemPhase = Nodes.Array[NodeID].System->GetPhase();
+		UMovieSceneEntitySystem* System = Nodes.Array[NodeID].System;
 
-		if (EnumHasAnyFlags(SystemPhase, ESystemPhase::Spawn))
+		switch(System->GetPhase())
 		{
-			SpawnPhase.Emplace(NodeID);
-		}
-		if (EnumHasAnyFlags(SystemPhase, ESystemPhase::Instantiation))
-		{
-			InstantiationPhase.Emplace(NodeID);
-		}
-		if (EnumHasAnyFlags(SystemPhase, ESystemPhase::Evaluation))
-		{
-			EvaluationPhase.Emplace(NodeID);
-		}
-		if (EnumHasAnyFlags(SystemPhase, ESystemPhase::Finalization))
-		{
-			FinalizationPhase.Emplace(NodeID);
+		case UE::MovieScene::ESystemPhase::Spawn:         SpawnPhase.Emplace(NodeID);            break;
+		case UE::MovieScene::ESystemPhase::Instantiation: InstantiationPhase.Emplace(NodeID);    break;
+		case UE::MovieScene::ESystemPhase::Evaluation:    EvaluationPhase.Emplace(NodeID);       break;
+		case UE::MovieScene::ESystemPhase::Finalization:  FinalizationPhase.Emplace(NodeID);     break;
+		default: break;
 		}
 	}
 
@@ -572,58 +562,42 @@ void FMovieSceneEntitySystemGraph::DebugPrint() const
 
 FString FMovieSceneEntitySystemGraph::ToString() const
 {
-	using namespace UE::MovieScene;
-
 	FString String;
 	String += TEXT("\ndigraph FMovieSceneEntitySystemGraph {\n");
 	String += TEXT("\tnode [shape=record,height=.1];\n");
 
-	FString FlowStrings[] = 
+	FString ClusterStrings[] = 
 	{
-		TEXT("\tsubgraph cluster_flow_0 { label=\"Spawn\"; color=\"#0e868c\";\n"),
-		TEXT("\tsubgraph cluster_flow_1 { label=\"Instantiation\"; color=\"#96c74c\";\n"),
-		TEXT("\tsubgraph cluster_flow_2 { label=\"Evaluation\"; color=\"#6dc74c\";\n"),
-		TEXT("\tsubgraph cluster_flow_3 { label=\"Finalization\"; color=\"#aa42f5\";\n"),
+		TEXT("\tsubgraph cluster_0 { color=\"#bfc74c\";\n"),
+		TEXT("\tsubgraph cluster_1 { label=\"Spawn\"; color=\"#0e868c\";\n"),
+		TEXT("\tsubgraph cluster_2 { label=\"Instantiation\"; color=\"#96c74c\";\n"),
+		TEXT("\tsubgraph cluster_3 { label=\"Evaluation\"; color=\"#6dc74c\";\n"),
+		TEXT("\tsubgraph cluster_4 { label=\"Finalization\"; color=\"#aa42f5\";\n"),
 	};
 
-	FString ReferenceGraphString = TEXT("\tsubgraph cluster_references { label=\"Explicit Reference Graph (connections imply ownership)\"; color=\"#bfc74c\";\n");
-
-	for (int32 SystemIndex = 0; SystemIndex < this->Nodes.Array.GetMaxIndex(); ++SystemIndex)
+	for (int32 Index = 0; Index < this->Nodes.Array.GetMaxIndex(); ++Index)
 	{
-		if (Nodes.Array.IsAllocated(SystemIndex))
+		if (Nodes.Array.IsAllocated(Index))
 		{
-			UMovieSceneEntitySystem* System = Nodes.Array[SystemIndex].System;
+			const FMovieSceneEntitySystemGraphNode& Node = Nodes.Array[Index];
 
-			ESystemPhase SystemPhase = System->GetPhase();
-
-			if (EnumHasAnyFlags(SystemPhase, ESystemPhase::Spawn))
+			FString NodeLabel = FString::Printf(TEXT("\t\tnode%d[label=\"%s\"];\n"), Index, *Node.System->GetName());
+			switch (Node.System->GetPhase())
 			{
-				FlowStrings[0] += FString::Printf(TEXT("\t\tflow_node%d_0[label=\"%s\"];\n"), SystemIndex, *System->GetName());
+				case UE::MovieScene::ESystemPhase::None:          ClusterStrings[0] += NodeLabel; break;
+				case UE::MovieScene::ESystemPhase::Spawn:         ClusterStrings[1] += NodeLabel; break;
+				case UE::MovieScene::ESystemPhase::Instantiation: ClusterStrings[2] += NodeLabel; break;
+				case UE::MovieScene::ESystemPhase::Evaluation:    ClusterStrings[3] += NodeLabel; break;
+				case UE::MovieScene::ESystemPhase::Finalization:  ClusterStrings[4] += NodeLabel; break;
 			}
-			if (EnumHasAnyFlags(SystemPhase, ESystemPhase::Instantiation))
-			{
-				FlowStrings[1] += FString::Printf(TEXT("\t\tflow_node%d_1[label=\"%s\"];\n"), SystemIndex, *System->GetName());
-			}
-			if (EnumHasAnyFlags(SystemPhase, ESystemPhase::Evaluation))
-			{
-				FlowStrings[2] += FString::Printf(TEXT("\t\tflow_node%d_2[label=\"%s\"];\n"), SystemIndex, *System->GetName());
-			}
-			if (EnumHasAnyFlags(SystemPhase, ESystemPhase::Finalization))
-			{
-				FlowStrings[3] += FString::Printf(TEXT("\t\tflow_node%d_3[label=\"%s\"];\n"), SystemIndex, *System->GetName());
-			}
-
-			ReferenceGraphString += FString::Printf(TEXT("\t\treference_node%d[label=\"%s\"];\n"), SystemIndex, *System->GetName());
 		}
 	}
 
-	for (FString& FlowString : FlowStrings)
+	for (FString& ClusterString : ClusterStrings)
 	{
-		String += FlowString;
+		String += ClusterString;
 		String += TEXT("\t}\n");
 	}
-	String += ReferenceGraphString;
-	String += TEXT("\t}\n");
 
 	{
 		FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges CyclicEdges(&FlowGraph);
@@ -635,25 +609,7 @@ FString FMovieSceneEntitySystemGraph::ToString() const
 			FDirectionalEdge Edge = FlowEdges[EdgeIndex];
 			const bool bIsCyclic = CyclicEdges.IsCyclic(EdgeIndex);
 
-			ESystemPhase FromPhase = Nodes.Array[Edge.FromNode].System->GetPhase();
-			ESystemPhase ToPhase   = Nodes.Array[Edge.ToNode].System->GetPhase();
-
-			if (EnumHasAnyFlags(FromPhase, ESystemPhase::Spawn) && EnumHasAnyFlags(ToPhase, ESystemPhase::Spawn))
-			{
-				String += FString::Printf(TEXT("\tflow_node%d_0 -> flow_node%d_0 [color=\"%s\"];\n"), (int32)Edge.FromNode, (int32)Edge.ToNode, bIsCyclic ? TEXT("#FF0000") : TEXT("#39ad3b"));
-			}
-			if (EnumHasAnyFlags(FromPhase, ESystemPhase::Instantiation) && EnumHasAnyFlags(ToPhase, ESystemPhase::Instantiation))
-			{
-				String += FString::Printf(TEXT("\tflow_node%d_1 -> flow_node%d_1 [color=\"%s\"];\n"), (int32)Edge.FromNode, (int32)Edge.ToNode, bIsCyclic ? TEXT("#FF0000") : TEXT("#39ad3b"));
-			}
-			if (EnumHasAnyFlags(FromPhase, ESystemPhase::Evaluation) && EnumHasAnyFlags(ToPhase, ESystemPhase::Evaluation))
-			{
-				String += FString::Printf(TEXT("\tflow_node%d_2 -> flow_node%d_2 [color=\"%s\"];\n"), (int32)Edge.FromNode, (int32)Edge.ToNode, bIsCyclic ? TEXT("#FF0000") : TEXT("#39ad3b"));
-			}
-			if (EnumHasAnyFlags(FromPhase, ESystemPhase::Finalization) && EnumHasAnyFlags(ToPhase, ESystemPhase::Finalization))
-			{
-				String += FString::Printf(TEXT("\tflow_node%d_3 -> flow_node%d_3 [color=\"%s\"];\n"), (int32)Edge.FromNode, (int32)Edge.ToNode, bIsCyclic ? TEXT("#FF0000") : TEXT("#39ad3b"));
-			}
+			String += FString::Printf(TEXT("\tnode%d -> node%d [label=\"Flow\",color=\"%s\"];\n"), (int32)Edge.FromNode, (int32)Edge.ToNode, bIsCyclic ? TEXT("#FF0000") : TEXT("#39ad3b"));
 		}
 	}
 
@@ -668,7 +624,7 @@ FString FMovieSceneEntitySystemGraph::ToString() const
 			FDirectionalEdge Edge = ReferenceEdges[EdgeIndex];
 			const bool bIsCyclic = CyclicEdges.IsCyclic(EdgeIndex);
 
-			String += FString::Printf(TEXT("\treference_node%d -> reference_node%d [color=\"%s\"];\n"), (int32)Edge.FromNode, (int32)Edge.ToNode, bIsCyclic ? TEXT("#FF0000") : TEXT("#3992ad"));
+			String += FString::Printf(TEXT("\tnode%d -> node%d [label=\"Keeps Alive\",color=\"%s\"];\n"), (int32)Edge.FromNode, (int32)Edge.ToNode, bIsCyclic ? TEXT("#FF0000") : TEXT("#3992ad"));
 		}
 	}
 

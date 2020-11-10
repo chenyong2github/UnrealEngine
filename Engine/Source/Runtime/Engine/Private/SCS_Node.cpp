@@ -590,19 +590,6 @@ USceneComponent* USCS_Node::GetParentComponentTemplate(UBlueprint* InBlueprint) 
 	return ParentComponentTemplate;
 }
 
-void USCS_Node::SaveToTransactionBuffer()
-{
-	Modify();
-
-	for (USCS_Node* ChildNode : GetChildNodes())
-	{
-		if (ChildNode)
-		{
-			ChildNode->SaveToTransactionBuffer();
-		}
-	}
-}
-
 void USCS_Node::ValidateGuid()
 {
 	// Backward compatibility:

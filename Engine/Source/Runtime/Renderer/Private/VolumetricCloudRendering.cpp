@@ -1347,7 +1347,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder)
 		if (CloudProxy.GetCloudVolumeMaterial())
 		{
 			FMaterialRenderProxy* CloudVolumeMaterialProxy = CloudProxy.GetCloudVolumeMaterial()->GetRenderProxy();
-			if (CloudVolumeMaterialProxy->GetIncompleteMaterialWithFallback(ViewFamily.GetFeatureLevel()).GetMaterialDomain() == MD_Volume)
+			if (CloudVolumeMaterialProxy->GetMaterial(ViewFamily.GetFeatureLevel())->GetMaterialDomain() == MD_Volume)
 			{
 				RDG_EVENT_SCOPE(GraphBuilder, "VolumetricCloudShadow");
 				RDG_GPU_STAT_SCOPE(GraphBuilder, VolumetricCloudShadow);
@@ -1736,7 +1736,7 @@ void FSceneRenderer::RenderVolumetricCloud(
 	if (CloudSceneProxy.GetCloudVolumeMaterial())
 	{
 		FMaterialRenderProxy* CloudVolumeMaterialProxy = CloudSceneProxy.GetCloudVolumeMaterial()->GetRenderProxy();
-		if (CloudVolumeMaterialProxy->GetIncompleteMaterialWithFallback(ViewFamily.GetFeatureLevel()).GetMaterialDomain() == MD_Volume)
+		if (CloudVolumeMaterialProxy->GetMaterial(ViewFamily.GetFeatureLevel())->GetMaterialDomain() == MD_Volume)
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "VolumetricCloud");
 			RDG_GPU_STAT_SCOPE(GraphBuilder, VolumetricCloud);

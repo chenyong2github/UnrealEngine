@@ -323,7 +323,7 @@ void USplitMeshCommand::Execute(IMeshEditorModeEditingContract& MeshEditorMode)
 		NewMeshDescription->Compact(Remappings);
 		for(int32 PolygonIdIndex = 0; PolygonIdIndex <= GroupId.GetValue(); ++PolygonIdIndex)
 		{
-			NewStaticMesh->GetStaticMaterials().Add(UMaterial::GetDefaultMaterial(MD_Surface));
+			NewStaticMesh->StaticMaterials.Add(UMaterial::GetDefaultMaterial(MD_Surface));
 		}
 		NewStaticMesh->CommitMeshDescription(0);
 		NewStaticMesh->Build();

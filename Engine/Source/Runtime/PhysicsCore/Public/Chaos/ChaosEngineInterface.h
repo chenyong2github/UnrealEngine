@@ -415,9 +415,6 @@ public:
 	static void SetMaxDepenetrationVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference,float InMaxDepenetrationVelocity);
 
 	static FVector GetWorldVelocityAtPoint_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InPoint);
-#if WITH_CHAOS
-	static FVector GetWorldVelocityAtPoint_AssumesLocked(const Chaos::TKinematicGeometryParticleHandle<float,3>* InActorReference, const FVector& InPoint);
-#endif
 
 	static FTransform GetComTransform_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 	static FTransform GetComTransformLocal_AssumesLocked(const FPhysicsActorHandle& InActorReference);
@@ -437,8 +434,6 @@ public:
 
 	static bool IsGravityEnabled_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 	static void SetGravityEnabled_AssumesLocked(const FPhysicsActorHandle& InActorReference,bool bEnabled);
-
-	static void SetOneWayInteraction_AssumesLocked(const FPhysicsActorHandle& InHandle, bool InOneWayInteraction);
 
 	static float GetSleepEnergyThreshold_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 	static void SetSleepEnergyThreshold_AssumesLocked(const FPhysicsActorHandle& InActorReference,float InEnergyThreshold);

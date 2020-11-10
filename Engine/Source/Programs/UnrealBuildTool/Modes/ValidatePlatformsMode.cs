@@ -28,12 +28,6 @@ namespace UnrealBuildTool
 		bool bAllPlatforms = false;
 
 		/// <summary>
-		/// Whether to output SDK versions.
-		/// </summary>
-		[CommandLine("-OutputSDKs")]
-		bool bOutputSDKs = false;
-
-		/// <summary>
 		/// Executes the tool with the given arguments
 		/// </summary>
 		/// <param name="Arguments">Command line arguments</param>
@@ -54,19 +48,13 @@ namespace UnrealBuildTool
 			foreach (UnrealTargetPlatform Platform in Platforms)
 			{
 				UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform, true);
-				string PlatformSDKString = "";
-				if (bOutputSDKs)
-				{
-					PlatformSDKString = BuildPlatform != null ? BuildPlatform.GetRequiredSDKString() : "<UNKNOWN>";
-				}
-
 				if (BuildPlatform != null && BuildPlatform.HasRequiredSDKsInstalled() == SDKStatus.Valid)
 				{
-					Log.TraceInformation("##PlatformValidate: {0} VALID {1}", Platform.ToString(), PlatformSDKString);
+					Log.TraceInformation("##PlatformValidate: {0} VALID", Platform.ToString());
 				}
 				else
 				{
-					Log.TraceInformation("##PlatformValidate: {0} INVALID {1}", Platform.ToString(), PlatformSDKString);
+					Log.TraceInformation("##PlatformValidate: {0} INVALID", Platform.ToString());
 				}
 			} 
 			return 0;

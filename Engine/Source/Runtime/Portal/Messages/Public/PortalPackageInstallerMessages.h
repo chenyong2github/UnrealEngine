@@ -40,7 +40,7 @@ struct FPortalPackageInstallerInstallResponse
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category="Message")
-	bool Result = false;
+	bool Result;
 
 	FPortalPackageInstallerInstallResponse() { }
 	FPortalPackageInstallerInstallResponse(bool InResult)
@@ -65,7 +65,7 @@ struct FPortalPackageInstallerUninstallRequest
 	FString InstallationPath;
 
 	UPROPERTY(EditAnywhere, Category="Message")
-	bool RemoveUserFiles = false;
+	bool RemoveUserFiles;
 
 	FPortalPackageInstallerUninstallRequest() { }
 	FPortalPackageInstallerUninstallRequest(const FString& InAppName, const FString& InBuildLabel, const FString& InInstallationPath, bool InRemoveUserFiles)
@@ -84,7 +84,7 @@ struct FPortalPackageInstallerUninstallResponse
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category="Message")
-	bool Result = false;
+	bool Result;
 
 	FPortalPackageInstallerUninstallResponse() { }
 	FPortalPackageInstallerUninstallResponse(bool InResult)

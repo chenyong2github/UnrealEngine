@@ -21,7 +21,7 @@ FHoloLensTargetPlatform::FHoloLensTargetPlatform()
 	PlatformInfo = ::PlatformInfo::FindPlatformInfo(FName("HoloLens"));
 
 #if WITH_ENGINE
-	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *IniPlatformName());
+	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *PlatformName());
 	TextureLODSettings = nullptr; // These are registered by the device profile system.
 	StaticMeshLODSettings.Initialize(EngineSettings);
 #endif

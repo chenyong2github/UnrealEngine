@@ -28,7 +28,7 @@ class UMovieSceneCompiledDataManager;
  */
 struct FMovieSceneTrackEvaluator : FGCObject
 {
-	FMovieSceneTrackEvaluator(UMovieSceneSequence* InRootSequence, FMovieSceneCompiledDataID InRootCompiledDataID, UMovieSceneCompiledDataManager* InCompiledDataManager);
+	FMovieSceneTrackEvaluator(UMovieSceneSequence* InRootSequence, UMovieSceneCompiledDataManager* InCompiledDataManager);
 	~FMovieSceneTrackEvaluator();
 
 	/**

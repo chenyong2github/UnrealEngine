@@ -720,12 +720,6 @@ public:
 	*/
 	static void UpdateCustomLLMTags() { };
 
-	/**
-	* Returns true if Protecting the parent processes pages has been enabled
-	* Only supported on platforms that support forking
-	*/
-	static bool HasForkPageProtectorEnabled() { return false; }
-
 protected:
 	friend struct FGenericStatsUpdater;
 

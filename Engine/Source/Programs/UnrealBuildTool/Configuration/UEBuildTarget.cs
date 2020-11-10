@@ -3426,7 +3426,6 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.ShadowVariableWarningLevel = Rules.ShadowVariableWarningLevel;
 			GlobalCompileEnvironment.UnsafeTypeCastWarningLevel = Rules.UnsafeTypeCastWarningLevel;
 			GlobalCompileEnvironment.bUndefinedIdentifierWarningsAsErrors = Rules.bUndefinedIdentifierErrors;
-			GlobalCompileEnvironment.bRetainFramePointers = Rules.bRetainFramePointers;
 			GlobalCompileEnvironment.bOptimizeForSize = Rules.bCompileForSize;
 			GlobalCompileEnvironment.bUseStaticCRT = Rules.bUseStaticCRT;
 			GlobalCompileEnvironment.bOmitFramePointers = Rules.bOmitFramePointers;

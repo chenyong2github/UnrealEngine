@@ -236,7 +236,6 @@ static bool VerifyLinkedProgram(GLuint Program)
 	{
 		if (ReportProgramLinkFailures())
 		{
-			GLenum LastGLError = glGetError();
 			GLint LogLength;
 			ANSICHAR DefaultLog[] = "No log";
 			ANSICHAR *CompileLog = DefaultLog;
@@ -246,9 +245,8 @@ static bool VerifyLinkedProgram(GLuint Program)
 				CompileLog = (ANSICHAR *)FMemory::Malloc(LogLength);
 				glGetProgramInfoLog(Program, LogLength, NULL, CompileLog);
 			}
-			UE_LOG(LogRHI, Error, TEXT("Failed to link program. Current total programs: %d program binary bytes, last gl error 0x%X, drvalloc %d\n  log:\n%s"),
+			UE_LOG(LogRHI, Error, TEXT("Failed to link program. Current total programs: %d program binary bytes: %d\n  log:\n%s"),
 				GNumPrograms,
-				LastGLError,
 				GCurrentDriverProgramBinaryAllocation,
 				ANSI_TO_TCHAR(CompileLog));
 
@@ -1078,6 +1076,27 @@ FDomainShaderRHIRef FOpenGLDynamicRHI::RHICreateDomainShader(TArrayView<const ui
 	return CreateProxyShader<FRHIDomainShader, FOpenGLDomainShaderProxy>(Code, Hash);
 }
 
+template<typename RHIType, typename TOGLProxyType>
+RHIType* CreateProxyShader(FRHIShaderLibrary* Library, FSHAHash Hash)
+{
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+	if (ShouldRunGLRenderContextOpOnThisThread(RHICmdList))
+	{
+		return new TOGLProxyType([&](RHIType* OwnerRHI)
+		{
+			return CompileOpenGLShader<typename TOGLProxyType::ContainedGLType>(Library, Hash, OwnerRHI);
+		});
+	}
+	else
+	{
+		// take a copy of the code for RHIT version.
+		return new TOGLProxyType([Library, Hash](RHIType* OwnerRHI)
+		{
+			return CompileOpenGLShader<typename TOGLProxyType::ContainedGLType>(Library, Hash, OwnerRHI);
+		});
+	}
+}
+
 static void MarkShaderParameterCachesDirty(FOpenGLShaderParameterCache* ShaderParameters, bool UpdateCompute)
 {
 	VERIFY_GL_SCOPE();
@@ -1618,8 +1637,6 @@ static bool GetProgramBinaryFromGLProgram(GLuint Program, TArray<uint8>& Program
 
 static bool CreateGLProgramFromBinary(GLuint& ProgramOUT, const TArray<uint8>& ProgramBinary)
 {
-	SCOPE_CYCLE_COUNTER(STAT_OpenGLCreateProgramFromBinaryTime)
-	
 	if (CVarStoreCompressedBinaries.GetValueOnAnyThread())
 	{
 		return CreateGLProgramFromCompressedBinary(ProgramOUT, ProgramBinary);
@@ -1706,17 +1723,7 @@ class FGLProgramCacheLRU
 			}
 			else
 			{
-				uint32 ProgramCRC = FCrc::MemCrc32(GetProgramBinary().GetData(), GetProgramBinary().Num());
-				UE_LOG(LogRHI, Log, TEXT("[%s, %d, %d, crc 0x%X]"), *LinkedProgram->Config.ProgramKey.ToString(), LinkedProgram->Program, GetProgramBinary().Num(), ProgramCRC );
-				// dump first 32 bytes..
-				if (GetProgramBinary().Num() >= 32)
-				{
-					const uint32* MemPtr = (const uint32*)GetProgramBinary().GetData();
-					for (int32 Dump = 0; Dump < 8; Dump++)
-					{
-						UE_LOG(LogRHI, Log, TEXT("[%d :  0x%08X]"), Dump, *MemPtr++);
-					}
-				}
+				UE_LOG(LogRHI, Log, TEXT("[%s, %d, %d]"), *LinkedProgram->Config.ProgramKey.ToString(), LinkedProgram->Program, GetProgramBinary().Num() );
 				RHIGetPanicDelegate().ExecuteIfBound(FName("FailedBinaryProgramCreate"));
 				UE_LOG(LogRHI, Fatal, TEXT("RestoreGLProgramFromBinary : Failed to restore GL program from binary data! [%s]"), *LinkedProgram->Config.ProgramKey.ToString());
 			}
@@ -4633,8 +4640,6 @@ bool FOpenGLProgramBinaryCache::UseCachedProgram(GLuint& ProgramOUT, const FOpen
 
 bool FOpenGLProgramBinaryCache::UseCachedProgram_internal(GLuint& ProgramOUT, const FOpenGLProgramKey& ProgramKey, TArray<uint8>& CachedProgramBinaryOUT)
 {
-	SCOPE_CYCLE_COUNTER(STAT_OpenGLUseCachedProgramTime);
-	
 	FGLProgramBinaryFileCacheEntry** ProgramBinRefPtr = nullptr;
 
 	FScopeLock Lock(&GProgramBinaryCacheCS);

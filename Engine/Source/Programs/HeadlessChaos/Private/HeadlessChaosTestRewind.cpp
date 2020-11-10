@@ -23,6 +23,8 @@ namespace ChaosTest {
 	void TickSolverHelper(FChaosSolversModule* Module, TSolver* Solver, FReal Dt = 1.0)
 	{
 		Solver->AdvanceAndDispatch_External(Dt);
+		Solver->BufferPhysicsResults();
+		Solver->FlipBuffers();
 		Solver->UpdateGameThreadStructures();
 	}
 

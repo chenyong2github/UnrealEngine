@@ -561,32 +561,6 @@ public:
 
 
 /**
- * Pixel shader to convert RGB 8 bits to Y 8 bits
- *
- * This shader expects a single texture in PF_B8G8R8A8 format.
- */
-class FRGB8toY8ConvertPS
-	: public FGlobalShader
-{
-	DECLARE_EXPORTED_SHADER_TYPE(FRGB8toY8ConvertPS, Global, RENDERCORE_API);
-
-public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
-	FRGB8toY8ConvertPS() { }
-
-	FRGB8toY8ConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{ }
-
-	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture, const FVector4& ColorTransform, bool LinearToSrgb);
-};
-
-/**
  * Pixel shader to inverse alpha component 
  *
  * This shader expects a single texture in RGBA 8 or 10 bits format.

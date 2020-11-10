@@ -23,21 +23,20 @@ namespace MovieScene
 enum class ESystemPhase : uint8
 {
 	/** Null phase which indicates that the system never runs, but still exists in the reference graph */
-	None = 0,
+	None,
 
 	/** Expensive: Phase that is run before instantiation any time any boundary is crossed in the sequence. Used to spawn new objects and trigger pre/post-spawn events. */
-	Spawn = 1 << 0,
+	Spawn,
 
 	/** Expensive: Houses any system that needs to instantiate global entities into the linker, or make meaningful changes to entity structures.. */
-	Instantiation = 1 << 1,
+	Instantiation,
 
 	/** Fast, distributed: Houses the majority of evaluation systems that compute animation data. Entity manager is locked down for the duration of this phase. */
-	Evaluation = 1 << 2,
+	Evaluation,
 
 	/** Finalization phase for enything that wants to run after everything else. */
-	Finalization = 1 << 3,
+	Finalization,
 };
-ENUM_CLASS_FLAGS(ESystemPhase);
 
 enum class EComponentTypeFlags : uint8
 {

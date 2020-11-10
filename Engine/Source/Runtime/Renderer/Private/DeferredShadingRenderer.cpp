@@ -47,7 +47,6 @@
 #include "ShaderPrint.h"
 #include "GpuDebugRendering.h"
 #include "HairStrands/HairStrandsRendering.h"
-#include "PhysicsField/PhysicsFieldComponent.h"
 #include "GPUSortManager.h"
 
 static TAutoConsoleVariable<int32> CVarStencilForLODDither(
@@ -1501,12 +1500,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			PrepareDistanceFieldScene(RHICmdList, bSplitDispatch);
 		}
 
-		if (Views.Num() > 0)
-		{
-			FViewInfo& View = Views[0];
-			Scene->UpdatePhysicsField(RHICmdList, View);
-		}
-
 		if (!GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))
 		{
 			// we will probably stall on occlusion queries, so might as well have the RHI thread and GPU work while we wait.
@@ -2289,14 +2282,13 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderFog(GraphBuilder, SceneColorTexture.Target, SceneDepthTexture.Target, LightShaftOcclusionTexture, SceneTextures);
 	}
 
-	// After the height fog, Draw volumetric clouds (having fog applied on them already) when using per pixel tracing,
+	// Draw volumetric clouds when using per pixel tracing
 	if (bShouldRenderVolumetricCloud)
 	{
 		bool bSkipVolumetricRenderTarget = true;
 		bool bSkipPerPixelTracing = false;
 		RenderVolumetricCloud(GraphBuilder, GetSceneTextureShaderParameters(SceneTextures), bSkipVolumetricRenderTarget, bSkipPerPixelTracing, SceneColorTexture, SceneDepthTexture);
 	}
-	// or composite the off screen buffer over the scene.
 	if (bVolumetricRenderTargetRequired)
 	{
 		ComposeVolumetricRenderTargetOverScene(GraphBuilder, SceneColorTexture.Target, SceneDepthTexture.Target, bShouldRenderSingleLayerWater, SceneWithoutWaterTextures);

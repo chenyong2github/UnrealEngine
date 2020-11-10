@@ -83,19 +83,6 @@ public:
 		FString LogFileDirectory;
 		FString LogFilePath;
 		FString PlatformStr;
-		FString	OutputDirectoryBase;
-
-		if (!FParse::Value(CommandLineParam, TEXT("FOOBASEDIR="), OutputDirectoryBase))
-		{
-			if (FParse::Param(CommandLineParam, TEXT("FOOUSESAVEDDIR")))
-			{
-				OutputDirectoryBase = FPaths::ProjectSavedDir();
-			}
-			else
-			{
-				OutputDirectoryBase = FPlatformMisc::ProjectDir();
-			}
-		}
 
 		if (FParse::Value(CommandLineParam, TEXT("TARGETPLATFORM="), PlatformStr))
 		{
@@ -109,11 +96,11 @@ public:
 			{
 				if (FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformNames[Platform]).bIsConfidential)
 				{
-					LogFileDirectory = FPaths::Combine(OutputDirectoryBase, TEXT("Platforms"), *PlatformNames[Platform], TEXT("Build"), TEXT("FileOpenOrder"));
+					LogFileDirectory = FPaths::Combine(FPlatformMisc::ProjectDir(), TEXT("Platforms"), *PlatformNames[Platform], TEXT("Build"), TEXT("FileOpenOrder"));
 				}
 				else
 				{
-					LogFileDirectory = FPaths::Combine(OutputDirectoryBase, TEXT( "Build" ), *PlatformNames[Platform], TEXT("FileOpenOrder"));
+					LogFileDirectory = FPaths::Combine( FPlatformMisc::ProjectDir(), TEXT( "Build" ), *PlatformNames[Platform], TEXT("FileOpenOrder"));
 				}
 #if WITH_EDITOR
 				LogFilePath = FPaths::Combine( *LogFileDirectory, TEXT("EditorOpenOrder.log"));
@@ -132,11 +119,11 @@ public:
 		{
 			if (FDataDrivenPlatformInfoRegistry::GetPlatformInfo(FPlatformProperties::PlatformName()).bIsConfidential)
 			{
-				LogFileDirectory = FPaths::Combine(OutputDirectoryBase, TEXT("Platforms"), StringCast<TCHAR>(FPlatformProperties::PlatformName()).Get(), TEXT("Build"), TEXT("FileOpenOrder"));
+				LogFileDirectory = FPaths::Combine(FPlatformMisc::ProjectDir(), TEXT("Platforms"), StringCast<TCHAR>(FPlatformProperties::PlatformName()).Get(), TEXT("Build"), TEXT("FileOpenOrder"));
 			}
 			else
 			{
-				LogFileDirectory = FPaths::Combine(OutputDirectoryBase, TEXT("Build"), StringCast<TCHAR>(FPlatformProperties::PlatformName()).Get(), TEXT("FileOpenOrder"));
+				LogFileDirectory = FPaths::Combine(FPlatformMisc::ProjectDir(), TEXT("Build"), StringCast<TCHAR>(FPlatformProperties::PlatformName()).Get(), TEXT("FileOpenOrder"));
 			}
 #if WITH_EDITOR
 			LogFilePath = FPaths::Combine( *LogFileDirectory, TEXT("EditorOpenOrder.log"));

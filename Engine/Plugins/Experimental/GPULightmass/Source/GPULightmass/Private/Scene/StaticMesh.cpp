@@ -32,9 +32,9 @@ const FMeshMapBuildData* FStaticMeshInstance::GetMeshMapBuildDataForLODIndex(int
 
 void FStaticMeshInstance::AllocateLightmaps(TEntityArray<FLightmap>& LightmapContainer)
 {
-	for (int32 LODIndex = 0; LODIndex < ComponentUObject->GetStaticMesh()->GetRenderData()->LODResources.Num(); LODIndex++)
+	for (int32 LODIndex = 0; LODIndex < ComponentUObject->GetStaticMesh()->RenderData->LODResources.Num(); LODIndex++)
 	{
-		FStaticMeshLODResources& LODModel = ComponentUObject->GetStaticMesh()->GetRenderData()->LODResources[LODIndex];
+		FStaticMeshLODResources& LODModel = ComponentUObject->GetStaticMesh()->RenderData->LODResources[LODIndex];
 
 		int32 BaseLightMapWidth;
 		int32 BaseLightMapHeight;

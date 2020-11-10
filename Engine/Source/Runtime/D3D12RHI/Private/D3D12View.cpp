@@ -446,11 +446,6 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::CreateShaderResourceView_RenderThrea
 	return RHICreateShaderResourceView_RenderThread(RHICmdList, VertexBufferRHI, Stride, Format);
 }
 
-FShaderResourceViewRHIRef FD3D12DynamicRHI::CreateShaderResourceView_RenderThread(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* Buffer)
-{
-	return RHICreateShaderResourceView(Buffer);
-}
-
 FShaderResourceViewRHIRef FD3D12DynamicRHI::CreateShaderResourceView_RenderThread(FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer)
 {
 	return RHICreateShaderResourceView_RenderThread(RHICmdList, Initializer);

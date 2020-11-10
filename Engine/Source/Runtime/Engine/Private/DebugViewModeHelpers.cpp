@@ -4,11 +4,7 @@
 	DebugViewModeHelpers.cpp: debug view shader helpers.
 =============================================================================*/
 #include "DebugViewModeHelpers.h"
-#include "DebugViewModeInterface.h"
-#include "Materials/MaterialInterface.h"
-#include "Materials/Material.h"
-#include "MaterialShaderType.h"
-#include "MeshMaterialShader.h"
+#include "DebugViewModeMaterialManager.h"
 #include "ShaderCompiler.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/FeedbackContext.h"
@@ -65,38 +61,6 @@ bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode, EShaderPlatform P
 #else
 	return ShaderMode == DVSM_ShaderComplexity;
 #endif
-}
-
-bool ShouldCompileDebugViewModeShader(EDebugViewShaderMode ShaderMode, const FMeshMaterialShaderPermutationParameters& Parameters)
-{
-	if (!EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData))
-	{
-		// Debug view shaders only in editor
-		return false;
-	}
-
-	if (!AllowDebugViewShaderMode(ShaderMode, Parameters.Platform, Parameters.MaterialParameters.FeatureLevel))
-	{
-		// Don't support this mode
-		return false;
-	}
-
-	const FDebugViewModeInterface* DebugViewModeInterface = FDebugViewModeInterface::GetInterface(ShaderMode);
-	if (!DebugViewModeInterface->bNeedsMaterialProperties &&
-		!Parameters.MaterialParameters.bIsDefaultMaterial &&
-		FDebugViewModeInterface::AllowFallbackToDefaultMaterial(Parameters.MaterialParameters.TessellationMode, Parameters.MaterialParameters.bHasVertexPositionOffsetConnected, Parameters.MaterialParameters.bHasPixelDepthOffsetConnected))
-	{
-		// We can replace this material with the default material
-		return false;
-	}
-
-	if (DebugViewModeInterface->bNeedsOnlyLocalVertexFactor && Parameters.VertexFactoryType->GetFName() != TEXT("FLocalVertexFactory"))
-	{
-		// This debug view mode only needed for local vertex factory
-		return false;
-	}
-
-	return true;
 }
 
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -254,10 +218,12 @@ bool GetUsedMaterialsInWorld(UWorld* InWorld, OUT TSet<UMaterialInterface*>& Out
  *
  * @param QualityLevel		The quality level for the shaders.
  * @param FeatureLevel		The feature level for the shaders.
+ * @param bFullRebuild		Clear all debug shaders before generating the new ones..
+ * @param bWaitForPreviousShaders Whether to wait for previous shaders to complete.
  * @param Materials			The materials to update, the one that failed compilation will be removed (IN OUT).
  * @return true if the operation is a success, false if it was canceled.
  */
-bool CompileDebugViewModeShaders(EDebugViewShaderMode ShaderMode, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, TSet<UMaterialInterface*>& Materials, FSlowTask* ProgressTask)
+bool CompileDebugViewModeShaders(EDebugViewShaderMode ShaderMode, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, bool bFullRebuild, bool bWaitForPreviousShaders, TSet<UMaterialInterface*>& Materials, FSlowTask* ProgressTask)
 {
 #if WITH_EDITORONLY_DATA
 	if (!GShaderCompilingManager || !Materials.Num())
@@ -265,68 +231,80 @@ bool CompileDebugViewModeShaders(EDebugViewShaderMode ShaderMode, EMaterialQuali
 		return false;
 	}
 
-	const FDebugViewModeInterface* DebugViewModeInterface = FDebugViewModeInterface::GetInterface(ShaderMode);
-	if (!DebugViewModeInterface)
+	// Finish compiling pending shaders first.
+	if (!bWaitForPreviousShaders)
+	{
+		FlushRenderingCommands();
+	}
+	else if (!WaitForShaderCompilation(LOCTEXT("TextureStreamingBuild_FinishPendingShadersCompilation", "Waiting For Pending Shaders Compilation"), ProgressTask))
 	{
 		return false;
 	}
 
-	const FVertexFactoryType* LocalVertexFactory = FindVertexFactoryType(TEXT("FLocalVertexFactory"));
-	if (!LocalVertexFactory)
+	const double StartTime = FPlatformTime::Seconds();
+	const float OneOverNumMaterials = 1.f / (float)Materials.Num();
+
+	TArray<UMaterialInterface*> MaterialsToRemove;
+	for (UMaterialInterface* MaterialInterface : Materials)
 	{
+		check(MaterialInterface); // checked for null in GetTextureStreamingBuildMaterials
+
+		if (bFullRebuild)
+		{
+			GDebugViewModeMaterialManager.RemoveShaders(MaterialInterface);
+		}
+
+		const FMaterial* Material = MaterialInterface->GetMaterialResource(FeatureLevel);
+		if (!Material)
+		{
+			continue;
+		}
+
+		bool bSkipShader = false;
+		if (Material->GetMaterialDomain() != MD_Surface)
+		{
+			UE_LOG(TextureStreamingBuild, Verbose, TEXT("Only material domain surface %s is supported, skipping shader"), *MaterialInterface->GetName());
+			bSkipShader = true;
+		}
+		else if (Material->IsUsedWithLandscape())
+		{
+			UE_LOG(TextureStreamingBuild, Verbose, TEXT("Landscape material %s not supported, skipping shader"), *MaterialInterface->GetName());
+			bSkipShader = true;
+		}
+
+		if (bSkipShader)
+		{
+			// Clear the data as it won't be updated.
+			MaterialsToRemove.Add(MaterialInterface);
+			MaterialInterface->SetTextureStreamingData(TArray<FMaterialTextureInfo>());
+			continue;
+		}
+
+		// If we are not waiting for shaders, then the shader needs to be compiled in sync.
+		GDebugViewModeMaterialManager.AddShader(MaterialInterface, ShaderMode, QualityLevel, FeatureLevel, !bWaitForPreviousShaders);
+	}
+
+	for (UMaterialInterface* RemovedMaterial : MaterialsToRemove)
+	{
+		Materials.Remove(RemovedMaterial);
+	}
+
+	if (!bWaitForPreviousShaders || WaitForShaderCompilation(LOCTEXT("CompileDebugViewModeShaders", "Compiling Optional Engine Shaders"), ProgressTask))
+	{
+		// Check The validity of all shaders, removing invalid entries
+		GDebugViewModeMaterialManager.ValidateShaders(true);
+
+		UE_LOG(TextureStreamingBuild, Display, TEXT("Compiling optional shaders took %.3f seconds."), FPlatformTime::Seconds() - StartTime);
+		return true;
+	}
+	else
+	{
+		GDebugViewModeMaterialManager.RemoveShaders(nullptr);
 		return false;
 	}
-
-	TSet<UMaterialInterface*> PendingMaterials = Materials;
-	while (PendingMaterials.Num() > 0)
-	{
-		for(TSet<UMaterialInterface*>::TIterator It(PendingMaterials); It; ++It )
-		{
-			UMaterialInterface* MaterialInterface = *It;
-			check(MaterialInterface); // checked for null in GetTextureStreamingBuildMaterials
-
-			const FMaterial* Material = MaterialInterface->GetMaterialResource(FeatureLevel, QualityLevel);
-			bool bMaterialFinished = true;
-			if (Material && Material->GetGameThreadShaderMap())
-			{
-				if (!DebugViewModeInterface->bNeedsMaterialProperties &&
-					FDebugViewModeInterface::AllowFallbackToDefaultMaterial(Material))
-				{
-					Material = UMaterial::GetDefaultMaterial(MD_Surface)->GetMaterialResource(FeatureLevel, QualityLevel);
-					check(Material);
-				}
-
-				FMaterialShaderTypes ShaderTypes;
-				DebugViewModeInterface->AddShaderTypes(FeatureLevel, Material->GetTessellationMode(), LocalVertexFactory, ShaderTypes);
-				if (!Material->HasShaders(ShaderTypes, LocalVertexFactory))
-				{
-					bMaterialFinished = false;
-				}
-			}
-
-			if (bMaterialFinished)
-			{
-				It.RemoveCurrent();
-			}
-		}
-
-		if (PendingMaterials.Num() > 0)
-		{
-			FPlatformProcess::Sleep(0.1f);
-			GShaderCompilingManager->ProcessAsyncResults(false, false);
-			if (GWarn->ReceivedUserCancel())
-			{
-				break;
-			}
-		}
-	}
-
-	return PendingMaterials.Num() == 0;
-
 #else
 	return false;
 #endif
-
 }
 
 #undef LOCTEXT_NAMESPACE

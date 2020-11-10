@@ -4,29 +4,9 @@
 #include "Misc/App.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Dom/JsonObject.h"
-#include "Serialization/JsonSerializer.h"
-#include "JsonUtils/JsonObjectArrayUpdater.h"
 #include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "ModuleDescriptor"
-
-namespace ModuleDescriptor
-{
-	FString GetModuleKey(const FModuleDescriptor& Module)
-	{
-		return Module.Name.ToString();
-	}
-
-	bool TryGetModuleJsonObjectKey(const FJsonObject& JsonObject, FString& OutKey)
-	{
-		return JsonObject.TryGetStringField(TEXT("Name"), OutKey);
-	}
-
-	void UpdateModuleJsonObject(const FModuleDescriptor& Module, FJsonObject& JsonObject)
-	{
-		Module.UpdateJson(JsonObject);
-	}
-}
 
 ELoadingPhase::Type ELoadingPhase::FromString( const TCHAR *String )
 {
@@ -250,167 +230,105 @@ bool FModuleDescriptor::ReadArray(const FJsonObject& Object, const TCHAR* Name, 
 
 void FModuleDescriptor::Write(TJsonWriter<>& Writer) const
 {
-	TSharedRef<FJsonObject> ModuleJsonObject = MakeShared<FJsonObject>();
-	UpdateJson(*ModuleJsonObject);
-
-	FJsonSerializer::Serialize(ModuleJsonObject, Writer);
-}
-
-void FModuleDescriptor::UpdateJson(FJsonObject& JsonObject) const
-{
-	JsonObject.SetStringField(TEXT("Name"), Name.ToString());
-	JsonObject.SetStringField(TEXT("Type"), FString(EHostType::ToString(Type)));
-	JsonObject.SetStringField(TEXT("LoadingPhase"), FString(ELoadingPhase::ToString(LoadingPhase)));
-
+	Writer.WriteObjectStart();
+	Writer.WriteValue(TEXT("Name"), Name.ToString());
+	Writer.WriteValue(TEXT("Type"), FString(EHostType::ToString(Type)));
+	Writer.WriteValue(TEXT("LoadingPhase"), FString(ELoadingPhase::ToString(LoadingPhase)));
 	if (WhitelistPlatforms.Num() > 0)
 	{
-		TArray<TSharedPtr<FJsonValue>> WhitelistPlatformValues;
-		for (const FString& WhitelistPlatform : WhitelistPlatforms)
+		Writer.WriteArrayStart(TEXT("WhitelistPlatforms"));
+		for(int Idx = 0; Idx < WhitelistPlatforms.Num(); Idx++)
 		{
-			WhitelistPlatformValues.Add(MakeShareable(new FJsonValueString(WhitelistPlatform)));
-		}
-		JsonObject.SetArrayField(TEXT("WhitelistPlatforms"), WhitelistPlatformValues);
-	}
-	else
-	{
-		JsonObject.RemoveField(TEXT("WhitelistPlatforms"));
-	}
-
-	if (BlacklistPlatforms.Num() > 0)
-	{
-		TArray<TSharedPtr<FJsonValue>> BlacklistPlatformValues;
-		for (const FString& BlacklistPlatform : BlacklistPlatforms)
-		{
-			BlacklistPlatformValues.Add(MakeShareable(new FJsonValueString(BlacklistPlatform)));
-		}
-		JsonObject.SetArrayField(TEXT("BlacklistPlatforms"), BlacklistPlatformValues);
-	}
-	else
-	{
-		JsonObject.RemoveField(TEXT("BlacklistPlatforms"));
-	}
-
-	if (WhitelistTargets.Num() > 0)
-	{
-		TArray<TSharedPtr<FJsonValue>> WhitelistTargetValues;
-		for (EBuildTargetType WhitelistTarget : WhitelistTargets)
-		{
-			WhitelistTargetValues.Add(MakeShareable(new FJsonValueString(LexToString(WhitelistTarget))));
-		}
-		JsonObject.SetArrayField(TEXT("WhitelistTargets"), WhitelistTargetValues);
-	}
-	else
-	{
-		JsonObject.RemoveField(TEXT("WhitelistTargets"));
-	}
-
-	if (BlacklistTargets.Num() > 0)
-	{
-		TArray<TSharedPtr<FJsonValue>> BlacklistTargetValues;
-		for (EBuildTargetType BlacklistTarget : BlacklistTargets)
-		{
-			BlacklistTargetValues.Add(MakeShareable(new FJsonValueString(LexToString(BlacklistTarget))));
-		}
-		JsonObject.SetArrayField(TEXT("BlacklistTargets"), BlacklistTargetValues);
-	}
-	else
-	{
-		JsonObject.RemoveField(TEXT("BlacklistTargets"));
-	}
-
-	if (WhitelistTargetConfigurations.Num() > 0)
-	{
-		TArray<TSharedPtr<FJsonValue>> WhitelistTargetConfigurationValues;
-		for (EBuildConfiguration WhitelistTargetConfiguration : WhitelistTargetConfigurations)
-		{
-			WhitelistTargetConfigurationValues.Add(MakeShareable(new FJsonValueString(LexToString(WhitelistTargetConfiguration))));
-		}
-		JsonObject.SetArrayField(TEXT("WhitelistTargetConfigurations"), WhitelistTargetConfigurationValues);
-	}
-	else
-	{
-		JsonObject.RemoveField(TEXT("WhitelistTargetConfigurations"));
-	}
-
-	if (BlacklistTargetConfigurations.Num() > 0)
-	{
-		TArray<TSharedPtr<FJsonValue>> BlacklistTargetConfigurationValues;
-		for (EBuildConfiguration BlacklistTargetConfiguration : BlacklistTargetConfigurations)
-		{
-			BlacklistTargetConfigurationValues.Add(MakeShareable(new FJsonValueString(LexToString(BlacklistTargetConfiguration))));
-		}
-		JsonObject.SetArrayField(TEXT("BlacklistTargetConfigurations"), BlacklistTargetConfigurationValues);
-	}
-	else
-	{
-		JsonObject.RemoveField(TEXT("BlacklistTargetConfigurations"));
-	}
-
-	if (WhitelistPrograms.Num() > 0)
-	{
-		TArray<TSharedPtr<FJsonValue>> WhitelistProgramValues;
-		for (const FString& WhitelistProgram : WhitelistPrograms)
-		{
-			WhitelistProgramValues.Add(MakeShareable(new FJsonValueString(WhitelistProgram)));
-		}
-		JsonObject.SetArrayField(TEXT("WhitelistPrograms"), WhitelistProgramValues);
-	}
-	else
-	{
-		JsonObject.RemoveField(TEXT("WhitelistPrograms"));
-	}
-
-	if (BlacklistPrograms.Num() > 0)
-	{
-		TArray<TSharedPtr<FJsonValue>> BlacklistProgramValues;
-		for (const FString& BlacklistProgram : BlacklistPrograms)
-		{
-			BlacklistProgramValues.Add(MakeShareable(new FJsonValueString(BlacklistProgram)));
-		}
-		JsonObject.SetArrayField(TEXT("BlacklistPrograms"), BlacklistProgramValues);
-	}
-	else
-	{
-		JsonObject.RemoveField(TEXT("BlacklistPrograms"));
-	}
-
-	if (AdditionalDependencies.Num() > 0)
-	{
-		TArray<TSharedPtr<FJsonValue>> AdditionalDependencyValues;
-		for (const FString& AdditionalDependency : AdditionalDependencies)
-		{
-			AdditionalDependencyValues.Add(MakeShareable(new FJsonValueString(AdditionalDependency)));
-		}
-		JsonObject.SetArrayField(TEXT("AdditionalDependencies"), AdditionalDependencyValues);
-	}
-	else
-	{
-		JsonObject.RemoveField(TEXT("AdditionalDependencies"));
-	}
-}
-
-void FModuleDescriptor::WriteArray(TJsonWriter<>& Writer, const TCHAR* ArrayName, const TArray<FModuleDescriptor>& Modules)
-{
-	if (Modules.Num() > 0)
-	{
-		Writer.WriteArrayStart(ArrayName);
-		for(const FModuleDescriptor& Module : Modules)
-		{
-			Module.Write(Writer);
+			Writer.WriteValue(WhitelistPlatforms[Idx]);
 		}
 		Writer.WriteArrayEnd();
 	}
+	if (BlacklistPlatforms.Num() > 0)
+	{
+		Writer.WriteArrayStart(TEXT("BlacklistPlatforms"));
+		for(int Idx = 0; Idx < BlacklistPlatforms.Num(); Idx++)
+		{
+			Writer.WriteValue(BlacklistPlatforms[Idx]);
+		}
+		Writer.WriteArrayEnd();
+	}
+	if (WhitelistTargets.Num() > 0)
+	{
+		Writer.WriteArrayStart(TEXT("WhitelistTargets"));
+		for (int Idx = 0; Idx < WhitelistTargets.Num(); Idx++)
+		{
+			Writer.WriteValue(LexToString(WhitelistTargets[Idx]));
+		}
+		Writer.WriteArrayEnd();
+	}
+	if (BlacklistTargets.Num() > 0)
+	{
+		Writer.WriteArrayStart(TEXT("BlacklistTargets"));
+		for (int Idx = 0; Idx < BlacklistTargets.Num(); Idx++)
+		{
+			Writer.WriteValue(LexToString(BlacklistTargets[Idx]));
+		}
+		Writer.WriteArrayEnd();
+	}
+	if (WhitelistTargetConfigurations.Num() > 0)
+	{
+		Writer.WriteArrayStart(TEXT("WhitelistTargetConfigurations"));
+		for (int Idx = 0; Idx < WhitelistTargetConfigurations.Num(); Idx++)
+		{
+			Writer.WriteValue(LexToString(WhitelistTargetConfigurations[Idx]));
+		}
+		Writer.WriteArrayEnd();
+	}
+	if (BlacklistTargetConfigurations.Num() > 0)
+	{
+		Writer.WriteArrayStart(TEXT("BlacklistTargetConfigurations"));
+		for (int Idx = 0; Idx < BlacklistTargetConfigurations.Num(); Idx++)
+		{
+			Writer.WriteValue(LexToString(BlacklistTargetConfigurations[Idx]));
+		}
+		Writer.WriteArrayEnd();
+	}
+	if (WhitelistPrograms.Num() > 0)
+	{
+		Writer.WriteArrayStart(TEXT("WhitelistPrograms"));
+		for (int Idx = 0; Idx < WhitelistPrograms.Num(); Idx++)
+		{
+			Writer.WriteValue(WhitelistPrograms[Idx]);
+		}
+		Writer.WriteArrayEnd();
+	}
+	if (BlacklistPrograms.Num() > 0)
+	{
+		Writer.WriteArrayStart(TEXT("BlacklistPrograms"));
+		for (int Idx = 0; Idx < BlacklistPrograms.Num(); Idx++)
+		{
+			Writer.WriteValue(BlacklistPrograms[Idx]);
+		}
+		Writer.WriteArrayEnd();
+	}
+	if (AdditionalDependencies.Num() > 0)
+	{
+		Writer.WriteArrayStart(TEXT("AdditionalDependencies"));
+		for (int Idx = 0; Idx < AdditionalDependencies.Num(); Idx++)
+		{
+			Writer.WriteValue(AdditionalDependencies[Idx]);
+		}
+		Writer.WriteArrayEnd();
+	}
+	Writer.WriteObjectEnd();
 }
 
-void FModuleDescriptor::UpdateArray(FJsonObject& JsonObject, const TCHAR* ArrayName, const TArray<FModuleDescriptor>& Modules)
+void FModuleDescriptor::WriteArray(TJsonWriter<>& Writer, const TCHAR* Name, const TArray<FModuleDescriptor>& Modules)
 {
-	typedef FJsonObjectArrayUpdater<FModuleDescriptor, FString> FModuleJsonArrayUpdater;
-
-	FModuleJsonArrayUpdater::Execute(
-		JsonObject, ArrayName, Modules,
-		FModuleJsonArrayUpdater::FGetElementKey::CreateStatic(ModuleDescriptor::GetModuleKey),
-		FModuleJsonArrayUpdater::FTryGetJsonObjectKey::CreateStatic(ModuleDescriptor::TryGetModuleJsonObjectKey),
-		FModuleJsonArrayUpdater::FUpdateJsonObject::CreateStatic(ModuleDescriptor::UpdateModuleJsonObject));
+	if(Modules.Num() > 0)
+	{
+		Writer.WriteArrayStart(Name);
+		for(int Idx = 0; Idx < Modules.Num(); Idx++)
+		{
+			Modules[Idx].Write(Writer);
+		}
+		Writer.WriteArrayEnd();
+	}
 }
 
 bool FModuleDescriptor::IsCompiledInConfiguration(const FString& Platform, EBuildConfiguration Configuration, const FString& TargetName, EBuildTargetType TargetType, bool bBuildDeveloperTools, bool bBuildRequiresCookedData) const

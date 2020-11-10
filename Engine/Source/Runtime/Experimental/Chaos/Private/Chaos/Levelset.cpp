@@ -37,12 +37,12 @@ FAutoConsoleVariableRef CVarNumOverlapSphereSamples(TEXT("p.LevelsetOverlapSpher
 int32 NumOverlapCapsuleSamples = 24;
 FAutoConsoleVariableRef CVarNumOverlapCapsuleSamples(TEXT("p.LevelsetOverlapCapsuleSamples"), NumOverlapCapsuleSamples, TEXT("Number of spiral points to generate for levelset-capsule overlaps"));
 
+using namespace Chaos;
+
 #define MAX_CLAMP(a, comp, b) (a >= comp ? b : a)
 #define MIN_CLAMP(a, comp, b) (a < comp ? b : a)
 #define RANGE_CLAMP(a, comp, b) ((a < 0 || comp <= a) ? b : a)
 
-namespace Chaos
-{
 template<class T, int d>
 TLevelSet<T, d>::TLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<T, d>& InGrid, const TParticles<T, d>& InParticles, const TTriangleMesh<T>& Mesh, const int32 BandWidth)
     : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::LevelSet)
@@ -1739,10 +1739,5 @@ bool TLevelSet<T, d>::OverlapGeom(const TImplicitObjectScaled<FConvex>& QueryGeo
 {
 	return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 }
-}
 
-#undef MAX_CLAMP
-#undef MIN_CLAMP
-#undef RANGE_CLAMP
-
-template class CHAOS_API Chaos::TLevelSet<float, 3>;
+template class Chaos::TLevelSet<float, 3>;

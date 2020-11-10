@@ -94,14 +94,14 @@ void FStaticMeshStaticLightingMesh::ExportMeshInstance(class FLightmassExporter*
 	}
 
 	// Add the UStaticMesh and materials to the exporter...
-	if( StaticMesh && StaticMesh->GetRenderData())
+	if( StaticMesh && StaticMesh->RenderData )
 	{
 		Exporter->StaticMeshes.AddUnique(StaticMesh);
 		if( Primitive )
 		{	
-			for( int32 ResourceIndex = 0; ResourceIndex < StaticMesh->GetRenderData()->LODResources.Num(); ++ResourceIndex )
+			for( int32 ResourceIndex = 0; ResourceIndex < StaticMesh->RenderData->LODResources.Num(); ++ResourceIndex )
 			{
-				const FStaticMeshLODResources& LODResourceData = StaticMesh->GetRenderData()->LODResources[ResourceIndex];
+				const FStaticMeshLODResources& LODResourceData = StaticMesh->RenderData->LODResources[ResourceIndex];
 				for( int32 SectionIndex = 0; SectionIndex < LODResourceData.Sections.Num(); ++SectionIndex )
 				{
 					const FStaticMeshSection& Section = LODResourceData.Sections[SectionIndex];

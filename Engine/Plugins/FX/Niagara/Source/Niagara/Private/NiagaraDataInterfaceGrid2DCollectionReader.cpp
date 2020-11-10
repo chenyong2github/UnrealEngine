@@ -15,6 +15,7 @@
 const FString UNiagaraDataInterfaceGrid2DCollectionReader::GridName(TEXT("Grid_"));
 const FString UNiagaraDataInterfaceGrid2DCollectionReader::SamplerName(TEXT("Sampler_"));
 
+
 // Global VM function names, also used by the shaders code generation methods.
 const FName UNiagaraDataInterfaceGrid2DCollectionReader::GetValueFunctionName("GetGridValue");
 
@@ -29,11 +30,14 @@ struct FNiagaraDataInterfaceParametersCS_Grid2DCollectionReader : public FNiagar
 public:
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{			
-		NumCellsParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRWBase::NumCellsName + ParameterInfo.DataInterfaceHLSLSymbol));
-		UnitToUVParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRWBase::UnitToUVName + ParameterInfo.DataInterfaceHLSLSymbol));
-		CellSizeParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRWBase::CellSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
-		WorldBBoxSizeParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRWBase::WorldBBoxSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
+		NumCellsParam.Bind(ParameterMap, *(NumCellsName + ParameterInfo.DataInterfaceHLSLSymbol));
+
+		CellSizeParam.Bind(ParameterMap, *(CellSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
+
+		WorldBBoxSizeParam.Bind(ParameterMap, *(WorldBBoxSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
+
 		GridParam.Bind(ParameterMap, *(UNiagaraDataInterfaceGrid2DCollectionReader::GridName + ParameterInfo.DataInterfaceHLSLSymbol));		
+
 		SamplerParam.Bind(ParameterMap, *(UNiagaraDataInterfaceGrid2DCollectionReader::SamplerName + ParameterInfo.DataInterfaceHLSLSymbol));
 	}
 
@@ -59,10 +63,9 @@ public:
 		// no proxy data so fill with dummy values
 		if (Grid2DProxyData == nullptr)
 		{			
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumCellsParam, FIntPoint(0, 0));
-			SetShaderValue(RHICmdList, ComputeShaderRHI, UnitToUVParam, FVector2D::ZeroVector);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, CellSizeParam, FVector2D::ZeroVector);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldBBoxSizeParam, FVector2D::ZeroVector);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, NumCellsParam, FIntPoint(0, 0));			
+			SetShaderValue(RHICmdList, ComputeShaderRHI, CellSizeParam, FVector2D(0.f, 0.f));
+			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldBBoxSizeParam, FVector2D(0.f, 0.f));
 
 			FRHISamplerState* SamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			SetSamplerParameter(RHICmdList, ComputeShaderRHI, SamplerParam, SamplerState);
@@ -76,7 +79,6 @@ public:
 		check(Grid2DProxyData);
 
 		SetShaderValue(RHICmdList, ComputeShaderRHI, NumCellsParam, Grid2DProxyData->NumCells);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, UnitToUVParam, FVector2D(1.0f) / FVector2D(Grid2DProxyData->NumCells));
 		SetShaderValue(RHICmdList, ComputeShaderRHI, CellSizeParam, Grid2DProxyData->CellSize);
 			
 		SetShaderValue(RHICmdList, ComputeShaderRHI, WorldBBoxSizeParam, Grid2DProxyData->WorldBBoxSize);
@@ -108,7 +110,6 @@ public:
 
 private:
 	LAYOUT_FIELD(FShaderParameter, NumCellsParam);
-	LAYOUT_FIELD(FShaderParameter, UnitToUVParam);
 	LAYOUT_FIELD(FShaderParameter, CellSizeParam);
 	LAYOUT_FIELD(FShaderParameter, WorldBBoxSizeParam);
 
@@ -236,8 +237,7 @@ bool UNiagaraDataInterfaceGrid2DCollectionReader::GetFunctionHLSL(const FNiagara
 		TMap<FString, FStringFormatArg> ArgsBounds = {
 			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("Grid"), GridName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("NumCellsName"), UNiagaraDataInterfaceRWBase::NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("UnitToUVName"), UNiagaraDataInterfaceRWBase::UnitToUVName + ParamInfo.DataInterfaceHLSLSymbol},
+			{TEXT("NumCellsName"), NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
@@ -254,8 +254,7 @@ bool UNiagaraDataInterfaceGrid2DCollectionReader::GetFunctionHLSL(const FNiagara
 			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("Grid"), GridName + ParamInfo.DataInterfaceHLSLSymbol},
 			{TEXT("SamplerName"),    SamplerName + ParamInfo.DataInterfaceHLSLSymbol },
-			{TEXT("NumCellsName"), UNiagaraDataInterfaceRWBase::NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("UnitToUVName"), UNiagaraDataInterfaceRWBase::UnitToUVName + ParamInfo.DataInterfaceHLSLSymbol},
+			{TEXT("NumCellsName"), NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;

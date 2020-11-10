@@ -172,10 +172,10 @@ struct FRHICommandGLCommandString
 };
 struct FRHICommandGLCommand final : public FRHICommand<FRHICommandGLCommand, FRHICommandGLCommandString>
 {
-	TUniqueFunction<void()> GLFunction;
+	TFunction<void()> GLFunction;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandGLCommand(TUniqueFunction<void()> InGLFunction)
-		: GLFunction(MoveTemp(InGLFunction))
+	FORCEINLINE_DEBUGGABLE FRHICommandGLCommand(TFunction<void()> InGLFunction)
+		: GLFunction(InGLFunction)
 	{}
 
 	void Execute(FRHICommandListBase& CmdList)
@@ -184,7 +184,7 @@ struct FRHICommandGLCommand final : public FRHICommand<FRHICommandGLCommand, FRH
 	}
 };
 
-void RunOnGLRenderContextThread(TUniqueFunction<void(void)> GLFunc, bool bWaitForCompletion = false);
+void RunOnGLRenderContextThread(TFunction<void(void)> GLFunc, bool bWaitForCompletion = false);
 inline bool ShouldRunGLRenderContextOpOnThisThread(FRHICommandListImmediate& RHICmdList)
 {
 	return (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread() || IsInRHIThread());

@@ -5,12 +5,7 @@
 #include "DSP/EQ.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundMix.h"
-#include "Stats/Stats.h"
-
 #include "AudioMixerSubmixEffectEQ.generated.h"
-
-// The time it takes to process the master EQ effect.
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix EQ"), STAT_AudioMixerSubmixEQ, STATGROUP_AudioMixer, AUDIOMIXER_API);
 
 // A multiband EQ submix effect.
 USTRUCT(BlueprintType)

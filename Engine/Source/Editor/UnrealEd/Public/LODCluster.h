@@ -28,10 +28,10 @@ struct FLODCluster
 	FLODCluster();
 
 	/** Cluster operators */
-	FLODCluster operator+(const FLODCluster& Other) const;
-	FLODCluster& operator+=(const FLODCluster& Other);
+	FLODCluster operator+( const FLODCluster& Other ) const;
+	FLODCluster operator+=( const FLODCluster& Other );
 	FLODCluster operator-(const FLODCluster& Other) const;
-	FLODCluster& operator-=(const FLODCluster& Other);
+	FLODCluster operator-=(const FLODCluster& Other);
 	FLODCluster& operator=(const FLODCluster & Other);
 
 	bool operator==(const FLODCluster& Other) const;

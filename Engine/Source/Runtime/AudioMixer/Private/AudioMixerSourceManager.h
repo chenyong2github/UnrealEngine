@@ -18,22 +18,6 @@
 #include "ISoundfieldFormat.h"
 #include "Sound/SoundModulationDestination.h"
 #include "Sound/QuartzQuantizationUtilities.h"
-#include "Stats/Stats.h"
-
-// Tracks the time it takes to up the source manager (computes source buffers, source effects, sample rate conversion)
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Source Manager Update"), STAT_AudioMixerSourceManagerUpdate, STATGROUP_AudioMixer, AUDIOMIXER_API);
-
-// The time it takes to compute the source buffers (handle decoding tasks, resampling)
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Source Buffers"), STAT_AudioMixerSourceBuffers, STATGROUP_AudioMixer, AUDIOMIXER_API);
-
-// The time it takes to process the source buffers through their source effects
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Source Effect Buffers"), STAT_AudioMixerSourceEffectBuffers, STATGROUP_AudioMixer, AUDIOMIXER_API);
-
-// The time it takes to apply channel maps and get final pre-submix source buffers
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Source Output Buffers"), STAT_AudioMixerSourceOutputBuffers, STATGROUP_AudioMixer, AUDIOMIXER_API);
-
-// The time it takes to process the HRTF effect.
-DECLARE_CYCLE_STAT_EXTERN(TEXT("HRTF"), STAT_AudioMixerHRTF, STATGROUP_AudioMixer, AUDIOMIXER_API);
 
 namespace Audio
 {

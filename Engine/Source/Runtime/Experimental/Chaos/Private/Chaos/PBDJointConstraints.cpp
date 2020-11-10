@@ -356,13 +356,10 @@ namespace Chaos
 
 	void FPBDJointConstraints::GetConstrainedParticleIndices(const int32 ConstraintIndex, int32& Index0, int32& Index1) const
 	{
-		// The solver assumes its two particles are ordered Kinematic-Dynamic or Dynamic-Dynamic, and that the "Parent" is first.
-		// In ConstraintInstance the parent is second, so by default we need to flip the indices before we pass them to the solver. 
-		// However, it is possible to set up ConstraintInstance so the first (child) particle is kinematic, so in this case we would 
-		// not flip the indices. We don't care about the order if both particles are kinematic.
-		// @todo(chaos): We implicitly assume that if only one particle is Kinematic then it is the parent. As mentioned above, this is 
-		// potentially not true so we may need to support Dynamic-Kinematic in the solver after all. The only side effect of the parent-child
-		// swapping that occurs if we don't support this is when have asymmetric cone limits, because the cone axes should be in parent space.
+		// In solvers we need Particle0 to be the parent particle but ConstraintInstance has Particle1 as the parent, so by default
+		// we need to flip the indices before we pass them to the solver. 
+		// However, it is possible to set it up so that the kinematic particle is the child which we don't support, so...
+		// If particle 0 is kinematic we make it the parent, otherwise particle 1 is the parent.
 		const TPBDRigidParticleHandle<FReal, 3>* Particle0 = ConstraintParticles[ConstraintIndex][0]->CastToRigidParticle();
 		const bool bIsKinematic0 = (Particle0 == nullptr) || (Particle0->ObjectState() == EObjectStateType::Kinematic) || (Particle0->ObjectState() == EObjectStateType::Static);
 		if (bIsKinematic0)

@@ -94,9 +94,6 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&TrackInstance,         TEXT("Track Instance"));
 	ComponentRegistry->NewComponentType(&TrackInstanceInput,    TEXT("Track Instance Input"));
 
-	ComponentRegistry->NewComponentType(&EvaluationHook,        TEXT("Evaluation Hook"));
-	ComponentRegistry->NewComponentType(&EvaluationHookFlags,   TEXT("Evaluation Hook Flags"), EComponentTypeFlags::Preserved);
-
 	ComponentRegistry->NewComponentType(&Interrogation.InputKey,  TEXT("Interrogation Input"));
 	ComponentRegistry->NewComponentType(&Interrogation.OutputKey, TEXT("Interrogation Output"));
 
@@ -231,12 +228,6 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 			OutInput.Section = InInstance.Owner;
 		};
 		ComponentRegistry->Factories.DefineChildComponent(TrackInstance, TrackInstanceInput, InitInput);
-	}
-
-	{
-		ComponentRegistry->Factories.DefineChildComponent(EvaluationHook, EvaluationHook);
-		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(EvaluationHook, EvalTime);
-		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(EvaluationHook, EvaluationHookFlags);
 	}
 }
 

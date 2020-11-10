@@ -265,7 +265,7 @@ FReply SSlider::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEv
 {
 	if ((MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton) && !IsLocked())
 	{
-		CachedCursor = GetCursor().Get(EMouseCursor::Default);
+		CachedCursor = Cursor.Get().Get(EMouseCursor::Default);
 		OnMouseCaptureBegin.ExecuteIfBound();
 		CommitValue(PositionToValue(MyGeometry, MouseEvent.GetLastScreenSpacePosition()));
 		
@@ -340,7 +340,7 @@ FReply SSlider::OnTouchMoved(const FGeometry& MyGeometry, const FPointerEvent& I
 	{
 		if (FSlateApplication::Get().HasTraveledFarEnoughToTriggerDrag(InTouchEvent, PressedScreenSpaceTouchDownPosition, Orientation))
 		{
-			CachedCursor = GetCursor().Get(EMouseCursor::Default);
+			CachedCursor = Cursor.Get().Get(EMouseCursor::Default);
 			OnMouseCaptureBegin.ExecuteIfBound();
 
 			CommitValue(PositionToValue(MyGeometry, InTouchEvent.GetScreenSpacePosition()));

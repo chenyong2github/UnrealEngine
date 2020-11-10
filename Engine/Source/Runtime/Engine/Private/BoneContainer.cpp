@@ -294,20 +294,14 @@ void FBoneContainer::CacheRequiredAnimCurveUids(const FCurveEvaluationOption& Cu
 
 const FRetargetSourceCachedData& FBoneContainer::GetRetargetSourceCachedData(const FName& InRetargetSourceName) const
 {
-	const TArray<FTransform>& RetargetTransforms = AssetSkeleton->GetRefLocalPoses(InRetargetSourceName);
-	return GetRetargetSourceCachedData(InRetargetSourceName, RetargetTransforms);
-}
-
-const FRetargetSourceCachedData& FBoneContainer::GetRetargetSourceCachedData(const FName& InSourceName, const TArray<FTransform>& InRetargetTransforms) const
-{
-	FRetargetSourceCachedData* RetargetSourceCachedData = RetargetSourceCachedDataLUT.Find(InSourceName);
+	FRetargetSourceCachedData* RetargetSourceCachedData = RetargetSourceCachedDataLUT.Find(InRetargetSourceName);
 	if (!RetargetSourceCachedData)
 	{
-		RetargetSourceCachedData = &RetargetSourceCachedDataLUT.Add(InSourceName);
+		RetargetSourceCachedData = &RetargetSourceCachedDataLUT.Add(InRetargetSourceName);
 
 		// Build Cached Data for OrientAndScale retargeting.
 
-		const TArray<FTransform>& AuthoredOnRefSkeleton = InRetargetTransforms;
+		const TArray<FTransform>& AuthoredOnRefSkeleton = AssetSkeleton->GetRefLocalPoses(InRetargetSourceName);
 		const TArray<FTransform>& PlayingOnRefSkeleton = GetRefPoseCompactArray();
 		const int32 CompactPoseNumBones = GetCompactPoseNumBones();
 

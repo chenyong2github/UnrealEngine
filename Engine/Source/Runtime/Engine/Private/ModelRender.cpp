@@ -101,11 +101,6 @@ UModelComponent
 
 void UModelComponent::BuildRenderData()
 {
-	if (IsRunningDedicatedServer())
-	{
-		return;
-	}
-
 	UModel* TheModel = GetModel();
 
 #if WITH_EDITOR

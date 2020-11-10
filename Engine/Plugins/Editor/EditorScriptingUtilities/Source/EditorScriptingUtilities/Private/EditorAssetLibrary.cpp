@@ -274,7 +274,7 @@ UObject* UEditorAssetLibrary::LoadAsset(const FString& AssetPath)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return nullptr;
 	}
@@ -292,7 +292,7 @@ UClass* UEditorAssetLibrary::LoadBlueprintClass(const FString& AssetPath)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return nullptr;
 	}
@@ -318,7 +318,7 @@ FString UEditorAssetLibrary::GetPathNameForLoadedAsset(UObject* LoadedAsset)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return FString();
 	}
@@ -336,7 +336,7 @@ FAssetData UEditorAssetLibrary::FindAssetData(const FString& AssetPath)
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
 	FAssetData Result;
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return Result;
 	}
@@ -354,7 +354,7 @@ bool UEditorAssetLibrary::DoesAssetExist(const FString& AssetPath)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -385,7 +385,7 @@ bool UEditorAssetLibrary::DoAssetsExist(const TArray<FString>& AssetPaths)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -421,7 +421,7 @@ TArray<FString> UEditorAssetLibrary::FindPackageReferencersForAsset(const FStrin
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
 	TArray<FString> Result;
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return Result;
 	}
@@ -517,7 +517,7 @@ bool UEditorAssetLibrary::ConsolidateAssets(UObject* AssetToConsolidateTo, const
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -581,7 +581,7 @@ bool UEditorAssetLibrary::DeleteLoadedAsset(UObject* AssetToDelete)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -603,7 +603,7 @@ bool UEditorAssetLibrary::DeleteLoadedAssets(const TArray<UObject*>& AssetsToDel
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -627,7 +627,7 @@ bool UEditorAssetLibrary::DeleteAsset(const FString& AssetPathToDelete)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -651,7 +651,7 @@ bool UEditorAssetLibrary::DeleteDirectory(const FString& DirectoryPath)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -737,7 +737,7 @@ namespace InternalEditorLevelLibrary
 	UObject* DuplicateAsset(UObject* SourceObject, const FString& DestinationAssetPath)
 	{
 		check(SourceObject);
-		if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+		if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 		{
 			return nullptr;
 		}
@@ -811,7 +811,7 @@ bool UEditorAssetLibrary::DuplicateDirectory(const FString& SourceDirectoryPath,
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -863,7 +863,7 @@ namespace InternalEditorLevelLibrary
 	bool RenameAsset(UObject* SourceObject, const FString& DestinationAssetPath)
 	{
 		check(SourceObject);
-		if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+		if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 		{
 			return false;
 		}
@@ -936,7 +936,7 @@ bool UEditorAssetLibrary::RenameDirectory(const FString& SourceDirectoryPath, co
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -1012,7 +1012,7 @@ bool UEditorAssetLibrary::CheckoutLoadedAsset(UObject* AssetToCheckout)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -1034,7 +1034,7 @@ bool UEditorAssetLibrary::CheckoutLoadedAssets(const TArray<UObject*>& AssetsToC
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -1061,7 +1061,7 @@ bool UEditorAssetLibrary::CheckoutAsset(const FString& AssetsToCheckout)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -1084,7 +1084,7 @@ bool UEditorAssetLibrary::CheckoutDirectory(const FString& DirectoryPath, bool b
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
 	{
 		return false;
 	}
@@ -1111,7 +1111,7 @@ bool UEditorAssetLibrary::SaveLoadedAsset(UObject* AssetToSave, bool bOnlyIfIsDi
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -1134,7 +1134,7 @@ bool UEditorAssetLibrary::SaveLoadedAssets(const TArray<UObject*>& AssetsToSave,
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -1162,7 +1162,7 @@ bool UEditorAssetLibrary::SaveAsset(const FString& AssetsToSave, bool bOnlyIfIsD
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -1186,7 +1186,7 @@ bool UEditorAssetLibrary::SaveDirectory(const FString& DirectoryPath, bool bOnly
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -1213,7 +1213,7 @@ bool UEditorAssetLibrary::DoesDirectoryExist(const FString& DirectoryPath)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -1247,7 +1247,7 @@ bool UEditorAssetLibrary::DoesDirectoryHaveAssets(const FString& DirectoryPath, 
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -1275,7 +1275,7 @@ bool UEditorAssetLibrary::MakeDirectory(const FString& DirectoryPath)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return false;
 	}
@@ -1322,7 +1322,7 @@ TArray<FString> UEditorAssetLibrary::ListAssets(const FString& DirectoryPath, bo
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
 	TArray<FString> Result;
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return Result;
 	}
@@ -1370,7 +1370,7 @@ TArray<FString> UEditorAssetLibrary::ListAssetByTagValue(FName TagName, const FS
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
 	TArray<FString> Result;
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return Result;
 	}
@@ -1406,7 +1406,7 @@ TMap<FName, FString> UEditorAssetLibrary::GetTagValues(const FString& AssetPath)
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
 	TMap<FName, FString> Result;
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return Result;
 	}
@@ -1432,7 +1432,7 @@ TMap<FName, FString> UEditorAssetLibrary::GetMetadataTagValues(UObject* Object)
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
 	TMap<FName, FString> Result;
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
 	{
 		return Result;
 	}
@@ -1458,7 +1458,7 @@ FString UEditorAssetLibrary::GetMetadataTag(UObject* Object, FName Tag)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
 	{
 		return FString();
 	}
@@ -1480,7 +1480,7 @@ void UEditorAssetLibrary::SetMetadataTag(UObject* Object, FName Tag, const FStri
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
 	{
 		return;
 	}
@@ -1502,7 +1502,7 @@ void UEditorAssetLibrary::RemoveMetadataTag(UObject* Object, FName Tag)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
 	{
 		return;
 	}
@@ -1524,7 +1524,7 @@ void UEditorAssetLibrary::SyncBrowserToObjects(const TArray<FString>& AssetPaths
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::IsInEditorAndNotPlaying() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE() || !InternalEditorLevelLibrary::IsAssetRegistryModuleLoading())
 	{
 		return;
 	}

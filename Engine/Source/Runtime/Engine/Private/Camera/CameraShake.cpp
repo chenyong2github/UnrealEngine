@@ -53,8 +53,7 @@ float FFOscillator::GetOffsetAtTime(FFOscillator const& Osc, float InitialOffset
 // UMatineeCameraShake
 
 UMatineeCameraShake::UMatineeCameraShake(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer
-				.SetDefaultSubobjectClass<UMatineeCameraShakePattern>(TEXT("RootShakePattern")))
+	: Super(ObjectInitializer)
 {
 	AnimPlayRate = 1.0f;
 	AnimScale = 1.0f;
@@ -64,7 +63,12 @@ UMatineeCameraShake::UMatineeCameraShake(const FObjectInitializer& ObjectInitial
 	OscillationBlendOutTime = 0.2f;
 }
 
-void UMatineeCameraShake::DoStopShake(bool bImmediately)
+void UMatineeCameraShake::GetShakeInfoImpl(FCameraShakeInfo& OutInfo) const
+{
+	OutInfo.Duration = FCameraShakeDuration::Custom();
+}
+
+void UMatineeCameraShake::StopShakeImpl(bool bImmediately)
 {
 	APlayerCameraManager* CameraOwner = GetCameraManager();
 
@@ -117,7 +121,7 @@ void UMatineeCameraShake::DoStopShake(bool bImmediately)
 	ReceiveStopShake(bImmediately);
 }
 
-void UMatineeCameraShake::DoStartShake()
+void UMatineeCameraShake::StartShakeImpl()
 {
 	const float EffectiveOscillationDuration = (OscillationDuration > 0.f) ? OscillationDuration : TNumericLimits<float>::Max();
 
@@ -224,7 +228,7 @@ void UMatineeCameraShake::DoStartShake()
 	ReceivePlayShake(ShakeScale);
 }
 
-void UMatineeCameraShake::DoUpdateShake(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
+void UMatineeCameraShake::UpdateShakeImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
 {
 	const float DeltaTime = Params.DeltaTime;
 	const float BaseShakeScale = Params.TotalScale;
@@ -355,7 +359,7 @@ void UMatineeCameraShake::DoUpdateShake(const FCameraShakeUpdateParams& Params, 
 	}
 }
 
-bool UMatineeCameraShake::DoGetIsFinished() const
+bool UMatineeCameraShake::IsFinishedImpl() const
 {
 	return ((OscillatorTimeRemaining <= 0.f) &&							// oscillator is finished
 		((AnimInst == nullptr) || AnimInst->bFinished) &&				// anim is finished
@@ -410,31 +414,3 @@ void UMatineeCameraShake::SetCurrentTimeAndApplyShake(float NewTime, FMinimalVie
 	}
 }
 
-void UMatineeCameraShakePattern::GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const
-{
-	OutInfo.Duration = FCameraShakeDuration::Custom();
-}
-
-void UMatineeCameraShakePattern::StopShakePatternImpl(const FCameraShakeStopParams& Params)
-{
-	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
-	Shake->DoStopShake(Params.bImmediately);
-}
-
-void UMatineeCameraShakePattern::StartShakePatternImpl(const FCameraShakeStartParams& Params)
-{
-	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
-	Shake->DoStartShake();
-}
-
-void UMatineeCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
-{
-	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
-	Shake->DoUpdateShake(Params, OutResult);
-}
-
-bool UMatineeCameraShakePattern::IsFinishedImpl() const
-{
-	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
-	return Shake->DoGetIsFinished();
-}

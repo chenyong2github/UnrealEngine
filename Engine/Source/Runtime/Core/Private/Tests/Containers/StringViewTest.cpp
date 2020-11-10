@@ -4,7 +4,6 @@
 
 #include "Containers/UnrealString.h"
 #include "Misc/AutomationTest.h"
-#include "Misc/StringBuilder.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -20,16 +19,8 @@ static_assert(TIsContiguousContainer<FStringView>::Value, "FStringView must be a
 static_assert(TIsContiguousContainer<FAnsiStringView>::Value, "FAnsiStringView must be a contiguous container.");
 static_assert(TIsContiguousContainer<FWideStringView>::Value, "FWideStringView must be a contiguous container.");
 
-static_assert(StringViewPrivate::TIsConvertibleToStringView<FString>::Value, "FString must be convertible to FStringView.");
-static_assert(StringViewPrivate::TIsConvertibleToStringView<FAnsiStringBuilderBase>::Value, "FAnsiStringBuilderBase must be convertible to FAnsiStringView.");
-static_assert(StringViewPrivate::TIsConvertibleToStringView<FWideStringBuilderBase>::Value, "FWideStringBuilderBase must be convertible to FWideStringView.");
-
-static_assert(TIsSame<FStringView, typename StringViewPrivate::TCompatibleStringViewType<FString>::Type>::Value, "FString must be convertible to FStringView.");
-static_assert(TIsSame<FAnsiStringView, typename StringViewPrivate::TCompatibleStringViewType<FAnsiStringBuilderBase>::Type>::Value, "FAnsiStringBuilderBase must be convertible to FAnsiStringView.");
-static_assert(TIsSame<FWideStringView, typename StringViewPrivate::TCompatibleStringViewType<FWideStringBuilderBase>::Type>::Value, "FWideStringBuilderBase must be convertible to FWideStringView.");
-
 #define TEST_NAME_ROOT "System.Core.StringView"
-constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter;
+constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter;
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestCtor, TEST_NAME_ROOT ".Ctor", TestFlags)
 bool FStringViewTestCtor::RunTest(const FString& Parameters)
@@ -144,9 +135,6 @@ bool FStringViewTestIterators::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestEquality, TEST_NAME_ROOT ".Equality", TestFlags)
 bool FStringViewTestEquality::RunTest(const FString& Parameters)
 {
-	const ANSICHAR* AnsiStringLiteralSrc = "String To Test!";
-	const ANSICHAR* AnsiStringLiteralLower = "string to test!";
-	const ANSICHAR* AnsiStringLiteralUpper = "STRING TO TEST!";
 	const TCHAR* WideStringLiteralSrc = TEXT("String To Test!");
 	const TCHAR* WideStringLiteralLower = TEXT("string to test!");
 	const TCHAR* WideStringLiteralUpper = TEXT("STRING TO TEST!");
@@ -254,42 +242,6 @@ bool FStringViewTestEquality::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Equality(72)"), WideStringLiteralLonger == WideViewNoNull);
 	TestTrue(TEXT("Equality(73)"), WideStringLiteralLonger != WideViewNoNull);
 
-	// ANSICHAR / TCHAR
-
-	FAnsiStringView AnsiView(AnsiStringLiteralSrc);
-	FAnsiStringView AnsiViewLower(AnsiStringLiteralLower);
-	FAnsiStringView AnsiViewUpper(AnsiStringLiteralUpper);
-
-	TestTrue(TEXT("Equality(74)"), AnsiView.Equals(WideView));
-	TestTrue(TEXT("Equality(75)"), WideView.Equals(AnsiView));
-	TestFalse(TEXT("Equality(76)"), AnsiViewLower.Equals(WideView, ESearchCase::CaseSensitive));
-	TestTrue(TEXT("Equality(77)"), AnsiViewLower.Equals(WideView, ESearchCase::IgnoreCase));
-	TestFalse(TEXT("Equality(78)"), WideView.Equals(AnsiViewLower, ESearchCase::CaseSensitive));
-	TestTrue(TEXT("Equality(79)"), WideView.Equals(AnsiViewLower, ESearchCase::IgnoreCase));
-	TestFalse(TEXT("Equality(80)"), AnsiViewUpper.Equals(WideView, ESearchCase::CaseSensitive));
-	TestTrue(TEXT("Equality(81)"), AnsiViewUpper.Equals(WideView, ESearchCase::IgnoreCase));
-	TestFalse(TEXT("Equality(82)"), WideView.Equals(AnsiViewUpper, ESearchCase::CaseSensitive));
-	TestTrue(TEXT("Equality(83)"), WideView.Equals(AnsiViewUpper, ESearchCase::IgnoreCase));
-
-	TestTrue(TEXT("Equality(84)"), WideView.Equals(AnsiStringLiteralSrc));
-	TestFalse(TEXT("Equality(85)"), WideView.Equals(AnsiStringLiteralLower, ESearchCase::CaseSensitive));
-	TestTrue(TEXT("Equality(86)"), WideView.Equals(AnsiStringLiteralLower, ESearchCase::IgnoreCase));
-	TestFalse(TEXT("Equality(87)"), WideView.Equals(AnsiStringLiteralUpper, ESearchCase::CaseSensitive));
-	TestTrue(TEXT("Equality(88)"), WideView.Equals(AnsiStringLiteralUpper, ESearchCase::IgnoreCase));
-	TestTrue(TEXT("Equality(89)"), AnsiView.Equals(WideStringLiteralSrc));
-	TestFalse(TEXT("Equality(90)"), AnsiViewLower.Equals(WideStringLiteralSrc, ESearchCase::CaseSensitive));
-	TestTrue(TEXT("Equality(91)"), AnsiViewLower.Equals(WideStringLiteralSrc, ESearchCase::IgnoreCase));
-	TestFalse(TEXT("Equality(92)"), AnsiViewUpper.Equals(WideStringLiteralSrc, ESearchCase::CaseSensitive));
-	TestTrue(TEXT("Equality(93)"), AnsiViewUpper.Equals(WideStringLiteralSrc, ESearchCase::IgnoreCase));
-
-	// Test types convertible to a string view
-	static_assert(TIsSame<bool, decltype(FAnsiStringView().Equals(FString()))>::Value, "Error with Equals");
-	static_assert(TIsSame<bool, decltype(FWideStringView().Equals(FString()))>::Value, "Error with Equals");
-	static_assert(TIsSame<bool, decltype(FAnsiStringView().Equals(TAnsiStringBuilder<16>()))>::Value, "Error with Equals");
-	static_assert(TIsSame<bool, decltype(FAnsiStringView().Equals(TWideStringBuilder<16>()))>::Value, "Error with Equals");
-	static_assert(TIsSame<bool, decltype(FWideStringView().Equals(TAnsiStringBuilder<16>()))>::Value, "Error with Equals");
-	static_assert(TIsSame<bool, decltype(FWideStringView().Equals(TWideStringBuilder<16>()))>::Value, "Error with Equals");
-
 	return true;
 }
 
@@ -298,7 +250,6 @@ bool FStringViewTestComparisonCaseSensitive::RunTest(const FString& Parameters)
 {
 	// Basic comparisons involving case
 	{
-		const ANSICHAR* AnsiStringLiteralSrc = "String To Test!";
 		const TCHAR* WideStringLiteralSrc = TEXT("String To Test!");
 		const TCHAR* WideStringLiteralLower = TEXT("string to test!");
 		const TCHAR* WideStringLiteralUpper = TEXT("STRING TO TEST!");
@@ -315,19 +266,13 @@ bool FStringViewTestComparisonCaseSensitive::RunTest(const FString& Parameters)
 		FStringView IdenticalView(WideStringLiteralSrc);
 		TestTrue(TEXT("ComparisonCaseSensitive(4)"), WideView.Compare(IdenticalView, ESearchCase::CaseSensitive) == 0);
 
-		FAnsiStringView AnsiView(AnsiStringLiteralSrc);
-		TestTrue(TEXT("ComparisonCaseSensitive(5)"), WideView.Compare(AnsiView, ESearchCase::CaseSensitive) == 0);
-		TestTrue(TEXT("ComparisonCaseSensitive(6)"), WideView.Compare(AnsiStringLiteralSrc, ESearchCase::CaseSensitive) == 0);
 	}
 
 	// Test comparisons of different lengths
 	{
-		const ANSICHAR* AnsiStringLiteralUpper = "ABCDEF";
 		const TCHAR* WideStringLiteralUpper = TEXT("ABCDEF");
 		const TCHAR* WideStringLiteralLower = TEXT("abcdef");
-		const TCHAR* WideStringLiteralLowerShort = TEXT("abc");
 
-		const ANSICHAR* AnsiStringLiteralUpperFirst = "ABCdef";
 		const TCHAR* WideStringLiteralUpperFirst = TEXT("ABCdef");
 		const TCHAR* WideStringLiteralLowerFirst = TEXT("abcDEF");
 
@@ -339,31 +284,17 @@ bool FStringViewTestComparisonCaseSensitive::RunTest(const FString& Parameters)
 		FStringView ViewShortLower(WideStringLiteralLowerFirst, 3);
 
 		// Same length, different cases
-		TestTrue(TEXT("ComparisonCaseSensitive(7)"), ViewLongUpper.Compare(ViewLongLower, ESearchCase::CaseSensitive) < 0);
-		TestTrue(TEXT("ComparisonCaseSensitive(8)"), ViewLongLower.Compare(ViewLongUpper, ESearchCase::CaseSensitive) > 0);
-		TestTrue(TEXT("ComparisonCaseInsensitive(9)"), ViewLongLower.Compare(AnsiStringLiteralUpper, ESearchCase::CaseSensitive) > 0);
-		TestTrue(TEXT("ComparisonCaseInsensitive(10)"), ViewShortUpper.Compare(WideStringLiteralLowerShort, ESearchCase::CaseSensitive) < 0);
+		TestTrue(TEXT("ComparisonCaseSensitive(5)"), ViewLongUpper.Compare(ViewLongLower, ESearchCase::CaseSensitive) < 0);
+		TestTrue(TEXT("ComparisonCaseSensitive(6)"), ViewLongLower.Compare(ViewLongUpper, ESearchCase::CaseSensitive) > 0);
 
 		// Same case, different lengths
-		TestTrue(TEXT("ComparisonCaseSensitive(11)"), ViewLongUpper.Compare(ViewShortUpper, ESearchCase::CaseSensitive) > 0);
-		TestTrue(TEXT("ComparisonCaseSensitive(12)"), ViewShortUpper.Compare(ViewLongUpper, ESearchCase::CaseSensitive) < 0);
-		TestTrue(TEXT("ComparisonCaseInsensitive(13)"), ViewShortUpper.Compare(AnsiStringLiteralUpper, ESearchCase::CaseSensitive) < 0);
-		TestTrue(TEXT("ComparisonCaseInsensitive(14)"), ViewLongLower.Compare(WideStringLiteralLowerShort, ESearchCase::CaseSensitive) > 0);
+		TestTrue(TEXT("ComparisonCaseSensitive(7)"), ViewLongUpper.Compare(ViewShortUpper, ESearchCase::CaseSensitive) > 0);
+		TestTrue(TEXT("ComparisonCaseSensitive(8)"), ViewShortUpper.Compare(ViewLongUpper, ESearchCase::CaseSensitive) < 0);
 
 		// Different length, different cases
-		TestTrue(TEXT("ComparisonCaseSensitive(15)"), ViewLongUpper.Compare(ViewShortLower, ESearchCase::CaseSensitive) < 0);
-		TestTrue(TEXT("ComparisonCaseSensitive(16)"), ViewShortLower.Compare(ViewLongUpper, ESearchCase::CaseSensitive) > 0);
-		TestTrue(TEXT("ComparisonCaseInsensitive(17)"), ViewShortLower.Compare(AnsiStringLiteralUpper, ESearchCase::CaseSensitive) > 0);
-		TestTrue(TEXT("ComparisonCaseInsensitive(18)"), ViewLongUpper.Compare(WideStringLiteralLowerShort, ESearchCase::CaseSensitive) < 0);
+		TestTrue(TEXT("ComparisonCaseSensitive(9)"), ViewLongUpper.Compare(ViewShortLower, ESearchCase::CaseSensitive) < 0);
+		TestTrue(TEXT("ComparisonCaseSensitive(10)"), ViewShortLower.Compare(ViewLongUpper, ESearchCase::CaseSensitive) > 0);
 	}
-
-	// Test types convertible to a string view
-	static_assert(TIsSame<int32, decltype(FAnsiStringView().Compare(FString()))>::Value, "Error with Compare");
-	static_assert(TIsSame<int32, decltype(FWideStringView().Compare(FString()))>::Value, "Error with Compare");
-	static_assert(TIsSame<int32, decltype(FAnsiStringView().Compare(TAnsiStringBuilder<16>()))>::Value, "Error with Compare");
-	static_assert(TIsSame<int32, decltype(FAnsiStringView().Compare(TWideStringBuilder<16>()))>::Value, "Error with Compare");
-	static_assert(TIsSame<int32, decltype(FWideStringView().Compare(TAnsiStringBuilder<16>()))>::Value, "Error with Compare");
-	static_assert(TIsSame<int32, decltype(FWideStringView().Compare(TWideStringBuilder<16>()))>::Value, "Error with Compare");
 
 	return true;
 }
@@ -373,7 +304,6 @@ bool FStringViewTestComparisonCaseInsensitive::RunTest(const FString& Parameters
 {
 	// Basic comparisons involving case
 	{
-		const ANSICHAR* AnsiStringLiteralSrc = "String To Test!";
 		const TCHAR* WideStringLiteralSrc = TEXT("String To Test!");
 		const TCHAR* WideStringLiteralLower = TEXT("string to test!");
 		const TCHAR* WideStringLiteralUpper = TEXT("STRING TO TEST!");
@@ -390,19 +320,13 @@ bool FStringViewTestComparisonCaseInsensitive::RunTest(const FString& Parameters
 		FStringView IdenticalView(WideStringLiteralSrc);
 		TestTrue(TEXT("ComparisonCaseInsensitive(4)"), WideView.Compare(IdenticalView, ESearchCase::IgnoreCase) == 0);
 
-		FAnsiStringView AnsiView(AnsiStringLiteralSrc);
-		TestTrue(TEXT("ComparisonCaseSensitive(5)"), WideView.Compare(AnsiView, ESearchCase::IgnoreCase) == 0);
-		TestTrue(TEXT("ComparisonCaseSensitive(6)"), WideView.Compare(AnsiStringLiteralSrc, ESearchCase::IgnoreCase) == 0);
 	}
 
 	// Test comparisons of different lengths
 	{
-		const ANSICHAR* AnsiStringLiteralUpper = "ABCDEF";
 		const TCHAR* WideStringLiteralUpper = TEXT("ABCDEF");
 		const TCHAR* WideStringLiteralLower = TEXT("abcdef");
-		const TCHAR* WideStringLiteralLowerShort = TEXT("abc");
 
-		const ANSICHAR* AnsiStringLiteralUpperFirst = "ABCdef";
 		const TCHAR* WideStringLiteralUpperFirst = TEXT("ABCdef");
 		const TCHAR* WideStringLiteralLowerFirst = TEXT("abcDEF");
 
@@ -414,22 +338,16 @@ bool FStringViewTestComparisonCaseInsensitive::RunTest(const FString& Parameters
 		FStringView ViewShortLower(WideStringLiteralLowerFirst, 3);
 
 		// Same length, different cases
-		TestTrue(TEXT("ComparisonCaseInsensitive(7)"), ViewLongUpper.Compare(ViewLongLower, ESearchCase::IgnoreCase) == 0);
-		TestTrue(TEXT("ComparisonCaseInsensitive(8)"), ViewLongLower.Compare(ViewLongUpper, ESearchCase::IgnoreCase) == 0);
-		TestTrue(TEXT("ComparisonCaseInsensitive(9)"), ViewLongLower.Compare(AnsiStringLiteralUpper, ESearchCase::IgnoreCase) == 0);
-		TestTrue(TEXT("ComparisonCaseInsensitive(10)"), ViewShortUpper.Compare(WideStringLiteralLowerShort, ESearchCase::IgnoreCase) == 0);
+		TestTrue(TEXT("ComparisonCaseInsensitive(5)"), ViewLongUpper.Compare(ViewLongLower, ESearchCase::IgnoreCase) == 0);
+		TestTrue(TEXT("ComparisonCaseInsensitive(6)"), ViewLongLower.Compare(ViewLongUpper, ESearchCase::IgnoreCase) == 0);
 
 		// Same case, different lengths
-		TestTrue(TEXT("ComparisonCaseInsensitive(11)"), ViewLongUpper.Compare(ViewShortUpper, ESearchCase::IgnoreCase) > 0);
-		TestTrue(TEXT("ComparisonCaseInsensitive(12)"), ViewShortUpper.Compare(ViewLongUpper, ESearchCase::IgnoreCase) < 0);
-		TestTrue(TEXT("ComparisonCaseInsensitive(13)"), ViewShortUpper.Compare(AnsiStringLiteralUpper, ESearchCase::IgnoreCase) < 0);
-		TestTrue(TEXT("ComparisonCaseInsensitive(14)"), ViewLongLower.Compare(WideStringLiteralLowerShort, ESearchCase::IgnoreCase) > 0);
+		TestTrue(TEXT("ComparisonCaseInsensitive(7)"), ViewLongUpper.Compare(ViewShortUpper, ESearchCase::IgnoreCase) > 0);
+		TestTrue(TEXT("ComparisonCaseInsensitive(8)"), ViewShortUpper.Compare(ViewLongUpper, ESearchCase::IgnoreCase) < 0);
 
 		// Different length, different cases
-		TestTrue(TEXT("ComparisonCaseInsensitive(15)"), ViewLongUpper.Compare(ViewShortLower, ESearchCase::IgnoreCase) > 0);
-		TestTrue(TEXT("ComparisonCaseInsensitive(16)"), ViewShortLower.Compare(ViewLongUpper, ESearchCase::IgnoreCase) < 0);
-		TestTrue(TEXT("ComparisonCaseInsensitive(17)"), ViewShortLower.Compare(AnsiStringLiteralUpper, ESearchCase::IgnoreCase) < 0);
-		TestTrue(TEXT("ComparisonCaseInsensitive(18)"), ViewLongUpper.Compare(WideStringLiteralLowerShort, ESearchCase::IgnoreCase) > 0);
+		TestTrue(TEXT("ComparisonCaseInsensitive(9)"), ViewLongUpper.Compare(ViewShortLower, ESearchCase::IgnoreCase) > 0);
+		TestTrue(TEXT("ComparisonCaseInsensitive(10)"), ViewShortLower.Compare(ViewLongUpper, ESearchCase::IgnoreCase) < 0);
 	}
 
 	return true;

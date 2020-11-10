@@ -265,11 +265,6 @@ bool FOnlineSubsystemImpl::IsEnabled() const
 	return IOnlineSubsystem::IsEnabled(SubsystemName, InstanceName == FOnlineSubsystemImpl::DefaultInstanceName ? NAME_None : InstanceName);
 }
 
-FText FOnlineSubsystemImpl::GetSocialPlatformName() const
-{
-	return FText::GetEmpty();
-}
-
 void FOnlineSubsystemImpl::DumpReceipts(const FUniqueNetId& UserId)
 {
 	IOnlinePurchasePtr PurchaseInt = GetPurchaseInterface();

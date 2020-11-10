@@ -513,7 +513,14 @@ namespace UnrealBuildTool
 			{
 				if (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors)
 				{
-					Arguments.Add("/we4668");
+					if (Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2015_DEPRECATED)
+					{
+						Arguments.Add("/we4668");
+					}
+					else if (Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2017)
+					{
+						Arguments.Add("/wd4668");
+					}
 				}
 				else
 				{

@@ -103,10 +103,9 @@ public:
 	FUserPlatform();
 	FUserPlatform(const FString& InPlatform);
 
-	operator const FString&() const { return PlatformDescription.Name; }
-	const FString& ToString() const { return PlatformDescription.Name; }
-	const FString& GetTypeName() const { return PlatformDescription.PlatformType; }
-	const FSocialPlatformDescription& GetPlatformDescription() const { return PlatformDescription; }
+	operator const FString&() const { return PlatformDescription.SocialPlatformName; }
+	const FString& ToString() const { return PlatformDescription.SocialPlatformName; }
+	const FString GetTypeName() const;
 
 	bool operator==(const FString& OtherStr) const;
 	bool operator!=(const FString& OtherStr) const { return !operator==(OtherStr); }

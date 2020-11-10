@@ -170,7 +170,7 @@ PyObject* GetBlueprintGeneratedTypes(PyObject* InSelf, PyObject* InArgs)
 			PyUtil::SetPythonError(PyExc_RuntimeError, TEXT("get_blueprint_generated_types"), *FString::Printf(TEXT("Cannot find asset for '%s'"), *AssetToGenerate));
 			return nullptr;
 		}
-		LoadedAsset = PyGenUtil::GetAssetTypeRegistryType(LoadedAsset);
+		LoadedAsset = PyGenUtil::GetTypeRegistryType(LoadedAsset);
 
 		PyTypeObject* WrappedAsset = WrappedAssets.Add_GetRef(PyWrapperTypeRegistry.GenerateWrappedTypeForObject(LoadedAsset, GeneratedWrappedTypeReferences, DirtyModules, EPyTypeGenerationFlags::IncludeBlueprintGeneratedTypes));
 		if (!WrappedAsset)

@@ -245,14 +245,16 @@ namespace Audio
 		FCriticalSection BufferIndicesCriticalSection;
 	};
 
-	class FSpectrumAnalysisAsyncWorker 
+	class FSpectrumAnalysisAsyncWorker : public FNonAbandonableTask
 	{
+	protected:
+		FSpectrumAnalyzer* Analyzer;
+		bool bUseLatestAudio;
 
 	public:
-		FSpectrumAnalysisAsyncWorker(TWeakPtr<FSpectrumAnalyzer, ESPMode::ThreadSafe> InAnalyzer, bool bInUseLatestAudio)
-			: AnalyzerWeakPtr(InAnalyzer)
+		FSpectrumAnalysisAsyncWorker(FSpectrumAnalyzer* InAnalyzer, bool bInUseLatestAudio)
+			: Analyzer(InAnalyzer)
 			, bUseLatestAudio(bInUseLatestAudio)
-			, bIsAbandoned(false)
 		{}
 
 		FORCEINLINE TStatId GetStatId() const
@@ -262,21 +264,8 @@ namespace Audio
 
 		void DoWork();
 
-		bool CanAbandon()
-		{
-			return true;
-		}
-
-		void Abandon();
-
 	private:
-		FSpectrumAnalysisAsyncWorker() = delete;
-
-		TWeakPtr<FSpectrumAnalyzer, ESPMode::ThreadSafe> AnalyzerWeakPtr;
-		bool bUseLatestAudio;
-		bool bIsAbandoned;
-
-		FCriticalSection NonAbandonableSection;
+		FSpectrumAnalysisAsyncWorker();
 	};
 
 	typedef FAsyncTask<FSpectrumAnalysisAsyncWorker> FSpectrumAnalyzerTask;
@@ -287,9 +276,8 @@ namespace Audio
 	 * Typical usage is to either call PushAudio() and then PerformAnalysisIfPossible immediately afterwards,
 	 * or have a seperate thread call PerformAnalysisIfPossible().
 	 */
-	class SIGNALPROCESSING_API FSpectrumAnalyzer 
+	class SIGNALPROCESSING_API FSpectrumAnalyzer
 	{
-
 	public:
 		// Peak interpolation method. If the EFFTSize is small but will be densely sampled,
 		// it's worth using a linear or quadratic interpolation method.
@@ -307,7 +295,7 @@ namespace Audio
 		FSpectrumAnalyzer(float InSampleRate);
 		FSpectrumAnalyzer(const FSpectrumAnalyzerSettings& InSettings, float InSampleRate);
 
-		virtual ~FSpectrumAnalyzer() = default;
+		~FSpectrumAnalyzer();
 
 		// Initialize sample rate of analyzer if not known at time of construction
 		void Init(float InSampleRate);
@@ -341,16 +329,16 @@ namespace Audio
 		bool PushAudio(const float* InBuffer, int32 NumSamples);
 
 		// Thread safe call to perform actual FFT. Returns true if it performed the FFT, false otherwise.
+		// If bAsync is true, this function will kick off an async task.
 		// If bUseLatestAudio is set to true, this function will flush the entire input buffer, potentially losing data.
 		// Otherwise it will only consume enough samples necessary to perform a single FFT.
-		bool PerformAnalysisIfPossible(bool bUseLatestAudio = false);
+		bool PerformAnalysisIfPossible(bool bUseLatestAudio = false, bool bAsync = false);
 
 		// Returns false if this instance of FSpectrumAnalyzer was constructed with the default constructor 
 		// and Init() has not been called yet.
 		bool IsInitialized();
-	
-	private:
 
+	private:
 
 		// Called on analysis thread.
 		void ResetSettings();
@@ -381,6 +369,9 @@ namespace Audio
 		double LockedBufferTimestamp;
 		const AlignedFloatBuffer* LockedFrequencyVector;
 
+		// This is used if PerformAnalysisIfPossible is called
+		// with bAsync = true.
+		TUniquePtr<FSpectrumAnalyzerTask> AsyncAnalysisTask;
 
 		TUniquePtr<IFFTAlgorithm> FFT;
 	};
@@ -401,97 +392,5 @@ namespace Audio
 
 	private:
 		FSpectrumAnalyzer* Analyzer;
-	};
-
-	// SpectrumAnalyzer for computing spectrum in async task. 
-	class SIGNALPROCESSING_API FAsyncSpectrumAnalyzer 
-	{
-
-		FAsyncSpectrumAnalyzer(const FSpectrumAnalyzer&) = delete;
-		FAsyncSpectrumAnalyzer(FSpectrumAnalyzer&&) = delete;
-
-		FAsyncSpectrumAnalyzer& operator=(const FSpectrumAnalyzer&) = delete;
-		FAsyncSpectrumAnalyzer& operator=(FSpectrumAnalyzer&&) = delete;
-
-
-	public:
-		FAsyncSpectrumAnalyzer();
-		// If an instance is created using either of these constructors, Init() is not neccessary.
-		FAsyncSpectrumAnalyzer(float InSampleRate);
-		FAsyncSpectrumAnalyzer(const FSpectrumAnalyzerSettings& InSettings, float InSampleRate);
-
-		virtual ~FAsyncSpectrumAnalyzer();
-
-		// Initialize sample rate of analyzer if not known at time of construction
-		void Init(float InSampleRate);
-		void Init(const FSpectrumAnalyzerSettings& InSettings, float InSampleRate);
-
-		// Returns false if this instance of FSpectrumAnalyzer was constructed with the default constructor 
-		// and Init() has not been called yet.
-		bool IsInitialized();
-
-		// Update the settings used by this Spectrum Analyzer. Safe to call on any thread, but should not be called every tick.
-		void SetSettings(const FSpectrumAnalyzerSettings& InSettings);
-
-		// Get the current settings used by this Spectrum Analyzer.
-		void GetSettings(FSpectrumAnalyzerSettings& OutSettings);
-
-		// Samples magnitude (linearly) for a given frequency, in Hz.
-		float GetMagnitudeForFrequency(float InFrequency, FSpectrumAnalyzer::EPeakInterpolationMethod InMethod = FSpectrumAnalyzer::EPeakInterpolationMethod::Linear);
-		float GetNormalizedMagnitudeForFrequency(float InFrequency, FSpectrumAnalyzer::EPeakInterpolationMethod InMethod = FSpectrumAnalyzer::EPeakInterpolationMethod::Linear);
-
-		// Samples phase for a given frequency, in Hz.
-		float GetPhaseForFrequency(float InFrequency, FSpectrumAnalyzer::EPeakInterpolationMethod InMethod = FSpectrumAnalyzer::EPeakInterpolationMethod::Linear);
-
-		// Return array of bands using spectrum band extractor.
-		void GetBands(ISpectrumBandExtractor& InExtractor, TArray<float>& OutValues);
-
-		// You can call this function to ensure that you're sampling the same window of frequency data,
-		// Then call UnlockOutputBuffer when you're done.
-		// Otherwise, GetMagnitudeForFrequency and GetPhaseForFrequency will always use the latest window
-		// of frequency data.
-		void LockOutputBuffer();
-		void UnlockOutputBuffer();
-		
-		// Push audio to queue. Returns false if the queue is already full.
-		bool PushAudio(const TSampleBuffer<float>& InBuffer);
-		bool PushAudio(const float* InBuffer, int32 NumSamples);
-
-		// Thread safe call to perform actual FFT. Returns true if it performed the FFT, false otherwise.
-		// If bUseLatestAudio is set to true, this function will flush the entire input buffer, potentially losing data.
-		// Otherwise it will only consume enough samples necessary to perform a single FFT.
-		bool PerformAnalysisIfPossible(bool bUseLatestAudio = false);
-
-
-		// Thread safe call to perform actual FFT. Returns true if it performed the FFT, false otherwise.
-		// If bUseLatestAudio is set to true, this function will flush the entire input buffer, potentially losing data.
-		// Otherwise it will only consume enough samples necessary to perform a single FFT.
-		bool PerformAsyncAnalysisIfPossible(bool bUseLatestAudio = false);
-	
-
-	private:
-
-		TSharedRef<FSpectrumAnalyzer, ESPMode::ThreadSafe> Analyzer;
-
-		// This is used if PerformAsyncAnalysisIfPossible is called
-		TUniquePtr<FSpectrumAnalyzerTask> AsyncAnalysisTask;
-	};
-
-	class SIGNALPROCESSING_API FAsyncSpectrumAnalyzerScopeLock
-	{
-	public:
-		FAsyncSpectrumAnalyzerScopeLock(FAsyncSpectrumAnalyzer* InAnalyzer)
-			: Analyzer(InAnalyzer)
-		{
-			Analyzer->LockOutputBuffer();
-		}
-
-		~FAsyncSpectrumAnalyzerScopeLock()
-		{
-			Analyzer->UnlockOutputBuffer();
-		}
-
-	private:
-		FAsyncSpectrumAnalyzer* Analyzer;
 	};
 }

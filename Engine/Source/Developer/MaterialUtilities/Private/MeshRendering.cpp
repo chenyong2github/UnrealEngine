@@ -475,7 +475,8 @@ public:
 		// Check if material is TwoSided - single-sided materials should be rendered with normal and reverse
 		// triangle corner orders, to avoid problems with inside-out meshes or mesh parts. Note:
 		// FExportMaterialProxy::GetMaterial() (which is really called here) ignores 'InFeatureLevel' parameter.
-		const bool bIsMaterialTwoSided = Data.MaterialRenderProxy->GetIncompleteMaterialWithFallback(GMaxRHIFeatureLevel).IsTwoSided();
+		const FMaterial* Material = Data.MaterialRenderProxy->GetMaterial(GMaxRHIFeatureLevel);
+		bool bIsMaterialTwoSided = Material->IsTwoSided();
 
 		TArray<FDynamicMeshVertex> Verts;
 		TArray<uint32> Indices;

@@ -678,7 +678,7 @@ bool ULevelExporterSTL::ExportText( const FExportObjectInnerContext* Context, UO
 		AStaticMeshActor* Actor = Cast<AStaticMeshActor>(Level->Actors[iActor]);
 		if( Actor && ( !bSelectedOnly || Actor->IsSelected() ) && Actor->GetStaticMeshComponent()->GetStaticMesh() && Actor->GetStaticMeshComponent()->GetStaticMesh()->HasValidRenderData() )
 		{
-			FStaticMeshLODResources& LODModel = Actor->GetStaticMeshComponent()->GetStaticMesh()->GetRenderData()->LODResources[0];
+			FStaticMeshLODResources& LODModel = Actor->GetStaticMeshComponent()->GetStaticMesh()->RenderData->LODResources[0];
 			FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
 			int32 NumSections = LODModel.Sections.Num();
 			for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
@@ -937,7 +937,7 @@ static void AddActorToOBJs(AActor* Actor, TArray<FOBJGeom*>& Objects, TSet<UMate
 				// make room for the faces
 				FOBJGeom* OBJGeom = new FOBJGeom(StaticMeshComponents.Num() > 1 ? StaticMesh->GetName() : Actor->GetName());
 
-				FStaticMeshLODResources* RenderData = &StaticMesh->GetRenderData()->LODResources[0];
+				FStaticMeshLODResources* RenderData = &StaticMesh->RenderData->LODResources[0];
 				FIndexArrayView Indices = RenderData->IndexBuffer.GetArrayView();
 				uint32 NumIndices = Indices.Num();
 

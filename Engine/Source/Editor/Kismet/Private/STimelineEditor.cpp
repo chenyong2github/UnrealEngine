@@ -12,7 +12,6 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSlider.h"
-#include "Widgets/Input/STextComboBox.h"
 #include "Styling/CoreStyle.h"
 #include "EditorStyleSet.h"
 #include "Curves/CurveFloat.h"
@@ -37,9 +36,6 @@
 #include "AssetData.h"
 
 #define LOCTEXT_NAMESPACE "STimelineEditor"
-
-static TArray<TSharedPtr<FString>> TickGroupNameStrings;
-static bool TickGroupNamesInitialized = false;
 
 namespace TimelineEditorHelpers
 {
@@ -958,38 +954,6 @@ void STimelineEditor::Construct(const FArguments& InArgs, TSharedPtr<FBlueprintE
 		FExecuteAction::CreateSP(this, &STimelineEditor::OnDeleteSelectedTracks),
 		FCanExecuteAction::CreateSP(this, &STimelineEditor::CanDeleteSelectedTracks) );
 
-	// Get TickGroup enum info for the TimelineEditor control panel
-	int32 CurrentTickGroupNameStringIndex = 0;
-	const UEnum* TickGroupEnum = StaticEnum<ETickingGroup>();
-	if (!TickGroupNamesInitialized && TickGroupEnum)
-	{
-		// Store the TickGroup name info one time, in one place accessible to all TimelineEditors
-		TickGroupNameStrings.Empty();
-		for (int32 TickGroupIndex = 0; TickGroupIndex < TickGroupEnum->NumEnums() - 1; TickGroupIndex++)
-		{
-			if (!TickGroupEnum->HasMetaData(TEXT("Hidden"), TickGroupIndex))
-			{
-				TickGroupNameStrings.Add(MakeShareable(new FString(TickGroupEnum->GetNameStringByIndex(TickGroupIndex))));
-			}
-		}
-		TickGroupNamesInitialized = true;
-	}
-	if (TickGroupNamesInitialized && InTimelineObj)
-	{
-		// Set the current index into the TickGroupNameStrings so the ComboBox being set up below can highlight the current value
-		FString CurrentTickGroupNameString = TickGroupEnum->GetNameStringByValue((int64)InTimelineObj->TimelineTickGroup);
-		CurrentTickGroupNameStringIndex = TickGroupNameStrings.IndexOfByPredicate([CurrentTickGroupNameString](const TSharedPtr<FString> NameString)
-		{
-			return *NameString.Get() == CurrentTickGroupNameString;
-		});
-	}
-	else
-	{
-		// If we don't have the ETickingGroup enum available for some reason, don't crash the Editor
-		TickGroupNameStrings.Empty();
-		TickGroupNameStrings.Add(MakeShareable(new FString(TEXT("EnumNotReady"))));
-	}
-
 	this->ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -1189,26 +1153,6 @@ void STimelineEditor::Construct(const FArguments& InArgs, TSharedPtr<FBlueprintE
 					.AddMetaData<FTagMetaData>(TEXT("TimelineEditor.IgnoreTimeDilation"))
 				]
 			]
-			// Tick Group Controls
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2.f)
-			[
-				SNew(STextComboBox)
-				.OptionsSource(&TickGroupNameStrings)
-				.InitiallySelectedItem(TickGroupNameStrings[CurrentTickGroupNameStringIndex])
-				.OnSelectionChanged(this, &STimelineEditor::OnTimelineTickGroupChanged)
-				.ToolTipText(LOCTEXT("TimelineTickGroupDropdownTooltip", "Select the TickGroup you want this timeline to run in.\nTo assign options use context menu on timelines."))
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2.f)
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("TickGroupLabel", "Tick Group"))
-				.AddMetaData<FTagMetaData>(TEXT("TimelineEditor.TickGroup"))
-			]
 		]
 		+SVerticalBox::Slot()
 		.FillHeight(1)
@@ -1231,29 +1175,6 @@ void STimelineEditor::Construct(const FArguments& InArgs, TSharedPtr<FBlueprintE
 	OnTimelineChanged();
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-void STimelineEditor::OnTimelineTickGroupChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo)
-{
-	if (TickGroupNamesInitialized && TimelineObj && NewValue.IsValid())
-	{
-		if (const UEnum* TickGroupEnum = StaticEnum<ETickingGroup>())
-		{
-			ETickingGroup NewTickGroup = (ETickingGroup)TickGroupEnum->GetValueByNameString(*NewValue.Get());
-			if (NewTickGroup != TimelineObj->TimelineTickGroup)
-			{
-				TimelineObj->TimelineTickGroup = NewTickGroup;
-
-				// Mark blueprint as modified
-				TSharedPtr<FBlueprintEditor> Kismet2 = Kismet2Ptr.Pin();
-				if (UBlueprint* Blueprint = Kismet2->GetBlueprintObj())
-				{
-					FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-				}
-			}
-		}
-	}
-	return;
-}
 
 FText STimelineEditor::GetTimelineName() const
 {

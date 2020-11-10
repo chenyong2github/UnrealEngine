@@ -889,25 +889,25 @@ public:
 		void ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements,SIZE_T NumBytesPerElement)
 		{
 			// Ensure the requested allocation will fit in the inline data area.
-			check(NumElements <= NumInlineElements);
+			checkSlow(NumElements <= NumInlineElements);
 		}
 
 		FORCEINLINE SizeType CalculateSlackReserve(SizeType NumElements, SIZE_T NumBytesPerElement) const
 		{
 			// Ensure the requested allocation will fit in the inline data area.
-			check(NumElements <= NumInlineElements);
+			checkSlow(NumElements <= NumInlineElements);
 			return NumInlineElements;
 		}
 		FORCEINLINE SizeType CalculateSlackShrink(SizeType NumElements, SizeType NumAllocatedElements, SIZE_T NumBytesPerElement) const
 		{
 			// Ensure the requested allocation will fit in the inline data area.
-			check(NumAllocatedElements <= NumInlineElements);
+			checkSlow(NumAllocatedElements <= NumInlineElements);
 			return NumInlineElements;
 		}
 		FORCEINLINE SizeType CalculateSlackGrow(SizeType NumElements, SizeType NumAllocatedElements, SIZE_T NumBytesPerElement) const
 		{
 			// Ensure the requested allocation will fit in the inline data area.
-			check(NumElements <= NumInlineElements);
+			checkSlow(NumElements <= NumInlineElements);
 			return NumInlineElements;
 		}
 

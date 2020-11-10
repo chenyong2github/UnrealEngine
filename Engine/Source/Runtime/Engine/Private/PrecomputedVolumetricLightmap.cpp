@@ -687,7 +687,7 @@ void FPrecomputedVolumetricLightmap::AddToScene(FSceneInterface* Scene, UMapBuil
 	// FIXME: temp fix for ordering issue between WorldContext.World()->InitWorld(); and GShaderCompilingManager->ProcessAsyncResults(false, true); in UnrealEngine.cpp
 	if (GShaderCompilingManager)
 	{
-		GShaderCompilingManager->ProcessAsyncResults(true, true);
+		GShaderCompilingManager->ProcessAsyncResults(false, true);
 	}
 
 	check(!bAddedToScene);

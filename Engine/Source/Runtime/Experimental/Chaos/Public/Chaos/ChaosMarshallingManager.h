@@ -6,15 +6,10 @@
 #include "Chaos/ParticleDirtyFlags.h"
 #include "Chaos/Framework/PhysicsProxyBase.h"
 #include "Chaos/ParallelFor.h"
-#include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
-#include "Chaos/SimCallbackObject.h"
-
-class FGeometryCollectionResults;
 
 namespace Chaos
 {
 class FDirtyPropertiesManager;
-class FPullPhysicsData;
 
 struct FDirtyProxy
 {
@@ -179,16 +174,81 @@ private:
 
 class FChaosMarshallingManager;
 
+struct FSimCallbackData
+{
+	void Init(const FReal InTime)
+	{
+		StartTime = InTime;
+	}
+
+	union FData
+	{
+		void* VoidPtr;
+		FReal Real;
+		int32 Int;
+	};
+	FData Data;	//Set by user to point at external data. Data must remain valid until Deletion callback
+
+	FReal GetStartTime() const { return StartTime; }
+private:
+	FReal StartTime;
+};
+
+struct FSimCallbackHandle;
+
+struct FSimCallbackHandlePT
+{
+	FSimCallbackHandlePT(FSimCallbackHandle* InHandle)
+	: Handle(InHandle)
+	, bPendingDelete(false)
+	{
+	}
+
+	FSimCallbackHandle* Handle;
+	TArray<FSimCallbackData*> IntervalData;
+	bool bPendingDelete;
+};
+
+struct FSimCallbackHandle
+{
+	template <typename Lambda>
+	FSimCallbackHandle(const Lambda& InFunc)
+	: Func(InFunc)
+	, PTHandle(nullptr)
+	, LatestCallbackData(nullptr)
+	, bRunOnceMore(false)
+	{
+	}
+
+	TFunction<void(const TArray<FSimCallbackData*>& IntervalData)> Func;
+	TFunction<void(const TArray<FSimCallbackData*>& IntervalData)> FreeExternal;
+	FSimCallbackHandlePT* PTHandle;	//Should only be used by solver
+
+private:
+	friend FChaosMarshallingManager;
+	FSimCallbackData* LatestCallbackData;
+
+	//some functions return by reference, make sure user doesn't accidentally make a copy
+	FSimCallbackHandle(const FSimCallbackHandle& Other) = delete;
+
+public:
+	bool bRunOnceMore;	//Should only be used by solver
+};
+
+struct FSimCallbackDataPair
+{
+	FSimCallbackHandle* Callback;
+	FSimCallbackData* Data;
+};
+
 struct FPushPhysicsData
 {
 	FDirtyPropertiesManager DirtyPropertiesManager;
 	FDirtySet DirtyProxiesDataBuffer;
 	FReal StartTime;
-	FReal ExternalDt;
-
-	TArray<ISimCallbackObject*> SimCallbackObjectsToAdd;	//callback object registered at this specific time
-	TArray<ISimCallbackObject*> SimCallbackObjectsToRemove;	//callback object removed at this specific time
-	TArray<FSimCallbackInputAndObject> SimCallbackInputs; //set of callback inputs pushed at this specific time
+	TArray<FSimCallbackHandle*> SimCallbacksToAdd;	//callback registered at this specific time
+	TArray<FSimCallbackHandle*> SimCallbacksToRemove;	//callback removed at this specific time
+	TArray<FSimCallbackDataPair> SimCallbackDataPairs;	//the set of callback data pairs pushed at this specific time
 
 	void Reset();
 };
@@ -199,7 +259,6 @@ class CHAOS_API FChaosMarshallingManager
 {
 public:
 	FChaosMarshallingManager();
-	~FChaosMarshallingManager();
 
 	/** Grabs the producer data to write into. Should only be called by external thread */
 	FPushPhysicsData* GetProducerData_External()
@@ -207,80 +266,83 @@ public:
 		return ProducerData;
 	}
 
-	void RegisterSimCallbackObject_External(ISimCallbackObject* SimCallbackObject)
+	FSimCallbackData& GetProducerCallbackData_External(FSimCallbackHandle& Handle)
 	{
-		GetProducerData_External()->SimCallbackObjectsToAdd.Add(SimCallbackObject);
+		if(Handle.LatestCallbackData == nullptr)
+		{
+			Handle.LatestCallbackData = CreateCallbackData_External();
+			GetProducerData_External()->SimCallbackDataPairs.Add( FSimCallbackDataPair{&Handle,Handle.LatestCallbackData});
+		}
+		
+		return *Handle.LatestCallbackData;
 	}
 
-	void UnregisterSimCallbackObject_External(ISimCallbackObject* SimCallbackObject, bool bRunOnceMore = false)
+	template <typename Lambda>
+	FSimCallbackHandle& RegisterSimCallback(const Lambda& Func)
 	{
-		SimCallbackObject->bRunOnceMore = bRunOnceMore;
-		GetProducerData_External()->SimCallbackObjectsToRemove.Add(SimCallbackObject);
+		FSimCallbackHandle* Handle = new FSimCallbackHandle(Func);
+		GetProducerData_External()->SimCallbacksToAdd.Add(Handle);
+		return *Handle;
 	}
 
-	void AddSimCallbackInputData_External(ISimCallbackObject* SimCallbackObject, FSimCallbackInput* InputData)
+	void UnregisterSimCallback(FSimCallbackHandle& Handle, bool bEndOfInterval = false)
 	{
-		GetProducerData_External()->SimCallbackInputs.Add(FSimCallbackInputAndObject{ SimCallbackObject, InputData });
+		Handle.bRunOnceMore = bEndOfInterval;
+		GetProducerData_External()->SimCallbacksToRemove.Add(&Handle);
 	}
+
 	/** Step forward using the external delta time. Should only be called by external thread */
 	void Step_External(FReal ExternalDT);
 
 	/** Step the internal time forward and get any push data associated with the time. Should only be called by external thread */
-	TArray<FPushPhysicsData*> StepInternalTime_External(FReal InternalDt, bool bUseAsync = true);
+	TArray<FPushPhysicsData*> StepInternalTime_External(FReal InternalDt);
 
 	/** Frees the push data back into the pool. Internal thread should call this when finished processing data*/
 	void FreeData_Internal(FPushPhysicsData* PushData);
 
-	/** Frees the pull data back into the pool. External thread should call this when finished processing data*/
-	void FreePullData_External(FPullPhysicsData* PullData);
+	/** Frees the callback push data back into the pool. Internal thread should call this when callback will no longer be used with this specific data*/
+	void FreeCallbackData_Internal(FSimCallbackHandlePT* Callback);
 
 	/** Returns the timestamp associated with inputs consumed. Note the simulation may be pending, but any data associated with timestamp <= returned value has been passed */
-	int32 GetExternalTimestampConsumed_External() const { return InternalTimestamp_External; }
+	int32 GetExternalTimestampConsumed_External() const { return InternalTimestamp; }
 
 	/** Returns the timestamp associated with inputs enqueued. */
-	int32 GetExternalTimestamp_External() const { return ExternalTimestamp_External; }
+	int32 GetExternalTimestamp_External() const { return ExternalTimestamp; }
 
 	/** Returns the amount of external time pushed so far. Any external commands or events should be associated with this time */
-	FReal GetExternalTime_External() const { return ExternalTime_External; }
+	FReal GetExternalTime_External() const { return ExternalTime; }
 
 	/** Used to delay marshalled data. This is mainly used for testing at the moment */
 	void SetTickDelay_External(int32 InDelay) { Delay = InDelay; }
-
-	/** Returns the current pull data being written to. This holds the results of dirty data to be read later by external thread*/
-	FPullPhysicsData* GetCurrentPullData_Internal() { return CurPullData; }
-
-	/** Hands pull data off to external thread */
-	void FinalizePullData_Internal(int32 LatestExternalTimestampConsumed, float SimStartTime, float DeltaTime);
-
-	/** Pops and returns the earliest pull data available. nullptr means results are not ready or no work is pending */
-	FPullPhysicsData* PopPullData_External()
-	{
-		FPullPhysicsData* Result = nullptr;
-		PullDataQueue.Dequeue(Result);
-		return Result;
-	}
-		
-private:
-	FReal ExternalTime_External;	//the global time external thread is currently at
-	int32 ExternalTimestamp_External; //the global timestamp external thread is currently at (1 per frame)
-	FReal SimTime_External;	//the global time the sim is at (once Step_External is called this time advances, even though the actual sim work has yet to be done)
-	int32 InternalTimestamp_External;	//the global timestamp the sim is at (consumes 1 or more frames per internal tick)
 	
-	//push
+private:
+	FReal ExternalTime;	//the global time external thread is currently at
+	int32 ExternalTimestamp; //the global timestamp external thread is currently at (1 per frame)
+	FReal SimTime;	//the global time the sim is at (once Step_External is called this time advances, even though the actual sim work has yet to be done)
+	int32 InternalTimestamp;	//the global timestamp the sim is at (consumes 1 or more frames per internal tick)
 	FPushPhysicsData* ProducerData;
 	TArray<FPushPhysicsData*> ExternalQueue;	//the data pushed from external thread with a time stamp
 	TQueue<FPushPhysicsData*,EQueueMode::Spsc> PushDataPool;	//pool to grab more push data from to avoid expensive reallocs
 	TArray<TUniquePtr<FPushPhysicsData>> BackingBuffer;	//all push data is cleaned up by this
-
-	//pull
-	FPullPhysicsData* CurPullData;	//the current pull data sim is writing to
-	TQueue<FPullPhysicsData*,EQueueMode::Spsc> PullDataQueue;	//the results the simulation has written to. Consumed by external thread
-	TQueue<FPullPhysicsData*,EQueueMode::Spsc> PullDataPool;	//the pull data pool to avoid reallocs. Pushed by external thread, popped by internal
-	TArray<TUniquePtr<FPullPhysicsData>> BackingPullBuffer;		//all pull data is cleaned up by this
+	TQueue<FSimCallbackData*,EQueueMode::Spsc> CallbackDataPool;	//pool to grab more callback data to avoid expensive reallocs
+	TArray<TUniquePtr<FSimCallbackData>> CallbackDataBacking;	//callback data actually backed by this
 
 	int32 Delay;
 
-	void PrepareExternalQueue_External();
-	void PreparePullData();
+	void PrepareExternalQueue();
+
+	FSimCallbackData* CreateCallbackData_External()
+	{
+		FSimCallbackData* NewData;
+		if(!CallbackDataPool.Dequeue(NewData))
+		{
+			CallbackDataBacking.Add(MakeUnique<FSimCallbackData>());
+			NewData = CallbackDataBacking.Last().Get();
+		}
+		
+		NewData->Init(ExternalTime);
+
+		return NewData;
+	}
 };
 }; // namespace Chaos

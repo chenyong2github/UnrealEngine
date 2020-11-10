@@ -66,12 +66,12 @@ void UPhysicsInspectorTool::Setup()
 	{
 		const UStaticMeshComponent* Component = CastChecked<UStaticMeshComponent>(ComponentTarget->GetOwnerComponent());
 		const UStaticMesh* StaticMesh = Component->GetStaticMesh();
-		if (ensure(StaticMesh && StaticMesh->GetBodySetup()))
+		if (ensure(StaticMesh && StaticMesh->BodySetup))
 		{
 			TSharedPtr<FPhysicsDataCollection> PhysicsData = MakeShared<FPhysicsDataCollection>();
 			PhysicsData->SourceComponent = Component;
-			PhysicsData->BodySetup = StaticMesh->GetBodySetup();
-			PhysicsData->AggGeom = StaticMesh->GetBodySetup()->AggGeom;
+			PhysicsData->BodySetup = StaticMesh->BodySetup;
+			PhysicsData->AggGeom = StaticMesh->BodySetup->AggGeom;
 
 			PhysicsInfos.Add(PhysicsData);
 

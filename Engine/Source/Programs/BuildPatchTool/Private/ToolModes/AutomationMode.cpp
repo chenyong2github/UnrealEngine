@@ -76,8 +76,6 @@ public:
 
 		while (!IsEngineExitRequested())
 		{
-			BeginExitIfRequested();
-
 			// Increment global frame counter once for each app tick.
 			GFrameCounter++;
 

@@ -177,8 +177,6 @@ public:
 		TaskContext.MinimalPipelineStatePassSet.~FGraphicsMinimalPipelineStateSet();
 	}
 
-	static bool IsOnDemandShaderCreationEnabled();
-
 private:
 	FPrimitiveIdVertexBufferPoolEntry PrimitiveIdVertexBufferPoolEntry;
 	FMeshDrawCommandPassSetupTaskContext TaskContext;

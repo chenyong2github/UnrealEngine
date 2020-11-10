@@ -470,10 +470,10 @@ bool FMeshDescriptionTest::ConversionTest(FAutomationTestExecutionInfo& Executio
 			AssetMesh->BuildCacheAutomationTestGuid = FGuid::NewGuid();
 			TMap<FName, int32> MaterialMap;
 			TMap<int32, FName> MaterialMapInverse;
-			for (int32 MaterialIndex = 0; MaterialIndex < AssetMesh->GetStaticMaterials().Num(); ++MaterialIndex)
+			for (int32 MaterialIndex = 0; MaterialIndex < AssetMesh->StaticMaterials.Num(); ++MaterialIndex)
 			{
-				MaterialMap.Add(AssetMesh->GetStaticMaterials()[MaterialIndex].ImportedMaterialSlotName, MaterialIndex);
-				MaterialMapInverse.Add(MaterialIndex, AssetMesh->GetStaticMaterials()[MaterialIndex].ImportedMaterialSlotName);
+				MaterialMap.Add(AssetMesh->StaticMaterials[MaterialIndex].ImportedMaterialSlotName, MaterialIndex);
+				MaterialMapInverse.Add(MaterialIndex, AssetMesh->StaticMaterials[MaterialIndex].ImportedMaterialSlotName);
 			}
 
 			//MeshDescription to RawMesh to MeshDescription

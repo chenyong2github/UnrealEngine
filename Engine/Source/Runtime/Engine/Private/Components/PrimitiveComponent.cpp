@@ -1463,15 +1463,6 @@ void UPrimitiveComponent::SetCastShadow(bool NewCastShadow)
 	}
 }
 
-void UPrimitiveComponent::SetCastHiddenShadow(bool NewCastHiddenShadow)
-{
-	if (NewCastHiddenShadow != bCastHiddenShadow)
-	{
-		bCastHiddenShadow = NewCastHiddenShadow;
-		MarkRenderStateDirty();
-	}
-}
-
 void UPrimitiveComponent::SetCastInsetShadow(bool bInCastInsetShadow)
 {
 	if(bInCastInsetShadow != bCastInsetShadow)
@@ -1514,15 +1505,6 @@ void UPrimitiveComponent::SetTranslucentSortPriority(int32 NewTranslucentSortPri
 	if (NewTranslucentSortPriority != TranslucencySortPriority)
 	{
 		TranslucencySortPriority = NewTranslucentSortPriority;
-		MarkRenderStateDirty();
-	}
-}
-
-void UPrimitiveComponent::SetTranslucencySortDistanceOffset(float NewTranslucencySortDistanceOffset)
-{
-	if ( !FMath::IsNearlyEqual(NewTranslucencySortDistanceOffset, TranslucencySortDistanceOffset) )
-	{
-		TranslucencySortDistanceOffset = NewTranslucencySortDistanceOffset;
 		MarkRenderStateDirty();
 	}
 }

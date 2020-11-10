@@ -14,6 +14,7 @@
 
 UNiagaraParameterCollectionInstance::UNiagaraParameterCollectionInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, SourceInstanceDirtied(false)
 {
 	ParameterStorage.SetOwner(this);
 	//Bind(ParameterStorage);
@@ -80,81 +81,52 @@ void UNiagaraParameterCollectionInstance::Bind(UWorld* World)
 	{
 		if (UMaterialParameterCollectionInstance* SourceInstance = World->GetParameterCollectionInstance(SourceCollection))
 		{
-			SourceInstance->OnScalarParameterUpdated().AddLambda([this](UMaterialParameterCollectionInstance::ScalarParameterUpdate DirtyParameter)
+			SourceInstance->OnParametersUpdated().AddLambda([this]()
 			{
-				FRWScopeLock WriteLock(DirtyParameterLock, SLT_Write);
-				DirtyScalarParameters.Emplace(DirtyParameter);
+				SourceInstanceDirtied = true;
 			});
 
-			SourceInstance->OnVectorParameterUpdated().AddLambda([this](UMaterialParameterCollectionInstance::VectorParameterUpdate DirtyParameter)
-			{
-				FRWScopeLock WriteLock(DirtyParameterLock, SLT_Write);
-				DirtyVectorParameters.Emplace(DirtyParameter);
-			});
-
-			// initialize the source parameters from the material collection instance
-			TArray<TPair<FName, float>> ScalarParameters;
-			const int32 ScalarParameterCount = SourceCollection->ScalarParameters.Num();
-			ScalarParameters.AddUninitialized(ScalarParameterCount);
-			for (int32 ScalarIt = 0; ScalarIt < ScalarParameterCount; ++ScalarIt)
-			{
-				ScalarParameters[ScalarIt].Key = SourceCollection->ScalarParameters[ScalarIt].ParameterName;
-				SourceInstance->GetScalarParameterValue(SourceCollection->ScalarParameters[ScalarIt], ScalarParameters[ScalarIt].Value);
-			}
-
-			TArray<TPair<FName, FLinearColor>> VectorParameters;
-			const int32 VectorParameterCount = SourceCollection->VectorParameters.Num();
-			VectorParameters.AddUninitialized(VectorParameterCount);
-			for (int32 VectorIt = 0; VectorIt < VectorParameterCount; ++VectorIt)
-			{
-				VectorParameters[VectorIt].Key = SourceCollection->VectorParameters[VectorIt].ParameterName;
-				SourceInstance->GetVectorParameterValue(SourceCollection->VectorParameters[VectorIt], VectorParameters[VectorIt].Value);
-			}
-
-			RefreshSourceParameters(World, ScalarParameters, VectorParameters);
+			RefreshSourceParameters(World);
 		}
 	}
+
 }
 
-void UNiagaraParameterCollectionInstance::RefreshSourceParameters(
-	UWorld* World,
-	const TArray<TPair<FName, float>>& ScalarParameters,
-	const TArray<TPair<FName, FLinearColor>>& VectorParameters)
+void UNiagaraParameterCollectionInstance::RefreshSourceParameters(UWorld* World)
 {
 	// if the NPC uses any MPC as sources, the make those bindings now
 	if (const UMaterialParameterCollection* SourceCollection = Collection ? Collection->GetSourceCollection() : nullptr)
 	{
 		if (UMaterialParameterCollectionInstance* SourceInstance = World->GetParameterCollectionInstance(SourceCollection))
 		{
-			TStringBuilder<256> VariableName;
-			VariableName << Collection->GetFullNamespace();
-			const int32 NamespaceLength = VariableName.Len();
+			const FNiagaraTypeDefinition& ScalarDef = FNiagaraTypeDefinition::GetFloatDef();
+			const FNiagaraTypeDefinition& ColorDef = FNiagaraTypeDefinition::GetColorDef();
 
-			if (ScalarParameters.Num())
+			for (const auto& Variable : ParameterStorage.ReadParameterVariables())
 			{
-				const FNiagaraTypeDefinition& ScalarDef = FNiagaraTypeDefinition::GetFloatDef();
+				const FNiagaraTypeDefinition& VariableType = Variable.GetType();
 
-				for (const TPair<FName, float>& ScalarParameter : ScalarParameters)
+				// TODO - we should probably store an array of the FriendlyNames as FNames rather than doing any string work
+				const FName ParameterName = *Collection->FriendlyNameFromParameterName(Variable.GetName().ToString());
+
+				if (ParameterName != NAME_None)
 				{
-					VariableName.RemoveSuffix(VariableName.Len() - NamespaceLength);
-					VariableName << ScalarParameter.Key;
-					const FName VariableFName = *VariableName;
-
-					ParameterStorage.SetParameterValue(ScalarParameter.Value, FNiagaraVariableBase(ScalarDef, VariableFName));
-				}
-			}
-
-			if (VectorParameters.Num())
-			{
-				const FNiagaraTypeDefinition& ColorDef = FNiagaraTypeDefinition::GetColorDef();
-
-				for (const TPair<FName, FLinearColor>& VectorParameter : VectorParameters)
-				{
-					VariableName.RemoveSuffix(VariableName.Len() - NamespaceLength);
-					VariableName << VectorParameter.Key;
-					const FName VariableFName = *VariableName;
-
-					ParameterStorage.SetParameterValue(VectorParameter.Value, FNiagaraVariableBase(ColorDef, VariableFName));
+					if (VariableType == ScalarDef)
+					{
+						float ScalarValue;
+						if (SourceInstance->GetScalarParameterValue(ParameterName, ScalarValue))
+						{
+							ParameterStorage.SetParameterValue(ScalarValue, Variable);
+						}
+					}
+					else if (VariableType == ColorDef)
+					{
+						FLinearColor VectorValue;
+						if (SourceInstance->GetVectorParameterValue(ParameterName, VectorValue))
+						{
+							ParameterStorage.SetParameterValue(VectorValue, Variable);
+						}
+					}
 				}
 			}
 		}
@@ -163,15 +135,10 @@ void UNiagaraParameterCollectionInstance::RefreshSourceParameters(
 
 void UNiagaraParameterCollectionInstance::Tick(UWorld* World)
 {
+	if (SourceInstanceDirtied)
 	{
-		FRWScopeLock WriteLock(DirtyParameterLock, SLT_Write);
-
-		if (DirtyScalarParameters.Num() || DirtyVectorParameters.Num())
-		{
-			RefreshSourceParameters(World, DirtyScalarParameters, DirtyVectorParameters);
-			DirtyScalarParameters.Empty();
-			DirtyVectorParameters.Empty();
-		}
+		RefreshSourceParameters(World);
+		SourceInstanceDirtied = false;
 	}
 
 	//Push our parameter changes to any bound stores.

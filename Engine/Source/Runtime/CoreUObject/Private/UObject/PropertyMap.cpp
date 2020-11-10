@@ -304,15 +304,6 @@ void FMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
 
-	// Map containers must be serialized as a "whole" value, which means that we need to serialize every field for struct-typed entries.
-	// When using a custom property list, we need to temporarily bypass this logic to ensure that all map elements are fully serialized.
-	const bool bIsUsingCustomPropertyList = !!UnderlyingArchive.ArUseCustomPropertyList;
-	UnderlyingArchive.ArUseCustomPropertyList = false;
-	ON_SCOPE_EXIT
-	{
-		UnderlyingArchive.ArUseCustomPropertyList = bIsUsingCustomPropertyList;
-	};
-
 	// If we're doing delta serialization within this property, act as if there are no defaults
 	if (!UnderlyingArchive.DoIntraPropertyDelta())
 	{

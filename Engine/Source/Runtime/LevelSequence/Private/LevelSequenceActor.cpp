@@ -104,16 +104,6 @@ UObject* ALevelSequenceActor::GetInstanceData() const
 	return bOverrideInstanceData ? DefaultInstanceData : nullptr;
 }
 
-TOptional<EAspectRatioAxisConstraint> ALevelSequenceActor::GetAspectRatioAxisConstraint() const
-{
-	TOptional<EAspectRatioAxisConstraint> AspectRatioAxisConstraint;
-	if (CameraSettings.bOverrideAspectRatioAxisConstraint)
-	{
-		AspectRatioAxisConstraint = CameraSettings.AspectRatioAxisConstraint;
-	}
-	return AspectRatioAxisConstraint;
-}
-
 ULevelSequencePlayer* ALevelSequenceActor::GetSequencePlayer() const
 {
 	return SequencePlayer && SequencePlayer->GetSequence() ? SequencePlayer : nullptr;

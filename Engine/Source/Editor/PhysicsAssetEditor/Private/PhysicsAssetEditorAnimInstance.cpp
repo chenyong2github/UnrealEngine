@@ -42,9 +42,3 @@ void UPhysicsAssetEditorAnimInstance::UpdateDriveSettings(bool bLinearSoft, floa
 	Proxy.UpdateDriveSettings(bLinearSoft, LinearStiffness, LinearDamping);
 }
 
-void UPhysicsAssetEditorAnimInstance::CreateSimulationFloor(FBodyInstance* FloorBodyInstance, const FTransform& Transform)
-{
-	FPhysicsAssetEditorAnimInstanceProxy& Proxy = GetProxyOnGameThread<FPhysicsAssetEditorAnimInstanceProxy>();
-	Proxy.CreateSimulationFloor(FloorBodyInstance, Transform);
-}
-

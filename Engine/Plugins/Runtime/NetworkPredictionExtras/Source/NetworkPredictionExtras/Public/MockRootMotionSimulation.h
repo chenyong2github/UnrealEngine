@@ -9,7 +9,6 @@
 #include "NetworkPredictionReplicationProxy.h"
 #include "BaseMovementSimulation.h"
 #include "MockRootMotionSourceStore.h"
-#include "NetworkPredictionTrace.h"
 
 class UAnimInstance;
 
@@ -183,8 +182,9 @@ struct FMockRootMotionSyncState
 	bool ShouldReconcile(const FMockRootMotionSyncState& AuthorityState) const
 	{
 		const float TransformErrorTolerance = 1.f;
-		UE_NP_TRACE_RECONCILE(!Location.Equals(AuthorityState.Location, TransformErrorTolerance), "Location:");
-		return false;
+		const bool bShouldReconcile = !Location.Equals(AuthorityState.Location, TransformErrorTolerance);
+
+		return bShouldReconcile;
 	}
 };
 
@@ -209,8 +209,7 @@ struct FMockRootMotionAuxState
 
 	bool ShouldReconcile(const FMockRootMotionAuxState& AuthorityState) const
 	{
-		UE_NP_TRACE_RECONCILE(this->Source != AuthorityState.Source, "EndTimeMS:");
-		return false;
+		return this->Source != AuthorityState.Source;
 	}
 
 	void Interpolate(const FMockRootMotionAuxState* From, const FMockRootMotionAuxState* To, float PCT)

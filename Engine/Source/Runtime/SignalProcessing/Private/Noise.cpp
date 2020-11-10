@@ -11,11 +11,6 @@ namespace Audio
 
 	void FWhiteNoise::SetScaleAdd(const float InScale, const float InAdd)
 	{
-		if (Scale == InScale && Add == InAdd)
-		{
-			return;
-		}
-
 		Scale = InScale;
 		Add = InAdd;
 

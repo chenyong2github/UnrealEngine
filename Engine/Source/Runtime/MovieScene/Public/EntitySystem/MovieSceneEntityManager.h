@@ -839,7 +839,6 @@ private:
 	void CheckInvariants();
 
 	friend struct FEntityAllocationIterator;
-	friend struct FEntityAllocationIteratorItem;
 	friend struct FEntityAllocationIteratorProxy;
 
 	friend FFreeEntityOperation;

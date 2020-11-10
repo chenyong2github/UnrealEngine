@@ -354,13 +354,13 @@ uint32 UHLODProxy::GetCRC(UStaticMesh* InStaticMesh, uint32 InCRC)
 	TArray<uint8> KeyBuffer;
 
 	// Default to just the path name if we don't have render data
-	FString DerivedDataKey = InStaticMesh->GetRenderData() ? InStaticMesh->GetRenderData()->DerivedDataKey : InStaticMesh->GetPathName();
+	FString DerivedDataKey = InStaticMesh->RenderData.IsValid() ? InStaticMesh->RenderData->DerivedDataKey : InStaticMesh->GetPathName();
 	KeyBuffer.Append((uint8*)DerivedDataKey.GetCharArray().GetData(), DerivedDataKey.GetCharArray().Num() * DerivedDataKey.GetCharArray().GetTypeSize());
 	KeyBuffer.Append((uint8*)&InStaticMesh->LightMapCoordinateIndex, sizeof(int32));
-	if(InStaticMesh->GetBodySetup())
+	if(InStaticMesh->BodySetup)
 	{
 		// Incorporate physics data
-		KeyBuffer.Append((uint8*)&InStaticMesh->GetBodySetup()->BodySetupGuid, sizeof(FGuid));;
+		KeyBuffer.Append((uint8*)&InStaticMesh->BodySetup->BodySetupGuid, sizeof(FGuid));;
 	}
 	return FCrc::MemCrc32(KeyBuffer.GetData(), KeyBuffer.Num(), InCRC);
 }
@@ -594,7 +594,7 @@ void UHLODProxy::RemoveAssets(const FHLODProxyMesh& ProxyMesh)
 	if (StaticMesh)
 	{
 		// Destroy every materials
-		for (const FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials())
+		for (const FStaticMaterial& StaticMaterial : StaticMesh->StaticMaterials)
 		{
 			UMaterialInterface* Material = StaticMaterial.MaterialInterface;
 

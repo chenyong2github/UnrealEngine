@@ -101,8 +101,6 @@ $ bPGOProfile : Whether to enable Profile Guided Optimization (PGO) instrumentat
 
 $ bPGOOptimize : Whether to optimize this build with Profile Guided Optimization (PGO).
 
-$ bAllowASLRInShipping : Whether to allow the use of ASLR (address space layout randomization) if supported. Only applies to shipping builds.
-
 $ bSupportEditAndContinue : Whether to support edit and continue.  Only works on Microsoft compilers.
 
 $ bOmitFramePointers : Whether to omit frame pointers or not. Disabling is useful for e.g. memory profiling on the PC.
@@ -150,6 +148,8 @@ $ bLogDetailedActionStats : Whether to log detailed action stats. This forces lo
 $ bAllowHybridExecutor : Whether the hybrid executor will be used (a remote executor and local executor).
 
 $ bAllowXGE : Whether XGE may be used.
+
+$ bAllowFASTBuild : Whether FASTBuild may be used.
 
 $ bAllowSNDBS : Whether SN-DBS may be used.
 
@@ -242,6 +242,26 @@ $ bStopCompilationAfterErrors : When enabled, will stop compiling targets after 
 $ bAllowOverVpn : When set to false, XGE will not be When enabled, XGE will stop compiling targets after a compile error occurs.  Recommended, as it saves computing resources for others.
 
 $ VpnSubnets : List of subnets containing IP addresses assigned by VPN
+
+### FASTBuild
+
+$ FBuildExecutablePath : Used to specify the location of fbuild.exe if the distributed binary isn't being used
+
+$ bEnableDistribution : Controls network build distribution
+
+$ FBuildBrokeragePath : Used to specify the location of the brokerage. If null, FASTBuild will fall back to checking FASTBUILD_BROKERAGE_PATH
+
+$ bEnableCaching : Controls whether to use caching at all. CachePath and FASTCacheMode are only relevant if this is enabled.
+
+$ CacheMode : Cache access mode - only relevant if bEnableCaching is true;
+
+$ FBuildCachePath : Used to specify the location of the cache. If null, FASTBuild will fall back to checking FASTBUILD_CACHE_PATH
+
+$ bForceRemote : Whether to force remote
+
+$ bStopOnError : Whether to stop on error
+
+$ MsvcCRTRedistVersion : Which MSVC CRT Redist version to use
 
 ### CLionGenerator
 

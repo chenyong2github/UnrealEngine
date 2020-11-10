@@ -40,35 +40,17 @@ bool FAssetTypeActions_EditorUtilityBlueprint::HasActions(const TArray<UObject*>
 
 void FAssetTypeActions_EditorUtilityBlueprint::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
-	TArray<TWeakObjectPtr<UEditorUtilityBlueprint>> Blueprints = GetTypedWeakObjectPtrs<UEditorUtilityBlueprint>(InObjects);
+	auto Blueprints = GetTypedWeakObjectPtrs<UEditorUtilityBlueprint>(InObjects);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	bool bHasRunnable = false;
-	for (TWeakObjectPtr<UEditorUtilityBlueprint>& It : Blueprints)
-	{
-		if (UEditorUtilityBlueprint* Asset = It.Get())
-		{
-			if (EditorUtilitySubsystem->CanRun(Asset))
-			{
-				bHasRunnable = true;
-				break;
-			}
-		}
-	}
-
-	if (bHasRunnable)
-	{
-		Section.AddMenuEntry(
-			"EditorUtility_Run",
-			LOCTEXT("EditorUtility_Run", "Run Editor Utility Blueprint"),
-			LOCTEXT("EditorUtility_RunTooltip", "Runs this Editor Utility Blueprint."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &FAssetTypeActions_EditorUtilityBlueprint::ExecuteRun, Blueprints)
-			)
-		);
-	}
+	Section.AddMenuEntry(
+		"EditorUtility_Run",
+		LOCTEXT("EditorUtility_Run", "Run Editor Utility Blueprint"),
+		LOCTEXT("EditorUtility_RunTooltip", "Runs this Editor Utility Blueprint."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FAssetTypeActions_EditorUtilityBlueprint::ExecuteRun, Blueprints)
+		)
+	);
 }
 
 uint32 FAssetTypeActions_EditorUtilityBlueprint::GetCategories()

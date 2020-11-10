@@ -112,7 +112,7 @@ class AIMODULE_API UBTTask_MoveTo : public UBTTask_BlackboardBase
 
 protected:
 
-	virtual EBTNodeResult::Type PerformMoveTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory);
+	EBTNodeResult::Type PerformMoveTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory);
 	
 	/** prepares move task for activation */
 	virtual UAITask_MoveTo* PrepareMoveTask(UBehaviorTreeComponent& OwnerComp, UAITask_MoveTo* ExistingTask, FAIMoveRequest& MoveRequest);

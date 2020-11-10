@@ -37,12 +37,13 @@ namespace AutomationTool.Benchmark
 	[Help("hotddc", "Cook / PIE with a hot local DDC (an untimed pre-run is performed)")]
 	[Help("coldddc", "Cook / PIE with a cold local DDC (a temporary folder is used)")]
 	[Help("noshaderddc", "Cook / PIE with no shaders in the DDC")]
+	[Help("ddc=", "Type of DDC to use. E.g. ddc=noshared, ddc=noshared+shared")]
 	[Help("iterations=<n>", "How many times to perform each test)")]
 	[Help("wait=<n>", "How many seconds to wait between each test)")]
 	[Help("filename", "Name/path of file to write CSV results to. If empty the local machine name will be used")]
 	[Help("noclean", "Don't build from clean. (Mostly just to speed things up when testing)")]
-	[Help("CookArgs=", "Extra args to use when cooking. -CookArgs1=\"-foo\" -CookArgs2=\"-bar\" will run two cooks with each argument set")]
-	[Help("PIEArgs=", "Extra args to use when running the editor. -PIEArgs1=\"-foo\" -PIEArgs2=\"-bar\" will run two PIE tests with each argument set")]
+	[Help("CookArgs", "Extra args to use when cooking")]
+	[Help("PIEArgs", "Extra args to use when running the editor")]
 	class BenchmarkBuild : BuildCommand
 	{
 		class BenchmarkOptions : BuildCommand
@@ -75,12 +76,13 @@ namespace AutomationTool.Benchmark
 			public int Iterations = 1;
 			public bool NoClean = false;
 			public int TimeBetweenTasks = 0;
-
-			public List<string> CookArgs = new List<string>();
-			public List<string> PIEArgs = new List<string>();
+			
+			public string CookArgs = "";
+			public string PIEArgs = "";
 			public string FileName = string.Format("{0}_Results.csv", Environment.MachineName);
 
 			public DDCTaskOptions DDCOptions = DDCTaskOptions.None;
+			public IEnumerable<string> DCCTypes = Enumerable.Empty<string>();
 
 			public void ParseParams(string[] InParams)
 			{
@@ -120,27 +122,10 @@ namespace AutomationTool.Benchmark
 				Iterations = ParseParamInt("Iterations", Iterations);
 				TimeBetweenTasks = ParseParamInt("Wait", TimeBetweenTasks);
 
-				// allow up to 10 cook & PIE variations. -CookArgs=etc -CookArgs1=etc2 etc
-				for (int i = 0; i < 10; i++)
-				{
-					string PostFix = i == 0 ? "" : i.ToString();
-					string CookParam = ParseParamValue("CookArgs" + PostFix, "");
+				FileName = ParseParamValue("filename", FileName);
 
-					if (!string.IsNullOrEmpty(CookParam))
-					{
-						CookArgs.Add(CookParam);
-					}
-
-					string PIEParam = ParseParamValue("PIEArgs" + PostFix, "");
-
-					if (!string.IsNullOrEmpty(PIEParam))
-					{
-						PIEArgs.Add(PIEParam);
-					}
-				}
-
-			
-				FileName = ParseParamValue("filename", FileName);	
+				CookArgs = ParseParamValue("CookArgs", "");
+				PIEArgs = ParseParamValue("PIEArgs", "");
 
 				// Parse the project arg
 				{
@@ -193,6 +178,16 @@ namespace AutomationTool.Benchmark
 						var ProcessorList = ProcessorArg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
 
 						CoresForLocalJobs = ProcessorList.Select(P => Convert.ToInt32(P));
+					}
+				}
+
+				// parse ddc args
+				{
+					string Arg = ParseParamValue("ddc", "");
+
+					if (!string.IsNullOrEmpty(Arg))
+					{
+						DCCTypes = Arg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
 					}
 				}
 
@@ -401,31 +396,30 @@ namespace AutomationTool.Benchmark
 
 			if (InOptions.DoCookTests)
 			{
-
-				IEnumerable<string> CookVariations = InOptions.CookArgs.Any() ? InOptions.CookArgs : new List<string>{""};
-
-				foreach (string CookArgs in CookVariations)
+				// no/warm options
+				if (InOptions.DDCOptions == DDCTaskOptions.None || InOptions.DDCOptions.HasFlag(DDCTaskOptions.WarmDDC))
 				{
-					// no/warm options
-					if (InOptions.DDCOptions == DDCTaskOptions.None || InOptions.DDCOptions.HasFlag(DDCTaskOptions.WarmDDC))
-					{
-						NewTasks.Add(new BenchmarkCookTask(InProjectFile, InPlatform, CookClient, DDCTaskOptions.WarmDDC, CookArgs));
-					}
+					NewTasks.Add(new BenchmarkCookTask(InProjectFile, InPlatform, CookClient, DDCTaskOptions.WarmDDC, InOptions.CookArgs));
+				}
 
-					if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.HotDDC))
-					{
-						NewTasks.Add(new BenchmarkCookTask(InProjectFile, InPlatform, CookClient, DDCTaskOptions.HotDDC, CookArgs));
-					}
+				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.HotDDC))
+				{
+					NewTasks.Add(new BenchmarkCookTask(InProjectFile, InPlatform, CookClient, DDCTaskOptions.HotDDC, InOptions.CookArgs));
+				}
 
-					if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.ColdDDC))
-					{
-						NewTasks.Add(new BenchmarkCookTask(InProjectFile, InPlatform, CookClient, DDCTaskOptions.ColdDDC, CookArgs));
-					}
+				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.ColdDDC))
+				{
+					NewTasks.Add(new BenchmarkCookTask(InProjectFile, InPlatform, CookClient, DDCTaskOptions.ColdDDC, InOptions.CookArgs));
+				}
 
-					if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
-					{
-						NewTasks.Add(new BenchmarkCookTask(InProjectFile, InPlatform, CookClient, DDCTaskOptions.NoShaderDDC, CookArgs));
-					}
+				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
+				{
+					NewTasks.Add(new BenchmarkCookTask(InProjectFile, InPlatform, CookClient, DDCTaskOptions.NoShaderDDC, InOptions.CookArgs));
+				}
+
+				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.NoSharedDDC))
+				{
+					NewTasks.Add(new BenchmarkCookTask(InProjectFile, InPlatform, CookClient, DDCTaskOptions.NoSharedDDC, InOptions.CookArgs));
 				}
 			}
 
@@ -441,24 +435,36 @@ namespace AutomationTool.Benchmark
 
 			List<BenchmarkTaskBase> NewTasks = new List<BenchmarkTaskBase>();
 
+			string DefaultExtraArgs = InOptions.PIEArgs;
+
 			List<string> MapsToTest = InOptions.MapList.ToList();
 
 			if (!MapsToTest.Any())
 			{
 				MapsToTest.Add("");
 			}
-			
-			IEnumerable<string> PIEVariations = InOptions.PIEArgs.Any() ? InOptions.PIEArgs : new List<string> { "" };
 
-			foreach (string PIEArgs in PIEVariations)
+			List<string> BackendsToTest = InOptions.DCCTypes.ToList();
+
+			if (!BackendsToTest.Any())
 			{
-				foreach (var Map in MapsToTest)
+				BackendsToTest.Add("");
+			}
+		
+			foreach (var Map in MapsToTest)
+			{
+				foreach (string Backend in BackendsToTest)
 				{
-					string FinalArgs = PIEArgs;
+					string FinalArgs = DefaultExtraArgs;
 
 					if (!string.IsNullOrEmpty(Map))
 					{
 						FinalArgs += " -map=" + Map;
+					}
+
+					if (!string.IsNullOrEmpty(Backend))
+					{
+						FinalArgs += string.Format(" -ddc={0}", Backend);
 					}
 
 					// if no options assume warm
@@ -483,7 +489,13 @@ namespace AutomationTool.Benchmark
 					if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
 					{
 						NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.NoShaderDDC, FinalArgs));
-					}					
+					}
+
+					// no ddc!
+					if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.NoSharedDDC))
+					{
+						NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.NoSharedDDC, FinalArgs));
+					}
 				}
 			}
 		

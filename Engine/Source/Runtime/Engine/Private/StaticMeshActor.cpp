@@ -207,7 +207,7 @@ void AStaticMeshActor::CheckForErrors()
 			for( int32 CurLODIndex = 0; CurLODIndex < NumLODs; ++CurLODIndex )
 			{
 				// Make sure the color vertex buffer's vertex count matches the rest of the mesh!
-				const FStaticMeshLODResources& LODRenderData = StaticMeshComponent->GetStaticMesh()->GetRenderData()->LODResources[ CurLODIndex ];
+				const FStaticMeshLODResources& LODRenderData = StaticMeshComponent->GetStaticMesh()->RenderData->LODResources[ CurLODIndex ];
 
 				// We may not have cached any LODData for this particular LODModel yet, so make sure that
 				// we're in bounds before accessing the current model's LOD info

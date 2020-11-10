@@ -204,12 +204,7 @@ namespace BlueprintNodeHelpers
 
 #undef GET_STRUCT_NAME_CHECKED
 
-	FString CollectPropertyDescription(const UObject* Ob, const UClass* StopAtClass, const TArray<FProperty*>& InPropertiesToSkip)
-	{
-		return CollectPropertyDescription(Ob, StopAtClass, [&InPropertiesToSkip](FProperty* InTestProperty){ return InPropertiesToSkip.Contains(InTestProperty); });
-	}
-
-	FString CollectPropertyDescription(const UObject* Ob, const UClass* StopAtClass, TFunctionRef<bool(FProperty* /*TestProperty*/)> ShouldSkipProperty)
+	FString CollectPropertyDescription(const UObject* Ob, const UClass* StopAtClass, const TArray<FProperty*>& PropertyData)
 	{
 		FString RetString;
 		for (FProperty* TestProperty = Ob->GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
@@ -223,7 +218,7 @@ namespace BlueprintNodeHelpers
 			// skip properties without any setup data	
 			if (TestProperty->HasAnyPropertyFlags(CPF_Transient) ||
 				TestProperty->HasAnyPropertyFlags(CPF_DisableEditOnInstance) ||
-				ShouldSkipProperty(TestProperty))
+				PropertyData.Contains(TestProperty))
 			{
 				continue;
 			}

@@ -365,7 +365,7 @@ private:
 		// Initialize shader hash cache before reading any includes.
 		InitializeShaderHashCache();
 
-		TMap<FString, FThreadSafeSharedStringPtr> ExternalIncludes;
+		TMap<FString, TSharedPtr<FString>> ExternalIncludes;
 		TArray<FShaderCompilerEnvironment> SharedEnvironments;
 
 		// Shared inputs

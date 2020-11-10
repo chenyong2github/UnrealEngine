@@ -22,6 +22,7 @@
 		);
 
 class FNiagaraShaderScript;
+class FShaderCommonCompileJob;
 class FShaderCompileJob;
 class FUniformExpressionSet;
 
@@ -52,21 +53,21 @@ struct FNiagaraShaderPermutationParameters : public FShaderPermutationParameters
 class FNiagaraShaderType : public FShaderType
 {
 public:
-	struct CompiledShaderInitializerType : FShaderCompiledShaderInitializerType
+	struct CompiledShaderInitializerType : FGlobalShaderType::CompiledShaderInitializerType
 	{
 		//const FUniformExpressionSet& UniformExpressionSet;
 		const FString DebugDescription;
 		TArray< FNiagaraDataInterfaceGPUParamInfo > DIParamInfo;
 
 		CompiledShaderInitializerType(
-			const FShaderType* InType,
+			FShaderType* InType,
 			int32 InPermutationId,
 			const FShaderCompilerOutput& CompilerOutput,
 			const FSHAHash& InNiagaraShaderMapHash,
 			const FString& InDebugDescription,
 			const TArray< FNiagaraDataInterfaceGPUParamInfo > &InDIParamInfo
 			)
-		: FShaderCompiledShaderInitializerType(InType,InPermutationId,CompilerOutput, InNiagaraShaderMapHash,nullptr,nullptr)
+		: FGlobalShaderType::CompiledShaderInitializerType(InType,InPermutationId,CompilerOutput, InNiagaraShaderMapHash,nullptr,nullptr)
 		, DebugDescription(InDebugDescription)
 		, DIParamInfo(InDIParamInfo)
 		{}
@@ -103,13 +104,13 @@ public:
 	 * Enqueues a compilation for a new shader of this type.
 	 * @param Script - The script to link the shader with.
 	 */
-	void BeginCompileShader(
+	TSharedRef<class FShaderCommonCompileJob, ESPMode::ThreadSafe> BeginCompileShader(
 			uint32 ShaderMapId,
 			int32 PermutationId,
 			const FNiagaraShaderScript* Script,
-			FSharedShaderCompilerEnvironment* CompilationEnvironment,
+			FShaderCompilerEnvironment* CompilationEnvironment,
 			EShaderPlatform Platform,
-			TArray<TRefCountPtr<class FShaderCommonCompileJob>>& NewJobs,
+			TArray<TSharedRef<class FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 			FShaderTarget Target,
 			TArray<FNiagaraDataInterfaceGPUParamInfo>& InDIParamInfo
 		);
@@ -123,7 +124,7 @@ public:
 		const FSHAHash& NiagaraShaderMapHash,
 		const FShaderCompileJob& CurrentJob,
 		const FString& InDebugDescription
-		) const;
+		);
 
 	/**
 	 * Checks if the shader type should be cached for a particular platform and script.
@@ -137,9 +138,9 @@ public:
 	}
 
 	/** Adds include statements for uniform buffers that this shader type references, and builds a prefix for the shader file with the include statements. */
-	void AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform) const;
+	void AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform);
 
-	void CacheUniformBufferIncludes(TMap<const TCHAR*, FCachedUniformBufferDeclaration>& Cache, EShaderPlatform Platform) const;
+	void CacheUniformBufferIncludes(TMap<const TCHAR*, FCachedUniformBufferDeclaration>& Cache, EShaderPlatform Platform);
 
 
 protected:

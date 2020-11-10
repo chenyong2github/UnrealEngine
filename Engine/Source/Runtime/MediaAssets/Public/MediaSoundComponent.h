@@ -282,7 +282,7 @@ private:
 	EMediaSoundComponentFFTSize FFTSize;
 
 	/** Spectrum analyzer used for analyzing audio in media. */
-	Audio::FAsyncSpectrumAnalyzer SpectrumAnalyzer;
+	Audio::FSpectrumAnalyzer SpectrumAnalyzer;
 	Audio::FSpectrumAnalyzerSettings SpectrumAnalyzerSettings;
 
 	Audio::FEnvelopeFollower EnvelopeFollower;

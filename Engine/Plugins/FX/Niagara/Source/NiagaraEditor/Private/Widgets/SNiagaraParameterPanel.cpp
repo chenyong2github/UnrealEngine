@@ -565,7 +565,7 @@ void SNiagaraAddParameterMenu2::CollectAllActions(FGraphActionListBuilderBase& O
 		// Create actions to create new FNiagaraVariables of every allowed FNiagaraTypeDefinition type.
 		TArray<FNiagaraMenuActionInfo> NewParameterMenuActionInfos;
 
-		for (const FNiagaraTypeDefinition& RegisteredType : FNiagaraTypeRegistry::GetRegisteredParameterTypes())
+		for (const FNiagaraTypeDefinition& RegisteredType : FNiagaraTypeRegistry::GetRegisteredTypes())
 		{
 			bool bAllowType = true;
 			if (OnAllowMakeType.IsBound())

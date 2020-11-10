@@ -300,16 +300,6 @@ public:
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category=Animation)
 	FName RetargetSource;
 
-#if WITH_EDITORONLY_DATA
-	/** If RetargetSource is set to Default (None), this is asset for the base pose to use when retargeting. Transform data will be saved in RetargetSourceAssetReferencePose. */
-	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category=Animation)
-	TSoftObjectPtr<USkeletalMesh> RetargetSourceAsset;
-#endif
-
-	/** When using RetargetSourceAsset, use the post stored here */
-	UPROPERTY()
-	TArray<FTransform> RetargetSourceAssetReferencePose;
-
 	/** This defines how values between keys are calculated **/
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = Animation)
 	EAnimInterpolationType Interpolation;
@@ -477,12 +467,6 @@ public:
 	const FRawAnimSequenceTrack& GetRawAnimationTrack(int32 TrackIndex) const { return RawAnimationData[TrackIndex]; }
 
 private:
-#if WITH_EDITORONLY_DATA
-	void UpdateRetargetSourceAsset();
-#endif
-	const TArray<FTransform>& GetRetargetTransforms() const;
-	FName GetRetargetTransformsSourceName() const;
-
 	/**
 	* Retarget a single bone transform, to apply right after extraction.
 	*

@@ -29,10 +29,8 @@ IMPLEMENT_SHADER_TYPE(,FNULLPS,TEXT("/Engine/Private/NullPixelShader.usf"),TEXT(
 /** Used to identify the global shader map in compile queues. */
 const int32 GlobalShaderMapId = 0;
 
-FGlobalShaderMapId::FGlobalShaderMapId(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform)
+FGlobalShaderMapId::FGlobalShaderMapId(EShaderPlatform Platform)
 {
-	LayoutParams.InitializeForPlatform(TargetPlatform);
-	const EShaderPermutationFlags PermutationFlags = GetShaderPermutationFlags(LayoutParams);
 	TArray<FShaderType*> ShaderTypes;
 	TArray<const FShaderPipelineType*> ShaderPipelineTypes;
 
@@ -47,7 +45,7 @@ FGlobalShaderMapId::FGlobalShaderMapId(EShaderPlatform Platform, const ITargetPl
 		bool bList = false;
 		for (int32 PermutationId = 0; PermutationId < GlobalShaderType->GetPermutationCount(); PermutationId++)
 		{
-			if (GlobalShaderType->ShouldCompilePermutation(Platform, PermutationId, PermutationFlags))
+			if (GlobalShaderType->ShouldCompilePermutation(Platform, PermutationId))
 			{
 				bList = true;
 				break;
@@ -70,7 +68,7 @@ FGlobalShaderMapId::FGlobalShaderMapId(EShaderPlatform Platform, const ITargetPl
 			for (const FShaderType* Shader : StageTypes)
 			{
 				const FGlobalShaderType* GlobalShaderType = Shader->GetGlobalShaderType();
-				if (GlobalShaderType->ShouldCompilePermutation(Platform, /* PermutationId = */ 0, PermutationFlags))
+				if (GlobalShaderType->ShouldCompilePermutation(Platform, /* PermutationId = */ 0))
 				{
 					++NumStagesNeeded;
 				}
@@ -111,9 +109,19 @@ FGlobalShaderMapId::FGlobalShaderMapId(EShaderPlatform Platform, const ITargetPl
 	}
 }
 
-void FGlobalShaderMapId::AppendKeyString(FString& KeyString, const TArray<FShaderTypeDependency>& Dependencies) const
+void FGlobalShaderMapId::AppendKeyString(FString& KeyString, const TArray<FShaderTypeDependency>& Dependencies, const ITargetPlatform* TargetPlatform) const
 {
 #if WITH_EDITOR
+
+	FPlatformTypeLayoutParameters LayoutParams;
+	if (TargetPlatform)
+	{
+		LayoutParams.InitializeForPlatform(TargetPlatform->IniPlatformName(), TargetPlatform->HasEditorOnlyData());
+	}
+	else
+	{
+		LayoutParams.InitializeForCurrent();
+	}
 
 	{
 		const FSHAHash LayoutHash = Freeze::HashLayout(StaticGetTypeLayoutDesc<FGlobalShaderMapContent>(), LayoutParams);
@@ -271,14 +279,12 @@ bool FGlobalShaderMapSection::Serialize(FArchive& Ar)
 
 TShaderRef<FShader> FGlobalShaderMapSection::GetShader(FShaderType* ShaderType, int32 PermutationId) const
 {
-	FShader* Shader = GetContent()->GetShader(ShaderType, PermutationId);
-	return Shader ? TShaderRef<FShader>(Shader, *this) : TShaderRef<FShader>();
+	return TShaderRef<FShader>(GetContent()->GetShader(ShaderType, PermutationId), *this);
 }
 
 FShaderPipelineRef FGlobalShaderMapSection::GetShaderPipeline(const FShaderPipelineType* PipelineType) const
 {
-	FShaderPipeline* Pipeline = GetContent()->GetShaderPipeline(PipelineType);
-	return Pipeline ? FShaderPipelineRef(Pipeline, *this) : FShaderPipelineRef();
+	return FShaderPipelineRef(GetContent()->GetShaderPipeline(PipelineType), *this);
 }
 
 FGlobalShaderMap::FGlobalShaderMap(EShaderPlatform InPlatform)
@@ -347,7 +353,7 @@ void FGlobalShaderMap::Empty()
 {
 	for (const auto& It : SectionMap)
 	{
-		It.Value->GetMutableContent()->Empty(&It.Value->GetPointerTable());
+		It.Value->GetMutableContent()->Empty();
 	}
 }
 

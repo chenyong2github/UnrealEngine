@@ -77,8 +77,8 @@ public:
 	FStaticMeshVertexIterator( UStaticMeshComponent* SMC )
 		: ComponentToWorldIT( SMC->GetComponentTransform().ToInverseMatrixWithScale().GetTransposed() )
 		, StaticMeshComponent( SMC )
-		, PositionBuffer( SMC->GetStaticMesh()->GetRenderData()->LODResources[0].VertexBuffers.PositionVertexBuffer )
-		, VertexBuffer( SMC->GetStaticMesh()->GetRenderData()->LODResources[0].VertexBuffers.StaticMeshVertexBuffer )
+		, PositionBuffer( SMC->GetStaticMesh()->RenderData->LODResources[0].VertexBuffers.PositionVertexBuffer )
+		, VertexBuffer( SMC->GetStaticMesh()->RenderData->LODResources[0].VertexBuffers.StaticMeshVertexBuffer )
 		, CurrentVertexIndex( 0 )
 	{
 

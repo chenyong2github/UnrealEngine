@@ -42,7 +42,7 @@ UObject* FMovieSceneSpawnRegister::SpawnObject(const FGuid& BindingId, UMovieSce
 	{
 #if WITH_EDITOR
 		UMovieSceneSequence* Sequence = Player.GetEvaluationTemplate().GetSequence(TemplateID);
-		FMovieSceneSpawnableAnnotation::Add(SpawnedActor, BindingId, TemplateID, Sequence);
+		FMovieSceneSpawnableAnnotation::Add(SpawnedActor, BindingId, Sequence);
 #endif
 
 		FMovieSceneSpawnRegisterKey Key(TemplateID, BindingId);

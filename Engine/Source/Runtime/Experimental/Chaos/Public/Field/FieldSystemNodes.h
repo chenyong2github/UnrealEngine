@@ -104,46 +104,7 @@ public:
 	float Magnitude;
 };
 
-/**
-* FWaveScalar
-**/
 
-class CHAOS_API FWaveScalar : public FFieldNode<float>
-{
-	typedef FFieldNode<float> Super;
-
-public:
-
-	FWaveScalar(float MagnitudeIn = 1.f, const FVector& PositionIn = FVector(0,0,0), const float WavelengthIn = 1000, const float PeriodIn = 1.0, const float TimeIn = 0.0, 
-		const EWaveFunctionType FunctionIn = EWaveFunctionType::Field_Wave_Cosine, const EFieldFalloffType FallofffIn = EFieldFalloffType::Field_Falloff_Linear)
-		: Super()
-		, Magnitude(MagnitudeIn)
-		, Position(PositionIn)
-		, Wavelength(WavelengthIn)
-		, Period(PeriodIn)
-		, Time(TimeIn)
-		, Function(FunctionIn)
-		, Falloff(FallofffIn)
-	{}
-	virtual FFieldNodeBase* NewCopy() const override { return new FWaveScalar(Magnitude, Position, Wavelength, Period, Time, Function, Falloff); }
-
-	virtual ~FWaveScalar() {}
-
-	void Evaluate(FFieldContext&, TArrayView<float>& Results) const override;
-	virtual bool operator==(const FFieldNodeBase& Node);
-
-	/** Serialization API */
-	virtual FFieldNodeBase::ESerializationType SerializationType() const { return FFieldNodeBase::ESerializationType::FieldNode_FWaveScalar; }
-	virtual void Serialize(FArchive& Ar) override;
-
-	float Magnitude;
-	FVector Position;
-	float Wavelength;
-	float Period;
-	float Time;
-	EWaveFunctionType Function;
-	EFieldFalloffType Falloff;
-};
 
 /**
 * RadialFalloff

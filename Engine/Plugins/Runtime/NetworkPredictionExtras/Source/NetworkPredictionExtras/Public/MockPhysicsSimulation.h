@@ -10,7 +10,6 @@
 #include "NetworkPredictionReplicationProxy.h"
 #include "PhysicsInterfaceDeclaresCore.h"
 #include "NetworkPredictionCues.h"
-#include "NetworkPredictionTrace.h"
 
 #include "MockPhysicsSimulation.generated.h"
 
@@ -88,12 +87,10 @@ struct FMockPhysicsAuxState
 
 	bool ShouldReconcile(const FMockPhysicsAuxState& AuthorityState) const
 	{
-		UE_NP_TRACE_RECONCILE(ForceMultiplier != AuthorityState.ForceMultiplier, "ForceMultiplier:");
-		UE_NP_TRACE_RECONCILE(JumpCooldownTime != AuthorityState.JumpCooldownTime, "JumpCooldownTime:");
-		UE_NP_TRACE_RECONCILE(ChargeStartTime != AuthorityState.ChargeStartTime, "ChargeStartTime:");
-		UE_NP_TRACE_RECONCILE(ChargeEndTime != AuthorityState.ChargeEndTime, "ChargeEndTime:");
-
-		return false;
+		return AuthorityState.ForceMultiplier != ForceMultiplier 
+			|| AuthorityState.JumpCooldownTime != JumpCooldownTime 
+			|| AuthorityState.ChargeStartTime != ChargeStartTime
+			|| AuthorityState.ChargeEndTime != ChargeEndTime;
 	}
 };
 

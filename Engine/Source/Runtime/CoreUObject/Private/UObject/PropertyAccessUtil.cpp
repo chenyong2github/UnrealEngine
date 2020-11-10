@@ -431,31 +431,7 @@ TUniquePtr<FPropertyAccessChangeNotify> BuildBasicChangeNotify(const FProperty* 
 
 bool IsObjectTemplate(const UObject* InObject)
 {
-	// Templates can edit default properties
-	if (InObject->IsTemplate())
-	{
-		return true;
-	}
-	
-	// Assets can edit default properties
-	if (InObject->IsAsset())
-	{
-		return true;
-	}
-
-	// Objects within an asset that are edit-inline can edit default properties, as this mimics the inlining that the details panel shows
-	if (InObject->GetClass()->HasAnyClassFlags(CLASS_EditInlineNew))
-	{
-		for (const UObject* Outer = InObject->GetOuter(); Outer; Outer = Outer->GetOuter())
-		{
-			if (Outer->IsAsset())
-			{
-				return true;
-			}
-		}
-	}
-
-	return false;
+	return InObject->IsTemplate() || InObject->IsAsset();
 }
 
 FProperty* FindPropertyByName(const FName InPropName, const UStruct* InStruct)

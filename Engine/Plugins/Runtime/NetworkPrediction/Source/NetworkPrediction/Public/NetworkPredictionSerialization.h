@@ -313,7 +313,6 @@ public:
 		
 		UE_NP_TRACE_USER_STATE_SYNC(ModelDef, ClientRecvState.SyncState.Get());
 		UE_NP_TRACE_USER_STATE_AUX(ModelDef, ClientRecvState.AuxState.Get());
-		UE_NP_TRACE_PHYSICS_STATE_RECV(ModelDef, ClientRecvState.Physics);
 	}
 
 	static void NetSend(const FNetSerializeParams& P, TInstanceData<ModelDef>& InstanceData, typename TInstanceFrameState<ModelDef>::FFrame& FrameData)
@@ -495,7 +494,6 @@ public:
 		UE_NP_TRACE_USER_STATE_INPUT(ModelDef, ClientRecvState.InputCmd.Get());
 		UE_NP_TRACE_USER_STATE_SYNC(ModelDef, ClientRecvState.SyncState.Get());
 		UE_NP_TRACE_USER_STATE_AUX(ModelDef, ClientRecvState.AuxState.Get());
-		UE_NP_TRACE_PHYSICS_STATE_RECV(ModelDef, ClientRecvState.Physics);
 	}
 	
 	static void NetSend(const FNetSerializeParams& P, FNetworkPredictionID ID, TModelDataStore<ModelDef>* DataStore, TInstanceData<ModelDef>* InstanceData, int32 PendingFrame)
@@ -575,15 +573,7 @@ public:
 	// ------------------------------------------------------------------------------------------------------------
 	static void NetRecv(const FNetSerializeParams& P, TClientRecvData<ModelDef>& ClientRecvState, TModelDataStore<ModelDef>* DataStore, FVariableTickState* TickState)
 	{
-		FNetworkPredictionSerialization::SerializeTimeMS(P.Ar, ClientRecvState.SimTimeMS); // 1. ServerTotalSimTime
-
-		
-#if UE_NP_TRACE_ENABLED
-		int32 TraceSimTime = 0;
-		FNetworkPredictionSerialization::SerializeTimeMS(P.Ar, TraceSimTime); // 2. ServerTotalSimTime
-#else
-		int32 TraceSimTime = ClientRecvState.SimTimeMS;
-#endif
+		FNetworkPredictionSerialization::SerializeTimeMS(P.Ar, ClientRecvState.SimTimeMS); // 1. TotalSimTime
 
 		// SP timestamps drive independent interpolation
 		// (AP frame/time can't help here - that is the nature of independent ticking!)
@@ -595,15 +585,15 @@ public:
 		const int32 TraceFrame = TickState->PendingFrame;
 		npEnsure(TraceFrame >= 0);
 
-		UE_NP_TRACE_NET_RECV(TraceFrame, TraceSimTime);
+		UE_NP_TRACE_NET_RECV(TraceFrame, TickState->Frames[TickState->PendingFrame].TotalMS);
 		
-		TCommonReplicator_SP<ModelDef>::NetRecv(P, ClientRecvState, DataStore); // 3. Common
+		TCommonReplicator_SP<ModelDef>::NetRecv(P, ClientRecvState, DataStore); // 2. Common
 
 		npEnsureSlow(ClientRecvState.InstanceIdx >= 0);
 		TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(ClientRecvState.InstanceIdx);
 
 		const bool bSerializeCueFrames = true; // Fixed tick can use Frame numbers for SP serialization
-		InstanceData.CueDispatcher->NetRecvSavedCues(P.Ar, bSerializeCueFrames, INDEX_NONE, ClientRecvState.SimTimeMS); // 4. NetSimCues
+		InstanceData.CueDispatcher->NetRecvSavedCues(P.Ar, bSerializeCueFrames, INDEX_NONE, ClientRecvState.SimTimeMS); // 3. NetSimCues
 	}
 
 	// ------------------------------------------------------------------------------------------------------------
@@ -614,8 +604,7 @@ public:
 	
 	static void NetSend(const FNetSerializeParams& P, FNetworkPredictionID ID, TModelDataStore<ModelDef>* DataStore, const FVariableTickState* TickState)
 	{
-		const int32 TotalSimTime = TickState->Frames[TickState->PendingFrame].TotalMS;
-		NetSend(P, ID, DataStore, TotalSimTime, TotalSimTime, TickState->PendingFrame);
+		NetSend(P, ID, DataStore, TickState->Frames[TickState->PendingFrame].TotalMS, TickState->PendingFrame);
 	}
 
 	// For remotely controlled/ticked actors on the server
@@ -629,31 +618,21 @@ public:
 		// Practical reason: cues are timestamped with the variable tick time. (AP client will use frames, SP clients will use time. Easier to align the times server side than have
 		// each client do it independently for each independently ticking remote controlled simulation.
 		const int32 VariableTickTimeMS = VariableTickState->Frames[VariableTickState->PendingFrame].TotalMS;
-
-		TServerRecvData_Independent<ModelDef>* IndependentTickData =  DataStore->ServerRecv_IndependentTick.Find(ID);
-		npCheckSlow(IndependentTickData);
-		const int32 IndependentSimTimeMS = IndependentTickData->TotalSimTimeMS;
-
-		NetSend(P, ID, DataStore, IndependentSimTimeMS, VariableTickTimeMS, IndependentTickState.PendingFrame);
+		NetSend(P, ID, DataStore, VariableTickTimeMS, IndependentTickState.PendingFrame);
 	}	
 
 private:
 
-	static void NetSend(const FNetSerializeParams& P, FNetworkPredictionID ID, TModelDataStore<ModelDef>* DataStore, int32 IndependentSimTime, int32 ServerTotalSimTime, int32 PendingFrame)
+	static void NetSend(const FNetSerializeParams& P, FNetworkPredictionID ID, TModelDataStore<ModelDef>* DataStore, int32 TotalSimTime, int32 PendingFrame)
 	{
 		TInstanceData<ModelDef>* Instance = DataStore->Instances.Find(ID);
 		npCheckSlow(Instance);
 
-		FNetworkPredictionSerialization::SerializeTimeMS(P.Ar, ServerTotalSimTime); // 1. ServerTotalSimTime
-
-#if UE_NP_TRACE_ENABLED
-		FNetworkPredictionSerialization::SerializeTimeMS(P.Ar, IndependentSimTime); // 2. IndependentSimTime
-#endif
-
-		TCommonReplicator_SP<ModelDef>::NetSend(P, ID, DataStore, Instance, PendingFrame); // 3. Common
+		FNetworkPredictionSerialization::SerializeTimeMS(P.Ar, TotalSimTime); // 1. TotalSimTime
+		TCommonReplicator_SP<ModelDef>::NetSend(P, ID, DataStore, Instance, PendingFrame); // 2. Common
 
 		const bool bSerializeCueFrames = false; // Independent tick cannot use Frame numbers for SP serialization (use time instead)
-		Instance->CueDispatcher->NetSendSavedCues(P.Ar, ENetSimCueReplicationTarget::SimulatedProxy | ENetSimCueReplicationTarget::Interpolators, bSerializeCueFrames); // 4. NetSimCues
+		Instance->CueDispatcher->NetSendSavedCues(P.Ar, ENetSimCueReplicationTarget::SimulatedProxy | ENetSimCueReplicationTarget::Interpolators, bSerializeCueFrames); // 3. NetSimCues
 	}
 };
 

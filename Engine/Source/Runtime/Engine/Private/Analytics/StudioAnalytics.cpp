@@ -23,7 +23,6 @@ bool FStudioAnalytics::bInitialized = false;
 volatile double FStudioAnalytics::TimeEstimation = 0;
 FThread FStudioAnalytics::TimerThread;
 TSharedPtr<IAnalyticsProviderET> FStudioAnalytics::Analytics;
-TArray<FAnalyticsEventAttribute> FStudioAnalytics::DefaultAttributes;
 
 void FStudioAnalytics::SetProvider(TSharedRef<IAnalyticsProviderET> InAnalytics)
 {
@@ -33,42 +32,12 @@ void FStudioAnalytics::SetProvider(TSharedRef<IAnalyticsProviderET> InAnalytics)
 
 	Analytics = InAnalytics;
 
-	ApplyDefaultEventAttributes();
-
 	TimeEstimation = FPlatformTime::Seconds();
 
 	if (FPlatformProcess::SupportsMultithreading())
 	{
 		TimerThread = FThread(TEXT("Studio Analytics Timer Thread"), []() { RunTimer_Concurrent(); });
 	}
-}
-
-void FStudioAnalytics::ApplyDefaultEventAttributes()
-{
-	if (Analytics.IsValid())
-	{
-		// Get the current attributes
-		TArray<FAnalyticsEventAttribute> CurrentDefaultAttributes = Analytics->GetDefaultEventAttributesSafe();
-
-		// Append any new attributes to our current ones
-		CurrentDefaultAttributes += MoveTemp(DefaultAttributes);
-		DefaultAttributes.Reset();
-
-		// Set the new default attributes in the provider
-		Analytics->SetDefaultEventAttributes(MoveTemp(CurrentDefaultAttributes));
-	}	
-}
-
-void FStudioAnalytics::AddDefaultEventAttribute(const FAnalyticsEventAttribute& Attribute)
-{
-	// Append a single default attribute to the existing list
-	DefaultAttributes.Emplace(Attribute);
-}
-
-void FStudioAnalytics::AddDefaultEventAttributes(TArray<FAnalyticsEventAttribute>&& Attributes)
-{
-	// Append attributes list to the existing list
-	DefaultAttributes += MoveTemp(Attributes);
 }
 
 IAnalyticsProviderET& FStudioAnalytics::GetProvider()

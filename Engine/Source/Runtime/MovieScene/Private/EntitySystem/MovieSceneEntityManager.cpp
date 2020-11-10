@@ -10,7 +10,6 @@
 #include "UObject/StrongObjectPtr.h"
 #include "Containers/SortedMap.h"
 
-#include "HAL/PlatformProcess.h"
 #include "Misc/FeedbackContext.h"
 
 #include "EntitySystem/EntityAllocationIterator.h"
@@ -542,11 +541,9 @@ bool FEntityManager::IsHandleValid(FEntityHandle InEntityHandle) const
 
 EEntityThreadingModel FEntityManager::GetThreadingModel() const
 {
-	const bool bCanThread = FPlatformProcess::SupportsMultithreading();
-
-	const bool bShouldThread = bCanThread &&
-		(EntityAllocations.Num() >= GThreadedEvaluationAllocationThreshold ||
-		EntityLocations.Num() >= GThreadedEvaluationEntityThreshold);
+	const bool bShouldThread = 
+		EntityAllocations.Num() >= GThreadedEvaluationAllocationThreshold ||
+		EntityLocations.Num() >= GThreadedEvaluationEntityThreshold;
 
 	return bShouldThread ? EEntityThreadingModel::TaskGraph : EEntityThreadingModel::NoThreading;
 }

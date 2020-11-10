@@ -144,7 +144,7 @@ protected:
 		ir_type = ir_type_unset;
 		if (id == BREAK_ON_ID)
 		{
-#if defined(WIN32) && defined(DEBUG)
+#ifdef WIN32
 			__debugbreak();
 #endif
 		}

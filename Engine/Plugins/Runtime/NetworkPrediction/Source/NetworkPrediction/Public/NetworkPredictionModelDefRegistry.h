@@ -20,7 +20,11 @@ public:
 	template<typename ModelDef>
 	void RegisterType()
 	{
-		bFinalized = false; // New type must re-finalize
+		// At some point we will probably need to support lazy registering due to delay-loaded plugins
+		// That should be ok as long as there are no active UNetworkPredictionWorldManagers. We would need to add some 
+		// machinery to ensure that and then force a call to FinalizeTypes after each delayed type registration
+		// (or introduce a begin/end re-registration call or something)
+		npEnsure(!bFinalized);
 
 		if (!npEnsure(ModelDefList.Contains(&ModelDef::ID) == false))
 		{
@@ -39,11 +43,6 @@ public:
 
 	void FinalizeTypes()
 	{
-		if (bFinalized)
-		{
-			return;
-		}
-
 		bFinalized = true;
 		ModelDefList.Sort([](const FTypeInfo& LHS, const FTypeInfo& RHS) -> bool
 		{

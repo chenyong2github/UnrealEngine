@@ -73,10 +73,6 @@
 
 #define METAL_TESSELLATION_PROFILE ((METAL_PROFILE || METAL_SM5_PROFILE) && USING_TESSELLATION)
 
-#ifndef VELOCITY_ENCODE_DEPTH
-#define VELOCITY_ENCODE_DEPTH 1
-#endif
-
 // Using SV_ClipDistance has overhead (15% slower base pass in triangle bound test scene on PS4) so projects have to opt-in
 #define USE_GLOBAL_CLIP_PLANE (PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE && PROJECT_ALLOW_GLOBAL_CLIP_PLANE && !MATERIAL_DOMAIN_POSTPROCESS && !MATERIAL_DOMAIN_UI)
 
@@ -1523,6 +1519,7 @@ struct FScreenVertexOutput
 	float4 Position : SV_POSITION;
 };
 
+
 // for velocity rendering, motionblur and temporal AA
 // velocity needs to support -2..2 screen space range for x and y
 // texture is 16bit 0..1 range per channel
@@ -1533,16 +1530,12 @@ float4 EncodeVelocityToTexture(float3 V)
 	float4 EncodedV;
 	EncodedV.xy = V.xy * (0.499f * 0.5f) + 32767.0f / 65535.0f;
 
-#if VELOCITY_ENCODE_DEPTH
 	uint Vz = asuint(V.z);
 
 	EncodedV.z = saturate(float((Vz >> 16) & 0xFFFF) * rcp(65535.0f) + (0.1 / 65535.0f));
 	EncodedV.w = saturate(float((Vz >>  0) & 0xFFFF) * rcp(65535.0f) + (0.1 / 65535.0f));
 
 	return EncodedV;
-#else
-	return float4(EncodedV.x, EncodedV.y, 0, 0);
-#endif
 }
 // see EncodeVelocityToTexture()
 float3 DecodeVelocityFromTexture(float4 EncodedV)
@@ -1551,14 +1544,9 @@ float3 DecodeVelocityFromTexture(float4 EncodedV)
 
 	float3 V;
 	V.xy = EncodedV.xy * InvDiv - 32767.0f / 65535.0f * InvDiv;
-
-#if VELOCITY_ENCODE_DEPTH
 	V.z = asfloat((uint(round(EncodedV.z * 65535.0f)) << 16) | uint(round(EncodedV.w * 65535.0f)));
 
 	return V;
-#else
-	return float3 (V.x, V.y, 0);
-#endif
 }
 
 // Used for the Global Illumination in the GIReplace material expression

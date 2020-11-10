@@ -8,13 +8,15 @@
 #include "Engine/GameInstance.h"
 #include "TimerManager.h"
 #include "Engine/LocalPlayer.h"
+#include "OnlineSubsystem.h"
 #include "Misc/CoreDelegates.h"
 #include "InstallBundleManagerInterface.h"
 #include "InstallBundleUtils.h"
 #include "Stats/Stats.h"
 
 #include "OnlineHotfixManager.h"
-#include "Engine/World.h"
+
+#include "OnlineSubsystemUtils.h"
 
 #include "ProfilingDebugging/LoadTimeTracker.h"
 
@@ -55,6 +57,7 @@ UUpdateManager::UUpdateManager()
 	, HotfixAvailabilityCheckCompleteDelay(0.1f)
 	, UpdateCheckAvailabilityCompleteDelay(0.1f)
 	, AppSuspendedUpdateCheckTimeSeconds(600)
+	, bPlatformEnvironmentDetected(false)
 	, bInitialUpdateFinished(false)
 	, bCheckHotfixAvailabilityOnly(false)
 	, CurrentUpdateState(EUpdateState::UpdateIdle)
@@ -65,6 +68,11 @@ UUpdateManager::UUpdateManager()
 	, UpdateStateEnum(nullptr)
 	, UpdateCompletionEnum(nullptr)
 {
+#if !PLATFORM_PS4
+	// PS4 needs to detect its environment via a call to login
+	bPlatformEnvironmentDetected = true;
+#endif
+
 	LastUpdateCheck[0] = LastUpdateCheck[1] = FDateTime(0);
 	LastCompletionResult[0] = LastCompletionResult[1] = EUpdateCompletionStatus::UpdateUnknown;
 	if (!HasAnyFlags(RF_ClassDefaultObject))
@@ -251,7 +259,7 @@ void UUpdateManager::StartPatchCheck()
 		return;
 	}
 
-	TSharedPtr<IInstallBundleManager> InstallBundleMan = IInstallBundleManager::GetPlatformInstallBundleManager();
+	IInstallBundleManager* InstallBundleMan = IInstallBundleManager::GetPlatformInstallBundleManager();
 	if (InstallBundleMan && !InstallBundleMan->IsNullInterface())
 	{
 		InstallBundleMan->PatchCheckCompleteDelegate.AddUObject(this, &UUpdateManager::InstallBundlePatchCheckComplete);
@@ -321,7 +329,7 @@ void UUpdateManager::PatchCheckComplete(EPatchCheckResult PatchResult)
 
 void UUpdateManager::InstallBundlePatchCheckComplete(EInstallBundleManagerPatchCheckResult PatchResult)
 {
-	TSharedPtr<IInstallBundleManager> InstallBundleMan = IInstallBundleManager::GetPlatformInstallBundleManager();
+	IInstallBundleManager* InstallBundleMan = IInstallBundleManager::GetPlatformInstallBundleManager();
 	if (InstallBundleMan && !InstallBundleMan->IsNullInterface())
 	{
 		InstallBundleMan->RemoveEnvironmentWantsPatchCheckBackCompatDelegate(GetUniqueTag(this));
@@ -351,36 +359,79 @@ void UUpdateManager::InstallBundlePatchCheckComplete(EInstallBundleManagerPatchC
 
 void UUpdateManager::StartPlatformEnvironmentCheck()
 {
-	if (!bPlatformEnvironmentDetected)
+	if (bPlatformEnvironmentDetected)
 	{
-#if UPDATEMANAGER_PLATFORM_ENVIRONMENT_DETECTION
-		if (DetectPlatformEnvironment())
-		{
-			return;
-		}
-#endif
+		StartHotfixCheck();
+		return;
 	}
-	
-	StartHotfixCheck();
+
+	const IOnlineSubsystem* const OnlineSubConsole = IOnlineSubsystem::GetByPlatform();
+	if (OnlineSubConsole == nullptr)
+	{
+		StartHotfixCheck();
+		return;
+	}
+
+	const IOnlineIdentityPtr OnlineIdentityConsole = OnlineSubConsole->GetIdentityInterface();
+	if (!ensure(OnlineIdentityConsole.IsValid()))
+	{
+		StartHotfixCheck();
+		return;
+	}
+
+	TSharedPtr<const FUniqueNetId> UniqueNetId = GetFirstSignedInUser(OnlineIdentityConsole);
+	if (!UniqueNetId.IsValid())
+	{
+		UE_LOG(LogHotfixManager, Warning, TEXT("No signed in user available to log in with"));
+		CheckComplete(EUpdateCompletionStatus::UpdateFailure_NotLoggedIn);
+		return;
+	}
+
+	const FPlatformUserId PlatformUserId = OnlineIdentityConsole->GetPlatformUserIdFromUniqueNetId(*UniqueNetId);
+	if (PlatformUserId == PLATFORMUSERID_NONE)
+	{
+		UE_LOG(LogHotfixManager, Warning, TEXT("No valid FPlatformUserId for UniqueNetId %s"), *UniqueNetId->ToDebugString());
+		CheckComplete(EUpdateCompletionStatus::UpdateFailure_NotLoggedIn);
+		return;
+	}
+
+	SetUpdateState(EUpdateState::DetectingPlatformEnvironment);
+
+	OnLoginConsoleCompleteHandle = OnlineIdentityConsole->AddOnLoginCompleteDelegate_Handle(
+		PlatformUserId,
+		FOnLoginCompleteDelegate::CreateUObject(this, &ThisClass::PlatformEnvironmentCheck_OnLoginConsoleComplete)
+	);
+
+	OnlineIdentityConsole->Login(PlatformUserId, FOnlineAccountCredentials());
+
 }
 
-void UUpdateManager::OnDetectPlatformEnvironmentComplete(const FOnlineError& Result)
+void UUpdateManager::PlatformEnvironmentCheck_OnLoginConsoleComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& Error)
 {
-	if (Result.WasSuccessful())
+	const IOnlineSubsystem* const OnlineSubConsole = IOnlineSubsystem::GetByPlatform();
+	if (ensure(OnlineSubConsole))
+	{
+		const IOnlineIdentityPtr OnlineIdentityConsole = OnlineSubConsole->GetIdentityInterface();
+		ensure(OnlineIdentityConsole.IsValid());
+
+		OnlineIdentityConsole->ClearOnLoginChangedDelegate_Handle(OnLoginConsoleCompleteHandle);
+	}
+
+	if (bWasSuccessful)
 	{
 		bPlatformEnvironmentDetected = true;
 		StartHotfixCheck();
 	}
 	else
 	{
-		if (Result.GetErrorCode().Contains(TEXT("getUserAccessCode failed : 0x8055000f"), ESearchCase::IgnoreCase))
+		if (Error.Contains(TEXT("getUserAccessCode failed : 0x8055000f"), ESearchCase::IgnoreCase))
 		{
 			UE_LOG(LogHotfixManager, Warning, TEXT("Failed to complete login because patch is required"));
 			CheckComplete(EUpdateCompletionStatus::UpdateSuccess_NeedsPatch);
 		}
 		else
 		{
-			if (Result.GetErrorCode().Contains(TEXT("com.epicgames.identity.notloggedin"), ESearchCase::IgnoreCase))
+			if (Error.Contains(TEXT("com.epicgames.identity.notloggedin"), ESearchCase::IgnoreCase))
 			{
 				UE_LOG(LogHotfixManager, Warning, TEXT("Failed to detect online environment for the platform, no user signed in"));
 				CheckComplete(EUpdateCompletionStatus::UpdateFailure_NotLoggedIn);

@@ -351,13 +351,13 @@ void FDatasmithStaticMeshImporter::ProcessCollision(UStaticMesh* StaticMesh, con
 
 	StaticMesh->bCustomizedCollision = true;
 	StaticMesh->CreateBodySetup();
-	if ( !ensure(StaticMesh->GetBodySetup()) )
+	if ( !ensure(StaticMesh->BodySetup) )
 	{
 		return;
 	}
 
 	// Convex elements must be removed first since the re-import process uses the same flow
-	FKAggregateGeom& AggGeom = StaticMesh->GetBodySetup()->AggGeom;
+	FKAggregateGeom& AggGeom = StaticMesh->BodySetup->AggGeom;
 	AggGeom.ConvexElems.Reset();
 	FKConvexElem& ConvexElem = AggGeom.ConvexElems.AddDefaulted_GetRef();
 
@@ -553,7 +553,7 @@ void FDatasmithStaticMeshImporter::SetupStaticMesh( FDatasmithAssetsImportContex
 	int32 MaxLightmapSize = FDatasmithStaticMeshImportOptions::ConvertLightmapEnumToValue( StaticMeshImportOptions.MaxLightmapResolution );
 
 	int32 LightmapSize = DatasmithStaticMeshImporterImpl::GetLightmapSize( LightmapWeight, MinLightmapSize, MaxLightmapSize );
-	StaticMesh->SetLightingGuid();
+	StaticMesh->LightingGuid = FGuid::NewGuid();
 	StaticMesh->InitResources();
 
 	StaticMeshTemplate->LightMapResolution = LightmapSize;

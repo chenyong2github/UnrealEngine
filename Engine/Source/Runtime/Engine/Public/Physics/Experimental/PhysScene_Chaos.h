@@ -261,7 +261,7 @@ private:
 #endif
 
 #if WITH_CHAOS
-	virtual void OnSyncBodies() override;
+	virtual void OnSyncBodies(const int32 SolverSyncTimestamp, Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor) override;
 #endif
 
 #if 0

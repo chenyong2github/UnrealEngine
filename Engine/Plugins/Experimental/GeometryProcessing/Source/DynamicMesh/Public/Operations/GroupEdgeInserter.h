@@ -34,7 +34,7 @@ public:
 		int32 GroupEdgeID = FDynamicMesh3::InvalidID;
 
 		/** 
-		 * Inputs can be proportions in the range (0,1), or absolute lengths. 
+		 * Inputs can be proportions in the range (0,1), or aboslute lengths. 
 		 * As the name suggests, they must already be sorted. 
 		 */
 		const TArray<double>* SortedInputLengths = nullptr;

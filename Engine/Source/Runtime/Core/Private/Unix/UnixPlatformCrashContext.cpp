@@ -144,11 +144,8 @@ void GracefulTerminationHandler(int32 Signal, siginfo_t* Info, void* Context)
 {
 	GEnteredSignalHandler = 1;
 
-	// Possibly better to add a 2nd function if this is more required. Since we are in the Core module lets see if this is only needed here
-	extern bool GShouldRequestExit;
-
 	// do not flush logs at this point; this can result in a deadlock if the signal was received while we were holding lock in the malloc (flushing allocates memory)
-	if( !IsEngineExitRequested() && !GShouldRequestExit )
+	if( !IsEngineExitRequested() )
 	{
 		FPlatformMisc::RequestExitWithStatus(false, 128 + Signal);	// Keeping the established shell practice of returning 128 + signal for terminations by signal. Allows to distinguish SIGINT/SIGTERM/SIGHUP.
 	}

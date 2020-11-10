@@ -23,7 +23,6 @@ FMallocFrameProfiler::FMallocFrameProfiler(FMalloc* InMalloc)
 	: FMallocCallstackHandler(InMalloc)
 	, bEnabled(false)
 	, FrameCount(0)
-	, EntriesToOutput(15)
 {
 }
 
@@ -36,31 +35,18 @@ void FMallocFrameProfiler::Init()
 	FMallocCallstackHandler::Init();
 
 	TrackedCurrentAllocations.Reserve(8000000);
-	CallStackStatsArray.Reserve(8000000);
+	CallStackIndexUsageCountArray.Reserve(8000000);
 }
 
 void FMallocFrameProfiler::TrackMalloc(void* Ptr, uint32 Size, int32 CallStackIndex)
 {
 	if (Ptr != nullptr)
 	{
-		if (CallStackStatsArray.Num() <= CallStackIndex)
+		if (CallStackIndexUsageCountArray.Num() <= CallStackIndex)
 		{
-			CallStackStatsArray.AddDefaulted(CallStackIndex - CallStackStatsArray.Num() + 1);
+			CallStackIndexUsageCountArray.AddDefaulted(CallStackIndex - CallStackIndexUsageCountArray.Num() + 1);
 		}
-
-		CallStackStatsArray[CallStackIndex].CallStackIndex = CallStackIndex;
-		CallStackStatsArray[CallStackIndex].Mallocs++;
-
-		if (CallStackStatsArray[CallStackIndex].UniqueFrames == 0)
-		{
-			CallStackStatsArray[CallStackIndex].UniqueFrames++;
-		}
-
-		if (CallStackStatsArray[CallStackIndex].LastFrameSeen != FrameCount)
-		{
-			CallStackStatsArray[CallStackIndex].UniqueFrames++;
-			CallStackStatsArray[CallStackIndex].LastFrameSeen = FrameCount;
-		}
+		CallStackIndexUsageCountArray[CallStackIndex].CallStackIndex = CallStackIndex;
 
 		TrackedCurrentAllocations.Add(Ptr, CallStackIndex);
 	}
@@ -71,14 +57,13 @@ void FMallocFrameProfiler::TrackFree(void* Ptr, uint32 OldSize, int32 CallStackI
 	int32* CallStackIndexMalloc = TrackedCurrentAllocations.Find(Ptr);
 	if (CallStackIndexMalloc!=nullptr)
 	{
-		if (CallStackStatsArray.Num() <= *CallStackIndexMalloc)
+		if (CallStackIndexUsageCountArray.Num() <= *CallStackIndexMalloc)
 		{
 			// it cant be
 			PLATFORM_BREAK();
 		}
 
-		CallStackStatsArray[*CallStackIndexMalloc].UsageCount++;
-		CallStackStatsArray[*CallStackIndexMalloc].Frees++;
+		CallStackIndexUsageCountArray[*CallStackIndexMalloc].UsageCount++;
 	}
 }
 
@@ -129,37 +114,28 @@ void FMallocFrameProfiler::UpdateStats()
 	
 	bEnabled = false;
 
-	CallStackStatsArray.Sort
+	CallStackIndexUsageCountArray.Sort
 	(
-		[](const FCallStackStats& A, const FCallStackStats& B)
+		[](const FCallStackUsageCount& A, const FCallStackUsageCount& B)
 		{
-			return A.Mallocs > B.Mallocs;
+			return A.UsageCount > B.UsageCount;
 		}
 	);
 
-	for (int32 CallStackIndex=0; CallStackIndex< CallStackStatsArray.Num(); CallStackIndex++)
+	for (int32 CallStackIndex=0; CallStackIndex< CallStackIndexUsageCountArray.Num(); CallStackIndex++)
 	{
-		if (CallStackStatsArray[CallStackIndex].CallStackIndex != 0)
-		{
-			UE_LOG(LogMallocFrameProfiler, Display, TEXT("---- Call Stack Stats for Index %d Mallocs %d Frees %d Pairs %d FramesSeen %d Avg %.2f ----"),
-				CallStackStatsArray[CallStackIndex].CallStackIndex,
-				CallStackStatsArray[CallStackIndex].Mallocs,
-				CallStackStatsArray[CallStackIndex].Frees,
-				CallStackStatsArray[CallStackIndex].UsageCount,
-				CallStackStatsArray[CallStackIndex].UniqueFrames,
-				((float)CallStackStatsArray[CallStackIndex].Mallocs / (float)CallStackStatsArray[CallStackIndex].UniqueFrames));
-			DumpStackTraceToLog(CallStackStatsArray[CallStackIndex].CallStackIndex);
-		}
+		UE_LOG(LogMallocFrameProfiler, Display, TEXT("---- Frame alloc count %d"), CallStackIndexUsageCountArray[CallStackIndex].UsageCount);
+		DumpStackTraceToLog(CallStackIndexUsageCountArray[CallStackIndex].CallStackIndex);
 		
-		if (CallStackIndex == EntriesToOutput)
+		if (CallStackIndex == 15)
 		{
 			break;
 		}
-	}
 
+	}
 	CallStackInfoArray.Reset();
 	CallStackMapKeyToCallStackIndexMap.Reset();
-	CallStackStatsArray.Reset();
+	CallStackIndexUsageCountArray.Reset();
 }
 
 bool FMallocFrameProfiler::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
@@ -170,12 +146,6 @@ bool FMallocFrameProfiler::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice
 		{
 			FrameCount = 0;
 		}
-
-		if (!FParse::Value(Cmd, TEXT("Entries="), EntriesToOutput))
-		{
-			EntriesToOutput = 15;
-		}
-
 		bEnabled = true;
 		return true;
 	}

@@ -404,17 +404,28 @@ FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPipelineStat
 {
 	FGraphicsMinimalPipelineStateId Ret;
 	Ret.bValid = 1;
-	Ret.bComesFromLocalPipelineStateSet = 1;
+	Ret.bComesFromLocalPipelineStateSet = 0;
+
+	Experimental::FHashElementId TableIndex;
+	{
+		FScopeLock Lock(&PersistentIdTableLock);
+		TableIndex = PersistentIdTable.FindId(InPipelineState);
+	}
+
+	if (!TableIndex.IsValid())
+	{
+		Ret.bComesFromLocalPipelineStateSet = 1;
 #if UE_BUILD_DEBUG
-	FGraphicsMinimalPipelineStateInitializer PipelineStateDebug = FGraphicsMinimalPipelineStateInitializer(InPipelineState);
-	check(GetTypeHash(PipelineStateDebug) == GetTypeHash(InPipelineState));
-	check(PipelineStateDebug == InPipelineState);
+		FGraphicsMinimalPipelineStateInitializer PipelineStateDebug = FGraphicsMinimalPipelineStateInitializer(InPipelineState);
+		check(GetTypeHash(PipelineStateDebug) == GetTypeHash(InPipelineState));
+		check(PipelineStateDebug == InPipelineState);
 #endif
-	Experimental::FHashElementId TableIndex = InOutPassSet.FindOrAddId(InPipelineState);
+		TableIndex = InOutPassSet.FindOrAddId(InPipelineState);
 #if UE_BUILD_DEBUG
-	check(InOutPassSet.GetByElementId(TableIndex) == InPipelineState);
+		check(InOutPassSet.GetByElementId(TableIndex) == InPipelineState);
 #endif
-	InNeedsShaderInitialisation = InNeedsShaderInitialisation || InPipelineState.BoundShaderState.NeedsShaderInitialisation();
+		InNeedsShaderInitialisation = InNeedsShaderInitialisation || InPipelineState.BoundShaderState.NeedsShaderInitialisation();
+	}
 
 	checkf(TableIndex.GetIndex() < (MAX_uint32 >> 2), TEXT("One frame FGraphicsMinimalPipelineStateId table overflow!"));
 
@@ -776,22 +787,17 @@ void FMeshDrawCommand::SetShaders(FRHIVertexDeclaration* VertexDeclaration, cons
 {
 	PipelineState.BoundShaderState = FMinimalBoundShaderStateInput();
 	PipelineState.BoundShaderState.VertexDeclarationRHI = VertexDeclaration;
-
-	checkf(Shaders.VertexShader.IsValid(), TEXT("Can't render without a vertex shader"));
-
 	if(Shaders.VertexShader.IsValid())
 	{
 		checkSlow(Shaders.VertexShader->GetFrequency() == SF_Vertex);
 		PipelineState.BoundShaderState.VertexShaderResource = Shaders.VertexShader.GetResource();
 		PipelineState.BoundShaderState.VertexShaderIndex = Shaders.VertexShader->GetResourceIndex();
-		check(PipelineState.BoundShaderState.VertexShaderResource->IsValidShaderIndex(PipelineState.BoundShaderState.VertexShaderIndex));
 	}
 	if (Shaders.PixelShader.IsValid())
 	{
 		checkSlow(Shaders.PixelShader->GetFrequency() == SF_Pixel);
 		PipelineState.BoundShaderState.PixelShaderResource = Shaders.PixelShader.GetResource();
 		PipelineState.BoundShaderState.PixelShaderIndex = Shaders.PixelShader->GetResourceIndex();
-		check(PipelineState.BoundShaderState.PixelShaderResource->IsValidShaderIndex(PipelineState.BoundShaderState.PixelShaderIndex));
 	}
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	if (Shaders.GeometryShader.IsValid())
@@ -799,7 +805,6 @@ void FMeshDrawCommand::SetShaders(FRHIVertexDeclaration* VertexDeclaration, cons
 		checkSlow(Shaders.GeometryShader->GetFrequency() == SF_Geometry);
 		PipelineState.BoundShaderState.GeometryShaderResource = Shaders.GeometryShader.GetResource();
 		PipelineState.BoundShaderState.GeometryShaderIndex = Shaders.GeometryShader->GetResourceIndex();
-		check(PipelineState.BoundShaderState.GeometryShaderResource->IsValidShaderIndex(PipelineState.BoundShaderState.GeometryShaderIndex));
 	}
 #endif // PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
@@ -808,14 +813,12 @@ void FMeshDrawCommand::SetShaders(FRHIVertexDeclaration* VertexDeclaration, cons
 		checkSlow(Shaders.HullShader->GetFrequency() == SF_Hull);
 		PipelineState.BoundShaderState.HullShaderResource = Shaders.HullShader.GetResource();
 		PipelineState.BoundShaderState.HullShaderIndex = Shaders.HullShader->GetResourceIndex();
-		check(PipelineState.BoundShaderState.HullShaderResource->IsValidShaderIndex(PipelineState.BoundShaderState.HullShaderIndex));
 	}
 	if (Shaders.DomainShader.IsValid())
 	{
 		checkSlow(Shaders.DomainShader->GetFrequency() == SF_Domain);
 		PipelineState.BoundShaderState.DomainShaderResource = Shaders.DomainShader.GetResource();
 		PipelineState.BoundShaderState.DomainShaderIndex = Shaders.DomainShader->GetResourceIndex();
-		check(PipelineState.BoundShaderState.DomainShaderResource->IsValidShaderIndex(PipelineState.BoundShaderState.DomainShaderIndex));
 	}
 #endif // PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	ShaderBindings.Initialize(Shaders);

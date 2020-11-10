@@ -264,16 +264,6 @@ void BuildPoseFromRawDataInternal(const TArray<FRawAnimSequenceTrack>& InAnimati
 
 void BuildPoseFromRawData(const TArray<FRawAnimSequenceTrack>& InAnimationData, const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable, FCompactPose& InOutPose, float InTime, EAnimInterpolationType Interpolation, int32 NumFrames, float SequenceLength, FName RetargetSource)
 {
-	USkeleton* MySkeleton = InOutPose.GetBoneContainer().GetSkeletonAsset();
-	if (MySkeleton)
-	{
-		const TArray<FTransform>& RetargetTransforms = MySkeleton->GetRefLocalPoses(RetargetSource);
-		BuildPoseFromRawData(InAnimationData, TrackToSkeletonMapTable, InOutPose, InTime, Interpolation, NumFrames, SequenceLength, RetargetSource, RetargetTransforms);
-	}
-}
-
-void BuildPoseFromRawData(const TArray<FRawAnimSequenceTrack>& InAnimationData, const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable, FCompactPose& InOutPose, float InTime, EAnimInterpolationType Interpolation, int32 NumFrames, float SequenceLength, FName SourceName, const TArray<FTransform>& RetargetTransforms)
-{
 	int32 KeyIndex1, KeyIndex2;
 	float Alpha;
 	FAnimationRuntime::GetKeyIndicesFromTime(KeyIndex1, KeyIndex2, Alpha, InTime, NumFrames, SequenceLength);
@@ -316,7 +306,7 @@ void BuildPoseFromRawData(const TArray<FRawAnimSequenceTrack>& InAnimationData, 
 
 		for (const FRetargetTracking& RT : RetargetTracking)
 		{
-			FAnimationRuntime::RetargetBoneTransform(Skeleton, SourceName, RetargetTransforms, InOutPose[RT.PoseBoneIndex], RT.SkeletonBoneIndex, RT.PoseBoneIndex, RequiredBones, false);
+			FAnimationRuntime::RetargetBoneTransform(Skeleton, RetargetSource, InOutPose[RT.PoseBoneIndex], RT.SkeletonBoneIndex, RT.PoseBoneIndex, RequiredBones, false);
 		}
 	}
 

@@ -581,30 +581,14 @@ bool FGameplayTagContainer::RemoveTagByExplicitName(const FName& TagName)
 
 FORCEINLINE_DEBUGGABLE void FGameplayTagContainer::AddParentsForTag(const FGameplayTag& Tag)
 {
-	if (IsInGameThread())
-	{
-		const FGameplayTagContainer* SingleContainer = UGameplayTagsManager::Get().GetSingleTagContainer(Tag);
+	const FGameplayTagContainer* SingleContainer = UGameplayTagsManager::Get().GetSingleTagContainer(Tag);
 
-		if (SingleContainer)
-		{
-			// Add Parent tags from this tag to our own
-			for (const FGameplayTag& ParentTag : SingleContainer->ParentTags)
-			{
-				ParentTags.AddUnique(ParentTag);
-			}
-		}
-	}
-	else
+	if (SingleContainer)
 	{
-		// Non-main threads may not access FGameplayTagNodes, so we can't call GetSingleTagContainer.
-		// This string parsing is probably slower, but threadsafe
-		FString TagString = *Tag.ToString();
-		for(int32 CharIdx = TagString.Len() - 1; CharIdx > 0; --CharIdx)
+		// Add Parent tags from this tag to our own
+		for (const FGameplayTag& ParentTag : SingleContainer->ParentTags)
 		{
-			if (TagString[CharIdx] == '.')
-			{
-				ParentTags.AddUnique(FGameplayTag(FName(*TagString.Left(CharIdx))));
-			}
+			ParentTags.AddUnique(ParentTag);
 		}
 	}
 }

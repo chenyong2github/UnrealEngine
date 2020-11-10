@@ -425,9 +425,6 @@ private:
 	/** Initialize Blend Setup from Montage */
 	void InitializeBlend(const FAlphaBlend& InAlphaBlend);
 
-	/**  Notify may invalidate current montage instance. Inputs should be memory not belonging to calling FAnimMontageInstance.*/
-	static bool ValidateInstanceAfterNotifyState(const TWeakObjectPtr<UAnimInstance>& InAnimInstance, const UAnimNotifyState* InNotifyStateClass);
-
 public:
 	FAnimMontageInstance();
 
@@ -519,8 +516,7 @@ private:
 	void OnMontagePositionChanged(FName const & ToSectionName);
 	
 	/** Updates ActiveStateBranchingPoints array and triggers Begin/End notifications based on CurrentTrackPosition */
-	/** Returns false if montage instance was destroyed during branching point update*/
-	bool UpdateActiveStateBranchingPoints(float CurrentTrackPosition);
+	void UpdateActiveStateBranchingPoints(float CurrentTrackPosition);
 
 	/** Trigger associated events when Montage ticking reaches given FBranchingPointMarker */
 	void BranchingPointEventHandler(const FBranchingPointMarker* BranchingPointMarker);

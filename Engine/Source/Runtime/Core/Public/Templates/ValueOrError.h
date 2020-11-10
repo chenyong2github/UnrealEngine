@@ -4,33 +4,32 @@
 
 #include "CoreTypes.h"
 #include "Misc/TVariant.h"
-#include "Templates/Tuple.h"
 #include "Templates/UnrealTemplate.h"
 
-template <typename... ArgTypes>
+template <typename ArgType>
 struct TValueOrError_ValueProxy
 {
-	TValueOrError_ValueProxy(ArgTypes&&... InArgs) : Args(Forward<ArgTypes>(InArgs)...) {}
-	TTuple<ArgTypes&&...> Args;
+	TValueOrError_ValueProxy(ArgType&& InArg) : Arg(Forward<ArgType>(InArg)) {}
+	ArgType&& Arg;
 };
 
-template <typename... ArgTypes>
+template <typename ArgType>
 struct TValueOrError_ErrorProxy
 {
-	TValueOrError_ErrorProxy(ArgTypes&&... InArgs) : Args(Forward<ArgTypes>(InArgs)...) {}
-	TTuple<ArgTypes&&...> Args;
+	TValueOrError_ErrorProxy(ArgType&& InArg) : Arg(Forward<ArgType>(InArg)) {}
+	ArgType&& Arg;
 };
 
-template <typename... ArgTypes>
-FORCEINLINE TValueOrError_ValueProxy<ArgTypes...> MakeValue(ArgTypes&&... Args)
+template <typename ArgType>
+FORCEINLINE TValueOrError_ValueProxy<ArgType> MakeValue(ArgType&& Arg)
 {
-	return TValueOrError_ValueProxy<ArgTypes...>(Forward<ArgTypes>(Args)...);
+	return TValueOrError_ValueProxy<ArgType>(Forward<ArgType>(Arg));
 }
 
-template <typename... ArgTypes>
-FORCEINLINE TValueOrError_ErrorProxy<ArgTypes...> MakeError(ArgTypes&&... Args)
+template <typename ArgType>
+FORCEINLINE TValueOrError_ErrorProxy<ArgType> MakeError(ArgType&& Arg)
 {
-	return TValueOrError_ErrorProxy<ArgTypes...>(Forward<ArgTypes>(Args)...);
+	return TValueOrError_ErrorProxy<ArgType>(Forward<ArgType>(Arg));
 }
 
 /**
@@ -59,30 +58,18 @@ class TValueOrError
 	{
 	};
 
-	template <typename... ArgTypes, uint32... ArgIndices>
-	inline TValueOrError(TValueOrError_ValueProxy<ArgTypes...>&& Proxy, TIntegerSequence<uint32, ArgIndices...>)
-		: Variant(TInPlaceType<ValueType>(), MoveTemp(Proxy.Args).template Get<ArgIndices>()...)
-	{
-	}
-
-	template <typename... ArgTypes, uint32... ArgIndices>
-	inline TValueOrError(TValueOrError_ErrorProxy<ArgTypes...>&& Proxy, TIntegerSequence<uint32, ArgIndices...>)
-		: Variant(TInPlaceType<FWrapErrorType>(), MoveTemp(Proxy.Args).template Get<ArgIndices>()...)
-	{
-	}
-
 public:
 	/** Construct the value from a proxy from MakeValue. */
-	template <typename... ArgTypes>
-	inline TValueOrError(TValueOrError_ValueProxy<ArgTypes...>&& Proxy)
-		: TValueOrError(MoveTemp(Proxy), TMakeIntegerSequence<uint32, sizeof...(ArgTypes)>())
+	template <typename ArgType>
+	inline TValueOrError(TValueOrError_ValueProxy<ArgType>&& Proxy)
+		: Variant(TInPlaceType<ValueType>(), Forward<ArgType>(Proxy.Arg))
 	{
 	}
 
 	/** Construct the error from a proxy from MakeError. */
-	template <typename... ArgTypes>
-	inline TValueOrError(TValueOrError_ErrorProxy<ArgTypes...>&& Proxy)
-		: TValueOrError(MoveTemp(Proxy), TMakeIntegerSequence<uint32, sizeof...(ArgTypes)>())
+	template <typename ArgType>
+	inline TValueOrError(TValueOrError_ErrorProxy<ArgType>&& Proxy)
+		: Variant(TInPlaceType<FWrapErrorType>(), Forward<ArgType>(Proxy.Arg))
 	{
 	}
 

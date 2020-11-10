@@ -2338,7 +2338,7 @@ FActiveGameplayEffect* FActiveGameplayEffectsContainer::FindStackableActiveGamep
 	const UGameplayEffect* GEDef = Spec.Def;
 	EGameplayEffectStackingType StackingType = GEDef->StackingType;
 
-	if ((StackingType != EGameplayEffectStackingType::None) && (GEDef->DurationPolicy != EGameplayEffectDurationType::Instant))
+	if (StackingType != EGameplayEffectStackingType::None && Spec.GetDuration() != UGameplayEffect::INSTANT_APPLICATION)
 	{
 		// Iterate through GameplayEffects to see if we find a match. Note that we could cache off a handle in a map but we would still
 		// do a linear search through GameplayEffects to find the actual FActiveGameplayEffect (due to unstable nature of the GameplayEffects array).
@@ -2487,14 +2487,10 @@ void FActiveGameplayEffectsContainer::SetActiveGameplayEffectLevel(FActiveGamepl
 	{
 		if (Effect.Handle == ActiveHandle)
 		{
-			if (Effect.Spec.GetLevel() != NewLevel)
-			{
-				Effect.Spec.SetLevel(NewLevel);
-				MarkItemDirty(Effect);
-			
-				Effect.Spec.CalculateModifierMagnitudes();
-				UpdateAllAggregatorModMagnitudes(Effect);
-			}
+			Effect.Spec.SetLevel(NewLevel);
+			MarkItemDirty(Effect);
+			Effect.Spec.CalculateModifierMagnitudes();
+			UpdateAllAggregatorModMagnitudes(Effect);
 			break;
 		}
 	}
@@ -3816,13 +3812,12 @@ bool FActiveGameplayEffectsContainer::NetDeltaSerialize(FNetDeltaSerializeInfo& 
 					// In mixed mode, we only want to replicate to the owner of this channel, minimal replication
 					// data will go to everyone else.
 					const AActor* ParentOwner = Owner->GetOwner();
-					const UNetConnection* ParentOwnerNetConnection = ParentOwner->GetNetConnection();
-					if (!ParentOwner->IsOwnedBy(Connection->OwningActor) && (ParentOwnerNetConnection != Connection))
+					if (!ParentOwner->IsOwnedBy(Connection->OwningActor))
 					{
 						bool bIsChildConnection = false;
 						for (UChildConnection* ChildConnection : Connection->Children)
 						{
-							if (ParentOwner->IsOwnedBy(ChildConnection->OwningActor) || (ChildConnection == ParentOwnerNetConnection))
+							if (ParentOwner->IsOwnedBy(ChildConnection->OwningActor))
 							{
 								bIsChildConnection = true;
 								break;

@@ -13,15 +13,13 @@
 class IOnlinePartyJoinInfo;
 class FOnlineUserPresence;
 class UPartyMember;
-struct FOnlineError;
-enum class EPartyInvitationRemovedReason : uint8;
 enum class EPlatformIconDisplayRule : uint8;
-typedef TSharedRef<const IOnlinePartyJoinInfo> IOnlinePartyJoinInfoConstRef;
-typedef TSharedPtr<const IOnlinePartyJoinInfo> IOnlinePartyJoinInfoConstPtr;
+
+struct FOnlineError;
 
 namespace EOnlinePresenceState { enum Type : uint8; }
 
-DECLARE_DELEGATE_OneParam(FOnNewSocialUserInitialized, USocialUser&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnNewSocialUserInitialized, USocialUser&);
 
 UCLASS(Within = SocialToolkit)
 class PARTY_API USocialUser : public UObject
@@ -31,7 +29,7 @@ class PARTY_API USocialUser : public UObject
 public:
 	USocialUser();
 
-	void RegisterInitCompleteHandler(const FOnNewSocialUserInitialized& OnInitializationComplete);
+	void RegisterInitCompleteHandler(const FOnNewSocialUserInitialized::FDelegate& OnInitializationComplete);
 	bool IsInitialized() const { return bIsInitialized; }
 
 	void ValidateFriendInfo(ESocialSubsystem SubsystemType);
@@ -63,7 +61,6 @@ public:
 
 	FString GetPlatformIconMarkupTag(EPlatformIconDisplayRule DisplayRule) const;
 	virtual FString GetPlatformIconMarkupTag(EPlatformIconDisplayRule DisplayRule, FString& OutLegacyString) const;
-	virtual FString GetMarkupTagForPlatform(const FUserPlatform& RemoteUserPlatform) const { return RemoteUserPlatform; }
 
 	virtual void GetRichPresenceText(FText& OutRichPresence) const;
 
@@ -94,10 +91,7 @@ public:
 
 	bool ShowPlatformProfile();
 
-	void HandlePartyInviteReceived(const IOnlinePartyJoinInfo& Invite);
-	void HandlePartyInviteRemoved(const IOnlinePartyJoinInfo& Invite, EPartyInvitationRemovedReason Reason);
-
-	IOnlinePartyJoinInfoConstPtr GetPartyJoinInfo(const FOnlinePartyTypeId& PartyTypeId) const;
+	TSharedPtr<const IOnlinePartyJoinInfo> GetPartyJoinInfo(const FOnlinePartyTypeId& PartyTypeId) const;
 
 	bool HasSentPartyInvite(const FOnlinePartyTypeId& PartyTypeId) const;
 	FJoinPartyResult CheckPartyJoinability(const FOnlinePartyTypeId& PartyTypeId) const;
@@ -207,12 +201,11 @@ private:
 
 	bool bIsInitialized = false;
 
+	TSharedPtr<const IOnlinePartyJoinInfo> PersistentPartyInfo;
 	TMap<ESocialSubsystem, FSubsystemUserInfo> SubsystemInfoByType;
 
-	TArray<IOnlinePartyJoinInfoConstRef> ReceivedPartyInvites;
-
 	// Initialization delegates that fire only when a specific user has finishing initializing
-	static TMap<TWeakObjectPtr<USocialUser>, TArray<FOnNewSocialUserInitialized>> InitEventsByUser;
+	static TMap<TWeakObjectPtr<USocialUser>, FOnNewSocialUserInitialized> InitEventsByUser;
 
 	mutable FOnNicknameChanged OnSetNicknameCompletedEvent;
 	mutable FPartyInviteResponseEvent OnPartyInviteAcceptedEvent;

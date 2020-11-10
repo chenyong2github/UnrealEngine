@@ -129,7 +129,6 @@ public:
 	
 	//~ Begin UCameraModifer Interface
 	virtual bool ModifyCamera(float DeltaTime, struct FMinimalViewInfo& InOutPOV) override;
-	virtual void DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) override;
 	//~ End UCameraModifer Interface
 
 protected:

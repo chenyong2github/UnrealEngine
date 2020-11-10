@@ -166,7 +166,7 @@ public:
 	/**
 	* Creates a HierarchicalLODVolume using the bounds of a given LODActor
 	* @param InLODActor - LODActor to create the volume for
-	* @param InWorld - World to spawn the volume in. If null, will spawn in the same level as InLODActor.
+	* @param InWorld - World to spawn the volume in
 	* @return AHierarchicalLODVolume*
 	*/
 	virtual AHierarchicalLODVolume* CreateVolumeForLODActor(ALODActor* InLODActor, UWorld* InWorld) = 0;

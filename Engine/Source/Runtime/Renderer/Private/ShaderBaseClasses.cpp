@@ -167,7 +167,7 @@ void FMaterialShader::VerifyExpressionAndShaderMaps(const FMaterialRenderProxy* 
 		const TCHAR* ShaderMapDesc = ShaderMap->GetDebugDescription();
 		UE_LOG(
 			LogShaders,
-			Warning,//Fatal,
+			Fatal,
 			TEXT("%s shader uniform expression set mismatch for material %s/%s.\n")
 			TEXT("Shader compilation info:                %s\n")
 			TEXT("Material render proxy compilation info: %s\n")
@@ -207,21 +207,21 @@ void FMaterialShader::SetParameters(
 	const FMaterial& Material,
 	const FSceneView& View)
 {
-	const ERHIFeatureLevel::Type FeatureLevel = View.GetFeatureLevel();
-	FMaterialShaderMap* ShaderMap = Material.GetRenderingThreadShaderMap();
-	checkf(ShaderMap, TEXT("RenderingThreadShaderMap: %i"), ShaderMap ? 1 : 0);
-	checkf(ShaderMap->IsValidForRendering(true) && Material.GetFeatureLevel() == FeatureLevel, TEXT("IsValid:%i, MaterialFeatureLevel:%i, FeatureLevel:%i"), ShaderMap->IsValidForRendering() ? 1 : 0, Material.GetFeatureLevel(), FeatureLevel);
+	ERHIFeatureLevel::Type FeatureLevel = View.GetFeatureLevel();
+	checkf(Material.GetRenderingThreadShaderMap(), TEXT("RenderingThreadShaderMap: %i"), Material.GetRenderingThreadShaderMap() ? 1 : 0);
+	checkf(Material.GetRenderingThreadShaderMap()->IsValidForRendering(true) && Material.GetFeatureLevel() == FeatureLevel, TEXT("IsValid:%i, MaterialFeatureLevel:%i, FeatureLevel:%i"), Material.GetRenderingThreadShaderMap()->IsValidForRendering() ? 1 : 0, Material.GetFeatureLevel(), FeatureLevel);
 
 	FUniformExpressionCache* UniformExpressionCache = &MaterialRenderProxy->UniformExpressionCache[FeatureLevel];
 	bool bUniformExpressionCacheNeedsDelete = false;
-	//bool bForceExpressionEvaluation = false;
+	bool bForceExpressionEvaluation = false;
 
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING || !WITH_EDITOR)
-	if (bAllowCachedUniformExpressions)
+	if (!(!bAllowCachedUniformExpressions || !UniformExpressionCache->bUpToDate))
 	{
 		// UE-46061 - Workaround for a rare crash with an outdated cached shader map
-		if (UniformExpressionCache->CachedUniformExpressionShaderMap != ShaderMap)
+		if (UniformExpressionCache->CachedUniformExpressionShaderMap != Material.GetRenderingThreadShaderMap())
 		{
+			FMaterialShaderMap* ShaderMap = Material.GetRenderingThreadShaderMap();
 			UMaterialInterface* MtlInterface = Material.GetMaterialInterface();
 			UMaterialInterface* ProxyInterface = MaterialRenderProxy->GetMaterialInterface();
 
@@ -234,12 +234,12 @@ void FMaterialShader::SetParameters(
 				*MaterialRenderProxy->GetFriendlyName(), *Material.GetFriendlyName(),
 				MtlInterface ? *MtlInterface->GetFullName() : TEXT("nullptr"),
 				ProxyInterface ? *ProxyInterface->GetFullName() : TEXT("nullptr"));
-			//bForceExpressionEvaluation = true;
+			bForceExpressionEvaluation = true;
 		}
 	}
 #endif
 
-	if (!bAllowCachedUniformExpressions || UniformExpressionCache->CachedUniformExpressionShaderMap != ShaderMap)
+	if (!bAllowCachedUniformExpressions || !UniformExpressionCache->bUpToDate || bForceExpressionEvaluation)
 	{
 		FMaterialRenderContext MaterialRenderContext(MaterialRenderProxy, Material, &View);
 		bUniformExpressionCacheNeedsDelete = true;
@@ -347,7 +347,7 @@ void FMaterialShader::GetShaderBindings(
 
 	const FUniformExpressionCache& UniformExpressionCache = MaterialRenderProxy.UniformExpressionCache[FeatureLevel];
 
-	checkf(UniformExpressionCache.CachedUniformExpressionShaderMap == Material.GetRenderingThreadShaderMap(), TEXT("UniformExpressionCache should be up to date, RenderProxy=%s Material=%s FeatureLevel=%d"), *MaterialRenderProxy.GetFriendlyName(), *Material.GetFriendlyName(), FeatureLevel);
+	checkf(UniformExpressionCache.bUpToDate, TEXT("UniformExpressionCache should be up to date, RenderProxy=%s Material=%s FeatureLevel=%d"), *MaterialRenderProxy.GetFriendlyName(), *Material.GetFriendlyName(), FeatureLevel);
 	checkf(UniformExpressionCache.UniformBuffer, TEXT("NULL UniformBuffer, RenderProxy=%s Material=%s FeatureLevel=%d"), *MaterialRenderProxy.GetFriendlyName(), *Material.GetFriendlyName(), FeatureLevel);
 
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING || !WITH_EDITOR)

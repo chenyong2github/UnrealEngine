@@ -19,13 +19,6 @@
 #include "Physics/PhysScene_PhysX.h"
 #include "Components/SkeletalMeshComponent.h"
 
-#if WITH_CHAOS
-#include "Chaos/ChaosMarshallingManager.h"
-#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
-#include "PBDRigidsSolver.h"
-#include "Chaos/PBDRigidsEvolutionGBF.h"
-#endif
-
 #if WITH_PHYSX
 #include "PhysXPublic.h"
 #endif 
@@ -82,65 +75,12 @@ namespace CharacterMovementCVars
 
 	static int32 AlwaysResetPhysics = 0;
 	static FAutoConsoleVariableRef CVarAlwaysResetPhysics(TEXT("p.AlwaysResetPhysics"), AlwaysResetPhysics, TEXT(""));
-
-	static int32 ApplyAsyncSleepState = 1;
-	static FAutoConsoleVariableRef CVarApplyAsyncSleepState(TEXT("p.ApplyAsyncSleepState"), ApplyAsyncSleepState, TEXT(""));
 }
 
 namespace PhysicsReplicationCVars
 {
 	static int32 SkipSkeletalRepOptimization = 1;
 	static FAutoConsoleVariableRef CVarSkipSkeletalRepOptimization(TEXT("p.SkipSkeletalRepOptimization"), SkipSkeletalRepOptimization, TEXT("If true, we don't move the skeletal mesh component during replication. This is ok because the skeletal mesh already polls physx after its results"));
-}
-
-#if WITH_CHAOS
-struct FAsyncPhysicsRepCallbackData : public Chaos::FSimCallbackInput
-{
-	TArray<FAsyncPhysicsDesiredState> Buffer;
-	float LinearVelocityCoefficient;
-	float AngularVelocityCoefficient;
-	float PositionLerp;
-	float AngleLerp;
-
-	void Reset()
-	{
-		Buffer.Reset();
-	}
-};
-
-class FPhysicsReplicationAsyncCallback final : public Chaos::TSimCallbackObject<FAsyncPhysicsRepCallbackData>
-{
-	virtual Chaos::FSimCallbackNoOutput* OnPreSimulate_Internal(const float SimStart, const float DeltaSeconds, const TArrayView<const Chaos::FSimCallbackInput*>& Inputs) override
-	{
-		FPhysicsReplication::ApplyAsyncDesiredState(DeltaSeconds, Inputs);
-		return nullptr;
-	}
-};
-#endif
-
-void ComputeDeltas(const FVector& CurrentPos, const FQuat& CurrentQuat, const FVector& TargetPos, const FQuat& TargetQuat, FVector& OutLinDiff, float& OutLinDiffSize,
-	FVector& OutAngDiffAxis, float& OutAngDiff, float& OutAngDiffSize)
-{
-	OutLinDiff = TargetPos - CurrentPos;
-	OutLinDiffSize = OutLinDiff.Size();
-	const FQuat InvCurrentQuat = CurrentQuat.Inverse();
-	const FQuat DeltaQuat = InvCurrentQuat * TargetQuat;
-	DeltaQuat.ToAxisAndAngle(OutAngDiffAxis, OutAngDiff);
-	OutAngDiff = FMath::RadiansToDegrees(FMath::UnwindRadians(OutAngDiff));
-	OutAngDiffSize = FMath::Abs(OutAngDiff);
-}
-
-FPhysicsReplication::~FPhysicsReplication()
-{
-#if WITH_CHAOS
-	if (AsyncCallback)
-	{
-		if (auto* Solver = PhysScene->GetSolver())
-		{
-			Solver->UnregisterAndFreeSimCallbackObject_External(AsyncCallback);
-		}
-	}
-#endif
 }
 
 bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float PingSecondsOneWay)
@@ -225,6 +165,7 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 	// Get Current state
 	FRigidBodyState CurrentState;
 	BI->GetRigidBodyState(CurrentState);
+	const FQuat InvCurrentQuat = CurrentState.Quaternion.Inverse();
 
 	/////// EXTRAPOLATE APPROXIMATE TARGET VALUES ///////
 
@@ -243,13 +184,15 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 	FQuat TargetQuat = ExtrapolationDeltaQuaternion * NewState.Quaternion;
 
 	/////// COMPUTE DIFFERENCES ///////
-	FVector LinDiff;
-	float LinDiffSize;
+
+	const FVector LinDiff = TargetPos - CurrentState.Position;
+	const float LinDiffSize = LinDiff.Size();
 	FVector AngDiffAxis;
 	float AngDiff;
-	float AngDiffSize;
-
-	ComputeDeltas(CurrentState.Position, CurrentState.Quaternion, TargetPos, TargetQuat, LinDiff, LinDiffSize, AngDiffAxis, AngDiff, AngDiffSize);
+	const FQuat DeltaQuat = InvCurrentQuat * TargetQuat;
+	DeltaQuat.ToAxisAndAngle(AngDiffAxis, AngDiff);
+	AngDiff = FMath::RadiansToDegrees(FMath::UnwindRadians(AngDiff));
+	const float AngDiffSize = FMath::Abs(AngDiff);
 
 	/////// ACCUMULATE ERROR IF NOT APPROACHING SOLUTION ///////
 
@@ -313,57 +256,31 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 			LinDiffSize > MaxLinearHardSnapDistance ||
 			PhysicsTarget.AccumulatedErrorSeconds > ErrorAccumulationSeconds ||
 			CharacterMovementCVars::AlwaysHardSnap;
-
-		const FTransform IdealWorldTM(TargetQuat, TargetPos);
-
 		if (bHardSnap)
 		{
-			// Too much error so just snap state here and be done with it
 			PhysicsTarget.AccumulatedErrorSeconds = 0.0f;
 			bRestoredState = true;
-
-			BI->SetBodyTransform(IdealWorldTM, ETeleportType::ResetPhysics, bAutoWake);
-
-			// Set the new velocities
-			BI->SetLinearVelocity(NewState.LinVel, false, bAutoWake);
-			BI->SetAngularVelocityInRadians(FMath::DegreesToRadians(NewState.AngVel), false, bAutoWake);
-		}
-		else
-		{
-			// Small enough error to interpolate
-#if WITH_CHAOS
-			if (AsyncCallback == nullptr)	//sync case
-#endif
-			{
-				const FVector NewLinVel = FVector(NewState.LinVel) + (LinDiff * LinearVelocityCoefficient * DeltaSeconds);
-				const FVector NewAngVel = FVector(NewState.AngVel) + (AngDiffAxis * AngDiff * AngularVelocityCoefficient * DeltaSeconds);
-
-				const FVector NewPos = FMath::Lerp(FVector(CurrentState.Position), FVector(TargetPos), PositionLerp);
-				const FQuat NewAng = FQuat::Slerp(CurrentState.Quaternion, TargetQuat, AngleLerp);
-
-				BI->SetBodyTransform(FTransform(NewAng, NewPos), ETeleportType::ResetPhysics);
-				BI->SetLinearVelocity(NewLinVel, false);
-				BI->SetAngularVelocityInRadians(FMath::DegreesToRadians(NewAngVel), false);
-			}
-#if WITH_CHAOS
-			else
-			{
-				//If async is used, enqueue for callback
-				FAsyncPhysicsDesiredState AsyncDesiredState;
-				AsyncDesiredState.WorldTM = IdealWorldTM;
-				AsyncDesiredState.LinearVelocity = NewState.LinVel;
-				AsyncDesiredState.AngularVelocity = NewState.AngVel;
-				AsyncDesiredState.Proxy = static_cast<FRigidParticlePhysicsProxy*>(BI->GetPhysicsActorHandle()->GetProxy());
-				AsyncDesiredState.bShouldSleep = bShouldSleep;
-
-				CurAsyncData->Buffer.Add(AsyncDesiredState);
-			}
-
-
-#endif
 		}
 
-		// Should we show the async part?
+		/////// SIMPLE EXPONENTIAL MATCH ///////
+
+		const FVector NewLinVel = bHardSnap ? FVector(NewState.LinVel) : FVector(NewState.LinVel) + (LinDiff * LinearVelocityCoefficient * DeltaSeconds);
+		const FVector NewAngVel = bHardSnap ? FVector(NewState.AngVel) : FVector(NewState.AngVel) + (AngDiffAxis * AngDiff * AngularVelocityCoefficient * DeltaSeconds);
+
+		const FVector NewPos = FMath::Lerp(CurrentState.Position, TargetPos, bHardSnap ? 1.0f : PositionLerp);
+		const FQuat NewAng = FQuat::Slerp(CurrentState.Quaternion, TargetQuat, bHardSnap ? 1.0f : AngleLerp);
+
+		/////// UPDATE BODY ///////
+
+		// Set the new transform
+		const bool bResetPhysics = CharacterMovementCVars::AlwaysResetPhysics || bHardSnap;
+		const ETeleportType PhysicsTeleportMode = bResetPhysics ? ETeleportType::ResetPhysics : ETeleportType::TeleportPhysics;
+		BI->SetBodyTransform(FTransform(NewAng, NewPos), PhysicsTeleportMode, bAutoWake);
+
+		// Set the new velocities
+		BI->SetLinearVelocity(NewLinVel, false, bAutoWake);
+		BI->SetAngularVelocityInRadians(FMath::DegreesToRadians(NewAngVel), false, bAutoWake);
+
 #if !UE_BUILD_SHIPPING
 		if (CharacterMovementCVars::NetShowCorrections != 0)
 		{
@@ -375,10 +292,7 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 			{
 				FColor Color = FColor::White;
 				DrawDebugDirectionalArrow(OwningWorld, CurrentState.Position, TargetPos, 5.0f, Color, true, CharacterMovementCVars::NetCorrectionLifetime, 0, 1.5f);
-#if 0
-				//todo: do we show this in async mode?
 				DrawDebugFloatHistory(*OwningWorld, PhysicsTarget.ErrorHistory, NewPos + FVector(0.0f, 0.0f, 100.0f), FVector2D(100.0f, 50.0f), FColor::White);
-#endif
 			}
 		}
 #endif
@@ -388,7 +302,6 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 
 	if (bShouldSleep)
 	{
-		//question: should this be here in async mode?
 		BI->PutInstanceToSleep();
 	}
 
@@ -455,13 +368,6 @@ float FPhysicsReplication::GetOwnerPing(const AActor* const Owner, const FReplic
 void FPhysicsReplication::OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimitiveComponent>, FReplicatedPhysicsTarget>& ComponentsToTargets)
 {
 	const FRigidBodyErrorCorrection& PhysicErrorCorrection = UPhysicsSettings::Get()->PhysicErrorCorrection;
-#if WITH_CHAOS
-	using namespace Chaos;
-	if(AsyncCallback)
-	{
-		PrepareAsyncData_External(PhysicErrorCorrection);
-	}
-#endif
 
 	// Get the ping between this PC & the server
 	const float LocalPing = GetLocalPing();
@@ -518,10 +424,6 @@ void FPhysicsReplication::OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimit
 			Itr.RemoveCurrent();
 		}
 	}
-
-#if WITH_CHAOS
-	CurAsyncData = nullptr;
-#endif
 }
 
 void FPhysicsReplication::Tick(float DeltaSeconds)
@@ -530,97 +432,10 @@ void FPhysicsReplication::Tick(float DeltaSeconds)
 }
 
 FPhysicsReplication::FPhysicsReplication(FPhysScene* InPhysicsScene)
-: PhysScene(InPhysicsScene)
+	: PhysScene(InPhysicsScene)
 {
-#if WITH_CHAOS
-	using namespace Chaos;
-	CurAsyncData = nullptr;
-	AsyncCallback = nullptr;
-	if (auto* Solver = PhysScene->GetSolver())
-	{
-		if(Solver->IsUsingAsyncResults())
-		{
-			AsyncCallback = Solver->CreateAndRegisterSimCallbackObject_External<FPhysicsReplicationAsyncCallback>();
-		}
-	}
-#endif
+
 }
-
-#if WITH_CHAOS
-
-void FPhysicsReplication::PrepareAsyncData_External(const FRigidBodyErrorCorrection& ErrorCorrection)
-{
-	//todo move this logic into a common function?
-	const float PositionLerp = CharacterMovementCVars::PositionLerp >= 0.0f ? CharacterMovementCVars::PositionLerp : ErrorCorrection.PositionLerp;
-	const float LinearVelocityCoefficient = CharacterMovementCVars::LinearVelocityCoefficient >= 0.0f ? CharacterMovementCVars::LinearVelocityCoefficient : ErrorCorrection.LinearVelocityCoefficient;
-	const float AngleLerp = CharacterMovementCVars::AngleLerp >= 0.0f ? CharacterMovementCVars::AngleLerp : ErrorCorrection.AngleLerp;
-	const float AngularVelocityCoefficient = CharacterMovementCVars::AngularVelocityCoefficient >= 0.0f ? CharacterMovementCVars::AngularVelocityCoefficient : ErrorCorrection.AngularVelocityCoefficient;
-
-	CurAsyncData = AsyncCallback->GetProducerInputData_External();
-	CurAsyncData->PositionLerp = PositionLerp;
-	CurAsyncData->AngleLerp = AngleLerp;
-	CurAsyncData->LinearVelocityCoefficient = LinearVelocityCoefficient;
-	CurAsyncData->AngularVelocityCoefficient = AngularVelocityCoefficient;
-}
-
-void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const TArrayView<const Chaos::FSimCallbackInput*>& IntervalData)
-{
-	//just take latest data since if the target is not there, we must have resolved target
-	using namespace Chaos;
-	if(IntervalData.Num() > 0)
-	{
-		const FSimCallbackInput* CallbackData = IntervalData.Last();
-		const FAsyncPhysicsRepCallbackData* AsyncData = static_cast<const FAsyncPhysicsRepCallbackData*>(CallbackData);
-
-		const float LinearVelocityCoefficient = AsyncData->LinearVelocityCoefficient;
-		const float AngularVelocityCoefficient = AsyncData->AngularVelocityCoefficient;
-		const float PositionLerp = AsyncData->PositionLerp;
-		const float AngleLerp = AsyncData->AngleLerp;
-
-		for (const FAsyncPhysicsDesiredState& State : AsyncData->Buffer)
-		{
-			//Proxy should exist because we are using latest and any pending deletes would have been enqueued after
-			FRigidParticlePhysicsProxy* Proxy = State.Proxy;
-			TPBDRigidParticleHandle<float, 3>* Handle = Proxy->GetHandle();
-			const FVector TargetPos = State.WorldTM.GetLocation();
-			const FQuat TargetQuat = State.WorldTM.GetRotation();
-
-			// Get Current state
-			FRigidBodyState CurrentState;
-			CurrentState.Position = Handle->X();
-			CurrentState.Quaternion = Handle->R();
-			CurrentState.AngVel = Handle->W();
-			CurrentState.LinVel = Handle->V();
-
-			FVector LinDiff;
-			float LinDiffSize;
-			FVector AngDiffAxis;
-			float AngDiff;
-			float AngDiffSize;
-			ComputeDeltas(CurrentState.Position, CurrentState.Quaternion, TargetPos, TargetQuat, LinDiff, LinDiffSize, AngDiffAxis, AngDiff, AngDiffSize);
-
-			const FVector NewLinVel = FVector(State.LinearVelocity) + (LinDiff * LinearVelocityCoefficient * DeltaSeconds);
-			const FVector NewAngVel = FVector(State.AngularVelocity) + (AngDiffAxis * AngDiff * AngularVelocityCoefficient * DeltaSeconds);
-
-			const FVector NewPos = FMath::Lerp(FVector(CurrentState.Position), TargetPos, PositionLerp);
-			const FQuat NewAng = FQuat::Slerp(CurrentState.Quaternion, TargetQuat, AngleLerp);
-
-			Handle->SetX(NewPos);
-			Handle->SetR(NewAng);
-			Handle->SetV(NewLinVel);
-			Handle->SetW(FMath::DegreesToRadians(NewAngVel));
-
-			EObjectStateType ObjectStateType = EObjectStateType::Dynamic;
-			if ((CharacterMovementCVars::ApplyAsyncSleepState != 0) && State.bShouldSleep)
-			{
-				ObjectStateType = EObjectStateType::Sleeping;
-			}
-			auto* Solver = Proxy->GetSolver<FPBDRigidsSolver>();
-			Solver->GetEvolution()->SetParticleObjectState(Handle, ObjectStateType);
-		}
-	}
-}
-#endif
 
 void FPhysicsReplication::SetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget)
 {

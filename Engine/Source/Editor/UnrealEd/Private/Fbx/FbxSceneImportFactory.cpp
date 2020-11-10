@@ -1262,7 +1262,7 @@ bool UFbxSceneImportFactory::SetStaticMeshComponentOverrideMaterial(UStaticMeshC
 {
 	bool bOverrideMaterial = false;
 	UStaticMesh *StaticMesh = StaticMeshComponent->GetStaticMesh();
-	if (StaticMesh->GetStaticMaterials().Num() == NodeInfo->Materials.Num())
+	if (StaticMesh->StaticMaterials.Num() == NodeInfo->Materials.Num())
 	{
 		for (int32 MaterialIndex = 0; MaterialIndex < NodeInfo->Materials.Num(); ++MaterialIndex)
 		{

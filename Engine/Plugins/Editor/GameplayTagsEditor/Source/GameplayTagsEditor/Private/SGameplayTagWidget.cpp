@@ -529,7 +529,10 @@ TSharedRef<ITableRow> SGameplayTagWidget::OnGenerateRow(TSharedPtr<FGameplayTagN
 				.ContentPadding(0)
 				.ForegroundColor(FSlateColor::UseForeground())
 				.HasDownArrow(true)
-				.OnGetMenuContent(this, &SGameplayTagWidget::MakeTagActionsMenu, InItem)
+				.MenuContent()
+				[
+					MakeTagActionsMenu(InItem)
+				]
 			]
 		];
 }
@@ -887,9 +890,7 @@ TSharedRef<SWidget> SGameplayTagWidget::MakeTagActionsMenu(TSharedPtr<FGameplayT
 		bShowManagement = false;
 	}
 
-	// Do not close menu after selection. The close deletes this widget before action is executed leading to no action being performed.
-	// Occurs when SGameplayTagWidget is being used as a menu item itself (Details panel of blueprint editor for example).
-	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/ false, nullptr);
+	FMenuBuilder MenuBuilder(true, nullptr);
 
 	// Rename
 	if (bShowManagement)

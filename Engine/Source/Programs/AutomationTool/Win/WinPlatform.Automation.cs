@@ -523,7 +523,7 @@ public abstract class BaseWinPlatform : Platform
 		return false;
 	}
 
-	public override string[] SymbolServerDirectoryStructure
+    public override string[] SymbolServerDirectoryStructure
     {
         get
         {

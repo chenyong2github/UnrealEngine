@@ -1124,7 +1124,7 @@ void FMediaPlayerFacade::ProcessEvent(EMediaEvent Event)
 			CurrentUrl.Empty();
 		}
 
-		const FString MediaInfo = Player.IsValid() ? Player->GetInfo() : TEXT("");
+		const FString MediaInfo = Player->GetInfo();
 
 		if (MediaInfo.IsEmpty())
 		{

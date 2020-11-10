@@ -22,7 +22,8 @@
 		);
 
 class FOpenColorIOTransformResource;
-class FOpenColorIOShaderCompileJob;
+class FShaderCommonCompileJob;
+class FShaderCompileJob;
 class FUniformExpressionSet;
 
 
@@ -45,18 +46,18 @@ struct FOpenColorIOShaderPermutationParameters : public FShaderPermutationParame
 class FOpenColorIOShaderType : public FShaderType
 {
 public:
-	struct CompiledShaderInitializerType : FShaderCompiledShaderInitializerType
+	struct CompiledShaderInitializerType : FGlobalShaderType::CompiledShaderInitializerType
 	{
 		const FString DebugDescription;
 
 		CompiledShaderInitializerType(
-			const FShaderType* InType,
+			FShaderType* InType,
 			int32 InPermutationId,
 			const FShaderCompilerOutput& CompilerOutput,
 			const FSHAHash& InOCIOShaderMapHash,
 			const FString& InDebugDescription
 			)
-		: FShaderCompiledShaderInitializerType(InType,InPermutationId,CompilerOutput, InOCIOShaderMapHash,nullptr,nullptr)
+		: FGlobalShaderType::CompiledShaderInitializerType(InType,InPermutationId,CompilerOutput, InOCIOShaderMapHash,nullptr,nullptr)
 		, DebugDescription(InDebugDescription)
 		{}
 	};
@@ -92,12 +93,12 @@ public:
 	 * Enqueues a compilation for a new shader of this type.
 	 * @param InColorTransform - The ColorTransform to link the shader with.
 	 */
-	class FOpenColorIOShaderCompileJob* BeginCompileShader(
+	class FShaderCompileJob* BeginCompileShader(
 			uint32 ShaderMapId,
 			const FOpenColorIOTransformResource* InColorTransform,
-			FSharedShaderCompilerEnvironment* CompilationEnvironment,
+			FShaderCompilerEnvironment* CompilationEnvironment,
 			EShaderPlatform Platform,
-			TArray<TSharedRef<FOpenColorIOShaderCompileJob, ESPMode::ThreadSafe>>& NewJobs,
+			TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 			FShaderTarget Target
 		);
 
@@ -107,7 +108,7 @@ public:
 	 */
 	FShader* FinishCompileShader(
 		const FSHAHash& InOCIOShaderMapHash,
-		const FOpenColorIOShaderCompileJob& CurrentJob,
+		const FShaderCompileJob& CurrentJob,
 		const FString& InDebugDescription
 		);
 

@@ -666,9 +666,9 @@ void AWaterBody::SetWaterWavesInternal(UWaterWavesBase* InWaterWaves, bool bTrig
 		// Waves data can affect the navigation: 
 		if (bTriggerWaterBodyChanged)
 		{
-		OnWaterBodyChanged(/*bShapeOrPositionChanged = */true);
+			OnWaterBodyChanged(/*bShapeOrPositionChanged = */true);
+		}
 	}
-}
 }
 
 // Our transient MIDs are per-object and shall not survive duplicating nor be exported to text when copy-pasting : 
@@ -1291,11 +1291,9 @@ void AWaterBody::PostLoad()
 				if (OldWaveStructProperty != nullptr)
 				{
 					void* OldPropertyOnWaveSpectrumSettings = OldWaveStructProperty->ContainerPtrToValuePtr<void>(this);
-					// We need to propagate object flags to the sub objects (if we deprecate an archetype's data, it is public and its sub-object need to be as well) :
-					EObjectFlags NewFlags = GetMaskedFlags(RF_PropagateToSubObjects);
-					UGerstnerWaterWaves* GerstnerWaves = NewObject<UGerstnerWaterWaves>(this, MakeUniqueObjectName(this, UGerstnerWaterWaves::StaticClass(), TEXT("GestnerWaterWaves")), NewFlags);
+					UGerstnerWaterWaves* GerstnerWaves = NewObject<UGerstnerWaterWaves>(this, MakeUniqueObjectName(this, UGerstnerWaterWaves::StaticClass(), TEXT("GestnerWaterWaves")));
 					UClass* NewGerstnerClass = UGerstnerWaterWaveGeneratorSimple::StaticClass();
-					UGerstnerWaterWaveGeneratorSimple* GerstnerWavesGenerator = NewObject<UGerstnerWaterWaveGeneratorSimple>(this, MakeUniqueObjectName(this, NewGerstnerClass, TEXT("GestnerWaterWavesGenerator")), NewFlags);
+					UGerstnerWaterWaveGeneratorSimple* GerstnerWavesGenerator = NewObject<UGerstnerWaterWaveGeneratorSimple>(this, MakeUniqueObjectName(this, NewGerstnerClass, TEXT("GestnerWaterWavesGenerator")));
 					GerstnerWaves->GerstnerWaveGenerator = GerstnerWavesGenerator;
 					SetWaterWavesInternal(GerstnerWaves, /*bTriggerWaterBodyChanged = */false); // we're in PostLoad, we don't want to send the water body changed event as it might re-enter into BP script
 

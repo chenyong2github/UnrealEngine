@@ -168,9 +168,9 @@ void FStaticMeshEditor::InitEditorForStaticMesh(UStaticMesh* ObjectToEdit)
 
 	// Support undo/redo
 	ObjectToEdit->SetFlags( RF_Transactional );
-	if (ObjectToEdit->GetNavCollision())
+	if (ObjectToEdit->NavCollision)
 	{
-		ObjectToEdit->GetNavCollision()->SetFlags(RF_Transactional);
+		ObjectToEdit->NavCollision->SetFlags(RF_Transactional);
 	}
 
 	GEditor->RegisterForUndo( this );
@@ -954,9 +954,9 @@ void FStaticMeshEditor::RequestRenameSelectedSocket()
 
 bool FStaticMeshEditor::IsPrimValid(const FPrimData& InPrimData) const
 {
-	if (StaticMesh->GetBodySetup())
+	if (StaticMesh->BodySetup)
 	{
-		const FKAggregateGeom* AggGeom = &StaticMesh->GetBodySetup()->AggGeom;
+		const FKAggregateGeom* AggGeom = &StaticMesh->BodySetup->AggGeom;
 
 		switch (InPrimData.PrimType)
 		{
@@ -1027,15 +1027,15 @@ void FStaticMeshEditor::DuplicateSelectedPrims(const FVector* InOffset)
 {
 	if (SelectedPrims.Num() > 0)
 	{
-		check(StaticMesh->GetBodySetup());
+		check(StaticMesh->BodySetup);
 
-		FKAggregateGeom* AggGeom = &StaticMesh->GetBodySetup()->AggGeom;
+		FKAggregateGeom* AggGeom = &StaticMesh->BodySetup->AggGeom;
 
 		GEditor->BeginTransaction(LOCTEXT("FStaticMeshEditor_DuplicateSelectedPrims", "Duplicate Collision"));
-		StaticMesh->GetBodySetup()->Modify();
+		StaticMesh->BodySetup->Modify();
 
 		//Clear the cache (PIE may have created some data), create new GUID
-		StaticMesh->GetBodySetup()->InvalidatePhysicsData();
+		StaticMesh->BodySetup->InvalidatePhysicsData();
 
 		for (int32 PrimIdx = 0; PrimIdx < SelectedPrims.Num(); PrimIdx++)
 		{
@@ -1098,8 +1098,8 @@ void FStaticMeshEditor::DuplicateSelectedPrims(const FVector* InOffset)
 
 void FStaticMeshEditor::TranslateSelectedPrims(const FVector& InDrag)
 {
-	check(StaticMesh->GetBodySetup());
-	StaticMesh->GetBodySetup()->InvalidatePhysicsData();
+	check(StaticMesh->BodySetup);
+	StaticMesh->BodySetup->InvalidatePhysicsData();
 
 	for (int32 PrimIdx = 0; PrimIdx < SelectedPrims.Num(); PrimIdx++)
 	{
@@ -1120,8 +1120,8 @@ void FStaticMeshEditor::TranslateSelectedPrims(const FVector& InDrag)
 
 void FStaticMeshEditor::RotateSelectedPrims(const FRotator& InRot)
 {
-	check(StaticMesh->GetBodySetup());
-	StaticMesh->GetBodySetup()->InvalidatePhysicsData();
+	check(StaticMesh->BodySetup);
+	StaticMesh->BodySetup->InvalidatePhysicsData();
 
 	const FQuat DeltaQ = InRot.Quaternion();
 
@@ -1148,10 +1148,10 @@ void FStaticMeshEditor::RotateSelectedPrims(const FRotator& InRot)
 
 void FStaticMeshEditor::ScaleSelectedPrims(const FVector& InScale)
 {
-	check(StaticMesh->GetBodySetup());
-	StaticMesh->GetBodySetup()->InvalidatePhysicsData();
+	check(StaticMesh->BodySetup);
+	StaticMesh->BodySetup->InvalidatePhysicsData();
 
-	FKAggregateGeom* AggGeom = &StaticMesh->GetBodySetup()->AggGeom;
+	FKAggregateGeom* AggGeom = &StaticMesh->BodySetup->AggGeom;
 
 	FVector ModifiedScale = InScale;
 	if (GEditor->UsePercentageBasedScaling())
@@ -1192,9 +1192,9 @@ void FStaticMeshEditor::ScaleSelectedPrims(const FVector& InScale)
 
 bool FStaticMeshEditor::CalcSelectedPrimsAABB(FBox &OutBox) const
 {
-	check(StaticMesh->GetBodySetup());
+	check(StaticMesh->BodySetup);
 
-	FKAggregateGeom* AggGeom = &StaticMesh->GetBodySetup()->AggGeom;
+	FKAggregateGeom* AggGeom = &StaticMesh->BodySetup->AggGeom;
 
 	for (int32 PrimIdx = 0; PrimIdx < SelectedPrims.Num(); PrimIdx++)
 	{
@@ -1224,9 +1224,9 @@ bool FStaticMeshEditor::GetLastSelectedPrimTransform(FTransform& OutTransform) c
 {
 	if (SelectedPrims.Num() > 0)
 	{
-		check(StaticMesh->GetBodySetup());
+		check(StaticMesh->BodySetup);
 
-		const FKAggregateGeom* AggGeom = &StaticMesh->GetBodySetup()->AggGeom;
+		const FKAggregateGeom* AggGeom = &StaticMesh->BodySetup->AggGeom;
 
 		const FPrimData& PrimData = SelectedPrims.Last();
 
@@ -1252,9 +1252,9 @@ bool FStaticMeshEditor::GetLastSelectedPrimTransform(FTransform& OutTransform) c
 
 FTransform FStaticMeshEditor::GetPrimTransform(const FPrimData& InPrimData) const
 {
-	check(StaticMesh->GetBodySetup());
+	check(StaticMesh->BodySetup);
 
-	const FKAggregateGeom* AggGeom = &StaticMesh->GetBodySetup()->AggGeom;
+	const FKAggregateGeom* AggGeom = &StaticMesh->BodySetup->AggGeom;
 
 	check(IsPrimValid(InPrimData));
 	switch (InPrimData.PrimType)
@@ -1273,9 +1273,9 @@ FTransform FStaticMeshEditor::GetPrimTransform(const FPrimData& InPrimData) cons
 
 void FStaticMeshEditor::SetPrimTransform(const FPrimData& InPrimData, const FTransform& InPrimTransform) const
 {
-	check(StaticMesh->GetBodySetup());
+	check(StaticMesh->BodySetup);
 
-	FKAggregateGeom* AggGeom = &StaticMesh->GetBodySetup()->AggGeom;
+	FKAggregateGeom* AggGeom = &StaticMesh->BodySetup->AggGeom;
 
 	check(IsPrimValid(InPrimData));
 	switch (InPrimData.PrimType)
@@ -1299,9 +1299,9 @@ void FStaticMeshEditor::SetPrimTransform(const FPrimData& InPrimData, const FTra
 
 bool FStaticMeshEditor::OverlapsExistingPrim(const FPrimData& InPrimData) const
 {
-	check(StaticMesh->GetBodySetup());
+	check(StaticMesh->BodySetup);
 
-	const FKAggregateGeom* AggGeom = &StaticMesh->GetBodySetup()->AggGeom;
+	const FKAggregateGeom* AggGeom = &StaticMesh->BodySetup->AggGeom;
 
 	// Assume that if the transform of the prim is the same, then it overlaps (FKConvexElem doesn't have an operator==, and no shape takes tolerances into account)
 	check(IsPrimValid(InPrimData));
@@ -1489,12 +1489,12 @@ void FStaticMeshEditor::UpdateLODStats(int32 CurrentLOD)
 	NumUVChannels[CurrentLOD] = 0; //-V781
 	int32 NumLODLevels = 0;
 
-	if( StaticMesh->GetRenderData())
+	if( StaticMesh->RenderData )
 	{
-		NumLODLevels = StaticMesh->GetRenderData()->LODResources.Num();
+		NumLODLevels = StaticMesh->RenderData->LODResources.Num();
 		if (CurrentLOD >= 0 && CurrentLOD < NumLODLevels)
 		{
-			FStaticMeshLODResources& LODModel = StaticMesh->GetRenderData()->LODResources[CurrentLOD];
+			FStaticMeshLODResources& LODModel = StaticMesh->RenderData->LODResources[CurrentLOD];
 			NumTriangles[CurrentLOD] = LODModel.GetNumTriangles();
 			NumVertices[CurrentLOD] = LODModel.GetNumVertices();
 			NumUVChannels[CurrentLOD] = LODModel.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
@@ -1591,7 +1591,7 @@ void FStaticMeshEditor::GenerateKDop(const FVector* Directions, uint32 NumDirect
 	const int32 PrimIndex = GenerateKDopAsSimpleCollision(StaticMesh, DirArray);
 	if (PrimIndex != INDEX_NONE)
 	{
-		StaticMesh->GetBodySetup()->AggGeom.ConvexElems[PrimIndex].bIsGenerated = true;
+		StaticMesh->BodySetup->AggGeom.ConvexElems[PrimIndex].bIsGenerated = true;
 	}
 	GEditor->EndTransaction();
 	if (PrimIndex != INDEX_NONE)
@@ -1615,7 +1615,7 @@ void FStaticMeshEditor::OnCollisionBox()
 	const int32 PrimIndex = GenerateBoxAsSimpleCollision(StaticMesh);
 	if (PrimIndex != INDEX_NONE)
 	{
-		StaticMesh->GetBodySetup()->AggGeom.BoxElems[PrimIndex].bIsGenerated = true;
+		StaticMesh->BodySetup->AggGeom.BoxElems[PrimIndex].bIsGenerated = true;
 	}
 	GEditor->EndTransaction();
 	if (PrimIndex != INDEX_NONE)
@@ -1642,7 +1642,7 @@ void FStaticMeshEditor::OnCollisionSphere()
 	const int32 PrimIndex = GenerateSphereAsSimpleCollision(StaticMesh);
 	if (PrimIndex != INDEX_NONE)
 	{
-		StaticMesh->GetBodySetup()->AggGeom.SphereElems[PrimIndex].bIsGenerated = true;
+		StaticMesh->BodySetup->AggGeom.SphereElems[PrimIndex].bIsGenerated = true;
 	}
 	GEditor->EndTransaction();
 	if (PrimIndex != INDEX_NONE)
@@ -1669,7 +1669,7 @@ void FStaticMeshEditor::OnCollisionSphyl()
 	const int32 PrimIndex = GenerateSphylAsSimpleCollision(StaticMesh);
 	if (PrimIndex != INDEX_NONE)
 	{
-		StaticMesh->GetBodySetup()->AggGeom.SphylElems[PrimIndex].bIsGenerated = true;
+		StaticMesh->BodySetup->AggGeom.SphylElems[PrimIndex].bIsGenerated = true;
 	}
 	GEditor->EndTransaction();
 	if (PrimIndex != INDEX_NONE)
@@ -1692,7 +1692,7 @@ void FStaticMeshEditor::OnCollisionSphyl()
 
 void FStaticMeshEditor::OnRemoveCollision(void)
 {
-	UBodySetup* BS = StaticMesh->GetBodySetup();
+	UBodySetup* BS = StaticMesh->BodySetup;
 	check(BS != NULL && BS->AggGeom.GetElementCount() > 0);
 
 	ClearSelectedPrims();
@@ -1701,9 +1701,9 @@ void FStaticMeshEditor::OnRemoveCollision(void)
 	FlushRenderingCommands();
 
 	GEditor->BeginTransaction(LOCTEXT("FStaticMeshEditor_RemoveCollision", "Remove Collision"));
-	StaticMesh->GetBodySetup()->Modify();
+	StaticMesh->BodySetup->Modify();
 
-	StaticMesh->GetBodySetup()->RemoveSimpleCollision();
+	StaticMesh->BodySetup->RemoveSimpleCollision();
 
 	GEditor->EndTransaction();
 
@@ -1721,7 +1721,7 @@ void FStaticMeshEditor::OnRemoveCollision(void)
 
 bool FStaticMeshEditor::CanRemoveCollision()
 {
-	UBodySetup* BS = StaticMesh->GetBodySetup();
+	UBodySetup* BS = StaticMesh->BodySetup;
 	return (BS != NULL && BS->AggGeom.GetElementCount() > 0);
 }
 
@@ -1749,12 +1749,12 @@ static void AddVertexIfNotPresent(TArray<FVector>& Vertices, const FVector& NewV
 void FStaticMeshEditor::OnConvertBoxToConvexCollision()
 {
 	// If we have a collision model for this staticmesh, ask if we want to replace it.
-	if (StaticMesh->GetBodySetup())
+	if (StaticMesh->BodySetup != NULL)
 	{
 		int32 ShouldReplace = FMessageDialog::Open( EAppMsgType::YesNo, LOCTEXT("ConvertBoxCollisionPrompt", "Are you sure you want to convert all box collision?") );
 		if (ShouldReplace == EAppReturnType::Yes)
 		{
-			UBodySetup* BodySetup = StaticMesh->GetBodySetup();
+			UBodySetup* BodySetup = StaticMesh->BodySetup;
 
 			int32 NumBoxElems = BodySetup->AggGeom.BoxElems.Num();
 			if (NumBoxElems > 0)
@@ -1791,7 +1791,7 @@ void FStaticMeshEditor::OnConvertBoxToConvexCollision()
 				BodySetup->CreatePhysicsMeshes();
 
 				// Select the new prims
-				FKAggregateGeom* AggGeom = &StaticMesh->GetBodySetup()->AggGeom;
+				FKAggregateGeom* AggGeom = &StaticMesh->BodySetup->AggGeom;
 				for (int32 i = 0; i < NumBoxElems; ++i)
 				{
 					AddSelectedPrim(FPrimData(EAggCollisionShape::Convex, (AggGeom->ConvexElems.Num() - (i+1))), false);
@@ -1813,9 +1813,9 @@ void FStaticMeshEditor::OnConvertBoxToConvexCollision()
 void FStaticMeshEditor::OnCopyCollisionFromSelectedStaticMesh()
 {
 	UStaticMesh* SelectedMesh = GetFirstSelectedStaticMeshInContentBrowser();
-	check(SelectedMesh && SelectedMesh != StaticMesh && SelectedMesh->GetBodySetup());
+	check(SelectedMesh && SelectedMesh != StaticMesh && SelectedMesh->BodySetup != NULL);
 
-	UBodySetup* BodySetup = StaticMesh->GetBodySetup();
+	UBodySetup* BodySetup = StaticMesh->BodySetup;
 
 	ClearSelectedPrims();
 
@@ -1826,7 +1826,7 @@ void FStaticMeshEditor::OnCopyCollisionFromSelectedStaticMesh()
 	BodySetup->Modify();
 
 	// Copy body properties from
-	BodySetup->CopyBodyPropertiesFrom(SelectedMesh->GetBodySetup());
+	BodySetup->CopyBodyPropertiesFrom(SelectedMesh->BodySetup);
 
 	// Enable collision, if not already
 	if( !GetStaticMeshViewport()->GetViewportClient().IsShowSimpleCollisionChecked() )
@@ -1866,7 +1866,7 @@ bool FStaticMeshEditor::CanCopyCollisionFromSelectedStaticMesh() const
 		if(Asset.GetClass() == UStaticMesh::StaticClass())
 		{
 			UStaticMesh* SelectedMesh = Cast<UStaticMesh>(Asset.GetAsset());
-			if(SelectedMesh && SelectedMesh != StaticMesh && SelectedMesh->GetBodySetup())
+			if(SelectedMesh && SelectedMesh != StaticMesh && SelectedMesh->BodySetup != NULL)
 			{
 				CanCopy = true;
 			}
@@ -1994,9 +1994,9 @@ void FStaticMeshEditor::OnSaveGeneratedLODs()
 void FStaticMeshEditor::DoDecomp(uint32 InHullCount, int32 InMaxHullVerts, uint32 InHullPrecision)
 {
 	// Check we have a selected StaticMesh
-	if(StaticMesh && StaticMesh->GetRenderData())
+	if(StaticMesh && StaticMesh->RenderData)
 	{
-		FStaticMeshLODResources& LODModel = StaticMesh->GetRenderData()->LODResources[0];
+		FStaticMeshLODResources& LODModel = StaticMesh->RenderData->LODResources[0];
 
 		// Start a busy cursor so the user has feedback while waiting
 		const FScopedBusyCursor BusyCursor;
@@ -2033,7 +2033,7 @@ void FStaticMeshEditor::DoDecomp(uint32 InHullCount, int32 InMaxHullVerts, uint3
 		FlushRenderingCommands();
 
 		// Get the BodySetup we are going to put the collision into
-		UBodySetup* bs = StaticMesh->GetBodySetup();
+		UBodySetup* bs = StaticMesh->BodySetup;
 		if(bs)
 		{
 			bs->RemoveSimpleCollision();
@@ -2042,7 +2042,7 @@ void FStaticMeshEditor::DoDecomp(uint32 InHullCount, int32 InMaxHullVerts, uint3
 		{
 			// Otherwise, create one here.
 			StaticMesh->CreateBodySetup();
-			bs = StaticMesh->GetBodySetup();
+			bs = StaticMesh->BodySetup;
 		}
 
 		// Run actual util to do the work (if we have some valid input)
@@ -2140,12 +2140,12 @@ void FStaticMeshEditor::DeleteSelectedPrims()
 		};
 		SelectedPrims.Sort(FCompareFPrimDataPrimIndex());
 
-		check(StaticMesh->GetBodySetup());
+		check(StaticMesh->BodySetup);
 
-		FKAggregateGeom* AggGeom = &StaticMesh->GetBodySetup()->AggGeom;
+		FKAggregateGeom* AggGeom = &StaticMesh->BodySetup->AggGeom;
 
 		GEditor->BeginTransaction(LOCTEXT("FStaticMeshEditor_DeleteSelectedPrims", "Delete Collision"));
-		StaticMesh->GetBodySetup()->Modify();
+		StaticMesh->BodySetup->Modify();
 
 		for (int32 PrimIdx = SelectedPrims.Num() - 1; PrimIdx >= 0; PrimIdx--)
 		{
@@ -2177,7 +2177,7 @@ void FStaticMeshEditor::DeleteSelectedPrims()
 		FlushRenderingCommands();
 
 		// Make sure to invalidate cooked data
-		StaticMesh->GetBodySetup()->InvalidatePhysicsData();
+		StaticMesh->BodySetup->InvalidatePhysicsData();
 
 		// refresh collision change back to staticmesh components
 		RefreshCollisionChange(*StaticMesh);
@@ -2316,9 +2316,9 @@ void FStaticMeshEditor::UnregisterOnPostUndo( SWidget* Widget )
 
 void FStaticMeshEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged )
 {
-	if(StaticMesh && StaticMesh->GetBodySetup())
+	if(StaticMesh && StaticMesh->BodySetup)
 	{
-		StaticMesh->GetBodySetup()->CreatePhysicsMeshes();
+		StaticMesh->BodySetup->CreatePhysicsMeshes();
 		RemoveInvalidPrims();
 
 		if (GET_MEMBER_NAME_CHECKED(UStaticMesh, LODGroup) == PropertyChangedEvent.GetPropertyName())

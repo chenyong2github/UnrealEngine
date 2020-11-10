@@ -36,38 +36,6 @@ FAutoConsoleVariableRef CVarDisableSubmixEQ(
 	TEXT("0: Not Disabled, 1: Disabled"),
 	ECVF_Default);
 
-static int32 DebugGeneratorEnableCVar = 0;
-FAutoConsoleVariableRef CVarDebugGeneratorEnable(
-	TEXT("au.Debug.Generator"),
-	DebugGeneratorEnableCVar,
-	TEXT("Enables/disables debug sound generation.\n")
-	TEXT("0: Disabled, 1: SinTone, 2: WhiteNoise"),
-	ECVF_Default);
-
-static float DebugGeneratorAmpCVar = 0.2f;
-FAutoConsoleVariableRef CVarDebugGeneratorAmp(
-	TEXT("au.Debug.Generator.Amp"),
-	DebugGeneratorAmpCVar,
-	TEXT("Sets.\n")
-	TEXT("Default: 0.2f"),
-	ECVF_Default);
-
-static int32 DebugGeneratorChannelCVar = 0;
-FAutoConsoleVariableRef CVarDebugGeneratorChannel(
-	TEXT("au.Debug.Generator.Channel"),
-	DebugGeneratorChannelCVar,
-	TEXT("Sets channel output index of debug audio.  If number provided is above supported number, uses left.\n")
-	TEXT("0: Left, 1: Right, etc."),
-	ECVF_Default);
-
-static float DebugGeneratorFreqCVar = 440.0f;
-FAutoConsoleVariableRef CVarDebugGeneratorFreq(
-	TEXT("au.Debug.Generator.Freq"),
-	DebugGeneratorFreqCVar,
-	TEXT("Sets debug sound generation frequency.\n")
-	TEXT("0: Not Disabled, 1: SinTone, 2: WhiteNoise"),
-	ECVF_Default);
-
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 
@@ -639,7 +607,6 @@ namespace Audio
 		FMixerSubmixWeakPtr MasterSubmix = GetMasterSubmix();
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, Submixes);
-			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixes);
 
 			FMixerSubmixPtr MasterSubmixPtr = MasterSubmix.Pin();
 			if (MasterSubmixPtr.IsValid())
@@ -651,8 +618,6 @@ namespace Audio
 
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, EndpointSubmixes);
-			SCOPE_CYCLE_COUNTER(STAT_AudioMixerEndpointSubmixes);
-
 			FScopeLock ScopeLock(&EndpointSubmixesMutationLock);
 			for (FMixerSubmixPtr& Submix : DefaultEndpointSubmixes)
 			{
@@ -681,16 +646,9 @@ namespace Audio
 		SourceManager->ClearStoppingSounds();
 
 		// Do any debug output performing
-		if (bDebugOutputEnabled || DebugGeneratorEnableCVar > 0)
+		if (bDebugOutputEnabled)
 		{
-			if (DebugGeneratorEnableCVar < 2)
-			{
-				SineOscTest(Output);
-			}
-			else
-			{
-				WhiteNoiseTest(Output);
-			}
+			SineOscTest(Output);
 		}
 
 		// Update the audio clock
@@ -2224,10 +2182,7 @@ namespace Audio
 		const int32 NumFrames = OpenStreamParams.NumFrames;
 		const int32 NumChannels = PlatformInfo.NumChannels;
 
-		static FWhiteNoise WhiteNoise(DebugGeneratorAmpCVar);
-
-		WhiteNoise.SetScaleAdd(DebugGeneratorAmpCVar, 0.0f);
-
+		static FWhiteNoise WhiteNoise(0.2f);
 
 		for (int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex)
 		{
@@ -2246,34 +2201,18 @@ namespace Audio
 
 		check(NumChannels > 0);
 
-		// Constrain user setting if channel index not supported
-		const int32 ChannelIndex = FMath::Clamp(DebugGeneratorChannelCVar, 0, NumChannels - 1);
-
-		static FSineOsc SineOscLeft(PlatformInfo.SampleRate, DebugGeneratorFreqCVar, DebugGeneratorAmpCVar);
-		static FSineOsc SineOscRight(PlatformInfo.SampleRate, DebugGeneratorFreqCVar / 2.0f, DebugGeneratorAmpCVar);
-
-		SineOscLeft.SetFrequency(DebugGeneratorFreqCVar);
-		SineOscLeft.SetScale(DebugGeneratorAmpCVar);
-
-		if (!DebugGeneratorEnableCVar)
-		{
-			SineOscRight.SetFrequency(DebugGeneratorFreqCVar / 2.0f);
-			SineOscRight.SetScale(DebugGeneratorAmpCVar);
-		}
+		static FSineOsc SineOscLeft(PlatformInfo.SampleRate, 440.0f, 0.2f);
+		static FSineOsc SineOscRight(PlatformInfo.SampleRate, 220.0f, 0.2f);
 
 		for (int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex)
 		{
 			int32 Index = FrameIndex * NumChannels;
 
-			Output[Index + ChannelIndex] += SineOscLeft.ProcessAudio();
+			Output[Index] += SineOscLeft.ProcessAudio();
 
-			// Using au. commands for debug only supports discrete channel
-			if (!DebugGeneratorEnableCVar)
+			if (NumChannels > 1)
 			{
-				if (NumChannels > 1 && DebugGeneratorChannelCVar == 0)
-				{
-					Output[Index + 1] += SineOscRight.ProcessAudio();
-				}
+				Output[Index + 1] += SineOscRight.ProcessAudio();
 			}
 		}
 	}

@@ -366,7 +366,7 @@ void UMeshPaintModeHelpers::ImportVertexColorsToStaticMesh(UStaticMesh* StaticMe
 
 	TUniquePtr< FStaticMeshComponentRecreateRenderStateContext > RecreateRenderStateContext = MakeUnique<FStaticMeshComponentRecreateRenderStateContext>(StaticMesh);
 	const int32 ImportLOD = Options->LODIndex;
-	FStaticMeshLODResources& LODModel = StaticMesh->GetRenderData()->LODResources[ImportLOD];
+	FStaticMeshLODResources& LODModel = StaticMesh->RenderData->LODResources[ImportLOD];
 
 	// Dirty the mesh
 	StaticMesh->Modify();
@@ -417,7 +417,7 @@ void UMeshPaintModeHelpers::ImportVertexColorsToStaticMeshComponent(UStaticMeshC
 		StaticMeshComponent->Modify();
 
 		const int32 ImportLOD = Options->LODIndex;
-		const FStaticMeshLODResources& LODModel = Mesh->GetRenderData()->LODResources[ImportLOD];
+		FStaticMeshLODResources& LODModel = Mesh->RenderData->LODResources[ImportLOD];
 
 		if (!StaticMeshComponent->LODData.IsValidIndex(ImportLOD))
 		{
@@ -478,7 +478,7 @@ void UMeshPaintModeHelpers::PropagateVertexColors(const TArray<UStaticMeshCompon
 	{
 		checkf(Component != nullptr, TEXT("Invalid Static Mesh Component"));
 		UStaticMesh* Mesh = Component->GetStaticMesh();
-		for (int32 LODIndex = 0; LODIndex < Mesh->GetRenderData()->LODResources.Num(); LODIndex++)
+		for (int32 LODIndex = 0; LODIndex < Mesh->RenderData->LODResources.Num(); LODIndex++)
 		{
 			// Will not be guaranteed to match render data as user can paint to a specific LOD index
 			if (Component->LODData.IsValidIndex(LODIndex))
@@ -657,7 +657,7 @@ void UMeshPaintModeHelpers::PasteVertexColors(const TArray<UStaticMeshComponent*
 				/** Try and apply copied vertex colors for each LOD in the mesh */
 				for (int32 LODIndex = 0; LODIndex < NumLods; ++LODIndex)
 				{
-					FStaticMeshLODResources& LodRenderData = Mesh->GetRenderData()->LODResources[LODIndex];
+					FStaticMeshLODResources& LodRenderData = Mesh->RenderData->LODResources[LODIndex];
 					FStaticMeshComponentLODInfo& ComponentLodInfo = Component->LODData[LODIndex];
 
 					const int32 NumLodsInCopyBuffer = PasteColors->PerLODVertexColorData.Num();
@@ -697,7 +697,7 @@ void UMeshPaintModeHelpers::PasteVertexColors(const TArray<UStaticMeshComponent*
 
 				/** Update cached paint data on static mesh component and update DDC key */
 				Component->CachePaintedDataIfNecessary();
-				Component->StaticMeshDerivedDataKey = Mesh->GetRenderData()->DerivedDataKey;
+				Component->StaticMeshDerivedDataKey = Mesh->RenderData->DerivedDataKey;
 			}
 		}
 	}

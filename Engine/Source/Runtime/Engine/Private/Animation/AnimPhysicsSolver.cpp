@@ -40,8 +40,8 @@ DEFINE_STAT(STAT_AnimDynamicsVelocityInit);
 DEFINE_STAT(STAT_AnimDynamicsPoseUpdate);
 DEFINE_STAT(STAT_AnimDynamicsLimitUpdate);
 
-bool FAnimPhys::bEnableDetailedStats = false;
-static FAutoConsoleVariableRef CVarAnimDynamicsDetailedStats(TEXT("p.AnimDynamicsDetailedStats"), FAnimPhys::bEnableDetailedStats, TEXT("When set to 1, will enable more detailed stats."));
+#define ENABLE_ANIMDYNAMICS_STATS 0
+
 
 //////////////////////////////////////////////////////////////////////////
 // FAnimPhysShape - Defines a set of vertices that make a shape with volume and CoM
@@ -894,7 +894,7 @@ void FAnimPhys::CalculateNextPose(float DeltaTime, FAnimPhysRigidBody* InBody)
 
 void FAnimPhys::UpdatePose(FAnimPhysRigidBody* InBody)
 {
-	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsPoseUpdate, bEnableDetailedStats);
+	SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsPoseUpdate);
 
 	// after an acceptable velocity and spin are computed, a forward euler update is applied to the position and orientation.
 	InBody->PreviousPosition = InBody->Pose.Position;  // should do this at beginning of physics loop in case someone teleports the body.
@@ -908,7 +908,7 @@ void FAnimPhys::UpdatePose(FAnimPhysRigidBody* InBody)
 
 void FAnimPhys::PhysicsUpdate(float DeltaTime, TArray<FAnimPhysRigidBody*>& Bodies, TArray<FAnimPhysLinearLimit>& LinearLimits, TArray<FAnimPhysAngularLimit>& AngularLimits, TArray<FAnimPhysSpring>& Springs, const FVector& GravityDirection, const FVector& ExternalForce, const FVector& ExternalLinearAcc, int32 NumPreIterations, int32 NumPostIterations)
 {
-	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsUpdate, bEnableDetailedStats);
+	SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsUpdate);
 
 	for (FAnimPhysRigidBody* Body : Bodies)
 	{
@@ -944,6 +944,9 @@ void FAnimPhys::PhysicsUpdate(float DeltaTime, TArray<FAnimPhysRigidBody*>& Bodi
 	for (int32 Iteration = 0; Iteration < NumPreIterations; ++Iteration)
 	{
 		{
+#if ENABLE_ANIMDYNAMICS_STATS
+			SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsLinearPre);
+#endif
 			for(FAnimPhysLinearLimit& CurrentLimit : LinearLimits)
 			{
 				CurrentLimit.Iter(DeltaTime);
@@ -951,6 +954,9 @@ void FAnimPhys::PhysicsUpdate(float DeltaTime, TArray<FAnimPhysRigidBody*>& Bodi
 		}
 
 		{
+#if ENABLE_ANIMDYNAMICS_STATS
+			SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsAngularPre);
+#endif
 			for (FAnimPhysAngularLimit& CurrentLimit : AngularLimits)
 			{
 				CurrentLimit.Iter(DeltaTime);
@@ -979,7 +985,7 @@ void FAnimPhys::PhysicsUpdate(float DeltaTime, TArray<FAnimPhysRigidBody*>& Bodi
 	for (int32 Iteration = 0; Iteration < NumPostIterations; ++Iteration)
 	{
 		{
-			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsLinearPost, bEnableDetailedStats);
+			SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsLinearPost);
 			for(FAnimPhysLinearLimit& CurrentLimit : LinearLimits)
 			{
 				CurrentLimit.Iter(DeltaTime);
@@ -987,7 +993,7 @@ void FAnimPhys::PhysicsUpdate(float DeltaTime, TArray<FAnimPhysRigidBody*>& Bodi
 		}
 
 		{
-			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsAngularPost, bEnableDetailedStats);
+			SCOPE_CYCLE_COUNTER(STAT_AnimDynamicsAngularPost);
 			for(FAnimPhysAngularLimit& CurrentLimit : AngularLimits)
 			{
 				CurrentLimit.Iter(DeltaTime);

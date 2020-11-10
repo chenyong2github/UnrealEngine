@@ -10,8 +10,6 @@ FSequencerSectionPainter::FSequencerSectionPainter(FSlateWindowElementList& OutD
 	, LayerId(0)
 	, bParentEnabled(true)
 	, bIsHighlighted(false)
-	, bIsSelected(false)
-	, GhostAlpha(1.f)
 {
 }
 

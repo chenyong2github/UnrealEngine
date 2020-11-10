@@ -115,11 +115,7 @@ void UClientUnitTest::NotifyHandleClientPlayer(APlayerController* PC, UNetConnec
 {
 	UnitPC = PC;
 
-	UnitEnv->UnitTest = this;
-
 	UnitEnv->HandleClientPlayer(UnitTestFlags, PC);
-
-	UnitEnv->UnitTest = nullptr;
 
 	ResetTimeout(TEXT("NotifyHandleClientPlayer"));
 
@@ -698,28 +694,25 @@ bool UClientUnitTest::SendNUTControl(ENUTControlCommand CommandType, FString Com
 {
 	bool bSuccess = false;
 
-	if (MinClient != nullptr)
+	FOutBunch* ControlChanBunch = MinClient->CreateChannelBunchByName(NAME_Control, 0);
+
+	if (ControlChanBunch != nullptr)
 	{
-		FOutBunch* ControlChanBunch = MinClient->CreateChannelBunchByName(NAME_Control, 0);
+		uint8 ControlMsg = NMT_NUTControl;
+		ENUTControlCommand CmdType = CommandType;
 
-		if (ControlChanBunch != nullptr)
-		{
-			uint8 ControlMsg = NMT_NUTControl;
-			ENUTControlCommand CmdType = CommandType;
+		*ControlChanBunch << ControlMsg;
+		*ControlChanBunch << CmdType;
+		*ControlChanBunch << Command;
 
-			*ControlChanBunch << ControlMsg;
-			*ControlChanBunch << CmdType;
-			*ControlChanBunch << Command;
+		bSuccess = MinClient->SendControlBunch(ControlChanBunch);
+	}
+	else
+	{
+		FString LogMsg = TEXT("Failed to create control channel bunch.");
 
-			bSuccess = MinClient->SendControlBunch(ControlChanBunch);
-		}
-		else
-		{
-			FString LogMsg = TEXT("Failed to create control channel bunch.");
-
-			UNIT_LOG(ELogType::StatusFailure, TEXT("%s"), *LogMsg);
-			UNIT_STATUS_LOG(ELogType::StatusVerbose, TEXT("%s"), *LogMsg);
-		}
+		UNIT_LOG(ELogType::StatusFailure, TEXT("%s"), *LogMsg);
+		UNIT_STATUS_LOG(ELogType::StatusVerbose, TEXT("%s"), *LogMsg);
 	}
 
 	return bSuccess;

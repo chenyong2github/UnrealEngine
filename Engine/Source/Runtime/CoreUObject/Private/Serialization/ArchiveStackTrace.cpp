@@ -504,30 +504,6 @@ namespace
 	}
 }
 
-namespace ArchiveStackTraceUtils
-{
-	void LogHexDump(const uint8* Bytes, int64 BytesNum, int64 OffsetStart, int64 OffsetEnd)
-	{
-		OffsetStart = FMath::Max(0ll, OffsetStart);
-		OffsetEnd = FMath::Min(BytesNum, OffsetEnd);
-
-		for (int64 Idx = OffsetStart; Idx < OffsetEnd;)
-		{
-			int64 LineOffset = OffsetStart;
-			FString HexString;
-			for (int64 Idx2 = 0; Idx2 < 32 && Idx < OffsetEnd; ++Idx, ++Idx2, ++OffsetStart)
-			{
-				HexString += FString::Printf(TEXT("%02X "), Bytes[Idx]);
-				if ((Idx2 & 7) == 7)
-				{
-					HexString += TEXT(" ");
-				}
-			}
-			UE_LOG(LogArchiveDiff, Display, TEXT("%016X: %s"), LineOffset, *HexString);
-		}
-	}
-}
-
 void FArchiveStackTrace::CompareWithInternal(const FPackageData& SourcePackage, const FPackageData& DestPackage, const TCHAR* AssetFilename, const TCHAR* CallstackCutoffText, const int64 MaxDiffsToLog, int32& InOutDiffsLogged, TMap<FName, FArchiveDiffStats>& OutStats)
 {
 #if !NO_LOGGING
@@ -667,44 +643,17 @@ void FArchiveStackTrace::CompareWithInternal(const FPackageData& SourcePackage, 
 				UE_LOG(
 					LogArchiveDiff,
 					Warning,
-					TEXT("%s: Difference at offset %lld%s (absolute offset: %lld): byte %d on disk, byte %d in memory, callstack:%s%s%s%s%s"),
+					TEXT("%s: Difference at offset %lld%s (absolute offset: %lld), callstack:%s%s%s%s%s"),
 					AssetFilename,
 					CallstackAtOffset.Offset - DestPackage.StartOffset,
 					DestAbsoluteOffset > CallstackAtOffset.Offset ? *FString::Printf(TEXT("(+%lld)"), DestAbsoluteOffset - CallstackAtOffset.Offset) : TEXT(""),
 					DestAbsoluteOffset,
-					SourceByte, DestByte,
 					LineTerminator,
 					LineTerminator,
 					*DifferenceCallstackDataText,
 					*DiffValues,
 					*DebugDataStackText
 				);
-
-				const int BytesToLog = 128;
-				UE_LOG(
-					LogArchiveDiff,
-					Display,
-					TEXT("%s: Logging %d bytes around absolute offset: %lld (%016X) in the on disk (existing) package, (which corresponds to offset %lld (%016X) in the in-memory package)"),
-					AssetFilename,
-					BytesToLog,
-					SourceAbsoluteOffset,
-					SourceAbsoluteOffset,
-					DestAbsoluteOffset,
-					DestAbsoluteOffset
-				);
-				ArchiveStackTraceUtils::LogHexDump(SourcePackage.Data, SourcePackage.Size, SourceAbsoluteOffset - BytesToLog / 2, SourceAbsoluteOffset + BytesToLog / 2);
-
-				UE_LOG(
-					LogArchiveDiff,
-					Display,
-					TEXT("%s: Logging %d bytes around absolute offset: %lld (%016X) in the in memory (new) package"),
-					AssetFilename,
-					BytesToLog,
-					DestAbsoluteOffset,
-					DestAbsoluteOffset
-				);
-				ArchiveStackTraceUtils::LogHexDump(DestPackage.Data, DestPackage.Size, DestAbsoluteOffset - BytesToLog / 2, DestAbsoluteOffset + BytesToLog / 2);
-
 				bDifferenceLogged = true;
 			}
 			else if (FirstUnreportedDiffIndex == -1)

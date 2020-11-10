@@ -9,7 +9,6 @@
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 
-DEFINE_STAT(STAT_AudioMixerSubmixDynamics);
 
 FSubmixEffectDynamicsProcessor::FSubmixEffectDynamicsProcessor()
 	: DeviceId(INDEX_NONE)
@@ -142,7 +141,6 @@ void FSubmixEffectDynamicsProcessor::OnPresetChanged()
 void FSubmixEffectDynamicsProcessor::OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData)
 {
 	CSV_SCOPED_TIMING_STAT(Audio, SubmixDynamics);
-	SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixDynamics);
 
 	const Audio::AlignedFloatBuffer& InBuffer = *InData.AudioBuffer;
 	Audio::AlignedFloatBuffer& OutBuffer = *OutData.AudioBuffer;

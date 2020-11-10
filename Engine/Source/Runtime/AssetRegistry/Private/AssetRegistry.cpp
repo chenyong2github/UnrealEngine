@@ -116,17 +116,6 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 	TempCachingRegisteredClassesVersionNumber = 0;
 	ClassGeneratorNamesRegisteredClassesVersionNumber = 0;
 
-	// By default do not double check mount points are still valid when gathering new assets
-	bVerifyMountPointAfterGather = false;
-
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		// Double check mount point is still valid because it could have been umounted
-		bVerifyMountPointAfterGather = true;
-	}
-#endif // WITH_EDITOR
-
 	// Collect all code generator classes (currently BlueprintCore-derived ones)
 	CollectCodeGeneratorClasses();
 
@@ -205,13 +194,9 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 				if (IFileManager::Get().DirectoryExists(*ContentFolder))
 				{
 					FDelegateHandle NewHandle;
-					DirectoryWatcher->RegisterDirectoryChangedCallback_Handle(
-						ContentFolder,
-						IDirectoryWatcher::FDirectoryChanged::CreateUObject(this, &UAssetRegistryImpl::OnDirectoryChanged),
-						NewHandle,
-						IDirectoryWatcher::WatchOptions::IncludeDirectoryChanges);
-
-					OnDirectoryChangedDelegateHandles.Add(RootPath, NewHandle);
+					DirectoryWatcher->RegisterDirectoryChangedCallback_Handle(ContentFolder, IDirectoryWatcher::FDirectoryChanged::CreateUObject(this, &UAssetRegistryImpl::OnDirectoryChanged),
+																			  NewHandle, IDirectoryWatcher::WatchOptions::IncludeDirectoryChanges);
+					OnDirectoryChangedDelegateHandles.Add(ContentFolder, NewHandle);
 				}
 			}
 		}
@@ -573,7 +558,8 @@ UAssetRegistryImpl::~UAssetRegistryImpl()
 				{
 					const FString& RootPath = *RootPathIt;
 					const FString& ContentFolder = FPackageName::LongPackageNameToFilename(RootPath);
-					DirectoryWatcher->UnregisterDirectoryChangedCallback_Handle(ContentFolder, OnDirectoryChangedDelegateHandles.FindRef(RootPath));
+					DirectoryWatcher->UnregisterDirectoryChangedCallback_Handle(ContentFolder, OnDirectoryChangedDelegateHandles.FindRef(ContentFolder));
+					OnDirectoryChangedDelegateHandles.Remove(ContentFolder);
 				}
 			}
 		}
@@ -2121,45 +2107,12 @@ void UAssetRegistryImpl::ScanPathsAndFilesSynchronous(const TArray<FString>& InP
 	}
 }
 
-bool UAssetRegistryImpl::IsPathMounted(const FString& Path, const TSet<FString>& MountPointsNoTrailingSlashes, FString& StringBuffer) const
-{
-	const int32 SecondSlash = Path.Len() > 1 ? Path.Find(TEXT("/"), ESearchCase::CaseSensitive, ESearchDir::FromStart, 1) : INDEX_NONE;
-	if (SecondSlash != INDEX_NONE)
-	{
-		StringBuffer.Reset(SecondSlash);
-		StringBuffer.Append(*Path, SecondSlash);
-		if (MountPointsNoTrailingSlashes.Contains(StringBuffer))
-		{
-			return true;
-		}
-	}
-	else
-	{
-		if (MountPointsNoTrailingSlashes.Contains(Path))
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
 void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TBackgroundGatherResults<FAssetData*>& AssetResults)
 {
 	const bool bFlushFullBuffer = TickStartTime < 0;
 
 	// Refreshes ClassGeneratorNames if out of date due to module load
 	CollectCodeGeneratorClasses();
-
-	TSet<FString> MountPoints;
-	FString PackagePathString;
-	FString PackageRoot;
-	if (AssetResults.Num() > 0 && bVerifyMountPointAfterGather)
-	{
-		TArray<FString> MountPointsArray;
-		FPackageName::QueryRootContentPaths(MountPointsArray, /*bIncludeReadOnlyRoots=*/ true, /*bWithoutLeadingSlashes*/ false, /*WithoutTrailingSlashes=*/ true);
-		MountPoints.Append(MoveTemp(MountPointsArray));
-	}
 
 	// Add the found assets
 	while (AssetResults.Num() > 0)
@@ -2172,18 +2125,6 @@ void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TBa
 		FAssetData* AssetData = State.CachedAssetsByObjectPath.FindRef(BackgroundResult->ObjectPath);
 
 		const FName PackagePath = BackgroundResult->PackagePath;
-
-		// Skip stale results caused by mount then unmount of a path within short period.
-		bool bPathIsMounted = true;
-		if (bVerifyMountPointAfterGather)
-		{
-			PackagePath.ToString(PackagePathString);
-			if (!IsPathMounted(PackagePathString, MountPoints, PackageRoot))
-			{
-				bPathIsMounted = false;
-			}
-		}
-
 		if (AssetData)
 		{
 			// If this ensure fires then we've somehow processed the same result more than once, and that should never happen
@@ -2200,17 +2141,11 @@ void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TBa
 		else
 		{
 			// The asset isn't in the cache yet, add it and notify subscribers
-			if (bPathIsMounted)
-			{
-				AddAssetData(BackgroundResult);
-			}
+			AddAssetData(BackgroundResult);
 		}
 
-		if (bPathIsMounted)
-		{
-			// Populate the path tree
-			AddAssetPath(PackagePath);
-		}
+		// Populate the path tree
+		AddAssetPath(PackagePath);
 
 		// Check to see if we have run out of time in this tick
 		if (!bFlushFullBuffer && (FPlatformTime::Seconds() - TickStartTime) > MaxSecondsPerFrame)
@@ -2227,24 +2162,10 @@ void UAssetRegistryImpl::PathDataGathered(const double TickStartTime, TBackgroun
 {
 	const bool bFlushFullBuffer = TickStartTime < 0;
 
-	TSet<FString> MountPoints;
-	FString PackageRoot;
-	if (PathResults.Num() > 0 && bVerifyMountPointAfterGather)
-	{
-		TArray<FString> MountPointsArray;
-		FPackageName::QueryRootContentPaths(MountPointsArray, /*bIncludeReadOnlyRoots=*/ true, /*bWithoutLeadingSlashes*/ false, /*WithoutTrailingSlashes=*/ true);
-		MountPoints.Append(MoveTemp(MountPointsArray));
-	}
-
 	while (PathResults.Num() > 0)
 	{
 		const FString& Path = PathResults.Pop();
-
-		// Skip stale results caused by mount then unmount of a path within short period.
-		if (!bVerifyMountPointAfterGather || IsPathMounted(Path, MountPoints, PackageRoot))
-		{
-			AddAssetPath(FName(*Path));
-		}
+		AddAssetPath(FName(*Path));
 
 		// Check to see if we have run out of time in this tick
 		if (!bFlushFullBuffer && (FPlatformTime::Seconds() - TickStartTime) > MaxSecondsPerFrame)
@@ -2891,22 +2812,18 @@ void UAssetRegistryImpl::OnContentPathMounted(const FString& InAssetPath, const 
 	AddSubContentBlacklist(InAssetPath);
 
 	// Sanitize
-	FString AssetPathWithTrailingSlash;
-	if (!InAssetPath.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
+	FString AssetPath = InAssetPath;
+	if (AssetPath.EndsWith(TEXT("/")) == false)
 	{
 		// We actually want a trailing slash here so the path can be properly converted while searching for assets
-		AssetPathWithTrailingSlash = InAssetPath + TEXT("/");
-	}
-	else
-	{
-		AssetPathWithTrailingSlash = InAssetPath;
+		AssetPath = AssetPath + TEXT("/");
 	}
 
 	// Content roots always exist
-	AddPath(AssetPathWithTrailingSlash);
+	AddPath(AssetPath);
 
 	// Add this to our list of root paths to process
-	AddPathToSearch(AssetPathWithTrailingSlash);
+	AddPathToSearch(AssetPath);
 
 	// Listen for directory changes in this content path
 #if WITH_EDITOR
@@ -2919,18 +2836,8 @@ void UAssetRegistryImpl::OnContentPathMounted(const FString& InAssetPath, const 
 		{
 			// If the path doesn't exist on disk, make it so the watcher will work.
 			IFileManager::Get().MakeDirectory(*FileSystemPath);
-
-			if (ensure(!OnDirectoryChangedDelegateHandles.Contains(AssetPathWithTrailingSlash)))
-			{
-				FDelegateHandle NewHandle;
-				DirectoryWatcher->RegisterDirectoryChangedCallback_Handle(
-					FileSystemPath, 
-					IDirectoryWatcher::FDirectoryChanged::CreateUObject(this, &UAssetRegistryImpl::OnDirectoryChanged),
-					NewHandle, 
-					IDirectoryWatcher::WatchOptions::IncludeDirectoryChanges);
-
-				OnDirectoryChangedDelegateHandles.Add(AssetPathWithTrailingSlash, NewHandle);
-			}
+			DirectoryWatcher->RegisterDirectoryChangedCallback_Handle(FileSystemPath, IDirectoryWatcher::FDirectoryChanged::CreateUObject(this, &UAssetRegistryImpl::OnDirectoryChanged), 
+																	  OnContentPathMountedOnDirectoryChangedDelegateHandle, IDirectoryWatcher::WatchOptions::IncludeDirectoryChanges);
 		}
 	}
 #endif // WITH_EDITOR
@@ -2940,11 +2847,11 @@ void UAssetRegistryImpl::OnContentPathMounted(const FString& InAssetPath, const 
 void UAssetRegistryImpl::OnContentPathDismounted(const FString& InAssetPath, const FString& FileSystemPath)
 {
 	// Sanitize
-	FString AssetPathNoTrailingSlash = InAssetPath;
-	if (AssetPathNoTrailingSlash.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
+	FString AssetPath = InAssetPath;
+	if (AssetPath.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
 	{
 		// We don't want a trailing slash here as it could interfere with RemoveAssetPath
-		AssetPathNoTrailingSlash.LeftChopInline(1, false);
+		AssetPath.LeftChopInline(1, false);
 	}
 
 	// Remove all cached assets found at this location
@@ -2952,8 +2859,8 @@ void UAssetRegistryImpl::OnContentPathDismounted(const FString& InAssetPath, con
 		TArray<FAssetData*> AllAssetDataToRemove;
 		TArray<FString> PathList;
 		const bool bRecurse = true;
-		GetSubPaths(AssetPathNoTrailingSlash, PathList, bRecurse);
-		PathList.Add(AssetPathNoTrailingSlash);
+		GetSubPaths(AssetPath, PathList, bRecurse);
+		PathList.Add(AssetPath);
 		for (const FString& Path : PathList)
 		{
 			TArray<FAssetData*>* AssetsInPath = State.CachedAssetsByPath.Find(FName(*Path));
@@ -2972,7 +2879,7 @@ void UAssetRegistryImpl::OnContentPathDismounted(const FString& InAssetPath, con
 	// Remove the root path
 	{
 		const bool bEvenIfAssetsStillExist = true;
-		RemoveAssetPath(FName(*AssetPathNoTrailingSlash), bEvenIfAssetsStillExist);
+		RemoveAssetPath(FName(*AssetPath), bEvenIfAssetsStillExist);
 	}
 
 	// Stop listening for directory changes in this content path
@@ -2984,22 +2891,7 @@ void UAssetRegistryImpl::OnContentPathDismounted(const FString& InAssetPath, con
 		IDirectoryWatcher* DirectoryWatcher = DirectoryWatcherModule.Get();
 		if (DirectoryWatcher)
 		{
-			// Make sure OnDirectoryChangedDelegateHandles key is symmetrical with the one used in OnContentPathMounted
-			FString AssetPathWithTrailingSlash;
-			if (!InAssetPath.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
-			{
-				AssetPathWithTrailingSlash = InAssetPath + TEXT("/");
-			}
-			else
-			{
-				AssetPathWithTrailingSlash = InAssetPath;
-			}
-
-			FDelegateHandle DirectoryChangedHandle;
-			if (ensure(OnDirectoryChangedDelegateHandles.RemoveAndCopyValue(AssetPathWithTrailingSlash, DirectoryChangedHandle)))
-			{
-				DirectoryWatcher->UnregisterDirectoryChangedCallback_Handle(FileSystemPath, DirectoryChangedHandle);
-			}
+			DirectoryWatcher->UnregisterDirectoryChangedCallback_Handle(FileSystemPath, OnContentPathMountedOnDirectoryChangedDelegateHandle);
 		}
 	}
 #endif // WITH_EDITOR
@@ -3310,11 +3202,7 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 
 					SourceNode->IterateOverDependencies([&IterateFunction, SourceNode](FDependsNode* TargetNode, EDependencyCategory DependencyCategory, EDependencyProperty DependencyProperties, bool bDuplicate)
 						{
-							// Skip editor-only properties
-							if (!!(DependencyProperties & EDependencyProperty::Game))
-							{
-								IterateFunction(SourceNode, TargetNode, DependencyCategory, DependencyProperties);
-							}
+							IterateFunction(SourceNode, TargetNode, DependencyCategory, DependencyProperties);
 						}, RecurseType);
 				}
 			}

@@ -34,14 +34,6 @@ namespace XGEShaderCompilerVariables
 
 	/** Xml Interface specific CVars */
 
-	int32 MinBatchSize = 20;
-	FAutoConsoleVariableRef CVarXGEShaderCompileXMLMinBatchSize(
-        TEXT("r.XGEShaderCompileXMLInterface.MinBatchSize"),
-        MinBatchSize,
-        TEXT("Minimum number of shaders to compile with XGE.\n")
-        TEXT("Smaller number of shaders will compile locally."),
-        ECVF_Default);
-
 	/** The maximum number of shaders to group into a single XGE task. */
 	int32 BatchSize = 16;
 	FAutoConsoleVariableRef CVarXGEShaderCompileBatchSize(
@@ -276,20 +268,18 @@ void FShaderCompileXGEThreadRunnable_XmlInterface::PostCompletedJobsForBatch(FSh
 {
 	// Enter the critical section so we can access the input and output queues
 	FScopeLock Lock(&Manager->CompileQueueSection);
-	for (const auto& Job : Batch->GetJobs())
+	for (auto Job : Batch->GetJobs())
 	{
-		FShaderMapCompileResults& ShaderMapResults = *Job->PendingShaderMap;
+		FShaderMapCompileResults& ShaderMapResults = Manager->ShaderMapJobs.FindChecked(Job->Id);
 		ShaderMapResults.FinishedJobs.Add(Job);
 		ShaderMapResults.bAllJobsSucceeded = ShaderMapResults.bAllJobsSucceeded && Job->bSucceeded;
-
-		const int32 NumPendingJobs = ShaderMapResults.NumPendingJobs.Decrement();
-		check(NumPendingJobs >= 0);
 	}
 
-	Manager->AllJobs.SubtractNumOutstandingJobs(Batch->NumJobs());
+	// Using atomics to update NumOutstandingJobs since it is read outside of the critical section
+	FPlatformAtomics::InterlockedAdd(&Manager->NumOutstandingJobs, -Batch->NumJobs());
 }
 
-void FShaderCompileXGEThreadRunnable_XmlInterface::FShaderBatch::AddJob(FShaderCommonCompileJobPtr Job)
+void FShaderCompileXGEThreadRunnable_XmlInterface::FShaderBatch::AddJob(TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> Job)
 {
 	// We can only add jobs to a batch which hasn't been written out yet.
 	if (bTransferFileWritten)
@@ -590,25 +580,22 @@ int32 FShaderCompileXGEThreadRunnable_XmlInterface::CompilingLoop()
 	}
 
 	// Try to prepare more shader jobs (even if a build is in flight).
-	TArray<FShaderCommonCompileJobPtr> JobQueue;
+	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> JobQueue;
 	{
+		// Enter the critical section so we can access the input and output queues
+		FScopeLock Lock(&Manager->CompileQueueSection);
+
 		// Grab as many jobs from the job queue as we can.
-		for (int32 PriorityIndex = MaxPriorityIndex; PriorityIndex >= MinPriorityIndex; --PriorityIndex)
+		int32 NumNewJobs = Manager->CompileQueue.Num();
+		if (NumNewJobs > 0)
 		{
-			const EShaderCompileJobPriority Priority = (EShaderCompileJobPriority)PriorityIndex;
-			const int32 MinBatchSize = (Priority == EShaderCompileJobPriority::Low) ? 1 : XGEShaderCompilerVariables::MinBatchSize;
-			const int32 NumJobs = Manager->AllJobs.GetPendingJobs(EShaderCompilerWorkerType::XGE, Priority, MinBatchSize, INT32_MAX, JobQueue);
-			if (NumJobs > 0)
+			int32 DestJobIndex = JobQueue.AddUninitialized(NumNewJobs);
+			for (int32 SrcJobIndex = 0; SrcJobIndex < NumNewJobs; SrcJobIndex++, DestJobIndex++)
 			{
-				UE_LOG(LogShaderCompilers, Display, TEXT("Started %d 'XGE' shader compile jobs with '%s' priority"),
-					NumJobs,
-					ShaderCompileJobPriorityToString((EShaderCompileJobPriority)PriorityIndex));
+				JobQueue[DestJobIndex] = Manager->CompileQueue[SrcJobIndex];
 			}
-			if (JobQueue.Num() >= XGEShaderCompilerVariables::MinBatchSize)
-			{
-				// Kick a batch with just the higher priority jobs, if it's large enough
-				break;
-			}
+
+			Manager->CompileQueue.RemoveAt(0, NumNewJobs);
 		}
 	}
 

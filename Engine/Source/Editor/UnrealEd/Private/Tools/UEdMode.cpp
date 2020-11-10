@@ -331,11 +331,11 @@ void UEdMode::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport
 			// Static mesh vertices
 			AStaticMeshActor* Actor = Cast<AStaticMeshActor>(SelectedActor);
 			if (Actor && Actor->GetStaticMeshComponent() && Actor->GetStaticMeshComponent()->GetStaticMesh()
-				&& Actor->GetStaticMeshComponent()->GetStaticMesh()->GetRenderData())
+				&& Actor->GetStaticMeshComponent()->GetStaticMesh()->RenderData)
 			{
 				FTransform ActorToWorld = Actor->ActorToWorld();
 				Vertices.Empty();
-				const FPositionVertexBuffer& VertexBuffer = Actor->GetStaticMeshComponent()->GetStaticMesh()->GetRenderData()->LODResources[0].VertexBuffers.PositionVertexBuffer;
+				const FPositionVertexBuffer& VertexBuffer = Actor->GetStaticMeshComponent()->GetStaticMesh()->RenderData->LODResources[0].VertexBuffers.PositionVertexBuffer;
 				for (uint32 i = 0; i < VertexBuffer.GetNumVertices(); i++)
 				{
 					Vertices.AddUnique(ActorToWorld.TransformPosition(VertexBuffer.VertexPosition(i)));

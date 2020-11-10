@@ -20,9 +20,7 @@ public class MovieRenderPipelineCore : ModuleRules
 				"Sockets", 
 				"Networking",
 				"Http",
-				"DeveloperSettings",
-				"CinematicCamera"
-
+				"DeveloperSettings"
 			}
 		);
 

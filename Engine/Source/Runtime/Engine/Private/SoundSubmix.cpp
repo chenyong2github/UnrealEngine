@@ -395,7 +395,7 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 		}
 		else if (ChangedPropName == GET_MEMBER_NAME_CHECKED(USoundSubmix, OutputVolumeDB))
 		{
-			if (OutputVolumeDB <= -160.f)
+			if (OutputVolumeDB <= -120.f)
 			{
 				OutputVolume = 0.0f;
 			}

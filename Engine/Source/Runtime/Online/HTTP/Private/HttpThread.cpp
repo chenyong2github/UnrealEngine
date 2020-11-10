@@ -10,15 +10,6 @@
 #include "Misc/Parse.h"
 #include "HttpModule.h"
 #include "Http.h"
-#include "Stats/Stats.h"
-
-DECLARE_STATS_GROUP(TEXT("HTTP Thread"), STATGROUP_HTTPThread, STATCAT_Advanced);
-DECLARE_CYCLE_STAT(TEXT("Process"), STAT_HTTPThread_Process, STATGROUP_HTTPThread);
-DECLARE_CYCLE_STAT(TEXT("TickThreadedRequest"), STAT_HTTPThread_TickThreadedRequest, STATGROUP_HTTPThread);
-DECLARE_CYCLE_STAT(TEXT("StartThreadedRequest"), STAT_HTTPThread_StartThreadedRequest, STATGROUP_HTTPThread);
-DECLARE_CYCLE_STAT(TEXT("HttpThreadTick"), STAT_HTTPThread_HttpThreadTick, STATGROUP_HTTPThread);
-DECLARE_CYCLE_STAT(TEXT("IsThreadedRequestComplete"), STAT_HTTPThread_IsThreadedRequestComplete, STATGROUP_HTTPThread);
-DECLARE_CYCLE_STAT(TEXT("CompleteThreadedRequest"), STAT_HTTPThread_CompleteThreadedRequest, STATGROUP_HTTPThread);
 
 // FHttpThread
 
@@ -187,8 +178,6 @@ void FHttpThread::CompleteThreadedRequest(IHttpThreadedRequest* Request)
 
 void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArray<IHttpThreadedRequest*>& RequestsToStart, TArray<IHttpThreadedRequest*>& RequestsToComplete)
 {
-	SCOPE_CYCLE_COUNTER(STAT_HTTPThread_Process);
-
 	// cache all cancelled and pending requests
 	{
 		IHttpThreadedRequest* Request = nullptr;
@@ -211,7 +200,7 @@ void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArra
 	{
 		if (RunningThreadedRequests.Remove(Request) > 0)
 		{
-			RequestsToComplete.AddUnique(Request);
+			RequestsToComplete.Add(Request);
 		}
 	}
 
@@ -223,8 +212,6 @@ void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArra
 	// as long as they properly finish in HttpThreadTick below they are unaffected by a possibly large ElapsedTime above
 	for (IHttpThreadedRequest* Request : RunningThreadedRequests)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_HTTPThread_TickThreadedRequest);
-
 		Request->TickThreadedRequest(ElapsedTime);
 	}
 
@@ -233,8 +220,6 @@ void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArra
 	// to send unaffected by possibly large ElapsedTime above
 	for (IHttpThreadedRequest* Request : RequestsToStart)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_HTTPThread_StartThreadedRequest);
-
 		if (StartThreadedRequest(Request))
 		{
 			RunningThreadedRequests.Add(Request);
@@ -242,28 +227,21 @@ void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArra
 		}
 		else
 		{
-			RequestsToComplete.AddUnique(Request);
+			RequestsToComplete.Add(Request);
 		}
 	}
 
-	{
-		SCOPE_CYCLE_COUNTER(STAT_HTTPThread_HttpThreadTick);
-
-		// Every valid request in RunningThreadedRequests gets at least two calls to HttpThreadTick
-		// Blocking loads still can affect things if the network stack can't keep its connections alive
-		HttpThreadTick(ElapsedTime);
-	}
+	// Every valid request in RunningThreadedRequests gets at least two calls to HttpThreadTick
+	// Blocking loads still can affect things if the network stack can't keep its connections alive
+	HttpThreadTick(ElapsedTime);
 
 	// Move any completed requests
 	for (int32 Index = 0; Index < RunningThreadedRequests.Num(); ++Index)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_HTTPThread_IsThreadedRequestComplete);
-
 		IHttpThreadedRequest* Request = RunningThreadedRequests[Index];
-
 		if (Request->IsThreadedRequestComplete())
 		{
-			RequestsToComplete.AddUnique(Request);
+			RequestsToComplete.Add(Request);
 			RunningThreadedRequests.RemoveAtSwap(Index);
 			--Index;
 		}
@@ -273,8 +251,6 @@ void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArra
 	{
 		for (IHttpThreadedRequest* Request : RequestsToComplete)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_HTTPThread_CompleteThreadedRequest);
-
 			CompleteThreadedRequest(Request);
 			CompletedThreadedRequests.Enqueue(Request);
 		}

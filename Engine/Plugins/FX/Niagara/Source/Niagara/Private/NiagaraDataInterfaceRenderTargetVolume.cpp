@@ -337,11 +337,10 @@ bool UNiagaraDataInterfaceRenderTargetVolume::InitPerInstanceData(void* PerInsta
 {
 	check(Proxy);
 
-	extern float GNiagaraRenderTargetResolutionMultiplier;
 	FRenderTargetVolumeRWInstanceData_GameThread* InstanceData = new (PerInstanceData) FRenderTargetVolumeRWInstanceData_GameThread();
-	InstanceData->Size.X = FMath::Clamp<int>(int(float(Size.X) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxVolumeTextureDimensions);
-	InstanceData->Size.Y = FMath::Clamp<int>(int(float(Size.Y) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxVolumeTextureDimensions);
-	InstanceData->Size.Z = FMath::Clamp<int>(int(float(Size.Z) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxVolumeTextureDimensions);
+	InstanceData->Size.X = FMath::Clamp<int>(Size.X, 1, GMaxVolumeTextureDimensions);
+	InstanceData->Size.Y = FMath::Clamp<int>(Size.Y, 1, GMaxVolumeTextureDimensions);
+	InstanceData->Size.Z = FMath::Clamp<int>(Size.Z, 1, GMaxVolumeTextureDimensions);
 	InstanceData->Format = GetPixelFormatFromRenderTargetFormat(bOverrideFormat ? OverrideRenderTargetFormat : GetDefault<UNiagaraSettings>()->DefaultRenderTargetFormat);
 	InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter);
 #if WITH_EDITORONLY_DATA
@@ -407,12 +406,8 @@ void UNiagaraDataInterfaceRenderTargetVolume::DestroyPerInstanceData(void* PerIn
 	);
 
 	// Make sure to clear out the reference to the render target if we created one.
-	extern int32 GNiagaraReleaseResourceOnRemove;
-	UTextureRenderTargetVolume* ExistingRenderTarget = nullptr;
-	if (ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && GNiagaraReleaseResourceOnRemove)
-	{
-		ExistingRenderTarget->ReleaseResource();
-	}
+	FNiagaraSystemInstanceID SysId = SystemInstance->GetId();
+	ManagedRenderTargets.Remove(SysId);
 }
 
 
@@ -442,7 +437,6 @@ void UNiagaraDataInterfaceRenderTargetVolume::SetSize(FVectorVMContext& Context)
 	FNDIInputParam<int> InSizeZ(Context);
 	FNDIOutputParam<FNiagaraBool> OutSuccess(Context);
 
-	extern float GNiagaraRenderTargetResolutionMultiplier;
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
 	{
 		const int SizeX = InSizeX.GetAndAdvance();
@@ -452,9 +446,9 @@ void UNiagaraDataInterfaceRenderTargetVolume::SetSize(FVectorVMContext& Context)
 		OutSuccess.SetAndAdvance(bSuccess);
 		if (bSuccess)
 		{
-			InstData->Size.X = FMath::Clamp<int>(int(float(SizeX) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxVolumeTextureDimensions);
-			InstData->Size.Y = FMath::Clamp<int>(int(float(SizeY) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxVolumeTextureDimensions);
-			InstData->Size.Z = FMath::Clamp<int>(int(float(SizeZ) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxVolumeTextureDimensions);
+			InstData->Size.X = FMath::Clamp<int>(SizeX, 1, GMaxVolumeTextureDimensions);
+			InstData->Size.Y = FMath::Clamp<int>(SizeY, 1, GMaxVolumeTextureDimensions);
+			InstData->Size.Z = FMath::Clamp<int>(SizeZ, 1, GMaxVolumeTextureDimensions);
 		}
 	}
 }
@@ -499,13 +493,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTickPostSimulate(void* 
 			if (InstanceData->TargetTexture != UserTargetTexture)
 			{
 				InstanceData->TargetTexture = UserTargetTexture;
-
-				extern int32 GNiagaraReleaseResourceOnRemove;
-				UTextureRenderTargetVolume* ExistingRenderTarget = nullptr;
-				if (ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && GNiagaraReleaseResourceOnRemove)
-				{
-					ExistingRenderTarget->ReleaseResource();
-				}
+				ManagedRenderTargets.Remove(SystemInstance->GetId());
 			}
 		}
 		else
@@ -523,11 +511,6 @@ bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTickPostSimulate(void* 
 			InstanceData->TargetTexture->Init(InstanceData->Size.X, InstanceData->Size.Y, InstanceData->Size.Z, InstanceData->Format);
 			InstanceData->TargetTexture->UpdateResourceImmediate(true);
 			bUpdateRT = true;
-
-			//////////////////////////////////////////////////////////////////////////
-			//-TOFIX: Workaround FORT-315375 GT / RT Race
-			SystemInstance->RequestMaterialRecache();
-			//////////////////////////////////////////////////////////////////////////
 		}
 	}
 

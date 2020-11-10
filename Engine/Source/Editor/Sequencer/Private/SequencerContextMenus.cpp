@@ -1590,60 +1590,7 @@ void FPasteContextMenu::Setup()
 
 	if (Args.DestinationNodes.Num())
 	{
-		// If we have exactly one channel to paste, first check if we have exactly one valid target channel selected to support copying between channels e.g. from Tranform.x to Transform.y
-		if (Args.Clipboard->GetKeyTrackGroups().Num() == 1)
-		{
-			for (const TSharedRef<FSequencerDisplayNode>& Node : Args.DestinationNodes)
-			{
-				if (Node->GetType() != ESequencerNode::KeyArea)
-				{
-					continue;
-				}
-
-				FString Scope;
-				TSharedPtr<FSequencerTrackNode> TrackNode = GetTrackFromNode(*Node, Scope);
-				if (!TrackNode.IsValid())
-				{
-					continue;
-				}
-
-				FPasteDestination& Destination = PasteDestinations[PasteDestinations.AddDefaulted()];
-
-				TArray<UMovieSceneSection*> Sections;
-				for (TSharedRef<ISequencerSection> Section : TrackNode->GetSections())
-				{
-					if (Section.Get().GetSectionObject())
-					{
-						GatherPasteDestinationsForNode(*Node, Section.Get().GetSectionObject(), NAME_None, Destination.Reconcilers);
-					}
-				}
-
-				// Reconcile and remove invalid pastes
-				for (auto It = Destination.Reconcilers.CreateIterator(); It; ++It)
-				{
-					if (!It.Value().Reconcile() || !It.Value().CanAutoPaste())
-					{
-						It.RemoveCurrent();
-					}
-				}
-
-				if (!Destination.Reconcilers.Num())
-				{
-					PasteDestinations.RemoveAt(PasteDestinations.Num() - 1, 1, false);
-				}
-			}
-
-			// If we found exactly one destination, we're done
-			if (PasteDestinations.Num() == 1 && PasteDestinations[0].Reconcilers.Num() == 1)
-			{
-				return;
-			}
-
-			// Otherwise reset our list and move on
-			PasteDestinations.Reset();
-		}
-
-		// Build a list of sections based on selected tracks
+		// Paste into only these nodes
 		for (const TSharedRef<FSequencerDisplayNode>& Node : Args.DestinationNodes)
 		{
 			FString Scope;

@@ -89,13 +89,13 @@ bool UHLODProxyDesc::UpdateFromLODActor(const ALODActor* InLODActor)
 			check(SubLODActor->ProxyDesc);
 			SubHLODDescs.Emplace(SubLODActor->ProxyDesc);
 		}
-		else if (SubActor)
+		else
 		{
 			SubActors.Emplace(SubActor->GetFName());
 		}
 	}
 
-	StaticMesh = InLODActor->StaticMeshComponent ? InLODActor->StaticMeshComponent->GetStaticMesh() : nullptr;
+	StaticMesh = InLODActor->StaticMeshComponent->GetStaticMesh();
 
 	const TMap<const UMaterialInterface*, UInstancedStaticMeshComponent*>& ISMComponents = InLODActor->ImpostersStaticMeshComponents;
 	ISMComponentsDesc.Reset(ISMComponents.Num());
@@ -133,7 +133,7 @@ bool UHLODProxyDesc::ShouldUpdateDesc(const ALODActor* InLODActor) const
 			check(SubLODActor->ProxyDesc);
 			LocalSubHLODDescs.Emplace(SubLODActor->ProxyDesc);
 		}
-		else if (SubActor)
+		else
 		{
 			LocalSubActors.Emplace(SubActor->GetFName());
 		}
@@ -149,8 +149,7 @@ bool UHLODProxyDesc::ShouldUpdateDesc(const ALODActor* InLODActor) const
 		return true;
 	}
 
-	UStaticMesh* LocalStaticMesh = InLODActor->StaticMeshComponent ? InLODActor->StaticMeshComponent->GetStaticMesh() : nullptr;
-	if (StaticMesh != LocalStaticMesh)
+	if (StaticMesh != InLODActor->StaticMeshComponent->GetStaticMesh())
 	{
 		return true;
 	}
@@ -257,11 +256,6 @@ ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 
 	for (const FHLODISMComponentDesc& ISMComponentDesc : ISMComponentsDesc)
 	{
-		if (!ISMComponentDesc.StaticMesh || !ISMComponentDesc.Material)
-		{
-			continue;
-		}
-		
 		// Apply transform to HISM instances
 		const bool bTransformInstances = !ActorTransform.Equals(FTransform::Identity);
 		if (bTransformInstances)

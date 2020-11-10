@@ -27,25 +27,31 @@ UMovieSceneSequence::UMovieSceneSequence(const FObjectInitializer& Init)
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		UMovieSceneCompiledDataManager::GetPrecompiledData();
-
-#if WITH_EDITOR
-		UMovieSceneCompiledDataManager::GetPrecompiledData(EMovieSceneServerClientMask::Client);
-		UMovieSceneCompiledDataManager::GetPrecompiledData(EMovieSceneServerClientMask::Server);
-#endif
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+void UMovieSceneSequence::PostDuplicate(bool bDuplicateForPIE)
+{
+	if (bDuplicateForPIE)
+	{
+		UMovieSceneCompiledDataManager::GetPrecompiledData()->Compile(this);
+	}
+
+	Super::PostDuplicate(bDuplicateForPIE);
+}
+#endif // WITH_EDITORONLY_DATA
+
 void UMovieSceneSequence::PostLoad()
 {
-	UMovieSceneCompiledDataManager* PrecompiledData = UMovieSceneCompiledDataManager::GetPrecompiledData();
-
 #if WITH_EDITORONLY_DATA
 	// Wipe compiled data on editor load to ensure we don't try and iteratively compile previously saved content. In a cooked game, this will contain our up-to-date compiled template.
-	PrecompiledData->Reset(this);
+	UMovieSceneCompiledDataManager::GetPrecompiledData()->Reset(this);
 #endif
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
+		UMovieSceneCompiledDataManager* PrecompiledData = UMovieSceneCompiledDataManager::GetPrecompiledData();
 		PrecompiledData->LoadCompiledData(this);
 
 #if !WITH_EDITOR
@@ -61,9 +67,9 @@ void UMovieSceneSequence::PostLoad()
 	}
 
 #if DO_CHECK
-	if (FPlatformProperties::RequiresCookedData() && !EnumHasAnyFlags(SequenceFlags, EMovieSceneSequenceFlags::Volatile) && !HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject))
+	if (FPlatformProperties::RequiresCookedData() && !EnumHasAnyFlags(SequenceFlags, EMovieSceneSequenceFlags::Volatile))
 	{
-		ensureAlwaysMsgf(PrecompiledData->FindDataID(this).IsValid(), TEXT("No precompiled movie scene data is present for sequence '%s'. This should have been generated and saved during cook."), *GetName());
+		ensureAlwaysMsgf(UMovieSceneCompiledDataManager::GetPrecompiledData()->GetDataID(this).IsValid(), TEXT("No precompiled movie scene data is present for sequence '%s'. This should have been generated and saved during cook."), *GetName());
 	}
 #endif
 
@@ -80,21 +86,6 @@ void UMovieSceneSequence::BeginDestroy()
 	}
 }
 
-void UMovieSceneSequence::PostDuplicate(bool bDuplicateForPIE)
-{
-	if (bDuplicateForPIE)
-	{
-		UMovieSceneCompiledDataManager::GetPrecompiledData()->Compile(this);
-	}
-
-	Super::PostDuplicate(bDuplicateForPIE);
-}
-
-EMovieSceneServerClientMask UMovieSceneSequence::OverrideNetworkMask(EMovieSceneServerClientMask InDefaultMask) const
-{
-	return InDefaultMask;
-}
-
 void UMovieSceneSequence::PreSave(const ITargetPlatform* TargetPlatform)
 {
 #if WITH_EDITOR
@@ -102,18 +93,7 @@ void UMovieSceneSequence::PreSave(const ITargetPlatform* TargetPlatform)
 	{
 		if (TargetPlatform && TargetPlatform->RequiresCookedData())
 		{
-			EMovieSceneServerClientMask NetworkMask = EMovieSceneServerClientMask::All;
-			if (TargetPlatform->IsClientOnly())
-			{
-				NetworkMask = EMovieSceneServerClientMask::Client;
-			}
-			else if (TargetPlatform->IsServerOnly())
-			{
-				NetworkMask = EMovieSceneServerClientMask::Server;
-			}
-			NetworkMask = OverrideNetworkMask(NetworkMask);
-
-			UMovieSceneCompiledDataManager::GetPrecompiledData(NetworkMask)->CopyCompiledData(this);
+			UMovieSceneCompiledDataManager::GetPrecompiledData()->CopyCompiledData(this);
 		}
 		else if (CompiledData)
 		{

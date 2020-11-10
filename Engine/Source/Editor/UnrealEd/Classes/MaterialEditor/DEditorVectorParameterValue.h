@@ -13,7 +13,7 @@ class UNREALED_API UDEditorVectorParameterValue : public UDEditorParameterValue
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category=DEditorVectorParameterValue)
+	UPROPERTY(EditAnywhere, Category=DEditorVectorParameterValue, meta=(OnlyUpdateOnInteractionEnd))
 	FLinearColor ParameterValue;
 
 	UPROPERTY(Transient)

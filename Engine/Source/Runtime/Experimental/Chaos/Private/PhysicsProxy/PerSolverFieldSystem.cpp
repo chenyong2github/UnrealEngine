@@ -84,12 +84,10 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 					TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
 					TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 
-					FFieldContext Context{
+					FFieldContext Context(
 						SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
 						SamplePointsView,
-						Command.MetaData,
-						InTime 
-					};
+						Command.MetaData);
 
 					// Sample the dynamic state array in the field
 
@@ -249,8 +247,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 					FFieldContext Context{
 						SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
 						SamplePointsView,
-						Command.MetaData,
-						InTime
+						Command.MetaData
 					};
 
 					//
@@ -314,8 +311,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 						FFieldContext Context{
 							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
 							SamplePointsView,
-							Command.MetaData,
-							InTime
+							Command.MetaData
 						};
 
 						// TODO: Chaos, Ryan
@@ -399,8 +395,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 						FFieldContext Context{
 							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
 							SamplePointsView,
-							Command.MetaData,
-							InTime
+							Command.MetaData
 						};
 
 						TArray<float> LocalResults;
@@ -435,11 +430,10 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 					{
 						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
 						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
-						FFieldContext Context{
+						FFieldContext Context(
 							SampleIndicesView,
 							SamplePointsView,
-							Command.MetaData,
-							InTime};
+							Command.MetaData);
 
 						TArray<FVector> LocalResults;
 						LocalResults.AddUninitialized(Handles.Num());
@@ -474,8 +468,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 						FFieldContext Context{
 							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
 							SamplePointsView,
-							Command.MetaData,
-							InTime
+							Command.MetaData
 						};
 
 						FVector * vptr = &(Particles.W(0));
@@ -496,12 +489,10 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 					{
 						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
 						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
-						FFieldContext Context{
+						FFieldContext Context(
 							SampleIndicesView,
 							SamplePointsView,
-							Command.MetaData,
-							InTime
-						};
+							Command.MetaData);
 
 						TArray<float> LocalResults;
 						LocalResults.AddZeroed(Handles.Num());
@@ -556,12 +547,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
 						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 
-						FFieldContext Context{
-							SampleIndicesView,
-							SamplePointsView,
-							Command.MetaData,
-							InTime 
-						};
+						FFieldContext Context(SampleIndicesView, SamplePointsView, Command.MetaData);
 
 						TArray<float> LocalResults;
 						LocalResults.AddUninitialized(Handles.Num());
@@ -618,8 +604,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 						FFieldContext Context{
 							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
 							SamplePointsView,
-							Command.MetaData,
-							InTime
+							Command.MetaData
 						};
 
 						TArray<float> LocalResults;
@@ -654,8 +639,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 						FFieldContext Context{
 							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
 							SamplePointsView,
-							Command.MetaData,
-							InTime
+							Command.MetaData
 						};
 
 						int32 * cptr = &(Particles.CollisionGroup(0));
@@ -680,8 +664,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 						FFieldContext Context{
 							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
 							SamplePointsView,
-							Command.MetaData,
-							InTime
+							Command.MetaData
 						};
 
 						TArray<int32> Results;
@@ -732,8 +715,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 						FFieldContext Context{
 							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
 							SamplePointsView,
-							Command.MetaData,
-							InTime
+							Command.MetaData
 						};
 
 						TArray<FVector> Results;
@@ -784,8 +766,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 						FFieldContext Context{
 							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
 							SamplePointsView,
-							Command.MetaData,
-							InTime
+							Command.MetaData
 						};
 
 						TArray<int32> Results;
@@ -845,8 +826,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 						FFieldContext Context{
 							IndexView,
 							SamplesView,
-							Command.MetaData,
-							InTime
+							Command.MetaData
 						};
 
 						TArray<float> Results;
@@ -932,12 +912,10 @@ void FPerSolverFieldSystem::FieldForcesUpdateCallback(
 
 						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
 						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
-						FFieldContext Context{
+						FFieldContext Context(
 							SampleIndicesView,
 							SamplePointsView,
-							Command.MetaData,
-							Time
-						};
+							Command.MetaData);
 
 						TArray<FVector> LocalForce;
 						LocalForce.AddZeroed(Handles.Num());					
@@ -998,12 +976,10 @@ void FPerSolverFieldSystem::FieldForcesUpdateCallback(
 						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
 						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 
-						FFieldContext Context{
+						FFieldContext Context(
 							SampleIndicesView,
 							SamplePointsView,
-							Command.MetaData, 
-							Time
-						};
+							Command.MetaData);
 
 						TArray<FVector> LocalTorque;
 						LocalTorque.AddUninitialized(Handles.Num());					

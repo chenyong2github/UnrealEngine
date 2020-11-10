@@ -15,7 +15,6 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"CoreUObject",
-					"Engine",
 					"Projects",
 					"SandboxFile",
 					"TargetPlatform",

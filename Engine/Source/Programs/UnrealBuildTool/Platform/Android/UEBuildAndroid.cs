@@ -405,22 +405,6 @@ namespace UnrealBuildTool
 			CompileEnvironment.Definitions.Add("WITH_EDITOR=0");
 			CompileEnvironment.Definitions.Add("USE_NULL_RHI=0");
 
-			if (Target.bPGOOptimize || Target.bPGOProfile)
-			{
-				Log.TraceInformation("PGO {0} build", Target.bPGOOptimize ? "optimize" : "profile");
-				if(Target.bPGOOptimize)
-				{
-					CompileEnvironment.PGODirectory = Path.Combine(DirectoryReference.FromFile(Target.ProjectFile).FullName, "Platforms", "Android", "Build", "PGO");
-					CompileEnvironment.PGOFilenamePrefix = string.Format("{0}-Android-{1}", Target.Name, Target.Configuration);
-
-					LinkEnvironment.PGODirectory = CompileEnvironment.PGODirectory;
-					LinkEnvironment.PGOFilenamePrefix = CompileEnvironment.PGOFilenamePrefix;
-
-					Log.TraceInformation("PGO Dir: {0}", CompileEnvironment.PGODirectory);
-					Log.TraceInformation("PGO Prefix: {0}", CompileEnvironment.PGOFilenamePrefix);
-				}
-			}
-
 			SetUpSpecificEnvironment(Target, CompileEnvironment, LinkEnvironment);
 
 			// deliberately not linking stl or stdc++ here (c++_shared is default)

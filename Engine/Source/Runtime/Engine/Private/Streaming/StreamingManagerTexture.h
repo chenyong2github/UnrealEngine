@@ -174,8 +174,6 @@ struct FRenderAssetStreamingManager final : public IRenderAssetStreamingManager
 	/** Propagates a change to the active lighting scenario. */
 	void PropagateLightingScenarioChange() override;
 
-	void AddRenderedTextureStats(TMap<FString, FRenderedTextureStats>& InOutRenderedTextureStats) override;
-
 private:
 //BEGIN: Thread-safe functions and data
 		friend class FRenderAssetStreamingMipCalcTask;

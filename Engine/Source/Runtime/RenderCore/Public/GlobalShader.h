@@ -11,7 +11,6 @@
 #include "Templates/UniquePtr.h"
 #include "RHIResources.h"
 #include "Containers/Map.h"
-#include "Serialization/MemoryLayout.h"
 
 class FShaderCommonCompileJob;
 class FShaderCompileJob;
@@ -26,16 +25,14 @@ class FGlobalShaderMapId
 public:
 
 	/** Create a global shader map Id for the given platform. */
-	RENDERCORE_API FGlobalShaderMapId(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform);
+	RENDERCORE_API FGlobalShaderMapId(EShaderPlatform Platform);
 
 	/** Append to a string that will be used as a DDC key. */
-	RENDERCORE_API void AppendKeyString(FString& KeyString, const TArray<FShaderTypeDependency>& Dependencies) const;
+	RENDERCORE_API void AppendKeyString(FString& KeyString, const TArray<FShaderTypeDependency>& Dependencies, const ITargetPlatform* TargetPlatform) const;
 
 	RENDERCORE_API const TMap<FString, TArray<FShaderTypeDependency>>& GetShaderFilenameToDependeciesMap() const { return ShaderFilenameToDependenciesMap; }
 
 private:
-	FPlatformTypeLayoutParameters LayoutParams;
-
 	/** Shader types that this shader map is dependent on and their stored state. Mapped by shader filename, so every filename can have it's own DDC key. */
 	TMap<FString, TArray<FShaderTypeDependency>> ShaderFilenameToDependenciesMap;
 
@@ -91,9 +88,9 @@ public:
 	 * @param Platform - The platform to check.
 	 * @return True if this shader type should be cached.
 	 */
-	bool ShouldCompilePermutation(EShaderPlatform Platform, int32 PermutationId, EShaderPermutationFlags Flags) const
+	bool ShouldCompilePermutation(EShaderPlatform Platform, int32 PermutationId) const
 	{
-		return FShaderType::ShouldCompilePermutation(FGlobalShaderPermutationParameters(Platform, PermutationId, Flags));
+		return FShaderType::ShouldCompilePermutation(FGlobalShaderPermutationParameters(Platform, PermutationId));
 	}
 
 	/**
@@ -101,10 +98,10 @@ public:
 	 * @param Platform - Platform to compile for.
 	 * @param Environment - The shader compile environment that the function modifies.
 	 */
-	void SetupCompileEnvironment(EShaderPlatform Platform, int32 PermutationId, EShaderPermutationFlags Flags, FShaderCompilerEnvironment& Environment) const
+	void SetupCompileEnvironment(EShaderPlatform Platform, int32 PermutationId, FShaderCompilerEnvironment& Environment)
 	{
 		// Allow the shader type to modify its compile environment.
-		ModifyCompilationEnvironment(FGlobalShaderPermutationParameters(Platform, PermutationId, Flags), Environment);
+		ModifyCompilationEnvironment(FGlobalShaderPermutationParameters(Platform, PermutationId), Environment);
 	}
 };
 

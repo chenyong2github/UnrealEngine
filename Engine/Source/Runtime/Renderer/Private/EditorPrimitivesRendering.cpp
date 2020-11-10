@@ -20,46 +20,32 @@ void FEditorPrimitivesBasePassMeshProcessor::AddMeshBatch(const FMeshBatch& REST
 {
 	if (MeshBatch.bUseForMaterial)
 	{
-		const FMaterialRenderProxy* MaterialRenderProxy = MeshBatch.MaterialRenderProxy;
-		while (MaterialRenderProxy)
+		// Determine the mesh's material and blend mode.
+		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
+		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
+
+		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
+
+		const EBlendMode BlendMode = Material.GetBlendMode();
+		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+
+		if (bIsTranslucent == bTranslucentBasePass
+			&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInMainPass())
+			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
 		{
-			const FMaterial* Material = MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
-			if (Material && Material->GetRenderingThreadShaderMap())
+			if (Scene->GetShadingPath(FeatureLevel) == EShadingPath::Mobile)
 			{
-				if (TryAddMeshBatch(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, *MaterialRenderProxy, *Material))
-				{
-					break;
-				}
+				ProcessMobileShadingPath(MeshBatch, BatchElementMask, Material, MaterialRenderProxy, PrimitiveSceneProxy, StaticMeshId);
 			}
-
-			MaterialRenderProxy = MaterialRenderProxy->GetFallback(FeatureLevel);
+			else
+			{
+				ProcessDeferredShadingPath(MeshBatch, BatchElementMask, Material, MaterialRenderProxy, PrimitiveSceneProxy, StaticMeshId);
+			}
 		}
 	}
 }
 
-bool FEditorPrimitivesBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material)
-{
-	const EBlendMode BlendMode = Material.GetBlendMode();
-	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
-
-	bool bResult = true;
-	if (bIsTranslucent == bTranslucentBasePass
-		&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInMainPass())
-		&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
-	{
-		if (Scene->GetShadingPath(FeatureLevel) == EShadingPath::Mobile)
-		{
-			bResult = ProcessMobileShadingPath(MeshBatch, BatchElementMask, Material, MaterialRenderProxy, PrimitiveSceneProxy, StaticMeshId);
-		}
-		else
-		{
-			bResult = ProcessDeferredShadingPath(MeshBatch, BatchElementMask, Material, MaterialRenderProxy, PrimitiveSceneProxy, StaticMeshId);
-		}
-	}
-	return bResult;
-}
-
-bool FEditorPrimitivesBasePassMeshProcessor::ProcessDeferredShadingPath(const FMeshBatch& MeshBatch, uint64 BatchElementMask, const FMaterial& Material, const FMaterialRenderProxy& MaterialRenderProxy, const FPrimitiveSceneProxy* PrimitiveSceneProxy, int32 StaticMeshId)
+void FEditorPrimitivesBasePassMeshProcessor::ProcessDeferredShadingPath(const FMeshBatch& MeshBatch, uint64 BatchElementMask, const FMaterial& Material, const FMaterialRenderProxy& MaterialRenderProxy, const FPrimitiveSceneProxy* PrimitiveSceneProxy, int32 StaticMeshId)
 {
 	FUniformLightMapPolicy NoLightmapPolicy(LMP_NO_LIGHTMAP);
 	typedef FUniformLightMapPolicy LightMapPolicyType;
@@ -74,9 +60,9 @@ bool FEditorPrimitivesBasePassMeshProcessor::ProcessDeferredShadingPath(const FM
 		FBaseDS,
 		TBasePassPixelShaderPolicyParamType<LightMapPolicyType>> BasePassShaders;
 
-	if (!GetBasePassShaders<LightMapPolicyType>(
-		Material,
-		VertexFactory->GetType(),
+	GetBasePassShaders<LightMapPolicyType>(
+		Material, 
+		VertexFactory->GetType(), 
 		NoLightmapPolicy,
 		FeatureLevel,
 		bRenderAtmosphericFog,
@@ -86,10 +72,7 @@ bool FEditorPrimitivesBasePassMeshProcessor::ProcessDeferredShadingPath(const FM
 		BasePassShaders.DomainShader,
 		BasePassShaders.VertexShader,
 		BasePassShaders.PixelShader
-		))
-	{
-		return false;
-	}
+		);
 
 	FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);
 
@@ -121,11 +104,9 @@ bool FEditorPrimitivesBasePassMeshProcessor::ProcessDeferredShadingPath(const FM
 		SortKey,
 		EMeshPassFeatures::Default,
 		ShaderElementData);
-
-	return true;
 }
 
-bool FEditorPrimitivesBasePassMeshProcessor::ProcessMobileShadingPath(const FMeshBatch& MeshBatch, uint64 BatchElementMask, const FMaterial& Material, const FMaterialRenderProxy& MaterialRenderProxy, const FPrimitiveSceneProxy* PrimitiveSceneProxy, int32 StaticMeshId)
+void FEditorPrimitivesBasePassMeshProcessor::ProcessMobileShadingPath(const FMeshBatch& MeshBatch, uint64 BatchElementMask, const FMaterial& Material, const FMaterialRenderProxy& MaterialRenderProxy, const FPrimitiveSceneProxy* PrimitiveSceneProxy, int32 StaticMeshId)
 {
 	FUniformLightMapPolicy NoLightmapPolicy(LMP_NO_LIGHTMAP);
 	typedef FUniformLightMapPolicy LightMapPolicyType;
@@ -139,17 +120,15 @@ bool FEditorPrimitivesBasePassMeshProcessor::ProcessMobileShadingPath(const FMes
 		FBaseHS,
 		FBaseDS,
 		TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>> BasePassShaders;
-	if (!MobileBasePass::GetShaders(
-		NoLightmapPolicy.GetIndirectPolicy(),
+
+	MobileBasePass::GetShaders(
+		NoLightmapPolicy.GetIndirectPolicy(), 
 		NumMovablePointLights,
-		Material,
-		VertexFactory->GetType(),
-		bEnableSkyLight,
-		BasePassShaders.VertexShader,
-		BasePassShaders.PixelShader))
-	{
-		return false;
-	}
+		Material, 
+		VertexFactory->GetType(), 
+		bEnableSkyLight, 
+		BasePassShaders.VertexShader, 
+		BasePassShaders.PixelShader);
 	
 	FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);
 
@@ -180,6 +159,4 @@ bool FEditorPrimitivesBasePassMeshProcessor::ProcessMobileShadingPath(const FMes
 		SortKey,
 		EMeshPassFeatures::Default,
 		ShaderElementData);
-
-	return true;
 }

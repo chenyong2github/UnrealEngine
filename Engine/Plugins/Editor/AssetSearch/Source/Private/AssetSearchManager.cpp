@@ -844,11 +844,6 @@ void FAssetSearchManager::ForceIndexOnAssetsMissingIndex()
 
 	TArray<FAssetData> RedirectorsWithBrokenMetadata;
 
-	TGuardValue<bool> GuardResetTesting(GIsAutomationTesting, true);
-
-	const int32 OnePercentChunk = (int32)(FailedDDCRequests.Num() / 100.0);
-	int32 ChunkProgress = 0;
-
 	FUnloadPackageScope UnloadScope;
 	for (const FAssetDDCRequest& Request : FailedDDCRequests)
 	{
@@ -857,11 +852,7 @@ void FAssetSearchManager::ForceIndexOnAssetsMissingIndex()
 			break;
 		}
 
-		if (RemovedCount > ChunkProgress)
-		{
-			ChunkProgress += OnePercentChunk;
-			IndexingTask.EnterProgressFrame(OnePercentChunk, FText::Format(LOCTEXT("ForceIndexOnAssetsMissingIndexFormat", "Indexing Asset ({0} of {1})"), RemovedCount + 1, FailedDDCRequests.Num()));
-		}
+		IndexingTask.EnterProgressFrame(1, FText::Format(LOCTEXT("ForceIndexOnAssetsMissingIndexFormat", "Indexing Asset ({0} of {1})"), RemovedCount + 1, FailedDDCRequests.Num()));
 
 		if (IncludeMaps != EAppReturnType::Yes)
 		{
@@ -872,7 +863,7 @@ void FAssetSearchManager::ForceIndexOnAssetsMissingIndex()
 			}
 		}
 
-		//ProcessGameThreadTasks();
+		ProcessGameThreadTasks();
 
 		if (UObject* AssetToIndex = Request.AssetData.GetAsset())
 		{

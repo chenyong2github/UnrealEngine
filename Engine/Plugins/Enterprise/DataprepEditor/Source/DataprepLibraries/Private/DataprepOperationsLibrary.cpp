@@ -186,8 +186,8 @@ void UDataprepOperationsLibrary::SubstituteMaterial(const TArray<UObject*>& Sele
 			{
 				DataprepOperationsLibraryUtil::FScopedStaticMeshEdit StaticMeshEdit( StaticMesh );
 
-				TArray<FStaticMaterial>& StaticMaterials = StaticMesh->GetStaticMaterials();
-				for (int32 Index = 0; Index < StaticMesh->GetStaticMaterials().Num(); ++Index)
+				TArray<FStaticMaterial>& StaticMaterials = StaticMesh->StaticMaterials;
+				for (int32 Index = 0; Index < StaticMesh->StaticMaterials.Num(); ++Index)
 				{
 					if (StaticMesh->GetMaterial(Index) == MaterialToReplace)
 					{
@@ -237,7 +237,7 @@ void UDataprepOperationsLibrary::SetMaterial( const TArray< UObject* >& Selected
 		{
 			DataprepOperationsLibraryUtil::FScopedStaticMeshEdit StaticMeshEdit( StaticMesh );
 
-			for (int32 Index = 0; Index < StaticMesh->GetStaticMaterials().Num(); ++Index)
+			for (int32 Index = 0; Index < StaticMesh->StaticMaterials.Num(); ++Index)
 			{
 				DataprepOperationsLibraryUtil::SetMaterial( StaticMesh, Index, MaterialSubstitute );
 			}

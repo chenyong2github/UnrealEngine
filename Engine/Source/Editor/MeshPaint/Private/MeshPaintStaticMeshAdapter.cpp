@@ -71,7 +71,7 @@ bool FMeshPaintGeometryAdapterForStaticMeshes::Initialize()
 	check(ReferencedStaticMesh == StaticMeshComponent->GetStaticMesh());
 	if (MeshLODIndex < ReferencedStaticMesh->GetNumLODs())
 	{
-		LODModel = &(ReferencedStaticMesh->GetRenderData()->LODResources[MeshLODIndex]);
+		LODModel = &(ReferencedStaticMesh->RenderData->LODResources[MeshLODIndex]);
 		return FBaseMeshPaintGeometryAdapter::Initialize();
 	}
 
@@ -149,7 +149,7 @@ void FMeshPaintGeometryAdapterForStaticMeshes::CleanupGlobals()
 	{
 		if (Pair.Key && Pair.Value.RestoreBodySetup)
 		{
-			Pair.Key->SetBodySetup(Pair.Value.RestoreBodySetup);
+			Pair.Key->BodySetup = Pair.Value.RestoreBodySetup;
 		}
 	}
 
@@ -177,11 +177,11 @@ void FMeshPaintGeometryAdapterForStaticMeshes::OnAdded()
 	if (StaticMeshReferencers.Referencers.Num() == 0)
 	{
 		// Remember the old body setup (this will be added as a GC reference so that it doesn't get destroyed)
-		StaticMeshReferencers.RestoreBodySetup = ReferencedStaticMesh->GetBodySetup();
+		StaticMeshReferencers.RestoreBodySetup = ReferencedStaticMesh->BodySetup;
 
 		// Create a new body setup from the mesh's main body setup. This has to have the static mesh as its outer,
 		// otherwise the body instance will not be created correctly.
-		UBodySetup* TempBodySetupRaw = DuplicateObject<UBodySetup>(ReferencedStaticMesh->GetBodySetup(), ReferencedStaticMesh);
+		UBodySetup* TempBodySetupRaw = DuplicateObject<UBodySetup>(ReferencedStaticMesh->BodySetup, ReferencedStaticMesh);
 		TempBodySetupRaw->ClearFlags(RF_Transactional);
 
 		// Set collide all flag so that the body creates physics meshes using ALL elements from the mesh not just the collision mesh.
@@ -195,7 +195,7 @@ void FMeshPaintGeometryAdapterForStaticMeshes::OnAdded()
 		TempBodySetupRaw->AggGeom.ConvexElems.Empty();
 
 		// Set as new body setup
-		ReferencedStaticMesh->SetBodySetup(TempBodySetupRaw);
+		ReferencedStaticMesh->BodySetup = TempBodySetupRaw;
 
 		bBodyChanged = true;
 	}
@@ -257,7 +257,7 @@ void FMeshPaintGeometryAdapterForStaticMeshes::OnRemoved()
 		// If the last reference was removed, restore the body setup for the static mesh
 		if (StaticMeshReferencers->Referencers.Num() == 0)
 		{
-			ReferencedStaticMesh->SetBodySetup(StaticMeshReferencers->RestoreBodySetup);
+			ReferencedStaticMesh->BodySetup = StaticMeshReferencers->RestoreBodySetup;
 			verify(MeshToComponentMap.Remove(ReferencedStaticMesh) == 1);
 		}
 	}
@@ -400,7 +400,7 @@ void FMeshPaintGeometryAdapterForStaticMeshes::PreEdit()
 		for (int32 Index = MeshLODIndex; Index < MaxIndex; ++Index)
 		{
 			FStaticMeshComponentLODInfo& InstanceMeshLODInfo = StaticMeshComponent->LODData[Index];
-			FStaticMeshLODResources& LODResource = StaticMesh->GetRenderData()->LODResources[Index];
+			FStaticMeshLODResources& LODResource = StaticMesh->RenderData->LODResources[Index];
 
 			// Destroy the instance vertex  color array if it doesn't fit
 			if (InstanceMeshLODInfo.OverrideVertexColors
@@ -436,7 +436,7 @@ void FMeshPaintGeometryAdapterForStaticMeshes::PreEdit()
 		}
 		// See if the component has to cache its mesh vertex positions associated with override colors
 		StaticMeshComponent->CachePaintedDataIfNecessary();
-		StaticMeshComponent->StaticMeshDerivedDataKey = StaticMesh->GetRenderData()->DerivedDataKey;
+		StaticMeshComponent->StaticMeshDerivedDataKey = StaticMesh->RenderData->DerivedDataKey;
 	}
 	else
 	{

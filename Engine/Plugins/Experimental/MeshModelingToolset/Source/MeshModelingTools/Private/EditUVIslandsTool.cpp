@@ -231,7 +231,7 @@ void UEditUVIslandsTool::OnClicked(const FInputDeviceRay& ClickPos)
 	if (bSelectionModified && SelectionMechanic->GetActiveSelection().IsEmpty() == false)
 	{
 		FFrame3d UseFrame = Topology.GetIslandFrame(
-			SelectionMechanic->GetActiveSelection().GetASelectedGroupID(), GetSpatial());
+			SelectionMechanic->GetActiveSelection().SelectedGroupIDs[0], GetSpatial());
 		UseFrame.Transform(WorldTransform);
 		MultiTransformer->UpdateGizmoPositionFromWorldFrame(UseFrame, true);
 		//MultiTransformer->SetGizmoPositionFromWorldFrame(SelectionMechanic->GetSelectionFrame(true), true);

@@ -71,18 +71,16 @@ void UHierarchicalLODSettings::PostEditChangeProperty(struct FPropertyChangedEve
 	}
 }
 
-FHierarchicalLODBuilder::FHierarchicalLODBuilder(UWorld* InWorld, bool bInPersistentLevelOnly /*= false*/)
-	: World(InWorld)
-	, bPersistentLevelOnly(bInPersistentLevelOnly)
+FHierarchicalLODBuilder::FHierarchicalLODBuilder(UWorld* InWorld)
+:	World(InWorld)
 {
 	checkf(InWorld != nullptr, TEXT("Invalid nullptr world provided"));
 	HLODSettings = GetDefault<UHierarchicalLODSettings>();
 }
 
 FHierarchicalLODBuilder::FHierarchicalLODBuilder()
-	: World(nullptr)
-	, bPersistentLevelOnly(false)
-	, HLODSettings(nullptr)
+	: World(nullptr), 
+	  HLODSettings(nullptr)
 {
 	EnsureRetrievingVTablePtrDuringCtor(TEXT("FHierarchicalLODBuilder()"));
 }
@@ -198,16 +196,14 @@ void FHierarchicalLODBuilder::BuildClusters(ULevel* InLevel)
 								// Reassess whether or not objects that were excluded from the previous HLOD level should be included in this one
 								if (BuildLODLevelSettings[LODId - 1].bAllowSpecificExclusion)
 								{
-									for (int RejectedIndex = RejectedActorsInLevel.Num() - 1; RejectedIndex >= 0; RejectedIndex--)
+									for (AActor* Actor : RejectedActorsInLevel)
 									{
-										AActor* Actor = RejectedActorsInLevel[RejectedIndex];
 										if (!ShouldGenerateCluster(Actor, LODId - 1) && ShouldGenerateCluster(Actor, LODId))
 										{
 											FBox ActorBox = Actor->GetComponentsBoundingBox(true);
 											if (HLODVolumeBox.IsInside(ActorBox) || (Volume->bIncludeOverlappingActors && HLODVolumeBox.Intersect(ActorBox)))
 											{
 												PreviousActorCluster += Actor;
-												RejectedActorsInLevel.RemoveAt(RejectedIndex); // Don't use it again later once it's in a cluster
 											}
 										}
 									}
@@ -220,15 +216,13 @@ void FHierarchicalLODBuilder::BuildClusters(ULevel* InLevel)
 							const FBoxSphereBounds ClusterBounds(PreviousLODActor->GetComponentsBoundingBox(true));
 							if (BuildLODLevelSettings[LODId - 1].bAllowSpecificExclusion)
 							{
-								for (int RejectedIndex = RejectedActorsInLevel.Num() - 1; RejectedIndex >= 0; RejectedIndex--)
+								for (AActor* Actor : RejectedActorsInLevel)
 								{
-									AActor* Actor = RejectedActorsInLevel[RejectedIndex];
 									if (Actor && FBoxSphereBounds::SpheresIntersect(ClusterBounds, FSphere(Actor->GetActorLocation(), Actor->GetComponentsBoundingBox().GetSize().Size())))
 									{
 										if (!ShouldGenerateCluster(Actor, LODId - 1) && ShouldGenerateCluster(Actor, LODId))
 										{
 											PreviousActorCluster += Actor;
-											RejectedActorsInLevel.RemoveAt(RejectedIndex); // Don't use it again later once it's in a cluster
 										}
 									}
 								}
@@ -533,14 +527,13 @@ void FHierarchicalLODBuilder::InitializeClusters(ULevel* InLevel, const int32 LO
 				const bool bShouldGenerate = ShouldGenerateCluster(Actor, LODIdx);
 				if (bShouldGenerate)
 				{
-					if (!ProcessVolumeClusters(Actor))
+					if (bVolumesOnly)
 					{
-						if (bVolumesOnly)
-						{
-							// Add them to the RejectedActorsInLevel to be re-considered at the next LOD in case that one isn't using bVolumesOnly
-							RejectedActorsInLevel.Add(Actor);
-						}
-						else
+						ProcessVolumeClusters(Actor);
+					}
+					else
+					{
+						if (!ProcessVolumeClusters(Actor))
 						{
 							ValidStaticMeshActorsInLevel.Add(Actor);
 						}
@@ -686,12 +679,6 @@ bool FHierarchicalLODBuilder::ShouldBuildHLODForLevel(const UWorld* InWorld, con
 {
 	check(InWorld);
 	if (!InLevel)
-	{
-		return false;
-	}
-
-	// If we only want to build HLODs for the persistent level
-	if (bPersistentLevelOnly && InLevel != InWorld->PersistentLevel)
 	{
 		return false;
 	}

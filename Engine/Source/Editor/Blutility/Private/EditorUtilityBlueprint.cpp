@@ -10,18 +10,3 @@ UEditorUtilityBlueprint::UEditorUtilityBlueprint(const FObjectInitializer& Objec
 	: Super(ObjectInitializer)
 {
 }
-
-bool UEditorUtilityBlueprint::SupportedByDefaultBlueprintFactory() const
-{
-	return false;
-}
-
-bool UEditorUtilityBlueprint::AlwaysCompileOnLoad() const
-{
-	return true;
-}
-
-bool UEditorUtilityBlueprint::CanRecompileWhilePlayingInEditor() const
-{
-	return false;
-}

@@ -5,27 +5,27 @@
 #include "InstallBundleManagerPrivatePCH.h"
 #include "Stats/Stats.h"
 
-FInstallBundleCombinedProgressTracker::FInstallBundleCombinedProgressTracker()
+FBundlePrereqCombinedStatusHelper::FBundlePrereqCombinedStatusHelper()
 {
 	SetupDelegates();
 }
 
-FInstallBundleCombinedProgressTracker::~FInstallBundleCombinedProgressTracker()
+FBundlePrereqCombinedStatusHelper::~FBundlePrereqCombinedStatusHelper()
 {
 	CleanUpDelegates();
 }
 
-FInstallBundleCombinedProgressTracker::FInstallBundleCombinedProgressTracker(const FInstallBundleCombinedProgressTracker& Other)
+FBundlePrereqCombinedStatusHelper::FBundlePrereqCombinedStatusHelper(const FBundlePrereqCombinedStatusHelper& Other)
 {
 	*this = Other;
 }
 
-FInstallBundleCombinedProgressTracker::FInstallBundleCombinedProgressTracker(FInstallBundleCombinedProgressTracker&& Other)
+FBundlePrereqCombinedStatusHelper::FBundlePrereqCombinedStatusHelper(FBundlePrereqCombinedStatusHelper&& Other)
 {
 	*this = MoveTemp(Other);
 }
 
-FInstallBundleCombinedProgressTracker& FInstallBundleCombinedProgressTracker::operator=(const FInstallBundleCombinedProgressTracker& Other)
+FBundlePrereqCombinedStatusHelper& FBundlePrereqCombinedStatusHelper::operator=(const FBundlePrereqCombinedStatusHelper& Other)
 {
 	if (this != &Other)
 	{
@@ -33,7 +33,8 @@ FInstallBundleCombinedProgressTracker& FInstallBundleCombinedProgressTracker::op
 		RequiredBundleNames = Other.RequiredBundleNames;
 		BundleStatusCache = Other.BundleStatusCache;
 		CachedBundleWeights = Other.CachedBundleWeights;
-		CurrentCombinedProgress = Other.CurrentCombinedProgress;
+		CurrentCombinedStatus = Other.CurrentCombinedStatus;
+		bBundleNeedsUpdate = Other.bBundleNeedsUpdate;
 		InstallBundleManager = Other.InstallBundleManager;
 		
 		//Don't copy TickHandle as we want to setup our own here
@@ -43,12 +44,13 @@ FInstallBundleCombinedProgressTracker& FInstallBundleCombinedProgressTracker::op
 	return *this;
 }
 
-FInstallBundleCombinedProgressTracker& FInstallBundleCombinedProgressTracker::operator=(FInstallBundleCombinedProgressTracker&& Other)
+FBundlePrereqCombinedStatusHelper& FBundlePrereqCombinedStatusHelper::operator=(FBundlePrereqCombinedStatusHelper&& Other)
 {
 	if (this != &Other)
 	{
 		//Just copy small data
-		CurrentCombinedProgress = Other.CurrentCombinedProgress;		
+		CurrentCombinedStatus = Other.CurrentCombinedStatus;
+		bBundleNeedsUpdate = Other.bBundleNeedsUpdate;
 		InstallBundleManager = Other.InstallBundleManager;
 
 		//Move bigger data
@@ -66,16 +68,16 @@ FInstallBundleCombinedProgressTracker& FInstallBundleCombinedProgressTracker::op
 	return *this;
 }
 
-void FInstallBundleCombinedProgressTracker::SetupDelegates()
+void FBundlePrereqCombinedStatusHelper::SetupDelegates()
 {
 	CleanUpDelegates();
 	
-	IInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FInstallBundleCombinedProgressTracker::OnBundleInstallComplete);
-	IInstallBundleManager::PausedBundleDelegate.AddRaw(this, &FInstallBundleCombinedProgressTracker::OnBundleInstallPauseChanged);
-	TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FInstallBundleCombinedProgressTracker::Tick));
+	IInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FBundlePrereqCombinedStatusHelper::OnBundleInstallComplete);
+	IInstallBundleManager::PausedBundleDelegate.AddRaw(this, &FBundlePrereqCombinedStatusHelper::OnBundleInstallPauseChanged);
+	TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FBundlePrereqCombinedStatusHelper::Tick));
 }
 
-void FInstallBundleCombinedProgressTracker::CleanUpDelegates()
+void FBundlePrereqCombinedStatusHelper::CleanUpDelegates()
 {
 	IInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
 	IInstallBundleManager::PausedBundleDelegate.RemoveAll(this);
@@ -86,13 +88,13 @@ void FInstallBundleCombinedProgressTracker::CleanUpDelegates()
 	}
 }
 
-void FInstallBundleCombinedProgressTracker::SetBundlesToTrackFromContentState(const FInstallBundleCombinedContentState& BundleContentState, TArrayView<FName> BundlesToTrack)
+void FBundlePrereqCombinedStatusHelper::SetBundlesToTrackFromContentState(const FInstallBundleCombinedContentState& BundleContentState, TArrayView<FName> BundlesToTrack)
 {
 	RequiredBundleNames.Empty();
 	CachedBundleWeights.Empty();
 	BundleStatusCache.Empty();
 	
-	bool bBundleNeedsUpdate = false;
+	bBundleNeedsUpdate = false;
 	float TotalWeight = 0.0f;
 	for (const FName& Bundle : BundlesToTrack)
 	{
@@ -112,7 +114,7 @@ void FInstallBundleCombinedProgressTracker::SetBundlesToTrackFromContentState(co
 		}
 	}
 
-	CurrentCombinedProgress.bBundleRequiresUpdate = bBundleNeedsUpdate;
+	CurrentCombinedStatus.bBundleRequiresUpdate = bBundleNeedsUpdate;
 	
 	if (TotalWeight > 0.0f)
 	{
@@ -125,15 +127,15 @@ void FInstallBundleCombinedProgressTracker::SetBundlesToTrackFromContentState(co
 	// If no bundles to track, we are done
 	if (RequiredBundleNames.Num() == 0)
 	{
-		CurrentCombinedProgress.ProgressPercent = 1.0f;
-		CurrentCombinedProgress.CombinedStatus = ECombinedBundleStatus::Finished;
+		CurrentCombinedStatus.ProgressPercent = 1.0f;
+		CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Finished;
 	}
 	
 	//Go ahead and calculate initial values from the Bundle Cache
 	UpdateBundleCache();
 }
 
-void FInstallBundleCombinedProgressTracker::UpdateBundleCache()
+void FBundlePrereqCombinedStatusHelper::UpdateBundleCache()
 {
 	//if we haven't already set this up, lets try to set it now
 	if (nullptr == InstallBundleManager)
@@ -141,12 +143,11 @@ void FInstallBundleCombinedProgressTracker::UpdateBundleCache()
 		InstallBundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
 	}
 	
-	TSharedPtr<IInstallBundleManager> PinnedBundleManger = InstallBundleManager.Pin();
-	if (ensureAlwaysMsgf((nullptr != PinnedBundleManger), TEXT("Invalid InstallBundleManager during UpdateBundleCache! Needs to be valid during run!")))
+	if (ensureAlwaysMsgf((nullptr != InstallBundleManager), TEXT("Invalid InstallBundleManager during UpdateBundleCache! Needs to be valid during run!")))
 	{
 		for (FName& BundleName : RequiredBundleNames)
 		{
-			TOptional<FInstallBundleProgress> BundleProgress = PinnedBundleManger->GetBundleProgress(BundleName);
+			TOptional<FInstallBundleProgress> BundleProgress = InstallBundleManager->GetBundleProgress(BundleName);
 			
 			//Copy progress to the cache as long as we have progress to copy.
 			if (BundleProgress.IsSet())
@@ -157,12 +158,12 @@ void FInstallBundleCombinedProgressTracker::UpdateBundleCache()
 	}
 }
 
-void FInstallBundleCombinedProgressTracker::UpdateCombinedStatus()
+void FBundlePrereqCombinedStatusHelper::UpdateCombinedStatus()
 {
 	if (RequiredBundleNames.Num() == 0)
 		return;
 
-	CurrentCombinedProgress.ProgressPercent = GetCombinedProgressPercent();
+	CurrentCombinedStatus.ProgressPercent = GetCombinedProgressPercent();
 	
 	EInstallBundleStatus EarliestBundleState = EInstallBundleStatus::Count;
 	EInstallBundlePauseFlags CombinedPauseFlags = EInstallBundlePauseFlags::None;
@@ -199,27 +200,27 @@ void FInstallBundleCombinedProgressTracker::UpdateCombinedStatus()
 	
 	//if we have any paused bundles, and we have any bundle that isn't finished installed, we are Paused
 	//if everything is installed ignore the pause flags as we completed after pausing the bundles
-	CurrentCombinedProgress.bIsPaused = (bIsAnythingPaused && (EarliestBundleState < EInstallBundleStatus::Ready));
-	if(CurrentCombinedProgress.bIsPaused)
+	CurrentCombinedStatus.bIsPaused = (bIsAnythingPaused && (EarliestBundleState < EInstallBundleStatus::Ready));
+	if(CurrentCombinedStatus.bIsPaused)
 	{
-		CurrentCombinedProgress.CombinedPauseFlags = CombinedPauseFlags;
+		CurrentCombinedStatus.CombinedPauseFlags = CombinedPauseFlags;
 	}
 	else
 	{
-		CurrentCombinedProgress.CombinedPauseFlags = EInstallBundlePauseFlags::None;
+		CurrentCombinedStatus.CombinedPauseFlags = EInstallBundlePauseFlags::None;
 	}
 	
 	//if the bundle does not need an update, all the phases we go through don't support pausing (Mounting ,Compiling Shaders, etc)
 	//Otherwise start with True and override those specific cases bellow
-	CurrentCombinedProgress.bDoesCurrentStateSupportPausing = CurrentCombinedProgress.bBundleRequiresUpdate;
+	CurrentCombinedStatus.bDoesCurrentStateSupportPausing = bBundleNeedsUpdate;
 	
 	if ((EarliestBundleState == EInstallBundleStatus::Requested) || (EarliestBundleState == EInstallBundleStatus::Count))
 	{
-		CurrentCombinedProgress.CombinedStatus = ECombinedBundleStatus::Initializing;
+		CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Initializing;
 	}
 	else if (EarliestBundleState <= EInstallBundleStatus::Updating)
 	{
-		CurrentCombinedProgress.CombinedStatus = ECombinedBundleStatus::Updating;
+		CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Updating;
 	}
 	else if (EarliestBundleState <= EInstallBundleStatus::Finishing)
 	{
@@ -227,26 +228,26 @@ void FInstallBundleCombinedProgressTracker::UpdateCombinedStatus()
 		//Now just shows our earliest bundle that is finishing.
 		if (bIsAnythingFinishing)
 		{
-			CurrentCombinedProgress.CombinedStatus = ECombinedBundleStatus::Finishing;
-			CurrentCombinedProgress.ProgressPercent = EarliestFinishingPercent;
+			CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Finishing;
+			CurrentCombinedStatus.ProgressPercent = EarliestFinishingPercent;
 		}
 		else
 		{
-			CurrentCombinedProgress.CombinedStatus = ECombinedBundleStatus::Updating;
+			CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Updating;
 		}
 	}
 	else if (EarliestBundleState == EInstallBundleStatus::Ready)
 	{
-		CurrentCombinedProgress.CombinedStatus = ECombinedBundleStatus::Finished;
-		CurrentCombinedProgress.bDoesCurrentStateSupportPausing = false;
+		CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Finished;
+		CurrentCombinedStatus.bDoesCurrentStateSupportPausing = false;
 	}
 	else
 	{
-		CurrentCombinedProgress.CombinedStatus = ECombinedBundleStatus::Unknown;
+		CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Unknown;
 	}
 }
 
-float FInstallBundleCombinedProgressTracker::GetCombinedProgressPercent() const
+float FBundlePrereqCombinedStatusHelper::GetCombinedProgressPercent() const
 {
 	float AllBundleProgressPercent = 0.f;
 	
@@ -264,7 +265,7 @@ float FInstallBundleCombinedProgressTracker::GetCombinedProgressPercent() const
 	return FMath::Clamp(AllBundleProgressPercent, 0.f, 1.0f);
 }
 
-bool FInstallBundleCombinedProgressTracker::Tick(float dt)
+bool FBundlePrereqCombinedStatusHelper::Tick(float dt)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FBundlePrereqCombinedStatusHelper_Tick);
 	UpdateBundleCache();
@@ -274,12 +275,12 @@ bool FInstallBundleCombinedProgressTracker::Tick(float dt)
 	return true;
 }
 
-const FInstallBundleCombinedProgressTracker::FCombinedProgress& FInstallBundleCombinedProgressTracker::GetCurrentCombinedProgress() const
+const FBundlePrereqCombinedStatusHelper::FCombinedBundleStatus& FBundlePrereqCombinedStatusHelper::GetCurrentCombinedState() const
 {
-	return CurrentCombinedProgress;
+	return CurrentCombinedStatus;
 }
 
-void FInstallBundleCombinedProgressTracker::OnBundleInstallComplete(FInstallBundleRequestResultInfo CompletedBundleInfo)
+void FBundlePrereqCombinedStatusHelper::OnBundleInstallComplete(FInstallBundleRequestResultInfo CompletedBundleInfo)
 {
 	const FName CompletedBundleName = CompletedBundleInfo.BundleName;
 	const bool bBundleCompletedSuccessfully = (CompletedBundleInfo.Result == EInstallBundleResult::OK);
@@ -291,21 +292,17 @@ void FInstallBundleCombinedProgressTracker::OnBundleInstallComplete(FInstallBund
 		FInstallBundleProgress& BundleCacheInfo = BundleStatusCache.FindOrAdd(CompletedBundleName);
 		BundleCacheInfo.Status = EInstallBundleStatus::Ready;
 		
-		TSharedPtr<IInstallBundleManager> PinnedBundleManger = InstallBundleManager.Pin();
-		if (ensureAlwaysMsgf((nullptr != PinnedBundleManger), TEXT("Invalid InstallBundleManager during OnBundleInstallComplete! Needs to be valid during run!")))
+		TOptional<FInstallBundleProgress> BundleProgress = InstallBundleManager->GetBundleProgress(CompletedBundleName);
+		if (ensureAlwaysMsgf(BundleProgress.IsSet(), TEXT("Expected to find BundleProgress for completed bundle, but did not. Leaving old progress values")))
 		{
-			TOptional<FInstallBundleProgress> BundleProgress = PinnedBundleManger->GetBundleProgress(CompletedBundleName);
-			if (ensureAlwaysMsgf(BundleProgress.IsSet(), TEXT("Expected to find BundleProgress for completed bundle, but did not. Leaving old progress values")))
-			{
-				BundleCacheInfo = BundleProgress.GetValue();
-			}
+			BundleCacheInfo = BundleProgress.GetValue();
 		}
 	}
 }
 
 // It's not really necessary to have this, but it allows for a fallback if GetBundleProgress() returns null.
 // Normally that shouldn't happen, but right now its handy while I refactor bundle progress.
-void FInstallBundleCombinedProgressTracker::OnBundleInstallPauseChanged(FInstallBundlePauseInfo PauseInfo)
+void FBundlePrereqCombinedStatusHelper::OnBundleInstallPauseChanged(FInstallBundlePauseInfo PauseInfo)
 {
 	const bool bWasRequiredBundle = RequiredBundleNames.Contains(PauseInfo.BundleName);
 	if (bWasRequiredBundle)

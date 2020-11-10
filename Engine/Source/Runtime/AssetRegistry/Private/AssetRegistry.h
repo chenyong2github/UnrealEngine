@@ -298,15 +298,6 @@ private:
 	 */
 	void AddSubContentBlacklist(const FString& InMount);
 
-	/**
-	 * Returns true if path belongs to one of the mount points provided
-	 *
-	 * @param	Path				Path to check if mounted, example "/MyPlugin/SomeAsset"
-	 * @param	MountPointsNoTrailingSlashes		Mount points without the trailing slash. Example: "/MyPlugin"
-	 * @param	StringBuffer		String buffer to avoid re-allocation performance hit when searching TSet
-	 */
-	bool IsPathMounted(const FString& Path, const TSet<FString>& MountPointsNoTrailingSlashes, FString& StringBuffer) const;
-
 private:
 	
 	/** Internal state of the cached asset registry */
@@ -409,9 +400,6 @@ private:
 	/** Flag to indicate if the initial background search has completed */
 	bool bInitialSearchCompleted;
 
-	/** Enables extra check to make sure path still mounted before adding. Removing mount point can happen between scan (background thread + multiple ticks and the add). */
-	bool bVerifyMountPointAfterGather;
-
 	/** A set used to ignore repeated requests to synchronously scan the same folder or file multiple times */
 	TSet<FString> SynchronouslyScannedPathsAndFiles;
 
@@ -420,6 +408,10 @@ private:
 
 	/** Handles to all registered OnDirectoryChanged delegates */
 	TMap<FString, FDelegateHandle> OnDirectoryChangedDelegateHandles;
+
+	/** Handle to the registered OnDirectoryChanged delegate for the OnContentPathMounted handler */
+	FDelegateHandle OnContentPathMountedOnDirectoryChangedDelegateHandle;
+
 
 	struct FAssetRegistryPackageRedirect
 	{

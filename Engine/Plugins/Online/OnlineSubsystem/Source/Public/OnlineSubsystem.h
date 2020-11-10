@@ -618,11 +618,6 @@ public:
 	virtual FText GetOnlineServiceName() const = 0;
 
 	/**
-	 * @return The name of the social platform for this subsystem
-	 */
-	virtual FText GetSocialPlatformName() const = 0;
-
-	/**
 	 * Reload the configuration if it is relevant for this OSS instance
 	 *
 	 * @param ConfigSections list of ini sections that need to be reloaded

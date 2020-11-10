@@ -189,7 +189,7 @@ UStaticMesh* FAbcImporter::CreateStaticMeshFromSample(UObject* InParent, const F
 		StaticMesh->AddSourceModel();
 		FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(LODIndex);
 		// Generate a new lighting GUID (so its unique)
-		StaticMesh->SetLightingGuid();
+		StaticMesh->LightingGuid = FGuid::NewGuid();
 
 		// Set it to use textured lightmaps. Note that Build Lighting will do the error-checking (texcoord index exists for all LODs, etc).
 		StaticMesh->LightMapResolution = 64;
@@ -200,7 +200,7 @@ UStaticMesh* FAbcImporter::CreateStaticMeshFromSample(UObject* InParent, const F
 		check(DefaultMaterial);
 
 		// Material list
-		StaticMesh->GetStaticMaterials().Empty();
+		StaticMesh->StaticMaterials.Empty();
 		// If there were FaceSets available in the Alembic file use the number of unique face sets as num material entries, otherwise default to one material for the whole mesh
 		const uint32 FrameIndex = 0;
 		uint32 NumFaceSets = FaceSetNames.Num();
@@ -219,7 +219,7 @@ UStaticMesh* FAbcImporter::CreateStaticMeshFromSample(UObject* InParent, const F
 				}
 			}
 
-			StaticMesh->GetStaticMaterials().Add((Material != nullptr) ? Material : DefaultMaterial);
+			StaticMesh->StaticMaterials.Add((Material != nullptr) ? Material : DefaultMaterial);
 		}
 
 		GenerateMeshDescriptionFromSample(Sample, MeshDescription, StaticMesh);
@@ -1360,10 +1360,10 @@ void FAbcImporter::GenerateMeshDescriptionFromSample(const FAbcMeshSample* Sampl
 	//Speedtree use UVs to store is data
 	VertexInstanceUVs.SetNumIndices(Sample->NumUVSets);
 	
-	for (int32 MatIndex = 0; MatIndex < StaticMesh->GetStaticMaterials().Num(); ++MatIndex)
+	for (int32 MatIndex = 0; MatIndex < StaticMesh->StaticMaterials.Num(); ++MatIndex)
 	{
 		const FPolygonGroupID PolygonGroupID = MeshDescription->CreatePolygonGroup();
-		PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = StaticMesh->GetStaticMaterials()[MatIndex].ImportedMaterialSlotName;
+		PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = StaticMesh->StaticMaterials[MatIndex].ImportedMaterialSlotName;
 	}
 
 	// position

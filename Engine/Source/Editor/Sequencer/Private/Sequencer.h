@@ -8,7 +8,6 @@
 #include "Misc/Attribute.h"
 #include "Layout/Visibility.h"
 #include "Input/Reply.h"
-#include "UObject/WeakInterfacePtr.h"
 #include "Widgets/SWidget.h"
 #include "SequencerNodeTree.h"
 #include "DisplayNodes/SequencerDisplayNode.h"
@@ -791,7 +790,6 @@ public:
 	virtual FOnSelectionChangedSections& GetSelectionChangedSections() override { return OnSelectionChangedSectionsDelegate; }
 	virtual FGuid CreateBinding(UObject& InObject, const FString& InName) override;
 	virtual UObject* GetPlaybackContext() const override;
-	virtual IMovieScenePlaybackClient* GetPlaybackClient() override;
 	virtual TArray<UObject*> GetEventContexts() const override; 
 	virtual FOnActorAddedToSequencer& OnActorAddedToSequencer() override;
 	virtual FOnPreSave& OnPreSave() override;
@@ -1033,9 +1031,6 @@ private:
 	/** Updates a viewport client from camera cut data */
 	void UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewportClient& InViewportClient, UObject* InCameraObject, const EMovieSceneCameraCutParams& CameraCutParams);
 
-	/** Updates viewport clients' actor locks if they relate to sequencer cameras */
-	void UpdateLevelViewportClientsActorLocks();
-
 	/** Expands Possessables with multiple bindings into indidual Possessables for each binding */
 	TArray<FGuid> ExpandMultiplePossessableBindings(FGuid PossessableGuid);
 
@@ -1114,9 +1109,7 @@ private:
 	void ToggleAsyncEvaluation();
 	bool UsesAsyncEvaluation();
 
-	void UpdateCachedPlaybackContextAndClient();
-
-	void UpdateCachedCameraActors();
+	void UpdateCachedPlaybackContext();
 
 public:
 
@@ -1357,14 +1350,8 @@ private:
 	/** Attribute used to retrieve the playback context for this frame */
 	TAttribute<UObject*> PlaybackContextAttribute;
 
-	/** Attribute used to retrieve the playback client for this frame */
-	TAttribute<IMovieScenePlaybackClient*> PlaybackClientAttribute;
-
 	/** Cached playback context for this frame */
 	TWeakObjectPtr<UObject> CachedPlaybackContext;
-
-	/** Cached playback context for this frame */
-	TWeakInterfacePtr<IMovieScenePlaybackClient> CachedPlaybackClient;
 
 	/** Attribute used to retrieve event contexts */
 	TAttribute<TArray<UObject*>> EventContextsAttribute;
@@ -1437,8 +1424,4 @@ private:
 	float PreAnimatedViewportFOV;
 
 	TOptional<FMovieSceneSequenceID> ScrubPositionParent;
-
-	/** Cache of all bound cameras in the sequence hierarchy */
-	TSet<AActor*> CachedCameraActors;
-	uint32 LastKnownStateSerial = 0;
 };

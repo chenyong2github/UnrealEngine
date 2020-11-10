@@ -128,7 +128,7 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = "Audio", meta = (ClampMin = 0.001, UIMin = 0.001, UIMax = 4.0))
 	float GlobalMinPitchScale;
 
-	/** The value to use to clamp the max pitch scale */
+	/** The value to use to clamp the min pitch scale */
 	UPROPERTY(config, EditAnywhere, Category = "Audio", meta = (ClampMin = 0.001, UIMin = 0.001, UIMax = 4.0))
 	float GlobalMaxPitchScale;
 

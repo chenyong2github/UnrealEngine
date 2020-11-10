@@ -389,7 +389,7 @@ public:
 	FInstancedStaticMeshRenderData(UInstancedStaticMeshComponent* InComponent, ERHIFeatureLevel::Type InFeatureLevel)
 	  : Component(InComponent)
 	  , PerInstanceRenderData(InComponent->PerInstanceRenderData)
-	  , LODModels(Component->GetStaticMesh()->GetRenderData()->LODResources)
+	  , LODModels(Component->GetStaticMesh()->RenderData->LODResources)
 	  , FeatureLevel(InFeatureLevel)
 	{
 		check(PerInstanceRenderData.IsValid());

@@ -27,7 +27,7 @@ FTransientDecalRenderData::FTransientDecalRenderData(const FScene& InScene, cons
 	, ConservativeRadius(InConservativeRadius)
 {
 	MaterialProxy = InDecalProxy->DecalMaterial->GetRenderProxy();
-	MaterialResource = &MaterialProxy->GetMaterialWithFallback(InScene.GetFeatureLevel(), MaterialProxy);
+	MaterialResource = MaterialProxy->GetMaterial(InScene.GetFeatureLevel());
 	check(MaterialProxy && MaterialResource);
 	bHasNormal = MaterialResource->HasNormalConnected();
 	FinalDecalBlendMode = FDecalRenderingCommon::ComputeFinalDecalBlendMode(InScene.GetShaderPlatform(), (EDecalBlendMode)MaterialResource->GetDecalBlendMode(), bHasNormal);
@@ -106,10 +106,8 @@ public:
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
-		const FMaterialRenderProxy* MaterialProxyForRendering = MaterialProxy;
-		const FMaterial& Material = MaterialProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialProxyForRendering);
 		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxyForRendering, Material, View);
+		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, *MaterialProxy->GetMaterial(View.GetFeatureLevel()), View);
 
 		FTransform ComponentTrans = DecalProxy.ComponentTrans;
 

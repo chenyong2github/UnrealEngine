@@ -1136,25 +1136,8 @@ private:
 		ChunkInfo.bForceUncompressed = bIsContainerCompressed && !EnumHasAnyFlags(Meta.Flags, FIoStoreTocEntryMetaFlags::Compressed);
 		ChunkInfo.Offset = OffsetLength.GetOffset();
 		ChunkInfo.Size = OffsetLength.GetLength();
-		ChunkInfo.CompressedSize = GetCompressedSize(ChunkInfo.Id, TocResource, OffsetLength);
 
 		return ChunkInfo;
-	}
-
-	uint64 GetCompressedSize(const FIoChunkId& ChunkId, const FIoStoreTocResource& TocResource, const FIoOffsetAndLength& OffsetLength) const
-	{
-		const uint64 CompressionBlockSize = TocResource.Header.CompressionBlockSize;
-		int32 FirstBlockIndex = int32(OffsetLength.GetOffset() / CompressionBlockSize);
-		int32 LastBlockIndex = int32((Align(OffsetLength.GetOffset() + OffsetLength.GetLength(), CompressionBlockSize) - 1) / CompressionBlockSize);
-
-		uint64 CompressedSize = 0;
-		for (int32 BlockIndex = FirstBlockIndex; BlockIndex <= LastBlockIndex; ++BlockIndex)
-		{
-			const FIoStoreTocCompressedBlockEntry& CompressionBlock = TocResource.CompressionBlocks[BlockIndex];
-			CompressedSize += CompressionBlock.GetCompressedSize();
-		}
-
-		return CompressedSize;
 	}
 
 	struct FThreadBuffers

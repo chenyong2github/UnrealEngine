@@ -45,7 +45,7 @@ struct FPortalUserIsEntitledToItemRequest
 	FString ItemId;
 
 	UPROPERTY(EditAnywhere, Category = "Message")
-	EEntitlementCacheLevelRequest CacheLevel = EEntitlementCacheLevelRequest::Memory;
+	EEntitlementCacheLevelRequest CacheLevel;
 
 	FPortalUserIsEntitledToItemRequest()
 	{ }

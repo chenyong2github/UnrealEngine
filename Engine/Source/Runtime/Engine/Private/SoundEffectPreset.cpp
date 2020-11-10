@@ -7,11 +7,13 @@
 #include "AudioDeviceManager.h"
 #include "CoreGlobals.h"
 #include "Audio.h"
+#include "Async/TaskGraphInterfaces.h"
 
 USoundEffectPreset::USoundEffectPreset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bInitialized(false)
 {
+
 }
 
 void USoundEffectPreset::Update()
@@ -119,6 +121,12 @@ void USoundEffectPreset::UnregisterInstance(TSoundEffectPtr InEffectPtr)
 
 			InEffectPtr->ClearPreset();
 		}
+	}
+	else
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		UE_LOG(LogAudio, Error, TEXT("Attempt to unregister sound effect outside of audio thread. Current thread id: %d. Named thread type: %d. Game Thread Id: %d."), FPlatformTLS::GetCurrentThreadId(), FTaskGraphInterface::Get().GetCurrentThreadIfKnown(), GGameThreadId);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 

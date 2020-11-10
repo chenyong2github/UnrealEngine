@@ -4,7 +4,6 @@
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Chaos/ParticleHandle.h"
 #include "PhysxUserData.h"
-#include "PBDRigidsSolver.h"
 
 
 namespace ChaosInterface
@@ -23,20 +22,14 @@ namespace ChaosInterface
 
 #if WITH_CHAOS
 	FScopedSceneReadLock::FScopedSceneReadLock(FPhysScene_Chaos& SceneIn)
-		: Solver(SceneIn.GetSolver())
+		: Scene(SceneIn)
 	{
-		if(Solver)
-		{
-			Solver->GetExternalDataLock_External().ReadLock();
-		}
+		Scene.ExternalDataLock.ReadLock();
 	}
 
 	FScopedSceneReadLock::~FScopedSceneReadLock()
 	{
-		if(Solver)
-		{
-			Solver->GetExternalDataLock_External().ReadUnlock();
-		}
+		Scene.ExternalDataLock.ReadUnlock();
 	}
 #endif
 }
