@@ -1444,14 +1444,20 @@ void ComputeHairStrandsInterpolation(
 			FHairStrandClusterData::FHairGroup& HairGroupCluster =  InClusterData->HairGroups[Instance->HairGroupPublicData->ClusterDataIndex];
 			if (HairGroupCluster.bVisible)
 			{
-				AddHairClusterAABBPass(
-					GraphBuilder,
-					ShaderMap,
-					Instance->LocalToWorld,
-					Instance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current),
-					HairGroupCluster,
-					CullingData,
-					Strands_DeformedPosition);
+				// Optim: If an instance is using CPU selection and does not voxelize it's data, then there is no need for having valid AABB
+				const bool bNeedAABB = !Instance->bUseCPULODSelection || Instance->Strands.Modifier.bSupportVoxelization;
+
+				if (bNeedAABB)
+				{
+					AddHairClusterAABBPass(
+						GraphBuilder,
+						ShaderMap,
+						Instance->LocalToWorld,
+						Instance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current),
+						HairGroupCluster,
+						CullingData,
+						Strands_DeformedPosition);
+				}
 			}
 		}
 
