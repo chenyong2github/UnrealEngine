@@ -672,6 +672,7 @@ FNiagaraVariable FNiagaraConstants::GetAttributeAsParticleDataSetKey(const FNiag
 	FNiagaraVariable OutVar = InVar;
 	FString DataSetName = InVar.GetName().ToString();
 	DataSetName.RemoveFromStart(TEXT("Particles."));
+	DataSetName.RemoveFromStart(TEXT("StackContext."));
 	OutVar.SetName(*DataSetName);
 	return OutVar;
 }
@@ -681,6 +682,7 @@ FNiagaraVariable FNiagaraConstants::GetAttributeAsEmitterDataSetKey(const FNiaga
 	FNiagaraVariable OutVar = InVar;
 	FString DataSetName = InVar.GetName().ToString();
 	DataSetName.RemoveFromStart(TEXT("Emitter."));
+	DataSetName.RemoveFromStart(TEXT("StackContext."));
 	OutVar.SetName(*DataSetName);
 	return OutVar;
 }

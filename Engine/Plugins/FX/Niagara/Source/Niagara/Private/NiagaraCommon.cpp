@@ -400,14 +400,15 @@ void  FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const UNi
 	const bool bIsAliasedEmitterValue = InEmitter ? RootVariable.IsInNameSpace(InEmitter->GetUniqueEmitterName()) : false;
 	const bool bIsRootSystemValue = RootVariable.IsInNameSpace(FNiagaraConstants::SystemNamespace);
 	const bool bIsRootUserValue = RootVariable.IsInNameSpace(FNiagaraConstants::UserNamespace);
+	const bool bIsStackContextValue = RootVariable.IsInNameSpace(FNiagaraConstants::StackContextNamespace);
 
 	// We clear out the namespace for the sourcemode so that we can keep the values up-to-date if you change the source mode.
-	if (bIsRootParticleValue && InSourceMode == ENiagaraRendererSourceDataMode::Particles)
+	if ((bIsStackContextValue || bIsRootParticleValue) && InSourceMode == ENiagaraRendererSourceDataMode::Particles)
 	{
 		RootVariable.SetName(FNiagaraConstants::GetAttributeAsParticleDataSetKey(RootVariable).GetName());
 		BindingSourceMode = ENiagaraBindingSource::ImplicitFromSource;
 	}
-	else if (bIsRootUnaliasedEmitterValue && InSourceMode == ENiagaraRendererSourceDataMode::Emitter)
+	else if ((bIsStackContextValue || bIsRootUnaliasedEmitterValue) && InSourceMode == ENiagaraRendererSourceDataMode::Emitter)
 	{
 		RootVariable.SetName(FNiagaraConstants::GetAttributeAsEmitterDataSetKey(RootVariable).GetName());
 		BindingSourceMode = ENiagaraBindingSource::ImplicitFromSource;
@@ -449,6 +450,10 @@ void  FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const UNi
 	else if (bIsRootUserValue)
 	{
 		BindingSourceMode = ENiagaraBindingSource::ExplicitUser;
+	}
+	else if (bIsStackContextValue)
+	{
+		ensureMsgf(!bIsStackContextValue, TEXT("Should not get to this point! Should be covered by first two branch expresssions."));
 	}
 
 	CacheValues(InEmitter, InSourceMode);	
