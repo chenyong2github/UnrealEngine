@@ -2715,6 +2715,8 @@ UStaticMesh::UStaticMesh(const FObjectInitializer& ObjectInitializer)
 #endif
 }
 
+UStaticMesh::~UStaticMesh() = default;
+
 FStaticMeshRenderData* UStaticMesh::GetRenderData()
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
