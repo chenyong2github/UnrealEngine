@@ -59,4 +59,21 @@ void FSequencerCachedKeys::GetKeysInRange(const TRange<double>& Range, TArrayVie
 			*OutHandles = MakeArrayView(&CachedKeyHandles[FirstVisibleIndex], Num);
 		}
 	}
+	else
+	{
+		if (OutTimes)
+		{
+			*OutTimes = TArrayView<const double>();
+		}
+
+		if (OutKeyFrames)
+		{
+			*OutKeyFrames = TArrayView<const FFrameNumber>();
+		}
+
+		if (OutHandles)
+		{
+			*OutHandles = TArrayView<const FKeyHandle>();
+		}
+	}
 }
