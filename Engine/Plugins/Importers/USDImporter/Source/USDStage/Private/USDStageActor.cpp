@@ -1237,11 +1237,10 @@ void AUsdStageActor::LoadAssets( FUsdSchemaTranslationContext& TranslationContex
 
 	// Load materials first since meshes are referencing them
 	TArray< UE::FUsdPrim > AllPrimAssets = UsdUtils::GetAllPrimsOfType( StartPrim, TEXT("UsdShadeMaterial") );
-
 	CreateAssetsForPrims( AllPrimAssets );
 
-	// Load meshes
-	AllPrimAssets = UsdUtils::GetAllPrimsOfType( StartPrim, TEXT("UsdGeomXformable"), PruneChildren );
+	// Load everything else (including meshes)
+	AllPrimAssets = UsdUtils::GetAllPrimsOfType( StartPrim, TEXT("UsdSchemaBase"), PruneChildren, { TEXT("UsdShadeMaterial") } );
 	CreateAssetsForPrims( AllPrimAssets );
 }
 
