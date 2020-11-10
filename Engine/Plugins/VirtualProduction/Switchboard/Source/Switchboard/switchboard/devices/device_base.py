@@ -146,10 +146,7 @@ class Device(QtCore.QObject):
 
     @property
     def category_name(self):
-        if self.is_recording_device and self.status > DeviceStatus.DISCONNECTED:
-            return "Recording"
-        else:
-            return "Available"
+        return self.device_type
 
     @property
     def is_recording_device(self):
