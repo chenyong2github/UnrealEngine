@@ -252,6 +252,7 @@ void FWebMVideoDecoder::ConvertYUVToRGBAndSubmit(const FConvertParams& Params)
 		CopyTextureMemory(CommandList, DecodedV.GetReference(), 2, Image->d_h / 2);
 
 		FRHITexture* RenderTarget = VideoSample->GetTexture();
+		CommandList.Transition(FRHITransitionInfo(RenderTarget, ERHIAccess::SRVGraphics, ERHIAccess::RTV));
 		FRHIRenderPassInfo RPInfo(RenderTarget, ERenderTargetActions::Load_Store);
 		CommandList.BeginRenderPass(RPInfo, TEXT("ConvertYUVtoRGBA"));
 		{
@@ -282,7 +283,7 @@ void FWebMVideoDecoder::ConvertYUVToRGBAndSubmit(const FConvertParams& Params)
 			CommandList.DrawPrimitive(0, 2, 1);
 		}
 		CommandList.EndRenderPass();
-		CommandList.CopyToResolveTarget(RenderTarget, RenderTarget, FResolveParams());
+		CommandList.Transition(FRHITransitionInfo(RenderTarget, ERHIAccess::RTV, ERHIAccess::SRVGraphics));
 
 		Samples.AddVideoSampleFromDecodingThread(VideoSample.ToSharedRef());
 	}
