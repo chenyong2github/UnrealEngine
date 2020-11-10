@@ -12,7 +12,7 @@ const BADGE_LABEL = 'Merge'
 //										 -   1  -        -----    2   -----
 const CHANGE_INFO_VIA_REGEX = /CL \d+ in (\/\/.*)\/\.\.\.((?: via CL \d+)*)/
 
-//													   - 1-            - 2-                      - 3-
+//													   - 1 -            - 2 -                    - 3 -
 const BOT_DESCRIPTION_LINE_REGEX = /#ROBOMERGE-BOT:?\s*(\w+)\s*\(([-a-zA-Z0-9_\.]+)\s*->\s*([-a-zA-Z0-9_\.]+)\)/
 
 type BadgeFunc = (cl: number, stream: string) => void
@@ -66,15 +66,15 @@ class BadgeHandler implements BotEventHandler {
 		}
 	}
 
-	private markInProgressCl(info: ChangeInfo, result: string) {
-		Badge.mark(result, BADGE_LABEL, `${info.branch.stream}/${this.badgeProject}`, info.cl, this.botname, this.externalUrl)
+	private sendBadge(status: string, stream: string, cl: number, branch?: Branch, label?: string) {
+		Badge.mark(status, label || BADGE_LABEL, `${stream}/${this.badgeProject}`, cl, this.botname, this.externalUrl, branch && branch.config.badgeUrlOverride)
 	}
 
 	onBlockage(blockage: Blockage) {
 		const change = blockage.change
 
 		if (!change.isManual && isChangeUpstreamFromBadgeProject(change)) {
-			this.markInProgressCl(change, Badge.FAILURE)
+			this.sendBadge(Badge.FAILURE, change.branch.stream!, change.cl, change.branch)
 		}
 	}
 
@@ -83,14 +83,15 @@ class BadgeHandler implements BotEventHandler {
 		const stream = this.allBranchStreams.get(info.blockedBranchName)
 		if (stream) {
 			const result = info.resolution === Resolution.RESOLVED || info.resolution === Resolution.DUNNO ? Badge.SUCCESS : Badge.SKIPPED
-			Badge.mark(result, BADGE_LABEL, `${stream}/${this.badgeProject}`, info.cl, this.botname, this.externalUrl)
+
+			this.sendBadge(result, stream, info.cl)
 		}
 	}
 
 	onConflictStatus(anyConflicts: boolean) {
 		const status = anyConflicts ? Badge.FAILURE : Badge.SUCCESS
 		for (const stream of this.allBranchStreams.values()) {
-			Badge.mark(status, 'RoboMerge', `${stream}/${this.badgeProject}`, 0, this.botname, this.externalUrl)
+			this.sendBadge(status, stream, 0, undefined, 'RoboMerge')
 		}
 	}
 
@@ -101,8 +102,7 @@ class BadgeHandler implements BotEventHandler {
 			return false
 		}
 
-		const badgeFunc = (cl: number, stream: string) =>
-							Badge.mark(result, BADGE_LABEL, `${stream}/${this.badgeProject}`, cl, this.botname, this.externalUrl)
+		const badgeFunc = (cl: number, stream: string) => this.sendBadge(result, stream, cl, info.branch)
 
 		const sourceStream = match[1]
 		badgeFunc(info.source_cl, sourceStream)

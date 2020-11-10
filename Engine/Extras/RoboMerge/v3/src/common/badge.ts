@@ -15,14 +15,14 @@ interface BuildData {
 
 const MAX_RETRIES = 3
 
-export const UGS_URL_ROOT = '<ugs api endpoint>'
+export const UGS_API_CIS_ROUTE = '<ugs api endpoint>'
 
 export class Badge {
-	static markStarting(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.STARTING, badge, project, cl, bot, externalUrl) }
-	static markSuccess(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.SUCCESS, badge, project, cl, bot, externalUrl) }
-	static markFailure(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.FAILURE, badge, project, cl, bot, externalUrl) }
-	static markWarning(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.WARNING, badge, project, cl, bot, externalUrl) }
-	static markSkipped(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.SKIPPED, badge, project, cl, bot, externalUrl) }
+	// static markStarting(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.STARTING, badge, project, cl, bot, externalUrl) }
+	// static markSuccess(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.SUCCESS, badge, project, cl, bot, externalUrl) }
+	// static markFailure(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.FAILURE, badge, project, cl, bot, externalUrl) }
+	// static markWarning(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.WARNING, badge, project, cl, bot, externalUrl) }
+	// static markSkipped(badge: string, project: string, cl: number, bot: string, externalUrl: string) { this.mark(Badge.SKIPPED, badge, project, cl, bot, externalUrl) }
 
 	static STARTING = 'Starting'
 	static SUCCESS = 'Success'
@@ -72,7 +72,7 @@ export class Badge {
 		return null
 	}
 
-	static mark(result: string, badge: string, project: string, cl: number, bot: string, externalUrl: string) {
+	static mark(result: string, badge: string, project: string, cl: number, bot: string, externalUrl: string, badgeUrlOverride?: string) {
 		const data: BuildData = {
 			BuildType: badge,
 			Url: `${externalUrl}#${bot}`,
@@ -83,7 +83,7 @@ export class Badge {
 		}
 
 		return Badge.postWithRetry({
-			url: UGS_URL_ROOT + '/CIS',
+			url: badgeUrlOverride || UGS_API_CIS_ROUTE,
 			body: JSON.stringify(data),
 			contentType: 'application/json'
 		}, `Added '${badge}' (${result}) UGS badge to ${project}@${cl}`)
