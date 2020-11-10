@@ -111,9 +111,12 @@ private:
 							const TVector<T, d> RelativeDisplacement = (Particles.P(Index) - Particles.X(Index)) - (CollisionParticles.V(i) + TVector<T, d>::CrossProduct(CollisionParticles.W(i), VectorToPoint)) * Dt; // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
 							const TVector<T, d> RelativeDisplacementTangent = RelativeDisplacement - TVector<T, d>::DotProduct(RelativeDisplacement, NormalWorld) * NormalWorld; // Project displacement into the tangential plane
 							const T RelativeDisplacementTangentLength = RelativeDisplacementTangent.Size();
-							const T PositionCorrection = FMath::Min<T>(Penetration * PerGroupFriction, RelativeDisplacementTangentLength);
-
-							Particles.P(Index) -= (PositionCorrection / RelativeDisplacementTangentLength) * RelativeDisplacementTangent;
+							if (RelativeDisplacementTangentLength >= SMALL_NUMBER)
+							{
+								const T PositionCorrection = FMath::Min<T>(Penetration * PerGroupFriction, RelativeDisplacementTangentLength);
+								const T CorrectionRatio = PositionCorrection / RelativeDisplacementTangentLength;
+								Particles.P(Index) -= CorrectionRatio * RelativeDisplacementTangent;
+							}
 						}
 						else
 						{
