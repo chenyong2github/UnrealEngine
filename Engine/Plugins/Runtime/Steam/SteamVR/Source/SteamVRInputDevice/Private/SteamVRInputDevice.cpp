@@ -2525,27 +2525,22 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping>& InInputM
 					continue;
 				}
 
+				// Check cap sense
+				InputState.bIsCapSense = CurrentInputKeyName.EndsWith(TEXT("CapSense"))
+					|| CurrentInputKeyName.EndsWith(TEXT("_Touch"));
+
 				// Handle Oculus Touch
 				InputState.bIsXButton = InputState.bIsYButton = false;
-				if (CurrentInputKeyName.Contains(TEXT("OculusTouch"))
-					|| CurrentInputKeyName.Contains(TEXT("Cosmos"))
-					|| CurrentInputKeyName.Contains(TEXT("HPMixedRealityController"))
+				if (CurrentInputKeyName.StartsWith(TEXT("OculusTouch"))
+					|| CurrentInputKeyName.StartsWith(TEXT("Cosmos"))
+					|| CurrentInputKeyName.StartsWith(TEXT("HPMixedRealityController"))
 					)
 				{
-					// Check cap sense
-					FString ActualKeyName = CurrentInputKeyName.RightChop(19);
-					InputState.bIsCapSense = ActualKeyName.Contains(TEXT("_Touch"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-
 					// Check for left X & Y buttons specific to Oculus Touch
-					InputState.bIsXButton = CurrentInputKeyName.Contains(TEXT("_X_Click")) ||
-						CurrentInputKeyName.Contains(TEXT("_X_Touch"));
+					InputState.bIsXButton = CurrentInputKeyName.EndsWith(TEXT("_X_Click")) || 
+						CurrentInputKeyName.EndsWith(TEXT("_X_Touch"));
 					InputState.bIsYButton = CurrentInputKeyName.Contains(TEXT("_Y_Click")) ||
-						CurrentInputKeyName.Contains(TEXT("_Y_Touch"));
-				}
-				else
-				{
-					InputState.bIsCapSense = CurrentInputKeyName.Contains(TEXT("CapSense"), ESearchCase::CaseSensitive, ESearchDir::FromEnd) ||
-						CurrentInputKeyName.Contains(TEXT("_Touch"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+						CurrentInputKeyName.EndsWith(TEXT("_Y_Touch"));
 				}
 
 				// Check for DPad Keys
@@ -2576,6 +2571,20 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping>& InInputM
 					InputState.bIsDpadDown = false;
 					InputState.bIsDpadLeft = false;
 					InputState.bIsDpadRight = true;
+				}
+				else if (CurrentInputKeyName.EndsWith(TEXT("_X")))
+				{
+					InputState.bIsDpadUp = false;
+					InputState.bIsDpadDown = false;
+					InputState.bIsDpadLeft = true;
+					InputState.bIsDpadRight = true;
+				}
+				else if (CurrentInputKeyName.EndsWith(TEXT("_Y")))
+				{
+					InputState.bIsDpadUp = true;
+					InputState.bIsDpadDown = true;
+					InputState.bIsDpadLeft = false;
+					InputState.bIsDpadRight = false;
 				}
 
 				// Handle Special Grip & Grab actions for supported controllers
@@ -2724,13 +2733,13 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping>& InInputM
 				{
 					// Create Submode
 					TSharedRef<FJsonObject> SubmodeJsonObject = MakeShareable(new FJsonObject());
-					if (CurrentInputKeyName.Right(5).Equals(TEXT("Touch")))
+					if (CurrentInputKeyName.Contains(TEXT("Trackpad")))
 					{
-						SubmodeJsonObject->SetStringField(TEXT("sub_mode"), TEXT("touch"));
+						SubmodeJsonObject->SetStringField( TEXT( "sub_mode" ), TEXT( "click" ) );
 					}
 					else
 					{
-						SubmodeJsonObject->SetStringField(TEXT("sub_mode"), TEXT("click"));
+						SubmodeJsonObject->SetStringField( TEXT( "sub_mode" ), TEXT( "touch" ) );
 					}
 
 					// Create Parameter
@@ -2790,24 +2799,6 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping>& InInputM
 					CacheType = "";
 				}
 
-				// Handle Dpad values
-				if (InputState.bIsDpadUp)
-				{
-					CacheType = "north";
-				}
-				else if (InputState.bIsDpadDown)
-				{
-					CacheType = "south";
-				}
-				else if (InputState.bIsDpadLeft)
-				{
-					CacheType = "west";
-				}
-				else if (InputState.bIsDpadRight)
-				{
-					CacheType = "east";
-				}
-
 				// Handle special actions
 				if (InputState.bIsPinchGrab || InputState.bIsGripGrab)
 				{
@@ -2832,8 +2823,35 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping>& InInputM
 
 				if (!CacheType.IsEmpty())
 				{
+					// Handle Dpad
+					if (InputState.bIsDpadUp || InputState.bIsDpadDown || InputState.bIsDpadLeft || InputState.bIsDpadRight)
+					{
+						// Handle Dpad values
+						if (InputState.bIsDpadUp)
+						{
+							ActionInputJsonObject->SetObjectField(FString(TEXT("north")), ActionPathJsonObject);
+						}
+
+						if (InputState.bIsDpadDown)
+						{
+							ActionInputJsonObject->SetObjectField(FString(TEXT("south")), ActionPathJsonObject);
+						}
+
+						if (InputState.bIsDpadLeft)
+						{
+							ActionInputJsonObject->SetObjectField(FString(TEXT("west")), ActionPathJsonObject);
+						}
+
+						if (InputState.bIsDpadRight)
+						{
+							ActionInputJsonObject->SetObjectField(FString(TEXT("east")), ActionPathJsonObject);
+						}
+					}
+					else
+					{
 					// Set Action Input Type
 					ActionInputJsonObject->SetObjectField(CacheType, ActionPathJsonObject);
+					}
 
 					// Set Inputs
 					ActionSourceJsonObject->SetObjectField(TEXT("inputs"), ActionInputJsonObject);
@@ -2932,8 +2950,7 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping>& InInputM
 					if (CurrentInputKeyName.Contains(TEXT("OculusTouch")))
 					{
 						// Check cap sense
-						FString OculusKeyName = CurrentInputKeyName.RightChop(20);
-						InputState.bIsCapSense = OculusKeyName.Contains(TEXT("_Touch"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+							InputState.bIsCapSense = CurrentInputKeyName.Contains(TEXT("_Touch"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 
 						// Check for left X & Y buttons specific to Oculus Touch
 						InputState.bIsXButton = CurrentInputKeyName.Contains(TEXT("_X_Click")) ||
@@ -3769,14 +3786,14 @@ void FSteamVRInputDevice::GenerateActionManifest(bool GenerateActions, bool Gene
 	}
 
 #if WITH_EDITOR
-	// If we're running in the editor, build the controller bindings if they don't exist yet
+		// If we're running in the editor, build the controller bindings if they don't exist yet
 	if (GenerateBindings)
 	{
 		GenerateControllerBindings(ControllerBindingsPath, ControllerTypes, ControllerBindings, Actions, InputMappings, DeleteIfExists);
 	}
 #endif
 
-	// Add the default bindings object to the action manifest
+		// Add the default bindings object to the action manifest
 	if (ControllerBindings.Num() == 0)
 	{
 		UE_LOG(LogSteamVRInputDevice, Error, TEXT("Unable to find and/or generate controller binding files in: %s"), *ControllerBindingsPath);
