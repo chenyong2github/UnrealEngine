@@ -22,7 +22,7 @@ static FAutoConsoleVariableRef CVarGHairStrandsMinLOD(TEXT("r.HairStrands.MinLOD
 static int32 GHairStrands_UseCards = 0;
 static FAutoConsoleVariableRef CVarHairStrands_UseCards(TEXT("r.HairStrands.UseCardsInsteadOfStrands"), GHairStrands_UseCards, TEXT("Force cards geometry on all groom elements. If no cards data is available, nothing will be displayed"));
 
-static int32 GHairStrands_SwapBufferEndOfFrame = 0;
+static int32 GHairStrands_SwapBufferEndOfFrame = 1;
 static FAutoConsoleVariableRef CVarGHairStrands_SwapBufferEndOfFrame(TEXT("r.HairStrands.SwapEndOfFrame"), GHairStrands_SwapBufferEndOfFrame, TEXT("Swap rendering buffer at the end of frame. This is an experimental toggle. Default:1"));
 
 DEFINE_LOG_CATEGORY_STATIC(LogGroomManager, Log, All);
