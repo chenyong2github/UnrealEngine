@@ -138,8 +138,8 @@ FString FHairGroupsCardsSourceDescription::GetMeshKey() const
 			return SourceModel.MeshDescriptionBulkData->GetIdString();
 		}
 	}
-	return TEXT("INVALID_MESH");
 #endif
+	return TEXT("INVALID_MESH");
 }
 
 bool FHairGroupsCardsSourceDescription::HasMeshChanged() const
