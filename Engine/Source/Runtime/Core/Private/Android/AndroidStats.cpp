@@ -7,6 +7,16 @@
 #include "HAL/IConsoleManager.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
+#if !UE_BUILD_SHIPPING && !PLATFORM_LUMINGL4
+#	define HWCPIPE_SUPPORTED 1
+#else
+#	define HWCPIPE_SUPPORTED 0
+#endif
+
+#if HWCPIPE_SUPPORTED
+#	include "hwcpipe.h"
+#endif
+
 DECLARE_STATS_GROUP(TEXT("Android CPU stats"), STATGROUP_AndroidCPU, STATCAT_Advanced);
 CSV_DEFINE_CATEGORY(AndroidCPU, true);
 CSV_DEFINE_CATEGORY(AndroidMemory, true);
@@ -87,6 +97,50 @@ FCsvDeclaredStat* GCPUFreqStats[] = {
 #define CSV_CUSTOM_STAT_DEFINED_BY_PTR(StatPtr,Value,Op)
 #endif
 
+
+#if HWCPIPE_SUPPORTED
+
+CSV_DEFINE_CATEGORY(AndroidGPU, true);
+CSV_DEFINE_STAT(AndroidGPU, GPUCyclesMln);
+CSV_DEFINE_STAT(AndroidGPU, VertexCyclesMln);
+CSV_DEFINE_STAT(AndroidGPU, FragmentCyclesMln);
+CSV_DEFINE_STAT(AndroidGPU, PixelsMln);
+CSV_DEFINE_STAT(AndroidGPU, ShaderCyclesMln);
+CSV_DEFINE_STAT(AndroidGPU, ShaderArithmeticCyclesMln);
+CSV_DEFINE_STAT(AndroidGPU, ShaderLoadStoreCyclesMln);
+CSV_DEFINE_STAT(AndroidGPU, ShaderTextureCyclesMln);
+CSV_DEFINE_STAT(AndroidGPU, ExternalMemoryReadMB);
+CSV_DEFINE_STAT(AndroidGPU, ExternalMemoryWriteMB);
+
+DECLARE_STATS_GROUP(TEXT("Android GPU stats"), STATGROUP_AndroidGPU, STATCAT_Advanced);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("GPU Cycles (Mln)"), STAT_GPUCycles, STATGROUP_AndroidGPU);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("Vertex Cycles (Mln)"), STAT_VertexCycles, STATGROUP_AndroidGPU);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("Fragment Cycles (Mln)"), STAT_FragmentCycles, STATGROUP_AndroidGPU);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("Pixels (Mln)"), STAT_Pixels, STATGROUP_AndroidGPU);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("Shader Cycles (Mln)"), STAT_ShaderCycles, STATGROUP_AndroidGPU);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("Shader Arithmetic Cycles (Mln)"), STAT_ShaderArithmeticCycles, STATGROUP_AndroidGPU);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("Shader Load\\Store Cycles (Mln)"), STAT_ShaderLoadStoreCycles, STATGROUP_AndroidGPU);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("Shader Texture Cycles (Mln)"), STAT_ShaderTextureCycles, STATGROUP_AndroidGPU);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("External Memory Read (MB)"), STAT_ExternalMemoryRead, STATGROUP_AndroidGPU);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("External Memory Write (MB)"), STAT_ExternalMemoryWrite, STATGROUP_AndroidGPU);
+
+static bool GIsHWCPipeInitialized = false;
+
+static hwcpipe::HWCPipe GHWCPipe({}, {hwcpipe::GpuCounter::GpuCycles,
+									  hwcpipe::GpuCounter::VertexComputeCycles,
+									  hwcpipe::GpuCounter::FragmentCycles,
+									  hwcpipe::GpuCounter::Pixels,
+									  hwcpipe::GpuCounter::ShaderCycles,
+									  hwcpipe::GpuCounter::ShaderArithmeticCycles,
+									  hwcpipe::GpuCounter::ShaderLoadStoreCycles,
+									  hwcpipe::GpuCounter::ShaderTextureCycles,
+									  hwcpipe::GpuCounter::ExternalMemoryReadBytes,
+									  hwcpipe::GpuCounter::ExternalMemoryWriteBytes,});
+#endif
+
+static void UpdateGPUStats();
+
+
 static float GAndroidCPUStatsUpdateRate = 0.100;
 static FAutoConsoleVariableRef CVarAndroidCollectCPUStatsRate(
 	TEXT("Android.CPUStatsUpdateRate"),
@@ -98,6 +152,17 @@ static FAutoConsoleVariableRef CVarAndroidCollectCPUStatsRate(
 static int GThermalStatus = 0;
 static int GMemoryWarningStatus = 0;
 CSV_DEFINE_STAT(AndroidMemory, MemoryWarningState);
+
+void FAndroidStats::Init()
+{
+#if HWCPIPE_SUPPORTED
+	if (hwcpipe::get_last_error() == nullptr)
+	{
+		GIsHWCPipeInitialized = true;
+		GHWCPipe.run();
+	}
+#endif
+}
 
 void FAndroidStats::OnThermalStatusChanged(int status)
 {
@@ -268,5 +333,83 @@ void FAndroidStats::UpdateAndroidStats()
 	static const FName ThermalStatus = GET_STATFNAME(STAT_ThermalStatus);
 	SET_FLOAT_STAT_BY_FNAME(CPUStatName, CPUTemp);
 	SET_FLOAT_STAT_BY_FNAME(ThermalStatus, GThermalStatus);
+
+	UpdateGPUStats();
+#endif
+}
+
+static void UpdateGPUStats()
+{
+#if HWCPIPE_SUPPORTED
+	if (!GIsHWCPipeInitialized)
+	{
+		return;
+	}
+
+	FFunctionGraphTask::CreateAndDispatchWhenReady([]()
+	{
+		const double Mln = 1000000.0;
+		const double MB = 1024.0 * 1024.0;
+		hwcpipe::GpuMeasurements counters = GHWCPipe.gpu_profiler()->sample();
+		for (hwcpipe::GpuMeasurements::iterator it = counters.begin(); it != counters.end(); ++it)
+		{
+			float value;
+			switch (it->first)
+			{
+			case hwcpipe::GpuCounter::GpuCycles:
+				value = float(it->second.get<double>() / Mln);
+				CSV_CUSTOM_STAT_DEFINED(GPUCyclesMln, value, ECsvCustomStatOp::Set);
+				SET_FLOAT_STAT(STAT_GPUCycles, value);
+				break;
+			case hwcpipe::GpuCounter::VertexComputeCycles:
+				value = float(it->second.get<double>() / Mln);
+				CSV_CUSTOM_STAT_DEFINED(VertexCyclesMln, value, ECsvCustomStatOp::Set);
+				SET_FLOAT_STAT(STAT_VertexCycles, value);
+				break;
+			case hwcpipe::GpuCounter::FragmentCycles:
+				value = float(it->second.get<double>() / Mln);
+				CSV_CUSTOM_STAT_DEFINED(FragmentCyclesMln, value, ECsvCustomStatOp::Set);
+				SET_FLOAT_STAT(STAT_FragmentCycles, value);
+				break;
+			case hwcpipe::GpuCounter::Pixels:
+				value = float(it->second.get<double>() / Mln);
+				CSV_CUSTOM_STAT_DEFINED(PixelsMln, value, ECsvCustomStatOp::Set);
+				SET_FLOAT_STAT(STAT_Pixels, value);
+				break;
+			case hwcpipe::GpuCounter::ShaderCycles:
+				value = float(it->second.get<double>() / Mln);
+				CSV_CUSTOM_STAT_DEFINED(ShaderCyclesMln, value, ECsvCustomStatOp::Set);
+				SET_FLOAT_STAT(STAT_ShaderCycles, value);
+				break;
+			case hwcpipe::GpuCounter::ShaderArithmeticCycles:
+				value = float(it->second.get<double>() / Mln);
+				CSV_CUSTOM_STAT_DEFINED(ShaderArithmeticCyclesMln, value, ECsvCustomStatOp::Set);
+				SET_FLOAT_STAT(STAT_ShaderArithmeticCycles, value);
+				break;
+			case hwcpipe::GpuCounter::ShaderLoadStoreCycles:
+				value = float(it->second.get<double>() / Mln);
+				CSV_CUSTOM_STAT_DEFINED(ShaderLoadStoreCyclesMln, value, ECsvCustomStatOp::Set);
+				SET_FLOAT_STAT(STAT_ShaderLoadStoreCycles, value);
+				break;
+			case hwcpipe::GpuCounter::ShaderTextureCycles:
+				value = float(it->second.get<double>() / Mln);
+				CSV_CUSTOM_STAT_DEFINED(ShaderTextureCyclesMln, value, ECsvCustomStatOp::Set);
+				SET_FLOAT_STAT(STAT_ShaderTextureCycles, value);
+				break;
+			case hwcpipe::GpuCounter::ExternalMemoryReadBytes:
+				value = float(it->second.get<double>() / MB);
+				CSV_CUSTOM_STAT_DEFINED(ExternalMemoryReadMB, value, ECsvCustomStatOp::Set);
+				SET_FLOAT_STAT(STAT_ExternalMemoryRead, value);
+				break;
+			case hwcpipe::GpuCounter::ExternalMemoryWriteBytes:
+				value = float(it->second.get<double>() / MB);
+				CSV_CUSTOM_STAT_DEFINED(ExternalMemoryWriteMB, value, ECsvCustomStatOp::Set);
+				SET_FLOAT_STAT(STAT_ExternalMemoryWrite, value);
+				break;
+			default:
+				break;
+			}
+		}
+	}, TStatId(), nullptr, ENamedThreads::AnyThread);
 #endif
 }
