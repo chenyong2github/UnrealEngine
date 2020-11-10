@@ -400,7 +400,8 @@ void FSkeletalAnimationTrackEditMode::Render(const FSceneView* View, FViewport* 
 											}
 											FTransform RootMotionAtStart;
 											float Weight;
-											AnimSection->GetRootMotionTransform(TimeToSample, MovieScene->GetTickResolution(), RootMotionAtStart, Weight);
+											bool bAdditive;
+											AnimSection->GetRootMotionTransform(TimeToSample, MovieScene->GetTickResolution(),bAdditive, RootMotionAtStart, Weight);
 											RootMotionAtStart = RootMotionAtStart * AnimSection->TempOffsetTransform;
 											OutPose[FCompactPoseBoneIndex(Index)] = RootMotionAtStart;
 
