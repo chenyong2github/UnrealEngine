@@ -788,7 +788,11 @@ static void InitRHICapabilitiesForGL()
 	GMaxRHIShaderPlatform = FOpenGL::GetShaderPlatform();
 	 
 	// Enable the OGL rhi thread if explicitly requested.
-	GRHISupportsRHIThread = (GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1 && CVarAllowRGLHIThread.GetValueOnAnyThread());
+	GRHISupportsRHIThread = (GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1 && CVarAllowRGLHIThread.GetValueOnAnyThread())
+#if WITH_EDITOR
+		&& !IsPCPlatform(GMaxRHIShaderPlatform)
+#endif
+		;
 	
 	// By default use emulated UBs on mobile
 	static auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("OpenGL.UseEmulatedUBs"));
