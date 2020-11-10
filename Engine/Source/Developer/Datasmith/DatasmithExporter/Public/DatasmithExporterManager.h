@@ -65,8 +65,9 @@ public:
 	/**
 	 * Run the unreal engine garbage collection on the proper thread
 	 * Exporter code that want to run garbage collection should use this function instead of the standard engine function
+	 * @return whether the Garbage Collection ran.
 	 */
-	static void RunGarbageCollection();
+	static bool RunGarbageCollection();
 
 #if IS_PROGRAM
 	/**
