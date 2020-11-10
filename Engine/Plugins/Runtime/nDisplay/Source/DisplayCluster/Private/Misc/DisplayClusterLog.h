@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 
 // Module-wide log categories
-DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterGameMode,   Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterEngine,     Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterModule,     Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterCluster,    Log, All);
