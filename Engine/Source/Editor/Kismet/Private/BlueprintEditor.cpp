@@ -5148,11 +5148,7 @@ namespace CollapseGraphUtils
 		for (UEdGraphNode* Node : SourceGraph->Nodes)
 		{
 			// Ignore tunnel nodes and break the links because new ones will be created during the collapse of this node
-			if (UK2Node_Tunnel* TunnelNode = Cast<UK2Node_Tunnel>(Node))
-			{
-				TunnelNode->BreakAllNodeLinks();
-			}
-			else
+			if (!Node->IsA<UK2Node_Tunnel>())
 			{
 				OutNodes.Add(Node);
 			}
@@ -5572,7 +5568,6 @@ void FBlueprintEditor::OnPromoteSelectionToMacro()
 		{
 			TSet<UEdGraphNode*> NodesToMove;
 			UEdGraph* SourceGraph = CompositeNode->BoundGraph;
-			// Gather the entry and exit nodes of the collapsed graph so that we can create new macro inputs
 
 			// Gather the entry and exit nodes of the collapsed graph so that we can create new macro inputs
 			CollapseGraphUtils::GatherMoveableNodes(SourceGraph, /* Out */ NodesToMove);
@@ -5587,6 +5582,27 @@ void FBlueprintEditor::OnPromoteSelectionToMacro()
 				UEdGraphNode* MacroNode = nullptr;
 				CollapseSelectionToMacro(FocusedGraphEd, NodesToMove, MacroNode);
 				NodesToSelect.Add(MacroNode);
+
+				// Reconnect anything that the original composite node was connected to to this new macro instance
+				if (MacroNode)
+				{
+					// Gather what connections were already on the composite node...
+					TMap<FString, TSet<UEdGraphPin*>> OldToNewPinMap;
+					FEdGraphUtilities::GetPinConnectionMap(CompositeNode, OldToNewPinMap);
+
+					for (UEdGraphPin* const NewPin : MacroNode->Pins)
+					{
+						// Reconnect any new pins here that we can! 
+						const FString& NewPinName = NewPin->GetName();
+						if (OldToNewPinMap.Contains(NewPinName))
+						{							
+							for (UEdGraphPin* OldPin : OldToNewPinMap[NewPinName])
+							{
+								NewPin->MakeLinkTo(OldPin);
+							}
+						}
+					}
+				}
 
 				FBlueprintEditorUtils::RemoveGraph(BP, SourceGraph, EGraphRemoveFlags::Recompile);
 			}
@@ -8097,7 +8113,12 @@ void FBlueprintEditor::CollapseNodesIntoGraph(UEdGraphNode* InGatewayNode, UK2No
 					{
 						// Fix up the remote pin
 						RemotePin->LinkedTo.Remove(LocalPin);
-						RemotePin->MakeLinkTo(RemotePortPin);
+						// When given a composite node, we could possibly be given a pin with a different outer
+						// which is bad! Then there would be a pin connecting to itself and cause an ensure
+						if (RemotePin->GetOwningNode()->GetOuter() == RemotePortPin->GetOwningNode()->GetOuter())
+						{
+							RemotePin->MakeLinkTo(RemotePortPin);
+						}
 
 						// The Entry Node only supports a single link, so if we made links above
 						// we need to break them now, to make room for the new link.
