@@ -685,14 +685,14 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipe
 			if (Info.PlaneSlice == FRHISubresourceRange::kDepthPlaneSlice)
 			{
 				// We don't support multiple transitions on the same aspect.
-				check(PendingTransition->bDepthAccessSet == false);
+				ensure(PendingTransition->bDepthAccessSet == false);
 				PendingTransition->SrcDepthAccess = Info.AccessBefore;
 				PendingTransition->DestDepthAccess = Info.AccessAfter;
 				PendingTransition->bDepthAccessSet = true;
 			}
 			else
 			{
-				check(PendingTransition->bStencilAccessSet == false);
+				ensure(PendingTransition->bStencilAccessSet == false);
 				PendingTransition->SrcStencilAccess = Info.AccessBefore;
 				PendingTransition->DestStencilAccess = Info.AccessAfter;
 				PendingTransition->bStencilAccessSet = true;
