@@ -12,6 +12,7 @@ class FOnlineAsyncTaskGooglePlayQueryInAppPurchases;
 /**
  *	FOnlineStoreGooglePlay - Implementation of the online store for GooglePlay
  */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class FOnlineStoreGooglePlay : 
 	public IOnlineStore,
 	public TSharedFromThis<FOnlineStoreGooglePlay, ESPMode::ThreadSafe>
@@ -82,6 +83,7 @@ private:
 	void OnRestorePurchasesComplete(EGooglePlayBillingResponseCode InResponseCode, const TArray<FGoogleTransactionData>& InRestoredPurchases);
 	FDelegateHandle RestorePurchasesCompleteDelegateHandle;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 typedef TSharedPtr<FOnlineStoreGooglePlay, ESPMode::ThreadSafe> FOnlineStoreGooglePlayPtr;
 
