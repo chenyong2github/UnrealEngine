@@ -1089,7 +1089,7 @@ void SMaterialLayersFunctionsInstanceTree::Construct(const FArguments& InArgs)
 	ShowHiddenDelegate = InArgs._InShowHiddenDelegate;
 	CreateGroupsWidget();
 
-#ifdef WITH_EDITOR
+#if WITH_EDITOR
 	//Fixup for adding new bool arrays to the class
 	if (FunctionInstance)
 	{
@@ -2561,7 +2561,7 @@ void SMaterialLayersFunctionsMaterialTree::Construct(const FArguments& InArgs)
 	Wrapper = InArgs._InWrapper;
 	CreateGroupsWidget();
 
-#ifdef WITH_EDITOR
+#if WITH_EDITOR
 	//Fixup for adding new bool arrays to the class
 	if (FunctionInstance)
 	{

@@ -22,9 +22,8 @@
 #include "Misc/SecureHash.h"
 #include "UObject/UObjectGlobals.h"
 
-#ifdef WITH_EDITOR
 #include "Editor.h"
-#endif //WITH_EDITOR
+
 #include "EdGraph/EdGraphSchema.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraph/EdGraphNode.h"
