@@ -119,7 +119,10 @@ namespace Turnkey.Commands
 						{
 							return Val;
 						}
-						return a.AllowedFlashDeviceTypes.CompareTo(b.AllowedFlashDeviceTypes);
+						if (a.AllowedFlashDeviceTypes != null && b.AllowedFlashDeviceTypes != null)
+						{
+							return a.AllowedFlashDeviceTypes.CompareTo(b.AllowedFlashDeviceTypes);
+						}
 					}
 
 					return 0;
