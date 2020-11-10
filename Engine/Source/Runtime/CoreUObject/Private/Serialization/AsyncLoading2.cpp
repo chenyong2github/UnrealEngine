@@ -5797,6 +5797,8 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingUntilCompleteFromGa
 		TimeLimit = 60 * 60;
 	}
 
+	double TimeLoadingPackage = 0.0f;
+
 	while (IsAsyncLoading() && TimeLimit > 0 && !CompletionPredicate())
 	{
 		double TickStartTime = FPlatformTime::Seconds();
@@ -5808,11 +5810,17 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingUntilCompleteFromGa
 		if (IsMultithreaded())
 		{
 			// Update the heartbeat and sleep. If we're not multithreading, the heartbeat is updated after each package has been processed
-			FThreadHeartBeat::Get().HeartBeat();
+			// only update the heartbeat up to the limit of the hang detector to ensure if we get stuck in this loop that the hang detector gets a chance to trigger
+			if (TimeLoadingPackage < FThreadHeartBeat::Get().GetHangDuration())
+			{
+				FThreadHeartBeat::Get().HeartBeat();
+			}
 			FPlatformProcess::SleepNoStats(0.0001f);
 		}
 
-		TimeLimit -= (FPlatformTime::Seconds() - TickStartTime);
+		double TimeDelta = (FPlatformTime::Seconds() - TickStartTime);
+		TimeLimit -= TimeDelta;
+		TimeLoadingPackage += TimeDelta;
 	}
 
 	return TimeLimit <= 0 ? EAsyncPackageState::TimeOut : EAsyncPackageState::Complete;
