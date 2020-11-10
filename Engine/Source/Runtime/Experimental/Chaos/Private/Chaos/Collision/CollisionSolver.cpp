@@ -34,10 +34,10 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_PositionCorrection(TEXT("p.Chaos.Collision.Manifold.PushOut.PositionCorrection"), Chaos_Manifold_PushOut_PositionCorrection, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_VelocityCorrection(TEXT("p.Chaos.Collision.Manifold.PushOut.VelocityCorrection"), Chaos_Manifold_PushOut_VelocityCorrection, TEXT(""));
 
-		float Chaos_Manifold_MinStiffness = 1.0f;
-		float Chaos_Manifold_MaxStiffness = 1.0f;
-		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_MinStiffness(TEXT("p.Chaos.Collision.Manifold.MinStiffness"), Chaos_Manifold_MinStiffness, TEXT(""));
-		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_MaxStiffness(TEXT("p.Chaos.Collision.Manifold.MaxStiffness"), Chaos_Manifold_MaxStiffness, TEXT(""));
+		float Chaos_Manifold_MinPushOutStiffness = 0.5f;
+		float Chaos_Manifold_MaxPushOutStiffness = 0.5f;
+		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_MinStiffness(TEXT("p.Chaos.Collision.Manifold.MinPushOutStiffness"), Chaos_Manifold_MinPushOutStiffness, TEXT(""));
+		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_MaxStiffness(TEXT("p.Chaos.Collision.Manifold.MaxPushOutStiffness"), Chaos_Manifold_MaxPushOutStiffness, TEXT(""));
 
 		float Chaos_Manifold_ImpulseTolerance = 1.e-4f;
 		FAutoConsoleVariableRef CVarChaos_Manifold_ImpulseTolerance(TEXT("p.Chaos.Collision.Manifold.ImpulseTolerance"), Chaos_Manifold_ImpulseTolerance, TEXT(""));
@@ -183,7 +183,7 @@ namespace Chaos
 
 			// PushOut needs to know if we applied restitution and static friction
 			ManifoldPoint.bActive = bActive;
-			ManifoldPoint.bWasEverActive = ManifoldPoint.bWasEverActive && bActive;											// Latched to on-state
+			ManifoldPoint.bWasEverActive = ManifoldPoint.bWasEverActive || bActive;											// Latched to on-state
 			ManifoldPoint.bInsideStaticFrictionCone = bActive && bInsideStaticFrictionCone;
 			ManifoldPoint.bRestitutionEnabled = bActive && (bApplyRestitution || ManifoldPoint.bRestitutionEnabled);		// Latches to on-state
 			ManifoldPoint.NetImpulse = NetImpulse;
@@ -479,7 +479,7 @@ namespace Chaos
 
 			// Iterate over the manifold and accumulate velocity corrections - we will apply them after the loop
 			TArrayView<FManifoldPoint> ManifoldPoints = Constraint.GetManifoldPoints();
-			for (int32 PointIndex = ManifoldPoints.Num() - 1; PointIndex >= 0; --PointIndex)
+			for (int32 PointIndex = 0; PointIndex < ManifoldPoints.Num(); ++PointIndex)
 			{
 				FManifoldPoint& ManifoldPoint = Constraint.SetActiveManifoldPoint(PointIndex, P0, Q0, P1, Q1);
 
@@ -526,7 +526,6 @@ namespace Chaos
 				FParticleUtilities::SetCoMWorldTransform(PBDRigid1, P1, Q1);
 			}
 
-
 			// Eliminate any tangential impulses that are opposing each other. This helps with static friction
 			FixTangentialImpulses(
 				Constraint,
@@ -549,17 +548,35 @@ namespace Chaos
 		{
 			TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[0]);
 			TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[1]);
+			TArrayView<FManifoldPoint> ManifoldPoints = Constraint.GetManifoldPoints();
 
-			bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0->GeometryParticleHandle());
-			bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1->GeometryParticleHandle());
-			// In the case of two objects which are at the same level in shock propagation which end
-			// up in contact with each other, treat each object as not temporarily static. This can
-			// happen, for example, at the center of an arch, or between objects which are sliding into
-			// each other on a static surface.
-			if ((IsTemporarilyStatic0 && IsTemporarilyStatic1) || !Chaos_Collision_UseShockPropagation)
+			// Lock bodies for shock propagation?
+			bool IsTemporarilyStatic0 = false;
+			bool IsTemporarilyStatic1 = false;
+			if (Chaos_Collision_UseShockPropagation)
 			{
-				IsTemporarilyStatic0 = false;
-				IsTemporarilyStatic1 = false;
+				IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0->GeometryParticleHandle());
+				IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1->GeometryParticleHandle());
+
+				// In the case of two objects which are at the same level in shock propagation which end
+				// up in contact with each other, try to decide which one has higher priority.
+				// HACK: Use the body which is underneath... (remember that the normal always points from body1 to body0)
+				if (IsTemporarilyStatic0 && IsTemporarilyStatic1)
+				{
+					if (ManifoldPoints.Num() > 0)
+					{
+						const FReal NormalThreshold = 0.2f;
+						bool bNormalIsUp = ManifoldPoints[0].ContactPoint.Normal.Z > NormalThreshold;
+						bool bNormalIsDown = ManifoldPoints[0].ContactPoint.Normal.Z < -NormalThreshold;
+						IsTemporarilyStatic0 = bNormalIsDown;
+						IsTemporarilyStatic1 = bNormalIsUp;
+					}
+					else
+					{
+						IsTemporarilyStatic0 = false;
+						IsTemporarilyStatic1 = false;
+					}
+				}
 			}
 
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
@@ -574,15 +591,13 @@ namespace Chaos
 
 			// Gradually increase position correction through iterations (optional based on cvars)
 			const FReal Interpolant = (FReal)(IterationParameters.Iteration + 1) / (FReal)IterationParameters.NumIterations;
-			const FReal Stiffness = FMath::Lerp(Chaos_Manifold_MinStiffness, Chaos_Manifold_MaxStiffness, Interpolant);
+			const FReal Stiffness = FMath::Lerp(Chaos_Manifold_MinPushOutStiffness, Chaos_Manifold_MaxPushOutStiffness, Interpolant);
 
 			FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
 			FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
 			FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
 			FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
 
-			TArrayView<FManifoldPoint> ManifoldPoints = Constraint.GetManifoldPoints();
-			
 			// Apply the position correction so that all contacts have zero separation
 			if (Chaos_Manifold_PushOut_PositionCorrection)
 			{
