@@ -161,7 +161,10 @@ static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 
 
 FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyConsumer* HitProxyConsumer)
-	:	FSceneRenderer(InViewFamily, HitProxyConsumer)
+	: FSceneRenderer(InViewFamily, HitProxyConsumer)
+	, bGammaSpace(!IsMobileHDR())
+	, bDeferredShading(IsMobileDeferredShadingEnabled(ShaderPlatform))
+	, bUseVirtualTexturing(UseVirtualTexturing(FeatureLevel))
 {
 	bRenderToSceneColor = false;
 	bRequiresMultiPass = false;
@@ -285,31 +288,111 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 
 	PreVisibilityFrameSetup(RHICmdList);
 	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer);
+	PostVisibilityFrameSetup(ILCTaskData);
+
+	const FIntPoint RenderTargetSize = (ViewFamily.RenderTarget->GetRenderTargetTexture().IsValid()) ? ViewFamily.RenderTarget->GetRenderTargetTexture()->GetSizeXY() : ViewFamily.RenderTarget->GetSizeXY();
+	const bool bRequiresUpscale = ((int32)RenderTargetSize.X > FamilySize.X || (int32)RenderTargetSize.Y > FamilySize.Y);
+	// ES requires that the back buffer and depth match dimensions.
+	// For the most part this is not the case when using scene captures. Thus scene captures always render to scene color target.
+	const bool bStereoRenderingAndHMD = ViewFamily.EngineShowFlags.StereoRendering && ViewFamily.EngineShowFlags.HMDDistortion;
+	bRenderToSceneColor = !bGammaSpace || bStereoRenderingAndHMD || bRequiresUpscale || FSceneRenderer::ShouldCompositeEditorPrimitives(Views[0]) || Views[0].bIsSceneCapture || Views[0].bIsReflectionCapture;
+	const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy = Scene ? Scene->GetForwardPassGlobalPlanarReflection() : nullptr;
+
+	bRequiresPixelProjectedPlanarRelfectionPass = IsUsingMobilePixelProjectedReflection(ShaderPlatform)
+		&& PlanarReflectionSceneProxy != nullptr
+		&& PlanarReflectionSceneProxy->RenderTarget != nullptr
+		&& !Views[0].bIsReflectionCapture
+		&& !ViewFamily.EngineShowFlags.HitProxies
+		&& ViewFamily.EngineShowFlags.Lighting
+		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
+		&& !ViewFamily.UseDebugViewPS()
+		// Only support forward shading, we don't want to break tiled deferred shading.
+		&& !bDeferredShading;
+
+	if (bRequiresPixelProjectedPlanarRelfectionPass)
+	{
+		InitPixelProjectedReflectionOutputs(RHICmdList, PlanarReflectionSceneProxy->RenderTarget->GetSizeXY());
+	}
+
+	bRequriesAmbientOcclusionPass = IsUsingMobileAmbientOcclusion(ShaderPlatform)
+		&& Views[0].FinalPostProcessSettings.AmbientOcclusionIntensity > 0
+		&& Views[0].FinalPostProcessSettings.AmbientOcclusionStaticFraction >= 1 / 100.0f
+		&& ViewFamily.EngineShowFlags.Lighting
+		&& !Views[0].bIsReflectionCapture
+		&& !Views[0].bIsPlanarReflection
+		&& !ViewFamily.EngineShowFlags.HitProxies
+		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
+		&& !ViewFamily.UseDebugViewPS()
+		// Only support forward shading, we don't want to break tiled deferred shading.
+		&& !bDeferredShading;
+
+	// Whether we need to store depth for post-processing
+	// On PowerVR we see flickering of shadows and depths not updating correctly if targets are discarded.
+	// See CVarMobileForceDepthResolve use in ConditionalResolveSceneDepth.
+	const bool bForceDepthResolve = (CVarMobileForceDepthResolve.GetValueOnRenderThread() == 1);
+	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(Views.GetData(), Views.Num()); 
+	bRequiresMultiPass = RequiresMultiPass(RHICmdList, Views[0]);
+	bKeepDepthContent = 
+		bRequiresMultiPass || 
+		bForceDepthResolve ||
+		bRequriesAmbientOcclusionPass ||
+		bRequiresPixelProjectedPlanarRelfectionPass ||
+		bSeparateTranslucencyActive ||
+		Views[0].bIsReflectionCapture;
+	// never keep MSAA depth
+	bKeepDepthContent = (NumMSAASamples > 1 ? false : bKeepDepthContent);
+
+	// Initialize global system textures (pass-through if already initialized).
+	GSystemTextures.InitializeTextures(RHICmdList, FeatureLevel);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+
+	// Allocate the maximum scene render target space for the current view family.
+	SceneContext.SetKeepDepthContent(bKeepDepthContent);
+	SceneContext.Allocate(RHICmdList, this);
+	if (bDeferredShading)
+	{
+		ETextureCreateFlags AddFlags = bRequiresMultiPass ? TexCreate_InputAttachmentRead : (TexCreate_InputAttachmentRead | TexCreate_Memoryless);
+		SceneContext.AllocGBufferTargets(RHICmdList, AddFlags);
+	}
+
+	if (bRequriesAmbientOcclusionPass)
+	{
+		InitAmbientOcclusionOutputs(RHICmdList, SceneContext.SceneDepthZ);
+	}
+	else
+	{
+		ReleaseAmbientOcclusionOutputs();
+	}
 
 	// Initialise Sky/View resources before the view global uniform buffer is built.
 	if (ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags))
 	{
 		InitSkyAtmosphereForViews(RHICmdList);
 	}
+		
+	if (bUseVirtualTexturing)
+	{
+		SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
+		// AllocateResources needs to be called before RHIBeginScene
+		FVirtualTextureSystem::Get().AllocateResources(RHICmdList, FeatureLevel);
+		FVirtualTextureSystem::Get().CallPendingCallbacks();
+	}
 
-	PostVisibilityFrameSetup(ILCTaskData);
+	//make sure all the targets we're going to use will be safely writable.
+	GRenderTargetPool.TransitionTargetsWritable(RHICmdList);
 
 	// Find out whether custom depth pass should be rendered.
 	{
-		const bool bGammaSpace = !IsMobileHDR();
-
 		bool bCouldUseCustomDepthStencil = !bGammaSpace && (!Scene->World || (Scene->World->WorldType != EWorldType::EditorPreview && Scene->World->WorldType != EWorldType::Inactive));
-
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			Views[ViewIndex].bCustomDepthStencilValid = bCouldUseCustomDepthStencil && UsesCustomDepthStencilLookup(Views[ViewIndex]);
-
 			bShouldRenderCustomDepth |= Views[ViewIndex].bCustomDepthStencilValid;
 		}
 	}
-
+	
 	const bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
-
+	
 	if (bDynamicShadows && !IsSimpleForwardShadingEnabled(ShaderPlatform))
 	{
 		// Setup dynamic shadows.
@@ -332,7 +415,6 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		Scene->IndirectLightingCache.FinalizeCacheUpdates(Scene, *this, ILCTaskData);
 	}
 
-	const bool bDeferredShading = IsMobileDeferredShadingEnabled(ShaderPlatform);
 	// initialize per-view uniform buffer.  Pass in shadow info as necessary.
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -414,6 +496,9 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	UpdatePrimitiveIndirectLightingCacheBuffers();
 	
 	OnStartRender(RHICmdList);
+
+	// Whether to submit cmdbuffer with offscreen rendering before doing post-processing
+	bSubmitOffscreenRendering = (!bGammaSpace || bRenderToSceneColor) && CVarMobileFlushSceneColorRendering.GetValueOnAnyThread() != 0;
 }
 
 /** 
@@ -461,105 +546,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
-	const ERHIFeatureLevel::Type ViewFeatureLevel = ViewFamily.GetFeatureLevel();
-
-	// This might eventually be a problem with multiple views.
-	// Using only view 0 to check to do on-chip transform of alpha.
-	FViewInfo& View = Views[0];
-
-	const bool bGammaSpace = !IsMobileHDR();
-	const bool bDeferredShading = IsMobileDeferredShadingEnabled(ShaderPlatform);
-
-	const FIntPoint RenderTargetSize = (ViewFamily.RenderTarget->GetRenderTargetTexture().IsValid()) ? ViewFamily.RenderTarget->GetRenderTargetTexture()->GetSizeXY() : ViewFamily.RenderTarget->GetSizeXY();
-	const bool bRequiresUpscale = ((int32)RenderTargetSize.X > FamilySize.X || (int32)RenderTargetSize.Y > FamilySize.Y);
-
-	// ES requires that the back buffer and depth match dimensions.
-	// For the most part this is not the case when using scene captures. Thus scene captures always render to scene color target.
-	const bool bStereoRenderingAndHMD = View.Family->EngineShowFlags.StereoRendering && View.Family->EngineShowFlags.HMDDistortion;
-	bRenderToSceneColor = bStereoRenderingAndHMD || bRequiresUpscale || FSceneRenderer::ShouldCompositeEditorPrimitives(View) || View.bIsSceneCapture || View.bIsReflectionCapture;
-	// Whether to submit cmdbuffer with offscreen rendering before doing post-processing
-	bSubmitOffscreenRendering = (!bGammaSpace || bRenderToSceneColor) && CVarMobileFlushSceneColorRendering.GetValueOnAnyThread() != 0;
-
-	const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy = Scene ? Scene->GetForwardPassGlobalPlanarReflection() : nullptr;
-
-	bRequiresPixelProjectedPlanarRelfectionPass = IsUsingMobilePixelProjectedReflection(ShaderPlatform)
-		&& PlanarReflectionSceneProxy != nullptr
-		&& PlanarReflectionSceneProxy->RenderTarget != nullptr
-		&& !View.bIsReflectionCapture
-		&& !View.Family->EngineShowFlags.HitProxies
-		&& View.Family->EngineShowFlags.Lighting
-		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
-		&& !View.Family->UseDebugViewPS()
-		// Only support forward shading, we don't want to break tiled deferred shading.
-		&& !bDeferredShading;
-
-	if (bRequiresPixelProjectedPlanarRelfectionPass)
-	{
-		InitPixelProjectedReflectionOutputs(RHICmdList, PlanarReflectionSceneProxy->RenderTarget->GetSizeXY());
-	}
-
-	bRequriesAmbientOcclusionPass = IsUsingMobileAmbientOcclusion(ShaderPlatform)
-		&& View.FinalPostProcessSettings.AmbientOcclusionIntensity > 0
-		&& View.FinalPostProcessSettings.AmbientOcclusionStaticFraction >= 1 / 100.0f
-		&& View.Family->EngineShowFlags.Lighting
-		&& !View.bIsReflectionCapture
-		&& !View.bIsPlanarReflection
-		&& !View.Family->EngineShowFlags.HitProxies
-		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
-		&& !View.Family->UseDebugViewPS()
-		// Only support forward shading, we don't want to break tiled deferred shading.
-		&& !bDeferredShading;
-
-	// Whether we need to store depth for post-processing
-	// On PowerVR we see flickering of shadows and depths not updating correctly if targets are discarded.
-	// See CVarMobileForceDepthResolve use in ConditionalResolveSceneDepth.
-	const bool bForceDepthResolve = (CVarMobileForceDepthResolve.GetValueOnRenderThread() == 1);
-	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(View); 
-	bRequiresMultiPass = RequiresMultiPass(RHICmdList, View);
-	bKeepDepthContent = 
-		bRequiresMultiPass || 
-		bForceDepthResolve ||
-		bRequriesAmbientOcclusionPass ||
-		bRequiresPixelProjectedPlanarRelfectionPass ||
-		(bRenderToSceneColor &&	(bSeparateTranslucencyActive || View.bIsReflectionCapture));
-	// never keep MSAA depth
-	bKeepDepthContent = (NumMSAASamples > 1 ? false : bKeepDepthContent);
-
-	// Initialize global system textures (pass-through if already initialized).
-	GSystemTextures.InitializeTextures(RHICmdList, ViewFeatureLevel);
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-
-	// Allocate the maximum scene render target space for the current view family.
-	SceneContext.SetKeepDepthContent(bKeepDepthContent);
-	SceneContext.Allocate(RHICmdList, this);
-	if (bDeferredShading)
-	{
-		ETextureCreateFlags AddFlags = bRequiresMultiPass ? TexCreate_InputAttachmentRead : (TexCreate_InputAttachmentRead | TexCreate_Memoryless);
-		SceneContext.AllocGBufferTargets(RHICmdList, AddFlags);
-	}
-
-	if (bRequriesAmbientOcclusionPass)
-	{
-		InitAmbientOcclusionOutputs(RHICmdList, SceneContext.SceneDepthZ);
-	}
-	else
-	{
-		ReleaseAmbientOcclusionOutputs();
-	}
-	
-	const bool bUseVirtualTexturing = UseVirtualTexturing(ViewFeatureLevel);
-	if (bUseVirtualTexturing)
-	{
-		SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
-		// AllocateResources needs to be called before RHIBeginScene
-		FVirtualTextureSystem::Get().AllocateResources(RHICmdList, ViewFeatureLevel);
-		FVirtualTextureSystem::Get().CallPendingCallbacks();
-	}
-
-	//make sure all the targets we're going to use will be safely writable.
-	GRenderTargetPool.TransitionTargetsWritable(RHICmdList);
-
-	// Find the visible primitives.
+	// Find the visible primitives and prepare targets and buffers for rendering
 	InitViews(RHICmdList);
 	
 	if (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass())
@@ -581,10 +568,12 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_SceneSim));
 
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+
 	if (bUseVirtualTexturing)
 	{
 		SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
-		FVirtualTextureSystem::Get().Update(RHICmdList, ViewFeatureLevel, Scene);
+		FVirtualTextureSystem::Get().Update(RHICmdList, FeatureLevel, Scene);
 		// Clear virtual texture feedback to default value
 		FUnorderedAccessViewRHIRef FeedbackUAV = SceneContext.GetVirtualTextureFeedbackUAV();
 		RHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::SRVMask, ERHIAccess::UAVMask));
@@ -596,7 +585,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (bDeferredShading)
 	{
 		GatherAndSortLights(SortedLightSet);
-		int32 NumReflectionCaptures = View.NumBoxReflectionCaptures + View.NumSphereReflectionCaptures;
+		int32 NumReflectionCaptures = Views[0].NumBoxReflectionCaptures + Views[0].NumSphereReflectionCaptures;
 		bool bCullLightsToGrid = (NumReflectionCaptures > 0 || GMobileUseClusteredDeferredShading != 0);
 		FRDGBuilder GraphBuilder(RHICmdList);
 		ComputeLightGrid(GraphBuilder, bCullLightsToGrid, SortedLightSet);
@@ -786,7 +775,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> ViewList)
 {
 	const FViewInfo& View = *ViewList[0];
-	const bool bGammaSpace = !IsMobileHDR();
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 				
 	FRHITexture* SceneColor = nullptr;

@@ -2063,6 +2063,9 @@ protected:
 	/** Before SetupMobileBasePassAfterShadowInit, we need to update the uniform buffer and shadow info for all movable point lights.*/
 	void UpdateMovablePointLightUniformBufferAndShadowInfo();
 private:
+	const bool bGammaSpace;
+	const bool bDeferredShading;
+	const bool bUseVirtualTexturing;
 	int32 NumMSAASamples;
 	bool bRenderToSceneColor;
 	bool bRequiresMultiPass;

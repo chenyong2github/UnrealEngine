@@ -1523,7 +1523,6 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 		}
 
 		AddPostProcessMaterialPass(BL_BeforeTranslucency, false);
-		AddPostProcessMaterialPass(BL_BeforeTonemapping, false);
 
 		// Optional fixed pass processes
 		if (PassSequence.IsEnabled(EPass::SunMask))
@@ -1839,6 +1838,8 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 
 			AddMobileSeparateTranslucencyPass(GraphBuilder, View, SeparateTranslucencyInputs);
 		}
+
+		AddPostProcessMaterialPass(BL_BeforeTonemapping, false);
 	}
 	else
 	{
