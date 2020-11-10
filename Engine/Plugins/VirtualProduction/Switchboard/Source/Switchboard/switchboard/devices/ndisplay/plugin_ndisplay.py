@@ -198,7 +198,11 @@ class DevicenDisplay(DeviceUnreal):
     def plugin_settings(cls):
         ''' Returns common settings that belong to all devices of this class.
         '''
-        return [DeviceUnreal.csettings['port'], DeviceUnreal.csettings['roles_filename']] + list(cls.csettings.values())
+        return list(cls.csettings.values()) + [
+            DeviceUnreal.csettings['port'], 
+            DeviceUnreal.csettings['roles_filename'],
+            DeviceUnreal.csettings['stage_session_id'],
+        ]
 
     def device_settings(self):
         ''' This is given to the config, so that it knows to save them when they change.
@@ -230,18 +234,26 @@ class DevicenDisplay(DeviceUnreal):
     def generate_unreal_command_line(self, map_name=""):
 
         uproject = os.path.normpath(CONFIG.UPROJECT_PATH.get_value(self.name))
+
+        # Extra arguments specified in settings
         additional_args = self.csettings['ndisplay_cmd_args'].get_value(self.name)
 
+        # Path to config file
         cfg_file = self.path_to_config_on_host
 
+        # nDisplay window info
         win_pos = self.settings['window_position'].get_value()
         win_res = self.settings['window_resolution'].get_value()
         fullscreen = self.settings['fullscreen'].get_value()
 
+        # Misc settings
         render_mode = self.render_mode_cmdline_opts[DevicenDisplay.csettings['render_mode'].get_value(self.name)]
         render_api = f"-{DevicenDisplay.csettings['render_api'].get_value(self.name)}"
         use_all_cores = "-useallavailablecores" if DevicenDisplay.csettings['use_all_available_cores'].get_value(self.name) else ""
         no_texture_streaming = "-notexturestreaming" if not DevicenDisplay.csettings['texture_streaming'].get_value(self.name) else ""
+
+        # Overridden classes at runtime
+        #
 
         ini_engine = "-ini:Engine"\
             ":[/Script/Engine.Engine]:GameEngine=/Script/DisplayCluster.DisplayClusterGameEngine"\
@@ -249,30 +261,52 @@ class DevicenDisplay(DeviceUnreal):
 
         ini_game = "-ini:Game:[/Script/EngineSettings.GeneralProjectSettings]:bUseBorderlessWindow=True"
 
+        # VP roles
+        #
+
+        vproles, missing_roles = self.get_vproles()
+
+        if missing_roles:
+            LOGGER.error(f"{self.name}: Omitted roles not in the remote roles ini file which would cause UE to fail at launch: {'|'.join(missing_roles)}")
+
+        vproles = '-VPRole=' + '|'.join(vproles) if vproles else ''
+
+        # Session ID
+        #
+        session_id = DeviceUnreal.csettings["stage_session_id"].get_value()
+        session_id = f"-StageSessionId={session_id}" if session_id > 0 else ''
+
+        # Friendly name. Avoid spaces to avoid parsing issues.
+        #
+        friendly_name = f'-StageFriendlyName={self.name.replace(" ", "_")}'
+
         # fill in fixed arguments
         #
-        # TODO: Consider -unattended to avoid crash window from appearing.
+        # TODO: Consider -unattended as an option to avoid crash window from appearing.
 
         args = [
             f'"{uproject}"',
-            f'{map_name}',              # map to open
-            "-game",                    # render nodes run in -game
-            "-messaging",               # enables messaging, needed for MultiUser
-            "-dc_cluster",              # this is a cluster node
-            "-nosplash",                # avoids splash screen
-            "-fixedseed",               # for determinism
-            "-NoVerifyGC",              # improves performance
-            "-noxrstereo",              # avoids a conflict with steam/oculus
-            f'{additional_args}',       # specified in settings
-            f'-dc_cfg="{cfg_file}"',    # nDisplay config file
-            f'{render_api}',            # dx11/12
-            f'{render_mode}',           # mono/...
-            f'{use_all_cores}',         # -useallavailablecores
-            f'{no_texture_streaming}',  # -notexturestreaming
-            f'-dc_node={self.name}',    # name of this node in the nDisplay cluster
-            f'Log={self.name}.log',     # log file
-            f'{ini_engine}',            # Engine ini injections
-            f'{ini_game}',              # Game ini injections
+            f'{map_name}',                     # map to open
+            "-game",                           # render nodes run in -game
+            "-messaging",                      # enables messaging, needed for MultiUser
+            "-dc_cluster",                     # this is a cluster node
+            "-nosplash",                       # avoids splash screen
+            "-fixedseed",                      # for determinism
+            "-NoVerifyGC",                     # improves performance
+            "-noxrstereo",                     # avoids a conflict with steam/oculus
+            f'{additional_args}',              # specified in settings
+            f'{vproles}',                      # VP roles for this instance
+            f'{friendly_name}',                # Stage Friendly Name
+            f'{session_id}',                   # Session ID. 
+            f'-dc_cfg="{cfg_file}"',           # nDisplay config file
+            f'{render_api}',                   # dx11/12
+            f'{render_mode}',                  # mono/...
+            f'{use_all_cores}',                # -useallavailablecores
+            f'{no_texture_streaming}',         # -notexturestreaming
+            f'-dc_node={self.name}',           # name of this node in the nDisplay cluster
+            f'Log={self.name}.log',            # log file
+            f'{ini_engine}',                   # Engine ini injections
+            f'{ini_game}',                     # Game ini injections
         ]
 
         # fill in ExecCmds

@@ -331,6 +331,17 @@ class DeviceUnreal(Device):
     def generate_unreal_exe_path(self):
         return CONFIG.engine_path(CONFIG.ENGINE_DIR.get_value(self.name), DeviceUnreal.csettings["ue4_exe"].get_value())
 
+    def get_vproles(self):
+        ''' Gets selected vp roles that are also present in the ini file
+        Also returns any selected vp roles that are not in the ini file.
+        '''
+
+        vproles = self.setting_roles.get_value()
+        missing_roles = [role for role in vproles if role not in self.setting_roles.possible_values]
+        vproles = [role for role in vproles if role not in missing_roles]
+
+        return vproles, missing_roles
+
     def generate_unreal_command_line_args(self, map_name):
 
         command_line_args = f'{DeviceUnreal.csettings["command_line_arguments"].get_value(self.name)}'
