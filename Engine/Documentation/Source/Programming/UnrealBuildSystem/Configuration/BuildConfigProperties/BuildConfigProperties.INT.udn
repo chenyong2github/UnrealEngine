@@ -71,6 +71,8 @@ $ UnsafeTypeCastWarningLevel : Indicates what warning/error level to treat unsaf
 
 $ bUndefinedIdentifierErrors : Forces the use of undefined identifiers in conditional expressions to be treated as errors.
 
+$ bRetainFramePointers : Forces frame pointers to be retained this is usually required when you want reliable callstacks e.g. mallocframeprofiler
+
 $ bUseFastMonoCalls : New Monolithic Graphics drivers have optional "fast calls" replacing various D3d functions
 
 $ bUseFastSemanticsRenderContexts : New Xbox driver supports a "fast semantics" context type. This switches it on for the immediate and deferred contexts Try disabling this if you see rendering issues and/or crashes inthe Xbox RHI.
