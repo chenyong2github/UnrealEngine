@@ -394,19 +394,29 @@ bool FNiagaraParameterMapHistory::IsRapidIterationParameter(const FNiagaraVariab
 	return IsInNamespace(InVar, PARAM_MAP_RAPID_ITERATION_STR);
 }
 
-bool FNiagaraParameterMapHistory::SplitRapidIterationParameterName(const FNiagaraVariable& InVar, FString& EmitterName, FString& FunctionCallName, FString& InputName)
+bool FNiagaraParameterMapHistory::SplitRapidIterationParameterName(const FNiagaraVariable& InVar, ENiagaraScriptUsage InUsage, FString& EmitterName, FString& FunctionCallName, FString& InputName)
 {
 	TArray<FString> SplitName;
 	InVar.GetName().ToString().ParseIntoArray(SplitName, TEXT("."));
-	if (SplitName.Num() >= 4 && (SplitName[0] + ".") == PARAM_MAP_RAPID_ITERATION_STR)
+	int32 MinimumSplitCount = InUsage == ENiagaraScriptUsage::SystemSpawnScript || InUsage == ENiagaraScriptUsage::SystemUpdateScript ? 3 : 4;
+	if (SplitName.Num() >= MinimumSplitCount && (SplitName[0] + ".") == PARAM_MAP_RAPID_ITERATION_STR)
 	{
-		EmitterName = SplitName[1];
-		FunctionCallName = SplitName[2];
-		InputName = SplitName[3];
-		for (int i = 4; i < SplitName.Num(); i++)
+		int32 CurrentIndex = 1;
+		if (InUsage == ENiagaraScriptUsage::SystemSpawnScript || InUsage == ENiagaraScriptUsage::SystemUpdateScript)
 		{
-			InputName += TEXT(".") + SplitName[i];
+			EmitterName = FString();
 		}
+		else
+		{
+			EmitterName = SplitName[CurrentIndex];
+			CurrentIndex++;
+		}
+
+		FunctionCallName = SplitName[CurrentIndex];
+		CurrentIndex++;
+
+		// Join any remaining name parts with a .
+		InputName = FString::Join(TArrayView<FString>(SplitName).Slice(CurrentIndex, SplitName.Num() - CurrentIndex), TEXT("."));
 		return true;
 	}
 	return false;
