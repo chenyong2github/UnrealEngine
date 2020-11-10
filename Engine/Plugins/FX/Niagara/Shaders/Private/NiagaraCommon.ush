@@ -1,0 +1,60 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+float3x3 NiagaraQuatTo3x3(float4 Q)
+{
+	float x2 = Q.x + Q.x;  float y2 = Q.y + Q.y;  float z2 = Q.z + Q.z;
+	float xx = Q.x * x2;   float xy = Q.x * y2;   float xz = Q.x * z2;
+	float yy = Q.y * y2;   float yz = Q.y * z2;   float zz = Q.z * z2;
+	float wx = Q.w * x2;   float wy = Q.w * y2;   float wz = Q.w * z2;
+
+	float3x3 Mat = {
+		1.0f - (yy + zz),	xy + wz,			xz - wy,
+		xy - wz,			1.0f - (xx + zz),	yz + wx,
+		xz + wy,			yz - wx,			1.0f - (xx + yy),
+	};
+
+	return Mat;
+}
+
+float4x4 NiagaraComposeTransformMatrix(float3 S, float3x3 R, float3 T)
+{
+	float3x3 ScaleMat = float3x3(
+		S.x, 0.0f, 0.0f,
+		0.0f, S.y, 0.0f,
+		0.0f, 0.0f, S.z);
+
+	float3x3 ScaleRot = mul(ScaleMat, R);
+
+	return float4x4(
+		ScaleRot[0], 0.0f,
+		ScaleRot[1], 0.0f,
+		ScaleRot[2], 0.0f,
+		T, 1.0f);
+}
+
+float4x4 NiagaraComposeInvTransformMatrix(float3 S, float3x3 R, float3 T)
+{
+	float3x3 InvScaleMat = float3x3(
+		1.0f / S.x, 0.0f, 0.0f,
+		0.0f, 1.0f / S.y, 0.0f,
+		0.0f, 0.0f, 1.0f / S.z);
+
+	float3x3 InvRotScale = mul(transpose(R), InvScaleMat);
+
+	float4x4 InvRotScale44 = float4x4(
+		InvRotScale[0], 0.0f,
+		InvRotScale[1], 0.0f,
+		InvRotScale[2], 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	);
+
+	float4x4 InvTransMat = float4x4(
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		-T, 1.0f);
+
+	return mul(InvTransMat, InvRotScale44);
+}

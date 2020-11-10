@@ -2266,7 +2266,7 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PostSimulate(FRHICommandLi
 		}
 	}
 
-#if WITH_EDITOR
+#if NIAGARA_COMPUTEDEBUG_ENABLED
 	if (ProxyData->bPreviewGrid && ProxyData->CurrentData)
 	{
 		if (FNiagaraGpuComputeDebug* GpuComputeDebug = Context.Batcher->GetGpuComputeDebug())
