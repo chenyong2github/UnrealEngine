@@ -69,6 +69,9 @@ public:
 
 	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnPacketSent, FOnPacketSent);
 	virtual FOnPacketSent& GetOnPacketSent() override	{ return OnPacketSent;	}
+
+	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnGameThreadOnlyBufferUpdated, FOnGameThreadOnlyBufferUpdated);
+	virtual FOnGameThreadOnlyBufferUpdated& GetOnGameThreadOnlyBufferUpdated() override { return OnGameThreadOnlyBufferUpdated; }
 	//~ End IDMXProtocol implementation
 
 	//~ Begin IDMXNetworkInterface implementation
@@ -204,6 +207,7 @@ private:
 	FOnUniverseOutputBufferUpdated OnUniverseOutputBufferUpdated;
 	FOnPacketReceived OnPacketReceived;
 	FOnPacketSent OnPacketSent;
+	FOnGameThreadOnlyBufferUpdated OnGameThreadOnlyBufferUpdated;
 
 	/** Mutex protecting access to the sockets. */
 	mutable FCriticalSection SocketsCS;

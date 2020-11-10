@@ -25,10 +25,10 @@ class FDMXProtocolSACNReceivingRunnable
 	, public TSharedFromThis<FDMXProtocolSACNReceivingRunnable, ESPMode::ThreadSafe>
 {
 public:	
-	FDMXProtocolSACNReceivingRunnable(uint32 InReceivingRefreshRate);
+	FDMXProtocolSACNReceivingRunnable(uint32 InReceivingRefreshRate, const TSharedRef<FDMXProtocolSACN, ESPMode::ThreadSafe>& InProtocolSACN);
 	virtual ~FDMXProtocolSACNReceivingRunnable();
 
-	static TSharedPtr<FDMXProtocolSACNReceivingRunnable, ESPMode::ThreadSafe> CreateNew(uint32 InReceivingRefreshRate);
+	static TSharedPtr<FDMXProtocolSACNReceivingRunnable, ESPMode::ThreadSafe> CreateNew(uint32 InReceivingRefreshRate, const TSharedRef<FDMXProtocolSACN, ESPMode::ThreadSafe>& InProtocolSACN);
 
 	FORCEINLINE const IDMXUniverseSignalMap& GameThread_GetInputBuffer()
 	{
@@ -77,4 +77,6 @@ private:
 	bool bStopping;
 
 	float ReceivingRefreshRate;
+
+	TWeakPtr<FDMXProtocolSACN, ESPMode::ThreadSafe> ProtocolSACNPtr;
 };

@@ -13,10 +13,11 @@
 #include "Templates/SharedPointer.h"
 
 
-FDMXProtocolSACNReceivingRunnable::FDMXProtocolSACNReceivingRunnable(uint32 InReceivingRefreshRate)
+FDMXProtocolSACNReceivingRunnable::FDMXProtocolSACNReceivingRunnable(uint32 InReceivingRefreshRate, const TSharedRef<FDMXProtocolSACN, ESPMode::ThreadSafe>& InProtocolSACN)
 	: Thread(nullptr)
 	, bStopping(false)
 	, ReceivingRefreshRate(InReceivingRefreshRate)
+	, ProtocolSACNPtr(InProtocolSACN)
 {
 }
 
@@ -33,9 +34,9 @@ FDMXProtocolSACNReceivingRunnable::~FDMXProtocolSACNReceivingRunnable()
 	}
 }
 
-TSharedPtr<FDMXProtocolSACNReceivingRunnable, ESPMode::ThreadSafe> FDMXProtocolSACNReceivingRunnable::CreateNew(uint32 InReceivingRefreshRate)
+TSharedPtr<FDMXProtocolSACNReceivingRunnable, ESPMode::ThreadSafe> FDMXProtocolSACNReceivingRunnable::CreateNew(uint32 InReceivingRefreshRate, const TSharedRef<FDMXProtocolSACN, ESPMode::ThreadSafe>& InProtocolSACN)
 {
-	TSharedPtr<FDMXProtocolSACNReceivingRunnable, ESPMode::ThreadSafe> NewReceivingRunnable = MakeShared<FDMXProtocolSACNReceivingRunnable, ESPMode::ThreadSafe>(InReceivingRefreshRate);
+	TSharedPtr<FDMXProtocolSACNReceivingRunnable, ESPMode::ThreadSafe> NewReceivingRunnable = MakeShared<FDMXProtocolSACNReceivingRunnable, ESPMode::ThreadSafe>(InReceivingRefreshRate, InProtocolSACN);
 
 	NewReceivingRunnable->Thread = FRunnableThread::Create(static_cast<FRunnable*>(NewReceivingRunnable.Get()), TEXT("DMXProtocolSACNReceivingRunnable"), 0U, TPri_TimeCritical, FPlatformAffinity::GetPoolThreadMask());
 
@@ -160,6 +161,11 @@ void FDMXProtocolSACNReceivingRunnable::Update()
 			}
 
 			ThisSP->GameThreadOnlyBuffer.FindOrAdd(Signal->UniverseID) = Signal;
+
+			if (TSharedPtr<FDMXProtocolSACN, ESPMode::ThreadSafe> ProtocolSACN = ThisSP->ProtocolSACNPtr.Pin())
+			{
+				ProtocolSACN->GetOnGameThreadOnlyBufferUpdated().Broadcast(ProtocolSACN->GetProtocolName(), Signal->UniverseID);
+			}
 		}
 	});
 }

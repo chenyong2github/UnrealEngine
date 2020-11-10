@@ -13,10 +13,11 @@
 #include "Templates/SharedPointer.h"
 
 
-FDMXProtocolArtNetReceivingRunnable::FDMXProtocolArtNetReceivingRunnable(uint32 InReceivingRefreshRate)
+FDMXProtocolArtNetReceivingRunnable::FDMXProtocolArtNetReceivingRunnable(uint32 InReceivingRefreshRate, const TSharedRef<FDMXProtocolArtNet, ESPMode::ThreadSafe>& InProtocolArtNet)
 	: Thread(nullptr)
 	, bStopping(false)
 	, ReceivingRefreshRate(InReceivingRefreshRate)
+	, ProtocolArtNetPtr(InProtocolArtNet)
 {
 }
 
@@ -33,9 +34,9 @@ FDMXProtocolArtNetReceivingRunnable::~FDMXProtocolArtNetReceivingRunnable()
 	}
 }
 
-TSharedPtr<FDMXProtocolArtNetReceivingRunnable, ESPMode::ThreadSafe> FDMXProtocolArtNetReceivingRunnable::CreateNew(uint32 InReceivingRefreshRate)
+TSharedPtr<FDMXProtocolArtNetReceivingRunnable, ESPMode::ThreadSafe> FDMXProtocolArtNetReceivingRunnable::CreateNew(uint32 InReceivingRefreshRate, const TSharedRef<FDMXProtocolArtNet, ESPMode::ThreadSafe>& InProtocolArtNet)
 {
-	TSharedPtr<FDMXProtocolArtNetReceivingRunnable, ESPMode::ThreadSafe> NewReceivingRunnable = MakeShared<FDMXProtocolArtNetReceivingRunnable, ESPMode::ThreadSafe>(InReceivingRefreshRate);
+	TSharedPtr<FDMXProtocolArtNetReceivingRunnable, ESPMode::ThreadSafe> NewReceivingRunnable = MakeShared<FDMXProtocolArtNetReceivingRunnable, ESPMode::ThreadSafe>(InReceivingRefreshRate, InProtocolArtNet);
 
 	NewReceivingRunnable->Thread = FRunnableThread::Create(static_cast<FRunnable*>(NewReceivingRunnable.Get()), TEXT("DMXProtocolArtNetReceivingRunnable"), 0U, TPri_TimeCritical, FPlatformAffinity::GetPoolThreadMask());
 
@@ -164,6 +165,11 @@ void FDMXProtocolArtNetReceivingRunnable::Update()
 			}
 
 			ThisSP->GameThreadOnlyBuffer.FindOrAdd(Signal->UniverseID) = Signal;
+
+			if (TSharedPtr<FDMXProtocolArtNet, ESPMode::ThreadSafe> ProtocolArtNet = ThisSP->ProtocolArtNetPtr.Pin())
+			{
+				ProtocolArtNet->GetOnGameThreadOnlyBufferUpdated().Broadcast(ProtocolArtNet->GetProtocolName(), Signal->UniverseID);
+			}
 		}
 	});
 }
