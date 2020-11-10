@@ -968,6 +968,10 @@ void AWaterBody::OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 	{
 		RequestGPUWaveDataUpdate();
 	}
+	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(AWaterBody, MaxWaveHeightOffset))
+	{
+		bShapeOrPositionChanged = true;
+	}
 }
 
 void AWaterBody::CheckForErrors()
@@ -1514,7 +1518,7 @@ bool AWaterBody::GetWaveInfoAtPosition(const FVector& InPosition, float InWaterD
 
 float AWaterBody::GetMaxWaveHeight() const
 {
-	return HasWaves() ? WaterWaves->GetMaxWaveHeight() : 0.0f;
+	return (HasWaves() ? WaterWaves->GetMaxWaveHeight() : 0.0f) + MaxWaveHeightOffset;
 }
 
 float AWaterBody::GetWaveHeightAtPosition(const FVector& InPosition, float InWaterDepth, float InTime, FVector& OutNormal) const
