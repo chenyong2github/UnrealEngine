@@ -3833,13 +3833,13 @@ void USkeletalMeshComponent::ParallelDuplicateAndInterpolate(FAnimationEvaluatio
 			}
 			else
 			{
-			// interpolate curve
-			InAnimEvaluationContext.Curve.LerpTo(InAnimEvaluationContext.CachedCurve, Alpha);
+				// interpolate curve
+				InAnimEvaluationContext.Curve.LerpTo(InAnimEvaluationContext.CachedCurve, Alpha);
+			}
 
 			FCustomAttributesRuntime::InterpolateAttributes(InAnimEvaluationContext.CachedCustomAttributes, InAnimEvaluationContext.CustomAttributes, Alpha);
 		}
 	}
-}
 }
 
 void USkeletalMeshComponent::CompleteParallelAnimationEvaluation(bool bDoPostAnimEvaluation)
