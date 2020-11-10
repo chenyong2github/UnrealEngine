@@ -8,6 +8,8 @@
 struct FInterpolationData
 {
 	bool IsUpdating;
+	float InterpolationScale;
+
 	float CurrentValue;
 	float TargetValue;
 	float ToTravel;
@@ -27,6 +29,7 @@ struct FInterpolationData
 	FInterpolationData()
 	{
 		IsUpdating = false;
+		InterpolationScale = 1.0f;
 		RangeValue = 1.0f;
 		TargetValue = 0.0f;
 		CurrentValue = 0.0f;
@@ -71,14 +74,6 @@ struct FInterpolationData
 		IsUpdating = false;
 	}
 
-	void ApplyInterpolationScale(float Scale)
-	{
-		SpeedIncMin *= Scale;
-		SpeedIncMid *= Scale;
-		SpeedIncMax *= Scale;
-		SpeedMinimum *= Scale;
-	}
-
 	void StartTravel(float NewTarget)
 	{
 		IsUpdating = true;
@@ -86,7 +81,7 @@ struct FInterpolationData
 		float Travel = FMath::Abs(TargetValue - NewTarget);
 		TotalTravel = Travel;
 		ToTravel = Travel;
-		CurrentSpeed = SpeedIncMid;
+		CurrentSpeed = SpeedIncMid * InterpolationScale;
 		TargetValue = NewTarget;
 	}
 
@@ -129,8 +124,8 @@ struct FInterpolationData
 		float CurrentStep = FMath::SmoothStep(0.0f, 1.0f, CurrentT);
 		float Derivative = UKismetMathLibrary::SafeDivide(CurrentStep - PreviousStep, CurrentT - PreviousT);
 		float TravelAlpha = FMath::Clamp(TotalTravel / RangeValue, 0.0f, 1.0f);
-		float A = FMath::Lerp(SpeedIncMin, SpeedIncMid, TravelAlpha);
-		float SpeedInc = FMath::Lerp(A, SpeedIncMax, Derivative);
+		float A = FMath::Lerp(SpeedIncMin * InterpolationScale, SpeedIncMid * InterpolationScale, TravelAlpha);
+		float SpeedInc = FMath::Lerp(A, SpeedIncMax * InterpolationScale, Derivative);
 
 		if (CurrentT < AccelerationThreshold)
 		{
@@ -140,7 +135,7 @@ struct FInterpolationData
 		else
 		{
 			// decelerate
-			CurrentSpeed = FMath::Max(CurrentSpeed - SpeedInc, SpeedMinimum);
+			CurrentSpeed = FMath::Max(CurrentSpeed - SpeedInc, SpeedMinimum * InterpolationScale);
 		}
 
 		// save
