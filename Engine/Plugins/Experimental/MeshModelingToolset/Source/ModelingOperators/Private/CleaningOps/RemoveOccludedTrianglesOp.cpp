@@ -8,6 +8,7 @@
 #include "DynamicMeshAABBTree3.h"
 
 #include "Operations/RemoveOccludedTriangles.h"
+#include "Selections/MeshConnectedComponents.h"
 
 
 #include "Async/ParallelFor.h"
@@ -88,5 +89,11 @@ void FRemoveOccludedTrianglesOp::CalculateResult(FProgressCancel* Progress)
 		Jacket.AddRandomRays = AddRandomRays;
 		Jacket.AddTriangleSamples = AddTriangleSamples;
 		Jacket.Apply(MeshTransforms, &CombinedMeshTrees->AABB, &CombinedMeshTrees->FastWinding);
+	}
+
+	if (MinTriCountConnectedComponent > 0 || MinAreaConnectedComponent > 0)
+	{
+		FDynamicMeshEditor Editor(ResultMesh.Get());
+		Editor.RemoveSmallComponents(0, MinAreaConnectedComponent, MinTriCountConnectedComponent);
 	}
 }

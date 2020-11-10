@@ -229,7 +229,7 @@ public:
 	 * @param MinArea Remove components with less area than this
 	 * @return number of components removed
 	 */
-	int RemoveSmallComponents(double MinVolume, double MinArea = 0.0);
+	int RemoveSmallComponents(double MinVolume, double MinArea = 0.0, int MinTriangleCount = 0);
 
 
 	/**

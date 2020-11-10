@@ -342,7 +342,7 @@ bool FDynamicMeshEditor::RemoveTriangles(const TArray<int>& Triangles, bool bRem
 
 
 
-int FDynamicMeshEditor::RemoveSmallComponents(double MinVolume, double MinArea)
+int FDynamicMeshEditor::RemoveSmallComponents(double MinVolume, double MinArea, int MinTriangleCount)
 {
 	FMeshConnectedComponents C(Mesh);
 	C.FindConnectedTriangles();
@@ -352,8 +352,13 @@ int FDynamicMeshEditor::RemoveSmallComponents(double MinVolume, double MinArea)
 	}
 	int Removed = 0;
 	for (FMeshConnectedComponents::FComponent& Comp : C) {
-		FVector2d VolArea = TMeshQueries<FDynamicMesh3>::GetVolumeArea(*Mesh, Comp.Indices);
-		if (VolArea.X < MinVolume || VolArea.Y < MinArea) {
+		bool bRemove = Comp.Indices.Num() < MinTriangleCount;
+		if (!bRemove)
+		{
+			FVector2d VolArea = TMeshQueries<FDynamicMesh3>::GetVolumeArea(*Mesh, Comp.Indices);
+			bRemove = VolArea.X < MinVolume || VolArea.Y < MinArea;
+		}
+		if (bRemove) {
 			RemoveTriangles(Comp.Indices, true);
 			Removed++;
 		}

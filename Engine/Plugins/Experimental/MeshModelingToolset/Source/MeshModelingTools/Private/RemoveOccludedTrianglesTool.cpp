@@ -318,6 +318,10 @@ TUniquePtr<FDynamicMeshOperator> URemoveOccludedTrianglesOperatorFactory::MakeNe
 	Op->AddRandomRays = Tool->BasicProperties->AddRandomRays;
 
 	Op->AddTriangleSamples = Tool->BasicProperties->AddTriangleSamples;
+
+	Op->MinAreaConnectedComponent = Tool->BasicProperties->MinAreaIsland;
+
+	Op->MinTriCountConnectedComponent = Tool->BasicProperties->MinTriCountIsland;
 	
 	Op->SetTransform(LocalToWorld);
 

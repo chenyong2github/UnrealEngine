@@ -84,6 +84,12 @@ public:
 	/** If false, when multiple meshes are selected the meshes can occlude each other.  When true, we process each selected mesh independently and only consider self-occlusions. */
 	UPROPERTY(EditAnywhere, Category = OcclusionCalculation)
 	bool bOnlySelfOcclude = false;
+
+	UPROPERTY(EditAnywhere, Category = RemoveIslands, meta = (UIMin = "0", ClampMin = "0"))
+	double MinAreaIsland = 0;
+
+	UPROPERTY(EditAnywhere, Category = RemoveIslands, meta = (UIMin = "0", ClampMin = "0"))
+	int MinTriCountIsland = 0;
 };
 
 
