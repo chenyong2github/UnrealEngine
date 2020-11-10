@@ -104,21 +104,8 @@ namespace DatasmithRuntime
 	{
 		if (IDatasmithElement* Element = InElementPtr.Get())
 		{
-			FString AssetKey = AssetPrefix + Element->GetName();
-			FSceneGraphId ElementId = Element->GetNodeId();
-			if (AssetElementMapping.Contains(AssetKey))
-			{
-				TSharedPtr<IDatasmithElement>& ExistingElement = Elements[AssetElementMapping[AssetKey]];
-				if (ExistingElement->CalculateElementHash(true) == Element->CalculateElementHash(true))
-				{
-					return;
-				}
-				else
-				{
-					UE_LOG(LogDatasmithRuntime, Error, TEXT("Found duplicate element: %s with different data"), Element->GetName());
-					ensure(false);
-				}
-			}
+			const FString AssetKey = AssetPrefix + Element->GetName();
+			const FSceneGraphId ElementId = Element->GetNodeId();
 
 			AssetElementMapping.Add( AssetKey, ElementId );
 
