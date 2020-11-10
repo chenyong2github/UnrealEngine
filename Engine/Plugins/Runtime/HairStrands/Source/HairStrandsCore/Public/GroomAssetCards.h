@@ -180,6 +180,8 @@ struct HAIRSTRANDSCORE_API FHairGroupCardsTextures
 
 	UPROPERTY(EditAnywhere, Category = "CardsAuxilaryData")
 	UTexture2D* AuxilaryDataTexture = nullptr;
+
+	bool bNeedToBeSaved = false;
 };
 
 USTRUCT(BlueprintType)
