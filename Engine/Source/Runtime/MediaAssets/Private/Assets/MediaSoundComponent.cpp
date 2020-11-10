@@ -510,7 +510,7 @@ TArray<FMediaSoundComponentSpectralData> UMediaSoundComponent::GetNormalizedSpec
 	if (bSpectralAnalysisEnabled)
 	{
 		// Locks analyzer output buffer during access to frequency data.
-		Audio::FSpectrumAnalyzerScopeLock AnalyzerBufferLock(&SpectrumAnalyzer.Get());
+		Audio::FAsyncSpectrumAnalyzerScopeLock AnalyzerBufferLock(&SpectrumAnalyzer);
 
 		TArray<FMediaSoundComponentSpectralData> SpectralData;
 
@@ -518,7 +518,7 @@ TArray<FMediaSoundComponentSpectralData> UMediaSoundComponent::GetNormalizedSpec
 		{
 			FMediaSoundComponentSpectralData Data;
 			Data.FrequencyHz = Frequency;
-			Data.Magnitude = SpectrumAnalyzer->GetNormalizedMagnitudeForFrequency(Frequency);
+			Data.Magnitude = SpectrumAnalyzer.GetNormalizedMagnitudeForFrequency(Frequency);
 			SpectralData.Add(Data);
 		}
 
