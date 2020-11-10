@@ -1129,6 +1129,25 @@ void AddHairStrandInitMeshSamplesPass(
 	const uint32 SectionCount = MeshData.Sections.Num();
 	if (SectionCount > 0 && RestLODData.SampleCount > 0)
 	{
+		bool HasUniquePositionBuffer = true;
+		FRDGBufferSRVRef UniqueRDGPositionBuffer = MeshData.Sections[0].RDGPositionBuffer;
+		FRHIShaderResourceView* UniquePositionBuffer = MeshData.Sections[0].PositionBuffer;
+		const TArray<uint32>& ValidSectionIndices = RestResources->RootData.MeshProjectionLODs[LODIndex].ValidSectionIndices;
+		for (auto& SectionIndex : ValidSectionIndices)
+		{
+			if (MeshData.Sections[SectionIndex].PositionBuffer && MeshData.Sections[SectionIndex].PositionBuffer != UniquePositionBuffer)
+			{
+				HasUniquePositionBuffer = false;
+				break;
+			}
+			if (MeshData.Sections[SectionIndex].RDGPositionBuffer && MeshData.Sections[SectionIndex].RDGPositionBuffer != UniqueRDGPositionBuffer)
+			{
+				HasUniquePositionBuffer = false;
+				break;
+			}
+		}
+		check(HasUniquePositionBuffer)
+
 		FHairInitMeshSamplesCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairInitMeshSamplesCS::FParameters>();
 
 		Parameters->MaxVertexCount = MeshData.Sections[0].TotalVertexCount;
