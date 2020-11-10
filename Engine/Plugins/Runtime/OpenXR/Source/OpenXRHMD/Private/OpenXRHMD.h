@@ -89,8 +89,19 @@ public:
 
 	int32 GetXRSystemFlags() const override
 	{
-		//NEEDED - Determine which flags this should have
-		return EXRSystemFlags::IsHeadMounted;
+		int32 flags = EXRSystemFlags::IsHeadMounted;
+
+		if (SelectedEnvironmentBlendMode != XR_ENVIRONMENT_BLEND_MODE_OPAQUE)
+		{
+			flags |= EXRSystemFlags::IsAR;
+		}
+
+		if (bSupportsHandTracking)
+		{
+			flags |= EXRSystemFlags::SupportsHandTracking;
+		}
+
+		return flags;
 	}
 
 	virtual bool EnumerateTrackedDevices(TArray<int32>& OutDevices, EXRTrackedDeviceType Type = EXRTrackedDeviceType::Any) override;
@@ -258,6 +269,7 @@ private:
 	bool					bNeedReAllocatedDepth;
 	bool					bNeedReBuildOcclusionMesh;
 	bool					bIsMobileMultiViewEnabled;
+	bool					bSupportsHandTracking;
 	float					WorldToMetersScale = 100.0f;
 
 	XrSessionState			CurrentSessionState;
