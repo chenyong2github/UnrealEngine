@@ -637,13 +637,13 @@ void FAdaptiveVirtualTexture::UpdateAllocations(FVirtualTextureSystem* InSystem,
 		FRHITexture* Texture = Space->GetPageTableIndirectionTexture()->GetReferencedTexture();
 
 		//todo[vt]: If we have more than 1 or 2 updates per frame then add a shader to batch updates.
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, Texture);
+		RHICmdList.Transition(FRHITransitionInfo(Texture, ERHIAccess::SRVMask, ERHIAccess::UAVCompute));
 		for (FIndirectionTextureUpdate& TextureUpdate : TextureUpdates)
 		{
 			const FUpdateTextureRegion2D Region(TextureUpdate.X, TextureUpdate.Y, 0, 0, 1, 1);
 			RHIUpdateTexture2D((FRHITexture2D*)Texture, 0, Region, 4, (uint8*)&TextureUpdate.Value);
 		}
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, Texture);
+		RHICmdList.Transition(FRHITransitionInfo(Texture, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 	}
 
 	// Clear requests
