@@ -26,5 +26,5 @@ To configure your settings:
 	1. Go to Project Settings
 	2. Scroll down to Plugins
 	3. Select Epic Online Services (see EOS Plugin Settings.jpg)
-	4. Add a entry in the links list for each artifact on EGS or use the default name for non-EGS
-		- Each deployment id/artifact can have separate settings (see EOS Artifact Settings.jpg)
+	4. Add a entry in the list for each artifact on EGS or use the default name for non-EGS
+		- Each deployment id/artifact can have separate settings
