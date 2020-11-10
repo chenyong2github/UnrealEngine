@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TpsData xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <Name>Freetype 2 version 2.4.12, 2.6, 2.10.0</Name>
+  <Name>Freetype 2 version 2.4.12, 2.6, 2.10.0, 2.10.4</Name>
   <Location>/Engine/Source/ThirdParty/FreeType2/</Location>
   <Date>2016-06-09T17:38:38.9530977-04:00</Date>
   <Function>Font rendering</Function>
