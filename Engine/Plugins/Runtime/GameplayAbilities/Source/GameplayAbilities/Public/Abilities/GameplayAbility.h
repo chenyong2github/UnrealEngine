@@ -855,6 +855,10 @@ protected:
 	/** True if the ability is currently active. For instance per owner abilities */
 	UPROPERTY()
 	bool bIsActive;
+	
+	/** True if the end ability has been called, but has not yet completed. */
+	UPROPERTY()
+	bool bIsAbilityEnding = false;
 
 	/** True if the ability is currently cancelable, if not will only be canceled by hard EndAbility calls */
 	UPROPERTY()
