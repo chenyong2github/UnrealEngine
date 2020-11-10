@@ -257,6 +257,11 @@ ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 
 	for (const FHLODISMComponentDesc& ISMComponentDesc : ISMComponentsDesc)
 	{
+		if (!ISMComponentDesc.StaticMesh || !ISMComponentDesc.Material)
+		{
+			continue;
+		}
+		
 		// Apply transform to HISM instances
 		const bool bTransformInstances = !ActorTransform.Equals(FTransform::Identity);
 		if (bTransformInstances)
