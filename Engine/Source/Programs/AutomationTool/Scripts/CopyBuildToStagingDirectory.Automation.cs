@@ -452,6 +452,11 @@ public partial class Project : CommandUtils
 				if (RelativePath != null)
 				{
 					DirectoryReference InputDir = DirectoryReference.Combine(ProjectContentRoot, RelativePath);
+					if (Directory.Exists(InputDir.FullName)==false)
+					{
+						CommandUtils.LogWarning("Unable to find directory \"{0}\" for staging, retrieved from \"/Script/UnrealEd.ProjectPackagingSettings\" \"{1}\"", InputDir.FullName, ConfigKeyName);
+						continue;
+					}
 					StagedDirectoryReference OutputDir = StagedDirectoryReference.Combine(StageContentRoot, RelativePath);
 					if (bUFS)
 					{

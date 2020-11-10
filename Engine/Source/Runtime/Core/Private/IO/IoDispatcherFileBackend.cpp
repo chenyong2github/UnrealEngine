@@ -458,8 +458,9 @@ TIoStatusOr<FIoContainerId> FFileIoStore::Mount(const FIoStoreEnvironment& Envir
 			return A->GetIndex() > B->GetIndex();
 		});
 		FFileIoStoreReader* RawReader = Reader.Release();
-		UnorderedIoStoreReaders.Add(RawReader);
+		UnorderedIoStoreReaders.Add(RawReader);		
 		OrderedIoStoreReaders.Insert(RawReader, InsertionIndex);
+		UE_LOG(LogIoDispatcher, Display, TEXT("Mounting container '%s' in location slot %d"), *FPaths::GetBaseFilename(Environment.GetPath()), InsertionIndex);
 	}
 	return ContainerId;
 }
