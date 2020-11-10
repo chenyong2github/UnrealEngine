@@ -36,6 +36,8 @@
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyNone.h"
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicySoftwareGeneric.h"
 
+#include "Framework/Application/SlateApplication.h"
+
 #include "UnrealClient.h"
 #include "Kismet/GameplayStatics.h"
 
