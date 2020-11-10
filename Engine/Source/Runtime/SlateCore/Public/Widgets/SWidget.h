@@ -22,6 +22,7 @@
 #include "Input/PopupMethodReply.h"
 #include "Types/ISlateMetaData.h"
 #include "Types/WidgetActiveTimerDelegate.h"
+#include "Types/WidgetMouseEventsDelegate.h"
 #include "Textures/SlateShaderResource.h"
 #include "SlateGlobals.h"
 #include "Types/PaintArgs.h"
@@ -48,29 +49,11 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("SWidget::Tick (Count)"), STAT_SlateNumTi
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Execute Active Timers"), STAT_SlateExecuteActiveTimers, STATGROUP_Slate, SLATECORE_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Tick Widgets"), STAT_SlateTickWidgets, STATGROUP_Slate, SLATECORE_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("SlatePrepass"), STAT_SlatePrepass, STATGROUP_Slate, SLATECORE_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("SWidget MetaData"), STAT_SlateGetMetaData, STATGROUP_Slate, SLATECORE_API);
 
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Total Widgets"), STAT_SlateTotalWidgets, STATGROUP_SlateMemory, SLATECORE_API);
 DECLARE_MEMORY_STAT_EXTERN(TEXT("SWidget Total Allocated Size"), STAT_SlateSWidgetAllocSize, STATGROUP_SlateMemory, SLATECORE_API);
 
-/** Delegate type for handling mouse events */
-DECLARE_DELEGATE_RetVal_TwoParams(
-	FReply, FPointerEventHandler,
-	/** The geometry of the widget*/
-	const FGeometry&,
-	/** The Mouse Event that we are processing */
-	const FPointerEvent&)
-
-DECLARE_DELEGATE_TwoParams(
-	FNoReplyPointerEventHandler,
-	/** The geometry of the widget*/
-	const FGeometry&,
-	/** The Mouse Event that we are processing */
-	const FPointerEvent&)
-
-DECLARE_DELEGATE_OneParam(
-	FSimpleNoReplyPointerEventHandler,
-	/** The Mouse Event that we are processing */
-	const FPointerEvent&)
 
 enum class EPopupMethod : uint8;
 
@@ -1245,6 +1228,13 @@ public:
 	 */
 	void SetDebugInfo( const ANSICHAR* InType, const ANSICHAR* InFile, int32 OnLine, size_t InAllocSize );
 	
+protected:
+
+	/** The cursor to show when the mouse is hovering over this widget. */
+	TOptional<EMouseCursor::Type> GetCursor() const;
+
+public:
+
 	/**
 	 * Get the metadata of the type provided.
 	 * @return the first metadata of the type supplied that we encounter
@@ -1252,6 +1242,7 @@ public:
 	template<typename MetaDataType>
 	TSharedPtr<MetaDataType> GetMetaData() const
 	{
+		SCOPE_CYCLE_COUNTER(STAT_SlateGetMetaData);
 		for (const auto& MetaDataEntry : MetaData)
 		{
 			if (MetaDataEntry->IsOfType<MetaDataType>())
@@ -1269,6 +1260,7 @@ public:
 	template<typename MetaDataType>
 	TArray<TSharedRef<MetaDataType>> GetAllMetaData() const
 	{
+		SCOPE_CYCLE_COUNTER(STAT_SlateGetMetaData);
 		TArray<TSharedRef<MetaDataType>> FoundMetaData;
 		for (const auto& MetaDataEntry : MetaData)
 		{
@@ -1290,9 +1282,49 @@ public:
 		AddMetadataInternal(AddMe);
 	}
 
+	/**
+	 * Remove metadata to this widget.
+	 * @returns Number of removed elements.
+	 */
+	template<typename MetaDataType>
+	int32 RemoveMetaData(const TSharedRef<MetaDataType>& RemoveMe)
+	{
+		return MetaData.RemoveSingleSwap(RemoveMe);
+	}
+
 private:
 
 	void AddMetadataInternal(const TSharedRef<ISlateMetaData>& AddMe);
+
+	template<typename MetaDataType>
+	int32 RemoveAllMetaData()
+	{
+		int32 NumBefore = MetaData.Num();
+		for (int32 Index = NumBefore - 1; Index >= 0; --Index)
+		{
+			const auto& MetaDataEntry = MetaData[Index];
+			if (MetaDataEntry->IsOfType<MetaDataType>())
+			{
+				MetaData.RemoveAtSwap(Index);
+			}
+		}
+		return NumBefore - MetaData.Num();
+	}
+
+	template<typename MetaDataType>
+	bool RemoveMetaData()
+	{
+		for (int32 Index = MetaData.Num() - 1; Index >= 0; --Index)
+		{
+			const auto& MetaDataEntry = MetaData[Index];
+			if (MetaDataEntry->IsOfType<MetaDataType>())
+			{
+				MetaData.RemoveAtSwap(Index);
+				return true;
+			}
+		}
+		return false;
+	}
 
 public:
 
@@ -1527,9 +1559,6 @@ private:
 	/** Iterates over the active timer handles on the widget and executes them if their interval has elapsed. */
 	void ExecuteActiveTimers(double CurrentTime, float DeltaTime);
 
-	const FPointerEventHandler* GetPointerEvent(const FName EventName) const;
-	void SetPointerEvent(const FName EventName, FPointerEventHandler& InEvent);
-
 protected:
 	/**
 	 * Performs the attribute assignment and invalidates the widget minimally based on what actually changed.  So if the boundness of the attribute didn't change
@@ -1546,9 +1575,9 @@ protected:
 	virtual ~SWidget();
 
 private:
-
 	/** Handle to the proxy when on the fast path */
 	mutable FWidgetProxyHandle FastPathProxyHandle;
+
 protected:
 	/** Is this widget hovered? */
 	uint8 bIsHovered : 1;
@@ -1569,6 +1598,7 @@ protected:
 	  * really do the clipping.
 	  */
 	uint8 bClippingProxy : 1;
+
 private:
 	/**
 	 * Whether this widget is a "tool tip force field".  That is, tool-tips should never spawn over the area
@@ -1603,11 +1633,6 @@ protected:
 	
 	/** if this widget should always invalidate the prepass step when volatile */
 	uint8 bVolatilityAlwaysInvalidatesPrepass : 1;
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	UE_DEPRECATED(4.21, "Setting bCanTick on a widget directly is deprecated and will not function.  Call SetCanTick instead")
-	uint8 bCanTick : 1;
-#endif
 
 #if WITH_ACCESSIBILITY
 	/** All variables surrounding how this widget is exposed to the platform's accessibility API. */
@@ -1675,7 +1700,7 @@ protected:
 	/** Is this widget visible, hidden or collapsed */
 	TAttribute< EVisibility > Visibility;
 
-	/** The opacity of the widget.  Automatically applied during rendering. */
+	/** The opacity of the widget. Automatically applied during rendering. */
 	float RenderOpacity;
 
 	/** Render transform of this widget. TOptional<> to allow code to skip expensive overhead if there is no render transform applied. */
@@ -1684,38 +1709,31 @@ protected:
 	/** Render transform pivot of this widget (in normalized local space) */
 	TAttribute< FVector2D > RenderTransformPivot;
 
+private:
+	/** Metadata associated with this widget. */
+	TArray<TSharedRef<ISlateMetaData>> MetaData;
+
+	/** Pointer to this widgets parent widget.  If it is null this is a root widget or it is not in the widget tree */
+	TWeakPtr<SWidget> ParentWidgetPtr;
+
 	/** Debugging information on the type of widget we're creating for the Widget Reflector. */
 	FName TypeOfWidget;
 
 #if !UE_BUILD_SHIPPING
-
 	/** Full file path (and line) in which this widget was created */
 	FName CreatedInLocation;
-
 #endif
 
 	/** Tag for this widget */
 	FName Tag;
 
-	/** Metadata associated with this widget */
-	TArray<TSharedRef<ISlateMetaData>> MetaData;
-
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	UE_DEPRECATED(5.0, "Access to SWidget::Cursor is deprecated and will not function. Call SetCursor/GetCursor instead")
 	/** The cursor to show when the mouse is hovering over this widget. */
-	TAttribute< TOptional<EMouseCursor::Type> > Cursor;
+	TAttribute<TOptional<EMouseCursor::Type>> Cursor;
+#endif
 
 private:
-
-	/** Tool tip content for this widget */
-	TSharedPtr<IToolTip> ToolTip;
-
-	/** Pointer to this widgets parent widget.  If it is null this is a root widget or it is not in the widget tree */
-	TWeakPtr<SWidget> ParentWidgetPtr;
-
-	// Events
-	TArray<TPair<FName, FPointerEventHandler>> PointerEvents;
-
-	FNoReplyPointerEventHandler MouseEnterHandler;
-	FSimpleNoReplyPointerEventHandler MouseLeaveHandler;
 
 #if UE_SLATE_WITH_WIDGET_UNIQUE_IDENTIFIER
 	/** The widget's id */

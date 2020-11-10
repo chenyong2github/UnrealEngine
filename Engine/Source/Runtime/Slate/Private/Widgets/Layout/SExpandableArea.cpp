@@ -67,7 +67,7 @@ void SExpandableArea::Construct( const FArguments& InArgs )
 				.Padding(0.0f)
 				[
 					SNew( SButton )
-					.Cursor(InArgs._HeaderCursor.IsSet() ? InArgs._HeaderCursor : Cursor)
+					.Cursor(InArgs._HeaderCursor.IsSet() ? InArgs._HeaderCursor : GetCursor())
 					.ButtonStyle(FCoreStyle::Get(), "NoBorder")
 					.ContentPadding(InArgs._HeaderPadding)
 					.ForegroundColor(FSlateColor::UseForeground())

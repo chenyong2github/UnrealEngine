@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include <type_traits>
 
 /**
  * Base class for all slate metadata
@@ -14,7 +15,7 @@ public:
 	template<class TType> 
 	bool IsOfType() const 
 	{
-		return IsOfTypeImpl(TType::GetTypeId());
+		return IsOfTypeImpl(TType::GetTypeCharId());
 	}
 
 	/** Virtual destructor. */
@@ -24,7 +25,7 @@ protected:
 	/**
 	 * Checks whether this drag and drop operation can cast safely to the specified type.
 	 */
-	virtual bool IsOfTypeImpl( const FName& Type ) const
+	virtual bool IsOfTypeImpl(const char* Type) const
 	{
 		return false;
 	}
@@ -41,8 +42,8 @@ protected:
  *	};
  */
 #define SLATE_METADATA_TYPE(TYPE, BASE) \
-	static const FName& GetTypeId() { static FName Type(TEXT(#TYPE)); return Type; } \
-	virtual bool IsOfTypeImpl(const FName& Type) const override { return GetTypeId() == Type || BASE::IsOfTypeImpl(Type); }
+	static const char* GetTypeCharId() { return #TYPE; } \
+	virtual bool IsOfTypeImpl(const char* Type) const override { return GetTypeCharId() == Type || BASE::IsOfTypeImpl(Type); }
 
 /**
  * Simple tagging metadata
