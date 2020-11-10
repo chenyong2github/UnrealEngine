@@ -12,16 +12,25 @@ class nDisplayMonitorUI(QtWidgets.QWidget):
         # create buttons
         #
         self.btnForceFocus = QPushButton("Force Focus")
-        self.btnFixExeFlags = QPushButton("Fix ExeFlags")
-
+        self.btnForceFocus.setToolTip("Forces focus on the nDisplay window")
         self.btnForceFocus.clicked.connect(monitor.btnForceFocus_clicked)
+
+        self.btnFixExeFlags = QPushButton("Fix ExeFlags")
+        self.btnFixExeFlags.setToolTip("Disables fullscreen optimizations on the executable.")
         self.btnFixExeFlags.clicked.connect(monitor.btnFixExeFlags_clicked)
+
+        self.btnSoftKill = QPushButton("Soft Kill")
+        self.btnSoftKill.setToolTip(
+            "Sends a message to the master node to terminate the session.\n"
+            "This is preferable to the normal kill button because it ensures the nodes exit properly")
+        self.btnSoftKill.clicked.connect(monitor.btnSoftKill_clicked)
 
         # arrange them in a horizontal layout
         layout_buttons = QHBoxLayout()
         layout_buttons.addStretch()
         layout_buttons.addWidget(self.btnForceFocus)
         layout_buttons.addWidget(self.btnFixExeFlags)
+        layout_buttons.addWidget(self.btnSoftKill)
 
         # create table
         #
