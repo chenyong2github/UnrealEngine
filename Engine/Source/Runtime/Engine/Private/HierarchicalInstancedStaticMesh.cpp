@@ -1804,13 +1804,13 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 						// NOTE: in case of unbuilt we can't really apply the instance scales so the LOD won't be optimal until the build is completed
 
 						// calculate runs
-						int32 MinLOD = 0;
+						int32 MinLOD = ClampedMinLOD;
 						int32 MaxLOD = NumLODs;
 						CalcLOD(MinLOD, MaxLOD, UnbuiltBounds[0].Min, UnbuiltBounds[0].Max, ViewOriginInLocalZero, ViewOriginInLocalOne, LODPlanesMin, LODPlanesMax);
 						int32 FirstIndexInRun = 0;
 						for (int32 Index = 1; Index < UnbuiltInstanceCount; ++Index)
 						{
-							int32 TempMinLOD = 0;
+							int32 TempMinLOD = ClampedMinLOD;
 							int32 TempMaxLOD = NumLODs;
 							CalcLOD(TempMinLOD, TempMaxLOD, UnbuiltBounds[Index].Min, UnbuiltBounds[Index].Max, ViewOriginInLocalZero, ViewOriginInLocalOne, LODPlanesMin, LODPlanesMax);
 							if (TempMinLOD != MinLOD)
