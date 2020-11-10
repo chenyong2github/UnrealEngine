@@ -11,6 +11,9 @@ class UTexture;
 class UUserWidget;
 class IDMXPixelMappingRenderer;
 class UTextureRenderTarget2D;
+class UWorld;
+
+enum class EMapChangeType : uint8;
 
 enum class EDMXPixelMappingRendererType : uint8;
 
@@ -26,6 +29,8 @@ class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingRendererComponent
 public:
 	/** Default Constructor */
 	UDMXPixelMappingRendererComponent();
+
+	~UDMXPixelMappingRendererComponent();
 
 	//~ Begin UObject implementation
 	virtual void PostLoad() override;
@@ -55,7 +60,7 @@ public:
 	//~ End UDMXPixelMappingOutputComponent implementation
 
 	/** Get reference to the active input texture */
-	UTexture* GetRendererInputTexture();
+	UTexture* GetRendererInputTexture() const;
 
 	/** Get renderer interfece */
 	const TSharedPtr<IDMXPixelMappingRenderer>& GetRenderer() { return PixelMappingRenderer; }
@@ -87,11 +92,12 @@ private:
 #if WITH_EDITOR
 	/** Resize output texture for editor preview */
 	void ResizeOutputTarget(uint32 InSizeX, uint32 InSizeY);
+
+	void OnMapChanged(UWorld* InWorld, EMapChangeType MapChangeType);
 #endif
 
 	/** Initialize all textures and creation or loading asset */
 	void Initialize();
-
 public:
 	/** Type of rendering, Texture, Material, UMG, etc... */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings")
@@ -137,5 +143,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** Canvas for all UI downsamping component witgets */
 	TSharedPtr<SConstraintCanvas> ComponentsCanvas;
+
+	FDelegateHandle OnChangeLevelHandle;
 #endif
 };
