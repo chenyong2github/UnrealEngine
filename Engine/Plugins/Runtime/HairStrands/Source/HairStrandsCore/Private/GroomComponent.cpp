@@ -1416,6 +1416,12 @@ UMaterialInterface* UGroomComponent::GetMaterial(int32 ElementIndex, EHairGeomet
 
 EHairGeometryType UGroomComponent::GetMaterialGeometryType(int32 ElementIndex) const
 {
+	if (!GroomAsset)
+	{
+		// If we don't know, enforce strands, as it has the most requirement.
+		return EHairGeometryType::Strands;
+	}
+
 	const EShaderPlatform Platform = GetScene() ? GetScene()->GetShaderPlatform() : EShaderPlatform::SP_NumPlatforms;
 	for (uint32 GroupIt = 0, GroupCount = GroomAsset->HairGroupsRendering.Num(); GroupIt < GroupCount; ++GroupIt)
 	{
