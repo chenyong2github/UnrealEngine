@@ -42,6 +42,12 @@
 #include "CineCameraComponent.h"
 #include "Engine/Scene.h"
 
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+#include "Windows.h"
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
+
 
 FDisplayClusterRenderManager::FDisplayClusterRenderManager()
 {
@@ -145,6 +151,32 @@ void FDisplayClusterRenderManager::EndScene()
 
 void FDisplayClusterRenderManager::PreTick(float DeltaSeconds)
 {
+	if(!bWasWindowFocused)
+	{
+		if (UGameViewportClient* GameViewportClient = GEngine->GameViewport)
+		{
+			if (TSharedPtr<SWindow> Window = GameViewportClient->GetWindow())
+			{
+				if (TSharedPtr<const FGenericWindow> NativeWindow = Window->GetNativeWindow())
+				{
+					if (void* WindowHandle = NativeWindow->GetOSWindowHandle())
+					{
+#if PLATFORM_WINDOWS
+						HWND GameHWND = (HWND)WindowHandle;
+
+						::SetForegroundWindow(GameHWND);
+						::SetCapture(GameHWND);
+						::SetFocus(GameHWND);
+#endif
+						FSlateApplication::Get().SetAllUserFocusToGameViewport();
+
+						bWasWindowFocused = true;
+					}
+				}
+			}
+		}
+	}
+
 	if (RenderDevicePtr)
 	{
 		RenderDevicePtr->PreTick(DeltaSeconds);
