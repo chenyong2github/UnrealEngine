@@ -7,7 +7,8 @@
 #include "IMediaTextureSample.h"
 #include "Math/IntPoint.h"
 #include "Templates/SharedPointer.h"
-
+#include "RHI.h"
+#include "RHIResources.h"
 
 /**
  * Information about an image sequence frame.
