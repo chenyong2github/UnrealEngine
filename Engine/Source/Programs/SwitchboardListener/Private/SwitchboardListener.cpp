@@ -166,7 +166,7 @@ bool FSwitchboardListener::Tick()
 			{
 				FSwitchboardStatePacket StatePacket;
 
-				for (const auto RunningProcess : RunningProcesses)
+				for (const auto& RunningProcess : RunningProcesses)
 				{
 					check(RunningProcess.IsValid());
 
@@ -524,7 +524,7 @@ void FSwitchboardListener::KillAllProcessesNow()
 {
 	const float WaitSeconds = 0.050;
 
-	for (const auto Process : RunningProcesses)
+	for (const auto& Process : RunningProcesses)
 	{
 		check(Process.IsValid());
 
@@ -536,7 +536,7 @@ void FSwitchboardListener::KillAllProcessesNow()
 		KillProcessNow(Process.Get());
 	}
 
-	for (const auto Process : FlipModeMonitors)
+	for (const auto& Process : FlipModeMonitors)
 	{
 		check(Process.IsValid());
 
@@ -551,7 +551,7 @@ void FSwitchboardListener::KillAllProcessesNow()
 
 bool FSwitchboardListener::KillAllProcesses(const FSwitchboardKillAllTask& KillAllTask)
 {
-	for (const auto Process : RunningProcesses)
+	for (const auto& Process : RunningProcesses)
 	{
 		check(Process.IsValid());
 
