@@ -13,6 +13,12 @@ interface BuildData {
 	Result: string // starting, failure, warning, success, or skipped
 }
 
+type HordeBadgeData = {
+	Stream: string
+	Change: number
+	Badges: { Name: string, Url: string, State: string }[]
+}
+
 const MAX_RETRIES = 3
 
 export const UGS_API_CIS_ROUTE = '<ugs api endpoint>'
@@ -72,14 +78,40 @@ export class Badge {
 		return null
 	}
 
+	// {
+	// "Stream": "//Fortnite/Release-15.10",
+	// "Change": 14680690,
+	// "Badges": [
+	// 	{
+	// 		"Name": "Merge",
+	// 		"Url": "https://robomerge.epicgames.net/",
+	// 		"State": "Starting"
+	// 	}
+	// ]
+
 	static mark(result: string, badge: string, project: string, cl: number, bot: string, externalUrl: string, badgeUrlOverride?: string) {
-		const data: BuildData = {
-			BuildType: badge,
-			Url: `${externalUrl}#${bot}`,
-			Project: project,
-			ArchivePath: '',
-			ChangeNumber: cl,
-			Result: result
+		const roboUrl = `${externalUrl}#${bot}`
+		let data : HordeBadgeData | BuildData
+		if (badgeUrlOverride) {
+			data = {
+				Stream: project,
+				Change: cl,
+				Badges: [{
+					Name: badge,
+					Url: roboUrl,
+					State: result
+				}]
+			}
+		}
+		else {
+			data = {
+				BuildType: badge,
+				Url: roboUrl,
+				Project: project,
+				ArchivePath: '',
+				ChangeNumber: cl,
+				Result: result
+			}
 		}
 
 		const url = badgeUrlOverride || UGS_API_CIS_ROUTE
