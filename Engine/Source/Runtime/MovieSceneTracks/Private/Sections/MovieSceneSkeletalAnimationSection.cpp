@@ -9,6 +9,8 @@
 #include "UObject/SequencerObjectVersion.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Tracks/MovieSceneSkeletalAnimationTrack.h"
+#include "BoneContainer.h"
+#include "Animation/AnimationPoseData.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneSkeletalAnimationSection"
 
@@ -479,7 +481,7 @@ bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime Curr
 		float ManualWeight = 1.f;
 		Params.Weight.Evaluate(CurrentTime, ManualWeight);
 		OutWeight = ManualWeight * EvaluateEasing(CurrentTime);
-
+		bIsAdditive = false;
 		float CurrentTimeSeconds = MapTimeToAnimation(CurrentTime, FrameRate);
 		if (AnimSequence->bForceRootLock) //if root lock is on just get Identity since ExtractRootTrackTransform will still extract(it ignores the flag)
 		{
@@ -489,7 +491,37 @@ bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime Curr
 		{
 			if (TempRootBoneIndex.IsSet())
 			{
-				AnimSequence->GetBoneTransform(OutTransform, TempRootBoneIndex.GetValue(), CurrentTimeSeconds, true);
+				bIsAdditive = AnimSequence->GetAdditiveAnimType() != EAdditiveAnimationType::AAT_None;
+				if (!bIsAdditive)
+				{
+					AnimSequence->GetBoneTransform(OutTransform, TempRootBoneIndex.GetValue(), CurrentTimeSeconds, true);
+				}
+				else
+				{
+					//if additive we need to get the whole pose since that includes the base + additive, 
+					//it appears GetboneTransform just gives the additive values
+					TArray<FBoneIndexType> RequiredBoneIndexArray;
+					const FCurveEvaluationOption CurveEvalOption;
+
+
+					RequiredBoneIndexArray.AddUninitialized(AnimSequence->GetSkeleton()->GetReferenceSkeleton().GetNum());
+					for (int32 BoneIndex = 0; BoneIndex < RequiredBoneIndexArray.Num(); ++BoneIndex)
+					{
+						RequiredBoneIndexArray[BoneIndex] = BoneIndex;
+					}
+
+					FBoneContainer BoneContainer(RequiredBoneIndexArray, CurveEvalOption, *AnimSequence->GetSkeleton());
+					FCompactPose OutPose;
+					OutPose.ResetToRefPose(BoneContainer);
+
+					FBlendedCurve OutCurve;
+					FStackCustomAttributes TempAttributes;
+					FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);
+
+					FAnimExtractContext ExtractionContext(CurrentTimeSeconds, false);
+					AnimSequence->GetAnimationPose(OutAnimationPoseData, ExtractionContext);
+					OutTransform = OutPose[FCompactPoseBoneIndex(TempRootBoneIndex.GetValue())];
+				}
 			}
 			else //not set then just use root.
 			{
@@ -497,7 +529,6 @@ bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime Curr
 			}
 		}
 		//note though we don't support mesh space addtive just local additive it will still work the same here for the root so 
-		bIsAdditive = AnimSequence->GetAdditiveAnimType() != EAdditiveAnimationType::AAT_None;
 		if (!bIsAdditive)
 		{
 			OutTransform = OutTransform * OffsetTransform;
@@ -550,7 +581,6 @@ void UMovieSceneSkeletalAnimationSection::MultiplyOutInverseOnNextClips(FVector 
 		}
 	}
 }
-
 void UMovieSceneSkeletalAnimationSection::ClearMatchedOffsetTransforms()
 {
 	//need to store the previous since we may need to apply the change we made to the next clips so they don't move
