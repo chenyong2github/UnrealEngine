@@ -42,6 +42,9 @@ FWaterBodyRiverDefaults::FWaterBodyRiverDefaults()
 {
 	BrushDefaults.CurveSettings.CurveRampWidth = 512.0f;
 	BrushDefaults.HeightmapSettings.FalloffSettings.FalloffMode = EWaterBrushFalloffMode::Width;
+
+	BrushDefaults.HeightmapSettings.FalloffSettings.EdgeOffset = 256.0f;
+	BrushDefaults.HeightmapSettings.FalloffSettings.ZOffset = 16.0f;
 	
 	WaterMaterial = FSoftObjectPath(TEXT("/Water/Materials/WaterSurface/Water_Material_River.Water_Material_River"));
 }
