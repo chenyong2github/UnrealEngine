@@ -26,7 +26,7 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, UBlueprint* InBlueprint);
+	void Construct(const FArguments& InArgs, UBlueprint* InBlueprint, const TArray<FBindingContextStruct>& InBindingContextStructs);
 
 protected:
 	struct FFunctionInfo
@@ -80,6 +80,7 @@ private:
 	void ForEachBindableFunction(UClass* FromClass, Predicate Pred) const;
 
 	UBlueprint* Blueprint;
+	TArray<FBindingContextStruct> BindingContextStructs;
 	FPropertyBindingWidgetArgs Args;
 	FName PropertyName;
 };

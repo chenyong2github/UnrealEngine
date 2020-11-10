@@ -37,7 +37,14 @@ public:
 	// IPropertyAccessEditor interface
 	virtual TSharedRef<SWidget> MakePropertyBindingWidget(UBlueprint* InBlueprint, const FPropertyBindingWidgetArgs& InArgs) const override
 	{
-		return SNew(SPropertyBinding, InBlueprint)
+		TArray<FBindingContextStruct> BindingContextStructs;
+		return SNew(SPropertyBinding, InBlueprint, BindingContextStructs)
+			.Args(InArgs);
+	}
+
+	virtual TSharedRef<SWidget> MakePropertyBindingWidget(const TArray<FBindingContextStruct>& InBindingContextStructs, const FPropertyBindingWidgetArgs& InArgs) const override
+	{
+		return SNew(SPropertyBinding, nullptr, InBindingContextStructs)
 			.Args(InArgs);
 	}
 

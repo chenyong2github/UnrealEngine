@@ -31,9 +31,10 @@
 /////////////////////////////////////////////////////
 // SPropertyBinding
 
-void SPropertyBinding::Construct(const FArguments& InArgs, UBlueprint* InBlueprint)
+void SPropertyBinding::Construct(const FArguments& InArgs, UBlueprint* InBlueprint, const TArray<FBindingContextStruct>& InBindingContextStructs)
 {
 	Blueprint = InBlueprint;
+	BindingContextStructs = InBindingContextStructs;
 
 	Args = InArgs._Args;
 	PropertyName = Args.Property != nullptr ? Args.Property->GetFName() : NAME_None;
@@ -164,7 +165,7 @@ void SPropertyBinding::ForEachBindableProperty(UStruct* InStruct, Predicate Pred
 {
 	if(Args.OnCanBindProperty.IsBound())
 	{
-		UBlueprintGeneratedClass* SkeletonClass = Cast<UBlueprintGeneratedClass>(Blueprint->SkeletonGeneratedClass);
+		UBlueprintGeneratedClass* SkeletonClass = Blueprint ? Cast<UBlueprintGeneratedClass>(Blueprint->SkeletonGeneratedClass) : nullptr;
 
 		for ( TFieldIterator<FProperty> PropIt(InStruct, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt )
 		{
@@ -176,9 +177,12 @@ void SPropertyBinding::ForEachBindableProperty(UStruct* InStruct, Predicate Pred
 				break;
 			}
 
-			if ( !UEdGraphSchema_K2::CanUserKismetAccessVariable(Property, SkeletonClass, UEdGraphSchema_K2::CannotBeDelegate) )
+			if (SkeletonClass)
 			{
-				continue;
+				if (!UEdGraphSchema_K2::CanUserKismetAccessVariable(Property, SkeletonClass, UEdGraphSchema_K2::CannotBeDelegate))
+				{
+					continue;
+				}
 			}
 
 			// Also ignore advanced properties
@@ -224,10 +228,60 @@ TSharedRef<SWidget> SPropertyBinding::OnGenerateDelegateMenu()
 	// Properties
 	{
 		// Get the current skeleton class, think header for the blueprint.
-		UBlueprintGeneratedClass* SkeletonClass = Cast<UBlueprintGeneratedClass>(Blueprint->SkeletonGeneratedClass);
+		UBlueprintGeneratedClass* SkeletonClass = Blueprint ? Cast<UBlueprintGeneratedClass>(Blueprint->SkeletonGeneratedClass) : nullptr;
 
-		TArray<TSharedPtr<FBindingChainElement>> BindingChain;
-		FillPropertyMenu(MenuBuilder, SkeletonClass, BindingChain);
+		if (SkeletonClass)
+		{
+			TArray<TSharedPtr<FBindingChainElement>> BindingChain;
+			FillPropertyMenu(MenuBuilder, SkeletonClass, BindingChain);
+		}
+	}
+
+	if (BindingContextStructs.Num() > 0)
+	{
+		auto MakeContextStructWidget = [this](const FBindingContextStruct& ContextStruct)
+		{
+			FText DisplayText = ContextStruct.DisplayText.IsEmpty() ? ContextStruct.Struct->GetDisplayNameText() : ContextStruct.DisplayText;
+			FText ToolTipText = ContextStruct.TooltipText.IsEmpty() ? DisplayText : ContextStruct.TooltipText;
+
+			return SNew(SHorizontalBox)
+				.ToolTipText(ToolTipText)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SSpacer)
+					.Size(FVector2D(18.0f, 0.0f))
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(1.0f, 0.0f)
+				[
+					SNew(SImage)
+					.Image(ContextStruct.Icon)
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f, 0.0f)
+				[
+					SNew(STextBlock)
+					.Text(DisplayText)
+				];
+		};
+
+		for (int32 i = 0; i < BindingContextStructs.Num(); i++)
+		{
+			FBindingContextStruct& ContextStruct = BindingContextStructs[i];
+
+			// Make first chain element representing the index in the context array.
+			TArray<TSharedPtr<FBindingChainElement>> BindingChain;
+			BindingChain.Emplace(MakeShared<FBindingChainElement>(nullptr, i));
+
+			MenuBuilder.AddSubMenu(
+				MakeContextStructWidget(ContextStruct),
+				FNewMenuDelegate::CreateSP(this, &SPropertyBinding::FillPropertyMenu, ContextStruct.Struct, BindingChain));
+		}
 	}
 
 	FDisplayMetrics DisplayMetrics;
@@ -436,9 +490,6 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 	//---------------------------------------
 	// Property Bindings
 
-	// Get the current skeleton class, think header for the blueprint.
-	UBlueprintGeneratedClass* SkeletonClass = Cast<UBlueprintGeneratedClass>(Blueprint->SkeletonGeneratedClass);
-
 	// Only show bindable subobjects and variables if we're generating pure bindings.
 	if ( Args.bGeneratePureBindings )
 	{
@@ -456,9 +507,21 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 		// to look for bindings that we don't support
 		if ( Args.OnCanBindProperty.IsBound() && Args.OnCanBindProperty.Execute(BindingProperty) )
 		{
+			UStruct* BindingStruct = nullptr;
+			FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(BindingProperty);
+			FStructProperty* StructProperty = CastField<FStructProperty>(BindingProperty);
+			if (ObjectProperty)
+			{
+				BindingStruct = ObjectProperty->PropertyClass;
+			}
+			else if (StructProperty)
+			{
+				BindingStruct = StructProperty->Struct;
+			}
+
 			MenuBuilder.BeginSection("Properties", LOCTEXT("Properties", "Properties"));
 			{
-				ForEachBindableProperty(InOwnerStruct, [this, &InBindingChain, &MenuBuilder, &MakeArrayElementPropertyWidget, &MakePropertyWidget, &MakePropertyEntry, &MakeArrayElementEntry] (FProperty* Property) 
+				ForEachBindableProperty(InOwnerStruct, [this, &InBindingChain, BindingStruct, &MenuBuilder, &MakeArrayElementPropertyWidget, &MakePropertyWidget, &MakePropertyEntry, &MakeArrayElementEntry] (FProperty* Property)
 				{
 					TArray<TSharedPtr<FBindingChainElement>> NewBindingChain(InBindingChain);
 					NewBindingChain.Emplace(MakeShared<FBindingChainElement>(Property));
@@ -500,9 +563,10 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 						Struct = StructProperty->Struct;
 					}
 
-					if ( Struct )
+					// Recurse into a struct, except if it is the same type as the one we're binding.
+					if (Struct && Struct != BindingStruct)
 					{
-						if ( Class )
+						if (Class)
 						{
 							// Ignore any subobject properties that are not bindable.
 							// Also ignore any class that is explicitly on the black list.
@@ -512,7 +576,7 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 							}
 						}
 
-						if(Args.bAllowArrayElementBindings && ArrayProperty != nullptr)
+						if (Args.bAllowArrayElementBindings && ArrayProperty != nullptr)
 						{
 							TArray<TSharedPtr<FBindingChainElement>> NewArrayElementBindingChain(InBindingChain);
 							NewArrayElementBindingChain.Emplace(MakeShared<FBindingChainElement>(Property));
@@ -623,6 +687,11 @@ void SPropertyBinding::HandleSetBindingArrayIndex(int32 InArrayIndex, ETextCommi
 
 void SPropertyBinding::HandleCreateAndAddBinding()
 {
+	if (!Blueprint)
+	{
+		return;
+	}
+
 	const FScopedTransaction Transaction(LOCTEXT("CreateDelegate", "Create Binding"));
 
 	Blueprint->Modify();

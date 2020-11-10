@@ -59,6 +59,33 @@ struct FRedirectorBindingInfo
 	UStruct* Struct = nullptr;
 };
 
+/**
+ * Binding context struct allow to describe information for a struct to bind to using the binding widget. An array of structs is passed to the widget to describe the context in which the binding exists.
+ * When the widget selectes a property from binding context struct array, the first FBindingChainElement's index correlates to the array passed to the widget.
+ */
+struct FBindingContextStruct
+{
+	FBindingContextStruct(UStruct* InStruct, const FSlateBrush* InIcon = nullptr, const FText& InDisplayText = FText::GetEmpty(), const FText& InTooltipText = FText::GetEmpty())
+		: Struct(InStruct)
+		, Icon(InIcon)
+		, DisplayText(InDisplayText)
+		, TooltipText(InTooltipText)
+	{}
+
+	/** The struct to bind to. */
+	UStruct* Struct;
+
+	/** Icon to display in hte poppup menu. */ 
+	const FSlateBrush* Icon;
+
+	/** Text to display for this item in the popup. If left empty, struct's display text will be used. */
+	FText DisplayText;
+
+	/** Tooltip to show, or if empty, the tool tip will be set to the same as popup text. */
+	FText TooltipText;
+};
+
+
 /** Delegate used to generate a new binding function's name */
 DECLARE_DELEGATE_RetVal(FString, FOnGenerateBindingName);
 
@@ -192,6 +219,14 @@ public:
 	 * @return a new binding widget
 	 */
 	virtual TSharedRef<SWidget> MakePropertyBindingWidget(UBlueprint* InBlueprint, const FPropertyBindingWidgetArgs& InArgs = FPropertyBindingWidgetArgs()) const = 0;
+
+	/**
+	 * Make a property binding widget.
+	 * @param	InBindingContextStructs		An array of structs the binding will exist within
+	 * @param	InArgs						Optional arguments for the widget
+	 * @return a new binding widget
+	 */
+	virtual TSharedRef<SWidget> MakePropertyBindingWidget(const TArray<FBindingContextStruct>& InBindingContextStructs, const FPropertyBindingWidgetArgs& InArgs = FPropertyBindingWidgetArgs()) const = 0;
 
 	/** Resolve a property path to a structure, returning the leaf property and array index if any. @return true if resolution succeeded */
 	virtual EPropertyAccessResolveResult ResolveLeafProperty(const UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex) const = 0;
