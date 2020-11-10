@@ -521,7 +521,7 @@ private:
 		SHADER_PARAMETER(uint32, Pass_SectionStart)
 		SHADER_PARAMETER(uint32, Pass_SectionCount)
 		
-		SHADER_PARAMETER_ARRAY(uint32, MeshSectionIndex, [SectionArrayCount])
+		SHADER_PARAMETER_ARRAY(uint32, MeshSectionIndices, [SectionArrayCount])
 		SHADER_PARAMETER_ARRAY(uint32, MeshMaxIndexCount, [SectionArrayCount])
 		SHADER_PARAMETER_ARRAY(uint32, MeshMaxVertexCount, [SectionArrayCount])
 		SHADER_PARAMETER_ARRAY(uint32, MeshIndexOffset, [SectionArrayCount])
@@ -622,7 +622,9 @@ void AddHairStrandUpdateMeshTrianglesPass(
 	DeformedResources->MeshLODIndex = LODIndex;
 
 	// When the number of section of a mesh is above FHairUpdateMeshTriangleCS::SectionArrayCount, the update is split into several passes
-	const uint32 PassCount = FMath::DivideAndRoundUp(uint32(SectionCount), FHairUpdateMeshTriangleCS::SectionArrayCount);
+	const TArray<uint32>& ValidSectionIndices = RestResources->RootData.MeshProjectionLODs[LODIndex].ValidSectionIndices;
+	const uint32 ValidSectionCount = ValidSectionIndices.Num();
+	const uint32 PassCount = FMath::DivideAndRoundUp(ValidSectionCount, FHairUpdateMeshTriangleCS::SectionArrayCount);
 
 	FHairUpdateMeshTriangleCS::FParameters CommonParameters;
 
@@ -658,9 +660,9 @@ void AddHairStrandUpdateMeshTrianglesPass(
 	{
 		FHairUpdateMeshTriangleCS::FParameters* Parameters = &CommonParameters;
 		Parameters->MaxRootCount = RootCount;
-		Parameters->MaxSectionCount = SectionCount;
+		Parameters->MaxSectionCount = MeshData.Sections.Num();
 		Parameters->Pass_SectionStart = PassIt * FHairUpdateMeshTriangleCS::SectionArrayCount;
-		Parameters->Pass_SectionCount = FMath::Min(SectionCount - Parameters->Pass_SectionStart, FHairUpdateMeshTriangleCS::SectionArrayCount);
+		Parameters->Pass_SectionCount = FMath::Min(ValidSectionCount - Parameters->Pass_SectionStart, FHairUpdateMeshTriangleCS::SectionArrayCount);
 
 		// Most often, a skeletal mesh will have many sections, but *most* of will share the same vertex buffers. 
 		// So NumSection >> NumBuffer, and the limitation of MaxSectionBufferCount = 8;
@@ -752,8 +754,9 @@ void AddHairStrandUpdateMeshTrianglesPass(
 		for (int32 SectionStartIt = Parameters->Pass_SectionStart, SectionItEnd = Parameters->Pass_SectionStart + Parameters->Pass_SectionCount; SectionStartIt < SectionItEnd; ++SectionStartIt)
 		{
 			const int32 SectionIt = SectionStartIt - Parameters->Pass_SectionStart;
+			const int32 SectionIndex = ValidSectionIndices[SectionStartIt];
 
-			const FHairStrandsProjectionMeshData::Section& MeshSectionData = MeshData.Sections[SectionStartIt];
+			const FHairStrandsProjectionMeshData::Section& MeshSectionData = MeshData.Sections[SectionIndex];
 
 			const FMeshSectionBuffers* Buffers = nullptr;
 			if (MeshSectionData.PositionBuffer)
@@ -806,7 +809,7 @@ void AddHairStrandUpdateMeshTrianglesPass(
 				++UniqueMeshSectionBufferIndex;
 			}
 
-			Parameters->MeshSectionIndex[SectionIt] = MeshSectionData.SectionIndex;
+			Parameters->MeshSectionIndices[SectionIt] = MeshSectionData.SectionIndex;
 			Parameters->MeshMaxIndexCount[SectionIt] = MeshSectionData.TotalIndexCount;
 			Parameters->MeshMaxVertexCount[SectionIt] = MeshSectionData.TotalVertexCount;
 			Parameters->MeshIndexOffset[SectionIt] = MeshSectionData.IndexBaseIndex;

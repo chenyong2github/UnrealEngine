@@ -450,6 +450,9 @@ struct FHairStrandsRootData
 
 		/* Store the samples rest positions */
 		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestSamplePositionsBuffer;
+
+		/* Store the mesh section indices which are relevant for this root LOD data */
+		TArray<uint32> ValidSectionIndices;
 	};
 
 	/* Number of roots */

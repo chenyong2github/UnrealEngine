@@ -927,11 +927,26 @@ namespace GroomBinding_RootProjection
 				return false;
 			}
 			#endif
+
+			// Update the valid & unique sections IDs
+			FGroomBindingBuilder::BuildUniqueSections(OutRootData.MeshProjectionLODs[LODIt]);
 		}
 
 		return true;
 	}
 }// namespace GroomBinding_Project
+
+void FGroomBindingBuilder::BuildUniqueSections(FHairStrandsRootData::FMeshProjectionLOD& LOD)
+{
+	LOD.ValidSectionIndices.Empty();
+	for (const FHairStrandsCurveTriangleIndexFormat::Type& Tri : LOD.RootTriangleIndexBuffer)
+	{
+		uint32 TriangleIndex;
+		uint32 SectionIndex;
+		FHairStrandsRootUtils::DecodeTriangleIndex(Tri, TriangleIndex, SectionIndex);
+		LOD.ValidSectionIndices.AddUnique(SectionIndex);
+	}
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Mesh transfer
