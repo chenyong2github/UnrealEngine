@@ -25,12 +25,48 @@ extern "C"
 }
 #endif
 
+#if PLATFORM_MAC_X86
+#include "rd_route.h"
+#endif // PLATFORM_MAC_X86
+
 // Set rather to use BinnedMalloc2 for binned malloc, can be overridden below
 #define USE_MALLOC_BINNED2 (1)
 
+#if PLATFORM_MAC_X86
+void* CFNetwork_CFAllocatorOperatorNew_Replacement(unsigned long Size, CFAllocatorRef Alloc)
+{
+	if (Alloc)
+	{
+		return CFAllocatorAllocate(Alloc, Size, 0);
+	}
+	else
+	{
+		return FMemory::Malloc(Size);
+	}
+}
+#endif // PLATFORM_MAC_X86
 
 FMalloc* FMacPlatformMemory::BaseAllocator()
 {
+#if PLATFORM_MAC_X86
+	// CFNetwork objects appear to have an underlying problem with mismatched allocate/release
+	// mechanisms, exposed by Vivox SDK and Unreal's global operator new override. To avoid a
+	// crash, we route CFNetwork operator new through a custom allocator (above) to use the
+	// correct underlying technique.
+
+	//c++filt __ZnwmPK13__CFAllocator => "operator new(unsigned long, __CFAllocator const*)"
+#if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
+	int err =
+#endif // UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
+	rd_route_byname("_ZnwmPK13__CFAllocator", "/System/Library/Frameworks/CFNetwork.framework/Versions/A/CFNetwork", (void*)&CFNetwork_CFAllocatorOperatorNew_Replacement, nullptr);
+
+#if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
+	// This check may wind up attempting to allocate memory, which will drop into an infinite
+	// loop of failure.
+	check(err == 0);
+#endif // UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
+#endif // PLATFORM_MAC_X86
+
 	bool bIsMavericks = false;
 
 	char OSRelease[PATH_MAX] = {};
