@@ -507,12 +507,13 @@ EVisibility SDMXFunctionItemListViewBox::GetFixtureMatrixVisibility() const
 		CurrentModeHandle->GetOuterObjects(OuterObjects);
 		
 		// Multi function editing is not supported across Fixture Type Functions Details
-		check(OuterObjects.Num() == 1);
-
-		UDMXEntityFixtureType* FixtureType = CastChecked<UDMXEntityFixtureType>(OuterObjects[0]);
-		if (FixtureType->bFixtureMatrixEnabled)
+		if (OuterObjects.Num() == 1)
 		{
-			return EVisibility::Visible;
+			UDMXEntityFixtureType* FixtureType = CastChecked<UDMXEntityFixtureType>(OuterObjects[0]);
+			if (FixtureType->bFixtureMatrixEnabled)
+			{
+				return EVisibility::Visible;
+			}
 		}
 	}
 
