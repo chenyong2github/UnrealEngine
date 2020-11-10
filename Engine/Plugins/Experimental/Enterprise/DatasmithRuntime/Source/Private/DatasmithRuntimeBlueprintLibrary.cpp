@@ -41,6 +41,8 @@ bool UDatasmithRuntimeLibrary::LoadDatasmithScene(ADatasmithRuntimeActor* Datasm
 		return false;
 	}
 
+	DatasmithRuntimeActor->CloseConnection();
+
 	DatasmithRuntimeActor->OnOpenDelta();
 
 
