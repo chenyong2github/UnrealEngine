@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "GameFramework/InputSettings.h"
+#include "Misc/CommandLine.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
