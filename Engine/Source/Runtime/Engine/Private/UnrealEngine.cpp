@@ -1438,7 +1438,7 @@ void UEngine::ConditionalCollectGarbage()
 #if !UE_BUILD_SHIPPING
 							MBFree -= float(FPlatformMemory::GetExtraDevelopmentMemorySize() / 1024 / 1024);
 #endif
-							if (MBFree <= GLowMemoryMemoryThresholdMB)
+							if (MBFree <= GLowMemoryMemoryThresholdMB && GLowMemoryIncrementalGCTimePerFrame > GIncrementalGCTimePerFrame)
 							{
 								IncGCTime = GLowMemoryIncrementalGCTimePerFrame;
 							}
