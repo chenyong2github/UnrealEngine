@@ -81,7 +81,7 @@ void ScreenProbeTraceScreenTexturesCS(
 
 			float2 ProbeUV;
 			float ConeHalfAngle;
-			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenProbeAtlasCoord), 1, ProbeUV, ConeHalfAngle);
+			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenProbeScreenCoord), 1, ProbeUV, ConeHalfAngle);
 
 			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
 
@@ -352,7 +352,7 @@ void TraceCards(
 		{
 			float2 ProbeUV;
 			float ConeHalfAngle;
-			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenProbeAtlasCoord), 1, ProbeUV, ConeHalfAngle);
+			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenProbeScreenCoord), 1, ProbeUV, ConeHalfAngle);
 
 			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
 
@@ -452,7 +452,7 @@ void TraceVoxels(
 
 			float2 ProbeUV;
 			float ConeHalfAngle;
-			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenProbeAtlasCoord), 1, ProbeUV, ConeHalfAngle);
+			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenProbeScreenCoord), 1, ProbeUV, ConeHalfAngle);
 
 			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
 
@@ -590,7 +590,7 @@ void ScreenProbeSetupVisualizeTraces(
 
 			float2 ProbeUV;
 			float ConeHalfAngle;
-			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenProbeAtlasCoord), 1, ProbeUV, ConeHalfAngle);
+			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenProbeScreenCoord), 1, ProbeUV, ConeHalfAngle);
 
 			WorldConeDirection = OctahedralMapToDirection(ProbeUV);
 

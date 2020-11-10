@@ -375,7 +375,7 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 				Transparency = 1.0f - EffectiveHistoryWeight;
 			}
 #endif
-			float2 ProbeTexelCenter = GetProbeTexelCenter(ScreenProbeAtlasCoord);
+			float2 ProbeTexelCenter = GetProbeTexelCenter(ScreenProbeScreenCoord);
 			float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / float(ScreenProbeTracingOctahedronResolution);
 
 			if (Transparency > 0.0f)

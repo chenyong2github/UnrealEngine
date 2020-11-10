@@ -302,11 +302,10 @@ void CalculateUpsampleInterpolationWeights(
 				float RelativeDepthDifference = PlaneDistance / SceneDepth;
 				float NewDepthWeight = exp2(-10000.0f * (RelativeDepthDifference * RelativeDepthDifference));
 
-				if (NewDepthWeight > Epsilon)
+				if (NewDepthWeight > DepthWeights[CornerIndex])
 				{
 					DepthWeights[CornerIndex] = NewDepthWeight;
 					ScreenProbeAtlasCoordArray[CornerIndex] = ScreenProbeAtlasCoord;
-					break;
 				}
 			}
 		}
