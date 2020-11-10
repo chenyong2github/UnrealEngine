@@ -377,8 +377,9 @@ void FLocTextWordCounts::SortRowsByDate()
 }
 
 
-FLocTextHelper::FLocTextHelper(TSharedPtr<ILocFileNotifies> InLocFileNotifies, const ELocTextPlatformSplitMode InPlatformSplitMode)
+FLocTextHelper::FLocTextHelper(FString InTargetName, TSharedPtr<ILocFileNotifies> InLocFileNotifies, const ELocTextPlatformSplitMode InPlatformSplitMode)
 	: PlatformSplitMode(InPlatformSplitMode)
+	, TargetName(MoveTemp(InTargetName))
 	, LocFileNotifies(MoveTemp(InLocFileNotifies))
 {
 }

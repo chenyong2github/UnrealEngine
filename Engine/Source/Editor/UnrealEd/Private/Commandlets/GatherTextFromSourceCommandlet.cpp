@@ -5,6 +5,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/ExpressionParserTypes.h"
+#include "Algo/Transform.h"
 #include "Internationalization/InternationalizationMetadata.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGatherTextFromSourceCommandlet, Log, All);
@@ -131,70 +132,73 @@ int32 UGatherTextFromSourceCommandlet::Main( const FString& Params )
 		UniqueSourceFileSearchFilters.AddUnique(SourceFileSearchFilter);
 	}
 
+	// Build the final set of include/exclude paths to scan.
+	TArray<FString> IncludePathFilters;
+	Algo::Transform(SearchDirectoryPaths, IncludePathFilters, [](const FString& SearchDirectoryPath)
+	{
+		return SearchDirectoryPath / TEXT("*");
+	});
+
+	FGatherTextDelegates::GetAdditionalGatherPaths.Broadcast(GatherManifestHelper->GetTargetName(), IncludePathFilters, ExcludePathFilters);
+
 	// Search in the root folder for each of the wildcard filters specified and build a list of files
-	TArray<FString> AllFoundFiles;
-
-	for (FString& SearchDirectoryPath : SearchDirectoryPaths)
-	{
-		for (const FString& UniqueSourceFileSearchFilter : UniqueSourceFileSearchFilters)
-		{
-			TArray<FString> RootSourceFiles;
-
-			IFileManager::Get().FindFilesRecursive(RootSourceFiles, *SearchDirectoryPath, *UniqueSourceFileSearchFilter, true, false,false);
-
-			for (FString& RootSourceFile : RootSourceFiles)
-			{
-				if (FPaths::IsRelative(RootSourceFile))
-				{
-					RootSourceFile = FPaths::ConvertRelativePathToFull(RootSourceFile);
-				}
-			}
-
-			AllFoundFiles.Append(RootSourceFiles);
-		}
-	}
-
 	TArray<FString> FilesToProcess;
-	TArray<FString> RemovedList;
-
-	//Run through all the files found and add any that pass the exclude and filter constraints to PackageFilesToProcess
-	for (const FString& FoundFile : AllFoundFiles)
 	{
-		bool bExclude = false;
-
-		//Ensure it does not match the exclude paths if there are some.
-		for (FString& ExcludePath : ExcludePathFilters)
+		TArray<FString> RootSourceFiles;
+		for (const FString& IncludePathFilter : IncludePathFilters)
 		{
-			if (FoundFile.MatchesWildcard(ExcludePath) )
+			FString SearchDirectoryPath = IncludePathFilter;
+			if (SearchDirectoryPath.EndsWith(TEXT("*"), ESearchCase::CaseSensitive))
 			{
-				bExclude = true;
-				RemovedList.Add(FoundFile);
-				break;
+				// Trim the wildcard from this search path
+				SearchDirectoryPath = FPaths::GetPath(MoveTemp(SearchDirectoryPath));
+			}
+
+			for (const FString& UniqueSourceFileSearchFilter : UniqueSourceFileSearchFilters)
+			{
+				IFileManager::Get().FindFilesRecursive(RootSourceFiles, *SearchDirectoryPath, *UniqueSourceFileSearchFilter, true, false, false);
+
+				for (FString& RootSourceFile : RootSourceFiles)
+				{
+					if (FPaths::IsRelative(RootSourceFile))
+					{
+						RootSourceFile = FPaths::ConvertRelativePathToFull(MoveTemp(RootSourceFile));
+					}
+				}
+
+				FilesToProcess.Append(MoveTemp(RootSourceFiles));
+				RootSourceFiles.Reset();
 			}
 		}
-
-		//If we haven't failed any checks, add it to the array of files to process.
-		if( !bExclude )
-		{
-			FilesToProcess.Add(FoundFile);
-		}
 	}
+
+	const FFuzzyPathMatcher FuzzyPathMatcher = FFuzzyPathMatcher(IncludePathFilters, ExcludePathFilters);
+	FilesToProcess.RemoveAll([&FuzzyPathMatcher](const FString& FoundFile)
+	{
+		// Filter out assets whose package file paths do not pass the "fuzzy path" filters.
+		if (FuzzyPathMatcher.TestPath(FoundFile) != FFuzzyPathMatcher::Included)
+		{
+			return true;
+		}
+
+		return false;
+	});
 	
 	// Return if no source files were found
 	if( FilesToProcess.Num() == 0 )
 	{
 		FString SpecifiedDirectoriesString;
-		for (FString& SearchDirectoryPath : SearchDirectoryPaths)
+		for (const FString& IncludePath : IncludePathFilters)
 		{
-			SpecifiedDirectoriesString.Append(FString(SpecifiedDirectoriesString.IsEmpty() ? TEXT("") : TEXT("\n")) + FString::Printf(TEXT("+ %s"), *SearchDirectoryPath));
+			SpecifiedDirectoriesString.Append(FString(SpecifiedDirectoriesString.IsEmpty() ? TEXT("") : TEXT("\n")) + FString::Printf(TEXT("+ %s"), *IncludePath));
 		}
-		for (FString& ExcludePath : ExcludePathFilters)
+		for (const FString& ExcludePath : ExcludePathFilters)
 		{
 			SpecifiedDirectoriesString.Append(FString(SpecifiedDirectoriesString.IsEmpty() ? TEXT("") : TEXT("\n")) + FString::Printf(TEXT("- %s"), *ExcludePath));
 		}
 
 		FString SourceFileSearchFiltersString;
-		for (const auto& Filter : UniqueSourceFileSearchFilters)
+		for (const FString& Filter : UniqueSourceFileSearchFilters)
 		{
 			SourceFileSearchFiltersString += FString(SourceFileSearchFiltersString.IsEmpty() ? TEXT("") : TEXT(", ")) + Filter;
 		}
