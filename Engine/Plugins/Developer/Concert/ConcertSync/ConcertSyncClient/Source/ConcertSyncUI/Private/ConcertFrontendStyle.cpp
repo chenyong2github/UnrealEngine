@@ -103,7 +103,7 @@ void FConcertFrontendStyle::Initialize()
 	StyleSet->Set("Concert.Cancel.Small", new IMAGE_PLUGIN_BRUSH("Icons/icon_MultiUserMenuCancel_40x", Icon20x20));
 
 	// Disaster Recovery
-	StyleSet->Set("Concert.RecoveryHub", new IMAGE_PLUGIN_BRUSH("Icons/icon_RecoveryHub_32x", Icon16x16));
+	StyleSet->Set("Concert.RecoveryHub", new IMAGE_PLUGIN_BRUSH("Icons/icon_RecoveryHub_16x", Icon16x16));
 
 	// Activity Text
 	{
