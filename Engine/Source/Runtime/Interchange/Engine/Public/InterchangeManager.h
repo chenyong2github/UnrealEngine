@@ -190,6 +190,8 @@ public:
 
 	FInterchangeOnAssetPostImport OnAssetPostImport;
 	FInterchangeOnAssetPostReimport OnAssetPostReimport;
+	// Called when before the application is exiting.
+	FSimpleMulticastDelegate OnPreDestroyInterchangeManager;
 
 	/**
 	 * Any translator must register to the manager

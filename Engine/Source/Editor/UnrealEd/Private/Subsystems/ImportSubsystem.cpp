@@ -129,9 +129,9 @@ void UImportSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		FCoreDelegates::OnPostEngineInit.AddLambda(AttachDelegates);
 	}
 
-	//Since subsystem deinitialize after the FCoreDelegates::OnExit and interchange manager is destroy during FCoreDelegates::OnExit
-	//We want to unregister delegate using the FCoreDelegates::OnPreExit.
-	FCoreDelegates::OnPreExit.AddLambda([this]()
+	//Unregister before the Interchange manager get destroy
+	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
+	InterchangeManager.OnPreDestroyInterchangeManager.AddLambda([this]()
 	{
 		//Unhook interchange manager import/reimport delegates
 		UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();

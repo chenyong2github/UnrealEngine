@@ -272,13 +272,9 @@ UInterchangeManager& UInterchangeManager::GetInterchangeManager()
 			{
 				InterchangeManager->CancelAllTasksSynchronously();
 			}
-		});
-
-		//We release the singleton here so all module was able to unhook there delegates
-		FCoreDelegates::OnExit.AddLambda([]()
-		{
 			//Task should have been cancel in the Engine pre exit callback
 			ensure(InterchangeManager->ImportTasks.Num() == 0);
+			InterchangeManager->OnPreDestroyInterchangeManager.Broadcast();
 			//Release the InterchangeManager object
 			InterchangeManager.Reset();
 			InterchangeManagerScopeOfLifeEnded = true;
