@@ -58,10 +58,19 @@ void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
 			// Keep track of the Attributes used on this Mode's Functions because they must be unique
 			TArray<FName> MappedAttributes;
 
+			// Get a unique name
+			TMap<FString, uint32> PotentialFunctionNamesAndCount;
+			for (const FDMXImportGDTFDMXChannel& ModeChannel : AssetMode.DMXChannels)
+			{
+				FString FunctionName = ModeChannel.LogicalChannel.Attribute.Name.ToString();
+
+				PotentialFunctionNamesAndCount.Add(FunctionName, 0);
+			}
+
 			for (const FDMXImportGDTFDMXChannel& ModeChannel : AssetMode.DMXChannels)
 			{
 				FDMXFixtureFunction& Function = Mode.Functions[Mode.Functions.Emplace()];
-				Function.FunctionName = ModeChannel.LogicalChannel.Attribute.Name.ToString();
+				Function.FunctionName = FDMXRuntimeUtils::GenerateUniqueNameForImportFunction(PotentialFunctionNamesAndCount, ModeChannel.LogicalChannel.Attribute.Name.ToString());
 				Function.DefaultValue = ModeChannel.Default.Value;
 
 				// Try to auto-map the Function to an existing Attribute
@@ -668,3 +677,31 @@ void UDMXEntityFixtureType::UpdateModeChannelProperties(FDMXFixtureMode& Mode)
 	}
 }
 #endif // WITH_EDITOR
+
+int32 FDMXFixtureMode::AddOrInsertFunction(int32 IndexOfFunction, const FDMXFixtureFunction& InFunction)
+{
+	int32 Index = 0;
+	FDMXFixtureFunction FunctionToAdd = InFunction;
+
+	// Shift the insert function channel
+	uint8 DataTypeBytes = UDMXEntityFixtureType::NumChannelsToOccupy(InFunction.DataType);
+	FunctionToAdd.Channel = InFunction.Channel + DataTypeBytes;
+	
+	if (Functions.IsValidIndex(IndexOfFunction + 1))
+	{
+		Index = Functions.Insert(InFunction, IndexOfFunction + 1);
+
+		// Shift all function after this by size of insert function
+		for (int32 FunctionIndex = Index + 1; FunctionIndex < Functions.Num(); FunctionIndex++)
+		{
+			FDMXFixtureFunction& Function = Functions[FunctionIndex];
+			Function.Channel = Function.Channel + DataTypeBytes;
+		}
+	}
+	else
+	{
+		Index = Functions.Add(InFunction);
+	}
+
+	return Index;
+}
