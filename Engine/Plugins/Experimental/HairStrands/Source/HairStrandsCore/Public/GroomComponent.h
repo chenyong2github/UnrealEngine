@@ -23,7 +23,7 @@ class HAIRSTRANDSCORE_API UGroomComponent : public UMeshComponent, public ILODSy
 public:
 
 	/** Groom asset . */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category = "Groom")
 	UGroomAsset* GroomAsset;
 
 	/** Niagara components that will be attached to the system*/
@@ -35,7 +35,7 @@ public:
 	class USkeletalMesh* SourceSkeletalMesh;
 
 	/** Optional binding asset for binding a groom onto a skeletal mesh. If the binding asset is not provided the projection is done at runtime, which implies a large GPU cost at startup time. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Groom")
 	class UGroomBindingAsset* BindingAsset;
 
 	/** Physics asset to be used for hair simulation */
@@ -124,8 +124,15 @@ public:
 	void InvalidateAndRecreate();
 #endif
 
-	void SetStableRasterization(bool bEnable);
+	/* Accessor function for changing Groom asset from blueprint/sequencer */
+	UFUNCTION(BlueprintCallable, Category = "Groom")
 	void SetGroomAsset(UGroomAsset* Asset);
+
+	/* Accessor function for changing Groom binding asset from blueprint/sequencer */
+	UFUNCTION(BlueprintCallable, Category = "Groom")
+	void SetBindingAsset(UGroomBindingAsset* InBinding);
+
+	void SetStableRasterization(bool bEnable);
 	void SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBinding);
 	void SetHairLengthScale(float Scale);
 	void SetHairRootScale(float Scale);
