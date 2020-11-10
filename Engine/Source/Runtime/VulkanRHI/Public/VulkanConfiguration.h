@@ -187,6 +187,23 @@
 	#endif
 #endif
 
+#ifndef VULKAN_SUPPORTS_SCALAR_BLOCK_LAYOUT
+	#ifdef VK_EXT_scalar_block_layout
+		#define VULKAN_SUPPORTS_SCALAR_BLOCK_LAYOUT					1
+	#else
+		#define VULKAN_SUPPORTS_SCALAR_BLOCK_LAYOUT					0
+	#endif
+#endif
+
+
+#ifndef VULKAN_SUPPORTS_MEMORY_BUDGET
+	#ifdef VK_EXT_memory_budget
+		#define VULKAN_SUPPORTS_MEMORY_BUDGET					1
+	#else
+		#define VULKAN_SUPPORTS_MEMORY_BUDGET					0
+	#endif
+#endif
+
 #ifndef VULKAN_SUPPORTS_MEMORY_PRIORITY
 	#ifdef VK_EXT_memory_priority
 		#define VULKAN_SUPPORTS_MEMORY_PRIORITY					1

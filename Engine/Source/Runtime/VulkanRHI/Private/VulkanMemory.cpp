@@ -543,6 +543,24 @@ namespace VulkanRHI
 		Deinit();
 	}
 
+	void FDeviceMemoryManager::UpdateMemoryProperties()
+	{
+		if (Device->GetOptionalExtensions().HasMemoryBudget)
+		{
+			FMemory::Memzero(MemoryBudget);
+			VkPhysicalDeviceMemoryProperties2 MemoryProperties2;
+			ZeroVulkanStruct(MemoryBudget, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT);
+			ZeroVulkanStruct(MemoryProperties2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2);
+			MemoryProperties2.pNext = &MemoryBudget;
+			VulkanRHI::vkGetPhysicalDeviceMemoryProperties2(Device->GetPhysicalHandle(), &MemoryProperties2);
+			FMemory::Memcpy(MemoryProperties, MemoryProperties2.memoryProperties);
+		}
+		else
+		{
+			VulkanRHI::vkGetPhysicalDeviceMemoryProperties(Device->GetPhysicalHandle(), &MemoryProperties);
+		}
+	}
+
 	void FDeviceMemoryManager::Init(FVulkanDevice* InDevice)
 	{
 		check(Device == nullptr);
@@ -551,7 +569,7 @@ namespace VulkanRHI
 		PeakNumAllocations = 0;
 
 		DeviceHandle = Device->GetInstanceHandle();
-		VulkanRHI::vkGetPhysicalDeviceMemoryProperties(InDevice->GetPhysicalHandle(), &MemoryProperties);
+		UpdateMemoryProperties();
 
 		uint64 HostHeapSize = 0;
 		PrimaryHostHeap = -1; // Primary
@@ -691,7 +709,32 @@ namespace VulkanRHI
 		GetHostMemoryStatus(&HostAllocated, &HostLimit);
 		double AllocatedPercentage = 100.0 * HostAllocated / HostLimit;
 		VULKAN_LOGMEMORY(TEXT("Host Allocation Percentage %6.2f%% -      %8.2fMB / %8.3fMB"), AllocatedPercentage, HostAllocated / (1024.f * 1024.f), HostLimit / (1024.f * 1024.f));
-
+		if(Device->GetOptionalExtensions().HasMemoryBudget)
+		{
+			VULKAN_LOGMEMORY(TEXT("Memory Budget"));
+			VULKAN_LOGMEMORY(TEXT("\t         | Usage                     | Budget          | Size            |"));
+			VULKAN_LOGMEMORY(TEXT("\t---------|---------------------------------------------------------------|"));
+			for(uint32 Heap = 0; Heap < VK_MAX_MEMORY_HEAPS; ++Heap)
+			{
+				VkDeviceSize Budget = MemoryBudget.heapBudget[Heap];
+				VkDeviceSize Usage = MemoryBudget.heapUsage[Heap];
+				if(0 != Budget || 0 != Usage)
+				{
+					VkDeviceSize Size = MemoryProperties.memoryHeaps[Heap].size;
+					double UsagePercentage = 100.0 * Usage  / Size;
+					VULKAN_LOGMEMORY(TEXT("\t HEAP %02d | %6.2f%% / %13.3fmb | %13.3fmb | %13.3fmb |"), Heap,
+						UsagePercentage,
+						Usage / (1024.0 * 1024.0),
+						Budget / (1024.0 * 1024.0),
+						Size / (1024.0 * 1024.0));
+				}
+			}
+			VULKAN_LOGMEMORY(TEXT("\t---------|---------------------------------------------------------------|"));
+		}
+		else
+		{
+			VULKAN_LOGMEMORY(TEXT("Memory Budget unavailable"));
+		}
 
 
 	}
