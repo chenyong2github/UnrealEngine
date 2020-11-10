@@ -742,8 +742,43 @@ void FChaosEngineInterface::AddImpulseAtLocation_AssumesLocked(const FPhysicsAct
 
 void FChaosEngineInterface::AddRadialImpulse_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InOrigin,float InRadius,float InStrength,ERadialImpulseFalloff InFalloff,bool bInVelChange)
 {
-	// @todo(mlentine): We don't currently have a way to apply an instantaneous force. Do we need this?
-	CHAOS_ENSURE(false);
+	using namespace Chaos;
+	Chaos::TPBDRigidParticle<FReal, 3>* Rigid = InActorReference->CastToRigidParticle();
+	if (ensure(Rigid))
+	{
+		const FVec3 WorldCOM = FParticleUtilitiesGT::GetCoMWorldPosition(Rigid);
+		const FVec3 OriginToActor = WorldCOM - InOrigin;
+		const FReal OriginToActorDistance = OriginToActor.Size();
+		if (OriginToActorDistance > 0)
+		{
+			const FVec3 OriginToActorNorm = OriginToActor / OriginToActorDistance;
+
+			if (InFalloff == ERadialImpulseFalloff::RIF_Constant)
+			{
+				AddImpulse_AssumesLocked(InActorReference, OriginToActorNorm * InStrength);
+				return;
+			}
+			else if (InFalloff == ERadialImpulseFalloff::RIF_Linear)
+			{
+				const FReal DistanceOverlapping = InRadius - OriginToActorDistance;
+				if (DistanceOverlapping > 0)
+				{
+					FReal Strength = FMath::Lerp(0.0f, InStrength, DistanceOverlapping / InRadius);
+					AddImpulse_AssumesLocked(InActorReference, OriginToActorNorm * Strength);
+				}
+			}
+			else
+			{
+				// Unimplemented falloff type
+				ensure(false);
+			}
+		}
+		else
+		{
+			// Sphere and actor center are coincident, just pick a direction and apply maximum strength impulse.
+			AddImpulse_AssumesLocked(InActorReference, FVector::ForwardVector * InStrength);
+		}
+	}
 }
 
 bool FChaosEngineInterface::IsGravityEnabled_AssumesLocked(const FPhysicsActorHandle& InActorReference)
