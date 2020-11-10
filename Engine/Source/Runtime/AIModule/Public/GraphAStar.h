@@ -154,7 +154,7 @@ struct FGraphAStar
 
 	using FNodeArray = TArray<FSearchNode, FRangeChecklessAllocator<DoRangeCheck>>;
 	using FRangeChecklessSetAllocator = TSetAllocator<TSparseArrayAllocator<FRangeChecklessAllocator<DoRangeCheck>, TInlineAllocator<4, FRangeChecklessAllocator<DoRangeCheck>>>, TInlineAllocator<1, FRangeChecklessAllocator<DoRangeCheck>>>;
-	using FNodeMap = TMap<uint64, int32, FRangeChecklessSetAllocator>;
+	using FNodeMap = TMap<FGraphNodeRef, int32, FRangeChecklessSetAllocator>;
 	using FIndexArray = TArray<int32, FRangeChecklessAllocator<DoRangeCheck>>;
 
 	struct FNodeSorter
