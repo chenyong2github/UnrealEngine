@@ -72,6 +72,7 @@ bool FPicpProjectionMPCDIPolicy::HandleAddViewport(const FIntPoint& InViewportSi
 	}
 
 	// Load MPCDI config
+	FScopeLock lock(&WarpRefCS);
 	if (!MPCDIAPI.Load(CfgData, WarpRef))
 	{
 		UE_LOG(LogPicpProjectionMPCDI, Warning, TEXT("Couldn't initialize PICP MPCDI for viewport %s"), *GetViewportId());
@@ -99,6 +100,7 @@ bool FPicpProjectionMPCDIPolicy::CalculateView(const uint32 ViewIdx, FVector& In
 {
 	check(IsInGameThread());
 
+	FScopeLock lock(&WarpRefCS);
 	if (!WarpRef.IsValid())
 	{
 		UE_LOG(LogPicpProjectionMPCDI, Warning, TEXT("Picp Warp data not assigned for viewport '%s'"), *GetViewportId());
@@ -184,6 +186,7 @@ void FPicpProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uint32 ViewId
 		return;
 	}
 
+	FScopeLock lock(&WarpRefCS);
 	if (!WarpRef.IsValid())
 	{
 		return;
