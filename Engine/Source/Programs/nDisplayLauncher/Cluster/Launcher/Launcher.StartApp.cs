@@ -106,8 +106,8 @@ namespace nDisplayLauncher.Cluster
 			// Node ID
 			commandCmd = string.Format("{0} {1}={2}", commandCmd, ArgNode, Node.Id);
 
-			// Node ID
-			commandCmd = string.Format("{0} {1} {2}", commandCmd, "-noxrstereo", "-messaging");
+			// additional launch arguments
+			commandCmd = string.Format("{0} {1}", commandCmd, "-noxrstereo -messaging -concertisheadless");
 
 			// Log file
 			commandCmd = string.Format("{0} Log={1}.log", commandCmd, Node.Id);
