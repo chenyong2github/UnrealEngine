@@ -502,19 +502,6 @@ bool UGroomBindingAsset::IsBindingAssetValid(const UGroomBindingAsset* InBinding
 			}
 			return false;
 		}
-		#if WITH_EDITORONLY_DATA
-		if (const UPackage* Package = InBinding->GetOutermost())
-		{
-			if (Package->IsDirty() && !bIsBindingReloading)
-			{
-				if (bIssueWarning)
-				{
-					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The binding asset (%s) is not saved and will be considered as invalid. Falling back onto non-binding version."), *InBinding->GetName());
-				}
-				return false;
-			}
-		}
-		#endif
 		if (InBinding->GroupInfos.Num() == 0)
 		{
 			if (bIssueWarning)
