@@ -47,28 +47,9 @@ public class TextureShareCore : ModuleRules
 			PublicDefinitions.Add("TEXTURESHARELIB_PLATFORM_WINDOWS=1");
 			TextureShareLibPlatformName = "Windows";
 
-			// Select Supported Devices:
-			if (Target.bShouldCompileAsDLL)
-			{
-				// Configure SDK builds:
-				if(Target.LaunchModuleName == "TextureShareSDK_D3D11")
-				{
-					PublicDefinitions.Add("TEXTURESHARELIB_USE_D3D11=1");
-					PublicDefinitions.Add("TEXTURESHARELIB_USE_D3D12=0");
-				}
-				else
-				if (Target.LaunchModuleName == "TextureShareSDK_D3D12")
-				{
-					PublicDefinitions.Add("TEXTURESHARELIB_USE_D3D11=0");
-					PublicDefinitions.Add("TEXTURESHARELIB_USE_D3D12=1");
-				}
-			}
-			else
-			{
-				// Configure UE4 for all targets
-				PublicDefinitions.Add("TEXTURESHARELIB_USE_D3D11=1");
-				PublicDefinitions.Add("TEXTURESHARELIB_USE_D3D12=1");
-			}
+			// Configure supported render devices for windows platform:
+			PublicDefinitions.Add("TEXTURESHARELIB_USE_D3D11=1");
+			PublicDefinitions.Add("TEXTURESHARELIB_USE_D3D12=1");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
