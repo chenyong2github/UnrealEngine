@@ -53,7 +53,7 @@ private:
 
 private:
 	static bool bInitialized;
-	static TSharedPtr<IAnalyticsProviderET> Analytics;
+	static ENGINE_API TSharedPtr<IAnalyticsProviderET> Analytics;
 	static TArray<FAnalyticsEventAttribute> DefaultAttributes;
 	static FThread TimerThread;
 	static volatile double TimeEstimation;
