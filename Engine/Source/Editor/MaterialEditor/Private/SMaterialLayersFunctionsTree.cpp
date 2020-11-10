@@ -219,7 +219,6 @@ FGetShowHiddenParameters SMaterialLayersFunctionsInstanceTree::GetShowHiddenDele
 void  SMaterialLayersFunctionsInstanceTreeItem::OnOverrideParameter(bool NewValue, class UDEditorParameterValue* Parameter)
 {
 	FMaterialPropertyHelpers::OnOverrideParameter(NewValue, Parameter, MaterialEditorInstance);
-	Tree->GetWrapper()->Refresh();
 }
 
 void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
