@@ -144,7 +144,7 @@ void UExtractCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 
 bool UExtractCollisionGeometryTool::CanAccept() const
 {
-	return CurrentMesh.TriangleCount() > 0;
+	return Super::CanAccept() && CurrentMesh.TriangleCount() > 0;
 }
 
 

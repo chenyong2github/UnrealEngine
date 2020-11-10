@@ -190,14 +190,9 @@ void UParameterizeMeshTool::OnTick(float DeltaTime)
 	Preview->Tick(DeltaTime);
 }
 
-bool UParameterizeMeshTool::HasAccept() const
-{
-	return true;
-}
-
 bool UParameterizeMeshTool::CanAccept() const
 {
-	return Preview->HaveValidResult();
+	return Super::CanAccept() && Preview->HaveValidResult();
 }
 
 TUniquePtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()

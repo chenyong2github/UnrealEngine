@@ -155,17 +155,6 @@ void UConvertToPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 
-bool UConvertToPolygonsTool::HasAccept() const
-{
-	return true;
-}
-
-bool UConvertToPolygonsTool::CanAccept() const
-{
-	return true;
-}
-
-
 void UConvertToPolygonsTool::UpdatePolygons()
 {
 	Polygons = FFindPolygonsAlgorithm(&SearchMesh);

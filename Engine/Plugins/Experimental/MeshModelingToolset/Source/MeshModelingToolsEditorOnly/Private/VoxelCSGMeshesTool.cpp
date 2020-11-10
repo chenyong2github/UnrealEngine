@@ -156,14 +156,9 @@ void UVoxelCSGMeshesTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 }
 
-bool UVoxelCSGMeshesTool::HasAccept() const
-{
-	return true;
-}
-
 bool UVoxelCSGMeshesTool::CanAccept() const
 {
-	return Preview->HaveValidResult();
+	return Super::CanAccept() && Preview->HaveValidResult();
 }
 
 void UVoxelCSGMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)

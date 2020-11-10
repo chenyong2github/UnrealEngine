@@ -329,11 +329,6 @@ void UUVProjectionTool::TransformChanged(UTransformProxy* Proxy, FTransform Tran
 }
 
 
-bool UUVProjectionTool::HasAccept() const
-{
-	return true;
-}
-
 bool UUVProjectionTool::CanAccept() const
 {
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
@@ -343,7 +338,7 @@ bool UUVProjectionTool::CanAccept() const
 			return false;
 		}
 	}
-	return true;
+	return Super::CanAccept();
 }
 
 

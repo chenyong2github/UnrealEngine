@@ -382,14 +382,9 @@ void UPolygonOnMeshTool::CompleteDrawPolygon()
 
 
 
-bool UPolygonOnMeshTool::HasAccept() const
-{
-	return true;
-}
-
 bool UPolygonOnMeshTool::CanAccept() const
 {
-	return Preview != nullptr && Preview->HaveValidResult();
+	return Super::CanAccept() && Preview != nullptr && Preview->HaveValidResult();
 }
 
 

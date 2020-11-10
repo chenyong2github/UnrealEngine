@@ -299,18 +299,6 @@ void UMeshToVolumeTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 
-bool UMeshToVolumeTool::HasAccept() const
-{
-	return true;
-}
-
-bool UMeshToVolumeTool::CanAccept() const
-{
-	return true;
-}
-
-
-
 void UMeshToVolumeTool::UpdateLineSet()
 {
 	FColor BoundaryEdgeColor(240, 15, 15);

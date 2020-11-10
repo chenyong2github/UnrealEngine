@@ -131,16 +131,6 @@ void UBakeTransformTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 
 
 
-bool UBakeTransformTool::HasAccept() const
-{
-	return true;
-}
-
-bool UBakeTransformTool::CanAccept() const
-{
-	return true;
-}
-
 
 void UBakeTransformTool::UpdateAssets()
 {
