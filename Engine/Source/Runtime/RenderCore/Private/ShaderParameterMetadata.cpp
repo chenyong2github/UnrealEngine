@@ -178,6 +178,10 @@ EShaderCodeResourceBindingType ParseShaderResourceBindingType(const TCHAR* Shade
 	{
 		BindingType = bIsRWResource ? EShaderCodeResourceBindingType::RWTexture2D : EShaderCodeResourceBindingType::Texture2D;
 	}
+	else if (ShaderTypeLength == 15 && FCString::Strncmp(ComparedShaderType, TEXT("TextureExternal"), ShaderTypeLength) == 0)
+	{
+		BindingType = bIsRWResource ? EShaderCodeResourceBindingType::RWTexture2D : EShaderCodeResourceBindingType::Texture2D;
+	}
 	else if (ShaderTypeLength == 14 && FCString::Strncmp(ComparedShaderType, TEXT("Texture2DArray"), ShaderTypeLength) == 0)
 	{
 		BindingType = bIsRWResource ? EShaderCodeResourceBindingType::RWTexture2DArray : EShaderCodeResourceBindingType::Texture2DArray;
