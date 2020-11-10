@@ -181,6 +181,12 @@ bool FVulkanComputePipelineDescriptorState::InternalUpdateDescriptorSets(FVulkan
 
 		const VkDescriptorSet DescriptorSet = DescriptorSetHandles[0];
 		DSWriter[0].SetDescriptorSet(DescriptorSet);
+#if VULKAN_VALIDATE_DESCRIPTORS_WRITTEN
+		for(FVulkanDescriptorSetWriter& Writer : DSWriter)
+		{
+			Writer.CheckAllWritten();
+		}
+#endif
 
 		{
 	#if VULKAN_ENABLE_AGGRESSIVE_STATS
@@ -382,3 +388,103 @@ template bool FVulkanGraphicsPipelineDescriptorState::InternalUpdateDescriptorSe
 template bool FVulkanGraphicsPipelineDescriptorState::InternalUpdateDescriptorSets<false>(FVulkanCommandListContext* CmdListContext, FVulkanCmdBuffer* CmdBuffer);
 template bool FVulkanComputePipelineDescriptorState::InternalUpdateDescriptorSets<true>(FVulkanCommandListContext* CmdListContext, FVulkanCmdBuffer* CmdBuffer);
 template bool FVulkanComputePipelineDescriptorState::InternalUpdateDescriptorSets<false>(FVulkanCommandListContext* CmdListContext, FVulkanCmdBuffer* CmdBuffer);
+
+
+#if VULKAN_VALIDATE_DESCRIPTORS_WRITTEN
+
+
+void FVulkanDescriptorSetWriter::CheckAllWritten()
+{
+auto GetVkDescriptorTypeString = [](VkDescriptorType Type)
+{
+	switch (Type)
+	{
+		// + 19 to skip "VK_DESCRIPTOR_TYPE_"
+#define VKSWITCHCASE(x)	case x: return FString(&TEXT(#x)[19]);
+		VKSWITCHCASE(VK_DESCRIPTOR_TYPE_SAMPLER)
+			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
+			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
+			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER)
+			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER)
+			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
+			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC)
+			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT)
+#undef VKSWITCHCASE
+	default:
+		break;
+	}
+
+	return FString::Printf(TEXT("Unknown VkDescriptorType %d"), (int32)Type);
+};
+	const uint32 Writes = NumWrites;
+	if (Writes == 0)
+		return;
+
+	bool bFail = false;
+	if(Writes <= 32) //early out for the most common case.
+	{
+		bFail = WrittenMask[0] != ((1llu << Writes)-1);
+	}
+	else
+	{
+		int32 Last = int32(WrittenMask.Num()-1);
+		for(int32 i = 0; !bFail && i < Last; ++i)
+		{
+			uint64 Mask = WrittenMask[i];
+			bFail = bFail || Mask != 0xffffffff; 
+		}
+
+		uint32 TailCount = Writes % 32;
+		check(TailCount != 0);
+		uint32 TailMask = 1llu << TailCount;
+		bFail = bFail || TailMask != WrittenMask[Last];
+	}
+
+	if(bFail)
+	{
+		FString Descriptors;
+		for (uint32 i = 0; i < Writes; ++i)
+		{
+			uint32 Index = i / 32;
+			uint32 Mask = i % 32;
+			if(0 == (WrittenMask[Index] & (1llu << Mask)))
+			{
+				FString TypeString = GetVkDescriptorTypeString(WriteDescriptors[i].descriptorType);
+				Descriptors += FString::Printf(TEXT("\t\tDescriptorWrite %d/%d Was not written(Type %s)\n"), i, NumWrites, *TypeString);
+			}
+		}
+		UE_LOG(LogVulkanRHI, Warning, TEXT("Not All descriptors where filled out. this can/will cause a driver crash\n%s\n"), *Descriptors);
+		ensureMsgf(false, TEXT("Not All descriptors where filled out. this can/will cause a driver crash\n%s\n"), *Descriptors);
+	}
+}
+
+void FVulkanDescriptorSetWriter::Reset()
+{
+	WrittenMask = BaseWrittenMask;
+}
+void FVulkanDescriptorSetWriter::SetWritten(uint32 DescriptorIndex)
+{
+	uint32 Index = DescriptorIndex / 32;
+	uint32 Mask = DescriptorIndex % 32;
+	WrittenMask[Index] |= (1<<Mask);
+}
+void FVulkanDescriptorSetWriter::SetWrittenBase(uint32 DescriptorIndex)
+{
+	uint32 Index = DescriptorIndex / 32;
+	uint32 Mask = DescriptorIndex % 32;
+	BaseWrittenMask[Index] |= (1<<Mask);
+}
+
+void FVulkanDescriptorSetWriter::InitWrittenMasks(uint32 NumDescriptorWrites)
+{
+	uint32 Size = (NumDescriptorWrites + 31) / 32;
+	WrittenMask.Empty(Size);
+	WrittenMask.SetNumZeroed(Size);
+	BaseWrittenMask.Empty(Size);
+	BaseWrittenMask.SetNumZeroed(Size);
+}
+#endif
+
