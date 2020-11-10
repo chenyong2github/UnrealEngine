@@ -2,8 +2,8 @@
 
 #pragma once
 
-
-
+// Analytical lighting evaluation for strata material.
+// Unpack BSDF on-the-fly
 float4 StrataDeferredLighting(
 	FDeferredLightData LightData,
 	FGBufferData GBuffer,
@@ -13,8 +13,8 @@ float4 StrataDeferredLighting(
 	float LightMask,
 	float SurfaceShadow,
 	FRectTexture RectTexture,
-	FStrataPixelBSDFs PixelBSDFs
-	)
+	ByteAddressBuffer StrataDataBuffer,
+	uint PixelStrataDataByteOffset)
 {
 	float4 Radiance = 0;
 
@@ -31,9 +31,12 @@ float4 StrataDeferredLighting(
 		UglyIntegrationFactor = IntegrateLight(Capsule, LightData.bInverseSquared);
 	}
 
-	for (int i = 0; i < PixelBSDFs.BSDFCount; ++i)
+	FStrataPixelHeader Header = UnpackStrataHeaderIn(StrataDataBuffer, PixelStrataDataByteOffset);
+	
+	LOOP
+	for (uint BSDFIndex = 0; BSDFIndex < Header.BSDFCount; ++BSDFIndex)
 	{
-		FStrataBSDF BSDF = PixelBSDFs.BSDFs[i];
+		const FStrataBSDF BSDF = UnpackStrataBSDFIn(StrataDataBuffer, PixelStrataDataByteOffset);
 		const float3 BSDFThroughput = BSDF.Weight;
 
 		// Create the BSDF context
@@ -50,5 +53,3 @@ float4 StrataDeferredLighting(
 
 	return Radiance;
 }
-
-

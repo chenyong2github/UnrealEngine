@@ -2,8 +2,8 @@
 
 #pragma once
 
-
-
+// Env. lighting evaluation for strata material.
+// Unpack BSDF on-the-fly
 float3 StrataEnvironmentLighting(
 	float2 BufferUV,
 	FGBufferData GBuffer,
@@ -11,13 +11,15 @@ float3 StrataEnvironmentLighting(
 	float3 CameraToPixel,
 	float3 V,
 	float AmbientOcclusion,
-	FStrataPixelBSDFs PixelBSDFs
-	)
+	ByteAddressBuffer StrataDataBuffer,
+	uint PixelStrataDataByteOffset)
 {
+	FStrataPixelHeader Header = UnpackStrataHeaderIn(StrataDataBuffer, PixelStrataDataByteOffset);
+
 	float3 SkyLighting = 0;
-	for (int i = 0; i < PixelBSDFs.BSDFCount; ++i)
+	for (uint BSDFIndex = 0; BSDFIndex < Header.BSDFCount; ++BSDFIndex)
 	{
-		FStrataBSDF BSDF = PixelBSDFs.BSDFs[i];
+		const FStrataBSDF BSDF = UnpackStrataBSDFIn(StrataDataBuffer, PixelStrataDataByteOffset);
 		const float3 BSDFThroughput = BSDF.Weight;
 
 		// Create the BSDF context
@@ -62,5 +64,4 @@ float3 StrataEnvironmentLighting(
 #endif
 	return SkyLighting;
 }
-
 

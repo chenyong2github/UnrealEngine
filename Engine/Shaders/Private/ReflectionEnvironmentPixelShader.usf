@@ -396,9 +396,6 @@ void ReflectionEnvironmentSkyLighting(
 #if ENABLE_SKY_LIGHT
 	if (bStrataMaterial)
 	{
-		uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(PixelPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
-		FStrataPixelBSDFs PixelBSDFs = UnpackStrataIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
-
 		float3 WorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), View.ScreenToWorld).xyz;
 		float3 CameraToPixel = normalize(WorldPosition - View.WorldCameraOrigin);
 		float3 V = -CameraToPixel;
@@ -410,7 +407,8 @@ void ReflectionEnvironmentSkyLighting(
 			CameraToPixel,
 			V,
 			AmbientOcclusion,
-			PixelBSDFs);
+			Strata.MaterialLobesBuffer,
+			GetStrataPixelDataByteOffset(PixelPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel));
 
 #if 1
 		// We use WorldNormal, Roughness and BaseColor (representing EnvBRDF) written by the strata top layer.

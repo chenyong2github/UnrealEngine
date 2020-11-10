@@ -209,8 +209,6 @@ void DeferredLightPixelMain(
 			if (LightMask > 0)
 			{
 				uint2 PixelPos = InputParams.PixelPos;
-				uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(PixelPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
-				FStrataPixelBSDFs PixelBSDFs = UnpackStrataIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
 
 				FShadowTerms ShadowTerms = { ScreenSpaceData.AmbientOcclusion, 1.0, 1.0, InitHairTransmittanceData() };
 				float4 LightAttenuation = GetPerPixelLightAttenuation(InputParams.ScreenUV);
@@ -226,7 +224,8 @@ void DeferredLightPixelMain(
 					LightMask,
 					SurfaceShadow,
 					RectTexture,
-					PixelBSDFs);
+					Strata.MaterialLobesBuffer,
+					GetStrataPixelDataByteOffset(PixelPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel));
 			}
 		}
 		else

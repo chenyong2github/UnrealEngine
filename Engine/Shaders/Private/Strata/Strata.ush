@@ -1103,63 +1103,67 @@ void PackStrataOut(
 	}
 }
 
-
-struct FStrataPixelBSDFs
+struct FStrataPixelHeader
 {
-	int BSDFCount;
-	FStrataBSDF BSDFs[STRATA_MAX_TOTAL_BSDF];
+	uint BSDFCount;
 };
 
-FStrataPixelBSDFs UnpackStrataIn(ByteAddressBuffer StrataBuffer, uint ByteOffset)
+// Unpack only strata header
+FStrataPixelHeader UnpackStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout uint ByteOffset)
 {
-	FStrataPixelBSDFs PixelBSDFs = (FStrataPixelBSDFs)0;
+	FStrataPixelHeader Out = (FStrataPixelHeader)0;
 
-	STRATA_LOAD_UINT1(PixelBSDFs.BSDFCount);
-	PixelBSDFs.BSDFCount = min(PixelBSDFs.BSDFCount, STRATA_MAX_TOTAL_BSDF);	// To make the compiler happy
+	STRATA_LOAD_UINT1(Out.BSDFCount);
+	Out.BSDFCount = min(Out.BSDFCount, STRATA_MAX_TOTAL_BSDF);	// To make the compiler happy
+	return Out;
+}
+
+// Unpack a single BSDF
+// Note: All BSDF lobes needs to be unpack in a sequential manner since each BSDF has a variable footprint.
+FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout uint ByteOffset)
+{
+	FStrataBSDF OutBSDF = (FStrataBSDF)0;
 
 	float DummyFloat = 0.0f;
 
-	for (int i = 0; i < PixelBSDFs.BSDFCount; ++i)
 	{
-		{
-			float4 temp4  = UnpackR16G16B16A16F(StrataLoadUint2(StrataBuffer, ByteOffset));
-			PixelBSDFs.BSDFs[i].Weight   = temp4.xyz;
-			PixelBSDFs.BSDFs[i].BSDFType = int(temp4.a);
-		}
-
-		switch (PixelBSDFs.BSDFs[i].BSDFType)
-		{
-		case STRATA_BSDF_TYPE_DIFFUSE_ON:
-		case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
-		{
-			StrataLoad_AlbedoGamma2ToLinear	(StrataBuffer, ByteOffset, DIFFUSE_ALBEDO(PixelBSDFs.BSDFs[i]));
-			StrataLoad_R16G16B16F_A16F		(StrataBuffer, ByteOffset, DIFFUSE_NORMAL(PixelBSDFs.BSDFs[i]),			DIFFUSE_ROUGHNESS(PixelBSDFs.BSDFs[i]));
-		}
-		break;
-		case STRATA_BSDF_TYPE_DIELECTRIC:
-		{
-			StrataLoad_R11G11B10F			(StrataBuffer, ByteOffset, DIELECTRIC_TINT(PixelBSDFs.BSDFs[i]));
-			StrataLoad_R11_G11_B10F			(StrataBuffer, ByteOffset, DIELECTRIC_ROUGHNESS0(PixelBSDFs.BSDFs[i]), DIELECTRIC_ROUGHNESS1(PixelBSDFs.BSDFs[i]), DIELECTRIC_IOR(PixelBSDFs.BSDFs[i]));
-			StrataLoad_R16G16B16F_A16F		(StrataBuffer, ByteOffset, DIELECTRIC_NORMAL(PixelBSDFs.BSDFs[i]),		DummyFloat);
-		}
-		break;
-		case STRATA_BSDF_TYPE_CONDUCTOR:
-		{
-			StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, CONDUCTOR_REFLECTIVITY(PixelBSDFs.BSDFs[i]),	CONDUCTOR_ROUGHNESS0(PixelBSDFs.BSDFs[i]));
-			StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, CONDUCTOR_EDGECOLOR(PixelBSDFs.BSDFs[i]),		CONDUCTOR_ROUGHNESS1(PixelBSDFs.BSDFs[i]));
-			StrataLoad_R16G16B16F_A16F		(StrataBuffer, ByteOffset,			 CONDUCTOR_NORMAL(PixelBSDFs.BSDFs[i]),			DummyFloat);
-		}
-		break;
-		case STRATA_BSDF_TYPE_VOLUME:
-		{
-			StrataLoad_R11G11B10F			(StrataBuffer, ByteOffset, VOLUME_EXTINCTION(PixelBSDFs.BSDFs[i]));
-			StrataLoad_R11G11B10F			(StrataBuffer, ByteOffset, VOLUME_ALBEDO(PixelBSDFs.BSDFs[i]));
-			StrataLoad_R16G16B16F_A16F		(StrataBuffer, ByteOffset, VOLUME_SMOOTHSURFACENORMAL(PixelBSDFs.BSDFs[i]), VOLUME_ANISOTROPY(PixelBSDFs.BSDFs[i]));
-			VOLUME_THICKNESS(PixelBSDFs.BSDFs[i]) = 1.0f;
-		}
-		break;
-		}
+		float4 temp4  = UnpackR16G16B16A16F(StrataLoadUint2(StrataBuffer, ByteOffset));
+		OutBSDF.Weight   = temp4.xyz;
+		OutBSDF.BSDFType = int(temp4.a);
 	}
 
-	return PixelBSDFs;
+	switch (OutBSDF.BSDFType)
+	{
+	case STRATA_BSDF_TYPE_DIFFUSE_ON:
+	case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+	{
+		StrataLoad_AlbedoGamma2ToLinear	(StrataBuffer, ByteOffset, DIFFUSE_ALBEDO(OutBSDF));
+		StrataLoad_R16G16B16F_A16F		(StrataBuffer, ByteOffset, DIFFUSE_NORMAL(OutBSDF),			DIFFUSE_ROUGHNESS(OutBSDF));
+	}
+	break;
+	case STRATA_BSDF_TYPE_DIELECTRIC:
+	{
+		StrataLoad_R11G11B10F			(StrataBuffer, ByteOffset, DIELECTRIC_TINT(OutBSDF));
+		StrataLoad_R11_G11_B10F			(StrataBuffer, ByteOffset, DIELECTRIC_ROUGHNESS0(OutBSDF), DIELECTRIC_ROUGHNESS1(OutBSDF), DIELECTRIC_IOR(OutBSDF));
+		StrataLoad_R16G16B16F_A16F		(StrataBuffer, ByteOffset, DIELECTRIC_NORMAL(OutBSDF),		DummyFloat);
+	}
+	break;
+	case STRATA_BSDF_TYPE_CONDUCTOR:
+	{
+		StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, CONDUCTOR_REFLECTIVITY(OutBSDF),	CONDUCTOR_ROUGHNESS0(OutBSDF));
+		StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, CONDUCTOR_EDGECOLOR(OutBSDF),		CONDUCTOR_ROUGHNESS1(OutBSDF));
+		StrataLoad_R16G16B16F_A16F		(StrataBuffer, ByteOffset,			 CONDUCTOR_NORMAL(OutBSDF),			DummyFloat);
+	}
+	break;
+	case STRATA_BSDF_TYPE_VOLUME:
+	{
+		StrataLoad_R11G11B10F			(StrataBuffer, ByteOffset, VOLUME_EXTINCTION(OutBSDF));
+		StrataLoad_R11G11B10F			(StrataBuffer, ByteOffset, VOLUME_ALBEDO(OutBSDF));
+		StrataLoad_R16G16B16F_A16F		(StrataBuffer, ByteOffset, VOLUME_SMOOTHSURFACENORMAL(OutBSDF), VOLUME_ANISOTROPY(OutBSDF));
+		VOLUME_THICKNESS(OutBSDF) = 1.0f;
+	}
+	break;
+	}
+
+	return OutBSDF;
 }

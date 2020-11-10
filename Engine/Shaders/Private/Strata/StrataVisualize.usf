@@ -31,26 +31,27 @@ void VisualizeMaterialPS(
 	OutColor = 0;
 	if (bStrataMaterial)
 	{
-		uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(PixelPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
-		FStrataPixelBSDFs PixelBSDFs = UnpackStrataIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
+		uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(MaterialPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
+		FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
+
 		OutColor.w = 0.05f;
-		if (PixelBSDFs.BSDFCount == 1)
+		if (Header.BSDFCount == 1)
 		{
 			OutColor = float4(0, 0, 1, 0);
 		}
-		else if (PixelBSDFs.BSDFCount == 2)
+		else if (Header.BSDFCount == 2)
 		{
 			OutColor = float4(0, 1, 0, 0);
 		}
-		else if (PixelBSDFs.BSDFCount == 3)
+		else if (Header.BSDFCount == 3)
 		{
 			OutColor = float4(1, 1, 0, 0);
 		}
-		else if (PixelBSDFs.BSDFCount == 4)
+		else if (Header.BSDFCount == 4)
 		{
 			OutColor = float4(1, 0, 0, 0);
 		}
-		else if (PixelBSDFs.BSDFCount > 4)
+		else if (Header.BSDFCount > 4)
 		{
 			OutColor = float4(1, 1, 1, 0);
 		}
@@ -68,7 +69,7 @@ void VisualizeMaterialPS(
 	if (bStrataMaterial)
 	{
 		uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(MaterialPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
-		FStrataPixelBSDFs PixelBSDFs = UnpackStrataIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
+		FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
 
 		float3 BSDFFontColor = float3(0.25, 1.0, 0.25);
 		float3 INFOFontColor = float3(1.0, 0.5, 0.25);
@@ -82,7 +83,7 @@ void VisualizeMaterialPS(
 #define PRINTBSDFCHAR(X) PrintCharacter(PixelPos, OutColor.xyz, BSDFFontColor, TopLeft, X);
 
 #define PRINTBSDFWEIGHT()	PRINTBSDFCHAR(_SPC_); PRINTBSDFCHAR(_MINUS_); PRINTBSDFCHAR(_SPC_); PrintFloat(PixelPos, OutColor.xyz, FontColor, TopLeft, BSDF.Weight.x); TopLeft.x+=8*7; PRINTBSDFCHAR(_SPC_); PrintFloat(PixelPos, OutColor.xyz, FontColor, TopLeft, BSDF.Weight.y); TopLeft.x+=8*7; PRINTBSDFCHAR(_SPC_); PrintFloat(PixelPos, OutColor.xyz, FontColor, TopLeft, BSDF.Weight.z);
-#define PRINTBSDFCOUNT()	PRINTBSDFCHAR(min(_0_+PixelBSDFs.BSDFCount,_F_)); PRINTBSDFCHAR(_SPC_); PRINTBSDFCHAR(_B_); PRINTBSDFCHAR(_S_); PRINTBSDFCHAR(_D_); PRINTBSDFCHAR(_F_);
+#define PRINTBSDFCOUNT()	PRINTBSDFCHAR(min(_0_+Header.BSDFCount,_F_)); PRINTBSDFCHAR(_SPC_); PRINTBSDFCHAR(_B_); PRINTBSDFCHAR(_S_); PRINTBSDFCHAR(_D_); PRINTBSDFCHAR(_F_);
 #define PRINTFLOAT3(X) PrintFloat(PixelPos, OutColor.xyz, PARAMFontColor, TopLeft, X.x); TopLeft.x+=8*7; PRINTBSDFCHAR(_SPC_); PrintFloat(PixelPos, OutColor.xyz, PARAMFontColor, TopLeft, X.y); TopLeft.x+=8*7; PRINTBSDFCHAR(_SPC_); PrintFloat(PixelPos, OutColor.xyz, PARAMFontColor, TopLeft, X.z);
 #define PRINTFLOAT1(Value) PrintFloat(PixelPos, OutColor.xyz, PARAMFontColor, TopLeft, Value); TopLeft.x+=8*7;
 #define SIGNOFFLOAT1(Value) if(Value < 0.0f) { PrintCharacter(PixelPos, OutColor.xyz, PARAMFontColor, TopLeft, _MINUS_); } /*else { PrintCharacter(PixelPos, OutColor.xyz, PARAMFontColor, TopLeft, _SPC_);}*/
@@ -98,9 +99,9 @@ void VisualizeMaterialPS(
 		NEXTLINE;
 		HORIZONTALSEPARATION;
 
-		for (int i = 0; i < PixelBSDFs.BSDFCount; ++i)
+		for (uint BSDFIndex = 0; BSDFIndex < Header.BSDFCount; ++BSDFIndex)
 		{
-			FStrataBSDF BSDF = PixelBSDFs.BSDFs[i];
+			const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
 
 			TopLeft.x = TopLeftInit.x;
 
