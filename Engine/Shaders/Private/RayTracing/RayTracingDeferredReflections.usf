@@ -53,6 +53,7 @@ float ReflectionMaxNormalBias;
 float ReflectionSmoothBias;
 float ReflectionMaxRoughness;
 float AnyHitMaxRoughness;
+float TextureMipBias;
 int   UpscaleFactor;
 int   GlossyReflections;
 int   ShouldDoDirectLighting;
@@ -170,6 +171,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 			PackedPayload.SetEnableSkyLightContribution();
 		}
 		PackedPayload.SetPixelCoord(PixelPos);
+		PackedPayload.SetMipBias(TextureMipBias);
 
 		TraceDeferredMaterialShadingRay(
 			TLAS,
