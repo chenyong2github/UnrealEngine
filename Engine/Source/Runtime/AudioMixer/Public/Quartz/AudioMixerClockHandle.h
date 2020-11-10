@@ -34,11 +34,69 @@ public:
 	void QuartzTick(float DeltaTime);
 	bool QuartzIsTickable() const;
 
-	// Register an event to respond to a specific quantization event
-	void SubscribeToQuantizationEvent(EQuartzCommandQuantization InQuantizationBoundary, const FOnQuartzMetronomeEventBP& OnQuantizationEvent);
+// Begin Blueprint Interface
 
-	// Register an event to respond to all quantization events
-	void SubscribeToAllQuantizationEvents(const FOnQuartzMetronomeEventBP& OnQuantizationEvent);
+	// Clock manipulation
+	UFUNCTION(BlueprintCallable, Category = "Quartz Subsystem", meta = (WorldContext = "WorldContextObject"))
+	void PauseClock(const UObject* WorldContextObject);
+
+ 	UFUNCTION(BlueprintCallable, Category = "Quartz Clock", meta = (WorldContext = "WorldContextObject"))
+ 	void ResumeClock(const UObject* WorldContextObject);
+
+	UFUNCTION(BlueprintCallable, Category = "Quartz Clock", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "InDelegate", Keywords = "Transport, Counter"))
+	void ResetTransport(const UObject* WorldContextObject, const FOnQuartzCommandEventBP& InDelegate);
+
+
+	// Metronome subscription
+	UFUNCTION(BlueprintCallable, Category = "Quartz Clock", meta = (WorldContext = "WorldContextObject"))
+	void SubscribeToQuantizationEvent(const UObject* WorldContextObject, EQuartzCommandQuantization InQuantizationBoundary, const FOnQuartzMetronomeEventBP& OnQuantizationEvent);
+
+	UFUNCTION(BlueprintCallable, Category = "Quartz Clock", meta = (WorldContext = "WorldContextObject"))
+	void SubscribeToAllQuantizationEvents(const UObject* WorldContextObject, const FOnQuartzMetronomeEventBP& OnQuantizationEvent);
+
+	UFUNCTION(BlueprintCallable, Category = "Quartz Clock", meta = (WorldContext = "WorldContextObject"))
+	void UnsubscribeFromTimeDivision(const UObject* WorldContextObject, EQuartzCommandQuantization InQuantizationBoundary);
+
+	UFUNCTION(BlueprintCallable, Category = "Quartz Clock", meta = (WorldContext = "WorldContextObject"))
+	void UnsubscribeFromAllTimeDivisions(const UObject* WorldContextObject);
+
+
+	// Metronome Alteration (setters)
+	UFUNCTION(BlueprintCallable, Category = "Quantization", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 2, AutoCreateRefTerm = "QuantizationBoundary, Delegate", Keywords = "BPM, Tempo"))
+	void SetMillisecondsPerTick(const UObject* WorldContextObject, float MillisecondsPerTick, UPARAM(ref) const FQuartzQuantizationBoundary& QuantizationBoundary, const FOnQuartzCommandEventBP& Delegate);
+
+	UFUNCTION(BlueprintCallable, Category = "Quantization", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 2, AutoCreateRefTerm = "QuantizationBoundary, Delegate", Keywords = "BPM, Tempo"))
+	void SetTicksPerSecond(const UObject* WorldContextObject, float TicksPerSecond, UPARAM(ref) const FQuartzQuantizationBoundary& QuantizationBoundary, const FOnQuartzCommandEventBP& Delegate);
+
+	UFUNCTION(BlueprintCallable, Category = "Quantization", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 2, AutoCreateRefTerm = "QuantizationBoundary, Delegate", Keywords = "BPM, Tempo"))
+	void SetSecondsPerTick(const UObject* WorldContextObject, float SecondsPerTick, UPARAM(ref) const FQuartzQuantizationBoundary& QuantizationBoundary, const FOnQuartzCommandEventBP& Delegate);
+
+	UFUNCTION(BlueprintCallable, Category = "Quantization", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 2, AutoCreateRefTerm = "QuantizationBoundary, Delegate", Keywords = "BPM, Tempo"))
+	void SetThirtySecondNotesPerMinute(const UObject* WorldContextObject, float ThirtySecondsNotesPerMinute, UPARAM(ref) const FQuartzQuantizationBoundary& QuantizationBoundary, const FOnQuartzCommandEventBP& Delegate);
+
+	UFUNCTION(BlueprintCallable, Category = "Quantization", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 2, AutoCreateRefTerm = "QuantizationBoundary, Delegate", Keywords = "BPM, Tempo"))
+	void SetBeatsPerMinute(const UObject* WorldContextObject, float BeatsPerMinute, UPARAM(ref) const FQuartzQuantizationBoundary& QuantizationBoundary, const FOnQuartzCommandEventBP& Delegate);
+
+
+	// Metronome getters
+	UFUNCTION(BlueprintCallable, Category = "Quantization", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "InDelegate", Keywords = "BPM, Tempo"))
+	float GetMillisecondsPerTick(const UObject* WorldContextObject) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Quantization", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "InDelegate", Keywords = "BPM, Tempo"))
+	float GetTicksPerSecond(const UObject* WorldContextObject) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Quantization", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "InDelegate", Keywords = "BPM, Tempo"))
+	float GetSecondsPerTick(const UObject* WorldContextObject) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Quantization", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "InDelegate", Keywords = "BPM, Tempo"))
+	float GetThirtySecondNotesPerMinute(const UObject* WorldContextObject) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Quantization", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "InDelegate", Keywords = "BPM, Tempo"))
+	float GetBeatsPerMinute(const UObject* WorldContextObject) const;
+
+// End Blueprint Interface
+
+
 
 	// access to the associated QuartzSubsystem
 	UQuartzSubsystem* GetQuartzSubsystem() const{ return QuartzSubsystem; }
@@ -58,7 +116,7 @@ public:
 
 	TSharedPtr<Audio::FShareableQuartzCommandQueue, ESPMode::ThreadSafe> GetCommandQueue()
 	{
-		checkSlow(CommandQueuePtr.IsValid());
+		check(CommandQueuePtr.IsValid());
 		return CommandQueuePtr;
 	}
 
@@ -80,6 +138,8 @@ private:
 	};
 
 	void PumpCommandQueue();
+	
+	bool GetCurrentTickRate(const UObject* WorldContextObject, Audio::FQuartzClockTickRate& OutTickRate) const;
 
 	TSharedPtr<Audio::FShareableQuartzCommandQueue, ESPMode::ThreadSafe> CommandQueuePtr;
 

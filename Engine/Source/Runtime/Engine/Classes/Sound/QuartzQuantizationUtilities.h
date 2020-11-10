@@ -39,12 +39,13 @@ namespace Audio
 
 
 // UOBJECT LAYER:
+
 // An enumeration for specifying quantization for Quartz commands
 UENUM(BlueprintType)
 enum class EQuartzCommandQuantization : uint8
 {
-	Bar						UMETA(DisplayName = "Bar", ToolTip = "(dependant on time signature)"),
-	Beat					UMETA(DisplayName = "Beat", ToolTip = "(dependant on time signature and Pulse Override)"),
+	Bar						UMETA(DisplayName = "Bar", ToolTip = "(dependent on time signature)"),
+	Beat					UMETA(DisplayName = "Beat", ToolTip = "(dependent on time signature and Pulse Override)"),
 
 	ThirtySecondNote		UMETA(DisplayName = "1/32"),
 	SixteenthNote			UMETA(DisplayName = "1/16"),
@@ -109,11 +110,11 @@ struct ENGINE_API FQuartzTimeSignature
 
 	// numerator
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Time Signature")
-		int32 NumBeats { 4 };
+	int32 NumBeats { 4 };
 
 	// denominator
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Time Signature")
-		EQuartzTimeSignatureQuantization BeatType { EQuartzTimeSignatureQuantization::QuarterNote };
+	EQuartzTimeSignatureQuantization BeatType { EQuartzTimeSignatureQuantization::QuarterNote };
 
 	// beat override
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Time Signature")
@@ -136,9 +137,7 @@ struct ENGINE_API FQuartzTransportTimeStamp
 {
 	GENERATED_BODY()
 
-		int32 Bars {
-		0
-	};
+		int32 Bars { 0 };
 
 	int32 Beat{ 0 };
 
@@ -200,65 +199,6 @@ DECLARE_DYNAMIC_DELEGATE_FiveParams(FOnQuartzMetronomeEventBP, FName, ClockName,
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnQuartzCommandEvent, EQuartzCommandDelegateSubType, EventType, FName, Name);
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnQuartzCommandEventBP, EQuartzCommandDelegateSubType, EventType, FName, Name);
 
-// Utility class to set/get/convert tick rate
-// In this context "Tick Rate" refers to the duration of smallest temporal resolution we may care about
-// in musical time, this is locked to a 1/32nd note
-USTRUCT(BlueprintType)
-struct ENGINE_API FQuartzClockTickRate
-{
-	GENERATED_BODY()
-
-public:
-	// Setters
-	void SetFramesPerTick(int32 InNewFramesPerTick);
-
-	void SetMillisecondsPerTick(float InNewMillisecondsPerTick);
-
-	void SetSecondsPerTick(float InNewSecondsPerTick);
-
-	void SetThirtySecondNotesPerMinute(float InNewThirtySecondNotesPerMinute);
-
-	void SetBeatsPerMinute(float InNewBeatsPerMinute);
-
-	void SetSampleRate(float InNewSampleRate);
-
-	// Getters
-	int32 GetFramesPerTick() const { return FramesPerTick; }
-
-	float GetMillisecondsPerTick() const { return MillisecondsPerTick; }
-
-	float GetSecondsPerTick() const { return SecondsPerTick; }
-
-	float GetThirtySecondNotesPerMinute() const { return ThirtySecondNotesPerMinute; }
-
-	float GetBeatsPerMinute() const { return BeatsPerMinute; }
-
-	float GetSampleRate() const { return SampleRate; }
-
-	int64 GetFramesPerDuration(EQuartzCommandQuantization InDuration) const;
-
-	int64 GetFramesPerDuration(EQuartzTimeSignatureQuantization InDuration) const;
-
-	bool IsValid(int32 InEventResolutionThreshold = 1) const;
-
-	bool IsSameTickRate(const FQuartzClockTickRate& Other, bool bAccountForDifferentSampleRates = true) const;
-
-
-
-private:
-	// FramesPerTick is our ground truth 
-	// update FramesPerTick and call RecalculateDurationsBasedOnFramesPerTick() to update other members
-	int32 FramesPerTick{ 1 };
-	float MillisecondsPerTick{ 1.f };
-	float SecondsPerTick{ 1.f };
-	float ThirtySecondNotesPerMinute{ 1.f };
-	float BeatsPerMinute{ 1 };
-	float SampleRate{ 44100.f };
-
-	void RecalculateDurationsBasedOnFramesPerTick();
-
-}; // class FAudioMixerClockTickRate
-
 // struct used to specify the quantization boundary of an event
 USTRUCT(BlueprintType)
 struct ENGINE_API FQuartzQuantizationBoundary
@@ -271,11 +211,7 @@ struct ENGINE_API FQuartzQuantizationBoundary
 
 	// how many "Resolutions" to wait before the onset we care about
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings")
-	int32 Multiplier;
-
-	// fractional offset of the resolution
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings")
-	float FractionalOffset;
+	float Multiplier;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings")
 	EQuarztQuantizationReference CountingReferencePoint;
@@ -283,13 +219,11 @@ struct ENGINE_API FQuartzQuantizationBoundary
 	// ctor
 	FQuartzQuantizationBoundary(
 		EQuartzCommandQuantization InQuantization = EQuartzCommandQuantization::Tick
-		, int32 InMultiplier = 1
-		, float InFractionalOffset = 0.f
+		, float InMultiplier = 1.f
 		, EQuarztQuantizationReference InReferencePoint = EQuarztQuantizationReference::BarRelative
 	)
 		: Quantization(InQuantization)
 		, Multiplier(InMultiplier)
-		, FractionalOffset(InFractionalOffset)
 		, CountingReferencePoint(InReferencePoint)
 	{}
 }; // struct FQuartzQuantizationBoundary
@@ -300,123 +234,17 @@ struct ENGINE_API FQuartzClockSettings
 {
 	GENERATED_BODY()
 
-	// Desired tick-rate of the clock (has sample rate)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings")
-	FQuartzClockTickRate TickRate;
-
 	// Time Signature (defaults to 4/4)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings")
 	FQuartzTimeSignature TimeSignature;
 
 	// should the clock start Ticking
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings")
-	bool bStartTickingImmediately{ false };
-
-	// should the clock start Ticking
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings")
 	bool bIgnoreLevelChange{ false };
-
-	bool IsValid();
 
 }; // struct FQuartzClockSettings
 
 // ---------
-
-
-// AudioMixerClockTickRate BP functions
-UCLASS(meta = (BlueprintThreadSafe, ScriptName = "QuartzTickRateLibrary"))
-class ENGINE_API UQuartzTickRateBlueprintLibrary : public UBlueprintFunctionLibrary
-{
-	GENERATED_BODY()
-
-public:
-
-	// Set the number of audio frames per tick
-	UFUNCTION(BlueprintCallable, Category = "Quartz Tick Rate")
-	static void SetFramesPerTick(UPARAM(ref) FQuartzClockTickRate& InTickRate, int32 InNewFramesPerTick)
-	{
-		InTickRate.SetFramesPerTick(InNewFramesPerTick);
-	}
-
-	// Set the number of milliseconds per tick
-	UFUNCTION(BlueprintCallable, Category = "Quartz Tick Rate")
-	static void SetMillisecondsPerTick(UPARAM(ref) FQuartzClockTickRate& InTickRate, float InNewMillisecondsPerTick)
-	{
-		InTickRate.SetMillisecondsPerTick(InNewMillisecondsPerTick);
-	}
-
-	// Set the number of 1/32nd notes (same as tick) per minute
-	UFUNCTION(BlueprintCallable, Category = "Quartz Tick Rate")
-	static void SetThirtySecondNotesPerMinute(UPARAM(ref) FQuartzClockTickRate& InTickRate, float InNewThirtySecondNotesPerMinute)
-	{
-		InTickRate.SetThirtySecondNotesPerMinute(InNewThirtySecondNotesPerMinute);
-	}
-
-	// Set the number of Beats per minute
-	UFUNCTION(BlueprintCallable, Category = "Quartz Tick Rate")
-	static void SetBeatsPerMinute(UPARAM(ref) FQuartzClockTickRate& InTickRate, float InNewBeatsPerMinute)
-	{
-		InTickRate.SetBeatsPerMinute(InNewBeatsPerMinute);
-	}
-
-	// Getters
-
-	// Get the number of audio frames per tick
-	UFUNCTION(BlueprintCallable, Category = "Quartz Tick Rate")
-	static int32 GetFramesPerTick(UPARAM(ref) FQuartzClockTickRate& InTickRate)
-	{
-		return InTickRate.GetFramesPerTick();
-	}
-
-	// Get the number of milliseconds per tick
-	UFUNCTION(BlueprintCallable, Category = "Quartz Tick Rate")
-	static float GetMillisecondsPerTick(UPARAM(ref) FQuartzClockTickRate& InTickRate)
-	{
-		return InTickRate.GetMillisecondsPerTick();
-	}
-
-	// Get the number of 1/32nd notes (same as tick) per minute
-	UFUNCTION(BlueprintCallable, Category = "Quartz Tick Rate")
-	static float GetThirtySecondNotesPerMinute(UPARAM(ref) FQuartzClockTickRate& InTickRate)
-	{
-		return InTickRate.GetThirtySecondNotesPerMinute();
-	}
-
-	// Get the number of beats per minute
-	UFUNCTION(BlueprintCallable, Category = "Quartz Tick Rate")
-	static float GetBeatsPerMinute(UPARAM(ref) FQuartzClockTickRate& InTickRate)
-	{
-		return InTickRate.GetBeatsPerMinute();
-	}
-
-	// Get the sample rate
-	UFUNCTION(BlueprintCallable, Category = "Quartz Tick Rate")
-	static float GetSampleRate(UPARAM(ref) FQuartzClockTickRate& InTickRate)
-	{
-		return InTickRate.GetSampleRate();
-	}
-
-	// Get the number of audio frames for a given time duration
-	UFUNCTION(BlueprintCallable, Category = "Quartz Tick Rate")
-	static int64 GetFramesPerDuration(UPARAM(ref) FQuartzClockTickRate& InTickRate, EQuartzCommandQuantization InDuration)
-	{
-		return InTickRate.GetFramesPerDuration(InDuration);
-	}
-
-	// Is the tick rate valid?
-	UFUNCTION(BlueprintCallable, Category = "Quartz Tick Rate")
-	static bool IsValid(UPARAM(ref) FQuartzClockTickRate& InTickRate, int32 InEventResolutionThreshold = 1)
-	{
-		return InTickRate.IsValid();
-	}
-
-	// Compare two Tick Rates to see if they are equivalent.
-	UFUNCTION(BlueprintCallable, Category = "Quartz Tick Rate")
-	static bool IsSameTickRate(UPARAM(ref) FQuartzClockTickRate& InTickRateA, UPARAM(ref) FQuartzClockTickRate& InTickRateB, bool bIgnoreSampleRate = true)
-	{
-		return InTickRateA.IsSameTickRate(InTickRateB, bIgnoreSampleRate);
-	}
-};
 
 // Class to track latency trends
 // will lazily calculate running average on the correct thread
@@ -453,6 +281,64 @@ private:
 namespace Audio
 {
 	class FAudioMixer;
+
+	// Utility class to set/get/convert tick rate
+// In this context "Tick Rate" refers to the duration of smallest temporal resolution we may care about
+// in musical time, this is locked to a 1/32nd note
+
+	struct ENGINE_API FQuartzClockTickRate
+	{
+
+	public:
+		// Setters
+		void SetFramesPerTick(int32 InNewFramesPerTick);
+
+		void SetMillisecondsPerTick(float InNewMillisecondsPerTick);
+
+		void SetSecondsPerTick(float InNewSecondsPerTick);
+
+		void SetThirtySecondNotesPerMinute(float InNewThirtySecondNotesPerMinute);
+
+		void SetBeatsPerMinute(float InNewBeatsPerMinute);
+
+		void SetSampleRate(float InNewSampleRate);
+
+		// Getters
+		int32 GetFramesPerTick() const { return FramesPerTick; }
+
+		float GetMillisecondsPerTick() const { return MillisecondsPerTick; }
+
+		float GetSecondsPerTick() const { return SecondsPerTick; }
+
+		float GetThirtySecondNotesPerMinute() const { return ThirtySecondNotesPerMinute; }
+
+		float GetBeatsPerMinute() const { return BeatsPerMinute; }
+
+		float GetSampleRate() const { return SampleRate; }
+
+		int64 GetFramesPerDuration(EQuartzCommandQuantization InDuration) const;
+
+		int64 GetFramesPerDuration(EQuartzTimeSignatureQuantization InDuration) const;
+
+		bool IsValid(int32 InEventResolutionThreshold = 1) const;
+
+		bool IsSameTickRate(const FQuartzClockTickRate& Other, bool bAccountForDifferentSampleRates = true) const;
+
+
+
+	private:
+		// FramesPerTick is our ground truth 
+		// update FramesPerTick and call RecalculateDurationsBasedOnFramesPerTick() to update other members
+		int32 FramesPerTick{ 1 };
+		float MillisecondsPerTick{ 1.f };
+		float SecondsPerTick{ 1.f };
+		float ThirtySecondNotesPerMinute{ 1.f };
+		float BeatsPerMinute{ 1 };
+		float SampleRate{ 44100.f };
+
+		void RecalculateDurationsBasedOnFramesPerTick();
+
+	}; // class FAudioMixerClockTickRate
 
 	// Simple class to track latency as a request/action propagates from GT to ART (or vice versa)
 	class ENGINE_API FQuartzLatencyTimer
@@ -521,7 +407,7 @@ namespace Audio
 		FName ClockName;
 		FName ClockHandleName;
 		TSharedPtr<IQuartzQuantizedCommand> QuantizedCommandPtr;
-		FQuartzQuantizationBoundary QuantizationBoundary{ EQuartzCommandQuantization::Tick /* InQuantization */, 1/* InMultiplier */, 0.f/* InFractionalOffset */ };
+		FQuartzQuantizationBoundary QuantizationBoundary{ /* InQuantization */ EQuartzCommandQuantization::Tick, /* InMultiplier */ 1.f };
 		TSharedPtr<FShareableQuartzCommandQueue, ESPMode::ThreadSafe> GameThreadCommandQueue{ nullptr };
 		int32 GameThreadDelegateID{ -1 };
 	};

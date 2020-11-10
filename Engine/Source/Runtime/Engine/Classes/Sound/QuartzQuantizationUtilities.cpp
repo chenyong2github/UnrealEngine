@@ -12,212 +12,6 @@
 
 DEFINE_LOG_CATEGORY(LogAudioQuartz);
 
-void FQuartzClockTickRate::SetFramesPerTick(int32 InNewFramesPerTick)
-{
-	FramesPerTick = InNewFramesPerTick;
-	RecalculateDurationsBasedOnFramesPerTick();
-}
-
-void FQuartzClockTickRate::SetMillisecondsPerTick(float InNewMillisecondsPerTick)
-{
-	FramesPerTick = (InNewMillisecondsPerTick / 1000.f) * SampleRate;
-	RecalculateDurationsBasedOnFramesPerTick();
-}
-
-void FQuartzClockTickRate::SetThirtySecondNotesPerMinute(float InNewThirtySecondNotesPerMinute)
-{
-	check(InNewThirtySecondNotesPerMinute > 0);
-
-	FramesPerTick = (60.f / InNewThirtySecondNotesPerMinute) * SampleRate;
-	RecalculateDurationsBasedOnFramesPerTick();
-}
-
-void FQuartzClockTickRate::SetBeatsPerMinute(float InNewBeatsPerMinute)
-{
-	// same as 1/32nd notes,
-	// except there are 1/8th the number of quarter notes than thirty-second notes in a minute
-	// (So FramesPerTick should be 8 times shorter than it was when setting 32nd notes)
-
-	// FramesPerTick = 1/8 * (60.f / (InNewBeatsPerMinute)) * SampleRate;
-	// (60.0 / 8.0) = 7.5f
-
-	FramesPerTick = (7.5f / InNewBeatsPerMinute) * SampleRate;
-	RecalculateDurationsBasedOnFramesPerTick();
-}
-
-void FQuartzClockTickRate::SetSampleRate(float InNewSampleRate)
-{
-	check(InNewSampleRate >= 0);
-
-	FramesPerTick = (InNewSampleRate / SampleRate) * static_cast<float>(FramesPerTick);
-	SampleRate = InNewSampleRate;
-
-	RecalculateDurationsBasedOnFramesPerTick();
-}
-
-int64 FQuartzClockTickRate::GetFramesPerDuration(EQuartzCommandQuantization InDuration) const
-{
-	const int64 FramesPerDotted16th = FramesPerTick * 3;
-	const int64 FramesPer16thTriplet = 8.f * FramesPerTick / 3.f;
-
-	switch (InDuration)
-	{
-
-	// NORMAL
-	case EQuartzCommandQuantization::Tick:
-	case EQuartzCommandQuantization::ThirtySecondNote:
-		return FramesPerTick; // same as 1/32nd note
-
-	case EQuartzCommandQuantization::SixteenthNote:
-		return (int64)FramesPerTick << 1;
-
-	case EQuartzCommandQuantization::EighthNote:
-		return (int64)FramesPerTick << 2;
-
-	case EQuartzCommandQuantization::Beat: // default to quarter note (should be overridden for non-basic meters)
-	case EQuartzCommandQuantization::QuarterNote:
-		return (int64)FramesPerTick << 3;
-
-	case EQuartzCommandQuantization::HalfNote:
-		return (int64)FramesPerTick << 4;
-
-	case EQuartzCommandQuantization::Bar: // default to whole note (should be overridden for non-4/4 meters)
-	case EQuartzCommandQuantization::WholeNote:
-		return (int64)FramesPerTick << 5;
-
-	// DOTTED
-	case EQuartzCommandQuantization::DottedSixteenthNote:
-		return FramesPerDotted16th;
-
-	case EQuartzCommandQuantization::DottedEighthNote:
-		return FramesPerDotted16th << 1;
-
-	case EQuartzCommandQuantization::DottedQuarterNote:
-		return FramesPerDotted16th << 2;
-
-	case EQuartzCommandQuantization::DottedHalfNote:
-		return FramesPerDotted16th << 3;
-
-	case EQuartzCommandQuantization::DottedWholeNote:
-		return FramesPerDotted16th << 4;
-
-
-	// TRIPLETS
-	case EQuartzCommandQuantization::SixteenthNoteTriplet:
-		return FramesPer16thTriplet;
-
-	case EQuartzCommandQuantization::EighthNoteTriplet:
-		return FramesPer16thTriplet << 1;
-
-	case EQuartzCommandQuantization::QuarterNoteTriplet:
-		return FramesPer16thTriplet << 2;
-
-	case EQuartzCommandQuantization::HalfNoteTriplet:
-		return FramesPer16thTriplet << 3;
-
-
-
-	default:
-		checkf(false, TEXT("Unexpected EAudioMixerCommandQuantization: Need to update switch statement for new quantization enumeration?"));
-		break;
-	}
-
-	return INVALID_DURATION;
-}
-
-int64 FQuartzClockTickRate::GetFramesPerDuration(EQuartzTimeSignatureQuantization InDuration) const
-{
-	switch (InDuration)
-	{
-	case EQuartzTimeSignatureQuantization::HalfNote:
-		return GetFramesPerDuration(EQuartzCommandQuantization::HalfNote);
-		
-	case EQuartzTimeSignatureQuantization::QuarterNote:
-		return GetFramesPerDuration(EQuartzCommandQuantization::QuarterNote);
-
-	case EQuartzTimeSignatureQuantization::EighthNote:
-		return GetFramesPerDuration(EQuartzCommandQuantization::EighthNote);
-
-	case EQuartzTimeSignatureQuantization::SixteenthNote:
-		return GetFramesPerDuration(EQuartzCommandQuantization::SixteenthNote);
-
-	case EQuartzTimeSignatureQuantization::ThirtySecondNote:
-		return GetFramesPerDuration(EQuartzCommandQuantization::ThirtySecondNote);
-
-	default:
-		checkf(false, TEXT("Unexpected EQuartzTimeSignatureQuantization: Need to update switch statement for new quantization enumeration?"));
-		break;
-	}
-
-	return INVALID_DURATION;
-}
-
-bool FQuartzClockTickRate::IsValid(int32 InEventResolutionThreshold) const
-{
-	ensureMsgf(InEventResolutionThreshold > 0
-		, TEXT("Querying a the validity of an FQuartzClockTickRate object w/ a zero or negative threshold of (%i)")
-		, InEventResolutionThreshold);
-
-	if (FramesPerTick < InEventResolutionThreshold)
-	{
-		return false;
-	}
-
-	return true;
-}
-
-bool FQuartzClockTickRate::IsSameTickRate(const FQuartzClockTickRate& Other, bool bAccountForDifferentSampleRates) const
-{
-	if (!bAccountForDifferentSampleRates)
-	{
-		const bool Result = FramesPerTick == Other.FramesPerTick;
-
-		// All other members SHOULD be equal if the FramesPerTick (ground truth) are equal
-		checkSlow(!Result ||
-			(FMath::IsNearlyEqual(MillisecondsPerTick, Other.MillisecondsPerTick)
-				&& FMath::IsNearlyEqual(ThirtySecondNotesPerMinute, Other.ThirtySecondNotesPerMinute)
-				&& FMath::IsNearlyEqual(BeatsPerMinute, Other.BeatsPerMinute)
-				&& FMath::IsNearlyEqual(SampleRate, Other.SampleRate)));
-
-		return Result;
-	}
-	else
-	{
-		// Perform SampleRate conversion on a temporary to see if
-		FQuartzClockTickRate TempTickRate = Other;
-		TempTickRate.SetSampleRate(SampleRate);
-
-		const bool Result = FramesPerTick == TempTickRate.FramesPerTick;
-
-		// All other members SHOULD be equal if the FramesPerTick (ground truth) are equal
-		checkSlow(!Result ||
-			(FMath::IsNearlyEqual(MillisecondsPerTick, TempTickRate.MillisecondsPerTick)
-				&& FMath::IsNearlyEqual(ThirtySecondNotesPerMinute, TempTickRate.ThirtySecondNotesPerMinute)
-				&& FMath::IsNearlyEqual(BeatsPerMinute, TempTickRate.BeatsPerMinute)
-				&& FMath::IsNearlyEqual(SampleRate, TempTickRate.SampleRate)));
-
-		return Result;
-	}
-}
-
-void FQuartzClockTickRate::RecalculateDurationsBasedOnFramesPerTick()
-{
-	check(FramesPerTick > 0);
-	check(SampleRate > 0);
-	const float FloatFramesPerTick = static_cast<float>(FramesPerTick);
-
-	SecondsPerTick = (FloatFramesPerTick / SampleRate);
-	MillisecondsPerTick = SecondsPerTick * 1000.f;
-	ThirtySecondNotesPerMinute = (60.f * SampleRate) / FloatFramesPerTick;
-	BeatsPerMinute = ThirtySecondNotesPerMinute / 8.0f;
-}
-
-
-void FQuartzClockTickRate::SetSecondsPerTick(float InNewSecondsPerTick)
-{
-	SetMillisecondsPerTick(InNewSecondsPerTick * 1000.f);
-}
-
 
 FQuartzTimeSignature::FQuartzTimeSignature(const FQuartzTimeSignature& Other)
 	: NumBeats(Other.NumBeats)
@@ -262,10 +56,6 @@ bool FQuartzTimeSignature::operator==(const FQuartzTimeSignature& Other)
 	return Result;
 }
 
-bool FQuartzClockSettings::IsValid()
-{
-	return this->TickRate.IsValid();
-}
 
 FQuartLatencyTracker::FQuartLatencyTracker()
 	: Min(TNumericLimits<float>::Max())
@@ -345,6 +135,213 @@ void FQuartLatencyTracker::DigestQueue()
 
 namespace Audio
 {
+	void FQuartzClockTickRate::SetFramesPerTick(int32 InNewFramesPerTick)
+	{
+		FramesPerTick = InNewFramesPerTick;
+		RecalculateDurationsBasedOnFramesPerTick();
+	}
+
+	void FQuartzClockTickRate::SetMillisecondsPerTick(float InNewMillisecondsPerTick)
+	{
+		FramesPerTick = (InNewMillisecondsPerTick / 1000.f) * SampleRate;
+		RecalculateDurationsBasedOnFramesPerTick();
+	}
+
+	void FQuartzClockTickRate::SetThirtySecondNotesPerMinute(float InNewThirtySecondNotesPerMinute)
+	{
+		check(InNewThirtySecondNotesPerMinute > 0);
+
+		FramesPerTick = (60.f / InNewThirtySecondNotesPerMinute) * SampleRate;
+		RecalculateDurationsBasedOnFramesPerTick();
+	}
+
+	void FQuartzClockTickRate::SetBeatsPerMinute(float InNewBeatsPerMinute)
+	{
+		// same as 1/32nd notes,
+		// except there are 1/8th the number of quarter notes than thirty-second notes in a minute
+		// (So FramesPerTick should be 8 times shorter than it was when setting 32nd notes)
+
+		// FramesPerTick = 1/8 * (60.f / (InNewBeatsPerMinute)) * SampleRate;
+		// (60.0 / 8.0) = 7.5f
+
+		FramesPerTick = (7.5f / InNewBeatsPerMinute) * SampleRate;
+		RecalculateDurationsBasedOnFramesPerTick();
+	}
+
+	void FQuartzClockTickRate::SetSampleRate(float InNewSampleRate)
+	{
+		check(InNewSampleRate >= 0);
+
+		FramesPerTick = (InNewSampleRate / SampleRate) * static_cast<float>(FramesPerTick);
+		SampleRate = InNewSampleRate;
+
+		RecalculateDurationsBasedOnFramesPerTick();
+	}
+
+	int64 FQuartzClockTickRate::GetFramesPerDuration(EQuartzCommandQuantization InDuration) const
+	{
+		const int64 FramesPerDotted16th = FramesPerTick * 3;
+		const int64 FramesPer16thTriplet = 8.f * FramesPerTick / 3.f;
+
+		switch (InDuration)
+		{
+
+			// NORMAL
+		case EQuartzCommandQuantization::Tick:
+		case EQuartzCommandQuantization::ThirtySecondNote:
+			return FramesPerTick; // same as 1/32nd note
+
+		case EQuartzCommandQuantization::SixteenthNote:
+			return (int64)FramesPerTick << 1;
+
+		case EQuartzCommandQuantization::EighthNote:
+			return (int64)FramesPerTick << 2;
+
+		case EQuartzCommandQuantization::Beat: // default to quarter note (should be overridden for non-basic meters)
+		case EQuartzCommandQuantization::QuarterNote:
+			return (int64)FramesPerTick << 3;
+
+		case EQuartzCommandQuantization::HalfNote:
+			return (int64)FramesPerTick << 4;
+
+		case EQuartzCommandQuantization::Bar: // default to whole note (should be overridden for non-4/4 meters)
+		case EQuartzCommandQuantization::WholeNote:
+			return (int64)FramesPerTick << 5;
+
+			// DOTTED
+		case EQuartzCommandQuantization::DottedSixteenthNote:
+			return FramesPerDotted16th;
+
+		case EQuartzCommandQuantization::DottedEighthNote:
+			return FramesPerDotted16th << 1;
+
+		case EQuartzCommandQuantization::DottedQuarterNote:
+			return FramesPerDotted16th << 2;
+
+		case EQuartzCommandQuantization::DottedHalfNote:
+			return FramesPerDotted16th << 3;
+
+		case EQuartzCommandQuantization::DottedWholeNote:
+			return FramesPerDotted16th << 4;
+
+
+			// TRIPLETS
+		case EQuartzCommandQuantization::SixteenthNoteTriplet:
+			return FramesPer16thTriplet;
+
+		case EQuartzCommandQuantization::EighthNoteTriplet:
+			return FramesPer16thTriplet << 1;
+
+		case EQuartzCommandQuantization::QuarterNoteTriplet:
+			return FramesPer16thTriplet << 2;
+
+		case EQuartzCommandQuantization::HalfNoteTriplet:
+			return FramesPer16thTriplet << 3;
+
+
+
+		default:
+			checkf(false, TEXT("Unexpected EAudioMixerCommandQuantization: Need to update switch statement for new quantization enumeration?"));
+			break;
+		}
+
+		return INVALID_DURATION;
+	}
+
+	int64 FQuartzClockTickRate::GetFramesPerDuration(EQuartzTimeSignatureQuantization InDuration) const
+	{
+		switch (InDuration)
+		{
+		case EQuartzTimeSignatureQuantization::HalfNote:
+			return GetFramesPerDuration(EQuartzCommandQuantization::HalfNote);
+
+		case EQuartzTimeSignatureQuantization::QuarterNote:
+			return GetFramesPerDuration(EQuartzCommandQuantization::QuarterNote);
+
+		case EQuartzTimeSignatureQuantization::EighthNote:
+			return GetFramesPerDuration(EQuartzCommandQuantization::EighthNote);
+
+		case EQuartzTimeSignatureQuantization::SixteenthNote:
+			return GetFramesPerDuration(EQuartzCommandQuantization::SixteenthNote);
+
+		case EQuartzTimeSignatureQuantization::ThirtySecondNote:
+			return GetFramesPerDuration(EQuartzCommandQuantization::ThirtySecondNote);
+
+		default:
+			checkf(false, TEXT("Unexpected EQuartzTimeSignatureQuantization: Need to update switch statement for new quantization enumeration?"));
+			break;
+		}
+
+		return INVALID_DURATION;
+	}
+
+	bool FQuartzClockTickRate::IsValid(int32 InEventResolutionThreshold) const
+	{
+		ensureMsgf(InEventResolutionThreshold > 0
+			, TEXT("Querying a the validity of an FQuartzClockTickRate object w/ a zero or negative threshold of (%i)")
+			, InEventResolutionThreshold);
+
+		if (FramesPerTick < InEventResolutionThreshold)
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	bool FQuartzClockTickRate::IsSameTickRate(const FQuartzClockTickRate& Other, bool bAccountForDifferentSampleRates) const
+	{
+		if (!bAccountForDifferentSampleRates)
+		{
+			const bool Result = FramesPerTick == Other.FramesPerTick;
+
+			// All other members SHOULD be equal if the FramesPerTick (ground truth) are equal
+			checkSlow(!Result ||
+				(FMath::IsNearlyEqual(MillisecondsPerTick, Other.MillisecondsPerTick)
+					&& FMath::IsNearlyEqual(ThirtySecondNotesPerMinute, Other.ThirtySecondNotesPerMinute)
+					&& FMath::IsNearlyEqual(BeatsPerMinute, Other.BeatsPerMinute)
+					&& FMath::IsNearlyEqual(SampleRate, Other.SampleRate)));
+
+			return Result;
+		}
+		else
+		{
+			// Perform SampleRate conversion on a temporary to see if
+			FQuartzClockTickRate TempTickRate = Other;
+			TempTickRate.SetSampleRate(SampleRate);
+
+			const bool Result = FramesPerTick == TempTickRate.FramesPerTick;
+
+			// All other members SHOULD be equal if the FramesPerTick (ground truth) are equal
+			checkSlow(!Result ||
+				(FMath::IsNearlyEqual(MillisecondsPerTick, TempTickRate.MillisecondsPerTick)
+					&& FMath::IsNearlyEqual(ThirtySecondNotesPerMinute, TempTickRate.ThirtySecondNotesPerMinute)
+					&& FMath::IsNearlyEqual(BeatsPerMinute, TempTickRate.BeatsPerMinute)
+					&& FMath::IsNearlyEqual(SampleRate, TempTickRate.SampleRate)));
+
+			return Result;
+		}
+	}
+
+	void FQuartzClockTickRate::RecalculateDurationsBasedOnFramesPerTick()
+	{
+		check(FramesPerTick > 0);
+		check(SampleRate > 0);
+		const float FloatFramesPerTick = static_cast<float>(FramesPerTick);
+
+		SecondsPerTick = (FloatFramesPerTick / SampleRate);
+		MillisecondsPerTick = SecondsPerTick * 1000.f;
+		ThirtySecondNotesPerMinute = (60.f * SampleRate) / FloatFramesPerTick;
+		BeatsPerMinute = ThirtySecondNotesPerMinute / 8.0f;
+	}
+
+
+	void FQuartzClockTickRate::SetSecondsPerTick(float InNewSecondsPerTick)
+	{
+		SetMillisecondsPerTick(InNewSecondsPerTick * 1000.f);
+	}
+
+
 	FQuartzQuantizedCommandInitInfo::FQuartzQuantizedCommandInitInfo(
 		const FQuartzQuantizedRequestData& RHS
 		, int32 InSourceID

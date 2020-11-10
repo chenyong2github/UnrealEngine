@@ -461,7 +461,7 @@ public:
 	virtual void Play(float StartTime = 0.0f);
 
 	/** Start a sound playing on an audio component on a given quantization boundary with the handle to an existing clock */
-	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio", meta=(WorldContext = "WorldContextObject", AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true", Keywords = "play", AutoCreateRefTerm = "InDelegate"))
+	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio", meta=(WorldContext = "WorldContextObject", AdvancedDisplay = "3", UnsafeDuringActorConstruction = "true", Keywords = "play", AutoCreateRefTerm = "InDelegate"))
 	virtual void PlayQuantized(
 		  const UObject* WorldContextObject
 		, UPARAM(ref) UQuartzClockHandle*& InClockHandle
