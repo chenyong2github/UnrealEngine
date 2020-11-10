@@ -23,6 +23,7 @@ void UInAppPurchaseQueryCallbackProxy::TriggerQuery(APlayerController* PlayerCon
 	{
 		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::IsLoaded() ? IOnlineSubsystem::Get() : nullptr)
 		{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			IOnlineStorePtr StoreInterface = OnlineSub->GetStoreInterface();
 			if (StoreInterface.IsValid())
 			{
@@ -36,6 +37,7 @@ void UInAppPurchaseQueryCallbackProxy::TriggerQuery(APlayerController* PlayerCon
 				ReadObject = MakeShareable(new FOnlineProductInformationRead());
 				FOnlineProductInformationReadRef ReadObjectRef = ReadObject.ToSharedRef();
 				StoreInterface->QueryForAvailablePurchases(ProductIdentifiers, ReadObjectRef);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 			else
 			{
@@ -107,6 +109,7 @@ void UInAppPurchaseQueryCallbackProxy::RemoveDelegate()
 {
 	if (!bFailedToEvenSubmit)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (IOnlineSubsystem* OnlineSub = IOnlineSubsystem::IsLoaded() ? IOnlineSubsystem::Get() : nullptr)
 		{
 			IOnlineStorePtr InAppPurchases = OnlineSub->GetStoreInterface();
@@ -115,6 +118,7 @@ void UInAppPurchaseQueryCallbackProxy::RemoveDelegate()
 				InAppPurchases->ClearOnQueryForAvailablePurchasesCompleteDelegate_Handle(InAppPurchaseReadCompleteDelegateHandle);
 			}
 		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
