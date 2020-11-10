@@ -14,7 +14,7 @@
 	"CanContainContent" : false,
 	"IsBetaVersion" : false,
 	"Installed" : false,
-	"SupportedPrograms": [ "UnrealFrontend" ],
+	"SupportedPrograms": [ "UnrealFrontend", "UnrealInsights" ],
 	"Modules" :
 	[
 		{
@@ -25,7 +25,7 @@
 			[
 				"Mac"
 			],
-			"WhitelistPrograms" : [ "UnrealFrontend" ]
+			"WhitelistPrograms" : [ "UnrealFrontend", "UnrealInsights" ]
 		}
 	]
 }

@@ -17,6 +17,7 @@ class ITableRow;
 class ITimingEvent;
 class STableViewBase;
 class STextBlock;
+class SMultiLineEditableTextBox;
 
 namespace UE
 {
@@ -45,9 +46,14 @@ private:
 	void HandleTimeMarkerChanged(Insights::ETimeChangedFlags InFlags, double InTimeMarker);
 	void HandleSelectionChanged(Insights::ETimeChangedFlags InFlags, double StartTime, double EndTime);
 	void HandleSelectionEventChanged(const TSharedPtr<const ITimingEvent> InEvent);
+
 	TSharedPtr<SWidget> HandleWidgetInvalidateListContextMenu();
 	bool CanWidgetInvalidateListGotoRootWidget();
 	void HandleWidgetInvalidateListGotoRootWidget();
+	bool CanWidgetInvalidateListViewScriptAndCallStack();
+	void HandleWidgetInvalidateListViewScriptAndCallStack();
+
+	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
 
 	void RefreshNodes();
 	void RefreshNodes_Invalidation(const FSlateProvider* SlateProvider);
@@ -65,6 +71,7 @@ private:
 
 	TSharedPtr<STextBlock> InvalidationSummary;
 	TSharedPtr<STextBlock> UpdateSummary;
+	TSharedPtr<SMultiLineEditableTextBox> ScriptAndCallStackTextBox;
 
 	double StartTime;
 	double EndTime;

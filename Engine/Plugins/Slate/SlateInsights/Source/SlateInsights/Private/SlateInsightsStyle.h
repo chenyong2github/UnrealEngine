@@ -5,7 +5,6 @@
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
-#include "Styling/CoreStyle.h"
 
 namespace UE
 {
@@ -40,6 +39,11 @@ public:
 		Set("Flag.WhiteBrush", WhiteBrush);
 		Set("Flag.Color.Background", FCoreStyle::Get().GetSlateColor("InvertedForeground"));
 		Set("Flag.Color.Selected", FCoreStyle::Get().GetSlateColor("SelectionColor"));
+
+		Set("Callstack.TextBox", FEditableTextBoxStyle(FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("DarkEditableTextBox"))
+			.SetBackgroundColor(FLinearColor(0.015f, 0.015f, 0.015f))
+			.SetForegroundColor(FLinearColor::White * 0.8f)
+		);
 
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	}

@@ -71,7 +71,32 @@ struct FProgramCounterSymbolInfo final
 	CORE_API FProgramCounterSymbolInfo();
 };
 
-struct FProgramCounterSymbolInfoEx;
+struct CORE_API FProgramCounterSymbolInfoEx
+{
+	/** Module name. */
+	FString	ModuleName;
+
+	/** Function name. */
+	FString	FunctionName;
+
+	/** Filename. */
+	FString	Filename;
+
+	/** Line number in file. */
+	uint32	LineNumber;
+
+	/** Symbol displacement of address.	*/
+	uint64	SymbolDisplacement;
+
+	/** Program counter offset into module. */
+	uint64	OffsetInModule;
+
+	/** Program counter. */
+	uint64	ProgramCounter;
+
+	/** Default constructor. */
+	FProgramCounterSymbolInfoEx(FString InModuleName = "", FString InFunctionName = "", FString InFilename = "", uint32 InLineNumber = 0, uint64 InSymbolDisplacement = 0, uint64 InOffsetInModule = 0, uint64 InProgramCounter = 0);
+};
 
 /**
  * Generic implementation for most platforms
@@ -170,6 +195,12 @@ struct CORE_API FGenericPlatformStackWalk
 	 * @param	out_SymbolInfo		Symbol information associated with program counter
 	 */
 	static void ProgramCounterToSymbolInfo( uint64 ProgramCounter, FProgramCounterSymbolInfo& out_SymbolInfo)
+	{
+		out_SymbolInfo.ProgramCounter = ProgramCounter;
+	}
+
+	/** Same as above, but can be used with external applications since it doesn't re-initialize the active process. */
+	static void ProgramCounterToSymbolInfoEx( uint64 ProgramCounter, FProgramCounterSymbolInfoEx& out_SymbolInfo)
 	{
 		out_SymbolInfo.ProgramCounter = ProgramCounter;
 	}

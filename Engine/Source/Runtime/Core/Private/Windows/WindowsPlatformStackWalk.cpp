@@ -493,6 +493,78 @@ void FWindowsPlatformStackWalk::ProgramCounterToSymbolInfo( uint64 ProgramCounte
 	}
 }
 
+void FWindowsPlatformStackWalk::ProgramCounterToSymbolInfoEx(uint64 ProgramCounter, FProgramCounterSymbolInfoEx& out_SymbolInfo)
+{
+#if ON_DEMAND_SYMBOL_LOADING
+	// Load symbols for the module
+	LoadSymbolsForModuleByAddress(ProgramCounter, GetSymbolSearchPath());
+#endif
+
+	// Set the program counter.
+	out_SymbolInfo.ProgramCounter = ProgramCounter;
+
+	uint32 LastError = 0;
+	HANDLE ProcessHandle = GProcessHandle;
+
+	// Initialize symbol.
+	ANSICHAR SymbolBuffer[sizeof(IMAGEHLP_SYMBOL64) + FProgramCounterSymbolInfo::MAX_NAME_LENGTH] = { 0 };
+	IMAGEHLP_SYMBOL64* Symbol = (IMAGEHLP_SYMBOL64*)SymbolBuffer;
+	Symbol->SizeOfStruct = sizeof(SymbolBuffer);
+	Symbol->MaxNameLength = FProgramCounterSymbolInfo::MAX_NAME_LENGTH;
+
+	// Get function name.
+	ANSICHAR FunctionName[FProgramCounterSymbolInfo::MAX_NAME_LENGTH] = { 0 };
+	if (SymGetSymFromAddr64(ProcessHandle, ProgramCounter, nullptr, Symbol))
+	{
+		// Skip any funky chars in the beginning of a function name.
+		int32 Offset = 0;
+		while (Symbol->Name[Offset] < 32 || Symbol->Name[Offset] > 127)
+		{
+			Offset++;
+		}
+
+		// Write out function name.
+		FCStringAnsi::Strncpy(FunctionName, Symbol->Name + Offset, FProgramCounterSymbolInfo::MAX_NAME_LENGTH);
+		FCStringAnsi::Strncat(FunctionName, "()", FProgramCounterSymbolInfo::MAX_NAME_LENGTH);
+		out_SymbolInfo.FunctionName = ANSI_TO_TCHAR(FunctionName);
+	}
+	else
+	{
+		// No symbol found for this address.
+		LastError = GetLastError();
+	}
+
+	// Get filename and line number.
+	ANSICHAR Filename[FProgramCounterSymbolInfo::MAX_NAME_LENGTH] = { 0 };
+	IMAGEHLP_LINE64	ImageHelpLine = { 0 };
+	ImageHelpLine.SizeOfStruct = sizeof(ImageHelpLine);
+	if (SymGetLineFromAddr64(ProcessHandle, ProgramCounter, (::DWORD*) & out_SymbolInfo.SymbolDisplacement, &ImageHelpLine))
+	{
+		FCStringAnsi::Strncpy(Filename, ImageHelpLine.FileName, FProgramCounterSymbolInfo::MAX_NAME_LENGTH);
+		out_SymbolInfo.Filename = ANSI_TO_TCHAR(Filename);
+		out_SymbolInfo.LineNumber = ImageHelpLine.LineNumber;
+	}
+	else
+	{
+		LastError = GetLastError();
+	}
+
+	// Get module name.
+	ANSICHAR ModuleName[FProgramCounterSymbolInfo::MAX_NAME_LENGTH] = { 0 };
+	IMAGEHLP_MODULE64 ImageHelpModule = { 0 };
+	ImageHelpModule.SizeOfStruct = sizeof(ImageHelpModule);
+	if (SymGetModuleInfo64(ProcessHandle, ProgramCounter, &ImageHelpModule))
+	{
+		// Write out module information.
+		FCStringAnsi::Strncpy(ModuleName, ImageHelpModule.ImageName, FProgramCounterSymbolInfo::MAX_NAME_LENGTH);
+		out_SymbolInfo.ModuleName = ANSI_TO_TCHAR(ModuleName);
+	}
+	else
+	{
+		LastError = GetLastError();
+	}
+}
+
 /**
  * Get process module handle NULL-terminated list.
  * On error this method returns NULL.

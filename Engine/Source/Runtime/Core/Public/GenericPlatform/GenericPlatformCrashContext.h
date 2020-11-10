@@ -5,10 +5,9 @@
 #include "CoreTypes.h"
 #include "HAL/PlatformMemory.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/PlatformStackwalk.h"
 #include "Misc/Optional.h"
 #include "Containers/UnrealString.h"
-
-struct FProgramCounterSymbolInfo;
 
 /** Defines special exit codes used to diagnose abnormal terminations. The code values are arbitrary, but easily recongnizable in decimal. They are meant to be
     used with the out-of-process monitoring/analytics in order to figure out unexpected cases. */
@@ -38,39 +37,6 @@ enum ECrashExitCodes : int32
 	/** The exception code used for ensure, in case a kernel driver callback happens at in a dispatch level where SEH (on windows) is disabled. */
 	UnhandledEnsure = 777008,
 };
-
-/**
- * Symbol information associated with a program counter. 
- * FString version.
- * To be used by external tools.
- */
-struct CORE_API FProgramCounterSymbolInfoEx
-{
-	/** Module name. */
-	FString	ModuleName;
-
-	/** Function name. */
-	FString	FunctionName;
-
-	/** Filename. */
-	FString	Filename;
-
-	/** Line number in file. */
-	uint32	LineNumber;
-
-	/** Symbol displacement of address.	*/
-	uint64	SymbolDisplacement;
-
-	/** Program counter offset into module. */
-	uint64	OffsetInModule;
-
-	/** Program counter. */
-	uint64	ProgramCounter;
-
-	/** Default constructor. */
-	FProgramCounterSymbolInfoEx( FString InModuleName, FString InFunctionName, FString InFilename, uint32 InLineNumber, uint64 InSymbolDisplacement, uint64 InOffsetInModule, uint64 InProgramCounter );
-};
-
 
 /** Enumerates crash description versions. */
 enum class ECrashDescVersions : int32

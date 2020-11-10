@@ -20,6 +20,10 @@ public class UnrealInsightsTarget : TargetRules
 		bCompileWithStatsWithoutEngine = true;
 		bCompileWithPluginSupport = true;
 
+		// For source code editor access & regex (crossplatform)
+		bIncludePluginsForTargetPlatforms = true;
+		bCompileICU = true;
+
 		// For UI functionality
 		bBuildDeveloperTools = true;
 

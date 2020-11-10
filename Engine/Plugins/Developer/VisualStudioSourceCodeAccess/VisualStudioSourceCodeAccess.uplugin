@@ -14,7 +14,7 @@
 	"CanContainContent" : false,
 	"IsBetaVersion" : false,
 	"Installed" : false,
-	"SupportedPrograms": [ "UnrealFrontend" ],
+	"SupportedPrograms": [ "UnrealFrontend", "UnrealInsights" ],
 	"Modules" :
 	[
 		{
@@ -26,7 +26,7 @@
 				"Win64",
 				"Win32"
 			],
-			"WhitelistPrograms" : [ "UnrealFrontend" ]
+			"WhitelistPrograms" : [ "UnrealFrontend", "UnrealInsights" ]
 		}
 	]
 }

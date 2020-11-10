@@ -186,8 +186,10 @@ public:
 
 	/**
 	* This will return the StackTrace of the all script frames currently active
+	* 
+	* @param	bReturnEmpty if true, returns empty string when no script callstack found
 	**/
-	COREUOBJECT_API static FString GetScriptCallstack();
+	COREUOBJECT_API static FString GetScriptCallstack(bool bReturnEmpty = false);
 
 	/** 
 	 * This will return a string of the form "ScopeName.FunctionName" associated with this stack frame:
