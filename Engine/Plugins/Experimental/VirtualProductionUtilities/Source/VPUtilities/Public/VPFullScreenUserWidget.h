@@ -51,6 +51,11 @@ public:
 	void Hide(UWorld* World);
 	void Tick(UWorld* World, float DeltaSeconds);
 
+#if WITH_EDITOR
+	/** If set, use this viewport instead of GetFirstActiveLevelViewport() */
+	TWeakPtr<SLevelViewport> TargetViewport;
+#endif
+
 private:
 	bool bAddedToGameViewport;
 
@@ -144,6 +149,10 @@ public:
 	UPROPERTY(Transient)
     UTextureRenderTarget2D* WidgetRenderTarget;
 
+#if WITH_EDITOR
+	/** If set, use this viewport instead of GetFirstActiveLevelViewport() */
+	TWeakPtr<SLevelViewport> TargetViewport;
+#endif
 private:
 	/** Post process component used to add the material to the post process chain. */
 	UPROPERTY(Transient)
@@ -239,6 +248,17 @@ public:
 	// Get a pointer to the inner widget.
 	// Note: This should not be stored!
 	UUserWidget* GetWidget() const { return Widget; };
+
+#if WITH_EDITOR
+	/** If set, use this viewport instead of GetFirstActiveLevelViewport() */
+	TWeakPtr<SLevelViewport> TargetViewport;
+
+	/** Sets the TargetViewport to use on both the Viewport and the PostProcess class */
+	void SetAllTargetViewports(TWeakPtr<SLevelViewport> InTargetViewport);
+
+	/** Resets the TargetViewport  */
+	void ResetAllTargetViewports();
+#endif
 
 private:
 	/** The User Widget object displayed and managed by this component */

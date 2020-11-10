@@ -150,7 +150,14 @@ bool FVPFullScreenUserWidget_Viewport::Display(UWorld* World, UUserWidget* Widge
 	else if (FModuleManager::Get().IsModuleLoaded(NAME_LevelEditorName))
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(NAME_LevelEditorName);
-		ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport();
+		if (TargetViewport.IsValid())
+		{
+			ActiveLevelViewport = TargetViewport.Pin();
+		}
+		else
+		{
+			ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport();
+		}
 		bResult = ActiveLevelViewport.IsValid();
 	}
 #endif
@@ -456,7 +463,16 @@ FIntPoint FVPFullScreenUserWidget_PostProcess::CalculateWidgetDrawSize(UWorld* W
 	else if (FModuleManager::Get().IsModuleLoaded(NAME_LevelEditorName))
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(NAME_LevelEditorName);
-		if (TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport())
+		TSharedPtr<SLevelViewport> ActiveLevelViewport;
+		if (TargetViewport.IsValid())
+		{
+			ActiveLevelViewport = TargetViewport.Pin();
+		}
+		else
+		{
+			ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport();
+		}
+		if (ActiveLevelViewport.IsValid())
 		{
 			if (TSharedPtr<FSceneViewport> SharedActiveViewport = ActiveLevelViewport->GetSharedActiveViewport())
 			{
@@ -490,7 +506,17 @@ void FVPFullScreenUserWidget_PostProcess::RegisterHitTesterWithViewport(UWorld* 
 	else if (FModuleManager::Get().IsModuleLoaded(NAME_LevelEditorName))
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(NAME_LevelEditorName);
-		if (TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport())
+
+		TSharedPtr<SLevelViewport> ActiveLevelViewport;
+		if (TargetViewport.IsValid())
+		{
+			ActiveLevelViewport = TargetViewport.Pin();
+		}
+		else
+		{
+			ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport();
+		}
+		if (ActiveLevelViewport.IsValid())
 		{
 			EngineViewportWidget = ActiveLevelViewport->GetViewportWidget().Pin();
 		}
@@ -754,7 +780,16 @@ FVector2D UVPFullScreenUserWidget::FindSceneViewportSize()
 	else if (FModuleManager::Get().IsModuleLoaded(NAME_LevelEditorName))
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(NAME_LevelEditorName);
-		if (TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport())
+		TSharedPtr<SLevelViewport> ActiveLevelViewport;
+		if (TargetViewport.IsValid())
+		{
+			ActiveLevelViewport = TargetViewport.Pin();
+		}
+		else
+		{
+			ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport();
+		}
+		if (ActiveLevelViewport.IsValid())
 		{
 			if (TSharedPtr<FSceneViewport> SharedActiveViewport = ActiveLevelViewport->GetSharedActiveViewport())
 			{
@@ -793,7 +828,22 @@ float UVPFullScreenUserWidget::GetViewportDPIScale()
 	return UIScale;
 }
 
+
 #if WITH_EDITOR
+void UVPFullScreenUserWidget::SetAllTargetViewports(TWeakPtr<SLevelViewport> InTargetViewport)
+{
+	TargetViewport = InTargetViewport;
+	ViewportDisplayType.TargetViewport = InTargetViewport;
+	PostProcessDisplayType.TargetViewport = InTargetViewport;
+}
+
+void UVPFullScreenUserWidget::ResetAllTargetViewports()
+{
+	TargetViewport.Reset();
+	ViewportDisplayType.TargetViewport.Reset();
+	PostProcessDisplayType.TargetViewport.Reset();
+}
+
 void UVPFullScreenUserWidget::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	FProperty* Property = PropertyChangedEvent.MemberProperty;
