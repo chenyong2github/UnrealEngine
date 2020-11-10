@@ -8,6 +8,7 @@
 
 #include "UsdWrappers/SdfPath.h"
 
+#include "Engine/Texture.h"
 #include "Materials/Material.h"
 #include "Misc/SecureHash.h"
 

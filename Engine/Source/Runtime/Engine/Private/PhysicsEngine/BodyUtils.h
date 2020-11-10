@@ -7,6 +7,10 @@
 #include "Containers/ContainerAllocationPolicies.h"
 #include "PhysicsInterfaceDeclaresCore.h"
 
+#if PHYSICS_INTERFACE_PHYSX
+#include "extensions/PxMassProperties.h"
+#endif
+
 struct FBodyInstance; 
 
 #if WITH_CHAOS
@@ -16,13 +20,6 @@ namespace Chaos
 	struct TMassProperties;
 
 	using FShapesArray = TArray<TUniquePtr<FPerShapeData>, TInlineAllocator<1>>;
-}
-#endif
-
-#if PHYSICS_INTERFACE_PHYSX
-namespace physx
-{
-	class PxMassProperties;
 }
 #endif
 
@@ -43,7 +40,7 @@ namespace BodyUtils
 #elif PHYSICS_INTERFACE_PHYSX
 	
 	/** Computes and adds the mass properties (inertia, com, etc...) based on the mass settings of the body instance. */
-	PxMassProperties ComputeMassProperties(const FBodyInstance* OwningBodyInstance, TArray<FPhysicsShapeHandle> Shapes, const FTransform& MassModifierTransform, const bool bUnused = false);
+	physx::PxMassProperties ComputeMassProperties(const FBodyInstance* OwningBodyInstance, TArray<FPhysicsShapeHandle> Shapes, const FTransform& MassModifierTransform, const bool bUnused = false);
 
 #endif
 
