@@ -2246,6 +2246,26 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 	const uint32 Id = ComponentId.PrimIDValue;
 	const ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? ERHIFeatureLevel::Type(GetWorld()->FeatureLevel) : ERHIFeatureLevel::Num;
 
+	// When a groom binding and similation are disabled, and the groom component is parented with a skeletal mesh, we can optionnaly 
+	// attach the groom to a particular socket/bone
+	const bool bStaticAttachement = !IsHairStrandsBindingEnable() && !IsHairStrandsSimulationEnable();
+	if (RegisteredSkeletalMeshComponent && bStaticAttachement && !AttachmentName.IsEmpty())
+	{
+		const FName BoneName(AttachmentName);
+		if (GetAttachSocketName() != BoneName)
+		{
+			AttachToComponent(RegisteredSkeletalMeshComponent, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), BoneName);
+			const FVector BoneLocation = RegisteredSkeletalMeshComponent->GetBoneLocation(BoneName, EBoneSpaces::ComponentSpace);
+			const FQuat BoneRotation = RegisteredSkeletalMeshComponent->GetBoneQuaternion(BoneName, EBoneSpaces::ComponentSpace);
+			FTransform BoneTransform = FTransform::Identity;
+			BoneTransform.SetLocation(BoneLocation);
+			BoneTransform.SetRotation(BoneRotation);
+
+			FTransform InvBoneTransform = BoneTransform.Inverse();
+			SetRelativeLocation(InvBoneTransform.GetLocation());
+			SetRelativeRotation(InvBoneTransform.GetRotation());
+		}
+	}
 
 	bResetSimulation = bInitSimulation;
 	if (!bInitSimulation)
