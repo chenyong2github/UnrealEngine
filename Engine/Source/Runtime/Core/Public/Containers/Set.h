@@ -1636,9 +1636,10 @@ namespace Freeze
 	}
 
 	template<typename ElementType, typename KeyFuncs, typename Allocator>
-	void IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TSet<ElementType, KeyFuncs, Allocator>& Object, void* OutDst)
+	uint32 IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TSet<ElementType, KeyFuncs, Allocator>& Object, void* OutDst)
 	{
 		Object.CopyUnfrozen(Context, OutDst);
+		return sizeof(Object);
 	}
 
 	template<typename ElementType, typename KeyFuncs, typename Allocator>

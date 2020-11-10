@@ -27,34 +27,37 @@ public:
 	inline bool Is32BitTarget() const { return GetTargetLayoutParams().Is32Bit(); }
 	inline bool Is64BitTarget() const { return !Is32BitTarget(); }
 
-	void AddDependency(const FTypeLayoutDesc& TypeDesc);
+	int32 AddTypeDependency(const FTypeLayoutDesc& TypeDesc);
 
 	void WriteObject(const void* Object, const FTypeLayoutDesc& TypeDesc);
 	void WriteObjectArray(const void* Object, const FTypeLayoutDesc& TypeDesc, uint32_t NumArray);
+	void WriteRootObject(const void* Object, const FTypeLayoutDesc& TypeDesc);
 
 	uint32 GetOffset() const;
 	uint32 WriteAlignment(uint32 Alignment);
 	void WritePaddingToSize(uint32 Offset);
 	uint32 WriteBytes(const void* Data, uint32 Size);
-	FMemoryImageWriter WritePointer(const FString& SectionName, uint32 Offset = 0u);
+	FMemoryImageWriter WritePointer(const FTypeLayoutDesc& StaticTypeDesc, const FTypeLayoutDesc& DerivedTypeDesc, uint32* OutOffsetToBase = nullptr);
+	FMemoryImageWriter WritePointer(const FTypeLayoutDesc& TypeDesc);
+	uint32 WriteNullPointer();
 	uint32 WriteRawPointerSizedBytes(uint64 PointerValue);
-	uint32 WriteMemoryImagePointerSizedBytes(uint64 PointerValue);
 	uint32 WriteVTable(const FTypeLayoutDesc& TypeDesc, const FTypeLayoutDesc& DerivedTypeDesc);
 	uint32 WriteFName(const FName& Name);
 	uint32 WriteFMinimalName(const FMinimalName& Name);
 	uint32 WriteFScriptName(const FScriptName& Name);
 
 	template<typename T>
-	void WriteObjectArray(const T* Object, uint32 NumArray)
+	void WriteObject(const T& Object)
 	{
-		const FTypeLayoutDesc& TypeDesc = StaticGetTypeLayoutDesc<T>();
-		WriteObjectArray(Object, TypeDesc, TypeDesc, NumArray);
+		const FTypeLayoutDesc& TypeDesc = GetTypeLayoutDesc(TryGetPrevPointerTable(), Object);
+		WriteObject(&Object, TypeDesc);
 	}
 
 	template<typename T>
-	void WriteObject(const T& Object)
+	void WriteRootObject(const T& Object)
 	{
-		WriteObject(&Object, GetTypeLayoutDesc(TryGetPrevPointerTable(), Object));
+		const FTypeLayoutDesc& TypeDesc = GetTypeLayoutDesc(TryGetPrevPointerTable(), Object);
+		WriteRootObject(&Object, TypeDesc);
 	}
 
 	template<typename T>
@@ -76,21 +79,39 @@ public:
 class FMemoryUnfreezeContent
 {
 public:
-	FMemoryUnfreezeContent() : PrevPointerTable(nullptr) {}
-
-	const FPointerTableBase* TryGetPrevPointerTable() const { return PrevPointerTable; }
-
-	void UnfreezeObject(const void* Object, const FTypeLayoutDesc& TypeDesc, void* OutDst) const
+	explicit FMemoryUnfreezeContent(const FPointerTableBase* InPointerTable)
+		: PrevPointerTable(InPointerTable)
+		, bIsFrozenForCurrentPlatform(true)
 	{
-		TypeDesc.UnfrozenCopyFunc(*this, Object, TypeDesc, OutDst);
+		FrozenLayoutParameters.InitializeForCurrent();
+	}
+
+	FMemoryUnfreezeContent(const FPointerTableBase* InPointerTable, const FPlatformTypeLayoutParameters& InLayoutParams)
+		: PrevPointerTable(InPointerTable)
+		, FrozenLayoutParameters(InLayoutParams)
+		, bIsFrozenForCurrentPlatform(InLayoutParams.IsCurrentPlatform())
+	{
+	}
+
+	inline const FPointerTableBase* TryGetPrevPointerTable() const { return PrevPointerTable; }
+
+	CORE_API const FTypeLayoutDesc* GetDerivedTypeDesc(const FTypeLayoutDesc& StaticTypeDesc, int32 TypeIndex) const;
+
+	inline uint32 UnfreezeObject(const void* Object, const FTypeLayoutDesc& TypeDesc, void* OutDst) const
+	{
+		return TypeDesc.UnfrozenCopyFunc(*this, Object, TypeDesc, OutDst);
 	}
 
 	template<typename T>
-	void UnfreezeObject(const T& Object, void* OutDst) const
+	inline uint32 UnfreezeObject(const T& Object, void* OutDst) const
 	{
 		const FTypeLayoutDesc& TypeDesc = GetTypeLayoutDesc(TryGetPrevPointerTable(), Object);
-		UnfreezeObject(&Object, TypeDesc, OutDst);
+		return UnfreezeObject(&Object, TypeDesc, OutDst);
 	}
 
-	const FPointerTableBase* PrevPointerTable;
+	const FPointerTableBase* PrevPointerTable = nullptr;
+
+	// Layout of the frozen data
+	FPlatformTypeLayoutParameters FrozenLayoutParameters;
+	bool bIsFrozenForCurrentPlatform; // FrozenLayoutParameters.IsCurrentPlatform
 };

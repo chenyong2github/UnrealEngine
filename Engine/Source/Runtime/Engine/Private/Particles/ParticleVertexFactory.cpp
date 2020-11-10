@@ -50,15 +50,15 @@ TGlobalResource<FNullSubUVCutoutVertexBuffer> GFNullSubUVCutoutVertexBuffer;
  */
 class FParticleSpriteVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
-	DECLARE_INLINE_TYPE_LAYOUT(FParticleSpriteVertexFactoryShaderParameters, NonVirtual);
+	DECLARE_TYPE_LAYOUT(FParticleSpriteVertexFactoryShaderParameters, NonVirtual);
 public:
-	
-	
 };
+
+IMPLEMENT_TYPE_LAYOUT(FParticleSpriteVertexFactoryShaderParameters);
 
 class FParticleSpriteVertexFactoryShaderParametersVS : public FParticleSpriteVertexFactoryShaderParameters
 {
-	DECLARE_INLINE_TYPE_LAYOUT(FParticleSpriteVertexFactoryShaderParametersVS, NonVirtual);
+	DECLARE_TYPE_LAYOUT(FParticleSpriteVertexFactoryShaderParametersVS, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -86,15 +86,15 @@ public:
 	}
 
 private:
-	
-		LAYOUT_FIELD(FShaderParameter, NumCutoutVerticesPerFrame)
-		LAYOUT_FIELD(FShaderResourceParameter, CutoutGeometry)
-	
+	LAYOUT_FIELD(FShaderParameter, NumCutoutVerticesPerFrame);
+	LAYOUT_FIELD(FShaderResourceParameter, CutoutGeometry);
 };
+
+IMPLEMENT_TYPE_LAYOUT(FParticleSpriteVertexFactoryShaderParametersVS);
 
 class FParticleSpriteVertexFactoryShaderParametersPS : public FParticleSpriteVertexFactoryShaderParameters
 {
-	DECLARE_INLINE_TYPE_LAYOUT(FParticleSpriteVertexFactoryShaderParametersPS, NonVirtual);
+	DECLARE_TYPE_LAYOUT(FParticleSpriteVertexFactoryShaderParametersPS, NonVirtual);
 public:
 	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
@@ -110,10 +110,9 @@ public:
 		FParticleSpriteVertexFactory* SpriteVF = (FParticleSpriteVertexFactory*)VertexFactory;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FParticleSpriteUniformParameters>(), SpriteVF->GetSpriteUniformBuffer() );
 	}
-
-	
-	
 };
+
+IMPLEMENT_TYPE_LAYOUT(FParticleSpriteVertexFactoryShaderParametersPS);
 
 /**
  * The particle system vertex declaration resource type.

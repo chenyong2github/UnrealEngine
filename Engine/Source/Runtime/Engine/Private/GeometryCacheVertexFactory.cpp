@@ -21,7 +21,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FGeometryCacheManualVertexFetchUniformB
 /** Shader parameters for use with TGPUSkinVertexFactory */
 class FGeometryCacheVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
-	DECLARE_INLINE_TYPE_LAYOUT(FGeometryCacheVertexFactoryShaderParameters, NonVirtual);
+	DECLARE_TYPE_LAYOUT(FGeometryCacheVertexFactoryShaderParameters, NonVirtual);
 public:
 
 	/**
@@ -78,6 +78,8 @@ private:
 	LAYOUT_FIELD(FShaderParameter, MotionBlurDataExtension);
 	LAYOUT_FIELD(FShaderParameter, MotionBlurPositionScale);
 };
+
+IMPLEMENT_TYPE_LAYOUT(FGeometryCacheVertexFactoryShaderParameters);
 
 /*-----------------------------------------------------------------------------
 FGPUSkinPassthroughVertexFactory

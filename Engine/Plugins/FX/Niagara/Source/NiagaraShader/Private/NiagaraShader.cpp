@@ -102,9 +102,9 @@ void* FNiagaraShaderMapPointerTable::GetIndexedPointer(const FTypeLayoutDesc& Ty
 	return Super::GetIndexedPointer(TypeDesc, i);
 }
 
-void FNiagaraShaderMapPointerTable::SaveToArchive(FArchive& Ar, void* FrozenContent, bool bInlineShaderResources) const
+void FNiagaraShaderMapPointerTable::SaveToArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, const void* FrozenObject) const
 {
-	Super::SaveToArchive(Ar, FrozenContent, bInlineShaderResources);
+	Super::SaveToArchive(Ar, LayoutParams, FrozenObject);
 
 	int32 NumDITypes = DITypes.Num();
 
@@ -118,9 +118,9 @@ void FNiagaraShaderMapPointerTable::SaveToArchive(FArchive& Ar, void* FrozenCont
 	}
 }
 
-void FNiagaraShaderMapPointerTable::LoadFromArchive(FArchive& Ar, void* FrozenContent, bool bInlineShaderResources, bool bLoadedByCookedMaterial)
+bool FNiagaraShaderMapPointerTable::LoadFromArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, void* FrozenObject)
 {
-	Super::LoadFromArchive(Ar, FrozenContent, bInlineShaderResources, bLoadedByCookedMaterial);
+	const bool bResult = Super::LoadFromArchive(Ar, LayoutParams, FrozenObject);
 	INiagaraShaderModule * Module = INiagaraShaderModule::Get();
 
 	int32 NumDITypes = 0;
@@ -135,6 +135,8 @@ void FNiagaraShaderMapPointerTable::LoadFromArchive(FArchive& Ar, void* FrozenCo
 		UNiagaraDataInterfaceBase* DIType = Module->RequestDefaultDataInterface(*DIClassName);
 		DITypes.LoadIndexedPointer(DIType);
 	}
+
+	return bResult;
 }
 
 

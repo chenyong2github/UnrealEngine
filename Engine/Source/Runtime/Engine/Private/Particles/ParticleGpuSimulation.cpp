@@ -539,9 +539,9 @@ typedef TUniformBufferRef<FGPUSpriteEmitterDynamicUniformParameters> FGPUSpriteE
  */
 class FGPUSpriteVertexFactoryShaderParametersVS : public FVertexFactoryShaderParameters
 {
-	DECLARE_INLINE_TYPE_LAYOUT(FGPUSpriteVertexFactoryShaderParametersVS, NonVirtual);
+	DECLARE_TYPE_LAYOUT(FGPUSpriteVertexFactoryShaderParametersVS, NonVirtual);
 public:
-	void Bind( const FShaderParameterMap& ParameterMap )
+	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		ParticleIndices.Bind(ParameterMap, TEXT("ParticleIndices"));
 		ParticleIndicesOffset.Bind(ParameterMap, TEXT("ParticleIndicesOffset"));
@@ -566,33 +566,32 @@ public:
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const;
 private:
-
-	
-		/** Buffer containing particle indices. */
-		LAYOUT_FIELD(FShaderResourceParameter, ParticleIndices)
-		/** Offset in to the particle indices buffer. */
-		LAYOUT_FIELD(FShaderParameter, ParticleIndicesOffset)
-		/** Texture containing positions for all particles. */
-		LAYOUT_FIELD(FShaderResourceParameter, PositionTexture)
-		LAYOUT_FIELD(FShaderResourceParameter, PositionTextureSampler)
-		/** Texture containing velocities for all particles. */
-		LAYOUT_FIELD(FShaderResourceParameter, VelocityTexture)
-		LAYOUT_FIELD(FShaderResourceParameter, VelocityTextureSampler)
-		/** Texture containint attributes for all particles. */
-		LAYOUT_FIELD(FShaderResourceParameter, AttributesTexture)
-		LAYOUT_FIELD(FShaderResourceParameter, AttributesTextureSampler)
-		/** Texture containing curves from which attributes are sampled. */
-		LAYOUT_FIELD(FShaderResourceParameter, CurveTexture)
-		LAYOUT_FIELD(FShaderResourceParameter, CurveTextureSampler)
-	
+	/** Buffer containing particle indices. */
+	LAYOUT_FIELD(FShaderResourceParameter, ParticleIndices);
+	/** Offset in to the particle indices buffer. */
+	LAYOUT_FIELD(FShaderParameter, ParticleIndicesOffset);
+	/** Texture containing positions for all particles. */
+	LAYOUT_FIELD(FShaderResourceParameter, PositionTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, PositionTextureSampler);
+	/** Texture containing velocities for all particles. */
+	LAYOUT_FIELD(FShaderResourceParameter, VelocityTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, VelocityTextureSampler);
+	/** Texture containint attributes for all particles. */
+	LAYOUT_FIELD(FShaderResourceParameter, AttributesTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, AttributesTextureSampler);
+	/** Texture containing curves from which attributes are sampled. */
+	LAYOUT_FIELD(FShaderResourceParameter, CurveTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, CurveTextureSampler);
 };
+
+IMPLEMENT_TYPE_LAYOUT(FGPUSpriteVertexFactoryShaderParametersVS);
 
 /**
  * Pixel shader parameters for the particle vertex factory.
  */
 class FGPUSpriteVertexFactoryShaderParametersPS : public FVertexFactoryShaderParameters
 {
-	DECLARE_INLINE_TYPE_LAYOUT(FGPUSpriteVertexFactoryShaderParametersPS, NonVirtual);
+	DECLARE_TYPE_LAYOUT(FGPUSpriteVertexFactoryShaderParametersPS, NonVirtual);
 public:
 	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
@@ -604,10 +603,9 @@ public:
 		const FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const;
-
-	
-	
 };
+
+IMPLEMENT_TYPE_LAYOUT(FGPUSpriteVertexFactoryShaderParametersPS);
 
 /**
  * GPU Sprite vertex factory vertex declaration.

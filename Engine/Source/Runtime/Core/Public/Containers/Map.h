@@ -1246,9 +1246,10 @@ namespace Freeze
 	}
 
 	template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
-	void IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TMap<KeyType, ValueType, SetAllocator, KeyFuncs>& Object, void* OutDst)
+	uint32 IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TMap<KeyType, ValueType, SetAllocator, KeyFuncs>& Object, void* OutDst)
 	{
 		Object.CopyUnfrozen(Context, OutDst);
+		return sizeof(Object);
 	}
 
 	template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
@@ -1580,9 +1581,10 @@ namespace Freeze
 	}
 
 	template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
-	void IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TMultiMap<KeyType, ValueType, SetAllocator, KeyFuncs>& Object, void* OutDst)
+	uint32 IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TMultiMap<KeyType, ValueType, SetAllocator, KeyFuncs>& Object, void* OutDst)
 	{
 		Object.CopyUnfrozen(Context, OutDst);
+		return sizeof(Object);
 	}
 
 	template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
