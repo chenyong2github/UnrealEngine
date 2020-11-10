@@ -747,7 +747,9 @@ void UDMXSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);
 		check(Protocol.IsValid());
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // ~Begin Hide Warnings to keep DEPRECATED OnProtocolReceived functional 4.26, raised via OnGameThreadOnlyBufferUpdated
 		Protocol->GetOnGameThreadOnlyBufferUpdated().AddUObject(this, &UDMXSubsystem::OnGameThreadOnlyBufferUpdated);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS  // ~End Hide Warnings to keep DEPRECATED OnProtocolReceived functional 4.26, raised via OnGameThreadOnlyBufferUpdated
 	}
 }
 
@@ -791,18 +793,23 @@ void UDMXSubsystem::OnAssetRegistryRemovedAsset(const FAssetData& Asset)
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // ~Begin Hide Warnings to keep DEPRECATED OnProtocolReceived functional 4.26
 void UDMXSubsystem::OnGameThreadOnlyBufferUpdated(const FName& InProtocolName, int32 InUniverseID)
 {
-	if (IDMXProtocolPtr DMXProtocolPtr = IDMXProtocol::Get(InProtocolName))
+	if (OnProtocolReceived_DEPRECATED.IsBound())
 	{
-		const IDMXUniverseSignalMap& InboundSignalMap = DMXProtocolPtr->GameThreadGetInboundSignals();
-
-		const TSharedPtr<FDMXSignal>* DMXSignalPtr = InboundSignalMap.Find(InUniverseID);
-		if (DMXSignalPtr != nullptr)
+		if (IDMXProtocolPtr DMXProtocolPtr = IDMXProtocol::Get(InProtocolName))
 		{
-			const TSharedPtr<FDMXSignal>& DMXSignal = *DMXSignalPtr;
-			const TArray<uint8>& DMXBuffer = DMXSignal.Get()->ChannelData;
-			OnProtocolReceived.Broadcast(FDMXProtocolName(InProtocolName), InUniverseID, DMXBuffer);
+			const IDMXUniverseSignalMap& InboundSignalMap = DMXProtocolPtr->GameThreadGetInboundSignals();
+
+			const TSharedPtr<FDMXSignal>* DMXSignalPtr = InboundSignalMap.Find(InUniverseID);
+			if (DMXSignalPtr != nullptr)
+			{
+				const TSharedPtr<FDMXSignal>& DMXSignal = *DMXSignalPtr;
+				const TArray<uint8>& DMXBuffer = DMXSignal.Get()->ChannelData;
+				OnProtocolReceived_DEPRECATED.Broadcast(FDMXProtocolName(InProtocolName), InUniverseID, DMXBuffer);
+			}
 		}
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS // ~End Hide Warnings to keep DEPRECATED OnProtocolReceived functional 4.26
