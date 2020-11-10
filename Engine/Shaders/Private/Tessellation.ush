@@ -175,8 +175,8 @@ float4 CalculateCompositeTessellationFactors(float3 Control0, float3 Control1, f
 		// Vertex data
 		#if NUM_MATERIAL_TEXCOORDS
 		float2 UV = GetTextureCoordinateDS( DominantVertex );
-		Tangent0_U.w = UV.x;
-		Tangent1_V.w = UV.y;
+		Result.Tangent0_U.w = UV.x;
+		Result.Tangent1_V.w = UV.y;
 		#endif
 
 		float3x3 TangentToLocal = VertexFactoryGetTangentToLocalDS(DominantVertex.FactoryInterpolants);
