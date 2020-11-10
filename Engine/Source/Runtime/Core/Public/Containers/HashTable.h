@@ -590,23 +590,26 @@ namespace Freeze
 	}
 
 	template<typename InAllocator>
-	uint32 IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const THashTable<InAllocator>& Object, void* OutDst)
+	void IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const THashTable<InAllocator>& Object, void* OutDst)
 	{
 		Object.CopyUnfrozen(Context, OutDst);
-		return sizeof(Object);
 	}
 
 	template<typename InAllocator>
 	uint32 IntrinsicAppendHash(const THashTable<InAllocator>* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
 	{
-		return AppendHashForNameAndSize(TypeDesc.Name, sizeof(THashTable<InAllocator>), Hasher);
+		// sizeof(TArray) changes depending on target platform 32bit vs 64bit
+		// For now, calculate the size manually
+		static_assert(sizeof(THashTable<InAllocator>) == sizeof(FMemoryImageUPtrInt) * 2 + sizeof(uint32) * 2, "Unexpected THashTable size");
+		const uint32 SizeFromFields = LayoutParams.GetMemoryImagePointerSize() * 2u + sizeof(uint32) * 2u;
+		return AppendHashForNameAndSize(TypeDesc.Name, SizeFromFields, Hasher);
 	}
 
 	template<typename InAllocator>
 	uint32 IntrinsicGetTargetAlignment(const THashTable<InAllocator>* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams)
 	{
-		// Assume alignment of hash-table is drive by pointer
-		return FMath::Min(8u, LayoutParams.MaxFieldAlignment);
+		// Assume alignment of array is drive by pointer
+		return FMath::Min(LayoutParams.GetMemoryImagePointerSize(), LayoutParams.MaxFieldAlignment);
 	}
 }
 

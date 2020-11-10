@@ -2471,7 +2471,9 @@ FMaterialShaderMap* FMaterialShaderMap::AcquireFinalizedClone()
 	Clone->ShaderMapId = ShaderMapId;
 	Clone->bCompilationFinalized = bCompilationFinalized;
 	Clone->bCompiledSuccessfully = bCompiledSuccessfully;
-	Clone->AssignCopy(*this);
+	Clone->CopyResourceCode(*LocalCode);
+	Clone->AssignAndFreezeContent(LocalContent);
+	Clone->InitResource();
 #if WITH_EDITOR
 	Clone->AssociateWithAssets(GetAssociatedAssets());
 #endif

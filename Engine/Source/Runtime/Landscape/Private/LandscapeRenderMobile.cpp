@@ -51,7 +51,7 @@ void FLandscapeVertexFactoryMobile::InitRHI()
 /** Shader parameters for use with FLandscapeVertexFactory */
 class FLandscapeVertexFactoryMobileVertexShaderParameters : public FVertexFactoryShaderParameters
 {
-	DECLARE_TYPE_LAYOUT(FLandscapeVertexFactoryMobileVertexShaderParameters, NonVirtual);
+	DECLARE_INLINE_TYPE_LAYOUT(FLandscapeVertexFactoryMobileVertexShaderParameters, NonVirtual);
 public:
 	/**
 	* Bind shader constants by name
@@ -107,12 +107,10 @@ protected:
 	LAYOUT_FIELD(FShaderParameter, TexCoordOffsetParameter);
 };
 
-IMPLEMENT_TYPE_LAYOUT(FLandscapeVertexFactoryMobileVertexShaderParameters);
-
 /** Shader parameters for use with FLandscapeVertexFactory */
 class FLandscapeVertexFactoryMobilePixelShaderParameters : public FLandscapeVertexFactoryPixelShaderParameters
 {
-	DECLARE_TYPE_LAYOUT(FLandscapeVertexFactoryMobilePixelShaderParameters, NonVirtual);
+	DECLARE_INLINE_TYPE_LAYOUT(FLandscapeVertexFactoryMobilePixelShaderParameters, NonVirtual);
 public:
 	/**
 	* Bind shader constants by name
@@ -141,15 +139,12 @@ public:
 	}
 };
 
-IMPLEMENT_TYPE_LAYOUT(FLandscapeVertexFactoryMobilePixelShaderParameters);
-
 /**
   * Shader parameters for use with FLandscapeFixedGridVertexFactory
   * Simple grid rendering (without dynamic lod blend) needs a simpler fixed setup.
   */
 class FLandscapeFixedGridVertexFactoryMobileVertexShaderParameters : public FLandscapeVertexFactoryMobileVertexShaderParameters
 {
-	DECLARE_TYPE_LAYOUT(FLandscapeFixedGridVertexFactoryMobileVertexShaderParameters, NonVirtual);
 public:
 	void GetElementShaderBindings(
 		const class FSceneInterface* Scene,
@@ -176,8 +171,6 @@ public:
 		}
 	}
 };
-
-IMPLEMENT_TYPE_LAYOUT(FLandscapeFixedGridVertexFactoryMobileVertexShaderParameters);
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeVertexFactoryMobile, SF_Vertex, FLandscapeVertexFactoryMobileVertexShaderParameters);
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeVertexFactoryMobile, SF_Pixel, FLandscapeVertexFactoryMobilePixelShaderParameters);

@@ -576,7 +576,7 @@ TGPUSkinVertexFactoryShaderParameters
 /** Shader parameters for use with TGPUSkinVertexFactory */
 class FGPUSkinVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
-	DECLARE_TYPE_LAYOUT(FGPUSkinVertexFactoryShaderParameters, NonVirtual);
+	DECLARE_INLINE_TYPE_LAYOUT(FGPUSkinVertexFactoryShaderParameters, NonVirtual);
 public:
 	/**
 	* Bind shader constants by name
@@ -655,8 +655,6 @@ private:
 
 };
 
-IMPLEMENT_TYPE_LAYOUT(FGPUSkinVertexFactoryShaderParameters);
-
 IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(TGPUSkinVertexFactory, SF_Vertex, FGPUSkinVertexFactoryShaderParameters);
 
 /** bind gpu skin vertex factory to its shader file and its shader parameters */
@@ -669,7 +667,7 @@ TGPUSkinVertexFactoryShaderParameters
 /** Shader parameters for use with TGPUSkinVertexFactory */
 class FGPUSkinVertexPassthroughFactoryShaderParameters : public FLocalVertexFactoryShaderParametersBase
 {
-	DECLARE_TYPE_LAYOUT(FGPUSkinVertexPassthroughFactoryShaderParameters, NonVirtual);
+	DECLARE_INLINE_TYPE_LAYOUT(FGPUSkinVertexPassthroughFactoryShaderParameters, NonVirtual);
 public:
 	/**
 	* Bind shader constants by name
@@ -707,11 +705,11 @@ public:
 	}
 
 private:
-	LAYOUT_FIELD(FShaderResourceParameter, GPUSkinCachePositionBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, GPUSkinCachePreviousPositionBuffer);
+	
+		LAYOUT_FIELD(FShaderResourceParameter, GPUSkinCachePositionBuffer)
+		LAYOUT_FIELD(FShaderResourceParameter, GPUSkinCachePreviousPositionBuffer)
+	
 };
-
-IMPLEMENT_TYPE_LAYOUT(FGPUSkinVertexPassthroughFactoryShaderParameters);
 
 /*-----------------------------------------------------------------------------
 FGPUSkinPassthroughVertexFactory
@@ -878,7 +876,7 @@ IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TGPUSkinMorphVertexFactory, "/Engine/P
 /** Shader parameters for use with TGPUSkinAPEXClothVertexFactory */
 class TGPUSkinAPEXClothVertexFactoryShaderParameters : public FGPUSkinVertexFactoryShaderParameters
 {
-	DECLARE_TYPE_LAYOUT(TGPUSkinAPEXClothVertexFactoryShaderParameters, NonVirtual);
+	DECLARE_INLINE_TYPE_LAYOUT(TGPUSkinAPEXClothVertexFactoryShaderParameters, NonVirtual);
 public:
 
 	/**
@@ -941,17 +939,15 @@ public:
 
 protected:
 	
-	LAYOUT_FIELD(FShaderResourceParameter, ClothSimulVertsPositionsNormalsParameter);
-	LAYOUT_FIELD(FShaderResourceParameter, PreviousClothSimulVertsPositionsNormalsParameter);
-	LAYOUT_FIELD(FShaderParameter, ClothLocalToWorldParameter);
-	LAYOUT_FIELD(FShaderParameter, PreviousClothLocalToWorldParameter);
-	LAYOUT_FIELD(FShaderParameter, ClothBlendWeightParameter);
-	LAYOUT_FIELD(FShaderResourceParameter, GPUSkinApexClothParameter);
-	LAYOUT_FIELD(FShaderParameter, GPUSkinApexClothStartIndexOffsetParameter);
+		LAYOUT_FIELD(FShaderResourceParameter, ClothSimulVertsPositionsNormalsParameter)
+		LAYOUT_FIELD(FShaderResourceParameter, PreviousClothSimulVertsPositionsNormalsParameter)
+		LAYOUT_FIELD(FShaderParameter, ClothLocalToWorldParameter)
+		LAYOUT_FIELD(FShaderParameter, PreviousClothLocalToWorldParameter)
+		LAYOUT_FIELD(FShaderParameter, ClothBlendWeightParameter)
+		LAYOUT_FIELD(FShaderResourceParameter, GPUSkinApexClothParameter)
+		LAYOUT_FIELD(FShaderParameter, GPUSkinApexClothStartIndexOffsetParameter)
 	
 };
-
-IMPLEMENT_TYPE_LAYOUT(TGPUSkinAPEXClothVertexFactoryShaderParameters);
 
 /*-----------------------------------------------------------------------------
 	TGPUSkinAPEXClothVertexFactory::ClothShaderType

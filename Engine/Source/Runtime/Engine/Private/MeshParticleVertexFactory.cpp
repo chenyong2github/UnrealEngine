@@ -11,7 +11,7 @@
 
 class FMeshParticleVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
-	DECLARE_TYPE_LAYOUT(FMeshParticleVertexFactoryShaderParameters, NonVirtual);
+	DECLARE_INLINE_TYPE_LAYOUT(FMeshParticleVertexFactoryShaderParameters, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -42,8 +42,6 @@ public:
 private:
 	LAYOUT_FIELD(FShaderResourceParameter, PrevTransformBuffer);
 };
-
-IMPLEMENT_TYPE_LAYOUT(FMeshParticleVertexFactoryShaderParameters);
 
 class FDummyPrevTransformBuffer : public FRenderResource
 {

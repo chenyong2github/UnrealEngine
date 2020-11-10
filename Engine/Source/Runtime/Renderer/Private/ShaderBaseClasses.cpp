@@ -110,12 +110,6 @@ void FMaterialShader::VerifyExpressionAndShaderMaps(const FMaterialRenderProxy* 
 {
 	// Validate that the shader is being used for a material that matches the uniform expression set the shader was compiled for.
 	FMaterialShaderMap* ShaderMap = Material.GetRenderingThreadShaderMap();
-	if (ShaderMap->GetShaderMapId().IsCookedId())
-	{
-		// If this is a cooked shadermap, the debug uniform expression set won't be properly initialized...so skip the verification
-		return;
-	}
-
 	const FUniformExpressionSet& MaterialUniformExpressionSet = ShaderMap->GetUniformExpressionSet();
 	bool bUniformExpressionSetMismatch = !DebugUniformExpressionSet.Matches(MaterialUniformExpressionSet)
 		|| UniformExpressionCache->CachedUniformExpressionShaderMap != ShaderMap;

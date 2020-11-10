@@ -64,6 +64,7 @@ void FPlatformTypeLayoutParameters::InitializeForPlatform(const FString& Platfor
 	if (bHasEditorOnlyData) Flags |= Flag_WithEditorOnly;
 	if (PlatformInfo.Freezing_bWithRayTracing) Flags |= Flag_WithRaytracing;
 	if (PlatformInfo.Freezing_b32Bit) Flags |= Flag_Is32Bit;
+	if (PlatformInfo.Freezing_bForce64BitMemoryImagePointers) Flags |= Flag_Force64BitMemoryImagePointers;
 	if (PlatformInfo.Freezing_bAlignBases) Flags |= Flag_AlignBases;
 
 	MaxFieldAlignment = PlatformInfo.Freezing_MaxFieldAlignment;
@@ -75,8 +76,10 @@ void FPlatformTypeLayoutParameters::InitializeForCurrent()
 	if (WITH_EDITORONLY_DATA) Flags |= Flag_WithEditorOnly;
 	if (WITH_RAYTRACING) Flags |= Flag_WithRaytracing;
 	if (PLATFORM_32BITS) Flags |= Flag_Is32Bit;
+	if (UE_FORCE_64BIT_MEMORY_IMAGE_POINTERS) Flags |= Flag_Force64BitMemoryImagePointers;
 
 	check(GetRawPointerSize() == sizeof(void*));
+	check(GetMemoryImagePointerSize() == sizeof(FMemoryImagePtrInt));
 
 	// clang for Windows matches the MSVC ABI
 #if defined(__clang__) && !PLATFORM_WINDOWS
@@ -108,6 +111,10 @@ FArchive& FPlatformTypeLayoutParameters::Serialize(FArchive& Ar)
 
 void FPlatformTypeLayoutParameters::AppendKeyString(FString& KeyString) const
 {
+	if (Is32Bit() && HasForce64BitMemoryImagePointers())
+	{
+		KeyString += TEXT("FIX_");
+	}
 }
 
 // evaluated during static-initialization, so logging from regular check() macros won't work correctly
@@ -370,6 +377,12 @@ void Freeze::DefaultWriteMemoryImage(FMemoryImageWriter& Writer, const void* Obj
 {
 	const FPlatformTypeLayoutParameters& TargetLayoutParams = Writer.GetTargetLayoutParams();
 
+	if (TypeDesc.NameHash == FHashedName(TEXT("FGlobalShaderMapContent")).GetHash())
+	{
+		int a = 0;
+	}
+
+
 	// VTable will be shared with any base class vtable, if present
 	if (ETypeLayoutInterface::HasVTable(TypeDesc.Interface) && TypeDesc.NumVirtualBases == 0u)
 	{
@@ -536,6 +549,11 @@ uint32 Freeze::DefaultAppendHash(const FTypeLayoutDesc& TypeLayout, const FPlatf
 		return TypeLayout.SizeFromFields;
 	}
 
+	if (TypeLayout.NameHash == FHashedName(TEXT("FShader")).GetHash())
+	{
+		int a = 0;
+	}
+
 	const FTypeLayoutDesc* CurrentBitFieldType = nullptr;
 	uint32 CurrentNumBits = 0u;
 	uint32 Offset = 0u;
@@ -626,9 +644,10 @@ uint32 Freeze::DefaultAppendHash(const FTypeLayoutDesc& TypeLayout, const FPlatf
 
 				Hasher.Update((uint8*)&Field->BitFieldSize, sizeof(Field->BitFieldSize));
 			}
+
+			++FieldIndex;
 		}
 
-		++FieldIndex;
 		Field = Field->Next;
 	}
 
@@ -670,16 +689,6 @@ uint32 Freeze::DefaultGetTargetAlignment(const FTypeLayoutDesc& TypeDesc, const 
 void FMemoryToStringContext::AppendNullptr()
 {
 	String->Append(TEXT("nullptr\n"));
-}
-
-void FMemoryToStringContext::AppendUnfrozenPointer(const FTypeLayoutDesc& StaticTypeDesc)
-{
-	String->Appendf(TEXT("TMemoryImagePtr<%s> (Unfrozen), Target: "), StaticTypeDesc.Name);
-}
-
-void FMemoryToStringContext::AppendFrozenPointer(const FTypeLayoutDesc& StaticTypeDesc, int32 FrozenTypeIndex)
-{
-	String->Appendf(TEXT("TMemoryImagePtr<%s>, FrozenTypeIndex: %d, Target: "), StaticTypeDesc.Name, FrozenTypeIndex);
 }
 
 void FMemoryToStringContext::AppendIndent()
@@ -858,102 +867,35 @@ uint32 Freeze::HashLayouts(const TArray<const FTypeLayoutDesc*>& TypeLayouts, co
 	return Size;
 }
 
-uint32 Freeze::DefaultUnfrozenCopy(const FMemoryUnfreezeContent& Context, const void* FrozenObject, const FTypeLayoutDesc& TypeDesc, void* OutDst)
+void Freeze::DefaultUnfrozenCopy(const FMemoryUnfreezeContent& Context, const void* Object, const FTypeLayoutDesc& TypeDesc, void* OutDst)
 {
-	uint32 FrozenOffset = 0u;
-	uint32 FieldIndex = 0u;
-	uint32 NumEmptyBases = 0u;
-	uint32 PrevOffset = ~0u;
-
 	if (ETypeLayoutInterface::HasVTable(TypeDesc.Interface) && TypeDesc.NumVirtualBases == 0u)
 	{
-		// Copy v-table, TODO
-		FMemory::Memcpy(OutDst, FrozenObject, sizeof(void*));
-		FrozenOffset += Context.FrozenLayoutParameters.GetRawPointerSize();
+		// Copy v-table
+		FMemory::Memcpy(OutDst, Object, sizeof(void*));
 	}
 
 	const FFieldLayoutDesc* FieldDesc = TypeDesc.Fields;
 	while (FieldDesc)
 	{
-		const FTypeLayoutDesc& FieldType = *FieldDesc->Type;
-		const uint32 FieldTypeSize = FieldType.Size;
-		uint8* FieldDst = (uint8*)OutDst + FieldDesc->Offset;
-
-		if (IncludeField(FieldDesc, Context.FrozenLayoutParameters))
+		if (FieldDesc->BitFieldSize == 0u || FieldDesc->Offset != ~0u)
 		{
-			if (FieldDesc->BitFieldSize == 0u || FieldDesc->Offset != PrevOffset)
+			const FTypeLayoutDesc& FieldType = *FieldDesc->Type;
+			FTypeLayoutDesc::FUnfrozenCopyFunc* Func = FieldType.UnfrozenCopyFunc;
+			const uint32 FieldTypeSize = FieldType.Size;
+
+			const uint8* FieldObject = (uint8*)Object + FieldDesc->Offset;
+			uint8* FieldDst = (uint8*)OutDst + FieldDesc->Offset;
+			for (uint32 i = 0u; i < FieldDesc->NumArray; ++i)
 			{
-				const bool bIsBase = (FieldIndex < TypeDesc.NumBases);
-				const uint32 FieldTypeAlignment = GetTargetAlignment(FieldType, Context.FrozenLayoutParameters);
-				const uint32 FieldAlignment = FMath::Min(FieldTypeAlignment, Context.FrozenLayoutParameters.MaxFieldAlignment);
-
-				FrozenOffset = Align(FrozenOffset, FieldAlignment);
-
-				FTypeLayoutDesc::FUnfrozenCopyFunc* Func = FieldType.UnfrozenCopyFunc;
-				const uint8* FrozenFieldObject = (uint8*)FrozenObject + FrozenOffset;
-
-				uint32 PaddedFrozenFieldSize = Func(Context, FrozenFieldObject, FieldType, FieldDst);
-				if (PaddedFrozenFieldSize == 0u && bIsBase)
-				{
-					if (NumEmptyBases > 0u)
-					{
-						PaddedFrozenFieldSize = 1u;
-					}
-					else
-					{
-						// Empty bases are allowed to have Offset 0, since they logically overlap
-						++NumEmptyBases;
-					}
-				}
-				else
-				{
-					if (PaddedFrozenFieldSize == 0u)
-					{
-						PaddedFrozenFieldSize = 1u;
-					}
-				}
-
-				if (PaddedFrozenFieldSize > 0u)
-				{
-					if (!bIsBase || Context.FrozenLayoutParameters.HasAlignBases())
-					{
-						PaddedFrozenFieldSize = Align(PaddedFrozenFieldSize, FieldTypeAlignment);
-					}
-				}
-
+				Func(Context, FieldObject, FieldType, FieldDst);
 				FieldDst += FieldTypeSize;
-				FrozenFieldObject += PaddedFrozenFieldSize;
-				FrozenOffset += PaddedFrozenFieldSize;
-
-				for (uint32 i = 1u; i < FieldDesc->NumArray; ++i)
-				{
-					Func(Context, FrozenFieldObject, FieldType, FieldDst);
-					FieldDst += FieldTypeSize;
-					FrozenFieldObject += PaddedFrozenFieldSize;
-					FrozenOffset += PaddedFrozenFieldSize;
-				}
-			}
-		}
-		else
-		{
-			const void* DefaultObject = FieldType.GetDefaultObjectFunc ? FieldType.GetDefaultObjectFunc() : nullptr;
-			if (DefaultObject)
-			{
-				FMemory::Memcpy(FieldDst, DefaultObject, FieldTypeSize);
-			}
-			else
-			{
-				// If no 'GetDefaultObjectFunc', assume default object is simply zero-initialized
-				FMemory::Memzero(FieldDst, FieldTypeSize);
+				FieldObject += FieldTypeSize;
 			}
 		}
 
-		++FieldIndex;
-		PrevOffset = FieldDesc->Offset;
 		FieldDesc = FieldDesc->Next;
 	}
-
-	return FrozenOffset;
 }
 
 void Freeze::IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const void* Object, uint32 Size)
@@ -1090,7 +1032,7 @@ public:
 void Freeze::IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FHashedNameDebugString& Object, const FTypeLayoutDesc&)
 {
 	const char* Data = Object.String.Get();
-	FMemoryImageWriter StringWriter = Writer.WritePointer(StaticGetTypeLayoutDesc<char>());
+	FMemoryImageWriter StringWriter = Writer.WritePointer("String");
 	if (Data)
 	{
 		const int32 Length = FCStringAnsi::Strlen(Data);
@@ -1102,12 +1044,11 @@ void Freeze::IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FHashed
 	}
 }
 
-uint32 Freeze::IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const FHashedNameDebugString& Object, void* OutDst)
+void Freeze::IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const FHashedNameDebugString& Object, void* OutDst)
 {
 	const FName Name(Object.String.Get());
 	const FHashedName HashedName(Name);
 	FHashedNameDebugString* Result = new(OutDst) FHashedNameDebugString(HashedName.GetDebugString());
-	return sizeof(Object);
 }
 
 #endif // WITH_EDITORONLY_DATA
@@ -1179,118 +1120,6 @@ FHashedName::FHashedName(const FName& InName)
 	}
 }
 
-void FPointerTableBase::SaveToArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, const void* FrozenObject) const
-{
-	int32 NumDependencies = 0;
-#if UE_MEMORYIMAGE_TRACK_TYPE_DEPENDENCIES
-	NumDependencies = TypeDependencies.Num();
-	Ar << NumDependencies;
-	for (int32 i = 0; i < TypeDependencies.Num(); ++i)
-	{
-		const FTypeLayoutDesc* DependencyTypeDesc = TypeDependencies[i];
-		uint64 NameHash = DependencyTypeDesc->NameHash;
-		FSHAHash LayoutHash;
-		uint32 LayoutSize = Freeze::HashLayout(*DependencyTypeDesc, LayoutParams, LayoutHash);
-		Ar << NameHash;
-		Ar << LayoutSize;
-		Ar << LayoutHash;
-	}
-#else
-	Ar << NumDependencies;
-#endif
-}
-
-bool FPointerTableBase::LoadFromArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, void* FrozenObject)
-{
-	int32 NumDependencies = 0;
-	Ar << NumDependencies;
-#if UE_MEMORYIMAGE_TRACK_TYPE_DEPENDENCIES
-	TypeDependencies.Empty(NumDependencies);
-#endif
-
-	// Waste a bit of time even in shipping builds skipping over this stuff
-	// Could add a cook-time option to exclude dependencies completely
-	bool bValid = true;
-	for (int32 i = 0u; i < NumDependencies; ++i)
-	{
-		uint64 NameHash = 0u;
-		uint32 SavedLayoutSize = 0u;
-		FSHAHash SavedLayoutHash;
-		Ar << NameHash;
-		Ar << SavedLayoutSize;
-		Ar << SavedLayoutHash;
-
-#if UE_MEMORYIMAGE_TRACK_TYPE_DEPENDENCIES
-		const FTypeLayoutDesc* DependencyType = FTypeLayoutDesc::Find(NameHash);
-		TypeDependencies.Add(DependencyType);
-		if (DependencyType)
-		{
-			FSHAHash CheckLayoutHash;
-			const uint32 CheckLayoutSize = Freeze::HashLayout(*DependencyType, LayoutParams, CheckLayoutHash);
-			if (CheckLayoutSize != SavedLayoutSize)
-			{
-				UE_LOG(LogMemoryImage, Error, TEXT("Mismatch size for type %s, compiled size is %d, loaded size is %d"), DependencyType->Name, CheckLayoutSize, SavedLayoutSize);
-				bValid = false;
-			}
-			else if (CheckLayoutHash != SavedLayoutHash)
-			{
-				UE_LOG(LogMemoryImage, Error, TEXT("Mismatch hash for type %s"), DependencyType->Name);
-				bValid = false;
-			}
-		}
-#endif // UE_MEMORYIMAGE_TRACK_TYPE_DEPENDENCIES
-	}
-
-	return bValid;
-}
-
-#if UE_MEMORYIMAGE_TRACK_TYPE_DEPENDENCIES
-int32 FPointerTableBase::AddTypeDependency(const FTypeLayoutDesc& TypeDesc)
-{
-	if (TypeDesc.NameHash != 0u)
-	{
-		for (int32 Index = 0; Index < TypeDependencies.Num(); ++Index)
-		{
-			if (TypeDependencies[Index]->NameHash == TypeDesc.NameHash)
-			{
-				return Index;
-			}
-		}
-
-		return TypeDependencies.Add(&TypeDesc);
-	}
-	return INDEX_NONE;
-}
-#endif // UE_MEMORYIMAGE_TRACK_TYPE_DEPENDENCIES
-
-FMemoryImageObject FreezeMemoryImageObject(const void* Object, const FTypeLayoutDesc& TypeDesc, FPointerTableBase* PointerTable)
-{
-	FMemoryImage MemoryImage;
-	MemoryImage.TargetLayoutParameters.InitializeForCurrent();
-	MemoryImage.PointerTable = PointerTable;
-	FMemoryImageWriter Writer(MemoryImage);
-
-	Writer.WriteRootObject(Object, TypeDesc);
-
-	FMemoryImageResult MemoryImageResult;
-	MemoryImage.Flatten(MemoryImageResult, true);
-
-	const uint32 FrozenSize = MemoryImageResult.Bytes.Num();
-	check(FrozenSize > 0u);
-	void* FrozenObject = FMemory::Malloc(FrozenSize);
-	FMemory::Memcpy(FrozenObject, MemoryImageResult.Bytes.GetData(), FrozenSize);
-	MemoryImageResult.ApplyPatches(FrozenObject);
-	return FMemoryImageObject(TypeDesc, FrozenObject, FrozenSize);
-}
-
-void* UnfreezeMemoryImageObject(const void* FrozenObject, const FTypeLayoutDesc& TypeDesc, const FPointerTableBase* PointerTable)
-{
-	void* UnfrozenMemory = ::operator new(TypeDesc.Size);
-	FMemoryUnfreezeContent Context(PointerTable);
-	Context.UnfreezeObject(FrozenObject, TypeDesc, UnfrozenMemory);
-	return UnfrozenMemory;
-}
-
 static void CountNumNames(const TArray<FMemoryImageNamePointer>& Names, TArray<uint32>& OutNameCounts)
 {
 	FName CurrentName;
@@ -1337,16 +1166,6 @@ static void SerializeNames(const TArray<FMemoryImageNamePointer>& Names, const T
 
 void FMemoryImageResult::SaveToArchive(FArchive& Ar) const
 {
-	uint32 FrozenSize = Bytes.Num();
-	uint8* FrozenObject = const_cast<uint8*>(Bytes.GetData());
-
-	Ar << const_cast<FMemoryImageResult*>(this)->TargetLayoutParameters;
-
-	Ar << FrozenSize;
-	Ar.Serialize(FrozenObject, FrozenSize);
-
-	PointerTable->SaveToArchive(Ar, TargetLayoutParameters, FrozenObject);
-
 	TArray<uint32> VTableCounts;
 	{
 		uint64 CurrentTypeNameHash = 0u;
@@ -1448,19 +1267,9 @@ void FMemoryImageResult::ApplyPatches(void* FrozenObject) const
 	}
 }
 
-FMemoryImageObject FMemoryImageResult::LoadFromArchive(FArchive& Ar, const FTypeLayoutDesc& TypeDesc, FPointerTableBase* PointerTable)
+void FMemoryImageResult::ApplyPatchesFromArchive(void* FrozenObject, FArchive& Ar)
 {
-	SCOPED_LOADTIMER(FMemoryImageResult_LoadFromArchive);
-
-	FPlatformTypeLayoutParameters LayoutParameters;
-	Ar << LayoutParameters;
-
-	uint32 FrozenSize = 0u;
-	Ar << FrozenSize;
-	void* FrozenObject = FMemory::Malloc(FrozenSize);
-	Ar.Serialize(FrozenObject, FrozenSize);
-
-	const bool bFrozenObjectValid = PointerTable->LoadFromArchive(Ar, LayoutParameters, FrozenObject);
+	SCOPED_LOADTIMER(FMemoryImageResult_ApplyPatchesFromArchive);
 
 	uint32 NumVTables = 0u;
 	uint32 NumScriptNames = 0u;
@@ -1518,31 +1327,6 @@ FMemoryImageObject FMemoryImageResult::LoadFromArchive(FArchive& Ar, const FType
 			ApplyMinimalNamePatch(FrozenObject, NameToMinimalName(Name), Offset);
 		}
 	}
-
-	if (!bFrozenObjectValid)
-	{
-		FMemory::Free(FrozenObject);
-		return FMemoryImageObject();
-	}
-	else if (LayoutParameters.IsCurrentPlatform())
-	{
-		// Loading content that matches the current platform, just use frozen content directly (expected case)
-		return FMemoryImageObject(TypeDesc, FrozenObject, FrozenSize);
-	}
-	else
-	{
-		// Loading content that was frozen for a different platform/configuration, need to convert
-		// This path is only supported if we're tracking type dependencies, otherwise we won't have any TypeDependencies stored in the pointer table, which is required for conversion
-		void* UnfrozenObject = nullptr;
-#if UE_MEMORYIMAGE_TRACK_TYPE_DEPENDENCIES
-		UnfrozenObject = ::operator new(TypeDesc.Size);
-
-		FMemoryUnfreezeContent UnfreezeContext(PointerTable, LayoutParameters);
-		UnfreezeContext.UnfreezeObject(FrozenObject, TypeDesc, UnfrozenObject);
-#endif // UE_MEMORYIMAGE_TRACK_TYPE_DEPENDENCIES
-		FMemory::Free(FrozenObject);
-		return FMemoryImageObject(TypeDesc, UnfrozenObject, 0u);
-	}
 }
 
 void FPtrTableBase::SavePatchesToArchive(FArchive& Ar, uint32 PtrIndex) const
@@ -1583,35 +1367,13 @@ void FPtrTableBase::AddPatchedPointerBase(uint32 PtrIndex, uint64 Offset)
 	++List.NumOffsets;
 }
 
-FMemoryImageSection* FMemoryImageSection::WritePointer(const FTypeLayoutDesc& StaticTypeDesc, const FTypeLayoutDesc& DerivedTypeDesc, uint32* OutOffsetToBase)
+FMemoryImageSection* FMemoryImageSection::WritePointer(const FString& SectionName, uint32 Offset)
 {
 	FSectionPointer& SectionPointer = Pointers.AddDefaulted_GetRef();
-
-	const uint32 OffsetToBase = DerivedTypeDesc.GetOffsetToBase(StaticTypeDesc);
-	const int32 TypeDependencyIndex = ParentImage->PointerTable->AddTypeDependency(DerivedTypeDesc);
-	const bool bStaticTypeMatchesDerived = (StaticTypeDesc == DerivedTypeDesc);
-
-	if (OutOffsetToBase)
-	{
-		*OutOffsetToBase = OffsetToBase;
-	}
-
-	checkf(OutOffsetToBase || bStaticTypeMatchesDerived, TEXT("Must consider OffsetToBase if static/derived types are different, %s/%s"), DerivedTypeDesc.Name, StaticTypeDesc.Name);
-	checkf(TypeDependencyIndex != INDEX_NONE || bStaticTypeMatchesDerived,
-		TEXT("Unable to store pointer to derived type %s, different from static type %s\n")
-		TEXT("Ensure UE_MEMORYIMAGE_TRACK_TYPE_DEPENDENCIES is set\n")
-		TEXT("Make sure derived type is not declared using DECLARE_INLINE_TYPE_LAYOUT()"),
-		DerivedTypeDesc.Name, StaticTypeDesc.Name);
-
-	FFrozenMemoryImagePtr FrozenPtr;
-	FrozenPtr.OffsetFromThis = 0; // dummy value
-	// If derived type matches the static type, store INDEX_NONE to indicate the static type may be used
-	FrozenPtr.TypeIndex = bStaticTypeMatchesDerived ? INDEX_NONE : TypeDependencyIndex;
-
-	SectionPointer.Offset = WriteBytes(FrozenPtr);
-	SectionPointer.PointerOffset = OffsetToBase;
+	SectionPointer.Offset = WriteMemoryImagePointerSizedBytes(0u); // write dummy value
+	SectionPointer.PointerOffset = Offset;
 	SectionPointer.SectionIndex = ParentImage->Sections.Num();
-	return ParentImage->AllocateSection();
+	return ParentImage->AllocateSection(SectionName);
 }
 
 uint32 FMemoryImageSection::WriteRawPointerSizedBytes(uint64 PointerValue)
@@ -1626,6 +1388,18 @@ uint32 FMemoryImageSection::WriteRawPointerSizedBytes(uint64 PointerValue)
 	}
 }
 
+uint32 FMemoryImageSection::WriteMemoryImagePointerSizedBytes(uint64 PointerValue)
+{
+	const FPlatformTypeLayoutParameters& TargetParameters = ParentImage->TargetLayoutParameters;
+	if (TargetParameters.Has32BitMemoryImagePointers())
+	{
+		return WriteBytes((uint32)PointerValue);
+	}
+	else
+	{
+		return WriteBytes(PointerValue);
+	}
+}
 
 uint32 FMemoryImageSection::WriteVTable(const FTypeLayoutDesc& TypeDesc, const FTypeLayoutDesc& DerivedTypeDesc)
 {
@@ -1733,6 +1507,18 @@ void FMemoryImageSection::ComputeHash()
 	HashState.GetHash(Hash.Hash);
 }
 
+void FMemoryImage::AddDependency(const FTypeLayoutDesc& TypeDesc)
+{
+	if (TypeDesc.NameHash != 0u)
+	{
+		const int32 SortedIndex = Algo::LowerBoundBy(TypeDependencies, TypeDesc.NameHash, [](const FTypeLayoutDesc* InTypeDesc) { return InTypeDesc->NameHash; });
+		if (SortedIndex >= TypeDependencies.Num() || TypeDependencies[SortedIndex] != &TypeDesc)
+		{
+			TypeDependencies.Insert(&TypeDesc, SortedIndex);
+		}
+	}
+}
+
 void FMemoryImage::Flatten(FMemoryImageResult& OutResult, bool bMergeDuplicateSections)
 {
 	TArray<FMemoryImageSection*> UniqueSections;
@@ -1784,19 +1570,31 @@ void FMemoryImage::Flatten(FMemoryImageResult& OutResult, bool bMergeDuplicateSe
 	for (int32 SectionIndex = 0; SectionIndex < UniqueSections.Num(); ++SectionIndex)
 	{
 		const FMemoryImageSection* Section = UniqueSections[SectionIndex];
-		for (const FMemoryImageSection::FSectionPointer& Pointer : Section->Pointers)
+		if (TargetLayoutParameters.Has32BitMemoryImagePointers())
 		{
-			const int32 OffsetToPointer = SectionOffset[SectionIndex] + Pointer.Offset;
-			const int32 RemapSectionIndex = SectionIndexRemap[Pointer.SectionIndex];
-			FFrozenMemoryImagePtr* FrozenPtr = (FFrozenMemoryImagePtr*)(OutResult.Bytes.GetData() + OffsetToPointer);
-			check(FrozenPtr->OffsetFromThis == 0);
-			const int32 OffsetFromPointer = (int32)(SectionOffset[RemapSectionIndex] + Pointer.PointerOffset) - OffsetToPointer;
-			FrozenPtr->OffsetFromThis = (OffsetFromPointer << 1) | 1;
+			for (const FMemoryImageSection::FSectionPointer& Pointer : Section->Pointers)
+			{
+				const int32 OffsetToPointer = SectionOffset[SectionIndex] + Pointer.Offset;
+				const int32 RemapSectionIndex = SectionIndexRemap[Pointer.SectionIndex];
+				int32* PointerData = (int32*)(OutResult.Bytes.GetData() + OffsetToPointer);
+				check(*PointerData == 0);
+				const int32 OffsetFromPointer = (int32)(SectionOffset[RemapSectionIndex] + Pointer.PointerOffset) - OffsetToPointer;
+				*PointerData = (OffsetFromPointer << 1) | 1;
+			}
+		}
+		else
+		{
+			for (const FMemoryImageSection::FSectionPointer& Pointer : Section->Pointers)
+			{
+				const int64 OffsetToPointer = SectionOffset[SectionIndex] + Pointer.Offset;
+				const int32 RemapSectionIndex = SectionIndexRemap[Pointer.SectionIndex];
+				int64* PointerData = (int64*)(OutResult.Bytes.GetData() + OffsetToPointer);
+				check(*PointerData == 0);
+				const int64 OffsetFromPointer = (int64)(SectionOffset[RemapSectionIndex] + Pointer.PointerOffset) - OffsetToPointer;
+				*PointerData = (OffsetFromPointer << 1) | 1;
+			}
 		}
 	}
-
-	OutResult.PointerTable = PointerTable;
-	OutResult.TargetLayoutParameters = TargetLayoutParameters;
 
 	// Sort to group runs of the same FName/VTable
 	OutResult.VTables.Sort();
@@ -1804,7 +1602,7 @@ void FMemoryImage::Flatten(FMemoryImageResult& OutResult, bool bMergeDuplicateSe
 	OutResult.MinimalNames.Sort();
 }
 
-FMemoryImageWriter::FMemoryImageWriter(FMemoryImage& InImage) : Section(InImage.AllocateSection()) {}
+FMemoryImageWriter::FMemoryImageWriter(FMemoryImage& InImage) : Section(InImage.AllocateSection(TEXT("ROOT"))) {}
 FMemoryImageWriter::FMemoryImageWriter(FMemoryImageSection* InSection) : Section(InSection) {}
 
 FMemoryImageWriter::~FMemoryImageWriter()
@@ -1817,22 +1615,14 @@ const FPlatformTypeLayoutParameters& FMemoryImageWriter::GetTargetLayoutParams()
 FPointerTableBase& FMemoryImageWriter::GetPointerTable() const { return GetImage().GetPointerTable(); }
 const FPointerTableBase* FMemoryImageWriter::TryGetPrevPointerTable() const { return GetImage().PrevPointerTable; }
 
-int32 FMemoryImageWriter::AddTypeDependency(const FTypeLayoutDesc& TypeDesc)
+void FMemoryImageWriter::AddDependency(const FTypeLayoutDesc& TypeDesc)
 {
-	return GetPointerTable().AddTypeDependency(TypeDesc);
+	Section->ParentImage->AddDependency(TypeDesc);
 }
 
 void FMemoryImageWriter::WriteObject(const void* Object, const FTypeLayoutDesc& TypeDesc)
 {
-	TypeDesc.WriteFrozenMemoryImageFunc(*this, Object, TypeDesc, TypeDesc);
-}
-
-void FMemoryImageWriter::WriteRootObject(const void* Object, const FTypeLayoutDesc& TypeDesc)
-{
-	const int32 RootTypeIndex = AddTypeDependency(TypeDesc);
-#if UE_MEMORYIMAGE_TRACK_TYPE_DEPENDENCIES
-	checkf(RootTypeIndex == 0, TEXT("Can't add root object of type %s, already have a root object"), TypeDesc.Name);
-#endif
+	AddDependency(TypeDesc);
 	TypeDesc.WriteFrozenMemoryImageFunc(*this, Object, TypeDesc, TypeDesc);
 }
 
@@ -1871,24 +1661,19 @@ uint32 FMemoryImageWriter::WriteBytes(const void* Data, uint32 Size)
 	return Section->WriteBytes(Data, Size);
 }
 
-uint32 FMemoryImageWriter::WriteNullPointer()
+FMemoryImageWriter FMemoryImageWriter::WritePointer(const FString& SectionName, uint32 Offset)
 {
-	return WriteBytes(FFrozenMemoryImagePtr{ 0, 0u });
-}
-
-FMemoryImageWriter FMemoryImageWriter::WritePointer(const FTypeLayoutDesc& StaticTypeDesc, const FTypeLayoutDesc& DerivedTypeDesc, uint32* OutOffsetToBase)
-{
-	return FMemoryImageWriter(Section->WritePointer(StaticTypeDesc, DerivedTypeDesc, OutOffsetToBase));
-}
-
-FMemoryImageWriter FMemoryImageWriter::WritePointer(const FTypeLayoutDesc& TypeDesc)
-{
-	return FMemoryImageWriter(Section->WritePointer(TypeDesc, TypeDesc, nullptr));
+	return FMemoryImageWriter(Section->WritePointer(SectionName, Offset));
 }
 
 uint32 FMemoryImageWriter::WriteRawPointerSizedBytes(uint64 PointerValue)
 {
 	return Section->WriteRawPointerSizedBytes(PointerValue);
+}
+
+uint32 FMemoryImageWriter::WriteMemoryImagePointerSizedBytes(uint64 PointerValue)
+{
+	return Section->WriteMemoryImagePointerSizedBytes(PointerValue);
 }
 
 uint32 FMemoryImageWriter::WriteVTable(const FTypeLayoutDesc& TypeDesc, const FTypeLayoutDesc& DerivedTypeDesc)
@@ -1909,20 +1694,6 @@ uint32 FMemoryImageWriter::WriteFMinimalName(const FMinimalName& Name)
 uint32 FMemoryImageWriter::WriteFScriptName(const FScriptName& Name)
 {
 	return Section->WriteFScriptName(Name);
-}
-
-const FTypeLayoutDesc* FMemoryUnfreezeContent::GetDerivedTypeDesc(const FTypeLayoutDesc& StaticTypeDesc, int32 TypeIndex) const
-{
-	if (TypeIndex == INDEX_NONE)
-	{
-		// TypeIndex of INDEX_NONE means the derived type was the same as the static type
-		return &StaticTypeDesc;
-	}
-	if (PrevPointerTable)
-	{
-		return PrevPointerTable->GetTypeDependency(TypeIndex);
-	}
-	return nullptr;
 }
 
 // Finds the length of the field name, omitting any _DEPRECATED suffix
