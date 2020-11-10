@@ -196,6 +196,8 @@ void FNiagaraScratchPadScriptViewModel::ApplyChanges()
 		InputCollectionToRefresh->RefreshChildren();
 		InputCollectionToRefresh->ApplyModuleChanges();
 	}
+
+	OnChangesAppliedDelegate.Broadcast();
 }
 
 void FNiagaraScratchPadScriptViewModel::DiscardChanges()
@@ -211,6 +213,11 @@ FNiagaraScratchPadScriptViewModel::FOnRenamed& FNiagaraScratchPadScriptViewModel
 FNiagaraScratchPadScriptViewModel::FOnPinnedChanged& FNiagaraScratchPadScriptViewModel::OnPinnedChanged()
 {
 	return OnPinnedChangedDelegate;
+}
+
+FNiagaraScratchPadScriptViewModel::FOnChangesApplied& FNiagaraScratchPadScriptViewModel::OnChangesApplied()
+{
+	return OnChangesAppliedDelegate;
 }
 
 FSimpleDelegate& FNiagaraScratchPadScriptViewModel::OnRequestDiscardChanges()
