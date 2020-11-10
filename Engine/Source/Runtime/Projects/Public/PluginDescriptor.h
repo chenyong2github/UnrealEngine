@@ -113,6 +113,11 @@ struct PROJECTS_API FPluginDescriptor
 	/** Dependent plugins */
 	TArray<FPluginReferenceDescriptor> Plugins;
 
+#if WITH_EDITOR
+	/** Cached json for custom data */
+	TSharedPtr<FJsonObject> CachedJson;
+#endif
+
 	/** Constructor. */
 	FPluginDescriptor();
 

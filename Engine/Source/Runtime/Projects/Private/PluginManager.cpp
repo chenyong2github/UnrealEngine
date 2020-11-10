@@ -154,6 +154,13 @@ bool FPlugin::UpdateDescriptor(const FPluginDescriptor& NewDescriptor, FText& Ou
 	return true;
 }
 
+#if WITH_EDITOR
+const TSharedPtr<FJsonObject>& FPlugin::GetDescriptorJson()
+{
+	return Descriptor.CachedJson;
+}
+#endif // WITH_EDITOR
+
 FPluginManager::FPluginManager()
 {
 	SCOPED_BOOT_TIMING("DiscoverAllPlugins");
