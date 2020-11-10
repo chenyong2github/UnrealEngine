@@ -98,6 +98,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	static FFrameNumber GetCurrentShotFrameNumber(const UMoviePipeline* InMoviePipeline);
 
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static float GetCurrentFocusDistance(const UMoviePipeline* InMoviePipeline);
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static float GetCurrentFocalLength(const UMoviePipeline* InMoviePipeline);
+	
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static float GetCurrentAperture(const UMoviePipeline* InMoviePipeline);
+
 	/** Get the package name for the map in this job. The level travel command requires the package path and not the asset path. */
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	static FString GetMapPackageName(UMoviePipelineExecutorJob* InJob);
