@@ -139,11 +139,10 @@ public:
 		return CompPtr ? Cast<OwnerType>(*CompPtr) : nullptr;
 	}
 
-	/** Given a component, returns its associated solver object. */
-	IPhysicsProxyBase* GetOwnedPhysicsProxy(UPrimitiveComponent* Comp) const
+	/** Given a component, returns its associated solver objects. */
+	const TArray<IPhysicsProxyBase*>* GetOwnedPhysicsProxies(UPrimitiveComponent* Comp) const
 	{
-		IPhysicsProxyBase* const* PhysicsProxyPtr = ComponentToPhysicsProxyMap.Find(Comp);
-		return PhysicsProxyPtr ? *PhysicsProxyPtr : nullptr;
+		return ComponentToPhysicsProxyMap.Find(Comp);
 	}
 
 	/**
@@ -324,7 +323,7 @@ private:
 	TMap<IPhysicsProxyBase*, UPrimitiveComponent*> PhysicsProxyToComponentMap;
 
 	// Maps Component to PhysicsProxy that is created
-	TMap<UPrimitiveComponent*, IPhysicsProxyBase*> ComponentToPhysicsProxyMap;
+	TMap<UPrimitiveComponent*, TArray<IPhysicsProxyBase*>> ComponentToPhysicsProxyMap;
 
 	/** The SolverActor that spawned and owns this scene */
 	TWeakObjectPtr<AActor> SolverActor;
