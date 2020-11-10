@@ -83,6 +83,14 @@ TAutoConsoleVariable<int32> CVarCsvContinuousWrites(
 	ECVF_Default
 );
 
+TAutoConsoleVariable<int32> CVarCsvForceExit(
+	TEXT("csv.ForceExit"),
+	0,
+	TEXT("If 1, do a forced exit when if exitOnCompletion is enabled"),
+	ECVF_Default
+);
+
+
 #if UE_BUILD_SHIPPING
 TAutoConsoleVariable<int32> CVarCsvShippingContinuousWrites(
 	TEXT("csv.Shipping.ContinuousWrites"),
@@ -2802,7 +2810,8 @@ void FCsvProfiler::EndFrame()
 
 			if (bCaptureEnded && (GCsvExitOnCompletion || FParse::Param(FCommandLine::Get(), TEXT("ExitAfterCsvProfiling"))))
 			{
-				FPlatformMisc::RequestExit(false);
+				bool bForceExit = !!CVarCsvForceExit.GetValueOnGameThread();
+				FPlatformMisc::RequestExit(bForceExit);
 			}
 		}
 	}
