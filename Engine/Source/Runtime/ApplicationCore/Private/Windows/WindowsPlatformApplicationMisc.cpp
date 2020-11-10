@@ -377,6 +377,10 @@ void FWindowsPlatformApplicationMisc::ClipboardCopy(const TCHAR* Str)
 			UE_LOG(LogWindows, Fatal,TEXT("SetClipboardData failed with error code %i"), (uint32)GetLastError() );
 		verify(CloseClipboard());
 	}
+	else
+	{
+		UE_LOG(LogWindows, Error, TEXT("OpenClipboard failed with error code %i"), (uint32)GetLastError());
+	}
 }
 
 void FWindowsPlatformApplicationMisc::ClipboardPaste(class FString& Result)
@@ -420,6 +424,7 @@ void FWindowsPlatformApplicationMisc::ClipboardPaste(class FString& Result)
 	else 
 	{
 		Result=TEXT("");
+		UE_LOG(LogWindows, Error, TEXT("OpenClipboard failed with error code %i"), (uint32)GetLastError());
 	}
 }
 

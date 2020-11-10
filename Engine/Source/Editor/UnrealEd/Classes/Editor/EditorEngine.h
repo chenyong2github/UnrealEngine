@@ -2035,8 +2035,9 @@ public:
 	 * @param bShouldCut			If true, deletes the selected actors after copying them to the clipboard
 	 * @param bIsMove				If true, this cut is part of a move and the actors will be immediately pasted
 	 * @param bWarnAboutReferences	Whether or not to show a modal warning about referenced actors that may no longer function after being moved
+	 * @param DestinationData		Data that was copied to clipboard 
 	 */
-	void CopySelectedActorsToClipboard( UWorld* InWorld, const bool bShouldCut, const bool bIsMove = false, bool bWarnAboutReferences = true);
+	void CopySelectedActorsToClipboard( UWorld* InWorld, const bool bShouldCut, const bool bIsMove = false, bool bWarnAboutReferences = true, FString* DestinationData = nullptr);
 
 	/**
 	 * Checks to see whether it's possible to perform a paste operation.
