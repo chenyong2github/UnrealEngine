@@ -802,7 +802,7 @@ void UDMXSubsystem::OnGameThreadOnlyBufferUpdated(const FName& InProtocolName, i
 		{
 			const TSharedPtr<FDMXSignal>& DMXSignal = *DMXSignalPtr;
 			const TArray<uint8>& DMXBuffer = DMXSignal.Get()->ChannelData;
-			OnProtocolReceived_DEPRECATED.Broadcast(FDMXProtocolName(InProtocolName), InUniverseID, DMXBuffer);
+			OnProtocolReceived.Broadcast(FDMXProtocolName(InProtocolName), InUniverseID, DMXBuffer);
 		}
 	}
 }
