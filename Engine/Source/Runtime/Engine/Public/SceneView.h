@@ -1088,9 +1088,6 @@ public:
 	/** True if mobile multi-view is enabled. */
 	bool bIsMobileMultiViewEnabled;
 
-	/** True if mobile multi-view direct is enabled. */
-	bool bIsMobileMultiViewDirectEnabled;
-
 	/** True if we need to bind the instanced view uniform buffer parameters. */
 	bool bShouldBindInstancedViewUB;
 
