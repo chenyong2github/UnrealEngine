@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 #include "HAL/PlatformMemory.h"
 #include "HAL/PlatformProcess.h"
-#include "HAL/PlatformStackwalk.h"
+#include "HAL/PlatformStackWalk.h"
 #include "Misc/Optional.h"
 #include "Containers/UnrealString.h"
 
