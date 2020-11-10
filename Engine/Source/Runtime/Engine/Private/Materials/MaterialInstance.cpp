@@ -42,6 +42,9 @@
 #include "ShaderPlatformQualitySettings.h"
 #include "MaterialShaderQualitySettings.h"
 
+// [jonathan.bard] Disable optimization, remove : 
+PRAGMA_DISABLE_OPTIMIZATION
+
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance CopyMatInstParams"), STAT_MaterialInstance_CopyMatInstParams, STATGROUP_Shaders);
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance Serialize"), STAT_MaterialInstance_Serialize, STATGROUP_Shaders);
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance CopyUniformParamsInternal"), STAT_MaterialInstance_CopyUniformParamsInternal, STATGROUP_Shaders);
@@ -2676,7 +2679,7 @@ void UMaterialInstance::InitStaticPermutation(EMaterialShaderPrecompileMode Prec
 		CacheResourceShadersForRendering(PrecompileMode, ResourcesToFree);
 	}
 
-	DeleteDeferredResources(ResourcesToFree);
+	FMaterial::DeferredDeleteArray(ResourcesToFree);
 }
 
 void UMaterialInstance::UpdateOverridableBaseProperties()
@@ -2850,26 +2853,11 @@ void UMaterialInstance::CacheResourceShadersForRendering(EMaterialShaderPrecompi
 	InitResources();
 }
 
-void UMaterialInstance::DeleteDeferredResources(FMaterialResourceDeferredDeletionArray& ResourcesToFree)
-{
-	if (ResourcesToFree.Num())
-	{
-		ENQUEUE_RENDER_COMMAND(CmdFreeMaterialResources)(
-			[ResourcesToFreeRT = MoveTemp(ResourcesToFree)](FRHICommandList&)
-		{
-			for (int32 Idx = 0; Idx < ResourcesToFreeRT.Num(); ++Idx)
-			{
-				delete ResourcesToFreeRT[Idx];
-			}
-		});
-	}
-}
-
 void UMaterialInstance::CacheResourceShadersForRendering(EMaterialShaderPrecompileMode PrecompileMode)
 {
 	FMaterialResourceDeferredDeletionArray ResourcesToFree;
 	CacheResourceShadersForRendering(PrecompileMode, ResourcesToFree);
-	DeleteDeferredResources(ResourcesToFree);
+	FMaterial::DeferredDeleteArray(ResourcesToFree);
 }
 
 void UMaterialInstance::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FMaterialResource*>& OutCachedMaterialResources, EMaterialShaderPrecompileMode PrecompileMode, const ITargetPlatform* TargetPlatform)
@@ -3719,7 +3707,7 @@ void UMaterialInstance::SetParentInternal(UMaterialInterface* NewParent, bool Re
 			{
 				FMaterialResourceDeferredDeletionArray ResourcesToFree;
 				ResourcesToFree = MoveTemp(StaticPermutationMaterialResources);
-				DeleteDeferredResources(ResourcesToFree);
+				FMaterial::DeferredDeleteArray(ResourcesToFree);
 				StaticPermutationMaterialResources.Reset();
 			}
 			InitStaticPermutation();
@@ -4982,3 +4970,6 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 UMaterialInstance::FCustomStaticParametersGetterDelegate UMaterialInstance::CustomStaticParametersGetters;
 TArray<UMaterialInstance::FCustomParameterSetUpdaterDelegate> UMaterialInstance::CustomParameterSetUpdaters;
 #endif // WITH_EDITORONLY_DATA
+
+// [jonathan.bard] Disable optimization, remove :
+PRAGMA_ENABLE_OPTIMIZATION
