@@ -400,6 +400,12 @@ public abstract class BaseWinPlatform : Platform
 			DateTime Start = DateTime.Now;
 			DirectoryReference TempSymStoreDir = DirectoryReference.Combine(RootDirectory, "Saved", "SymStore");
 
+			if (DirectoryReference.Exists(TempSymStoreDir))
+			{
+				CommandUtils.DeleteDirectory(TempSymStoreDir);
+				DirectoryReference.CreateDirectory(TempSymStoreDir);
+			}
+
 			string TempFileName = Path.GetTempFileName();
 			try
 			{
@@ -421,7 +427,9 @@ public abstract class BaseWinPlatform : Platform
 				File.Delete(TempFileName);
 			}
 			DateTime CompressDone = DateTime.Now;
-			LogInformation("Took {0}s to compress the symbol files", (CompressDone - Start).TotalSeconds);
+			LogInformation("Took {0}s to compress the symbol files to temp path {1}", (CompressDone - Start).TotalSeconds, TempSymStoreDir);
+
+			int CopiedCount = 0;
 
 			// Take each new compressed file made and try and copy it to the real symstore.  Exclude any symstore admin files
 			foreach(FileReference File in DirectoryReference.EnumerateFiles(TempSymStoreDir, "*.*", SearchOption.AllDirectories).Where(File => IsSymbolFile(File)))
@@ -465,6 +473,8 @@ public abstract class BaseWinPlatform : Platform
 				try
 				{
 					FileReference.Move(TempDestinationFile, ActualDestinationFile);
+					//LogVerbose("Moved {0} to {1}", TempDestinationFile, ActualDestinationFile);
+					CopiedCount++;
 				}
 				catch (Exception Ex)
 				{
@@ -487,7 +497,14 @@ public abstract class BaseWinPlatform : Platform
 					FileReference.Delete(TempDestinationFile);
 				}
 			}
-			LogInformation("Took {0}s to copy the symbol files to the store", (DateTime.Now - CompressDone).TotalSeconds);
+			LogInformation("Took {0}s to copy {1} symbol files to the store at {2}", (DateTime.Now - CompressDone).TotalSeconds, CopiedCount, SymbolStoreDirectory);
+
+			FileReference PingmeFile = FileReference.Combine(SymbolStoreDirectory, "pingme.txt");
+			if (!FileReference.Exists(PingmeFile))
+			{
+				LogInformation("Creating {0} to mark path as three-tiered symbol location", PingmeFile);
+				File.WriteAllText(PingmeFile.FullName, "Exists to mark this as a three-tiered symbol location");
+			}
 		}
 			
 		return true;

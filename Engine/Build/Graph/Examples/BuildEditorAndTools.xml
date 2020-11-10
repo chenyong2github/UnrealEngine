@@ -23,6 +23,7 @@
 			
 		Other options:
 			-set:EditorTarget=<TargetName>		Specifies the editor target to be built (defaults to UE4Editor)
+			-set:UProjectPath=<ProjectPath>		Specifies the uproject path to pass as -Project in the compile args (defaults to none)
 			-set:GameTargets=<TargetName>		Specifies the game targets to be built (defaults to none)
 			-set:TargetPlatforms=<A>;<B>;<C>... Specifies the target platforms to build the game for (defaults to Win64)
 			-set:OutputDir=<Path>				Specifies the output directory for the compiled binaries
@@ -33,6 +34,7 @@
 	-->
 
 	<Option Name="EditorTarget" Restrict="[^ ]+" DefaultValue="UE4Editor" Description="Name of the editor target to be built"/>
+	<Option Name="UProjectPath" Restrict="[^ ]*" DefaultValue="" Description="Optional Uproject path to include in the arguments"/>
 	<Option Name="GameTargets" Restrict="[^ ]*" DefaultValue="" Description="Names of game targets to build separated by semicolons, eg. UE4Client;UE4Server"/>
 	<Option Name="TargetPlatforms" Restrict="[^ ]*" DefaultValue="Win64" Description="List of the target platforms to build for, separated by semicolons, eg. Win64;Win32;Android"/>
 	<Option Name="OutputDir" DefaultValue="$(RootDir)\LocalBuilds\$(EditorTarget)Binaries" Description ="Output directory for compiled binaries"/>
@@ -40,6 +42,7 @@
 	<Option Name="Versioned" Restrict="true|false" DefaultValue="$(IsBuildMachine)" Description="Whether to embed changelist number into binaries"/>
 	<Option Name="ArchiveStream" Restrict="(?://.*)?" DefaultValue="" Description="Stream path that will contain zip file of the compiled binaries, for use by UnrealGameSync"/>
 	<Option Name="ForceSubmit" Restrict="true|false" DefaultValue="false" Description="Forces the submit to happen even if another change has been submitted (resolves in favor of local files)"/>
+	<Option Name="SymbolStorePath" DefaultValue="" Description ="Output directory for symbol storage"/>
 
 	<EnvVar Name="COMPUTERNAME"/>
 	
@@ -66,7 +69,9 @@
 		
 		<!-- Compile the editor executable -->
 		<Node Name="Compile $(EditorTarget) Win64" Requires="Compile Tools Win64" Produces="#EditorBinaries">
-			<Compile Target="$(EditorTarget)" Platform="Win64" Configuration="Development" Tag="#EditorBinaries"/>
+			<Property Name="UProjectParam" Value=""/>
+			<Property Name="UProjectParam" Value="-Project=&quot;$(UProjectPath)&quot;" If="'$(UProjectPath)' != ''"/>
+			<Compile Target="$(EditorTarget)" Platform="Win64" Configuration="Development" Tag="#EditorBinaries" Arguments="$(UProjectParam)"/>
 		</Node>
 		
 		<!-- Compile the game targets -->
@@ -83,22 +88,36 @@
 		
 		<!-- Copy all the files to the output directory -->
 		<Node Name="Tag Output Files" Requires="#ToolBinaries;#EditorBinaries;$(GameBinaries)" Produces="#OutputFiles">
-			<Tag Files="#ToolBinaries;#EditorBinaries;$(GameBinaries)" Except=".../Intermediate/..." With="#OutputFiles"/>
+			<Tag Files="#ToolBinaries;#EditorBinaries;$(GameBinaries)" Except=".../Intermediate/..." With="#OutputFiles"/>			
 		</Node>
 
 		<!-- Copy all the files to the output directory -->
 		<Node Name="Copy To Staging Directory" Requires="#OutputFiles">
 			<Delete Files="$(OutputDir)/..."/>
-			<Copy Files="#OutputFiles" From="$(RootDir)" To="$(OutputDir)"/>
+			<Copy Files="#OutputFiles" From="$(RootDir)" To="$(OutputDir)"/>			
 		</Node>
 
-		<!-- Submit the build products to Perforce. -->
-		<Node Name="Submit To Perforce" Requires="#OutputFiles">
-			<Submit Description="[CL $(CodeChange)] Updated binaries" Files="#OutputFiles" FileType="binary+FS32"/>
+		<!-- Tag PDBs with source information and write them to a symbol store. Only called if SymbolStorage option supplies a path  -->
+		<Node Name="Store Symbols" Requires="#OutputFiles">			
+			<!-- Embed source info into the PDB files. Should be done from this machine to ensure that paths are correct. -->
+			<Log Message="Embedding source file information into PDB files..." />
+			<Tag Files="Engine/Source/...;Engine/Plugins/..." Filter="*.c;*.h;*.cpp;*.hpp;*.inl" Except="Engine/Source/ThirdParty/..." With="#SourceFiles"/>
+			<SrcSrv BinaryFiles="#BinaryFiles" SourceFiles="#SourceFiles" Branch="$(Branch)" Change="$(CodeChange)"/>
+			<Log Message="Writing symbols to $(SymbolStorePath)"/>
+			<SymStore Platform="Win64" Files="#OutputFiles" StoreDir="$(SymbolStorePath)" Product="UGSEditor" BuildVersion="$(CodeChange)"/>
 		</Node>
+
+		<!-- Dependencies required for submitting binaries -->
+		<Property Name="SubmissionDependencies" Value="#OutputFiles" />
+		<Property Name="SubmissionDependencies" Value="$(SubmissionDependencies); Store Symbols" If="'$(SymbolStorePath)' != ''" />
+
+		<!-- Submit the build products to Perforce. -->
+		<Node Name="Submit To Perforce" Requires="$(SubmissionDependencies)">
+			<Submit Description="[CL $(CodeChange)] Updated binaries" Files="#OutputFiles" FileType="binary+FS32"/>
+		</Node>	
 		
 		<!-- Create a zip archive and submit that to Perforce for use by UGS -->
-		<Node Name="Submit To Perforce For UGS" Requires="#OutputFiles">
+		<Node Name="Submit To Perforce For UGS" Requires="$(SubmissionDependencies)">
 			<!-- Clear out the archive directory -->
 			<Property Name="ArchiveDir" Value="$(RootDir)\LocalBuilds\ArchiveForUGS"/>
 			<Delete Files="$(ArchiveDir)\..."/>
@@ -126,6 +145,7 @@
 			<Property Name="ArchiveStagingDir" Value="$(ArchiveDir)\Staging"/>
 			<Copy Files="#ArchiveBinaries" From="$(RootDir)" To="$(ArchiveStagingDir)"/>
 			<Strip Files="#ArchiveSymbols" BaseDir="$(RootDir)" OutputDir="$(ArchiveStagingDir)" Platform="Win64"/>
+
 
 			<!-- Create the zip file and submit it to Perforce -->
 			<Property Name="ArchivePerforceDir" Value="$(ArchiveDir)\Perforce"/>
