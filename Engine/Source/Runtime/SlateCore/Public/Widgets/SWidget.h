@@ -1728,7 +1728,7 @@ private:
 	FName Tag;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	UE_DEPRECATED(5.0, "Access to SWidget::Cursor is deprecated and will not function. Call SetCursor/GetCursor instead")
+	UE_DEPRECATED(4.27, "Access to SWidget::Cursor is deprecated and will not function. Call SetCursor/GetCursor instead")
 	/** The cursor to show when the mouse is hovering over this widget. */
 	TAttribute<TOptional<EMouseCursor::Type>> Cursor;
 #endif
