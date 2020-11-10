@@ -29,7 +29,7 @@ FAutoConsoleVariableRef CVarLumenDirectLightingForceOffscreenShadowing(
 	ECVF_RenderThreadSafe
 );
 
-int32 GLumenDirectLightingOffscreenShadowingTraceMeshSDFs = 0;
+int32 GLumenDirectLightingOffscreenShadowingTraceMeshSDFs = 1;
 FAutoConsoleVariableRef CVarLumenDirectLightingOffscreenShadowingTraceMeshSDFs(
 	TEXT("r.Lumen.DirectLighting.OffscreenShadowing.TraceMeshSDFs"),
 	GLumenDirectLightingOffscreenShadowingTraceMeshSDFs,
