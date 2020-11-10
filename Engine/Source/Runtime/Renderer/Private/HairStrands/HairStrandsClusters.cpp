@@ -49,8 +49,8 @@ class FHairIndBufferClearCS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FSetIndirectDraw>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, DispatchIndirectParametersClusterCount)
-		SHADER_PARAMETER_UAV(Buffer, DrawIndirectParameters)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DispatchIndirectParametersClusterCount)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DrawIndirectParameters)
 		SHADER_PARAMETER(uint32, VertexCountPerInstance)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -87,16 +87,16 @@ class FHairClusterCullingCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, NumConvexHullPlanes)
 		SHADER_PARAMETER(float, LODBias)
 		SHADER_PARAMETER_ARRAY(FVector4, ViewFrustumConvexHull, [6])
-		SHADER_PARAMETER_SRV(Buffer, ClusterAABBBuffer)
-		SHADER_PARAMETER_SRV(StructuredBuffer, ClusterInfoBuffer)
-		SHADER_PARAMETER_SRV(StructuredBuffer, ClusterLODInfoBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, ClusterAABBBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, ClusterInfoBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, ClusterLODInfoBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, GlobalClusterIdBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, GlobalIndexStartBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, GlobalIndexCountBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, GlobalRadiusScaleBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, ClusterDebugInfoBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DispatchIndirectParametersClusterCount)
-		SHADER_PARAMETER_UAV(Buffer, DrawIndirectParameters)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DrawIndirectParameters)
 		SHADER_PARAMETER(FVector, HZBUvFactor)
 		SHADER_PARAMETER(FVector4, HZBSize)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, HZBTexture)
@@ -147,8 +147,8 @@ class FMainClusterCullingPrepareIndirectDispatchCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FMainClusterCullingPrepareIndirectDispatchCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_UAV(Buffer, DrawIndirectBuffer)
-		SHADER_PARAMETER_UAV(Buffer, DispatchIndirectBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, DrawIndirectBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, DispatchIndirectBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -205,9 +205,9 @@ class FHairClusterCullingCompactVertexIdsLocalBlockCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, GlobalIndexStartBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, GlobalIndexCountBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, GlobalRadiusScaleBuffer)
-		SHADER_PARAMETER_SRV(Buffer, ClusterVertexIdBuffer)
-		SHADER_PARAMETER_UAV(Buffer, CulledCompactedIndexBuffer)
-		SHADER_PARAMETER_UAV(Buffer, CulledCompactedRadiusScaleBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, ClusterVertexIdBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, CulledCompactedIndexBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, CulledCompactedRadiusScaleBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -269,8 +269,7 @@ static void AddClusterCullingPass(
 	const FViewInfo& View,
 	const FHairCullingParams& CullingParameters,
 	const FHairHZBParameters& HZBParameters,
-	FHairStrandClusterData::FHairGroup& ClusterData, 
-	FBufferTransitionQueue& OutTransitionQueue)
+	FHairStrandClusterData::FHairGroup& ClusterData)
 {
 	FRDGBufferRef DispatchIndirectParametersClusterCount = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(), TEXT("HairDispatchIndirectParametersClusterCount"));
 	FRDGBufferRef DispatchIndirectParametersClusterCount2D = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(), TEXT("HairDispatchIndirectParametersClusterCount2D"));
@@ -286,8 +285,8 @@ static void AddClusterCullingPass(
 	FRDGBufferRef PerBlocklTotalIndexCountPreFixSumBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32) * 2, ClusterData.ClusterCount), TEXT("PerBlocklTotalIndexCountPreFixSumBuffer"));
 	FRDGBufferRef PerBlocklIndexCountPreFixSumBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32) * 2, ClusterData.ClusterCount), TEXT("PerBlocklIndexCountPreFixSumBuffer"));
 
-	FRWBuffer& DrawIndirectParametersBuffer = ClusterData.HairGroupPublicPtr->GetDrawIndirectBuffer();
-	FRWBuffer& DrawIndirectParametersRasterComputeBuffer = ClusterData.HairGroupPublicPtr->GetDrawIndirectRasterComputeBuffer();
+	FRDGImportedBuffer DrawIndirectParametersBuffer = Register(GraphBuilder, ClusterData.HairGroupPublicPtr->GetDrawIndirectBuffer(), ERDGImportedBufferFlags::CreateUAV);
+	FRDGImportedBuffer DrawIndirectParametersRasterComputeBuffer = Register(GraphBuilder, ClusterData.HairGroupPublicPtr->GetDrawIndirectRasterComputeBuffer(), ERDGImportedBufferFlags::CreateUAV);
 	
 	bool bClusterDebugAABBBuffer = false;
 	bool bClusterDebug = false;
@@ -310,14 +309,6 @@ static void AddClusterCullingPass(
 	}
 #endif
 
-	{
-		FUnorderedAccessViewRHIRef OutputUAV = DrawIndirectParametersBuffer.UAV;
-		AddPass(GraphBuilder, [OutputUAV](FRHIComputeCommandList& RHICmdList)
-		{
-			RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
-		});
-	}
-
 	/// Initialise indirect buffers to be setup during the culling process
 	{
 		FHairIndBufferClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairIndBufferClearCS::FParameters>();
@@ -333,14 +324,6 @@ static void AddClusterCullingPass(
 			ComputeShader,
 			Parameters,
 			FIntVector(1, 1, 1));
-	}
-
-	{
-		FUnorderedAccessViewRHIRef OutputUAV = DrawIndirectParametersBuffer.UAV;
-		AddPass(GraphBuilder, [OutputUAV](FRHIComputeCommandList& RHICmdList)
-		{
-			RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
-		});
 	}
 
 	/// Cull cluster, generate indirect dispatch and prepare data to expand index buffer
@@ -386,9 +369,9 @@ static void AddClusterCullingPass(
 			Parameters->ViewFrustumConvexHull[i] = View.ViewFrustum.Planes[i];
 		}
 
-		Parameters->ClusterAABBBuffer = ClusterData.ClusterAABBBuffer->SRV;
-		Parameters->ClusterInfoBuffer = ClusterData.ClusterInfoBuffer->SRV;
-		Parameters->ClusterLODInfoBuffer = ClusterData.ClusterLODInfoBuffer->SRV;
+		Parameters->ClusterAABBBuffer = RegisterAsSRV(GraphBuilder, *ClusterData.ClusterAABBBuffer);
+		Parameters->ClusterInfoBuffer = RegisterAsSRV(GraphBuilder, *ClusterData.ClusterInfoBuffer);
+		Parameters->ClusterLODInfoBuffer = RegisterAsSRV(GraphBuilder, *ClusterData.ClusterLODInfoBuffer);
 
 		Parameters->GlobalClusterIdBuffer = GraphBuilder.CreateUAV(GlobalClusterIdBuffer, PF_R32_UINT);
 		Parameters->GlobalIndexStartBuffer = GraphBuilder.CreateUAV(GlobalIndexStartBuffer, PF_R32_UINT);
@@ -419,7 +402,6 @@ static void AddClusterCullingPass(
 			Parameters,
 			DispatchCount);
 	}
-	OutTransitionQueue.Add(DrawIndirectParametersBuffer.UAV);
 
 	/// Prepare some indirect draw buffers for specific compute group size
 	{
@@ -477,6 +459,13 @@ static void AddClusterCullingPass(
 
 	/// Compact to VertexId buffer using hierarchical binary search or splatting
 	{
+		check(ClusterData.GetCulledVertexIdBuffer());
+		check(ClusterData.GetCulledVertexRadiusScaleBuffer());
+		
+		FRDGImportedBuffer ClusterVertexIdBuffer			= Register(GraphBuilder, *ClusterData.ClusterVertexIdBuffer, ERDGImportedBufferFlags::CreateSRV);
+		FRDGImportedBuffer CulledCompactedIndexBuffer		= Register(GraphBuilder, *ClusterData.GetCulledVertexIdBuffer(), ERDGImportedBufferFlags::CreateUAV);
+		FRDGImportedBuffer CulledCompactedRadiusScaleBuffer	= Register(GraphBuilder, *ClusterData.GetCulledVertexRadiusScaleBuffer(), ERDGImportedBufferFlags::CreateUAV);
+
 		FHairClusterCullingCompactVertexIdsLocalBlockCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairClusterCullingCompactVertexIdsLocalBlockCS::FParameters>();
 
 		Parameters->DispatchIndirectParametersClusterCount = GraphBuilder.CreateSRV(DispatchIndirectParametersClusterCount, PF_R32_UINT);
@@ -489,12 +478,11 @@ static void AddClusterCullingPass(
 		Parameters->GlobalIndexStartBuffer = GraphBuilder.CreateSRV(GlobalIndexStartBuffer, PF_R32_UINT);
 		Parameters->GlobalIndexCountBuffer = GraphBuilder.CreateSRV(GlobalIndexCountBuffer, PF_R32_UINT);
 		Parameters->GlobalRadiusScaleBuffer = GraphBuilder.CreateSRV(GlobalRadiusScaleBuffer, PF_R32_FLOAT);
-		Parameters->ClusterVertexIdBuffer = ClusterData.ClusterVertexIdBuffer->SRV;
+		Parameters->ClusterVertexIdBuffer = ClusterVertexIdBuffer.SRV;
 
-		check(ClusterData.GetCulledVertexIdBuffer());
-		check(ClusterData.GetCulledVertexRadiusScaleBuffer());
-		Parameters->CulledCompactedIndexBuffer = ClusterData.GetCulledVertexIdBuffer()->UAV;
-		Parameters->CulledCompactedRadiusScaleBuffer = ClusterData.GetCulledVertexRadiusScaleBuffer()->UAV;
+		
+		Parameters->CulledCompactedIndexBuffer = CulledCompactedIndexBuffer.UAV;
+		Parameters->CulledCompactedRadiusScaleBuffer = CulledCompactedRadiusScaleBuffer.UAV;
 
 		Parameters->DispatchIndirectParametersBuffer = DispatchIndirectParametersClusterCount2D;
 		TShaderMapRef<FHairClusterCullingCompactVertexIdsLocalBlockCS> ComputeShader(ShaderMap);
@@ -505,8 +493,8 @@ static void AddClusterCullingPass(
 			Parameters,
 			DispatchIndirectParametersClusterCount2D, 0); // DispatchIndirectParametersClusterCount2D is used to avoid having any dispatch dimension going above 65535.
 
-		OutTransitionQueue.Add(Parameters->CulledCompactedIndexBuffer);
-		OutTransitionQueue.Add(Parameters->CulledCompactedRadiusScaleBuffer);
+		GraphBuilder.SetBufferAccessFinal(CulledCompactedIndexBuffer.Buffer, ERHIAccess::SRVMask);
+		GraphBuilder.SetBufferAccessFinal(CulledCompactedRadiusScaleBuffer.Buffer, ERHIAccess::SRVMask);
 	}
 
 	{
@@ -528,9 +516,6 @@ static void AddClusterCullingPass(
 			ComputeShader,
 			Parameters,
 			FIntVector(1, 1, 1));
-
-
-		OutTransitionQueue.Add(Parameters->DispatchIndirectBuffer);
 	}
 
 	// Should this be move onto the culling result?
@@ -544,6 +529,9 @@ static void AddClusterCullingPass(
 		ConvertToExternalBuffer(GraphBuilder, DispatchIndirectParametersClusterCount, ClusterData.CulledDispatchIndirectParametersClusterCount);
 	}
 #endif
+
+	GraphBuilder.SetBufferAccessFinal(DrawIndirectParametersBuffer.Buffer, ERHIAccess::IndirectArgs | ERHIAccess::SRVMask);
+	GraphBuilder.SetBufferAccessFinal(DrawIndirectParametersRasterComputeBuffer.Buffer, ERHIAccess::IndirectArgs | ERHIAccess::SRVMask);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -551,15 +539,16 @@ static void AddClusterCullingPass(
 static void AddClusterResetLod0(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
-	FHairStrandClusterData::FHairGroup& ClusterData,
-	FBufferTransitionQueue& OutTransitionQueue)
+	FHairStrandClusterData::FHairGroup& ClusterData)
 {
 	// Set as culling result not available
 	ClusterData.SetCullingResultAvailable(false);
 
+	FRDGImportedBuffer IndirectBuffer = Register(GraphBuilder, ClusterData.HairGroupPublicPtr->GetDrawIndirectBuffer(), ERDGImportedBufferFlags::CreateUAV);
+
 	// Initialise indirect buffers to entire lod 0 dispatch
 	FHairIndBufferClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairIndBufferClearCS::FParameters>();
-	Parameters->DrawIndirectParameters = ClusterData.HairGroupPublicPtr->GetDrawIndirectBuffer().UAV;
+	Parameters->DrawIndirectParameters = IndirectBuffer.UAV;
 	Parameters->VertexCountPerInstance = ClusterData.HairGroupPublicPtr->GetGroupInstanceVertexCount();
 
 	FHairIndBufferClearCS::FPermutationDomain Permutation;
@@ -572,7 +561,7 @@ static void AddClusterResetLod0(
 		Parameters,
 		FIntVector(1, 1, 1));
 
-	OutTransitionQueue.Add(Parameters->DrawIndirectParameters);
+	GraphBuilder.SetBufferAccessFinal(IndirectBuffer.Buffer, ERHIAccess::IndirectArgs);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -626,7 +615,7 @@ void ComputeHairStrandsClustersCulling(
 		FBufferTransitionQueue TransitionQueue;
 		for (FHairStrandClusterData::FHairGroup& ClusterData : ClusterDatas.HairGroups)
 		{
-			AddClusterResetLod0(GraphBuilder, &ShaderMap, ClusterData, TransitionQueue);
+			AddClusterResetLod0(GraphBuilder, &ShaderMap, ClusterData);
 		}
 
 		if (!bCullingProcessSkipped)
@@ -639,13 +628,11 @@ void ComputeHairStrandsClustersCulling(
 					View, 
 					CullingParameters,
 					HZBParameters,
-					ClusterData,
-					TransitionQueue);
+					ClusterData);
 			
 				ClusterData.SetCullingResultAvailable(true);
 			}
 		}
-		TransitBufferToReadable(GraphBuilder, TransitionQueue);
 	}
 }
 

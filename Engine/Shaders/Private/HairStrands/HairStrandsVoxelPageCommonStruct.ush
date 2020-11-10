@@ -2,7 +2,7 @@
 
 #pragma once
 
-struct FPackedVirtualVoxelNodeDesc 
+struct FPackedVirtualVoxelNodeDesc  
 {
 	float3	MinAABB;
 	uint	PackedPageIndexResolution; // 8bits encoding   

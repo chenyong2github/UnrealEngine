@@ -131,6 +131,7 @@ public:
 	virtual uint32 GetVertexLayoutCount(uint16 MeshIndex) const = 0;
 	virtual FVertexLayout GetVertexLayout(uint16 MeshIndex, uint32 LayoutIndex) const = 0;
 	virtual uint16 GetMaximumInfluencePerVertex(uint16 MeshIndex) const = 0;
+	virtual uint32 GetSkinWeightsCount(uint16 MeshIndex) const = 0;
 	virtual TArrayView<const float> GetSkinWeightsValues(uint16 MeshIndex, uint32 VertexIndex) const = 0;
 	virtual TArrayView<const uint16> GetSkinWeightsJointIndices(uint16 MeshIndex, uint32 VertexIndex) const = 0;
 	virtual uint16 GetBlendShapeTargetCount(uint16 MeshIndex) const = 0;

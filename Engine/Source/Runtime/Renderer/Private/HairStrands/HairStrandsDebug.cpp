@@ -1037,7 +1037,7 @@ static void AddDrawDebugClusterPass(
 						if (ShaderDrawDebug::IsShaderDrawDebugEnabled(ViewInfo) && HairGroupClusters.CulledDispatchIndirectParametersClusterCount)
 						{
 							FRDGBufferRef CulledDispatchIndirectParametersClusterCount = GraphBuilder.RegisterExternalBuffer(HairGroupClusters.CulledDispatchIndirectParametersClusterCount);
-							FRWBuffer& DrawIndirectBuffer = HairGroupClusters.HairGroupPublicPtr->GetDrawIndirectBuffer();
+							FRDGExternalBuffer& DrawIndirectBuffer = HairGroupClusters.HairGroupPublicPtr->GetDrawIndirectBuffer();
 
 							FDrawDebugClusterAABBCS::FPermutationDomain Permutation;
 							Permutation.Set<FDrawDebugClusterAABBCS::FDebugAABBBuffer>(bDebugAABB ? 1 : 0);

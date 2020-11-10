@@ -6876,6 +6876,11 @@ int32 FHLSLMaterialTranslator::GetHairCoverage()
 	return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairCoverage(Parameters)"));
 }
 
+int32 FHLSLMaterialTranslator::GetHairAuxilaryData()
+{
+	return AddCodeChunk(MCT_Float4, TEXT("MaterialExpressionGetHairAuxilaryData(Parameters)"));
+}
+
 int32 FHLSLMaterialTranslator::GetHairAtlasUVs()
 {
 	return AddCodeChunk(MCT_Float2, TEXT("MaterialExpressionGetAtlasUVs(Parameters)"));

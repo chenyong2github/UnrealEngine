@@ -41,6 +41,75 @@ static int32 GHairStrandsSimulation = 1;
 static FAutoConsoleVariableRef CVarHairStrandsSimulation(TEXT("r.HairStrands.Simulation"), GHairStrandsSimulation, TEXT("Enable/disable hair simulation"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Import/export utils function for hair resources
+void FRDGExternalBuffer::Release()
+{
+	Buffer = nullptr;
+	SRV = nullptr;
+	UAV = nullptr;
+}
+
+FRDGImportedBuffer Register(FRDGBuilder& GraphBuilder, const FRDGExternalBuffer& In, ERDGImportedBufferFlags Flags, ERDGUnorderedAccessViewFlags UAVFlags)
+{
+	FRDGImportedBuffer Out;
+	if (!In.Buffer)
+	{
+		return Out;
+	}
+	const uint32 uFlags = uint32(Flags);
+	Out.Buffer = GraphBuilder.RegisterExternalBuffer(In.Buffer);
+	if (In.Format != PF_Unknown)
+	{
+		if (uFlags & uint32(ERDGImportedBufferFlags::CreateSRV)) { Out.SRV = GraphBuilder.CreateSRV(Out.Buffer, In.Format); }
+		if (uFlags & uint32(ERDGImportedBufferFlags::CreateUAV)) { Out.UAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Out.Buffer, In.Format), UAVFlags); }
+	}
+	else
+	{
+		if (uFlags & uint32(ERDGImportedBufferFlags::CreateSRV)) { Out.SRV = GraphBuilder.CreateSRV(Out.Buffer); }
+		if (uFlags & uint32(ERDGImportedBufferFlags::CreateUAV)) { Out.UAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Out.Buffer),  UAVFlags); }
+	}
+	return Out;
+}
+
+FRDGBufferSRVRef RegisterAsSRV(FRDGBuilder& GraphBuilder, const FRDGExternalBuffer& In)
+{
+	if (!In.Buffer)
+	{
+		return nullptr;
+	}
+
+	FRDGBufferSRVRef Out = nullptr;
+	FRDGBufferRef Buffer = GraphBuilder.RegisterExternalBuffer(In.Buffer);
+	if (In.Format != PF_Unknown)
+	{
+		Out = GraphBuilder.CreateSRV(Buffer, In.Format);
+	}
+	else
+	{
+		Out = GraphBuilder.CreateSRV(Buffer);
+	}
+	return Out;
+}
+
+FRDGBufferUAVRef RegisterAsUAV(FRDGBuilder& GraphBuilder, const FRDGExternalBuffer& In, ERDGUnorderedAccessViewFlags Flags)
+{
+	if (!In.Buffer)
+	{
+		return nullptr;
+	}
+
+	FRDGBufferUAVRef Out = nullptr;
+	FRDGBufferRef Buffer = GraphBuilder.RegisterExternalBuffer(In.Buffer);
+	if (In.Format != PF_Unknown)
+	{
+		Out = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Buffer, In.Format), Flags);
+	}
+	else
+	{
+		Out = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Buffer), Flags);
+	}
+	return Out;
+}
 
 bool IsHairRayTracingEnabled()
 {
@@ -110,6 +179,65 @@ bool IsHairStrandsSimulationEnable()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void ConvertToExternalBufferWithViews(FRDGBuilder& GraphBuilder, FRDGBufferRef& InBuffer, FRDGExternalBuffer& OutBuffer, EPixelFormat Format)
+{
+	ConvertToExternalBuffer(GraphBuilder, InBuffer, OutBuffer.Buffer);
+	if (Format != PF_Unknown)
+	{
+		OutBuffer.SRV = OutBuffer.Buffer->GetOrCreateSRV(FRDGBufferSRVDesc(InBuffer, Format));
+		OutBuffer.UAV = OutBuffer.Buffer->GetOrCreateUAV(FRDGBufferUAVDesc(InBuffer, Format));
+	}
+	else
+	{
+		OutBuffer.SRV = OutBuffer.Buffer->GetOrCreateSRV(FRDGBufferSRVDesc(InBuffer));
+		OutBuffer.UAV = OutBuffer.Buffer->GetOrCreateUAV(FRDGBufferUAVDesc(InBuffer));
+	}
+	OutBuffer.Format = Format;
+}
+
+void InternalCreateIndirectBufferRDG(FRDGBuilder& GraphBuilder, FRDGExternalBuffer& Out, const TCHAR* DebugName, const FUintVector4& InitValues)
+{
+	FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(4, 4);
+	Desc.Usage |= BUF_DrawIndirect;
+	FRDGBufferRef Buffer = GraphBuilder.CreateBuffer(Desc, DebugName);
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Buffer, PF_R32_UINT), 0u);
+	ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out, PF_R32_UINT);
+}
+
+void InternalCreateVertexBufferRDG(FRDGBuilder& GraphBuilder, uint32 ElementSizeInBytes, uint32 ElementCount, EPixelFormat Format, FRDGExternalBuffer& Out, const TCHAR* DebugName, bool bClearFloat=false)
+{
+	FRDGBufferRef Buffer = nullptr;
+
+	const uint32 DataCount = ElementCount;
+	const uint32 DataSizeInBytes = ElementSizeInBytes * DataCount;
+	if (DataSizeInBytes == 0)
+	{
+		Out.Buffer = nullptr;
+		return;
+	}
+
+	// #hair_todo: Create this with a create+clear pass instead?
+	const FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(ElementSizeInBytes, ElementCount);
+	TArray<uint8> InitializeData;
+	InitializeData.Init(0u, DataSizeInBytes);
+	Buffer = CreateVertexBuffer(
+		GraphBuilder,
+		DebugName,
+		Desc,
+		InitializeData.GetData(),
+		DataSizeInBytes,
+		ERDGInitialDataFlags::None);
+
+	if (bClearFloat)
+	{
+		AddClearUAVFloatPass(GraphBuilder, GraphBuilder.CreateUAV(Buffer, Format), 0.f);
+	}
+	else
+	{
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Buffer, Format), 0);
+	}
+	ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out, Format);
+}
 
 FHairGroupPublicData::FHairGroupPublicData(uint32 InGroupIndex)
 {
@@ -131,31 +259,21 @@ void FHairGroupPublicData::InitRHI()
 	if (ClusterCount == 0)
 		return;
 
-	{
-		DrawIndirectBuffer.Initialize(sizeof(uint32), 4, PF_R32_UINT, BUF_DrawIndirect, TEXT("HairStrandsCluster_DrawIndirectBuffer"));
-		uint32* BufferData = (uint32*)RHILockVertexBuffer(DrawIndirectBuffer.Buffer, 0, sizeof(uint32) * 4, RLM_WriteOnly);
-		BufferData[0] = GroupControlTriangleStripVertexCount;
-		BufferData[1] = 1;
-		BufferData[2] = 0;
-		BufferData[3] = 0;
-		RHIUnlockVertexBuffer(DrawIndirectBuffer.Buffer);
-	}
+	if (GUsingNullRHI) { return; }
 
-	{
-		DrawIndirectRasterComputeBuffer.Initialize(sizeof(uint32), 4, PF_R32_UINT, BUF_DrawIndirect, TEXT("HairStrandsCluster_DrawIndirectRasterComputeBuffer"));
-		uint32* BufferData = (uint32*)RHILockVertexBuffer(DrawIndirectRasterComputeBuffer.Buffer, 0, sizeof(uint32) * 4, RLM_WriteOnly);
-		BufferData[0] = 0;
-		BufferData[1] = 1;
-		BufferData[2] = 0;
-		BufferData[3] = 0;
-		RHIUnlockVertexBuffer(DrawIndirectRasterComputeBuffer.Buffer);
-	}
+	FMemMark Mark(FMemStack::Get());
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+	FRDGBuilder GraphBuilder(RHICmdList);
+	InternalCreateIndirectBufferRDG(GraphBuilder, DrawIndirectBuffer, TEXT("HairStrandsCluster_DrawIndirectBuffer"), FUintVector4(GroupControlTriangleStripVertexCount, 1, 0, 0));
+	InternalCreateIndirectBufferRDG(GraphBuilder, DrawIndirectRasterComputeBuffer, TEXT("HairStrandsCluster_DrawIndirectRasterComputeBuffer"), FUintVector4(0, 1, 0, 0));
 
-	ClusterAABBBuffer.Initialize(sizeof(int32), ClusterCount * 6, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("HairStrandsCluster_ClusterAABBBuffer"));
-	GroupAABBBuffer.Initialize(sizeof(int32), 6, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("HairStrandsCluster_GroupAABBBuffer"));
+	InternalCreateVertexBufferRDG(GraphBuilder, sizeof(int32), ClusterCount * 6, EPixelFormat::PF_R32_SINT, ClusterAABBBuffer, TEXT("HairStrandsCluster_ClusterAABBBuffer"));
+	InternalCreateVertexBufferRDG(GraphBuilder, sizeof(int32), 6, EPixelFormat::PF_R32_SINT, GroupAABBBuffer, TEXT("HairStrandsCluster_GroupAABBBuffer"));
 
-	CulledVertexIdBuffer.Initialize(sizeof(int32), VertexCount, EPixelFormat::PF_R32_UINT, BUF_Static, TEXT("HairStrandsCluster_CulledVertexIdBuffer"));
-	CulledVertexRadiusScaleBuffer.Initialize(sizeof(float), VertexCount, EPixelFormat::PF_R32_FLOAT, BUF_Static, TEXT("HairStrandsCluster_CulledVertexRadiusScaleBuffer"));
+	InternalCreateVertexBufferRDG(GraphBuilder, sizeof(int32), VertexCount, EPixelFormat::PF_R32_UINT, CulledVertexIdBuffer, TEXT("HairStrandsCluster_CulledVertexIdBuffer"));
+	InternalCreateVertexBufferRDG(GraphBuilder, sizeof(float), VertexCount, EPixelFormat::PF_R32_FLOAT, CulledVertexRadiusScaleBuffer, TEXT("HairStrandsCluster_CulledVertexRadiusScaleBuffer"), true);
+
+	GraphBuilder.Execute();
 }
 
 void FHairGroupPublicData::ReleaseRHI()
@@ -180,7 +298,7 @@ void TransitBufferToReadable(FRDGBuilder& GraphBuilder, FBufferTransitionQueue& 
 			Transitions.Reserve(LocalBuffersToTransit.Num());
 			for (FRHIUnorderedAccessView* UAV : LocalBuffersToTransit)
 			{
-				Transitions.Add(FRHITransitionInfo(UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+				Transitions.Add(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 			}
 			RHICmdList.Transition(Transitions);
 		});

@@ -692,8 +692,7 @@ struct FMallocBinned::Private
 			}
 		}
 		BINNED_PEAK_STATCOUNTER(Allocator.UsedPeak, BINNED_ADD_STATCOUNTER(Allocator.UsedCurrent, Table->BlockSize));
-		check(IsAligned(Free, Alignment));
-		return Free;
+		return Align(Free, Alignment);
 	}
 
 	/**

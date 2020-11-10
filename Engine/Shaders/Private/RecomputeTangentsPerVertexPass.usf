@@ -132,30 +132,22 @@ void MainCS(
 		// -1..1 range, normalized
 		float3 TangentZ, TangentX;
 		// the sign defines the handyness of the tangent matrix
-		float Orientation;
-		{
-			// no start offset as we reuse the same buffer always from 0 on
-			uint Index = DispatchThreadId * INTERMEDIATE_ACCUM_BUFFER_NUM_INTS;
-
-			// we don't have to scale down as we normalize anyway
-			TangentZ = normalize(float3(IntermediateAccumBufferUAV[Index + 0], IntermediateAccumBufferUAV[Index + 1], IntermediateAccumBufferUAV[Index + 2]));
-			TangentX = normalize(float3(IntermediateAccumBufferUAV[Index + 3], IntermediateAccumBufferUAV[Index + 4], IntermediateAccumBufferUAV[Index + 5]));
+  
+        // no start offset as we reuse the same buffer always from 0 on
+        uint Index = DispatchThreadId * INTERMEDIATE_ACCUM_BUFFER_NUM_INTS;
+		
+        // we don't have to scale down as we normalize anyway
+        TangentZ = normalize(float3(IntermediateAccumBufferUAV[Index + 0], IntermediateAccumBufferUAV[Index + 1], IntermediateAccumBufferUAV[Index + 2]));
+        TangentX = normalize(float3(IntermediateAccumBufferUAV[Index + 3], IntermediateAccumBufferUAV[Index + 4], IntermediateAccumBufferUAV[Index + 5]));
 
 #if ORTHOGONALIZE
-			// todo: can be optimized
-			// derive the new tangent by orthonormalizing the new normal against
-			// the base tangent vector (assuming these are normalized)
-			TangentX = normalize(TangentX - (dot(TangentX, TangentZ) * TangentZ));
+        // todo: can be optimized
+        // derive the new tangent by orthonormalizing the new normal against
+        // the base tangent vector (assuming these are normalized)
+        TangentX = normalize(TangentX - (dot(TangentX, TangentZ) * TangentZ));
 #endif
 
-			Orientation = IntermediateAccumBufferUAV[Index + 6];
-
-			// clear input UAV to 0 again to avoid another Dispatch() call
-			UNROLL for(int i = 0; i < INTERMEDIATE_ACCUM_BUFFER_NUM_INTS; ++i)
-			{
-				IntermediateAccumBufferUAV[Index + i] = 0;
-			}
-		}
+        float Orientation = IntermediateAccumBufferUAV[Index + 6];
 
 		uint VertexIndex = DispatchThreadId;
 		uint Offset = VertexIndex + SkinCacheStart;
@@ -192,5 +184,11 @@ void MainCS(
 
 		TangentBufferUAV[2 * Offset + GPUSKIN_RWBUFFER_OFFSET_TANGENT_X] = TangentUnbias_SkinCache(float4(TangentX, 0.0f));
 		TangentBufferUAV[2 * Offset + GPUSKIN_RWBUFFER_OFFSET_TANGENT_Z] = TangentUnbias_SkinCache(float4(TangentZ, Orientation));
+  
+        // clear input UAV to 0 again to avoid another Dispatch() call
+        UNROLL for(int i = 0; i < INTERMEDIATE_ACCUM_BUFFER_NUM_INTS; ++i)
+        {
+            IntermediateAccumBufferUAV[Index + i] = 0;
+        }
 	}
 }

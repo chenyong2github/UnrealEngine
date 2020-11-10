@@ -2736,7 +2736,7 @@ bool USkeletalMesh::RegisterMorphTarget(UMorphTarget* MorphTarget, bool bInvalid
 		{
 			if ( MorphTargets[Index]->GetFName() == MorphTarget->GetFName() )
 			{
-				UE_LOG( LogSkeletalMesh, Log, TEXT("RegisterMorphTarget: %s already exists, replacing"), *MorphTarget->GetName() );
+				UE_LOG( LogSkeletalMesh, Verbose, TEXT("RegisterMorphTarget: %s already exists, replacing"), *MorphTarget->GetName() );
 				MorphTargets[Index] = MorphTarget;
 				bRegistered = true;
 				break;

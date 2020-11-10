@@ -868,7 +868,7 @@ bool SetApexDestructibleAsset(UDestructibleMesh& DestructibleMesh, apex::Destruc
 	UE_LOG(LogApexDestructibleAssetImport, Warning, TEXT("Bones digested - %i  Depth of hierarchy - %i"), DestructibleMesh.RefSkeleton.GetNum(), SkeletalDepth);
 
 	// process bone influences from import data
-	ProcessImportMeshInfluences(*SkelMeshImportDataPtr);
+	ProcessImportMeshInfluences(*SkelMeshImportDataPtr, FString("ApexMesh"));
 
 	FSkeletalMeshModel& DestructibleMeshResource = *DestructibleMesh.GetImportedModel();
 	check(DestructibleMeshResource.LODModels.Num() == 0);

@@ -2438,7 +2438,7 @@ namespace HairCards
 	}
 
 	static bool CreateCardsGuides(
-		const FHairCardsGeometry& InCards,
+		FHairCardsGeometry& InCards,
 		FHairStrandsDatas& OutGuides,
 		TArray<float>& OutCardLengths
 	)
@@ -2458,9 +2458,11 @@ namespace HairCards
 		OutGuides.StrandsCurves.SetNum(NumCards);
 		OutGuides.BoundingBox.Init();
 
+
+		InCards.CoordU.SetNum(InCards.Positions.Num());
+
 		const float GuideRadius = 0.01f;
 
-		uint32 TriangleIVertexIndices[3];
 		FVector4 TriangleUVs[3];
 		for (uint32 CardIt = 0; CardIt < NumCards; ++CardIt)
 		{
@@ -2470,6 +2472,7 @@ namespace HairCards
 			{
 				float TexCoord = 0;
 				TArray<uint32> Indices;
+				TArray<uint32> AllIndices;
 			};
 			TArray<FSimilarUVVertices> SimilarVertexU;
 			TArray<FSimilarUVVertices> SimilarVertexV;
@@ -2481,7 +2484,9 @@ namespace HairCards
 				{
 					if (FMath::Abs(In[It].TexCoord - TexCoord) < Threshold)
 					{
-						In[It].Indices.Add(Index);
+						// We add only unique vertices per segment, so that the average position land in the center of the cards
+						In[It].Indices.AddUnique(Index);
+						In[It].AllIndices.Add(Index);
 						bFound = true;
 						break;
 					}
@@ -2492,10 +2497,13 @@ namespace HairCards
 					FSimilarUVVertices& SimilarUV = In.AddDefaulted_GetRef();
 					SimilarUV.TexCoord = TexCoord;
 					SimilarUV.Indices.Add(Index);
+					SimilarUV.AllIndices.Add(Index);
 				}
 			};
 
-			const float UVCoordTreshold = 1.f / 4096.f; // 1 pixel for a 4k texture
+			// Iterate overa all the triangles of a cards, and find vertices which share either same U or same V. We add them to seperate lists. 
+			// We then use the heuristic that, the main axis will have more segments. This is what determine the principal axis of the cards
+			const float UVCoordTreshold = 1.f / 1024.f; // 1 pixel for a 1k texture
 			for (uint32 TriangleIt = 0; TriangleIt < NumTriangles; ++TriangleIt)
 			{
 				const uint32 VertexIndexOffset = VertexOffset + TriangleIt * 3;
@@ -2508,99 +2516,54 @@ namespace HairCards
 				}
 			}
 
-			// Find the perpendicular by comparison vertices UV, which are similar
+			// Find the perpendicular direction by comparing the number of segment along U and along V
 			const bool bIsMainDirectionU = SimilarVertexU.Num() >= SimilarVertexV.Num();
-			auto IsPerpendicularEdge = [bIsMainDirectionU, UVCoordTreshold](FVector4* TriangleUVs, uint32 Index0, uint32 Index1)
-			{
-				const FVector2D Diff = FMath::Abs(FVector2D(TriangleUVs[Index0].X - TriangleUVs[Index1].X, TriangleUVs[Index0].Y - TriangleUVs[Index1].Y));
-				if (bIsMainDirectionU)
-				{
-					return Diff.X < UVCoordTreshold &&  Diff.Y > UVCoordTreshold;
-				}
-				else
-				{
-					return Diff.X > UVCoordTreshold && Diff.Y < UVCoordTreshold;
-				}
-			};
-
 			TArray<FVector> CenterPoints;
-			CenterPoints.Reserve(NumTriangles);
-			for (uint32 TriangleIt = 0; TriangleIt < NumTriangles; ++TriangleIt)
 			{
-				const uint32 VertexIndexOffset = VertexOffset + TriangleIt * 3;
-				for (uint32 VertexIt = 0; VertexIt < 3; ++VertexIt)
+				// Sort vertices along the main axis so that, when we iterate through them, we get a correct linear ordering
+				TArray<FSimilarUVVertices>& SimilarVertex = bIsMainDirectionU ? SimilarVertexU : SimilarVertexV;
+				SimilarVertex.Sort([](const FSimilarUVVertices& A, const FSimilarUVVertices& B)
 				{
-					const uint32 VertexIndex = InCards.Indices[VertexIndexOffset + VertexIt];
-					TriangleIVertexIndices[VertexIt] = VertexIndex;
-					TriangleUVs[VertexIt] = InCards.UVs[VertexIndex];
-				}
+					return A.TexCoord < B.TexCoord;
+				});
 
-				// For each triangle, find the edge that is perpendicular to the guide
-				// by using the UV as a hint, with the guide being perpendicular to U
-				uint32 V0 = MAX_uint32;
-				uint32 V1 = MAX_uint32;
-				uint32 V2 = MAX_uint32;
-				if(IsPerpendicularEdge(TriangleUVs, 0, 1))
+				CenterPoints.Reserve(SimilarVertex.Num());
+				FVector PrevCenterPoint = FVector::ZeroVector;
+				float TotalLength = 0;
+				for (const FSimilarUVVertices& Similar : SimilarVertex)
 				{
-					V0 = 0;
-					V1 = 1;
-					V2 = 2;
-				}
-				else if (IsPerpendicularEdge(TriangleUVs, 0, 2))
-				{
-					V0 = 0;
-					V1 = 2;
-					V2 = 1;
-				}
-				else if (IsPerpendicularEdge(TriangleUVs, 1, 2))
-				{
-					V0 = 1;
-					V1 = 2;
-					V2 = 0;
-				}
-
-				FVector CenterPoint = FVector::ZeroVector;
-				bool bFoundPerpendicularEdge = V0 != MAX_uint32;
-				if (bFoundPerpendicularEdge)
-				{
-					// The guide point is the middle of the edge formed by V0 and V1
-					const FVector P0 = InCards.Positions[TriangleIVertexIndices[V0]];
-					const FVector P1 = InCards.Positions[TriangleIVertexIndices[V1]];
-					CenterPoint = (P0 + P1) / 2.f;
-				}
-				else
-				{
-					// No relation was found between the vertices UV, so the geometry is probably not usable as cards
-					// The guide point is at the center of the triangle
-					const FVector P0 = InCards.Positions[TriangleIVertexIndices[0]];
-					const FVector P1 = InCards.Positions[TriangleIVertexIndices[1]];
-					const FVector P2 = InCards.Positions[TriangleIVertexIndices[2]];
-					CenterPoint = (P0 + P1 + P2) / 3.f;
-				}
-
-				// Handle guide for single triangle card as from the center point of the segment to the other vertex
-				// Adding two points for creating a valid guide
-				if (NumTriangles == 1)
-				{
-					FVector P0 = FVector::ZeroVector;
-					FVector P1 = FVector::ZeroVector;
-					if (bFoundPerpendicularEdge)
+					// Compute avg center point of the guide
+					FVector CenterPoint = FVector::ZeroVector;
+					for (uint32 VertexIndex : Similar.Indices)
 					{
-						P0 = InCards.Positions[TriangleIVertexIndices[V0]] + InCards.Positions[TriangleIVertexIndices[V1]];
-						P1 = InCards.Positions[TriangleIVertexIndices[V2]];
+						CenterPoint += InCards.Positions[VertexIndex];
 					}
-					else
+					CenterPoint /= Similar.Indices.Num() > 0 ? Similar.Indices.Num() : 1;
+
+					// Update length along the guide
+					if (CenterPoints.Num() > 0)
 					{
-						P0 = CenterPoint;
-						P1 = InCards.Positions[TriangleIVertexIndices[2]];
+						const float SegmentLength = (CenterPoint - PrevCenterPoint).Size();
+						TotalLength += SegmentLength;
 					}
-					CenterPoints.Add(P0);
-					CenterPoints.Add(P1);
-				}
-				// Don't add duplicate points which are the points on the edge shared between 2 connected quads
-				else if (CenterPoints.Num() == 0 || !CenterPoints.Last().Equals(CenterPoint))
-				{
+
+					// Update neighbor vertex with current length (to compute the parametric distance at the end)
+					for (uint32 VertexIndex : Similar.AllIndices)
+					{
+						InCards.CoordU[VertexIndex] = TotalLength;
+					}
+
 					CenterPoints.Add(CenterPoint);
+					PrevCenterPoint = CenterPoint;
+				}
+
+				// Normalize length to have a parametric distance
+				for (const FSimilarUVVertices& Similar : SimilarVertex)
+				{
+					for (uint32 VertexIndex : Similar.Indices)
+					{
+						InCards.CoordU[VertexIndex] /= TotalLength;
+					}
 				}
 			}
 
@@ -2691,34 +2654,25 @@ namespace HairCards
 			for (uint32 VertexIt = 0; VertexIt < VertexCount; ++VertexIt)
 			{
 				const uint32 VertexIndex = VertexOffset + VertexIt;
-				const float VertexLength = InCards.UVs[VertexIndex].X * CardLength;
+				const float CoordU = InCards.CoordU[VertexIndex];
 
 				uint32 GuideIndex0 = 0;
 				uint32 GuideIndex1 = 1;
 				float  GuideLerp   = 0;
 				for (uint32 GuidePointIt = 0; GuidePointIt < GuidePointCount-1; ++GuidePointIt)
 				{
-					const float GuidePointLength0 = 
-						InGuides.StrandsPoints.PointsCoordU[GuidePointOffset + GuidePointIt] * 
-						InGuides.StrandsCurves.CurvesLength[CardIt] * 
-						InGuides.StrandsCurves.MaxLength;
-
-					const float GuidePointLength1 =
-						InGuides.StrandsPoints.PointsCoordU[GuidePointOffset + GuidePointIt+1] *
-						InGuides.StrandsCurves.CurvesLength[CardIt] *
-						InGuides.StrandsCurves.MaxLength;
-
-					if (GuidePointLength0 <= VertexLength && VertexLength <= GuidePointLength1)
+					const float GuideCoordU0 = InGuides.StrandsPoints.PointsCoordU[GuidePointOffset + GuidePointIt];
+					const float GuideCoordU1 = InGuides.StrandsPoints.PointsCoordU[GuidePointOffset + GuidePointIt + 1];
+					if (GuideCoordU0 <= CoordU && CoordU <= GuideCoordU1)
 					{
 						GuideIndex0 = GuidePointOffset + GuidePointIt;
 						GuideIndex1 = GuidePointOffset + GuidePointIt + 1;
-						const float LengthDiff = GuidePointLength1 - GuidePointLength0;
-						GuideLerp = (VertexLength - GuidePointLength0) / (LengthDiff>0 ? LengthDiff : 1);
+						const float LengthDiff = GuideCoordU1 - GuideCoordU0;
+						GuideLerp = (CoordU - GuideCoordU0) / (LengthDiff>0 ? LengthDiff : 1);
 						GuideLerp = FMath::Clamp(GuideLerp, 0.f, 1.f);
 						break;
 					}
 				}
-
 				Out.PointsSimCurvesIndex[VertexIndex] = CardIt;
 				Out.PointsSimCurvesVertexIndex[VertexIndex] = GuideIndex0;
 				Out.PointsSimCurvesVertexLerp[VertexIndex] = GuideLerp;
@@ -3046,7 +3000,7 @@ namespace FHairCardsBuilder
 FString GetVersion()
 {
 	// Important to update the version when cards building or importing changes
-	return TEXT("4");
+	return TEXT("6");
 }
 
 void AllocateAtlasTexture(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount, EPixelFormat PixelFormat, ETextureSourceFormat SourceFormat)

@@ -67,6 +67,10 @@ static TAutoConsoleVariable<int32> CVarSSGIQuality(
 DECLARE_GPU_STAT_NAMED(ScreenSpaceReflections, TEXT("ScreenSpace Reflections"));
 DECLARE_GPU_STAT_NAMED(ScreenSpaceDiffuseIndirect, TEXT("Screen Space Diffuse Indirect"));
 
+bool IsSSGIHalfRes()
+{
+	return CVarSSGIHalfResolution.GetValueOnRenderThread() > 0;
+}
 
 static bool SupportScreenSpaceDiffuseIndirect(const FViewInfo& View)
 {
@@ -844,7 +848,7 @@ void RenderScreenSpaceDiffuseIndirect(
 
 	const int32 Quality = FMath::Clamp( CVarSSGIQuality.GetValueOnRenderThread(), 1, 4 );
 
-	bool bHalfResolution = CVarSSGIHalfResolution.GetValueOnRenderThread() != 0;
+	bool bHalfResolution = IsSSGIHalfRes();
 
 	FIntPoint GroupSize;
 	int32 RayCountPerPixel;

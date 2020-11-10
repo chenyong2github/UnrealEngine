@@ -125,6 +125,7 @@ class ReaderImpl : public TReaderBase, public virtual BaseImpl {
         ConstArrayView<std::uint32_t> getVertexLayoutTextureCoordinateIndices(std::uint16_t meshIndex) const override;
         ConstArrayView<std::uint32_t> getVertexLayoutNormalIndices(std::uint16_t meshIndex) const override;
         std::uint16_t getMaximumInfluencePerVertex(std::uint16_t meshIndex) const override;
+        std::uint32_t getSkinWeightsCount(std::uint16_t meshIndex) const override;
         ConstArrayView<float> getSkinWeightsValues(std::uint16_t meshIndex, std::uint32_t vertexIndex) const override;
         ConstArrayView<std::uint16_t> getSkinWeightsJointIndices(std::uint16_t meshIndex,
                                                                  std::uint32_t vertexIndex) const override;
@@ -815,6 +816,15 @@ template<class TReaderBase>
 inline std::uint16_t ReaderImpl<TReaderBase>::getMaximumInfluencePerVertex(std::uint16_t meshIndex) const {
     if (meshIndex < dna.geometry.meshes.size()) {
         return dna.geometry.meshes[meshIndex].maximumInfluencePerVertex;
+    }
+    return {};
+}
+
+template<class TReaderBase>
+inline std::uint32_t ReaderImpl<TReaderBase>::getSkinWeightsCount(std::uint16_t meshIndex) const {
+    const auto& meshes = dna.geometry.meshes;
+    if (meshIndex < meshes.size()) {
+        return static_cast<std::uint32_t>(meshes[meshIndex].skinWeights.size());
     }
     return {};
 }

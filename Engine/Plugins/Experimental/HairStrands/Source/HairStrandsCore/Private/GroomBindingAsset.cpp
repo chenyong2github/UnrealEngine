@@ -55,18 +55,23 @@ void UGroomBindingAsset::InitResource()
 		FHairGroupResource& Resource = HairGroupResources.AddDefaulted_GetRef();
 
 		// Guides
+		Resource.SimRootResources = nullptr;
+		if (Data.SimRootData.IsValid())
 		{
 			Resource.SimRootResources = new FHairStrandsRestRootResource(Data.SimRootData);
 			BeginInitResource(Resource.SimRootResources);
 		}
 
 		// Strands
+		Resource.RenRootResources = nullptr;
+		if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands) && Data.RenRootData.IsValid())
 		{
 			Resource.RenRootResources = new FHairStrandsRestRootResource(Data.RenRootData);
 			BeginInitResource(Resource.RenRootResources);
 		}
 
 		// Cards
+		if (IsHairStrandsEnabled(EHairStrandsShaderType::Cards))
 		{
 			const uint32 CardsLODCount = Data.CardsRootData.Num();
 			Resource.CardsRootResources.SetNum(CardsLODCount);
@@ -87,8 +92,15 @@ void UGroomBindingAsset::UpdateResource()
 {
 	for (FHairGroupResource& Resource : HairGroupResources)
 	{
-		BeginUpdateResourceRHI(Resource.SimRootResources);
-		BeginUpdateResourceRHI(Resource.RenRootResources);
+		if (Resource.SimRootResources)
+		{
+			BeginUpdateResourceRHI(Resource.SimRootResources);
+		}
+
+		if (Resource.RenRootResources)
+		{
+			BeginUpdateResourceRHI(Resource.RenRootResources);
+		}
 
 		for (FHairStrandsRestRootResource* CardsRootResource : Resource.CardsRootResources)
 		{
@@ -112,10 +124,16 @@ void UGroomBindingAsset::ReleaseResource()
 			ENQUEUE_RENDER_COMMAND(ReleaseHairStrandsResourceCommand)(
 				[InSimRootResources, InRenRootResources](FRHICommandList& RHICmdList)
 			{
-				InSimRootResources->ReleaseResource();
-				InRenRootResources->ReleaseResource();
-				delete InSimRootResources;
-				delete InRenRootResources;
+				if (InSimRootResources)
+				{
+					InSimRootResources->ReleaseResource();
+					delete InSimRootResources;
+				}
+				if (InRenRootResources)
+				{
+					InRenRootResources->ReleaseResource();
+					delete InRenRootResources;
+				}
 			});
 			Resource.SimRootResources = nullptr;
 			Resource.RenRootResources = nullptr;
@@ -146,10 +164,16 @@ void UGroomBindingAsset::ReleaseResource()
 		ENQUEUE_RENDER_COMMAND(ReleaseHairStrandsResourceCommand)(
 			[InSimRootResources, InRenRootResources](FRHICommandList& RHICmdList)
 		{
-			InSimRootResources->ReleaseResource();
-			InRenRootResources->ReleaseResource();
-			delete InSimRootResources;
-			delete InRenRootResources;
+			if (InSimRootResources)
+			{
+				InSimRootResources->ReleaseResource();
+				delete InSimRootResources;
+			}
+			if (InRenRootResources)
+			{
+				InRenRootResources->ReleaseResource();
+				delete InRenRootResources;
+			}
 		});
 		//	#hair_todo: release cards root resources
 	}
@@ -307,8 +331,9 @@ bool UGroomBindingAsset::IsCompatible(const USkeletalMesh* InSkeletalMesh, const
 
 		for (const FHairGroupResource& Resource : InBinding->HairGroupResources)
 		{
-			if (InSkeletalMesh->GetLODNum() != Resource.RenRootResources->RootData.MeshProjectionLODs.Num() ||
-				InSkeletalMesh->GetLODNum() != Resource.SimRootResources->RootData.MeshProjectionLODs.Num())
+			if ((Resource.RenRootResources && Resource.SimRootResources) && 
+				(InSkeletalMesh->GetLODNum() != Resource.RenRootResources->RootData.MeshProjectionLODs.Num() ||
+				InSkeletalMesh->GetLODNum() != Resource.SimRootResources->RootData.MeshProjectionLODs.Num()))
 			{
 				if (bIssueWarning)
 				{

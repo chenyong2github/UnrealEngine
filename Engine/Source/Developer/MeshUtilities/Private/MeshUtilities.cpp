@@ -794,7 +794,7 @@ void FMeshUtilities::BuildSkeletalModelFromChunks(FSkeletalMeshLODModel& LODMode
 		Section.CalcUse16BitBoneIndex();
 
 		// Log info about the chunk.
-		UE_LOG(LogSkeletalMesh, Log, TEXT("Section %u: %u vertices, %u active bones"),
+		UE_LOG(LogSkeletalMesh, Verbose, TEXT("Section %u: %u vertices, %u active bones"),
 			SectionIndex,
 			Section.GetNumVertices(),
 			Section.BoneMap.Num()

@@ -8,16 +8,18 @@
 // 64 bits atomic
 #define RASTER_PLATFORM 0
 #define RASTER_NVIDIA 1
-#define RASTER_AMD 2
+#define RASTER_AMD_DX11 2
+#define RASTER_AMD_DX12 3
 
 // Add permutation for AMD/other
 #if PERMUTATION_RASTER_ATOMIC == RASTER_NVIDIA
 #define NV_SHADER_EXTN_SLOT u7
 #include "/Engine/Shared/ThirdParty/NVIDIA/nvHLSLExtns.h"
-#endif
-
-#if PERMUTATION_RASTER_ATOMIC == RASTER_AMD
-// TODO
+#elif PERMUTATION_RASTER_ATOMIC == RASTER_AMD_DX11
+#define AmdDxExtShaderIntrinsicsUAVSlot u7
+#include "/Engine/Shared/ThirdParty/AMD/ags_shader_intrinsics_dx11.h"
+#elif PERMUTATION_RASTER_ATOMIC == RASTER_AMD_DX12
+#include "/Engine/Shared/ThirdParty/AMD/ags_shader_intrinsics_dx12.h"
 #endif
 
 #if PERMUTATION_RASTER_ATOMIC == RASTER_PLATFORM && COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS && COMPILER_SUPPORTS_ULONG_TYPES
@@ -47,9 +49,12 @@ PackedType WriteVisibilityData(RWTexture2D<PackedType> OutTexture, uint2 Coords,
 #if PERMUTATION_RASTER_ATOMIC == RASTER_NVIDIA
 	PackedType PrevData = NvInterlockedMaxUint64(OutTexture, Coords, Data);
 	return PrevData;
-#elif PERMUTATION_RASTER_ATOMIC == RASTER_AMD
-	// TODO
-	return (PackedType)0;
+#elif PERMUTATION_RASTER_ATOMIC == RASTER_AMD_DX11
+	PackedType PrevData = AmdDxExtShaderIntrinsics_AtomicMaxU64(OutTexture, Coords, Data);
+	return PrevData;
+#elif PERMUTATION_RASTER_ATOMIC == RASTER_AMD_DX12
+	PackedType PrevData = AmdExtD3DShaderIntrinsics_AtomicMaxU64(OutTexture, Coords, Data);
+	return PrevData;
 #elif PERMUTATION_RASTER_ATOMIC == RASTER_PLATFORM && COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS && COMPILER_SUPPORTS_ULONG_TYPES
 	ImageInterlockedMaxUInt64(OutTexture, Coords, Data);
 	// Need to expose the returned value version of ImageInterlockedMaxUInt64
@@ -81,6 +86,7 @@ Buffer<uint4>	HairStrandsVF_PositionBuffer;
 Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;
 Buffer<uint>	HairStrandsVF_CullingIndexBuffer;
 Buffer<float>	HairStrandsVF_CullingRadiusScaleBuffer;
+Buffer<uint>	IndirectBufferArgs;
 #endif
 
 Texture2D<float> SceneDepthTexture;

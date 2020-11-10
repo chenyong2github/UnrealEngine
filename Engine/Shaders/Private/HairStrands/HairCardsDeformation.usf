@@ -14,7 +14,7 @@ Buffer<uint4>  GuideDeformedPositionBuffer;
 Buffer<float4> CardsRestPositionBuffer;
 Buffer<uint>   CardsInterpolationBuffer;
 
-RWBuffer<float4> CardsDeformedPositionBuffer;
+RWBuffer<float4> CardsDeformedPositionBuffer; 
 
 // Guides == Strands going through the middle of the card geometry
 Buffer<float4>  TriangleRestPosition0Buffer;

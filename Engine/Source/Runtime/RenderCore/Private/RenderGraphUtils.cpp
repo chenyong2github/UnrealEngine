@@ -312,6 +312,22 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV, uint
 	});
 }
 
+void AddClearUAVFloatPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV, float Value)
+{
+	FClearBufferUAVParameters* Parameters = GraphBuilder.AllocParameters<FClearBufferUAVParameters>();
+	Parameters->BufferUAV = BufferUAV;
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("ClearBuffer(%s Size=%ubytes)", BufferUAV->GetParent()->Name, BufferUAV->GetParent()->Desc.GetTotalNumBytes()),
+		Parameters,
+		ERDGPassFlags::Compute,
+		[&Parameters, BufferUAV, Value](FRHIComputeCommandList& RHICmdList)
+		{
+			RHICmdList.ClearUAVFloat(BufferUAV->GetRHI(), FVector4(Value, Value, Value, Value));
+			BufferUAV->MarkResourceAsUsed();
+		});
+}
+
 BEGIN_SHADER_PARAMETER_STRUCT(FClearTextureUAVParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, TextureUAV)
 END_SHADER_PARAMETER_STRUCT()

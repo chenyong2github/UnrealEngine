@@ -322,7 +322,6 @@ static void AddMeshTransferPass(
 		OutTransitionQueue.Add(OutTargetRestPosition.UAV);
 	}
 }
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 class FHairMeshProjectionCS : public FGlobalShader
 {
@@ -370,8 +369,7 @@ static void AddHairStrandMeshProjectionPass(
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData::Section& MeshSectionData,
 	FHairStrandsRestRootResource* RestResources,
-	FRDGBufferRef RootDistanceBuffer,
-	FBufferTransitionQueue& OutTransitionQueue)
+	FRDGBufferRef RootDistanceBuffer)
 {
 	const uint32 RootCount = RestResources->RootData.RootCount;
 	if (!RestResources->RootPositionBuffer.SRV ||
@@ -445,9 +443,6 @@ static void AddHairStrandMeshProjectionPass(
 			ComputeShader,
 			Parameters,
 			DispatchGroupCount);
-
-		OutTransitionQueue.Add(RestLODDatas.RootTriangleIndexBuffer.UAV);
-		OutTransitionQueue.Add(RestLODDatas.RootTriangleBarycentricBuffer.UAV);
 	}
 }
 
@@ -456,8 +451,7 @@ void ProjectHairStrandsOntoMesh(
 	FGlobalShaderMap* ShaderMap,
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData& ProjectionMeshData,
-	FHairStrandsRestRootResource* RestResources,
-	FBufferTransitionQueue& TransitionQueue)
+	FHairStrandsRestRootResource* RestResources)
 {
 	if (LODIndex < 0 || LODIndex >= RestResources->LODs.Num())
 		return;
@@ -470,7 +464,7 @@ void ProjectHairStrandsOntoMesh(
 	for (const FHairStrandsProjectionMeshData::Section& MeshSection : ProjectionMeshData.LODs[LODIndex].Sections)
 	{
 		check(RestLODDatas.LODIndex == LODIndex);
-		AddHairStrandMeshProjectionPass(GraphBuilder, ShaderMap, ClearDistance, LODIndex, MeshSection, RestResources, RootDistanceBuffer, TransitionQueue);
+		AddHairStrandMeshProjectionPass(GraphBuilder, ShaderMap, ClearDistance, LODIndex, MeshSection, RestResources, RootDistanceBuffer);
 		RestLODDatas.Status = FHairStrandsRestRootResource::FLOD::EStatus::Completed;
 		ClearDistance = false;
 	}
@@ -503,7 +497,7 @@ void TransferMesh(
 	FRDGBufferRef VertexSectionId = AddMeshSectionId(GraphBuilder, ShaderMap, TargetMeshData.LODs[TargetLODIndex]);
 	const FHairStrandsProjectionMeshData::Section& SourceMeshSection = SourceMeshData.LODs[SourceLODIndex].Sections[SourceSectionIndex];
 	const FHairStrandsProjectionMeshData::Section& TargetMeshSection = TargetMeshData.LODs[TargetLODIndex].Sections[TargetSectionIndex];
-	AddMeshTransferPass(GraphBuilder, ShaderMap, true, SourceMeshSection, TargetMeshSection, VertexSectionId, OutPositionBuffer, OutTransitionQueue);
+	AddMeshTransferPass(GraphBuilder, ShaderMap, true, SourceMeshSection, TargetMeshSection, VertexSectionId, OutPositionBuffer);
 }
 #endif // GPU_BINDING
 
@@ -571,10 +565,10 @@ private:
 		SHADER_PARAMETER_SRV(Buffer, MeshUVsBuffer6)
 		SHADER_PARAMETER_SRV(Buffer, MeshUVsBuffer7)
 
-		SHADER_PARAMETER_SRV(Buffer, RootTriangleIndex)
-		SHADER_PARAMETER_UAV(StructuredBuffer, OutRootTrianglePosition0)
-		SHADER_PARAMETER_UAV(StructuredBuffer, OutRootTrianglePosition1)
-		SHADER_PARAMETER_UAV(StructuredBuffer, OutRootTrianglePosition2)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RootTriangleIndex)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer, OutRootTrianglePosition0)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer, OutRootTrianglePosition1)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer, OutRootTrianglePosition2)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -595,8 +589,7 @@ void AddHairStrandUpdateMeshTrianglesPass(
 	const HairStrandsTriangleType Type,
 	const FHairStrandsProjectionMeshData::LOD& MeshData,
 	FHairStrandsRestRootResource* RestResources,
-	FHairStrandsDeformedRootResource* DeformedResources,
-	FBufferTransitionQueue& OutTransitionQueue)
+	FHairStrandsDeformedRootResource* DeformedResources)
 {
 	const uint32 RootCount = RestResources->RootData.RootCount;
 	if (RootCount == 0 || LODIndex < 0)
@@ -633,21 +626,22 @@ void AddHairStrandUpdateMeshTrianglesPass(
 
 	FHairUpdateMeshTriangleCS::FParameters CommonParameters;
 
-	FRHIUnorderedAccessView* OutputUAVs[3];
-
-	CommonParameters.RootTriangleIndex = RestLODData.RootTriangleIndexBuffer.SRV;
+	FRDGImportedBuffer OutputBuffers[3];
+	const bool bEnableUAVOverlap = true;
+	const ERDGUnorderedAccessViewFlags UAVFlags = bEnableUAVOverlap ? ERDGUnorderedAccessViewFlags::SkipBarrier : ERDGUnorderedAccessViewFlags::None;
+	CommonParameters.RootTriangleIndex = RegisterAsSRV(GraphBuilder, RestLODData.RootTriangleIndexBuffer);
 	if (Type == HairStrandsTriangleType::RestPose)
 	{
-		OutputUAVs[0] = RestLODData.RestRootTrianglePosition0Buffer.UAV;
-		OutputUAVs[1] = RestLODData.RestRootTrianglePosition1Buffer.UAV;
-		OutputUAVs[2] = RestLODData.RestRootTrianglePosition2Buffer.UAV;
+		OutputBuffers[0] = Register(GraphBuilder, RestLODData.RestRootTrianglePosition0Buffer, ERDGImportedBufferFlags::CreateUAV, UAVFlags);
+		OutputBuffers[1] = Register(GraphBuilder, RestLODData.RestRootTrianglePosition1Buffer, ERDGImportedBufferFlags::CreateUAV, UAVFlags);
+		OutputBuffers[2] = Register(GraphBuilder, RestLODData.RestRootTrianglePosition2Buffer, ERDGImportedBufferFlags::CreateUAV, UAVFlags);
 	}
 	else if (Type == HairStrandsTriangleType::DeformedPose)
 	{
 		FHairStrandsDeformedRootResource::FLOD& DeformedLODData = DeformedResources->LODs[LODIndex];
-		OutputUAVs[0] = DeformedLODData.DeformedRootTrianglePosition0Buffer.UAV;
-		OutputUAVs[1] = DeformedLODData.DeformedRootTrianglePosition1Buffer.UAV;
-		OutputUAVs[2] = DeformedLODData.DeformedRootTrianglePosition2Buffer.UAV;
+		OutputBuffers[0] = Register(GraphBuilder, DeformedLODData.DeformedRootTrianglePosition0Buffer, ERDGImportedBufferFlags::CreateUAV, UAVFlags);
+		OutputBuffers[1] = Register(GraphBuilder, DeformedLODData.DeformedRootTrianglePosition1Buffer, ERDGImportedBufferFlags::CreateUAV, UAVFlags);
+		OutputBuffers[2] = Register(GraphBuilder, DeformedLODData.DeformedRootTrianglePosition2Buffer, ERDGImportedBufferFlags::CreateUAV, UAVFlags);
 		DeformedLODData.Status = FHairStrandsDeformedRootResource::FLOD::EStatus::Completed;
 	}
 	else
@@ -656,16 +650,9 @@ void AddHairStrandUpdateMeshTrianglesPass(
 		return;
 	}
 
-	OutTransitionQueue.Append(&OutputUAVs[0], 3);
-
-	CommonParameters.OutRootTrianglePosition0 = OutputUAVs[0];
-	CommonParameters.OutRootTrianglePosition1 = OutputUAVs[1];
-	CommonParameters.OutRootTrianglePosition2 = OutputUAVs[2];
-
-	if (PassCount > 1)
-	{
-		AddBeginUAVOverlapPass(GraphBuilder, TArrayView<FRHIUnorderedAccessView*>(&OutputUAVs[0], 3));
-	}
+	CommonParameters.OutRootTrianglePosition0 = OutputBuffers[0].UAV;
+	CommonParameters.OutRootTrianglePosition1 = OutputBuffers[1].UAV;
+	CommonParameters.OutRootTrianglePosition2 = OutputBuffers[2].UAV;
 
 	for (uint32 PassIt = 0; PassIt < PassCount; ++PassIt)
 	{
@@ -869,10 +856,9 @@ void AddHairStrandUpdateMeshTrianglesPass(
 			DispatchGroupCount);
 	}
 
-	if (PassCount > 1)
-	{
-		AddEndUAVOverlapPass(GraphBuilder, TArrayView<FRHIUnorderedAccessView*>(&OutputUAVs[0], 3));
-	}
+	GraphBuilder.SetBufferAccessFinal(OutputBuffers[0].Buffer, ERHIAccess::SRVMask);
+	GraphBuilder.SetBufferAccessFinal(OutputBuffers[1].Buffer, ERHIAccess::SRVMask);
+	GraphBuilder.SetBufferAccessFinal(OutputBuffers[2].Buffer, ERHIAccess::SRVMask);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -889,16 +875,16 @@ private:
 		SHADER_PARAMETER(uint32, MaxRootCount)
 		SHADER_PARAMETER(uint32, MaxSampleCount)
 
-		SHADER_PARAMETER_SRV(Buffer, RestSamplePositionsBuffer)
-		SHADER_PARAMETER_SRV(Buffer, MeshSampleWeightsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RestSamplePositionsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, MeshSampleWeightsBuffer)
 
-		SHADER_PARAMETER_SRV(StructuredBuffer, RestRootTrianglePosition0)
-		SHADER_PARAMETER_SRV(StructuredBuffer, RestRootTrianglePosition1)
-		SHADER_PARAMETER_SRV(StructuredBuffer, RestRootTrianglePosition2)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RestRootTrianglePosition0)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RestRootTrianglePosition1)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RestRootTrianglePosition2)
 
-		SHADER_PARAMETER_UAV(StructuredBuffer, OutDeformedRootTrianglePosition0)
-		SHADER_PARAMETER_UAV(StructuredBuffer, OutDeformedRootTrianglePosition1)
-		SHADER_PARAMETER_UAV(StructuredBuffer, OutDeformedRootTrianglePosition2)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer, OutDeformedRootTrianglePosition0)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer, OutDeformedRootTrianglePosition1)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer, OutDeformedRootTrianglePosition2)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -918,8 +904,7 @@ void AddHairStrandInterpolateMeshTrianglesPass(
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData::LOD& MeshData,
 	FHairStrandsRestRootResource* RestResources,
-	FHairStrandsDeformedRootResource* DeformedResources,
-	FBufferTransitionQueue& OutTransitionQueue)
+	FHairStrandsDeformedRootResource* DeformedResources)
 {
 	const uint32 RootCount = RestResources->RootData.RootCount;
 	if (RootCount == 0 || LODIndex < 0 || LODIndex >= RestResources->LODs.Num() || LODIndex >= DeformedResources->LODs.Num())
@@ -935,16 +920,20 @@ void AddHairStrandInterpolateMeshTrianglesPass(
 	Parameters->MaxRootCount = RootCount;
 	Parameters->MaxSampleCount = RestLODData.SampleCount;
 
-	Parameters->RestRootTrianglePosition0 = RestLODData.RestRootTrianglePosition0Buffer.SRV;
-	Parameters->RestRootTrianglePosition1 = RestLODData.RestRootTrianglePosition1Buffer.SRV;
-	Parameters->RestRootTrianglePosition2 = RestLODData.RestRootTrianglePosition2Buffer.SRV;
+	FRDGImportedBuffer OutDeformedRootTrianglePosition0 = Register(GraphBuilder, DeformedLODData.DeformedRootTrianglePosition0Buffer, ERDGImportedBufferFlags::CreateUAV);
+	FRDGImportedBuffer OutDeformedRootTrianglePosition1 = Register(GraphBuilder, DeformedLODData.DeformedRootTrianglePosition1Buffer, ERDGImportedBufferFlags::CreateUAV);
+	FRDGImportedBuffer OutDeformedRootTrianglePosition2 = Register(GraphBuilder, DeformedLODData.DeformedRootTrianglePosition2Buffer, ERDGImportedBufferFlags::CreateUAV);
 
-	Parameters->OutDeformedRootTrianglePosition0 = DeformedLODData.DeformedRootTrianglePosition0Buffer.UAV;
-	Parameters->OutDeformedRootTrianglePosition1 = DeformedLODData.DeformedRootTrianglePosition1Buffer.UAV;
-	Parameters->OutDeformedRootTrianglePosition2 = DeformedLODData.DeformedRootTrianglePosition2Buffer.UAV;
+	Parameters->RestRootTrianglePosition0 = RegisterAsSRV(GraphBuilder, RestLODData.RestRootTrianglePosition0Buffer);
+	Parameters->RestRootTrianglePosition1 = RegisterAsSRV(GraphBuilder, RestLODData.RestRootTrianglePosition1Buffer);
+	Parameters->RestRootTrianglePosition2 = RegisterAsSRV(GraphBuilder, RestLODData.RestRootTrianglePosition2Buffer);
 
-	Parameters->MeshSampleWeightsBuffer = DeformedLODData.MeshSampleWeightsBuffer.SRV;
-	Parameters->RestSamplePositionsBuffer = RestLODData.RestSamplePositionsBuffer.SRV;
+	Parameters->OutDeformedRootTrianglePosition0 = OutDeformedRootTrianglePosition0.UAV;
+	Parameters->OutDeformedRootTrianglePosition1 = OutDeformedRootTrianglePosition1.UAV;
+	Parameters->OutDeformedRootTrianglePosition2 = OutDeformedRootTrianglePosition2.UAV;
+
+	Parameters->MeshSampleWeightsBuffer		= RegisterAsSRV(GraphBuilder, DeformedLODData.MeshSampleWeightsBuffer);
+	Parameters->RestSamplePositionsBuffer	= RegisterAsSRV(GraphBuilder, RestLODData.RestSamplePositionsBuffer);
 
 	const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RootCount, 128);
 	check(DispatchGroupCount.X < 65536);
@@ -956,9 +945,9 @@ void AddHairStrandInterpolateMeshTrianglesPass(
 		Parameters,
 		DispatchGroupCount);
 
-	OutTransitionQueue.Add(DeformedLODData.DeformedRootTrianglePosition0Buffer.UAV);
-	OutTransitionQueue.Add(DeformedLODData.DeformedRootTrianglePosition1Buffer.UAV);
-	OutTransitionQueue.Add(DeformedLODData.DeformedRootTrianglePosition2Buffer.UAV);
+	GraphBuilder.SetBufferAccessFinal(OutDeformedRootTrianglePosition0.Buffer, ERHIAccess::SRVMask);
+	GraphBuilder.SetBufferAccessFinal(OutDeformedRootTrianglePosition1.Buffer, ERHIAccess::SRVMask);
+	GraphBuilder.SetBufferAccessFinal(OutDeformedRootTrianglePosition2.Buffer, ERHIAccess::SRVMask);
 }
 
 
@@ -976,11 +965,11 @@ private:
 		SHADER_PARAMETER(uint32, VertexCount)
 		SHADER_PARAMETER(uint32, MaxSampleCount)
 
-		SHADER_PARAMETER_SRV(Buffer, RestSamplePositionsBuffer)
-		SHADER_PARAMETER_SRV(Buffer, MeshSampleWeightsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RestSamplePositionsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, MeshSampleWeightsBuffer)
 
-		SHADER_PARAMETER_SRV(StructuredBuffer, RestPositionBuffer)
-		SHADER_PARAMETER_UAV(StructuredBuffer, OutDeformedPositionBuffer)
+		SHADER_PARAMETER_SRV(Buffer, RestPositionBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, OutDeformedPositionBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -1002,8 +991,7 @@ void InternalAddHairRBFInterpolationPass(
 	TRestResource* RestResources,
 	TDeformedResource* DeformedResources,
 	FHairStrandsRestRootResource* RestRootResources,
-	FHairStrandsDeformedRootResource* DeformedRootResources,
-	FBufferTransitionQueue& OutTransitionQueue)
+	FHairStrandsDeformedRootResource* DeformedRootResources)
 {
 	const uint32 VertexCount = RestResources ? RestResources->VertexCount : 0;
 	if (!RestResources || !DeformedResources || !RestRootResources || !DeformedRootResources || VertexCount == 0 || MeshLODIndex >= RestRootResources->LODs.Num())
@@ -1017,11 +1005,12 @@ void InternalAddHairRBFInterpolationPass(
 	Parameters->VertexCount = VertexCount;
 	Parameters->MaxSampleCount = RestLODData.SampleCount;
 
-	Parameters->RestPositionBuffer = RestResources->RestPositionBuffer.ShaderResourceViewRHI;
-	Parameters->OutDeformedPositionBuffer = DeformedResources->GetBuffer(TDeformedResource::EFrameType::Current).UAV;
+	FRDGImportedBuffer OutDeformedPositionBuffer = Register(GraphBuilder, DeformedResources->GetBuffer(TDeformedResource::EFrameType::Current), ERDGImportedBufferFlags::CreateUAV);
+	Parameters->RestPositionBuffer			= RestResources->RestPositionBuffer.ShaderResourceViewRHI;
+	Parameters->OutDeformedPositionBuffer	= OutDeformedPositionBuffer.UAV;
 
-	Parameters->RestSamplePositionsBuffer = RestLODData.RestSamplePositionsBuffer.SRV;
-	Parameters->MeshSampleWeightsBuffer = DeformedLODData.MeshSampleWeightsBuffer.SRV;
+	Parameters->RestSamplePositionsBuffer	= RegisterAsSRV(GraphBuilder, RestLODData.RestSamplePositionsBuffer);
+	Parameters->MeshSampleWeightsBuffer		= RegisterAsSRV(GraphBuilder, DeformedLODData.MeshSampleWeightsBuffer);
 
 	const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(VertexCount, 128);
 	check(DispatchGroupCount.X < 65536);
@@ -1033,7 +1022,7 @@ void InternalAddHairRBFInterpolationPass(
 		Parameters,
 		DispatchGroupCount);
 
-	OutTransitionQueue.Add(Parameters->OutDeformedPositionBuffer);
+	GraphBuilder.SetBufferAccessFinal(OutDeformedPositionBuffer.Buffer, ERHIAccess::SRVMask);
 }
 
 void AddHairMeshesRBFInterpolationPass(
@@ -1043,8 +1032,7 @@ void AddHairMeshesRBFInterpolationPass(
 	FHairMeshesRestResource* RestResources,
 	FHairMeshesDeformedResource* DeformedResources,
 	FHairStrandsRestRootResource* RestRootResources,
-	FHairStrandsDeformedRootResource* DeformedRootResources,
-	FBufferTransitionQueue& OutTransitionQueue)
+	FHairStrandsDeformedRootResource* DeformedRootResources)
 {
 	InternalAddHairRBFInterpolationPass(
 		GraphBuilder,
@@ -1053,8 +1041,7 @@ void AddHairMeshesRBFInterpolationPass(
 		RestResources,
 		DeformedResources,
 		RestRootResources,
-		DeformedRootResources,
-		OutTransitionQueue);
+		DeformedRootResources);
 }
 
 void AddHairCardsRBFInterpolationPass(
@@ -1064,8 +1051,7 @@ void AddHairCardsRBFInterpolationPass(
 	FHairCardsRestResource* RestResources,
 	FHairCardsDeformedResource* DeformedResources,
 	FHairStrandsRestRootResource* RestRootResources,
-	FHairStrandsDeformedRootResource* DeformedRootResources,
-	FBufferTransitionQueue& OutTransitionQueue)
+	FHairStrandsDeformedRootResource* DeformedRootResources)
 {
 	InternalAddHairRBFInterpolationPass(
 		GraphBuilder,
@@ -1074,8 +1060,7 @@ void AddHairCardsRBFInterpolationPass(
 		RestResources,
 		DeformedResources,
 		RestRootResources,
-		DeformedRootResources,
-		OutTransitionQueue);
+		DeformedRootResources);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1096,9 +1081,9 @@ private:
 		SHADER_PARAMETER_SRV(Buffer, VertexPositionsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGVertexPositionsBuffer)
 
-		SHADER_PARAMETER_SRV(Buffer, SampleIndicesBuffer)
-		SHADER_PARAMETER_UAV(StructuredBuffer, OutSamplePositionsBuffer)
-		END_SHADER_PARAMETER_STRUCT()
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, SampleIndicesBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer, OutSamplePositionsBuffer)
+	END_SHADER_PARAMETER_STRUCT()
 
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::All, Parameters.Platform); }
@@ -1117,8 +1102,7 @@ void AddHairStrandInitMeshSamplesPass(
 	const HairStrandsTriangleType Type,
 	const FHairStrandsProjectionMeshData::LOD& MeshData,
 	FHairStrandsRestRootResource* RestResources,
-	FHairStrandsDeformedRootResource* DeformedResources,
-	FBufferTransitionQueue& OutTransitionQueue)
+	FHairStrandsDeformedRootResource* DeformedResources)
 {
 	if (LODIndex < 0)
 	{
@@ -1157,26 +1141,26 @@ void AddHairStrandInitMeshSamplesPass(
 		}
 
 		Parameters->MaxSampleCount = RestLODData.SampleCount;
-		Parameters->SampleIndicesBuffer = RestLODData.MeshSampleIndicesBuffer.SRV;
+		Parameters->SampleIndicesBuffer = RegisterAsSRV(GraphBuilder, RestLODData.MeshSampleIndicesBuffer);
 
-		FUnorderedAccessViewRHIRef OutputUAV{};
+		FRDGImportedBuffer OutBuffer;
 		if (Type == HairStrandsTriangleType::RestPose)
 		{
-			OutputUAV = RestLODData.RestSamplePositionsBuffer.UAV;
+			OutBuffer = Register(GraphBuilder, RestLODData.RestSamplePositionsBuffer, ERDGImportedBufferFlags::CreateUAV);
 		}
 		else if (Type == HairStrandsTriangleType::DeformedPose)
 		{
 			FHairStrandsDeformedRootResource::FLOD& DeformedLODData = DeformedResources->LODs[LODIndex];
 			check(DeformedLODData.LODIndex == LODIndex);
 
-			OutputUAV = DeformedLODData.DeformedSamplePositionsBuffer.UAV;
+			OutBuffer = Register(GraphBuilder, DeformedLODData.DeformedSamplePositionsBuffer, ERDGImportedBufferFlags::CreateUAV);
 		}
 		else
 		{
 			return;
 		}
 
-		Parameters->OutSamplePositionsBuffer = OutputUAV;
+		Parameters->OutSamplePositionsBuffer = OutBuffer.UAV;
 
 		FHairInitMeshSamplesCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FHairInitMeshSamplesCS::FPositionType>(bUseRDGPositionBuffer ? 1 : 0);
@@ -1191,10 +1175,7 @@ void AddHairStrandInitMeshSamplesPass(
 			Parameters,
 			DispatchGroupCount);
 
-		AddPass(GraphBuilder, [OutputUAV](FRHIComputeCommandList& RHICmdList)
-		{
-			RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
-		});
+		GraphBuilder.SetBufferAccessFinal(OutBuffer.Buffer, ERHIAccess::SRVMask);
 	}
 }
 
@@ -1211,11 +1192,11 @@ private:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, MaxSampleCount)
 
-		SHADER_PARAMETER_SRV(Buffer, SampleIndicesBuffer)
-		SHADER_PARAMETER_SRV(Buffer, InterpolationWeightsBuffer)
-		SHADER_PARAMETER_SRV(StructuredBuffer, SampleRestPositionsBuffer)
-		SHADER_PARAMETER_SRV(StructuredBuffer, SampleDeformedPositionsBuffer)
-		SHADER_PARAMETER_UAV(StructuredBuffer, OutSampleDeformationsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, SampleIndicesBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InterpolationWeightsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, SampleRestPositionsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, SampleDeformedPositionsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer, OutSampleDeformationsBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -1234,8 +1215,7 @@ void AddHairStrandUpdateMeshSamplesPass(
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData::LOD& MeshData,
 	FHairStrandsRestRootResource* RestResources,
-	FHairStrandsDeformedRootResource* DeformedResources,
-	FBufferTransitionQueue& OutTransitionQueue)
+	FHairStrandsDeformedRootResource* DeformedResources)
 {
 	if (LODIndex < 0 || LODIndex >= RestResources->LODs.Num() || LODIndex >= DeformedResources->LODs.Num())
 	{
@@ -1252,12 +1232,14 @@ void AddHairStrandUpdateMeshSamplesPass(
 	{
 		FHairUpdateMeshSamplesCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairUpdateMeshSamplesCS::FParameters>();
 
-		Parameters->MaxSampleCount = RestLODData.SampleCount;
-		Parameters->SampleIndicesBuffer = RestLODData.MeshSampleIndicesBuffer.SRV;
-		Parameters->InterpolationWeightsBuffer = RestLODData.MeshInterpolationWeightsBuffer.SRV;
-		Parameters->SampleRestPositionsBuffer = RestLODData.RestSamplePositionsBuffer.SRV;
-		Parameters->SampleDeformedPositionsBuffer = DeformedLODData.DeformedSamplePositionsBuffer.SRV;
-		Parameters->OutSampleDeformationsBuffer = DeformedLODData.MeshSampleWeightsBuffer.UAV;
+		FRDGImportedBuffer OutWeightsBuffer = Register(GraphBuilder, DeformedLODData.MeshSampleWeightsBuffer, ERDGImportedBufferFlags::CreateUAV);
+
+		Parameters->MaxSampleCount					= RestLODData.SampleCount;
+		Parameters->SampleIndicesBuffer				= RegisterAsSRV(GraphBuilder, RestLODData.MeshSampleIndicesBuffer);
+		Parameters->InterpolationWeightsBuffer		= RegisterAsSRV(GraphBuilder, RestLODData.MeshInterpolationWeightsBuffer);
+		Parameters->SampleRestPositionsBuffer		= RegisterAsSRV(GraphBuilder, RestLODData.RestSamplePositionsBuffer);
+		Parameters->SampleDeformedPositionsBuffer	= RegisterAsSRV(GraphBuilder, DeformedLODData.DeformedSamplePositionsBuffer);
+		Parameters->OutSampleDeformationsBuffer		= OutWeightsBuffer.UAV;
 
 		const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RestLODData.SampleCount+4, 128);
 		check(DispatchGroupCount.X < 65536);
@@ -1269,7 +1251,7 @@ void AddHairStrandUpdateMeshSamplesPass(
 			Parameters,
 			DispatchGroupCount);
 
-		OutTransitionQueue.Add(DeformedLODData.MeshSampleWeightsBuffer.UAV);
+		GraphBuilder.SetBufferAccessFinal(OutWeightsBuffer.Buffer, ERHIAccess::SRVMask);
 	}
 }
 
@@ -1283,10 +1265,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairFollicleMaskParameters, )
 	SHADER_PARAMETER(uint32, Channel)
 	SHADER_PARAMETER(uint32, KernelSizeInPixels)
 
-	SHADER_PARAMETER_SRV(Buffer, TrianglePosition0Buffer)
-	SHADER_PARAMETER_SRV(Buffer, TrianglePosition1Buffer)
-	SHADER_PARAMETER_SRV(Buffer, TrianglePosition2Buffer)
-	SHADER_PARAMETER_SRV(Buffer, RootBarycentricBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, TrianglePosition0Buffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, TrianglePosition1Buffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, TrianglePosition2Buffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RootBarycentricBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RootUVsBuffer)
 
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -1350,19 +1332,19 @@ static void AddFollicleMaskPass(
 	if (LODIndex >= uint32(RestResources->LODs.Num()) || RootCount == 0)
 		return;
 
-	const FHairStrandsRestRootResource::FLOD& LODData = RestResources->LODs[LODIndex];
-	if (!LODData.RootTriangleBarycentricBuffer.SRV ||
-		!LODData.RestRootTrianglePosition0Buffer.SRV ||
-		!LODData.RestRootTrianglePosition1Buffer.SRV ||
-		!LODData.RestRootTrianglePosition2Buffer.SRV)
+	FHairStrandsRestRootResource::FLOD& LODData = RestResources->LODs[LODIndex];
+	if (!LODData.RootTriangleBarycentricBuffer.Buffer ||
+		!LODData.RestRootTrianglePosition0Buffer.Buffer ||
+		!LODData.RestRootTrianglePosition1Buffer.Buffer ||
+		!LODData.RestRootTrianglePosition2Buffer.Buffer)
 		return;
 
 	const FIntPoint OutputResolution = OutTexture->Desc.Extent;
 	FHairFollicleMaskParameters* Parameters = GraphBuilder.AllocParameters<FHairFollicleMaskParameters>();
-	Parameters->TrianglePosition0Buffer = LODData.RestRootTrianglePosition0Buffer.SRV;
-	Parameters->TrianglePosition1Buffer = LODData.RestRootTrianglePosition1Buffer.SRV;
-	Parameters->TrianglePosition2Buffer = LODData.RestRootTrianglePosition2Buffer.SRV;
-	Parameters->RootBarycentricBuffer = LODData.RootTriangleBarycentricBuffer.SRV;
+	Parameters->TrianglePosition0Buffer = RegisterAsSRV(GraphBuilder, LODData.RestRootTrianglePosition0Buffer);
+	Parameters->TrianglePosition1Buffer = RegisterAsSRV(GraphBuilder, LODData.RestRootTrianglePosition1Buffer);
+	Parameters->TrianglePosition2Buffer = RegisterAsSRV(GraphBuilder, LODData.RestRootTrianglePosition2Buffer);
+	Parameters->RootBarycentricBuffer   = RegisterAsSRV(GraphBuilder, LODData.RootTriangleBarycentricBuffer);
 	Parameters->RootUVsBuffer = nullptr;
 	Parameters->OutputResolution = OutputResolution;
 	Parameters->MaxRootCount = RootCount;

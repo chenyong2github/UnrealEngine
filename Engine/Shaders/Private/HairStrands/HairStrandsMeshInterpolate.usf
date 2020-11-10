@@ -2,7 +2,7 @@
 
 #include "../Common.ush"
 #include "HairStrandsMeshProjectionCommon.ush"
-#include "HairStrandsMeshRBF.ush"
+#include "HairStrandsMeshRBF.ush"  
 
 ////////////////////////////////////////////////////////////////////////
 

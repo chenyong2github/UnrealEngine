@@ -37,29 +37,29 @@
 #endif
 
 #ifndef ASSERT_ELEMENTS_EQ
-#define ASSERT_ELEMENTS_EQ(result, expected, count)     \
-    for (std::size_t i = 0ul; i < count; ++i) {         \
-        ASSERT_EQ(result[i], expected[i]);              \
-    }
+    #define ASSERT_ELEMENTS_EQ(result, expected, count)     \
+        for (std::size_t i = 0ul; i < count; ++i) {         \
+            ASSERT_EQ(result[i], expected[i]);              \
+        }
 #endif
 
 #ifndef EXPECT_ELEMENTS_EQ
-#define EXPECT_ELEMENTS_EQ(result, expected, count)     \
-    for (std::size_t i = 0ul; i < count; ++i) {         \
-        EXPECT_EQ(result[i], expected[i]);              \
-    }
+    #define EXPECT_ELEMENTS_EQ(result, expected, count)     \
+        for (std::size_t i = 0ul; i < count; ++i) {         \
+            EXPECT_EQ(result[i], expected[i]);              \
+        }
 #endif
 
 #ifndef ASSERT_ELEMENTS_NEAR
-#define ASSERT_ELEMENTS_NEAR(result, expected, count, threshold)    \
-    for (std::size_t i = 0ul; i < count; ++i) {                     \
-        ASSERT_NEAR(result[i], expected[i], threshold);             \
-    }
+    #define ASSERT_ELEMENTS_NEAR(result, expected, count, threshold)    \
+        for (std::size_t i = 0ul; i < count; ++i) {                     \
+            ASSERT_NEAR(result[i], expected[i], threshold);             \
+        }
 #endif
 
 #ifndef EXPECT_ELEMENTS_NEAR
-#define EXPECT_ELEMENTS_NEAR(result, expected, count, threshold)    \
-    for (std::size_t i = 0ul; i < count; ++i) {                     \
-        EXPECT_NEAR(result[i], expected[i], threshold);             \
-    }
+    #define EXPECT_ELEMENTS_NEAR(result, expected, count, threshold)    \
+        for (std::size_t i = 0ul; i < count; ++i) {                     \
+            EXPECT_NEAR(result[i], expected[i], threshold);             \
+        }
 #endif

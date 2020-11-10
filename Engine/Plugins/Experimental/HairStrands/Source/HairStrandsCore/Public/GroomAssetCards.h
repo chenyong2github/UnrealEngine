@@ -177,6 +177,9 @@ struct HAIRSTRANDSCORE_API FHairGroupCardsTextures
 
 	UPROPERTY(EditAnywhere, Category = "CardsAttributes")
 	UTexture2D* AttributeTexture = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "CardsAuxilaryData")
+	UTexture2D* AuxilaryDataTexture = nullptr;
 };
 
 USTRUCT(BlueprintType)

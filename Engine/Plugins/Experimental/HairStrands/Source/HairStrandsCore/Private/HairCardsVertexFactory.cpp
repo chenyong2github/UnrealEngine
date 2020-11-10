@@ -14,6 +14,9 @@
 #include "GroomInstance.h"
 #include "SystemTextures.h" 
 
+// Disabling GPU scene data for this vertex factory as there are some Primitive index issue on PS4 which needs to be investigated
+#define VF_CARDS_SUPPORT_GPU_SCENE 0
+
 template<typename T> inline void VFC_BindParam(FMeshDrawSingleShaderBindings& ShaderBindings, const FShaderResourceParameter& Param, T* Value) { if (Param.IsBound() && Value) ShaderBindings.Add(Param, Value); }
 template<typename T> inline void VFC_BindParam(FMeshDrawSingleShaderBindings& ShaderBindings, const FShaderParameter& Param, const T& Value) { if (Param.IsBound()) ShaderBindings.Add(Param, Value); }
 
@@ -25,7 +28,8 @@ FHairCardsUniformBuffer CreateHairCardsVFUniformBuffer(
 	uint32 Current,
 	const FHairGroupInstance* Instance,
 	const uint32 LODIndex,
-	EHairGeometryType GeometryType)
+	EHairGeometryType GeometryType, 
+	bool bSupportsManualVertexFetch)
 {
 	FHairCardsVertexFactoryUniformShaderParameters UniformParameters;
 
@@ -52,6 +56,8 @@ FHairCardsUniformBuffer CreateHairCardsVFUniformBuffer(
 		UniformParameters.CoverageSampler = LOD.RestResource->CoverageSampler;
 		UniformParameters.AttributeTexture = LOD.RestResource->AttributeTexture;
 		UniformParameters.AttributeSampler = LOD.RestResource->AttributeSampler;
+		UniformParameters.AuxilaryDataTexture = LOD.RestResource->AuxilaryDataTexture;
+		UniformParameters.AuxilaryDataSampler = LOD.RestResource->AuxilaryDataSampler;
 	}
 	else if (GeometryType == EHairGeometryType::Meshes)
 	{
@@ -76,9 +82,11 @@ FHairCardsUniformBuffer CreateHairCardsVFUniformBuffer(
 		UniformParameters.CoverageSampler = LOD.RestResource->CoverageSampler;
 		UniformParameters.AttributeTexture = LOD.RestResource->AttributeTexture;
 		UniformParameters.AttributeSampler = LOD.RestResource->AttributeSampler;
+		UniformParameters.AuxilaryDataTexture = LOD.RestResource->AuxilaryDataTexture;
+		UniformParameters.AuxilaryDataSampler = LOD.RestResource->AuxilaryDataSampler;
 	}
 
-	if (!RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
+	if (!bSupportsManualVertexFetch)
 	{
 		UniformParameters.PositionBuffer = GNullVertexBuffer.VertexBufferSRV;
 		UniformParameters.PreviousPositionBuffer = GNullVertexBuffer.VertexBufferSRV;
@@ -93,11 +101,13 @@ FHairCardsUniformBuffer CreateHairCardsVFUniformBuffer(
 	if (!UniformParameters.TangentTexture)		{ UniformParameters.TangentTexture = DefaultTexture;  }
 	if (!UniformParameters.CoverageTexture)		{ UniformParameters.CoverageTexture = DefaultTexture; }
 	if (!UniformParameters.AttributeTexture)	{ UniformParameters.AttributeTexture = DefaultTexture;}
+	if (!UniformParameters.AuxilaryDataTexture)	{ UniformParameters.AuxilaryDataTexture = DefaultTexture; }
 
 	if (!UniformParameters.DepthSampler)		{ UniformParameters.DepthSampler = DefaultSampler;	  }
 	if (!UniformParameters.TangentSampler)		{ UniformParameters.TangentSampler = DefaultSampler;  }
 	if (!UniformParameters.CoverageSampler)		{ UniformParameters.CoverageSampler = DefaultSampler; }
 	if (!UniformParameters.AttributeSampler)	{ UniformParameters.AttributeSampler = DefaultSampler;}
+	if (!UniformParameters.AuxilaryDataSampler)	{ UniformParameters.AuxilaryDataSampler = DefaultSampler;}
 
 	return TUniformBufferRef<FHairCardsVertexFactoryUniformShaderParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_MultiFrame);
 }
@@ -162,6 +172,18 @@ public:
 
 IMPLEMENT_TYPE_LAYOUT(FHairCardsVertexFactoryShaderParameters);
 
+FHairCardsVertexFactory::FHairCardsVertexFactory(FHairGroupInstance* Instance, uint32 GroupIndex, uint32 LODIndex, uint32 BufferIndex, EHairGeometryType GeometryType, EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, const char* InDebugName)
+	: FVertexFactory(InFeatureLevel)
+	, DebugName(InDebugName)
+{
+	bSupportsManualVertexFetch = RHISupportsManualVertexFetch(InShaderPlatform);
+
+	Data.Instance = Instance;
+	Data.GroupIndex = GroupIndex;
+	Data.LODIndex = LODIndex;
+	Data.BufferIndex = BufferIndex;
+	Data.GeometryType = GeometryType;
+}
 /**
  * Should we cache the material's shadertype on this platform with this vertex factory? 
  */
@@ -172,7 +194,9 @@ bool FHairCardsVertexFactory::ShouldCompilePermutation(const FVertexFactoryShade
 
 void FHairCardsVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
-	const bool bUseGPUSceneAndPrimitiveIdStream = Parameters.VertexFactoryType->SupportsPrimitiveIdStream() && UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform));
+	FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+	const bool bUseGPUSceneAndPrimitiveIdStream = VF_CARDS_SUPPORT_GPU_SCENE && Parameters.VertexFactoryType->SupportsPrimitiveIdStream() && UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform));
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bUseGPUSceneAndPrimitiveIdStream);
 	OutEnvironment.SetDefine(TEXT("VF_CARDS_HAIR"), TEXT("1"));
 	OutEnvironment.SetDefine(TEXT("VF_GPU_SCENE_TEXTURE"), bUseGPUSceneAndPrimitiveIdStream && GPUSceneUseTexture2D(Parameters.Platform));
@@ -181,7 +205,8 @@ void FHairCardsVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryS
 
 void FHairCardsVertexFactory::ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors)
 {
-	if (Type->SupportsPrimitiveIdStream() 
+	if (VF_CARDS_SUPPORT_GPU_SCENE
+		&& Type->SupportsPrimitiveIdStream() 
 		&& UseGPUScene(Platform, GetMaxSupportedFeatureLevel(Platform)) 
 		&& ParameterMap.ContainsParameterAllocation(FPrimitiveUniformShaderParameters::StaticStructMetadata.GetShaderVariableName()))
 	{
@@ -214,17 +239,14 @@ void FHairCardsVertexFactory::Copy(const FHairCardsVertexFactory& Other)
 
 void FHairCardsVertexFactory::InitRHI()
 {
-	bNeedsDeclaration = false;
-
-	// If the platform does not support manual vertex fetching we assume it is a low end platform, and so we don't enable deformation.
-	bSupportsManualVertexFetch = RHISupportsManualVertexFetch(GMaxRHIShaderPlatform);
-
+	bNeedsDeclaration = true;
 	// We create different streams based on feature level
 	check(HasValidFeatureLevel());
 
+	// If the platform does not support manual vertex fetching we assume it is a low end platform, and so we don't enable deformation.
 	// VertexFactory needs to be able to support max possible shader platform and feature level
 	// in case if we switch feature level at runtime.
-	const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel);
+	const bool bCanUseGPUScene = VF_CARDS_SUPPORT_GPU_SCENE && UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel);
 
 	FVertexDeclarationElementList Elements;
 	SetPrimitiveIdStreamIndex(EVertexInputStreamType::Default, -1);
@@ -236,7 +258,9 @@ void FHairCardsVertexFactory::InitRHI()
 		bNeedsDeclaration = true;
 	}
 
-	if (!bSupportsManualVertexFetch)
+	// Note this is a local version of the VF's bSupportsManualVertexFetch, which take into account the feature level
+	const bool bManualFetch = SupportsManualVertexFetch(GetFeatureLevel());
+	if (!bManualFetch)
 	{
 		if (Data.GeometryType == EHairGeometryType::Cards)
 		{
@@ -271,7 +295,7 @@ void FHairCardsVertexFactory::InitRHI()
 		if (HairInstance->Cards.LODs.IsValidIndex(Data.LODIndex))
 		{
 			const FHairGroupInstance::FCards::FLOD& LOD = HairInstance->Cards.LODs[Data.LODIndex];
-			HairInstance->Cards.LODs[Data.LODIndex].UniformBuffer[Data.BufferIndex] = CreateHairCardsVFUniformBuffer(Data.BufferIndex, HairInstance, Data.LODIndex, EHairGeometryType::Cards);
+			HairInstance->Cards.LODs[Data.LODIndex].UniformBuffer[Data.BufferIndex] = CreateHairCardsVFUniformBuffer(Data.BufferIndex, HairInstance, Data.LODIndex, EHairGeometryType::Cards, bManualFetch);
 		}
 	}
 	else if (Data.GeometryType == EHairGeometryType::Meshes && IsHairStrandsEnabled(EHairStrandsShaderType::Meshes, GMaxRHIShaderPlatform))
@@ -279,7 +303,7 @@ void FHairCardsVertexFactory::InitRHI()
 		if (HairInstance->Meshes.LODs.IsValidIndex(Data.LODIndex))
 		{
 			const FHairGroupInstance::FMeshes::FLOD& LOD = HairInstance->Meshes.LODs[Data.LODIndex];
-			HairInstance->Meshes.LODs[Data.LODIndex].UniformBuffer[Data.BufferIndex] = CreateHairCardsVFUniformBuffer(Data.BufferIndex, HairInstance, Data.LODIndex, EHairGeometryType::Meshes);
+			HairInstance->Meshes.LODs[Data.LODIndex].UniformBuffer[Data.BufferIndex] = CreateHairCardsVFUniformBuffer(Data.BufferIndex, HairInstance, Data.LODIndex, EHairGeometryType::Meshes, bManualFetch);
 		}
 	}
 }
@@ -296,4 +320,4 @@ void FHairCardsVertexFactory::ReleaseRHI()
 	FVertexFactory::ReleaseRHI();
 }
 
-IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FHairCardsVertexFactory,"/Engine/Private/HairStrands/HairCardsVertexFactory.ush",true,false,true,true,true,true,true);
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FHairCardsVertexFactory,"/Engine/Private/HairStrands/HairCardsVertexFactory.ush",true,false,true,true,true,true, VF_CARDS_SUPPORT_GPU_SCENE);

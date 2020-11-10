@@ -295,6 +295,7 @@ static void verifyGeometry(GeometryReader* reader, const LODParameters& params) 
         ASSERT_EQ(reader->getMaximumInfluencePerVertex(meshIndex),
                   decoded::maxInfluencePerVertex[params.maxLOD][meshIndex]);
 
+        ASSERT_EQ(reader->getSkinWeightsCount(meshIndex), decoded::skinWeightsValues[params.maxLOD][meshIndex].size());
         for (std::uint32_t vertexIndex = 0u; vertexIndex < vertexPositionCount; ++vertexIndex) {
             const auto skinWeights = reader->getSkinWeightsValues(meshIndex, vertexIndex);
             const auto& expectedSkinWeights = decoded::skinWeightsValues[params.maxLOD][meshIndex][vertexIndex];

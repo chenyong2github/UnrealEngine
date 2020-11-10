@@ -199,6 +199,11 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairProjectionMeshDebugParameters, Pass)
 	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform);
+	}
 };
 
 class FHairProjectionMeshDebugPS : public FHairProjectionMeshDebug
@@ -209,6 +214,11 @@ class FHairProjectionMeshDebugPS : public FHairProjectionMeshDebug
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairProjectionMeshDebugParameters, Pass)
 	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform);
+	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FHairProjectionMeshDebugVS, "/Engine/Private/HairStrands/HairStrandsMeshProjectionMeshDebug.usf", "MainVS", SF_Vertex);
@@ -307,18 +317,18 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairProjectionHairDebugParameters, )
 	SHADER_PARAMETER(uint32, DeformedFrameEnable)
 	SHADER_PARAMETER(FMatrix, RootLocalToWorld)
 
-	SHADER_PARAMETER_SRV(StructuredBuffer, RestPosition0Buffer)
-	SHADER_PARAMETER_SRV(StructuredBuffer, RestPosition1Buffer)
-	SHADER_PARAMETER_SRV(StructuredBuffer, RestPosition2Buffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RestPosition0Buffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RestPosition1Buffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RestPosition2Buffer)
 
-	SHADER_PARAMETER_SRV(StructuredBuffer, DeformedPosition0Buffer)
-	SHADER_PARAMETER_SRV(StructuredBuffer, DeformedPosition1Buffer)
-	SHADER_PARAMETER_SRV(StructuredBuffer, DeformedPosition2Buffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, DeformedPosition0Buffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, DeformedPosition1Buffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, DeformedPosition2Buffer)
 
 	// Change for actual frame data (stored or computed only)
-	SHADER_PARAMETER_SRV(StructuredBuffer, RootPositionBuffer)
-	SHADER_PARAMETER_SRV(StructuredBuffer, RootNormalBuffer)
-	SHADER_PARAMETER_SRV(StructuredBuffer, RootBarycentricBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RootPositionBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RootNormalBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RootBarycentricBuffer)
 
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 	RENDER_TARGET_BINDING_SLOTS()
@@ -393,20 +403,20 @@ static void AddDebugProjectionHairPass(
 		return;
 
 	if (EDebugProjectionHairType::HairFrame == GeometryType &&
-		(!RestRootResources->RootPositionBuffer.SRV ||
-			!RestRootResources->RootNormalBuffer.SRV ||
-			!RestRootResources->LODs[MeshLODIndex].RootTriangleBarycentricBuffer.SRV))
+		(!RestRootResources->RootPositionBuffer.Buffer ||
+			!RestRootResources->RootNormalBuffer.Buffer ||
+			!RestRootResources->LODs[MeshLODIndex].RootTriangleBarycentricBuffer.Buffer))
 		return;
 
 	const FHairStrandsRestRootResource::FLOD& RestLODDatas = RestRootResources->LODs[MeshLODIndex];
 	const FHairStrandsDeformedRootResource::FLOD& DeformedLODDatas = DeformedRootResources->LODs[MeshLODIndex];
 
-	if (!RestLODDatas.RestRootTrianglePosition0Buffer.SRV ||
-		!RestLODDatas.RestRootTrianglePosition1Buffer.SRV ||
-		!RestLODDatas.RestRootTrianglePosition2Buffer.SRV ||
-		!DeformedLODDatas.DeformedRootTrianglePosition0Buffer.SRV ||
-		!DeformedLODDatas.DeformedRootTrianglePosition1Buffer.SRV ||
-		!DeformedLODDatas.DeformedRootTrianglePosition2Buffer.SRV)
+	if (!RestLODDatas.RestRootTrianglePosition0Buffer.Buffer ||
+		!RestLODDatas.RestRootTrianglePosition1Buffer.Buffer ||
+		!RestLODDatas.RestRootTrianglePosition2Buffer.Buffer ||
+		!DeformedLODDatas.DeformedRootTrianglePosition0Buffer.Buffer ||
+		!DeformedLODDatas.DeformedRootTrianglePosition1Buffer.Buffer ||
+		!DeformedLODDatas.DeformedRootTrianglePosition2Buffer.Buffer)
 		return;
 
 	const FIntPoint Resolution(Viewport.Width(), Viewport.Height());
@@ -419,18 +429,18 @@ static void AddDebugProjectionHairPass(
 
 	if (EDebugProjectionHairType::HairFrame == GeometryType)
 	{
-		Parameters->RootPositionBuffer = RestRootResources->RootPositionBuffer.SRV;
-		Parameters->RootNormalBuffer = RestRootResources->RootNormalBuffer.SRV;
-		Parameters->RootBarycentricBuffer = RestLODDatas.RootTriangleBarycentricBuffer.SRV;
+		Parameters->RootPositionBuffer		= RegisterAsSRV(GraphBuilder, RestRootResources->RootPositionBuffer);
+		Parameters->RootNormalBuffer		= RegisterAsSRV(GraphBuilder, RestRootResources->RootNormalBuffer);
+		Parameters->RootBarycentricBuffer	= RegisterAsSRV(GraphBuilder, RestLODDatas.RootTriangleBarycentricBuffer);
 	}
 
-	Parameters->RestPosition0Buffer = RestLODDatas.RestRootTrianglePosition0Buffer.SRV;
-	Parameters->RestPosition1Buffer = RestLODDatas.RestRootTrianglePosition1Buffer.SRV;
-	Parameters->RestPosition2Buffer = RestLODDatas.RestRootTrianglePosition2Buffer.SRV;
+	Parameters->RestPosition0Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestRootTrianglePosition0Buffer);
+	Parameters->RestPosition1Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestRootTrianglePosition1Buffer);
+	Parameters->RestPosition2Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestRootTrianglePosition2Buffer);
 
-	Parameters->DeformedPosition0Buffer = DeformedLODDatas.DeformedRootTrianglePosition0Buffer.SRV;
-	Parameters->DeformedPosition1Buffer = DeformedLODDatas.DeformedRootTrianglePosition1Buffer.SRV;
-	Parameters->DeformedPosition2Buffer = DeformedLODDatas.DeformedRootTrianglePosition2Buffer.SRV;
+	Parameters->DeformedPosition0Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.DeformedRootTrianglePosition0Buffer);
+	Parameters->DeformedPosition1Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.DeformedRootTrianglePosition1Buffer);
+	Parameters->DeformedPosition2Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.DeformedRootTrianglePosition2Buffer);
 
 	Parameters->ViewUniformBuffer = ViewUniformBuffer;
 	Parameters->RenderTargets[0] = FRenderTargetBinding(ColorTarget, ERenderTargetLoadAction::ELoad, 0);
@@ -670,11 +680,11 @@ class FDrawDebugCardGuidesCS : public FGlobalShader
 		SHADER_PARAMETER(FVector, SimRestOffset)
 		SHADER_PARAMETER(FVector, SimDeformedOffset)
 
-		SHADER_PARAMETER_SRV(Buffer, RenRestPosition)
-		SHADER_PARAMETER_SRV(Buffer, RenDeformedPosition)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RenRestPosition)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RenDeformedPosition)
 
-		SHADER_PARAMETER_SRV(Buffer, SimRestPosition)
-		SHADER_PARAMETER_SRV(Buffer, SimDeformedPosition)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, SimRestPosition)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, SimDeformedPosition)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
 	END_SHADER_PARAMETER_STRUCT()
@@ -737,16 +747,16 @@ static void AddDrawDebugCardsGuidesPass(
 	Parameters->SimVertexCount = Instance->Guides.RestResource->GetVertexCount();
 
 	Parameters->RenRestOffset = LOD.Guides.RestResource->PositionOffset;
-	Parameters->RenRestPosition = LOD.Guides.RestResource->RestPositionBuffer.SRV;
+	Parameters->RenRestPosition = RegisterAsSRV(GraphBuilder, LOD.Guides.RestResource->RestPositionBuffer);
 
 	Parameters->RenDeformedOffset = LOD.Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current);
-	Parameters->RenDeformedPosition = LOD.Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current).SRV;
+	Parameters->RenDeformedPosition = RegisterAsSRV(GraphBuilder, LOD.Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current));
 
 	Parameters->SimRestOffset = Instance->Guides.RestResource->PositionOffset;
-	Parameters->SimRestPosition = Instance->Guides.RestResource->RestPositionBuffer.SRV;
+	Parameters->SimRestPosition = RegisterAsSRV(GraphBuilder, Instance->Guides.RestResource->RestPositionBuffer);
 
 	Parameters->SimDeformedOffset = Instance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current);
-	Parameters->SimDeformedPosition = Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current).SRV;
+	Parameters->SimDeformedPosition = RegisterAsSRV(GraphBuilder, Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current));
 	Parameters->LocalToWorld = Instance->LocalToWorld.ToMatrixWithScale();
 
 	if (!bDeformed &&  bRen) Parameters->DebugMode = 1;
@@ -831,18 +841,27 @@ void RunHairStrandsDebug(
 					*Instance->Debug.GroomAssetName,
 					*Instance->Debug.SkeletalComponentName);
 				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugColor : InactiveColor);
-
-			Line = FString::Printf(TEXT("        |> CurveCount : %d | VertexCount : %d | MaxRadius : %f | MaxLength : %f | Skinned: %s | Binding: %s | Simulation: %s| LOD count : %d"),
-				Instance->Strands.Data->GetNumCurves(),
-				Instance->Strands.Data->GetNumPoints(),
-				Instance->HairGroupPublicData->VFInput.Strands.HairRadius,
-				Instance->HairGroupPublicData->VFInput.Strands.HairLength,
-				bHasSkinInterpolation ? TEXT("True") : TEXT("False"),
-				bHasBindingAsset ? TEXT("True") : TEXT("False"),
-				Instance->Guides.bIsSimulationEnable ? TEXT("True") : TEXT("False"),
-				Instance->Strands.ClusterCullingResource->Data.ClusterLODInfos.Num());
-			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugGroupColor : InactiveColor);
-		}
+				if (Instance->Strands.IsValid())
+				{
+					Line = FString::Printf(TEXT("        |> CurveCount : %d | VertexCount : %d | MaxRadius : %f | MaxLength : %f | Skinned: %s | Binding: %s | Simulation: %s| LOD count : %d"),
+						Instance->Strands.Data->GetNumCurves(),
+						Instance->Strands.Data->GetNumPoints(),
+						Instance->HairGroupPublicData->VFInput.Strands.HairRadius,
+						Instance->HairGroupPublicData->VFInput.Strands.HairLength,
+						bHasSkinInterpolation ? TEXT("True") : TEXT("False"),
+						bHasBindingAsset ? TEXT("True") : TEXT("False"),
+						Instance->Guides.bIsSimulationEnable ? TEXT("True") : TEXT("False"),
+						Instance->Strands.ClusterCullingResource->Data.ClusterLODInfos.Num());
+				}
+				else
+				{
+					Line = FString::Printf(TEXT("        |> HasStrands : %s | HasCards : %s | HasMeshes : %s"),
+						Instance->Strands.IsValid() ? TEXT("True") : TEXT("False"),
+						Instance->Cards.IsValid() ? TEXT("True") : TEXT("False"),
+						Instance->Meshes.IsValid() ? TEXT("True") : TEXT("False"));
+				}
+				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugGroupColor : InactiveColor);
+			}
 
 			const bool bFlush = false;
 			const bool bInsideRenderPass = true;

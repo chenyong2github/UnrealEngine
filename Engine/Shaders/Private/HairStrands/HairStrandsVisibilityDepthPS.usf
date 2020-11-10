@@ -26,7 +26,7 @@ void MainPS(
 	// This depth is only used for screen passes like AO/SSGI/... so no need to be very accurate
 	const float DepthBias = 0.001f; 
 	SvDepth = CategorisationData.ClosestDepth-DepthBias;
-	OutGBufferB = float4(0, 0, 0.3f, EncodeShadingModelIdAndSelectiveOutputMask(SHADINGMODELID_HAIR, 0));
+	OutGBufferB = float4(0, 0, 0, 0); // EncodeShadingModelIdAndSelectiveOutputMask(SHADINGMODELID_HAIR, 0)
 	OutGBufferC = 0;
 	OutColor = 0;
 }

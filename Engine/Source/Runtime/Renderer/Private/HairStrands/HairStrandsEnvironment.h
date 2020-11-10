@@ -18,7 +18,7 @@ void RenderHairStrandsAmbientOcclusion(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<const FViewInfo> Views,
 	const FHairStrandsRenderingData* HairDatas,
-	const TRefCountPtr<IPooledRenderTarget>& InAOTexture);
+	const FRDGTextureRef& InAOTexture);
 
 void RenderHairStrandsEnvironmentLighting(
 	FRDGBuilder& GraphBuilder,

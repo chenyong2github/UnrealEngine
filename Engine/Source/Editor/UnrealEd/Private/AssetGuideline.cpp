@@ -339,7 +339,7 @@ void UAssetGuideline::PostLoad()
 		FText WarningHyperlinkText;
 		FText NeededItems;
 		{
-			FText AssetName = FText::AsCultureInvariant(GetOuter() ? GetOuter()->GetFName().ToString() : GetFName().ToString());
+			FText AssetName = FText::AsCultureInvariant(GetPackage() ? GetPackage()->GetFName().ToString() : GetFName().ToString());
 
 			FText MissingPlugins = FText::Format(LOCTEXT("MissingPlugins", "Needed plugins: \n{0}"), NeededPlugins.IsEmpty() ? FText::GetEmpty() : FText::AsCultureInvariant(NeededPlugins));
 			FText PluginWarning = FText::Format(LOCTEXT("PluginWarning", "Asset '{0}' needs the above plugins. Assets related to '{0}' may not display properly.\n	Attemping to save '{0}' or related assets may result in irreverisble modification due to missing plugins. \n"), AssetName);

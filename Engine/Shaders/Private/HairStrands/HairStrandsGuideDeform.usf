@@ -8,7 +8,7 @@ float3 SimRestOffset;
 float3 SimDeformedOffset;
 uint VertexCount;
 uint IterationCount;
-uint DispatchCountX;
+uint DispatchCountX; 
 
 Buffer<uint4> SimRestPosePositionBuffer;
 RWBuffer<uint4> OutSimDeformedPositionBuffer;

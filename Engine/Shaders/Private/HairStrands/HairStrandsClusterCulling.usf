@@ -3,7 +3,7 @@
 #include "../Common.ush"
 #include "HairStrandsDebugCommon.ush"
 #include "HairStrandsAABBCommon.ush"
-#include "HairStrandsClusterCommon.ush" 
+#include "HairStrandsClusterCommon.ush"
 
 #define COMPACTCS_NUMTHREAD 64
 
@@ -40,7 +40,7 @@ uint3 ComputeDispatchGroupCount2D(uint GroupCount)
 #ifdef SHADER_CLEARCLUSTERAABB
 
 RWBuffer<int> OutClusterAABBBuffer; // Cluster data packed as {uint3 AABBMin, uint3 AABBMax}
-RWBuffer<int> OutGroupAABBBuffer;	// Group data packed as {uint3 AABBMin, uint3 AABBMax}
+RWBuffer<int> OutGroupAABBBuffer; 	// Group data packed as {uint3 AABBMin, uint3 AABBMax}
 
 [numthreads(64, 1, 1)]
 void MainClearClusterAABBCS(uint2 DispatchThreadId : SV_DispatchThreadID)
@@ -470,7 +470,7 @@ void MainDrawDebugAABBCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 #ifdef SHADER_CLUSTERCULLINGINDCLEAR  
 
 RWBuffer<uint> DispatchIndirectParametersClusterCount;
-RWBuffer<uint> DrawIndirectParameters;
+RWBuffer<uint> DrawIndirectParameters; 
 uint VertexCountPerInstance;
 
 [numthreads(1, 1, 1)]
@@ -514,7 +514,7 @@ float4 ViewFrustumConvexHull[6];
 
 Buffer<int> ClusterAABBBuffer;
 StructuredBuffer<FPackedHairClusterInfo> ClusterInfoBuffer;
-StructuredBuffer<FPackedHairClusterLODInfo> ClusterLODInfoBuffer;
+StructuredBuffer<FPackedHairClusterLODInfo> ClusterLODInfoBuffer; 
 
 RWBuffer<uint> GlobalClusterIdBuffer;
 RWBuffer<uint> GlobalIndexStartBuffer;
@@ -522,7 +522,7 @@ RWBuffer<uint> GlobalIndexCountBuffer;
 RWBuffer<float>GlobalRadiusScaleBuffer;
 RWBuffer<uint> DispatchIndirectParametersClusterCount;
 RWBuffer<uint> DispatchIndirectParametersVertexCount;
-RWBuffer<uint> DrawIndirectParameters;
+RWBuffer<uint> DrawIndirectParameters; 
 
 #if PERMUTATION_DEBUGAABBBUFFER
 RWStructuredBuffer<FHairClusterDebugInfo> ClusterDebugInfoBuffer;
@@ -710,8 +710,8 @@ void MainClusterCullingCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 /// 0. Indirect dispatch buffer preparation for compute raster visibility pass
 #ifdef SHADER_PREPAREINDIRECTDISPATCH
 
-RWBuffer<uint> DrawIndirectBuffer;
-RWBuffer<uint> DispatchIndirectBuffer;
+RWBuffer<uint> DrawIndirectBuffer; 
+RWBuffer<uint> DispatchIndirectBuffer; 
 
 [numthreads(1, 1, 1)]
 void MainClusterCullingPrepareIndirectDispatchCS(

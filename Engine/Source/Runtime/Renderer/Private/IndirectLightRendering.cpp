@@ -341,7 +341,8 @@ bool FDeferredShadingSceneRenderer::ShouldDoReflectionEnvironment() const
 void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 	FRDGBuilder& GraphBuilder,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-	FRDGTextureRef SceneColorTexture)
+	FRDGTextureRef SceneColorTexture,
+	FHairStrandsRenderingData* InHairDatas)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "DiffuseIndirectAndAO");
 
@@ -462,6 +463,15 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		{
 			// Fetch result of SSAO that was done earlier.
 			DenoiserOutputs.AmbientOcclusionMask = GraphBuilder.RegisterExternalTexture(SceneContext.ScreenSpaceAO);
+		}
+
+		if (InHairDatas && (bApplySSGI || bApplySSAO))
+		{
+			RenderHairStrandsAmbientOcclusion(
+				GraphBuilder,
+				Views,
+				InHairDatas,
+				DenoiserOutputs.AmbientOcclusionMask);
 		}
 
 		// Applies diffuse indirect and ambient occlusion to the scene color.

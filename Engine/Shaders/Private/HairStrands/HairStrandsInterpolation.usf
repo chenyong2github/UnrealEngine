@@ -56,9 +56,10 @@ Buffer<uint>   SimRootPointIndexBuffer;
 
 uint HairStrandsVF_bIsCullingEnable;
 #if PERMUTATION_CULLING == 1
-Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;
+Buffer<uint>	HairStrandsVF_CullingIndirectBuffer; 
 Buffer<uint>	HairStrandsVF_CullingIndexBuffer;
 Buffer<float>	HairStrandsVF_CullingRadiusScaleBuffer;
+Buffer<uint>	HairStrandsVF_CullingIndirectBufferArgs;
 #endif
 
 Buffer<uint4>  AttributeBuffer;
@@ -68,7 +69,7 @@ Buffer<uint>   RenVertexToRootIndexBuffer;
 Buffer<uint>   SimVertexToRootIndexBuffer;
 #endif
 
-RWBuffer<uint4> OutRenderDeformedPositionBuffer;
+RWBuffer<uint4> OutRenderDeformedPositionBuffer; 
 
 #if PERMUTATION_DYNAMIC_GEOMETRY >= 1 
 
@@ -97,7 +98,7 @@ Buffer<uint>	SimRootBarycentricBuffer;
 #if PERMUTATION_DEBUG == 1
 Buffer<int>		 VertexToClusterIdBuffer;
 Buffer<float4>	 SimAttributeBuffer;
-RWBuffer<float4> OutRenderAttributeBuffer;
+RWBuffer<float4> OutRenderAttributeBuffer; 
 #endif
 
 #if PERMUTATION_GROUP_SIZE == 64
@@ -582,8 +583,8 @@ Buffer<uint> ClusterIdBuffer;
 Buffer<uint> ClusterIndexOffsetBuffer;
 Buffer<uint> ClusterIndexCountBuffer;
 
-RWBuffer<int> OutClusterAABBBuffer;		// Cluster data packed as {uint3 AABBMin, uint3 AABBMax}
-RWBuffer<int> OutGroupAABBBuffer;		// Group data packed as {uint3 AABBMin, uint3 AABBMax}
+RWBuffer<int> OutClusterAABBBuffer; 	// Cluster data packed as {uint3 AABBMin, uint3 AABBMax}
+RWBuffer<int> OutGroupAABBBuffer; 		// Group data packed as {uint3 AABBMin, uint3 AABBMax}
 
 #if GROUP_SIZE!=64 && GROUP_SIZE!=32
 #error Unhandled group size
@@ -702,3 +703,26 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 }
 
 #endif // SHADER_CLUSTERAABB
+
+
+#if SHADER_HAIRTRANSFER_PREV_POSITION
+
+uint ElementCount;
+uint DispatchCountX;
+Buffer<uint4> InBuffer;
+RWBuffer<uint4> OutBuffer;
+
+#define GROUP_SIZE 64
+[numthreads(GROUP_SIZE, 1, 1)]
+void MainCS(
+	uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint Index = DispatchThreadId.x + DispatchThreadId.y * DispatchCountX * GROUP_SIZE;
+	if (Index >= ElementCount)
+	{
+		return;
+	}
+	OutBuffer[Index] = InBuffer[Index];
+}
+
+#endif // SHADER_HAIRTRANSFER_PREV_POSITION

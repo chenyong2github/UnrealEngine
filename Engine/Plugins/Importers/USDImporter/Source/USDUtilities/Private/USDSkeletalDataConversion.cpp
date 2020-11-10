@@ -2083,7 +2083,7 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 		FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels.Last();
 
 		// Process bones influence (normalization and optimization) (optional)
-		SkeletalMeshHelper::ProcessImportMeshInfluences(LODImportData);
+		SkeletalMeshHelper::ProcessImportMeshInfluences(LODImportData, SkeletalMesh->GetPathName());
 
 		FSkeletalMeshLODInfo& NewLODInfo = SkeletalMesh->AddLODInfo();
 		NewLODInfo.ReductionSettings.NumOfTrianglesPercentage = 1.0f;

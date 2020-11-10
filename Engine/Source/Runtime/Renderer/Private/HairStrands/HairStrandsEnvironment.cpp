@@ -28,7 +28,7 @@ static FAutoConsoleVariableRef CVarHairScatterSceneLighting(TEXT("r.HairStrands.
 static int32 GHairSkylightingEnable = 1;
 static FAutoConsoleVariableRef CVarHairSkylightingEnable(TEXT("r.HairStrands.SkyLighting"), GHairSkylightingEnable, TEXT("Enable sky lighting on hair."));
 
-static int32 GHairSkyAOEnable = 0;
+static int32 GHairSkyAOEnable = 1;
 static FAutoConsoleVariableRef CVarHairSkyAOEnable(TEXT("r.HairStrands.SkyAO"), GHairSkyAOEnable, TEXT("Enable (sky) AO on hair."));
 
 static float GHairSkylightingConeAngle = 3;
@@ -37,10 +37,10 @@ static FAutoConsoleVariableRef CVarHairSkylightingConeAngle(TEXT("r.HairStrands.
 static int32 GHairStrandsSkyLightingSampleCount = 16;
 static FAutoConsoleVariableRef CVarHairStrandsSkyLightingSampleCount(TEXT("r.HairStrands.SkyLighting.SampleCount"), GHairStrandsSkyLightingSampleCount, TEXT("Number of samples used for evaluating multiple scattering and visible area (default is set to 16)."), ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static int32 GHairStrandsSkyAOSampleCount = 16;
+static int32 GHairStrandsSkyAOSampleCount = 4;
 static FAutoConsoleVariableRef CVarHairStrandsSkyAOSampleCount(TEXT("r.HairStrands.SkyAO.SampleCount"), GHairStrandsSkyAOSampleCount, TEXT("Number of samples used for evaluating hair AO (default is set to 16)."), ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static float GHairStrandsTransmissionDensityScaleFactor = 4;
+static float GHairStrandsTransmissionDensityScaleFactor = 10;
 static FAutoConsoleVariableRef CVarHairStrandsTransmissionDensityScaleFactor(TEXT("r.HairStrands.SkyLighting.TransmissionDensityScale"), GHairStrandsTransmissionDensityScaleFactor, TEXT("Density scale for controlling how much sky lighting is transmitted."), ECVF_Scalability | ECVF_RenderThreadSafe);
 
 static int32 GHairStrandsSkyLightingUseHairCountTexture = 1;
@@ -51,7 +51,7 @@ static float GHairStrandsSkyLightingDistanceThreshold = 10;
 static FAutoConsoleVariableRef CVarHairStrandsSkyAOThreshold(TEXT("r.HairStrands.SkyAO.DistanceThreshold"), GHairStrandsSkyAODistanceThreshold, TEXT("Max distance for occlusion search."), ECVF_Scalability | ECVF_RenderThreadSafe);
 static FAutoConsoleVariableRef CVarHairStrandsSkyLightingDistanceThreshold(TEXT("r.HairStrands.SkyLighting.DistanceThreshold"), GHairStrandsSkyLightingDistanceThreshold, TEXT("Max distance for occlusion search."), ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static int32 GHairStrandsSkyLighting_IntegrationType = 0;
+static int32 GHairStrandsSkyLighting_IntegrationType = 2;
 static FAutoConsoleVariableRef CVarHairStrandsSkyLighting_IntegrationType(TEXT("r.HairStrands.SkyLighting.IntegrationType"), GHairStrandsSkyLighting_IntegrationType, TEXT("Hair env. lighting integration type (0:Adhoc, 1:Uniform."), ECVF_Scalability | ECVF_RenderThreadSafe);
 
 static int32 GHairStrandsSkyLighting_DebugSample = 0;
@@ -96,6 +96,9 @@ class FHairEnvironmentAO : public FGlobalShader
 		SHADER_PARAMETER(float, AO_Intensity)
 		SHADER_PARAMETER(uint32, AO_SampleCount)
 		SHADER_PARAMETER(float, AO_DistanceThreshold)
+		SHADER_PARAMETER(uint32, Output_bHalfRes)
+		SHADER_PARAMETER(FVector2D, Output_InvResolution)
+
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairCategorizationTexture)
@@ -111,6 +114,7 @@ class FHairEnvironmentAO : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FHairEnvironmentAO, "/Engine/Private/HairStrands/HairStrandsEnvironmentAO.usf", "MainPS", SF_Pixel);
 
+bool IsSSGIHalfRes();
 static void AddHairStrandsEnvironmentAOPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -121,6 +125,10 @@ static void AddHairStrandsEnvironmentAOPass(
 {
 	check(Output);
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+
+	const FIntRect Viewport = View.ViewRect;
+	const FIntRect HalfResViewport = FIntRect::DivideAndRoundUp(Viewport, 2);
+	const bool bHalfRes = IsSSGIHalfRes() || Output->Desc.Extent.X == HalfResViewport.Width();
 
 	FHairEnvironmentAO::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairEnvironmentAO::FParameters>();
 	PassParameters->Voxel_MacroGroupId = MacroGroupData.MacroGroupId;
@@ -136,6 +144,20 @@ static void AddHairStrandsEnvironmentAOPass(
 	PassParameters->AO_SampleCount = FMath::Max(uint32(GHairStrandsSkyAOSampleCount), 1u);
 	PassParameters->AO_DistanceThreshold = FMath::Max(GHairStrandsSkyAODistanceThreshold, 1.f);
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(Output, ERenderTargetLoadAction::ELoad);
+	PassParameters->Output_bHalfRes = bHalfRes;
+	PassParameters->Output_InvResolution = FVector2D(1.f/Output->Desc.Extent.X, 1.f/Output->Desc.Extent.Y);
+
+	FIntRect ViewRect;
+	if (bHalfRes)
+	{
+		ViewRect.Min.X = 0;
+		ViewRect.Min.Y = 0;
+		ViewRect.Max = Output->Desc.Extent;
+	}
+	else
+	{
+		ViewRect = View.ViewRect;
+	}
 
 	if (ShaderDrawDebug::IsShaderDrawDebugEnabled(View))
 	{
@@ -149,12 +171,12 @@ static void AddHairStrandsEnvironmentAOPass(
 	ClearUnusedGraphResources(PixelShader, PassParameters);
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("HairStrandsAO %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
+		RDG_EVENT_NAME("HairStrandsAO %dx%d", ViewRect.Width(), ViewRect.Height()),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[PassParameters, &View, PixelShader](FRHICommandList& InRHICmdList)
+		[PassParameters, &View, PixelShader, ViewRect](FRHICommandList& InRHICmdList)
 	{
-		InRHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+		InRHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
 		FPixelShaderUtils::InitFullscreenPipelineState(InRHICmdList, View.ShaderMap, PixelShader, GraphicsPSOInit);
@@ -195,8 +217,6 @@ public:
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-
-		SHADER_PARAMETER(uint32, Voxel_MacroGroupId)
 		SHADER_PARAMETER(float, Voxel_TanConeAngle)
 
 		SHADER_PARAMETER(uint32, MaxVisibilityNodeCount)
@@ -297,7 +317,6 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	const FViewInfo& View,
 	const FHairStrandsVisibilityData& VisibilityData,
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
-	const FHairStrandsMacroGroupData& MacroGroupData,
 	const FRDGTextureRef SceneColorTexture,
 	FHairStrandsDebugData::Data* DebugData)
 {
@@ -315,7 +334,6 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	PassParameters->HairEnergyLUTTexture = InHairLUT.Textures[HairLUTType_MeanEnergy];
 	PassParameters->HairScatteringLUTTexture = InHairLUT.Textures[HairLUTType_DualScattering];
 	PassParameters->HairLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	PassParameters->Voxel_MacroGroupId = MacroGroupData.MacroGroupId;
 
 	EHairLightingIntegrationType IntegrationType = EHairLightingIntegrationType::AdHoc;
 	const bool bUseSceneColor = SceneColorTexture != nullptr;
@@ -471,13 +489,7 @@ void RenderHairStrandsSceneColorScattering(
 
 		if (bNeedScatterSceneLighting)
 		{
-			for (const FHairStrandsMacroGroupData& MacroGroupData : HairDatas->MacroGroupsPerViews.Views[ViewIndex].Datas)
-			{
-				if (MacroGroupData.bNeedScatterSceneLighting)
-				{
-					AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, Scene, View, VisibilityData, MacroGroupDatas, MacroGroupData, SceneColorTexture, nullptr);
-				}
-			}
+			AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, Scene, View, VisibilityData, MacroGroupDatas, SceneColorTexture, nullptr);
 		}
 	}
 }
@@ -522,22 +534,17 @@ void RenderHairStrandsEnvironmentLighting(
 
 	const FViewInfo& View = Views[ViewIndex];
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas = HairDatas->MacroGroupsPerViews.Views[ViewIndex];
-	for (const FHairStrandsMacroGroupData& MacroGroupData : HairDatas->MacroGroupsPerViews.Views[ViewIndex].Datas)
-	{
-		AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, Scene, View, VisibilityData, MacroGroupDatas, MacroGroupData, nullptr, bDebugSamplingEnable ? &HairDatas->DebugData.Resources : nullptr);
-	}
+	AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, Scene, View, VisibilityData, MacroGroupDatas, nullptr, bDebugSamplingEnable ? &HairDatas->DebugData.Resources : nullptr);
 }
 
 void RenderHairStrandsAmbientOcclusion(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<const FViewInfo> Views,
 	const FHairStrandsRenderingData* HairDatas,
-	const TRefCountPtr<IPooledRenderTarget>& InAOTexture)
+	const FRDGTextureRef& InAOTexture)
 {
 	if (!GetHairStrandsSkyAOEnable() || Views.Num() == 0 || !InAOTexture || !HairDatas)
 		return;
-
-	FRDGTextureRef AOTexture = InAOTexture ? GraphBuilder.RegisterExternalTexture(InAOTexture, TEXT("AOTexture")) : nullptr;
 
 	for (uint32 ViewIndex = 0; ViewIndex < uint32(Views.Num()); ++ViewIndex)
 	{
@@ -556,7 +563,7 @@ void RenderHairStrandsAmbientOcclusion(
 		const FHairStrandsMacroGroupDatas& MacroGroupDatas = HairDatas->MacroGroupsPerViews.Views[ViewIndex];
 		for (const FHairStrandsMacroGroupData& MacroGroupData : HairDatas->MacroGroupsPerViews.Views[ViewIndex].Datas)
 		{
-			AddHairStrandsEnvironmentAOPass(GraphBuilder, View, VisibilityData, MacroGroupDatas, MacroGroupData, AOTexture);
+			AddHairStrandsEnvironmentAOPass(GraphBuilder, View, VisibilityData, MacroGroupDatas, MacroGroupData, InAOTexture);
 		}
 	}
 }

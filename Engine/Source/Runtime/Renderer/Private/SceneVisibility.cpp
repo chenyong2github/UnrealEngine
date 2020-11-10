@@ -3028,12 +3028,22 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 
 	RunGPUSkinCacheTransition(RHICmdList, Scene, EGPUSkinCacheTransition::FrameSetup);
 
+	if (Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
+	{
+		FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Views);
+		if (Parameters.bHasElements)
+		{
+			FRDGBuilder GraphBuilder(RHICmdList);
+			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessLODSelection, Parameters);
+			GraphBuilder.Execute();
+		}
+	}
+
 	if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()) && Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
 	{
 		FRDGBuilder GraphBuilder(RHICmdList);
 
 		FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Views);
-		RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessLODSelection, Parameters);
 		RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessGuideInterpolation, Parameters);
 		GraphBuilder.Execute();
 	}

@@ -16,7 +16,7 @@
 #endif
 #include "HairStrands/HairStrandsCommon.ush"
 #include "HairStrands/HairStrandsDeepTransmittanceCommon.ush"
-#include "HairStrands/HairStrandsDeepTransmittanceDualScattering.ush"
+#include "HairStrands/HairStrandsDeepTransmittanceDualScattering.ush" 
 
 #if USE_ATMOSPHERE_TRANSMITTANCE
 #include "/Engine/Private/SkyAtmosphereCommon.ush"

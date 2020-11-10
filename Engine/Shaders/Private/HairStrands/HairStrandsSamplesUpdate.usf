@@ -9,7 +9,7 @@ Buffer<float> InterpolationWeightsBuffer;
 Buffer<float4> SampleRestPositionsBuffer;
 Buffer<float4> SampleDeformedPositionsBuffer;
 
-RWBuffer<float4> OutSampleDeformationsBuffer;
+RWBuffer<float4> OutSampleDeformationsBuffer; 
 
 [numthreads(128, 1, 1)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)

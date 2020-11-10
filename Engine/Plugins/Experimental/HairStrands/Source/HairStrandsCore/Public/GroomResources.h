@@ -30,9 +30,9 @@ struct FHairStrandsRestRootResource : public FRenderResource
 	/* Populate GPU LOD data from RootData (this function doesn't initialize resources) */
 	void PopulateFromRootData();
 
-	FRWBuffer RootPositionBuffer;
-	FRWBuffer RootNormalBuffer;
-	FRWBuffer VertexToCurveIndexBuffer;
+	FRDGExternalBuffer RootPositionBuffer;
+	FRDGExternalBuffer RootNormalBuffer;
+	FRDGExternalBuffer VertexToCurveIndexBuffer;
 
 	struct FLOD
 	{
@@ -45,19 +45,19 @@ struct FHairStrandsRestRootResource : public FRenderResource
 		/* Triangle on which a root is attached */
 		/* When the projection is done with source to target mesh transfer, the projection indices does not match.
 		   In this case we need to separate index computation. The barycentric coords remain the same however. */
-		FRWBuffer RootTriangleIndexBuffer;
-		FRWBuffer RootTriangleBarycentricBuffer;
+		FRDGExternalBuffer RootTriangleIndexBuffer;
+		FRDGExternalBuffer RootTriangleBarycentricBuffer;
 
 		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
-		FRWBuffer RestRootTrianglePosition0Buffer;
-		FRWBuffer RestRootTrianglePosition1Buffer;
-		FRWBuffer RestRootTrianglePosition2Buffer;
+		FRDGExternalBuffer RestRootTrianglePosition0Buffer;
+		FRDGExternalBuffer RestRootTrianglePosition1Buffer;
+		FRDGExternalBuffer RestRootTrianglePosition2Buffer;
 
 		/* Strand hair mesh interpolation matrix and sample indices */
 		uint32 SampleCount = 0;
-		FRWBuffer MeshInterpolationWeightsBuffer;
-		FRWBuffer MeshSampleIndicesBuffer;
-		FRWBuffer RestSamplePositionsBuffer;
+		FRDGExternalBuffer MeshInterpolationWeightsBuffer;
+		FRDGExternalBuffer MeshSampleIndicesBuffer;
+		FRDGExternalBuffer RestSamplePositionsBuffer;
 	};
 
 	/* Store the hair projection information for each mesh LOD */
@@ -99,14 +99,14 @@ struct FHairStrandsDeformedRootResource : public FRenderResource
 		int32 LODIndex = -1;
 
 		/* Strand hair roots translation and rotation in triangle-deformed position relative to the bound triangle. Positions are relative the deformed root center*/
-		FRWBuffer DeformedRootTrianglePosition0Buffer;
-		FRWBuffer DeformedRootTrianglePosition1Buffer;
-		FRWBuffer DeformedRootTrianglePosition2Buffer;
+		FRDGExternalBuffer DeformedRootTrianglePosition0Buffer;
+		FRDGExternalBuffer DeformedRootTrianglePosition1Buffer;
+		FRDGExternalBuffer DeformedRootTrianglePosition2Buffer;
 
 		/* Strand hair mesh interpolation matrix and sample indices */
 		uint32 SampleCount = 0;
-		FRWBuffer DeformedSamplePositionsBuffer;
-		FRWBuffer MeshSampleWeightsBuffer;
+		FRDGExternalBuffer DeformedSamplePositionsBuffer;
+		FRDGExternalBuffer MeshSampleWeightsBuffer;
 	};
 
 	/* Store the hair projection information for each mesh LOD */
@@ -133,13 +133,13 @@ struct FHairStrandsRestResource : public FRenderResource
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsResource"); }
 
 	/* Strand hair rest position buffer */
-	FRWBuffer RestPositionBuffer;
+	FRDGExternalBuffer  RestPositionBuffer;
 
 	/* Strand hair attribute buffer */
-	FRWBuffer AttributeBuffer;
+	FRDGExternalBuffer AttributeBuffer;
 
 	/* Strand hair material buffer */
-	FRWBuffer MaterialBuffer;
+	FRDGExternalBuffer MaterialBuffer;
 	
 	/* Position offset as the rest positions are expressed in relative coordinate (16bits) */
 	FVector PositionOffset = FVector::ZeroVector;
@@ -165,10 +165,10 @@ struct FHairStrandsDeformedResource : public FRenderResource
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsDeformedResource"); }
 
 	/* Strand hair deformed position buffer (previous and current) */
-	FRWBuffer DeformedPositionBuffer[2];
+	FRDGExternalBuffer DeformedPositionBuffer[2];
 
 	/* Strand hair tangent buffer */
-	FRWBuffer TangentBuffer;
+	FRDGExternalBuffer TangentBuffer;
 
 	/* Position offset as the deformed positions are expressed in relative coordinate (16bits) */
 	FVector PositionOffset[2] = {FVector::ZeroVector, FVector::ZeroVector};
@@ -194,7 +194,7 @@ struct FHairStrandsDeformedResource : public FRenderResource
 
 	// Helper accessors
 	inline uint32 GetIndex(EFrameType T) const					{ return (!bDynamic || T == EFrameType::Current) ? CurrentIndex : 1u - CurrentIndex; }
-	inline FRWBuffer& GetBuffer(EFrameType T)					{ return DeformedPositionBuffer[GetIndex(T)];  }
+	inline FRDGExternalBuffer& GetBuffer(EFrameType T)			{ return DeformedPositionBuffer[GetIndex(T)];  }
 	inline FVector& GetPositionOffset(EFrameType T)				{ return PositionOffset[GetIndex(T)]; }
 	inline const FVector& GetPositionOffset(EFrameType T) const { return PositionOffset[GetIndex(T)]; }
 	inline void SwapBuffer()									{ if (bDynamic) { CurrentIndex = 1u - CurrentIndex; } }
@@ -215,14 +215,14 @@ struct FHairStrandsClusterCullingResource : public FRenderResource
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsClusterResource"); }
 
 	/* Cluster info buffer */
-	FRWBufferStructured ClusterInfoBuffer;	 
-	FRWBufferStructured ClusterLODInfoBuffer;
+	FRDGExternalBuffer ClusterInfoBuffer;
+	FRDGExternalBuffer ClusterLODInfoBuffer;
 
 	/* VertexId => ClusterId to know which AABB to contribute to*/
-	FReadBuffer VertexToClusterIdBuffer;
+	FRDGExternalBuffer VertexToClusterIdBuffer;
 
 	/* Concatenated data for each cluster: list of VertexId pointed to by ClusterInfoBuffer */
-	FReadBuffer ClusterVertexIdBuffer;
+	FRDGExternalBuffer ClusterVertexIdBuffer;
 
 	const FHairStrandsClusterCullingData Data;
 };
@@ -241,11 +241,11 @@ struct FHairStrandsInterpolationResource : public FRenderResource
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsInterplationResource"); }
 
-	FRWBuffer Interpolation0Buffer;
-	FRWBuffer Interpolation1Buffer;
+	FRDGExternalBuffer Interpolation0Buffer;
+	FRDGExternalBuffer Interpolation1Buffer;
 
 	// For debug purpose only (should be remove once all hair simulation is correctly handled)
-	FRWBuffer SimRootPointIndexBuffer;
+	FRDGExternalBuffer SimRootPointIndexBuffer;
 	TArray<FHairStrandsRootIndexFormat::Type> SimRootPointIndex;
 
 	/* Reference to the hair strands interpolation render data */
@@ -325,11 +325,13 @@ struct FHairCardsRestResource : public FRenderResource
 	FSamplerStateRHIRef TangentSampler;
 	FSamplerStateRHIRef CoverageSampler;
 	FSamplerStateRHIRef AttributeSampler;
+	FSamplerStateRHIRef AuxilaryDataSampler;
 
 	FTextureReferenceRHIRef	DepthTexture = nullptr;
 	FTextureReferenceRHIRef	CoverageTexture = nullptr;
 	FTextureReferenceRHIRef	TangentTexture = nullptr;
 	FTextureReferenceRHIRef	AttributeTexture = nullptr;
+	FTextureReferenceRHIRef	AuxilaryDataTexture = nullptr;
 
 	/* Reference to the hair strands render data */
 	const FHairCardsDatas::FRenderData& RenderData;
@@ -354,13 +356,13 @@ struct FHairCardsProceduralResource : public FRenderResource
 	uint32 CardBoundCount;
 	FIntPoint AtlasResolution;
 
-	FRWBuffer AtlasRectBuffer;
-	FRWBuffer LengthBuffer;
-	FRWBuffer CardItToClusterBuffer;
-	FRWBuffer ClusterIdToVerticesBuffer;
-	FRWBuffer ClusterBoundBuffer;
-	FRWBuffer CardsStrandsPositions;
-	FRWBuffer CardsStrandsAttributes;
+	FRDGExternalBuffer AtlasRectBuffer;
+	FRDGExternalBuffer LengthBuffer;
+	FRDGExternalBuffer CardItToClusterBuffer;
+	FRDGExternalBuffer ClusterIdToVerticesBuffer;
+	FRDGExternalBuffer ClusterBoundBuffer;
+	FRDGExternalBuffer CardsStrandsPositions;
+	FRDGExternalBuffer CardsStrandsAttributes;
 
 	FHairCardsVoxel CardVoxel;
 
@@ -386,7 +388,7 @@ struct FHairCardsDeformedResource : public FRenderResource
 	virtual FString GetFriendlyName() const override { return TEXT("FHairCardsDeformedResource"); }
 
 	/* Strand hair deformed position buffer (previous and current) */
-	FRWBuffer DeformedPositionBuffer[2];
+	FRDGExternalBuffer DeformedPositionBuffer[2];
 
 	/* Reference to the hair strands render data */
 	const FHairCardsDatas::FRenderData& RenderData;
@@ -406,9 +408,9 @@ struct FHairCardsDeformedResource : public FRenderResource
 	};
 
 	// Helper accessors
-	inline uint32 GetIndex(EFrameType T)			{ return (!bDynamic || T == EFrameType::Current) ? CurrentIndex : 1u - CurrentIndex; }
-	inline FRWBuffer& GetBuffer(EFrameType T)		{ return DeformedPositionBuffer[GetIndex(T)];  }
-	inline void SwapBuffer()						{ if (bDynamic) { CurrentIndex = 1u - CurrentIndex; } }
+	inline uint32 GetIndex(EFrameType T)				{ return (!bDynamic || T == EFrameType::Current) ? CurrentIndex : 1u - CurrentIndex; }
+	inline FRDGExternalBuffer& GetBuffer(EFrameType T)	{ return DeformedPositionBuffer[GetIndex(T)];  }
+	inline void SwapBuffer()							{ if (bDynamic) { CurrentIndex = 1u - CurrentIndex; } }
 };
 
 /** Hair cards points interpolation attributes */
@@ -454,7 +456,7 @@ struct FHairCardsInterpolationResource : public FRenderResource
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairCardsInterplationResource"); }
 
-	FRWBuffer InterpolationBuffer;
+	FRDGExternalBuffer InterpolationBuffer;
 
 	/* Reference to the hair strands interpolation render data */
 	const FHairCardsInterpolationDatas::FRenderData& RenderData;
@@ -494,11 +496,13 @@ struct FHairMeshesRestResource : public FRenderResource
 	FSamplerStateRHIRef TangentSampler;
 	FSamplerStateRHIRef CoverageSampler;
 	FSamplerStateRHIRef AttributeSampler;
+	FSamplerStateRHIRef AuxilaryDataSampler;
 
 	FTextureReferenceRHIRef	DepthTexture = nullptr;
 	FTextureReferenceRHIRef	CoverageTexture = nullptr;
 	FTextureReferenceRHIRef	TangentTexture = nullptr;
 	FTextureReferenceRHIRef	AttributeTexture = nullptr;
+	FTextureReferenceRHIRef	AuxilaryDataTexture = nullptr;
 
 	/* Reference to the hair strands render data */
 	const FHairMeshesDatas::FRenderData& RenderData;
@@ -521,7 +525,7 @@ struct FHairMeshesDeformedResource : public FRenderResource
 	virtual FString GetFriendlyName() const override { return TEXT("FHairMeshesDeformedResource"); }
 
 	/* Strand hair deformed position buffer (previous and current) */
-	FRWBuffer DeformedPositionBuffer[2];
+	FRDGExternalBuffer DeformedPositionBuffer[2];
 
 	/* Reference to the hair strands render data */
 	const FHairMeshesDatas::FRenderData& RenderData;
@@ -541,7 +545,7 @@ struct FHairMeshesDeformedResource : public FRenderResource
 
 	// Helper accessors
 	inline uint32 GetIndex(EFrameType T) { return (!bDynamic || T == EFrameType::Current) ? CurrentIndex : 1u - CurrentIndex; }
-	inline FRWBuffer& GetBuffer(EFrameType T) { return DeformedPositionBuffer[GetIndex(T)]; }
+	inline FRDGExternalBuffer& GetBuffer(EFrameType T) { return DeformedPositionBuffer[GetIndex(T)]; }
 	inline void SwapBuffer() { if (bDynamic) { CurrentIndex = 1u - CurrentIndex; } }
 };
 

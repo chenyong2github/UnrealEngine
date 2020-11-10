@@ -47,7 +47,8 @@ enum class EHairAtlasTextureType
 	Depth,
 	Tangent,
 	Attribute,
-	Coverage
+	Coverage,
+	AuxilaryData
 };
 
 template<typename ResourceType>
@@ -83,6 +84,11 @@ static void InitAtlasTexture(ResourceType* InResource, UTexture2D* InTexture, EH
 		{
 			InResource->CoverageTexture = InTexture->TextureReference.TextureReferenceRHI;
 			InResource->CoverageSampler = DefaultSampler;
+		} break;
+		case EHairAtlasTextureType::AuxilaryData:
+		{
+			InResource->AuxilaryDataTexture = InTexture->TextureReference.TextureReferenceRHI;
+			InResource->AuxilaryDataSampler = DefaultSampler;
 		} break;
 		}
 	});
@@ -418,7 +424,7 @@ void UGroomAsset::UpdateResource()
 			InternalUpdateResource(GroupData.Strands.RestResource);
 			InternalUpdateResource(GroupData.Strands.InterpolationResource);
 
-			if ((ChangeType & GroomChangeType_LOD) && GroupData.Strands.HasDataValid())
+			if ((ChangeType & GroomChangeType_LOD) && GroupData.Strands.HasValidData())
 			{
 				if (GroomBoundRadius < 0)
 				{
@@ -852,32 +858,12 @@ FArchive& operator<<(FArchive& Ar, FHairGroupData& GroupData)
 	}
 	else
 	{
-		// Strands data has been marked to be cooked out but some data is still required
-		// So use the guides data of the first valid cards LOD that is not cooked out
-		FHairGroupData::FCards::FLOD* CardLOD = nullptr;
-		for (int32 Index = 0; Index < GroupData.Cards.LODs.Num(); ++Index)
-		{
-			FHairGroupData::FCards::FLOD& LOD = GroupData.Cards.LODs[Index];
-			if (LOD.IsValid() && !LOD.bIsCookedOut)
-			{
-				CardLOD = &LOD;
-				break;
-			}
-		}
-
-		if (CardLOD)
-		{
-			CardLOD->Guides.Data.Serialize(Ar); // here, the guides are used as strands data
-			CardLOD->Guides.Data.Serialize(Ar); // here, serializing the guides themselves
-			CardLOD->Guides.InterpolationData.Serialize(Ar);
-		}
-		else
-		{
-			// Fall back to no data if cards data was not available
-			NoStrandsData.Strands.Data.Serialize(Ar);
-			NoStrandsData.Guides.Data.Serialize(Ar);
-			NoStrandsData.Strands.InterpolationData.Serialize(Ar);
-		}
+		// Fall back to no data, but still serialize guide data as they an be used for cards simulation
+		// Theoritically, we should have something to detect if we are going to use or not guide (for 
+		// simulation or RBF deformation) on the target platform
+		NoStrandsData.Strands.Data.Serialize(Ar);
+		GroupData.Guides.Data.Serialize(Ar);
+		NoStrandsData.Strands.InterpolationData.Serialize(Ar);
 	}
 
 	if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeHairClusterCullingData)
@@ -1590,6 +1576,7 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 				if (Textures.TangentTexture != nullptr)		Textures.TangentTexture->UpdateResource();
 				if (Textures.AttributeTexture != nullptr)	Textures.AttributeTexture->UpdateResource();
 				if (Textures.CoverageTexture != nullptr)	Textures.CoverageTexture->UpdateResource();
+				if (Textures.AuxilaryDataTexture != nullptr)Textures.AuxilaryDataTexture->UpdateResource();
 			}
 		}
 	}
@@ -1738,6 +1725,7 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 					InitAtlasTexture(LOD.RestResource, Desc->Textures.TangentTexture, EHairAtlasTextureType::Tangent);
 					InitAtlasTexture(LOD.RestResource, Desc->Textures.AttributeTexture, EHairAtlasTextureType::Attribute);
 					InitAtlasTexture(LOD.RestResource, Desc->Textures.CoverageTexture, EHairAtlasTextureType::Coverage);
+					InitAtlasTexture(LOD.RestResource, Desc->Textures.AuxilaryDataTexture, EHairAtlasTextureType::AuxilaryData);
 					LOD.RestResource->bInvertUV = Desc->SourceType == EHairCardsSourceType::Procedural;
 				}
 				LOD.InterpolationResource = new FHairCardsInterpolationResource(LOD.InterpolationData.RenderData);
@@ -1750,7 +1738,7 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 				CardsInterpolationSettings.bUseUniqueGuide = true;
 				CardsInterpolationSettings.bRandomizeGuide = false;
 				CardsInterpolationSettings.InterpolationDistance = EHairInterpolationWeight::Parametric;
-				CardsInterpolationSettings.InterpolationQuality = EHairInterpolationQuality::Low;
+				CardsInterpolationSettings.InterpolationQuality = EHairInterpolationQuality::High;
 
 				// There could be no strands data when importing cards into an empty groom so get them from the card guides
 				bool bCopyRenderData = false;
@@ -1892,6 +1880,7 @@ bool UGroomAsset::BuildMeshesGeometry(uint32 GroupIndex)
 				if (Textures.TangentTexture != nullptr)		Textures.TangentTexture->UpdateResource();
 				if (Textures.AttributeTexture != nullptr)	Textures.AttributeTexture->UpdateResource();
 				if (Textures.CoverageTexture != nullptr)	Textures.CoverageTexture->UpdateResource();
+				if (Textures.AuxilaryDataTexture != nullptr)Textures.AuxilaryDataTexture->UpdateResource();
 			}
 		}
 	}
@@ -1970,8 +1959,11 @@ void UGroomAsset::InitGuideResources()
 {
 	for (FHairGroupData& GroupData : HairGroupsData)
 	{
-		GroupData.Guides.RestResource = new FHairStrandsRestResource(GroupData.Guides.Data.RenderData, GroupData.Guides.Data.BoundingBox.GetCenter());
-		BeginInitResource(GroupData.Guides.RestResource);
+		if (GroupData.Guides.HasValidData())
+		{
+			GroupData.Guides.RestResource = new FHairStrandsRestResource(GroupData.Guides.Data.RenderData, GroupData.Guides.Data.BoundingBox.GetCenter());
+			BeginInitResource(GroupData.Guides.RestResource);
+		}
 	}
 }
 
@@ -1993,18 +1985,21 @@ void UGroomAsset::InitStrandsResources()
 	{
 		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
 
-		GroupData.Strands.RestResource = new FHairStrandsRestResource(GroupData.Strands.Data.RenderData, GroupData.Strands.Data.BoundingBox.GetCenter());
-		BeginInitResource(GroupData.Strands.RestResource);
-
-		if (GroupData.Strands.ClusterCullingData.IsValid())
+		if (GroupData.Strands.HasValidData())
 		{
-			GroupData.Strands.ClusterCullingResource = new FHairStrandsClusterCullingResource(GroupData.Strands.ClusterCullingData);
-			BeginInitResource(GroupData.Strands.ClusterCullingResource);
-		}
+			GroupData.Strands.RestResource = new FHairStrandsRestResource(GroupData.Strands.Data.RenderData, GroupData.Strands.Data.BoundingBox.GetCenter());
+			BeginInitResource(GroupData.Strands.RestResource);
 
-		check(GroupData.Guides.IsValid());
-		GroupData.Strands.InterpolationResource = new FHairStrandsInterpolationResource(GroupData.Strands.InterpolationData.RenderData, GroupData.Guides.Data);
-		BeginInitResource(GroupData.Strands.InterpolationResource);
+			if (GroupData.Strands.ClusterCullingData.IsValid())
+			{
+				GroupData.Strands.ClusterCullingResource = new FHairStrandsClusterCullingResource(GroupData.Strands.ClusterCullingData);
+				BeginInitResource(GroupData.Strands.ClusterCullingResource);
+			}
+
+			check(GroupData.Guides.IsValid());
+			GroupData.Strands.InterpolationResource = new FHairStrandsInterpolationResource(GroupData.Strands.InterpolationData.RenderData, GroupData.Guides.Data);
+			BeginInitResource(GroupData.Strands.InterpolationResource);
+		}
 	}
 }
 
@@ -2023,15 +2018,20 @@ void UGroomAsset::InitCardsResources()
 
 		const uint32 LODCount = HairGroupsLOD[GroupIndex].LODs.Num();
 		GroupData.Cards.LODs.SetNum(LODCount);
+
 		for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
 		{
 			FHairGroupData::FCards::FLOD& LOD = GroupData.Cards.LODs[LODIt];
 
 			int32 SourceIt = 0;
-			FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(HairGroupsCards, GroupIndex, LODIt, SourceIt);
+			const FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(HairGroupsCards, GroupIndex, LODIt, SourceIt);
+			if (!Desc)
+			{
+				continue;
+			}
 
 			if (LOD.RestResource == nullptr &&			// don't initialize again if they were previously initialized during the BuildCardsGeometry
-				LOD.Data.Cards.GetNumVertices() > 0)
+				LOD.HasValidData())
 			{
 				LOD.RestResource = new FHairCardsRestResource(
 					LOD.Data.RenderData,
@@ -2054,6 +2054,7 @@ void UGroomAsset::InitCardsResources()
 					InitAtlasTexture(LOD.RestResource, Desc->Textures.TangentTexture, EHairAtlasTextureType::Tangent);
 					InitAtlasTexture(LOD.RestResource, Desc->Textures.AttributeTexture, EHairAtlasTextureType::Attribute);
 					InitAtlasTexture(LOD.RestResource, Desc->Textures.CoverageTexture, EHairAtlasTextureType::Coverage);
+					InitAtlasTexture(LOD.RestResource, Desc->Textures.AuxilaryDataTexture, EHairAtlasTextureType::AuxilaryData);					
 					LOD.RestResource->bInvertUV = Desc->SourceType == EHairCardsSourceType::Procedural; // Should fix procedural texture so that this does not happen
 				}
 			}
@@ -2072,6 +2073,11 @@ void UGroomAsset::InitMeshesResources()
 {
 	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
 
+	if (!IsHairStrandsEnabled(EHairStrandsShaderType::Meshes))
+	{
+		return;
+	}
+
 	for (uint32 GroupIndex = 0, GroupCount = GetNumHairGroups(); GroupIndex < GroupCount; ++GroupIndex)
 	{
 		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
@@ -2079,10 +2085,16 @@ void UGroomAsset::InitMeshesResources()
 		const uint32 LODCount = GroupData.Meshes.LODs.Num();
 		for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
 		{
+			int32 SourceIt = 0;
+			const FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(HairGroupsMeshes, GroupIndex, LODIt, SourceIt);
+			if (!Desc)
+			{
+				continue;
+			}
 			FHairGroupData::FMeshes::FLOD& LOD = GroupData.Meshes.LODs[LODIt];
 			InternalReleaseResource(LOD.RestResource);
 
-			if (LOD.Data.Meshes.GetNumVertices() > 0)
+			if (LOD.HasValidData())
 			{
 				LOD.RestResource = new FHairMeshesRestResource(
 					LOD.Data.RenderData,
@@ -2090,14 +2102,13 @@ void UGroomAsset::InitMeshesResources()
 					LOD.Data.Meshes.GetNumTriangles());
 				BeginInitResource(LOD.RestResource);
 
-				int32 SourceIt = 0;
-				FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(HairGroupsMeshes, GroupIndex, LODIt, SourceIt);
 				if (Desc)
 				{
 					InitAtlasTexture(LOD.RestResource, Desc->Textures.DepthTexture, EHairAtlasTextureType::Depth);
 					InitAtlasTexture(LOD.RestResource, Desc->Textures.TangentTexture, EHairAtlasTextureType::Tangent);
 					InitAtlasTexture(LOD.RestResource, Desc->Textures.AttributeTexture, EHairAtlasTextureType::Attribute);
 					InitAtlasTexture(LOD.RestResource, Desc->Textures.CoverageTexture, EHairAtlasTextureType::Coverage);
+					InitAtlasTexture(LOD.RestResource, Desc->Textures.AuxilaryDataTexture, EHairAtlasTextureType::AuxilaryData);
 				}
 			}
 		}

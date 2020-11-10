@@ -18,6 +18,38 @@
 class UTexture2D;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// Utils buffers for importing/exporting hair resources
+
+enum class ERDGImportedBufferFlags
+{
+	None = 0,
+	CreateSRV = 0x1,
+	CreateUAV = 0x2,
+	CreateViews = CreateSRV | CreateUAV
+};
+ENUM_CLASS_FLAGS(ERDGImportedBufferFlags);
+
+struct RENDERER_API FRDGExternalBuffer
+{
+	TRefCountPtr<FRDGPooledBuffer> Buffer;
+	FShaderResourceViewRHIRef SRV;
+	FUnorderedAccessViewRHIRef UAV;
+	EPixelFormat Format = PF_Unknown;
+	void Release();
+};
+
+struct RENDERER_API FRDGImportedBuffer
+{
+	FRDGBufferRef Buffer = nullptr;
+	FRDGBufferSRVRef SRV = nullptr;
+	FRDGBufferUAVRef UAV = nullptr;
+};
+
+RENDERER_API FRDGImportedBuffer Register(FRDGBuilder& GraphBuilder, const FRDGExternalBuffer& In, ERDGImportedBufferFlags Flags, ERDGUnorderedAccessViewFlags UAVFlags = ERDGUnorderedAccessViewFlags::None);
+RENDERER_API FRDGBufferSRVRef   RegisterAsSRV(FRDGBuilder& GraphBuilder, const FRDGExternalBuffer& In);
+RENDERER_API FRDGBufferUAVRef   RegisterAsUAV(FRDGBuilder& GraphBuilder, const FRDGExternalBuffer& In, ERDGUnorderedAccessViewFlags Flags = ERDGUnorderedAccessViewFlags::None);
+RENDERER_API void				ConvertToExternalBufferWithViews(FRDGBuilder& GraphBuilder, FRDGBufferRef& InBuffer, FRDGExternalBuffer& OutBuffer, EPixelFormat Format = PF_Unknown);
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // Misc/Helpers
 
 enum class EHairStrandsDebugMode : uint8
@@ -114,17 +146,17 @@ public:
 
 	uint32 GetGroupIndex() const { return GroupIndex; }
 
-	FRWBuffer& GetDrawIndirectRasterComputeBuffer() { return DrawIndirectRasterComputeBuffer; } 
-	const FRWBuffer& GetDrawIndirectRasterComputeBuffer() const { return DrawIndirectRasterComputeBuffer; }
-	FRWBuffer& GetDrawIndirectBuffer()	{ return DrawIndirectBuffer; }
-	FRWBuffer& GetClusterAABBBuffer()	{ return ClusterAABBBuffer; }
-	FRWBuffer& GetGroupAABBBuffer()		{ return GroupAABBBuffer; }
+	FRDGExternalBuffer& GetDrawIndirectRasterComputeBuffer() { return DrawIndirectRasterComputeBuffer; }
+	const FRDGExternalBuffer& GetDrawIndirectRasterComputeBuffer() const { return DrawIndirectRasterComputeBuffer; }
+	FRDGExternalBuffer& GetDrawIndirectBuffer() { return DrawIndirectBuffer; }
+	FRDGExternalBuffer& GetClusterAABBBuffer() { return ClusterAABBBuffer; }
+	FRDGExternalBuffer& GetGroupAABBBuffer() { return GroupAABBBuffer; }
 
-	const FRWBuffer& GetCulledVertexIdBuffer() const { return CulledVertexIdBuffer; }
-	const FRWBuffer& GetCulledVertexRadiusScaleBuffer() const { return CulledVertexRadiusScaleBuffer; }
+	const FRDGExternalBuffer& GetCulledVertexIdBuffer() const { return CulledVertexIdBuffer; }
+	const FRDGExternalBuffer& GetCulledVertexRadiusScaleBuffer() const { return CulledVertexRadiusScaleBuffer; }
 
-	FRWBuffer& GetCulledVertexIdBuffer() { return CulledVertexIdBuffer; }
-	FRWBuffer& GetCulledVertexRadiusScaleBuffer() { return CulledVertexRadiusScaleBuffer; }
+	FRDGExternalBuffer& GetCulledVertexIdBuffer() { return CulledVertexIdBuffer; }
+	FRDGExternalBuffer& GetCulledVertexRadiusScaleBuffer() { return CulledVertexRadiusScaleBuffer; }
 
 	bool GetCullingResultAvailable() const { return bCullingResultAvailable; }
 	void SetCullingResultAvailable(bool b) { bCullingResultAvailable = b; }
@@ -182,6 +214,7 @@ public:
 			
 		} Meshes;
 
+		bool bHasLODSwitch = false;
 		EHairGeometryType GeometryType = EHairGeometryType::NoneGeometry;
 		FTransform LocalToWorldTransform;
 	};
@@ -195,16 +228,16 @@ public:
 	uint32 VertexCount;
 
 	/* Indirect draw buffer to draw everything or the result of the culling per pass */
-	FRWBuffer DrawIndirectBuffer;
-	FRWBuffer DrawIndirectRasterComputeBuffer;
+	FRDGExternalBuffer DrawIndirectBuffer;
+	FRDGExternalBuffer DrawIndirectRasterComputeBuffer;
 
 	/* Hair Cluster & Hair Group bounding box buffer */
-	FRWBuffer ClusterAABBBuffer;
-	FRWBuffer GroupAABBBuffer;
+	FRDGExternalBuffer ClusterAABBBuffer;
+	FRDGExternalBuffer GroupAABBBuffer;
 
 	/* Culling & LODing results for a hair group */ // Better to be transient?
-	FRWBuffer CulledVertexIdBuffer;
-	FRWBuffer CulledVertexRadiusScaleBuffer;
+	FRDGExternalBuffer CulledVertexIdBuffer;
+	FRDGExternalBuffer CulledVertexRadiusScaleBuffer;
 	bool bCullingResultAvailable = false;
 	bool bSupportVoxelization = true;
 
@@ -236,22 +269,22 @@ struct FHairStrandClusterData
 		bool bVisible = false;
 
 		// See FHairStrandsClusterCullingResource fro details about those buffers.
-		FRWBuffer* GroupAABBBuffer = nullptr;
-		FRWBuffer* ClusterAABBBuffer = nullptr;
-		FRWBufferStructured* ClusterInfoBuffer = nullptr;
-		FRWBufferStructured* ClusterLODInfoBuffer = nullptr;
-		FReadBuffer* VertexToClusterIdBuffer = nullptr;
-		FReadBuffer* ClusterVertexIdBuffer = nullptr;
+		FRDGExternalBuffer* GroupAABBBuffer = nullptr;
+		FRDGExternalBuffer* ClusterAABBBuffer = nullptr;
+		FRDGExternalBuffer* ClusterInfoBuffer = nullptr;
+		FRDGExternalBuffer* ClusterLODInfoBuffer = nullptr;
+		FRDGExternalBuffer* VertexToClusterIdBuffer = nullptr;
+		FRDGExternalBuffer* ClusterVertexIdBuffer = nullptr;
 
 		TRefCountPtr<FRDGPooledBuffer> ClusterIdBuffer;
 		TRefCountPtr<FRDGPooledBuffer> ClusterIndexOffsetBuffer;
 		TRefCountPtr<FRDGPooledBuffer> ClusterIndexCountBuffer;
 
 		// Culling & LOD output
-		FRWBuffer* GetCulledVertexIdBuffer() const			{ return HairGroupPublicPtr ? &HairGroupPublicPtr->GetCulledVertexIdBuffer() : nullptr; }
-		FRWBuffer* GetCulledVertexRadiusScaleBuffer() const { return HairGroupPublicPtr ? &HairGroupPublicPtr->GetCulledVertexRadiusScaleBuffer() : nullptr; }
-		bool GetCullingResultAvailable() const				{ return HairGroupPublicPtr ? HairGroupPublicPtr->GetCullingResultAvailable() : false; }
-		void SetCullingResultAvailable(bool b)				{ if (HairGroupPublicPtr) HairGroupPublicPtr->SetCullingResultAvailable(b); }
+		FRDGExternalBuffer* GetCulledVertexIdBuffer() const				{ return HairGroupPublicPtr ? &HairGroupPublicPtr->GetCulledVertexIdBuffer() : nullptr; }
+		FRDGExternalBuffer* GetCulledVertexRadiusScaleBuffer() const	{ return HairGroupPublicPtr ? &HairGroupPublicPtr->GetCulledVertexRadiusScaleBuffer() : nullptr; }
+		bool GetCullingResultAvailable() const							{ return HairGroupPublicPtr ? HairGroupPublicPtr->GetCullingResultAvailable() : false; }
+		void SetCullingResultAvailable(bool b)							{ if (HairGroupPublicPtr) HairGroupPublicPtr->SetCullingResultAvailable(b); }
 
 		TRefCountPtr<FRDGPooledBuffer> ClusterDebugInfoBuffer;							// Null if this debug is not enabled.
 		TRefCountPtr<FRDGPooledBuffer> CulledDispatchIndirectParametersClusterCount;	// Null if this debug is not enabled.

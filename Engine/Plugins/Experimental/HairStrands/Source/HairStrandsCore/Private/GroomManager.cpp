@@ -108,7 +108,7 @@ void RunHairStrandsInterpolation(
 	for (FHairGroupInstance* Instance : GHairManager.Instances)
 	{
 		int32 MeshLODIndex = -1;
-		if (Instance->WorldType != WorldType)
+		if (Instance->WorldType != WorldType || Instance->GeometryType == EHairGeometryType::NoneGeometry)
 			continue;
 	
 		check(Instance->HairGroupPublicData);
@@ -140,8 +140,6 @@ void RunHairStrandsInterpolation(
 			MeshDataLOD.Sections.Add(ConvertMeshSection(Section));
 		}
 
-		FBufferTransitionQueue TransitionQueue;
-
 		Instance->Debug.MeshLODIndex = MeshLODIndex;
 		if (0 <= MeshLODIndex)
 		{
@@ -159,8 +157,7 @@ void RunHairStrandsInterpolation(
 							HairStrandsTriangleType::DeformedPose, 
 							MeshDataLOD, 
 							Instance->Strands.RestRootResource, 
-							Instance->Strands.DeformedRootResource,
-							TransitionQueue);
+							Instance->Strands.DeformedRootResource);
 					}
 				}
 				else if (InstanceGeometryType == EHairGeometryType::Cards)
@@ -178,8 +175,7 @@ void RunHairStrandsInterpolation(
 								HairStrandsTriangleType::DeformedPose,
 								MeshDataLOD,
 								CardsInstance.Guides.RestRootResource,
-								CardsInstance.Guides.DeformedRootResource,
-								TransitionQueue);
+								CardsInstance.Guides.DeformedRootResource);
 						}
 					}
 				}
@@ -199,8 +195,7 @@ void RunHairStrandsInterpolation(
 						HairStrandsTriangleType::DeformedPose,
 						MeshDataLOD,
 						Instance->Guides.RestRootResource,
-						Instance->Guides.DeformedRootResource,
-						TransitionQueue);
+						Instance->Guides.DeformedRootResource);
 				
 					AddHairStrandInitMeshSamplesPass(
 						GraphBuilder, 
@@ -209,8 +204,7 @@ void RunHairStrandsInterpolation(
 						HairStrandsTriangleType::DeformedPose, 
 						MeshDataLOD, 
 						Instance->Guides.RestRootResource,
-						Instance->Guides.DeformedRootResource,
-						TransitionQueue);
+						Instance->Guides.DeformedRootResource);
 
 					AddHairStrandUpdateMeshSamplesPass(
 						GraphBuilder, 
@@ -218,13 +212,10 @@ void RunHairStrandsInterpolation(
 						Instance->Debug.MeshLODIndex, 
 						MeshDataLOD, 
 						Instance->Guides.RestRootResource, 
-						Instance->Guides.DeformedRootResource, 
-						TransitionQueue);
+						Instance->Guides.DeformedRootResource);
 				}
 			}
 		}
-
-		TransitBufferToReadable(GraphBuilder, TransitionQueue);
 	}
 
 	// Reset deformation
@@ -232,7 +223,7 @@ void RunHairStrandsInterpolation(
 	{
 		for (FHairGroupInstance* Instance : GHairManager.Instances)
 		{
-			if (Instance->WorldType != WorldType)
+			if (Instance->WorldType != WorldType || Instance->GeometryType == EHairGeometryType::NoneGeometry)
 				continue;
 
 			ResetHairStrandsInterpolation(GraphBuilder, ShaderMap, Instance, Instance->Debug.MeshLODIndex);
@@ -244,10 +235,10 @@ void RunHairStrandsInterpolation(
 	{
 		for (FHairGroupInstance* Instance : GHairManager.Instances)
 		{
-			if (Instance->WorldType != WorldType)
+			if (Instance->WorldType != WorldType || Instance->GeometryType == EHairGeometryType::NoneGeometry)
 				continue;
 
-			ComputeHairStrandsInterpolation(
+ 			ComputeHairStrandsInterpolation(
 				GraphBuilder, 
 				ShaderMap,
 				ShaderDrawData, 
@@ -264,10 +255,13 @@ static void RunHairStrandsGatherCluster(
 {
 	for (FHairGroupInstance* Instance : GHairManager.Instances)
 	{
-		if (Instance->WorldType != WorldType)
+		if (Instance->WorldType != WorldType || Instance->GeometryType != EHairGeometryType::Strands)
 			continue;
 
-		RegisterClusterData(Instance, ClusterData);
+		if (Instance->Strands.IsValid())
+		{
+			RegisterClusterData(Instance, ClusterData);
+		}
 	}
 }
 
@@ -400,6 +394,7 @@ static void RunHairLODSelection(EWorldType::Type WorldType, const TArray<const F
 		// 
 		// Use the forced LOD index if set, otherwise compute the LOD based on the maximal screensize accross all views
 		// Compute the view where the screen size is maximale
+		const float PrevLODIndex = Instance->HairGroupPublicData->GetLODIndex();
 		float LODIndex = Instance->Strands.Modifier.LODForcedIndex; // check where this is updated 
 		if (LODIndex < 0 && Instance->bUseCPULODSelection)
 		{
@@ -466,6 +461,7 @@ static void RunHairLODSelection(EWorldType::Type WorldType, const TArray<const F
 		Instance->HairGroupPublicData->SetLODIndex(LODIndex);
 		Instance->HairGroupPublicData->SetLODBias(0);
 		Instance->HairGroupPublicData->VFInput.GeometryType = GeometryType;
+		Instance->HairGroupPublicData->VFInput.bHasLODSwitch = (FMath::FloorToInt(PrevLODIndex) != FMath::FloorToInt(LODIndex));
 		Instance->GeometryType = GeometryType;
 	}
 }

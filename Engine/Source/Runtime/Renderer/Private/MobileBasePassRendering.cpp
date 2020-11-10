@@ -258,11 +258,17 @@ void SetupMobileDirectionalLightUniformParameters(
 			}
 
 			const int32 NumShadowsToCopy = FMath::Min(DirectionalLightShadowInfos.Num(), MAX_MOBILE_SHADOWCASCADES);
+			int32_t OutShadowIndex = 0;
 			for (int32 i = 0; i < NumShadowsToCopy; ++i)
 			{
 				const FProjectedShadowInfo* ShadowInfo = DirectionalLightShadowInfos[i];
-				Params.DirectionalLightScreenToShadow[i] = ShadowInfo->GetScreenToShadowMatrix(SceneView);
-				Params.DirectionalLightShadowDistances[i] = ShadowInfo->CascadeSettings.SplitFar;
+
+				if (ShadowInfo->ShadowDepthView)
+				{
+					Params.DirectionalLightScreenToShadow[OutShadowIndex] = ShadowInfo->GetScreenToShadowMatrix(SceneView);
+					Params.DirectionalLightShadowDistances[OutShadowIndex] = ShadowInfo->CascadeSettings.SplitFar;
+					OutShadowIndex++;
+				}
 			}
 		}
 	}

@@ -106,6 +106,42 @@ TEST(BinaryOutputArchiveTest, ComplexTypeSerialization) {
     ASSERT_ELEMENTS_EQ(bytes, expected, 14ul);
 }
 
+TEST(BinaryOutputArchiveTest, FreeSerialize) {
+    SerializableByFreeSerialize source{4294967295u, 65535u};
+
+    tersetests::FakeStream stream;
+    terse::BinaryOutputArchive<tersetests::FakeStream> archive(&stream);
+    archive(source);
+
+    unsigned char expected[] = {
+        0xff, 0xff, 0xff, 0xff,  // 4294967295
+        0xff, 0xff  // 65535
+    };
+    unsigned char bytes[sizeof(expected)];
+    stream.seek(0ul);
+    stream.read(reinterpret_cast<char*>(bytes), sizeof(bytes));
+
+    ASSERT_ELEMENTS_EQ(bytes, expected, sizeof(expected));
+}
+
+TEST(BinaryOutputArchiveTest, FreeSave) {
+    SerializableByFreeLoadSave source{4294967295u, 65535u};
+
+    tersetests::FakeStream stream;
+    terse::BinaryOutputArchive<tersetests::FakeStream> archive(&stream);
+    archive(source);
+
+    unsigned char expected[] = {
+        0xff, 0xff, 0xff, 0xff,  // 4294967295
+        0xff, 0xff  // 65535
+    };
+    unsigned char bytes[sizeof(expected)];
+    stream.seek(0ul);
+    stream.read(reinterpret_cast<char*>(bytes), sizeof(bytes));
+
+    ASSERT_ELEMENTS_EQ(bytes, expected, sizeof(expected));
+}
+
 TEST(BinaryOutputArchiveTest, StringSerialization) {
     std::string source{"abcdefgh"};
 

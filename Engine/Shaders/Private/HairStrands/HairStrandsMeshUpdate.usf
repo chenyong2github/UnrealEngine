@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
-#include "HairStrandsMeshProjectionCommon.ush" 
+#include "HairStrandsMeshProjectionCommon.ush"  
 
 #ifndef MAX_SECTION_COUNT
 #error MAX_SECTION_COUNT needs to be defined

@@ -1070,6 +1070,7 @@ float  GetHairStrandsSeed(uint HairPrimitiveId, float2 VertexUV);
 float  GetHairStrandsRoughness(uint HairPrimitiveId, float2 HairPrimitiveUV);
 float3 GetHairStrandsBaseColor(uint HairPrimitiveId, float2 HairPrimitiveUV);
 float3 GetHairStrandsTangent(uint HairPrimitiveId, float2 HairPrimitiveUV, half3x3 TangentToWorld, bool bUseTangentSpace);
+float4 GetHairStrandsAuxilaryData(uint HairPrimitiveId, float2 VertexUV);
 #endif
 
 float2 MaterialExpressionGetHairRootUV(FMaterialPixelParameters Parameters)
@@ -1126,7 +1127,6 @@ float MaterialExpressionGetHairRoughness(FMaterialPixelParameters Parameters)
 #endif
 }
 
-
 float MaterialExpressionGetHairDepth(FMaterialVertexParameters Parameters)
 {
 	return 0;
@@ -1172,6 +1172,15 @@ float2 MaterialExpressionGetAtlasUVs(FMaterialPixelParameters Parameters)
 	return 0;
 #endif
 
+}
+
+float4 MaterialExpressionGetHairAuxilaryData(FMaterialPixelParameters Parameters)
+{
+#if VF_CARDS_HAIR
+	return GetHairStrandsAuxilaryData(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
+#else
+	return 0;
+#endif
 }
 
 float3 MaterialExpressionGetHairColorFromMelanin(float Melanin, float Redness, float3 DyeColor)

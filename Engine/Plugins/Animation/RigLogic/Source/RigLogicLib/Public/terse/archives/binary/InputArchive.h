@@ -113,22 +113,33 @@ class ExtendableBinaryInputArchive : public Archive<TExtender> {
         }
 
         template<typename T>
-        typename std::enable_if<traits::has_load<T>::value && traits::has_serialize<T>::value, void>::type process(T& dest) {
+        typename std::enable_if<traits::has_load_member<T>::value,
+                                void>::type process(T& dest) {
             dest.load(*static_cast<TExtender*>(this));
         }
 
         template<typename T>
-        typename std::enable_if<traits::has_load<T>::value && !traits::has_serialize<T>::value, void>::type process(T& dest) {
-            dest.load(*static_cast<TExtender*>(this));
-        }
-
-        template<typename T>
-        typename std::enable_if<!traits::has_load<T>::value && traits::has_serialize<T>::value, void>::type process(T& dest) {
+        typename std::enable_if<traits::has_serialize_member<T>::value,
+                                void>::type process(T& dest) {
             dest.serialize(*static_cast<TExtender*>(this));
         }
 
         template<typename T>
-        typename std::enable_if<!traits::has_load<T>::value && !traits::has_serialize<T>::value, void>::type process(T& dest) {
+        typename std::enable_if<traits::has_load_function<T>::value,
+                                void>::type process(T& dest) {
+            load(*static_cast<TExtender*>(this), dest);
+        }
+
+        template<typename T>
+        typename std::enable_if<traits::has_serialize_function<T>::value,
+                                void>::type process(T& dest) {
+            serialize(*static_cast<TExtender*>(this), dest);
+        }
+
+        template<typename T>
+        typename std::enable_if<!traits::has_load_member<T>::value && !traits::has_serialize_member<T>::value &&
+                                !traits::has_load_function<T>::value && !traits::has_serialize_function<T>::value,
+                                void>::type process(T& dest) {
             // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
             stream->read(reinterpret_cast<char*>(&dest), sizeof(T));
             networkToHost(dest);
