@@ -328,6 +328,7 @@ public:
 		MeshSection.UVsBuffer		= DispatchData[SectionIndex].UVsBufferSRV;
 		MeshSection.TotalVertexCount= DispatchData[SectionIndex].PositionBuffer->NumBytes / (sizeof(float)*3);
 		MeshSection.NumPrimitives	= Section.NumTriangles;
+		MeshSection.NumVertices		= Section.NumVertices;
 		MeshSection.IndexBaseIndex	= Section.BaseIndex;
 		MeshSection.VertexBaseIndex = Section.BaseVertexIndex;
 		MeshSection.IndexBuffer		= nullptr;
