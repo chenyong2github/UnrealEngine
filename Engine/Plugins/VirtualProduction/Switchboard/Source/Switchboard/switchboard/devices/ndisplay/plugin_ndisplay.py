@@ -223,6 +223,10 @@ class DevicenDisplay(DeviceUnreal):
     def category_name(self):
         return "nDisplay"
 
+    @property
+    def is_recording_device(self):
+        return False
+
     def generate_unreal_command_line(self, map_name=""):
 
         uproject = os.path.normpath(CONFIG.UPROJECT_PATH.get_value(self.name))

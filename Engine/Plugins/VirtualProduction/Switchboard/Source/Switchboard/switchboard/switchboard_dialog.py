@@ -458,7 +458,7 @@ class SwitchboardDialog(QtCore.QObject):
         CONFIG.save()
 
     def sync_all_button_clicked(self):
-        if not CONFIG.P4_ENABLED().get_value():
+        if not CONFIG.P4_ENABLED.get_value():
             return
         device_widgets = self.device_list_widget.device_widgets()
 
@@ -474,7 +474,7 @@ class SwitchboardDialog(QtCore.QObject):
                 device_widget.build_button_clicked()
 
     def sync_and_build_all_button_clicked(self):
-        if not CONFIG.P4_ENABLED().get_value():
+        if not CONFIG.P4_ENABLED.get_value():
             return
         device_widgets = self.device_list_widget.device_widgets()
 
@@ -881,7 +881,7 @@ class SwitchboardDialog(QtCore.QObject):
 
     @QtCore.Slot(object)
     def device_widget_sync(self, device_widget):
-        if not CONFIG.P4_ENABLED().get_value():
+        if not CONFIG.P4_ENABLED.get_value():
             return
         device = self.device_manager.device_with_hash(device_widget.device_hash)
         project_cl = None if self.project_changelist == EMPTY_SYNC_ENTRY else self.project_changelist
@@ -1060,10 +1060,14 @@ class SwitchboardDialog(QtCore.QObject):
             self.window.refresh_engine_cl_button.setToolTip("Click to refresh changelists")
 
             engine_p4_path = p4_utils.p4_where(CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(), CONFIG.ENGINE_DIR.get_value())
-            changelists = p4_utils.p4_latest_changelist(engine_p4_path)
-            if changelists:
-                self.window.engine_cl_combo_box.addItems(changelists)
-                self.window.engine_cl_combo_box.setCurrentIndex(0)
+            if engine_p4_path:
+                changelists = p4_utils.p4_latest_changelist(engine_p4_path)
+                if changelists:
+                    self.window.engine_cl_combo_box.addItems(changelists)
+                    self.window.engine_cl_combo_box.setCurrentIndex(0)
+            else:
+                LOGGER.warning('"Build Engine" is enabled in the settings but the engine does not seem to be under perforce control.')
+                LOGGER.warning("Please check your perforce settings.")
         else:
             # disable engine cl controls if engine is not built from source
             self.window.engine_cl_label.setEnabled(False)

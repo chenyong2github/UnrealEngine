@@ -58,6 +58,8 @@ class DeviceUnreal(Device):
         ),
     }
 
+    unreal_started_signal = QtCore.Signal()
+
     def __init__(self, name, ip_address, **kwargs):
         super().__init__(name, ip_address, **kwargs)
 
@@ -84,8 +86,8 @@ class DeviceUnreal(Device):
         self.auto_connect = False
         self.start_build_after_sync = False
 
-        self.inflight_project_cl = 0
-        self.inflight_engine_cl = 0
+        self.inflight_project_cl = None
+        self.inflight_engine_cl = None
         self.scheduled_sync_operations = {}
 
         # Set a delegate method if the device gets a disconnect signal
@@ -101,6 +103,13 @@ class DeviceUnreal(Device):
 
         self._remote_programs_start_queue = {} # key: message_id, name
         self._running_remote_programs = {} # key: program id, value: program name
+
+        self.osc_connection_timer = QtCore.QTimer(self)
+        self.osc_connection_timer.timeout.connect(self._try_connect_osc)
+
+        # on_program_started is called from inside the connection thread but QTimer can only be used from the main thread.
+        # so we connect to a signal sent on the connection threat and can then start the timer on the main thread.
+        self.unreal_started_signal.connect(self.on_unreal_started)
 
     @classmethod
     def plugin_settings(cls):
@@ -201,6 +210,10 @@ class DeviceUnreal(Device):
             return
         client_name = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(self.name)
         p4_path = p4_utils.p4_where(client_name, CONFIG.ENGINE_DIR.get_value(self.name))
+        if not p4_path:
+            LOGGER.warning(f'{self.name}: "Build Engine" is enabled in the settings but the engine does not seem to be under perforce control.')
+            LOGGER.warning("Please check your perforce settings.")
+            return
 
         formatstring = "%change%"
         args = f'-F "{formatstring}" -c {client_name} cstat {p4_path}/...#have'
@@ -359,6 +372,12 @@ class DeviceUnreal(Device):
 
         self.unreal_client.send_message(msg)
 
+    def _try_connect_osc(self):
+        if self.status == DeviceStatus.OPEN:
+            self.send_osc_message(osc.OSC_ADD_SEND_TARGET, [SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT.get_value()])
+        else:
+            self.osc_connection_timer.stop()
+
     def on_listener_disconnect(self, unexpected=False, exception=None):
         if unexpected:
             self.device_qt_handler.signal_device_client_disconnected.emit(self)
@@ -374,7 +393,7 @@ class DeviceUnreal(Device):
 
         if program_name == "unreal":
             self.status = DeviceStatus.OPEN
-            self.send_osc_message(osc.OSC_ADD_SEND_TARGET, [SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT.get_value()])
+            self.unreal_started_signal.emit()
 
         self._running_remote_programs[program_id] = program_name
 
@@ -383,6 +402,11 @@ class DeviceUnreal(Device):
         program_name = self._remote_programs_start_queue.pop(message_id)
         LOGGER.info(f"{self.name}: {program_name} with id {program_id} was successfully started")
         self.do_program_running_update(program_name=program_name, program_id=program_id)
+
+    def on_unreal_started(self):
+        if self.is_recording_device:
+            sleep_time_in_ms = 1000
+            self.osc_connection_timer.start(sleep_time_in_ms)
 
     def on_program_start_failed(self, error, message_id):
 
@@ -432,18 +456,18 @@ class DeviceUnreal(Device):
                         self.unreal_client.send_message(msg)
                     else:
                         self.engine_changelist = self.inflight_engine_cl
-                        self.inflight_engine_cl = 0
+                        self.inflight_engine_cl = None
                         self.project_changelist = self.project_changelist
 
                 elif "sync_project" == program_name:
                     LOGGER.info(f"{self.name}: Project was synced successfully")
                     self.project_changelist = self.inflight_project_cl
-                    self.inflight_project_cl = 0
+                    self.inflight_project_cl = None
                     if CONFIG.BUILD_ENGINE.get_value():
-                        self.engine_changelist = self.engine_changelist
-                        self.inflight_engine_cl = 0
+                        self.engine_changelist = self.inflight_engine_cl if self.inflight_engine_cl != None else self.engine_changelist
+                        self.inflight_engine_cl = None
 
-            if self.inflight_project_cl == 0 and self.inflight_engine_cl == 0:
+            if self.inflight_project_cl == None and self.inflight_engine_cl == None:
                 # everything is done syncing
                 self.status = DeviceStatus.CLOSED
                 if self.start_build_after_sync:
@@ -550,7 +574,6 @@ class DeviceUnreal(Device):
 def parse_unreal_tag_file(file_content):
     tags = []
     for line in file_content:
-        LOGGER.info(line)
         if line.startswith("GameplayTagList"):
             tag = line.split("Tag=")[1]
             tag = tag.split(',', 1)[0]
@@ -569,15 +592,15 @@ class DeviceWidgetUnreal(DeviceWidget):
         super()._add_control_buttons()
 
         changelist_layout = QtWidgets.QVBoxLayout()
-        self.project_changelist_label = QtWidgets.QLabel()
-        self.project_changelist_label.setFont(QtGui.QFont("Roboto", 10))
-        self.project_changelist_label.setToolTip("Current Project Changelist")
-        changelist_layout.addWidget(self.project_changelist_label)
-
         self.engine_changelist_label = QtWidgets.QLabel()
         self.engine_changelist_label.setFont(QtGui.QFont("Roboto", 10))
         self.engine_changelist_label.setToolTip("Current Engine Changelist")
         changelist_layout.addWidget(self.engine_changelist_label)
+
+        self.project_changelist_label = QtWidgets.QLabel()
+        self.project_changelist_label.setFont(QtGui.QFont("Roboto", 10))
+        self.project_changelist_label.setToolTip("Current Project Changelist")
+        changelist_layout.addWidget(self.project_changelist_label)
 
         spacer = QtWidgets.QSpacerItem(0, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
 
