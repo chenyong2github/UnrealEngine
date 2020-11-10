@@ -740,7 +740,7 @@ namespace Chaos
 
 		if (HasActiveParticles())
 		{
-			GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().FlipBufferPreSolve();
+			GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().PopStorageData_Internal(GetEvolution()->LatestExternalTimestampConsumed_Internal);
 		}
 	}
 
@@ -875,6 +875,8 @@ namespace Chaos
 			ensure(0 && TEXT("Unknown proxy type in physics solver."));
 			}
 		});
+
+		GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().PushProducerStorageData_External(MarshallingManager.GetExternalTimestamp_External());
 
 		MarshallingManager.Step_External(DeltaTime);
 	}
