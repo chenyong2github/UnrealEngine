@@ -1095,7 +1095,11 @@ static void BuildShaderOutput(
 		if (Frequency == SF_Vertex && Input.Name.StartsWith(AttributePrefix))
 		{
 			int32 AttributeIndex = ParseNumber(*Input.Name + AttributePrefix.Len(), /*bEmptyIsZero:*/ true);
-			OLDHeader.SerializedBindings.InOutMask |= (1 << AttributeIndex);
+			int32 Count = FMath::Max(1, Input.ArrayCount);
+			for(int32 Index = 0; Index < Count; ++Index)
+			{
+				OLDHeader.SerializedBindings.InOutMask |= (1 << (Index + AttributeIndex));
+			}
 		}
 #if 0
 		// Record user-defined input varyings
@@ -2029,6 +2033,17 @@ static void GatherSpirvReflectionBindingEntry(SpvReflectDescriptorBinding* InBin
 	} // switch
 }
 
+// Flattens the array dimensions of the interface variable (aka shader attribute), e.g. from float4[2][3] -> float4[6]
+static uint32 FlattenAttributeArrayDimension(const SpvReflectInterfaceVariable& Attribute, uint32 FirstArrayDim = 0)
+{
+	uint32 FlattenedArrayDim = 1;
+	for (uint32 ArrayDimIndex = FirstArrayDim; ArrayDimIndex < Attribute.array.dims_count; ++ArrayDimIndex)
+	{
+		FlattenedArrayDim *= Attribute.array.dims[ArrayDimIndex];
+	}
+	return FlattenedArrayDim;
+}
+
 static void GatherSpirvReflectionBindings(
 	spv_reflect::ShaderModule&	Reflection,
 	FSpirvReflectionBindings&	OutBindings,
@@ -2048,15 +2063,18 @@ static void GatherSpirvReflectionBindings(
 		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
 	}
 
-	// Change indices of input attributes by their name suffix
-	for (SpvReflectInterfaceVariable* InterfaceVar : OutBindings.InputAttributes)
+	// Change indices of input attributes by their name suffix. Only in the vertex shader stage, "ATTRIBUTE" semantics have a special meaning for shader attributes.
+	if (ShaderFrequency == SF_Vertex)
 	{
-		if (InterfaceVar->built_in == -1 && InterfaceVar->name && FCStringAnsi::Strncmp(InterfaceVar->name, "in.var.ATTRIBUTE", 16) == 0)
+		for (SpvReflectInterfaceVariable* InterfaceVar : OutBindings.InputAttributes)
 		{
-			int32 Location = 0;
-			if (ParseSemanticIndex(InterfaceVar->name, Location))
+			if (InterfaceVar->built_in == -1 && InterfaceVar->name && FCStringAnsi::Strncmp(InterfaceVar->name, "in.var.ATTRIBUTE", 16) == 0)
 			{
-				Reflection.ChangeInputVariableLocation(InterfaceVar, static_cast<uint32>(Location));
+				int32 Location = 0;
+				if (ParseSemanticIndex(InterfaceVar->name, Location))
+				{
+					Reflection.ChangeInputVariableLocation(InterfaceVar, static_cast<uint32>(Location));
+				}
 			}
 		}
 	}
@@ -2150,6 +2168,7 @@ static void ConvertMetaDataTypeSpecifierPrimary(const SpvReflectTypeDescription&
 	if (!bBaseTypeOnly)
 	{
 		// Generate number for vector size
+		const SpvReflectTypeFlags SpvScalarTypeFlags = (SPV_REFLECT_TYPE_FLAG_BOOL | SPV_REFLECT_TYPE_FLAG_INT | SPV_REFLECT_TYPE_FLAG_FLOAT);
 		if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
 		{
 			static const TCHAR* VectorDims = TEXT("1234");
@@ -2161,15 +2180,7 @@ static void ConvertMetaDataTypeSpecifierPrimary(const SpvReflectTypeDescription&
 		{
 			//TODO
 		}
-		else if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_STRUCT)
-		{
-			//TODO
-		}
-		else if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_ARRAY)
-		{
-			//TODO
-		}
-		else
+		else if ((TypeSpecifier.type_flags & SpvScalarTypeFlags) != 0)
 		{
 			OutTypeName += TEXT('1'); // add single scalar component
 		}
@@ -2283,6 +2294,112 @@ static int32 FindIndexInHlslSemantic(const FString& Semantic)
 		return Index;
 	}
 	return INDEX_NONE;
+}
+
+static void BuildShaderInterfaceVariableMetaData(const SpvReflectInterfaceVariable& Attribute, FString& OutMetaData, bool bIsInput)
+{
+	// Ignore interface variables that are only generated for intermediate results
+	if (CrossCompiler::FShaderConductorContext::IsIntermediateSpirvOutputVariable(Attribute.name))
+	{
+		return;
+	}
+
+	check(Attribute.semantic != nullptr);
+	const FString TypeSpecifier = ConvertMetaDataTypeSpecifier(*Attribute.type_description);
+	FString Semantic = ConvertMetaDataSemantic(ANSI_TO_TCHAR(Attribute.semantic), Attribute.built_in, bIsInput);
+
+	if (Attribute.array.dims_count > 0)
+	{
+		// Get semantic without index, e.g. "out_Target0" -> "out_Target"
+		const int32 SemanticIndexPos = FindIndexInHlslSemantic(Semantic);
+		if (SemanticIndexPos != INDEX_NONE)
+		{
+			Semantic = Semantic.Left(SemanticIndexPos);
+		}
+
+		if (Attribute.location == -1)
+		{
+			// Flatten array dimensions, e.g. from float4[3][2] -> float4[6]
+			const uint32 FlattenedArrayDim = FlattenAttributeArrayDimension(Attribute);
+
+			// Emit one output slot for each array element, e.g. "out float4 OutColor[2] : SV_Target0" occupies output slot SV_Target0 and SV_Target1.
+			for (uint32 FlattenedArrayIndex = 0; FlattenedArrayIndex < FlattenedArrayDim; ++FlattenedArrayIndex)
+			{
+				// If there is no binding slot, emit output as system value array such as "gl_SampleMask[]"
+				OutMetaData += FString::Printf(
+					TEXT("%s%s;%d:%s[%d]"),
+					!OutMetaData.IsEmpty() ? TEXT(",") : TEXT(""),
+					*TypeSpecifier, // type specifier
+					Attribute.location,
+					*Semantic,
+					FlattenedArrayIndex
+				);
+			}
+		}
+		else if (!bIsInput)
+		{
+			//NOTE: For some reason, the meta data for output slot arrays must be entirely flattened, including the outer most array dimension
+			// Flatten array dimensions, e.g. from float4[3][2] -> float4[6]
+			const uint32 FlattenedArrayDim = FlattenAttributeArrayDimension(Attribute);
+
+			// Emit one output slot for each array element, e.g. "out float4 OutColor[2] : SV_Target0" occupies output slot SV_Target0 and SV_Target1.
+			for (uint32 FlattenedArrayIndex = 0; FlattenedArrayIndex < FlattenedArrayDim; ++FlattenedArrayIndex)
+			{
+				const uint32 BindingSlot = Attribute.location + FlattenedArrayIndex;
+				OutMetaData += FString::Printf(
+					TEXT("%s%s;%d:%s%d"),
+					!OutMetaData.IsEmpty() ? TEXT(",") : TEXT(""),
+					*TypeSpecifier, // Type specifier
+					BindingSlot,
+					*Semantic,
+					BindingSlot
+				);
+			}
+		}
+		else if (Attribute.array.dims_count >= 2)
+		{
+			// Flatten array dimensions, e.g. from float4[3][2] -> float4[6]
+			const uint32 FlattenedArrayDim = FlattenAttributeArrayDimension(Attribute, 1);
+
+			// Emit one output slot for each array element, e.g. "out float4 OutColor[2] : SV_Target0" occupies output slot SV_Target0 and SV_Target1.
+			for (uint32 FlattenedArrayIndex = 0; FlattenedArrayIndex < FlattenedArrayDim; ++FlattenedArrayIndex)
+			{
+				const uint32 BindingSlot = Attribute.location + FlattenedArrayIndex;
+				OutMetaData += FString::Printf(
+					TEXT("%s%s[%d];%d:%s%d"),
+					!OutMetaData.IsEmpty() ? TEXT(",") : TEXT(""),
+					*TypeSpecifier, // Type specifier
+					Attribute.array.dims[0], // Outer most array dimension
+					BindingSlot,
+					*Semantic,
+					BindingSlot
+				);
+			}
+		}
+		else
+		{
+			const uint32 BindingSlot = Attribute.location;
+			OutMetaData += FString::Printf(
+				TEXT("%s%s[%d];%d:%s%d"),
+				!OutMetaData.IsEmpty() ? TEXT(",") : TEXT(""),
+				*TypeSpecifier, // Type specifier
+				Attribute.array.dims[0], // Outer most array dimension
+				BindingSlot,
+				*Semantic,
+				BindingSlot
+			);
+		}
+	}
+	else
+	{
+		OutMetaData += FString::Printf(
+			TEXT("%s%s;%d:%s"),
+			!OutMetaData.IsEmpty() ? TEXT(",") : TEXT(""),
+			*TypeSpecifier, // type specifier
+			Attribute.location,
+			*Semantic
+		);
+	}
 }
 
 static void BuildShaderOutputFromSpirv(
@@ -2419,84 +2536,15 @@ static void BuildShaderOutputFromSpirv(
 	// Sort binding table
 	BindingTable.SortBindings();
 
-	// Iterate over all resource bindings grouped by resource type0
+	// Iterate over all resource bindings grouped by resource type
 	for (const SpvReflectInterfaceVariable* Attribute : Bindings.InputAttributes)
 	{
-		check(Attribute->semantic != nullptr);
-		const FString TypeSpecifier = ConvertMetaDataTypeSpecifier(*Attribute->type_description);
-		const FString Semantic = ConvertMetaDataSemantic(ANSI_TO_TCHAR(Attribute->semantic), Attribute->built_in, true);
-		INPString += FString::Printf(
-			TEXT("%s%s;%d:%s"),
-			INPString.Len() ? TEXT(",") : TEXT(""),
-			*TypeSpecifier, // type specifier
-			Attribute->location,
-			*Semantic
-		);
+		BuildShaderInterfaceVariableMetaData(*Attribute, INPString, /*bIsInput:*/ true);
 	}
 
 	for (const SpvReflectInterfaceVariable* Attribute : Bindings.OutputAttributes)
 	{
-		check(Attribute->semantic != nullptr);
-
-		const FString TypeSpecifier = ConvertMetaDataTypeSpecifier(*Attribute->type_description);
-		FString Semantic = ConvertMetaDataSemantic(ANSI_TO_TCHAR(Attribute->semantic), Attribute->built_in, false);
-
-		if (Attribute->array.dims_count > 0)
-		{
-			// Flatten array dimensions, e.g. from float4[3][2] -> float4[6]
-			uint32 FlattenedArrayDim = 1;
-			for (uint32 ArrayDimIndex = 0; ArrayDimIndex < Attribute->array.dims_count; ++ArrayDimIndex)
-			{
-				FlattenedArrayDim *= Attribute->array.dims[ArrayDimIndex];
-			}
-
-			// Get semantic without index, e.g. "out_Target0" -> "out_Target"
-			const int32 SemanticIndexPos = FindIndexInHlslSemantic(Semantic);
-			if (SemanticIndexPos != INDEX_NONE)
-			{
-				Semantic = Semantic.Left(SemanticIndexPos);
-			}
-
-			// Emit one output slot for each array element, e.g. "out float4 OutColor[2] : SV_Target0" occupies output slot SV_Target0 and SV_Target1.
-			for (uint32 FlattenedArrayIndex = 0; FlattenedArrayIndex < FlattenedArrayDim; ++FlattenedArrayIndex)
-			{
-				if (Attribute->location == -1)
-				{
-					// If there is no binding slot, emit output as system value array such as "gl_SampleMask[]"
-					OUTString += FString::Printf(
-						TEXT("%s%s;%d:%s[%d]"),
-						OUTString.Len() ? TEXT(",") : TEXT(""),
-						*TypeSpecifier, // type specifier
-						Attribute->location,
-						*Semantic,
-						FlattenedArrayIndex
-					);
-				}
-				else
-				{
-					const uint32 BindingSlot = Attribute->location + FlattenedArrayIndex;
-					OUTString += FString::Printf(
-						TEXT("%s%s;%d:%s%d"),
-						OUTString.Len() ? TEXT(",") : TEXT(""),
-						*TypeSpecifier, // type specifier
-						BindingSlot,
-						*Semantic,
-						BindingSlot
-					);
-				}
-			}
-		}
-		else
-		{
-			// Emit single output slot
-			OUTString += FString::Printf(
-				TEXT("%s%s;%d:%s"),
-				OUTString.Len() ? TEXT(",") : TEXT(""),
-				*TypeSpecifier, // type specifier
-				Attribute->location,
-				*Semantic
-			);
-		}
+		BuildShaderInterfaceVariableMetaData(*Attribute, OUTString, /*bIsInput:*/ false);
 	}
 
 	int32 UBOBindings = 0, UAVBindings = 0, SRVBindings = 0, SMPBindings = 0, GLOBindings = 0;
@@ -2532,7 +2580,7 @@ static void BuildShaderOutputFromSpirv(
 
 				const FString MemberName(ANSI_TO_TCHAR(Member->name));
 				uint32 MemberTypeBitWidth = sizeof(float) * 8;
-				const FString TypeSpecifier = ConvertMetaDataTypeSpecifier(*Member->type_description, &MemberTypeBitWidth, true);
+				const FString TypeSpecifier = ConvertMetaDataTypeSpecifier(*Member->type_description, &MemberTypeBitWidth, /*bBaseTypeOnly:*/ true);
 				const uint32 MemberOffset = Member->absolute_offset / sizeof(float);
 				const uint32 MemberComponentCount = Member->size * 8 / MemberTypeBitWidth;
 

@@ -1204,11 +1204,6 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 		PipelineInfo.pTessellationState = &TessState;
 		check(InputAssembly.topology == VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
 		TessState.patchControlPoints = GfxEntry->ControlPoints;
-
-		// Workaround for translating HLSL tessellation shaders on Vulkan backend.
-		// Vertical flip of <gl_Position> alone is not sufficient here.
-		// Usual value for <frontFace> in UE4 is VK_FRONT_FACE_CLOCKWISE; use the opposite value to flip faces.
-		RasterizerState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	}
 
 	VkResult Result = VK_ERROR_INITIALIZATION_FAILED;

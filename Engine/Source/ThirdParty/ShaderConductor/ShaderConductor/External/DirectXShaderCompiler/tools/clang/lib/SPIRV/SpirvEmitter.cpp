@@ -55,11 +55,11 @@ bool hasSemantic(const DeclaratorDecl *decl,
   return false;
 }
 
-bool patchConstFuncTakesHullOutputPatch(FunctionDecl *pcf) {
+const ParmVarDecl* patchConstFuncTakesHullOutputPatch(FunctionDecl *pcf) {
   for (const auto *param : pcf->parameters())
     if (hlsl::IsHLSLOutputPatchType(param->getType()))
-      return true;
-  return false;
+      return param;
+  return nullptr;
 }
 
 inline bool isSpirvMatrixOp(spv::Op opcode) {
@@ -1108,11 +1108,20 @@ void SpirvEmitter::doFunctionDecl(const FunctionDecl *decl) {
     }
   }
 
+  // UE Change Begin: Ignore OutputPatch<> parameter for HullShader
   for (const auto *param : decl->params()) {
+    if (spvContext.isHS() && decl == patchConstFunc &&
+        hlsl::IsHLSLOutputPatchType(param->getType())) {
+      // Since the output patch used in hull shaders is translated to
+      // a variable with Workgroup storage class, there is no need
+      // to pass the variable as function parameter in SPIR-V.
+      continue;
+    }
     const QualType valueType =
         declIdMapper.getTypeAndCreateCounterForPotentialAliasVar(param);
     paramTypes.push_back(valueType);
   }
+  // UE End Begin: Ignore OutputPatch<> parameter for HullShader
 
   spvBuilder.beginFunction(retType, paramTypes, decl->getLocStart(), funcName,
                            decl->hasAttr<HLSLPreciseAttr>(), func);
@@ -1128,11 +1137,20 @@ void SpirvEmitter::doFunctionDecl(const FunctionDecl *decl) {
     }
   }
 
+  // UE Change Begin: Ignore OutputPatch<> parameter for HullShader
   // Create all parameters.
   for (uint32_t i = 0; i < decl->getNumParams(); ++i) {
     const ParmVarDecl *paramDecl = decl->getParamDecl(i);
+    if (spvContext.isHS() && decl == patchConstFunc &&
+        hlsl::IsHLSLOutputPatchType(paramDecl->getType())) {
+      // Since the output patch used in hull shaders is translated to
+      // a variable with Workgroup storage class, there is no need
+      // to pass the variable as function parameter in SPIR-V.
+      continue;
+    }
     (void)declIdMapper.createFnParam(paramDecl);
   }
+  // UE End Begin: Ignore OutputPatch<> parameter for HullShader
 
   if (decl->hasBody()) {
     // The entry basic block.
@@ -10978,12 +10996,9 @@ bool SpirvEmitter::processHSEntryPointOutputAndPCF(
   // If the patch constant function (PCF) takes the result of the Hull main
   // entry point, create a temporary function-scope variable and write the
   // results to it, so it can be passed to the PCF.
-  if (patchConstFuncTakesHullOutputPatch(patchConstFunc)) {
-    const QualType hullMainRetType = astContext.getConstantArrayType(
-        retType, llvm::APInt(32, numOutputControlPoints),
-        clang::ArrayType::Normal, 0);
-    hullMainOutputPatch =
-        spvBuilder.addFnVar(hullMainRetType, locEnd, "temp.var.hullMainRetVal");
+  if (const auto* param = patchConstFuncTakesHullOutputPatch(patchConstFunc)) {
+    hullMainOutputPatch = declIdMapper.createHullMainOutputPatch(
+		param, retType, numOutputControlPoints, locEnd);
     auto *tempLocation = spvBuilder.createAccessChain(
         retType, hullMainOutputPatch, {outputControlPointId}, locEnd);
     spvBuilder.createStore(tempLocation, retVal, locEnd);
@@ -11045,7 +11060,10 @@ bool SpirvEmitter::processHSEntryPointOutputAndPCF(
     if (hlsl::IsHLSLInputPatchType(param->getType())) {
       pcfParams.push_back(hullMainInputPatch);
     } else if (hlsl::IsHLSLOutputPatchType(param->getType())) {
-      pcfParams.push_back(hullMainOutputPatch);
+      // Since the output patch used in hull shaders is translated to
+      // a variable with Workgroup storage class, there is no need
+      // to pass the variable as function parameter in SPIR-V.
+      continue;
     } else if (hasSemantic(param, hlsl::DXIL::SemanticKind::PrimitiveID)) {
       if (!primitiveId) {
         primitiveId = createParmVarAndInitFromStageInputVar(param);

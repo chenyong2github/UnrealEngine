@@ -30,21 +30,15 @@ float3 GetTangentDS( float3x3 TangentToWorld )
  */
 #if DISPLACEMENT_ANTICRACK
 
-	struct FHullShaderConstantDominantEdgeData
+	struct FHullShaderConstantDominantEdgeAndVertexData
 	{
-		float2 UV0;
-		float2 UV1;	
+		float4 UV0_UV1;
+		float4 Normal;
 		float4 Normal0;
 		float4 Normal1;
-		float3 Tangent0;
-		float3 Tangent1;
-	};
-
-	struct FHullShaderConstantDominantVertexData
-	{
-		float2 UV;
-		float4 Normal;
 		float3 Tangent;
+		float4 Tangent0_U;
+		float4 Tangent1_V;
 	};
 
 #endif
@@ -144,9 +138,16 @@ float4 CalculateCompositeTessellationFactors(float3 Control0, float3 Control1, f
 	 * The heuristic should be consistent across the entire mesh.
 	 * Current heuristic is the smallest UV from the control points.
 	 */
-	FHullShaderConstantDominantEdgeData GenerateDominantEdgeData(FPassSpecificVSToDS Edge0Vert0,FPassSpecificVSToDS Edge0Vert1,FPassSpecificVSToDS Edge1Vert0,FPassSpecificVSToDS Edge1Vert1)
+	FHullShaderConstantDominantEdgeAndVertexData GenerateDominantEdgeAndVertexData(
+		FPassSpecificVSToDS DominantVertex,
+		FPassSpecificVSToDS Edge0Vert0,
+		FPassSpecificVSToDS Edge0Vert1,
+		FPassSpecificVSToDS Edge1Vert0,
+		FPassSpecificVSToDS Edge1Vert1)
 	{
-		FHullShaderConstantDominantEdgeData Result = (FHullShaderConstantDominantEdgeData)0;
+		FHullShaderConstantDominantEdgeAndVertexData Result = (FHullShaderConstantDominantEdgeAndVertexData)0;
+
+		// Edge data
 		FPassSpecificVSToDS DominantVert0 = Edge0Vert0;
 		FPassSpecificVSToDS DominantVert1 = Edge0Vert1;
 
@@ -158,8 +159,8 @@ float4 CalculateCompositeTessellationFactors(float3 Control0, float3 Control1, f
 		}
 
 		#if NUM_MATERIAL_TEXCOORDS
-			Result.UV0 = GetTextureCoordinateDS( DominantVert0 );
-			Result.UV1 = GetTextureCoordinateDS( DominantVert1 );
+			Result.UV0_UV1.xy = GetTextureCoordinateDS( DominantVert0 );
+			Result.UV0_UV1.zw = GetTextureCoordinateDS( DominantVert1 );
 		#endif
 
 		float3x3 TangentBasis0 = VertexFactoryGetTangentToLocalDS(DominantVert0.FactoryInterpolants);
@@ -168,25 +169,21 @@ float4 CalculateCompositeTessellationFactors(float3 Control0, float3 Control1, f
 		Result.Normal0 = GetNormalDS( TangentBasis0 );
 		Result.Normal1 = GetNormalDS( TangentBasis1 );
 
-		Result.Tangent0 = GetTangentDS( TangentBasis0 );
-		Result.Tangent1 = GetTangentDS( TangentBasis1 );
+		Result.Tangent0_U.xyz = GetTangentDS( TangentBasis0 );
+		Result.Tangent1_V.xyz = GetTangentDS( TangentBasis1 );
 
-		return Result;
-	}
-
-	FHullShaderConstantDominantVertexData GenerateDominantVertexData(FPassSpecificVSToDS DominantVertex)
-	{
-		FHullShaderConstantDominantVertexData Result = (FHullShaderConstantDominantVertexData)0;
-
+		// Vertex data
 		#if NUM_MATERIAL_TEXCOORDS
-			Result.UV = GetTextureCoordinateDS( DominantVertex );
+		float2 UV = GetTextureCoordinateDS( DominantVertex );
+		Result.Tangent0_U.w = UV.x;
+		Result.Tangent1_V.w = UV.y;
 		#endif
 
 		float3x3 TangentToLocal = VertexFactoryGetTangentToLocalDS(DominantVertex.FactoryInterpolants);
 
 		Result.Normal = GetNormalDS( TangentToLocal );
 		Result.Tangent = GetTangentDS( TangentToLocal );
-		
+
 		return Result;
 	}
 	
@@ -205,12 +202,9 @@ void ApplyDominantData(
 	float U,
 	float V,
 	float W,
-	FHullShaderConstantDominantEdgeData DE0,
-	FHullShaderConstantDominantEdgeData DE1,
-	FHullShaderConstantDominantEdgeData DE2,
-	FHullShaderConstantDominantVertexData DV0,
-	FHullShaderConstantDominantVertexData DV1,
-	FHullShaderConstantDominantVertexData DV2 )
+	FHullShaderConstantDominantEdgeAndVertexData DEandV0,
+	FHullShaderConstantDominantEdgeAndVertexData DEandV1,
+	FHullShaderConstantDominantEdgeAndVertexData DEandV2 )
 {
 	// some handy vars for our state
 	float EdgeU = (U == 0) ? 1 : 0;
@@ -228,18 +222,18 @@ void ApplyDominantData(
 		float CornerW = ((EdgeU + EdgeV) == 2) ? 1 : 0;
 
 		// Override the tex coord with the dominant vert
-		DisplacementTexCoords =	CornerU * DV0.UV +
-								CornerV * DV1.UV +
-								CornerW * DV2.UV;
+		DisplacementTexCoords =	CornerU * float2(DEandV0.Tangent0_U.w, DEandV0.Tangent1_V.w) +
+								CornerV * float2(DEandV1.Tangent0_U.w, DEandV1.Tangent1_V.w) +
+								CornerW * float2(DEandV2.Tangent0_U.w, DEandV2.Tangent1_V.w);
 									 
 		// Override normal/tangent with dominant vert 
-		DisplacementNormal = CornerU * DV0.Normal +
-							 CornerV * DV1.Normal +
-							 CornerW * DV2.Normal;
+		DisplacementNormal = CornerU * DEandV0.Normal +
+							 CornerV * DEandV1.Normal +
+							 CornerW * DEandV2.Normal;
 
-		DisplacementTangent = CornerU * DV0.Tangent +
-							  CornerV * DV1.Tangent +
-							  CornerW * DV2.Tangent;
+		DisplacementTangent = CornerU * DEandV0.Tangent +
+							  CornerV * DEandV1.Tangent +
+							  CornerW * DEandV2.Tangent;
 	}
 	else if(Edge)
 	{
@@ -247,21 +241,21 @@ void ApplyDominantData(
 		#define CONDITIONAL_EDGE_INTERPOLATE(Data0, Data1) EdgeU*(V*Data0 + W*Data1) + EdgeV*(W*Data0 + U*Data1) + EdgeW*(U*Data0 + V*Data1)
 
 		// override tex coords interpolated along dominant Edge
-		float2 UV0 = EdgeU*DE0.UV0 + EdgeV*DE1.UV0 + EdgeW*DE2.UV0;
-		float2 UV1 = EdgeU*DE0.UV1 + EdgeV*DE1.UV1 + EdgeW*DE2.UV1;
+		float2 UV0 = EdgeU*DEandV0.UV0_UV1.xy + EdgeV*DEandV1.UV0_UV1.xy + EdgeW*DEandV2.UV0_UV1.xy;
+		float2 UV1 = EdgeU*DEandV0.UV0_UV1.zw + EdgeV*DEandV1.UV0_UV1.zw + EdgeW*DEandV2.UV0_UV1.zw;
 
 		DisplacementTexCoords = CONDITIONAL_EDGE_INTERPOLATE(UV0,UV1);
 
 		// pull out dominant normals depending on which Edge
-		float4 Normal0 = EdgeU*DE0.Normal0 + EdgeV*DE1.Normal0 + EdgeW*DE2.Normal0;
-		float4 Normal1 = EdgeU*DE0.Normal1 + EdgeV*DE1.Normal1 + EdgeW*DE2.Normal1;
+		float4 Normal0 = EdgeU*DEandV0.Normal0 + EdgeV*DEandV1.Normal0 + EdgeW*DEandV2.Normal0;
+		float4 Normal1 = EdgeU*DEandV0.Normal1 + EdgeV*DEandV1.Normal1 + EdgeW*DEandV2.Normal1;
 
 		// interpolate change based on which Edge we are on
 		DisplacementNormal = CONDITIONAL_EDGE_INTERPOLATE(Normal0,Normal1);
 
 		// pull out dominant normals depending on which Edge
-		float3 Tangent0 = EdgeU*DE0.Tangent0 + EdgeV*DE1.Tangent0 + EdgeW*DE2.Tangent0;
-		float3 Tangent1 = EdgeU*DE0.Tangent1 + EdgeV*DE1.Tangent1 + EdgeW*DE2.Tangent1;
+		float3 Tangent0 = EdgeU*DEandV0.Tangent0_U.xyz + EdgeV*DEandV1.Tangent0_U.xyz + EdgeW*DEandV2.Tangent0_U.xyz;
+		float3 Tangent1 = EdgeU*DEandV0.Tangent1_V.xyz + EdgeV*DEandV1.Tangent1_V.xyz + EdgeW*DEandV2.Tangent1_V.xyz;
 
 		// interpolate change based on which Edge we are on
 		DisplacementTangent = CONDITIONAL_EDGE_INTERPOLATE(Tangent0,Tangent1);
