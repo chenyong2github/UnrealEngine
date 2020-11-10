@@ -331,16 +331,26 @@ bool UGroomBindingAsset::IsCompatible(const USkeletalMesh* InSkeletalMesh, const
 
 		for (const FHairGroupResource& Resource : InBinding->HairGroupResources)
 		{
-			if ((Resource.RenRootResources && Resource.SimRootResources) && 
-				(InSkeletalMesh->GetLODNum() != Resource.RenRootResources->RootData.MeshProjectionLODs.Num() ||
-				InSkeletalMesh->GetLODNum() != Resource.SimRootResources->RootData.MeshProjectionLODs.Num()))
+			if (Resource.SimRootResources && InSkeletalMesh->GetLODNum() != Resource.SimRootResources->RootData.MeshProjectionLODs.Num())
 			{
 				if (bIssueWarning)
 				{
-					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The Groom binding (%s) does not have the same have LOD count (LOD render:%d, LOD sim:%d) than the skeletal mesh (%s, LOD:%d). The binding asset will not be used."),
+					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The Groom binding (%s) does not have the same have LOD count (LOD sim:%d) than the skeletal mesh (%s, LOD:%d). The binding asset will not be used."),
+						*InBinding->GetName(),
+						Resource.SimRootResources->RootData.MeshProjectionLODs.Num(),
+						*InSkeletalMesh->GetName(),
+						InSkeletalMesh->GetLODNum());
+				}
+				return false;
+			}
+
+			if (Resource.RenRootResources && InSkeletalMesh->GetLODNum() != Resource.RenRootResources->RootData.MeshProjectionLODs.Num() && IsHairStrandsEnabled(EHairStrandsShaderType::Strands))
+			{
+				if (bIssueWarning)
+				{
+					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The Groom binding (%s) does not have the same have LOD count (LOD render:%d) than the skeletal mesh (%s, LOD:%d). The binding asset will not be used."),
 						*InBinding->GetName(),
 						Resource.RenRootResources->RootData.MeshProjectionLODs.Num(),
-						Resource.SimRootResources->RootData.MeshProjectionLODs.Num(),
 						*InSkeletalMesh->GetName(),
 						InSkeletalMesh->GetLODNum());
 				}
@@ -415,6 +425,7 @@ bool UGroomBindingAsset::IsCompatible(const UGroomAsset* InGroom, const UGroomBi
 				}
 			}
 
+			if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands))
 			{
 				const uint32 GroomCount = InGroom->HairGroupsData[GroupIt].Strands.Data.GetNumCurves();
 				const uint32 BindingCount = InBinding->GroupInfos[GroupIt].RenRootCount;
@@ -459,7 +470,7 @@ bool UGroomBindingAsset::IsBindingAssetValid(const UGroomBindingAsset* InBinding
 			}
 			return false;
 		}
-
+		#if WITH_EDITORONLY_DATA
 		if (const UPackage* Package = InBinding->GetOutermost())
 		{
 			if (Package->IsDirty() && !bIsBindingReloading)
@@ -471,7 +482,7 @@ bool UGroomBindingAsset::IsBindingAssetValid(const UGroomBindingAsset* InBinding
 				return false;
 			}
 		}
-
+		#endif
 		if (InBinding->GroupInfos.Num() == 0)
 		{
 			if (bIssueWarning)
@@ -492,7 +503,7 @@ bool UGroomBindingAsset::IsBindingAssetValid(const UGroomBindingAsset* InBinding
 				return false;
 			}
 
-			if (Info.RenRootCount == 0)
+			if (Info.RenRootCount == 0 && IsHairStrandsEnabled(EHairStrandsShaderType::Strands))
 			{
 				if (bIssueWarning)
 				{
