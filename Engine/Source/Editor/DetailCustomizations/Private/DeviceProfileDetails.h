@@ -142,10 +142,10 @@ private:
 	/**
 	 * Action when a group of CVars have been removed from the device profile
 	 *
-	 * @param GroupName - The name of the group all Cvars have been removed for.
+	 * @param CVarCategory - The category of the group all CVars have been removed for (@see ECVarGroup).
 	 * @return Whether the event was handled
 	 */
-	FReply OnRemoveAllFromGroup(FText GroupName);
+	FReply OnRemoveAllFromGroup(int32 CVarCategory);
 
 
 	/**
