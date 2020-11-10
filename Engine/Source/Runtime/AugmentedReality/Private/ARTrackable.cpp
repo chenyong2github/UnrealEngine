@@ -112,6 +112,13 @@ float UARTrackedGeometry::GetLastUpdateTimestamp() const
 {
 	return LastUpdateTimestamp;
 }
+void UARTrackedGeometry::UpdateTrackedGeometryNoMove(const TSharedRef<FARSupportInterface, ESPMode::ThreadSafe>& InTrackingSystem, uint32 FrameNumber, double Timestamp)
+{
+	ARSystem = InTrackingSystem;
+	LastUpdateFrameNumber = FrameNumber;
+	LastUpdateTimestamp = Timestamp;
+	SetTrackingState(EARTrackingState::Tracking);
+}
 
 void UARTrackedGeometry::UpdateTrackedGeometry(const TSharedRef<FARSupportInterface , ESPMode::ThreadSafe>& InTrackingSystem, uint32 FrameNumber, double Timestamp, const FTransform& InLocalToTrackingTransform, const FTransform& InAlignmentTransform )
 {

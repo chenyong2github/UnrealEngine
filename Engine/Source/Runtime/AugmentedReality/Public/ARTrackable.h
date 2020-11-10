@@ -24,6 +24,7 @@ public:
 
 	void GetNetworkPayload(FARMeshUpdatePayload& Payload);
 
+	void UpdateTrackedGeometryNoMove(const TSharedRef<FARSupportInterface, ESPMode::ThreadSafe>& InTrackingSystem, uint32 FrameNumber, double Timestamp);
 	void UpdateTrackedGeometry(const TSharedRef<FARSupportInterface , ESPMode::ThreadSafe>& InTrackingSystem, uint32 FrameNumber, double Timestamp, const FTransform& InLocalToTrackingTransform, const FTransform& InAlignmentTransform );
 	
 	void UpdateTrackingState( EARTrackingState NewTrackingState );
