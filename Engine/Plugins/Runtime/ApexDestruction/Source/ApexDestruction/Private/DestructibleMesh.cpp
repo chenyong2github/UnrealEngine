@@ -489,6 +489,7 @@ void FDestructibleDepthParameters::LoadDefaultDestructibleParametersFromApexAsse
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 NvParameterized::Interface* UDestructibleMesh::GetDestructibleActorDesc(UPhysicalMaterial* PhysMat)
 {
 	NvParameterized::Interface* Params = NULL;
@@ -499,7 +500,6 @@ NvParameterized::Interface* UDestructibleMesh::GetDestructibleActorDesc(UPhysica
 	}
 	if (Params != NULL)
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		DefaultDestructibleParameters.DamageParameters.FillDestructibleActorDesc(Params, PhysMat);
 		DefaultDestructibleParameters.SpecialHierarchyDepths.FillDestructibleActorDesc(Params);
 		DefaultDestructibleParameters.AdvancedParameters.FillDestructibleActorDesc(Params);
@@ -516,11 +516,11 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 			DefaultDestructibleParameters.DepthParameters[Depth].FillDestructibleActorDesc(Params, OverrideName, OverrideValueName);
 		}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	return Params;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_APEX
 
 void UDestructibleMesh::LoadDefaultDestructibleParametersFromApexAsset()

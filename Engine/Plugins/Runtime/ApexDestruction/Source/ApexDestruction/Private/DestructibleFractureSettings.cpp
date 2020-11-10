@@ -230,7 +230,7 @@ void FFractureMaterial::FillNxFractureMaterialDesc(apex::FractureMaterialDesc& P
 //////////////////////////////////////////////////////////////////////////
 // UDestructibleFractureSettings
 //////////////////////////////////////////////////////////////////////////
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UDestructibleFractureSettings::UDestructibleFractureSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -243,6 +243,7 @@ UDestructibleFractureSettings::UDestructibleFractureSettings(FVTableHelper& Help
 {
 
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UDestructibleFractureSettings::Serialize(FArchive& Ar)
 {
@@ -507,8 +508,10 @@ bool UDestructibleFractureSettings::VoronoiSplitMesh()
 		check(sizeof(FVector) == sizeof(PxVec3));
 		FTFractureVoronoiDesc.sites = (PxVec3*)VoronoiSites.GetData();
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		// Material descriptor
 		FractureMaterialDesc.FillNxFractureMaterialDesc(FTFractureVoronoiDesc.materialDesc);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		// Retrieve the authoring mesh to see if the interiorSubmeshIndex is valid
 		apex::ExplicitHierarchicalMesh& HMesh = ApexDestructibleAssetAuthoring->getExplicitHierarchicalMesh();
 		if (FTFractureVoronoiDesc.materialDesc.interiorSubmeshIndex >= HMesh.submeshCount())
@@ -549,6 +552,7 @@ bool UDestructibleFractureSettings::VoronoiSplitMesh()
 	return Success;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 apex::DestructibleAsset* UDestructibleFractureSettings::CreateApexDestructibleAsset(const apex::DestructibleAssetCookingDesc& DestructibleAssetCookingDesc)
 {
 	apex::DestructibleAsset* ApexDestructibleAsset = NULL;
@@ -571,5 +575,6 @@ apex::DestructibleAsset* UDestructibleFractureSettings::CreateApexDestructibleAs
 
 	return ApexDestructibleAsset;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif // WITH_APEX && WITH_EDITOR
