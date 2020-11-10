@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Cluster/DisplayClusterClusterManager.h"
+#include "Cluster/DisplayClusterClusterEventHandler.h"
 
 #include "Cluster/IDisplayClusterClusterSyncObject.h"
 #include "Cluster/IDisplayClusterClusterEventListener.h"
@@ -33,6 +34,9 @@ FDisplayClusterClusterManager::FDisplayClusterClusterManager()
 	// Set cluster event handlers. These are the entry points for any incoming cluster events.
 	OnClusterEventJson.AddRaw(this, &FDisplayClusterClusterManager::OnClusterEventJsonHandler);
 	OnClusterEventBinary.AddRaw(this, &FDisplayClusterClusterManager::OnClusterEventBinaryHandler);
+
+	// Set internal system events handler
+	OnClusterEventJson.Add(FDisplayClusterClusterEventHandler::Get().GetJsonListenerDelegate());
 
 	NativeInputDataAvailableEvent = FPlatformProcess::CreateSynchEvent(true);
 }
