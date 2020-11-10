@@ -100,6 +100,7 @@ struct FCachedGeometry
 		uint32 UVsChannelOffset = 0;
 		uint32 UVsChannelCount = 0;
 		uint32 NumPrimitives = 0;
+		uint32 NumVertices = 0;
 		uint32 VertexBaseIndex = 0;
 		uint32 IndexBaseIndex = 0;
 		uint32 TotalVertexCount = 0;

@@ -201,22 +201,26 @@ void RunHairStrandsInterpolation(
 						Instance->Guides.RestRootResource,
 						Instance->Guides.DeformedRootResource);
 				
-					AddHairStrandInitMeshSamplesPass(
-						GraphBuilder, 
-						ShaderMap, 
-						Instance->Debug.MeshLODIndex, 
-						HairStrandsTriangleType::DeformedPose, 
-						MeshDataLOD, 
-						Instance->Guides.RestRootResource,
-						Instance->Guides.DeformedRootResource);
+					if (Instance->Guides.bHasGlobalInterpolation && Instance->Strands.RestRootResource)
+					{
+						AddHairStrandInitMeshSamplesPass(
+							GraphBuilder,
+							ShaderMap,
+							Instance->Debug.MeshLODIndex,
+							HairStrandsTriangleType::DeformedPose,
+							MeshDataLOD,
+							Instance->Strands.RestRootResource,
+							Instance->Guides.RestRootResource,
+							Instance->Guides.DeformedRootResource);
 
-					AddHairStrandUpdateMeshSamplesPass(
-						GraphBuilder, 
-						ShaderMap, 
-						Instance->Debug.MeshLODIndex, 
-						MeshDataLOD, 
-						Instance->Guides.RestRootResource, 
-						Instance->Guides.DeformedRootResource);
+						AddHairStrandUpdateMeshSamplesPass(
+							GraphBuilder,
+							ShaderMap,
+							Instance->Debug.MeshLODIndex,
+							MeshDataLOD,
+							Instance->Guides.RestRootResource,
+							Instance->Guides.DeformedRootResource);
+					}
 				}
 			}
 		}

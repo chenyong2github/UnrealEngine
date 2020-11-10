@@ -329,7 +329,8 @@ namespace GroomBinding_RBFWeighting
 				for (uint32 VertexIt = 0; VertexIt < 3; ++VertexIt)
 				{
 					const uint32 VertexIndex = TriangleIndices[LODRenderData.RenderSections[SectionIndex].BaseIndex + 3 * TriangleIndex + VertexIt];
-					ValidPoints[VertexIndex] = true;
+					ValidPoints[VertexIndex] = (VertexIndex >= LODRenderData.RenderSections[SectionIndex].BaseVertexIndex) && (VertexIndex < 
+						LODRenderData.RenderSections[SectionIndex].BaseVertexIndex + LODRenderData.RenderSections[SectionIndex].NumVertices);
 				}
 			}
 		}
