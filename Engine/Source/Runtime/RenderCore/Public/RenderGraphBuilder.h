@@ -12,7 +12,7 @@
 
 class FRDGLogFile;
 
-enum ERDGBuilderFlags
+enum class ERDGBuilderFlags
 {
 	None = 0,
 
