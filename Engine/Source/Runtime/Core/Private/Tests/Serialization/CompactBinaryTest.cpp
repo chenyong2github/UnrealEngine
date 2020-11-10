@@ -348,7 +348,16 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("FCbObject{Uniform}::FindIgnoreCase()"), Object.FindRefIgnoreCase("b"_ASV).AsInt32(), 2);
 		TestEqual(TEXT("FCbObject{Uniform}::operator[]"), Object["B"_ASV].AsInt32(), 2);
 		TestEqual(TEXT("FCbObject{Uniform}::operator[]"), Object["b"_ASV].AsInt32(4), 4);
+
+		TestTrue(TEXT("FCbObjectRef::AsFieldRef()"), Object.GetBuffer() == Object.AsFieldRef().AsObjectRef().GetBuffer());
+
 		Object = FCbFieldRef::MakeView(Field).AsObjectRef();
+
+		const uint8 NamedPayload[] = { 1, 'O', 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
+		FCbField NamedField(NamedPayload, ECbFieldType::UniformObject | ECbFieldType::HasFieldName);
+		TestTrue(TEXT("FCbObject::Equals()"), Object.Equals(NamedField.AsObject()));
+		TestTrue(TEXT("FCbObject::AsField().Equals()"), Field.Equals(NamedField.AsObject().AsField()));
+		TestFalse(TEXT("FCbObject::AsField().Equals()"), NamedField.Equals(NamedField.AsObject().AsField()));
 	}
 
 	// Test FCbField(None) as Object
@@ -377,6 +386,31 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 		for (FCbFieldRefIterator It = ObjectClone.CreateRefIterator(), End; It != End; ++It)
 		{
 		}
+	}
+
+	// Test FCbObject as FCbFieldIterator
+	{
+		uint32 Count = 0;
+		FCbObject Object;
+		for (FCbField Field : FCbFieldIterator(Object.AsField()))
+		{
+			TestTrue(TEXT("FCbObject::AsField() as Iterator"), Field.IsObject());
+			++Count;
+		}
+		TestEqual(TEXT("FCbObject::AsField() as Iterator Count"), Count, 1u);
+	}
+
+	// Test FCbObjectRef as FCbFieldRefIterator
+	{
+		uint32 Count = 0;
+		FCbObjectRef Object;
+		Object.MakeOwned();
+		for (FCbFieldRef Field : FCbFieldRefIterator(Object.AsFieldRef()))
+		{
+			TestTrue(TEXT("FCbObjectRef::AsField() as Iterator"), Field.IsObject());
+			++Count;
+		}
+		TestEqual(TEXT("FCbObjectRef::AsField() as Iterator Count"), Count, 1u);
 	}
 
 	return true;
@@ -450,7 +484,16 @@ bool FCbFieldArrayTest::RunTest(const FString& Parameters)
 		TestIntArray(Array, 3, sizeof(Payload));
 		TestIntArray(Field.AsArray(), 3, sizeof(Payload));
 		TestTrue(TEXT("FCbArray::Equals()"), Array.Equals(Field.AsArray()));
+
+		TestTrue(TEXT("FCbArrayRef::AsFieldRef()"), Array.GetBuffer() == Array.AsFieldRef().AsArrayRef().GetBuffer());
+
 		Array = FCbFieldRef::MakeView(Field).AsArrayRef();
+
+		const uint8 NamedPayload[] = { 1, 'A', 5, 3, IntType, 1, 2, 3 };
+		FCbField NamedField(NamedPayload, ECbFieldType::UniformArray | ECbFieldType::HasFieldName);
+		TestTrue(TEXT("FCbArray::Equals()"), Array.Equals(NamedField.AsArray()));
+		TestTrue(TEXT("FCbArray::AsField().Equals()"), Field.Equals(NamedField.AsArray().AsField()));
+		TestFalse(TEXT("FCbArray::AsField().Equals()"), NamedField.Equals(NamedField.AsArray().AsField()));
 	}
 
 	// Test FCbField(None) as Array
@@ -478,6 +521,31 @@ bool FCbFieldArrayTest::RunTest(const FString& Parameters)
 		for (FCbFieldRefIterator It = ArrayClone.CreateRefIterator(), End; It != End; ++It)
 		{
 		}
+	}
+
+	// Test FCbArray as FCbFieldIterator
+	{
+		uint32 Count = 0;
+		FCbArray Array;
+		for (FCbField Field : FCbFieldIterator(Array.AsField()))
+		{
+			TestTrue(TEXT("FCbArray::AsField() as Iterator"), Field.IsArray());
+			++Count;
+		}
+		TestEqual(TEXT("FCbArray::AsField() as Iterator Count"), Count, 1u);
+	}
+
+	// Test FCbArrayRef as FCbFieldRefIterator
+	{
+		uint32 Count = 0;
+		FCbArrayRef Array;
+		Array.MakeOwned();
+		for (FCbFieldRef Field : FCbFieldRefIterator(Array.AsFieldRef()))
+		{
+			TestTrue(TEXT("FCbArrayRef::AsField() as Iterator"), Field.IsArray());
+			++Count;
+		}
+		TestEqual(TEXT("FCbArrayRef::AsField() as Iterator Count"), Count, 1u);
 	}
 
 	return true;
@@ -904,6 +972,7 @@ bool FCbFieldRefTest::RunTest(const FString& Parameters)
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, const FSharedBufferPtr&>::value, "Missing constructor for FCbFieldRef");
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, const FSharedBufferConstRef&>::value, "Missing constructor for FCbFieldRef");
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, const FSharedBufferConstPtr&>::value, "Missing constructor for FCbFieldRef");
+	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, const FCbFieldRefIterator&>::value, "Missing constructor for FCbFieldRef");
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, const FCbFieldRef&>::value, "Missing constructor for FCbFieldRef");
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, const FCbArrayRef&>::value, "Missing constructor for FCbFieldRef");
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, const FCbObjectRef&>::value, "Missing constructor for FCbFieldRef");
@@ -912,6 +981,7 @@ bool FCbFieldRefTest::RunTest(const FString& Parameters)
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, FSharedBufferPtr&&>::value, "Missing constructor for FCbFieldRef");
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, FSharedBufferConstRef&&>::value, "Missing constructor for FCbFieldRef");
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, FSharedBufferConstPtr&&>::value, "Missing constructor for FCbFieldRef");
+	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, FCbFieldRefIterator&&>::value, "Missing constructor for FCbFieldRef");
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, FCbFieldRef&&>::value, "Missing constructor for FCbFieldRef");
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, FCbArrayRef&&>::value, "Missing constructor for FCbFieldRef");
 	static_assert(std::is_constructible<FCbFieldRef, const FCbField&, FCbObjectRef&&>::value, "Missing constructor for FCbFieldRef");
@@ -1066,11 +1136,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbArrayRefTest, "System.Core.Serialization.CbA
 bool FCbArrayRefTest::RunTest(const FString& Parameters)
 {
 	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, const FSharedBufferConstPtr&>::value, "Missing constructor for FCbArrayRef");
+	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, const FCbFieldRefIterator&>::value, "Missing constructor for FCbArrayRef");
 	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, const FCbFieldRef&>::value, "Missing constructor for FCbArrayRef");
 	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, const FCbArrayRef&>::value, "Missing constructor for FCbArrayRef");
 	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, const FCbObjectRef&>::value, "Missing constructor for FCbArrayRef");
 
 	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, FSharedBufferConstPtr&&>::value, "Missing constructor for FCbArrayRef");
+	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, FCbFieldRefIterator&&>::value, "Missing constructor for FCbArrayRef");
 	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, FCbFieldRef&&>::value, "Missing constructor for FCbArrayRef");
 	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, FCbArrayRef&&>::value, "Missing constructor for FCbArrayRef");
 	static_assert(std::is_constructible<FCbArrayRef, const FCbArray&, FCbObjectRef&&>::value, "Missing constructor for FCbArrayRef");
@@ -1094,11 +1166,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbObjectRefTest, "System.Core.Serialization.Cb
 bool FCbObjectRefTest::RunTest(const FString& Parameters)
 {
 	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, const FSharedBufferConstPtr&>::value, "Missing constructor for FCbObjectRef");
+	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, const FCbFieldRefIterator&>::value, "Missing constructor for FCbObjectRef");
 	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, const FCbFieldRef&>::value, "Missing constructor for FCbObjectRef");
 	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, const FCbArrayRef&>::value, "Missing constructor for FCbObjectRef");
 	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, const FCbObjectRef&>::value, "Missing constructor for FCbObjectRef");
 
 	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, FSharedBufferConstPtr&&>::value, "Missing constructor for FCbObjectRef");
+	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, FCbFieldRefIterator&&>::value, "Missing constructor for FCbObjectRef");
 	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, FCbFieldRef&&>::value, "Missing constructor for FCbObjectRef");
 	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, FCbArrayRef&&>::value, "Missing constructor for FCbObjectRef");
 	static_assert(std::is_constructible<FCbObjectRef, const FCbObject&, FCbObjectRef&&>::value, "Missing constructor for FCbObjectRef");

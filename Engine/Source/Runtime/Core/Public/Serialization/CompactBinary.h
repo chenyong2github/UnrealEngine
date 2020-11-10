@@ -292,6 +292,28 @@ public:
 	{
 	}
 
+	/**
+	 * Construct a field iterator for one field.
+	 *
+	 * @param InField The single field to be iterated.
+	 */
+	constexpr inline explicit TCbFieldIterator(const FieldType& InField)
+		: FieldType(InField)
+		, FieldsEnd(FieldType::GetPayloadEnd())
+	{
+	}
+
+	/**
+	 * Construct a field iterator for one field.
+	 *
+	 * @param InField The single field to be iterated.
+	 */
+	constexpr inline explicit TCbFieldIterator(FieldType&& InField)
+		: FieldType(MoveTemp(InField))
+		, FieldsEnd(FieldType::GetPayloadEnd())
+	{
+	}
+
 	inline TCbFieldIterator& operator++()
 	{
 		const void* const PayloadEnd = FieldType::GetPayloadEnd();
@@ -393,7 +415,7 @@ public:
 	 * assumes that both fields are valid and are written in the canonical format. Fields must be
 	 * written in the same order in arrays and objects, and name comparison is case sensitive. If
 	 * these assumptions do not hold, this may return false for equivalent inputs. Validation can
-	 * be done with the `All` mode to check these assumptions about the format of the inputs.
+	 * be performed with \ref ValidateCompactBinary, except for field order and field name case.
 	 */
 	CORE_API bool Equals(const FCbField& Other) const;
 
@@ -631,6 +653,12 @@ public:
 	 */
 	CORE_API bool Equals(const FCbArray& Other) const;
 
+	/** Access the array as an array field. */
+	inline FCbField AsField() const
+	{
+		return FCbField(Payload, FCbFieldType::GetType(Type));
+	}
+
 protected:
 	inline ECbFieldType GetCopyType() const { return FCbFieldType::GetType(Type) | ECbFieldType::HasFieldType; }
 
@@ -709,6 +737,12 @@ public:
 
 	/** Find a field by case-sensitive name comparison. \see \ref FCbObject::Find */
 	inline FCbField operator[](FAnsiStringView Name) const { return Find(Name); }
+
+	/** Access the object as an object field. */
+	inline FCbField AsField() const
+	{
+		return FCbField(Payload, FCbFieldType::GetType(Type));
+	}
 
 protected:
 	inline ECbFieldType GetCopyType() const { return FCbFieldType::GetType(Type) | ECbFieldType::HasFieldType; }
@@ -928,10 +962,16 @@ public:
 	using TCbBufferRef::TCbBufferRef;
 
 	/** Access the field as an object. Defaults to an empty object on error. */
-	inline FCbObjectRef AsObjectRef();
+	inline FCbObjectRef AsObjectRef() &;
+
+	/** Access the field as an object. Defaults to an empty object on error. */
+	inline FCbObjectRef AsObjectRef() &&;
 
 	/** Access the field as an array. Defaults to an empty array on error. */
-	inline FCbArrayRef AsArrayRef();
+	inline FCbArrayRef AsArrayRef() &;
+
+	/** Access the field as an array. Defaults to an empty array on error. */
+	inline FCbArrayRef AsArrayRef() &&;
 };
 
 /** Iterator for \ref FCbFieldRef. \see \ref TCbFieldIterator */
@@ -954,6 +994,18 @@ public:
 	{
 		FCbFieldIterator It = CreateIterator();
 		return FCbFieldRefIterator(FCbFieldRef(It, GetBuffer()), It);
+	}
+
+	/** Access the array as an array field. */
+	inline FCbFieldRef AsFieldRef() const &
+	{
+		return FCbFieldRef(FCbArray::AsField(), *this);
+	}
+
+	/** Access the array as an array field. */
+	inline FCbFieldRef AsFieldRef() &&
+	{
+		return FCbFieldRef(FCbArray::AsField(), MoveTemp(*this));
 	}
 };
 
@@ -991,18 +1043,40 @@ public:
 		}
 		return FCbFieldRef();
 	}
+
+	/** Access the object as an object field. */
+	inline FCbFieldRef AsFieldRef() const &
+	{
+		return FCbFieldRef(FCbObject::AsField(), *this);
+	}
+
+	/** Access the object as an object field. */
+	inline FCbFieldRef AsFieldRef() &&
+	{
+		return FCbFieldRef(FCbObject::AsField(), MoveTemp(*this));
+	}
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-inline FCbObjectRef FCbFieldRef::AsObjectRef()
+inline FCbObjectRef FCbFieldRef::AsObjectRef() &
 {
 	return IsObject() ? FCbObjectRef(AsObject(), *this) : FCbObjectRef();
 }
 
-inline FCbArrayRef FCbFieldRef::AsArrayRef()
+inline FCbObjectRef FCbFieldRef::AsObjectRef() &&
+{
+	return IsObject() ? FCbObjectRef(AsObject(), MoveTemp(*this)) : FCbObjectRef();
+}
+
+inline FCbArrayRef FCbFieldRef::AsArrayRef() &
 {
 	return IsArray() ? FCbArrayRef(AsArray(), *this) : FCbArrayRef();
+}
+
+inline FCbArrayRef FCbFieldRef::AsArrayRef() &&
+{
+	return IsArray() ? FCbArrayRef(AsArray(), MoveTemp(*this)) : FCbArrayRef();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
