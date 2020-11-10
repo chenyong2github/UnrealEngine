@@ -3057,12 +3057,13 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 				TRACE_CPUPROFILER_EVENT_SCOPE(PropagateGlobalShadersToAllPrimitives);
 
 				FObjectCacheContextScope ObjectCacheScope;
+				TSet<FSceneInterface*> ScenesToUpdate;
 				TIndirectArray<FComponentRecreateRenderStateContext> ComponentContexts;
 				for (UPrimitiveComponent* PrimitiveComponent : ObjectCacheScope.GetContext().GetPrimitiveComponents())
 				{
 					if (PrimitiveComponent->IsRenderStateCreated())
 					{
-						ComponentContexts.Add(new FComponentRecreateRenderStateContext(PrimitiveComponent));
+						ComponentContexts.Add(new FComponentRecreateRenderStateContext(PrimitiveComponent, &ScenesToUpdate));
 #if WITH_EDITOR
 						if (PrimitiveComponent->HasValidSettingsForStaticLighting(false))
 						{
@@ -3072,7 +3073,10 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 #endif
 					}
 				}
+
+				UpdateAllPrimitiveSceneInfosForScenes(ScenesToUpdate);
 				ComponentContexts.Empty();
+				UpdateAllPrimitiveSceneInfosForScenes(ScenesToUpdate);
 			}
 				
 			{
@@ -3134,6 +3138,7 @@ void FShaderCompilingManager::PropagateMaterialChangesToPrimitives(const TMap<TR
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompilingManager::PropagateMaterialChangesToPrimitives);
 
+	TSet<FSceneInterface*> ScenesToUpdate;
 	FObjectCacheContextScope ObjectCacheScope;
 	TIndirectArray<FComponentRecreateRenderStateContext> ComponentContexts;
 	for (UPrimitiveComponent* PrimitiveComponent : ObjectCacheScope.GetContext().GetPrimitiveComponents())
@@ -3169,7 +3174,7 @@ void FShaderCompilingManager::PropagateMaterialChangesToPrimitives(const TMap<TR
 
 				if (bPrimitiveIsDependentOnMaterial)
 				{
-					ComponentContexts.Add(new FComponentRecreateRenderStateContext(PrimitiveComponent));
+					ComponentContexts.Add(new FComponentRecreateRenderStateContext(PrimitiveComponent, &ScenesToUpdate));
 #if WITH_EDITOR
 					FStaticLightingSystemInterface::OnPrimitiveComponentUnregistered.Broadcast(PrimitiveComponent);
 
@@ -3183,7 +3188,9 @@ void FShaderCompilingManager::PropagateMaterialChangesToPrimitives(const TMap<TR
 		}
 	}
 
+	UpdateAllPrimitiveSceneInfosForScenes(ScenesToUpdate);
 	ComponentContexts.Empty();
+	UpdateAllPrimitiveSceneInfosForScenes(ScenesToUpdate);
 }
 
 
