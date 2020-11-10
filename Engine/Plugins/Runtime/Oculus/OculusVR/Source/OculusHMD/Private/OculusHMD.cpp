@@ -3193,29 +3193,32 @@ namespace OculusHMD
 		if (!Frame.IsValid())
 		{
 			Splash->UpdateLoadingScreen_GameThread(); //the result of this is used in CreateGameFrame to know if Frame is a "real" one or a "splash" one.
-			Frame = CreateNewGameFrame();
-			NextFrameToRender = Frame;
-
-			UE_LOG(LogHMD, VeryVerbose, TEXT("StartGameFrame %u"), Frame->FrameNumber);
-
-			if (!Splash->IsShown())
+			if (Settings->Flags.bHMDEnabled)
 			{
-				if (FOculusHMDModule::GetPluginWrapper().GetInitialized() && WaitFrameNumber != Frame->FrameNumber)
+				Frame = CreateNewGameFrame();
+				NextFrameToRender = Frame;
+
+				UE_LOG(LogHMD, VeryVerbose, TEXT("StartGameFrame %u"), Frame->FrameNumber);
+
+				if (!Splash->IsShown())
 				{
-					UE_LOG(LogHMD, Verbose, TEXT("FOculusHMDModule::GetPluginWrapper().WaitToBeginFrame %u"), Frame->FrameNumber);
+					if (FOculusHMDModule::GetPluginWrapper().GetInitialized() && WaitFrameNumber != Frame->FrameNumber)
+					{
+						UE_LOG(LogHMD, Verbose, TEXT("FOculusHMDModule::GetPluginWrapper().WaitToBeginFrame %u"), Frame->FrameNumber);
 
-					ovrpResult Result;
-					if (OVRP_FAILURE(Result = FOculusHMDModule::GetPluginWrapper().WaitToBeginFrame(Frame->FrameNumber)))
-					{
-						UE_LOG(LogHMD, Error, TEXT("FOculusHMDModule::GetPluginWrapper().WaitToBeginFrame %u failed (%d)"), Frame->FrameNumber, Result);
+						ovrpResult Result;
+						if (OVRP_FAILURE(Result = FOculusHMDModule::GetPluginWrapper().WaitToBeginFrame(Frame->FrameNumber)))
+						{
+							UE_LOG(LogHMD, Error, TEXT("FOculusHMDModule::GetPluginWrapper().WaitToBeginFrame %u failed (%d)"), Frame->FrameNumber, Result);
+						}
+						else
+						{
+							WaitFrameNumber = Frame->FrameNumber;
+						}
 					}
-					else
-					{
-						WaitFrameNumber = Frame->FrameNumber;
-					}
+
+					FOculusHMDModule::GetPluginWrapper().Update3(ovrpStep_Render, Frame->FrameNumber, 0.0);
 				}
-
-				FOculusHMDModule::GetPluginWrapper().Update3(ovrpStep_Render, Frame->FrameNumber, 0.0);
 			}
 
 			UpdateStereoRenderingParams();
