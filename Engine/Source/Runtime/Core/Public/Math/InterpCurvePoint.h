@@ -93,6 +93,13 @@ public:
 	 */
 	FInterpCurvePoint( const float In, const T &Out, const T &InArriveTangent, const T &InLeaveTangent, const EInterpCurveMode InInterpMode );
 
+	/**
+	 * Constructor which initializes all components to zero.
+	 *
+	 * @param EForceInit Force init enum
+	 */
+	explicit FORCEINLINE FInterpCurvePoint(EForceInit);
+
 public:
 
 	/** @return true if the key value is using a curve interp mode, otherwise false */
@@ -162,6 +169,15 @@ FORCEINLINE FInterpCurvePoint<T>::FInterpCurvePoint( const float In, const T &Ou
 	, InterpMode(InInterpMode)
 { }
 
+template< class T >
+FORCEINLINE FInterpCurvePoint<T>::FInterpCurvePoint(EForceInit)
+{
+	InVal = 0.0f;
+	FMemory::Memset(&OutVal, 0, sizeof(T));
+	FMemory::Memset(&ArriveTangent, 0, sizeof(T));
+	FMemory::Memset(&LeaveTangent, 0, sizeof(T));
+	InterpMode = CIM_Linear;
+}
 
 template< class T > 
 FORCEINLINE bool FInterpCurvePoint<T>::IsCurveKey() const

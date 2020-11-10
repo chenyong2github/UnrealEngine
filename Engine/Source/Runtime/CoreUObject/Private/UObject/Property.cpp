@@ -20,6 +20,7 @@
 #include "UObject/CoreRedirects.h"
 #include "UObject/SoftObjectPath.h"
 #include "Math/Box2D.h"
+#include "Math/InterpCurvePoint.h"
 #include "UObject/ReleaseObjectVersion.h"
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
@@ -236,6 +237,66 @@ struct TStructOpsTypeTraits<FTwoVectors> : public TStructOpsTypeTraitsBase2<FTwo
 	};
 };
 IMPLEMENT_STRUCT(TwoVectors);
+
+template<>
+struct TStructOpsTypeTraits<FInterpCurvePointFloat> : public TStructOpsTypeTraitsBase2<FInterpCurvePointFloat>
+{
+	enum
+	{
+		WithNoInitConstructor = true,
+	};
+};
+IMPLEMENT_STRUCT(InterpCurvePointFloat);
+
+template<>
+struct TStructOpsTypeTraits<FInterpCurvePointVector2D> : public TStructOpsTypeTraitsBase2<FInterpCurvePointVector2D>
+{
+	enum
+	{
+		WithNoInitConstructor = true,
+	};
+};
+IMPLEMENT_STRUCT(InterpCurvePointVector2D);
+
+template<>
+struct TStructOpsTypeTraits<FInterpCurvePointVector> : public TStructOpsTypeTraitsBase2<FInterpCurvePointVector>
+{
+	enum
+	{
+		WithNoInitConstructor = true,
+	};
+};
+IMPLEMENT_STRUCT(InterpCurvePointVector);
+
+template<>
+struct TStructOpsTypeTraits<FInterpCurvePointQuat> : public TStructOpsTypeTraitsBase2<FInterpCurvePointQuat>
+{
+	enum
+	{
+		WithNoInitConstructor = true,
+	};
+};
+IMPLEMENT_STRUCT(InterpCurvePointQuat);
+
+template<>
+struct TStructOpsTypeTraits<FInterpCurvePointTwoVectors> : public TStructOpsTypeTraitsBase2<FInterpCurvePointTwoVectors>
+{
+	enum
+	{
+		WithNoInitConstructor = true,
+	};
+};
+IMPLEMENT_STRUCT(InterpCurvePointTwoVectors);
+
+template<>
+struct TStructOpsTypeTraits<FInterpCurvePointLinearColor> : public TStructOpsTypeTraitsBase2<FInterpCurvePointLinearColor>
+{
+	enum
+	{
+		WithNoInitConstructor = true,
+	};
+};
+IMPLEMENT_STRUCT(InterpCurvePointLinearColor);
 
 template<>
 struct TStructOpsTypeTraits<FGuid> : public TStructOpsTypeTraitsBase2<FGuid>

@@ -53,7 +53,7 @@
 #include "UObject/PropertyProxyArchive.h"
 #include "UObject/FieldPath.h"
 #include "HAL/ThreadSafeCounter.h"
-
+#include "Math/InterpCurvePoint.h"
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
 #include "UObject/UndefineUPropertyMacros.h"
@@ -5910,6 +5910,42 @@ UScriptStruct* TBaseStructure<FBox2D>::Get()
 UScriptStruct* TBaseStructure<FFallbackStruct>::Get()
 {
 	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("FallbackStruct"));
+	return ScriptStruct;
+}
+
+UScriptStruct* TBaseStructure<FInterpCurvePointFloat>::Get()
+{
+	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("InterpCurvePointFloat"));
+	return ScriptStruct;
+}
+
+UScriptStruct* TBaseStructure<FInterpCurvePointVector2D>::Get()
+{
+	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("InterpCurvePointVector2D"));
+	return ScriptStruct;
+}
+
+UScriptStruct* TBaseStructure<FInterpCurvePointVector>::Get()
+{
+	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("InterpCurvePointVector"));
+	return ScriptStruct;
+}
+
+UScriptStruct* TBaseStructure<FInterpCurvePointQuat>::Get()
+{
+	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("InterpCurvePointQuat"));
+	return ScriptStruct;
+}
+
+UScriptStruct* TBaseStructure<FInterpCurvePointTwoVectors>::Get()
+{
+	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("InterpCurvePointTwoVectors"));
+	return ScriptStruct;
+}
+
+UScriptStruct* TBaseStructure<FInterpCurvePointLinearColor>::Get()
+{
+	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("InterpCurvePointLinearColor"));
 	return ScriptStruct;
 }
 

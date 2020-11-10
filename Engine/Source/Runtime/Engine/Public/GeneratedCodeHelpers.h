@@ -28,8 +28,9 @@
 //For DOREPLIFETIME macros
 #include "Net/UnrealNetwork.h"
 
-//For Box2D
 #include "Runtime/Core/Public/Math/Box2D.h"
+#include "Runtime/Core/Public/Math/InterpCurvePoint.h"
+#include "Runtime/Core/Public/Containers/EnumAsByte.h"
 
 inline FBox2D CreateFBox2D(FVector2D InMin, FVector2D InMax, bool InIsValid)
 {
@@ -37,6 +38,74 @@ inline FBox2D CreateFBox2D(FVector2D InMin, FVector2D InMax, bool InIsValid)
 	Result.Min = InMin;
 	Result.Max = InMax;
 	Result.bIsValid = InIsValid;
+	return Result;
+}
+
+inline FInterpCurvePointFloat CreateFInterpCurvePointFloat(float InVal, float OutVal, float ArriveTangent, float LeaveTangent, const TEnumAsByte<EInterpCurveMode>& InterpMode)
+{
+	FInterpCurvePointFloat Result;
+	Result.InVal = InVal;
+	Result.OutVal = OutVal;
+	Result.ArriveTangent = ArriveTangent;
+	Result.LeaveTangent = LeaveTangent;
+	Result.InterpMode = InterpMode;
+	return Result;
+}
+
+inline FInterpCurvePointVector2D CreateFInterpCurvePointVector2D(float InVal, const FVector2D& OutVal, const FVector2D& ArriveTangent, const FVector2D& LeaveTangent, const TEnumAsByte<EInterpCurveMode>& InterpMode)
+{
+	FInterpCurvePointVector2D Result;
+	Result.InVal = InVal;
+	Result.OutVal = OutVal;
+	Result.ArriveTangent = ArriveTangent;
+	Result.LeaveTangent = LeaveTangent;
+	Result.InterpMode = InterpMode;
+	return Result;
+}
+
+inline FInterpCurvePointVector CreateFInterpCurvePointVector(float InVal, const FVector& OutVal, const FVector& ArriveTangent, const FVector& LeaveTangent, const TEnumAsByte<EInterpCurveMode>& InterpMode)
+{
+	FInterpCurvePointVector Result;
+	Result.InVal = InVal;
+	Result.OutVal = OutVal;
+	Result.ArriveTangent = ArriveTangent;
+	Result.LeaveTangent = LeaveTangent;
+	Result.InterpMode = InterpMode;
+	return Result;
+}
+
+inline FInterpCurvePointQuat CreateFInterpCurvePointQuat(float InVal, const FQuat& OutVal, const FQuat& ArriveTangent, const FQuat& LeaveTangent, const TEnumAsByte<EInterpCurveMode>& InterpMode)
+{
+	FInterpCurvePointQuat Result;
+	Result.InVal = InVal;
+	Result.OutVal = OutVal;
+	Result.ArriveTangent = ArriveTangent;
+	Result.LeaveTangent = LeaveTangent;
+	Result.InterpMode = InterpMode;
+	return Result;
+}
+
+inline FInterpCurvePointTwoVectors CreateFInterpCurvePointTwoVectors(float InVal, const FVector& OutVal1, const FVector& OutVal2, const FVector& ArriveTangent1,
+									const FVector& ArriveTangent2, const FVector& LeaveTangent1, const FVector& LeaveTangent2,
+									const EInterpCurveMode& InterpMode)
+{
+	FInterpCurvePointTwoVectors Result;
+	Result.InVal = InVal;
+	Result.OutVal = FTwoVectors(OutVal1, OutVal2);
+	Result.ArriveTangent = FTwoVectors(ArriveTangent1, ArriveTangent2);
+	Result.LeaveTangent = FTwoVectors(LeaveTangent1, LeaveTangent2);
+	Result.InterpMode = InterpMode;
+	return Result;
+}
+
+inline FInterpCurvePointLinearColor CreateFInterpCurvePointLinearColor(float InVal, const FLinearColor& OutVal, const FLinearColor& ArriveTangent, const FLinearColor& LeaveTangent, const EInterpCurveMode& InterpMode)
+{
+	FInterpCurvePointLinearColor Result;
+	Result.InVal = InVal;
+	Result.OutVal = OutVal;
+	Result.ArriveTangent = ArriveTangent;
+	Result.LeaveTangent = LeaveTangent;
+	Result.InterpMode = InterpMode;
 	return Result;
 }
 

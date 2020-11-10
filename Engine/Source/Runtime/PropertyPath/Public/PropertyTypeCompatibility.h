@@ -8,7 +8,7 @@
 #include "UObject/UnrealType.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/TextProperty.h"
-
+#include "Math/InterpCurvePoint.h"
 
 /** Generic (struct) implementation */
 template<typename T>
@@ -227,6 +227,42 @@ template<>
 inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FGuid>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FGuid>(Property);
+}
+
+template<>
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FInterpCurvePointFloat>(FProperty* Property)
+{
+	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FInterpCurvePointFloat>(Property);
+}
+
+template<>
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FInterpCurvePointVector>(FProperty* Property)
+{
+	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FInterpCurvePointVector>(Property);
+}
+
+template<>
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FInterpCurvePointVector2D>(FProperty* Property)
+{
+	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FInterpCurvePointVector2D>(Property);
+}
+
+template<>
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FInterpCurvePointQuat>(FProperty* Property)
+{
+	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FInterpCurvePointQuat>(Property);
+}
+
+template<>
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FInterpCurvePointTwoVectors>(FProperty* Property)
+{
+	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FInterpCurvePointTwoVectors>(Property);
+}
+
+template<>
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FInterpCurvePointLinearColor>(FProperty* Property)
+{
+	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FInterpCurvePointLinearColor>(Property);
 }
 
 template<>

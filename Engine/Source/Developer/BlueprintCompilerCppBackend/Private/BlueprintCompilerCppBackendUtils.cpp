@@ -2406,6 +2406,12 @@ private:
 		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FTransform>::Get());
 		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FBox2D>::Get());
 		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FFallbackStruct>::Get());
+		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FInterpCurvePointFloat>::Get());
+		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FInterpCurvePointVector2D>::Get());
+		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FInterpCurvePointVector>::Get());
+		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FInterpCurvePointQuat>::Get());
+		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FInterpCurvePointTwoVectors>::Get());
+		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FInterpCurvePointLinearColor>::Get());
 		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FFloatRangeBound>::Get());
 		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FFloatRange>::Get());
 		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FInt32RangeBound>::Get());

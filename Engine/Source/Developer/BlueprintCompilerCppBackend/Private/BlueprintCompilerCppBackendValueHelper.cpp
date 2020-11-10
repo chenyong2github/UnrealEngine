@@ -604,6 +604,138 @@ bool FEmitDefaultValueHelper::SpecialStructureConstructor(const UStruct* Struct,
 		}
 		return true;
 	}
+	
+	if (TBaseStructure<FInterpCurvePointFloat>::Get() == Struct)
+	{
+		if (OutResult)
+		{
+			const FInterpCurvePointFloat* CurvePointFloat = reinterpret_cast<const FInterpCurvePointFloat*>(ValuePtr);
+			*OutResult = FString::Printf(TEXT("CreateFInterpCurvePointFloat(%s, %s, %s, %s, TEnumAsByte<EInterpCurveMode>(%d))")
+				, *FEmitHelper::FloatToString(CurvePointFloat->InVal)
+				, *FEmitHelper::FloatToString(CurvePointFloat->OutVal)
+				, *FEmitHelper::FloatToString(CurvePointFloat->ArriveTangent)
+				, *FEmitHelper::FloatToString(CurvePointFloat->LeaveTangent)
+				, CurvePointFloat->InterpMode.GetValue());
+		}
+		return true;
+	}
+
+	if (TBaseStructure<FInterpCurvePointVector2D>::Get() == Struct)
+	{
+		if (OutResult)
+		{
+			const FInterpCurvePointVector2D* CurvePointVector2D = reinterpret_cast<const FInterpCurvePointVector2D*>(ValuePtr);
+			*OutResult = FString::Printf(TEXT("CreateFInterpCurvePointVector2D(%s, FVector2D(%s, %s), FVector2D(%s, %s), FVector2D(%s, %s), TEnumAsByte<EInterpCurveMode>(%d))")
+				, *FEmitHelper::FloatToString(CurvePointVector2D->InVal)
+				, *FEmitHelper::FloatToString(CurvePointVector2D->OutVal.X)
+				, *FEmitHelper::FloatToString(CurvePointVector2D->OutVal.Y)
+				, *FEmitHelper::FloatToString(CurvePointVector2D->ArriveTangent.X)
+				, *FEmitHelper::FloatToString(CurvePointVector2D->ArriveTangent.Y)
+				, *FEmitHelper::FloatToString(CurvePointVector2D->LeaveTangent.X)
+				, *FEmitHelper::FloatToString(CurvePointVector2D->LeaveTangent.Y)
+				, CurvePointVector2D->InterpMode.GetValue());
+		}
+		return true;
+	}
+
+	if (TBaseStructure<FInterpCurvePointVector>::Get() == Struct)
+	{
+		if (OutResult)
+		{
+			const FInterpCurvePointVector* CurvePointVector = reinterpret_cast<const FInterpCurvePointVector*>(ValuePtr);
+			*OutResult = FString::Printf(TEXT("CreateFInterpCurvePointVector(%s, FVector(%s, %s, %s), FVector(%s, %s, %s), FVector(%s, %s, %s), TEnumAsByte<EInterpCurveMode>(%d))")
+				, *FEmitHelper::FloatToString(CurvePointVector->InVal)
+				, *FEmitHelper::FloatToString(CurvePointVector->OutVal.X)
+				, *FEmitHelper::FloatToString(CurvePointVector->OutVal.Y)
+				, *FEmitHelper::FloatToString(CurvePointVector->OutVal.Z)
+				, *FEmitHelper::FloatToString(CurvePointVector->ArriveTangent.X)
+				, *FEmitHelper::FloatToString(CurvePointVector->ArriveTangent.Y)
+				, *FEmitHelper::FloatToString(CurvePointVector->ArriveTangent.Z)
+				, *FEmitHelper::FloatToString(CurvePointVector->LeaveTangent.X)
+				, *FEmitHelper::FloatToString(CurvePointVector->LeaveTangent.Y)
+				, *FEmitHelper::FloatToString(CurvePointVector->LeaveTangent.Z)
+				, CurvePointVector->InterpMode.GetValue());
+		}
+		return true;
+	}
+
+	if (TBaseStructure<FInterpCurvePointQuat>::Get() == Struct)
+	{
+		if (OutResult)
+		{
+			const FInterpCurvePointQuat* CurvePointQuat = reinterpret_cast<const FInterpCurvePointQuat*>(ValuePtr);
+			*OutResult = FString::Printf(TEXT("CreateFInterpCurvePointQuat(%s, FQuat(%s, %s, %s, %s), FQuat(%s, %s, %s, %s), FQuat(%s, %s, %s, %s), TEnumAsByte<EInterpCurveMode>(%d))")
+				, *FEmitHelper::FloatToString(CurvePointQuat->InVal)
+				, *FEmitHelper::FloatToString(CurvePointQuat->OutVal.X)
+				, *FEmitHelper::FloatToString(CurvePointQuat->OutVal.Y)
+				, *FEmitHelper::FloatToString(CurvePointQuat->OutVal.Z)
+				, *FEmitHelper::FloatToString(CurvePointQuat->OutVal.W)
+				, *FEmitHelper::FloatToString(CurvePointQuat->ArriveTangent.X)
+				, *FEmitHelper::FloatToString(CurvePointQuat->ArriveTangent.Y)
+				, *FEmitHelper::FloatToString(CurvePointQuat->ArriveTangent.Z)
+				, *FEmitHelper::FloatToString(CurvePointQuat->ArriveTangent.W)
+				, *FEmitHelper::FloatToString(CurvePointQuat->LeaveTangent.X)
+				, *FEmitHelper::FloatToString(CurvePointQuat->LeaveTangent.Y)
+				, *FEmitHelper::FloatToString(CurvePointQuat->LeaveTangent.Z)
+				, *FEmitHelper::FloatToString(CurvePointQuat->LeaveTangent.W)
+				, CurvePointQuat->InterpMode.GetValue());
+		}
+		return true;
+	}
+
+	if (TBaseStructure<FInterpCurvePointTwoVectors>::Get() == Struct)
+	{
+		if (OutResult)
+		{
+			const FInterpCurvePointTwoVectors* CurvePointTwoVectors = reinterpret_cast<const FInterpCurvePointTwoVectors*>(ValuePtr);
+			*OutResult = FString::Printf(TEXT("CreateFInterpCurvePointTwoVectors(%s, FVector(%s, %s, %s), FVector(%s, %s, %s), FVector(%s, %s, %s), FVector(%s, %s, %s), FVector(%s, %s, %s), FVector(%s, %s, %s), TEnumAsByte<EInterpCurveMode>(%d))")
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->InVal)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->OutVal.v1.X)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->OutVal.v1.Y)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->OutVal.v1.Z)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->OutVal.v2.X)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->OutVal.v2.Y)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->OutVal.v2.Z)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->ArriveTangent.v1.X)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->ArriveTangent.v1.Y)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->ArriveTangent.v1.Z)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->ArriveTangent.v2.X)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->ArriveTangent.v2.Y)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->ArriveTangent.v2.Z)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->LeaveTangent.v1.X)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->LeaveTangent.v1.Y)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->LeaveTangent.v1.Z)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->LeaveTangent.v2.X)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->LeaveTangent.v2.Y)
+				, *FEmitHelper::FloatToString(CurvePointTwoVectors->LeaveTangent.v2.Z)
+				, CurvePointTwoVectors->InterpMode.GetValue());
+		}
+		return true;
+	}
+
+	if (TBaseStructure<FInterpCurvePointLinearColor>::Get() == Struct)
+	{
+		if (OutResult)
+		{
+			const FInterpCurvePointLinearColor* CurvePointLinearColor = reinterpret_cast<const FInterpCurvePointLinearColor*>(ValuePtr);
+			*OutResult = FString::Printf(TEXT("CreateFInterpCurvePointLinearColor(%s, FLinearColor(%s, %s, %s, %s), FLinearColor(%s, %s, %s, %s), FLinearColor(%s, %s, %s, %s), TEnumAsByte<EInterpCurveMode>(%d))")
+				, *FEmitHelper::FloatToString(CurvePointLinearColor->InVal)
+				, *FEmitHelper::FloatToString(CurvePointLinearColor->OutVal.R)
+				, *FEmitHelper::FloatToString(CurvePointLinearColor->OutVal.G)
+				, *FEmitHelper::FloatToString(CurvePointLinearColor->OutVal.B)
+				, *FEmitHelper::FloatToString(CurvePointLinearColor->OutVal.A)
+				, *FEmitHelper::FloatToString(CurvePointLinearColor->ArriveTangent.R)
+				, *FEmitHelper::FloatToString(CurvePointLinearColor->ArriveTangent.G)
+				, *FEmitHelper::FloatToString(CurvePointLinearColor->ArriveTangent.B)
+				, *FEmitHelper::FloatToString(CurvePointLinearColor->ArriveTangent.A)
+				, *FEmitHelper::FloatToString(CurvePointLinearColor->LeaveTangent.R)
+				, *FEmitHelper::FloatToString(CurvePointLinearColor->LeaveTangent.G)
+				, *FEmitHelper::FloatToString(CurvePointLinearColor->LeaveTangent.B)
+				, *FEmitHelper::FloatToString(CurvePointLinearColor->LeaveTangent.A)
+				, CurvePointLinearColor->InterpMode.GetValue());
+		}
+		return true;
+	}
 
 	if (TBaseStructure<FFloatRangeBound>::Get() == Struct)
 	{

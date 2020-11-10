@@ -10,6 +10,7 @@
 
 #include "Concepts/GetTypeHashable.h"
 #include "Math/RandomStream.h"
+#include "Math/InterpCurvePoint.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/FallbackStruct.h"
 #include "Misc/Guid.h"
@@ -3727,6 +3728,36 @@ template<> struct TBaseStructure<FBox2D>
 };	
 
 template<> struct TBaseStructure<FFallbackStruct>
+{
+	COREUOBJECT_API static UScriptStruct* Get();
+};
+
+template<> struct TBaseStructure<FInterpCurvePointFloat>
+{
+	COREUOBJECT_API static UScriptStruct* Get();
+};
+
+template<> struct TBaseStructure<FInterpCurvePointVector2D>
+{
+	COREUOBJECT_API static UScriptStruct* Get();
+};
+
+template<> struct TBaseStructure<FInterpCurvePointVector>
+{
+	COREUOBJECT_API static UScriptStruct* Get();
+};
+
+template<> struct TBaseStructure<FInterpCurvePointQuat>
+{
+	COREUOBJECT_API static UScriptStruct* Get();
+};
+
+template<> struct TBaseStructure<FInterpCurvePointTwoVectors>
+{
+	COREUOBJECT_API static UScriptStruct* Get();
+};
+
+template<> struct TBaseStructure<FInterpCurvePointLinearColor>
 {
 	COREUOBJECT_API static UScriptStruct* Get();
 };
