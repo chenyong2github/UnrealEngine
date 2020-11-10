@@ -97,7 +97,9 @@ protected:
 	FIntPoint ViewportSize;
 
 	IMPCDI& MPCDIAPI;
+
 	IMPCDI::FRegionLocator WarpRef;
+	mutable FCriticalSection WarpRefCS;
 
 	struct FViewData
 	{
