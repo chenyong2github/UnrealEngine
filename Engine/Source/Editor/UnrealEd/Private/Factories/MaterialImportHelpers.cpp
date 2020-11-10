@@ -39,8 +39,10 @@ UMaterialInterface* UMaterialImportHelpers::FindExistingMaterialFromSearchLocati
 		{
 			// Search recursively in parent's folder
 			SearchPath = FPaths::GetPath(SearchPath);
-
-			FoundMaterial = FindExistingMaterial(SearchPath, MaterialFullName, true, OutError);
+			if (!SearchPath.IsEmpty())
+			{
+				FoundMaterial = FindExistingMaterial(SearchPath, MaterialFullName, true, OutError);
+			}
 		}
 		if (FoundMaterial == nullptr &&
 			(	SearchLocation == EMaterialSearchLocation::UnderRoot ||
@@ -49,8 +51,10 @@ UMaterialInterface* UMaterialImportHelpers::FindExistingMaterialFromSearchLocati
 			// Search recursively in root folder of asset
 			FString OutPackageRoot, OutPackagePath, OutPackageName;
 			FPackageName::SplitLongPackageName(SearchPath, OutPackageRoot, OutPackagePath, OutPackageName);
-
-			FoundMaterial = FindExistingMaterial(OutPackageRoot, MaterialFullName, true, OutError);
+			if (!SearchPath.IsEmpty())
+			{
+				FoundMaterial = FindExistingMaterial(OutPackageRoot, MaterialFullName, true, OutError);
+			}
 		}
 		if (FoundMaterial == nullptr &&
 			SearchLocation == EMaterialSearchLocation::AllAssets)
@@ -69,19 +73,28 @@ UMaterialInterface* UMaterialImportHelpers::FindExistingMaterial(const FString& 
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-	TArray<FAssetData> AssetData;
-	FARFilter Filter;
 
+	// Finish/update any scans
 	TArray<FString> ScanPaths;
-	ScanPaths.Add(BasePath);
+	if (BasePath.IsEmpty() || BasePath == TEXT("/"))
+	{
+		FPackageName::QueryRootContentPaths(ScanPaths);
+	}
+	else
+	{ 
+		ScanPaths.Add(BasePath);
+	}
 	const bool bForceRescan = false;
 	AssetRegistry.ScanPathsSynchronous(ScanPaths, bForceRescan);
 
+
+	FARFilter Filter;
 	Filter.bRecursiveClasses = true;
 	Filter.bRecursivePaths = bRecursivePaths;
 	Filter.ClassNames.Add(UMaterialInterface::StaticClass()->GetFName());
 	Filter.PackagePaths.Add(FName(*BasePath));
 
+	TArray<FAssetData> AssetData;
 	AssetRegistry.GetAssets(Filter, AssetData);
 
 	TArray<UMaterialInterface*> FoundMaterials;
