@@ -2520,7 +2520,7 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 						bIsWireframe ||
 #if WITH_EDITOR
 						(IsSelected() && !GLandscapeEditModeActive) ||
-						ViewFamily.LandscapeLODOverride >= 0
+						(GetViewLodOverride(*View) >= 0)
 #else
 						IsSelected()
 #endif
