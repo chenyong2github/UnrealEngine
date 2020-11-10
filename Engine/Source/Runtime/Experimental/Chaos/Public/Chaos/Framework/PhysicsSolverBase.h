@@ -23,6 +23,7 @@ namespace Chaos
 	class FPhysicsSolverBase;
 	struct FPendingSpatialDataQueue;
 	class FPhysicsSceneGuard;
+	class FPullPhysicsData;
 
 	extern CHAOS_API int32 UseAsyncInterpolation;
 	extern CHAOS_API int32 ForceDisableAsyncPhysics;
@@ -63,6 +64,27 @@ namespace Chaos
 		DedicatedThread,
 		TaskGraph,
 		SingleThread
+	};
+
+	struct FChaosPullPhysicsResults
+	{
+		FChaosPullPhysicsResults()
+			: Prev(nullptr)
+			, Next(nullptr)
+		{
+		}
+
+		FPullPhysicsData* Prev;
+		FPullPhysicsData* Next;
+	};
+
+	class CHAOS_API FChaosResultsManager
+	{
+	public:
+		FChaosPullPhysicsResults PullPhysicsResults_External(FChaosMarshallingManager& MarshallingManager, const FReal ResultsTime, const bool bUseAsync);
+
+	private:
+		FChaosPullPhysicsResults Results;
 	};
 
 	class CHAOS_API FPhysicsSolverBase
@@ -405,6 +427,7 @@ namespace Chaos
 #endif
 
 	FChaosMarshallingManager MarshallingManager;
+	FChaosResultsManager PullResultsManager;
 
 	// The spatial operations not yet consumed by the internal sim. Use this to ensure any GT operations are seen immediately
 	TUniquePtr<FPendingSpatialDataQueue> PendingSpatialOperations_External;

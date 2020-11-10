@@ -12,6 +12,7 @@
 #include "Modules/ModuleManager.h"
 #include "Chaos/ChaosMarshallingManager.h"
 #include "Chaos/Framework/PhysicsSolverBase.h"
+#include "Chaos/PullPhysicsDataImp.h"
 
 namespace ChaosTest
 {
@@ -181,4 +182,124 @@ namespace ChaosTest
 		EXPECT_EQ(Count,11);
 
 	}
+
+	GTEST_TEST(DataMarshalling, InterpolatedPullData)
+	{
+		{
+			FChaosMarshallingManager MarshallingManager;
+			FChaosResultsManager ResultsManager;
+
+			const float ExternalDt = 1 / 30.f;
+			float ExternalTime = 0;
+
+			for (int Step = 0; Step < 10; ++Step)
+			{
+				const float StartTime = ExternalTime;	//external time we would have kicked the sim task off with
+				ExternalTime += ExternalDt;
+				MarshallingManager.FinalizePullData_Internal(Step, StartTime);
+				//in sync mode the external time we pass in doesn't matter
+				FChaosPullPhysicsResults Results = ResultsManager.PullPhysicsResults_External(MarshallingManager, 0, /*bAsync =*/ false);
+				EXPECT_EQ(Results.Prev, nullptr);	//in sync mode there is no prev results
+				EXPECT_EQ(Results.Next->ExternalStartTime, StartTime);
+			}
+		}
+
+		{
+			FChaosMarshallingManager MarshallingManager;
+			FChaosResultsManager ResultsManager;
+
+			const float ExternalDt = 1 / 30.f;
+			float ExternalTime = 0;
+
+			for (int Step = 0; Step < 10; ++Step)
+			{
+				const float StartTime = ExternalTime;	//external time we would have kicked the sim task off with
+				ExternalTime += ExternalDt;
+				MarshallingManager.FinalizePullData_Internal(Step, StartTime);
+				FChaosPullPhysicsResults Results = ResultsManager.PullPhysicsResults_External(MarshallingManager, ExternalTime, /*bAsync =*/ true);
+				EXPECT_EQ(Results.Prev, nullptr);	//async mode but no buffer so should appear the same as sync
+				EXPECT_EQ(Results.Next->ExternalStartTime, StartTime);	//async mode but no buffer so should appear the same as sync
+			}
+		}
+
+		{
+			FChaosMarshallingManager MarshallingManager;
+			FChaosResultsManager ResultsManager;
+
+			float PreTime;
+			const float ExternalDt = 1 / 30.f;
+			float ExternalTime = 0;
+			const float Delay = ExternalDt * 2 + 1e-2;
+
+			for (int Step = 0; Step < 10; ++Step)
+			{
+				const float StartTime = ExternalTime;	//external time we would have kicked the sim task off with
+				ExternalTime += ExternalDt;
+				const float RenderTime = ExternalTime - Delay;
+				MarshallingManager.FinalizePullData_Internal(Step, StartTime);
+				FChaosPullPhysicsResults Results = ResultsManager.PullPhysicsResults_External(MarshallingManager, RenderTime, /*bAsync =*/ true);
+				if(RenderTime <= 0)
+				{
+					EXPECT_LT(Step, 2);	//first two frames treat as sync mode since we don't have enough delay
+					EXPECT_EQ(Results.Prev, nullptr);
+					EXPECT_EQ(Results.Next->ExternalStartTime, 0);	//until we have enough results we just use the first result
+				}
+				else
+				{
+					//after first two frames we have enough to interpolate
+					EXPECT_GE(Step, 2);
+					EXPECT_NEAR(Results.Next->ExternalStartTime - Results.Prev->ExternalStartTime, ExternalDt, 1e-4);
+					EXPECT_LT(Results.Prev->ExternalStartTime, RenderTime);
+					EXPECT_GT(Results.Next->ExternalStartTime, RenderTime);
+				}
+
+				PreTime = StartTime;
+			}
+		}
+
+		{
+			FChaosMarshallingManager MarshallingManager;
+			FChaosResultsManager ResultsManager;
+
+			float PreTime;
+			const float ExternalDt = 1 / 30.f;
+			float ExternalTime = 0;
+			const float Delay = ExternalDt * 2 + 1e-2;
+
+			int InnerStepTotal = 0;
+			for (int Step = 0; Step < 10; ++Step)
+			{
+				const float StartTime = ExternalTime;	//external time we would have kicked the sim task off with
+				ExternalTime += ExternalDt;
+				const float RenderTime = ExternalTime - Delay;
+
+				//even if we have multiple smaller results, interpolate as needed
+				const float InnerDt = ExternalDt / 3.f;
+				for(int InnerStep = 0; InnerStep < 3; ++InnerStep)
+				{
+					MarshallingManager.FinalizePullData_Internal(InnerStepTotal++, StartTime + InnerDt * InnerStep);
+				}
+
+				FChaosPullPhysicsResults Results = ResultsManager.PullPhysicsResults_External(MarshallingManager, RenderTime, /*bAsync =*/ true);
+				if (RenderTime <= 0)
+				{
+					EXPECT_LT(Step, 2);	//first two frames treat as sync mode since we don't have enough delay
+					EXPECT_EQ(Results.Prev, nullptr);
+					EXPECT_EQ(Results.Next->ExternalStartTime, 0);	//until we have enough results we just use the first result
+				}
+				else
+				{
+					//after first two frames we have enough to interpolate
+					EXPECT_GE(Step, 2);
+					EXPECT_NEAR(Results.Next->ExternalStartTime - Results.Prev->ExternalStartTime, InnerDt, 1e-2);
+					EXPECT_LT(Results.Prev->ExternalStartTime, RenderTime);
+					EXPECT_GT(Results.Next->ExternalStartTime, RenderTime);
+				}
+
+				PreTime = StartTime;
+			}
+		}
+		
+	}
+
 }

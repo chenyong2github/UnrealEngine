@@ -19,26 +19,10 @@ template <typename RigidLambda>
 void FPhysicsSolverBase::PullPhysicsStateForEachDirtyProxy_External(const RigidLambda& RigidFunc)
 {
 	using namespace Chaos;
+	const FReal ResultsTime = MarshallingManager.GetExternalTime_External();	//TODO: account for delay into the past
 
-	FPullPhysicsData* PullData = nullptr;
-	if(IsUsingAsyncResults())
-	{
-		//todo: handle timestamp better here. For now we only expect 1 per frame, but editor may tick with 0 dt which gets no results
-		PullData = MarshallingManager.PopPullData_External();
-	}
-	else
-	{
-		//if we turn async mode on and off, we may end up with a queue that has multiple frames worth of results. In that case use the latest
-		FPullPhysicsData* PullDataLatest = nullptr;
-		do
-		{
-			PullData = PullDataLatest;
-			PullDataLatest = MarshallingManager.PopPullData_External();
-
-		} while (PullDataLatest);
-	}
-	
-	if(PullData)
+	FChaosPullPhysicsResults Results = PullResultsManager.PullPhysicsResults_External(MarshallingManager, ResultsTime, IsUsingAsyncResults());
+	if(FPullPhysicsData* PullData = Results.Next)
 	{
 		const int32 SyncTimestamp = PullData->SolverTimestamp;
 		for(const FDirtyRigidParticleData& DirtyData : PullData->DirtyRigids)
@@ -75,8 +59,6 @@ void FPhysicsSolverBase::PullPhysicsStateForEachDirtyProxy_External(const RigidL
 				Proxy->PullFromPhysicsState(DirtyData,SyncTimestamp);
 			}
 		}
-
-		MarshallingManager.FreePullData_External(PullData);
 	}
 }
 
