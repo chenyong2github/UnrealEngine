@@ -46,7 +46,6 @@ UMediaSoundComponent::UMediaSoundComponent(const FObjectInitializer& ObjectIniti
 	, RateAdjustment(1.0f)
 	, Resampler(new FMediaAudioResampler)
 	, LastPlaySampleTime(FTimespan::MinValue())
-	, SpectrumAnalyzer(Audio::FAsyncSpectrumAnalyzer::CreateAsyncSpectrumAnalyzer())
 	, EnvelopeFollowerAttackTime(10)
 	, EnvelopeFollowerReleaseTime(100)
 	, CurrentEnvelopeValue(0.0f)
@@ -320,7 +319,7 @@ bool UMediaSoundComponent::Init(int32& SampleRate)
 	Super::Init(SampleRate);
 
 	// Initialize the settings for the spectrum analyzer
-	SpectrumAnalyzer->Init(SampleRate);
+	SpectrumAnalyzer.Init(SampleRate);
 
 	if (Channels == EMediaSoundChannels::Mono)
 	{
@@ -413,8 +412,8 @@ int32 UMediaSoundComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 
 			if (bSpectralAnalysisEnabled)
 			{
-				SpectrumAnalyzer->PushAudio(BufferToUseForAnalysis, NumFrames);
-				SpectrumAnalyzer->PerformAsyncAnalysisIfPossible(true);
+				SpectrumAnalyzer.PushAudio(BufferToUseForAnalysis, NumFrames);
+				SpectrumAnalyzer.PerformAsyncAnalysisIfPossible(true);
 			}
 
 			{
@@ -478,7 +477,7 @@ void UMediaSoundComponent::SetSpectralAnalysisSettings(TArray<float> InFrequenci
 	}
 
 	SpectrumAnalyzerSettings.FFTSize = SpectrumAnalyzerSize;
-	SpectrumAnalyzer->SetSettings(SpectrumAnalyzerSettings);
+	SpectrumAnalyzer.SetSettings(SpectrumAnalyzerSettings);
 
 	FrequenciesToAnalyze = InFrequenciesToAnalyze;
 }
@@ -488,7 +487,7 @@ TArray<FMediaSoundComponentSpectralData> UMediaSoundComponent::GetSpectralData()
 	if (bSpectralAnalysisEnabled)
 	{
 		// Locks analyzer output buffer during access to frequency data.
-		Audio::FSpectrumAnalyzerScopeLock AnalyzerBufferLock(&SpectrumAnalyzer.Get());
+		Audio::FAsyncSpectrumAnalyzerScopeLock AnalyzerBufferLock(&SpectrumAnalyzer);
 
 		TArray<FMediaSoundComponentSpectralData> SpectralData;
 
@@ -496,7 +495,7 @@ TArray<FMediaSoundComponentSpectralData> UMediaSoundComponent::GetSpectralData()
 		{
 			FMediaSoundComponentSpectralData Data;
 			Data.FrequencyHz = Frequency;
-			Data.Magnitude = SpectrumAnalyzer->GetMagnitudeForFrequency(Frequency);
+			Data.Magnitude = SpectrumAnalyzer.GetMagnitudeForFrequency(Frequency);
 			SpectralData.Add(Data);
 		}
 

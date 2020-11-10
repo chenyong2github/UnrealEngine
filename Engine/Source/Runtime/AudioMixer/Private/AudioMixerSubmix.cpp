@@ -174,7 +174,6 @@ namespace Audio
 		, CurrentDryLevel(0.0f)
 		, TargetDryLevel(0.0f)
 		, EnvelopeNumChannels(0)
-		, SpectrumAnalyzer(FAsyncSpectrumAnalyzer::CreateAsyncSpectrumAnalyzer())
 		, NumSubmixEffects(0)
 		, bIsRecording(false)
 		, bIsBackgroundMuted(false)
@@ -1864,7 +1863,7 @@ namespace Audio
 
 		{
 			FScopeLock SpectrumAnalyzerLock(&SpectrumAnalyzerCriticalSection);
-			SpectrumAnalyzer = FAsyncSpectrumAnalyzer::CreateAsyncSpectrumAnalyzer(AudioSpectrumAnalyzerSettings, MixerDevice->GetSampleRate());
+			SpectrumAnalyzer = MakeShared<FAsyncSpectrumAnalyzer, ESPMode::ThreadSafe>(AudioSpectrumAnalyzerSettings, MixerDevice->GetSampleRate());
 
 
 			for (FSpectrumAnalysisDelegateInfo& DelegateInfo : SpectralAnalysisDelegates)
@@ -2071,7 +2070,7 @@ namespace Audio
 						{
 							// This lock ensures that the spectrum analyzer's analysis buffer doesn't
 							// change in this scope. 
-							Audio::FSpectrumAnalyzerScopeLock AnalyzerLock(SpectrumAnalyzer.Get());
+							Audio::FAsyncSpectrumAnalyzerScopeLock AnalyzerLock(SpectrumAnalyzer.Get());
 
 							if (ensure(DelegateInfo.SpectrumBandExtractor.IsValid()))
 							{

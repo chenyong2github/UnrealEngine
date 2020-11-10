@@ -403,20 +403,9 @@ namespace Audio
 		FSpectrumAnalyzer* Analyzer;
 	};
 
-	// SpectrumAnalyzer for computing spectrum in async task. In order to safely 
-	// access pointer of spectrum analyzer in an async task, the FAsyncSpectrumAnalyzer
-	// must be managed by a TSharedPtr or TSharedRef.
-	class SIGNALPROCESSING_API FAsyncSpectrumAnalyzer : public FSpectrumAnalyzer, public TSharedFromThis<FAsyncSpectrumAnalyzer, ESPMode::ThreadSafe>
+	// SpectrumAnalyzer for computing spectrum in async task. 
+	class SIGNALPROCESSING_API FAsyncSpectrumAnalyzer 
 	{
-		// Allow TSharedRef access to default constructor. This is especially required
-		// if TSharedRef<FAsyncSpectrumAnalyzer> is a member of a UObject which 
-		// require visible default constructors.
-		template< class ObjectType, ESPMode Mode >
-		friend class ::TSharedRef;
-
-		// Allow MakeShared access to private constructors.
-		template <typename ObjectType>
-		friend class SharedPointerInternals::TIntrusiveReferenceController;
 
 		FAsyncSpectrumAnalyzer(const FSpectrumAnalyzer&) = delete;
 		FAsyncSpectrumAnalyzer(FSpectrumAnalyzer&&) = delete;
@@ -424,34 +413,84 @@ namespace Audio
 		FAsyncSpectrumAnalyzer& operator=(const FSpectrumAnalyzer&) = delete;
 		FAsyncSpectrumAnalyzer& operator=(FSpectrumAnalyzer&&) = delete;
 
-		// Constructors are private to enforce usage of TShareRef. If analyzer is
-		// not owned by shared ptr, then a valid weak ptr cannot be passed to the
-		// async task.
-		FAsyncSpectrumAnalyzer() = default;
 
+	public:
+		FAsyncSpectrumAnalyzer();
 		// If an instance is created using either of these constructors, Init() is not neccessary.
 		FAsyncSpectrumAnalyzer(float InSampleRate);
 		FAsyncSpectrumAnalyzer(const FSpectrumAnalyzerSettings& InSettings, float InSampleRate);
 
-	public:
-		// Create a shared reference to a spectrum analyzer.
-		template<typename... InArgTypes>
-		static TSharedRef<FAsyncSpectrumAnalyzer, ESPMode::ThreadSafe> CreateAsyncSpectrumAnalyzer(InArgTypes&&... InArgs)
-		{
-			return MakeShared<FAsyncSpectrumAnalyzer, ESPMode::ThreadSafe>(Forward<InArgTypes>(InArgs)...);
-		}
+		virtual ~FAsyncSpectrumAnalyzer();
+
+		// Initialize sample rate of analyzer if not known at time of construction
+		void Init(float InSampleRate);
+		void Init(const FSpectrumAnalyzerSettings& InSettings, float InSampleRate);
+
+		// Returns false if this instance of FSpectrumAnalyzer was constructed with the default constructor 
+		// and Init() has not been called yet.
+		bool IsInitialized();
+
+		// Update the settings used by this Spectrum Analyzer. Safe to call on any thread, but should not be called every tick.
+		void SetSettings(const FSpectrumAnalyzerSettings& InSettings);
+
+		// Get the current settings used by this Spectrum Analyzer.
+		void GetSettings(FSpectrumAnalyzerSettings& OutSettings);
+
+		// Samples magnitude (linearly) for a given frequency, in Hz.
+		float GetMagnitudeForFrequency(float InFrequency, FSpectrumAnalyzer::EPeakInterpolationMethod InMethod = FSpectrumAnalyzer::EPeakInterpolationMethod::Linear);
+
+		// Samples phase for a given frequency, in Hz.
+		float GetPhaseForFrequency(float InFrequency, FSpectrumAnalyzer::EPeakInterpolationMethod InMethod = FSpectrumAnalyzer::EPeakInterpolationMethod::Linear);
+
+		// Return array of bands using spectrum band extractor.
+		void GetBands(ISpectrumBandExtractor& InExtractor, TArray<float>& OutValues);
+
+		// You can call this function to ensure that you're sampling the same window of frequency data,
+		// Then call UnlockOutputBuffer when you're done.
+		// Otherwise, GetMagnitudeForFrequency and GetPhaseForFrequency will always use the latest window
+		// of frequency data.
+		void LockOutputBuffer();
+		void UnlockOutputBuffer();
+		
+		// Push audio to queue. Returns false if the queue is already full.
+		bool PushAudio(const TSampleBuffer<float>& InBuffer);
+		bool PushAudio(const float* InBuffer, int32 NumSamples);
+
+		// Thread safe call to perform actual FFT. Returns true if it performed the FFT, false otherwise.
+		// If bUseLatestAudio is set to true, this function will flush the entire input buffer, potentially losing data.
+		// Otherwise it will only consume enough samples necessary to perform a single FFT.
+		bool PerformAnalysisIfPossible(bool bUseLatestAudio = false);
+
 
 		// Thread safe call to perform actual FFT. Returns true if it performed the FFT, false otherwise.
 		// If bUseLatestAudio is set to true, this function will flush the entire input buffer, potentially losing data.
 		// Otherwise it will only consume enough samples necessary to perform a single FFT.
 		bool PerformAsyncAnalysisIfPossible(bool bUseLatestAudio = false);
-
-		virtual ~FAsyncSpectrumAnalyzer();
+	
 
 	private:
 
+		TSharedRef<FSpectrumAnalyzer, ESPMode::ThreadSafe> Analyzer;
 
 		// This is used if PerformAsyncAnalysisIfPossible is called
 		TUniquePtr<FSpectrumAnalyzerTask> AsyncAnalysisTask;
+	};
+
+	class SIGNALPROCESSING_API FAsyncSpectrumAnalyzerScopeLock
+	{
+	public:
+		FAsyncSpectrumAnalyzerScopeLock(FAsyncSpectrumAnalyzer* InAnalyzer)
+			: Analyzer(InAnalyzer)
+		{
+			Analyzer->LockOutputBuffer();
+		}
+
+		~FAsyncSpectrumAnalyzerScopeLock()
+		{
+			Analyzer->UnlockOutputBuffer();
+		}
+
+	private:
+		FAsyncSpectrumAnalyzer* Analyzer;
 	};
 }
