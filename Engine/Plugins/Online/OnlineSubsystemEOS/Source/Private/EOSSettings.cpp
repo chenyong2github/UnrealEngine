@@ -77,7 +77,7 @@ inline FString StripQuotes(FString& Source)
 
 void FEOSArtifactSettings::ParseRawArrayEntry(FString& RawLine)
 {
-	TCHAR* Delims[4] = { TEXT("("), TEXT(")"), TEXT("="), TEXT(",") };
+	const TCHAR* Delims[4] = { TEXT("("), TEXT(")"), TEXT("="), TEXT(",") };
 	TArray<FString> Values;
 	RawLine.ParseIntoArray(Values, Delims, 4, false);
 	for (int32 ValueIndex = 0; ValueIndex < Values.Num(); ValueIndex++)
