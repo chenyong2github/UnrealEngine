@@ -1305,6 +1305,7 @@ bool UnFbx::FFbxImporter::ImportCustomAttributeToBone(UAnimSequence* TargetSeque
 		{
 			case EFbxType::eFbxHalfFloat:
 			case EFbxType::eFbxFloat:
+			case EFbxType::eFbxDouble:
 			{
 				TArray<float> FloatValues;
 				FillCurveAttributeToBone<float>(TimeArray, FloatValues, FbxCurve, AnimTimeSpan, 
@@ -1325,6 +1326,10 @@ bool UnFbx::FFbxImporter::ImportCustomAttributeToBone(UAnimSequence* TargetSeque
 			case EFbxType::eFbxShort:
 			case EFbxType::eFbxUShort:
 			case EFbxType::eFbxInt:
+			case EFbxType::eFbxUInt:
+			case EFbxType::eFbxLongLong:
+			case EFbxType::eFbxULongLong:
+			case EFbxType::eFbxChar:
 			{
 				TArray<int32> IntValues;
 				FillCurveAttributeToBone<int32>(TimeArray, IntValues, FbxCurve, AnimTimeSpan,
@@ -1361,11 +1366,6 @@ bool UnFbx::FFbxImporter::ImportCustomAttributeToBone(UAnimSequence* TargetSeque
 				TargetSequence->AddBoneStringCustomAttribute(BoneName, FName(CurveName), TimeArray, StringValues);
 				break;
 			}
-			case EFbxType::eFbxDouble:
-			case EFbxType::eFbxUInt:
-			case EFbxType::eFbxLongLong:
-			case EFbxType::eFbxULongLong:
-			case EFbxType::eFbxChar:
 			default:
 			{
 				AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("Warning_CustomCurveTypeNotSupported", "Curve ({0}) could not be imported on bone."), FText::FromString(CurveName))), FFbxErrors::Animation_InvalidData);
