@@ -8,7 +8,7 @@
 #include "ShaderParameterMacros.h"
 #include "CoreMinimal.h"
 
-IMPLEMENT_GLOBAL_SHADER(FExrSwizzlePS, "/ExrReaderShaders/ExrSwizzler.usf", "MainPS", SF_Pixel);
-IMPLEMENT_GLOBAL_SHADER(FExrSwizzleVS, "/ExrReaderShaders/ExrSwizzler.usf", "MainVS", SF_Vertex);
+IMPLEMENT_GLOBAL_SHADER(FExrSwizzlePS, "/Plugin/ExrReaderShaders/Private/ExrSwizzler.usf", "MainPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FExrSwizzleVS, "/Plugin/ExrReaderShaders/Private/ExrSwizzler.usf", "MainVS", SF_Vertex);
 
 #endif
