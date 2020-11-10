@@ -11,7 +11,7 @@
 struct FConcertSessionContext;
 class IConcertSyncClient;
 class IConcertClientSession;
-class ULevelSequencePlayer;
+class ALevelSequenceActor;
 
 #if WITH_EDITOR
 
@@ -242,7 +242,7 @@ private:
 	TArray<FOpenSequencerData> OpenSequencers;
 
 	/** Map of opened sequence players, if not in editor mode. */
-	TMap<FName, ULevelSequencePlayer*> SequencePlayers;
+	TMap<FName, ALevelSequenceActor*> SequencePlayers;
 
 	/** Boolean that is set when we are handling any transport event to prevent re-entrancy */
 	bool bRespondingToTransportEvent;
