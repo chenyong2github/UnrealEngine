@@ -183,6 +183,9 @@
 /Engine/Binaries/**/DatasmithFacadeCSharp
 /Engine/Binaries/**/DatasmithSDK
 
+# Ignore Android packageInfo.txt file
+Engine/Binaries/Android/packageInfo.txt
+
 # Ignore version files in the Engine/Binaries directory created by UBT
 /Engine/Binaries/**/*.version
 
