@@ -1067,8 +1067,16 @@ bool FAnimBlueprintCompilerHandler_Base::FEffectiveConstantRecord::Apply(UObject
 	}
 	else
 	{
-		StructPtr = NodeVariableProperty->ContainerPtrToValuePtr<uint8>(Object);
-		PropertyPtr = ConstantProperty->ContainerPtrToValuePtr<uint8>(StructPtr);
+		UStruct* PropertyOwningStruct = ConstantProperty->Owner.Get<UStruct>();
+		if (PropertyOwningStruct && NodeVariableProperty->Struct && NodeVariableProperty->Struct->IsChildOf(PropertyOwningStruct))
+		{
+			StructPtr = NodeVariableProperty->ContainerPtrToValuePtr<uint8>(Object);
+			PropertyPtr = ConstantProperty->ContainerPtrToValuePtr<uint8>(StructPtr);
+		}
+		else
+		{
+			PropertyPtr = ConstantProperty->ContainerPtrToValuePtr<uint8>(Object);
+		}
 	}
 
 	if (ArrayIndex != INDEX_NONE)
