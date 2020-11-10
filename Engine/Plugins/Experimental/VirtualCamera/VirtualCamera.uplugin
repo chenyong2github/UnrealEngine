@@ -34,7 +34,7 @@
 		{
 			"Name": "VCamInput",
 			"Type": "Runtime",
-			"LoadingPhase": "Default",
+			"LoadingPhase": "PreDefault",
 			"BlacklistPlatforms": [
 				"TVOS"
 			]
