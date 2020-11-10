@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "CoreGlobals.h"
 #include "Containers/Map.h"
 #include "HAL/CriticalSection.h"
 
