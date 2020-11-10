@@ -24,6 +24,11 @@ namespace Chaos
 			: bUseContactGraph(true)
 		{}
 
+		int32 NumIslands() const
+		{
+			return IslandData.Num();
+		}
+
 		/**
 		 * Initialize the color structures based on the connectivity graph (i.e., reset all color-related node, edge and island data).
 		 */
