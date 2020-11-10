@@ -82,6 +82,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 #endif
 	CustomPrimitiveData(InComponent->GetCustomPrimitiveData())
 ,	TranslucencySortPriority(FMath::Clamp(InComponent->TranslucencySortPriority, SHRT_MIN, SHRT_MAX))
+,	TranslucencySortDistanceOffset(InComponent->TranslucencySortDistanceOffset)
 ,	Mobility(InComponent->Mobility)
 ,	LightmapType(InComponent->LightmapType)
 ,	StatId()
