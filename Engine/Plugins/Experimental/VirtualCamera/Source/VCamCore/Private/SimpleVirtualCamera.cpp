@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VCamSample_CameraActor.h"
+#include "SimpleVirtualCamera.h"
 
-AVCamSample_CameraActor::AVCamSample_CameraActor(const FObjectInitializer& ObjectInitializer)
+ASimpleVirtualCamera::ASimpleVirtualCamera(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Don't run on CDO

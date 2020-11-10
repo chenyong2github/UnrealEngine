@@ -14,6 +14,7 @@
 #include "IVPUtilitiesEditorModule.h"
 #include "VirtualCameraActor.h"
 #include "ActorFactories/ActorFactoryBlueprint.h"
+#include "SimpleVirtualCamera.h"
 
 
 #define LOCTEXT_NAMESPACE "FVirtualCameraEditorModule"
@@ -71,20 +72,28 @@ public:
 		{
 			if (const FPlacementCategoryInfo* Info = IVPUtilitiesEditorModule::Get().GetVirtualProductionPlacementCategoryInfo())
 			{
-				FAssetData VCamActorAssetData(
-					TEXT("/VirtualCamera/V2/VcamActor"), 
+				// register VirtualCameraLite
+				IPlacementModeModule::Get().RegisterPlaceableItem(Info->UniqueHandle, MakeShared<FPlaceableItem>(
+					*ASimpleVirtualCamera::StaticClass(),
+					FAssetData(ASimpleVirtualCamera::StaticClass()),
+					FName("ClassIcon.CameraActor")
+				));
+
+
+				FAssetData VirtualCamera2ActorAssetData(
+					TEXT("/VirtualCamera/V2/VirtualCamera2Actor"), 
 					TEXT("/VirtualCamera/V2"), 
-					TEXT("VcamActor"), 
+					TEXT("VirtualCamera2Actor"), 
 					TEXT("Blueprint")
 				);
 				
 				IPlacementModeModule::Get().RegisterPlaceableItem(Info->UniqueHandle, MakeShared<FPlaceableItem>(
 					*UActorFactoryBlueprint::StaticClass(),
-					VCamActorAssetData,
+					VirtualCamera2ActorAssetData,
 					FName("ClassIcon.CameraActor"),
 					TOptional<FLinearColor>(),
 					TOptional<int32>(),
-					LOCTEXT("VCamActorPlacementName", "VCam Actor")
+					LOCTEXT("VCamActorPlacementName", "VirtualCamera2 Actor")
 				));
 			}
 		}
