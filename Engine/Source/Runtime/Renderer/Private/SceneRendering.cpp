@@ -4668,6 +4668,10 @@ void FSceneRenderer::UpdateSkyIrradianceGpuBuffer(FRHICommandListImmediate& RHIC
 	else if (Scene->SkyIrradianceEnvironmentMap.NumBytes == 0)
 	{
 		Scene->SkyIrradianceEnvironmentMap.Initialize(sizeof(FVector4), 7, 0, TEXT("SkyIrradianceEnvironmentMap"));
+
+		// Ensure that sky irradiance SH buffer contains sensible initial values (zero init).
+		// If there is no sky in the level, then nothing else may fill this buffer.
+		RHICmdList.ClearUAVFloat(Scene->SkyIrradianceEnvironmentMap.UAV, FVector4(0, 0, 0, 0));
 	}
 
 	// This buffer is now going to be read for rendering.
