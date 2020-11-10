@@ -19,6 +19,7 @@ public class WebRemoteControl : ModuleRules
 				"HTTPServer",
 				"RemoteControl",
 				"Serialization",
+				"Sockets",
 				"WebSocketNetworking"
 			}
         );
@@ -29,6 +30,7 @@ public class WebRemoteControl : ModuleRules
 				new string[] {
 					"ImageWrapper",
 					"Settings",
+					"Slate",
 					"SlateCore",
 					"UnrealEd",
 				}
