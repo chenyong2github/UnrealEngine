@@ -183,7 +183,7 @@ void SolveSoftCollisionConstraint(in bool EnableConstraint, in int StrandsSize, 
 }
 
 void ProjectSoftCollisionConstraint(in bool EnableConstraint, in int StrandsSize, in float ConstraintStiffness, in float PenetrationDepth, in float3 CollisionPosition, in float3 CollisionVelocity, in float3 CollisionNormal, 
-				in float StaticFriction, in float KineticFriction, in float DeltaTime, in float NodeMass, out float3 OutNodePosition  )
+				in float StaticFriction, in float KineticFriction, in float DeltaTime, out float3 OutNodePosition  )
 {
 	float MaterialCompliance = 0.0;
 	float MaterialWeight = 0.0;
