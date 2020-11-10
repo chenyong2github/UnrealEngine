@@ -165,6 +165,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 		uint32					GroupIndex = ~0;
 		uint32					GroupCount = 0;
 		FString					GroomAssetName;
+		uint32					LastFrameIndex = ~0;
 
 		int32					MeshLODIndex = ~0;
 		USkeletalMeshComponent*	SkeletalComponent = nullptr;

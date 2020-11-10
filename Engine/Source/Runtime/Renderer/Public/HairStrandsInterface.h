@@ -359,7 +359,8 @@ enum class EHairStrandsBookmark : uint8
 	ProcessGuideInterpolation,
 	ProcessGatherCluster,
 	ProcessStrandsInterpolation,
-	ProcessDebug
+	ProcessDebug,
+	ProcessEndOfFrame
 };
 
 struct FHairStrandsBookmarkParameters
@@ -377,6 +378,7 @@ struct FHairStrandsBookmarkParameters
 	bool bHzbRequest = false;
 	bool bHasElements = false;
 	bool bStrandsGeometryEnabled = false;
+	uint32 FrameIndex = ~0;
 
 	// Temporary
 	FHairStrandClusterData HairClusterData;
