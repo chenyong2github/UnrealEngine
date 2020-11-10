@@ -101,13 +101,13 @@ struct FStreamData
 		, Source( InSource )
 		, Destination( InDestination )
 	{
-		uint32 StringLenght = Destination->EndpointData->ExecutableName.Len();
+		uint32 StringLenght = Destination->EndpointData->EndpointName.Len();
 		// " : "
 		StringLenght +=	3;
-		StringLenght += Destination->EndpointData->UserName.Len();
+		StringLenght += Destination->Name.Len();
 		DestinationColumnLabel.Reserve( StringLenght );
 
-		DestinationColumnLabel.Append( Destination->EndpointData->ExecutableName );
+		DestinationColumnLabel.Append( Destination->EndpointData->EndpointName );
 		DestinationColumnLabel.Append( " : " );
 		DestinationColumnLabel.Append( Destination->Name );
 	}
