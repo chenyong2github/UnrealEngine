@@ -45,6 +45,7 @@ bool FPicpProjectionMeshPolicy::AssignWarpMesh(UStaticMeshComponent* MeshCompone
 
 	IMPCDI& MpcdiModule = IMPCDI::Get();
 
+	FScopeLock lock(&WarpRefCS);
 	if (MpcdiModule.CreateCustomRegion(PicpProjectionStrings::cfg::data::projection::mesh::FileID, PicpProjectionStrings::cfg::data::projection::mesh::BufferID, GetViewportId(), WarpRef))
 	{
 		// Always use advanced 3d profile from ext mesh as warp source

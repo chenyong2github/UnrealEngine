@@ -68,6 +68,7 @@ protected:
 
 	IMPCDI& MPCDIAPI;
 	IMPCDI::FRegionLocator WarpRef;
+	mutable FCriticalSection WarpRefCS;
 
 	FPicpProjectionOverlayViewportData LocalOverlayViewportData;
 	mutable FCriticalSection LocalOverlayViewportDataCS;
