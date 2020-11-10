@@ -724,6 +724,8 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 
 	RootTemplateInstance.Initialize(*Sequence, *this, nullptr);
 
+	LatentActionManager.ClearLatentActions();
+
 	// Set up playback position (with offset) after Stop(), which will reset the starting time to StartTime
 	PlayPosition.Reset(StartTimeWithOffset);
 	TimeController->Reset(GetCurrentTime());
@@ -1384,16 +1386,29 @@ bool UMovieSceneSequencePlayer::NeedsQueueLatentAction() const
 	return bIsEvaluating;
 }
 
-void UMovieSceneSequencePlayer::QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate) const
+void UMovieSceneSequencePlayer::QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate)
 {
-	if (ensure(TickManager))
+	if (ensure(TickManager) && !EnumHasAnyFlags(Sequence->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation))
 	{
+		// Queue latent actions on the global tick manager.
 		TickManager->AddLatentAction(Delegate);
+	}
+	else
+	{
+		// Queue latent actions locally.
+		LatentActionManager.AddLatentAction(Delegate);
 	}
 }
 
 void UMovieSceneSequencePlayer::RunLatentActions()
 {
-	TickManager->RunLatentActions(this, RootTemplateInstance.GetEntitySystemRunner());
+	if (ensure(TickManager) && !EnumHasAnyFlags(Sequence->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation))
+	{
+		TickManager->RunLatentActions();
+	}
+	else
+	{
+		LatentActionManager.RunLatentActions(RootTemplateInstance.GetEntitySystemRunner());
+	}
 }
 

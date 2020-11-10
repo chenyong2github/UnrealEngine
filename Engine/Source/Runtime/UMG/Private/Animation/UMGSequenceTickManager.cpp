@@ -189,9 +189,9 @@ void UUMGSequenceTickManager::ClearLatentActions(UObject* Object)
 	LatentActionManager.ClearLatentActions(Object);
 }
 
-void UUMGSequenceTickManager::RunLatentActions(const UObject* Object, FMovieSceneEntitySystemRunner& InRunner)
+void UUMGSequenceTickManager::RunLatentActions()
 {
-	LatentActionManager.RunLatentActions(InRunner, Object);
+	LatentActionManager.RunLatentActions(Runner);
 }
 
 UUMGSequenceTickManager* UUMGSequenceTickManager::Get(UObject* PlaybackContext)
