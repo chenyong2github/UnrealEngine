@@ -66,6 +66,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "LiveLink",
+			"Enabled": true
+		},
+		{
 			"Name": "RemoteSession",
 			"Enabled": true
 		},
@@ -79,10 +83,6 @@
 		},
 		{
 			"Name": "VirtualProductionUtilities",
-			"Enabled": true
-		},
-		{
-			"Name": "VCamCore",
 			"Enabled": true
 		}
 	]

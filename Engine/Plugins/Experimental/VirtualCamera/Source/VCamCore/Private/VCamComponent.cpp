@@ -33,10 +33,15 @@ UVCamComponent::UVCamComponent()
 	{
 		// Hook into the Live Link Client for our Tick
 		IModularFeatures& ModularFeatures = IModularFeatures::Get();
+
 		if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
 		{
 			ILiveLinkClient& LiveLinkClient = ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
 			LiveLinkClient.OnLiveLinkTicked().AddUObject(this, &UVCamComponent::Update);
+		}
+		else
+		{
+			UE_LOG(LogVCamComponent, Error, TEXT("LiveLink is not available. Some VCamCore features may not work as expected"));
 		}
 
 #if WITH_EDITOR
