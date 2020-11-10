@@ -10,8 +10,6 @@ class IPDisplayClusterClusterManager;
 class IPDisplayClusterInputManager;
 class IPDisplayClusterConfigManager;
 class IPDisplayClusterGameManager;
-
-class ADisplayClusterGameMode;
 class ADisplayClusterSettings;
 
 

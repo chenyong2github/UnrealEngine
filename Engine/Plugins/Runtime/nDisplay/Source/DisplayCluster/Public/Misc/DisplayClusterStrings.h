@@ -46,4 +46,15 @@ namespace DisplayClusterStrings
 		static constexpr auto Found     = TEXT("found");
 		static constexpr auto NotFound  = TEXT("not found");
 	}
+
+	// System cluster events
+	namespace cluster_events
+	{
+		// Common system events data
+		static constexpr auto EventCategory = TEXT("nDisplay");
+		static constexpr auto EventType     = TEXT("control");
+
+		// Specific events
+		static constexpr auto EvtQuitName   = TEXT("quit");
+	}
 };
