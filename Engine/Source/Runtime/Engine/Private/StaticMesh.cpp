@@ -2715,7 +2715,12 @@ UStaticMesh::UStaticMesh(const FObjectInitializer& ObjectInitializer)
 #endif
 }
 
+// We don't care if the default implementation of the destructor is cleaning up 
+// deprecated fields... The UObject has been properly destroyed by the garbage
+// collect anyway.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UStaticMesh::~UStaticMesh() = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FStaticMeshRenderData* UStaticMesh::GetRenderData()
 {
