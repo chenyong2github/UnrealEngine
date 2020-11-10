@@ -162,7 +162,7 @@ const void* FOculusOpenXRHMD::OnSyncActions(XrSession InSession, const void* InN
 	return InNext;
 }
 
-void FOculusOpenXRHMD::PostSyncActions(XrSession InSession, XrTime DisplayTime, XrSpace TrackingSpace)
+void FOculusOpenXRHMD::PostSyncActions(XrSession InSession)
 {
 	//UE_LOG(LogOculusOpenXRPlugin, Log, TEXT("Oculus OpenXR PostSyncActions"));
 	return;
