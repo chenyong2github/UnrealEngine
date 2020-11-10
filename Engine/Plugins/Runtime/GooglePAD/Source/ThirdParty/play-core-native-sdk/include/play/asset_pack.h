@@ -67,6 +67,10 @@ enum AssetPackErrorCode {
   /// waiting for Wi-Fi.
   ASSET_PACK_NETWORK_UNRESTRICTED = -12,
 
+  /// The app is not owned by any user on this device. An app is "owned" if it
+  /// has been acquired from Play.
+  ASSET_PACK_APP_NOT_OWNED = -13,
+
   /// Unknown error downloading asset pack.
   ASSET_PACK_INTERNAL_ERROR = -100,
 

@@ -9,12 +9,12 @@
 #define PLAY_VERSION_H_
 
 #define PLAYCORE_VERSION_MAJOR 1
-#define PLAYCORE_VERSION_MINOR 7
-#define PLAYCORE_VERSION_PATCH 1
+#define PLAYCORE_VERSION_MINOR 8
+#define PLAYCORE_VERSION_PATCH 0
 
-#define PLAYCORE_VERSION_STRING "1.7.1"
+#define PLAYCORE_VERSION_STRING "1.8.0"
 
 // A single number combining the major, minor, and patch version subcomponents.
-#define PLAYCORE_VERSION_CODE 10701
+#define PLAYCORE_VERSION_CODE 10800
 
 #endif  // PLAY_VERSION_H_
