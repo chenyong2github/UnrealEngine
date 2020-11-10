@@ -65,6 +65,15 @@ DECLARE_MEMORY_STAT_EXTERN(TEXT("MemoryPool (remaining) Reserved"), STAT_VulkanM
 DECLARE_MEMORY_STAT_EXTERN(TEXT("_Total Allocated"), STAT_VulkanMemoryTotal, STATGROUP_VulkanMemoryRaw, );
 DECLARE_MEMORY_STAT_EXTERN(TEXT("_Reserved"), STAT_VulkanMemoryReserved, STATGROUP_VulkanMemoryRaw, );
 
+DECLARE_MEMORY_STAT_EXTERN(TEXT("MemoryPool 0 Budget"), STAT_VulkanMemoryBudget0, STATGROUP_VulkanMemoryRaw, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("MemoryPool 1 Budget"), STAT_VulkanMemoryBudget1, STATGROUP_VulkanMemoryRaw, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("MemoryPool 2 Budget"), STAT_VulkanMemoryBudget2, STATGROUP_VulkanMemoryRaw, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("MemoryPool 3 Budget"), STAT_VulkanMemoryBudget3, STATGROUP_VulkanMemoryRaw, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("MemoryPool 4 Budget"), STAT_VulkanMemoryBudget4, STATGROUP_VulkanMemoryRaw, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("MemoryPool 5 Budget"), STAT_VulkanMemoryBudget5, STATGROUP_VulkanMemoryRaw, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("MemoryPool (remaining) Budget"), STAT_VulkanMemoryBudgetX, STATGROUP_VulkanMemoryRaw, );
+
+
 DEFINE_STAT(STAT_VulkanDedicatedMemory);
 DEFINE_STAT(STAT_VulkanMemory0);
 DEFINE_STAT(STAT_VulkanMemory1);
@@ -83,6 +92,13 @@ DEFINE_STAT(STAT_VulkanMemory5Reserved);
 DEFINE_STAT(STAT_VulkanMemoryXReserved);
 DEFINE_STAT(STAT_VulkanMemoryReserved);
 
+DEFINE_STAT(STAT_VulkanMemoryBudget0);
+DEFINE_STAT(STAT_VulkanMemoryBudget1);
+DEFINE_STAT(STAT_VulkanMemoryBudget2);
+DEFINE_STAT(STAT_VulkanMemoryBudget3);
+DEFINE_STAT(STAT_VulkanMemoryBudget4);
+DEFINE_STAT(STAT_VulkanMemoryBudget5);
+DEFINE_STAT(STAT_VulkanMemoryBudgetX);
 
 
 DEFINE_STAT(STAT_VulkanMemoryTotal);
@@ -161,8 +177,6 @@ static FAutoConsoleVariableRef CVarVulkanDefragAutoPause(
 	ECVF_RenderThreadSafe
 );
 
-
-
 int32 GVulkanUseBufferBinning = 0;
 static FAutoConsoleVariableRef CVarVulkanUseBufferBinning(
 	TEXT("r.Vulkan.UseBufferBinning"),
@@ -194,6 +208,15 @@ static FAutoConsoleVariableRef GVarVulkanLogEvictStatus(
 	TEXT("Log Eviction status every frame"),
 	ECVF_RenderThreadSafe
 );
+
+int32 GVulkanBudgetPercentageScale = 100;
+static FAutoConsoleVariableRef CVarVulkanBudgetPercentageScale(
+	TEXT("r.Vulkan.BudgetScale"),
+	GVulkanBudgetPercentageScale,
+	TEXT("Percentage Scaling of MemoryBudget. Valid range is [0-100]. Only has an effect if VK_EXT_memory_budget is available"),
+	ECVF_RenderThreadSafe
+);
+
 
 
 
@@ -554,6 +577,25 @@ namespace VulkanRHI
 			MemoryProperties2.pNext = &MemoryBudget;
 			VulkanRHI::vkGetPhysicalDeviceMemoryProperties2(Device->GetPhysicalHandle(), &MemoryProperties2);
 			FMemory::Memcpy(MemoryProperties, MemoryProperties2.memoryProperties);
+
+
+			for (uint32 Heap = 0; Heap < VK_MAX_MEMORY_HEAPS; ++Heap)
+			{
+				MemoryBudget.heapBudget[Heap] = GVulkanBudgetPercentageScale * MemoryBudget.heapBudget[Heap] / 100;
+			}
+
+			VkDeviceSize BudgetX = 0;
+			for (uint32 Heap = 6; Heap < VK_MAX_MEMORY_HEAPS; ++Heap)
+			{
+				BudgetX += MemoryBudget.heapBudget[Heap];
+			}
+			SET_DWORD_STAT(STAT_VulkanMemoryBudget0, MemoryBudget.heapBudget[0]);
+			SET_DWORD_STAT(STAT_VulkanMemoryBudget1, MemoryBudget.heapBudget[1]);
+			SET_DWORD_STAT(STAT_VulkanMemoryBudget2, MemoryBudget.heapBudget[2]);
+			SET_DWORD_STAT(STAT_VulkanMemoryBudget3, MemoryBudget.heapBudget[3]);
+			SET_DWORD_STAT(STAT_VulkanMemoryBudget4, MemoryBudget.heapBudget[4]);
+			SET_DWORD_STAT(STAT_VulkanMemoryBudget5, MemoryBudget.heapBudget[5]);
+			SET_DWORD_STAT(STAT_VulkanMemoryBudgetX, BudgetX);
 		}
 		else
 		{
@@ -782,7 +824,7 @@ namespace VulkanRHI
 		}
 		return false;
 	}
-	void FDeviceMemoryManager::GetHostMemoryStatus(uint64* Allocated, uint64* Total) const
+	void FDeviceMemoryManager::GetHostMemoryStatus(uint64* Allocated, uint64* Total)
 	{
 		if(PrimaryHostHeap < 0)
 		{
@@ -794,6 +836,12 @@ namespace VulkanRHI
 			*Allocated = HeapInfos[PrimaryHostHeap].UsedSize;
 			check(HeapInfos[PrimaryHostHeap].TotalSize == MemoryProperties.memoryHeaps[PrimaryHostHeap].size);
 			*Total = GetBaseHeapSize(PrimaryHostHeap);
+			if (Device->GetOptionalExtensions().HasMemoryBudget && FPlatformTime::Seconds() - MemoryUpdateTime >= 1.0)
+			{
+				MemoryUpdateTime = FPlatformTime::Seconds();
+				UpdateMemoryProperties();
+				*Total = MemoryBudget.heapBudget[PrimaryHostHeap];
+			}
 		}
 	}
 
