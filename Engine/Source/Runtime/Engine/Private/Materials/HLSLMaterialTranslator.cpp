@@ -663,7 +663,9 @@ bool FHLSLMaterialTranslator::Translate()
 		{
 			MaterialShadingModels = ShadingModelsFromCompilation;
 		}
-
+		
+		ValidateShadingModelsForFeatureLevel(MaterialShadingModels);
+		
 		if (Domain == MD_Volume || (Domain == MD_Surface && IsSubsurfaceShadingModel(MaterialShadingModels)))
 		{
 			// Note we don't test for the blend mode as you can have a translucent material using the subsurface shading model
@@ -1124,6 +1126,31 @@ bool FHLSLMaterialTranslator::Translate()
 		
 	INC_FLOAT_STAT_BY(STAT_ShaderCompiling_HLSLTranslation,(float)HLSLTranslateTime);
 	return bSuccess;
+}
+
+void FHLSLMaterialTranslator::ValidateShadingModelsForFeatureLevel(const FMaterialShadingModelField& ShadingModels)
+{
+	if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
+	{
+		const TArray<EMaterialShadingModel>& InvalidShadingModels = { MSM_Hair, MSM_Eye };
+		for (EMaterialShadingModel InvalidShadingModel : InvalidShadingModels)
+		{
+			if (ShadingModels.HasShadingModel(InvalidShadingModel))
+			{
+				FString FeatureLevelName;
+				GetFeatureLevelName(FeatureLevel, FeatureLevelName);
+
+				FString ShadingModelName;
+				const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EMaterialShadingModel"), true);
+				if (EnumPtr)
+				{
+					ShadingModelName = EnumPtr->GetNameStringByValue(InvalidShadingModel);
+				}
+
+				Errorf(TEXT("ShadingModel %s not supported in feature level %s"), *ShadingModelName, *FeatureLevelName);
+			}
+		}
+	}
 }
 
 void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform, FShaderCompilerEnvironment& OutEnvironment)
