@@ -3,7 +3,6 @@
 #include "DisplayClusterLog.h"
 
 // Plugin-wide log categories
-DEFINE_LOG_CATEGORY(LogDisplayClusterGameMode);
 DEFINE_LOG_CATEGORY(LogDisplayClusterEngine);
 DEFINE_LOG_CATEGORY(LogDisplayClusterModule);
 DEFINE_LOG_CATEGORY(LogDisplayClusterCluster);
