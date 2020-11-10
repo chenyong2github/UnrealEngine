@@ -7,6 +7,7 @@
 #include "ShadingCommon.ush"
 #include "ShadowFilteringCommon.ush"
 #include "DeferredShadingCommon.ush"
+#include "HairBsdf.ush"
 
 #ifndef FEATURE_GATHER4
 #define FEATURE_GATHER4 1
@@ -200,6 +201,10 @@ FMobileDirectLighting MobileIntegrateBxDF(FMobileShadingModelContext ShadingMode
 	half3 DefaultSpecular = NoL;
 	half3 RefractedSpecular = LayerAttenuation * Transmission * BottomNoL;
 	Lighting.Specular += CommonSpecular * lerp(DefaultSpecular, RefractedSpecular, ShadingModelContext.ClearCoat);
+#elif MATERIAL_SHADINGMODEL_HAIR
+	 // TODO transmittance
+	Lighting.Specular = half3(0, 0, 0);
+	Lighting.Diffuse = half3(0, 0, 0);
 #else // MATERIAL_SHADINGMODEL_DEFAULT_LIT
 	Lighting.Specular = ShadingModelContext.SpecularColor * (NoL * CalcSpecular(GBuffer.Roughness, NoH));
 	Lighting.Diffuse = NoL * ShadingModelContext.DiffuseColor;

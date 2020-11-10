@@ -8,6 +8,7 @@
 #include "CapsuleLight.ush"
 #include "RectLight.ush"
 #include "TransmissionCommon.ush"
+#include "HairBsdf.ush"
 
 #if 0
 void StandardShadingShared( float3 DiffuseColor, float3 SpecularColor, float Roughness, float3 V, half3 N )
@@ -46,44 +47,6 @@ void StandardShadingPerLight( Shared, float3 L, float3 V, half3 N )
 	return Shared.DiffuseMul + D_Vis * F;					// 3 mad
 }
 #endif
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Transmittance functions
-
-struct FHairTransmittanceData
-{
-	bool bUseLegacyAbsorption;
-	bool bUseSeparableR;
-
-	float  OpaqueVisibility;
-	float3 LocalScattering;
-	float3 GlobalScattering;
-
-	uint ScatteringComponent;
-};
-
-FHairTransmittanceData InitHairTransmittanceData(bool bMultipleScatterEnable=true)
-{
-	FHairTransmittanceData o;
-	o.bUseLegacyAbsorption = true;
-	o.bUseSeparableR = true;
-
-	o.OpaqueVisibility = 1;
-	o.LocalScattering = 0;
-	o.GlobalScattering = 1;
-	o.ScatteringComponent = HAIR_COMPONENT_R | HAIR_COMPONENT_TT | HAIR_COMPONENT_TRT | (bMultipleScatterEnable ? HAIR_COMPONENT_MULTISCATTER : 0);
-
-	return o;
-}
-
-FHairTransmittanceData InitHairStrandsTransmittanceData(bool bMultipleScatterEnable=false)
-{
-	FHairTransmittanceData o = InitHairTransmittanceData(bMultipleScatterEnable);
-	o.bUseLegacyAbsorption = false;
-	return o;
-}
-
 struct FAreaLight
 {
 	float		SphereSinAlpha;
@@ -111,8 +74,16 @@ struct FShadowTerms
 	float	TransmissionThickness;
 	FHairTransmittanceData HairTransmittance;
 };
+FDirectLighting HairBxDF(FGBufferData GBuffer, half3 N, half3 V, half3 L, float Falloff, float NoL, FAreaLight AreaLight, FShadowTerms Shadow)
+{
+	const float3 BsdfValue = HairShading(GBuffer, L, V, N, Shadow.TransmissionShadow, Shadow.HairTransmittance, 1, 0, uint2(0, 0));
 
-#include "HairBsdf.ush"
+	FDirectLighting Lighting;
+	Lighting.Diffuse = 0;
+	Lighting.Specular = 0;
+	Lighting.Transmission = AreaLight.FalloffColor * Falloff * BsdfValue;
+	return Lighting;
+}
 
 bool IsAreaLight(FAreaLight AreaLight)
 {
