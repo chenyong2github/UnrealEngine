@@ -2103,6 +2103,7 @@ namespace HairCards
 		OutCards.UVs.SetNum(TotalPointCount);
 		OutCards.Indices.SetNum(TotalIndexCount);
 		OutCards.CardIndices.SetNum(TotalPointCount);		
+		OutCards.CoordU.SetNum(TotalPointCount);
 
 		uint32 IndexIt = 0;
 		uint32 VertexIt = 0;
@@ -2244,7 +2245,8 @@ namespace HairCards
 
 						// Relative UVs
 						OutCards.UVs[VIndex].X /= CardLength;
-
+						OutCards.CoordU[VIndex] = OutCards.UVs[VIndex].X;
+						
 						// Absolute/Global UVs
 						const FVector2D AtlasCoord = FVector2D(OutCards.UVs[VIndex].X, OutCards.UVs[VIndex].Y) * Rect.Resolution + FVector2D(Rect.Offset.X, Rect.Offset.Y) + FVector2D(0.5f, 0.5f);
 						OutCards.UVs[VIndex].X = AtlasCoord.X / AtlasResolution.X;
