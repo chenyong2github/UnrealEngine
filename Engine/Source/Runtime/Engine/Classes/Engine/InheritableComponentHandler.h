@@ -142,12 +142,17 @@ public:
 		return Records.CreateIterator();
 	}
 
-	void GetAllTemplates(TArray<UActorComponent*>& OutArray) const
+	void GetAllTemplates(TArray<UActorComponent*>& OutArray, bool bIncludeTransientTemplates = false) const
 	{
-		OutArray.Reserve(OutArray.Num() + Records.Num());
+		OutArray.Reserve(OutArray.Num() + Records.Num() + (bIncludeTransientTemplates ? UnnecessaryComponents.Num() : 0));
 		for (const FComponentOverrideRecord& Record : Records)
 		{
 			OutArray.Add(Record.ComponentTemplate);
+		}
+
+		if (bIncludeTransientTemplates)
+		{
+			OutArray.Append(UnnecessaryComponents);
 		}
 	}
 
