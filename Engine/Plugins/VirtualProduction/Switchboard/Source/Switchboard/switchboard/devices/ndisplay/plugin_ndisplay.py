@@ -308,6 +308,7 @@ class DevicenDisplay(DeviceUnreal):
             "-fixedseed",                      # for determinism
             "-NoVerifyGC",                     # improves performance
             "-noxrstereo",                     # avoids a conflict with steam/oculus
+            "-RemoteControlIsHeadless",        # avoids notification window when using RemoteControlWebUI
             f'{additional_args}',              # specified in settings
             f'{vproles}',                      # VP roles for this instance
             f'{friendly_name}',                # Stage Friendly Name
