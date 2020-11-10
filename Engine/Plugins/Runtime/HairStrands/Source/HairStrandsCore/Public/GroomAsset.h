@@ -372,7 +372,6 @@ public:
 	bool BuildCardsGeometry();
 	bool BuildMeshesGeometry();
 
-private:
 	enum EClassDataStripFlag : uint8
 	{
 		CDSF_ImportedStrands = 1,
@@ -383,6 +382,8 @@ private:
 	};
 
 	uint8 GenerateClassStripFlags(FArchive& Ar);
+
+private:
 	void ApplyStripFlags(uint8 StripFlags, const class ITargetPlatform* CookTarget);
 
 #if WITH_EDITORONLY_DATA

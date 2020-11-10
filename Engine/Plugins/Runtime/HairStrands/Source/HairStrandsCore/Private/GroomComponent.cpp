@@ -1840,11 +1840,13 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			HairGroupInstance->HairGroupPublicData->SetLODGeometryTypes(LODGeometryTypes);
 		}
 
+		// LODBias is in the Modifier which is needed for LOD selection regardless if the strands are there or not
+		HairGroupInstance->Strands.Modifier = GetGroomGroupsDesc(GroomAsset, this, GroupIt);
+
 		// Strands data/resources
 		if (bIsStrandsEnabled && GroupData.Strands.IsValid())
 		{
 			check(GroupIt < GroomGroupsDesc.Num());
-			HairGroupInstance->Strands.Modifier = GetGroomGroupsDesc(GroomAsset, this, GroupIt);
 
 			HairGroupInstance->Strands.Data = &GroupData.Strands.Data;
 			HairGroupInstance->Strands.InterpolationData = &GroupData.Strands.InterpolationData;
