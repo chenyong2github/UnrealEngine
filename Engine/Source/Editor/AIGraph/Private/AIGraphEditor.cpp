@@ -395,6 +395,8 @@ void FAIGraphEditor::PasteNodesHere(const FVector2D& Location)
 
 	bool bPastedParentNode = false;
 
+	TMap<FGuid/*New*/, FGuid/*Old*/> NewToOldNodeMapping;
+
 	TMap<int32, UAIGraphNode*> ParentMap;
 	for (TSet<UEdGraphNode*>::TIterator It(PastedNodes); It; ++It)
 	{
@@ -413,8 +415,14 @@ void FAIGraphEditor::PasteNodesHere(const FVector2D& Location)
 
 			PasteNode->SnapToGrid(16);
 
+			const FGuid OldGuid = PasteNode->NodeGuid;
+
 			// Give new node a different Guid from the old one
 			PasteNode->CreateNewGuid();
+
+			const FGuid NewGuid = PasteNode->NodeGuid;
+
+			NewToOldNodeMapping.Add(NewGuid, OldGuid);
 
 			if (PasteAINode)
 			{
@@ -448,6 +456,8 @@ void FAIGraphEditor::PasteNodesHere(const FVector2D& Location)
 		}
 	}
 
+	FixupPastedNodes(PastedNodes, NewToOldNodeMapping);
+
 	if (AIGraph)
 	{
 		AIGraph->UpdateClassData();
@@ -464,6 +474,11 @@ void FAIGraphEditor::PasteNodesHere(const FVector2D& Location)
 		GraphOwner->PostEditChange();
 		GraphOwner->MarkPackageDirty();
 	}
+}
+
+void FAIGraphEditor::FixupPastedNodes(const TSet<UEdGraphNode*>& PastedGraphNodes, const TMap<FGuid/*New*/, FGuid/*Old*/>& NewToOldNodeMapping)
+{
+	
 }
 
 bool FAIGraphEditor::CanPasteNodes() const
