@@ -16,7 +16,7 @@ class VCAMCORE_API ASimpleVirtualCamera : public ACineCameraActor
 	GENERATED_BODY()
 
 public:
-	ASimpleVirtualCamera(const FObjectInitializer& ObjectInitializer);
+	virtual void PostActorCreated() override;
 
 private:
 	UPROPERTY(EditAnywhere, Category = "VirtualCamera")
