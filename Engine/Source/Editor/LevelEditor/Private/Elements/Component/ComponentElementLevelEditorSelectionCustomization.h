@@ -3,13 +3,9 @@
 #pragma once
 
 #include "Elements/Framework/TypedElementSelectionSet.h"
-#include "ComponentElementLevelEditorSelectionProxy.generated.h"
 
-UCLASS()
-class UComponentElementLevelEditorSelectionProxy : public UTypedElementAssetEditorSelectionProxy
+class FComponentElementLevelEditorSelectionCustomization : public FTypedElementAssetEditorSelectionCustomization
 {
-	GENERATED_BODY()
-
 public:
 	virtual bool CanSelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions) override;
 	virtual bool CanDeselectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions) override;

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Elements/Component/ComponentElementLevelEditorSelectionProxy.h"
+#include "Elements/Component/ComponentElementLevelEditorSelectionCustomization.h"
 #include "Elements/Component/ComponentElementData.h"
 #include "GameFramework/Actor.h"
 #include "Components/ActorComponent.h"
@@ -17,27 +17,27 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogComponentLevelEditorSelection, Log, All);
 
-bool UComponentElementLevelEditorSelectionProxy::CanSelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FComponentElementLevelEditorSelectionCustomization::CanSelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	return InElementSelectionHandle.IsDataOfType<FComponentElementData>() && CanSelectComponentElement(InElementSelectionHandle, InSelectionOptions);
 }
 
-bool UComponentElementLevelEditorSelectionProxy::CanDeselectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FComponentElementLevelEditorSelectionCustomization::CanDeselectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	return InElementSelectionHandle.IsDataOfType<FComponentElementData>() && CanDeselectComponentElement(InElementSelectionHandle, InSelectionOptions);
 }
 
-bool UComponentElementLevelEditorSelectionProxy::SelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FComponentElementLevelEditorSelectionCustomization::SelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	return InElementSelectionHandle.IsDataOfType<FComponentElementData>() && SelectComponentElement(InElementSelectionHandle, InSelectionSet, InSelectionOptions);
 }
 
-bool UComponentElementLevelEditorSelectionProxy::DeselectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FComponentElementLevelEditorSelectionCustomization::DeselectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	return InElementSelectionHandle.IsDataOfType<FComponentElementData>() && DeselectComponentElement(InElementSelectionHandle, InSelectionSet, InSelectionOptions);
 }
 
-FTypedElementHandle UComponentElementLevelEditorSelectionProxy::GetSelectionElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const UTypedElementList* InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod)
+FTypedElementHandle FComponentElementLevelEditorSelectionCustomization::GetSelectionElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const UTypedElementList* InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod)
 {
 	if (const FComponentElementData* ComponentData = InElementSelectionHandle.GetData<FComponentElementData>())
 	{
@@ -84,7 +84,7 @@ FTypedElementHandle UComponentElementLevelEditorSelectionProxy::GetSelectionElem
 	return InElementSelectionHandle;
 }
 
-bool UComponentElementLevelEditorSelectionProxy::CanSelectComponentElement(const TTypedElement<UTypedElementSelectionInterface>& InComponentSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FComponentElementLevelEditorSelectionCustomization::CanSelectComponentElement(const TTypedElement<UTypedElementSelectionInterface>& InComponentSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	UActorComponent* Component = InComponentSelectionHandle.GetDataChecked<FComponentElementData>().Component;
 
@@ -92,7 +92,7 @@ bool UComponentElementLevelEditorSelectionProxy::CanSelectComponentElement(const
 	return !GEdSelectionLock;
 }
 
-bool UComponentElementLevelEditorSelectionProxy::CanDeselectComponentElement(const TTypedElement<UTypedElementSelectionInterface>& InComponentSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FComponentElementLevelEditorSelectionCustomization::CanDeselectComponentElement(const TTypedElement<UTypedElementSelectionInterface>& InComponentSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	UActorComponent* Component = InComponentSelectionHandle.GetDataChecked<FComponentElementData>().Component;
 
@@ -100,7 +100,7 @@ bool UComponentElementLevelEditorSelectionProxy::CanDeselectComponentElement(con
 	return !GEdSelectionLock;
 }
 
-bool UComponentElementLevelEditorSelectionProxy::SelectComponentElement(const TTypedElement<UTypedElementSelectionInterface>& InComponentSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FComponentElementLevelEditorSelectionCustomization::SelectComponentElement(const TTypedElement<UTypedElementSelectionInterface>& InComponentSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	UActorComponent* Component = InComponentSelectionHandle.GetDataChecked<FComponentElementData>().Component;
 
@@ -139,7 +139,7 @@ bool UComponentElementLevelEditorSelectionProxy::SelectComponentElement(const TT
 	return true;
 }
 
-bool UComponentElementLevelEditorSelectionProxy::DeselectComponentElement(const TTypedElement<UTypedElementSelectionInterface>& InComponentSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FComponentElementLevelEditorSelectionCustomization::DeselectComponentElement(const TTypedElement<UTypedElementSelectionInterface>& InComponentSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	UActorComponent* Component = InComponentSelectionHandle.GetDataChecked<FComponentElementData>().Component;
 

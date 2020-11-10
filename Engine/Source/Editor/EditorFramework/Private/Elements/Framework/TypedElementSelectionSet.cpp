@@ -209,21 +209,11 @@ FTypedElementHandle UTypedElementSelectionSet::GetSelectionElement(const FTypedE
 	return SelectionSetElement ? SelectionSetElement.GetSelectionElement(InSelectionMethod) : FTypedElementHandle();
 }
 
-void UTypedElementSelectionSet::RegisterAssetEditorSelectionProxy(const FName InElementTypeName, UTypedElementAssetEditorSelectionProxy* InAssetEditorSelectionProxy)
-{
-	const FTypedHandleTypeId ElementTypeId = UTypedElementRegistry::GetInstance()->GetRegisteredElementTypeId(InElementTypeName);
-	checkf(ElementTypeId > 0, TEXT("Element type '%s' has not been registered!"), *InElementTypeName.ToString());
-	RegisteredAssetEditorSelectionProxies[ElementTypeId - 1] = InAssetEditorSelectionProxy;
-}
-
 FTypedElementSelectionSetElement UTypedElementSelectionSet::ResolveSelectionSetElement(const FTypedElementHandle& InElementHandle) const
 {
-	if (InElementHandle)
-	{
-		UTypedElementAssetEditorSelectionProxy* AssetEditorSelectionProxy = RegisteredAssetEditorSelectionProxies[InElementHandle.GetId().GetTypeId() - 1];
-		return FTypedElementSelectionSetElement(ElementList->GetElement<UTypedElementSelectionInterface>(InElementHandle), ElementList, AssetEditorSelectionProxy ? AssetEditorSelectionProxy : GetMutableDefault<UTypedElementAssetEditorSelectionProxy>());
-	}
-	return FTypedElementSelectionSetElement();
+	return InElementHandle
+		? FTypedElementSelectionSetElement(ElementList->GetElement<UTypedElementSelectionInterface>(InElementHandle), ElementList, GetAssetEditorCustomizationByTypeId(InElementHandle.GetId().GetTypeId()))
+		: FTypedElementSelectionSetElement();
 }
 
 void UTypedElementSelectionSet::OnElementListPreChange(const UTypedElementList* InElementList)

@@ -3,15 +3,11 @@
 #pragma once
 
 #include "Elements/Framework/TypedElementSelectionSet.h"
-#include "ActorElementLevelEditorSelectionProxy.generated.h"
 
 class AGroupActor;
 
-UCLASS()
-class UActorElementLevelEditorSelectionProxy : public UTypedElementAssetEditorSelectionProxy
+class FActorElementLevelEditorSelectionCustomization : public FTypedElementAssetEditorSelectionCustomization
 {
-	GENERATED_BODY()
-
 public:
 	virtual bool CanSelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions) override;
 	virtual bool CanDeselectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions) override;

@@ -130,7 +130,7 @@
 #include "Editor/ActorPositioning.h"
 
 #include "Elements/Framework/TypedElementSelectionSet.h"
-#include "Elements/Object/ObjectElementEditorSelectionProxy.h"
+#include "Elements/Object/ObjectElementEditorSelectionCustomization.h"
 
 #include "IDirectoryWatcher.h"
 #include "DirectoryWatcherModule.h"
@@ -269,7 +269,7 @@ void InitSelectionSets()
 	GObjectSelection->AddToRoot();
 
 	UTypedElementSelectionSet* ObjectSelectionSet = NewObject<UTypedElementSelectionSet>(GObjectSelection, NAME_None, RF_Transactional);
-	ObjectSelectionSet->RegisterAssetEditorSelectionProxy(NAME_Object, NewObject<UObjectElementEditorSelectionProxy>());
+	ObjectSelectionSet->RegisterAssetEditorCustomizationByTypeName(NAME_Object, MakeUnique<FObjectElementEditorSelectionCustomization>());
 	GObjectSelection->SetElementSelectionSet(ObjectSelectionSet);
 }
 

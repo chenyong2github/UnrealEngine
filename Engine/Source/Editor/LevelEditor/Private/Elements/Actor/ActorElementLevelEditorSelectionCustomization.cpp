@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Elements/Actor/ActorElementLevelEditorSelectionProxy.h"
+#include "Elements/Actor/ActorElementLevelEditorSelectionCustomization.h"
 #include "Elements/Actor/ActorElementData.h"
 #include "GameFramework/Actor.h"
 #include "Components/ActorComponent.h"
@@ -22,33 +22,33 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogActorLevelEditorSelection, Log, All);
 
-bool UActorElementLevelEditorSelectionProxy::CanSelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FActorElementLevelEditorSelectionCustomization::CanSelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	return InElementSelectionHandle.IsDataOfType<FActorElementData>() && CanSelectActorElement(InElementSelectionHandle, InSelectionOptions);
 }
 
-bool UActorElementLevelEditorSelectionProxy::CanDeselectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FActorElementLevelEditorSelectionCustomization::CanDeselectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	return InElementSelectionHandle.IsDataOfType<FActorElementData>() && CanDeselectActorElement(InElementSelectionHandle, InSelectionOptions);
 }
 
-bool UActorElementLevelEditorSelectionProxy::SelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FActorElementLevelEditorSelectionCustomization::SelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	return InElementSelectionHandle.IsDataOfType<FActorElementData>() && SelectActorElement(InElementSelectionHandle, InSelectionSet, InSelectionOptions);
 }
 
-bool UActorElementLevelEditorSelectionProxy::DeselectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FActorElementLevelEditorSelectionCustomization::DeselectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	return InElementSelectionHandle.IsDataOfType<FActorElementData>() && DeselectActorElement(InElementSelectionHandle, InSelectionSet, InSelectionOptions);
 }
 
-bool UActorElementLevelEditorSelectionProxy::AllowSelectionModifiers(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const UTypedElementList* InSelectionSet)
+bool FActorElementLevelEditorSelectionCustomization::AllowSelectionModifiers(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const UTypedElementList* InSelectionSet)
 {
 	// Ctrl or Shift clicking an actor is the same as regular clicking when components are selected
 	return InElementSelectionHandle.IsDataOfType<FActorElementData>() && !UComponentElementSelectionInterface::HasSelectedComponents(InSelectionSet);
 }
 
-FTypedElementHandle UActorElementLevelEditorSelectionProxy::GetSelectionElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const UTypedElementList* InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod)
+FTypedElementHandle FActorElementLevelEditorSelectionCustomization::GetSelectionElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const UTypedElementList* InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod)
 {
 	if (const FActorElementData* ActorData = InElementSelectionHandle.GetData<FActorElementData>())
 	{
@@ -62,7 +62,7 @@ FTypedElementHandle UActorElementLevelEditorSelectionProxy::GetSelectionElement(
 	return InElementSelectionHandle;
 }
 
-bool UActorElementLevelEditorSelectionProxy::CanSelectActorElement(const TTypedElement<UTypedElementSelectionInterface>& InActorSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FActorElementLevelEditorSelectionCustomization::CanSelectActorElement(const TTypedElement<UTypedElementSelectionInterface>& InActorSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	AActor* Actor = InActorSelectionHandle.GetDataChecked<FActorElementData>().Actor;
 
@@ -108,7 +108,7 @@ bool UActorElementLevelEditorSelectionProxy::CanSelectActorElement(const TTypedE
 	return GLevelEditorModeTools().IsSelectionAllowed(Actor, /*bInSelected*/true);
 }
 
-bool UActorElementLevelEditorSelectionProxy::CanDeselectActorElement(const TTypedElement<UTypedElementSelectionInterface>& InActorSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FActorElementLevelEditorSelectionCustomization::CanDeselectActorElement(const TTypedElement<UTypedElementSelectionInterface>& InActorSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	AActor* Actor = InActorSelectionHandle.GetDataChecked<FActorElementData>().Actor;
 
@@ -122,7 +122,7 @@ bool UActorElementLevelEditorSelectionProxy::CanDeselectActorElement(const TType
 	return GLevelEditorModeTools().IsSelectionAllowed(Actor, /*bInSelected*/false);
 }
 
-bool UActorElementLevelEditorSelectionProxy::SelectActorElement(const TTypedElement<UTypedElementSelectionInterface>& InActorSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FActorElementLevelEditorSelectionCustomization::SelectActorElement(const TTypedElement<UTypedElementSelectionInterface>& InActorSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	AActor* Actor = InActorSelectionHandle.GetDataChecked<FActorElementData>().Actor;
 
@@ -187,7 +187,7 @@ bool UActorElementLevelEditorSelectionProxy::SelectActorElement(const TTypedElem
 	return true;
 }
 
-bool UActorElementLevelEditorSelectionProxy::DeselectActorElement(const TTypedElement<UTypedElementSelectionInterface>& InActorSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+bool FActorElementLevelEditorSelectionCustomization::DeselectActorElement(const TTypedElement<UTypedElementSelectionInterface>& InActorSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	AActor* Actor = InActorSelectionHandle.GetDataChecked<FActorElementData>().Actor;
 
@@ -253,7 +253,7 @@ bool UActorElementLevelEditorSelectionProxy::DeselectActorElement(const TTypedEl
 	return true;
 }
 
-bool UActorElementLevelEditorSelectionProxy::SelectActorGroup(AGroupActor* InGroupActor, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions, const bool bForce)
+bool FActorElementLevelEditorSelectionCustomization::SelectActorGroup(AGroupActor* InGroupActor, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions, const bool bForce)
 {
 	bool bSelectionChanged = false;
 
@@ -280,7 +280,7 @@ bool UActorElementLevelEditorSelectionProxy::SelectActorGroup(AGroupActor* InGro
 	return bSelectionChanged;
 }
 
-bool UActorElementLevelEditorSelectionProxy::DeselectActorGroup(AGroupActor* InGroupActor, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions, const bool bForce)
+bool FActorElementLevelEditorSelectionCustomization::DeselectActorGroup(AGroupActor* InGroupActor, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions, const bool bForce)
 {
 	bool bSelectionChanged = false;
 

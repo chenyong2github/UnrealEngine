@@ -61,8 +61,8 @@
 #include "Editor/EnvironmentLightingViewer/Public/EnvironmentLightingModule.h"
 #include "Misc/MessageDialog.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
-#include "Elements/Actor/ActorElementLevelEditorSelectionProxy.h"
-#include "Elements/Component/ComponentElementLevelEditorSelectionProxy.h"
+#include "Elements/Actor/ActorElementLevelEditorSelectionCustomization.h"
+#include "Elements/Component/ComponentElementLevelEditorSelectionCustomization.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditor"
 
@@ -222,8 +222,8 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 	SelectedElements->AddToRoot();
 
 	// Register the level editor specific selection behavior
-	SelectedElements->RegisterAssetEditorSelectionProxy(NAME_Actor, NewObject<UActorElementLevelEditorSelectionProxy>());
-	SelectedElements->RegisterAssetEditorSelectionProxy(NAME_Components, NewObject<UComponentElementLevelEditorSelectionProxy>());
+	SelectedElements->RegisterAssetEditorCustomizationByTypeName(NAME_Actor, MakeUnique<FActorElementLevelEditorSelectionCustomization>());
+	SelectedElements->RegisterAssetEditorCustomizationByTypeName(NAME_Components, MakeUnique<FComponentElementLevelEditorSelectionCustomization>());
 
 	// Allow USelection to bridge to our selected element list
 	GUnrealEd->GetSelectedActors()->SetElementSelectionSet(SelectedElements);
