@@ -168,8 +168,7 @@ export void SampleBoxNormalAverage(const uniform FVector &BoxMin,
 
 	foreach(i = 0 ... NumParticles)
 	{
-		#pragma ignore warning(perf)
-		FVector Particle = SampleParticles[PotentialParticles[i]];
+		FVector Particle = VectorGather(&SampleParticles[PotentialParticles[i]]);
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
 		float LocalPhi = BoxPhi(BoxMin, BoxMax, LocalPoint);
@@ -199,31 +198,24 @@ export uniform bool SampleBoxNoNormal(const uniform FVector &BoxMin,
 
 	foreach(i = 0 ... NumParticles)
 	{
-		if(!bPhiFound)
+		const int ParticleNum = PotentialParticles[i];
+
+		FVector Particle = VectorGather(&SampleParticles[ParticleNum]);
+
+		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
+		float LocalPhi = BoxPhi(BoxMin, BoxMax, LocalPoint);
+
+		if(LocalPhi < Phi)
 		{
-			const int ParticleNum = PotentialParticles[i];
-
-			#pragma ignore warning(perf)
-			FVector Particle = SampleParticles[ParticleNum];
-
-			FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
-			float LocalPhi = BoxPhi(BoxMin, BoxMax, LocalPoint);
-
-			if(LocalPhi < Phi)
+			Phi = reduce_min(LocalPhi);
+			foreach_active(j)
 			{
-				foreach_active(j)
+				if(extract(LocalPhi, j) == Phi)
 				{
-					unmasked
-					{
-						if(!bPhiFound)
-						{
-							Phi = extract(LocalPhi, j);
-							DeepestParticle = extract(ParticleNum, j);
-							bPhiFound = true;
-						}
-					}
+					DeepestParticle = extract(ParticleNum, j);
 				}
 			}
+			bPhiFound = true;
 		}
 	}
 
@@ -245,8 +237,7 @@ export void SampleBoxNormalAverageAll(const uniform FVector &BoxMin,
 
 	foreach(i = 0 ... NumParticles)
 	{
-		#pragma ignore warning(perf)
-		FVector Particle = SampleParticles[i];
+		FVector Particle = VectorLoad(&SampleParticles[extract(i, 0)]);
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
 		float LocalPhi = BoxPhi(BoxMin, BoxMax, LocalPoint);
@@ -275,29 +266,22 @@ export uniform bool SampleBoxNoNormalAll(const uniform FVector &BoxMin,
 
 	foreach(i = 0 ... NumParticles)
 	{
-		if(!bPhiFound)
+		FVector Particle = VectorLoad(&SampleParticles[extract(i, 0)]);
+
+		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
+		float LocalPhi = BoxPhi(BoxMin, BoxMax, LocalPoint);
+
+		if(LocalPhi < Phi)
 		{
-			#pragma ignore warning(perf)
-			FVector Particle = SampleParticles[i];
-
-			FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
-			float LocalPhi = BoxPhi(BoxMin, BoxMax, LocalPoint);
-
-			if(LocalPhi < Phi)
+			Phi = reduce_min(LocalPhi);
+			foreach_active(j)
 			{
-				foreach_active(j)
+				if(extract(LocalPhi, j) == Phi)
 				{
-					unmasked
-					{
-						if(!bPhiFound)
-						{
-							Phi = extract(LocalPhi, j);
-							DeepestParticle = extract(i, j);
-							bPhiFound = true;
-						}
-					}
+					DeepestParticle = extract(i, j);
 				}
 			}
+			bPhiFound = true;
 		}
 	}
 
@@ -405,8 +389,7 @@ export void SampleLevelSetNormalAverage(const uniform FVector &GridMinCorner,
 
 	foreach(i = 0 ... NumParticles)
 	{
-		#pragma ignore warning(perf)
-		FVector Particle = SampleParticles[PotentialParticles[i]];
+		FVector Particle = VectorGather(&SampleParticles[PotentialParticles[i]]);
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
 		FVector Location = ClampMinusHalf(GridClampMin, GridClampMax, LocalPoint);
@@ -449,38 +432,31 @@ export uniform bool SampleLevelSetNoNormal(const uniform FVector &GridMinCorner,
 
 	foreach(i = 0 ... NumParticles)
 	{
-		if(!bPhiFound)
+		const int ParticleNum = PotentialParticles[i];
+
+		FVector Particle = VectorGather(&SampleParticles[ParticleNum]);
+
+		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
+		FVector Location = ClampMinusHalf(GridClampMin, GridClampMax, LocalPoint);
+		float SizeSquared = SquaredSum(Location - LocalPoint);
+		float LocalPhi = LinearlyInterpolate(GridMinCorner, GridMaxCorner, GridDx, GridCounts, LevelSetPhiArray, Location);
+
+		if(SizeSquared)
 		{
-			const int ParticleNum = PotentialParticles[i];
+			LocalPhi = rcp(rsqrt(SizeSquared)) + LocalPhi;
+		}
 
-			#pragma ignore warning(perf)
-			FVector Particle = SampleParticles[ParticleNum];
-
-			FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
-			FVector Location = ClampMinusHalf(GridClampMin, GridClampMax, LocalPoint);
-			float SizeSquared = SquaredSum(Location - LocalPoint);
-			float LocalPhi = LinearlyInterpolate(GridMinCorner, GridMaxCorner, GridDx, GridCounts, LevelSetPhiArray, Location);
-
-			if(SizeSquared)
+		if(LocalPhi < Phi)
+		{
+			Phi = reduce_min(LocalPhi);
+			foreach_active(j)
 			{
-				LocalPhi = rcp(rsqrt(SizeSquared)) + LocalPhi;
-			}
-
-			if(LocalPhi < Phi)
-			{
-				foreach_active(j)
+				if(extract(LocalPhi, j) == Phi)
 				{
-					unmasked
-					{
-						if(!bPhiFound)
-						{
-							Phi = extract(LocalPhi, j);
-							DeepestParticle = extract(ParticleNum, j);
-							bPhiFound = true;
-						}
-					}
+					DeepestParticle = extract(ParticleNum, j);
 				}
 			}
+			bPhiFound = true;
 		}
 	}
 
@@ -507,8 +483,7 @@ export void SampleLevelSetNormalAverageAll(const uniform FVector &GridMinCorner,
 
 	foreach(i = 0 ... NumParticles)
 	{
-		#pragma ignore warning(perf)
-		FVector Particle = SampleParticles[i];
+		FVector Particle = VectorLoad(&SampleParticles[extract(i, 0)]);
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
 		FVector Location = ClampMinusHalf(GridClampMin, GridClampMax, LocalPoint);
@@ -550,36 +525,29 @@ export uniform bool SampleLevelSetNoNormalAll(const uniform FVector &GridMinCorn
 
 	foreach(i = 0 ... NumParticles)
 	{
-		if(!bPhiFound)
+		FVector Particle = VectorLoad(&SampleParticles[extract(i, 0)]);
+
+		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
+		FVector Location = ClampMinusHalf(GridClampMin, GridClampMax, LocalPoint);
+		float SizeSquared = SquaredSum(Location - LocalPoint);
+		float LocalPhi = LinearlyInterpolate(GridMinCorner, GridMaxCorner, GridDx, GridCounts, LevelSetPhiArray, Location);
+
+		if(SizeSquared)
 		{
-			#pragma ignore warning(perf)
-			FVector Particle = SampleParticles[i];
+			LocalPhi = rcp(rsqrt(SizeSquared)) + LocalPhi;
+		}
 
-			FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
-			FVector Location = ClampMinusHalf(GridClampMin, GridClampMax, LocalPoint);
-			float SizeSquared = SquaredSum(Location - LocalPoint);
-			float LocalPhi = LinearlyInterpolate(GridMinCorner, GridMaxCorner, GridDx, GridCounts, LevelSetPhiArray, Location);
-
-			if(SizeSquared)
+		if(LocalPhi < Phi)
+		{
+			Phi = reduce_min(LocalPhi);
+			foreach_active(j)
 			{
-				LocalPhi = rcp(rsqrt(SizeSquared)) + LocalPhi;
-			}
-
-			if(LocalPhi < Phi)
-			{
-				foreach_active(j)
+				if(extract(LocalPhi, j) == Phi)
 				{
-					unmasked
-					{
-						if(!bPhiFound)
-						{
-							Phi = extract(LocalPhi, j);
-							DeepestParticle = extract(i, j);
-							bPhiFound = true;
-						}
-					}
+					DeepestParticle = extract(i, j);
 				}
 			}
+			bPhiFound = true;
 		}
 	}
 
@@ -605,8 +573,7 @@ export void SamplePlaneNormalAverageAll(const uniform FVector &ObjectNormal,
 
 	foreach(i = 0 ... NumParticles)
 	{
-		#pragma ignore warning(perf)
-		FVector Particle = SampleParticles[i];
+		FVector Particle = VectorLoad(&SampleParticles[extract(i, 0)]);
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
 		float LocalPhi = DotProduct(LocalPoint - ObjectMX, ObjectNormal);
@@ -635,29 +602,22 @@ export uniform bool SamplePlaneNoNormalAll(const uniform FVector &ObjectNormal,
 
 	foreach(i = 0 ... NumParticles)
 	{
-		if(!bPhiFound)
+		FVector Particle = VectorLoad(&SampleParticles[extract(i, 0)]);
+
+		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
+		float LocalPhi = DotProduct(LocalPoint - ObjectMX, ObjectNormal);
+
+		if(LocalPhi < Phi)
 		{
-			#pragma ignore warning(perf)
-			FVector Particle = SampleParticles[i];
-
-			FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
-			float LocalPhi = DotProduct(LocalPoint - ObjectMX, ObjectNormal);
-
-			if(LocalPhi < Phi)
+			Phi = reduce_min(LocalPhi);
+			foreach_active(j)
 			{
-				foreach_active(j)
+				if(extract(LocalPhi, j) == Phi)
 				{
-					unmasked
-					{
-						if(!bPhiFound)
-						{
-							Phi = extract(LocalPhi, j);
-							DeepestParticle = extract(i, j);
-							bPhiFound = true;
-						}
-					}
+					DeepestParticle = extract(i, j);
 				}
 			}
+			bPhiFound = true;
 		}
 	}
 
@@ -678,8 +638,7 @@ export void SampleSphereNormalAverageAll(const uniform float &ObjectRadius,
 
 	foreach(i = 0 ... NumParticles)
 	{
-		#pragma ignore warning(perf)
-		FVector Particle = SampleParticles[i];
+		FVector Particle = VectorLoad(&SampleParticles[extract(i, 0)]);
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
 		float LocalPhi = ObjectRadius - VectorSize2(LocalPoint - ObjectMX);
@@ -708,29 +667,22 @@ export uniform bool SampleSphereNoNormalAll(const uniform float &ObjectRadius,
 
 	foreach(i = 0 ... NumParticles)
 	{
-		if(!bPhiFound)
+		FVector Particle = VectorLoad(&SampleParticles[extract(i, 0)]);
+
+		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
+		float LocalPhi = ObjectRadius - VectorSize2(LocalPoint - ObjectMX);
+
+		if(LocalPhi < Phi)
 		{
-			#pragma ignore warning(perf)
-			FVector Particle = SampleParticles[i];
-
-			FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
-			float LocalPhi = ObjectRadius - VectorSize2(LocalPoint - ObjectMX);
-
-			if(LocalPhi < Phi)
+			Phi = reduce_min(LocalPhi);
+			foreach_active(j)
 			{
-				foreach_active(j)
+				if(extract(LocalPhi, j) == Phi)
 				{
-					unmasked
-					{
-						if(!bPhiFound)
-						{
-							Phi = extract(LocalPhi, j);
-							DeepestParticle = extract(i, j);
-							bPhiFound = true;
-						}
-					}
+					DeepestParticle = extract(i, j);
 				}
 			}
+			bPhiFound = true;
 		}
 	}
 
