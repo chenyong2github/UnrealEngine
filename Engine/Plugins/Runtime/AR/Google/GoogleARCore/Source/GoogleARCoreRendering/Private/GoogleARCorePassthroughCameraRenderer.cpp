@@ -73,8 +73,6 @@ void FGoogleARCorePassthroughCameraRenderer::InitializeRenderer_RenderThread(FSc
 	
 	if (!OverlayVertexBufferRHI)
 	{
-		bool bFlipCameraImageVertically = RHINeedsToSwitchVerticalAxis(InViewFamily.GetShaderPlatform()) && !IsMobileHDR();
-		
 		TResourceArray<FFilterVertex, VERTEXBUFFER_ALIGNMENT> Vertices;
 		Vertices.SetNumUninitialized(4);
 
