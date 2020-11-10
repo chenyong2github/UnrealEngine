@@ -47,6 +47,19 @@ void UDMXEntityFixturePatch::Tick(float DeltaTime)
 	}
 }
 
+
+void UDMXEntityFixturePatch::UpdateDMXCache()
+{
+	// If a listener is bound, this is already updated on tick
+	if (!OnFixturePatchReceivedDMX.IsBound())
+	{
+		if (UpdateCachedDMXValues())
+		{
+			UpdateCachedNormalizedAttributeValues();
+		}
+	}
+}
+
 bool UDMXEntityFixturePatch::UpdateCachedDMXValues()
 {
 	SCOPE_CYCLE_COUNTER(STAT_DMXFixturePatchCacheDMXValues);
@@ -695,6 +708,8 @@ int32 UDMXEntityFixturePatch::GetAttributeValue(FDMXAttributeName Attribute, boo
 {
 	if (const FDMXFixtureFunction* FunctionPtr = GetAttributeFunction(Attribute))
 	{
+		UpdateDMXCache();
+
 		const int32 FunctionStartIndex = FunctionPtr->Channel - 1;
 		const int32 FunctionLastIndex = FunctionStartIndex + UDMXEntityFixtureType::NumChannelsToOccupy(FunctionPtr->DataType) - 1;
 		if (FunctionLastIndex < CachedDMXValues.Num())
@@ -711,6 +726,8 @@ int32 UDMXEntityFixturePatch::GetAttributeValue(FDMXAttributeName Attribute, boo
 
 float UDMXEntityFixturePatch::GetNormalizedAttributeValue(FDMXAttributeName Attribute, bool& bSuccess)
 {
+	UpdateDMXCache();
+
 	const float* ValuePtr = CachedNormalizedValuesPerAttribute.Map.Find(Attribute);
 	if (ValuePtr)
 	{
@@ -727,6 +744,8 @@ void UDMXEntityFixturePatch::GetAttributesValues(TMap<FDMXAttributeName, int32>&
 
 	if (ParentFixtureTypeTemplate && CanReadActiveMode())
 	{
+		UpdateDMXCache();
+
 		const FDMXFixtureMode& Mode = ParentFixtureTypeTemplate->Modes[ActiveMode];
 
 		for (const FDMXFixtureFunction& Function : Mode.Functions)
@@ -746,6 +765,8 @@ void UDMXEntityFixturePatch::GetAttributesValues(TMap<FDMXAttributeName, int32>&
 
 void UDMXEntityFixturePatch::GetNormalizedAttributesValues(FDMXNormalizedAttributeValueMap& NormalizedAttributesValues)
 {
+	UpdateDMXCache();
+
 	NormalizedAttributesValues = CachedNormalizedValuesPerAttribute;
 }
 
@@ -881,6 +902,8 @@ bool UDMXEntityFixturePatch::GetMatrixCellValues(const FIntPoint& CellCoordinate
 		return false;
 	}
 
+	UpdateDMXCache();
+
 	const TArray<UDMXEntityController*>&& RelevantControllers = GetRelevantControllers();
 
 	TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
@@ -961,9 +984,11 @@ bool UDMXEntityFixturePatch::GetNormalizedMatrixCellValues(const FIntPoint& Cell
 				NormalizedValuePerAttribute.Add(AttributeValueKvp.Key, NormalizedValue);
 			}
 		}
+
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 bool UDMXEntityFixturePatch::GetMatrixCellChannelsRelative(const FIntPoint& CellCoordinate, TMap<FDMXAttributeName, int32>& AttributeChannelMap)
