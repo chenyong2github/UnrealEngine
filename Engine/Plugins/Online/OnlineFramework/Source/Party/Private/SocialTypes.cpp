@@ -28,10 +28,7 @@ FUserPlatform::FUserPlatform(const FString& InPlatform)
 		}
 	}
 
-	if (!ensure(IsValid()))
-	{
-		UE_LOG(LogParty, Warning, TEXT("[FUserPlatform] PlatformStr [%s] is not valid."), *InPlatform);
-	}
+	ensureMsgf(IsValid(), TEXT("[FUserPlatform] PlatformStr [%s] is not valid."), *InPlatform);
 }
 
 bool FUserPlatform::operator==(const FString& OtherStr) const
