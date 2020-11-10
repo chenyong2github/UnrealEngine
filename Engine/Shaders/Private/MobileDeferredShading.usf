@@ -135,7 +135,7 @@ half3 GetDirectLighting(
 		half3 H = normalize(CameraVector + L);
 		half NoL = max(0.0, dot(GBuffer.WorldNormal, L));
 		half NoH = max(0.0, dot(GBuffer.WorldNormal, H));
-		FMobileDirectLighting Lighting = MobileIntegrateBxDF(ShadingModelContext, GBuffer, NoL, CameraVector, GBuffer.WorldNormal, H, NoH);
+		FMobileDirectLighting Lighting = MobileIntegrateBxDF(ShadingModelContext, GBuffer, NoL, CameraVector, H, NoH);
 		DirectLighting = (Lighting.Diffuse + Lighting.Specular * LightData.SpecularScale) * (LightData.Color * (1.0 / PI) * Attenuation);
 	}
 	return DirectLighting;
@@ -243,7 +243,7 @@ void MobileDeferredShadingPS(
 	half3 H = normalize(CameraVector + MobileDirectionalLight.DirectionalLightDirectionAndShadowTransition.xyz);
 	half NoH = max(0, dot(GBuffer.WorldNormal, H));
 	FMobileDirectLighting Lighting;
-	Lighting.Specular = ShadingModelContext.SpecularColor * CalcSpecular(GBuffer.Roughness, NoH, H, GBuffer.WorldNormal);
+	Lighting.Specular = ShadingModelContext.SpecularColor * CalcSpecular(GBuffer.Roughness, NoH);
 	Lighting.Diffuse = ShadingModelContext.DiffuseColor;
 	Color += (Shadow * NoL) * MobileDirectionalLight.DirectionalLightColor.rgb * (Lighting.Diffuse + Lighting.Specular * MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.z);
 
