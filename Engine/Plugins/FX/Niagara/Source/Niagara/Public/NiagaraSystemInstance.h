@@ -377,6 +377,9 @@ private:
 	
 	void ProcessComponentRendererTasks();
 
+	/** Callback for whenever any blueprint components are reinstanced */
+	void OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap);
+
 	/** Index of this instance in the system simulation. */
 	int32 SystemInstanceIndex;
 

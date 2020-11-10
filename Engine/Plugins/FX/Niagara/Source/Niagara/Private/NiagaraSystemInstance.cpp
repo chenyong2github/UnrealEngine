@@ -152,6 +152,14 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& 
 	{
 		TickBehavior = ENiagaraTickBehavior::ForceTickFirst;
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (GEditor)
+	{
+		// for the component renderer we need to listen for class changes so we can clean up old component renderer instances
+		GEditor->OnObjectsReplaced().AddRaw(this, &FNiagaraSystemInstance::OnObjectsReplacedCallback);
+	}
+#endif
 }
 
 
@@ -1128,6 +1136,12 @@ FNiagaraSystemInstance::~FNiagaraSystemInstance()
 // #if WITH_EDITOR
 // 	OnDestroyedDelegate.Broadcast();
 // #endif
+#if WITH_EDITORONLY_DATA
+	if (GEditor)
+	{
+		GEditor->OnObjectsReplaced().RemoveAll(this);
+	}
+#endif
 }
 
 void FNiagaraSystemInstance::Cleanup()
@@ -2417,6 +2431,30 @@ void FNiagaraSystemInstance::ProcessComponentRendererTasks()
 	}
 
 	ComponentRenderPool.PoolsByTemplate = NewRenderPool;
+}
+
+void FNiagaraSystemInstance::OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap)
+{
+	TArray<UObject*> Keys;
+	ReplacementsMap.GetKeys(Keys);
+	
+	FRWScopeLock WriteLock(ComponentPoolLock, SLT_Write);
+	for (UObject* OldObject : Keys)
+	{
+		TObjectKey<USceneComponent> OldObjectKey(Cast<USceneComponent>(OldObject));
+		if (!ComponentRenderPool.PoolsByTemplate.Contains(OldObjectKey))
+		{
+			continue;
+		}
+		for (FNiagaraComponentRenderPoolEntry& PoolEntry : ComponentRenderPool.PoolsByTemplate[OldObjectKey])
+		{
+			if (PoolEntry.Component.IsValid())
+			{
+				PoolEntry.Component->DestroyComponent();
+			}
+		}
+		ComponentRenderPool.PoolsByTemplate.Remove(OldObjectKey);
+	}
 }
 
 void FNiagaraSystemInstance::ResetComponentRenderPool()
