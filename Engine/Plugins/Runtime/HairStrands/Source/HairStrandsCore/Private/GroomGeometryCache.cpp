@@ -27,6 +27,7 @@ FHairStrandsProjectionMeshData::Section ConvertMeshSection(const FCachedGeometry
 	Out.VertexBaseIndex = In.VertexBaseIndex;
 	Out.IndexBaseIndex = In.IndexBaseIndex;
 	Out.NumPrimitives = In.NumPrimitives;
+	Out.NumVertices= In.NumVertices;
 	Out.SectionIndex = In.SectionIndex;
 	Out.LODIndex = In.LODIndex;
 	return Out;
@@ -102,6 +103,7 @@ static void BuildBoneMatrices(USkeletalMeshComponent* SkeletalMeshComponent, con
 			CachedSection.TotalIndexCount = LODData.MultiSizeIndexContainer.GetIndexBuffer()->Num();
 			CachedSection.UVsChannelCount = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
 			CachedSection.NumPrimitives = Section.NumTriangles;
+			CachedSection.NumVertices = Section.NumVertices;
 			CachedSection.IndexBaseIndex = Section.BaseIndex;
 			CachedSection.VertexBaseIndex = Section.BaseVertexIndex;
 			CachedSection.SectionIndex = SectionIdx;
