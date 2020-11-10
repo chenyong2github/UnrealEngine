@@ -342,7 +342,8 @@ FPrimitiveViewRelevance FPrimitiveSceneProxy::GetViewRelevance(const FSceneView*
 
 void FPrimitiveSceneProxy::UpdateUniformBuffer()
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPrimitiveSceneProxy_UpdateUniformBuffer);
+	// stat disabled by default due to low-value/high-frequency
+	//QUICK_SCOPE_CYCLE_COUNTER(STAT_FPrimitiveSceneProxy_UpdateUniformBuffer);
 
 	// Skip expensive primitive uniform buffer creation for proxies whose vertex factories only use GPUScene for primitive data
 	if (DoesVFRequirePrimitiveUniformBuffer())

@@ -1076,7 +1076,8 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 
 	if (UniformBufferLayout.ConstantBufferSize > 0)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FUniformExpressionSet_FillUniformBuffer);
+		// stat disabled by default due to low-value/high-frequency
+		//QUICK_SCOPE_CYCLE_COUNTER(STAT_FUniformExpressionSet_FillUniformBuffer);
 
 		void* BufferCursor = TempBuffer;
 		check(BufferCursor <= TempBuffer + TempBufferSize);
