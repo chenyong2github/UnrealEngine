@@ -26,6 +26,8 @@ protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool NeedsNativePresent() override
 	{ return true; }
+	virtual bool NeedsAdvanceBackbuffer() override
+	{ return true; };
 
 	virtual bool Present(int32& InOutSyncInterval) override;
 	virtual void OnBackBufferResize() override;
