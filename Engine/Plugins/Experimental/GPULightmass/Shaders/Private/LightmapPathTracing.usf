@@ -956,7 +956,6 @@ bool GenerateOcclusionRay(
 	{
 		GenerateDirectionalLightOcclusionRay(
 			LightParameters,
-			-1,
 			WorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,
