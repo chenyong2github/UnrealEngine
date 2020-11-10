@@ -1336,6 +1336,7 @@ void AWaterBody::PostLoad()
 		}
 	}
 
+#if WITH_EDITORONLY_DATA
 	if ((GetLinkerCustomVersion(FWaterCustomVersion::GUID) < FWaterCustomVersion::MoveTerrainCarvingSettingsToWater) && bHasTerrainCarvingSettingsSettings_DEPRECATED)
 	{
 		static_assert(sizeof(WaterHeightmapSettings) == sizeof(TerrainCarvingSettings_DEPRECATED), "Both old and old water heightmap settings struct should be exactly similar");
@@ -1344,6 +1345,7 @@ void AWaterBody::PostLoad()
 		// TerrainCarvingSettings has been deprecated, we don't need to do it anymore, ever: 
 		bHasTerrainCarvingSettingsSettings_DEPRECATED = false;
 	}
+#endif
 
 #if WITH_EDITOR
 	RegisterOnUpdateWavesData(WaterWaves, /* bRegister = */true);
