@@ -74,4 +74,8 @@ namespace ChaosTest {
 
 	template <class T>
 	void ImplicitScaled2();
+
+	template <class T>
+	void UpdateImplicitUnion();
+
 }

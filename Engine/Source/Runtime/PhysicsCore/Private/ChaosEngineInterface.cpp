@@ -261,14 +261,16 @@ void FChaosEngineInterface::ReleaseShape(const FPhysicsShapeHandle& InShape)
 
 void FChaosEngineInterface::AttachShape(const FPhysicsActorHandle& InActor,const FPhysicsShapeHandle& InNewShape)
 {
-	// #todo : Implement
+	// #todo : Implement - this path is never used welding actually goes through FPhysInterface_Chaos::AddGeometry
 	CHAOS_ENSURE(false);
 }
 
 void FChaosEngineInterface::DetachShape(const FPhysicsActorHandle& InActor,FPhysicsShapeHandle& InShape,bool bWakeTouching)
 {
-	// #todo : Implement
-	CHAOS_ENSURE(false);
+	if (CHAOS_ENSURE(InShape.Shape))
+	{
+		InActor->RemoveShape(InShape.Shape, bWakeTouching);
+	}
 }
 
 void FChaosEngineInterface::AddDisabledCollisionsFor_AssumesLocked(const TMap<FPhysicsActorHandle, TArray< FPhysicsActorHandle > >& InMap)

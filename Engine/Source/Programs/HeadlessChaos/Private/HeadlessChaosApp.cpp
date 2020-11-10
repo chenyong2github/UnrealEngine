@@ -81,6 +81,7 @@ TEST(ImplicitTests, Implicit) {
 	ChaosTest::ImplicitTransformed<float>();
 	ChaosTest::ImplicitIntersection<float>();
 	ChaosTest::ImplicitUnion<float>();
+	ChaosTest::UpdateImplicitUnion<float>();
 	// @todo: Make this work at some point
 	//ChaosTest::ImplicitLevelset<float>();
 
