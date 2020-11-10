@@ -200,7 +200,7 @@ void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArra
 	{
 		if (RunningThreadedRequests.Remove(Request) > 0)
 		{
-			RequestsToComplete.Add(Request);
+			RequestsToComplete.AddUnique(Request);
 		}
 	}
 
@@ -227,7 +227,7 @@ void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArra
 		}
 		else
 		{
-			RequestsToComplete.Add(Request);
+			RequestsToComplete.AddUnique(Request);
 		}
 	}
 
@@ -241,7 +241,7 @@ void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArra
 		IHttpThreadedRequest* Request = RunningThreadedRequests[Index];
 		if (Request->IsThreadedRequestComplete())
 		{
-			RequestsToComplete.Add(Request);
+			RequestsToComplete.AddUnique(Request);
 			RunningThreadedRequests.RemoveAtSwap(Index);
 			--Index;
 		}
