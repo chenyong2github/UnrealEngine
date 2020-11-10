@@ -63,7 +63,5 @@ bool FPicpProjectionMeshPolicy::AssignWarpMesh(UStaticMeshComponent* MeshCompone
 		return false;
 	}
 
-	UE_LOG(LogPicpProjectionMesh, Log, TEXT("PICP Mesh policy BP setup for viewport '%s' has been initialized."), *GetViewportId());
-
 	return true;
 }
