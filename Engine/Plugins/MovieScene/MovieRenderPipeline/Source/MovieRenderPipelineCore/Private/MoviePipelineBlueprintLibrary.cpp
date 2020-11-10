@@ -23,6 +23,7 @@
 #include "Internationalization/Regex.h"
 
 // For camera settings
+#include "GameFramework/PlayerController.h"
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
 
