@@ -1823,6 +1823,9 @@ void USkeletalMesh::UpgradeOldClothingAssets()
 	// And only if APEX clothing is available to upgrade from
 	if (ClothingAssets_DEPRECATED.Num() > 0)
 	{
+		const bool bCallPostEditChange = false;
+		const bool bReregisterComponents = false;
+		FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(this, bCallPostEditChange, bReregisterComponents);
 		// Upgrade the old deprecated clothing assets in to new clothing assets
 		TMap<int32, TArray<int32>> OldLodMappings; // Map asset index to multiple lod indices
 		TMap<int32, TArray<int32>> OldSectionMappings; // Map asset index to a section per LOD
