@@ -1571,7 +1571,7 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 							AllocatedVT->GetProducerIndexForPageTableLayer(PageTableLayerIndex) == ProducerIndex)
 						{
 							bool bPageWasMapped = false;
-							if (Allocated_vLevel != vLevel)
+							if (1)//Allocated_vLevel != vLevel)
 							{
 								// if we found a lower resolution tile than was requested, it may have already been mapped, check for that first
 								// don't need to check this if the allocated page is at the level that was requested...if that was already mapped we wouldn't have gotten this far
