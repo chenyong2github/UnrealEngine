@@ -45,6 +45,7 @@ public:
 	GENERATED_BODY()
 
 	UNiagaraComponentRendererProperties();
+	~UNiagaraComponentRendererProperties();
 
 	//UObject Interface
 	virtual void PostLoad() override;
@@ -126,6 +127,8 @@ private:
 	const UNiagaraEmitter* EmitterPtr;
 
 	void CreateTemplateComponent();
+
+	void UpdateComponentClassList();
 
 	bool HasPropertyBinding(FName PropertyName) const;
 };

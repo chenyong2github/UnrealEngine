@@ -12,6 +12,7 @@
 #include "Styling/SlateBrush.h"
 #include "AssetThumbnail.h"
 #include "Widgets/Text/STextBlock.h"
+#include "ComponentTypeRegistry.h"
 #endif
 #include "NiagaraSettings.h"
 
@@ -110,8 +111,18 @@ UNiagaraComponentRendererProperties::UNiagaraComponentRendererProperties()
 #endif
 	, TemplateComponent(nullptr)
 {
+#if WITH_EDITORONLY_DATA
+	TArray<FComponentClassComboEntryPtr>* ComponentClassList = nullptr;
+	FComponentTypeRegistry::Get().SubscribeToComponentList(ComponentClassList).AddUObject(this, &UNiagaraComponentRendererProperties::UpdateComponentClassList);
+#endif
 }
 
+UNiagaraComponentRendererProperties::~UNiagaraComponentRendererProperties()
+{
+#if WITH_EDITORONLY_DATA
+	FComponentTypeRegistry::Get().GetOnComponentTypeListChanged().RemoveAll(this);
+#endif
+}
 
 void UNiagaraComponentRendererProperties::PostLoad()
 {
@@ -211,6 +222,16 @@ void UNiagaraComponentRendererProperties::CreateTemplateComponent()
 	// set some defaults on the component
 	bool IsWorldSpace = EmitterPtr ? !EmitterPtr->bLocalSpace : true;
 	TemplateComponent->SetAbsolute(IsWorldSpace, IsWorldSpace, IsWorldSpace);
+}
+
+void UNiagaraComponentRendererProperties::UpdateComponentClassList()
+{
+	// When a custom component class is recompiled in the editor, we need to recreate the template component because it will be nulled from the class purge.
+	// We still lose all the property changes on the template object, but this way we keep the bindings.
+	if (!TemplateComponent && ComponentType && UNiagaraComponent::StaticClass()->IsChildOf(ComponentType->ClassWithin))
+	{
+		CreateTemplateComponent();
+	}
 }
 
 bool UNiagaraComponentRendererProperties::HasPropertyBinding(FName PropertyName) const
