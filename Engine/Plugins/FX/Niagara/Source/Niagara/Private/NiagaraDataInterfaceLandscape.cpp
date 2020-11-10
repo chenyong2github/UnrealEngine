@@ -273,15 +273,6 @@ public:
 		LandscapeTextureParam.Bind(ParameterMap, *TexName);
 		SamplerParam.Bind(ParameterMap, *SampleName);
 		
-		if (!LandscapeTextureParam.IsBound())
-		{
-			UE_LOG(LogNiagara, Warning, TEXT("Binding failed for FNiagaraDataInterfaceParametersCS_Landscape Landscape Texture %s. Was it optimized out?"), *TexName)
-		}
-
-		if (!SamplerParam.IsBound())
-		{
-			UE_LOG(LogNiagara, Warning, TEXT("Binding failed for FNiagaraDataInterfaceParametersCS_Landscape Sampler %s. Was it optimized out?"), *SampleName)
-		}
 
 		NumCells.Bind(ParameterMap, *(UNiagaraDataInterfaceLandscape::NumCellsBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
 

@@ -154,15 +154,6 @@ void FNDIVelocityGridParametersCS::Bind(const FNiagaraDataInterfaceGPUParamInfo&
 	WorldTransform.Bind(ParameterMap, *ParamNames.WorldTransformName);
 	WorldInverse.Bind(ParameterMap, *ParamNames.WorldInverseName);
 
-	if (!GridCurrentBuffer.IsBound())
-	{
-		UE_LOG(LogVelocityGrid, Warning, TEXT("Binding failed for FNDIVelocityGridParametersCS %s. Was it optimized out?"), *ParamNames.GridCurrentBufferName)
-	}
-
-	if (!GridDestinationBuffer.IsBound())
-	{
-		UE_LOG(LogVelocityGrid, Warning, TEXT("Binding failed for FNDIVelocityGridParametersCS %s. Was it optimized out?"), *ParamNames.GridDestinationBufferName)
-	}
 }
 
 void FNDIVelocityGridParametersCS::Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const

@@ -222,15 +222,6 @@ public:
 		TextureParam.Bind(ParameterMap, *TexName);
 		SamplerParam.Bind(ParameterMap, *SampleName);
 
-		if (!TextureParam.IsBound())
-		{
-			UE_LOG(LogNiagara, Warning, TEXT("Binding failed for FNiagaraDataInterfaceParametersCS_VolumeTexture Texture %s. Was it optimized out?"), *TexName)
-		}
-
-		if (!SamplerParam.IsBound())
-		{
-			UE_LOG(LogNiagara, Warning, TEXT("Binding failed for FNiagaraDataInterfaceParametersCS_VolumeTexture Sampler %s. Was it optimized out?"), *SampleName)
-		}
 
 		Dimensions.Bind(ParameterMap, *(UNiagaraDataInterfaceVolumeTexture::DimensionsBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
 

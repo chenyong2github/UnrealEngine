@@ -469,34 +469,7 @@ public:
 		BoxOrigin.Bind(ParameterMap, *ParamNames.BoxOriginName);
 		BoxExtent.Bind(ParameterMap, *ParamNames.BoxExtentName);
 
-		if (!CurrentTransformBuffer.IsBound())
-		{
-			UE_LOG(LogPhysicsAsset, Warning, TEXT("Binding failed for FNDIPhysicsAssetParametersCS %s. Was it optimized out?"), *ParamNames.CurrentTransformBufferName)
-		}
-		if (!PreviousTransformBuffer.IsBound())
-		{
-			UE_LOG(LogPhysicsAsset, Warning, TEXT("Binding failed for FNDIPhysicsAssetParametersCS %s. Was it optimized out?"), *ParamNames.PreviousTransformBufferName)
-		}
-		if (!PreviousInverseBuffer.IsBound())
-		{
-			UE_LOG(LogPhysicsAsset, Warning, TEXT("Binding failed for FNDIPhysicsAssetParametersCS %s. Was it optimized out?"), *ParamNames.PreviousInverseBufferName)
-		}
-		if (!InverseTransformBuffer.IsBound())
-		{
-			UE_LOG(LogPhysicsAsset, Warning, TEXT("Binding failed for FNDIPhysicsAssetParametersCS %s. Was it optimized out?"), *ParamNames.InverseTransformBufferName)
-		}
-		if (!ElementExtentBuffer.IsBound())
-		{
-			UE_LOG(LogPhysicsAsset, Warning, TEXT("Binding failed for FNDIPhysicsAssetParametersCS %s. Was it optimized out?"), *ParamNames.ElementExtentBufferName)
-		}
-		/*if (!RestTransformBuffer.IsBound())
-		{
-			UE_LOG(LogPhysicsAsset, Warning, TEXT("Binding failed for FNDIPhysicsAssetParametersCS %s. Was it optimized out?"), *ParamNames.RestTransformBufferName)
-		}
-		if (!RestInverseBuffer.IsBound())
-		{
-			UE_LOG(LogPhysicsAsset, Warning, TEXT("Binding failed for FNDIPhysicsAssetParametersCS %s. Was it optimized out?"), *ParamNames.RestInverseBufferName)
-		}*/
+		
 	}
 
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
