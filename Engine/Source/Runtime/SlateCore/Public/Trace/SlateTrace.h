@@ -62,7 +62,11 @@ private:
 	static void OutputWidgetPaint(const SWidget* Widget, uint64 StartCycle, uint64 EndCycle, uint32 PaintCount);
 };
 
-
+#define UE_TRACE_SLATE_BOOKMARK(Format, ...) \
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(SlateChannel)) \
+	{ \
+		TRACE_BOOKMARK(Format, ##__VA_ARGS__); \
+	}
 #define UE_TRACE_SLATE_APPLICATION_TICK_AND_DRAW_WIDGETS(DeltaTime) \
 	FSlateTrace::ApplicationTickAndDrawWidgets(DeltaTime);
 	
@@ -92,6 +96,7 @@ private:
 
 #else //UE_SLATE_TRACE_ENABLED
 
+#define UE_TRACE_SLATE_BOOKMARK(...)
 #define UE_TRACE_SLATE_APPLICATION_TICK_AND_DRAW_WIDGETS(DeltaTime)
 #define UE_TRACE_SLATE_WIDGET_ADDED(Widget)
 #define UE_TRACE_SLATE_WIDGET_DEBUG_INFO(Widget)
