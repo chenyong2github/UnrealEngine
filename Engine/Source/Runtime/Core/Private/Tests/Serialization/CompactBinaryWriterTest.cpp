@@ -11,7 +11,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-static constexpr EAutomationTestFlags::Type CompactBinaryWriterTestFlags = EAutomationTestFlags::Type(EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+static constexpr EAutomationTestFlags::Type CompactBinaryWriterTestFlags = EAutomationTestFlags::Type(EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -561,10 +561,8 @@ bool FCbWriterBoolTest::RunTest(const FString& Parameters)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterBinaryHashTest, "System.Core.Serialization.CbWriter.BinaryHash", CompactBinaryWriterTestFlags)
-bool FCbWriterBinaryHashTest::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterReferenceTest, "System.Core.Serialization.CbWriter.Reference", CompactBinaryWriterTestFlags)
+bool FCbWriterReferenceTest::RunTest(const FString& Parameters)
 {
 	TCbWriter<256> Writer;
 
@@ -574,17 +572,17 @@ bool FCbWriterBinaryHashTest::RunTest(const FString& Parameters)
 	const FBlake3Hash Values[] = { FBlake3Hash(ZeroBytes), FBlake3Hash(SequentialBytes) };
 	for (const FBlake3Hash& Value : Values)
 	{
-		Writer.BinaryHash(Value);
+		Writer.Reference(Value);
 	}
 
 	FCbFieldRefIterator Fields = Writer.Save();
-	if (TestEqual(TEXT("FCbWriter(BinaryHash) Validate"), ValidateCompactBinaryRange(*Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
+	if (TestEqual(TEXT("FCbWriter(Reference) Validate"), ValidateCompactBinaryRange(*Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FBlake3Hash* CheckValue = Values;
 		for (FCbField Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(BinaryHash).AsBinaryHash()"), Field.AsBinaryHash(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(BinaryHash) Error"), Field.HasError());
+			TestEqual(TEXT("FCbWriter(Reference).AsReference()"), Field.AsReference(), *CheckValue++);
+			TestFalse(TEXT("FCbWriter(Reference) Error"), Field.HasError());
 		}
 	}
 
@@ -593,8 +591,8 @@ bool FCbWriterBinaryHashTest::RunTest(const FString& Parameters)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterFieldHashTest, "System.Core.Serialization.CbWriter.FieldHash", CompactBinaryWriterTestFlags)
-bool FCbWriterFieldHashTest::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterBinaryReferenceTest, "System.Core.Serialization.CbWriter.BinaryReference", CompactBinaryWriterTestFlags)
+bool FCbWriterBinaryReferenceTest::RunTest(const FString& Parameters)
 {
 	TCbWriter<256> Writer;
 
@@ -604,17 +602,47 @@ bool FCbWriterFieldHashTest::RunTest(const FString& Parameters)
 	const FBlake3Hash Values[] = { FBlake3Hash(ZeroBytes), FBlake3Hash(SequentialBytes) };
 	for (const FBlake3Hash& Value : Values)
 	{
-		Writer.FieldHash(Value);
+		Writer.BinaryReference(Value);
 	}
 
 	FCbFieldRefIterator Fields = Writer.Save();
-	if (TestEqual(TEXT("FCbWriter(FieldHash) Validate"), ValidateCompactBinaryRange(*Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
+	if (TestEqual(TEXT("FCbWriter(BinaryReference) Validate"), ValidateCompactBinaryRange(*Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FBlake3Hash* CheckValue = Values;
 		for (FCbField Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(FieldHash).AsFieldHash()"), Field.AsFieldHash(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(FieldHash) Error"), Field.HasError());
+			TestEqual(TEXT("FCbWriter(BinaryReference).AsBinaryReference()"), Field.AsBinaryReference(), *CheckValue++);
+			TestFalse(TEXT("FCbWriter(BinaryReference) Error"), Field.HasError());
+		}
+	}
+
+	return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterHashTest, "System.Core.Serialization.CbWriter.Hash", CompactBinaryWriterTestFlags)
+bool FCbWriterHashTest::RunTest(const FString& Parameters)
+{
+	TCbWriter<256> Writer;
+
+	const FBlake3Hash::ByteArray ZeroBytes{};
+	const FBlake3Hash::ByteArray SequentialBytes{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
+
+	const FBlake3Hash Values[] = { FBlake3Hash(ZeroBytes), FBlake3Hash(SequentialBytes) };
+	for (const FBlake3Hash& Value : Values)
+	{
+		Writer.Hash(Value);
+	}
+
+	FCbFieldRefIterator Fields = Writer.Save();
+	if (TestEqual(TEXT("FCbWriter(Hash) Validate"), ValidateCompactBinaryRange(*Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
+	{
+		const FBlake3Hash* CheckValue = Values;
+		for (FCbField Field : Fields)
+		{
+			TestEqual(TEXT("FCbWriter(Hash).AsHash()"), Field.AsHash(), *CheckValue++);
+			TestFalse(TEXT("FCbWriter(Hash) Error"), Field.HasError());
 		}
 	}
 
@@ -779,9 +807,10 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 		Writer.Name("False"_ASV).Bool(false);
 		Writer.Name("True"_ASV).Bool(true);
 
-		Writer.Name("BinaryHash"_ASV).BinaryHash(FBlake3Hash());
-		Writer.Name("FieldHash"_ASV).FieldHash(FBlake3Hash());
+		Writer.Name("Reference"_ASV).Reference(FBlake3Hash());
+		Writer.Name("BinaryReference"_ASV).BinaryReference(FBlake3Hash());
 
+		Writer.Name("Hash"_ASV).Hash(FBlake3Hash());
 		Writer.Name("Uuid"_ASV).Uuid(FGuid());
 
 		Writer.Name("DateTimeZero"_ASV).DateTimeTicks(0);
@@ -936,6 +965,7 @@ bool FCbWriterStreamTest::RunTest(const FString& Parameters)
 
 		Writer << "False"_ASV << false << "True"_ASV << true;
 
+		Writer << "Hash"_ASV << FBlake3Hash();
 		Writer << "Uuid"_ASV << FGuid();
 
 		Writer << "DateTime"_ASV << FDateTime(2020, 5, 13, 15, 10);

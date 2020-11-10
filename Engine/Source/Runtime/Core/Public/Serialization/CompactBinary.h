@@ -44,7 +44,7 @@
  * \code
  * void BeginBuild(FCbObjectRef Params)
  * {
- *     if (FSharedBufferConstPtr Data = Storage().Load(Params["Data"].AsBinaryHash()))
+ *     if (FSharedBufferConstPtr Data = Storage().Load(Params["Data"].AsBinaryReference()))
  *     {
  *         SetData(Data);
  *     }
@@ -149,33 +149,35 @@ enum class ECbFieldType : uint8
 	BoolTrue        = 0x0d,
 
 	/**
-	 * BinaryHash is a reference to a blob stored externally.
+	 * Reference is a reference to compact binary stored externally.
+	 *
+	 * Payload is a 256-bit hash digest of the compact binary.
+	 */
+	Reference       = 0x0e,
+	/**
+	 * BinaryReference is a reference to a blob stored externally.
 	 *
 	 * Payload is a 256-bit hash digest of the blob.
 	 */
-	BinaryHash      = 0x0e,
-	/**
-	 * FieldHash is a reference to a field/array/object stored externally.
-	 *
-	 * Payload is a 256-bit hash digest of the field.
-	 */
-	FieldHash       = 0x0f,
+	BinaryReference = 0x0f,
 
+	/** Hash. Payload is a 256-bit hash digest. */
+	Hash            = 0x10,
 	/** UUID/GUID. Payload is a 128-bit UUID as defined by RFC 4122. */
-	Uuid            = 0x10,
+	Uuid            = 0x11,
 
 	/**
 	 * Date and time between 0001-01-01 00:00:00.0000000 and 9999-12-31 23:59:59.9999999.
 	 *
 	 * Payload is a big endian int64 count of 100ns ticks since 0001-01-01 00:00:00.0000000.
 	 */
-	DateTime        = 0x11,
+	DateTime        = 0x12,
 	/**
 	 * Difference between two date/time values.
 	 *
 	 * Payload is a big endian int64 count of 100ns ticks in the span, and may be negative.
 	 */
-	TimeSpan        = 0x12,
+	TimeSpan        = 0x13,
 
 	/**
 	 * A transient flag which indicates that the object or array containing this field has stored
@@ -214,8 +216,8 @@ class FCbFieldType
 	static constexpr ECbFieldType BoolMask              = ECbFieldType(0b0011'1110);
 	static constexpr ECbFieldType BoolBase              = ECbFieldType(0b0000'1100);
 
-	static constexpr ECbFieldType ExternHashMask        = ECbFieldType(0b0011'1110);
-	static constexpr ECbFieldType ExternHashBase        = ECbFieldType(0b0000'1110);
+	static constexpr ECbFieldType AnyReferenceMask      = ECbFieldType(0b0011'1110);
+	static constexpr ECbFieldType AnyReferenceBase      = ECbFieldType(0b0000'1110);
 
 	static void StaticAssertTypeConstants();
 
@@ -242,10 +244,11 @@ public:
 	static constexpr inline bool IsFloat(ECbFieldType Type)      { return (Type & FloatMask) == FloatBase; }
 	static constexpr inline bool IsBool(ECbFieldType Type)       { return (Type & BoolMask) == BoolBase; }
 
-	static constexpr inline bool IsExternHash(ECbFieldType Type) { return (Type & ExternHashMask) == ExternHashBase; }
-	static constexpr inline bool IsBinaryHash(ECbFieldType Type) { return GetType(Type) == ECbFieldType::BinaryHash; }
-	static constexpr inline bool IsFieldHash(ECbFieldType Type)  { return GetType(Type) == ECbFieldType::FieldHash; }
+	static constexpr inline bool IsReference(ECbFieldType Type)       { return GetType(Type) == ECbFieldType::Reference; }
+	static constexpr inline bool IsBinaryReference(ECbFieldType Type) { return GetType(Type) == ECbFieldType::BinaryReference; }
+	static constexpr inline bool IsAnyReference(ECbFieldType Type)    { return (Type & AnyReferenceMask) == AnyReferenceBase; }
 
+	static constexpr inline bool IsHash(ECbFieldType Type)       { return GetType(Type) == ECbFieldType::Hash; }
 	static constexpr inline bool IsUuid(ECbFieldType Type)       { return GetType(Type) == ECbFieldType::Uuid; }
 
 	static constexpr inline bool IsDateTime(ECbFieldType Type)   { return GetType(Type) == ECbFieldType::DateTime; }
@@ -456,10 +459,13 @@ public:
 	/** Access the field as a bool. Returns the provided default on error. */
 	CORE_API bool AsBool(bool bDefault = false);
 
+	/** Access the field as a hash referencing compact binary. Returns the provided default on error. */
+	CORE_API FBlake3Hash AsReference(const FBlake3Hash& Default = FBlake3Hash());
 	/** Access the field as a hash referencing a blob. Returns the provided default on error. */
-	CORE_API FBlake3Hash AsBinaryHash(const FBlake3Hash& Default = FBlake3Hash());
-	/** Access the field as a hash referencing a field/array/object. Returns the provided default on error. */
-	CORE_API FBlake3Hash AsFieldHash(const FBlake3Hash& Default = FBlake3Hash());
+	CORE_API FBlake3Hash AsBinaryReference(const FBlake3Hash& Default = FBlake3Hash());
+
+	/** Access the field as a hash. Returns the provided default on error. */
+	CORE_API FBlake3Hash AsHash(const FBlake3Hash& Default = FBlake3Hash());
 
 	/** Access the field as a UUID. Returns a nil UUID on error. */
 	CORE_API FGuid AsUuid();
@@ -499,10 +505,11 @@ public:
 	constexpr inline bool IsFloat() const           { return FCbFieldType::IsFloat(Type); }
 	constexpr inline bool IsBool() const            { return FCbFieldType::IsBool(Type); }
 
-	constexpr inline bool IsExternHash() const      { return FCbFieldType::IsExternHash(Type); }
-	constexpr inline bool IsBinaryHash() const      { return FCbFieldType::IsBinaryHash(Type); }
-	constexpr inline bool IsFieldHash() const       { return FCbFieldType::IsFieldHash(Type); }
+	constexpr inline bool IsReference() const       { return FCbFieldType::IsReference(Type); }
+	constexpr inline bool IsBinaryReference() const { return FCbFieldType::IsBinaryReference(Type); }
+	constexpr inline bool IsAnyReference() const    { return FCbFieldType::IsAnyReference(Type); }
 
+	constexpr inline bool IsHash() const            { return FCbFieldType::IsHash(Type); }
 	constexpr inline bool IsUuid() const            { return FCbFieldType::IsUuid(Type); }
 
 	constexpr inline bool IsDateTime() const        { return FCbFieldType::IsDateTime(Type); }

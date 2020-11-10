@@ -145,11 +145,13 @@ public:
 	/** Write a bool field. */
 	CORE_API void Bool(bool bValue);
 
-	/** Write a hash field referencing a blob. */
-	CORE_API void BinaryHash(const FBlake3Hash& Value);
-	/** Write a hash field referencing a field/array/object. */
-	CORE_API void FieldHash(const FBlake3Hash& Value);
+	/** Write a field referencing compact binary. */
+	CORE_API void Reference(const FBlake3Hash& Value);
+	/** Write a field referencing a blob. */
+	CORE_API void BinaryReference(const FBlake3Hash& Value);
 
+	/** Write a hash field. */
+	CORE_API void Hash(const FBlake3Hash& Value);
 	/** Write a UUID field. */
 	CORE_API void Uuid(const FGuid& Value);
 
@@ -317,6 +319,12 @@ inline FCbWriter& operator<<(FCbWriter& Writer, double Value)
 inline FCbWriter& operator<<(FCbWriter& Writer, bool Value)
 {
 	Writer.Bool(Value);
+	return Writer;
+}
+
+inline FCbWriter& operator<<(FCbWriter& Writer, const FBlake3Hash& Value)
+{
+	Writer.Hash(Value);
 	return Writer;
 }
 

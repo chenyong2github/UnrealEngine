@@ -461,18 +461,25 @@ void FCbWriter::Bool(const bool bValue)
 	EndField(bValue ? ECbFieldType::BoolTrue : ECbFieldType::BoolFalse);
 }
 
-void FCbWriter::BinaryHash(const FBlake3Hash& Value)
+void FCbWriter::Reference(const FBlake3Hash& Value)
 {
 	BeginField();
 	Data.Append(Value.Bytes(), sizeof(decltype(Value.Bytes())));
-	EndField(ECbFieldType::BinaryHash);
+	EndField(ECbFieldType::Reference);
 }
 
-void FCbWriter::FieldHash(const FBlake3Hash& Value)
+void FCbWriter::BinaryReference(const FBlake3Hash& Value)
 {
 	BeginField();
 	Data.Append(Value.Bytes(), sizeof(decltype(Value.Bytes())));
-	EndField(ECbFieldType::FieldHash);
+	EndField(ECbFieldType::BinaryReference);
+}
+
+void FCbWriter::Hash(const FBlake3Hash& Value)
+{
+	BeginField();
+	Data.Append(Value.Bytes(), sizeof(decltype(Value.Bytes())));
+	EndField(ECbFieldType::Hash);
 }
 
 void FCbWriter::Uuid(const FGuid& Value)
