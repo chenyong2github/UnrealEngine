@@ -196,9 +196,7 @@ bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& En
 		check(VolumetricCloud);
 
 		const bool bShadersCompiled = ShouldPipelineCompileVolumetricCloudShader(Scene->GetShaderPlatform());
-
-		FLightSceneInfo* AtmosphericLight0 = Scene->AtmosphereLights[0];
-		return bShadersCompiled && CVarVolumetricCloud.GetValueOnRenderThread() > 0 && AtmosphericLight0!=nullptr && VolumetricCloud->GetVolumetricCloudSceneProxy().GetCloudVolumeMaterial()!=nullptr;
+		return bShadersCompiled && CVarVolumetricCloud.GetValueOnRenderThread() > 0 && VolumetricCloud->GetVolumetricCloudSceneProxy().GetCloudVolumeMaterial()!=nullptr;
 	}
 	return false;
 }
@@ -255,13 +253,13 @@ static float GetVolumetricCloudShadowMapExtentKm(const FLightSceneProxy* Atmosph
 	return 1.0f;
 }
 
-static int32 GetVolumetricCloudReceiveAtmosphericLightShadowmap(const FLightSceneProxy* AtmosphericLight)
+static bool GetVolumetricCloudReceiveAtmosphericLightShadowmap(const FLightSceneProxy* AtmosphericLight)
 {
 	if (AtmosphericLight)
 	{
 		return AtmosphericLight->GetCastShadowsOnClouds();
 	}
-	return 1.0f;
+	return false;
 }
 
 static FLinearColor GetVolumetricCloudScatteredLuminanceScale(const FLightSceneProxy* AtmosphericLight)
