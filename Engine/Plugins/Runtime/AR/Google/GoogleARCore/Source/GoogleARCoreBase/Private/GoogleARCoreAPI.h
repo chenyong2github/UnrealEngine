@@ -292,6 +292,8 @@ public:
 	template< class T > void GetAllTrackables(TArray<T*>& OutARCoreTrackableList);
 
 	void* GetLatestFrameRawPointer();
+	
+	bool IsSceneDepthEnabled() const;
 
 private:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
