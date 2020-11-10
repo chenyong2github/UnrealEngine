@@ -68,6 +68,7 @@ bool FDisplayClusterProjectionMPCDIPolicy::HandleAddViewport(const FIntPoint& In
 	}
 
 	// Load MPCDI config
+	FScopeLock lock(&WarpRefCS);
 	if (!MPCDIAPI.Load(CfgData, WarpRef))
 	{
 		UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("Couldn't load MPCDI config"));
@@ -95,6 +96,7 @@ bool FDisplayClusterProjectionMPCDIPolicy::CalculateView(const uint32 ViewIdx, F
 {
 	check(IsInGameThread());
 
+	FScopeLock lock(&WarpRefCS);
 	if (!WarpRef.IsValid())
 	{
 		UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("Invalid warp data for viewport '%s'"), *GetViewportId());
@@ -165,6 +167,7 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uin
 		return;
 	}
 
+	FScopeLock lock(&WarpRefCS);
 	if (!WarpRef.IsValid())
 	{
 		return;
