@@ -1186,7 +1186,7 @@ TArray<UEdGraphNode*> UNiagaraGraph::FindReachableNodes() const
 			SwitchNode->GetOutputPins(OutPins);
 			for (UEdGraphPin* Pin : OutPins)
 			{
-				UEdGraphPin* TracedPin = SwitchNode->GetTracedOutputPin(Pin, false);
+				UEdGraphPin* TracedPin = SwitchNode->GetTracedOutputPin(Pin, false, true);
 				if (TracedPin && TracedPin != Pin)
 				{
 					ResultNodes.AddUnique(TracedPin->GetOwningNode());

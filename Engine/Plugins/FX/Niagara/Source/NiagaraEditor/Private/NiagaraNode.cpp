@@ -740,7 +740,7 @@ UEdGraphPin* UNiagaraNode::TraceOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bo
 	}
 
 	UNiagaraNode* LinkedNode = CastChecked<UNiagaraNode>(LocallyOwnedOutputPin->GetOwningNode());
-	return LinkedNode->GetTracedOutputPin(LocallyOwnedOutputPin);
+	return LinkedNode->GetTracedOutputPin(LocallyOwnedOutputPin, bFilterForCompilation);
 }
 
 bool UNiagaraNode::SubstituteCompiledPin(FHlslNiagaraTranslator* Translator, UEdGraphPin** LocallyOwnedPin)
