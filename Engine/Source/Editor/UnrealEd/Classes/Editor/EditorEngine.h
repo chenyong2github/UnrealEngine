@@ -967,25 +967,24 @@ public:
 	FText GetTransactionName() const;
 	bool IsObjectInTransactionBuffer( const UObject* Object ) const;
 
-	/**
-	 * Rebuilds the map.
-	 *
-	 * @param bBuildAllVisibleMaps	Whether or not to rebuild all visible maps, if false only the current level will be built.
-	 */
 	enum EMapRebuildType
 	{
+		/** Rebuild only the current level */
 		MRT_Current				= 0,
+		/** Rebuild all levels currently marked as visible */
 		MRT_AllVisible			= 1,
+		/** Rebuilt all levels currently marked as dirty for lighting */
 		MRT_AllDirtyForLighting	= 2,
 	};
 
 	/**
 	 * Rebuilds the map.
 	 *
-	 * @param bBuildAllVisibleMaps	Whether or not to rebuild all visible maps, if false only the current level will be built.
+	 * @param RebuildMap	The map to be rebuilt
+	 * @param RebuildType	Allows to filter which of the map's level should be rebuilt
 	 */
-	void RebuildMap(UWorld* InWorld, EMapRebuildType RebuildType);
-
+	void RebuildMap(UWorld* RebuildMap, EMapRebuildType RebuildType);
+	
 	/**
 	 * Quickly rebuilds a single level (no bounds build, visibility testing or Bsp tree optimization).
 	 *
