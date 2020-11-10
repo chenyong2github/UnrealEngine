@@ -294,6 +294,12 @@ private:
 	}
 };
 
+#else
+
+struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
+{
+};
+
 #endif // WITH_CHAOS
 
 // ------------------------------------------------------------------------------------------------------

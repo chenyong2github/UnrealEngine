@@ -48,8 +48,10 @@ void UMockPhysicsGrenadeComponent::InitializeNetworkPredictionProxy()
 {
 	npCheckSlow(this->UpdatedPrimitive);
 	
-	// Temp: something about this setup is causing issues on some versions of clang... maybe related to same sim object and driver class
-	//NetworkPredictionProxy.Init<FMockPhysicsGrenadeModelDef>(GetWorld(), GetReplicationProxies(), this, this);
+	// FIXME: this can't compile without WITH_CHAOS
+#if WITH_CHAOS
+	NetworkPredictionProxy.Init<FMockPhysicsGrenadeModelDef>(GetWorld(), GetReplicationProxies(), this, this);
+#endif
 }
 
 void UMockPhysicsGrenadeComponent::InitializeSimulationState(void* Sync, FMockPhysicsGrenadeAuxState* Aux)
