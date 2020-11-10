@@ -1058,25 +1058,22 @@ bool FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForMembe
 
 bool FAnimBlueprintCompilerHandler_Base::FEffectiveConstantRecord::Apply(UObject* Object)
 {
-	uint8* StructPtr = nullptr;
 	uint8* PropertyPtr = nullptr;
 	
-	if(NodeVariableProperty->Struct->IsChildOf(FAnimNode_LinkedAnimGraph::StaticStruct()))
+	UClass* ClassOwner = ConstantProperty->GetOwner<UClass>();
+
+	if(NodeVariableProperty->Struct->IsChildOf(FAnimNode_CustomProperty::StaticStruct()) && ClassOwner && Object->GetClass()->IsChildOf(ClassOwner))
 	{
 		PropertyPtr = ConstantProperty->ContainerPtrToValuePtr<uint8>(Object);
 	}
 	else
 	{
-		UStruct* PropertyOwningStruct = ConstantProperty->Owner.Get<UStruct>();
-		if (PropertyOwningStruct && NodeVariableProperty->Struct && NodeVariableProperty->Struct->IsChildOf(PropertyOwningStruct))
-		{
-			StructPtr = NodeVariableProperty->ContainerPtrToValuePtr<uint8>(Object);
-			PropertyPtr = ConstantProperty->ContainerPtrToValuePtr<uint8>(StructPtr);
-		}
-		else
-		{
-			PropertyPtr = ConstantProperty->ContainerPtrToValuePtr<uint8>(Object);
-		}
+		// Check the node property is a member of the object's class
+		check(NodeVariableProperty->GetOwner<UClass>() && Object->GetClass()->IsChildOf(NodeVariableProperty->GetOwner<UClass>()));
+		// Check the constant property is a member of the node's struct
+		check(ConstantProperty->GetOwner<UStruct>() && NodeVariableProperty->Struct->IsChildOf(ConstantProperty->GetOwner<UStruct>()));
+		uint8* StructPtr = NodeVariableProperty->ContainerPtrToValuePtr<uint8>(Object);
+		PropertyPtr = ConstantProperty->ContainerPtrToValuePtr<uint8>(StructPtr);
 	}
 
 	if (ArrayIndex != INDEX_NONE)
