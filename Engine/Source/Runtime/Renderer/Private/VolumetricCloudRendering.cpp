@@ -190,7 +190,7 @@ static bool ShouldPipelineCompileVolumetricCloudShader(EShaderPlatform ShaderPla
 
 bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& EngineShowFlags)
 {
-	if (Scene && Scene->HasVolumetricCloud() ) //&& EngineShowFlags.VolumetricCloud) TODO apply 10810454 for clouds
+	if (Scene && Scene->HasVolumetricCloud() && EngineShowFlags.Atmosphere)
 	{
 		const FVolumetricCloudRenderSceneInfo* VolumetricCloud = Scene->GetVolumetricCloudSceneInfo();
 		check(VolumetricCloud);
