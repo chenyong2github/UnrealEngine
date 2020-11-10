@@ -169,6 +169,7 @@ struct FRigUnit_MathQuaternionToAxisAndAngle : public FRigUnit_MathQuaternionBas
 		Value = FQuat::Identity;
 		Axis = FVector(1.f, 0.f, 0.f);
 		Angle = 0.f;
+		bMinimumAngle = true;
 	}
 
 	RIGVM_METHOD()
@@ -176,6 +177,13 @@ struct FRigUnit_MathQuaternionToAxisAndAngle : public FRigUnit_MathQuaternionBas
 
 	UPROPERTY(meta=(Input))
 	FQuat Value;
+
+	/** 
+	 * Use the minimal angle to represent the rotation.
+	 * For example instead of using 355 degrees use -5 degrees.
+	 */
+	UPROPERTY(meta = (Input))
+	bool bMinimumAngle;
 
 	UPROPERTY(meta=(Output))
 	FVector Axis;
