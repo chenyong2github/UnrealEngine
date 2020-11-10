@@ -4402,6 +4402,12 @@ void FPakPlatformFile::Tick()
 #endif
 
 #if CSV_PROFILER
+
+	if (FIoDispatcher::IsInitialized())
+	{
+		FPlatformAtomics::InterlockedAdd(&GTotalLoaded, FIoDispatcher::Get().GetTotalLoaded());
+	}
+
 	int64 LocalTotalLoaded = GTotalLoaded;
 	CSV_CUSTOM_STAT(FileIO, TotalLoadedMB, (int32)(LocalTotalLoaded / (1024 * 1024)), ECsvCustomStatOp::Set);
 	if (GTotalLoadedLastTick != 0)
