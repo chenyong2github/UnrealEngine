@@ -63,6 +63,22 @@ FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearVelocityX(TEXT("p.Ri
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearVelocityY(TEXT("p.RigidBodyNode.Space.ExternalLinearVelocity.Y"), RBAN_SimSpaceOverride.ExternalLinearVelocity.Y, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearVelocityZ(TEXT("p.RigidBodyNode.Space.ExternalLinearVelocity.Z"), RBAN_SimSpaceOverride.ExternalLinearVelocity.Z, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 
+#if ENABLE_RBAN_PERF_LOGGING
+static float RBAN_PerfWarningThreshold = 0.f;
+static FAutoConsoleVariableRef CVarRigidBodyNodePerfWarningThreshold(
+	TEXT("p.RigidBodyNode.PerfWarningThreshold"),
+	RBAN_PerfWarningThreshold,
+	TEXT("0: disabled\n")
+	TEXT(">0: Threshold (in ms) before printing RBAN performance warnings to log."),
+	ECVF_Default);
+
+static float RBAN_PerfWarningInterval = 5.f;
+static FAutoConsoleVariableRef CVarRigidBodyNodePerfWarningInterval(
+	TEXT("p.RigidBodyNode.PerfWarningInterval"),
+	RBAN_PerfWarningInterval,
+	TEXT("Time (in seconds) between warnings to prevent log spam."),
+	ECVF_Default);
+#endif
 
 FSimSpaceSettings::FSimSpaceSettings()
 	: MasterAlpha(0)
@@ -436,6 +452,13 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 
 	if (bEnabled && PhysicsSimulation)	
 	{
+#if ENABLE_RBAN_PERF_LOGGING
+		double StartTime = -1.f;
+		if (RBAN_PerfWarningThreshold > 0.f)
+		{
+			StartTime = FPlatformTime::Seconds();
+		}
+#endif
 
 		const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 		const FTransform CompWorldSpaceTM = Output.AnimInstanceProxy->GetComponentTransform();
@@ -812,6 +835,20 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 		}
 
 		PreviousCompWorldSpaceTM = CompWorldSpaceTM;
+
+#if ENABLE_RBAN_PERF_LOGGING
+		if (RBAN_PerfWarningThreshold > 0.f)
+		{
+			const double EndTime = FPlatformTime::Seconds();
+			const double ElapsedTimeMS = (EndTime - StartTime) * 1000.0;
+			if (ElapsedTimeMS > RBAN_PerfWarningThreshold && (EndTime - LastPerfWarningTimeSeconds) > RBAN_PerfWarningInterval)
+			{
+				check(UsePhysicsAsset);
+				LastPerfWarningTimeSeconds = EndTime;
+				UE_LOG(LogRBAN, Warning, TEXT("Exceeded Performance Budget: %s took %.02fms"), *UsePhysicsAsset->GetName(), ElapsedTimeMS);
+			}
+		}
+#endif
 	}
 }
 
