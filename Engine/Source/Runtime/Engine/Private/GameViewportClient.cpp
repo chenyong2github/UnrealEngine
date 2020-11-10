@@ -3328,6 +3328,12 @@ bool UGameViewportClient::HandleViewModeCommand( const TCHAR* Cmd, FOutputDevice
 			ViewModeIndex = VMI_Lit;
 		}
 	}
+
+#if UE_BUILD_TEST || UE_BUILD_SHIPPING
+	Ar.Logf(TEXT("Debug viewmodes not allowed in Test or Shipping builds."));
+	ViewModeIndex = VMI_Lit;
+#endif
+
 	if ((ViewModeIndex != VMI_Lit && ViewModeIndex != VMI_ShaderComplexity) && !AllowDebugViewmodes())
 	{
 		Ar.Logf(TEXT("Debug viewmodes not allowed on consoles by default.  See AllowDebugViewmodes()."));
