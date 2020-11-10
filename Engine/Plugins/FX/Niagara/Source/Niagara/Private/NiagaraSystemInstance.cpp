@@ -17,6 +17,10 @@
 #include "NiagaraCrashReporterHandler.h"
 #include "Async/Async.h"
 
+#if WITH_EDITORONLY_DATA
+#include "Editor.h"
+#endif
+
 
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Deactivate [GT]"), STAT_NiagaraSystemDeactivate, STATGROUP_Niagara);
