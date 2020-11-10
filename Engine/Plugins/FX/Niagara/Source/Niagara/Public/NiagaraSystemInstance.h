@@ -243,6 +243,7 @@ public:
 
 	FORCEINLINE float GetAge() const { return Age; }
 	FORCEINLINE int32 GetTickCount() const { return TickCount; }
+	FORCEINLINE bool RequiresGpuBufferReset() const { return bHasSimulationReset && (TickCount == 1); }
 
 	FORCEINLINE float GetLastRenderTime() const { return LastRenderTime; }
 	FORCEINLINE void SetLastRenderTime(float TimeSeconds) { LastRenderTime = TimeSeconds; }
@@ -484,6 +485,9 @@ private:
 
 	/** True if the system instance is pooled. Prevents unbinding of parameters on completing the system */
 	uint32 bPooled : 1;
+
+	/** Will be set to true when the the simulation needs a full reset from ResetInternal() */
+	uint32 bHasSimulationReset : 1;
 
 #if WITH_EDITOR
 	uint32 bNeedsUIResync : 1;
