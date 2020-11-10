@@ -58,25 +58,15 @@ void FOnlineSubsystemEOSModule::StartupModule()
 	FOnlineSubsystemEOS::ModuleInit();
 #endif
 
+#if WITH_EDITOR
 	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FOnlineSubsystemEOSModule::OnPostEngineInit);
 	FCoreDelegates::OnPreExit.AddRaw(this, &FOnlineSubsystemEOSModule::OnPreExit);
-}
-
-void FOnlineSubsystemEOSModule::PossiblyDeferredInit()
-{
-#if WITH_EOS_SDK
-	static bool bHasDeferredInit = false;
-	if (!bHasDeferredInit)
-	{
-		bHasDeferredInit = true;
-		static_cast<FOnlineSubsystemEOS*>(IOnlineSubsystem::Get(EOS_SUBSYSTEM))->DeferredInit();
-	}
 #endif
 }
 
+#if WITH_EDITOR
 void FOnlineSubsystemEOSModule::OnPostEngineInit()
 {
-#if WITH_EDITOR
 	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 	if (SettingsModule != nullptr)
 	{
@@ -85,19 +75,19 @@ void FOnlineSubsystemEOSModule::OnPostEngineInit()
 			LOCTEXT("EOSSettingsDescription", "Configure the Epic Online Services"),
 			GetMutableDefault<UEOSSettings>());
 	}
-#endif
 }
+#endif
 
+#if WITH_EDITOR
 void FOnlineSubsystemEOSModule::OnPreExit()
 {
-#if WITH_EDITOR
 	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 	if (SettingsModule)
 	{
 		SettingsModule->UnregisterSettings("Project", "Plugins", "Epic Online Services");
 	}
-#endif
 }
+#endif
 
 void FOnlineSubsystemEOSModule::ShutdownModule()
 {

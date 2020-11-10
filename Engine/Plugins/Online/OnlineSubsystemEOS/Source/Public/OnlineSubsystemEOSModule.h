@@ -24,9 +24,10 @@ public:
 
 	virtual ~FOnlineSubsystemEOSModule() {}
 
-	static void PossiblyDeferredInit();
+#if WITH_EDITOR
 	void OnPostEngineInit();
 	void OnPreExit();
+#endif
 
 	// IModuleInterface
 

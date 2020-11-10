@@ -10,6 +10,7 @@
 #include "EOSSettings.h"
 
 #include "Misc/NetworkVersion.h"
+#include "Misc/App.h"
 
 DECLARE_CYCLE_STAT(TEXT("Tick"), STAT_EOS_Tick, STATGROUP_EOS);
 
@@ -117,6 +118,8 @@ static char GProductVersionAnsi[EOS_PRODUCTVERSION_MAX_BUFFER_LEN];
 FString ProductName;
 FString ProductVersion;
 
+EOS_PlatformHandle* GEOSPlatformHandle = NULL;
+
 void FOnlineSubsystemEOS::ModuleInit()
 {
 	// Init EOS SDK
@@ -150,55 +153,78 @@ void FOnlineSubsystemEOS::ModuleInit()
 	}
 	EOS_Logging_SetLogLevel(EOS_ELogCategory::EOS_LC_ALL_CATEGORIES, UE_BUILD_DEBUG ? EOS_ELogLevel::EOS_LOG_Verbose : EOS_ELogLevel::EOS_LOG_Info);
 #endif
-
+	if (IsRunningGame() || IsRunningDedicatedServer())
+	{
+		GEOSPlatformHandle = FOnlineSubsystemEOS::PlatformCreate();
+	}
 }
 
-bool FOnlineSubsystemEOS::DeferredInit()
+/** Common method for creating the EOS platform */
+EOS_PlatformHandle* FOnlineSubsystemEOS::PlatformCreate()
 {
 	FString ArtifactName;
 	FParse::Value(FCommandLine::Get(), TEXT("EpicApp="), ArtifactName);
-	const UEOSSettings* EOSSettings = GetDefault<UEOSSettings>();
 	// Find the settings for this artifact
-	const UEOSArtifactSettings* ArtifactSettings = EOSSettings->GetSettingsForArtifact(ArtifactName);
-	if (ArtifactSettings == nullptr)
+	FEOSArtifactSettings ArtifactSettings;
+	if (!UEOSSettings::GetSettingsForArtifact(ArtifactName, ArtifactSettings))
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS::DeferredInit() failed to find artifact settings object for artifact (%s)"), *ArtifactName);
-		return false;
+		return nullptr;
 	}
-
-	// Check for being launched by EGS
-	bWasLaunchedByEGS = FParse::Param(FCommandLine::Get(), TEXT("EpicPortal"));
 
 	// Create platform instance
 	FEOSPlatformOptions PlatformOptions;
-	FCStringAnsi::Strncpy(PlatformOptions.ClientIdAnsi, TCHAR_TO_UTF8(*ArtifactSettings->ClientId), EOS_OSS_STRING_BUFFER_LENGTH);
-	FCStringAnsi::Strncpy(PlatformOptions.ClientSecretAnsi, TCHAR_TO_UTF8(*ArtifactSettings->ClientSecret), EOS_OSS_STRING_BUFFER_LENGTH);
-	FCStringAnsi::Strncpy(PlatformOptions.ProductIdAnsi, TCHAR_TO_UTF8(*ArtifactSettings->ProductId), EOS_OSS_STRING_BUFFER_LENGTH);
-	FCStringAnsi::Strncpy(PlatformOptions.SandboxIdAnsi, TCHAR_TO_UTF8(*ArtifactSettings->SandboxId), EOS_OSS_STRING_BUFFER_LENGTH);
-	FCStringAnsi::Strncpy(PlatformOptions.DeploymentIdAnsi, TCHAR_TO_UTF8(*ArtifactSettings->DeploymentId), EOS_OSS_STRING_BUFFER_LENGTH);
+	FCStringAnsi::Strncpy(PlatformOptions.ClientIdAnsi, TCHAR_TO_UTF8(*ArtifactSettings.ClientId), EOS_OSS_STRING_BUFFER_LENGTH);
+	FCStringAnsi::Strncpy(PlatformOptions.ClientSecretAnsi, TCHAR_TO_UTF8(*ArtifactSettings.ClientSecret), EOS_OSS_STRING_BUFFER_LENGTH);
+	FCStringAnsi::Strncpy(PlatformOptions.ProductIdAnsi, TCHAR_TO_UTF8(*ArtifactSettings.ProductId), EOS_OSS_STRING_BUFFER_LENGTH);
+	FCStringAnsi::Strncpy(PlatformOptions.SandboxIdAnsi, TCHAR_TO_UTF8(*ArtifactSettings.SandboxId), EOS_OSS_STRING_BUFFER_LENGTH);
+	FCStringAnsi::Strncpy(PlatformOptions.DeploymentIdAnsi, TCHAR_TO_UTF8(*ArtifactSettings.DeploymentId), EOS_OSS_STRING_BUFFER_LENGTH);
 	PlatformOptions.bIsServer = IsRunningDedicatedServer() ? EOS_TRUE : EOS_FALSE;
 	PlatformOptions.Reserved = nullptr;
+	FEOSSettings EOSSettings = UEOSSettings::GetSettings();
 	uint64 OverlayFlags = 0;
-	if (!EOSSettings->bEnableOverlay)
+	if (!EOSSettings.bEnableOverlay)
 	{
 		OverlayFlags |= EOS_PF_DISABLE_OVERLAY;
 	}
-	if (!EOSSettings->bEnableSocialOverlay)
+	if (!EOSSettings.bEnableSocialOverlay)
 	{
 		OverlayFlags |= EOS_PF_DISABLE_SOCIAL_OVERLAY;
 	}
 	PlatformOptions.Flags = IsRunningGame() ? OverlayFlags : EOS_PF_DISABLE_OVERLAY;
 	// Make the cache directory be in the user's writable area
-	FString CacheDir = FPlatformProcess::UserDir() / ArtifactName / EOSSettings->CacheDir;
+	FString CacheDir = FPlatformProcess::UserDir() / ArtifactName / EOSSettings.CacheDir;
 	FCStringAnsi::Strncpy(PlatformOptions.CacheDirectoryAnsi, TCHAR_TO_UTF8(*CacheDir), EOS_OSS_STRING_BUFFER_LENGTH);
-	FCStringAnsi::Strncpy(PlatformOptions.EncryptionKeyAnsi, TCHAR_TO_UTF8(*ArtifactSettings->EncryptionKey), EOS_ENCRYPTION_KEY_MAX_BUFFER_LEN);
+	FCStringAnsi::Strncpy(PlatformOptions.EncryptionKeyAnsi, TCHAR_TO_UTF8(*ArtifactSettings.EncryptionKey), EOS_ENCRYPTION_KEY_MAX_BUFFER_LEN);
 
-	EOSPlatformHandle = EOS_Platform_Create(&PlatformOptions);
+	EOS_PlatformHandle* EOSPlatformHandle = EOS_Platform_Create(&PlatformOptions);
 	if (EOSPlatformHandle == nullptr)
 	{
-		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform"));
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS::PlatformCreate() failed to init EOS platform"));
+		return nullptr;
+	}
+	return EOSPlatformHandle;
+}
+
+bool FOnlineSubsystemEOS::Init()
+{
+	// Check for being launched by EGS
+	bWasLaunchedByEGS = FParse::Param(FCommandLine::Get(), TEXT("EpicPortal"));
+
+	// The editor build will call this completely differently, so give it a chance to run it
+	if (IsRunningGame() || IsRunningDedicatedServer())
+	{
+		EOSPlatformHandle = GEOSPlatformHandle;
+	}
+	else
+	{
+		EOSPlatformHandle = FOnlineSubsystemEOS::PlatformCreate();
+	}
+	if (EOSPlatformHandle == nullptr)
+	{
 		return false;
 	}
+
 	// Get handles for later use
 	AuthHandle = EOS_Platform_GetAuthInterface(EOSPlatformHandle);
 	if (AuthHandle == nullptr)

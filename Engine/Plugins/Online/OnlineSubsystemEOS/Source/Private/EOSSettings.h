@@ -7,43 +7,34 @@
 #include "Engine/DataAsset.h"
 #include "EOSSettings.generated.h"
 
-UCLASS(BlueprintType)
-class UEOSArtifactSettings :
+/** Native version of the UObject based config data */
+struct FEOSArtifactSettings
+{
+	FString ArtifactName;
+	FString ClientId;
+	FString ClientSecret;
+	FString ProductId;
+	FString SandboxId;
+	FString DeploymentId;
+	FString EncryptionKey;
+
+	void ParseRawArrayEntry(FString& RawLine);
+};
+
+UCLASS(Deprecated)
+class UDEPRECATED_EOSArtifactSettings :
 	public UDataAsset
 {
 	GENERATED_BODY()
 
 public:
-	UEOSArtifactSettings()
+	UDEPRECATED_EOSArtifactSettings()
 	{
 	}
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="EOS Artifact Settings")
-	FString ClientId;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="EOS Artifact Settings")
-	FString ClientSecret;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="EOS Artifact Settings")
-	FString ProductId;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="EOS Artifact Settings")
-	FString SandboxId;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="EOS Artifact Settings")
-	FString DeploymentId;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="EOS Artifact Settings")
-	FString EncryptionKey;
-
-private:
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 };
 
 USTRUCT(BlueprintType)
-struct FArtifactLink
+struct FArtifactSettings
 {
 	GENERATED_BODY()
 
@@ -52,9 +43,36 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="EOS Settings")
 	FString ArtifactName;
 
-	/** This is the object name of the content object that contains the per artifact settings */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="EOS Settings")
-	FString SettingsObjectName;
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Artifact Settings")
+	FString ClientId;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Artifact Settings")
+	FString ClientSecret;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Artifact Settings")
+	FString ProductId;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Artifact Settings")
+	FString SandboxId;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Artifact Settings")
+	FString DeploymentId;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Artifact Settings")
+	FString EncryptionKey;
+
+	FEOSArtifactSettings ToNative() const;
+};
+
+/** Native version of the UObject based config data */
+struct FEOSSettings
+{
+	FString CacheDir;
+	FString DefaultArtifactName;
+	int32 TickBudgetInMilliseconds;
+	bool bEnableOverlay;
+	bool bEnableSocialOverlay;
+	TArray<FEOSArtifactSettings> Artifacts;
 };
 
 UCLASS(Config=Engine, DefaultConfig)
@@ -92,14 +110,21 @@ public:
 
 	/** Per artifact SDK settings. A game might have a FooStaging, FooQA, and public Foo artifact */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Settings")
-	TArray<FArtifactLink> ArtifactObjects;
+	TArray<FArtifactSettings> Artifacts;
 
 	/** Find the Settings for an artifact by name */
-	const UEOSArtifactSettings* GetSettingsForArtifact(const FString& ArtifactName) const;
+	static bool GetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings);
+
+	static FEOSSettings GetSettings();
+	FEOSSettings ToNative() const;
 
 private:
-	virtual void PostInitProperties() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
+	static bool AutoGetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings);
+	static bool ManualGetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings);
+
+	static FEOSSettings AutoGetSettings();
+	static FEOSSettings ManualGetSettings();
 };
