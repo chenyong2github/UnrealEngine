@@ -247,7 +247,13 @@ bool SSettingsSectionHeader::HandleImportButtonEnabled() const
 {
 	if(SettingsSection.IsValid())
 	{
-		return SettingsSection->CanEdit() && SettingsSection->CanImport() && !IsDefaultConfigCheckOutNeeded();
+		bool CanImport = SettingsSection->CanEdit() && SettingsSection->CanImport();
+
+		if (SettingsObject->GetClass()->HasAnyClassFlags(CLASS_DefaultConfig))
+		{
+			CanImport &= !IsDefaultConfigCheckOutNeeded();
+		}
+		return CanImport;
 	}
 
 	return false;
@@ -273,7 +279,7 @@ FString SSettingsSectionHeader::GetDefaultConfigFilePath() const
 */
 bool SSettingsSectionHeader::IsDefaultConfigCheckOutNeeded(bool bForceSourceControlUpdate) const
 {
-	if(SettingsObject.IsValid() && SettingsObject->GetClass()->HasAllClassFlags(CLASS_Config | CLASS_DefaultConfig))
+	if(SettingsObject.IsValid() && SettingsObject->GetClass()->HasAnyClassFlags(CLASS_Config | CLASS_DefaultConfig))
 	{
 		// We can only fetch the file watcher if it's visible otherwise fallback to source control
 		if (FileWatcherWidget->GetVisibility().IsVisible())
