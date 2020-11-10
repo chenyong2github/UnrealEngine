@@ -4218,8 +4218,10 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 		EIoContainerFlags TargetContainerFlags = TargetReader->GetContainerFlags();
 
 		FIoContainerSettings ContainerSettings;
-
-		ContainerSettings.ContainerFlags |= EIoContainerFlags::Indexed;
+		if (Arguments.bCreateDirectoryIndex)
+		{
+			ContainerSettings.ContainerFlags |= EIoContainerFlags::Indexed;
+		}
 
 		ContainerSettings.ContainerId = TargetReader->GetContainerId();
 		if (Arguments.bSign || EnumHasAnyFlags(TargetContainerFlags, EIoContainerFlags::Signed))
@@ -4359,6 +4361,12 @@ int32 ListContainer(
 			continue;
 		}
 
+		if (!EnumHasAnyFlags(Reader->GetContainerFlags(), EIoContainerFlags::Indexed))
+		{
+			UE_LOG(LogIoStore, Warning, TEXT("Cannot list container '%s' due to missing directory index"), *ContainerFilePath);
+			continue;
+		}
+
 		UE_LOG(LogIoStore, Display, TEXT("Listing container '%s'"), *ContainerFilePath);
 
 		ContainerCsvLines.Reset();
@@ -4424,8 +4432,15 @@ int32 ListContainer(
 		}
 	}
 
-	UE_LOG(LogIoStore, Display, TEXT("Saving CSV file '%s'"), *CsvPath);
-	FFileHelper::SaveStringArrayToFile(CsvLines, *CsvPath);
+	if (CsvLines.Num())
+	{
+		UE_LOG(LogIoStore, Display, TEXT("Saving '%d' file entries to '%s'"), CsvLines.Num(), *CsvPath);
+		FFileHelper::SaveStringArrayToFile(CsvLines, *CsvPath);
+	}
+	else
+	{
+		UE_LOG(LogIoStore, Warning, TEXT("No file entries to save from '%s'"), *ContainerPathOrWildcard);
+	}
 
 	return 0;
 }
@@ -5461,9 +5476,13 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 			FParse::Value(FCommandLine::Get(), TEXT("DumpToFile="), OutPath);
 			return Describe(ContainerPathOrWildcard, Arguments.KeyChain, PackageFilterWildcard, OutPath);
 		}
-
-		UE_LOG(LogIoStore, Error, TEXT("Nothing to do!"));
-		return -1;
+		else
+		{
+			UE_LOG(LogIoStore, Display, TEXT("Usage:"));
+			UE_LOG(LogIoStore, Display, TEXT(" -List=</path/to/[container.utoc|*.utoc]> -CSV=<list.csv> [-CryptoKeys=</path/to/crypto.json>]"));
+			UE_LOG(LogIoStore, Display, TEXT(" -Describe=</path/to/global.utoc> [-PackageFilter=<PackageName>] [-DumpToFile=<describe.txt>] [-CryptoKeys=</path/to/crypto.json>]"));
+			return -1;
+		}
 	}
 
 	return 0;
