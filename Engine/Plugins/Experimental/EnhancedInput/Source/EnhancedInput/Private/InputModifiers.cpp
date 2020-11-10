@@ -203,14 +203,14 @@ FInputActionValue UInputModifierResponseCurveUser::ModifyRaw_Implementation(cons
 	switch (CurrentValue.GetValueType())
 	{
 	case EInputActionValueType::Axis3D:
-		ResponseValue.Z = ResponseZ->GetFloatValue(ResponseValue.Z);
+		ResponseValue.Z = ResponseZ ? ResponseZ->GetFloatValue(ResponseValue.Z) : 0.0f;
 		//[[fallthrough]];
 	case EInputActionValueType::Axis2D:
-		ResponseValue.Y = ResponseY->GetFloatValue(ResponseValue.Y);
+		ResponseValue.Y = ResponseY ? ResponseY->GetFloatValue(ResponseValue.Y) : 0.0f;
 		//[[fallthrough]];
 	case EInputActionValueType::Axis1D:
 	case EInputActionValueType::Boolean:
-		ResponseValue.X = ResponseX->GetFloatValue(ResponseValue.X);
+		ResponseValue.X = ResponseX ? ResponseX->GetFloatValue(ResponseValue.X) : 0.0f;
 		break;
 	}
 	return ResponseValue;
