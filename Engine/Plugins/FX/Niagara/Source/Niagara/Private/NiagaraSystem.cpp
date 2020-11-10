@@ -1516,8 +1516,11 @@ void UNiagaraSystem::WaitForCompilationComplete(bool bIncludingGPUShaders, bool 
 
 	while (ActiveCompilations.Num() > 0)
 	{
-		Progress.EnterProgressFrame();
-		QueryCompileComplete(true, ActiveCompilations.Num() == 1);
+		if (QueryCompileComplete(true, ActiveCompilations.Num() == 1))
+		{
+			// make sure to only mark progress if we actually have accomplished something in the QueryCompileComplete
+			Progress.EnterProgressFrame();
+		}
 	}
 	
 	for (FNiagaraShaderScript* ShaderScript : GPUScripts)
