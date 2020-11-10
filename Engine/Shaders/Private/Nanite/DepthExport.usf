@@ -23,7 +23,8 @@ uint4 DepthExportConfig;
 
 Texture2D<UlongType>		VisBuffer64;
 
-RWTexture2D<uint>			VelocityMask;
+RWTexture2D<float4>			Velocity;
+RWTexture2D<uint>			NaniteMask;
 
 RWStructuredBuffer<uint>	SceneHTile;
 RWTexture2D<float>			SceneDepth;
@@ -68,6 +69,11 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 	// for both depth exports as an optimization.
 	const uint TileIndex = ToScalarMemory(ComputeTileOffset(PixelPos.xy, PixelsWide, PlatformConfig));
 
+// TODO: Velocity
+#if 0
+	FNaniteView NaniteView = GetNaniteView(0);
+#endif
+
 	uint DepthInt = 0;
 	uint VisibleClusterIndex = 0;
 	uint TriIndex = 0;
@@ -99,6 +105,8 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 				SceneDepthValue = NaniteDepth;
 				SceneDepth[PixelPos.xy] = SceneDepthValue;
 
+				// TODO: Move this into 'NaniteMask' to avoid an extra cluster decode, and to touch less memory
+				// by skipping the vbuffer (64b -> 8b)
 				if (GetPrimitiveData(InstanceData.PrimitiveId).DecalReceiverMask > 0 && View.ShowDecalsMask > 0)
 				{
 					SceneStencil[PixelPos.xy] = DepthExportConfig.z;
@@ -107,6 +115,21 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 				{
 					SceneStencil[PixelPos.xy] = 0;
 				}
+
+				// TODO: Velocity
+			#if 0
+				FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+
+				const float4 ScreenPos = SvPositionToScreenPosition(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
+				const float3 WorldPos  = SvPositionToWorld(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
+				const float4 LocalPos  = mul(float4(WorldPos.xyz, 1.0f), InstanceData.WorldToLocal);
+
+				const float4 ScreenPosPrev = mul(float4(LocalPos.xyz, 1), InstanceDynamicData.PrevLocalToClip);
+		
+				Velocity[PixelPos.xy] = EncodeVelocityToTexture(Calculate3DVelocity(ScreenPos, ScreenPosPrev));
+			#endif
+
+				NaniteMask[PixelPos.xy] = 0x1;
 			}
 		}
 

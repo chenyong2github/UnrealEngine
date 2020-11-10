@@ -1521,6 +1521,7 @@ class FDepthExportCS : public FNaniteShader
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageHeaders)
 		SHADER_PARAMETER(FIntVector4, DepthExportConfig)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, Velocity)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, NaniteMask)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTextureMetadata, SceneHTile)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, SceneDepth)
@@ -3832,10 +3833,8 @@ void EmitDepthTargets(
 		FRDGTextureUAVRef SceneHTileUAV		= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::HTile));
 		FRDGTextureUAVRef MaterialDepthUAV	= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(MaterialDepth, ERDGTextureMetaDataAccess::CompressedSurface));
 		FRDGTextureUAVRef MaterialHTileUAV	= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(MaterialDepth, ERDGTextureMetaDataAccess::HTile));
+		FRDGTextureUAVRef VelocityUAV		= GraphBuilder.CreateUAV(VelocityBuffer);
 		FRDGTextureUAVRef NaniteMaskUAV		= GraphBuilder.CreateUAV(NaniteMask);
-
-		// TODO: Temp until shader references NaniteMask and exports it.
-		AddClearUAVPass(GraphBuilder, NaniteMaskUAV, { 0u, 0u, 0u, 0u });
 
 		FDepthExportCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDepthExportCS::FParameters>();
 
@@ -3846,6 +3845,7 @@ void EmitDepthTargets(
 		PassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 		PassParameters->DepthExportConfig		= FIntVector4(PlatformConfig, SceneTargets.GetBufferSizeXY().X, StencilDecalMask, 0);
 		PassParameters->VisBuffer64				= RasterContext.VisBuffer64;
+		PassParameters->Velocity				= VelocityUAV;
 		PassParameters->NaniteMask				= NaniteMaskUAV;
 		PassParameters->SceneHTile				= SceneHTileUAV;
 		PassParameters->SceneDepth				= SceneDepthUAV;
