@@ -983,11 +983,13 @@ void FUserManagerEOS::FriendStatusChanged(const EOS_Friends_OnFriendsUpdateInfo*
 		}
 		else if (Data->PreviousStatus == EOS_EFriendsStatus::EOS_FS_Friends && Data->CurrentStatus == EOS_EFriendsStatus::EOS_FS_NotFriends)
 		{
+			LocalUserNumToFriendsListMap[LocalUserNum]->Remove(AccountIdToStringMap[Data->TargetUserId], Friend.ToSharedRef());
 			Friend->SetInviteStatus(EInviteStatus::Unknown);
 			TriggerOnFriendRemovedDelegates(*LocalEOSID, *OnlineUser->GetUserId());
 		}
 		else if (Data->PreviousStatus < EOS_EFriendsStatus::EOS_FS_Friends && Data->CurrentStatus == EOS_EFriendsStatus::EOS_FS_NotFriends)
 		{
+			LocalUserNumToFriendsListMap[LocalUserNum]->Remove(AccountIdToStringMap[Data->TargetUserId], Friend.ToSharedRef());
 			Friend->SetInviteStatus(EInviteStatus::Unknown);
 			TriggerOnInviteRejectedDelegates(*LocalEOSID, *OnlineUser->GetUserId());
 		}
