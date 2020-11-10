@@ -83,6 +83,8 @@ void UDMXComponent::BeginPlay()
 
 void UDMXComponent::DestroyComponent(bool bPromoteChildren)
 {
+	Super::DestroyComponent(bPromoteChildren);
+
 	// Explicitily destroy so we don't get callbacks when this is no longer fully valid
 	SharedListener.Reset();
 }
