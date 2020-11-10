@@ -1105,7 +1105,7 @@ void SunMergePS_Mobile(
 		OutColor.rgb *= Scale3;		
 
 		// add scaled bloom separately to prevent overflow before scaling
-		OutColor.rgb += (Bloom2 * Scale3 * (BloomColor + BloomDirtMaskColor));
+		OutColor.rgb += Bloom2 * Scale3 * BloomColor + BloomDirtMaskColor * OutColor.rgb;
 
 	#else
 		OutColor.rgb = half3(0.0, 0.0, 0.0);
