@@ -752,6 +752,7 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	PhysicsFieldClipmapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	// [todo] Default to some other buffer
+	WaterIndirection = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
 	WaterData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
 
 	HairScatteringLUTTexture = BlackVolume;
