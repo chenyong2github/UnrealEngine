@@ -411,6 +411,13 @@ void ReflectionEnvironmentSkyLighting(
 			V,
 			AmbientOcclusion,
 			PixelBSDFs);
+
+#if 1
+		// We use WorldNormal, Roughness and BaseColor (representing EnvBRDF) written by the strata top layer.
+		const float4 SSR = Texture2DSample(ScreenSpaceReflectionsTexture, ScreenSpaceReflectionsSampler, BufferUV);
+		const float3 EnvBRDF = GBuffer.BaseColor;
+		SkyLighting.rgb = SkyLighting.rgb * (1.0-SSR.a) + SSR.rgb * EnvBRDF;
+#endif
 	}
 	else
 #endif
@@ -446,7 +453,7 @@ void ReflectionEnvironmentSkyLighting(
 #endif // ENABLE_DYNAMIC_SKY_LIGHT
 
 	BRANCH
-	if (ShadingModelID != SHADINGMODELID_UNLIT && ShadingModelID != SHADINGMODELID_HAIR)
+	if (ShadingModelID != SHADINGMODELID_UNLIT && ShadingModelID != SHADINGMODELID_HAIR && ShadingModelID != SHADINGMODELID_STRATA)
 	{
 		OutColor.xyz += ReflectionEnvironment(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, SvPosition, BentNormal, SpecularColor);
 	}
