@@ -23,6 +23,7 @@
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
 #include "Templates/UniquePtr.h"
+#include "Async/TaskGraphInterfaces.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextLocalizationManager, Log, All);
 
@@ -381,7 +382,9 @@ void InitEngineTextLocalization()
 	FTextLocalizationManager::Get().InitializedFlags |= ETextLocalizationManagerInitializedFlags::Engine;
 }
 
-void InitGameTextLocalization()
+static FGraphEventRef InitGameTextLocalizationTask;
+
+void BeginInitGameTextLocalization()
 {
 	if (!FApp::IsGame())
 	{
@@ -417,11 +420,29 @@ void InitGameTextLocalization()
 		LocLoadFlags |= ELocalizationLoadFlags::Additional;
 	}
 
-	FTextLocalizationManager::Get().LoadLocalizationResourcesForCulture(FInternationalization::Get().GetCurrentLanguage()->GetName(), LocLoadFlags);
-	FTextLocalizationManager::Get().InitializedFlags |= ETextLocalizationManagerInitializedFlags::Game;
-	//FTextLocalizationManager::Get().DumpMemoryInfo();
-	FTextLocalizationManager::Get().CompactDataStructures();
-	//FTextLocalizationManager::Get().DumpMemoryInfo();
+	FTextLocalizationManager::Get().InitializedFlags |= ETextLocalizationManagerInitializedFlags::Initializing;
+	InitGameTextLocalizationTask = FFunctionGraphTask::CreateAndDispatchWhenReady([LocLoadFlags, InitializedFlags = FTextLocalizationManager::Get().InitializedFlags]()
+	{
+		SCOPED_BOOT_TIMING("InitGameTextLocalization");
+
+		FTextLocalizationManager::Get().LoadLocalizationResourcesForCulture(FInternationalization::Get().GetCurrentLanguage()->GetName(), LocLoadFlags);
+		FTextLocalizationManager::Get().InitializedFlags = (InitializedFlags & ~ETextLocalizationManagerInitializedFlags::Initializing) | ETextLocalizationManagerInitializedFlags::Game;
+		//FTextLocalizationManager::Get().DumpMemoryInfo();
+		FTextLocalizationManager::Get().CompactDataStructures();
+		//FTextLocalizationManager::Get().DumpMemoryInfo();
+	}, TStatId());
+}
+
+void EndInitGameTextLocalization()
+{
+	SCOPED_BOOT_TIMING("WaitForInitGameTextLocalization");
+	FTaskGraphInterface::Get().WaitUntilTaskCompletes(InitGameTextLocalizationTask);
+}
+
+void InitGameTextLocalization()
+{
+	BeginInitGameTextLocalization();
+	EndInitGameTextLocalization();
 }
 
 FTextLocalizationManager& FTextLocalizationManager::Get()
@@ -507,6 +528,8 @@ TArray<FString> FTextLocalizationManager::GetLocalizedCultureNames(const ELocali
 
 void FTextLocalizationManager::RegisterTextSource(const TSharedRef<ILocalizedTextSource>& InLocalizedTextSource, const bool InRefreshResources)
 {
+	ensureMsgf(!IsInitializing(), TEXT("Localized text source registered during game text initialization"));
+
 	LocalizedTextSources.Add(InLocalizedTextSource);
 	LocalizedTextSources.StableSort([](const TSharedPtr<ILocalizedTextSource>& InLocalizedTextSourceOne, const TSharedPtr<ILocalizedTextSource>& InLocalizedTextSourceTwo)
 	{
@@ -900,6 +923,8 @@ void FTextLocalizationManager::UpdateFromLocalizationResource(const FTextLocaliz
 
 void FTextLocalizationManager::RefreshResources()
 {
+	ensureMsgf(!IsInitializing(), TEXT("Reloading text localization resources during game text initialization"));
+
 	ELocalizationLoadFlags LocLoadFlags = ELocalizationLoadFlags::None;
 	LocLoadFlags |= (WITH_EDITOR ? ELocalizationLoadFlags::Editor : ELocalizationLoadFlags::None);
 	LocLoadFlags |= (FApp::IsGame() ? ELocalizationLoadFlags::Game : ELocalizationLoadFlags::None);
@@ -940,6 +965,8 @@ void FTextLocalizationManager::OnPakFileMounted(const IPakFile& PakFile)
 		UE_LOG(LogTextLocalizationManager, Verbose, TEXT("Skipped loading localization data for chunk %d (from PAK '%s') as the localization manager isn't ready"), ChunkId, *PakFile.PakGetPakFilename());
 		return;
 	}
+
+	ensureMsgf(!IsInitializing(), TEXT("Pak file mounted during game text initialization"));
 
 	// Note: We only allow game localization targets to be chunked, and the layout is assumed to follow our standard pattern (as used by the localization dashboard and FLocTextHelper)
 	const TArray<FString> ChunkedLocalizationTargets = FLocalizationResourceTextSource::GetChunkedLocalizationTargets();
@@ -1058,6 +1085,8 @@ void FTextLocalizationManager::OnCultureChanged()
 		// The correct data will be loaded by EndInitTextLocalization
 		return;
 	}
+
+	ensureMsgf(!IsInitializing(), TEXT("Culture changed during game text initialization"));
 
 	ELocalizationLoadFlags LocLoadFlags = ELocalizationLoadFlags::None;
 	LocLoadFlags |= (WITH_EDITOR ? ELocalizationLoadFlags::Editor : ELocalizationLoadFlags::None);

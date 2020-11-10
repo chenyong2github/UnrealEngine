@@ -3024,7 +3024,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 			}
 		}
 
-		InitGameTextLocalization();
+		BeginInitGameTextLocalization();
 
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Initial UObject load"), STAT_InitialUObjectLoad, STATGROUP_LoadTime);
 
@@ -3041,6 +3041,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 		    FModuleManager::Get().LoadModule("AssetRegistry");
 		}
 #endif
+		EndInitGameTextLocalization();
 
 		FEmbeddedCommunication::ForceTick(5);
 
