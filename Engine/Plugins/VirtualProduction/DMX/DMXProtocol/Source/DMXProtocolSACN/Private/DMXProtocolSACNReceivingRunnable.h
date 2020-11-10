@@ -16,6 +16,8 @@ class FDMXProtocolSACN;
 class FDMXSignal;
 struct FDMXProtocolE131DMPLayerPacket;
 
+class FScopeLock;
+
 
 class FDMXProtocolSACNReceivingRunnable
 	: public FRunnable

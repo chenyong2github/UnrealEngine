@@ -13,10 +13,10 @@
 #include "Misc/SingleThreadRunnable.h"
 
 struct FDMXProtocolArtNetDMXPacket;
-
 class FDMXProtocolArtNet;
 class FDMXSignal;
 
+class FScopeLock;
 
 class FDMXProtocolArtNetReceivingRunnable
 	: public FRunnable
