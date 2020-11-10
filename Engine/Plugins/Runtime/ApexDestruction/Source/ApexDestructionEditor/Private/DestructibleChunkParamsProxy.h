@@ -16,8 +16,10 @@ class UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be sup
 {
 	GENERATED_UCLASS_BODY()
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UPROPERTY()
 	UDestructibleMesh* DestructibleMesh;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	UPROPERTY()
 	int32 ChunkIndex;
