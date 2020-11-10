@@ -198,7 +198,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		Singleton = this;
 
-		UE_LOG(LogPhysicsCore, Warning, TEXT("APEX is deprecated. Destruction in future will be supported using Chaos Destruction."));
+		UE_LOG(LogPhysicsCore, Log, TEXT("APEX is deprecated. Destruction in future will be supported using Chaos Destruction."));
 	}
 
 	virtual void OnInitPhys(FPhysScene* PhysScene)
