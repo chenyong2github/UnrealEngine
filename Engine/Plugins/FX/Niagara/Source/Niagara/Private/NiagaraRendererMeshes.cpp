@@ -55,15 +55,12 @@ struct FNiagaraDynamicDataMesh : public FNiagaraDynamicDataBase
 class FNiagaraMeshCollectorResourcesMesh : public FOneFrameResource
 {
 public:
-	FNiagaraMeshVertexFactory* VertexFactory = nullptr;
+	FNiagaraMeshVertexFactory VertexFactory;
 	FNiagaraMeshUniformBufferRef UniformBuffer;
 
 	virtual ~FNiagaraMeshCollectorResourcesMesh()
 	{
-		if (VertexFactory)
-		{
-			VertexFactory->SetSortedIndices(nullptr, 0xFFFFFFFF);
-		}
+		VertexFactory.ReleaseResource();
 	}
 };
 
@@ -141,23 +138,11 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 }
 
 FNiagaraRendererMeshes::~FNiagaraRendererMeshes()
-{
-	for (FNiagaraMeshVertexFactory* VertexFactory : VertexFactories)
-	{
-		delete VertexFactory;
-	}
-	VertexFactories.Empty();
+{	
 }
 
 void FNiagaraRendererMeshes::ReleaseRenderThreadResources()
 {
-	FNiagaraRenderer::ReleaseRenderThreadResources();
-	for (FNiagaraMeshVertexFactory* VertexFactory : VertexFactories)
-	{
-		VertexFactory->ReleaseResource();
-		delete VertexFactory;
-	}
-	VertexFactories.Empty();
 }
 
 int32 FNiagaraRendererMeshes::GetMaxIndirectArgs() const
@@ -307,8 +292,6 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 	const int32 SectionCount = LODModel.Sections.Num();
 
 	{
-		int32 VertexFactoryIndex = 0;
-
 		// Compute the per-view uniform buffers.
 		const int32 NumViews = Views.Num();
 		for (int32 ViewIndex = 0; ViewIndex < NumViews; ViewIndex++)
@@ -342,33 +325,15 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 					}
 				}
 
-				// Get the next vertex factory to use
-				FNiagaraMeshVertexFactory* VertexFactory = nullptr;
-				if (VertexFactories.IsValidIndex(VertexFactoryIndex))
-				{
-					VertexFactory = VertexFactories[VertexFactoryIndex];
-					++VertexFactoryIndex;
-
-					if (VertexFactory->GetLODIndex() != LODIndex)
-					{
-						SetupVertexFactory(VertexFactory, LODModel);
-						VertexFactory->SetLODIndex(LODIndex);
-					}
-				}
-				else
-				{
-					check(VertexFactoryIndex == VertexFactories.Num());
-					VertexFactory = new FNiagaraMeshVertexFactory();
-					VertexFactories.Add(VertexFactory);
-
-					VertexFactory->SetParticleFactoryType(NVFT_Mesh);
-					VertexFactory->SetLODIndex(LODIndex);
-					VertexFactory->InitResource();
-					SetupVertexFactory(VertexFactory, LODModel);
-				}
-
 				FNiagaraMeshCollectorResourcesMesh& CollectorResources = Collector.AllocateOneFrameResource<FNiagaraMeshCollectorResourcesMesh>();
-				CollectorResources.VertexFactory = VertexFactory;
+
+				// Get the next vertex factory to use
+				// TODO: Find a way to safely pool these such that they won't be concurrently accessed by multiple views
+				FNiagaraMeshVertexFactory* VertexFactory = &CollectorResources.VertexFactory;
+				VertexFactory->SetParticleFactoryType(NVFT_Mesh);
+				VertexFactory->SetLODIndex(LODIndex);
+				VertexFactory->InitResource();
+				SetupVertexFactory(VertexFactory, LODModel);
 
 				FNiagaraMeshUniformParameters PerViewUniformParameters;// = UniformParameters;
 				FMemory::Memzero(&PerViewUniformParameters, sizeof(PerViewUniformParameters)); // Clear unset bytes
@@ -426,7 +391,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				PerViewUniformParameters.LockedAxisSpace = (uint32)LockedAxisSpace;
 
 				//Sort particles if needed.
-				CollectorResources.VertexFactory->SetSortedIndices(nullptr, 0xFFFFFFFF);
+				VertexFactory->SetSortedIndices(nullptr, 0xFFFFFFFF);
 
 				FNiagaraGPUSortInfo SortInfo;
 				int32 SortVarIdx = INDEX_NONE;
@@ -473,27 +438,37 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 
 					if (bEnableFrustumCulling)
 					{
-						SortInfo.CullPlanes.SetNumZeroed(6);
-
-						// Gather the culling planes from the view projection matrix
-						const FMatrix& ViewProj = ViewMatrices.GetViewProjectionMatrix();
-						ViewProj.GetFrustumNearPlane(SortInfo.CullPlanes[0]);
-						ViewProj.GetFrustumFarPlane(SortInfo.CullPlanes[1]);
-						ViewProj.GetFrustumTopPlane(SortInfo.CullPlanes[2]);
-						ViewProj.GetFrustumBottomPlane(SortInfo.CullPlanes[3]);
-
-						ViewProj.GetFrustumLeftPlane(SortInfo.CullPlanes[4]);
-						if (bIsInstancedStereo)
+						if (const FConvexVolume* ShadowFrustum = View->GetDynamicMeshElementsShadowCullFrustum())
 						{
-							// For Instanced Stereo, cull using an extended frustum that encompasses both eyes
-							ensure(View->StereoPass == eSSP_LEFT_EYE); // Sanity check that the primary eye is the left
-							const FSceneView* RightEyeView = Views[ViewIndex + 1];
-							check(RightEyeView);
-							GetViewMatrices(*RightEyeView).GetViewProjectionMatrix().GetFrustumRightPlane(SortInfo.CullPlanes[5]);
+							// Ensure we don't break the maximum number of planes here
+							// (For an accurate shadow frustum, a tight hull is formed from the silhouette and back-facing planes of the view frustum)
+							check(ShadowFrustum->Planes.Num() <= FNiagaraGPUSortInfo::MaxCullPlanes);
+							SortInfo.CullPlanes = ShadowFrustum->Planes;
 						}
 						else
 						{
-							ViewProj.GetFrustumRightPlane(SortInfo.CullPlanes[5]);
+							SortInfo.CullPlanes.SetNumZeroed(6);
+
+							// Gather the culling planes from the view projection matrix
+							const FMatrix& ViewProj = ViewMatrices.GetViewProjectionMatrix();
+							ViewProj.GetFrustumNearPlane(SortInfo.CullPlanes[0]);
+							ViewProj.GetFrustumFarPlane(SortInfo.CullPlanes[1]);
+							ViewProj.GetFrustumTopPlane(SortInfo.CullPlanes[2]);
+							ViewProj.GetFrustumBottomPlane(SortInfo.CullPlanes[3]);
+
+							ViewProj.GetFrustumLeftPlane(SortInfo.CullPlanes[4]);
+							if (bIsInstancedStereo)
+							{
+								// For Instanced Stereo, cull using an extended frustum that encompasses both eyes
+								ensure(View->StereoPass == eSSP_LEFT_EYE); // Sanity check that the primary eye is the left
+								const FSceneView* RightEyeView = Views[ViewIndex + 1];
+								check(RightEyeView);
+								GetViewMatrices(*RightEyeView).GetViewProjectionMatrix().GetFrustumRightPlane(SortInfo.CullPlanes[5]);
+							}
+							else
+							{
+								ViewProj.GetFrustumRightPlane(SortInfo.CullPlanes[5]);
+							}
 						}
 					}
 
@@ -550,7 +525,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 							const int32 IndexBufferOffset = Batcher->AddSortedGPUSimulation(SortInfo);
 							if (IndexBufferOffset != INDEX_NONE)
 							{
-								CollectorResources.VertexFactory->SetSortedIndices(SortInfo.AllocationInfo.BufferSRV, SortInfo.AllocationInfo.BufferOffset);
+								VertexFactory->SetSortedIndices(SortInfo.AllocationInfo.BufferSRV, SortInfo.AllocationInfo.BufferOffset);
 							}
 						}
 						else
@@ -559,7 +534,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 							FGlobalDynamicReadBuffer::FAllocation SortedIndices;
 							SortedIndices = DynamicReadBuffer.AllocateInt32(NumInstances);
 							SortIndices(SortInfo, VFVariables[SortVarIdx], *SourceParticleData, SortedIndices);
-							CollectorResources.VertexFactory->SetSortedIndices(SortedIndices.SRV, 0);
+							VertexFactory->SetSortedIndices(SortedIndices.SRV, 0);
 						}
 					}
 
@@ -594,7 +569,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 						const int32 IndexBufferOffset = Batcher->AddSortedGPUSimulation(SortInfo);
 						if (IndexBufferOffset != INDEX_NONE && SortInfo.GPUParticleCountOffset != INDEX_NONE)
 						{
-							CollectorResources.VertexFactory->SetSortedIndices(SortInfo.AllocationInfo.BufferSRV, SortInfo.AllocationInfo.BufferOffset);
+							VertexFactory->SetSortedIndices(SortInfo.AllocationInfo.BufferSRV, SortInfo.AllocationInfo.BufferOffset);
 						}
 					}
 					
@@ -605,7 +580,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 
 				// Collector.AllocateOneFrameResource uses default ctor, initialize the vertex factory
 				CollectorResources.UniformBuffer = FNiagaraMeshUniformBufferRef::CreateUniformBufferImmediate(PerViewUniformParameters, UniformBuffer_SingleFrame);
-				CollectorResources.VertexFactory->SetUniformBuffer(CollectorResources.UniformBuffer);
+				VertexFactory->SetUniformBuffer(CollectorResources.UniformBuffer);
 
 				// Increment stats
 				INC_DWORD_STAT_BY(STAT_NiagaraNumMeshVerts, NumInstances * LODModel.GetNumVertices());
@@ -623,7 +598,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 					}
 
 					FMeshBatch& Mesh = Collector.AllocateMesh();
-					Mesh.VertexFactory = CollectorResources.VertexFactory;
+					Mesh.VertexFactory = VertexFactory;
 					Mesh.LCI = NULL;
 					Mesh.ReverseCulling = SceneProxy->IsLocalToWorldDeterminantNegative();
 					Mesh.CastShadow = SceneProxy->CastsDynamicShadow();
