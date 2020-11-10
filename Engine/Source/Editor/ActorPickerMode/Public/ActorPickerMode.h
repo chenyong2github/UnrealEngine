@@ -28,11 +28,19 @@ public:
 	 * @param	InOnShouldFilterActor	Delegate used to only allow particular actors (empty to accept all actors; works alongside InOnGetAllowedClasses)
 	 * @param	InOnActorSelected		Delegate to call when a valid actor is selected
 	 */
-	void BeginActorPickingMode(FOnGetAllowedClasses InOnGetAllowedClasses, FOnShouldFilterActor InOnShouldFilterActor, FOnActorSelected InOnActorSelected);
+	void BeginActorPickingMode(FOnGetAllowedClasses InOnGetAllowedClasses, FOnShouldFilterActor InOnShouldFilterActor, FOnActorSelected InOnActorSelected) const;
 
 	/** Exit actor picking mode */
-	void EndActorPickingMode();
+	void EndActorPickingMode() const;
 
 	/** @return Whether or not actor picking mode is currently active */
 	bool IsInActorPickingMode() const;
+	
+private:
+
+	/** Handler for when the application is deactivated. */
+	void OnApplicationDeactivated(const bool IsActive) const;
+
+private:
+	FDelegateHandle OnApplicationDeactivatedHandle;
 };

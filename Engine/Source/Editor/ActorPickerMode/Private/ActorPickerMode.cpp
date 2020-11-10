@@ -5,21 +5,27 @@
 #include "EditorModeRegistry.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
-#include "EditorModeActorPicker.h"
+#include "EditorModeActorPicker.h" 
+#include "Framework/Application/SlateApplication.h"
 
 IMPLEMENT_MODULE( FActorPickerModeModule, ActorPickerMode );
 
 void FActorPickerModeModule::StartupModule()
 {
 	FEditorModeRegistry::Get().RegisterMode<FEdModeActorPicker>(FBuiltinEditorModes::EM_ActorPicker);
+
+	OnApplicationDeactivatedHandle = FSlateApplication::Get().OnApplicationActivationStateChanged().Add(TDelegate<void(const bool)>::CreateRaw(this, &FActorPickerModeModule::OnApplicationDeactivated));
 }
 
 void FActorPickerModeModule::ShutdownModule()
 {
+	FSlateApplication::Get().OnApplicationActivationStateChanged().Remove(OnApplicationDeactivatedHandle);
+	OnApplicationDeactivatedHandle.Reset();
+
 	FEditorModeRegistry::Get().UnregisterMode(FBuiltinEditorModes::EM_ActorPicker);
 }
 
-void FActorPickerModeModule::BeginActorPickingMode(FOnGetAllowedClasses InOnGetAllowedClasses, FOnShouldFilterActor InOnShouldFilterActor, FOnActorSelected InOnActorSelected)
+void FActorPickerModeModule::BeginActorPickingMode(FOnGetAllowedClasses InOnGetAllowedClasses, FOnShouldFilterActor InOnShouldFilterActor, FOnActorSelected InOnActorSelected) const
 {
 	// Activate the mode
 	GLevelEditorModeTools().ActivateMode(FBuiltinEditorModes::EM_ActorPicker);
@@ -34,7 +40,15 @@ void FActorPickerModeModule::BeginActorPickingMode(FOnGetAllowedClasses InOnGetA
 	}
 }
 
-void FActorPickerModeModule::EndActorPickingMode()
+void FActorPickerModeModule::OnApplicationDeactivated(const bool IsActive) const
+{
+	if (!IsActive) 
+	{ 
+		EndActorPickingMode();
+	}
+}
+
+void FActorPickerModeModule::EndActorPickingMode() const
 {
 	GLevelEditorModeTools().DeactivateMode(FBuiltinEditorModes::EM_ActorPicker);
 }
