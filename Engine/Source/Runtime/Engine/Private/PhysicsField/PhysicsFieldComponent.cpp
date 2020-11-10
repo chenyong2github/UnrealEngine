@@ -354,7 +354,7 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 	UpdateInternalBuffer<FVector4, 1, EPixelFormat::PF_A32B32G32R32F>(EFieldPhysicsType::Field_PhysicsType_Max, BoundsMaxDatas.GetData(), BoundsMax);
 
 	FRHIUnorderedAccessView* FieldClipmapUAV = FieldClipmap.UAV;
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, FieldClipmapUAV);
+	RHICmdList.Transition(FRHITransitionInfo(FieldClipmapUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 
 	if (FieldClipmapUAV != nullptr)
 	{
