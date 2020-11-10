@@ -309,6 +309,9 @@ struct FNiagaraComputeSharedContext
 {
 	int32 ScratchIndex = INDEX_NONE;
 	int32 ScratchTickStage = INDEX_NONE;
+
+	uint32 ParticleCountReadFence = 1;
+	uint32 ParticleCountWriteFence = 0;
 };
 
 struct FNiagaraComputeSharedContextDeleter
@@ -518,6 +521,7 @@ public:
 	uint32 Count = 0;
 	uint32 TotalDispatches = 0;
 	uint32 NumInstancesWithSimStages = 0;
+	uint32 ParticleCountFence = 0;
 	bool bRequiresDistanceFieldData = false;
 	bool bRequiresDepthBuffer = false;
 	bool bRequiresEarlyViewData = false;
