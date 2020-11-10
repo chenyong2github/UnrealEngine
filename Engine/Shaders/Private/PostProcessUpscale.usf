@@ -126,7 +126,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	// Nearest sampling (not blurry but blocky, more for testing)
 	#if ES3_1_PROFILE
 		#if MOBILE_MULTI_VIEW
-			OutColor = Texture2DArraySample(PointSceneColorTextureArray, PointSceneColorSampler, vec3(UVAndScreenPos.xy,0));
+			OutColor = Texture2DArraySample(PointSceneColorTextureArray, PointSceneColorSampler, float3(UVAndScreenPos.xy,0));
 		#else
 			OutColor = Texture2DSample(PointSceneColorTexture, PointSceneColorSampler, UVAndScreenPos.xy);
 		#endif
