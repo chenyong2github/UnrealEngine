@@ -3790,14 +3790,14 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 
 void UNiagaraDataInterfaceHairStrands::GetCommonHLSL(FString& OutHLSL)
 {
-	OutHLSL += TEXT("#include \"/Plugin/Experimental/HairStrands/Private/NiagaraQuaternionUtils.ush\"\n");
-	OutHLSL += TEXT("#include \"/Plugin/Experimental/HairStrands/Private/NiagaraStrandsExternalForce.ush\"\n");
-	OutHLSL += TEXT("#include \"/Plugin/Experimental/HairStrands/Private/NiagaraHookeSpringMaterial.ush\"\n");
-	OutHLSL += TEXT("#include \"/Plugin/Experimental/HairStrands/Private/NiagaraAngularSpringMaterial.ush\"\n");
-	OutHLSL += TEXT("#include \"/Plugin/Experimental/HairStrands/Private/NiagaraConstantVolumeMaterial.ush\"\n");
-	OutHLSL += TEXT("#include \"/Plugin/Experimental/HairStrands/Private/NiagaraCosseratRodMaterial.ush\"\n");
-	OutHLSL += TEXT("#include \"/Plugin/Experimental/HairStrands/Private/NiagaraStaticCollisionConstraint.ush\"\n");
-	OutHLSL += TEXT("#include \"/Plugin/Experimental/HairStrands/Private/NiagaraDataInterfaceHairStrands.ush\"\n");
+	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraQuaternionUtils.ush\"\n");
+	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraStrandsExternalForce.ush\"\n");
+	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraHookeSpringMaterial.ush\"\n");
+	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraAngularSpringMaterial.ush\"\n");
+	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraConstantVolumeMaterial.ush\"\n");
+	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraCosseratRodMaterial.ush\"\n");
+	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraStaticCollisionConstraint.ush\"\n");
+	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraDataInterfaceHairStrands.ush\"\n");
 }
 
 void UNiagaraDataInterfaceHairStrands::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
