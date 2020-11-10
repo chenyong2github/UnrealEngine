@@ -1150,14 +1150,18 @@ bool UEdModeInteractiveToolsContext::CapturedMouseMove(FEditorViewportClient* In
 
 bool UEdModeInteractiveToolsContext::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
-#ifdef ENABLE_DEBUG_PRINTING
-	UE_LOG(LogTemp, Warning, TEXT("END TRACKING"));
-#endif
-
 	// unlock flight camera
 	InViewportClient->bLockFlightCamera = false;
 
-	return true;
+	if (ToolManager->HasActiveTool(EToolSide::Mouse))
+	{
+#ifdef ENABLE_DEBUG_PRINTING
+	UE_LOG(LogTemp, Warning, TEXT("END TRACKING"));
+#endif
+		return true;
+	}
+
+	return false;
 }
 
 FRay UEdModeInteractiveToolsContext::GetRayFromMousePos(FEditorViewportClient* ViewportClient, FViewport* Viewport, int MouseX, int MouseY)
