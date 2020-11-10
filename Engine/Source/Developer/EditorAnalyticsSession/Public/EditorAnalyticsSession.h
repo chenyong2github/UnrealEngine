@@ -88,6 +88,7 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	bool bIsInVRMode : 1;
 	bool bIsLowDriveSpace : 1;
 	bool bIsCrcExeMissing: 1; // CrashReportClient executable is missing? To explain with MonitorProcessID would be zero.
+	bool bIsDebuggerIgnored: 1; // True if GIgnoreDebugger is true.
 
 	FEditorAnalyticsSession();
 
