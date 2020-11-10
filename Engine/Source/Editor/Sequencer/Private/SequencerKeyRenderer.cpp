@@ -394,7 +394,7 @@ void FKeyRenderer::FKeyDrawBatch::UpdateViewDependentData(FSequencer* Sequencer,
 			NumOverlaps += ThisNumOverlaps;
 		}
 
-		if (NumKeyTimes == 0)
+		if (NumKeyTimes == 0) //-V547
 		{
 			// This is not actually possible since HandleKey must have been called
 			// at least once, but it needs to be here to avoid a static analysis warning
