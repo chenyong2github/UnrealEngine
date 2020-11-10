@@ -56,7 +56,7 @@ const static int DEPTH_THREADPOS_OFFSET = THREADGROUP_SIZEX + 2;
 const static int MAX_DEPTH_THREADS = (THREADGROUP_SIZEX + 2) * (THREADGROUP_SIZEY + 2);
 #elif SPATIALFILTER_COMPUTE_SHADER
 const static int2 DEPTH_GROUP_THREAD_OFFSET = int2(2, 2);
-const static int DEPTH_THREADPOS_OFFSET = THREADGROUP_SIZEX + 4; // Spatial Filter pass needs extra 3 and HorizonSearchIntegrate pass needs extra 2 
+const static int DEPTH_THREADPOS_OFFSET = THREADGROUP_SIZEX + 4;
 const static int MAX_DEPTH_THREADS = (THREADGROUP_SIZEX + 4) * (THREADGROUP_SIZEY + 4);
 #endif
 
@@ -457,7 +457,7 @@ void CacheZVal(int2 FullGroupOriginDepth, uint pixIdx)
 
 	half2 TextureUV = TexturePosToBufferUV(TexturePos);
 
-	TextureUV += DepthBufferSizeAndInvSize.zw*0.125;
+//	TextureUV += DepthBufferSizeAndInvSize.zw*0.125;
 
 	SetZVal(GetDeviceZFromAOInput(TextureUV.xy).r, pixIdx);
 }
@@ -478,7 +478,7 @@ void CacheAOVal(int2 FullGroupOriginAO, uint pixIdx)
 #elif SPATIALFILTER_COMPUTE_SHADER
 	half2 DeviceZAndAO = GetDeviceZAndAO(TextureUV);
 	SetAOVal(DeviceZAndAO.y, pixIdx);
-	SetZVal(DeviceZAndAO.x, ThreadPos.x + pixIdx);
+	SetZVal(DeviceZAndAO.x, pixIdx);
 #endif
 }
 #endif
