@@ -394,6 +394,13 @@ void FKeyRenderer::FKeyDrawBatch::UpdateViewDependentData(FSequencer* Sequencer,
 			NumOverlaps += ThisNumOverlaps;
 		}
 
+		if (NumKeyTimes == 0)
+		{
+			// This is not actually possible since HandleKey must have been called
+			// at least once, but it needs to be here to avoid a static analysis warning
+			break;
+		}
+
 		NewKey.FinalKeyPositionSeconds = AverageKeyTime / NumKeyTimes;
 		NewKey.KeyTickStart = KeyTickStart;
 		NewKey.KeyTickEnd = KeyTickEnd;
