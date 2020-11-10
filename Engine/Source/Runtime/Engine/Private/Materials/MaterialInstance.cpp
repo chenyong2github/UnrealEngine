@@ -42,9 +42,6 @@
 #include "ShaderPlatformQualitySettings.h"
 #include "MaterialShaderQualitySettings.h"
 
-// [jonathan.bard] Disable optimization, remove : 
-PRAGMA_DISABLE_OPTIMIZATION
-
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance CopyMatInstParams"), STAT_MaterialInstance_CopyMatInstParams, STATGROUP_Shaders);
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance Serialize"), STAT_MaterialInstance_Serialize, STATGROUP_Shaders);
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance CopyUniformParamsInternal"), STAT_MaterialInstance_CopyUniformParamsInternal, STATGROUP_Shaders);
@@ -4970,6 +4967,3 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 UMaterialInstance::FCustomStaticParametersGetterDelegate UMaterialInstance::CustomStaticParametersGetters;
 TArray<UMaterialInstance::FCustomParameterSetUpdaterDelegate> UMaterialInstance::CustomParameterSetUpdaters;
 #endif // WITH_EDITORONLY_DATA
-
-// [jonathan.bard] Disable optimization, remove :
-PRAGMA_ENABLE_OPTIMIZATION
