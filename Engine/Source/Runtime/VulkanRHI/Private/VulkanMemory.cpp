@@ -555,6 +555,7 @@ namespace VulkanRHI
 
 		uint64 HostHeapSize = 0;
 		PrimaryHostHeap = -1; // Primary
+		uint32 NonLocalHeaps = 0;
 
 		for(uint32 i = 0; i < MemoryProperties.memoryHeapCount; ++i)
 		{
@@ -566,6 +567,14 @@ namespace VulkanRHI
 					HostHeapSize = MemoryProperties.memoryHeaps[i].size;
 				}
 			}
+			else
+			{
+				NonLocalHeaps++;
+			}
+		}
+		if(0 == NonLocalHeaps)
+		{
+			PrimaryHostHeap = -1; // if there are no non-local heaps, disable eviction and defragmentation
 		}
 
 
