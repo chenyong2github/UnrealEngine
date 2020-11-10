@@ -2,9 +2,10 @@
 
 #pragma once
 
-#if defined(PLATFORM_WINDOWS) && PLATFORM_WINDOWS
 #include "CoreTypes.h"
 #include "CoreMinimal.h"
+
+#if PLATFORM_WINDOWS
 #include <cstdio>
 
 

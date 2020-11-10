@@ -5,8 +5,6 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
-#if defined(PLATFORM_WINDOWS) && PLATFORM_WINDOWS
-
 DECLARE_LOG_CATEGORY_EXTERN(LogExrReaderGpu, Log, All);
 
 class FExrReaderGpuModule : public IModuleInterface
@@ -18,6 +16,4 @@ public:
 	virtual void ShutdownModule() override;
 	/** IModuleInterface implementation end */
 };
-
-#endif
 
