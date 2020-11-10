@@ -551,6 +551,13 @@ void FMobileSceneRenderer::RenderHitProxies(FRHICommandListImmediate& RHICmdList
 
 		::DoRenderHitProxies(RHICmdList, this, HitProxyRT, HitProxyDepthRT);
 
+		if (bDeferredShading)
+		{
+			// Release the original reference on the scene render targets
+			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+			SceneContext.AdjustGBufferRefCount(RHICmdList, -1);
+		}
+
 		GEngine->GetPostRenderDelegate().Broadcast();
 	}
 
