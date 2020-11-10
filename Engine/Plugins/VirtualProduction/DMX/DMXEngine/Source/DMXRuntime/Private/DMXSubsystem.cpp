@@ -89,8 +89,14 @@ void UDMXSubsystem::SendDMX(UDMXEntityFixturePatch* FixturePatch, TMap<FDMXAttri
 					const IDMXProtocolPtr Protocol = Controller->DeviceProtocol.GetProtocol();
 					if (Protocol.IsValid())
 					{
+						bool bLoopback = !Protocol->IsReceiveDMXEnabled() || !Protocol->IsSendDMXEnabled();						
+						if (bLoopback)
+						{
+							Results.Add(Protocol->InputDMXFragment(Universe + Controller->RemoteOffset, DMXFragmentMap));
+						}
+						
 						Results.Add(Protocol->SendDMXFragment(Universe + Controller->RemoteOffset, DMXFragmentMap));
-						UniversesUsed.Add(RemoteUniverse); // Avoid setting values in the same Universe more than once
+						UniversesUsed.Add(RemoteUniverse); // Avoid setting values in the same Universe more than once							
 					}
 				}
 			}
