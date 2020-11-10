@@ -247,10 +247,10 @@ public:
 
 private:
 	bool					bStereoEnabled;
-	bool					bIsRunning;
-	bool					bIsReady;
-	bool					bIsRendering;
-	bool					bIsSynchronized;
+	TAtomic<bool>			bIsRunning;
+	TAtomic<bool>			bIsReady;
+	TAtomic<bool>			bIsRendering;
+	TAtomic<bool>			bIsSynchronized;
 	bool					bDepthExtensionSupported;
 	bool					bHiddenAreaMaskSupported;
 	bool					bViewConfigurationFovSupported;

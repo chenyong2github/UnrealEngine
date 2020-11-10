@@ -1883,17 +1883,24 @@ bool FOpenXRHMD::StartSession()
 	{
 		Begin.next = Module->OnBeginSession(Session, Begin.next);
 	}
-	bIsRunning = XR_ENSURE(xrBeginSession(Session, &Begin));
 
+	FScopeLock ScopeLock(&BeginEndFrameMutex);
+	bIsRunning = XR_ENSURE(xrBeginSession(Session, &Begin));
 	return bIsRunning;
 }
 
 bool FOpenXRHMD::StopSession()
 {
+	// Ensures xrEndFrame has been called before the session leaves running state and no new frames are submitted.
+	FScopeLock ScopeLock(&BeginEndFrameMutex);
+
 	if (!bIsRunning)
 	{
 		return false;
 	}
+
+	bool signaled = FrameEventRHI->Wait(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod / 1e6);
+
 	bIsRunning = !XR_ENSURE(xrEndSession(Session));
 	return !bIsRunning;
 }
@@ -1989,7 +1996,11 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 	}
 #endif
 
-	if (bIsReady)
+	// There is a chance xrBeginFrame may time out waiting for FrameEventRHI so a mutex is needed
+	// to ensure the two calls never overlap (spec requires they are externally synchronized).
+	// In addition, the mutex ensures bIsRunning and the frame event are checked atomically.
+	FScopeLock ScopeLock(&BeginEndFrameMutex);
+	if (bIsRunning)
 	{
 		// Ensure xrEndFrame has been called before starting rendering the next frame.
 		bool signaled = FrameEventRHI->Wait(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod / 1e6);
@@ -2004,12 +2015,8 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 			BeginInfo.next = Module->OnBeginFrame(Session, DisplayTime, BeginInfo.next);
 		}
 		XrResult Result;
-		{
-			// There is a chance xrBeginFrame may time out waiting for FrameEventRHI so a mutex is needed
-			// to ensure the two calls never overlap (spec requires they are externally synchronized).
-			FScopeLock ScopeLock(&BeginEndFrameMutex);
-			Result = xrBeginFrame(Session, &BeginInfo);
-		}
+		Result = xrBeginFrame(Session, &BeginInfo);
+
 		if (XR_SUCCEEDED(Result))
 		{
 			bIsRendering = true;
@@ -2031,6 +2038,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 			}
 		}
 	}
+	ScopeLock.Unlock();
 
 	// Snapshot new poses for late update.
 	UpdateDeviceLocations(false);
