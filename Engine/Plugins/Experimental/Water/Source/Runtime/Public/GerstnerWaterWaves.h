@@ -148,7 +148,7 @@ public:
 	Default implementation of a gerstner wave generator using known wave spectra from oceanology. 
 	Edited using octaves, where each octave is a set of waves with 2x longer wave length than the previous octave
 */
-UCLASS(EditInlineNew, BlueprintType, MinimalAPI, NotBlueprintable)
+UCLASS(EditInlineNew, BlueprintType, MinimalAPI, NotBlueprintable, HideDropdown)
 class UGerstnerWaterWaveGeneratorSpectrum : public UGerstnerWaterWaveGeneratorBase
 {
 	GENERATED_BODY()
