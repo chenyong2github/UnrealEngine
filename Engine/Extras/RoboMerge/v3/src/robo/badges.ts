@@ -43,7 +43,7 @@ class BadgeHandler implements BotEventHandler {
 		externalUrl : string, parentLogger: ContextualLogger) {
 		// for now, single badge project
 		// possibility: could check multiple. WOuld need to be prioritised for consistency
-		this.badgeProject = badgeBranch.badgeProject!
+		// this.badgeProject = badgeBranch.badgeProject!
 		// this.badgeLabel = `Merge:->${badgeBranch.name}`
 		this.botname = badgeBranch.parent.botname
 
@@ -67,7 +67,7 @@ class BadgeHandler implements BotEventHandler {
 	}
 
 	private sendBadge(status: string, stream: string, cl: number, branch?: Branch, label?: string) {
-		Badge.mark(status, label || BADGE_LABEL, `${stream}/${this.badgeProject}`, cl, this.botname, this.externalUrl, branch && branch.config.badgeUrlOverride)
+		Badge.mark(status, label || BADGE_LABEL, stream, cl, this.botname, this.externalUrl, branch && branch.config.badgeUrlOverride)
 	}
 
 	onBlockage(blockage: Blockage) {
@@ -124,7 +124,6 @@ class BadgeHandler implements BotEventHandler {
 
 	private badgeHandlerLogger : ContextualLogger
 	private botname: string
-	private badgeProject: string
 	private externalUrl: string
 }
 
