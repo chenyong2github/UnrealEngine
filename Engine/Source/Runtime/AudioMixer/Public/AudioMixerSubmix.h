@@ -502,7 +502,7 @@ namespace Audio
 		// Spectrum analyzer. Created and destroyed on the audio thread.
 		FCriticalSection SpectrumAnalyzerCriticalSection;
 		FSoundSpectrumAnalyzerSettings SpectrumAnalyzerSettings;
-		TSharedPtr<FAsyncSpectrumAnalyzer, ESPMode::ThreadSafe> SpectrumAnalyzer;
+		TUniquePtr<FSpectrumAnalyzer> SpectrumAnalyzer;
 		
 		// This buffer is used to downmix the submix output to mono before submitting it to the SpectrumAnalyzer.
 		AlignedFloatBuffer MonoMixBuffer;
