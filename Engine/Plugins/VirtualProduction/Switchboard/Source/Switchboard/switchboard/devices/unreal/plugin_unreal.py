@@ -195,13 +195,13 @@ class DeviceUnreal(Device):
         client_name = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(self.name)
 
         if not client_name:
-            LOGGER.warning(f"{self.name}: We need a workspace name to query the changelist in it")
+            LOGGER.warning(f"{self.name}: Missing workspace name to query the project changelist")
             return
 
         p4_path = CONFIG.P4_PROJECT_PATH.get_value()
 
         if not p4_path:
-            LOGGER.warning(f"{self.name}: We need a p4 path to query the changelist")
+            LOGGER.warning(f"{self.name}: Missing p4 path to query the project changelist")
             return
 
         formatstring = "%change%"
@@ -228,14 +228,13 @@ class DeviceUnreal(Device):
         client_name = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(self.name)
 
         if not client_name:
-            LOGGER.warning("We need a workspace name to query the changelist in it")
+            LOGGER.warning(f"{self.name}: Missing workspace name to query the engine changelist")
             return
 
         p4_path = CONFIG.P4_ENGINE_PATH.get_value()
 
         if not p4_path:
-            LOGGER.warning(f'{self.name}: "Build Engine" is enabled in the settings but the engine does not seem to be under perforce control.')
-            LOGGER.warning("Please check your perforce settings.")
+            LOGGER.warning(f'{self.name}: Missing p4 path to query the engine changelist')
             return
 
         formatstring = "%change%"
