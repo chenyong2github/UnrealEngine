@@ -13,6 +13,16 @@
 
 namespace Chaos
 {
+	class CHAOS_API FConvexStructureData
+	{
+	public:
+		// For each face: the set of vertex indices that form the corners of the face in counter-clockwise order
+		TArray<TArray<int32>> PlaneVertices;
+
+		// For each vertex: the set of face indices that use the vertex
+		TArray<TArray<int32>> VertexPlanes;
+	};
+
 	class CHAOS_API FConvex final : public FImplicitObject
 	{
 	public:
@@ -196,6 +206,21 @@ namespace Chaos
 			return MakePair(FVec3(0), false);
 		}
 
+		int32 GetMostOpposingPlane(const FVec3& Normal) const;
+		int32 GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const;
+		TArrayView<int32> GetPlaneVertices(int32 FaceIndex) const;
+
+		const TPlaneConcrete<FReal, 3>& GetPlane(int32 FaceIndex) const
+		{
+			return Planes[FaceIndex];
+		}
+
+		const FVec3& GetVertex(int32 VertexIndex) const
+		{
+			return SurfaceParticles.X(VertexIndex);
+		}
+
+
 		// @todo(chaos): margin
 		virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const override;
 
@@ -212,7 +237,6 @@ namespace Chaos
 			return FVec3(0.f, 0.f, 1.f);
 		}
 
-	
 		// @todo(chaos): margin
 		virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01) const override;
 
@@ -401,6 +425,7 @@ namespace Chaos
 		TArray<TPlaneConcrete<FReal, 3>> Planes;
 		TParticles<FReal, 3> SurfaceParticles;	//copy of the vertices that are just on the convex hull boundary
 		TAABB<FReal, 3> LocalBoundingBox;
+		TUniquePtr<FConvexStructureData> StructureData;
 		float Volume;
 		FVec3 CenterOfMass;
 	};

@@ -90,18 +90,23 @@ namespace Chaos
 	// OutClosestA and OutClosestB are the closest or deepest-penetrating points on the two geometries, both in the space of A.
 	// This function will be faster if bNegativePenetrationAllowed is false, so don't use the feature if not required
 	template <bool bNegativePenetrationAllowed = false, typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKPenetration(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, const T InThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T InThicknessB = 0, int32* OutNumIterations = nullptr)
+	bool GJKPenetration(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, int32& OutClosestVertexIndexA, int32& OutClosestVertexIndexB, const T InThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T InThicknessB = 0, int32* OutNumIterations = nullptr)
 	{
-		auto SupportAFunc = [&A](const TVec3<T>& V)
+		int32 VertexIndexA = INDEX_NONE;
+		int32 VertexIndexB = INDEX_NONE;
+
+		auto SupportAFunc = [&A, &VertexIndexA](const TVec3<T>& V)
 		{
+			VertexIndexA = INDEX_NONE;
 			return A.SupportCore(V);
 		};
 
 		const TRotation<T, 3> AToBRotation = BToATM.GetRotation().Inverse();
 
 
-		auto SupportBFunc = [&B, &BToATM, &AToBRotation](const TVec3<T>& V)
+		auto SupportBFunc = [&B, &BToATM, &AToBRotation, &VertexIndexB](const TVec3<T>& V)
 		{
+			VertexIndexB = INDEX_NONE;
 			const TVector<T, 3> VInB = AToBRotation * V;
 			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB);
 			return BToATM.TransformPositionNoScale(SupportBLocal);
@@ -198,7 +203,8 @@ namespace Chaos
 			OutPenetration = Penetration;
 			OutClosestA = ClosestA + OutNormal * ThicknessA;
 			OutClosestB = ClosestBInA - OutNormal * ThicknessB;
-
+			OutClosestVertexIndexA = VertexIndexA;
+			OutClosestVertexIndexB = VertexIndexB;
 		}
 		else
 		{
@@ -222,6 +228,8 @@ namespace Chaos
 				OutPenetration = Penetration + ThicknessA + ThicknessB;
 				OutClosestA = ClosestA + OutNormal * ThicknessA;
 				OutClosestB = ClosestBInA - OutNormal * ThicknessB;
+				OutClosestVertexIndexA = VertexIndexA;
+				OutClosestVertexIndexB = VertexIndexB;
 			}
 			else
 			{
@@ -240,6 +248,8 @@ namespace Chaos
 				OutNormal = MTD;
 				OutClosestA = ClosestA + OutNormal * ThicknessA;
 				OutClosestB = ClosestBInA - OutNormal * ThicknessB;
+				OutClosestVertexIndexA = VertexIndexA;
+				OutClosestVertexIndexB = VertexIndexB;
 				return OutPenetration > Eps2;
 			}
 		}

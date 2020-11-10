@@ -76,6 +76,65 @@ namespace Chaos
 		return ReturnIndex;
 	}
 
+	int32 FConvex::GetMostOpposingPlane(const FVec3& Normal) const
+	{
+		// @todo(chaos): this approach assumes we never have conincident planes, which at the moment is not true.
+		// Need to make sure convex hull is cleaned up so that there are n-gon faces so this is unique
+		// @todo(chaos): use hill climbing
+		int32 MostOpposingIdx = INDEX_NONE;
+		FReal MostOpposingDot = TNumericLimits<FReal>::Max();
+		for (int32 Idx = 0; Idx < Planes.Num(); ++Idx)
+		{
+			const TPlaneConcrete<FReal, 3>& Plane = Planes[Idx];
+			const FReal Dot = FVec3::DotProduct(Plane.Normal(), Normal);
+			if (Dot < MostOpposingDot)
+			{
+				MostOpposingDot = Dot;
+				MostOpposingIdx = Idx;
+			}
+		}
+		CHAOS_ENSURE(MostOpposingIdx != INDEX_NONE);
+		return MostOpposingIdx;
+	}
+
+	int32 FConvex::GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const
+	{
+		if ((VertexIndex == INDEX_NONE) || (StructureData == nullptr))
+		{
+			return GetMostOpposingPlane(Normal);
+		}
+
+		int32 MostOpposingIdx = INDEX_NONE;
+		FReal MostOpposingDot = TNumericLimits<FReal>::Max();
+		const TArray<int32>& VertexPlaneIndices = StructureData->VertexPlanes[VertexIndex];
+		for (int32 VertexPlaneIndex = 0; VertexPlaneIndex < VertexPlaneIndices.Num(); ++VertexPlaneIndex)
+		{
+			const int32 PlaneIndex = VertexPlaneIndices[VertexPlaneIndex];
+			const TPlaneConcrete<FReal, 3>& Plane = Planes[PlaneIndex];
+			const FReal Dot = FVec3::DotProduct(Plane.Normal(), Normal);
+			if (Dot < MostOpposingDot)
+			{
+				MostOpposingDot = Dot;
+				MostOpposingIdx = PlaneIndex;
+			}
+		}
+		CHAOS_ENSURE(MostOpposingIdx != INDEX_NONE);
+		return MostOpposingIdx;
+	}
+
+	TArrayView<int32> FConvex::GetPlaneVertices(int32 FaceIndex) const
+	{
+		if (StructureData != nullptr)
+		{
+			return MakeArrayView(StructureData->PlaneVertices[FaceIndex]);
+		}
+
+		static TArray<int32> EmptyVertices;
+		return MakeArrayView(EmptyVertices);
+	}
+
+
+
 	// Reduce the core convex shape by the specified margin. For this we need to:
 	//	- move all planes in my the margin
 	//	- regenerate the set of points from the planes (some points might merge depending on face size and margin size)

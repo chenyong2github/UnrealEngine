@@ -330,7 +330,8 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 
 		FReal LambdaPenetration;
 		FVec3 ClosestA, ClosestB, LambdaNormal;
-		bool GJKValidResult = GJKPenetration<true>(TriangleConvex, WorldScaleGeom, WorldScaleQueryTM, LambdaPenetration, ClosestA, ClosestB, LambdaNormal, (FReal)0);
+		int32 ClosestVertexIndexA, ClosestVertexIndexB;
+		bool GJKValidResult = GJKPenetration<true>(TriangleConvex, WorldScaleGeom, WorldScaleQueryTM, LambdaPenetration, ClosestA, ClosestB, LambdaNormal, ClosestVertexIndexA, ClosestVertexIndexB, (FReal)0);
 		if (GJKValidResult)
 		{
 			LocalContactLocation = ClosestB;
@@ -526,7 +527,8 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 				FReal Penetration = 0.0;
 				FVec3 ClosestA(0.0);
 				FVec3 ClosestB(0.0);
-				if (GJKPenetration(TTriangle<FReal>(A, B, C), WorldScaleQueryGeom, WorldScaleQueryTM, Penetration, ClosestA, ClosestB, TriangleNormal, Thickness))
+				int32 ClosestVertexIndexA, ClosestVertexIndexB;
+				if (GJKPenetration(TTriangle<FReal>(A, B, C), WorldScaleQueryGeom, WorldScaleQueryTM, Penetration, ClosestA, ClosestB, TriangleNormal, ClosestVertexIndexA, ClosestVertexIndexB, Thickness))
 				{
 					bOverlap = true;
 
