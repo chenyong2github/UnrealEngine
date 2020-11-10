@@ -427,20 +427,20 @@ namespace UnrealBuildTool
 		/// Whether to include PhysX support.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bCompilePhysX = true;
+		public bool bCompilePhysX = false;
 
 		/// <summary>
 		/// Whether to include PhysX APEX support.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/BuildSettings.BuildSettings", "bCompileApex")]
-		public bool bCompileAPEX = true;
+		public bool bCompileAPEX = false;
 
 		/// <summary>
 		/// Whether to include NvCloth.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bCompileNvCloth = true;
+		public bool bCompileNvCloth = false;
 
 		/// <summary>
 		/// Whether to include ICU unicode/i18n support in Core.
