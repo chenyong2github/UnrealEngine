@@ -57,7 +57,7 @@ public:
 
 	/**  Return byte array from the DMX buffer given a universe. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	void GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 UniverseIndex, TArray<uint8>& DMXBuffer);
+	void GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 RemoteUniverse, TArray<uint8>& DMXBuffer);
 
 	/**  Return map with all DMX functions and their associated values given DMX buffer and desired universe. */
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DisplayName = "Get Fixture Attributes"))
@@ -209,8 +209,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	FName GetAttributeLabel(FDMXAttributeName AttributeName);
 
-	UE_DEPRECATED(4.26, "No longer supported in 4.26. Use DMXComponent's OnFixturePatchReceived event instead.")
-	UPROPERTY(BlueprintAssignable, Category = "DMX", meta = (DeprecatedProperty, DeprecationMessage = "WARNING: This can execute faster than tick leading to possible blueprint performance issues. Use DMXComponent's OnFixturePatchReceived event instead."))
+	UE_DEPRECATED(4.26, "No longer supported in 4.26. Use DMXComponent's OnFixturePatchReceived event or GetRawBuffer instead.")
+	UPROPERTY(BlueprintAssignable, Category = "DMX", meta = (DeprecatedProperty, DeprecationMessage = "WARNING: This can execute faster than tick leading to possible blueprint performance issues. Use DMXComponent's OnFixturePatchReceived event or GetRawBuffer instead."))
 	FProtocolReceivedDelegate OnProtocolReceived_DEPRECATED;
 
 	/**  Set DMX Cell value using matrix coordinates. */
