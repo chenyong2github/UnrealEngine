@@ -1278,6 +1278,21 @@ static FAutoConsoleVariableRef CVarLowMemoryThresholdMB(
 	ECVF_Default
 );
 
+static float GLowMemoryIncrementalGCTimePerFrame = 0.002f; // 2ms
+static FAutoConsoleVariableRef CVarLowMemoryIncrementalGCTimePerFrame(
+	TEXT("gc.LowMemory.IncrementalGCTimePerFrame"),
+	GLowMemoryIncrementalGCTimePerFrame,
+	TEXT("How much time is allowed for incremental GC each frame in seconds if memory is low"),
+	ECVF_Default
+);
+
+static float GIncrementalGCTimePerFrame = 0.002f; // 2ms
+static FAutoConsoleVariableRef CVarIncrementalGCTimePerFrame(
+	TEXT("gc.IncrementalGCTimePerFrame"),
+	GIncrementalGCTimePerFrame,
+	TEXT("How much time is allowed for incremental GC each frame in seconds"),
+	ECVF_Default
+);
 
 void UEngine::PreGarbageCollect()
 {
@@ -1416,7 +1431,19 @@ void UEngine::ConditionalCollectGarbage()
 					else
 					{
 						SCOPE_CYCLE_COUNTER(STAT_GCSweepTime);
-						IncrementalPurgeGarbage(true);
+						float IncGCTime = GIncrementalGCTimePerFrame;
+						if (GLowMemoryMemoryThresholdMB > 0.0)
+						{
+							float MBFree = float(FPlatformMemory::GetStats().AvailablePhysical / 1024 / 1024);
+#if !UE_BUILD_SHIPPING
+							MBFree -= float(FPlatformMemory::GetExtraDevelopmentMemorySize() / 1024 / 1024);
+#endif
+							if (MBFree <= GLowMemoryMemoryThresholdMB)
+							{
+								IncGCTime = GLowMemoryIncrementalGCTimePerFrame;
+							}
+						}
+						IncrementalPurgeGarbage(true, IncGCTime);
 					}
 				}
 			}
