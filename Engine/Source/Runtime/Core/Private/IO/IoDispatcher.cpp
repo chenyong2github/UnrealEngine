@@ -21,7 +21,7 @@
 DEFINE_LOG_CATEGORY(LogIoDispatcher);
 
 
-#if CSV_PROFILER
+#if CSV_PROFILER && IS_MONOLITHIC
 extern int64 GTotalLoaded;
 #endif
 
@@ -481,7 +481,7 @@ private:
 			if (Request->Status.IsOk())
 			{
 				Request->Callback(Request->IoBuffer);
-#if CSV_PROFILER
+#if CSV_PROFILER && IS_MONOLITHIC
 				FPlatformAtomics::InterlockedAdd(&GTotalLoaded, Request->Options.GetSize());
 #endif
 			}
