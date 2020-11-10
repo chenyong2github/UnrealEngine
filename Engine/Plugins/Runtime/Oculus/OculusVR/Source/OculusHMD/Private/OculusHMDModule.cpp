@@ -221,7 +221,12 @@ FString FOculusHMDModule::GetAudioOutputDevice()
 {
 	FString AudioOutputDevice;
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
-	GConfig->GetString(TEXT("Oculus.Settings"), TEXT("AudioOutputDevice"), AudioOutputDevice, GEngineIni);
+	const WCHAR* audioOutDeviceId;
+
+	if (OVRP_SUCCESS(PluginWrapper.GetAudioOutDeviceId2((const void**)&audioOutDeviceId)) && audioOutDeviceId)
+	{
+		AudioOutputDevice = audioOutDeviceId;
+	}
 #endif
 	return AudioOutputDevice;
 }
