@@ -98,7 +98,7 @@ void UEditorEngine::LaunchNewProcess(const FRequestPlaySessionParams& InParams, 
 	//	-Override GameUserSettings.ini
 	//	-Force no steam
 	//	-Allow saving of config files (since we are giving them an override INI)
-	CommandLine += FString::Printf(TEXT("GameUserSettingsINI=\"%s\" -MultiprocessSaveConfig -MultiprocessOSS "), *GameUserSettingsOverride);
+	CommandLine += FString::Printf(TEXT(" GameUserSettingsINI=\"%s\" -MultiprocessSaveConfig -MultiprocessOSS"), *GameUserSettingsOverride);
 
 	if (bIsDedicatedServer)
 	{
