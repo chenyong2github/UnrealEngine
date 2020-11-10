@@ -411,20 +411,6 @@ void FMobileSceneRenderer::InitAmbientOcclusionOutputs(FRHICommandListImmediate&
 	}
 }
 
-void FMobileSceneRenderer::CacheSceneDepthZ(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& InOutSceneDepthZ)
-{
-	if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
-	{
-		FPooledRenderTargetDesc SceneDepthZDesc = InOutSceneDepthZ->GetDesc();
-
-		View.ViewState->PrevFrameViewInfo.MobileSceneDepthZ = InOutSceneDepthZ;
-
-		InOutSceneDepthZ.SafeRelease();
-
-		GRenderTargetPool.FindFreeElement(RHICmdList, SceneDepthZDesc, InOutSceneDepthZ, TEXT("SceneDepthZ"));
-	}
-}
-
 void FMobileSceneRenderer::ReleaseAmbientOcclusionOutputs()
 {
 	GAmbientOcclusionMobileOutputs.Release();
