@@ -107,10 +107,12 @@ void UCombineMeshesTool::Setup()
 
 	if (bDuplicateMode)
 	{
+		SetToolDisplayName(LOCTEXT("DuplicateMesheToolName", "Duplicate Mesh Tool"));
 		BasicProperties->OutputName = AssetGenerationUtil::GetComponentAssetBaseName(ComponentTargets[0]->GetOwnerComponent());
 	}
 	else
 	{
+		SetToolDisplayName(LOCTEXT("CombineMeshesToolName", "Combine Meshes Tool"));
 		BasicProperties->OutputName = FString("Combined");
 	}
 
