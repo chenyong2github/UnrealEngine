@@ -1048,12 +1048,12 @@ void FOpenXRHMD::AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y
 	const FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
 	const XrViewConfigurationView& Config = PipelineState.ViewConfigs[ViewIndex];
 	FIntPoint ViewRectMin(EForceInit::ForceInitToZero);
-	if (!bIsMobileMultiViewEnabled)
+
+	// If Mobile Multi-View is active the first two views will share the same position
+	// Thus the start index should be the second view if enabled
+	for (uint32 i = bIsMobileMultiViewEnabled ? 1 : 0; i < ViewIndex; ++i)
 	{
-		for (uint32 i = 0; i < ViewIndex; ++i)
-		{
-			ViewRectMin.X += PipelineState.ViewConfigs[i].recommendedImageRectWidth;
-		}
+		ViewRectMin.X += PipelineState.ViewConfigs[i].recommendedImageRectWidth;
 	}
 	QuantizeSceneBufferSize(ViewRectMin, ViewRectMin);
 
@@ -1161,6 +1161,19 @@ uint32 FOpenXRHMD::DeviceGetLODViewIndex() const
 	return IStereoRendering::DeviceGetLODViewIndex();
 }
 
+bool FOpenXRHMD::DeviceIsAPrimaryPass(EStereoscopicPass Pass)
+{
+	uint32 ViewIndex = GetViewIndexForPass(Pass);
+	const FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
+	if (PipelineState.PluginViews.IsValidIndex(ViewIndex) && PipelineState.PluginViews[ViewIndex])
+	{
+		// Views provided by a plugin should be considered a new primary pass
+		return true;
+	}
+
+	return Pass == EStereoscopicPass::eSSP_FULL || Pass == EStereoscopicPass::eSSP_LEFT_EYE;
+}
+
 int32 FOpenXRHMD::GetDesiredNumberOfViews(bool bStereoRequested) const
 {
 	const FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
@@ -1250,8 +1263,11 @@ void FOpenXRHMD::SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView)
 
 void FOpenXRHMD::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
 {
-	PipelinedLayerStateRendering.ProjectionLayers.SetNum(PipelinedFrameStateRendering.PluginViews.Num());
-	PipelinedLayerStateRendering.DepthLayers.SetNum(PipelinedFrameStateRendering.PluginViews.Num());
+	uint32 ViewConfigCount = 0;
+	XR_ENSURE(xrEnumerateViewConfigurationViews(Instance, System, SelectedViewConfigurationType, 0, &ViewConfigCount, nullptr));
+
+	PipelinedLayerStateRendering.ProjectionLayers.SetNum(ViewConfigCount);
+	PipelinedLayerStateRendering.DepthLayers.SetNum(ViewConfigCount);
 
 	PipelinedLayerStateRendering.ColorImages.SetNum(PipelinedFrameStateRendering.ViewConfigs.Num());
 	PipelinedLayerStateRendering.DepthImages.SetNum(PipelinedFrameStateRendering.ViewConfigs.Num());
@@ -2339,9 +2355,12 @@ FIntPoint FOpenXRHMD::GetIdealRenderTargetSize() const
 	const FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
 
 	FIntPoint Size(EForceInit::ForceInitToZero);
-	for (const XrViewConfigurationView& Config : PipelineState.ViewConfigs)
+	for (int32 ViewIndex = 0; ViewIndex < PipelineState.ViewConfigs.Num(); ViewIndex++)
 	{
-		Size.X = bIsMobileMultiViewEnabled ? FMath::Max(Size.X, (int)Config.recommendedImageRectWidth)
+		const XrViewConfigurationView& Config = PipelineState.ViewConfigs[ViewIndex];
+
+		// If Mobile Multi-View is active the first two views will share the same position
+		Size.X = bIsMobileMultiViewEnabled && ViewIndex < 2 ? FMath::Max(Size.X, (int)Config.recommendedImageRectWidth)
 			: Size.X + (int)Config.recommendedImageRectWidth;
 		Size.Y = FMath::Max(Size.Y, (int)Config.recommendedImageRectHeight);
 
