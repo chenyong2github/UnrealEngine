@@ -61,6 +61,7 @@ class DeviceUnreal(Device):
             attr_name="max_gpu_count", 
             nice_name="Number of GPUs",
             value=1,
+            possible_values=list(range(1, 17)),
             tool_tip="If you have multiple GPUs in the PC, you can specify how many to use.",
         ),
     }
@@ -435,8 +436,11 @@ class DeviceUnreal(Device):
         # Max GPU Count (mGPU)
         #
         max_gpu_count = DeviceUnreal.csettings["max_gpu_count"].get_value(self.name)
-        if max_gpu_count > 1:
-            command_line_args += f" -MaxGPUCount={max_gpu_count} "
+        try:
+            if int(max_gpu_count) > 1:
+                command_line_args += f" -MaxGPUCount={max_gpu_count} "
+        except ValueError:
+            LOGGER.warning(f"Invalid Number of GPUs '{max_gpu_count}'")
 
         args = f'"{CONFIG.UPROJECT_PATH.get_value(self.name)}" {map_name} {command_line_args}'
         return args
