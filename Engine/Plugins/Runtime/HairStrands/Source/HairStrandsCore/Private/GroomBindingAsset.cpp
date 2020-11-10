@@ -57,6 +57,7 @@ void UGroomBindingAsset::Serialize(FArchive& Ar)
 			for (int32 Index = 0; Index < HairGroupDatas.Num(); ++Index)
 			{
 				FHairGroupData& HairGroupData = HairGroupDatas[Index];
+				StrippedHairGroupDatas[Index].SimRootData = HairGroupData.SimRootData;
 				StrippedHairGroupDatas[Index].CardsRootData = HairGroupData.CardsRootData;
 			}
 
