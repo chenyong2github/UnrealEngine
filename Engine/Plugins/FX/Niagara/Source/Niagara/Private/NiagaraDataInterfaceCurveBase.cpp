@@ -74,18 +74,6 @@ void UNiagaraDataInterfaceCurveBase::PostLoad()
 		{
 			UpdateLUT();
 		}
-		else
-		{
-			if (GIsEditor)
-			{
-				TArray<float> OldLUT = ShaderLUT;
-				UpdateLUT();
-				if (GNiagaraLUTVerifyPostLoad && !CompareLUTS(OldLUT))
-				{
-					UE_LOG(LogNiagara, Log, TEXT("PostLoad LUT generation is out of sync. Please investigate. %s"), *GetPathName());
-				}
-			}
-		}
 	}
 #endif
 }
@@ -97,20 +85,10 @@ void UNiagaraDataInterfaceCurveBase::Serialize(FArchive& Ar)
 	// Push to render thread if loading
 	if (Ar.IsLoading())
 	{
-		// Sometimes curves are out of date which needs to be tracked down
-		// Temporarily we will make sure they are up to date in editor builds
 #if WITH_EDITORONLY_DATA
 		HasEditorData = !Ar.IsFilterEditorOnly();
-
-		if (HasEditorData && GetClass() != UNiagaraDataInterfaceCurveBase::StaticClass())
-		{
-			UpdateLUT(true);
-		}
-		else
 #endif
-		{
-			MarkRenderDataDirty();
-		}
+		MarkRenderDataDirty();
 	}
 }
 
