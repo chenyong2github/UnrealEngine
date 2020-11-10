@@ -604,6 +604,9 @@ void UGroomAsset::PostLoad()
 
 		// The async load is allowed only if all the groom derived data is already cached since parts of the build path need to run in the game thread
 		bool bAsyncLoadEnabled = (GEnableGroomAsyncLoad > 0) && IsFullyCached();
+
+		// Some contexts like cooking and commandlets are not conducive to async load
+		bAsyncLoadEnabled = bAsyncLoadEnabled && !GIsCookerLoadingPackage && !IsRunningCommandlet();
 		if (bAsyncLoadEnabled)
 		{
 			GroomAssetStrongPtr = TStrongObjectPtr<UGroomAsset>(this); // keeps itself alive while completing the async load
