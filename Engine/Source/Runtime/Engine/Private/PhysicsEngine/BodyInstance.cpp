@@ -1533,11 +1533,6 @@ void FBodyInstance::TermBody(bool bNeverDeferRelease)
 {
 	SCOPE_CYCLE_COUNTER(STAT_TermBody);
 
-	if (IsValidBodyInstance())
-	{
-		FPhysicsInterface::ReleaseActor(ActorHandle, GetPhysicsScene(), bNeverDeferRelease);
-	}
-
 #if WITH_CHAOS
 	if (UPrimitiveComponent* PrimComp = OwnerComponent.Get())
 	{
@@ -1554,6 +1549,12 @@ void FBodyInstance::TermBody(bool bNeverDeferRelease)
 		}
 	}
 #endif // WITH_CHAOS
+
+	if (IsValidBodyInstance())
+	{
+		FPhysicsInterface::ReleaseActor(ActorHandle, GetPhysicsScene(), bNeverDeferRelease);
+	}
+
 
 	// @TODO UE4: Release spring body here
 
