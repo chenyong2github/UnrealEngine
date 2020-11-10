@@ -21,15 +21,9 @@ FString CreateMessage(const InStructType& InStruct)
 	return Message;
 }
 
-FString CreateTaskDeclinedMessage(const FSwitchboardTask& InTask, const FString& InErrorMessage);
+FString CreateTaskDeclinedMessage(const FSwitchboardTask& InTask, const FString& InErrorMessage, const TMap<FString, FString>& InAdditionalFields);
 FString CreateCommandAcceptedMessage(const FGuid& InMessageID);
 FString CreateCommandDeclinedMessage(const FGuid& InMessageID, const FString& InErrorMessage);
-
-FString CreateProgramStartedMessage(const FString& InProgramID, const FString& InMessageID);
-FString CreateProgramStartFailedMessage(const FString& InErrorMessage, const FString& InMessageID);
-
-FString CreateProgramKilledMessage(const FString& InProgramID);
-FString CreateProgramKillFailedMessage(const FString& InProgramID, const FString& InErrorMessage);
 
 FString CreateReceiveFileFromClientCompletedMessage(const FString& InDestinationPath);
 FString CreateReceiveFileFromClientFailedMessage(const FString& InDestinationPath, const FString& InError);
