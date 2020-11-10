@@ -7,11 +7,13 @@ namespace Audio
 {
 	FQuartzMetronome::FQuartzMetronome()
 	{
+		SetTickRate(CurrentTickRate);
 	}
 
 	FQuartzMetronome::FQuartzMetronome(const FQuartzTimeSignature& InTimeSignature)
 		: CurrentTimeSignature(InTimeSignature)
 	{
+		SetTickRate(CurrentTickRate);
 	}
 
 	FQuartzMetronome::~FQuartzMetronome()
@@ -87,11 +89,13 @@ namespace Audio
 	void FQuartzMetronome::SetTickRate(FQuartzClockTickRate InNewTickRate, int32 NumFramesLeft)
 	{
 		// early exit?
-		if (InNewTickRate.GetFramesPerTick() == CurrentTickRate.GetFramesPerTick())
+		const bool bSameAsOldTickRate = (InNewTickRate.GetFramesPerTick() == CurrentTickRate.GetFramesPerTick());
+		const bool bIsInitialized = (MusicalDurationsInFrames[0] > 0);
+
+		if (bSameAsOldTickRate && bIsInitialized)
 		{
 			return;
 		}
-
 
 		// ratio between new and old rates
 		const float Ratio = static_cast<float>(InNewTickRate.GetFramesPerTick()) / static_cast<float>(CurrentTickRate.GetFramesPerTick());
@@ -151,7 +155,7 @@ namespace Audio
 			int32 CurrentCount = CountNumSubdivisionsSinceStart(InQuantizationBoundary.Quantization);
 			 
 			// find the remainder
-			if (CurrentCount > InQuantizationBoundary.Multiplier)
+			if (CurrentCount >= InQuantizationBoundary.Multiplier)
 			{
 				CurrentCount %= static_cast<int32>(InQuantizationBoundary.Multiplier);
 			}
@@ -225,6 +229,12 @@ namespace Audio
 
 	float FQuartzMetronome::CountNumSubdivisionsSinceBarStart(EQuartzCommandQuantization InSubdivision) const
 	{
+		// for our own counting, we don't say that "one bar has occurred since the start of the bar"
+		if (InSubdivision == EQuartzCommandQuantization::Bar)
+		{
+			return 0.0f;
+		}
+
 		// Count starts at 1.0f since all musical subdivisions occur once at beat 0 in a bar
 		float Count = 1.f;
 		if ((InSubdivision == EQuartzCommandQuantization::Beat) && PulseDurations.Num())

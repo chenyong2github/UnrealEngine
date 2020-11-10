@@ -72,13 +72,13 @@ namespace Audio
 		FQuartzClockTickRate GetTickRate() { return Metronome.GetTickRate(); }
 
 		// get the identifier of the clock
-		FName GetName() { return Name; }
+		FName GetName() const { return Name; }
 
 		// clock will persist across level changes
 		bool IgnoresFlush();
 
 		// Does this clock match the provided settings
-		bool DoesMatchSettings(const FQuartzClockSettings& InClockSettings);
+		bool DoesMatchSettings(const FQuartzClockSettings& InClockSettings) const;
 
 		void SubscribeToTimeDivision(MetronomeCommandQueuePtr InListenerQueue, EQuartzCommandQuantization InQuantizationBoundary);
 

@@ -13,6 +13,13 @@ namespace Audio
 		, bIsRunning(false)
 		, bIgnoresFlush(InClockSettings.bIgnoreLevelChange)
 	{
+
+		FMixerDevice* MixerDevice = GetMixerDevice();
+
+		if (MixerDevice)
+		{
+			Metronome.SetSampleRate(MixerDevice->GetSampleRate());
+		}
 	}
 
 	FQuartzClock::~FQuartzClock()
@@ -175,7 +182,7 @@ namespace Audio
 		}
 
 		// update Tick Rate
-		Metronome.GetTickRate().SetSampleRate(InNewSampleRate);
+		Metronome.SetSampleRate(InNewSampleRate);
 
 		// TODO: update the deadlines of all our new events
 	}
@@ -185,7 +192,7 @@ namespace Audio
 		return bIgnoresFlush;
 	}
 
-	bool FQuartzClock::DoesMatchSettings(const FQuartzClockSettings& InClockSettings)
+	bool FQuartzClock::DoesMatchSettings(const FQuartzClockSettings& InClockSettings) const
 	{
 		return Metronome.GetTimeSignature() == InClockSettings.TimeSignature;
 	}

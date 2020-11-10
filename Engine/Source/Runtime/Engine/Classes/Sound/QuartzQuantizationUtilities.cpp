@@ -135,6 +135,11 @@ void FQuartLatencyTracker::DigestQueue()
 
 namespace Audio
 {
+	FQuartzClockTickRate::FQuartzClockTickRate()
+	{
+		SetBeatsPerMinute(60.f);
+	}
+
 	void FQuartzClockTickRate::SetFramesPerTick(int32 InNewFramesPerTick)
 	{
 		FramesPerTick = InNewFramesPerTick;
@@ -431,14 +436,14 @@ namespace Audio
 
 			GameThreadCommandQueue->PushEvent(OnStartedData);
 
-			if (!IsLooping())
-			{
-				FQuartzQuantizedCommandDelegateData CompletedData;
-				CompletedData.DelegateSubType = EQuartzCommandDelegateSubType::CommandCompleted;
-				CompletedData.DelegateID = GameThreadDelegateID;
-
-				GameThreadCommandQueue->PushEvent(CompletedData);
-			}
+// 			if (!IsLooping())
+// 			{
+// 				FQuartzQuantizedCommandDelegateData CompletedData;
+// 				CompletedData.DelegateSubType = EQuartzCommandDelegateSubType::CommandCompleted;
+// 				CompletedData.DelegateID = GameThreadDelegateID;
+// 
+// 				GameThreadCommandQueue->PushEvent(CompletedData);
+// 			}
 		}
 
 		OnFinalCallbackCustom(InNumFramesLeft);
