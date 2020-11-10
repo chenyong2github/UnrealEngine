@@ -4,7 +4,7 @@
 
 #include "WebRemoteControlSettings.generated.h"
 
-UCLASS(config = Engine)
+UCLASS(config = WebRemoteControl)
 class WEBREMOTECONTROL_API UWebRemoteControlSettings : public UObject
 {
 public:

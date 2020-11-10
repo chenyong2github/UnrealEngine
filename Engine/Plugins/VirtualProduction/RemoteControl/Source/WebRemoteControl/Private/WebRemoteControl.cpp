@@ -1007,11 +1007,13 @@ bool FWebRemoteControlModule::HandleMetadataFieldOperationsRoute(const FHttpServ
 				return true;
 			}
 			
+			Preset->Modify();
 			FString& MetadataValue = Preset->Metadata.FindOrAdd(MoveTemp(MetadataField));
 			MetadataValue = MoveTemp(SetMetadataRequest.Value);
 		}
 		else if (Request.Verb == EHttpServerRequestVerbs::VERB_DELETE)
 		{
+			Preset->Modify();
 			Preset->Metadata.Remove(MoveTemp(MetadataField));
 		}
 
