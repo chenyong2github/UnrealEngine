@@ -413,11 +413,22 @@ void SMenuAnchor::SetIsOpen( bool InIsOpen, const bool bFocusMenu, const int32 F
 									UE_LOG(LogSlate, Error, TEXT(" MenuContentRef: %s"), *MenuContentRef->ToString());
 								}
 #endif
-								check(NewMenu->GetOwnedWindow().IsValid());
+								if (NewMenu->GetOwnedWindow().IsValid())
+								{
+									PopupMenuPtr = NewMenu;
+									NewMenu->GetOnMenuDismissed().AddSP(this, &SMenuAnchor::OnMenuClosed);
+									PopupWindowPtr = NewMenu->GetOwnedWindow();
+								}
+								else
+								{
+									UE_LOG(LogSlate, Error, TEXT(" Menu '%s' could not open '%s'"), *ToString(), *MenuContentRef->ToString());
+									if (TSharedPtr<IMenu> Pinned = PopupMenuPtr.Pin())
+									{
+										Pinned->Dismiss();
+									}
 
-								PopupMenuPtr = NewMenu;
-								NewMenu->GetOnMenuDismissed().AddSP(this, &SMenuAnchor::OnMenuClosed);
-								PopupWindowPtr = NewMenu->GetOwnedWindow();
+									ResetPopupMenuContent();
+								}
 							}
 						}
 						else
