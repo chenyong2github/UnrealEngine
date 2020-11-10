@@ -1757,9 +1757,10 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	static const FName CompressionQualityFName = FName(TEXT("CompressionQuality"));
-	static FName StreamingFName = GET_MEMBER_NAME_CHECKED(USoundWave, bStreaming);
-	static FName SeekableStreamingFName = GET_MEMBER_NAME_CHECKED(USoundWave, bSeekableStreaming);
+	static const FName CompressionQualityFName = GET_MEMBER_NAME_CHECKED(USoundWave, CompressionQuality);
+	static const FName SampleRateFName = GET_MEMBER_NAME_CHECKED(USoundWave,SampleRateQuality);
+	static const FName StreamingFName = GET_MEMBER_NAME_CHECKED(USoundWave, bStreaming);
+	static const FName SeekableStreamingFName = GET_MEMBER_NAME_CHECKED(USoundWave, bSeekableStreaming);
 
 	// Prevent constant re-compression of SoundWave while properties are being changed interactively
 	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
@@ -1768,7 +1769,7 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		if (FProperty* PropertyThatChanged = PropertyChangedEvent.Property)
 		{
 			const FName& Name = PropertyThatChanged->GetFName();
-			if (Name == CompressionQualityFName || Name == StreamingFName || Name == SeekableStreamingFName)
+			if (Name == CompressionQualityFName || Name == SampleRateFName || Name == StreamingFName || Name == SeekableStreamingFName)
 			{
 				InvalidateCompressedData();
 				FreeResources();
