@@ -314,14 +314,7 @@ void FTextureCompilingManager::FinishTextureCompilation(UTexture* Texture)
 
 bool FTextureCompilingManager::IsAsyncCompilationAllowed(UTexture* Texture) const
 {
-	return 
-		// @todo Same requirement as FUntypedBulkData::LoadBulkDataWithFileReader() for now
-		// because if we can't load bulk data properly from texture building thread,
-		// every texture compilation will effectively be single-threaded anyway...
-		// -game mode is extremely slow when texture compilation is required because
-		// of this limitation in the loader. Fix the loader and then remove this here!
-		GIsEditor && !GEventDrivenLoaderEnabled &&
-		IsAsyncTextureCompilationEnabled();
+	return IsAsyncTextureCompilationEnabled();
 }
 
 FTextureCompilingManager& FTextureCompilingManager::Get()

@@ -715,7 +715,7 @@ bool FUntypedBulkData::LoadBulkDataWithFileReader()
 bool FUntypedBulkData::CanLoadBulkDataWithFileReader() const
 {
 #if WITH_EDITOR
-	return !Filename.IsEmpty() && GIsEditor && !GEventDrivenLoaderEnabled;
+	return !Filename.IsEmpty();
 #else
 	return false;
 #endif

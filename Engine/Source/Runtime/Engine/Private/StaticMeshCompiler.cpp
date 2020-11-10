@@ -372,14 +372,7 @@ void FStaticMeshCompilingManager::FinishStaticMeshCompilation(UStaticMesh* Stati
 
 bool FStaticMeshCompilingManager::IsAsyncCompilationAllowed(UStaticMesh* StaticMesh) const
 {
-	return 
-		// @todo Same requirement as FUntypedBulkData::LoadBulkDataWithFileReader() for now
-		// because if we can't load bulk data properly from staticmesh building thread,
-		// every staticmesh compilation will effectively be single-threaded anyway...
-		// -game mode is extremely slow when staticmesh compilation is required because
-		// of this limitation in the loader. Fix the loader and then remove this here!
-		GIsEditor && !GEventDrivenLoaderEnabled &&
-		IsAsyncStaticMeshCompilationEnabled();
+	return IsAsyncStaticMeshCompilationEnabled();
 }
 
 FStaticMeshCompilingManager& FStaticMeshCompilingManager::Get()
