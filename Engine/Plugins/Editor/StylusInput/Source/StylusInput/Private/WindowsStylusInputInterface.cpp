@@ -117,6 +117,11 @@ void FWindowsStylusInputInterface::Tick()
 		}
 	}
 
+	if (!FSlateApplication::IsInitialized())
+	{
+		return;
+	}
+
 	FSlateApplication& Application = FSlateApplication::Get();
 
 	FWidgetPath WidgetPath = Application.LocateWindowUnderMouse(Application.GetCursorPos(), Application.GetInteractiveTopLevelWindows());
