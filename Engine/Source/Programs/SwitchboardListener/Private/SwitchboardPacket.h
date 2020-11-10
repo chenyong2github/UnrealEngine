@@ -39,6 +39,9 @@ struct FSwitchboardStateRunningProcess
 
 	UPROPERTY()
 	FString Caller;
+
+	UPROPERTY()
+	uint32 Pid;
 };
 
 USTRUCT()
@@ -50,7 +53,12 @@ struct FSwitchboardStatePacket : public FSwitchboardPacket
 	{
 		Command = TEXT("state");
 		bAck = true;
-		Version = 0x00010000;
+
+		const uint32 Major = 1;
+		const uint32 Minor = 1;
+		const uint32 Patch = 0;
+
+		Version = (Major << 16) | (Minor << 8) | (Patch);
 	}
 
 	UPROPERTY()
@@ -97,4 +105,34 @@ struct FSwitchboardProgramEnded : public FSwitchboardPacket
 
 	UPROPERTY()
 	FString Output;
+};
+
+USTRUCT()
+struct FSwitchboardProgramStarted : public FSwitchboardPacket
+{
+	GENERATED_BODY()
+
+	FSwitchboardProgramStarted() : FSwitchboardPacket()
+	{
+		Command = TEXT("program started");
+		bAck = true;
+	}
+
+	UPROPERTY()
+	FSwitchboardStateRunningProcess Process;
+};
+
+USTRUCT()
+struct FSwitchboardProgramKilled : public FSwitchboardPacket
+{
+	GENERATED_BODY()
+
+	FSwitchboardProgramKilled() : FSwitchboardPacket()
+	{
+		Command = TEXT("program killed");
+		bAck = true;
+	}
+
+	UPROPERTY()
+	FSwitchboardStateRunningProcess Process;
 };

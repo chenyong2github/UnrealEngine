@@ -4,7 +4,14 @@ import base64
 import json
 import uuid
 
-def create_start_process_message(prog_path, prog_args, prog_name, caller, update_clients_with_stdout):
+def create_start_process_message(
+    prog_path, 
+    prog_args, 
+    prog_name, 
+    caller, 
+    update_clients_with_stdout, 
+    force_window_focus = False,
+):
     cmd_id = uuid.uuid4()
     start_cmd = {
         'command': 'start', 
@@ -14,6 +21,7 @@ def create_start_process_message(prog_path, prog_args, prog_name, caller, update
         'name':prog_name, 
         'caller':caller,
         'bUpdateClientsWithStdout' : update_clients_with_stdout,
+        'bForceWindowFocus' : force_window_focus,
     }
     message = json.dumps(start_cmd).encode() + b'\x00'
     return (cmd_id, message)
@@ -73,6 +81,18 @@ def create_keep_alive_message():
 def create_get_sync_status_message(program_id):
     cmd_id = uuid.uuid4()
     cmd = {'command': 'get sync status', 'id': str(cmd_id), 'uuid': str(program_id), 'bEcho': False}
+    message = json.dumps(cmd).encode() + b'\x00'
+    return (cmd_id, message)
+
+def create_forcefocus_message(pid):
+    cmd_id = uuid.uuid4()
+    cmd = {'command': 'forcefocus', 'id': str(cmd_id), 'pid': pid}
+    message = json.dumps(cmd).encode() + b'\x00'
+    return (cmd_id, message)
+
+def create_fixExeFlags_message(puuid):
+    cmd_id = uuid.uuid4()
+    cmd = {'command': 'fixExeFlags', 'id': str(cmd_id), 'uuid': str(puuid)}
     message = json.dumps(cmd).encode() + b'\x00'
     return (cmd_id, message)
 

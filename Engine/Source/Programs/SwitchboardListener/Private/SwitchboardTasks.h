@@ -17,6 +17,8 @@ enum class ESwitchboardTaskType : uint8
 	KeepAlive,
 	GetSyncStatus,
 	GetFlipMode,
+	ForceFocus,
+	FixExeFlags
 };
 
 struct FSwitchboardTask
@@ -70,7 +72,8 @@ struct FSwitchboardStartTask : public FSwitchboardTask
 		const FString& InArgs, 
 		const FString& InName, 
 		const FString& InCaller, 
-		bool bInUpdateClientsWithStdout
+		bool bInUpdateClientsWithStdout,
+		bool bInForceWindowFocus
 	)
 		: FSwitchboardTask{ ESwitchboardTaskType::Start, TEXT("start"), InTaskId, InEndpoint }
 		, Command(InCommand)
@@ -78,6 +81,7 @@ struct FSwitchboardStartTask : public FSwitchboardTask
 		, Name(InName)
 		, Caller(InCaller)
 		, bUpdateClientsWithStdout(bInUpdateClientsWithStdout)
+		, bForceWindowFocus(bInForceWindowFocus)
 	{
 	}
 
@@ -86,6 +90,7 @@ struct FSwitchboardStartTask : public FSwitchboardTask
 	FString Name;
 	FString Caller;
 	bool bUpdateClientsWithStdout;
+	bool bForceWindowFocus;
 
 	//~ Begin FSwitchboardTask interface
 	virtual uint32 GetEquivalenceHash() const override
@@ -154,6 +159,40 @@ struct FSwitchboardSendFileToClientTask : public FSwitchboardTask
 	virtual uint32 GetEquivalenceHash() const override
 	{
 		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(Source));
+	}
+	//~ End FSwitchboardTask interface
+};
+
+struct FSwitchboardForceFocusTask : public FSwitchboardTask
+{
+	FSwitchboardForceFocusTask(const FGuid& InTaskID, const FIPv4Endpoint& InEndpoint, uint32 InPID)
+		: FSwitchboardTask{ ESwitchboardTaskType::ForceFocus, TEXT("forcefocus"), InTaskID, InEndpoint }
+		, PID(InPID)
+	{}
+
+	uint32 PID;
+
+	//~ Begin FSwitchboardTask interface
+	virtual uint32 GetEquivalenceHash() const override
+	{
+		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(PID));
+	}
+	//~ End FSwitchboardTask interface
+};
+
+struct FSwitchboardFixExeFlagsTask : public FSwitchboardTask
+{
+	FSwitchboardFixExeFlagsTask(const FGuid& InTaskId, const FIPv4Endpoint& InEndpoint, const FGuid& InProgramID)
+		: FSwitchboardTask{ ESwitchboardTaskType::FixExeFlags, TEXT("fixExeFlags"), InTaskId, InEndpoint }
+		, ProgramID(InProgramID)
+	{}
+
+	FGuid ProgramID;
+
+	//~ Begin FSwitchboardTask interface
+	virtual uint32 GetEquivalenceHash() const override
+	{
+		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(ProgramID));
 	}
 	//~ End FSwitchboardTask interface
 };

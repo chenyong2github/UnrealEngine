@@ -184,4 +184,7 @@ struct FSyncStatus
 
 	UPROPERTY()
 	FString Taskbar;
+
+	UPROPERTY()
+	uint32 PidInFocus;
 };
