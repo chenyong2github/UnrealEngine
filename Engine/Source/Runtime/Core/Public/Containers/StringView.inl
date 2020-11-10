@@ -60,10 +60,12 @@ inline TStringView<CharType> TStringView<CharType>::TrimStartAndEnd() const
 }
 
 template <typename CharType>
-template <typename OtherCharType>
-inline bool TStringView<CharType>::Equals(TStringView<OtherCharType> Other, ESearchCase::Type SearchCase) const
+template <typename OtherType, typename TEnableIf<StringViewPrivate::TIsConvertibleToStringView<OtherType>::Value>::Type*>
+inline bool TStringView<CharType>::Equals(OtherType&& Other, ESearchCase::Type SearchCase) const
 {
-	return Len() == Other.Len() && Compare(Other, SearchCase) == 0;
+	using OtherViewType = typename StringViewPrivate::TCompatibleStringViewType<OtherType>::Type;
+	const OtherViewType OtherView(Forward<OtherType>(Other));
+	return Len() == OtherView.Len() && Compare(OtherView, SearchCase) == 0;
 }
 
 template <typename CharType>
@@ -81,21 +83,24 @@ inline bool TStringView<CharType>::Equals(const OtherCharType* const Other, ESea
 }
 
 template <typename CharType>
-template <typename OtherCharType>
-inline int32 TStringView<CharType>::Compare(TStringView<OtherCharType> Other, ESearchCase::Type SearchCase) const
+template <typename OtherType, typename TEnableIf<StringViewPrivate::TIsConvertibleToStringView<OtherType>::Value>::Type*>
+inline int32 TStringView<CharType>::Compare(OtherType&& Other, ESearchCase::Type SearchCase) const
 {
+	using OtherViewType = typename StringViewPrivate::TCompatibleStringViewType<OtherType>::Type;
+	const OtherViewType OtherView(Forward<OtherType>(Other));
+
 	const SizeType SelfLen = Len();
-	const SizeType OtherLen = Other.Len();
+	const SizeType OtherLen = OtherView.Len();
 	const SizeType MinLen = FMath::Min(SelfLen, OtherLen);
 
 	int Result;
 	if (SearchCase == ESearchCase::CaseSensitive)
 	{
-		Result = FPlatformString::Strncmp(GetData(), Other.GetData(), MinLen);
+		Result = FPlatformString::Strncmp(GetData(), OtherView.GetData(), MinLen);
 	}
 	else
 	{
-		Result = FPlatformString::Strnicmp(GetData(), Other.GetData(), MinLen);
+		Result = FPlatformString::Strnicmp(GetData(), OtherView.GetData(), MinLen);
 	}
 
 	if (Result != 0)

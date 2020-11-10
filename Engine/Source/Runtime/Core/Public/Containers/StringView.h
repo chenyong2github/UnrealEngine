@@ -9,6 +9,7 @@
 #include "Misc/Crc.h"
 #include "Misc/CString.h"
 #include "Templates/AndOrNot.h"
+#include "Templates/ChooseClass.h"
 #include "Templates/Decay.h"
 #include "Templates/EnableIf.h"
 #include "Templates/IsArray.h"
@@ -24,6 +25,31 @@ namespace StringViewPrivate
 	{
 		return GetData(Forward<ArgTypes>(Args)...);
 	}
+
+	template <typename From, typename To>
+	struct TIsConvertibleFromTo
+	{
+		static constexpr bool Value = __is_convertible_to(From, To);
+	};
+
+	template <typename T>
+	struct TIsConvertibleToStringView
+	{
+		static constexpr bool Value = TOr<
+			TIsConvertibleFromTo<T, FAnsiStringView>,
+			TIsConvertibleFromTo<T, FWideStringView>
+			>::Value;
+	};
+
+	template <typename T>
+	struct TCompatibleStringViewType
+	{
+		struct NotCompatible;
+		using Type =
+			typename TChooseClass<TIsConvertibleFromTo<T, FAnsiStringView>::Value, FAnsiStringView,
+			typename TChooseClass<TIsConvertibleFromTo<T, FWideStringView>::Value, FWideStringView,
+			NotCompatible>::Result>::Result;
+	};
 }
 
 /**
@@ -208,8 +234,8 @@ public:
 	 *
 	 * @param SearchCase Whether the comparison should ignore case.
 	 */
-	template <typename OtherCharType>
-	inline bool Equals(TStringView<OtherCharType> Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
+	template <typename OtherType, typename TEnableIf<StringViewPrivate::TIsConvertibleToStringView<OtherType>::Value>::Type* = nullptr>
+	inline bool Equals(OtherType&& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
 
 	/**
 	 * Check whether this view is lexicographically equivalent to another view.
@@ -226,8 +252,8 @@ public:
 	 *
 	 * @return 0 is equal, negative if this view is less, positive if this view is greater.
 	 */
-	template <typename OtherCharType>
-	inline int32 Compare(TStringView<OtherCharType> Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
+	template <typename OtherType, typename TEnableIf<StringViewPrivate::TIsConvertibleToStringView<OtherType>::Value>::Type* = nullptr>
+	inline int32 Compare(OtherType&& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
 
 	/**
 	 * Compare this view lexicographically with another view.
