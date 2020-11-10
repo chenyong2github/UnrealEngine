@@ -56,6 +56,11 @@ namespace PlacementViewFilter
 	{
 		OutBasicStrings.Add(InPlaceableItem.DisplayName.ToString());
 
+		if (!InPlaceableItem.NativeName.IsEmpty())
+		{
+			OutBasicStrings.Add(InPlaceableItem.NativeName);
+		}
+
 		const FString* SourceString = FTextInspector::GetSourceString(InPlaceableItem.DisplayName);
 		if (SourceString)
 		{
