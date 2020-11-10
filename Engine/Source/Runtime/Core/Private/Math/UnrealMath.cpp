@@ -10,13 +10,6 @@
 #include "UObject/PropertyPortFlags.h"
 DEFINE_LOG_CATEGORY(LogUnrealMath);
 
-/**
-* Math stats
-*/
-
-DECLARE_CYCLE_STAT( TEXT( "Convert Rotator to Quat" ), STAT_MathConvertRotatorToQuat, STATGROUP_MathVerbose );
-DECLARE_CYCLE_STAT( TEXT( "Convert Quat to Rotator" ), STAT_MathConvertQuatToRotator, STATGROUP_MathVerbose );
-
 /*-----------------------------------------------------------------------------
 	Globals
 -----------------------------------------------------------------------------*/
@@ -422,8 +415,6 @@ FRotator FRotator::GetInverse() const
 
 FQuat FRotator::Quaternion() const
 {
-	//SCOPE_CYCLE_COUNTER(STAT_MathConvertRotatorToQuat);
-
 	DiagnosticCheckNaN();
 
 #if PLATFORM_ENABLE_VECTORINTRINSICS
@@ -597,8 +588,6 @@ uint32 FMatrix::ComputeHash() const
 
 FRotator FQuat::Rotator() const
 {
-	SCOPE_CYCLE_COUNTER(STAT_MathConvertQuatToRotator);
-
 	DiagnosticCheckNaN();
 	const float SingularityTest = Z*X-W*Y;
 	const float YawY = 2.f*(W*Z+X*Y);
