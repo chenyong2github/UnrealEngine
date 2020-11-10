@@ -40,6 +40,7 @@
 #include "Widgets/Navigation/SBreadcrumbTrail.h"
 #include "ContentBrowserLog.h"
 #include "FrontendFilters.h"
+#include "ContentBrowserPluginFilters.h"
 #include "ContentBrowserSingleton.h"
 #include "ContentBrowserUtils.h"
 #include "ContentBrowserDataSource.h"
@@ -129,6 +130,8 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 	PathContextMenu->SetOnFolderFavoriteToggled(FPathContextMenu::FOnFolderFavoriteToggled::CreateSP(this, &SContentBrowser::ToggleFolderFavorite));
 	FrontendFilters = MakeShareable(new FAssetFilterCollectionType());
 	TextFilter = MakeShareable( new FFrontendFilter_Text() );
+
+	PluginPathFilters = MakeShareable(new FPluginFilterCollectionType());
 
 	SourcesSearch = MakeShared<FSourcesSearch>();
 	SourcesSearch->Initialize();
@@ -579,6 +582,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 									.AllowClassesFolder( true )
 									.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserSources")))
 									.ExternalSearch(SourcesSearch)
+									.PluginPathFilters(PluginPathFilters)
 								]
 							]
 
@@ -765,6 +769,8 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 						.CanDockCollections(true)
 						.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserAssets")))
 						.OnSearchOptionsChanged(this, &SContentBrowser::HandleAssetViewSearchOptionsChanged)
+						.bShowPathViewFilters(PluginPathFilters.IsValid())
+						.OnExtendAssetViewOptionsMenuContext(this, &SContentBrowser::ExtendAssetViewButtonMenuContext)
 					]
 				]
 			]
@@ -837,6 +843,8 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 
 	// Update the breadcrumb trail path
 	OnContentBrowserSettingsChanged(NAME_None);
+
+	RegisterPathViewFiltersMenu();
 
 	// Initialize the search options
 	HandleAssetViewSearchOptionsChanged();
@@ -1969,7 +1977,7 @@ void SContentBrowser::AppendNewMenuContextObjects(const EContentBrowserDataMenuC
 		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("ContentBrowser.AddNewContextMenu");
 		Menu->AddDynamicSection("DynamicSection_Common", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 		{
-			if (const UContentBrowserAddNewContextMenuContext* ContextObject = InMenu->FindContext<UContentBrowserAddNewContextMenuContext>())
+			if (const UContentBrowserMenuContext* ContextObject = InMenu->FindContext<UContentBrowserMenuContext>())
 			{
 				if (TSharedPtr<SContentBrowser> ContentBrowser = ContextObject->ContentBrowser.Pin())
 				{
@@ -1980,7 +1988,7 @@ void SContentBrowser::AppendNewMenuContextObjects(const EContentBrowserDataMenuC
 	}
 
 	{
-		UContentBrowserAddNewContextMenuContext* CommonContextObject = NewObject<UContentBrowserAddNewContextMenuContext>();
+		UContentBrowserMenuContext* CommonContextObject = NewObject<UContentBrowserMenuContext>();
 		CommonContextObject->ContentBrowser = SharedThis(this);
 		InOutMenuContext.AddObject(CommonContextObject);
 	}
@@ -2118,6 +2126,40 @@ TSharedRef<SWidget> SContentBrowser::MakeAddFilterMenu()
 TSharedPtr<SWidget> SContentBrowser::GetFilterContextMenu()
 {
 	return FilterListPtr->ExternalMakeAddFilterMenu();
+}
+
+void SContentBrowser::RegisterPathViewFiltersMenu()
+{
+	static const FName PathViewFiltersMenuName = TEXT("ContentBrowser.AssetViewOptions.PathViewFilters");
+	if (!UToolMenus::Get()->IsMenuRegistered(PathViewFiltersMenuName))
+	{
+		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(PathViewFiltersMenuName);
+		Menu->AddDynamicSection("DynamicContent", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		{
+			if (const UContentBrowserMenuContext* ContextObject = InMenu->FindContext<UContentBrowserMenuContext>())
+			{
+				if (TSharedPtr<SContentBrowser> ContentBrowser = ContextObject->ContentBrowser.Pin())
+				{
+					ContentBrowser->PopulatePathViewFiltersMenu(InMenu);
+				}
+			}
+		}));
+	}
+}
+
+void SContentBrowser::PopulatePathViewFiltersMenu(UToolMenu* Menu)
+{
+	if (PathViewPtr.IsValid())
+	{
+		PathViewPtr->PopulatePathViewFiltersMenu(Menu);
+	}
+}
+
+void SContentBrowser::ExtendAssetViewButtonMenuContext(FToolMenuContext& InMenuContext)
+{
+	UContentBrowserMenuContext* ContextObject = NewObject<UContentBrowserMenuContext>();
+	ContextObject->ContentBrowser = SharedThis(this);
+	InMenuContext.AddObject(ContextObject);
 }
 
 FReply SContentBrowser::OnSaveClicked()
