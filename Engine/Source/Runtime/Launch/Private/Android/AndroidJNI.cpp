@@ -1566,16 +1566,6 @@ int32 AndroidThunkCpp_GetNetworkConnectionType()
 	return result;
 }
 
-void AndroidThunkCpp_SetThreadName(const char * name)
-{
-	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
-	{
-		auto jname = FJavaHelper::ToJavaString(Env, FString(name));
-		auto currentThread = NewScopedJavaObject(Env, Env->CallStaticObjectMethod(FJavaWrapper::ThreadClass, FJavaWrapper::CurrentThreadMethod, nullptr));
-		Env->CallVoidMethod(*currentThread, FJavaWrapper::SetNameMethod, *jname);
-	}
-}
-
 //The JNI_OnLoad function is triggered by loading the game library from 
 //the Java source file.
 //	static
@@ -1635,9 +1625,6 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* InJavaVM, void* InReserved)
 
 	FPlatformMisc::LowLevelOutputDebugString(TEXT("In the JNI_OnLoad function 5"));
 	
-	char mainThreadName[] = "MainThread-UE4";
-	AndroidThunkCpp_SetThreadName(mainThreadName);
-
 	return JNI_CURRENT_VERSION;
 }
 

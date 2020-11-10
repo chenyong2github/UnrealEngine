@@ -122,16 +122,7 @@ class FFrameProProfilerContext : public TThreadSingleton<FFrameProProfilerContex
 	FFrameProProfilerContext()
 	: TThreadSingleton<FFrameProProfilerContext>()
 	{
-		FString ThreadName;
-		if (IsInGameThread())
-		{
-			ThreadName = FName(NAME_GameThread).GetPlainNameString();
-		}
-		else
-		{
-			ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
-		}
-
+		const FString& ThreadName = FThreadManager::GetThreadName(ThreadId);
 		if (ThreadName.Len())
 		{
 			FramePro::SetThreadName(TCHAR_TO_ANSI(*ThreadName));

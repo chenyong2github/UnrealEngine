@@ -63,13 +63,6 @@ private:
 			}
 		}
 
-		// note: thread name setting doesn't actually appear to work in android, but also doesn't appear to cause harm, so we'll leave it here for now
-		int ErrCode = pthread_setname_np(Thread, TCHAR_TO_ANSI(*SizeLimitedThreadName));
-		if (ErrCode != 0)
-		{
-			UE_LOG(LogHAL, Warning, TEXT("pthread_setname_np(, '%s') failed with error %d (%s)."), *ThreadName, ErrCode, ANSI_TO_TCHAR(strerror(ErrCode)));
-		}
-
 		FAndroidMisc::SetThreadName(TCHAR_TO_ANSI(*SizeLimitedThreadName));
 	}
 

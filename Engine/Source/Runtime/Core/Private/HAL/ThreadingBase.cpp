@@ -309,7 +309,7 @@ void FThreadManager::Tick()
 	}
 }
 
-const FString& FThreadManager::GetThreadName(uint32 ThreadId)
+const FString& FThreadManager::GetThreadNameInternal(uint32 ThreadId)
 {
 	static FString NoThreadName;
 	FScopeLock ThreadsLock(&ThreadsCritical);

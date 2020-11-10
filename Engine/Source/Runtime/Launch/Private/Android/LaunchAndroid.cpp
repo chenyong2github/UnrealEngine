@@ -670,6 +670,8 @@ bool IsInAndroidEventThread()
 
 static void* AndroidEventThreadWorker( void* param )
 {
+	FAndroidMisc::SetThreadName("EventWorker");
+
 	struct android_app* state = (struct android_app*)param;
 
 	FPlatformProcess::SetThreadAffinityMask(FPlatformAffinity::GetMainGameMask());
@@ -738,6 +740,8 @@ struct android_app* GNativeAndroidApp = NULL;
 
 void android_main(struct android_app* state)
 {
+	GGameThreadId = FPlatformTLS::GetCurrentThreadId();
+
 	BootTimingPoint("android_main");
 	FPlatformMisc::LowLevelOutputDebugString(TEXT("Entering native app glue main function"));
 	
