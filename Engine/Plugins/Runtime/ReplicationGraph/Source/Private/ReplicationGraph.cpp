@@ -3673,9 +3673,11 @@ void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyForActor(AActor
 				// Calc Percentage of distance relative to cull distance, scaled to ZoneInfo Min/Max pct
 				const float CullDistSq = ConnectionInfo.GetCullDistanceSquared() > 0.f ? ConnectionInfo.GetCullDistanceSquared() : GlobalInfo.Settings.GetCullDistanceSquared(); // Use global settings if the connection specific setting is zero'd out
 
-				if (!ensureMsgf(CullDistSq > 0.f, TEXT("UReplicationGraphNode_DynamicSpatialFrequency::GatherActors: %s has cull distance of 0. Skipping"), *GetPathNameSafe(Actor)))
+				if (CullDistSq <= 0.f)
 				{
 					// This actor really should not be in this node
+					UE_LOG(LogReplicationGraph, Warning, TEXT("UReplicationGraphNode_DynamicSpatialFrequency::GatherActors: %s has cull distance of 0 (connection %f | global %f). Removing from node"),
+						*GetPathNameSafe(Actor), ConnectionInfo.GetCullDistanceSquared(), GlobalInfo.Settings.GetCullDistanceSquared());
 					RemoveExistingItem();
 					return;
 				}
