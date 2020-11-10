@@ -58,13 +58,13 @@ private:
 UDMXComponent::UDMXComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
-	bTickInEditor = true;
+	bTickInEditor = false;
 }
 
 void UDMXComponent::OnRegister()
 {
 	Super::OnRegister();
-
+	
 	if (bTickInEditor)
 	{
 		UDMXEntityFixturePatch* FixturePatch = GetFixturePatch();
