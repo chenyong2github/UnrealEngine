@@ -1728,6 +1728,20 @@ void UNiagaraStackFunctionInput::DeleteInput()
 		TSharedRef<FNiagaraSystemViewModel> CachedSysViewModel = GetSystemViewModel();
 		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
 
+		
+		{
+			// Rapid iteration parameters might be affected by this removal, so add them. Variables might also be removed in other bindings, but that is handled elsewhere.
+			UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
+
+			FNiagaraStackGraphUtilities::FindAffectedScripts(&System, Emitter, *OwningModuleNode.Get(), AffectedScripts);
+
+			for (TWeakObjectPtr<UNiagaraScript> AffectedScript : AffectedScripts)
+			{
+				if (AffectedScript.IsValid())
+					AffectedScript->Modify();
+			}
+		}
+
 		// If there is an override pin and connected nodes, remove them before removing the input since removing
 		// the input will prevent us from finding the override pin.
 		RemoveOverridePin();
