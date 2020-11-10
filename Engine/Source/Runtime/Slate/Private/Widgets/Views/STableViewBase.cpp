@@ -334,15 +334,14 @@ void STableViewBase::Tick( const FGeometry& AllottedGeometry, const double InCur
 			ItemsPanel->SetRefreshPending(false);
 
 			Invalidate(EInvalidateWidget::ChildOrder);
-
-			const bool bScrollIntoViewSuccess = ScrollIntoViewResult == EScrollIntoViewResult::Success;
-			if (bScrollIntoViewSuccess)
+			
+			if (ScrollIntoViewResult == EScrollIntoViewResult::Success)
 			{
 				// Notify as soon as we've made a widget for the item, even if we still have scrolling to do
 				NotifyItemScrolledIntoView();
 			}
 
-			if (!bScrollIntoViewSuccess || CurrentScrollOffset != TargetScrollOffset)
+			if (ScrollIntoViewResult == EScrollIntoViewResult::Deferred || CurrentScrollOffset != TargetScrollOffset)
 			{
 				// Either we haven't made the item yet or we still have scrolling to do, so we'll need another refresh next frame
 				// We call this rather than just leave bItemsNeedRefresh as true to ensure that EnsureTickToRefresh is registered
