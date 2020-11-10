@@ -3025,7 +3025,7 @@ namespace FHairCardsBuilder
 FString GetVersion()
 {
 	// Important to update the version when cards building or importing changes
-	return TEXT("6");
+	return TEXT("7");
 }
 
 void AllocateAtlasTexture(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount, EPixelFormat PixelFormat, ETextureSourceFormat SourceFormat)
@@ -3546,7 +3546,7 @@ namespace FHairMeshesBuilder
 FString GetVersion()
 {
 	// Important to update the version when meshes building or importing changes
-	return TEXT("2");
+	return TEXT("3");
 }
 
 void BuildGeometry(
