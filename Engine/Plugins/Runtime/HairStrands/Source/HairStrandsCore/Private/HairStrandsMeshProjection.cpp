@@ -52,6 +52,7 @@ FHairStrandsProjectionMeshData ExtractMeshData(FSkeletalMeshRenderData* RenderDa
 			OutSection.TotalVertexCount = LODRenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
 			OutSection.TotalIndexCount = LODRenderData.MultiSizeIndexContainer.GetIndexBuffer()->Num();
 			OutSection.NumPrimitives = InSection.NumTriangles;
+			OutSection.NumVertices = InSection.NumVertices;
 			OutSection.VertexBaseIndex = InSection.BaseVertexIndex;
 			OutSection.IndexBaseIndex = InSection.BaseIndex;
 			OutSection.SectionIndex = SectionIndex;
@@ -1070,6 +1071,8 @@ void AddHairCardsRBFInterpolationPass(
 //
 class FHairInitMeshSamplesCS : public FGlobalShader
 {
+public:
+	const static uint32 SectionArrayCount = 16; // This defines the number of sections managed for each iteration pass
 private:
 	DECLARE_GLOBAL_SHADER(FHairInitMeshSamplesCS);
 	SHADER_USE_PARAMETER_STRUCT(FHairInitMeshSamplesCS, FGlobalShader);
@@ -1080,9 +1083,29 @@ private:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, MaxSampleCount)
 		SHADER_PARAMETER(uint32, MaxVertexCount)
+		SHADER_PARAMETER(uint32, PassSectionCount)
 
-		SHADER_PARAMETER_SRV(Buffer, VertexPositionsBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGVertexPositionsBuffer)
+		SHADER_PARAMETER_ARRAY(uint32, SectionVertexOffset, [SectionArrayCount])
+		SHADER_PARAMETER_ARRAY(uint32, SectionVertexCount, [SectionArrayCount])
+		SHADER_PARAMETER_ARRAY(uint32, SectionBufferIndex, [SectionArrayCount])
+
+		SHADER_PARAMETER_SRV(Buffer, VertexPositionsBuffer0)
+		SHADER_PARAMETER_SRV(Buffer, VertexPositionsBuffer1)
+		SHADER_PARAMETER_SRV(Buffer, VertexPositionsBuffer2)
+		SHADER_PARAMETER_SRV(Buffer, VertexPositionsBuffer3)
+		SHADER_PARAMETER_SRV(Buffer, VertexPositionsBuffer4)
+		SHADER_PARAMETER_SRV(Buffer, VertexPositionsBuffer5)
+		SHADER_PARAMETER_SRV(Buffer, VertexPositionsBuffer6)
+		SHADER_PARAMETER_SRV(Buffer, VertexPositionsBuffer7)
+
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGVertexPositionsBuffer0)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGVertexPositionsBuffer1)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGVertexPositionsBuffer2)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGVertexPositionsBuffer3)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGVertexPositionsBuffer4)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGVertexPositionsBuffer5)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGVertexPositionsBuffer6)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGVertexPositionsBuffer7)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, SampleIndicesBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer, OutSamplePositionsBuffer)
@@ -1093,6 +1116,7 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("MAX_SECTION_COUNT"), SectionArrayCount);
 	}
 };
 
@@ -1104,10 +1128,16 @@ void AddHairStrandInitMeshSamplesPass(
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
 	const FHairStrandsProjectionMeshData::LOD& MeshData,
+	FHairStrandsRestRootResource* StrandsResources,
 	FHairStrandsRestRootResource* RestResources,
 	FHairStrandsDeformedRootResource* DeformedResources)
 {
 	if (LODIndex < 0)
+	{
+		return;
+	}
+
+	if (LODIndex >= StrandsResources->RootData.MeshProjectionLODs.Num())
 	{
 		return;
 	}
@@ -1125,46 +1155,21 @@ void AddHairStrandInitMeshSamplesPass(
 	FHairStrandsRestRootResource::FLOD& RestLODData = RestResources->LODs[LODIndex];
 	check(RestLODData.LODIndex == LODIndex);
 
-	bool bUseRDGPositionBuffer = false;
 	const uint32 SectionCount = MeshData.Sections.Num();
+	const uint32 MaxSupportedSectionCount = GetHairStrandsMaxSectionCount();
+	check(SectionCount < MaxSupportedSectionCount);
+	if (SectionCount == 0 || SectionCount >= MaxSupportedSectionCount)
+	{
+		return;
+	}
+
+	// When the number of section of a mesh is above FHairUpdateMeshTriangleCS::SectionArrayCount, the update is split into several passes
+	const TArray<uint32>& ValidSectionIndices = StrandsResources->RootData.MeshProjectionLODs[LODIndex].ValidSectionIndices;
+	const uint32 ValidSectionCount = ValidSectionIndices.Num();
+	const uint32 PassCount = FMath::DivideAndRoundUp(ValidSectionCount, FHairInitMeshSamplesCS::SectionArrayCount);
+
 	if (SectionCount > 0 && RestLODData.SampleCount > 0)
 	{
-		bool HasUniquePositionBuffer = true;
-		FRDGBufferSRVRef UniqueRDGPositionBuffer = MeshData.Sections[0].RDGPositionBuffer;
-		FRHIShaderResourceView* UniquePositionBuffer = MeshData.Sections[0].PositionBuffer;
-		const TArray<uint32>& ValidSectionIndices = RestResources->RootData.MeshProjectionLODs[LODIndex].ValidSectionIndices;
-		for (auto& SectionIndex : ValidSectionIndices)
-		{
-			if (MeshData.Sections[SectionIndex].PositionBuffer && MeshData.Sections[SectionIndex].PositionBuffer != UniquePositionBuffer)
-			{
-				HasUniquePositionBuffer = false;
-				break;
-			}
-			if (MeshData.Sections[SectionIndex].RDGPositionBuffer && MeshData.Sections[SectionIndex].RDGPositionBuffer != UniqueRDGPositionBuffer)
-			{
-				HasUniquePositionBuffer = false;
-				break;
-			}
-		}
-		check(HasUniquePositionBuffer)
-
-		FHairInitMeshSamplesCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairInitMeshSamplesCS::FParameters>();
-
-		Parameters->MaxVertexCount = MeshData.Sections[0].TotalVertexCount;
-		if (MeshData.Sections[0].PositionBuffer)
-		{
-			Parameters->VertexPositionsBuffer = MeshData.Sections[0].PositionBuffer;
-			bUseRDGPositionBuffer = false;
-		}
-		else if (MeshData.Sections[0].RDGPositionBuffer)
-		{
-			Parameters->RDGVertexPositionsBuffer = MeshData.Sections[0].RDGPositionBuffer;
-			bUseRDGPositionBuffer = true;
-		}
-
-		Parameters->MaxSampleCount = RestLODData.SampleCount;
-		Parameters->SampleIndicesBuffer = RegisterAsSRV(GraphBuilder, RestLODData.MeshSampleIndicesBuffer);
-
 		FRDGImportedBuffer OutBuffer;
 		if (Type == HairStrandsTriangleType::RestPose)
 		{
@@ -1181,22 +1186,184 @@ void AddHairStrandInitMeshSamplesPass(
 		{
 			return;
 		}
+		for (uint32 PassIt = 0; PassIt < PassCount; ++PassIt)
+		{
+			FHairInitMeshSamplesCS::FParameters Parameters;
 
-		Parameters->OutSamplePositionsBuffer = OutBuffer.UAV;
+			for (uint32 DataIndex = 0; DataIndex < FHairInitMeshSamplesCS::SectionArrayCount; ++DataIndex)
+			{
+				Parameters.SectionBufferIndex[DataIndex] = 0;
+				Parameters.SectionVertexOffset[DataIndex] = 0;
+				Parameters.SectionVertexCount[DataIndex] = 0;
+			}
 
-		FHairInitMeshSamplesCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FHairInitMeshSamplesCS::FPositionType>(bUseRDGPositionBuffer ? 1 : 0);
+			const int32 PassSectionStart = PassIt * FHairInitMeshSamplesCS::SectionArrayCount;
+			const int32 PassSectionCount = FMath::Min(ValidSectionCount - PassSectionStart, FHairInitMeshSamplesCS::SectionArrayCount);
+			Parameters.PassSectionCount = PassSectionCount;
 
-		const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RestLODData.SampleCount, 128);
-		check(DispatchGroupCount.X < 65536);
-		TShaderMapRef<FHairInitMeshSamplesCS> ComputeShader(ShaderMap, PermutationVector);
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("HairStrandsInitMeshSamples"),
-			ComputeShader,
-			Parameters,
-			DispatchGroupCount);
+			struct FMeshSectionBuffers
+			{
+				uint32 SectionBufferIndex = 0;
+				FRDGBufferSRVRef RDGPositionBuffer = nullptr;
+				FRHIShaderResourceView* PositionBuffer = nullptr;
+			};
+			TMap<FRHIShaderResourceView*, FMeshSectionBuffers>	UniqueMeshSectionBuffers;
+			TMap<FRDGBufferSRVRef, FMeshSectionBuffers>		UniqueMeshSectionBuffersRDG;
 
+			auto SetMeshSectionBuffers = [&Parameters](uint32 UniqueIndex, const FHairStrandsProjectionMeshData::Section& MeshSectionData)
+			{
+				switch (UniqueIndex)
+				{
+				case 0:
+				{
+					Parameters.RDGVertexPositionsBuffer0 = MeshSectionData.RDGPositionBuffer;
+					Parameters.VertexPositionsBuffer0 = MeshSectionData.PositionBuffer;
+					break;
+				}
+				case 1:
+				{
+					Parameters.RDGVertexPositionsBuffer1 = MeshSectionData.RDGPositionBuffer;
+					Parameters.VertexPositionsBuffer1 = MeshSectionData.PositionBuffer;
+					break;
+				}
+				case 2:
+				{
+					Parameters.RDGVertexPositionsBuffer2 = MeshSectionData.RDGPositionBuffer;
+					Parameters.VertexPositionsBuffer2 = MeshSectionData.PositionBuffer;
+					break;
+				}
+				case 3:
+				{
+					Parameters.RDGVertexPositionsBuffer3 = MeshSectionData.RDGPositionBuffer;
+					Parameters.VertexPositionsBuffer3 = MeshSectionData.PositionBuffer;
+					break;
+				}
+				case 4:
+				{
+					Parameters.RDGVertexPositionsBuffer4 = MeshSectionData.RDGPositionBuffer;
+					Parameters.VertexPositionsBuffer4 = MeshSectionData.PositionBuffer;
+					break;
+				}
+				case 5:
+				{
+					Parameters.RDGVertexPositionsBuffer5 = MeshSectionData.RDGPositionBuffer;
+					Parameters.VertexPositionsBuffer5 = MeshSectionData.PositionBuffer;
+					break;
+				}
+				case 6:
+				{
+					Parameters.RDGVertexPositionsBuffer6 = MeshSectionData.RDGPositionBuffer;
+					Parameters.VertexPositionsBuffer6 = MeshSectionData.PositionBuffer;
+					break;
+				}
+				case 7:
+				{
+					Parameters.RDGVertexPositionsBuffer7 = MeshSectionData.RDGPositionBuffer;
+					Parameters.VertexPositionsBuffer7 = MeshSectionData.PositionBuffer;
+					break;
+				}
+				}
+			};
+			uint32 UniqueMeshSectionBufferIndex = 0;
+			bool bUseRDGPositionBuffer = false;
+			for (int32 SectionStartIt = PassSectionStart, SectionItEnd = PassSectionStart + PassSectionCount; SectionStartIt < SectionItEnd; ++SectionStartIt)
+			{
+				const int32 SectionIt = SectionStartIt - PassSectionStart;
+				const int32 SectionIndex = ValidSectionIndices[SectionStartIt];
+
+				const FHairStrandsProjectionMeshData::Section& MeshSectionData = MeshData.Sections[SectionIndex];
+
+				Parameters.SectionVertexOffset[SectionIt] = MeshSectionData.VertexBaseIndex;
+				Parameters.SectionVertexCount[SectionIt] = MeshSectionData.NumVertices;
+
+				const FMeshSectionBuffers* Buffers = nullptr;
+				if (MeshSectionData.PositionBuffer)
+				{
+					Buffers = UniqueMeshSectionBuffers.Find(MeshSectionData.PositionBuffer);
+				}
+				else if (MeshSectionData.RDGPositionBuffer)
+				{
+					Buffers = UniqueMeshSectionBuffersRDG.Find(MeshSectionData.RDGPositionBuffer);
+				}
+				else
+				{
+					check(false); // Should never happen
+					continue;
+				}
+				if (Buffers != nullptr)
+				{
+					Parameters.SectionBufferIndex[SectionIt] = Buffers->SectionBufferIndex;
+				}
+				else
+				{
+					// Only support 8 unique different buffer at the moment
+					check(UniqueMeshSectionBufferIndex < 8);
+					SetMeshSectionBuffers(UniqueMeshSectionBufferIndex, MeshSectionData);
+
+					FMeshSectionBuffers Entry;
+					Entry.SectionBufferIndex = UniqueMeshSectionBufferIndex;
+					Entry.RDGPositionBuffer = MeshSectionData.RDGPositionBuffer;
+					Entry.PositionBuffer = MeshSectionData.PositionBuffer;
+
+					if (MeshSectionData.PositionBuffer)
+					{
+						UniqueMeshSectionBuffers.Add(MeshSectionData.PositionBuffer, Entry);
+					}
+					else if (MeshSectionData.RDGPositionBuffer)
+					{
+						UniqueMeshSectionBuffersRDG.Add(MeshSectionData.RDGPositionBuffer, Entry);
+					}
+
+					Parameters.SectionBufferIndex[SectionIt] = UniqueMeshSectionBufferIndex;
+					++UniqueMeshSectionBufferIndex;
+				}
+
+				// Sanity check
+				// If one of the input is using RDG position, we expect all mesh sections to use RDG input
+				if (bUseRDGPositionBuffer)
+				{
+					check(MeshSectionData.RDGPositionBuffer != nullptr);
+				}
+				else if (MeshSectionData.RDGPositionBuffer != nullptr)
+				{
+					bUseRDGPositionBuffer = true;
+				}
+			}
+
+			if (MeshData.Sections.Num() > 0)
+			{
+				for (uint32 Index = UniqueMeshSectionBufferIndex; Index < 8; ++Index)
+				{
+					SetMeshSectionBuffers(Index, MeshData.Sections[0]);
+				}
+			}
+
+			if (UniqueMeshSectionBufferIndex == 0)
+			{
+				return;
+			}
+			Parameters.MaxVertexCount = MeshData.Sections[0].TotalVertexCount;
+			Parameters.MaxSampleCount = RestLODData.SampleCount;
+			Parameters.SampleIndicesBuffer = RegisterAsSRV(GraphBuilder, RestLODData.MeshSampleIndicesBuffer);
+			Parameters.OutSamplePositionsBuffer = OutBuffer.UAV;
+
+			FHairInitMeshSamplesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairInitMeshSamplesCS::FParameters>();
+			*PassParameters = Parameters;
+
+			FHairInitMeshSamplesCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FHairInitMeshSamplesCS::FPositionType>(bUseRDGPositionBuffer ? 1 : 0);
+
+			const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RestLODData.SampleCount, 128);
+			check(DispatchGroupCount.X < 65536);
+			TShaderMapRef<FHairInitMeshSamplesCS> ComputeShader(ShaderMap, PermutationVector);
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("HairStrandsInitMeshSamples"),
+				ComputeShader,
+				PassParameters,
+				DispatchGroupCount);
+		}
 		GraphBuilder.SetBufferAccessFinal(OutBuffer.Buffer, ERHIAccess::SRVMask);
 	}
 }
