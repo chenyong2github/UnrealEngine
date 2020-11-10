@@ -6,6 +6,7 @@
 #include "PhysicsPublicCore.h"
 #include "BodyInstanceCore.h"
 #include "Chaos/ChaosScene.h"
+#include "PhysicsInterfaceDeclaresCore.h"
 
 FPhysicsDelegatesCore::FOnUpdatePhysXMaterial FPhysicsDelegatesCore::OnUpdatePhysXMaterial;
 
@@ -905,6 +906,53 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateConstraint(const FPhysicsA
 				checkSlow(Solver == InActorRef2->GetProxy()->GetSolver<Chaos::FPhysicsSolver>());
 				Solver->RegisterObject(JointConstraint);
 			}
+		}
+		else if (InActorRef1 != nullptr || InActorRef2 != nullptr)
+		{
+			LLM_SCOPE(ELLMTag::Chaos);
+
+			FPhysicsActorHandle ValidParticle = InActorRef1;
+			bool bSwapped = false;
+			if (ValidParticle == nullptr)
+			{
+				bSwapped = true;
+				ValidParticle = InActorRef2;
+			}
+
+			FChaosScene* Scene = FChaosEngineInterface::GetCurrentScene(ValidParticle);
+
+			// Create kinematic actor to attach to joint
+			FPhysicsActorHandle KinematicEndPoint;
+			FActorCreationParams Params;
+			Params.bSimulatePhysics = false;
+			Params.bQueryOnly = false;
+			Params.Scene = Scene;
+			Params.bStatic = false;
+			Params.InitialTM = FTransform::Identity;
+			FChaosEngineInterface::CreateActor(Params, KinematicEndPoint);
+
+			// Chaos requires our particles have geometry.
+			auto Sphere = MakeUnique<Chaos::FImplicitSphere3>(FVector(0, 0, 0), 0);
+			KinematicEndPoint->SetGeometry(MoveTemp(Sphere));
+			KinematicEndPoint->SetUserData(nullptr);
+
+			auto* JointConstraint = new Chaos::FJointConstraint();
+			JointConstraint->SetKinematicEndPoint(KinematicEndPoint, Scene->GetSolver());
+			ConstraintRef.Constraint = JointConstraint;
+
+			JointConstraint->SetParticles({ KinematicEndPoint, ValidParticle });
+
+			Chaos::FJointConstraint::FTransformPair TransformPair = { InLocalFrame2, InLocalFrame1};
+			if (bSwapped)
+			{
+				Swap(TransformPair[0], TransformPair[1]);
+			}
+			JointConstraint->SetJointTransforms(TransformPair);
+
+			Chaos::FPhysicsSolver* Solver = ValidParticle->GetProxy()->GetSolver<Chaos::FPhysicsSolver>();
+			checkSlow(Solver == KinematicEndPoint->GetProxy()->GetSolver<Chaos::FPhysicsSolver>());
+			Solver->RegisterObject(JointConstraint);
+
 		}
 	}
 	return ConstraintRef;

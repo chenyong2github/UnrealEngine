@@ -605,6 +605,8 @@ namespace Chaos
 		int32 NumRemoved = JointConstraintPhysicsProxies.Remove(JointProxy);
 		GTConstraint->SetProxy(static_cast<FJointConstraintPhysicsProxy*>(nullptr));
 
+		GTConstraint->ReleaseKinematicEndPoint(this);
+
 		FParticlesType* InParticles = &GetParticles();
 
 		// Finish registration on the physics thread...
