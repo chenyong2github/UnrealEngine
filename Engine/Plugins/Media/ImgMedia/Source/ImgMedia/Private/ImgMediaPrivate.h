@@ -17,15 +17,17 @@ class FQueuedThreadPool;
 #define USE_IMGMEDIA_DEALLOC_POOL UE_BUILD_DEBUG
 
 
-/** Log category for the this module. */
+/** Log category for this module. */
 DECLARE_LOG_CATEGORY_EXTERN(LogImgMedia, Log, All);
+
+/** Stat category for this module. */
+DECLARE_STATS_GROUP(TEXT("ImgMediaPlugin"), STATGROUP_ImgMediaPlugin, STATCAT_Advanced);
 
 
 #if USE_IMGMEDIA_DEALLOC_POOL
 	/** Thread pool used for deleting image frame buffers. */
 	extern FQueuedThreadPool* GetImgMediaThreadPoolSlow();
 #endif
-
 
 namespace ImgMedia
 {

@@ -41,6 +41,12 @@
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PostEngineInit",
 			"WhitelistPlatforms" : [ "Mac", "Win32", "Win64" ]
+		},
+		{
+			"Name" : "ExrReaderGpu",
+			"Type" : "Runtime",
+			"LoadingPhase" : "PostConfigInit",
+			"WhitelistPlatforms" : [ "Win32", "Win64" ]
 		}
 	]
 }

@@ -52,7 +52,7 @@ protected:
 	 *
 	 * @param Frame The frame that was loaded by this work item.
 	 */
-	void Finalize(FImgMediaFrame* Frame);
+	void Finalize(TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> Frame);
 
 private:
 
