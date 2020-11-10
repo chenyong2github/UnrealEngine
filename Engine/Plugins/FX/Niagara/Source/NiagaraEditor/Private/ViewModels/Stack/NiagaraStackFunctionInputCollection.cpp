@@ -441,11 +441,7 @@ void UNiagaraStackFunctionInputCollection::RefreshIssues(const TArray<FName>& Du
 		UEdGraphPin*const* PinReference = StaticSwitchInputs.Find(OverridePin->PinName);
 		if (PinReference == nullptr)
 		{
-			// If the pin isn't in the misc category for the add pin, and not the parameter map pin, and it's for this function call,
-			// check to see if it's in the list of valid input names, and if not generate an error.
-			if (OverridePin->PinType.PinCategory != UEdGraphSchema_Niagara::PinCategoryMisc &&
-				OverridePin->PinType.PinSubCategoryObject != FNiagaraTypeDefinition::GetParameterMapStruct() &&
-				FNiagaraParameterHandle(OverridePin->PinName).GetNamespace().ToString() == InputFunctionCallNode->GetFunctionName() &&
+			if (FNiagaraStackGraphUtilities::IsOverridePinForFunction(*OverridePin, *InputFunctionCallNode) &&
 				ValidAliasedInputNames.Contains(OverridePin->PinName) == false)
 			{
 				FStackIssue InvalidInputOverrideError(
