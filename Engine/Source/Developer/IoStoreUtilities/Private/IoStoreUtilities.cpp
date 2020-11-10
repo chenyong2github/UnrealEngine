@@ -1550,6 +1550,7 @@ struct FGlobalPackageData
 };
 
 static void FindImportFullName(
+	const TMap<FName, FName>& Redirects,
 	TArray<FString>& ImportFullNames,
 	FObjectImport* ImportMap,
 	const int32 LocalImportIndex)
@@ -1563,13 +1564,18 @@ static void FindImportFullName(
 		FObjectImport* Import = &ImportMap[LocalImportIndex];
 		if (Import->OuterIndex.IsNull())
 		{
-			Import->ObjectName.AppendString(FullName);
+			FName PackageName = Import->ObjectName;
+			if (const FName* RedirectedName = Redirects.Find(PackageName))
+			{
+				PackageName = *RedirectedName;
+			}
+			PackageName.AppendString(FullName);
 			FullName.ToLowerInline();
 		}
 		else
 		{
 			const int32 OuterIndex = Import->OuterIndex.ToImport();
-			FindImportFullName(ImportFullNames, ImportMap, OuterIndex);
+			FindImportFullName(Redirects, ImportFullNames, ImportMap, OuterIndex);
 			const FString& OuterName = ImportFullNames[OuterIndex];
 			check(OuterName.Len() > 0);
 
@@ -2848,6 +2854,7 @@ static void CreateGlobalImportsAndExports(
 	UE_LOG(LogIoStore, Display, TEXT("Creating global imports and exports..."));
 
 	TArray<FString> TempFullNames;
+	TMap<FName, FName> Redirects;
 	const FString DLCPrefix = Arguments.IsDLC() ? FString::Printf(TEXT("/%s/"), *FPaths::GetBaseFilename(Arguments.DLCPluginPath)) : FString();
 
 	TSet<FPackage*> TempImportedPackages;
@@ -2856,6 +2863,11 @@ static void CreateGlobalImportsAndExports(
 		if (Package->ExportCount == 0)
 		{
 			continue;
+		}
+
+		if (Package->RedirectedPackageId.IsValid())
+		{
+			Redirects.Add(Package->Name, Package->SourcePackageName);
 		}
 
 		TempFullNames.Reset();
@@ -2918,7 +2930,7 @@ static void CreateGlobalImportsAndExports(
 
 		for (int32 ImportIndex = 0; ImportIndex < Package->ImportCount; ++ImportIndex)
 		{
-			FindImportFullName(TempFullNames, ImportMap, ImportIndex);
+			FindImportFullName(Redirects, TempFullNames, ImportMap, ImportIndex);
 			FString& FullName = TempFullNames[ImportIndex];
 			FObjectImport& Import = ImportMap[ImportIndex];
 			const bool bIsPackage = Import.OuterIndex.IsNull();
