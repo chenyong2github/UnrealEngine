@@ -510,6 +510,21 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 		}
 	}
 
+	if (InputValues.Mode == EValueMode::InvalidOverride && InputType.IsDataInterface())
+	{
+		NewIssues.Add(FStackIssue(
+            EStackIssueSeverity::Warning,
+            LOCTEXT("InvalidDataInterfaceOverrideShort", "Invalid data interface override"),
+            LOCTEXT("InvalidDataInterfaceOverrideLong", "There is no valid data interface assigned for the input, please reset it to the default value or link a valid data interface reference."),
+            GetStackEditorDataKey(),
+            false,
+            { FStackIssueFix(
+                LOCTEXT("ResetDataInterfaceInputFix", "Reset this input to its default value"),
+                FStackIssueFixDelegate::CreateLambda([this]() { this->Reset(); }))
+            }
+        ));
+	}
+
 	if (InputValues.Mode == EValueMode::Dynamic && InputValues.DynamicNode.IsValid())
 	{
 		if (InputValues.DynamicNode->FunctionScript != nullptr)
@@ -786,6 +801,16 @@ FString UNiagaraStackFunctionInput::ResolveDisplayNameArgument(const FString& In
 	return FString();
 }
 
+void UNiagaraStackFunctionInput::ApplyModuleChanges()
+{
+	UEdGraphPin* OverridePin = GetOverridePin();
+	if (OverridePin == nullptr && InputType.IsDataInterface() && DefaultInputValues.Mode != EValueMode::Linked && DefaultInputValues.DataObject.IsValid())
+	{
+		// Data interfaces must always be overridden in the stack. If there wasn't an override pin found, reset the override pin since the stack graph state isn't valid.
+		ResetDataInterfaceOverride();
+	}
+}
+
 void UNiagaraStackFunctionInput::RefreshValues()
 {
 	if (ensureMsgf(IsStaticParameter() || InputParameterHandle.IsModuleHandle(), TEXT("Function inputs can only be generated for module paramters.")) == false)
@@ -809,9 +834,9 @@ void UNiagaraStackFunctionInput::RefreshValues()
 	}
 	else
 	{
-		if(InputType.IsDataInterface())
+		if (InputType.IsDataInterface())
 		{
-			// Data interfaces must always be overridden in the stack, if there wasn't an override pin found set the mode to invalid override since the 
+			// Data interfaces must always be overridden in the stack. If there wasn't an override pin found set the mode to invalid override since the
 			// stack graph state isn't valid.
 			InputValues.Mode = EValueMode::InvalidOverride;
 		}
@@ -1483,6 +1508,24 @@ bool UNiagaraStackFunctionInput::RemoveRapidIterationParametersForAffectedScript
 	return true;
 }
 
+void UNiagaraStackFunctionInput::ResetDataInterfaceOverride()
+{
+	UEdGraphPin& OverridePin = GetOrCreateOverridePin();
+	RemoveNodesForOverridePin(OverridePin);
+
+	FString InputNodeName = InputParameterHandlePath[0].GetName().ToString();
+	for (int32 i = 1; i < InputParameterHandlePath.Num(); i++)
+	{
+		InputNodeName += "." + InputParameterHandlePath[i].GetName().ToString();
+	}
+
+	UNiagaraDataInterface* InputValueObject;
+	FNiagaraStackGraphUtilities::SetDataValueObjectForFunctionInput(OverridePin, const_cast<UClass*>(InputType.GetClass()), InputNodeName, InputValueObject);
+	DefaultInputValues.DataObject->CopyTo(InputValueObject);
+
+	FNiagaraStackGraphUtilities::RelayoutGraph(*OwningFunctionCallNode->GetGraph());
+}
+
 void UNiagaraStackFunctionInput::Reset()
 {
 	if (CanReset())
@@ -1499,20 +1542,7 @@ void UNiagaraStackFunctionInput::Reset()
 			else
 			{
 				// Otherwise remove the current nodes from the override pin and set a new data object and copy the values from the default.
-				UEdGraphPin& OverridePin = GetOrCreateOverridePin();
-				RemoveNodesForOverridePin(OverridePin);
-
-				FString InputNodeName = InputParameterHandlePath[0].GetName().ToString();
-				for (int32 i = 1; i < InputParameterHandlePath.Num(); i++)
-				{
-					InputNodeName += "." + InputParameterHandlePath[i].GetName().ToString();
-				}
-
-				UNiagaraDataInterface* InputValueObject;
-				FNiagaraStackGraphUtilities::SetDataValueObjectForFunctionInput(OverridePin, const_cast<UClass*>(InputType.GetClass()), InputNodeName, InputValueObject);
-				DefaultInputValues.DataObject->CopyTo(InputValueObject);
-
-				FNiagaraStackGraphUtilities::RelayoutGraph(*OwningFunctionCallNode->GetGraph());
+				ResetDataInterfaceOverride();
 			}
 		}
 		else if (DefaultInputValues.Mode == EValueMode::Linked)

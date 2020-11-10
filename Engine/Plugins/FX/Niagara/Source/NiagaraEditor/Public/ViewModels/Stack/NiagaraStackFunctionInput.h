@@ -174,6 +174,9 @@ public:
 	/** Resets the value and handle of this input to the value and handle defined in the module. */
 	void Reset();
 
+	/** Checks if any data needs a fixup after the module definition changed. */
+	void ApplyModuleChanges();
+
 	/** Determine if this field is editable */
 	bool IsEditable() const;
 
@@ -345,6 +348,8 @@ private:
 	void OnMessageManagerRefresh(const TArray<TSharedRef<const INiagaraMessage>>& NewMessages);
 
 	TArray<UNiagaraStackFunctionInput*> GetChildInputs() const;
+
+	void ResetDataInterfaceOverride();
 
 private:
 	/** The module function call which owns this input entry. NOTE: This input might not be an input to the module function
