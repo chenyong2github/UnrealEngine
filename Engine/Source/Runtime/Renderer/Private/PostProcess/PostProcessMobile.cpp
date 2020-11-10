@@ -2157,8 +2157,10 @@ void AddMobileEyeAdaptationPass(FRDGBuilder& GraphBuilder, const FViewInfo& View
 
 	check(EyeAdaptationThisFrameBuffer && EyeAdaptationLastFrameBuffer);
 
-	GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(EyeAdaptationLastFrameBuffer->UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
-	GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(EyeAdaptationThisFrameBuffer->UAV, ERHIAccess::Unknown, ERHIAccess::UAVMask));
+	AddPass(GraphBuilder, [EyeAdaptationThisFrameBuffer](FRHIComputeCommandList& RHICmdList)
+	{
+		RHICmdList.Transition(FRHITransitionInfo(EyeAdaptationThisFrameBuffer->UAV, ERHIAccess::SRVMask, ERHIAccess::UAVMask));
+	});
 
 	if (Inputs.bUseBasicEyeAdaptation)
 	{
