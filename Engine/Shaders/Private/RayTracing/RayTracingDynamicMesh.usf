@@ -76,7 +76,10 @@ void RayTracingDynamicGeometryConverterCS(uint3 DispatchThreadId : SV_DispatchTh
 		WorldPosition.xyz -= ResolvedView.PreViewTranslation;
 		if (bApplyWorldPositionOffset)
 		{
-			WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
+			// We must guarantee that no NaNs are produced by WPO to avoid a possibility of producing invalid BLAS.
+			// DXR specification allows NaN positions to mark "inactive" primitives, but only when X component each vertex is NaN.
+			// This is impossible to guarantee here, since WPO is evaluated per vertex and not per triangle.
+			WorldPosition.xyz += MakeFinite(GetMaterialWorldPositionOffset(VertexParameters));
 		}
 
 		RWVertexPositions[OutputVertexBaseIndex + VertexIndex * 3 + 0] = WorldPosition.x;
