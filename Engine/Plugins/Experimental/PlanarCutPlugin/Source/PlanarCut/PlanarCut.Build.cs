@@ -16,6 +16,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
                     "Voronoi",
 					"GeometricObjects",
+					"DynamicMesh",
 					"Chaos",
 					"GeometryAlgorithms"
                 }

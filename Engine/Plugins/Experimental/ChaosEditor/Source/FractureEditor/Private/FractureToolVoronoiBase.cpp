@@ -88,11 +88,17 @@ void UFractureToolVoronoiBase::ExecuteFracture(const FFractureContext& FractureC
 		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FractureContext.FracturedGeometryCollection->GetGeometryCollection();
 		if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 		{
+			const UFractureCommonSettings* LocalCommonSettings = GetDefault<UFractureCommonSettings>();
+
 			TArray<FVector> Sites;
 			GenerateVoronoiSites(FractureContext, Sites);
-			FVoronoiDiagram Voronoi(Sites, FractureContext.Bounds, .1f);
-
-			const UFractureCommonSettings* LocalCommonSettings = GetDefault<UFractureCommonSettings>();
+			FBox VoronoiBounds = FractureContext.Bounds;
+			if (LocalCommonSettings->Amplitude > 0.0f)
+			{
+				// expand bounds to make sure noise-perturbed voronoi cells still contain the whole input mesh
+				VoronoiBounds = VoronoiBounds.ExpandBy(LocalCommonSettings->Amplitude);
+			}
+			FVoronoiDiagram Voronoi(Sites, VoronoiBounds, .1f);
 
 			FPlanarCells VoronoiPlanarCells = FPlanarCells(Sites, Voronoi);
 

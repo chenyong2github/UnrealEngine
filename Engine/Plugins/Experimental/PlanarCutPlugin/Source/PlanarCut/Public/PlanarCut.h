@@ -33,7 +33,7 @@ struct PLANARCUT_API FInternalSurfaceMaterials
 	void SetUVScaleFromCollection(const FGeometryCollection& Collection, int32 GeometryIdx = -1);
 
 	
-	int32 GetDefaultMaterialIDForGeometry(const FGeometryCollection& Collection, int32 GeometryIdx = -1);
+	int32 GetDefaultMaterialIDForGeometry(const FGeometryCollection& Collection, int32 GeometryIdx = -1) const;
 };
 
 // Stores planar facets that divide space into cells
@@ -60,6 +60,14 @@ struct PLANARCUT_API FPlanarCells
 	TFunction<int32(FVector)> CellFromPosition;
 
 	FInternalSurfaceMaterials InternalSurfaceMaterials;
+
+	/**
+	 * @return true if this is a single, unbounded cutting plane
+	 */
+	bool IsInfinitePlane() const
+	{
+		return NumCells == 2 && Planes.Num() == 1 && PlaneBoundaries[0].Num() == 0;
+	}
 	
 	/**
 	 * Debugging function to check that the plane boundary vertices are wound to match the orientation of the plane normal vectors
@@ -183,7 +191,7 @@ int32 PLANARCUT_API CutMultipleWithPlanarCells(
 	const TArrayView<const int32>& TransformIndices,
 	const TOptional<FTransform>& TransformCells = TOptional<FTransform>(),
 	bool bIncludeOutsideCellInOutput = true,
-	float CheckDistanceAcrossOutsideCellForProximity = 0,
+	float CheckDistanceAcrossOutsideCellForProximity = 0,  // TODO: < this param does nothing in the new mode; is only needed in special cases that aren't possible in the UI currently
 	bool bSetDefaultInternalMaterialsFromCollection = true,
 	TFunction<void(const FGeometryCollection&, int32, const FGeometryCollection&, int32, float, int32, FGeometryCollection&)> VertexInterpolate = DefaultVertexInterpolation
 );
@@ -196,7 +204,6 @@ int32 PLANARCUT_API CutMultipleWithPlanarCells(
  * @param Collection			The collection to be cut
  * @param TransformIndices	Which transform groups inside the collection to cut
  * @param TransformCells	Optional transform of the planar cut; if unset, defaults to Identity
- * @param bFlattenToSingleLayer If true, only add one layer overall to the hierarchy even if some geometry is cut multiple times.
  * @param VertexInterpolate	Function that interpolates vertex properties (UVs, normals, etc); a default that handles all the normal vertex properties is provided, should only need to replace this if you have custom attributes
  * @return	index of first new geometry in the Output GeometryCollection, or -1 if no geometry was added
  */
@@ -206,7 +213,6 @@ int32 PLANARCUT_API CutMultipleWithMultiplePlanes(
 	FGeometryCollection& Collection,
 	const TArrayView<const int32>& TransformIndices,
 	const TOptional<FTransform>& TransformCells = TOptional<FTransform>(),
-	bool bFlattenToSingleLayer = true,
 	bool bSetDefaultInternalMaterialsFromCollection = true,
 	TFunction<void(const FGeometryCollection&, int32, const FGeometryCollection&, int32, float, int32, FGeometryCollection&)> VertexInterpolate = DefaultVertexInterpolation
 );
