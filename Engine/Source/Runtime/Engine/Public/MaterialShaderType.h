@@ -131,8 +131,8 @@ public:
 		EShaderPlatform Platform,
 		EShaderPermutationFlags PermutationFlags,
 		TArray<TRefCountPtr<FShaderCommonCompileJob>>& NewJobs,
-		const FString& DebugDescription,
-		const FString& DebugExtension
+		const TCHAR* DebugDescription,
+		const TCHAR* DebugExtension
 	) const;
 
 	static void BeginCompileShaderPipeline(
@@ -144,8 +144,8 @@ public:
 		FSharedShaderCompilerEnvironment* MaterialEnvironment,
 		const FShaderPipelineType* ShaderPipeline,
 		TArray<TRefCountPtr<FShaderCommonCompileJob>>& NewJobs,
-		const FString& DebugDescription,
-		const FString& DebugExtension
+		const TCHAR* DebugDescription,
+		const TCHAR* DebugExtension
 	);
 
 	/**

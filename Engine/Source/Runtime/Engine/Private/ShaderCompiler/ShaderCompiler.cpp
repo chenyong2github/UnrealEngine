@@ -3806,7 +3806,6 @@ static void PullRootShaderParametersLayout(FShaderCompilerInput& CompileInput, E
 
 FThreadSafeSharedStringPtr GCachedGeneratedInstancedStereoCode = MakeShareable(new FString());
 
-/** Enqueues a shader compile job with GShaderCompilingManager. */
 void GlobalBeginCompileShader(
 	const FString& DebugGroupName,
 	const FVertexFactoryType* VFType,
@@ -3820,9 +3819,41 @@ void GlobalBeginCompileShader(
 	bool bAllowDevelopmentShaderCompile,
 	const FString& DebugDescription,
 	const FString& DebugExtension
+)
+{
+	GlobalBeginCompileShader(
+		DebugGroupName,
+		VFType,
+		ShaderType,
+		ShaderPipelineType,
+		PermutationId,
+		SourceFilename,
+		FunctionName,
+		Target,
+		Input,
+		bAllowDevelopmentShaderCompile,
+		*DebugDescription,
+		*DebugExtension
+		);
+}
 
+/** Enqueues a shader compile job with GShaderCompilingManager. */
+void GlobalBeginCompileShader(
+	const FString& DebugGroupName,
+	const FVertexFactoryType* VFType,
+	const FShaderType* ShaderType,
+	const FShaderPipelineType* ShaderPipelineType,
+	int32 PermutationId,
+	const TCHAR* SourceFilename,
+	const TCHAR* FunctionName,
+	FShaderTarget Target,
+	FShaderCompilerInput& Input,
+	bool bAllowDevelopmentShaderCompile,
+	const TCHAR* DebugDescription,
+	const TCHAR* DebugExtension
 	)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(GlobalBeginCompileShader);
 	COOK_STAT(ShaderCompilerCookStats::GlobalBeginCompileShaderCalls++);
 	COOK_STAT(FScopedDurationTimer DurationTimer(ShaderCompilerCookStats::GlobalBeginCompileShaderTimeSec));
 

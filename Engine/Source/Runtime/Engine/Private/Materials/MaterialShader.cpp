@@ -917,8 +917,8 @@ void FMaterialShaderType::BeginCompileShader(
 	EShaderPlatform Platform,
 	EShaderPermutationFlags PermutationFlags,
 	TArray<FShaderCommonCompileJobPtr>& NewJobs,
-	const FString& DebugDescription,
-	const FString& DebugExtension
+	const TCHAR* DebugDescription,
+	const TCHAR* DebugExtension
 	) const
 {
 	FShaderCompileJob* NewJob = GShaderCompilingManager->PrepareShaderCompileJob(ShaderMapId, FShaderCompileJobKey(this, nullptr, PermutationId), Priority);
@@ -938,8 +938,8 @@ void FMaterialShaderType::BeginCompileShaderPipeline(
 	FSharedShaderCompilerEnvironment* MaterialEnvironment,
 	const FShaderPipelineType* ShaderPipeline,
 	TArray<FShaderCommonCompileJobPtr>& NewJobs,
-	const FString& DebugDescription,
-	const FString& DebugExtension)
+	const TCHAR* DebugDescription,
+	const TCHAR* DebugExtension)
 {
 	check(ShaderPipeline);
 	UE_LOG(LogShaders, Verbose, TEXT("	Pipeline: %s"), ShaderPipeline->GetName());
@@ -1370,6 +1370,7 @@ void FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 	const TRefCountPtr<FSharedShaderCompilerEnvironment>& MaterialEnvironment,
 	EShaderCompileJobPriority InPriority) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialShaderMap::SubmitCompileJobs);
 	check(CompilingShaderMapId != 0u);
 	check(MaterialEnvironment);
 
@@ -1384,9 +1385,10 @@ void FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 	const FMaterialShaderMapLayout& Layout = AcquireMaterialShaderMapLayout(ShaderPlatform, PermutationFlags, MaterialParameters);
 
 #if ALLOW_SHADERMAP_DEBUG_DATA && WITH_EDITOR
-	const FString DebugExtension = FString::Printf(TEXT("_%08x%08x"), ShaderMapId.BaseMaterialId.A, ShaderMapId.BaseMaterialId.B);
+	const FString DebugExtensionStr = FString::Printf(TEXT("_%08x%08x"), ShaderMapId.BaseMaterialId.A, ShaderMapId.BaseMaterialId.B);
+	const TCHAR* DebugExtension = *DebugExtensionStr;
 #else
-	const FString DebugExtension(TEXT(""));
+	const TCHAR* DebugExtension = nullptr;
 #endif
 
 	// Iterate over all vertex factory types.
@@ -1609,6 +1611,7 @@ void FMaterialShaderMap::Compile(
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialShaderMap::Compile);
 	check(!Material->bContainsInlineShaders);
 
 	// Assign a unique identifier so that shaders from this shader map can be associated with it after a deferred compile

@@ -27,8 +27,8 @@ static void PrepareMeshMaterialShaderCompileJob(EShaderPlatform Platform,
 	const FMaterial* Material,
 	FSharedShaderCompilerEnvironment* MaterialEnvironment,
 	const FShaderPipelineType* ShaderPipeline,
-	FString DebugDescription,
-	FString DebugExtension,
+	const TCHAR* DebugDescription,
+	const TCHAR* DebugExtension,
 	FShaderCompileJob* NewJob)
 {
 	const FShaderCompileJobKey& Key = NewJob->Key;
@@ -92,8 +92,8 @@ void FMeshMaterialShaderType::BeginCompileShader(
 	FSharedShaderCompilerEnvironment* MaterialEnvironment,
 	const FVertexFactoryType* VertexFactoryType,
 	TArray<FShaderCommonCompileJobPtr>& NewJobs,
-	FString DebugDescription,
-	FString DebugExtension) const
+	const TCHAR* DebugDescription,
+	const TCHAR* DebugExtension) const
 {
 	FShaderCompileJob* NewJob = GShaderCompilingManager->PrepareShaderCompileJob(ShaderMapId, FShaderCompileJobKey(this, VertexFactoryType, PermutationId), Priority);
 	if (NewJob)
@@ -114,8 +114,8 @@ void FMeshMaterialShaderType::BeginCompileShaderPipeline(
 	const FVertexFactoryType* VertexFactoryType,
 	const FShaderPipelineType* ShaderPipeline,
 	TArray<FShaderCommonCompileJobPtr>& NewJobs,
-	FString DebugDescription,
-	FString DebugExtension)
+	const TCHAR* DebugDescription,
+	const TCHAR* DebugExtension)
 {
 	check(ShaderPipeline);
 	UE_LOG(LogShaders, Verbose, TEXT("	Pipeline: %s"), ShaderPipeline->GetName());

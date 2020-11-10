@@ -997,10 +997,26 @@ extern ENGINE_API void GlobalBeginCompileShader(
 	const TCHAR* FunctionName,
 	FShaderTarget Target,
 	FShaderCompilerInput& Input,
-	bool bAllowDevelopmentShaderCompile = true,
-	const FString& DebugDescription = "",
-	const FString& DebugExtension = ""
+	bool bAllowDevelopmentShaderCompile,
+	const FString& DebugDescription,
+	const FString& DebugExtension
 	);
+
+/** Enqueues a shader compile job with GShaderCompilingManager. */
+extern ENGINE_API void GlobalBeginCompileShader(
+	const FString& DebugGroupName,
+	const class FVertexFactoryType* VFType,
+	const class FShaderType* ShaderType,
+	const class FShaderPipelineType* ShaderPipelineType,
+	int32 PermutationId,
+	const TCHAR* SourceFilename,
+	const TCHAR* FunctionName,
+	FShaderTarget Target,
+	FShaderCompilerInput& Input,
+	bool bAllowDevelopmentShaderCompile = true,
+	const TCHAR* DebugDescription = nullptr,
+	const TCHAR* DebugExtension = nullptr
+);
 
 extern void GetOutdatedShaderTypes(TArray<const FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes);
 

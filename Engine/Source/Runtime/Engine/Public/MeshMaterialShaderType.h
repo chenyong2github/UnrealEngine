@@ -87,8 +87,8 @@ public:
 		FSharedShaderCompilerEnvironment* MaterialEnvironment,
 		const FVertexFactoryType* VertexFactoryType,
 		TArray<TRefCountPtr<FShaderCommonCompileJob>>& NewJobs,
-		FString DebugDescription,
-		FString DebugExtension
+		const TCHAR* DebugDescription,
+		const TCHAR* DebugExtension
 		) const;
 
 	static void BeginCompileShaderPipeline(
@@ -102,8 +102,8 @@ public:
 		const FVertexFactoryType* VertexFactoryType,
 		const FShaderPipelineType* ShaderPipeline,
 		TArray<TRefCountPtr<FShaderCommonCompileJob>>& NewJobs,
-		FString DebugDescription,
-		FString DebugExtension
+		const TCHAR* DebugDescription,
+		const TCHAR* DebugExtension
 		);
 
 	/**
