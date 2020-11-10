@@ -1067,6 +1067,11 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		return;
 	}
 
+	//We reset last render time to the current time so that any visibility culling on a delay will function correctly.
+	//Leaving as the default of -1000 causes the visibility code to always assume this should be culled until it's first rendered and initialized by the RT.
+	SetLastRenderTime(GetWorld()->GetTimeSeconds());
+	SystemInstance->SetLastRenderTime(GetLastRenderTime());
+
 	RegisterWithScalabilityManager();
 
 	// NOTE: This call can cause SystemInstance itself to get destroyed with auto destroy systems
@@ -1366,7 +1371,9 @@ void UNiagaraComponent::OnPooledReuse(UWorld* NewWorld)
 		Rename(nullptr, NewWorld, REN_ForceNoResetLoaders);
 	}
 
-	SetLastRenderTime(-1000.0f);
+	//We reset last render time to the current time so that any visibility culling on a delay will function correctly.
+	//Leaving as the default of -1000 causes the visibility code to always assume this should be culled until it's first rendered and initialized by the RT.
+	SetLastRenderTime(GetWorld()->GetTimeSeconds());
 
 	if (SystemInstance != nullptr)
 	{
