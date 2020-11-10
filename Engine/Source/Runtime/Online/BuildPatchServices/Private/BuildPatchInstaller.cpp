@@ -53,6 +53,8 @@
 #include "Installer/Statistics/VerifierStatistics.h"
 #include "Installer/Statistics/FileOperationTracker.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogBPSInstallerConfig, Log, All);
+
 namespace ConfigHelpers
 {
 	using namespace BuildPatchServices;
@@ -221,48 +223,51 @@ namespace InstallerHelpers
 
 	void LogBuildConfiguration(const BuildPatchServices::FBuildInstallerConfiguration& InstallerConfiguration, const FGuid& InstallerId)
 	{
+		if (!UE_LOG_ACTIVE(LogBPSInstallerConfig, Log)) // Just skip all this iteration if we aren't going to log anything
+			return;
+
 		using namespace BuildPatchServices;
 		static FCriticalSection DoNotInterleaveLogs;
 		FScopeLock ScopeLock(&DoNotInterleaveLogs);
-		UE_LOG(LogBuildPatchServices, Log, TEXT("Build Config: InstallerId: %s"), *InstallerId.ToString());
+		UE_LOG(LogBPSInstallerConfig, Log, TEXT("Build Config: InstallerId: %s"), *InstallerId.ToString());
 		for (const FInstallerAction& InstallerAction : InstallerConfiguration.InstallerActions)
 		{
 			FBuildPatchAppManifestPtr CurrentManifest = StaticCastSharedPtr<FBuildPatchAppManifest>(InstallerAction.TryGetCurrentManifest());
 			FBuildPatchAppManifestPtr InstallManifest = StaticCastSharedPtr<FBuildPatchAppManifest>(InstallerAction.TryGetInstallManifest());
-			UE_LOG(LogBuildPatchServices, Log, TEXT("Build Config: ActionType: %s"), GetActionTypeLog(InstallerAction));
-			UE_LOG(LogBuildPatchServices, Log, TEXT("Build Config: CurrentManifest: %s"), *GetManifestLog(CurrentManifest));
-			UE_LOG(LogBuildPatchServices, Log, TEXT("Build Config: InstallManifest: %s"), *GetManifestLog(InstallManifest));
+			UE_LOG(LogBPSInstallerConfig, Log, TEXT("Build Config: ActionType: %s"), GetActionTypeLog(InstallerAction));
+			UE_LOG(LogBPSInstallerConfig, Log, TEXT("Build Config: CurrentManifest: %s"), *GetManifestLog(CurrentManifest));
+			UE_LOG(LogBPSInstallerConfig, Log, TEXT("Build Config: InstallManifest: %s"), *GetManifestLog(InstallManifest));
 			for (const FString& Tag : InstallerAction.GetInstallTags())
 			{
-				UE_LOG(LogBuildPatchServices, Log, TEXT("Build Config: InstallTags: %s"), *Tag);
+				UE_LOG(LogBPSInstallerConfig, Log, TEXT("Build Config: InstallTags: %s"), *Tag);
 			}
 			TSet<FString> ValidTags;
 			InstallerAction.GetInstallOrCurrentManifest()->GetFileTagList(ValidTags);
 			for (const FString& Tag : ValidTags)
 			{
-				UE_LOG(LogBuildPatchServices, Log, TEXT("Build Config: ValidTags: %s"), *Tag);
+				UE_LOG(LogBPSInstallerConfig, Log, TEXT("Build Config: ValidTags: %s"), *Tag);
 			}
 		}
 
-		UE_LOG(LogBuildPatchServices, Log, TEXT("Build Config: InstallDirectory: %s"), *InstallerConfiguration.InstallDirectory);
-		UE_LOG(LogBuildPatchServices, Log, TEXT("Build Config: StagingDirectory: %s"), *InstallerConfiguration.StagingDirectory);
-		UE_LOG(LogBuildPatchServices, Log, TEXT("Build Config: BackupDirectory: %s"), *InstallerConfiguration.BackupDirectory);
+		UE_LOG(LogBPSInstallerConfig, Log, TEXT("Build Config: InstallDirectory: %s"), *InstallerConfiguration.InstallDirectory);
+		UE_LOG(LogBPSInstallerConfig, Log, TEXT("Build Config: StagingDirectory: %s"), *InstallerConfiguration.StagingDirectory);
+		UE_LOG(LogBPSInstallerConfig, Log, TEXT("Build Config: BackupDirectory: %s"), *InstallerConfiguration.BackupDirectory);
 
 		for (const FString& DatabaseFile : InstallerConfiguration.ChunkDatabaseFiles)
 		{
-			UE_LOG(LogBuildPatchServices, Log, TEXT("Build Config: ChunkDatabaseFile: %s"), *DatabaseFile);
+			UE_LOG(LogBPSInstallerConfig, Log, TEXT("Build Config: ChunkDatabaseFile: %s"), *DatabaseFile);
 		}
 		
 		for (const FString& CloudDirectory : InstallerConfiguration.CloudDirectories)
 		{
-			UE_LOG(LogBuildPatchServices, Log, TEXT("Build Config: CloudDirectories: %s"), *CloudDirectory);
+			UE_LOG(LogBPSInstallerConfig, Log, TEXT("Build Config: CloudDirectories: %s"), *CloudDirectory);
 		}
 
-		UE_LOG(LogBuildPatchServices, Log, TEXT("Build Config: InstallMode: %s"), *EnumToString(InstallerConfiguration.InstallMode));
-		UE_LOG(LogBuildPatchServices, Log, TEXT("Build Config: VerifyMode: %s"), *EnumToString(InstallerConfiguration.VerifyMode));
-		UE_LOG(LogBuildPatchServices, Log, TEXT("Build Config: DeltaPolicy: %s"), *EnumToString(InstallerConfiguration.DeltaPolicy));
-		UE_LOG(LogBuildPatchServices, Log, TEXT("Build Config: bRunRequiredPrereqs: %s"), (InstallerConfiguration.bRunRequiredPrereqs) ? TEXT("true") : TEXT("false"));
-		UE_LOG(LogBuildPatchServices, Log, TEXT("Build Config: bAllowConcurrentExecution: %s"), (InstallerConfiguration.bAllowConcurrentExecution) ? TEXT("true") : TEXT("false"));
+		UE_LOG(LogBPSInstallerConfig, Log, TEXT("Build Config: InstallMode: %s"), *EnumToString(InstallerConfiguration.InstallMode));
+		UE_LOG(LogBPSInstallerConfig, Log, TEXT("Build Config: VerifyMode: %s"), *EnumToString(InstallerConfiguration.VerifyMode));
+		UE_LOG(LogBPSInstallerConfig, Log, TEXT("Build Config: DeltaPolicy: %s"), *EnumToString(InstallerConfiguration.DeltaPolicy));
+		UE_LOG(LogBPSInstallerConfig, Log, TEXT("Build Config: bRunRequiredPrereqs: %s"), (InstallerConfiguration.bRunRequiredPrereqs) ? TEXT("true") : TEXT("false"));
+		UE_LOG(LogBPSInstallerConfig, Log, TEXT("Build Config: bAllowConcurrentExecution: %s"), (InstallerConfiguration.bAllowConcurrentExecution) ? TEXT("true") : TEXT("false"));
 	}
 
 	TSet<FGuid> GetMultipleReferencedChunks(IBuildManifestSet* ManifestSet)
