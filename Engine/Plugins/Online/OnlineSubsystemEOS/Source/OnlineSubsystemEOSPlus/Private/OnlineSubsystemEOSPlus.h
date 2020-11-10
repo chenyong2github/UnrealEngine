@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "OnlineSubsystemImpl.h"
 #include "OnlineSubsystemEOSPlusPrivate.h"
+
+#include "OnlineStatsEOSPlus.h"
+
 /**
  * OnlineSubsystemEOSPlus - Wrapper OSS that uses both the main platform and EOS OSS
  * hence EOS Plus another OSS
@@ -63,6 +66,9 @@ PACKAGE_SCOPE:
 	IOnlineSubsystem* BaseOSS;
 	/** The EOS OSS that is being used in conjunction with the platform one */
 	IOnlineSubsystem* EosOSS;
+
+	/** The stats interface that routes calls between the two OSSes */
+	FOnlineStatsEOSPlusPtr StatsInterfacePtr;
 };
 
 typedef TSharedPtr<FOnlineSubsystemEOSPlus, ESPMode::ThreadSafe> FOnlineSubsystemEOSPlusPtr;
