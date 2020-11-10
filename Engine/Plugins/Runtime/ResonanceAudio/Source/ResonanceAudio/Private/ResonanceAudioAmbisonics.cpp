@@ -232,12 +232,15 @@ namespace ResonanceAudio
 			
 			check(ResonanceSystem);
 
-			if (AmbisonicsBuffer.NumChannels != NumChannels)
+			if (AmbisonicsBuffer.NumChannels > 0)
 			{
-				ChangeNumChannels(AmbisonicsBuffer.NumChannels);
-			}
+				if (AmbisonicsBuffer.NumChannels != NumChannels)
+				{
+					ChangeNumChannels(AmbisonicsBuffer.NumChannels);
+				}
 
-			ResonanceSystem->SetInterleavedBuffer(AmbisonicsSourceId, AmbisonicsBuffer.AudioBuffer.GetData(), NumChannels, AmbisonicsBuffer.AudioBuffer.Num() / NumChannels);
+				ResonanceSystem->SetInterleavedBuffer(AmbisonicsSourceId, AmbisonicsBuffer.AudioBuffer.GetData(), NumChannels, AmbisonicsBuffer.AudioBuffer.Num() / NumChannels);
+			}
 
 			OutPacket.SetResonanceApi(ResonanceSystem.Get());
 		}
