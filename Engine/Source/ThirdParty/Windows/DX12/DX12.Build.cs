@@ -30,6 +30,8 @@ public class DX12 : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
+			PublicSystemLibraries.Add("dxgi.lib"); // For DXGIGetDebugInterface1
+
 			bool PixAvalable = (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64);
 			if (PixAvalable &&
 				//Target.WindowsPlatform.bUseWindowsSDK10 &&
@@ -37,8 +39,6 @@ public class DX12 : ModuleRules
 				Target.Configuration != UnrealTargetConfiguration.Shipping &&
 				Target.Configuration != UnrealTargetConfiguration.Test)
 			{
-				PublicSystemLibraries.Add("dxgi.lib"); // For DXGIGetDebugInterface1
-
 				string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
 				PublicSystemIncludePaths.Add(Target.UEThirdPartySourceDirectory + "/Windows/Pix/Include");
 				string PixLibDir = Target.UEThirdPartySourceDirectory + "/Windows/Pix/Lib/" + Arch + "/";
