@@ -268,11 +268,11 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 		TArray<UMaterialInterface*> UsedMaterials;
 		InComponent->GetUsedMaterials(UsedMaterials);
 
-		for (auto& MaterialInterface : UsedMaterials)
+		for (const UMaterialInterface* MaterialInterface : UsedMaterials)
 		{
 			if (MaterialInterface)
 			{
-				UMaterial* Material = MaterialInterface->GetMaterial();
+				const UMaterial* Material = MaterialInterface->GetMaterial_Concurrent();
 				if (const FMaterialResource* MaterialResource = Material->GetMaterialResource(FeatureLevel))
 				{
 					if (IsInGameThread())
