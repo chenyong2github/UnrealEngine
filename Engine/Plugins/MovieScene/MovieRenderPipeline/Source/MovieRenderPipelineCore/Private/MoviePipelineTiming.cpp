@@ -118,12 +118,33 @@ void UMoviePipeline::TickProducingFrames()
 
 		if (!CurrentCameraCut->ShotInfo.bEmulateFirstFrameMotionBlur)
 		{
-			// If we're going to use the camera cut length for warm ups then we want to evaluate before the first frame in the camera cut.
-			// We've already calculated out how far the camera cut extended past the playback range (and accounted for handle frames,
-			// and our CurrentMasterSeqTick accounts for handle frames as well) so we simply move back further. Convert frames to ticks.
-			// We back off one extra frame because the code below expects to always move us into the current frame.
-			FFrameTime DeltaTickOffset = FFrameRate::TransformTime(FFrameTime(FFrameNumber(CurrentCameraCut->ShotInfo.NumEngineWarmUpFramesRemaining + 1)), TargetSequence->GetMovieScene()->GetDisplayRate(), TargetSequence->GetMovieScene()->GetTickResolution());
-			CurrentCameraCut->ShotInfo.CurrentLocalSeqTick -= DeltaTickOffset.FloorToFrame();
+			FFrameTime TicksToEndOfPreviousFrame;
+			float WorldTimeDilation = GetWorld()->GetWorldSettings()->GetEffectiveTimeDilation();
+
+			UMoviePipelineAntiAliasingSetting* AntiAliasing = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
+			if (AntiAliasing->TemporalSampleCount == 1)
+			{
+				TicksToEndOfPreviousFrame = FrameMetrics.TicksPerOutputFrame;
+			}
+			else
+			{
+				// The first sub-frame accumulation is going to try to go forward
+				// by the amount the shutter is closed, plus the duration of one sample
+				// because that is the logic we use for every other frame.
+				TicksToEndOfPreviousFrame = FrameMetrics.TicksPerSample + FrameMetrics.TicksWhileShutterClosed;
+			}
+
+			if (!FMath::IsNearlyEqual(WorldTimeDilation, 1.f))
+			{
+				TicksToEndOfPreviousFrame = TicksToEndOfPreviousFrame * WorldTimeDilation;
+			}
+
+			// The above calculation will offset us by a portion of a frame. We then offset by the number of whole frames we need to back up by.
+			// The warmup state (when using camera cut for warmup) will simply advance us an entire frame each time. This means that when we go
+			// to render the first frame we will be on the correct offset.
+			TicksToEndOfPreviousFrame += FFrameRate::TransformTime(FFrameTime(FFrameNumber(CurrentCameraCut->ShotInfo.NumEngineWarmUpFramesRemaining)), TargetSequence->GetMovieScene()->GetDisplayRate(), TargetSequence->GetMovieScene()->GetTickResolution());
+			AccumulatedTickSubFrameDeltas -= TicksToEndOfPreviousFrame.GetSubFrame();
+			CurrentCameraCut->ShotInfo.CurrentLocalSeqTick = CurrentCameraCut->ShotInfo.CurrentLocalSeqTick - TicksToEndOfPreviousFrame.FloorToFrame();
 		}
 
 		// Jump to the first frame of the sequence that we will be playing from. This doesn't take into account camera timing offset or temporal sampling, but that is
