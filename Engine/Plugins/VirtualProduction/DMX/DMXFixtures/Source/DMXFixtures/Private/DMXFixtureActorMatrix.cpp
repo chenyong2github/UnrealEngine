@@ -301,10 +301,10 @@ FLinearColor ADMXFixtureActorMatrix::GetMatrixAverageColor()
 	int NbrCells = XCells * YCells;
 	for (int i = 0; i < NbrCells; i++)
 	{
-		AverageColor.B += (float)MatrixData[i*4] / (float)255.0f;
-		AverageColor.G += (float)MatrixData[(i*4) + 1] / (float)255.0f;
-		AverageColor.R += (float)MatrixData[(i*4) + 2] / (float)255.0f;
-		AverageColor.A += (float)MatrixData[(i*4) + 3] / (float)255.0f;
+		AverageColor.B += (float)MatrixData[i*4] / 255.0f;
+		AverageColor.G += (float)MatrixData[(i*4) + 1] / 255.0f;
+		AverageColor.R += (float)MatrixData[(i*4) + 2] / 255.0f;
+		AverageColor.A += (float)MatrixData[(i*4) + 3] / 255.0f;
 	}
 	AverageColor = AverageColor / NbrCells;
 	return AverageColor;
