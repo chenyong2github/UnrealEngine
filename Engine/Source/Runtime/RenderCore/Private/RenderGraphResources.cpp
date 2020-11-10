@@ -116,7 +116,7 @@ bool FRDGTextureDesc::IsValid() const
 		return false;
 	}
 
-	if (Dimension != ETextureDimension::Texture2D && NumSamples > 1)
+	if (NumSamples > 1 && !(Dimension == ETextureDimension::Texture2D || Dimension == ETextureDimension::Texture2DArray))
 	{
 		return false;
 	}
