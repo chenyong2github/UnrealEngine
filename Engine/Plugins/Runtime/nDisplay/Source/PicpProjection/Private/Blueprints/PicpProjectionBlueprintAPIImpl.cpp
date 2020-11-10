@@ -58,7 +58,8 @@ void UPicpProjectionAPIImpl::SetupOverlayCaptures(const TArray<struct FPicpCamer
 			// Get camera view texture ref
 			FTextureRenderTargetResource*     CameraRTTRes = CameraIt.CameraOverlayFrame->GameThread_GetRenderTargetResource();
 			FTextureRenderTarget2DResource* CameraRTTRes2D = CameraRTTRes?((FTextureRenderTarget2DResource*)CameraRTTRes):nullptr;
-			if(CameraRTTRes2D)
+			FRHITexture* CameraRTTRes2DRHI = CameraRTTRes2D ? CameraRTTRes2D->GetTextureRHI() : nullptr;
+			if(CameraRTTRes2DRHI)
 			{
 				// Get camera position, rotation and projection:
 				FRotator CameraRotation = CameraIt.CineCamera->K2_GetComponentRotation();
@@ -71,7 +72,7 @@ void UPicpProjectionAPIImpl::SetupOverlayCaptures(const TArray<struct FPicpCamer
 				FMatrix CameraPrj = ComposurePostMoveSettings.GetProjectionMatrix(CameraFOV, CameraAspectRatio);
 
 				// Create inner camera data
-				FPicpProjectionOverlayCamera NewCamera(CameraRotation, CameraLocation, CameraPrj, CameraRTTRes2D->GetTextureRHI(), CameraIt.RTTViewportId);
+				FPicpProjectionOverlayCamera NewCamera(CameraRotation, CameraLocation, CameraPrj, CameraRTTRes2DRHI, CameraIt.RTTViewportId);
 				NewCamera.SoftEdge = CameraIt.SoftEdge;
 
 				if (CameraIt.CameraChromakey.ChromakeyOverlayFrame)
@@ -79,9 +80,10 @@ void UPicpProjectionAPIImpl::SetupOverlayCaptures(const TArray<struct FPicpCamer
 					// Render chromakey advanced:
 					FTextureRenderTargetResource*     ChromakeyRTTRes = CameraIt.CameraChromakey.ChromakeyOverlayFrame->GameThread_GetRenderTargetResource();
 					FTextureRenderTarget2DResource* ChromakeyRTTRes2D = ChromakeyRTTRes ? ((FTextureRenderTarget2DResource*)ChromakeyRTTRes) : nullptr;
-					if (ChromakeyRTTRes2D)
+					FRHITexture* ChromakeyRTTRes2DRHI = ChromakeyRTTRes2D ? ChromakeyRTTRes2D->GetTextureRHI() : nullptr;
+					if (ChromakeyRTTRes2DRHI)
 					{
-						NewCamera.Chromakey.ChromakeyTexture = ChromakeyRTTRes2D->GetTextureRHI();
+						NewCamera.Chromakey.ChromakeyTexture = ChromakeyRTTRes2DRHI;
 						if (NewCamera.Chromakey.IsChromakeyUsed() && CameraIt.CameraChromakey.ChromakeyMarkerTexture)
 						{
 							// Render chromakey markers:
@@ -115,17 +117,17 @@ void UPicpProjectionAPIImpl::SetupOverlayCaptures(const TArray<struct FPicpCamer
 	{
 		FTextureRenderTargetResource*     OverlayRTTRes = OverlayIt.SourceFrameCapture->GameThread_GetRenderTargetResource();
 		FTextureRenderTarget2DResource* OverlayRTTRes2D = OverlayRTTRes?((FTextureRenderTarget2DResource*)OverlayRTTRes):nullptr;
-		if (OverlayRTTRes2D)
+		FRHITexture2D* OverlayRTTRes2DRHI = OverlayRTTRes2D ? OverlayRTTRes2D->GetTextureRHI() : nullptr;
+		if (OverlayRTTRes2DRHI)
 		{
-			FRHITexture2D* OverlayTextureRef = OverlayRTTRes2D->GetTextureRHI();
 			switch (OverlayIt.OverlayBlendMode)
 			{
 			case ECameraOverlayRenderMode::Over:
-				OverlayFrameData.ViewportsOver.Add(OverlayIt.Id, FPicpProjectionOverlayViewport(OverlayTextureRef));
+				OverlayFrameData.ViewportsOver.Add(OverlayIt.Id, FPicpProjectionOverlayViewport(OverlayRTTRes2DRHI));
 				break;
 
 			case ECameraOverlayRenderMode::Under:
-				OverlayFrameData.ViewportsUnder.Add(OverlayIt.Id, FPicpProjectionOverlayViewport(OverlayTextureRef));
+				OverlayFrameData.ViewportsUnder.Add(OverlayIt.Id, FPicpProjectionOverlayViewport(OverlayRTTRes2DRHI));
 				break;
 			}
 		}
