@@ -100,7 +100,7 @@ public:
 
 	/** Target FPS we're aiming for.  */
 	UPROPERTY(config, EditAnywhere, Category = "Hitch Detection")
-	FFrameRate TargetFrameRate = FFrameRate(24, 1);
+	FFrameRate MinimumFrameRate = FFrameRate(24, 1);
 };
 
 /**
