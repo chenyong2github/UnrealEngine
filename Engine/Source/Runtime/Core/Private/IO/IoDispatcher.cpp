@@ -16,8 +16,16 @@
 #include "HAL/Event.h"
 #include "Async/MappedFileHandle.h"
 #include "ProfilingDebugging/CountersTrace.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 DEFINE_LOG_CATEGORY(LogIoDispatcher);
+
+
+#if CSV_PROFILER
+extern int64 GTotalLoaded;
+#endif
+
+
 
 const FIoChunkId FIoChunkId::InvalidChunkId = FIoChunkId::CreateEmptyId();
 
@@ -176,7 +184,7 @@ public:
 	bool InitializePostSettings()
 	{
 		FileIoStore.Initialize();
-		Thread = FRunnableThread::Create(this, TEXT("IoDispatcher"), 0, TPri_AboveNormal);
+		Thread = FRunnableThread::Create(this, TEXT("IoDispatcher"), 0, TPri_AboveNormal, FPlatformAffinity::GetIoDispatcherThreadMask());
 		return true;
 	}
 
@@ -473,6 +481,9 @@ private:
 			if (Request->Status.IsOk())
 			{
 				Request->Callback(Request->IoBuffer);
+#if CSV_PROFILER
+				FPlatformAtomics::InterlockedAdd(&GTotalLoaded, Request->Options.GetSize());
+#endif
 			}
 			else
 			{
@@ -518,7 +529,11 @@ private:
 		// Return the buffer if there are no errors, or the failed status if there were
 		if (Status.IsOk())
 		{
+#if CSV_PROFILER
+			FPlatformAtomics::InterlockedAdd(&GTotalLoaded, Batch->IoBuffer.DataSize());
+#endif
 			Batch->Callback(Batch->IoBuffer);
+
 		}
 		else
 		{
