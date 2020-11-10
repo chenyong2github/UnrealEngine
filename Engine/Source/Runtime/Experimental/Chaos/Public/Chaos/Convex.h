@@ -274,7 +274,7 @@ namespace Chaos
 		// Get the index of the plane that most opposes the normal
 		int32 GetMostOpposingPlane(const FVec3& Normal) const;
 
-		// Get the index of the plane that most opposes the normal and also passes through the specified vertex
+		// Get the index of the plane that most opposes the normal, assuming it passes through the specified vertex
 		int32 GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const;
 
 		// Get the set of planes that pass through the specified vertex
@@ -282,6 +282,16 @@ namespace Chaos
 
 		// Get the list of vertices that form the boundary of the specified face
 		TArrayView<const int32> GetPlaneVertices(int32 FaceIndex) const;
+
+		int32 NumPlanes() const
+		{
+			return Planes.Num();
+		}
+
+		int32 NumVertices() const
+		{
+			return (int32)SurfaceParticles.Size();
+		}
 
 		// Get the plane at the specified index (e.g., indices from GetVertexPlanes)
 		const TPlaneConcrete<FReal, 3>& GetPlane(int32 FaceIndex) const

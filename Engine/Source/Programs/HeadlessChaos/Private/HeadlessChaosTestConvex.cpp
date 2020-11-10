@@ -14,7 +14,10 @@ namespace ChaosTest
 {
 	using namespace Chaos;
 
-	void TestConvexBuilder_Box_FaceMerge(const FVec3* Vertices, const int32 NumVertices)
+	// Check that convex creation with face merging is working correctly.
+	// The initial creation generates a set of triangles, and the merge step should
+	// leave the hull with only one face per normal.
+	void TestConvexBuilderConvexBoxFaceMerge(const FVec3* Vertices, const int32 NumVertices)
 	{
 		TParticles<FReal, 3> Particles;
 		Particles.AddParticles(NumVertices);
@@ -63,7 +66,8 @@ namespace ChaosTest
 		}
 	}
 
-	GTEST_TEST(ConvexBuilderTests, TestBoxFaceMergeSimple)
+	// Check that face merging works for a convex box
+	GTEST_TEST(ConvexStructureTests, TestConvexBoxFaceMerge)
 	{
 		const FVec3 Vertices[] =
 		{
@@ -77,11 +81,43 @@ namespace ChaosTest
 			FVec3(50,		50,		50),
 		};
 
-		TestConvexBuilder_Box_FaceMerge(Vertices, UE_ARRAY_COUNT(Vertices));
+		TestConvexBuilderConvexBoxFaceMerge(Vertices, UE_ARRAY_COUNT(Vertices));
 	}
 
+	// Check that the convex structure data is consistent (works for TBox and TConvex)
+	template<typename T_GEOM> void TestConvexStructureDataImpl(const T_GEOM& Convex)
+	{
+		// Check all per-plane data
+		for (int32 PlaneIndex = 0; PlaneIndex < Convex.NumPlanes(); ++PlaneIndex)
+		{
+			// All vertices should be on the plane
+			for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < (int32)Convex.GetPlaneVertices(PlaneIndex).Num(); ++PlaneVertexIndex)
+			{
+				const TPlaneConcrete<FReal, 3> Plane = Convex.GetPlane(PlaneIndex);
+				const int32 VertexIndex = Convex.GetPlaneVertices(PlaneIndex)[PlaneVertexIndex];
+				const FVec3 Vertex = Convex.GetVertex(VertexIndex);
+				const FReal VertexDistance = FVec3::DotProduct(Plane.Normal(), Vertex - Plane.X());
+				EXPECT_NEAR(VertexDistance, 0.0f, 1.e-3f);
+			}
+		}
 
-	void TestConvex_StructrureData(const FVec3* Vertices, const int32 NumVertices)
+		// Check all per-vertex data
+		for (int32 VertexIndex = 0; VertexIndex < Convex.NumVertices(); ++VertexIndex)
+		{
+			// All planes should pass through the vertex
+			for (int32 VertexPlaneIndex = 0; VertexPlaneIndex < Convex.GetVertexPlanes(VertexIndex).Num(); ++VertexPlaneIndex)
+			{
+				const int32 PlaneIndex = Convex.GetVertexPlanes(VertexIndex)[VertexPlaneIndex];
+				const TPlaneConcrete<FReal, 3> Plane = Convex.GetPlane(PlaneIndex);
+				const FVec3 Vertex = Convex.GetVertex(VertexIndex);
+				const FReal VertexDistance = FVec3::DotProduct(Plane.Normal(), Vertex - Plane.X());
+				EXPECT_NEAR(VertexDistance, 0.0f, 1.e-3f);
+			}
+		}
+	}
+
+	// Check that the convex structure data is consistent
+	void TestConvexStructureData(const FVec3* Vertices, const int32 NumVertices)
 	{
 		TParticles<FReal, 3> Particles;
 		Particles.AddParticles(NumVertices);
@@ -92,32 +128,11 @@ namespace ChaosTest
 
 		FConvex Convex(Particles, 0.0f);
 
-		// Check all per-plane data
-		for (int32 PlaneIndex = 0; PlaneIndex < Convex.GetFaces().Num(); ++PlaneIndex)
-		{
-			// All vertices should be on the plane
-			for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < (int32)Convex.GetPlaneVertices(PlaneIndex).Num(); ++PlaneVertexIndex)
-			{
-				const int32 VertexIndex = Convex.GetPlaneVertices(PlaneIndex)[PlaneVertexIndex];
-				const FReal VertexDistance = FVec3::DotProduct(Convex.GetPlane(PlaneIndex).Normal(), Convex.GetVertex(VertexIndex) - Convex.GetPlane(PlaneIndex).X());
-				EXPECT_NEAR(VertexDistance, 0.0f, 1.e-3f);
-			}
-		}
-
-		// Check all per-vertex data
-		for (int32 VertexIndex = 0; VertexIndex < (int32)Convex.GetSurfaceParticles().Size(); ++VertexIndex)
-		{
-			// All planes should pass through the vertex
-			for (int32 VertexPlaneIndex = 0; VertexPlaneIndex < Convex.GetVertexPlanes(VertexIndex).Num(); ++VertexPlaneIndex)
-			{
-				const int32 PlaneIndex = Convex.GetVertexPlanes(VertexIndex)[VertexPlaneIndex];
-				const FReal VertexDistance = FVec3::DotProduct(Convex.GetPlane(PlaneIndex).Normal(), Convex.GetVertex(VertexIndex) - Convex.GetPlane(PlaneIndex).X());
-				EXPECT_NEAR(VertexDistance, 0.0f, 1.e-3f);
-			}
-		}
+		TestConvexStructureDataImpl(Convex);
 	}
 
-	GTEST_TEST(ConvexTests, TestBoxStructureData)
+	// Check that the convex structure data is consistent for a simple convex box
+	GTEST_TEST(ConvexStructureTests, TestConvexStructureData)
 	{
 		const FVec3 Vertices[] =
 		{
@@ -131,10 +146,11 @@ namespace ChaosTest
 			FVec3(50,		50,		50),
 		};
 
-		TestConvex_StructrureData(Vertices, UE_ARRAY_COUNT(Vertices));
+		TestConvexStructureData(Vertices, UE_ARRAY_COUNT(Vertices));
 	}
 
-	GTEST_TEST(ConvexTests, TestBoxStructureData2)
+	// Check that the convex structure data is consistent for a complex convex shape
+	GTEST_TEST(ConvexStructureTests, TestConvexStructureData2)
 	{
 		const FVec3 Vertices[] =
 		{
@@ -158,6 +174,15 @@ namespace ChaosTest
 			FVec3(0, 0, -2.0f),
 		};
 
-		TestConvex_StructrureData(Vertices, UE_ARRAY_COUNT(Vertices));
+		TestConvexStructureData(Vertices, UE_ARRAY_COUNT(Vertices));
 	}
+
+	// Check that the convex structure data is consistent for a standard box
+	GTEST_TEST(ConvexStructureTests, TestBoxStructureData)
+	{
+		FImplicitBox3 Box(FVec3(-50, -50, -50), FVec3(50, 50, 50), 0.0f);
+
+		TestConvexStructureDataImpl(Box);
+	}
+
 }
