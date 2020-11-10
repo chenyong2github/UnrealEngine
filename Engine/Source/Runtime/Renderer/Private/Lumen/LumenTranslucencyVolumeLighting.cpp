@@ -121,14 +121,6 @@ FAutoConsoleVariableRef CVarTranslucencyVolumeVoxelStepFactor(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-int32 GTranslucencyVolumeShortRangeOcclusionFromGlobalSDF = 0;
-FAutoConsoleVariableRef CVarTranslucencyVolumeShortRangeOcclusionFromGlobalSDF(
-	TEXT("r.Lumen.TranslucencyVolume.ShortRangeOcclusionFromGlobalSDF"),
-	GTranslucencyVolumeShortRangeOcclusionFromGlobalSDF,
-	TEXT("."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-	);
-
 float GTranslucencyVolumeVoxelTraceStartDistanceScale = 1.0f;
 FAutoConsoleVariableRef CVarTranslucencyVoxelTraceStartDistanceScale(
 	TEXT("r.Lumen.TranslucencyVolume.VoxelTraceStartDistanceScale"),
@@ -197,7 +189,6 @@ class FTranslucencyLightingCS : public FGlobalShader
 		SHADER_PARAMETER(float, ConeHalfAngle)
 		SHADER_PARAMETER(uint32, NumCones)
 		SHADER_PARAMETER(float, SampleWeight)
-		SHADER_PARAMETER(uint32, ShortRangeOcclusionFromGlobalSDF)
 		SHADER_PARAMETER_ARRAY(FVector4, ConeDirections, [MaxTranslucencyVolumeConeDirections])
 		SHADER_PARAMETER(float, MaxTraceDistance)
 		SHADER_PARAMETER(float, VoxelStepFactor)
@@ -323,7 +314,6 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 			PassParameters->ConeHalfAngle = ConeHalfAngle;
 			//@todo - why is 2.0 factor needed to match opaque?
 			PassParameters->SampleWeight = 2.0f * (PI * 4.0f) / (float)NumSampleDirections;
-			PassParameters->ShortRangeOcclusionFromGlobalSDF = GTranslucencyVolumeShortRangeOcclusionFromGlobalSDF;
 			PassParameters->VoxelTraceStartDistanceScale = GTranslucencyVolumeVoxelTraceStartDistanceScale;
 
 			check(NumSampleDirections <= MaxTranslucencyVolumeConeDirections);

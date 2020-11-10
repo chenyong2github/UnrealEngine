@@ -35,7 +35,6 @@ float4 ConeDirections[64];
 float StepFactor;
 float VoxelStepFactor;
 float SampleWeight;
-uint ShortRangeOcclusionFromGlobalSDF;
 float VoxelTraceStartDistanceScale;
 
 float ComputeDepthFromZSlice(float ZSlice)
