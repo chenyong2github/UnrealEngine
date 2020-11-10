@@ -886,6 +886,8 @@ void FSceneViewState::FEyeAdaptationManager::SwapBuffers(bool bInUpdateLastExpos
 			bReadbackCompleted = true;
 		}
 
+		RHICmdList.Transition(FRHITransitionInfo(ExposureBufferData[CurrentBuffer].UAV, ERHIAccess::Unknown, ERHIAccess::CopySrc));
+
 		if (!ExposureBufferReadback)
 		{
 			static const FName ExposureValueName(TEXT("Scene view state exposure readback"));

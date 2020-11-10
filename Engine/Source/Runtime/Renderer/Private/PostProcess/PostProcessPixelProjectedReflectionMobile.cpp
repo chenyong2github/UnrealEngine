@@ -188,13 +188,18 @@ TGlobalResource<FReflectionPlaneVertexDeclaration> GReflectionPlaneVertexDeclara
 
 void FMobileSceneRenderer::InitPixelProjectedReflectionOutputs(FRHICommandListImmediate& RHICmdList, const FIntPoint& BufferSize)
 {
-	checkSlow(!GPixelProjectedReflectionMobileOutputs.IsValid());
-	GRenderTargetPool.FindFreeElement(RHICmdList, FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_FloatRGBA, FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV, false), GPixelProjectedReflectionMobileOutputs.PixelProjectedReflectionTexture, TEXT("PixelProjectedReflectionTexture"));
+	if (!GPixelProjectedReflectionMobileOutputs.IsValid() || GPixelProjectedReflectionMobileOutputs.PixelProjectedReflectionTexture->GetDesc().Extent != BufferSize)
+	{
+		GPixelProjectedReflectionMobileOutputs.PixelProjectedReflectionTexture.SafeRelease();
+
+		GRenderTargetPool.FindFreeElement(RHICmdList, FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_FloatRGBA, FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV, false), GPixelProjectedReflectionMobileOutputs.PixelProjectedReflectionTexture, TEXT("PixelProjectedReflectionTexture"));
+	}
+
+	RHICmdList.Transition(FRHITransitionInfo(GPixelProjectedReflectionMobileOutputs.PixelProjectedReflectionTexture->GetRenderTargetItem().TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
 }
 
 void FMobileSceneRenderer::ReleasePixelProjectedReflectionOutputs()
 {
-	checkSlow(GPixelProjectedReflectionMobileOutputs.IsValid());
 	GPixelProjectedReflectionMobileOutputs.Release();
 }
 
