@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "XGEControllerModule.h"
-#include "Containers/Queue.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformNamedPipe.h"
 #include "HAL/PlatformFilemanager.h"
@@ -9,6 +8,7 @@
 #include "Misc/ScopeLock.h"
 #include "Misc/Paths.h"
 #include "Misc/Guid.h"
+#include "Modules/ModuleManager.h"
 #include "Serialization/MemoryWriter.h"
 
 // Comma separated list of executable file names which should be intercepted by XGE.
