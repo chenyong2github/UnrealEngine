@@ -179,25 +179,25 @@ class SwitchboardDialog(QtCore.QObject):
         # Plugin UI
         self.device_manager.plug_into_ui(self.window.menu_bar, self.window.tabs_main)
 
-        # Update the UI
-        self.p4_refresh_project_cl()
-        self.p4_refresh_engine_cl()
-        self.refresh_levels()
+        # If starting up with new config, open the menu to create a new one
+        if not CONFIG.file_path:
+            self.menu_new_config()
+        else:
+            self.toggle_p4_controls(CONFIG.P4_ENABLED.get_value())
+            self.refresh_levels()
+            self.update_configs_menu()
+
         self.set_config_hooks()
 
-        self.update_configs_menu()
         self.set_multiuser_session_name(f'{SETTINGS.MUSERVER_SESSION_NAME}')
 
         # Run the transport queue
         #self.transport_queue_resume()
 
-        # If starting up with new config, open the menu to create a new one
-        if not CONFIG.file_path:
-            self.menu_new_config()
-
     def set_config_hooks(self):
         CONFIG.P4_PATH.signal_setting_changed.connect(lambda: self.p4_refresh_project_cl())
         CONFIG.BUILD_ENGINE.signal_setting_changed.connect(lambda: self.p4_refresh_engine_cl())
+        CONFIG.P4_ENABLED.signal_setting_changed.connect(lambda _, enabled: self.toggle_p4_controls(enabled))
         CONFIG.MAPS_PATH.signal_setting_changed.connect(lambda: self.refresh_levels())
         CONFIG.MAPS_FILTER.signal_setting_changed.connect(lambda: self.refresh_levels())
 
@@ -299,13 +299,13 @@ class SwitchboardDialog(QtCore.QObject):
 
         if not os.path.exists(uproject_search_path):
             uproject_search_path = SETTINGS.LAST_BROWSED_PATH
-            
+
         dialog = AddConfigDialog(self.stylesheet, uproject_search_path=uproject_search_path, previous_engine_dir=CONFIG.ENGINE_DIR.get_value(), parent=self.window)
         dialog.exec()
 
         if dialog.result() == QtWidgets.QDialog.Accepted:
 
-            CONFIG.init_new_config(dialog.config_name, dialog.uproject, dialog.engine_dir)
+            CONFIG.init_new_config(project_name=dialog.config_name, uproject=dialog.uproject, engine_dir=dialog.engine_dir, p4_settings=dialog.p4_settings())
 
             # Disable saving while loading
             CONFIG.push_saving_allowed(False)
@@ -324,8 +324,7 @@ class SwitchboardDialog(QtCore.QObject):
                 CONFIG.pop_saving_allowed()
 
             # Update the UI
-            self.p4_refresh_project_cl()
-            self.p4_refresh_engine_cl()
+            self.toggle_p4_controls(CONFIG.P4_ENABLED.get_value())
             self.refresh_levels()
             self.update_configs_menu()
 
@@ -375,6 +374,7 @@ class SwitchboardDialog(QtCore.QObject):
         settings_dialog.set_uproject(CONFIG.UPROJECT_PATH.get_value())
         settings_dialog.set_engine_dir(CONFIG.ENGINE_DIR.get_value())
         settings_dialog.set_build_engine(CONFIG.BUILD_ENGINE.get_value())
+        settings_dialog.set_p4_enabled(bool(CONFIG.P4_ENABLED.get_value()))
         settings_dialog.set_source_control_workspace(CONFIG.SOURCE_CONTROL_WORKSPACE.get_value())
         settings_dialog.set_p4_project_path(CONFIG.P4_PATH.get_value())
         settings_dialog.set_map_path(CONFIG.MAPS_PATH.get_value())
@@ -453,9 +453,13 @@ class SwitchboardDialog(QtCore.QObject):
         if mu_auto_join != CONFIG.MUSERVER_AUTO_JOIN:
             CONFIG.MUSERVER_AUTO_JOIN = mu_auto_join
         
+        CONFIG.P4_ENABLED.update_value(settings_dialog.p4_enabled())
+
         CONFIG.save()
 
     def sync_all_button_clicked(self):
+        if not CONFIG.P4_ENABLED().get_value():
+            return
         device_widgets = self.device_list_widget.device_widgets()
 
         for device_widget in device_widgets:
@@ -470,6 +474,8 @@ class SwitchboardDialog(QtCore.QObject):
                 device_widget.build_button_clicked()
 
     def sync_and_build_all_button_clicked(self):
+        if not CONFIG.P4_ENABLED().get_value():
+            return
         device_widgets = self.device_list_widget.device_widgets()
 
         for device_widget in device_widgets:
@@ -875,6 +881,8 @@ class SwitchboardDialog(QtCore.QObject):
 
     @QtCore.Slot(object)
     def device_widget_sync(self, device_widget):
+        if not CONFIG.P4_ENABLED().get_value():
+            return
         device = self.device_manager.device_with_hash(device_widget.device_hash)
         project_cl = None if self.project_changelist == EMPTY_SYNC_ENTRY else self.project_changelist
         engine_cl = None if self.engine_changelist == EMPTY_SYNC_ENTRY else self.engine_changelist
@@ -1027,6 +1035,8 @@ class SwitchboardDialog(QtCore.QObject):
 
     # Update UI with latest CLs
     def p4_refresh_project_cl(self):
+        if not CONFIG.P4_ENABLED.get_value():
+            return
         LOGGER.info("Refreshing p4 project changelists")
         changelists = p4_utils.p4_latest_changelist(CONFIG.P4_PATH.get_value())
         self.window.project_cl_combo_box.clear()
@@ -1037,6 +1047,8 @@ class SwitchboardDialog(QtCore.QObject):
         self.window.project_cl_combo_box.addItem(EMPTY_SYNC_ENTRY)
 
     def p4_refresh_engine_cl(self):
+        if not CONFIG.P4_ENABLED.get_value():
+            return
         self.window.engine_cl_combo_box.clear()
         # if engine is built from source, refresh the engine cl dropdown
         if CONFIG.BUILD_ENGINE.get_value():
@@ -1071,6 +1083,21 @@ class SwitchboardDialog(QtCore.QObject):
 
         if current_level and current_level in CONFIG.maps():
             self.level = current_level
+
+    def toggle_p4_controls(self, enabled):
+        self.window.engine_cl_label.setEnabled(enabled)
+        self.window.engine_cl_combo_box.setEnabled(enabled)
+        self.window.refresh_engine_cl_button.setEnabled(enabled)
+
+        self.window.project_cl_label.setEnabled(enabled)
+        self.window.project_cl_combo_box.setEnabled(enabled)
+        self.window.refresh_project_cl_button.setEnabled(enabled)
+
+        self.window.sync_all_button.setEnabled(enabled)
+        self.window.sync_and_build_all_button.setEnabled(enabled)
+        if enabled:
+            self.p4_refresh_engine_cl()
+            self.p4_refresh_project_cl()
 
     def osc_take(self, ip_address, command, value):
         device = self._device_from_ip_address(ip_address, command, value=value)

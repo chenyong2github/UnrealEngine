@@ -181,6 +181,8 @@ class DeviceUnreal(Device):
         self.unreal_client.send_message(msg)
 
     def _request_project_changelist_number(self):
+        if not CONFIG.P4_ENABLED.get_value():
+            return
         client_name = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(self.name)
         p4_path = CONFIG.P4_PATH.get_value()
 
@@ -194,6 +196,8 @@ class DeviceUnreal(Device):
         self.unreal_client.send_message(msg)
 
     def _request_engine_changelist_number(self):
+        if not CONFIG.P4_ENABLED.get_value():
+            return
         client_name = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(self.name)
         p4_path = p4_utils.p4_where(client_name, CONFIG.ENGINE_DIR.get_value(self.name))
 
@@ -548,6 +552,8 @@ def parse_unreal_tag_file(file_content):
 class DeviceWidgetUnreal(DeviceWidget):
     def __init__(self, name, device_hash, ip_address, icons, parent=None):
         super().__init__(name, device_hash, ip_address, icons, parent=parent)
+
+        CONFIG.P4_ENABLED.signal_setting_changed.connect(lambda _, enabled: self.sync_button.setVisible(enabled))
 
     def _add_control_buttons(self):
         super()._add_control_buttons()

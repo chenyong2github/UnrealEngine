@@ -124,6 +124,12 @@ class SettingsDialog(QtCore.QObject):
     def set_build_engine(self, value):
         self.ui.build_engine_checkbox.setChecked(value)
 
+    def p4_enabled(self):
+        return self.ui.p4_group_box.isChecked()
+
+    def set_p4_enabled(self, enabled):
+        self.ui.p4_group_box.setChecked(enabled)
+
     def p4_project_path(self):
         return self.ui.p4_project_path_line_edit.text()
 
