@@ -26,6 +26,9 @@ static FAutoConsoleVariableRef CVarHairInterpolationMetric_Angle(TEXT("r.HairStr
 static FAutoConsoleVariableRef CVarHairInterpolationMetric_Length(TEXT("r.HairStrands.InterpolationMetric.Length"), GHairInterpolationMetric_Length, TEXT("Hair strands interpolation metric weights for length"));
 static FAutoConsoleVariableRef CVarHairInterpolationMetric_AngleAttenuation(TEXT("r.HairStrands.InterpolationMetric.AngleAttenuation"), GHairInterpolationMetric_AngleAttenuation, TEXT("Hair strands interpolation angle attenuation"));
 
+static int32 GHairClusterBuilder_MaxVoxelResolution = 256;
+static FAutoConsoleVariableRef CVarHairClusterBuilder_MaxVoxelResolution(TEXT("r.HairStrands.ClusterBuilder.MaxVoxelResolution"), GHairClusterBuilder_MaxVoxelResolution, TEXT("Max voxel resolution used when building hair strands cluster data to avoid too long building time (default:128).  "));
+
 FString FGroomBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
@@ -2053,11 +2056,24 @@ static void InternalBuildClusterData(
 	const float GroupRadius = FVector::Distance(GroupMaxBound, GroupMinBound) * 0.5f;
 
 	// Compute the voxel volume resolution, and snap the max bound to the voxel grid
+	// Iterate until voxel size are below max resolution, so that computation is not too long
 	FIntVector VoxelResolution = FIntVector::ZeroValue;
 	{
-		FVector VoxelResolutionF = (GroupMaxBound - GroupMinBound) / InSettings.ClusterWorldSize;
-		VoxelResolution = FIntVector(FMath::CeilToInt(VoxelResolutionF.X), FMath::CeilToInt(VoxelResolutionF.Y), FMath::CeilToInt(VoxelResolutionF.Z));
-		GroupMaxBound = GroupMinBound + FVector(VoxelResolution) * InSettings.ClusterWorldSize;
+		const int32 MaxResolution = FMath::Max(GHairClusterBuilder_MaxVoxelResolution, 2);
+
+		float ClusterWorldSize = FMath::Max(InSettings.ClusterWorldSize, 0.001f);
+		bool bIsValid = false;
+		while (!bIsValid)
+		{
+			FVector VoxelResolutionF = (GroupMaxBound - GroupMinBound) / ClusterWorldSize;
+			VoxelResolution = FIntVector(FMath::CeilToInt(VoxelResolutionF.X), FMath::CeilToInt(VoxelResolutionF.Y), FMath::CeilToInt(VoxelResolutionF.Z));
+			bIsValid = VoxelResolution.X <= MaxResolution && VoxelResolution.Y <= MaxResolution && VoxelResolution.Z <= MaxResolution;
+			if (!bIsValid)
+			{
+				ClusterWorldSize *= 2;
+			}
+		}
+		GroupMaxBound = GroupMinBound + FVector(VoxelResolution) * ClusterWorldSize;
 	}
 
 	// 2. Insert all rendering curves into the voxel structure
