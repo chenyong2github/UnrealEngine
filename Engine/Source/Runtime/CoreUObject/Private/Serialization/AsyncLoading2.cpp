@@ -461,21 +461,21 @@ public:
 		FIoChunkId HashesId = CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalNameHashes);
 
 		FIoBatch Batch = IoDispatcher.NewBatch();
-		FIoRequest NameRequest = Batch.Read(NamesId, FIoReadOptions());
-		FIoRequest HashRequest = Batch.Read(HashesId, FIoReadOptions());
-		Batch.Issue(IoDispatcherPriority_High);
+		FIoRequest NameRequest = Batch.Read(NamesId, FIoReadOptions(), IoDispatcherPriority_High);
+		FIoRequest HashRequest = Batch.Read(HashesId, FIoReadOptions(), IoDispatcherPriority_High);
+		FEvent* BatchCompletedEvent = FPlatformProcess::GetSynchEventFromPool();
+		Batch.IssueAndTriggerEvent(BatchCompletedEvent);
 
 		ReserveNameBatch(	IoDispatcher.GetSizeForChunk(NamesId).ValueOrDie(),
 							IoDispatcher.GetSizeForChunk(HashesId).ValueOrDie());
 
-		Batch.Wait();
+		BatchCompletedEvent->Wait();
+		FPlatformProcess::ReturnSynchEventToPool(BatchCompletedEvent);
 
 		FIoBuffer NameBuffer = NameRequest.GetResult().ConsumeValueOrDie();
 		FIoBuffer HashBuffer = HashRequest.GetResult().ConsumeValueOrDie();
 
 		Load(MakeArrayView(NameBuffer.Data(), NameBuffer.DataSize()), MakeArrayView(HashBuffer.Data(), HashBuffer.DataSize()), FMappedName::EType::Global);
-
-		IoDispatcher.FreeBatch(Batch);
 	}
 
 	int32 Num() const
@@ -852,22 +852,16 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(SetupInitialLoadData);
 
-		FIoBuffer InitialLoadIoBuffer;
 		FEvent* InitialLoadEvent = FPlatformProcess::GetSynchEventFromPool();
 
-		IoDispatcher.ReadWithCallback(
-			CreateIoChunkId(0, 0, EIoChunkType::LoaderInitialLoadMeta),
-			FIoReadOptions(),
-			IoDispatcherPriority_High,
-			[InitialLoadEvent, &InitialLoadIoBuffer](TIoStatusOr<FIoBuffer> Result)
-			{
-				InitialLoadIoBuffer = Result.ConsumeValueOrDie();
-				InitialLoadEvent->Trigger();
-			});
+		FIoBatch IoBatch = IoDispatcher.NewBatch();
+		FIoRequest IoRequest = IoBatch.Read(CreateIoChunkId(0, 0, EIoChunkType::LoaderInitialLoadMeta), FIoReadOptions(), IoDispatcherPriority_High);
+		IoBatch.IssueAndTriggerEvent(InitialLoadEvent);
 
 		InitialLoadEvent->Wait();
 		FPlatformProcess::ReturnSynchEventToPool(InitialLoadEvent);
 
+		FIoBuffer InitialLoadIoBuffer = IoRequest.GetResult().ConsumeValueOrDie();
 		FLargeMemoryReader InitialLoadArchive(InitialLoadIoBuffer.Data(), InitialLoadIoBuffer.DataSize());
 		int32 NumScriptObjects = 0;
 		InitialLoadArchive << NumScriptObjects;
@@ -906,6 +900,7 @@ public:
 		TAtomic<int32> Remaining(ContainersToLoad);
 
 		FEvent* Event = FPlatformProcess::GetSynchEventFromPool();
+		FIoBatch IoBatch = IoDispatcher.NewBatch();
 
 		for (const FIoDispatcherMountedContainer& Container : Containers)
 		{
@@ -936,7 +931,7 @@ public:
 			LoadedContainer.Order = Container.Environment.GetOrder();
 
 			FIoChunkId HeaderChunkId = CreateIoChunkId(ContainerId.Value(), 0, EIoChunkType::ContainerHeader);
-			IoDispatcher.ReadWithCallback(HeaderChunkId, FIoReadOptions(), IoDispatcherPriority_High, [this, &Remaining, Event, &LoadedContainer](TIoStatusOr<FIoBuffer> Result)
+			IoBatch.ReadWithCallback(HeaderChunkId, FIoReadOptions(), IoDispatcherPriority_High, [this, &Remaining, Event, &LoadedContainer](TIoStatusOr<FIoBuffer> Result)
 			{
 				// Execution method Thread will run the async block synchronously when multithreading is NOT supported
 				const EAsyncExecution ExecutionMethod = FPlatformProcess::SupportsMultithreading() ? EAsyncExecution::TaskGraph : EAsyncExecution::Thread;
@@ -1020,6 +1015,7 @@ public:
 			});
 		}
 
+		IoBatch.Issue();
 		Event->Wait();
 		FPlatformProcess::ReturnSynchEventToPool(Event);
 
@@ -1927,6 +1923,7 @@ private:
 	using FCompletionCallback = TUniquePtr<FLoadPackageAsyncDelegate>;
 	TArray<FCompletionCallback, TInlineAllocator<2>> CompletionCallbacks;
 
+	FIoRequest IoRequest;
 	FIoBuffer IoBuffer;
 	const uint8* CurrentExportDataPtr = nullptr;
 	const uint8* AllExportDataPtr = nullptr;
@@ -2769,6 +2766,7 @@ void FAsyncLoadingThread2::StartBundleIoRequests()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(StartBundleIoRequests);
 	constexpr uint64 MaxPendingRequestsSize = 256 << 20;
+	FIoBatch IoBatch = IoDispatcher.NewBatch();
 	while (WaitingIoRequests.Num())
 	{
 		FBundleIoRequest& BundleIoRequest = WaitingIoRequests.HeapTop();
@@ -2781,7 +2779,7 @@ void FAsyncLoadingThread2::StartBundleIoRequests()
 		WaitingIoRequests.HeapPop(BundleIoRequest, false);
 
 		FIoReadOptions ReadOptions;
-		IoDispatcher.ReadWithCallback(CreateIoChunkId(Package->Desc.DiskPackageId.Value(), 0, EIoChunkType::ExportBundleData),
+		Package->IoRequest = IoBatch.ReadWithCallback(CreateIoChunkId(Package->Desc.DiskPackageId.Value(), 0, EIoChunkType::ExportBundleData),
 			ReadOptions,
 			IoDispatcherPriority_Medium,
 			[Package](TIoStatusOr<FIoBuffer> Result)
@@ -2801,6 +2799,7 @@ void FAsyncLoadingThread2::StartBundleIoRequests()
 		});
 		TRACE_COUNTER_DECREMENT(PendingBundleIoRequests);
 	}
+	IoBatch.Issue();
 }
 
 FEventLoadNode2::FEventLoadNode2(const FAsyncLoadEventSpec* InSpec, FAsyncPackage2* InPackage, int32 InImportOrExportIndex, int32 InBarrierCount)

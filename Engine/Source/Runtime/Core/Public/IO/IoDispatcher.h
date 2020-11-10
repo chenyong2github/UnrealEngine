@@ -15,6 +15,7 @@
 #include "Misc/AES.h"
 #include "Misc/IEngineCrypto.h"
 #include "Serialization/FileRegions.h"
+#include "Async/TaskGraphInterfaces.h"
 
 class FIoRequest;
 class FIoDispatcher;
@@ -769,49 +770,25 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
-class FIoBatchReadOptions
-{
-public:
-	FIoBatchReadOptions() = default;
-
-	void SetTargetVa(void* InTargetVa)
-	{
-		TargetVa = InTargetVa;
-	}
-
-	void* GetTargetVa() const
-	{
-		return TargetVa;
-	}
-
-private:
-	void* TargetVa = nullptr;
-};
-
-//////////////////////////////////////////////////////////////////////////
-
 /**
   */
-class FIoRequest
+class FIoRequest final
 {
 public:
 	FIoRequest() = default;
+	CORE_API ~FIoRequest();
 
-	FIoRequest(const FIoRequest&) = default;
-	FIoRequest& operator=(const FIoRequest&) = default;
-
-	CORE_API bool							IsOk() const;
+	CORE_API FIoRequest(const FIoRequest& Other);
+	CORE_API FIoRequest(FIoRequest&& Other);
+	CORE_API FIoRequest& operator=(const FIoRequest& Other);
+	CORE_API FIoRequest& operator=(FIoRequest&& Other);
 	CORE_API FIoStatus						Status() const;
-	CORE_API const FIoChunkId&				GetChunkId() const;
-	CORE_API TIoStatusOr<FIoBuffer>			GetResult() const;
+	CORE_API TIoStatusOr<FIoBuffer>			GetResult();
 
 private:
 	FIoRequestImpl* Impl = nullptr;
 
-	explicit FIoRequest(FIoRequestImpl* InImpl)
-	: Impl(InImpl)
-	{
-	}
+	explicit FIoRequest(FIoRequestImpl* InImpl);
 
 	friend class FIoDispatcher;
 	friend class FIoDispatcherImpl;
@@ -834,47 +811,52 @@ enum EIoDispatcherPriority : uint8
 	This is a primitive used to group I/O requests for synchronization
 	purposes
   */
-class FIoBatch
+class FIoBatch final
 {
 	friend class FIoDispatcher;
-
-	FIoBatch(FIoDispatcherImpl* InDispatcher, FIoBatchImpl* InImpl);
+	friend class FIoDispatcherImpl;
 
 public:
-	FIoBatch() = default;
+	CORE_API FIoBatch(FIoBatch&& Other);
+	CORE_API ~FIoBatch();
+	CORE_API FIoBatch& operator=(FIoBatch&& Other);
+	CORE_API FIoRequest Read(const FIoChunkId& Chunk, FIoReadOptions Options, EIoDispatcherPriority Priority);
+	CORE_API FIoRequest ReadWithCallback(const FIoChunkId& ChunkId, const FIoReadOptions& Options, EIoDispatcherPriority Priority, FIoReadCallback&& Callback);
 
-	CORE_API bool IsValid() const;
+	CORE_API void Issue();
+	CORE_API void IssueWithCallback(TFunction<void()>&& Callback);
+	CORE_API void IssueAndTriggerEvent(FEvent* Event);
+	CORE_API void IssueAndDispatchSubsequents(FGraphEventRef Event);
 
-	CORE_API FIoRequest Read(const FIoChunkId& Chunk, FIoReadOptions Options);
+	UE_DEPRECATED(4.26, "Use FIoDispatcher::NewBatch() instead")
+	CORE_API FIoBatch();
 
-	CORE_API void ForEachRequest(TFunction<bool(FIoRequest&)>&& Callback);
+	UE_DEPRECATED(4.26, "Use move assignment instead")
+	CORE_API FIoBatch& operator=(const FIoBatch&);
 
-	/**
-	 * Initiates the loading of the batch as individual requests.
-	 */
+	UE_DEPRECATED(4.26, "Remove this call")
+	CORE_API bool IsValid() const
+	{
+		return true;
+	}
+
+	UE_DEPRECATED(4.26, "Specify priority on each Read()")
+	CORE_API FIoRequest Read(const FIoChunkId& Chunk, FIoReadOptions Options)
+	{
+		return Read(Chunk, Options, IoDispatcherPriority_Medium);
+	}
+
+	UE_DEPRECATED(4.26, "Specify priority on each Read()")
 	CORE_API void Issue(EIoDispatcherPriority Priority);
 
-	/**
-	 * Initiates the loading of the batch to a single contiguous output buffer. The requests will be in the
-	 * same order that they were added to the FIoBatch.
-	 * NOTE: It is not valid to call this on a batch containing requests that have been given a TargetVa to 
-	 * read into as the requests are supposed to read into the batch's output buffer, doing so will cause the
-	 * method to return an error 'InvalidParameter'.
-	 *
-	 * @param Options A set of options allowing customization on how the load will work.
-	 * @param Callback An optional callback that will be triggered once the batch has finished loading. 
-	 * The batch's output buffer will be provided as the parameter of the callback.
-	 *
-	 * @return This methods had the capacity to fail so the return value should be checked.
-	 */
-	UE_NODISCARD CORE_API FIoStatus IssueWithCallback(FIoBatchReadOptions Options, EIoDispatcherPriority Priority, FIoReadCallback&& Callback);
-	
-	CORE_API void Wait();
-	CORE_API void Cancel();
 
 private:
-	FIoDispatcherImpl*	Dispatcher		= nullptr;
-	FIoBatchImpl*		Impl			= nullptr;
+	FIoBatch(FIoDispatcherImpl& InDispatcher);
+	FIoRequestImpl* ReadInternal(const FIoChunkId& ChunkId, const FIoReadOptions& Options, EIoDispatcherPriority Priority);
+
+	FIoDispatcherImpl*	Dispatcher;
+	FIoRequestImpl*		HeadRequest = nullptr;
+	FIoRequestImpl*		TailRequest = nullptr;
 };
 
 /**
@@ -921,10 +903,12 @@ public:
 	CORE_API FIoStatus				Mount(const FIoStoreEnvironment& Environment, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey);
 
 	CORE_API FIoBatch				NewBatch();
-	CORE_API void					FreeBatch(FIoBatch& Batch);
 
+	UE_DEPRECATED(4.26, "Remove this call")
+	CORE_API void					FreeBatch(FIoBatch& Batch)
+	{
+	}
 
-	CORE_API void					ReadWithCallback(const FIoChunkId& ChunkId, const FIoReadOptions& Options, EIoDispatcherPriority Priority, FIoReadCallback&& Callback);
 	CORE_API TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options);
 
 	// Polling methods
