@@ -5865,7 +5865,7 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 	const bool bIsBlending = (
 			(CameraCutParams.bCanBlend) &&
 			(CameraCutParams.BlendTime > 0.f) &&
-			BlendFactor < 1.f - SMALL_NUMBER &&
+			(BlendFactor < 1.f - SMALL_NUMBER) &&
 			(CameraActor != nullptr || PreviousCameraActor != nullptr));
 
 	// To preview blending we'll have to offset the viewport camera using the view modifiers API.
