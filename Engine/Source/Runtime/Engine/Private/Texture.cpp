@@ -29,6 +29,7 @@
 
 #if WITH_EDITOR
 #include "TextureCompiler.h"
+#include "Misc/ScopeRWLock.h"
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -1181,6 +1182,9 @@ bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, i
 	bool bSuccess = false;
 	if (BlockIndex < GetNumBlocks() && LayerIndex < NumLayers && MipIndex < NumMips && BulkData.GetBulkDataSize() > 0)
 	{
+#if WITH_EDITOR
+		FWriteScopeLock BulkDataExclusiveScope(BulkDataLock.Get());
+#endif
 		void* RawSourceData = BulkData.Lock(LOCK_READ_ONLY);
 		if (bPNGCompressed)
 		{

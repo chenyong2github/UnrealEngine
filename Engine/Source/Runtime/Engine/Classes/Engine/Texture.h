@@ -19,6 +19,11 @@
 #include "Engine/StreamableRenderAsset.h"
 #include "PerPlatformProperties.h"
 #include "Misc/FieldAccessor.h"
+
+#if WITH_EDITOR
+#include "Templates/DontCopy.h"
+#endif
+
 #include "Texture.generated.h"
 
 class ITargetPlatform;
@@ -334,6 +339,10 @@ private:
 	friend class UVolumeTexture;
 	friend class UTexture2DArray;
 
+#if WITH_EDITOR
+	/** Protects simultaneous access to BulkData */
+	TDontCopy<FRWLock> BulkDataLock;
+#endif
 	/** The bulk source data. */
 	FByteBulkData BulkData;
 	/** Pointer to locked mip data, if any. */
