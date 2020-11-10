@@ -150,8 +150,14 @@ void UQuartzClockHandle::UnsubscribeFromAllTimeDivisions(const UObject* WorldCon
 }
 
 // Metronome Alteration (setters)
-void UQuartzClockHandle::SetMillisecondsPerTick(const UObject* WorldContextObject, float MillisecondsPerTick, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
+void UQuartzClockHandle::SetMillisecondsPerTick(const UObject* WorldContextObject, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, float MillisecondsPerTick)
 {
+	if (MillisecondsPerTick < 0 || FMath::IsNearlyZero(MillisecondsPerTick))
+	{
+		UE_LOG(LogAudioQuartz, Warning, TEXT("Ignoring invalid request on Clock: %s: MillisecondsPerTick was %f"), *this->CurrentClockId.ToString(), MillisecondsPerTick);
+		return;
+	}
+
 	if (QuartzSubsystem)
 	{
 		Audio::FQuartzClockTickRate TickRate;
@@ -162,8 +168,14 @@ void UQuartzClockHandle::SetMillisecondsPerTick(const UObject* WorldContextObjec
 	}
 }
 
-void UQuartzClockHandle::SetTicksPerSecond(const UObject* WorldContextObject, float TicksPerSecond, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
+void UQuartzClockHandle::SetTicksPerSecond(const UObject* WorldContextObject, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, float TicksPerSecond)
 {
+	if (TicksPerSecond < 0 || FMath::IsNearlyZero(TicksPerSecond))
+	{
+		UE_LOG(LogAudioQuartz, Warning, TEXT("Ignoring invalid request on Clock: %s: TicksPerSecond was %f"), *this->CurrentClockId.ToString(), TicksPerSecond);
+		return;
+	}
+
 	if (QuartzSubsystem)
 	{
 		Audio::FQuartzClockTickRate TickRate;
@@ -174,8 +186,14 @@ void UQuartzClockHandle::SetTicksPerSecond(const UObject* WorldContextObject, fl
 	}
 }
 
-void UQuartzClockHandle::SetSecondsPerTick(const UObject* WorldContextObject, float SecondsPerTick, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
+void UQuartzClockHandle::SetSecondsPerTick(const UObject* WorldContextObject, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, float SecondsPerTick)
 {
+	if (SecondsPerTick < 0 || FMath::IsNearlyZero(SecondsPerTick))
+	{
+		UE_LOG(LogAudioQuartz, Warning, TEXT("Ignoring invalid request on Clock: %s: SecondsPerTick was %f"), *this->CurrentClockId.ToString(), SecondsPerTick);
+		return;
+	}
+
 	if (QuartzSubsystem)
 	{
 		Audio::FQuartzClockTickRate TickRate;
@@ -186,8 +204,14 @@ void UQuartzClockHandle::SetSecondsPerTick(const UObject* WorldContextObject, fl
 	}
 }
 
-void UQuartzClockHandle::SetThirtySecondNotesPerMinute(const UObject* WorldContextObject, float ThirtySecondsNotesPerMinute, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
+void UQuartzClockHandle::SetThirtySecondNotesPerMinute(const UObject* WorldContextObject, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, float ThirtySecondsNotesPerMinute)
 {
+	if (ThirtySecondsNotesPerMinute < 0 || FMath::IsNearlyZero(ThirtySecondsNotesPerMinute))
+	{
+		UE_LOG(LogAudioQuartz, Warning, TEXT("Ignoring invalid request on Clock: %s: ThirtySecondsNotesPerMinute was %f"), *this->CurrentClockId.ToString(), ThirtySecondsNotesPerMinute);
+		return;
+	}
+
 	if (QuartzSubsystem)
 	{
 		Audio::FQuartzClockTickRate TickRate;
@@ -198,8 +222,14 @@ void UQuartzClockHandle::SetThirtySecondNotesPerMinute(const UObject* WorldConte
 	}
 }
 
-void UQuartzClockHandle::SetBeatsPerMinute(const UObject* WorldContextObject, float BeatsPerMinute, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
+void UQuartzClockHandle::SetBeatsPerMinute(const UObject* WorldContextObject, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, float BeatsPerMinute)
 {
+	if (BeatsPerMinute < 0 || FMath::IsNearlyZero(BeatsPerMinute))
+	{
+		UE_LOG(LogAudioQuartz, Warning, TEXT("Ignoring invalid request on Clock: %s: BeatsPerMinute was %f"), *this->CurrentClockId.ToString(), BeatsPerMinute);
+		return;
+	}
+
 	if (QuartzSubsystem)
 	{
 		Audio::FQuartzClockTickRate TickRate;
