@@ -124,8 +124,14 @@ namespace Audio
 		RecalculateDurations();
 	}
 
-	int32 FQuartzMetronome::GetFramesUntilBoundary(const FQuartzQuantizationBoundary& InQuantizationBoundary) const
+	int32 FQuartzMetronome::GetFramesUntilBoundary(FQuartzQuantizationBoundary InQuantizationBoundary) const
 	{
+		if (InQuantizationBoundary.Multiplier < 1.0f)
+		{
+			UE_LOG(LogAudioQuartz, Warning, TEXT("Quantizatoin Boundary being clamped to 1.0 (from %f)"), InQuantizationBoundary.Multiplier);
+			InQuantizationBoundary.Multiplier = 1.f;
+		}
+
 		// number of frames until the next occurrence of this boundary
 		int32 FramesUntilBoundary = FramesLeftInMusicalDuration[InQuantizationBoundary.Quantization];
 
