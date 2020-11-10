@@ -1032,8 +1032,6 @@ void FPrimitiveSceneInfo::UnlinkLODParentComponent()
 	if(LODParentComponentId.IsValid())
 	{
 		Scene->SceneLODHierarchy.RemoveChildNode(LODParentComponentId, this);
-		// I don't think this will be reused but just in case
-		LODParentComponentId = FPrimitiveComponentId();
 	}
 }
 
