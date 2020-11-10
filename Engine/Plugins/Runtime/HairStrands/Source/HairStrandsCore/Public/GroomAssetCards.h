@@ -145,8 +145,8 @@ struct HAIRSTRANDSCORE_API FHairGroupsProceduralCards
 UENUM(BlueprintType)
 enum class EHairCardsSourceType : uint8
 {
-	Procedural,
-	Imported,
+	Procedural  UMETA(DisplayName = "Procedural (experimental)"),
+	Imported UMETA(DisplayName = "Imported"),
 };
 
 USTRUCT(BlueprintType)
@@ -199,7 +199,7 @@ struct HAIRSTRANDSCORE_API FHairGroupsCardsSourceDescription
 	FName MaterialSlotName;
 
 	UPROPERTY(EditAnywhere, Category = "CardsSource")
-	EHairCardsSourceType SourceType = EHairCardsSourceType::Procedural;
+	EHairCardsSourceType SourceType = EHairCardsSourceType::Imported;
 
 	UPROPERTY(EditAnywhere, Category = "CardsSource")
 	UStaticMesh* ProceduralMesh = nullptr;
