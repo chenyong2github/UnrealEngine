@@ -514,43 +514,49 @@ namespace DisplayClusterHelpers
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	namespace math
 	{
+		inline void GetNonZeroFrustumRange(float& InOutValue0, float& InOutValue1, float n)
+		{
+			static const float MinHalfFOVRangeRad = FMath::DegreesToRadians(0.5f);
+			static const float MinRangeBase = FMath::Tan(MinHalfFOVRangeRad * 2);;
+
+			const float MinRangeValue = n * MinRangeBase;
+			if ((InOutValue1 - InOutValue0) < MinRangeValue)
+			{
+				// Get minimal values from center of range
+				const float CenterRad = (FMath::Atan(InOutValue0 / n) + (FMath::Atan(InOutValue1 / n))) * 0.5f;
+				InOutValue0 = float(n * FMath::Tan(CenterRad - MinHalfFOVRangeRad));
+				InOutValue1 = float(n * FMath::Tan(CenterRad + MinHalfFOVRangeRad));
+			}
+		}
+
 		static FMatrix GetProjectionMatrixFromOffsets(float l, float r, float t, float b, float n, float f)
 		{
 			// Protect PrjMatrix from bad input values, and fix\clamp FOV to limits
 			{
-				static const float MinFOVRad = FMath::DegreesToRadians(1.0f);   // min FOV = 1 degree
-				static const float MaxFOVRad = FMath::DegreesToRadians(178.0f); // max FOV = 179 degree
-
 				// Protect from broken input data, return valid matrix
-				if (isnan(l) || isnan(r) || isnan(t) || isnan(b) || isnan(n) || isnan(f))
+				if (isnan(l) || isnan(r) || isnan(t) || isnan(b) || isnan(n) || isnan(f) || n <= 0)
 				{
 					return FMatrix::Identity;
 				}
 
-				const float LeftFOVRad   = FMath::Atan(l / n);
-				const float RightFOVRad  = FMath::Atan(r / n);
-				const float TopFOVRad    = FMath::Atan(t / n);
-				const float BottomFOVRad = FMath::Atan(b / n);
-
-
-				// clamp FOV values:
-				const float FOVRadH = (RightFOVRad - LeftFOVRad);
-				if ((FOVRadH < MinFOVRad) || (FOVRadH > MaxFOVRad))
+				// Ignore inverted frustum
+				if (l > r || b > t)
 				{
-					const float fixValue = ((FOVRadH > MaxFOVRad) ? MaxFOVRad : MinFOVRad) * .5f;
-					const float CenterHFovRad = LeftFOVRad + (FOVRadH * 0.5f);
-					l = float(n * FMath::Tan(CenterHFovRad - fixValue));
-					r = float(n * FMath::Tan(CenterHFovRad + fixValue));
+					return FMatrix::Identity;
 				}
 
-				const float FOVRadV = (TopFOVRad - BottomFOVRad);
-				if ((FOVRadV < MinFOVRad) || (FOVRadV > MaxFOVRad))
+				// Clamp frustum values in range -89..89 degree
+				static const float MaxValueBase = FMath::Tan(FMath::DegreesToRadians(89));
 				{
-					const float fixValue = ((FOVRadV > MaxFOVRad) ? MaxFOVRad : MinFOVRad) * .5f;
-					const float CenterVFovRad = BottomFOVRad + (FOVRadV * 0.5f);
-					b = float(n * FMath::Tan(CenterVFovRad - fixValue));
-					t = float(n * FMath::Tan(CenterVFovRad + fixValue));
+					const float MaxValue = n * MaxValueBase;
+					l = FMath::Clamp(l, -MaxValue, MaxValue);
+					r = FMath::Clamp(r, -MaxValue, MaxValue);
+					t = FMath::Clamp(t, -MaxValue, MaxValue);
+					b = FMath::Clamp(b, -MaxValue, MaxValue);
 				}
+
+				GetNonZeroFrustumRange(l, r, n);
+				GetNonZeroFrustumRange(b, t, n);
 			}
 
 			const float mx = 2.f * n / (r - l);

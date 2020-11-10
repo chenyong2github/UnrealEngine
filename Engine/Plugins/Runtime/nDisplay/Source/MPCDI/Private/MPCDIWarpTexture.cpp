@@ -83,7 +83,7 @@ bool FMPCDIWarpTexture::CalcFrustum_TextureBOX(int DivX, int DivY, const IMPCDI:
 	for(const auto It: TextureBoxCache)
 	{
 		const FVector4& Pts = v[It];
-		if (!CalcFrustumFromVertex(Pts, World2Local, Top, Bottom, Left, Right))
+		if (!GetProjectionClip(Pts, World2Local, Top, Bottom, Left, Right))
 		{
 			bResult = false;
 		}
@@ -103,7 +103,7 @@ bool FMPCDIWarpTexture::CalcFrustum_fullCPU(const IMPCDI::FFrustum& OutFrustum, 
 	for (int i = 0; i < Count; ++i)
 	{
 		const FVector4& Pts = v[i];
-		if(!CalcFrustumFromVertex(Pts, World2Local, Top, Bottom, Left, Right))
+		if(!GetProjectionClip(Pts, World2Local, Top, Bottom, Left, Right))
 		{
 			bResult = false;
 		}

@@ -116,7 +116,7 @@ bool FMPCDIWarpMesh::CalcFrustum_fullCPU(const IMPCDI::FFrustum& OutFrustum, con
 		for (uint32 i = 0; i < VertexPosition.GetNumVertices(); i++)
 		{
 			const FVector4 Pts = FVector4(VertexPosition.VertexPosition(i),1);
-			if (!CalcFrustumFromVertex(Pts, WorldToMesh, Top, Bottom, Left, Right))
+			if (!GetProjectionClip(Pts, WorldToMesh, Top, Bottom, Left, Right))
 			{
 				bResult = false;
 			}
