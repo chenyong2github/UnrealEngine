@@ -432,6 +432,12 @@ void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& Proper
 			}
 		}
 	}
+	else
+	{
+		// User parameter values may have changed off of Undo/Redo, which calls this with a nullptr, so we need to propagate those. 
+		// The editor may no longer be open, so we should do this within the system to properly propagate.
+		ExposedParameters.PostGenericEditChange();
+	}
 
 	UpdateDITickFlags();
 	UpdateHasGPUEmitters();
@@ -1845,6 +1851,7 @@ bool UNiagaraSystem::GetFromDDC(FEmitterCompiledScriptPair& ScriptPair)
 }
 
 #if WITH_EDITORONLY_DATA
+
 void UNiagaraSystem::InitEmitterVariableAliasNames(FNiagaraEmitterCompiledData& EmitterCompiledDataToInit, const UNiagaraEmitter* InAssociatedEmitter)
 {
 	EmitterCompiledDataToInit.EmitterSpawnIntervalVar.SetName(GetEmitterVariableAliasName(SYS_PARAM_EMITTER_SPAWN_INTERVAL, InAssociatedEmitter));
