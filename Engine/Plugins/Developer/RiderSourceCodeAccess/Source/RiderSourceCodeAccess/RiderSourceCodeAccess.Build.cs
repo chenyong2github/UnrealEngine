@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 namespace UnrealBuildTool.Rules
 {
@@ -15,19 +15,14 @@ namespace UnrealBuildTool.Rules
                     "DesktopPlatform",
 					"Projects",
 					"Json"
-                }
-            );
+				}
+			);
 
 			if (Target.Type == TargetType.Editor)
 			{
 				PrivateDependencyModuleNames.Add("UnrealEd");
 				PrivateDependencyModuleNames.Add("GameProjectGeneration");
 			}
-
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-            {
-                PrivateIncludePaths.Add("RiderSourceCodeAccess/Private/RiderPathLocatorWin");
-            }
 		}
 	}
 }
