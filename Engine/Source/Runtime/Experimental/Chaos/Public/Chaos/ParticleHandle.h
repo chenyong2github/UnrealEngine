@@ -656,6 +656,11 @@ public:
 		SetW(Velocities.W());
 	}
 
+	void SetKinematicTarget(const TKinematicTarget<T, d>& InKinematicTarget)
+	{
+		KinematicGeometryParticles->KinematicTarget(ParticleIdx) = InKinematicTarget;
+	}
+
 	const TKinematicTarget<T, d>& KinematicTarget() const { return KinematicGeometryParticles->KinematicTarget(ParticleIdx); }
 	TKinematicTarget<T, d>& KinematicTarget() { return KinematicGeometryParticles->KinematicTarget(ParticleIdx); }
 
@@ -2090,6 +2095,7 @@ public:
 	{
 		TGeometryParticle<T, d>::Serialize(Ar);
 		Ar << MVelocities;
+		//Ar << MKinematicTarget; // TODO
 	}
 
 	const TVector<T, d>& V() const { return MVelocities.Read().V(); }
@@ -2097,6 +2103,15 @@ public:
 
 	const TVector<T, d>& W() const { return MVelocities.Read().W(); }
 	void SetW(const TVector<T, d>& InW, bool bInvalidate = true);
+
+	const FKinematicTarget KinematicTarget() const {
+		return MKinematicTarget.Read();
+	}
+
+	void SetKinematicTarget(const FKinematicTarget& KinematicTarget, bool bInvalidate = true)
+	{
+		MKinematicTarget.Write(KinematicTarget, bInvalidate, MDirtyFlags, Proxy);
+	}
 
 	void SetVelocities(const FParticleVelocities& InVelocities,bool bInvalidate = true)
 	{
@@ -2107,12 +2122,14 @@ public:
 
 private:
 	TParticleProperty<FParticleVelocities, EParticleProperty::Velocities> MVelocities;
+	TParticleProperty<FKinematicTarget, EParticleProperty::KinematicTarget> MKinematicTarget;
 
 protected:
 	virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, const FParticleDirtyData& RemoteData) const
 	{
 		Base::SyncRemoteDataImp(Manager, DataIdx, RemoteData);
 		MVelocities.SyncRemote(Manager, DataIdx, RemoteData);
+		MKinematicTarget.SyncRemote(Manager, DataIdx, RemoteData);
 	}
 };
 
@@ -2132,7 +2149,8 @@ public:
 	TKinematicGeometryParticleData(const TKinematicGeometryParticle<T, d>& InParticle)
 		: Base(InParticle)
 		, MV(InParticle.V())
-		, MW(InParticle.W()) 
+		, MW(InParticle.W())
+		, MKinematicTarget(InParticle.KinematicTarget())
 	{
 		Type = EParticleType::Kinematic;
 	}
@@ -2143,6 +2161,7 @@ public:
 		Type = EParticleType::Kinematic;
 		MV = TVector<T, d>(0);
 		MW = TVector<T, d>(0);
+		MKinematicTarget.Clear();
 	}
 
 	void Init(const TKinematicGeometryParticle<T, d>& InParticle) {
@@ -2150,9 +2169,11 @@ public:
 			MV = InParticle.V();
 			MW = InParticle.W();
 			Type = EParticleType::Kinematic;
+			MKinematicTarget = InParticle.KinematicTarget();
 	}
 	TVector<T, d> MV;
 	TVector<T, d> MW;
+	TKinematicTarget<T, d> MKinematicTarget;
 };
 
 

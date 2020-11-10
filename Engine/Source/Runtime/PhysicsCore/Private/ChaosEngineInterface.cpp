@@ -6,6 +6,7 @@
 #include "PhysicsPublicCore.h"
 #include "BodyInstanceCore.h"
 #include "Chaos/ChaosScene.h"
+#include "Chaos/KinematicTargets.h"
 #include "PhysicsInterfaceDeclaresCore.h"
 
 FPhysicsDelegatesCore::FOnUpdatePhysXMaterial FPhysicsDelegatesCore::OnUpdatePhysXMaterial;
@@ -1597,9 +1598,13 @@ void FChaosEngineInterface::SetGlobalPose_AssumesLocked(const FPhysicsActorHandl
 
 void FChaosEngineInterface::SetKinematicTarget_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FTransform& InNewTarget)
 {
-	// #todo : Implement
-	//for now just use global pose
-	FChaosEngineInterface::SetGlobalPose_AssumesLocked(InActorReference,InNewTarget);
+	Chaos::TKinematicGeometryParticle<float, 3>* KinematicGeometryParticle = InActorReference->CastToKinematicParticle();
+	if (KinematicGeometryParticle)
+	{
+		Chaos::TKinematicTarget<float, 3> newKinematicTarget;
+		newKinematicTarget.SetTargetMode(InNewTarget);
+		KinematicGeometryParticle->SetKinematicTarget(newKinematicTarget);
+	}
 }
 
 #elif WITH_ENGINE //temp physx code to make moving out of engine easier
