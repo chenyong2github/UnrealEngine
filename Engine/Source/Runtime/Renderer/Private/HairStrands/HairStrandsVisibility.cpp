@@ -3362,7 +3362,8 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 				if (GHairStrandsViewTransmittancePassEnable > 0 && RenderMode != HairVisibilityRenderMode_PPLL)
 				{
 					// Note: Hair count is required for the sky lighting at the moment as it is used for the TT term
-					const bool bOutputHairCount = GetHairStrandsSkyLightingEnable() || GHairStrandsHairCountToTransmittance > 0;
+					// TT sampling is disable in hair sky lighting integrator 0. So the GetHairStrandsSkyLightingEnable() check is no longer needed
+					const bool bOutputHairCount = GHairStrandsHairCountToTransmittance > 0;
 					ViewTransmittance = AddHairViewTransmittancePass(
 						GraphBuilder,
 						Scene,
