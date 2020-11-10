@@ -9,6 +9,8 @@
 #include "HAL/ThreadSafeBool.h"
 #include "Misc/SingleThreadRunnable.h"
 #include "OnlineSubsystemPackage.h"
+#include "Containers/Queue.h"
+#include <atomic>
 
 /**
  * Base class of any async task that can be returned to the game thread by the async task manager
@@ -313,7 +315,13 @@ protected:
 	/** Critical section for thread safe operation of the event in queue */
 	FCriticalSection InQueueLock;
 
+	/** Number of tasks that can run in parallel */
+	int32 MaxParallelTasks;
+	/** Signal game thread to reload the MaxParallelTasks value from config */
+	std::atomic<bool> bReloadMaxParallelTasksConfig;
 	/** This queue is for tasks that are safe to run in parallel with one another */
+	TQueue<FOnlineAsyncTask*, EQueueMode::Mpsc> QueuedParallelTasks;
+	/** Tasks that are running in parallel */
 	TArray<FOnlineAsyncTask*> ParallelTasks;
 	/** Critical section for thread safe operation of the list */
 	FCriticalSection ParallelTasksLock;
