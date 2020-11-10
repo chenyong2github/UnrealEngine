@@ -165,6 +165,10 @@ static EHairMaterialCompatibility IsHairMaterialCompatible(UMaterialInterface* M
 	// of goemetry
 	if (MaterialInterface)
 	{
+		if (GeometryType != Strands)
+		{
+			return EHairMaterialCompatibility::Valid;
+		}
 		const FMaterialRelevance Relevance = MaterialInterface->GetRelevance_Concurrent(FeatureLevel);
 		const bool bIsRelevanceInitialized = Relevance.Raw != 0;
 		if (bIsRelevanceInitialized && !Relevance.bHairStrands)
