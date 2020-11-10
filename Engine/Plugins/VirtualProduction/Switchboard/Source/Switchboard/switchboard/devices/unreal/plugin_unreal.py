@@ -50,11 +50,18 @@ class DeviceUnreal(Device):
             attr_name="stage_session_id", 
             nice_name="Stage Session ID",
             value=0,
+            tool_tip="An ID that groups Stage Monitor providers and monitors. Instances with different Session IDs are invisible to each other in Stage Monitor.",
         ),
         'ue4_exe': Setting(
             attr_name="editor_exe", 
             nice_name="UE4 Editor filename", 
             value="UE4Editor.exe",
+        ),
+        'max_gpu_count': Setting(
+            attr_name="max_gpu_count", 
+            nice_name="Number of GPUs",
+            value=1,
+            tool_tip="If you have multiple GPUs in the PC, you can specify how many to use.",
         ),
     }
 
@@ -123,6 +130,7 @@ class DeviceUnreal(Device):
             Device.csettings['is_recording_device'],
             DeviceUnreal.csettings['command_line_arguments'],
             DeviceUnreal.csettings['exec_cmds'],
+            DeviceUnreal.csettings['max_gpu_count'],
             CONFIG.ENGINE_DIR,
             CONFIG.SOURCE_CONTROL_WORKSPACE,
             CONFIG.UPROJECT_PATH,
@@ -404,7 +412,8 @@ class DeviceUnreal(Device):
             command_line_args += f' -CONCERTRETRYAUTOCONNECTONERROR -CONCERTAUTOCONNECT -CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME} -CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME} -CONCERTDISPLAYNAME={self.name}'
         
         exec_cmds = f'{DeviceUnreal.csettings["exec_cmds"].get_value(self.name)}'.strip()
-        command_line_args += f' ExecCmds={exec_cmds} '
+        if len(exec_cmds):
+            command_line_args += f' ExecCmds={exec_cmds} '
 
         selected_roles = self.setting_roles.get_value()
         unsupported_roles = [role for role in selected_roles if role not in self.setting_roles.possible_values]
@@ -415,10 +424,19 @@ class DeviceUnreal(Device):
         if unsupported_roles:
             LOGGER.error(f"{self.name}: Omitted unsupported roles: {'|'.join(unsupported_roles)}")
 
+        # Session ID
+        #
         session_id = DeviceUnreal.csettings["stage_session_id"].get_value()
         if session_id > 0:
             command_line_args += f" -StageSessionId={session_id}"
+
         command_line_args += f" -StageFriendlyName={self.name}"
+
+        # Max GPU Count (mGPU)
+        #
+        max_gpu_count = DeviceUnreal.csettings["max_gpu_count"].get_value(self.name)
+        if max_gpu_count > 1:
+            command_line_args += f" -MaxGPUCount={max_gpu_count} "
 
         args = f'"{CONFIG.UPROJECT_PATH.get_value(self.name)}" {map_name} {command_line_args}'
         return args

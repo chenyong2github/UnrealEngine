@@ -202,6 +202,7 @@ class DevicenDisplay(DeviceUnreal):
             DeviceUnreal.csettings['port'], 
             DeviceUnreal.csettings['roles_filename'],
             DeviceUnreal.csettings['stage_session_id'],
+            DeviceUnreal.csettings['max_gpu_count'],
         ]
 
     def device_settings(self):
@@ -214,6 +215,7 @@ class DevicenDisplay(DeviceUnreal):
         return [
             DevicenDisplay.csettings['ndisplay_cmd_args'],
             DevicenDisplay.csettings['ndisplay_exec_cmds'],
+            DeviceUnreal.csettings['max_gpu_count'],
             CONFIG.ENGINE_DIR, 
             CONFIG.SOURCE_CONTROL_WORKSPACE, 
             CONFIG.UPROJECT_PATH,
@@ -248,6 +250,11 @@ class DevicenDisplay(DeviceUnreal):
         use_all_cores = "-useallavailablecores" if DevicenDisplay.csettings['use_all_available_cores'].get_value(self.name) else ""
         no_texture_streaming = "-notexturestreaming" if not DevicenDisplay.csettings['texture_streaming'].get_value(self.name) else ""
 
+        # MaxGPUCount (mGPU)
+        #
+        max_gpu_count = DeviceUnreal.csettings["max_gpu_count"].get_value(self.name)
+        max_gpu_count = f"-MaxGPUCount={max_gpu_count}" if max_gpu_count > 1 else ''
+
         # Overridden classes at runtime
         #
 
@@ -269,7 +276,7 @@ class DevicenDisplay(DeviceUnreal):
 
         # Session ID
         #
-        session_id = DeviceUnreal.csettings["stage_session_id"].get_value()
+        session_id = DeviceUnreal.csettings["stage_session_id"].get_value(self.name)
         session_id = f"-StageSessionId={session_id}" if session_id > 0 else ''
 
         # Friendly name. Avoid spaces to avoid parsing issues.
@@ -294,6 +301,7 @@ class DevicenDisplay(DeviceUnreal):
             f'{vproles}',                      # VP roles for this instance
             f'{friendly_name}',                # Stage Friendly Name
             f'{session_id}',                   # Session ID. 
+            f'{max_gpu_count}',                # Max GPU count (mGPU)
             f'-dc_cfg="{cfg_file}"',           # nDisplay config file
             f'{render_api}',                   # dx11/12
             f'{render_mode}',                  # mono/...

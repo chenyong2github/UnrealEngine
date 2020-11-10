@@ -372,7 +372,7 @@ class SettingsDialog(QtCore.QObject):
             sb_widgets.set_qt_property(line_edit, "override", True)
 
         value = setting.get_value(device_name)
-        line_edit.setText(value)
+        line_edit.setText(str(value))
         line_edit.setCursorPosition(0)
         layout.addRow(label, line_edit)
 
