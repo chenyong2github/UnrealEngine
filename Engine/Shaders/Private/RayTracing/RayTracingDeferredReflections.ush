@@ -43,17 +43,19 @@ float ApplySmoothBias(float Roughness, float SmoothBias)
 	}
 }
 
-FSortedReflectionRay GenerateDeferredReflectionRay(const uint2 PixelPos, float ReflectionMaxNormalBias, float SmoothBias, bool bGlossyReflections)
+FSortedReflectionRay GenerateDeferredReflectionRay(uint2 PixelPos, uint2 UpscaleFactor, float ReflectionMaxNormalBias, float SmoothBias, bool bGlossyReflections)
 {
-	const float2 UV              = (float2(PixelPos.xy) + 0.5) * View.BufferSizeAndInvSize.zw;
+	// NOTE: GetPixelCoord() helper is currently intentionally not used here, as it introduces noticeable jitter when upscale factor is used.
+	// Subpixels could potentially be taken into account at a later point, if denoiser can compensate for the jitter.
+	const float2 UV = (float2(PixelPos.xy * UpscaleFactor) + 0.5) * View.BufferSizeAndInvSize.zw;
 
     // not 'const', may need to be modified below
 	FGBufferData GBuffer         = GetGBufferDataFromSceneTextures(UV);
-	float DeviceZ                = SceneDepthTexture.Load(int3(PixelPos, 0)).r;
+	float DeviceZ                = SampleDeviceZFromSceneTextures(UV);
 
 	float3 WorldPosition;
 	float3 CameraDirection;
-	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelPos, DeviceZ, WorldPosition, CameraDirection);
+	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelPos * UpscaleFactor, DeviceZ, WorldPosition, CameraDirection);
 	float3 V = -CameraDirection;
 
 	ModifyGGXAnisotropicNormalRoughness(GBuffer.WorldTangent, GBuffer.Anisotropy, GBuffer.Roughness, GBuffer.WorldNormal, V);
@@ -106,7 +108,7 @@ FSortedReflectionRay GenerateDeferredReflectionRay(const uint2 PixelPos, float R
 
 	Ray.Origin = WorldPosition;
 	Ray.Direction = L;
-	ApplyCameraRelativeDepthBias(Ray.Origin, Ray.Direction, PixelPos, DeviceZ, GBuffer.WorldNormal, ReflectionMaxNormalBias);
+	ApplyCameraRelativeDepthBias(Ray.Origin, Ray.Direction, PixelPos * UpscaleFactor, DeviceZ, GBuffer.WorldNormal, ReflectionMaxNormalBias);
 
 	Ray.Roughness = GBuffer.Roughness;
 
