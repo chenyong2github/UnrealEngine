@@ -6889,7 +6889,7 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 		if (IoDispatcherInitStatus.IsOk())
 		{
 			FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
-			FIoStatus IoDispatcherMountStatus = IoDispatcher.Mount(IoStoreGlobalEnvironment);
+			FIoStatus IoDispatcherMountStatus = IoDispatcher.Mount(IoStoreGlobalEnvironment, FGuid(), FAES::FAESKey());
 			if (IoDispatcherMountStatus.IsOk())
 			{
 				UE_LOG(LogPakFile, Display, TEXT("Initialized I/O dispatcher"));
@@ -7144,7 +7144,19 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 			{
 				FIoStoreEnvironment IoStoreEnvironment;
 				IoStoreEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(InPakFilename, FString()), PakOrder);
-				FIoStatus IoStatus = FIoDispatcher::Get().Mount(IoStoreEnvironment);
+
+				FGuid EncryptionKeyGuid = Pak->GetInfo().EncryptionKeyGuid;
+				FAES::FAESKey EncryptionKey;
+
+				if (!GetRegisteredEncryptionKeys().GetKey(EncryptionKeyGuid, EncryptionKey))
+				{
+					if (!EncryptionKeyGuid.IsValid() && FCoreDelegates::GetPakEncryptionKeyDelegate().IsBound())
+					{
+						FCoreDelegates::GetPakEncryptionKeyDelegate().Execute(EncryptionKey.Key);
+					}
+				}
+
+				FIoStatus IoStatus = FIoDispatcher::Get().Mount(IoStoreEnvironment, EncryptionKeyGuid, EncryptionKey);
 				if (IoStatus.IsOk())
 				{
 					UE_LOG(LogPakFile, Display, TEXT("Mounted IoStore environment \"%s\""), *IoStoreEnvironment.GetPath());

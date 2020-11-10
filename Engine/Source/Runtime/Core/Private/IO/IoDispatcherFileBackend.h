@@ -23,28 +23,6 @@ struct FFileIoStoreCompressionContext
 	uint8* UncompressedBuffer = nullptr;
 };
 
-class FFileIoStoreEncryptionKeys
-{
-public:
-	using FKeyRegisteredCallback = TFunction<void(const FGuid&, const FAES::FAESKey&)>;
-
-	FFileIoStoreEncryptionKeys();
-	~FFileIoStoreEncryptionKeys();
-
-	bool GetEncryptionKey(const FGuid& Guid, FAES::FAESKey& OutKey) const;
-	void SetKeyRegisteredCallback(FKeyRegisteredCallback&& Callback)
-	{
-		KeyRegisteredCallback = Callback;
-	}
-
-private:
-	void RegisterEncryptionKey(const FGuid& Guid, const FAES::FAESKey& Key);
-
-	TMap<FGuid, FAES::FAESKey> EncryptionKeysByGuid;
-	mutable FCriticalSection EncryptionKeysCritical;
-	FKeyRegisteredCallback KeyRegisteredCallback;
-};
-
 class FFileIoStoreReader
 {
 public:
@@ -88,7 +66,7 @@ public:
 	FFileIoStore(FIoDispatcherEventQueue& InEventQueue, FIoSignatureErrorEvent& InSignatureErrorEvent, bool bInIsMultithreaded);
 	~FFileIoStore();
 	void Initialize();
-	TIoStatusOr<FIoContainerId> Mount(const FIoStoreEnvironment& Environment);
+	TIoStatusOr<FIoContainerId> Mount(const FIoStoreEnvironment& Environment, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey);
 	EIoStoreResolveResult Resolve(FIoRequestImpl* Request);
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const;
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
@@ -173,7 +151,6 @@ private:
 	FFileIoStoreCompressedBlock* ReadyForDecompressionTail = nullptr;
 	FCriticalSection DecompressedBlocksCritical;
 	FFileIoStoreCompressedBlock* FirstDecompressedBlock = nullptr;
-	FFileIoStoreEncryptionKeys EncryptionKeys;
 	FIoRequestImpl* CompletedRequestsHead = nullptr;
 	FIoRequestImpl* CompletedRequestsTail = nullptr;
 	EAsyncIOPriorityAndFlags CurrentAsyncIOMinimumPriority = AIOP_MIN;

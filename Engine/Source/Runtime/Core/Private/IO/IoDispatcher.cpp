@@ -294,9 +294,9 @@ public:
 		}
 	}
 
-	FIoStatus Mount(const FIoStoreEnvironment& Environment)
+	FIoStatus Mount(const FIoStoreEnvironment& Environment, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey)
 	{
-		TIoStatusOr<FIoContainerId> ContainerId = FileIoStore.Mount(Environment);
+		TIoStatusOr<FIoContainerId> ContainerId = FileIoStore.Mount(Environment, EncryptionKeyGuid, EncryptionKey);
 
 		if (ContainerId.IsOk())
 		{
@@ -649,10 +649,10 @@ FIoDispatcher::~FIoDispatcher()
 	delete Impl;
 }
 
-FIoStatus FIoDispatcher::Mount(const FIoStoreEnvironment& Environment)
+FIoStatus FIoDispatcher::Mount(const FIoStoreEnvironment& Environment, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey)
 {
 	LLM_SCOPE(ELLMTag::FileSystem);
-	return Impl->Mount(Environment);
+	return Impl->Mount(Environment, EncryptionKeyGuid, EncryptionKey);
 }
 
 FIoBatch
