@@ -145,7 +145,7 @@ void SetGBufferForShadingModel(
 		GBuffer.CustomData.w = 1.0f - saturate(GetMaterialCustomData0(MaterialParameters));	// Opacity = 1.0 - Iris Mask
 		GBuffer.Metallic = saturate(GetMaterialCustomData1(MaterialParameters));			// Iris Distance
 
-		// Iris Normal
+	#if IRIS_NORMAL
 		float IrisMask		= saturate( GetMaterialCustomData0(MaterialParameters) );
 		float IrisDistance	= saturate( GetMaterialCustomData1(MaterialParameters) );
 
@@ -185,6 +185,14 @@ void SetGBufferForShadingModel(
 		float2 IrisNormalOct  = UnitVectorToOctahedron( IrisNormal );
 		float2 IrisNormalDelta = ( IrisNormalOct - WorldNormalOct ) * 0.5 + (128.0/255.0);
 		GBuffer.CustomData.yz = IrisNormalDelta;
+	#else
+		GBuffer.Metallic = saturate(GetMaterialCustomData1(MaterialParameters));			// Iris Distance
+
+		#if NUM_MATERIAL_OUTPUTS_GETTANGENTOUTPUT > 0
+			float3 Tangent = GetTangentOutput0(MaterialParameters);
+			GBuffer.CustomData.yz = UnitVectorToOctahedron( normalize(Tangent) ) * 0.5 + 0.5;
+		#endif
+	#endif
 	}
 #endif
 }
