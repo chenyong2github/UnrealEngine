@@ -599,7 +599,7 @@ public:
 	virtual void Pause() = 0;
 
 	/** Getter for sequencer settings */
-	virtual USequencerSettings* GetSequencerSettings() = 0;
+	virtual USequencerSettings* GetSequencerSettings() const = 0;
 
 	/** Setter for sequencer settings */
 	virtual void SetSequencerSettings(USequencerSettings*) = 0;

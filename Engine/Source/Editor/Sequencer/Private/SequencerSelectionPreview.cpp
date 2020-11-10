@@ -13,6 +13,8 @@ void FSequencerSelectionPreview::SetSelectionState(FSequencerSelectedKey Key, ES
 	{
 		DefinedKeyStates.Add(Key, InState);
 	}
+
+	CachedSelectionHash.Reset();
 }
 
 void FSequencerSelectionPreview::SetSelectionState(UMovieSceneSection* Section, ESelectionPreviewState InState)
@@ -25,6 +27,8 @@ void FSequencerSelectionPreview::SetSelectionState(UMovieSceneSection* Section, 
 	{
 		DefinedSectionStates.Add(Section, InState);
 	}
+
+	CachedSelectionHash.Reset();
 }
 
 void FSequencerSelectionPreview::SetSelectionState(TSharedRef<FSequencerDisplayNode> OutlinerNode, ESelectionPreviewState InState)
@@ -37,9 +41,11 @@ void FSequencerSelectionPreview::SetSelectionState(TSharedRef<FSequencerDisplayN
 	{
 		DefinedOutlinerNodeStates.Add(OutlinerNode, InState);
 	}
+
+	CachedSelectionHash.Reset();
 }
 
-ESelectionPreviewState FSequencerSelectionPreview::GetSelectionState(FSequencerSelectedKey Key) const
+ESelectionPreviewState FSequencerSelectionPreview::GetSelectionState(const FSequencerSelectedKey& Key) const
 {
 	if (auto* State = DefinedKeyStates.Find(Key))
 	{
@@ -76,14 +82,42 @@ void FSequencerSelectionPreview::Empty()
 void FSequencerSelectionPreview::EmptyDefinedKeyStates()
 {
 	DefinedKeyStates.Reset();
+	CachedSelectionHash.Reset();
 }
 
 void FSequencerSelectionPreview::EmptyDefinedSectionStates()
 {
 	DefinedSectionStates.Reset();
+	CachedSelectionHash.Reset();
 }
 
 void FSequencerSelectionPreview::EmptyDefinedOutlinerNodeStates()
 {
 	DefinedOutlinerNodeStates.Reset();
+	CachedSelectionHash.Reset();
+}
+
+uint32 FSequencerSelectionPreview::GetSelectionHash() const
+{
+	if (!CachedSelectionHash.IsSet())
+	{
+		uint32 NewHash = 0;
+
+		for (TPair<FSequencerSelectedKey, ESelectionPreviewState> Pair : DefinedKeyStates)
+		{
+			NewHash = HashCombine(NewHash, HashCombine(GetTypeHash(Pair.Key), GetTypeHash(Pair.Value)));
+		}
+		for (TPair<TWeakObjectPtr<UMovieSceneSection>, ESelectionPreviewState> Pair : DefinedSectionStates)
+		{
+			NewHash = HashCombine(NewHash, HashCombine(GetTypeHash(Pair.Key), GetTypeHash(Pair.Value)));
+		}
+		for (TPair<TSharedRef<FSequencerDisplayNode>, ESelectionPreviewState> Pair : DefinedOutlinerNodeStates)
+		{
+			NewHash = HashCombine(NewHash, HashCombine(GetTypeHash(Pair.Key), GetTypeHash(Pair.Value)));
+		}
+
+		CachedSelectionHash = NewHash;
+	}
+
+	return CachedSelectionHash.GetValue();
 }
