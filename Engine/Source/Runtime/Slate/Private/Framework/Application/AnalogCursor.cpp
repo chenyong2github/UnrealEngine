@@ -187,12 +187,14 @@ bool FAnalogCursor::HandleKeyUpEvent(FSlateApplication& SlateApp, const FKeyEven
 			if (TSharedPtr<FSlateUser> SlateUser = SlateApp.GetUser(InKeyEvent))
 			{
 				const bool bIsPrimaryUser = FSlateApplication::CursorUserIndex == SlateUser->GetUserIndex();
+
+				TSet<FKey> EmptySet;
 				FPointerEvent MouseEvent(
 					SlateUser->GetUserIndex(),
 					FSlateApplication::CursorPointerIndex,
 					SlateUser->GetCursorPosition(),
 					SlateUser->GetPreviousCursorPosition(),
-					bIsPrimaryUser ? SlateApp.GetPressedMouseButtons() : TSet<FKey>(),
+					bIsPrimaryUser ? SlateApp.GetPressedMouseButtons() : EmptySet,
 					EKeys::LeftMouseButton,
 					0,
 					bIsPrimaryUser ? SlateApp.GetModifierKeys() : FModifierKeysState()
