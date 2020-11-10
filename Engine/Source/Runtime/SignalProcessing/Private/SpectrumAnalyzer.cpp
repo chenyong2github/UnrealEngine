@@ -620,7 +620,7 @@ namespace Audio
 	};
 
 
-	// Creates a concreted implementation of teh ISpectrumBandExtractor interface.
+	// Creates a concreted implementation of the ISpectrumBandExtractor interface.
 	TUniquePtr<ISpectrumBandExtractor> ISpectrumBandExtractor::CreateSpectrumBandExtractor(const FSpectrumBandExtractorSettings& InSettings)
 	{
 		return MakeUnique<FSpectrumBandExtractor>(InSettings);
@@ -668,14 +668,6 @@ namespace Audio
 		, LockedFrequencyVector(nullptr)
 	{
 		ResetSettings();
-	}
-
-	FSpectrumAnalyzer::~FSpectrumAnalyzer()
-	{
-		if (AsyncAnalysisTask.IsValid())
-		{
-			AsyncAnalysisTask->EnsureCompletion(false);
-		}
 	}
 
 	void FSpectrumAnalyzer::Init(float InSampleRate)
@@ -1045,28 +1037,12 @@ namespace Audio
 		return InputQueue.Push(InBuffer, NumSamples) == NumSamples;
 	}
 
-	bool FSpectrumAnalyzer::PerformAnalysisIfPossible(bool bUseLatestAudio, bool bAsync)
+	bool FSpectrumAnalyzer::PerformAnalysisIfPossible(bool bUseLatestAudio)
 	{
-		if (!bIsInitialized)
+		if (!IsInitialized())
 		{
 			return false;
 		}		
-
-		if (bAsync)
-		{
-			// if bAsync is true, kick off a new task if one isn't in flight already, and return.
-			if (!AsyncAnalysisTask.IsValid())
-			{
-				AsyncAnalysisTask.Reset(new FSpectrumAnalyzerTask(this, bUseLatestAudio));
-				AsyncAnalysisTask->StartBackgroundTask();
-			}
-			else if (AsyncAnalysisTask->IsDone())
-			{
-				AsyncAnalysisTask->StartBackgroundTask();
-			}
-
-			return true;
-		}
 
 		// If settings were updated, perform resizing and parameter updates here:
 		if (bSettingsWereUpdated)
@@ -1227,7 +1203,75 @@ namespace Audio
 
 	void FSpectrumAnalysisAsyncWorker::DoWork()
 	{
-		Analyzer->PerformAnalysisIfPossible(bUseLatestAudio, false);
+		FScopeLock AbandonLock(&NonAbandonableSection);
+		
+		if (!bIsAbandoned)
+		{
+			TSharedPtr<FSpectrumAnalyzer, ESPMode::ThreadSafe> AnalyzerSharedPtr = AnalyzerWeakPtr.Pin();
+
+			if (AnalyzerSharedPtr.IsValid())
+			{
+				AnalyzerSharedPtr->PerformAnalysisIfPossible(bUseLatestAudio);
+			}
+		}
+	}
+
+	void FSpectrumAnalysisAsyncWorker::Abandon()
+	{
+		FScopeLock AbandonLock(&NonAbandonableSection);
+		bIsAbandoned = true;
+	}
+
+	FAsyncSpectrumAnalyzer::~FAsyncSpectrumAnalyzer()
+	{
+		if (AsyncAnalysisTask.IsValid())
+		{
+			if (!AsyncAnalysisTask->IsDone())
+			{
+				AsyncAnalysisTask->Cancel();
+			}
+			
+		}
+	}
+
+	bool FAsyncSpectrumAnalyzer::PerformAsyncAnalysisIfPossible(bool bUseLatestAudio)
+	{
+		if (!IsInitialized())
+		{
+			return false;
+		}		
+
+		if (ensureMsgf(DoesSharedInstanceExist(), TEXT("Cannot perform async analysis because FAsyncSpectrumAnalyzer instance is not a shared pointer")))
+		{
+			// if bAsync is true, kick off a new task if one isn't in flight already, and return.
+			if (!AsyncAnalysisTask.IsValid())
+			{
+				TSharedRef<FAsyncSpectrumAnalyzer, ESPMode::ThreadSafe> SharedAnalyzer = AsShared();
+
+				AsyncAnalysisTask.Reset(new FSpectrumAnalyzerTask(SharedAnalyzer, bUseLatestAudio));
+				AsyncAnalysisTask->StartBackgroundTask();
+			}
+			else if (AsyncAnalysisTask->IsDone())
+			{
+				AsyncAnalysisTask->StartBackgroundTask();
+			}
+
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	FAsyncSpectrumAnalyzer::FAsyncSpectrumAnalyzer(float InSampleRate)
+	:	FSpectrumAnalyzer(InSampleRate)
+	{
+	}
+
+	FAsyncSpectrumAnalyzer::FAsyncSpectrumAnalyzer(const FSpectrumAnalyzerSettings& InSettings, float InSampleRate)
+	:	FSpectrumAnalyzer(InSettings, InSampleRate)
+	{
 	}
 }
 
