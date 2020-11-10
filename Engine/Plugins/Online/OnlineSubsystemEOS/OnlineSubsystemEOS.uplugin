@@ -21,6 +21,16 @@
 				"Win32",
 				"Mac"
 			]
+		},
+		{
+			"Name": "OnlineSubsystemEOSPlus",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"WhitelistPlatforms": [
+				"Win64",
+				"Win32",
+				"Mac"
+			]
 		}
 	],
 	"Plugins": [
