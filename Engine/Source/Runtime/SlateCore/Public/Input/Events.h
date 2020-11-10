@@ -627,7 +627,7 @@ public:
 		: ScreenSpacePosition(FVector2D(0, 0))
 		, LastScreenSpacePosition(FVector2D(0, 0))
 		, CursorDelta(FVector2D(0, 0))
-		, PressedButtons(FTouchKeySet::EmptySet)
+		, PressedButtons(&FTouchKeySet::EmptySet)
 		, EffectingButton()
 		, PointerIndex(0)
 		, TouchpadIndex(0)
@@ -654,7 +654,7 @@ public:
 		, ScreenSpacePosition(InScreenSpacePosition)
 		, LastScreenSpacePosition(InLastScreenSpacePosition)
 		, CursorDelta(InScreenSpacePosition - InLastScreenSpacePosition)
-		, PressedButtons(InPressedButtons)
+		, PressedButtons(&InPressedButtons)
 		, EffectingButton(InEffectingButton)
 		, PointerIndex(InPointerIndex)
 		, TouchpadIndex(0)
@@ -681,7 +681,7 @@ public:
 		, ScreenSpacePosition(InScreenSpacePosition)
 		, LastScreenSpacePosition(InLastScreenSpacePosition)
 		, CursorDelta(InScreenSpacePosition - InLastScreenSpacePosition)
-		, PressedButtons(InPressedButtons)
+		, PressedButtons(&InPressedButtons)
 		, EffectingButton(InEffectingButton)
 		, PointerIndex(InPointerIndex)
 		, TouchpadIndex(0)
@@ -707,7 +707,7 @@ public:
 		, ScreenSpacePosition(InScreenSpacePosition)
 		, LastScreenSpacePosition(InLastScreenSpacePosition)
 		, CursorDelta(InDelta)
-		, PressedButtons(InPressedButtons)
+		, PressedButtons(&InPressedButtons)
 		, PointerIndex(InPointerIndex)
 		, TouchpadIndex(0)
 		, Force(1.0f)
@@ -732,7 +732,7 @@ public:
 		, ScreenSpacePosition(InScreenSpacePosition)
 		, LastScreenSpacePosition(InLastScreenSpacePosition)
 		, CursorDelta(InDelta)
-		, PressedButtons(InPressedButtons)
+		, PressedButtons(&InPressedButtons)
 		, PointerIndex(InPointerIndex)
 		, TouchpadIndex(0)
 		, Force(1.0f)
@@ -774,7 +774,7 @@ public:
 		, ScreenSpacePosition(InScreenSpacePosition)
 		, LastScreenSpacePosition(InLastScreenSpacePosition)
 		, CursorDelta(InScreenSpacePosition - InLastScreenSpacePosition)
-		, PressedButtons(bPressLeftMouseButton ? FTouchKeySet::StandardSet : FTouchKeySet::EmptySet)
+		, PressedButtons(bPressLeftMouseButton ? &FTouchKeySet::StandardSet : &FTouchKeySet::EmptySet)
 		, EffectingButton(EKeys::LeftMouseButton)
 		, PointerIndex(InPointerIndex)
 		, TouchpadIndex(InTouchpadIndex)
@@ -801,7 +801,7 @@ public:
 		, ScreenSpacePosition(InScreenSpacePosition)
 		, LastScreenSpacePosition(InLastScreenSpacePosition)
 		, CursorDelta(LastScreenSpacePosition - ScreenSpacePosition)
-		, PressedButtons(InPressedButtons)
+		, PressedButtons(&InPressedButtons)
 		, PointerIndex(0)
 		, Force(1.0f)
 		, bIsTouchEvent(false)
@@ -824,7 +824,7 @@ public:
 	const FVector2D& GetCursorDelta() const { return CursorDelta; }
 
 	/** Mouse buttons that are currently pressed */
-	bool IsMouseButtonDown( FKey MouseButton ) const { return PressedButtons.Contains( MouseButton ); }
+	bool IsMouseButtonDown( FKey MouseButton ) const { return PressedButtons->Contains( MouseButton ); }
 
 	/** Mouse button that caused this event to be raised (possibly FKey::Invalid) */
 	FKey GetEffectingButton() const { return EffectingButton; }
@@ -863,7 +863,7 @@ public:
 	bool IsDirectionInvertedFromDevice() const { return bIsDirectionInvertedFromDevice; }
 
 	/** Returns the full set of pressed buttons */
-	const TSet<FKey>& GetPressedButtons() const { return PressedButtons; }
+	const TSet<FKey>& GetPressedButtons() const { return *PressedButtons; }
 
 	/** We override the assignment operator to allow generated code to compile with the const ref member. */
 	void operator=( const FPointerEvent& Other )
@@ -907,7 +907,7 @@ private:
 	FVector2D ScreenSpacePosition;
 	FVector2D LastScreenSpacePosition;
 	FVector2D CursorDelta;
-	TSet<FKey> PressedButtons;
+	const TSet<FKey>* PressedButtons;
 	FKey EffectingButton;
 	uint32 PointerIndex;
 	uint32 TouchpadIndex;
