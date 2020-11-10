@@ -20,6 +20,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Interfaces/Interface_AssetUserData.h"
 #include "PerPlatformProperties.h"
+#include "UObject/StrongObjectPtr.h"
 
 #include "GroomAsset.generated.h"
 
@@ -411,6 +412,7 @@ public:
 
 private:
 	FString BuildDerivedDataKeySuffix(uint32 GroupIndex, const FHairGroupsInterpolation& InterpolationSettings, const FHairGroupsLOD& LODSettings) const;
+	bool IsFullyCached();
 	TUniquePtr<FHairDescription> HairDescription;
 	TUniquePtr<FHairDescriptionBulkData> HairDescriptionBulkData;
 
@@ -423,6 +425,9 @@ private:
 
 	UPROPERTY()
 	bool bIsCacheable = true;
+
+	TStrongObjectPtr<UGroomAsset> GroomAssetStrongPtr;
+	bool bRetryLoadFromGameThread = false;
 #endif
 	bool bIsInitialized = false;
 
