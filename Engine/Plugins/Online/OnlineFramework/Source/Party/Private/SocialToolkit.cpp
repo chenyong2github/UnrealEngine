@@ -110,6 +110,10 @@ public:
 				FExternalIdQueryOptions QueryOptions(PlatformDescription->ExternalAccountType.ToLower(), false);
 				PrimaryUserInterface->QueryExternalIdMappings(*LocalUserPrimaryId, QueryOptions, ExternalUserIds, IOnlineUser::FOnQueryExternalIdMappingsComplete::CreateSP(this, &FSocialQuery_MapExternalIds::HandleQueryExternalIdMappingsComplete));
 			}
+			else
+			{
+				UE_LOG(LogParty, Warning, TEXT("%s - PlatformDescription: %x (%s) - PrimaryUserInterface: %x"), ANSI_TO_TCHAR(__FUNCTION__), PlatformDescription, PlatformDescription ? *PlatformDescription->Name : TEXT("N/A"), PrimaryUserInterface.Get());
+			}
 		}
 		else
 		{
