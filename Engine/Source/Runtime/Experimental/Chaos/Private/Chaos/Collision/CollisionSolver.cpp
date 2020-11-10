@@ -256,12 +256,17 @@ namespace Chaos
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
 
+			const FReal Margin0 = 0.0f;//Contact.Implicit[0]->GetMargin();
+			const FReal Margin1 = 0.0f;//Contact.Implicit[1]->GetMargin();
+
 			// Calculate the position error we need to correct, including static friction and restitution
 			// Position correction uses the deepest point on each body (see velocity correction which uses average contact)
-			const FVec3 ContactNormal = Q1 * ManifoldPoint.CoMContactNormal;
+			const FRotation3& PlaneQ = (ManifoldPoint.ContactPoint.ContactNormalOwnerIndex == 0) ? Q0 : Q1;
+			const FVec3 ContactNormal = PlaneQ * ManifoldPoint.CoMContactNormal;
 
 			const bool bApplyStaticFriction = (ManifoldPoint.bInsideStaticFrictionCone && Chaos_Manifold_PushOut_StaticFriction);
-			const FVec3 LocalContactPoint1 = bApplyStaticFriction ? ManifoldPoint.PrevCoMContactPoint1 : ManifoldPoint.CoMContactPoints[1];
+			FVec3 LocalContactPoint0 = (bApplyStaticFriction) ? ManifoldPoint.PrevCoMContactPoints[0] : ManifoldPoint.CoMContactPoints[0];
+			FVec3 LocalContactPoint1 = (bApplyStaticFriction) ? ManifoldPoint.PrevCoMContactPoints[1] : ManifoldPoint.CoMContactPoints[1];
 
 			// We could push out to the PBD distance that would give an implicit velocity equal to -(1+e).Vin
 			// but the values involved are not very stable from frame to frame, so instead we actually pull
@@ -269,8 +274,8 @@ namespace Chaos
 			const FVec3 PhiPadding = FVec3(0);
 
 			// Contact points on each body adjusted so that the points end up separated by TargetPhi
-			const FVec3 RelativeContactPoint0 = Q0 * ManifoldPoint.CoMContactPoints[0] - PhiPadding;
-			const FVec3 RelativeContactPoint1 = Q1 * LocalContactPoint1 + PhiPadding;
+			const FVec3 RelativeContactPoint0 = Q0 * LocalContactPoint0 - PhiPadding - Margin0 * ContactNormal;
+			const FVec3 RelativeContactPoint1 = Q1 * LocalContactPoint1 + PhiPadding + Margin1 * ContactNormal;
 
 			// Net error we need to correct, including lateral movement to correct for friction
 			const FVec3 ContactError = (P1 + RelativeContactPoint1) - (P0 + RelativeContactPoint0);
