@@ -272,7 +272,14 @@ void FVulkanCmdBuffer::Begin()
 {
 	{
 		FScopeLock ScopeLock(CommandBufferPool->GetCS());
-		checkf(State == EState::ReadyForBegin, TEXT("Can't Begin as we're NOT ready! CmdBuffer 0x%p State=%d"), CommandBufferHandle, (int32)State);
+		if(State == EState::NeedReset)
+		{
+			VulkanRHI::vkResetCommandBuffer(CommandBufferHandle, VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);		
+		}
+		else
+		{
+			checkf(State == EState::ReadyForBegin, TEXT("Can't Begin as we're NOT ready! CmdBuffer 0x%p State=%d"), CommandBufferHandle, (int32)State);
+		}
 		State = EState::IsInsideBegin;
 	}
 
@@ -350,8 +357,6 @@ void FVulkanCmdBuffer::RefreshFenceStatus()
 			FMemory::Memzero(CurrentViewport);
 			FMemory::Memzero(CurrentScissor);
 			CurrentStencilRef = 0;
-
-			VulkanRHI::vkResetCommandBuffer(CommandBufferHandle, VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
 #if VULKAN_REUSE_FENCES
 			Fence->GetOwner()->ResetFence(Fence);
 #else
@@ -374,7 +379,7 @@ void FVulkanCmdBuffer::RefreshFenceStatus()
 			}
 
 			// Change state at the end to be safe
-			State = EState::ReadyForBegin;
+			State = EState::NeedReset;
 		}
 	}
 	else
@@ -707,7 +712,7 @@ void FVulkanCommandBufferManager::PrepareForNewActiveCommandBuffer()
 		if (!CmdBuffer->bIsUploadOnly)
 #endif
 		{
-			if (CmdBuffer->State == FVulkanCmdBuffer::EState::ReadyForBegin)
+			if (CmdBuffer->State == FVulkanCmdBuffer::EState::ReadyForBegin || CmdBuffer->State == FVulkanCmdBuffer::EState::NeedReset)
 			{
 				ActiveCmdBuffer = CmdBuffer;
 				ActiveCmdBuffer->Begin();
