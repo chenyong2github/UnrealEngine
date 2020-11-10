@@ -16,15 +16,13 @@ public:
 
 	UDMXFixtureComponentColor();
 
-	unsigned int BitResolution;
-
-	UPROPERTY(EditAnywhere, Category = "DMX Channel")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "DMX Channel")
 	FDMXAttributeName ChannelName1;
-	UPROPERTY(EditAnywhere, Category = "DMX Channel")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "DMX Channel")
 	FDMXAttributeName ChannelName2;
-	UPROPERTY(EditAnywhere, Category = "DMX Channel")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "DMX Channel")
 	FDMXAttributeName ChannelName3;
-	UPROPERTY(EditAnywhere, Category = "DMX Channel")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "DMX Channel")
 	FDMXAttributeName ChannelName4;
 
 	TArray<FLinearColor> TargetColorArray;
@@ -35,7 +33,6 @@ public:
 
 	// Overrides
 	virtual void InitCells(int NCells) override;
-	virtual void SetBitResolution(TMap<FDMXAttributeName, EDMXFixtureSignalFormat> Map) override;
 	virtual void SetCurrentCell(int Index) override;
 	
 	// Blueprint event

@@ -175,6 +175,20 @@ bool UDMXEntityFixturePatch::IsTickable() const
 	return OnFixturePatchReceivedDMX.IsBound();
 }
 
+#if WITH_EDITOR
+void UDMXEntityFixturePatch::ClearCachedData()
+{
+	CachedLastDMXSignal.Reset();
+
+	CachedDMXValues.Reset(DMX_UNIVERSE_SIZE);
+
+	/** Map of normalized values per attribute, direct represpentation of CachedDMXValues. */
+	CachedNormalizedValuesPerAttribute.Map.Reset();
+
+	CachedRelevantController = nullptr;
+}
+#endif // WITH_EDITOR
+
 int32 UDMXEntityFixturePatch::GetChannelSpan() const
 {
 	if (ParentFixtureTypeTemplate && CanReadActiveMode())

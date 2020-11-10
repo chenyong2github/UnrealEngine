@@ -168,6 +168,9 @@ public:
 	/** Zeros memory in all active DMX buffers of all protocols */
 	static void ZeroAllDMXBuffers();
 
+	/** Clears cached data fixture patches received */
+	static void ClearFixturePatchCachedData();
+
 	// can't instantiate this class
 	FDMXEditorUtils() = delete;
 };

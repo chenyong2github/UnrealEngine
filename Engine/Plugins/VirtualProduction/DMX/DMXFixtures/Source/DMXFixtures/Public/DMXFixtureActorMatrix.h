@@ -64,6 +64,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX Matrix Fixture")
 	void GenerateEditorMatrixMesh();
 
+protected:
+	/** Sets the matrix fixture in a defaulted state using default values of its Fixture Components */
+	void SetDefaultMatrixFixtureState();
 
 private:
 	TArray<FVector> Vertices;
