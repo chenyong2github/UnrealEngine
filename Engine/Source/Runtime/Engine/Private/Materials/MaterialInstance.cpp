@@ -4689,7 +4689,7 @@ static FAutoConsoleCommand FindRedundantMICSCmd(
 
 #endif
 
-void UMaterialInstance::DumpDebugInfo()
+void UMaterialInstance::DumpDebugInfo() const
 {
 	UE_LOG(LogConsoleResponse, Display, TEXT("----------------------------- %s"), *GetFullName());
 
@@ -4697,7 +4697,7 @@ void UMaterialInstance::DumpDebugInfo()
 
 	if (Parent)
 	{
-		UMaterial* Base = GetMaterial();
+		const UMaterial* Base = GetMaterial();
 		UE_LOG(LogConsoleResponse, Display, TEXT("  Base %s"), Base ? *Base->GetFullName() : TEXT("null"));
 
 		if (Base)
