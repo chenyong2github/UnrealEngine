@@ -1348,6 +1348,12 @@ public:
 		{
 			uint32 OldUBoolValue = D ? 1 : 0;
 			Ar.Serialize(&OldUBoolValue, sizeof(OldUBoolValue));
+
+			if (OldUBoolValue > 1)
+			{
+				Ar.SetError();
+			}
+
 			D = !!OldUBoolValue;
 		}
 		return Ar;
