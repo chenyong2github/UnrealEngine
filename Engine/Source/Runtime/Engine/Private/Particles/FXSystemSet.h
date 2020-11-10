@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "FXSystem.h"
 #include "Templates/RefCounting.h"
+#include "RenderGraphDefinitions.h"
 
 class FGPUSortManager;
 
