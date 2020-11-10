@@ -279,7 +279,7 @@ void FAnalyticsProviderETEventCache::SetDefaultAttributes(TArray<FAnalyticsEvent
 	FScopeLock ScopedLock(&CachedEventsCS);
 
 	// store the array so we can return if if the user asks again.
-	CachedDefaultAttributes = MoveTemp(DefaultAttributes);
+	CachedDefaultAttributes += MoveTemp(DefaultAttributes);
 
 	// presize the UTF8 stream that will store the pre-serialized default attribute buffer
 	const int32 EstimatedAttributesSize = EventCacheStatic::ComputeAttributeSize(CachedDefaultAttributes) + 10;
