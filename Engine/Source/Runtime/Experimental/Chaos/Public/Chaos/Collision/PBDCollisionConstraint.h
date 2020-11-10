@@ -29,6 +29,8 @@ namespace Chaos
 		FContactPoint()
 			: Normal(1, 0, 0)
 			, Phi(TNumericLimits<FReal>::Max()) {}
+
+		bool IsSet() const { return (Phi != TNumericLimits<FReal>::Max()); }
 	};
 
 	class CHAOS_API FManifoldPoint

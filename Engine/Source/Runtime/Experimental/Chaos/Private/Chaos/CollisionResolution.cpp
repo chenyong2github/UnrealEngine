@@ -267,7 +267,7 @@ namespace Chaos
 		{
 			// Ignore points that have not been initialized - if there is no detectable contact 
 			// point within reasonable range despite passing the AABB tests
-			if (ContactPoint.Phi != TNumericLimits<FReal>::Max())
+			if (ContactPoint.IsSet())
 			{
 				Constraint.UpdateManifold(ContactPoint);
 			}
@@ -2506,20 +2506,16 @@ namespace Chaos
 			if (SampleParticles)
 			{
 				const FImplicitObject* Obj1 = Constraint.Manifold.Implicit[1];
-				SampleObject<UpdateType>(*Obj1, LevelsetTM, *SampleParticles, ParticlesTM, CullDistance, Constraint);
+				FContactPoint ContactPoint = SampleObject<UpdateType>(*Obj1, LevelsetTM, *SampleParticles, ParticlesTM, CullDistance);
 
-				// @todo(chaos): clean up SampleObject: make it return a FContactPoint and use UpdateConstraint, and then remove this...
-				if (Constraint.UseIncrementalManifold())
+				if (ContactPoint.IsSet())
 				{
-					FContactPoint ContactPoint;
-					ContactPoint.Location = Constraint.Manifold.Location;
-					ContactPoint.Normal = Constraint.Manifold.Normal;
-					ContactPoint.Phi = Constraint.Manifold.Phi;
-					ContactPoint.ShapeContactPoints[0] = WorldTransform0.InverseTransformPosition(Constraint.Manifold.Location);
-					ContactPoint.ShapeContactPoints[1] = WorldTransform1.InverseTransformPosition(Constraint.Manifold.Location - Constraint.Manifold.Phi * Constraint.Manifold.Normal);
-					ContactPoint.ShapeContactNormal = WorldTransform1.InverseTransformVector(Constraint.Manifold.Normal);
-					Constraint.UpdateManifold(ContactPoint);
+					ContactPoint.ShapeContactPoints[0] = WorldTransform0.InverseTransformPosition(ContactPoint.Location);
+					ContactPoint.ShapeContactPoints[1] = WorldTransform1.InverseTransformPosition(ContactPoint.Location - ContactPoint.Phi * ContactPoint.Normal);
+					ContactPoint.ShapeContactNormal = WorldTransform1.InverseTransformVector(ContactPoint.Normal);
 				}
+
+				UpdateContactPoint(Constraint, ContactPoint);
 			}
 		}
 
