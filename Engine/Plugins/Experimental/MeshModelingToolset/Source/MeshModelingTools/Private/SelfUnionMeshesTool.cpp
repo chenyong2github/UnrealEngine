@@ -202,6 +202,11 @@ void USelfUnionMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* P
 {
 	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USelfUnionMeshesToolProperties, bOnlyUseFirstMeshMaterials)))
 	{
+		if (!AreAllTargetsValid())
+		{
+			GetToolManager()->DisplayMessage(LOCTEXT("InvalidTargets", "Target meshes are no longer valid"), EToolMessageLevel::UserWarning);
+			return;
+		}
 		ConvertInputsAndSetPreviewMaterials(false);
 		Preview->InvalidateResult();
 	}
