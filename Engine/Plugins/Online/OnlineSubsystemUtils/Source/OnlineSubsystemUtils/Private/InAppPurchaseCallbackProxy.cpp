@@ -28,6 +28,7 @@ void UInAppPurchaseCallbackProxy::Trigger(APlayerController* PlayerController, c
 	{
 		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::IsLoaded() ? IOnlineSubsystem::Get() : nullptr)
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			IOnlineStorePtr StoreInterface = OnlineSub->GetStoreInterface();
 			if (StoreInterface.IsValid())
 			{
@@ -47,6 +48,7 @@ void UInAppPurchaseCallbackProxy::Trigger(APlayerController* PlayerController, c
 				TempState = EInAppPurchaseState::NotAllowed;
 				FFrame::KismetExecutionMessage(TEXT("UInAppPurchaseCallbackProxy::Trigger - In-App Purchases are not supported by Online Subsystem"), ELogVerbosity::Warning);
 			}
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		else
 		{
@@ -123,11 +125,13 @@ void UInAppPurchaseCallbackProxy::RemoveDelegate()
 	{
 		if (IOnlineSubsystem* OnlineSub = IOnlineSubsystem::IsLoaded() ? IOnlineSubsystem::Get() : nullptr)
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			IOnlineStorePtr InAppPurchases = OnlineSub->GetStoreInterface();
 			if (InAppPurchases.IsValid())
 			{
 				InAppPurchases->ClearOnInAppPurchaseCompleteDelegate_Handle(InAppPurchaseCompleteDelegateHandle);
 			}
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 }
