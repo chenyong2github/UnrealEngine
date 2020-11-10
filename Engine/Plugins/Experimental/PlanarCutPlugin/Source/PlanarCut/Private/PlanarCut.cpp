@@ -186,14 +186,14 @@ FPlanarCells::FPlanarCells(const FPlane& P)
 	});
 }
 
-FPlanarCells::FPlanarCells(const TArrayView<const FVector> Sites, FVoronoiDiagram &Voronoi)
+FPlanarCells::FPlanarCells(const TArrayView<const FVector> Sites, FVoronoiDiagram& Voronoi)
 {
 	TArray<FVoronoiCellInfo> VoronoiCells;
 	Voronoi.ComputeAllCells(VoronoiCells);
 
 	AssumeConvexCells = true;
 	NumCells = VoronoiCells.Num();
-	CellFromPosition = TFunction<int32(FVector)>([&](FVector Position)
+	CellFromPosition = TFunction<int32(FVector)>([&Voronoi](FVector Position)
 	{
 		return Voronoi.FindCell(Position);
 	});
@@ -249,11 +249,12 @@ FPlanarCells::FPlanarCells(const TArrayView<const FBox> Boxes)
 {
 	AssumeConvexCells = true;
 	NumCells = Boxes.Num();
-	CellFromPosition = TFunction<int32(FVector)>([&](FVector Position)
+	TArray<FBox> BoxesCopy(Boxes);
+	CellFromPosition = TFunction<int32(FVector)>([BoxesCopy](FVector Position)
 	{
-		for (int32 Idx = 0; Idx < Boxes.Num(); Idx++)
+		for (int32 Idx = 0; Idx < BoxesCopy.Num(); Idx++)
 		{
-			if (Boxes[Idx].IsInsideOrOn(Position))
+			if (BoxesCopy[Idx].IsInsideOrOn(Position))
 			{
 				return Idx;
 			}
@@ -287,12 +288,12 @@ FPlanarCells::FPlanarCells(const TArrayView<const FBox> Boxes)
 	}
 }
 
-FPlanarCells::FPlanarCells(const FBox &Region, const FIntVector& CubesPerAxis)
+FPlanarCells::FPlanarCells(const FBox& Region, const FIntVector& CubesPerAxis)
 {
 	AssumeConvexCells = true;
 	NumCells = CubesPerAxis.X * CubesPerAxis.Y * CubesPerAxis.Z;
 
-	CellFromPosition = TFunction<int32(FVector)>([&](FVector Position)
+	CellFromPosition = TFunction<int32(FVector)>([Region, CubesPerAxis](FVector Position)
 	{
 		if (!Region.IsInsideOrOn(Position))
 		{
@@ -614,7 +615,7 @@ FPlanarCells::FPlanarCells(const FBox &Region, const TArrayView<const FColor> Im
 
 	AssumeConvexCells = false; // todo could set this to true if the 2D shape of each image region is convex
 
-	CellFromPosition = TFunction<int32(FVector)>([=](FVector Position)
+	CellFromPosition = TFunction<int32(FVector)>([Region, PixCells, Width, Height, RegionDiagonal](FVector Position)
 	{
 		if (!Region.IsInsideOrOn(Position))
 		{
