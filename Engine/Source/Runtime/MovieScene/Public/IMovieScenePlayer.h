@@ -71,6 +71,7 @@ struct EMovieSceneCameraCutParams
 	// Info for previewing shot blends in editor.
 	UObject* PreviousCameraObject = nullptr;
 	float PreviewBlendFactor = -1.f;
+	bool bCanBlend = false;
 #endif
 };
 

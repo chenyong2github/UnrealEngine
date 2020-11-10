@@ -59,6 +59,7 @@ namespace MovieScene
 		FMovieSceneSequenceID PreviousOperandSequenceID;
 
 		float PreviewBlendFactor = -1.f;
+		bool bCanBlend = false;
 
 		FBlendedCameraCut()
 		{}
@@ -152,6 +153,7 @@ namespace MovieScene
 			UObject* PreviousCameraActor = FindBoundObject(Params.PreviousCameraBindingID, Params.PreviousOperandSequenceID, Player);
 			CameraCutParams.PreviousCameraObject = PreviousCameraActor;
 			CameraCutParams.PreviewBlendFactor = Params.PreviewBlendFactor;
+			CameraCutParams.bCanBlend = Params.bCanBlend;
 #endif
 
 			static const FMovieSceneAnimTypeID CameraAnimTypeID = FMovieSceneAnimTypeID::Unique();
@@ -219,6 +221,7 @@ void UMovieSceneCameraCutTrackInstance::OnAnimate()
 			const FMovieSceneTimeTransform SequenceToRootTransform = Context.GetSequenceToRootTransform();
 
 			FBlendedCameraCut Params(Input.InstanceHandle, CameraBindingID, SequenceInstance.GetSequenceID());
+			Params.bCanBlend = Track->bCanBlend;
 
 			// Get ease-in/out info.
 			if (Section->HasStartFrame() && Section->Easing.GetEaseInDuration() > 0)
@@ -331,8 +334,12 @@ void UMovieSceneCameraCutTrackInstance::OnAnimate()
 		IMovieScenePlayer* Player = SequenceInstance.GetPlayer();
 		if (FCameraCutAnimator::AnimateBlendedCameraCut(FinalCameraCut, CameraCutCache, Context, *Player))
 		{
-			// Track whether this ever evaluated to take control. If so, we'll want to remove control OnDestroyed
-			PlayerUseCounts.FindChecked(Player).bValid = true;
+			// Track whether this ever evaluated to take control. If so, we'll want to remove control in OnDestroyed.
+			FCameraCutUseData& PlayerUseCount = PlayerUseCounts.FindChecked(Player);
+			PlayerUseCount.bValid = true;
+			// Remember whether we had blending support the last time we took control of the viewport. This is also
+			// for OnDestroyed.
+			PlayerUseCount.bCanBlend = FinalCameraCut.bCanBlend;
 		}
 	}
 }
@@ -433,6 +440,7 @@ void UMovieSceneCameraCutTrackInstance::OnDestroyed()
 		if (PlayerUseCount.Value.bValid)
 		{
 			EMovieSceneCameraCutParams Params;
+			Params.bCanBlend = PlayerUseCount.Value.bCanBlend;
 			PlayerUseCount.Key->UpdateCameraCut(nullptr, Params);
 			break;  // Only do it on the first one.
 		}
