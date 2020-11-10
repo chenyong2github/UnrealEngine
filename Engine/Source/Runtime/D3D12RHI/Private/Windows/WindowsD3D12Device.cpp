@@ -953,6 +953,15 @@ void FD3D12Device::CreateSamplerInternal(const D3D12_SAMPLER_DESC& Desc, D3D12_C
 	GetDevice()->CreateSampler(&Desc, Descriptor);
 }
 
+#if D3D12_RHI_RAYTRACING
+TRefCountPtr<ID3D12StateObject> FD3D12Device::DeserializeRayTracingStateObject(D3D12_SHADER_BYTECODE Bytecode, ID3D12RootSignature* RootSignature)
+{
+	checkNoEntry();
+	TRefCountPtr<ID3D12StateObject> Result;
+	return Result;
+}
+#endif // D3D12_RHI_RAYTRACING
+
 /**
  *	Retrieve available screen resolutions.
  *
