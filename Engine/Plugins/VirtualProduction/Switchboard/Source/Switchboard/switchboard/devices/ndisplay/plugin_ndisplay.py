@@ -48,6 +48,7 @@ class AddnDisplayDialog(AddDeviceDialog):
         res = super().result()
         if res == QtWidgets.QDialog.Accepted:
             config_path = self.config_file_field.text().replace('"', '').strip()
+            config_path = os.path.normpath(config_path)
             DevicenDisplay.csettings['ndisplay_config_file'].update_value(config_path)
         return res
 

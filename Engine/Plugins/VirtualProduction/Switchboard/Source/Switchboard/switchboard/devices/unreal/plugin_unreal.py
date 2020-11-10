@@ -2,7 +2,7 @@
 from switchboard import config_osc as osc
 from switchboard import message_protocol, p4_utils
 from switchboard.config import CONFIG, Setting, SETTINGS, DEFAULT_MAP_TEXT
-from switchboard.devices.device_base import Device, DeviceStatus
+from switchboard.devices.device_base import Device, DeviceStatus, PluginHeaderWidgets
 from switchboard.devices.device_widget_base import DeviceWidget
 from switchboard.listener_client import ListenerClient
 from switchboard.switchboard_logging import LOGGER
@@ -139,6 +139,11 @@ class DeviceUnreal(Device):
 
     def device_settings(self):
         return super().device_settings() + [self.setting_roles]
+
+    @classmethod
+    def plugin_header_widget_config(cls):
+        """ combination of widgets that will be visualized in the plugin header. """
+        return super().plugin_header_widget_config() | PluginHeaderWidgets.OPEN_BUTTON | PluginHeaderWidgets.CHANGELIST_LABEL
 
     def on_setting_ip_address_changed(self, _, new_address):
         LOGGER.info(f"Updating IP address for ListenerClient to {new_address}")

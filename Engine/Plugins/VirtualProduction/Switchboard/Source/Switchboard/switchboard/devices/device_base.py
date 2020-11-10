@@ -8,7 +8,7 @@ from switchboard import message_protocol
 from PySide2 import QtCore, QtGui
 import pythonosc.udp_client
 
-from enum import IntEnum, unique, auto
+from enum import IntEnum, IntFlag, unique, auto
 import os
 import random
 import socket
@@ -23,6 +23,12 @@ class DeviceStatus(IntEnum):
     OPEN = auto()
     READY = auto()
     RECORDING = auto()
+
+@unique
+class PluginHeaderWidgets(IntFlag):
+    OPEN_BUTTON = 1,
+    CONNECT_BUTTON = 2,
+    CHANGELIST_LABEL = 4,
 
 
 class DeviceQtHandler(QtCore.QObject):
@@ -149,6 +155,11 @@ class Device(QtCore.QObject):
     @property
     def category_name(self):
         return self.device_type
+
+    @classmethod
+    def plugin_header_widget_config(cls):
+        """ combination of widgets that will be visualized in the plugin header. """
+        return PluginHeaderWidgets.CONNECT_BUTTON
 
     @property
     def is_recording_device(self):
