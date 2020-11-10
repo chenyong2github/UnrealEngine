@@ -19,7 +19,7 @@
 #include "GroomComponentDetailsCustomization.h"
 
 #include "AssetRegistryModule.h"
-#include "Tools/EditorToolAssetAPI.h"
+#include "FileHelpers.h"
 
 IMPLEMENT_MODULE(FGroomEditor, HairStrandsEditor);
 
@@ -46,8 +46,14 @@ void RegisterAsset(UObject* Out)
 void SaveAsset(UObject* Object)
 {
 	UPackage* Package = Object->GetOutermost();
-	Package->MarkPackageDirty(); 
-	//AutoSaveGeneratedAsset(Object, Package); <= possible?
+	Object->MarkPackageDirty();
+	FAssetRegistryModule::AssetCreated(Object);
+
+	TArray<UPackage*> PackagesToSave;
+	PackagesToSave.Add(Package);
+	bool bCheckDirty = true;
+	bool bPromptToSave = false;
+	FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, bCheckDirty, bPromptToSave);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

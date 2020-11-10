@@ -22,6 +22,7 @@ UGroomBindingAsset* UGroomBlueprintLibrary::CreateNewGroomBindingAssetWithPath(
 	{
 		BindingAsset->Build();
 	}
+	FHairStrandsCore::SaveAsset(BindingAsset);
 	return BindingAsset;
 #else
 	return nullptr;
@@ -45,6 +46,7 @@ UGroomBindingAsset* UGroomBlueprintLibrary::CreateNewGroomBindingAsset(
 	{
 		BindingAsset->Build();
 	}
+	FHairStrandsCore::SaveAsset(BindingAsset);
 	return BindingAsset;
 #else
 	return nullptr;
