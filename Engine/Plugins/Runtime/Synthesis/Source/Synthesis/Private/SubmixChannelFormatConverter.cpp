@@ -272,6 +272,7 @@ namespace Audio
 
 		check(NumFramesPerCall > 0);
 
+		// Default routing is to match channel types.
 		for (int32 InputIndex = 0; InputIndex < InputChannelTypes.Num(); InputIndex++)
 		{
 			EAudioMixerChannel::Type InputType = InputChannelTypes[InputIndex];
@@ -281,6 +282,19 @@ namespace Audio
 			{
 				ChannelPairs.Emplace(InputIndex, OutputIndex);
 			}
+		}
+
+		// Determine special case of routing mono to front left. Only do special mapping
+		// if input is mono-front-center and output has front-left but no front-center.
+		const bool bIsInputMono = (InInputChannelTypes.Num() == 1) && (InInputChannelTypes[0] == EAudioMixerChannel::FrontCenter);
+		const bool bIsFrontCenterInOutput = InOutputChannelTypes.Find(EAudioMixerChannel::FrontCenter) != INDEX_NONE;
+		const bool bIsFrontLeftInOutput = InOutputChannelTypes.Find(EAudioMixerChannel::FrontLeft) != INDEX_NONE;
+
+		const bool bMapInputFrontCenterToOutputFrontLeft = bIsInputMono && bIsFrontLeftInOutput && !bIsFrontCenterInOutput;
+
+		if (bMapInputFrontCenterToOutputFrontLeft)
+		{
+			ChannelPairs.Emplace(InInputChannelTypes.Find(EAudioMixerChannel::FrontCenter), InOutputChannelTypes.Find(EAudioMixerChannel::FrontLeft));
 		}
 	}
 
@@ -509,7 +523,7 @@ namespace Audio
 				FChannelMixEntry& MonoToFrontRight = OutEntries.AddDefaulted_GetRef();
 
 				MonoToFrontRight.InputChannelIndex = 0;
-				MonoToFrontRight.OutputChannelIndex = InOutputChannelTypes.Find(EAudioMixerChannel::Type::FrontLeft);
+				MonoToFrontRight.OutputChannelIndex = InOutputChannelTypes.Find(EAudioMixerChannel::Type::FrontRight);
 				MonoToFrontRight.Gain = 0.707f; // Equal power
 			}
 			else
