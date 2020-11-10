@@ -13,6 +13,10 @@ struct FVertexFactoryInterpolantsVSToPS
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	nointerpolation uint PrimitiveId : PRIMITIVE_ID;
 #endif
+
+#if INSTANCED_STEREO
+	nointerpolation uint EyeIndex : PACKED_EYE_INDEX;
+#endif
 };
 
 /**
@@ -320,6 +324,10 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 #endif
 
 	Interpolants.WaveParamIndex = Intermediates.WaveParamIndex;
+
+#if INSTANCED_STEREO
+	Interpolants.EyeIndex = 0;
+#endif
 
 	SetPrimitiveId(Interpolants, Intermediates.PrimitiveId);
 
