@@ -204,6 +204,7 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 	IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get(IOS_SUBSYSTEM);
 	if (ensure(OnlineSub))
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FOnlineStoreInterfaceIOSPtr StoreInterface = StaticCastSharedPtr<FOnlineStoreInterfaceIOS>(OnlineSub->GetStoreInterface());
 		if (ensure(StoreInterface.IsValid()))
 		{
@@ -213,6 +214,7 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 			}
 			StoreInterface->ProcessRestorePurchases(EInAppPurchaseState::Restored);
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
@@ -239,6 +241,7 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 	IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get(IOS_SUBSYSTEM);
 	if (ensure(OnlineSub))
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FOnlineStoreInterfaceIOSPtr StoreInterface = StaticCastSharedPtr<FOnlineStoreInterfaceIOS>(OnlineSub->GetStoreInterface());
 		if (ensure(StoreInterface.IsValid()))
 		{
@@ -249,6 +252,7 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 
 			StoreInterface->ProcessRestorePurchases(CompletionState);
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
@@ -259,6 +263,7 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 	IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get(IOS_SUBSYSTEM);
 	if (ensure(OnlineSub))
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FOnlineStoreInterfaceIOSPtr StoreInterface = StaticCastSharedPtr<FOnlineStoreInterfaceIOS>(OnlineSub->GetStoreInterface());
 		if (ensure(StoreInterface.IsValid()))
 		{
@@ -273,6 +278,7 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 
 			StoreInterface->TriggerOnInAppPurchaseCompleteDelegates(EInAppPurchaseState::Success);
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	// Remove the transaction from the payment queue.
@@ -286,6 +292,7 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 	IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get(IOS_SUBSYSTEM);
 	if (ensure(OnlineSub))
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FOnlineStoreInterfaceIOSPtr StoreInterface = StaticCastSharedPtr<FOnlineStoreInterfaceIOS>(OnlineSub->GetStoreInterface());
 		if (ensure(StoreInterface.IsValid()))
 		{
@@ -299,6 +306,7 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 				StoreInterface->CachedPurchaseRestoreObject->ProvidedRestoreInformation.Add(RestoreInfo);
 			}
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	[[SKPaymentQueue defaultQueue] finishTransaction:transaction];
@@ -327,6 +335,7 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 	IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get(IOS_SUBSYSTEM);
 	if (ensure(OnlineSub))
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FOnlineStoreInterfaceIOSPtr StoreInterface = StaticCastSharedPtr<FOnlineStoreInterfaceIOS>(OnlineSub->GetStoreInterface());
 		if (ensure(StoreInterface.IsValid()))
 		{
@@ -337,6 +346,7 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 
 			StoreInterface->TriggerOnInAppPurchaseCompleteDelegates(CompletionState);
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	[[SKPaymentQueue defaultQueue] finishTransaction:transaction];
@@ -381,11 +391,13 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 		IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get(IOS_SUBSYSTEM);
 		if (ensure(OnlineSub))
 		{
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			FOnlineStoreInterfaceIOSPtr StoreInterface = StaticCastSharedPtr<FOnlineStoreInterfaceIOS>(OnlineSub->GetStoreInterface());
 			if (ensure(StoreInterface.IsValid()))
 			{
 				StoreInterface->ProcessProductsResponse(response);
 			}
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		
 		return true;
