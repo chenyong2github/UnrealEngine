@@ -107,7 +107,7 @@ void UCombineMeshesTool::Setup()
 
 	if (bDuplicateMode)
 	{
-		SetToolDisplayName(LOCTEXT("DuplicateMesheToolName", "Duplicate Mesh Tool"));
+		SetToolDisplayName(LOCTEXT("DuplicateMeshesToolName", "Duplicate Mesh Tool"));
 		BasicProperties->OutputName = AssetGenerationUtil::GetComponentAssetBaseName(ComponentTargets[0]->GetOwnerComponent());
 	}
 	else
@@ -281,7 +281,8 @@ void UCombineMeshesTool::CreateNewAsset()
 			AccumToWorld = ComponentTargets[0]->GetWorldTransform();
 		}
 
-		FString UseBaseName = BasicProperties->OutputName;
+		// max len explicitly enforced here, would ideally notify user
+		FString UseBaseName = BasicProperties->OutputName.Left(250);
 		if (UseBaseName.IsEmpty())
 		{
 			UseBaseName = (bDuplicateMode) ? TEXT("Duplicate") : TEXT("Combined");

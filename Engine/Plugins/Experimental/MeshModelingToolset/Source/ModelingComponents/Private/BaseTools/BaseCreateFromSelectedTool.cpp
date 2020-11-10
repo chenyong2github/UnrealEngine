@@ -206,11 +206,17 @@ void UBaseCreateFromSelectedTool::GenerateAsset(const FDynamicMeshOpResult& Resu
 		NewTransform.SetTranslation(NewTransform.GetTranslation() + NewTransform.TransformVector(Center * Rescale));
 	}
 
+	// max len explicitly enforced here, would ideally notify user
+	FString UseBaseName = HandleSourcesProperties->OutputName.Left(250);
+	if (UseBaseName.IsEmpty())
+	{
+		UseBaseName = PrefixWithSourceNameIfSingleSelection(GetCreatedAssetName());
+	}
 
 	TArray<UMaterialInterface*> Materials = GetOutputMaterials();
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld,
-		Result.Mesh.Get(), NewTransform, PrefixWithSourceNameIfSingleSelection(GetCreatedAssetName()), Materials);
+		Result.Mesh.Get(), NewTransform, UseBaseName, Materials);
 	if (NewActor != nullptr)
 	{
 		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
