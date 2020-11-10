@@ -27,6 +27,43 @@ UInputSettings::UInputSettings(const FObjectInitializer& ObjectInitializer)
 {
 }
 
+void UInputSettings::RemoveInvalidKeys()
+{
+	TArray<int32> InvalidIndices;
+	int32 CurrentIndex = 0;
+	//detect invalid keys and add them to the array for removal
+	for (const FInputActionKeyMapping& KeyMapping : ActionMappings)
+	{
+		if (!(KeyMapping.Key.IsValid() || (KeyMapping.Key.GetFName() == TEXT("None"))))
+		{
+			UE_LOG(LogInput, Warning, TEXT("Action %s uses invalid key %s."), *KeyMapping.ActionName.ToString(), *KeyMapping.Key.ToString());
+			InvalidIndices.Add(CurrentIndex);
+		}
+		CurrentIndex++;
+	}
+
+	if (InvalidIndices.Num())
+	{
+		if (FParse::Param(FCommandLine::Get(), TEXT("RemoveInvalidKeys")))
+		{
+			//now remove them
+			for (int32 i = InvalidIndices.Num() - 1; i >= 0; --i)
+			{
+				int32 IndexToRemove = InvalidIndices[i];
+				ActionMappings[IndexToRemove].Key = FName();
+			}
+			//if there were any indices to remove, save the new values
+			SaveConfig();
+			UpdateDefaultConfigFile();
+		}
+		else
+		{
+			UE_LOG(LogInput, Warning, TEXT("Use -RemoveInvalidKeys to remove instances of these keys from the action mapping."));
+		}
+	}
+}
+
+
 void UInputSettings::PostInitProperties()
 {
 	Super::PostInitProperties();
