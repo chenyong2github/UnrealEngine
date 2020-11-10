@@ -8,6 +8,8 @@
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "NiagaraDataInterfacePhysicsAsset.generated.h"
 
+#define PHYSICS_ASSET_MAX_PRIMITIVES 300
+
 /** Element offsets in the array list */
 struct FElementOffset
 {
@@ -28,27 +30,18 @@ struct FElementOffset
 struct FNDIPhysicsAssetArrays
 {
 	FElementOffset ElementOffsets;
-	TArray<FVector4> CurrentTransform;
-	TArray<FVector4> InverseTransform;
-	TArray<FVector4> PreviousTransform;
-	TArray<FVector4> PreviousInverse;
-	TArray<FVector4> RestTransform;
-	TArray<FVector4> RestInverse;
-	TArray<FVector4> ElementExtent;
+	TStaticArray<FVector4, PHYSICS_ASSET_MAX_PRIMITIVES> CurrentTransform;
+	TStaticArray<FVector4, PHYSICS_ASSET_MAX_PRIMITIVES> InverseTransform;
+	TStaticArray<FVector4, PHYSICS_ASSET_MAX_PRIMITIVES> PreviousTransform;
+	TStaticArray<FVector4, PHYSICS_ASSET_MAX_PRIMITIVES> PreviousInverse;
+	TStaticArray<FVector4, PHYSICS_ASSET_MAX_PRIMITIVES> RestTransform;
+	TStaticArray<FVector4, PHYSICS_ASSET_MAX_PRIMITIVES> RestInverse;
+	TStaticArray<FVector4, PHYSICS_ASSET_MAX_PRIMITIVES> ElementExtent;
 };
 
 /** Render buffers that will be used in hlsl functions */
 struct FNDIPhysicsAssetBuffer : public FRenderResource
 {
-	/** Check if all the assets are valid */
-	bool IsValid() const;
-
-	/** Set the assets that will be used to affect the buffer */
-	void Initialize(const TArray<TWeakObjectPtr<class UPhysicsAsset>>& PhysicsAsset, const TArray<TWeakObjectPtr<class USkeletalMeshComponent>>& SkeletalMesh, const FTransform& InWorldTransform);
-
-	/** Update the buffers */
-	void Update(const FTransform& InWorldTransform);
-
 	/** Init the buffer */
 	virtual void InitRHI() override;
 
@@ -78,34 +71,31 @@ struct FNDIPhysicsAssetBuffer : public FRenderResource
 
 	/** Element extent buffer */
 	FRWBuffer ElementExtentBuffer;
-
-	/** The physics asset datas from which the buffers will be constructed */
-	TArray<TWeakObjectPtr<class UPhysicsAsset>> PhysicsAssets;
-
-	/** The skeletal mesh from which the transform will be extracted*/
-	TArray<TWeakObjectPtr<class USkeletalMeshComponent>> SkeletalMeshs;
-
-	/** Physics Asset arrays */
-	TUniquePtr<FNDIPhysicsAssetArrays> AssetArrays;
 };
 
 /** Data stored per physics asset instance*/
 struct FNDIPhysicsAssetData
 {
-	/** Initialize the buffers */
-	bool Init(class UNiagaraDataInterfacePhysicsAsset* Interface, FNiagaraSystemInstance* SystemInstance);
+	/** Initialize the cpu datas */
+	void Init(class UNiagaraDataInterfacePhysicsAsset* Interface, FNiagaraSystemInstance* SystemInstance);
+
+	/** Update the gpu datas */
+	void Update(class UNiagaraDataInterfacePhysicsAsset* Interface, FNiagaraSystemInstance* SystemInstance);
 
 	/** Release the buffers */
 	void Release();
 
 	/** Physics asset Gpu buffer */
-	FNDIPhysicsAssetBuffer* PhysicsAssetBuffer;
+	FNDIPhysicsAssetBuffer* AssetBuffer;
 
 	/** Bounding box center */
 	FVector BoxOrigin;
 
 	/** Bounding box extent */
 	FVector BoxExtent;
+
+	/** Physics asset Cpu arrays */
+	FNDIPhysicsAssetArrays AssetArrays;
 };
 
 /** Data Interface for the strand base */
@@ -234,6 +224,12 @@ struct FNDIPhysicsAssetProxy : public FNiagaraDataInterfaceProxy
 
 	/** Destroy the proxy data if necessary */
 	void DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance);
+
+	/** Launch all pre stage functions */
+	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
+
+	/** Reset the buffers  */
+	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
 
 	/** List of proxy data for each system instances*/
 	TMap<FNiagaraSystemInstanceID, FNDIPhysicsAssetData> SystemInstancesToProxyData;
