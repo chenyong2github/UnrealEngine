@@ -347,6 +347,15 @@ public:
 		RegisterExternalAttribute(Attribute);
 	}
 
+	void RemoveAttribute(FName AttribName)
+	{
+		if (GenericAttributes.Contains(AttribName))
+		{
+			UnregisterExternalAttribute(GenericAttributes[AttribName].Get());
+			GenericAttributes.Remove(AttribName);
+		}
+	}
+
 	FDynamicMeshAttributeBase* GetAttachedAttribute(FName AttribName) const
 	{
 		return GenericAttributes[AttribName].Get();
