@@ -30,4 +30,5 @@ private:
 
 	bool bNvDiagInit    = false;
 	bool bNvDiagPresent = false;
+	bool bNvDiagLatency = false;
 };
