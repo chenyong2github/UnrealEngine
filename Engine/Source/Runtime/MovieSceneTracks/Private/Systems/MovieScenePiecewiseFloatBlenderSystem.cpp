@@ -20,36 +20,87 @@
 DECLARE_CYCLE_STAT(TEXT("Piecewise Blender System"),             MovieSceneEval_PiecewiseBlenderSystem,  STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("Blend float values"),                   MovieSceneEval_BlendFloatValues,        STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("Default combine blended float values"), MovieSceneEval_BlendCombineFloatValues, STATGROUP_MovieSceneECS);
-
+ 
 namespace UE
 {
 namespace MovieScene
 {
 
-/** Task for generating blended and weighted results on blend outputs */
-struct FBlendTask
-{
-	TArray<FBlendResult>* ResultArray;
 
-	void ForEachAllocation(const FEntityAllocation* InAllocation, TRead<uint16> BlendID, TRead<float> FloatResult, TReadOptional<float> EasingAndWeightResult)
+struct FAccumulationResult
+{
+	const FBlendResult* Absolutes = nullptr;
+	const FBlendResult* Relatives = nullptr;
+	const FBlendResult* Additives = nullptr;
+	const FBlendResult* AdditivesFromBase = nullptr;
+
+	bool IsValid() const
+	{
+		return Absolutes || Relatives || Additives || AdditivesFromBase;
+	}
+
+	FBlendResult GetAbsoluteResult(uint16 BlendID) const
+	{
+		return Absolutes ? Absolutes[BlendID] : FBlendResult{};
+	}
+	FBlendResult GetRelativeResult(uint16 BlendID) const
+	{
+		return Relatives ? Relatives[BlendID] : FBlendResult{};
+	}
+	FBlendResult GetAdditiveResult(uint16 BlendID) const
+	{
+		return Additives ? Additives[BlendID] : FBlendResult{};
+	}
+	FBlendResult GetAdditiveFromBaseResult(uint16 BlendID) const
+	{
+		return AdditivesFromBase ? AdditivesFromBase[BlendID] : FBlendResult{};
+	}
+};
+
+/** Task for accumulating all weighted blend inputs into arrays based on BlendID. Will be run for Absolute, Additive and Relative blend modes*/
+struct FAccumulationTask
+{
+	FAccumulationTask(TSortedMap<FComponentTypeID, TArray<FBlendResult>>* InAccumulationBuffers)
+		: AccumulationBuffers(InAccumulationBuffers)
+	{}
+
+	/** Task entry point - iterates the allocation's headers and accumulates float results for any required components */
+	void ForEachAllocation(FEntityAllocationIteratorItem InItem, TRead<uint16> BlendID, TReadOptional<float> EasingAndWeightResult)
+	{
+		const FEntityAllocation* Allocation = InItem;
+		const FComponentMask& AllocationType = InItem;
+
+		const uint16* BlendIDs         = BlendID.Resolve(Allocation);
+		const float*  EasingAndWeights = EasingAndWeightResult.Resolve(Allocation);
+
+		for (const FComponentHeader& ComponentHeader : Allocation->GetComponentHeaders())
+		{
+			if (TArray<FBlendResult>* AccumulationBuffer = AccumulationBuffers->Find(ComponentHeader.ComponentType))
+			{
+				ComponentHeader.ReadWriteLock.ReadLock();
+
+				const float* FloatResults = static_cast<const float*>(ComponentHeader.GetValuePtr(0));
+				AccumulateResults(Allocation, FloatResults, BlendIDs, EasingAndWeights, *AccumulationBuffer);
+
+				ComponentHeader.ReadWriteLock.ReadUnlock();
+			}
+		}
+	}
+
+private:
+
+	void AccumulateResults(const FEntityAllocation* InAllocation, const float* InFloatResults, const uint16* BlendIDs, const float* OptionalEasingAndWeights, TArray<FBlendResult>& OutBlendResults)
 	{
 		const int32 Num = InAllocation->Num();
-
-		const uint16* BlendIDs      = BlendID.Resolve(InAllocation);
-		const float*  FloatResults  = FloatResult.Resolve(InAllocation);
-
-		// This is random access into the Blendables array
-		if (InAllocation->HasComponent(EasingAndWeightResult.ComponentType))
+		if (OptionalEasingAndWeights)
 		{
 			// We have some easing/weight factors to multiply values with.
-			const float* EasingAndWeights = EasingAndWeightResult.Resolve(InAllocation);
-
 			for (int32 Index = 0; Index < Num; ++Index)
 			{
-				FBlendResult& Result = (*ResultArray)[BlendIDs[Index]];
+				FBlendResult& Result = OutBlendResults[BlendIDs[Index]];
 
-				const float Weight = EasingAndWeights[Index];
-				Result.Total  += FloatResults[Index] * Weight;
+				const float Weight = OptionalEasingAndWeights[Index];
+				Result.Total  += InFloatResults[Index] * Weight;
 				Result.Weight += Weight;
 			}
 		}
@@ -58,12 +109,14 @@ struct FBlendTask
 			// Faster path for when there's no weight to multiply values with.
 			for (int32 Index = 0; Index < Num; ++Index)
 			{
-				FBlendResult& Result = (*ResultArray)[BlendIDs[Index]];
-				Result.Total  += FloatResults[Index];
+				FBlendResult& Result = OutBlendResults[BlendIDs[Index]];
+				Result.Total  += InFloatResults[Index];
 				Result.Weight += 1.f;
 			}
 		}
 	}
+
+	TSortedMap<FComponentTypeID, TArray<FBlendResult>>* AccumulationBuffers;
 };
 
 /** Same as the task above, but also reads a "base value" that is subtracted from all values.
@@ -72,27 +125,49 @@ struct FBlendTask
  */
 struct FAdditiveFromBaseBlendTask
 {
-	TArray<FBlendResult>* ResultArray;
+	TSortedMap<FComponentTypeID, FAdditiveFromBaseBuffer>* AccumulationBuffers;
 
-	void ForEachAllocation(const FEntityAllocation* InAllocation, TRead<uint16> BlendID, TRead<float> BaseValue, TRead<float> FloatResult, TReadOptional<float> EasingAndWeightResult)
+	void ForEachAllocation(FEntityAllocationIteratorItem InItem, TRead<uint16> BlendID, TReadOptional<float> EasingAndWeightResult)
+	{
+		FEntityAllocation* Allocation = InItem;
+		const FComponentMask& AllocationType = InItem;
+
+		const uint16* BlendIDs         = BlendID.Resolve(Allocation);
+		const float*  EasingAndWeights = EasingAndWeightResult.Resolve(Allocation);
+
+		for (const FComponentHeader& ComponentHeader : Allocation->GetComponentHeaders())
+		{
+			if (FAdditiveFromBaseBuffer* Buffer = AccumulationBuffers->Find(ComponentHeader.ComponentType))
+			{
+				const FComponentHeader& BaseValueHeader = Allocation->GetComponentHeaderChecked(Buffer->BaseComponent);
+
+				BaseValueHeader.ReadWriteLock.ReadLock();
+				ComponentHeader.ReadWriteLock.ReadLock();
+
+				const float* BaseValues   = static_cast<const float*>(BaseValueHeader.GetValuePtr(0));
+				const float* FloatResults = static_cast<const float*>(ComponentHeader.GetValuePtr(0));
+
+				AccumulateResults(Allocation, FloatResults, BaseValues, BlendIDs, EasingAndWeights, Buffer->Buffer);
+
+				ComponentHeader.ReadWriteLock.ReadUnlock();
+				BaseValueHeader.ReadWriteLock.ReadUnlock();
+			}
+		}
+	}
+
+private:
+
+	void AccumulateResults(const FEntityAllocation* InAllocation, const float* FloatResults, const float* BaseValues, const uint16* BlendIDs, const float* OptionalEasingAndWeights, TArray<FBlendResult>& OutBlendResults)
 	{
 		const int32 Num = InAllocation->Num();
 
-		const uint16* BlendIDs      = BlendID.Resolve(InAllocation);
-		const float*  BaseValues    = BaseValue.Resolve(InAllocation);
-		const float*  FloatResults  = FloatResult.Resolve(InAllocation);
-
-		// This is random access into the Blendables array
-		if (InAllocation->HasComponent(EasingAndWeightResult.ComponentType))
+		if (OptionalEasingAndWeights)
 		{
-			// We have some easing/weight factors to multiply values with.
-			const float* EasingAndWeights = EasingAndWeightResult.Resolve(InAllocation);
-
 			for (int32 Index = 0; Index < Num; ++Index)
 			{
-				FBlendResult& Result = (*ResultArray)[BlendIDs[Index]];
+				FBlendResult& Result = OutBlendResults[BlendIDs[Index]];
 
-				const float Weight = EasingAndWeights[Index];
+				const float Weight = OptionalEasingAndWeights[Index];
 				Result.Total  += (FloatResults[Index] - BaseValues[Index]) * Weight;
 				Result.Weight += Weight;
 			}
@@ -102,7 +177,7 @@ struct FAdditiveFromBaseBlendTask
 			// Faster path for when there's no weight to multiply values with.
 			for (int32 Index = 0; Index < Num; ++Index)
 			{
-				FBlendResult& Result = (*ResultArray)[BlendIDs[Index]];
+				FBlendResult& Result = OutBlendResults[BlendIDs[Index]];
 				Result.Total  += (FloatResults[Index] - BaseValues[Index]);
 				Result.Weight += 1.f;
 			}
@@ -110,27 +185,103 @@ struct FAdditiveFromBaseBlendTask
 	}
 };
 
-struct FCombineBlendsWithInitialValues
+/** Task that combines all accumulated blends for any tracked property type that has blend inputs/outputs */
+struct FCombineBlends
 {
-	const FBlendedValuesTaskData* TaskData;
-	int32 InitialValueProjectionOffset;
+	explicit FCombineBlends(const TBitArray<>& InCachedRelevantProperties, const FAccumulationBuffers* InAccumulationBuffers, uint64 InSystemSerial)
+		: CachedRelevantProperties(InCachedRelevantProperties)
+		, AccumulationBuffers(InAccumulationBuffers)
+		, PropertyRegistry(&FBuiltInComponentTypes::Get()->PropertyRegistry)
+		, SystemSerial(InSystemSerial)
+	{}
 
-	explicit FCombineBlendsWithInitialValues(const FBlendedValuesTaskData* InTaskData, int32 InInitialValueProjectionOffset)
-		: TaskData(InTaskData), InitialValueProjectionOffset(InInitialValueProjectionOffset)
+	void ForEachAllocation(FEntityAllocationIteratorItem InItem, TRead<uint16> BlendID)
 	{
-		check(InInitialValueProjectionOffset >= 0);
+		FEntityAllocation* Allocation = InItem;
+		const FComponentMask& AllocationType = InItem;
+
+		// Find out what kind of property this is
+		for (TConstSetBitIterator<> PropertyIndex(CachedRelevantProperties); PropertyIndex; ++PropertyIndex)
+		{
+			const FPropertyDefinition& PropertyDefinition = PropertyRegistry->GetDefinition(FCompositePropertyTypeID::FromIndex(PropertyIndex.GetIndex()));
+			if (AllocationType.Contains(PropertyDefinition.PropertyType))
+			{
+				ProcessPropertyType(Allocation, AllocationType, PropertyDefinition, BlendID);
+				return;
+			}
+		}
 	}
 
-	void ForEachEntity(uint16 BlendID, const void* ErasedInitialValue, float& OutFinalBlendResult)
+private:
+
+	void ProcessPropertyType(FEntityAllocation* Allocation, const FComponentMask& AllocationType, const FPropertyDefinition& PropertyDefinition, TRead<uint16> BlendID)
 	{
-		checkSlow(InitialValueProjectionOffset != INDEX_NONE);
+		TArrayView<const FPropertyCompositeDefinition> Composites = PropertyRegistry->GetComposites(PropertyDefinition);
 
-		const float InitialValue = *reinterpret_cast<const float*>(reinterpret_cast<const uint8*>(ErasedInitialValue) + InitialValueProjectionOffset);
+		const FComponentHeader* InitialValuesHeader = Allocation->FindComponentHeader(PropertyDefinition.InitialValueType);
+		if (InitialValuesHeader)
+		{
+			InitialValuesHeader->ReadWriteLock.ReadLock();
+		}
 
-		FBlendResult AbsoluteResult = TaskData->GetAbsoluteResult(BlendID);
-		FBlendResult RelativeResult = TaskData->GetRelativeResult(BlendID);
-		FBlendResult AdditiveResult = TaskData->GetAdditiveResult(BlendID);
-		FBlendResult AdditiveFromBaseResult = TaskData->GetAdditiveFromBaseResult(BlendID);
+		const uint16* BlendIDs = BlendID.Resolve(Allocation);
+		for (int32 CompositeIndex = 0; CompositeIndex < Composites.Num(); ++CompositeIndex)
+		{
+			if ( (PropertyDefinition.FloatCompositeMask & (1 << CompositeIndex)) == 0)
+			{
+				continue;
+			}
+
+			TComponentTypeID<float> ResultComponent = Composites[CompositeIndex].ComponentTypeID.ReinterpretCast<float>();
+			if (!AllocationType.Contains(ResultComponent))
+			{
+				continue;
+			}
+
+			FAccumulationResult Results = AccumulationBuffers->FindResults(ResultComponent);
+			if (Results.IsValid())
+			{
+				const uint16 InitialValueProjectionOffset = Composites[CompositeIndex].CompositeOffset;
+
+				// Open the float result channel for write
+				FComponentHeader& ResultsHeader = Allocation->GetComponentHeaderChecked(ResultComponent);
+				ResultsHeader.ReadWriteLock.WriteLock();
+
+				float* FloatResults = static_cast<float*>(ResultsHeader.GetValuePtr(0));
+
+				if (InitialValuesHeader)
+				{
+					for (int32 Index = 0; Index < Allocation->Num(); ++Index)
+					{
+						const float InitialValue = *reinterpret_cast<const float*>(reinterpret_cast<const uint8*>(InitialValuesHeader->GetValuePtr(Index)) + InitialValueProjectionOffset);
+						BlendResultsWithInitial(Results, BlendIDs[Index], InitialValue, FloatResults[Index]);
+					}
+				}
+				else
+				{
+					for (int32 Index = 0; Index < Allocation->Num(); ++Index)
+					{
+						BlendResults(Results, BlendIDs[Index], FloatResults[Index]);
+					}
+				}
+
+				ResultsHeader.PostWriteComponents(SystemSerial);
+				ResultsHeader.ReadWriteLock.WriteUnlock();
+			}
+		}
+
+		if (InitialValuesHeader)
+		{
+			InitialValuesHeader->ReadWriteLock.ReadUnlock();
+		}
+	}
+
+	void BlendResultsWithInitial(const FAccumulationResult& Results, uint16 BlendID, const float InitialValue, float& OutFinalBlendResult)
+	{
+		FBlendResult AbsoluteResult = Results.GetAbsoluteResult(BlendID);
+		FBlendResult RelativeResult = Results.GetRelativeResult(BlendID);
+		FBlendResult AdditiveResult = Results.GetAdditiveResult(BlendID);
+		FBlendResult AdditiveFromBaseResult = Results.GetAdditiveFromBaseResult(BlendID);
 
 		if (RelativeResult.Weight != 0)
 		{
@@ -166,20 +317,12 @@ struct FCombineBlendsWithInitialValues
 			OutFinalBlendResult = InitialValue;
 		}
 	}
-};
 
-struct FCombineBlends
-{
-	const FBlendedValuesTaskData* TaskData;
-
-	explicit FCombineBlends(const FBlendedValuesTaskData* InTaskData)
-		: TaskData(InTaskData)
-	{}
-
-	void ForEachEntity(uint16 BlendID, float& OutFinalBlendResult)
+	void BlendResults(const FAccumulationResult& Results, uint16 BlendID, float& OutFinalBlendResult)
 	{
-		FBlendResult AbsoluteResult = TaskData->GetAbsoluteResult(BlendID);
-		FBlendResult AdditiveResult = TaskData->GetAdditiveResult(BlendID);
+		FBlendResult AbsoluteResult = Results.GetAbsoluteResult(BlendID);
+		FBlendResult AdditiveResult = Results.GetAdditiveResult(BlendID);
+		FBlendResult AdditiveFromBaseResult = Results.GetAdditiveFromBaseResult(BlendID);
 
 #if DO_GUARD_SLOW
 		ensureMsgf(AbsoluteResult.Weight != 0.f, TEXT("Default blend combine being used for an entity that has no absolute weight. This should have an initial value and should be handled by each system, and excluded by default with UMovieSceneBlenderSystem::FinalCombineExclusionFilter ."));
@@ -188,11 +331,56 @@ struct FCombineBlends
 		const float TotalWeight = AbsoluteResult.Weight;
 		if (TotalWeight != 0)
 		{
-			const float Value = AbsoluteResult.Total / AbsoluteResult.Weight + AdditiveResult.Total;
+			const float Value = AbsoluteResult.Total / AbsoluteResult.Weight + AdditiveResult.Total + AdditiveFromBaseResult.Total;
 			OutFinalBlendResult = Value;
 		}
 	}
+
+private:
+
+	TBitArray<> CachedRelevantProperties;
+	const FAccumulationBuffers* AccumulationBuffers;
+	const FPropertyRegistry* PropertyRegistry;
+	uint64 SystemSerial;
 };
+
+
+
+bool FAccumulationBuffers::IsEmpty() const
+{
+	return Absolute.Num() == 0 && Relative.Num() == 0 && Additive.Num() == 0 && AdditiveFromBase.Num() == 0;
+}
+
+void FAccumulationBuffers::Reset()
+{
+	Absolute.Empty();
+	Relative.Empty();
+	Additive.Empty();
+	AdditiveFromBase.Empty();
+}
+
+FAccumulationResult FAccumulationBuffers::FindResults(FComponentTypeID InComponentType) const
+{
+	FAccumulationResult Result;
+	if (const TArray<FBlendResult>* Absolutes = Absolute.Find(InComponentType))
+	{
+		Result.Absolutes = Absolutes->GetData();
+	}
+	if (const TArray<FBlendResult>* Relatives = Relative.Find(InComponentType))
+	{
+		Result.Relatives = Relatives->GetData();
+	}
+	if (const TArray<FBlendResult>* Additives = Additive.Find(InComponentType))
+	{
+		Result.Additives = Additives->GetData();
+	}
+	if (const FAdditiveFromBaseBuffer* AdditivesFromBase = AdditiveFromBase.Find(InComponentType))
+	{
+		Result.AdditivesFromBase = AdditivesFromBase->Buffer.GetData();
+	}
+	return Result;
+}
+
 
 } // namespace MovieScene
 } // namespace UE
@@ -210,16 +398,6 @@ UMovieScenePiecewiseFloatBlenderSystem::UMovieScenePiecewiseFloatBlenderSystem(c
 
 void UMovieScenePiecewiseFloatBlenderSystem::OnLink()
 {
-	using namespace UE::MovieScene;
-	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
-
-	const size_t NumFloats = UE_ARRAY_COUNT(BuiltInComponents->FloatResult);
-	for (size_t Index = 0; Index < NumFloats; ++Index)
-	{
-		FChannelData& NewData = ChannelData.Emplace_GetRef();
-		NewData.ResultComponent = BuiltInComponents->FloatResult[Index];
-		NewData.BaseValueComponent = BuiltInComponents->BaseFloat[Index];
-	}
 }
 
 void UMovieScenePiecewiseFloatBlenderSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
@@ -246,319 +424,200 @@ void UMovieScenePiecewiseFloatBlenderSystem::OnRun(FSystemTaskPrerequisites& InP
 		return;
 	}
 
-	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
-
 	// Update cached channel data if necessary
 	if (ChannelRelevancyCache.Update(Linker->EntityManager) == ECachedEntityManagerState::Stale)
 	{
-		// Update channel relevancy
-		for (FChannelData& Channel : ChannelData)
-		{
-			Channel.bEnabled = Linker->EntityManager.Contains(FEntityComponentFilter().All({ Channel.ResultComponent, BuiltInComponents->BlendChannelOutput }));
-			if (!Channel.bEnabled)
-			{
-				Channel.bHasAbsolutes = false;
-				Channel.bHasRelatives = false;
-				Channel.bHasAdditives = false;
-				Channel.bHasAdditivesFromBase = false;
-			}
-			else
-			{
-				Channel.bHasAbsolutes = Linker->EntityManager.Contains(FEntityComponentFilter().All({ Channel.ResultComponent, BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.AbsoluteBlend }));
-				Channel.bHasRelatives = Linker->EntityManager.Contains(FEntityComponentFilter().All({ Channel.ResultComponent, BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.RelativeBlend }));
-				Channel.bHasAdditives = Linker->EntityManager.Contains(FEntityComponentFilter().All({ Channel.ResultComponent, BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.AdditiveBlend }));
-				Channel.bHasAdditivesFromBase = Linker->EntityManager.Contains(FEntityComponentFilter().All({ Channel.ResultComponent, BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.AdditiveFromBaseBlend }));
-			}
-		}
+		ReinitializeAccumulationBuffers();
+	}
 
-		// Update property relevancy
-		CachedRelevantProperties.Empty();
+	if (AccumulationBuffers.IsEmpty())
+	{
+		return;
+	}
 
-		// This code works on the assumption that properties can never be removed (which is safe)
-		FEntityComponentFilter InclusionFilter;
-		TArrayView<const FPropertyDefinition> Properties = BuiltInComponents->PropertyRegistry.GetProperties();
-		for (int32 PropertyTypeIndex = 0; PropertyTypeIndex < Properties.Num(); ++PropertyTypeIndex)
+	ZeroAccumulationBuffers();
+
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+
+	FSystemTaskPrerequisites Prereqs;
+	if (AccumulationBuffers.Absolute.Num() != 0)
+	{
+		FGraphEventRef Task = FEntityTaskBuilder()
+		.Read(BuiltInComponents->BlendChannelInput)
+		.ReadOptional(BuiltInComponents->WeightAndEasingResult)
+		.FilterAll({ BuiltInComponents->Tags.AbsoluteBlend })
+		.FilterAny(BlendedResultMask)
+		.FilterNone({ BuiltInComponents->Tags.Ignored })
+		.SetStat(GET_STATID(MovieSceneEval_BlendFloatValues))
+		.Dispatch_PerAllocation<FAccumulationTask>(&Linker->EntityManager, InPrerequisites, nullptr, &AccumulationBuffers.Absolute);
+
+		if (Task)
 		{
-			const FPropertyDefinition& PropertyDefinition = Properties[PropertyTypeIndex];
-			if (PropertyDefinition.FloatCompositeMask != 0)
-			{
-				InclusionFilter.Reset();
-				InclusionFilter.All({ BuiltInComponents->BlendChannelOutput, PropertyDefinition.PropertyType });
-				if (Linker->EntityManager.Contains(InclusionFilter))
-				{
-					CachedRelevantProperties.Add(PropertyTypeIndex);
-				}
-			}
+			Prereqs.AddMasterTask(Task);
 		}
 	}
 
-
-	FGraphEventArray SingleBlendTasks;
-	for (FChannelData& Channel : ChannelData)
+	if (AccumulationBuffers.Relative.Num() != 0)
 	{
-		if (!Channel.bEnabled)
+		FGraphEventRef Task = FEntityTaskBuilder()
+		.Read(BuiltInComponents->BlendChannelInput)
+		.ReadOptional(BuiltInComponents->WeightAndEasingResult)
+		.FilterAll({ BuiltInComponents->Tags.RelativeBlend })
+		.FilterAny(BlendedResultMask)
+		.FilterNone({ BuiltInComponents->Tags.Ignored })
+		.SetStat(GET_STATID(MovieSceneEval_BlendFloatValues))
+		.Dispatch_PerAllocation<FAccumulationTask>(&Linker->EntityManager, InPrerequisites, nullptr, &AccumulationBuffers.Relative);
+
+		if (Task)
+		{
+			Prereqs.AddMasterTask(Task);
+		}
+	}
+
+	if (AccumulationBuffers.Additive.Num() != 0)
+	{
+		FGraphEventRef Task = FEntityTaskBuilder()
+		.Read(BuiltInComponents->BlendChannelInput)
+		.ReadOptional(BuiltInComponents->WeightAndEasingResult)
+		.FilterAll({ BuiltInComponents->Tags.AdditiveBlend })
+		.FilterAny(BlendedResultMask)
+		.FilterNone({ BuiltInComponents->Tags.Ignored })
+		.SetStat(GET_STATID(MovieSceneEval_BlendFloatValues))
+		.Dispatch_PerAllocation<FAccumulationTask>(&Linker->EntityManager, InPrerequisites, nullptr, &AccumulationBuffers.Additive);
+
+		if (Task)
+		{
+			Prereqs.AddMasterTask(Task);
+		}
+	}
+
+	if (AccumulationBuffers.AdditiveFromBase.Num() != 0)
+	{
+		FGraphEventRef Task = FEntityTaskBuilder()
+		.Read(BuiltInComponents->BlendChannelInput)
+		.ReadOptional(BuiltInComponents->WeightAndEasingResult)
+		.FilterAll({ BuiltInComponents->Tags.AdditiveFromBaseBlend })
+		.FilterAny(BlendedResultMask)
+		.FilterNone({ BuiltInComponents->Tags.Ignored })
+		.SetStat(GET_STATID(MovieSceneEval_BlendFloatValues))
+		.Dispatch_PerAllocation<FAdditiveFromBaseBlendTask>(&Linker->EntityManager, InPrerequisites, nullptr, &AccumulationBuffers.AdditiveFromBase);
+
+		if (Task)
+		{
+			Prereqs.AddMasterTask(Task);
+		}
+	}
+
+	// Master task that performs the actual blends
+	FEntityTaskBuilder()
+	.Read(BuiltInComponents->BlendChannelOutput)
+	.FilterAny(BlendedPropertyMask)
+	.SetStat(GET_STATID(MovieSceneEval_BlendCombineFloatValues))
+	.Dispatch_PerAllocation<FCombineBlends>(&Linker->EntityManager, Prereqs, &Subsequents, CachedRelevantProperties, &AccumulationBuffers, Linker->EntityManager.GetSystemSerial());
+}
+
+void UMovieScenePiecewiseFloatBlenderSystem::ReinitializeAccumulationBuffers()
+{
+	using namespace UE::MovieScene;
+
+	const int32 MaximumNumBlends = AllocatedBlendChannels.Num();
+
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+
+	BlendedResultMask.Reset();
+	AccumulationBuffers.Reset();
+
+	// Recompute which result types are blended
+	const int32 NumFloats = UE_ARRAY_COUNT(BuiltInComponents->FloatResult);
+	for (int32 Index = 0; Index < NumFloats; ++Index)
+	{
+		TComponentTypeID<float> Component = BuiltInComponents->FloatResult[Index];
+
+		const bool bHasAbsolutes         = Linker->EntityManager.Contains(FEntityComponentFilter().All({ Component, BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.AbsoluteBlend }));
+		const bool bHasRelatives         = Linker->EntityManager.Contains(FEntityComponentFilter().All({ Component, BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.RelativeBlend }));
+		const bool bHasAdditives         = Linker->EntityManager.Contains(FEntityComponentFilter().All({ Component, BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.AdditiveBlend }));
+		const bool bHasAdditivesFromBase = Linker->EntityManager.Contains(FEntityComponentFilter().All({ Component, BuiltInComponents->BlendChannelInput, BuiltInComponents->Tags.AdditiveFromBaseBlend }));
+
+		if (!(bHasAbsolutes || bHasRelatives || bHasAdditives || bHasAdditivesFromBase))
 		{
 			continue;
 		}
 
-		SingleBlendTasks.Reset();
+		BlendedResultMask.Set(Component);
 
-		FTaskDataSchedule& TaskData = TaskDataByType.FindOrAdd(Channel.ResultComponent);
-
-		if (!TaskData.Impl)
+		if (bHasAbsolutes)
 		{
-			TaskData.Impl = MakeUnique<FBlendedValuesTaskData>(Channel.ResultComponent);
+			TArray<FBlendResult>& Buffer = AccumulationBuffers.Absolute.Add(Component);
+			Buffer.SetNum(MaximumNumBlends);
 		}
-
-		checkf(TaskData.Impl->bTasksComplete, TEXT("Attempting to issue blend tasks while some are still pending - this is a threading policy violation"));
-
-		TaskData.Prerequisite = nullptr;
-
-		if (Channel.bHasAbsolutes)
+		if (bHasRelatives)
 		{
-			if (!TaskData.Impl->Absolutes)
-			{
-				TaskData.Impl->Absolutes.Emplace();
-			}
-			TaskData.Impl->Absolutes->SetNum(MaximumNumBlends);
-			FMemory::Memzero(TaskData.Impl->Absolutes.GetValue().GetData(), sizeof(FBlendResult)*MaximumNumBlends);
-
-			// Run a task that blends all absolutes into the Absolutes array
-			FGraphEventRef AbsolutesTask = FEntityTaskBuilder()
-
-				// Blend ID
-				.Read(BuiltInComponents->BlendChannelInput)
-
-				// Evaluated float result
-				.Read(Channel.ResultComponent)
-
-				// Optional easing result component
-				.ReadOptional(BuiltInComponents->WeightAndEasingResult)
-
-				// Only include absolute blends and active entities
-				.FilterAll({ BuiltInComponents->Tags.AbsoluteBlend })
-
-				.FilterNone({ BuiltInComponents->Tags.Ignored })
-
-				.SetStat(GET_STATID(MovieSceneEval_BlendFloatValues))
-
-				// Dispatch the task
-				.Dispatch_PerAllocation<FBlendTask>(&Linker->EntityManager, InPrerequisites, nullptr, &TaskData.Impl->Absolutes.GetValue());
-
-			if (AbsolutesTask)
-			{
-				SingleBlendTasks.Add(AbsolutesTask);
-			}
+			TArray<FBlendResult>& Buffer = AccumulationBuffers.Relative.Add(Component);
+			Buffer.SetNum(MaximumNumBlends);
 		}
-		else
+		if (bHasAdditives)
 		{
-			TaskData.Impl->Absolutes.Reset();
+			TArray<FBlendResult>& Buffer = AccumulationBuffers.Additive.Add(Component);
+			Buffer.SetNum(MaximumNumBlends);
 		}
-
-		if (Channel.bHasRelatives)
+		if (bHasAdditivesFromBase)
 		{
-			if (!TaskData.Impl->Relatives)
-			{
-				TaskData.Impl->Relatives.Emplace();
-			}
-			TaskData.Impl->Relatives->SetNum(MaximumNumBlends);
-			FMemory::Memzero(TaskData.Impl->Relatives.GetValue().GetData(), sizeof(FBlendResult)*MaximumNumBlends);
-
-			// Run a task that blends all absolutes into the Relatives array
-			FGraphEventRef RelativesTask = FEntityTaskBuilder()
-
-				// Blend ID
-				.Read(BuiltInComponents->BlendChannelInput)
-
-				// Evaluated float result
-				.Read(Channel.ResultComponent)
-
-				// Optional easing result component
-				.ReadOptional(BuiltInComponents->WeightAndEasingResult)
-
-				// Only include relative blends and active entities
-				.FilterAll({ BuiltInComponents->Tags.RelativeBlend })
-
-				.FilterNone({ BuiltInComponents->Tags.Ignored })
-
-				.SetStat(GET_STATID(MovieSceneEval_BlendFloatValues))
-
-				// Dispatch the task
-				.Dispatch_PerAllocation<FBlendTask>(&Linker->EntityManager, InPrerequisites, nullptr, &TaskData.Impl->Relatives.GetValue());
-
-			if (RelativesTask)
-			{
-				SingleBlendTasks.Add(RelativesTask);
-			}
-		}
-		else
-		{
-			TaskData.Impl->Relatives.Reset();
-		}
-
-		if (Channel.bHasAdditives)
-		{
-			if (!TaskData.Impl->Additives)
-			{
-				TaskData.Impl->Additives.Emplace();
-			}
-			TaskData.Impl->Additives->SetNum(MaximumNumBlends);
-			FMemory::Memzero(TaskData.Impl->Additives.GetValue().GetData(), sizeof(FBlendResult)*MaximumNumBlends);
-
-			// Run a task that blends all absolutes into the Additives array
-			FGraphEventRef AdditivesTask = FEntityTaskBuilder()
-
-				// Blend ID
-				.Read(BuiltInComponents->BlendChannelInput)
-
-				// Evaluated float result
-				.Read(Channel.ResultComponent)
-
-				// Optional easing result component
-				.ReadOptional(BuiltInComponents->WeightAndEasingResult)
-
-				// Only include additive blends and active entities
-				.FilterAll({ BuiltInComponents->Tags.AdditiveBlend })
-
-				.FilterNone({ BuiltInComponents->Tags.Ignored })
-
-				.SetStat(GET_STATID(MovieSceneEval_BlendFloatValues))
-
-				// Dispatch the task
-				.Dispatch_PerAllocation<FBlendTask>(&Linker->EntityManager, InPrerequisites, nullptr, &TaskData.Impl->Additives.GetValue());
-
-			if (AdditivesTask)
-			{
-				SingleBlendTasks.Add(AdditivesTask);
-			}
-		}
-		else
-		{
-			TaskData.Impl->Additives.Reset();
-		}
-
-		if (Channel.bHasAdditivesFromBase)
-		{
-			if (!TaskData.Impl->AdditivesFromBase)
-			{
-				TaskData.Impl->AdditivesFromBase.Emplace();
-			}
-			TaskData.Impl->AdditivesFromBase->SetNum(MaximumNumBlends);
-			FMemory::Memzero(TaskData.Impl->AdditivesFromBase.GetValue().GetData(), sizeof(FBlendResult)*MaximumNumBlends);
-
-			// Run a task that blends all absolutes into the AdditivesFromBase array
-			//
-			// This is a slightly different task than the other 3 tasks because it reads the base value from the entities
-			//
-			FGraphEventRef AdditivesFromBaseTask = FEntityTaskBuilder()
-
-				// Blend ID
-				.Read(BuiltInComponents->BlendChannelInput)
-
-				// Base value
-				.Read(Channel.BaseValueComponent)
-
-				// Evaluated float result
-				.Read(Channel.ResultComponent)
-
-				// Optional easing result component
-				.ReadOptional(BuiltInComponents->WeightAndEasingResult)
-
-				// Only include additive blends and active entities
-				.FilterAll({ BuiltInComponents->Tags.AdditiveFromBaseBlend })
-
-				.FilterNone({ BuiltInComponents->Tags.Ignored })
-
-				.SetStat(GET_STATID(MovieSceneEval_BlendFloatValues))
-
-				// Dispatch the task
-				.Dispatch_PerAllocation<FAdditiveFromBaseBlendTask>(&Linker->EntityManager, InPrerequisites, nullptr, &TaskData.Impl->AdditivesFromBase.GetValue());
-
-			if (AdditivesFromBaseTask)
-			{
-				SingleBlendTasks.Add(AdditivesFromBaseTask);
-			}
-		}
-		else
-		{
-			TaskData.Impl->AdditivesFromBase.Reset();
-		}
-
-		if (SingleBlendTasks.Num() > 0)
-		{
-			auto OnBlendsComplete = [TaskData = TaskData.Impl.Get()]
-			{
-				TaskData->bTasksComplete = true;
-			};
-
-			TaskData.Prerequisite = TGraphTask<TFunctionGraphTaskImpl<void(), ESubsequentsMode::TrackSubsequents>>::CreateTask(&SingleBlendTasks, Linker->EntityManager.GetDispatchThread())
-				.ConstructAndDispatchWhenReady(MoveTemp(OnBlendsComplete), TStatId(), ENamedThreads::AnyHiPriThreadHiPriTask);
-		}
-		else
-		{
-			TaskData.Impl->bTasksComplete = true;
-			TaskData.Prerequisite = nullptr;
+			FAdditiveFromBaseBuffer& Buffer = AccumulationBuffers.AdditiveFromBase.Add(Component);
+			Buffer.Buffer.SetNum(MaximumNumBlends);
+			Buffer.BaseComponent = BuiltInComponents->BaseFloat[Index];
 		}
 	}
 
-	FComponentMask InitialValueMask;
+	// Update property relevancy
+	CachedRelevantProperties.Empty();
 
+	// If we have no accumulation buffers, we have nothing more to do
+	if (AccumulationBuffers.IsEmpty())
+	{
+		return;
+	}
+
+	// This code works on the assumption that properties can never be removed (which is safe)
+	FEntityComponentFilter InclusionFilter;
 	TArrayView<const FPropertyDefinition> Properties = BuiltInComponents->PropertyRegistry.GetProperties();
-	for (int32 PropertyTypeIndex : CachedRelevantProperties)
+	for (int32 PropertyTypeIndex = 0; PropertyTypeIndex < Properties.Num(); ++PropertyTypeIndex)
 	{
 		const FPropertyDefinition& PropertyDefinition = Properties[PropertyTypeIndex];
-		check(PropertyDefinition.FloatCompositeMask != 0);
-
-		InitialValueMask.Set(PropertyDefinition.InitialValueType);
-
-		// Blend anything with an initial value for this property type
-		TArrayView<const FPropertyCompositeDefinition> Composites = BuiltInComponents->PropertyRegistry.GetComposites(PropertyDefinition);
-		for (int32 CompositeIndex = 0; CompositeIndex < Composites.Num(); ++CompositeIndex)
+		if (PropertyDefinition.FloatCompositeMask != 0)
 		{
-			if ( (PropertyDefinition.FloatCompositeMask & (1 << CompositeIndex)) == 0)
+			InclusionFilter.Reset();
+			InclusionFilter.All({ BuiltInComponents->BlendChannelOutput, PropertyDefinition.PropertyType });
+			if (Linker->EntityManager.Contains(InclusionFilter))
 			{
-				continue;
+				CachedRelevantProperties.PadToNum(PropertyTypeIndex + 1, false);
+				CachedRelevantProperties[PropertyTypeIndex] = true;
+
+				BlendedPropertyMask.Set(PropertyDefinition.PropertyType);
 			}
-
-			TComponentTypeID<float> ResultComponent = Composites[CompositeIndex].ComponentTypeID.ReinterpretCast<float>();
-			const FTaskDataSchedule* TaskData = RetrieveTaskData(ResultComponent);
-			if (!TaskData)
-			{
-				continue;
-			}
-
-			FSystemTaskPrerequisites Prereqs { TaskData->Prerequisite };
-
-			// Master task that performs the actual blends
-			FEntityTaskBuilder()
-			.Read(BuiltInComponents->BlendChannelOutput)
-			.ReadErased(PropertyDefinition.InitialValueType)
-			.Write(ResultComponent)
-			.SetStat(GET_STATID(MovieSceneEval_BlendCombineFloatValues))
-			.Dispatch_PerEntity<FCombineBlendsWithInitialValues>(&Linker->EntityManager, Prereqs, &Subsequents, TaskData->GetData(), Composites[CompositeIndex].CompositeOffset);
 		}
 	}
+}
 
-	// Default blend tasks for anything that doesn't have initial values
-	for (FChannelData& Channel : ChannelData)
+void UMovieScenePiecewiseFloatBlenderSystem::ZeroAccumulationBuffers()
+{
+	using namespace UE::MovieScene;
+
+	// Arrays should only ever exist in these containers if they have size (they are always initialized to MaximumNumBlends in ReinitializeAccumulationBuffers)
+	for (TPair<FComponentTypeID, TArray<FBlendResult>>& Pair : AccumulationBuffers.Absolute)
 	{
-		if (!Channel.bEnabled)
-		{
-			continue;
-		}
-
-		const FTaskDataSchedule* TaskData = RetrieveTaskData(Channel.ResultComponent);
-		if (TaskData)
-		{
-			FSystemTaskPrerequisites Prereqs { TaskData->Prerequisite };
-
-			FEntityTaskBuilder()
-			.Read(BuiltInComponents->BlendChannelOutput)
-			.Write(Channel.ResultComponent)
-			.FilterNone(InitialValueMask)
-			.SetStat(GET_STATID(MovieSceneEval_BlendCombineFloatValues))
-			.Dispatch_PerEntity<FCombineBlends>(&Linker->EntityManager, Prereqs, &Subsequents, TaskData->GetData());
-		}
+		FMemory::Memzero(Pair.Value.GetData(), sizeof(FBlendResult)*Pair.Value.Num());
+	}
+	for (TPair<FComponentTypeID, TArray<FBlendResult>>& Pair : AccumulationBuffers.Relative)
+	{
+		FMemory::Memzero(Pair.Value.GetData(), sizeof(FBlendResult)*Pair.Value.Num());
+	}
+	for (TPair<FComponentTypeID, TArray<FBlendResult>>& Pair : AccumulationBuffers.Additive)
+	{
+		FMemory::Memzero(Pair.Value.GetData(), sizeof(FBlendResult)*Pair.Value.Num());
+	}
+	for (TPair<FComponentTypeID, FAdditiveFromBaseBuffer>& Pair : AccumulationBuffers.AdditiveFromBase)
+	{
+		FMemory::Memzero(Pair.Value.Buffer.GetData(), sizeof(FBlendResult)*Pair.Value.Buffer.Num());
 	}
 }
 
