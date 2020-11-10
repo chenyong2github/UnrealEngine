@@ -16,6 +16,10 @@
 #include "CollisionQueryFilterCallbackCore.h"
 #include "BodyInstanceCore.h"
 
+namespace Chaos
+{
+	extern CHAOS_API float AsyncInterpolationMultiplier;
+}
 
 namespace ChaosTest {
 
@@ -902,10 +906,18 @@ namespace ChaosTest {
 
 	GTEST_TEST(EngineInterface, SimInterpolated)
 	{
+		//Need to test:
+		//position interpolation
+		//position interpolation from an inactive particle (i.e a step function)
+		//position interpolation from an active to an inactive particle (i.e a step function but reversed)
+		//interpolation to a deleted particle
+		//state change should be a step function (sleep state)
+		//wake events must be collapsed (sleep awake sleep becomes sleep)
+		//collision events must be collapsed
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		Scene.GetSolver()->EnableAsyncMode(1);	//tick 1 dt at a time
 		const float FixedDT = 1;
+		Scene.GetSolver()->EnableAsyncMode(1);	//tick 1 dt at a time
 
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
@@ -923,13 +935,18 @@ namespace ChaosTest {
 		TArray<TGeometryParticle<FReal, 3>*> Particles = { Particle };
 		Scene.AddActorsToScene_AssumesLocked(Particles);
 		Simulated->SetObjectState(EObjectStateType::Dynamic);
-		Simulated->SetV(FVec3(0, 0, 10));
+		const float ZVel = 10;
+		const float ZStart = 100;
+		Simulated->SetV(FVec3(0, 0, ZVel));
+		Simulated->SetX(FVec3(0, 0, ZStart));
+		const int32 NumGTSteps = 24;
+		const int32 NumPTSteps = 24 / 4;
 
 		struct FCallback : public TSimCallbackObject<FSimCallbackNoInput>
 		{
 			virtual FSimCallbackOutput* OnPreSimulate_Internal(const FReal SimStart, const FReal DeltaSeconds, const TArrayView<const FSimCallbackInput*>& Inputs) override
 			{
-				if(Count < 3)
+				if(Count < NumPTSteps)
 				{
 					//we expect the dt to be 1, unless it's the final callback when solver is destroyed (that dt is always 0)
 					EXPECT_EQ(DeltaSeconds, 1);
@@ -940,20 +957,39 @@ namespace ChaosTest {
 			}
 
 			int32 Count = 0;
+
+			int32 NumPTSteps;
 		};
 
 		auto Callback = Scene.GetSolver()->CreateAndRegisterSimCallbackObject_External<FCallback>();
-
-		for(int32 i=0; i<12;i++)
+		Callback->NumPTSteps = NumPTSteps;
+		float Time = 0;
+		const float GTDt = FixedDT * 0.25f;
+		for(int32 Step=0; Step<NumGTSteps;Step++)
 		{
 			FVec3 Grav(0, 0, 0);
-			Scene.SetUpForFrame(&Grav, FixedDT * 0.25, 99999, 99999, 10, false);
+			Scene.SetUpForFrame(&Grav, GTDt, 99999, 99999, 10, false);
 			Scene.StartFrame();
 			Scene.EndFrame();
+			
+			Time += GTDt;
+			const float InterpolatedTime = Time - FixedDT * Chaos::AsyncInterpolationMultiplier;
+
+			if(InterpolatedTime < 0)
+			{
+				//not enough time to interpolate so just take initial value
+				EXPECT_NEAR(Simulated->X()[2], ZStart, 1e-2);
+			}
+			else
+			{
+				//interpolated
+				EXPECT_NEAR(Simulated->X()[2], ZStart + ZVel* InterpolatedTime, 1e-2);
+			}
 		}
 
-		EXPECT_EQ(Callback->Count, 3);	//ticked GT 12 times, but at 1/4 the rate of physics dt so we only get 3 physics callbacks
-		EXPECT_NEAR(Simulated->X()[2], 10 * 12 * FixedDT * 0.25, 1e-2);
-		EXPECT_NEAR(Simulated->V()[2], 10, 1e-2);
+		EXPECT_EQ(Callback->Count, NumPTSteps);
+		const float LastInterpolatedTime = NumGTSteps * GTDt - FixedDT * Chaos::AsyncInterpolationMultiplier;
+		EXPECT_NEAR(Simulated->X()[2], ZStart + ZVel * LastInterpolatedTime, 1e-2);
+		EXPECT_NEAR(Simulated->V()[2], ZVel, 1e-2);
 	}
 }

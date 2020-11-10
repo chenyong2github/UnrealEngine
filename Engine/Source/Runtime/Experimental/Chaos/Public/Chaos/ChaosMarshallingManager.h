@@ -250,7 +250,7 @@ public:
 	FPullPhysicsData* GetCurrentPullData_Internal() { return CurPullData; }
 
 	/** Hands pull data off to external thread */
-	void FinalizePullData_Internal(int32 LatestExternalTimestampConsumed, float SimStartTime);
+	void FinalizePullData_Internal(int32 LatestExternalTimestampConsumed, float SimStartTime, float DeltaTime);
 
 	/** Pops and returns the earliest pull data available. nullptr means results are not ready or no work is pending */
 	FPullPhysicsData* PopPullData_External()

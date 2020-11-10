@@ -79,6 +79,7 @@ public:
 
 	int32 SolverTimestamp;
 	float ExternalStartTime;	//The start time associated with this result. The time is synced using the external time
+	float ExternalEndTime;		//The end time associated with this result. The time is synced using the external time
 
 	void Reset();
 };
