@@ -62,6 +62,14 @@ static TAutoConsoleVariable<float> CVarRayTracingReflectionsSmoothBias(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarRayTracingReflectionsMipBias(
+	TEXT("r.RayTracing.Reflections.ExperimentalDeferred.MipBias"),
+	0.0,
+	TEXT("Global texture mip bias applied during ray tracing material evaluation. (default: 0)\n")
+	TEXT("Improves ray tracing reflection performance at the cost of lower resolution textures in reflections. Values are clamped to range [0..15].\n"),
+	ECVF_RenderThreadSafe
+);
+
 namespace 
 {
 	struct FSortedReflectionRay
@@ -148,6 +156,7 @@ class FRayTracingDeferredReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER(float, ReflectionMaxRoughness)
 		SHADER_PARAMETER(float, ReflectionSmoothBias)
 		SHADER_PARAMETER(float, AnyHitMaxRoughness)
+		SHADER_PARAMETER(float, TextureMipBias)
 		SHADER_PARAMETER(int, UpscaleFactor)
 		SHADER_PARAMETER(int, GlossyReflections)
 		SHADER_PARAMETER(int, ShouldDoDirectLighting)
@@ -312,6 +321,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	CommonParameters.ReflectionSmoothBias    = CVarRayTracingReflectionsSmoothBias.GetValueOnRenderThread();
 	CommonParameters.AnyHitMaxRoughness      = CVarRayTracingReflectionsAnyHitMaxRoughness.GetValueOnRenderThread();
 	CommonParameters.GlossyReflections       = CVarRayTracingReflectionsGlossy.GetValueOnRenderThread();
+	CommonParameters.TextureMipBias          = FMath::Clamp(CVarRayTracingReflectionsMipBias.GetValueOnRenderThread(), 0.0f, 15.0f);
 
 	CommonParameters.ShouldDoDirectLighting              = Options.bDirectLighting;
 	CommonParameters.ShouldDoEmissiveAndIndirectLighting = Options.bEmissiveAndIndirectLighting;

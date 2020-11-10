@@ -138,6 +138,19 @@ struct FRayCone
 	float SpreadAngle;
 };
 
+FRayCone UnpackRayCone(uint PackedRayCone)
+{
+	FRayCone Result;
+	Result.Width       = f16tof32(PackedRayCone & 0xFFFF);
+	Result.SpreadAngle = f16tof32(PackedRayCone >> 16);
+	return Result;
+}
+
+uint PackRayCone(FRayCone RayCone)
+{
+	return f32tof16(RayCone.Width) | (f32tof16(RayCone.SpreadAngle) << 16);
+}
+
 FRayCone PropagateRayCone(in FRayCone Cone, in float SurfaceSpreadAngle, in float  HitT)
 {
 	FRayCone NewCone;
@@ -307,7 +320,10 @@ RayDesc CreatePrimaryRay(float2 UV)
 struct FPackedMaterialClosestHitPayload : FMinimalPayload
 {
 	// float FMinimalPayload::HitT                       // 4  bytes
-	FRayCone RayCone;                                    // 8  bytes
+
+	uint PackedRayCone;                                  // 4 bytes (fp16 width, fp16 spread)
+	float MipBias;                                       // 4 bytes (can be packed into only 4 bits if necessary)
+
 	uint RadianceAndNormal[3];                           // 12 bytes
 	uint BaseColorAndOpacity[2];                         // 8  bytes
 	uint MetallicAndSpecularAndRoughness;                // 4  bytes
@@ -330,8 +346,11 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	void SetIgnoreTranslucentMaterials() { IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask |= RAY_TRACING_PAYLOAD_FLAG_IGNORE_TRANSLUCENT << 24; }
 	bool IsIgnoreTranslucentMaterials() { return ((IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask >> 24) & RAY_TRACING_PAYLOAD_FLAG_IGNORE_TRANSLUCENT) != 0; }
 
-	FRayCone GetRayCone() { return RayCone; }
-	void SetRayCone(FRayCone NewRayCone) { RayCone = NewRayCone; }
+	FRayCone GetRayCone() { return UnpackRayCone(PackedRayCone); }
+	void SetRayCone(FRayCone NewRayCone) { PackedRayCone = PackRayCone(NewRayCone); }
+
+	float GetMipBias() { return MipBias; }
+	void SetMipBias(float NewMipBias) { MipBias = NewMipBias; }
 
 	void SetRadiance(in float3 InRadiance)
 	{
@@ -423,7 +442,7 @@ FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayloa
 {
 	FPackedMaterialClosestHitPayload Output = (FPackedMaterialClosestHitPayload)0;
 	Output.HitT = Input.HitT;
-	Output.RayCone = RayCone;
+	Output.SetRayCone(RayCone);
 	Output.RadianceAndNormal[0]  = f32tof16(Input.Radiance.x);
 	Output.RadianceAndNormal[0] |= f32tof16(Input.Radiance.y) << 16;
 	Output.RadianceAndNormal[1]  = f32tof16(Input.Radiance.z);
@@ -460,7 +479,7 @@ FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayl
 	FMaterialClosestHitPayload Output = (FMaterialClosestHitPayload)0;
 
 	Output.HitT = Input.HitT;
-	Output.RayCone = Input.RayCone; 
+	Output.RayCone            = Input.GetRayCone(); 
 	Output.Radiance           = Input.GetRadiance();
 	Output.WorldNormal        = Input.GetWorldNormal();
 	Output.BaseColor          = Input.GetBaseColor();
