@@ -76,21 +76,11 @@ void UCineCameraComponent::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
 	Super::Serialize(Ar);
-}
 
-void UCineCameraComponent::PostInitProperties()
-{
-	Super::PostInitProperties();
-
-	RecalcDerivedData();
-}
-
-void UCineCameraComponent::PostLoad()
-{
-	if (GetLinkerCustomVersion(FReleaseObjectVersion::GUID) < FReleaseObjectVersion::DeprecateFilmbackSettings)
+	if (Ar.IsLoading() && Ar.CustomVer(FReleaseObjectVersion::GUID) < FReleaseObjectVersion::DeprecateFilmbackSettings)
 	{
 		bool bUpgradeFilmback = true;
-		if (GetLinkerCustomVersion(FCineCameraObjectVersion::GUID) == FCineCameraObjectVersion::ChangeDefaultFilmbackToDigitalFilm)
+		if (Ar.CustomVer(FCineCameraObjectVersion::GUID) == FCineCameraObjectVersion::ChangeDefaultFilmbackToDigitalFilm)
 		{
 			UCineCameraComponent* Template = Cast<UCineCameraComponent>(GetArchetype());
 			if (Template)
@@ -122,6 +112,18 @@ void UCineCameraComponent::PostLoad()
 			Filmback = FilmbackSettings_DEPRECATED;
 		}
 	}
+}
+
+void UCineCameraComponent::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	RecalcDerivedData();
+}
+
+void UCineCameraComponent::PostLoad()
+{
+	Super::PostLoad();
 
 	if (FocusSettings.FocusMethod >= ECameraFocusMethod::MAX )
 	{
@@ -130,7 +132,6 @@ void UCineCameraComponent::PostLoad()
 
 	RecalcDerivedData();
 	bResetInterpolation = true;
-	Super::PostLoad();
 }
 
 static const FColor DebugFocusPointSolidColor(102, 26, 204, 153);		// purple
