@@ -41,6 +41,16 @@ static TAutoConsoleVariable<int32> CVarNvidiaSyncDiagnosticsPresent(
 	,
 	ECVF_RenderThreadSafe
 );
+
+static TAutoConsoleVariable<int32> CVarNvidiaSyncDiagnosticsLatency(
+	TEXT("nDisplay.sync.nvidia.diag.latency"),
+	0,
+	TEXT("NVAPI diagnostics: latency\n")
+	TEXT("0 : disabled\n")
+	TEXT("1 : enabled\n")
+	,
+	ECVF_RenderThreadSafe
+);
 // TEMPORARY DIAGNOSTICS END
 
 
@@ -89,9 +99,10 @@ bool FDisplayClusterRenderSyncPolicyNvidiaBase::SynchronizeClusterRendering(int3
 	// Initialize barriers at first call
 	if (!bNvApiBarrierSet)
 	{
-		bNvDiagInit = (CVarNvidiaSyncDiagnosticsInit.GetValueOnRenderThread() != 0);
+		bNvDiagInit    = (CVarNvidiaSyncDiagnosticsInit.GetValueOnRenderThread() != 0);
 		bNvDiagPresent = (CVarNvidiaSyncDiagnosticsPresent.GetValueOnRenderThread() != 0);
-		UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("NVAPI DIAG: init=%d present=%d"), bNvDiagInit ? 1 : 0, bNvDiagPresent ? 1 : 0);
+		bNvDiagLatency = (CVarNvidiaSyncDiagnosticsLatency.GetValueOnRenderThread() != 0);
+		UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("NVAPI DIAG: init=%d present=%d latency=%d"), bNvDiagInit ? 1 : 0, bNvDiagPresent ? 1 : 0, bNvDiagLatency ? 1 : 0);
 
 		// Use network barrier to guarantee that all NVIDIA barriers are initialized simultaneously
 		SyncBarrierRenderThread();
@@ -157,6 +168,15 @@ bool FDisplayClusterRenderSyncPolicyNvidiaBase::InitializeNvidiaSwapLock()
 	{
 		UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("Couldn't get DX context data for NVIDIA swap barrier initialization"));
 		return false;
+	}
+
+	// NVAPI Diagnostics: latency
+	// Here we set frame latency to 1 explicitly (a workaround for DX12)
+	if (bNvDiagLatency)
+	{
+		TRefCountPtr<IDXGIDevice1> DXGIDevice;
+		D3DDevice->QueryInterface(IID_IDXGIDevice, (void**)DXGIDevice.GetInitReference());
+		DXGIDevice->SetMaximumFrameLatency(1);
 	}
 
 	// NVAPI Diagnostics: init
