@@ -26,7 +26,7 @@ static TAutoConsoleVariable<float> CVarVolumetricRenderTargetUvNoiseScale(
 
 static TAutoConsoleVariable<int32> CVarVolumetricRenderTargetMode(
 	TEXT("r.VolumetricRenderTarget.Mode"), 0,
-	TEXT("[0] trace quarter resolution + reconstruct at half resolution + upsample [1] trace half res + reconstruct full res + upsample [2] trace at quarter resolution + reconstruct full resolution"),
+	TEXT("[0] trace quarter resolution + reconstruct at half resolution + upsample [1] trace half res + reconstruct full res + upsample [2] trace at quarter resolution + reconstruct full resolution (cannot intersect with opaque meshes and forces UpsamplingMode=2)"),
 	ECVF_SetByScalability);
 
 static TAutoConsoleVariable<int32> CVarVolumetricRenderTargetUpsamplingMode(
@@ -142,9 +142,9 @@ void FVolumetricRenderTargetViewStateData::Initialise(
 	int32 InUpsamplingMode)
 {
 	// Update internal settings
-	UpsamplingMode = FMath::Clamp(InUpsamplingMode, 0, 4);
-	Mode = FMath::Clamp(InMode, 0, 2);
 	UvNoiseScale = InUvNoiseScale;
+	Mode = FMath::Clamp(InMode, 0, 2);
+	UpsamplingMode = Mode == 2 ? 2 : FMath::Clamp(InUpsamplingMode, 0, 4); // if we are using mode 2 then we cannot intersect with depth and upsampling should be 2 (simple on/off intersection)
 
 	if (bFirstTimeUsed)
 	{
