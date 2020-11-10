@@ -272,9 +272,16 @@ EAbcImportError FAbcFile::Import(UAbcImportSettings* InImportSettings)
 
 							if (BaseMaterial)
 							{
-								BaseMaterial->bUsedWithSkeletalMesh |= ImportSettings->ImportType == EAlembicImportType::Skeletal;
-								BaseMaterial->bUsedWithMorphTargets |= ImportSettings->ImportType == EAlembicImportType::Skeletal;
-								BaseMaterial->bUsedWithGeometryCache |= ImportSettings->ImportType == EAlembicImportType::GeometryCache;
+								bool bNeedsRecompile = false;
+								if (ImportSettings->ImportType == EAlembicImportType::Skeletal)
+								{
+									BaseMaterial->SetMaterialUsage(bNeedsRecompile, MATUSAGE_SkeletalMesh);
+									BaseMaterial->SetMaterialUsage(bNeedsRecompile, MATUSAGE_MorphTargets);
+								}
+								else if (ImportSettings->ImportType == EAlembicImportType::GeometryCache)
+								{
+									BaseMaterial->SetMaterialUsage(bNeedsRecompile, MATUSAGE_GeometryCache);
+								}
 							}							
 						}
 					}
