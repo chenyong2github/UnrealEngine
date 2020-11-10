@@ -190,7 +190,6 @@ class FReflectionResolveCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWSpecularIndirect)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, RoughSpecularIndirect)
 		SHADER_PARAMETER(float, MaxRoughnessToTrace)
 		SHADER_PARAMETER(float, InvRoughnessFadeLength)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
@@ -458,11 +457,14 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	const FViewInfo& View,
 	const FSceneTextureParameters& SceneTextures,
 	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
-	FRDGTextureRef RoughSpecularIndirect)
+	FLumenReflectionCompositeParameters& OutCompositeParameters)
 {
+	OutCompositeParameters.MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
+	OutCompositeParameters.InvRoughnessFadeLength = 1.0f / GLumenReflectionRoughnessFadeLength;
+
 	if (!ShouldRenderLumenReflections(View))
 	{
-		return RoughSpecularIndirect;
+		return nullptr;
 	}
 
 	LLM_SCOPE_BYTAG(Lumen);
@@ -536,12 +538,11 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		MeshSDFGridParameters);
 	
 	FRDGTextureDesc SpecularIndirectDesc = FRDGTextureDesc::Create2D(SceneContext.GetBufferSizeXY(), PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
-	FRDGTextureRef SpecularIndirect = GraphBuilder.CreateTexture(SpecularIndirectDesc, TEXT("SpecularIndirect"));
+	FRDGTextureRef ResolvedSpecularIndirect = GraphBuilder.CreateTexture(SpecularIndirectDesc, TEXT("ResolvedSpecularIndirect"));
 
 	{
 		FReflectionResolveCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionResolveCS::FParameters>();
-		PassParameters->RWSpecularIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SpecularIndirect));
-		PassParameters->RoughSpecularIndirect = RoughSpecularIndirect;
+		PassParameters->RWSpecularIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ResolvedSpecularIndirect));
 		PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
 		PassParameters->InvRoughnessFadeLength = 1.0f / GLumenReflectionRoughnessFadeLength;
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
@@ -561,14 +562,19 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 			0);
 	}
 
+	FRDGTextureRef SpecularIndirect = GraphBuilder.CreateTexture(SpecularIndirectDesc, TEXT("SpecularIndirect"));
+
+	//@todo - only clear tiles not written to by history pass
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SpecularIndirect)), FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
+
 	UpdateHistoryReflections(
 		GraphBuilder,
 		View,
 		SceneContext.GetBufferSizeXY(),
 		ReflectionTileParameters,
-		SpecularIndirect,
-		RoughSpecularIndirect);
+		ResolvedSpecularIndirect,
+		SpecularIndirect);
 
-	return RoughSpecularIndirect;
+	return SpecularIndirect;
 }
 

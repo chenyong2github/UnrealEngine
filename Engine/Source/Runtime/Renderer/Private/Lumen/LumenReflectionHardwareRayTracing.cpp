@@ -27,9 +27,9 @@ static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracing(
 static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingLightingMode(
 	TEXT("r.Lumen.Reflections.HardwareRayTracing.LightingMode"),
 	0,
-	TEXT("Determines the lighting mode (Default = 0)")
-	TEXT("0: interpolate final lighting from the surface cache")
-	TEXT("1: evaluate material, and interpolate irradiance and indirect irradiance from the surface cache")
+	TEXT("Determines the lighting mode (Default = 0)\n")
+	TEXT("0: interpolate final lighting from the surface cache\n")
+	TEXT("1: evaluate material, and interpolate irradiance and indirect irradiance from the surface cache\n")
 	TEXT("2: evaluate material and direct lighting, and interpolate indirect irradiance from the surface cache"),
 	ECVF_RenderThreadSafe
 );
@@ -37,8 +37,8 @@ static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingLightin
 static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingNormalType(
 	TEXT("r.Lumen.Reflections.HardwareRayTracing.NormalMode"),
 	0,
-	TEXT("Determines the tracing normal (Default = 0)")
-	TEXT("0: SDF normal")
+	TEXT("Determines the tracing normal (Default = 0)\n")
+	TEXT("0: SDF normal\n")
 	TEXT("1: Geometry normal"),
 	ECVF_RenderThreadSafe
 );

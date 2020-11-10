@@ -11,6 +11,7 @@
 #include "../SceneTextureParameters.ush"
 #include "../SphericalGaussian.ush"
 #include "../FastMath.ush"
+#include "../ClearCoatCommon.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1
@@ -450,6 +451,8 @@ float3 DistantIlluminationRescale(float3 DiffuseColor, float AO)
 
 RWTexture2D<float4> RWDiffuseIndirect;
 RWTexture2D<float3> RWRoughSpecularIndirect;
+float MaxRoughnessToTrace;
+float RoughnessFadeLength;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
 void ScreenProbeIndirectCS(
@@ -704,9 +707,12 @@ void ScreenProbeIndirectCS(
 			// Prevent NaNs from ImportanceSampleVisibleGGX
 			GBufferData.Roughness = max(GBufferData.Roughness, .01f);
 
-			if (DiffuseLerp < 1.0f)
+			float MinRoughnessForProbeImportanceSampling = MaxRoughnessToTrace - RoughnessFadeLength;
+
+			if (DiffuseLerp < 1.0f && GBufferData.Roughness >= MinRoughnessForProbeImportanceSampling)
 			{
-				//@todo - skip if tracing long ray later
+				GBufferData.WorldNormal = GetClearCoatBottomNormal(GBufferData, GBufferData.WorldNormal);
+
 				//@todo - derive mip from cone angle from roughness
 				
 				// Approximation made to move out of inner loop

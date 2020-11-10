@@ -5,7 +5,6 @@
 #include "ScreenSpaceDenoise/SSDDefinitions.ush"
 
 
-
 //------------------------------------------------------- CONFIGS
 
 #if DIM_APPLY_DIFFUSE_INDIRECT == 1 // Denoised lighting buffer
@@ -37,12 +36,12 @@
 
 #elif DIM_APPLY_DIFFUSE_INDIRECT == 4 // Screen Probe Gather output
 	#define CONFIG_SIGNAL_PROCESSING SIGNAL_PROCESSING_SSGI
-	#define COMPILE_SIGNAL_COLOR_ARRAY 2
+	#define COMPILE_SIGNAL_COLOR_ARRAY 3
 	#define MAX_SIGNAL_BATCH_SIZE 1
 	#define SIGNAL_ARRAY_SIZE 1
 
 	#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_SSGI_HISTORY_R11G11B10
-	#define CONFIG_INPUT_TEXTURE_COUNT 2
+	#define CONFIG_INPUT_TEXTURE_COUNT 3
 
 #else // !DIM_APPLY_DIFFUSE_INDIRECT
 	// NOP
@@ -58,6 +57,7 @@
 #include "SceneTextureParameters.ush"
 #include "BRDF.ush"
 #include "ShadingModels.ush"
+#include "ClearCoatCommon.ush"
 
 #if DIM_APPLY_DIFFUSE_INDIRECT
 
@@ -100,6 +100,24 @@ Texture2D DiffuseIndirect_Textures_3;
 
 RWTexture2D<float4> PassDebugOutput;
 
+float MaxRoughnessToTrace;
+float InvRoughnessFadeLength;
+
+float3 CombineRoughSpecular(FGBufferData GBuffer, float NoV, float3 RayTracedReflections, float3 RoughReflections, float3 SpecularColor)
+{
+	float3 Lighting;
+	
+	if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+	{
+		Lighting = ClearCoatLayerCombine(GBuffer, NoV, RayTracedReflections, RoughReflections, SpecularColor);
+	}
+	else
+	{
+		Lighting = lerp(RoughReflections, RayTracedReflections, saturate((MaxRoughnessToTrace - GBuffer.Roughness) * InvRoughnessFadeLength));
+		Lighting *= EnvBRDF(SpecularColor, GBuffer.Roughness, NoV);
+	}
+	return Lighting;
+}
 
 //------------------------------------------------------- ENTRY POINT
 
@@ -132,11 +150,13 @@ void MainPS(
 #if DIM_APPLY_DIFFUSE_INDIRECT
 	{
 		float3 DiffuseIndirectLighting = 0;
+		float3 RoughSpecularIndirectLighting = 0;
 		float3 SpecularIndirectLighting = 0;
 
 		#if DIM_APPLY_DIFFUSE_INDIRECT == 4
 			DiffuseIndirectLighting = DiffuseIndirect_Textures_0.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
-			SpecularIndirectLighting = DiffuseIndirect_Textures_1.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
+			RoughSpecularIndirectLighting = DiffuseIndirect_Textures_1.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
+			SpecularIndirectLighting = DiffuseIndirect_Textures_2.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
 		#else
 		{
 			// Sample the output of the denoiser.
@@ -226,6 +246,10 @@ void MainPS(
 		float3 DiffuseColor = bVisualizeDiffuseIndirect ? float3(.18f, .18f, .18f) : GBuffer.DiffuseColor;
 		float3 SpecularColor = GBuffer.SpecularColor;
 
+		#if DIM_APPLY_DIFFUSE_INDIRECT == 4
+			RemapClearCoatDiffuseAndSpecularColor(GBuffer, NoV, DiffuseColor, SpecularColor);
+		#endif
+
 		#if DIM_APPLY_DIFFUSE_INDIRECT == 2 || DIM_APPLY_DIFFUSE_INDIRECT == 4
 			float DiffuseIndirectAO = 1;
 		#else
@@ -241,8 +265,13 @@ void MainPS(
 		else
 		{
 			IndirectLighting.Diffuse = DiffuseIndirectLighting * DiffuseColor * DiffuseIndirectAO;
-			IndirectLighting.Specular = SpecularIndirectLighting * EnvBRDF(SpecularColor, GBuffer.Roughness, NoV);
 			IndirectLighting.Transmission = 0;
+
+			#if DIM_APPLY_DIFFUSE_INDIRECT == 4
+				IndirectLighting.Specular = CombineRoughSpecular(GBuffer, NoV, SpecularIndirectLighting, RoughSpecularIndirectLighting, SpecularColor);
+			#else
+				IndirectLighting.Specular = SpecularIndirectLighting * EnvBRDF(SpecularColor, GBuffer.Roughness, NoV);
+			#endif
 		}
 
 		const bool bNeedsSeparateSubsurfaceLightAccumulation = UseSubsurfaceProfile(GBuffer.ShadingModelID);

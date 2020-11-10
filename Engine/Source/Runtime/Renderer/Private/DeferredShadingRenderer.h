@@ -534,7 +534,7 @@ private:
 		const FViewInfo& View,
 		const FSceneTextureParameters& SceneTextures,
 		const class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
-		FRDGTextureRef RoughSpecularIndirect);
+		FLumenReflectionCompositeParameters& OutCompositeParameters);
 
 	void RenderLumenSceneVisualization(FRDGBuilder& GraphBuilder);
 	void RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder);

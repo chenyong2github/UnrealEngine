@@ -104,6 +104,7 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 		SHADER_PARAMETER(float, AmbientOcclusionStaticFraction)
 		SHADER_PARAMETER(float, ApplyAOToDynamicDiffuseIndirect)
 		SHADER_PARAMETER(int32, bVisualizeDiffuseIndirect)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionCompositeParameters, LumenReflectionCompositeParameters)
 
 		SHADER_PARAMETER_STRUCT(FSSDSignalTextures, DiffuseIndirect)
 		SHADER_PARAMETER_SAMPLER(SamplerState, DiffuseIndirectSampler)
@@ -732,6 +733,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		FSSDSignalTextures DenoiserOutputs;
 		IScreenSpaceDenoiser::FDiffuseIndirectInputs DenoiserInputs;
 		IScreenSpaceDenoiser::FDiffuseIndirectHarmonic DenoiserSphericalHarmonicInputs;
+		FLumenReflectionCompositeParameters LumenReflectionCompositeParameters;
 		bool bLumenUseDenoiserComposite = ViewPipelineState.bUseLumenProbeHierarchy;
 
 		if (ViewPipelineState.bUseLumenProbeHierarchy)
@@ -773,12 +775,17 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				bLumenUseDenoiserComposite,
 				MeshSDFGridParameters);
 
-			DenoiserOutputs.Textures[1] = RenderLumenReflections(
+			DenoiserOutputs.Textures[2] = RenderLumenReflections(
 				GraphBuilder,
 				View,
 				CommonDiffuseParameters.SceneTextures, 
 				MeshSDFGridParameters,
-				DenoiserOutputs.Textures[1]);
+				LumenReflectionCompositeParameters);
+
+			if (!DenoiserOutputs.Textures[2])
+			{
+				DenoiserOutputs.Textures[2] = DenoiserOutputs.Textures[1];
+			}
 		}
 		else
 		{
@@ -927,6 +934,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 			PassParameters->BufferUVToOutputPixelPosition = BufferExtent;
 			PassParameters->EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
+			PassParameters->LumenReflectionCompositeParameters = LumenReflectionCompositeParameters;
 
 			PassParameters->bVisualizeDiffuseIndirect = bIsVisualizePass;
 

@@ -430,6 +430,8 @@ class FScreenProbeIndirectCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenSpaceBentNormalParameters, ScreenSpaceBentNormalParameters)
 		SHADER_PARAMETER(float, FullResolutionJitterWidth)
+		SHADER_PARAMETER(float, MaxRoughnessToTrace)
+		SHADER_PARAMETER(float, RoughnessFadeLength)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -936,6 +938,10 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
 		PassParameters->FullResolutionJitterWidth = GLumenScreenProbeFullResolutionJitterWidth;
+		extern float GLumenReflectionMaxRoughnessToTrace;
+		extern float GLumenReflectionRoughnessFadeLength;
+		PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
+		PassParameters->RoughnessFadeLength = GLumenReflectionRoughnessFadeLength;
 		PassParameters->ScreenSpaceBentNormalParameters = ScreenSpaceBentNormalParameters;
 
 		FScreenProbeIndirectCS::FPermutationDomain PermutationVector;

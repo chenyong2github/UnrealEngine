@@ -9,6 +9,7 @@
 #include "../BRDF.ush"
 #include "../Random.ush"
 #include "LumenReflectionCommon.ush"
+#include "../ClearCoatCommon.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 0
@@ -31,6 +32,12 @@ RWTexture2D<float> RWDownsampledDepth;
 
 groupshared uint SharedTileNeedsTracing;
 
+bool NeedRayTracedReflections(float Roughness, uint ShadingModelID)
+{
+	return ShadingModelID != SHADINGMODELID_UNLIT 
+		&& (Roughness <= MaxRoughnessToTrace || ShadingModelID == SHADINGMODELID_CLEAR_COAT);
+}
+
 [numthreads(REFLECTION_THREADGROUP_SIZE_2D, REFLECTION_THREADGROUP_SIZE_2D, 1)]
 void ReflectionGBufferTileClassificationCS(
 	uint3 GroupId : SV_GroupID,
@@ -49,9 +56,8 @@ void ReflectionGBufferTileClassificationCS(
 		int2 SourcePos = min((int2)(ReflectionTracingCoord + uint2(ScreenJitter + .5f)), (int2)(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy) - 1);
 
 		FGBufferData GBufferData = GetGBufferDataUint(SourcePos);
-		bool bPixelNeedsTracedReflections = GBufferData.ShadingModelID != SHADINGMODELID_UNLIT && GBufferData.Roughness <= MaxRoughnessToTrace;
 
-		if (bPixelNeedsTracedReflections)
+		if (NeedRayTracedReflections(GBufferData.Roughness, GBufferData.ShadingModelID))
 		{
 			SharedTileNeedsTracing = 1;
 		}
@@ -90,9 +96,11 @@ void ReflectionGenerateRaysCS(
 		int2 SourcePos = min((int2)(ReflectionTracingCoord + uint2(ScreenJitter + .5f)), (int2)(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy) - 1);
 
 		FGBufferData GBufferData = GetGBufferDataUint(SourcePos);
-		bool bPixelNeedsTracedReflections = GBufferData.ShadingModelID != SHADINGMODELID_UNLIT && GBufferData.Roughness <= MaxRoughnessToTrace;
-		
-		if (bPixelNeedsTracedReflections)
+
+		float TopLayerRoughness = GetClearCoatRoughness(GBufferData);
+		float DownsampledDepth = GBufferData.Depth;
+
+		if (NeedRayTracedReflections(TopLayerRoughness, GBufferData.ShadingModelID))
 		{
 			float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(ReflectionTracingCoord);
 			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, GBufferData.Depth);
@@ -103,7 +111,7 @@ void ReflectionGenerateRaysCS(
 
 			bool bMirrorReflectionDebug = false;
 
-			if (GBufferData.Roughness < 0.001f || bMirrorReflectionDebug)
+			if (TopLayerRoughness < 0.001f || bMirrorReflectionDebug)
 			{
 				RayDirection = reflect(CameraVector, GBufferData.WorldNormal);
 			}
@@ -122,8 +130,8 @@ void ReflectionGenerateRaysCS(
 				float3x3 TangentBasis = GetTangentBasis(GBufferData.WorldNormal);
 				float3 TangentV = mul(TangentBasis, -CameraVector);
 
-				//float4 GGXSample = ImportanceSampleGGX(E, Pow4(GBufferData.Roughness));
-				float4 GGXSample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(GBufferData.Roughness), TangentV);
+				//float4 GGXSample = ImportanceSampleGGX(E, Pow4(TopLayerRoughness));
+				float4 GGXSample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(TopLayerRoughness), TangentV);
 				float3 WorldH = mul(GGXSample.xyz, TangentBasis);
 				RayDirection = reflect(CameraVector, WorldH);
 				ConeAngle = 1.0f / GGXSample.w;
@@ -131,10 +139,7 @@ void ReflectionGenerateRaysCS(
 
 			RWRayBuffer[ReflectionTracingCoord] = float4(RayDirection, ConeAngle);
 		}
-
-		float DownsampledDepth = GBufferData.Depth;
-
-		if (!bPixelNeedsTracedReflections)
+		else
 		{
 			// Store invalid ray in sign bit
 			DownsampledDepth *= -1.0f;
@@ -144,13 +149,8 @@ void ReflectionGenerateRaysCS(
 	}
 }
 
-float3 CombineRoughSpecular(float3 RayTracedReflections, float3 RoughReflections, float Roughness)
-{
-	return lerp(RoughReflections, RayTracedReflections, saturate((MaxRoughnessToTrace - Roughness) * InvRoughnessFadeLength));
-}
 
 RWTexture2D<float4> RWSpecularIndirect;
-Texture2D<float3> RoughSpecularIndirect;
 
 [numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
 void ReflectionResolveCS(
@@ -161,7 +161,7 @@ void ReflectionResolveCS(
 	float2 ScreenUV = (ReflectionScreenCoord + 0.5f) * View.BufferSizeAndInvSize.zw;
 	float SceneDepth = CalcSceneDepth(ScreenUV);
 
-	float3 ReflectionLighting = RoughSpecularIndirect[ReflectionScreenCoord];
+	float3 ReflectionLighting = 0;
 	float DepthForReprojection = SceneDepth;
 
 	if (SceneDepth < 1000000.0f)
@@ -169,14 +169,15 @@ void ReflectionResolveCS(
 		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);
 		FGBufferData GBufferData = ScreenSpaceData.GBuffer;
 
-		if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT && GBufferData.Roughness <= MaxRoughnessToTrace)
+		float TopLayerRoughness = GetClearCoatRoughness(GBufferData);
+
+		if (NeedRayTracedReflections(TopLayerRoughness, GBufferData.ShadingModelID))
 		{
 			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-			float3 CameraVector = normalize(WorldPosition - View.WorldCameraOrigin);
+			float3 V = -normalize(WorldPosition - View.WorldCameraOrigin);
 			float3x3 TangentBasis = GetTangentBasis(GBufferData.WorldNormal);
-			float3 TangentV = mul(TangentBasis, -CameraVector);
+			float3 TangentV = mul(TangentBasis, V);
 
-			float3 Lighting = 0;
 			float HitDepth = 0;
 
 #define USE_SPATIAL_RECONSTRUCTION 1
@@ -184,7 +185,7 @@ void ReflectionResolveCS(
 
 			float TotalWeight = 0;
 			uint HalfKernelSize = 1;
-			float a2 = Pow4(GBufferData.Roughness);
+			float a2 = Pow4(TopLayerRoughness);
 			
 			for (uint Y = 0; Y <= 2 * HalfKernelSize; Y++)
 			{
@@ -214,10 +215,10 @@ void ReflectionResolveCS(
 							{
 								DirectionToNeighborHit = (NeighborHitPosition - WorldPosition) / DistanceToNeighborHit;
 							}
-							float3 TangentH = mul(TangentBasis, normalize(-CameraVector + DirectionToNeighborHit));
+							float3 TangentH = mul(TangentBasis, normalize(V + DirectionToNeighborHit));
 
 							// Re-weight neighbor ray by the ratio of our PDF to neighbor PDF
-							float NewPDF = GBufferData.Roughness < 0.001f ? 1.0f / .001f : VisibleGGXPDF(TangentV, TangentH, a2);
+							float NewPDF = TopLayerRoughness < 0.001f ? 1.0f / .001f : VisibleGGXPDF(TangentV, TangentH, a2);
 							float Weight = NewPDF / RayData.PDF;
 
 							// Center ray should always pass with full res tracing, but does not due to precision issues
@@ -226,7 +227,7 @@ void ReflectionResolveCS(
 								Weight = 1.0f;
 							}
 
-							Lighting += TraceRadiance[NeighborTracingCoord] * Weight;
+							ReflectionLighting += TraceRadiance[NeighborTracingCoord] * Weight;
 							HitDepth += TraceHitDistance * Weight;
 							TotalWeight += Weight;
 						}
@@ -237,18 +238,15 @@ void ReflectionResolveCS(
 			if (TotalWeight > 0.0f)
 			{
 				float InvTotalWeight = 1.0f / TotalWeight;
-				Lighting *= InvTotalWeight;
+				ReflectionLighting *= InvTotalWeight;
 				HitDepth *= InvTotalWeight;
 			}
 #else
-			Lighting = TraceRadiance[ReflectionScreenCoord];
+			ReflectionLighting = TraceRadiance[ReflectionScreenCoord];
 
 			bool bHit;
 			HitDepth = DecodeRayDistance(TraceHit[ReflectionScreenCoord].x, bHit);
 #endif
-			//@todo - combine after temporal filter
-			ReflectionLighting = CombineRoughSpecular(Lighting, ReflectionLighting, GBufferData.Roughness);
-
 			DepthForReprojection = SceneDepth + HitDepth;
 		}
 	}
