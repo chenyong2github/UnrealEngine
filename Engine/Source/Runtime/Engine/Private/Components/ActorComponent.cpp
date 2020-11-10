@@ -81,7 +81,7 @@ int32 FGlobalComponentReregisterContext::ActiveGlobalReregisterContextCount = 0;
 
 #if WITH_CHAOS
 // Allows for CreatePhysicsState to be deferred, to batch work and parallelize.
-int32 GEnableDeferredPhysicsCreation = 1;
+int32 GEnableDeferredPhysicsCreation = 0;
 FAutoConsoleVariableRef CVarEnableDeferredPhysicsCreation(
 	TEXT("p.EnableDeferredPhysicsCreation"), 
 	GEnableDeferredPhysicsCreation,
