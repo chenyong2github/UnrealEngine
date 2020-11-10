@@ -420,4 +420,15 @@ class nDisplayMonitor(QAbstractTableModel):
             if good_string not in data['ExeFlags']:
                 device.fix_exe_flags()
 
+    @QtCore.Slot()
+    def btnSoftKill_clicked(self):
+        ''' Kills the cluster by sending a message to the master.
+        '''
+        devices = [devicedata['device'] for devicedata in self.devicedatas.values()]
+        if len(devices):
+            try:
+                devices[0].__class__.soft_kill_cluster(devices)
+            except:
+                LOGGER.warning("Could not soft kill cluster")
+
     #~ QAbstractTableModel interface end

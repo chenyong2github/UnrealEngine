@@ -12,7 +12,7 @@ from .ndisplay_monitor    import nDisplayMonitor
 
 from PySide2 import QtWidgets
 
-import os, traceback, json
+import os, traceback, json, socket, struct
 from pathlib import Path
 
 
@@ -189,6 +189,16 @@ class DevicenDisplay(DeviceUnreal):
 
         # create monitor if it doesn't exist
         self.__class__.create_monitor_if_necessary()
+
+        # node configuration (updated from config file)
+        self.nodeconfig = {}
+
+        try:
+            cfg_file = DevicenDisplay.csettings['ndisplay_config_file'].get_value(self.name)
+            self.update_settings_controlled_by_config(cfg_file)
+        except:
+            LOGGER.error(f"{self.name}: Could not update from '{cfg_file}' during initialization. \n\n=== Traceback BEGIN ===\n{traceback.format_exc()}=== Traceback END ===\n")
+
 
     @classmethod
     def create_monitor_if_necessary(cls):
@@ -391,6 +401,7 @@ class DevicenDisplay(DeviceUnreal):
 
         nodes = []
         cnodes = js['nDisplay']['cluster']['nodes']
+        masterNode = js['nDisplay']['cluster']['masterNode']
 
         for name, cnode in cnodes.items():
 
@@ -405,9 +416,13 @@ class DevicenDisplay(DeviceUnreal):
             kwargs["window_resolution"] = (resx, resy)
             kwargs["fullscreen"] = bool(cnode.get('fullScreen', False)) # note the capital 'S'
 
+            master = True if masterNode['id'] == name else False
+
             nodes.append({
                 "name": name, 
-                "ip_address": cnode['host'], 
+                "ip_address": cnode['host'],
+                "master": master,
+                "port_ce": int(masterNode['ports']['ClusterEventsJson']),
                 "kwargs": kwargs,
             })
 
@@ -431,50 +446,57 @@ class DevicenDisplay(DeviceUnreal):
                         window_lines.append(line)
 
         for line in cluster_node_lines:
-            name = line.split("id=")[1]
-            name = name.split(' ', 1)[0]
-            name = name.replace('"', '')
-            
-            node_window = line.split("window=")[1]
-            node_window = node_window.split(' ', 1)[0]
-            node_window = node_window.replace('"', '')
 
-            kwargs = {"ue_command_line": ""}
+            def parse_value(key, line):
+                val = line.split(f"{key}=")[1]
+                val = val.split(' ', 1)[0]
+                val = val.replace('"', '')
+                return val
+
+            name = parse_value(key='id', line=line)
+            node_window = parse_value(key='window', line=line)
+
+            try:
+                port_ce = int(parse_value(key='port_ce', line=line))
+            except (IndexError, ValueError):
+                port_ce = 41003
+
+            try:
+                master = parse_value(key='master', line=line)
+                master = True if (('true' in master.lower()) or (master == "1")) else False
+            except:
+                master = False
+
+            kwargs = {
+                "ue_command_line": "",
+            }
 
             for window_line in window_lines:
                 if node_window in window_line:
                     try:
-                        winx = window_line.split("winx=")[1]
-                        winx = winx.split(' ', 1)[0]
-                        winx = winx.replace('"', '')
-                    except IndexError:
+                        winx = int(parse_value(key='winx', line=window_line))
+                    except (IndexError,ValueError):
                         winx = 0
 
                     try:
-                        winy = window_line.split("winy=")[1]
-                        winy = winy.split(' ', 1)[0]
-                        winy = winy.replace('"', '')
-                    except IndexError:
+                        winy = int(parse_value(key='winy', line=window_line))
+                    except (IndexError,ValueError):
                         winy = 0
 
                     try:
-                        resx = window_line.split("resx=")[1]
-                        resx = resx.split(' ', 1)[0]
-                        resx = resx.replace('"', '')
-                    except IndexError:
+                        resx = int(parse_value(key='resx', line=window_line))
+                    except (IndexError,ValueError):
                         resx = 0
 
                     try:
-                        resy = window_line.split("resy=")[1]
-                        resy = resy.split(' ', 1)[0]
-                        resy = resy.replace('"', '')
-                    except IndexError:
+                        resy = int(parse_value(key='resy', line=window_line))
+                    except (IndexError,ValueError):
                         resy = 0
 
                     try:
                         fullscreen = window_line.split("fullscreen=")[1]
                         fullscreen = fullscreen.split(' ', 1)[0]
-                        fullscreen = True if (('true' in fullscreen) or (fullscreen == "1")) else False
+                        fullscreen = True if (('true' in fullscreen.lower()) or (fullscreen == "1")) else False
                     except IndexError:
                         fullscreen = False
 
@@ -488,7 +510,13 @@ class DevicenDisplay(DeviceUnreal):
             addr = addr.split(' ', 1)[0]
             addr = addr.replace('"', '')
 
-            nodes.append({"name": name, "ip_address": addr, "kwargs": kwargs})
+            nodes.append({
+                "name": name, 
+                "ip_address": addr,
+                "master": master,
+                "port_ce": port_ce,
+                "kwargs": kwargs,
+            })
 
         return nodes
 
@@ -525,6 +553,8 @@ class DevicenDisplay(DeviceUnreal):
         except StopIteration:
             LOGGER.error(f"{self.name} not found in config file {cfg_file}")
             return
+
+        self.nodeconfig = menode
 
         self.settings['window_position'].update_value(menode['kwargs'].get("window_position", (0.0)))
         self.settings['window_resolution'].update_value(menode['kwargs'].get("window_resolution", (100,100)))
@@ -589,4 +619,51 @@ class DevicenDisplay(DeviceUnreal):
             return
 
         cls.ndisplay_monitor.removed_device(device)
+
+    @classmethod
+    def soft_kill_cluster(cls, devices):
+        ''' Kills the cluster by sending a message to the master.
+        '''
+        # find the master nodes (only one expected to be master)
+
+        masters = [dev for dev in devices if dev.nodeconfig['master']]
+                
+        if len(masters) != 1:
+            LOGGER.warning(f"{len(masters)} masters detected but there can only be one")
+            raise ValueError
+
+        master = masters[0]
+
+        # send quit cluster event
+
+        cluster_event = {
+            "Category":"nDisplay",
+            "Name":"quit",
+            "Parameters":{},
+            "Type":"control", 
+            "bIsSystemEvent":"true",
+        }
+
+        msg = bytes(json.dumps(cluster_event), 'utf-8')
+        msg = struct.pack('I', len(msg)) + msg
+
+        port = master.nodeconfig['port_ce']
+        ip = master.nodeconfig['ip_address']
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((ip, port))
+        sock.send(msg)
+
+    @classmethod
+    def close_all(cls, devices):
+        ''' Closes all devices in the plugin
+        '''
+        try:
+            cls.soft_kill_cluster(devices)
+
+            for device in devices:
+                device.device_qt_handler.signal_device_closing.emit(device)
+        except:
+            LOGGER.warning("Could not soft kill the cluster")
+        
 
