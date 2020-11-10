@@ -101,6 +101,7 @@ const TCHAR* LexToString(EInstallBundleReleaseResult Result)
 	{
 		TEXT("OK"),
 		TEXT("ManifestArchiveError"),
+		TEXT("UserCancelledError"),
 	};
 
 	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleReleaseResult::Count) == UE_ARRAY_COUNT(Strings), "");
