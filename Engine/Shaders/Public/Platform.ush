@@ -808,12 +808,11 @@ uint MaskedBitCount( uint2 Bits, uint Index )
 }
 
 #if PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS
-#ifdef COMPILER_SUPPORTS_TO_SCALAR_MEMORY
-#error Conflict of the ToScalarMemory definition.
-#endif
 
+#ifndef COMPILER_SUPPORTS_TO_SCALAR_MEMORY
 #define COMPILER_SUPPORTS_TO_SCALAR_MEMORY 1
 #define ToScalarMemory(x) WaveReadLaneFirst(x)
+#endif
 
 #ifndef COMPILER_SUPPORTS_MASKED_BIT_COUNT
 #define COMPILER_SUPPORTS_MASKED_BIT_COUNT 1

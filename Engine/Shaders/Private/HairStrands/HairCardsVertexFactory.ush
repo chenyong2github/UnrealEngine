@@ -168,7 +168,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 #endif
 
 	Result.TwoSidedSign = 1;
-	Result.PrimitiveId = GetPrimitiveId(Interpolants);
+	Result.PrimitiveId = ToScalarMemory(GetPrimitiveId(Interpolants));
 	Result.HairPrimitiveId = Interpolants.HairPrimitiveId;
 	Result.HairPrimitiveUV = float2(Interpolants.HairPrimitiveUV);
 #if NUM_TEX_COORD_INTERPOLATORS
@@ -177,10 +177,6 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	{
 		Result.TexCoords[CoordinateIndex] = GetUV(Interpolants, CoordinateIndex);
 	}
-#endif
-
-#if COMPILER_SUPPORTS_TO_SCALAR_MEMORY
-	Result.PrimitiveId = ToScalarMemory(Result.PrimitiveId);
 #endif
 
 	return Result;
