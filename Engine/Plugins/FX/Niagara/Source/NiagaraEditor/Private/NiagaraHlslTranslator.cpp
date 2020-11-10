@@ -5882,6 +5882,11 @@ void FHlslNiagaraTranslator::WriteDataSet(const FNiagaraDataSetID DataSet, const
 		}
 	}
 
+	if (DataSetWriteInfo[(int32)AccessMode].Find(DataSet))
+	{
+		Error(LOCTEXT("WritingToSameDataSetError", "Multiple writes to the same dataset.  Only one is allowed per script stage."), nullptr, nullptr);
+		return;
+	}
 
 	TMap<int32, FDataSetAccessInfo>& Writes = DataSetWriteInfo[(int32)AccessMode].FindOrAdd(DataSet);
 	FDataSetAccessInfo* DataSetWriteForInput = Writes.Find(InputChunk);
