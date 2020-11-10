@@ -2599,7 +2599,7 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 		EngineShowFlags.ScreenPercentage = false;
 	}
 
-	if (GEngine->IsStereoscopic3D())
+	if (GEngine && GEngine->IsStereoscopic3D())
 	{
 		static const auto MobileMultiViewCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
 		const bool bSkipPostprocessing = !IsMobileHDR();
