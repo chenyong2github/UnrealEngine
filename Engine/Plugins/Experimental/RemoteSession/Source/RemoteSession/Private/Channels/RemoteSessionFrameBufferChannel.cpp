@@ -24,8 +24,8 @@ public:
 			{
 				const URemoteSessionSettings* Settings = URemoteSessionSettings::StaticClass()->GetDefaultObject<URemoteSessionSettings>();
 
-				ImageProvider->SetCaptureFrameRate(Settings->ImageQuality);
-				Channel->SetCompressQuality(Settings->FrameRate);
+				ImageProvider->SetCaptureFrameRate(Settings->FrameRate);
+				Channel->SetCompressQuality(Settings->ImageQuality);
 			}
 
 			{
