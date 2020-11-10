@@ -89,7 +89,9 @@ void FastResolvePS(in FScreenVertexOutput Input)
 
 int2 OutputResolution;
 uint bComposeDofDepth;
+uint bEmissiveEnable;
 
+Texture2D<float4>	HairEmissiveTexture;
 Texture2D<float>	HairDOFDepthTexture;
 Texture2D<uint>		HairSampleCount;
 Texture2D<uint4>	HairCategorizationTexture;
@@ -157,7 +159,8 @@ void ComposeSamplePS(
 	if (PixelCoverage == 0)
 		discard;
 
-	const uint Resolution = uint(ceil(sqrt(float(HairSampleCount.Load(uint3(0, 0, 0))))));
+	const uint TotalNodeCount = HairSampleCount.Load(uint3(0, 0, 0));
+	const uint Resolution = uint(ceil(sqrt(float(TotalNodeCount))));
 
 	const float3 ClosetPointWorldPosition = SvPositionToWorld(float4(Input.Position.xy, CatData.ClosestDepth, 1.0));;
 	const float4 Volumetric = EvaluateVolumetric(ClosetPointWorldPosition);
@@ -169,7 +172,8 @@ void ComposeSamplePS(
 		const uint LocalOffset = NodeDesc.Offset + SampleIt;
 		const uint2 Coord = uint2(LocalOffset % Resolution, LocalOffset / Resolution);
 		const float4 LightingSample = HairLightingSampleBuffer.Load(uint3(Coord,0));
-		LocalAccColor += LightingSample.rgb;
+		const float4 EmissiveSample = HairEmissiveTexture.Load(uint3(Coord, 0));
+		LocalAccColor += LightingSample.rgb + EmissiveSample.rgb;
 	}
 	OutColor.rgb = LocalAccColor * Volumetric.a + Volumetric.rgb;
 

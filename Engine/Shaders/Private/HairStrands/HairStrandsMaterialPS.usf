@@ -6,7 +6,7 @@ void Main(
 	in float4 SvPosition: SV_Position
 	, in uint2 Resolution : DISPATCH_RESOLUTION
 	, in uint TotalNodeCount : DISPATCH_NODE_COUNT
-	#if HAIR_MATERIAL_DEBUG_OUTPUT
+	#if HAIR_MATERIAL_DEBUG_OR_EMISSIVE_OUTPUT
 	, out float4 OutColor0 : SV_Target0
 	#endif
 	)
@@ -16,6 +16,7 @@ void Main(
 	const uint3 PixelCoord = uint3(floor(SvPosition.xy), 0);
 	const uint SampleIndex = PixelCoord.x + PixelCoord.y * Resolution.x;// MaterialPassParameters.MaxResolution.x;
 	bool bIsValid = false;
+	float3 Emissive = 0;
 	if (SampleIndex < TotalNodeCount)
 	{
 		const FNodeVis InNode = MaterialPassParameters.NodeVis[SampleIndex];
@@ -42,11 +43,19 @@ void Main(
 			MaterialPassParameters_OutNodeVelocity[SampleIndex] = Out.NodeVelocity;
 
 			bIsValid = true;
+			Emissive = Out.NodeData.Emissive * float(Out.NodeData.Coverage8bit / 255.f);
 		}
 	}
 
-	#if HAIR_MATERIAL_DEBUG_OUTPUT
-	OutColor0 = bIsValid? float4(0, 1, 0, 1) : float4(1, 0, 0, 1);
+	#if HAIR_MATERIAL_DEBUG_OR_EMISSIVE_OUTPUT
+	if (MaterialPassParameters.bOutputEmissive > 0)
+	{
+		OutColor0 = float4(Emissive,1);
+	}
+	else
+	{	
+		OutColor0 = bIsValid ? float4(0, 1, 0, 1) : float4(1, 0, 0, 1);
+	}
 	#endif
 }
 
