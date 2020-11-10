@@ -362,7 +362,7 @@ public:
 	
 	/** @return all the 3D poses tracked by the AR system */
 	UE_DEPRECATED(4.26, "GetAllTrackedPoses is deprecated, use GetAllGeometriesByClass.")
-	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Pose Tracking", meta = (DisplayName="Get All AR Tracked 3D Poses", Keywords = "ar augmentedreality augmented reality pose tracking", DeprecatedFunction, DeprecationMessage="GetAllTrackedPoses is deprecated, use GetARTexture."))
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Pose Tracking", meta = (DisplayName="Get All AR Tracked 3D Poses", Keywords = "ar augmentedreality augmented reality pose tracking", DeprecatedFunction, DeprecationMessage="GetAllTrackedPoses is deprecated, use GetAllGeometriesByClass."))
 	static TArray<UARTrackedPose*> GetAllTrackedPoses();
 	
 	/** @return the segmentation image if the person segmentation session feature is used */
