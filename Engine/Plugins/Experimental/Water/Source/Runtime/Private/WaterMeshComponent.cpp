@@ -146,20 +146,9 @@ FBoxSphereBounds UWaterMeshComponent::CalcBounds(const FTransform& LocalToWorld)
 	return NewBounds;
 }
 
-static bool IsMaterialUsedWithWater(const UMaterialInterface* InMaterial, FSceneInterface* InScene)
+static bool IsMaterialUsedWithWater(const UMaterialInterface* InMaterial)
 {
-	const FMaterialResource* MatResource = nullptr;
-	if (InMaterial && InScene)
-	{
-		MatResource = InMaterial->GetMaterialResource(InScene->GetFeatureLevel());
-	}
-
-	if (MatResource == nullptr || !MatResource->IsUsedWithWater())
-	{
-		return false;
-	}
-
-	return true;
+	return (InMaterial && InMaterial->CheckMaterialUsage_Concurrent(EMaterialUsage::MATUSAGE_Water));
 }
 
 void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& InExtentInTiles)
@@ -225,7 +214,7 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 		// Assign material instance
 		UMaterialInstanceDynamic* WaterMaterial = WaterBody->GetWaterMaterialInstance();
 		RenderData.Material = WaterMaterial;
-		if (!IsMaterialUsedWithWater(RenderData.Material, GetScene()))
+		if (!IsMaterialUsedWithWater(RenderData.Material))
 		{
 			RenderData.Material = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
@@ -260,7 +249,7 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 		if (WaterBodyType == EWaterBodyType::River)
 		{
 			UMaterialInstanceDynamic* RiverToLakeMaterial = WaterBody->GetRiverToLakeTransitionMaterialInstance();
-			if (IsMaterialUsedWithWater(RiverToLakeMaterial, GetScene()))
+			if (IsMaterialUsedWithWater(RiverToLakeMaterial))
 			{
 				RenderData.RiverToLakeMaterial = RiverToLakeMaterial;
 				UsedMaterials.Add(RenderData.RiverToLakeMaterial);
@@ -269,7 +258,7 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 			}
 			
 			UMaterialInstanceDynamic* RiverToOceanMaterial = WaterBody->GetRiverToOceanTransitionMaterialInstance();
-			if (IsMaterialUsedWithWater(RiverToOceanMaterial, GetScene()))
+			if (IsMaterialUsedWithWater(RiverToOceanMaterial))
 			{
 				RenderData.RiverToOceanMaterial = RiverToOceanMaterial;
 				UsedMaterials.Add(RenderData.RiverToOceanMaterial);
@@ -439,14 +428,8 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 
 	MarkRenderStateDirty();
 
-	if (!IsMaterialUsedWithWater(FarDistanceMaterial, GetScene()))
-	{
-		// TODO [jonathan.bard] : writes a non-transient property here, this shouldn't be done : 
-		FarDistanceMaterial = nullptr;
-	}
-
 	// Build the far distance mesh instances. These are 8 tiles around the water quad tree
-	if (FarDistanceMaterial && FarDistanceMeshExtent > 0.0f)
+	if (IsMaterialUsedWithWater(FarDistanceMaterial) && FarDistanceMeshExtent > 0.0f)
 	{
 		UsedMaterials.Add(FarDistanceMaterial);
 
