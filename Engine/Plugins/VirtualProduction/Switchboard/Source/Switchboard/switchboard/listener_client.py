@@ -132,7 +132,6 @@ class ListenerClient(object):
                 for rs in read_sockets:
                     received_data = rs.recv(self.buffer_size).decode()
                     self.process_received_data(buffer, received_data)
-                    self.last_activity = datetime.datetime.now()
 
                 delta = datetime.datetime.now() - self.last_activity
 
@@ -198,11 +197,6 @@ class ListenerClient(object):
             else:
                 if self.program_start_failed_delegate:
                     self.program_start_failed_delegate(message['error'], message_id)
-
-        elif "program ended" in message:
-            program_id = uuid.UUID(message['program id'])
-            if self.program_ended_delegate:
-                self.program_ended_delegate(program_id, message['returncode'], message['output'])
 
         elif "program killed" in message:
             program_id = uuid.UUID(message['program id'])

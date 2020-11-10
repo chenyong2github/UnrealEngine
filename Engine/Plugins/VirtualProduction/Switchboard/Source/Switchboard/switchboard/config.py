@@ -379,7 +379,7 @@ class Config(object):
         self.save()
 
     def maps(self):
-        maps_path = os.path.normpath(os.path.join(os.path.dirname(self.UPROJECT_PATH.get_value()), 'Content', self.MAPS_PATH.get_value()))
+        maps_path = os.path.normpath(os.path.join(os.path.dirname(self.UPROJECT_PATH.get_value().replace('"','')), 'Content', self.MAPS_PATH.get_value()))
 
         maps = []
         for _, _, files in os.walk(maps_path):
