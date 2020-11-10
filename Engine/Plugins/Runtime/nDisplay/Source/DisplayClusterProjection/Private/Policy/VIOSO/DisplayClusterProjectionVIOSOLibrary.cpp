@@ -5,6 +5,7 @@
 #include "Interfaces/IPluginManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopeLock.h"
 
 #define DeclareVIOSOFunc(LocalFunc, DLLFunc)\
 	FLibVIOSO::DLLFunc##Proc     FLibVIOSO::LocalFunc = nullptr;

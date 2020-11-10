@@ -5,11 +5,12 @@
 #include "DisplayClusterProjectionLog.h"
 #include "IDisplayCluster.h"
 #include "Misc/DisplayClusterHelpers.h"
-#include "Misc/Paths.h"
 #include "Config/IDisplayClusterConfigManager.h"
 #include "Game/IDisplayClusterGameManager.h"
-#include "Engine/RendererSettings.h"
 
+#include "Misc/Paths.h"
+#include "Misc/ScopeLock.h"
+#include "Engine/RendererSettings.h"
 #include "RenderTargetPool.h"
 
 #if PLATFORM_WINDOWS
