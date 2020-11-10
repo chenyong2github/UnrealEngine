@@ -649,13 +649,13 @@ private:
 		{
 			if(FPointWeightMap* Mask = InItem->GetMask())
 			{
-				bool bNewEnableState = InState == ECheckBoxState::Checked;
+				const bool bNewEnableState = (InState == ECheckBoxState::Checked);
 
 				if(Mask->bEnabled != bNewEnableState)
 				{
 					if(bNewEnableState)
 					{
-						// Disable all other masks that affect this target
+						// Disable all other masks that affect this target (there can only be one mask enabled of the same target type at the same time)
 						if(UClothingAssetCommon* Asset = InItem->ClothingAsset.Get())
 						{
 							if(Asset->LodData.IsValidIndex(InItem->LodIndex))
@@ -681,7 +681,8 @@ private:
 					
 					if(UClothingAssetCommon* Asset = InItem->ClothingAsset.Get())
 					{
-						Asset->ApplyParameterMasks();
+						const bool bUpdateFixedVertData = (Mask->CurrentTarget == (uint8)EWeightMapTargetCommon::MaxDistance);
+						Asset->ApplyParameterMasks(bUpdateFixedVertData);
 					}
 				}
 			}

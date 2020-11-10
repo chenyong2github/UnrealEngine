@@ -326,12 +326,15 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 	}
 
 	// Calculate fixed verts
-	const FPointWeightMap& MaxDistances = ClothLodData.PhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::MaxDistance);
-	for(FMeshToMeshVertData& VertData : MeshToMeshData)
+	const FPointWeightMap* const MaxDistances = ClothLodData.PhysicalMeshData.FindWeightMap(EWeightMapTargetCommon::MaxDistance);
+	if (MaxDistances && MaxDistances->Num())
 	{
-		if (MaxDistances.AreAllBelowThreshold(VertData.SourceMeshVertIndices[0], VertData.SourceMeshVertIndices[1], VertData.SourceMeshVertIndices[2]))
+		for(FMeshToMeshVertData& VertData : MeshToMeshData)
 		{
-			VertData.SourceMeshVertIndices[3] = 0xFFFF;
+			if (MaxDistances->AreAllBelowThreshold(VertData.SourceMeshVertIndices[0], VertData.SourceMeshVertIndices[1], VertData.SourceMeshVertIndices[2]))
+			{
+				VertData.SourceMeshVertIndices[3] = 0xFFFF;
+			}
 		}
 	}
 
@@ -526,13 +529,57 @@ void UClothingAssetCommon::ForEachInteractorUsingClothing(TFunction<void(UClothi
 	}
 }
 
-void UClothingAssetCommon::ApplyParameterMasks()
+void UClothingAssetCommon::ApplyParameterMasks(bool bUpdateFixedVertData)
 {
 	for(FClothLODDataCommon& Lod : LodData)
 	{
 		Lod.PushWeightsToMesh();
 	}
 	InvalidateCachedData();
+
+	// Recompute weights if needed
+	USkeletalMesh* const SkeletalMesh = Cast<USkeletalMesh>(GetOuter());
+	
+	if (bUpdateFixedVertData && SkeletalMesh)
+	{
+		FSkeletalMeshModel* Resource = SkeletalMesh->GetImportedModel();
+		FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(SkeletalMesh);
+
+		SkeletalMesh->PreEditChange(nullptr);
+
+		for (FSkeletalMeshLODModel& LodModel : Resource->LODModels)
+		{
+			for (FSkelMeshSection& Section : LodModel.Sections)
+			{
+				if (!Section.HasClothingData() || Cast<UClothingAssetCommon>(SkeletalMesh->GetClothingAsset(Section.ClothingData.AssetGuid)) != this)
+				{
+					continue;
+				}
+				const FClothLODDataCommon& LodDatum = LodData[Section.ClothingData.AssetLodIndex];
+				const FPointWeightMap* const MaxDistances = LodDatum.PhysicalMeshData.FindWeightMap(EWeightMapTargetCommon::MaxDistance);
+
+				if (MaxDistances && MaxDistances->Num())
+				{
+					for (FMeshToMeshVertData& VertData : Section.ClothMappingData)
+					{
+						VertData.SourceMeshVertIndices[3] = MaxDistances->AreAllBelowThreshold(
+							VertData.SourceMeshVertIndices[0],
+							VertData.SourceMeshVertIndices[1],
+							VertData.SourceMeshVertIndices[2]) ? 0xFFFF : 0;
+					}
+				}
+				else
+				{
+					for (FMeshToMeshVertData& VertData : Section.ClothMappingData)
+					{
+						VertData.SourceMeshVertIndices[3] = 0;
+					}
+				}
+			}
+		}
+		// We must always dirty the DDC key unless previewing
+		SkeletalMesh->InvalidateDeriveDataCacheGUID();
+	}
 }
 
 void UClothingAssetCommon::BuildLodTransitionData()
@@ -764,11 +811,14 @@ void UClothingAssetCommon::PostLoad()
 			// so we can use it correctly now.
 			Lod.PointWeightMaps.Reset(3);
 
-			// Max distances (Always present)
-			Lod.PointWeightMaps.AddDefaulted();
-			FPointWeightMap& MaxDistanceMask = Lod.PointWeightMaps.Last();
-			const FPointWeightMap& MaxDistances = PhysMesh.GetWeightMap(EWeightMapTargetCommon::MaxDistance);
-			MaxDistanceMask.Initialize(MaxDistances, EWeightMapTargetCommon::MaxDistance);
+			// Max distances
+			const FPointWeightMap* const MaxDistances = PhysMesh.FindWeightMap(EWeightMapTargetCommon::MaxDistance);
+			if (MaxDistances)
+			{
+				Lod.PointWeightMaps.AddDefaulted();
+				FPointWeightMap& MaxDistanceMask = Lod.PointWeightMaps.Last();
+				MaxDistanceMask.Initialize(*MaxDistances, EWeightMapTargetCommon::MaxDistance);
+			}
 
 			// Following params are only added if necessary, if we don't have any backstop
 			// radii then there's no backstops.
@@ -1100,46 +1150,37 @@ void UClothingAssetCommon::InvalidateCachedData()
 		PhysMesh.NumFixedVerts = 0;
 
 		const FPointWeightMap* const MaxDistances = PhysMesh.FindWeightMap(EWeightMapTargetCommon::MaxDistance);
-		if (MaxDistances && MaxDistances->Num() > 0)
+		const TFunction<bool(int32)> IsKinematic = (!MaxDistances || !MaxDistances->Num()) ?
+			TFunction<bool(int32)>([](int32)->bool { return false; }) :
+			TFunction<bool(int32)>([&MaxDistances](int32 Index)->bool { return (*MaxDistances)[Index] < SMALL_NUMBER; });  // For consistency, the default Threshold should be 0.1, not SMALL_NUMBER. But for backward compatibility it needs to be SMALL_NUMBER for now.
+
+		float MassSum = 0.0f;
+		for (int32 CurrVertIndex = 0; CurrVertIndex < NumVerts; ++CurrVertIndex)
 		{
-			float MassSum = 0.0f;
-			for (int32 CurrVertIndex = 0; CurrVertIndex < NumVerts; ++CurrVertIndex)
-			{
-				float& InvMass = InvMasses[CurrVertIndex];
-				const float& MaxDistance = (*MaxDistances)[CurrVertIndex];
+			float& InvMass = InvMasses[CurrVertIndex];
 
-				if (MaxDistance < SMALL_NUMBER)   // For consistency, the default Threshold should be 0.1, not SMALL_NUMBER. But for backward compatibility it needs to be SMALL_NUMBER for now.
-				{
-					InvMass = 0.0f;
-					++PhysMesh.NumFixedVerts;
-				}
-				else
-				{
-					MassSum += InvMass;
-				}
+			if (IsKinematic(CurrVertIndex))
+			{
+				InvMass = 0.0f;
+				++PhysMesh.NumFixedVerts;
 			}
-
-			if (MassSum > 0.0f)
+			else
 			{
-				const float MassScale = (float)(NumVerts - PhysMesh.NumFixedVerts) / MassSum;
-				for (float& InvMass : InvMasses)
-				{
-					if (InvMass != 0.0f)
-					{
-						InvMass *= MassScale;
-						InvMass = 1.0f / InvMass;
-					}
-				}
+				MassSum += InvMass;
 			}
 		}
-		else
+
+		if (MassSum > 0.0f)
 		{
-			// Otherwise, go fully kinematic.
-			for(int32 CurrVertIndex = 0; CurrVertIndex < NumVerts; ++CurrVertIndex)
+			const float MassScale = (float)(NumVerts - PhysMesh.NumFixedVerts) / MassSum;
+			for (float& InvMass : InvMasses)
 			{
-				InvMasses[CurrVertIndex] = 0.0f;
+				if (InvMass != 0.0f)
+				{
+					InvMass *= MassScale;
+					InvMass = 1.0f / InvMass;
+				}
 			}
-			PhysMesh.NumFixedVerts = NumVerts;
 		}
 
 		// Calculate number of influences per vertex
