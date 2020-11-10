@@ -22,8 +22,9 @@ namespace nvidia
 }
 
 #if WITH_APEX
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FApexDestructionSyncActors* FApexDestructionCustomPayload::SingletonCustomSync = nullptr;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 nvidia::apex::ModuleDestructible* GApexModuleDestructible = nullptr;
 void* ApexDestructibleDLL = nullptr;
 

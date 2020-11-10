@@ -330,7 +330,9 @@ void UDestructibleFractureSettings::BuildDestructibleAssetCookingDesc(apex::Dest
 		ChunkParameters.InsertZeroed(ChunkParameters.Num(), HMesh.chunkCount()-ChunkParameters.Num());
 		for (int32 ChunkIndex = OldParametersCount; ChunkIndex < ChunkParameters.Num(); ++ChunkIndex)
 		{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			ChunkParameters[ChunkIndex] = FDestructibleChunkParameters();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
@@ -340,6 +342,7 @@ void UDestructibleFractureSettings::BuildDestructibleAssetCookingDesc(apex::Dest
 	DestructibleAssetCookingDesc.chunkDescCount = ChunkDescs.Num();
 	for (uint32 ChunkIndex = 0; ChunkIndex < DestructibleAssetCookingDesc.chunkDescCount; ++ChunkIndex)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FDestructibleChunkParameters& IndexedChunkParameters = ChunkParameters[ChunkIndex];
 		DestructibleAssetCookingDesc.chunkDescs[ChunkIndex].setToDefault();
 		DestructibleAssetCookingDesc.chunkDescs[ChunkIndex].parentIndex = *HMesh.parentIndex(ChunkIndex);
@@ -349,7 +352,7 @@ void UDestructibleFractureSettings::BuildDestructibleAssetCookingDesc(apex::Dest
 		DestructibleAssetCookingDesc.chunkDescs[ChunkIndex].doNotDamage = IndexedChunkParameters.bDoNotDamage;
 		DestructibleAssetCookingDesc.chunkDescs[ChunkIndex].doNotCrumble = IndexedChunkParameters.bDoNotCrumble;
 		const bool instancing = (*HMesh.chunkFlags(ChunkIndex) & apex::DestructibleAsset::ChunkIsInstanced) != 0;
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		DestructibleAssetCookingDesc.chunkDescs[ChunkIndex].useInstancedRendering = instancing;
 		if (instancing)
 		{
@@ -388,7 +391,9 @@ bool UDestructibleFractureSettings::SetRootMesh(const TArray<apex::ExplicitRende
 
 		// Resize the chunk parameters
 		apex::ExplicitHierarchicalMesh& HMesh = ApexDestructibleAssetAuthoring->getExplicitHierarchicalMesh();
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		ChunkParameters.Init(FDestructibleChunkParameters(), HMesh.chunkCount());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	OriginalSubmeshCount = SubmeshData.Num();
@@ -434,8 +439,11 @@ bool UDestructibleFractureSettings::BuildRootMeshFromApexDestructibleAsset(apex:
 				}
 			}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			// BRG - Until APEX 1.2.3 or later is in place, chunk flags will not be imported automaticlally, so we need to do this here:
 			ChunkParameters.Init(FDestructibleChunkParameters(), ApexDestructibleAsset.getChunkCount());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 			enum ChunkFlags	// Copied from DestructibleAsset.h:
 			{
 				SupportChunk =	(1 << 0),
@@ -452,6 +460,7 @@ bool UDestructibleFractureSettings::BuildRootMeshFromApexDestructibleAsset(apex:
 				// Damage parameters
 				for (PxU32 ChunkIndex = 0; ChunkIndex < EHM.chunkCount(); ++ChunkIndex)
 				{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					char ChunkFlagsName[MAX_SPRINTF];
 					FCStringAnsi::Sprintf(ChunkFlagsName, "chunks[%d].flags", ChunkIndex);
 					PxU16 ChunkFlags = 0;
@@ -461,6 +470,7 @@ bool UDestructibleFractureSettings::BuildRootMeshFromApexDestructibleAsset(apex:
 					IndexedChunkParameters.bDoNotFracture = (ChunkFlags & UnfractureableChunk) != 0;
 					IndexedChunkParameters.bDoNotDamage = (ChunkFlags & UndamageableChunk) != 0;
 					IndexedChunkParameters.bDoNotCrumble = (ChunkFlags & UncrumbleableChunk) != 0;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				}
 			}
 		}

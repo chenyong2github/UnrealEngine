@@ -1100,6 +1100,7 @@ UDestructibleMesh* ImportDestructibleMeshFromApexDestructibleAsset(UObject* InPa
 }
 
 #endif // WITH_APEX
-#endif // WITH_EDITOR
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+#endif // WITH_EDITOR
