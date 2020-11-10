@@ -27,12 +27,35 @@ bool FAnimSequencerInstanceProxy::Evaluate(FPoseContext& Output)
 	SequencerRootNode.Evaluate_AnyThread(Output);
 	if (RootMotionOverride.IsSet())
 	{
-		for (const FCompactPoseBoneIndex BoneIndex : Output.Pose.ForEachBoneIndex())
+		// Almost always root is first, child is second bone but maybe not, so we do too loops to avoid any if's in the loop
+
+		if (!RootMotionOverride.GetValue().bBlendFirstChildOfRoot)
 		{
-			if (BoneIndex.IsRootBone())
+			for (const FCompactPoseBoneIndex BoneIndex : Output.Pose.ForEachBoneIndex())
 			{
-				Output.Pose[BoneIndex] = RootMotionOverride.GetValue();
-				break;
+				if (BoneIndex.IsRootBone())
+				{
+					Output.Pose[BoneIndex] = RootMotionOverride.GetValue().RootMotion;
+					break;
+				}
+			}
+		}
+		else
+		{
+			int RootIndex = INDEX_NONE;
+			for (const FCompactPoseBoneIndex BoneIndex : Output.Pose.ForEachBoneIndex())
+			{
+				FMeshPoseBoneIndex MeshBoneIndex = Output.Pose.GetBoneContainer().MakeMeshPoseIndex(BoneIndex);
+				int32 ParentIndex = Output.Pose.GetBoneContainer().GetParentBoneIndex(MeshBoneIndex.GetInt());
+				if (ParentIndex == INDEX_NONE)
+				{
+					RootIndex = MeshBoneIndex.GetInt();
+				}
+				else if (ParentIndex == RootIndex)
+				{
+					Output.Pose[BoneIndex] = RootMotionOverride.GetValue().RootMotion;
+					break;
+				}
 			}
 		}
 	}
@@ -150,21 +173,21 @@ void FAnimSequencerInstanceProxy::TermAnimTrack(int32 SequenceId)
 
 void FAnimSequencerInstanceProxy::UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, float InPosition, float Weight, bool bFireNotifies)
 {
-	UpdateAnimTrack(InAnimSequence, SequenceId, TOptional<FTransform>(), TOptional<float>(), InPosition, Weight, bFireNotifies);
+	UpdateAnimTrack(InAnimSequence, SequenceId, TOptional<FRootMotionOverride>(), TOptional<float>(), InPosition, Weight, bFireNotifies);
 }
 
 void FAnimSequencerInstanceProxy::UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, TOptional<float> InFromPosition, float InToPosition, float Weight, bool bFireNotifies)
 {
-	UpdateAnimTrack(InAnimSequence, SequenceId, TOptional<FTransform>(), InFromPosition, InToPosition, Weight, bFireNotifies);
+	UpdateAnimTrack(InAnimSequence, SequenceId, TOptional<FRootMotionOverride>(), InFromPosition, InToPosition, Weight, bFireNotifies);
 }
 
 
-void FAnimSequencerInstanceProxy::UpdateAnimTrackWithRootMotion(UAnimSequenceBase* InAnimSequence, int32 SequenceId, const TOptional<FTransform>& RootMotion, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies)
+void FAnimSequencerInstanceProxy::UpdateAnimTrackWithRootMotion(UAnimSequenceBase* InAnimSequence, int32 SequenceId, const TOptional<FRootMotionOverride>& RootMotion, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies)
 {
 	UpdateAnimTrack(InAnimSequence, SequenceId, RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies);
 
 }
-void FAnimSequencerInstanceProxy::UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, const TOptional<FTransform>& InRootMotionOverride, TOptional<float> InFromPosition, float InToPosition, float Weight, bool bFireNotifies)
+void FAnimSequencerInstanceProxy::UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, const TOptional<FRootMotionOverride>& InRootMotionOverride, TOptional<float> InFromPosition, float InToPosition, float Weight, bool bFireNotifies)
 {
 	EnsureAnimTrack(InAnimSequence, SequenceId);
 

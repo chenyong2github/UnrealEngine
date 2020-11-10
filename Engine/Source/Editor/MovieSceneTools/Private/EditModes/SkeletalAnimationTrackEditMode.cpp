@@ -194,7 +194,7 @@ static void DrawBones(const TArray<FBoneIndexType>& RequiredBones, const FRefere
 }
 
 static void DrawBonesFromCompactPose(const FCompactPose& Pose, USkeletalMeshComponent* MeshComponent, FPrimitiveDrawInterface* PDI,
-	const FLinearColor& DrawColour, FVector& LocationOfRootBone)
+	const FLinearColor& DrawColour, FCompactPoseBoneIndex RootBoneIndex, FVector& LocationOfRootBone)
 {
 	LocationOfRootBone = FVector(TNumericLimits<float>::Max(), TNumericLimits<float>::Max(), TNumericLimits<float>::Max());
 	if (Pose.GetNumBones() > 0 && MeshComponent != nullptr)
@@ -224,20 +224,19 @@ static void DrawBonesFromCompactPose(const FCompactPose& Pose, USkeletalMeshComp
 			if (ParentIndex == INDEX_NONE)
 			{
 				WorldTransforms[MeshBoneIndex.GetInt()] = Pose[BoneIndex] * MeshComponent->GetComponentTransform();
-				LocationOfRootBone.X = WorldTransforms[MeshBoneIndex.GetInt()].GetLocation().X;
-				LocationOfRootBone.Y = WorldTransforms[MeshBoneIndex.GetInt()].GetLocation().Y;
-				if (LocationOfRootBone.Z > WorldTransforms[MeshBoneIndex.GetInt()].GetLocation().Z)
-				{
-					LocationOfRootBone.Z = WorldTransforms[MeshBoneIndex.GetInt()].GetLocation().Z;
-				}
 			}
 			else
 			{
 				WorldTransforms[MeshBoneIndex.GetInt()] = Pose[BoneIndex] * WorldTransforms[ParentIndex];
-				if (LocationOfRootBone.Z > WorldTransforms[MeshBoneIndex.GetInt()].GetLocation().Z)
-				{
-					LocationOfRootBone.Z = WorldTransforms[MeshBoneIndex.GetInt()].GetLocation().Z;
-				}
+			}
+			if (RootBoneIndex == BoneIndex)
+			{
+				LocationOfRootBone.X = WorldTransforms[MeshBoneIndex.GetInt()].GetLocation().X;
+				LocationOfRootBone.Y = WorldTransforms[MeshBoneIndex.GetInt()].GetLocation().Y;
+			}
+			if (LocationOfRootBone.Z > WorldTransforms[MeshBoneIndex.GetInt()].GetLocation().Z)
+			{
+				LocationOfRootBone.Z = WorldTransforms[MeshBoneIndex.GetInt()].GetLocation().Z;
 			}
 			BoneColours[MeshBoneIndex.GetInt()] = DrawColour;
 		}
@@ -377,6 +376,7 @@ void FSkeletalAnimationTrackEditMode::Render(const FSceneView* View, FViewport* 
 										UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimSection->Params.Animation);
 										if (AnimSequence)
 										{
+											int32 Index = AnimSection->SetBoneIndexForRootMotionCalculations(SkelAnimTrack->bBlendFirstChildOfRoot);
 											FCompactPose OutPose;
 											OutPose.ResetToRefPose(SkelMeshComp->GetAnimInstance()->GetRequiredBones());
 
@@ -402,10 +402,10 @@ void FSkeletalAnimationTrackEditMode::Render(const FSceneView* View, FViewport* 
 											float Weight;
 											AnimSection->GetRootMotionTransform(TimeToSample, MovieScene->GetTickResolution(), RootMotionAtStart, Weight);
 											RootMotionAtStart = RootMotionAtStart * AnimSection->TempOffsetTransform;
-											OutPose[FCompactPoseBoneIndex(0)] = RootMotionAtStart;
+											OutPose[FCompactPoseBoneIndex(Index)] = RootMotionAtStart;
 
 											FVector RootLocation;
-											DrawBonesFromCompactPose(OutPose, SkelMeshComp, PDI, Colors[SectionIndex % 5], RootLocation);
+											DrawBonesFromCompactPose(OutPose, SkelMeshComp, PDI, Colors[SectionIndex % 5], FCompactPoseBoneIndex(Index), RootLocation);
 											if (IsRootSelected(AnimSection))
 											{
 												RootTransform = RootMotionAtStart;
