@@ -11,6 +11,7 @@
 #include "Tracks/MovieSceneSkeletalAnimationTrack.h"
 #include "BoneContainer.h"
 #include "Animation/AnimationPoseData.h"
+#include "Animation/CustomAttributesRuntime.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneSkeletalAnimationSection"
 
