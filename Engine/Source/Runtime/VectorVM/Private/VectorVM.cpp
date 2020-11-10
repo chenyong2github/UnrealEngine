@@ -230,7 +230,7 @@ typedef void(*FVectorVMExecFunction)(FVectorVMContext&);
 
 struct FVectorVMCodeOptimizerContext
 {
-	typedef EVectorVMOp(*OptimizeVMFunction)(EVectorVMOp, FVectorVMCodeOptimizerContext&);
+	typedef bool(*OptimizeVMFunction)(EVectorVMOp, FVectorVMCodeOptimizerContext&);
 
 	explicit FVectorVMCodeOptimizerContext(FVectorVMContext& InBaseContext, const uint8* ByteCode, TArray<uint8>& InOptimizedCode, TArrayView<uint8> InExternalFunctionRegisterCounts)
 		: BaseContext(InBaseContext)
@@ -248,6 +248,11 @@ struct FVectorVMCodeOptimizerContext
 
 	template<uint32 InstancesPerOp>
 	int32 GetNumLoops() const { return 0; }
+
+	FORCEINLINE EVectorVMOp PeekOp()
+	{
+		return static_cast<EVectorVMOp>(*BaseContext.Code);
+	}
 
 	FORCEINLINE uint8 DecodeU8() { return BaseContext.DecodeU8(); }
 	FORCEINLINE uint16 DecodeU16() { return BaseContext.DecodeU16(); }
@@ -3397,11 +3402,11 @@ private:
 };
 
 // look for the pattern of acquireindex followed by a bunch of outputs.
-EVectorVMOp PackedOutputOptimization(EVectorVMOp Op, FVectorVMCodeOptimizerContext& Context)
+bool PackedOutputOptimization(EVectorVMOp Op, FVectorVMCodeOptimizerContext& Context)
 {
 	if (!GbBatchPackVMOutput)
 	{
-		return Op;
+		return false;
 	}
 
 	if (Op == EVectorVMOp::acquireindex)
@@ -3414,23 +3419,25 @@ EVectorVMOp PackedOutputOptimization(EVectorVMOp Op, FVectorVMCodeOptimizerConte
 
 		bool BatchValid = true;
 
-		Op = Context.BaseContext.DecodeOp();
-
-		while (BatchValid && BatchedOutputOp.IsOutput(Op))
+		EVectorVMOp NextOp = Context.PeekOp();
+		while (BatchValid && BatchedOutputOp.IsOutput(NextOp))
 		{
-			BatchValid = BatchedOutputOp.ExtractOp(Op, Context);
-			Op = Context.BaseContext.DecodeOp();
+			BatchValid = BatchedOutputOp.ExtractOp(Context.BaseContext.DecodeOp(), Context);
+			NextOp = Context.PeekOp();
 		}
 
 		// if there's nothing worth optimizing here, then just revert what we've parsed
 		if (!BatchValid || !BatchedOutputOp.OptimizeBatch(Context))
 		{
 			Context.RollbackCodeState(RollbackState);
-			return EVectorVMOp::acquireindex;
+			return false;
 		}
+
+		// We handled the existing op
+		return true;
 	}
 
-	return Op;
+	return false;
 }
 
 void ExecBatchedInput(FVectorVMContext& Context)
@@ -3502,26 +3509,24 @@ EVectorVMOp BatchedInputOptimization(EVectorVMOp Op, FVectorVMCodeOptimizerConte
 	return Op;
 }
 
-EVectorVMOp SafeMathOptimization(EVectorVMOp Op, FVectorVMCodeOptimizerContext& Context)
+bool SafeMathOptimization(EVectorVMOp Op, FVectorVMCodeOptimizerContext& Context)
 {
 	if (!GbSafeOptimizedKernels)
 	{
-		return Op;
+		return false;
 	}
 
 	switch (Op)
 	{
-		case EVectorVMOp::div: FVectorKernelDivSafe::Optimize(Context); break;
-		case EVectorVMOp::rcp: FVectorKernelRcpSafe::Optimize(Context); break;
-		case EVectorVMOp::rsq: FVectorKernelRsqSafe::Optimize(Context); break;
-		case EVectorVMOp::sqrt: FVectorKernelSqrtSafe::Optimize(Context); break;
-		case EVectorVMOp::log: FVectorKernelLogSafe::Optimize(Context); break;
-		case EVectorVMOp::pow: FVectorKernelPowSafe::Optimize(Context); break;
+		case EVectorVMOp::div: FVectorKernelDivSafe::Optimize(Context); return true;
+		case EVectorVMOp::rcp: FVectorKernelRcpSafe::Optimize(Context); return true;
+		case EVectorVMOp::rsq: FVectorKernelRsqSafe::Optimize(Context); return true;
+		case EVectorVMOp::sqrt: FVectorKernelSqrtSafe::Optimize(Context); return true;
+		case EVectorVMOp::log: FVectorKernelLogSafe::Optimize(Context); return true;
+		case EVectorVMOp::pow: FVectorKernelPowSafe::Optimize(Context); return true;
 		default:
-			return Op;
+			return false;
 	}
-
-	return Context.BaseContext.DecodeOp();
 }
 
 void VectorVM::OptimizeByteCode(const uint8* ByteCode, TArray<uint8>& OptimizedCode, TArrayView<uint8> ExternalFunctionRegisterCounts)
@@ -3552,9 +3557,22 @@ void VectorVM::OptimizeByteCode(const uint8* ByteCode, TArray<uint8>& OptimizedC
 	{
 		Op = Context.BaseContext.DecodeOp();
 
+		// Filters allow us to modify a single or series of operations
+		bool bOpWasFiltered = false;
 		for (auto Filter : VMFilters)
-			Op = Filter(Op, Context);
+		{
+			if ( Filter(Op, Context) )
+			{
+				bOpWasFiltered = true;
+				break;
+			}
+		}
+		if (bOpWasFiltered)
+		{
+			continue;
+		}
 
+		// Optimize op
 		switch (Op)
 		{
 			case EVectorVMOp::add: FVectorKernelAdd::Optimize(Context); break;
