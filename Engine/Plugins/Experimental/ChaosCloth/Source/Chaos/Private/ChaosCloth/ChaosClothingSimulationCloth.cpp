@@ -103,42 +103,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	// Edge constraints
 	if (Cloth->EdgeStiffness)
 	{
-		TArray<TVector<int32, 3>> DynamicSurfaceElements;
-		TArray<TVector<int32, 2>> Attachments;
-		for (const TVector<int32, 3>& SurfaceElement : SurfaceElements)
-		{
-			const bool bIsKinematic0 = (InvMasses[SurfaceElement[0] - Offset] == 0.f);
-			const bool bIsKinematic1 = (InvMasses[SurfaceElement[1] - Offset] == 0.f);
-			const bool bIsKinematic2 = (InvMasses[SurfaceElement[2] - Offset] == 0.f);
-			bool bIsAttachment = false;
-			if (bIsKinematic0 != bIsKinematic1)
-			{
-				Attachments.Emplace(SurfaceElement[0], SurfaceElement[1]);
-				bIsAttachment = true;
-			}
-			if (bIsKinematic1 != bIsKinematic2)
-			{
-				Attachments.Emplace(SurfaceElement[1], SurfaceElement[2]);
-				bIsAttachment = true;
-			}
-			if (bIsKinematic2 != bIsKinematic0)
-			{
-				Attachments.Emplace(SurfaceElement[2], SurfaceElement[0]);
-				bIsAttachment = true;
-			}
-			if (!bIsAttachment)
-			{
-				DynamicSurfaceElements.Add(SurfaceElement);
-			}
-		}
-		if (Attachments.Num())
-		{
-			ClothConstraints.SetEdgeConstraints(MoveTemp(Attachments), Cloth->EdgeStiffness, Cloth->bUseXPBDConstraints);
-		}
-		if (DynamicSurfaceElements.Num())
-		{
-			ClothConstraints.SetEdgeConstraints(DynamicSurfaceElements, Cloth->EdgeStiffness, Cloth->bUseXPBDConstraints);
-		}
+		ClothConstraints.SetEdgeConstraints(SurfaceElements, Cloth->EdgeStiffness, Cloth->bUseXPBDConstraints);
 	}
 
 	// Bending constraints
@@ -719,6 +684,8 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 
 		// Update general solver properties
 		Solver->SetProperties(GroupId, DampingCoefficient, CollisionThickness, FrictionCoefficient);
+
+		// TODO: Move all groupID updates out of the cloth update to allow to use of the same GroupId with different cloths
 
 		// Set the reference input velocity and deal with teleport & reset
 		TVector<float, 3> OutLinearVelocityScale;

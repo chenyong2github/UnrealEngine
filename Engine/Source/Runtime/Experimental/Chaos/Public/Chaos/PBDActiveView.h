@@ -36,9 +36,11 @@ namespace Chaos
 
 		// Execute the specified function in parallel on all active items. Set MinParallelSize to run sequential on the smaller ranges.
 		void ParallelFor(TFunctionRef<void(TItemsType&, int32)> Function, int32 MinParallelSize = TNumericLimits<int32>::Max()) const;
+		void ParallelFor(TFunctionRef<void(TItemsType&, int32)> Function, bool bParallelRange, int32 MinParallelSize = TNumericLimits<int32>::Max()) const;
 
 		// Execute the specified function on all active items. Callee responsible for inner loop.
 		void RangeFor(TFunctionRef<void(TItemsType&, int32, int32)> Function) const;
+		void RangeFor(TFunctionRef<void(TItemsType&, int32, int32)> Function, bool bParallelRange) const;
 
 		// Remove all ranges above the current given size.
 		void Reset(int32 Offset = 0);
@@ -46,8 +48,11 @@ namespace Chaos
 		// Return whether there is any active range in the view.
 		bool HasActiveRange() const;
 
-		// Return internal ranges
+		// Return internal ranges.
 		TConstArrayView<int32> GetRanges() const { return Ranges;  }
+
+		// Return a list of pair (offset, range) of all active ranges.
+		TArray<TVector<int32, 2>, TInlineAllocator<8>> GetActiveRanges() const;
 
 	private:
 		TItemsType& Items;
@@ -139,6 +144,22 @@ namespace Chaos
 	}
 
 	template <class TItemsType>
+	void TPBDActiveView<TItemsType>::ParallelFor(TFunctionRef<void(TItemsType&, int32)> Function, bool bForceSingleThreadedRange, int32 MinParallelBatchSize) const
+	{
+		const TArray<TVector<int32, 2>, TInlineAllocator<8>> ActiveRanges = GetActiveRanges();
+
+		PhysicsParallelFor(ActiveRanges.Num(), [this, &Function, &ActiveRanges, &MinParallelBatchSize](int32 RangeIndex)
+		{
+			const int32 Offset = ActiveRanges[RangeIndex][0];
+			const int32 RangeSize = ActiveRanges[RangeIndex][1] - Offset;
+			PhysicsParallelFor(RangeSize, [this, Offset, &Function](int32 Index)
+			{
+				Function(Items, Offset + Index);
+			}, /*bForceSingleThreaded =*/ RangeSize < MinParallelBatchSize);
+		}, bForceSingleThreadedRange);
+	}
+
+	template <class TItemsType>
 	void TPBDActiveView<TItemsType>::RangeFor(TFunctionRef<void(TItemsType&, int32, int32)> Function) const
 	{
 		int32 Offset = 0;
@@ -156,6 +177,20 @@ namespace Chaos
 				Offset = -Range;
 			}
 		}
+	}
+
+	template <class TItemsType>
+	void TPBDActiveView<TItemsType>::RangeFor(TFunctionRef<void(TItemsType&, int32, int32)> Function, bool bForceSingleThreadedRange) const
+	{
+		const TArray<TVector<int32, 2>, TInlineAllocator<8>> ActiveRanges = GetActiveRanges();
+
+		PhysicsParallelFor(ActiveRanges.Num(), [this, &Function, &ActiveRanges](int32 RangeIndex)
+		{
+			const TVector<int32, 2>& ActiveRange = ActiveRanges[RangeIndex];
+			const int32 Offset = ActiveRange[0];
+			const int32 Range = ActiveRange[1];
+			Function(Items, Offset, Range);
+		}, bForceSingleThreadedRange);
 	}
 
 	template <class TItemsType>
@@ -182,5 +217,26 @@ namespace Chaos
 			}
 		}
 		return false;
+	}
+
+	template <class TItemsType>
+	TArray<TVector<int32, 2>, TInlineAllocator<8>> TPBDActiveView<TItemsType>::GetActiveRanges() const
+	{
+		TArray<TVector<int32, 2>, TInlineAllocator<8>> ActiveRanges;
+
+		int32 Offset = 0;
+		for (int32 Range : Ranges)
+		{
+			if (Range > 0)
+			{
+				ActiveRanges.Add(TVector<int32, 2>(Offset, Range));
+				Offset = Range;
+			}
+			else
+			{
+				Offset = -Range;
+			}
+		}
+		return ActiveRanges;
 	}
 }

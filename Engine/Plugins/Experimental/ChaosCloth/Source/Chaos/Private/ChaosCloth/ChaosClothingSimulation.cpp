@@ -34,6 +34,10 @@
 #include "HAL/IConsoleManager.h"
 #endif  // #if CHAOS_DEBUG_DRAW
 
+#if !UE_BUILD_SHIPPING
+#include "FramePro/FramePro.h"
+#endif
+
 #if INTEL_ISPC
 #include "ChaosClothingSimulation.ispc.generated.h"
 #endif
@@ -317,7 +321,7 @@ void FClothingSimulation::ResetStats()
 {
 	check(Solver);
 	NumCloths = 0;
-	NumKinemamicParticles = 0;
+	NumKinematicParticles = 0;
 	NumDynamicParticles = 0;
 	SimulationTime = 0.f;
 	NumSubsteps = Solver->GetNumSubsteps();
@@ -327,7 +331,7 @@ void FClothingSimulation::ResetStats()
 void FClothingSimulation::UpdateStats(const FClothingSimulationCloth* Cloth)
 {
 	NumCloths = Cloths.Num();
-	NumKinemamicParticles += Cloth->GetNumActiveKinematicParticles();
+	NumKinematicParticles += Cloth->GetNumActiveKinematicParticles();
 	NumDynamicParticles += Cloth->GetNumActiveDynamicParticles();
 }
 
@@ -403,6 +407,12 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 	const float CurrSimulationTime = (float)((FPlatformTime::Seconds() - StartTime) * 1000.);
 	static const float SimulationTimeDecay = 0.03f; // 0.03 seems to provide a good rate of update for the instant average
 	SimulationTime = PrevSimulationTime ? PrevSimulationTime + (CurrSimulationTime - PrevSimulationTime) * SimulationTimeDecay : CurrSimulationTime;
+
+#if FRAMEPRO_ENABLED
+	FRAMEPRO_CUSTOM_STAT("ChaosClothSimulationTimeMs", SimulationTime, "ChaosCloth", "ms", FRAMEPRO_COLOUR(0,128,255));
+	FRAMEPRO_CUSTOM_STAT("ChaosClothNumDynamicParticles", NumDynamicParticles, "ChaosCloth", "Particles", FRAMEPRO_COLOUR(0,128,128));
+	FRAMEPRO_CUSTOM_STAT("ChaosClothNumKinematicParticles", NumKinematicParticles, "ChaosCloth", "Particles", FRAMEPRO_COLOUR(128, 0, 128));
+#endif
 
 	// Debug draw
 #if CHAOS_DEBUG_DRAW

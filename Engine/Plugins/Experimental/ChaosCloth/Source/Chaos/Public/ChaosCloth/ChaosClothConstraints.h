@@ -40,7 +40,6 @@ namespace Chaos
 		// ---- End of Solver interface ----
 
 		// ---- Cloth interface ----
-		void SetEdgeConstraints(TArray<TVector<int32, 2>>&& Edges, float EdgeStiffness, bool bUseXPBDConstraints);
 		void SetEdgeConstraints(const TArray<TVector<int32, 3>>& SurfaceElements, float EdgeStiffness, bool bUseXPBDConstraints);
 		void SetBendingConstraints(TArray<TVector<int32, 2>>&& Edges, float BendingStiffness, bool bUseXPBDConstraints);
 		void SetBendingConstraints(TArray<TVector<int32, 4>>&& BendingElements, float BendingStiffness);
@@ -61,12 +60,8 @@ namespace Chaos
 		// ---- End of Cloth interface ----
 
 		// ---- Debug functions ----
-		const TSharedPtr<FPBDSpringConstraints>& GetTwoEdgeConstraints() const { return TwoEdgeConstraints; }  
-		const TSharedPtr<TXPBDSpringConstraints<float, 3>>& GetXTwoEdgeConstraints() const { return XTwoEdgeConstraints; }
-		const TSharedPtr<FPBDSpringConstraints> GetThreeEdgeConstraints() const { return ThreeEdgeConstraints; }
-		const TSharedPtr<TXPBDSpringConstraints<float, 3>>& GetXThreeEdgeConstraints() const { return XThreeEdgeConstraints; } 
-		const TSharedPtr<FPBDSpringConstraints>& GetEdgeConstraints() const { return EdgeConstraints; }
-		const TSharedPtr<TXPBDSpringConstraints<float, 3>>& GetXEdgeConstraints() const { return XEdgeConstraints; }
+		const TSharedPtr<FPBDSpringConstraints> GetEdgeConstraints() const { return EdgeConstraints; }
+		const TSharedPtr<TXPBDSpringConstraints<float, 3>>& GetXEdgeConstraints() const { return XEdgeConstraints; } 
 		const TSharedPtr<FPBDSpringConstraints>& GetBendingConstraints() const { return BendingConstraints; }  
 		const TSharedPtr<TXPBDSpringConstraints<float, 3>>& GetXBendingConstraints() const { return XBendingConstraints; }
 		const TSharedPtr<TPBDBendingConstraints<float>>& GetBendingElementConstraints() const { return BendingElementConstraints; }
@@ -83,10 +78,6 @@ namespace Chaos
 		// ---- End of debug functions ----
 
 	private:
-		TSharedPtr<FPBDSpringConstraints> TwoEdgeConstraints;
-		TSharedPtr<TXPBDSpringConstraints<float, 3>> XTwoEdgeConstraints;
-		TSharedPtr<FPBDSpringConstraints> ThreeEdgeConstraints;
-		TSharedPtr<TXPBDSpringConstraints<float, 3>> XThreeEdgeConstraints;
 		TSharedPtr<FPBDSpringConstraints> EdgeConstraints;
 		TSharedPtr<TXPBDSpringConstraints<float, 3>> XEdgeConstraints;
 		TSharedPtr<FPBDSpringConstraints> BendingConstraints;
