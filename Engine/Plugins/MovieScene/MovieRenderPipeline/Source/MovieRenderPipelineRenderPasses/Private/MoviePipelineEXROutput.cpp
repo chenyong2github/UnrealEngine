@@ -357,13 +357,13 @@ void FEXRImageWriteTask::AddFileMetadata(Imf::Header& InHeader)
 
 #endif // WITH_UNREALEXR
 
-void UMoviePipelineImageSequenceOutput_EXR::OnRecieveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame)
+void UMoviePipelineImageSequenceOutput_EXR::OnReceiveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame)
 {
 	if (!bMultilayer)
 	{
 		// Some software doesn't support multi-layer, so in that case we fall back to the single-layer-multiple-file
 		// codepath of our parent.
-		Super::OnRecieveImageDataImpl(InMergedOutputFrame);
+		Super::OnReceiveImageDataImpl(InMergedOutputFrame);
 		return;
 	}
 	check(InMergedOutputFrame);

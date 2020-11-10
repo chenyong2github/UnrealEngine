@@ -61,7 +61,7 @@ protected:
 
 protected:
 	// UMoviePipelineOutputBase Interface
-	virtual void OnRecieveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame) override;
+	virtual void OnReceiveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame) override;
 	virtual bool HasFinishedProcessingImpl() override;
 	virtual void BeginFinalizeImpl() override;
 	virtual void FinalizeImpl() override;
