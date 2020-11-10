@@ -25,7 +25,7 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 
 			// FIXME
 			float2 Jitter = NaniteView.ViewToClip[2].xy * 0.5 * NaniteView.ViewSizeAndInvSize;
-			int FrameRand = Jitter.x * 417;
+			int FrameRand = (int)(Jitter.x * 417.0f);
 
 			float2 Noise = Rand3DPCG16( int3( PixelPos, FrameRand ) ).xy / 65535.0;
 
@@ -105,7 +105,7 @@ void InstanceCull(
 	uint ViewId = 0;
 #endif
 	
-#if !INSTANCE_DRAW_LIST || CULLING_PASS_OCCLUSION_POST
+#if !INSTANCE_DRAW_LIST || (CULLING_PASS == CULLING_PASS_OCCLUSION_POST)
 	FNaniteView NaniteView = GetNaniteView( ViewId );
 #endif
 

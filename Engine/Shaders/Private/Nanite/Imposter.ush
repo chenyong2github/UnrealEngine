@@ -39,7 +39,7 @@ uint2 SampleAtlas( uint RootClusterIndex, float2 TilePos, float2 TileUVs )
 	// TODO Store as texture.
 	// TODO Separate depth from index.
 	float2 TileTexels = floor( TileUVs * (TILE_SIZE - 1e-4) );
-	uint AtlasIndex = TileTexels.x + ( TileTexels.y + ( TilePos.x + TilePos.y * ATLAS_SIZE ) * TILE_SIZE ) * TILE_SIZE;
+	uint AtlasIndex = (uint)(TileTexels.x + ( TileTexels.y + ( TilePos.x + TilePos.y * ATLAS_SIZE ) * TILE_SIZE ) * TILE_SIZE);
 
 	// Read uint16 from buffer
 	uint PackedValue = ImposterAtlas.Load( RootClusterIndex * ATLAS_BYTES + (AtlasIndex & ~1) * 2 );

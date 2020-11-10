@@ -36,7 +36,7 @@ struct FScreenRect
 int MipLevelForRect( int4 RectPixels, int DesiredFootprintPixels )
 {
 	const int MaxPixelOffset = DesiredFootprintPixels - 1;
-	const int MipOffset = log2( DesiredFootprintPixels ) - 1;
+	const int MipOffset = (int)log2((float)DesiredFootprintPixels) - 1;
 
 	// Calculate lowest mip level that allows us to cover footprint of the desired size in pixels.
 	// Start by calculating separate x and y mip level requirements.

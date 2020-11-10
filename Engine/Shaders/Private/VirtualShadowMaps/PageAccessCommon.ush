@@ -255,11 +255,13 @@ bool IsVisibleHZB( uint ShadowMapID, uint MipLevel, FScreenRect Rect )
 	// Can't go past mip level of 4x4 for a 4x4 test without possibly covering more than 4 pages.
 	if( Rect.HZBLevel > VSM_LOG2_PAGE_SIZE - 3 )
 	{
+	#if 1
 		return true;
-
+	#else
 		Rect.HZBLevel = VSM_LOG2_PAGE_SIZE - 3;
 		Rect.HZBTexels = int4( Rect.Pixels.xy, max( Rect.Pixels.xy, Rect.Pixels.zw ) );	
 		Rect.HZBTexels >>= Rect.HZBLevel + 1;
+	#endif
 	}
 
 	uint PageTableLevelOffset = CalcPageTableLevelOffset( ShadowMapID, MipLevel );

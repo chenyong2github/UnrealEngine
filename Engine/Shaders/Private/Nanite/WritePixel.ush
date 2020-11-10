@@ -26,11 +26,13 @@
 
 RWTexture2D<uint>						OutDepthBuffer : register(u0);
 COHERENCY_FLAG RWTexture2D<UlongType>	OutVisBuffer64 : register(u0);
+
 #if DEBUG_VISUALIZE
 COHERENCY_FLAG RWTexture2D<UlongType>	OutDbgBuffer64 : register(u1);
 RWTexture2D<uint>						OutDbgBuffer32 : register(u2);
 #endif
-RWTexture2D<uint> 						LockBuffer : register(u3);
+
+RWTexture2D<uint> 							LockBuffer : register(u3);
 
 #if RASTER_TECHNIQUE == RASTER_TECHNIQUE_NVIDIA
 #define NV_SHADER_EXTN_SLOT u7
