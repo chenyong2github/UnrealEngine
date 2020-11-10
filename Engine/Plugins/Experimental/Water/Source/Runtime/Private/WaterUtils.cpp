@@ -4,7 +4,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/TextureRenderTarget2D.h"
 
-UMaterialInstanceDynamic* FWaterUtils::GetOrCreateTransientMID(UMaterialInstanceDynamic* InMID, FName InMIDName, UMaterialInterface* InMaterialInterface)
+UMaterialInstanceDynamic* FWaterUtils::GetOrCreateTransientMID(UMaterialInstanceDynamic* InMID, FName InMIDName, UMaterialInterface* InMaterialInterface, EObjectFlags InAdditionalObjectFlags)
 {
 	if (!IsValid(InMaterialInterface))
 	{
@@ -13,8 +13,8 @@ UMaterialInstanceDynamic* FWaterUtils::GetOrCreateTransientMID(UMaterialInstance
 
 	UMaterialInstanceDynamic* ResultMID = InMID;
 
-	// If there's no MID yet or if the MID's material doesn't match the requested material, create a new one : 
-	if (!IsValid(InMID) || (InMID->GetMaterial() != InMaterialInterface->GetMaterial()))
+	// If there's no MID yet or if the MID's parent material interface (could be a Material or a MIC) doesn't match the requested material interface (could be a Material, MIC or MID), create a new one : 
+	if (!IsValid(InMID) || (InMID->Parent != InMaterialInterface))
 	{
 		// If the requested material is already a UMaterialInstanceDynamic, we can use it as is :
 		ResultMID = Cast<UMaterialInstanceDynamic>(InMaterialInterface);
@@ -27,8 +27,10 @@ UMaterialInstanceDynamic* FWaterUtils::GetOrCreateTransientMID(UMaterialInstance
 		{
 			// If it's not a UMaterialInstanceDynamic, it's a UMaterialInstanceConstant or a UMaterial, both of which can be used to create a MID : 
 			ResultMID = UMaterialInstanceDynamic::Create(InMaterialInterface, nullptr, MakeUniqueObjectName(GetTransientPackage(), UMaterialInstanceDynamic::StaticClass(), InMIDName));
+			ResultMID->SetFlags(InAdditionalObjectFlags);
 		}
 	}
+
 	check(ResultMID != nullptr);
 	return ResultMID;
 }
