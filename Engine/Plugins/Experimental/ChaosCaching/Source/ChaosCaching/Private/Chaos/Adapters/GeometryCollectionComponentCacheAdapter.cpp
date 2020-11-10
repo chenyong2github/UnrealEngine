@@ -7,6 +7,7 @@
 #include "PBDRigidsSolver.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
+#include "Chaos/ChaosSolverActor.h"
 
 FName FEnableStateEvent::EventName("GC_Enable");
 
@@ -294,11 +295,21 @@ namespace Chaos
 	{
 #if WITH_CHAOS
 
-		if(InComponent && InComponent->GetWorld())
+		// If the observed component is a Geometry Collection using a non-default Chaos solver..
+		if (UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(InComponent))
+		{
+			if (AChaosSolverActor* SolverActor = GeometryCollectionComponent->GetPhysicsSolverActor())
+			{
+				return SolverActor->GetSolver();
+			}			
+		}
+
+		// ..otherwise use the default solver.
+		if (InComponent && InComponent->GetWorld())
 		{
 			UWorld* ComponentWorld = InComponent->GetWorld();
 
-			if(FPhysScene* WorldScene = ComponentWorld->GetPhysicsScene())
+			if (FPhysScene* WorldScene = ComponentWorld->GetPhysicsScene())
 			{
 				return WorldScene->GetSolver();
 			}
