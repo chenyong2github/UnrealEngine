@@ -115,11 +115,12 @@ export class Badge {
 		}
 
 		const url = badgeUrlOverride || UGS_API_CIS_ROUTE
+		const body = JSON.stringify(data)
 		return Badge.postWithRetry({
 			url,
-			body: JSON.stringify(data),
+			body,
 			contentType: 'application/json'
-		}, `Added '${badge}' (${result}) UGS badge to ${project}@${cl} (${url})`)
+		}, `Added '${badge}' (${result}) UGS badge to ${project}@${cl} (${url})\n${body}`)
 	}
 
 	static setDevMode() {
