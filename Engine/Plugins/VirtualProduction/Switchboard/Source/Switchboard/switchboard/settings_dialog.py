@@ -46,7 +46,8 @@ class SettingsDialog(QtCore.QObject):
         self.ui.osc_server_port_line_edit.editingFinished.connect(lambda widget=self.ui.osc_server_port_line_edit: CONFIG.OSC_SERVER_PORT.update_value(int(widget.text())))
         self.ui.osc_client_port_line_edit.editingFinished.connect(lambda widget=self.ui.osc_client_port_line_edit: CONFIG.OSC_CLIENT_PORT.update_value(int(widget.text())))
 
-        self.ui.p4_project_path_line_edit.editingFinished.connect(lambda widget=self.ui.p4_project_path_line_edit: CONFIG.P4_PATH.update_value(widget.text()))
+        self.ui.p4_project_path_line_edit.editingFinished.connect(lambda widget=self.ui.p4_project_path_line_edit: CONFIG.P4_PROJECT_PATH.update_value(widget.text()))
+        self.ui.p4_engine_path_line_edit.editingFinished.connect(lambda widget=self.ui.p4_engine_path_line_edit: CONFIG.P4_ENGINE_PATH.update_value(widget.text()))
         self.ui.source_control_workspace_line_edit.editingFinished.connect(lambda widget=self.ui.source_control_workspace_line_edit: CONFIG.SOURCE_CONTROL_WORKSPACE.update_value(widget.text()))
 
         self._device_groupbox = {}
@@ -135,6 +136,12 @@ class SettingsDialog(QtCore.QObject):
 
     def set_p4_project_path(self, value):
         self.ui.p4_project_path_line_edit.setText(value)
+
+    def p4_engine_path(self):
+        return self.ui.p4_engine_path_line_edit.text()
+
+    def set_p4_engine_path(self, value):
+        self.ui.p4_engine_path_line_edit.setText(value)
 
     def source_control_workspace(self):
         return self.ui.source_control_workspace_line_edit.text()

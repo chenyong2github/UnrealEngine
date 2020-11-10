@@ -194,7 +194,7 @@ class DeviceUnreal(Device):
         if not CONFIG.P4_ENABLED.get_value():
             return
         client_name = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(self.name)
-        p4_path = CONFIG.P4_PATH.get_value()
+        p4_path = CONFIG.P4_PROJECT_PATH.get_value()
 
         formatstring = "%change%"
         args = f'-F "{formatstring}" -c {client_name} cstat {p4_path}/...#have'
@@ -209,7 +209,7 @@ class DeviceUnreal(Device):
         if not CONFIG.P4_ENABLED.get_value():
             return
         client_name = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(self.name)
-        p4_path = p4_utils.p4_where(client_name, CONFIG.ENGINE_DIR.get_value(self.name))
+        p4_path = CONFIG.P4_PROJECT_PATH.get_value()
         if not p4_path:
             LOGGER.warning(f'{self.name}: "Build Engine" is enabled in the settings but the engine does not seem to be under perforce control.')
             LOGGER.warning("Please check your perforce settings.")
@@ -278,7 +278,7 @@ class DeviceUnreal(Device):
             sync_args = f'-P4 SyncProject -project="{CONFIG.UPROJECT_PATH.get_value(self.name)}" -projectonly -cl={project_cl} -threads=8 -generate'
         else:
             # for installed/vanilla engine we directly call p4 to sync the project itself.
-            p4_path = CONFIG.P4_PATH.get_value()
+            p4_path = CONFIG.P4_PROJECT_PATH.get_value()
             workspace = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(self.name)
             sync_tool = "p4"
             sync_args = f"-c{workspace} sync {p4_path}/...@{project_cl}"

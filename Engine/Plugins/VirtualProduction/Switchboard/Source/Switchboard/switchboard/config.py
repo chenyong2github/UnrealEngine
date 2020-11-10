@@ -107,7 +107,8 @@ class Config(object):
         self.MAPS_FILTER = Setting("maps_filter", "Map Filter", "*.umap", tool_tip="Walk every file in the Map Path and run a fnmatch to filter the file names")
         self.P4_ENABLED = Setting("p4_enabled", "Perforce Enabled", p4_settings['p4_enabled'], tool_tip="Toggle Perforce support for the entire application")
         self.SOURCE_CONTROL_WORKSPACE = Setting("source_control_workspace", "Workspace Name", p4_settings['p4_workspace_name'], tool_tip="SourceControl Workspace/Branch")
-        self.P4_PATH = Setting("p4_sync_path", "Perforce Project Path", p4_settings['p4_project_path'])
+        self.P4_PROJECT_PATH = Setting("p4_sync_path", "Perforce Project Path", p4_settings['p4_project_path'])
+        self.P4_ENGINE_PATH = Setting("p4_engine_path", "Perforce Engine Path", p4_settings['p4_engine_path'])
         self.CURRENT_LEVEL = DEFAULT_MAP_TEXT
 
         self.OSC_SERVER_PORT = Setting("osc_server_port", "OSC Server Port", 6000)
@@ -176,8 +177,9 @@ class Config(object):
         # Perforce settings
         self.P4_ENABLED = Setting("p4_enabled", "Perforce Enabled", data.get("p4_enabled", False), tool_tip="Toggle Perforce support for the entire application")
         self.SOURCE_CONTROL_WORKSPACE = Setting("source_control_workspace", "Workspace Name", data.get("source_control_workspace"), tool_tip="SourceControl Workspace/Branch")
-        self.P4_PATH = Setting("p4_sync_path", "Perforce Project Path", data.get("p4_sync_path", ''), placholder_text="//UE4/Project")
-        project_settings.extend([self.P4_ENABLED, self.SOURCE_CONTROL_WORKSPACE, self.P4_PATH])
+        self.P4_PROJECT_PATH = Setting("p4_sync_path", "Perforce Project Path", data.get("p4_sync_path", ''), placholder_text="//UE4/Project")
+        self.P4_ENGINE_PATH = Setting("p4_engine_path", "Perforce Engine Path", data.get("p4_engine_path", ''), placholder_text="//UE4/Project/Engine")
+        project_settings.extend([self.P4_ENABLED, self.SOURCE_CONTROL_WORKSPACE, self.P4_PROJECT_PATH, self.P4_ENGINE_PATH])
 
         # EXE names
         self.MULTIUSER_SERVER_EXE = data.get('multiuser_exe', 'UnrealMultiUserServer.exe')
@@ -292,7 +294,8 @@ class Config(object):
         # Source Control Settings
         #
         data["p4_enabled"] = self.P4_ENABLED.get_value()
-        data["p4_sync_path"] = self.P4_PATH.get_value()
+        data["p4_sync_path"] = self.P4_PROJECT_PATH.get_value()
+        data["p4_engine_path"] = self.P4_ENGINE_PATH.get_value()
         data["source_control_workspace"] = self.SOURCE_CONTROL_WORKSPACE.get_value()
         
         # MU Settings
