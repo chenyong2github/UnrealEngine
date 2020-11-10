@@ -4,7 +4,6 @@
 	DestructibleComponent.cpp: UDestructibleComponent methods.
 =============================================================================*/
 
-
 #include "DestructibleComponent.h"
 #include "EngineStats.h"
 #include "GameFramework/DamageType.h"
@@ -29,6 +28,8 @@
 #if PHYSICS_INTERFACE_PHYSX
 #include "Physics/PhysicsGeometry.h"
 #endif
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 UDestructibleComponent::UDestructibleComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -1679,3 +1680,4 @@ void UDestructibleComponent::SetMaterial(int32 ElementIndex, UMaterialInterface*
 #endif
 }
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

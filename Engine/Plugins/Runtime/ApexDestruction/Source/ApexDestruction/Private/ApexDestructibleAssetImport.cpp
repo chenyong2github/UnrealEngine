@@ -12,7 +12,6 @@
 
 #include "ApexDestructibleAssetImport.h"
 
-
 #if WITH_EDITOR
 #include "Modules/ModuleManager.h"
 #include "Engine/SkeletalMesh.h"
@@ -34,6 +33,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogApexDestructibleAssetImport, Log, All);
 #include "Rendering/SkeletalMeshModel.h"
 #include "DestructibleMesh.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 #if WITH_APEX
 
@@ -1101,3 +1102,5 @@ UDestructibleMesh* ImportDestructibleMeshFromApexDestructibleAsset(UObject* InPa
 
 #endif // WITH_APEX
 #endif // WITH_EDITOR
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

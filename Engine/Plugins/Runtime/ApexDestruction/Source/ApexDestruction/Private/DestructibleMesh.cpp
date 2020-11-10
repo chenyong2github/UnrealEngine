@@ -26,10 +26,12 @@
 
 DEFINE_LOG_CATEGORY(LogDestructible)
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UDestructibleMesh::UDestructibleMesh(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UDestructibleMesh::PostLoad()
 {
@@ -289,9 +291,11 @@ void UDestructibleMesh::Serialize(FArchive& Ar)
 
 	if (Ar.UE4Ver() < VER_UE4_CLEAN_DESTRUCTIBLE_SETTINGS)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		APEXToImpactResistance(DefaultDestructibleParameters.DamageParameters.bCustomImpactResistance, DefaultDestructibleParameters.DamageParameters.ImpactResistance);
 		APEXToDefaultImpactDamageDepth(DefaultDestructibleParameters.DamageParameters.bEnableImpactDamage, DefaultDestructibleParameters.DamageParameters.DefaultImpactDamageDepth);
 		APEXToDebrisDepth(DefaultDestructibleParameters.SpecialHierarchyDepths.bEnableDebris, DefaultDestructibleParameters.SpecialHierarchyDepths.DebrisDepth);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
@@ -544,6 +548,7 @@ void UDestructibleMesh::LoadDefaultDestructibleParametersFromApexAsset()
 
 void UDestructibleMesh::CreateFractureSettings()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 #if WITH_EDITORONLY_DATA
 	if (FractureSettings == NULL)
 	{
@@ -551,6 +556,7 @@ void UDestructibleMesh::CreateFractureSettings()
 		check(FractureSettings);
 	}
 #endif	// WITH_EDITORONLY_DATA
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 #if WITH_APEX && WITH_EDITORONLY_DATA

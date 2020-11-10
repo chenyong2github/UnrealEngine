@@ -46,6 +46,7 @@ namespace EDestructibleImportOptions
 
 
 /** Parameters to describe the application of U,V coordinates on a particular slice within a destructible. */
+struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.") FFractureMaterial;
 USTRUCT()
 struct FFractureMaterial
 {
@@ -93,7 +94,7 @@ struct FFractureMaterial
 		, Tangent(0.0f, 0.0f, 0.0f)
 		, UAngle(0.0f)
 		, InteriorElementIndex(-1)
-	{ }
+	{}
 
 	//~ Begin FFractureMaterial Interface
 #if WITH_APEX
@@ -105,7 +106,7 @@ struct FFractureMaterial
 
 /** Per-chunk authoring data. */
 USTRUCT()
-struct FDestructibleChunkParameters
+struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.") FDestructibleChunkParameters
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -149,13 +150,13 @@ struct FDestructibleChunkParameters
 		, bDoNotFracture(false)
 		, bDoNotDamage(false)
 		, bDoNotCrumble(false)
-	{ }
+	{}
 };
 
 
 /** Information to create an NxDestructibleAsset */
 UCLASS(MinimalAPI)
-class UDestructibleFractureSettings
+class UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.") UDestructibleFractureSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -172,9 +173,11 @@ class UDestructibleFractureSettings
 	UPROPERTY(EditAnywhere, Category = Voronoi, meta = (ClampMin = "1", UIMin = "1"))
 	int32									CellSiteCount;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Stored interior material data.  Just need one as we only support Voronoi splitting. */
 	UPROPERTY(EditAnywhere, transient, Category=General)
 	FFractureMaterial						FractureMaterialDesc;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Random seed for reproducibility */
 	UPROPERTY(EditAnywhere, Category=General)
@@ -192,10 +195,12 @@ class UDestructibleFractureSettings
 	UPROPERTY()
 	TArray<UMaterialInterface*>				Materials;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Per-chunk authoring parameters, which should be made writable when a chunk selection GUI is in place. */
 	UPROPERTY()
 	TArray<FDestructibleChunkParameters>	ChunkParameters;
-	
+PRAGMA_ENABLE_DEPRECATION_WARNINGS	
+
 #if WITH_APEX
 	/** ApexDestructibleAsset is a pointer to the Apex asset interface for this destructible asset */
 	nvidia::apex::DestructibleAssetAuthoring*	ApexDestructibleAssetAuthoring;

@@ -12,7 +12,6 @@
 #include "DestructibleComponent.generated.h"
 
 class AController;
-class UDestructibleComponent;
 class USkeletalMesh;
 struct FBodyInstance;
 struct FCollisionShape;
@@ -46,7 +45,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FComponentFractureSignature, const 
  *
  *	The USkeletalMesh pointer in the base class (SkinnedMeshComponent) MUST be a DestructibleMesh
  */
-UCLASS(ClassGroup=Physics, hidecategories=(Object,Mesh,"Components|SkinnedMesh",Mirroring,Activation,"Components|Activation"), config=Engine, editinlinenew, meta=(BlueprintSpawnableComponent))
+
+class UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be supported using Chaos Destruction.") UDestructibleComponent;
+UCLASS(ClassGroup = Physics, hidecategories = (Object, Mesh, "Components|SkinnedMesh", Mirroring, Activation, "Components|Activation"), config = Engine, editinlinenew, meta = (BlueprintSpawnableComponent))
 class APEXDESTRUCTION_API UDestructibleComponent : public USkinnedMeshComponent, public IDestructibleInterface
 {
 	GENERATED_UCLASS_BODY()
@@ -223,7 +224,9 @@ public:
 	FORCEINLINE static int32 BoneIdxToChunkIdx(int32 BoneIdx) { return FMath::Max(BoneIdx - 1, 0); }
 private:
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	void SetChunksWorldTM(const TArray<FUpdateChunksInfo>& UpdateInfos);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	bool IsFracturedOrInitiallyStatic() const;
 

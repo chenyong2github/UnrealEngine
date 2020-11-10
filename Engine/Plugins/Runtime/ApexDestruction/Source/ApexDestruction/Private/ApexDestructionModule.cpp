@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ApexDestructionModule.h"
+#include "PhysicsCore.h"
 #include "Modules/ModuleManager.h"
 #include "ApexDestructionCustomPayload.h"
 #include "Engine/World.h"
@@ -41,6 +42,7 @@ public:
 
 	virtual void	onStateChangeNotify(const nvidia::apex::ChunkStateEventData& visibilityEvent) override
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UDestructibleComponent* DestructibleComponent = Cast<UDestructibleComponent>(FPhysxUserData::Get<UPrimitiveComponent>(visibilityEvent.destructible->userData));
 		check(DestructibleComponent);
 
@@ -50,6 +52,7 @@ public:
 		}
 
 		DestructibleComponent->OnVisibilityEvent(visibilityEvent);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	virtual bool	releaseOnNoChunksVisible(const nvidia::apex::DestructibleActor* destructible) override
@@ -78,10 +81,12 @@ public:
 
 	virtual void setContactReportFlags(physx::PxShape* PShape, physx::PxPairFlags PFlags, nvidia::apex::DestructibleActor* actor, PxU16 actorChunkIndex) override
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UDestructibleComponent* DestructibleComponent = Cast<UDestructibleComponent>(FPhysxUserData::Get<UPrimitiveComponent>(PShape->userData));
 		check(DestructibleComponent);
 
 		DestructibleComponent->Pair(actorChunkIndex, PShape);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	virtual physx::PxPairFlags getContactReportFlags(const physx::PxShape* PShape) const override
@@ -112,6 +117,7 @@ static TAutoConsoleVariable<int32> CVarAPEXSortDynamicChunksByBenefit(
 
 struct FPendingApexDamageEvent
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TWeakObjectPtr<UDestructibleComponent> DestructibleComponent;
 	apex::DamageEventReportData DamageEvent;
 	TArray<apex::ChunkData> ApexChunkData;
@@ -128,7 +134,7 @@ struct FPendingApexDamageEvent
 
 		DamageEvent.fractureEventList = ApexChunkData.GetData();
 	}
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 #endif
 
@@ -178,7 +184,9 @@ public:
 		GApexModuleDestructible->setUseLegacyDamageRadiusSpread(true);
 		GApexModuleDestructible->setUseLegacyChunkBoundsTesting(true);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FApexDestructionCustomPayload::SingletonCustomSync = new FApexDestructionSyncActors();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		GPhysX3Interface = &GPhysX3Interface_ApexDestructionImp;
 
@@ -189,6 +197,7 @@ public:
 
 		Singleton = this;
 
+		UE_LOG(LogPhysicsCore, Warning, TEXT("APEX is deprecated. Destruction in future will be supported using Chaos Destruction."));
 	}
 
 	virtual void OnInitPhys(FPhysScene* PhysScene)
@@ -215,7 +224,7 @@ public:
 		PendingDamageEventsMap.FindOrAdd(PhysScene);
 #endif
 	}
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual void OnDispatchNotifications(FPhysScene* PhysScene)
 	{
 #if WITH_APEX
@@ -261,6 +270,7 @@ public:
 		}
 #endif
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	static FApexDestructionModule& GetSingleton()
 	{
@@ -276,6 +286,7 @@ FApexDestructionModule* FApexDestructionModule::Singleton = nullptr;
 #if WITH_APEX
 void FApexChunkReport::onDamageNotify(const nvidia::apex::DamageEventReportData& damageEvent)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UDestructibleComponent* DestructibleComponent = Cast<UDestructibleComponent>(FPhysxUserData::Get<UPrimitiveComponent>(damageEvent.destructible->userData));
 	check(DestructibleComponent);
 
@@ -286,7 +297,10 @@ void FApexChunkReport::onDamageNotify(const nvidia::apex::DamageEventReportData&
 
 
 	FApexDestructionModule::GetSingleton().AddPendingDamageEvent(DestructibleComponent, damageEvent);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 #endif
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 IMPLEMENT_MODULE(FApexDestructionModule, ApexDestruction)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

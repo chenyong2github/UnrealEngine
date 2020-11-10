@@ -39,9 +39,14 @@ public:
 	// End of FNotifyHook interface
 
 	void RefreshViewport();
-	
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	/** Retrieves the Destructible mesh component. */
+	UDestructibleComponent* GetDestructibleComponent() const;
+
 	/** Component for the preview Destructible mesh. */
-	class UDestructibleComponent* PreviewComponent;
+	UDestructibleComponent* PreviewComponent;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** The parent tab where this viewport resides */
 	TWeakPtr<SDockableTab> ParentTab;
@@ -59,9 +64,6 @@ public:
 	 *	@param	InExplodeAmount			The desired explode amount.
 	 */
 	void SetExplodeAmount(float InExplodeAmount);
-
-	/** Retrieves the Destructible mesh component. */
-	UDestructibleComponent* GetDestructibleComponent() const;
 
 	/** 
 	 *	Sets up the Destructible mesh that the Destructible Mesh editor is viewing.
