@@ -79,6 +79,9 @@ struct ENGINE_API FSplineCurves
 	UPROPERTY()
 	USplineMetadata* Metadata_DEPRECATED = nullptr;
 
+	UPROPERTY(transient)
+	uint32 Version = 0xffffffff;
+
 	bool operator==(const FSplineCurves& Other) const
 	{
 		return Position == Other.Position && Rotation == Other.Rotation && Scale == Other.Scale;

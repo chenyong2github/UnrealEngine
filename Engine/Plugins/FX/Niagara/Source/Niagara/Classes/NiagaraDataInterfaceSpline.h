@@ -17,6 +17,31 @@ struct FNDISpline_InstanceData
 	FMatrix Transform;
 	//InverseTranspose of above for transforming normals/tangents.
 	FMatrix TransformInverseTransposed;
+	FTransform ComponentTransform;
+
+	FVector DefaultUpVector;
+
+	FSplineCurves SplineCurves;
+
+	float GetSplineLength() const;
+	bool IsValid() const;
+	FVector GetLocationAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	FVector GetLocationAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	FQuat GetQuaternionAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	FQuat GetQuaternionAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	FVector GetUpVectorAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	FVector GetUpVectorAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	float FindInputKeyClosestToWorldLocation(const FVector& WorldLocation) const;
+	FVector GetDirectionAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	FVector GetTangentAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	FVector GetDirectionAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	FVector GetTangentAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
+
+	FVector GetRightVectorAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	FVector GetRightVectorAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
+
+	FInterpCurveVector& GetSplinePointsPosition() { return SplineCurves.Position; }
+
 };
 
 /** Data Interface allowing sampling of in-world spline components. Note that this data interface is very experimental. */
