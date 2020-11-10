@@ -61,4 +61,6 @@ namespace Chaos
 		{0, 1, 2},
 		{0, 2, 4},
 	};
+
+	template class TBox<FReal, 3>;
 }
