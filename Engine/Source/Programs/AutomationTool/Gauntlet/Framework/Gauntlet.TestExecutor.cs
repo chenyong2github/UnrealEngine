@@ -534,9 +534,12 @@ namespace Gauntlet
 			}
 			Summary.Split('\n').ToList().ForEach(L => Log.Info("  " + L));
 
-			TestInfo.TestNode.GetErrors().ToList().ForEach(E => Log.Error("{0}", E));
+			if (TestInfo.TestNode.LogWarningsAndErrorsAfterSummary)
+			{
+				TestInfo.TestNode.GetErrors().ToList().ForEach(E => Log.Error("{0}", E));
 
-			TestInfo.TestNode.GetWarnings().ToList().ForEach(E => Log.Warning("{0}", E));
+				TestInfo.TestNode.GetWarnings().ToList().ForEach(E => Log.Warning("{0}", E));
+			}
 
 		}
 
