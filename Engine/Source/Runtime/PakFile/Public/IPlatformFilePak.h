@@ -888,7 +888,7 @@ public:
 	/**
 	 * Gets the number of files in this pak.
 	 */
-	int32 GetNumFiles() const
+	virtual int32 GetNumFiles() const override
 	{
 		return NumEntries;
 	}
