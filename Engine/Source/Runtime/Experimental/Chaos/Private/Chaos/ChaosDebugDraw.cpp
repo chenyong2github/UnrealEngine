@@ -494,7 +494,7 @@ namespace Chaos
 								DiscColor = FColor(100, 100, 100);
 								NormalColor = FColor(100, 100, 100);
 							}
-							else if (ManifoldPoint.bWasEverActive)
+							else if (!bIsActive && ManifoldPoint.bWasEverActive)
 							{
 								DiscColor = FColor(255, 255, 0);
 								NormalColor = FColor(100, 100, 100);
@@ -707,21 +707,23 @@ namespace Chaos
 			};
 			const int32 NumIslandColors = UE_ARRAY_COUNT(IslandColors);
 
-			auto DrawBounds = [&](const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<FReal, 3>* ParticleHandle, int32 IslandIndex, int32 LevelIndex, int32 ColorIndex, const FChaosDebugDrawSettings& Settings)
+			auto DrawGraphCollision = [&](const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraintHandle& CollisionConstraint,  int32 IslandIndex, int32 LevelIndex, int32 ColorIndex, const FChaosDebugDrawSettings& Settings)
 			{
 				FColor IslandColor = IslandColors[IslandIndex % NumIslandColors];
 
-				if (ParticleHandle->HasBounds())
-				{
-					FRigidTransform3 Transform = FParticleUtilities::GetActorWorldTransform(ParticleHandle) * SpaceTransform;
-					FAABB3 Bounds = ParticleHandle->LocalBounds().TransformedAABB(Transform);
-					FDebugDrawQueue::GetInstance().DrawDebugBox(Bounds.Center(), 0.5f * Bounds.Extents(), Transform.GetRotation(), IslandColor, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
-					FDebugDrawQueue::GetInstance().DrawDebugString(Bounds.Center(), FString::Format(TEXT("{0}-{1}-{2}"), { IslandIndex, LevelIndex, ColorIndex }), nullptr, FColor::White, KINDA_SMALL_NUMBER, false, Settings.FontScale);
-				}
+				const FRigidTransform3 Transform0 = FParticleUtilities::GetCoMWorldTransform(TConstGenericParticleHandle<FReal, 3>(CollisionConstraint.GetConstrainedParticles()[0])) * SpaceTransform;
+				const FRigidTransform3 Transform1 = FParticleUtilities::GetCoMWorldTransform(TConstGenericParticleHandle<FReal, 3>(CollisionConstraint.GetConstrainedParticles()[1])) * SpaceTransform;
+				const FVec3 TextPos = 0.5f * (Transform0.GetLocation() + Transform1.GetLocation());
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Transform0.GetLocation(), TextPos, FColor::Black, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Transform1.GetLocation(), TextPos, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugString(TextPos, FString::Format(TEXT("{0}-{1}-{2}"), { IslandIndex, LevelIndex, ColorIndex }), nullptr, FColor::Yellow, KINDA_SMALL_NUMBER, false, Settings.FontScale);
+
 			};
 
 			for (int32 IslandIndex = 0; IslandIndex < GraphColor.NumIslands(); ++IslandIndex)
 			{
+				FAABB3 IslandAABB = FAABB3::EmptyAABB();
+
 				const typename FPBDConstraintColor::FLevelToColorToConstraintListMap& LevelColorConstraintMap = GraphColor.GetIslandLevelToColorToConstraintListMap(IslandIndex);
 				int32 MaxColor = GraphColor.GetIslandMaxColor(IslandIndex);
 				int32 MaxLevel = GraphColor.GetIslandMaxLevel(IslandIndex);
@@ -736,13 +738,24 @@ namespace Chaos
 							{
 								if (const FPBDCollisionConstraintHandle* CollisionHandle = ConstraintHandle->As<FPBDCollisionConstraintHandle>())
 								{
-									DrawBounds(SpaceTransform, CollisionHandle->GetConstrainedParticles()[0], IslandIndex, LevelIndex, ColorIndex, Settings);
+									if (CollisionHandle->GetConstrainedParticles()[0]->HasBounds() && (CollisionHandle->GetConstrainedParticles()[0]->ObjectState() == EObjectStateType::Dynamic))
+									{
+										IslandAABB.GrowToInclude(CollisionHandle->GetConstrainedParticles()[0]->WorldSpaceInflatedBounds());
+									}
+									if (CollisionHandle->GetConstrainedParticles()[1]->HasBounds() && (CollisionHandle->GetConstrainedParticles()[1]->ObjectState() == EObjectStateType::Dynamic))
+									{
+										IslandAABB.GrowToInclude(CollisionHandle->GetConstrainedParticles()[1]->WorldSpaceInflatedBounds());
+									}
+									DrawGraphCollision(SpaceTransform, *CollisionHandle, IslandIndex, LevelIndex, ColorIndex, Settings);
 								}
 							}
 
 						}
 					}
 				}
+
+				FAABB3 Bounds = IslandAABB.TransformedAABB(SpaceTransform);
+				FDebugDrawQueue::GetInstance().DrawDebugBox(Bounds.Center(), 0.5f * Bounds.Extents(), SpaceTransform.GetRotation(), IslandColors[IslandIndex % NumIslandColors], false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 			}
 		}
 
