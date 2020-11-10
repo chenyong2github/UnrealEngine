@@ -379,7 +379,12 @@ void ULakeCollisionComponent::UpdateBodySetup()
 			const double StartDist = SplineComp->GetDistanceAlongSplineAtSplinePoint(StartIndex);
 			const double StopDist = SplineComp->GetDistanceAlongSplineAtSplinePoint(StopIndex);
 
-			const double SubstepSize = FMath::Abs(StopDist - StartDist) / NumIterationsPerSegment;
+			double SubstepSize = FMath::Abs(StopDist - StartDist) / NumIterationsPerSegment;
+			if (SubstepSize == 0.0)
+			{
+				// Make sure there's at least 1 sub-step so that we get a single spline vertex for constant interpolation : 
+				SubstepSize = StopDist + 1.0;
+			}
 
 			int32 SubstepIndex = 0;
 			double SubstepDist = StartDist;
