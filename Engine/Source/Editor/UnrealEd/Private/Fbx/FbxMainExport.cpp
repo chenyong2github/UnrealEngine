@@ -353,6 +353,12 @@ void FFbxExporter::WriteToFile(const TCHAR* Filename)
 		case EFbxExportCompatibility::FBX_2018:
 			CompatibilitySetting = FBX_2018_00_COMPATIBLE;
 			break;
+		case EFbxExportCompatibility::FBX_2019:
+			CompatibilitySetting = FBX_2019_00_COMPATIBLE;
+			break;
+		case EFbxExportCompatibility::FBX_2020:
+			CompatibilitySetting = FBX_2020_00_COMPATIBLE;
+			break;
 		default:
 			CompatibilitySetting = FBX_2013_00_COMPATIBLE;
 			break;
