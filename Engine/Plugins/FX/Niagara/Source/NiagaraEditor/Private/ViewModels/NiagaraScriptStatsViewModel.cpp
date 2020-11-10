@@ -125,15 +125,21 @@ namespace NiagaraScriptStatsLocal
 					// Can we kick off our cache yet?
 					if ( ShaderScripts.Num() == 0 )
 					{
+						bool bScriptsValid = true;
 						NiagaraEmitter->ForEachScript(
 							[&](UNiagaraScript* NiagaraScript)
 							{
 								if ( !NiagaraScript->GetVMExecutableDataCompilationId().CompilerVersionID.IsValid() || !NiagaraScript->GetVMExecutableDataCompilationId().BaseScriptCompileHash.IsValid() )
 								{
-									return;
+									bScriptsValid = false;
 								}
 							}
 						);
+
+						if (!bScriptsValid)
+						{
+							return;
+						}
 
 						NiagaraEmitter->ForEachScript(
 							[&](UNiagaraScript* NiagaraScript)
