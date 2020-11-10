@@ -10,6 +10,7 @@
 #include "IAudioExtensionPlugin.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Sound/AudioSettings.h"
+#include "Sound/SoundModulationDestination.h"
 
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
@@ -25,6 +26,224 @@ FAutoConsoleVariableRef CVarUseListenerOverrideForSpread(
 
 namespace Audio
 {
+	namespace ModulationUtils
+	{
+		static const FSoundModulationDestinationSettings DefaultDestination;
+
+		const FSoundModulationDestinationSettings& GetRoutedVolumeModulation(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, FActiveSound* InActiveSound)
+		{
+			const FSoundModulationDefaultRoutingSettings& RoutingSettings = InActiveSound->ModulationRouting;
+			switch (RoutingSettings.VolumeRouting)
+			{
+				case EModulationRouting::Inherit:
+				{
+					switch (InWaveData.ModulationSettings.VolumeRouting)
+					{
+						case EModulationRouting::Inherit:
+						{
+							USoundClass* SoundClass = InActiveSound->GetSoundClass();
+							if (InWaveInstance.SoundClass)
+							{
+								SoundClass = InWaveInstance.SoundClass;
+							}
+							if (SoundClass)
+							{
+								return SoundClass->Properties.ModulationSettings.VolumeModulationDestination;
+							}
+						}
+						break;
+
+						case EModulationRouting::Override:
+						{
+							return InWaveData.ModulationSettings.VolumeModulationDestination;
+						}
+						break;
+
+						case EModulationRouting::Disable:
+						default:
+						break;
+					}
+				}
+				break;
+
+				case EModulationRouting::Override:
+				{
+					return RoutingSettings.VolumeModulationDestination;
+				}
+				break;
+
+				case EModulationRouting::Disable:
+				default:
+				break;
+			}
+
+			return DefaultDestination;
+		}
+
+		const FSoundModulationDestinationSettings& GetRoutedPitchModulation(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, FActiveSound* InActiveSound)
+		{
+			const FSoundModulationDefaultRoutingSettings& RoutingSettings = InActiveSound->ModulationRouting;
+			switch (RoutingSettings.PitchRouting)
+			{
+				case EModulationRouting::Inherit:
+				{
+					switch (InWaveData.ModulationSettings.PitchRouting)
+					{
+						case EModulationRouting::Inherit:
+						{
+							USoundClass* SoundClass = InActiveSound->GetSoundClass();
+							if (InWaveInstance.SoundClass)
+							{
+								SoundClass = InWaveInstance.SoundClass;
+							}
+							if (SoundClass)
+							{
+								return SoundClass->Properties.ModulationSettings.PitchModulationDestination;
+							}
+						}
+						break;
+
+						case EModulationRouting::Override:
+						{
+							return InWaveData.ModulationSettings.PitchModulationDestination;
+						}
+						break;
+
+						case EModulationRouting::Disable:
+						default:
+						break;
+					}
+				}
+				break;
+
+				case EModulationRouting::Override:
+				{
+					return RoutingSettings.PitchModulationDestination;
+				}
+				break;
+				case EModulationRouting::Disable:
+				default:
+				break;
+			}
+
+			return DefaultDestination;
+		}
+
+		const FSoundModulationDestinationSettings& GetRoutedHighpassModulation(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, FActiveSound* InActiveSound)
+		{
+			const FSoundModulationDefaultRoutingSettings& RoutingSettings = InActiveSound->ModulationRouting;
+			switch (RoutingSettings.HighpassRouting)
+			{
+				case EModulationRouting::Inherit:
+				{
+					switch (InWaveData.ModulationSettings.HighpassRouting)
+					{
+						case EModulationRouting::Inherit:
+						{
+							USoundClass* SoundClass = InActiveSound->GetSoundClass();
+							if (InWaveInstance.SoundClass)
+							{
+								SoundClass = InWaveInstance.SoundClass;
+							}
+							if (SoundClass)
+							{
+								return SoundClass->Properties.ModulationSettings.HighpassModulationDestination;
+							}
+						}
+						break;
+
+						case EModulationRouting::Override:
+						{
+							return InWaveData.ModulationSettings.HighpassModulationDestination;
+						}
+						break;
+
+						case EModulationRouting::Disable:
+						default:
+						break;
+					}
+				}
+				break;
+
+				case EModulationRouting::Override:
+				{
+					return RoutingSettings.HighpassModulationDestination;
+				}
+				break;
+
+				case EModulationRouting::Disable:
+				default:
+				break;
+			}
+
+			return DefaultDestination;
+		}
+
+		const FSoundModulationDestinationSettings& GetRoutedLowpassModulation(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, FActiveSound* InActiveSound)
+		{
+			const FSoundModulationDefaultRoutingSettings& RoutingSettings = InActiveSound->ModulationRouting;
+			switch (RoutingSettings.LowpassRouting)
+			{
+				case EModulationRouting::Inherit:
+				{
+					switch (InWaveData.ModulationSettings.LowpassRouting)
+					{
+						case EModulationRouting::Inherit:
+						{
+							USoundClass* SoundClass = InActiveSound->GetSoundClass();
+							if (InWaveInstance.SoundClass)
+							{
+								SoundClass = InWaveInstance.SoundClass;
+							}
+							if (SoundClass)
+							{
+								return SoundClass->Properties.ModulationSettings.LowpassModulationDestination;
+							}
+						}
+						break;
+
+						case EModulationRouting::Override:
+						{
+							return InWaveData.ModulationSettings.LowpassModulationDestination;
+						}
+						break;
+
+						case EModulationRouting::Disable:
+						default:
+						break;
+					}
+				}
+				break;
+
+				case EModulationRouting::Override:
+				{
+					return RoutingSettings.LowpassModulationDestination;
+				}
+				break;
+
+				case EModulationRouting::Disable:
+				default:
+				break;
+			}
+
+			return DefaultDestination;
+		}
+
+		FSoundModulationDefaultSettings GetRoutedModulation(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, FActiveSound* InActiveSound)
+		{
+			FSoundModulationDefaultSettings Settings;
+			if (InActiveSound)
+			{
+				Settings.VolumeModulationDestination = GetRoutedVolumeModulation(InWaveInstance, InWaveData, InActiveSound);
+				Settings.PitchModulationDestination = GetRoutedPitchModulation(InWaveInstance, InWaveData, InActiveSound);
+				Settings.HighpassModulationDestination = GetRoutedHighpassModulation(InWaveInstance, InWaveData, InActiveSound);
+				Settings.LowpassModulationDestination = GetRoutedLowpassModulation(InWaveInstance, InWaveData, InActiveSound);
+			}
+
+			return Settings;
+		}
+	} // namespace ModulationUtils
+
 	FMixerSource::FMixerSource(FAudioDevice* InAudioDevice)
 		: FSoundSource(InAudioDevice)
 		, MixerDevice(static_cast<FMixerDevice*>(InAudioDevice))
@@ -67,29 +286,32 @@ namespace Audio
 
 		FSoundSource::InitCommon();
 
-		check(WaveInstance->WaveData);
+		check(WaveInstance);
 
-		if (WaveInstance->WaveData->NumChannels == 0)
+		USoundWave* WaveData = WaveInstance->WaveData;
+		check(WaveData);
+
+		if (WaveData->NumChannels == 0)
 		{
-			UE_LOG(LogAudioMixer, Warning, TEXT("Soundwave %s has invalid compressed data."), *(WaveInstance->WaveData->GetName()));
+			UE_LOG(LogAudioMixer, Warning, TEXT("Soundwave %s has invalid compressed data."), *(WaveData->GetName()));
 			FreeResources();
 			return false;
 		}
 
 		// Get the number of frames before creating the buffer
 		int32 NumFrames = INDEX_NONE;
-		if (WaveInstance->WaveData->DecompressionType != DTYPE_Procedural)
+		if (WaveData->DecompressionType != DTYPE_Procedural)
 		{
-			check(!InWaveInstance->WaveData->RawPCMData || InWaveInstance->WaveData->RawPCMDataSize);
-			const int32 NumBytes = WaveInstance->WaveData->RawPCMDataSize;
+			check(!WaveData->RawPCMData || WaveData->RawPCMDataSize);
+			const int32 NumBytes = WaveData->RawPCMDataSize;
 			if (WaveInstance->WaveData->NumChannels > 0)
 			{
-				NumFrames = NumBytes / (WaveInstance->WaveData->NumChannels * sizeof(int16));
+				NumFrames = NumBytes / (WaveData->NumChannels * sizeof(int16));
 			}
 		}
 
 		// Unfortunately, we need to know if this is a vorbis source since channel maps are different for 5.1 vorbis files
-		bIsVorbis = WaveInstance->WaveData->bDecompressedFromOgg;
+		bIsVorbis = WaveData->bDecompressedFromOgg;
 
 		bIsStoppingVoicesEnabled = AudioDevice->IsStoppingVoicesEnabled();
 
@@ -115,21 +337,15 @@ namespace Audio
 			// Initialize the source voice with the necessary format information
 			FMixerSourceVoiceInitParams InitParams;
 			InitParams.SourceListener = this;
-			InitParams.NumInputChannels = WaveInstance->WaveData->NumChannels;
+			InitParams.NumInputChannels = WaveData->NumChannels;
 			InitParams.NumInputFrames = NumFrames;
 			InitParams.SourceVoice = MixerSourceVoice;
 			InitParams.bUseHRTFSpatialization = UseObjectBasedSpatialization();
 			InitParams.bIsExternalSend = MixerDevice->bSpatializationIsExternalSend;
-			InitParams.bIsSoundfield = WaveInstance->bIsAmbisonics && (WaveInstance->WaveData->NumChannels == 4);
+			InitParams.bIsSoundfield = WaveInstance->bIsAmbisonics && (WaveData->NumChannels == 4);
 
-			if (USoundBase* Sound = WaveInstance->ActiveSound->GetSound())
-			{
-				InitParams.ModulationSettings = Sound->ModulationSettings;
-			}
-			else
-			{
-				InitParams.ModulationSettings = WaveInstance->WaveData->ModulationSettings;
-			}
+			FActiveSound* ActiveSound = WaveInstance->ActiveSound;
+			InitParams.ModulationSettings = ModulationUtils::GetRoutedModulation(*WaveInstance, *WaveData, ActiveSound);
 
 			// Copy quantization request data
 			if (WaveInstance->QuantizedRequestData)
@@ -137,9 +353,9 @@ namespace Audio
 				InitParams.QuantizedRequestData = *WaveInstance->QuantizedRequestData;
 			}
 
-			if (WaveInstance->bIsAmbisonics && (WaveInstance->WaveData->NumChannels != 4))
+			if (WaveInstance->bIsAmbisonics && (WaveData->NumChannels != 4))
 			{
-				UE_LOG(LogAudioMixer, Warning, TEXT("Sound wave %s was flagged as being ambisonics but had a channel count of %d. Currently the audio engine only supports FOA sources that have four channels."), *InWaveInstance->GetName(), WaveInstance->WaveData->NumChannels);
+				UE_LOG(LogAudioMixer, Warning, TEXT("Sound wave %s was flagged as being ambisonics but had a channel count of %d. Currently the audio engine only supports FOA sources that have four channels."), *InWaveInstance->GetName(), WaveData->NumChannels);
 			}
 
 			InitParams.AudioComponentUserID = WaveInstance->ActiveSound->GetAudioComponentUserID();
@@ -174,10 +390,10 @@ namespace Audio
 				}
 
 				// Setup the bus Id if this source is a bus
-				if (WaveInstance->WaveData->bIsSourceBus)
+				if (WaveData->bIsSourceBus)
 				{
 					// We need to check if the source bus has an audio bus specified
-					USoundSourceBus* SoundSourceBus = CastChecked<USoundSourceBus>(WaveInstance->WaveData);
+					USoundSourceBus* SoundSourceBus = CastChecked<USoundSourceBus>(WaveData);
 
 					// If it does, we will use that audio bus as the source of the audio data for the source bus
 					if (SoundSourceBus->AudioBus)
@@ -186,12 +402,12 @@ namespace Audio
 					}
 					else
 					{
-						InitParams.AudioBusId = WaveInstance->WaveData->GetUniqueID();
+						InitParams.AudioBusId = WaveData->GetUniqueID();
 					}
 
-					if (!WaveInstance->WaveData->IsLooping())
+					if (!WaveData->IsLooping())
 					{
-						InitParams.SourceBusDuration = WaveInstance->WaveData->GetDuration();
+						InitParams.SourceBusDuration = WaveData->GetDuration();
 					}
 				}
 			}
@@ -285,7 +501,7 @@ namespace Audio
 			SetReverbApplied(true);
 
 			// Update the buffer sample rate to the wave instance sample rate in case it was serialized incorrectly
-			MixerBuffer->InitSampleRate(WaveInstance->WaveData->GetSampleRateForCurrentPlatform());
+			MixerBuffer->InitSampleRate(WaveData->GetSampleRateForCurrentPlatform());
 
 			// Retrieve the raw pcm buffer data and the precached buffers before initializing so we can avoid having USoundWave ptrs in audio renderer thread
 			EBufferType::Type BufferType = MixerBuffer->GetType();
@@ -298,7 +514,6 @@ namespace Audio
 #if PLATFORM_NUM_AUDIODECOMPRESSION_PRECACHE_BUFFERS > 0
 			else if (BufferType == EBufferType::PCMRealTime || BufferType == EBufferType::Streaming)
 			{
-				USoundWave* WaveData = WaveInstance->WaveData;
 				if (WaveData->CachedRealtimeFirstBuffer)
 				{
 					const uint32 NumPrecacheSamples = (uint32)(WaveData->NumPrecacheFrames * WaveData->NumChannels);
@@ -921,19 +1136,10 @@ namespace Audio
 			MixerSourceVoice->SetPitch(Pitch);
 		}
 
-		const FSoundModulationDestinationSettings* PitchSettings = nullptr;
-		if (USoundBase* Sound = ActiveSound->GetSound())
-		{
-			PitchSettings = &Sound->ModulationSettings.PitchModulationDestination;
-		}
-		else
-		{
-			USoundWave* WaveData = WaveInstance->WaveData;
-			check(WaveData);
-			PitchSettings = &WaveData->ModulationSettings.PitchModulationDestination;
-		}
-
-		MixerSourceVoice->SetModPitch(PitchSettings->Value);
+		USoundWave* WaveData = WaveInstance->WaveData;
+		check(WaveData);
+		const FSoundModulationDestinationSettings& PitchSettings = ModulationUtils::GetRoutedPitchModulation(*WaveInstance, *WaveData, ActiveSound);
+		MixerSourceVoice->SetModPitch(PitchSettings.Value);
 	}
 
 	void FMixerSource::UpdateVolume()
@@ -957,19 +1163,10 @@ namespace Audio
 			FActiveSound* ActiveSound = WaveInstance->ActiveSound;
 			check(ActiveSound);
 
-			const FSoundModulationDestinationSettings* VolumeSettings = nullptr;
-			if (USoundBase* Sound = ActiveSound->GetSound())
-			{
-				VolumeSettings = &Sound->ModulationSettings.VolumeModulationDestination;
-			}
-			else
-			{
-				USoundWave* WaveData = WaveInstance->WaveData;
-				check(WaveData);
-				VolumeSettings = &WaveData->ModulationSettings.VolumeModulationDestination;
-			}
-
-			MixerSourceVoice->SetModVolume(VolumeSettings->Value);
+			USoundWave* WaveData = WaveInstance->WaveData;
+			check(WaveData);
+			const FSoundModulationDestinationSettings& VolumeSettings = ModulationUtils::GetRoutedVolumeModulation(*WaveInstance, *WaveData, ActiveSound);
+			MixerSourceVoice->SetModVolume(VolumeSettings.Value);
 		}
 		MixerSourceVoice->SetVolume(CurrentVolume);
 	}
@@ -1004,17 +1201,14 @@ namespace Audio
 		FActiveSound* ActiveSound = WaveInstance->ActiveSound;
 		check(ActiveSound);
 
-		USoundBase* Sound = ActiveSound->GetSound();
-		if (!Sound)
-		{
-			Sound = WaveInstance->WaveData;
-		}
-		if (Sound)
-		{
-			const FSoundModulationDefaultSettings& Settings = Sound->ModulationSettings;
-			MixerSourceVoice->SetModHPFFrequency(Settings.HighpassModulationDestination.Value);
-			MixerSourceVoice->SetModLPFFrequency(Settings.LowpassModulationDestination.Value);
-		}
+		USoundWave* WaveData = WaveInstance->WaveData;
+		check(WaveData);
+
+		const FSoundModulationDestinationSettings& HighpassSettings = ModulationUtils::GetRoutedHighpassModulation(*WaveInstance, *WaveData, ActiveSound);
+		MixerSourceVoice->SetModHPFFrequency(HighpassSettings.Value);
+
+		const FSoundModulationDestinationSettings& LowpassSettings = ModulationUtils::GetRoutedLowpassModulation(*WaveInstance, *WaveData, ActiveSound);
+		MixerSourceVoice->SetModLPFFrequency(LowpassSettings.Value);
 
 		// If reverb is applied, figure out how of the source to "send" to the reverb.
 		if (bReverbApplied)

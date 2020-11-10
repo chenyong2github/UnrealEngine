@@ -151,7 +151,7 @@ public:
 
 	/** Modulation Settings */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation")
-	FSoundModulationDefaultSettings ModulationSettings;
+	FSoundModulationDefaultRoutingSettings ModulationSettings;
 
 	/** Submix to route sound output to. If unset, falls back to referenced SoundClass submix.
 	  * If SoundClass submix is unset, sends to the 'Master Submix' as set in the 'Audio' category of Project Settings'. */

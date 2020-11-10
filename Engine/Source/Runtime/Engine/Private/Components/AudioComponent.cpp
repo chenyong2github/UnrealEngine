@@ -569,6 +569,8 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 			NewActiveSound.bUpdateSingleEnvelopeValue = OnAudioSingleEnvelopeValue.IsBound() || OnAudioSingleEnvelopeValueNative.IsBound();
 			NewActiveSound.bUpdateMultiEnvelopeValue = OnAudioMultiEnvelopeValue.IsBound() || OnAudioMultiEnvelopeValueNative.IsBound();
 
+			NewActiveSound.ModulationRouting = ModulationRouting;
+
 			// Setup audio component cooked analysis data playback data set
 			if (AudioDevice->IsBakedAnalaysisQueryingEnabled())
 			{

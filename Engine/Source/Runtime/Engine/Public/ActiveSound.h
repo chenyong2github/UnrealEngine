@@ -558,9 +558,11 @@ public:
 
 	// Whether or not there are Source Bus Sends that have not been sent to the render thread
 	bool bHasNewBusSends;
-	// Bus send(s) that have not yet been sent to the render thread
-	TArray< TTuple<EBusSendType, FSoundSourceBusSendInfo> > newBusSends;
 
+	// Bus send(s) that have not yet been sent to the render thread
+	TArray<TTuple<EBusSendType, FSoundSourceBusSendInfo>> newBusSends;
+
+	FSoundModulationDefaultRoutingSettings ModulationRouting;
 
 #if ENABLE_AUDIO_DEBUG
 	FColor DebugColor;

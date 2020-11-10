@@ -467,4 +467,65 @@ void FSoundModulationDefaultSettingsLayoutCustomization::CustomizeChildren(TShar
 		ChildBuilder.AddProperty(LowpassHandle);
 	}
 }
+
+void FSoundModulationDefaultRoutingSettingsLayoutCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{
+}
+
+void FSoundModulationDefaultRoutingSettingsLayoutCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+	if (ModDestinationLayoutUtils::IsModulationEnabled())
+	{
+		TMap<FName, TSharedPtr<IPropertyHandle>> PropertyHandles;
+		uint32 NumChildren;
+		StructPropertyHandle->GetNumChildren(NumChildren);
+
+		for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
+		{
+			TSharedRef<IPropertyHandle> ChildHandle = StructPropertyHandle->GetChildHandle(ChildIndex).ToSharedRef();
+			const FName PropertyName = ChildHandle->GetProperty()->GetFName();
+			PropertyHandles.Add(PropertyName, ChildHandle);
+		}
+
+		TSharedRef<IPropertyHandle> VolumeRouting = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationDefaultRoutingSettings, VolumeRouting)).ToSharedRef();
+		TSharedRef<IPropertyHandle> VolumeHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationDefaultRoutingSettings, VolumeModulationDestination)).ToSharedRef();
+
+		TSharedRef<IPropertyHandle> PitchRouting = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationDefaultRoutingSettings, PitchRouting)).ToSharedRef();
+		TSharedRef<IPropertyHandle> PitchHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationDefaultRoutingSettings, PitchModulationDestination)).ToSharedRef();
+
+		TSharedRef<IPropertyHandle> HighpassRouting = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationDefaultRoutingSettings, HighpassRouting)).ToSharedRef();
+		TSharedRef<IPropertyHandle> HighpassHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationDefaultRoutingSettings, HighpassModulationDestination)).ToSharedRef();
+
+		TSharedRef<IPropertyHandle> LowpassRouting = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationDefaultRoutingSettings, LowpassRouting)).ToSharedRef();
+		TSharedRef<IPropertyHandle> LowpassHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationDefaultRoutingSettings, LowpassModulationDestination)).ToSharedRef();
+
+		auto ShowModSettings = [] (TSharedRef<IPropertyHandle> RoutingHandle)
+		{
+			return TAttribute<EVisibility>::Create([RoutingHandle]()
+			{
+				uint8 RoutingValue = 0;
+				if (RoutingHandle->GetValue(RoutingValue) != FPropertyAccess::Success)
+				{
+					return EVisibility::Hidden;
+				}
+
+				if (static_cast<EModulationRouting>(RoutingValue) != EModulationRouting::Override)
+				{
+					return EVisibility::Hidden;
+				}
+
+				return EVisibility::Visible;
+			});
+		};
+
+		ChildBuilder.AddProperty(VolumeRouting);
+		ChildBuilder.AddProperty(VolumeHandle).Visibility(ShowModSettings(VolumeRouting));
+		ChildBuilder.AddProperty(PitchRouting);
+		ChildBuilder.AddProperty(PitchHandle).Visibility(ShowModSettings(PitchRouting));
+		ChildBuilder.AddProperty(HighpassRouting);
+		ChildBuilder.AddProperty(HighpassHandle).Visibility(ShowModSettings(HighpassRouting));
+		ChildBuilder.AddProperty(LowpassRouting);
+		ChildBuilder.AddProperty(LowpassHandle).Visibility(ShowModSettings(LowpassRouting));
+	}
+}
 #undef LOCTEXT_NAMESPACE
