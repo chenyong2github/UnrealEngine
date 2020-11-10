@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include <type_traits>
 
 /**
  * Base class for all slate metadata
@@ -12,10 +11,10 @@ class ISlateMetaData
 {
 public:
 	/** Check if this metadata operation can cast safely to the specified template type */
-	template<class TType> 
-	bool IsOfType() const 
+	template<class TType>
+	bool IsOfType() const
 	{
-		return IsOfTypeImpl(TType::GetTypeCharId());
+		return IsOfTypeImpl(TType::GetTypeId());
 	}
 
 	/** Virtual destructor. */
@@ -25,7 +24,7 @@ protected:
 	/**
 	 * Checks whether this drag and drop operation can cast safely to the specified type.
 	 */
-	virtual bool IsOfTypeImpl(const char* Type) const
+	virtual bool IsOfTypeImpl(const FName& Type) const
 	{
 		return false;
 	}
@@ -42,19 +41,19 @@ protected:
  *	};
  */
 #define SLATE_METADATA_TYPE(TYPE, BASE) \
-	static const char* GetTypeCharId() { return #TYPE; } \
-	virtual bool IsOfTypeImpl(const char* Type) const override { return GetTypeCharId() == Type || BASE::IsOfTypeImpl(Type); }
+	static const FName& GetTypeId() { static FName Type(TEXT(#TYPE)); return Type; } \
+	virtual bool IsOfTypeImpl(const FName& Type) const override { return GetTypeId() == Type || BASE::IsOfTypeImpl(Type); }
 
-/**
- * Simple tagging metadata
- */
+ /**
+  * Simple tagging metadata
+  */
 class FTagMetaData : public ISlateMetaData
 {
 public:
 	SLATE_METADATA_TYPE(FTagMetaData, ISlateMetaData)
 
-	FTagMetaData(FName InTag)
-	 : Tag(InTag)
+		FTagMetaData(FName InTag)
+		: Tag(InTag)
 	{
 	}
 
