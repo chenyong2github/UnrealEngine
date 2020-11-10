@@ -260,7 +260,6 @@ namespace Audio
 						{
 							++NumSubmixEffects;
 
-
 							FSoundEffectSubmixInitData InitData;
 							InitData.DeviceID = MixerDevice->DeviceID;
 							InitData.SampleRate = MixerDevice->GetSampleRate();
@@ -532,11 +531,14 @@ namespace Audio
 		{
 			for (FSoundEffectSubmixPtr& EffectInstance : FadeInfo.EffectChain)
 			{
-				if (EffectInstance->GetParentPresetId() == SubmixPresetId)
+				if (EffectInstance.IsValid())
 				{
-					EffectInstance.Reset();
-					--NumSubmixEffects;
-					return;
+					if (EffectInstance->GetParentPresetId() == SubmixPresetId)
+					{
+						EffectInstance.Reset();
+						--NumSubmixEffects;
+						return;
+					}
 				}
 			}
 		}
@@ -637,8 +639,6 @@ namespace Audio
 	void FMixerSubmix::ReplaceSoundEffectSubmix(int32 InIndex, FSoundEffectSubmixPtr InEffectInstance)
 	{
 		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
-
-		uint32 ParentPresetId = InEffectInstance->GetParentPresetId();
 
 		for (FSubmixEffectFadeInfo& FadeInfo : EffectChains)
 		{
