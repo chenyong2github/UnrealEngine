@@ -43,6 +43,9 @@ struct FAudioPlayerInterface_InstanceData
 
 	int32 MaxPlaysPerTick = 0;
 	bool bStopWhenComponentIsDestroyed = true;
+
+	// we track if at least one particle played a sound to prevent problems where sounds keep on playing when scalability culls an emitter (which the DI does not notice otherwise)
+	bool bHadPersistentAudioUpdateThisTick = false;
 };
 
 /** This Data Interface can be used to play one-shot audio effects driven by particle data. */
