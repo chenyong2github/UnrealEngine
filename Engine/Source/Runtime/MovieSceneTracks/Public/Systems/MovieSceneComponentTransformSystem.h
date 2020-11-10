@@ -36,6 +36,7 @@ private:
 	//~ IMovieScenePreAnimatedStateSystemInterface interface
 	virtual void RestorePreAnimatedState(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 	virtual void SaveGlobalPreAnimatedState(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	virtual void DiscardPreAnimatedStateForObject(UObject& Object) override;
 
 	void TagGarbage(UMovieSceneEntitySystemLinker*);
 
