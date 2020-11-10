@@ -529,7 +529,7 @@ private:
 		// Return the buffer if there are no errors, or the failed status if there were
 		if (Status.IsOk())
 		{
-#if CSV_PROFILER
+#if CSV_PROFILER && IS_MONOLITHIC
 			FPlatformAtomics::InterlockedAdd(&GTotalLoaded, Batch->IoBuffer.DataSize());
 #endif
 			Batch->Callback(Batch->IoBuffer);
