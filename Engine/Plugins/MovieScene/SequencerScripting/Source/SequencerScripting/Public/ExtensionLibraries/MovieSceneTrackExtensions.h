@@ -24,6 +24,15 @@ class UMovieSceneTrackExtensions : public UBlueprintFunctionLibrary
 public:
 
 	/**
+	 * Set this track's display name
+	 *
+	 * @param Track        The track to use
+	 * @param InName The name for this track
+	 */
+	UFUNCTION(BlueprintCallable, Category="Track", meta=(ScriptMethod))
+	static void SetDisplayName(UMovieSceneTrack* Track, const FText& InName);
+
+	/**
 	 * Get this track's display name
 	 *
 	 * @param Track        The track to use
