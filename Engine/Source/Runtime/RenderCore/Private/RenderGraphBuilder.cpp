@@ -313,6 +313,8 @@ inline EResourceTransitionFlags GetTextureViewTransitionFlags(FRDGViewRef Resour
 	return EResourceTransitionFlags::None;
 }
 
+extern void TestBlackboard();
+
 void FRDGBuilder::TickPoolElements()
 {
 	GRenderGraphResourcePool.TickPoolElements();
@@ -349,6 +351,8 @@ void FRDGBuilder::TickPoolElements()
 	GRDGStatTransitionBatchCount = 0;
 	GRDGStatMemoryWatermark = 0;
 #endif
+
+	TestBlackboard();
 }
 
 ERDGPassFlags FRDGBuilder::OverridePassFlags(const TCHAR* PassName, ERDGPassFlags PassFlags, bool bAsyncComputeSupported)
@@ -380,12 +384,13 @@ ERDGPassFlags FRDGBuilder::OverridePassFlags(const TCHAR* PassName, ERDGPassFlag
 
 const char* const FRDGBuilder::kDefaultUnaccountedCSVStat = "RDG_Pass";
 
-FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName InName, const char* UnaccountedCSVStat)
+FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName InName, ERDGBuilderFlags InFlags)
 	: RHICmdList(InRHICmdList)
 	, RHICmdListAsyncCompute(FRHICommandListExecutor::GetImmediateAsyncComputeCommandList())
 	, BuilderName(InName)
+	, BuilderFlags(InFlags)
 #if RDG_CPU_SCOPES
-	, CPUScopeStacks(RHICmdList, UnaccountedCSVStat)
+	, CPUScopeStacks(RHICmdList, kDefaultUnaccountedCSVStat)
 #endif
 #if RDG_GPU_SCOPES
 	, GPUScopeStacks(RHICmdList, RHICmdListAsyncCompute)
@@ -1690,7 +1695,7 @@ void FRDGBuilder::CollectPassBarriers(FRDGPassHandle PassHandle, FRDGPassHandle&
 
 void FRDGBuilder::AddEpilogueTransition(FRDGTextureRef Texture, FRDGPassHandle LastUntrackedPassHandle)
 {
-	if (!Texture->bLastOwner || Texture->bCulled)
+	if (!Texture->bLastOwner || Texture->bCulled || EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::SkipBarriers))
 	{
 		return;
 	}
@@ -1912,6 +1917,11 @@ void FRDGBuilder::AddTransitionInternal(
 	FRDGPassHandle LastUntrackedPassHandle,
 	const FRHITransitionInfo& TransitionInfo)
 {
+	if (EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::SkipBarriers))
+	{
+		return;
+	}
+
 	check(StateAfter.FirstPass.IsValid());
 
 	if (StateBefore.LastPass.IsNull())

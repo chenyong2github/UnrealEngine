@@ -43,6 +43,8 @@ inline FRDGTextureRef FRDGBuilder::CreateTexture(
 		// D3D11 doesn't allow creating a UAV on MSAA texture.
 		const bool bIsUAVForMSAATexture = bIsMSAA && bCanHaveUAV;
 		checkf(!bIsUAVForMSAATexture, TEXT("TexCreate_UAV is not allowed on MSAA texture %s."), Name);
+
+		checkf(!EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::SkipBarriers), TEXT("Cannot create texture '%s' because RDG builder has 'SkipBarriers' flag."), Name);
 	}
 #endif
 
@@ -69,6 +71,8 @@ inline FRDGBufferRef FRDGBuilder::CreateBuffer(
 		{
 			checkf(Desc.BytesPerElement == 4, TEXT("Creating buffer '%s' as a structured buffer that is also byte addressable, BytesPerElement must be 4! Instead it is %d"), Name, Desc.BytesPerElement);
 		}
+
+		checkf(!EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::SkipBarriers), TEXT("Cannot create buffer '%s' because RDG builder has 'SkipBarriers' flag."), Name);
 	}
 #endif
 

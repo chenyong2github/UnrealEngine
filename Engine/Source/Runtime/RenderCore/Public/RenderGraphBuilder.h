@@ -12,6 +12,14 @@
 
 class FRDGLogFile;
 
+enum ERDGBuilderFlags
+{
+	None = 0,
+
+	/** The builder will not perform any resource barriers. This is only allowed when all resources are registered. */
+	SkipBarriers = 1 << 0,
+};
+
 /** Use the render graph builder to build up a graph of passes and then call Execute() to process them. Resource barriers
  *  and lifetimes are derived from _RDG_ parameters in the pass parameter struct provided to each AddPass call. The resulting
  *  graph is compiled, culled, and executed in Execute(). The builder should be created on the stack and executed prior to
@@ -20,7 +28,7 @@ class FRDGLogFile;
 class RENDERCORE_API FRDGBuilder
 {
 public:
-	FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName InName = {}, const char* UnaccountedCSVStat = kDefaultUnaccountedCSVStat);
+	FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName InName = {}, ERDGBuilderFlags Flags = ERDGBuilderFlags::None);
 	FRDGBuilder(const FRDGBuilder&) = delete;
 
 	/** Finds an RDG texture associated with the external texture, or returns null if none is found. */
@@ -221,6 +229,7 @@ private:
 	FRDGAllocator Allocator;
 
 	const FRDGEventName BuilderName;
+	const ERDGBuilderFlags BuilderFlags;
 
 	ERDGPassFlags OverridePassFlags(const TCHAR* PassName, ERDGPassFlags Flags, bool bAsyncComputeSupported);
 
