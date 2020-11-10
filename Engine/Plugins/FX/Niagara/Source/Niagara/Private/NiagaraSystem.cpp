@@ -410,7 +410,7 @@ void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& Proper
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	ThumbnailImageOutOfDate = true;
-	
+
 	if (PropertyChangedEvent.Property != nullptr)
 	{
 		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraSystem, WarmupTickCount))
@@ -438,8 +438,14 @@ void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& Proper
 	ResolveScalabilitySettings();
 
 	UpdateContext.CommitUpdate();
-	
-	OnSystemPostEditChangeDelegate.Broadcast(this);
+
+	static FName SkipReset = TEXT("SkipSystemResetOnChange");
+	bool bPropertyHasSkip = PropertyChangedEvent.Property && PropertyChangedEvent.Property->HasMetaData(SkipReset);
+	bool bMemberHasSkip = PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->HasMetaData(SkipReset);
+	if (!bPropertyHasSkip && !bMemberHasSkip)
+	{
+		OnSystemPostEditChangeDelegate.Broadcast(this);
+	}
 }
 #endif 
 

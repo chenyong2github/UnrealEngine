@@ -1014,6 +1014,11 @@ void FNiagaraSystemViewModel::RefreshAll()
 
 void FNiagaraSystemViewModel::NotifyDataObjectChanged(UObject* ChangedObject)
 {
+	if (ChangedObject->IsA<UNiagaraEmitter>() || ChangedObject->IsA<UNiagaraSystem>())
+	{
+		// we do nothing on emitter or system changes here, because they will trigger a compile and reset on their own, depending on the changed property
+		return;
+	}
 	UNiagaraDataInterface* ChangedDataInterface = Cast<UNiagaraDataInterface>(ChangedObject);
 	if (ChangedDataInterface)
 	{
