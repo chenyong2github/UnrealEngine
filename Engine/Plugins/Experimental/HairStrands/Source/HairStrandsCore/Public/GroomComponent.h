@@ -163,7 +163,8 @@ public:
 	const FHairGroupInstance* GetGroupInstance(uint32 Index) const { return Index < uint32(HairGroupInstances.Num()) ? HairGroupInstances[Index] : nullptr; } 
 
 	//~ Begin UPrimitiveComponent Interface
-	UMaterialInterface* GetMaterial(int32 ElementIndex, EHairGeometryType GeometryType) const;
+	EHairGeometryType GetMaterialGeometryType(int32 ElementIndex) const;
+	UMaterialInterface* GetMaterial(int32 ElementIndex, EHairGeometryType GeometryType, bool bUseDefaultIfIncompatible) const;
 	virtual UMaterialInterface* GetMaterial(int32 ElementIndex) const override;
 	virtual int32 GetMaterialIndex(FName MaterialSlotName) const override;
 	virtual TArray<FName> GetMaterialSlotNames() const override;
