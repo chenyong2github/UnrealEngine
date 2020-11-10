@@ -1042,7 +1042,10 @@ void FRenderTargetPool::TickPoolElements()
 		{
 			check(!Element->IsSnapshot());
 			Element->OnFrameStart();
-			UnusedAllocationLevelInKB += ComputeSizeInKB(*Element);
+			if (Element->UnusedForNFrames > 2)
+			{
+				UnusedAllocationLevelInKB += ComputeSizeInKB(*Element);
+			}
 		}
 	}
 
