@@ -129,8 +129,10 @@ private:
 	struct FPhysicalAnimationInstanceData
 	{
 		struct FConstraintInstance* ConstraintInstance;
-#if PHYSICS_INTERFACE_PHYSX
-		physx::PxRigidDynamic* TargetActor; // #PHYS2 Should prob change to FPhysicsActorReference?
+#if WITH_CHAOS
+		FPhysicsActorHandle TargetActor;
+#else
+		physx::PxRigidDynamic* TargetActor;
 #endif
 	};
 
