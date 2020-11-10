@@ -602,6 +602,15 @@ public:
 	FORCEINLINE FSkeletalMeshModel* GetImportedModel() const { return ImportedModel.Get(); }
 #endif //WITH_EDITORONLY_DATA
 
+
+#if WITH_EDITOR
+    /** Warn if the platform supports the minimal number of per vertex bone weights */
+	void ValidateBoneWeights(const ITargetPlatform* TargetPlatform);
+	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+#endif
+
+
+
 	/** Get the data to use for rendering. */
 	FORCEINLINE FSkeletalMeshRenderData* GetResourceForRendering() const { return SkeletalMeshRenderData.Get(); }
 
