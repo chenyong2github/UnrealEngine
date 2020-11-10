@@ -382,7 +382,7 @@ void FDesktopPlatformWindows::EnumerateEngineInstallations(TMap<FString, FString
 		}
 
 		// Remove all the keys which weren't valid
-		for(const FString InvalidKey: InvalidKeys)
+		for(const FString& InvalidKey: InvalidKeys)
 		{
 			RegDeleteValue(hKey, *InvalidKey);
 		}

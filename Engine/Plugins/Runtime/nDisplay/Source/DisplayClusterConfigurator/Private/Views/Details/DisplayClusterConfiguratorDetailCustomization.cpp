@@ -331,7 +331,7 @@ void FDisplayClusterConfiguratorSceneComponentDetailCustomization::ResetTrackerI
 
 	TrackerIdOptions.Empty();
 
-	for (const TPair<FString, UDisplayClusterConfigurationInputDeviceTracker*> InputDeviceTrackerPair : ConfigurationData->Input->TrackerDevices)
+	for (const TPair<FString, UDisplayClusterConfigurationInputDeviceTracker*>& InputDeviceTrackerPair : ConfigurationData->Input->TrackerDevices)
 	{
 		if (!InputDeviceTrackerPair.Key.Equals(SceneComponent->TrackerId))
 		{
