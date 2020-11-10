@@ -150,6 +150,8 @@ void UNiagaraStackErrorItemFix::Initialize(FRequiredEntryData InRequiredEntryDat
 
 FReply UNiagaraStackErrorItemFix::OnTryFixError()
 {
+	// Request a deferred refresh before running the fix since this entry might be finalized during the fix and it's delegate will be lost.
+	OnRequestFullRefreshDeferred().Broadcast();
 	IssueFix.GetFixDelegate().ExecuteIfBound();
 	OnIssueFixed().Broadcast();
 	return FReply::Handled();
