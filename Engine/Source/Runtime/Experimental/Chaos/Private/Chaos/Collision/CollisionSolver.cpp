@@ -34,7 +34,7 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_PositionCorrection(TEXT("p.Chaos.Collision.Manifold.PushOut.PositionCorrection"), Chaos_Manifold_PushOut_PositionCorrection, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_VelocityCorrection(TEXT("p.Chaos.Collision.Manifold.PushOut.VelocityCorrection"), Chaos_Manifold_PushOut_VelocityCorrection, TEXT(""));
 
-		float Chaos_Manifold_MinStiffness = 0.5f;
+		float Chaos_Manifold_MinStiffness = 1.0f;
 		float Chaos_Manifold_MaxStiffness = 1.0f;
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_MinStiffness(TEXT("p.Chaos.Collision.Manifold.MinStiffness"), Chaos_Manifold_MinStiffness, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_MaxStiffness(TEXT("p.Chaos.Collision.Manifold.MaxStiffness"), Chaos_Manifold_MaxStiffness, TEXT(""));
@@ -45,7 +45,9 @@ namespace Chaos
 		float Chaos_Manifold_PositionTolerance = 1.e-4f;
 		FAutoConsoleVariableRef CVarChaos_Manifold_PositionTolerance(TEXT("p.Chaos.Collision.Manifold.PositionTolerance"), Chaos_Manifold_PositionTolerance, TEXT(""));
 
-
+		// Calculate the impulse to drive contact velocity to zero (or positiove for restitution), and handle frction.
+		// The impulse is applied to the input/output velocities.
+		// Some state on the in/out Manifold point is also modified for use in the push out phase.
 		void CalculateManifoldVelocityCorrection(
 			const FReal Stiffness,
 			const FCollisionContact& Contact,
@@ -85,7 +87,7 @@ namespace Chaos
 			const FVec3 ContactVelocity = ContactVelocity0 - ContactVelocity1;
 			const FReal ContactVelocityNormalLen = FVec3::DotProduct(ContactVelocity, ContactNormal);
 
-			// Reject contacts moving apart unless the point has previously been processed - we may want to undo some of the previous work
+			// Reject contacts moving apart unless the point has previously been processed, in which case we may want to undo some of the previous work
 			if ((ContactVelocityNormalLen > 0.0f) && !ManifoldPoint.bActive)
 			{
 				return;
@@ -157,24 +159,6 @@ namespace Chaos
 				NetImpulse = ManifoldPoint.NetImpulse + Impulse;
 			}
 
-			// @todo(chaos): should this clamp the accumulated impulse?
-			if (Chaos_Collision_EnergyClampEnabled != 0)
-			{
-				// Clamp the delta impulse to make sure we don't gain kinetic energy (ignore potential energy)
-				// This should not modify the output impulses very often
-				Impulse = GetEnergyClampedImpulse(
-					Impulse,
-					InvM0, InvI0,
-					InvM1, InvI1,
-					Q0, V0, W0,
-					Q1, V1, W1,
-					RelativeContactPoint0,
-					RelativeContactPoint1,
-					ContactVelocity0,
-					ContactVelocity1);
-			}
-
-
 			// Clamp the total impulse to be positive along the normal
 			const bool bActive = FVec3::DotProduct(NetImpulse, ContactNormal) > 0.0f;
 			if (!bActive)
@@ -209,6 +193,31 @@ namespace Chaos
 		}
 
 
+		// @todo(chaos): Remove tangential impulses that are counteracting each other...
+		//
+		// Because we solve the copntacts in the manifold one at a time in a loop, the static friction calculation
+		// will end up applying unecessary later impulses at each contact that counteract each other. This can
+		// lead to the friction cone test failing when it should not.
+		//
+		// Explanation:
+		// Think about a box dropping flat onto a plane. No lateral impulses are required, but actually each
+		// contact will end up with a significant lateral impulse. If we think about just the first corner
+		// contact we solve (which does not know there are any others) then the static friction solver will
+		// calculate an impulse that sets the corner velocity to zero, both along the normal and laterally. 
+		// If the impulse we just along the normal, the box would rotate leading to a non-zero lateral
+		// velocity, so the actual impulse has a lateral component to counteract this. Then we move onto
+		// the opposing corner (say) which calculates a similar impulse with a lateral component. The net 
+		// result is a set of impulses whose lateral components cancel out, but could be close to or past the
+		// static friction cone.
+		//
+		// This function is meant to minimize the impulses so that friction cone calculations are more accurate.
+		//
+		// One day it could dp something like this:
+		//	Calculate tangetial axes
+		//	Calculate Net tangential angular impulse about each axis from all manifold points
+		//	Calculate Sum of magnitude of angular impulses about each axis from all manifold points
+		//	Scale tangential angular impulses for all manifold points about each axis so that net and sum match
+		//
 		void FixTangentialImpulses(
 			FRigidBodyPointContactConstraint& Constraint,
 			const TGenericParticleHandle<FReal, 3> Particle0,
@@ -228,16 +237,11 @@ namespace Chaos
 				return;
 			}
 
-			// @todo(chaos): Remove tangential impulses that are counteracting each other...
-
-			// Calculate tangetial axes
-			// Calculate Net tangential angular impulse about each axis from all manifold points
-			// Calculate Sum of magnitude of angular impulses about each axis from all manifold points
-			// Scale tangential angular impulses for all manifold points about each axis so that net and sum match
 		}
 
 
-
+		// Apply a position correction to the bodies so that the manifold points is not penetrating.
+		// This modifies the in/out CoM position and rotations.
 		void ApplyManifoldPushOutCorrection(
 			const FReal Stiffness,
 			const FCollisionContact& Contact,
@@ -313,22 +317,14 @@ namespace Chaos
 				}
 			}
 
-			// Don't allow negative pushout along the normal, but we want to keep the tangential
-			// correction either way. (We are often in the case where we have no penetration
-			// after the velocity step, but we want to correct static friction drift).
 			FVec3 NetPushOut = ManifoldPoint.NetPushOut + PushOut;
-			//const FReal NetPushOutNormal = FVec3::DotProduct(NetPushOut, ContactNormal);
-			//if (NetPushOutNormal < 0.0f)
-			//{
-			//	NetPushOut = NetPushOut - NetPushOutNormal * ContactNormal;
-			//	PushOut = NetPushOut - ManifoldPoint.NetPushOut;
-			//}
 
 			if (bIsRigidDynamic0)
 			{
 				const FVec3 AngularPushOut = FVec3::CrossProduct(RelativeContactPoint0, PushOut);
 				const FVec3 DX0 = PBDRigid0->InvM() * PushOut;
 				const FVec3 DR0 = InvI0 * AngularPushOut;
+
 				P0 += DX0;
 				Q0 += FRotation3::FromElements(DR0, 0.f) * Q0 * FReal(0.5);
 				Q0.Normalize();
@@ -352,6 +348,9 @@ namespace Chaos
 		}
 
 
+		// Apply a velocity correction to the Manifold point for use in the PushOut phase.
+		// This version is simpler than the main velocity solve - it does not worry
+		// about friction for example.
 		void ApplyManifoldPushOutVelocityCorrection(
 			const FReal Stiffness,
 			const FCollisionContact& Contact,
@@ -445,6 +444,7 @@ namespace Chaos
 		}
 
 
+		// Velocity solver loop for a single contact manifold.
 		void ApplyContactManifold(
 			FRigidBodyPointContactConstraint& Constraint,
 			TGenericParticleHandle<FReal, 3> Particle0,
@@ -473,9 +473,8 @@ namespace Chaos
 
 			Constraint.AccumulatedImpulse = FVec3(0);
 
-			const FReal Interpolant = (FReal)(IterationParameters.Iteration + 1) / (FReal)IterationParameters.NumIterations;
-			// Use maximum stiffness for all iterations
-			const FReal Stiffness = 1.0f; // FMath::Lerp(Chaos_Manifold_MinStiffness, Chaos_Manifold_MaxStiffness, Interpolant);
+			// Velocity solve requires full stiffness for restitution to work correctly
+			const FReal Stiffness = 1.0f;
 
 			// Iterate over the manifold and accumulate velocity corrections - we will apply them after the loop
 			TArrayView<FManifoldPoint> ManifoldPoints = Constraint.GetManifoldPoints();
@@ -500,10 +499,13 @@ namespace Chaos
 			{
 				const FVec3 DV0 = V0 - PBDRigid0->V();
 				const FVec3 DW0 = W0 - PBDRigid0->W();
+				const FVec3 DX0 = DV0 * IterationParameters.Dt;
+				const FVec3 DR0 = DW0 * IterationParameters.Dt;
+
 				PBDRigid0->V() = V0;
 				PBDRigid0->W() = W0;
-				P0 += (DV0 * IterationParameters.Dt);
-				Q0 += FRotation3::FromElements(DW0, 0.f) * Q0 * IterationParameters.Dt * FReal(0.5);
+				P0 += DX0;
+				Q0 += FRotation3::FromElements(DR0, 0.f) * Q0 * FReal(0.5);
 				Q0.Normalize();
 				FParticleUtilities::SetCoMWorldTransform(PBDRigid0, P0, Q0);
 			}
@@ -512,10 +514,13 @@ namespace Chaos
 			{
 				const FVec3 DV1 = V1 - PBDRigid1->V();
 				const FVec3 DW1 = W1 - PBDRigid1->W();
+				const FVec3 DX1 = DV1 * IterationParameters.Dt;
+				const FVec3 DR1 = DW1 * IterationParameters.Dt;
+
 				PBDRigid1->V() = V1;
 				PBDRigid1->W() = W1;
-				P1 += (DV1 * IterationParameters.Dt);
-				Q1 += FRotation3::FromElements(DW1, 0.f) * Q1 * IterationParameters.Dt * FReal(0.5);
+				P1 += DX1;
+				Q1 += FRotation3::FromElements(DR1, 0.f) * Q1 * FReal(0.5);
 				Q1.Normalize();
 				FParticleUtilities::SetCoMWorldTransform(PBDRigid1, P1, Q1);
 			}
@@ -534,6 +539,7 @@ namespace Chaos
 		}
 
 
+		// Pushout solver loop for a single contafct manifold.
 		void ApplyPushOutManifold(
 			FRigidBodyPointContactConstraint& Constraint,
 			const TSet<const TGeometryParticleHandle<FReal, 3>*>& IsTemporarilyStatic,
@@ -565,6 +571,7 @@ namespace Chaos
 				return;
 			}
 
+			// Gradually increase position correction through iterations (optional based on cvars)
 			const FReal Interpolant = (FReal)(IterationParameters.Iteration + 1) / (FReal)IterationParameters.NumIterations;
 			const FReal Stiffness = FMath::Lerp(Chaos_Manifold_MinStiffness, Chaos_Manifold_MaxStiffness, Interpolant);
 
@@ -575,6 +582,7 @@ namespace Chaos
 
 			TArrayView<FManifoldPoint> ManifoldPoints = Constraint.GetManifoldPoints();
 			
+			// Apply the position correction so that all contacts have zero separation
 			if (Chaos_Manifold_PushOut_PositionCorrection)
 			{
 				for (int32 PointIndex = 0; PointIndex < ManifoldPoints.Num(); ++PointIndex)
@@ -598,6 +606,8 @@ namespace Chaos
 				}
 			}
 
+			// Apply a velocity correction so that all contacts have non-negative contact velocity
+			// @todo(chaos): this does not modify position, so we should precalculate inertia
 			if (Chaos_Manifold_PushOut_VelocityCorrection)
 			{
 				for (int32 PointIndex = 0; PointIndex < ManifoldPoints.Num(); ++PointIndex)

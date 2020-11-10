@@ -90,7 +90,7 @@ namespace Chaos
 	// OutClosestA and OutClosestB are the closest or deepest-penetrating points on the two geometries, both in the space of A.
 	// This function will be faster if bNegativePenetrationAllowed is false, so don't use the feature if not required
 	template <bool bNegativePenetrationAllowed = false, typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKPenetration(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, int32& OutClosestVertexIndexA, int32& OutClosestVertexIndexB, const T InThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T InThicknessB = 0, int32* OutNumIterations = nullptr)
+	bool GJKPenetration(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, int32& OutClosestVertexIndexA, int32& OutClosestVertexIndexB, const T InThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T InThicknessB = 0, const T EpsilonSq = 1.e-6)
 	{
 		int32 VertexIndexA = INDEX_NONE;
 		int32 VertexIndexB = INDEX_NONE;
@@ -133,7 +133,6 @@ namespace Chaos
 		const T ThicknessB = B.GetMargin() + InThicknessB;
 		const T Inflation = ThicknessA + ThicknessB + 1e-3;
 		const T Inflation2 = Inflation * Inflation;
-		const T Eps2 = 1e-6;
 		do
 		{
 			if (!ensure(NumIterations++ < 32))	//todo: take this out
@@ -158,7 +157,7 @@ namespace Chaos
 			V = SimplexFindClosestToOrigin(Simplex, SimplexIDs, Barycentric, As, Bs);
 
 			T NewDist2 = V.SizeSquared();
-			bNearZero = NewDist2 < Eps2;	//want to get the closest point for MTD
+			bNearZero = NewDist2 < EpsilonSq;	//want to get the closest point for MTD
 
 			//as simplices become degenerate we will stop making progress. This is a side-effect of precision, in that case take V as the current best approximation
 			//question: should we take previous v in case it's better?
@@ -174,12 +173,7 @@ namespace Chaos
 
 		} while (!bTerminate);
 
-		if (OutNumIterations != nullptr)
-		{
-			*OutNumIterations = NumIterations;
-		}
-
-		if (PrevDist2 > Eps2)
+		if (PrevDist2 > EpsilonSq)
 		{
 			//generally this happens when shapes are inflated.
 			TVector<T, 3> ClosestA(0);
@@ -250,7 +244,7 @@ namespace Chaos
 				OutClosestB = ClosestBInA - OutNormal * ThicknessB;
 				OutClosestVertexIndexA = VertexIndexA;
 				OutClosestVertexIndexB = VertexIndexB;
-				return OutPenetration > Eps2;
+				return OutPenetration > EpsilonSq;
 			}
 		}
 

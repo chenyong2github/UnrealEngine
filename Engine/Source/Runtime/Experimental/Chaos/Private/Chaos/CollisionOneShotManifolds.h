@@ -23,11 +23,11 @@ namespace Chaos
 			FRigidBodyPointContactConstraint& Constraint,
 			bool bInInitialize);
 
-		template <typename ConvexImplicitType>
+		template <typename ConvexImplicitType1, typename ConvexImplicitType2>
 		void ConstructConvexConvexOneShotManifold(
-			const ConvexImplicitType& Implicit1,
+			const ConvexImplicitType1& Implicit1,
 			const FRigidTransform3& Convex1Transform, //world
-			const ConvexImplicitType& Implicit2,
+			const ConvexImplicitType2& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
 			FRigidBodyPointContactConstraint& Constraint,

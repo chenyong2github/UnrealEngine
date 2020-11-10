@@ -167,8 +167,6 @@ namespace Chaos
 
 	void FRigidBodyPointContactConstraint::UpdateManifold(const FContactPoint& ContactPoint)
 	{
-		ensure(bUseOneShotManifold == false);
-
 		if (bUseIncrementalManifold)
 		{
 			int32 ManifoldPointIndex = FindManifoldPoint(ContactPoint);
@@ -244,13 +242,16 @@ namespace Chaos
 		}
 		const FVec3 PrevCoMContactPoint0 = Particle0->RotationOfMass().Inverse() * (PrevLocalContactPoint0 - Particle0->CenterOfMass());
 		const FVec3 PrevCoMContactPoint1 = Particle1->RotationOfMass().Inverse() * (PrevLocalContactPoint1 - Particle1->CenterOfMass());
+		ManifoldPoint.PrevCoMContactPoints[0] = PrevCoMContactPoint0;
+		ManifoldPoint.PrevCoMContactPoints[1] = PrevCoMContactPoint1;
+
+		// Calculate the initalial contact velocity for use in restitution
 		const FVec3 PrevWorldContactVel0 = Particle0->PreV() + FVec3::CrossProduct(Particle0->PreW(), Particle0->R() * PrevCoMContactPoint0);
 		const FVec3 PrevWorldContactVel1 = Particle1->PreV() + FVec3::CrossProduct(Particle1->PreW(), Particle1->R() * PrevCoMContactPoint1);
 		const FReal PrevWorldContactVelNorm = FVec3::DotProduct(PrevWorldContactVel0 - PrevWorldContactVel1, PrevWorldContactNormal);
-		ManifoldPoint.PrevCoMContactPoints[0] = PrevCoMContactPoint0;
-		ManifoldPoint.PrevCoMContactPoints[1] = PrevCoMContactPoint1;
 		ManifoldPoint.InitialContactVelocity = PrevWorldContactVelNorm;
 
+		// Store the initial penetration depth for use with restituion with PBD
 		// NOTE: This is incorrect if we are updating the point each iteration (which we are for incremental manifolds but not one-shots - see UpdateManifoldPoint)
 		ManifoldPoint.InitialPhi = ManifoldPoint.ContactPoint.Phi;
 	}
