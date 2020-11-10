@@ -464,8 +464,8 @@ namespace Chaos
 		CHAOS_API virtual ~TGeometryParticlesImp()
 		{}
 
-		const TRotation<T, d>& R(const int32 Index) const { return MR[Index]; }
-		TRotation<T, d>& R(const int32 Index) { return MR[Index]; }
+		FORCEINLINE const TRotation<T, d>& R(const int32 Index) const { return MR[Index]; }
+		FORCEINLINE TRotation<T, d>& R(const int32 Index) { return MR[Index]; }
 
 		CHAOS_API FUniqueIdx UniqueIdx(const int32 Index) const { return MUniqueIdx[Index]; }
 		CHAOS_API FUniqueIdx& UniqueIdx(const int32 Index) { return MUniqueIdx[Index]; }
@@ -587,7 +587,7 @@ namespace Chaos
 		const TArray<TSerializablePtr<FImplicitObject>>& GetAllGeometry() const { return MGeometry; }
 
 		typedef TGeometryParticleHandle<T, d> THandleType;
-		THandleType* Handle(int32 Index) const { return const_cast<THandleType*>(MGeometryParticleHandle[Index].Get()); }
+		FORCEINLINE THandleType* Handle(int32 Index) const { return const_cast<THandleType*>(MGeometryParticleHandle[Index].Get()); }
 
 		CHAOS_API void SetHandle(int32 Index, TGeometryParticleHandle<T, d>* Handle);
 		
@@ -707,7 +707,7 @@ public:
 			}
 		}
 
-		EParticleType ParticleType() const { return MParticleType; }
+		FORCEINLINE EParticleType ParticleType() const { return MParticleType; }
 
 		CHAOS_API const FPerShapeData* GetImplicitShape(int32 Index, const FImplicitObject* InObject)
 		{
