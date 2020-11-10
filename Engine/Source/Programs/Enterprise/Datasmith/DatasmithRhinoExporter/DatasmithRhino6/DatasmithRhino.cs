@@ -19,6 +19,12 @@ namespace DatasmithRhino
 		public DatasmithRhino6()
 		{
 			Instance = this;
+
+			// If we are not on Windows, we need to manually call FDatasmithFacadeScene.Shutdown() when the process ends.
+			if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+			{
+				AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+			}
 		}
 
 		///<summary>Gets the only instance of the DatasmithRhino6 plug-in.</summary>
@@ -48,6 +54,12 @@ namespace DatasmithRhino
 		protected override Rhino.PlugIns.WriteFileResult WriteFile(string filename, int index, RhinoDoc doc, Rhino.FileIO.FileWriteOptions options)
 		{
 			return DatasmithRhinoSceneExporter.Export(filename, doc, options);
+		}
+
+		public void OnProcessExit(object sender, EventArgs e)
+		{
+			AppDomain.CurrentDomain.ProcessExit -= OnProcessExit;
+			FDatasmithFacadeScene.Shutdown();
 		}
 	}
 }
