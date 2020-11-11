@@ -198,8 +198,6 @@ void FVirtualTextureUploadCache::Finalize(FRDGBuilder& GraphBuilder)
 			CopyInfo.DestPosition = DestinationBoxStart;
 			RHICmdList.CopyTexture(StagingTexture.RHITexture, Entry.RHISubmitTexture, CopyInfo);
 
-			RHICmdList.Transition(FRHITransitionInfo(Entry.RHISubmitTexture, ERHIAccess::CopyDest, ERHIAccess::SRVMask));
-
 			Entry.RHISubmitTexture = nullptr;
 			Entry.SubmitBatchIndex = 0u;
 			Entry.SubmitDestX = 0;
@@ -216,7 +214,15 @@ void FVirtualTextureUploadCache::Finalize(FRDGBuilder& GraphBuilder)
 		PoolEntry.BatchCount = 0u;
 	}
 
-	RHICmdList.TransitionResources(ERHIAccess::SRVMask, UpdatedTextures.GetData(), UpdatedTextures.Num());
+	// Transition all updates textures back to SRV
+	FMemMark Mark(FMemStack::Get());
+	TArray<FRHITransitionInfo, TMemStackAllocator<>> SRVTransitions;
+	SRVTransitions.Reserve(UpdatedTextures.Num());
+	for (int32 Index = 0; Index < UpdatedTextures.Num(); ++Index)
+	{
+		SRVTransitions.Add(FRHITransitionInfo(UpdatedTextures[Index], ERHIAccess::CopyDest, ERHIAccess::SRVMask));
+	}
+	RHICmdList.Transition(SRVTransitions);
 	UpdatedTextures.Reset();
 }
 

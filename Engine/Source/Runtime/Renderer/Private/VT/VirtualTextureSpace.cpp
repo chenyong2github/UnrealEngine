@@ -516,6 +516,8 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRDGBuild
 			FirstUpdate += NumUpdates;
 			MipSize >>= 1;
 		}
+
+		ConvertToUntrackedExternalTexture(GraphBuilder, PageTableTexture, PageTableEntry.RenderTarget, ERHIAccess::SRVMask);
 	}
 }
 

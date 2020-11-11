@@ -1116,14 +1116,14 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 	}
 
 	{
-		FRHITransitionInfo Transitions[] =
+		FRHITransitionInfo UAVTransitions[] =
 		{
 			FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::Unknown, ERHIAccess::UAVCompute),
 			FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::Unknown, ERHIAccess::UAVCompute),
 			FRHITransitionInfo(Hierarchy.DataBuffer.UAV,			ERHIAccess::Unknown, ERHIAccess::UAVCompute),
 			FRHITransitionInfo(RootPages.DataBuffer.UAV,			ERHIAccess::Unknown, ERHIAccess::UAVCompute)
 		};
-		GraphBuilder.RHICmdList.Transition(Transitions);
+		GraphBuilder.RHICmdList.Transition(UAVTransitions);
 		
 		Hierarchy.TotalUpload = 0;
 		Hierarchy.UploadBuffer.ResourceUploadTo(GraphBuilder.RHICmdList, Hierarchy.DataBuffer, false);
@@ -1133,6 +1133,9 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 
 		ClusterPageHeaders.UploadBuffer.ResourceUploadTo(GraphBuilder.RHICmdList, ClusterPageHeaders.DataBuffer, false);
 		PageUploader->ResourceUploadTo(GraphBuilder.RHICmdList, ClusterPageData.DataBuffer);
+
+		// Transition root pages already since this one is not done while processing bBuffersTransitionedToWrite flag
+		GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(RootPages.DataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 	}
 
 	PendingAdds.Reset();
