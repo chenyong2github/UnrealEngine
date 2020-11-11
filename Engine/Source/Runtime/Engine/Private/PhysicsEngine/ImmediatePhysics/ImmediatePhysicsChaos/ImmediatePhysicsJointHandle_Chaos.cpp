@@ -5,6 +5,7 @@
 
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/PBDJointConstraints.h"
+#include "Chaos/ChaosConstraintSettings.h"
 
 #include "PhysicsEngine/ConstraintInstance.h"
 
@@ -20,37 +21,6 @@ static_assert((int32)Chaos::EJointAngularConstraintIndex::Swing1 == 2, "Angular 
 
 namespace ImmediatePhysics_Chaos
 {
-	float ChaosImmediate_JointStiffness = 1.0f;
-
-	float ChaosImmediate_LinearDriveStiffnessScale = 1.0f;
-	float ChaosImmediate_LinearDriveDampingScale = 1.0f;
-	float ChaosImmediate_AngularDriveStiffnessScale = 1.5f;
-	float ChaosImmediate_AngularDriveDampingScale = 1.5f;
-
-	int ChaosImmediate_SoftLinearForceMode = (int)Chaos::EJointForceMode::Acceleration;
-	float ChaosImmediate_SoftLinearStiffnessScale = 1.5f;
-	float ChaosImmediate_SoftLinearDampingScale = 1.2f;
-
-	int ChaosImmediate_SoftAngularForceMode = (int)Chaos::EJointForceMode::Acceleration;
-	float ChaosImmediate_SoftAngularStiffnessScale = 100000;
-	float ChaosImmediate_SoftAngularDampingScale = 1000;
-
-	float ChaosImmediate_LinearBreakScale = 1.0f;
-	float ChaosImmediate_AngularBreakScale = 1.0f;
-
-	FAutoConsoleVariableRef CVarJointStiffness(TEXT("p.Chaos.ImmPhys.JointStiffness"), ChaosImmediate_JointStiffness, TEXT("Hard-joint solver stiffness."));
-	FAutoConsoleVariableRef CVarLinearDriveStiffnessScale(TEXT("p.Chaos.ImmPhys.LinearDriveStiffnessScale"), ChaosImmediate_LinearDriveStiffnessScale, TEXT("Conversion factor for Linear drive stiffness."));
-	FAutoConsoleVariableRef CVarLinearDriveDampingScale(TEXT("p.Chaos.ImmPhys.LinaearDriveDampingScale"), ChaosImmediate_LinearDriveDampingScale, TEXT("Conversion factor for Linear drive damping."));
-	FAutoConsoleVariableRef CVarAngularDriveStiffnessScale(TEXT("p.Chaos.ImmPhys.AngularDriveStiffnessScale"), ChaosImmediate_AngularDriveStiffnessScale, TEXT("Conversion factor for Angular drive stiffness."));
-	FAutoConsoleVariableRef CVarAngularDriveDampingScale(TEXT("p.Chaos.ImmPhys.AngularDriveDampingScale"), ChaosImmediate_AngularDriveDampingScale, TEXT("Conversion factor for Angular drive damping."));
-	FAutoConsoleVariableRef CVarSoftLinearStiffnessScale(TEXT("p.Chaos.ImmPhys.SoftLinearStiffnessScale"), ChaosImmediate_SoftLinearStiffnessScale, TEXT("Conversion factor for soft-joint stiffness."));
-	FAutoConsoleVariableRef CVarSoftLinearDampingScale(TEXT("p.Chaos.ImmPhys.SoftLinearDampingScale"), ChaosImmediate_SoftLinearDampingScale, TEXT("Conversion factor for soft-joint damping."));
-	FAutoConsoleVariableRef CVarSoftLinearForceMode(TEXT("p.Chaos.ImmPhys.SoftLinearForceMode"), ChaosImmediate_SoftLinearForceMode, TEXT("Soft Linear constraint force mode (0: Acceleration; 1: Force"));
-	FAutoConsoleVariableRef CVarSoftAngularForceMode(TEXT("p.Chaos.ImmPhys.SoftAngularForceMode"), ChaosImmediate_SoftAngularForceMode, TEXT("Soft Angular constraint force mode (0: Acceleration; 1: Force"));
-	FAutoConsoleVariableRef CVarSoftAngularStiffnessScale(TEXT("p.Chaos.ImmPhys.SoftAngularStiffnessScale"), ChaosImmediate_SoftAngularStiffnessScale, TEXT("Conversion factor for soft-joint stiffness."));
-	FAutoConsoleVariableRef CVarSoftAngularDampingScale(TEXT("p.Chaos.ImmPhys.SoftAngularDampingScale"), ChaosImmediate_SoftAngularDampingScale, TEXT("Conversion factor for soft-joint damping."));
-	FAutoConsoleVariableRef CVarJointLinearBreakScale(TEXT("p.Chaos.ImmPhys.LinearBreakScale"), ChaosImmediate_LinearBreakScale, TEXT("Conversion factory for Linear Break Theshold."));
-	FAutoConsoleVariableRef CVarJointAngularBreakScale(TEXT("p.Chaos.ImmPhys.AngularBreakScale"), ChaosImmediate_AngularBreakScale, TEXT("Conversion factory for Angular Break Theshold."));
 
 	void TransferJointSettings(FConstraintInstance* ConstraintInstance, Chaos::FPBDJointSettings& ConstraintSettings)
 	{
@@ -58,7 +28,7 @@ namespace ImmediatePhysics_Chaos
 
 		const FConstraintProfileProperties& Profile = ConstraintInstance->ProfileInstance;
 
-		ConstraintSettings.Stiffness = ChaosImmediate_JointStiffness;
+		ConstraintSettings.Stiffness = ConstraintSettings::JointStiffness();
 
 		ConstraintSettings.LinearMotionTypes =
 		{
@@ -85,14 +55,14 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.bSoftLinearLimitsEnabled = ConstraintInstance->GetIsSoftLinearLimit();
 		ConstraintSettings.bSoftTwistLimitsEnabled = ConstraintInstance->GetIsSoftTwistLimit();
 		ConstraintSettings.bSoftSwingLimitsEnabled = ConstraintInstance->GetIsSoftSwingLimit();
-		ConstraintSettings.SoftLinearStiffness = ChaosImmediate_SoftLinearStiffnessScale * ConstraintInstance->GetSoftLinearLimitStiffness();
-		ConstraintSettings.SoftLinearDamping = ChaosImmediate_SoftLinearDampingScale * ConstraintInstance->GetSoftLinearLimitDamping();
-		ConstraintSettings.SoftTwistStiffness = ChaosImmediate_SoftAngularStiffnessScale * ConstraintInstance->GetSoftTwistLimitStiffness();
-		ConstraintSettings.SoftTwistDamping = ChaosImmediate_SoftAngularDampingScale * ConstraintInstance->GetSoftTwistLimitDamping();
-		ConstraintSettings.SoftSwingStiffness = ChaosImmediate_SoftAngularStiffnessScale * ConstraintInstance->GetSoftSwingLimitStiffness();
-		ConstraintSettings.SoftSwingDamping = ChaosImmediate_SoftAngularDampingScale * ConstraintInstance->GetSoftSwingLimitDamping();
-		ConstraintSettings.LinearSoftForceMode = (ChaosImmediate_SoftLinearForceMode == 0) ? EJointForceMode::Acceleration : EJointForceMode::Force;
-		ConstraintSettings.AngularSoftForceMode = (ChaosImmediate_SoftAngularForceMode == 0) ? EJointForceMode::Acceleration : EJointForceMode::Force;
+		ConstraintSettings.SoftLinearStiffness = Chaos::ConstraintSettings::SoftLinearStiffnessScale() * ConstraintInstance->GetSoftLinearLimitStiffness();
+		ConstraintSettings.SoftLinearDamping = Chaos::ConstraintSettings::SoftLinearDampingScale() * ConstraintInstance->GetSoftLinearLimitDamping();
+		ConstraintSettings.SoftTwistStiffness = Chaos::ConstraintSettings::SoftAngularStiffnessScale() * ConstraintInstance->GetSoftTwistLimitStiffness();
+		ConstraintSettings.SoftTwistDamping = Chaos::ConstraintSettings::SoftAngularDampingScale() * ConstraintInstance->GetSoftTwistLimitDamping();
+		ConstraintSettings.SoftSwingStiffness = Chaos::ConstraintSettings::SoftAngularStiffnessScale() * ConstraintInstance->GetSoftSwingLimitStiffness();
+		ConstraintSettings.SoftSwingDamping = Chaos::ConstraintSettings::SoftAngularDampingScale() * ConstraintInstance->GetSoftSwingLimitDamping();
+		ConstraintSettings.LinearSoftForceMode = (Chaos::ConstraintSettings::SoftLinearForceMode() == 0) ? EJointForceMode::Acceleration : EJointForceMode::Force;
+		ConstraintSettings.AngularSoftForceMode = (Chaos::ConstraintSettings::SoftAngularForceMode() == 0) ? EJointForceMode::Acceleration : EJointForceMode::Force;
 
 		if (!ConstraintSettings.bSoftLinearLimitsEnabled)
 		{
@@ -118,8 +88,8 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.bLinearVelocityDriveEnabled[0] = Profile.LinearDrive.XDrive.bEnableVelocityDrive;
 		ConstraintSettings.bLinearVelocityDriveEnabled[1] = Profile.LinearDrive.YDrive.bEnableVelocityDrive;
 		ConstraintSettings.bLinearVelocityDriveEnabled[2] = Profile.LinearDrive.ZDrive.bEnableVelocityDrive;
-		ConstraintSettings.LinearDriveStiffness = ChaosImmediate_LinearDriveStiffnessScale * Profile.LinearDrive.XDrive.Stiffness;
-		ConstraintSettings.LinearDriveDamping = ChaosImmediate_LinearDriveDampingScale * Profile.LinearDrive.XDrive.Damping;
+		ConstraintSettings.LinearDriveStiffness = Chaos::ConstraintSettings::LinearDriveStiffnessScale() * Profile.LinearDrive.XDrive.Stiffness;
+		ConstraintSettings.LinearDriveDamping = Chaos::ConstraintSettings::LinearDriveDampingScale() * Profile.LinearDrive.XDrive.Damping;
 		ConstraintSettings.LinearDriveForceMode = EJointForceMode::Acceleration;
 
 		ConstraintSettings.AngularDrivePositionTarget = FQuat(Profile.AngularDrive.OrientationTarget);
@@ -137,12 +107,12 @@ namespace ImmediatePhysics_Chaos
 			ConstraintSettings.bAngularSwingPositionDriveEnabled = Profile.AngularDrive.SwingDrive.bEnablePositionDrive;
 			ConstraintSettings.bAngularSwingVelocityDriveEnabled = Profile.AngularDrive.SwingDrive.bEnableVelocityDrive;
 		}
-		ConstraintSettings.AngularDriveStiffness = ChaosImmediate_AngularDriveStiffnessScale * Profile.AngularDrive.TwistDrive.Stiffness;
-		ConstraintSettings.AngularDriveDamping = ChaosImmediate_AngularDriveDampingScale * Profile.AngularDrive.TwistDrive.Damping;
+		ConstraintSettings.AngularDriveStiffness = Chaos::ConstraintSettings::AngularDriveStiffnessScale() * Profile.AngularDrive.TwistDrive.Stiffness;
+		ConstraintSettings.AngularDriveDamping = Chaos::ConstraintSettings::AngularDriveDampingScale() * Profile.AngularDrive.TwistDrive.Damping;
 		ConstraintSettings.AngularDriveForceMode = EJointForceMode::Acceleration;
 
-		ConstraintSettings.LinearBreakForce = (Profile.bLinearBreakable) ? ChaosImmediate_LinearBreakScale * Profile.LinearBreakThreshold : FLT_MAX;
-		ConstraintSettings.AngularBreakTorque = (Profile.bAngularBreakable) ? ChaosImmediate_AngularBreakScale * Profile.AngularBreakThreshold : FLT_MAX;
+		ConstraintSettings.LinearBreakForce = (Profile.bLinearBreakable) ? Chaos::ConstraintSettings::LinearBreakScale() * Profile.LinearBreakThreshold : FLT_MAX;
+		ConstraintSettings.AngularBreakTorque = (Profile.bAngularBreakable) ? Chaos::ConstraintSettings::AngularBreakScale() * Profile.AngularBreakThreshold : FLT_MAX;
 
 		// UE Disables Soft Limits when the Limit is less than some threshold. This is not necessary in Chaos but for now we also do it for parity's sake (See FLinearConstraint::UpdateLinearLimit_AssumesLocked).
 		if (ConstraintSettings.LinearLimit < RB_MinSizeToLockDOF)
