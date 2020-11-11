@@ -470,7 +470,7 @@ bool SNiagaraOverviewGraph::ShouldFilterEmitter(const FAssetData& AssetData)
 				}
 			}
 		}
-		bScriptAllowed &= bFoundLibraryTag;
+		bScriptAllowed &= bInLibrary;
 	}
 	if (SNiagaraOverviewGraph::bShowTemplateOnly == true)
 	{
