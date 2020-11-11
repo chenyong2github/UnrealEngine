@@ -53,7 +53,7 @@ void EmitMaterialDepthPS(
 	uint2 PixelPos = (uint2)SvPosition.xy;
 
 #if NANITE_MASK
-	const bool UnOccluded = NaniteMask[PixelPos] == 0x1;
+	const bool UnOccluded = NaniteMask[PixelPos] != 0;
 #else
 	const bool UnOccluded = true;
 #endif
@@ -89,11 +89,7 @@ void EmitSceneDepthPS(
 	out float  OutDepth			: SV_Depth
 )
 {
-	OutDepth = 0;
 #if VELOCITY_EXPORT
-	OutVelocity = 0;
-	OutNaniteMask = 0x0;
-
 	FNaniteView NaniteView = GetNaniteView(0);
 #endif
 

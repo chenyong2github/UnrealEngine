@@ -3951,7 +3951,7 @@ void EmitDepthTargets(
 				);
 			}
 
-			// Emit stencil
+			// Emit scene stencil
 			{
 				auto  PixelShader		= View.ShaderMap->GetShader<FEmitSceneStencilPS>();
 				auto* PassParameters	= GraphBuilder.AllocParameters<FEmitSceneStencilPS::FParameters>();
