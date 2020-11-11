@@ -1983,6 +1983,9 @@ void FVulkanDynamicRHI::InternalUpdateTexture3D(bool bFromRenderingThread, FRHIT
 			SourceRowData += SourceRowPitch;
 		}
 	}
+	uint32 TextureSizeX = FMath::Max(1u, TextureRHI->GetSizeX() >> MipIndex);
+	uint32 TextureSizeY = FMath::Max(1u, TextureRHI->GetSizeY() >> MipIndex);
+	uint32 TextureSizeZ = FMath::Max(1u, TextureRHI->GetSizeZ() >> MipIndex);
 
 	//Region.bufferOffset = 0;
 	// Set these to zero to assume tightly packed buffer
@@ -1995,9 +1998,9 @@ void FVulkanDynamicRHI::InternalUpdateTexture3D(bool bFromRenderingThread, FRHIT
 	Region.imageOffset.x = UpdateRegion.DestX;
 	Region.imageOffset.y = UpdateRegion.DestY;
 	Region.imageOffset.z = UpdateRegion.DestZ;
-	Region.imageExtent.width = UpdateRegion.Width;
-	Region.imageExtent.height = UpdateRegion.Height;
-	Region.imageExtent.depth = UpdateRegion.Depth;
+	Region.imageExtent.width = (uint32)FMath::Min((int32)(TextureSizeX-UpdateRegion.DestX), (int32)UpdateRegion.Width);
+	Region.imageExtent.height = (uint32)FMath::Min((int32)(TextureSizeY-UpdateRegion.DestY), (int32)UpdateRegion.Height);
+	Region.imageExtent.depth = (uint32)FMath::Min((int32)(TextureSizeZ-UpdateRegion.DestZ), (int32)UpdateRegion.Depth);
 
 	FRHICommandList& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	if (!bFromRenderingThread || (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread()))
