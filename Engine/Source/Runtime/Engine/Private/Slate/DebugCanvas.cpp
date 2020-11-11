@@ -291,6 +291,7 @@ void FDebugCanvasDrawer::DrawRenderThread(FRHICommandListImmediate& RHICmdList, 
 			}
 			RT = reinterpret_cast<FTexture2DRHIRef*>(HMDSwapchain == nullptr ? &LayerTexture->GetRenderTargetItem().ShaderResourceTexture : &HMDSwapchain);
 		}
+		RHICmdList.Transition(FRHITransitionInfo(*RT, ERHIAccess::Unknown, ERHIAccess::RTV));
 		RenderTarget->SetRenderTargetTexture(*RT);
 
 		bool bNeedToFlipVertical = RenderThreadCanvas->GetAllowSwitchVerticalAxis();
