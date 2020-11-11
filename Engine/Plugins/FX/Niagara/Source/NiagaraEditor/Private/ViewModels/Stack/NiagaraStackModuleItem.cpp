@@ -921,17 +921,6 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 	}
 }
 
-/*
-TSharedRef<FNiagaraSystemViewModel> SourceSystemViewModel,
-FGuid SourceEmitterHandleId,
-UNiagaraScript& SourceScript,
-UNiagaraNodeFunctionCall& SourceModuleNode,
-FString SourceStackEditorDataKey,
-UNiagaraNodeOutput& SourceOutputNode,
-const TArray<FNiagaraStackModuleData>& SourceStackModuleData,
-TArray<UNiagaraStackEntry::FStackIssue>& NewIssues)
-*/
-
 bool UNiagaraStackModuleItem::FilterOutputCollection(const UNiagaraStackEntry& Child) const
 {
 	if (Child.IsA<UNiagaraStackModuleItemOutputCollection>())
