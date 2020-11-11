@@ -207,7 +207,7 @@ FPathTracingLightData SetupPathTracingLightParameters(const GPULightmass::FLight
 		{
 			LightParameters.Type[LightParameters.Count] = 1;
 			LightParameters.Position[LightParameters.Count] = Light.Position;
-			LightParameters.Color[LightParameters.Count] = FVector(Light.Color) / (4.0 * PI);
+			LightParameters.Color[LightParameters.Count] = FVector(Light.Color);
 			LightParameters.Dimensions[LightParameters.Count] = FVector(0.0, 0.0, Light.SourceRadius);
 			LightParameters.Attenuation[LightParameters.Count] = Light.AttenuationRadius;
 			LightParameters.Mobility[LightParameters.Count] = Light.bStationary ? 1 : 0;
@@ -226,7 +226,7 @@ FPathTracingLightData SetupPathTracingLightParameters(const GPULightmass::FLight
 			LightParameters.Type[LightParameters.Count] = 4;
 			LightParameters.Position[LightParameters.Count] = Light.Position;
 			LightParameters.Normal[LightParameters.Count] = Light.Direction;
-			LightParameters.Color[LightParameters.Count] = 4.0 * PI * FVector(Light.Color);
+			LightParameters.Color[LightParameters.Count] = FVector(Light.Color);
 			LightParameters.Dimensions[LightParameters.Count] = FVector(Light.SpotAngles, Light.SourceRadius);
 			LightParameters.Attenuation[LightParameters.Count] = Light.AttenuationRadius;
 			LightParameters.Mobility[LightParameters.Count] = Light.bStationary ? 1 : 0;
@@ -1212,9 +1212,18 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 	if (!bInsideBackgroundTick && bOnlyBakeWhatYouSee)
 	{
-		if (PendingTileRequests.FilterByPredicate([](const FLightmapTileRequest& Tile) { return Tile.IsScreenOutputTile(); }).Num() > 0)
+		TArray<FLightmapTileRequest> ScreenOutputTiles = PendingTileRequests.FilterByPredicate([](const FLightmapTileRequest& Tile) { return Tile.IsScreenOutputTile(); });
+		if (ScreenOutputTiles.Num() > 0)
 		{
-			TilesVisibleLastFewFrames[(FrameNumber - 1 + TilesVisibleLastFewFrames.Num()) % TilesVisibleLastFewFrames.Num()] = PendingTileRequests.FilterByPredicate([](const FLightmapTileRequest& Tile) { return Tile.IsScreenOutputTile();	});
+			TilesVisibleLastFewFrames[(FrameNumber - 1 + TilesVisibleLastFewFrames.Num()) % TilesVisibleLastFewFrames.Num()] = ScreenOutputTiles;
+			
+			if (bIsRecordingTileRequests)
+			{
+				for (FLightmapTileRequest& Tile : ScreenOutputTiles)
+				{
+					RecordedTileRequests.AddUnique(Tile);
+				}
+			}
 		}
 	}
 
@@ -2836,9 +2845,9 @@ void FLightmapRenderer::BackgroundTick()
 
 			const int32 WorkToGenerate = 512;
 
-			for (TArray<FLightmapTileRequest>& FrameRequests : TilesVisibleLastFewFrames)
+			if (RecordedTileRequests.Num() > 0)
 			{
-				for (FLightmapTileRequest& Tile : FrameRequests)
+				for (FLightmapTileRequest& Tile : RecordedTileRequests)
 				{
 					if (!Tile.RenderState->DoesTileHaveValidCPUData(Tile.VirtualCoordinates, CurrentRevision) && Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).OngoingReadbackRevision != CurrentRevision)
 					{
@@ -2849,6 +2858,26 @@ void FLightmapRenderer::BackgroundTick()
 						if (WorkGenerated >= WorkToGenerate)
 						{
 							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				for (TArray<FLightmapTileRequest>& FrameRequests : TilesVisibleLastFewFrames)
+				{
+					for (FLightmapTileRequest& Tile : FrameRequests)
+					{
+						if (!Tile.RenderState->DoesTileHaveValidCPUData(Tile.VirtualCoordinates, CurrentRevision) && Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).OngoingReadbackRevision != CurrentRevision)
+						{
+							PendingTileRequests.AddUnique(Tile);
+
+							WorkGenerated++;
+
+							if (WorkGenerated >= WorkToGenerate)
+							{
+								break;
+							}
 						}
 					}
 				}
@@ -2888,6 +2917,30 @@ void FLightmapRenderer::BumpRevision()
 	{
 		FrameRequests.Empty();
 	}	
+
+	RecordedTileRequests.Empty();
+}
+
+void FLightmapRenderer::DeduplicateRecordedTileRequests()
+{
+	RecordedTileRequests.Sort([](const FLightmapTileRequest& A, const FLightmapTileRequest& B) { return A.VirtualCoordinates.MipLevel > B.VirtualCoordinates.MipLevel; });
+
+	for (int32 Index = 0; Index < RecordedTileRequests.Num(); Index++)
+	{
+		FLightmapTileRequest& Tile = RecordedTileRequests[Index];
+		if (RecordedTileRequests.FindByPredicate([&Tile](const FLightmapTileRequest& Entry) { 
+			return Entry.VirtualCoordinates.MipLevel == Tile.VirtualCoordinates.MipLevel - 1
+				&& Entry.VirtualCoordinates.Position.X >= Tile.VirtualCoordinates.Position.X * 2
+				&& Entry.VirtualCoordinates.Position.Y >= Tile.VirtualCoordinates.Position.Y * 2
+				&& Entry.VirtualCoordinates.Position.X < (Tile.VirtualCoordinates.Position.X + 1) * 2
+				&& Entry.VirtualCoordinates.Position.Y < (Tile.VirtualCoordinates.Position.Y + 1) * 2
+				;
+		}))
+		{
+			RecordedTileRequests.RemoveAt(Index);
+			Index--;
+		}
+	}
 }
 
 void FLightmapRenderer::RenderIrradianceCacheVisualization(FPostOpaqueRenderParameters& Parameters)
