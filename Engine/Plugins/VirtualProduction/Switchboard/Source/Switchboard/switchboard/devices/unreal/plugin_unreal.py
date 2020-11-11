@@ -94,12 +94,9 @@ class ProgramStartQueue(object):
                 return prog.puuid
 
         for thedict in [self.starting_programs, self.running_programs]:
-            try:
-                puuids = list(thedict.keys())
-                progs = list(thedict.values())
-                return puuids[progs.index(name)]
-            except ValueError:
-                pass
+            for prog in thedict.values():
+                if prog.name == name:
+                    return prog.puuid
 
         raise KeyError
 
@@ -517,8 +514,18 @@ class DeviceUnreal(Device):
 
     def _sync_engine(self, engine_cl):
 
+        program_name = "sync_engine"
+
+        # check if it is already on its way:
+        try:
+            existing_puuid = self.program_start_queue.puuid_from_name(program_name)
+            LOGGER.info(f"{self.name}: Already syncing engine with puuid {existing_puuid}")
+            return
+        except KeyError:
+            pass
+
         project_name = os.path.basename(os.path.dirname(CONFIG.UPROJECT_PATH.get_value(self.name)))
-        LOGGER.info(f"{self.name}: Syncing engine of project {project_name} to revision {engine_cl}")
+        LOGGER.info(f"{self.name}: Queuing {program_name} for project {project_name} to revision {engine_cl}")
 
         self.inflight_engine_cl = engine_cl
 
@@ -527,9 +534,11 @@ class DeviceUnreal(Device):
         sync_tool = f'{os.path.normpath(os.path.join(CONFIG.ENGINE_DIR.get_value(self.name), "Build", "BatchFiles", "RunUAT.bat"))}'
         sync_args = f'-P4 SyncProject -cl={engine_cl} -threads=8 -generate'
 
-        LOGGER.info(f"{self.name}: Sending engine sync command: {sync_tool} {sync_args}")
-
-        program_name = "sync_engine"
+        # check if project sync is already happening:
+        try:
+            sync_project_puuid = self.program_start_queue.puuid_from_name('sync_project')
+        except KeyError:
+            sync_project_puuid = None
 
         puuid, msg = message_protocol.create_start_process_message(
             prog_path=sync_tool, 
@@ -542,9 +551,10 @@ class DeviceUnreal(Device):
         self.program_start_queue.add(
             ProgramStartQueueItem(
                 name = program_name,
-                puuid_dependency = None,
+                puuid_dependency = sync_project_puuid,
                 puuid = puuid,
                 msg_to_unreal_client = msg,
+                launch_fn= lambda : LOGGER.info(f"{self.name}: Sending engine sync command: {sync_tool} {sync_args}")
             ),
             unreal_client = self.unreal_client,
         )
@@ -563,7 +573,7 @@ class DeviceUnreal(Device):
             pass
 
         project_name = os.path.basename(os.path.dirname(CONFIG.UPROJECT_PATH.get_value(self.name)))
-        LOGGER.info(f"{self.name}: Syncing project {project_name} to revision {project_cl}")
+        LOGGER.info(f"{self.name}: Queueing {sync_project_prog_name} {project_name} to revision {project_cl}")
         self.inflight_project_cl = project_cl
 
         sync_tool = ""
@@ -587,8 +597,6 @@ class DeviceUnreal(Device):
             p4_path = CONFIG.P4_PROJECT_PATH.get_value()
             sync_tool = "p4"
             sync_args = f"-c{workspace} sync {p4_path}/...@{project_cl}"
-
-        LOGGER.info(f"{self.name}: Sending project sync command: {sync_tool} {sync_args}")
 
         # check if engine sync is already happening:
         try:
@@ -614,6 +622,7 @@ class DeviceUnreal(Device):
                 puuid_dependency = sync_engine_puuid,
                 puuid = puuid_isclobber,
                 msg_to_unreal_client = msg,
+                launch_fn= lambda : LOGGER.info(f"{self.name}: Sending project sync command: {sync_tool} {sync_args}"),
             ),
             unreal_client = self.unreal_client,
         )
@@ -709,7 +718,7 @@ class DeviceUnreal(Device):
         #
         sync_puuid = None
         sync_name = ''
-        for sync_program_name in ['sync_engine', 'sync_project']:
+        for sync_program_name in ['sync_engine', 'sync_project']: # order matters, as we sync the engine before the project.
             try:
                 sync_puuid = self.program_start_queue.puuid_from_name(sync_program_name)
                 sync_name = sync_program_name
