@@ -21,7 +21,8 @@ namespace Chaos
 			FRigidBodyPointContactConstraint& Constraint,
 			const TSet<const TGeometryParticleHandle<FReal, 3>*>& IsTemporarilyStatic,
 			const FContactIterationParameters& IterationParameters,
-			const FContactParticleParameters& ParticleParameters);
+			const FContactParticleParameters& ParticleParameters,
+			const FVec3& GravityDir);
 
 	}
 }

@@ -1130,7 +1130,7 @@ namespace Chaos
 
 		template<typename T_CONSTRAINT>
 		void ApplyPushOutImpl(T_CONSTRAINT& Constraint, const TSet<const TGeometryParticleHandle<FReal, 3>*>& IsTemporarilyStatic,
-			const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters)
+			const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters, const FVec3& GravityDir)
 		{
 			TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[0]);
 			TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[1]);
@@ -1165,7 +1165,7 @@ namespace Chaos
 				{
 					if (FRigidBodyPointContactConstraint* PointConstraint = Constraint.template As<FRigidBodyPointContactConstraint>())
 					{
-						ApplyPushOutManifold(*PointConstraint, IsTemporarilyStatic, IterationParameters, ParticleParameters);
+						ApplyPushOutManifold(*PointConstraint, IsTemporarilyStatic, IterationParameters, ParticleParameters, GravityDir);
 					}
 				}
 				else if (Chaos_Collision_UseAccumulatedImpulseClipSolve != 0)
@@ -1181,32 +1181,32 @@ namespace Chaos
 		}
 
 		void ApplyPushOut(FCollisionConstraintBase& Constraint, const TSet<const TGeometryParticleHandle<FReal, 3>*>& IsTemporarilyStatic, 
-			const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters)
+			const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters, const FVec3& GravityDir)
 		{
 			if (Constraint.GetType() == FCollisionConstraintBase::FType::SinglePoint)
 			{
-				ApplyPushOutImpl<FRigidBodyPointContactConstraint>(*Constraint.As<FRigidBodyPointContactConstraint>(), IsTemporarilyStatic, IterationParameters, ParticleParameters);
+				ApplyPushOutImpl<FRigidBodyPointContactConstraint>(*Constraint.As<FRigidBodyPointContactConstraint>(), IsTemporarilyStatic, IterationParameters, ParticleParameters, GravityDir);
 			}
 			else if (Constraint.GetType() == FCollisionConstraintBase::FType::SinglePointSwept)
 			{
-				ApplyPushOutImpl(*Constraint.As<FRigidBodySweptPointContactConstraint>(), IsTemporarilyStatic, IterationParameters, ParticleParameters);
+				ApplyPushOutImpl(*Constraint.As<FRigidBodySweptPointContactConstraint>(), IsTemporarilyStatic, IterationParameters, ParticleParameters, GravityDir);
 			}
 			else if (Constraint.GetType() == FCollisionConstraintBase::FType::MultiPoint)
 			{
-				ApplyPushOutImpl<FRigidBodyMultiPointContactConstraint>(*Constraint.As<FRigidBodyMultiPointContactConstraint>(), IsTemporarilyStatic, IterationParameters, ParticleParameters);
+				ApplyPushOutImpl<FRigidBodyMultiPointContactConstraint>(*Constraint.As<FRigidBodyMultiPointContactConstraint>(), IsTemporarilyStatic, IterationParameters, ParticleParameters, GravityDir);
 			}
 		}
 
 		void ApplyPushOutSinglePoint(FRigidBodyPointContactConstraint& Constraint, const TSet<const TGeometryParticleHandle<FReal, 3>*>& IsTemporarilyStatic,
-			const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters)
+			const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters, const FVec3& GravityDir)
 		{
-			ApplyPushOutImpl<FRigidBodyPointContactConstraint>(Constraint, IsTemporarilyStatic, IterationParameters, ParticleParameters);
+			ApplyPushOutImpl<FRigidBodyPointContactConstraint>(Constraint, IsTemporarilyStatic, IterationParameters, ParticleParameters, GravityDir);
 		}
 
 		void ApplyPushOutMultiPoint(FRigidBodyMultiPointContactConstraint& Constraint, const TSet<const TGeometryParticleHandle<FReal, 3>*>& IsTemporarilyStatic,
-			const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters)
+			const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters, const FVec3& GravityDir)
 		{
-			ApplyPushOutImpl<FRigidBodyMultiPointContactConstraint>(Constraint, IsTemporarilyStatic, IterationParameters, ParticleParameters);
+			ApplyPushOutImpl<FRigidBodyMultiPointContactConstraint>(Constraint, IsTemporarilyStatic, IterationParameters, ParticleParameters, GravityDir);
 		}
 
 	} // Collisions

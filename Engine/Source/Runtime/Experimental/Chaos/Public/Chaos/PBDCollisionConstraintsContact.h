@@ -42,11 +42,11 @@ namespace Chaos
 		extern void ApplyMultiPoint(FRigidBodyMultiPointContactConstraint& Constraint, const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
 
 		extern void ApplyPushOut(FCollisionConstraintBase& Constraint, const TSet<const TGeometryParticleHandle<FReal, 3>*>& IsTemporarilyStatic,
-			const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
+			const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters, const FVec3& GravityDir = FVec3::DownVector);
 		extern void ApplyPushOutSinglePoint(FRigidBodyPointContactConstraint& Constraint, const TSet<const TGeometryParticleHandle<FReal, 3>*>& IsTemporarilyStatic,
-			const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
+			const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters, const FVec3& GravityDir = FVec3::DownVector);
 		extern void ApplyPushOutMultiPoint(FRigidBodyMultiPointContactConstraint& Constraint, const TSet<const TGeometryParticleHandle<FReal, 3>*>& IsTemporarilyStatic,
-			const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
+			const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters, const FVec3& GravityDir = FVec3::DownVector);
 
 
 	}
