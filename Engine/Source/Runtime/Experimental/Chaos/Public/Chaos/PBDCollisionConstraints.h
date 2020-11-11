@@ -327,6 +327,11 @@ public:
 		return bEnableRestitution;
 	}
 
+	void SetGravity(const FVec3& InGravity)
+	{
+		GravityDir = InGravity.GetSafeNormal();
+	}
+
 	int32 NumConstraints() const
 	{
 		return Constraints.SinglePointConstraints.Num() + Constraints.SinglePointSweptConstraints.Num() + Constraints.MultiPointConstraints.Num();
@@ -390,6 +395,9 @@ private:
 	// permanently (ie, for the remaining iterations) if it is ignored due to culldistance.
 	// This improves performance, but can decrease stability if contacts are culled prematurely.
 	bool bCanDisableContacts;
+
+	// Used by PushOut to decide on priority when two bodies are at same shock propagation level
+	FVec3 GravityDir;
 
 	ECollisionApplyType ApplyType;
 
