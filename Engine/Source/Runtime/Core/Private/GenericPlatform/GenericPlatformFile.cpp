@@ -272,6 +272,21 @@ public:
 		return Result;
 	}
 
+	virtual void ShrinkHandleBuffers() override
+	{
+		if (!bDisableHandleCaching)
+		{
+			FScopeLock Lock(&HandleCacheCritical);
+			for (int32 Index = 0; Index < MAX_CACHED_SYNC_FILE_HANDLES_PER_GENERIC_ASYNC_FILE_HANDLE; Index++)
+			{
+				if (HandleCache[Index])
+				{
+					HandleCache[Index]->ShrinkBuffers();
+				}
+			}
+		}
+	}
+
 	IFileHandle* GetHandle()
 	{
 		if (bDisableHandleCaching)

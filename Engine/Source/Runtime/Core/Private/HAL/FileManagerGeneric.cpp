@@ -892,6 +892,14 @@ void FArchiveFileReaderGeneric::Serialize( void* V, int64 Length )
 	}
 }
 
+void FArchiveFileReaderGeneric::FlushCache()
+{
+	if (Handle.IsValid())
+	{
+		Handle->ShrinkBuffers();
+	}
+}
+
 FArchiveFileWriterGeneric::FArchiveFileWriterGeneric( IFileHandle* InHandle, const TCHAR* InFilename, int64 InPos, uint32 InBufferSize, uint32 InFlags )
 	: Filename( InFilename )
 	, Flags( InFlags )

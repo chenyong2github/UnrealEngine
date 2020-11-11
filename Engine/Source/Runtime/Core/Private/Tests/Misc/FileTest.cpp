@@ -223,4 +223,89 @@ bool FFileAppendTest::RunTest( const FString& Parameters )
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFileShrinkBuffersTest, "System.Core.Misc.FileShrinkBuffers", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::CriticalPriority | EAutomationTestFlags::EngineFilter)
+bool FFileShrinkBuffersTest::RunTest( const FString& Parameters )
+{
+	const FString TempFilename = FPaths::CreateTempFilename(*FPaths::ProjectIntermediateDir());
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+	ON_SCOPE_EXIT
+	{
+		// Delete temp file
+		PlatformFile.DeleteFile(*TempFilename);
+	};
+
+	// Scratch data for testing
+	uint8 One = 1;
+	TArray<uint8> TestData;
+
+	// Check a new file can be created
+	if (TUniquePtr<IFileHandle> TestFile = TUniquePtr<IFileHandle>(PlatformFile.OpenWrite(*TempFilename, /*bAppend*/false, /*bAllowRead*/true)))
+	{
+		for (uint8 i = 0; i < 64; ++i)
+		{
+			TestData.Add(i);
+		}
+
+		TestFile->Write(TestData.GetData(), TestData.Num());
+	}
+	else
+	{
+		AddError(FString::Printf(TEXT("File failed to open when new: %s"), *TempFilename));
+		return false;
+	}
+
+	// Confirm same data
+	{
+		TArray<uint8> ReadData;
+		if (!FFileHelper::LoadFileToArray(ReadData, *TempFilename))
+		{
+			AddError(FString::Printf(TEXT("File failed to load after writing: %s"), *TempFilename));
+			return false;
+		}
+
+		if (ReadData != TestData)
+		{
+			AddError(FString::Printf(TEXT("File data was incorrect after writing: %s"), *TempFilename));
+			return false;
+		}
+	}
+
+	// Using ShrinkBuffers should not disrupt our read position in the file
+	if (TUniquePtr<IFileHandle> TestFile = TUniquePtr<IFileHandle>(PlatformFile.OpenRead(*TempFilename, /*bAllowWrite*/false)))
+	{
+		// Validate the file actually opened and is of the right size
+		TestEqual(TEXT("File not of expected size at time of ShrinkBuffers read test"), TestFile->Size(), static_cast<decltype(TestFile->Size())>(TestData.Num()));
+
+		const int32 FirstHalfSize = TestData.Num() / 2;
+		const int32 SecondHalfSize = TestData.Num() - FirstHalfSize;
+
+		TArray<uint8> FirstHalfReadData;
+		FirstHalfReadData.AddUninitialized(FirstHalfSize);
+		TestTrue(TEXT("Failed to read first half of test file"), TestFile->Read(FirstHalfReadData.GetData(), FirstHalfReadData.Num()));
+		
+		for (int32 i = 0; i < FirstHalfSize; ++i)
+		{
+			TestEqual(TEXT("Mismatch in data before ShrinkBuffers was called"), FirstHalfReadData[i], TestData[i]);
+		}
+
+		TestFile->ShrinkBuffers();
+
+		TArray<uint8> SecondHalfReadData;
+		SecondHalfReadData.AddUninitialized(SecondHalfSize);
+		TestTrue(TEXT("Failed to read second half of test file"), TestFile->Read(SecondHalfReadData.GetData(), SecondHalfReadData.Num()));
+
+		for (int32 i = 0; i < SecondHalfSize; ++i)
+		{
+			TestEqual(TEXT("Mismatch in data after ShrinkBuffers was called"), SecondHalfReadData[i], TestData[FirstHalfSize + i]);
+		}
+	}
+	else
+	{
+		AddError(FString::Printf(TEXT("File failed to open file for reading: %s"), *TempFilename));
+		return false;
+	}
+
+	return true;
+}
+
 #endif //WITH_DEV_AUTOMATION_TESTS
