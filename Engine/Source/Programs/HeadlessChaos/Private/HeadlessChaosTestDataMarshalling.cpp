@@ -33,14 +33,15 @@ namespace ChaosTest
 			//Internal and external dt match so every internal step should get 1 data, the one we wrote to
 			const auto DataWritten = Manager.GetProducerData_External();
 			Manager.Step_External(ExternalDt);
-			const auto PushData = Manager.StepInternalTime_External(InternalDt);
-			EXPECT_EQ(PushData.Num(),1);
-			EXPECT_EQ(PushData[0],DataWritten);
+			FPushPhysicsData* PushData = Manager.StepInternalTime_External();
+			EXPECT_EQ(PushData,DataWritten);
 			
 			BuffersSeen.Add(DataWritten);
 			EXPECT_EQ(BuffersSeen.Num(),Step == 0 ? 1 : 2);	//we should only ever use two buffers when dts match because we just keep cycling back and forth
 
-			Manager.FreeData_Internal(PushData[0]);
+			Manager.FreeData_Internal(PushData);
+
+			EXPECT_EQ(Manager.StepInternalTime_External(), nullptr);	//no more data
 		}
 
 		BuffersSeen.Empty();
@@ -84,17 +85,16 @@ namespace ChaosTest
 			const auto DataWritten2 = Manager.GetProducerData_External();
 			Manager.Step_External(ExternalDt);
 
-			const auto PushData = Manager.StepInternalTime_External(InternalDt);
-			EXPECT_EQ(PushData.Num(),2);
-			EXPECT_EQ(PushData[0],DataWritten1);
-			EXPECT_EQ(PushData[1],DataWritten2);
-
-			for(FPushPhysicsData* Data : PushData)
+			for(int32 InternalStep = 0; InternalStep < 2; ++InternalStep)
 			{
-				BuffersSeen.Add(Data);
-				Manager.FreeData_Internal(Data);
+				FPushPhysicsData* PushData = Manager.StepInternalTime_External();
+				EXPECT_EQ(PushData, InternalStep == 0 ? DataWritten1 : DataWritten2);
+				BuffersSeen.Add(PushData);
+				Manager.FreeData_Internal(PushData);
 			}
 
+			EXPECT_EQ(Manager.StepInternalTime_External(), nullptr);	//no more data
+			
 			EXPECT_EQ(BuffersSeen.Num(),Step == 0 ? 2 : 3);	//we should only ever use three buffers
 		}
 	}

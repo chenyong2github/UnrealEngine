@@ -26,7 +26,8 @@ namespace Chaos
 		FPullPhysicsData* LatestData = nullptr;
 		if (IsUsingAsyncResults() && UseAsyncInterpolation)
 		{
-			const FReal ResultsTime = MarshallingManager.GetExternalTime_External() - AsyncDt * AsyncInterpolationMultiplier;	//should we make this adjustable?
+			const FReal ExternalTime = MarshallingManager.GetExternalTime_External() + AccumulatedTime;
+			const FReal ResultsTime = ExternalTime - AsyncDt * AsyncInterpolationMultiplier;	//should we make this adjustable?
 			//we want to interpolate between prev and next. There are a few cases to consider:
 			//case 1: dirty data exists in both prev and next. In this case continuous data is interpolated, state data is a step function from prev to next
 			//case 2: prev has dirty data and next doesn't. in this case take prev as it means nothing to interpolate, just a constant value

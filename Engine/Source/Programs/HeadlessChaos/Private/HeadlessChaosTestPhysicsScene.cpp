@@ -265,25 +265,21 @@ namespace ChaosTest {
 		// verify external timestamps are as expected.
 		auto& MarshallingManager = Scene.GetSolver()->GetMarshallingManager();
 		EXPECT_EQ(MarshallingManager.GetExternalTimestamp_External(), 1);
-		EXPECT_EQ(MarshallingManager.GetExternalTimestampConsumed_External(), 0);
 
 		// Execute a frame such that particles should be initialized in physics thread and game thread.
 		Scene.StartFrame();
 		EXPECT_EQ(MarshallingManager.GetExternalTimestamp_External(), 2);
-		EXPECT_EQ(MarshallingManager.GetExternalTimestampConsumed_External(), 1);
 		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
 		Scene.EndFrame();
 
 		// run GT frame, no PT task executed.
 		Scene.StartFrame();
 		EXPECT_EQ(MarshallingManager.GetExternalTimestamp_External(), 3);
-		EXPECT_EQ(MarshallingManager.GetExternalTimestampConsumed_External(), 2);
 		Scene.EndFrame();
 
 		// enqueue another frame.
 		Scene.StartFrame();
 		EXPECT_EQ(MarshallingManager.GetExternalTimestamp_External(), 4);
-		EXPECT_EQ(MarshallingManager.GetExternalTimestampConsumed_External(), 3);
 		
 		// Remove particle, is stamped with external time 4. PT needs to run 3 frames before this will be removed,
 		// as we are two PT tasks behind, and this has not been enqueued yet.
@@ -302,7 +298,6 @@ namespace ChaosTest {
 
 		Scene.StartFrame();
 		EXPECT_EQ(MarshallingManager.GetExternalTimestamp_External(), 5);
-		EXPECT_EQ(MarshallingManager.GetExternalTimestampConsumed_External(), 4);
 		EXPECT_EQ(*Proxy->GetSyncTimestamp().Get(), 4);
 
 		// run pt task for internal timestamp 3. Particle still not removed on PT.
@@ -316,7 +311,6 @@ namespace ChaosTest {
 
 		Scene.StartFrame();
 		EXPECT_EQ(MarshallingManager.GetExternalTimestamp_External(), 6);
-		EXPECT_EQ(MarshallingManager.GetExternalTimestampConsumed_External(), 5);
 		EXPECT_EQ(*Proxy->GetSyncTimestamp().Get(), 4);
 		EXPECT_EQ(Scene.GetSolver()->GetEvolution()->GetParticles().GetAllParticlesView().Num(), 2); // particles not yet removed on pt, still 2.
 
@@ -919,6 +913,7 @@ namespace ChaosTest {
 		//state change should be a step function (sleep state)
 		//wake events must be collapsed (sleep awake sleep becomes sleep)
 		//collision events must be collapsed
+		//forces are averaged
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
 		const float FixedDT = 1;
@@ -928,20 +923,29 @@ namespace ChaosTest {
 		Params.Scene = &Scene;
 
 		TGeometryParticle<FReal, 3>* Particle = nullptr;
+		TGeometryParticle<FReal, 3>* Particle2 = nullptr;
 
 		FChaosEngineInterface::CreateActor(Params, Particle);
-
 		{
 			auto Sphere = MakeUnique<TSphere<FReal, 3>>(FVec3(0), 3);
 			Particle->SetGeometry(MoveTemp(Sphere));
 		}
-		TPBDRigidParticle<FReal, 3>* Simulated = static_cast<TPBDRigidParticle<FReal, 3>*>(Particle);
 
-		TArray<TGeometryParticle<FReal, 3>*> Particles = { Particle };
+		FChaosEngineInterface::CreateActor(Params, Particle2);
+		{
+			auto Sphere = MakeUnique<TSphere<FReal, 3>>(FVec3(0), 3);
+			Particle2->SetGeometry(MoveTemp(Sphere));
+		}
+
+		TPBDRigidParticle<FReal, 3>* Simulated = static_cast<TPBDRigidParticle<FReal, 3>*>(Particle);
+		TPBDRigidParticle<FReal, 3>* Simulated2 = static_cast<TPBDRigidParticle<FReal, 3>*>(Particle2);
+
+		TArray<TGeometryParticle<FReal, 3>*> Particles = { Particle, Particle2 };
 		Scene.AddActorsToScene_AssumesLocked(Particles);
 		Simulated->SetObjectState(EObjectStateType::Dynamic);
 		const float ZVel = 10;
 		const float ZStart = 100;
+		const FVec3 ConstantForce(0, 0, 1 * Simulated2->M());
 		Simulated->SetV(FVec3(0, 0, ZVel));
 		Simulated->SetX(FVec3(0, 0, ZStart));
 		const int32 NumGTSteps = 24;
@@ -972,6 +976,8 @@ namespace ChaosTest {
 		const float GTDt = FixedDT * 0.25f;
 		for(int32 Step=0; Step<NumGTSteps;Step++)
 		{
+			//set force every external frame
+			Simulated2->AddF(ConstantForce);
 			FVec3 Grav(0, 0, 0);
 			Scene.SetUpForFrame(&Grav, GTDt, 99999, 99999, 10, false);
 			Scene.StartFrame();
@@ -979,16 +985,18 @@ namespace ChaosTest {
 			
 			Time += GTDt;
 			const float InterpolatedTime = Time - FixedDT * Chaos::AsyncInterpolationMultiplier;
-
+			const float ExpectedVFromForce = Time;
 			if(InterpolatedTime < 0)
 			{
 				//not enough time to interpolate so just take initial value
 				EXPECT_NEAR(Simulated->X()[2], ZStart, 1e-2);
+				EXPECT_NEAR(Simulated2->V()[2], 0, 1e-2);
 			}
 			else
 			{
 				//interpolated
 				EXPECT_NEAR(Simulated->X()[2], ZStart + ZVel* InterpolatedTime, 1e-2);
+				EXPECT_NEAR(Simulated2->V()[2], InterpolatedTime, 1e-2);
 			}
 		}
 
@@ -996,5 +1004,55 @@ namespace ChaosTest {
 		const float LastInterpolatedTime = NumGTSteps * GTDt - FixedDT * Chaos::AsyncInterpolationMultiplier;
 		EXPECT_NEAR(Simulated->X()[2], ZStart + ZVel * LastInterpolatedTime, 1e-2);
 		EXPECT_NEAR(Simulated->V()[2], ZVel, 1e-2);
+	}
+
+	GTEST_TEST(EngineInterface, SimSubstep)
+	{
+		//Need to test:
+		//forces and torques are extrapolated (i.e. held constant for sub-steps)
+		//kinematic targets are interpolated over the sub-step
+
+		FChaosScene Scene(nullptr);
+		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+		const float FixedDT = 1;
+		Scene.GetSolver()->EnableAsyncMode(FixedDT);	//tick 1 dt at a time
+
+		FActorCreationParams Params;
+		Params.Scene = &Scene;
+
+		TGeometryParticle<FReal, 3>* Particle = nullptr;
+
+		FChaosEngineInterface::CreateActor(Params, Particle);
+		{
+			auto Sphere = MakeUnique<TSphere<FReal, 3>>(FVec3(0), 3);
+			Particle->SetGeometry(MoveTemp(Sphere));
+		}
+
+		TPBDRigidParticle<FReal, 3>* Simulated = static_cast<TPBDRigidParticle<FReal, 3>*>(Particle);
+
+		TArray<TGeometryParticle<FReal, 3>*> Particles = { Particle };
+		Scene.AddActorsToScene_AssumesLocked(Particles);
+		Simulated->SetObjectState(EObjectStateType::Dynamic);
+		Simulated->SetGravityEnabled(true);
+
+		float Time = 0;
+		const float GTDt = FixedDT * 4;
+		for (int32 Step = 0; Step < 10; Step++)
+		{
+			//set force every external frame
+			Simulated->AddF(FVec3(0, 0, 1 * Simulated->M()));	//should counteract gravity
+			FVec3 Grav(0, 0, -1);
+			Scene.GetSolver()->GetEvolution()->GetGravityForces().SetAcceleration(Grav);	//todo: remove this once SetUpForFrame sets gravity correctly
+				
+			Scene.SetUpForFrame(&Grav, GTDt, 99999, 99999, 10, false);
+			Scene.StartFrame();
+			Scene.EndFrame();
+
+			Time += GTDt;
+
+			//should have no movement because forces cancel out
+			EXPECT_NEAR(Simulated->X()[2], 0, 1e-2);
+			EXPECT_NEAR(Simulated->V()[2], 0, 1e-2);
+		}
 	}
 }

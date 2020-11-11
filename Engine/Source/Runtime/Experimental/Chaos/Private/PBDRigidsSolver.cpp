@@ -814,17 +814,22 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::PushPhysicsState(const FReal DeltaTime)
+	void TPBDRigidsSolver<Traits>::PushPhysicsState(const FReal DeltaTime, const int32 NumSteps, const int32 NumExternalSteps)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_PushPhysicsState);
+		ensure(NumSteps > 0);
+		ensure(NumExternalSteps > 0);
+		//TODO: interpolate some data based on num steps
+
 		FPushPhysicsData* PushData = MarshallingManager.GetProducerData_External();
+		PushData->DynamicsWeight = FReal(1) / NumExternalSteps;
 		FDirtySet* DirtyProxiesData = &PushData->DirtyProxiesDataBuffer;
 		FDirtyPropertiesManager* Manager = &PushData->DirtyPropertiesManager;
 
 		Manager->SetNumParticles(DirtyProxiesData->NumDirtyProxies());
 		Manager->SetNumShapes(DirtyProxiesData->NumDirtyShapes());
 		FShapeDirtyData* ShapeDirtyData = DirtyProxiesData->GetShapesDirtyData();
-		auto ProcessProxyGT =[ShapeDirtyData, Manager, DirtyProxiesData](auto Proxy, int32 ParticleDataIdx, FDirtyProxy& DirtyProxy)
+		auto ProcessProxyGT =[ShapeDirtyData, Manager, DirtyProxiesData, NumExternalSteps](auto Proxy, int32 ParticleDataIdx, FDirtyProxy& DirtyProxy)
 		{
 			auto Particle = Proxy->GetParticle();
 			Particle->SyncRemoteData(*Manager,ParticleDataIdx,DirtyProxy.ParticleData,DirtyProxy.ShapeDataIndices,ShapeDirtyData);
@@ -881,7 +886,7 @@ namespace Chaos
 
 		GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().PushProducerStorageData_External(MarshallingManager.GetExternalTimestamp_External());
 
-		MarshallingManager.Step_External(DeltaTime);
+		MarshallingManager.Step_External(DeltaTime, NumSteps);
 	}
 
 	template <typename Traits>
@@ -892,8 +897,9 @@ namespace Chaos
 		FDirtySet* DirtyProxiesData = &PushData.DirtyProxiesDataBuffer;
 		FDirtyPropertiesManager* Manager = &PushData.DirtyPropertiesManager;
 		FShapeDirtyData* ShapeDirtyData = DirtyProxiesData->GetShapesDirtyData();
+		const FReal DynamicsWeight = PushData.DynamicsWeight;
 
-		auto ProcessProxyPT = [Manager,ShapeDirtyData,RewindData,this](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
+		auto ProcessProxyPT = [Manager,ShapeDirtyData,RewindData, DynamicsWeight, this](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
 		{
 			const bool bIsNew = !Proxy->IsInitialized();
 			if(bIsNew)
@@ -918,7 +924,7 @@ namespace Chaos
 				}
 			}
 
-			Proxy->PushToPhysicsState(*Manager,DataIdx,Dirty,ShapeDirtyData,*GetEvolution());
+			Proxy->PushToPhysicsState(*Manager,DataIdx,Dirty,ShapeDirtyData,*GetEvolution(), DynamicsWeight);
 
 			if(bIsNew)
 			{
@@ -1022,14 +1028,11 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::ProcessPushedData_Internal(const TArray<FPushPhysicsData*>& PushDataArray)
-	{
-		for(FPushPhysicsData* PushData : PushDataArray)
+	void TPBDRigidsSolver<Traits>::ProcessPushedData_Internal(FPushPhysicsData& PushData)
 		{
 			//update callbacks
-			{
-				SimCallbackObjects.Reserve(SimCallbackObjects.Num() + PushData->SimCallbackObjectsToAdd.Num());
-				for(ISimCallbackObject* SimCallbackObject : PushData->SimCallbackObjectsToAdd)
+		SimCallbackObjects.Reserve(SimCallbackObjects.Num() + PushData.SimCallbackObjectsToAdd.Num());
+		for(ISimCallbackObject* SimCallbackObject : PushData.SimCallbackObjectsToAdd)
 				{
 					SimCallbackObjects.Add(SimCallbackObject);
 					if(SimCallbackObject->bContactModification)
@@ -1038,9 +1041,9 @@ namespace Chaos
 					}
 				}
 
-				for (int32 Idx = 0; Idx < PushData->SimCallbackObjectsToRemove.Num(); ++Idx)
+		for (int32 Idx = 0; Idx < PushData.SimCallbackObjectsToRemove.Num(); ++Idx)
 				{
-					ISimCallbackObject* RemovedCallbackObject = PushData->SimCallbackObjectsToRemove[Idx];
+			ISimCallbackObject* RemovedCallbackObject = PushData.SimCallbackObjectsToRemove[Idx];
 					if (Idx == 0)
 					{
 						//callback was removed right away so skip it entirely (unless it was tagged as running at least once no matter what)
@@ -1054,15 +1057,12 @@ namespace Chaos
 				}
 
 				//save any pending data for this particular interval
-				for (const FSimCallbackInputAndObject& InputAndCallbackObj : PushData->SimCallbackInputs)
+		for (const FSimCallbackInputAndObject& InputAndCallbackObj : PushData.SimCallbackInputs)
 				{
 					InputAndCallbackObj.CallbackObject->IntervalData.Add(InputAndCallbackObj.Input);
 				}
-			}
 
-			ProcessSinglePushedData_Internal(*PushData);
-			MarshallingManager.FreeData_Internal(PushData);
-		}
+		ProcessSinglePushedData_Internal(PushData);
 	}
 
 	template <typename Traits>

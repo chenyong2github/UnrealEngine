@@ -404,7 +404,7 @@ namespace Chaos
 	
 		/**/
 		virtual void AdvanceSolverBy(const FReal DeltaTime) override;
-		virtual void PushPhysicsState(const FReal DeltaTime) override;
+		virtual void PushPhysicsState(const FReal ExternalDt, const int32 NumSteps, const int32 NumExternalSteps) override;
 		virtual void SetExternalTimestampConsumed_Internal(const int32 Timestamp) override;
 
 		//
@@ -467,7 +467,7 @@ namespace Chaos
 		THandleArray<FChaosPhysicsMaterialMask> SimMaterialMasks;
 
 		void ProcessSinglePushedData_Internal(FPushPhysicsData& PushData);
-		virtual void ProcessPushedData_Internal(const TArray<FPushPhysicsData*>& PushDataArray) override;
+		virtual void ProcessPushedData_Internal(FPushPhysicsData& PushData) override;
 	};
 
 	template<>
