@@ -51,7 +51,6 @@ namespace Chaos
 			, bInsideStaticFrictionCone(false)
 			, bRestitutionEnabled(false)
 			, bActive(false)
-			, bWasEverActive(false)
 			{}
 
 		FManifoldPoint(const FContactPoint& InContactPoint) 
@@ -68,7 +67,6 @@ namespace Chaos
 			, bInsideStaticFrictionCone(false)
 			, bRestitutionEnabled(false)
 			, bActive(false)
-			, bWasEverActive(false)
 		{}
 
 		// @todo(chaos): Normal and plane owner should be per manifold, not per manifold-point when we are not using incremental manifolds any more
@@ -85,7 +83,6 @@ namespace Chaos
 		bool bInsideStaticFrictionCone;		// Whether we are inside the static friction cone (used in PushOut)
 		bool bRestitutionEnabled;			// Whether restitution was added in the apply step (used in PushOut)
 		bool bActive;						// Whether this contact applied an impulse
-		bool bWasEverActive;				// Whether this contact was active during iteration, but untimately deactivated
 	};
 
 	/*
