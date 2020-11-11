@@ -599,7 +599,6 @@ namespace Chaos
 		FJointConstraintPhysicsProxy* JointProxy = GTConstraint->GetProxy<FJointConstraintPhysicsProxy>();
 		check(JointProxy);
 
-		JointProxy->SetSolver(static_cast<TPBDRigidsSolver<Traits>*>(nullptr));
 		RemoveDirtyProxy(JointProxy);
 
 		// mark proxy timestamp so we avoid trying to pull from sim after deletion
@@ -641,7 +640,6 @@ namespace Chaos
 		// mark proxy timestamp so we avoid trying to pull from sim after deletion
 		SuspensionProxy->SetSyncTimestamp(MarshallingManager.GetExternalTimestamp_External());
 
-		SuspensionProxy->SetSolver(static_cast<TPBDRigidsSolver<Traits>*>(nullptr));
 		RemoveDirtyProxy(SuspensionProxy);
 
 		int32 NumRemoved = SuspensionConstraintPhysicsProxies.Remove(SuspensionProxy);
