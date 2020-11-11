@@ -846,12 +846,12 @@ namespace Chaos
 		const FVec3& Axis,
 		const FReal Angle)
 	{
-		const FVec3 IA1 = Utilities::Multiply(InvIs[1], Axis);
+		const FVec3 IA1 = Utilities::Multiply(InvIs[DIndex], Axis);
 		const FReal II1 = FVec3::DotProduct(Axis, IA1);
 		const FVec3 DR1 = IA1 * -(Angle / II1);
 		ApplyRotationDelta(DIndex, Stiffness, DR1);
 
-		NetAngularImpulse += Axis * (Stiffness * Angle / II1);
+		NetAngularImpulse += (KIndex == 0 ? 1 : -1) * Axis * (Stiffness * Angle / II1);
 	}
 
 
@@ -923,7 +923,7 @@ namespace Chaos
 		else
 		{
 			// World-space inverse mass
-			const FVec3 IA1 = Utilities::Multiply(InvIs[1], Axis);
+			const FVec3 IA1 = Utilities::Multiply(InvIs[DIndex], Axis);
 
 			// Joint-space inverse mass
 			FReal II1 = FVec3::DotProduct(Axis, IA1);
@@ -950,7 +950,7 @@ namespace Chaos
 			ApplyRotationDelta(DIndex, 1.0f, DR1);
 	
 			Lambda += DLambda;
-			NetAngularImpulse += DLambda * Axis;
+			NetAngularImpulse += (KIndex == 0 ? 1 : -1) * DLambda * Axis;
 		}
 	}
 
@@ -1028,7 +1028,7 @@ namespace Chaos
 		}
 		else if (InvMs[1] == 0)
 		{
-			ApplyRotationConstraintSoftKD(1, 0, Dt, Stiffness, Damping, bAccelerationMode, Axis, -Angle, AngVelTarget, Lambda);
+			ApplyRotationConstraintSoftKD(1, 0, Dt, Stiffness, Damping, bAccelerationMode, Axis, -Angle, -AngVelTarget, Lambda);
 		}
 		else
 		{
@@ -1517,7 +1517,7 @@ namespace Chaos
 
 				ApplyDelta(DIndex, LinearStiffness, DP1, DR1);
 
-				NetLinearImpulse += LinearStiffness * DX;
+				NetLinearImpulse += (KIndex == 0 ? 1 : -1) * LinearStiffness * DX;
 			}
 
 			++NumActiveConstraints;
