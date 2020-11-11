@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#define RAY_TRACING_DEFERRED_REFLECTIONS_SHADER_VERSION 0x672EBB8E  // Change to force shader compilation of this shader
+#define RAY_TRACING_DEFERRED_REFLECTIONS_SHADER_VERSION 0xC1669BC2  // Change to force shader compilation of this shader
 
 // EDeferredMaterialMode
 #define DEFERRED_MATERIAL_MODE_NONE   0
