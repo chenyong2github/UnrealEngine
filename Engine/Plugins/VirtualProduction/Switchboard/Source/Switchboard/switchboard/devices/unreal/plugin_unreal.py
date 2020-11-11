@@ -1158,15 +1158,9 @@ class DeviceUnreal(Device):
                     if '%' == percent[-1]:
                         self.device_qt_handler.signal_device_build_update.emit(self, step, percent)
 
-            # Remove non-error lines to avoid overloading the UI
-            lines = [line for line in lines if 'error' in line.lower()]
-
         elif 'sync' in process['name']:
             self.sync_progress += len(lines)
             self.device_qt_handler.signal_device_sync_update.emit(self, self.sync_progress)
-
-            # Remove non-error lines to avoid overloading the UI
-            lines = [line for line in lines if 'error' in line.lower()]
 
         for line in lines:
             LOGGER.debug(f"{self.name} {process['name']}: {line}")

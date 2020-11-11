@@ -173,6 +173,9 @@ class SwitchboardDialog(QtCore.QObject):
         #self.transport_queue_menu.aboutToShow.connect(self.transport_queue_menu_about_to_show)
         #self.window.transport_queue_push_button.setMenu(self.transport_queue_menu)
 
+        # entries will be removed from the log window after the number of maximumBlockCount entries has been reached
+        self.window.base_console.document().setMaximumBlockCount(1000)
+
         # Menu items
         self.window.menu_new_config.triggered.connect(self.menu_new_config)
         self.window.menu_delete_config.triggered.connect(self.menu_delete_config)
@@ -1083,8 +1086,12 @@ class SwitchboardDialog(QtCore.QObject):
         Scrolls on each emit signal.
         :param msg: This is a built in event, QT Related, not given.
         """
-        self.window.base_console.insertHtml(msg)
-        self.window.base_console.moveCursor(QtGui.QTextCursor.End)
+        self.window.base_console.appendHtml(msg)
+
+        # Only moving to StartOfLine/Down or End often causes the cursor to be stuck in the middle or the end of a line
+        # when the lines are longer than the widget. This combination keeps the cursor at the bottom left corner in all cases.
+        self.window.base_console.moveCursor(QtGui.QTextCursor.Down)
+        self.window.base_console.moveCursor(QtGui.QTextCursor.StartOfLine)
 
     # Allow user to change logging level
     def logger_level_comboBox_currentTextChanged(self):
