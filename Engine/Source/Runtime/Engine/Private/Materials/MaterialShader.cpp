@@ -741,6 +741,9 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 	{
 		const FShaderTypeDependency& ShaderTypeDependency = ShaderTypeDependencies[ShaderIndex];
 		const FShaderType* ShaderType = FindShaderTypeByName(ShaderTypeDependency.ShaderTypeName);
+#if WITH_EDITORONLY_DATA
+		checkf(ShaderType != nullptr, TEXT("Failed to find FShaderType for dependency %s (total in the NameToTypeMap: %d)"), ShaderTypeDependency.ShaderTypeName.GetDebugString().String.Get(), FShaderType::GetNameToTypeMap().Num());
+#endif
 
 		KeyString += TEXT("_");
 		KeyString += ShaderType->GetName();
@@ -762,6 +765,9 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 	{
 		const FShaderPipelineTypeDependency& Dependency = ShaderPipelineTypeDependencies[TypeIndex];
 		const FShaderPipelineType* ShaderPipelineType = FShaderPipelineType::GetShaderPipelineTypeByName(Dependency.ShaderPipelineTypeName);
+#if WITH_EDITORONLY_DATA
+		checkf(ShaderPipelineType != nullptr, TEXT("Failed to find FShaderPipelineType for dependency %s (total in the NameToTypeMap: %d)"), Dependency.ShaderPipelineTypeName.GetDebugString().String.Get(), FShaderType::GetNameToTypeMap().Num());
+#endif
 
 		KeyString += TEXT("_");
 		KeyString += ShaderPipelineType->GetName();
