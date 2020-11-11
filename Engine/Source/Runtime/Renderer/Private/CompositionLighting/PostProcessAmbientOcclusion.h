@@ -152,7 +152,6 @@ FScreenPassTexture AddAmbientOcclusionFinalPass(
 
 struct FGTAOCommonParameters
 {
-	TUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBufferRHI;
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer = nullptr;
 	FScreenPassTextureViewport SceneTexturesViewport;
 	

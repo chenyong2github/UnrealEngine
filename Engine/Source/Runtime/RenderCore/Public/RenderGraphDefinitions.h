@@ -426,6 +426,8 @@ class TRDGHandleBitArray : public TBitArray<SceneRenderingBitArrayAllocator>
 	using Base = TBitArray<SceneRenderingBitArrayAllocator>;
 public:
 	TRDGHandleBitArray() = default;
+	TRDGHandleBitArray(const TRDGHandleBitArray&) = default;
+	TRDGHandleBitArray& operator=(const TRDGHandleBitArray&) = default;
 
 	explicit TRDGHandleBitArray(bool bValue, int32 InNumBits)
 		: Base(bValue, InNumBits)
@@ -566,3 +568,5 @@ template <typename TUniformStruct> using TRDGUniformBufferRef = TRDGUniformBuffe
 
 template <typename InElementType, typename InAllocatorType = FDefaultAllocator>
 using TRDGTextureSubresourceArray = TArray<InElementType, TInlineAllocator<1, InAllocatorType>>;
+
+using FRDGPassHandlesByPipeline = TRHIPipelineArray<FRDGPassHandle>;

@@ -721,30 +721,31 @@ FRDGBarrierValidation::FRDGBarrierValidation(const FRDGPassRegistry* InPasses, c
 
 void FRDGBarrierValidation::ValidateBarrierBatchBegin(const FRDGPass* Pass, const FRDGBarrierBatchBegin& Batch)
 {
-	checkf(!Batch.IsTransitionValid() && !BatchMap.Contains(&Batch), TEXT("Begin barrier batch '%s' has already been submitted."), *Batch.GetName());
-
 	if (!GRDGTransitionLog)
 	{
 		return;
 	}
 
-	FResourceMap& ResourceMap = BatchMap.Emplace(&Batch);
+	FResourceMap* ResourceMap = BatchMap.Find(&Batch);
 
-	for (int32 Index = 0; Index < Batch.Transitions.Num(); ++Index)
+	if (!ResourceMap)
 	{
-		FRDGParentResourceRef Resource = Batch.Resources[Index];
-		const FRHITransitionInfo& Transition = Batch.Transitions[Index];
+		ResourceMap = &BatchMap.Emplace(&Batch);
 
-		if (Resource->Type == ERDGParentResourceType::Texture)
+		for (int32 Index = 0; Index < Batch.Transitions.Num(); ++Index)
 		{
-			ResourceMap.Textures.FindOrAdd(static_cast<FRDGTextureRef>(Resource)).Add(Transition);
-		}
-		else
-		{
-			check(Resource->Type == ERDGParentResourceType::Buffer);
-			FRDGBufferRef Buffer = static_cast<FRDGBufferRef>(Resource);
-			checkf(!ResourceMap.Buffers.Contains(Buffer), TEXT("Buffer %s was added multiple times to batch %s."), Buffer->Name, *Batch.GetName());
-			ResourceMap.Buffers.Emplace(Buffer, Transition);
+			FRDGParentResourceRef Resource = Batch.DebugResources[Index];
+			const FRHITransitionInfo& Transition = Batch.Transitions[Index];
+
+			if (Resource->Type == ERDGParentResourceType::Texture)
+			{
+				ResourceMap->Textures.FindOrAdd(static_cast<FRDGTextureRef>(Resource)).Add(Transition);
+			}
+			else
+			{
+				check(Resource->Type == ERDGParentResourceType::Buffer);
+				ResourceMap->Buffers.Emplace(static_cast<FRDGBufferRef>(Resource), Transition);
+			}
 		}
 	}
 
@@ -763,11 +764,11 @@ void FRDGBarrierValidation::ValidateBarrierBatchBegin(const FRDGPass* Pass, cons
 		if (!bFoundFirst)
 		{
 			bFoundFirst = true;
-			UE_CLOG(bAllowedForPass, LogRDG, Display, TEXT("%s (Begin):"), *Batch.GetName());
+			UE_CLOG(bAllowedForPass, LogRDG, Display, TEXT("[%s(Index: %d, Pipeline: %s): %s] (Begin):"), Pass->GetName(), Pass->GetHandle().GetIndex(), *GetRHIPipelineName(Pass->GetPipeline()), Batch.DebugName);
 		}
 	};
 
-	for (const auto& Pair : ResourceMap.Textures)
+	for (const auto& Pair : ResourceMap->Textures)
 	{
 		FRDGTextureRef Texture = Pair.Key;
 		
@@ -791,17 +792,19 @@ void FRDGBarrierValidation::ValidateBarrierBatchBegin(const FRDGPass* Pass, cons
 			{
 				const int32 SubresourceIndex = SubresourceLayout.GetSubresourceIndex(Subresource);
 
-				UE_CLOG(bAllowedForResource, LogRDG, Display, TEXT("\t\tMip(%d), Array(%d), Slice(%d): %s -> %s"),
+				UE_CLOG(bAllowedForResource, LogRDG, Display, TEXT("\t\tMip(%d), Array(%d), Slice(%d): [%s, %s] -> [%s, %s]"),
 					Subresource.MipIndex, Subresource.ArraySlice, Subresource.PlaneSlice,
 					*GetRHIAccessName(Transition.AccessBefore),
-					*GetRHIAccessName(Transition.AccessAfter));
+					*GetRHIPipelineName(Batch.DebugPipelinesToBegin),
+					*GetRHIAccessName(Transition.AccessAfter),
+					*GetRHIPipelineName(Batch.DebugPipelinesToEnd));
 			});
 		}
 	}
 
 	if (bAllowedForPass)
 	{
-		for (auto Pair : ResourceMap.Buffers)
+		for (const auto& Pair : ResourceMap->Buffers)
 		{
 			FRDGBufferRef Buffer = Pair.Key;
 			const FRHITransitionInfo& Transition = Pair.Value;
@@ -813,11 +816,13 @@ void FRDGBarrierValidation::ValidateBarrierBatchBegin(const FRDGPass* Pass, cons
 
 			LogHeader();
 
-			UE_LOG(LogRDG, Display, TEXT("\t(%p) %s: %s -> %s"),
+			UE_LOG(LogRDG, Display, TEXT("\t(%p) %s: [%s, %s] -> [%s, %s]"),
 				Buffer,
 				Buffer->Name,
 				*GetRHIAccessName(Transition.AccessBefore),
-				*GetRHIAccessName(Transition.AccessAfter));
+				*GetRHIPipelineName(Batch.DebugPipelinesToBegin),
+				*GetRHIAccessName(Transition.AccessAfter),
+				*GetRHIPipelineName(Batch.DebugPipelinesToEnd));
 		}
 	}
 }
@@ -833,8 +838,7 @@ void FRDGBarrierValidation::ValidateBarrierBatchEnd(const FRDGPass* Pass, const 
 
 	for (const FRDGBarrierBatchBegin* Dependent : Batch.Dependencies)
 	{
-		// Transitions can be queued into multiple end batches. The first to get flushed nulls out the transition.
-		if (!Dependent->IsTransitionValid())
+		if (Dependent->PipelinesToEnd == ERHIPipeline::None)
 		{
 			continue;
 		}
@@ -857,30 +861,27 @@ void FRDGBarrierValidation::ValidateBarrierBatchEnd(const FRDGPass* Pass, const 
 		{
 			if (!bFoundFirstBatch)
 			{
-				UE_LOG(LogRDG, Display, TEXT("%s (End):"), *Batch.GetName());
+				UE_LOG(LogRDG, Display, TEXT("[%s(Index: %d, Pipeline: %s) %s] (End):"), Pass->GetName(), Pass->GetHandle().GetIndex(), Dependent->DebugName, *GetRHIPipelineName(Pass->GetPipeline()));
 				bFoundFirstBatch = true;
 			}
 		}
 
 		for (FRDGTextureRef Texture : Textures)
 		{
-			UE_LOG(LogRDG, Display, TEXT("\t(%p) %s"), Texture, Texture->Name);
+			if (IsDebugAllowedForResource(Texture->Name))
+			{
+				UE_LOG(LogRDG, Display, TEXT("\t(%p) %s"), Texture, Texture->Name);
+			}
 		}
 
 		for (FRDGBufferRef Buffer : Buffers)
 		{
-			UE_LOG(LogRDG, Display, TEXT("\t(%p) %s"), Buffer, Buffer->Name);
+			if (IsDebugAllowedForResource(Buffer->Name))
+			{
+				UE_LOG(LogRDG, Display, TEXT("\t(%p) %s"), Buffer, Buffer->Name);
+			}
 		}
 	}
-}
-
-void FRDGBarrierValidation::ValidateExecuteEnd()
-{
-	for (auto Pair : BatchMap)
-	{
-		checkf(!Pair.Key->IsTransitionValid(), TEXT("A batch was begun but never ended."));
-	}
-	BatchMap.Empty();
 }
 
 namespace
@@ -892,6 +893,7 @@ namespace
 	const TCHAR* TextureColorAttributes = TEXT("color=\"#5800a1\", fontcolor=\"#5800a1\"");
 	const TCHAR* BufferColorAttributes = TEXT("color=\"#007309\", fontcolor=\"#007309\"");
 	const TCHAR* AliasColorAttributes = TEXT("color=\"#00ff00\", fontcolor=\"#00ff00\"");
+	const TCHAR* AllPipelinesColorName = TEXT("#f170ff");
 
 	const TCHAR* GetPassColorName(ERDGPassFlags Flags)
 	{
@@ -916,8 +918,22 @@ namespace
 
 	FString GetSubresourceStateLabel(FRDGSubresourceState State)
 	{
-		check(State.Pipeline == ERHIPipeline::Graphics || State.Pipeline == ERHIPipeline::AsyncCompute);
-		const TCHAR* FontColor = State.Pipeline == ERHIPipeline::AsyncCompute ? AsyncComputeColorName : RasterColorName;
+		const ERHIPipeline Pipelines = State.GetPipelines();
+		const TCHAR* FontColor = nullptr;
+		switch (Pipelines)
+		{
+		default:
+			checkNoEntry();
+		case ERHIPipeline::Graphics:
+			FontColor = RasterColorName;
+			break;
+		case ERHIPipeline::AsyncCompute:
+			FontColor = AsyncComputeColorName;
+			break;
+		case ERHIPipeline::All:
+			FontColor = AllPipelinesColorName;
+			break;
+		}
 		return FString::Printf(TEXT("<font color=\"%s\">%s</font>"), FontColor, *GetRHIAccessName(State.Access));
 	}
 }
@@ -1105,7 +1121,7 @@ void FRDGLogFile::End()
 
 			const FRDGPass* Pass = Passes->Get(PassHandle);
 
-			for (FRDGPassHandle ProducerHandle : Pass->GetProducers())
+			for (const FRDGPassHandle ProducerHandle : Pass->GetProducers())
 			{
 				if (ProducerHandle != ProloguePassHandle)
 				{
@@ -1300,13 +1316,13 @@ void FRDGLogFile::AddAliasEdge(const FRDGBufferRef BufferBefore, FRDGPassHandle 
 
 void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceState StateBefore, FRDGSubresourceState StateAfter, const FRDGTextureRef Texture)
 {
-	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(StateBefore.FirstPass, PassHandle))
+	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(StateBefore.GetFirstPass(), PassHandle))
 	{
 		if (FRDGSubresourceState::IsTransitionRequired(StateBefore, StateAfter))
 		{
 			AddLine(FString::Printf(TEXT("\"%s\" -> \"%s\" [%s, label=<%s: <b>%s -&gt; %s</b>>]"),
-				*GetProducerName(StateBefore.LastPass),
-				*GetConsumerName(StateAfter.FirstPass),
+				*GetProducerName(StateBefore.GetLastPass()),
+				*GetConsumerName(StateAfter.GetFirstPass()),
 				TextureColorAttributes,
 				Texture->Name,
 				*GetSubresourceStateLabel(StateBefore),
@@ -1315,7 +1331,7 @@ void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceSt
 		else
 		{
 			AddLine(FString::Printf(TEXT("\"%s\" -> \"%s\" [%s, label=<%s: <b>%s</b>>]"),
-				*GetProducerName(StateBefore.FirstPass),
+				*GetProducerName(StateBefore.GetFirstPass()),
 				*GetConsumerName(PassHandle),
 				TextureColorAttributes,
 				Texture->Name,
@@ -1326,13 +1342,13 @@ void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceSt
 
 void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceState StateBefore, FRDGSubresourceState StateAfter, const FRDGTextureRef Texture, FRDGTextureSubresource Subresource)
 {
-	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(StateBefore.FirstPass, PassHandle))
+	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(StateBefore.GetFirstPass(), PassHandle))
 	{
 		if (FRDGSubresourceState::IsTransitionRequired(StateBefore, StateAfter))
 		{
 			AddLine(FString::Printf(TEXT("\"%s\" -> \"%s\" [%s, label=<%s[%d][%d][%d]: <b>%s -&gt; %s</b>>]"),
-				*GetProducerName(StateBefore.LastPass),
-				*GetConsumerName(StateAfter.FirstPass),
+				*GetProducerName(StateBefore.GetLastPass()),
+				*GetConsumerName(StateAfter.GetFirstPass()),
 				TextureColorAttributes,
 				Texture->Name,
 				Subresource.MipIndex, Subresource.ArraySlice, Subresource.PlaneSlice,
@@ -1342,7 +1358,7 @@ void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceSt
 		else
 		{
 			AddLine(FString::Printf(TEXT("\"%s\" -> \"%s\" [%s, label=<%s[%d][%d][%d]: <b>%s</b>>]"),
-				*GetProducerName(StateBefore.FirstPass),
+				*GetProducerName(StateBefore.GetFirstPass()),
 				*GetConsumerName(PassHandle),
 				TextureColorAttributes,
 				Texture->Name,
@@ -1354,13 +1370,13 @@ void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceSt
 
 void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceState StateBefore, FRDGSubresourceState StateAfter, const FRDGBufferRef Buffer)
 {
-	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(StateBefore.FirstPass, PassHandle))
+	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(StateBefore.GetFirstPass(), PassHandle))
 	{
 		if (FRDGSubresourceState::IsTransitionRequired(StateBefore, StateAfter))
 		{
 			AddLine(FString::Printf(TEXT("\"%s\" -> \"%s\" [%s, label=<%s: <b>%s -&gt; %s</b>>]"),
-				*GetProducerName(StateBefore.LastPass),
-				*GetConsumerName(StateAfter.FirstPass),
+				*GetProducerName(StateBefore.GetLastPass()),
+				*GetConsumerName(StateAfter.GetFirstPass()),
 				BufferColorAttributes,
 				Buffer->Name,
 				*GetSubresourceStateLabel(StateBefore),
@@ -1369,7 +1385,7 @@ void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceSt
 		else
 		{
 			AddLine(FString::Printf(TEXT("\"%s\" -> \"%s\" [%s, label=<%s: <b>%s</b>>]"),
-				*GetProducerName(StateBefore.FirstPass),
+				*GetProducerName(StateBefore.GetFirstPass()),
 				*GetConsumerName(PassHandle),
 				BufferColorAttributes,
 				Buffer->Name,

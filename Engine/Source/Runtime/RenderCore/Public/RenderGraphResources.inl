@@ -4,11 +4,79 @@
 
 inline void FRDGSubresourceState::Finalize()
 {
-	ensureMsgf(Pipeline == ERHIPipeline::Graphics, TEXT("Resource should be on the graphics pipeline!"));
+	ensureMsgf(GetPipelines() == ERHIPipeline::Graphics, TEXT("Resource should be on the graphics pipeline!"));
 
 	const ERHIAccess LocalAccess = Access;
 	*this = {};
 	Access = LocalAccess;
+}
+
+inline void FRDGSubresourceState::SetPass(ERHIPipeline Pipeline, FRDGPassHandle PassHandle)
+{
+	FirstPass = {};
+	LastPass = {};
+	FirstPass[Pipeline] = PassHandle;
+	LastPass[Pipeline] = PassHandle;
+}
+
+inline void FRDGSubresourceState::Validate()
+{
+#if RDG_ENABLE_DEBUG
+	for (ERHIPipeline Pipeline : GetRHIPipelines())
+	{
+		checkf(FirstPass[Pipeline].IsValid() == LastPass[Pipeline].IsValid(), TEXT("Subresource state has unset first or last pass on '%s."), *GetRHIPipelineName(Pipeline));
+	}
+#endif
+}
+
+inline bool FRDGSubresourceState::IsUsedBy(ERHIPipeline Pipeline) const
+{
+	check(FirstPass[Pipeline].IsValid() == LastPass[Pipeline].IsValid());
+	return FirstPass[Pipeline].IsValid();
+}
+
+inline FRDGPassHandle FRDGSubresourceState::GetLastPass() const
+{
+	const FRDGPassHandle GraphicsPass = LastPass[ERHIPipeline::Graphics];
+	const FRDGPassHandle AsyncComputePass = LastPass[ERHIPipeline::AsyncCompute];
+
+	if (GraphicsPass.IsNull())
+	{
+		return AsyncComputePass;
+	}
+	
+	if (AsyncComputePass.IsNull())
+	{
+		return GraphicsPass;
+	}
+
+	return FMath::Max(GraphicsPass, AsyncComputePass);
+}
+
+inline FRDGPassHandle FRDGSubresourceState::GetFirstPass() const
+{
+	const FRDGPassHandle GraphicsPass = FirstPass[ERHIPipeline::Graphics];
+	const FRDGPassHandle AsyncComputePass = FirstPass[ERHIPipeline::AsyncCompute];
+
+	if (GraphicsPass.IsNull())
+	{
+		return AsyncComputePass;
+	}
+
+	if (AsyncComputePass.IsNull())
+	{
+		return GraphicsPass;
+	}
+
+	return FMath::Min(GraphicsPass, AsyncComputePass);
+}
+
+FORCEINLINE ERHIPipeline FRDGSubresourceState::GetPipelines() const
+{
+	ERHIPipeline Pipelines = ERHIPipeline::None;
+	Pipelines |= FirstPass[ERHIPipeline::Graphics].IsValid()     ? ERHIPipeline::Graphics     : ERHIPipeline::None;
+	Pipelines |= FirstPass[ERHIPipeline::AsyncCompute].IsValid() ? ERHIPipeline::AsyncCompute : ERHIPipeline::None;
+	return Pipelines;
 }
 
 inline FPooledRenderTargetDesc Translate(const FRDGTextureDesc& InDesc)

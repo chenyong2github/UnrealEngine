@@ -296,11 +296,58 @@ void ProcessResource(FD3D12CommandContext& Context, const FRHITransitionInfo& In
 	}
 }
 
+static D3D12_RESOURCE_STATES GetEndTransitionState(const FRHITransitionInfo& Info, FD3D12Resource* Resource, ERHIPipeline Pipelines, D3D12_RESOURCE_STATES SkipFastClearEliminateState)
+{
+	D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
+
+	if (EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::MaintainCompression) && IsReadOnlyAccess(Info.AccessAfter))
+	{
+		State |= SkipFastClearEliminateState;
+	}
+
+	const bool bIsAsyncComputeContext = EnumHasAnyFlags(Pipelines, ERHIPipeline::AsyncCompute);
+
+	if (Info.AccessAfter == ERHIAccess::ResolveSrc)
+	{
+		State |= D3D12_RESOURCE_STATE_RESOLVE_SOURCE;
+	}
+	else if (Info.AccessAfter == ERHIAccess::ResolveDst)
+	{
+		State |= D3D12_RESOURCE_STATE_RESOLVE_DEST;
+	}
+	else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::WritableMask))
+	{
+		if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask) || bIsAsyncComputeContext)
+		{
+			State |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+		}
+		else
+		{
+			State |= Resource->GetWritableState();
+		}
+	}
+	else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::ReadableMask))
+	{
+		if (bIsAsyncComputeContext)
+		{
+			State |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+		}
+		else
+		{
+			State |= Resource->GetReadableState();
+		}
+	}
+
+	return State;
+}
+
 void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FRHITransition*> Transitions)
 {
 	static IConsoleVariable* CVarShowTransitions = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ProfileGPU.ShowTransitions"));
 	const bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;
 	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHIBeginTransitions, bShowTransitionEvents, TEXT("RHIBeginTransitions"));
+
+	bool bUAVBarrier = false;
 
 	for (const FRHITransition* Transition : Transitions)
 	{
@@ -312,8 +359,15 @@ void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FR
 			continue;
 		}
 
+		const bool bDstAllPipelines = EnumHasAllFlags(Data->DstPipelines, ERHIPipeline::All);
+
 		for (const FRHITransitionInfo& Info : Data->Infos)
 		{
+			if (bDstAllPipelines)
+			{
+				bUAVBarrier |= EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask);
+			}
+
 			if (!Info.Resource)
 			{
 				continue;
@@ -328,13 +382,21 @@ void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FR
 
 				D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
 
-				if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::WritableMask))
+				// When forking from one pipeline to all, we perform the end transitions immediately.
+				if (bDstAllPipelines)
 				{
-					State |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+					State = GetEndTransitionState(Info, Resource, Data->DstPipelines, SkipFastClearEliminateState);
 				}
-				else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::ReadableMask))
+				else
 				{
-					State |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+					if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::WritableMask))
+					{
+						State |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+					}
+					else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::ReadableMask))
+					{
+						State |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+					}
 				}
 
 				if (State == D3D12_RESOURCE_STATE_COMMON)
@@ -355,6 +417,11 @@ void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FR
 				}
 			});
 		}
+	}
+
+	if (bUAVBarrier)
+	{
+		StateCache.FlushComputeShaderCache(true);
 	}
 }
 
@@ -381,15 +448,14 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 		const FD3D12TransitionData* Data = Transition->GetPrivateData<FD3D12TransitionData>();
 
 		const bool bSamePipeline = !Data->bCrossPipeline;
+		const bool bDstAllPipelines = EnumHasAllFlags(Data->DstPipelines, ERHIPipeline::All);
 
 		for (const FRHITransitionInfo& Info : Data->Infos)
 		{
-			const bool bUAVAccess = EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask);
-
 			// Sometimes we could still have barriers with resources, invalid but can still happen
-			if (bSamePipeline)
+			if (bSamePipeline && !bDstAllPipelines)
 			{
-				bUAVBarrier |= bUAVAccess;
+				bUAVBarrier |= EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask);
 			}
 
 			if (!Info.Resource)
@@ -405,40 +471,11 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 				}
 
 				D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
-				if (EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::MaintainCompression) && IsReadOnlyAccess(Info.AccessAfter))
-				{
-					State |= SkipFastClearEliminateState;
-				}
 
-				if (Info.AccessAfter == ERHIAccess::ResolveSrc)
+				// When forking from one pipeline to all, we perform the end transitions in begin.
+				if (!bDstAllPipelines)
 				{
-					State |= D3D12_RESOURCE_STATE_RESOLVE_SOURCE;
-				}
-				else if (Info.AccessAfter == ERHIAccess::ResolveDst)
-				{
-					State |= D3D12_RESOURCE_STATE_RESOLVE_DEST;
-				}
-				else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::WritableMask))
-				{
-					if (bUAVAccess || bIsAsyncComputeContext)
-					{
-						State |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-					}
-					else
-					{
-						State |= Resource->GetWritableState();
-					}
-				}
-				else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::ReadableMask))
-				{
-					if (bIsAsyncComputeContext)
-					{
-						State |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-					}
-					else
-					{
-						State |= Resource->GetReadableState();
-					}
+					State = GetEndTransitionState(Info, Resource, Data->DstPipelines, SkipFastClearEliminateState);
 				}
 
 				if (State == D3D12_RESOURCE_STATE_COMMON)

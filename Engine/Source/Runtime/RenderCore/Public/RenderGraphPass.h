@@ -6,99 +6,89 @@
 #include "RenderGraphEvent.h"
 #include "Containers/SortedMap.h"
 
-class RENDERCORE_API FRDGBarrierBatch
+class FRDGTransitionQueue
 {
 public:
-	FRDGBarrierBatch(const FRDGBarrierBatch&) = delete;
+	FRDGTransitionQueue() = default;
+	FRDGTransitionQueue(uint32 ReservedCount);
 
-	bool IsSubmitted() const
-	{
-		return bSubmitted;
-	}
-
-	FString GetName() const;
-
-protected:
-	FRDGBarrierBatch(const FRDGPass* InPass, const TCHAR* InName);
-
-	void SetSubmitted();
-
-	ERHIPipeline GetPipeline() const
-	{
-		return Pipeline;
-	}
+	void Insert(const FRHITransition* Transition, ERHICreateTransitionFlags TransitionFlags);
+	void Begin(FRHIComputeCommandList& RHICmdList);
+	void End(FRHIComputeCommandList& RHICmdList);
 
 private:
-	bool bSubmitted = false;
-	ERHIPipeline Pipeline;
-
-#if RDG_ENABLE_DEBUG
-	const FRDGPass* Pass;
-	const TCHAR* Name;
-#endif
+	TArray<const FRHITransition*, TInlineAllocator<1, SceneRenderingAllocator>> Queue;
+	TArray<const FRHITransition*, TInlineAllocator<1, SceneRenderingAllocator>> QueueWithFences;
 };
 
-class RENDERCORE_API FRDGBarrierBatchBegin final : public FRDGBarrierBatch
+struct FRDGBarrierBatchBeginId
+{
+	FRDGBarrierBatchBeginId() = default;
+
+	bool operator==(FRDGBarrierBatchBeginId Other) const
+	{
+		return Passes == Other.Passes && PipelinesAfter == Other.PipelinesAfter;
+	}
+
+	bool operator!=(FRDGBarrierBatchBeginId Other) const
+	{
+		return !(*this == Other);
+	}
+
+	FRDGPassHandlesByPipeline Passes;
+	ERHIPipeline PipelinesAfter = ERHIPipeline::None;
+};
+
+RENDERCORE_API uint32 GetTypeHash(FRDGBarrierBatchBeginId Id);
+
+class RENDERCORE_API FRDGBarrierBatchBegin
 {
 public:
-	FRDGBarrierBatchBegin(const FRDGPass* InPass, const TCHAR* InName, TOptional<ERHIPipeline> InOverridePipelineForEnd = {});
-	~FRDGBarrierBatchBegin();
+	FRDGBarrierBatchBegin(ERHIPipeline PipelinesToBegin, ERHIPipeline PipelinesToEnd, const TCHAR* DebugName, const FRDGPass* DebugPass);
+	FRDGBarrierBatchBegin(ERHIPipeline PipelinesToBegin, ERHIPipeline PipelinesToEnd, const TCHAR* DebugName, FRDGPassHandlesByPipeline DebugPasses);
 
-	/** Adds a resource transition into the batch. */
 	void AddTransition(FRDGParentResourceRef Resource, const FRHITransitionInfo& Info);
-
-	const FRHITransition* GetTransition() const
-	{
-		return Transition;
-	}
-
-	bool IsTransitionValid() const
-	{
-		return Transition != nullptr;
-	}
 
 	void SetUseCrossPipelineFence()
 	{
-		check(!bUseCrossPipelineFence);
-		bUseCrossPipelineFence = true;
+		TransitionFlags = ERHICreateTransitionFlags::None;
+		bTransitionNeeded = true;
 	}
 
-	void Submit(FRHIComputeCommandList& RHICmdList);
+	void Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline);
+	void Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline, FRDGTransitionQueue& TransitionsToBegin);
 
 private:
-	TOptional<ERHIPipeline> OverridePipelineToEnd;
-	bool bUseCrossPipelineFence = false;
-
-	/** The transition to store after submission. It is assigned back to null by the end batch. */
 	const FRHITransition* Transition = nullptr;
-
-	/** An array of asynchronous resource transitions to perform. */
 	TArray<FRHITransitionInfo, TInlineAllocator<1, SceneRenderingAllocator>> Transitions;
+	ERHICreateTransitionFlags TransitionFlags = ERHICreateTransitionFlags::NoFence;
+	bool bTransitionNeeded = false;
+
+	/** These pipelines masks are set at creation time and reset with each submission. */
+	ERHIPipeline PipelinesToBegin;
+	ERHIPipeline PipelinesToEnd;
 
 #if RDG_ENABLE_DEBUG
-	/** An array of RDG resources matching with the Transitions array. For debugging only. */
-	TArray<FRDGParentResource*, SceneRenderingAllocator> Resources;
+	FRDGPassHandlesByPipeline DebugPasses;
+	TArray<FRDGParentResource*, SceneRenderingAllocator> DebugResources;
+	const TCHAR* DebugName;
+	ERHIPipeline DebugPipelinesToBegin;
+	ERHIPipeline DebugPipelinesToEnd;
 #endif
 
 	friend class FRDGBarrierBatchEnd;
 	friend class FRDGBarrierValidation;
 };
 
-class RENDERCORE_API FRDGBarrierBatchEnd final : public FRDGBarrierBatch
+class RENDERCORE_API FRDGBarrierBatchEnd
 {
 public:
-	FRDGBarrierBatchEnd(const FRDGPass* InPass, const TCHAR* InName)
-		: FRDGBarrierBatch(InPass, InName)
-	{}
-
-	~FRDGBarrierBatchEnd();
-
-	void ReserveMemory(uint32 ExpectedDependencyCount);
+	FRDGBarrierBatchEnd() = default;
 
 	/** Inserts a dependency on a begin batch. A begin batch can be inserted into more than one end batch. */
 	void AddDependency(FRDGBarrierBatchBegin* BeginBatch);
 
-	void Submit(FRHIComputeCommandList& RHICmdList);
+	void Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline);
 
 private:
 	TArray<FRDGBarrierBatchBegin*, TInlineAllocator<1, SceneRenderingAllocator>> Dependencies;
@@ -238,9 +228,9 @@ public:
 
 private:
 	FRDGBarrierBatchBegin& GetPrologueBarriersToBegin(FRDGAllocator& Allocator);
-	FRDGBarrierBatchEnd& GetPrologueBarriersToEnd(FRDGAllocator& Allocator);
 	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForGraphics(FRDGAllocator& Allocator);
 	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForAsyncCompute(FRDGAllocator& Allocator);
+	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForAll(FRDGAllocator& Allocator);
 
 	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginFor(FRDGAllocator& Allocator, ERHIPipeline PipelineForEnd)
 	{
@@ -255,8 +245,14 @@ private:
 
 		case ERHIPipeline::AsyncCompute:
 			return GetEpilogueBarriersToBeginForAsyncCompute(Allocator);
+
+		case ERHIPipeline::All:
+			return GetEpilogueBarriersToBeginForAll(Allocator);
 		}
 	}
+
+	FRDGBarrierBatchEnd& GetPrologueBarriersToEnd(FRDGAllocator& Allocator);
+	FRDGBarrierBatchEnd& GetEpilogueBarriersToEnd(FRDGAllocator& Allocator);
 
 	//////////////////////////////////////////////////////////////////////////
 	//! User Methods to Override
@@ -355,13 +351,14 @@ private:
 	 */
 	TArray<FRHITexture*, SceneRenderingAllocator> TexturesToDiscard;
 
-	/** Barriers to begin / end prior to executing a pass. */
+	/** Split-barrier batches at various points of execution of the pass. */
 	FRDGBarrierBatchBegin* PrologueBarriersToBegin = nullptr;
 	FRDGBarrierBatchEnd* PrologueBarriersToEnd = nullptr;
-
-	/** Barriers to begin after executing a pass. */
 	FRDGBarrierBatchBegin* EpilogueBarriersToBeginForGraphics = nullptr;
 	FRDGBarrierBatchBegin* EpilogueBarriersToBeginForAsyncCompute = nullptr;
+	FRDGBarrierBatchBegin* EpilogueBarriersToBeginForAll = nullptr;
+	TArray<FRDGBarrierBatchBegin*> SharedEpilogueBarriersToBegin;
+	FRDGBarrierBatchEnd* EpilogueBarriersToEnd = nullptr;
 
 	EAsyncComputeBudget AsyncComputeBudget = EAsyncComputeBudget::EAll_4;
 

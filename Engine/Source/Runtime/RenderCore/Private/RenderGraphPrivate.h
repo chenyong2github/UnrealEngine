@@ -96,6 +96,7 @@ const int32 GRDGVerboseCSVStats = 0;
 #endif
 
 #if STATS
+extern int32 GRDGStatPassWithParameterCount;
 extern int32 GRDGStatPassCount;
 extern int32 GRDGStatPassCullCount;
 extern int32 GRDGStatRenderPassMergeCount;
@@ -107,6 +108,7 @@ extern int32 GRDGStatTransitionBatchCount;
 extern int32 GRDGStatMemoryWatermark;
 
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Passes"), STAT_RDG_PassCount, STATGROUP_RDG, RENDERCORE_API);
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Passes With Parameters"), STAT_RDG_PassWithParameterCount, STATGROUP_RDG, RENDERCORE_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Passes Culled"), STAT_RDG_PassCullCount, STATGROUP_RDG, RENDERCORE_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Render Passes Merged"), STAT_RDG_RenderPassMergeCount, STATGROUP_RDG, RENDERCORE_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Pass Dependencies"), STAT_RDG_PassDependencyCount, STATGROUP_RDG, RENDERCORE_API);
@@ -122,3 +124,19 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Clear"), STAT_RDG_ClearTime, STATGROUP_RDG, REND
 
 DECLARE_MEMORY_STAT_EXTERN(TEXT("Builder Watermark"), STAT_RDG_MemoryWatermark, STATGROUP_RDG, RENDERCORE_API);
 #endif
+
+inline const TCHAR* GetEpilogueBarriersToBeginDebugName(ERHIPipeline Pipelines)
+{
+#if RDG_ENABLE_DEBUG
+	switch (Pipelines)
+	{
+	case ERHIPipeline::Graphics:
+		return TEXT("Epilogue (For Graphics)");
+	case ERHIPipeline::AsyncCompute:
+		return TEXT("Epilogue (For AsyncCompute)");
+	case ERHIPipeline::All:
+		return TEXT("Epilogue (For All)");
+	}
+#endif
+	return TEXT("");
+}

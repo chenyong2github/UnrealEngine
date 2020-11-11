@@ -19,13 +19,26 @@ struct FRDGSubresourceState
 
 	FRDGSubresourceState() = default;
 
-	inline void SetPass(FRDGPassHandle PassHandle)
-	{
-		FirstPass = LastPass = PassHandle;
-	}
+	/** Initializes the first and last pass and the pipeline. Clears any other pass state. */
+	void SetPass(ERHIPipeline Pipeline, FRDGPassHandle PassHandle);
 
 	/** Finalizes the state at the end of the transition chain; keeps access intact. */
 	void Finalize();
+
+	/** Validates that the state is in a correct configuration for use. */
+	void Validate();
+
+	/** Returns whether the state is used by the pipeline. */
+	bool IsUsedBy(ERHIPipeline Pipeline) const;
+
+	/** Returns the last pass across either pipe. */
+	FRDGPassHandle GetLastPass() const;
+
+	/** Returns the first pass across either pipe. */
+	FRDGPassHandle GetFirstPass() const;
+
+	/** Returns the pipeline mask this state is used on. */
+	ERHIPipeline GetPipelines() const;
 
 	/** The last used access on the pass. */
 	ERHIAccess Access = ERHIAccess::Unknown;
@@ -33,14 +46,11 @@ struct FRDGSubresourceState
 	/** The last used transition flags on the pass. */
 	EResourceTransitionFlags Flags = EResourceTransitionFlags::None;
 
-	/** The last used pass hardware pipeline. */
-	ERHIPipeline Pipeline = ERHIPipeline::Graphics;
-
 	/** The first pass in this state. */
-	FRDGPassHandle FirstPass;
+	FRDGPassHandlesByPipeline FirstPass;
 
 	/** The last pass in this state. */
-	FRDGPassHandle LastPass;
+	FRDGPassHandlesByPipeline LastPass;
 
 	/** The last no-UAV barrier to be used by this subresource. */
 	FRDGViewUniqueFilter NoUAVBarrierFilter;

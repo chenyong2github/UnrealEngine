@@ -288,6 +288,7 @@ FAutoConsoleVariableRef CVarRDGVerboseCSVStats(
 
 #if STATS
 int32 GRDGStatPassCount = 0;
+int32 GRDGStatPassWithParameterCount = 0;
 int32 GRDGStatPassCullCount = 0;
 int32 GRDGStatPassDependencyCount = 0;
 int32 GRDGStatRenderPassMergeCount = 0;
@@ -298,6 +299,7 @@ int32 GRDGStatTransitionBatchCount = 0;
 int32 GRDGStatMemoryWatermark = 0;
 
 DEFINE_STAT(STAT_RDG_PassCount);
+DEFINE_STAT(STAT_RDG_PassWithParameterCount);
 DEFINE_STAT(STAT_RDG_PassCullCount);
 DEFINE_STAT(STAT_RDG_RenderPassMergeCount);
 DEFINE_STAT(STAT_RDG_PassDependencyCount);

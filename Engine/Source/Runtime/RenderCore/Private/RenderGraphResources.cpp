@@ -42,7 +42,7 @@ bool FRDGSubresourceState::IsTransitionRequired(const FRDGSubresourceState& Prev
 {
 	check(Next.Access != ERHIAccess::Unknown);
 
-	if (Previous.Access != Next.Access || Previous.Pipeline != Next.Pipeline)
+	if (Previous.Access != Next.Access || Previous.GetPipelines() != Next.GetPipelines())
 	{
 		return true;
 	}
@@ -100,8 +100,14 @@ bool FRDGSubresourceState::IsMergeAllowed(ERDGParentResourceType ResourceType, c
 		return false;
 	}
 
+	// If our platform doesn't support multi-pipeline transitions, then we can't merge the state.
+	if (EnumHasAnyFlags(AccessUnion, ~GRHIMultiPipelineAccessMask) && Previous.GetPipelines() != Next.GetPipelines())
+	{
+		return false;
+	}
+
 	// We are not allowed to cross pipelines or change flags in a merge.
-	if (Previous.Pipeline != Next.Pipeline || Previous.Flags != Next.Flags)
+	if (Previous.Flags != Next.Flags)
 	{
 		return false;
 	}

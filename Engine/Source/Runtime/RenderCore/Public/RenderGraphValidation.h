@@ -91,9 +91,6 @@ public:
 	/** Validates an end barrier batch just prior to submission to the command list. */
 	void ValidateBarrierBatchEnd(const FRDGPass* Pass, const FRDGBarrierBatchEnd& Batch);
 
-	/** Validates that all barrier batches were flushed at execution end. */
-	void ValidateExecuteEnd();
-
 private:
 	struct FResourceMap
 	{

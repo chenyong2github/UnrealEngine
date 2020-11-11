@@ -258,8 +258,11 @@ private:
 	FRDGPassBitArray PassesWithEmptyParameters;
 
 	/** Tracks external resources to their registered render graph counterparts for de-duplication. */
-	TSortedMap<FRHITexture*, FRDGTexture*, TInlineAllocator<4, SceneRenderingAllocator>> ExternalTextures;
-	TSortedMap<const FRDGPooledBuffer*, FRDGBuffer*, TInlineAllocator<4, SceneRenderingAllocator>> ExternalBuffers;
+	TSortedMap<FRHITexture*, FRDGTexture*, SceneRenderingAllocator> ExternalTextures;
+	TSortedMap<const FRDGPooledBuffer*, FRDGBuffer*, SceneRenderingAllocator> ExternalBuffers;
+
+	/** Map of barrier batches begun from more than one pipe. */
+	TMap<FRDGBarrierBatchBeginId, FRDGBarrierBatchBegin*, SceneRenderingSetAllocator> BarrierBatchMap;
 
 	/** The epilogue and prologue passes are sentinels that are used to simplify graph logic around barriers
 	 *  and traversal. The prologue pass is used exclusively for barriers before the graph executes, while the
