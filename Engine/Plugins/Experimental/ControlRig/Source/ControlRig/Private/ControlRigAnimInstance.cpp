@@ -34,6 +34,9 @@ bool FControlRigAnimInstanceProxy::Evaluate(FPoseContext& Output)
 	FCompactPose CompactPose(Output.Pose);
 	FCSPose<FCompactPose>::ConvertComponentPosesToLocalPosesSafe(CSContext.Pose, CompactPose);
 
+	// reset to ref pose before setting the pose to ensure if we don't have any missing bones
+	Output.ResetToRefPose();
+
 	for (const FCompactPoseBoneIndex& ModifiedBone : ModifiedBones)
 	{
 		Output.Pose[ModifiedBone] = CompactPose[ModifiedBone];
