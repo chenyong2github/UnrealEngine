@@ -393,7 +393,7 @@ public:
 	virtual int32 FrontMaterial() = 0;
 	virtual int32 StrataDiffuseOrenNayarBSDF(int32 Albedo, int32 Roughness, int32 Normal) = 0;
 	virtual int32 StrataDiffuseChanBSDF(int32 Albedo, int32 Roughness, int32 Normal) = 0;
-	virtual int32 StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal) = 0;
+	virtual int32 StrataDielectricBSDF(int32 Roughness, int32 Reflectivity, int32 Tint, int32 Normal) = 0;
 	virtual int32 StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 Roughness, int32 Normal) = 0;
 	virtual int32 StrataVolumeBSDF(int32 Albedo, int32 Extinction, int32 Anisotropy, int32 Thickness) = 0;
 	virtual int32 StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix) = 0;
@@ -402,6 +402,7 @@ public:
 	virtual int32 StrataMultiply(int32 A, int32 Weight) = 0;
 	virtual int32 StrataArtisticIOR(int32 Reflectivity, int32 EdgeColor, int32 OutputIndex) = 0;
 	virtual int32 StrataPhysicalIOR(int32 IOR, int32 Extinction, int32 OutputIndex) = 0;
+	virtual int32 StrataDielectricIORToReflectivity(int32 IOR, int32 OutputIndex) = 0;
 
 	virtual void AddStrataCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) = 0;
 	virtual bool ContainsStrataCodeChunk(int32 CodeChunk) = 0;
@@ -811,9 +812,9 @@ public:
 		return Compiler->StrataDiffuseChanBSDF(Albedo, Roughness, Normal);
 	}
 
-	virtual int32 StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal) override
+	virtual int32 StrataDielectricBSDF(int32 Roughness, int32 Reflectivity, int32 Tint, int32 Normal) override
 	{
-		return Compiler->StrataDielectricBSDF(Roughness, IOR, Tint, Normal);
+		return Compiler->StrataDielectricBSDF(Roughness, Reflectivity, Tint, Normal);
 	}
 
 	virtual int32 StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 Roughness, int32 Normal) override
@@ -854,6 +855,11 @@ public:
 	virtual int32 StrataPhysicalIOR(int32 IOR, int32 Extinction, int32 OutputIndex) override
 	{
 		return Compiler->StrataPhysicalIOR(IOR, Extinction, OutputIndex);
+	}
+
+	virtual int32 StrataDielectricIORToReflectivity(int32 IOR, int32 OutputIndex) override
+	{
+		return Compiler->StrataDielectricIORToReflectivity(IOR, OutputIndex);
 	}
 
 	virtual void AddStrataCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) override

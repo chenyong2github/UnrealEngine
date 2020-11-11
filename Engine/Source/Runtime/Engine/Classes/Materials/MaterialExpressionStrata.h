@@ -107,10 +107,10 @@ class UMaterialExpressionStrataDielectricBSDF : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 	
 	/**
-	 * The index of refraction of the surface (type = float, unit = unitless)
+	 * The reflectivity of the surface (type = float, unit = unitless, default=0.04 for glass)
 	 */
 	UPROPERTY()
-	FExpressionInput IOR;
+	FExpressionInput Reflectivity;
 
 	/**
 	 * A global color tint multiplied with the specular color, not physically based (type = float3, unit = unitless)
@@ -146,13 +146,13 @@ class UMaterialExpressionStrataConductorBSDF : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 		
 	/**
-	 * Reflectivity when view direction is perpendicular to the surface, also known as F0 (type = float3, unit = unitless)
+	 * Reflectivity when view direction is perpendicular to the surface, also known as F0 (type = float3, unit = unitless, defaults to gold)
 	 */
 	UPROPERTY()
 	FExpressionInput Reflectivity;
 	
 	/**
-	 * Reflectivity when the view direction is tangent to the surface (type = float3, unit = unitless)
+	 * Reflectivity when the view direction is tangent to the surface (type = float3, unit = unitless, defaults to gold)
 	 */
 	UPROPERTY()
 	FExpressionInput EdgeColor;
@@ -398,4 +398,24 @@ class UMaterialExpressionStrataPhysicalIOR : public UMaterialExpression
 	//~ End UMaterialExpression Interface
 };
 
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
+class UMaterialExpressionStrataDielectricIORToReflectivity : public UMaterialExpression
+{
+	GENERATED_UCLASS_BODY()
+
+	/**
+	 * The index of refraction of the surface (type = float, unit = unitless, default = 1.5 for glass)
+	 */
+	UPROPERTY()
+	FExpressionInput IOR;
+
+	//~ Begin UMaterialExpression Interface
+#if WITH_EDITOR
+	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	virtual uint32 GetOutputType(int32 OutputIndex) override;
+	virtual uint32 GetInputType(int32 InputIndex) override;
+#endif
+	//~ End UMaterialExpression Interface
+};
 
