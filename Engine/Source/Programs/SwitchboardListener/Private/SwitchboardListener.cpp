@@ -136,7 +136,6 @@ FSwitchboardListener::FSwitchboardListener(const FIPv4Endpoint& InEndpoint)
 
 FSwitchboardListener::~FSwitchboardListener()
 {
-	KillAllProcessesNow();
 }
 
 bool FSwitchboardListener::Init()
@@ -297,11 +296,6 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 		{
 			const FSwitchboardKillTask& KillTask = static_cast<const FSwitchboardKillTask&>(InTask);
 			return KillProcess(KillTask);
-		}
-		case ESwitchboardTaskType::KillAll:
-		{
-			const FSwitchboardKillAllTask& KillAllTask = static_cast<const FSwitchboardKillAllTask&>(InTask);
-			return KillAllProcesses(KillAllTask);
 		}
 		case ESwitchboardTaskType::ReceiveFileFromClient:
 		{
@@ -860,48 +854,6 @@ bool FSwitchboardListener::KillProcessNow(FRunningProcess* InProcess, float Soft
 	}
 
 	return false;
-}
-
-void FSwitchboardListener::KillAllProcessesNow()
-{
-	const float WaitSeconds = 0.050;
-
-	for (const auto& Process : RunningProcesses)
-	{
-		check(Process.IsValid());
-
-		while (Process->bPendingKill)
-		{
-			FPlatformProcess::Sleep(WaitSeconds);
-		}
-
-		KillProcessNow(Process.Get());
-	}
-
-	for (const auto& Process : FlipModeMonitors)
-	{
-		check(Process.IsValid());
-
-		while (Process->bPendingKill)
-		{
-			FPlatformProcess::Sleep(WaitSeconds);
-		}
-
-		KillProcessNow(Process.Get());
-	}
-}
-
-bool FSwitchboardListener::KillAllProcesses(const FSwitchboardKillAllTask& KillAllTask)
-{
-	for (const auto& Process : RunningProcesses)
-	{
-		check(Process.IsValid());
-
-		FSwitchboardKillTask Task(KillAllTask.TaskID, KillAllTask.Recipient, Process->UUID);
-		KillProcess(Task);
-	}
-
-	return true;
 }
 
 bool FSwitchboardListener::ReceiveFileFromClient(const FSwitchboardReceiveFileFromClientTask& InReceiveFileFromClientTask)
