@@ -9,7 +9,6 @@ enum class ESwitchboardTaskType : uint8
 {
 	Start,
 	Kill,
-	KillAll,
 	Restart,
 	ReceiveFileFromClient,
 	SendFileToClient,
@@ -117,13 +116,6 @@ struct FSwitchboardKillTask : public FSwitchboardTask
 		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(ProgramID));
 	}
 	//~ End FSwitchboardTask interface
-};
-
-struct FSwitchboardKillAllTask : public FSwitchboardTask
-{
-	FSwitchboardKillAllTask(const FGuid& InTaskID, const FIPv4Endpoint& InEndpoint)
-		: FSwitchboardTask{ ESwitchboardTaskType::KillAll, TEXT("killall"), InTaskID, InEndpoint }
-	{}
 };
 
 struct FSwitchboardReceiveFileFromClientTask : public FSwitchboardTask

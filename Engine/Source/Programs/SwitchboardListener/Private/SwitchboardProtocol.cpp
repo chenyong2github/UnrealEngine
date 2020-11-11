@@ -159,11 +159,6 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 			return true;
 		}
 	}
-	else if (CommandName == TEXT("killall"))
-	{
-		OutTask = MakeUnique<FSwitchboardKillAllTask>(MessageID, InEndpoint);
-		return true;
-	}
 	else if (CommandName == TEXT("send file"))
 	{
 		TSharedPtr<FJsonValue> DestinationField = JsonData->TryGetField(TEXT("destination"));
