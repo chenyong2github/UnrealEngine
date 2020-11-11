@@ -5,6 +5,7 @@
 #include "WorldPartition/ActorPartition/PartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogActorPartitionSubsystem, All, All);
 
@@ -124,6 +125,19 @@ public:
 		check(FoundActor || !bInCreate);
 		return FoundActor;
 	}
+
+
+	void ForEachRelevantActor(const TSubclassOf<APartitionActor>& InActorClass, const FBox& IntersectionBounds, TFunctionRef<bool(APartitionActor*)>InOperation) const override
+	{
+		for (TActorIterator<APartitionActor> It(World, InActorClass); It; ++It)
+		{
+			if (!InOperation(*It))
+			{
+				return;
+			}
+		}
+	}
+
 
 private:
 	void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld)
@@ -255,6 +269,23 @@ public:
 		return FoundActor;
 	}
 
+	void ForEachRelevantActor(const TSubclassOf<APartitionActor>& InActorClass, const FBox& IntersectionBounds, TFunctionRef<bool(APartitionActor*)>InOperation) const override
+	{
+		UActorPartitionSubsystem* ActorSubsystem = World->GetSubsystem<UActorPartitionSubsystem>();
+		FActorPartitionGridHelper::ForEachIntersectingCell(InActorClass, IntersectionBounds, World->PersistentLevel, [&ActorSubsystem, &InActorClass, &IntersectionBounds, &InOperation](const UActorPartitionSubsystem::FCellCoord& InCellCoord, const FBox& InCellBounds) {
+
+			if (InCellBounds.Intersect(IntersectionBounds))
+			{
+				const bool bCreate = false;
+				if (auto PartitionActor = ActorSubsystem->GetActor(InActorClass, InCellCoord, bCreate))
+				{
+					return InOperation(PartitionActor);
+				}
+			}
+			return true;
+			});
+	}
+
 private:
 	UWorldPartitionSubsystem* WorldPartition;
 };
@@ -288,6 +319,14 @@ void UActorPartitionSubsystem::Deinitialize()
 	if (ActorPartition)
 	{
 		ActorPartition->GetOnActorPartitionHashInvalidated().Remove(ActorPartitionHashInvalidatedHandle);
+	}
+}
+
+void UActorPartitionSubsystem::ForEachRelevantActor(const TSubclassOf<APartitionActor>& InActorClass, const FBox& IntersectionBounds, TFunctionRef<bool(APartitionActor*)>InOperation) const
+{
+	if (ActorPartition)
+	{
+		ActorPartition->ForEachRelevantActor(InActorClass, IntersectionBounds, InOperation);
 	}
 }
 

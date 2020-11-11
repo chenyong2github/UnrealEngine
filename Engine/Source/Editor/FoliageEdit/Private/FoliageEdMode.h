@@ -568,6 +568,9 @@ public:
 
 	/** Returns the list of valid FoliageType class filters */
 	void GetFoliageTypeFilters(TArray<const UClass*>& OutFilters) const;
+
+	/*Find the relevant foliage actor with the foliage type and run the operation*/
+	static void ForEachFoliageInfo(UWorld* InWorld, const UFoliageType* FoliageType, const FSphere& BrushSphere, TFunctionRef<bool(AInstancedFoliageActor* IFA, FFoliageInfo* FoliageInfo, const UFoliageType* FoliageType)> InOperation);
 			
 private:
 
