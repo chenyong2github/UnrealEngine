@@ -174,24 +174,23 @@ bool RegisterDataTypeWithFrontend()
 	::Metasound::FDataTypeConstructorCallbacks Callbacks = { MoveTemp(InputNodeConstructor), MoveTemp(OutputNodeConstructor), MoveTemp(ProxyGenerator) };
 
 
-	::Metasound::FDataTypeRegistryInfo RegistryInfo;
+	Metasound::FDataTypeRegistryInfo RegistryInfo;
 
 	RegistryInfo.DataTypeName = DataTypeName;
 	RegistryInfo.PreferredLiteralType = PreferredArgType;
 
-	RegistryInfo.bIsBoolParsable = ::Metasound::TIsParsable<TDataType, bool>::Value;
-	RegistryInfo.bIsIntParsable = ::Metasound::TIsParsable<TDataType, int32>::Value;
-	RegistryInfo.bIsFloatParsable = ::Metasound::TIsParsable<TDataType, float>::Value;
-	RegistryInfo.bIsStringParsable = ::Metasound::TIsParsable<TDataType, FString>::Value;
-	RegistryInfo.bIsProxyParsable = ::Metasound::TIsParsable<TDataType, const Audio::IProxyDataPtr&>::Value;
-	RegistryInfo.bIsProxyArrayParsable = ::Metasound::TIsParsable<TDataType, const TArray<Audio::IProxyDataPtr>& >::Value;
-	RegistryInfo.bIsConstructableWithSettings = std::is_constructible<TDataType, const ::Metasound::FOperatorSettings&>::value;
-	RegistryInfo.bIsDefaultConstructible = std::is_constructible<TDataType>::value;
+	RegistryInfo.bIsBoolParsable = Metasound::TIsParsable<TDataType, bool>::Value;
+	RegistryInfo.bIsIntParsable = Metasound::TIsParsable<TDataType, int32>::Value;
+	RegistryInfo.bIsFloatParsable = Metasound::TIsParsable<TDataType, float>::Value;
+	RegistryInfo.bIsStringParsable = Metasound::TIsParsable<TDataType, FString>::Value;
+	RegistryInfo.bIsProxyParsable = Metasound::TIsParsable<TDataType, const Audio::IProxyDataPtr&>::Value;
+	RegistryInfo.bIsProxyArrayParsable = Metasound::TIsParsable<TDataType, const TArray<Audio::IProxyDataPtr>& >::Value;
+	RegistryInfo.bIsDefaultParsable = Metasound::TIsParsable<TDataType>::Value;
 	
 	RegistryInfo.ProxyGeneratorClass = UClassToUse::StaticClass();
 
 	bool bSucceeded = FMetasoundFrontendRegistryContainer::Get()->RegisterDataType(RegistryInfo, MoveTemp(Callbacks));
-	ensureAlwaysMsgf(bSucceeded, TEXT("Failed to register data type %s in the node registry!"), *::Metasound::GetMetasoundDataTypeString<TDataType>());
+	ensureAlwaysMsgf(bSucceeded, TEXT("Failed to register data type %s in the node registry!"), *Metasound::GetMetasoundDataTypeString<TDataType>());
 	
 	RegisterConverterNodes<TDataType>();
 	AttemptToRegisterSendAndReceiveNodes<TDataType>();

@@ -238,7 +238,7 @@ Metasound::ELiteralArgType FMetasoundFrontendRegistryContainer::GetDesiredLitera
 	{
 		return Metasound::ELiteralArgType::Boolean;
 	}
-	else if (DataTypeInfo.Info.bIsConstructableWithSettings || DataTypeInfo.Info.bIsDefaultConstructible)
+	else if (DataTypeInfo.Info.bIsDefaultParsable)
 	{
 		return Metasound::ELiteralArgType::None;
 	}
@@ -302,7 +302,7 @@ bool FMetasoundFrontendRegistryContainer::DoesDataTypeSupportLiteralType(FName I
 		}
 		case Metasound::ELiteralArgType::None:
 		{
-			return DataTypeInfo.Info.bIsConstructableWithSettings || DataTypeInfo.Info.bIsDefaultConstructible;
+			return DataTypeInfo.Info.bIsDefaultParsable;
 		}
 		case Metasound::ELiteralArgType::Invalid:
 		default:

@@ -25,38 +25,25 @@ namespace Metasound
 		FName DataTypeName;
 
 		// What type we should default to using for literals.
-		ELiteralArgType PreferredLiteralType;
+		ELiteralArgType PreferredLiteralType = ELiteralArgType::Invalid;
+
+		// This indicates the type can only be constructed with FOperatorSettings or the default constructor.
+		bool bIsDefaultParsable = false;
 
 		// These bools signify what basic
 		// UProperty primitives we can use to describe this data type as a literal in a document.
-		bool bIsBoolParsable;
-		bool bIsIntParsable;
-		bool bIsFloatParsable;
-		bool bIsStringParsable;
+		bool bIsBoolParsable = false;
+		bool bIsIntParsable = false;
+		bool bIsFloatParsable = false;
+		bool bIsStringParsable = false;
 
 		// these are used for using UObjects, or arrays of UObjects.
-		bool bIsProxyParsable;
-		bool bIsProxyArrayParsable;
+		bool bIsProxyParsable = false;
+		bool bIsProxyArrayParsable = false;
 
 		// If this datatype was registered with a specific UClass to use to filter with, that will be used here:
-		UClass* ProxyGeneratorClass;
+		UClass* ProxyGeneratorClass = nullptr;
 
-		// This indicates the type can only be constructed with FOperatorSettings and no other args.
-		// TODO: these can be consolidated to a single bool, since FDataTypeLiteralParam automatically falls back to not using the settings.
-		bool bIsConstructableWithSettings;
-		bool bIsDefaultConstructible;
-
-		FDataTypeRegistryInfo()
-			: bIsBoolParsable(false)
-			, bIsIntParsable(false)
-			, bIsFloatParsable(false)
-			, bIsStringParsable(false)
-			, bIsProxyParsable(false)
-			, bIsProxyArrayParsable(false)
-			, ProxyGeneratorClass(nullptr)
-			, bIsConstructableWithSettings(false)
-			, bIsDefaultConstructible(false)
-		{}
 	};
 
 	namespace Frontend
