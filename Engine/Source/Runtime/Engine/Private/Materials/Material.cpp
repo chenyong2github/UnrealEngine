@@ -882,7 +882,7 @@ FMaterialResource* FindOrCreateMaterialResource(TArray<FMaterialResource*>& Mate
 		// UE-101396: output debug info before hitting the check below.
 		UE_LOG(LogConsoleResponse, Display, TEXT("Going to hit check() %d %d %d %d"), NumMaterialResourcesForDebug, InFeatureLevel, InQualityLevel, QualityLevelForResource);
 		UE_LOG(LogConsoleResponse, Display, TEXT("OwnerMaterial"));
-		if (OwnerMaterial != nullptr) OwnerMaterial->DumpDebugInfo();
+		OwnerMaterial->DumpDebugInfo();
 		UE_LOG(LogConsoleResponse, Display, TEXT("OwnerMaterialInstance"));
 		if (OwnerMaterialInstance != nullptr) OwnerMaterialInstance->DumpDebugInfo();
 		UE_LOG(LogConsoleResponse, Display, TEXT("CurrentOwnerMaterial"));
