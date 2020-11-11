@@ -79,9 +79,7 @@ public:
 	virtual void PreRender(FRHICommandListImmediate& RHICmdList, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleUpdate) override;
 	virtual void OnDestroy() override; // Called on the gamethread to delete the batcher on the renderthread.
 
-	virtual void Tick(float DeltaTime) override
-	{
-	}
+	virtual void Tick(float DeltaTime) override;
 
 	virtual void PostRenderOpaque(
 		FRHICommandListImmediate& RHICmdList,
@@ -89,6 +87,16 @@ public:
 		const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
 		FRHIUniformBuffer* SceneTexturesUniformBuffer,
 		bool bAllowGPUParticleUpdate) override;
+
+	/**
+	 * Process and respond to a build up of excessive ticks inside the batcher.
+	 * In the case of the application not having focus the game thread may continue
+	 * to process and send ticks to the render thread but the rendering thread may
+	 * never process them.  The World Manager will ensure this is called once per
+	 * game frame so we have an opportunity to flush the ticks avoiding a stall
+	 * when we gain focus again.
+	 */
+	void ProcessPendingTicksFlush(FRHICommandListImmediate& RHICmdList);
 
 	/** Processes all pending readbacks */
 	void ProcessDebugReadbacks(FRHICommandListImmediate& RHICmdList, bool bWaitCompletion);
@@ -252,9 +260,7 @@ private:
 	TRefCountPtr<FNiagaraRHIUniformBufferLayout> OwnerCBufferLayout;
 	TRefCountPtr<FNiagaraRHIUniformBufferLayout> EmitterCBufferLayout;
 
-	// @todo REMOVE THIS HACK
-	uint32 NumFramesWithUnprocessedTicks;
-	uint32 LastFrameWithNewTicks;
+	uint32 FramesBeforeTickFlush = 0;
 	
 	TArray<FNiagaraGPUSystemTick> Ticks_RT;
 	FGlobalDistanceFieldParameterData GlobalDistanceFieldParams;
