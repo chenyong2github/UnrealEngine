@@ -41,6 +41,7 @@ public:
 	/** Call the inner backend and when that completes, remove the memory cache */
 	void DoWork()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DDCPut_DoWork);
 		COOK_STAT(auto Timer = UsageStats.TimePut());
 		bool bOk = true;
 		bool bDidTry = false;
@@ -175,6 +176,7 @@ bool FDerivedDataBackendAsyncPutWrapper::GetCachedData(const TCHAR* CacheKey, TA
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s CacheHit from InFlightCache on %s"), *GetName(), CacheKey);
 		return true;
 	}
+
 	bool bSuccess = InnerBackend->GetCachedData(CacheKey, OutData);
 	if (bSuccess)
 	{
@@ -191,6 +193,7 @@ bool FDerivedDataBackendAsyncPutWrapper::GetCachedData(const TCHAR* CacheKey, TA
 void FDerivedDataBackendAsyncPutWrapper::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	COOK_STAT(auto Timer = PutSyncUsageStats.TimePut());
+
 	if (!InnerBackend->IsWritable())
 	{
 		return; // no point in continuing down the chain
