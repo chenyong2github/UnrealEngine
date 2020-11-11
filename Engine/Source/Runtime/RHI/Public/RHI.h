@@ -1691,47 +1691,6 @@ inline constexpr bool IsValidAccess(ERHIAccess Access)
 	return !IsInvalidAccess(Access);
 }
 
-inline ERHIAccess RHIDecayResourceAccess(ERHIAccess AccessMask, ERHIAccess RequiredAccess, bool bAllowUAVOverlap)
-{
-	using T = __underlying_type(ERHIAccess);
-	checkf((T(RequiredAccess) & (T(RequiredAccess) - 1)) == 0, TEXT("Only one required access bit may be set at once."));
-
-	if (!bAllowUAVOverlap && EnumHasAnyFlags(RequiredAccess, ERHIAccess::UAVMask))
-	{
-		// UAV writes decay to no allowed resource access when overlaps are disabled. A barrier is always required after the dispatch/draw.
-		return ERHIAccess::None;
-	}
-	
-	// Handle DSV modes
-	if (EnumHasAnyFlags(RequiredAccess, ERHIAccess::DSVWrite))
-	{
-		constexpr ERHIAccess CompatibleStates =
-			ERHIAccess::DSVRead |
-			ERHIAccess::DSVWrite;
-
-		return AccessMask & CompatibleStates;
-	}
-	if (EnumHasAnyFlags(RequiredAccess, ERHIAccess::DSVRead))
-	{
-		constexpr ERHIAccess CompatibleStates =
-			ERHIAccess::DSVRead |
-			ERHIAccess::DSVWrite |
-			ERHIAccess::SRVGraphics |
-			ERHIAccess::SRVCompute;
-
-		return AccessMask & CompatibleStates;
-	}
-
-	if (EnumHasAnyFlags(RequiredAccess, ERHIAccess::WritableMask))
-	{
-		// Decay to only 1 allowed state for all other writable states.
-		return RequiredAccess; 
-	}
-
-	// Else, the state is readable. All readable states are compatible.
-	return AccessMask;
-}
-
 enum class ERHICreateTransitionFlags
 {
 	None = 0,
