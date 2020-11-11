@@ -92,7 +92,7 @@ public:
 	{}
 		
 private:
-
+	EActiveTimerReturnType SetFocusPostConstruct(double InCurrentTime, float InDeltaTime);
 	bool CanImport() const;
 	FReply OnResetToDefaultClick() const;
 	FText GetImportTypeDisplayText() const;
@@ -101,7 +101,7 @@ private:
 	UFbxImportUI*	ImportUI;
 	TSharedPtr<class IDetailsView> DetailsView;
 	TWeakPtr< SWindow > WidgetWindow;
-	TSharedPtr< SButton > ImportButton;
+	TSharedPtr<SButton> ImportAllButton;
 	bool			bShouldImport;
 	bool			bShouldImportAll;
 	bool			bIsObjFormat;

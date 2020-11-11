@@ -239,7 +239,7 @@ FBXImportOptions* GetImportOptions( UnFbx::FFbxImporter* FbxImporter, UFbxImport
 		}
 
 		// Compute centered window position based on max window size, which include when all categories are expanded
-		const float FbxImportWindowWidth = 410.0f;
+		const float FbxImportWindowWidth = 450.0f;
 		const float FbxImportWindowHeight = 750.0f;
 		FVector2D FbxImportWindowSize = FVector2D(FbxImportWindowWidth, FbxImportWindowHeight); // Max window size it can get based on current slate
 
