@@ -453,7 +453,11 @@ void FScene::AddLight(LightComponentType* PointLightComponent)
 		}
 	});
 
-	ENQUEUE_RENDER_COMMAND(InvalidateRevision)([&RenderState = RenderState](FRHICommandListImmediate& RHICmdList) { RenderState.LightmapRenderer->BumpRevision(); });
+	ENQUEUE_RENDER_COMMAND(InvalidateRevision)([&RenderState = RenderState](FRHICommandListImmediate& RHICmdList) { 
+		RenderState.LightmapRenderer->BumpRevision();
+		RenderState.VolumetricLightmapRenderer->FrameNumber = 0;
+		RenderState.VolumetricLightmapRenderer->SamplesTaken = 0;
+	});
 }
 
 template void FScene::AddLight(UDirectionalLightComponent* LightComponent);
@@ -1770,7 +1774,7 @@ void FSceneRenderState::BackgroundTick()
 			{
 				int32 NumCellsPerBrick = 5 * 5 * 5;
 				SamplesTaken += VolumetricLightmapRenderer->SamplesTaken;
-				TotalSamples += (uint64)VolumetricLightmapRenderer->NumTotalBricks * NumCellsPerBrick * Settings->GISamples;
+				TotalSamples += (uint64)VolumetricLightmapRenderer->NumTotalBricks * NumCellsPerBrick * Settings->GISamples * VolumetricLightmapRenderer->GetGISamplesMultiplier();
 			}
 		}
 		else
