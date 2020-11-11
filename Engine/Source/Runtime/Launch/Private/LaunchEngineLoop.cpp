@@ -3023,6 +3023,19 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 				FShaderPipelineCache::OpenPipelineFileCache(GMaxRHIShaderPlatform);
 			}
 		}
+#if WITH_EDITOR
+		else if (GAllowCookedDataInEditorBuilds)
+		{
+			//Handle opening shader library after our EarlyLoadScreen
+			{
+				LLM_SCOPE(ELLMTag::Shaders);
+				SCOPED_BOOT_TIMING("FShaderCodeLibrary::OpenLibrary");
+
+				// Open the game library which contains the material shaders.
+				FShaderCodeLibrary::OpenLibrary(FApp::GetProjectName(), FPaths::ProjectContentDir());
+			}
+		}
+#endif
 
 		BeginInitGameTextLocalization();
 
