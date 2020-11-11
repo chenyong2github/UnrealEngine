@@ -39,8 +39,12 @@ public:
 	virtual bool CanAddPin() const override;
 	virtual bool CanRemovePin(const UEdGraphPin* Pin) const override;
 	virtual void RemoveInputPin(UEdGraphPin* Pin) override;
-	// end IK2Node_AddPinInterface interface
+	// End of IK2Node_AddPinInterface interface
 
+	// UK2Node_CallFunction interface
+	virtual void SetFromFunction(const UFunction* Function);
+	// End of UK2Node_CallFunction interface
+	
 private:
 
 	/**

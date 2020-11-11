@@ -531,6 +531,18 @@ UEdGraphPin* UK2Node_PromotableOperator::GetAdditionalPin(int32 PinIndex) const
 }
 
 ///////////////////////////////////////////////////////////
+// UK2Node_CallFunction interface
+void UK2Node_PromotableOperator::SetFromFunction(const UFunction* Function)
+{
+	Super::SetFromFunction(Function);
+
+	if(Function)
+	{
+		OperationName = FTypePromotion::GetOpNameFromFunction(Function);
+	}
+}
+
+///////////////////////////////////////////////////////////
 // UK2Node_PromotableOperator
 
 UEdGraphPin* UK2Node_PromotableOperator::AddInputPinImpl(int32 PinIndex)
