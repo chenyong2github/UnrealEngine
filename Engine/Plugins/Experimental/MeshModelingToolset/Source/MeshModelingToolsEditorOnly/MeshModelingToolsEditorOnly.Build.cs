@@ -60,6 +60,7 @@ public class MeshModelingToolsEditorOnly : ModuleRules
 				"MeshUtilitiesCommon",  
 				"MeshReductionInterface", // for UE4 standard simplification 
                 "ProxyLODMeshReduction", // for mesh merging voxel-based csg
+				"OpenSubdiv",
 				//"Slate",
 				//"SlateCore",
 				// ... add private dependencies that you statically link with here ...	

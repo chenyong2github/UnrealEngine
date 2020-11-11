@@ -36,6 +36,7 @@ public:
 
 	TSharedPtr<FUICommandInfo> BeginSculptMeshTool;
 	TSharedPtr<FUICommandInfo> BeginPolyEditTool;
+	TSharedPtr<FUICommandInfo> BeginSubdividePolyTool;
 	TSharedPtr<FUICommandInfo> BeginGroupEdgeInsertionTool;
 	TSharedPtr<FUICommandInfo> BeginEdgeLoopInsertionTool;
 	TSharedPtr<FUICommandInfo> BeginTriEditTool;

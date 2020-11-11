@@ -17,6 +17,7 @@
 #include "MeshVertexSculptTool.h"
 #include "EditMeshPolygonsTool.h"
 #include "DeformMeshPolygonsTool.h"
+#include "SubdividePolyTool.h"
 #include "GroupEdgeInsertionTool.h"
 #include "EdgeLoopInsertionTool.h"
 #include "ConvertToPolygonsTool.h"
@@ -621,6 +622,8 @@ void FModelingToolsEditorMode::Enter()
 	auto EdgeLoopInsertionToolBuilder = NewObject<UEdgeLoopInsertionToolBuilder>();
 	EdgeLoopInsertionToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginEdgeLoopInsertionTool, TEXT("EdgeLoopInsertionTool"), EdgeLoopInsertionToolBuilder);
+
+	RegisterToolFunc(ToolManagerCommands.BeginSubdividePolyTool, TEXT("SubdividePolyTool"), NewObject<USubdividePolyToolBuilder>());
 
 	auto EditNormalsToolBuilder = NewObject<UEditNormalsToolBuilder>();
 	EditNormalsToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();

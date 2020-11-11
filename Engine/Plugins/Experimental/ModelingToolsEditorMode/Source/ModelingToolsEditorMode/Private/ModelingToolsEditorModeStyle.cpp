@@ -116,6 +116,8 @@ void FModelingToolsEditorModeStyle::Initialize()
 		StyleSet->Set("ModelingToolsManagerCommands.BeginSculptMeshTool.Small", 		new IMAGE_PLUGIN_BRUSH("Icons/Sculpt_40x", 			Icon20x20));
 		StyleSet->Set("ModelingToolsManagerCommands.BeginPolyEditTool", 				new IMAGE_PLUGIN_BRUSH("Icons/PolyEdit_40x", 		Icon20x20));
 		StyleSet->Set("ModelingToolsManagerCommands.BeginPolyEditTool.Small", 			new IMAGE_PLUGIN_BRUSH("Icons/PolyEdit_40x", 		Icon20x20));
+		//StyleSet->Set("ModelingToolsManagerCommands.BeginSubdividePolyTool",			new IMAGE_PLUGIN_BRUSH("Icons/PolyEdit_40x",		Icon20x20));
+		//StyleSet->Set("ModelingToolsManagerCommands.BeginSubdividePolyTool.Small",		new IMAGE_PLUGIN_BRUSH("Icons/PolyEdit_40x",		Icon20x20));
 		StyleSet->Set("ModelingToolsManagerCommands.BeginTriEditTool", 					new IMAGE_PLUGIN_BRUSH("Icons/TriEdit_40x", 		Icon20x20));
 		StyleSet->Set("ModelingToolsManagerCommands.BeginTriEditTool.Small", 			new IMAGE_PLUGIN_BRUSH("Icons/TriEdit_40x", 		Icon20x20));
 		//StyleSet->Set("ModelingToolsManagerCommands.BeginPolyDeformTool", 				new IMAGE_PLUGIN_BRUSH("Icons/PolyEdit_40x", 		Icon20x20));
