@@ -6,6 +6,7 @@
 #include "CoreFwd.h"
 #include "HAL/PlatformCrt.h"
 #include "Misc/CompressionFlags.h"
+#include "Math/NumericLimits.h"
 
 class Error;
 class GenericApplication;
@@ -1471,9 +1472,18 @@ public:
 	/**
 	 * retrieves the maximum refresh rate supported by the platform
 	 */
-	static int32 GetMaxRefreshRate()
+	static inline int32 GetMaxRefreshRate()
 	{
 		return 60;
+	}
+
+	/**
+	 * Returns the platform's maximum allowed value for rhi.SyncInterval
+	 */
+	static inline int32 GetMaxSyncInterval()
+	{
+		// Generic platform has no limit.
+		return MAX_int32;
 	}
 	
 	/**
