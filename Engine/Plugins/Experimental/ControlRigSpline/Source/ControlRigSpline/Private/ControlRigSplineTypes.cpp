@@ -4,6 +4,11 @@ void FControlRigSpline::SetControlPoints(const TArray<FVector>& InPoints, const 
 {
 	const int32 ControlPointsCount = InPoints.Num();
 
+	if (ControlPointsCount < 4)
+	{
+		return;
+	}
+
 	switch (SplineMode)
 	{
 		case ESplineType::BSpline:
@@ -22,6 +27,7 @@ void FControlRigSpline::SetControlPoints(const TArray<FVector>& InPoints, const 
 			{
 				ts_bspline_set_control_point_at(BSpline->data(), i, &InPoints[i].X, nullptr);
 			}
+			
 			break;
 		}
 		case ESplineType::Hermite:
@@ -149,4 +155,58 @@ FVector FControlRigSpline::PositionAtParam(const float InParam) const
 	}
 
 	return Position;
+}
+
+FVector FControlRigSpline::TangentAtParam(const float InParam) const
+{
+	if (!BSpline.IsValid())
+	{
+		return FVector();
+	}
+
+	const float ClampedU = FMath::Clamp<float>(InParam, 0.f, 1.f);
+	const float Epsilon = 0.001f;
+
+	FVector Tangent;
+	std::vector<tinyspline::real> Result;
+	switch (SplineMode)
+	{
+		case ESplineType::BSpline:
+		{
+			float EpsilonMinus = ClampedU - Epsilon;
+			float EpsilonPlus = ClampedU + Epsilon;
+			if (EpsilonMinus < 0)
+			{
+				EpsilonMinus = 0.f;
+				EpsilonPlus = 2*Epsilon;
+			}
+			if (EpsilonPlus > 1.f)
+			{
+				EpsilonMinus = 1.f - 2*Epsilon;
+				EpsilonPlus = 1.f;
+			}
+			Result = BSpline->eval(EpsilonMinus).result();
+			FVector PositionMinus(Result[0], Result[1], Result[2]);
+			Result = BSpline->eval(EpsilonPlus).result();
+			FVector PositionPlus(Result[0], Result[1], Result[2]);
+			Tangent = PositionPlus - PositionMinus;
+			break;
+		}
+		case ESplineType::Hermite:
+		{
+			Result = BSpline->bisect(ClampedU - Epsilon).result();
+			FVector PositionMinus(Result[1], Result[2], Result[3]);
+			Result = BSpline->bisect(ClampedU + Epsilon).result();
+			FVector PositionPlus(Result[1], Result[2], Result[3]);
+			Tangent = PositionPlus - PositionMinus;
+			break;
+		}
+		default:
+		{
+			checkNoEntry(); // Unknown Spline Mode
+			break;
+		}
+	}
+
+	return Tangent;
 }

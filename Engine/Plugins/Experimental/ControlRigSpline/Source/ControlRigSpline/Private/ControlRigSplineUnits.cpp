@@ -47,6 +47,43 @@ FRigUnit_PositionFromControlRigSpline_Execute()
 	}
 }
 
+FRigUnit_TransformFromControlRigSpline_Execute()
+{
+	switch (Context.State)
+	{
+		case EControlRigState::Init:
+		case EControlRigState::Update:
+		{
+			FVector UpVectorNormalized = UpVector;
+			UpVectorNormalized.Normalize();
+
+			const float ClampedU = FMath::Clamp<float>(U, 0.f, 1.f);
+			const float ClampedTwist = FMath::Clamp<float>(Twist, -180.f, 180.f);
+		
+			FVector Tangent = Spline.TangentAtParam(ClampedU);
+
+			// Check if Tangent can be normalized. If not, keep the same tangent as before.
+			if (!Tangent.Normalize())
+			{
+				Tangent = Transform.ToMatrixNoScale().GetUnitAxis(EAxis::X);
+			}
+			FVector Binormal = FVector::CrossProduct(Tangent, UpVectorNormalized);
+			Binormal = Binormal.RotateAngleAxis(ClampedTwist * ClampedU, Tangent);
+
+			FMatrix RotationMatrix = FRotationMatrix::MakeFromXZ(Tangent, Binormal);
+
+			Transform.SetFromMatrix(RotationMatrix);
+			Transform.SetTranslation(Spline.PositionAtParam(U));
+			break;
+		}
+		default:
+		{
+			checkNoEntry(); // Execute is only defined for Init and Update
+			break;
+		}
+	}
+}
+
 FRigUnit_DrawControlRigSpline_Execute()
 {
 	if (Context.State == EControlRigState::Init)

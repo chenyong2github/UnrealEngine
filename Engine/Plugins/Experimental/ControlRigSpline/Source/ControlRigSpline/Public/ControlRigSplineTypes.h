@@ -63,6 +63,15 @@ struct CONTROLRIGSPLINE_API FControlRigSpline
 	*/
 	FVector PositionAtParam(const float InParam) const;
 
+	/**
+	* Given an InParam float in [0, 1], will return the tangent vector of the spline at that point. 
+	* Note that this vector is not normalized.
+	*
+	* @param InParam	The parameter between [0, 1] to query.
+	* @return			The tangent of the spline at InParam.
+	*/
+	FVector TangentAtParam(const float InParam) const;
+
 	// Auxiliary control points array, which is different from the Points array
 	// when SplineMode is Hermite
 	TArray<float> ControlPointsArray;
