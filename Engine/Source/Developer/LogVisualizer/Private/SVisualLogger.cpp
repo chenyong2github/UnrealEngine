@@ -58,8 +58,6 @@ namespace LogVisualizer
 	static const FString SaveFileTypes = FString::Printf(TEXT("%s (*.%s)|*.%s"), *LogFileDescription, VISLOG_FILENAME_EXT, VISLOG_FILENAME_EXT);
 }
 
-DECLARE_DELEGATE_TwoParams(FOnWorldChanged, UWorld*, UWorld*);
-
 /* SMessagingDebugger constructors
 *****************************************************************************/
 namespace
@@ -165,7 +163,6 @@ void SVisualLogger::Construct(const FArguments& InArgs, const TSharedRef<SDockTa
 	FVisualLoggerDatabase::Get().GetEvents().OnItemSelectionChanged.AddRaw(this, &SVisualLogger::OnItemsSelectionChanged);
 
 	GEngine->OnWorldAdded().AddRaw(this, &SVisualLogger::OnNewWorld);
-	GEngine->OnWorldAdded().AddRaw(this, &SVisualLogger::OnWorldDestroyed);
 
 	//////////////////////////////////////////////////////////////////////////
 	// Command Action Lists
@@ -725,17 +722,6 @@ void SVisualLogger::ResetData()
 	FLogVisualizer::Get().GetEvents().OnLogLineSelectionChanged = FOnLogLineSelectionChanged::CreateRaw(this, &SVisualLogger::OnLogLineSelectionChanged);
 	FLogVisualizer::Get().GetEvents().OnKeyboardEvent = FOnKeyboardEvent::CreateRaw(this, &SVisualLogger::OnKeyboardRedirection);
 	FLogVisualizer::Get().GetTimeSliderController().Get()->GetTimeSliderArgs().OnScrubPositionChanged = FVisualLoggerTimeSliderArgs::FOnScrubPositionChanged::CreateRaw(this, &SVisualLogger::OnScrubPositionChanged);
-}
-
-void SVisualLogger::OnWorldDestroyed(UWorld* NewWorld)
-{
-	if (NewWorld)
-	{
-		for (TActorIterator<AVisualLoggerRenderingActor> It(NewWorld); It; ++It)
-		{
-			NewWorld->DestroyActor(*It);
-		}
-	}
 }
 
 void SVisualLogger::OnNewWorld(UWorld* NewWorld)
