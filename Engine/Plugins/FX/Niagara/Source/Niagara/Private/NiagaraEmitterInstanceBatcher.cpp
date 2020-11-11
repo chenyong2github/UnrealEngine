@@ -22,6 +22,8 @@
 #include "GPUSort.h"
 #include "CanvasTypes.h"
 #include "Engine/Canvas.h"
+#include "Runtime/Renderer/Private/SceneRendering.h"
+#include "Runtime/Renderer/Private/PostProcess/SceneRenderTargets.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara Dispatch Setup"), STAT_NiagaraGPUDispatchSetup_RT, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("GPU Emitter Dispatch [RT]"), STAT_NiagaraGPUSimTick_RT, STATGROUP_Niagara);
@@ -60,12 +62,11 @@ static FAutoConsoleVariableRef CVarNiagaraUseAsyncCompute(
 	ECVF_Default
 );
 
-// @todo REMOVE THIS HACK
 int32 GNiagaraGpuMaxQueuedRenderFrames = 10;
 static FAutoConsoleVariableRef CVarNiagaraGpuMaxQueuedRenderFrames(
-	TEXT("fx.NiagaraGpuMaxQueuedRenderFrames"),
+	TEXT("fx.Niagara.Batcher.MaxQueuedFramesWithoutRender"),
 	GNiagaraGpuMaxQueuedRenderFrames,
-	TEXT("Number of frames we all to pass before we start to discard GPU ticks.\n"),
+	TEXT("Number of frames we allow to be queued before we force ticks to be released or executed.\n"),
 	ECVF_Default
 );
 
@@ -90,6 +91,26 @@ const FName NiagaraEmitterInstanceBatcher::Name(TEXT("NiagaraEmitterInstanceBatc
 
 namespace NiagaraEmitterInstanceBatcherLocal
 {
+	int32 GTickFlushMaxQueuedFrames = 10;
+	static FAutoConsoleVariableRef CVarNiagaraTickFlushMaxQueuedFrames(
+		TEXT("fx.Niagara.Batcher.TickFlush.MaxQueuedFrames"),
+		GTickFlushMaxQueuedFrames,
+		TEXT("The number of unprocessed frames with queued ticks before we process them.\n")
+		TEXT("The larger the number the more data we process in a single frame, this is generally only a concern when the application does not have focus."),
+		ECVF_Default
+	);
+
+	int32 GTickFlushMode = 1;
+	static FAutoConsoleVariableRef CVarNiagaraTickFlushMode(
+		TEXT("fx.Niagara.Batcher.TickFlush.Mode"),
+		GTickFlushMode,
+		TEXT("What to do when we go over our max queued frames.\n")
+		TEXT("0 = Keep ticks queued, can result in a long pause when gaining focus again.\n")
+		TEXT("1 = (Default) Process all queued ticks with dummy view / buffer data, may result in incorrect simulation due to missing depth collisions, etc.\n")
+		TEXT("2 = Kill all pending ticks, may result in incorrect simulation due to missing frames of data, i.e. a particle reset.\n"),
+		ECVF_Default
+	);
+
 	static ETickStage CalculateTickStage(const FNiagaraGPUSystemTick& Tick)
 	{
 		if (!GNiagaraAllowTickBeforeRender || Tick.bRequiresDistanceFieldData || Tick.bRequiresDepthBuffer)
@@ -130,9 +151,6 @@ NiagaraEmitterInstanceBatcher::NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::T
 	: FeatureLevel(InFeatureLevel)
 	, ShaderPlatform(InShaderPlatform)
 	, GPUSortManager(InGPUSortManager)
-	// @todo REMOVE THIS HACK
-	, NumFramesWithUnprocessedTicks(0)
-	, LastFrameWithNewTicks(INDEX_NONE)
 	, NumAllocatedFreeIDListSizes(0)
 	, bFreeIDListSizesBufferCleared(false)
 {
@@ -341,22 +359,6 @@ void NiagaraEmitterInstanceBatcher::GiveSystemTick_RenderThread(FNiagaraGPUSyste
 		return;
 	}
 
-	// @todo REMOVE THIS HACK
-	if (NumFramesWithUnprocessedTicks > (uint32)GNiagaraGpuMaxQueuedRenderFrames)
-	{
-		Tick.Destroy();
-		return;
-	}
-	
-	//Track the number of frames we add new ticks that go unprocessed.
-	//We want to avoid cases where many frames of ticks are processed at once.
-	//Though we must not prevent the initial tick when returning from a state of the game being paused or otherwise not ticked. For example, non-realtime viewports.
-	if (LastFrameWithNewTicks != GFrameNumberRenderThread)
-	{
-		++NumFramesWithUnprocessedTicks;
-		LastFrameWithNewTicks = GFrameNumberRenderThread;
-	}
-
 	// Now we consume DataInterface instance data.
 	if (Tick.DIInstanceData)
 	{
@@ -394,6 +396,89 @@ void NiagaraEmitterInstanceBatcher::ReleaseInstanceCounts_RenderThread(FNiagaraC
 	if ( DataSet != nullptr )
 	{
 		DataSet->ReleaseGPUInstanceCounts(GPUInstanceCounterManager);
+	}
+}
+
+void NiagaraEmitterInstanceBatcher::Tick(float DeltaTime)
+{
+	check(IsInGameThread());
+	ENQUEUE_RENDER_COMMAND(NiagaraPumpBatcher)(
+		[RT_NiagaraBatcher=this](FRHICommandListImmediate& RHICmdList)
+		{
+			RT_NiagaraBatcher->ProcessPendingTicksFlush(RHICmdList);
+		}
+	);
+}
+
+void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImmediate& RHICmdList)
+{
+	// No ticks are pending
+	if ( Ticks_RT.Num() == 0 )
+	{
+		FramesBeforeTickFlush = 0;
+		return;
+	}
+
+	// We have pending ticks increment our counter, once we cross the threshold we will perform the appropriate operation
+	++FramesBeforeTickFlush;
+	if (FramesBeforeTickFlush < uint32(NiagaraEmitterInstanceBatcherLocal::GTickFlushMaxQueuedFrames) )
+	{
+		return;
+	}
+	FramesBeforeTickFlush = 0;
+
+	switch (NiagaraEmitterInstanceBatcherLocal::GTickFlushMode)
+	{
+		// Do nothing
+		default:
+		case 0:
+		{
+			//UE_LOG(LogNiagara, Log, TEXT("NiagaraEmitterInstanceBatcher: Queued ticks (%d) are building up, this may cause a stall when released."), Ticks_RT.Num());
+			break;
+		}
+
+		// Process all the pending ticks that have built up
+		case 1:
+		{
+			//UE_LOG(LogNiagara, Log, TEXT("NiagaraEmitterInstanceBatcher: Queued ticks are being Processed due to not rendering.  This may result in undesirable simulation artifacts."));
+
+			// Make a temporary ViewInfo
+			//-TODO: We could gather some more information here perhaps?
+			FSceneViewFamily ViewFamily(FSceneViewFamily::ConstructionValues(nullptr, nullptr, FEngineShowFlags(ESFIM_Game))
+				.SetWorldTimes(0, 0, 0)
+				.SetGammaCorrection(1.0f));
+
+			FSceneViewInitOptions ViewInitOptions;
+			ViewInitOptions.ViewFamily = &ViewFamily;
+			ViewInitOptions.SetViewRectangle(FIntRect(0, 0, 128, 128));
+			ViewInitOptions.ViewOrigin = FVector::ZeroVector;
+			ViewInitOptions.ViewRotationMatrix = FMatrix::Identity;
+			ViewInitOptions.ProjectionMatrix = FMatrix::Identity;
+
+			FViewInfo View(ViewInitOptions);
+			View.CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
+
+			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(FRHICommandListExecutor::GetImmediateCommandList());
+			FBox UnusedVolumeBounds[TVC_MAX];
+			View.SetupUniformBufferParameters(SceneContext, UnusedVolumeBounds, TVC_MAX, *View.CachedViewUniformShaderParameters);
+
+			View.ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*View.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
+
+			// Execute all ticks that we can support without invalid simulations
+			PreInitViews(RHICmdList, true);
+			PostInitViews(RHICmdList, View.ViewUniformBuffer, true);
+			PostRenderOpaque(RHICmdList, View.ViewUniformBuffer, &FSceneTextureUniformParameters::StaticStructMetadata, CreateSceneTextureUniformBuffer(RHICmdList, FeatureLevel), true);
+			break;
+		}
+
+		// Kill all the pending ticks that have built up
+		case 2:
+		{
+			//UE_LOG(LogNiagara, Log, TEXT("NiagaraEmitterInstanceBatcher: Queued ticks are being Destroyed due to not rendering.  This may result in undesirable simulation artifacts."));
+
+			FinishDispatches();
+			break;
+		}
 	}
 }
 
@@ -1305,6 +1390,8 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 
 void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICmdList, bool bAllowGPUParticleUpdate)
 {
+	FramesBeforeTickFlush = 0;
+
 	GpuReadbackManagerPtr->Tick();
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 	if ( FNiagaraGpuComputeDebug* GpuComputeDebug = GetGpuComputeDebug() )
@@ -1316,6 +1403,7 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 
 	if (!FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
+		FinishDispatches();
 		return;
 	}
 
@@ -1369,9 +1457,6 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 	{
 		UpdateInstanceCountManager(RHICmdList);
 		BuildTickStagePasses(RHICmdList, ETickStage::PreInitViews);
-
-		// @todo REMOVE THIS HACK
-		NumFramesWithUnprocessedTicks = 0;
 
 		if (GNiagaraAllowTickBeforeRender)
 		{
