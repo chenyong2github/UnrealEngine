@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ExternalActorsUtils.h"
+#include "Serialization/ArchiveUObject.h"
+#include "GameFramework/Actor.h"
 
 class FArchiveGatherExternalActorRefs : public FArchiveUObject
 {

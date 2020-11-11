@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+class AActor;
+
 namespace ExternalActorsUtils
 {
 	/**
