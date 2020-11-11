@@ -140,8 +140,15 @@ int32 UGatherTextCommandlet::ProcessGatherConfig(const FString& GatherTextConfig
 		}
 	}
 
+	FString LocalizationTargetName;
+	{
+		FString ManifestName;
+		GetStringFromConfig(TEXT("CommonSettings"), TEXT("ManifestName"), ManifestName, GatherTextConfigPath);
+		LocalizationTargetName = FPaths::GetBaseFilename(ManifestName);
+	}
+
 	// Basic helper that can be used only to gather a new manifest for writing
-	TSharedRef<FLocTextHelper> CommandletGatherManifestHelper = MakeShareable(new FLocTextHelper(MakeShareable(new FLocFileSCCNotifies(CommandletSourceControlInfo)), PlatformSplitMode));
+	TSharedRef<FLocTextHelper> CommandletGatherManifestHelper = MakeShared<FLocTextHelper>(LocalizationTargetName, MakeShared<FLocFileSCCNotifies>(CommandletSourceControlInfo), PlatformSplitMode);
 	CommandletGatherManifestHelper->LoadManifest(ELocTextHelperLoadFlags::Create);
 
 	const FString GatherTextStepPrefix = TEXT("GatherTextStep");

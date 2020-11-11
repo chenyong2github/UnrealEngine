@@ -10,6 +10,13 @@
 #include "LocalizedAssetUtil.h"
 #include "GatherTextCommandletBase.generated.h"
 
+struct UNREALED_API FGatherTextDelegates
+{
+	/** Delegate called during a localization gather to allow code to inject new gather and exclude paths for the given localization target */
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FGetAdditionalGatherPaths, const FString& /*InLocalizationTargetName*/, TArray<FString>& /*InOutIncludePathFilters*/, TArray<FString>& /*InOutExcludePathFilters*/);
+	static FGetAdditionalGatherPaths GetAdditionalGatherPaths;
+};
+
 /** Performs fuzzy path matching against a set of include and exclude paths */
 class FFuzzyPathMatcher
 {

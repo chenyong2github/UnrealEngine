@@ -245,9 +245,10 @@ public:
 	 * @note This kind of helper is only suitable for dealing with manifests, *not* archives.
 	 *
 	 * @param InLocFileNotifies		Interface for allowing source control integration (may be null).
+	 * @param InTargetName			The name of the target we're working with (eg, Game).
 	 * @param InPlatformSplitMode	Should we split localization data per-platform?
 	 */
-	explicit FLocTextHelper(TSharedPtr<ILocFileNotifies> InLocFileNotifies, const ELocTextPlatformSplitMode InPlatformSplitMode = ELocTextPlatformSplitMode::None);
+	FLocTextHelper(FString InTargetName, TSharedPtr<ILocFileNotifies> InLocFileNotifies, const ELocTextPlatformSplitMode InPlatformSplitMode = ELocTextPlatformSplitMode::None);
 
 	/**
 	 * Construct a helper for the given target information.
