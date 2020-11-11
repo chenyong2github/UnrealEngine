@@ -676,6 +676,10 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 				Scene.GPUScene.InstanceUploadBuffer.ResourceUploadTo(RHICmdList, Scene.GPUScene.InstanceDataBuffer, false);
 				RHICmdList.Transition(FRHITransitionInfo(Scene.GPUScene.InstanceDataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 			}
+			else
+			{
+				RHICmdList.Transition(FRHITransitionInfo(Scene.GPUScene.InstanceDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+			}
 
 			if (NumLightmapDataUploads > 0)
 			{

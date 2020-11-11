@@ -2452,7 +2452,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 			FComputeShaderUtils::GetGroupCount(CullingContext.NumInstancesPreCull, 64)
 		);
 	}
-	else
+	else if (CullingContext.NumInstancesPreCull > 0 || CullingPass == CULLING_PASS_OCCLUSION_POST)
 	{
 		RDG_GPU_STAT_SCOPE( GraphBuilder, NaniteInstanceCull );
 		FInstanceCull_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInstanceCull_CS::FParameters >();
@@ -2804,6 +2804,33 @@ void AddPass_Rasterize(
 				FRHIAsyncComputeCommandListImmediate::ImmediateDispatch( RHICmdListComputeImmediate );
 			}
 
+			// Allow UAV overlap on all raster outputs
+			TArray<FRHIUnorderedAccessView*, TInlineAllocator<5>> UAVs;
+			if (PassParameters->RasterParameters.OutDepthBuffer)
+			{
+				UAVs.Add(PassParameters->RasterParameters.OutDepthBuffer->GetRHI());
+			}
+			if (PassParameters->RasterParameters.OutVisBuffer64)
+			{
+				UAVs.Add(PassParameters->RasterParameters.OutVisBuffer64->GetRHI());
+			}
+			if (PassParameters->RasterParameters.OutDbgBuffer64)
+			{
+				UAVs.Add(PassParameters->RasterParameters.OutDbgBuffer64->GetRHI());
+			}
+			if (PassParameters->RasterParameters.OutDbgBuffer32)
+			{
+				UAVs.Add(PassParameters->RasterParameters.OutDbgBuffer32->GetRHI());
+			}
+			if (PassParameters->RasterParameters.LockBuffer)
+			{
+				UAVs.Add(PassParameters->RasterParameters.LockBuffer->GetRHI());
+			}
+			if (UAVs.Num() > 0)
+			{
+				RHICmdList.BeginUAVOverlap(UAVs);
+			}
+
 			// HW rasterizer
 			{
 				const bool bUsePrimitiveShader = UsePrimitiveShader();
@@ -2887,6 +2914,12 @@ void AddPass_Rasterize(
 			{
 				// SW rasterizer
 				FComputeShaderUtils::DispatchIndirect(RHICmdList, ComputeShader, *PassParameters, PassParameters->IndirectArgs, 0);
+			}
+
+			// End the overlap
+			if (UAVs.Num() > 0)
+			{
+				RHICmdList.EndUAVOverlap(UAVs);
 			}
 		}
 	);
