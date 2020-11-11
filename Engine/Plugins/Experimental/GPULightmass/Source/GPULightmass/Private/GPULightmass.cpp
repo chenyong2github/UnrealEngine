@@ -288,4 +288,19 @@ void FGPULightmass::OnMaterialInvalidated(FMaterialRenderProxy* Material)
 	}
 }
 
+void FGPULightmass::StartRecordingVisibleTiles() 
+{
+	ENQUEUE_RENDER_COMMAND(BackgroundTickRenderThread)([&RenderState = Scene.RenderState](FRHICommandListImmediate&) mutable {
+		RenderState.LightmapRenderer->bIsRecordingTileRequests = true;
+	});
+}
+void FGPULightmass::EndRecordingVisibleTiles() 
+{
+	ENQUEUE_RENDER_COMMAND(BackgroundTickRenderThread)([&RenderState = Scene.RenderState](FRHICommandListImmediate&) mutable {
+		RenderState.LightmapRenderer->bIsRecordingTileRequests = false;
+		RenderState.LightmapRenderer->DeduplicateRecordedTileRequests();
+	});
+}
+
+
 #undef LOCTEXT_NAMESPACE
