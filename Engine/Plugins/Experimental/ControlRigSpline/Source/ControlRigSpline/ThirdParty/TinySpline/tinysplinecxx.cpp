@@ -31,6 +31,7 @@
 #define std_real_vector_read(var) var.
 #endif
 
+/* Unreal Engine changes: undefined throw if no exceptions allowed */
 #ifndef __cpp_exceptions
 #define throw
 #endif

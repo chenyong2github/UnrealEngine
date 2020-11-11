@@ -1,3 +1,5 @@
+/* Unreal Engine changes: switched c file to cpp extension */
+
 #include "tinyspline.h"
 #include "parson.h" /* serialization */
 
@@ -19,6 +21,10 @@
 #pragma warning(disable:4996)
 /* Spectre mitigation */
 #pragma warning(disable:5045)
+
+/* Unreal Engine changes: Avoid unwanted warnings */
+#pragma warning(disable:6385)
+#pragma warning(disable:6386)
 #endif
 
 #define INIT_OUT_BSPLINE(in, out)              \

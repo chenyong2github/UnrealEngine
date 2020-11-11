@@ -1,3 +1,5 @@
+/* Unreal Engine changes: switched c file to cpp extension */
+
 /*
  Parson ( http://kgabis.github.com/parson/ )
  Copyright (c) 2012 - 2017 Krzysztof Gabis
@@ -64,6 +66,7 @@
 #define SKIP_CHAR(str)        ((*str)++)
 #define SKIP_WHITESPACES(str) while (isspace((unsigned char)(**str))) { SKIP_CHAR(str); }
 
+/* Unreal engine changes: Added ifndef to avoid unwanted errors of redefinition */
 #ifndef MAX
 #define MAX(a, b)             ((a) > (b) ? (a) : (b))
 #endif
