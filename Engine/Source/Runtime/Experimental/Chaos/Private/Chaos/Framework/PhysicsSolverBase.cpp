@@ -54,12 +54,9 @@ namespace Chaos
 		ENamedThreads::HighTaskPriority // if we don't have hi pri threads, then use normal priority threads at high task priority instead
 	);
 
-	FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, TArray<FPushPhysicsData*>&& InPushData, FReal InDt, int32 InInputDataExternalTimestamp)
+	FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, FPushPhysicsData& InPushData)
 		: Solver(InSolver)
-		, Queue(MoveTemp(InQueue))
-		, PushData(MoveTemp(InPushData))
-		, Dt(InDt)
-		, InputDataExternalTimestamp(InInputDataExternalTimestamp)
+		, PushData(&InPushData)	//store as ptr so that we can clear it after freed (but still want to force user to give us a valid push data)
 	{
 	}
 
@@ -92,19 +89,11 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
 
-		Solver.SetExternalTimestampConsumed_Internal(InputDataExternalTimestamp);
-		Solver.ProcessPushedData_Internal(PushData);
-
-		// Handle our solver commands
-		{
-			SCOPE_CYCLE_COUNTER(STAT_HandleSolverCommands);
-			for(const auto& Command : Queue)
-			{
-				Command();
-			}
-		}
-
-		Solver.AdvanceSolverBy(Dt);
+		Solver.SetExternalTimestampConsumed_Internal(PushData->ExternalTimestamp);
+		Solver.ProcessPushedData_Internal(*PushData);
+		Solver.AdvanceSolverBy(PushData->ExternalDt);
+		Solver.GetMarshallingManager().FreeData_Internal(PushData);	//cannot use push data after this point
+		PushData = nullptr;
 	}
 
 	CHAOS_API float DefaultAsyncDt = -1;
@@ -129,6 +118,8 @@ namespace Chaos
 		, ExternalDataLock_External(new FPhysicsSceneGuard())
 		, TraitIdx(InTraitIdx)
 		, AsyncDt(DefaultAsyncDt)
+		, AccumulatedTime(0)
+		, ExternalSteps(0)
 #if !UE_BUILD_SHIPPING
 		, bStealAdvanceTasksForTesting(false)
 #endif
@@ -160,14 +151,6 @@ namespace Chaos
 			InSolver.WaitOnPendingTasks_External();
 		}
 
-		//make sure any pending commands are executed
-		//we don't have a flush function because of dt concerns (don't want people flushing because commands end up in wrong dt)
-		//but in this case we just need to ensure all resources are freed
-		for(const auto& Command : InSolver.CommandQueue)
-		{
-			Command();
-		}
-		
 		// GeometryCollection particles do not always remove collision constraints on unregister,
 		// explicitly clear constraints so we will not crash when filling collision events in advance.
 		InSolver.CastHelper([](auto& Concrete)
@@ -201,7 +184,7 @@ namespace Chaos
 		FPendingSpatialData& SpatialData = PendingSpatialOperations_External->FindOrAdd(Particle->UniqueIdx());
 
 		//make sure any new operations (i.e not currently being consumed by sim) are not acting on a deleted object
-		ensure(SpatialData.SyncTimestamp <= MarshallingManager.GetExternalTimestampConsumed_External() || !SpatialData.bDelete);
+		ensure(SpatialData.SyncTimestamp < MarshallingManager.GetExternalTimestamp_External() || !SpatialData.bDelete);
 
 		SpatialData.bDelete = bDelete;
 		SpatialData.SpatialIdx = Particle->SpatialIdx();

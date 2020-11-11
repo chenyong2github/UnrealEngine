@@ -104,6 +104,7 @@ public:
 	int32 NumDirtyShapes() const { return ShapesData.Num(); }
 
 	FShapeDirtyData* GetShapesDirtyData(){ return ShapesData.GetData(); }
+	FDirtyProxy& GetDirtyProxyAt(int32 Idx) { return ProxiesData[Idx]; }
 
 	template <typename Lambda>
 	void ParallelForEachProxy(const Lambda& Func)
@@ -185,12 +186,15 @@ struct FPushPhysicsData
 	FDirtySet DirtyProxiesDataBuffer;
 	FReal StartTime;
 	FReal ExternalDt;
+	int32 ExternalTimestamp;
+	FReal DynamicsWeight;	//if external tick is faster than internal, we accumulate multiple frames worth of dynamics. This is used to average them out
 
 	TArray<ISimCallbackObject*> SimCallbackObjectsToAdd;	//callback object registered at this specific time
 	TArray<ISimCallbackObject*> SimCallbackObjectsToRemove;	//callback object removed at this specific time
 	TArray<FSimCallbackInputAndObject> SimCallbackInputs; //set of callback inputs pushed at this specific time
 
 	void Reset();
+	void CopySubstepData(const FPushPhysicsData& FirstStepData, const FReal Alpha);
 };
 
 /** Manages data that gets marshaled from GT to PT using a timestamp
@@ -223,19 +227,16 @@ public:
 		GetProducerData_External()->SimCallbackInputs.Add(FSimCallbackInputAndObject{ SimCallbackObject, InputData });
 	}
 	/** Step forward using the external delta time. Should only be called by external thread */
-	void Step_External(FReal ExternalDT);
+	void Step_External(FReal ExternalDT, const int32 NumSteps = 1);
 
-	/** Step the internal time forward and get any push data associated with the time. Should only be called by external thread */
-	TArray<FPushPhysicsData*> StepInternalTime_External(FReal InternalDt, bool bUseAsync = true);
+	/** Step the internal time forward if possible*/
+	FPushPhysicsData* StepInternalTime_External();
 
 	/** Frees the push data back into the pool. Internal thread should call this when finished processing data*/
 	void FreeData_Internal(FPushPhysicsData* PushData);
 
 	/** Frees the pull data back into the pool. External thread should call this when finished processing data*/
 	void FreePullData_External(FPullPhysicsData* PullData);
-
-	/** Returns the timestamp associated with inputs consumed. Note the simulation may be pending, but any data associated with timestamp <= returned value has been passed */
-	int32 GetExternalTimestampConsumed_External() const { return InternalTimestamp_External; }
 
 	/** Returns the timestamp associated with inputs enqueued. */
 	int32 GetExternalTimestamp_External() const { return ExternalTimestamp_External; }
@@ -264,7 +265,6 @@ private:
 	FReal ExternalTime_External;	//the global time external thread is currently at
 	int32 ExternalTimestamp_External; //the global timestamp external thread is currently at (1 per frame)
 	FReal SimTime_External;	//the global time the sim is at (once Step_External is called this time advances, even though the actual sim work has yet to be done)
-	int32 InternalTimestamp_External;	//the global timestamp the sim is at (consumes 1 or more frames per internal tick)
 	
 	//push
 	FPushPhysicsData* ProducerData;

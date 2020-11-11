@@ -1116,6 +1116,11 @@ public:
 		return Flags;
 	}
 
+	void DirtyFlag(EParticleFlags Flag)
+	{
+		Flags.MarkDirty(Flag);
+	}
+
 	template <typename T, EParticleProperty PropName>
 	void SyncRemote(FDirtyPropertiesManager& Manager, int32 Idx, const T& Val) const
 	{
