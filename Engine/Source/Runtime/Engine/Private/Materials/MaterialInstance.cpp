@@ -380,15 +380,18 @@ void FMaterialInstanceResource::InitMIParameters(FMaterialInstanceParameterSet& 
 template <typename ParameterType>
 void GameThread_UpdateMIParameter(const UMaterialInstance* Instance, const ParameterType& Parameter)
 {
-	FMaterialInstanceResource* Resource = Instance->Resource;
-	const FMaterialParameterInfo& ParameterInfo = Parameter.ParameterInfo;
-	typename ParameterType::ValueType Value = ParameterType::GetValue(Parameter);
-	ENQUEUE_RENDER_COMMAND(SetMIParameterValue)(
-		[Resource, ParameterInfo, Value](FRHICommandListImmediate& RHICmdList)
-		{
-			Resource->RenderThread_UpdateParameter(ParameterInfo, Value);
-			Resource->CacheUniformExpressions(false);
-		});
+	if (FApp::CanEverRender())
+	{
+		FMaterialInstanceResource* Resource = Instance->Resource;
+		const FMaterialParameterInfo& ParameterInfo = Parameter.ParameterInfo;
+		typename ParameterType::ValueType Value = ParameterType::GetValue(Parameter);
+		ENQUEUE_RENDER_COMMAND(SetMIParameterValue)(
+			[Resource, ParameterInfo, Value](FRHICommandListImmediate& RHICmdList)
+			{
+				Resource->RenderThread_UpdateParameter(ParameterInfo, Value);
+				Resource->CacheUniformExpressions(false);
+			});
+	}
 }
 
 #if WITH_EDITOR
