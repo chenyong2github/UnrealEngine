@@ -459,7 +459,7 @@ void UK2Node_PromotableOperator::AddInputPin()
 bool UK2Node_PromotableOperator::CanAddPin() const
 {
 	return ((NumAdditionalInputs + NumFunctionInputs) < GetMaxInputPinsNum()) &&
-		!FTypePromotion::IsComparisonOpName(OperationName);
+		!FTypePromotion::IsComparisonFunc(GetTargetFunction());
 }
 
 bool UK2Node_PromotableOperator::CanRemovePin(const UEdGraphPin* Pin) const
