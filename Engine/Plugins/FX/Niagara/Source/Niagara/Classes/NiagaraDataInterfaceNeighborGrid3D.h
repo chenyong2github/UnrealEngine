@@ -25,6 +25,8 @@ public:
 	uint32 MaxNeighborsPerCell;	
 	FVector WorldBBoxSize;
 
+	bool NeedsRealloc = false;
+
 	FRWBuffer NeighborhoodBuffer;
 	FRWBuffer NeighborhoodCountBuffer;
 };
@@ -83,12 +85,18 @@ public:
 	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override { return false;  }
 	virtual int32 PerInstanceDataSize()const override { return sizeof(NeighborGrid3DRWInstanceData); }
+	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
+	virtual bool HasPostSimulateTick() const override { return true; }
 	virtual bool HasPreSimulateTick() const override { return true; }
 	//~ UNiagaraDataInterface interface END
 
 	void GetWorldBBoxSize(FVectorVMContext& Context);
 	void GetNumCells(FVectorVMContext& Context);
 	void GetMaxNeighborsPerCell(FVectorVMContext& Context);
+	void SetNumCells(FVectorVMContext& Context);
+
+	static const FName SetNumCellsFunctionName;
+
 
 protected:
 	//~ UNiagaraDataInterface interface

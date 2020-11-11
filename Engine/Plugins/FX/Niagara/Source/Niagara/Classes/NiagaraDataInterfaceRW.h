@@ -134,19 +134,19 @@ public:
 	FIntVector NumCells;
 
 	// World space size of a cell
-	UPROPERTY(EditAnywhere, Category = "Grid")
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	float CellSize;
 
 	// Number of cells on the longest axis
-	UPROPERTY(EditAnywhere, Category = "Grid")
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	int32 NumCellsMaxAxis;
 
 	// Method for setting the grid resolution
-	UPROPERTY(EditAnywhere, Category = "Grid")
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	ESetResolutionMethod SetResolutionMethod;
 	
 	// World size of the grid
-	UPROPERTY(EditAnywhere, Category = "Grid")
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	FVector WorldBBoxSize;
 
 public:
@@ -164,27 +164,6 @@ public:
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 	//~ UNiagaraDataInterface interface END
 
-#if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override
-	{
-		const bool ParentVal = Super::CanEditChange(InProperty);
-
-		if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceGrid3D, NumCells))
-		{
-			return SetResolutionMethod == ESetResolutionMethod::Independent;
-		}
-		else if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceGrid3D, CellSize))
-		{
-			return SetResolutionMethod == ESetResolutionMethod::CellSize;
-		}
-		else if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceGrid3D, NumCellsMaxAxis))
-		{
-			return SetResolutionMethod == ESetResolutionMethod::MaxAxis;
-		}
-
-		return ParentVal;
-	}
-#endif
 protected:
 	//~ UNiagaraDataInterface interface
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;

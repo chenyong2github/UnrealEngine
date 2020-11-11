@@ -39,6 +39,8 @@ struct FGrid3DCollectionRWInstanceData_GameThread
 	FVector WorldBBoxSize = FVector::ZeroVector;
 	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
 
+	bool NeedsRealloc = false;
+
 	/** A binding to the user ptr we're reading the RT from (if we are). */
 	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
 };
@@ -116,6 +118,8 @@ public:
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual int32 PerInstanceDataSize()const override { return sizeof(FGrid3DCollectionRWInstanceData_GameThread); }
 	virtual bool HasPreSimulateTick() const override { return true; }
+	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
+	virtual bool HasPostSimulateTick() const override { return true; }
 	//~ UNiagaraDataInterface interface END
 
 	// Fills a texture render target 2d with the current data from the simulation
@@ -136,6 +140,10 @@ public:
 
 	void GetWorldBBoxSize(FVectorVMContext& Context);
 	void GetCellSize(FVectorVMContext& Context);
+
+	void SetNumCells(FVectorVMContext& Context);
+
+	static const FName SetNumCellsFunctionName;
 
 	static const FString NumTilesName;
 

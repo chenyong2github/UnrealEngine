@@ -16,6 +16,9 @@ static const FString OutputParticleNeighborsName(TEXT("OutputParticleNeighbors_"
 static const FString OutputParticleNeighborCountName(TEXT("OutputParticleNeighborCount_"));
 
 
+const FName UNiagaraDataInterfaceNeighborGrid3D::SetNumCellsFunctionName("SetNumCells");
+
+
 // Global VM function names, also used by the shaders code generation methods.
 
 static const FName MaxNeighborsPerCellFunctionName("MaxNeighborsPerCell");
@@ -182,6 +185,26 @@ void UNiagaraDataInterfaceNeighborGrid3D::GetFunctions(TArray<FNiagaraFunctionSi
 
 	{
 		FNiagaraFunctionSignature Sig;
+		Sig.Name = SetNumCellsFunctionName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsX")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsY")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsZ")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("MaxNeighborsPerCell")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Success")));
+
+		Sig.ModuleUsageBitmask = ENiagaraScriptUsageMask::Emitter | ENiagaraScriptUsageMask::System;
+		Sig.bExperimental = true;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresExecPin = true;
+		Sig.bRequiresContext = false;
+		Sig.bSupportsCPU = true;
+		Sig.bSupportsGPU = false;
+		OutFunctions.Add(Sig);
+	}
+
+	{
+		FNiagaraFunctionSignature Sig;
 		Sig.Name = MaxNeighborsPerCellFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("MaxNeighborsPerCell")));
@@ -265,6 +288,7 @@ void UNiagaraDataInterfaceNeighborGrid3D::GetFunctions(TArray<FNiagaraFunctionSi
 	}
 }
 
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceNeighborGrid3D, SetNumCells);
 void UNiagaraDataInterfaceNeighborGrid3D::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
 	Super::GetVMExternalFunction(BindingInfo, InstanceData, OutFunc);
@@ -284,6 +308,11 @@ void UNiagaraDataInterfaceNeighborGrid3D::GetVMExternalFunction(const FVMExterna
 	{
 		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
 		OutFunc = FVMExternalFunction::CreateLambda([&](FVectorVMContext& Context) { GetMaxNeighborsPerCell(Context); });
+	}
+	else if (BindingInfo.Name == SetNumCellsFunctionName)
+	{
+		check(BindingInfo.GetNumInputs() == 5 && BindingInfo.GetNumOutputs() == 1);
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceNeighborGrid3D, SetNumCells)::Bind(this, OutFunc);
 	}
 	//else if (BindingInfo.Name == NeighborGridIndexToLinearFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
 	//else if (BindingInfo.Name == GetParticleNeighborFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
@@ -589,6 +618,71 @@ bool UNiagaraDataInterfaceNeighborGrid3D::InitPerInstanceData(void* PerInstanceD
 
 	return true;
 }
+
+void UNiagaraDataInterfaceNeighborGrid3D::SetNumCells(FVectorVMContext& Context)
+{
+	// This should only be called from a system or emitter script due to a need for only setting up initially.
+	VectorVM::FUserPtrHandler<NeighborGrid3DRWInstanceData> InstData(Context);
+	VectorVM::FExternalFuncInputHandler<int> InNumCellsX(Context);
+	VectorVM::FExternalFuncInputHandler<int> InNumCellsY(Context);
+	VectorVM::FExternalFuncInputHandler<int> InNumCellsZ(Context);
+	VectorVM::FExternalFuncInputHandler<int> InMaxNeighborsPerCell(Context);
+	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutSuccess(Context);
+
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	{
+		int NewNumCellsX = InNumCellsX.GetAndAdvance();
+		int NewNumCellsY = InNumCellsY.GetAndAdvance();
+		int NewNumCellsZ = InNumCellsZ.GetAndAdvance();
+		int NewMaxNeighborsPerCell = InMaxNeighborsPerCell.GetAndAdvance();
+		bool bSuccess = (InstData.Get() != nullptr && Context.NumInstances == 1 && NumCells.X >= 0 && NumCells.Y >= 0 && NumCells.Z >= 0 && MaxNeighborsPerCell >= 0);
+		*OutSuccess.GetDestAndAdvance() = bSuccess;
+		if (bSuccess)
+		{
+			FIntVector OldNumCells = InstData->NumCells;
+			int OldMaxNeighborsPerCell = InstData->MaxNeighborsPerCell;
+
+			InstData->NumCells.X = NewNumCellsX;
+			InstData->NumCells.Y = NewNumCellsY;
+			InstData->NumCells.Z = NewNumCellsZ;
+			InstData->MaxNeighborsPerCell = NewMaxNeighborsPerCell;
+		
+			InstData->NeedsRealloc = OldNumCells != InstData->NumCells && OldMaxNeighborsPerCell != InstData->MaxNeighborsPerCell;
+		}
+	}
+}
+
+bool UNiagaraDataInterfaceNeighborGrid3D::PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
+{
+	NeighborGrid3DRWInstanceData* InstanceData = static_cast<NeighborGrid3DRWInstanceData*>(PerInstanceData);
+	bool bNeedsReset = false;
+
+	if (InstanceData->NeedsRealloc && InstanceData->NumCells.X > 0 && InstanceData->NumCells.Y > 0 && InstanceData->NumCells.Z > 0 && InstanceData->MaxNeighborsPerCell > 0)
+	{
+		InstanceData->NeedsRealloc = false;
+
+		InstanceData->CellSize = (InstanceData->WorldBBoxSize / FVector(InstanceData->NumCells.X, InstanceData->NumCells.Y, InstanceData->NumCells.Z))[0];
+
+		FNiagaraDataInterfaceProxyNeighborGrid3D* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyNeighborGrid3D>();
+		ENQUEUE_RENDER_COMMAND(FUpdateData)(
+			[RT_Proxy, RT_NumCells = InstanceData->NumCells, RT_MaxNeighborsPerCell = InstanceData->MaxNeighborsPerCell, RT_CellSize = InstanceData->CellSize, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& RHICmdList)
+		{
+			check(RT_Proxy->SystemInstancesToProxyData.Contains(InstanceID));
+			NeighborGrid3DRWInstanceData* TargetData = &RT_Proxy->SystemInstancesToProxyData.Add(InstanceID);
+
+			TargetData->NumCells = RT_NumCells;
+			TargetData->MaxNeighborsPerCell = RT_MaxNeighborsPerCell;			
+			TargetData->CellSize = RT_CellSize;
+
+			TargetData->NeighborhoodCountBuffer.Initialize(sizeof(int32), TargetData->NumCells.X* TargetData->NumCells.Y* TargetData->NumCells.Z, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("NiagaraNeighborGrid3D::NeighborCount"));
+			TargetData->NeighborhoodBuffer.Initialize(sizeof(int32), TargetData->NumCells.X* TargetData->NumCells.Y* TargetData->NumCells.Z* TargetData->MaxNeighborsPerCell, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("NiagaraNeighborGrid3D::NeighborsGrid"));
+
+		});
+	}
+
+	return false;
+}
+
 
 void UNiagaraDataInterfaceNeighborGrid3D::DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {		
