@@ -5,7 +5,7 @@
 	Includes for debug drawing
 =============================================================================*/
 
-void PackLine(RWBuffer<float> OutBuffer, uint InstanceIndex, float3 InPosition0, float3 InPosition1, uint InPackedColor)
+void PackLine(in RWBuffer<float> OutBuffer, uint InstanceIndex, float3 InPosition0, float3 InPosition1, uint InPackedColor)
 {
 	uint FloatOffset = InstanceIndex * 7;
 
@@ -20,7 +20,7 @@ void PackLine(RWBuffer<float> OutBuffer, uint InstanceIndex, float3 InPosition0,
 	OutBuffer[FloatOffset + 6] = asfloat(InPackedColor);
 }
 
-void PackLine(RWBuffer<float> OutBuffer, uint InstanceIndex, float3 InPosition0, float3 InPosition1, float4 InColor)
+void PackLine(in RWBuffer<float> OutBuffer, uint InstanceIndex, float3 InPosition0, float3 InPosition1, float4 InColor)
 {
 	uint PackedColor = 0;
 	PackedColor  = uint(saturate(InColor.x) * 255.0f) << 24;
@@ -30,7 +30,7 @@ void PackLine(RWBuffer<float> OutBuffer, uint InstanceIndex, float3 InPosition0,
 	PackLine(OutBuffer, InstanceIndex, InPosition0, InPosition1, PackedColor);
 }
 
-void UnpackLine(Buffer<float> InBuffer, uint InstanceIndex, out float3 OutPosition0, out float3 OutPosition1, out float4 OutColor)
+void UnpackLine(in Buffer<float> InBuffer, uint InstanceIndex, out float3 OutPosition0, out float3 OutPosition1, out float4 OutColor)
 {
 	uint FloatOffset = InstanceIndex * 7;
 
