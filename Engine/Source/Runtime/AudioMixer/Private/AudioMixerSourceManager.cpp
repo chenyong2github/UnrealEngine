@@ -6,6 +6,7 @@
 #include "AudioMixerDevice.h"
 #include "AudioMixerSourceVoice.h"
 #include "AudioMixerSubmix.h"
+#include "AudioThread.h"
 #include "IAudioExtensionPlugin.h"
 #include "AudioMixer.h"
 #include "Sound/SoundModulationDestination.h"
@@ -629,7 +630,7 @@ namespace Audio
 			FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
 			// Unregister these source effect instances from their owning USoundEffectInstance on the next audio thread tick.
- 			const ENamedThreads::Type UnregistrationThread = IsAudioThreadRunning() ? ENamedThreads::AudioThread: ENamedThreads::GameThread;
+ 			const ENamedThreads::Type UnregistrationThread = FAudioThread::IsAudioThreadRunning() ? ENamedThreads::AudioThread: ENamedThreads::GameThread;
 			AsyncTask(UnregistrationThread, [SourceEffects = MoveTemp(SourceInfo.SourceEffects)]() mutable
 			{
 				for (int32 i = 0; i < SourceEffects.Num(); ++i)
