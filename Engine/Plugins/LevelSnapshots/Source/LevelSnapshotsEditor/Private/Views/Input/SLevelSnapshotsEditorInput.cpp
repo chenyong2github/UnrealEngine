@@ -91,7 +91,6 @@ private:
 	FOnSetValue OnSetValueEvent;
 };
 
-#pragma optimize("", off)
 TSharedRef<SWidget> SLevelSnapshotsEditorContextPicker::BuildWorldPickerMenu()
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
@@ -143,8 +142,6 @@ TSharedRef<SWidget> SLevelSnapshotsEditorContextPicker::BuildWorldPickerMenu()
 
 	return MenuBuilder.MakeWidget();
 }
-
-#pragma optimize("", on)
 
 FText SLevelSnapshotsEditorContextPicker::GetWorldDescription(UWorld* World)
 {

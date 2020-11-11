@@ -9,6 +9,7 @@
 #include "Views/Results/LevelSnapshotsEditorResults.h"
 #include "Widgets/SLevelSnapshotsEditorResultsGroup.h"
 #include "LevelSnapshotsEditorData.h"
+#include "LevelSnapshotsFunctionLibrary.h"
 
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
@@ -27,6 +28,8 @@
 #include "EditorStyleSet.h"
 #include "Components/SlateWrapperTypes.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+
+#include "DiffUtils.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
@@ -208,6 +211,7 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, const TSh
 					[
 						SNew(SCheckBox)
 						.IsChecked(false)
+						.OnCheckStateChanged(this, &SLevelSnapshotsEditorResults::OnCheckedStateChange_ShowUnchangedSnapshotActors)
 					]
 
 					+SHorizontalBox::Slot()
@@ -247,8 +251,7 @@ TSharedRef<ITableRow> SLevelSnapshotsEditorResults::OnGenerateRow(TSharedPtr<FLe
 	{
 		if (TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> RowGroup = StaticCastSharedPtr<FLevelSnapshotsEditorResultsRowGroup>(InResultsRow))
 		{
-			SAssignNew(InResultsRow->GroupWidget, SLevelSnapshotsEditorResultsRowGroup, OwnerTable, RowGroup.ToSharedRef(), SharedThis<SLevelSnapshotsEditorResults>(this));
-			return InResultsRow->GroupWidget.ToSharedRef();
+			return SNew(SLevelSnapshotsEditorResultsRowGroup, OwnerTable, RowGroup.ToSharedRef(), SharedThis<SLevelSnapshotsEditorResults>(this));
 		}
 	}
 	else if (InResultsRow->GetType() == FLevelSnapshotsEditorResultsRow::Field)
@@ -365,6 +368,10 @@ void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSna
 
 	if (InLevelSnapshot != nullptr)
 	{
+		// Saving a reference to the selected LevelSnapshot for diffing
+		SelectedLevelSnapshot = InLevelSnapshot;
+		SelectedLevelSnapshotPtr = InLevelSnapshot;
+		
 		for (const TPair<FString, FLevelSnapshot_Actor>& ActorSnapshotPair : InLevelSnapshot->ActorSnapshots)
 		{
 			TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> NewGroup = MakeShared<FLevelSnapshotsEditorResultsRowGroup>(ActorSnapshotPair.Key, ActorSnapshotPair.Value);
@@ -383,7 +390,7 @@ void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSna
 				Objects.Add(ActorObjectPtr.Get());
 				RowGenerator->SetObjects(Objects);
 
-				for (const TPair<FName, FInternalPropertySnapshot>& PropertyPair : ActorSnapshotPair.Value.Base.Properties)
+				for (const TPair<FName, FLevelSnapshot_Property>& PropertyPair : ActorSnapshotPair.Value.Base.Properties)
 				{
 					FString PropertyString = PropertyPair.Key.ToString();
 
@@ -413,11 +420,13 @@ FReply SLevelSnapshotsEditorResults::SetAllGroupsSelected()
 {
 	for (TSharedPtr<FLevelSnapshotsEditorResultsRowGroup, ESPMode::Fast> Group : FieldGroups)
 	{
-		if (Group->GetType() == FLevelSnapshotsEditorResultsRow::Group && Group->GroupWidget)
+		if (Group->GetType() == FLevelSnapshotsEditorResultsRow::Group)
 		{
-			if (Group->GroupWidget->CheckboxPtr.IsValid())
+			TSharedPtr<SLevelSnapshotsEditorResultsRowGroup> GroupWidget = StaticCastSharedPtr<
+				SLevelSnapshotsEditorResultsRowGroup>(ResultList->WidgetFromItem(Group));
+			if (GroupWidget->CheckboxPtr.IsValid())
 			{
-				Group->GroupWidget->CheckboxPtr->SetIsChecked(true);
+				GroupWidget->CheckboxPtr->SetIsChecked(false);
 			}
 		}
 	}
@@ -429,11 +438,13 @@ FReply SLevelSnapshotsEditorResults::SetAllGroupsUnselected()
 {
 	for (TSharedPtr<FLevelSnapshotsEditorResultsRowGroup, ESPMode::Fast> Group : FieldGroups)
 	{
-		if (Group->GetType() == FLevelSnapshotsEditorResultsRow::Group && Group->GroupWidget)
+		if (Group->GetType() == FLevelSnapshotsEditorResultsRow::Group)
 		{
-			if (Group->GroupWidget->CheckboxPtr.IsValid())
+			TSharedPtr<SLevelSnapshotsEditorResultsRowGroup> GroupWidget = StaticCastSharedPtr<
+				SLevelSnapshotsEditorResultsRowGroup>(ResultList->WidgetFromItem(Group));
+			if (GroupWidget->CheckboxPtr.IsValid())
 			{
-				Group->GroupWidget->CheckboxPtr->SetIsChecked(false);
+				GroupWidget->CheckboxPtr->SetIsChecked(false);
 			}
 		}
 	}
@@ -446,6 +457,199 @@ FReply SLevelSnapshotsEditorResults::SetAllGroupsCollapsed()
 	ResultList->ClearExpandedItems();
 
 	return FReply::Handled();
+}
+
+void SLevelSnapshotsEditorResults::OnCheckedStateChange_ShowUnchangedSnapshotActors(ECheckBoxState NewState)
+{
+
+	if (NewState == ECheckBoxState::Checked)
+	{
+		SetShowUnchangedSnapshotGroups(true);
+	}
+	else
+	{
+		SetShowUnchangedSnapshotGroups(false);
+	}
+}
+
+void SLevelSnapshotsEditorResults::SetShowUnchangedSnapshotGroups(const bool bShowGroups)
+{
+	TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> UnchangedGroups;
+
+	if (!bShowGroups)
+	{
+		// If we want to hide unchanged groups we first have to determine what they are
+		UnchangedGroups = DetermineUnchangedGroupsFromLevelSnapshot(SelectedLevelSnapshot);
+	}
+	
+	for (TSharedPtr<FLevelSnapshotsEditorResultsRowGroup, ESPMode::Fast> Group : FieldGroups)
+	{
+		if (Group->GetType() == FLevelSnapshotsEditorResultsRow::Group)
+		{
+			TSharedPtr<SLevelSnapshotsEditorResultsRowGroup> GroupWidget = StaticCastSharedPtr<
+				SLevelSnapshotsEditorResultsRowGroup>(ResultList->WidgetFromItem(Group));
+
+			EVisibility NewGroupVisibility = EVisibility::SelfHitTestInvisible;
+
+			if (!bShowGroups)
+			{
+				if (UnchangedGroups.Num() > 0 && UnchangedGroups.ContainsByPredicate(
+					[Group](const TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> G)
+					{
+						return G->ObjectPath.Equals(Group->ObjectPath);
+				}))
+				{
+					NewGroupVisibility = EVisibility::Collapsed;
+				}
+			}
+			
+			GroupWidget->SetVisibility(NewGroupVisibility);
+		}
+	}
+}
+
+TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> SLevelSnapshotsEditorResults::DetermineUnchangedGroupsFromLevelSnapshot(
+	ULevelSnapshot* InLevelSnapshot)
+{
+	TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> UnchangedGroups;
+
+	// Create transient ULevelSnapshot to compare against InLevelSnapshot
+	ULevelSnapshot* TempLevelSnapshot = ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(GEditor->GetEditorWorldContext().World());
+
+	if (!TempLevelSnapshot || !InLevelSnapshot)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Unable to Diff snapshots as at least one snapshot was invalid"));
+		return UnchangedGroups;
+	}
+
+	for (const TPair<FString, FLevelSnapshot_Actor>& SnapshotPair : TempLevelSnapshot->ActorSnapshots)
+	{
+		const FString& FirstSnapshotPathName = SnapshotPair.Key;
+		const FLevelSnapshot_Actor& FirstActorSnapshot = SnapshotPair.Value;
+
+		if (const FLevelSnapshot_Actor* SecondActorSnapshot = InLevelSnapshot->ActorSnapshots.Find(FirstSnapshotPathName))
+		{
+			// Actor paths match, so let's compare properties
+
+			AActor* FirstActor = FirstActorSnapshot.GetDeserializedActor();
+			AActor* SecondActor = SecondActorSnapshot->GetDeserializedActor();
+
+			if (FirstActor && SecondActor)
+			{
+				TArray<FSingleObjectDiffEntry> DifferingProperties;
+				DiffUtils::CompareUnrelatedObjects(FirstActor, SecondActor, DifferingProperties);
+
+				if (DifferingProperties.Num() < 1)
+				{
+					// This means there is no difference between the matching actors. It's unchanged since the last snapshot.
+					// We add it to the TArray by finding a candidate from FieldGroups whose ObjectPath matches the path of this ActorSnapshot
+
+					TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> Group = FieldGroups[FieldGroups.IndexOfByPredicate(
+						[FirstSnapshotPathName] (const TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> G)
+					{
+							return G->ObjectPath.Equals(FirstSnapshotPathName);
+					})];
+
+					UnchangedGroups.Add(Group);
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("%s exists in the First snapshot but not the Second."), *FirstSnapshotPathName);
+		}
+	}
+	
+	return UnchangedGroups;
+}
+
+		UnchangedGroups = DetermineUnchangedGroupsFromLevelSnapshot(SelectedLevelSnapshotPtr);
+	}
+	
+	for (const TSharedPtr<FLevelSnapshotsEditorResultsRowGroup, ESPMode::Fast> Group : FieldGroups)
+	{
+		if (Group->GetType() == FLevelSnapshotsEditorResultsRow::Group)
+		{
+			TSharedPtr<SLevelSnapshotsEditorResultsRowGroup> GroupWidget = StaticCastSharedPtr<
+				SLevelSnapshotsEditorResultsRowGroup>(ResultList->WidgetFromItem(Group));
+
+			EVisibility NewGroupVisibility = EVisibility::SelfHitTestInvisible;
+
+			if (!bShowGroups)
+			{
+				if (UnchangedGroups.Num() > 0 && UnchangedGroups.ContainsByPredicate(
+					[&Group](const TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> UnchangedGroup)
+					{
+						return UnchangedGroup->ObjectPath.Equals(Group->ObjectPath);
+				}))
+				{
+					NewGroupVisibility = EVisibility::Collapsed;
+				}
+			}
+			
+			GroupWidget->SetVisibility(NewGroupVisibility);
+		}
+	}
+}
+
+TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> SLevelSnapshotsEditorResults::DetermineUnchangedGroupsFromLevelSnapshot(
+	TWeakObjectPtr<ULevelSnapshot> InLevelSnapshot)
+{
+	TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> UnchangedGroups;
+
+	// Create transient ULevelSnapshot to compare against InLevelSnapshot
+	ULevelSnapshot* TempLevelSnapshot = ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(GEditor->GetEditorWorldContext().World());
+
+	if (!TempLevelSnapshot || !InLevelSnapshot.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Unable to Diff snapshots as at least one snapshot was invalid"));
+		return UnchangedGroups;
+	}
+
+	for (const TPair<FString, FLevelSnapshot_Actor>& SnapshotPair : TempLevelSnapshot->ActorSnapshots)
+	{
+		const FString& FirstSnapshotPathName = SnapshotPair.Key;
+		const FLevelSnapshot_Actor& FirstActorSnapshot = SnapshotPair.Value;
+
+		if (const FLevelSnapshot_Actor* SecondActorSnapshot = InLevelSnapshot->ActorSnapshots.Find(FirstSnapshotPathName))
+		{
+			// Actor paths match, so let's compare properties
+
+			AActor* FirstActor = FirstActorSnapshot.GetDeserializedActor();
+			AActor* SecondActor = SecondActorSnapshot->GetDeserializedActor();
+
+			if (FirstActor && SecondActor)
+			{
+				TArray<FSingleObjectDiffEntry> DifferingProperties;
+				DiffUtils::CompareUnrelatedObjects(FirstActor, SecondActor, DifferingProperties);
+
+				if (DifferingProperties.Num() < 1)
+				{
+					// This means there is no difference between the matching actors. It's unchanged since the last snapshot.
+					// We add it to the TArray by finding a candidate from FieldGroups whose ObjectPath matches the path of this ActorSnapshot
+
+					const int32 MatchingIndex = FieldGroups.IndexOfByPredicate(
+						[&FirstSnapshotPathName](const TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> FieldGroup)
+						{
+							return FieldGroup->ObjectPath.Equals(FirstSnapshotPathName);
+						});
+
+					if (MatchingIndex != INDEX_NONE && MatchingIndex > -1)
+					{
+						TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> Group = FieldGroups[MatchingIndex];
+
+						UnchangedGroups.Add(Group);
+					}
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("%s exists in the First snapshot but not the Second."), *FirstSnapshotPathName);
+		}
+	}
+	
+	return UnchangedGroups;
 }
 
 TSharedRef<SWidget> SLevelSnapshotsEditorResults::MakeAddFilterMenu()

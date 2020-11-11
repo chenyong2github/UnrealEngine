@@ -44,9 +44,6 @@ struct FLevelSnapshotsEditorResultsRow
 
 	/** Get this tree node's children. */
 	virtual void GetNodeChildren(TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>& OutChildren) {}
-
-	/** This node's row group widget */
-	TSharedPtr<SLevelSnapshotsEditorResultsRowGroup> GroupWidget;
 };
 
 struct SLevelSnapshotsEditorResultsChildField : public SCompoundWidget, public FLevelSnapshotsEditorResultsRow
@@ -139,10 +136,17 @@ private:
 	// For the Select/Deselect All buttons
 	FReply SetAllGroupsSelected();
 	FReply SetAllGroupsUnselected();
-
 	FReply SetAllGroupsCollapsed();
 
+	// Show/hide unchanged groups
+	void OnCheckedStateChange_ShowUnchangedSnapshotActors(ECheckBoxState NewState);
+	void SetShowUnchangedSnapshotGroups(bool bShowGroups);
+	TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> DetermineUnchangedGroupsFromLevelSnapshot(TWeakObjectPtr<ULevelSnapshot> InLevelSnapshot);
+
 	TSharedRef<SWidget> MakeAddFilterMenu();
+
+	// When a ULevelSnapshot is selected in the UI, let's save a reference to it in case we need it for diffing or other things
+	TWeakObjectPtr<ULevelSnapshot> SelectedLevelSnapshotPtr;
 
 private:
 	TWeakPtr<FLevelSnapshotsEditorResults> EditorResultsPtr;

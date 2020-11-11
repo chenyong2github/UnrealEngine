@@ -34,10 +34,13 @@ struct LEVELSNAPSHOTS_API FLevelSnapshot_Component
 	explicit FLevelSnapshot_Component(UActorComponent* TargetComponent);
 
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	FBaseObjectInfo Base;
+		FBaseObjectInfo Base;
 
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	FString ParentComponentPath;
+		bool bIsSceneComponent = false;
+
+	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
+		FString ParentComponentPath;
 };
 
 USTRUCT()
@@ -55,12 +58,12 @@ struct LEVELSNAPSHOTS_API FLevelSnapshot_Actor
 	void Deserialize(AActor* TargetActor) const;
 
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	FBaseObjectInfo Base;
+		FBaseObjectInfo Base;
 
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	TMap<FString, FLevelSnapshot_Component> ComponentSnapshots;
+		TMap<FString, FLevelSnapshot_Component> ComponentSnapshots;
 
-	bool operator==(const FLevelSnapshot_Actor& OtherSnapshot) const 
+	bool operator==(const FLevelSnapshot_Actor& OtherSnapshot) const
 	{
 		return OtherSnapshot.Base == this->Base;
 	};

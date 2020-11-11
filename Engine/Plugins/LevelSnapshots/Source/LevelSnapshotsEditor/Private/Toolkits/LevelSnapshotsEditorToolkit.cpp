@@ -5,12 +5,16 @@
 #include "LevelSnapshotsEditorCommands.h"
 #include "LevelSnapshotsEditorStyle.h"
 #include "LevelSnapshotsEditorData.h"
+#include "LevelSnapshotsFunctionLibrary.h"
 #include "Misc/LevelSnapshotsEditorContext.h"
 #include "Views/Input/LevelSnapshotsEditorInput.h"
 #include "Views/Filter/LevelSnapshotsEditorFilters.h"
 #include "Views/Results/LevelSnapshotsEditorResults.h"
 
+#include "Editor.h"
 #include "Engine/World.h"
+
+#include "LevelSnapshot.h"
 
 #define LOCTEXT_NAMESPACE "FLevelSnapshotsToolkit"
 
@@ -42,6 +46,8 @@ void FLevelSnapshotsEditorToolkit::Initialize(const EToolkitMode::Type Mode, con
 	EditorInput		= MakeShared<FLevelSnapshotsEditorInput>(ViewBuilder.ToSharedRef());
 	EditorFilters	= MakeShared<FLevelSnapshotsEditorFilters>(ViewBuilder.ToSharedRef());
 	EditorResults	= MakeShared<FLevelSnapshotsEditorResults>(ViewBuilder.ToSharedRef());
+
+	ViewBuilder->OnSnapshotSelected.AddSP(this, &FLevelSnapshotsEditorToolkit::SnapshotSelected);
 
 	FString LayoutString = TEXT("Standalone_Test_Layout_4");
 	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout(FName(LayoutString))
@@ -195,8 +201,21 @@ void FLevelSnapshotsEditorToolkit::SetupCommands()
 		FExecuteAction::CreateRaw(this, &FLevelSnapshotsEditorToolkit::ApplyToWorld));
 }
 
+#pragma optimize("", off)
 void FLevelSnapshotsEditorToolkit::ApplyToWorld()
 {
+	if (ULevelSnapshot* ActiveLevelSnapshot = ActiveLevelSnapshotPtr.Get())
+	{
+		UWorld* World = GEditor->GetEditorWorldContext().World();
+		ULevelSnapshotsFunctionLibrary::ApplySnapshotToWorld(World, ActiveLevelSnapshot, nullptr);
+	}
+}
+
+#pragma optimize("", on)
+
+void FLevelSnapshotsEditorToolkit::SnapshotSelected(ULevelSnapshot* InLevelSnapshot)
+{
+	ActiveLevelSnapshotPtr = InLevelSnapshot;
 }
 
 #undef LOCTEXT_NAMESPACE

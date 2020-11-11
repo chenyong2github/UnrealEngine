@@ -21,6 +21,7 @@ public class LevelSnapshotsEditor : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
+				"Kismet",
 				"Slate",
 				"SlateCore",
 				"UnrealEd",

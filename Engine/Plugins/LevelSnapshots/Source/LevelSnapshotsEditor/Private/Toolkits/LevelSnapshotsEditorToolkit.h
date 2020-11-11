@@ -12,6 +12,8 @@ class FLevelSnapshotsEditorResults;
 class FLevelSnapshotsEditorContext;
 struct FLevelSnapshotsEditorViewBuilder;
 
+class ULevelSnapshot;
+
 class FLevelSnapshotsEditorToolkit
 	: public ILevelSnapshotsEditorToolkit
 {
@@ -66,11 +68,14 @@ private:
 
 	void ApplyToWorld();
 
+	void SnapshotSelected(ULevelSnapshot* InLevelSnapshot);
+
 private:
 	TSharedPtr<FLevelSnapshotsEditorViewBuilder> ViewBuilder;
 
-
 	ULevelSnapshotsEditorData* EditorData;
+
+	TWeakObjectPtr<ULevelSnapshot> ActiveLevelSnapshotPtr;
 
 	TSharedPtr<FLevelSnapshotsEditorInput> EditorInput;
 	TSharedPtr<FLevelSnapshotsEditorFilters> EditorFilters;
