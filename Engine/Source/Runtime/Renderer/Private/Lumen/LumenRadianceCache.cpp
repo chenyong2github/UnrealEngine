@@ -662,11 +662,10 @@ class FRadianceCacheTraceFromProbesCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FOverbudgetPass : SHADER_PERMUTATION_BOOL("OVERBUDGET_TRACING_PASS");
-	class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, Lumen::VoxelTracingModeCount);
 	class FDistantScene : SHADER_PERMUTATION_BOOL("TRACE_DISTANT_SCENE");
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 
-	using FPermutationDomain = TShaderPermutationDomain<FOverbudgetPass, FVoxelTracingMode, FDistantScene, FDynamicSkyLight>;
+	using FPermutationDomain = TShaderPermutationDomain<FOverbudgetPass, FDistantScene, FDynamicSkyLight>;
 
 public:
 
@@ -1130,7 +1129,6 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 
 				FRadianceCacheTraceFromProbesCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FOverbudgetPass>(TracePassIndex == 1);
-				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FVoxelTracingMode>(Lumen::GetVoxelTracingMode());
 				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FDistantScene>(Scene->LumenSceneData->DistantCardIndices.Num() > 0);
 				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FDynamicSkyLight>(ShouldRenderDynamicSkyLight(Scene, ViewFamily));
 				auto ComputeShader = View.ShaderMap->GetShader<FRadianceCacheTraceFromProbesCS>(PermutationVector);

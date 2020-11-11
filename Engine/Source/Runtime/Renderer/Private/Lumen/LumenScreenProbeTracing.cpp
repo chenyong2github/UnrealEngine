@@ -224,12 +224,11 @@ class FScreenProbeTraceVoxelsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedTraceParameters, CompactedTraceParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
-	class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, Lumen::VoxelTracingModeCount);
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 	class FTraceDistantScene : SHADER_PERMUTATION_BOOL("TRACE_DISTANT_SCENE");
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
 	class FStructuredImportanceSampling : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
-	using FPermutationDomain = TShaderPermutationDomain<FVoxelTracingMode, FDynamicSkyLight, FTraceDistantScene, FRadianceCache, FStructuredImportanceSampling>;
+	using FPermutationDomain = TShaderPermutationDomain<FDynamicSkyLight, FTraceDistantScene, FRadianceCache, FStructuredImportanceSampling>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -681,7 +680,6 @@ void TraceScreenProbes(
 		const bool bRadianceCache = LumenScreenProbeGather::UseRadianceCache(View);
 
 		FScreenProbeTraceVoxelsCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FVoxelTracingMode >(Lumen::GetVoxelTracingMode());
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FDynamicSkyLight >(ShouldRenderDynamicSkyLight(Scene, *View.Family));
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FTraceDistantScene >(Scene->LumenSceneData->DistantCardIndices.Num() > 0);
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FRadianceCache >(bRadianceCache);

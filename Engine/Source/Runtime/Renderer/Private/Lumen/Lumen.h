@@ -14,11 +14,8 @@ namespace Lumen
 		MAX
 	};
 
-	constexpr uint32 VoxelTracingModeCount = 2;
-
 	bool ShouldPrepareGlobalDistanceField(EShaderPlatform ShaderPlatform);
 	float GetDistanceSceneNaniteLODScaleFactor();
-	uint32 GetVoxelTracingMode();
 	float GetMaxTraceDistance();
 	bool UseHardwareRayTracedShadows(const FViewInfo& View);
 	bool UseHardwareRayTracedScreenProbeGather();

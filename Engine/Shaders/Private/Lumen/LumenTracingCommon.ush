@@ -24,15 +24,6 @@ Texture2D OpacityAtlas;
 Texture2D DilatedDepthAtlas;
 Texture3D<uint> CubeMapTreeLUTAtlas;
 
-#define VOXEL_TRACING_MODE_SDF_RAY_TRACING 0
-#define VOXEL_TRACING_MODE_CONE_TRACING_WITH_SDF 1
-#define VOXEL_TRACING_MODE_INVALID 2
-
-#ifndef VOXEL_TRACING_MODE
-	// Set a default so other shaders in the same file can compile, but will get a visual assert if calling the functions which depend on this.
-	#define VOXEL_TRACING_MODE VOXEL_TRACING_MODE_INVALID
-#endif
-
 #ifndef VISIBILITY_ONLY_TRACE
 	#define VISIBILITY_ONLY_TRACE 0
 #endif
@@ -1030,18 +1021,7 @@ uint VoxelFaceFromStep(uint3 StepInc, int3 VoxelStep)
 	return dot(StepInc, uint3(0, 2, 4) + DirectionOffset);
 }
 
-#if VOXEL_TRACING_MODE == VOXEL_TRACING_MODE_INVALID
-
-void ConeTraceVoxels(
-	FConeTraceInput TraceInput,
-	inout FConeTraceResult OutResult)
-{
-	// Shader should have defined VOXEL_TRACING_MODE
-	OutResult = (FConeTraceResult)0;
-	OutResult.Lighting = float3(View.StateFrameIndexMod8 == 0 ? 1 : 0, 0, 0) * 100.0f;
-}
-
-#elif VOXEL_TRACING_MODE == VOXEL_TRACING_MODE_CONE_TRACING_WITH_SDF
+#if LEGACY_VOXEL_CONE_TRACING
 
 void ConeTraceVoxels(
 	FConeTraceInput TraceInput,
@@ -1080,6 +1060,7 @@ void ConeTraceVoxels(
 	for (uint ClipmapIndex = StartClipmapIndex; ClipmapIndex < NumGlobalSDFClipmaps && LightingAndAlpha.a > MIN_VOXEL_TRACE_TRANSPARENCY; ClipmapIndex++)
 	{
 		float MinStepSize = TraceInput.VoxelStepFactor * GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize; 
+		const float ClipmapInfluenceRange = GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS * 2.0f * GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
 		float3 GlobalVolumeCenter = GlobalVolumeCenterAndExtent[ClipmapIndex].xyz;
 		float GlobalVolumeExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w;
 		float3 VolumeRayStart = TraceInput.ConeOrigin - GlobalVolumeCenter;
@@ -1105,7 +1086,9 @@ void ConeTraceVoxels(
 			for (; StepIndex < MaxSteps; StepIndex++)
 			{
 				float3 SampleWorldPosition = TraceInput.ConeOrigin + TraceInput.ConeDirection * SampleRayTime;
-				float DistanceField = SampleGlobalDistanceField(SampleWorldPosition, 2.0f * SampleClipmapVoxelRadius, ClipmapIndex);
+				float3 MipUV = ComputeGlobalMipUV(SampleWorldPosition, ClipmapIndex);
+				float DistanceFieldMipValue = Texture3DSampleLevel(GlobalDistanceFieldMipTexture, GlobalTrilinearWrappedSampler, MipUV, 0).x;
+				float DistanceField = DecodeGlobalDistanceFieldPageDistance(DistanceFieldMipValue, GlobalDistanceFieldMipFactor * ClipmapInfluenceRange);
 				float StepSphereRadius = SampleRayTime * TraceInput.TanConeAngle;
 
 				float3 VoxelClipmapCenter = ClipmapWorldCenter[VoxelClipmapIndex].xyz;
@@ -1141,13 +1124,6 @@ void ConeTraceVoxels(
 					LightingAndAlpha.rgb *= (1.0f + max(PrevAlpha - LightingAndAlpha.a, 0.0f));
 				}
 
-				// When we are reading clamped distances, revert to stepping based on cone angle
-				//@todo - global distance field should be prepared with a MaxGlobalDistance configured by Lumen
-				if (DistanceField > 0.8 * MaxGlobalDFAOConeDistance)
-				{
-					DistanceField = max(DistanceField, StepSphereRadius);
-				}
-
 				float StepDistance = max(DistanceField * TraceInput.SDFStepFactor, MinStepSize);
 				SampleRayTime += StepDistance;
 
@@ -1174,7 +1150,7 @@ void ConeTraceVoxels(
 	OutResult.OpaqueHitDistance = SampleRayTime;
 }
 
-#elif VOXEL_TRACING_MODE == VOXEL_TRACING_MODE_SDF_RAY_TRACING
+#else
 
 void ConeTraceVoxels(
 	FConeTraceInput TraceInput,
@@ -1251,7 +1227,6 @@ void ConeTraceVoxels(
 }
 
 #endif
-
 
 float ComputeSquaredDistanceBetweenAABBs(float3 CenterA, float3 ExtentA, float3 CenterB, float3 ExtentB)
 {

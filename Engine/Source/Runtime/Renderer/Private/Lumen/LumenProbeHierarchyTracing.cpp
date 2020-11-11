@@ -111,14 +111,13 @@ class FLumenVoxelTraceProbeCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, ProbeAtlasSampleMaskOutput)
 	END_SHADER_PARAMETER_STRUCT()
 
-	class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, Lumen::VoxelTracingModeCount);
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 	class FTraceDistantScene : SHADER_PERMUTATION_BOOL("PROBE_HIERARCHY_TRACE_DISTANT_SCENE");
 	class FTraceCards : SHADER_PERMUTATION_BOOL("DIFFUSE_TRACE_CARDS");
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
 
 	using FPermutationDomain = TShaderPermutationDomain<
-		FVoxelTracingMode, FDynamicSkyLight, FTraceDistantScene, FTraceCards, FRadianceCache,
+		FDynamicSkyLight, FTraceDistantScene, FTraceCards, FRadianceCache,
 		LumenProbeHierarchy::FProbeTracingPermutationDim>;
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
@@ -199,17 +198,11 @@ class FLumenTraceProbeOcclusionCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FLumenTracingPermutationDim : SHADER_PERMUTATION_ENUM_CLASS("DIM_LUMEN_TRACING_PERMUTATION", Lumen::ETracingPermutation);
-	class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, Lumen::VoxelTracingModeCount);
 	class FTileClassificationDim : SHADER_PERMUTATION_ENUM_CLASS("DIM_PROBE_OCCLUSION_CLASSIFICATION", LumenProbeHierarchy::EProbeOcclusionClassification);
-	using FPermutationDomain = TShaderPermutationDomain<FLumenTracingPermutationDim, FVoxelTracingMode, FTileClassificationDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FLumenTracingPermutationDim, FTileClassificationDim>;
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
-		if (PermutationVector.Get<FLumenTracingPermutationDim>() == Lumen::ETracingPermutation::Cards)
-		{
-			PermutationVector.Set<FVoxelTracingMode>(0);
-		}
-
 		return PermutationVector;
 	}
 
@@ -354,7 +347,6 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 			const bool bRadianceCache = bUseRadianceCache && bLastLevel;
 
 			FLumenVoxelTraceProbeCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenVoxelTraceProbeCS::FVoxelTracingMode>(Lumen::GetVoxelTracingMode());
 			PermutationVector.Set<FLumenVoxelTraceProbeCS::FDynamicSkyLight>(ShouldRenderDynamicSkyLight(Scene, ViewFamily) && bLastLevel);
 			PermutationVector.Set<FLumenVoxelTraceProbeCS::FTraceCards>(bTraceCards);
 			PermutationVector.Set<FLumenVoxelTraceProbeCS::FRadianceCache>(bRadianceCache);
@@ -515,7 +507,6 @@ void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 
 			FLumenTraceProbeOcclusionCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FLumenTraceProbeOcclusionCS::FLumenTracingPermutationDim>(bTraceCards ? Lumen::ETracingPermutation::VoxelsAfterCards : Lumen::ETracingPermutation::Voxels);
-			PermutationVector.Set<FLumenTraceProbeOcclusionCS::FVoxelTracingMode>(Lumen::GetVoxelTracingMode());
 			PermutationVector.Set<FLumenTraceProbeOcclusionCS::FTileClassificationDim>(TileClassification);
 			PermutationVector = FLumenTraceProbeOcclusionCS::RemapPermutation(PermutationVector);
 

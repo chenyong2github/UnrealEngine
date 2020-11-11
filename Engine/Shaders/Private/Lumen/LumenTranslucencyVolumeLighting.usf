@@ -4,6 +4,9 @@
 	LumenTranslucencyLighting.usf
 =============================================================================*/
 
+// Temporary hack until Lumen gets an improved denoiser for the translucency volume
+#define LEGACY_VOXEL_CONE_TRACING 1
+
 #include "../Common.ush"
 #include "../SHCommon.ush"
 #include "LumenCardCommon.ush"

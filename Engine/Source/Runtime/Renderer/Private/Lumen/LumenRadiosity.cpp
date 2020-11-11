@@ -254,9 +254,6 @@ class FTraceProbeCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
-		class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, Lumen::VoxelTracingModeCount);
-	using FPermutationDomain = TShaderPermutationDomain<FVoxelTracingMode>;
-
 	static uint32 GetGroupSize()
 	{
 		return 8;
@@ -409,10 +406,7 @@ void RenderRadiosityProbes(
 		SetupLumenDiffuseTracingParametersForProbe(PassParameters->IndirectTracingParameters, GetRadiosityConeHalfAngle());
 		PassParameters->IndirectArgs = RadiosityProbeIndirectArgsBuffer;
 
-		FTraceProbeCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FTraceProbeCS::FVoxelTracingMode>(Lumen::GetVoxelTracingMode());
-
-		auto ComputeShader = GlobalShaderMap->GetShader<FTraceProbeCS>(PermutationVector);
+		auto ComputeShader = GlobalShaderMap->GetShader<FTraceProbeCS>();
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -582,11 +576,10 @@ class FLumenCardRadiosityTraceBlocksCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
-	class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, Lumen::VoxelTracingModeCount);
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 	class FProbes : SHADER_PERMUTATION_BOOL("RADIOSITY_PROBES");
 
-	using FPermutationDomain = TShaderPermutationDomain<FVoxelTracingMode, FDynamicSkyLight, FProbes>;
+	using FPermutationDomain = TShaderPermutationDomain<FDynamicSkyLight, FProbes>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -701,7 +694,6 @@ void RenderRadiosityComputeScatter(
 		FLumenCardRadiosityTraceBlocksCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenCardRadiosityTraceBlocksCS::FDynamicSkyLight>(bRenderSkylight);
 		PermutationVector.Set<FLumenCardRadiosityTraceBlocksCS::FProbes>(GLumenRadiosityProbes != 0);
-		PermutationVector.Set<FLumenCardRadiosityTraceBlocksCS::FVoxelTracingMode>(Lumen::GetVoxelTracingMode());
 		auto ComputeShader = GlobalShaderMap->GetShader< FLumenCardRadiosityTraceBlocksCS >(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -723,11 +715,10 @@ class FLumenCardRadiosityPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRadiosityTraceFromTexelParameters, TraceFromTexelParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
-	class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, Lumen::VoxelTracingModeCount);
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 	class FProbes : SHADER_PERMUTATION_BOOL("RADIOSITY_PROBES");
 
-	using FPermutationDomain = TShaderPermutationDomain<FVoxelTracingMode, FDynamicSkyLight, FProbes>;
+	using FPermutationDomain = TShaderPermutationDomain<FDynamicSkyLight, FProbes>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -838,7 +829,6 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			SetupTraceFromTexelParameters(Views[0], TracingInputs, LumenSceneData, ProbeParameters, PassParameters->PS.TraceFromTexelParameters);
 
 			FLumenCardRadiosityPS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenCardRadiosityPS::FVoxelTracingMode>(Lumen::GetVoxelTracingMode());
 			PermutationVector.Set<FLumenCardRadiosityPS::FDynamicSkyLight>(bRenderSkylight);
 			PermutationVector.Set<FLumenCardRadiosityPS::FProbes>(GLumenRadiosityProbes != 0);
 			auto PixelShader = GlobalShaderMap->GetShader<FLumenCardRadiosityPS>(PermutationVector);

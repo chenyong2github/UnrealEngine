@@ -191,10 +191,9 @@ class FVisualizeLumenSceneCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FTraceCards : SHADER_PERMUTATION_BOOL("TRACE_CARDS");
-	class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, Lumen::VoxelTracingModeCount);
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
 
-	using FPermutationDomain = TShaderPermutationDomain<FTraceCards, FVoxelTracingMode, FRadianceCache>;
+	using FPermutationDomain = TShaderPermutationDomain<FTraceCards, FRadianceCache>;
 
 public:
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
@@ -404,7 +403,6 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 
 				FVisualizeLumenSceneCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FVisualizeLumenSceneCS::FTraceCards>(GVisualizeLumenSceneTraceCards != 0);
-				PermutationVector.Set<FVisualizeLumenSceneCS::FVoxelTracingMode>(Lumen::GetVoxelTracingMode());
 				PermutationVector.Set<FVisualizeLumenSceneCS::FRadianceCache>(GVisualizeLumenSceneTraceRadianceCache != 0 && LumenRadianceCache::IsEnabled(View));
 				PermutationVector = FVisualizeLumenSceneCS::RemapPermutation(PermutationVector);
 

@@ -195,11 +195,10 @@ class FTranslucencyLightingCS : public FGlobalShader
 		SHADER_PARAMETER(float, VoxelTraceStartDistanceScale)
 	END_SHADER_PARAMETER_STRUCT()
 
-		class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, Lumen::VoxelTracingModeCount);
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 	class FTemporalReprojection : SHADER_PERMUTATION_BOOL("USE_TEMPORAL_REPROJECTION");
 
-	using FPermutationDomain = TShaderPermutationDomain<FVoxelTracingMode, FDynamicSkyLight, FTemporalReprojection>;
+	using FPermutationDomain = TShaderPermutationDomain<FDynamicSkyLight, FTemporalReprojection>;
 
 	static FIntVector GetGroupSize()
 	{
@@ -325,7 +324,6 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 			}
 
 			FTranslucencyLightingCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FTranslucencyLightingCS::FVoxelTracingMode>(Lumen::GetVoxelTracingMode());
 			PermutationVector.Set<FTranslucencyLightingCS::FDynamicSkyLight>(ShouldRenderDynamicSkyLight(Scene, ViewFamily));
 			PermutationVector.Set<FTranslucencyLightingCS::FTemporalReprojection>(bUseTemporalReprojection);
 			auto ComputeShader = View.ShaderMap->GetShader<FTranslucencyLightingCS>(PermutationVector);

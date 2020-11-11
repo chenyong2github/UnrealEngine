@@ -190,9 +190,8 @@ class FReflectionTraceVoxelsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedReflectionTraceParameters, CompactedTraceParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
-	class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, Lumen::VoxelTracingModeCount);
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
-	using FPermutationDomain = TShaderPermutationDomain<FVoxelTracingMode, FDynamicSkyLight>;
+	using FPermutationDomain = TShaderPermutationDomain<FDynamicSkyLight>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -487,7 +486,6 @@ void TraceReflections(
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
 		FReflectionTraceVoxelsCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set< FReflectionTraceVoxelsCS::FVoxelTracingMode >(Lumen::GetVoxelTracingMode());
 		PermutationVector.Set< FReflectionTraceVoxelsCS::FDynamicSkyLight >(ShouldRenderDynamicSkyLight(Scene, *View.Family));
 		auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceVoxelsCS>(PermutationVector);
 

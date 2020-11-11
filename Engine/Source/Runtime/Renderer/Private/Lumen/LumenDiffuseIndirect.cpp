@@ -104,17 +104,10 @@ FAutoConsoleVariableRef CVarDiffuseCardTraceEndDistanceFromCamera(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-FAutoConsoleVariableRef CVarLumenTracingVoxelTracingMode(
-	TEXT("r.Lumen.Tracing.VoxelTracingMode"),
-	GLumenGatherCvars.VoxelTracingMode,
-	TEXT("Voxel tracing mode. 0 - Global SDF ray tracing, 1 - Voxel cone tracing with global SDF acceleration"),
-	ECVF_RenderThreadSafe
-);
-
-float GLumenTracingMaxTraceDistance = 10000.0f;
-FAutoConsoleVariableRef CVarLumenTracingMaxTraceDistance(
-	TEXT("r.Lumen.Tracing.MaxTraceDistance"),
-	GLumenTracingMaxTraceDistance,
+float GLumenMaxTraceDistance = 10000.0f;
+FAutoConsoleVariableRef CVarLumenMaxTraceDistance(
+	TEXT("r.Lumen.MaxTraceDistance"),
+	GLumenMaxTraceDistance,
 	TEXT("Max tracing distance for voxel cone tracing."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
@@ -151,16 +144,9 @@ FAutoConsoleVariableRef CVarCardGridDistributionZScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-uint32 Lumen::GetVoxelTracingMode()
-{
-	uint32 VoxelTracingMode = FMath::Clamp<uint32>(GLumenGatherCvars.VoxelTracingMode, 0, Lumen::VoxelTracingModeCount - 1);
-
-	return VoxelTracingMode;
-}
-
 float Lumen::GetMaxTraceDistance()
 {
-	return FMath::Clamp(GLumenTracingMaxTraceDistance, .01f, (float)HALF_WORLD_MAX);
+	return FMath::Clamp(GLumenMaxTraceDistance, .01f, (float)HALF_WORLD_MAX);
 }
 
 void FHemisphereDirectionSampleGenerator::GenerateSamples(int32 TargetNumSamples, int32 InPowerOfTwoDivisor, int32 InSeed, bool bInFullSphere, bool bInCosineDistribution)
