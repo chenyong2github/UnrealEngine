@@ -29,7 +29,7 @@
 #include "ContentBrowserCommands.h"
 #include "CoreGlobals.h"
 #include "StatusBarSubsystem.h"
-#include "Toolkits/GlobalEditorCommonCommands.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -49,6 +49,28 @@ FContentBrowserSingleton::FContentBrowserSingleton()
 		ContentBrowserIcon,
 		true);
 
+	UToolMenu* ContentMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.ContentQuickMenu");
+	FToolMenuSection& Section = ContentMenu->FindOrAddSection("ProjectContent");
+	Section.AddMenuEntry("FocusContentBrowser",
+		LOCTEXT("FocusContentBrowser_Label", "Focus Content Browser"),
+		LOCTEXT("FocusContentBrowser_Desc", "Focuses the most recently active content browser tab."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateRaw(this, &FContentBrowserSingleton::FocusPrimaryContentBrowser, true))
+	);
+	Section.AddSeparator(NAME_None);
+
+	auto AddSpawnerEntryToMenuSection = [](FToolMenuSection& InSection, FTabSpawnerEntry& InSpawnerNode, FName InTabID)
+	{
+		InSection.AddMenuEntry(
+			InTabID,
+			InSpawnerNode.GetDisplayName().IsEmpty() ? FText::FromName(InTabID) : InSpawnerNode.GetDisplayName(),
+			InSpawnerNode.GetTooltipText(),
+			FSlateIcon(),
+			FGlobalTabmanager::Get()->GetUIActionForTabSpawnerMenuEntry(InSpawnerNode.AsSpawnerEntry()),
+			EUserInterfaceActionType::Check
+			);
+	};
+
 	for ( int32 BrowserIdx = 0; BrowserIdx < UE_ARRAY_COUNT(ContentBrowserTabIDs); BrowserIdx++ )
 	{
 		const FName TabID = FName(*FString::Printf(TEXT("ContentBrowserTab%d"), BrowserIdx + 1));
@@ -56,11 +78,13 @@ FContentBrowserSingleton::FContentBrowserSingleton()
 
 		const FText DefaultDisplayName = GetContentBrowserLabelWithIndex( BrowserIdx );
 
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner( TabID, FOnSpawnTab::CreateRaw(this, &FContentBrowserSingleton::SpawnContentBrowserTab, BrowserIdx) )
+		FTabSpawnerEntry& ContentBrowserTabSpawner = FGlobalTabmanager::Get()->RegisterNomadTabSpawner( TabID, FOnSpawnTab::CreateRaw(this, &FContentBrowserSingleton::SpawnContentBrowserTab, BrowserIdx) )
 			.SetDisplayName(DefaultDisplayName)
 			.SetTooltipText( LOCTEXT( "ContentBrowserMenuTooltipText", "Open a Content Browser tab." ) )
 			.SetGroup( ContentBrowserGroup )
 			.SetIcon(ContentBrowserIcon);
+
+		AddSpawnerEntryToMenuSection(Section, ContentBrowserTabSpawner, TabID);
 	}
 
 	// Register a couple legacy tab ids

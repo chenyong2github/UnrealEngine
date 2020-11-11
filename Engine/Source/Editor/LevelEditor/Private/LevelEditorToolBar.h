@@ -64,6 +64,8 @@ protected:
 	 */
 	static TSharedRef< SWidget > GenerateCinematicsMenuContent(TSharedRef<FUICommandList> InCommandList, TWeakPtr<SLevelEditor> InLevelEditor);
 
+	static TSharedRef< SWidget > GenerateContentMenuWidget(TSharedRef<FUICommandList> InCommandList, TWeakPtr<SLevelEditor> InLevelEditor);
+
 	/**
 	 * Delegate for actor selection within the Cinematics popup menu's SceneOutliner.
 	 * Opens the editor for the selected actor and dismisses all popup menus.
@@ -84,4 +86,5 @@ private:
 
 	static void RegisterQuickSettingsMenu();
 	static void RegisterOpenBlueprintMenu();
+	static void RegisterContentMenu();
 };

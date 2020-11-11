@@ -8,6 +8,7 @@
 #include "Textures/SlateIcon.h"
 #include "Widgets/SWindow.h"
 #include "Framework/Docking/WorkspaceItem.h"
+#include "Framework/Commands/UIAction.h"
 
 class FJsonObject;
 class FMenuBuilder;
@@ -888,6 +889,8 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 
 		/** Returns filter for additional control over available tabs */
 		TSharedRef<FBlacklistNames>& GetTabBlacklist();
+
+		FUIAction GetUIActionForTabSpawnerMenuEntry(TSharedPtr<FTabSpawnerEntry> InTabMenuEntry);
 
 	protected:
 		void InvokeTabForMenu( FName TabId );

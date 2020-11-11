@@ -1179,6 +1179,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 
 	RegisterQuickSettingsMenu();
 	RegisterOpenBlueprintMenu();
+	RegisterContentMenu();
 
 #define LOCTEXT_NAMESPACE "LevelEditorToolBar"
 
@@ -1200,7 +1201,14 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 
 		{
 			FToolMenuSection& Section = AssetsToolBar->AddSection("Content");
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FLevelEditorCommands::Get().OpenContentBrowser, LOCTEXT("ContentBrowser_Override", "Content"), TAttribute<FText>(), TAttribute<FSlateIcon>(), "LevelToolbarContent"));
+			Section.AddEntry(FToolMenuEntry::InitComboButton(
+				"Content",
+				FUIAction(),
+				FOnGetContent::CreateStatic(&FLevelEditorToolBar::GenerateContentMenuWidget, InCommandList, TWeakPtr<SLevelEditor>(InLevelEditor)),
+				LOCTEXT("OpenContent_Label", "Content"),
+				LOCTEXT("OpenContent_Tooltip", "Quickly find content available to add to the project."),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.OpenContentBrowser")
+			));
 
 			Section.AddEntry(FToolMenuEntry::InitComboButton(
 				"OpenBlueprint",
@@ -1818,6 +1826,22 @@ void FLevelEditorToolBar::RegisterOpenBlueprintMenu()
 #undef LOCTEXT_NAMESPACE
 }
 
+void FLevelEditorToolBar::RegisterContentMenu()
+{
+#define LOCTEXT_NAMESPACE "LevelToolBarViewMenu"
+	UToolMenu* ContentMenu = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.ContentQuickMenu");
+	{
+		FToolMenuSection& Section = ContentMenu->FindOrAddSection("ProjectContent");
+		Section.InitSection("ProjectContent", LOCTEXT("ProjectContent_Label", "Project Content"), FToolMenuInsert("ContentBrowser", EToolMenuInsertType::First));
+	}
+	{
+		FToolMenuSection& Section = ContentMenu->FindOrAddSection("ExternalContent");
+		Section.InitSection("ExternalContent", LOCTEXT("ExternalContent_Label", "Get Content"), FToolMenuInsert());
+		Section.AddMenuEntry(FLevelEditorCommands::Get().OpenMarketplace);
+	}
+#undef LOCTEXT_NAMESPACE
+}
+
 void FLevelEditorToolBar::OnOpenSubLevelBlueprint( ULevel* InLevel )
 {
 	ULevelScriptBlueprint* LevelScriptBlueprint = InLevel->GetLevelScriptBlueprint();
@@ -1842,6 +1866,16 @@ TSharedRef< SWidget > FLevelEditorToolBar::GenerateCinematicsMenuContent(TShared
 	MenuContext.AddObject(LevelEditorMenuContext);
 
 	return UToolMenus::Get()->GenerateWidget("LevelEditor.LevelEditorToolBar.Cinematics", MenuContext);
+}
+
+TSharedRef< SWidget > FLevelEditorToolBar::GenerateContentMenuWidget(TSharedRef<FUICommandList> InCommandList, TWeakPtr<SLevelEditor> InLevelEditor)
+{
+	FToolMenuContext MenuContext(InCommandList);
+	ULevelEditorMenuContext* LevelEditorMenuContext = NewObject<ULevelEditorMenuContext>();
+	LevelEditorMenuContext->LevelEditor = InLevelEditor;
+	MenuContext.AddObject(LevelEditorMenuContext);
+
+	return UToolMenus::Get()->GenerateWidget("LevelEditor.LevelEditorToolBar.ContentQuickMenu", MenuContext);
 }
 
 void FLevelEditorToolBar::RegisterCinematicsMenu()
