@@ -792,7 +792,11 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 	FRHITexture* SceneDepth = nullptr;
 	ERenderTargetActions ColorTargetAction = ERenderTargetActions::Clear_Store;
 	EDepthStencilTargetActions DepthTargetAction = EDepthStencilTargetActions::ClearDepthStencil_DontStoreDepthStencil;
-	bool bMobileMSAA = NumMSAASamples > 1;
+
+	// Verify using both MSAA sample count AND the scene color surface sample count, since on GLES you can't have MSAA color targets,
+	// so the color target would be created without MSAA, and MSAA is achieved through magical means (the framebuffer, being MSAA,
+	// tells the GPU "execute this renderpass as MSAA, and when you're done, automatically resolve and copy into this non-MSAA texture").
+	bool bMobileMSAA = NumMSAASamples > 1 && SceneContext.GetSceneColorSurface()->GetNumSamples() > 1;
 
 	static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
 	const bool bIsMultiViewApplication = (CVarMobileMultiView && CVarMobileMultiView->GetValueOnAnyThread() != 0);
@@ -1070,7 +1074,7 @@ FRHITexture* FMobileSceneRenderer::RenderDeferred(FRHICommandListImmediate& RHIC
 	BasePassInfo.bOcclusionQueries = BasePassInfo.NumOcclusionQueries != 0;
 	BasePassInfo.FoveationTexture = nullptr;
 	BasePassInfo.bIsMSAA = false;
-	BasePassInfo.MultiViewCount = false;
+	BasePassInfo.MultiViewCount = 0;
 
 	RHICmdList.BeginRenderPass(BasePassInfo, TEXT("BasePassRendering"));
 	
