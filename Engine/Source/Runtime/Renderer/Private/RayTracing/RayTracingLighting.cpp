@@ -180,7 +180,7 @@ static void CreateRaytracingLightCullingStructure(
 	{
 		FRHITransitionInfo Transitions[] =
 		{
-			FRHITransitionInfo(LightCullVolumeUAV.GetReference(), ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+			FRHITransitionInfo(LightCullVolumeUAV.GetReference(), ERHIAccess::UAVMask, ERHIAccess::SRVMask),
 			FRHITransitionInfo(OutLightingData.LightIndices.UAV.GetReference(), ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
 		};
 		RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));

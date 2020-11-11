@@ -189,6 +189,8 @@ public:
 		FRWBuffer& MipTreePdf)
 	{
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
+		
+		RHICmdList.Transition(FRHITransitionInfo(MipTree.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 
 		SetSRVParameter(RHICmdList, ShaderRHI, MipTreeParameter, MipTree.SRV);
 		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParameter, Dimensions);
