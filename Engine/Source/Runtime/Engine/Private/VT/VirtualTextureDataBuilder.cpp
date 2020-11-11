@@ -735,7 +735,6 @@ void FVirtualTextureDataBuilder::PushDataToChunk(const TArray<FVTSourceTileEntry
 	// codec payloads
 	for (int32 Layer = 0; Layer < NumLayers; ++Layer)
 	{
-		check(ChunkOffset <= 0xffff); // make sure code offset fit within uint16
 		Chunk.CodecPayloadOffset[Layer] = ChunkOffset;
 		Chunk.CodecType[Layer] = LayerData[Layer].Codec;
 		if (LayerData[Layer].CodecPayload.Num() > 0)
