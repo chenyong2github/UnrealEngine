@@ -749,23 +749,7 @@ struct FOpenGL3 : public FOpenGLBase
 
 	static FORCEINLINE ERHIFeatureLevel::Type GetFeatureLevel()
 	{
-		ERHIFeatureLevel::Type PreviewFeatureLevel;
-		if (RHIGetPreviewFeatureLevel(PreviewFeatureLevel))
-		{
-			check(PreviewFeatureLevel == ERHIFeatureLevel::ES3_1);
-			return PreviewFeatureLevel;
-		}
-
-		// Shader platform & RHI feature level
-		switch(GetMajorVersion())
-		{
-		case 3:
-			return ERHIFeatureLevel::ES3_1;
-		case 4:
-			return GetMinorVersion() > 2 ? ERHIFeatureLevel::SM5 : ERHIFeatureLevel::ES3_1;
-		default:
-			return ERHIFeatureLevel::ES3_1;
-		}
+		return ERHIFeatureLevel::ES3_1;
 	}
 
 	static FORCEINLINE EShaderPlatform GetShaderPlatform()
