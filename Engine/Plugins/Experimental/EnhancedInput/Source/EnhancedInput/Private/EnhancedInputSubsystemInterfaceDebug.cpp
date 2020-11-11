@@ -64,7 +64,7 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 	if (!PlayerInput)
 	{
 		DisplayDebugManager.SetDrawColor(FColor::Orange);
-		DisplayDebugManager.DrawString(TEXT("This player does not support enhanced input. To enable it their player controller should derive from AEnhancedInputPlayerController."));
+		DisplayDebugManager.DrawString(TEXT("This player does not support Enhanced Input. To enable it update Project Settings -> Input -> Default Classes to the Enhanced versions."));
 		return;
 	}
 
