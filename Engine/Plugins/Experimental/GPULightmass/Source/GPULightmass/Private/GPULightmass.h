@@ -29,6 +29,9 @@ public:
 	void InstallGameThreadEventHooks();
 	void RemoveGameThreadEventHooks();
 
+	void StartRecordingVisibleTiles();
+	void EndRecordingVisibleTiles();
+
 	TSharedPtr<SNotificationItem> LightBuildNotification;
 	int32 LightBuildPercentage;
 	

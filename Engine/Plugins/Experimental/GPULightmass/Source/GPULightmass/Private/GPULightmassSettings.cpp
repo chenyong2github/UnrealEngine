@@ -462,4 +462,34 @@ UGPULightmassSettings* UGPULightmassSubsystem::GetSettings()
 	return GetSettingsActor() ? GetSettingsActor()->Settings : nullptr;
 }
 
+void UGPULightmassSubsystem::StartRecordingVisibleTiles()
+{
+	// Replicate value to any running instances
+	UWorld* World = GEditor->GetEditorWorldContext().World();
+	if (World)
+	{
+		FGPULightmassModule& GPULightmassModule = FModuleManager::LoadModuleChecked<FGPULightmassModule>(TEXT("GPULightmass"));
+		FGPULightmass* GPULightmass = (FGPULightmass*)GPULightmassModule.GetStaticLightingSystemForWorld(World);
+		if (GPULightmass)
+		{
+			GPULightmass->StartRecordingVisibleTiles();
+		}
+	}
+}
+
+void UGPULightmassSubsystem::EndRecordingVisibleTiles()
+{
+	// Replicate value to any running instances
+	UWorld* World = GEditor->GetEditorWorldContext().World();
+	if (World)
+	{
+		FGPULightmassModule& GPULightmassModule = FModuleManager::LoadModuleChecked<FGPULightmassModule>(TEXT("GPULightmass"));
+		FGPULightmass* GPULightmass = (FGPULightmass*)GPULightmassModule.GetStaticLightingSystemForWorld(World);
+		if (GPULightmass)
+		{
+			GPULightmass->EndRecordingVisibleTiles();
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

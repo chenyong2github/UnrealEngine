@@ -1548,7 +1548,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 						FMath::Square(LodSubsectionSizeVerts) * (uint32)sizeof(FVector),
 						(uint32)FMath::Square(LodSubsectionSizeVerts - 1) * 2,
 						&InstanceRenderStateRef->SectionRayTracingStates[SubSectionIdx]->Geometry,
-						nullptr,
+						&InstanceRenderStateRef->SectionRayTracingStates[SubSectionIdx]->RayTracingDynamicVertexBuffer,
 						false
 					};
 
@@ -1562,9 +1562,9 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 
 					DynamicGeometryCollection.DispatchUpdates(RHICmdList);
 
-					// We use FRayTracingDynamicGeometryCollection locally which holds all the VBs
-					// Flush them onto RHICmdList so that we can destroy the collection immediately
-					RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+					// Landscape VF doesn't really use the vertex buffer in HitGroupSystemParameters
+					// We can release after all related RHI cmds get dispatched onto the cmd list
+					InstanceRenderStateRef->SectionRayTracingStates[SubSectionIdx]->RayTracingDynamicVertexBuffer.Release();
 				}
 			}
 		}
@@ -1775,9 +1775,9 @@ void FSceneRenderState::BackgroundTick()
 		}
 		else
 		{
-			for (TArray<FLightmapTileRequest>& FrameRequests : LightmapRenderer->TilesVisibleLastFewFrames)
+			if (LightmapRenderer->RecordedTileRequests.Num() > 0)
 			{
-				for (FLightmapTileRequest& Tile : FrameRequests)
+				for (FLightmapTileRequest& Tile : LightmapRenderer->RecordedTileRequests)
 				{
 					TotalSamples += Settings->GISamples * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
 
@@ -1786,9 +1786,23 @@ void FSceneRenderState::BackgroundTick()
 						FMath::Min(Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex, Settings->GISamples - 1)) * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
 				}
 			}
+			else
+			{
+				for (TArray<FLightmapTileRequest>& FrameRequests : LightmapRenderer->TilesVisibleLastFewFrames)
+				{
+					for (FLightmapTileRequest& Tile : FrameRequests)
+					{
+						TotalSamples += Settings->GISamples * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
+
+						SamplesTaken += (Tile.RenderState->DoesTileHaveValidCPUData(Tile.VirtualCoordinates, LightmapRenderer->GetCurrentRevision()) ?
+							Settings->GISamples :
+							FMath::Min(Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex, Settings->GISamples - 1)) * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
+					}
+				}
+			}
 		}
 
-		FPlatformAtomics::InterlockedExchange(&Percentage, FMath::FloorToInt(SamplesTaken * 100.0 / TotalSamples));
+		FPlatformAtomics::InterlockedExchange(&Percentage, FMath::Max(FMath::FloorToInt(SamplesTaken * 100.0 / TotalSamples), 0));
 	}
 }
 
