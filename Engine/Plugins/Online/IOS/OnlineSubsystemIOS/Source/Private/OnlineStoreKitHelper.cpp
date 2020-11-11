@@ -391,7 +391,7 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 		IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get(IOS_SUBSYSTEM);
 		if (ensure(OnlineSub))
 		{
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FOnlineStoreInterfaceIOSPtr StoreInterface = StaticCastSharedPtr<FOnlineStoreInterfaceIOS>(OnlineSub->GetStoreInterface());
 			if (ensure(StoreInterface.IsValid()))
 			{
