@@ -73,10 +73,10 @@ TAutoConsoleVariable<int32> CVarRHISyncInterval(
 	TEXT("rhi.SyncInterval"),
 	1,
 	TEXT("Determines the frequency of VSyncs in supported RHIs.")
-	TEXT("  0 - Unlocked\n")
-	TEXT("  1 - 60 Hz (16.66 ms)\n")
-	TEXT("  2 - 30 Hz (33.33 ms)\n")
-	TEXT("  3 - 20 Hz (50.00 ms)\n"),
+	TEXT("  0 - Unlocked (present immediately)\n")
+	TEXT("  1 - Present every vblank interval\n")
+	TEXT("  2 - Present every 2 vblank intervals\n")
+	TEXT("  3 - etc...\n"),
 	ECVF_Default
 );
 
@@ -481,7 +481,7 @@ bool FRHIFrameFlipTrackingRunnable::bRun = false;
 
 RHI_API uint32 RHIGetSyncInterval()
 {
-	return CVarRHISyncInterval.GetValueOnAnyThread();
+	return FMath::Max(CVarRHISyncInterval.GetValueOnAnyThread(), 0);
 }
 
 RHI_API float RHIGetSyncSlackMS()
