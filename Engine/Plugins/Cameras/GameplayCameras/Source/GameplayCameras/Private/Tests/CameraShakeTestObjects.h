@@ -2,11 +2,32 @@
 
 #pragma once
 
-#include "Camera/CameraShakeBase.h"
+#include "SimpleCameraShakePattern.h"
 #include "CameraShakeTestObjects.generated.h"
 
+template<typename T>
+struct FTestCameraShakeAndPattern
+{
+	UCameraShakeBase* Shake = nullptr;
+	T* Pattern = nullptr;
+};
+
 UCLASS(NotBlueprintable, HideDropdown)
-class UConstantCameraShakePattern : public UCameraShakePattern
+class UTestCameraShake : public UCameraShakeBase
+{
+public:
+	GENERATED_BODY()
+
+	template<typename T>
+	static FTestCameraShakeAndPattern<T> CreateWithPattern()
+	{
+		UTestCameraShake* Shake = NewObject<UTestCameraShake>();
+		return FTestCameraShakeAndPattern<T> { Shake, Shake->ChangeRootShakePattern<T>() };
+	}
+};
+
+UCLASS(NotBlueprintable, HideDropdown)
+class UConstantCameraShakePattern : public USimpleCameraShakePattern
 {
 public:
 
@@ -14,26 +35,13 @@ public:
 
 	UConstantCameraShakePattern(const FObjectInitializer& ObjectInitializer);
 
-private:
-	virtual void GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const override;
-	virtual void UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult) override;
-};
-
-UCLASS(NotBlueprintable, HideDropdown)
-class UConstantCameraShake : public UCameraShakeBase
-{
-public:
-
-	GENERATED_BODY()
-
-	UConstantCameraShake(const FObjectInitializer& ObjectInitializer);
-
 	UPROPERTY()
 	FVector LocationOffset;
 
 	UPROPERTY()
 	FRotator RotationOffset;
 
-	UPROPERTY()
-	float Duration;
+private:
+	virtual void UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult) override;
 };
+
