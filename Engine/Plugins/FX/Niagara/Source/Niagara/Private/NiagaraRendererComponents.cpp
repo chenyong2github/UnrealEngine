@@ -133,7 +133,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererComponents::GenerateDynamicData(const F
 
 	//Bail if we don't have the required attributes to render this emitter.
 	const UNiagaraComponentRendererProperties* Properties = CastChecked<const UNiagaraComponentRendererProperties>(InProperties);
-	if (!SystemInstance || !Properties || SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	if (!SystemInstance || !Properties || !Properties->TemplateComponent || SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		return nullptr;
 	}
