@@ -7341,6 +7341,11 @@ void FAsyncArchive::FlushCache()
 		EditorPrecacheRequestPtr = nullptr;
 	}
 
+	if (Handle)
+	{
+		Handle->ShrinkHandleBuffers();
+	}
+
 	if ((UE_LOG_ACTIVE(LogAsyncArchive, Verbose) 
 #if defined(ASYNC_WATCH_FILE)
 		|| FileName.Contains(TEXT(ASYNC_WATCH_FILE))

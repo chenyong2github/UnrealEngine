@@ -2415,6 +2415,13 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 						Obj->WillNeverCacheCookedPlatformDataAgain();
 					}
 				}
+
+				if (Package->LinkerLoad)
+				{
+					// Loaders and their handles can have large buffers held in process memory and in the system file cache from the
+					// data that was loaded.  Keeping this for the lifetime of the cook is costly, so we try and unload it here.
+					Package->LinkerLoad->FlushCache();
+				}
 			}
 		}
 

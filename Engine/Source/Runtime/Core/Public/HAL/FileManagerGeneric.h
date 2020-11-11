@@ -242,6 +242,7 @@ public:
 	{
 		return Filename;
 	}
+	virtual void FlushCache() final;
 
 	virtual bool Precache(int64 PrecacheOffset, int64 PrecacheSize) override;
 
