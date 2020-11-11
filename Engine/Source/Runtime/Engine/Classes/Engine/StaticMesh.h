@@ -1386,6 +1386,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="StaticMesh")
 	ENGINE_API void BuildFromStaticMeshDescriptions(const TArray<UStaticMeshDescription*>& StaticMeshDescriptions, bool bBuildSimpleCollision = false);
 
+	/** Return a new StaticMeshDescription referencing the MeshDescription of the given LOD */
+	UFUNCTION(BlueprintCallable, Category="StaticMesh")
+	ENGINE_API UStaticMeshDescription* GetStaticMeshDescription(int32 LODIndex);
 
 	 /** Structure that defines parameters passed into the build mesh description function */
 	struct FBuildMeshDescriptionsParams

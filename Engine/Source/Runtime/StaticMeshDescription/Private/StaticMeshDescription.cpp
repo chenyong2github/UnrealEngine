@@ -7,62 +7,62 @@
 
 void UStaticMeshDescription::RegisterAttributes()
 {
-	RequiredAttributes = MakeUnique<FStaticMeshAttributes>(MeshDescription);
+	RequiredAttributes = MakeUnique<FStaticMeshAttributes>(GetMeshDescription());
 	RequiredAttributes->Register();
 }
 
 
 FVector2D UStaticMeshDescription::GetVertexInstanceUV(FVertexInstanceID VertexInstanceID, int32 UVIndex) const
 {
-	if (!MeshDescription.IsVertexInstanceValid(VertexInstanceID))
+	if (!GetMeshDescription().IsVertexInstanceValid(VertexInstanceID))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("GetVertexInstanceUV: VertexInstanceID %d doesn't exist."), VertexInstanceID.GetValue());
 		return FVector2D::ZeroVector;
 	}
 
-	if (!MeshDescription.VertexInstanceAttributes().HasAttribute(MeshAttribute::VertexInstance::TextureCoordinate))
+	if (!GetMeshDescription().VertexInstanceAttributes().HasAttribute(MeshAttribute::VertexInstance::TextureCoordinate))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("GetVertexInstanceUV: VertexInstanceAttribute TextureCoordinate doesn't exist."));
 		return FVector2D::ZeroVector;
 	}
 
-	return MeshDescription.VertexInstanceAttributes().GetAttribute<FVector2D>(VertexInstanceID, MeshAttribute::VertexInstance::TextureCoordinate, UVIndex);
+	return GetMeshDescription().VertexInstanceAttributes().GetAttribute<FVector2D>(VertexInstanceID, MeshAttribute::VertexInstance::TextureCoordinate, UVIndex);
 }
 
 
 void UStaticMeshDescription::SetVertexInstanceUV(FVertexInstanceID VertexInstanceID, FVector2D UV, int32 UVIndex)
 {
-	if (!MeshDescription.IsVertexInstanceValid(VertexInstanceID))
+	if (!GetMeshDescription().IsVertexInstanceValid(VertexInstanceID))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("SetVertexInstanceUV: VertexInstanceID %d doesn't exist."), VertexInstanceID.GetValue());
 		return;
 	}
 
-	if (!MeshDescription.VertexInstanceAttributes().HasAttribute(MeshAttribute::VertexInstance::TextureCoordinate))
+	if (!GetMeshDescription().VertexInstanceAttributes().HasAttribute(MeshAttribute::VertexInstance::TextureCoordinate))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("SetVertexInstanceUV: VertexInstanceAttribute TextureCoordinate doesn't exist."));
 		return;
 	}
 
-	MeshDescription.VertexInstanceAttributes().SetAttribute(VertexInstanceID, MeshAttribute::VertexInstance::TextureCoordinate, UVIndex, UV);
+	GetMeshDescription().VertexInstanceAttributes().SetAttribute(VertexInstanceID, MeshAttribute::VertexInstance::TextureCoordinate, UVIndex, UV);
 }
 
 
 void UStaticMeshDescription::SetPolygonGroupMaterialSlotName(FPolygonGroupID PolygonGroupID, const FName& SlotName)
 {
-	if (!MeshDescription.IsPolygonGroupValid(PolygonGroupID))
+	if (!GetMeshDescription().IsPolygonGroupValid(PolygonGroupID))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("SetPolygonGroupMaterialSlotName: PolygonGroupID %d doesn't exist."), PolygonGroupID.GetValue());
 		return;
 	}
 
-	if (!MeshDescription.PolygonGroupAttributes().HasAttribute(MeshAttribute::PolygonGroup::ImportedMaterialSlotName))
+	if (!GetMeshDescription().PolygonGroupAttributes().HasAttribute(MeshAttribute::PolygonGroup::ImportedMaterialSlotName))
 	{
 		UE_LOG(LogMeshDescription, Warning, TEXT("SetPolygonGroupMaterialSlotName: PolygonGroupAttribute ImportedMaterialSlotName doesn't exist."));
 		return;
 	}
 
-	MeshDescription.PolygonGroupAttributes().SetAttribute(PolygonGroupID, MeshAttribute::PolygonGroup::ImportedMaterialSlotName, 0, SlotName);
+	GetMeshDescription().PolygonGroupAttributes().SetAttribute(PolygonGroupID, MeshAttribute::PolygonGroup::ImportedMaterialSlotName, 0, SlotName);
 }
 
 
@@ -74,6 +74,7 @@ void UStaticMeshDescription::CreateCube(FVector Center, FVector HalfExtents, FPo
 										FPolygonID& PolygonID_PlusZ,
 										FPolygonID& PolygonID_MinusZ)
 {
+	FMeshDescription& MeshDescription = GetMeshDescription();
 	TVertexAttributesRef<FVector> Positions = GetVertexPositions();
 
 	FVertexID VertexIDs[8];
@@ -93,7 +94,7 @@ void UStaticMeshDescription::CreateCube(FVector Center, FVector HalfExtents, FPo
 	Positions[VertexIDs[6]] = Center + HalfExtents * FVector( 1.0f, -1.0f, -1.0f);
 	Positions[VertexIDs[7]] = Center + HalfExtents * FVector( 1.0f,  1.0f, -1.0f);
 
-	auto MakePolygon = [this, &VertexIDs, PolygonGroup](int32 P0, int32 P1, int32 P2, int32 P3) -> FPolygonID
+	auto MakePolygon = [this, &MeshDescription, &VertexIDs, PolygonGroup](int32 P0, int32 P1, int32 P2, int32 P3) -> FPolygonID
 	{
 		FVertexInstanceID VertexInstanceIDs[4];
 		VertexInstanceIDs[0] = MeshDescription.CreateVertexInstance(VertexIDs[P0]);

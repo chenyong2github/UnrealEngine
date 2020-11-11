@@ -5950,6 +5950,19 @@ UStaticMeshDescription* UStaticMesh::CreateStaticMeshDescription(UObject* Outer)
 }
 
 
+UStaticMeshDescription* UStaticMesh::GetStaticMeshDescription(int32 LODIndex)
+{
+	if (LODIndex < GetNumSourceModels())
+	{
+		UStaticMeshDescription* StaticMeshDescription = NewObject<UStaticMeshDescription>(this, NAME_None, RF_Transient);
+		StaticMeshDescription->SetMeshDescriptionRef(GetMeshDescription(LODIndex));
+		return StaticMeshDescription;
+	}
+
+	return nullptr;
+}
+
+
 void UStaticMesh::BuildFromStaticMeshDescriptions(const TArray<UStaticMeshDescription*>& StaticMeshDescriptions, bool bBuildSimpleCollision)
 {
 	TArray<const FMeshDescription*> MeshDescriptions;
