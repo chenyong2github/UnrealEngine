@@ -1136,6 +1136,10 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnMergeEdges(const FDynamicMesh
 	{
 		int KeptVID = MergeInfo.KeptVerts[i];
 		int RemovedVID = MergeInfo.RemovedVerts[i];
+		if (RemovedVID == FDynamicMesh3::InvalidID)
+		{
+			continue;
+		}
 		// this for loop is very similar to GetVertexElements() but accounts for the base mesh already being updated
 		for (int TID : ParentMesh->VtxTrianglesItr(KeptVID)) // only care about triangles connected to the *new* vertex; these are updated
 		{

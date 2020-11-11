@@ -314,8 +314,14 @@ public:
 	void OnMergeEdges(const FDynamicMesh3::FMergeEdgesInfo& MergeInfo) override
 	{
 		// just blend the attributes?
-		SetAttributeFromLerp(MergeInfo.KeptVerts.A, MergeInfo.KeptVerts.A, MergeInfo.RemovedVerts.A, .5);
-		SetAttributeFromLerp(MergeInfo.KeptVerts.B, MergeInfo.KeptVerts.B, MergeInfo.RemovedVerts.B, .5);
+		if (MergeInfo.RemovedVerts.A != FDynamicMesh3::InvalidID)
+		{
+			SetAttributeFromLerp(MergeInfo.KeptVerts.A, MergeInfo.KeptVerts.A, MergeInfo.RemovedVerts.A, .5);
+		}
+		if (MergeInfo.RemovedVerts.B != FDynamicMesh3::InvalidID)
+		{
+			SetAttributeFromLerp(MergeInfo.KeptVerts.B, MergeInfo.KeptVerts.B, MergeInfo.RemovedVerts.B, .5);
+		}
 	}
 
 	/** Update the overlay to reflect a vertex split in the parent */
