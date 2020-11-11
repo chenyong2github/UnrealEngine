@@ -587,23 +587,14 @@ namespace Audio
 
 		// Unregister these source effect instances from their owning USoundEffectInstance on the next audio thread tick.
 		// If the audio thread isn't currently active (ex. suspended), unregister immediately
-		if (IsAudioThreadRunning())
+		const ENamedThreads::Type UnregistrationThread = IsAudioThreadRunning() ? ENamedThreads::AudioThread : ENamedThreads::GameThread;
+		AsyncTask(UnregistrationThread, [SubmixEffects = MoveTemp(SubmixEffectsToReset)]() mutable
 		{
-			AsyncTask(ENamedThreads::AudioThread, [SubmixEffects = MoveTemp(SubmixEffectsToReset)]() mutable
-			{
-				for (TSoundEffectSubmixPtr& SubmixPtr : SubmixEffects)
-				{
-					USoundEffectPreset::UnregisterInstance(SubmixPtr);
-				}
-			});
-		}
-		else
-		{
-			for (TSoundEffectSubmixPtr& SubmixPtr : SubmixEffectsToReset)
+			for (TSoundEffectSubmixPtr& SubmixPtr : SubmixEffects)
 			{
 				USoundEffectPreset::UnregisterInstance(SubmixPtr);
 			}
-		}
+		});
 
 		NumSubmixEffects = 0;
 		EffectChains.Reset();
