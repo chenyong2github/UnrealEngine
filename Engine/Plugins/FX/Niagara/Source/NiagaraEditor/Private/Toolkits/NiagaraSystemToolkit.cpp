@@ -1166,7 +1166,7 @@ bool FNiagaraSystemToolkit::ShouldFilterEmitter(const FAssetData& AssetData)
 				}
 			}
 		}
-		bScriptAllowed &= bFoundLibraryTag;
+		bScriptAllowed &= bInLibrary;
 	}
 	if (FNiagaraSystemToolkit::bShowTemplateOnly == true)
 	{
