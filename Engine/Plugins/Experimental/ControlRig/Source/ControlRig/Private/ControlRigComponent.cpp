@@ -1356,6 +1356,7 @@ void UControlRigComponent::TransferOutputs()
 		for (USkeletalMeshComponent* SkeletalMeshComponent : ComponentsToTick)
 		{
 			SkeletalMeshComponent->TickAnimation(0.f, false);
+			SkeletalMeshComponent->UpdateLODStatus();
 			SkeletalMeshComponent->RefreshBoneTransforms();
 			SkeletalMeshComponent->RefreshSlaveComponents();
 			SkeletalMeshComponent->UpdateComponentToWorld();
