@@ -600,6 +600,8 @@ void STabSidebar::OpenDrawerInternal(TSharedRef<SDockTab> ForTab)
 		FSlateApplication::Get().SetKeyboardFocus(NewDrawer);
 
 		OpenedDrawers.Add(NewDrawer);
+
+		ForTab->OnTabDrawerOpened();
 	}
 
 	UpdateDrawerAppearance();

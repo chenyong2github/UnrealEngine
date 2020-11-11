@@ -313,11 +313,13 @@ SPlacementModeTools::~SPlacementModeTools()
 	}
 }
 
-void SPlacementModeTools::Construct( const FArguments& InArgs )
+void SPlacementModeTools::Construct( const FArguments& InArgs, TSharedRef<SDockTab> ParentTab )
 {
 	bPlaceablesFullRefreshRequested = false;
 	bRecentlyPlacedRefreshRequested = false;
 	bNeedsUpdate = true;
+
+	ParentTab->SetOnTabDrawerOpened(FSimpleDelegate::CreateSP(this, &SPlacementModeTools::OnTabDrawerOpened));
 
 
 	static const FName PlacementBrowserActiveTabBarBrushName("PlacementBrowser.ActiveTabBar");
@@ -591,6 +593,11 @@ void SPlacementModeTools::OnCategoryChanged(const ECheckBoxState NewState, FName
 
 		bNeedsUpdate = true;
 	}
+}
+
+void SPlacementModeTools::OnTabDrawerOpened()
+{
+	FSlateApplication::Get().SetKeyboardFocus(SearchBoxPtr, EFocusCause::SetDirectly);
 }
 
 void SPlacementModeTools::OnPlacementTabChanged( ECheckBoxState NewState, FName CategoryName )

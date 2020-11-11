@@ -322,9 +322,9 @@ void FPlacementModeModule::AddToRecentlyPlaced(UObject* Asset, UActorFactory* Fa
 	AddToRecentlyPlaced(Assets, FactoryUsed);
 }
 
-TSharedRef<SWidget> FPlacementModeModule::CreatePlacementModeBrowser()
+TSharedRef<SWidget> FPlacementModeModule::CreatePlacementModeBrowser(TSharedRef<SDockTab> ParentTab)
 {
-	return SNew(SPlacementModeTools);
+	return SNew(SPlacementModeTools, ParentTab);
 }
 
 bool FPlacementModeModule::RegisterPlacementCategory(const FPlacementCategoryInfo& Info)

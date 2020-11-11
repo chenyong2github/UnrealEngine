@@ -435,6 +435,16 @@ void SDockTab::SetOnTabRenamed(const FOnTabRenamed& InDelegate)
 	OnTabRenamed = InDelegate;
 }
 
+void SDockTab::SetOnTabDrawerOpened(const FSimpleDelegate InDelegate)
+{
+	OnTabDrawerOpenedEvent = InDelegate;
+}
+
+void SDockTab::SetOnTabDrawerClosed(const FSimpleDelegate InDelegate)
+{
+	OnTabDrawerClosedEvent = InDelegate;
+}
+
 TSharedRef<FTabManager> SDockTab::GetTabManager() const
 {
 	return MyTabManager.Pin().ToSharedRef();
@@ -690,6 +700,11 @@ void SDockTab::UpdateTabStyle()
 	const FTextBlockStyle& TabTextStyle = GetCurrentStyle().TabTextStyle;
 	LabelSuffix->SetTextStyle(&TabTextStyle);
 	LabelWidget->SetTextStyle(&TabTextStyle);
+}
+
+void SDockTab::OnTabDrawerOpened()
+{
+	OnTabDrawerOpenedEvent.ExecuteIfBound();
 }
 
 void SDockTab::OnTabDrawerClosed()

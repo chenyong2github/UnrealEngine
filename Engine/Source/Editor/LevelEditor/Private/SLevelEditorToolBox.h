@@ -43,8 +43,9 @@ public:
 
 	/** Sets the parent tab of this toolbox */
 	void SetParentTab(TSharedRef<SDockTab>& InDockTab);
-private:
 
+private:
+	void OnContainingTabActivated(TSharedRef<SDockTab> DockTab, ETabActivationCause InActivationCause);
 	/** Gets the visibility for the SBorder showing toolbox editor mode inline content */
 	EVisibility GetInlineContentHolderVisibility() const;
 

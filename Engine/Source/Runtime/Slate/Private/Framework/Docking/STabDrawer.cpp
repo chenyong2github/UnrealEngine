@@ -79,8 +79,6 @@ void STabDrawer::Close()
 		AnimationThrottle = FSlateThrottleManager::Get().EnterResponsiveMode();
 		OpenCloseTimer = RegisterActiveTimer(0.0f, FWidgetActiveTimerDelegate::CreateSP(this, &STabDrawer::UpdateAnimation));
 	}
-
-	//OnContentBrowserDismissedDelegate.ExecuteIfBound(NewlyFocusedWidget);
 }
 
 bool STabDrawer::IsOpen() const

@@ -259,7 +259,7 @@ public:
 	/**
 	 * Creates the placement browser widget
 	 */
-	virtual TSharedRef<SWidget> CreatePlacementModeBrowser() = 0;
+	virtual TSharedRef<SWidget> CreatePlacementModeBrowser(TSharedRef<SDockTab> ParentTab) = 0;
 public:
 
 	/**

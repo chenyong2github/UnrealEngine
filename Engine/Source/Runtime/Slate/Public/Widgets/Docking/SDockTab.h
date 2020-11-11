@@ -251,6 +251,12 @@ public:
 	/** Set the handler that will be invoked when the tab is renamed */
 	void SetOnTabRenamed(const FOnTabRenamed& InDelegate);
 
+	/** Set the handler that will be invoked when the tab is opened from a drawer */
+	void SetOnTabDrawerOpened(const FSimpleDelegate InDelegate);
+
+	/** Set the handler that will be invoked when the tab is closed from a drawer */
+	void SetOnTabDrawerClosed(const FSimpleDelegate InDelegate);
+
 	/** Get the tab manager currently managing this tab. Note that a user move the tab between Tab Managers, so this return value may change. */
 	TSharedRef<FTabManager> GetTabManager() const;
 
@@ -342,6 +348,7 @@ private:
 
 	void UpdateTabStyle();
 
+	void OnTabDrawerOpened();
 	void OnTabDrawerClosed();
 
 	/** The handle to the active tab activation tick */
@@ -386,6 +393,8 @@ protected:
 	FCanCloseTab OnCanCloseTab;
 
 	FSimpleDelegate OnTabDrawerClosedEvent;
+
+	FSimpleDelegate OnTabDrawerOpenedEvent;
 
 	/**
 	 * Invoked during the Save Visual State pass; gives this tab a chance to save misc info about visual state.

@@ -705,14 +705,14 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	}
 	else if (TabIdentifier == LevelEditorTabIds::PlacementBrowser)
 	{
-		return
-			SNew(SDockTab)
+		TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 			.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.PlacementBrowser"))
 			.Label(NSLOCTEXT("LevelEditor", "PlacementBrowserTitle", "Place Actors"))
-			.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("PlacementBrowser"), TEXT("PlacementBrowser")))
-			[
-				IPlacementModeModule::Get().CreatePlacementModeBrowser()
-			];
+			.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("PlacementBrowser"), TEXT("PlacementBrowser")));
+
+			DockTab->SetContent(IPlacementModeModule::Get().CreatePlacementModeBrowser(DockTab));
+
+		return DockTab;
 	}
 	else if( TabIdentifier == LevelEditorTabIds::LevelEditorBuildAndSubmit )
 	{
@@ -1509,6 +1509,9 @@ FName SLevelEditor::GetEditorModeTabId( FEditorModeID ModeID )
 
 void SLevelEditor::ToggleEditorMode( FEditorModeID ModeID )
 {
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+
 	// Prompt the user if Matinee must be closed before activating new mode
 	if (ModeID != FBuiltinEditorModes::EM_InterpEdit)
 	{
@@ -1531,6 +1534,10 @@ void SLevelEditor::ToggleEditorMode( FEditorModeID ModeID )
 	// *Important* - activate the mode first since FEditorModeTools::DeactivateMode will
 	// activate the default mode when the stack becomes empty, resulting in multiple active visible modes.
 	GLevelEditorModeTools().ActivateMode( ModeID );
+
+	// Invoke the tab regardless if if the mode was activated or already activated so that it the mode tools come into the foreground
+	LevelEditorTabManager->TryInvokeTab(LevelEditorTabIds::LevelEditorToolBox);
+
 }
 
 bool SLevelEditor::IsModeActive( FEditorModeID ModeID )

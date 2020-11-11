@@ -79,7 +79,7 @@ public:
 		return RecentlyPlaced;
 	}
 
-	virtual TSharedRef<SWidget> CreatePlacementModeBrowser() override;
+	virtual TSharedRef<SWidget> CreatePlacementModeBrowser(TSharedRef<SDockTab> ParentTab) override;
 
 	virtual bool RegisterPlacementCategory(const FPlacementCategoryInfo& Info);
 

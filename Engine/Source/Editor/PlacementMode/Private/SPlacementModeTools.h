@@ -57,7 +57,7 @@ public:
 	SLATE_BEGIN_ARGS( SPlacementModeTools ){}
 	SLATE_END_ARGS();
 
-	void Construct( const FArguments& InArgs );
+	void Construct(const FArguments& InArgs, TSharedRef<SDockTab> ParentTab);
 
 	virtual ~SPlacementModeTools();
 
@@ -90,8 +90,6 @@ private:
 	/** Called when the list of placeable assets changes. */
 	void UpdatePlaceableAssets();
 
-private:
-
 	/** Gets the border image for the tab, this is the 'active' orange bar. */
 	const FSlateBrush* PlacementGroupBorderImage( FName CategoryName ) const;
 
@@ -99,10 +97,11 @@ private:
 	void OnPlacementTabChanged( ECheckBoxState NewState, FName CategoryName );
 	void OnCategoryChanged(const ECheckBoxState NewState, FName InCategory);
 
+	/** Called when the placement mode tools are opened from a tab drawer */
+	void OnTabDrawerOpened();
+
 	/** Gets the tab 'active' state, so that we can show the active style */
 	ECheckBoxState GetPlacementTabCheckedState( FName CategoryName ) const;
-
-private:
 
 	/** Gets the visibility for the failed search text */
 	EVisibility GetFailedSearchVisibility() const;
