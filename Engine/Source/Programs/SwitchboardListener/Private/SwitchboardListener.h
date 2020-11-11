@@ -13,7 +13,6 @@ struct FSwitchboardDisconnectTask;
 struct FSwitchboardSendFileToClientTask;
 struct FSwitchboardStartTask;
 struct FSwitchboardKillTask;
-struct FSwitchboardKillAllTask;
 struct FSwitchboardReceiveFileFromClientTask;
 struct FSwitchboardGetSyncStatusTask;
 struct FSwitchboardMessageFuture;
@@ -42,8 +41,6 @@ private:
 	bool StartProcess(const FSwitchboardStartTask& InRunTask);
 	bool KillProcessNow(FRunningProcess* InProcess, float SoftKillTimeout = 0.0f);
 	bool KillProcess(const FSwitchboardKillTask& KillTask);
-	bool KillAllProcesses(const FSwitchboardKillAllTask& KillAllTask);
-	void KillAllProcessesNow();
 	bool ReceiveFileFromClient(const FSwitchboardReceiveFileFromClientTask& InReceiveFileFromClientTask);
 	bool SendFileToClient(const FSwitchboardSendFileToClientTask& InSendFileToClientTask);
 	bool GetSyncStatus(const FSwitchboardGetSyncStatusTask& InGetSyncStatusTask);
