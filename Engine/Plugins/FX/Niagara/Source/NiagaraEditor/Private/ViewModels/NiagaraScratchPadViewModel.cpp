@@ -22,10 +22,12 @@
 #include "ScopedTransaction.h"
 #include "Modules/ModuleManager.h"
 #include "AssetToolsModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "Misc/PackageName.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Misc/MessageDialog.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScratchPadViewModel"
 
@@ -276,19 +278,62 @@ void UNiagaraScratchPadViewModel::CopyActiveScript()
 	}
 }
 
-bool UNiagaraScratchPadViewModel::CanPasteScript() const
+void GetScriptsFromClipboard(TArray<const UNiagaraScript*>& OutScripts, const TArray<ENiagaraScriptUsage>& AvailableUsages)
 {
 	const UNiagaraClipboardContent* ClipboardContent = FNiagaraEditorModule::Get().GetClipboard().GetClipboardContent();
-	return ClipboardContent != nullptr && ClipboardContent->Scripts.Num() == 1;
+	if (ClipboardContent != nullptr)
+	{
+		OutScripts.Append(ClipboardContent->Scripts);
+	}
+	else
+	{
+		FString ClipboardString;
+		FPlatformApplicationMisc::ClipboardPaste(ClipboardString);
+		IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
+		if (ClipboardString.IsEmpty() == false && ClipboardString.Len() < NAME_SIZE && AssetRegistry != nullptr)
+		{
+			TArray<FAssetData> Assets;
+			FAssetData AssetFoundByObjectPath = AssetRegistry->GetAssetByObjectPath(*ClipboardString);
+			if (AssetFoundByObjectPath.IsValid())
+			{
+				Assets.Add(AssetFoundByObjectPath);
+			}
+			else
+			{
+				AssetRegistry->GetAssetsByPackageName(*ClipboardString, Assets);
+			}
+
+			for (const FAssetData& Asset : Assets)
+			{
+				UNiagaraScript* Script = Cast<UNiagaraScript>(Asset.GetAsset());
+				if (Script != nullptr && AvailableUsages.Contains(Script->GetUsage()))
+				{
+					OutScripts.Add(Script);
+				}
+			}
+		}
+	}
+}
+
+bool UNiagaraScratchPadViewModel::CanPasteScript() const
+{
+	TArray<const UNiagaraScript*> ClipboardScripts;
+	GetScriptsFromClipboard(ClipboardScripts, AvailableUsages);
+	return ClipboardScripts.Num() > 0;
 }
 
 void UNiagaraScratchPadViewModel::PasteScript()
 {
-	if (CanPasteScript())
+	TArray<const UNiagaraScript*> ClipboardScripts;
+	GetScriptsFromClipboard(ClipboardScripts, AvailableUsages);
+	if (ClipboardScripts.Num() > 0)
 	{
-		FScopedTransaction Transaction(LOCTEXT("PasteScratchPadScriptTransaction", "Paste the scratch pad script from the system clipboard."));
-		const UNiagaraClipboardContent* ClipboardContent = FNiagaraEditorModule::Get().GetClipboard().GetClipboardContent();
-		TSharedPtr<FNiagaraScratchPadScriptViewModel> PastedScriptViewModel = CreateNewScriptAsDuplicate(ClipboardContent->Scripts[0]);
+		FScopedTransaction Transaction(LOCTEXT("PasteScratchPadScriptTransaction", "Paste the scripts from the system clipboard."));
+		TSharedPtr<FNiagaraScratchPadScriptViewModel> PastedScriptViewModel;
+		for(const UNiagaraScript* ClipboardScript : ClipboardScripts)
+		{
+			PastedScriptViewModel = CreateNewScriptAsDuplicate(ClipboardScript);
+		}
 		SetActiveScriptViewModel(PastedScriptViewModel.ToSharedRef());
 	}
 }
