@@ -32,6 +32,7 @@
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/PBDJointConstraintData.h"
+#include "Chaos/ChaosConstraintSettings.h"
 
 #include "Async/ParallelFor.h"
 #include "Collision/CollisionConversions.h"
@@ -321,8 +322,8 @@ void FPhysInterface_Chaos::UpdateLinearLimitParams_AssumesLocked(const FPhysicsC
 			Constraint->SetLinearLimit(InLimit); 
 
 			Constraint->SetSoftLinearLimitsEnabled(InParams.bSoftConstraint);
-			Constraint->SetSoftLinearStiffness(InParams.Stiffness);
-			Constraint->SetSoftLinearDamping(InParams.Damping);
+			Constraint->SetSoftLinearStiffness(Chaos::ConstraintSettings::SoftLinearStiffnessScale() * InParams.Stiffness);
+			Constraint->SetSoftLinearDamping(Chaos::ConstraintSettings::SoftLinearDampingScale() * InParams.Damping);
 			Constraint->SetLinearContactDistance(InParams.ContactDistance);
 			Constraint->SetLinearRestitution(InParams.Restitution);
 			//Constraint->SetAngularSoftForceMode( InParams.NOT_QUITE_SURE ); // @todo(chaos) 
@@ -342,8 +343,8 @@ void FPhysInterface_Chaos::UpdateConeLimitParams_AssumesLocked(const FPhysicsCon
 			Constraint->SetAngularLimits(Limit);
 
 			Constraint->SetSoftSwingLimitsEnabled(InParams.bSoftConstraint);
-			Constraint->SetSoftSwingStiffness(InParams.Stiffness);
-			Constraint->SetSoftSwingDamping(InParams.Damping);
+			Constraint->SetSoftSwingStiffness(Chaos::ConstraintSettings::SoftAngularStiffnessScale() * InParams.Stiffness);
+			Constraint->SetSoftSwingDamping(Chaos::ConstraintSettings::SoftAngularDampingScale() * InParams.Damping);
 			Constraint->SetSwingContactDistance(InParams.ContactDistance);
 			Constraint->SetSwingRestitution(InParams.Restitution);
 			//Constraint->SetAngularSoftForceMode( InParams.NOT_QUITE_SURE ); // @todo(chaos) 
@@ -362,8 +363,8 @@ void FPhysInterface_Chaos::UpdateTwistLimitParams_AssumesLocked(const FPhysicsCo
 			Constraint->SetAngularLimits(Limit);
 
 			Constraint->SetSoftTwistLimitsEnabled(InParams.bSoftConstraint);
-			Constraint->SetSoftTwistStiffness(InParams.Stiffness);
-			Constraint->SetSoftTwistDamping(InParams.Damping);
+			Constraint->SetSoftTwistStiffness(Chaos::ConstraintSettings::SoftAngularStiffnessScale() * InParams.Stiffness);
+			Constraint->SetSoftTwistDamping(Chaos::ConstraintSettings::SoftAngularDampingScale() * InParams.Damping);
 			Constraint->SetTwistContactDistance(InParams.ContactDistance);
 			Constraint->SetTwistRestitution(InParams.Restitution);
 			//Constraint->SetAngularSoftForceMode( InParams.NOT_QUITE_SURE ); // @todo(chaos) 
@@ -405,8 +406,8 @@ void FPhysInterface_Chaos::UpdateLinearDrive_AssumesLocked(const FPhysicsConstra
 			}
 
 			Constraint->SetLinearDriveForceMode(Chaos::EJointForceMode::Acceleration);
-			Constraint->SetLinearDriveStiffness(FMath::Max3(InDriveParams.XDrive.Stiffness, InDriveParams.YDrive.Stiffness, InDriveParams.ZDrive.Stiffness));
-			Constraint->SetLinearDriveDamping(FMath::Max3(InDriveParams.XDrive.Damping, InDriveParams.YDrive.Damping, InDriveParams.ZDrive.Damping));
+			Constraint->SetLinearDriveStiffness(Chaos::ConstraintSettings::LinearDriveStiffnessScale() * FMath::Max3(InDriveParams.XDrive.Stiffness, InDriveParams.YDrive.Stiffness, InDriveParams.ZDrive.Stiffness));
+			Constraint->SetLinearDriveDamping(Chaos::ConstraintSettings::LinearDriveDampingScale() * FMath::Max3(InDriveParams.XDrive.Damping, InDriveParams.YDrive.Damping, InDriveParams.ZDrive.Damping));
 		}
 	}
 }
@@ -458,8 +459,8 @@ void FPhysInterface_Chaos::UpdateAngularDrive_AssumesLocked(const FPhysicsConstr
 			}
 
 			Constraint->SetAngularDriveForceMode(Chaos::EJointForceMode::Acceleration);
-			Constraint->SetAngularDriveStiffness(FMath::Max3(InDriveParams.SlerpDrive.Stiffness, InDriveParams.TwistDrive.Stiffness, InDriveParams.SwingDrive.Stiffness));
-			Constraint->SetAngularDriveDamping(FMath::Max3(InDriveParams.SlerpDrive.Damping, InDriveParams.TwistDrive.Damping, InDriveParams.SwingDrive.Damping));
+			Constraint->SetAngularDriveStiffness(Chaos::ConstraintSettings::AngularDriveStiffnessScale() * FMath::Max3(InDriveParams.SlerpDrive.Stiffness, InDriveParams.TwistDrive.Stiffness, InDriveParams.SwingDrive.Stiffness));
+			Constraint->SetAngularDriveDamping(Chaos::ConstraintSettings::AngularDriveDampingScale() * FMath::Max3(InDriveParams.SlerpDrive.Damping, InDriveParams.TwistDrive.Damping, InDriveParams.SwingDrive.Damping));
 		}
 	}
 }
