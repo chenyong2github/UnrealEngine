@@ -96,7 +96,7 @@ public:
 	virtual void RHISetShaderTexture(FRHIComputeShader* Shader, uint32 TextureIndex, FRHITexture* NewTexture) override final
 	{
 		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
-		Tracker->Assert(NewTexture->GetWholeResourceIdentity(), ERHIAccess::SRVCompute);
+		Tracker->Assert(NewTexture->GetWholeResourceIdentitySRV(), ERHIAccess::SRVCompute);
 		RHIContext->RHISetShaderTexture(Shader, TextureIndex, NewTexture);
 	}
 

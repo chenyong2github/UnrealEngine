@@ -716,10 +716,68 @@ enum class ERHIPipeline : uint8
 	Graphics = 1 << 0,
 	AsyncCompute = 1 << 1,
 
+	None = 0,
 	All = Graphics | AsyncCompute,
 	Num = 2
 };
 ENUM_CLASS_FLAGS(ERHIPipeline)
+
+inline uint32 GetRHIPipelineIndex(ERHIPipeline Pipeline)
+{
+	switch (Pipeline)
+	{
+	default:
+		checkf(false, TEXT("Attempted to get a pipeline index but the pipeline mask is not exclusively Graphics or AsyncCompute."));
+	case ERHIPipeline::Graphics:
+		return 0;
+	case ERHIPipeline::AsyncCompute:
+		return 1;
+	}
+}
+
+inline constexpr uint32 GetRHIPipelineCount()
+{
+	return uint32(ERHIPipeline::Num);
+}
+
+inline const std::initializer_list<ERHIPipeline> GetRHIPipelines()
+{
+	static const ERHIPipeline Pipelines[] = { ERHIPipeline::Graphics, ERHIPipeline::AsyncCompute };
+	return std::initializer_list<ERHIPipeline>(Pipelines, Pipelines + (uint32)ERHIPipeline::Num);
+}
+
+template <typename FunctionType>
+inline void EnumerateRHIPipelines(ERHIPipeline PipelineMask, FunctionType Function)
+{
+	for (ERHIPipeline Pipeline : GetRHIPipelines())
+	{
+		if (EnumHasAnyFlags(PipelineMask, Pipeline))
+		{
+			Function(Pipeline);
+		}
+	}
+}
+
+/** Array of pass handles by RHI pipeline, with overloads to help with enum conversion. */
+template <typename ElementType>
+class TRHIPipelineArray : public TStaticArray<ElementType, GetRHIPipelineCount()>
+{
+	using Base = TStaticArray<ElementType, GetRHIPipelineCount()>;
+public:
+	TRHIPipelineArray() = default;
+	TRHIPipelineArray(const TRHIPipelineArray&) = default;
+	TRHIPipelineArray& operator=(const TRHIPipelineArray&) = default;
+
+	FORCEINLINE ElementType& operator[](ERHIPipeline Pipeline)
+	{
+		return Base::operator[](GetRHIPipelineIndex(Pipeline));
+	}
+
+	FORCEINLINE const ElementType& operator[](ERHIPipeline Pipeline) const
+	{
+		return Base::operator[](GetRHIPipelineIndex(Pipeline));
+	}
+};
 
 enum class ERHIAccess
 {
@@ -779,6 +837,9 @@ ENUM_CLASS_FLAGS(ERHIAccess)
 
 /** Mask of read states that can be used together for textures. */
 extern RHI_API ERHIAccess GRHITextureReadAccessMask;
+
+/** Mask of states which are allowed to be used on multiple pipelines at the same time. */
+extern RHI_API ERHIAccess GRHIMultiPipelineAccessMask;
 
 /** to customize the RHIReadSurfaceData() output */
 class FReadSurfaceDataFlags
@@ -1913,7 +1974,7 @@ private:
 
 	inline void MarkBegin(ERHIPipeline Pipeline) const
 	{
-		checkf(EnumHasAllFlags(Pipeline, AllowedSrc), TEXT("Transition is being used on a source pipeline that it wasn't created for."));
+		checkf(EnumHasAllFlags(AllowedSrc, Pipeline), TEXT("Transition is being used on a source pipeline that it wasn't created for."));
 
 		int8 Mask = int8(Pipeline);
 		int8 PreviousValue = FPlatformAtomics::InterlockedAnd(&State, ~Mask);
@@ -1927,7 +1988,7 @@ private:
 
 	inline void MarkEnd(ERHIPipeline Pipeline) const
 	{
-		checkf(EnumHasAllFlags(Pipeline, AllowedDst), TEXT("Transition is being used on a destination pipeline that it wasn't created for."));
+		checkf(EnumHasAllFlags(AllowedDst, Pipeline), TEXT("Transition is being used on a destination pipeline that it wasn't created for."));
 
 		int8 Mask = int8(Pipeline) << int32(ERHIPipeline::Num);
 		int8 PreviousValue = FPlatformAtomics::InterlockedAnd(&State, ~Mask);
@@ -1954,7 +2015,6 @@ private:
 	friend class FValidationComputeContext;
 	friend class FValidationContext;
 
-	RHIValidation::FFence* Fence = nullptr;
 	RHIValidation::FOperationsList PendingOperationsBegin;
 	RHIValidation::FOperationsList PendingOperationsEnd;
 #endif
@@ -2214,7 +2274,7 @@ inline void RHIValidation::FTracker::AddOp(const RHIValidation::FOperation& Op)
 	if (GRHICommandList.Bypass() && CurrentList.Operations.Num() == 0)
 	{
 		auto& OpQueue = OpQueues[GetOpQueueIndex(Pipeline)];
-		if (!EnumHasAllFlags(Op.Replay(OpQueue.bAllowAllUAVsOverlap), EReplayStatus::Waiting))
+		if (!EnumHasAllFlags(Op.Replay(Pipeline, OpQueue.bAllowAllUAVsOverlap), EReplayStatus::Waiting))
 		{
 			return;
 		}

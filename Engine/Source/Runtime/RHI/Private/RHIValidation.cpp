@@ -124,6 +124,116 @@ void FValidationRHI::ValidatePipeline(const FGraphicsPipelineStateInitializer& P
 	}
 }
 
+void FValidationRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipeline SrcPipelines, ERHIPipeline DstPipelines, ERHICreateTransitionFlags CreateFlags, TArrayView<const FRHITransitionInfo> Infos)
+{
+	using namespace RHIValidation;
+
+	struct FFenceEdge
+	{
+		FFence* Fence = nullptr;
+		ERHIPipeline SrcPipe = ERHIPipeline::None;
+		ERHIPipeline DstPipe = ERHIPipeline::None;
+	};
+
+	TArray<FFenceEdge> Fences;
+
+	if (SrcPipelines != DstPipelines)
+	{
+		for (ERHIPipeline SrcPipe : GetRHIPipelines())
+		{
+			if (!EnumHasAnyFlags(SrcPipelines, SrcPipe))
+			{
+				continue;
+			}
+
+			for (ERHIPipeline DstPipe : GetRHIPipelines())
+			{
+				if (!EnumHasAnyFlags(DstPipelines, DstPipe) || SrcPipe == DstPipe)
+				{
+					continue;
+				}
+
+				FFenceEdge FenceEdge;
+				FenceEdge.Fence = new FFence;
+				FenceEdge.SrcPipe = SrcPipe;
+				FenceEdge.DstPipe = DstPipe;
+				Fences.Add(FenceEdge);
+			}
+		}
+	}
+
+	TArray<FOperation> BeginOps, EndOps;
+	BeginOps.Reserve(Infos.Num() + Fences.Num());
+	EndOps  .Reserve(Infos.Num() + Fences.Num());
+
+	for (const FFenceEdge& FenceEdge : Fences)
+	{
+		EndOps.Emplace(FOperation::Wait(FenceEdge.Fence, FenceEdge.DstPipe));
+	}
+
+	bool bDoTrace = false;
+
+	for (int32 Index = 0; Index < Infos.Num(); ++Index)
+	{
+		const FRHITransitionInfo& Info = Infos[Index];
+		if (!Info.Resource)
+			continue;
+
+		checkf(Info.Type != FRHITransitionInfo::EType::Unknown, TEXT("FRHITransitionInfo::Type cannot be Unknown when creating a resource transition."));
+
+		FResourceIdentity Identity;
+
+		switch (Info.Type)
+		{
+		default: checkNoEntry(); // fall through
+		case FRHITransitionInfo::EType::Texture:
+			Identity = Info.Texture->GetTransitionIdentity(Info);
+			break;
+
+		case FRHITransitionInfo::EType::VertexBuffer:
+			Identity = Info.VertexBuffer->GetWholeResourceIdentity();
+			break;
+
+		case FRHITransitionInfo::EType::IndexBuffer:
+			Identity = Info.IndexBuffer->GetWholeResourceIdentity();
+			break;
+
+		case FRHITransitionInfo::EType::StructuredBuffer:
+			Identity = Info.StructuredBuffer->GetWholeResourceIdentity();
+			break;
+
+		case FRHITransitionInfo::EType::UAV:
+			Identity = Info.UAV->ViewIdentity;
+			break;
+		}
+
+		// Take a backtrace of this transition creation if any of the resources it contains have logging enabled.
+		bDoTrace |= (Identity.Resource->LoggingMode != RHIValidation::ELoggingMode::None);
+
+		FState PreviousState = FState(Info.AccessBefore, SrcPipelines);
+		FState NextState = FState(Info.AccessAfter, DstPipelines);
+
+		BeginOps.Emplace(FOperation::BeginTransitionResource(Identity, PreviousState, NextState, Info.Flags, nullptr));
+		EndOps  .Emplace(FOperation::EndTransitionResource(Identity, PreviousState, NextState, nullptr));
+	}
+
+	if (bDoTrace)
+	{
+		void* Backtrace = CaptureBacktrace();
+		for (FOperation& Op : BeginOps) { Op.Data_BeginTransition.CreateBacktrace = Backtrace; }
+		for (FOperation& Op : EndOps) { Op.Data_EndTransition.CreateBacktrace = Backtrace; }
+	}
+
+	for (const FFenceEdge& FenceEdge : Fences)
+	{
+		BeginOps.Emplace(FOperation::Signal(FenceEdge.Fence, FenceEdge.SrcPipe));
+	}
+
+	Transition->PendingOperationsBegin.Operations = MoveTemp(BeginOps);
+	Transition->PendingOperationsEnd.Operations = MoveTemp(EndOps);
+
+	return RHI->RHICreateTransition(Transition, SrcPipelines, DstPipelines, CreateFlags, Infos);
+}
 
 FValidationComputeContext::FValidationComputeContext()
 	: RHIContext(nullptr)
@@ -358,6 +468,26 @@ namespace RHIValidation
 			*GetRHIPipelineName(CurrentStateFromRHI.Pipelines));
 	}
 
+	static inline FString GetReasonString_MismatchedEndTransition(
+		FResource* Resource, FSubresourceIndex const& SubresourceIndex,
+		const FState& TargetState,
+		const FState& TargetStateFromRHI)
+	{
+		const TCHAR* DebugName = Resource->GetDebugName();
+		return FString::Printf(
+			BARRIER_TRACKER_LOG_PREFIX
+			TEXT("The expected target state \"%s\" on pipe \"%s\" in end transition does not match the tracked target state \"%s\" on pipe \"%s\" for the resource \"%s\" (0x%p) (%s).\n")
+			TEXT("    --- The call to EndTransition() is mismatched with the another BeginTransition() with different states.\n")
+			BARRIER_TRACKER_LOG_SUFFIX,
+			*GetRHIAccessName(TargetStateFromRHI.Access),
+			*GetRHIPipelineName(TargetState.Pipelines),
+			*GetRHIAccessName(TargetState.Access),
+			*GetRHIPipelineName(TargetStateFromRHI.Pipelines),
+			DebugName ? DebugName : TEXT("Unnamed"),
+			Resource,
+			*SubresourceIndex.ToString());
+	}
+
 	static inline FString GetReasonString_UnnecessaryTransition(
 		FResource* Resource, FSubresourceIndex const& SubresourceIndex,
 		const FState& CurrentState)
@@ -477,8 +607,10 @@ namespace RHIValidation
 		return Trace;
 	}
 
-	void FSubresourceState::BeginTransition(FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, EResourceTransitionFlags NewFlags, void* CreateTrace)
+	void FSubresourceState::BeginTransition(FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, EResourceTransitionFlags NewFlags, ERHIPipeline ExecutingPipeline, void* CreateTrace)
 	{
+		FPipelineState& State = States[ExecutingPipeline];
+
 		void* BeginTrace = nullptr;
 		if (Resource->LoggingMode != ELoggingMode::None 
 #if LOG_UNNAMED_RESOURCES
@@ -486,42 +618,52 @@ namespace RHIValidation
 #endif
 			)
 		{
-			BeginTrace = Log(Resource, SubresourceIndex, CreateTrace, TEXT("BeginTransition"), *FString::Printf(TEXT("Current: (%s) New: (%s), Flags: %s"),
-				*CurrentState.ToString(),
+			BeginTrace = Log(Resource, SubresourceIndex, CreateTrace, TEXT("BeginTransition"), *FString::Printf(TEXT("Current: (%s) New: (%s), Flags: %s, Executing Pipeline: %s"),
+				*State.Current.ToString(),
 				*TargetState.ToString(),
-				*GetResourceTransitionFlagsName(NewFlags)
+				*GetResourceTransitionFlagsName(NewFlags),
+				*GetRHIPipelineName(ExecutingPipeline)
 			));
 		}
 
 		// Check we're not already transitioning
-		ensureMsgf(!bTransitioning, TEXT("%s"), *GetReasonString_DuplicateBeginTransition(Resource, SubresourceIndex, CurrentState, TargetState, CreateTransitionBacktrace, BeginTransitionBacktrace));
+		ensureMsgf(!State.bTransitioning, TEXT("%s"), *GetReasonString_DuplicateBeginTransition(Resource, SubresourceIndex, State.Current, TargetState, State.CreateTransitionBacktrace, BeginTrace));
 
 		// Validate the explicit previous state from the RHI matches what we expect...
 		{
 			// Check for the correct pipeline
-			ensureMsgf(EnumHasAllFlags(CurrentState.Pipelines, CurrentStateFromRHI.Pipelines), TEXT("%s"), *GetReasonString_WrongPipeline(Resource, SubresourceIndex, CurrentState, TargetState));
+			ensureMsgf(EnumHasAllFlags(CurrentStateFromRHI.Pipelines, ExecutingPipeline), TEXT("%s"), *GetReasonString_WrongPipeline(Resource, SubresourceIndex, State.Current, TargetState));
 
 			// Check the current RHI state passed in matches the tracked state for the resource, or is "unknown".
-			ensureMsgf(CurrentStateFromRHI.Access == ERHIAccess::Unknown || CurrentStateFromRHI.Access == PreviousState.Access, TEXT("%s"), *GetReasonString_IncorrectPreviousState(Resource, SubresourceIndex, PreviousState, CurrentStateFromRHI));
+			ensureMsgf(CurrentStateFromRHI.Access == ERHIAccess::Unknown || (CurrentStateFromRHI.Access == State.Previous.Access && CurrentStateFromRHI.Pipelines == State.Previous.Pipelines),
+				TEXT("%s"), *GetReasonString_IncorrectPreviousState(Resource, SubresourceIndex, State.Previous, CurrentStateFromRHI));
 		}
 
 		// Check for unnecessary transitions
 		// @todo: this check is not particularly useful at the moment, as there are many unnecessary resource transitions.
 		//ensureMsgf(CurrentState != TargetState, TEXT("%s"), *GetReasonString_UnnecessaryTransition(Resource, SubresourceIndex, CurrentState));
 
-		// Update the tracked state
-		PreviousState = TargetState;
-		CurrentState = TargetState;
-		Flags = NewFlags;
-		CreateTransitionBacktrace = CreateTrace;
-		BeginTransitionBacktrace = BeginTrace;
-		bUsedWithAllUAVsOverlap = false;
-		bUsedWithExplicitUAVsOverlap = false;
+		// Update the tracked state once all pipes have begun.
+		State.Previous = TargetState;
+		State.Current = TargetState;
+		State.Flags = NewFlags;
+		State.CreateTransitionBacktrace = CreateTrace;
+		State.BeginTransitionBacktrace = BeginTrace;
+		State.bUsedWithAllUAVsOverlap = false;
+		State.bUsedWithExplicitUAVsOverlap = false;
+		State.bTransitioning = true;
 
-		bTransitioning = true;
+		// Replicate the state to other pipes that are not part of the begin pipe mask.
+		for (ERHIPipeline OtherPipeline : GetRHIPipelines())
+		{
+			if (!EnumHasAnyFlags(CurrentStateFromRHI.Pipelines, OtherPipeline))
+			{
+				States[OtherPipeline] = State;
+			}
+		}
 	}
 
-	void FSubresourceState::EndTransition(FResource* Resource, FSubresourceIndex const& SubresourceIndex, void* CreateTrace)
+	void FSubresourceState::EndTransition(FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, ERHIPipeline ExecutingPipeline, void* CreateTrace)
 	{
 		if (Resource->LoggingMode != ELoggingMode::None
 #if LOG_UNNAMED_RESOURCES
@@ -529,16 +671,31 @@ namespace RHIValidation
 #endif
 			)
 		{
-			Log(Resource, SubresourceIndex, CreateTrace, TEXT("EndTransition"), *FString::Printf(TEXT("Access: %s, Pipeline: %s"),
-				*GetRHIAccessName(CurrentState.Access),
-				*GetRHIPipelineName(CurrentState.Pipelines)
+			Log(Resource, SubresourceIndex, CreateTrace, TEXT("EndTransition"), *FString::Printf(TEXT("Access: %s, Pipeline: %s, Executing Pipeline: %s"),
+				*GetRHIAccessName(TargetState.Access),
+				*GetRHIPipelineName(TargetState.Pipelines),
+				*GetRHIPipelineName(ExecutingPipeline)
 			));
 		}
 
-		// This should not really be possible given the RHI API design. If this fires, it's more likely an RHI bug.
-		ensureMsgf(bTransitioning, TEXT("Unsolicited resource end transition call."));
-		bTransitioning = false;
-		BeginTransitionBacktrace = nullptr;
+		FPipelineState& State = States[ExecutingPipeline];
+
+		// Check that we aren't ending a transition that never began.
+		ensureMsgf(State.bTransitioning, TEXT("Unsolicited resource end transition call."));
+		State.bTransitioning = false;
+		State.BeginTransitionBacktrace = nullptr;
+
+		// Check that the end matches the begin.
+		ensureMsgf(TargetState == State.Current, TEXT("%s"), *GetReasonString_MismatchedEndTransition(Resource, SubresourceIndex, State.Current, TargetState));
+
+		// Replicate the state to other pipes that are not part of the end pipe mask.
+		for (ERHIPipeline OtherPipeline : GetRHIPipelines())
+		{
+			if (!EnumHasAnyFlags(TargetState.Pipelines, OtherPipeline))
+			{
+				States[OtherPipeline] = State;
+			}
+		}
 	}
 
 	void FSubresourceState::Assert(FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& RequiredState, bool bAllowAllUAVsOverlap)
@@ -554,29 +711,30 @@ namespace RHIValidation
 				*GetRHIPipelineName(RequiredState.Pipelines)));
 		}
 
+		FPipelineState& State = States[RequiredState.Pipelines];
+
 		// Check we're not trying to access the resource whilst a pending resource transition is in progress.
-		ensureMsgf(!bTransitioning, TEXT("%s"), *GetReasonString_AccessDuringTransition(Resource, SubresourceIndex, CurrentState, RequiredState, CreateTransitionBacktrace, BeginTransitionBacktrace));
+		ensureMsgf(!State.bTransitioning, TEXT("%s"), *GetReasonString_AccessDuringTransition(Resource, SubresourceIndex, State.Current, RequiredState, State.CreateTransitionBacktrace, State.BeginTransitionBacktrace));
 
 		// If UAV overlaps are now disabled, ensure the resource has been transitioned if it was previously used in UAV overlap state.
-		ensureMsgf((bAllowAllUAVsOverlap || !bUsedWithAllUAVsOverlap) && (bExplicitAllowUAVOverlap || !bUsedWithExplicitUAVsOverlap), TEXT("%s"), *GetReasonString_UAVOverlap(Resource, SubresourceIndex, CurrentState, RequiredState));
+		ensureMsgf((bAllowAllUAVsOverlap || !State.bUsedWithAllUAVsOverlap) && (State.bExplicitAllowUAVOverlap || !State.bUsedWithExplicitUAVsOverlap), TEXT("%s"), *GetReasonString_UAVOverlap(Resource, SubresourceIndex, State.Current, RequiredState));
 
 		// Ensure the resource is in the required state for this operation
-		ensureMsgf(EnumHasAllFlags(CurrentState.Access, RequiredState.Access) && EnumHasAllFlags(CurrentState.Pipelines, RequiredState.Pipelines), TEXT("%s"), *GetReasonString_MissingBarrier(Resource, SubresourceIndex, CurrentState, RequiredState));
+		ensureMsgf(EnumHasAllFlags(State.Current.Access, RequiredState.Access) && EnumHasAllFlags(State.Current.Pipelines, RequiredState.Pipelines), TEXT("%s"), *GetReasonString_MissingBarrier(Resource, SubresourceIndex, State.Current, RequiredState));
 
-		PreviousState = CurrentState;
+		State.Previous = State.Current;
 
 		if (EnumHasAnyFlags(RequiredState.Access, ERHIAccess::UAVMask))
 		{
-			if (bAllowAllUAVsOverlap) { bUsedWithAllUAVsOverlap = true; }
-			if (bExplicitAllowUAVOverlap) { bUsedWithExplicitUAVsOverlap = true; }
+			if (bAllowAllUAVsOverlap) { State.bUsedWithAllUAVsOverlap = true; }
+			if (State.bExplicitAllowUAVOverlap) { State.bUsedWithExplicitUAVsOverlap = true; }
 		}
 
 		// Disable all non-compatible access types
-		CurrentState.Access = DecayResourceAccess(CurrentState.Access, RequiredState.Access, bAllowAllUAVsOverlap || bExplicitAllowUAVOverlap);
-		CurrentState.Pipelines = CurrentState.Pipelines & RequiredState.Pipelines;
+		State.Current.Access = DecayResourceAccess(State.Current.Access, RequiredState.Access, bAllowAllUAVsOverlap || State.bExplicitAllowUAVOverlap);
 	}
 
-	void FSubresourceState::SpecificUAVOverlap(FResource* Resource, FSubresourceIndex const& SubresourceIndex, bool bAllow)
+	void FSubresourceState::SpecificUAVOverlap(FResource* Resource, ERHIPipeline Pipeline, FSubresourceIndex const& SubresourceIndex, bool bAllow)
 	{
 		if (Resource->LoggingMode != ELoggingMode::None
 #if LOG_UNNAMED_RESOURCES
@@ -587,8 +745,9 @@ namespace RHIValidation
 			Log(Resource, SubresourceIndex, nullptr, TEXT("UAVOverlap"), *FString::Printf(TEXT("Allow: %s"), bAllow ? TEXT("True") : TEXT("False")));
 		}
 
-		ensureMsgf(bExplicitAllowUAVOverlap != bAllow, TEXT("%s"), *GetReasonString_MismatchedExplicitUAVOverlapCall(bAllow));
-		bExplicitAllowUAVOverlap = bAllow;
+		FPipelineState& State = States[Pipeline];
+		ensureMsgf(State.bExplicitAllowUAVOverlap != bAllow, TEXT("%s"), *GetReasonString_MismatchedExplicitUAVOverlapCall(bAllow));
+		State.bExplicitAllowUAVOverlap = bAllow;
 	}
 
 	inline void FResource::EnumerateSubresources(FSubresourceRange const& SubresourceRange, TFunctionRef<void(FSubresourceState&, FSubresourceIndex const&)> Callback, bool bBeginTransition)
@@ -637,7 +796,7 @@ namespace RHIValidation
 		}
 	}
 
-	RHI_API EReplayStatus FOperation::Replay(bool& bAllowAllUAVsOverlap) const
+	RHI_API EReplayStatus FOperation::Replay(ERHIPipeline Pipeline, bool& bAllowAllUAVsOverlap) const
 	{
 		switch (Type)
 		{
@@ -648,7 +807,7 @@ namespace RHIValidation
 			break;
 
 		case EOpType::BeginTransition:
-			Data_BeginTransition.Identity.Resource->EnumerateSubresources(Data_BeginTransition.Identity.SubresourceRange, [this](FSubresourceState& State, FSubresourceIndex const& SubresourceIndex)
+			Data_BeginTransition.Identity.Resource->EnumerateSubresources(Data_BeginTransition.Identity.SubresourceRange, [this, Pipeline](FSubresourceState& State, FSubresourceIndex const& SubresourceIndex)
 			{
 				State.BeginTransition(
 					Data_BeginTransition.Identity.Resource,
@@ -656,6 +815,7 @@ namespace RHIValidation
 					Data_BeginTransition.PreviousState,
 					Data_BeginTransition.NextState,
 					Data_BeginTransition.Flags,
+					Pipeline,
 					Data_BeginTransition.CreateBacktrace);
 
 			}, true);
@@ -663,18 +823,21 @@ namespace RHIValidation
 			break;
 
 		case EOpType::EndTransition:
-			Data_EndTransition.Identity.Resource->EnumerateSubresources(Data_EndTransition.Identity.SubresourceRange, [this](FSubresourceState& State, FSubresourceIndex const& SubresourceIndex)
+			Data_EndTransition.Identity.Resource->EnumerateSubresources(Data_EndTransition.Identity.SubresourceRange, [this, Pipeline](FSubresourceState& State, FSubresourceIndex const& SubresourceIndex)
 			{
 				State.EndTransition(
-					Data_EndTransition.Identity.Resource, 
+					Data_EndTransition.Identity.Resource,
 					SubresourceIndex,
+					Data_EndTransition.PreviousState,
+					Data_EndTransition.NextState,
+					Pipeline,
 					Data_EndTransition.CreateBacktrace);
 			});
 			Data_EndTransition.Identity.Resource->ReleaseOpRef();
 			break;
 
 		case EOpType::Assert:
-			Data_Assert.Identity.Resource->EnumerateSubresources(Data_Assert.Identity.SubresourceRange, [this, &bAllowAllUAVsOverlap](FSubresourceState& State, FSubresourceIndex const& SubresourceIndex)
+			Data_Assert.Identity.Resource->EnumerateSubresources(Data_Assert.Identity.SubresourceRange, [this, Pipeline, &bAllowAllUAVsOverlap](FSubresourceState& State, FSubresourceIndex const& SubresourceIndex)
 			{
 				State.Assert(
 					Data_Assert.Identity.Resource,
@@ -686,10 +849,20 @@ namespace RHIValidation
 			break;
 
 		case EOpType::Signal:
+			if (Data_Signal.Pipeline != Pipeline)
+			{
+				break;
+			}
+
 			Data_Signal.Fence->bSignaled = true;
 			return EReplayStatus::Signaled;
 
 		case EOpType::Wait:
+			if (Data_Wait.Pipeline != Pipeline)
+			{
+				break;
+			}
+
 			if (Data_Wait.Fence->bSignaled)
 			{
 				// The fence has been completed. Free it now.
@@ -708,10 +881,11 @@ namespace RHIValidation
 			break;
 
 		case EOpType::SpecificUAVOverlap:
-			Data_SpecificUAVOverlap.Identity.Resource->EnumerateSubresources(Data_SpecificUAVOverlap.Identity.SubresourceRange, [this](FSubresourceState& State, FSubresourceIndex const& SubresourceIndex)
+			Data_SpecificUAVOverlap.Identity.Resource->EnumerateSubresources(Data_SpecificUAVOverlap.Identity.SubresourceRange, [this, Pipeline](FSubresourceState& State, FSubresourceIndex const& SubresourceIndex)
 			{
 				State.SpecificUAVOverlap(
-					Data_SpecificUAVOverlap.Identity.Resource, 
+					Data_SpecificUAVOverlap.Identity.Resource,
+					Pipeline,
 					SubresourceIndex,
 					Data_SpecificUAVOverlap.bAllow);
 			});
@@ -735,16 +909,17 @@ namespace RHIValidation
 			Status = EReplayStatus::Normal;
 			for (int32 CurrentIndex = 0; CurrentIndex < int32(ERHIPipeline::Num); ++CurrentIndex)
 			{
+				const ERHIPipeline CurrentPipeline = ERHIPipeline(1 << CurrentIndex);
 				FOpQueueState& CurrentQueue = OpQueues[CurrentIndex];
 				if (CurrentQueue.bWaiting)
 				{
-					Status = CurrentQueue.Ops.Replay(CurrentQueue.bAllowAllUAVsOverlap);
+					Status = CurrentQueue.Ops.Replay(CurrentPipeline, CurrentQueue.bAllowAllUAVsOverlap);
 					if (!EnumHasAllFlags(Status, EReplayStatus::Waiting))
 					{
 						CurrentQueue.Ops.Reset();
 						if (CurrentIndex == DstOpQueueIndex && InOpsList.Incomplete())
 						{
-							Status |= InOpsList.Replay(CurrentQueue.bAllowAllUAVsOverlap);
+							Status |= InOpsList.Replay(CurrentPipeline, CurrentQueue.bAllowAllUAVsOverlap);
 							CurrentQueue.bWaiting = InOpsList.Incomplete();
 						}
 						else

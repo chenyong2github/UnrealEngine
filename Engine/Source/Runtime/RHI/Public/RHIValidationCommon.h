@@ -139,38 +139,40 @@ namespace RHIValidation
 
 	struct FSubresourceState
 	{
-		FState PreviousState;
-		FState CurrentState;
-		EResourceTransitionFlags Flags = EResourceTransitionFlags::None;
-
-		// True when a BeginTransition has been issued, and false when the transition has been ended.
-		bool bTransitioning = false;
-
-		// True when the resource has been used within a Begin/EndUAVOverlap region.
-		bool bUsedWithAllUAVsOverlap = false;
-		
-		// True if the calling code explicitly enabled overlapping on this UAV.
-		bool bExplicitAllowUAVOverlap = false;
-		bool bUsedWithExplicitUAVsOverlap = false;
-
-		// Pointer to the previous create/begin transition backtraces if logging is enabled for this resource.
-		void* CreateTransitionBacktrace = nullptr;
-		void* BeginTransitionBacktrace = nullptr;
-
-		FSubresourceState()
+		struct FPipelineState
 		{
-			CurrentState.Access = ERHIAccess::Unknown;
+			FPipelineState()
+			{
+				Current.Access = ERHIAccess::Unknown;
+				Current.Pipelines = ERHIPipeline::Graphics;
+				Previous = Current;
+			}
 
-			// Resource can initially be accessed on any pipe without a transition.
-			CurrentState.Pipelines = ERHIPipeline::All;
+			FState Previous;
+			FState Current;
+			EResourceTransitionFlags Flags = EResourceTransitionFlags::None;
 
-			PreviousState = CurrentState;
-		}
+			// True when a BeginTransition has been issued, and false when the transition has been ended.
+			bool bTransitioning = false;
 
-		void BeginTransition   (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, EResourceTransitionFlags NewFlags, void* CreateTrace);
-		void EndTransition     (FResource* Resource, FSubresourceIndex const& SubresourceIndex, void* CreateTrace);
+			// True when the resource has been used within a Begin/EndUAVOverlap region.
+			bool bUsedWithAllUAVsOverlap = false;
+
+			// True if the calling code explicitly enabled overlapping on this UAV.
+			bool bExplicitAllowUAVOverlap = false;
+			bool bUsedWithExplicitUAVsOverlap = false;
+
+			// Pointer to the previous create/begin transition backtraces if logging is enabled for this resource.
+			void* CreateTransitionBacktrace = nullptr;
+			void* BeginTransitionBacktrace = nullptr;
+		};
+
+		TRHIPipelineArray<FPipelineState> States;
+
+		void BeginTransition   (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, EResourceTransitionFlags NewFlags, ERHIPipeline Pipeline, void* CreateTrace);
+		void EndTransition     (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, ERHIPipeline Pipeline, void* CreateTrace);
 		void Assert            (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& RequiredState, bool bAllowAllUAVsOverlap);
-		void SpecificUAVOverlap(FResource* Resource, FSubresourceIndex const& SubresourceIndex, bool bAllow);
+		void SpecificUAVOverlap(FResource* Resource, ERHIPipeline Pipeline, FSubresourceIndex const& SubresourceIndex, bool bAllow);
 		void* Log              (FResource* Resource, FSubresourceIndex const& SubresourceIndex, void* CreateTrace, const TCHAR* Type, const TCHAR* LogStr);
 	};
 
@@ -287,8 +289,11 @@ namespace RHIValidation
 				NumArraySlices = InNumArraySlices;
 				NumPlanes = InNumPlanes;
 
-				WholeResourceState.CurrentState.Access = InResourceState;
-				WholeResourceState.PreviousState = WholeResourceState.CurrentState;
+				for (auto& State : WholeResourceState.States)
+				{
+					State.Current.Access = InResourceState;
+					State.Previous = State.Current;
+				}
 
 				if (InDebugName != nullptr)
 				{
@@ -537,6 +542,8 @@ namespace RHIValidation
 			struct
 			{
 				FResourceIdentity Identity;
+				FState PreviousState;
+				FState NextState;
 				void* CreateBacktrace;
 			} Data_EndTransition;
 
@@ -556,11 +563,13 @@ namespace RHIValidation
 			struct
 			{
 				FFence* Fence;
+				ERHIPipeline Pipeline;
 			} Data_Signal;
 
 			struct
 			{
 				FFence* Fence;
+				ERHIPipeline Pipeline;
 			} Data_Wait;
 
 			struct
@@ -575,11 +584,17 @@ namespace RHIValidation
 			} Data_SpecificUAVOverlap;
 		};
 
-		RHI_API EReplayStatus Replay(bool& bAllowAllUAVsOverlap) const;
+		RHI_API EReplayStatus Replay(ERHIPipeline Pipeline, bool& bAllowAllUAVsOverlap) const;
 
 		static inline FOperation BeginTransitionResource(FResourceIdentity Identity, FState PreviousState, FState NextState, EResourceTransitionFlags Flags, void* CreateBacktrace)
 		{
-			Identity.Resource->AddOpRef();
+			for (ERHIPipeline Pipeline : GetRHIPipelines())
+			{
+				if (EnumHasAnyFlags(PreviousState.Pipelines, Pipeline))
+				{
+					Identity.Resource->AddOpRef();
+				}
+			}
 
 			FOperation Op;
 			Op.Type = EOpType::BeginTransition;
@@ -591,13 +606,21 @@ namespace RHIValidation
 			return MoveTemp(Op);
 		}
 
-		static inline FOperation EndTransitionResource(FResourceIdentity Identity, void* CreateBacktrace)
+		static inline FOperation EndTransitionResource(FResourceIdentity Identity, FState PreviousState, FState NextState, void* CreateBacktrace)
 		{
-			Identity.Resource->AddOpRef();
+			for (ERHIPipeline Pipeline : GetRHIPipelines())
+			{
+				if (EnumHasAnyFlags(NextState.Pipelines, Pipeline))
+				{
+					Identity.Resource->AddOpRef();
+				}
+			}
 
 			FOperation Op;
 			Op.Type = EOpType::EndTransition;
 			Op.Data_EndTransition.Identity = Identity;
+			Op.Data_EndTransition.PreviousState = PreviousState;
+			Op.Data_EndTransition.NextState = NextState;
 			Op.Data_EndTransition.CreateBacktrace = CreateBacktrace;
 			return MoveTemp(Op);
 		}
@@ -630,19 +653,21 @@ namespace RHIValidation
 			return MoveTemp(Op);
 		}
 
-		static inline FOperation Signal(FFence* Fence)
+		static inline FOperation Signal(FFence* Fence, ERHIPipeline Pipeline)
 		{
 			FOperation Op;
 			Op.Type = EOpType::Signal;
 			Op.Data_Signal.Fence = Fence;
+			Op.Data_Signal.Pipeline = Pipeline;
 			return MoveTemp(Op);
 		}
 
-		static inline FOperation Wait(FFence* Fence)
+		static inline FOperation Wait(FFence* Fence, ERHIPipeline Pipeline)
 		{
 			FOperation Op;
 			Op.Type = EOpType::Wait;
 			Op.Data_Wait.Fence = Fence;
+			Op.Data_Wait.Pipeline = Pipeline;
 			return MoveTemp(Op);
 		}
 
@@ -671,12 +696,12 @@ namespace RHIValidation
 		TArray<FOperation> Operations;
 		int32 OperationPos = 0;
 
-		inline EReplayStatus Replay(bool& bAllowAllUAVsOverlap)
+		inline EReplayStatus Replay(ERHIPipeline Pipeline, bool& bAllowAllUAVsOverlap)
 		{
 			EReplayStatus Status = EReplayStatus::Normal;
 			for (; OperationPos < Operations.Num(); ++OperationPos)
 			{
-				Status |= Operations[OperationPos].Replay(bAllowAllUAVsOverlap);
+				Status |= Operations[OperationPos].Replay(Pipeline, bAllowAllUAVsOverlap);
 				if (EnumHasAllFlags(Status, EReplayStatus::Waiting))
 				{
 					break;
@@ -809,7 +834,7 @@ namespace RHIValidation
 			// This function exists due to the implicit transitions that RHI functions make (e.g. RHICopyToResolveTarget).
 			// It should be removed when we eventually remove all implicit transitions from the RHI.
 			AddOp(FOperation::BeginTransitionResource(Identity, PreviousState, NextState, Flags, nullptr));
-			AddOp(FOperation::EndTransitionResource(Identity, nullptr));
+			AddOp(FOperation::EndTransitionResource(Identity, PreviousState, NextState, nullptr));
 		}
 
 		inline void AllUAVsOverlap(bool bAllow)
