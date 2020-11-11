@@ -372,6 +372,8 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 		PreApplyCallback();
 	}
 
+	CollisionConstraints.SetGravity(GetGravityForces().GetAcceleration());
+
 	TArray<bool> SleepedIslands;
 	SleepedIslands.SetNum(GetConstraintGraph().NumIslands());
 	TArray<TArray<TPBDRigidParticleHandle<FReal, 3>*>> DisabledParticles;

@@ -489,14 +489,9 @@ namespace Chaos
 							{
 								NormalColor = FColor(150, 200, 0);
 							}
-							if (!bIsActive && !ManifoldPoint.bWasEverActive)
+							if (!bIsActive)
 							{
 								DiscColor = FColor(100, 100, 100);
-								NormalColor = FColor(100, 100, 100);
-							}
-							else if (!bIsActive && ManifoldPoint.bWasEverActive)
-							{
-								DiscColor = FColor(255, 255, 0);
 								NormalColor = FColor(100, 100, 100);
 							}
 
