@@ -26,8 +26,8 @@ class QtHandler(logging.Handler):
         self.record = self.format(record)
 
         if record:
-            ConsoleStream.stdout().write('{}<br>'.format(self.record))
-            ConsoleStream.stderr().write('{}<br>'.format(self.record))
+            ConsoleStream.stdout().write('{}'.format(self.record))
+            ConsoleStream.stderr().write('{}'.format(self.record))
 
     def format(self, record):
         levelName = record.levelname
