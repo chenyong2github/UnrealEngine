@@ -116,7 +116,9 @@ PACKAGE_SCOPE:
 		, AchievementsInterfacePtr(nullptr)
 		, StoreInterfacePtr(nullptr)
 		, bWasLaunchedByEGS(false)
-	{}
+	{
+		StopTicker();
+	}
 
 	char ProductNameAnsi[EOS_PRODUCTNAME_MAX_BUFFER_LEN];
 	char ProductVersionAnsi[EOS_PRODUCTVERSION_MAX_BUFFER_LEN];
