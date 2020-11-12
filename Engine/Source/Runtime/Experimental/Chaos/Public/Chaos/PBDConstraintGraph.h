@@ -97,7 +97,7 @@ namespace Chaos
 		/**
 		 * Wake all particles in an Island.
 		 */
-		void WakeIsland(const int32 Island);
+		void WakeIsland(TPBDRigidsSOAs<FReal, 3>& Particles, const int32 Island);
 
 		/**
 		 * Ensure that the particles in each island have consistent sleep states - if any are awake, wake all.
