@@ -1434,10 +1434,6 @@ namespace Audio
 
 	bool FMixerPlatformXAudio2::DisablePCMAudioCaching() const
 	{
-#if PLATFORM_WINDOWS
-		return false;
-#else
 		return true;
-#endif
 	}
 }
