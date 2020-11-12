@@ -44,7 +44,8 @@ namespace Chaos
 			, CoMContactNormal(0)
 			, NetImpulse(0)
 			, NetPushOut(0)
-			, NetPushOutImpulse(0)
+			, NetPushOutImpulseNormal(0)
+			, NetPushOutImpulseTangent(0)
 			, InitialContactVelocity(0)
 			, InitialPhi(0)
 			, bPotentialRestingContact(false)
@@ -60,7 +61,8 @@ namespace Chaos
 			, CoMContactNormal(0)
 			, NetImpulse(0)
 			, NetPushOut(0)
-			, NetPushOutImpulse(0)
+			, NetPushOutImpulseNormal(0)
+			, NetPushOutImpulseTangent(0)
 			, InitialContactVelocity(0)
 			, InitialPhi(0)
 			, bPotentialRestingContact(false)
@@ -76,7 +78,8 @@ namespace Chaos
 		FVec3 CoMContactNormal;				// CoM-space contact normal relative to ContactNormalOwner body	
 		FVec3 NetImpulse;					// Total impulse applied by this contact point
 		FVec3 NetPushOut;					// Total pushout applied at this contact point
-		FReal NetPushOutImpulse;			// Total pushout impulse along normal (for final velocity correction) applied at this contact point
+		FReal NetPushOutImpulseNormal;		// Total pushout impulse along normal (for final velocity correction) applied at this contact point
+		FReal NetPushOutImpulseTangent;		// Total pushout impulse along tangent (for final velocity correction) applied at this contact point
 		FReal InitialContactVelocity;		// Contact velocity at start of frame (used for restitution)
 		FReal InitialPhi;					// Contact separation at first contact (used for pushout restitution)
 		bool bPotentialRestingContact;		// Whether this may be a resting contact (used for static fricton)
@@ -305,6 +308,12 @@ namespace Chaos
 			const FRotation3& Q0,
 			const FVec3& P1,
 			const FRotation3& Q1);
+		void UpdatePrevCoMContactPoints(
+			FManifoldPoint& ManifoldPoint,
+			const FVec3& XCoM0,
+			const FRotation3& RCoM0,
+			const FVec3& XCoM1,
+			const FRotation3& RCoM1);
 
 		void AddOneshotManifoldContact(const FContactPoint& ContactPoint, bool bInInitialize = true);
 		void UpdateOneShotManifoldContacts();
