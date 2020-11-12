@@ -305,6 +305,19 @@ void UCurveLinearColor::PushToSourceData(TArray<FFloat16Color> &SrcData, int32 S
 	}
 }
 
+void UCurveLinearColor::PushUnadjustedToSourceData(TArray<FFloat16Color>& SrcData, int32 StartXY, FVector2D SizeXY)
+{
+	int32 Start = StartXY;
+	for (uint32 y = 0; y < SizeXY.Y; y++)
+	{
+		// Create base mip for the texture we created.
+		for (uint32 x = 0; x < SizeXY.X; x++)
+		{
+			SrcData[Start + x + y * SizeXY.X] = GetUnadjustedLinearColorValue(x / SizeXY.X);
+		}
+	}
+}
+
 void UCurveLinearColor::OnCurveChanged(const TArray<FRichCurveEditInfo>& ChangedCurveEditInfos)
 {
 	Super::OnCurveChanged(ChangedCurveEditInfos);
