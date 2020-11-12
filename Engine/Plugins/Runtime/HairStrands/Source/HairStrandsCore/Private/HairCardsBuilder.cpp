@@ -2682,8 +2682,8 @@ namespace HairCards
 				const uint32 VertexIndex = VertexOffset + VertexIt;
 				const float CoordU = InCards.CoordU[VertexIndex];
 
-				uint32 GuideIndex0 = 0;
-				uint32 GuideIndex1 = 1;
+				uint32 GuideIndex0 = GuidePointOffset + 0;
+				uint32 GuideIndex1 = GuidePointOffset + 1;
 				float  GuideLerp   = 0;
 				for (uint32 GuidePointIt = 0; GuidePointIt < GuidePointCount-1; ++GuidePointIt)
 				{
@@ -3025,7 +3025,7 @@ namespace FHairCardsBuilder
 FString GetVersion()
 {
 	// Important to update the version when cards building or importing changes
-	return TEXT("7");
+	return TEXT("7.3");
 }
 
 void AllocateAtlasTexture(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount, EPixelFormat PixelFormat, ETextureSourceFormat SourceFormat)
