@@ -96,8 +96,8 @@ void FInstanceGroup::AllocateLightmaps(TEntityArray<FLightmap>& LightmapContaine
 		if (bFit 
 			&& LightMapWidth > 0
 			&& LightMapHeight > 0
-			&& ComponentUObject->GetStaticMesh()->LightMapCoordinateIndex >= 0
-			&& (uint32)ComponentUObject->GetStaticMesh()->LightMapCoordinateIndex < LODModel.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords())
+			&& ComponentUObject->GetStaticMesh()->GetLightMapCoordinateIndex() >= 0
+			&& (uint32)ComponentUObject->GetStaticMesh()->GetLightMapCoordinateIndex() < LODModel.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords())
 		{
 			bValidTextureMap = true;
 		}
