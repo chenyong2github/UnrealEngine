@@ -84,6 +84,10 @@ public:
 	/** Update simulated groups */
 	void UpdateSimulatedGroups();
 
+	//~ Begin UObject Interface.
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	//~ End UObject Interface.
+
 	//~ Begin UActorComponent Interface.
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
