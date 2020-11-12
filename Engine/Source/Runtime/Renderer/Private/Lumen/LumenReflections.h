@@ -33,8 +33,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionTracingParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionTileParameters, )
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ReflectionTileData)
-	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ReflectionResolveTileData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ReflectionTracingTileData)
+	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, ResolveIndirectArgs)
+	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, TracingIndirectArgs)
 END_SHADER_PARAMETER_STRUCT()
 
 extern void TraceReflections(

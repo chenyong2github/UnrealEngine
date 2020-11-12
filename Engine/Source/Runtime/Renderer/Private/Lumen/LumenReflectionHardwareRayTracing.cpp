@@ -175,16 +175,16 @@ void RenderLumenHardwareRayTracingReflections(
 	ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("HardwareRayTracing %ux%u LightingMode=%s", View.ViewRect.Width(), View.ViewRect.Height(), Lumen::GetLightingModeName((Lumen::EHardwareRayTracedReflectionsLightingMode)PassParameters->LightingMode)),
+		RDG_EVENT_NAME("HardwareRayTracing %ux%u LightingMode=%s", ReflectionTracingParameters.ReflectionTracingViewSize.X, ReflectionTracingParameters.ReflectionTracingViewSize.Y, Lumen::GetLightingModeName((Lumen::EHardwareRayTracedReflectionsLightingMode)PassParameters->LightingMode)),
 		PassParameters,
 		ERDGPassFlags::Compute,
-		[PassParameters, &View, RayGenerationShader](FRHICommandList& RHICmdList)
+		[PassParameters, &View, RayGenerationShader, ReflectionTracingParameters](FRHICommandList& RHICmdList)
 		{
 			FRayTracingShaderBindingsWriter GlobalResources;
 			SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
 
 			FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
-			RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, View.ViewRect.Width(), View.ViewRect.Height());
+			RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, ReflectionTracingParameters.ReflectionTracingViewSize.X, ReflectionTracingParameters.ReflectionTracingViewSize.Y);
 		}
 	);
 #else

@@ -17,19 +17,25 @@
 
 float MaxRoughnessToTrace;
 
-RWBuffer<uint> RWReflectionTileIndirectArgs;
+RWBuffer<uint> RWReflectionResolveTileIndirectArgs;
+RWBuffer<uint> RWReflectionTracingTileIndirectArgs;
 
 [numthreads(1, 1, 1)]
 void ReflectionClearTileIndirectArgsCS()
 {
-	RWReflectionTileIndirectArgs[0] = 0;
-	RWReflectionTileIndirectArgs[1] = 1;
-	RWReflectionTileIndirectArgs[2] = 1;
+	RWReflectionResolveTileIndirectArgs[0] = 0;
+	RWReflectionResolveTileIndirectArgs[1] = 1;
+	RWReflectionResolveTileIndirectArgs[2] = 1;
+	RWReflectionTracingTileIndirectArgs[0] = 0;
+	RWReflectionTracingTileIndirectArgs[1] = 1;
+	RWReflectionTracingTileIndirectArgs[2] = 1;
 }
 
-RWBuffer<uint> RWReflectionTileData;
+RWBuffer<uint> RWReflectionResolveTileData;
+RWBuffer<uint> RWReflectionTracingTileData;
 RWTexture2D<float> RWDownsampledDepth;
 
+groupshared uint SharedTileNeedsResolve[4][4];
 groupshared uint SharedTileNeedsTracing;
 
 bool NeedRayTracedReflections(float Roughness, uint ShadingModelID)
@@ -38,28 +44,29 @@ bool NeedRayTracedReflections(float Roughness, uint ShadingModelID)
 		&& (Roughness <= MaxRoughnessToTrace || ShadingModelID == SHADINGMODELID_CLEAR_COAT);
 }
 
-[numthreads(REFLECTION_THREADGROUP_SIZE_2D, REFLECTION_THREADGROUP_SIZE_2D, 1)]
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
 void ReflectionGBufferTileClassificationCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
+	// Each group corresponds to a single tracing tile, but may cover multiple resolve tiles due to downsampled tracing
 	SharedTileNeedsTracing = 0;
+	uint2 ResolveTileOffset = GroupThreadId.xy / REFLECTION_THREADGROUP_SIZE_2D;
+	SharedTileNeedsResolve[ResolveTileOffset.x][ResolveTileOffset.y] = 0;
 
 	GroupMemoryBarrierWithGroupSync();
 
-	uint2 ReflectionTracingCoord = DispatchThreadId.xy;
+	uint2 ScreenCoord = DispatchThreadId.xy;
 
-	if (all(ReflectionTracingCoord < ReflectionTracingViewSize))
+	if (all(ScreenCoord < (uint2)View.ViewSizeAndInvSize.xy))
 	{
-		float2 ScreenJitter = GetScreenTileJitter(SCREEN_TEMPORAL_INDEX);
-		int2 SourcePos = min((int2)(ReflectionTracingCoord + uint2(ScreenJitter + .5f)), (int2)(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy) - 1);
-
-		FGBufferData GBufferData = GetGBufferDataUint(SourcePos);
+		FGBufferData GBufferData = GetGBufferDataUint(ScreenCoord);
 
 		if (NeedRayTracedReflections(GBufferData.Roughness, GBufferData.ShadingModelID))
 		{
 			SharedTileNeedsTracing = 1;
+			SharedTileNeedsResolve[ResolveTileOffset.x][ResolveTileOffset.y] = 1;
 		}
 	}
 
@@ -68,11 +75,21 @@ void ReflectionGBufferTileClassificationCS(
 	if (GroupThreadId.x == 0 && GroupThreadId.y == 0 && SharedTileNeedsTracing > 0)
 	{
 		uint TileOffset;
-		InterlockedAdd(RWReflectionTileIndirectArgs[0], 1, TileOffset);
-		RWReflectionTileData[TileOffset] = GroupId.y << 16 | GroupId.x;
+		InterlockedAdd(RWReflectionTracingTileIndirectArgs[0], 1, TileOffset);
+		RWReflectionTracingTileData[TileOffset] = GroupId.y << 16 | GroupId.x;
 	}
 
-	if (SharedTileNeedsTracing == 0)
+	if (all(GroupThreadId.xy == ResolveTileOffset * REFLECTION_THREADGROUP_SIZE_2D)
+		&& SharedTileNeedsResolve[ResolveTileOffset.x][ResolveTileOffset.y] > 0)
+	{
+		uint TileOffset;
+		InterlockedAdd(RWReflectionResolveTileIndirectArgs[0], 1, TileOffset);
+		uint2 TileCoord = GroupId.xy * ReflectionDownsampleFactor + ResolveTileOffset;
+		RWReflectionResolveTileData[TileOffset] = TileCoord.y << 16 | TileCoord.x;
+	}
+
+	uint2 ReflectionTracingCoord = ScreenCoord / ReflectionDownsampleFactor;
+	if (SharedTileNeedsTracing == 0 && all(ReflectionTracingCoord < ReflectionTracingViewSize))
 	{
 		RWDownsampledDepth[ReflectionTracingCoord] = -1.0f;
 	}
@@ -88,12 +105,13 @@ void ReflectionGenerateRaysCS(
 	uint GroupId : SV_GroupID,
 	uint GroupThreadId : SV_GroupThreadID)
 {
-	uint2 ReflectionTracingCoord = GetReflectionScreenCoord(GroupId, GroupThreadId);
+	uint2 ReflectionTracingCoord = GetReflectionTracingScreenCoord(GroupId, GroupThreadId);
 
 	if (all(ReflectionTracingCoord < ReflectionTracingViewSize))
 	{
 		float2 ScreenJitter = GetScreenTileJitter(SCREEN_TEMPORAL_INDEX);
-		int2 SourcePos = min((int2)(ReflectionTracingCoord + uint2(ScreenJitter + .5f)), (int2)(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy) - 1);
+		int2 SourcePos = min((int2)(ReflectionTracingCoord * ReflectionDownsampleFactor + uint2(ScreenJitter + .5f)), (int2)(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy) - 1);
+		float2 ScreenUV = (SourcePos + .5f) * View.BufferSizeAndInvSize.zw;
 
 		FGBufferData GBufferData = GetGBufferDataUint(SourcePos);
 
@@ -102,7 +120,6 @@ void ReflectionGenerateRaysCS(
 
 		if (NeedRayTracedReflections(TopLayerRoughness, GBufferData.ShadingModelID))
 		{
-			float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(ReflectionTracingCoord);
 			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, GBufferData.Depth);
 			float3 CameraVector = normalize(WorldPosition - View.WorldCameraOrigin);
 
@@ -152,13 +169,17 @@ void ReflectionGenerateRaysCS(
 
 RWTexture2D<float4> RWSpecularIndirect;
 
+uint NumSpatialReconstructionSamples;
+float SpatialReconstructionScreenWidth;
+float SpatialReconstructionRoughnessScale;
+
 [numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
 void ReflectionResolveCS(
 	uint GroupId : SV_GroupID,
 	uint GroupThreadId : SV_GroupThreadID)
 {
-	uint2 ReflectionScreenCoord = GetReflectionScreenCoord(GroupId, GroupThreadId);
-	float2 ScreenUV = (ReflectionScreenCoord + 0.5f) * View.BufferSizeAndInvSize.zw;
+	uint2 ScreenCoord = GetReflectionResolveScreenCoord(GroupId, GroupThreadId);
+	float2 ScreenUV = (ScreenCoord + 0.5f) * View.BufferSizeAndInvSize.zw;
 	float SceneDepth = CalcSceneDepth(ScreenUV);
 
 	float3 ReflectionLighting = 0;
@@ -173,26 +194,39 @@ void ReflectionResolveCS(
 
 		if (NeedRayTracedReflections(TopLayerRoughness, GBufferData.ShadingModelID))
 		{
-			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-			float3 V = -normalize(WorldPosition - View.WorldCameraOrigin);
-			float3x3 TangentBasis = GetTangentBasis(GBufferData.WorldNormal);
-			float3 TangentV = mul(TangentBasis, V);
+			uint2 ReflectionScreenCoord = ScreenCoord / ReflectionDownsampleFactor;
 
-			float HitDepth = 0;
+			float ClosestHitDepth = 1000000.0f;
 
-#define USE_SPATIAL_RECONSTRUCTION 1
 #if USE_SPATIAL_RECONSTRUCTION
-
-			float TotalWeight = 0;
-			uint HalfKernelSize = 1;
-			float a2 = Pow4(TopLayerRoughness);
-			
-			for (uint Y = 0; Y <= 2 * HalfKernelSize; Y++)
 			{
-				for (uint X = 0; X <= 2 * HalfKernelSize; X++)
+				float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+				float3 V = -normalize(WorldPosition - View.WorldCameraOrigin);
+				float3x3 TangentBasis = GetTangentBasis(GBufferData.WorldNormal);
+				float3 TangentV = mul(TangentBasis, V);
+				float4 ScenePlane = float4(GBufferData.WorldNormal, dot(WorldPosition, GBufferData.WorldNormal));
+
+				float TotalWeight = 0;
+				uint KernelWidth = max(SpatialReconstructionScreenWidth * min(ReflectionTracingViewSize.x, ReflectionTracingViewSize.y), 1);
+				float a2 = Pow4(clamp(TopLayerRoughness * SpatialReconstructionRoughnessScale, 0.0f, 1.0f));
+				uint2 RandomSeed = Rand3DPCG16(int3(ScreenCoord, View.StateFrameIndex % 8)).xy;
+
+				// Center sample
+				float CenterTraceHitDistance;
 				{
-					// Skip every other ray to distribute their energy to avoid triggering the 3x3 neighborhood clamp
-					int2 NeighborTracingCoord = ReflectionScreenCoord + (int2(X, Y) - (int)HalfKernelSize) * 2;
+					bool bUnused;
+					CenterTraceHitDistance = DecodeRayDistance(TraceHit[ReflectionScreenCoord].x, bUnused);
+
+					ReflectionLighting = TraceRadiance[ReflectionScreenCoord];
+					TotalWeight = 1.0f;
+					ClosestHitDepth = CenterTraceHitDistance;
+				}
+
+				for (uint SampleIndex = 0; SampleIndex < NumSpatialReconstructionSamples; SampleIndex++)
+				{
+					// First sample assigned to center ray
+					int2 Offset = (Hammersley16(SampleIndex, NumSpatialReconstructionSamples, RandomSeed) - .5f) * KernelWidth;
+					int2 NeighborTracingCoord = ReflectionScreenCoord + Offset;
 
 					if (all(NeighborTracingCoord >= int2(0, 0) && NeighborTracingCoord < (int2)View.ViewSizeAndInvSize.xy))
 					{
@@ -207,6 +241,9 @@ void ReflectionResolveCS(
 							bool bHit;
 							float TraceHitDistance = DecodeRayDistance(TraceHit[NeighborTracingCoord].x, bHit);
 
+							// Clamp to center distance - preserves contacts and prevents a bias toward trace that hit the background
+							TraceHitDistance = min(TraceHitDistance, CenterTraceHitDistance);
+
 							float3 NeighborHitPosition = NeighborWorldPosition + RayData.Direction * TraceHitDistance;
 							float DistanceToNeighborHit = length(NeighborHitPosition - WorldPosition);
 							float3 DirectionToNeighborHit = RayData.Direction;
@@ -218,41 +255,41 @@ void ReflectionResolveCS(
 							float3 TangentH = mul(TangentBasis, normalize(V + DirectionToNeighborHit));
 
 							// Re-weight neighbor ray by the ratio of our PDF to neighbor PDF
-							float NewPDF = TopLayerRoughness < 0.001f ? 1.0f / .001f : VisibleGGXPDF(TangentV, TangentH, a2);
+							float NewPDF = min(VisibleGGXPDF(TangentV, TangentH, a2), 1.0f / MinReflectionConeAngle);
 							float Weight = NewPDF / RayData.PDF;
 
-							// Center ray should always pass with full res tracing, but does not due to precision issues
-							if (X == HalfKernelSize && Y == HalfKernelSize)
-							{
-								Weight = 1.0f;
-							}
-
 							ReflectionLighting += TraceRadiance[NeighborTracingCoord] * Weight;
-							HitDepth += TraceHitDistance * Weight;
+
+							if (Weight > .001f)
+							{
+								ClosestHitDepth = min(ClosestHitDepth, TraceHitDistance);
+							}
+							
 							TotalWeight += Weight;
 						}
 					}
 				}
-			}
 
-			if (TotalWeight > 0.0f)
-			{
-				float InvTotalWeight = 1.0f / TotalWeight;
-				ReflectionLighting *= InvTotalWeight;
-				HitDepth *= InvTotalWeight;
+				if (TotalWeight > 0.0f)
+				{
+					float InvTotalWeight = 1.0f / TotalWeight;
+					ReflectionLighting *= InvTotalWeight;
+				}
 			}
 #else
-			ReflectionLighting = TraceRadiance[ReflectionScreenCoord];
+			{
+				ReflectionLighting = TraceRadiance[ReflectionScreenCoord];
 
-			bool bHit;
-			HitDepth = DecodeRayDistance(TraceHit[ReflectionScreenCoord].x, bHit);
+				bool bHit;
+				ClosestHitDepth = DecodeRayDistance(TraceHit[ReflectionScreenCoord].x, bHit);
+			}
 #endif
-			DepthForReprojection = SceneDepth + HitDepth;
+			DepthForReprojection = SceneDepth + ClosestHitDepth;
 		}
 	}
 
 	//@todo - hit depth in separate render target so neighborhood lookup doesn't read it
-	RWSpecularIndirect[ReflectionScreenCoord] = float4(ReflectionLighting, ConvertToDeviceZ(DepthForReprojection));
+	RWSpecularIndirect[ScreenCoord] = float4(ReflectionLighting, ConvertToDeviceZ(DepthForReprojection));
 }
 
 Texture2D ResolvedReflections;
@@ -313,7 +350,7 @@ void ReflectionTemporalReprojectionCS(
 	uint GroupId : SV_GroupID,
 	uint GroupThreadId : SV_GroupThreadID)
 {
-	uint2 ReflectionScreenCoord = GetReflectionScreenCoord(GroupId, GroupThreadId);
+	uint2 ReflectionScreenCoord = GetReflectionResolveScreenCoord(GroupId, GroupThreadId);
 	float2 ScreenUV = (ReflectionScreenCoord + .5f) * View.BufferSizeAndInvSize.zw;
 	float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 
@@ -378,7 +415,7 @@ void ReflectionPassthroughCopyCS(
 	uint GroupId : SV_GroupID,
 	uint GroupThreadId : SV_GroupThreadID)
 {
-	uint2 ReflectionScreenCoord = GetReflectionScreenCoord(GroupId, GroupThreadId);
+	uint2 ReflectionScreenCoord = GetReflectionResolveScreenCoord(GroupId, GroupThreadId);
 	float2 ScreenUV = (ReflectionScreenCoord + .5f) * View.BufferSizeAndInvSize.zw;
 	float4 NewSpecularAndDepth = Texture2DSampleLevel(ResolvedReflections, GlobalBilinearClampedSampler, ScreenUV, 0);
 

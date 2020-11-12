@@ -90,19 +90,29 @@ struct FRayData
 	float ConeHalfAngle;
 };
 
+const static float MinReflectionConeAngle = .00001f;
+
 FRayData DecodeRayData(float4 PackedRayData)
 {
 	FRayData RayData;
 	RayData.Direction = PackedRayData.xyz;
 	RayData.ConeHalfAngle = PackedRayData.w;
-	RayData.PDF = 1.0f / max(PackedRayData.w, .00001f);
+	RayData.PDF = 1.0f / max(PackedRayData.w, MinReflectionConeAngle);
 	return RayData;
 }
 
-Buffer<uint> ReflectionTileData;
+Buffer<uint> ReflectionResolveTileData;
 
-uint2 GetReflectionScreenCoord(uint TileIndex, uint ThreadIndex)
+uint2 GetReflectionResolveScreenCoord(uint TileIndex, uint ThreadIndex)
 {
-	uint2 TileOffset = uint2(ReflectionTileData[TileIndex] & 0xFFFF, (ReflectionTileData[TileIndex] >> 16) & 0xFFFF);
+	uint2 TileOffset = uint2(ReflectionResolveTileData[TileIndex] & 0xFFFF, (ReflectionResolveTileData[TileIndex] >> 16) & 0xFFFF);
+	return TileOffset * REFLECTION_THREADGROUP_SIZE_2D + uint2(ThreadIndex % REFLECTION_THREADGROUP_SIZE_2D, ThreadIndex / REFLECTION_THREADGROUP_SIZE_2D);
+}
+
+Buffer<uint> ReflectionTracingTileData;
+
+uint2 GetReflectionTracingScreenCoord(uint TileIndex, uint ThreadIndex)
+{
+	uint2 TileOffset = uint2(ReflectionTracingTileData[TileIndex] & 0xFFFF, (ReflectionTracingTileData[TileIndex] >> 16) & 0xFFFF);
 	return TileOffset * REFLECTION_THREADGROUP_SIZE_2D + uint2(ThreadIndex % REFLECTION_THREADGROUP_SIZE_2D, ThreadIndex / REFLECTION_THREADGROUP_SIZE_2D);
 }

@@ -27,7 +27,7 @@ void ReflectionClearTracesCS(
 	uint GroupId : SV_GroupID,
 	uint GroupThreadId : SV_GroupThreadID)
 {
-	uint2 ReflectionTracingCoord = GetReflectionScreenCoord(GroupId, GroupThreadId);
+	uint2 ReflectionTracingCoord = GetReflectionTracingScreenCoord(GroupId, GroupThreadId);
 	RWTraceRadiance[ReflectionTracingCoord] = 0.0f;
 	RWTraceHit[ReflectionTracingCoord] = EncodeRayDistance(0.0f, false);
 }
@@ -47,7 +47,7 @@ void ReflectionTraceScreenTexturesCS(
 	uint GroupId : SV_GroupID,
 	uint GroupThreadId : SV_GroupThreadID)
 {
-	uint2 ReflectionTracingCoord = GetReflectionScreenCoord(GroupId, GroupThreadId);
+	uint2 ReflectionTracingCoord = GetReflectionTracingScreenCoord(GroupId, GroupThreadId);
 
 	if (all(ReflectionTracingCoord < ReflectionTracingViewSize))
 	{
@@ -144,7 +144,7 @@ void ReflectionCompactTracesCS(
 	uint GroupId : SV_GroupID,
 	uint GroupThreadId : SV_GroupThreadID)
 {
-	uint2 ReflectionTracingCoord = GetReflectionScreenCoord(GroupId, GroupThreadId);
+	uint2 ReflectionTracingCoord = GetReflectionTracingScreenCoord(GroupId, GroupThreadId);
 	SharedTraceTexelAllocator = 0;
 
 	GroupMemoryBarrierWithGroupSync();

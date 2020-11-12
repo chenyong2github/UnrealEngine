@@ -241,7 +241,7 @@ FCompactedReflectionTraceParameters CompactTraces(
 			RDG_EVENT_NAME("CompactTraces"),
 			ComputeShader,
 			PassParameters,
-			ReflectionTileParameters.IndirectArgs,
+			ReflectionTileParameters.TracingIndirectArgs,
 			0);
 	}
 
@@ -311,7 +311,7 @@ void TraceReflections(
 			RDG_EVENT_NAME("ClearTraces"),
 			ComputeShader,
 			PassParameters,
-			ReflectionTileParameters.IndirectArgs,
+			ReflectionTileParameters.TracingIndirectArgs,
 			0);
 	}
 
@@ -396,7 +396,7 @@ void TraceReflections(
 			RDG_EVENT_NAME("TraceScreen"),
 			ComputeShader,
 			PassParameters,
-			ReflectionTileParameters.IndirectArgs,
+			ReflectionTileParameters.TracingIndirectArgs,
 			0);
 	}
 	
