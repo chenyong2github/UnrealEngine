@@ -1181,8 +1181,8 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		}
 	}
 
-	bool bCPUSim = IsCompileOptionDefined(TEXT("CPUSim"));
-	bool bGPUSim = IsCompileOptionDefined(TEXT("GPUComputeSim"));
+	const bool bCPUSim = CompileOptions.IsCpuScript();
+	const bool bGPUSim = CompileOptions.IsGpuScript();
 
 	if (bUsesSimStages && bCPUSim)
 	{
@@ -6693,8 +6693,8 @@ void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* Custom
 
 void FHlslNiagaraTranslator::HandleDataInterfaceCall(FNiagaraScriptDataInterfaceCompileInfo& Info, const FNiagaraFunctionSignature& InMatchingSignature)
 {
-	bool bCPUSim = IsCompileOptionDefined(TEXT("CPUSim"));
-	bool bGPUSim = IsCompileOptionDefined(TEXT("GPUComputeSim"));
+	const bool bCPUSim = CompileOptions.IsCpuScript();
+	const bool bGPUSim = CompileOptions.IsGpuScript();
 	const UNiagaraNode* CurNode = ActiveHistoryForFunctionCalls.GetCallingContext();
 	if (bCPUSim && !InMatchingSignature.bSupportsCPU)
 	{

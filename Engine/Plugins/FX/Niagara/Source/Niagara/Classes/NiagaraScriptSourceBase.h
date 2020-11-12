@@ -38,6 +38,9 @@ public:
 class FNiagaraCompileOptions
 {
 public:
+	NIAGARA_API static const FString CpuScriptDefine;
+	NIAGARA_API static const FString GpuScriptDefine;
+
 	FNiagaraCompileOptions() : TargetUsage(ENiagaraScriptUsage::Function), TargetUsageBitmask(0)
 	{
 	}
@@ -51,6 +54,12 @@ public:
 	const FString& GetName() const { return Name; }
 	const FString& GetPathName() const { return PathName; }
 	int32 GetTargetUsageBitmask() const { return TargetUsageBitmask; }
+
+	void SetCpuScript() { AdditionalDefines.AddUnique(CpuScriptDefine); }
+	void SetGpuScript() { AdditionalDefines.AddUnique(GpuScriptDefine); }
+
+	bool IsCpuScript() const { return AdditionalDefines.Contains(CpuScriptDefine); }
+	bool IsGpuScript() const { return AdditionalDefines.Contains(GpuScriptDefine); }
 
 	ENiagaraScriptUsage TargetUsage;
 	FGuid TargetUsageId;
