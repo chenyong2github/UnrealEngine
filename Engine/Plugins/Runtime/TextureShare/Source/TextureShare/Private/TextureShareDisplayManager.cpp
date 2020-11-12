@@ -10,6 +10,7 @@
 #include "Engine/GameEngine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
+#include "RenderGraphUtils.h"
 
 #include "Slate\SceneViewport.h"
 
@@ -119,12 +120,15 @@ void FTextureShareDisplayManager::PreRenderViewFamily_RenderThread(FRHICommandLi
 	CurrentSceneViewFamily = &InViewFamily;
 }
 
-void FTextureShareDisplayManager::OnResolvedSceneColor_RenderThread(FRHICommandListImmediate& RHICmdList, class FSceneRenderTargets& SceneContext)
+void FTextureShareDisplayManager::OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBuilder, class FSceneRenderTargets& SceneContext)
 {
 	// Forward renderer cb with saved viewfamily (Call from RendererModule->GetResolvedSceneColorCallbacks)
 	if (IsSceneSharingValid() && CurrentSceneViewFamily)
 	{
-		TextureShareModule.OnResolvedSceneColor_RenderThread(RHICmdList, SceneContext, *CurrentSceneViewFamily);
+		AddPass(GraphBuilder, [this, &SceneContext](FRHICommandListImmediate& RHICmdList)
+		{
+			TextureShareModule.OnResolvedSceneColor_RenderThread(RHICmdList, SceneContext, *CurrentSceneViewFamily);
+		});
 	}
 }
 

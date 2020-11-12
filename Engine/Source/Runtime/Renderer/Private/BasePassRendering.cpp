@@ -766,6 +766,11 @@ static void ClearGBufferAtMaxZ(
 	}
 }
 
+BEGIN_SHADER_PARAMETER_STRUCT(FPostBasePassViewExtensionParameters, )
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
 void FDeferredShadingSceneRenderer::RenderBasePass(
 	FRDGBuilder& GraphBuilder,
 	FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
@@ -943,8 +948,9 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_ViewExtensionPostRenderBasePass);
 		RDG_EVENT_SCOPE(GraphBuilder, "BasePass_ViewExtensions");
-		auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+		auto* PassParameters = GraphBuilder.AllocParameters<FPostBasePassViewExtensionParameters>();
 		PassParameters->RenderTargets = BasePassRenderTargets;
+		PassParameters->SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, FeatureLevel, ESceneTextureSetupMode::None);
 		for (auto& ViewExtension : ViewFamily.ViewExtensions)
 		{
 			for (FViewInfo& View : Views)

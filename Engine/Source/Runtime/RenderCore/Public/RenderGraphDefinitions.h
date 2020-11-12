@@ -3,8 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "RHI.h"
-#include "RendererInterface.h"
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 
 /** DEFINES */
@@ -288,7 +286,7 @@ private:
 	};
 
 	FMemStackBase MemStack;
-	TArray<FTrackedAlloc*, SceneRenderingAllocator> TrackedAllocs;
+	TArray<FTrackedAlloc*, TMemStackAllocator<>> TrackedAllocs;
 };
 
 /** HANDLE UTILITIES */
@@ -416,14 +414,14 @@ public:
 	}
 
 private:
-	TArray<ObjectType*, SceneRenderingAllocator> Array;
+	TArray<ObjectType*, TMemStackAllocator<>> Array;
 };
 
 /** Specialization of bit array with compile-time type checking for handles and a pre-configured allocator. */
 template <typename HandleType>
-class TRDGHandleBitArray : public TBitArray<SceneRenderingBitArrayAllocator>
+class TRDGHandleBitArray : public TBitArray<TInlineAllocator<4, TMemStackAllocator<>>>
 {
-	using Base = TBitArray<SceneRenderingBitArrayAllocator>;
+	using Base = TBitArray<TInlineAllocator<4, TMemStackAllocator<>>>;
 public:
 	TRDGHandleBitArray() = default;
 	TRDGHandleBitArray(const TRDGHandleBitArray&) = default;
@@ -536,7 +534,7 @@ class FRDGPass;
 using FRDGPassRef = const FRDGPass*;
 using FRDGPassHandle = TRDGHandle<FRDGPass, uint16>;
 using FRDGPassRegistry = TRDGHandleRegistry<FRDGPassHandle>;
-using FRDGPassHandleArray = TArray<FRDGPassHandle, TInlineAllocator<4, SceneRenderingAllocator>>;
+using FRDGPassHandleArray = TArray<FRDGPassHandle, TInlineAllocator<4, TMemStackAllocator<>>>;
 using FRDGPassBitArray = TRDGHandleBitArray<FRDGPassHandle>;
 
 class FRDGUniformBuffer;

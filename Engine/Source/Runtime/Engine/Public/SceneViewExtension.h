@@ -138,12 +138,14 @@ public:
     /**
      * Called on render thread at the start of rendering.
      */
-    virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) = 0;
+	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) {};
+	virtual ENGINE_API void PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily);
 
 	/**
      * Called on render thread at the start of rendering, for each view, after PreRenderViewFamily_RenderThread call.
      */
-    virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) = 0;
+	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) {};
+	virtual ENGINE_API void PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView);
 
 	/**
 	 * Called right after Base Pass rendering finished
@@ -164,11 +166,13 @@ public:
 	 * Allows to render content after the 3D content scene, useful for debugging
 	 */
 	virtual void PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) {}
+	virtual ENGINE_API void PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily);
 
 	/**
 	 * Allows to render content after the 3D content scene, useful for debugging
 	 */
 	virtual void PostRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) {}
+	virtual ENGINE_API void PostRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView);
 
 	/**
      * Called to determine view extensions priority in relation to other view extensions, higher comes first

@@ -36,14 +36,7 @@ public:
 	static void Init();
 	static void Shutdown();
 
-	void PostOpaqueRender(FPostOpaqueRenderParameters& Params)
-	{
-		SceneDepthTexture = Params.DepthTexture;
-		ViewUniformBuffer = Params.ViewUniformBuffer;
-		SceneNormalTexture = Params.NormalTexture;
-		SceneVelocityTexture = Params.VelocityTexture;
-		SceneTexturesUniformParams = Params.SceneTexturesUniformParams;
-	}
+	NIAGARA_API void PostOpaqueRender(FPostOpaqueRenderParameters& Params);
 
 	FRHITexture2D* GetSceneDepthTexture() { return SceneDepthTexture; }
 	FRHITexture2D* GetSceneNormalTexture() { return SceneNormalTexture; }

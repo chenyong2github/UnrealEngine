@@ -16,6 +16,7 @@
 #include "Misc/EnumClassFlags.h"
 #include "UniformBuffer.h"
 #include "VirtualTexturing.h"
+#include "RenderGraphDefinitions.h"
 
 class FCanvas;
 class FMaterial;
@@ -558,13 +559,14 @@ public:
 	FIntRect ViewportRect;
 	FMatrix ViewMatrix;
 	FMatrix ProjMatrix;
-	FRHITexture2D* DepthTexture = nullptr;
-	FRHITexture2D* NormalTexture = nullptr;
-	FRHITexture2D* VelocityTexture = nullptr;
-	FRHITexture2D* SmallDepthTexture = nullptr;
-	FRHICommandListImmediate* RHICmdList = nullptr;
+	FRDGTexture* ColorTexture = nullptr;
+	FRDGTexture* DepthTexture = nullptr;
+	FRDGTexture* NormalTexture = nullptr;
+	FRDGTexture* VelocityTexture = nullptr;
+	FRDGTexture* SmallDepthTexture = nullptr;
+	FRDGBuilder* GraphBuilder = nullptr;
 	FRHIUniformBuffer* ViewUniformBuffer = nullptr;
-	TUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformParams;
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformParams = nullptr;
 	const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParams = nullptr;
 	void* Uid = nullptr; // A unique identifier for the view.
 };
@@ -760,7 +762,7 @@ public:
 	virtual void RemoveOverlayRenderDelegate(FDelegateHandle OverlayRenderDelegate) = 0;
 
 	/** Delegate that is called upon resolving scene color. */
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnResolvedSceneColor, FRHICommandListImmediate& /*RHICmdList*/, class FSceneRenderTargets& /*SceneContext*/);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnResolvedSceneColor, FRDGBuilder& /*GraphBuilder*/, FSceneRenderTargets& /*SceneContext*/);
 
 	/** Accessor for post scene color resolve delegates */
 	virtual FOnResolvedSceneColor& GetResolvedSceneColorCallbacks() = 0;

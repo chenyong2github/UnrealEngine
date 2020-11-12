@@ -3,6 +3,7 @@
 #pragma once
 
 #include "RenderGraphDefinitions.h"
+#include "RendererInterface.h"
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 
 /** Macros for create render graph event names and scopes.

@@ -136,6 +136,38 @@ namespace FNiagaraUtilities
 	}
 }
 
+BEGIN_SHADER_PARAMETER_STRUCT(FExtractUniformBufferParameters, )
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+	RDG_TEXTURE_ACCESS(Depth, ERHIAccess::SRVGraphics)
+	RDG_TEXTURE_ACCESS(Normal, ERHIAccess::SRVGraphics)
+	RDG_TEXTURE_ACCESS(Velocity, ERHIAccess::SRVGraphics)
+END_SHADER_PARAMETER_STRUCT()
+
+void FNiagaraViewDataMgr::PostOpaqueRender(FPostOpaqueRenderParameters& Params)
+{
+	FRDGBuilder& GraphBuilder = *Params.GraphBuilder;
+
+	ViewUniformBuffer = Params.ViewUniformBuffer;
+
+	FExtractUniformBufferParameters* PassParameters = GraphBuilder.AllocParameters<FExtractUniformBufferParameters>();
+	PassParameters->SceneTextures = Params.SceneTexturesUniformParams;
+	PassParameters->Depth = Params.DepthTexture;
+	PassParameters->Normal = Params.NormalTexture;
+	PassParameters->Velocity = Params.VelocityTexture;
+
+	// Niagara is not ported to RDG and is manually accessing RHI resources. This extraction is technically not safe,
+	// because the lifetime of the textures are not guaranteed outside of the pass. However, we happen to know that
+	// they will outlast Niagara.
+
+	GraphBuilder.AddPass({}, PassParameters, ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass | ERDGPassFlags::NeverCull, [this, PassParameters](FRHICommandList&)
+	{
+		SceneTexturesUniformParams = PassParameters->SceneTextures->GetRHIRef();
+		SceneDepthTexture = static_cast<FRHITexture2D*>(PassParameters->Depth ? PassParameters->Depth->GetRHI() : nullptr);
+		SceneNormalTexture = static_cast<FRHITexture2D*>(PassParameters->Normal ? PassParameters->Normal->GetRHI() : nullptr);
+		SceneVelocityTexture = static_cast<FRHITexture2D*>(PassParameters->Velocity ? PassParameters->Velocity->GetRHI() : nullptr);
+	});
+}
+
 FNiagaraViewDataMgr::FNiagaraViewDataMgr()
 	: FRenderResource()
 	, SceneDepthTexture(nullptr)

@@ -53,22 +53,10 @@ ENUM_CLASS_FLAGS(ESceneTextureSetupMode);
 
 /** Fills the shader parameter struct. */
 extern RENDERER_API void SetupSceneTextureUniformParameters(
-	const FSceneRenderTargets& SceneContext,
-	ERHIFeatureLevel::Type FeatureLevel,
-	ESceneTextureSetupMode SetupMode,
-	FSceneTextureUniformParameters& OutParameters);
-
-extern RENDERER_API void SetupSceneTextureUniformParameters(
 	FRDGBuilder& GraphBuilder,
 	ERHIFeatureLevel::Type FeatureLevel,
 	ESceneTextureSetupMode SetupMode,
 	FSceneTextureUniformParameters& OutParameters);
-
-/** Returns RHI scene texture uniform buffer with passthrough RDG resources. */
-extern RENDERER_API TUniformBufferRef<FSceneTextureUniformParameters> CreateSceneTextureUniformBuffer(
-	FRHIComputeCommandList& RHICmdList,
-	ERHIFeatureLevel::Type FeatureLevel,
-	ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::All);
 
 /** Returns RDG scene texture uniform buffer. */
 extern RENDERER_API TRDGUniformBufferRef<FSceneTextureUniformParameters> CreateSceneTextureUniformBuffer(
@@ -154,11 +142,23 @@ extern RENDERER_API FSceneTextureShaderParameters CreateSceneTextureShaderParame
 	ERHIFeatureLevel::Type FeatureLevel,
 	ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::All);
 
-/** Returns appropriate scene textures RHI uniform buffer for deferred or mobile path. */
-extern RENDERER_API TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBufferDependentOnShadingPath(
+UE_DEPRECATED(5.0, "SetupSceneTextureUniforParameters now requires an FRDGBuilder.")
+extern RENDERER_API void SetupSceneTextureUniformParameters(
+	const FSceneRenderTargets& SceneContext,
+	ERHIFeatureLevel::Type FeatureLevel,
+	ESceneTextureSetupMode SetupMode,
+	FSceneTextureUniformParameters& OutParameters);
+
+UE_DEPRECATED(5.0, "CreateSceneTextureUniformBuffer now requires an FRDGBuilder.")
+extern RENDERER_API TUniformBufferRef<FSceneTextureUniformParameters> CreateSceneTextureUniformBuffer(
 	FRHIComputeCommandList& RHICmdList,
 	ERHIFeatureLevel::Type FeatureLevel,
 	ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::All);
 
+UE_DEPRECATED(5.0, "Use CreateSceneTextureShaderParameters instead.")
+extern RENDERER_API TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBufferDependentOnShadingPath(
+	FRHIComputeCommandList& RHICmdList,
+	ERHIFeatureLevel::Type FeatureLevel,
+	ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::All);
 
 extern RENDERER_API bool IsSceneTexturesValid(FRHICommandListImmediate& RHICmdList);

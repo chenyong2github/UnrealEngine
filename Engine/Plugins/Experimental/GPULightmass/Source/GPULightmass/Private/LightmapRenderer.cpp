@@ -22,6 +22,7 @@
 #include "LightmapDenoising.h"
 #include "EngineModule.h"
 #include "PostProcess/PostProcessing.h"
+#include "ScreenPass.h"
 
 class FCopyConvergedLightmapTilesCS : public FGlobalShader
 {
@@ -2911,51 +2912,54 @@ void FLightmapRenderer::BumpRevision()
 
 void FLightmapRenderer::RenderIrradianceCacheVisualization(FPostOpaqueRenderParameters& Parameters)
 {
-	FRHICommandListImmediate& RHICmdList = *Parameters.RHICmdList;
+	FRDGBuilder& GraphBuilder = *Parameters.GraphBuilder;
 
-	FVisualizeIrradianceCachePS::FParameters PassParameters;
+	auto* PassParameters = GraphBuilder.AllocParameters<FVisualizeIrradianceCachePS::FParameters>();
 	TUniformBufferRef<FViewUniformShaderParameters> Ref;
 	*Ref.GetInitReference() = Parameters.ViewUniformBuffer;
-	PassParameters.View = Ref;
-	PassParameters.SceneTextures = CreateSceneTextureUniformBuffer(RHICmdList, GMaxRHIFeatureLevel, ESceneTextureSetupMode::All);
-	PassParameters.IrradianceCachingParameters = Scene->IrradianceCache->IrradianceCachingParametersUniformBuffer;
+	PassParameters->View = Ref;
+	PassParameters->SceneTextures = Parameters.SceneTexturesUniformParams;
+	PassParameters->IrradianceCachingParameters = Scene->IrradianceCache->IrradianceCachingParametersUniformBuffer;
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(Parameters.ColorTexture, ERenderTargetLoadAction::ELoad);
 
-	FUniformBufferStaticBindings GlobalUniformBuffers(PassParameters.SceneTextures);
-	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
+	const FIntRect ViewportRect = Parameters.ViewportRect;
+	const FIntPoint TextureExtent = Parameters.ColorTexture->Desc.Extent;
 
-	FRHIRenderPassInfo RPInfo(FSceneRenderTargets::Get().GetSceneColor()->GetTargetableRHI(), ERenderTargetActions::Load_Store);
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("AP_ClearIrradiance"));
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("ClearIrradiance"),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[ViewportRect, PassParameters, TextureExtent] (FRHICommandList& RHICmdList)
+	{
+		RHICmdList.SetViewport(0, 0, 0.0f, ViewportRect.Width(), ViewportRect.Height(), 1.0f);
 
-	RHICmdList.SetViewport(0, 0, 0.0f, Parameters.ViewportRect.Width(), Parameters.ViewportRect.Height(), 1.0f);
+		TShaderMapRef<FPostProcessVS> VertexShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		TShaderMapRef<FVisualizeIrradianceCachePS> PixelShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 
-	TShaderMapRef<FPostProcessVS> VertexShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
-	TShaderMapRef<FVisualizeIrradianceCachePS> PixelShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		FGraphicsPipelineStateInitializer GraphicsPSOInit;
+		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
-	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 
-	SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters);
-
-	DrawRectangle(
-		RHICmdList,
-		0, 0,
-		Parameters.ViewportRect.Width(), Parameters.ViewportRect.Height(),
-		0, 0,
-		Parameters.ViewportRect.Width(), Parameters.ViewportRect.Height(),
-		FIntPoint(Parameters.ViewportRect.Width(), Parameters.ViewportRect.Height()),
-		FSceneRenderTargets::Get().GetBufferSizeXY(),
-		VertexShader);
-
-	RHICmdList.EndRenderPass();
+		DrawRectangle(
+			RHICmdList,
+			0, 0,
+			ViewportRect.Width(), ViewportRect.Height(),
+			0, 0,
+			ViewportRect.Width(), ViewportRect.Height(),
+			FIntPoint(ViewportRect.Width(), ViewportRect.Height()),
+			TextureExtent,
+			VertexShader);
+	});
 }
 
 }

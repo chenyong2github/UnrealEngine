@@ -3116,19 +3116,12 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "ViewFamilyExtension(%d)", ViewExt);
 			ISceneViewExtension& ViewExtension = *ViewFamily.ViewExtensions[ViewExt];
-
-			AddUntrackedAccessPass(GraphBuilder, [this, &ViewExtension](FRHICommandListImmediate& RHICmdList)
-			{
-				ViewExtension.PostRenderViewFamily_RenderThread(RHICmdList, ViewFamily);
-			});
+			ViewExtension.PostRenderViewFamily_RenderThread(GraphBuilder, ViewFamily);
 
 			for(int32 ViewIndex = 0; ViewIndex < ViewFamily.Views.Num(); ++ViewIndex)
 			{
-				AddUntrackedAccessPass(GraphBuilder, RDG_EVENT_NAME("ViewExtension(%d)", ViewIndex),
-					[this, &ViewExtension, ViewIndex](FRHICommandListImmediate& RHICmdList)
-				{
-					ViewExtension.PostRenderView_RenderThread(RHICmdList, Views[ViewIndex]);
-				});
+				RDG_EVENT_SCOPE(GraphBuilder, "ViewExtension(%d)", ViewIndex);
+				ViewExtension.PostRenderView_RenderThread(GraphBuilder, Views[ViewIndex]);
 			}
 		}
 	}
@@ -3581,17 +3574,20 @@ static void ViewExtensionPreRender_RenderThread(FRHICommandListImmediate& RHICmd
 	FMemMark MemStackMark(FMemStack::Get());
 
 	{
+		FRDGBuilder GraphBuilder(RHICmdList);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PreRender);
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_ViewExtensionPreRenderView);
 
 		for (int ViewExt = 0; ViewExt < SceneRenderer->ViewFamily.ViewExtensions.Num(); ViewExt++)
 		{
-			SceneRenderer->ViewFamily.ViewExtensions[ViewExt]->PreRenderViewFamily_RenderThread(RHICmdList, SceneRenderer->ViewFamily);
+			SceneRenderer->ViewFamily.ViewExtensions[ViewExt]->PreRenderViewFamily_RenderThread(GraphBuilder, SceneRenderer->ViewFamily);
 			for (int ViewIndex = 0; ViewIndex < SceneRenderer->ViewFamily.Views.Num(); ViewIndex++)
 			{
-				SceneRenderer->ViewFamily.ViewExtensions[ViewExt]->PreRenderView_RenderThread(RHICmdList, SceneRenderer->Views[ViewIndex]);
+				SceneRenderer->ViewFamily.ViewExtensions[ViewExt]->PreRenderView_RenderThread(GraphBuilder, SceneRenderer->Views[ViewIndex]);
 			}
 		}
+
+		GraphBuilder.Execute();
 	}
 	
 	// update any resources that needed a deferred update
@@ -4004,7 +4000,13 @@ void FRendererModule::RemoveOverlayRenderDelegate(FDelegateHandle InOverlayRende
 	OverlayRenderDelegate.Remove(InOverlayRenderDelegate);
 }
 
-void FRendererModule::RenderPostOpaqueExtensions(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FSceneRenderTargets& SceneContext)
+void FRendererModule::RenderPostOpaqueExtensions(
+	FRDGBuilder& GraphBuilder,
+	TArrayView<const FViewInfo> Views,
+	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef SceneDepthTexture,
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	const FSceneRenderTargets& SceneContext)
 {
 	if (PostOpaqueRenderDelegate.IsBound())
 	{
@@ -4016,33 +4018,34 @@ void FRendererModule::RenderPostOpaqueExtensions(FRDGBuilder& GraphBuilder, TArr
 			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
-			AddUntrackedAccessPass(GraphBuilder, [this, &View, &SceneContext](FRHICommandListImmediate& RHICmdList)
-			{
-				RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+			check(IsInRenderingThread());
+			FPostOpaqueRenderParameters RenderParameters;
+			RenderParameters.ViewMatrix = View.ViewMatrices.GetViewMatrix();
+			RenderParameters.ProjMatrix = View.ViewMatrices.GetProjectionMatrix();
+			RenderParameters.ColorTexture = SceneColorTexture;
+			RenderParameters.DepthTexture = SceneDepthTexture;
+			RenderParameters.NormalTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferA);
+			RenderParameters.VelocityTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.SceneVelocity);
+			RenderParameters.SmallDepthTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.SmallDepthZ);
+			RenderParameters.ViewUniformBuffer = View.ViewUniformBuffer;
+			RenderParameters.SceneTexturesUniformParams = SceneTexturesUniformBuffer;
+			RenderParameters.GlobalDistanceFieldParams = &View.GlobalDistanceFieldInfo.ParameterData;
 
-				check(IsInRenderingThread());
-				FPostOpaqueRenderParameters RenderParameters;
-				RenderParameters.ViewMatrix = View.ViewMatrices.GetViewMatrix();
-				RenderParameters.ProjMatrix = View.ViewMatrices.GetProjectionMatrix();
-				RenderParameters.DepthTexture = SceneContext.GetSceneDepthSurface()->GetTexture2D();
-				RenderParameters.NormalTexture = SceneContext.GBufferA.IsValid() ? SceneContext.GetGBufferATexture() : nullptr;
-				RenderParameters.VelocityTexture = SceneContext.SceneVelocity.IsValid() ? SceneContext.SceneVelocity->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D() : nullptr;
-				RenderParameters.SmallDepthTexture = SceneContext.GetSmallDepthSurface()->GetTexture2D();
-				RenderParameters.ViewUniformBuffer = View.ViewUniformBuffer;
-				RenderParameters.SceneTexturesUniformParams = CreateSceneTextureUniformBuffer(RHICmdList, View.FeatureLevel, ESceneTextureSetupMode::SceneColor | ESceneTextureSetupMode::SceneDepth | ESceneTextureSetupMode::SceneVelocity | ESceneTextureSetupMode::GBuffers);
-				RenderParameters.GlobalDistanceFieldParams = &View.GlobalDistanceFieldInfo.ParameterData;
+			RenderParameters.ViewportRect = View.ViewRect;
+			RenderParameters.GraphBuilder = &GraphBuilder;
 
-				RenderParameters.ViewportRect = View.ViewRect;
-				RenderParameters.RHICmdList = &RHICmdList;
-
-				RenderParameters.Uid = (void*)(&View);
-				PostOpaqueRenderDelegate.Broadcast(RenderParameters);
-			});
+			RenderParameters.Uid = (void*)(&View);
+			PostOpaqueRenderDelegate.Broadcast(RenderParameters);
 		}
 	}
 }
 
-void FRendererModule::RenderOverlayExtensions(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FSceneRenderTargets& SceneContext)
+void FRendererModule::RenderOverlayExtensions(
+	FRDGBuilder& GraphBuilder,
+	TArrayView<const FViewInfo> Views,
+	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef SceneDepthTexture,
+	const FSceneRenderTargets& SceneContext)
 {
 	if (OverlayRenderDelegate.IsBound())
 	{
@@ -4054,22 +4057,18 @@ void FRendererModule::RenderOverlayExtensions(FRDGBuilder& GraphBuilder, TArrayV
 			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
-			AddUntrackedAccessPass(GraphBuilder, [this, &View, &SceneContext](FRHICommandListImmediate& RHICmdList)
-			{
-				RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+			FPostOpaqueRenderParameters RenderParameters;
+			RenderParameters.ViewMatrix = View.ViewMatrices.GetViewMatrix();
+			RenderParameters.ProjMatrix = View.ViewMatrices.GetProjectionMatrix();
+			RenderParameters.ColorTexture = SceneColorTexture;
+			RenderParameters.DepthTexture = SceneDepthTexture;
+			RenderParameters.SmallDepthTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.SmallDepthZ);
 
-				FPostOpaqueRenderParameters RenderParameters;
-				RenderParameters.ViewMatrix = View.ViewMatrices.GetViewMatrix();
-				RenderParameters.ProjMatrix = View.ViewMatrices.GetProjectionMatrix();
-				RenderParameters.DepthTexture = SceneContext.GetSceneDepthSurface()->GetTexture2D();
-				RenderParameters.SmallDepthTexture = SceneContext.GetSmallDepthSurface()->GetTexture2D();
+			RenderParameters.ViewportRect = View.ViewRect;
+			RenderParameters.GraphBuilder = &GraphBuilder;
 
-				RenderParameters.ViewportRect = View.ViewRect;
-				RenderParameters.RHICmdList = &RHICmdList;
-
-				RenderParameters.Uid = (void*)(&View);
-				OverlayRenderDelegate.Broadcast(RenderParameters);
-			});
+			RenderParameters.Uid = (void*)(&View);
+			OverlayRenderDelegate.Broadcast(RenderParameters);
 		}
 	}
 }
@@ -4078,13 +4077,7 @@ void FRendererModule::RenderPostResolvedSceneColorExtension(FRDGBuilder& GraphBu
 {
 	if (PostResolvedSceneColorCallbacks.IsBound())
 	{
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("PostResolvedSceneColorExtentions"),
-			ERDGPassFlags::UntrackedAccess,
-			[this, &SceneContext](FRHICommandListImmediate& RHICmdList)
-		{
-			PostResolvedSceneColorCallbacks.Broadcast(RHICmdList, SceneContext);
-		});
+		PostResolvedSceneColorCallbacks.Broadcast(GraphBuilder, SceneContext);
 	}
 }
 

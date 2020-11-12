@@ -4,6 +4,7 @@
 
 #include "RenderGraphParameter.h"
 #include "RenderGraphTextureSubresource.h"
+#include "RendererInterface.h"
 
 struct FPooledRenderTarget;
 class FRenderTargetPool;

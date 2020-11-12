@@ -2505,14 +2505,7 @@ TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBufferDependentOnShadin
 	ERHIFeatureLevel::Type FeatureLevel,
 	ESceneTextureSetupMode SetupMode)
 {
-	if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Deferred)
-	{
-		return CreateSceneTextureUniformBuffer(RHICmdList, FeatureLevel, SetupMode);
-	}
-	else if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile)
-	{
-		return CreateMobileSceneTextureUniformBuffer(RHICmdList, Translate(SetupMode));
-	}
+	// Deprecated
 	checkNoEntry();
 	return nullptr;
 }

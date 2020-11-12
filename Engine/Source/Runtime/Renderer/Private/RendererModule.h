@@ -107,9 +107,22 @@ public:
 	
 	virtual void RegisterPersistentViewUniformBufferExtension(IPersistentViewUniformBufferExtension* Extension) override;
 
-	void RenderPostOpaqueExtensions(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FSceneRenderTargets& SceneContext);
-	void RenderOverlayExtensions(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FSceneRenderTargets& SceneContext);
-	void RenderPostResolvedSceneColorExtension(FRDGBuilder& GraphBuilder, class FSceneRenderTargets& SceneContext);
+	void RenderPostOpaqueExtensions(
+		FRDGBuilder& GraphBuilder,
+		TArrayView<const FViewInfo> Views,
+		FRDGTextureRef SceneColorTexture,
+		FRDGTextureRef SceneDepthTexture,
+		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FSceneRenderTargets& SceneContext);
+
+	void RenderOverlayExtensions(
+		FRDGBuilder& GraphBuilder,
+		TArrayView<const FViewInfo> Views,
+		FRDGTextureRef SceneColorTexture,
+		FRDGTextureRef SceneDepthTexture,
+		const FSceneRenderTargets& SceneContext);
+
+	void RenderPostResolvedSceneColorExtension(FRDGBuilder& GraphBuilder, FSceneRenderTargets& SceneContext);
 
 private:
 	TSet<FSceneInterface*> AllocatedScenes;

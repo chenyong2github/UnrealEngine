@@ -147,12 +147,23 @@ void SetupPlanarReflectionUniformParameters(const class FSceneView& View, const 
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPlanarReflectionUniformParameters, "PlanarReflectionStruct");
 
-
 template< bool bEnablePlanarReflectionPrefilter >
-class FPrefilterPlanarReflectionPS : public FGlobalShader
+class TPrefilterPlanarReflectionPS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FPrefilterPlanarReflectionPS, Global);
 public:
+	DECLARE_SHADER_TYPE(TPrefilterPlanarReflectionPS, Global);
+	SHADER_USE_PARAMETER_STRUCT(TPrefilterPlanarReflectionPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_REF(FPlanarReflectionUniformParameters, PlanarReflection)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
+		SHADER_PARAMETER(float, KernelRadiusY)
+		SHADER_PARAMETER(float, InvPrefilterRoughnessDistance)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorInputTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorInputSampler)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -164,77 +175,62 @@ public:
 		OutEnvironment.SetDefine(TEXT("ENABLE_PLANAR_REFLECTIONS_PREFILTER"), bEnablePlanarReflectionPrefilter);
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
-
-	/** Default constructor. */
-	FPrefilterPlanarReflectionPS() {}
-
-	/** Initialization constructor. */
-	FPrefilterPlanarReflectionPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		KernelRadiusY.Bind(Initializer.ParameterMap, TEXT("KernelRadiusY"));
-		InvPrefilterRoughnessDistance.Bind(Initializer.ParameterMap, TEXT("InvPrefilterRoughnessDistance"));
-		SceneColorInputTexture.Bind(Initializer.ParameterMap, TEXT("SceneColorInputTexture"));
-		SceneColorInputSampler.Bind(Initializer.ParameterMap, TEXT("SceneColorInputSampler"));
-	}
-
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FPlanarReflectionSceneProxy* ReflectionSceneProxy, FRHITexture* SceneColorInput, int32 FilterWidth)
-	{
-		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-
-		const float KernelRadiusYValue = FMath::Clamp(ReflectionSceneProxy->PrefilterRoughness, 0.0f, 0.04f) * 0.5f * FilterWidth;
-		SetShaderValue(RHICmdList, ShaderRHI, KernelRadiusY, KernelRadiusYValue);
-
-		SetShaderValue(RHICmdList, ShaderRHI, InvPrefilterRoughnessDistance, 1.0f / FMath::Max(ReflectionSceneProxy->PrefilterRoughnessDistance, DELTA));
-
-		SetTextureParameter(RHICmdList, ShaderRHI, SceneColorInputTexture, SceneColorInputSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), SceneColorInput);
-
-		FPlanarReflectionUniformParameters PlanarReflectionUniformParameters;
-		SetupPlanarReflectionUniformParameters(View, ReflectionSceneProxy, PlanarReflectionUniformParameters);
-		SetUniformBufferParameterImmediate(RHICmdList, ShaderRHI, GetUniformBufferParameter<FPlanarReflectionUniformParameters>(), PlanarReflectionUniformParameters);
-	}
-
-private:
-
-	LAYOUT_FIELD(FShaderParameter, KernelRadiusY)
-	LAYOUT_FIELD(FShaderParameter, InvPrefilterRoughnessDistance)
-	LAYOUT_FIELD(FShaderResourceParameter, SceneColorInputTexture)
-	LAYOUT_FIELD(FShaderResourceParameter, SceneColorInputSampler)
 };
 
-IMPLEMENT_SHADER_TYPE(template<>, FPrefilterPlanarReflectionPS<false>, TEXT("/Engine/Private/PlanarReflectionShaders.usf"), TEXT("PrefilterPlanarReflectionPS"), SF_Pixel);
-IMPLEMENT_SHADER_TYPE(template<>, FPrefilterPlanarReflectionPS<true>, TEXT("/Engine/Private/PlanarReflectionShaders.usf"), TEXT("PrefilterPlanarReflectionPS"), SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<>, TPrefilterPlanarReflectionPS<false>, TEXT("/Engine/Private/PlanarReflectionShaders.usf"), TEXT("PrefilterPlanarReflectionPS"), SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<>, TPrefilterPlanarReflectionPS<true>, TEXT("/Engine/Private/PlanarReflectionShaders.usf"), TEXT("PrefilterPlanarReflectionPS"), SF_Pixel);
 
 template<bool bEnablePlanarReflectionPrefilter>
-void PrefilterPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& View, const FUniformBufferRHIRef& PassUniformBuffer, const FPlanarReflectionSceneProxy* ReflectionSceneProxy, const FRenderTarget* Target)
+void PrefilterPlanarReflection(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FSceneTextureShaderParameters SceneTextures,
+	const FPlanarReflectionSceneProxy* ReflectionSceneProxy,
+	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef ViewFamilyTexture)
 {
-	FRHITexture* SceneColorInput = FSceneRenderTargets::Get().GetSceneColorTexture();
+	using FPrefilterPlanarReflectionPS = TPrefilterPlanarReflectionPS<bEnablePlanarReflectionPrefilter>;
 
 	if(View.FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
-		TRefCountPtr<IPooledRenderTarget> FilteredSceneColor;
-		GPostProcessing.ProcessPlanarReflection(RHICmdList, View, FilteredSceneColor);
-
-		if (FilteredSceneColor)
-		{
-			SceneColorInput = FilteredSceneColor->GetRenderTargetItem().ShaderResourceTexture;
-		}
+		SceneColorTexture = AddProcessPlanarReflectionPass(GraphBuilder, View, SceneColorTexture);
 	}
 
 	{
-		SCOPED_DRAW_EVENT(RHICmdList, PrefilterPlanarReflection);
-
-		FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
-		SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
+		RDG_EVENT_SCOPE(GraphBuilder, "PrefilterPlanarReflection");
 
 		// Workaround for a possible driver bug on S7 Adreno, missing planar reflections
-		ERenderTargetLoadAction RTLoadAction = IsVulkanMobilePlatform(View.GetShaderPlatform()) ?  ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction;
+		const ERenderTargetLoadAction RTLoadAction = IsVulkanMobilePlatform(View.GetShaderPlatform()) ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction;
 
-		RHICmdList.Transition(FRHITransitionInfo(Target->GetRenderTargetTexture(), ERHIAccess::Unknown, ERHIAccess::RTV));
+		const float FilterWidth = View.ViewRect.Width();
 
-		FRHIRenderPassInfo RPInfo(Target->GetRenderTargetTexture(), MakeRenderTargetActions(RTLoadAction, ERenderTargetStoreAction::EStore));
-		RHICmdList.BeginRenderPass(RPInfo, TEXT("PrefilterPlanarReflections"));
+		auto* PassParameters = GraphBuilder.AllocParameters<typename FPrefilterPlanarReflectionPS::FParameters>();
+		PassParameters->View = View.ViewUniformBuffer;
+
+		{
+			FPlanarReflectionUniformParameters PlanarReflectionUniformParameters;
+			SetupPlanarReflectionUniformParameters(View, ReflectionSceneProxy, PlanarReflectionUniformParameters);
+			PassParameters->PlanarReflection = TUniformBufferRef<FPlanarReflectionUniformParameters>::CreateUniformBufferImmediate(PlanarReflectionUniformParameters, UniformBuffer_SingleFrame);
+		}
+
+		PassParameters->SceneTextures = SceneTextures;
+
+		PassParameters->KernelRadiusY = FMath::Clamp(ReflectionSceneProxy->PrefilterRoughness, 0.0f, 0.04f) * 0.5f * FilterWidth;
+		PassParameters->InvPrefilterRoughnessDistance = 1.0f / FMath::Max(ReflectionSceneProxy->PrefilterRoughnessDistance, DELTA);
+		PassParameters->SceneColorInputTexture = SceneColorTexture;
+		PassParameters->SceneColorInputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(ViewFamilyTexture, RTLoadAction);
+
+		TShaderMapRef<TDeferredLightVS<false> > VertexShader(View.ShaderMap);
+		TShaderMapRef<FPrefilterPlanarReflectionPS> PixelShader(View.ShaderMap);
+
+		const FIntPoint SceneColorExtent = SceneColorTexture->Desc.Extent;
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("PrefilterPlanarReflections"),
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[&View, VertexShader, PixelShader, PassParameters, SceneColorExtent](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
@@ -244,9 +240,6 @@ void PrefilterPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& 
 			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
-			TShaderMapRef<TDeferredLightVS<false> > VertexShader(View.ShaderMap);
-			TShaderMapRef<FPrefilterPlanarReflectionPS<bEnablePlanarReflectionPrefilter> > PixelShader(View.ShaderMap);
-
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
@@ -254,7 +247,7 @@ void PrefilterPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& 
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-			PixelShader->SetParameters(RHICmdList, View, ReflectionSceneProxy, SceneColorInput, View.ViewRect.Width());
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 			VertexShader->SetSimpleLightParameters(RHICmdList, View, FSphere(0));
 
 			FIntPoint UV = View.ViewRect.Min;
@@ -273,11 +266,10 @@ void PrefilterPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& 
 				UV.X, UV.Y,
 				UVSize.X, UVSize.Y,
 				View.ViewRect.Size(),
-				FSceneRenderTargets::Get().GetBufferSizeXY(),
+				SceneColorExtent,
 				VertexShader,
 				EDRF_UseTriangleOptimization);
-		}
-		RHICmdList.EndRenderPass();
+		});
 	}
 }
 
@@ -286,11 +278,9 @@ static void UpdatePlanarReflectionContents_RenderThread(
 	FSceneRenderer* MainSceneRenderer, 
 	FSceneRenderer* SceneRenderer, 
 	FPlanarReflectionSceneProxy* SceneProxy,
-	FPlanarReflectionRenderTarget* RenderTarget, 
-	FTexture* RenderTargetTexture, 
+	FPlanarReflectionRenderTarget* RenderTarget,
 	const FPlane& MirrorPlane,
 	const FName OwnerName, 
-	const FResolveParams& ResolveParams, 
 	bool bUseSceneColorTexture)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RenderPlanarReflection);
@@ -372,8 +362,6 @@ static void UpdatePlanarReflectionContents_RenderThread(
 				SCOPED_DRAW_EVENT(RHICmdList, UpdatePlanarReflectionContent_RenderThread);
 #endif
 
-				const FRenderTarget* Target = SceneRenderer->ViewFamily.RenderTarget;
-
 				// Reflection view late update
 				if (SceneRenderer->Views.Num() > 1)
 				{
@@ -403,22 +391,26 @@ static void UpdatePlanarReflectionContents_RenderThread(
 					SceneProxy->ViewRect[ViewIndex] = SceneRenderer->Views[ViewIndex].ViewRect;
 				}
 
-				FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(RHICmdList, SceneRenderer->FeatureLevel);
+				FRDGBuilder GraphBuilder(RHICmdList);
+				FRDGTextureRef ViewFamilyTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTarget->TextureRHI, TEXT("ViewFamilyTexture")));
+				FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(FSceneRenderTargets::Get().GetSceneColor());
+
+				FSceneTextureShaderParameters SceneTextures = CreateSceneTextureShaderParameters(GraphBuilder, SceneRenderer->FeatureLevel, ESceneTextureSetupMode::SceneDepth);
 
 				for (int32 ViewIndex = 0; ViewIndex < SceneRenderer->Views.Num(); ++ViewIndex)
 				{
 					FViewInfo& View = SceneRenderer->Views[ViewIndex];
-					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+					RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 					if (MainSceneRenderer->Scene->GetShadingPath() == EShadingPath::Deferred)
 					{
-						PrefilterPlanarReflection<true>(RHICmdList, View, PassUniformBuffer, SceneProxy, Target);
+						PrefilterPlanarReflection<true>(GraphBuilder, View, SceneTextures, SceneProxy, SceneColorTexture, ViewFamilyTexture);
 					}
 					else
 					{
-						PrefilterPlanarReflection<false>(RHICmdList, View, PassUniformBuffer, SceneProxy, Target);
+						PrefilterPlanarReflection<false>(GraphBuilder, View, SceneTextures, SceneProxy, SceneColorTexture, ViewFamilyTexture);
 					}
 				}
-				RHICmdList.CopyToResolveTarget(RenderTarget->GetRenderTargetTexture(), RenderTargetTexture->TextureRHI, ResolveParams);
+				GraphBuilder.Execute();
 			}
 		}
 	}
@@ -688,7 +680,7 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 				ENQUEUE_RENDER_COMMAND(CaptureCommand)(
 					[SceneRenderer, MirrorPlane, OwnerName, MainSceneRendererPtr, SceneProxyPtr, RenderTargetPtr](FRHICommandListImmediate& RHICmdList)
 				{
-					UpdatePlanarReflectionContents_RenderThread(RHICmdList, MainSceneRendererPtr, SceneRenderer, SceneProxyPtr, RenderTargetPtr, RenderTargetPtr, MirrorPlane, OwnerName, FResolveParams(), true);
+					UpdatePlanarReflectionContents_RenderThread(RHICmdList, MainSceneRendererPtr, SceneRenderer, SceneProxyPtr, RenderTargetPtr, MirrorPlane, OwnerName, true);
 				});
 			}
 		}

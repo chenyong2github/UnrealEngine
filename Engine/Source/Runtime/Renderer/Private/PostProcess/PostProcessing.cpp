@@ -50,9 +50,6 @@
 #include "ScreenSpaceRayTracing.h"
 #include "SceneViewExtension.h"
 
-/** The global center for all post processing activities. */
-FPostProcessing GPostProcessing;
-
 bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
 
 bool IsValidBloomSetupVariation(bool bUseBloom, bool bUseSun, bool bUseDof, bool bUseEyeAdaptation);
@@ -2097,18 +2094,17 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 	}
 }
 
-void FPostProcessing::ProcessPlanarReflection(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& OutFilteredSceneColor)
+FRDGTextureRef AddProcessPlanarReflectionPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FRDGTextureRef SceneColorTexture)
 {
 	FSceneViewState* ViewState = View.ViewState;
 	const EAntiAliasingMethod AntiAliasingMethod = View.AntiAliasingMethod;
 
-	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-
 	if (AntiAliasingMethod == AAM_TemporalAA)
 	{
 		check(ViewState);
-
-		FRDGBuilder GraphBuilder(RHICmdList);
 
 		FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 
@@ -2121,7 +2117,7 @@ void FPostProcessing::ProcessPlanarReflection(FRHICommandListImmediate& RHICmdLi
 		// Planar reflections don't support velocity.
 		Parameters.SceneVelocityTexture = nullptr;
 
-		Parameters.SceneColorInput = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor(), TEXT("SceneColor"));
+		Parameters.SceneColorInput = SceneColorTexture;
 
 		FTAAOutputs PassOutputs = AddTemporalAAPass(
 			GraphBuilder,
@@ -2130,12 +2126,10 @@ void FPostProcessing::ProcessPlanarReflection(FRHICommandListImmediate& RHICmdLi
 			InputHistory,
 			OutputHistory);
 
-		GraphBuilder.QueueTextureExtraction(PassOutputs.SceneColor, &OutFilteredSceneColor);
-
-		GraphBuilder.Execute();
+		return PassOutputs.SceneColor;
 	}
 	else
 	{
-		OutFilteredSceneColor = SceneContext.GetSceneColor();
+		return SceneColorTexture;
 	}
 }

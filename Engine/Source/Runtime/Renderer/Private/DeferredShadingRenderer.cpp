@@ -2591,7 +2591,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	FRendererModule& RendererModule = static_cast<FRendererModule&>(GetRendererModule());
-	RendererModule.RenderPostOpaqueExtensions(GraphBuilder, Views, SceneContext);
+	RendererModule.RenderPostOpaqueExtensions(GraphBuilder, Views, SceneColorTexture.Target, SceneDepthTexture.Target, SceneTextures, SceneContext);
 
 	// Notify the FX system that opaque primitives have been rendered and we now have a valid depth buffer.
 	if (FXSystem && Views.IsValidIndex(0))
@@ -2599,15 +2599,15 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RDG_GPU_STAT_SCOPE(GraphBuilder, PostRenderOpsFX);
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderOpaqueFX);
 
-		AddUntrackedAccessPass(GraphBuilder, [this](FRHICommandListImmediate& InRHICmdList)
+		AddPass(GraphBuilder, [this](FRHICommandListImmediate& InRHICmdList)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FXSystem_PostRenderOpaque);
 
 			FXSystem->PostRenderOpaque(
 				InRHICmdList,
 				Views[0].ViewUniformBuffer,
-				&FSceneTextureUniformParameters::StaticStructMetadata,
-				CreateSceneTextureUniformBuffer(InRHICmdList, FeatureLevel),
+				nullptr,
+				nullptr,
 				Views[0].AllowGPUParticleUpdate()
 			);
 
@@ -2758,7 +2758,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 #endif
 
-	RendererModule.RenderOverlayExtensions(GraphBuilder, Views, SceneContext);
+	RendererModule.RenderOverlayExtensions(GraphBuilder, Views, SceneColorTexture.Target, SceneDepthTexture.Target, SceneContext);
 
 	if (ViewFamily.EngineShowFlags.VisualizeDistanceFieldAO && ShouldRenderDistanceFieldLighting())
 	{

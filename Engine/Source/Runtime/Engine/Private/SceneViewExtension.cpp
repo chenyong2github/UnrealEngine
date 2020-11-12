@@ -2,6 +2,7 @@
 
 #include "SceneViewExtension.h"
 #include "Engine/Engine.h"
+#include "RenderGraphUtils.h"
 
 //
 // FSceneViewExtensionBase
@@ -31,7 +32,37 @@ bool FSceneViewExtensionBase::IsActiveThisFrameInContext(FSceneViewExtensionCont
 	return IsActiveThisFrame(Context.Viewport);
 }
 
+void ISceneViewExtension::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
+{
+	AddPass(GraphBuilder, [this, &InViewFamily](FRHICommandListImmediate& RHICmdList)
+	{
+		PreRenderViewFamily_RenderThread(RHICmdList, InViewFamily);
+	});
+}
 
+void ISceneViewExtension::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
+{
+	AddPass(GraphBuilder, [this, &InView](FRHICommandListImmediate& RHICmdList)
+	{
+		PreRenderView_RenderThread(RHICmdList, InView);
+	});
+}
+
+void ISceneViewExtension::PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
+{
+	AddPass(GraphBuilder, [this, &InViewFamily](FRHICommandListImmediate& RHICmdList)
+	{
+		PostRenderViewFamily_RenderThread(RHICmdList, InViewFamily);
+	});
+}
+
+void ISceneViewExtension::PostRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
+{
+	AddPass(GraphBuilder, [this, &InView](FRHICommandListImmediate& RHICmdList)
+	{
+		PostRenderView_RenderThread(RHICmdList, InView);
+	});
+}
 
 //
 // FSceneViewExtensions

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "RenderGraphDefinitions.h"
+#include "ShaderParameterMacros.h"
 
 /** A helper class for identifying and accessing a render graph pass parameter. */
 class FRDGParameter final
