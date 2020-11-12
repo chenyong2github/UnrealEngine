@@ -142,7 +142,7 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 
 	if (bUsingArrayTextures && FOpenGL::SupportsMobileMultiView() && bMultiViewCVar)
 	{
-		const FOpenGLTextureBase* const RenderTarget = RenderTargets[0];
+		FOpenGLTextureBase* const RenderTarget = RenderTargets[0];
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Framebuffer);
 
@@ -347,7 +347,7 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 
 void ReleaseOpenGLFramebuffers(FOpenGLDynamicRHI* Device, FRHITexture* TextureRHI)
 {
-	FOpenGLTextureBase* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
+	const FOpenGLTextureBase* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
 
 	if (Texture)
 	{
@@ -357,7 +357,7 @@ void ReleaseOpenGLFramebuffers(FOpenGLDynamicRHI* Device, FRHITexture* TextureRH
 			FOpenGLFramebufferKey Key = It.Key();
 
 			const FOpenGLTextureBase* DepthStencilTarget = Key.GetDepthStencilTarget();
-			if( DepthStencilTarget && DepthStencilTarget->Target == Texture->Target && DepthStencilTarget->GetResource() == Texture->GetResource() )
+			if( DepthStencilTarget && DepthStencilTarget->Target == Texture->Target && DepthStencilTarget->GetRawResourceName() == Texture->GetRawResourceName() )
 			{
 				bPurgeFramebuffer = true;
 			}
@@ -366,7 +366,7 @@ void ReleaseOpenGLFramebuffers(FOpenGLDynamicRHI* Device, FRHITexture* TextureRH
 				for( uint32 RenderTargetIndex = 0; RenderTargetIndex < MaxSimultaneousRenderTargets; ++RenderTargetIndex )
 				{
 					const FOpenGLTextureBase* RenderTarget = Key.GetRenderTarget(RenderTargetIndex);
-					if( RenderTarget && RenderTarget->Target == Texture->Target && RenderTarget->GetResource() == Texture->GetResource() )
+					if( RenderTarget && RenderTarget->Target == Texture->Target && RenderTarget->GetRawResourceName() == Texture->GetRawResourceName() )
 					{
 						bPurgeFramebuffer = true;
 						break;
