@@ -411,11 +411,14 @@ class DeviceUnreal(Device):
 
         program_name = "cstat_project"
 
+        working_dir = os.path.dirname(CONFIG.UPROJECT_PATH.get_value(self.name))
+
         puuid, msg = message_protocol.create_start_process_message(
             prog_path="p4", 
             prog_args=args, 
             prog_name=program_name, 
             caller=self.name,
+            working_dir=working_dir,
             update_clients_with_stdout=False,
         )
 
@@ -451,11 +454,14 @@ class DeviceUnreal(Device):
 
         program_name = "cstat_engine"
 
+        working_dir = os.path.dirname(CONFIG.UPROJECT_PATH.get_value(self.name))
+
         puuid, msg = message_protocol.create_start_process_message(
             prog_path="p4", 
             prog_args=args, 
             prog_name=program_name, 
             caller=self.name,
+            working_dir=working_dir,
             update_clients_with_stdout=False,
         )
 
@@ -608,11 +614,14 @@ class DeviceUnreal(Device):
         #
         program_name = "isclobber"
 
+        working_dir = os.path.dirname(CONFIG.UPROJECT_PATH.get_value(self.name))
+
         puuid_isclobber, msg = message_protocol.create_start_process_message(
             prog_path="p4", 
             prog_args=f"client -o {workspace}",
             prog_name=program_name, 
             caller=self.name,
+            working_dir=working_dir,
             update_clients_with_stdout=False,
         )
 
@@ -638,6 +647,7 @@ class DeviceUnreal(Device):
                 prog_args=f"p4 client -o {workspace} | %{{$_ -replace 'noclobber', 'clobber'}} | p4 client -i",
                 prog_name=program_name, 
                 caller=self.name,
+                working_dir=working_dir,
                 update_clients_with_stdout=True,
             )
 
@@ -662,6 +672,7 @@ class DeviceUnreal(Device):
             prog_args=sync_args, 
             prog_name=sync_project_prog_name, 
             caller=self.name,
+            working_dir=working_dir,
             update_clients_with_stdout=True,
         )
 
@@ -686,6 +697,7 @@ class DeviceUnreal(Device):
                 prog_args=f"p4 client -o {workspace} | %{{$_ -replace ' clobber', ' noclobber'}} | p4 client -i",
                 prog_name=program_name, 
                 caller=self.name,
+                working_dir=working_dir,
                 update_clients_with_stdout=True,
             )
 
@@ -1182,7 +1194,7 @@ class DeviceUnreal(Device):
             LOGGER.info(f"{self.name} Connected to listener version {major}.{minor}.{patch}")
 
             desired_major = 0x01
-            min_minor = 0x01
+            min_minor = 0x02
 
             if not((major == desired_major) and (minor >= min_minor)):
                 LOGGER.error(f"This version of the listener is incompatible with Switchboard. "\

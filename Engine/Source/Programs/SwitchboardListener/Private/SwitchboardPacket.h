@@ -55,7 +55,7 @@ struct FSwitchboardStatePacket : public FSwitchboardPacket
 		bAck = true;
 
 		const uint32 Major = 1;
-		const uint32 Minor = 1;
+		const uint32 Minor = 2;
 		const uint32 Patch = 0;
 
 		Version = (Major << 16) | (Minor << 8) | (Patch);

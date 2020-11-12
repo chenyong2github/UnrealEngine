@@ -132,6 +132,7 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 		TSharedPtr<FJsonValue> ArgsField = JsonData->TryGetField(TEXT("args"));
 		TSharedPtr<FJsonValue> NameField = JsonData->TryGetField(TEXT("name"));
 		TSharedPtr<FJsonValue> CallerField = JsonData->TryGetField(TEXT("caller"));
+		TSharedPtr<FJsonValue> WorkingDirField = JsonData->TryGetField(TEXT("working_dir"));
 		TSharedPtr<FJsonValue> UpdateClientsWithStdoutField = JsonData->TryGetField(TEXT("bUpdateClientsWithStdout"));
 		TSharedPtr<FJsonValue> ForceWindowFocusField = JsonData->TryGetField(TEXT("bForceWindowFocus"));
 
@@ -142,6 +143,7 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 			ArgsField->AsString(),
 			NameField->AsString(),
 			CallerField->AsString(),
+			WorkingDirField->AsString(),
 			UpdateClientsWithStdoutField->AsBool(),
 			ForceWindowFocusField->AsBool()
 		);
