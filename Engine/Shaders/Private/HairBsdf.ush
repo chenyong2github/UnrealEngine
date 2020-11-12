@@ -11,6 +11,7 @@ struct FHairTransmittanceData
 {
 	bool bUseLegacyAbsorption;
 	bool bUseSeparableR;
+	bool bUseBacklit;
 
 	float  OpaqueVisibility;
 	float3 LocalScattering;
@@ -24,6 +25,7 @@ FHairTransmittanceData InitHairTransmittanceData(bool bMultipleScatterEnable = t
 	FHairTransmittanceData o;
 	o.bUseLegacyAbsorption = true;
 	o.bUseSeparableR = true;
+	o.bUseBacklit = false;
 
 	o.OpaqueVisibility = 1;
 	o.LocalScattering = 0;
@@ -37,6 +39,7 @@ FHairTransmittanceData InitHairStrandsTransmittanceData(bool bMultipleScatterEna
 {
 	FHairTransmittanceData o = InitHairTransmittanceData(bMultipleScatterEnable);
 	o.bUseLegacyAbsorption = false;
+	o.bUseBacklit = true;
 	return o;
 }
 
@@ -312,7 +315,7 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 	float ClampedRoughness = clamp(GBuffer.Roughness, 1/255.0f, 1.0f);
 
 	//const float3 DiffuseN	= OctahedronToUnitVector( GBuffer.CustomData.xy * 2 - 1 );
-	const float Backlit	= min(InBacklit, HairTransmittance.bUseLegacyAbsorption ? 1 : GBuffer.CustomData.z);
+	const float Backlit	= min(InBacklit, HairTransmittance.bUseBacklit ? GBuffer.CustomData.z : 1);
 
 #if HAIR_REFERENCE
 	// todo: ClampedRoughness is missing for this code path
