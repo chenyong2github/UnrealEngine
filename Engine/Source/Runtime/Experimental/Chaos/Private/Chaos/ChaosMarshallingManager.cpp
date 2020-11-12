@@ -69,6 +69,9 @@ void FChaosMarshallingManager::Step_External(FReal ExternalDT, const int32 NumSt
 		//expecting queue to be fairly small (3,4 at most) so probably doesn't matter
 		ProducerData->ExternalDt = ExternalDT;
 		ProducerData->ExternalTimestamp = ExternalTimestamp_External;
+		ProducerData->IntervalStep = Step;
+		ProducerData->IntervalNumSteps = NumSteps;
+
 		ExternalQueue.Insert(ProducerData, 0);
 
 		if(Step == 0)
@@ -78,7 +81,7 @@ void FChaosMarshallingManager::Step_External(FReal ExternalDT, const int32 NumSt
 		else
 		{
 			//copy sub-step only data
-			ProducerData->CopySubstepData(*FirstStepData, FReal(Step) / NumSteps);
+			ProducerData->CopySubstepData(*FirstStepData);
 		}
 
 		ExternalTime_External += ExternalDT;
@@ -126,7 +129,7 @@ void FPushPhysicsData::Reset()
 	SimCallbackInputs.Reset();
 }
 
-void FPushPhysicsData::CopySubstepData(const FPushPhysicsData& FirstStepData, const FReal Alpha)
+void FPushPhysicsData::CopySubstepData(const FPushPhysicsData& FirstStepData)
 {
 	const FDirtyPropertiesManager& FirstManager = FirstStepData.DirtyPropertiesManager;
 	DynamicsWeight = FirstStepData.DynamicsWeight;

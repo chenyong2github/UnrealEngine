@@ -145,10 +145,12 @@ namespace Chaos
 		friend class FAutoDeleteAsyncTask<AdvanceOneTimeStepTask>;
 	public:
 		AdvanceOneTimeStepTask(
-			TPBDRigidsSolver<Traits>* Scene,
-			const float DeltaTime)
+			TPBDRigidsSolver<Traits>* Scene
+			, const float DeltaTime
+			, const FSubStepInfo& SubStepInfo)
 			: MSolver(Scene)
 			, MDeltaTime(DeltaTime)
+			, MSubStepInfo(SubStepInfo)
 		{
 			UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("AdvanceOneTimeStepTask::AdvanceOneTimeStepTask()"));
 		}
@@ -242,7 +244,7 @@ namespace Chaos
 						MSolver->GetEvolution()->SetCurrentStepResimCache(bFirstStep ? RewindData->GetCurrentStepResimCache() : nullptr);
 					}
 
-					MSolver->GetEvolution()->AdvanceOneTimeStep(DeltaTime);
+					MSolver->GetEvolution()->AdvanceOneTimeStep(DeltaTime, MSubStepInfo);
 					MSolver->PostEvolutionVDBPush();
 					bFirstStep = false;
 				}
@@ -314,6 +316,7 @@ namespace Chaos
 
 		TPBDRigidsSolver<Traits>* MSolver;
 		float MDeltaTime;
+		FSubStepInfo MSubStepInfo;
 		TSharedPtr<FCriticalSection> PrevLock, CurrentLock;
 		TSharedPtr<FEvent> PrevEvent, CurrentEvent;
 	};
@@ -746,7 +749,7 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::AdvanceSolverBy(const FReal DeltaTime)
+	void TPBDRigidsSolver<Traits>::AdvanceSolverBy(const FReal DeltaTime, const FSubStepInfo& SubStepInfo)
 	{
 		const FReal StartSimTime = GetSolverTime();
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bDeferUpdate = (ChaosSolverCollisionDeferNarrowPhase != 0);

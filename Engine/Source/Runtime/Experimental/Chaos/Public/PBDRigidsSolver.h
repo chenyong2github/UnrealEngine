@@ -403,7 +403,7 @@ namespace Chaos
 		void BufferPhysicsResults();
 	
 		/**/
-		virtual void AdvanceSolverBy(const FReal DeltaTime) override;
+		virtual void AdvanceSolverBy(const FReal DeltaTime, const FSubStepInfo& SubStepInfo = FSubStepInfo()) override;
 		virtual void PushPhysicsState(const FReal ExternalDt, const int32 NumSteps, const int32 NumExternalSteps) override;
 		virtual void SetExternalTimestampConsumed_Internal(const int32 Timestamp) override;
 

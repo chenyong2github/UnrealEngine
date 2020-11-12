@@ -28,6 +28,29 @@ namespace Chaos
 	extern CHAOS_API int32 UseAsyncInterpolation;
 	extern CHAOS_API int32 ForceDisableAsyncPhysics;
 
+	CHAOS_API struct FSubStepInfo
+	{
+		FSubStepInfo()
+			: PseudoFraction(1.0)
+			, Step(1)
+			, NumSteps(1)
+		{
+		}
+
+		FSubStepInfo(const FReal InPseudoFraction, const int32 InStep, const int32 InNumSteps)
+			: PseudoFraction(InPseudoFraction)
+			, Step(InStep)
+			, NumSteps(InNumSteps)
+		{
+
+		}
+
+		//This is NOT Step / NumSteps, this is to allow for kinematic target interpolation which uses its own logic
+		FReal PseudoFraction;
+		int32 Step;
+		int32 NumSteps;
+	};
+
 	/**
 	 * Task responsible for processing the command buffer of a single solver and advancing it by
 	 * a specified delta before completing.
@@ -419,7 +442,7 @@ namespace Chaos
 		FPhysicsSolverBase& operator =(const FPhysicsSolverBase& InCopy) = delete;
 		FPhysicsSolverBase& operator =(FPhysicsSolverBase&& InSteal) = delete;
 
-		virtual void AdvanceSolverBy(const FReal Dt) = 0;
+		virtual void AdvanceSolverBy(const FReal Dt, const FSubStepInfo& SubStepInfo = FSubStepInfo()) = 0;
 		virtual void PushPhysicsState(const FReal Dt, const int32 NumSteps, const int32 NumExternalSteps) = 0;
 		virtual void ProcessPushedData_Internal(FPushPhysicsData& PushDataArray) = 0;
 		virtual void SetExternalTimestampConsumed_Internal(const int32 Timestamp) = 0;
