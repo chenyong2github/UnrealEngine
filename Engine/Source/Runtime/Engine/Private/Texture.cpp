@@ -121,9 +121,9 @@ void UTexture::ReleaseResource()
 		CachedSRRState.Clear();
 
 		// Free the resource.
-		BeginReleaseResource(Resource);
 		ENQUEUE_RENDER_COMMAND(DeleteResource)([ToDelete = Resource](FRHICommandListImmediate& RHICmdList)
 		{
+			ToDelete->ReleaseResource();
 			delete ToDelete;
 		});
 		Resource = nullptr;
