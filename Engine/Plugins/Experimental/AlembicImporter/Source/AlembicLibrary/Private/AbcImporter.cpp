@@ -822,35 +822,9 @@ void FAbcImporter::SetupMorphTargetCurves(USkeleton* Skeleton, FName ConstCurveN
 		ERichCurveTangentMode NewTangentMode = RCTM_Auto;
 		ERichCurveTangentWeightMode NewTangentWeightMode = RCTWM_WeightedNone;
 
-		float LeaveTangent = 0.f;
-		float ArriveTangent = 0.f;
-		float LeaveTangentWeight = 0.f;
-		float ArriveTangentWeight = 0.f;
-
 		NewCurve->FloatCurve.SetKeyInterpMode(NewKeyHandle, NewInterpMode);
 		NewCurve->FloatCurve.SetKeyTangentMode(NewKeyHandle, NewTangentMode);
 		NewCurve->FloatCurve.SetKeyTangentWeightMode(NewKeyHandle, NewTangentWeightMode);
-
-		// When data isn't compressed, add keys to remove inbetween frames interpolation
-		if (ImportSettings && ImportSettings->CompressionSettings.BaseCalculationType == EBaseCalculationType::NoCompression)
-		{
-			if (KeyIndex < CurveValues.Num() - 1)
-			{
-				const int32 NextKeyIndex = KeyIndex + 1;
-				const float NextCurveValue = CurveValues[NextKeyIndex];
-
-				if (!FMath::IsNearlyEqual(NextCurveValue, CurveValue))
-				{
-					const float NextTimeValue = TimeValues[NextKeyIndex];
-					const float SubTimeStep = (NextTimeValue - TimeValue) / 20.f;
-					FKeyHandle StepKeyHandle = NewCurve->FloatCurve.AddKey(NextTimeValue - SubTimeStep, CurveValue, false);
-
-					NewCurve->FloatCurve.SetKeyInterpMode(StepKeyHandle, NewInterpMode);
-					NewCurve->FloatCurve.SetKeyTangentMode(StepKeyHandle, NewTangentMode);
-					NewCurve->FloatCurve.SetKeyTangentWeightMode(StepKeyHandle, NewTangentWeightMode);
-				}
-			}
-		}
 	}
 }
 
@@ -1145,7 +1119,7 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 					BasesMatrix = Matrices[MeshIndex];
 				}
 
-				const float FrameStep = (MaxTimes[MeshIndex] - MinTimes[MeshIndex]) / (float)(NumSamples);
+				const float FrameStep = (MaxTimes[MeshIndex] - MinTimes[MeshIndex]) / (float)(NumSamples - 1);
 				AbcImporterUtilities::GenerateCompressedMeshData(CompressedData, NumUsedSingularValues, NumSamples, BasesMatrix, OutV, FrameStep, FMath::Max(MinTimes[MeshIndex], 0.0f));
 
 				// QQ FUNCTIONALIZE
