@@ -39,61 +39,61 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSizeSpecificData
 	FGeometryCollectionSizeSpecificData();
 
 	/** The max size these settings apply to*/
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, Category = "Collisions")
 	float MaxSize;
 
 	/*
 	*  CollisionType defines how to initialize the rigid collision structures.
 	*/
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, Category = "Collisions")
 	ECollisionTypeEnum CollisionType;
 
 	/*
 	*  CollisionType defines how to initialize the rigid collision structures.
 	*/
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, Category = "Collisions")
 	EImplicitTypeEnum ImplicitType;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 5)
 	*/
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, Category = "Collisions")
 	int32 MinLevelSetResolution;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 10)
 	*/
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, Category = "Collisions")
 	int32 MaxLevelSetResolution;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 5)
 	*/
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, Category = "Collisions")
 	int32 MinClusterLevelSetResolution;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 10)
 	*/
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, Category = "Collisions")
 	int32 MaxClusterLevelSetResolution;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 10)
 	*/
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, Category = "Collisions")
 	int32 CollisionObjectReductionPercentage;
 
 	/**
 	 * Number of particles on the triangulated surface to use for collisions.
 	 */
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, Category = "Collisions")
 	float CollisionParticlesFraction;
 
 	/**
 	 * Max number of particles.
 	 */
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, Category = "Collisions")
 	int32 MaximumCollisionParticles;
 
 };
@@ -150,7 +150,13 @@ public:
 	/** Invalidates this collection signaling a structural change and renders any previously recorded caches unable to play with this collection */
 	void InvalidateCollection();
 
+	/** Check to see if Simulation Data requires regeneration */
+	bool IsSimulationDataDirty() const;
+
 #if WITH_EDITOR
+	/** If this flag is set, we only regenerate simulation data when requested via CreateSimulationData() */
+	bool bManualDataCreate;
+	
 	/** Create the simulation data that can be shared among all instances (mass, volume, etc...)*/
 	void CreateSimulationData();
 #endif
@@ -175,88 +181,88 @@ public:
 	/*
 	*  CollisionType defines how to initialize the rigid collision structures.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
 	ECollisionTypeEnum CollisionType;
 
 	/*
 	*  CollisionType defines how to initialize the rigid collision structures.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
 	EImplicitTypeEnum ImplicitType;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 5)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
 	int32 MinLevelSetResolution;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 10)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
 	int32 MaxLevelSetResolution;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 5)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
 	int32 MinClusterLevelSetResolution;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 10)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
 	int32 MaxClusterLevelSetResolution;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 10)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
 	float CollisionObjectReductionPercentage;
 
 	/**
 	* Mass As Density, units are in kg/m^3
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
 	bool bMassAsDensity;
 
 	/**
 	* Total Mass of Collection. If density, units are in kg/m^3
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
 	float Mass;
 
 	/**
 	* Smallest allowable mass (def:0.1)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
 	float MinimumMassClamp;
 
 	/**
 	 * Number of particles on the triangulated surface to use for collisions.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
 	float CollisionParticlesFraction;
 
 	/**
 	 * Max number of particles.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
 	int32 MaximumCollisionParticles;
 
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
+	UPROPERTY(EditAnywhere, Category = "Collisions")
 	TArray<FGeometryCollectionSizeSpecificData> SizeSpecificData;
 	
 	/**
 	* Enable remove pieces on fracture
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Fracture")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fracture")
 	bool EnableRemovePiecesOnFracture;
 
 	/**
 	* Materials relating to remove on fracture
 	*/
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Fracture")
+	UPROPERTY(EditAnywhere, Category = "Fracture")
 	TArray<UMaterialInterface*> RemoveOnFractureMaterials;
 
 	FORCEINLINE const int GetBoneSelectedMaterialIndex() const { return BoneSelectedMaterialIndex; }
@@ -290,6 +296,9 @@ private:
 #if WITH_EDITOR
 	//Used to determine whether we need to cook content
 	FGuid LastBuiltGuid;
+
+	//Used to determine whether we need to regenerate simulation data
+	FGuid SimulationDataGuid;
 #endif
 
 	// #todo(dmp): rename to be consistent BoneSelectedMaterialID?
