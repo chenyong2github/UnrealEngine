@@ -73,6 +73,14 @@
 namespace WidgetReflectorImpl
 {
 
+/** Command to take a snapshot. */
+void TakeSnapshotCommand();
+
+FAutoConsoleCommand CCommandWidgetReflectorTakeSnapshot(
+	TEXT("WidgetReflector.TakeSnapshot")
+	, TEXT("Take a snapshot and save the result on the local drive.")
+	, FConsoleCommandDelegate::CreateStatic(&TakeSnapshotCommand));
+
 /** Information about a potential widget snapshot target */
 struct FWidgetSnapshotTarget
 {
@@ -2006,6 +2014,16 @@ void SWidgetReflector::HandleStartTreeWithUMG()
 	bFilterReflectorTreeRootWithUMG = !bFilterReflectorTreeRootWithUMG;
 	UpdateFilteredTreeRoot();
 	ReflectorTree->RequestTreeRefresh();
+}
+
+// command line
+
+void TakeSnapshotCommand()
+{
+	FWidgetSnapshotData SnapshotData;
+	SnapshotData.TakeSnapshot(false);
+	FString Filename = FPaths::CreateTempFilename(*FPaths::GameAgnosticSavedDir(), TEXT(""), TEXT(".widgetsnapshot"));
+	SnapshotData.SaveSnapshotToFile(Filename);
 }
 
 } // namespace WidgetReflectorImpl

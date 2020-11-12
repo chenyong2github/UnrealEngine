@@ -5705,15 +5705,6 @@ bool UEditorEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& A
 		MainFrameModule.RequestCloseEditor();
 		return true;
 	}
-	else if( FParse::Command(&Str,TEXT("WIDGETREFLECTOR")) )
-	{
-		if(!IsRunningCommandlet())
-		{
-			static const FName SlateReflectorModuleName("SlateReflector");
-			FModuleManager::LoadModuleChecked<ISlateReflectorModule>(SlateReflectorModuleName).DisplayWidgetReflector();
-		}
-		return true;
-	}
 	//----------------------------------------------------------------------------------
 	// LIGHTMASSDEBUG - Toggles whether UnrealLightmass.exe is launched automatically (default),
 	// or must be launched manually (e.g. through a debugger) with the -debug command line parameter.
