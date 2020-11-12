@@ -13,6 +13,7 @@
 #include "HistoryManager.h"
 #include "CollectionManagerTypes.h"
 #include "AssetManagerEditorModule.h"
+#include "Containers/ArrayView.h"
 
 class UEdGraph;
 class UEdGraph_ReferenceViewer;
@@ -122,6 +123,13 @@ private:
 	void OnShowEditorOnlyReferencesChanged(ECheckBoxState NewState);
 	ECheckBoxState IsShowEditorOnlyReferencesChecked() const;
 
+	void OnShowFilteredPackagesOnlyChanged(ECheckBoxState NewState);
+	ECheckBoxState IsShowFilteredPackagesOnlyChecked() const;
+	void UpdateIsPassingFilterPackageCallback();
+
+	void OnCompactModeChanged(ECheckBoxState NewState);
+	ECheckBoxState IsCompactModeChecked() const;
+
 	EVisibility GetManagementReferencesVisibility() const;
 	void OnShowManagementReferencesChanged(ECheckBoxState NewState);
 	ECheckBoxState IsShowManagementReferencesChecked() const;
@@ -210,8 +218,12 @@ private:
 	bool bShowShowSearchableNames;
 	/** Whether to visually show to the user the option of "Show Native Packages" */
 	bool bShowShowNativePackages;
+	/** Whether to visually show to the user the option of "Show Filtered Packages Only" */
+	bool bShowShowFilteredPackagesOnly;
 	/** True if our view is out of date due to asset registry changes */
 	bool bDirtyResults;
+	/** Whether to visually show to the user the option of "Compact Mode" */
+	bool bShowCompactMode;
 
 	/** Handle to know if dirty */
 	FDelegateHandle AssetRefreshHandle;

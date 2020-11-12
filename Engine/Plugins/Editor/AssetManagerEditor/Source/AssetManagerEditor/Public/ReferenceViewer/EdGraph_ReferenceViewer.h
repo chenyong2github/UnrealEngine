@@ -13,6 +13,7 @@
 class FAssetThumbnailPool;
 class UEdGraphNode_Reference;
 class SReferenceViewer;
+enum class EDependencyPinCategory;
 
 UCLASS()
 class ASSETMANAGEREDITOR_API UEdGraph_ReferenceViewer : public UEdGraph
@@ -43,23 +44,30 @@ public:
 	bool IsSearchBreadthLimited() const;
 	bool IsShowSoftReferences() const;
 	bool IsShowHardReferences() const;
+	bool IsShowFilteredPackagesOnly() const;
 	bool IsShowEditorOnlyReferences() const;
 	bool IsShowManagementReferences() const;
 	bool IsShowSearchableNames() const;
 	bool IsShowNativePackages() const;
 	bool IsShowReferencers() const;
 	bool IsShowDependencies() const;
+	bool IsCompactMode() const;
 
 	void SetSearchDepthLimitEnabled(bool newEnabled);
 	void SetSearchBreadthLimitEnabled(bool newEnabled);
 	void SetShowSoftReferencesEnabled(bool newEnabled);
 	void SetShowHardReferencesEnabled(bool newEnabled);
+	void SetShowFilteredPackagesOnlyEnabled(bool newEnabled);
 	void SetShowEditorOnlyReferencesEnabled(bool newEnabled);
 	void SetShowManagementReferencesEnabled(bool newEnabled);
 	void SetShowSearchableNames(bool newEnabled);
 	void SetShowNativePackages(bool newEnabled);
 	void SetShowReferencers(const bool bShouldShowReferencers);
 	void SetShowDependencies(const bool bShouldShowDependencies);
+	void SetCompactModeEnabled(bool newEnabled);
+
+	using FIsPackageNamePassingFilterCallback = TFunction<bool(FName)>;
+	void SetIsPackageNamePassingFilterCallback(const TOptional<FIsPackageNamePassingFilterCallback>& InIsPackageNamePassingFilterCallback) { IsPackageNamePassingFilterCallback = InIsPackageNamePassingFilterCallback; }
 
 	int32 GetSearchDepthLimit() const;
 	int32 GetSearchBreadthLimit() const;
@@ -92,6 +100,9 @@ private:
 	/** Returns true if filtering is enabled and we have a valid collection */
 	bool ShouldFilterByCollection() const;
 
+	void GetSortedLinks(const TArray<FAssetIdentifier>& Identifiers, bool bReferencers, const FAssetManagerDependencyQuery& Query, TMap<FAssetIdentifier, EDependencyPinCategory>& OutLinks) const;
+	bool IsPackageIdentifierPassingFilter(const FAssetIdentifier& InAssetIdentifier) const;
+
 private:
 	/** Pool for maintaining and rendering thumbnails */
 	TSharedPtr<FAssetThumbnailPool> AssetThumbnailPool;
@@ -121,6 +132,11 @@ private:
 	bool bIsShowReferencers;
 	/* Whether to display the Dependencies */
 	bool bIsShowDependencies;
+
+	bool bIsShowFilteredPackagesOnly;
+	TOptional<FIsPackageNamePassingFilterCallback> IsPackageNamePassingFilterCallback;
+
+	bool bIsCompactMode;
 
 	friend SReferenceViewer;
 };
