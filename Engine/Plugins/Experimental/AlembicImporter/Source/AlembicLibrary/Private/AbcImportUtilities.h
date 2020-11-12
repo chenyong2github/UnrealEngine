@@ -299,7 +299,8 @@ namespace AbcImporterUtilities
 	void PropogateMatrixTransformationToSample(FAbcMeshSample* Sample, const FMatrix& Matrix);
 
 	/** Generates the delta frame data for the given average and frame vertex data */
-	void GenerateDeltaFrameDataMatrix(const TArray<FVector>& FrameVertexData, const TArray<FVector>& AverageVertexData, const int32 SampleOffset, const int32 AverageVertexOffset, TArray<float>& OutGeneratedMatrix);
+	void GenerateDeltaFrameDataMatrix(const TArray<FVector>& FrameVertexData, const TArray<FVector>& AverageVertexData, const int32 SampleIndexOffset,
+		const int32 AverageVertexOffset, const FVector& SamplePositionOffset, TArray<float>& OutGeneratedMatrix);
 
 	/** Populates compressed data structure from the result PCA compression bases and weights */
 	void GenerateCompressedMeshData(FCompressedAbcData& CompressedData, const uint32 NumUsedSingularValues, const uint32 NumSamples, const TArrayView<float>& BasesMatrix, const TArray<float>& BasesWeights, const float SampleTimeStep, const float StartTime);

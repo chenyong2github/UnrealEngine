@@ -1186,16 +1186,17 @@ void AbcImporterUtilities::PropogateMatrixTransformationToSample(FAbcMeshSample*
 	}
 }
 
-void AbcImporterUtilities::GenerateDeltaFrameDataMatrix(const TArray<FVector>& FrameVertexData, const TArray<FVector>& AverageVertexData, const int32 SampleOffset, const int32 AverageVertexOffset, TArray<float>& OutGeneratedMatrix)
+void AbcImporterUtilities::GenerateDeltaFrameDataMatrix(const TArray<FVector>& FrameVertexData, const TArray<FVector>& AverageVertexData, const int32 SampleIndexOffset,
+	const int32 AverageVertexOffset, const FVector& SamplePositionOffset, TArray<float>& OutGeneratedMatrix)
 {
 	const uint32 NumVertices = FrameVertexData.Num();
 	for (uint32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 	{
 		const int32 ComponentIndexOffset = (VertexIndex + AverageVertexOffset) * 3;
-		const FVector AverageDifference = AverageVertexData[VertexIndex + AverageVertexOffset] - FrameVertexData[VertexIndex];
-		OutGeneratedMatrix[SampleOffset + ComponentIndexOffset + 0] = AverageDifference.X;
-		OutGeneratedMatrix[SampleOffset + ComponentIndexOffset + 1] = AverageDifference.Y;
-		OutGeneratedMatrix[SampleOffset + ComponentIndexOffset + 2] = AverageDifference.Z;
+		const FVector AverageDifference = (AverageVertexData[VertexIndex + AverageVertexOffset] + SamplePositionOffset) - FrameVertexData[VertexIndex];
+		OutGeneratedMatrix[SampleIndexOffset + ComponentIndexOffset + 0] = AverageDifference.X;
+		OutGeneratedMatrix[SampleIndexOffset + ComponentIndexOffset + 1] = AverageDifference.Y;
+		OutGeneratedMatrix[SampleIndexOffset + ComponentIndexOffset + 2] = AverageDifference.Z;
 	}
 }
 

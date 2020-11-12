@@ -664,14 +664,6 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 			FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
 #endif
 
-			// Morph target delta offsets can be enabled only when uncompressed because it computes an offset for each frame and with one mesh object
-			bool bEnableMorphTargetDeltaOffset = 
-				ImportSettings->CompressionSettings.BaseCalculationType == EBaseCalculationType::NoCompression &&
-				(ImportSettings->CompressionSettings.bMergeMeshes || 
-				(!ImportSettings->CompressionSettings.bMergeMeshes && CompressedMeshData.Num() == 1));
-			
-			TArray<FVector> DeltaOffsets;
-
 			for (FCompressedAbcData& CompressedData : CompressedMeshData)
 			{
 				FAbcMeshSample* AverageSample = CompressedData.AverageSample;
@@ -680,7 +672,6 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 				{
 					const int32 NumBases = CompressedData.BaseSamples.Num();
 					int32 NumUsedBases = 0;
-					DeltaOffsets.SetNum(NumBases);
 
 					const int32 NumIndices = CompressedData.AverageSample->Indices.Num();
 
@@ -695,11 +686,10 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 
 						// Setup morph target vertices directly
 						TArray<FMorphTargetDelta> MorphDeltas;
-						FVector Offset;
-						GenerateMorphTargetVertices(BaseSample, MorphDeltas, AverageSample, WedgeOffset, MorphTargetVertexRemapping, UsedVertexIndicesForMorphs, VertexOffset, WedgeOffset, bEnableMorphTargetDeltaOffset, Offset);
-						// In case the delta offset is enabled, the pos delta is 0 for vertex 0, so tangent delta comparison must be enabled
-						MorphTarget->PopulateDeltas(MorphDeltas, 0, LODModel.Sections, bEnableMorphTargetDeltaOffset);
-						DeltaOffsets[BaseIndex] = Offset;
+						GenerateMorphTargetVertices(BaseSample, MorphDeltas, AverageSample, WedgeOffset, MorphTargetVertexRemapping, UsedVertexIndicesForMorphs, VertexOffset, WedgeOffset);
+
+						const bool bCompareNormals = true;
+						MorphTarget->PopulateDeltas(MorphDeltas, 0, LODModel.Sections, bCompareNormals);
 
 						const float PercentageOfVerticesInfluences = ((float)MorphTarget->MorphLODModels[0].Vertices.Num() / (float)NumIndices) * 100.0f;
 						if (PercentageOfVerticesInfluences > ImportSettings->CompressionSettings.MinimumNumberOfVertexInfluencePercentage)
@@ -724,27 +714,6 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 					}
 				}
 
-				// Add a track for translating the RootBone by the morph target delta offsets
-				if (bEnableMorphTargetDeltaOffset && DeltaOffsets.Num() > 0)
-				{
-					const int32 NumFrames = CompressedData.BaseSamples.Num();
-
-					FRawAnimSequenceTrack RootBoneTrack;
-					RootBoneTrack.PosKeys.Reserve(NumFrames);
-					RootBoneTrack.RotKeys.Add(FQuat::Identity); // At least one rotation key is required for the track to be valid
-
-					for (int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex)
-					{
-						RootBoneTrack.PosKeys.Add(DeltaOffsets[FrameIndex]);
-					}
-
-					const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
-					const TArray<FMeshBoneInfo>& BonesInfo = RefSkeleton.GetRawRefBoneInfo();
-					Sequence->AddNewRawTrack(BonesInfo[0].Name, &RootBoneTrack);
-				}
-
-				Sequence->RawCurveData.RemoveRedundantKeys();
-
 				WedgeOffset += CompressedData.AverageSample->Indices.Num();
 				VertexOffset += CompressedData.AverageSample->Vertices.Num();
 
@@ -762,6 +731,29 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 
 				++ObjectIndex;
 			}
+
+			// Add a track for translating the RootBone by the samples centers
+			// Each mesh has the same samples centers so use the first one
+			if (SamplesOffsets.IsSet() && CompressedMeshData.Num() > 0 && CompressedMeshData[0].CurveValues.Num() > 0)
+			{
+				const int32 NumSamples = CompressedMeshData[0].CurveValues[0].Num(); // We might have less bases than we have samples, so use the number of curve values here
+
+				FRawAnimSequenceTrack RootBoneTrack;
+				RootBoneTrack.PosKeys.Reserve(NumSamples);
+				RootBoneTrack.RotKeys.Add(FQuat::Identity); // At least one rotation key is required for the track to be valid
+
+				for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
+				{
+					const FVector SampleOffset = SamplesOffsets.GetValue()[SampleIndex];
+					RootBoneTrack.PosKeys.Add(SampleOffset);
+				}
+
+				const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
+				const TArray<FMeshBoneInfo>& BonesInfo = RefSkeleton.GetRawRefBoneInfo();
+				Sequence->AddNewRawTrack(BonesInfo[0].Name, &RootBoneTrack);
+			}
+
+			Sequence->RawCurveData.RemoveRedundantKeys();
 
 			// Set recompute tangent flag on skeletal mesh sections
 			for (FSkelMeshSection& Section : LODModel.Sections)
@@ -850,6 +842,8 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 		}
 	}
 
+	const bool bEnableSamplesOffsets = (ConstantPolyMeshObjects.Num() == 0); // We can't offset constant meshes since they don't have morph targets
+
 	bool bResult = true;
 	const int32 NumPolyMeshesToCompress = PolyMeshesToCompress.Num();
 	if (NumPolyMeshesToCompress)
@@ -900,11 +894,14 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 			AbcFile->ProcessFrames(MergedMeshesFunc, Flags);
 
 			// Average out vertex data
+			FBox AverageBoundingBox(ForceInit);
 			const float Multiplier = 1.0f / FMath::Max(NumSamples, 1);
 			for (FVector& Vertex : AverageVertexData)
 			{
 				Vertex *= Multiplier;
+				AverageBoundingBox += Vertex;
 			}
+			const FVector AverageSampleCenter = AverageBoundingBox.GetCenter();
 
 
 			// Allocate compressed mesh data object
@@ -935,18 +932,47 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 			TArray<float> OriginalMatrix;
 			OriginalMatrix.AddZeroed(NumMatrixRows * NumSamples);
 
-			uint32 GenerateMatrixSampleIndex = 0;
-			TFunction<void(int32, FAbcFile*)> GenerateMatrixFunc = [this, PolyMeshesToCompress, NumPolyMeshesToCompress, &OriginalMatrix, &AverageVertexData, &NumSamples, &ObjectVertexOffsets, &GenerateMatrixSampleIndex, NumMatrixRows](int32 FrameIndex, FAbcFile* InFile)
+			if (bEnableSamplesOffsets)
 			{
-				// For each object generate the delta frame data for the PCA compression
-				for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
-				{
-					FAbcPolyMesh* PolyMesh = PolyMeshesToCompress[MeshIndex];
-					AbcImporterUtilities::GenerateDeltaFrameDataMatrix(PolyMesh->GetSample(FrameIndex)->Vertices, AverageVertexData, GenerateMatrixSampleIndex * NumMatrixRows, ObjectVertexOffsets[MeshIndex], OriginalMatrix);
-				}
+				SamplesOffsets.Emplace();
+				SamplesOffsets.GetValue().AddZeroed(NumSamples);
+			}
 
-				++GenerateMatrixSampleIndex;
-			};
+			uint32 GenerateMatrixSampleIndex = 0;
+			TFunction<void(int32, FAbcFile*)> GenerateMatrixFunc =
+				[this, PolyMeshesToCompress, NumPolyMeshesToCompress, &OriginalMatrix, &AverageVertexData, &NumSamples, &ObjectVertexOffsets, &GenerateMatrixSampleIndex, NumMatrixRows, &AverageSampleCenter]
+				(int32 FrameIndex, FAbcFile* InFile)
+				{
+					FBox BoundingBox(ForceInit);
+
+					// For each object generate the delta frame data for the PCA compression
+					for (FAbcPolyMesh* PolyMesh : PolyMeshesToCompress)
+					{
+						const TArray<FVector>& Vertices = PolyMesh->GetSample(FrameIndex)->Vertices;
+
+						for ( const FVector& Vertex : Vertices )
+						{
+							BoundingBox += Vertex;
+						}
+					}
+
+					FVector SampleOffset = FVector::ZeroVector;
+					if (SamplesOffsets.IsSet())
+					{
+						SampleOffset = BoundingBox.GetCenter() - AverageSampleCenter;
+						SamplesOffsets.GetValue()[GenerateMatrixSampleIndex] = SampleOffset;
+					}
+
+					// For each object generate the delta frame data for the PCA compression
+					for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
+					{
+						FAbcPolyMesh* PolyMesh = PolyMeshesToCompress[MeshIndex];
+						AbcImporterUtilities::GenerateDeltaFrameDataMatrix(PolyMesh->GetSample(FrameIndex)->Vertices, AverageVertexData, GenerateMatrixSampleIndex * NumMatrixRows,
+							ObjectVertexOffsets[MeshIndex], SampleOffset, OriginalMatrix);
+					}
+
+					++GenerateMatrixSampleIndex;
+				};
 
 			AbcFile->ProcessFrames(GenerateMatrixFunc, Flags);
 
@@ -1007,7 +1033,7 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 			int32 NumSamples = 0;
 			TFunction<void(int32, FAbcFile*)> IndividualMeshesFunc = [this, NumPolyMeshesToCompress, &PolyMeshesToCompress, &MinTimes, &MaxTimes, &NumSamples, &AverageVertexData](int32 FrameIndex, FAbcFile* InFile)
 			{
-			// Each individual object creates a compressed data object
+				// Each individual object creates a compressed data object
 				for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
 				{
 					FAbcPolyMesh* PolyMesh = PolyMeshesToCompress[MeshIndex];
@@ -1044,14 +1070,18 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 			AbcFile->ProcessFrames(IndividualMeshesFunc, Flags);
 
 			// Average out vertex data
+			FBox AverageBoundingBox(ForceInit);
 			const float Multiplier = 1.0f / FMath::Max(NumSamples, 1);
 			for (TArray<FVector>& VertexData : AverageVertexData)
 			{
 				for (FVector& Vertex : VertexData)
 				{
 					Vertex *= Multiplier;
+					AverageBoundingBox += Vertex;
 				}
 			}
+			const FVector AverageSampleCenter = AverageBoundingBox.GetCenter();
+
 
 			TArray<TArray<float>> Matrices;
 			for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
@@ -1060,19 +1090,49 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 				Matrices[MeshIndex].AddZeroed(AverageVertexData[MeshIndex].Num() * 3 * NumSamples);
 			}
 
-			uint32 GenerateMatrixSampleIndex = 0;
-			TFunction<void(int32, FAbcFile*)> GenerateMatrixFunc = [this, NumPolyMeshesToCompress, &Matrices, &GenerateMatrixSampleIndex, &PolyMeshesToCompress, &AverageVertexData](int32 FrameIndex, FAbcFile* InFile)
+			if (bEnableSamplesOffsets)
 			{
-				// For each object generate the delta frame data for the PCA compression
-				for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
-				{
-					FAbcPolyMesh* PolyMesh = PolyMeshesToCompress[MeshIndex];
-					const uint32 NumMatrixRows = AverageVertexData[MeshIndex].Num() * 3;
-					AbcImporterUtilities::GenerateDeltaFrameDataMatrix(PolyMesh->GetSample(FrameIndex)->Vertices, AverageVertexData[MeshIndex], GenerateMatrixSampleIndex * NumMatrixRows, 0, Matrices[MeshIndex]);
-				}
+				SamplesOffsets.Emplace();
+				SamplesOffsets.GetValue().AddDefaulted(NumSamples);
+			}
 
-				++GenerateMatrixSampleIndex;
-			};
+			uint32 GenerateMatrixSampleIndex = 0;
+			TFunction<void(int32, FAbcFile*)> GenerateMatrixFunc =
+				[this, NumPolyMeshesToCompress, &Matrices, &GenerateMatrixSampleIndex, &PolyMeshesToCompress, &AverageVertexData, &AverageSampleCenter]
+				(int32 FrameIndex, FAbcFile* InFile)
+				{
+					// Compute on bounding box for the sample, which will include all the meshes
+					FBox BoundingBox(ForceInit);
+
+					for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
+					{
+						FAbcPolyMesh* PolyMesh = PolyMeshesToCompress[MeshIndex];
+						const TArray<FVector>& Vertices = PolyMesh->GetSample(FrameIndex)->Vertices;
+
+						for ( const FVector& Vector : Vertices )
+						{
+							BoundingBox += Vector;
+						}
+					}
+
+					FVector SampleOffset = FVector::ZeroVector;
+					if (SamplesOffsets.IsSet())
+					{
+						SampleOffset = BoundingBox.GetCenter() - AverageSampleCenter;
+						SamplesOffsets.GetValue()[GenerateMatrixSampleIndex] = SampleOffset;
+					}
+
+					// For each object generate the delta frame data for the PCA compression
+					for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
+					{
+						FAbcPolyMesh* PolyMesh = PolyMeshesToCompress[MeshIndex];
+						const uint32 NumMatrixRows = AverageVertexData[MeshIndex].Num() * 3;
+						AbcImporterUtilities::GenerateDeltaFrameDataMatrix(PolyMesh->GetSample(FrameIndex)->Vertices, AverageVertexData[MeshIndex], GenerateMatrixSampleIndex * NumMatrixRows, 0,
+							SampleOffset, Matrices[MeshIndex]);
+					}
+
+					++GenerateMatrixSampleIndex;
+				};
 
 			AbcFile->ProcessFrames(GenerateMatrixFunc, Flags);
 
@@ -1603,11 +1663,10 @@ bool FAbcImporter::BuildSkeletalMesh( FSkeletalMeshLODModel& LODModel, const FRe
 	return true;
 }
 
-void FAbcImporter::GenerateMorphTargetVertices(FAbcMeshSample* BaseSample, TArray<FMorphTargetDelta> &MorphDeltas, FAbcMeshSample* AverageSample, uint32 WedgeOffset, const TArray<int32>& RemapIndices, const TArray<int32>& UsedVertexIndicesForMorphs, const uint32 VertexOffset, const uint32 IndexOffset, bool bEnableDeltaOffset, FVector& OutOffset)
+void FAbcImporter::GenerateMorphTargetVertices(FAbcMeshSample* BaseSample, TArray<FMorphTargetDelta> &MorphDeltas, FAbcMeshSample* AverageSample, uint32 WedgeOffset, const TArray<int32>& RemapIndices, const TArray<int32>& UsedVertexIndicesForMorphs, const uint32 VertexOffset, const uint32 IndexOffset)
 {
 	FMorphTargetDelta MorphVertex;
 	const uint32 NumberOfUsedVertices = UsedVertexIndicesForMorphs.Num();	
-	FVector Offset(FVector::ZeroVector);
 	for (uint32 VertIndex = 0; VertIndex < NumberOfUsedVertices; ++VertIndex)
 	{
 		const int32 UsedVertexIndex = UsedVertexIndicesForMorphs[VertIndex] - VertexOffset;
@@ -1617,21 +1676,6 @@ void FAbcImporter::GenerateMorphTargetVertices(FAbcMeshSample* BaseSample, TArra
 		{			
 			// Position delta
 			MorphVertex.PositionDelta = BaseSample->Vertices[UsedVertexIndex] - AverageSample->Vertices[UsedVertexIndex];
-
-			if (bEnableDeltaOffset)
-			{
-				if (VertIndex == 0)
-				{
-					Offset = MorphVertex.PositionDelta;
-					MorphVertex.PositionDelta = FVector::ZeroVector;
-					OutOffset = Offset;
-				}
-				else
-				{
-					MorphVertex.PositionDelta -= Offset;
-				}
-			}
-
 			// Tangent delta
 			MorphVertex.TangentZDelta = BaseSample->Normals[UsedNormalIndex] - AverageSample->Normals[UsedNormalIndex];
 			// Index of base mesh vert this entry is to modify
