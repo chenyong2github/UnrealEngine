@@ -234,6 +234,12 @@ void IEnhancedInputSubsystemInterface::ApplyAxisPropertyModifiers(UEnhancedPlaye
 	//	return;
 	//}
 
+	// TODO: This function is causing issues with gamepads, applying a hidden 0.25 deadzone modifier by default. Apply it to mouse inputs only until a better system is in place.
+	if (!Mapping.Key.IsMouseButton())
+	{
+		return;
+	}
+
 	// Apply applicable axis property modifiers from the old input settings automatically.
 	// TODO: This needs to live at the EnhancedInputSettings level.
 	// TODO: Adopt this approach for all modifiers? Most of these are better done at the action level for most use cases.
