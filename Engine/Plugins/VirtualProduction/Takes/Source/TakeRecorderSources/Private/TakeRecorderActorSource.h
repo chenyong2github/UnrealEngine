@@ -120,6 +120,7 @@ public:
 	UTakeRecorderActorSource(const FObjectInitializer& ObjInit);
 	
 	// UTakeRecorderSource Interface
+	virtual bool IsValid()const override;
 	virtual TArray<UTakeRecorderSource*> PreRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer) override;
 	virtual void StartRecording(const FTimecode& InSectionStartTimecode, const FFrameNumber& InSectionFirstFrame, class ULevelSequence* InSequence) override;
 	virtual void TickRecording(const FQualifiedFrameTime& CurrentSequenceTime) override;
