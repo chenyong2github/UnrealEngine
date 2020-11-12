@@ -11,6 +11,10 @@
 #include "Debugging/SlateDebugging.h"
 #include "Application/SlateApplicationBase.h"
 
+#if UE_SLATE_VERIFY_PIXELSIZE
+#include <limits>
+#endif
+
 DECLARE_CYCLE_STAT(TEXT("FSlateDrawElement::Make Time"), STAT_SlateDrawElementMakeTime, STATGROUP_SlateVerbose);
 DECLARE_CYCLE_STAT(TEXT("FSlateDrawElement::MakeCustomVerts Time"), STAT_SlateDrawElementMakeCustomVertsTime, STATGROUP_Slate);
 DECLARE_CYCLE_STAT(TEXT("FSlateDrawElement::Prebatch Time"), STAT_SlateDrawElementPrebatchTime, STATGROUP_Slate);
@@ -45,7 +49,10 @@ static bool ShouldCull(const FSlateWindowElementList& ElementList)
 static bool ShouldCull(const FSlateWindowElementList& ElementList, const FPaintGeometry& PaintGeometry)
 {
 	const FVector2D& LocalSize = PaintGeometry.GetLocalSize();
-	if (LocalSize.X == 0 || LocalSize.Y == 0)
+	const float DrawScale = PaintGeometry.DrawScale;
+
+	const FVector2D PixelSize = (LocalSize * DrawScale);
+	if (PixelSize.X <= 0.f || PixelSize.Y <= 0.f)
 	{
 		return true;
 	}
@@ -149,6 +156,12 @@ void FSlateDrawElement::Init(FSlateWindowElementList& ElementList, EElementType 
 	LocalSize = PaintGeometry.GetLocalSize();
 	ClipStateHandle.SetPreCachedClipIndex(ElementList.GetClippingIndex());
 
+#if UE_SLATE_VERIFY_PIXELSIZE
+	const FVector2D PixelSize = (LocalSize * Scale);
+	ensureMsgf(PixelSize.X >= 0.f && PixelSize.X <= (float)std::numeric_limits<uint16>::max(), TEXT("The size X '%f' is too small or big to fit in the SlateVertex buffer."), PixelSize.X);
+	ensureMsgf(PixelSize.Y >= 0.f && PixelSize.Y <= (float)std::numeric_limits<uint16>::max(), TEXT("The size Y '%f' is too small or big to fit in the SlateVertex buffer."), PixelSize.Y);
+#endif
+
 	LayerId = InLayer;
 
 	ElementType = InElementType;
@@ -225,7 +238,7 @@ FSlateDrawElement& FSlateDrawElement::MakeBoxInternal(
 		float Radius = InBrush->OutlineSettings.Radius;
 		if (InBrush->OutlineSettings.RoundingType == ESlateBrushRoundingType::HalfHeightRadius)
 		{
-			Radius = PaintGeometry.GetLocalSize().Y/2.0;
+			Radius = PaintGeometry.GetLocalSize().Y/2.0f;
 		}
 		RBoxPayload->SetRadius(Radius);
 		RBoxPayload->SetOutline(InBrush->OutlineSettings.Color.GetSpecifiedColor(), InBrush->OutlineSettings.Width);

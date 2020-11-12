@@ -26,6 +26,8 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Num Cached Elements"), STAT_SlateNumCach
 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("PreFill Buffers RT"), STAT_SlatePreFullBufferRTTime, STATGROUP_Slate, SLATECORE_API);
 
+#define UE_SLATE_VERIFY_PIXELSIZE UE_BUILD_DEBUG
+
 #define SLATE_USE_32BIT_INDICES !PLATFORM_USES_GLES
 
 #if SLATE_USE_32BIT_INDICES
@@ -264,8 +266,18 @@ public:
 		Vertex.TexCoords[3] = InTexCoords.W;
 		Vertex.MaterialTexCoords = FVector2D(InLocalPosition.X / InLocalSize.X, InLocalPosition.Y / InLocalSize.Y);
 		Vertex.InitCommon<Rounding>(RenderTransform, InLocalPosition, InColor);
-		Vertex.PixelSize[0] = FMath::RoundToInt(InLocalSize.X * Scale);
-		Vertex.PixelSize[1] = FMath::RoundToInt(InLocalSize.Y * Scale);
+
+		const int32 PixelSizeX = FMath::RoundToInt(InLocalSize.X * Scale);
+		const int32 PixelSizeY = FMath::RoundToInt(InLocalSize.Y * Scale);
+		Vertex.PixelSize[0] = (uint16)PixelSizeX;
+		Vertex.PixelSize[1] = (uint16)PixelSizeY;
+
+#if UE_SLATE_VERIFY_PIXELSIZE
+		ensureMsgf((int32)Vertex.PixelSize[0] == PixelSizeX, TEXT("Conversion of PixelSizeX is bigger than 16. Cast:%d, int16:%d, int32:%d")
+			, (int32)Vertex.PixelSize[0], Vertex.PixelSize[0], PixelSizeX);
+		ensureMsgf((int32)Vertex.PixelSize[1] == PixelSizeY, TEXT("Conversion of PixelSizeY is bigger than 16. Cast:%d, int16:%d, int32:%d")
+			, (int32)Vertex.PixelSize[1], Vertex.PixelSize[1], PixelSizeY);
+#endif
 		Vertex.MaterialTexCoords = FVector2D(InLocalPosition.X / InLocalSize.X, InLocalPosition.Y / InLocalSize.Y);
 
 		return Vertex;
@@ -293,8 +305,8 @@ private:
 
 		if ( Rounding == ESlateVertexRounding::Enabled )
 		{
-			Position.X = FMath::RoundToInt(Position.X);
-			Position.Y = FMath::RoundToInt(Position.Y);
+			Position.X = FMath::RoundToFloat(Position.X);
+			Position.Y = FMath::RoundToFloat(Position.Y);
 		}
 
 		Color = InColor;

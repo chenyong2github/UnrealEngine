@@ -94,10 +94,10 @@ static AlignmentArrangeResult AlignChild(EFlowDirection InLayoutFlow, float Allo
 	switch (Alignment)
 	{
 	case HAlign_Fill:
-		return AlignmentArrangeResult(MarginPre, (AllottedSize - TotalMargin) * ContentScale);
+		return AlignmentArrangeResult(MarginPre, FMath::Max((AllottedSize - TotalMargin) * ContentScale, 0.f));
 	}
 	
-	const float ChildSize = bClampToParent ? FMath::Min(ChildDesiredSize, AllottedSize - TotalMargin) : ChildDesiredSize;
+	const float ChildSize = FMath::Max((bClampToParent ? FMath::Min(ChildDesiredSize, AllottedSize - TotalMargin) : ChildDesiredSize), 0.f);
 
 	switch( Alignment )
 	{
@@ -110,7 +110,7 @@ static AlignmentArrangeResult AlignChild(EFlowDirection InLayoutFlow, float Allo
 	}
 
 	// Same as Fill
-	return AlignmentArrangeResult(MarginPre, ( AllottedSize - TotalMargin ) * ContentScale);
+	return AlignmentArrangeResult(MarginPre, FMath::Max(( AllottedSize - TotalMargin ) * ContentScale, 0.f));
 }
 
 template<EOrientation Orientation, typename SlotType>
@@ -132,14 +132,14 @@ static AlignmentArrangeResult AlignChild(EFlowDirection InLayoutFlow, float Allo
 	switch (Alignment)
 	{
 	case HAlign_Fill:
-		return AlignmentArrangeResult(MarginPre, (AllottedSize - TotalMargin) * ContentScale);
+		return AlignmentArrangeResult(MarginPre, FMath::Max((AllottedSize - TotalMargin) * ContentScale, 0.f));
 	}
 
 	const float ChildDesiredSize = ( Orientation == Orient_Horizontal )
 		? ( ChildToArrange.GetWidget()->GetDesiredSize().X * ContentScale )
 		: ( ChildToArrange.GetWidget()->GetDesiredSize().Y * ContentScale );
 
-	const float ChildSize = bClampToParent ? FMath::Min(ChildDesiredSize, AllottedSize - TotalMargin) : ChildDesiredSize;
+	const float ChildSize = FMath::Max((bClampToParent ? FMath::Min(ChildDesiredSize, AllottedSize - TotalMargin) : ChildDesiredSize), 0.f);
 
 	switch ( Alignment )
 	{
@@ -152,7 +152,7 @@ static AlignmentArrangeResult AlignChild(EFlowDirection InLayoutFlow, float Allo
 	}
 
 	// Same as Fill
-	return AlignmentArrangeResult(MarginPre, (AllottedSize - TotalMargin) * ContentScale);
+	return AlignmentArrangeResult(MarginPre, FMath::Max((AllottedSize - TotalMargin) * ContentScale, 0.f));
 }
 
 template<EOrientation Orientation, typename SlotType>
