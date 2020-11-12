@@ -254,6 +254,7 @@ public:
 		FRHIGPUMask CreationNode,
 		FRHIGPUMask VisibleNodes,
 		D3D12_RESOURCE_STATES InitialState,
+		ED3D12ResourceStateMode InResourceStateMode,
 		uint64 HeapSize,
 		FD3D12Resource** ppOutResource,
 		const TCHAR* Name,
