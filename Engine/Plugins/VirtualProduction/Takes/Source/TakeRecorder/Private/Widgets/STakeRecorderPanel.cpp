@@ -182,7 +182,7 @@ void STakeRecorderPanel::Construct(const FArguments& InArgs)
 			SNew(SBorder)
 			.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
 			.BorderBackgroundColor( FLinearColor( .6,.6,.6, 1.0f ) )
-			.IsEnabled_Lambda([this]() { return !CockpitWidget->Reviewing(); })
+			.IsEnabled_Lambda([this]() { return !CockpitWidget->Reviewing() && !CockpitWidget->Recording(); })
 			[
 				SNew(SHorizontalBox)
 
@@ -251,6 +251,7 @@ void STakeRecorderPanel::Construct(const FArguments& InArgs)
 		+ SVerticalBox::Slot()
 		[
 			SNew(SHorizontalBox)
+			.IsEnabled_Lambda([this]() { return !CockpitWidget->Recording(); })
 			+ SHorizontalBox::Slot()
 			[
 				LevelSequenceTakeWidget.ToSharedRef()
