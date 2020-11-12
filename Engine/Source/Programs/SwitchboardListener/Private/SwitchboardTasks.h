@@ -71,6 +71,7 @@ struct FSwitchboardStartTask : public FSwitchboardTask
 		const FString& InArgs, 
 		const FString& InName, 
 		const FString& InCaller, 
+		const FString& InWorkingDir,
 		bool bInUpdateClientsWithStdout,
 		bool bInForceWindowFocus
 	)
@@ -79,6 +80,7 @@ struct FSwitchboardStartTask : public FSwitchboardTask
 		, Arguments(InArgs)
 		, Name(InName)
 		, Caller(InCaller)
+		, WorkingDir(InWorkingDir)
 		, bUpdateClientsWithStdout(bInUpdateClientsWithStdout)
 		, bForceWindowFocus(bInForceWindowFocus)
 	{
@@ -88,6 +90,7 @@ struct FSwitchboardStartTask : public FSwitchboardTask
 	FString Arguments;
 	FString Name;
 	FString Caller;
+	FString WorkingDir;
 	bool bUpdateClientsWithStdout;
 	bool bForceWindowFocus;
 
