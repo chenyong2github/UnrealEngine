@@ -2460,6 +2460,7 @@ void FSequencer::RefreshTree()
 {
 	SequencerWidget->UpdateLayoutTree();
 	bNeedTreeRefresh = false;
+	OnTreeViewChangedDelegate.Broadcast();
 }
 
 FAnimatedRange FSequencer::GetViewRange() const
@@ -6956,12 +6957,18 @@ void FSequencer::SelectByNthCategoryNode(UMovieSceneSection* Section, int Index,
 		{
 			if (Node->GetType() == ESequencerNode::Category && Count++ == Index)
 			{
-				NodesToSelect.Add(Node);
+				if (Node->IsVisible())
+				{
+					NodesToSelect.Add(Node);
+				}
 				if (bSelect == false) //make sure all children not selected
 				{
 					for (const TSharedRef<FSequencerDisplayNode>& ChildNode : Node->GetChildNodes())
 					{
-						NodesToSelect.Add(ChildNode);
+						if (ChildNode->IsVisible())
+						{
+							NodesToSelect.Add(ChildNode);
+						}
 					}
 				}
 			}
