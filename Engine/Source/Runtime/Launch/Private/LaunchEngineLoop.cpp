@@ -4968,13 +4968,13 @@ void FEngineLoop::Tick()
 			if (GDistanceFieldAsyncQueue)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_Tick_GDistanceFieldAsyncQueue);
-				GDistanceFieldAsyncQueue->ProcessAsyncTasks(true);
+				GDistanceFieldAsyncQueue->ProcessAsyncTasks();
 			}
 
 			if (GCardRepresentationAsyncQueue)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_Tick_GCardRepresentationAsyncQueue);
-				GCardRepresentationAsyncQueue->ProcessAsyncTasks(true);
+				GCardRepresentationAsyncQueue->ProcessAsyncTasks();
 			}
 #if WITH_EDITOR
 			FAssetCompilingManager::Get().ProcessAsyncTasks(true);
