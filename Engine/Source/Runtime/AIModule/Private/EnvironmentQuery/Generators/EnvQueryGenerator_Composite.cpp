@@ -40,6 +40,26 @@ FText UEnvQueryGenerator_Composite::GetDescriptionTitle() const
 	return Desc;
 };
 
+bool UEnvQueryGenerator_Composite::IsValidGenerator() const
+{
+	if (!Super::IsValidGenerator() || Generators.Num() == 0)
+	{
+		return false;
+	}
+
+	bool bValid = true;
+	for (const UEnvQueryGenerator* Generator : Generators)
+	{
+		if (Generator == nullptr || !Generator->IsValidGenerator())
+		{
+			bValid = false;
+			break;
+		}
+	}
+
+	return bValid;
+}
+
 void UEnvQueryGenerator_Composite::VerifyItemTypes()
 {
 	TSubclassOf<UEnvQueryItemType> CommonItemType = nullptr;
