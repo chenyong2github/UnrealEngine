@@ -31,8 +31,4 @@ protected:
 	);
 
 	TSharedRef<IDatasmithMaterialIDElement> GetMaterialIDElement() const;
-
-	virtual void BuildScene(
-		FDatasmithFacadeScene& SceneRef
-	) override {}
 };

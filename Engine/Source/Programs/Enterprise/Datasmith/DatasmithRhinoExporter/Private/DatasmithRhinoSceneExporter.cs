@@ -17,17 +17,12 @@ namespace DatasmithRhino
 	{
 		public static Rhino.PlugIns.WriteFileResult Export(string Filename, RhinoDoc RhinoDocument, Rhino.FileIO.FileWriteOptions Options)
 		{
-			string RhinoAppName = Rhino.RhinoApp.Name;
-			string RhinoVersion = Rhino.RhinoApp.ExeVersion.ToString();
-			FDatasmithFacadeElement.SetCoordinateSystemType(FDatasmithFacadeElement.ECoordinateSystemType.RightHandedZup);
-			FDatasmithFacadeElement.SetWorldUnitScale((float)Rhino.RhinoMath.UnitScale(RhinoDocument.ModelUnitSystem, UnitSystem.Centimeters));
-			FDatasmithFacadeScene DatasmithScene = new FDatasmithFacadeScene("Rhino", "Robert McNeel & Associates", "Rhino3D", RhinoVersion);
-			DatasmithScene.PreExport();
-
 			try
 			{
 				RhinoApp.WriteLine(string.Format("Exporting to {0}.", System.IO.Path.GetFileName(Filename)));
 				RhinoApp.WriteLine("Press Esc key to cancel...");
+
+				FDatasmithFacadeScene DatasmithScene = SetUpSceneExport(Filename, RhinoDocument);
 
 				FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Parsing Document", 0.1f);
 				DatasmithRhinoSceneParser SceneParser = new DatasmithRhinoSceneParser(RhinoDocument, Options);
@@ -35,10 +30,8 @@ namespace DatasmithRhino
 
 				if (ExportScene(SceneParser, DatasmithScene) == Rhino.Commands.Result.Success)
 				{
-					string SceneName = System.IO.Path.GetFileName(Filename);
-
 					FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Writing to files..", 1);
-					DatasmithScene.ExportScene(Filename);
+					DatasmithScene.ExportScene();
 				}
 			}
 			catch (DatasmithExportCancelledException)
@@ -57,6 +50,20 @@ namespace DatasmithRhino
 			}
 
 			return Rhino.PlugIns.WriteFileResult.Success;
+		}
+
+		public static FDatasmithFacadeScene SetUpSceneExport(string Filename, RhinoDoc RhinoDocument)
+		{
+			string RhinoAppName = Rhino.RhinoApp.Name;
+			string RhinoVersion = Rhino.RhinoApp.ExeVersion.ToString();
+			FDatasmithFacadeElement.SetCoordinateSystemType(FDatasmithFacadeElement.ECoordinateSystemType.RightHandedZup);
+			FDatasmithFacadeElement.SetWorldUnitScale((float)Rhino.RhinoMath.UnitScale(RhinoDocument.ModelUnitSystem, UnitSystem.Centimeters));
+			FDatasmithFacadeScene DatasmithScene = new FDatasmithFacadeScene("Rhino", "Robert McNeel & Associates", "Rhino3D", RhinoVersion);
+			DatasmithScene.PreExport();
+			DatasmithScene.SetOutputPath(System.IO.Path.GetDirectoryName(Filename));
+			DatasmithScene.SetName(System.IO.Path.GetFileNameWithoutExtension(Filename));
+
+			return DatasmithScene;
 		}
 
 		public static Rhino.Commands.Result ExportScene(DatasmithRhinoSceneParser SceneParser, FDatasmithFacadeScene DatasmithScene)

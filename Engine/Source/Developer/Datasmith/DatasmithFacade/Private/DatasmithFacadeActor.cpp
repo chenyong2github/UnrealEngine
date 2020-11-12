@@ -441,15 +441,6 @@ FTransform FDatasmithFacadeActor::ConvertTransform(
 	return FTransform(TransformRotation, TransformTranslation, TransformScale3D);
 }
 
-
-void FDatasmithFacadeActor::BuildScene(
-	FDatasmithFacadeScene& SceneRef
-)
-{
-	// Create and initialize a Datasmith actor hierarchy.
-	SceneRef.GetScene()->AddActor(GetDatasmithActorElement());
-}
-
 TSharedRef<IDatasmithActorElement> FDatasmithFacadeActor::GetDatasmithActorElement() const
 {
 	return StaticCastSharedRef<IDatasmithActorElement>(InternalDatasmithElement);

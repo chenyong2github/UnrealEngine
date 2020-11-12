@@ -219,9 +219,11 @@ namespace DatasmithRevitExporter
 				InDocument.Application.VersionNumber);
 
 			SceneName = Path.GetFileNameWithoutExtension(RootCache.SourceDocument.PathName);
-
-			string SceneLabel = Path.GetFileNameWithoutExtension(InDocument.PathName);
-			DatasmithScene.SetLabel(SceneLabel);
+			string OutputPath = Path.Combine(Path.GetTempPath(), SceneName);
+			DatasmithScene.SetName(SceneName);
+			DatasmithScene.SetLabel(SceneName);
+			DatasmithScene.SetOutputPath(OutputPath);
+			Directory.CreateDirectory(OutputPath);
 
 			DocumentChangedHandler = new EventHandler<DocumentChangedEventArgs>(OnDocumentChanged);
 			InDocument.Application.DocumentChanged += DocumentChangedHandler;
@@ -433,10 +435,7 @@ namespace DatasmithRevitExporter
 				OutputPath = Path.Combine(Path.GetTempPath(), SceneName);
 			}
 
-			Directory.CreateDirectory(OutputPath);
-
-			DatasmithScene.ExportAssets(OutputPath);
-			DatasmithScene.BuildScene(SceneName);
+			DatasmithScene.CleanUp();
 
 			bool bUpdateOk = DatasmithDirectLink.UpdateScene(DatasmithScene);
 
@@ -468,7 +467,7 @@ namespace DatasmithRevitExporter
 						CurrentBatchSize = 0;
 
 						// Send metadata to DirectLink.
-						DatasmithScene.BuildScene(SceneName);
+						DatasmithScene.CleanUp();
 						DatasmithDirectLink.UpdateScene(DatasmithScene);
 
 						MetadataEvent.WaitOne(DelayExport);
@@ -543,7 +542,7 @@ namespace DatasmithRevitExporter
 			if (CurrentBatchSize > 0)
 			{
 				// Send remaining chunk of metadata.
-				DatasmithScene.BuildScene(SceneName);
+				DatasmithScene.CleanUp();
 				DatasmithDirectLink.UpdateScene(DatasmithScene);
 			}
 

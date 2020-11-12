@@ -45,16 +45,6 @@ public class FDatasmithFacadeElement : global::System.IDisposable {
     }
   }
 
-  // Abandon ownership of the returned FDatasmithFacadeElement C++ pointer.
-  internal static global::System.Runtime.InteropServices.HandleRef getCPtrAndDisown(FDatasmithFacadeElement obj)
-  {
-    if (obj != null)
-    {
-      obj.swigCMemOwn = false;
-    }
-    return getCPtr(obj);
-  }
-
   public static string GetStringHash(string Input)
   {
     System.Text.StringBuilder sb = new System.Text.StringBuilder(32);

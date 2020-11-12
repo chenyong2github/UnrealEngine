@@ -152,13 +152,6 @@ void FDatasmithFacadeMetaData::SetAssociatedElement(
 	}
 }
 
-void FDatasmithFacadeMetaData::BuildScene(
-	FDatasmithFacadeScene& SceneRef
-)
-{
-	SceneRef.GetScene()->AddMetaData(GetDatasmithMetaDataElement());
-}
-
 TSharedRef<IDatasmithMetaDataElement> FDatasmithFacadeMetaData::GetDatasmithMetaDataElement() const
 {
 	return StaticCastSharedRef<IDatasmithMetaDataElement>(GetDatasmithElement());

@@ -190,8 +190,5 @@ protected:
 		bool bRowMajor
 	) const;
 
-	// Build a Datasmith actor element and add it to the Datasmith scene.
-	virtual void BuildScene( FDatasmithFacadeScene& SceneRef ) override;
-
 	TSharedRef<IDatasmithActorElement> GetDatasmithActorElement() const;
 };

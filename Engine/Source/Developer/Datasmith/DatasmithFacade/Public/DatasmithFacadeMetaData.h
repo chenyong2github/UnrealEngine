@@ -81,10 +81,5 @@ protected:
 		const TSharedRef<IDatasmithMetaDataElement>& InMetaDataElement
 	);
 
-	// Build a Datasmith material element and add it to the Datasmith scene.
-	virtual void BuildScene(
-		FDatasmithFacadeScene& SceneRef
-	) override;
-
 	TSharedRef<IDatasmithMetaDataElement> GetDatasmithMetaDataElement() const;
 };

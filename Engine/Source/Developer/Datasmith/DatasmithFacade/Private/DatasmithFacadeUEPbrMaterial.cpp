@@ -522,14 +522,6 @@ const TCHAR* FDatasmithFacadeUEPbrMaterial::GetParentLabel() const
 	return GetDatasmithUEPbrMaterialElement()->GetParentLabel();
 }
 
-void FDatasmithFacadeUEPbrMaterial::BuildScene(
-	FDatasmithFacadeScene& SceneRef
-)
-{
-	// Add the master material to the Datasmith scene.
-	SceneRef.GetScene()->AddMaterial( GetDatasmithUEPbrMaterialElement() );
-}
-
 TSharedRef<IDatasmithUEPbrMaterialElement> FDatasmithFacadeUEPbrMaterial::GetDatasmithUEPbrMaterialElement() const
 {
 	return StaticCastSharedRef<IDatasmithUEPbrMaterialElement>( InternalDatasmithElement );

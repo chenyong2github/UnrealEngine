@@ -167,6 +167,14 @@ namespace DatasmithRevitExporter
 			{
 				return RenderNodeAction.Skip; // TODO log error?
 			}
+			else if (DirectLink == null)
+			{
+				string OutputPath = Path.GetDirectoryName(CurrentDatasmithFilePath);
+				string SceneName = Path.GetFileNameWithoutExtension(CurrentDatasmithFilePath);
+
+				DatasmithScene.SetOutputPath(OutputPath);
+				DatasmithScene.SetName(SceneName);
+			}
 
 			// Keep track of the active Revit document being exported.
 			PushDocument(RevitDocument);
@@ -191,7 +199,7 @@ namespace DatasmithRevitExporter
 			if (DirectLink == null)
 			{
 				// Build and export the Datasmith scene instance and its scene element assets.
-				DatasmithScene.ExportScene(CurrentDatasmithFilePath);
+				DatasmithScene.ExportScene();
 
 				// Dispose of the Datasmith scene.
 				DatasmithScene = null;
@@ -415,33 +423,36 @@ namespace DatasmithRevitExporter
 				return;
 			}
 
+			int CurrentMaterialIndex;
+			string CurrentMaterialName;
+			GetCurrentMaterialSlotInfo(out CurrentMaterialName, out CurrentMaterialIndex);
+			GetCurrentMeshElement().SetMaterial(CurrentMaterialName, CurrentMaterialIndex);
+
+			FDocumentData.FDatasmithPolymesh CurrentMesh = GetCurrentPolymesh();
+
 			// Retrieve the Datasmith mesh being processed.
-			FDatasmithFacadeMesh CurrentMesh = GetCurrentMesh();
 			Transform MeshPointsTransform = GetCurrentMeshPointsTransform();
 
-			// Retrieve the index of the current material and make the Datasmith mesh keep track of it.
-			int CurrentMaterialIndex = GetCurrentMaterialIndex();
-
-			int initialVertexCount = CurrentMesh.GetVertexCount();
+			int initialVertexCount = CurrentMesh.Vertices.Count;
 
 			// Add the vertex points (in right-handed Z-up coordinates) to the Datasmith mesh.
 			foreach (XYZ Point in InPolymeshNode.GetPoints())
 			{
 				XYZ FinalPoint = MeshPointsTransform != null ? MeshPointsTransform.OfPoint(Point) : Point;
-				CurrentMesh.AddVertex((float) FinalPoint.X, (float) FinalPoint.Y, (float) FinalPoint.Z);
+				CurrentMesh.Vertices.Add(FinalPoint);
 			}
 
 			// Add the vertex UV texture coordinates to the Datasmith mesh.
 			foreach (UV uv in InPolymeshNode.GetUVs())
 			{
-				CurrentMesh.AddUV(0, (float) uv.U, (float) -uv.V);
+				CurrentMesh.UVs.Add(new UV(uv.U, -uv.V));
 			}
 
 			IList<PolymeshFacet> Facets = InPolymeshNode.GetFacets();
 			// Add the triangle vertex indexes to the Datasmith mesh.
 			foreach (PolymeshFacet facet in Facets)
 			{
-				CurrentMesh.AddTriangle(initialVertexCount + facet.V1, initialVertexCount + facet.V2, initialVertexCount + facet.V3, CurrentMaterialIndex);
+				CurrentMesh.Faces.Add(new FDocumentData.FPolymeshFace(initialVertexCount + facet.V1, initialVertexCount + facet.V2, initialVertexCount + facet.V3, CurrentMaterialIndex));
 			}
 
 			// Add the triangle vertex normals (in right-handed Z-up coordinates) to the Datasmith mesh.
@@ -459,9 +470,9 @@ namespace DatasmithRevitExporter
 							XYZ normal2 = MeshPointsTransform.OfVector(normals[facet.V2]);
 							XYZ normal3 = MeshPointsTransform.OfVector(normals[facet.V3]);
 
-							CurrentMesh.AddNormal((float)normal1.X, (float)normal1.Y, (float)normal1.Z);
-							CurrentMesh.AddNormal((float)normal2.X, (float)normal2.Y, (float)normal2.Z);
-							CurrentMesh.AddNormal((float)normal3.X, (float)normal3.Y, (float)normal3.Z);
+							CurrentMesh.Normals.Add(normal1);
+							CurrentMesh.Normals.Add(normal2);
+							CurrentMesh.Normals.Add(normal3);
 						}
 					}
 					else
@@ -472,9 +483,9 @@ namespace DatasmithRevitExporter
 							XYZ normal2 = normals[facet.V2];
 							XYZ normal3 = normals[facet.V3];
 
-							CurrentMesh.AddNormal((float)normal1.X, (float)normal1.Y, (float)normal1.Z);
-							CurrentMesh.AddNormal((float)normal2.X, (float)normal2.Y, (float)normal2.Z);
-							CurrentMesh.AddNormal((float)normal3.X, (float)normal3.Y, (float)normal3.Z);
+							CurrentMesh.Normals.Add(normal1);
+							CurrentMesh.Normals.Add(normal2);
+							CurrentMesh.Normals.Add(normal3);
 						}
 					}
 
@@ -491,7 +502,7 @@ namespace DatasmithRevitExporter
 
 					for (int i = 0; i < 3 * InPolymeshNode.NumberOfFacets; i++)
 					{
-						CurrentMesh.AddNormal((float) normal.X, (float) normal.Y, (float) normal.Z);
+						CurrentMesh.Normals.Add(normal);
 					}
 					break;
 				}
@@ -502,18 +513,18 @@ namespace DatasmithRevitExporter
 						foreach (XYZ normal in InPolymeshNode.GetNormals())
 						{
 							XYZ FinalNormal = MeshPointsTransform.OfVector(normal);
-							CurrentMesh.AddNormal((float)FinalNormal.X, (float)FinalNormal.Y, (float)FinalNormal.Z);
-							CurrentMesh.AddNormal((float)FinalNormal.X, (float)FinalNormal.Y, (float)FinalNormal.Z);
-							CurrentMesh.AddNormal((float)FinalNormal.X, (float)FinalNormal.Y, (float)FinalNormal.Z);
+							CurrentMesh.Normals.Add(FinalNormal);
+							CurrentMesh.Normals.Add(FinalNormal);
+							CurrentMesh.Normals.Add(FinalNormal);
 						}
 					}
 					else
 					{
 						foreach (XYZ normal in InPolymeshNode.GetNormals())
 						{
-							CurrentMesh.AddNormal((float)normal.X, (float)normal.Y, (float)normal.Z);
-							CurrentMesh.AddNormal((float)normal.X, (float)normal.Y, (float)normal.Z);
-							CurrentMesh.AddNormal((float)normal.X, (float)normal.Y, (float)normal.Z);
+							CurrentMesh.Normals.Add(normal);
+							CurrentMesh.Normals.Add(normal);
+							CurrentMesh.Normals.Add(normal);
 						}
 					}
 					break;
@@ -641,7 +652,7 @@ namespace DatasmithRevitExporter
 			FDocumentData DocumentData = DocumentDataStack.Peek();
 
 			DocumentData.LogElement(DebugLog, InLogLinePrefix, -1);
-			DocumentData.PopElement();
+			DocumentData.PopElement(DatasmithScene);
 		}
 
 		private void PushInstance(
@@ -663,7 +674,7 @@ namespace DatasmithRevitExporter
 			FDocumentData DocumentData = DocumentDataStack.Peek();
 
 			DocumentData.LogElement(DebugLog, InLogLinePrefix, -1);
-			DocumentData.PopInstance();
+			DocumentData.PopInstance(DatasmithScene);
 		}
 
 		private void AddLightActor(
@@ -679,7 +690,7 @@ namespace DatasmithRevitExporter
 			Asset     InRPCAsset
 		)
 		{
-			DocumentDataStack.Peek().AddRPCActor(InWorldTransform, InRPCAsset);
+			DocumentDataStack.Peek().AddRPCActor(InWorldTransform, InRPCAsset, DatasmithScene);
 		}
 
 		private void SetMaterial(
@@ -700,9 +711,14 @@ namespace DatasmithRevitExporter
 			return DocumentDataStack.Peek().IgnoreElementGeometry();
 		}
 
-		private FDatasmithFacadeMesh GetCurrentMesh()
+		private FDocumentData.FDatasmithPolymesh GetCurrentPolymesh()
 		{
-			return DocumentDataStack.Peek().GetCurrentMesh();
+			return DocumentDataStack.Peek().GetCurrentPolymesh();
+		}
+
+		public FDatasmithFacadeMeshElement GetCurrentMeshElement()
+		{
+			return DocumentDataStack.Peek().GetCurrentMeshElement();
 		}
 
 		private Transform GetCurrentMeshPointsTransform()
@@ -710,9 +726,9 @@ namespace DatasmithRevitExporter
 			return DocumentDataStack.Peek().GetCurrentMeshPointsTransform();
 		}
 
-		private int GetCurrentMaterialIndex()
+		private void GetCurrentMaterialSlotInfo(out string OutMaterialName, out int OutMaterialIndex)
 		{
-			return DocumentDataStack.Peek().GetCurrentMaterialIndex();
+			DocumentDataStack.Peek().GetCurrentMaterialSlotInfo(out OutMaterialName, out OutMaterialIndex);
 		}
 
 		private void AddCameraActor(

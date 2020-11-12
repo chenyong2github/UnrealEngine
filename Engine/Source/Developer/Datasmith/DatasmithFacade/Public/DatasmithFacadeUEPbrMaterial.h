@@ -375,11 +375,6 @@ protected:
 
 	IDatasmithMaterialExpression* AddMaterialExpression( const EDatasmithFacadeMaterialExpressionType ExpressionType );
 
-	// Build a Datasmith material element and add it to the Datasmith scene.
-	virtual void BuildScene(
-		FDatasmithFacadeScene& SceneRef // Datasmith scene
-	) override;
-
 	TSharedRef<IDatasmithUEPbrMaterialElement> GetDatasmithUEPbrMaterialElement() const;
 };
 

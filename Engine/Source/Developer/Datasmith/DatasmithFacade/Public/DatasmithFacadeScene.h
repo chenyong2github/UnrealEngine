@@ -3,6 +3,7 @@
 #pragma once
 
 // Datasmith SDK.
+#include "DatasmithMeshExporter.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneExporter.h"
 
@@ -11,6 +12,7 @@ class FDatasmithFacadeActor;
 class FDatasmithFacadeBaseMaterial;
 class FDatasmithFacadeElement;
 class FDatasmithFacadeMesh;
+class FDatasmithFacadeMeshElement;
 class FDatasmithFacadeMetaData;
 class FDatasmithFacadeTexture;
 
@@ -80,8 +82,32 @@ public:
 		FDatasmithFacadeBaseMaterial* InMaterialPtr
 	);
 
+	FDatasmithFacadeMeshElement* ExportDatasmithMesh(
+		FDatasmithFacadeMesh* Mesh,
+		FDatasmithFacadeMesh* CollisionMesh = nullptr
+	);
+
+	bool ExportDatasmithMesh(
+		FDatasmithFacadeMeshElement* MeshElement,
+		FDatasmithFacadeMesh* Mesh,
+		FDatasmithFacadeMesh* CollisionMesh = nullptr
+	);
+
 	void AddMesh(
-		FDatasmithFacadeMesh* InMeshPtr
+		FDatasmithFacadeMeshElement* InMeshPtr
+	);
+
+	int32 GetMeshesCount() const
+	{
+		return SceneRef->GetMeshesCount();
+	}
+
+	FDatasmithFacadeMeshElement* GetNewMesh(
+		int32 MeshIndex
+	);
+
+	void RemoveMesh(
+		FDatasmithFacadeMeshElement* MeshElement
 	);
 
 	void AddTexture(
@@ -120,8 +146,26 @@ public:
 		FDatasmithFacadeMetaData* InMetaDataPtr
 	);
 	
+	/** Set the Datasmith scene name */
+	void SetName(const TCHAR* InName);
+
+	/** Set the Datasmith scene file name */
+	const TCHAR* GetName() const;
+
+	/** Set the path to the folder where the .datasmith file will be saved. */
+	void SetOutputPath(const TCHAR* InOutputPath);
+
+	/** Get the path to the folder where the .datasmith file will be saved. */
+	const TCHAR* GetOutputPath() const;
+
+	/** Get the path were additional assets will be saved to. */
+	const TCHAR* GetAssetsOutputPath() const;
+
 	/** Instantiate an exporter and register export start time */
 	void PreExport();
+
+	/** Validate assets and remove unused ones. */
+	void CleanUp();
 
 	/** 
 	 * Manually shutdown the Facade and close down all the core engine systems and release the resources they allocated
@@ -129,24 +173,18 @@ public:
 	 */
 	static void Shutdown();
 
-	/** Build and export a Datasmith scene instance and its scene element assets. */
-	void ExportScene(
+	/** Build and export a Datasmith scene instance and its scene element assets.
+	 *  The passed InOutputPath parameter will override any Name and OutputPath previously specified.
+	 *	@return True if the scene was properly exported.
+	 */
+	bool ExportScene(
 		const TCHAR* InOutputPath // Datasmith scene output file path
 	);
 
-	/** 
-	 * Build and export the Datasmith scene element assets.
-	 * This must be done before building a Datasmith scene instance.
+	/** Build and export a Datasmith scene instance and its scene element assets.
+	 *	@return True if the scene was properly exported.
 	 */
-	void ExportAssets(
-		const TCHAR* InAssetFolder // Datasmith asset folder path
-	);
-
-	/** Build a Datasmith scene instance. */
-	void BuildScene(
-		const TCHAR* InSceneName // Datasmith scene name
-	);
-
+	bool ExportScene();
 
 	/**
 	 * Set the Datasmith scene's label.
@@ -168,36 +206,11 @@ protected:
 	// Return the build Datasmith scene instance.
 	TSharedRef<IDatasmithScene> GetScene() const;
 
-	// Return the list of texture names added to the current datasmith scene.
-	TSharedRef<TSet<FString>> GetExportedTextures() const;
-
 private:
-
-	// Name of the host application used to build the scene.
-	FString ApplicationHostName;
-
-	// Vendor name of the application used to build the scene.
-	FString ApplicationVendorName;
-
-	// Product name of the application used to build the scene.
-	FString ApplicationProductName;
-
-	// Product version of the application used to build the scene.
-	FString ApplicationProductVersion;
-
-	// Array of collected elements for the Datasmith scene to build.
-	TSet<TSharedPtr<FDatasmithFacadeElement>> SceneElementSet;
 
 	// Datasmith scene instance built with the collected elements.
 	TSharedRef<IDatasmithScene> SceneRef;
 
 	// Datasmith scene exporter
-	TSharedPtr<FDatasmithSceneExporter> SceneExporterRef;
-
-	// Set of texture name to make sure we don't export duplicates.
-	TSharedRef<TSet<FString>> ExportedTextureSet;
-
-	// Indicates if a clean up is required or not.
-	// Always true except on an export as the SceneExporter is performing the clean up
-	bool bCleanUpNeeded;
+	TSharedRef<FDatasmithSceneExporter> SceneExporterRef;
 };
