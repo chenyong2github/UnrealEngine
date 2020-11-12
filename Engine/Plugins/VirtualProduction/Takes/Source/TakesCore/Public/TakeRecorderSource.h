@@ -45,6 +45,11 @@ public:
 	//Timecode source when recording is started via StartRecording.
 	FTimecode TimecodeSource;
 public:
+	/** 
+	* If the source is Valid and ready to be recorded. Tells the Take Recorder that it's really going to record. Note that PreRecord/StartRecord
+	* may still get called on the source even if not Valid. This is used mainly so we only Start Recording if we have more than one Valid Source.
+	*/
+	virtual bool IsValid() const { return true; }
 
 	/**
 	* This is called on all sources before recording is started. This allows a source to return a list of new sources 
