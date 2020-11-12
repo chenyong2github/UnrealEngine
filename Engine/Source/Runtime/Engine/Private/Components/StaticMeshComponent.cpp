@@ -1093,7 +1093,7 @@ void UStaticMeshComponent::CopyInstanceVertexColorsIfCompatible( UStaticMeshComp
 				FStaticMeshLODResources& TargetLODModel = GetStaticMesh()->GetRenderData()->LODResources[CurrentLOD];
 				FStaticMeshComponentLODInfo& TargetLODInfo = LODData[CurrentLOD];
 
-				if ( SourceLODInfo.OverrideVertexColors != NULL )
+				if ( SourceLODInfo.OverrideVertexColors != nullptr )
 				{
 					// Copy vertex colors from source to target.
 					FColorVertexBuffer* SourceColorBuffer = SourceLODInfo.OverrideVertexColors;
@@ -1104,20 +1104,20 @@ void UStaticMeshComponent::CopyInstanceVertexColorsIfCompatible( UStaticMeshComp
 						CopiedColors.Add( SourceColorBuffer->VertexColor( ColorVertexIndex ) );
 					}
 
-					if (TargetLODInfo.OverrideVertexColors != NULL || CopiedColors.Num() > 0)
+					if (TargetLODInfo.OverrideVertexColors != nullptr || CopiedColors.Num() > 0)
 					{
-						FColorVertexBuffer* TargetColorBuffer = &TargetLODModel.VertexBuffers.ColorVertexBuffer;
-
-						if ( TargetLODInfo.OverrideVertexColors != NULL )
+						if (TargetLODInfo.OverrideVertexColors != nullptr)
 						{
 							TargetLODInfo.BeginReleaseOverrideVertexColors();
-							FlushRenderingCommands();
 						}
-						else
+
+						if (TargetLODInfo.OverrideVertexColors == nullptr)
 						{
 							TargetLODInfo.OverrideVertexColors = new FColorVertexBuffer;
-							TargetLODInfo.OverrideVertexColors->InitFromColorArray( CopiedColors );
 						}
+
+						TargetLODInfo.OverrideVertexColors->InitFromColorArray(CopiedColors);
+
 						check(TargetLODInfo.OverrideVertexColors->GetStride() > 0);
 						BeginInitResource( TargetLODInfo.OverrideVertexColors );
 					}
@@ -1280,9 +1280,7 @@ void UStaticMeshComponent::PrivateFixupOverrideColors()
 		else
 		{
 			LODInfo.BeginReleaseOverrideVertexColors();
-			FlushRenderingCommands();
 		}
-
 
 		FStaticMeshLODResources& CurRenderData = GetStaticMesh()->GetRenderData()->LODResources[LODIndex];
 		TArray<FColor> NewOverrideColors;
@@ -2686,24 +2684,35 @@ void FStaticMeshComponentLODInfo::CleanUp()
 	}
 }
 
-
 void FStaticMeshComponentLODInfo::BeginReleaseOverrideVertexColors()
 {
-	if(OverrideVertexColors)
+	if (OverrideVertexColors)
 	{
-		// enqueue a rendering command to release
-		BeginReleaseResource(OverrideVertexColors);
+		DEC_DWORD_STAT_BY(STAT_InstVertexColorMemory, OverrideVertexColors->GetAllocatedSize());
+
+		// The old OverrideVertexColors will be deleted on the render thread so we can start
+		// using a new instance right away without the need of a costly FlushRenderingCommand.
+		FColorVertexBuffer* LocalOverrideVertexColors = OverrideVertexColors;
+		OverrideVertexColors = new FColorVertexBuffer;
+
+		if (LocalOverrideVertexColors != nullptr)
+		{
+			ENQUEUE_RENDER_COMMAND(FStaticMeshComponentLODInfoCleanUp)(
+				[LocalOverrideVertexColors](FRHICommandList&)
+				{
+					LocalOverrideVertexColors->ReleaseResource();
+					delete LocalOverrideVertexColors;
+				});
+		}
 	}
 }
 
 void FStaticMeshComponentLODInfo::ReleaseOverrideVertexColorsAndBlock()
 {
-	if(OverrideVertexColors)
+	if (OverrideVertexColors)
 	{
 		// The RT thread has no access to it any more so it's safe to delete it.
 		CleanUp();
-		// Ensure the RT no longer accessed the data, might slow down
-		FlushRenderingCommands();
 	}
 }
 
