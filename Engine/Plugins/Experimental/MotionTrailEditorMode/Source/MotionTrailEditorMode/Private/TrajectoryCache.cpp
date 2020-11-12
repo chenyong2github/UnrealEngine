@@ -88,6 +88,11 @@ FTransform FArrayTrajectoryCache::GetInterp(const double InTime) const
 	const int32 LowIdx = FMath::Clamp(int32((InTime - TrackRange.GetLowerBoundValue()) / Spacing), 0, TrajectoryCache.Num() - 1);
 	const int32 HighIdx = FMath::Clamp(LowIdx + 1, 0, TrajectoryCache.Num() - 1);
 
+	if (LowIdx == HighIdx)
+	{
+		return TrajectoryCache[LowIdx];
+	}
+
 	FTransform TempBlended; 
 	TempBlended.Blend(TrajectoryCache[LowIdx], TrajectoryCache[HighIdx], T);
 	return TempBlended;
