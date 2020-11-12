@@ -580,6 +580,8 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GRHIHDRDisplayOutputFormat = (GRHISupportsHDROutput) ? PF_PLATFORM_HDR_0 : PF_B8G8R8A8;
 	GMaxWorkGroupInvocations = 1024;
 #else
+	//@todo investigate gpufam4
+	GMaxComputeSharedMemory = 1 << 14;
 #if PLATFORM_TVOS
 	GRHISupportsBaseVertexIndex = false;
 	GRHISupportsFirstInstance = false; // Supported on macOS & iOS but not tvOS.

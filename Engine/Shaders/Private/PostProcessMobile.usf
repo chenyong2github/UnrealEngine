@@ -1537,7 +1537,7 @@ void Histogram_MainCS(
 
 		WriteToHistogramBuffer(GroupIndex, NormalizeFactor);
 
-#if IOS // Need to write two texels for each thread on IOS since there are only 32 threads in each tile.
+#if LOW_SHARED_COMPUTE_MEMORY // Need to write two texels for each thread on LowSharedComputeMemory devices since there are only 32 threads in each tile.
 		WriteToHistogramBuffer(GroupIndex * 2 + 1, NormalizeFactor);
 #endif
 	}
