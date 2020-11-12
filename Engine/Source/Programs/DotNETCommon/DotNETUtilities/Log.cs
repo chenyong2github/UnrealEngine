@@ -457,6 +457,12 @@ namespace Tools.DotNETCommon
 								Console.WriteLine(ConsoleLine);
 							}
 						}
+						catch (IOException)
+						{
+							// Potential file access/sharing issue on std out
+							// This can occur on some versions of mono (e.g. macOS 6.12.0) if writing to a full pipe
+							// during IPC when the reader isn't consuming it quick enough
+						}
 						finally
 						{
 							// make sure we always put the console color back.
