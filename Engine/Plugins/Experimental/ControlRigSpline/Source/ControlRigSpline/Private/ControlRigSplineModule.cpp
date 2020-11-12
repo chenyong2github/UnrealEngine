@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "ControlRigSplineModule.h"
 
 void FControlRigSplineModule::StartupModule()

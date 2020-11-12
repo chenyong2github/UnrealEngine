@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "ControlRigSplineTypes.h"
 
 void FControlRigSpline::SetControlPoints(const TArray<FVector>& InPoints, const bool forceRebuild)
