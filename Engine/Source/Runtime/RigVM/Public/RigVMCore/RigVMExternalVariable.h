@@ -408,13 +408,12 @@ struct RIGVM_API FRigVMExternalVariable
 			(bAllowNullPtr || Memory != nullptr);
 	}
 
-	FORCEINLINE FRigVMMemoryHandle GetHandle(int32 InOffset = INDEX_NONE) const
+	FORCEINLINE FRigVMMemoryHandle GetHandle() const
 	{
 		return FRigVMMemoryHandle(
 			Memory,
 			Size,
-			bIsArray ? FRigVMMemoryHandle::FType::Dynamic : FRigVMMemoryHandle::FType::Plain,
-			InOffset
+			bIsArray ? FRigVMMemoryHandle::FType::Dynamic : FRigVMMemoryHandle::FType::Plain
 		);
 	}
 

@@ -364,6 +364,18 @@ uint8* FRigVMRegisterOffset::GetData(uint8* InContainer) const
 	return Data;
 }
 
+bool FRigVMRegisterOffset::ContainsArraySegment() const
+{
+	for (int32 SegmentIndex : Segments)
+	{
+		if (SegmentIndex < 0)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 bool FRigVMRegisterOffset::operator == (const FRigVMRegisterOffset& InOther) const
 {
 	if (Segments.Num() != InOther.Segments.Num())
@@ -430,6 +442,7 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FRigVMByteArray FRigVMMemoryContainer::DefaultByteArray;
+FRigVMRegisterOffset FRigVMMemoryContainer::InvalidRegisterOffset;
 
 FRigVMMemoryContainer::FRigVMMemoryContainer(bool bInUseNames)
 	: bUseNameMap(bInUseNames)
@@ -1806,18 +1819,22 @@ TArray<FString> FRigVMMemoryContainer::GetRegisterValueAsString(const FRigVMOper
 	return DefaultValues;
 }
 
-const FRigVMRegisterOffset FRigVMMemoryContainer::GetRegisterOffsetForOperand(const FRigVMOperand& InOperand) const
+const FRigVMRegisterOffset& FRigVMMemoryContainer::GetRegisterOffset(int32 InRegisterOffsetIndex) const
+{
+	if (RegisterOffsets.IsValidIndex(InRegisterOffsetIndex))
+	{
+		return RegisterOffsets[InRegisterOffsetIndex];
+	}
+
+	return InvalidRegisterOffset;
+}
+
+const FRigVMRegisterOffset& FRigVMMemoryContainer::GetRegisterOffsetForOperand(const FRigVMOperand& InOperand) const
 {
 	ensure(InOperand.GetMemoryType() == MemoryType || 
 		(InOperand.GetMemoryType() == ERigVMMemoryType::External && MemoryType == ERigVMMemoryType::Work));
-
-	int32 RegisterOffsetIndex = InOperand.GetRegisterOffset();
-	if (RegisterOffsets.IsValidIndex(RegisterOffsetIndex))
-	{
-		return RegisterOffsets[RegisterOffsetIndex];
-	}
-
-	return FRigVMRegisterOffset();
+	
+	return GetRegisterOffset(InOperand.GetRegisterOffset());
 }
 
 void FRigVMMemoryContainer::UpdateRegisters()
