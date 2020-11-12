@@ -182,8 +182,8 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 				RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex + SampleOffset * 16);
 				float ReflectionMaxNormalBias = 0.05;
 				uint ReflectedShadowsType = 2;
-				bool bShouldDoDirectLighting = false;
-				bool bShouldDoEmissiveAndIndirectLighting = true;
+				bool bShouldDoDirectLighting = true;
+				bool bShouldDoEmissiveAndIndirectLighting = false;
 				bool bTopLayerRayTraceSkyLightContribution = false;
 				bool bDecoupleSampleGeneration = false;
 
