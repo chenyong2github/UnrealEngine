@@ -76,7 +76,7 @@ private:
 	TSet<TWeakObjectPtr<UStaticMesh>> RegisteredStaticMesh;
 	void FinishCompilationsForGame();
 	void Reschedule();
-	void ProcessStaticMeshes(int32 MinBatchSize = 1);
+	void ProcessStaticMeshes(bool bLimitExecutionTime, int32 MinBatchSize = 1);
 	void UpdateCompilationNotification();
 	void PostStaticMeshesCompilation(const TSet<UStaticMesh*>& InStaticMeshes);
 	void FinishStaticMeshCompilation(UStaticMesh* StaticMesh);
