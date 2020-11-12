@@ -299,11 +299,12 @@ namespace AbcImporterUtilities
 	void PropogateMatrixTransformationToSample(FAbcMeshSample* Sample, const FMatrix& Matrix);
 
 	/** Generates the delta frame data for the given average and frame vertex data */
-	void GenerateDeltaFrameDataMatrix(const TArray<FVector>& FrameVertexData, const TArray<FVector>& AverageVertexData, const int32 SampleIndexOffset,
-		const int32 AverageVertexOffset, const FVector& SamplePositionOffset, TArray<float>& OutGeneratedMatrix);
+	void GenerateDeltaFrameDataMatrix(const TArray<FVector>& FrameVertexData, const TArray<FVector>& FrameNormalData, const TArray<FVector>& AverageVertexData, const TArray<FVector>& AverageNormalData,
+		const int32 SampleIndex, const int32 AverageVertexOffset, const int32 AverageIndexOffset, const FVector& SamplePositionOffset, TArray<float>& OutGeneratedMatrix, TArray<float>& OutGeneratedNormalsMatrix);
 
 	/** Populates compressed data structure from the result PCA compression bases and weights */
-	void GenerateCompressedMeshData(FCompressedAbcData& CompressedData, const uint32 NumUsedSingularValues, const uint32 NumSamples, const TArrayView<float>& BasesMatrix, const TArray<float>& BasesWeights, const float SampleTimeStep, const float StartTime);
+	void GenerateCompressedMeshData(FCompressedAbcData& CompressedData, const uint32 NumUsedSingularValues, const uint32 NumSamples,
+		const TArrayView<float>& BasesMatrix, const TArrayView<float>& NormalsBasesMatrix, const TArray<float>& BasesWeights, const float SampleTimeStep, const float StartTime);
 
 	void CalculateNewStartAndEndFrameIndices(const float FrameStepRatio, int32& InOutStartFrameIndex, int32& InOutEndFrameIndex );
 

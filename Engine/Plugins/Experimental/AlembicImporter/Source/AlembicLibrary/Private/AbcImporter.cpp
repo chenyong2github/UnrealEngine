@@ -538,34 +538,14 @@ UGeometryCache* FAbcImporter::ImportAsGeometryCache(UObject* InParent, EObjectFl
 TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFlags Flags)
 {
 	// First compress the animation data
-	const bool bCompressionResult = CompressAnimationDataUsingPCA(ImportSettings->CompressionSettings, true);
+	const bool bRunComparison = false;
+	const bool bCompressionResult = CompressAnimationDataUsingPCA(ImportSettings->CompressionSettings, bRunComparison);
 
 	TArray<UObject*> GeneratedObjects;
 
 	if (!bCompressionResult)
 	{
 		return GeneratedObjects;
-	}
-
-	// Enforce to compute normals and tangents for the average sample which forms the base of the skeletal mesh
-	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
-	for (const FCompressedAbcData& CompressedData : CompressedMeshData)
-	{
-		FAbcMeshSample* AverageSample = CompressedData.AverageSample;
-		if (ImportSettings->NormalGenerationSettings.bForceOneSmoothingGroupPerObject)
-		{
-			// Set smoothing group indices and calculate smooth normals
-			AverageSample->SmoothingGroupIndices.Empty(AverageSample->Indices.Num() / 3);
-			AverageSample->SmoothingGroupIndices.AddZeroed(AverageSample->Indices.Num() / 3);
-			AverageSample->NumSmoothingGroups = 1;
-			AbcImporterUtilities::CalculateSmoothNormals(AverageSample);
-		}
-		else
-		{
-			AbcImporterUtilities::CalculateNormals(AverageSample);
-			AbcImporterUtilities::GenerateSmoothingGroupsIndices(AverageSample, ImportSettings->NormalGenerationSettings.HardEdgeAngleThreshold);
-			AbcImporterUtilities::CalculateNormalsWithSmoothingGroups(AverageSample, AverageSample->SmoothingGroupIndices, AverageSample->NumSmoothingGroups);
-		}
 	}
 
 	// Create a Skeletal mesh instance 
@@ -678,8 +658,6 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 					for (int32 BaseIndex = 0; BaseIndex < NumBases; ++BaseIndex)
 					{
 						FAbcMeshSample* BaseSample = CompressedData.BaseSamples[BaseIndex];
-
-						AbcImporterUtilities::CalculateNormalsWithSmoothingGroups(BaseSample, AverageSample->SmoothingGroupIndices, AverageSample->NumSmoothingGroups);
 
 						// Create new morph target with name based on object and base index
 						UMorphTarget* MorphTarget = NewObject<UMorphTarget>(SkeletalMesh, FName(*FString::Printf(TEXT("Base_%i_%i"), BaseIndex, ObjectIndex)));
@@ -853,39 +831,50 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 			// Merged path
 			const uint32 FrameZeroIndex = 0;
 			TArray<FVector> AverageVertexData;
+			TArray<FVector> AverageNormalData;
 
 			float MinTime = FLT_MAX;
 			float MaxTime = -FLT_MAX;
 			int32 NumSamples = 0;
 
 			TArray<uint32> ObjectVertexOffsets;
-			TFunction<void(int32, FAbcFile*)> MergedMeshesFunc = [this, PolyMeshesToCompress, &MinTime, &MaxTime, &NumSamples, &ObjectVertexOffsets, &AverageVertexData, NumPolyMeshesToCompress](int32 FrameIndex, FAbcFile* InFile)
-			{
-				for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
+			TArray<uint32> ObjectIndexOffsets;
+			TFunction<void(int32, FAbcFile*)> MergedMeshesFunc =
+				[this, PolyMeshesToCompress, &MinTime, &MaxTime, &NumSamples, &ObjectVertexOffsets, &ObjectIndexOffsets, &AverageVertexData, &AverageNormalData, NumPolyMeshesToCompress]
+				(int32 FrameIndex, FAbcFile* InFile)
 				{
-					FAbcPolyMesh* PolyMesh = PolyMeshesToCompress[MeshIndex];
-
-					MinTime = FMath::Min(MinTime, (float)PolyMesh->GetTimeForFrameIndex(FrameIndex) - AbcFile->GetImportTimeOffset());
-					MaxTime = FMath::Max(MaxTime, (float)PolyMesh->GetTimeForFrameIndex(FrameIndex) - AbcFile->GetImportTimeOffset());
-
-					if (ObjectVertexOffsets.Num() != NumPolyMeshesToCompress)
+					for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
 					{
-						ObjectVertexOffsets.Add(AverageVertexData.Num());
-						AverageVertexData.Append(PolyMesh->GetSample(FrameIndex)->Vertices);
-					}
-					else
-					{
-						for (int32 VertexIndex = 0; VertexIndex < PolyMesh->GetSample(FrameIndex)->Vertices.Num(); ++VertexIndex)
+						FAbcPolyMesh* PolyMesh = PolyMeshesToCompress[MeshIndex];
+
+						MinTime = FMath::Min(MinTime, (float)PolyMesh->GetTimeForFrameIndex(FrameIndex) - AbcFile->GetImportTimeOffset());
+						MaxTime = FMath::Max(MaxTime, (float)PolyMesh->GetTimeForFrameIndex(FrameIndex) - AbcFile->GetImportTimeOffset());
+
+						if (ObjectVertexOffsets.Num() != NumPolyMeshesToCompress)
 						{
-							AverageVertexData[VertexIndex + ObjectVertexOffsets[MeshIndex]] += PolyMesh->GetSample(FrameIndex)->Vertices[VertexIndex];
+							ObjectVertexOffsets.Add(AverageVertexData.Num());
+							ObjectIndexOffsets.Add(AverageNormalData.Num());
+							AverageVertexData.Append(PolyMesh->GetSample(FrameIndex)->Vertices);
+							AverageNormalData.Append(PolyMesh->GetSample(FrameIndex)->Normals);
+						}
+						else
+						{
+							for (int32 VertexIndex = 0; VertexIndex < PolyMesh->GetSample(FrameIndex)->Vertices.Num(); ++VertexIndex)
+							{
+								AverageVertexData[VertexIndex + ObjectVertexOffsets[MeshIndex]] += PolyMesh->GetSample(FrameIndex)->Vertices[VertexIndex];
+							}
+
+							for (int32 Index = 0; Index < PolyMesh->GetSample(FrameIndex)->Indices.Num(); ++Index)
+							{
+								AverageNormalData[Index + ObjectIndexOffsets[MeshIndex]] += PolyMesh->GetSample(FrameIndex)->Normals[Index];
+							}
 						}
 					}
-				}
 
-				++NumSamples;
-			};
+					++NumSamples;
+				};
 
-			EFrameReadFlags Flags = EFrameReadFlags::PositionOnly;
+			EFrameReadFlags Flags = EFrameReadFlags::PositionAndNormalOnly;
 			if (ImportSettings->CompressionSettings.bBakeMatrixAnimation)
 			{
 				Flags |= EFrameReadFlags::ApplyMatrix;
@@ -903,6 +892,10 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 			}
 			const FVector AverageSampleCenter = AverageBoundingBox.GetCenter();
 
+			for (FVector& Normal : AverageNormalData)
+			{
+				Normal = Normal.GetSafeNormal();
+			}
 
 			// Allocate compressed mesh data object
 			CompressedMeshData.AddDefaulted();
@@ -928,9 +921,14 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 
 			const uint32 NumVertices = AverageVertexData.Num();
 			const uint32 NumMatrixRows = NumVertices * 3;
+			const uint32 NumIndices = AverageNormalData.Num();
+			const uint32 NumNormalsMatrixRows = NumIndices * 3;
 
 			TArray<float> OriginalMatrix;
 			OriginalMatrix.AddZeroed(NumMatrixRows * NumSamples);
+
+			TArray<float> OriginalNormalsMatrix;
+			OriginalNormalsMatrix.AddZeroed(NumNormalsMatrixRows * NumSamples);
 
 			if (bEnableSamplesOffsets)
 			{
@@ -940,25 +938,26 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 
 			uint32 GenerateMatrixSampleIndex = 0;
 			TFunction<void(int32, FAbcFile*)> GenerateMatrixFunc =
-				[this, PolyMeshesToCompress, NumPolyMeshesToCompress, &OriginalMatrix, &AverageVertexData, &NumSamples, &ObjectVertexOffsets, &GenerateMatrixSampleIndex, NumMatrixRows, &AverageSampleCenter]
+				[this, PolyMeshesToCompress, NumPolyMeshesToCompress, &OriginalMatrix, &OriginalNormalsMatrix, &AverageVertexData, &AverageNormalData, &NumSamples,
+					&ObjectVertexOffsets, &ObjectIndexOffsets, &GenerateMatrixSampleIndex, &AverageSampleCenter]
 				(int32 FrameIndex, FAbcFile* InFile)
 				{
-					FBox BoundingBox(ForceInit);
-
-					// For each object generate the delta frame data for the PCA compression
-					for (FAbcPolyMesh* PolyMesh : PolyMeshesToCompress)
-					{
-						const TArray<FVector>& Vertices = PolyMesh->GetSample(FrameIndex)->Vertices;
-
-						for ( const FVector& Vertex : Vertices )
-						{
-							BoundingBox += Vertex;
-						}
-					}
-
 					FVector SampleOffset = FVector::ZeroVector;
 					if (SamplesOffsets.IsSet())
 					{
+						FBox BoundingBox(ForceInit);
+
+						// For each object generate the delta frame data for the PCA compression
+						for (FAbcPolyMesh* PolyMesh : PolyMeshesToCompress)
+						{
+							const TArray<FVector>& Vertices = PolyMesh->GetSample(FrameIndex)->Vertices;
+
+							for ( const FVector& Vertex : Vertices )
+							{
+								BoundingBox += Vertex;
+							}
+						}
+
 						SampleOffset = BoundingBox.GetCenter() - AverageSampleCenter;
 						SamplesOffsets.GetValue()[GenerateMatrixSampleIndex] = SampleOffset;
 					}
@@ -967,8 +966,11 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 					for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
 					{
 						FAbcPolyMesh* PolyMesh = PolyMeshesToCompress[MeshIndex];
-						AbcImporterUtilities::GenerateDeltaFrameDataMatrix(PolyMesh->GetSample(FrameIndex)->Vertices, AverageVertexData, GenerateMatrixSampleIndex * NumMatrixRows,
-							ObjectVertexOffsets[MeshIndex], SampleOffset, OriginalMatrix);
+						const TArray<FVector>& Vertices = PolyMesh->GetSample(FrameIndex)->Vertices;
+						const TArray<FVector>& Normals = PolyMesh->GetSample(FrameIndex)->Normals;
+
+						AbcImporterUtilities::GenerateDeltaFrameDataMatrix(Vertices, Normals, AverageVertexData, AverageNormalData, GenerateMatrixSampleIndex,
+							ObjectVertexOffsets[MeshIndex], ObjectIndexOffsets[MeshIndex], SampleOffset, OriginalMatrix, OriginalNormalsMatrix);
 					}
 
 					++GenerateMatrixSampleIndex;
@@ -977,14 +979,19 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 			AbcFile->ProcessFrames(GenerateMatrixFunc, Flags);
 
 			// Perform compression
-			TArray<float> OutU, OutV;
+			TArray<float> OutU, OutV, OutNormalsU;
 			TArrayView<float> BasesMatrix;
+			TArrayView<float> NormalsBasesMatrix;
 			uint32 NumUsedSingularValues = NumSamples;
 
 			if (InCompressionSettings.BaseCalculationType != EBaseCalculationType::NoCompression)
 			{
-				NumUsedSingularValues = PerformSVDCompression(OriginalMatrix, NumMatrixRows, NumSamples, OutU, OutV, InCompressionSettings.BaseCalculationType == EBaseCalculationType::PercentageBased ? InCompressionSettings.PercentageOfTotalBases / 100.0f : 100.0f, InCompressionSettings.BaseCalculationType == EBaseCalculationType::FixedNumber ? InCompressionSettings.MaxNumberOfBases : 0);
+				const float PercentageOfTotalBases = (InCompressionSettings.BaseCalculationType == EBaseCalculationType::PercentageBased ? InCompressionSettings.PercentageOfTotalBases / 100.0f : 1.0f);
+				const int32 NumberOfBases = InCompressionSettings.BaseCalculationType == EBaseCalculationType::FixedNumber ? InCompressionSettings.MaxNumberOfBases : 0;
+
+				NumUsedSingularValues = PerformSVDCompression(OriginalMatrix, OriginalNormalsMatrix, NumSamples, PercentageOfTotalBases, NumberOfBases, OutU, OutNormalsU, OutV);
 				BasesMatrix = OutU;
+				NormalsBasesMatrix= OutNormalsU;
 			}
 			else
 			{
@@ -1006,18 +1013,21 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 				}
 
 				BasesMatrix = OriginalMatrix;
+				NormalsBasesMatrix = OriginalNormalsMatrix;
 			}
 
 			// Set up average frame 
 			CompressedData.AverageSample = new FAbcMeshSample(MergedZeroFrameSample);
 			FMemory::Memcpy(CompressedData.AverageSample->Vertices.GetData(), AverageVertexData.GetData(), sizeof(FVector) * NumVertices);
+			FMemory::Memcpy(CompressedData.AverageSample->Normals.GetData(), AverageNormalData.GetData(), sizeof(FVector) * NumIndices);
 
 			const float FrameStep = (MaxTime - MinTime) / (float)(NumSamples - 1);
-			AbcImporterUtilities::GenerateCompressedMeshData(CompressedData, NumUsedSingularValues, NumSamples, BasesMatrix, OutV, FrameStep, FMath::Max(MinTime, 0.0f));
+			AbcImporterUtilities::GenerateCompressedMeshData(CompressedData, NumUsedSingularValues, NumSamples, BasesMatrix, OriginalNormalsMatrix, OutV, FrameStep, FMath::Max(MinTime, 0.0f));
 
 			if (bRunComparison)
 			{
-				CompareCompressionResult(OriginalMatrix, NumSamples, NumMatrixRows, NumUsedSingularValues, NumVertices, BasesMatrix, OutV, AverageVertexData);
+				CompareCompressionResult(OriginalMatrix, NumSamples, NumUsedSingularValues, BasesMatrix, OutV, THRESH_POINTS_ARE_SAME);
+				CompareCompressionResult(OriginalNormalsMatrix, NumSamples, NumUsedSingularValues, NormalsBasesMatrix, OutV, THRESH_NORMALS_ARE_SAME);
 			}
 		}
 		else
@@ -1025,25 +1035,32 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 			TArray<float> MinTimes;
 			TArray<float> MaxTimes;
 			TArray<TArray<FVector>> AverageVertexData;
+			TArray<TArray<FVector>> AverageNormalData;
 
-			AverageVertexData.AddDefaulted(NumPolyMeshesToCompress);
 			MinTimes.AddZeroed(NumPolyMeshesToCompress);
 			MaxTimes.AddZeroed(NumPolyMeshesToCompress);
+			AverageVertexData.AddDefaulted(NumPolyMeshesToCompress);
+			AverageNormalData.AddDefaulted(NumPolyMeshesToCompress);
+			
 			
 			int32 NumSamples = 0;
-			TFunction<void(int32, FAbcFile*)> IndividualMeshesFunc = [this, NumPolyMeshesToCompress, &PolyMeshesToCompress, &MinTimes, &MaxTimes, &NumSamples, &AverageVertexData](int32 FrameIndex, FAbcFile* InFile)
+			TFunction<void(int32, FAbcFile*)> IndividualMeshesFunc =
+				[this, NumPolyMeshesToCompress, &PolyMeshesToCompress, &MinTimes, &MaxTimes, &NumSamples, &AverageVertexData, &AverageNormalData]
+				(int32 FrameIndex, FAbcFile* InFile)
 			{
 				// Each individual object creates a compressed data object
 				for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
 				{
 					FAbcPolyMesh* PolyMesh = PolyMeshesToCompress[MeshIndex];
 					TArray<FVector>& AverageVertices = AverageVertexData[MeshIndex];
+					TArray<FVector>& AverageNormals = AverageNormalData[MeshIndex];
 
 					if (AverageVertices.Num() == 0)
 					{
 						MinTimes[MeshIndex] = FLT_MAX;
 						MaxTimes[MeshIndex] = -FLT_MAX;
 						AverageVertices.Append(PolyMesh->GetSample(FrameIndex)->Vertices);
+						AverageNormals.Append(PolyMesh->GetSample(FrameIndex)->Normals);
 					}
 					else
 					{
@@ -1052,16 +1069,31 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 						{
 							AverageVertices[VertexIndex] += CurrentVertices[VertexIndex];
 						}
+
+						for (int32 Index = 0; Index < PolyMesh->GetSample(FrameIndex)->Indices.Num(); ++Index)
+						{
+							AverageNormals[Index] += PolyMesh->GetSample(FrameIndex)->Normals[Index];
+						}
 					}
 
 					MinTimes[MeshIndex] = FMath::Min(MinTimes[MeshIndex], (float)PolyMesh->GetTimeForFrameIndex(FrameIndex) - AbcFile->GetImportTimeOffset());
 					MaxTimes[MeshIndex] = FMath::Max(MaxTimes[MeshIndex], (float)PolyMesh->GetTimeForFrameIndex(FrameIndex) - AbcFile->GetImportTimeOffset());
 				}
 
+				for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
+				{
+					TArray<FVector>& AverageNormals = AverageNormalData[MeshIndex];
+
+					for (FVector& AverageNormal : AverageNormals)
+					{
+						AverageNormal = AverageNormal.GetSafeNormal();
+					}
+				}
+
 				++NumSamples;
 			};
 
-			EFrameReadFlags Flags = EFrameReadFlags::PositionOnly;
+			EFrameReadFlags Flags = EFrameReadFlags::PositionAndNormalOnly;
 			if (ImportSettings->CompressionSettings.bBakeMatrixAnimation)
 			{
 				Flags |= EFrameReadFlags::ApplyMatrix;
@@ -1084,10 +1116,20 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 
 
 			TArray<TArray<float>> Matrices;
+			TArray<TArray<float>> NormalsMatrices;
 			for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
 			{
 				Matrices.AddDefaulted();
 				Matrices[MeshIndex].AddZeroed(AverageVertexData[MeshIndex].Num() * 3 * NumSamples);
+
+				NormalsMatrices.AddDefaulted();
+				NormalsMatrices[MeshIndex].AddZeroed(AverageNormalData[MeshIndex].Num() * 3 * NumSamples);
+			}
+
+			if (bEnableSamplesOffsets)
+			{
+				SamplesOffsets.Emplace();
+				SamplesOffsets.GetValue().AddDefaulted(NumSamples);
 			}
 
 			if (bEnableSamplesOffsets)
@@ -1098,7 +1140,7 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 
 			uint32 GenerateMatrixSampleIndex = 0;
 			TFunction<void(int32, FAbcFile*)> GenerateMatrixFunc =
-				[this, NumPolyMeshesToCompress, &Matrices, &GenerateMatrixSampleIndex, &PolyMeshesToCompress, &AverageVertexData, &AverageSampleCenter]
+				[this, NumPolyMeshesToCompress, &Matrices, &NormalsMatrices, &GenerateMatrixSampleIndex, &PolyMeshesToCompress, &AverageVertexData, &AverageNormalData, &AverageSampleCenter]
 				(int32 FrameIndex, FAbcFile* InFile)
 				{
 					// Compute on bounding box for the sample, which will include all the meshes
@@ -1107,6 +1149,8 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 					for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
 					{
 						FAbcPolyMesh* PolyMesh = PolyMeshesToCompress[MeshIndex];
+						const uint32 NumMatrixRows = AverageVertexData[MeshIndex].Num() * 3;
+
 						const TArray<FVector>& Vertices = PolyMesh->GetSample(FrameIndex)->Vertices;
 
 						for ( const FVector& Vector : Vertices )
@@ -1127,8 +1171,14 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 					{
 						FAbcPolyMesh* PolyMesh = PolyMeshesToCompress[MeshIndex];
 						const uint32 NumMatrixRows = AverageVertexData[MeshIndex].Num() * 3;
-						AbcImporterUtilities::GenerateDeltaFrameDataMatrix(PolyMesh->GetSample(FrameIndex)->Vertices, AverageVertexData[MeshIndex], GenerateMatrixSampleIndex * NumMatrixRows, 0,
-							SampleOffset, Matrices[MeshIndex]);
+						const TArray<FVector>& CurrentVertices = PolyMesh->GetSample(FrameIndex)->Vertices;
+						const TArray<FVector>& CurrentNormals = PolyMesh->GetSample(FrameIndex)->Normals;
+
+						const int32 AverageVertexOffset = 0;
+						const int32 AverageIndexOffset = 0;
+
+						AbcImporterUtilities::GenerateDeltaFrameDataMatrix(CurrentVertices, CurrentNormals, AverageVertexData[MeshIndex], AverageNormalData[MeshIndex],
+							GenerateMatrixSampleIndex, AverageVertexOffset, AverageIndexOffset, SampleOffset, Matrices[MeshIndex], NormalsMatrices[MeshIndex]);
 					}
 
 					++GenerateMatrixSampleIndex;
@@ -1139,10 +1189,12 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 			for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
 			{
 				// Perform compression
-				TArray<float> OutU, OutV;
+				TArray<float> OutU, OutV, OutNormalsU;
 				TArrayView<float> BasesMatrix;
+				TArrayView<float> NormalsBasesMatrix;
 
 				const int32 NumVertices = AverageVertexData[MeshIndex].Num();
+				const int32 NumIndices = AverageNormalData[MeshIndex].Num();
 				const int32 NumMatrixRows = NumVertices * 3;
 				uint32 NumUsedSingularValues = NumSamples;
 
@@ -1151,11 +1203,16 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 				FCompressedAbcData& CompressedData = CompressedMeshData.Last();
 				CompressedData.AverageSample = new FAbcMeshSample(*PolyMeshesToCompress[MeshIndex]->GetTransformedFirstSample());
 				FMemory::Memcpy(CompressedData.AverageSample->Vertices.GetData(), AverageVertexData[MeshIndex].GetData(), sizeof(FVector) * NumVertices);
+				FMemory::Memcpy(CompressedData.AverageSample->Normals.GetData(), AverageNormalData[MeshIndex].GetData(), sizeof(FVector) * NumIndices);
 
 				if ( InCompressionSettings.BaseCalculationType != EBaseCalculationType::NoCompression )
 				{
-					NumUsedSingularValues = PerformSVDCompression(Matrices[MeshIndex], NumMatrixRows, NumSamples, OutU, OutV, InCompressionSettings.BaseCalculationType == EBaseCalculationType::PercentageBased ? InCompressionSettings.PercentageOfTotalBases / 100.0f : 100.0f, InCompressionSettings.BaseCalculationType == EBaseCalculationType::FixedNumber ? InCompressionSettings.MaxNumberOfBases : 0);
+					const float PercentageBases = InCompressionSettings.BaseCalculationType == EBaseCalculationType::PercentageBased ? InCompressionSettings.PercentageOfTotalBases / 100.0f : 1.0f;
+					const int32 NumBases = InCompressionSettings.BaseCalculationType == EBaseCalculationType::FixedNumber ? InCompressionSettings.MaxNumberOfBases : 0;
+
+					NumUsedSingularValues = PerformSVDCompression(Matrices[MeshIndex], NormalsMatrices[MeshIndex], NumSamples, PercentageBases, NumBases, OutU, OutNormalsU, OutV);
 					BasesMatrix = OutU;
+					NormalsBasesMatrix = OutNormalsU;
 				}
 				else
 				{
@@ -1177,10 +1234,11 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 					}
 
 					BasesMatrix = Matrices[MeshIndex];
+					NormalsBasesMatrix = NormalsMatrices[MeshIndex];
 				}
 
 				const float FrameStep = (MaxTimes[MeshIndex] - MinTimes[MeshIndex]) / (float)(NumSamples - 1);
-				AbcImporterUtilities::GenerateCompressedMeshData(CompressedData, NumUsedSingularValues, NumSamples, BasesMatrix, OutV, FrameStep, FMath::Max(MinTimes[MeshIndex], 0.0f));
+				AbcImporterUtilities::GenerateCompressedMeshData(CompressedData, NumUsedSingularValues, NumSamples, BasesMatrix, NormalsBasesMatrix, OutV, FrameStep, FMath::Max(MinTimes[MeshIndex], 0.0f));
 
 				// QQ FUNCTIONALIZE
 				// Add material names from this mesh object
@@ -1196,18 +1254,17 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 
 				if (bRunComparison)
 				{
-					CompareCompressionResult(Matrices[MeshIndex], NumSamples, NumMatrixRows, NumUsedSingularValues, NumVertices, BasesMatrix, OutV, AverageVertexData[MeshIndex]);
+					CompareCompressionResult(Matrices[MeshIndex], NumSamples, NumUsedSingularValues, BasesMatrix, OutV, THRESH_POINTS_ARE_SAME);
+					CompareCompressionResult(NormalsMatrices[MeshIndex], NumSamples, NumUsedSingularValues, NormalsBasesMatrix, OutV, THRESH_NORMALS_ARE_SAME);
 				}
 			}
 		}
-		
 	}
 	else
 	{
 		bResult = ConstantPolyMeshObjects.Num() > 0;
 		TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(bResult ? EMessageSeverity::Warning : EMessageSeverity::Error, LOCTEXT("NoMeshesToProcess", "Unable to compress animation data, no meshes (with constant topology) found with Vertex Animation and baked Matrix Animation is turned off."));
 		FAbcImportLogger::AddImportMessage(Message);
-		
 	}
 
 	// Process the constant meshes by only adding them as average samples (without any bases/morphtargets to add as well)
@@ -1242,10 +1299,15 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 	return bResult;
 }
 
-void FAbcImporter::CompareCompressionResult(const TArray<float>& OriginalMatrix, const uint32 NumSamples, const uint32 NumRows, const uint32 NumUsedSingularValues, const uint32 NumVertices, const TArrayView<float>& OutU, const TArray<float>& OutV, const TArray<FVector>& AverageFrame)
+void FAbcImporter::CompareCompressionResult(const TArray<float>& OriginalMatrix, const uint32 NumSamples, const uint32 NumUsedSingularValues, const TArrayView<float>& OutU, const TArray<float>& OutV, const float Tolerance)
 {
-	// TODO NEED FEEDBACK FOR USER ON COMPRESSION RESULTS
-#if 0
+	if (NumSamples == 0)
+	{
+		return;
+	}
+
+	const uint32 NumRows = OriginalMatrix.Num() / NumSamples;
+
 	TArray<float> ComparisonMatrix;
 	ComparisonMatrix.AddZeroed(OriginalMatrix.Num());
 	for (uint32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
@@ -1254,59 +1316,26 @@ void FAbcImporter::CompareCompressionResult(const TArray<float>& OriginalMatrix,
 		const int32 CurveOffset = (SampleIndex * NumUsedSingularValues);
 		for (uint32 BaseIndex = 0; BaseIndex < NumUsedSingularValues; ++BaseIndex)
 		{
-			const int32 BaseOffset = (BaseIndex * NumVertices * 3);
-			for (uint32 VertexIndex = 0; VertexIndex < NumVertices; VertexIndex++)
+			const int32 BaseOffset = (BaseIndex * NumRows);
+			for (uint32 RowIndex = 0; RowIndex < NumRows; RowIndex++)
 			{
-				const int32 VertexOffset = (VertexIndex * 3);
-				ComparisonMatrix[VertexOffset + SampleOffset + 0] += OutU[BaseOffset + VertexOffset + 0] * OutV[BaseIndex + CurveOffset];
-				ComparisonMatrix[VertexOffset + SampleOffset + 1] += OutU[BaseOffset + VertexOffset + 1] * OutV[BaseIndex + CurveOffset];
-				ComparisonMatrix[VertexOffset + SampleOffset + 2] += OutU[BaseOffset + VertexOffset + 2] * OutV[BaseIndex + CurveOffset];
+				ComparisonMatrix[RowIndex + SampleOffset] += OutU[RowIndex + BaseOffset] * OutV[BaseIndex + CurveOffset];
 			}
 		}
 	}
 
-	Eigen::MatrixXf EigenOriginalMatrix;
-	EigenHelpers::ConvertArrayToEigenMatrix(OriginalMatrix, NumRows, NumSamples, EigenOriginalMatrix);
-
-	Eigen::MatrixXf EigenComparisonMatrix;
-	EigenHelpers::ConvertArrayToEigenMatrix(ComparisonMatrix, NumRows, NumSamples, EigenComparisonMatrix);
-
-	TArray<float> AverageMatrix;
-	AverageMatrix.AddZeroed(NumRows * NumSamples);
-	
-	
-	for (int32 Index = 0; Index < AverageFrame.Num(); Index++ )
-	{
-		const FVector& Vector = AverageFrame[Index];
-		for (uint32 i = 0; i < NumSamples; ++i)
-		{
-			const uint32 IndexOffset = (Index * 3) + (i * NumRows);
-			AverageMatrix[IndexOffset + 0] = Vector.X;
-			AverageMatrix[IndexOffset + 1] = Vector.Y;
-			AverageMatrix[IndexOffset + 2] = Vector.Z;
-		}		
-	}
-
-	Eigen::MatrixXf EigenAverageMatrix;
-	EigenHelpers::ConvertArrayToEigenMatrix(AverageMatrix, NumRows, NumSamples, EigenAverageMatrix);
-
-	Eigen::MatrixXf One = (EigenOriginalMatrix - EigenComparisonMatrix);
-	Eigen::MatrixXf Two = (EigenOriginalMatrix - EigenAverageMatrix);
-
-	const float LengthOne = One.squaredNorm();
-	const float LengthTwo = Two.squaredNorm();
-	const float Distortion = (LengthOne / LengthTwo) * 100.0f;
-
 	// Compare arrays
 	for (int32 i = 0; i < ComparisonMatrix.Num(); ++i)
 	{
-		ensureMsgf(FMath::IsNearlyEqual(OriginalMatrix[i], ComparisonMatrix[i]), TEXT("Difference of %2.10f found"), FMath::Abs(OriginalMatrix[i] - ComparisonMatrix[i]));
+		ensureMsgf(FMath::IsNearlyEqual(OriginalMatrix[i], ComparisonMatrix[i], Tolerance), TEXT("Difference of %2.10f found"), FMath::Abs(OriginalMatrix[i] - ComparisonMatrix[i]));
 	}
-#endif 
 }
 
-const int32 FAbcImporter::PerformSVDCompression(TArray<float>& OriginalMatrix, const uint32 NumRows, const uint32 NumSamples, TArray<float>& OutU, TArray<float>& OutV, const float InPercentage, const int32 InFixedNumValue)
+const int32 FAbcImporter::PerformSVDCompression(const TArray<float>& OriginalMatrix, const TArray<float>& OriginalNormalsMatrix, const uint32 NumSamples, const float InPercentage, const int32 InFixedNumValue,
+	TArray<float>& OutU, TArray<float>& OutNormalsU, TArray<float>& OutV)
 {
+	const int32 NumRows = OriginalMatrix.Num() / NumSamples;
+
 	TArray<float> OutS;
 	EigenHelpers::PerformSVD(OriginalMatrix, NumRows, NumSamples, OutU, OutV, OutS);
 
@@ -1321,11 +1350,30 @@ const int32 FAbcImporter::PerformSVDCompression(TArray<float>& OriginalMatrix, c
 		const float Multiplier = OutS[ValueIndex];
 		const int32 ValueOffset = ValueIndex * NumRows;
 
-		for (uint32 RowIndex = 0; RowIndex < NumRows; ++RowIndex)
+		for (int32 RowIndex = 0; RowIndex < NumRows; ++RowIndex)
 		{
 			OutU[ValueOffset + RowIndex] *= Multiplier;
 		}
 	});
+
+	// Project OriginalNormalsMatrix on OutV to deduce OutNormalsU
+	// 
+	// OriginalNormalsMatrix * OutV.transpose() = OutNormalsU
+	//
+	// This takes into account that OutNormalsU should be already scaled by what would be OutNormalsS, just like OutU is scaled by OutS
+
+	const int32 NormalsNumRows = OriginalNormalsMatrix.Num() / NumSamples;
+
+	Eigen::MatrixXf NormalsMatrix;
+	EigenHelpers::ConvertArrayToEigenMatrix(OriginalNormalsMatrix, NormalsNumRows, NumSamples, NormalsMatrix);
+
+	Eigen::MatrixXf VMatrix;
+	EigenHelpers::ConvertArrayToEigenMatrix(OutV, NumSamples, NumSamples, VMatrix);
+
+	Eigen::MatrixXf NormalsUMatrix = NormalsMatrix * VMatrix.transpose();
+
+	uint32 OutNumColumns, OutNumRows;
+	EigenHelpers::ConvertEigenMatrixToArray(NormalsUMatrix, OutNormalsU, OutNumColumns, OutNumRows);
 
 	UE_LOG(LogAbcImporter, Log, TEXT("Decomposed animation and reconstructed with %i number of bases (full %i, percentage %f, calculated %i)"), NumUsedSingularValues, OutS.Num(), PercentageBasesUsed * 100.0f, NumUsedSingularValues);	
 	
@@ -1673,7 +1721,7 @@ void FAbcImporter::GenerateMorphTargetVertices(FAbcMeshSample* BaseSample, TArra
 		const uint32 UsedNormalIndex = RemapIndices[VertIndex] - IndexOffset;
 
 		if (UsedVertexIndex >= 0 && UsedVertexIndex < BaseSample->Vertices.Num())
-		{			
+		{
 			// Position delta
 			MorphVertex.PositionDelta = BaseSample->Vertices[UsedVertexIndex] - AverageSample->Vertices[UsedVertexIndex];
 			// Tangent delta

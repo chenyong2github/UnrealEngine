@@ -7,6 +7,7 @@
 #include "AbcImporter.h"
 #include "AbcPolyMesh.h"
 #include "AssetRegistryModule.h"
+#include "Containers/ArrayView.h"
 #include "Materials/Material.h"
 
 #if PLATFORM_WINDOWS
@@ -1186,21 +1187,38 @@ void AbcImporterUtilities::PropogateMatrixTransformationToSample(FAbcMeshSample*
 	}
 }
 
-void AbcImporterUtilities::GenerateDeltaFrameDataMatrix(const TArray<FVector>& FrameVertexData, const TArray<FVector>& AverageVertexData, const int32 SampleIndexOffset,
-	const int32 AverageVertexOffset, const FVector& SamplePositionOffset, TArray<float>& OutGeneratedMatrix)
+void AbcImporterUtilities::GenerateDeltaFrameDataMatrix(const TArray<FVector>& FrameVertexData, const TArray<FVector>& FrameNormalData, const TArray<FVector>& AverageVertexData, const TArray<FVector>& AverageNormalData,
+	const int32 SampleIndex, const int32 AverageVertexOffset, const int32 AverageIndexOffset, const FVector& SamplePositionOffset, TArray<float>& OutGeneratedMatrix, TArray<float>& OutGeneratedNormalsMatrix)
 {
 	const uint32 NumVertices = FrameVertexData.Num();
+	const uint32 VertexOffset = SampleIndex * AverageVertexData.Num() * 3;
+
 	for (uint32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 	{
 		const int32 ComponentIndexOffset = (VertexIndex + AverageVertexOffset) * 3;
 		const FVector AverageDifference = (AverageVertexData[VertexIndex + AverageVertexOffset] + SamplePositionOffset) - FrameVertexData[VertexIndex];
-		OutGeneratedMatrix[SampleIndexOffset + ComponentIndexOffset + 0] = AverageDifference.X;
-		OutGeneratedMatrix[SampleIndexOffset + ComponentIndexOffset + 1] = AverageDifference.Y;
-		OutGeneratedMatrix[SampleIndexOffset + ComponentIndexOffset + 2] = AverageDifference.Z;
+
+		OutGeneratedMatrix[VertexOffset + ComponentIndexOffset + 0] = AverageDifference.X;
+		OutGeneratedMatrix[VertexOffset + ComponentIndexOffset + 1] = AverageDifference.Y;
+		OutGeneratedMatrix[VertexOffset + ComponentIndexOffset + 2] = AverageDifference.Z;
+	}
+
+	const uint32 NumIndices = FrameNormalData.Num();
+	const uint32 IndexOffset = SampleIndex * AverageNormalData.Num() * 3;
+
+	for (uint32 Index = 0; Index < NumIndices; ++Index)
+	{
+		const int32 ComponentIndexOffset = (Index + AverageIndexOffset) * 3;
+		const FVector AverageNormal = AverageNormalData[Index + AverageIndexOffset] - FrameNormalData[Index];
+
+		OutGeneratedNormalsMatrix[IndexOffset + ComponentIndexOffset + 0] = AverageNormal.X;
+		OutGeneratedNormalsMatrix[IndexOffset + ComponentIndexOffset + 1] = AverageNormal.Y;
+		OutGeneratedNormalsMatrix[IndexOffset + ComponentIndexOffset + 2] = AverageNormal.Z;
 	}
 }
 
-void AbcImporterUtilities::GenerateCompressedMeshData(FCompressedAbcData& CompressedData, const uint32 NumUsedSingularValues, const uint32 NumSamples, const TArrayView<float>& BasesMatrix, const TArray<float>& BasesWeights, const float SampleTimeStep, const float StartTime)
+void AbcImporterUtilities::GenerateCompressedMeshData(FCompressedAbcData& CompressedData, const uint32 NumUsedSingularValues, const uint32 NumSamples,
+	const TArrayView<float>& BasesMatrix, const TArrayView<float>& NormalsBasesMatrix, const TArray<float>& BasesWeights, const float SampleTimeStep, const float StartTime)
 {
 	// Allocate base sample data	
 	CompressedData.BaseSamples.AddZeroed(NumUsedSingularValues);
@@ -1224,6 +1242,20 @@ void AbcImporterUtilities::GenerateCompressedMeshData(FCompressedAbcData& Compre
 			BaseVertex.Y -= BasesMatrix[IndexOffset + 1];
 			BaseVertex.Z -= BasesMatrix[IndexOffset + 2];
 		}
+
+		const uint32 NumIndices = Base->Indices.Num();
+		const uint32 NumNormalsMatrixRows = NumIndices * 3;
+		const int32 BaseIndexOffset = BaseIndex * NumNormalsMatrixRows;
+		for (uint32 Index = 0; Index < NumIndices; ++Index)
+		{
+			const int32 IndexOffset = BaseIndexOffset + (Index * 3);
+			FVector& BaseNormal = Base->Normals[Index];
+
+			BaseNormal.X -= NormalsBasesMatrix[IndexOffset + 0];
+			BaseNormal.Y -= NormalsBasesMatrix[IndexOffset + 1];
+			BaseNormal.Z -= NormalsBasesMatrix[IndexOffset + 2];
+		}
+
 		CompressedData.BaseSamples[BaseIndex] = Base;
 
 		TArray<float>& CurveValues = CompressedData.CurveValues[BaseIndex];
