@@ -1714,7 +1714,8 @@ void UPrimitiveComponent::ResetCustomPrimitiveData()
 	CustomPrimitiveDataInternal.Data = CustomPrimitiveData.Data;
 }
 
-void UPrimitiveComponent::SetCustomPrimitiveDataInternal(int32 DataIndex, const TArray<float>& Values)
+/** Attempt to set the primitive data and return true if successful */
+bool SetPrimitiveData(FCustomPrimitiveData& PrimitiveData, int32 DataIndex, const TArray<float>& Values)
 {
 	// Can only set data on valid indices and only if there's actually any data to set
 	if (DataIndex >= 0 && DataIndex < FCustomPrimitiveData::NumCustomPrimitiveDataFloats && Values.Num() > 0)
@@ -1726,22 +1727,41 @@ void UPrimitiveComponent::SetCustomPrimitiveDataInternal(int32 DataIndex, const 
 		const int32 NumValuesToSet = FMath::Min(Values.Num(), FCustomPrimitiveData::NumCustomPrimitiveDataFloats - DataIndex);
 
 		// If trying to set data on an index which doesn't exist yet, allocate up to it
-		if (NeededFloats > CustomPrimitiveDataInternal.Data.Num())
+		if (NeededFloats > PrimitiveData.Data.Num())
 		{
-			CustomPrimitiveDataInternal.Data.SetNumZeroed(NeededFloats);
+			PrimitiveData.Data.SetNumZeroed(NeededFloats);
 		}
 
 		// Only update data if it has changed
-		if (FMemory::Memcmp(&CustomPrimitiveDataInternal.Data[DataIndex], Values.GetData(), NumValuesToSet * sizeof(float)) != 0)
+		if (FMemory::Memcmp(&PrimitiveData.Data[DataIndex], Values.GetData(), NumValuesToSet * sizeof(float)) != 0)
 		{
-			FMemory::Memcpy(&CustomPrimitiveDataInternal.Data[DataIndex], Values.GetData(), NumValuesToSet * sizeof(float));
+			FMemory::Memcpy(&PrimitiveData.Data[DataIndex], Values.GetData(), NumValuesToSet * sizeof(float));
 
-			UWorld* World = GetWorld();
-			if (World && World->Scene)
-			{
-				World->Scene->UpdateCustomPrimitiveData(this);
-			}
+			return true;
 		}
+	}
+
+	return false;
+}
+
+void UPrimitiveComponent::SetCustomPrimitiveDataInternal(int32 DataIndex, const TArray<float>& Values)
+{
+	if (SetPrimitiveData(CustomPrimitiveDataInternal, DataIndex, Values))
+	{
+		UWorld* World = GetWorld();
+		if (World && World->Scene)
+		{
+			World->Scene->UpdateCustomPrimitiveData(this);
+		}
+	}
+}
+
+void UPrimitiveComponent::SetDefaultCustomPrimitiveData(int32 DataIndex, const TArray<float>& Values)
+{
+	if (SetPrimitiveData(CustomPrimitiveData, DataIndex, Values))
+	{
+		ResetCustomPrimitiveData();
+		MarkRenderStateDirty();
 	}
 }
 
@@ -1763,6 +1783,26 @@ void UPrimitiveComponent::SetCustomPrimitiveDataVector3(int32 DataIndex, FVector
 void UPrimitiveComponent::SetCustomPrimitiveDataVector4(int32 DataIndex, FVector4 Value)
 {
 	SetCustomPrimitiveDataInternal(DataIndex, {Value.X, Value.Y, Value.Z, Value.W});
+}
+
+void UPrimitiveComponent::SetDefaultCustomPrimitiveDataFloat(int32 DataIndex, float Value)
+{
+	SetDefaultCustomPrimitiveData(DataIndex, { Value });
+}
+
+void UPrimitiveComponent::SetDefaultCustomPrimitiveDataVector2(int32 DataIndex, FVector2D Value)
+{
+	SetDefaultCustomPrimitiveData(DataIndex, { Value.X, Value.Y });
+}
+
+void UPrimitiveComponent::SetDefaultCustomPrimitiveDataVector3(int32 DataIndex, FVector Value)
+{
+	SetDefaultCustomPrimitiveData(DataIndex, { Value.X, Value.Y, Value.Z });
+}
+
+void UPrimitiveComponent::SetDefaultCustomPrimitiveDataVector4(int32 DataIndex, FVector4 Value)
+{
+	SetDefaultCustomPrimitiveData(DataIndex, { Value.X, Value.Y, Value.Z, Value.W });
 }
 
 UMaterialInterface* UPrimitiveComponent::GetMaterialFromCollisionFaceIndex(int32 FaceIndex, int32& SectionIndex) const
