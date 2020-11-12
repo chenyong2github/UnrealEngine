@@ -684,6 +684,7 @@ void UGroomBindingAsset::CacheDerivedDatas()
 		}
 	}
 }
+#endif
 
 void UGroomBindingAsset::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {
@@ -699,5 +700,3 @@ void UGroomBindingAsset::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSi
 		}
 	}
 }
-
-#endif
