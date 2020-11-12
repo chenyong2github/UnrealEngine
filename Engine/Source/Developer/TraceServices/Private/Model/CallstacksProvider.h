@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "TraceServices/Model/Callstack.h"
@@ -9,15 +11,15 @@ namespace Trace {
 class IAnalysisSession;
 
 /////////////////////////////////////////////////////////////////////
-class FCallstacksProvider : public ICallstacksProvider 
+class FCallstacksProvider : public ICallstacksProvider
 {
 public:
 					FCallstacksProvider(IAnalysisSession& Session);
-	virtual 		~FCallstacksProvider() {}
+	virtual			~FCallstacksProvider() {}
 
-	FCallstack	 	GetCallstack(uint64 CallstackId) override;
+	FCallstack		GetCallstack(uint64 CallstackId) override;
 	void			GetCallstacks(const TArrayView<uint64>& CallstackIds, FCallstack* OutCallstacks) override;
-	void 			AddCallstack(uint64 CallstackId, const uint64* Frames, uint8 FrameCount);
+	void			AddCallstack(uint64 CallstackId, const uint64* Frames, uint8 FrameCount);
 	FName			GetName() const;
 
 private:
@@ -26,21 +28,21 @@ private:
 		uint64 CallstackLenIndex;
 	};
 
-	enum 
+	enum
 	{
 		FramesPerPage	= 65536, // 16 bytes/entry -> 1 Mb per page
 	};
 
-	enum : uint64 
+	enum : uint64
 	{
 		EntryLenMask	= 0xff00000000000000,
 		EntryLenShift	= 56,
 	};
 
 
-	FRWLock 						EntriesLock;
+	FRWLock							EntriesLock;
 	TMap<uint64, FCallstackEntry>	CallstackEntries;
-	TPagedArray<FStackFrame> 		Frames;
+	TPagedArray<FStackFrame>		Frames;
 };
 
 } // namespace Trace
