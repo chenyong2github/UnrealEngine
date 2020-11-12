@@ -898,7 +898,7 @@ void FD3D12BufferedGPUTiming::InitDynamicRHI()
 
 
 		const uint64 Size = 8ull * QueryHeapDesc.Count; // Each timestamp query occupies 8 bytes.
-		Adapter->CreateBuffer(D3D12_HEAP_TYPE_READBACK, Device->GetGPUMask(), Node, D3D12_RESOURCE_STATE_COPY_DEST, Size, TimestampQueryHeapBuffer.GetInitReference(), TEXT("FD3D12BufferedGPUTiming: Timestamp Query Result Buffer"));
+		Adapter->CreateBuffer(D3D12_HEAP_TYPE_READBACK, Device->GetGPUMask(), Node, D3D12_RESOURCE_STATE_COPY_DEST, ED3D12ResourceStateMode::Default, Size, TimestampQueryHeapBuffer.GetInitReference(), TEXT("FD3D12BufferedGPUTiming: Timestamp Query Result Buffer"));
 
 		TimestampListHandles.AddZeroed(QueryHeapDesc.Count);
 	}

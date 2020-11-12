@@ -1084,11 +1084,29 @@ void FD3D12DefaultBufferPool::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, c
 		return;
 	}
 
-#if D3D12_RHI_RAYTRACING
-	// RayTracing acceleration structures must be created in a particular state and may never transition out of it.
-	D3D12_RESOURCE_STATES InitialState = (InUsage & BUF_AccelerationStructure) ? D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE : D3D12_RESOURCE_STATE_GENERIC_READ;
-#else
 	D3D12_RESOURCE_STATES InitialState = D3D12_RESOURCE_STATE_GENERIC_READ;
+
+#if D3D12_RHI_RAYTRACING
+	if (InUsage & BUF_AccelerationStructure)
+	{
+		// RayTracing acceleration structures must be created in a particular state and may never transition out of it.
+		check(InResourceStateMode == ED3D12ResourceStateMode::SingleState);
+	}
+
+	if (InResourceStateMode == ED3D12ResourceStateMode::SingleState)
+	{
+		if (InUsage & BUF_UnorderedAccess)
+		{
+			check((InUsage & ~BUF_UnorderedAccess) == 0);
+			InitialState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+		}
+
+		if (InUsage & BUF_AccelerationStructure)
+		{
+			check((InUsage & ~BUF_AccelerationStructure) == 0);
+			InitialState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+		}
+	}
 #endif
 
 	if (InHeapType == D3D12_HEAP_TYPE_READBACK)
@@ -1145,7 +1163,7 @@ void FD3D12DefaultBufferPool::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, c
 	// Allocate Standalone
 	// Todo: track stand alone allocations and see how much memory we use by this and how many we have
 	FD3D12Resource* NewResource = nullptr;
-	VERIFYD3D12RESULT(Adapter->CreateBuffer(InHeapType, GetGPUMask(), GetVisibilityMask(), InitialState, Desc.Width, &NewResource, Name, Desc.Flags));
+	VERIFYD3D12RESULT(Adapter->CreateBuffer(InHeapType, GetGPUMask(), GetVisibilityMask(), InitialState, InResourceStateMode, Desc.Width, &NewResource, Name, Desc.Flags));
 
 	ResourceLocation.AsStandAlone(NewResource, Desc.Width);
 }
