@@ -123,7 +123,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_SRV(Buffer<float>, LineBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float>, GpuLineBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -191,7 +191,7 @@ void NiagaraDebugShaders::DrawDebugLines(
 
 	auto* PassParameters = GraphBuilder.AllocParameters<FNiagaraDebugDrawLineParameters>();
 	PassParameters->VSParameters.View = View.ViewUniformBuffer;
-	PassParameters->VSParameters.LineBuffer = LineBuffer;
+	PassParameters->VSParameters.GpuLineBuffer = LineBuffer;
 
 	PassParameters->PSParameters.RenderTargets[0] = FRenderTargetBinding(SceneColor, ERenderTargetLoadAction::ELoad);
 	PassParameters->PSParameters.RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop);
@@ -230,7 +230,7 @@ void NiagaraDebugShaders::DrawDebugLines(
 
 	auto* PassParameters = GraphBuilder.AllocParameters<FNiagaraDebugDrawLineParameters>();
 	PassParameters->VSParameters.View = View.ViewUniformBuffer;
-	PassParameters->VSParameters.LineBuffer = LineBuffer;
+	PassParameters->VSParameters.GpuLineBuffer = LineBuffer;
 
 	PassParameters->PSParameters.RenderTargets[0] = FRenderTargetBinding(SceneColor, ERenderTargetLoadAction::ELoad);
 	PassParameters->PSParameters.RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop);

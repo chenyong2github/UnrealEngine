@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 /*=============================================================================
 	NiagaraDebugDraw.ush
 	Includes for debug drawing
 =============================================================================*/
 
-void PackLine(in RWBuffer<float> OutBuffer, uint InstanceIndex, float3 InPosition0, float3 InPosition1, uint InPackedColor)
+void PackLine(inout RWBuffer<float> OutBuffer, uint InstanceIndex, float3 InPosition0, float3 InPosition1, uint InPackedColor)
 {
 	uint FloatOffset = InstanceIndex * 7;
 
@@ -20,7 +22,7 @@ void PackLine(in RWBuffer<float> OutBuffer, uint InstanceIndex, float3 InPositio
 	OutBuffer[FloatOffset + 6] = asfloat(InPackedColor);
 }
 
-void PackLine(in RWBuffer<float> OutBuffer, uint InstanceIndex, float3 InPosition0, float3 InPosition1, float4 InColor)
+void PackLine(inout RWBuffer<float> OutBuffer, uint InstanceIndex, float3 InPosition0, float3 InPosition1, float4 InColor)
 {
 	uint PackedColor = 0;
 	PackedColor  = uint(saturate(InColor.x) * 255.0f) << 24;
@@ -30,7 +32,7 @@ void PackLine(in RWBuffer<float> OutBuffer, uint InstanceIndex, float3 InPositio
 	PackLine(OutBuffer, InstanceIndex, InPosition0, InPosition1, PackedColor);
 }
 
-void UnpackLine(in Buffer<float> InBuffer, uint InstanceIndex, out float3 OutPosition0, out float3 OutPosition1, out float4 OutColor)
+void UnpackLine(inout Buffer<float> InBuffer, uint InstanceIndex, out float3 OutPosition0, out float3 OutPosition1, out float4 OutColor)
 {
 	uint FloatOffset = InstanceIndex * 7;
 
