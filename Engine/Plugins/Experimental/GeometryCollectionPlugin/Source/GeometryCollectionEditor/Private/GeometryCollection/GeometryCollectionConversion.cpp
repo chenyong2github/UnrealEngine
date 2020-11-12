@@ -406,14 +406,14 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 						// for each material, add a reference in our GeometryCollectionObject
 						int CurrIdx = 0;
 
-						UMaterialInterface *CurrMaterial = SkeletalMeshComponent ? SkeletalMeshComponent->GetMaterial(CurrIdx) : SkeletalMesh->Materials[CurrIdx].MaterialInterface;
+						UMaterialInterface *CurrMaterial = SkeletalMeshComponent ? SkeletalMeshComponent->GetMaterial(CurrIdx) : ToRawPtr(SkeletalMesh->Materials[CurrIdx].MaterialInterface);
 
 
 						int MaterialStart = GeometryCollectionObject->Materials.Num();
 						while (CurrMaterial)
 						{
 							GeometryCollectionObject->Materials.Add(CurrMaterial);
-							CurrMaterial = SkeletalMeshComponent ? SkeletalMeshComponent->GetMaterial(++CurrIdx) : SkeletalMesh->Materials[++CurrIdx].MaterialInterface;
+							CurrMaterial = SkeletalMeshComponent ? SkeletalMeshComponent->GetMaterial(++CurrIdx) : ToRawPtr(SkeletalMesh->Materials[++CurrIdx].MaterialInterface);
 
 						}
 

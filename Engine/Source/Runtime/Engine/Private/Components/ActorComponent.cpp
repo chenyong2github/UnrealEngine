@@ -1079,7 +1079,7 @@ bool UActorComponent::SetupActorComponentTickFunction(struct FTickFunction* Tick
 		AActor* MyOwner = GetOwner();
 		if (!MyOwner || !MyOwner->IsTemplate())
 		{
-			ULevel* ComponentLevel = (MyOwner ? MyOwner->GetLevel() : GetWorld()->PersistentLevel);
+			ULevel* ComponentLevel = (MyOwner ? MyOwner->GetLevel() : ToRawPtr(GetWorld()->PersistentLevel));
 			TickFunction->SetTickFunctionEnable(TickFunction->bStartWithTickEnabled || TickFunction->IsTickFunctionEnabled());
 			TickFunction->RegisterTickFunction(ComponentLevel);
 			return true;

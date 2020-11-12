@@ -35,7 +35,7 @@ namespace
 		if (GIsEditor && EEngine != nullptr && World == nullptr)
 		{
 			// lets use PlayWorld during PIE/Simulate and regular world from editor otherwise, to draw debug information
-			World = EEngine->PlayWorld != nullptr ? EEngine->PlayWorld : EEngine->GetEditorWorldContext().World();
+			World = EEngine->PlayWorld != nullptr ? ToRawPtr(EEngine->PlayWorld) : EEngine->GetEditorWorldContext().World();
 		}
 
 #endif

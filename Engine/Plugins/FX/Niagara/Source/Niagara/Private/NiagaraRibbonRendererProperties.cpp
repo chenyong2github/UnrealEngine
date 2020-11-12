@@ -137,7 +137,7 @@ void UNiagaraRibbonRendererProperties::GetUsedMaterials(const FNiagaraEmitterIns
 		MaterialInterface = Cast<UMaterialInterface>(InEmitter->FindBinding(MaterialUserParamBinding.Parameter));
 	}
 
-	OutMaterials.Add(MaterialInterface ? MaterialInterface : Material);
+	OutMaterials.Add(MaterialInterface ? MaterialInterface : ToRawPtr(Material));
 }
 
 void UNiagaraRibbonRendererProperties::PostInitProperties()

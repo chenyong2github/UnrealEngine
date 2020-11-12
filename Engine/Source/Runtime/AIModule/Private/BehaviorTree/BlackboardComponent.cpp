@@ -246,8 +246,8 @@ void UBlackboardComponent::PopulateSynchronizedKeys()
 						uint8* RawData = GetKeyRawData(KeyID) + DataOffset;
 						uint8* RawSource = OtherBlackboard->GetKeyRawData(OtherKeyID) + DataOffset;
 
-						UBlackboardKeyType* KeyOb = bKeyHasInstance ? KeyInstances[KeyID] : Key.KeyType;
-						const UBlackboardKeyType* SourceKeyOb = bKeyHasInstance ? OtherBlackboard->KeyInstances[OtherKeyID] : Key.KeyType;
+						UBlackboardKeyType* KeyOb = bKeyHasInstance ? KeyInstances[KeyID] : ToRawPtr(Key.KeyType);
+						const UBlackboardKeyType* SourceKeyOb = bKeyHasInstance ? OtherBlackboard->KeyInstances[OtherKeyID] : ToRawPtr(Key.KeyType);
 
 						KeyOb->CopyValues(*this, RawData, SourceKeyOb, RawSource);
 					}
@@ -786,7 +786,7 @@ void UBlackboardComponent::ClearValue(FBlackboard::FKey KeyID)
 			{
 				const bool bKeyHasInstance = EntryInfo->KeyType->HasInstance();
 
-				UBlackboardKeyType* KeyOb = bKeyHasInstance ? KeyInstances[KeyID] : EntryInfo->KeyType;
+				UBlackboardKeyType* KeyOb = bKeyHasInstance ? KeyInstances[KeyID] : ToRawPtr(EntryInfo->KeyType);
 				const uint16 DataOffset = bKeyHasInstance ? sizeof(FBlackboardInstancedKeyMemory) : 0;
 				uint8* InstancedRawData = RawData + DataOffset;
 
@@ -803,7 +803,7 @@ void UBlackboardComponent::ClearValue(FBlackboard::FKey KeyID)
 						if (OtherKeyID != FBlackboard::InvalidKey)
 						{
 							const FBlackboardEntry* OtherEntryInfo = OtherBlackboard->BlackboardAsset->GetKey(OtherKeyID);
-							UBlackboardKeyType* OtherKeyOb = bKeyHasInstance ? OtherBlackboard->KeyInstances[OtherKeyID] : EntryInfo->KeyType;
+							UBlackboardKeyType* OtherKeyOb = bKeyHasInstance ? OtherBlackboard->KeyInstances[OtherKeyID] : ToRawPtr(EntryInfo->KeyType);
 							uint8* OtherRawData = OtherBlackboard->GetKeyRawData(OtherKeyID) + DataOffset;
 
 							OtherKeyOb->CopyValues(*OtherBlackboard, OtherRawData, KeyOb, InstancedRawData);
@@ -850,8 +850,8 @@ bool UBlackboardComponent::CopyKeyValue(FBlackboard::FKey SourceKeyID, FBlackboa
 	const uint8* SourceValueMem = GetKeyRawData(SourceKeyID) + MemDataOffset;
 	uint8* DestinationValueMem = GetKeyRawData(DestinationKeyID) + MemDataOffset;
 
-	const UBlackboardKeyType* SourceKeyOb = bKeyHasInstance ? KeyInstances[SourceKeyID] : SourceValueEntryInfo->KeyType;
-	UBlackboardKeyType*	DestKeyOb = bKeyHasInstance ? KeyInstances[DestinationKeyID] : DestinationValueEntryInfo->KeyType;
+	const UBlackboardKeyType* SourceKeyOb = bKeyHasInstance ? KeyInstances[SourceKeyID] : ToRawPtr(SourceValueEntryInfo->KeyType);
+	UBlackboardKeyType*	DestKeyOb = bKeyHasInstance ? KeyInstances[DestinationKeyID] : ToRawPtr(DestinationValueEntryInfo->KeyType);
 
 	DestKeyOb->CopyValues(*this, DestinationValueMem, SourceKeyOb, SourceValueMem);
 

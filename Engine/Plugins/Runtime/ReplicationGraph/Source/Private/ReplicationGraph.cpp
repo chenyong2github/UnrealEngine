@@ -2441,13 +2441,13 @@ void UNetReplicationGraphConnection::RemoveConnectionGraphNode(UReplicationGraph
 
 bool UNetReplicationGraphConnection::PrepareForReplication()
 {
-	NetConnection->ViewTarget = NetConnection->PlayerController ? NetConnection->PlayerController->GetViewTarget() : NetConnection->OwningActor;
+	NetConnection->ViewTarget = NetConnection->PlayerController ? NetConnection->PlayerController->GetViewTarget() : ToRawPtr(NetConnection->OwningActor);
 
 	// Set any children viewtargets
 	for (int32 i = 0; i < NetConnection->Children.Num(); ++i)
 	{
 		UNetConnection* CurChild = NetConnection->Children[i];
-		CurChild->ViewTarget = CurChild->PlayerController ? CurChild->PlayerController->GetViewTarget() : CurChild->OwningActor;
+		CurChild->ViewTarget = CurChild->PlayerController ? CurChild->PlayerController->GetViewTarget() : ToRawPtr(CurChild->OwningActor);
 	}
 
 	return (NetConnection->State != USOCK_Closed) && (NetConnection->ViewTarget != nullptr);

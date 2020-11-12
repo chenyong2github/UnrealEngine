@@ -3845,7 +3845,7 @@ void FParticleMeshEmitterInstance::GetMeshMaterials(
 			// Overriding the material?
 			if (Material == NULL && MeshTypeData->bOverrideMaterial == true)
 			{
-				Material = CurrentMaterial ? CurrentMaterial : LODLevel->RequiredModule->Material;
+				Material = CurrentMaterial ? CurrentMaterial : ToRawPtr(LODLevel->RequiredModule->Material);
 			}
 
 			// Use the material set on the mesh.

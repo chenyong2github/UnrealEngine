@@ -2787,7 +2787,7 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 	if ( FindWidgetUnderCursor(MyGeometry, DragDropEvent, UPanelWidget::StaticClass(), HitResult) )
 	{
 		Target = bIsPreview ? HitResult.Widget.GetPreview() : HitResult.Widget.GetTemplate();
-		TargetTree = (bIsPreview && Target) ? Cast<UWidgetTree>(Target->GetOuter()) : BP->WidgetTree;
+		TargetTree = (bIsPreview && Target) ? Cast<UWidgetTree>(Target->GetOuter()) : ToRawPtr(BP->WidgetTree);
 	}
 	else if (BP->WidgetTree->RootWidget == nullptr || !bIsPreview)
 	{

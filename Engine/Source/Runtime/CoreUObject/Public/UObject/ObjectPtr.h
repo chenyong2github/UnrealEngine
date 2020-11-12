@@ -182,7 +182,7 @@ public:
 			decltype(ImplicitConv<T*>(std::declval<U>()))
 		>* = nullptr
 	>
-	explicit FORCEINLINE TObjectPtr(U&& Object)
+	FORCEINLINE TObjectPtr(U&& Object)
 		: FObjectPtr(const_cast<std::remove_const_t<T>*>(ImplicitConv<T*>(Object)))
 	{
 		// It would be desirable for this constructor to be implicit to allow:

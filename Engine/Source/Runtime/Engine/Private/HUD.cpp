@@ -501,7 +501,7 @@ AActor* AHUD::GetCurrentDebugTargetActor()
 
 		// If we hit something new, return this.
 		// Otherwise fall back to our last successful hit.
-		return DebugTargetActor ? DebugTargetActor : ShowDebugTargetActor;
+		return DebugTargetActor ? DebugTargetActor : ToRawPtr(ShowDebugTargetActor);
 	}
 	else
 	{

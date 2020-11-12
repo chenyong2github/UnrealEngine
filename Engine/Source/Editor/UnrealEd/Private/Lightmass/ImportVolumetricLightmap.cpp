@@ -1068,7 +1068,7 @@ void FLightmassProcessor::ImportVolumetricLightmap()
 		}
 	}
 
-	ULevel* StorageLevel = System.LightingScenario ? System.LightingScenario : System.GetWorld()->PersistentLevel;
+	ULevel* StorageLevel = System.LightingScenario ? System.LightingScenario : ToRawPtr(System.GetWorld()->PersistentLevel);
 	UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 	FPrecomputedVolumetricLightmapData CurrentLevelData;
 

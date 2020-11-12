@@ -1091,7 +1091,7 @@ FReply SParentPlayerTreeRow::OnResetButtonClicked()
 {
 	FAnimParentNodeAssetOverride* HierarchyOverride = EditorObject->GetBlueprint()->GetAssetOverrideForNode(Item->Override->ParentNodeGuid, true);
 	
-	Item->Override->NewAsset = HierarchyOverride ? HierarchyOverride->NewAsset : GraphNode->GetAnimationAsset();
+	Item->Override->NewAsset = HierarchyOverride ? ToRawPtr(HierarchyOverride->NewAsset) : GraphNode->GetAnimationAsset();
 
 	// Apply will remove the override from the object
 	EditorObject->ApplyOverrideToBlueprint(*Item->Override);

@@ -515,7 +515,7 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 	if (LevelToSpawnIn == NULL)
 	{
 		// Spawn in the same level as the owner if we have one.
-		LevelToSpawnIn = (SpawnParameters.Owner != NULL) ? SpawnParameters.Owner->GetLevel() : CurrentLevel;
+		LevelToSpawnIn = (SpawnParameters.Owner != NULL) ? SpawnParameters.Owner->GetLevel() : ToRawPtr(CurrentLevel);
 	}
 
 	// Use class's default actor as a template if none provided.

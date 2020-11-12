@@ -307,7 +307,7 @@ public:
 	USoundBase* GetSound() const { return Sound; }
 	void SetSound(USoundBase* InSound);
 
-	USoundEffectSourcePresetChain* GetSourceEffectChain() const { return SourceEffectChain ? SourceEffectChain : Sound->SourceEffectChain; }
+	USoundEffectSourcePresetChain* GetSourceEffectChain() const { return SourceEffectChain ? SourceEffectChain : ToRawPtr(Sound->SourceEffectChain); }
 	void SetSourceEffectChain(USoundEffectSourcePresetChain* InSourceEffectChain);
 
 	void SetSoundClass(USoundClass* SoundClass);

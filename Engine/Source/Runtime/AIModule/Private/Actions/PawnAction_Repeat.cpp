@@ -94,7 +94,7 @@ bool UPawnAction_Repeat::PushSubAction()
 
 	UPawnAction* ActionCopy = SubActionTriggeringPolicy == EPawnSubActionTriggeringPolicy::CopyBeforeTriggering 
 		? Cast<UPawnAction>(StaticDuplicateObject(ActionToRepeat, this))
-		: ActionToRepeat;
+		: ToRawPtr(ActionToRepeat);
 
 	UE_VLOG(GetPawn(), LogPawnAction, Log, TEXT("%s> pushing repeted action %s %s, repeats left: %d")
 		, *GetName(), SubActionTriggeringPolicy == EPawnSubActionTriggeringPolicy::CopyBeforeTriggering ? TEXT("copy") : TEXT("instance")

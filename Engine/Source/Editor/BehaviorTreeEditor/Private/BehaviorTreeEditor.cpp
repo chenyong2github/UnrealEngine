@@ -1646,7 +1646,7 @@ UBehaviorTree* FBehaviorTreeEditor::GetBehaviorTree() const
 
 UBlackboardData* FBehaviorTreeEditor::GetBlackboardData() const 
 {
-	return BehaviorTree == nullptr ? BlackboardData : BehaviorTree->BlackboardAsset; 
+	return BehaviorTree == nullptr ? BlackboardData : ToRawPtr(BehaviorTree->BlackboardAsset);
 }
 
 void FBehaviorTreeEditor::RefreshDebugger()

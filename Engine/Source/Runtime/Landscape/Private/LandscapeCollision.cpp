@@ -995,7 +995,7 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 					}
 					else
 					{
-						UPhysicalMaterial* DominantMaterial = Layer && Layer->PhysMaterial ? Layer->PhysMaterial : DefMaterial;
+						UPhysicalMaterial* DominantMaterial = Layer && Layer->PhysMaterial ? ToRawPtr(Layer->PhysMaterial) : DefMaterial;
 						MaterialIndex = InOutMaterials.AddUnique(DominantMaterial);
 					}
 				}
@@ -1178,7 +1178,7 @@ bool ULandscapeMeshCollisionComponent::CookCollisionData(const FName& Format, bo
 					}
 					else
 					{
-						UPhysicalMaterial* DominantMaterial = Layer && Layer->PhysMaterial ? Layer->PhysMaterial : DefMaterial;
+						UPhysicalMaterial* DominantMaterial = Layer && Layer->PhysMaterial ? ToRawPtr(Layer->PhysMaterial) : DefMaterial;
 						MaterialIndex = InOutMaterials.AddUnique(DominantMaterial);
 					}
 				}

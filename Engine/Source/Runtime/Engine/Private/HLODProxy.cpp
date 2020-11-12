@@ -424,7 +424,7 @@ FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoL
 
 	// Base us off the unique object ID
 	{
-		const UObject* Obj = LODActor->ProxyDesc ? Cast<const UObject>(LODActor->ProxyDesc) : Cast<const UObject>(LODActor);
+		const UObject* Obj = LODActor->ProxyDesc ? ToRawPtr(Cast<const UObject>(LODActor->ProxyDesc)) : Cast<const UObject>(LODActor);
 		FUniqueObjectGuid ObjectGUID = FUniqueObjectGuid::GetOrCreateIDForObject(Obj);
 		Key += TEXT("_");
 		Key += ObjectGUID.GetGuid().ToString(EGuidFormats::Digits);

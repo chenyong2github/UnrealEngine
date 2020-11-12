@@ -211,7 +211,7 @@ UActorComponent* FComponentReference::GetComponent(AActor* OwningActor) const
 	else
 	{
 		// Look in Actor if specified, OwningActor if not
-		AActor* SearchActor = (OtherActor != NULL) ? OtherActor : OwningActor;
+		AActor* SearchActor = (OtherActor != NULL) ? ToRawPtr(OtherActor) : OwningActor;
 		if(SearchActor)
 		{
 			if(ComponentProperty != NAME_None)

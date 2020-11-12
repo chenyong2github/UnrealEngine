@@ -5548,7 +5548,7 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 	FName TemplateVariableName;
 
 	USCS_Node* SCSNode = Cast<USCS_Node>(Asset);
-	UActorComponent* ComponentTemplate = (SCSNode ? SCSNode->ComponentTemplate : Cast<UActorComponent>(Asset));
+	UActorComponent* ComponentTemplate = (SCSNode ? ToRawPtr(SCSNode->ComponentTemplate) : Cast<UActorComponent>(Asset));
 
 	if (SCSNode)
 	{

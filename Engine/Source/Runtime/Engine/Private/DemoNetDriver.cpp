@@ -1506,7 +1506,7 @@ class FReplayViewer
 public:
 	FReplayViewer(const UNetConnection* Connection) :
 		Viewer(Connection->PlayerController ? Connection->PlayerController : Connection->OwningActor), 
-		ViewTarget(Connection->PlayerController ? Connection->PlayerController->GetViewTarget() : Connection->OwningActor)
+		ViewTarget(Connection->PlayerController ? Connection->PlayerController->GetViewTarget() : ToRawPtr(Connection->OwningActor))
 	{
 		Location = ViewTarget ? ViewTarget->GetActorLocation() : FVector::ZeroVector;
 	}
@@ -2856,7 +2856,7 @@ bool UDemoNetDriver::SpawnSplitscreenViewer(ULocalPlayer* NewPlayer, UWorld* InW
 		return false;
 	}
 
-	UNetConnection* ChildConnection = CreateChild((ClientConnections.Num() > 0) ? ClientConnections[0] : ServerConnection);
+	UNetConnection* ChildConnection = CreateChild((ClientConnections.Num() > 0) ? ClientConnections[0] : ToRawPtr(ServerConnection));
 
 	APlayerController* NewSplitscreenController = ReplayHelper.CreateSpectatorController(ChildConnection);
 	if (NewSplitscreenController == nullptr)

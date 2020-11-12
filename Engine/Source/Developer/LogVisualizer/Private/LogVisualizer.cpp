@@ -123,7 +123,7 @@ UWorld* FLogVisualizer::GetWorld(UObject* OptionalObject)
 	{
 		UEditorEngine* EEngine = Cast<UEditorEngine>(GEngine);
 		// lets use PlayWorld during PIE/Simulate and regular world from editor otherwise, to draw debug information
-		World = EEngine != nullptr && EEngine->PlayWorld != nullptr ? EEngine->PlayWorld : EEngine->GetEditorWorldContext().World();
+		World = EEngine != nullptr && EEngine->PlayWorld != nullptr ? ToRawPtr(EEngine->PlayWorld) : EEngine->GetEditorWorldContext().World();
 	}
 	else 
 #endif

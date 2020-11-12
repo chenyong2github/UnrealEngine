@@ -1451,7 +1451,7 @@ public:
 		auto InputAsMID = Cast<UMaterialInstanceDynamic>(InSource);
 
 		// fixup MID parents as this is not allowed, take the next MIC or Material.
-		UMaterialInterface* ParentOfTheNewMID = InputAsMID ? InputAsMID->Parent : InSource;
+		UMaterialInterface* ParentOfTheNewMID = InputAsMID ? ToRawPtr(InputAsMID->Parent) : InSource;
 
 		// this is not allowed and would cause an error later in the code
 		check(!ParentOfTheNewMID->IsA(UMaterialInstanceDynamic::StaticClass()));

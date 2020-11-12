@@ -189,7 +189,7 @@ FBlueprintActionUiSpec UBlueprintVariableNodeSpawner::GetUiSpec(FBlueprintAction
 		}
 
 		UClass const* EffectiveOwnerClass = WrappedVariable->GetOwnerClass();
-		EffectiveOwnerClass = EffectiveOwnerClass ? EffectiveOwnerClass : OwnerClass;
+		EffectiveOwnerClass = EffectiveOwnerClass ? EffectiveOwnerClass : ToRawPtr(OwnerClass);
 		const bool bIsOwningClassValid = EffectiveOwnerClass && (!Cast<const UBlueprintGeneratedClass>(EffectiveOwnerClass) || EffectiveOwnerClass->ClassGeneratedBy); //todo: more general validation
 		UClass const* VariableClass = bIsOwningClassValid ? EffectiveOwnerClass->GetAuthoritativeClass() : nullptr;
 		if (VariableClass && !TargetClass->IsChildOf(VariableClass))

@@ -1946,7 +1946,7 @@ void UPaperSprite::RefreshBakedData()
 UTexture2D* UPaperSprite::GetBakedTexture() const
 {
 #if WITH_EDITOR
-	return (BakedSourceTexture != nullptr) ? BakedSourceTexture : GetSourceTexture();
+	return (BakedSourceTexture != nullptr) ? ToRawPtr(BakedSourceTexture) : GetSourceTexture();
 #else
 	return BakedSourceTexture;
 #endif

@@ -439,7 +439,7 @@ void USimpleConstructionScript::FixupSceneNodeHierarchy()
 					}
 				};
 
-				if (UClass* ComponentClass = (Node->ComponentClass ? Node->ComponentClass : (Node->ComponentTemplate ? Node->ComponentTemplate->GetClass() : nullptr)))
+				if (UClass* ComponentClass = (Node->ComponentClass ? ToRawPtr(Node->ComponentClass) : (Node->ComponentTemplate ? Node->ComponentTemplate->GetClass() : nullptr)))
 				{
 					if (ComponentClass->IsChildOf<USceneComponent>())
 					{

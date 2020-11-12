@@ -998,7 +998,7 @@ void UProceduralMeshComponent::UpdateCollision()
 		CreateProcMeshBodySetup();
 	}
 	
-	UBodySetup* UseBodySetup = bUseAsyncCook ? AsyncBodySetupQueue.Last() : ProcMeshBodySetup;
+	UBodySetup* UseBodySetup = bUseAsyncCook ? AsyncBodySetupQueue.Last() : ToRawPtr(ProcMeshBodySetup);
 
 	// Fill in simple collision convex elements
 	UseBodySetup->AggGeom.ConvexElems = CollisionConvexElems;

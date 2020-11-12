@@ -2734,7 +2734,7 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 			}
 
 			const FMeshBuildSettings& BuildSettings = Owner->GetSourceModel(0).BuildSettings;
-			UStaticMesh* MeshToGenerateFrom = BuildSettings.DistanceFieldReplacementMesh ? BuildSettings.DistanceFieldReplacementMesh : Owner;
+			UStaticMesh* MeshToGenerateFrom = BuildSettings.DistanceFieldReplacementMesh ? ToRawPtr(BuildSettings.DistanceFieldReplacementMesh) : Owner;
 
 			if (BuildSettings.DistanceFieldReplacementMesh)
 			{

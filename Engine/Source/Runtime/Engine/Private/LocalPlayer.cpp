@@ -105,7 +105,7 @@ bool FLocalPlayerContext::IsValid() const
 	{
 		if (UWorld* WorldPtr = GetWorld())
 		{
-			if (APlayerController* PC = (WorldPtr ? LocalPlayerPtr->GetPlayerController(WorldPtr) : LocalPlayerPtr->PlayerController))
+			if (APlayerController* PC = (WorldPtr ? LocalPlayerPtr->GetPlayerController(WorldPtr) : ToRawPtr(LocalPlayerPtr->PlayerController)))
 			{
 				return (PC->Player != nullptr);
 			}
@@ -152,7 +152,7 @@ APlayerController* FLocalPlayerContext::GetPlayerController() const
 {
 	ULocalPlayer* LocalPlayerPtr = GetLocalPlayer();
 	UWorld* WorldPtr = World.Get();
-	return (WorldPtr ? LocalPlayerPtr->GetPlayerController(WorldPtr) : LocalPlayerPtr->PlayerController);
+	return (WorldPtr ? LocalPlayerPtr->GetPlayerController(WorldPtr) : ToRawPtr(LocalPlayerPtr->PlayerController));
 }
 
 class AGameStateBase* FLocalPlayerContext::GetGameState() const
@@ -213,7 +213,7 @@ bool FLocalPlayerContext::IsFromLocalPlayer(const AActor* ActorToTest) const
 		{
 			if (UWorld* WorldPtr = GetWorld())
 			{
-				if (APlayerController* PC = (WorldPtr ? LocalPlayerPtr->GetPlayerController(WorldPtr) : LocalPlayerPtr->PlayerController))
+				if (APlayerController* PC = (WorldPtr ? LocalPlayerPtr->GetPlayerController(WorldPtr) : ToRawPtr(LocalPlayerPtr->PlayerController)))
 				{
 					if (   ActorToTest == PC
 					    || ActorToTest == PC->GetPawn()

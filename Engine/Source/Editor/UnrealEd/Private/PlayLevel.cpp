@@ -2073,11 +2073,11 @@ void UEditorEngine::OnSwitchWorldsForPIE( bool bSwitchToPieWorld, UWorld* Overri
 {
 	if( bSwitchToPieWorld )
 	{
-		SetPlayInEditorWorld( OverrideWorld ? OverrideWorld : PlayWorld );
+		SetPlayInEditorWorld( OverrideWorld ? OverrideWorld : ToRawPtr(PlayWorld) );
 	}
 	else
 	{
-		RestoreEditorWorld( OverrideWorld ? OverrideWorld : EditorWorld );
+		RestoreEditorWorld( OverrideWorld ? OverrideWorld : ToRawPtr(EditorWorld) );
 	}
 }
 

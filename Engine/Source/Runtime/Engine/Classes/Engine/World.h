@@ -2434,7 +2434,7 @@ public:
 	 * 
 	 * @return default physics volume
 	 */
-	APhysicsVolume* GetDefaultPhysicsVolume() const { return DefaultPhysicsVolume ? DefaultPhysicsVolume : InternalGetDefaultPhysicsVolume(); }
+	APhysicsVolume* GetDefaultPhysicsVolume() const { return DefaultPhysicsVolume ? ToRawPtr(DefaultPhysicsVolume) : InternalGetDefaultPhysicsVolume(); }
 
 	/** Returns true if a DefaultPhysicsVolume has been created. */
 	bool HasDefaultPhysicsVolume() const { return DefaultPhysicsVolume != nullptr; }

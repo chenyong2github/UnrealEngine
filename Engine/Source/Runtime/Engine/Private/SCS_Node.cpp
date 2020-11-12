@@ -48,7 +48,7 @@ UActorComponent* USCS_Node::GetActualComponentTemplate(UBlueprintGeneratedClass*
 			} while (!OverridenComponentTemplate && ActualBPGC && SCS != ActualBPGC->SimpleConstructionScript);
 		}
 	}
-	return OverridenComponentTemplate ? OverridenComponentTemplate : ComponentTemplate;
+	return OverridenComponentTemplate ? OverridenComponentTemplate : ToRawPtr(ComponentTemplate);
 }
 
 const FBlueprintCookedComponentInstancingData* USCS_Node::GetActualComponentTemplateData(UBlueprintGeneratedClass* ActualBPGC) const
