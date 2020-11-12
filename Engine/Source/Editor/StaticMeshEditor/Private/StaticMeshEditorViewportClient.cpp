@@ -810,12 +810,12 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 	{
 		int32 LOD = StaticMeshEditor->GetCurrentLODLevel();
 		return (LOD == 0) ?
-			ComputeStaticMeshLOD(StaticMesh->GetRenderData(), StaticMeshComponent->Bounds.Origin, StaticMeshComponent->Bounds.SphereRadius, View, StaticMesh->MinLOD.Default)
+			ComputeStaticMeshLOD(StaticMesh->GetRenderData(), StaticMeshComponent->Bounds.Origin, StaticMeshComponent->Bounds.SphereRadius, View, StaticMesh->GetMinLOD().Default)
 			:
 			LOD - 1;
 	}();
 
-	const int32 CurrentMinLODLevel = StaticMesh->MinLOD.GetValue();
+	const int32 CurrentMinLODLevel = StaticMesh->GetMinLOD().GetValue();
 	const bool bBelowMinLOD = CurrentLODLevel < CurrentMinLODLevel;
 	TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
 		FText::Format(NSLOCTEXT("UnrealEd", "LOD_F", "LOD:  {0}"), FText::AsNumber(CurrentLODLevel)),

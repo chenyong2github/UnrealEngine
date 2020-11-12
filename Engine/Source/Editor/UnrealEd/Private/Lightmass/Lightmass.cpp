@@ -1320,12 +1320,12 @@ void FLightmassExporter::WriteStaticMeshes()
 		FString NewChannelName = Lightmass::CreateChannelName(BaseMeshData.Guid, Lightmass::LM_STATICMESH_VERSION, Lightmass::LM_STATICMESH_EXTENSION);
 
 		// Warn the user if there is an invalid lightmap UV channel specified.
-		if( StaticMesh->LightMapCoordinateIndex > 0
+		if( StaticMesh->GetLightMapCoordinateIndex() > 0
 			&& StaticMesh->GetRenderData()
 			&& StaticMesh->GetRenderData()->LODResources.Num() > 0 )
 		{
 			const FStaticMeshLODResources& RenderData = StaticMesh->GetRenderData()->LODResources[0];
-			if( StaticMesh->LightMapCoordinateIndex >= (int32)RenderData.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() )
+			if( StaticMesh->GetLightMapCoordinateIndex() >= (int32)RenderData.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() )
 			{
 				FMessageLog("LightingResults").Warning()
 					->AddToken(FUObjectToken::Create(const_cast<UStaticMesh*>(StaticMesh)))
@@ -1345,7 +1345,7 @@ void FLightmassExporter::WriteStaticMeshes()
 				Swarm.WriteChannel(Channel, &BaseMeshData, sizeof(BaseMeshData));
 
 				Lightmass::FStaticMeshData StaticMeshData;
-				StaticMeshData.LightmapCoordinateIndex = StaticMesh->LightMapCoordinateIndex;
+				StaticMeshData.LightmapCoordinateIndex = StaticMesh->GetLightMapCoordinateIndex();
 				StaticMeshData.NumLODs = StaticMesh->GetRenderData()->LODResources.Num();
 				Swarm.WriteChannel( Channel, &StaticMeshData, sizeof(StaticMeshData) );
 				for (int32 LODIndex = 0; LODIndex < StaticMesh->GetRenderData()->LODResources.Num(); LODIndex++)

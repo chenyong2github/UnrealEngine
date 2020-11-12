@@ -57,7 +57,7 @@ bool FHierarchicalLODProxyProcessor::Tick(float DeltaTime)
 		check(MainMesh != nullptr);
 
 		// Force lightmap coordinate to 0 for proxy meshes
-		MainMesh->LightMapCoordinateIndex = 0;
+		MainMesh->SetLightMapCoordinateIndex(0);
 		// Trigger post edit change, simulating we made a change in the Static mesh editor (could only call Build, but this is for possible future changes)
 		MainMesh->PostEditChange();
 

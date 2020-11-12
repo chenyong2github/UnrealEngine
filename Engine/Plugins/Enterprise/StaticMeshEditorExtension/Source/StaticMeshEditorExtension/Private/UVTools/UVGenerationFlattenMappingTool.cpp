@@ -291,7 +291,7 @@ bool FUVGenerationFlattenMappingTool::SetupMeshForUVGeneration(UStaticMesh* Stat
 				if (LODIndex == 0)
 				{
 					//If we are setting up the first LOD make sure the mesh lightmap coordinate points to the generated ones.
-					StaticMesh->LightMapCoordinateIndex = FirstOpenChannel;
+					StaticMesh->SetLightMapCoordinateIndex(FirstOpenChannel);
 				}
 
 				BuildSettings.bGenerateLightmapUVs = true;

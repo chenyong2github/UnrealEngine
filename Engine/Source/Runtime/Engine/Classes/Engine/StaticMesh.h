@@ -617,14 +617,29 @@ public:
 #endif // #if WITH_EDITORONLY_DATA
 
 	/** Minimum LOD to use for rendering.  This is the default setting for the mesh and can be overridden by component settings. */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetMinLOD() or UStaticMesh::SetMinLOD().")
 	UPROPERTY()
 	FPerPlatformInt MinLOD;
+
+	const FPerPlatformInt& GetMinLOD() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return MinLOD;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetMinLOD(FPerPlatformInt InMinLOD)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		MinLOD = MoveTemp(InMinLOD);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	UFUNCTION(BlueprintPure, Category=StaticMesh)
 	void GetMinimumLODForPlatforms(TMap<FName, int32>& PlatformMinimumLODs) const
 	{
 #if WITH_EDITORONLY_DATA
-		PlatformMinimumLODs = MinLOD.PerPlatform;
+		PlatformMinimumLODs = GetMinLOD().PerPlatform;
 #endif
 	}
 
@@ -632,7 +647,7 @@ public:
 	int32 GetMinimumLODForPlatform(const FName& PlatformName) const
 	{
 #if WITH_EDITORONLY_DATA
-		if (const int32* Result = MinLOD.PerPlatform.Find(PlatformName))
+		if (const int32* Result = GetMinLOD().PerPlatform.Find(PlatformName))
 		{
 			return *Result;
 		}
@@ -696,12 +711,56 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetLightMapResolution() or UStaticMesh::SetLightMapResolution().")
 	UPROPERTY(EditAnywhere, Category=StaticMesh, meta=(ClampMax = 4096, ToolTip="The light map resolution", FixedIncrement="4.0"))
 	int32 LightMapResolution;
 
+	int32 GetLightMapResolution() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return LightMapResolution;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetLightMapResolution(int32 InLightMapResolution)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		LightMapResolution = InLightMapResolution;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	static FName GetLightMapResolutionName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(UStaticMesh, LightMapResolution);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	/** The light map coordinate index */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetLightMapCoordinateIndex() or UStaticMesh::SetLightMapCoordinateIndex().")
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=StaticMesh, meta=(ToolTip="The light map coordinate index", UIMin = "0", UIMax = "3"))
 	int32 LightMapCoordinateIndex;
+
+	int32 GetLightMapCoordinateIndex() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return LightMapCoordinateIndex;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetLightMapCoordinateIndex(int32 InLightMapCoordinateIndex)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		LightMapCoordinateIndex = InLightMapCoordinateIndex;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	static FName GetLightMapCoordinateIndexName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(UStaticMesh, LightMapCoordinateIndex);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** Useful for reducing self shadowing from distance field methods when using world position offset to animate the mesh's vertices. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = StaticMesh)
@@ -723,6 +782,13 @@ public:
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		BodySetup = InBodySetup;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	static FName GetBodySetupName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(UStaticMesh, BodySetup);
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
@@ -879,12 +945,58 @@ public:
 	TSharedPtr<class FSpeedTreeWind> SpeedTreeWind;
 
 	/** Bound extension values in the positive direction of XYZ, positive value increases bound size */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetPositiveBoundsExtension() or UStaticMesh::SetPositiveBoundsExtension.")
 	UPROPERTY(EditDefaultsOnly, AdvancedDisplay, Category = StaticMesh)
 	FVector PositiveBoundsExtension;
+
+	const FVector& GetPositiveBoundsExtension() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return PositiveBoundsExtension;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetPositiveBoundsExtension(FVector InPositiveBoundsExtension)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		PositiveBoundsExtension = InPositiveBoundsExtension;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	static FName GetPositiveBoundsExtensionName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(UStaticMesh, PositiveBoundsExtension);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	/** Bound extension values in the negative direction of XYZ, positive value increases bound size */
+	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetNegativeBoundsExtension() or UStaticMesh::SetNegativeBoundsExtension.")
 	UPROPERTY(EditDefaultsOnly, AdvancedDisplay, Category = StaticMesh)
 	FVector NegativeBoundsExtension;
 	
+	const FVector& GetNegativeBoundsExtension() const
+	{
+		// No need for CheckAsyncPropertyAccess here as this is not modified during async Build/Postload
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return NegativeBoundsExtension;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetNegativeBoundsExtension(FVector InNegativeBoundsExtension)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		NegativeBoundsExtension = InNegativeBoundsExtension;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	static FName GetNegativeBoundsExtensionName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(UStaticMesh, NegativeBoundsExtension);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	/** Original mesh bounds extended with Positive/NegativeBoundsExtension */
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetExtendedBounds() or UStaticMesh::SetExtendedBounds.")
 	UPROPERTY()

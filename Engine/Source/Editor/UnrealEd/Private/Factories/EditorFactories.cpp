@@ -6186,8 +6186,8 @@ EReimportResult::Type UReimportFbxStaticMeshFactory::Reimport( UObject* Obj )
 			}
 
 			// preserve extended bound settings
-			const FVector PositiveBoundsExtension = Mesh->PositiveBoundsExtension;
-			const FVector NegativeBoundsExtension = Mesh->NegativeBoundsExtension;
+			const FVector PositiveBoundsExtension = Mesh->GetPositiveBoundsExtension();
+			const FVector NegativeBoundsExtension = Mesh->GetNegativeBoundsExtension();
 
 			if (FFbxImporter->ReimportStaticMesh(Mesh, ImportData))
 			{
@@ -6218,8 +6218,8 @@ EReimportResult::Type UReimportFbxStaticMeshFactory::Reimport( UObject* Obj )
 				}
 
 				// Restore bounds extension settings
-				Mesh->PositiveBoundsExtension = PositiveBoundsExtension;
-				Mesh->NegativeBoundsExtension = NegativeBoundsExtension;
+				Mesh->SetPositiveBoundsExtension(PositiveBoundsExtension);
+				Mesh->SetNegativeBoundsExtension(NegativeBoundsExtension);
 
 				Mesh->AssetImportData->Update(Filename);
 

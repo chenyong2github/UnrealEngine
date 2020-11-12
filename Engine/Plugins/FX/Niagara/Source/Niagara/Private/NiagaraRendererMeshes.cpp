@@ -123,7 +123,7 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	RendererLayoutWithCustomSorting = &Properties->RendererLayoutWithCustomSorting;
 	RendererLayoutWithoutCustomSorting = &Properties->RendererLayoutWithoutCustomSorting;
 
-	MeshMinimumLOD = Properties->ParticleMesh->MinLOD.GetValue();
+	MeshMinimumLOD = Properties->ParticleMesh->GetMinLOD().GetValue();
 
 	if (MeshRenderData)
 	{

@@ -1515,8 +1515,8 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportStaticMesh(void* VoidFbx
 		nullptr;
 
 	// preserve extended bound settings
-	const FVector PositiveBoundsExtension = Mesh->PositiveBoundsExtension;
-	const FVector NegativeBoundsExtension = Mesh->NegativeBoundsExtension;
+	const FVector PositiveBoundsExtension = Mesh->GetPositiveBoundsExtension();
+	const FVector NegativeBoundsExtension = Mesh->GetNegativeBoundsExtension();
 	uint64 NodeInfoUid = INVALID_UNIQUE_ID;
 	if (GlobalImportSettings->bBakePivotInVertex && MeshInfo->PivotNodeUid != INVALID_UNIQUE_ID)
 	{
@@ -1550,8 +1550,8 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportStaticMesh(void* VoidFbx
 		}
 
 		// Restore bounds extension settings
-		Mesh->PositiveBoundsExtension = PositiveBoundsExtension;
-		Mesh->NegativeBoundsExtension = NegativeBoundsExtension;
+		Mesh->SetPositiveBoundsExtension(PositiveBoundsExtension);
+		Mesh->SetNegativeBoundsExtension(NegativeBoundsExtension);
 
 		Mesh->AssetImportData->Update(FbxImportFileName);
 
