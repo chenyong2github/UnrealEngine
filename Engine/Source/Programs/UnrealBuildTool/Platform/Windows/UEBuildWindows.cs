@@ -2031,7 +2031,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ProjectFile">The project file</param>
 		/// <returns>The icon to use for this project</returns>
-		public static FileReference GetApplicationIcon(FileReference ProjectFile)
+		public static FileReference GetWindowsApplicationIcon(FileReference ProjectFile)
 		{
 			// Check if there's a custom icon
 			if(ProjectFile != null)
@@ -2046,6 +2046,17 @@ namespace UnrealBuildTool
 			// Otherwise use the default
 			return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "Resources", "Default.ico");
 		}
+
+		/// <summary>
+		/// Gets the application icon for a given project
+		/// </summary>
+		/// <param name="ProjectFile">The project file</param>
+		/// <returns>The icon to use for this project</returns>
+		public virtual FileReference GetApplicationIcon(FileReference ProjectFile)
+		{
+			return GetWindowsApplicationIcon(ProjectFile);
+		}
+
 
 		/// <summary>
 		/// Modify the rules for a newly created module, in a target that's being built for this platform.
