@@ -1031,34 +1031,34 @@ namespace Chaos
 			//update callbacks
 		SimCallbackObjects.Reserve(SimCallbackObjects.Num() + PushData.SimCallbackObjectsToAdd.Num());
 		for(ISimCallbackObject* SimCallbackObject : PushData.SimCallbackObjectsToAdd)
-				{
-					SimCallbackObjects.Add(SimCallbackObject);
-					if(SimCallbackObject->bContactModification)
-					{
-						ContactModifiers.Add(SimCallbackObject);
-					}
-				}
+		{
+			SimCallbackObjects.Add(SimCallbackObject);
+			if(SimCallbackObject->bContactModification)
+			{
+				ContactModifiers.Add(SimCallbackObject);
+			}
+		}
 
 		for (int32 Idx = 0; Idx < PushData.SimCallbackObjectsToRemove.Num(); ++Idx)
-				{
+		{
 			ISimCallbackObject* RemovedCallbackObject = PushData.SimCallbackObjectsToRemove[Idx];
-					if (Idx == 0)
-					{
-						//callback was removed right away so skip it entirely (unless it was tagged as running at least once no matter what)
-						RemovedCallbackObject->bPendingDelete = !RemovedCallbackObject->bRunOnceMore;
-					}
-					else
-					{
-						//want to delete, but came later in interval so need to run at least once
-						RemovedCallbackObject->bRunOnceMore = true;
-					}
-				}
+			if (Idx == 0)
+			{
+				//callback was removed right away so skip it entirely (unless it was tagged as running at least once no matter what)
+				RemovedCallbackObject->bPendingDelete = !RemovedCallbackObject->bRunOnceMore;
+			}
+			else
+			{
+				//want to delete, but came later in interval so need to run at least once
+				RemovedCallbackObject->bRunOnceMore = true;
+			}
+		}
 
-				//save any pending data for this particular interval
+		//save any pending data for this particular interval
 		for (const FSimCallbackInputAndObject& InputAndCallbackObj : PushData.SimCallbackInputs)
-				{
-					InputAndCallbackObj.CallbackObject->IntervalData.Add(InputAndCallbackObj.Input);
-				}
+		{
+			InputAndCallbackObj.CallbackObject->SetCurrentInput_Internal(InputAndCallbackObj.Input);
+		}
 
 		ProcessSinglePushedData_Internal(PushData);
 	}

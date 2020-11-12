@@ -8,6 +8,8 @@
 namespace Chaos
 {
 
+class ISimCallbackObject;
+
 struct FSimCallbackOutput
 {
 	FSimCallbackOutput()
@@ -28,10 +30,17 @@ struct FSimCallbackInput
 {
 	FSimCallbackInput()
 	: ExternalTime(-1)
+	, NumSteps(0)
 	{
 	}
 
 	FReal GetExternalTime() const { return ExternalTime; }
+
+	//Called by substep code so we can reuse input for multiple steps
+	void SetNumSteps_External(int32 InNumSteps)
+	{
+		NumSteps = InNumSteps;
+	}
 
 protected:
 	// Do not delete directly, use FreeInputData_Internal
@@ -40,6 +49,9 @@ protected:
 private:
 	/** The external time associated with this input */
 	FReal ExternalTime;
+	int32 NumSteps;	//the number of steps this input belongs to
+
+	void Release_Internal(ISimCallbackObject& CallbackObj);
 
 	friend class ISimCallbackObject;
 };

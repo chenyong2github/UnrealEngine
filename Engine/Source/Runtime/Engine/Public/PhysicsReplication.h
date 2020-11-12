@@ -100,7 +100,7 @@ private:
 	float GetOwnerPing(const AActor* const Owner, const FReplicatedPhysicsTarget& Target) const;
 
 #if WITH_CHAOS
-	static void ApplyAsyncDesiredState(float DeltaSeconds, const TArrayView<const Chaos::FSimCallbackInput*>& IntervalData);
+	static void ApplyAsyncDesiredState(float DeltaSeconds, const Chaos::FSimCallbackInput* Input);
 #endif
 
 private:

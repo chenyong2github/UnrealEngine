@@ -953,8 +953,9 @@ namespace ChaosTest {
 
 		struct FCallback : public TSimCallbackObject<FSimCallbackNoInput>
 		{
-			virtual FSimCallbackOutput* OnPreSimulate_Internal(const FReal SimStart, const FReal DeltaSeconds, const TArrayView<const FSimCallbackInput*>& Inputs) override
+			virtual FSimCallbackOutput* OnPreSimulate_Internal(const FReal SimStart, const FReal DeltaSeconds, const FSimCallbackInput* Input) override
 			{
+				EXPECT_EQ(Input, nullptr);	//no inputs passed in
 				if(Count < NumPTSteps)
 				{
 					//we expect the dt to be 1, unless it's the final callback when solver is destroyed (that dt is always 0)
@@ -1011,6 +1012,7 @@ namespace ChaosTest {
 		//Need to test:
 		//forces and torques are extrapolated (i.e. held constant for sub-steps)
 		//kinematic targets are interpolated over the sub-step
+		//identical inputs are given to sub-steps
 
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
@@ -1035,10 +1037,39 @@ namespace ChaosTest {
 		Simulated->SetObjectState(EObjectStateType::Dynamic);
 		Simulated->SetGravityEnabled(true);
 
+		struct FDummyInput : FSimCallbackInput
+		{
+			int32 ExternalFrame;
+			void Reset(){}
+		};
+
+		struct FCallback : public TSimCallbackObject<FDummyInput>
+		{
+			virtual FSimCallbackOutput* OnPreSimulate_Internal(const FReal SimStart, const FReal DeltaSeconds, const FSimCallbackInput* Input) override
+			{
+				if(!bOver)	//need to check when destruction happens as it gives a null input, but we want to make sure all other inputs are not null
+				{
+					EXPECT_EQ(static_cast<const FDummyInput*>(Input)->ExternalFrame, ExpectedFrame);
+					EXPECT_NEAR(SimStart, InternalSteps * DeltaSeconds, 1e-2);	//sim start is changing per sub-step
+					++InternalSteps;
+				}
+				return nullptr;
+			}
+
+			int32 ExpectedFrame;
+			bool bOver = false;
+			int32 InternalSteps = 0;
+		};
+
+		auto Callback = Scene.GetSolver()->CreateAndRegisterSimCallbackObject_External<FCallback>();
+
 		float Time = 0;
 		const float GTDt = FixedDT * 4;
 		for (int32 Step = 0; Step < 10; Step++)
 		{
+			Callback->ExpectedFrame = Step;
+			Callback->GetProducerInputData_External()->ExternalFrame = Step;	//make sure input matches for all sub-steps
+
 			//set force every external frame
 			Simulated->AddF(FVec3(0, 0, 1 * Simulated->M()));	//should counteract gravity
 			FVec3 Grav(0, 0, -1);
@@ -1054,5 +1085,6 @@ namespace ChaosTest {
 			EXPECT_NEAR(Simulated->X()[2], 0, 1e-2);
 			EXPECT_NEAR(Simulated->V()[2], 0, 1e-2);
 		}
+		Callback->bOver = true;
 	}
 }
