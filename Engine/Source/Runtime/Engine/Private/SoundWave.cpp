@@ -240,6 +240,9 @@ USoundWave::USoundWave(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR
 	bWasStreamCachingEnabledOnLastCook = FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching();
 	RunningPlatformData = nullptr;
+
+	OwnedBulkDataPtr = nullptr;
+	ResourceData = nullptr;
 #endif
 }
 
@@ -1267,8 +1270,16 @@ void USoundWave::InitAudioResource(FByteBulkData& CompressedData)
 			check(!ResourceData);
 			CompressedData.GetCopy((void**)&ResourceData, true);
 #else
-			check(!OwnedBulkDataPtr);
-			OwnedBulkDataPtr = CompressedData.StealFileMapping();
+			if (!OwnedBulkDataPtr)
+			{
+				OwnedBulkDataPtr = CompressedData.StealFileMapping();
+			}
+			else
+			{
+				UE_LOG(LogAudio, Display, TEXT("Soundwave '%s' Has already had InitAudioResource() called, and taken ownership of it's compressed data.")
+					, *GetFullName());
+			}
+
 			ResourceData = (const uint8*)OwnedBulkDataPtr->GetPointer();
 			if (!ResourceData)
 			{
