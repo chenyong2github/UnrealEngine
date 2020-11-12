@@ -147,9 +147,9 @@ private:
 	void Tick(float DeltaTime);
 
 	/**
-	 * Called if we're currently recording a PIE world that has been shut down. Bound in Initialize, and unbound in Stop.
+	 * Called if we're currently recording a PIE world that has been shut down or if we start PIE in a non-PIE world. Bound in Initialize, and unbound in Stop.
 	 */
-	void HandleEndPIE(bool bIsSimulating);
+	void HandlePIE(bool bIsSimulating);
 
 	/**
 	 * Create a new destination asset to record into based on the parameters
