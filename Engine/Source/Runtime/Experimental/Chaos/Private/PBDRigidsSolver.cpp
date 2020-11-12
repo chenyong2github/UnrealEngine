@@ -556,18 +556,31 @@ namespace Chaos
 			GeometryCollectionPhysicsProxies_Internal.Add(InProxy);
 		});
 	}
-
+	
 	template <typename Traits>
 	bool TPBDRigidsSolver<Traits>::UnregisterObject(TGeometryCollectionPhysicsProxy<Traits>* InProxy)
 	{
-		EnqueueCommandImmediate([InProxy,this]()
-		{
-			InProxy->OnRemoveFromSolver(this);
-			GeometryCollectionPhysicsProxies_Internal.RemoveSingle(InProxy);
-			InProxy->SetSolver(static_cast<TPBDRigidsSolver<Traits>*>(nullptr));
-		});
-		
-		return GeometryCollectionPhysicsProxies_External.Remove(InProxy) != 0;
+		check(InProxy);
+
+		RemoveDirtyProxy(InProxy);
+
+		int32 NumRemoved = GeometryCollectionPhysicsProxies_External.Remove(InProxy);
+
+		EnqueueCommandImmediate([InProxy, this]()
+			{
+				GeometryCollectionPhysicsProxies_Internal.RemoveSingle(InProxy);
+
+				const TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = InProxy->GetSolverParticleHandles();
+				for (const Chaos::TPBDRigidClusteredParticleHandle<float, 3> * ParticleHandle : ParticleHandles)
+				{
+					RemoveParticleToProxy(ParticleHandle);
+				}
+
+				InProxy->SyncBeforeDestroy();
+				delete InProxy;
+			});
+
+		return NumRemoved == 1;
 	}
 
 	template <typename Traits>
@@ -586,6 +599,7 @@ namespace Chaos
 		FJointConstraintPhysicsProxy* JointProxy = GTConstraint->GetProxy<FJointConstraintPhysicsProxy>();
 		check(JointProxy);
 
+		JointProxy->SetSolver(static_cast<TPBDRigidsSolver<Traits>*>(nullptr));
 		RemoveDirtyProxy(JointProxy);
 
 		int32 NumRemoved = JointConstraintPhysicsProxies_External.Remove(JointProxy);
@@ -622,6 +636,7 @@ namespace Chaos
 		FSuspensionConstraintPhysicsProxy* SuspensionProxy = GTConstraint->GetProxy<FSuspensionConstraintPhysicsProxy>();
 		check(SuspensionProxy);
 
+		SuspensionProxy->SetSolver(static_cast<TPBDRigidsSolver<Traits>*>(nullptr));
 		RemoveDirtyProxy(SuspensionProxy);
 
 		int32 NumRemoved = SuspensionConstraintPhysicsProxies.Remove(SuspensionProxy);
