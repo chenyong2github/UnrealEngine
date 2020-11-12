@@ -35,15 +35,27 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 			Counter = CounterProvider.CreateCounter();
 			CountersMap.Add(StatId, Counter);
 		}
-		const ANSICHAR* Name = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
-		const TCHAR* Description = reinterpret_cast<const TCHAR*>(EventData.GetAttachment() + strlen(Name) + 1);
+
+		FString Name;
+		FString Description;
+		if (EventData.GetString("Name", Name))
+		{
+			EventData.GetString("Description", Description);
+		}
+		else
+		{
+			Name = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
+			Description = reinterpret_cast<const TCHAR*>(EventData.GetAttachment() + Name.Len() + 1);
+		}
+
+
 		Trace::ECounterDisplayHint DisplayHint = Trace::CounterDisplayHint_None;
 		if (EventData.GetValue<bool>("IsMemory"))
 		{
 			DisplayHint = Trace::CounterDisplayHint_Memory;
 		}
-		Counter->SetName(Session.StoreString(ANSI_TO_TCHAR(Name)));
-		Counter->SetDescription(Session.StoreString(Description));
+		Counter->SetName(Session.StoreString(*Name));
+		Counter->SetDescription(Session.StoreString(*Description));
 		Counter->SetIsFloatingPoint(EventData.GetValue<bool>("IsFloatingPoint"));
 		Counter->SetDisplayHint(DisplayHint);
 		break;
