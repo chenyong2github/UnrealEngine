@@ -693,7 +693,7 @@ void UGroomBindingAsset::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSi
 	for (const FHairGroupResource& Group : HairGroupResources)
 	{
 		if (Group.SimRootResources) CumulativeResourceSize.AddDedicatedVideoMemoryBytes(Group.SimRootResources->GetResourcesSize());
-		if (Group.RenRootResources) CumulativeResourceSize.AddDedicatedVideoMemoryBytes(Group.SimRootResources->GetResourcesSize());
+		if (Group.RenRootResources) CumulativeResourceSize.AddDedicatedVideoMemoryBytes(Group.RenRootResources->GetResourcesSize());
 		for (const FHairStrandsRestRootResource* CardsRootResource : Group.CardsRootResources)
 		{
 			if (CardsRootResource) CumulativeResourceSize.AddDedicatedVideoMemoryBytes(CardsRootResource->GetResourcesSize());
