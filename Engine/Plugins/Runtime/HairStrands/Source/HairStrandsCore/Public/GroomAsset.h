@@ -88,10 +88,27 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 
 	struct FSim : FBase
 	{
+		/* Return the memory size for GPU resources */
+		uint32 GetResourcesSize() const
+		{
+			uint32 Total = 0;
+			if (RestResource) Total += RestResource->GetResourcesSize();
+			return Total;
+		}
 	} Guides;
 
 	struct FStrands : FBaseWithInterpolation
 	{
+		/* Return the memory size for GPU resources */
+		uint32 GetResourcesSize() const
+		{
+			uint32 Total = 0;
+			if (RestResource) Total += RestResource->GetResourcesSize();
+			if (InterpolationResource) Total += InterpolationResource->GetResourcesSize();
+			if (ClusterCullingResource) Total += ClusterCullingResource->GetResourcesSize();
+			return Total;
+		}
+
 		FHairStrandsClusterCullingData		ClusterCullingData;
 		FHairStrandsClusterCullingResource* ClusterCullingResource = nullptr;
 	} Strands;
@@ -118,8 +135,30 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			}
 			return FBox();
 		}
+
+		/* Return the memory size for GPU resources */
+		uint32 GetResourcesSize() const
+		{
+			uint32 Total = 0;
+			for (const FLOD& LOD : LODs)
+			{
+				Total += LOD.GetResourcesSize();
+			}
+			return Total;
+		}
+
 		struct FLOD
 		{
+			/* Return the memory size for GPU resources */
+			uint32 GetResourcesSize() const
+			{
+				uint32 Total = 0;
+				if (RestResource) Total += RestResource->GetResourcesSize();
+				if (ProceduralResource) Total += ProceduralResource->GetResourcesSize();
+				if (InterpolationResource) Total += InterpolationResource->GetResourcesSize();
+				return Total;
+			}
+
 			bool HasValidData() const { return Data.IsValid(); }
 			bool IsValid() const { return Data.IsValid() && RestResource != nullptr; }
 			// Main data & Resources
@@ -162,8 +201,28 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			}
 			return FBox();
 		}
+		
+		/* Return the memory size for GPU resources */
+		uint32 GetResourcesSize() const
+		{
+			uint32 Total = 0;
+			for (const FLOD& LOD : LODs)
+			{
+				Total += LOD.GetResourcesSize();
+			}
+			return Total;
+		}
+
 		struct FLOD
 		{
+			/* Return the memory size for GPU resources */
+			uint32 GetResourcesSize() const
+			{
+				uint32 Total = 0;
+				if (RestResource) Total += RestResource->GetResourcesSize();
+				return Total;
+			}
+
 			bool HasValidData() const { return Data.IsValid(); }
 			bool IsValid() const { return Data.IsValid() && RestResource != nullptr; }
 			FHairMeshesDatas Data;
@@ -274,6 +333,7 @@ public:
 	TArray<float> EffectiveLODBias;
 
 	//~ Begin UObject Interface.
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
 	virtual void Serialize(FArchive& Ar) override;
