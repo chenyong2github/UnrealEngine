@@ -245,16 +245,6 @@ bool FTextureShareModule::SendSceneContext_RenderThread(FRHICommandListImmediate
 			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::GBufferD, SceneContext.GBufferD);
 			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::GBufferE, SceneContext.GBufferE);
 			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::GBufferF, SceneContext.GBufferF);
-
-			// TODO: These textures aren't pooled anymore
-// 			if (SceneContext.HasLightAttenuation())
-// 			{
-// 				SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::LightAttenuation, SceneContext.GetLightAttenuationTexture());
-// 			}
-
-			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::LightAccumulation, SceneContext.LightAccumulation);
-			//SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::LightingChannels, SceneContext.LightingChannels);
-
 			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::GBufferVelocity, SceneContext.SceneVelocity);
 			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::Foveation, SceneContext.FoveationTexture);
 			//@todo: Add more textures

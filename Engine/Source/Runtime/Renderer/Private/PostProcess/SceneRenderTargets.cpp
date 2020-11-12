@@ -1742,17 +1742,6 @@ void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRDGBuilder& 
 		}
 	}
 
-	if (CurrentFeatureLevel >= ERHIFeatureLevel::SM5) 
-	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
-		if (CurrentFeatureLevel >= ERHIFeatureLevel::SM5)
-		{
-			Desc.TargetableFlags |= TexCreate_UAV;
-		}
-		Desc.Flags |= GFastVRamConfig.LightAccumulation;
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, LightAccumulation, TEXT("LightAccumulation"), ERenderTargetTransience::NonTransient);
-	}
-
 	if (bAllocateVelocityGBuffer)
 	{
 		FPooledRenderTargetDesc VelocityRTDesc = Translate(FVelocityRendering::GetRenderTargetDesc(ShaderPlatform));
@@ -1916,7 +1905,6 @@ void FSceneRenderTargets::ReleaseAllTargets()
 	ScreenSpaceAO.SafeRelease();
 	ScreenSpaceGTAOHorizons.SafeRelease();
 	QuadOverdrawBuffer.SafeRelease();
-	LightAccumulation.SafeRelease();
 	CustomDepth.SafeRelease();
 	MobileCustomDepth.SafeRelease();
 	MobileCustomStencil.SafeRelease();

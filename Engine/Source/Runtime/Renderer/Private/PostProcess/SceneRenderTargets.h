@@ -335,9 +335,6 @@ private: // Get...() methods instead of direct access
 	// Permanently allocated for forward shading
 	TRefCountPtr<IPooledRenderTarget> SceneColor[(int32)ESceneColorFormatType::Num];
 public:
-	// Light Accumulation is a high precision scratch pad matching the size of the scene color buffer used by many passes.
-	TRefCountPtr<IPooledRenderTarget> LightAccumulation;
-
 	// Scene depth and stencil.
 	TRefCountPtr<IPooledRenderTarget> SceneDepthZ;
 	TRefCountPtr<FRHIShaderResourceView> SceneStencilSRV;
@@ -426,8 +423,6 @@ private:
 	/** to detect when LargestDesiredSizeThisFrame is outdated */
 	uint32 ThisFrameNumber;
 	uint32 CurrentDesiredSizeIndex;
-
-	/** CAUTION: When adding new data, make sure you copy it in the snapshot constructor! **/
 
 	/**
 	 * Initializes the editor primitive color render target
@@ -550,8 +545,6 @@ private:
 	int32 CurrentMSAACount;
 	/** To detect a change of the CVar r.Shadow.MinResolution */
 	int32 CurrentMinShadowResolution;
-	/** To detect a change of the CVar r.LightPropagationVolume */
-	bool bCurrentLightPropagationVolume;
 	/** Feature level we were initialized for */
 	ERHIFeatureLevel::Type CurrentFeatureLevel;
 	/** Shading path that we are currently drawing through. Set when calling Allocate at the start of a scene render. */
@@ -567,9 +560,6 @@ private:
 
 	/** Clear depth value, defaults to FClearValueBinding::DepthFar */
 	FClearValueBinding DefaultDepthClear;
-
-	/** All outstanding snapshots */
-	TArray<FSceneRenderTargets*> Snapshots;
 
 	/** True if the depth target is allocated by an HMD plugin. This is a temporary fix to deal with HMD depth target swap chains not tracking the stencil SRV. */
 	bool bHMDAllocatedDepthTarget;
