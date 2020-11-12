@@ -104,6 +104,7 @@ FHairTransmittanceData ComputeDualScatteringTerms(
 	Out.ScatteringComponent = HairComponents | HAIR_COMPONENT_MULTISCATTER;
 	Out.GlobalScattering = (HairComponents & HAIR_COMPONENT_GS) > 0 ? GlobalScattering : 1;
 	Out.LocalScattering  = (HairComponents & HAIR_COMPONENT_LS) > 0 ? LocalScattering : 0;
+	Out.bUseLegacyAbsorption = (HairComponents & HAIR_COMPONENT_TT_MODEL) == 0;
 	Out.OpaqueVisibility = TransmittanceMask.Visibility;
 	return Out;
 	// Final computation is done in ShadingModels.ush with the following formula
@@ -188,7 +189,6 @@ FHairTransmittanceData EvaluateDualScattering(FGBufferData GBuffer, float3 V, fl
 			L,
 			GBuffer.WorldNormal,
 			View.HairComponents);
-		Out.bUseLegacyAbsorption = false;
 	}
 
 	return Out;
