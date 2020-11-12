@@ -76,8 +76,8 @@ public:
 	int32 OctaveNumber;
 
 	/** Spacing between vertices on cut surfaces, where noise is added.  Larger spacing between vertices will create more efficient meshes with fewer triangles, but less resolution to see the shape of the added noise  */
-	UPROPERTY(EditAnywhere, Category = Noise, meta = (UIMin = "1"))
-	int32 SurfaceResolution;
+	UPROPERTY(EditAnywhere, Category = Noise, meta = (UIMin = "1", ClampMin = "0.1"))
+	float SurfaceResolution;
 
 	UPROPERTY()
 	UFractureTool *OwnerTool;
