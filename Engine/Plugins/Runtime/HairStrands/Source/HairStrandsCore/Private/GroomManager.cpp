@@ -200,8 +200,9 @@ void RunHairStrandsInterpolation(
 						MeshDataLOD,
 						Instance->Guides.RestRootResource,
 						Instance->Guides.DeformedRootResource);
-				
-					if (Instance->Guides.bHasGlobalInterpolation && Instance->Strands.RestRootResource)
+
+					if((Instance->GeometryType == EHairGeometryType::Strands && Instance->Guides.bHasGlobalInterpolation) ||
+						Instance->GeometryType == EHairGeometryType::Meshes || Instance->GeometryType == EHairGeometryType::Cards)
 					{
 						AddHairStrandInitMeshSamplesPass(
 							GraphBuilder,
@@ -209,7 +210,6 @@ void RunHairStrandsInterpolation(
 							Instance->Debug.MeshLODIndex,
 							HairStrandsTriangleType::DeformedPose,
 							MeshDataLOD,
-							Instance->Strands.RestRootResource,
 							Instance->Guides.RestRootResource,
 							Instance->Guides.DeformedRootResource);
 
