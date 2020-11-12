@@ -44,15 +44,23 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVirtualVoxelCommonParameters, )
 	SHADER_PARAMETER(uint32, PageIndexCount)
 	SHADER_PARAMETER(uint32, IndirectDispatchGroupSize)
 	SHADER_PARAMETER(uint32, NodeDescCount)
+
 	SHADER_PARAMETER(float, DensityScale)
 	SHADER_PARAMETER(float, DensityScale_AO)
+	SHADER_PARAMETER(float, DensityScale_Shadow)
+	SHADER_PARAMETER(float, DensityScale_Transmittance)
+	SHADER_PARAMETER(float, DensityScale_Environment)
+	SHADER_PARAMETER(float, DensityScale_Raytracing)
+
 	SHADER_PARAMETER(float, DepthBiasScale_Shadow)
 	SHADER_PARAMETER(float, DepthBiasScale_Transmittance)
 	SHADER_PARAMETER(float, DepthBiasScale_Environment)
+
 	SHADER_PARAMETER(float, SteppingScale_Shadow)
 	SHADER_PARAMETER(float, SteppingScale_Transmittance)
 	SHADER_PARAMETER(float, SteppingScale_Environment)
 	SHADER_PARAMETER(float, SteppingScale_Raytracing)
+
 	SHADER_PARAMETER(float, HairCoveragePixelRadiusAtDepth1) 
 	SHADER_PARAMETER(float, Raytracing_ShadowOcclusionThreshold)
 	SHADER_PARAMETER(float, Raytracing_SkyOcclusionThreshold)

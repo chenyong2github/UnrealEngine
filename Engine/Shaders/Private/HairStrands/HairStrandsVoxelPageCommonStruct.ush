@@ -17,4 +17,4 @@ struct FVoxelizationViewInfo
 	float    Pad0;
 	uint2    RasterResolution;
 	float2   Pad1;
-}; 
+};  
