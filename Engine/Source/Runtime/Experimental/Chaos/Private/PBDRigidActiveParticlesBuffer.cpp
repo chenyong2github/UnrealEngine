@@ -29,6 +29,7 @@ namespace Chaos
 		auto& PhysicsParticleProxies = SolverDataOut->AccessProducerBuffer()->PhysicsParticleProxies;
 
 		ActiveGameThreadParticles.Empty();
+		PhysicsParticleProxies.Empty();
 		TParticleView<TPBDRigidParticles<float, 3>>& ActiveParticlesView = Solver->GetParticles().GetDirtyParticlesView();
 		for (auto& ActiveParticle : ActiveParticlesView)
 		{
