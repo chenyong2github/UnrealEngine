@@ -24,12 +24,6 @@ CSV_DEFINE_CATEGORY_MODULE(SLATECORE_API, Slate, true);
 
 #define LOCTEXT_NAMESPACE "SlateDebugger"
 
-// Scalar goes from 0 to 1.  0 being all yellow, 1 being all red
-FLinearColor YellowToRedFromScalar(float Scalar)
-{
-	return FLinearColor(1.0f, 1.0f * (1.0f - Scalar), 0.0f);
-}
-
 FSlateDebuggingInputEventArgs::FSlateDebuggingInputEventArgs(ESlateDebuggingInputEvent InInputEventType, const FReply& InReply, const TSharedPtr<SWidget>& InHandlerWidget, const FString& InAdditionalContent)
 	: InputEventType(InInputEventType)
 	, Reply(InReply)
