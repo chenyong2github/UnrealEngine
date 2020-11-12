@@ -670,7 +670,12 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 	}
 #endif // #if WITH_EDITORONLY_DATA
 
-	const bool bIsBelowMinLOD = StripFlags.IsClassDataStripped(CDSF_MinLodData);
+#if WITH_EDITOR
+	const bool bIsBelowMinLOD = StripFlags.IsClassDataStripped(CDSF_MinLodData)
+		|| (Ar.IsCooking() && OwnerStaticMesh && Index < GetPlatformMinLODIdx(Ar.CookingTarget(), OwnerStaticMesh));
+#else
+	const bool bIsBelowMinLOD = false;
+#endif
 	bool bIsLODCookedOut = IsLODCookedOut(Ar.CookingTarget(), OwnerStaticMesh, bIsBelowMinLOD);
 	Ar << bIsLODCookedOut;
 
@@ -2234,7 +2239,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define STATICMESH_DERIVEDDATA_VER TEXT("14FB7BD55BAA4C14BCDC7C2AD14BCE50")
+#define STATICMESH_DERIVEDDATA_VER TEXT("5006678E03954A5D8B76A9383388F65C")
 
 static const FString& GetStaticMeshDerivedDataVersion()
 {
