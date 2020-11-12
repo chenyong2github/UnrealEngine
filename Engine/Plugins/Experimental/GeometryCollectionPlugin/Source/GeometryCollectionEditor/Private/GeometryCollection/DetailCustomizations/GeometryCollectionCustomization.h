@@ -3,6 +3,10 @@
 #pragma once
 
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
+#include "Layout/Visibility.h"
+
+enum class ECheckBoxState : uint8;
 
 class FGeometryCollectionCustomization : public IDetailCustomization
 {

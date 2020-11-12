@@ -8,6 +8,11 @@
 #include "IDetailGroup.h"
 #include "DetailWidgetRow.h"
 #include "Async/ParallelFor.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
 
 
 #define LOCTEXT_NAMESPACE "GeometryCollectionCustomization"
