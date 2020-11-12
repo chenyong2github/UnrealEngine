@@ -69,6 +69,9 @@ private:
 	void HandlePartyMemberCreated(UPartyMember& Member);
 	void HandlePartyMemberLeft(EMemberExitedReason Reason, UPartyMember* Member);
 
+	USocialUser* FindOwnersRelationshipTo(UPartyMember& TargetPartyMember) const;
+	void MarkPartyMemberAsDirty(UPartyMember& PartyMember);
+
 private:
 	FSocialUserList(const USocialToolkit& InOwnerToolkit, const FSocialUserListConfig& Config);
 	void InitializeList();
