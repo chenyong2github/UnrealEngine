@@ -598,17 +598,16 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, FVulkanEvictable* Owner,
 		BufferCreateInfo.usage = BufferMemFlags;
 
 		VERIFYVULKANRESULT(VulkanRHI::vkCreateBuffer(VulkanDevice, &BufferCreateInfo, VULKAN_CPU_ALLOCATOR, &CpuReadbackBuffer->Buffer));
-		VkMemoryRequirements MemReqs;
-		VulkanRHI::vkGetBufferMemoryRequirements(VulkanDevice, CpuReadbackBuffer->Buffer, &MemReqs);
+		VulkanRHI::vkGetBufferMemoryRequirements(VulkanDevice, CpuReadbackBuffer->Buffer, &MemoryRequirements);
 		// Set minimum alignment to 16 bytes, as some buffers are used with CPU SIMD instructions
-		MemReqs.alignment = FMath::Max<VkDeviceSize>(16, MemReqs.alignment);
-		if (!InDevice.GetMemoryManager().AllocateBufferMemory(Allocation, Owner, MemReqs, BufferMemFlags, EVulkanAllocationMetaBufferStaging, __FILE__, __LINE__))
+		MemoryRequirements.alignment = FMath::Max<VkDeviceSize>(16, MemoryRequirements.alignment);
+		if (!InDevice.GetMemoryManager().AllocateBufferMemory(Allocation, Owner, MemoryRequirements, BufferMemFlags, EVulkanAllocationMetaBufferStaging, __FILE__, __LINE__))
 		{
 			InDevice.GetMemoryManager().HandleOOM();
 		}
 		Allocation.BindBuffer(Device, CpuReadbackBuffer->Buffer);
 		void* Memory = Allocation.GetMappedPointer(Device);
-		FMemory::Memzero(Memory, MemReqs.size);
+		FMemory::Memzero(Memory, MemoryRequirements.size);
 		return;
 	}
 
@@ -1061,6 +1060,13 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType Resource
 	, CpuReadbackBuffer(nullptr)
 {
 	StorageFormat = UEToVkTextureFormat(PixelFormat, false);
+    {
+        UE_LOG(LogVulkanRHI, Warning, TEXT("Creating Texture %s\n"), CreateInfo.DebugName ? CreateInfo.DebugName : TEXT("<null>"));
+        if(CreateInfo.DebugName && FString(TEXT("HZBResultCPU")) == CreateInfo.DebugName)
+        {
+            UE_LOG(LogVulkanRHI, Warning, TEXT("Creating Texture %s\n"), CreateInfo.DebugName ? CreateInfo.DebugName : TEXT("<null>"));
+        }
+    }
 
 	checkf(PixelFormat == PF_Unknown || StorageFormat != VK_FORMAT_UNDEFINED, TEXT("PixelFormat %d, is not supported for images"), (int32)PixelFormat);
 
