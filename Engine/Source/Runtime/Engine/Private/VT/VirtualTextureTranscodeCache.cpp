@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VirtualTextureTranscodeCache.h"
-#include "VirtualTextureUploadCache.h"
-#include "VirtualTextureChunkManager.h"
-#include "UploadingVirtualTexture.h"
-#include "CrunchCompression.h"
+
 #include "BlockCodingHelpers.h"
+#include "EngineModule.h"
+#include "CrunchCompression.h"
+#include "RendererInterface.h"
+#include "UploadingVirtualTexture.h"
+#include "VirtualTextureChunkManager.h"
+#include "VirtualTextureUploadCache.h"
 
 static int32 TranscodeRetireAge = 60; //1 second @ 60 fps
 static FAutoConsoleVariableRef CVarVTTranscodeRetireAge(
@@ -13,6 +16,27 @@ static FAutoConsoleVariableRef CVarVTTranscodeRetireAge(
 	TranscodeRetireAge,
 	TEXT("If a VT transcode request is not picked up after this number of frames, drop it and put request in cache as free. default 60\n")
 	, ECVF_Default
+);
+
+/** Highlight decoding errors in hot pink. Remove this after we fix the bug where the DDC for virtual textures is getting poisoned with bad data. */
+static bool GShowDecodeErrors = true;
+static FAutoConsoleCommand CVarVTShowDecodeErrors(
+	TEXT("r.VT.ShowDecodeErrors"),
+	TEXT("Highlight virtual textures with decode errors in hot pink."),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray< FString >& Args)
+		{
+			if (Args.Num() != 1)
+			{
+				GShowDecodeErrors = !GShowDecodeErrors;
+			}
+			else
+			{
+				GShowDecodeErrors = TCString<TCHAR>::Atoi(*Args[0]) != 0;
+			}
+
+			GetRendererModule().FlushVirtualTextureCache();
+		})
 );
 
 namespace TextureBorderGenerator
@@ -184,7 +208,7 @@ struct FTranscodeTask
 				break;
 			}
 
-			if (!bDecodeResult)
+			if (!bDecodeResult && GShowDecodeErrors)
 			{
 				UniformColorPixels(StagingBufferForLayer, TilePixelSize, TilePixelSize, LayerFormat, ErrorColor);
 			}
