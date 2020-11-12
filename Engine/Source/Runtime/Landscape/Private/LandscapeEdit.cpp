@@ -3728,7 +3728,7 @@ void ALandscapeProxy::EditorApplyScale(const FVector& DeltaScale, const FVector*
 		float XYDeltaScale = bFavorX ? DeltaScale.X : DeltaScale.Y;
 		if (XYDeltaScale == -1.0f)
 		{
-			XYDeltaScale = XYDeltaScale = -(CurrentScale.X - 1) / CurrentScale.X;
+			XYDeltaScale = -(CurrentScale.X - 1) / CurrentScale.X;
 		}
 		if (ModifiedDeltaScale.Z == -1)
 		{
