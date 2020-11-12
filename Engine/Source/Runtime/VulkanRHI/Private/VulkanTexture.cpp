@@ -1060,13 +1060,6 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType Resource
 	, CpuReadbackBuffer(nullptr)
 {
 	StorageFormat = UEToVkTextureFormat(PixelFormat, false);
-    {
-        UE_LOG(LogVulkanRHI, Warning, TEXT("Creating Texture %s\n"), CreateInfo.DebugName ? CreateInfo.DebugName : TEXT("<null>"));
-        if(CreateInfo.DebugName && FString(TEXT("HZBResultCPU")) == CreateInfo.DebugName)
-        {
-            UE_LOG(LogVulkanRHI, Warning, TEXT("Creating Texture %s\n"), CreateInfo.DebugName ? CreateInfo.DebugName : TEXT("<null>"));
-        }
-    }
 
 	checkf(PixelFormat == PF_Unknown || StorageFormat != VK_FORMAT_UNDEFINED, TEXT("PixelFormat %d, is not supported for images"), (int32)PixelFormat);
 
