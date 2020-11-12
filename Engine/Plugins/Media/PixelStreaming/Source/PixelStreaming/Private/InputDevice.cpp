@@ -586,6 +586,7 @@ void FInputDevice::OnMessage(const uint8* Data, uint32 Size)
 		checkf(Size == 0, TEXT("%d, %d"), Size, Descriptor.Len());
 		UE_LOG(PixelStreamerInput, Verbose, TEXT("Command: %s"), *Descriptor);
 		ProcessCommand(Descriptor);
+		break;
 	}
 	case EToStreamerMsg::KeyDown:
 	{

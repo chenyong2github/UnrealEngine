@@ -195,7 +195,7 @@ void FPlayerSession::OnMessage(const webrtc::DataBuffer& Buffer)
 		check(Buffer.data.size() == 1);
 		Streamer.OnQualityOwnership(PlayerId);
 	}
-	else
+	else if (!IsEngineExitRequested())
 	{
 		InputDevice.OnMessage(Buffer.data.data(), static_cast<uint32>(Buffer.data.size()));
 	}
