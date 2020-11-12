@@ -729,7 +729,7 @@ void Main(
 
 		// Fc * Vis
 		#if FORWARDSHADING_USE_HQ_ENV_BRDF
-			half2 AB = PreIntegratedGF.SampleLevel(PreIntegratedGFSampler, float2(ShadingModelContext.NoV, ShadingModelContext.Roughness), 0).rg;
+			half2 AB = PreIntegratedGF.SampleLevel(PreIntegratedGFSampler, float2(ShadingModelContext.NoV, GBuffer.Roughness), 0).rg;
 		#else
 			half3 Fc = (ShadingModelContext.SpecularColor - ShadingModelContext.SpecPreEnvBrdf) * rcp(saturate(50 * ShadingModelContext.SpecPreEnvBrdf.g) - ShadingModelContext.SpecPreEnvBrdf);
 			half2 AB = half2(1 - Fc.x, Fc.x);
