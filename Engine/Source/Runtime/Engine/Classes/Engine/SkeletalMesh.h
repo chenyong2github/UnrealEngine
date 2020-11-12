@@ -751,7 +751,7 @@ public:
 	USkeletalMeshLODSettings* LODSettings;
 
 	/** The Default Control Rig To Animate with when used in Sequnecer. */
-	UPROPERTY(EditAnywhere, Category = AnimationRig, meta = (AllowedClasses = "ControlRigBlueprint"))
+	UPROPERTY(EditAnywhere, Category = AnimationRig, BlueprintGetter = GetDefaultAnimatingRig, BlueprintSetter = SetDefaultAnimatingRig, meta = (AllowedClasses = "ControlRigBlueprint"))
 	TSoftObjectPtr<UObject> DefaultAnimatingRig;
 
 #endif // WITH_EDITORONLY_DATA
@@ -769,6 +769,12 @@ public:
 
 	UFUNCTION(BlueprintSetter)
 	void SetLODSettings(USkeletalMeshLODSettings* InLODSettings);
+
+	UFUNCTION(BlueprintSetter)
+	void SetDefaultAnimatingRig(TSoftObjectPtr<UObject> InAnimatingRig);
+
+	UFUNCTION(BlueprintGetter)
+	TSoftObjectPtr<UObject> GetDefaultAnimatingRig();
 
 	UPROPERTY(EditAnywhere, Category=Mirroring)
 	TEnumAsByte<EAxis::Type> SkelMirrorAxis;
