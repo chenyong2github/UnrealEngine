@@ -956,12 +956,9 @@ namespace ChaosTest {
 			virtual FSimCallbackOutput* OnPreSimulate_Internal(const FReal SimStart, const FReal DeltaSeconds, const FSimCallbackInput* Input) override
 			{
 				EXPECT_EQ(Input, nullptr);	//no inputs passed in
-				if(Count < NumPTSteps)
-				{
-					//we expect the dt to be 1, unless it's the final callback when solver is destroyed (that dt is always 0)
-					EXPECT_EQ(DeltaSeconds, 1);
-					EXPECT_EQ(SimStart, Count);
-				}
+				//we expect the dt to be 1
+				EXPECT_EQ(DeltaSeconds, 1);
+				EXPECT_EQ(SimStart, Count);
 				Count++;
 				return nullptr;
 			}
@@ -1047,17 +1044,13 @@ namespace ChaosTest {
 		{
 			virtual FSimCallbackOutput* OnPreSimulate_Internal(const FReal SimStart, const FReal DeltaSeconds, const FSimCallbackInput* Input) override
 			{
-				if(!bOver)	//need to check when destruction happens as it gives a null input, but we want to make sure all other inputs are not null
-				{
-					EXPECT_EQ(static_cast<const FDummyInput*>(Input)->ExternalFrame, ExpectedFrame);
-					EXPECT_NEAR(SimStart, InternalSteps * DeltaSeconds, 1e-2);	//sim start is changing per sub-step
-					++InternalSteps;
-				}
+				EXPECT_EQ(static_cast<const FDummyInput*>(Input)->ExternalFrame, ExpectedFrame);
+				EXPECT_NEAR(SimStart, InternalSteps * DeltaSeconds, 1e-2);	//sim start is changing per sub-step
+				++InternalSteps;
 				return nullptr;
 			}
 
 			int32 ExpectedFrame;
-			bool bOver = false;
 			int32 InternalSteps = 0;
 		};
 
@@ -1085,6 +1078,5 @@ namespace ChaosTest {
 			EXPECT_NEAR(Simulated->X()[2], 0, 1e-2);
 			EXPECT_NEAR(Simulated->V()[2], 0, 1e-2);
 		}
-		Callback->bOver = true;
 	}
 }

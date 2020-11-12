@@ -235,6 +235,11 @@ namespace Chaos
 				ThreadingMode = InThreadingMode;
 			}
 		}
+		
+		void MarkShuttingDown()
+		{
+			bIsShuttingDown = true;
+		}
 
 		void EnableAsyncMode(FReal FixedDt)
 		{
@@ -343,7 +348,11 @@ namespace Chaos
 			{
 				if (!Callback->bPendingDelete)
 				{
-					Callback->PreSimulate_Internal(SimTime, Dt);
+					//if we're shutting down, we only want to run callbacks that are "run once more". This generally means it's a one shot command that may free resources
+					if(!bIsShuttingDown || Callback->bRunOnceMore)
+					{
+						Callback->PreSimulate_Internal(SimTime, Dt);
+					}
 				}
 			}
 		}
@@ -355,7 +364,11 @@ namespace Chaos
 			{
 				if (!Callback->bPendingDelete)
 				{
-					Callback->PostSimulate_Internal(SimTime, DeltaTime);
+					//if we're shutting down, we only want to run callbacks that are "run once more". This generally means it's a one shot command that may free resources
+					if (!bIsShuttingDown || Callback->bRunOnceMore)
+					{
+						Callback->PostSimulate_Internal(SimTime, DeltaTime);
+					}
 				}
 			}
 
@@ -502,6 +515,7 @@ namespace Chaos
 
 		ETraits TraitIdx;
 
+		bool bIsShuttingDown;
 		bool bUseAsync;
 		FReal AsyncDt;
 		FReal AccumulatedTime;
