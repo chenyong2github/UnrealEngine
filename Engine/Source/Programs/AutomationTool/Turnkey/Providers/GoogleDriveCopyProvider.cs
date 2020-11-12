@@ -95,7 +95,7 @@ namespace Turnkey
 					}
 					// if we are removing our one and only file from the list to be deleted, we need to change our OutputPath to be that single file
 					// since we won't be going through the lower loop
-					else
+					else if (!bHasWildcard)
 					{
 						OutputPath = ExistingPath;
 					}
