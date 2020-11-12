@@ -704,6 +704,9 @@ struct FEnvQueryDebugData : public FEnvQueryDebugProfileData
 	// indicates the query was run in a single-item mode and that it has been found
 	uint32 bSingleItemResult : 1;
 
+	/** composite generator can be counted correctly */
+	int32 CurrentOptionGeneratorIdx = INDEX_NONE;
+
 	FEnvQueryDebugData() : bSingleItemResult(false) {}
 	
 	void Store(const FEnvQueryInstance& QueryInstance, const float ExecutionTime, const bool bStepDone);
