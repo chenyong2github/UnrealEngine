@@ -5306,6 +5306,16 @@ void UStaticMesh::PostLoad()
 		check(RunningPlatform);
 		IMeshBuilderModule::GetForPlatform(RunningPlatform);
 
+		// Additionally cache derived data for any other platforms we care about.
+		const TArray<ITargetPlatform*>& TargetPlatforms = TargetPlatformManager.GetActiveTargetPlatforms();
+		for (ITargetPlatform* Platform : TargetPlatforms)
+		{
+			if (Platform != RunningPlatform)
+			{
+				IMeshBuilderModule::GetForPlatform(Platform);
+			}
+		}
+
 		FQueuedThreadPool* StaticMeshThreadPool = FStaticMeshCompilingManager::Get().GetThreadPool();
 		EQueuedWorkPriority BasePriority = FStaticMeshCompilingManager::Get().GetBasePriority(this);
 
