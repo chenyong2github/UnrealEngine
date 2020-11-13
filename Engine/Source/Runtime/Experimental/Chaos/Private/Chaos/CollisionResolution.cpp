@@ -289,13 +289,17 @@ namespace Chaos
 			int32 ClosestVertexIndexA, ClosestVertexIndexB;
 			const FReal EpsilonSq = 1.e-5f;
 
-			if (ensure(GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0.5f * ShapePadding, InitialDir, 0.5f * ShapePadding, EpsilonSq)))
+			const FReal ThicknessA = A.GetMargin() + 0.5f * ShapePadding;
+			const FReal ThicknessB = B.GetMargin() + 0.5f * ShapePadding;
+			if (ensure(GJKPenetrationCore<true>(A, B, BToATM, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, ThicknessA, ThicknessB, InitialDir, EpsilonSq)))
 			{
 				// GJK output is all in the local space of A. We need to transform the B-relative position and the normal in to B-space
+				Contact.ShapeMargins[0] = ThicknessA;
+				Contact.ShapeMargins[1] = ThicknessB;
 				Contact.ShapeContactPoints[0] = ClosestA;
 				Contact.ShapeContactPoints[1] = BToATM.InverseTransformPosition(ClosestBInA);
 				Contact.ShapeContactNormal = -BToATM.InverseTransformVector(Normal);
-				Contact.Location = ATM.TransformPosition(ClosestA);
+				Contact.Location = ATM.TransformPosition(ClosestA + ThicknessA * Normal);
 				Contact.Normal = -ATM.TransformVectorNoScale(Normal);
 				Contact.Phi = -Penetration;
 			}
@@ -308,13 +312,14 @@ namespace Chaos
 		{
 			const FRigidTransform3 BToATM = BTM.GetRelativeTransform(ATM);
 			FContactPoint ContactPoint = GJKContactPoint2(A, B, ATM, BToATM, InitialDir, ShapePadding);
-			
+
+			// @todo(chaos): this does not work well - do something better. If GJK returns a normal that is off enough for PhiWithNormal to select the wrong face. we can end up with objects popping through each other.
 			// If GJKPenetration returns a phi of abs value < this number, we use PhiWithNormal to recalculate phi and normal.
 			// We have observed bad normals coming from GJKPenetration when barely in contact. This is caused by the renormalization of small vectors.
-			if (FMath::Abs(ContactPoint.Phi) < Chaos_Collision_PhiResampleThreshold)
-			{
-				FixGJKPenetrationNormal(ContactPoint, B, BTM);
-			}
+			//if (FMath::Abs(ContactPoint.Phi) < Chaos_Collision_PhiResampleThreshold)
+			//{
+			//	FixGJKPenetrationNormal(ContactPoint, B, BTM);
+			//}
 
 			return ContactPoint;
 		}
@@ -363,6 +368,9 @@ namespace Chaos
 			{
 				if (B.GJKContactPoint(*ScaledConvexImplicit, AToBTM, CullDistance, Location, Normal, ContactPhi))
 				{
+					// @todo(chaos): margin
+					Contact.ShapeMargins[0] = 0.0f;
+					Contact.ShapeMargins[1] = 0.0f;
 					Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
 					Contact.ShapeContactPoints[1] = Location - ContactPhi * Normal;
 					Contact.ShapeContactNormal = Normal;
@@ -377,6 +385,9 @@ namespace Chaos
 				{
 					if (B.GJKContactPoint(*InstancedInnerObject, AToBTM, CullDistance, Location, Normal, ContactPhi))
 					{
+						// @todo(chaos): margin
+						Contact.ShapeMargins[0] = 0.0f;
+						Contact.ShapeMargins[1] = 0.0f;
 						Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
 						Contact.ShapeContactPoints[1] = Location - ContactPhi * Normal;
 						Contact.ShapeContactNormal = Normal;
@@ -390,6 +401,9 @@ namespace Chaos
 			{
 				if (B.GJKContactPoint(*ConvexImplicit, AToBTM, CullDistance, Location, Normal, ContactPhi))
 				{
+					// @todo(chaos): margin
+					Contact.ShapeMargins[0] = 0.0f;
+					Contact.ShapeMargins[1] = 0.0f;
 					Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
 					Contact.ShapeContactPoints[1] = Location - ContactPhi * Normal;
 					Contact.ShapeContactNormal = Normal;
@@ -417,6 +431,9 @@ namespace Chaos
 			{
 				if (B.SweepGeom(ADowncast, AToBTM, LocalDir, Length, OutTime, Location, Normal, FaceIndex, 0.0f, true))
 				{
+					// @todo(chaos): margin
+					Contact.ShapeMargins[0] = 0.0f;
+					Contact.ShapeMargins[1] = 0.0f;
 					Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
 					Contact.ShapeContactPoints[1] = Location;
 					Contact.ShapeContactNormal = Normal;
@@ -1025,6 +1042,9 @@ namespace Chaos
 			const FVec3 Normal = Size > SMALL_NUMBER ? Direction / Size : FVec3(0, 0, 1);
 			const FReal NewPhi = Size - (R1 + R1);
 
+			// @todo(chaos): margin
+			Result.ShapeMargins[0] = 0.0f;
+			Result.ShapeMargins[1] = 0.0f;
 			Result.ShapeContactPoints[0] = Sphere1Transform.InverseTransformVector(-R1 * Normal);
 			Result.ShapeContactPoints[1] = Sphere2Transform.InverseTransformVector(R2 * Normal);
 			Result.ShapeContactNormal = Sphere2Transform.InverseTransformVector(Normal);
@@ -1145,6 +1165,9 @@ namespace Chaos
 			FVec3 NormalWorld = PlaneTransform.TransformVector(NormalPlane);
 			FVec3 Location = SpherePosWorld - SphereRadius * NormalWorld;
 
+			// @todo(chaos): margin
+			Result.ShapeMargins[0] = 0.0f;
+			Result.ShapeMargins[1] = 0.0f;
 			Result.ShapeContactPoints[0] = SphereTransform.InverseTransformPosition(Location);
 			Result.ShapeContactPoints[1] = PlaneTransform.InverseTransformPosition(Location - Phi * NormalWorld);
 			Result.ShapeContactNormal = PlaneTransform.InverseTransformVector(NormalWorld);
@@ -1204,6 +1227,9 @@ namespace Chaos
 			FVec3 NormalWorld = BoxTransform.TransformVectorNoScale(NormalBox);
 			FVec3 LocationWorld = SphereWorld - (Sphere.GetRadius() + 0.5f * ShapePadding) * NormalWorld;
 
+			// @todo(chaos): margin
+			Result.ShapeMargins[0] = 0.0f;
+			Result.ShapeMargins[1] = 0.0f;
 			Result.ShapeContactPoints[0] = SphereTransform.InverseTransformPosition(LocationWorld);
 			Result.ShapeContactPoints[1] = BoxTransform.InverseTransformPosition(LocationWorld - Phi * NormalWorld);
 			Result.ShapeContactNormal = NormalBox;
@@ -1266,6 +1292,9 @@ namespace Chaos
 				FVec3 Dir = Delta / DeltaLen;
 				FVec3 Location = A1 + Dir * A.GetRadius();
 				FVec3 Normal = -Dir;
+				// @todo(chaos): margin
+				Result.ShapeMargins[0] = 0.0f;
+				Result.ShapeMargins[1] = 0.0f;
 				Result.ShapeContactPoints[0] = ATransform.InverseTransformPosition(Location);
 				Result.ShapeContactPoints[1] = BTransform.InverseTransformPosition(Location);
 				Result.ShapeContactNormal = BTransform.InverseTransformVector(Normal);
@@ -1443,6 +1472,9 @@ namespace Chaos
 				FVec3 Dir = Delta / DeltaLen;
 				FVec3 Normal = -Dir;
 				FVec3 Location = P1 + Dir * A.GetRadius();
+				// @todo(chaos): margin
+				Result.ShapeMargins[0] = 0.0f;
+				Result.ShapeMargins[1] = 0.0f;
 				Result.ShapeContactPoints[0] = ATransform.InverseTransformPosition(Location);
 				Result.ShapeContactPoints[1] = BTransform.InverseTransformPosition(Location);
 				Result.ShapeContactNormal = BTransform.InverseTransformVector(Normal);
@@ -2268,6 +2300,9 @@ namespace Chaos
 
 				if (ContactPoint.IsSet())
 				{
+					// @todo(chaos): margin
+					ContactPoint.ShapeMargins[0] = 0.0f;
+					ContactPoint.ShapeMargins[1] = 0.0f;
 					ContactPoint.ShapeContactPoints[0] = WorldTransform0.InverseTransformPosition(ContactPoint.Location);
 					ContactPoint.ShapeContactPoints[1] = WorldTransform1.InverseTransformPosition(ContactPoint.Location - ContactPoint.Phi * ContactPoint.Normal);
 					ContactPoint.ShapeContactNormal = WorldTransform1.InverseTransformVector(ContactPoint.Normal);
