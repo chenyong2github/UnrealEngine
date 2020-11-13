@@ -202,6 +202,16 @@ protected:
 	/**	Fires whenever any filter in the collection changes */
 	FChangedEvent ChangedEvent;
 
+public:
+
+	/**
+	 * DO NOT USE DIRECTLY
+	 * STL-like iterators to enable range-based for loop support.
+	 */
+	FORCEINLINE TArray< TSharedPtr< FSequencerTrackFilter > >::RangedForIteratorType      begin()       { return ChildFilters.begin(); }
+	FORCEINLINE TArray< TSharedPtr< FSequencerTrackFilter > >::RangedForConstIteratorType begin() const { return ChildFilters.begin(); }
+	FORCEINLINE TArray< TSharedPtr< FSequencerTrackFilter > >::RangedForIteratorType      end()	        { return ChildFilters.end(); }
+	FORCEINLINE TArray< TSharedPtr< FSequencerTrackFilter > >::RangedForConstIteratorType end()   const { return ChildFilters.end(); }
 };
 
 class FSequencerTrackFilter_AudioTracks : public FSequencerTrackFilter_ClassType< UMovieSceneAudioTrack >
@@ -314,6 +324,11 @@ class FSequencerTrackFilter_Animated : public FSequencerTrackFilter
 	virtual FText GetDisplayName() const override { return LOCTEXT("SequenceTrackFilter_Animated", "Animated Tracks"); }
 	virtual FText GetToolTipText() const override { return LOCTEXT("SequencerTrackFilter_AnimatedTip", "Show Only Animated Tracks."); }
 	virtual FSlateIcon GetIcon() const { return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyUser"); }
+
+	virtual bool ShouldUpdateOnTrackValueChanged() const override
+	{
+		return true;
+	}
 
 	virtual bool PassesFilter(FTrackFilterType InItem) const override
 	{

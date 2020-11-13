@@ -2460,6 +2460,10 @@ void FSequencer::NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChan
 			SetPlaybackStatus( EMovieScenePlayerStatus::Stopped );
 			bNeedTreeRefresh = true;
 		}
+		else if ( NodeTree->UpdateFiltersOnTrackValueChanged() )
+		{
+			bNeedTreeRefresh = true;
+		}
 	}
 
 	if (DataChangeType == EMovieSceneDataChangeType::TrackValueChanged || 
