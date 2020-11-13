@@ -7254,12 +7254,12 @@ int32 FHLSLMaterialTranslator::StrataDiffuseChanBSDF(int32 Albedo, int32 Roughne
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataDielectricBSDF(int32 Roughness, int32 Reflectivity, int32 Tint, int32 Normal)
+int32 FHLSLMaterialTranslator::StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal)
 {
 	return AddCodeChunk(
 		MCT_Strata, TEXT("GetStrataDielectricBSDF(%s, %s, %s, %s)"),
 		*GetParameterCode(Roughness),
-		*GetParameterCode(Reflectivity),
+		*GetParameterCode(IOR),
 		*GetParameterCode(Tint),
 		*GetParameterCode(Normal)
 	);
@@ -7367,18 +7367,6 @@ int32 FHLSLMaterialTranslator::StrataPhysicalIOR(int32 IOR, int32 Extinction, in
 		*GetParameterCode(IOR),
 		*GetParameterCode(Extinction)
 	);
-}
-
-int32 FHLSLMaterialTranslator::StrataDielectricIORToReflectivity(int32 IOR, int32 OutputIndex)
-{
-	if (IOR == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-	return AddCodeChunk(
-		MCT_Float,
-		TEXT("DielectricIorToF0(%s)"),
-		*GetParameterCode(IOR));
 }
 
 int32 FHLSLMaterialTranslator::MapARPassthroughCameraUV(int32 UV)

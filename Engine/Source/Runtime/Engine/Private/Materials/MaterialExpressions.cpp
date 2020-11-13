@@ -19154,7 +19154,7 @@ int32 UMaterialExpressionStrataDielectricBSDF::Compile(class FMaterialCompiler* 
 {
 	int32 OutputCodeChunk = Compiler->StrataDielectricBSDF(
 		Roughness.GetTracedInput().Expression	? Roughness.Compile(Compiler)	: Compiler->Constant2(0.0f, 0.0f),
-		Reflectivity.GetTracedInput().Expression? Reflectivity.Compile(Compiler): Compiler->Constant(0.04f),// Default to Glass
+		IOR.GetTracedInput().Expression			? IOR.Compile(Compiler)			: Compiler->Constant(1.5f),// Default to Glass
 		Tint.GetTracedInput().Expression		? Tint.Compile(Compiler)		: Compiler->Constant3(1.0f, 1.0f, 1.0f),
 		Normal.GetTracedInput().Expression		? Normal.Compile(Compiler)		: Compiler->PixelNormalWS());
 
@@ -19660,51 +19660,6 @@ uint32 UMaterialExpressionStrataPhysicalIOR::GetOutputType(int32 OutputIndex)
 uint32 UMaterialExpressionStrataPhysicalIOR::GetInputType(int32 InputIndex)
 {
 	return MCT_Float3;
-}
-#endif // WITH_EDITOR
-
-
-
-UMaterialExpressionStrataDielectricIORToReflectivity::UMaterialExpressionStrataDielectricIORToReflectivity(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	struct FConstructorStatics
-	{
-		FText NAME_Strata;
-		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata", "Strata")) { }
-	};
-	static FConstructorStatics ConstructorStatics;
-#if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Strata);
-
-	bShowOutputNameOnPin = true;
-
-	Outputs.Reset();
-	Outputs.Add(FExpressionOutput(TEXT("Reflectivity")));
-#endif
-}
-
-#if WITH_EDITOR
-int32 UMaterialExpressionStrataDielectricIORToReflectivity::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	return Compiler->StrataDielectricIORToReflectivity(
-		IOR.GetTracedInput().Expression			? IOR.Compile(Compiler)			: Compiler->Constant(1.5f),// Default to Glass IOR
-		OutputIndex);
-}
-
-void UMaterialExpressionStrataDielectricIORToReflectivity::GetCaption(TArray<FString>& OutCaptions) const
-{
-	OutCaptions.Add(TEXT("Strata IOR to Reflectivity"));
-}
-
-uint32 UMaterialExpressionStrataDielectricIORToReflectivity::GetOutputType(int32 OutputIndex)
-{
-	return MCT_Float;
-}
-
-uint32 UMaterialExpressionStrataDielectricIORToReflectivity::GetInputType(int32 InputIndex)
-{
-	return MCT_Float;
 }
 #endif // WITH_EDITOR
 

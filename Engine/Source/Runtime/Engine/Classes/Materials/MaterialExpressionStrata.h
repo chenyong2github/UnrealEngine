@@ -107,10 +107,10 @@ class UMaterialExpressionStrataDielectricBSDF : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 	
 	/**
-	 * The reflectivity of the surface (type = float, unit = unitless, default=0.04 for glass)
+	 * The index of refraction of the surface (type = float, unit = unitless, default=1.5 for glass)
 	 */
 	UPROPERTY()
-	FExpressionInput Reflectivity;
+	FExpressionInput IOR;
 
 	/**
 	 * A global color tint multiplied with the specular color, not physically based (type = float3, unit = unitless)
@@ -398,24 +398,4 @@ class UMaterialExpressionStrataPhysicalIOR : public UMaterialExpression
 	//~ End UMaterialExpression Interface
 };
 
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataDielectricIORToReflectivity : public UMaterialExpression
-{
-	GENERATED_UCLASS_BODY()
-
-	/**
-	 * The index of refraction of the surface (type = float, unit = unitless, default = 1.5 for glass)
-	 */
-	UPROPERTY()
-	FExpressionInput IOR;
-
-	//~ Begin UMaterialExpression Interface
-#if WITH_EDITOR
-	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual uint32 GetOutputType(int32 OutputIndex) override;
-	virtual uint32 GetInputType(int32 InputIndex) override;
-#endif
-	//~ End UMaterialExpression Interface
-};
 

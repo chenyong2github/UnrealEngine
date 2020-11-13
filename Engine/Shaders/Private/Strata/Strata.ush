@@ -34,7 +34,7 @@
 //
 //struct FStrataDielectric
 //{
-//	float	Reflectivity;
+//	float	IOR;
 //	float3	Tint;
 //	float2	Roughness;
 //
@@ -91,7 +91,7 @@ struct FStrataBSDF
 #define DIFFUSE_NORMAL(X)				X.VGPRs[1].xyz
 
 #define DIELECTRIC_TINT(X)				X.VGPRs[0].xyz
-#define DIELECTRIC_REFLECTIVITY(X)		X.VGPRs[0].w
+#define DIELECTRIC_IOR(X)				X.VGPRs[0].w
 #define DIELECTRIC_ROUGHNESS0(X)		X.VGPRs[1].w
 #define DIELECTRIC_ROUGHNESS1(X)		X.VGPRs[2].w
 #define DIELECTRIC_NORMAL(X)			X.VGPRs[1].xyz
@@ -162,14 +162,14 @@ FStrataData GetStrataDiffuseChanBSDF(float3 Albedo, float Roughness, float3 Norm
 	return StrataData;
 }
 
-FStrataData GetStrataDielectricBSDF(float2 Roughness, float Reflectivity, float3 Tint, float3 Normal)
+FStrataData GetStrataDielectricBSDF(float2 Roughness, float IOR, float3 Tint, float3 Normal)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
 	StrataData.LayerCount++;
 
 	StrataData.Layers[0].BSDFCount++;
 	StrataData.Layers[0].BSDFs[0].BSDFType						= STRATA_BSDF_TYPE_DIELECTRIC;
-	DIELECTRIC_REFLECTIVITY	(StrataData.Layers[0].BSDFs[0])		= Reflectivity;
+	DIELECTRIC_IOR			(StrataData.Layers[0].BSDFs[0])		= IOR;
 	DIELECTRIC_TINT			(StrataData.Layers[0].BSDFs[0])		= Tint;
 	DIELECTRIC_ROUGHNESS0	(StrataData.Layers[0].BSDFs[0])		= Roughness.x;
 	DIELECTRIC_ROUGHNESS1	(StrataData.Layers[0].BSDFs[0])		= Roughness.y;
@@ -389,7 +389,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext)
 		case STRATA_BSDF_TYPE_CONDUCTOR:
 		{
 			const bool bIsDieletric = BSDFContext.BSDF.BSDFType == STRATA_BSDF_TYPE_DIELECTRIC;
-			const float3 F0  = bIsDieletric ? DIELECTRIC_TINT(BSDFContext.BSDF) * DIELECTRIC_REFLECTIVITY(BSDFContext.BSDF) : CONDUCTOR_REFLECTIVITY(BSDFContext.BSDF);
+			const float3 F0  = bIsDieletric ? DIELECTRIC_TINT(BSDFContext.BSDF) * DielectricIorToF0(DIELECTRIC_IOR(BSDFContext.BSDF)) : CONDUCTOR_REFLECTIVITY(BSDFContext.BSDF);
 			const float3 F90 = bIsDieletric ? DIELECTRIC_TINT(BSDFContext.BSDF) : CONDUCTOR_EDGECOLOR(BSDFContext.BSDF);
 			const float SafeRoughness = MakeRoughnessSafe(bIsDieletric ? DIELECTRIC_ROUGHNESS0(BSDFContext.BSDF) : CONDUCTOR_ROUGHNESS0(BSDFContext.BSDF));
 
@@ -534,7 +534,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			if (bEnableSpecular)
 			{
 				const bool bIsDielectric = STRATA_BSDF_TYPE_DIELECTRIC == BSDFContext.BSDF.BSDFType;
-				const float3 F0  = bIsDielectric ? DIELECTRIC_TINT(BSDFContext.BSDF) * DIELECTRIC_REFLECTIVITY(BSDFContext.BSDF) : CONDUCTOR_REFLECTIVITY(BSDFContext.BSDF);
+				const float3 F0  = bIsDielectric ? DIELECTRIC_TINT(BSDFContext.BSDF) * DielectricIorToF0(DIELECTRIC_IOR(BSDFContext.BSDF)) : CONDUCTOR_REFLECTIVITY(BSDFContext.BSDF);
 				const float3 F90 = bIsDielectric ? DIELECTRIC_TINT(BSDFContext.BSDF) : CONDUCTOR_EDGECOLOR(BSDFContext.BSDF);
 				const float SafeRoughness = MakeRoughnessSafe(bIsDielectric ? DIELECTRIC_ROUGHNESS0(BSDFContext.BSDF) : CONDUCTOR_ROUGHNESS0(BSDFContext.BSDF));
 
@@ -660,7 +660,7 @@ void SanitizeStrataDiffuse(inout FStrataBSDF BSDF)
 
 void SanitizeStrataDielectric(inout FStrataBSDF BSDF)
 {
-	DIELECTRIC_REFLECTIVITY(BSDF) = saturate(DIELECTRIC_REFLECTIVITY(BSDF));
+	DIELECTRIC_IOR(BSDF) = clamp(DIELECTRIC_IOR(BSDF), 1.0f, 5.0f);		// See https://en.wikipedia.org/wiki/List_of_refractive_indices
 	DIELECTRIC_TINT(BSDF) = saturate(DIELECTRIC_TINT(BSDF));
 	DIELECTRIC_ROUGHNESS0(BSDF) = saturate(DIELECTRIC_ROUGHNESS0(BSDF));
 	DIELECTRIC_ROUGHNESS1(BSDF) = saturate(DIELECTRIC_ROUGHNESS1(BSDF));
@@ -954,7 +954,7 @@ void PackStrataOut(
 
 			case STRATA_BSDF_TYPE_DIELECTRIC:
 			{
-				float F0 = DIELECTRIC_REFLECTIVITY(BSDF);
+				float F0 = DielectricIorToF0(DIELECTRIC_IOR(BSDF));
 				float3 F = F_Schlick(F0, ContextNoLight.VoH);
 
 				if (bTopLayer)
@@ -1071,7 +1071,7 @@ void PackStrataOut(
 			case STRATA_BSDF_TYPE_DIELECTRIC: //
 			{
 				STRATA_STORE_UINT1(PackR11G11B10F(DIELECTRIC_TINT(BSDF)));
-				STRATA_STORE_UINT1(PackR11G11B10F(float3(DIELECTRIC_ROUGHNESS0(BSDF), DIELECTRIC_ROUGHNESS1(BSDF), DIELECTRIC_REFLECTIVITY(BSDF))));
+				STRATA_STORE_UINT1(PackR11G11B10F(float3(DIELECTRIC_ROUGHNESS0(BSDF), DIELECTRIC_ROUGHNESS1(BSDF), DIELECTRIC_IOR(BSDF))));
 				STRATA_STORE_UINT2(PackR16G16B16A16F(float4(DIELECTRIC_NORMAL(BSDF), 0.0f)));
 				// 16 bytes
 			}
@@ -1148,7 +1148,7 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout uint ByteOf
 	case STRATA_BSDF_TYPE_DIELECTRIC:
 	{
 		StrataLoad_R11G11B10F			(StrataBuffer, ByteOffset, DIELECTRIC_TINT(OutBSDF));
-		StrataLoad_R11_G11_B10F			(StrataBuffer, ByteOffset, DIELECTRIC_ROUGHNESS0(OutBSDF), DIELECTRIC_ROUGHNESS1(OutBSDF), DIELECTRIC_REFLECTIVITY(OutBSDF));
+		StrataLoad_R11_G11_B10F			(StrataBuffer, ByteOffset, DIELECTRIC_ROUGHNESS0(OutBSDF), DIELECTRIC_ROUGHNESS1(OutBSDF), DIELECTRIC_IOR(OutBSDF));
 		StrataLoad_R16G16B16F_A16F		(StrataBuffer, ByteOffset, DIELECTRIC_NORMAL(OutBSDF),		DummyFloat);
 	}
 	break;
