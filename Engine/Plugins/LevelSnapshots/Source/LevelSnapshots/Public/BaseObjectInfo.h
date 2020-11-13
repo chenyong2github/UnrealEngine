@@ -71,7 +71,7 @@ struct FBaseObjectInfo
 
 	/** Map of property scopes found in this object snapshot. */
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	TMap<FName, FInternalPropertySnapshot> Properties;
+	TMap<FName, FLevelSnapshot_Property> Properties;
 
 	/** Calculated offset of where the property blocks start in the snapshot data buffer. */
 	UPROPERTY()

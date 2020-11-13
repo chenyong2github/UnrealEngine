@@ -91,18 +91,6 @@ private:
 		{
 			if (Offset + Num <= ObjectInfo.SerializedData.Data.Num())
 			{
-				if (const FInternalPropertySnapshot* MatchingProperty = FindMatchingProperty())
-				{					
-					if (MatchingProperty->PropertyPath.ToString().Contains("bHidden"))
-					{
-						FString ObjectName = ObjectInfo.ObjectName.ToString();
-						FString PropertyPath = MatchingProperty->PropertyPath.ToString();
-						bool bBool = *(bool*)&ObjectInfo.SerializedData.Data[(int32)Offset];
-						UE_LOG(LogTemp, Warning, TEXT("\tObject: %s\n\tProperty: %s\n\tValue = %s"), 
-							*ObjectName, *PropertyPath, bBool ? TEXT("True") : TEXT("False"));
-					}
-				}
-
 				FMemory::Memcpy(Data, &ObjectInfo.SerializedData.Data[(int32)Offset], Num);
 				Offset += Num;
 			}
@@ -113,11 +101,11 @@ private:
 		}
 	}
 
-	const FInternalPropertySnapshot* FindMatchingProperty() const
+	const FLevelSnapshot_Property* FindMatchingProperty() const
 	{
 		for (auto& PropertyEntry : ObjectInfo.Properties)
 		{
-			const FInternalPropertySnapshot& PropertySnapshot = PropertyEntry.Value;
+			const FLevelSnapshot_Property& PropertySnapshot = PropertyEntry.Value;
 
 			if (PropertySnapshot.DataOffset == Offset)
 			{
@@ -158,7 +146,7 @@ private:
 
 			if (!Object)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Unable to resolve Referenced Object \"%s\" so trying to load it instead."), *ObjectPath.ToString());
+				//UE_LOG(LogTemp, Warning, TEXT("Unable to resolve Referenced Object \"%s\" so trying to load it instead."), *ObjectPath.ToString());
 				Object = ObjectPath.TryLoad();
 			}
 		}
@@ -216,19 +204,10 @@ private:
 			{
 				ObjectInfo.SerializedData.Data.AddUninitialized(ToAlloc);
 
-				FInternalPropertySnapshot& Property = GetProperty();
+				FLevelSnapshot_Property& Property = GetProperty();
 
 				// Track this property offset in the serialized data, if actually allocated for it, and this isn't a seek back in the stream
 				Property.AppendSerializedData((uint32)Offset, (uint32)ToAlloc);
-
-				if (Property.PropertyPath.ToString().Contains("bHidden"))
-				{
-					FString ObjectName = ObjectInfo.ObjectName.ToString();
-					FString PropertyPath = Property.PropertyPath.ToString();
-					bool bBool = *(bool*)SerData;
-					UE_LOG(LogTemp, Warning, TEXT("\tObject: %s\n\tProperty: %s\n\tValue = %s"),
-						*ObjectName, *PropertyPath, bBool ? TEXT("True") : TEXT("False"));
-				}
 
 				// if we are in a property block
 				if (!Property.PropertyPath.Get())
@@ -243,17 +222,17 @@ private:
 		}
 	}
 
-	FInternalPropertySnapshot& GetProperty()
+	FLevelSnapshot_Property& GetProperty()
 	{
 		FPropertyInfo PropInfo = BuildPropertyInfo();
 
-		if (FInternalPropertySnapshot* PropertySnapshot = ObjectInfo.Properties.Find(PropInfo.PropertyPath))
+		if (FLevelSnapshot_Property* PropertySnapshot = ObjectInfo.Properties.Find(PropInfo.PropertyPath))
 		{
 			return *PropertySnapshot;
 		}
 		else
 		{
-			return ObjectInfo.Properties.Add(MoveTemp(PropInfo.PropertyPath), FInternalPropertySnapshot(PropInfo.Property, PropInfo.PropertyDepth));
+			return ObjectInfo.Properties.Add(MoveTemp(PropInfo.PropertyPath), FLevelSnapshot_Property(PropInfo.Property, PropInfo.PropertyDepth));
 		}
 	}
 
@@ -388,6 +367,7 @@ FLevelSnapshot_Component::FLevelSnapshot_Component(UActorComponent* TargetCompon
 		if (USceneComponent* ParentComponent = SceneComponent->GetAttachParent())
 		{
 			ParentComponentPath = ParentComponent->GetPathName();
+			bIsSceneComponent = true;
 		}
 	}
 

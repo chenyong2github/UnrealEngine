@@ -7,12 +7,12 @@
 #include "PropertySnapshot.generated.h"
 
 USTRUCT()
-struct FInternalPropertySnapshot
+struct FLevelSnapshot_Property
 {
 	GENERATED_BODY()
 
-	FInternalPropertySnapshot();
-	FInternalPropertySnapshot(FProperty* InProperty, uint32 InPropertyDepth);
+	FLevelSnapshot_Property();
+	FLevelSnapshot_Property(FProperty* InProperty, uint32 InPropertyDepth);
 
 	/**
 	 * Recalculate the property scope offset and size from the newly appended data.

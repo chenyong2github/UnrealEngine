@@ -2,12 +2,12 @@
 
 #include "PropertySnapshot.h"
 
-FInternalPropertySnapshot::FInternalPropertySnapshot()
+FLevelSnapshot_Property::FLevelSnapshot_Property()
 {
 
 }
 
-FInternalPropertySnapshot::FInternalPropertySnapshot(FProperty* InProperty, uint32 InPropertyDepth)
+FLevelSnapshot_Property::FLevelSnapshot_Property(FProperty* InProperty, uint32 InPropertyDepth)
 	: PropertyPath(InProperty)
 	, PropertyFlags(InProperty ? (uint64)InProperty->GetPropertyFlags() : 0)
 	, PropertyDepth(InPropertyDepth)
@@ -17,7 +17,7 @@ FInternalPropertySnapshot::FInternalPropertySnapshot(FProperty* InProperty, uint
 
 }
 
-void FInternalPropertySnapshot::AppendSerializedData(const uint32 InOffset, const uint32 InSize)
+void FLevelSnapshot_Property::AppendSerializedData(const uint32 InOffset, const uint32 InSize)
 {
 	// There might be hole in the scope that a property covers
 	// and so we can rely on the following check
@@ -27,12 +27,12 @@ void FInternalPropertySnapshot::AppendSerializedData(const uint32 InOffset, cons
 	DataSize = InOffset + InSize - DataOffset;
 }
 
-void FInternalPropertySnapshot::AddNameReference(const uint32 InOffset, const uint32 InNameIndex)
+void FLevelSnapshot_Property::AddNameReference(const uint32 InOffset, const uint32 InNameIndex)
 {
 	ReferencedNamesOffsetToIndex.Add(InOffset, InNameIndex);
 }
 
-void FInternalPropertySnapshot::AddObjectReference(const uint32 InOffset, const uint32 InObjectIndex)
+void FLevelSnapshot_Property::AddObjectReference(const uint32 InOffset, const uint32 InObjectIndex)
 {
 	ReferencedObjectOffsetToIndex.Add(InOffset, InObjectIndex);
 }

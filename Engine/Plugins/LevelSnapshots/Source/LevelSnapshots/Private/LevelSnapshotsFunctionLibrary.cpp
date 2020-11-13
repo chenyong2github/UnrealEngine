@@ -119,13 +119,15 @@ void ULevelSnapshotsFunctionLibrary::TestDeserialization(const ULevelSnapshot* S
 	}
 }
 
-void ULevelSnapshotsFunctionLibrary::DiffSnapshots(const ULevelSnapshot* FirstSnapshot, const ULevelSnapshot* SecondSnapshot)
+void ULevelSnapshotsFunctionLibrary::DiffSnapshots(const ULevelSnapshot* FirstSnapshot, const ULevelSnapshot* SecondSnapshot, TMap<FString, FLevelSnapshot_ActorDiff>& DiffResults)
 {
 	if (!FirstSnapshot || !SecondSnapshot)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Unable to Diff snapshots as at least one snapshot was invalid"));
 		return;
 	}
+
+	DiffResults.Empty();
 	
 	for (const TPair<FString, FLevelSnapshot_Actor>& FirstSnapshotPair : FirstSnapshot->ActorSnapshots)
 	{
@@ -139,11 +141,26 @@ void ULevelSnapshotsFunctionLibrary::DiffSnapshots(const ULevelSnapshot* FirstSn
 			AActor* FirstActor = FirstActorSnapshot.GetDeserializedActor();
 			AActor* SecondActor = SecondActorSnapshot->GetDeserializedActor();
 
+			TArray<FString> ModifiedProperties;
+
 			if (FirstActor && SecondActor)
 			{
-				PrintObjectDifferences(FirstActor, SecondActor);
+				TArray<FSingleObjectDiffEntry> DifferingProperties;
+				DiffUtils::CompareUnrelatedObjects(FirstActor, SecondActor, DifferingProperties);
+				for (FSingleObjectDiffEntry& DifferingProperty : DifferingProperties)
+				{
+					if (DifferingProperty.DiffType == EPropertyDiffType::PropertyValueChanged)
+					{
+						ModifiedProperties.Emplace(DifferingProperty.Identifier.ToDisplayName());
+					}
+				}
 				FirstActor->Destroy();
 				SecondActor->Destroy();
+			}
+
+			if (ModifiedProperties.Num())
+			{
+				DiffResults.Add(FirstSnapshotPathName, { ModifiedProperties });
 			}
 		}
 		else
