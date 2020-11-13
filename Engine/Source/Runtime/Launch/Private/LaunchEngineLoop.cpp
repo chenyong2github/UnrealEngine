@@ -4233,12 +4233,12 @@ void FEngineLoop::Exit()
 
 	if ( GEngine != nullptr )
 	{
-		GEngine->ReleaseAudioDeviceManager();
+		GEngine->PreExit();
 	}
 
-	if ( GEngine != nullptr )
+	if (GEngine != nullptr)
 	{
-		GEngine->PreExit();
+		GEngine->ReleaseAudioDeviceManager();
 	}
 
 	FAudioDeviceManager::Shutdown();
