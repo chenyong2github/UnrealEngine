@@ -29,7 +29,7 @@ public:
 
 	virtual void RegisterCommands() override
 	{
-		UI_COMMAND(TriggerToolbarButtonCmd, "Launch", "Launch Switchboard", EUserInterfaceActionType::Button, FInputChord());
+		UI_COMMAND(TriggerToolbarButtonCmd, "Launch Switchboard", "Launch Switchboard", EUserInterfaceActionType::Button, FInputChord());
 	}
 
 	TSharedPtr<FUICommandInfo> TriggerToolbarButtonCmd;
@@ -64,7 +64,7 @@ struct FSwitchboardMenuEntryImpl
 				(
 					FUIAction(),
 					FOnGetContent::CreateRaw(this, &FSwitchboardMenuEntryImpl::CreateListenerEntries),
-					FText::GetEmpty(),
+					TAttribute<FText>::Create([this]() { return LOCTEXT("LaunchSwitchboard", "Switchboard"); }),
 					LOCTEXT("SwitchboardTooltip", "Actions related to the SwitchboardListener"),
 					FSlateIcon(),
 					true
