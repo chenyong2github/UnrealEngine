@@ -16,19 +16,32 @@ namespace Chaos
 		}
 
 		//if we switched from async to sync we may have multiple pending results, so discard them all except latest
-		FPullPhysicsData* PullDataLatest = nullptr;
-		do
+		if(bUsingSync == false)
 		{
-			//free any old results
+			FPullPhysicsData* PullDataLatest = nullptr;
+			do
+			{
+				//free any old results
+				if (Results.Next)
+				{
+					MarshallingManager.FreePullData_External(Results.Next);
+				}
+
+				Results.Next = PullDataLatest;
+				PullDataLatest = MarshallingManager.PopPullData_External();
+
+			} while (PullDataLatest && !bUsingSync);
+		}
+		else
+		{
+			//already in sync mode so don't take latest, just take next result
 			if (Results.Next)
 			{
 				MarshallingManager.FreePullData_External(Results.Next);
 			}
 
-			Results.Next = PullDataLatest;
-			PullDataLatest = MarshallingManager.PopPullData_External();
-
-		} while (PullDataLatest);
+			Results.Next = MarshallingManager.PopPullData_External();
+		}
 
 		bUsingSync = true;	//indicate that we used sync mode so don't rely on any cached results
 
