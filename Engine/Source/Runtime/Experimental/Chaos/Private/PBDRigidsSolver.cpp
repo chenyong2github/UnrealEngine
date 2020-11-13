@@ -580,12 +580,10 @@ namespace Chaos
 
 		RemoveDirtyProxy(InProxy);
 
-		int32 NumRemoved = GeometryCollectionPhysicsProxies_External.Remove(InProxy);
+		int32 NumRemoved = GeometryCollectionPhysicsProxies.Remove(InProxy);
 
 		EnqueueCommandImmediate([InProxy, this]()
 			{
-				GeometryCollectionPhysicsProxies_Internal.RemoveSingle(InProxy);
-
 				const TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = InProxy->GetSolverParticleHandles();
 				for (const Chaos::TPBDRigidClusteredParticleHandle<float, 3> * ParticleHandle : ParticleHandles)
 				{
@@ -805,7 +803,7 @@ namespace Chaos
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("PBDRigidsSolver::Tick(%3.5f)"), DeltaTime);
 		MLastDt = DeltaTime;
 		EventPreSolve.Broadcast(DeltaTime);
-		AdvanceOneTimeStepTask<Traits>(this, DeltaTime).DoWork();
+		AdvanceOneTimeStepTask<Traits>(this, DeltaTime, SubStepInfo).DoWork();
 
 		if(DeltaTime > 0)
 		{
