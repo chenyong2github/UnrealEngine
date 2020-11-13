@@ -3,12 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InputBehavior.h"
 #include "InteractionMechanic.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
+#include "TransformTypes.h"
 #include "VectorTypes.h"
 
 #include "RectangleMarqueeMechanic.generated.h"
 
+class UClickDragInputBehavior;
 
 /// Struct containing:
 ///		- camera information, 
@@ -32,7 +35,13 @@ struct FCameraRectangle
 	// Project the given 3D point to the camera plane and test if it's in the rectangle
 	bool IsProjectedPointInRectangle(const FVector& Point) const;
 
-	// TODO: Rectangle vs projected triangle, edge, etc.
+	// Project the given segment to the camera plane and test if it intersects the rectangle
+	bool IsProjectedSegmentIntersectingRectangle(const FVector& Endpoint1, const FVector& Endpoint2) const;
+
+	// TODO: Add a way to test rectangle against triangles.
+
+private:
+	FCameraRectangle() {};
 };
 
 
@@ -40,12 +49,10 @@ struct FCameraRectangle
  * Mechanic for a rectangle "marquee" selection. It creates and maintains the 2D rectangle associated with a mouse drag. 
  * It does not test against any scene geometry, nor does it maintain any sort of list of selected objects.
  *
- * To use this class:
- *	- create a subclass of this class
- *  - override the pure virtual functions. These will be called from this class in response to mouse events
- *  - use the FCameraRectangle passed into RectangleChanged to test against your scene geometry
+ * When using this mechanic, you should call Render() on it in the tool's Render() call so that it can cache
+ * necessary camera state, and DrawHUD() in the tool's DrawHUD() call so that it can draw the box.
  *
- * See ULatticeControlPointsMechanic for an example.
+ * Attach to the mechanic's delegates and use the passed rectangle to test against your geometry. 
  */
 
 UCLASS()
@@ -59,38 +66,65 @@ public:
 	void Setup(UInteractiveTool* ParentTool) override;
 	void Render(IToolsContextRenderAPI* RenderAPI) override;
 
-	// REVIEW: Should this be added to UInteractionMechanic?
 	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
 
-protected:
+	bool IsEnabled();
+	void SetIsEnabled(bool bOn);
 
-	bool bIsDragging;
-	FViewCameraState CachedCameraState;
-	FVector2D DragStartScreenPosition;
-	FRay DragStartWorldRay;
-	FVector2D DragCurrentScreenPosition;
+	/**
+	 * Sets the base priority so that users can make sure that their own behaviors are higher
+	 * priority. The mechanic will not use any priority value higher than this.
+	 * Mechanics could use lower priorities (and their range could be inspected with
+	 * GetPriorityRange), but marquee mechanic doesn't.
+	 *
+	 * Can be called before or after Setup().
+	 */
+	void SetBasePriority(const FInputCapturePriority& Priority);
 
-private:
+	/**
+	 * Gets the current priority range used by behaviors in the mechanic, higher
+	 * priority to lower.
+	 *
+	 * For marquee mechanic, the range will be [BasePriority, BasePriority] since
+	 * it only uses one priority.
+	 */
+	TPair<FInputCapturePriority, FInputCapturePriority> GetPriorityRange() const;
 
-	//
-	// Override these
-	//
+	/**
+	 * Called when user starts dragging a new rectangle.
+	 */
+	FSimpleMulticastDelegate OnDragRectangleStarted;
 
-	virtual void OnDragRectangleStarted() 
-	PURE_VIRTUAL(URectangleMarqueeMechanic::OnDragRectangleStarted, );
+	/**
+	 * Called as the user drags the other corner of the rectangle around.
+	 */
+	DECLARE_MULTICAST_DELEGATE_OneParam(OnDragRectangleChangedEvent, const FCameraRectangle&);
+	OnDragRectangleChangedEvent OnDragRectangleChanged;
 
-	virtual void OnDragRectangleChanged(const FCameraRectangle& CurrentRectangle) 
-	PURE_VIRTUAL(URectangleMarqueeMechanic::OnDragRectangleChanged, );
-
-	virtual void OnDragRectangleFinished() 
-	PURE_VIRTUAL(URectangleMarqueeMechanic::OnDragRectangleFinished, );
-
-
-private:
+	/**
+	 * Called once the user lets go of the mouse button after dragging out a rectangle.
+	 */
+	FSimpleMulticastDelegate OnDragRectangleFinished;
 	
+protected:
+	UPROPERTY()
+	UClickDragInputBehavior* ClickDragBehavior = nullptr;
+
+	FViewCameraState CachedCameraState;
+
+	FInputCapturePriority BasePriority = FInputCapturePriority(FInputCapturePriority::DEFAULT_TOOL_PRIORITY);
+
+private:
+
 	FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) final;
 	void OnClickPress(const FInputDeviceRay& PressPos) final;
 	void OnClickDrag(const FInputDeviceRay& DragPos) final;
 	void OnClickRelease(const FInputDeviceRay& ReleasePos) final;
 	void OnTerminateDragSequence() final;
+
+	bool bIsEnabled;
+	bool bIsDragging;
+	FVector2D DragStartScreenPosition;
+	FRay DragStartWorldRay;
+	FVector2D DragCurrentScreenPosition;
 };

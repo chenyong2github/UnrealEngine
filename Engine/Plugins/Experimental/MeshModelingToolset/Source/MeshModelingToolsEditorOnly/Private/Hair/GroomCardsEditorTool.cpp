@@ -94,12 +94,15 @@ void UGroomCardsEditorTool::Setup()
 	UVMaterial = ToolSetupUtil::GetUVCheckerboardMaterial(50.0);
 	PreviewMesh->SetMaterial(MeshMaterial);
 
-	// set up SelectionMechanic
+	// Set up SelectionMechanic but remove its behaviors because we'd rather deal with clicks
+	// ourselves. Specifically, we want to be able to start new transactions on clicks, which
+	// we currently shouldn't do in an OnSelectionModifiedEvent call.
 	CardMeshSelectionMechanic = NewObject<UPolygonSelectionMechanic>(this);
 	CardMeshSelectionMechanic->bAddSelectionFilterPropertiesToParentTool = false;
 	CardMeshSelectionMechanic->Setup(this);
 	CardMeshSelectionMechanic->OnSelectionChanged.AddUObject(this, &UGroomCardsEditorTool::OnSelectionModifiedEvent);
 	CardMeshSelectionMechanic->PolyEdgesRenderer.LineThickness = 1.0;
+	CardMeshSelectionMechanic->DisableBehaviors(this);
 
 	// configure secondary render material
 	UMaterialInterface* SelectionMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor(0.9f, 0.1f, 0.1f), GetToolManager());
@@ -864,8 +867,7 @@ void UGroomCardsEditorTool::RecomputeTopology()
 	CardMeshSelectionMechanic->Initialize(
 		PreviewMesh->GetMesh(), PreviewMesh->GetTransform(), TargetWorld,
 		Topology.Get(),
-		[this]() { return PreviewMesh->GetSpatial(); },
-		[this]() { return GetShiftToggle(); }
+		[this]() { return PreviewMesh->GetSpatial(); }
 	);
 }
 

@@ -11,6 +11,7 @@
 #include "ToolSceneQueriesUtil.h"
 #include "Intersection/IntersectionUtil.h"
 #include "Transforms/MultiTransformer.h"
+#include "TransformTypes.h"
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "Util/ColorConstants.h"
 #include "ToolSetupUtil.h"
@@ -352,6 +353,7 @@ FDynamicMeshAABBTree3& UEditMeshPolygonsTool::GetSpatial()
 
 bool UEditMeshPolygonsTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 {
+	// If we're in the middle of an action, take the click (to finish an inset, etc).
 	if (CurrentToolMode != ECurrentToolMode::TransformSelection)
 	{
 		OutHit.Distance = 100.0;
@@ -359,8 +361,9 @@ bool UEditMeshPolygonsTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 		return true;
 	}
 
-	// disable hit test
-	return SelectionMechanic->TopologyHitTest(WorldRay, OutHit);
+	// The selection mechanic and gizmo will take care of the TransformSelection state.
+
+	return false;
 }
 
 
@@ -372,9 +375,7 @@ FInputRayHit UEditMeshPolygonsTool::IsHitByClick(const FInputDeviceRay& ClickPos
 	{
 		return FInputRayHit(OutHit.Distance);
 	}
-
-	// background capture, if nothing else is hit
-	return FInputRayHit(TNumericLimits<float>::Max());
+	return FInputRayHit(); // bHit is set to false.
 }
 
 void UEditMeshPolygonsTool::OnClicked(const FInputDeviceRay& ClickPos)
@@ -417,19 +418,9 @@ void UEditMeshPolygonsTool::OnClicked(const FInputDeviceRay& ClickPos)
 		return;
 	}
 
-	// update selection
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("PolyMeshSelectionChange", "Selection"));
-	SelectionMechanic->BeginChange();
-	FVector3d LocalHitPosition, LocalHitNormal;
-	bool bSelectionModified = SelectionMechanic->UpdateSelection(ClickPos.WorldRay, LocalHitPosition, LocalHitNormal);
-	if (bSelectionModified) 
-	{
-		FFrame3d LocalFrame(LocalHitPosition, LocalHitNormal);
-		LastGeometryFrame = SelectionMechanic->GetSelectionFrame(true, &LocalFrame);
-		UpdateMultiTransformerFrame();
-	}
-	SelectionMechanic->EndChangeAndEmitIfModified();
-	GetToolManager()->EndUndoTransaction();
+	ensureMsgf(CurrentToolMode != ECurrentToolMode::TransformSelection, TEXT("EditMeshPolygonsTool: "
+		"Should not receive click requests in transform mode- they should have been handled by "
+		"selection mechanic or gizmo."));
 }
 
 
@@ -465,6 +456,11 @@ void UEditMeshPolygonsTool::UpdateMultiTransformerFrame(const FFrame3d* UseFrame
 
 void UEditMeshPolygonsTool::OnSelectionModifiedEvent()
 {
+	FVector3d LocalLastHitPosition, LocalLastHitNormal;
+	SelectionMechanic->GetClickedHitPosition(LocalLastHitPosition, LocalLastHitNormal);
+	FFrame3d LocalFrame(LocalLastHitPosition, LocalLastHitNormal);
+	LastGeometryFrame = SelectionMechanic->GetSelectionFrame(true, &LocalFrame);
+	UpdateMultiTransformerFrame();
 	bSelectionStateDirty = true;
 }
 
@@ -561,10 +557,9 @@ bool UEditMeshPolygonsTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 		return true;
 	}
 
-	if (ActiveVertexChange == nullptr && MultiTransformer->InGizmoEdit() == false )
-	{
-		SelectionMechanic->UpdateHighlight(DevicePos.WorldRay);
-	}
+	ensureMsgf(CurrentToolMode != ECurrentToolMode::TransformSelection, TEXT("EditMeshPolygonsTool: "
+		"Should not receive hover requests in transform mode- they should have been handled by "
+		"selection mechanic or gizmo."));
 	return true;
 }
 
@@ -825,8 +820,7 @@ void UEditMeshPolygonsTool::PrecomputeTopology()
 
 	// update selection mechanic
 	SelectionMechanic->Initialize(DynamicMeshComponent, Topology.Get(),
-		[this]() { return &GetSpatial(); },
-		[this]() { return GetShiftToggle(); }
+		[this]() { return &GetSpatial(); }
 		);
 
 	LinearDeformer.Initialize(Mesh, Topology.Get());
@@ -854,6 +848,11 @@ void UEditMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 	{
 		SurfacePathMechanic->Render(RenderAPI);
 	}
+}
+
+void UEditMeshPolygonsTool::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
+{
+	SelectionMechanic->DrawHUD(Canvas, RenderAPI);
 }
 
 

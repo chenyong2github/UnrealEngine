@@ -81,6 +81,18 @@ void URevolveBoundaryTool::Setup()
 {
 	UMeshBoundaryToolBase::Setup();
 
+	// We're actually going to handle the selection clicks ourselves so that we can align axis if
+	// we want to.
+	SelectionMechanic->DisableBehaviors(this);
+	SelectionMechanic->SetShouldAddToSelectionFunc([]() {return false; });
+	SelectionMechanic->SetShouldRemoveFromSelectionFunc([]() {return false; });
+
+	USingleClickInputBehavior* ClickBehavior = NewObject<USingleClickInputBehavior>();
+	ClickBehavior->Initialize(this);
+	ClickBehavior->Modifiers.RegisterModifier(AlignAxisModifier, FInputDeviceState::IsCtrlKeyDown);
+	AddInputBehavior(ClickBehavior);
+	
+
 	Settings = NewObject<URevolveBoundaryToolProperties>(this);
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
@@ -96,7 +108,7 @@ void URevolveBoundaryTool::Setup()
 	PlaneMechanic->Setup(this);
 	PlaneMechanic->Initialize(TargetWorld, FFrame3d(Settings->AxisOrigin, 
 		FRotator(Settings->AxisPitch, Settings->AxisYaw, 0).Quaternion()));
-	PlaneMechanic->UpdateClickPriority(LoopSelectClickBehavior->GetPriority().MakeLower());
+	PlaneMechanic->UpdateClickPriority(ClickBehavior->GetPriority().MakeLower());
 	PlaneMechanic->bShowGrid = false;
 	PlaneMechanic->OnPlaneChanged.AddLambda([this]() {
 		Settings->AxisOrigin = (FVector)PlaneMechanic->Plane.Origin;
@@ -107,8 +119,6 @@ void URevolveBoundaryTool::Setup()
 		});
 
 	PlaneMechanic->SetEnableGridSnaping(Settings->bSnapToWorldGrid);
-
-	LoopSelectClickBehavior->Modifiers.RegisterModifier(AlignAxisModifier, FInputDeviceState::IsCtrlKeyDown);
 
 	ComponentTarget->SetOwnerVisibility(Settings->bDisplayOriginalMesh);
 
@@ -142,6 +152,16 @@ void URevolveBoundaryTool::OnUpdateModifierState(int ModifierId, bool bIsOn)
 	{
 		bAlignAxisOnClick = bIsOn;
 	}
+}
+
+FInputRayHit URevolveBoundaryTool::IsHitByClick(const FInputDeviceRay& ClickPos)
+{
+	FHitResult OutHit;
+	if (SelectionMechanic->TopologyHitTest(ClickPos.WorldRay, OutHit))
+	{
+		return FInputRayHit(OutHit.Distance);
+	}
+	return FInputRayHit(); // bHit is false
 }
 
 void URevolveBoundaryTool::OnClicked(const FInputDeviceRay& ClickPos)

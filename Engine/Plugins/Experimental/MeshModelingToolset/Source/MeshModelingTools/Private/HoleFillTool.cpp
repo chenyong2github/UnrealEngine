@@ -161,16 +161,6 @@ void UHoleFillTool::Setup()
 
 	ToolPropertyObjects.Add(this);
 
-	// click behavior
-	USingleClickInputBehavior* ClickBehavior = NewObject<USingleClickInputBehavior>();
-	ClickBehavior->Initialize(this);
-	AddInputBehavior(ClickBehavior);
-
-	// hover behavior
-	UMouseHoverBehavior* HoverBehavior = NewObject<UMouseHoverBehavior>();
-	HoverBehavior->Initialize(this);
-	AddInputBehavior(HoverBehavior);
-
 	// initialize hit query
 	MeshSpatial.SetMesh(OriginalMesh.Get());
 
@@ -189,9 +179,13 @@ void UHoleFillTool::Setup()
 		ComponentTarget->GetWorldTransform(),
 		TargetWorld,
 		Topology.Get(),
-		[this]() { return &MeshSpatial; },
-		[]() { return true; }	// allow adding to selection without modifier key
+		[this]() { return &MeshSpatial; }
 	);
+	// allow toggling selection without modifier key
+	SelectionMechanic->SetShouldAddToSelectionFunc([]() {return true; });
+	SelectionMechanic->SetShouldRemoveFromSelectionFunc([]() {return true; });
+
+	SelectionMechanic->OnSelectionChanged.AddUObject(this, &UHoleFillTool::OnSelectionModified);
 	
 	// Store a UV scale based on the original mesh bounds
 	MeshUVScaleFactor = (1.0 / OriginalMesh->GetBounds().MaxDim());
@@ -292,56 +286,10 @@ void UHoleFillTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 }
 
-FInputRayHit UHoleFillTool::IsHitByClick(const FInputDeviceRay& ClickPos)
+void UHoleFillTool::OnSelectionModified()
 {
-	FHitResult OutHit;
-	if (SelectionMechanic->TopologyHitTest(ClickPos.WorldRay, OutHit))
-	{
-		return FInputRayHit(OutHit.Distance);
-	}
-
-	return FInputRayHit(TNumericLimits<float>::Max());
-}
-
-void UHoleFillTool::OnClicked(const FInputDeviceRay& ClickPos)
-{
-	// update selection
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("PolyMeshSelectionChange", "Selection"));
-	SelectionMechanic->BeginChange();
-
-	FVector3d LocalHitPosition, LocalHitNormal;
-	bool bSelectionModified = SelectionMechanic->UpdateSelection(ClickPos.WorldRay, LocalHitPosition, LocalHitNormal);
-
-	if (bSelectionModified)
-	{
-		UpdateActiveBoundaryLoopSelection();
-		InvalidatePreviewResult();
-	}
-
-	SelectionMechanic->EndChangeAndEmitIfModified();
-	GetToolManager()->EndUndoTransaction();
-}
-
-
-FInputRayHit UHoleFillTool::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
-{
-	FHitResult OutHit;
-	if (SelectionMechanic->TopologyHitTest(PressPos.WorldRay, OutHit))
-	{
-		return FInputRayHit(OutHit.Distance);
-	}
-	return FInputRayHit();
-}
-
-bool UHoleFillTool::OnUpdateHover(const FInputDeviceRay& DevicePos) 
-{
-	SelectionMechanic->UpdateHighlight(DevicePos.WorldRay);
-	return true;
-}
-
-void UHoleFillTool::OnEndHover()
-{
-	SelectionMechanic->ClearHighlight();
+	UpdateActiveBoundaryLoopSelection();
+	InvalidatePreviewResult();
 }
 
 void UHoleFillTool::RequestAction(EHoleFillToolActions ActionType)

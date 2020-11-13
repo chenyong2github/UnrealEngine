@@ -211,7 +211,7 @@ public:
  */
 
 UCLASS()
-class MESHMODELINGTOOLS_API UHoleFillTool : public USingleSelectionTool, public IClickBehaviorTarget, public IHoverBehaviorTarget
+class MESHMODELINGTOOLS_API UHoleFillTool : public USingleSelectionTool
 {
 	GENERATED_BODY()
 
@@ -226,15 +226,7 @@ public:
 	bool CanAccept() const override;
 	void Shutdown(EToolShutdownType ShutdownType) override;
 
-	// IClickBehaviorTarget
-	FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
-	void OnClicked(const FInputDeviceRay& ClickPos) override;
-
-	// IHoverBehaviorTarget
-	FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
-	void OnBeginHover(const FInputDeviceRay& DevicePos) override {}
-	bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
-	void OnEndHover() override;
+	void OnSelectionModified();
 
 	virtual void RequestAction(EHoleFillToolActions Action);
 

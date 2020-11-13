@@ -25,7 +25,13 @@ static const FText LatticePointMovementTransactionText = LOCTEXT("LatticePointMo
 
 void ULatticeControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 {
-	URectangleMarqueeMechanic::Setup(ParentToolIn);
+	UInteractionMechanic::Setup(ParentToolIn);
+
+	MarqueeMechanic = NewObject<URectangleMarqueeMechanic>(this);
+	MarqueeMechanic->Setup(ParentToolIn);
+	MarqueeMechanic->OnDragRectangleStarted.AddUObject(this, &ULatticeControlPointsMechanic::OnDragRectangleStarted);
+	MarqueeMechanic->OnDragRectangleChanged.AddUObject(this, &ULatticeControlPointsMechanic::OnDragRectangleChanged);
+	MarqueeMechanic->OnDragRectangleFinished.AddUObject(this, &ULatticeControlPointsMechanic::OnDragRectangleFinished);
 
 	USingleClickInputBehavior* ClickBehavior = NewObject<USingleClickInputBehavior>();
 	ClickBehavior->Initialize(this);
@@ -177,7 +183,15 @@ void ULatticeControlPointsMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	// Cache the camera state
 	GetParentTool()->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CachedCameraState);
+
+	MarqueeMechanic->Render(RenderAPI);
 }
+
+void ULatticeControlPointsMechanic::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
+{
+	MarqueeMechanic->DrawHUD(Canvas, RenderAPI);
+}
+
 
 void ULatticeControlPointsMechanic::RebuildDrawables()
 {
@@ -546,9 +560,7 @@ void ULatticeControlPointsMechanic::OnUpdateModifierState(int ModifierID, bool b
 	}
 }
 
-
-// =========================== URectangleMarqueeMechanic ===========================
-
+// These get bound to the delegates on the marquee mechanic.
 void ULatticeControlPointsMechanic::OnDragRectangleStarted()
 {
 	for (int32& PointID : SelectedPointIDs)
@@ -563,7 +575,6 @@ void ULatticeControlPointsMechanic::OnDragRectangleStarted()
 		PointTransformGizmo->SetVisibility(false);
 	}
 }
-
 void ULatticeControlPointsMechanic::OnDragRectangleChanged(const FCameraRectangle& Rectangle)
 {
 	CurrentDragSelection.Empty();
@@ -582,7 +593,6 @@ void ULatticeControlPointsMechanic::OnDragRectangleChanged(const FCameraRectangl
 		}
 	}
 }
-
 void ULatticeControlPointsMechanic::OnDragRectangleFinished()
 {
 	// Deselect previous SelectedPointIDs and replace it with "drag selection" points. Do this in one Undo transaction.

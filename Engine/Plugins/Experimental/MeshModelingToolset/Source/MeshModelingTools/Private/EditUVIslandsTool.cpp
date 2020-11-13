@@ -40,11 +40,6 @@ void UEditUVIslandsTool::Setup()
 {
 	UMeshSurfacePointTool::Setup();
 
-	// register click behavior
-	USingleClickInputBehavior* ClickBehavior = NewObject<USingleClickInputBehavior>();
-	ClickBehavior->Initialize(this);
-	AddInputBehavior(ClickBehavior);
-
 	// create dynamic mesh component to use for live preview
 	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(ComponentTarget->GetOwnerActor(), "DynamicMesh");
 	DynamicMeshComponent->SetupAttachment(ComponentTarget->GetOwnerActor()->GetRootComponent());
@@ -78,7 +73,9 @@ void UEditUVIslandsTool::Setup()
 	SelectionMechanic = NewObject<UPolygonSelectionMechanic>(this);
 	SelectionMechanic->bAddSelectionFilterPropertiesToParentTool = false;
 	SelectionMechanic->Setup(this);
-	SelectionMechanic->Properties->bSelectEdges = SelectionMechanic->Properties->bSelectVertices = false;
+	SelectionMechanic->Properties->bSelectEdges = false;
+	SelectionMechanic->Properties->bSelectVertices = false;
+	SelectionMechanic->Properties->bEnableMarquee = false;
 	SelectionMechanic->OnSelectionChanged.AddUObject(this, &UEditUVIslandsTool::OnSelectionModifiedEvent);
 
 	// initialize AABBTree
@@ -194,62 +191,24 @@ FDynamicMeshAABBTree3& UEditUVIslandsTool::GetSpatial()
 	return MeshSpatial;
 }
 
-
-
-
+void UEditUVIslandsTool::OnSelectionModifiedEvent()
+{
+	bSelectionStateDirty = true;
+	if (!SelectionMechanic->GetActiveSelection().IsEmpty())
+	{
+		FFrame3d UseFrame = Topology.GetIslandFrame(
+			SelectionMechanic->GetActiveSelection().GetASelectedGroupID(), GetSpatial());
+		UseFrame.Transform(WorldTransform);
+		MultiTransformer->InitializeGizmoPositionFromWorldFrame(UseFrame, true);
+	}
+}
 
 
 
 bool UEditUVIslandsTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 {
-	// disable hit test
 	return SelectionMechanic->TopologyHitTest(WorldRay, OutHit);
 }
-
-
-
-FInputRayHit UEditUVIslandsTool::IsHitByClick(const FInputDeviceRay& ClickPos)
-{
-	FHitResult OutHit;
-	if (HitTest(ClickPos.WorldRay, OutHit))
-	{
-		return FInputRayHit(OutHit.Distance);
-	}
-
-	// background capture, if nothing else is hit
-	return FInputRayHit(TNumericLimits<float>::Max());
-}
-
-void UEditUVIslandsTool::OnClicked(const FInputDeviceRay& ClickPos)
-{
-	// update selection
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("PolyMeshSelectionChange", "Selection"));
-	SelectionMechanic->BeginChange();
-	FVector3d LocalHitPos, LocalHitNormal;
-	bool bSelectionModified = SelectionMechanic->UpdateSelection(ClickPos.WorldRay, LocalHitPos, LocalHitNormal);
-
-	if (bSelectionModified && SelectionMechanic->GetActiveSelection().IsEmpty() == false)
-	{
-		FFrame3d UseFrame = Topology.GetIslandFrame(
-			SelectionMechanic->GetActiveSelection().GetASelectedGroupID(), GetSpatial());
-		UseFrame.Transform(WorldTransform);
-		MultiTransformer->UpdateGizmoPositionFromWorldFrame(UseFrame, true);
-		//MultiTransformer->SetGizmoPositionFromWorldFrame(SelectionMechanic->GetSelectionFrame(true), true);
-
-	}
-
-	SelectionMechanic->EndChangeAndEmitIfModified();
-	GetToolManager()->EndUndoTransaction();
-}
-
-
-void UEditUVIslandsTool::OnSelectionModifiedEvent()
-{
-	bSelectionStateDirty = true;
-}
-
-
-
 
 FInputRayHit UEditUVIslandsTool::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
 {
@@ -258,13 +217,9 @@ FInputRayHit UEditUVIslandsTool::CanBeginClickDragSequence(const FInputDeviceRay
 	//return UMeshSurfacePointTool::CanBeginClickDragSequence(PressPos);
 }
 
-
-
 void UEditUVIslandsTool::OnBeginDrag(const FRay& WorldRay)
 {
 }
-
-
 
 void UEditUVIslandsTool::OnUpdateDrag(const FRay& Ray)
 {
@@ -518,8 +473,7 @@ void UEditUVIslandsTool::PrecomputeTopology()
 
 	// update selection mechanic
 	SelectionMechanic->Initialize(DynamicMeshComponent, &Topology,
-		[this]() { return &GetSpatial(); },
-		[this]() { return GetShiftToggle(); }
+		[this]() { return &GetSpatial(); }
 		);
 }
 

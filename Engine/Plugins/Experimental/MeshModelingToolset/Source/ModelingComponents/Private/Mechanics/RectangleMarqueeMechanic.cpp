@@ -5,6 +5,7 @@
 #include "CanvasTypes.h"
 #include "CanvasItem.h"
 #include "ToolSceneQueriesUtil.h"
+#include "TransformTypes.h"
 
 #define LOCTEXT_NAMESPACE "URectangleMarqueeMechanic"
 
@@ -70,15 +71,83 @@ bool FCameraRectangle::IsProjectedPointInRectangle(const FVector& Point) const
 	return RectangleCorners.IsInside(Point2D);
 }
 
+bool FCameraRectangle::IsProjectedSegmentIntersectingRectangle(const FVector& Endpoint1, const FVector& Endpoint2) const
+{
+	FVector ProjectedEndpoint1 = bCameraIsOrthographic ? FVector::PointPlaneProject(Endpoint1, CameraPlane)
+		: FMath::RayPlaneIntersection(CameraOrigin, Endpoint1 - CameraOrigin, CameraPlane);
+	FVector ProjectedEndpoint2 = bCameraIsOrthographic ? FVector::PointPlaneProject(Endpoint2, CameraPlane)
+		: FMath::RayPlaneIntersection(CameraOrigin, Endpoint2 - CameraOrigin, CameraPlane);
+
+	FVector2D Endpoint1PlaneCoord = PlaneCoordinates(ProjectedEndpoint1, CameraPlane, UBasisVector, VBasisVector);
+	FVector2D Endpoint2PlaneCoord = PlaneCoordinates(ProjectedEndpoint2, CameraPlane, UBasisVector, VBasisVector);
+
+	// If either endpoint is inside, then definitely (at least partially) contained
+	if (RectangleCorners.IsInside(Endpoint1PlaneCoord) || RectangleCorners.IsInside(Endpoint2PlaneCoord))
+	{
+		return true;
+	}
+
+	// If both outside, have to do some intersections with the box sides. The function we have for this
+	// uses FVectors instead of FVector2Ds.
+	ProjectedEndpoint1 = FVector(Endpoint1PlaneCoord, 0);
+	ProjectedEndpoint2 = FVector(Endpoint2PlaneCoord, 0);
+	FVector Throwaway;
+	return FMath::SegmentIntersection2D(ProjectedEndpoint1, ProjectedEndpoint2, 
+		FVector(RectangleCorners.Min, 0), FVector(RectangleCorners.Max.X, RectangleCorners.Min.Y, 0), 
+		Throwaway)
+
+		|| FMath::SegmentIntersection2D(ProjectedEndpoint1, ProjectedEndpoint2, 
+			FVector(RectangleCorners.Max.X, RectangleCorners.Min.Y, 0), FVector(RectangleCorners.Max, 0), 
+			Throwaway)
+
+		|| FMath::SegmentIntersection2D(ProjectedEndpoint1, ProjectedEndpoint2,
+			FVector(RectangleCorners.Max, 0), FVector(RectangleCorners.Min.X, RectangleCorners.Max.Y, 0), 
+			Throwaway);
+
+	// Don't need to intersect with the fourth side because segment would have to intersect two sides
+	// of box if both endpoints are outside the box.
+}
+
 // ---------------------------------------
 
 void URectangleMarqueeMechanic::Setup(UInteractiveTool* ParentToolIn)
 {
 	UInteractionMechanic::Setup(ParentToolIn);
 
-	UClickDragInputBehavior* ClickDragBehavior = NewObject<UClickDragInputBehavior>(this);
+	ClickDragBehavior = NewObject<UClickDragInputBehavior>(this);
+	ClickDragBehavior->SetDefaultPriority(BasePriority);
 	ClickDragBehavior->Initialize(this);
-	ParentTool->AddInputBehavior(ClickDragBehavior);
+	ParentTool->AddInputBehavior(ClickDragBehavior, this);
+	SetIsEnabled(true);
+}
+
+bool URectangleMarqueeMechanic::IsEnabled()
+{
+	return bIsEnabled;
+}
+
+void URectangleMarqueeMechanic::SetIsEnabled(bool bOn)
+{
+	if (bIsDragging && !bOn)
+	{
+		OnTerminateDragSequence();
+	}
+
+	bIsEnabled = bOn;
+}
+
+void URectangleMarqueeMechanic::SetBasePriority(const FInputCapturePriority& Priority)
+{
+	BasePriority = Priority;
+	if (ClickDragBehavior)
+	{
+		ClickDragBehavior->SetDefaultPriority(Priority);
+	}
+}
+
+TPair<FInputCapturePriority, FInputCapturePriority> URectangleMarqueeMechanic::GetPriorityRange() const
+{
+	return TPair<FInputCapturePriority, FInputCapturePriority>(BasePriority, BasePriority);
 }
 
 void URectangleMarqueeMechanic::Render(IToolsContextRenderAPI* RenderAPI)
@@ -89,13 +158,9 @@ void URectangleMarqueeMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 
 FInputRayHit URectangleMarqueeMechanic::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
 {
-	FInputRayHit Dummy;
-
-	// This is the boolean that is checked to see if a drag sequence can be started. In our case we want to begin the 
-	// drag sequence even if the first ray doesn't hit anything, so set this to true.
-	Dummy.bHit = true;
-
-	return Dummy;
+	return bIsEnabled ? 
+		FInputRayHit(TNumericLimits<float>::Max()) // bHit is true. Depth is max to lose the standard tiebreaker.
+		: FInputRayHit(); // bHit is false
 }
 
 void URectangleMarqueeMechanic::OnClickPress(const FInputDeviceRay& PressPos)
@@ -109,7 +174,7 @@ void URectangleMarqueeMechanic::OnClickPress(const FInputDeviceRay& PressPos)
 	DragStartScreenPosition = PressPos.ScreenPosition;
 	DragStartWorldRay = PressPos.WorldRay;
 
-	OnDragRectangleStarted();
+	OnDragRectangleStarted.Broadcast();
 }
 
 void URectangleMarqueeMechanic::OnClickDrag(const FInputDeviceRay& DragPos)
@@ -125,25 +190,27 @@ void URectangleMarqueeMechanic::OnClickDrag(const FInputDeviceRay& DragPos)
 
 	FCameraRectangle Rectangle(CachedCameraState, DragStartWorldRay, DragCurrentWorldRay);
 
-	OnDragRectangleChanged(Rectangle);
+	OnDragRectangleChanged.Broadcast(Rectangle);
 }
 
 void URectangleMarqueeMechanic::OnClickRelease(const FInputDeviceRay& ReleasePos)
 {
 	bIsDragging = false;
-	OnDragRectangleFinished();
+	OnDragRectangleFinished.Broadcast();
 }
 
 void URectangleMarqueeMechanic::OnTerminateDragSequence()
 {
 	bIsDragging = false;
-	OnDragRectangleFinished();
+	OnDragRectangleFinished.Broadcast();
 }
 
 
 void URectangleMarqueeMechanic::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
 {
-	if (bIsDragging)
+	EViewInteractionState State = RenderAPI->GetViewInteractionState();
+	bool bThisViewHasFocus = !!(State & EViewInteractionState::Focused);
+	if (bThisViewHasFocus && bIsDragging)
 	{
 		FVector2D Start = DragStartScreenPosition;
 		FVector2D Curr = DragCurrentScreenPosition;

@@ -5,7 +5,9 @@
 #include "CoreMinimal.h"
 #include "Drawing/PreviewGeometryActor.h"
 #include "Drawing/TriangleSetComponent.h"
+#include "InputBehavior.h"
 #include "InteractiveTool.h"
+#include "Mechanics/RectangleMarqueeMechanic.h"
 #include "SimpleDynamicMeshComponent.h"
 #include "Selection/GroupTopologySelector.h"
 #include "TransformTypes.h"
@@ -14,6 +16,9 @@
 #include "PolygonSelectionMechanic.generated.h"
 
 class FPolygonSelectionMechanicSelectionChange;
+class UMouseHoverBehavior;
+class URectangleMarqueeMechanic;
+class USingleClickInputBehavior;
 
 UCLASS()
 class MODELINGCOMPONENTS_API UPolygonSelectionMechanicProperties : public UInteractiveToolPropertySet
@@ -38,6 +43,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = SelectionFilter, meta = (EditCondition = "bSelectEdges"))
 	bool bSelectEdgeRings = false;
 
+	UPROPERTY(EditAnywhere, Category = SelectionFilter, AdvancedDisplay)
+	bool bEnableMarquee = true;
+
+	/** Determines whether vertices should be checked for occlusion in marquee select (Note: marquee select currently only works with edges and vertices) */
+	UPROPERTY(EditAnywhere, Category = SelectionFilter, meta = (EditCondition = "bEnableMarquee", EditConditionHides))
+	bool bMarqueeIgnoreOcclusion = true;
 
 	// The following were originally in their own category, all marked as AdvancedDisplay. However, since there wasn't a non-AdvancedDisplay
 	// property in the category, they started out as expanded and could not be collapsed.
@@ -63,7 +74,7 @@ public:
  * from a FGroupTopology on a USimpleDynamicMeshComponent. 
  */
 UCLASS()
-class MODELINGCOMPONENTS_API UPolygonSelectionMechanic : public UInteractionMechanic
+class MODELINGCOMPONENTS_API UPolygonSelectionMechanic : public UInteractionMechanic, public IClickBehaviorTarget, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
 public:
@@ -77,6 +88,7 @@ public:
 	virtual void Shutdown() override;
 
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
+	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
 
 	/**
 	 * Initializes the mechanic.
@@ -86,21 +98,43 @@ public:
 	 * @param World World in which we are operating, used to add drawing components that draw highlighted edges.
 	 * @param Topology Group topology of the mesh.
 	 * @param GetSpatialSourceFunc Function that returns an AABB tree for the mesh.
-	 * @param GetAddToSelectionModifierStateFunc Functions that returns whether new selection should be trying to append to an existing 
-	     selection, usually by checking whether a particular modifier key is currently pressed.
 	 */
 	void Initialize(const FDynamicMesh3* Mesh,
 		FTransform TargetTransform,
 		UWorld* World,
 		const FGroupTopology* Topology,
-		TFunction<FDynamicMeshAABBTree3*()> GetSpatialSourceFunc,
-		TFunction<bool(void)> GetAddToSelectionModifierStateFunc = []() {return false; }
+		TFunction<FDynamicMeshAABBTree3*()> GetSpatialSourceFunc
 		);
 
 	void Initialize(USimpleDynamicMeshComponent* MeshComponent, const FGroupTopology* Topology,
-		TFunction<FDynamicMeshAABBTree3 * ()> GetSpatialSourceFunc,
-		TFunction<bool(void)> GetAddToSelectionModifierStateFunc = []() {return false; }
+		TFunction<FDynamicMeshAABBTree3 * ()> GetSpatialSourceFunc
 	);
+
+	/**
+	 * Removes the mechanic's own click/hover handlers, which means that the parent tool
+	 * will need to call UpdateSelection(), UpdateHighlight(), ClearHighlight(), and 
+	 * ClearSelection() from its own hover/click handlers.
+	 *
+	 * Must be called after Setup() to have an effect.
+	 *
+	 * @param ParentToolIn The parent tool, needed to be able to remove the behaviors.
+	 */
+	void DisableBehaviors(UInteractiveTool* ParentToolIn);
+
+	/**
+	 * Sets the base priority so that tools can make sure that their own behaviors are higher
+	 * priority. The mechanic will not use any priority value higher than this, but it may use
+	 * lower if it needs to stagger the priorities of behaviors it uses.
+	 * Can be called before or after Setup().
+	 */
+	void SetBasePriority(const FInputCapturePriority& Priority);
+
+	/**
+	 * Gets the current priority range used by behaviors in the mechanic. The returned pair will
+	 * have the base (highest) priority as the key, and the lowest priority as the value.
+	 */
+	TPair<FInputCapturePriority, FInputCapturePriority> GetPriorityRange() const;
+
 
 	void SetShouldSelectEdgeLoopsFunc(TFunction<bool(void)> Func)
 	{
@@ -110,6 +144,24 @@ public:
 	void SetShouldSelectEdgeRingsFunc(TFunction<bool(void)> Func)
 	{
 		ShouldSelectEdgeRingsFunc = Func;
+	}
+
+	/**
+	 * By default, the shift key will cause new clicks to add to the selection. However, this
+	 * can be changed by supplying a different function to check here.
+	 */
+	void SetShouldAddToSelectionFunc(TFunction<bool(void)> Func)
+	{
+		ShouldAddToSelectionFunc = Func;
+	}
+
+	/**
+	 * By default, the Ctrl key will cause new clicks to remove from the existing selection.
+	 * However, this can be changed by supplying a different function to check here.
+	 */
+	void SetShouldRemoveFromSelectionFunc(TFunction<bool(void)> Func)
+	{
+		ShouldRemoveFromSelectionFunc = Func;
 	}
 
 	/**
@@ -160,11 +212,13 @@ public:
 	/**
 	 * Replace the current selection with an external selection. 
 	 * @warning does not check that the selection is valid!
+	 *
+	 * @param bBroadcast If true, issues an OnSelectionChanged delegate broadcast.
 	 */
-	void SetSelection(const FGroupTopologySelection& Selection);
+	void SetSelection(const FGroupTopologySelection& Selection, bool bBroadcast = true);
 
 	/**
-	 * Clear the current selection
+	 * Clear the current selection.
 	 */
 	void ClearSelection();
 
@@ -179,11 +233,16 @@ public:
 	const FGroupTopologySelection& GetActiveSelection() const { return PersistentSelection; }
 
 	/**
+	 * Can be used by in an OnSelectionChanged event to inspect the clicked location (i.e., the
+	 * values returned by the UpdateSelection() function when the click happened).
+	 */
+	void GetClickedHitPosition(FVector3d& PositionOut, FVector3d& NormalOut) const;
+
+	/**
 	 * @return The best-guess 3D frame for the current select
 	 * @param bWorld if true, local-to-world transform of the target MeshComponent is applied to the frame
 	 */
 	FFrame3d GetSelectionFrame(bool bWorld, FFrame3d* InitialLocalFrame = nullptr) const;
-
 
 	//
 	// Change Tracking
@@ -204,10 +263,33 @@ public:
 	 */
 	bool EndChangeAndEmitIfModified();
 
-	/** OnSelectionChanged is broadcast whenever the selection is modified (including by FChanges) */
-	FSimpleMulticastDelegate OnSelectionChanged;
+	// IClickBehaviorTarget implementation
+	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
+	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
+
+	// IHoverBehaviorTarget implementation
+	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
+	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override;
+	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
+	virtual void OnEndHover() override;
+	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
+
+protected:
+	// These get bound to marquee mechanic delegates.
+	virtual void OnDragRectangleStarted();
+	virtual void OnDragRectangleChanged(const FCameraRectangle& CurrentRectangle);
+	virtual void OnDragRectangleFinished();
 
 public:
+	/** 
+	 * OnSelectionChanged is broadcast whenever the selection is modified (including by FChanges, which
+	 * means that called functions should not issue undo transactions. 
+	 */
+	FSimpleMulticastDelegate OnSelectionChanged;
+
+	// TODO: Is it worth issuing separate callbacks in normal selection changes and in FChange ones, to
+	// allow the user to bundle in some FChanges into the normal callback?
+
 	UPROPERTY()
 	UPolygonSelectionMechanicProperties* Properties;
 
@@ -216,7 +298,16 @@ protected:
 	const FGroupTopology* Topology;
 	TFunction<FDynamicMeshAABBTree3*()> GetSpatialFunc;
 
-	TFunction<bool(void)> GetAddToSelectionModifierStateFunc;
+	UPROPERTY()
+	UMouseHoverBehavior* HoverBehavior;
+
+	UPROPERTY()
+	USingleClickInputBehavior* ClickBehavior;
+
+	UPROPERTY()
+	URectangleMarqueeMechanic* MarqueeMechanic;
+
+	FInputCapturePriority BasePriority = FInputCapturePriority(FInputCapturePriority::DEFAULT_TOOL_PRIORITY);
 
 	// When bSelectEdgeLoops is true, this function is tested to see if we should select edge loops,
 	// to allow edge loop selection to be toggled with some key (setting bSelectEdgeLoops to
@@ -227,6 +318,9 @@ protected:
 	// to allow edge ring selection to be toggled with some key (setting bSelectEdgeRings to
 	// false overrides this function).
 	TFunction<bool(void)> ShouldSelectEdgeRingsFunc = []() {return true; };
+
+	TFunction<bool(void)> ShouldAddToSelectionFunc = [this]() {return bShiftToggle; };
+	TFunction<bool(void)> ShouldRemoveFromSelectionFunc = [this]() {return bCtrlToggle; };;
 
 	FTransform3d TargetTransform;
 
@@ -245,6 +339,10 @@ protected:
 	int32 SelectionTimestamp = 0;
 	TUniquePtr<FPolygonSelectionMechanicSelectionChange> ActiveChange;
 
+	FGroupTopologySelection PreDragPersistentSelection; // Used for box selection
+	FVector3d LastClickedHitPosition;
+	FVector3d LastClickedHitNormal;
+
 	/** The actor we create internally to own the DrawnTriangleSetComponent */
 	UPROPERTY()
 	APreviewGeometryActor* PreviewGeometryActor;
@@ -258,6 +356,11 @@ protected:
 	UMaterialInterface* HighlightedFaceMaterial;
 
 	FViewCameraState CameraState;
+
+	bool bShiftToggle = false;
+	bool bCtrlToggle = false;
+	static const int32 ShiftModifierID = 1;
+	static const int32 CtrlModifierID = 2;
 public:
 	FToolDataVisualizer PolyEdgesRenderer;
 	FToolDataVisualizer HilightRenderer;

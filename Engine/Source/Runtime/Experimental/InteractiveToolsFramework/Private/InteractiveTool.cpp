@@ -53,9 +53,14 @@ void UInteractiveTool::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAP
 {
 }
 
-void UInteractiveTool::AddInputBehavior(UInputBehavior* Behavior)
+void UInteractiveTool::AddInputBehavior(UInputBehavior* Behavior, void* Source)
 {
-	InputBehaviors->Add(Behavior);
+	InputBehaviors->Add(Behavior, Source);
+}
+
+void UInteractiveTool::RemoveInputBehaviorsBySource(void* Source)
+{
+	InputBehaviors->RemoveBySource(Source);
 }
 
 const UInputBehaviorSet* UInteractiveTool::GetInputBehaviors() const

@@ -28,7 +28,7 @@ class UTransformProxy;
 
 UCLASS()
 class MODELINGCOMPONENTS_API ULatticeControlPointsMechanic : 
-	public URectangleMarqueeMechanic, public IClickBehaviorTarget, public IHoverBehaviorTarget
+	public UInteractionMechanic, public IClickBehaviorTarget, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
 
@@ -52,6 +52,8 @@ public:
 
 	void UpdateSetPivotMode(bool bInSetPivotMode);
 
+	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
+
 	// UInteractionMechanic
 	virtual void Setup(UInteractiveTool* ParentTool) override;
 	virtual void Shutdown() override;
@@ -68,11 +70,6 @@ public:
 	virtual void OnEndHover() override;
 	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
 
-	// URectangleMarqueeMechanic implementation
-	void OnDragRectangleStarted() final;
-	void OnDragRectangleChanged(const FCameraRectangle& Rectangle) final;
-	void OnDragRectangleFinished() final;
-
 	bool bHasChanged = false;
 
 protected:
@@ -83,6 +80,7 @@ protected:
 
 	// Used for spatial queries
 	FGeometrySet3 GeometrySet;
+	FViewCameraState CachedCameraState;
 
 	/** Used for displaying points/segments */
 	UPROPERTY()
@@ -133,7 +131,11 @@ protected:
 
 	// Support for selection
 	TArray<int32> SelectedPointIDs;
+	URectangleMarqueeMechanic* MarqueeMechanic;
 	TArray<int32> CurrentDragSelection;
+	void OnDragRectangleStarted();
+	void OnDragRectangleChanged(const FCameraRectangle& Rectangle);
+	void OnDragRectangleFinished();
 
 	// We need the selected point start positions so we can move multiple points appropriately.
 	TArray<FVector3d> SelectedPointStartPositions;

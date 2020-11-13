@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Selection/PolygonSelectionMechanic.h"
+
+#include "BaseBehaviors/ClickDragBehavior.h"
+#include "BaseBehaviors/MouseHoverBehavior.h"
+#include "BaseBehaviors/SingleClickBehavior.h"
 #include "InteractiveToolManager.h"
 #include "Util/ColorConstants.h"
 #include "ToolSceneQueriesUtil.h"
@@ -17,11 +21,36 @@ void UPolygonSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 {
 	UInteractionMechanic::Setup(ParentToolIn);
 
+	ClickBehavior = NewObject<USingleClickInputBehavior>();
+	ClickBehavior->Initialize(this);
+	ClickBehavior->SetDefaultPriority(BasePriority);
+	ParentToolIn->AddInputBehavior(ClickBehavior, this);
+
+	HoverBehavior = NewObject<UMouseHoverBehavior>();
+	HoverBehavior->Modifiers.RegisterModifier(ShiftModifierID, FInputDeviceState::IsShiftKeyDown);
+	HoverBehavior->Modifiers.RegisterModifier(CtrlModifierID, FInputDeviceState::IsCtrlKeyDown);
+	HoverBehavior->Initialize(this);
+	HoverBehavior->SetDefaultPriority(BasePriority);
+	ParentToolIn->AddInputBehavior(HoverBehavior, this);
+
+	MarqueeMechanic = NewObject<URectangleMarqueeMechanic>();
+	MarqueeMechanic->Setup(ParentToolIn);
+	MarqueeMechanic->OnDragRectangleStarted.AddUObject(this, &UPolygonSelectionMechanic::OnDragRectangleStarted);
+	MarqueeMechanic->OnDragRectangleChanged.AddUObject(this, &UPolygonSelectionMechanic::OnDragRectangleChanged);
+	MarqueeMechanic->OnDragRectangleFinished.AddUObject(this, &UPolygonSelectionMechanic::OnDragRectangleFinished);
+	MarqueeMechanic->SetBasePriority(BasePriority.MakeLower());
+
 	Properties = NewObject<UPolygonSelectionMechanicProperties>(this);
 	if (bAddSelectionFilterPropertiesToParentTool)
 	{
 		AddToolPropertySource(Properties);
 	}
+	Properties->WatchProperty(Properties->bSelectVertices, [this](bool bSelectVertices) { 
+		MarqueeMechanic->SetIsEnabled(Properties->bEnableMarquee && (Properties->bSelectVertices || Properties->bSelectEdges)); });
+	Properties->WatchProperty(Properties->bSelectEdges, [this](bool bSelectVertices) { 
+		MarqueeMechanic->SetIsEnabled(Properties->bEnableMarquee && (Properties->bSelectVertices || Properties->bSelectEdges)); });
+	Properties->WatchProperty(Properties->bEnableMarquee, [this](bool bEnableMarquee) { 
+		MarqueeMechanic->SetIsEnabled(Properties->bEnableMarquee && (Properties->bSelectVertices || Properties->bSelectEdges)); });
 
 	// set up visualizers
 	PolyEdgesRenderer.LineColor = FLinearColor::Red;
@@ -50,8 +79,7 @@ void UPolygonSelectionMechanic::Initialize(
 	FTransform TargetTransformIn,
 	UWorld* WorldIn,
 	const FGroupTopology* TopologyIn,
-	TFunction<FDynamicMeshAABBTree3 * ()> GetSpatialSourceFuncIn,
-	TFunction<bool(void)> GetAddToSelectionModifierStateFuncIn)
+	TFunction<FDynamicMeshAABBTree3 * ()> GetSpatialSourceFuncIn)
 {
 	this->Mesh = MeshIn;
 	this->Topology = TopologyIn;
@@ -82,8 +110,6 @@ void UPolygonSelectionMechanic::Initialize(
 		}
 	};
 
-	GetAddToSelectionModifierStateFunc = GetAddToSelectionModifierStateFuncIn;
-
 	// Set up the component we use to draw highlighted triangles. Only needs to be done once, not when the mesh
 	// changes (we are assuming that we won't swap worlds without creating a new mechanic).
 	if (PreviewGeometryActor == nullptr)
@@ -106,24 +132,56 @@ void UPolygonSelectionMechanic::Initialize(
 void UPolygonSelectionMechanic::Initialize(
 	USimpleDynamicMeshComponent* MeshComponentIn,
 	const FGroupTopology* TopologyIn,
-	TFunction<FDynamicMeshAABBTree3 * ()> GetSpatialSourceFuncIn,
-	TFunction<bool()> GetAddToSelectionModifierStateFuncIn)
+	TFunction<FDynamicMeshAABBTree3 * ()> GetSpatialSourceFuncIn)
 {
 
 	Initialize(MeshComponentIn->GetMesh(),
 		MeshComponentIn->GetComponentTransform(),
 		MeshComponentIn->GetWorld(),
 		TopologyIn,
-		GetSpatialSourceFuncIn,
-		GetAddToSelectionModifierStateFuncIn);
+		GetSpatialSourceFuncIn);
+}
+
+void UPolygonSelectionMechanic::DisableBehaviors(UInteractiveTool* ParentToolIn)
+{
+	ParentToolIn->RemoveInputBehaviorsBySource(this);
+	ParentToolIn->RemoveInputBehaviorsBySource(MarqueeMechanic);
+
+	// TODO: Is it worth adding a way to remove the property watchers for marquee?
+}
+
+void UPolygonSelectionMechanic::SetBasePriority(const FInputCapturePriority &Priority)
+{
+	BasePriority = Priority;
+	if (ClickBehavior)
+	{
+		ClickBehavior->SetDefaultPriority(Priority);
+	}
+	if (HoverBehavior)
+	{
+		HoverBehavior->SetDefaultPriority(Priority);
+	}
+	if (MarqueeMechanic)
+	{
+		MarqueeMechanic->SetBasePriority(Priority.MakeLower());
+	}
+}
+
+TPair<FInputCapturePriority, FInputCapturePriority> UPolygonSelectionMechanic::GetPriorityRange() const
+{
+	TPair<FInputCapturePriority, FInputCapturePriority> Result;
+	Result.Key = BasePriority;
+	Result.Value = MarqueeMechanic->GetPriorityRange().Value;
+	return Result;
 }
 
 void UPolygonSelectionMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 {
+	MarqueeMechanic->Render(RenderAPI);
+
 	// Cache the view camera state so we can use for snapping/etc.
 	// This should not happen in Render() though...
 	GetParentTool()->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
-
 
 	FViewCameraState RenderCameraState = RenderAPI->GetCameraState();
 
@@ -157,6 +215,10 @@ void UPolygonSelectionMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 	HilightRenderer.EndFrame();
 }
 
+void UPolygonSelectionMechanic::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
+{
+	MarqueeMechanic->DrawHUD(Canvas, RenderAPI);
+}
 
 
 
@@ -252,7 +314,7 @@ FGroupTopologySelector::FSelectionSettings UPolygonSelectionMechanic::GetTopoSel
 	Settings.bEnableEdgeHits = Properties->bSelectEdges;
 	Settings.bEnableCornerHits = Properties->bSelectVertices;
 
-	if (PersistentSelection.IsEmpty() == false && GetAddToSelectionModifierStateFunc() == true)
+	if (!PersistentSelection.IsEmpty() && (ShouldAddToSelectionFunc() || ShouldRemoveFromSelectionFunc()))
 	{
 		Settings.bEnableFaceHits = Settings.bEnableFaceHits && PersistentSelection.SelectedGroupIDs.Num() > 0;
 		Settings.bEnableEdgeHits = Settings.bEnableEdgeHits && PersistentSelection.SelectedEdgeIDs.Num() > 0;
@@ -292,6 +354,12 @@ bool UPolygonSelectionMechanic::UpdateHighlight(const FRay& WorldRay)
 	if (HilightSelection.SelectedEdgeIDs.Num() > 0 && Properties->bSelectEdgeLoops && ShouldSelectEdgeLoopsFunc())
 	{
 		TopoSelector.ExpandSelectionByEdgeLoops(HilightSelection);
+	}
+
+	// Don't hover highlight a selection that we already selected, because people didn't like that
+	if (PersistentSelection.Contains(HilightSelection))
+	{
+		HilightSelection.Clear();
 	}
 
 	// Currently we draw highlighted edges/vertices differently from highlighted faces. Edges/vertices
@@ -371,21 +439,20 @@ bool UPolygonSelectionMechanic::UpdateSelection(const FRay& WorldRay, FVector3d&
 			TopoSelector.ExpandSelectionByEdgeLoops(Selection);
 		}
 
-		if (GetAddToSelectionModifierStateFunc())
+		if (ShouldAddToSelectionFunc())
 		{
-			// We don't toggle because in cases where we are trying to add multiple elements,
-			// we want to remove the selection only if it was all selected to begin with,
-			// otherwise we want to add to it.
-			// At the moment the only way to add multiple elements at a time is through edge
-			// loop/ring selection, but we will someday have marquee selection and face ring selection.
-			if (PersistentSelection.Contains(Selection))
+			if (ShouldRemoveFromSelectionFunc())
 			{
-				PersistentSelection.Remove(Selection);
+				PersistentSelection.Toggle(Selection);
 			}
 			else
 			{
 				PersistentSelection.Append(Selection);
 			}
+		}
+		else if (ShouldRemoveFromSelectionFunc())
+		{
+			PersistentSelection.Remove(Selection);
 		}
 		else
 		{
@@ -410,11 +477,14 @@ bool UPolygonSelectionMechanic::UpdateSelection(const FRay& WorldRay, FVector3d&
 }
 
 
-void UPolygonSelectionMechanic::SetSelection(const FGroupTopologySelection& Selection)
+void UPolygonSelectionMechanic::SetSelection(const FGroupTopologySelection& Selection, bool bBroadcast)
 {
 	PersistentSelection = Selection;
 	SelectionTimestamp++;
-	OnSelectionChanged.Broadcast();
+	if (bBroadcast)
+	{
+		OnSelectionChanged.Broadcast();
+	}
 }
 
 
@@ -425,6 +495,117 @@ void UPolygonSelectionMechanic::ClearSelection()
 	OnSelectionChanged.Broadcast();
 }
 
+FInputRayHit UPolygonSelectionMechanic::IsHitByClick(const FInputDeviceRay& ClickPos)
+{
+	FHitResult OutHit;
+	FGroupTopologySelection Selection;
+	if (TopologyHitTest(ClickPos.WorldRay, OutHit, Selection, CameraState.bIsOrthographic))
+	{
+		return FInputRayHit(OutHit.Distance);
+	}
+
+	// We didn't hit selectable geometry. If we're using the marquee mechanic, give it a
+	// chance to capture. Otherwise still capture ourselves so that we are able to clear selections.
+	return MarqueeMechanic->IsEnabled() ?
+		FInputRayHit() // bHit is false
+		: FInputRayHit(TNumericLimits<float>::Max()); // bHit is true
+}
+
+void UPolygonSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
+{
+	// update selection
+	ParentTool->GetToolManager()->BeginUndoTransaction(LOCTEXT("SelectionChange", "Selection"));
+	BeginChange();
+
+	// This will fire off a OnSelectionChanged delegate.
+	UpdateSelection(ClickPos.WorldRay, LastClickedHitPosition, LastClickedHitNormal);
+
+	EndChangeAndEmitIfModified();
+	ParentTool->GetToolManager()->EndUndoTransaction();
+}
+
+FInputRayHit UPolygonSelectionMechanic::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
+{
+	FHitResult OutHit;
+	if (TopologyHitTest(PressPos.WorldRay, OutHit))
+	{
+		return FInputRayHit(OutHit.Distance);
+	}
+	return FInputRayHit(); // bHit is false
+}
+
+void UPolygonSelectionMechanic::OnBeginHover(const FInputDeviceRay& DevicePos)
+{
+}
+
+bool UPolygonSelectionMechanic::OnUpdateHover(const FInputDeviceRay& DevicePos)
+{
+	UpdateHighlight(DevicePos.WorldRay);
+	return true;
+}
+
+void UPolygonSelectionMechanic::OnEndHover()
+{
+	ClearHighlight();
+}
+
+void UPolygonSelectionMechanic::OnUpdateModifierState(int ModifierID, bool bIsOn)
+{
+	switch (ModifierID)
+	{
+	case ShiftModifierID:
+		bShiftToggle = bIsOn;
+		break;
+	case CtrlModifierID:
+		bCtrlToggle = bIsOn;
+		break;
+	}
+}
+
+void UPolygonSelectionMechanic::OnDragRectangleStarted()
+{
+	PreDragPersistentSelection = PersistentSelection;
+}
+
+void UPolygonSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& CurrentRectangle)
+{
+	FGroupTopologySelection RectangleSelection;
+
+	FGroupTopologySelector::FSelectionSettings TopoSelectorSettings = GetTopoSelectorSettings(false);
+	TopoSelectorSettings.bIgnoreOcclusion = Properties->bMarqueeIgnoreOcclusion; // uses a separate setting for marquee
+	
+	TopoSelector.FindSelectedElement(TopoSelectorSettings, CurrentRectangle, TargetTransform,
+		RectangleSelection);
+
+	if (ShouldAddToSelectionFunc())
+	{
+		PersistentSelection = PreDragPersistentSelection;
+		if (ShouldRemoveFromSelectionFunc())
+		{
+			PersistentSelection.Toggle(RectangleSelection);
+		}
+		else
+		{
+			PersistentSelection.Append(RectangleSelection);
+		}
+	}
+	else if (ShouldRemoveFromSelectionFunc())
+	{
+		PersistentSelection = PreDragPersistentSelection;
+		PersistentSelection.Remove(RectangleSelection);
+	}
+	else
+	{
+		// Neither key pressed.
+		PersistentSelection = RectangleSelection;
+	}
+}
+
+void UPolygonSelectionMechanic::OnDragRectangleFinished()
+{
+	SelectionTimestamp++;
+	OnSelectionChanged.Broadcast();
+}
 
 
 void UPolygonSelectionMechanic::BeginChange()
@@ -461,6 +642,11 @@ bool UPolygonSelectionMechanic::EndChangeAndEmitIfModified()
 	return false;
 }
 
+void UPolygonSelectionMechanic::GetClickedHitPosition(FVector3d& PositionOut, FVector3d& NormalOut) const
+{
+	PositionOut = LastClickedHitPosition;
+	NormalOut = LastClickedHitNormal;
+}
 
 FFrame3d UPolygonSelectionMechanic::GetSelectionFrame(bool bWorld, FFrame3d* InitialLocalFrame) const
 {

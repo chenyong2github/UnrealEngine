@@ -71,14 +71,7 @@ FVector3i ULatticeDeformerTool::GetLatticeResolution() const
 
 void ULatticeDeformerTool::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
 {
-	EViewInteractionState State = RenderAPI->GetViewInteractionState();
-	bool bThisViewHasFocus = !!(State & EViewInteractionState::Focused);
-
-	if (bThisViewHasFocus)
-	{		
-		// Draw the drag rectangle if it's active
-		ControlPointsMechanic->DrawHUD(Canvas, RenderAPI);
-	}
+	ControlPointsMechanic->DrawHUD(Canvas, RenderAPI);
 }
 
 bool ULatticeDeformerTool::CanAccept() const

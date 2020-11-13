@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "InteractiveToolBuilder.h"
 #include "SingleSelectionTool.h"
 #include "Mechanics/ConstructionPlaneMechanic.h"
@@ -79,7 +81,7 @@ public:
  * revolving planar meshes. 
  */
 UCLASS()
-class MESHMODELINGTOOLS_API URevolveBoundaryTool : public UMeshBoundaryToolBase
+class MESHMODELINGTOOLS_API URevolveBoundaryTool : public UMeshBoundaryToolBase, public IClickBehaviorTarget
 {
 	GENERATED_BODY()
 
@@ -119,12 +121,13 @@ protected:
 	FVector3d RevolutionAxisOrigin;
 	FVector3d RevolutionAxisDirection;
 
-	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
-	virtual bool ShouldSelectionAppend() const override { return false; }
-
 	void GenerateAsset(const FDynamicMeshOpResult& Result);
 	void UpdateRevolutionAxis();
 	void StartPreview();
+
+	// IClickBehaviorTarget API
+	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
+	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
 
 	friend class URevolveBoundaryOperatorFactory;
 };

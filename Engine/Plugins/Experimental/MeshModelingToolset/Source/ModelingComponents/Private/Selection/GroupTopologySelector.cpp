@@ -2,12 +2,14 @@
 
 
 #include "Selection/GroupTopologySelector.h"
+#include "Mechanics/RectangleMarqueeMechanic.h"
 #include "MeshQueries.h"
 #include "ToolDataVisualizer.h"
 #include "ToolSceneQueriesUtil.h"
 
 // Local utility function forward declarations
 bool IsOccluded(const FGeometrySet3::FNearest& ClosestElement, const FVector3d& ViewOrigin, const FDynamicMeshAABBTree3* Spatial);
+bool IsOccluded(const FVector3d& Point, const FVector3d& ViewOrigin, const FDynamicMeshAABBTree3* Spatial);
 void AddNewEdgeLoopEdgesFromCorner(const FGroupTopology& Topology, int32 EdgeID, int32 CornerID, TSet<int32>& EdgeSet);
 bool GetNextEdgeLoopEdge(const FGroupTopology& Topology, int32 IncomingEdgeID, int32 CornerID, int32& NextEdgeIDOut);
 void AddNewEdgeRingEdges(const FGroupTopology& Topology, int32 StartEdgeID, int32 ForwardGroupID, TSet<int32>& EdgeSet);
@@ -567,8 +569,13 @@ bool FGroupTopologySelector::DoEdgeBasedSelection(const FSelectionSettings& Sett
 
 bool IsOccluded(const FGeometrySet3::FNearest& ClosestElement, const FVector3d& ViewOrigin, const FDynamicMeshAABBTree3* Spatial)
 {
+	return IsOccluded(ClosestElement.NearestGeoPoint, ViewOrigin, Spatial);
+}
+
+bool IsOccluded(const FVector3d& Point, const FVector3d& ViewOrigin, const FDynamicMeshAABBTree3* Spatial)
+{
 	// Shoot ray backwards to see if we hit something. 
-	FRay3d ToEyeRay(ClosestElement.NearestGeoPoint, (ViewOrigin - ClosestElement.NearestGeoPoint).Normalized(), true);
+	FRay3d ToEyeRay(Point, (ViewOrigin - Point).Normalized(), true);
 	ToEyeRay.Origin += (double)(100 * FMathf::ZeroTolerance) * ToEyeRay.Direction;
 	if (Spatial->FindNearestHitTriangle(ToEyeRay) >= 0)
 	{
@@ -577,6 +584,66 @@ bool IsOccluded(const FGeometrySet3::FNearest& ClosestElement, const FVector3d& 
 	return false;
 }
 
+bool FGroupTopologySelector::FindSelectedElement(const FSelectionSettings& Settings, 
+	const FCameraRectangle& CameraRectangle, FTransform3d TargetTransform, FGroupTopologySelection& ResultOut)
+{
+	// One minor easy thing we can do to speed up the below is to detect cases where transform does not have a non-uniform
+	// scale, and in those cases we transform the rectangle once rather than transforming all the query points/curves. 
+	// This isn't worth doing for non-uniform scale transforms because the rectangle basis stops being orthonormal and 
+	// becomes a problem to work with.
+
+	ResultOut.Clear();
+	FDynamicMeshAABBTree3* Spatial = GetSpatial();
+
+	// Needed for occlusion test, which happens in local space.
+	FVector3d LocalCameraOrigin = TargetTransform.InverseTransformPosition(CameraRectangle.CameraOrigin);
+	
+	// Corner selection takes priority over edges.
+	if (Settings.bEnableCornerHits)
+	{
+		GeometrySet.ParallelFindAllPointsSatisfying(
+			[&CameraRectangle, &TargetTransform, &Settings, &LocalCameraOrigin, Spatial](const FVector3d& PointPosition)
+			{
+				return CameraRectangle.IsProjectedPointInRectangle((FVector)TargetTransform.TransformPosition(PointPosition))
+					&& (Settings.bIgnoreOcclusion || !IsOccluded(PointPosition, LocalCameraOrigin, Spatial));
+			},
+			ResultOut.SelectedCornerIDs);
+	}
+
+	// If we didn't get corners, look for edges.
+	if (ResultOut.SelectedCornerIDs.IsEmpty() && Settings.bEnableEdgeHits)
+	{
+		GeometrySet.ParallelFindAllCurvesSatisfying(
+			[&CameraRectangle, &TargetTransform, &Settings, &LocalCameraOrigin, Spatial](const FPolyline3d& Curve)
+			{
+				// Testing occlusion properly seems like it would be a pain, so we'll just consider something occluded
+				// if one of the endpoints is occluded. This will handle the common case of not wanting to select a
+				// hidden edge that is connected to a visible corner.
+				if (!Settings.bIgnoreOcclusion && (IsOccluded(Curve.Start(), LocalCameraOrigin, Spatial)
+						|| IsOccluded(Curve.End(), LocalCameraOrigin, Spatial)))
+				{
+					return false;
+				}
+
+				// Check whether any of the component segments intersect the rectangle
+				const TArray<FVector3d>& Verts = Curve.GetVertices();
+				FVector3d CurrentVert = TargetTransform.TransformPosition(Verts[0]);
+				for (int32 i = 1; i < Verts.Num(); ++i)
+				{
+					FVector3d NextVert = TargetTransform.TransformPosition(Verts[i]);
+					if (CameraRectangle.IsProjectedSegmentIntersectingRectangle((FVector)CurrentVert, (FVector)NextVert))
+					{
+						return true;
+					}
+					CurrentVert = NextVert;
+				}
+				return false;
+			},
+			ResultOut.SelectedEdgeIDs);
+	}
+	
+	return ResultOut.IsEmpty();
+}
 
 bool FGroupTopologySelector::ExpandSelectionByEdgeLoops(FGroupTopologySelection& Selection)
 {

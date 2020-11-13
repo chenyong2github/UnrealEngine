@@ -57,7 +57,7 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UEditUVIslandsTool : public UMeshSurfacePointTool, public IClickBehaviorTarget
+class MESHMODELINGTOOLS_API UEditUVIslandsTool : public UMeshSurfacePointTool
 {
 	GENERATED_BODY()
 
@@ -87,10 +87,6 @@ public:
 
 	// IClickDragBehaviorTarget API
 	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
-
-	// IClickBehaviorTarget API
-	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
-	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
 
 
 public:

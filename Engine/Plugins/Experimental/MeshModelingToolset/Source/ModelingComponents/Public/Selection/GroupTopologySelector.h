@@ -7,6 +7,7 @@
 #include "DynamicMeshAABBTree3.h"
 #include "RayTypes.h"
 
+struct FCameraRectangle;
 class FToolDataVisualizer;
 struct FViewCameraState;
 
@@ -109,6 +110,23 @@ public:
 	 */
 	bool FindSelectedElement(const FSelectionSettings& Settings, const FRay3d& Ray, FGroupTopologySelection& ResultOut,
 		FVector3d& SelectedPositionOut, FVector3d& SelectedNormalOut, int32* EdgeSegmentIdOut = nullptr);
+
+	/**
+	 * Given a camera rectangle (from a marquee selection) gives the group corners or edges that are contained in
+	 * the rectangle. Currently does not select faces.
+	 * 
+	 * Uses the bEnableEdgeHits, bEnableCornerHits, and bIgnoreOcclusion members of the FSelectionSettings argument.
+	 * For group edges, occlusion is checked at endpoints, and if either is occluded, the edge is considered occluded.
+	 *
+	 * @param Settings Settings that determine what is selected and whether occlusion is tested.
+	 * @param CameraRectangle The camera rectangle.
+	 * @param TargetTransform Transform from points to world space, since the rectangle is in world space.
+	 * @param ResultOut Output selection (cleared before use).
+	 *
+	 * @return true if something was selected.
+	 */
+	bool FindSelectedElement(const FSelectionSettings& Settings, const FCameraRectangle& CameraRectangle, 
+		FTransform3d TargetTransform, FGroupTopologySelection& ResultOut);
 
 	/**
 	 * Using the edges in the given selection as starting points, add any "edge loops" containing the edges. An 

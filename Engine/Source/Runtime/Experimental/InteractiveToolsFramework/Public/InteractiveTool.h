@@ -322,8 +322,15 @@ public:
 	/**
 	 * Add an input behavior for this Tool
 	 * @param Behavior behavior to add
+	 * @param Source Optional pointer that could be used to identify the behavior for removal later.
 	 */
-	virtual void AddInputBehavior(UInputBehavior* Behavior);
+	virtual void AddInputBehavior(UInputBehavior* Behavior, void* Source = nullptr);
+
+	/**
+	 * Remove all input behaviors that had the given source pointer set during their addition.
+	 * @param Source Identifying pointer
+	 */
+	virtual void RemoveInputBehaviorsBySource(void* Source);
 
 	/**
 	 * @return Current input behavior set.
