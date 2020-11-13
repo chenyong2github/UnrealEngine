@@ -629,6 +629,15 @@ UMovieSceneEntitySystemLinker* UMovieSceneSequencePlayer::ConstructEntitySystemL
 	return UMovieSceneEntitySystemLinker::CreateLinker(GetPlaybackContext());
 }
 
+void UMovieSceneSequencePlayer::InitializeForTick(UObject* Context)
+{
+	// Store a reference to the global tick manager to keep it alive while there are sequence players active.
+	if (ensure(Context))
+	{
+		TickManager = UMovieSceneSequenceTickManager::Get(Context);
+	}
+}
+
 void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, const FMovieSceneSequencePlaybackSettings& InSettings)
 {
 	check(InSequence);
@@ -714,12 +723,9 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 		}
 	}
 
-
-	// Store a reference to the global tick manager to keep it alive while there are sequence players active.
-	UObject* PlaybackContext = GetPlaybackContext();
-	if (ensure(PlaybackContext))
+	if (!TickManager)
 	{
-		TickManager = UMovieSceneSequenceTickManager::Get(PlaybackContext);
+		InitializeForTick(GetPlaybackContext());
 	}
 
 	RootTemplateInstance.Initialize(*Sequence, *this, nullptr);

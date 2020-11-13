@@ -469,6 +469,9 @@ public:
 
 public:
 
+	/** Ensure that this player's tick manager is set up correctly for the specified context */
+	void InitializeForTick(UObject* Context);
+
 	/** Initialize this player with a sequence and some settings */
 	void Initialize(UMovieSceneSequence* InSequence, const FMovieSceneSequencePlaybackSettings& InSettings);
 
@@ -482,6 +485,11 @@ public:
 	 * @return the sequence currently assigned to this player
 	 */
 	UMovieSceneSequence* GetSequence() const { return Sequence; }
+
+	/**
+	 * Access this player's tick manager
+	 */
+	UMovieSceneSequenceTickManager* GetTickManager() const { return TickManager; }
 
 	/**
 	 * Assign a playback client interface for this sequence player, defining instance data and binding overrides
