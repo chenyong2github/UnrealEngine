@@ -38,4 +38,6 @@ public:
 	virtual void EndUndoTransaction() override;
 	virtual void AppendChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description) override;
 	virtual bool RequestSelectionChange(const FSelectedOjectsChangeList& SelectionChange) override;
+	virtual bool RequestToolSelectionStore(const UInteractiveToolStorableSelection* StorableSelection, 
+		const FToolSelectionStoreParams& Params) override;
 };

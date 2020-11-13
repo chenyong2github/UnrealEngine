@@ -14,6 +14,7 @@
 
 #include "Modules/ModuleManager.h"
 #include "ShowFlags.h"				// for EngineShowFlags
+#include "Engine/Engine.h"
 #include "Engine/Selection.h"
 #include "Misc/ITransaction.h"
 #include "ScopedTransaction.h"
@@ -25,6 +26,7 @@
 #include "Tools/EditorToolAssetAPI.h"
 #include "Tools/EditorComponentSourceFactory.h"
 #include "InteractiveToolObjects.h"
+#include "InteractiveToolsSelectionStoreSubsystem.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
 #include "EditorModeManager.h"
 #include "EdMode.h"
@@ -178,6 +180,15 @@ public:
 		StateOut.World = EditorModeManager->GetWorld();
 		EditorModeManager->GetSelectedActors()->GetSelectedObjects(StateOut.SelectedActors);
 		EditorModeManager->GetSelectedComponents()->GetSelectedObjects(StateOut.SelectedComponents);
+
+		UInteractiveToolsSelectionStoreSubsystem* ToolSelectionStore = GEngine->GetEngineSubsystem<UInteractiveToolsSelectionStoreSubsystem>();
+		ensureMsgf(ToolSelectionStore, TEXT("UInteractiveToolsSelectionStoreSubsystem was null, so tool selections will not be loaded. "
+			"Was the owning module loaded?"));
+
+		// If we someday have tool selections be tool manager specific, we can pass in the tool manager
+		// as a parameter here.
+		StateOut.StoredToolSelection = 
+			(ToolSelectionStore ? ToolSelectionStore->GetStoredSelection() : nullptr);
 	}
 
 	virtual void GetCurrentViewState(FViewCameraState& StateOut) const override
@@ -475,6 +486,21 @@ public:
 
 		GEditor->NoteSelectionChange(true);
 		return true;
+	}
+
+	virtual bool RequestToolSelectionStore(const UInteractiveToolStorableSelection* StorableSelection,
+		const FToolSelectionStoreParams & = FToolSelectionStoreParams()) override
+	{
+		if (UInteractiveToolsSelectionStoreSubsystem* ToolSelectionStore = GEngine->GetEngineSubsystem<UInteractiveToolsSelectionStoreSubsystem>())
+		{
+			ToolSelectionStore->Modify(false); // Allows this to be part of an undo transaction if one is open.
+			ToolSelectionStore->SetStoredSelection(StorableSelection);
+			return true;
+		}
+
+		ensureMsgf(false, TEXT("UInteractiveToolsSelectionStoreSubsystem was null, so tool selections will not be stored. "
+			"Was the owning module loaded?"));
+		return false;
 	}
 
 };

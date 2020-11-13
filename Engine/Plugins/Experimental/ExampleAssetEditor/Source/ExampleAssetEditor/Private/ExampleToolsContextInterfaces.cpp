@@ -74,3 +74,9 @@ bool FToolsContextTransactionImpl::RequestSelectionChange(const FSelectedOjectsC
 {
 	return false;
 }
+
+bool FToolsContextTransactionImpl::RequestToolSelectionStore(const UInteractiveToolStorableSelection* StorableSelection,
+	const FToolSelectionStoreParams& Params)
+{
+	return false;
+}

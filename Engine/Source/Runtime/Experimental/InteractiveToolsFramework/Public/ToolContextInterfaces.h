@@ -20,6 +20,7 @@ class UInteractiveToolManager;
 class UInteractiveGizmoManager;
 struct FMeshDescription;
 class UTexture2D;
+class UInteractiveToolStorableSelection;
 
 #if WITH_EDITOR
 class HHitProxy;
@@ -43,6 +44,12 @@ struct INTERACTIVETOOLSFRAMEWORK_API FToolBuilderState
 	TArray<AActor*> SelectedActors;
 	/** Current selected Components. May be empty or nullptr. */
 	TArray<UActorComponent*> SelectedComponents;
+
+	/** 
+	 * A tool selection object stored by a previous tool, containing, for instance,
+	 * selected groups within a mesh, etc.
+	 */
+	const UInteractiveToolStorableSelection* StoredToolSelection = nullptr;
 };
 
 
@@ -341,6 +348,27 @@ public:
 	 */
 	virtual bool RequestSelectionChange(const FSelectedOjectsChangeList& SelectionChange) = 0;
 
+
+	// Currently, no additional parameters are needed for tool selection storage since there
+	// is one global stored object for the whole editor at a time. That may be what we want.
+	// However, in case we someday decide that we want the selection object to be specific to
+	// a tool manager, etc, we keep this struct as a way to add parameters. For now the only
+	// parameter (unused) is the requesting tool manager.
+	struct FToolSelectionStoreParams
+	{
+		UInteractiveToolManager* ToolManager = nullptr;
+	};
+
+	/**
+	 * Request an arbitrary tool selection object to be stored so that it can be retrieved by other tools,
+	 * modes, or asset editors. Only one of these is active at a time, so this will clear the previous
+	 * stored tool selection when used.
+	 *
+	 * @param StorableSelection Selection object to hold on to. Can be nullptr to clear the stored selection.
+	 * @param Params Not currently used, here to make the selection store system easier to tweak later.
+	 */
+	virtual bool RequestToolSelectionStore(const UInteractiveToolStorableSelection* StorableSelection, 
+		const FToolSelectionStoreParams& Params) = 0;
 };
 
 UENUM()

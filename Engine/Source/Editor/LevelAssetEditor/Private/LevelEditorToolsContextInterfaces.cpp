@@ -74,3 +74,9 @@ bool FLevelEditorContextTransactionImpl::RequestSelectionChange(const FSelectedO
 {
 	return false;
 }
+
+bool FLevelEditorContextTransactionImpl::RequestToolSelectionStore(const UInteractiveToolStorableSelection* StorableSelection,
+	const FToolSelectionStoreParams& Params)
+{
+	return false;
+}

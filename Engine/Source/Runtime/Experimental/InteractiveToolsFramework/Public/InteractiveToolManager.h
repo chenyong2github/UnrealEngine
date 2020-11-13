@@ -11,7 +11,7 @@
 #include "ToolContextInterfaces.h"
 #include "InteractiveToolManager.generated.h"
 
-
+class UInteractiveToolStorableSelection;
 
 /** A Tool can be activated on a particular input device, currently identified by a "side" */
 UENUM()
@@ -218,7 +218,18 @@ public:
 	 */
 	virtual bool RequestSelectionChange(const FSelectedOjectsChangeList& SelectionChange);
 
-
+	/**
+	 * Store an arbitrary tool selection object that will be loaded for the next tool to be invoked.
+	 * If that tool doesn't support the selection object and does not get cancelled, the stored
+	 * selection will be discarded. Passing in a nullptr will clear the stored selection.
+	 *
+	 * Ideally, a tool would make this call in any Shutdown() non-cancel invocation, even if to
+	 * keep the currently stored tool selection. If a tool doesn't, the tool manager will discard
+	 * the last stored tool selection to avoid keeping stale ones across tool invocations, but this
+	 * will be a non-undoable clear because the tool manager can't put the action into whatever
+	 * transaction the tool issues in its Shutdown().
+	 */
+	virtual bool RequestToolSelectionStore(const UInteractiveToolStorableSelection* StorableSelection);
 
 	//
 	// State control  (@todo: have the Context call these? not safe for anyone to call)
@@ -292,6 +303,14 @@ protected:
 	FString ActiveLeftToolName;
 	FString ActiveRightToolName;
 
+	/** 
+	 * Tracks whether the last activated tool has made a request to store a tool selection.
+	 * If it hasn't, we'll clear the currently stored tool selection. The reason for this is
+	 * that we generally don't want to keep the old stored tool selection after a new tool 
+	 * invocation, and we don't want to rely on tools to be kind enough to clear it for us
+	 * (though it is better when they do, since they can bundle it into their own undo transaction).
+	 */
+	bool bActiveToolMadeSelectionStoreRequest = false;
 
 	virtual bool ActivateToolInternal(EToolSide Side);
 	virtual void DeactivateToolInternal(EToolSide Side, EToolShutdownType ShutdownType);

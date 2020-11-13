@@ -14,8 +14,10 @@
 #include "TransformTypes.h"
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "Util/ColorConstants.h"
+#include "Util/CompactMaps.h"
 #include "ToolSetupUtil.h"
 #include "Operations/MeshPlaneCut.h"
+#include "Selection/GroupTopologyStorableSelection.h"
 #include "Selections/MeshEdgeSelection.h"
 #include "Selections/MeshFaceSelection.h"
 #include "Selections/MeshConnectedComponents.h"
@@ -35,6 +37,7 @@
 #include "Async/ParallelFor.h"
 #include "Containers/BitArray.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Components/BrushComponent.h"
 
 #define LOCTEXT_NAMESPACE "UEditMeshPolygonsTool"
 
@@ -50,6 +53,11 @@ UMeshSurfacePointTool* UEditMeshPolygonsToolBuilder::CreateNewTool(const FToolBu
 	{
 		EditPolygonsTool->EnableTriangleMode();
 	}
+
+	// This passes in nullptr if the stored selection is not the right type. The tool
+	// will figure out whether the selection is still relevant.
+	EditPolygonsTool->SetStoredToolSelection(Cast<UGroupTopologyStorableSelection>(SceneState.StoredToolSelection));
+
 	return EditPolygonsTool;
 }
 
@@ -155,6 +163,15 @@ void UEditMeshPolygonsTool::Setup()
 	MeshSpatial.SetMesh(DynamicMeshComponent->GetMesh());
 	PrecomputeTopology();
 
+	// Have to load selection after initializing the selection mechanic since we need to have
+	// the topology built.
+	if (IsStoredToolSelectionUsable(StoredToolSelection))
+	{
+		SelectionMechanic->LoadStorableSelection(*StoredToolSelection);
+	}
+
+	bSelectionStateDirty = SelectionMechanic->HasSelection();
+
 	// Set UV Scale factor based on initial mesh bounds
 	float BoundsMaxDim = DynamicMeshComponent->GetMesh()->GetBounds().MaxDim();
 	if (BoundsMaxDim > 0)
@@ -257,6 +274,23 @@ void UEditMeshPolygonsTool::Setup()
 	}
 }
 
+bool UEditMeshPolygonsTool::IsStoredToolSelectionUsable(const UGroupTopologyStorableSelection* StoredSelection)
+{
+	// TODO: We currently don't support persistent selection on volume brushes because
+	// a conversion back to a brush involves a simplification step that may make the 
+	// same vids unrecoverable. Once we have persistence of dynamic meshes, this will
+	// hopefully not become a problem, and this function (along with stored selection
+	// identifying info) will change.
+	return !Cast<UBrushComponent>(ComponentTarget->GetOwnerComponent())
+
+		&& StoredSelection
+		&& StoredSelection->IdentifyingInfo.TopologyType == (bTriangleMode ? 
+			UGroupTopologyStorableSelection::ETopologyType::FTriangleGroupTopology
+			: UGroupTopologyStorableSelection::ETopologyType::FGroupTopology)
+		&& StoredSelection->IdentifyingInfo.ComponentTarget == ComponentTarget->GetOwnerComponent()
+		&& !StoredSelection->IsEmpty();
+}
+
 void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	CommonProps->SaveProperties(this);
@@ -268,7 +302,8 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 	SelectionMechanic->Properties->SaveProperties(this);
 
 	MultiTransformer->Shutdown();
-	SelectionMechanic->Shutdown();
+	// We wait to shut down the selection mechanic in case we need to do work to store the selection.
+
 	if (EditPreview != nullptr)
 	{
 		EditPreview->Disconnect();
@@ -283,10 +318,32 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
+			UGroupTopologyStorableSelection* NewStoredToolSelection = nullptr;
+			FCompactMaps CompactMaps;
+
+			// Prep if we have a selection to store. We don't support storing selections for volumes
+			// because the conversion will change vids.
+			if (!SelectionMechanic->GetActiveSelection().IsEmpty()
+				&& !Cast<UBrushComponent>(ComponentTarget->GetOwnerComponent()))
+			{
+				NewStoredToolSelection = NewObject<UGroupTopologyStorableSelection>();
+				NewStoredToolSelection->IdentifyingInfo.ComponentTarget = ComponentTarget->GetOwnerComponent();
+				NewStoredToolSelection->IdentifyingInfo.TopologyType = (bTriangleMode ?
+					UGroupTopologyStorableSelection::ETopologyType::FTriangleGroupTopology
+					: UGroupTopologyStorableSelection::ETopologyType::FGroupTopology);
+			}
+
 			// may need to compact the mesh if we did undo on a mesh edit, then vertices will be dense but compact checks will fail...
 			if (bWasTopologyEdited)
 			{
-				DynamicMeshComponent->GetMesh()->CompactInPlace();
+				// Store the compact maps if we have a selection that we need to update
+				DynamicMeshComponent->GetMesh()->CompactInPlace(NewStoredToolSelection ? &CompactMaps : nullptr);
+			}
+
+			// Finish prepping the stored selection
+			if (NewStoredToolSelection)
+			{
+				SelectionMechanic->GetStorableSelection(*NewStoredToolSelection, bWasTopologyEdited ? &CompactMaps : nullptr);
 			}
 
 			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
@@ -298,6 +355,21 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 				ConversionOptions.bSetPolyGroups = bModifiedTopology;
 				DynamicMeshComponent->Bake(CommitParams.MeshDescription, bModifiedTopology, ConversionOptions);
 			});
+
+			// The stored selection change should go into this transaction as well.
+			// If we're keeping the same selection, we still need to store it back, though we could do it outside
+			// the transaction if we wanted to (but no real reason to). We do want to keep the same UObject if
+			// the selection is the same though, since it's probably getting kept alive by the undo stack anyway.
+			if (StoredToolSelection && NewStoredToolSelection && *StoredToolSelection == *NewStoredToolSelection)
+			{
+				GetToolManager()->RequestToolSelectionStore(StoredToolSelection);
+			}
+			else
+			{
+				// If NewStoredToolSelection is empty, this will clear the stored selection
+				GetToolManager()->RequestToolSelectionStore(NewStoredToolSelection);
+			}
+			
 			GetToolManager()->EndUndoTransaction();
 		}
 
@@ -305,6 +377,9 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 		DynamicMeshComponent->DestroyComponent();
 		DynamicMeshComponent = nullptr;
 	}
+
+	// The seleciton mechanic shutdown has to happen after (potentially) saving selection above
+	SelectionMechanic->Shutdown();
 }
 
 

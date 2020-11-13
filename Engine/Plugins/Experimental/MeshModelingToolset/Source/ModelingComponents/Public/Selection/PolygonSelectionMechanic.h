@@ -15,7 +15,9 @@
 #include "InteractionMechanic.h"
 #include "PolygonSelectionMechanic.generated.h"
 
+struct FCompactMaps;
 class FPolygonSelectionMechanicSelectionChange;
+class UGroupTopologyStorableSelection;
 class UMouseHoverBehavior;
 class URectangleMarqueeMechanic;
 class USingleClickInputBehavior;
@@ -231,6 +233,19 @@ public:
 	 * @return the current selection
 	 */
 	const FGroupTopologySelection& GetActiveSelection() const { return PersistentSelection; }
+
+	/**
+	 * Gives the current selection as a storable selection object. Can optionally apply the passed-in
+	 * compact maps to the object if the topology in the mechanic was not updated after compacting.
+	 */
+	void GetStorableSelection(UGroupTopologyStorableSelection& StorableSelectionOut, 
+		const FCompactMaps* CompactMapsToApply = nullptr) const;
+
+	/**
+	 * Sets the current selection using the given storable selection object. The topology in the
+	 * mechanic must already be initialized for this to work.
+	 */
+	void LoadStorableSelection(const UGroupTopologyStorableSelection& StorableSelectionIn);
 
 	/**
 	 * Can be used by in an OnSelectionChanged event to inspect the clicked location (i.e., the

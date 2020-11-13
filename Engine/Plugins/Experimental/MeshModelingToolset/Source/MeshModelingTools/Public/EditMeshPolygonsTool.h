@@ -25,7 +25,7 @@
 #include "EditMeshPolygonsTool.generated.h"
 
 class FMeshVertexChangeBuilder;
-
+class UGroupTopologyStorableSelection;
 
 /**
  * ToolBuilder
@@ -442,6 +442,15 @@ public:
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 	void EnableTriangleMode();
 
+	/**
+	 * This should be set before tool Setup() is called to allow the tool to load
+	 * the passed-in selection.
+	 */
+	void SetStoredToolSelection(const UGroupTopologyStorableSelection *StoredToolSelectionIn) 
+	{ 
+		StoredToolSelection = StoredToolSelectionIn; 
+	}
+
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
@@ -520,6 +529,9 @@ protected:
 	UPROPERTY()
 	UPolygonSelectionMechanic* SelectionMechanic;
 
+	UPROPERTY()
+	const UGroupTopologyStorableSelection* StoredToolSelection = nullptr;
+	bool IsStoredToolSelectionUsable(const UGroupTopologyStorableSelection* StoredSelection);
 
 	bool bSelectionStateDirty = false;
 	void OnSelectionModifiedEvent();

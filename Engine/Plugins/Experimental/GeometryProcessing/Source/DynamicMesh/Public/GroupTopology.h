@@ -142,6 +142,11 @@ public:
 	 */
 	void RetargetOnClonedMesh(const FDynamicMesh3* Mesh);
 
+	const FDynamicMesh3* GetMesh() const 
+	{ 
+		return Mesh; 
+	}
+
 	/**
 	 * Build the group topology graph.
 	 * @return true on success, false if there was an error

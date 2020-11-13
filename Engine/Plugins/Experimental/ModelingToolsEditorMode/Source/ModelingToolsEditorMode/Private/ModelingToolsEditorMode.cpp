@@ -2,6 +2,7 @@
 
 #include "ModelingToolsEditorMode.h"
 #include "InteractiveTool.h"
+#include "InteractiveToolsSelectionStoreSubsystem.h"
 #include "ModelingToolsEditorModeToolkit.h"
 #include "Toolkits/ToolkitManager.h"
 #include "Framework/Commands/UICommandList.h"
@@ -134,6 +135,13 @@ bool FModelingToolsEditorMode::ProcessEditDelete()
 		return true;
 	}
 
+	// If we didn't skip deletion, then we're probably deleting something, so it seems fair to clear
+	// the selection.
+	if (UInteractiveToolsSelectionStoreSubsystem* ToolSelectionStore = GEngine->GetEngineSubsystem<UInteractiveToolsSelectionStoreSubsystem>())
+	{
+		ToolSelectionStore->ClearStoredSelection();
+	}
+
 	return false;
 }
 
@@ -147,6 +155,13 @@ bool FModelingToolsEditorMode::ProcessEditCut()
 			LOCTEXT("CannotCutWarning", "Cannot cut objects while this Tool is active"), EToolMessageLevel::UserWarning);
 		return true;
 	}
+
+	// If we're doing a cut, we should clear the tool selection.
+	if (UInteractiveToolsSelectionStoreSubsystem* ToolSelectionStore = GEngine->GetEngineSubsystem<UInteractiveToolsSelectionStoreSubsystem>())
+	{
+		ToolSelectionStore->ClearStoredSelection();
+	}
+
 	return false;
 }
 
