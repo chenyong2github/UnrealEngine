@@ -175,6 +175,8 @@ private:
 		FDispatchInstanceList DispatchInstances;
 		FNiagaraTransitionList TransitionsBefore;
 		FNiagaraTransitionList TransitionsAfter;
+		TArray<uint32, TMemStackAllocator<>> InstancesWithPersistentIDUpdates;
+		TArray<FNiagaraComputeInstanceData*, TMemStackAllocator<>> InstancesWithFreeIDUpdates;
 	};
 	using FDispatchGroupList = TArray<FDispatchGroup, TMemStackAllocator<>>;
 
@@ -224,6 +226,7 @@ private:
 	void ResizeFreeIDsListSizesBuffer(FRHICommandList& RHICmdList, uint32 NumInstances);
 	void ClearFreeIDsListSizesBuffer(FRHICommandList& RHICmdList);
 	void UpdateFreeIDBuffers(FRHICommandList& RHICmdList, FEmitterInstanceList& Instances);
+	void UpdateFreeIDBuffers(FRHICommandList& RHICmdList, TArrayView<FNiagaraComputeInstanceData*> Instances);
 
 	void SetConstantBuffers(FRHICommandList &RHICmdList, const FNiagaraShaderRef& Shader, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData* Instance);
 	void BuildConstantBuffers(FNiagaraGPUSystemTick& Tick) const;
