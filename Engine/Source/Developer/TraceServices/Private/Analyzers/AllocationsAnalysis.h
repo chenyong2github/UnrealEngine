@@ -22,6 +22,6 @@ public:
 	virtual void	OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 };
 
-} // namespace UE
+} // namespace TraceServices
 
 #endif // 0
