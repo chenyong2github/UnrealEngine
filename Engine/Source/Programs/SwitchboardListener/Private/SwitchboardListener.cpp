@@ -1195,6 +1195,7 @@ static void FillOutMosaicTopologies(FSyncStatus& SyncStatus)
 }
 #endif // PLATFORM_WINDOWS
 
+#if PLATFORM_WINDOWS
 FRunningProcess* FSwitchboardListener::FindOrStartFlipModeMonitorForUUID(const FGuid& UUID)
 {
 	// See if the associated FlipModeMonitor is running
@@ -1249,7 +1250,7 @@ FRunningProcess* FSwitchboardListener::FindOrStartFlipModeMonitorForUUID(const F
 	const int32 PriorityModifier = 0;
 	const TCHAR* WorkingDirectory = nullptr;
 
-	MonitorProcess->Path = FPaths::EngineSourceDir() / TEXT("Programs") / TEXT("SwitchboardListener") / TEXT("ThirdParty") / TEXT("PresentMon") / TEXT("PresentMon64-1.5.2.exe");
+	MonitorProcess->Path = FPaths::EngineDir() / TEXT("Binaries") / TEXT("ThirdParty") / TEXT("PresentMon") / TEXT("Win64") / TEXT("PresentMon64-1.5.2.exe");
 
 	FString Arguments = 
 		FString::Printf(TEXT("-session_name session_%d -output_stdout -dont_restart_as_admin -terminate_on_proc_exit -stop_existing_session -process_id %d"), 
@@ -1295,6 +1296,7 @@ FRunningProcess* FSwitchboardListener::FindOrStartFlipModeMonitorForUUID(const F
 
 	return &MonitorProcess.Get();
 }
+#endif // PLATFORM_WINDOWS
 
 #if PLATFORM_WINDOWS
 static void FillOutFlipMode(FSyncStatus& SyncStatus, FRunningProcess* FlipModeMonitor)
