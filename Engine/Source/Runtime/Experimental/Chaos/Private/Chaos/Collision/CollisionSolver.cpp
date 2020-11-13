@@ -28,7 +28,7 @@ namespace Chaos
 		bool Chaos_Manifold_PushOut_StaticFriction = true;
 		bool Chaos_Manifold_PushOut_Restitution = false;
 		bool Chaos_Manifold_PushOut_PositionCorrection = true;
-		int32 Chaos_Manifold_PushOut_VelocityCorrection = 1;
+		int32 Chaos_Manifold_PushOut_VelocityCorrection = 2;
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_StaticFriction(TEXT("p.Chaos.Collision.Manifold.PushOut.StaticFriction"), Chaos_Manifold_PushOut_StaticFriction, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_Restitution(TEXT("p.Chaos.Collision.Manifold.PushOut.Restitution"), Chaos_Manifold_PushOut_Restitution, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_PositionCorrection(TEXT("p.Chaos.Collision.Manifold.PushOut.PositionCorrection"), Chaos_Manifold_PushOut_PositionCorrection, TEXT(""));
@@ -265,8 +265,8 @@ namespace Chaos
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
 
-			const FReal Margin0 = 0.0f;//Contact.Implicit[0]->GetMargin();
-			const FReal Margin1 = 0.0f;//Contact.Implicit[1]->GetMargin();
+			const FReal Margin0 = ManifoldPoint.ContactPoint.ShapeMargins[0];
+			const FReal Margin1 = ManifoldPoint.ContactPoint.ShapeMargins[1];
 
 			// Calculate the position error we need to correct, including static friction and restitution
 			// Position correction uses the deepest point on each body (see velocity correction which uses average contact)
@@ -280,11 +280,11 @@ namespace Chaos
 			// We could push out to the PBD distance that would give an implicit velocity equal to -(1+e).Vin
 			// but the values involved are not very stable from frame to frame, so instead we actually pull
 			// objects together so that Phi = 0 after pushout if the contact applied a contact impulse
-			const FVec3 PhiPadding = FVec3(0);
+			const FReal PhiPadding = 0;
 
 			// Contact points on each body adjusted so that the points end up separated by TargetPhi
-			const FVec3 RelativeContactPoint0 = Q0 * LocalContactPoint0 - PhiPadding - Margin0 * ContactNormal;
-			const FVec3 RelativeContactPoint1 = Q1 * LocalContactPoint1 + PhiPadding + Margin1 * ContactNormal;
+			const FVec3 RelativeContactPoint0 = Q0 * LocalContactPoint0 - (PhiPadding + Margin0) * ContactNormal;
+			const FVec3 RelativeContactPoint1 = Q1 * LocalContactPoint1 + (PhiPadding + Margin1) * ContactNormal;
 
 			// Net error we need to correct, including lateral movement to correct for friction
 			const FVec3 ContactError = (P1 + RelativeContactPoint1) - (P0 + RelativeContactPoint0);
@@ -382,7 +382,6 @@ namespace Chaos
 			const FVec3 RelativeContactPoint1 = ManifoldPoint.ContactPoint.Location - P1;
 			const FVec3 ContactNormal = ManifoldPoint.ContactPoint.Normal;
 			FVec3 ContactTangent = FVec3(0);
-			const FReal ContactPhi = ManifoldPoint.ContactPoint.Phi;
 
 			if (Chaos_Manifold_PushOut_VelocityCorrection == 2)
 			{
