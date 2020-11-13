@@ -593,7 +593,7 @@ class TestP4_ClientOps : BuildCommand
 
 		//Sync(CombinePaths(PathSeparator.Slash, P4Env.BuildRootP4, "UE4Games.uprojectdirs"));
 		string Output;
-		P4.P4Output(out Output, "files -m 10 " + CombinePaths(PathSeparator.Slash, P4Env.Branch, "..."));
+		P4.P4Output(out Output, "", "files -m 10 " + CombinePaths(PathSeparator.Slash, P4Env.Branch, "..."));
 
 		var Lines = Output.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
 		string SlashRoot = CombinePaths(PathSeparator.Slash, P4Env.Branch, "/");
@@ -614,7 +614,7 @@ class TestP4_ClientOps : BuildCommand
 		}
 
 		// should be used as a sanity check! make sure there are no files!
-		P4.LogP4Output(out Output, "files -m 10 " + CombinePaths(PathSeparator.Slash, P4Env.Branch, "...", "NoRedist", "..."));
+		P4.LogP4Output(out Output, "", "files -m 10 " + CombinePaths(PathSeparator.Slash, P4Env.Branch, "...", "NoRedist", "..."));
 
 		// caution this doesn't actually use the client _view_ from the template at all!
 		// if you want that sync -f -k /...

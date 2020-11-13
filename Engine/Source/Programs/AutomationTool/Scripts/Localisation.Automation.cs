@@ -428,7 +428,7 @@ class Localize : BuildCommand
 						}
 					}
 
-					P4.LogP4(String.Format("-x{0} revert", P4RevertArgsFilename));
+					P4.LogP4("", String.Format("-x{0} revert", P4RevertArgsFilename));
 					DeleteFile_NoExceptions(P4RevertArgsFilename);
 				}
 			}
