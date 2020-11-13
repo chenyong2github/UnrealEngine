@@ -1479,13 +1479,23 @@ void FPixelShaderInOut_MainPS(
 	uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(PixelPos, ResolvedView.BufferSizeAndInvSize.x, OpaqueBasePass.Strata.MaxBytesPerPixel);
 
 	const float3 VertexNormal = MaterialParameters.TangentToWorld[2].xyz;
-	PackStrataOut(OpaqueBasePass.Strata.MaterialLobesBufferUAV, PixelStrataDataByteOffset, Strata, VertexNormal, MaterialParameters.CameraVector, GBuffer);
+	PackStrataOut(
+		OpaqueBasePass.Strata.MaterialLobesBufferUAV, PixelStrataDataByteOffset, 
+		Strata, MaterialParameters.SharedNormals, 
+		VertexNormal, MaterialParameters.CameraVector, GBuffer);
 #endif // STRATA_OPAQUE_ENABLED
 
 #if STRATA_TRANSLUCENT_ENABLED
 	//FORWARD_SHADING
 	if (Strata.LayerCount > 0)
 	{
+		FStrataPixelHeader Header = (FStrataPixelHeader)0;
+		for (int l = 0; l < Strata.LayerCount; ++l)
+		{
+			Header.BSDFCount += Strata.Layers[l].BSDFCount;
+		}
+		Header.SharedNormals = MaterialParameters.SharedNormals;
+
 		float3 L = ResolvedView.DirectionalLightDirection;
 		float3 V = MaterialParameters.CameraVector;
 		float3 LightColor = ResolvedView.DirectionalLightColor.rgb * PI;
@@ -1499,6 +1509,7 @@ void FPixelShaderInOut_MainPS(
 			LightColor,
 			DirectionalLightShadow,
 			IndirectOcclusion,
+			Header,
 			Strata,
 			Throughput);
 

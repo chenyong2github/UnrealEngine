@@ -308,6 +308,14 @@ protected:
 	FMaterialShadingModelField ShadingModelsFromCompilation;
 
 	TMap<int32, FStrataMaterialCompilationInfo> CodeChunkToStrataCompilationInfoMap; // Mapping from node output to StrataMaterial
+	uint8 NextFreeStrataShaderNormalIndex;
+	struct FStrataSharedNormalInfo
+	{
+		int32 NormalCodeChunk;
+		uint8 SharedNormalIndex;
+		FString SharedNormalCode;
+	};
+	TMap<uint64, FStrataSharedNormalInfo> CodeChunkToStrataSharedNormal;
 
 	/** Tracks the total number of vt samples in the shader. */
 	uint32 NumVtSamples;
@@ -779,11 +787,11 @@ protected:
 
 	// Strata
 	virtual int32 FrontMaterial() override;
-	virtual int32 StrataDiffuseOrenNayarBSDF(int32 Albedo, int32 Roughness, int32 Normal) override;
-	virtual int32 StrataDiffuseChanBSDF(int32 Albedo, int32 Roughness, int32 Normal) override;
-	virtual int32 StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal) override;
-	virtual int32 StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 Roughness, int32 Normal) override;
-	virtual int32 StrataVolumeBSDF(int32 Albedo, int32 Extinction, int32 Anisotropy, int32 Thickness) override;
+	virtual int32 StrataDiffuseOrenNayarBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex) override;
+	virtual int32 StrataDiffuseChanBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex) override;
+	virtual int32 StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal, uint8 SharedNormalIndex) override;
+	virtual int32 StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 Roughness, int32 Normal, uint8 SharedNormalIndex) override;
+	virtual int32 StrataVolumeBSDF(int32 Albedo, int32 Extinction, int32 Anisotropy, int32 Thickness, int32 Normal, uint8 SharedNormalIndex) override;
 	virtual int32 StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix) override;
 	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) override;
 	virtual int32 StrataAdd(int32 A, int32 B) override;
@@ -794,6 +802,8 @@ protected:
 	virtual void AddStrataCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) override;
 	virtual bool ContainsStrataCodeChunk(int32 CodeChunk) override;
 	virtual const FStrataMaterialCompilationInfo& GetStrataCompilationInfo(int32 CodeChunk) override;
+	virtual uint8 GetStrataSharedNormalIndex(int32 NormalCodeChunk) override;
+	virtual uint8 GetStrataSharedNormalCount() override;
 
 #if HANDLE_CUSTOM_OUTPUTS_AS_MATERIAL_ATTRIBUTES
 	/** Used to translate code for custom output attributes such as ClearCoatBottomNormal */

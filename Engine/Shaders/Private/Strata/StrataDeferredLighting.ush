@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "..\AreaLightCommon.ush"
+#include "../AreaLightCommon.ush"
 
 struct FStrataLightIntegrationContext
 {
@@ -60,12 +60,12 @@ void StrataPreprocessAreaLightIntegration(
 		// Evaluate roughness / specular color
 		float SafeRoughness = 0;
 		float3 SpecularColor = 0;
-		switch (BSDFContext.BSDF.BSDFType)
+		switch (BSDF_GETTYPE(BSDFContext.BSDF))
 		{
 			case STRATA_BSDF_TYPE_DIELECTRIC:
 			{
 				SafeRoughness = MakeRoughnessSafe(DIELECTRIC_ROUGHNESS0(BSDFContext.BSDF));
-				SpecularColor = DielectricIorToF0(DIELECTRIC_REFLECTIVITY(BSDFContext.BSDF)) * DIELECTRIC_TINT(BSDFContext.BSDF);
+				SpecularColor = DielectricIorToF0(DIELECTRIC_IOR(BSDFContext.BSDF)) * DIELECTRIC_TINT(BSDFContext.BSDF);
 			}
 			break;
 			case STRATA_BSDF_TYPE_CONDUCTOR:
@@ -146,7 +146,7 @@ float4 StrataDeferredLighting(
 	{
 		// Unpack BSDF data
 		const FStrataBSDF BSDF = UnpackStrataBSDFIn(StrataDataBuffer, PixelStrataDataByteOffset);
-		FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(BSDF, V, L);
+		FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(Header.SharedNormals, BSDF, V, L);
 
 		// Evaluate incident lighting & (optionally) precompute area light integration
 		FStrataLightIntegrationContext IntegrationContext = StrataIniLightIntegrationContext();

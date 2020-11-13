@@ -360,6 +360,10 @@ struct FMaterialPixelParameters
 	float CloudSampleNormAltitudeInLayer;
 	float3 VolumeSampleConservativeDensity;
 #endif
+
+#if PROJECT_STRATA && MATERIAL_IS_STRATA
+	FSharedNormals SharedNormals;
+#endif
 };
 
 /**
@@ -2340,6 +2344,10 @@ void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out 
 %s
 	// The Normal is a special case as it might have its own expressions and also be used to calculate other inputs, so perform the assignment here
 %s
+
+#if PROJECT_STRATA && MATERIAL_IS_STRATA
+	Parameters.SharedNormals = StrataInitialiseSharedNormals();
+#endif
 
 	// Note that here MaterialNormal can be in world space or tangent space
 	float3 MaterialNormal = GetMaterialNormal(Parameters, PixelMaterialInputs);

@@ -24,7 +24,7 @@ float3 StrataEnvironmentLighting(
 
 		// Create the BSDF context
 		const float3 UnusedL = float3(0.0f, 0.0f, 1.0f);
-		FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(BSDF, V, UnusedL);
+		FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(Header.SharedNormals, BSDF, V, UnusedL);
 
 		// Evaluate environment lighting
 		const bool bEnableSpecular = ReflectionStruct.SkyLightParameters.y > 0.0f;

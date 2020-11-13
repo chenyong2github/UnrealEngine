@@ -391,11 +391,11 @@ public:
 
 	// Strata
 	virtual int32 FrontMaterial() = 0;
-	virtual int32 StrataDiffuseOrenNayarBSDF(int32 Albedo, int32 Roughness, int32 Normal) = 0;
-	virtual int32 StrataDiffuseChanBSDF(int32 Albedo, int32 Roughness, int32 Normal) = 0;
-	virtual int32 StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal) = 0;
-	virtual int32 StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 Roughness, int32 Normal) = 0;
-	virtual int32 StrataVolumeBSDF(int32 Albedo, int32 Extinction, int32 Anisotropy, int32 Thickness) = 0;
+	virtual int32 StrataDiffuseOrenNayarBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex) = 0;
+	virtual int32 StrataDiffuseChanBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex) = 0;
+	virtual int32 StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal, uint8 SharedNormalIndex) = 0;
+	virtual int32 StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 Roughness, int32 Normal, uint8 SharedNormalIndex) = 0;
+	virtual int32 StrataVolumeBSDF(int32 Albedo, int32 Extinction, int32 Anisotropy, int32 Thickness, int32 Normal, uint8 SharedNormalIndex) = 0;
 	virtual int32 StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix) = 0;
 	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) = 0;
 	virtual int32 StrataAdd(int32 A, int32 B) = 0;
@@ -406,6 +406,8 @@ public:
 	virtual void AddStrataCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) = 0;
 	virtual bool ContainsStrataCodeChunk(int32 CodeChunk) = 0;
 	virtual const FStrataMaterialCompilationInfo& GetStrataCompilationInfo(int32 CodeChunk) = 0;
+	virtual uint8 GetStrataSharedNormalIndex(int32 NormalCodeChunk) = 0;
+	virtual uint8 GetStrataSharedNormalCount() = 0;
 
 	// Water
 	virtual int32 SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth) = 0;
@@ -801,29 +803,29 @@ public:
 		return Compiler->FrontMaterial();
 	}
 
-	virtual int32 StrataDiffuseOrenNayarBSDF(int32 Albedo, int32 Roughness, int32 Normal) override
+	virtual int32 StrataDiffuseOrenNayarBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex) override
 	{
-		return Compiler->StrataDiffuseOrenNayarBSDF(Albedo, Roughness, Normal);
+		return Compiler->StrataDiffuseOrenNayarBSDF(Albedo, Roughness, Normal, SharedNormalIndex);
 	}
 
-	virtual int32 StrataDiffuseChanBSDF(int32 Albedo, int32 Roughness, int32 Normal) override
+	virtual int32 StrataDiffuseChanBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex) override
 	{
-		return Compiler->StrataDiffuseChanBSDF(Albedo, Roughness, Normal);
+		return Compiler->StrataDiffuseChanBSDF(Albedo, Roughness, Normal, SharedNormalIndex);
 	}
 
-	virtual int32 StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal) override
+	virtual int32 StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal, uint8 SharedNormalIndex) override
 	{
-		return Compiler->StrataDielectricBSDF(Roughness, IOR, Tint, Normal);
+		return Compiler->StrataDielectricBSDF(Roughness, IOR, Tint, Normal, SharedNormalIndex);
 	}
 
-	virtual int32 StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 Roughness, int32 Normal) override
+	virtual int32 StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 Roughness, int32 Normal, uint8 SharedNormalIndex) override
 	{
-		return Compiler->StrataConductorBSDF(Reflectivity, EdgeColor, Roughness, Normal);
+		return Compiler->StrataConductorBSDF(Reflectivity, EdgeColor, Roughness, Normal, SharedNormalIndex);
 	}
 
-	virtual int32 StrataVolumeBSDF(int32 Albedo, int32 Extinction, int32 Anisotropy, int32 Thickness) override
+	virtual int32 StrataVolumeBSDF(int32 Albedo, int32 Extinction, int32 Anisotropy, int32 Thickness, int32 Normal, uint8 SharedNormalIndex) override
 	{
-		return Compiler->StrataVolumeBSDF(Albedo, Extinction, Anisotropy, Thickness);
+		return Compiler->StrataVolumeBSDF(Albedo, Extinction, Anisotropy, Thickness, Normal, SharedNormalIndex);
 	}
 
 	virtual int32 StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix) override
@@ -869,6 +871,16 @@ public:
 	virtual const FStrataMaterialCompilationInfo& GetStrataCompilationInfo(int32 CodeChunk) override
 	{
 		return Compiler->GetStrataCompilationInfo(CodeChunk);
+	}
+
+	virtual uint8 GetStrataSharedNormalIndex(int32 NormalCodeChunk) override
+	{
+		return Compiler->GetStrataSharedNormalIndex(NormalCodeChunk);
+	}
+
+	virtual uint8 GetStrataSharedNormalCount() override
+	{
+		return Compiler->GetStrataSharedNormalCount();
 	}
 
 protected:

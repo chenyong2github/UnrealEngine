@@ -12,6 +12,7 @@ float3 StrataForwardLighting(
 	float3 LColor,
 	float3 LShadow,
 	float3 IndirectOcclusion,
+	FStrataPixelHeader Header,
 	FStrataData Strata,
 	inout float3 OutThroughput
 	)
@@ -37,7 +38,7 @@ float3 StrataForwardLighting(
 			const float3 BSDFCoverage = BSDF.Weight;
 
 			// Create the BSDF context
-			FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(BSDF, V, L);
+			FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(Header.SharedNormals, BSDF, V, L);
 
 			// Compute some common factors
 			const float3 DirLightBaseFactor = OutThroughput * BSDFCoverage * LColor * LShadow;
@@ -51,7 +52,7 @@ float3 StrataForwardLighting(
 			{
 				// SkySHDiffuse is pre integrated according to a Lambert diffuse lobe. Thus, we need to rescale to account for the phase function operating over 4PI.
 				// We apply a 2PI factor to recover average luminance over half hemisphere, and then times the phase function to account for the scattering events.
-				const float VolumeOnlyFactor = BSDF.BSDFType == STRATA_BSDF_TYPE_VOLUME ? 2.0f * PI * IsotropicPhase() : 1.0f;
+				const float VolumeOnlyFactor = BSDF_GETTYPE(BSDF) == STRATA_BSDF_TYPE_VOLUME ? 2.0f * PI * IsotropicPhase() : 1.0f;
 
 				Color += GetEffectiveSkySHDiffuse(StrataEnvLight.DiffuseNormal) * StrataEnvLight.DiffuseAlbedo * SkyLightCommonFactor * VolumeOnlyFactor;
 			}

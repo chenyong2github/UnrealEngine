@@ -39,12 +39,19 @@ static void UpdateTotalBSDFCount(FStrataMaterialCompilationInfo& StrataInfo)
 }
 
 
-void StrataCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk, uint8 BSDFType)
+uint8 StrataCreateSharedNormal(FMaterialCompiler* Compiler, int32 NormalCodeChunk)
+{
+	return Compiler->GetStrataSharedNormalIndex(NormalCodeChunk);
+}
+
+
+void StrataCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk, uint8 SharedNormalIndex, uint8 BSDFType)
 {
 	FStrataMaterialCompilationInfo StrataInfo;
 	StrataInfo.LayerCount = 1;
 	StrataInfo.Layers[0].BSDFCount = 1;
 	StrataInfo.Layers[0].BSDFs[0].Type = BSDFType;
+	StrataInfo.Layers[0].BSDFs[0].SharedNormalIndex = SharedNormalIndex;
 	UpdateTotalBSDFCount(StrataInfo);
 	Compiler->AddStrataCodeChunk(CodeChunk, StrataInfo);
 }

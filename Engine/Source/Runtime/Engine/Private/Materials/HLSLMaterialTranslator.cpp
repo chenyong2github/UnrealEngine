@@ -110,6 +110,7 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 ,	AllocatedUserTexCoords()
 ,	AllocatedUserVertexTexCoords()
 ,	DynamicParticleParameterMask(0)
+,	NextFreeStrataShaderNormalIndex(0)
 ,	NumVtSamples(0)
 ,	TargetPlatform(InTargetPlatform)
 {
@@ -1107,16 +1108,18 @@ bool FHLSLMaterialTranslator::Translate()
 
 			FString StrataMaterialDescription = "";
 
-			StrataMaterialDescription += FString::Printf(TEXT("StrataCompilationInfo - TotalBSDFCount = %i\r\n"), StrataCompilationInfo.TotalBSDFCount);
+			StrataMaterialDescription += FString::Printf(TEXT("StrataCompilationInfo -\r\n"));
+			StrataMaterialDescription += FString::Printf(TEXT(" - TotalBSDFCount    = %i\r\n"), StrataCompilationInfo.TotalBSDFCount);
+			StrataMaterialDescription += FString::Printf(TEXT(" - SharedNormalCount = %i\r\n"), GetStrataSharedNormalCount());
 
 			for (uint32 LayerIt = 0; LayerIt < StrataCompilationInfo.LayerCount; ++LayerIt)
 			{
-				StrataMaterialDescription += FString::Printf(TEXT("    Layer %i BSDFs:\r\n"), LayerIt);
+				StrataMaterialDescription += FString::Printf(TEXT(" Layer %i BSDFs:\r\n"), LayerIt);
 
 				const FStrataMaterialCompilationInfo::FLayer& Layer = StrataCompilationInfo.Layers[LayerIt];
 				for (uint32 BSDFIt = 0; BSDFIt < Layer.BSDFCount; ++BSDFIt)
 				{
-					StrataMaterialDescription += FString::Printf(TEXT("        - %s\r\n"), *GetStrataBSDFName(Layer.BSDFs[BSDFIt].Type));
+					StrataMaterialDescription += FString::Printf(TEXT("     - %s - SharedNormalIndex = %u \r\n"), *GetStrataBSDFName(Layer.BSDFs[BSDFIt].Type), Layer.BSDFs[BSDFIt].SharedNormalIndex);
 				}
 			}
 
@@ -1582,6 +1585,16 @@ void FHLSLMaterialTranslator::GetSharedInputsMaterialCode(FString& PixelMembersD
 		if (LastProperty != -1)
 		{
 			PixelMembersInitializationEpilog += TranslatedCodeChunkDefinitions[LastProperty] + TEXT("\n");
+		}
+
+		if (CodeChunkToStrataSharedNormal.Num() > 0)
+		{
+			// Generate code to fill up the array containing normal shared between Strata BSDFs
+			for (TMap<uint64, FStrataSharedNormalInfo>::TIterator It(CodeChunkToStrataSharedNormal); It; ++It)
+			{
+				PixelInputInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.Normals[%u] = %s;\n"), It->Value.SharedNormalIndex, *It->Value.SharedNormalCode);
+			}
+			PixelInputInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.NormalCount = %u;\n"), CodeChunkToStrataSharedNormal.Num());
 		}
 
 		PixelMembersInitializationEpilog += PixelInputInitializerValues;
@@ -7229,61 +7242,90 @@ const FStrataMaterialCompilationInfo& FHLSLMaterialTranslator::GetStrataCompilat
 	return CodeChunkToStrataCompilationInfoMap[CodeChunk];
 }
 
+uint8 FHLSLMaterialTranslator::GetStrataSharedNormalIndex(int32 NormalCodeChunk)
+{
+	check(NormalCodeChunk != INDEX_NONE);
+	check(NextFreeStrataShaderNormalIndex < 255);	// Out of shared normal slots
+	check(NextFreeStrataShaderNormalIndex < STRATA_MAX_TOTAL_BSDF);	// This is our current budget if normal per material. STRATA_TODO change that to a byte per pixel
+
+	const uint64 NormalCodeChunkHash = GetParameterHash(NormalCodeChunk);
+
+	if (CodeChunkToStrataSharedNormal.Find(NormalCodeChunkHash) == nullptr)
+	{
+		// Allocate a new slot for a new shared normal
+		uint8 NewSharedNormalIndex = NextFreeStrataShaderNormalIndex++;
+		CodeChunkToStrataSharedNormal.Add(NormalCodeChunkHash, { NormalCodeChunk , NewSharedNormalIndex, *GetParameterCode(NormalCodeChunk) });
+		return NewSharedNormalIndex;
+	}
+	// Return the existing code chunk
+	return CodeChunkToStrataSharedNormal[NormalCodeChunkHash].SharedNormalIndex;
+}
+
+uint8 FHLSLMaterialTranslator::GetStrataSharedNormalCount()
+{
+	return CodeChunkToStrataSharedNormal.Num();
+}
+
 int32 FHLSLMaterialTranslator::FrontMaterial()
 {
 	return AddInlinedCodeChunk(MCT_Strata, TEXT("GetInitialisedStrataData()"));
 }
 
-int32 FHLSLMaterialTranslator::StrataDiffuseOrenNayarBSDF(int32 Albedo, int32 Roughness, int32 Normal)
+int32 FHLSLMaterialTranslator::StrataDiffuseOrenNayarBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataDiffuseOrenNayarBSDF(%s, %s, %s)"),
+		MCT_Strata, TEXT("GetStrataDiffuseOrenNayarBSDF(%s, %s, %u) /* %s */"),
 		*GetParameterCode(Albedo),
 		*GetParameterCode(Roughness),
+		SharedNormalIndex,
 		*GetParameterCode(Normal)
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataDiffuseChanBSDF(int32 Albedo, int32 Roughness, int32 Normal)
+int32 FHLSLMaterialTranslator::StrataDiffuseChanBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataDiffuseChanBSDF(%s, %s, %s)"),
+		MCT_Strata, TEXT("GetStrataDiffuseChanBSDF(%s, %s, %u) /* %s */"),
 		*GetParameterCode(Albedo),
 		*GetParameterCode(Roughness),
+		SharedNormalIndex,
 		*GetParameterCode(Normal)
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal)
+int32 FHLSLMaterialTranslator::StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataDielectricBSDF(%s, %s, %s, %s)"),
+		MCT_Strata, TEXT("GetStrataDielectricBSDF(%s, %s, %s, %u) /* %s */"),
 		*GetParameterCode(Roughness),
 		*GetParameterCode(IOR),
 		*GetParameterCode(Tint),
+		SharedNormalIndex,
 		*GetParameterCode(Normal)
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 Roughness, int32 Normal)
+int32 FHLSLMaterialTranslator::StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 Roughness, int32 Normal, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataConductorBSDF(%s, %s, %s, %s)"),
+		MCT_Strata, TEXT("GetStrataConductorBSDF(%s, %s, %s, %u) /* %s */"),
 		*GetParameterCode(Reflectivity),
 		*GetParameterCode(EdgeColor),
 		*GetParameterCode(Roughness),
+		SharedNormalIndex,
 		*GetParameterCode(Normal)
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataVolumeBSDF(int32 Albedo, int32 Extinction, int32 Anisotropy, int32 Thickness)
+int32 FHLSLMaterialTranslator::StrataVolumeBSDF(int32 Albedo, int32 Extinction, int32 Anisotropy, int32 Thickness, int32 Normal, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataVolumeBSDF(%s, %s, %s, %s, %s)"),
+		MCT_Strata, TEXT("GetStrataVolumeBSDF(%s, %s, %s, %s, %u) /* %s */"),
 		*GetParameterCode(Albedo),
 		*GetParameterCode(Extinction),
 		*GetParameterCode(Anisotropy),
 		*GetParameterCode(Thickness),
+		SharedNormalIndex,
 		*GetParameterCode(VertexNormal())
 	);
 }

@@ -19030,12 +19030,15 @@ UMaterialExpressionStrataDiffuseBSDF::UMaterialExpressionStrataDiffuseBSDF(const
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataDiffuseBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
+	int32 NormalCodeChunk = Normal.GetTracedInput().Expression ? Normal.Compile(Compiler) : Compiler->PixelNormalWS();
+	uint8 SharedNormalIndex = StrataCreateSharedNormal(Compiler, NormalCodeChunk);
+
 	int32 OutputCodeChunk = Compiler->StrataDiffuseOrenNayarBSDF(
 		Albedo.GetTracedInput().Expression		? Albedo.Compile(Compiler)		: Compiler->Constant3(0.18f, 0.18f, 0.18f),
 		Roughness.GetTracedInput().Expression	? Roughness.Compile(Compiler)	: Compiler->Constant(0.0f),
-		Normal.GetTracedInput().Expression		? Normal.Compile(Compiler)		: Compiler->PixelNormalWS());
-
-	StrataCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, STRATA_BSDF_TYPE_DIFFUSE_ON);
+		NormalCodeChunk,
+		SharedNormalIndex);
+	StrataCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_DIFFUSE_ON);
 
 	return OutputCodeChunk;
 }
@@ -19091,12 +19094,15 @@ UMaterialExpressionStrataDiffuseChanBSDF::UMaterialExpressionStrataDiffuseChanBS
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataDiffuseChanBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
+	int32 NormalCodeChunk = Normal.GetTracedInput().Expression ? Normal.Compile(Compiler) : Compiler->PixelNormalWS();
+	uint8 SharedNormalIndex = StrataCreateSharedNormal(Compiler, NormalCodeChunk);
+
 	int32 OutputCodeChunk = Compiler->StrataDiffuseChanBSDF(
 		Albedo.GetTracedInput().Expression		? Albedo.Compile(Compiler)		: Compiler->Constant3(0.18f, 0.18f, 0.18f),
 		Roughness.GetTracedInput().Expression	? Roughness.Compile(Compiler)	: Compiler->Constant(0.0f),
-		Normal.GetTracedInput().Expression		? Normal.Compile(Compiler)		: Compiler->PixelNormalWS());
-
-	StrataCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, STRATA_BSDF_TYPE_DIFFUSE_CHAN);
+		NormalCodeChunk,
+		SharedNormalIndex);
+	StrataCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_DIFFUSE_CHAN);
 
 	return OutputCodeChunk;
 }
@@ -19152,13 +19158,16 @@ UMaterialExpressionStrataDielectricBSDF::UMaterialExpressionStrataDielectricBSDF
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataDielectricBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
+	int32 NormalCodeChunk = Normal.GetTracedInput().Expression ? Normal.Compile(Compiler) : Compiler->PixelNormalWS();
+	uint8 SharedNormalIndex = StrataCreateSharedNormal(Compiler, NormalCodeChunk);
+
 	int32 OutputCodeChunk = Compiler->StrataDielectricBSDF(
 		Roughness.GetTracedInput().Expression	? Roughness.Compile(Compiler)	: Compiler->Constant2(0.0f, 0.0f),
 		IOR.GetTracedInput().Expression			? IOR.Compile(Compiler)			: Compiler->Constant(1.5f),// Default to Glass
 		Tint.GetTracedInput().Expression		? Tint.Compile(Compiler)		: Compiler->Constant3(1.0f, 1.0f, 1.0f),
-		Normal.GetTracedInput().Expression		? Normal.Compile(Compiler)		: Compiler->PixelNormalWS());
-
-	StrataCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, STRATA_BSDF_TYPE_DIELECTRIC);
+		NormalCodeChunk,
+		SharedNormalIndex);
+	StrataCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_DIELECTRIC);
 
 	return OutputCodeChunk;
 }
@@ -19217,13 +19226,16 @@ UMaterialExpressionStrataConductorBSDF::UMaterialExpressionStrataConductorBSDF(c
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataConductorBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
+	int32 NormalCodeChunk = Normal.GetTracedInput().Expression ? Normal.Compile(Compiler) : Compiler->PixelNormalWS();
+	uint8 SharedNormalIndex = StrataCreateSharedNormal(Compiler, NormalCodeChunk);
+
 	int32 OutputCodeChunk = Compiler->StrataConductorBSDF(
 		Reflectivity.GetTracedInput().Expression	? Reflectivity.Compile(Compiler): Compiler->Constant3(0.947f, 0.776f, 0.371f),	// Default to Gold
 		EdgeColor.GetTracedInput().Expression		? EdgeColor.Compile(Compiler)	: Compiler->Constant3(1.000f, 0.982f, 0.753f),	// Default to Gold
 		Roughness.GetTracedInput().Expression		? Roughness.Compile(Compiler)	: Compiler->Constant2(0.0f, 0.0f),
-		Normal.GetTracedInput().Expression			? Normal.Compile(Compiler)		: Compiler->PixelNormalWS());
-
-	StrataCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, STRATA_BSDF_TYPE_CONDUCTOR);
+		NormalCodeChunk,
+		SharedNormalIndex);
+	StrataCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_CONDUCTOR);
 
 	return OutputCodeChunk;
 }
@@ -19282,13 +19294,17 @@ UMaterialExpressionStrataVolumeBSDF::UMaterialExpressionStrataVolumeBSDF(const F
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataVolumeBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
+	int32 NormalCodeChunk = Compiler->VertexNormal();
+	uint8 SharedNormalIndex = StrataCreateSharedNormal(Compiler, NormalCodeChunk);
+
 	int32 OutputCodeChunk = Compiler->StrataVolumeBSDF(
 		Albedo.GetTracedInput().Expression		? Albedo.Compile(Compiler)			: Compiler->Constant3(0.0f, 0.0f, 0.0f),
 		Extinction.GetTracedInput().Expression	? Extinction.Compile(Compiler)		: Compiler->Constant3(0.0f, 0.0f, 0.0f),
 		Anisotropy.GetTracedInput().Expression	? Anisotropy.Compile(Compiler)		: Compiler->Constant(0.0f),
-		Thickness.GetTracedInput().Expression	? Thickness.Compile(Compiler)		: Compiler->Constant(0.001f)); // default = 1mm
-
-	StrataCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, STRATA_BSDF_TYPE_VOLUME);
+		Thickness.GetTracedInput().Expression	? Thickness.Compile(Compiler)		: Compiler->Constant(0.001f), // default = 1mm
+		NormalCodeChunk,
+		SharedNormalIndex);
+	StrataCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_VOLUME);
 
 	return OutputCodeChunk;
 }

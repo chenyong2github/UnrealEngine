@@ -105,7 +105,7 @@ void VisualizeMaterialPS(
 
 			TopLeft.x = TopLeftInit.x;
 
-			switch (BSDF.BSDFType)
+			switch (BSDF_GETTYPE(BSDF))
 			{
 			case STRATA_BSDF_TYPE_DIFFUSE_ON:
 				PRINTBSDFCHAR(_D_); PRINTBSDFCHAR(_I_); PRINTBSDFCHAR(_F_); PRINTBSDFCHAR(_F_); PRINTBSDFCHAR(_O_); PRINTBSDFCHAR(_N_);

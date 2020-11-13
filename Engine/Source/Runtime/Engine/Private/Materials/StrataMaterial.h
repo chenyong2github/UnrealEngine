@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "StrataDefinitions.h"
+#include "Containers/Map.h"
 
 
 
@@ -16,6 +17,7 @@ struct FStrataMaterialCompilationInfo
 	struct FBSDF
 	{
 		uint8 Type;
+		uint8 SharedNormalIndex;
 	};
 
 	struct FLayer
@@ -39,7 +41,8 @@ struct FStrataMaterialCompilationInfo
 
 FString GetStrataBSDFName(uint8 BSDFType);
 
-void StrataCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk, uint8 BSDFType);
+uint8 StrataCreateSharedNormal(FMaterialCompiler* Compiler, int32 NormalCodeChunk);
+void StrataCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk, uint8 SharedNormalIndex, uint8 BSDFType);
 
 FStrataMaterialCompilationInfo StrataAdd(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B);
 FStrataMaterialCompilationInfo StrataMultiply(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A);
