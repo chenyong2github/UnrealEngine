@@ -5,7 +5,7 @@
 #include "ISessionTraceFilterService.h"
 #include "BaseSessionFilterService.h"
 
-namespace Trace
+namespace TraceServices
 {
 	class IAnalysisSession;
 	typedef uint64 FSessionHandle;
@@ -15,7 +15,7 @@ namespace Trace
 class FSessionEditorFilterService : public FBaseSessionFilterService
 {
 public:
-	FSessionEditorFilterService(Trace::FSessionHandle InHandle, TSharedPtr<const Trace::IAnalysisSession> InSession);
+	FSessionEditorFilterService(TraceServices::FSessionHandle InHandle, TSharedPtr<const TraceServices::IAnalysisSession> InSession);
 	virtual ~FSessionEditorFilterService() {}
 
 	/** Begin FBaseSessionFilterService overrides */

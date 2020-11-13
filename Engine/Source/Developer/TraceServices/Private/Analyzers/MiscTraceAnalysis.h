@@ -7,26 +7,26 @@
 #include "ProfilingDebugging/MiscTrace.h"
 #include "Common/PagedArray.h"
 
-namespace Trace
+namespace TraceServices
 {
-	class IAnalysisSession;
-	class FThreadProvider;
-	class FBookmarkProvider;
-	class FLogProvider;
-	class FFrameProvider;
-	class FChannelProvider;
-}
+
+class IAnalysisSession;
+class FThreadProvider;
+class FBookmarkProvider;
+class FLogProvider;
+class FFrameProvider;
+class FChannelProvider;
 
 class FMiscTraceAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FMiscTraceAnalyzer(Trace::IAnalysisSession& Session,
-					   Trace::FThreadProvider& ThreadProvider,
-					   Trace::FBookmarkProvider& BookmarkProvider,
-					   Trace::FLogProvider& LogProvider,
-					   Trace::FFrameProvider& FrameProvider, 
-					   Trace::FChannelProvider& ChannelProvider);
+	FMiscTraceAnalyzer(IAnalysisSession& Session,
+					   FThreadProvider& ThreadProvider,
+					   FBookmarkProvider& BookmarkProvider,
+					   FLogProvider& LogProvider,
+					   FFrameProvider& FrameProvider, 
+					   FChannelProvider& ChannelProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnThreadInfo(const FThreadInfo& ThreadInfo) override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
@@ -60,13 +60,15 @@ private:
 	void OnChannelAnnounce(const FOnEventContext& Context);
 	void OnChannelToggle(const FOnEventContext& Context);
 
-	Trace::IAnalysisSession& Session;
-	Trace::FThreadProvider& ThreadProvider;
-	Trace::FBookmarkProvider& BookmarkProvider;
-	Trace::FLogProvider& LogProvider;
-	Trace::FFrameProvider& FrameProvider;
-	Trace::FChannelProvider& ChannelProvider;
+	IAnalysisSession& Session;
+	FThreadProvider& ThreadProvider;
+	FBookmarkProvider& BookmarkProvider;
+	FLogProvider& LogProvider;
+	FFrameProvider& FrameProvider;
+	FChannelProvider& ChannelProvider;
 	TMap<uint32, TSharedRef<FThreadState>> ThreadStateMap;
 	uint64 LastFrameCycle[TraceFrameType_Count] = { 0, 0 };
 };
 
+
+} // namespace TraceServices

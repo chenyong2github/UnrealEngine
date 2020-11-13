@@ -37,7 +37,7 @@ FFrameTrackSeriesBuilder::FFrameTrackSeriesBuilder(FFrameTrackSeries& InSeries, 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FFrameTrackSeriesBuilder::AddFrame(const Trace::FFrame& Frame)
+void FFrameTrackSeriesBuilder::AddFrame(const TraceServices::FFrame& Frame)
 {
 	NumAddedFrames++;
 

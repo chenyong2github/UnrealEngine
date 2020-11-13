@@ -8,13 +8,13 @@
 
 FName FGameplayTraceModule::ModuleName("GameplayTrace");
 
-void FGameplayTraceModule::GetModuleInfo(Trace::FModuleInfo& OutModuleInfo)
+void FGameplayTraceModule::GetModuleInfo(TraceServices::FModuleInfo& OutModuleInfo)
 {
 	OutModuleInfo.Name = ModuleName;
 	OutModuleInfo.DisplayName = TEXT("Gameplay");
 }
 
-void FGameplayTraceModule::OnAnalysisBegin(Trace::IAnalysisSession& InSession)
+void FGameplayTraceModule::OnAnalysisBegin(TraceServices::IAnalysisSession& InSession)
 {
 	FGameplayProvider* GameplayProvider = new FGameplayProvider(InSession);
 	InSession.AddProvider(FGameplayProvider::ProviderName, GameplayProvider);
@@ -31,12 +31,12 @@ void FGameplayTraceModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
 	OutLoggers.Add(TEXT("Animation"));
 }
 
-void FGameplayTraceModule::GenerateReports(const Trace::IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory)
+void FGameplayTraceModule::GenerateReports(const TraceServices::IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory)
 {
 
 }
 
-const IAnimationProvider* ReadAnimationProvider(const Trace::IAnalysisSession& Session)
+const IAnimationProvider* ReadAnimationProvider(const TraceServices::IAnalysisSession& Session)
 {
 	return Session.ReadProvider<IAnimationProvider>(FAnimationProvider::ProviderName);
 }

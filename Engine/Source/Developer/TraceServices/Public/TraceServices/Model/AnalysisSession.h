@@ -10,8 +10,14 @@ class FName;
 namespace Trace
 {
 
-class ILinearAllocator;
 class IAnalyzer;
+
+}
+
+namespace TraceServices
+{
+
+class ILinearAllocator;
 
 class IProvider
 {
@@ -43,7 +49,7 @@ public:
 	virtual const TCHAR* StoreString(const TCHAR* String) = 0;
 	virtual const TCHAR* StoreString(const FStringView& String) = 0;
 	
-	virtual void AddAnalyzer(IAnalyzer* Analyzer) = 0;
+	virtual void AddAnalyzer(Trace::IAnalyzer* Analyzer) = 0;
 
 	virtual void AddProvider(const FName& Name, IProvider* Provider) = 0;
 	template<typename ProviderType>
@@ -95,4 +101,4 @@ struct FAnalysisSessionEditScope
 	IAnalysisSession& AnalysisSession;
 };
 	
-}
+} // namespace TraceServices

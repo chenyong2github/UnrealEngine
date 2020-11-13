@@ -34,7 +34,7 @@ public:
 	{
 		double Interval = 0.01;
 		int32 NumEnumerations = 10000;
-		Trace::EEventSortOrder SortOrder = Trace::EEventSortOrder::ByEndTime;
+		TraceServices::EEventSortOrder SortOrder = TraceServices::EEventSortOrder::ByEndTime;
 	};
 
 	static void RunEnumerateBenchmark(const FEnumerateTestParams& InParams, FCheckValues& OutCheckValues);

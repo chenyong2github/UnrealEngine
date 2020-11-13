@@ -35,7 +35,7 @@ public:
 			const TSharedPtr<FUntypedTable> UntypedTablePtr = StaticCastSharedPtr<FUntypedTable>(TablePtr);
 			if (UntypedTablePtr.IsValid())
 			{
-				TSharedPtr<Trace::IUntypedTableReader> Reader = UntypedTablePtr->GetTableReader();
+				TSharedPtr<TraceServices::IUntypedTableReader> Reader = UntypedTablePtr->GetTableReader();
 				if (Reader.IsValid() && TableTreeNode.GetRowId().HasValidIndex())
 				{
 					Reader->SetRowIndex(TableTreeNode.GetRowId().RowIndex);
@@ -100,7 +100,7 @@ void FUntypedTable::Reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool AreTableLayoutsEqual(const Trace::ITableLayout& TableLayoutA, const Trace::ITableLayout& TableLayoutB)
+bool AreTableLayoutsEqual(const TraceServices::ITableLayout& TableLayoutA, const TraceServices::ITableLayout& TableLayoutB)
 {
 	if (TableLayoutA.GetColumnCount() != TableLayoutB.GetColumnCount())
 	{
@@ -125,7 +125,7 @@ bool AreTableLayoutsEqual(const Trace::ITableLayout& TableLayoutA, const Trace::
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FUntypedTable::UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> InSourceTable)
+bool FUntypedTable::UpdateSourceTable(TSharedPtr<TraceServices::IUntypedTable> InSourceTable)
 {
 	bool bTableLayoutChanged;
 
@@ -156,7 +156,7 @@ bool FUntypedTable::UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> InSourceT
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FUntypedTable::CreateColumns(const Trace::ITableLayout& TableLayout)
+void FUntypedTable::CreateColumns(const TraceServices::ITableLayout& TableLayout)
 {
 	ensure(GetColumnCount() == 0);
 	const int32 ColumnCount = TableLayout.GetColumnCount();
@@ -170,8 +170,8 @@ void FUntypedTable::CreateColumns(const Trace::ITableLayout& TableLayout)
 	// Look for first string column.
 	//for (int32 ColumnIndex = 0; ColumnIndex < ColumnCount; ++ColumnIndex)
 	//{
-	//	Trace::ETableColumnType ColumnType = TableLayout.GetColumnType(ColumnIndex);
-	//	if (ColumnType == Trace::TableColumnType_CString)
+	//	TraceServices::ETableColumnType ColumnType = TableLayout.GetColumnType(ColumnIndex);
+	//	if (ColumnType == TraceServices::TableColumnType_CString)
 	//	{
 	//		HierarchyColumnIndex = ColumnIndex;
 	//		HierarchyColumnName = TableLayout.GetColumnName(ColumnIndex);
@@ -185,7 +185,7 @@ void FUntypedTable::CreateColumns(const Trace::ITableLayout& TableLayout)
 
 	for (int32 ColumnIndex = 0; ColumnIndex < ColumnCount; ++ColumnIndex)
 	{
-		Trace::ETableColumnType ColumnType = TableLayout.GetColumnType(ColumnIndex);
+		TraceServices::ETableColumnType ColumnType = TableLayout.GetColumnType(ColumnIndex);
 		const TCHAR* ColumnName = TableLayout.GetColumnName(ColumnIndex);
 
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FName(ColumnName));
@@ -210,7 +210,7 @@ void FUntypedTable::CreateColumns(const Trace::ITableLayout& TableLayout)
 
 		switch (ColumnType)
 		{
-		case Trace::TableColumnType_Bool:
+		case TraceServices::TableColumnType_Bool:
 			Column.SetDataType(ETableCellDataType::Bool);
 			HorizontalAlignment = HAlign_Right;
 			InitialColumnWidth = 40.0f;
@@ -220,7 +220,7 @@ void FUntypedTable::CreateColumns(const Trace::ITableLayout& TableLayout)
 			SorterPtr = MakeShared<FSorterByBoolValue>(ColumnRef);
 			break;
 
-		case Trace::TableColumnType_Int:
+		case TraceServices::TableColumnType_Int:
 			Column.SetDataType(ETableCellDataType::Int64);
 			Aggregation = ETableColumnAggregation::Sum;
 			HorizontalAlignment = HAlign_Right;
@@ -234,7 +234,7 @@ void FUntypedTable::CreateColumns(const Trace::ITableLayout& TableLayout)
 			SorterPtr = MakeShared<FSorterByInt64Value>(ColumnRef);
 			break;
 
-		case Trace::TableColumnType_Float:
+		case TraceServices::TableColumnType_Float:
 			Column.SetDataType(ETableCellDataType::Float);
 			Aggregation = ETableColumnAggregation::Sum;
 			HorizontalAlignment = HAlign_Right;
@@ -245,7 +245,7 @@ void FUntypedTable::CreateColumns(const Trace::ITableLayout& TableLayout)
 			SorterPtr = MakeShared<FSorterByFloatValue>(ColumnRef);
 			break;
 
-		case Trace::TableColumnType_Double:
+		case TraceServices::TableColumnType_Double:
 			Column.SetDataType(ETableCellDataType::Double);
 			Aggregation = ETableColumnAggregation::Sum;
 			HorizontalAlignment = HAlign_Right;
@@ -256,7 +256,7 @@ void FUntypedTable::CreateColumns(const Trace::ITableLayout& TableLayout)
 			SorterPtr = MakeShared<FSorterByDoubleValue>(ColumnRef);
 			break;
 
-		case Trace::TableColumnType_CString:
+		case TraceServices::TableColumnType_CString:
 			Column.SetDataType(ETableCellDataType::CString);
 			HorizontalAlignment = HAlign_Left;
 			InitialColumnWidth = FMath::Max(120.0f, 6.0f * ColumnNameStr.Len());

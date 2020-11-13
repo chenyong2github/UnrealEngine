@@ -5,12 +5,12 @@
 #include "Trace/Analyzer.h"
 
 class FGameplayProvider;
-namespace Trace { class IAnalysisSession; }
+namespace TraceServices { class IAnalysisSession; }
 
 class FGameplayAnalyzer : public Trace::IAnalyzer
 {
 public:
-	FGameplayAnalyzer(Trace::IAnalysisSession& InSession, FGameplayProvider& InGameplayProvider);
+	FGameplayAnalyzer(TraceServices::IAnalysisSession& InSession, FGameplayProvider& InGameplayProvider);
 
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnAnalysisEnd() override {}
@@ -30,6 +30,6 @@ private:
 		RouteId_PropertyValue,
 	};
 
-	Trace::IAnalysisSession& Session;
+	TraceServices::IAnalysisSession& Session;
 	FGameplayProvider& GameplayProvider;
 };

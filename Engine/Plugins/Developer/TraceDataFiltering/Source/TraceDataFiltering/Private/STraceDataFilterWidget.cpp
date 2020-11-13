@@ -566,7 +566,7 @@ void STraceDataFilterWidget::RestoreItemSelection()
 	SelectedObjectNames.Empty();
 }
 
-void STraceDataFilterWidget::SetCurrentAnalysisSession(uint32 SessionHandle, TSharedRef<const Trace::IAnalysisSession> AnalysisSession)
+void STraceDataFilterWidget::SetCurrentAnalysisSession(uint32 SessionHandle, TSharedRef<const TraceServices::IAnalysisSession> AnalysisSession)
 {
 #if WITH_EDITOR
 	SessionFilterService = MakeShareable(new FSessionEditorFilterService(SessionHandle, AnalysisSession));
@@ -717,7 +717,7 @@ void STraceDataFilterWidget::RefreshTreeviewData()
 void STraceDataFilterWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	IUnrealInsightsModule& InsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
-	TSharedPtr<const Trace::IAnalysisSession> AnalysisSession = InsightsModule.GetAnalysisSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> AnalysisSession = InsightsModule.GetAnalysisSession();
 
 	if (SessionFilterService.IsValid() )
 	{

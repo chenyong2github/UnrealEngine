@@ -987,7 +987,7 @@ void STimerTreeView::Reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimerTreeView::SetTree(const Trace::FTimingProfilerButterflyNode& Root)
+void STimerTreeView::SetTree(const TraceServices::FTimingProfilerButterflyNode& Root)
 {
 	TreeNodes.Reset();
 
@@ -1018,7 +1018,7 @@ void STimerTreeView::SetTree(const Trace::FTimingProfilerButterflyNode& Root)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTimerNodePtr STimerTreeView::CreateTimerNodeRec(const Trace::FTimingProfilerButterflyNode& Node)
+FTimerNodePtr STimerTreeView::CreateTimerNodeRec(const TraceServices::FTimingProfilerButterflyNode& Node)
 {
 	if (Node.Timer == nullptr)
 	{
@@ -1029,13 +1029,13 @@ FTimerNodePtr STimerTreeView::CreateTimerNodeRec(const Trace::FTimingProfilerBut
 	const ETimerNodeType Type = Node.Timer->IsGpuTimer ? ETimerNodeType::GpuScope : ETimerNodeType::CpuScope;
 	FTimerNodePtr TimerNodePtr = MakeShared<FTimerNode>(Node.Timer->Id, Node.Timer->Name, Type);
 
-	Trace::FTimingProfilerAggregatedStats AggregatedStats;
+	TraceServices::FTimingProfilerAggregatedStats AggregatedStats;
 	AggregatedStats.InstanceCount = Node.Count;
 	AggregatedStats.TotalInclusiveTime = Node.InclusiveTime;
 	AggregatedStats.TotalExclusiveTime = Node.ExclusiveTime;
 	TimerNodePtr->SetAggregatedStats(AggregatedStats);
 
-	for (const Trace::FTimingProfilerButterflyNode* ChildNodePtr : Node.Children)
+	for (const TraceServices::FTimingProfilerButterflyNode* ChildNodePtr : Node.Children)
 	{
 		if (ChildNodePtr != nullptr)
 		{

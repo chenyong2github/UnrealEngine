@@ -6,13 +6,13 @@
 
 FName FNetworkPredictionTraceModule::ModuleName("NetworkPredictionTrace");
 
-void FNetworkPredictionTraceModule::GetModuleInfo(Trace::FModuleInfo& OutModuleInfo)
+void FNetworkPredictionTraceModule::GetModuleInfo(TraceServices::FModuleInfo& OutModuleInfo)
 {
 	OutModuleInfo.Name = ModuleName;
 	OutModuleInfo.DisplayName = TEXT("NetworkPrediction");
 }
 
-void FNetworkPredictionTraceModule::OnAnalysisBegin(Trace::IAnalysisSession& InSession)
+void FNetworkPredictionTraceModule::OnAnalysisBegin(TraceServices::IAnalysisSession& InSession)
 {
 	FNetworkPredictionProvider* NetworkPredictionProvider = new FNetworkPredictionProvider(InSession);
 	InSession.AddProvider(FNetworkPredictionProvider::ProviderName, NetworkPredictionProvider);
@@ -25,7 +25,7 @@ void FNetworkPredictionTraceModule::GetLoggers(TArray<const TCHAR *>& OutLoggers
 	OutLoggers.Add(TEXT("NetworkPrediction"));
 }
 
-void FNetworkPredictionTraceModule::GenerateReports(const Trace::IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory)
+void FNetworkPredictionTraceModule::GenerateReports(const TraceServices::IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory)
 {
 
 }

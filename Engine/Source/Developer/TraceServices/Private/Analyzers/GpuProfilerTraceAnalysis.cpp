@@ -3,7 +3,10 @@
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
 
-FGpuProfilerAnalyzer::FGpuProfilerAnalyzer(Trace::FAnalysisSession& InSession, Trace::FTimingProfilerProvider& InTimingProfilerProvider)
+namespace TraceServices
+{
+
+FGpuProfilerAnalyzer::FGpuProfilerAnalyzer(FAnalysisSession& InSession, FTimingProfilerProvider& InTimingProfilerProvider)
 	: Session(InSession)
 	, TimingProfilerProvider(InTimingProfilerProvider)
 	, Timeline(TimingProfilerProvider.EditGpuTimeline())
@@ -22,7 +25,7 @@ void FGpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
-	Trace::FAnalysisSessionEditScope _(Session);
+	FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;
 
@@ -71,7 +74,7 @@ bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 				BufferPtr += sizeof(uint32);
 				if (EventTypeMap.Contains(EventType))
 				{
-					Trace::FTimingProfilerEvent Event;
+					FTimingProfilerEvent Event;
 					Event.TimerIndex = EventTypeMap[EventType];
 					Timeline.AppendBeginEvent(LastTime, Event);
 				}
@@ -107,3 +110,5 @@ double FGpuProfilerAnalyzer::GpuTimestampToSessionTime(uint64 GpuMicroseconds)
 	}
 	return (GpuMicroseconds - GpuTimeOffset) / 1000000.0;
 }
+
+} // namespace TraceServices

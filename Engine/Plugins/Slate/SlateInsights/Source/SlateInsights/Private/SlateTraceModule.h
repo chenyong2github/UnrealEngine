@@ -13,16 +13,16 @@ namespace UE
 namespace SlateInsights
 {
 
-class FSlateTraceModule : public Trace::IModule
+class FSlateTraceModule : public TraceServices::IModule
 {
 public:
-	//~ Begin Trace::IModule interface
-	virtual void GetModuleInfo(Trace::FModuleInfo& OutModuleInfo) override;
-	virtual void OnAnalysisBegin(Trace::IAnalysisSession& Session) override;
+	//~ Begin TraceServices::IModule interface
+	virtual void GetModuleInfo(TraceServices::FModuleInfo& OutModuleInfo) override;
+	virtual void OnAnalysisBegin(TraceServices::IAnalysisSession& Session) override;
 	virtual void GetLoggers(TArray<const TCHAR *>& OutLoggers) override;
-	virtual void GenerateReports(const Trace::IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory) override;
+	virtual void GenerateReports(const TraceServices::IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory) override;
 	virtual const TCHAR* GetCommandLineArgument() override { return TEXT("slatetrace"); }
-	//~ End Trace::IModule interface
+	//~ End TraceServices::IModule interface
 
 private:
 	static FName ModuleName;

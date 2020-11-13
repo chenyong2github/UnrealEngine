@@ -5,15 +5,15 @@
 #include "Templates/SharedPointer.h"
 #include "HAL/FileManager.h"
 
-namespace Trace
+namespace TraceServices
 {
 
-void Table2Csv(const Trace::IUntypedTable& Table, const TCHAR* Filename)
+void Table2Csv(const IUntypedTable& Table, const TCHAR* Filename)
 {
 	TSharedPtr<FArchive> OutputFile = MakeShareable(IFileManager::Get().CreateFileWriter(Filename));
 	check(OutputFile);
 	FString Header;
-	const Trace::ITableLayout& Layout = Table.GetLayout();
+	const ITableLayout& Layout = Table.GetLayout();
 	int32 ColumnCount = Layout.GetColumnCount();
 	for (int32 ColumnIndex = 0; ColumnIndex < ColumnCount; ++ColumnIndex)
 	{
@@ -29,7 +29,7 @@ void Table2Csv(const Trace::IUntypedTable& Table, const TCHAR* Filename)
 	}
 	auto AnsiHeader = StringCast<ANSICHAR>(*Header);
 	OutputFile->Serialize((void*)AnsiHeader.Get(), AnsiHeader.Length());
-	TUniquePtr<Trace::IUntypedTableReader> TableReader(Table.CreateReader());
+	TUniquePtr<IUntypedTableReader> TableReader(Table.CreateReader());
 	for (; TableReader->IsValid(); TableReader->NextRow())
 	{
 		FString Line;
@@ -37,19 +37,19 @@ void Table2Csv(const Trace::IUntypedTable& Table, const TCHAR* Filename)
 		{
 			switch (Layout.GetColumnType(ColumnIndex))
 			{
-			case Trace::TableColumnType_Bool:
+			case TableColumnType_Bool:
 				Line += TableReader->GetValueBool(ColumnIndex) ? "true" : "false";
 				break;
-			case Trace::TableColumnType_Int:
+			case TableColumnType_Int:
 				Line += FString::Printf(TEXT("%lld"), TableReader->GetValueInt(ColumnIndex));
 				break;
-			case Trace::TableColumnType_Float:
+			case TableColumnType_Float:
 				Line += FString::Printf(TEXT("%f"), TableReader->GetValueFloat(ColumnIndex));
 				break;
-			case Trace::TableColumnType_Double:
+			case TableColumnType_Double:
 				Line += FString::Printf(TEXT("%f"), TableReader->GetValueDouble(ColumnIndex));
 				break;
-			case Trace::TableColumnType_CString:
+			case TableColumnType_CString:
 				FString ValueString = TableReader->GetValueCString(ColumnIndex);
 				ValueString.ReplaceInline(TEXT(","), TEXT(" "));
 				Line += ValueString;
@@ -70,4 +70,4 @@ void Table2Csv(const Trace::IUntypedTable& Table, const TCHAR* Filename)
 	OutputFile->Close();
 }
 
-}
+} // namespace TraceServices

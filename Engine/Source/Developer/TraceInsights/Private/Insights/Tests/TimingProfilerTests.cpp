@@ -21,31 +21,31 @@ bool EnumerateEventsToFile::RunTest(const FString& Parameters)
 	double SessionTime = 0.0;
 	uint32 TimelineIndex = (uint32)-1;
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Session.Get()))
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
+		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
 
 		TimelineIndex = FTimingProfilerTests::GetTimelineIndex(TEXT("GameThread"));
 
 		AddErrorIfFalse(TimelineIndex != (uint32)-1, TEXT("Failed to get track named GameThread"));
 
-		const Trace::ITimingProfilerTimerReader* TimerReader;
-		TimingProfilerProvider.ReadTimers([&TimerReader](const Trace::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
+		const TraceServices::ITimingProfilerTimerReader* TimerReader;
+		TimingProfilerProvider.ReadTimers([&TimerReader](const TraceServices::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
 
 		FString EnumeratedEventsStr;
 		TimingProfilerProvider.ReadTimeline(TimelineIndex,
-			[Session, &EnumeratedEventsStr, TimerReader](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+			[Session, &EnumeratedEventsStr, TimerReader](const TraceServices::ITimingProfilerProvider::Timeline& Timeline)
 			{
 				Timeline.EnumerateEvents(-1.0, Session->GetDurationSeconds() + 1.0,
-					[&EnumeratedEventsStr, TimerReader](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FTimingProfilerEvent& Event)
+					[&EnumeratedEventsStr, TimerReader](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event)
 					{
-						const Trace::FTimingProfilerTimer* Timer = TimerReader->GetTimer(Event.TimerIndex);
+						const TraceServices::FTimingProfilerTimer* Timer = TimerReader->GetTimer(Event.TimerIndex);
 
 						EnumeratedEventsStr.Appendf(TEXT("%s %f %f %d\n"), Timer->Name, EventStartTime, EventEndTime, EventDepth);
-						return Trace::EEventEnumerate::Continue;
+						return TraceServices::EEventEnumerate::Continue;
 					});
 			});
 
@@ -64,31 +64,31 @@ bool EnumerateScopesToFile::RunTest(const FString& Parameters)
 	double SessionTime = 0.0;
 	uint32 TimelineIndex = (uint32)-1;
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Session.Get()))
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
+		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
 
 		TimelineIndex = FTimingProfilerTests::GetTimelineIndex(TEXT("GameThread"));
 
 		AddErrorIfFalse(TimelineIndex != (uint32)-1, TEXT("Failed to get track named GameThread"));
 
-		const Trace::ITimingProfilerTimerReader* TimerReader;
-		TimingProfilerProvider.ReadTimers([&TimerReader](const Trace::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
+		const TraceServices::ITimingProfilerTimerReader* TimerReader;
+		TimingProfilerProvider.ReadTimers([&TimerReader](const TraceServices::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
 
 		FString EnumeratedEventsStr;
 		TimingProfilerProvider.ReadTimeline(TimelineIndex,
-			[Session, &EnumeratedEventsStr, TimerReader](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+			[Session, &EnumeratedEventsStr, TimerReader](const TraceServices::ITimingProfilerProvider::Timeline& Timeline)
 			{
 				Timeline.EnumerateEvents(-1.0, Session->GetDurationSeconds() + 1.0,
-					[&EnumeratedEventsStr, TimerReader](bool bStart, double Time, const Trace::FTimingProfilerEvent& Event)
+					[&EnumeratedEventsStr, TimerReader](bool bStart, double Time, const TraceServices::FTimingProfilerEvent& Event)
 					{
-						const Trace::FTimingProfilerTimer* Timer = TimerReader->GetTimer(Event.TimerIndex);
+						const TraceServices::FTimingProfilerTimer* Timer = TimerReader->GetTimer(Event.TimerIndex);
 
 						EnumeratedEventsStr.Appendf(TEXT("%s %d %f\n"), Timer->Name, (int32)bStart, Time);
-						return Trace::EEventEnumerate::Continue;
+						return TraceServices::EEventEnumerate::Continue;
 					});
 			});
 
@@ -107,7 +107,7 @@ bool EnumerateByEndTimeAsyncAllTracks::RunTest(const FString& Parameters)
 	FTimingProfilerTests::FEnumerateTestParams Params;
 	Params.Interval = 24.0 * 3600; //A day - Should be big enought to contain any valid session in [0, 0 + interval]
 	Params.NumEnumerations = 1;
-	Params.SortOrder = Trace::EEventSortOrder::ByEndTime;
+	Params.SortOrder = TraceServices::EEventSortOrder::ByEndTime;
 
 	FTimingProfilerTests::RunEnumerateSyncAsyncComparisonTest(*this, Params, false);
 
@@ -122,7 +122,7 @@ bool EnumerateByEndTimeAsyncGameThreadTrack::RunTest(const FString& Parameters)
 	FTimingProfilerTests::FEnumerateTestParams Params;
 	Params.Interval = 24.0 * 3600; //A day - Should be big enought to contain any valid session in [0, 0 + interval]
 	Params.NumEnumerations = 1;
-	Params.SortOrder = Trace::EEventSortOrder::ByEndTime;
+	Params.SortOrder = TraceServices::EEventSortOrder::ByEndTime;
 
 	FTimingProfilerTests::RunEnumerateSyncAsyncComparisonTest(*this, Params, true);
 
@@ -137,7 +137,7 @@ bool EnumerateByEndTimeAllTracks10sIntervals::RunTest(const FString& Parameters)
 	FTimingProfilerTests::FEnumerateTestParams Params;
 	Params.Interval = 10.0;
 	Params.NumEnumerations = 100;
-	Params.SortOrder = Trace::EEventSortOrder::ByEndTime;
+	Params.SortOrder = TraceServices::EEventSortOrder::ByEndTime;
 
 	FTimingProfilerTests::RunEnumerateSyncAsyncComparisonTest(*this, Params, false);
 
@@ -152,7 +152,7 @@ bool EnumerateByEndTimeAllTracks5sIntervals::RunTest(const FString& Parameters)
 	FTimingProfilerTests::FEnumerateTestParams Params;
 	Params.Interval = 5.0;
 	Params.NumEnumerations = 200;
-	Params.SortOrder = Trace::EEventSortOrder::ByEndTime;
+	Params.SortOrder = TraceServices::EEventSortOrder::ByEndTime;
 
 	FTimingProfilerTests::RunEnumerateSyncAsyncComparisonTest(*this, Params, false);
 
@@ -169,7 +169,7 @@ bool EnumerateByStartTimeAsyncAllTracks::RunTest(const FString& Parameters)
 	FTimingProfilerTests::FEnumerateTestParams Params;
 	Params.Interval = 24.0 * 3600; //A day - Should be big enought to contain any valid session in [0, 0 + interval]
 	Params.NumEnumerations = 1;
-	Params.SortOrder = Trace::EEventSortOrder::ByStartTime;
+	Params.SortOrder = TraceServices::EEventSortOrder::ByStartTime;
 
 	FTimingProfilerTests::RunEnumerateSyncAsyncComparisonTest(*this, Params, false);
 
@@ -184,7 +184,7 @@ bool EnumerateByStartTimeAsyncGameThreadTrack::RunTest(const FString& Parameters
 	FTimingProfilerTests::FEnumerateTestParams Params;
 	Params.Interval = 24.0 * 3600; //A day - Should be big enought to contain any valid session in [0, 0 + interval]
 	Params.NumEnumerations = 1;
-	Params.SortOrder = Trace::EEventSortOrder::ByStartTime;
+	Params.SortOrder = TraceServices::EEventSortOrder::ByStartTime;
 
 	FTimingProfilerTests::RunEnumerateSyncAsyncComparisonTest(*this, Params, true);
 
@@ -199,7 +199,7 @@ bool EnumerateByStartTimeAllTracks10sIntervals::RunTest(const FString& Parameter
 	FTimingProfilerTests::FEnumerateTestParams Params;
 	Params.Interval = 10.0;
 	Params.NumEnumerations = 100;
-	Params.SortOrder = Trace::EEventSortOrder::ByStartTime;
+	Params.SortOrder = TraceServices::EEventSortOrder::ByStartTime;
 
 	FTimingProfilerTests::RunEnumerateSyncAsyncComparisonTest(*this, Params, false);
 
@@ -214,7 +214,7 @@ bool EnumerateByStartTimeAllTracks5sIntervals::RunTest(const FString& Parameters
 	FTimingProfilerTests::FEnumerateTestParams Params;
 	Params.Interval = 5.0;
 	Params.NumEnumerations = 200;
-	Params.SortOrder = Trace::EEventSortOrder::ByStartTime;
+	Params.SortOrder = TraceServices::EEventSortOrder::ByStartTime;
 
 	FTimingProfilerTests::RunEnumerateSyncAsyncComparisonTest(*this, Params, false);
 
@@ -235,12 +235,12 @@ void FTimingProfilerTests::RunEnumerateBenchmark(const FEnumerateTestParams& InP
 	double SessionTime = 0.0;
 	uint32 TimelineIndex = (uint32)-1;
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Session.Get()))
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
+		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
 
 		SessionTime = Session->GetDurationSeconds();
 		OutCheckValues.SessionDuration = SessionTime;
@@ -250,19 +250,19 @@ void FTimingProfilerTests::RunEnumerateBenchmark(const FEnumerateTestParams& InP
 		TimelineIndex = GetTimelineIndex(TEXT("GameThread"));
 
 		TimingProfilerProvider.ReadTimeline(TimelineIndex,
-			[&OutCheckValues, &InParams, TimeIncrement](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+			[&OutCheckValues, &InParams, TimeIncrement](const TraceServices::ITimingProfilerProvider::Timeline& Timeline)
 			{
 				double Time = 0.0;
 				for (int32 Index = 0; Index < InParams.NumEnumerations; ++Index)
 				{
 					Timeline.EnumerateEvents(Time, Time + InParams.Interval,
-						[&OutCheckValues](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FTimingProfilerEvent& Event)
+						[&OutCheckValues](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event)
 						{
 							OutCheckValues.TotalEventDuration += EventEndTime - EventStartTime;
 							++OutCheckValues.EventCount;
 							OutCheckValues.SumDepth += EventDepth;
 							OutCheckValues.SumTimerIndex += Event.TimerIndex;
-							return Trace::EEventEnumerate::Continue;
+							return TraceServices::EEventEnumerate::Continue;
 						});
 
 					Time += TimeIncrement;
@@ -289,12 +289,12 @@ void FTimingProfilerTests::RunEnumerateAsyncBenchmark(const FEnumerateTestParams
 	double SessionTime = 0.0;
 	uint32 TimelineIndex = (uint32)-1;
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Session.Get()))
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
+		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
 
 		SessionTime = Session->GetDurationSeconds();
 		OutCheckValues.SessionDuration = SessionTime;
@@ -306,12 +306,12 @@ void FTimingProfilerTests::RunEnumerateAsyncBenchmark(const FEnumerateTestParams
 		TArray<FCheckValues> TaskCheckValues;
 
 		TimingProfilerProvider.ReadTimeline(TimelineIndex,
-			[&OutCheckValues, &InParams, TimeIncrement, &TaskCheckValues](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+			[&OutCheckValues, &InParams, TimeIncrement, &TaskCheckValues](const TraceServices::ITimingProfilerProvider::Timeline& Timeline)
 			{
 				double Time = 0.0;
 				for (int32 Index = 0; Index < InParams.NumEnumerations; ++Index)
 				{
-					Trace::ITimeline<Trace::FTimingProfilerEvent>::EnumerateAsyncParams Params;
+					TraceServices::ITimeline<TraceServices::FTimingProfilerEvent>::EnumerateAsyncParams Params;
 					Params.IntervalStart = Time;
 					Params.IntervalEnd = Time + InParams.Interval;
 					Params.Resolution = 0.0;
@@ -320,13 +320,13 @@ void FTimingProfilerTests::RunEnumerateAsyncBenchmark(const FEnumerateTestParams
 					{
 						TaskCheckValues.AddDefaulted(NumTasks);
 					};
-					Params.Callback = [&TaskCheckValues](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FTimingProfilerEvent& Event, uint32 TaskIndex)
+					Params.Callback = [&TaskCheckValues](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event, uint32 TaskIndex)
 					{
 						TaskCheckValues[TaskIndex].TotalEventDuration += EventEndTime - EventStartTime;
 						++TaskCheckValues[TaskIndex].EventCount;
 						TaskCheckValues[TaskIndex].SumDepth += EventDepth;
 						TaskCheckValues[TaskIndex].SumTimerIndex += Event.TimerIndex;
-						return Trace::EEventEnumerate::Continue;
+						return TraceServices::EEventEnumerate::Continue;
 					};
 
 					Timeline.EnumerateEventsDownSampledAsync(Params);
@@ -364,38 +364,38 @@ void FTimingProfilerTests::RunEnumerateAllTracksBenchmark(const FEnumerateTestPa
 	double SessionTime = 0.0;
 	uint32 TimelineIndex = (uint32)-1;
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Session.Get()))
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
+		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
 
 		SessionTime = Session->GetDurationSeconds();
 		OutCheckValues.SessionDuration = SessionTime;
 
 		const double TimeIncrement = SessionTime / static_cast<double>(InParams.NumEnumerations);
 
-		const Trace::IThreadProvider& ThreadProvider = Trace::ReadThreadProvider(*Session.Get());
+		const TraceServices::IThreadProvider& ThreadProvider = TraceServices::ReadThreadProvider(*Session.Get());
 		ThreadProvider.EnumerateThreads(
-			[&TimelineIndex, &TimingProfilerProvider, &OutCheckValues, &InParams, TimeIncrement](const Trace::FThreadInfo& ThreadInfo)
+			[&TimelineIndex, &TimingProfilerProvider, &OutCheckValues, &InParams, TimeIncrement](const TraceServices::FThreadInfo& ThreadInfo)
 			{
 				TimingProfilerProvider.GetCpuThreadTimelineIndex(ThreadInfo.Id, TimelineIndex);
 
 				TimingProfilerProvider.ReadTimeline(TimelineIndex,
-					[&OutCheckValues, &InParams, TimeIncrement](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+					[&OutCheckValues, &InParams, TimeIncrement](const TraceServices::ITimingProfilerProvider::Timeline& Timeline)
 					{
 						double Time = 0.0;
 						for (int32 Index = 0; Index < InParams.NumEnumerations; ++Index)
 						{
 							Timeline.EnumerateEvents(Time, Time + InParams.Interval,
-								[&OutCheckValues](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FTimingProfilerEvent& Event)
+								[&OutCheckValues](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event)
 								{
 									OutCheckValues.TotalEventDuration += EventEndTime - EventStartTime;
 									++OutCheckValues.EventCount;
 									OutCheckValues.SumDepth += EventDepth;
 									OutCheckValues.SumTimerIndex += Event.TimerIndex;
-									return Trace::EEventEnumerate::Continue;
+									return TraceServices::EEventEnumerate::Continue;
 								});
 
 							Time += TimeIncrement;
@@ -424,12 +424,12 @@ void FTimingProfilerTests::RunEnumerateAsyncAllTracksBenchmark(const FEnumerateT
 	double SessionTime = 0.0;
 	uint32 TimelineIndex = (uint32)-1;
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Session.Get()))
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
+		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
 
 		SessionTime = Session->GetDurationSeconds();
 		OutCheckValues.SessionDuration = SessionTime;
@@ -438,19 +438,19 @@ void FTimingProfilerTests::RunEnumerateAsyncAllTracksBenchmark(const FEnumerateT
 
 		TArray<FCheckValues> TaskCheckValues;
 
-		const Trace::IThreadProvider& ThreadProvider = Trace::ReadThreadProvider(*Session.Get());
+		const TraceServices::IThreadProvider& ThreadProvider = TraceServices::ReadThreadProvider(*Session.Get());
 		ThreadProvider.EnumerateThreads(
-			[&TimelineIndex, &TimingProfilerProvider, &OutCheckValues, &InParams, TimeIncrement, &TaskCheckValues](const Trace::FThreadInfo& ThreadInfo)
+			[&TimelineIndex, &TimingProfilerProvider, &OutCheckValues, &InParams, TimeIncrement, &TaskCheckValues](const TraceServices::FThreadInfo& ThreadInfo)
 			{
 				TimingProfilerProvider.GetCpuThreadTimelineIndex(ThreadInfo.Id, TimelineIndex);
 
 				TimingProfilerProvider.ReadTimeline(TimelineIndex,
-					[&OutCheckValues, &InParams, TimeIncrement, &TaskCheckValues](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+					[&OutCheckValues, &InParams, TimeIncrement, &TaskCheckValues](const TraceServices::ITimingProfilerProvider::Timeline& Timeline)
 					{
 						double Time = 0.0;
 						for (int32 Index = 0; Index < InParams.NumEnumerations; ++Index)
 						{
-							Trace::ITimeline<Trace::FTimingProfilerEvent>::EnumerateAsyncParams Params;
+							TraceServices::ITimeline<TraceServices::FTimingProfilerEvent>::EnumerateAsyncParams Params;
 							Params.IntervalStart = Time;
 							Params.IntervalEnd = Time + InParams.Interval;
 							Params.Resolution = 0.0;
@@ -459,13 +459,13 @@ void FTimingProfilerTests::RunEnumerateAsyncAllTracksBenchmark(const FEnumerateT
 							{
 								TaskCheckValues.AddDefaulted(NumTasks);
 							};
-							Params.Callback = [&OutCheckValues, &TaskCheckValues](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FTimingProfilerEvent& Event, uint32 TaskIndex)
+							Params.Callback = [&OutCheckValues, &TaskCheckValues](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event, uint32 TaskIndex)
 							{
 								TaskCheckValues[TaskIndex].TotalEventDuration += EventEndTime - EventStartTime;
 								++TaskCheckValues[TaskIndex].EventCount;
 								TaskCheckValues[TaskIndex].SumDepth += EventDepth;
 								TaskCheckValues[TaskIndex].SumTimerIndex += Event.TimerIndex;
-								return Trace::EEventEnumerate::Continue;
+								return TraceServices::EEventEnumerate::Continue;
 							};
 
 							Timeline.EnumerateEventsDownSampledAsync(Params);
@@ -497,12 +497,12 @@ void FTimingProfilerTests::RunEnumerateAsyncAllTracksBenchmark(const FEnumerateT
 
 uint32 FTimingProfilerTests::GetTimelineIndex(const TCHAR* InName)
 {
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
-	const Trace::IThreadProvider& ThreadProvider = Trace::ReadThreadProvider(*Session.Get());
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
+	const TraceServices::IThreadProvider& ThreadProvider = TraceServices::ReadThreadProvider(*Session.Get());
 	uint32 TimelineIndex = (uint32) -1;
 	ThreadProvider.EnumerateThreads(
-		[&TimelineIndex, &TimingProfilerProvider, InName](const Trace::FThreadInfo& ThreadInfo)
+		[&TimelineIndex, &TimingProfilerProvider, InName](const TraceServices::FThreadInfo& ThreadInfo)
 		{
 			if (!FCString::Strcmp(ThreadInfo.Name, InName))
 			{

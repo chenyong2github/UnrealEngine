@@ -29,13 +29,13 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const TCHAR* GetFileActivityTypeName(Trace::EFileActivityType Type)
+const TCHAR* GetFileActivityTypeName(TraceServices::EFileActivityType Type)
 {
-	static_assert(Trace::FileActivityType_Open == 0, "Trace::EFileActivityType enum has changed!?");
-	static_assert(Trace::FileActivityType_Close == 1, "Trace::EFileActivityType enum has changed!?");
-	static_assert(Trace::FileActivityType_Read == 2, "Trace::EFileActivityType enum has changed!?");
-	static_assert(Trace::FileActivityType_Write == 3, "Trace::EFileActivityType enum has changed!?");
-	static_assert(Trace::FileActivityType_Count == 4, "Trace::EFileActivityType enum has changed!?");
+	static_assert(TraceServices::FileActivityType_Open == 0, "TraceServices::EFileActivityType enum has changed!?");
+	static_assert(TraceServices::FileActivityType_Close == 1, "TraceServices::EFileActivityType enum has changed!?");
+	static_assert(TraceServices::FileActivityType_Read == 2, "TraceServices::EFileActivityType enum has changed!?");
+	static_assert(TraceServices::FileActivityType_Write == 3, "TraceServices::EFileActivityType enum has changed!?");
+	static_assert(TraceServices::FileActivityType_Count == 4, "TraceServices::EFileActivityType enum has changed!?");
 	static const TCHAR* GFileActivityTypeNames[] =
 	{
 		TEXT("Open"),
@@ -50,7 +50,7 @@ const TCHAR* GetFileActivityTypeName(Trace::EFileActivityType Type)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-uint32 GetFileActivityTypeColor(Trace::EFileActivityType Type)
+uint32 GetFileActivityTypeColor(TraceServices::EFileActivityType Type)
 {
 	static const uint32 GFileActivityTypeColors[] =
 	{
@@ -110,14 +110,14 @@ void FFileActivitySharedState::OnEndSession(Insights::ITimingViewSession& InSess
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, const Trace::IAnalysisSession& InAnalysisSession)
+void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, const TraceServices::IAnalysisSession& InAnalysisSession)
 {
 	if (&InSession != TimingView)
 	{
 		return;
 	}
 
-	if (!Trace::ReadFileActivityProvider(InAnalysisSession))
+	if (!TraceServices::ReadFileActivityProvider(InAnalysisSession))
 	{
 		return;
 	}
@@ -151,12 +151,12 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 
 		// Enumerate all IO events and cache them.
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
-			const Trace::IFileActivityProvider& FileActivityProvider = *Trace::ReadFileActivityProvider(InAnalysisSession);
-			FileActivityProvider.EnumerateFileActivity([this](const Trace::FFileInfo& FileInfo, const Trace::IFileActivityProvider::Timeline& Timeline)
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
+			const TraceServices::IFileActivityProvider& FileActivityProvider = *TraceServices::ReadFileActivityProvider(InAnalysisSession);
+			FileActivityProvider.EnumerateFileActivity([this](const TraceServices::FFileInfo& FileInfo, const TraceServices::IFileActivityProvider::Timeline& Timeline)
 			{
 				Timeline.EnumerateEvents(-std::numeric_limits<double>::infinity(), +std::numeric_limits<double>::infinity(),
-					[this, &FileInfo, &Timeline](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FFileActivity* FileActivity)
+					[this, &FileInfo, &Timeline](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FFileActivity* FileActivity)
 				{
 					//if (EventEndTime == std::numeric_limits<double>::infinity())
 					//{
@@ -182,7 +182,7 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 					}
 					else
 					{
-						if (FileActivity->ActivityType != Trace::FileActivityType_Close)
+						if (FileActivity->ActivityType != TraceServices::FileActivityType_Close)
 						{
 							ensure(EventStartTime >= Activity->StartTime);
 							if (EventStartTime < Activity->StartTime)
@@ -218,7 +218,7 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 					uint32 Type = ((uint32)FileActivity->ActivityType & 0x0F) | (FileActivity->Failed ? 0x80 : 0);
 
 					AllIoEvents.Add(FIoTimingEvent{ EventStartTime, EventEndTime, EventDepth, Type, FileActivity->Offset, FileActivity->Size, FileActivity->ActualSize, Activity });
-					return Trace::EEventEnumerate::Continue;
+					return TraceServices::EEventEnumerate::Continue;
 				});
 
 				return true;
@@ -552,7 +552,7 @@ void FFileActivityTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, cons
 		FTimingEventSearchParameters SearchParameters(TooltipEvent.GetStartTime(), TooltipEvent.GetEndTime(), ETimingEventSearchFlags::StopAtFirstMatch, MatchEvent);
 		FindIoTimingEvent(SearchParameters, [this, &InOutTooltip, &TooltipEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FFileActivitySharedState::FIoTimingEvent& InEvent)
 		{
-			const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(InEvent.Type & 0x0F);
+			const TraceServices::EFileActivityType ActivityType = static_cast<TraceServices::EFileActivityType>(InEvent.Type & 0x0F);
 			const bool bHasFailed = ((InEvent.Type & 0xF0) != 0);
 
 			FString TypeStr;
@@ -583,7 +583,7 @@ void FFileActivityTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, cons
 			const double Duration = InEvent.EndTime - InEvent.StartTime;
 			InOutTooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(Duration));
 
-			if (ActivityType == Trace::FileActivityType_Read || ActivityType == Trace::FileActivityType_Write)
+			if (ActivityType == TraceServices::FileActivityType_Read || ActivityType == TraceServices::FileActivityType_Write)
 			{
 				InOutTooltip.AddNameValueTextLine(TEXT("Offset:"), FText::AsNumber(InEvent.Offset).ToString() + TEXT(" bytes"));
 				InOutTooltip.AddNameValueTextLine(TEXT("Size:"), FText::AsNumber(InEvent.Size).ToString() + TEXT(" bytes"));
@@ -678,10 +678,10 @@ void FOverviewFileActivityTimingTrack::BuildDrawState(ITimingEventsTrackDrawStat
 
 	for (const FFileActivitySharedState::FIoTimingEvent& Event : SharedState.AllIoEvents)
 	{
-		const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(Event.Type & 0x0F);
+		const TraceServices::EFileActivityType ActivityType = static_cast<TraceServices::EFileActivityType>(Event.Type & 0x0F);
 		const uint64 EventType = static_cast<uint64>(ActivityType);
 
-		if (ActivityType >= Trace::FileActivityType_Count)
+		if (ActivityType >= TraceServices::FileActivityType_Count)
 		{
 			// Ignore "Idle" and "NotClosed" events.
 			continue;
@@ -723,7 +723,7 @@ void FOverviewFileActivityTimingTrack::BuildDrawState(ITimingEventsTrackDrawStat
 					EventName += TEXT("Failed ");
 				}
 
-				const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(Event.Type & 0x0F);
+				const TraceServices::EFileActivityType ActivityType = static_cast<TraceServices::EFileActivityType>(Event.Type & 0x0F);
 				EventName += GetFileActivityTypeName(ActivityType);
 
 				if (Event.ActualSize != Event.Size)
@@ -829,7 +829,7 @@ void FDetailedFileActivityTimingTrack::BuildDrawState(ITimingEventsTrackDrawStat
 		}
 
 		ensure(Event.Depth <= 10000);
-		const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(Event.Type & 0x0F);
+		const TraceServices::EFileActivityType ActivityType = static_cast<TraceServices::EFileActivityType>(Event.Type & 0x0F);
 
 		const bool bHasFailed = ((Event.Type & 0xF0) != 0);
 
@@ -855,7 +855,7 @@ void FDetailedFileActivityTimingTrack::BuildDrawState(ITimingEventsTrackDrawStat
 					EventName += TEXT("Failed ");
 				}
 
-				const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(Event.Type & 0x0F);
+				const TraceServices::EFileActivityType ActivityType = static_cast<TraceServices::EFileActivityType>(Event.Type & 0x0F);
 				EventName += GetFileActivityTypeName(ActivityType);
 
 				if (Event.ActualSize != Event.Size)
@@ -863,7 +863,7 @@ void FDetailedFileActivityTimingTrack::BuildDrawState(ITimingEventsTrackDrawStat
 					EventName += TEXT(" [!]");
 				}
 
-				if (ActivityType >= Trace::FileActivityType_Count)
+				if (ActivityType >= TraceServices::FileActivityType_Count)
 				{
 					EventName += " [";
 					EventName += Event.FileActivity->Path;

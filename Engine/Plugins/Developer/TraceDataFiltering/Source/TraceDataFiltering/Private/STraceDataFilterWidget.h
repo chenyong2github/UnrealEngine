@@ -54,7 +54,7 @@ protected:
 	void ConstructFilterHandler();
 
 	/** Callback for whenever a different analysis session (store) has been retrieved */
-	void SetCurrentAnalysisSession(uint32 SessionHandle, TSharedRef<const Trace::IAnalysisSession> AnalysisSession);
+	void SetCurrentAnalysisSession(uint32 SessionHandle, TSharedRef<const TraceServices::IAnalysisSession> AnalysisSession);
 	bool HasValidFilterSession() const;
 		
 	void RefreshTreeviewData();

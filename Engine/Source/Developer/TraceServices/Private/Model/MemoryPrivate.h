@@ -5,7 +5,7 @@
 #include "TraceServices/Model/Memory.h"
 #include "Common/PagedArray.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 class FMemoryProvider : public IMemoryProvider
@@ -20,10 +20,10 @@ public:
 
 	virtual uint32 GetTagSerial() const override;
 	virtual uint32 GetTagCount() const override;
-	virtual void EnumerateTags(TFunctionRef<void(const FMemoryTag&)> Callback) const override;
-	virtual const FMemoryTag* GetTag(FMemoryTagId Id) const override;
+	virtual void EnumerateTags(TFunctionRef<void(const FMemoryTagInfo&)> Callback) const override;
+	virtual const FMemoryTagInfo* GetTag(FMemoryTagId Id) const override;
 	virtual uint32 GetTrackerCount() const override;
-	virtual void EnumerateTrackers(TFunctionRef<void(const FMemoryTracker&)> Callback) const override;
+	virtual void EnumerateTrackers(TFunctionRef<void(const FMemoryTrackerInfo&)> Callback) const override;
 	virtual uint64 GetTagSampleCount(FMemoryTrackerId Tracker, FMemoryTagId Tag) const override;
 	virtual void EnumerateTagSamples(
 		FMemoryTrackerId Tracker, 
@@ -47,7 +47,7 @@ private:
 		TPagedArray<FMemoryTagSample> Values;
 
 		// Cached pointer to the actual memory tag.
-		FMemoryTag* TagPtr;
+		FMemoryTagInfo* TagPtr;
 
 		FTagSampleData(ILinearAllocator& Allocator) : Values(Allocator, DefaultPageSize), TagPtr(nullptr) {}
 		FTagSampleData(const FTagSampleData& Other) : Values(Other.Values), TagPtr(Other.TagPtr) {}
@@ -68,10 +68,10 @@ private:
 	};
 
 	IAnalysisSession& Session;
-	TMap<FMemoryTagId, FMemoryTag> TagDescs;
-	TMap<FMemoryTrackerId, FMemoryTracker> TrackerDescs;
+	TMap<FMemoryTagId, FMemoryTagInfo> TagDescs;
+	TMap<FMemoryTrackerId, FMemoryTrackerInfo> TrackerDescs;
 	TArray<FTrackerData> Trackers;
 	uint32 TagsSerial;
 };
 
-} // namespace Trace
+} // namespace TraceServices

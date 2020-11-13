@@ -137,7 +137,7 @@ public:
 	//virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
 	void ResetPacket();
-	void SetPacket(uint32 InGameInstanceIndex, uint32 InConnectionIndex, Trace::ENetProfilerConnectionMode InConnectionMode, uint32 InPacketIndex, int64 InPacketBitSize);
+	void SetPacket(uint32 InGameInstanceIndex, uint32 InConnectionIndex, TraceServices::ENetProfilerConnectionMode InConnectionMode, uint32 InPacketIndex, int64 InPacketBitSize);
 
 	bool IsFilterByNetIdEnabled() const { return bFilterByNetId; }
 	uint32 GetFilterNetId() const { return FilterNetId; }
@@ -213,7 +213,7 @@ private:
 
 	uint32 GameInstanceIndex;
 	uint32 ConnectionIndex;
-	Trace::ENetProfilerConnectionMode ConnectionMode;
+	TraceServices::ENetProfilerConnectionMode ConnectionMode;
 	uint32 PacketIndex;
 	uint32 PacketSequence;
 	int64 PacketBitSize; // total number of bits; [bit]

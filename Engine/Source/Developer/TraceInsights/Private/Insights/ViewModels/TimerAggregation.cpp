@@ -17,7 +17,7 @@ namespace Insights
 class FTimerAggregationWorker : public IStatsAggregationWorker
 {
 public:
-	FTimerAggregationWorker(TSharedPtr<const Trace::IAnalysisSession> InSession, double InStartTime, double InEndTime, const TSet<uint32>& InCpuThreads, bool bInIncludeGpuThread)
+	FTimerAggregationWorker(TSharedPtr<const TraceServices::IAnalysisSession> InSession, double InStartTime, double InEndTime, const TSet<uint32>& InCpuThreads, bool bInIncludeGpuThread)
 		: Session(InSession)
 		, StartTime(InStartTime)
 		, EndTime(InEndTime)
@@ -31,29 +31,29 @@ public:
 
 	virtual void DoWork() override;
 
-	Trace::ITable<Trace::FTimingProfilerAggregatedStats>* GetResultTable() const { return ResultTable.Get(); }
+	TraceServices::ITable<TraceServices::FTimingProfilerAggregatedStats>* GetResultTable() const { return ResultTable.Get(); }
 	void ResetResults() { ResultTable.Reset(); }
 
 private:
-	TSharedPtr<const Trace::IAnalysisSession> Session;
+	TSharedPtr<const TraceServices::IAnalysisSession> Session;
 	double StartTime;
 	double EndTime;
 	TSet<uint32> CpuThreads;
 	bool bIncludeGpuThread;
-	TUniquePtr<Trace::ITable<Trace::FTimingProfilerAggregatedStats>> ResultTable;
+	TUniquePtr<TraceServices::ITable<TraceServices::FTimingProfilerAggregatedStats>> ResultTable;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FTimerAggregationWorker::DoWork()
 {
-	if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
+	if (Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Session.Get()))
 	{
 		// Suspend analysis in order to avoid write locks (ones blocked by the read lock below) to further block other read locks.
-		//Trace::FAnalysisSessionSuspensionScope SessionPauseScope(*Session.Get());
+		//FAnalysisSessionSuspensionScope SessionPauseScope(*Session.Get());
 
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
 
 		auto CpuThreadFilter = [this](uint32 ThreadId)
 		{
@@ -68,7 +68,7 @@ void FTimerAggregationWorker::DoWork()
 // FTimerAggregator
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IStatsAggregationWorker* FTimerAggregator::CreateWorker(TSharedPtr<const Trace::IAnalysisSession> InSession)
+IStatsAggregationWorker* FTimerAggregator::CreateWorker(TSharedPtr<const TraceServices::IAnalysisSession> InSession)
 {
 	bool bIsGpuTrackVisible = false;
 	TSet<uint32> CpuThreads;
@@ -94,7 +94,7 @@ IStatsAggregationWorker* FTimerAggregator::CreateWorker(TSharedPtr<const Trace::
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Trace::ITable<Trace::FTimingProfilerAggregatedStats>* FTimerAggregator::GetResultTable() const
+TraceServices::ITable<TraceServices::FTimingProfilerAggregatedStats>* FTimerAggregator::GetResultTable() const
 {
 	// It can only be called from OnFinishedCallback.
 	check(IsFinished());

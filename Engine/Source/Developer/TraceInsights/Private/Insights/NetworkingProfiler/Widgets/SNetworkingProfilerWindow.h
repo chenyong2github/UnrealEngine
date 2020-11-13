@@ -47,7 +47,7 @@ private:
 	struct FGameInstanceItem
 	{
 		/** Conversion constructor. */
-		FGameInstanceItem(const Trace::FNetProfilerGameInstance& InGameInstance)
+		FGameInstanceItem(const TraceServices::FNetProfilerGameInstance& InGameInstance)
 			: GameInstance(InGameInstance)
 		{}
 
@@ -55,13 +55,13 @@ private:
 		FText GetText() const;
 		FText GetTooltipText() const;
 
-		const Trace::FNetProfilerGameInstance GameInstance;
+		const TraceServices::FNetProfilerGameInstance GameInstance;
 	};
 
 	struct FConnectionItem
 	{
 		/** Conversion constructor. */
-		FConnectionItem(const Trace::FNetProfilerConnection& InConnection)
+		FConnectionItem(const TraceServices::FNetProfilerConnection& InConnection)
 			: Connection(InConnection)
 		{}
 
@@ -69,20 +69,20 @@ private:
 		FText GetText() const;
 		FText GetTooltipText() const;
 
-		const Trace::FNetProfilerConnection Connection;
+		const TraceServices::FNetProfilerConnection Connection;
 	};
 
 	struct FConnectionModeItem
 	{
 		/** Conversion constructor. */
-		FConnectionModeItem(const Trace::ENetProfilerConnectionMode& InMode)
+		FConnectionModeItem(const TraceServices::ENetProfilerConnectionMode& InMode)
 			: Mode(InMode)
 		{}
 
 		FText GetText() const;
 		FText GetTooltipText() const;
 
-		Trace::ENetProfilerConnectionMode Mode;
+		TraceServices::ENetProfilerConnectionMode Mode;
 	};
 
 public:
@@ -122,11 +122,11 @@ public:
 	const bool IsNetStatsViewVisible() const { return NetStatsView.IsValid(); }
 	void ShowOrHideNetStatsView(const bool bVisibleState) { ShowOrHideTab(FNetworkingProfilerTabs::NetStatsViewID, bVisibleState); }
 
-	const Trace::FNetProfilerGameInstance* GetSelectedGameInstance() const { return SelectedGameInstance ? &SelectedGameInstance->GameInstance : nullptr; }
+	const TraceServices::FNetProfilerGameInstance* GetSelectedGameInstance() const { return SelectedGameInstance ? &SelectedGameInstance->GameInstance : nullptr; }
 	uint32 GetSelectedGameInstanceIndex() const { return SelectedGameInstance ? SelectedGameInstance->GetIndex() : 0; }
-	const Trace::FNetProfilerConnection* GetSelectedConnection() const { return SelectedConnection ? &SelectedConnection->Connection : nullptr; }
+	const TraceServices::FNetProfilerConnection* GetSelectedConnection() const { return SelectedConnection ? &SelectedConnection->Connection : nullptr; }
 	uint32 GetSelectedConnectionIndex() const { return SelectedConnection ? SelectedConnection->GetIndex() : 0; }
-	Trace::ENetProfilerConnectionMode GetSelectedConnectionMode() const { return SelectedConnectionMode ? SelectedConnectionMode->Mode : Trace::ENetProfilerConnectionMode::Outgoing; }
+	TraceServices::ENetProfilerConnectionMode GetSelectedConnectionMode() const { return SelectedConnectionMode ? SelectedConnectionMode->Mode : TraceServices::ENetProfilerConnectionMode::Outgoing; }
 
 	TSharedRef<SWidget> CreateGameInstanceComboBox();
 	TSharedRef<SWidget> CreateConnectionComboBox();

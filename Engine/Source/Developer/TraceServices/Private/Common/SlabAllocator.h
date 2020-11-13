@@ -6,8 +6,11 @@
 #include "Containers/Array.h"
 #include "TraceServices/Containers/Allocators.h"
 
+namespace TraceServices
+{
+
 class FSlabAllocator
-	: public Trace::ILinearAllocator
+	: public ILinearAllocator
 {
 public:
 	FSlabAllocator(uint64 InSlabSize)
@@ -47,3 +50,5 @@ private:
 	uint64 CurrentSlabAllocatedSize = 0;
 	uint64 TotalAllocatedSize = 0;
 };
+
+} // namespace TraceServices

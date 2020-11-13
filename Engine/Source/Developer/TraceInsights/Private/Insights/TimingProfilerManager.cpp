@@ -233,7 +233,7 @@ bool FTimingProfilerManager::Tick(float DeltaTime)
 	// Check if session has Timing events (to spawn the tab), but not too often.
 	if (!bIsAvailable && AvailabilityCheck.Tick())
 	{
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 		if (Session.IsValid())
 		{
 			bIsAvailable = true;
@@ -269,16 +269,16 @@ void FTimingProfilerManager::FinishTimerButterflyAggregation()
 		TSharedPtr<STimerTreeView> CallersTreeView = Wnd->GetCallersTreeView();
 		if (CallersTreeView)
 		{
-			Trace::ITimingProfilerButterfly* TimingProfilerButterfly = TimerButterflyAggregator->GetResultButterfly();
-			const Trace::FTimingProfilerButterflyNode& Callers = TimingProfilerButterfly->GenerateCallersTree(SelectedTimerId);
+			TraceServices::ITimingProfilerButterfly* TimingProfilerButterfly = TimerButterflyAggregator->GetResultButterfly();
+			const TraceServices::FTimingProfilerButterflyNode& Callers = TimingProfilerButterfly->GenerateCallersTree(SelectedTimerId);
 			CallersTreeView->SetTree(Callers);
 		}
 
 		TSharedPtr<STimerTreeView> CalleesTreeView = Wnd->GetCalleesTreeView();
 		if (CalleesTreeView)
 		{
-			Trace::ITimingProfilerButterfly* TimingProfilerButterfly = TimerButterflyAggregator->GetResultButterfly();
-			const Trace::FTimingProfilerButterflyNode& Callees = TimingProfilerButterfly->GenerateCalleesTree(SelectedTimerId);
+			TraceServices::ITimingProfilerButterfly* TimingProfilerButterfly = TimerButterflyAggregator->GetResultButterfly();
+			const TraceServices::FTimingProfilerButterflyNode& Callees = TimingProfilerButterfly->GenerateCalleesTree(SelectedTimerId);
 			CalleesTreeView->SetTree(Callees);
 		}
 	}

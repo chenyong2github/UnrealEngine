@@ -5,7 +5,7 @@
 #include "TraceServices/ModuleService.h"
 #include "UObject/NameTypes.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 class FTimingProfilerModule
@@ -22,4 +22,4 @@ public:
 	virtual void GenerateReports(const IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory) override {}
 };
 
-}
+} // namespace TraceServices

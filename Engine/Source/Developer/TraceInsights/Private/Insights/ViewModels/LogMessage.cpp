@@ -26,7 +26,7 @@ FLogMessageRecord::FLogMessageRecord()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FLogMessageRecord::FLogMessageRecord(const Trace::FLogMessage& TraceLogMessage)
+FLogMessageRecord::FLogMessageRecord(const TraceServices::FLogMessage& TraceLogMessage)
 	: Index(static_cast<int32>(TraceLogMessage.Index))
 	, Time(TraceLogMessage.Time)
 	, Verbosity(TraceLogMessage.Verbosity)
@@ -119,7 +119,7 @@ FLogMessageCache::FLogMessageCache()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FLogMessageCache::SetSession(TSharedPtr<const Trace::IAnalysisSession> InSession)
+void FLogMessageCache::SetSession(TSharedPtr<const TraceServices::IAnalysisSession> InSession)
 {
 	if (Session != InSession)
 	{
@@ -156,9 +156,9 @@ FLogMessageRecord& FLogMessageCache::Get(uint64 Index)
 
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::ILogProvider& LogProvider = Trace::ReadLogProvider(*Session.Get());
-		LogProvider.ReadMessage(Index, [this, Index](const Trace::FLogMessage& Message)
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::ILogProvider& LogProvider = TraceServices::ReadLogProvider(*Session.Get());
+		LogProvider.ReadMessage(Index, [this, Index](const TraceServices::FLogMessage& Message)
 		{
 			FScopeLock Lock(&CriticalSection);
 			FLogMessageRecord Entry(Message);
@@ -185,9 +185,9 @@ TSharedPtr<FLogMessageRecord> FLogMessageCache::GetUncached(uint64 Index) const
 
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::ILogProvider& LogProvider = Trace::ReadLogProvider(*Session.Get());
-		LogProvider.ReadMessage(Index, [&EntryPtr](const Trace::FLogMessage& Message)
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::ILogProvider& LogProvider = TraceServices::ReadLogProvider(*Session.Get());
+		LogProvider.ReadMessage(Index, [&EntryPtr](const TraceServices::FLogMessage& Message)
 		{
 			EntryPtr = MakeShared<FLogMessageRecord>(Message);
 		});

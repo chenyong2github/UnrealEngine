@@ -8,7 +8,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace Trace
+namespace TraceServices
 {
 	class IAnalysisSession;
 }
@@ -63,7 +63,7 @@ public:
 		IntervalEndTime = InEndTime;
 	}
 
-	void Tick(TSharedPtr<const Trace::IAnalysisSession> InSession, const double InCurrentTime, const float InDeltaTime, TFunctionRef<void()> OnFinishedCallback);
+	void Tick(TSharedPtr<const TraceServices::IAnalysisSession> InSession, const double InCurrentTime, const float InDeltaTime, TFunctionRef<void()> OnFinishedCallback);
 
 	//////////////////////////////////////////////////
 	// IStatsAggregator
@@ -81,7 +81,7 @@ public:
 	//////////////////////////////////////////////////
 
 protected:
-	virtual IStatsAggregationWorker* CreateWorker(TSharedPtr<const Trace::IAnalysisSession> InSession) = 0;
+	virtual IStatsAggregationWorker* CreateWorker(TSharedPtr<const TraceServices::IAnalysisSession> InSession) = 0;
 
 	// Returns true only when it is called from OnFinishedCallback.
 	bool IsFinished() const { return bIsFinished; }

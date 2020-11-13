@@ -38,7 +38,7 @@ public:
 	TSharedPtr<FMemAllocTable> GetMemAllocTable() { return StaticCastSharedPtr<FMemAllocTable>(GetTable()); }
 	const TSharedPtr<FMemAllocTable> GetMemAllocTable() const { return StaticCastSharedPtr<FMemAllocTable>(GetTable()); }
 
-	//void UpdateSourceTable(TSharedPtr<Trace::IMemAllocTable> SourceTable);
+	//void UpdateSourceTable(TSharedPtr<TraceServices::IMemAllocTable> SourceTable);
 
 	virtual void Reset();
 

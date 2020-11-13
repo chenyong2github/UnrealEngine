@@ -1148,7 +1148,7 @@ TSharedRef<SWidget> SMemTagTreeView::TreeViewHeaderRow_GenerateColumnMenu(const 
 
 void SMemTagTreeView::InsightsManager_OnSessionChanged()
 {
-	TSharedPtr<const Trace::IAnalysisSession> NewSession = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> NewSession = FInsightsManager::Get()->GetSession();
 
 	if (NewSession != Session)
 	{
@@ -2231,22 +2231,22 @@ void SMemTagTreeView::UpdateStatsInternal()
 	/*
 	if (Session.IsValid())
 	{
-		TUniquePtr<Trace::ITable<Trace::FMemoryProfilerAggregatedStats>> AggregationResultTable;
+		TUniquePtr<TraceServices::ITable<TraceServices::FMemoryProfilerAggregatedStats>> AggregationResultTable;
 
 		AggregationStopwatch.Start();
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const Trace::IMemoryProfilerProvider& MemoryProfilerProvider = Trace::ReadMemoryProfilerProvider(*Session.Get());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			const TraceServices::IMemoryProfilerProvider& MemoryProfilerProvider = TraceServices::ReadMemoryProfilerProvider(*Session.Get());
 			AggregationResultTable.Reset(MemoryProfilerProvider.CreateAggregation(StatsStartTime, StatsEndTime));
 		}
 		AggregationStopwatch.Stop();
 
 		if (AggregationResultTable.IsValid())
 		{
-			TUniquePtr<Trace::ITableReader<Trace::FMemoryProfilerAggregatedStats>> TableReader(AggregationResultTable->CreateReader());
+			TUniquePtr<TraceServices::ITableReader<TraceServices::FMemoryProfilerAggregatedStats>> TableReader(AggregationResultTable->CreateReader());
 			while (TableReader->IsValid())
 			{
-				const Trace::FMemoryProfilerAggregatedStats* Row = TableReader->GetCurrentRow();
+				const TraceServices::FMemoryProfilerAggregatedStats* Row = TableReader->GetCurrentRow();
 				FMemTagNodePtr* MemTagNodePtrPtr = MemTagNodesIdMap.Find(static_cast<uint64>(Row->EventTypeIndex));
 				if (MemTagNodePtrPtr != nullptr)
 				{

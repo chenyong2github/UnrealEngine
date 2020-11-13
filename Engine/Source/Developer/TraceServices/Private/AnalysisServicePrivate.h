@@ -9,11 +9,10 @@
 #include "Common/StringStore.h"
 #include "Trace/Analysis.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 class FModuleService;
-class IInDataStream;
 
 class FAnalysisSessionLock
 {
@@ -59,10 +58,10 @@ public:
 	virtual void ReadAccessCheck() const override { return Lock.ReadAccessCheck(); }
 	virtual void WriteAccessCheck() override { return Lock.WriteAccessCheck(); }
 
-	virtual void AddAnalyzer(IAnalyzer* Analyzer) override;
+	virtual void AddAnalyzer(Trace::IAnalyzer* Analyzer) override;
 	virtual void AddProvider(const FName& Name, IProvider* Provider) override;
 
-	const TArray<IAnalyzer*> ReadAnalyzers() { return Analyzers; }
+	const TArray<Trace::IAnalyzer*> ReadAnalyzers() { return Analyzers; }
 
 private:
 	virtual const IProvider* ReadProviderPrivate(const FName& Name) const override;
@@ -74,7 +73,7 @@ private:
 	double DurationSeconds = 0.0;
 	FSlabAllocator Allocator;
 	FStringStore StringStore;
-	TArray<IAnalyzer*> Analyzers;
+	TArray<Trace::IAnalyzer*> Analyzers;
 	TArray<IProvider*> Providers;
 	TMap<FName, IProvider*> ProvidersMap;
 	mutable TUniquePtr<Trace::IInDataStream> DataStream;
@@ -95,4 +94,4 @@ private:
 	FModuleService& ModuleService;
 };
 
-}
+} // namespace TraceServices

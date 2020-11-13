@@ -2,8 +2,8 @@
 
 #pragma once
 
-namespace FTraceAnalyzerUtils
-{
+namespace TraceServices {
+namespace FTraceAnalyzerUtils {
 
 template <typename AttachedCharType>
 inline FString LegacyAttachmentString(
@@ -21,3 +21,4 @@ inline FString LegacyAttachmentString(
 }
 
 } // namespace FTraceAnalyzerUtils
+} // namespace TraceServices

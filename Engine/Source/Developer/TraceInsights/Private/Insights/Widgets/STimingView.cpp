@@ -69,8 +69,8 @@
 // start auto generated ids from a big number (MSB set to 1) to avoid collisions with ids for gpu/cpu tracks based on 32bit timeline index
 uint64 FBaseTimingTrack::IdGenerator = (1ULL << 63);
 
-const TCHAR* GetFileActivityTypeName(Trace::EFileActivityType Type);
-uint32 GetFileActivityTypeColor(Trace::EFileActivityType Type);
+const TCHAR* GetFileActivityTypeName(TraceServices::EFileActivityType Type);
+uint32 GetFileActivityTypeColor(TraceServices::EFileActivityType Type);
 
 namespace Insights { const FName TimingViewExtenderFeatureName(TEXT("TimingViewExtender")); }
 
@@ -505,12 +505,12 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Check the analysis session time.
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session)
 	{
 		double SessionTime = 0.0;
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 			SessionTime = Session->GetDurationSeconds();
 		}
 
@@ -555,8 +555,8 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			{
 				if (Session.IsValid())
 				{
-					Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-					const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(*Session.Get());
+					TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+					const TraceServices::IFrameProvider& FramesProvider = TraceServices::ReadFrameProvider(*Session.Get());
 
 					const uint64 FrameCount = FramesProvider.GetFrameCount(AutoScrollFrameType);
 
@@ -566,7 +566,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 						uint64 FrameIndex = FrameCount;
 						while (FrameIndex > 0)
 						{
-							const Trace::FFrame* FramePtr = FramesProvider.GetFrame(AutoScrollFrameType, --FrameIndex);
+							const TraceServices::FFrame* FramePtr = FramesProvider.GetFrame(AutoScrollFrameType, --FrameIndex);
 							if (FramePtr && FramePtr->EndTime <= Viewport.GetMaxValidTime())
 							{
 								// Align the start time of the frame with the right side of the viewport.
@@ -576,7 +576,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 						}
 
 						// Get the frame at the center of the viewport.
-						Trace::FFrame Frame;
+						TraceServices::FFrame Frame;
 						const double ViewportCenter = MinStartTime + ViewportDuration / 2;
 						if (FramesProvider.GetFrameFromTime(AutoScrollFrameType, ViewportCenter, Frame))
 						{

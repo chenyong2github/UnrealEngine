@@ -8,7 +8,7 @@
 #include "Delegates/Delegate.h"
 #include "Containers/ContainersFwd.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 struct FFrame
@@ -33,4 +33,4 @@ public:
 
 TRACESERVICES_API const IFrameProvider& ReadFrameProvider(const IAnalysisSession& Session);
 
-}
+} // namespace TraceServices

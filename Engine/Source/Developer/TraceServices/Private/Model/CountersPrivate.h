@@ -17,7 +17,7 @@
 #include "Common/PagedArray.h"
 #endif
 
-namespace Trace
+namespace TraceServices
 {
 
 enum ECounterOpType : uint8
@@ -240,4 +240,4 @@ private:
 	TArray<const ICounter*> Counters;
 };
 
-}
+} // namespace TraceServices

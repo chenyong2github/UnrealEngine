@@ -8,16 +8,16 @@
 #include "Containers/UnrealString.h"
 #include "Common/PagedArray.h"
 
-namespace Trace
+namespace TraceServices
 {
-	class IAnalysisSession;
-}
+
+class IAnalysisSession;
 
 class FMemoryAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FMemoryAnalyzer(Trace::IAnalysisSession& Session);
+	FMemoryAnalyzer(IAnalysisSession& Session);
 	~FMemoryAnalyzer();
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
@@ -30,7 +30,9 @@ private:
 		RouteId_TagValue,
 	};
 
-	Trace::FMemoryProvider* Provider;
-	Trace::IAnalysisSession& Session;
+	FMemoryProvider* Provider;
+	IAnalysisSession& Session;
 	uint64 Sample = 0;
 };
+
+} // namespace TraceServices

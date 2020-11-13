@@ -5,7 +5,7 @@
 #include "AnalysisServicePrivate.h"
 #include "TraceServices/ModuleService.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 static const FName CsvProfilerModuleName("TraceModule_CsvProfiler");
@@ -30,7 +30,7 @@ void FCsvProfilerModule::OnAnalysisBegin(IAnalysisSession& Session)
 
 void FCsvProfilerModule::GenerateReports(const IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory)
 {
-	const ICsvProfilerProvider* CsvProfilerProvider = Trace::ReadCsvProfilerProvider(Session);
+	const ICsvProfilerProvider* CsvProfilerProvider = ReadCsvProfilerProvider(Session);
 	if (CsvProfilerProvider)
 	{
 		CsvProfilerProvider->EnumerateCaptures([CsvProfilerProvider, &OutputDirectory](const FCaptureInfo& CaptureInfo)
@@ -45,4 +45,4 @@ const ICsvProfilerProvider* ReadCsvProfilerProvider(const IAnalysisSession& Sess
 	return Session.ReadProvider<ICsvProfilerProvider>(CsvProfilerProviderName);
 }
 
-}
+} // namespace TraceServices

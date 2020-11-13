@@ -5,7 +5,7 @@
 #include "AnalysisServicePrivate.h"
 #include <limits>
 
-namespace Trace
+namespace TraceServices
 {
 
 FFileActivityProvider::FFileActivityProvider(IAnalysisSession& InSession)
@@ -112,4 +112,4 @@ const TCHAR* GetFileActivityTypeString(EFileActivityType ActivityType)
 	return TEXT("Invalid");
 }
 
-}
+} // namespace TraceServices

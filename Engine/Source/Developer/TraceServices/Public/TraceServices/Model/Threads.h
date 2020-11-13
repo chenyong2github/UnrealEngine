@@ -5,7 +5,7 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include "Templates/Function.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 struct FThreadInfo
@@ -27,4 +27,4 @@ public:
 
 TRACESERVICES_API const IThreadProvider& ReadThreadProvider(const IAnalysisSession& Session);
 
-}
+} // namespace TraceServices

@@ -5,6 +5,9 @@
 #include "TraceServices/Containers/Allocators.h"
 #include "Containers/Array.h"
 
+namespace TraceServices
+{
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // The TVariablePagedArrayPage allocates items in fixed size pages. Each page allocates space for
@@ -40,7 +43,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// For debuging the TVariablePagedArray implementation.
+// For debugging the TVariablePagedArray implementation.
 #define DEBUG_VARIABLE_PAGED_ARRAY 0
 
 #if DEBUG_VARIABLE_PAGED_ARRAY
@@ -341,7 +344,7 @@ public:
 	typedef TVariablePagedArrayPageGroup<InItemType> PageGroupType;
 	typedef TVariablePagedArrayIterator<InItemType> TIterator;
 
-	TVariablePagedArray(Trace::ILinearAllocator& InAllocator, uint64 InPageSize)
+	TVariablePagedArray(ILinearAllocator& InAllocator, uint64 InPageSize)
 		: Allocator(InAllocator)
 		, Pages()
 		, FirstPage(nullptr)
@@ -773,7 +776,7 @@ private:
 	template<typename ItemType>
 	friend class TVariablePagedArrayIterator;
 
-	Trace::ILinearAllocator& Allocator;
+	ILinearAllocator& Allocator;
 
 	TArray<PageType> Pages;
 	PageType* FirstPage;
@@ -789,3 +792,5 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+} // namespace TraceServices

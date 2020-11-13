@@ -6,7 +6,7 @@
 #include <limits>
 #include "Algo/BinarySearch.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 const FName FFrameProvider::ProviderName("FrameProvider");
@@ -102,4 +102,4 @@ const IFrameProvider& ReadFrameProvider(const IAnalysisSession& Session)
 	return *Session.ReadProvider<IFrameProvider>(FFrameProvider::ProviderName);
 }
 
-}
+} // namespace TraceServices

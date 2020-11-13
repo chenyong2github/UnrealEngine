@@ -7,7 +7,7 @@
 #include "TraceServices/Containers/Allocators.h"
 #include <limits>
 
-namespace Trace
+namespace TraceServices
 {
 
 struct FPointTimelineDefaultSettings
@@ -42,7 +42,7 @@ public:
 		{
 			Callback(true, InStartTime, InEvent);
 			Callback(false, InEndTime, InEvent);
-			return Trace::EEventEnumerate::Continue;
+			return EEventEnumerate::Continue;
 		});
 	}
 	
@@ -174,4 +174,4 @@ private:
 	bool bEnumerateOutsideRange = false;
 };
 
-}
+} // namespace TraceServices

@@ -18,7 +18,7 @@
 // FNetworkPacketAggregatedSample
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FNetworkPacketAggregatedSample::AddPacket(const int32 PacketIndex, const Trace::FNetProfilerPacket& Packet)
+void FNetworkPacketAggregatedSample::AddPacket(const int32 PacketIndex, const TraceServices::FNetProfilerPacket& Packet)
 {
 	NumPackets++;
 
@@ -44,17 +44,17 @@ void FNetworkPacketAggregatedSample::AddPacket(const int32 PacketIndex, const Tr
 
 	switch (AggregatedStatus)
 	{
-	case Trace::ENetProfilerDeliveryStatus::Unknown:
+	case TraceServices::ENetProfilerDeliveryStatus::Unknown:
 		AggregatedStatus = Packet.DeliveryStatus;
 		break;
 
-	case Trace::ENetProfilerDeliveryStatus::Dropped:
+	case TraceServices::ENetProfilerDeliveryStatus::Dropped:
 		break;
 
-	case Trace::ENetProfilerDeliveryStatus::Delivered:
-		if (Packet.DeliveryStatus == Trace::ENetProfilerDeliveryStatus::Dropped)
+	case TraceServices::ENetProfilerDeliveryStatus::Delivered:
+		if (Packet.DeliveryStatus == TraceServices::ENetProfilerDeliveryStatus::Dropped)
 		{
-			AggregatedStatus = Trace::ENetProfilerDeliveryStatus::Dropped;
+			AggregatedStatus = TraceServices::ENetProfilerDeliveryStatus::Dropped;
 		}
 		break;
 	}
@@ -81,7 +81,7 @@ FNetworkPacketSeriesBuilder::FNetworkPacketSeriesBuilder(FNetworkPacketSeries& I
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FNetworkPacketAggregatedSample* FNetworkPacketSeriesBuilder::AddPacket(const int32 PacketIndex, const Trace::FNetProfilerPacket& Packet)
+FNetworkPacketAggregatedSample* FNetworkPacketSeriesBuilder::AddPacket(const int32 PacketIndex, const TraceServices::FNetProfilerPacket& Packet)
 {
 	NumAddedPackets++;
 
@@ -133,18 +133,18 @@ void FPacketViewDrawHelper::DrawBackground() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FLinearColor FPacketViewDrawHelper::GetColorByStatus(Trace::ENetProfilerDeliveryStatus Status)
+FLinearColor FPacketViewDrawHelper::GetColorByStatus(TraceServices::ENetProfilerDeliveryStatus Status)
 {
 	constexpr float Alpha = 1.0f;
 	switch (Status)
 	{
-	case Trace::ENetProfilerDeliveryStatus::Unknown:
+	case TraceServices::ENetProfilerDeliveryStatus::Unknown:
 		return FLinearColor(0.25f, 0.25f, 0.25f, Alpha);
 
-	case Trace::ENetProfilerDeliveryStatus::Delivered:
+	case TraceServices::ENetProfilerDeliveryStatus::Delivered:
 		return FLinearColor(0.5f, 1.0f, 0.5f, Alpha);
 
-	case Trace::ENetProfilerDeliveryStatus::Dropped:
+	case TraceServices::ENetProfilerDeliveryStatus::Dropped:
 		return FLinearColor(1.0f, 0.5f, 0.5f, Alpha);
 
 	default:

@@ -27,7 +27,7 @@ struct FNetworkPacket
 	uint32 ContentSizeInBits;
 	uint32 TotalSizeInBytes;
 	double TimeStamp;
-	Trace::ENetProfilerDeliveryStatus Status;
+	TraceServices::ENetProfilerDeliveryStatus Status;
 
 	FNetworkPacket()
 		: Index(-1)
@@ -35,7 +35,7 @@ struct FNetworkPacket
 		, ContentSizeInBits(0)
 		, TotalSizeInBytes(0)
 		, TimeStamp(std::numeric_limits<double>::infinity())
-		, Status(Trace::ENetProfilerDeliveryStatus::Unknown)
+		, Status(TraceServices::ENetProfilerDeliveryStatus::Unknown)
 	{}
 
 	FNetworkPacket(const FNetworkPacket&) = default;
@@ -75,7 +75,7 @@ struct FNetworkPacketAggregatedSample
 	 *    Received --> at least one packet in the sample set is confirmed received and none are confirmed lost
 	 *    Lost     --> at least one packet in the sample set is confirmed lost
 	**/
-	Trace::ENetProfilerDeliveryStatus AggregatedStatus;
+	TraceServices::ENetProfilerDeliveryStatus AggregatedStatus;
 
 	FNetworkPacket LargestPacket;
 
@@ -85,7 +85,7 @@ struct FNetworkPacketAggregatedSample
 		: NumPackets(0)
 		, StartTime(DBL_MAX)
 		, EndTime(-DBL_MAX)
-		, AggregatedStatus(Trace::ENetProfilerDeliveryStatus::Unknown)
+		, AggregatedStatus(TraceServices::ENetProfilerDeliveryStatus::Unknown)
 		, LargestPacket()
 		, bAtLeastOnePacketMatchesFilter(true)
 	{}
@@ -96,7 +96,7 @@ struct FNetworkPacketAggregatedSample
 	FNetworkPacketAggregatedSample(FNetworkPacketAggregatedSample&&) = default;
 	FNetworkPacketAggregatedSample& operator=(FNetworkPacketAggregatedSample&&) = default;
 
-	void AddPacket(const int32 PacketIndex, const Trace::FNetProfilerPacket& Packet);
+	void AddPacket(const int32 PacketIndex, const TraceServices::FNetProfilerPacket& Packet);
 
 	bool Equals(const FNetworkPacketAggregatedSample& Other) const
 	{
@@ -147,7 +147,7 @@ public:
 	FNetworkPacketSeriesBuilder(const FNetworkPacketSeriesBuilder&) = delete;
 	FNetworkPacketSeriesBuilder& operator=(const FNetworkPacketSeriesBuilder&) = delete;
 
-	FNetworkPacketAggregatedSample* AddPacket(int32 PacketIndex, const Trace::FNetProfilerPacket& Packet);
+	FNetworkPacketAggregatedSample* AddPacket(int32 PacketIndex, const TraceServices::FNetProfilerPacket& Packet);
 
 	int32 GetNumAddedPackets() const { return NumAddedPackets; }
 
@@ -190,7 +190,7 @@ public:
 	void DrawSampleHighlight(const FNetworkPacketAggregatedSample& Sample, EHighlightMode Mode) const;
 	void DrawSelection(int32 StartPacketIndex, int32 EndPacketIndex) const;
 
-	static FLinearColor GetColorByStatus(Trace::ENetProfilerDeliveryStatus Status);
+	static FLinearColor GetColorByStatus(TraceServices::ENetProfilerDeliveryStatus Status);
 
 	int32 GetNumPackets() const { return NumPackets; }
 	int32 GetNumDrawSamples() const { return NumDrawSamples; }

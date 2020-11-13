@@ -4,7 +4,7 @@
 
 #include "CoreTypes.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 struct FFormatArgsHelper
@@ -40,4 +40,4 @@ private:
 	static int32 FormatArgument(TCHAR* Out, uint64 MaxOut, TCHAR* Temp, uint64 MaxTemp, const FFormatArgSpec& ArgSpec, FFormatArgsStreamContext& ArgStream);
 };
 
-}
+} // namespace TraceServices

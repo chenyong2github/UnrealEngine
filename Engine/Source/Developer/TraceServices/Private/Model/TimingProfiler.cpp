@@ -7,7 +7,7 @@
 #include "Common/TimelineStatistics.h"
 #include "Templates/TypeHash.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 struct FTimingProfilerCallstackKey
@@ -501,4 +501,4 @@ ITimingProfilerButterfly* FTimingProfilerProvider::CreateButterfly(double Interv
 	return Butterfly;
 }
 
-}
+} // namespace TraceServices

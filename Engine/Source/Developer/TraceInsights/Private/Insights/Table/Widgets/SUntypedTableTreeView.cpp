@@ -43,7 +43,7 @@ void SUntypedTableTreeView::Reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SUntypedTableTreeView::UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> SourceTable)
+void SUntypedTableTreeView::UpdateSourceTable(TSharedPtr<TraceServices::IUntypedTable> SourceTable)
 {
 	//check(Table->Is<Insights::FUntypedTable>());
 	TSharedPtr<Insights::FUntypedTable> UntypedTable = StaticCastSharedPtr<Insights::FUntypedTable>(Table);
@@ -74,8 +74,8 @@ void SUntypedTableTreeView::RebuildTree(bool bResync)
 	//check(Table->Is<Insights::FUntypedTable>());
 	TSharedPtr<Insights::FUntypedTable> UntypedTable = StaticCastSharedPtr<Insights::FUntypedTable>(Table);
 
-	TSharedPtr<Trace::IUntypedTable> SourceTable = UntypedTable->GetSourceTable();
-	TSharedPtr<Trace::IUntypedTableReader> TableReader = UntypedTable->GetTableReader();
+	TSharedPtr<TraceServices::IUntypedTable> SourceTable = UntypedTable->GetSourceTable();
+	TSharedPtr<TraceServices::IUntypedTableReader> TableReader = UntypedTable->GetTableReader();
 
 	SyncStopwatch.Start();
 	if (Session.IsValid() && SourceTable.IsValid() && TableReader.IsValid())

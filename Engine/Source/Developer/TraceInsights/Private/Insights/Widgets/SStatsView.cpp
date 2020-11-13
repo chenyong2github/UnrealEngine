@@ -654,7 +654,7 @@ TSharedRef<SWidget> SStatsView::TreeViewHeaderRow_GenerateColumnMenu(const Insig
 
 void SStatsView::InsightsManager_OnSessionChanged()
 {
-	TSharedPtr<const Trace::IAnalysisSession> NewSession = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> NewSession = FInsightsManager::Get()->GetSession();
 
 	if (NewSession != Session)
 	{
@@ -1793,9 +1793,9 @@ void SStatsView::RebuildTree(bool bResync)
 	SyncStopwatch.Start();
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::ICounterProvider& CountersProvider = Trace::ReadCounterProvider(*Session.Get());
+		const TraceServices::ICounterProvider& CountersProvider = TraceServices::ReadCounterProvider(*Session.Get());
 
 		const uint32 CounterCount = CountersProvider.GetCounterCount();
 		if (CounterCount != PreviousNodeCount)
@@ -1810,13 +1810,13 @@ void SStatsView::RebuildTree(bool bResync)
 			const FName MiscInt64Group(TEXT("Misc_int64"));
 
 			// Add nodes only for new counters.
-			CountersProvider.EnumerateCounters([this, MemoryGroup, MiscFloatGroup, MiscInt64Group](uint32 CounterId, const Trace::ICounter& Counter)
+			CountersProvider.EnumerateCounters([this, MemoryGroup, MiscFloatGroup, MiscInt64Group](uint32 CounterId, const TraceServices::ICounter& Counter)
 			{
 				FStatsNodePtr NodePtr = StatsNodesIdMap.FindRef(CounterId);
 				if (!NodePtr)
 				{
 					FName Name(Counter.GetName());
-					const FName Group = ((Counter.GetDisplayHint() == Trace::CounterDisplayHint_Memory) ? MemoryGroup :
+					const FName Group = ((Counter.GetDisplayHint() == TraceServices::CounterDisplayHint_Memory) ? MemoryGroup :
 										  Counter.IsFloatingPoint() ? MiscFloatGroup : MiscInt64Group);
 					const EStatsNodeType Type = EStatsNodeType::Counter;
 					const EStatsNodeDataType DataType = Counter.IsFloatingPoint() ? EStatsNodeDataType::Double : EStatsNodeDataType::Int64;

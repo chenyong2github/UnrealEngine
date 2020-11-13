@@ -6,7 +6,7 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Model/Counters.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 static const FName CountersModuleName("TraceModule_Counters");
@@ -28,4 +28,4 @@ void FCountersModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
 	OutLoggers.Add(TEXT("Counters"));
 }
 
-}
+} // namespace TraceServices

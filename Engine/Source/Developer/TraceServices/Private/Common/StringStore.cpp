@@ -2,7 +2,7 @@
 
 #include "Common/StringStore.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 FStringStore::FStringStore(FSlabAllocator& InAllocator)
@@ -45,4 +45,4 @@ const TCHAR* FStringStore::Store(const FStringView& String)
 }
 
 
-}
+} // namespace TraceServices

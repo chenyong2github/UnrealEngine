@@ -9,7 +9,7 @@
 #include "Containers/ArrayView.h"
 #include "Model/IntervalTimeline.h"
 
-namespace Trace { class IAnalysisSession; }
+namespace TraceServices { class IAnalysisSession; }
 class FGameplayProvider;
 struct FObjectInfo;
 class USkeletalMesh;
@@ -19,7 +19,7 @@ class FAnimationProvider : public IAnimationProvider
 public:
 	static FName ProviderName;
 
-	FAnimationProvider(Trace::IAnalysisSession& InSession, FGameplayProvider& InGameplayProvider);
+	FAnimationProvider(TraceServices::IAnalysisSession& InSession, FGameplayProvider& InGameplayProvider);
 
 	/** IAnimationProvider interface */
 	virtual bool ReadSkeletalMeshPoseTimeline(uint64 InObjectId, TFunctionRef<void(const SkeletalMeshPoseTimeline&, bool)> Callback) const override;
@@ -104,7 +104,7 @@ private:
 	void HandleObjectEndPlay(uint64 InObjectId, double InTime, const FObjectInfo& InObjectInfo);
 
 private:
-	Trace::IAnalysisSession& Session;
+	TraceServices::IAnalysisSession& Session;
 	FGameplayProvider& GameplayProvider;
 
 	/** Maps into timeline arrays per-object */
@@ -133,43 +133,43 @@ private:
 	struct FTickRecordTimelineStorage
 	{
 		TSet<TTuple<uint64, int32>> AssetIdAndPlayers;
-		TSharedPtr<Trace::TPointTimeline<FTickRecordMessage>> Timeline;
+		TSharedPtr<TraceServices::TPointTimeline<FTickRecordMessage>> Timeline;
 	};
 
 	struct FSkeletalMeshTimelineStorage
 	{
-		TSharedPtr<Trace::TIntervalTimeline<FSkeletalMeshPoseMessage>> Timeline;
+		TSharedPtr<TraceServices::TIntervalTimeline<FSkeletalMeshPoseMessage>> Timeline;
 		TSet<uint32> AllCurveIds;
 	};
 
 	struct FAnimNotifyStateTimelineStorage
 	{
 		TMap<uint64, uint32> NotifyIdToAnimNotifyStateTimeline;
-		TArray<TSharedRef<Trace::TIntervalTimeline<FAnimNotifyMessage>>> Timelines;
+		TArray<TSharedRef<TraceServices::TIntervalTimeline<FAnimNotifyMessage>>> Timelines;
 	};
 
 	struct FMontageTimelineStorage
 	{
-		TSharedPtr<Trace::TPointTimeline<FAnimMontageMessage>> Timeline;
+		TSharedPtr<TraceServices::TPointTimeline<FAnimMontageMessage>> Timeline;
 		TSet<uint64> AllMontageIds;
 	};
 
 	/** Message storage */
 	TArray<TSharedRef<FTickRecordTimelineStorage>> TickRecordTimelineStorage;
 	TArray<TSharedRef<FSkeletalMeshTimelineStorage>> SkeletalMeshPoseTimelineStorage;
-	TArray<TSharedRef<Trace::TIntervalTimeline<FSkeletalMeshFrameMessage>>> SkeletalMeshFrameTimelines;
-	TArray<TSharedRef<Trace::TIntervalTimeline<FAnimGraphMessage>>> AnimGraphTimelines;
-	TArray<TSharedRef<Trace::TPointTimeline<FAnimNodeMessage>>> AnimNodeTimelines;
-	TArray<TSharedRef<Trace::TPointTimeline<FAnimNodeValueMessage>>> AnimNodeValueTimelines;
-	TArray<TSharedRef<Trace::TPointTimeline<FAnimSequencePlayerMessage>>> AnimSequencePlayerTimelines;
-	TArray<TSharedRef<Trace::TPointTimeline<FBlendSpacePlayerMessage>>> BlendSpacePlayerTimelines;
-	TArray<TSharedRef<Trace::TPointTimeline<FAnimStateMachineMessage>>> StateMachineTimelines;
+	TArray<TSharedRef<TraceServices::TIntervalTimeline<FSkeletalMeshFrameMessage>>> SkeletalMeshFrameTimelines;
+	TArray<TSharedRef<TraceServices::TIntervalTimeline<FAnimGraphMessage>>> AnimGraphTimelines;
+	TArray<TSharedRef<TraceServices::TPointTimeline<FAnimNodeMessage>>> AnimNodeTimelines;
+	TArray<TSharedRef<TraceServices::TPointTimeline<FAnimNodeValueMessage>>> AnimNodeValueTimelines;
+	TArray<TSharedRef<TraceServices::TPointTimeline<FAnimSequencePlayerMessage>>> AnimSequencePlayerTimelines;
+	TArray<TSharedRef<TraceServices::TPointTimeline<FBlendSpacePlayerMessage>>> BlendSpacePlayerTimelines;
+	TArray<TSharedRef<TraceServices::TPointTimeline<FAnimStateMachineMessage>>> StateMachineTimelines;
 	TArray<TSharedRef<FAnimNotifyStateTimelineStorage>> AnimNotifyStateTimelineStorage;
-	TArray<TSharedRef<Trace::TPointTimeline<FAnimNotifyMessage>>> AnimNotifyTimelines;
+	TArray<TSharedRef<TraceServices::TPointTimeline<FAnimNotifyMessage>>> AnimNotifyTimelines;
 	TArray<TSharedRef<FMontageTimelineStorage>> AnimMontageTimelineStorage;
-	TPagedArray<FTransform> SkeletalMeshPoseTransforms;
-	TPagedArray<FSkeletalMeshNamedCurve> SkeletalMeshCurves;
-	TPagedArray<int32> SkeletalMeshParentIndices;
+	TraceServices::TPagedArray<FTransform> SkeletalMeshPoseTransforms;
+	TraceServices::TPagedArray<FSkeletalMeshNamedCurve> SkeletalMeshCurves;
+	TraceServices::TPagedArray<int32> SkeletalMeshParentIndices;
 
 	// Flag to indicate if any data is present
 	bool bHasAnyData;

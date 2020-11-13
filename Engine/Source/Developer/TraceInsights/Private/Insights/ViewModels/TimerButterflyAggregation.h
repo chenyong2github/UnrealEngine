@@ -20,11 +20,11 @@ public:
 	FTimerButterflyAggregator() : FStatsAggregator(TEXT("Butterfly")) {}
 	virtual ~FTimerButterflyAggregator() {}
 
-	Trace::ITimingProfilerButterfly* GetResultButterfly() const;
+	TraceServices::ITimingProfilerButterfly* GetResultButterfly() const;
 	void ResetResults();
 
 protected:
-	virtual IStatsAggregationWorker* CreateWorker(TSharedPtr<const Trace::IAnalysisSession> InSession) override;
+	virtual IStatsAggregationWorker* CreateWorker(TSharedPtr<const TraceServices::IAnalysisSession> InSession) override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

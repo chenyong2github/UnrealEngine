@@ -7,12 +7,12 @@
 #include "AnalysisServicePrivate.h"
 #include "Model/LoadTimeProfilerPrivate.h"
 
-namespace Trace
+namespace TraceServices
 {
-	struct FClassInfo;
-}
 
-inline bool operator!=(const Trace::FLoadTimeProfilerCpuEvent& Lhs, const Trace::FLoadTimeProfilerCpuEvent& Rhs)
+struct FClassInfo;
+
+inline bool operator!=(const FLoadTimeProfilerCpuEvent& Lhs, const FLoadTimeProfilerCpuEvent& Rhs)
 {
 	return Lhs.Package != Rhs.Package ||
 		Lhs.Export != Rhs.Export ||
@@ -22,7 +22,7 @@ inline bool operator!=(const Trace::FLoadTimeProfilerCpuEvent& Lhs, const Trace:
 class FAsyncLoadingTraceAnalyzer : public Trace::IAnalyzer
 {
 public:
-	FAsyncLoadingTraceAnalyzer(Trace::IAnalysisSession& Session, Trace::FLoadTimeProfilerProvider& LoadTimeProfilerProvider);
+	FAsyncLoadingTraceAnalyzer(IAnalysisSession& Session, FLoadTimeProfilerProvider& LoadTimeProfilerProvider);
 	virtual ~FAsyncLoadingTraceAnalyzer();
 
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
@@ -36,7 +36,7 @@ private:
 	{
 		FString Name;
 		TArray<FRequestState*> Requests;
-		Trace::FLoadRequest* LoadRequest = nullptr;
+		FLoadRequest* LoadRequest = nullptr;
 		uint64 LatestEndCycle = 0;
 		uint64 ActiveRequestsCount = 0;
 		bool bIsClosed = false;
@@ -53,7 +53,7 @@ private:
 
 	struct FAsyncPackageState
 	{
-		Trace::FPackageInfo* PackageInfo = nullptr;
+		FPackageInfo* PackageInfo = nullptr;
 		FRequestState* Request = nullptr;
 		uint64 LoadHandle = uint64(-1);
 		uint64 LoadStartCycle = 0;
@@ -62,7 +62,7 @@ private:
 
 	struct FScopeStackEntry
 	{
-		Trace::FLoadTimeProfilerCpuEvent Event;
+		FLoadTimeProfilerCpuEvent Event;
 		bool EnteredEvent;
 	};
 
@@ -70,20 +70,20 @@ private:
 	{
 		FScopeStackEntry CpuScopeStack[256];
 		uint64 CpuScopeStackDepth = 0;
-		Trace::FLoadTimeProfilerCpuEvent CurrentEvent;
+		FLoadTimeProfilerCpuEvent CurrentEvent;
 		TArray<TSharedPtr<FRequestGroupState>> RequestGroupStack;
 		
-		Trace::FLoadTimeProfilerProvider::CpuTimelineInternal* CpuTimeline;
+		FLoadTimeProfilerProvider::CpuTimelineInternal* CpuTimeline;
 
-		void EnterExportScope(double Time, const Trace::FPackageExportInfo* ExportInfo, Trace::ELoadTimeProfilerObjectEventType EventType);
+		void EnterExportScope(double Time, const FPackageExportInfo* ExportInfo, ELoadTimeProfilerObjectEventType EventType);
 		void LeaveExportScope(double Time);
-		Trace::ELoadTimeProfilerObjectEventType GetCurrentExportScopeEventType();
-		Trace::FPackageExportInfo* GetCurrentExportScope();
+		ELoadTimeProfilerObjectEventType GetCurrentExportScopeEventType();
+		FPackageExportInfo* GetCurrentExportScope();
 	};
 
 	void PackageRequestAssociation(const FOnEventContext& Context, FAsyncPackageState* AsyncPackageState, FRequestState* RequestState);
 	FThreadState& GetThreadState(uint32 ThreadId);
-	const Trace::FClassInfo* GetClassInfo(uint64 ClassPtr) const;
+	const FClassInfo* GetClassInfo(uint64 ClassPtr) const;
 
 	enum : uint16
 	{
@@ -124,8 +124,8 @@ private:
 	TCHAR FormatBuffer[FormatBufferSize];
 	TCHAR TempBuffer[FormatBufferSize];
 
-	Trace::IAnalysisSession& Session;
-	Trace::FLoadTimeProfilerProvider& LoadTimeProfilerProvider;
+	IAnalysisSession& Session;
+	FLoadTimeProfilerProvider& LoadTimeProfilerProvider;
 
 	template<typename ValueType>
 	struct FPointerMapKeyFuncs
@@ -156,12 +156,14 @@ private:
 	using TPointerMap = TMap<uint64, ValueType, FDefaultSetAllocator, FPointerMapKeyFuncs<ValueType>>;
 
 	TPointerMap<FAsyncPackageState*> ActiveAsyncPackagesMap;
-	TPointerMap<Trace::FPackageExportInfo*> ExportsMap;
+	TPointerMap<FPackageExportInfo*> ExportsMap;
 	TMap<uint64, FRequestState*> ActiveRequestsMap;
 	TPointerMap<uint64> ActiveBatchesMap;
 	TMap<uint32, FThreadState*> ThreadStatesMap;
-	TPointerMap<const Trace::FClassInfo*> ClassInfosMap;
+	TPointerMap<const FClassInfo*> ClassInfosMap;
 
 	// Backwards compatibility
 	TPointerMap<FAsyncPackageState*> LinkerToAsyncPackageMap;
 };
+
+} // namespace TraceServices

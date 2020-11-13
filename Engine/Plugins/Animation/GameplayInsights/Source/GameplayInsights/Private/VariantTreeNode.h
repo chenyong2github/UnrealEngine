@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "IAnimationProvider.h"
 
-namespace Trace { class IAnalysisSession; }
+namespace TraceServices { class IAnalysisSession; }
 
 enum class EVariantTreeNodeFilterState
 {
@@ -46,7 +46,7 @@ struct FVariantTreeNode : TSharedFromThis<FVariantTreeNode>
 
 	EVariantTreeNodeFilterState GetFilterState() const { return FilterState; }
 
-	FString GetValueAsString(const Trace::IAnalysisSession& InAnalysisSession) const;
+	FString GetValueAsString(const TraceServices::IAnalysisSession& InAnalysisSession) const;
 
 	static TSharedRef<FVariantTreeNode> MakeHeader(const FText& InName, uint64 InId)
 	{

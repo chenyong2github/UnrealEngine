@@ -24,7 +24,7 @@ public:
 	void ResetResults();
 
 protected:
-	virtual IStatsAggregationWorker* CreateWorker(TSharedPtr<const Trace::IAnalysisSession> InSession) override;
+	virtual IStatsAggregationWorker* CreateWorker(TSharedPtr<const TraceServices::IAnalysisSession> InSession) override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

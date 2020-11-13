@@ -221,10 +221,10 @@ bool FLoadingProfilerManager::Tick(float DeltaTime)
 	{
 		bool bIsProviderAvailable = false;
 
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 		if (Session.IsValid())
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
 			if (Session->IsAnalysisComplete())
 			{
@@ -232,7 +232,7 @@ bool FLoadingProfilerManager::Tick(float DeltaTime)
 				AvailabilityCheck.Disable();
 			}
 
-			const Trace::ILoadTimeProfilerProvider* LoadTimeProfilerProvider = Trace::ReadLoadTimeProfilerProvider(*Session.Get());
+			const TraceServices::ILoadTimeProfilerProvider* LoadTimeProfilerProvider = TraceServices::ReadLoadTimeProfilerProvider(*Session.Get());
 			if (LoadTimeProfilerProvider)
 			{
 				bIsProviderAvailable = (LoadTimeProfilerProvider->GetTimelineCount() > 0);

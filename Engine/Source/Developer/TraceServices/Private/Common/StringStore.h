@@ -8,7 +8,7 @@
 #include "Containers/Map.h"
 #include "Containers/StringView.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 class FStringStore
@@ -31,4 +31,4 @@ private:
 
 };
 
-}
+} // namespace TraceServices

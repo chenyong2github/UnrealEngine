@@ -16,7 +16,7 @@ struct FTraceObjectInfo
 	uint32 OwnerHash;
 };
 
-/** Filtering service, representing the state and data for a specific Trace::IAnalysisSession */
+/** Filtering service, representing the state and data for a specific TraceServices::IAnalysisSession */
 class ISessionTraceFilterService : public TSharedFromThis<ISessionTraceFilterService>
 {
 public:

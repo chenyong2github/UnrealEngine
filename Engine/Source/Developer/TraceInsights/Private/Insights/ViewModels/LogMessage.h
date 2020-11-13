@@ -6,7 +6,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace Trace
+namespace TraceServices
 {
 	struct FLogMessage;
 	class IAnalysisSession;
@@ -18,7 +18,7 @@ class FLogMessageRecord
 {
 public:
 	FLogMessageRecord();
-	FLogMessageRecord(const Trace::FLogMessage& Message);
+	FLogMessageRecord(const TraceServices::FLogMessage& Message);
 
 	FText GetIndexAsText() const;
 	FText GetTimeAsText() const;
@@ -47,7 +47,7 @@ class FLogMessageCache
 public:
 	FLogMessageCache();
 
-	void SetSession(TSharedPtr<const Trace::IAnalysisSession> InSession);
+	void SetSession(TSharedPtr<const TraceServices::IAnalysisSession> InSession);
 	void Reset();
 
 	FLogMessageRecord& Get(uint64 Index);
@@ -55,7 +55,7 @@ public:
 
 private:
 	FCriticalSection CriticalSection;
-	TSharedPtr<const Trace::IAnalysisSession> Session;
+	TSharedPtr<const TraceServices::IAnalysisSession> Session;
 	TMap<uint64, FLogMessageRecord> Map;
 	FLogMessageRecord InvalidEntry;
 };

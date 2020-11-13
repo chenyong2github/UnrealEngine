@@ -5,7 +5,7 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Model/Memory.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 /////////////////////////////////////////////////////////////////////
@@ -87,4 +87,4 @@ inline TCHAR* FCallstack::SymbolName(uint8 Depth)
 	return Depth < FrameCount ? FirstEntry[Depth].Symbol->Name : 0;
 }
 
-} // namespace Trace
+} // namespace TraceServices

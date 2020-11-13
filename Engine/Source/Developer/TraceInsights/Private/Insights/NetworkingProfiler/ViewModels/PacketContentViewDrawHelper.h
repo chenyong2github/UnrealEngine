@@ -167,7 +167,7 @@ public:
 	FPacketContentViewDrawStateBuilder(const FPacketContentViewDrawStateBuilder&) = delete;
 	FPacketContentViewDrawStateBuilder& operator=(const FPacketContentViewDrawStateBuilder&) = delete;
 
-	void AddEvent(const Trace::FNetProfilerContentEvent& Event, const TCHAR* Name, uint32 NetId);
+	void AddEvent(const TraceServices::FNetProfilerContentEvent& Event, const TCHAR* Name, uint32 NetId);
 	void Flush();
 
 	int32 GetMaxDepth() const { return MaxDepth; }

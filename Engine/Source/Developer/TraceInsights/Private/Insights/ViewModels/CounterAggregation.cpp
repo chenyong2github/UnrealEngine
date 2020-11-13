@@ -49,14 +49,14 @@ public:
 		IntervalEndTime = InIntervalEndTime;
 	}
 
-	void Update(uint32 CounterId, const Trace::ICounter& Counter)
+	void Update(uint32 CounterId, const TraceServices::ICounter& Counter)
 	{
 		EnumerateValues(CounterId, Counter, UpdateMinMax);
 	}
 
 	void PrecomputeHistograms();
 
-	void UpdateHistograms(uint32 CounterId, const Trace::ICounter& Counter)
+	void UpdateHistograms(uint32 CounterId, const TraceServices::ICounter& Counter)
 	{
 		EnumerateValues(CounterId, Counter, UpdateHistogram);
 	}
@@ -67,7 +67,7 @@ public:
 
 private:
 	template<typename CallbackType>
-	void EnumerateValues(uint32 CounterId, const Trace::ICounter& Counter, CallbackType Callback);
+	void EnumerateValues(uint32 CounterId, const TraceServices::ICounter& Counter, CallbackType Callback);
 
 	static void UpdateMinMax(TAggregatedStatsEx<Type>& Stats, Type Value);
 	static void UpdateHistogram(TAggregatedStatsEx<Type>& StatsEx, Type Value);
@@ -93,7 +93,7 @@ void TCounterAggregationHelper<Type>::Reset()
 
 template<>
 template<typename CallbackType>
-void TCounterAggregationHelper<double>::EnumerateValues(uint32 CounterId, const Trace::ICounter& Counter, CallbackType Callback)
+void TCounterAggregationHelper<double>::EnumerateValues(uint32 CounterId, const TraceServices::ICounter& Counter, CallbackType Callback)
 {
 	TAggregatedStatsEx<double>* StatsExPtr = StatsMap.Find(CounterId);
 	if (!StatsExPtr)
@@ -116,7 +116,7 @@ void TCounterAggregationHelper<double>::EnumerateValues(uint32 CounterId, const 
 
 template<>
 template<typename CallbackType>
-void TCounterAggregationHelper<int64>::EnumerateValues(uint32 CounterId, const Trace::ICounter& Counter, CallbackType Callback)
+void TCounterAggregationHelper<int64>::EnumerateValues(uint32 CounterId, const TraceServices::ICounter& Counter, CallbackType Callback)
 {
 	TAggregatedStatsEx<int64>* StatsExPtr = StatsMap.Find(CounterId);
 	if (!StatsExPtr)
@@ -344,7 +344,7 @@ void TCounterAggregationHelper<int64>::ApplyResultsTo(const TMap<uint32, FStatsN
 class FCounterAggregationWorker : public IStatsAggregationWorker
 {
 public:
-	FCounterAggregationWorker(TSharedPtr<const Trace::IAnalysisSession> InSession, double InStartTime, double InEndTime)
+	FCounterAggregationWorker(TSharedPtr<const TraceServices::IAnalysisSession> InSession, double InStartTime, double InEndTime)
 		: Session(InSession)
 		, StartTime(InStartTime)
 		, EndTime(InEndTime)
@@ -359,7 +359,7 @@ public:
 	void ResetResults();
 
 private:
-	TSharedPtr<const Trace::IAnalysisSession> Session;
+	TSharedPtr<const TraceServices::IAnalysisSession> Session;
 	double StartTime;
 	double EndTime;
 	const bool bComputeMedian = true;
@@ -377,15 +377,15 @@ void FCounterAggregationWorker::DoWork()
 	if (Session.IsValid())
 	{
 		// Suspend analysis in order to avoid write locks (ones blocked by the read lock below) to further block other read locks.
-		//Trace::FAnalysisSessionSuspensionScope SessionPauseScope(*Session.Get());
+		//TraceServices::FAnalysisSessionSuspensionScope SessionPauseScope(*Session.Get());
 
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::ICounterProvider& CountersProvider = Trace::ReadCounterProvider(*Session.Get());
+		const TraceServices::ICounterProvider& CountersProvider = TraceServices::ReadCounterProvider(*Session.Get());
 
 		// Compute instance count and total/min/max inclusive/exclusive times for each counter.
 		// Iterate through all counters.
-		CountersProvider.EnumerateCounters([this](uint32 CounterId, const Trace::ICounter& Counter)
+		CountersProvider.EnumerateCounters([this](uint32 CounterId, const TraceServices::ICounter& Counter)
 			{
 				if (Counter.IsFloatingPoint())
 				{
@@ -406,7 +406,7 @@ void FCounterAggregationWorker::DoWork()
 
 			// Compute histogram.
 			// Iterate again through all counters.
-			CountersProvider.EnumerateCounters([this](uint32 CounterId, const Trace::ICounter& Counter)
+			CountersProvider.EnumerateCounters([this](uint32 CounterId, const TraceServices::ICounter& Counter)
 				{
 					if (Counter.IsFloatingPoint())
 					{
@@ -445,7 +445,7 @@ void FCounterAggregationWorker::ResetResults()
 // FCounterAggregator
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IStatsAggregationWorker* FCounterAggregator::CreateWorker(TSharedPtr<const Trace::IAnalysisSession> InSession)
+IStatsAggregationWorker* FCounterAggregator::CreateWorker(TSharedPtr<const TraceServices::IAnalysisSession> InSession)
 {
 	return new FCounterAggregationWorker(InSession, GetIntervalStartTime(), GetIntervalEndTime());
 }

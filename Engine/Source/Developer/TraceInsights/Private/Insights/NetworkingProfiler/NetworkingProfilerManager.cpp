@@ -224,10 +224,10 @@ bool FNetworkingProfilerManager::Tick(float DeltaTime)
 	{
 		uint32 NetTraceVersion = 0;
 
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 		if (Session.IsValid())
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
 			if (Session->IsAnalysisComplete())
 			{
@@ -235,7 +235,7 @@ bool FNetworkingProfilerManager::Tick(float DeltaTime)
 				AvailabilityCheck.Disable();
 			}
 
-			const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
+			const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
 			NetTraceVersion = NetProfilerProvider.GetNetTraceVersion();
 		}
 		else

@@ -6,7 +6,7 @@
 
 #if 0
 
-namespace Trace
+namespace TraceServices
 {
 
 class IAnalysisSession;
@@ -18,8 +18,10 @@ class FAllocationsAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-					FAllocationsAnalyzer(Trace::IAnalysisSession& Session);
+					FAllocationsAnalyzer(IAnalysisSession& Session);
 	virtual void	OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 };
+
+} // namespace UE
 
 #endif // 0

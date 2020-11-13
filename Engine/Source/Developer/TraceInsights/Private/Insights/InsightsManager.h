@@ -19,6 +19,10 @@
 namespace Trace
 {
 	class FStoreClient;
+}
+
+namespace TraceServices
+{
 	class IAnalysisService;
 	class IModuleService;
 }
@@ -60,8 +64,8 @@ class FInsightsManager : public TSharedFromThis<FInsightsManager>, public IInsig
 
 public:
 	/** Creates the main manager, only one instance can exist. */
-	FInsightsManager(TSharedRef<Trace::IAnalysisService> TraceAnalysisService,
-					 TSharedRef<Trace::IModuleService> TraceModuleService);
+	FInsightsManager(TSharedRef<TraceServices::IAnalysisService> TraceAnalysisService,
+					 TSharedRef<TraceServices::IModuleService> TraceModuleService);
 
 	/** Virtual destructor. */
 	virtual ~FInsightsManager();
@@ -71,8 +75,8 @@ public:
 	 * @param TraceAnalysisService The trace analysis service
 	 * @param TraceModuleService   The trace module service
 	 */
-	static TSharedPtr<FInsightsManager> CreateInstance(TSharedRef<Trace::IAnalysisService> TraceAnalysisService,
-													   TSharedRef<Trace::IModuleService> TraceModuleService);
+	static TSharedPtr<FInsightsManager> CreateInstance(TSharedRef<TraceServices::IAnalysisService> TraceAnalysisService,
+													   TSharedRef<TraceServices::IModuleService> TraceModuleService);
 
 	/** @return the global instance of the main manager (FInsightsManager). */
 	static TSharedPtr<FInsightsManager> Get();
@@ -87,8 +91,8 @@ public:
 
 	//////////////////////////////////////////////////
 
-	TSharedRef<Trace::IAnalysisService> GetAnalysisService() const { return AnalysisService; }
-	TSharedRef<Trace::IModuleService> GetModuleService() const { return ModuleService; }
+	TSharedRef<TraceServices::IAnalysisService> GetAnalysisService() const { return AnalysisService; }
+	TSharedRef<TraceServices::IModuleService> GetModuleService() const { return ModuleService; }
 
 	void SetStoreDir(const FString& InStoreDir) { StoreDir = InStoreDir; }
 	const FString& GetStoreDir() const { return StoreDir; }
@@ -97,7 +101,7 @@ public:
 	Trace::FStoreClient* GetStoreClient() const { return StoreClient.Get(); }
 
 	/** @return an instance of the trace analysis session. */
-	TSharedPtr<const Trace::IAnalysisSession> GetSession() const;
+	TSharedPtr<const TraceServices::IAnalysisSession> GetSession() const;
 
 	/** @return the id of the trace being analyzed. */
 	uint32 GetTraceId() const { return CurrentTraceId; }
@@ -263,8 +267,8 @@ private:
 	/** Handle to the registered OnTick. */
 	FDelegateHandle OnTickHandle;
 
-	TSharedRef<Trace::IAnalysisService> AnalysisService;
-	TSharedRef<Trace::IModuleService> ModuleService;
+	TSharedRef<TraceServices::IAnalysisService> AnalysisService;
+	TSharedRef<TraceServices::IModuleService> ModuleService;
 
 	/** The location of the trace files managed by the trace store. */
 	FString StoreDir;
@@ -273,7 +277,7 @@ private:
 	TUniquePtr<Trace::FStoreClient> StoreClient;
 
 	/** The trace analysis session. */
-	TSharedPtr<const Trace::IAnalysisSession> Session;
+	TSharedPtr<const TraceServices::IAnalysisSession> Session;
 
 	/** The id of the trace being analyzed. */
 	uint32 CurrentTraceId;

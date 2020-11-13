@@ -4,7 +4,7 @@
 
 #include "CoreTypes.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 enum ETableColumnType
@@ -68,4 +68,4 @@ public:
 
 void Table2Csv(const IUntypedTable& Table, const TCHAR* Filename);
 
-}
+} // namespace TraceServices

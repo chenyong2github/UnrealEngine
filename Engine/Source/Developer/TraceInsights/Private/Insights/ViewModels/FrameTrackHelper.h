@@ -14,7 +14,7 @@ struct FSlateBrush;
 class FFrameTrackViewport;
 class FSlateWindowElementList;
 
-namespace Trace
+namespace TraceServices
 {
 	struct FFrame;
 }
@@ -101,7 +101,7 @@ public:
 	FFrameTrackSeriesBuilder(const FFrameTrackSeriesBuilder&) = delete;
 	FFrameTrackSeriesBuilder& operator=(const FFrameTrackSeriesBuilder&) = delete;
 
-	void AddFrame(const Trace::FFrame& Frame);
+	void AddFrame(const TraceServices::FFrame& Frame);
 
 	int32 GetNumAddedFrames() const { return NumAddedFrames; }
 

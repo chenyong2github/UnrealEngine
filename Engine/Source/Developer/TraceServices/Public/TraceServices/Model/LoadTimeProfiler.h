@@ -8,7 +8,7 @@
 #include "TraceServices/Containers/Tables.h"
 #include "Containers/Array.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 struct FFileInfo
@@ -161,4 +161,4 @@ public:
 TRACESERVICES_API const ILoadTimeProfilerProvider* ReadLoadTimeProfilerProvider(const IAnalysisSession& Session);
 TRACESERVICES_API const IFileActivityProvider* ReadFileActivityProvider(const IAnalysisSession& Session);
 
-}
+} // namespace TraceServices

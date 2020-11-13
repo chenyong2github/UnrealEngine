@@ -6,7 +6,8 @@
 #include "Misc/DateTime.h"
 #include "TraceServices/Model/Channel.h"
 
-namespace Trace {
+namespace TraceServices
+{
 
 class FChannelProvider : public IChannelProvider
 {
@@ -27,4 +28,4 @@ private:
 	FDateTime TimeStamp;
 };
 
-} // namespace Trace
+} // namespace TraceServices

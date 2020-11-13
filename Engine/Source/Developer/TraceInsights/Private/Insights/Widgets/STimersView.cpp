@@ -730,7 +730,7 @@ TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const Insi
 
 void STimersView::InsightsManager_OnSessionChanged()
 {
-	TSharedPtr<const Trace::IAnalysisSession> NewSession = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> NewSession = FInsightsManager::Get()->GetSession();
 
 	if (NewSession != Session)
 	{
@@ -847,7 +847,7 @@ void STimersView::ApplyFiltering()
 	// Update aggregations for groups.
 	for (FTimerNodePtr& GroupPtr : FilteredGroupNodes)
 	{
-		Trace::FTimingProfilerAggregatedStats& AggregatedStats = GroupPtr->GetAggregatedStats();
+		TraceServices::FTimingProfilerAggregatedStats& AggregatedStats = GroupPtr->GetAggregatedStats();
 
 		GroupPtr->ResetAggregatedStats();
 
@@ -861,7 +861,7 @@ void STimersView::ApplyFiltering()
 		for (const Insights::FBaseTreeNodePtr& ChildPtr : GroupChildren)
 		{
 			const FTimerNodePtr& NodePtr = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(ChildPtr);
-			Trace::FTimingProfilerAggregatedStats& NodeAggregatedStats = NodePtr->GetAggregatedStats();
+			TraceServices::FTimingProfilerAggregatedStats& NodeAggregatedStats = NodePtr->GetAggregatedStats();
 
 			if (NodeAggregatedStats.InstanceCount > 0)
 			{
@@ -1748,14 +1748,14 @@ void STimersView::RebuildTree(bool bResync)
 	const uint32 PreviousNodeCount = TimerNodes.Num();
 
 	SyncStopwatch.Start();
-	if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
+	if (Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Session.Get()))
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
+		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
 
-		const Trace::ITimingProfilerTimerReader* TimerReader;
-		TimingProfilerProvider.ReadTimers([&TimerReader](const Trace::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
+		const TraceServices::ITimingProfilerTimerReader* TimerReader;
+		TimingProfilerProvider.ReadTimers([&TimerReader](const TraceServices::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
 
 		const uint32 TimerCount = TimerReader->GetTimerCount();
 		if (TimerCount != PreviousNodeCount)
@@ -1766,7 +1766,7 @@ void STimersView::RebuildTree(bool bResync)
 			// Add nodes only for new timers.
 			for (uint32 TimerIndex = PreviousNodeCount; TimerIndex < TimerCount; ++TimerIndex)
 			{
-				const Trace::FTimingProfilerTimer& Timer = *(TimerReader->GetTimer(TimerIndex));
+				const TraceServices::FTimingProfilerTimer& Timer = *(TimerReader->GetTimer(TimerIndex));
 				ensure(Timer.Id == TimerIndex);
 				const ETimerNodeType Type = Timer.IsGpuTimer ? ETimerNodeType::GpuScope : ETimerNodeType::CpuScope;
 				FTimerNodePtr TimerNodePtr = MakeShared<FTimerNode>(Timer.Id, Timer.Name, Type);
@@ -1876,14 +1876,14 @@ void STimersView::FinishAggregation()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::ApplyAggregation(Trace::ITable<Trace::FTimingProfilerAggregatedStats>* AggregatedStatsTable)
+void STimersView::ApplyAggregation(TraceServices::ITable<TraceServices::FTimingProfilerAggregatedStats>* AggregatedStatsTable)
 {
 	if (AggregatedStatsTable)
 	{
-		TUniquePtr<Trace::ITableReader<Trace::FTimingProfilerAggregatedStats>> TableReader(AggregatedStatsTable->CreateReader());
+		TUniquePtr<TraceServices::ITableReader<TraceServices::FTimingProfilerAggregatedStats>> TableReader(AggregatedStatsTable->CreateReader());
 		while (TableReader->IsValid())
 		{
-			const Trace::FTimingProfilerAggregatedStats* Row = TableReader->GetCurrentRow();
+			const TraceServices::FTimingProfilerAggregatedStats* Row = TableReader->GetCurrentRow();
 			FTimerNodePtr TimerNodePtr = GetTimerNode(Row->Timer->Id);
 			if (TimerNodePtr)
 			{

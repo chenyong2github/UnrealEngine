@@ -8,7 +8,7 @@
 
 class FBaseTimingTrack;
 namespace Insights { class ITimingViewSession; }
-namespace Trace { class IAnalysisSession; }
+namespace TraceServices { class IAnalysisSession; }
 namespace Insights { enum class ETimeChangedFlags; }
 class SVariantValueView;
 
@@ -20,7 +20,7 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<FBaseTimingTrack>& InTimingTrack, Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession);
+	void Construct(const FArguments& InArgs, const TSharedRef<FBaseTimingTrack>& InTimingTrack, Insights::ITimingViewSession& InTimingViewSession, const TraceServices::IAnalysisSession& InAnalysisSession);
 
 	TSharedPtr<FBaseTimingTrack> GetTimingTrack() const { return TimingTrack.Pin(); }
 
@@ -33,5 +33,5 @@ private:
 
 	TSharedPtr<SVariantValueView> VariantValueView;
 
-	const Trace::IAnalysisSession* AnalysisSession;
+	const TraceServices::IAnalysisSession* AnalysisSession;
 };

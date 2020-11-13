@@ -6,7 +6,7 @@ FName FGameplayProvider::ProviderName("GameplayProvider");
 
 #define LOCTEXT_NAMESPACE "GameplayProvider"
 
-FGameplayProvider::FGameplayProvider(Trace::IAnalysisSession& InSession)
+FGameplayProvider::FGameplayProvider(TraceServices::IAnalysisSession& InSession)
 	: Session(InSession)
 	, EndPlayEvent(nullptr)
 	, bHasAnyData(false)
@@ -286,7 +286,7 @@ void FGameplayProvider::AppendObjectEvent(uint64 InObjectId, double InTime, cons
 		EndPlayEvent = Session.StoreString(TEXT("EndPlay"));
 	}
 
-	TSharedPtr<Trace::TPointTimeline<FObjectEventMessage>> Timeline;
+	TSharedPtr<TraceServices::TPointTimeline<FObjectEventMessage>> Timeline;
 	uint32* IndexPtr = ObjectIdToEventTimelines.Find(InObjectId);
 	if(IndexPtr != nullptr)
 	{
@@ -294,7 +294,7 @@ void FGameplayProvider::AppendObjectEvent(uint64 InObjectId, double InTime, cons
 	}
 	else
 	{
-		Timeline = MakeShared<Trace::TPointTimeline<FObjectEventMessage>>(Session.GetLinearAllocator());
+		Timeline = MakeShared<TraceServices::TPointTimeline<FObjectEventMessage>>(Session.GetLinearAllocator());
 		ObjectIdToEventTimelines.Add(InObjectId, EventTimelines.Num());
 		EventTimelines.Add(Timeline.ToSharedRef());
 	}
@@ -383,7 +383,7 @@ void FGameplayProvider::AppendPropertiesStart(uint64 InObjectId, double InTime, 
 	else
 	{
 		Storage = MakeShared<FObjectPropertiesStorage>();
-		Storage->Timeline = MakeShared<Trace::TIntervalTimeline<FObjectPropertiesMessage>>(Session.GetLinearAllocator());
+		Storage->Timeline = MakeShared<TraceServices::TIntervalTimeline<FObjectPropertiesMessage>>(Session.GetLinearAllocator());
 		ObjectIdToPropertiesStorage.Add(InObjectId, PropertiesStorage.Num());
 		PropertiesStorage.Add(Storage.ToSharedRef());
 	}
@@ -412,7 +412,7 @@ void FGameplayProvider::AppendPropertiesEnd(uint64 InObjectId, double InTime)
 	else
 	{
 		Storage = MakeShared<FObjectPropertiesStorage>();
-		Storage->Timeline = MakeShared<Trace::TIntervalTimeline<FObjectPropertiesMessage>>(Session.GetLinearAllocator());
+		Storage->Timeline = MakeShared<TraceServices::TIntervalTimeline<FObjectPropertiesMessage>>(Session.GetLinearAllocator());
 		ObjectIdToPropertiesStorage.Add(InObjectId, PropertiesStorage.Num());
 		PropertiesStorage.Add(Storage.ToSharedRef());
 	}
@@ -442,7 +442,7 @@ void FGameplayProvider::AppendPropertyValue(uint64 InObjectId, double InTime, ui
 	else
 	{
 		Storage = MakeShared<FObjectPropertiesStorage>();
-		Storage->Timeline = MakeShared<Trace::TIntervalTimeline<FObjectPropertiesMessage>>(Session.GetLinearAllocator());
+		Storage->Timeline = MakeShared<TraceServices::TIntervalTimeline<FObjectPropertiesMessage>>(Session.GetLinearAllocator());
 		ObjectIdToPropertiesStorage.Add(InObjectId, PropertiesStorage.Num());
 		PropertiesStorage.Add(Storage.ToSharedRef());
 	}

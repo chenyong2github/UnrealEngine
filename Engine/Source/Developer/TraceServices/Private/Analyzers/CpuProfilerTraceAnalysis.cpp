@@ -4,7 +4,10 @@
 #include "Common/Utils.h"
 #include "Model/ThreadsPrivate.h"
 
-FCpuProfilerAnalyzer::FCpuProfilerAnalyzer(Trace::IAnalysisSession& InSession, Trace::FTimingProfilerProvider& InTimingProfilerProvider, Trace::FThreadProvider& InThreadProvider)
+namespace TraceServices
+{
+
+FCpuProfilerAnalyzer::FCpuProfilerAnalyzer(IAnalysisSession& InSession, FTimingProfilerProvider& InTimingProfilerProvider, FThreadProvider& InThreadProvider)
 	: Session(InSession)
 	, TimingProfilerProvider(InTimingProfilerProvider)
 	, ThreadProvider(InThreadProvider)
@@ -34,7 +37,7 @@ void FCpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
-	Trace::FAnalysisSessionEditScope _(Session);
+	FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
@@ -166,7 +169,7 @@ uint64 FCpuProfilerAnalyzer::ProcessBuffer(const FEventTime& EventTime, uint32 T
 			double Time = EventTime.AsSeconds(PendingCycle);
 			if (bEnter)
 			{
-				Trace::FTimingProfilerEvent Event;
+				FTimingProfilerEvent Event;
 				Event.TimerIndex = PendingCursor->TimerId;
 				ThreadState.Timeline->AppendBeginEvent(Time, Event);
 			}
@@ -194,7 +197,7 @@ uint64 FCpuProfilerAnalyzer::ProcessBuffer(const FEventTime& EventTime, uint32 T
 			ScopeState.StartCycle = ActualCycle;
 			ScopeState.EventTypeId = TimerId;
 
-			Trace::FTimingProfilerEvent Event;
+			FTimingProfilerEvent Event;
 			Event.TimerIndex = TimerId;
 			double ActualTime = EventTime.AsSeconds(ActualCycle);
 			ThreadState.Timeline->AppendBeginEvent(ActualTime, Event);
@@ -228,7 +231,7 @@ uint64 FCpuProfilerAnalyzer::ProcessBuffer(const FEventTime& EventTime, uint32 T
 		}
 		else
 		{
-			Trace::FTimingProfilerEvent Event;
+			FTimingProfilerEvent Event;
 			Event.TimerIndex = PendingCursor->TimerId;
 			double Time = EventTime.AsSeconds(PendingCycle);
 			ThreadState.Timeline->AppendBeginEvent(Time, Event);
@@ -322,3 +325,5 @@ FCpuProfilerAnalyzer::FThreadState& FCpuProfilerAnalyzer::GetThreadState(uint32 
 	}
 	return *ThreadState;
 }
+
+} // namespace TraceServices

@@ -8,7 +8,7 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include <limits>
 
-namespace Trace
+namespace TraceServices
 {
 
 enum class ENetProfilerDeliveryStatus : uint8
@@ -220,4 +220,4 @@ public:
 
 TRACESERVICES_API const INetProfilerProvider& ReadNetProfilerProvider(const IAnalysisSession& Session);
 
-}
+} // namespace TraceServices

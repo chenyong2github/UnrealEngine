@@ -129,12 +129,12 @@ FText FGameplayTrack::GetWorldPostFix(const FWorldInfo& InWorldInfo)
 	}
 }
 
-FText FGameplayTrack::GetWorldName(const Trace::IAnalysisSession& InAnalysisSession) const
+FText FGameplayTrack::GetWorldName(const TraceServices::IAnalysisSession& InAnalysisSession) const
 {
 	const FGameplayProvider* GameplayProvider = InAnalysisSession.ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 	if (GameplayProvider)
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
 
 		if(const FWorldInfo* WorldInfo = GameplayProvider->FindWorldInfoFromObject(ObjectId))
 		{
@@ -146,7 +146,7 @@ FText FGameplayTrack::GetWorldName(const Trace::IAnalysisSession& InAnalysisSess
 	return LOCTEXT("UnknownWorld", "Unknown");
 }
 
-void FGameplayTimingEventsTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
+void FGameplayTimingEventsTrack::GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
 { 
 	GetVariantsAtTime(InFrame.StartTime, OutVariants);
 }

@@ -5,7 +5,7 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include "Templates/Function.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 struct FBookmark
@@ -25,4 +25,4 @@ public:
 
 TRACESERVICES_API const IBookmarkProvider& ReadBookmarkProvider(const IAnalysisSession& Session);
 
-}
+} // namespace TraceServices

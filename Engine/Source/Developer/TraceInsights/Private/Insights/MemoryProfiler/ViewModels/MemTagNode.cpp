@@ -32,12 +32,12 @@ FText FMemTagNode::GetTrackerText() const
 
 void FMemTagNode::ResetAggregatedStats()
 {
-	//AggregatedStats = Trace::FMemoryProfilerAggregatedStats();
+	//AggregatedStats = TraceServices::FMemoryProfilerAggregatedStats();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /*
-void FMemTagNode::SetAggregatedStats(const Trace::FMemoryProfilerAggregatedStats& InAggregatedStats)
+void FMemTagNode::SetAggregatedStats(const TraceServices::FMemoryProfilerAggregatedStats& InAggregatedStats)
 {
 	AggregatedStats = InAggregatedStats;
 }

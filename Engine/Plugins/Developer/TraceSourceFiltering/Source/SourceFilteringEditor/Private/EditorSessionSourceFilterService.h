@@ -14,12 +14,6 @@
 #include "DataSourceFilter.h"
 #include "TraceSourceFilteringSettings.h"
 
-namespace Trace
-{
-	class IAnalysisSession;
-	typedef uint64 FSessionHandle;
-}
-
 class UDataSourceFilter;
 class UDataSourceFilterSet;
 

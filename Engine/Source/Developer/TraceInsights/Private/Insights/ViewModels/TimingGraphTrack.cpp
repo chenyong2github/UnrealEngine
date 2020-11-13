@@ -199,11 +199,11 @@ void FTimingGraphTrack::AddDefaultFrameSeries()
 void FTimingGraphTrack::UpdateFrameSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport)
 {
 	FGraphTrackBuilder Builder(*this, Series, Viewport);
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::IFrameProvider& FramesProvider = ReadFrameProvider(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::IFrameProvider& FramesProvider = ReadFrameProvider(*Session.Get());
 
 		const TArray64<double>& FrameStartTimes = FramesProvider.GetFrameStartTimes(Series.FrameType);
 
@@ -213,7 +213,7 @@ void FTimingGraphTrack::UpdateFrameSeries(FTimingGraphSeries& Series, const FTim
 		const int64 EndLowerBound = Algo::LowerBound(FrameStartTimes, Viewport.GetEndTime());
 		const uint64 EndIndex = EndLowerBound + 1;
 
-		FramesProvider.EnumerateFrames(Series.FrameType, StartIndex, EndIndex, [&Builder](const Trace::FFrame& Frame)
+		FramesProvider.EnumerateFrames(Series.FrameType, StartIndex, EndIndex, [&Builder](const TraceServices::FFrame& Frame)
 		{
 			//TODO: add a "frame converter" (i.e. to fps, miliseconds or seconds)
 			const double Duration = Frame.EndTime - Frame.StartTime;
@@ -279,30 +279,30 @@ void FTimingGraphTrack::RemoveTimerSeries(uint32 TimerId)
 void FTimingGraphTrack::UpdateTimerSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport)
 {
 	FGraphTrackBuilder Builder(*this, Series, Viewport);
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
 		const double SessionDuration = Session->GetDurationSeconds();
 		if (Series.CachedSessionDuration != SessionDuration)
 		{
 			Series.CachedSessionDuration = SessionDuration;
 
-			const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
+			const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
 
-			const Trace::ITimingProfilerTimerReader* TimerReader;
-			TimingProfilerProvider.ReadTimers([&TimerReader](const Trace::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
+			const TraceServices::ITimingProfilerTimerReader* TimerReader;
+			TimingProfilerProvider.ReadTimers([&TimerReader](const TraceServices::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
 
 			const uint32 TimelineCount = TimingProfilerProvider.GetTimelineCount();
 			uint32 NumTimelinesContainingEvent = 0;
 			for (uint32 TimelineIndex = 0; TimelineIndex < TimelineCount; ++TimelineIndex)
 			{
 				TimingProfilerProvider.ReadTimeline(TimelineIndex,
-					[SessionDuration, &Series, TimerReader, &Viewport, &NumTimelinesContainingEvent](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+					[SessionDuration, &Series, TimerReader, &Viewport, &NumTimelinesContainingEvent](const TraceServices::ITimingProfilerProvider::Timeline& Timeline)
 					{
 						TArray<TArray<FTimingGraphSeries::FSimpleTimingEvent>> Events;
-						Trace::ITimeline<Trace::FTimingProfilerEvent>::EnumerateAsyncParams Params;
+						TraceServices::ITimeline<TraceServices::FTimingProfilerEvent>::EnumerateAsyncParams Params;
 						Params.IntervalStart = 0;
 						Params.IntervalEnd = SessionDuration;
 						Params.Resolution = 0.0;
@@ -310,9 +310,9 @@ void FTimingGraphTrack::UpdateTimerSeries(FTimingGraphSeries& Series, const FTim
 						{
 							Events.AddDefaulted(NumTasks);
 						};
-						Params.Callback = [&Events, TimerReader, &Series](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event, uint32 TaskIndex)
+						Params.Callback = [&Events, TimerReader, &Series](double StartTime, double EndTime, uint32 Depth, const TraceServices::FTimingProfilerEvent& Event, uint32 TaskIndex)
 						{
-							const Trace::FTimingProfilerTimer* Timer = TimerReader->GetTimer(Event.TimerIndex);
+							const TraceServices::FTimingProfilerTimer* Timer = TimerReader->GetTimer(Event.TimerIndex);
 							if (ensure(Timer != nullptr))
 							{
 								if (Timer->Id == Series.TimerId)
@@ -321,7 +321,7 @@ void FTimingGraphTrack::UpdateTimerSeries(FTimingGraphSeries& Series, const FTim
 									Events[TaskIndex].Add({ StartTime, Duration });
 								}
 							}
-							return Trace::EEventEnumerate::Continue;
+							return TraceServices::EEventEnumerate::Continue;
 						};
 
 						Timeline.EnumerateEventsDownSampledAsync(Params);
@@ -395,18 +395,18 @@ TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddStatsCounterSeries(uint32 C
 	bool bIsMemory = false;
 	bool bIsFloatingPoint = false;
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::ICounterProvider& CountersProvider = Trace::ReadCounterProvider(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::ICounterProvider& CountersProvider = TraceServices::ReadCounterProvider(*Session.Get());
 		if (CounterId < CountersProvider.GetCounterCount())
 		{
-			CountersProvider.ReadCounter(CounterId, [&](const Trace::ICounter& Counter)
+			CountersProvider.ReadCounter(CounterId, [&](const TraceServices::ICounter& Counter)
 			{
 				CounterName = Counter.GetName();
-				//bIsTime = (Counter.GetDisplayHint() == Trace::CounterDisplayHint_Time);
-				bIsMemory = (Counter.GetDisplayHint() == Trace::CounterDisplayHint_Memory);
+				//bIsTime = (Counter.GetDisplayHint() == TraceServices::CounterDisplayHint_Time);
+				bIsMemory = (Counter.GetDisplayHint() == TraceServices::CounterDisplayHint_Memory);
 				bIsFloatingPoint = Counter.IsFloatingPoint();
 			});
 		}
@@ -449,12 +449,12 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 {
 	FGraphTrackBuilder Builder(*this, Series, Viewport);
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::ICounterProvider& CounterProvider = Trace::ReadCounterProvider(*Session.Get());
-		CounterProvider.ReadCounter(Series.CounterId, [this, &Viewport, &Builder, &Series](const Trace::ICounter& Counter)
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::ICounterProvider& CounterProvider = TraceServices::ReadCounterProvider(*Session.Get());
+		CounterProvider.ReadCounter(Series.CounterId, [this, &Viewport, &Builder, &Series](const TraceServices::ICounter& Counter)
 		{
 			const float TopY = 4.0f;
 			const float BottomY = GetHeight() - 4.0f;

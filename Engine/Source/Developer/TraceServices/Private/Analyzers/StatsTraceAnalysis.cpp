@@ -4,7 +4,10 @@
 #include "Common/Utils.h"
 #include "TraceServices/Model/Counters.h"
 
-FStatsAnalyzer::FStatsAnalyzer(Trace::IAnalysisSession& InSession, Trace::ICounterProvider& InCounterProvider)
+namespace TraceServices
+{
+
+FStatsAnalyzer::FStatsAnalyzer(IAnalysisSession& InSession, ICounterProvider& InCounterProvider)
 	: Session(InSession)
 	, CounterProvider(InCounterProvider)
 {
@@ -21,7 +24,7 @@ void FStatsAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 bool FStatsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
-	Trace::FAnalysisSessionEditScope _(Session);
+	FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
@@ -29,7 +32,7 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 	case RouteId_Spec:
 	{
 		uint32 StatId = EventData.GetValue<uint32>("Id");
-		Trace::IEditableCounter* Counter = CountersMap.FindRef(StatId);
+		IEditableCounter* Counter = CountersMap.FindRef(StatId);
 		if (!Counter)
 		{
 			Counter = CounterProvider.CreateCounter();
@@ -49,10 +52,10 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 		}
 
 
-		Trace::ECounterDisplayHint DisplayHint = Trace::CounterDisplayHint_None;
+		ECounterDisplayHint DisplayHint = CounterDisplayHint_None;
 		if (EventData.GetValue<bool>("IsMemory"))
 		{
-			DisplayHint = Trace::CounterDisplayHint_Memory;
+			DisplayHint = CounterDisplayHint_Memory;
 		}
 		Counter->SetName(Session.StoreString(*Name));
 		Counter->SetDescription(Session.StoreString(*Description));
@@ -81,7 +84,7 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 
 			uint64 DecodedIdAndOp = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
 			uint32 StatId = DecodedIdAndOp >> 3;
-			Trace::IEditableCounter* Counter = CountersMap.FindRef(StatId);
+			IEditableCounter* Counter = CountersMap.FindRef(StatId);
 			if (!Counter)
 			{
 				Counter = CounterProvider.CreateCounter();
@@ -156,3 +159,5 @@ TSharedRef<FStatsAnalyzer::FThreadState> FStatsAnalyzer::GetThreadState(uint32 T
 		return ThreadStatesMap[ThreadId];
 	}
 }
+
+} // namespace TraceServices

@@ -13,7 +13,7 @@
 #include <IPAddress.h>
 #include <SocketSubsystem.h>
 
-FBaseSessionFilterService::FBaseSessionFilterService(Trace::FSessionHandle InHandle, TSharedPtr<const Trace::IAnalysisSession> InSession) : Session(InSession), Handle(InHandle)
+FBaseSessionFilterService::FBaseSessionFilterService(TraceServices::FSessionHandle InHandle, TSharedPtr<const TraceServices::IAnalysisSession> InSession) : Session(InSession), Handle(InHandle)
 {
 	FCoreDelegates::OnEndFrame.AddRaw(this, &FBaseSessionFilterService::OnApplyChannelChanges);
 }
@@ -25,11 +25,11 @@ FBaseSessionFilterService::~FBaseSessionFilterService()
 
 void FBaseSessionFilterService::GetRootObjects(TArray<FTraceObjectInfo>& OutObjects) const
 {
-	const Trace::IChannelProvider* ChannelProvider = Session->ReadProvider<Trace::IChannelProvider>("ChannelProvider");
+	const TraceServices::IChannelProvider* ChannelProvider = Session->ReadProvider<TraceServices::IChannelProvider>("ChannelProvider");
 	if (ChannelProvider)
 	{
 		const uint64 ChannelCount = ChannelProvider->GetChannelCount();		
-		const TArray<Trace::FChannelEntry>& Channels = ChannelProvider->GetChannels();
+		const TArray<TraceServices::FChannelEntry>& Channels = ChannelProvider->GetChannels();
 		for (uint64 ChannelIndex = 0; ChannelIndex < Channels.Num(); ++ChannelIndex)
 		{
 			FTraceObjectInfo& EventInfo = OutObjects.AddDefaulted_GetRef();
@@ -49,7 +49,7 @@ void FBaseSessionFilterService::GetChildObjects(uint32 InObjectHash, TArray<FTra
 
 const FDateTime& FBaseSessionFilterService::GetTimestamp()
 {
-	const Trace::IChannelProvider* ChannelProvider = Session->ReadProvider<Trace::IChannelProvider>("ChannelProvider");
+	const TraceServices::IChannelProvider* ChannelProvider = Session->ReadProvider<TraceServices::IChannelProvider>("ChannelProvider");
 	if (ChannelProvider)
 	{
 		TimeStamp = ChannelProvider->GetTimeStamp();
@@ -88,11 +88,11 @@ void FBaseSessionFilterService::UpdateFilterPreset(const TSharedPtr<IFilterPrese
 
 void FBaseSessionFilterService::DisableAllChannels()
 {
-	const Trace::IChannelProvider* ChannelProvider = Session->ReadProvider<Trace::IChannelProvider>("ChannelProvider");
+	const TraceServices::IChannelProvider* ChannelProvider = Session->ReadProvider<TraceServices::IChannelProvider>("ChannelProvider");
 	if (ChannelProvider)
 	{
 		const uint64 ChannelCount = ChannelProvider->GetChannelCount();
-		const TArray<Trace::FChannelEntry>& Channels = ChannelProvider->GetChannels();
+		const TArray<TraceServices::FChannelEntry>& Channels = ChannelProvider->GetChannels();
 		for (uint64 ChannelIndex = 0; ChannelIndex < Channels.Num(); ++ChannelIndex)
 		{
 			SetObjectFilterState(Channels[ChannelIndex].Name, false);

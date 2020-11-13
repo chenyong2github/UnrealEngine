@@ -105,11 +105,11 @@ public:
 	/**
 	 * @return the aggregated stats for this timer.
 	 */
-	const Trace::FTimingProfilerAggregatedStats& GetAggregatedStats() const { return AggregatedStats; }
-	Trace::FTimingProfilerAggregatedStats& GetAggregatedStats() { return AggregatedStats; }
+	const TraceServices::FTimingProfilerAggregatedStats& GetAggregatedStats() const { return AggregatedStats; }
+	TraceServices::FTimingProfilerAggregatedStats& GetAggregatedStats() { return AggregatedStats; }
 
 	void ResetAggregatedStats();
-	void SetAggregatedStats(const Trace::FTimingProfilerAggregatedStats& AggregatedStats);
+	void SetAggregatedStats(const TraceServices::FTimingProfilerAggregatedStats& AggregatedStats);
 
 	bool IsHotPath() const { return bIsHotPath; }
 	void SetIsHotPath(bool bOnOff) { bIsHotPath = bOnOff; }
@@ -133,7 +133,7 @@ private:
 	bool bIsHotPath;
 
 	/** Aggregated stats. */
-	Trace::FTimingProfilerAggregatedStats AggregatedStats;
+	TraceServices::FTimingProfilerAggregatedStats AggregatedStats;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

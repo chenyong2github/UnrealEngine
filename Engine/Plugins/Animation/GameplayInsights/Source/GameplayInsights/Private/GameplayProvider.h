@@ -9,14 +9,14 @@
 #include "Containers/StringView.h"
 #include "Model/IntervalTimeline.h"
 
-namespace Trace { class IAnalysisSession; }
+namespace TraceServices { class IAnalysisSession; }
 
 class FGameplayProvider : public IGameplayProvider
 {
 public:
 	static FName ProviderName;
 
-	FGameplayProvider(Trace::IAnalysisSession& InSession);
+	FGameplayProvider(TraceServices::IAnalysisSession& InSession);
 
 	/** IGameplayProvider interface */
 	virtual bool ReadObjectEventsTimeline(uint64 InObjectId, TFunctionRef<void(const ObjectEventsTimeline&)> Callback) const override;
@@ -70,7 +70,7 @@ public:
 	bool HasObjectProperties() const;
 
 private:
-	Trace::IAnalysisSession& Session;
+	TraceServices::IAnalysisSession& Session;
 
 	/** All class info, grow only for stable indices */
 	TArray<FClassInfo> ClassInfos;
@@ -99,12 +99,12 @@ private:
 		double OpenStartTime;
 		uint64 OpenEventId;
 		FObjectPropertiesMessage OpenEvent;
-		TSharedPtr<Trace::TIntervalTimeline<FObjectPropertiesMessage>> Timeline;
+		TSharedPtr<TraceServices::TIntervalTimeline<FObjectPropertiesMessage>> Timeline;
 		TArray<FObjectPropertyValue> Values;
 	};
 
 	/** Message storage */
-	TArray<TSharedRef<Trace::TPointTimeline<FObjectEventMessage>>> EventTimelines;
+	TArray<TSharedRef<TraceServices::TPointTimeline<FObjectEventMessage>>> EventTimelines;
 	TArray<TSharedRef<FObjectPropertiesStorage>> PropertiesStorage;
 
 	/** Map of class path name to ClassInfo index */

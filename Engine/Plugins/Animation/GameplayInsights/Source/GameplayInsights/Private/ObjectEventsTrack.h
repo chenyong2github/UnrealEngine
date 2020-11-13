@@ -9,7 +9,7 @@ class FGameplaySharedData;
 struct FObjectEventMessage;
 class FTimingEventSearchParameters;
 struct FWorldInfo;
-namespace Trace { struct FFrame; }
+namespace TraceServices { struct FFrame; }
 
 class FObjectEventsTrack : public FGameplayTimingEventsTrack
 {
@@ -22,7 +22,7 @@ public:
 	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
 	virtual void InitTooltip(FTooltipDrawState& Tooltip, const ITimingEvent& HoveredTimingEvent) const override;
 	virtual const TSharedPtr<const ITimingEvent> SearchEvent(const FTimingEventSearchParameters& InSearchParameters) const override;
-	virtual void GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const override;
+	virtual void GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const override;
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
 private:

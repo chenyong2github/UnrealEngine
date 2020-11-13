@@ -8,14 +8,14 @@
 #include "TraceServices/Model/Frames.h"
 #include "Containers/StringFwd.h"
 
-namespace Trace { class IAnalysisSession; }
+namespace TraceServices { class IAnalysisSession; }
 struct FVariantTreeNode;
 class FTextFilterExpressionEvaluator;
 enum class EVariantTreeNodeFilterState;
 class FUICommandList;
 
 // Delegate called to get variant values to display
-DECLARE_DELEGATE_TwoParams(FOnGetVariantValues, const Trace::FFrame& /*InFrame*/, TArray<TSharedRef<FVariantTreeNode>>& /*OutValues*/);
+DECLARE_DELEGATE_TwoParams(FOnGetVariantValues, const TraceServices::FFrame& /*InFrame*/, TArray<TSharedRef<FVariantTreeNode>>& /*OutValues*/);
 
 class SVariantValueView : public SCompoundWidget
 {
@@ -26,10 +26,10 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const Trace::IAnalysisSession& InAnalysisSession);
+	void Construct(const FArguments& InArgs, const TraceServices::IAnalysisSession& InAnalysisSession);
 
 	/** Refresh the displayed variants. */
-	void RequestRefresh(const Trace::FFrame& InFrame) { Frame = InFrame; bNeedsRefresh = true; }
+	void RequestRefresh(const TraceServices::FFrame& InFrame) { Frame = InFrame; bNeedsRefresh = true; }
 
 private:
 	// SWidget interface
@@ -69,7 +69,7 @@ private:
 	bool CanCopy() const;
 
 private:
-	const Trace::IAnalysisSession* AnalysisSession;
+	const TraceServices::IAnalysisSession* AnalysisSession;
 
 	TSharedPtr<FTextFilterExpressionEvaluator> TextFilter;
 
@@ -81,7 +81,7 @@ private:
 
 	TSharedPtr<FUICommandList> CommandList;
 
-	Trace::FFrame Frame;
+	TraceServices::FFrame Frame;
 
 	FOnGetVariantValues OnGetVariantValues;
 

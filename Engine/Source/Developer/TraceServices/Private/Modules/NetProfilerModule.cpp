@@ -5,7 +5,7 @@
 #include "AnalysisServicePrivate.h"
 #include "Model/NetProfilerProvider.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 FName FNetProfilerModule::ModuleName("TraceModule_NetProfiler");
@@ -31,4 +31,4 @@ void FNetProfilerModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
 	//OutLoggers.Add(TEXT("NetProfiler"));
 }
 
-}
+} // namespace TraceServices

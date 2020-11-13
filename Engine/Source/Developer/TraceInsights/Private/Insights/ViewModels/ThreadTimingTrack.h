@@ -50,7 +50,7 @@ public:
 
 	virtual void OnBeginSession(Insights::ITimingViewSession& InSession) override;
 	virtual void OnEndSession(Insights::ITimingViewSession& InSession) override;
-	virtual void Tick(Insights::ITimingViewSession& InSession, const Trace::IAnalysisSession& InAnalysisSession) override;
+	virtual void Tick(Insights::ITimingViewSession& InSession, const TraceServices::IAnalysisSession& InAnalysisSession) override;
 	virtual void ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) override;
 
 	//////////////////////////////////////////////////
@@ -98,7 +98,7 @@ class FThreadTimingTrack : public FTimingEventsTrack
 	INSIGHTS_DECLARE_RTTI(FThreadTimingTrack, FTimingEventsTrack)
 
 public:
-	typedef typename Trace::ITimeline<Trace::FTimingProfilerEvent>::FTimelineEventInfo TimelineEventInfo;
+	typedef typename TraceServices::ITimeline<TraceServices::FTimingProfilerEvent>::FTimelineEventInfo TimelineEventInfo;
 
 	struct FPendingEventInfo
 	{
@@ -147,8 +147,8 @@ protected:
 private:
 	void DrawSelectedEventInfo(const FThreadTrackEvent& SelectedEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const;
 
-	bool FindTimingProfilerEvent(const FThreadTrackEvent& InTimingEvent, TFunctionRef<void(double, double, uint32, const Trace::FTimingProfilerEvent&)> InFoundPredicate) const;
-	bool FindTimingProfilerEvent(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const Trace::FTimingProfilerEvent&)> InFoundPredicate) const;
+	bool FindTimingProfilerEvent(const FThreadTrackEvent& InTimingEvent, TFunctionRef<void(double, double, uint32, const TraceServices::FTimingProfilerEvent&)> InFoundPredicate) const;
+	bool FindTimingProfilerEvent(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const TraceServices::FTimingProfilerEvent&)> InFoundPredicate) const;
 
 	void GetParentAndRoot(const FThreadTrackEvent& TimingEvent,
 						  TSharedPtr<FThreadTrackEvent>& OutParentTimingEvent,
@@ -168,7 +168,7 @@ private:
 	FDelegateHandle OnFilterChangesCommitedHandle;
 
 	// Search cache
-	mutable TTimingEventSearchCache<Trace::FTimingProfilerEvent> SearchCache;
+	mutable TTimingEventSearchCache<TraceServices::FTimingProfilerEvent> SearchCache;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

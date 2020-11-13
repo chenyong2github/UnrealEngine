@@ -4,7 +4,7 @@
 
 #include "Trace/Analyzer.h"
 
-namespace Trace { class IAnalysisSession; }
+namespace TraceServices { class IAnalysisSession; }
 
 namespace UE
 {
@@ -16,7 +16,7 @@ class FSlateProvider;
 class FSlateAnalyzer : public Trace::IAnalyzer
 {
 public:
-	FSlateAnalyzer(Trace::IAnalysisSession& InSession, FSlateProvider& InSlateProvider);
+	FSlateAnalyzer(TraceServices::IAnalysisSession& InSession, FSlateProvider& InSlateProvider);
 
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnAnalysisEnd() override {}
@@ -35,7 +35,7 @@ private:
 		RouteId_RootChildOrderInvalidated,
 	};
 
-	Trace::IAnalysisSession& Session;
+	TraceServices::IAnalysisSession& Session;
 	FSlateProvider& SlateProvider;
 };
 

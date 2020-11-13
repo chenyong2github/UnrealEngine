@@ -7,7 +7,7 @@
 #include "HAL/PlatformAffinity.h"
 #include "Containers/Map.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 class FThreadProvider
@@ -48,4 +48,4 @@ private:
 	TArray<FThreadInfoInternal*> SortedThreads;
 };
 
-}
+} // namespace TraceServices

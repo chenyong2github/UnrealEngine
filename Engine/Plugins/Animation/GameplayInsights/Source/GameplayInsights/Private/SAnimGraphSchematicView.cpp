@@ -51,7 +51,7 @@ enum class EAnimGraphSchematicFilterState
 class FAnimGraphSchematicPropertyNode
 {
 public:
-	FAnimGraphSchematicPropertyNode(const FText& InName, const TSharedPtr<FAnimNodeValueMessage>& InValue, const Trace::IAnalysisSession& InAnalysisSession)
+	FAnimGraphSchematicPropertyNode(const FText& InName, const TSharedPtr<FAnimNodeValueMessage>& InValue, const TraceServices::IAnalysisSession& InAnalysisSession)
 		: AnalysisSession(InAnalysisSession)
 		, Name(InName)
 		, Value(InValue)
@@ -70,7 +70,7 @@ public:
 		}
 	}
 
-	static TSharedRef<SWidget> StaticMakeValueWidget(const Trace::IAnalysisSession& InAnalysisSession, const TSharedRef<FAnimNodeValueMessage>& InValue) 
+	static TSharedRef<SWidget> StaticMakeValueWidget(const TraceServices::IAnalysisSession& InAnalysisSession, const TSharedRef<FAnimNodeValueMessage>& InValue) 
 	{ 
 		switch(InValue->Value.Type)
 		{
@@ -179,7 +179,7 @@ public:
 			const FGameplayProvider* GameplayProvider = InAnalysisSession.ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 			if(GameplayProvider)
 			{
-				Trace::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
+				TraceServices::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
 
 				const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(InValue->Value.Object.Value);
 #if WITH_EDITOR
@@ -208,7 +208,7 @@ public:
 			const FGameplayProvider* GameplayProvider = InAnalysisSession.ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 			if(GameplayProvider)
 			{
-				Trace::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
+				TraceServices::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
 
 				const FClassInfo& ClassInfo = GameplayProvider->GetClassInfo(InValue->Value.Class.Value);
 #if WITH_EDITOR
@@ -236,7 +236,7 @@ public:
 		return SNullWidget::NullWidget; 
 	}
 
-	const Trace::IAnalysisSession& AnalysisSession;
+	const TraceServices::IAnalysisSession& AnalysisSession;
 
 	FText Name;
 
@@ -318,7 +318,7 @@ public:
 class FAnimGraphSchematicNode : public TSharedFromThis<FAnimGraphSchematicNode>
 {
 public:
-	FAnimGraphSchematicNode(int32 InNodeId, const FText& InType, const Trace::IAnalysisSession& InAnalysisSession)
+	FAnimGraphSchematicNode(int32 InNodeId, const FText& InType, const TraceServices::IAnalysisSession& InAnalysisSession)
 		: AnalysisSession(InAnalysisSession)
 		, NodeId(InNodeId)
 		, Type(InType)
@@ -341,7 +341,7 @@ public:
 		}
 	}
 
-	const Trace::IAnalysisSession& AnalysisSession;
+	const TraceServices::IAnalysisSession& AnalysisSession;
 
 	int32 NodeId;
 
@@ -444,7 +444,7 @@ class SAnimGraphSchematicNode : public SMultiColumnTableRow<TSharedRef<FAnimGrap
 	TAttribute<FText> FilterText;
 };
 
-void SAnimGraphSchematicView::Construct(const FArguments& InArgs, uint64 InAnimInstanceId, Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession)
+void SAnimGraphSchematicView::Construct(const FArguments& InArgs, uint64 InAnimInstanceId, Insights::ITimingViewSession& InTimingViewSession, const TraceServices::IAnalysisSession& InAnalysisSession)
 {
 	AnimInstanceId = InAnimInstanceId;
 	TimingViewSession = &InTimingViewSession;
@@ -597,13 +597,13 @@ void SAnimGraphSchematicView::RefreshNodes()
 
 	if(AnimationProvider && GameplayProvider)
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
 
 		AnimationProvider->ReadAnimGraphTimeline(AnimInstanceId, [this, &NodeMap, AnimationProvider, GameplayProvider](const FAnimationProvider::AnimGraphTimeline& InGraphTimeline)
 		{
-			const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(*AnalysisSession);
+			const TraceServices::IFrameProvider& FramesProvider = TraceServices::ReadFrameProvider(*AnalysisSession);
 
-			Trace::FFrame Frame;
+			TraceServices::FFrame Frame;
 			if(FramesProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, TimeMarker, Frame))
 			{
 				InGraphTimeline.EnumerateEvents(Frame.StartTime, Frame.EndTime, [this, &NodeMap, AnimationProvider, GameplayProvider](double InGraphStartTime, double InGraphEndTime, uint32 InDepth, const FAnimGraphMessage& InMessage)
@@ -663,7 +663,7 @@ void SAnimGraphSchematicView::RefreshNodes()
 										}
 									}
 								}
-								return Trace::EEventEnumerate::Continue;
+								return TraceServices::EEventEnumerate::Continue;
 							});
 						});
 
@@ -719,10 +719,10 @@ void SAnimGraphSchematicView::RefreshNodes()
 								ExistingNode->KeysAndValues.Add(Key, SharedMessage);
 								ExistingNode->Values.Add(SharedMessage);
 							}
-							return Trace::EEventEnumerate::Continue;
+							return TraceServices::EEventEnumerate::Continue;
 						});
 					});
-					return Trace::EEventEnumerate::Continue;
+					return TraceServices::EEventEnumerate::Continue;
 				});
 			};
 		});

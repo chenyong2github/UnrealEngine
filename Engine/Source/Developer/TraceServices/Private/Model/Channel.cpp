@@ -3,7 +3,8 @@
 #include "UObject/NameTypes.h"
 #include "Misc/DateTime.h"
 
-namespace Trace {
+namespace TraceServices
+{
 
 const FName FChannelProvider::ProviderName("ChannelProvider");
 
@@ -65,4 +66,4 @@ FDateTime FChannelProvider::GetTimeStamp() const
 	return TimeStamp;
 }
 
-}
+} // namespace TraceServices

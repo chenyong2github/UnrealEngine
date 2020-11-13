@@ -3,11 +3,14 @@
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
 
-FMemoryAnalyzer::FMemoryAnalyzer(Trace::IAnalysisSession& InSession)
+namespace TraceServices
+{
+
+FMemoryAnalyzer::FMemoryAnalyzer(IAnalysisSession& InSession)
 	: Provider(nullptr)
 	, Session(InSession)
 {
-	Provider = Session.EditProvider<Trace::FMemoryProvider>(Trace::FMemoryProvider::ProviderName);
+	Provider = Session.EditProvider<FMemoryProvider>(FMemoryProvider::ProviderName);
 }
 
 FMemoryAnalyzer::~FMemoryAnalyzer()
@@ -30,7 +33,7 @@ bool FMemoryAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContex
 		return false;
 	}
 
-	Trace::FAnalysisSessionEditScope _(Session);
+	FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
@@ -59,10 +62,10 @@ bool FMemoryAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContex
 		const TArrayReader<int64>& Samples = EventData.GetArray<int64>("Values");
 
 		const uint32 TagsCount = Tags.Num();
-		TArray<Trace::FMemoryTagSample> Values;
+		TArray<FMemoryTagSample> Values;
 		for (uint32 i = 0; i < TagsCount; ++i)
 		{
-			Values.Push(Trace::FMemoryTagSample{ Samples[i] });
+			Values.Push(FMemoryTagSample{ Samples[i] });
 		}
 		Provider->AddTagSnapshot(TrackerId, Time, Tags.GetData(), Values.GetData(), TagsCount);
 		Sample++;
@@ -73,3 +76,5 @@ bool FMemoryAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContex
 	}
 	return true;
 }
+
+} // namespace TraceServices

@@ -9,7 +9,7 @@
 #include "Insights/ViewModels/BaseTimingTrack.h"
 #include "Insights/ViewModels/TrackHeader.h"
 
-namespace Trace
+namespace TraceServices
 {
 	struct FLogMessage;
 	class ILogProvider;
@@ -124,8 +124,8 @@ public:
 
 	const FTimingTrackViewport& GetViewport() { return Viewport; }
 
-	void BeginLog(const Trace::ILogProvider& LogProvider);
-	void AddLogMessage(const Trace::FLogMessage& Message);
+	void BeginLog(const TraceServices::ILogProvider& LogProvider);
+	void AddLogMessage(const TraceServices::FLogMessage& Message);
 	void EndLog();
 
 	static FLinearColor GetColorByCategory(const TCHAR* const Category);
@@ -142,7 +142,7 @@ private:
 	const TSharedRef<class FSlateFontMeasure> FontMeasureService;
 	const FSlateFontInfo Font;
 
-	const Trace::ILogProvider* LogProviderPtr; // valid only between BeginLog() and EndLog()
+	const TraceServices::ILogProvider* LogProviderPtr; // valid only between BeginLog() and EndLog()
 
 	float LastX1;
 	float LastX2;

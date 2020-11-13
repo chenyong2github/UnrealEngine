@@ -6,7 +6,7 @@
 #include "Containers/Map.h"
 #include "ISessionSourceFilterService.h"
 
-namespace Trace
+namespace TraceServices
 {
 	class IAnalysisSession;
 }
@@ -15,5 +15,5 @@ class FSourceFilterService
 {
 public:
 	/** Retrieves the ISessionSourceFilterService for the provided Trace Session Handle */
-	static TSharedRef<ISessionSourceFilterService> GetFilterServiceForSession(uint32 InHandle, TSharedRef<const Trace::IAnalysisSession> AnalysisSession);
+	static TSharedRef<ISessionSourceFilterService> GetFilterServiceForSession(uint32 InHandle, TSharedRef<const TraceServices::IAnalysisSession> AnalysisSession);
 };

@@ -89,7 +89,7 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetColumnTooltip(const Insights::FTab
 
 TSharedPtr<SToolTip> SNetStatsViewTooltip::GetRowTooltip(const TSharedPtr<FNetEventNode> NetEventNodePtr)
 {
-	const Trace::FNetProfilerAggregatedStats& Stats = NetEventNodePtr->GetAggregatedStats();
+	const TraceServices::FNetProfilerAggregatedStats& Stats = NetEventNodePtr->GetAggregatedStats();
 
 	const FText InstanceCountText = FText::AsNumber(Stats.InstanceCount);
 

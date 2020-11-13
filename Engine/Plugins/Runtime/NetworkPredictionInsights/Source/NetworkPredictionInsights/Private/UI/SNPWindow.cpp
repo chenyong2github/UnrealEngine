@@ -207,10 +207,10 @@ void SNPWindow::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& 
 
 void SNPWindow::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	TSharedPtr<const Trace::IAnalysisSession> Session = InsightsModule->GetAnalysisSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = InsightsModule->GetAnalysisSession();
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 		if (const INetworkPredictionProvider* NetworkPredictionProvider = ReadNetworkPredictionProvider(*Session.Get()))
 		{
 			uint64 NewDataCounter = NetworkPredictionProvider->GetNetworkPredictionDataCounter();
@@ -518,10 +518,10 @@ void SNPWindow::PopulateFilteredDataView()
 	UnfilteredDataView.FirstEngineFrame = TNumericLimits<uint64>::Max();
 	UnfilteredDataView.LastEngineFrame = 0;
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = InsightsModule->GetAnalysisSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = InsightsModule->GetAnalysisSession();
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 		const INetworkPredictionProvider* NetworkPredictionProvider = ReadNetworkPredictionProvider(*Session.Get());
 		if (NetworkPredictionProvider)
 		{

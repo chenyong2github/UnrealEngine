@@ -39,7 +39,7 @@ void FSlateTimingViewExtender::OnEndSession(Insights::ITimingViewSession& InSess
 	PerSessionDataMap.Remove(&InSession);
 }
 
-void FSlateTimingViewExtender::Tick(Insights::ITimingViewSession& InSession, const Trace::IAnalysisSession& InAnalysisSession)
+void FSlateTimingViewExtender::Tick(Insights::ITimingViewSession& InSession, const TraceServices::IAnalysisSession& InAnalysisSession)
 {
 	FPerSessionData* PerSessionData = PerSessionDataMap.Find(&InSession);
 	if(PerSessionData != nullptr)

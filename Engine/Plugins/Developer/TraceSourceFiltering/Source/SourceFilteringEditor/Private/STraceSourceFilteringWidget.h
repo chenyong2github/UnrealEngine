@@ -42,7 +42,7 @@ protected:
 	TSharedRef<SWidget> OnGetOptionsMenu();
 
 	/** Callback for whenever a different analysis session (store) has been retrieved */
-	void SetCurrentAnalysisSession(uint32 SessionHandle, TSharedRef<const Trace::IAnalysisSession> AnalysisSession);
+	void SetCurrentAnalysisSession(uint32 SessionHandle, TSharedRef<const TraceServices::IAnalysisSession> AnalysisSession);
 
 	/** Returns whether or not a valid ISessionSourceFilterService is available / set */
 	bool HasValidFilterSession() const;

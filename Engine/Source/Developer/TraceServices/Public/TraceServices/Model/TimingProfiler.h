@@ -8,7 +8,7 @@
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 struct FTimingProfilerTimer
@@ -85,4 +85,4 @@ public:
 
 TRACESERVICES_API const ITimingProfilerProvider* ReadTimingProfilerProvider(const IAnalysisSession& Session);
 
-}
+} // namespace TraceServices

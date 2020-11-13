@@ -34,7 +34,7 @@ FPacketContentViewDrawStateBuilder::FPacketContentViewDrawStateBuilder(FPacketCo
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FPacketContentViewDrawStateBuilder::AddEvent(const Trace::FNetProfilerContentEvent& Event, const TCHAR* EventName, uint32 NetId)
+void FPacketContentViewDrawStateBuilder::AddEvent(const TraceServices::FNetProfilerContentEvent& Event, const TCHAR* EventName, uint32 NetId)
 {
 	DrawState.Events.AddUninitialized();
 	FNetworkPacketEvent& PacketEvent = DrawState.Events.Last();
@@ -186,7 +186,7 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const Trace::FNetProfilerConte
 		Builder.Appendf(TEXT("%s"), EventName ? EventName : TEXT("?"));
 		if (EventW > Builder.Len() * 2.0f + 48.0f)
 		{
-			const Trace::FNetProfilerBunchInfo& Info = Event.BunchInfo;
+			const TraceServices::FNetProfilerBunchInfo& Info = Event.BunchInfo;
 			if (Info.bIsValid)
 			{
 				Builder.Appendf(TEXT(" ChannelId:%u"), Info.ChannelIndex);
@@ -201,7 +201,7 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const Trace::FNetProfilerConte
 				}
 				else if (Event.BunchInfo.bClose)
 				{
-					Builder.Appendf(TEXT(" | Close: %s"), LexToString(Trace::ENetProfilerChannelCloseReason(Info.ChannelCloseReason)));		
+					Builder.Appendf(TEXT(" | Close: %s"), LexToString(TraceServices::ENetProfilerChannelCloseReason(Info.ChannelCloseReason)));		
 				}
 				if (Event.BunchInfo.bReliable)
 				{

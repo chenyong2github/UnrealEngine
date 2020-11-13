@@ -6,17 +6,17 @@
 #include "Containers/Map.h"
 #include "TraceServices/Model/AnalysisSession.h"
 
-namespace Trace
+namespace TraceServices
 {
-	class FTimeline;
-	class FFileActivityProvider;
-}
+
+class FTimeline;
+class FFileActivityProvider;
 
 class FPlatformFileTraceAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FPlatformFileTraceAnalyzer(Trace::IAnalysisSession& Session, Trace::FFileActivityProvider& FileActivityProvider);
+	FPlatformFileTraceAnalyzer(IAnalysisSession& Session, FFileActivityProvider& FileActivityProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 
@@ -42,11 +42,13 @@ private:
 		uint32 ThreadId;
 	};
 
-	Trace::IAnalysisSession& Session;
-	Trace::FFileActivityProvider& FileActivityProvider;
+	IAnalysisSession& Session;
+	FFileActivityProvider& FileActivityProvider;
 	TMap<uint64, uint32> OpenFilesMap;
 	TMap<uint32, FPendingActivity> PendingOpenMap;
 	TMap<uint32, FPendingActivity> PendingCloseMap;
 	TMap<uint64, FPendingActivity> ActiveReadsMap;
 	TMap<uint64, FPendingActivity> ActiveWritesMap;
 };
+
+} // namespace TraceServices

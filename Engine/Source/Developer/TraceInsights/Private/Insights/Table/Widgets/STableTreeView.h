@@ -20,7 +20,7 @@
 
 class FMenuBuilder;
 
-namespace Trace
+namespace TraceServices
 {
 	class IAnalysisSession;
 }
@@ -251,7 +251,7 @@ protected:
 	TSharedPtr<Insights::FTable> Table;
 
 	/** A weak pointer to the profiler session used to populate this widget. */
-	TSharedPtr<const Trace::IAnalysisSession>/*Weak*/ Session;
+	TSharedPtr<const TraceServices::IAnalysisSession>/*Weak*/ Session;
 
 	//////////////////////////////////////////////////
 	// Tree View, Columns

@@ -7,7 +7,7 @@
 #include "GameplayGraphTrack.h"
 #include "Insights/ITimingViewSession.h"
 
-void STrackVariantValueView::Construct(const FArguments& InArgs, const TSharedRef<FBaseTimingTrack>& InTimingTrack, Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession)
+void STrackVariantValueView::Construct(const FArguments& InArgs, const TSharedRef<FBaseTimingTrack>& InTimingTrack, Insights::ITimingViewSession& InTimingViewSession, const TraceServices::IAnalysisSession& InAnalysisSession)
 {
 	TimingTrack = InTimingTrack;
 	AnalysisSession = &InAnalysisSession;
@@ -17,7 +17,7 @@ void STrackVariantValueView::Construct(const FArguments& InArgs, const TSharedRe
 	ChildSlot
 	[
 		SAssignNew(VariantValueView, SVariantValueView, InAnalysisSession)
-		.OnGetVariantValues_Lambda([this](const Trace::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutValues)
+		.OnGetVariantValues_Lambda([this](const TraceServices::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutValues)
 		{
 			TSharedPtr<FBaseTimingTrack> PinnedTrack = TimingTrack.Pin();
 			if(PinnedTrack.IsValid())
@@ -34,10 +34,10 @@ void STrackVariantValueView::Construct(const FArguments& InArgs, const TSharedRe
 		})
 	];
 
-	Trace::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
+	TraceServices::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
 
-	const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(InAnalysisSession);
-	Trace::FFrame MarkerFrame;
+	const TraceServices::IFrameProvider& FramesProvider = TraceServices::ReadFrameProvider(InAnalysisSession);
+	TraceServices::FFrame MarkerFrame;
 	if(FramesProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, InTimingViewSession.GetTimeMarker(), MarkerFrame))
 	{
 		VariantValueView->RequestRefresh(MarkerFrame);
@@ -46,10 +46,10 @@ void STrackVariantValueView::Construct(const FArguments& InArgs, const TSharedRe
 
 void STrackVariantValueView::HandleTimeMarkerChanged(Insights::ETimeChangedFlags InFlags, double InTimeMarker)
 {
-	Trace::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+	TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
 
-	const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(*AnalysisSession);
-	Trace::FFrame MarkerFrame;
+	const TraceServices::IFrameProvider& FramesProvider = TraceServices::ReadFrameProvider(*AnalysisSession);
+	TraceServices::FFrame MarkerFrame;
 	if(FramesProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, InTimeMarker, MarkerFrame))
 	{
 		VariantValueView->RequestRefresh(MarkerFrame);

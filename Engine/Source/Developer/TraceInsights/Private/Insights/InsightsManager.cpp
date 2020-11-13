@@ -94,8 +94,8 @@ TSharedPtr<FInsightsManager> FInsightsManager::Get()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FInsightsManager> FInsightsManager::CreateInstance(TSharedRef<Trace::IAnalysisService> TraceAnalysisService,
-															  TSharedRef<Trace::IModuleService> TraceModuleService)
+TSharedPtr<FInsightsManager> FInsightsManager::CreateInstance(TSharedRef<TraceServices::IAnalysisService> TraceAnalysisService,
+															  TSharedRef<TraceServices::IModuleService> TraceModuleService)
 {
 	ensure(!FInsightsManager::Instance.IsValid());
 	if (FInsightsManager::Instance.IsValid())
@@ -110,8 +110,8 @@ TSharedPtr<FInsightsManager> FInsightsManager::CreateInstance(TSharedRef<Trace::
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FInsightsManager::FInsightsManager(TSharedRef<Trace::IAnalysisService> InTraceAnalysisService,
-								   TSharedRef<Trace::IModuleService> InTraceModuleService)
+FInsightsManager::FInsightsManager(TSharedRef<TraceServices::IAnalysisService> InTraceAnalysisService,
+								   TSharedRef<TraceServices::IModuleService> InTraceModuleService)
 	: bIsInitialized(false)
 	, AnalysisService(InTraceAnalysisService)
 	, ModuleService(InTraceModuleService)
@@ -321,7 +321,7 @@ bool FInsightsManager::ConnectToStore(const TCHAR* Host, uint32 Port)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<const Trace::IAnalysisSession> FInsightsManager::GetSession() const
+TSharedPtr<const TraceServices::IAnalysisSession> FInsightsManager::GetSession() const
 {
 	return Session;
 }
@@ -371,7 +371,7 @@ void FInsightsManager::UpdateSessionDuration()
 	{
 		double LocalSessionDuration = 0.0;
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 			if (bIsAnalysisComplete != Session->IsAnalysisComplete())
 			{
 				bIsAnalysisComplete = Session->IsAnalysisComplete();

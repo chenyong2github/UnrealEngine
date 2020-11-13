@@ -4,7 +4,7 @@
 #include "Analyzers/DiagnosticsAnalysis.h"
 #include "TraceServices/Model/AnalysisSession.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 static const FName DiagnosticsModuleName("TraceModule_Diagnostics");
@@ -25,4 +25,4 @@ void FDiagnosticsModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
 	OutLoggers.Add(TEXT("Diagnostics"));
 }
 
-}
+} // namespace TraceServices

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Features/IModularFeature.h"
 
-namespace Trace { class IAnalysisSession; }
+namespace TraceServices { class IAnalysisSession; }
 class FMenuBuilder;
 
 namespace Insights
@@ -26,7 +26,7 @@ public:
 	virtual void OnEndSession(ITimingViewSession& InSession) = 0;
 
 	/** Called each frame. If any new tracks are created they can be added via ITimingViewSession::Add*Track() */
-	virtual void Tick(ITimingViewSession& InSession, const Trace::IAnalysisSession& InAnalysisSession) = 0;
+	virtual void Tick(ITimingViewSession& InSession, const TraceServices::IAnalysisSession& InAnalysisSession) = 0;
 
 	/** Extension hook for the 'quick filter' menu */
 	virtual void ExtendFilterMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) = 0;

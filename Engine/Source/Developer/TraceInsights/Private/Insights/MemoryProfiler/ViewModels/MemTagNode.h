@@ -10,7 +10,7 @@
 #include "Insights/MemoryProfiler/ViewModels/MemoryTag.h"
 #include "Insights/Table/ViewModels/BaseTreeNode.h"
 
-namespace Trace
+namespace TraceServices
 {
 	struct FMemoryProfilerAggregatedStats
 	{
@@ -105,16 +105,16 @@ public:
 	/**
 	 * @return the aggregated stats for this MemTag node.
 	 */
-	const Trace::FMemoryProfilerAggregatedStats& GetAggregatedStats() const { return AggregatedStats; }
+	const TraceServices::FMemoryProfilerAggregatedStats& GetAggregatedStats() const { return AggregatedStats; }
 
 	void ResetAggregatedStats();
-	//TODO: void SetAggregatedStats(const Trace::FMemoryProfilerAggregatedStats& AggregatedStats);
+	//TODO: void SetAggregatedStats(const TraceServices::FMemoryProfilerAggregatedStats& AggregatedStats);
 
 private:
 	const EMemTagNodeType Type;
 	Insights::FMemoryTag* MemTag;
 	FMemTagNodePtr ParentTagNode;
-	Trace::FMemoryProfilerAggregatedStats AggregatedStats;
+	TraceServices::FMemoryProfilerAggregatedStats AggregatedStats;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

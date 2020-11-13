@@ -5,7 +5,7 @@
 #include "AnalysisServicePrivate.h"
 #include "TraceServices/ModuleService.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 static const FName StatsModuleName("TraceModule_Stats");
@@ -27,4 +27,4 @@ void FStatsModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
 	//OutLoggers.Add(TEXT("Stats"));
 }
 
-}
+} // namespace TraceServices

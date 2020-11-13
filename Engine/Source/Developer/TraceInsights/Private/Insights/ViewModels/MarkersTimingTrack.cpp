@@ -120,18 +120,18 @@ void FMarkersTimingTrack::UpdateDrawState(const FTimingTrackViewport& InViewport
 {
 	FTimeMarkerTrackBuilder Builder(*this, InViewport);
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::ILogProvider& LogProvider = Trace::ReadLogProvider(*Session.Get());
+		const TraceServices::ILogProvider& LogProvider = TraceServices::ReadLogProvider(*Session.Get());
 		Builder.BeginLog(LogProvider);
 
 		LogProvider.EnumerateMessages(
 			Builder.GetViewport().GetStartTime(),
 			Builder.GetViewport().GetEndTime(),
-			[&Builder](const Trace::FLogMessage& Message) { Builder.AddLogMessage(Message); });
+			[&Builder](const TraceServices::FLogMessage& Message) { Builder.AddLogMessage(Message); });
 
 		Builder.EndLog();
 	}
@@ -298,7 +298,7 @@ FTimeMarkerTrackBuilder::FTimeMarkerTrackBuilder(FMarkersTimingTrack& InTrack, c
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimeMarkerTrackBuilder::BeginLog(const Trace::ILogProvider& LogProvider)
+void FTimeMarkerTrackBuilder::BeginLog(const TraceServices::ILogProvider& LogProvider)
 {
 	LogProviderPtr = &LogProvider;
 
@@ -312,7 +312,7 @@ void FTimeMarkerTrackBuilder::BeginLog(const Trace::ILogProvider& LogProvider)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimeMarkerTrackBuilder::AddLogMessage(const Trace::FLogMessage& Message)
+void FTimeMarkerTrackBuilder::AddLogMessage(const TraceServices::FLogMessage& Message)
 {
 	Track.NumLogMessages++;
 
@@ -323,7 +323,7 @@ void FTimeMarkerTrackBuilder::AddLogMessage(const Trace::FLogMessage& Message)
 		//TODO: Search API like: LogProviderPtr->SearchMessage(StartIndex, ESearchDirection::Backward, LambdaPredicate, bResolveFormatString);
 		LogProviderPtr->ReadMessage(
 			Message.Index - 1,
-			[this](const Trace::FLogMessage& Message) { AddLogMessage(Message); });
+			[this](const TraceServices::FLogMessage& Message) { AddLogMessage(Message); });
 	}
 
 	check(Message.Category != nullptr);

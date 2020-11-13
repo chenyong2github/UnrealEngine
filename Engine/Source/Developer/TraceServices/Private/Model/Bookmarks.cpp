@@ -5,7 +5,7 @@
 #include "AnalysisServicePrivate.h"
 #include "Common/FormatArgs.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 const FName FBookmarkProvider::ProviderName("BookmarkProvider");
@@ -85,4 +85,4 @@ const IBookmarkProvider& ReadBookmarkProvider(const IAnalysisSession& Session)
 	return *Session.ReadProvider<IBookmarkProvider>(FBookmarkProvider::ProviderName);
 }
 
-}
+} // namespace TraceServices

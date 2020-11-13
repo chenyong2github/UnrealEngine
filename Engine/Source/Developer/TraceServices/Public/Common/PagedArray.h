@@ -5,6 +5,8 @@
 #include "TraceServices/Containers/Allocators.h"
 #include "Containers/Array.h"
 
+namespace TraceServices {
+
 template<typename ItemType>
 struct TPagedArrayPage
 {
@@ -235,7 +237,7 @@ public:
 	typedef InPageType PageType;
 	typedef TPagedArrayIterator<InItemType, InPageType> TIterator;
 
-	TPagedArray(Trace::ILinearAllocator& InAllocator, uint64 InPageSize)
+	TPagedArray(ILinearAllocator& InAllocator, uint64 InPageSize)
 		: Allocator(InAllocator)
 		, PageSize(InPageSize)
 	{
@@ -401,7 +403,7 @@ private:
 	template<typename ItemType, typename PageType>
 	friend class TPagedArrayIterator;
 
-	Trace::ILinearAllocator& Allocator;
+	ILinearAllocator& Allocator;
 	TArray<PageType> PagesArray;
 	PageType* FirstPage = nullptr;
 	PageType* LastPage = nullptr;
@@ -420,3 +422,5 @@ inline SIZE_T GetNum(const TPagedArray<ItemType, PageType>& PagedArray)
 {
 	return PagedArray.NumPages();
 }
+
+} // namespace TraceServices

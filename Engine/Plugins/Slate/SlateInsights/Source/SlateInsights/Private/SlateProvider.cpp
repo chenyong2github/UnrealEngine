@@ -111,7 +111,7 @@ namespace Message
 	}
 } //namespace Message
 
-FSlateProvider::FSlateProvider(Trace::IAnalysisSession& InSession)
+FSlateProvider::FSlateProvider(TraceServices::IAnalysisSession& InSession)
 	: Session(InSession)
 	, WidgetTimelines(Session.GetLinearAllocator())
 	, ApplicationTickedTimeline(Session.GetLinearAllocator())

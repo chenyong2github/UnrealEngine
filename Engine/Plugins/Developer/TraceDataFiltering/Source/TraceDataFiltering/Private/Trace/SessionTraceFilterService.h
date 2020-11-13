@@ -5,18 +5,18 @@
 #include "ISessionTraceFilterService.h"
 #include "BaseSessionFilterService.h"
 
-namespace Trace
+namespace TraceServices
 {
 	class IAnalysisSession;
 	typedef uint64 FSessionHandle;
 }
 
-/** Implementation of ISessionTraceFilterService specifically to use with Trace, using Trace::IChannelProvider to provide information about Channels available on the running application 
- and Trace::ISessionService to change the Channel state(s). */
+/** Implementation of ISessionTraceFilterService specifically to use with Trace, using TraceServices::IChannelProvider to provide information about Channels available on the running application 
+ and TraceServices::ISessionService to change the Channel state(s). */
 class FSessionTraceFilterService : public FBaseSessionFilterService
 {
 public:
-	FSessionTraceFilterService(Trace::FSessionHandle InHandle, TSharedPtr<const Trace::IAnalysisSession> InSession);
+	FSessionTraceFilterService(TraceServices::FSessionHandle InHandle, TSharedPtr<const TraceServices::IAnalysisSession> InSession);
 	virtual ~FSessionTraceFilterService() {}
 
 	/** Begin FBaseSessionFilterService overrides */

@@ -234,10 +234,10 @@ bool FMemoryProfilerManager::Tick(float DeltaTime)
 	{
 		uint32 TagCount = 0;
 
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 		if (Session.IsValid())
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
 			if (Session->IsAnalysisComplete())
 			{
@@ -245,7 +245,7 @@ bool FMemoryProfilerManager::Tick(float DeltaTime)
 				AvailabilityCheck.Disable();
 			}
 
-			const Trace::IMemoryProvider& MemoryProvider = Trace::ReadMemoryProvider(*Session.Get());
+			const TraceServices::IMemoryProvider& MemoryProvider = TraceServices::ReadMemoryProvider(*Session.Get());
 			TagCount = MemoryProvider.GetTagCount();
 		}
 		else

@@ -108,14 +108,14 @@ void FAnimNodesTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder
 
 	if(AnimationProvider)
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 		AnimationProvider->ReadAnimGraphTimeline(GetGameplayTrack().GetObjectId(), [&Context, &Builder](const FAnimationProvider::AnimGraphTimeline& InTimeline)
 		{
 			InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), [&Builder](double InStartTime, double InEndTime, uint32 InDepth, const FAnimGraphMessage& InMessage)
 			{
 				Builder.AddEvent(InStartTime, InEndTime, 0, GetPhaseName(InMessage.Phase));
-				return Trace::EEventEnumerate::Continue;
+				return TraceServices::EEventEnumerate::Continue;
 			});
 		});
 	}
@@ -168,14 +168,14 @@ void FAnimNodesTrack::FindAnimGraphMessage(const FTimingEventSearchParameters& I
 
 			if(AnimationProvider)
 			{
-				Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+				TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 				AnimationProvider->ReadAnimGraphTimeline(GetGameplayTrack().GetObjectId(), [&InContext](const FAnimationProvider::AnimGraphTimeline& InTimeline)
 				{
 					InTimeline.EnumerateEvents(InContext.GetParameters().StartTime, InContext.GetParameters().EndTime, [&InContext](double InEventStartTime, double InEventEndTime, uint32 InDepth, const FAnimGraphMessage& InMessage)
 					{
 						InContext.Check(InEventStartTime, InEventEndTime, 0, InMessage);
-						return Trace::EEventEnumerate::Continue;
+						return TraceServices::EEventEnumerate::Continue;
 					});
 				});
 			}
@@ -208,7 +208,7 @@ void FAnimNodesTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 							const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 							if(GameplayProvider)
 							{
-								Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+								TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 								if(const FObjectInfo* AnimInstanceObjectInfo = GameplayProvider->FindObjectInfo(GetGameplayTrack().GetObjectId()))
 								{
@@ -242,7 +242,7 @@ void FAnimNodesTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 							const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 							if(GameplayProvider)
 							{
-								Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+								TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 								if(const FObjectInfo* AnimInstanceObjectInfo = GameplayProvider->FindObjectInfo(GetGameplayTrack().GetObjectId()))
 								{
@@ -300,7 +300,7 @@ UAnimInstance* FAnimNodesTrack::LazyCreateAnimInstance(USkeletalMeshComponent* I
 	return nullptr;
 }
 
-void FAnimNodesTrack::UpdateDebugData(const Trace::FFrame& InFrame)
+void FAnimNodesTrack::UpdateDebugData(const TraceServices::FFrame& InFrame)
 {
 	if(InstanceClass.LoadSynchronous())
 	{
@@ -309,7 +309,7 @@ void FAnimNodesTrack::UpdateDebugData(const Trace::FFrame& InFrame)
 
 		if(AnimationProvider && GameplayProvider)
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 			AnimationProvider->ReadAnimGraphTimeline(GetGameplayTrack().GetObjectId(), [this, AnimationProvider, GameplayProvider, InFrame](const FAnimationProvider::AnimGraphTimeline& InGraphTimeline)
 			{
@@ -333,7 +333,7 @@ void FAnimNodesTrack::UpdateDebugData(const Trace::FFrame& InFrame)
 									{
 										DebugData.RecordNodeVisit(InMessage.NodeId, InMessage.PreviousNodeId, InMessage.Weight);
 									}
-									return Trace::EEventEnumerate::Continue;
+									return TraceServices::EEventEnumerate::Continue;
 								});
 							});
 
@@ -342,7 +342,7 @@ void FAnimNodesTrack::UpdateDebugData(const Trace::FFrame& InFrame)
 								InStateMachinesTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [&DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimStateMachineMessage& InMessage)
 								{
 									DebugData.RecordStateData(InMessage.StateMachineIndex, InMessage.StateIndex, InMessage.StateWeight, InMessage.ElapsedTime);
-									return Trace::EEventEnumerate::Continue;
+									return TraceServices::EEventEnumerate::Continue;
 								});
 							});
 
@@ -352,7 +352,7 @@ void FAnimNodesTrack::UpdateDebugData(const Trace::FFrame& InFrame)
 								{
 									FText Text = AnimationProvider->FormatNodeKeyValue(InMessage);
 									DebugData.RecordNodeValue(InMessage.NodeId, Text.ToString());
-									return Trace::EEventEnumerate::Continue;
+									return TraceServices::EEventEnumerate::Continue;
 								});
 							});
 
@@ -361,7 +361,7 @@ void FAnimNodesTrack::UpdateDebugData(const Trace::FFrame& InFrame)
 								InSequencePlayersTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [&DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimSequencePlayerMessage& InMessage)
 								{
 									DebugData.RecordSequencePlayer(InMessage.NodeId, InMessage.Position, InMessage.Length, InMessage.FrameCounter);
-									return Trace::EEventEnumerate::Continue;
+									return TraceServices::EEventEnumerate::Continue;
 								});
 							});
 
@@ -377,12 +377,12 @@ void FAnimNodesTrack::UpdateDebugData(const Trace::FFrame& InFrame)
 									}
 
 									DebugData.RecordBlendSpacePlayer(InMessage.NodeId, BlendSpaceBase, InMessage.PositionX, InMessage.PositionY, InMessage.PositionZ);
-									return Trace::EEventEnumerate::Continue;
+									return TraceServices::EEventEnumerate::Continue;
 								});
 							});
 						}
 					}
-					return Trace::EEventEnumerate::Continue;
+					return TraceServices::EEventEnumerate::Continue;
 				});
 			});
 		}
@@ -398,7 +398,7 @@ void FAnimNodesTrack::GetCustomDebugObjects(const IAnimationBlueprintEditor& InA
 			const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 			if(GameplayProvider)
 			{
-				Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+				TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 				if(const FObjectInfo* AnimInstanceObjectInfo = GameplayProvider->FindObjectInfo(GetGameplayTrack().GetObjectId()))
 				{

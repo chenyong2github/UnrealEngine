@@ -10,7 +10,7 @@
 #include "Templates/SharedPointer.h"
 #include "Model/Tables.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 class FAnalysisSessionLock;
@@ -50,4 +50,4 @@ private:
 	TTableView<FFileActivity> FileActivityTable;
 };
 
-}
+} // namespace TraceServices

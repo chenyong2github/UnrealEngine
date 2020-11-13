@@ -45,7 +45,7 @@ SNetStatsView::SNetStatsView()
 	, ObjectsChangeCount(0)
 	, GameInstanceIndex(0)
 	, ConnectionIndex(0)
-	, ConnectionMode(Trace::ENetProfilerConnectionMode::Outgoing)
+	, ConnectionMode(TraceServices::ENetProfilerConnectionMode::Outgoing)
 	, StatsPacketStartIndex(0)
 	, StatsPacketEndIndex(0)
 	, StatsStartPosition(0)
@@ -613,7 +613,7 @@ TSharedRef<SWidget> SNetStatsView::TreeViewHeaderRow_GenerateColumnMenu(const In
 
 void SNetStatsView::InsightsManager_OnSessionChanged()
 {
-	TSharedPtr<const Trace::IAnalysisSession> NewSession = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> NewSession = FInsightsManager::Get()->GetSession();
 
 	if (NewSession != Session)
 	{
@@ -1539,7 +1539,7 @@ void SNetStatsView::Reset()
 {
 	GameInstanceIndex = 0;
 	ConnectionIndex = 0;
-	ConnectionMode = Trace::ENetProfilerConnectionMode::Outgoing;
+	ConnectionMode = TraceServices::ENetProfilerConnectionMode::Outgoing;
 
 	StatsPacketStartIndex = 0;
 	StatsPacketEndIndex = 0;
@@ -1582,11 +1582,11 @@ void SNetStatsView::RebuildTree(bool bResync)
 	SyncStopwatch.Start();
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
+		const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
 
-		NetProfilerProvider.ReadEventTypes([this, &bResync, &NetProfilerProvider](const Trace::FNetProfilerEventType* NetEvents, uint64 InNetEventCount)
+		NetProfilerProvider.ReadEventTypes([this, &bResync, &NetProfilerProvider](const TraceServices::FNetProfilerEventType* NetEvents, uint64 InNetEventCount)
 		{
 			const uint32 NetEventCount = static_cast<uint32>(InNetEventCount);
 			if (NetEventCount != NetEventNodes.Num())
@@ -1594,10 +1594,10 @@ void SNetStatsView::RebuildTree(bool bResync)
 				NetEventNodes.Empty(NetEventCount);
 				for (uint32 Index = 0; Index < NetEventCount; ++Index)
 				{
-					const Trace::FNetProfilerEventType& NetEvent = NetEvents[Index];
+					const TraceServices::FNetProfilerEventType& NetEvent = NetEvents[Index];
 					ensure(NetEvent.EventTypeIndex == Index);
 					const TCHAR* NamePtr = nullptr;
-					NetProfilerProvider.ReadName(NetEvent.NameIndex, [&NamePtr](const Trace::FNetProfilerName& InName)
+					NetProfilerProvider.ReadName(NetEvent.NameIndex, [&NamePtr](const TraceServices::FNetProfilerName& InName)
 					{
 						NamePtr = InName.Name;
 					});
@@ -1656,7 +1656,7 @@ void SNetStatsView::ResetStats()
 {
 	GameInstanceIndex = 0;
 	ConnectionIndex = 0;
-	ConnectionMode = Trace::ENetProfilerConnectionMode::Outgoing;
+	ConnectionMode = TraceServices::ENetProfilerConnectionMode::Outgoing;
 
 	StatsPacketStartIndex = 0;
 	StatsPacketEndIndex = 0;
@@ -1668,7 +1668,7 @@ void SNetStatsView::ResetStats()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SNetStatsView::UpdateStats(uint32 InGameInstanceIndex, uint32 InConnectionIndex, Trace::ENetProfilerConnectionMode InConnectionMode, uint32 InStatsPacketStartIndex, uint32 InStatsPacketEndIndex, uint32 InStatsStartPosition, uint32 InStatsEndPosition)
+void SNetStatsView::UpdateStats(uint32 InGameInstanceIndex, uint32 InConnectionIndex, TraceServices::ENetProfilerConnectionMode InConnectionMode, uint32 InStatsPacketStartIndex, uint32 InStatsPacketEndIndex, uint32 InStatsStartPosition, uint32 InStatsEndPosition)
 {
 	GameInstanceIndex = InGameInstanceIndex;
 	ConnectionIndex = InConnectionIndex;
@@ -1704,12 +1704,12 @@ void SNetStatsView::UpdateStatsInternal()
 
 	if (Session.IsValid())
 	{
-		TUniquePtr<Trace::ITable<Trace::FNetProfilerAggregatedStats>> AggregationResultTable;
+		TUniquePtr<TraceServices::ITable<TraceServices::FNetProfilerAggregatedStats>> AggregationResultTable;
 
 		AggregationStopwatch.Start();
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
 			// CreateAggregation requires [PacketStartIndex, PacketEndIndex] as inclusive interval and [StartPos, EndPos) as exclusive interval.
 			AggregationResultTable.Reset(NetProfilerProvider.CreateAggregation(ConnectionIndex, ConnectionMode, StatsPacketStartIndex, StatsPacketEndIndex - 1, StatsStartPosition, StatsEndPosition));
 		}
@@ -1717,10 +1717,10 @@ void SNetStatsView::UpdateStatsInternal()
 
 		if (AggregationResultTable.IsValid())
 		{
-			TUniquePtr<Trace::ITableReader<Trace::FNetProfilerAggregatedStats>> TableReader(AggregationResultTable->CreateReader());
+			TUniquePtr<TraceServices::ITableReader<TraceServices::FNetProfilerAggregatedStats>> TableReader(AggregationResultTable->CreateReader());
 			while (TableReader->IsValid())
 			{
-				const Trace::FNetProfilerAggregatedStats* Row = TableReader->GetCurrentRow();
+				const TraceServices::FNetProfilerAggregatedStats* Row = TableReader->GetCurrentRow();
 				FNetEventNodePtr NetEventNodePtr = GetNetEventNode(Row->EventTypeIndex);
 				if (NetEventNodePtr)
 				{

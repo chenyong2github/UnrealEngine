@@ -10,7 +10,7 @@
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/Containers/Timelines.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 struct FMonotonicTimelineDefaultSettings
@@ -1086,4 +1086,4 @@ private:
 	uint64 ModCount = 0;
 };
 
-}
+} // namespace TraceServices

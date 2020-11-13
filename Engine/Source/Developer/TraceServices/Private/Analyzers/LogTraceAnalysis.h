@@ -4,17 +4,17 @@
 
 #include "Trace/Analyzer.h"
 
-namespace Trace
+namespace TraceServices
 {
-	class IAnalysisSession;
-	class FLogProvider;
-}
+
+class IAnalysisSession;
+class FLogProvider;
 
 class FLogTraceAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FLogTraceAnalyzer(Trace::IAnalysisSession& Session, Trace::FLogProvider& LogProvider);
+	FLogTraceAnalyzer(IAnalysisSession& Session, FLogProvider& LogProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 
@@ -26,6 +26,8 @@ private:
 		RouteId_LogMessage,
 	};
 
-	Trace::IAnalysisSession& Session;
-	Trace::FLogProvider& LogProvider;
+	IAnalysisSession& Session;
+	FLogProvider& LogProvider;
 };
+
+} // namespace TraceServices

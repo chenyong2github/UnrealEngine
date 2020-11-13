@@ -5,7 +5,7 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include "Templates/Function.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 enum ECounterDisplayHint
@@ -59,4 +59,4 @@ public:
 TRACESERVICES_API const ICounterProvider& ReadCounterProvider(const IAnalysisSession& Session);
 TRACESERVICES_API ICounterProvider& EditCounterProvider(IAnalysisSession& Session);
 
-}
+} // namespace TraceServices

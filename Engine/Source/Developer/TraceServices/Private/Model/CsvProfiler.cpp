@@ -3,7 +3,7 @@
 #include "TraceServices/Model/CsvProfiler.h"
 #include "CsvProfilerPrivate.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 uint64 FCsvProfilerProvider::FTableLayout::GetColumnCount() const
@@ -250,4 +250,4 @@ void FCsvProfilerProvider::SetMetadata(const TCHAR* Key, const TCHAR* Value)
 	Metadata.Add(Key, Value);
 }
 
-}
+} // namespace TraceServices

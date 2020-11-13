@@ -81,7 +81,7 @@ static void TEMP_TestAllocationsProvider()
 
 
 
-namespace Trace
+namespace TraceServices
 {
 
 static const FName MemoryModuleName("TraceModule_Memory");
@@ -114,4 +114,4 @@ void FMemoryModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
 	OutLoggers.Add(TEXT("Memory"));
 }
 
-}
+} // namespace TraceServices

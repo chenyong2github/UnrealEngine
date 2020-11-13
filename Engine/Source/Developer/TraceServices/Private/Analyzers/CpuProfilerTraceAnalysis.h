@@ -6,17 +6,17 @@
 #include "Containers/UnrealString.h"
 #include "Model/TimingProfilerPrivate.h"
 
-namespace Trace
+namespace TraceServices
 {
-	class IAnalysisSession;
-	class FThreadProvider;
-}
+
+class IAnalysisSession;
+class FThreadProvider;
 
 class FCpuProfilerAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FCpuProfilerAnalyzer(Trace::IAnalysisSession& Session, Trace::FTimingProfilerProvider& TimingProfilerProvider, Trace::FThreadProvider& InThreadProvider);
+	FCpuProfilerAnalyzer(IAnalysisSession& Session, FTimingProfilerProvider& TimingProfilerProvider, FThreadProvider& InThreadProvider);
 	~FCpuProfilerAnalyzer();
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
@@ -38,7 +38,7 @@ private:
 	{
 		TArray<FEventScopeState> ScopeStack;
 		TArray<FPendingEvent> PendingEvents;
-		Trace::FTimingProfilerProvider::TimelineInternal* Timeline;
+		FTimingProfilerProvider::TimelineInternal* Timeline;
 		uint64 LastCycle = 0;
 	};
 
@@ -59,9 +59,9 @@ private:
 		RouteId_ChannelToggle,
 	};
 
-	Trace::IAnalysisSession& Session;
-	Trace::FTimingProfilerProvider& TimingProfilerProvider;
-	Trace::FThreadProvider& ThreadProvider;
+	IAnalysisSession& Session;
+	FTimingProfilerProvider& TimingProfilerProvider;
+	FThreadProvider& ThreadProvider;
 	TMap<uint32, FThreadState*> ThreadStatesMap;
 	TMap<uint32, uint32> SpecIdToTimerIdMap;
 	TMap<const TCHAR*, uint32> ScopeNameToTimerIdMap;
@@ -69,3 +69,5 @@ private:
 	uint64 TotalScopeCount = 0;
 	double BytesPerScope = 0.0;
 };
+
+} // namespace TraceServices

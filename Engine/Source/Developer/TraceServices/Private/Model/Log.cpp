@@ -5,7 +5,7 @@
 #include "AnalysisServicePrivate.h"
 #include "Common/FormatArgs.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 const FName FLogProvider::ProviderName("LogProvider");
@@ -172,4 +172,4 @@ const ILogProvider& ReadLogProvider(const IAnalysisSession& Session)
 	return *Session.ReadProvider<ILogProvider>(FLogProvider::ProviderName);
 }
 
-}
+} // namespace TraceServices

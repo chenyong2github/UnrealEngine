@@ -20,7 +20,7 @@
 #include "Model/Channel.h"
 #include "Model/DiagnosticsPrivate.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 thread_local FAnalysisSessionLock* GThreadCurrentSessionLock;
@@ -102,7 +102,7 @@ FAnalysisSession::~FAnalysisSession()
 
 void FAnalysisSession::Start()
 {
-	FAnalysisContext Context;
+	Trace::FAnalysisContext Context;
 	for (Trace::IAnalyzer* Analyzer : ReadAnalyzers())
 	{
 		Context.AddAnalyzer(*Analyzer);
@@ -124,7 +124,7 @@ void FAnalysisSession::Wait() const
 	Processor.Wait();
 }
 
-void FAnalysisSession::AddAnalyzer(IAnalyzer* Analyzer)
+void FAnalysisSession::AddAnalyzer(Trace::IAnalyzer* Analyzer)
 {
 	Analyzers.Add(Analyzer);
 }
@@ -180,7 +180,7 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::Analyze(const TCHAR* Sessio
 TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* SessionUri)
 {
 	struct FFileDataStream
-		: public IInDataStream
+		: public Trace::IInDataStream
 	{
 		virtual int32 Read(void* Data, uint32 Size) override
 		{
@@ -209,7 +209,7 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* 
 	FileStream->Handle = TUniquePtr<IFileHandle>(Handle);
 	FileStream->Remaining = Handle->Size();
 
-	TUniquePtr<IInDataStream> DataStream(FileStream);
+	TUniquePtr<Trace::IInDataStream> DataStream(FileStream);
 	return StartAnalysis(SessionUri, MoveTemp(DataStream));
 }
 
@@ -217,7 +217,7 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* 
 {
 	TSharedRef<FAnalysisSession> Session = MakeShared<FAnalysisSession>(SessionName, MoveTemp(DataStream));
 
-	Trace::FAnalysisSessionEditScope _(*Session);
+	FAnalysisSessionEditScope _(*Session);
 
 	FBookmarkProvider* BookmarkProvider = new FBookmarkProvider(*Session);
 	Session->AddProvider(FBookmarkProvider::ProviderName, BookmarkProvider);
@@ -255,4 +255,4 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* 
 	return Session;
 }
 
-}
+} // namespace TraceServices

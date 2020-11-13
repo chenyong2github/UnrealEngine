@@ -125,11 +125,11 @@ void FMemoryTagList::UpdateInternal()
 {
 	bool bUpdated = false;
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::IMemoryProvider& MemoryProvider = Trace::ReadMemoryProvider(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::IMemoryProvider& MemoryProvider = TraceServices::ReadMemoryProvider(*Session.Get());
 
 		const int32 TraceSerialNumber = MemoryProvider.GetTagSerial();
 		if (LastTraceSerialNumber != TraceSerialNumber)
@@ -138,9 +138,9 @@ void FMemoryTagList::UpdateInternal()
 			++SerialNumber;
 			bUpdated = true;
 
-			MemoryProvider.EnumerateTags([this](const Trace::FMemoryTag& TraceTag)
+			MemoryProvider.EnumerateTags([this](const TraceServices::FMemoryTagInfo& TraceTag)
 			{
-				static_assert(FMemoryTag::InvalidTagId == static_cast<FMemoryTagId>(Trace::FMemoryTag::InvalidTagId), "Memory TagId type mismatch!");
+				static_assert(FMemoryTag::InvalidTagId == static_cast<FMemoryTagId>(TraceServices::FMemoryTagInfo::InvalidTagId), "Memory TagId type mismatch!");
 				FMemoryTagId TagId = static_cast<FMemoryTagId>(TraceTag.Id);
 
 				FMemoryTag* TagPtr = TagIdMap.FindRef(TagId);

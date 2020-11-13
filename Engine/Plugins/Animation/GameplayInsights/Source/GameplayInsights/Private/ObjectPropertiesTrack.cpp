@@ -28,7 +28,7 @@ void FObjectPropertiesTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& 
 
 	if(GameplayProvider)
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 		const FText PropertiesText(LOCTEXT("PropertiesEventLabel", "Properties"));
 		const TCHAR* PropertiesString = *PropertiesText.ToString();
@@ -39,7 +39,7 @@ void FObjectPropertiesTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& 
 			InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), [&Builder, &PropertiesString](double InStartTime, double InEndTime, uint32 InDepth, const FObjectPropertiesMessage& InMessage)
 			{
 				Builder.AddEvent(InStartTime, InEndTime, 0, PropertiesString);
-				return Trace::EEventEnumerate::Continue;
+				return TraceServices::EEventEnumerate::Continue;
 			});
 		});
 	}
@@ -57,7 +57,7 @@ void FObjectPropertiesTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimi
 	const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 	if(GameplayProvider)
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 		FTimingEventSearchParameters SearchParameters(HoveredTimingEvent.GetStartTime(), HoveredTimingEvent.GetEndTime(), ETimingEventSearchFlags::StopAtFirstMatch);
 
@@ -98,14 +98,14 @@ void FObjectPropertiesTrack::FindObjectEvent(const FTimingEventSearchParameters&
 
 			if(GameplayProvider)
 			{
-				Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+				TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 				GameplayProvider->ReadObjectPropertiesTimeline(GetGameplayTrack().GetObjectId(), [&InContext](const FGameplayProvider::ObjectPropertiesTimeline& InTimeline)
 				{
 					InTimeline.EnumerateEvents(InContext.GetParameters().StartTime, InContext.GetParameters().EndTime, [&InContext](double InEventStartTime, double InEventEndTime, uint32 InDepth, const FObjectPropertiesMessage& InMessage)
 					{
 						InContext.Check(InEventStartTime, InEventEndTime, 0, InMessage);
-						return Trace::EEventEnumerate::Continue;
+						return TraceServices::EEventEnumerate::Continue;
 					});
 				});
 			}
@@ -126,7 +126,7 @@ FText FObjectPropertiesTrack::MakeTrackName(const FGameplaySharedData& InSharedD
 	const FGameplayProvider* GameplayProvider = InSharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 	if(GameplayProvider)
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(InSharedData.GetAnalysisSession());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(InSharedData.GetAnalysisSession());
 
 		FText ObjectName;
 		if (GameplayProvider->IsWorld(InObjectID))
@@ -144,12 +144,12 @@ FText FObjectPropertiesTrack::MakeTrackName(const FGameplaySharedData& InSharedD
 	return ClassName;
 }
 
-void FObjectPropertiesTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
+void FObjectPropertiesTrack::GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
 {
 	const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 	if(GameplayProvider)
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 		const FClassInfo& ClassInfo = GameplayProvider->GetClassInfoFromObject(GetGameplayTrack().GetObjectId());
 
@@ -188,7 +188,7 @@ void FObjectPropertiesTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TA
 					{
 						PropertyVariants[InValue.PropertyId]->GetValue().String.Value = InValue.Value;
 					});
-					return Trace::EEventEnumerate::Stop;
+					return TraceServices::EEventEnumerate::Stop;
 				});
 			});
 		}

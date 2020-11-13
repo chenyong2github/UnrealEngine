@@ -47,7 +47,7 @@ void FSlateTimingViewSession::OnEndSession(Insights::ITimingViewSession& InTimin
 	TimingViewSession = nullptr;
 }
 
-void FSlateTimingViewSession::Tick(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession)
+void FSlateTimingViewSession::Tick(Insights::ITimingViewSession& InTimingViewSession, const TraceServices::IAnalysisSession& InAnalysisSession)
 {
 	AnalysisSession = &InAnalysisSession;
 
@@ -55,7 +55,7 @@ void FSlateTimingViewSession::Tick(Insights::ITimingViewSession& InTimingViewSes
 
 	if (SlateProvider)
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(GetAnalysisSession());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(GetAnalysisSession());
 
 		// Add "stat" track
 		const FSlateProvider::TApplicationTickedTimeline& TickedTimeline = SlateProvider->GetApplicationTickedTimeline();

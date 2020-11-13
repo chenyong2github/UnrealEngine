@@ -409,7 +409,7 @@ void FTraceInsightsModule::SetUnrealInsightsLayoutIni(const FString& InIniPath)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<const Trace::IAnalysisSession> FTraceInsightsModule::GetAnalysisSession() const
+TSharedPtr<const TraceServices::IAnalysisSession> FTraceInsightsModule::GetAnalysisSession() const
 {
 	return FInsightsManager::Get()->GetSession();
 }

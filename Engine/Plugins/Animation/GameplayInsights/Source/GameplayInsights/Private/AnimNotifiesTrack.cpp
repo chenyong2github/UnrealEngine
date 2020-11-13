@@ -30,7 +30,7 @@ void FAnimNotifiesTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Buil
 
 	if(AnimationProvider)
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 		bHasNotifies = false;
 
@@ -40,7 +40,7 @@ void FAnimNotifiesTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Buil
 			{
 				Builder.AddEvent(InStartTime, InEndTime, 0, InMessage.Name);
 				bHasNotifies = true;
-				return Trace::EEventEnumerate::Continue;
+				return TraceServices::EEventEnumerate::Continue;
 			});
 		});
 
@@ -63,7 +63,7 @@ void FAnimNotifiesTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Buil
 			InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), [&Builder, &DepthToUse](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNotifyMessage& InMessage)
 			{
 				Builder.AddEvent(InStartTime, InEndTime, DepthToUse, InMessage.Name);
-				return Trace::EEventEnumerate::Continue;
+				return TraceServices::EEventEnumerate::Continue;
 			});
 		});
 	}
@@ -138,7 +138,7 @@ void FAnimNotifiesTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEv
 		Tooltip.AddNameValueTextLine(LOCTEXT("NotifyType", "Type").ToString(), GetMessageType(InMessage.NotifyEventType, InFoundDepth == 0));
 
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 			const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
 			if(AnimationProvider)
@@ -153,7 +153,7 @@ void FAnimNotifiesTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEv
 
 		if(InMessage.NotifyEventType != EAnimNotifyMessageType::SyncMarker)
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 			const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 			if(GameplayProvider)
@@ -197,7 +197,7 @@ void FAnimNotifiesTrack::FindAnimNotifyMessage(const FTimingEventSearchParameter
 
 			if(AnimationProvider)
 			{
-				Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+				TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 				if(bHasNotifies)
 				{
@@ -206,7 +206,7 @@ void FAnimNotifiesTrack::FindAnimNotifyMessage(const FTimingEventSearchParameter
 						InTimeline.EnumerateEvents(InContext.GetParameters().StartTime, InContext.GetParameters().EndTime, [this, &InContext](double InEventStartTime, double InEventEndTime, uint32 InDepth, const FAnimNotifyMessage& InMessage)
 						{
 							InContext.Check(InEventStartTime, InEventEndTime, 0, InMessage);
-							return Trace::EEventEnumerate::Continue;
+							return TraceServices::EEventEnumerate::Continue;
 						});
 					});
 				}
@@ -221,7 +221,7 @@ void FAnimNotifiesTrack::FindAnimNotifyMessage(const FTimingEventSearchParameter
 							{
 								InContext.Check(InEventStartTime, InEventEndTime, *FoundDepthPtr, InMessage);
 							}
-							return Trace::EEventEnumerate::Continue;
+							return TraceServices::EEventEnumerate::Continue;
 						});
 					});
 				}
@@ -234,17 +234,17 @@ void FAnimNotifiesTrack::FindAnimNotifyMessage(const FTimingEventSearchParameter
 		});
 }
 
-void FAnimNotifiesTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const 
+void FAnimNotifiesTrack::GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const 
 {
 	TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(LOCTEXT("AnimNotifiesHeader", "Notifies and Sync Markers"), 0));
 
-	const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(SharedData.GetAnalysisSession());
+	const TraceServices::IFrameProvider& FramesProvider = TraceServices::ReadFrameProvider(SharedData.GetAnalysisSession());
 	const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
 	const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 
 	if(AnimationProvider && GameplayProvider)
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 		bool bForEvent = true;
 		auto ProcessEvent = [this, &AnimationProvider, &GameplayProvider, &Header, &bForEvent](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNotifyMessage& InMessage)
@@ -265,7 +265,7 @@ void FAnimNotifiesTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray
 				NotifyHeader->AddChild(FVariantTreeNode::MakeClass((bIsState ? LOCTEXT("Notify State Class", "Notify State Class") : LOCTEXT("NotifyClass", "Notify Class")), NotifyInfo.ClassId));
 			}
 
-			return Trace::EEventEnumerate::Continue;
+			return TraceServices::EEventEnumerate::Continue;
 		};
 
 		AnimationProvider->ReadNotifyTimeline(GetGameplayTrack().GetObjectId(), [&InFrame, &ProcessEvent](const FAnimationProvider::AnimNotifyTimeline& InTimeline)

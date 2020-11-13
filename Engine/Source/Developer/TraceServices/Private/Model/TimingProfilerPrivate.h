@@ -7,7 +7,7 @@
 #include "Model/MonotonicTimeline.h"
 #include "Model/Tables.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 class FAnalysisSessionLock;
@@ -58,4 +58,4 @@ private:
 	TTableLayout<FTimingProfilerAggregatedStats> AggregatedStatsTableLayout;
 };
 
-}
+} // namespace TraceServices

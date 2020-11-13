@@ -8,7 +8,7 @@
 #include "Common/PagedArray.h"
 #include "Common/SlabAllocator.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 template<typename Type>
@@ -458,4 +458,4 @@ private:
 	TPagedArray<RowType> Rows;
 };
 
-}
+} // namespace TraceServices

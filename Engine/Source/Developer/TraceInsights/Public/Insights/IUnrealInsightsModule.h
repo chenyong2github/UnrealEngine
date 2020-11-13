@@ -13,6 +13,10 @@ class FExtender;
 namespace Trace
 {
 	class FStoreClient;
+}
+
+namespace TraceServices
+{
 	class IAnalysisSession;
 }
 
@@ -189,7 +193,7 @@ public:
 	/**
 	 * Gets the current analysis session.
 	 */
-	virtual TSharedPtr<const Trace::IAnalysisSession> GetAnalysisSession() const = 0;
+	virtual TSharedPtr<const TraceServices::IAnalysisSession> GetAnalysisSession() const = 0;
 
 	/**
 	 * Starts analysis of the specified trace. Called when the application starts in "Viewer" mode.

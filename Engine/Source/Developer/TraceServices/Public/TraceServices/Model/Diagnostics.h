@@ -5,7 +5,7 @@
 #include "Containers/UnrealString.h"
 #include "TraceServices/Model/AnalysisSession.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 struct FSessionInfo
@@ -29,4 +29,4 @@ public:
 
 TRACESERVICES_API const IDiagnosticsProvider& ReadDiagnosticsProvider(const IAnalysisSession& Session);
 
-} // namespace Trace
+} // namespace TraceServices

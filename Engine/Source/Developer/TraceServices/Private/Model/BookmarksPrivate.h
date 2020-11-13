@@ -5,7 +5,7 @@
 #include "TraceServices/AnalysisService.h"
 #include "Templates/SharedPointer.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 class FAnalysisSessionLock;
@@ -50,4 +50,4 @@ private:
 	TCHAR TempBuffer[FormatBufferSize];
 };
 
-}
+} // namespace TraceServices

@@ -5,18 +5,18 @@
 #include "Trace/Analyzer.h"
 #include "Templates/SharedPointer.h"
 
-namespace Trace
+namespace TraceServices
 {
-	class IAnalysisSession;
-	class IEditableCounter;
-	class ICounterProvider;
-}
+
+class IAnalysisSession;
+class IEditableCounter;
+class ICounterProvider;
 
 class FStatsAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FStatsAnalyzer(Trace::IAnalysisSession& Session, Trace::ICounterProvider& CounterProvider);
+	FStatsAnalyzer(IAnalysisSession& Session, ICounterProvider& CounterProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 
@@ -34,8 +34,10 @@ private:
 
 	TSharedRef<FThreadState> GetThreadState(uint32 ThreadId);
 
-	Trace::IAnalysisSession& Session;
-	Trace::ICounterProvider& CounterProvider;
-	TMap<uint32, Trace::IEditableCounter*> CountersMap;
+	IAnalysisSession& Session;
+	ICounterProvider& CounterProvider;
+	TMap<uint32, IEditableCounter*> CountersMap;
 	TMap<uint32, TSharedRef<FThreadState>> ThreadStatesMap;
 };
+
+} // namespace TraceServices

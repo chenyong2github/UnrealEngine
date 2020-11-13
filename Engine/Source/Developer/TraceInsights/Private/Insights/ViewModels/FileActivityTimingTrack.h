@@ -39,7 +39,7 @@ public:
 		double StartTime;
 		double EndTime;
 		uint32 Depth;
-		uint32 Type; // Trace::EFileActivityType + "Failed" flag
+		uint32 Type; // TraceServices::EFileActivityType + "Failed" flag
 		uint64 Offset;
 		uint64 Size;
 		uint64 ActualSize;
@@ -53,7 +53,7 @@ public:
 	// ITimingViewExtender
 	virtual void OnBeginSession(Insights::ITimingViewSession& InSession) override;
 	virtual void OnEndSession(Insights::ITimingViewSession& InSession) override;
-	virtual void Tick(Insights::ITimingViewSession& InSession, const Trace::IAnalysisSession& InAnalysisSession) override;
+	virtual void Tick(Insights::ITimingViewSession& InSession, const TraceServices::IAnalysisSession& InAnalysisSession) override;
 	virtual void ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InOutMenuBuilder) override;
 
 	const TArray<FIoTimingEvent>& GetAllEvents() const { return AllIoEvents; }

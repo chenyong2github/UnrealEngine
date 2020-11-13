@@ -159,16 +159,16 @@ void SLoadingProfilerWindow::UpdateEventAggregationTreeView()
 {
 	if (EventAggregationTreeView)
 	{
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
+		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid() && TraceServices::ReadLoadTimeProfilerProvider(*Session.Get()))
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			const TraceServices::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *TraceServices::ReadLoadTimeProfilerProvider(*Session.Get());
 
 			const double SelectionStartTime = TimingView ? TimingView->GetSelectionStartTime() : 0.0;
 			const double SelectionEndTime = TimingView ? TimingView->GetSelectionEndTime() : 0.0;
 
-			Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* EventAggregationTable = LoadTimeProfilerProvider.CreateEventAggregation(SelectionStartTime, SelectionEndTime);
+			TraceServices::ITable<TraceServices::FLoadTimeProfilerAggregatedStats>* EventAggregationTable = LoadTimeProfilerProvider.CreateEventAggregation(SelectionStartTime, SelectionEndTime);
 			EventAggregationTreeView->UpdateSourceTable(MakeShareable(EventAggregationTable));
 		}
 		else
@@ -184,16 +184,16 @@ void SLoadingProfilerWindow::UpdateObjectTypeAggregationTreeView()
 {
 	if (ObjectTypeAggregationTreeView)
 	{
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
+		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid() && TraceServices::ReadLoadTimeProfilerProvider(*Session.Get()))
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			const TraceServices::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *TraceServices::ReadLoadTimeProfilerProvider(*Session.Get());
 
 			const double SelectionStartTime = TimingView ? TimingView->GetSelectionStartTime() : 0.0;
 			const double SelectionEndTime = TimingView ? TimingView->GetSelectionEndTime() : 0.0;
 
-			Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* ObjectTypeAggregationTable = LoadTimeProfilerProvider.CreateObjectTypeAggregation(SelectionStartTime, SelectionEndTime);
+			TraceServices::ITable<TraceServices::FLoadTimeProfilerAggregatedStats>* ObjectTypeAggregationTable = LoadTimeProfilerProvider.CreateObjectTypeAggregation(SelectionStartTime, SelectionEndTime);
 			ObjectTypeAggregationTreeView->UpdateSourceTable(MakeShareable(ObjectTypeAggregationTable));
 		}
 		else
@@ -209,16 +209,16 @@ void SLoadingProfilerWindow::UpdatePackageDetailsTreeView()
 {
 	if (PackageDetailsTreeView)
 	{
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
+		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid() && TraceServices::ReadLoadTimeProfilerProvider(*Session.Get()))
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			const TraceServices::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *TraceServices::ReadLoadTimeProfilerProvider(*Session.Get());
 
 			const double SelectionStartTime = TimingView ? TimingView->GetSelectionStartTime() : 0.0;
 			const double SelectionEndTime = TimingView ? TimingView->GetSelectionEndTime() : 0.0;
 
-			Trace::ITable<Trace::FPackagesTableRow>* PackageDetailsTable = LoadTimeProfilerProvider.CreatePackageDetailsTable(SelectionStartTime, SelectionEndTime);
+			TraceServices::ITable<TraceServices::FPackagesTableRow>* PackageDetailsTable = LoadTimeProfilerProvider.CreatePackageDetailsTable(SelectionStartTime, SelectionEndTime);
 			PackageDetailsTreeView->UpdateSourceTable(MakeShareable(PackageDetailsTable));
 		}
 		else
@@ -234,16 +234,16 @@ void SLoadingProfilerWindow::UpdateExportDetailsTreeView()
 {
 	if (ExportDetailsTreeView)
 	{
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
+		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid() && TraceServices::ReadLoadTimeProfilerProvider(*Session.Get()))
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			const TraceServices::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *TraceServices::ReadLoadTimeProfilerProvider(*Session.Get());
 
 			const double SelectionStartTime = TimingView ? TimingView->GetSelectionStartTime() : 0.0;
 			const double SelectionEndTime = TimingView ? TimingView->GetSelectionEndTime() : 0.0;
 
-			Trace::ITable<Trace::FExportsTableRow>* ExportDetailsTable = LoadTimeProfilerProvider.CreateExportDetailsTable(SelectionStartTime, SelectionEndTime);
+			TraceServices::ITable<TraceServices::FExportsTableRow>* ExportDetailsTable = LoadTimeProfilerProvider.CreateExportDetailsTable(SelectionStartTime, SelectionEndTime);
 			ExportDetailsTreeView->UpdateSourceTable(MakeShareable(ExportDetailsTable));
 		}
 		else
@@ -255,31 +255,31 @@ void SLoadingProfilerWindow::UpdateExportDetailsTreeView()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FProxyUntypedTable : public  Trace::IUntypedTable
+class FProxyUntypedTable : public  TraceServices::IUntypedTable
 {
 public:
-	FProxyUntypedTable(const Trace::IUntypedTable* InTable) : TablePtr(InTable) {}
+	FProxyUntypedTable(const TraceServices::IUntypedTable* InTable) : TablePtr(InTable) {}
 	virtual ~FProxyUntypedTable() = default;
 
-	virtual const Trace::ITableLayout& GetLayout() const { return TablePtr->GetLayout(); }
+	virtual const TraceServices::ITableLayout& GetLayout() const { return TablePtr->GetLayout(); }
 	virtual uint64 GetRowCount() const { return TablePtr->GetRowCount(); }
-	virtual Trace::IUntypedTableReader* CreateReader() const { return TablePtr->CreateReader(); }
+	virtual TraceServices::IUntypedTableReader* CreateReader() const { return TablePtr->CreateReader(); }
 
 private:
-	const Trace::IUntypedTable* TablePtr;
+	const TraceServices::IUntypedTable* TablePtr;
 };
 
 void SLoadingProfilerWindow::UpdateRequestsTreeView()
 {
 	if (RequestsTreeView)
 	{
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
+		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid() && TraceServices::ReadLoadTimeProfilerProvider(*Session.Get()))
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			const TraceServices::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *TraceServices::ReadLoadTimeProfilerProvider(*Session.Get());
 
-			const Trace::ITable<Trace::FLoadRequest>& RequestsTable = LoadTimeProfilerProvider.GetRequestsTable();
+			const TraceServices::ITable<TraceServices::FLoadRequest>& RequestsTable = LoadTimeProfilerProvider.GetRequestsTable();
 			RequestsTreeView->UpdateSourceTable(MakeShared<FProxyUntypedTable>(&RequestsTable));
 		}
 		else

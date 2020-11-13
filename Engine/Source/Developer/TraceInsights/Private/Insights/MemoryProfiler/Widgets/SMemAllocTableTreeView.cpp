@@ -49,7 +49,7 @@ void SMemAllocTableTreeView::Reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /*
-void SMemAllocTableTreeView::UpdateSourceTable(TSharedPtr<Trace::IMemAllocTable> SourceTable)
+void SMemAllocTableTreeView::UpdateSourceTable(TSharedPtr<TraceServices::IMemAllocTable> SourceTable)
 {
 	//check(Table->Is<Insights::FMemAllocTable>());
 	TSharedPtr<Insights::FMemAllocTable> MemAllocTable = StaticCastSharedPtr<Insights::FMemAllocTable>(Table);
@@ -198,7 +198,7 @@ void SMemAllocTableTreeView::StartQuery()
 		return;
 	}
 
-	const IAllocationsProvider* AllocationsProvider = Trace::ReadAllocationsProvider(*Session.Get());
+	const IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
 	if (!AllocationsProvider)
 	{
 		UE_LOG(MemoryProfiler, Warning, TEXT("[MemAlloc] Invalid allocations provider!"));
@@ -295,7 +295,7 @@ void SMemAllocTableTreeView::UpdateQuery()
 #if defined(UE_USE_ALLOCATIONS_PROVIDER)
 	if (Query != 0)
 	{
-		const IAllocationsProvider* AllocationsProvider = Trace::ReadAllocationsProvider(*Session.Get());
+		const IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
 		if (!AllocationsProvider)
 		{
 			UE_LOG(MemoryProfiler, Warning, TEXT("[MemAlloc] Invalid allocations provider!"));
@@ -394,7 +394,7 @@ void SMemAllocTableTreeView::CancelQuery()
 #if defined(UE_USE_ALLOCATIONS_PROVIDER)
 	if (Query != 0)
 	{
-		const IAllocationsProvider* AllocationsProvider = Trace::ReadAllocationsProvider(*Session.Get());
+		const IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
 		if (AllocationsProvider)
 		{
 			AllocationsProvider->CancelQuery(Query);

@@ -709,14 +709,14 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 {
 	int32 NewMessageCount = 0;
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 
 	Cache.SetSession(Session);
 
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::ILogProvider& LogProvider = Trace::ReadLogProvider(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::ILogProvider& LogProvider = TraceServices::ReadLogProvider(*Session.Get());
 
 		NewMessageCount = static_cast<int32>(LogProvider.GetMessageCount());
 
@@ -730,7 +730,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 			UE_LOG(TraceInsights, Log, TEXT("[LogView] Total Log Categories: %d"), TotalNumCategories);
 
 			TSet<FName> Categories;
-			LogProvider.EnumerateCategories([&Categories](const Trace::FLogCategory& Category)
+			LogProvider.EnumerateCategories([&Categories](const TraceServices::FLogCategory& Category)
 			{
 				FString CategoryStr(Category.Name);
 				if (CategoryStr.StartsWith(TEXT("Log")))

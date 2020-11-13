@@ -8,7 +8,7 @@
 #include "Model/Tables.h"
 #include "Misc/OutputDeviceHelper.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 class FAnalysisSessionLock;
@@ -74,4 +74,4 @@ private:
 	TTableView<FLogMessageInternal> MessagesTable;
 };
 
-}
+} // namespace TraceServices

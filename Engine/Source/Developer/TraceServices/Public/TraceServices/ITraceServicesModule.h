@@ -5,22 +5,22 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 class IAnalysisService;
 class IModuleService;
 
-}
+} // namespace TraceServices
 
 class ITraceServicesModule
 	: public IModuleInterface
 {
 public:
-	virtual TSharedPtr<Trace::IAnalysisService> GetAnalysisService() = 0;
-	virtual TSharedPtr<Trace::IModuleService> GetModuleService() = 0;
-	virtual TSharedPtr<Trace::IAnalysisService> CreateAnalysisService() = 0;
-	virtual TSharedPtr<Trace::IModuleService> CreateModuleService() = 0;
+	virtual TSharedPtr<TraceServices::IAnalysisService> GetAnalysisService() = 0;
+	virtual TSharedPtr<TraceServices::IModuleService> GetModuleService() = 0;
+	virtual TSharedPtr<TraceServices::IAnalysisService> CreateAnalysisService() = 0;
+	virtual TSharedPtr<TraceServices::IModuleService> CreateModuleService() = 0;
 
 	virtual ~ITraceServicesModule() = default;
 };

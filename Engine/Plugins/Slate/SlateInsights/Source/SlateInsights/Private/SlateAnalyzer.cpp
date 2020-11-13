@@ -13,7 +13,7 @@ namespace UE
 namespace SlateInsights
 {
 
-FSlateAnalyzer::FSlateAnalyzer(Trace::IAnalysisSession& InSession, FSlateProvider& InSlateProvider)
+FSlateAnalyzer::FSlateAnalyzer(TraceServices::IAnalysisSession& InSession, FSlateProvider& InSlateProvider)
 	: Session(InSession)
 	, SlateProvider(InSlateProvider)
 {
@@ -35,7 +35,7 @@ void FSlateAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 bool FSlateAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
-	Trace::FAnalysisSessionEditScope _(Session);
+	TraceServices::FAnalysisSessionEditScope _(Session);
 
 	const Trace::IAnalyzer::FEventData& EventData = Context.EventData;
 	switch (RouteId)

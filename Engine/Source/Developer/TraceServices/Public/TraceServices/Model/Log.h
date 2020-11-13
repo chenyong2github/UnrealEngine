@@ -7,7 +7,7 @@
 #include "TraceServices/Containers/Tables.h"
 #include "Templates/Function.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 struct FLogCategory
@@ -43,4 +43,4 @@ public:
 
 TRACESERVICES_API const ILogProvider& ReadLogProvider(const IAnalysisSession& Session);
 
-}
+} // namespace TraceServices

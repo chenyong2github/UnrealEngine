@@ -6,7 +6,7 @@
 #include "TraceServices/Model/AnalysisSession.h"
 
 class FNetworkPredictionProvider;
-namespace Trace { class IAnalysisSession; }
+namespace TraceServices { class IAnalysisSession; }
 
 // Analyzes events that are contained in a trace,
 // Works by subscribing to events by name along with user-provided "route" identifiers
@@ -19,7 +19,7 @@ class FNetworkPredictionAnalyzer : public Trace::IAnalyzer
 {
 public:
 
-	FNetworkPredictionAnalyzer(Trace::IAnalysisSession& InSession, FNetworkPredictionProvider& InNetworkPredictionProvider);
+	FNetworkPredictionAnalyzer(TraceServices::IAnalysisSession& InSession, FNetworkPredictionProvider& InNetworkPredictionProvider);
 
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnAnalysisEnd() override;
@@ -54,7 +54,7 @@ private:
 	};
 
 
-	Trace::IAnalysisSession& Session;
+	TraceServices::IAnalysisSession& Session;
 	FNetworkPredictionProvider& NetworkPredictionProvider;
 
 	// Current values

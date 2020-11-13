@@ -6,7 +6,7 @@
 #include "ProfilingDebugging/MiscTrace.h"
 #include "Common/PagedArray.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 class FFrameProvider
@@ -31,4 +31,4 @@ private:
 	TArray64<double> FrameStartTimes[TraceFrameType_Count];
 };
 
-}
+} // namespace TraceServices

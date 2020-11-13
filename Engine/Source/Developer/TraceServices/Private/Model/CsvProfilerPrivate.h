@@ -6,7 +6,7 @@
 #include "TraceServices/Containers/Tables.h"
 #include "Containers/Map.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 enum ECsvStatSeriesType
@@ -153,4 +153,4 @@ private:
 	FCapture* CurrentCapture = nullptr;
 };
 
-}
+} // namespace TraceServices

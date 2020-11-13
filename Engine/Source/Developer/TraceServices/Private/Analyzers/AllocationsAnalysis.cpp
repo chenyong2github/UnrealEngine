@@ -4,6 +4,9 @@
 
 #if 0
 
+//namespace TraceServices
+//{
+//
 ////////////////////////////////////////////////////////////////////////////////
 enum
 {
@@ -14,7 +17,7 @@ enum
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-FAllocationsAnalyzer::FAllocationsAnalyzer(Trace::IAnalysisSession& Session)
+FAllocationsAnalyzer::FAllocationsAnalyzer(IAnalysisSession& Session)
 {
 }
 
@@ -29,5 +32,7 @@ void FAllocationsAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_Free,    "Memory", "Free");
 	*/
 }
+
+} // namespace TraceServices
 
 #endif // 0

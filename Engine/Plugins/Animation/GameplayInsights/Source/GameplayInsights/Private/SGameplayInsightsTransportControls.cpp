@@ -138,25 +138,25 @@ void SGameplayInsightsTransportControls::Construct(const FArguments& InArgs, FGa
 
 FReply SGameplayInsightsTransportControls::OnClick_Forward_Step()
 {
-	Trace::FAnalysisSessionReadScope SessionReadScope(SharedData->GetAnalysisSession());
-	const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(SharedData->GetAnalysisSession());
+	TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData->GetAnalysisSession());
+	const TraceServices::IFrameProvider& FramesProvider = TraceServices::ReadFrameProvider(SharedData->GetAnalysisSession());
 
 	double CurrentTime = SharedData->GetTimingViewSession().GetTimeMarker();
 	if(CurrentTime == std::numeric_limits<double>::infinity())
 	{
-		const Trace::FFrame* FirstFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, 0);
+		const TraceServices::FFrame* FirstFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, 0);
 		if(FirstFrame)
 		{
 			CurrentTime = FirstFrame->StartTime + (double)SMALL_NUMBER;
 		}
 	}
 	
-	Trace::FFrame Frame;
+	TraceServices::FFrame Frame;
 	if(FramesProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, CurrentTime, Frame))
 	{
 		if(Frame.Index < FramesProvider.GetFrameCount(ETraceFrameType::TraceFrameType_Game) - 1)
 		{
-			const Trace::FFrame* NextFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, Frame.Index + 1);
+			const TraceServices::FFrame* NextFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, Frame.Index + 1);
 			if(NextFrame)
 			{
 				SetTimeMarker(NextFrame->StartTime + (double)SMALL_NUMBER, false);
@@ -172,12 +172,12 @@ FReply SGameplayInsightsTransportControls::OnClick_Forward_Step()
 
 FReply SGameplayInsightsTransportControls::OnClick_Forward_End()
 {
-	Trace::FAnalysisSessionReadScope SessionReadScope(SharedData->GetAnalysisSession());
-	const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(SharedData->GetAnalysisSession());
+	TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData->GetAnalysisSession());
+	const TraceServices::IFrameProvider& FramesProvider = TraceServices::ReadFrameProvider(SharedData->GetAnalysisSession());
 	
 	if(FramesProvider.GetFrameCount(ETraceFrameType::TraceFrameType_Game) > 0)
 	{
-		const Trace::FFrame* LastFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, FramesProvider.GetFrameCount(ETraceFrameType::TraceFrameType_Game) - 1);
+		const TraceServices::FFrame* LastFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, FramesProvider.GetFrameCount(ETraceFrameType::TraceFrameType_Game) - 1);
 		if(LastFrame)
 		{
 			SetTimeMarker(LastFrame->StartTime + (double)SMALL_NUMBER, true);
@@ -192,25 +192,25 @@ FReply SGameplayInsightsTransportControls::OnClick_Forward_End()
 
 FReply SGameplayInsightsTransportControls::OnClick_Backward_Step()
 {
-	Trace::FAnalysisSessionReadScope SessionReadScope(SharedData->GetAnalysisSession());
-	const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(SharedData->GetAnalysisSession());
+	TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData->GetAnalysisSession());
+	const TraceServices::IFrameProvider& FramesProvider = TraceServices::ReadFrameProvider(SharedData->GetAnalysisSession());
 
 	double CurrentTime = SharedData->GetTimingViewSession().GetTimeMarker();
 	if(CurrentTime == std::numeric_limits<double>::infinity())
 	{
-		const Trace::FFrame* LastFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, FramesProvider.GetFrameCount(TraceFrameType_Game) - 1);
+		const TraceServices::FFrame* LastFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, FramesProvider.GetFrameCount(TraceFrameType_Game) - 1);
 		if(LastFrame)
 		{
 			CurrentTime = LastFrame->StartTime + (double)SMALL_NUMBER;
 		}
 	}
 
-	Trace::FFrame Frame;
+	TraceServices::FFrame Frame;
 	if(FramesProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, CurrentTime, Frame))
 	{
 		if(Frame.Index > 0)
 		{
-			const Trace::FFrame* PrevFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, Frame.Index - 1);
+			const TraceServices::FFrame* PrevFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, Frame.Index - 1);
 			if(PrevFrame)
 			{
 				SetTimeMarker(PrevFrame->StartTime + (double)SMALL_NUMBER, false);
@@ -226,10 +226,10 @@ FReply SGameplayInsightsTransportControls::OnClick_Backward_Step()
 
 FReply SGameplayInsightsTransportControls::OnClick_Backward_End()
 {
-	Trace::FAnalysisSessionReadScope SessionReadScope(SharedData->GetAnalysisSession());
-	const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(SharedData->GetAnalysisSession());
+	TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData->GetAnalysisSession());
+	const TraceServices::IFrameProvider& FramesProvider = TraceServices::ReadFrameProvider(SharedData->GetAnalysisSession());
 	
-	const Trace::FFrame* FirstFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, 0);
+	const TraceServices::FFrame* FirstFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, 0);
 	if(FirstFrame)
 	{
 		SetTimeMarker(FirstFrame->StartTime + (double)SMALL_NUMBER, true);
@@ -246,10 +246,10 @@ FReply SGameplayInsightsTransportControls::OnClick_Forward()
 	double CurrentTime = SharedData->GetTimingViewSession().GetTimeMarker();
 	if(CurrentTime == std::numeric_limits<double>::infinity())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData->GetAnalysisSession());
-		const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(SharedData->GetAnalysisSession());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData->GetAnalysisSession());
+		const TraceServices::IFrameProvider& FramesProvider = TraceServices::ReadFrameProvider(SharedData->GetAnalysisSession());
 	
-		const Trace::FFrame* FirstFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, 0);
+		const TraceServices::FFrame* FirstFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, 0);
 		if(FirstFrame)
 		{
 			SetTimeMarker(FirstFrame->StartTime + (double)SMALL_NUMBER, false);
@@ -266,10 +266,10 @@ FReply SGameplayInsightsTransportControls::OnClick_Backward()
 	double CurrentTime = SharedData->GetTimingViewSession().GetTimeMarker();
 	if(CurrentTime == std::numeric_limits<double>::infinity())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData->GetAnalysisSession());
-		const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(SharedData->GetAnalysisSession());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData->GetAnalysisSession());
+		const TraceServices::IFrameProvider& FramesProvider = TraceServices::ReadFrameProvider(SharedData->GetAnalysisSession());
 	
-		const Trace::FFrame* LastFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, FramesProvider.GetFrameCount(TraceFrameType_Game) - 1);
+		const TraceServices::FFrame* LastFrame = FramesProvider.GetFrame(ETraceFrameType::TraceFrameType_Game, FramesProvider.GetFrameCount(TraceFrameType_Game) - 1);
 		if(LastFrame)
 		{
 			SetTimeMarker(LastFrame->StartTime + (double)SMALL_NUMBER, false);

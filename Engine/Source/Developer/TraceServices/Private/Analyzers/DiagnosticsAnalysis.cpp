@@ -3,10 +3,13 @@
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
 
-FDiagnosticsAnalyzer::FDiagnosticsAnalyzer(Trace::IAnalysisSession& InSession)
+namespace TraceServices
+{
+
+FDiagnosticsAnalyzer::FDiagnosticsAnalyzer(IAnalysisSession& InSession)
 	: Session(InSession)
 {
-	Provider = Session.EditProvider<Trace::FDiagnosticsProvider>(Trace::FDiagnosticsProvider::ProviderName);
+	Provider = Session.EditProvider<FDiagnosticsProvider>(FDiagnosticsProvider::ProviderName);
 }
 
 FDiagnosticsAnalyzer::~FDiagnosticsAnalyzer()
@@ -28,7 +31,7 @@ bool FDiagnosticsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 		return false;
 	}
 
-	Trace::FAnalysisSessionEditScope _(Session);
+	FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
@@ -41,7 +44,7 @@ bool FDiagnosticsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			return false;
 		}
 
-		Trace::FSessionInfo SessionInfo;
+		FSessionInfo SessionInfo;
 		uint8 AppNameOffset = EventData.GetValue<uint8>("AppNameOffset");
 		uint8 CommandLineOffset = EventData.GetValue<uint8>("CommandLineOffset");
 
@@ -65,7 +68,7 @@ bool FDiagnosticsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 	break;
 	case RouteId_Session2:
 	{
-		Trace::FSessionInfo SessionInfo;
+		FSessionInfo SessionInfo;
 
 		EventData.GetString("Platform", SessionInfo.Platform);
 		EventData.GetString("AppName", SessionInfo.AppName);
@@ -83,3 +86,5 @@ bool FDiagnosticsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 
 	return true;
 }
+
+} // namespace TraceServices

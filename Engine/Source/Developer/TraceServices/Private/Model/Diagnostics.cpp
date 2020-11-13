@@ -2,7 +2,7 @@
 #include "TraceServices/Model/Diagnostics.h"
 #include "Model/DiagnosticsPrivate.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 FName FDiagnosticsProvider::ProviderName(TEXT("DiagnosticsProvider"));
@@ -36,4 +36,4 @@ const IDiagnosticsProvider& ReadDiagnosticsProvider(const IAnalysisSession& Sess
 	return *Session.ReadProvider<IDiagnosticsProvider>(FDiagnosticsProvider::ProviderName);
 }
 
-} // namespace Trace
+} // namespace TraceServices

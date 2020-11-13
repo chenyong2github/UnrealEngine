@@ -7,7 +7,7 @@
 #include "TraceServices/Containers/Allocators.h"
 #include <limits>
 
-namespace Trace
+namespace TraceServices
 {
 
 struct FIntervalTimelineDefaultSettings
@@ -42,7 +42,7 @@ public:
 		{
 			Callback(true, InStartTime, InEvent);
 			Callback(false, InEndTime, InEvent);
-			return Trace::EEventEnumerate::Continue;
+			return EEventEnumerate::Continue;
 		});
 	}
 	
@@ -163,4 +163,4 @@ private:
 	uint64 ModCount = 0;
 };
 
-}
+} // namespace TraceServices

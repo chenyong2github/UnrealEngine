@@ -4,6 +4,9 @@
 
 #if defined(UE_USE_ALLOCATIONS_PROVIDER)
 
+namespace TraceServices
+{
+
 #include "AnalysisSession.h"
 #include "CoreTypes.h"
 #include "Templates/UniquePtr.h"
@@ -94,5 +97,7 @@ public:
 	virtual void				CancelQuery(QueryHandle Query) = 0;
 	virtual QueryStatus			PollQuery(QueryHandle Query) = 0;
 };
+
+} // namespace TraceServices
 
 #endif // UE_USE_ALLOCATIONS_PROVIDER

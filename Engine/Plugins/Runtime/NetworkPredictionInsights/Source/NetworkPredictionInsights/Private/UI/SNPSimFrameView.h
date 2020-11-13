@@ -259,7 +259,7 @@ public:
 	void DrawSelection(int32 StartPacketIndex, int32 EndPacketIndex) const;
 	
 
-	static FLinearColor GetColorByStatus(Trace::ENetProfilerDeliveryStatus Status);
+	static FLinearColor GetColorByStatus(TraceServices::ENetProfilerDeliveryStatus Status);
 
 	int32 GetNumPackets() const { return NumPackets; }
 	int32 GetNumDrawSamples() const { return NumDrawSamples; }

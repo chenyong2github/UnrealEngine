@@ -5,18 +5,18 @@
 #include "Trace/Analyzer.h"
 
 ////////////////////////////////////////////////////////////////////////////////
-namespace Trace
+namespace TraceServices
 {
-	class IAnalysisSession;
-	class FCallstacksProvider;
-};
+
+class IAnalysisSession;
+class FCallstacksProvider;
 
 ////////////////////////////////////////////////////////////////////////////////
 class FCallstacksAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-					FCallstacksAnalyzer(Trace::IAnalysisSession& Session, Trace::FCallstacksProvider* Provider);
+					FCallstacksAnalyzer(IAnalysisSession& Session, FCallstacksProvider* Provider);
 	virtual void	OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual bool 	OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 
@@ -26,6 +26,7 @@ private:
 		RouteId_Callstack,
 	};
 
-	Trace::FCallstacksProvider* Provider;
+	FCallstacksProvider* Provider;
 };
 
+} // namespace TraceServices

@@ -2,7 +2,7 @@
 
 #pragma once
 
-namespace Trace
+namespace TraceServices
 {
 
 struct FAggregatedTimingStats
@@ -282,4 +282,4 @@ private:
 	}
 };
 
-}
+} // namespace TraceServices

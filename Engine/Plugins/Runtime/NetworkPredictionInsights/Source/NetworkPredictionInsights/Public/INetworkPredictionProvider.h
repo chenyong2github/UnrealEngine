@@ -125,14 +125,14 @@ private:
 	bool Valid() const { return CurrentItemIdx >= PageArrayView.StartItemIdx && CurrentItemIdx < PageArrayView.EndItemIdx; }
 
 	const TRestrictedPageArrayView<T>& PageArrayView;
-	mutable TPagedArrayIterator<T, typename TPagedArray<T>::PageType> It;
+	mutable TraceServices::TPagedArrayIterator<T, typename TraceServices::TPagedArray<T>::PageType> It;
 	uint64 CurrentItemIdx; // Kind of unfortunate but we store this ourselves to avoid calculating it off the iter each time
 };
 
 template<typename T>
 struct TRestrictedPageArrayView
 {
-	TRestrictedPageArrayView(const TPagedArray<T>& InPageArray, uint64 InStart, uint64 InEnd)
+	TRestrictedPageArrayView(const TraceServices::TPagedArray<T>& InPageArray, uint64 InStart, uint64 InEnd)
 		: PageArray(InPageArray), StartItemIdx(InStart), EndItemIdx(InEnd) { }
 
 	TRestrictedPageViewIterator<T> GetIterator() const
@@ -171,7 +171,7 @@ private:
 	template<typename>
 	friend struct TRestrictedPageViewIterator;
 
-	const TPagedArray<T>& PageArray;
+	const TraceServices::TPagedArray<T>& PageArray;
 	uint64 StartItemIdx;
 	uint64 EndItemIdx;
 };
@@ -191,12 +191,12 @@ typename TEnableIf<TIsPointer<T>::Value, uint64>::Type GetEngineFrame(const T& E
 
 // Searches through PageArray for index of first element >= MinFrameNumber
 template<typename T>
-uint64 FindMinIndexPagedArray(const TPagedArray<T>& PageArray, uint64 MinFrameNumber)
+uint64 FindMinIndexPagedArray(const TraceServices::TPagedArray<T>& PageArray, uint64 MinFrameNumber)
 {
 	// Flip through pages first before iterating individual items
 	for (uint64 PageIdx=0; PageIdx < PageArray.NumPages(); ++PageIdx)
 	{
-		auto* Page = const_cast<TPagedArray<T>&>(PageArray).GetPage(PageIdx);
+		auto* Page = const_cast<TraceServices::TPagedArray<T>&>(PageArray).GetPage(PageIdx);
 		check(Page->Count >0);
 
 		//if (Page->Items[Page->Count-1].EngineFrame >= MinFrameNumber)
@@ -218,7 +218,7 @@ uint64 FindMinIndexPagedArray(const TPagedArray<T>& PageArray, uint64 MinFrameNu
 // Searches through PageArray for index+1 of first element > MinFrameNumber. E.g, index to iterate up to (<) for valid EngineFrameNumber.
 // Fixme: it probably makes more sense to just give this a start index and pickup where FindMinIndex left off
 template<typename T>
-uint64 FindMaxIndexPagedArray(const TPagedArray<T>& PageArray, uint64 MaxFrameNumber)
+uint64 FindMaxIndexPagedArray(const TraceServices::TPagedArray<T>& PageArray, uint64 MaxFrameNumber)
 {
 	if (PageArray.Num() == 0)
 	{
@@ -233,7 +233,7 @@ uint64 FindMaxIndexPagedArray(const TPagedArray<T>& PageArray, uint64 MaxFrameNu
 	// Flip through pages first before iterating individual items
 	for (uint64 PageIdx=PageArray.NumPages()-1; ; --PageIdx)
 	{
-		auto* Page = const_cast<TPagedArray<T>&>(PageArray).GetPage(PageIdx);
+		auto* Page = const_cast<TraceServices::TPagedArray<T>&>(PageArray).GetPage(PageIdx);
 		check(Page->Count >0);
 
 		if (GetEngineFrame(Page->Items[0]) <= MaxFrameNumber)
@@ -336,7 +336,7 @@ private:
 // Holds all data we traced for a given simulation.
 struct FSimulationData
 {
-	FSimulationData(int32 InTraceID, Trace::ILinearAllocator& Allocator)
+	FSimulationData(int32 InTraceID, TraceServices::ILinearAllocator& Allocator)
 		: TraceID(InTraceID)
 		, Ticks(Allocator, 1024)
 		, NetRecv(Allocator, 1024)
@@ -427,7 +427,7 @@ struct FSimulationData
 
 	struct FUserStateStore
 	{
-		FUserStateStore(Trace::ILinearAllocator& Allocator)
+		FUserStateStore(TraceServices::ILinearAllocator& Allocator)
 			: UserStates(Allocator, 1024) { }
 		
 		FORCENOINLINE FUserState& Push(int32 Frame, uint64 EngineFrame)
@@ -509,14 +509,14 @@ struct FSimulationData
 		//	-User states should be pushed in ascending EngineFrame order but NOT necessarily in accessing SimulationFram 
 		//	-We don't need to hyper optimize this but we should avoid linear searching 
 
-		TPagedArray<FUserState> UserStates;	// Holds the actual FUserState. Pointers to these elements are stable
+		TraceServices::TPagedArray<FUserState> UserStates;	// Holds the actual FUserState. Pointers to these elements are stable
 		TMap<int32, FUserState*> FrameMap;	// Acceleration map to find head FUserState for given simulation frame
 		TBitArray<> PopulatedFrames;		// Bit array for which simulation frames are populated. Accelerates finding "last valid" state in sparse cases.
 	};
 
 	struct FUserData
 	{
-		FUserData(Trace::ILinearAllocator& Allocator)
+		FUserData(TraceServices::ILinearAllocator& Allocator)
 			: Store{Allocator, Allocator, Allocator, Allocator}
 		{ }
 
@@ -598,8 +598,8 @@ struct FSimulationData
 
 	int32 TraceID;
 	
-	TPagedArray<FTick> Ticks;
-	TPagedArray<FNetSerializeRecv> NetRecv;	// Actually holds the allocated recv records
+	TraceServices::TPagedArray<FTick> Ticks;
+	TraceServices::TPagedArray<FNetSerializeRecv> NetRecv;	// Actually holds the allocated recv records
 	
 	TSparseFrameData<FSparse> SparseData;
 	FConst ConstData;
@@ -632,7 +632,7 @@ struct FSimulationData
 	} Analysis;
 };
 
-class INetworkPredictionProvider : public Trace::IProvider
+class INetworkPredictionProvider : public TraceServices::IProvider
 {
 public:
 
@@ -647,4 +647,4 @@ public:
 	virtual TArrayView<const TSharedRef<FSimulationData>> ReadSimulationData() const = 0;
 };
 
-NETWORKPREDICTIONINSIGHTS_API const INetworkPredictionProvider* ReadNetworkPredictionProvider(const Trace::IAnalysisSession& Session);
+NETWORKPREDICTIONINSIGHTS_API const INetworkPredictionProvider* ReadNetworkPredictionProvider(const TraceServices::IAnalysisSession& Session);

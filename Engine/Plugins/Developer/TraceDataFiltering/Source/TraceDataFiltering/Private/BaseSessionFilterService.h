@@ -5,7 +5,7 @@
 #include "ISessionTraceFilterService.h"
 #include "Misc/DateTime.h"
 
-namespace Trace
+namespace TraceServices
 {
 	class IAnalysisSession;
 	typedef uint64 FSessionHandle;
@@ -13,12 +13,12 @@ namespace Trace
 
 class IEventInfoProvider;
 
-/** Implementation of ISessionTraceFilterService specifically to use as a base for the Trace and Editor implementations, using Trace::IChannelProvider to provide information about Channels available on the running application 
- and Trace::ISessionService to change the Channel state(s). */
+/** Implementation of ISessionTraceFilterService specifically to use as a base for the Trace and Editor implementations, using TraceServices::IChannelProvider to provide information about Channels available on the running application 
+ and TraceServices::ISessionService to change the Channel state(s). */
 class FBaseSessionFilterService : public ISessionTraceFilterService
 {
 public:
-	FBaseSessionFilterService(Trace::FSessionHandle InHandle, TSharedPtr<const Trace::IAnalysisSession> InSession);
+	FBaseSessionFilterService(TraceServices::FSessionHandle InHandle, TSharedPtr<const TraceServices::IAnalysisSession> InSession);
 	virtual ~FBaseSessionFilterService();
 
 	/** Begin ISessionTraceFilterService overrides */
@@ -39,9 +39,9 @@ protected:
 	void RetrieveAndStoreStartupChannels();
 protected:
 	/** Session this instance represents the filtering service for */
-	TSharedPtr<const Trace::IAnalysisSession> Session;
+	TSharedPtr<const TraceServices::IAnalysisSession> Session;
 	/** Session handle for AnalyisSession*/
-	Trace::FSessionHandle Handle;
+	TraceServices::FSessionHandle Handle;
 
 	/** Names of channels that were either enabled or disabled during the duration of this frame */
 	TArray<FString> FrameEnabledChannels;

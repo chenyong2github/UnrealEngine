@@ -7,16 +7,16 @@
 #include "Model/DiagnosticsPrivate.h"
 #include "Containers/UnrealString.h"
 
-namespace Trace
+namespace TraceServices
 {
-	class IAnalysisSession;
-}
+
+class IAnalysisSession;
 
 class FDiagnosticsAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FDiagnosticsAnalyzer(Trace::IAnalysisSession& Session);
+	FDiagnosticsAnalyzer(IAnalysisSession& Session);
 	~FDiagnosticsAnalyzer();
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
@@ -27,6 +27,8 @@ private:
 		RouteId_Session,
 		RouteId_Session2,
 	};
-	Trace::FDiagnosticsProvider* Provider;
-	Trace::IAnalysisSession& Session;
+	FDiagnosticsProvider* Provider;
+	IAnalysisSession& Session;
 };
+
+} // namespace TraceServices

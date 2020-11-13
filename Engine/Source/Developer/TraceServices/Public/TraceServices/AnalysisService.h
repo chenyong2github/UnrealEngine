@@ -16,7 +16,7 @@
 #include "TraceServices/Model/LoadTimeProfiler.h"
 #include "TraceServices/Model/Counters.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 class IAnalysisService
@@ -27,4 +27,4 @@ public:
 	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& DataStream) = 0;
 };
 
-}
+} // namespace TraceServices

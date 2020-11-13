@@ -353,11 +353,11 @@ void SNPSimFrameView::Tick(const FGeometry& AllottedGeometry, const double InCur
 		const uint64 WaitTime = static_cast<uint64>(0.1 / FPlatformTime::GetSecondsPerCycle64()); // 100ms
 		AnalysisSyncNextTimestamp = Time + WaitTime;
 
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 		if (Session.IsValid())
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
 
 			const uint32 NewConnectionChangeCount = NetProfilerProvider.GetConnectionChangeCount();
 			if (NewConnectionChangeCount != ConnectionChangeCount)
@@ -403,10 +403,10 @@ void SNPSimFrameView::UpdateState()
 
 	TArray<FSimulationActorGroup>& ActorGroups = SimulationFrameView.ActorGroups;
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = InsightsModule->GetAnalysisSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = InsightsModule->GetAnalysisSession();
 	if (Session.IsValid() && NetworkPredictionWindow.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 		const INetworkPredictionProvider* NetworkPredictionProvider = ReadNetworkPredictionProvider(*Session.Get());
 		if (NetworkPredictionProvider)
 		{

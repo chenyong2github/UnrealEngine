@@ -33,7 +33,7 @@ const FName FNetworkPredictionInsightsModule::InsightsTabName("NetworkPrediction
 
 void FNetworkPredictionInsightsModule::StartupModule()
 {
-	IModularFeatures::Get().RegisterModularFeature(Trace::ModuleFeatureName, &NetworkPredictionTraceModule);
+	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &NetworkPredictionTraceModule);
 
 	FNetworkPredictionInsightsManager::Initialize();
 	IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
@@ -49,7 +49,7 @@ void FNetworkPredictionInsightsModule::StartupModule()
 		auto SessionPtr = UnrealInsightsModule.GetAnalysisSession();
 		if (SessionPtr.IsValid())
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*SessionPtr.Get());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*SessionPtr.Get());
 			if (const INetworkPredictionProvider* NetworkPredictionProvider = ReadNetworkPredictionProvider(*SessionPtr.Get()))
 			{
 				auto NetworkPredictionTraceVersion = NetworkPredictionProvider->GetNetworkPredictionTraceVersion();
@@ -133,7 +133,7 @@ void FNetworkPredictionInsightsModule::ShutdownModule()
 
 	FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 
-	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &NetworkPredictionTraceModule);
+	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &NetworkPredictionTraceModule);
 }
 
 IMPLEMENT_MODULE(FNetworkPredictionInsightsModule, NetworkPredictionInsights);

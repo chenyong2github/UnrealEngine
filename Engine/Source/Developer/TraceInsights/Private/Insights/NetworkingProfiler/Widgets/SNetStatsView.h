@@ -24,7 +24,7 @@
 class FMenuBuilder;
 class SNetworkingProfilerWindow;
 
-namespace Trace
+namespace TraceServices
 {
 	class IAnalysisSession;
 }
@@ -86,7 +86,7 @@ public:
 	void RebuildTree(bool bResync);
 
 	void ResetStats();
-	void UpdateStats(uint32 InGameInstanceIndex, uint32 InConnectionIndex, Trace::ENetProfilerConnectionMode InConnectionMode, uint32 InStatsPacketStartIndex, uint32 InStatsPacketEndIndex, uint32 InStatsStartPosition, uint32 InStatsEndPosition);
+	void UpdateStats(uint32 InGameInstanceIndex, uint32 InConnectionIndex, TraceServices::ENetProfilerConnectionMode InConnectionMode, uint32 InStatsPacketStartIndex, uint32 InStatsPacketEndIndex, uint32 InStatsStartPosition, uint32 InStatsEndPosition);
 
 	FNetEventNodePtr GetNetEventNode(uint32 EventTypeIndex) const;
 	void SelectNetEventNode(uint32 EventTypeIndex);
@@ -257,7 +257,7 @@ protected:
 	TSharedPtr<Insights::FTable> Table;
 
 	/** A weak pointer to the profiler session used to populate this widget. */
-	TSharedPtr<const Trace::IAnalysisSession>/*Weak*/ Session;
+	TSharedPtr<const TraceServices::IAnalysisSession>/*Weak*/ Session;
 
 	//////////////////////////////////////////////////
 	// Tree View, Columns
@@ -357,7 +357,7 @@ protected:
 
 	uint32 GameInstanceIndex;
 	uint32 ConnectionIndex;
-	Trace::ENetProfilerConnectionMode ConnectionMode;
+	TraceServices::ENetProfilerConnectionMode ConnectionMode;
 	uint32 StatsPacketStartIndex;
 	uint32 StatsPacketEndIndex;
 	uint32 StatsStartPosition;

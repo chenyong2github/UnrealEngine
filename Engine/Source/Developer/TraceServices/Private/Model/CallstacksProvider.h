@@ -6,7 +6,8 @@
 #include "HAL/CriticalSection.h"
 #include "Common/PagedArray.h"
 
-namespace Trace {
+namespace TraceServices
+{
 
 class IAnalysisSession;
 
@@ -45,4 +46,4 @@ private:
 	TPagedArray<FStackFrame>		Frames;
 };
 
-} // namespace Trace
+} // namespace TraceServices

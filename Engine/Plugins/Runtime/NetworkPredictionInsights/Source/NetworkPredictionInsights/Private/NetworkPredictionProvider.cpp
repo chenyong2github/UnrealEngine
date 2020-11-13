@@ -8,7 +8,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogNetworkPredictionTraceProvider, Log, All);
 
 // -----------------------------------------------------------------------------
 
-FNetworkPredictionProvider::FNetworkPredictionProvider(Trace::IAnalysisSession& InSession)
+FNetworkPredictionProvider::FNetworkPredictionProvider(TraceServices::IAnalysisSession& InSession)
 	: Session(InSession)
 {
 
@@ -407,7 +407,7 @@ TSharedRef<FSimulationData>& FNetworkPredictionProvider::FindChecked(int32 Trace
 //
 // -----------------------------------------------------------------------------
 
-const INetworkPredictionProvider* ReadNetworkPredictionProvider(const Trace::IAnalysisSession& Session)
+const INetworkPredictionProvider* ReadNetworkPredictionProvider(const TraceServices::IAnalysisSession& Session)
 {
 	Session.ReadAccessCheck();
 	return Session.ReadProvider<INetworkPredictionProvider>(FNetworkPredictionProvider::ProviderName);

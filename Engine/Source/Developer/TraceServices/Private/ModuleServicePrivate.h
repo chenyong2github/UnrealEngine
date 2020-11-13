@@ -7,7 +7,7 @@
 #include "Containers/Set.h"
 #include "Misc/ScopeLock.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 class IAnalysisSession;
@@ -33,4 +33,4 @@ private:
 	TMap<FName, IModule*> ModulesMap;
 };
 
-}
+} // namespace TraceServices

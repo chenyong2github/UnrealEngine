@@ -387,7 +387,7 @@ void FSlateFrameGraphTrack::AddAllSeries(const ITimingTrackUpdateContext& Contex
 	bool bFirstSeries = AllSeries.Num() == 0;
 	if(SlateProvider && bFirstSeries)
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 		FSlateStyleSet& StyleSet = FSlateInsightsStyle::Get();
 		{
 			
@@ -462,7 +462,7 @@ void FSlateFrameGraphTrack::UpdateSeries(const FTimingTrackViewport& InViewport,
 {
 	if (const FSlateProvider* SlateProvider = SharedData.GetAnalysisSession().ReadProvider<FSlateProvider>(FSlateProvider::ProviderName))
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 		for (TSharedPtr<Private::FSlateFrameGraphSeries>& Serie : Series)
 		{
@@ -480,7 +480,7 @@ void FSlateFrameGraphTrack::UpdateSeries(const FTimingTrackViewport& InViewport,
 					{
 						Serie->AddEvent(StartTime, EndTime, Message);
 					}
-					return Trace::EEventEnumerate::Continue;
+					return TraceServices::EEventEnumerate::Continue;
 				});
 		}
 

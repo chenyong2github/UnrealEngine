@@ -91,7 +91,7 @@ TSharedPtr<SToolTip> SMemTagTreeViewTooltip::GetRowTooltip(const TSharedPtr<FMem
 {
 	const FText TrackersText = MemTagNodePtr->GetTrackerText();
 
-	const Trace::FMemoryProfilerAggregatedStats& Stats = MemTagNodePtr->GetAggregatedStats();
+	const TraceServices::FMemoryProfilerAggregatedStats& Stats = MemTagNodePtr->GetAggregatedStats();
 	const FText InstanceCountText = FText::AsNumber(Stats.InstanceCount);
 	const FText MinValueText = FText::AsNumber(Stats.Min);
 	const FText MaxValueText = FText::AsNumber(Stats.Max);

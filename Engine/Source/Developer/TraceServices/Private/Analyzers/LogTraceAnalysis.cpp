@@ -5,7 +5,10 @@
 #include "Logging/LogTrace.h"
 #include "Model/LogPrivate.h"
 
-FLogTraceAnalyzer::FLogTraceAnalyzer(Trace::IAnalysisSession& InSession, Trace::FLogProvider& InLogProvider)
+namespace TraceServices
+{
+
+FLogTraceAnalyzer::FLogTraceAnalyzer(IAnalysisSession& InSession, FLogProvider& InLogProvider)
 	: Session(InSession)
 	, LogProvider(InLogProvider)
 {
@@ -23,7 +26,7 @@ void FLogTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 bool FLogTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
-	Trace::FAnalysisSessionEditScope _(Session);
+	FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
@@ -31,7 +34,7 @@ bool FLogTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 	case RouteId_LogCategory:
 	{
 		uint64 CategoryPointer = EventData.GetValue<uint64>("CategoryPointer");
-		Trace::FLogCategory& Category = LogProvider.GetCategory(CategoryPointer);
+		FLogCategory& Category = LogProvider.GetCategory(CategoryPointer);
 
 		FString Name = FTraceAnalyzerUtils::LegacyAttachmentString<TCHAR>("Name", Context);
 		Category.Name = Session.StoreString(*Name);
@@ -42,9 +45,9 @@ bool FLogTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 	case RouteId_LogMessageSpec:
 	{
 		uint64 LogPoint = EventData.GetValue<uint64>("LogPoint");
-		Trace::FLogMessageSpec& Spec = LogProvider.GetMessageSpec(LogPoint);
+		FLogMessageSpec& Spec = LogProvider.GetMessageSpec(LogPoint);
 		uint64 CategoryPointer = EventData.GetValue<uint64>("CategoryPointer");
-		Trace::FLogCategory& Category = LogProvider.GetCategory(CategoryPointer);
+		FLogCategory& Category = LogProvider.GetCategory(CategoryPointer);
 		Spec.Category = &Category;
 		Spec.Line = EventData.GetValue<int32>("Line");
 		Spec.Verbosity = static_cast<ELogVerbosity::Type>(EventData.GetValue<uint8>("Verbosity"));
@@ -78,3 +81,5 @@ bool FLogTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 
 	return true;
 }
+
+} // namespace TraceServices

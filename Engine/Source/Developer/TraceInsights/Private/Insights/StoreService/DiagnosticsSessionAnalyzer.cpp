@@ -48,8 +48,6 @@ bool FDiagnosticsSessionAnalyzer::OnEvent(uint16 RouteId, EStyle, const FOnEvent
 	}
 	case RouteId_Session2:
 	{
-		Trace::FSessionInfo SessionInfo;
-
 		EventData.GetString("Platform", Platform);
 		EventData.GetString("AppName", AppName);
 		EventData.GetString("CommandLine", CommandLine);

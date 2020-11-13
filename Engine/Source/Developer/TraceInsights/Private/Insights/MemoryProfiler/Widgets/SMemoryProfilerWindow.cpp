@@ -187,16 +187,16 @@ void SMemoryProfilerWindow::UpdateMemTagTreeView()
 	if (MemTagTreeView)
 	{
 		/*
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && Trace::ReadMemoryProfilerProvider(*Session.Get()))
+		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid() && TraceServices::ReadMemoryProfilerProvider(*Session.Get()))
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const Trace::IMemoryProfilerProvider& MemoryProfilerProvider = *Trace::ReadMemoryProfilerProvider(*Session.Get());
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			const TraceServices::IMemoryProfilerProvider& MemoryProfilerProvider = *TraceServices::ReadMemoryProfilerProvider(*Session.Get());
 
 			const double SelectionStartTime = TimingView ? TimingView->GetSelectionStartTime() : 0.0;
 			const double SelectionEndTime = TimingView ? TimingView->GetSelectionEndTime() : 0.0;
 
-			Trace::ITable<Trace::FMemoryProfilerAggregatedStats>* EventAggregationTable = MemoryProfilerProvider.CreateEventAggregation(SelectionStartTime, SelectionEndTime);
+			TraceServices::ITable<TraceServices::FMemoryProfilerAggregatedStats>* EventAggregationTable = MemoryProfilerProvider.CreateEventAggregation(SelectionStartTime, SelectionEndTime);
 			MemTagTreeView->UpdateSourceTable(MakeShareable(EventAggregationTable));
 		}
 		else

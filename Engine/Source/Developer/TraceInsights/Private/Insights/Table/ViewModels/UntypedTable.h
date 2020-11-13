@@ -6,11 +6,13 @@
 
 #include "Insights/Table/ViewModels/Table.h"
 
-namespace Trace
+namespace TraceServices
 {
-	class ITableLayout;
-	class IUntypedTable;
-	class IUntypedTableReader;
+
+class ITableLayout;
+class IUntypedTable;
+class IUntypedTableReader;
+
 }
 
 namespace Insights
@@ -28,18 +30,18 @@ public:
 
 	virtual void Reset();
 
-	TSharedPtr<Trace::IUntypedTable> GetSourceTable() const { return SourceTable; }
-	TSharedPtr<Trace::IUntypedTableReader> GetTableReader() const { return TableReader; }
+	TSharedPtr<TraceServices::IUntypedTable> GetSourceTable() const { return SourceTable; }
+	TSharedPtr<TraceServices::IUntypedTableReader> GetTableReader() const { return TableReader; }
 
 	/* Update table content. Returns true if the table layout has changed. */
-	bool UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> InSourceTable);
+	bool UpdateSourceTable(TSharedPtr<TraceServices::IUntypedTable> InSourceTable);
 
 private:
-	void CreateColumns(const Trace::ITableLayout& TableLayout);
+	void CreateColumns(const TraceServices::ITableLayout& TableLayout);
 
 private:
-	TSharedPtr<Trace::IUntypedTable> SourceTable;
-	TSharedPtr<Trace::IUntypedTableReader> TableReader;
+	TSharedPtr<TraceServices::IUntypedTable> SourceTable;
+	TSharedPtr<TraceServices::IUntypedTableReader> TableReader;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

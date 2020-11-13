@@ -5,7 +5,7 @@
 #include "TraceServices/ModuleService.h"
 #include "UObject/NameTypes.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 class FNetProfilerModule
@@ -25,4 +25,4 @@ private:
 	static FName ModuleName;
 };
 
-}
+} // namespace TraceServices

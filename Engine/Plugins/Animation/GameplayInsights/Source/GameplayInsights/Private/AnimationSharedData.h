@@ -6,7 +6,7 @@
 #include "TraceServices/Model/Frames.h"
 
 class FGameplaySharedData;
-namespace Trace { class IAnalysisSession; }
+namespace TraceServices { class IAnalysisSession; }
 namespace Insights { class ITimingViewSession; }
 namespace Insights { enum class ETimeChangedFlags : int32; }
 class FSkeletalMeshPoseTrack;
@@ -29,7 +29,7 @@ public:
 
 	void OnBeginSession(Insights::ITimingViewSession& InTimingViewSession);
 	void OnEndSession(Insights::ITimingViewSession& InTimingViewSession);
-	void Tick(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession);
+	void Tick(Insights::ITimingViewSession& InTimingViewSession, const TraceServices::IAnalysisSession& InAnalysisSession);
 	void ExtendFilterMenu(FMenuBuilder& InMenuBuilder);
 
 #if WITH_ENGINE
@@ -57,7 +57,7 @@ public:
 	bool AreAnyAnimationTracksEnabled() const;
 
 	// Get the last cached analysis session
-	const Trace::IAnalysisSession& GetAnalysisSession() const { return *AnalysisSession; }
+	const TraceServices::IAnalysisSession& GetAnalysisSession() const { return *AnalysisSession; }
 
 	// Check whether the analysis session is valid
 	bool IsAnalysisSessionValid() const { return AnalysisSession != nullptr; }
@@ -81,7 +81,7 @@ public:
 	void OpenAnimGraphTab(uint64 InAnimInstanceId) const;
 
 	/** Get the current marker frame, if any. @return true if the frame is valid */
-	bool GetCurrentMarkerFrame(Trace::FFrame& OutFrame) const { OutFrame = MarkerFrame; return bMarkerFrameValid; }
+	bool GetCurrentMarkerFrame(TraceServices::FFrame& OutFrame) const { OutFrame = MarkerFrame; return bMarkerFrameValid; }
 
 private:
 	// UI handlers
@@ -99,7 +99,7 @@ private:
 	FGameplaySharedData& GameplaySharedData;
 
 	// Cached analysis session, set in Tick()
-	const Trace::IAnalysisSession* AnalysisSession;
+	const TraceServices::IAnalysisSession* AnalysisSession;
 
 	// Cached timing view session, set in OnBeginSession/OnEndSession
 	Insights::ITimingViewSession* TimingViewSession;
@@ -120,7 +120,7 @@ private:
 
 	/** Various times and ranges */
 	double MarkerTime;
-	Trace::FFrame MarkerFrame;
+	TraceServices::FFrame MarkerFrame;
 
 	/** Validity flags for pose times/ranges */
 	bool bTimeMarkerValid;

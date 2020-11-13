@@ -127,7 +127,7 @@ void STraceSourceFilteringWidget::ConstructMenuBox()
 	];
 }
 
-void STraceSourceFilteringWidget::SetCurrentAnalysisSession(uint32 SessionHandle, TSharedRef<const Trace::IAnalysisSession> AnalysisSession)
+void STraceSourceFilteringWidget::SetCurrentAnalysisSession(uint32 SessionHandle, TSharedRef<const TraceServices::IAnalysisSession> AnalysisSession)
 {
 	if (SessionFilterService.IsValid())
 	{
@@ -180,7 +180,7 @@ void STraceSourceFilteringWidget::Tick(const FGeometry& AllottedGeometry, const 
 	if (!SessionFilterService.IsValid() )
 	{
 		IUnrealInsightsModule& InsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
-		TSharedPtr<const Trace::IAnalysisSession> AnalysisSession = InsightsModule.GetAnalysisSession();
+		TSharedPtr<const TraceServices::IAnalysisSession> AnalysisSession = InsightsModule.GetAnalysisSession();
 		if (AnalysisSession.IsValid())
 		{
 			Trace::FStoreClient* StoreClient = InsightsModule.GetStoreClient();

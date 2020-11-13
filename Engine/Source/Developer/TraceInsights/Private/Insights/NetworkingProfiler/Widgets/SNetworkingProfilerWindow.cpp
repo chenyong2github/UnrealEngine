@@ -488,13 +488,13 @@ EActiveTimerReturnType SNetworkingProfilerWindow::UpdateActiveDuration(double In
 
 void SNetworkingProfilerWindow::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 
 	uint32 GameInstanceCount = 0;
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
 		GameInstanceCount = NetProfilerProvider.GetGameInstanceCount();
 	}
 
@@ -506,8 +506,8 @@ void SNetworkingProfilerWindow::Tick(const FGeometry& AllottedGeometry, const do
 	uint32 ConnectionCount = 0;
 	if (Session.IsValid() && SelectedGameInstance.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
 		ConnectionCount = NetProfilerProvider.GetConnectionCount(SelectedGameInstance->GetIndex());
 	}
 
@@ -523,12 +523,12 @@ void SNetworkingProfilerWindow::UpdateAvailableGameInstances()
 {
 	AvailableGameInstances.Reset();
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
-		NetProfilerProvider.ReadGameInstances([this](const Trace::FNetProfilerGameInstance& GameInstance)
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+		NetProfilerProvider.ReadGameInstances([this](const TraceServices::FNetProfilerGameInstance& GameInstance)
 		{
 			AvailableGameInstances.Add(MakeShared<FGameInstanceItem>(GameInstance));
 		});
@@ -548,12 +548,12 @@ void SNetworkingProfilerWindow::UpdateAvailableConnections()
 {
 	AvailableConnections.Reset();
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid() && SelectedGameInstance.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
-		NetProfilerProvider.ReadConnections(SelectedGameInstance->GetIndex(), [this](const Trace::FNetProfilerConnection& Connection)
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+		NetProfilerProvider.ReadConnections(SelectedGameInstance->GetIndex(), [this](const TraceServices::FNetProfilerConnection& Connection)
 		{
 			AvailableConnections.Add(MakeShared<FConnectionItem>(Connection));
 		});
@@ -577,11 +577,11 @@ void SNetworkingProfilerWindow::UpdateAvailableConnectionModes()
 	{
 		if (SelectedConnection->Connection.bHasIncomingData)
 		{
-			AvailableConnectionModes.Add(MakeShared<FConnectionModeItem>(Trace::ENetProfilerConnectionMode::Incoming));
+			AvailableConnectionModes.Add(MakeShared<FConnectionModeItem>(TraceServices::ENetProfilerConnectionMode::Incoming));
 		}
 		if (SelectedConnection->Connection.bHasOutgoingData)
 		{
-			AvailableConnectionModes.Add(MakeShared<FConnectionModeItem>(Trace::ENetProfilerConnectionMode::Outgoing));
+			AvailableConnectionModes.Add(MakeShared<FConnectionModeItem>(TraceServices::ENetProfilerConnectionMode::Outgoing));
 		}
 	}
 
@@ -715,10 +715,10 @@ FText SNetworkingProfilerWindow::FConnectionModeItem::GetText() const
 {
 	switch (Mode)
 	{
-	case Trace::ENetProfilerConnectionMode::Outgoing:
+	case TraceServices::ENetProfilerConnectionMode::Outgoing:
 		return LOCTEXT("ConnectionMode_Outgoing", "Outgoing");
 
-	case Trace::ENetProfilerConnectionMode::Incoming:
+	case TraceServices::ENetProfilerConnectionMode::Incoming:
 		return LOCTEXT("ConnectionMode_Incoming", "Incoming");
 
 	default:

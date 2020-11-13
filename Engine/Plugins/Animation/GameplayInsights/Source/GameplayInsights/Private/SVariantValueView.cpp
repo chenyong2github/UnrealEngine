@@ -34,7 +34,7 @@ namespace VariantColumns
 	static const FName Value("Value");
 };
 
-static TSharedRef<SWidget> MakeVariantValueWidget(const Trace::IAnalysisSession& InAnalysisSession, const FVariantValue& InValue, const TAttribute<FText>& InHighlightText) 
+static TSharedRef<SWidget> MakeVariantValueWidget(const TraceServices::IAnalysisSession& InAnalysisSession, const FVariantValue& InValue, const TAttribute<FText>& InHighlightText) 
 { 
 	switch(InValue.Type)
 	{
@@ -149,7 +149,7 @@ static TSharedRef<SWidget> MakeVariantValueWidget(const Trace::IAnalysisSession&
 		const FGameplayProvider* GameplayProvider = InAnalysisSession.ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 		if(GameplayProvider)
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
 
 			const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(InValue.Object.Value);
 #if WITH_EDITOR
@@ -179,7 +179,7 @@ static TSharedRef<SWidget> MakeVariantValueWidget(const Trace::IAnalysisSession&
 		const FGameplayProvider* GameplayProvider = InAnalysisSession.ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 		if(GameplayProvider)
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
 
 			const FClassInfo& ClassInfo = GameplayProvider->GetClassInfo(InValue.Class.Value);
 #if WITH_EDITOR
@@ -218,7 +218,7 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FVariantTreeNode> InNode, const Trace::IAnalysisSession& InAnalysisSession)
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FVariantTreeNode> InNode, const TraceServices::IAnalysisSession& InAnalysisSession)
 	{
 		Node = InNode;
 		AnalysisSession = &InAnalysisSession;
@@ -281,12 +281,12 @@ public:
 		return SNullWidget::NullWidget;
 	}
 
-	const Trace::IAnalysisSession* AnalysisSession;
+	const TraceServices::IAnalysisSession* AnalysisSession;
 	TSharedPtr<FVariantTreeNode> Node;
 	TAttribute<FText> HighlightText;
 };
 
-void SVariantValueView::Construct(const FArguments& InArgs, const Trace::IAnalysisSession& InAnalysisSession)
+void SVariantValueView::Construct(const FArguments& InArgs, const TraceServices::IAnalysisSession& InAnalysisSession)
 {
 	OnGetVariantValues = InArgs._OnGetVariantValues;
 

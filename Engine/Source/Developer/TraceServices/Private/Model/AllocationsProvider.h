@@ -7,6 +7,9 @@
 
 #if defined(UE_USE_ALLOCATIONS_PROVIDER)
 
+namespace TraceServices
+{
+
 ////////////////////////////////////////////////////////////////////////////////
 class FAllocationsProvider
 	: public IAllocationsProvider
@@ -19,5 +22,7 @@ public:
 	virtual void		CancelQuery(QueryHandle Query) override;
 	virtual QueryStatus	PollQuery(QueryHandle Query) override;
 };
+
+} // namespace TraceServices
 
 #endif // UE_USE_ALLOCATIONS_PROVIDER

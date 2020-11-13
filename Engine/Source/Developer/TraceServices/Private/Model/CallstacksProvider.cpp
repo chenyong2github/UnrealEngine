@@ -5,7 +5,8 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include "Algo/Unique.h"
 
-namespace Trace {
+namespace TraceServices
+{
 
 /////////////////////////////////////////////////////////////////////
 #ifdef TRACE_CALLSTACK_STATS
@@ -108,4 +109,4 @@ FName FCallstacksProvider::GetName() const
 	return Name;
 }
 
-} // namespace Trace
+} // namespace TraceServices

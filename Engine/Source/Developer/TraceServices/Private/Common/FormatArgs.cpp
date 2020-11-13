@@ -4,7 +4,7 @@
 #include "ProfilingDebugging/FormatArgsTrace.h"
 #include "CoreMinimal.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 const TCHAR* FFormatArgsHelper::ExtractNextFormatArg(const TCHAR* FormatString, FFormatArgSpec& Spec)
@@ -376,4 +376,4 @@ void FFormatArgsHelper::Format(TCHAR* Out, uint64 MaxOut, TCHAR* Temp, uint64 Ma
 	}
 }
 
-}
+} // namespace TraceServices

@@ -5,7 +5,7 @@
 #include "AnalysisServicePrivate.h"
 #include "Common/TimelineStatistics.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 FLoadTimeProfilerProvider::FLoaderFrameCounter::FLoaderFrameCounter(ELoaderFrameCounterType InType, const TPagedArray<FLoaderFrame>& InFrames)
@@ -228,7 +228,7 @@ ITable<FLoadTimeProfilerAggregatedStats>* FLoadTimeProfilerProvider::CreateObjec
 	{
 		return Event.Export ? Event.Export->Class : nullptr;
 	};
-	TMap<const Trace::FClassInfo*, FAggregatedTimingStats> Aggregation;
+	TMap<const FClassInfo*, FAggregatedTimingStats> Aggregation;
 	FTimelineStatistics::CreateAggregation(Timelines, BucketMapper, IntervalStart, IntervalEnd, Aggregation);
 	TTable<FLoadTimeProfilerAggregatedStats>* Table = new TTable<FLoadTimeProfilerAggregatedStats>(AggregatedStatsTableLayout);
 	for (const auto& KV : Aggregation)
@@ -305,7 +305,7 @@ ITable<FPackagesTableRow>* FLoadTimeProfilerProvider::CreatePackageDetailsTable(
 					Row->AsyncLoadingThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
 				}
 			}
-			return Trace::EEventEnumerate::Continue;
+			return EEventEnumerate::Continue;
 		});
 	}
 
@@ -366,13 +366,13 @@ ITable<FExportsTableRow>* FLoadTimeProfilerProvider::CreateExportDetailsTable(do
 					Row->AsyncLoadingThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
 				}
 			}
-			return Trace::EEventEnumerate::Continue;
+			return EEventEnumerate::Continue;
 		});
 	}
 	return Table;
 }
 
-const Trace::FClassInfo& FLoadTimeProfilerProvider::AddClassInfo(const TCHAR* ClassName)
+const FClassInfo& FLoadTimeProfilerProvider::AddClassInfo(const TCHAR* ClassName)
 {
 	Session.WriteAccessCheck();
 
@@ -381,7 +381,7 @@ const Trace::FClassInfo& FLoadTimeProfilerProvider::AddClassInfo(const TCHAR* Cl
 	return ClassInfo;
 }
 
-Trace::FLoadRequest& FLoadTimeProfilerProvider::CreateRequest()
+FLoadRequest& FLoadTimeProfilerProvider::CreateRequest()
 {
 	Session.WriteAccessCheck();
 
@@ -389,7 +389,7 @@ Trace::FLoadRequest& FLoadTimeProfilerProvider::CreateRequest()
 	return RequestInfo;
 }
 
-Trace::FPackageInfo& FLoadTimeProfilerProvider::EditPackageInfo(const TCHAR* PackageName)
+FPackageInfo& FLoadTimeProfilerProvider::EditPackageInfo(const TCHAR* PackageName)
 {
 	Session.WriteAccessCheck();
 
@@ -514,7 +514,7 @@ void FLoadTimeProfilerProvider::EndIoDispatcherBatch(uint64 BatchHandle, double 
 	ActiveIoDispatcherBatchesCounter->AddValue(Time, int64(-1));
 }
 
-Trace::FPackageExportInfo& FLoadTimeProfilerProvider::CreateExport()
+FPackageExportInfo& FLoadTimeProfilerProvider::CreateExport()
 {
 	Session.WriteAccessCheck();
 
@@ -600,4 +600,4 @@ const TCHAR* GetLoadTimeProfilerObjectEventTypeString(ELoadTimeProfilerObjectEve
 	return TEXT("[invalid]");
 }
 
-}
+} // namespace TraceServices

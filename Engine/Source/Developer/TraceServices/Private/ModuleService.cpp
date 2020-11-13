@@ -5,7 +5,7 @@
 #include "UObject/NameTypes.h"
 #include "Features/IModularFeatures.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 const FName ModuleFeatureName("TraceModuleFeature");
@@ -133,4 +133,4 @@ void FModuleService::GenerateReports(const IAnalysisSession& Session, const TCHA
 	}
 }
 
-}
+} // namespace TraceServices

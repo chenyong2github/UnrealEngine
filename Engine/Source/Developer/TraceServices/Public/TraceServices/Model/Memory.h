@@ -7,13 +7,13 @@
 #include "Templates/Function.h"
 #include "TraceServices/Model/AnalysisSession.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 typedef int32 FMemoryTrackerId;
 typedef int64 FMemoryTagId;
 
-struct FMemoryTracker
+struct FMemoryTrackerInfo
 {
 	static const FMemoryTrackerId InvalidTrackerId = -1;
 	static const FMemoryTrackerId MaxValidTrackerId = 63;
@@ -25,7 +25,7 @@ struct FMemoryTracker
 	FString Name;
 };
 
-struct FMemoryTag
+struct FMemoryTagInfo
 {
 	static const FMemoryTagId InvalidTagId = 0;
 
@@ -71,14 +71,14 @@ public:
 	 * Enumerate the registered tags.
 	 * @param Callback Function that will be called for each registered tag.
 	 */
-	virtual void EnumerateTags(TFunctionRef<void(const FMemoryTag&)> Callback) const = 0;
+	virtual void EnumerateTags(TFunctionRef<void(const FMemoryTagInfo&)> Callback) const = 0;
 
 	/**
 	 * Returns the meta data for a tag id.
 	 * @param Id Tag id
 	 * @return Memory tag information.
 	 */
-	virtual const FMemoryTag* GetTag(FMemoryTagId Id) const = 0;
+	virtual const FMemoryTagInfo* GetTag(FMemoryTagId Id) const = 0;
 
 	/**
 	 * Gets the number of samples for a given tag from a given tracker.
@@ -98,7 +98,7 @@ public:
 	 * Enumerate the registered trackers.
 	 * @param Callback Function that is called for each registered tracker.
 	 */
-	virtual void EnumerateTrackers(TFunctionRef<void(const FMemoryTracker&)> Callback) const = 0;
+	virtual void EnumerateTrackers(TFunctionRef<void(const FMemoryTrackerInfo&)> Callback) const = 0;
 
 	/** Enumerates samples (values) for a specified LLM tag.
 	 * @param Tracker Tracker index.
@@ -113,4 +113,4 @@ public:
 
 TRACESERVICES_API const IMemoryProvider& ReadMemoryProvider(const IAnalysisSession& Session);
 
-} // namespace Trace
+} // namespace TraceServices

@@ -16,7 +16,7 @@
 #include "Trace/Analyzer.h"
 #include "Trace/SlateTrace.h"
 
-namespace Trace { class IAnalysisSession; }
+namespace TraceServices { class IAnalysisSession; }
 
 namespace UE
 {
@@ -96,12 +96,12 @@ struct FApplicationTickedMessage
 
 } //namespace Message
 
-class FSlateProvider : public Trace::IProvider
+class FSlateProvider : public TraceServices::IProvider
 {
 public:
 	static FName ProviderName;
 
-	FSlateProvider(Trace::IAnalysisSession& InSession);
+	FSlateProvider(TraceServices::IAnalysisSession& InSession);
 
 	/** */
 	void AddWidget(double Seconds, uint64 WidgetId);
@@ -114,7 +114,7 @@ public:
 	void AddWidgetInvalidatedEvent(double Seconds, Message::FWidgetInvalidatedMessage InvalidatedMessage);
 
 	/** */
-	using TApplicationTickedTimeline = Trace::TPointTimeline<Message::FApplicationTickedMessage>;
+	using TApplicationTickedTimeline = TraceServices::TPointTimeline<Message::FApplicationTickedMessage>;
 	const TApplicationTickedTimeline& GetApplicationTickedTimeline() const
 	{
 		Session.ReadAccessCheck();
@@ -122,7 +122,7 @@ public:
 	}
 
 	/** */
-	using TWidgetUpdatedTimeline = Trace::TPointTimeline<Message::FWidgetUpdatedMessage>;
+	using TWidgetUpdatedTimeline = TraceServices::TPointTimeline<Message::FWidgetUpdatedMessage>;
 	const TWidgetUpdatedTimeline& GetWidgetUpdatedTimeline() const
 	{
 		Session.ReadAccessCheck();
@@ -130,7 +130,7 @@ public:
 	}
 	
 	/** */
-	using TWidgetInvalidatedTimeline = Trace::TPointTimeline<Message::FWidgetInvalidatedMessage>;
+	using TWidgetInvalidatedTimeline = TraceServices::TPointTimeline<Message::FWidgetInvalidatedMessage>;
 	const TWidgetInvalidatedTimeline& GetWidgetInvalidatedTimeline() const
 	{
 		Session.ReadAccessCheck();
@@ -138,7 +138,7 @@ public:
 	}
 
 	/** */
-	using TWidgetTimeline = Trace::TIntervalTimeline<Message::FWidgetId>;
+	using TWidgetTimeline = TraceServices::TIntervalTimeline<Message::FWidgetId>;
 	const TWidgetTimeline& GetWidgetTimeline() const
 	{
 		Session.ReadAccessCheck();
@@ -171,7 +171,7 @@ public:
 	}
 
 private:
-	Trace::IAnalysisSession& Session;
+	TraceServices::IAnalysisSession& Session;
 
 	TMap<Message::FWidgetId, Message::FWidgetInfo> WidgetInfos;
 

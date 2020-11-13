@@ -38,7 +38,7 @@ void FGameplaySharedData::OnEndSession(Insights::ITimingViewSession& InTimingVie
 	TimingViewSession = nullptr;
 }
 
-TSharedRef<FObjectEventsTrack> FGameplaySharedData::GetObjectEventsTrackForId(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession, const FObjectInfo& InObjectInfo)
+TSharedRef<FObjectEventsTrack> FGameplaySharedData::GetObjectEventsTrackForId(Insights::ITimingViewSession& InTimingViewSession, const TraceServices::IAnalysisSession& InAnalysisSession, const FObjectInfo& InObjectInfo)
 {
 	const FGameplayProvider* GameplayProvider = InAnalysisSession.ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 	check(GameplayProvider);
@@ -136,7 +136,7 @@ void FGameplaySharedData::MakeTrackAndAncestorsVisible(const TSharedRef<FObjectE
 	InvalidateObjectTracksOrder();
 }
 
-void FGameplaySharedData::Tick(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession)
+void FGameplaySharedData::Tick(Insights::ITimingViewSession& InTimingViewSession, const TraceServices::IAnalysisSession& InAnalysisSession)
 {
 	AnalysisSession = &InAnalysisSession;
 
@@ -144,7 +144,7 @@ void FGameplaySharedData::Tick(Insights::ITimingViewSession& InTimingViewSession
 
 	if(GameplayProvider)
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(GetAnalysisSession());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(GetAnalysisSession());
 
 		if(GameplayProvider->HasAnyData())
 		{

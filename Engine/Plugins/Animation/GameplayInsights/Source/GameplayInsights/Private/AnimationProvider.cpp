@@ -8,7 +8,7 @@
 
 FName FAnimationProvider::ProviderName("AnimationProvider");
 
-FAnimationProvider::FAnimationProvider(Trace::IAnalysisSession& InSession, FGameplayProvider& InGameplayProvider)
+FAnimationProvider::FAnimationProvider(TraceServices::IAnalysisSession& InSession, FGameplayProvider& InGameplayProvider)
 	: Session(InSession)
 	, GameplayProvider(InGameplayProvider)
 	, SkeletalMeshPoseTransforms(InSession.GetLinearAllocator(), 256)
@@ -392,7 +392,7 @@ void FAnimationProvider::AppendTickRecord(uint64 InAnimInstanceId, double InTime
 	{
 		ObjectIdToTickRecordTimelineStorage.Add(InAnimInstanceId, TickRecordTimelineStorage.Num());
 		TimelineStorage = TickRecordTimelineStorage.Add_GetRef(MakeShared<FTickRecordTimelineStorage>());
-		TimelineStorage->Timeline = MakeShared<Trace::TPointTimeline<FTickRecordMessage>>(Session.GetLinearAllocator());
+		TimelineStorage->Timeline = MakeShared<TraceServices::TPointTimeline<FTickRecordMessage>>(Session.GetLinearAllocator());
 		TimelineStorage->Timeline->SetEnumerateOutsideRange(true);
 	}
 
@@ -457,7 +457,7 @@ void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 I
 	else
 	{
 		TimelineStorage = MakeShared<FSkeletalMeshTimelineStorage>();
-		TimelineStorage->Timeline = MakeShared<Trace::TIntervalTimeline<FSkeletalMeshPoseMessage>>(Session.GetLinearAllocator());
+		TimelineStorage->Timeline = MakeShared<TraceServices::TIntervalTimeline<FSkeletalMeshPoseMessage>>(Session.GetLinearAllocator());
 		ObjectIdToSkeletalMeshPoseTimelines.Add(InObjectId, SkeletalMeshPoseTimelineStorage.Num());
 		SkeletalMeshPoseTimelineStorage.Add(TimelineStorage.ToSharedRef());
 	}
@@ -513,7 +513,7 @@ void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 I
 	else
 	{
 		TimelineStorage = MakeShared<FSkeletalMeshTimelineStorage>();
-		TimelineStorage->Timeline = MakeShared<Trace::TIntervalTimeline<FSkeletalMeshPoseMessage>>(Session.GetLinearAllocator());
+		TimelineStorage->Timeline = MakeShared<TraceServices::TIntervalTimeline<FSkeletalMeshPoseMessage>>(Session.GetLinearAllocator());
 		ObjectIdToSkeletalMeshPoseTimelines.Add(InObjectId, SkeletalMeshPoseTimelineStorage.Num());
 		SkeletalMeshPoseTimelineStorage.Add(TimelineStorage.ToSharedRef());
 	}
@@ -571,7 +571,7 @@ void FAnimationProvider::HandleObjectEndPlay(uint64 InObjectId, double InTime, c
 	uint32* SkelMeshPoseIndexPtr = ObjectIdToSkeletalMeshPoseTimelines.Find(InObjectId);
 	if(SkelMeshPoseIndexPtr != nullptr)
 	{
-		TSharedPtr<Trace::TIntervalTimeline<FSkeletalMeshPoseMessage>> Timeline = SkeletalMeshPoseTimelineStorage[*SkelMeshPoseIndexPtr]->Timeline;
+		TSharedPtr<TraceServices::TIntervalTimeline<FSkeletalMeshPoseMessage>> Timeline = SkeletalMeshPoseTimelineStorage[*SkelMeshPoseIndexPtr]->Timeline;
 		uint64 NumEvents = Timeline->GetEventCount();
 		if(NumEvents > 0)
 		{
@@ -586,7 +586,7 @@ void FAnimationProvider::AppendSkeletalMeshFrame(uint64 InObjectId, double InTim
 
 	bHasAnyData = true;
 
-	TSharedPtr<Trace::TIntervalTimeline<FSkeletalMeshFrameMessage>> Timeline;
+	TSharedPtr<TraceServices::TIntervalTimeline<FSkeletalMeshFrameMessage>> Timeline;
 	uint32* IndexPtr = ObjectIdToSkeletalMeshFrameTimelines.Find(InObjectId);
 	if(IndexPtr != nullptr)
 	{
@@ -595,7 +595,7 @@ void FAnimationProvider::AppendSkeletalMeshFrame(uint64 InObjectId, double InTim
 	}
 	else
 	{
-		Timeline = MakeShared<Trace::TIntervalTimeline<FSkeletalMeshFrameMessage>>(Session.GetLinearAllocator());
+		Timeline = MakeShared<TraceServices::TIntervalTimeline<FSkeletalMeshFrameMessage>>(Session.GetLinearAllocator());
 		ObjectIdToSkeletalMeshFrameTimelines.Add(InObjectId, SkeletalMeshFrameTimelines.Num());
 		SkeletalMeshFrameTimelines.Add(Timeline.ToSharedRef());
 	}
@@ -623,7 +623,7 @@ void FAnimationProvider::AppendAnimGraph(uint64 InAnimInstanceId, double InStart
 
 	bHasAnyData = true;
 
-	TSharedPtr<Trace::TIntervalTimeline<FAnimGraphMessage>> Timeline;
+	TSharedPtr<TraceServices::TIntervalTimeline<FAnimGraphMessage>> Timeline;
 	uint32* IndexPtr = ObjectIdToAnimGraphTimelines.Find(InAnimInstanceId);
 	if(IndexPtr != nullptr)
 	{
@@ -632,7 +632,7 @@ void FAnimationProvider::AppendAnimGraph(uint64 InAnimInstanceId, double InStart
 	}
 	else
 	{
-		Timeline = MakeShared<Trace::TIntervalTimeline<FAnimGraphMessage>>(Session.GetLinearAllocator());
+		Timeline = MakeShared<TraceServices::TIntervalTimeline<FAnimGraphMessage>>(Session.GetLinearAllocator());
 		ObjectIdToAnimGraphTimelines.Add(InAnimInstanceId, AnimGraphTimelines.Num());
 		AnimGraphTimelines.Add(Timeline.ToSharedRef());
 	}
@@ -655,7 +655,7 @@ void FAnimationProvider::AppendAnimNodeStart(uint64 InAnimInstanceId, double InS
 
 	bHasAnyData = true;
 
-	TSharedPtr<Trace::TPointTimeline<FAnimNodeMessage>> Timeline;
+	TSharedPtr<TraceServices::TPointTimeline<FAnimNodeMessage>> Timeline;
 	uint32* IndexPtr = ObjectIdToAnimNodeTimelines.Find(InAnimInstanceId);
 	if(IndexPtr != nullptr)
 	{
@@ -664,7 +664,7 @@ void FAnimationProvider::AppendAnimNodeStart(uint64 InAnimInstanceId, double InS
 	}
 	else
 	{
-		Timeline = MakeShared<Trace::TPointTimeline<FAnimNodeMessage>>(Session.GetLinearAllocator());
+		Timeline = MakeShared<TraceServices::TPointTimeline<FAnimNodeMessage>>(Session.GetLinearAllocator());
 		ObjectIdToAnimNodeTimelines.Add(InAnimInstanceId, AnimNodeTimelines.Num());
 		AnimNodeTimelines.Add(Timeline.ToSharedRef());
 	}
@@ -690,7 +690,7 @@ void FAnimationProvider::AppendAnimSequencePlayer(uint64 InAnimInstanceId, doubl
 
 	bHasAnyData = true;
 
-	TSharedPtr<Trace::TPointTimeline<FAnimSequencePlayerMessage>> Timeline;
+	TSharedPtr<TraceServices::TPointTimeline<FAnimSequencePlayerMessage>> Timeline;
 	uint32* IndexPtr = ObjectIdToAnimSequencePlayerTimelines.Find(InAnimInstanceId);
 	if(IndexPtr != nullptr)
 	{
@@ -699,7 +699,7 @@ void FAnimationProvider::AppendAnimSequencePlayer(uint64 InAnimInstanceId, doubl
 	}
 	else
 	{
-		Timeline = MakeShared<Trace::TPointTimeline<FAnimSequencePlayerMessage>>(Session.GetLinearAllocator());
+		Timeline = MakeShared<TraceServices::TPointTimeline<FAnimSequencePlayerMessage>>(Session.GetLinearAllocator());
 		ObjectIdToAnimSequencePlayerTimelines.Add(InAnimInstanceId, AnimSequencePlayerTimelines.Num());
 		AnimSequencePlayerTimelines.Add(Timeline.ToSharedRef());
 	}
@@ -722,7 +722,7 @@ void FAnimationProvider::AppendBlendSpacePlayer(uint64 InAnimInstanceId, double 
 
 	bHasAnyData = true;
 
-	TSharedPtr<Trace::TPointTimeline<FBlendSpacePlayerMessage>> Timeline;
+	TSharedPtr<TraceServices::TPointTimeline<FBlendSpacePlayerMessage>> Timeline;
 	uint32* IndexPtr = ObjectIdToBlendSpacePlayerTimelines.Find(InAnimInstanceId);
 	if(IndexPtr != nullptr)
 	{
@@ -731,7 +731,7 @@ void FAnimationProvider::AppendBlendSpacePlayer(uint64 InAnimInstanceId, double 
 	}
 	else
 	{
-		Timeline = MakeShared<Trace::TPointTimeline<FBlendSpacePlayerMessage>>(Session.GetLinearAllocator());
+		Timeline = MakeShared<TraceServices::TPointTimeline<FBlendSpacePlayerMessage>>(Session.GetLinearAllocator());
 		ObjectIdToBlendSpacePlayerTimelines.Add(InAnimInstanceId, BlendSpacePlayerTimelines.Num());
 		BlendSpacePlayerTimelines.Add(Timeline.ToSharedRef());
 	}
@@ -827,7 +827,7 @@ void FAnimationProvider::AppendAnimNodeValue(uint64 InAnimInstanceId, double InT
 
 	bHasAnyData = true;
 
-	TSharedPtr<Trace::TPointTimeline<FAnimNodeValueMessage>> Timeline;
+	TSharedPtr<TraceServices::TPointTimeline<FAnimNodeValueMessage>> Timeline;
 	uint32* IndexPtr = ObjectIdToAnimNodeValueTimelines.Find(InAnimInstanceId);
 	if(IndexPtr != nullptr)
 	{
@@ -835,7 +835,7 @@ void FAnimationProvider::AppendAnimNodeValue(uint64 InAnimInstanceId, double InT
 	}
 	else
 	{
-		Timeline = MakeShared<Trace::TPointTimeline<FAnimNodeValueMessage>>(Session.GetLinearAllocator());
+		Timeline = MakeShared<TraceServices::TPointTimeline<FAnimNodeValueMessage>>(Session.GetLinearAllocator());
 		ObjectIdToAnimNodeValueTimelines.Add(InAnimInstanceId, AnimNodeValueTimelines.Num());
 		AnimNodeValueTimelines.Add(Timeline.ToSharedRef());
 	}
@@ -856,7 +856,7 @@ void FAnimationProvider::AppendStateMachineState(uint64 InAnimInstanceId, double
 
 	bHasAnyData = true;
 
-	TSharedPtr<Trace::TPointTimeline<FAnimStateMachineMessage>> Timeline;
+	TSharedPtr<TraceServices::TPointTimeline<FAnimStateMachineMessage>> Timeline;
 	uint32* IndexPtr = ObjectIdToStateMachineTimelines.Find(InAnimInstanceId);
 	if(IndexPtr != nullptr)
 	{
@@ -864,7 +864,7 @@ void FAnimationProvider::AppendStateMachineState(uint64 InAnimInstanceId, double
 	}
 	else
 	{
-		Timeline = MakeShared<Trace::TPointTimeline<FAnimStateMachineMessage>>(Session.GetLinearAllocator());
+		Timeline = MakeShared<TraceServices::TPointTimeline<FAnimStateMachineMessage>>(Session.GetLinearAllocator());
 		ObjectIdToStateMachineTimelines.Add(InAnimInstanceId, StateMachineTimelines.Num());
 		StateMachineTimelines.Add(Timeline.ToSharedRef());
 	}
@@ -891,7 +891,7 @@ void FAnimationProvider::AppendNotify(uint64 InAnimInstanceId, double InTime, ui
 	// Check if stateful or event-based
 	if(InNotifyEventType == EAnimNotifyMessageType::Begin || InNotifyEventType == EAnimNotifyMessageType::End)
 	{
-		TSharedPtr<Trace::TIntervalTimeline<FAnimNotifyMessage>> Timeline;
+		TSharedPtr<TraceServices::TIntervalTimeline<FAnimNotifyMessage>> Timeline;
 		TSharedPtr<FAnimNotifyStateTimelineStorage> TimelineStorage;
 		uint32* TimelineStorageIndexPtr = ObjectIdToAnimNotifyStateTimelines.Find(InAnimInstanceId);
 		if(TimelineStorageIndexPtr != nullptr)
@@ -913,7 +913,7 @@ void FAnimationProvider::AppendNotify(uint64 InAnimInstanceId, double InTime, ui
 		}
 		else
 		{
-			Timeline = MakeShared<Trace::TIntervalTimeline<FAnimNotifyMessage>>(Session.GetLinearAllocator());
+			Timeline = MakeShared<TraceServices::TIntervalTimeline<FAnimNotifyMessage>>(Session.GetLinearAllocator());
 			TimelineStorage->NotifyIdToAnimNotifyStateTimeline.Add(InNotifyId, TimelineStorage->Timelines.Num());
 			TimelineStorage->Timelines.Add(Timeline.ToSharedRef());
 		}
@@ -939,7 +939,7 @@ void FAnimationProvider::AppendNotify(uint64 InAnimInstanceId, double InTime, ui
 	}
 	else
 	{
-		TSharedPtr<Trace::TPointTimeline<FAnimNotifyMessage>> Timeline;
+		TSharedPtr<TraceServices::TPointTimeline<FAnimNotifyMessage>> Timeline;
 		uint32* IndexPtr = ObjectIdToAnimNotifyTimelines.Find(InAnimInstanceId);
 		if(IndexPtr != nullptr)
 		{
@@ -947,7 +947,7 @@ void FAnimationProvider::AppendNotify(uint64 InAnimInstanceId, double InTime, ui
 		}
 		else
 		{
-			Timeline = MakeShared<Trace::TPointTimeline<FAnimNotifyMessage>>(Session.GetLinearAllocator());
+			Timeline = MakeShared<TraceServices::TPointTimeline<FAnimNotifyMessage>>(Session.GetLinearAllocator());
 			ObjectIdToAnimNotifyTimelines.Add(InAnimInstanceId, AnimNotifyTimelines.Num());
 			AnimNotifyTimelines.Add(Timeline.ToSharedRef());
 		}
@@ -983,7 +983,7 @@ void FAnimationProvider::AppendMontage(uint64 InAnimInstanceId, double InTime, u
 	else
 	{
 		TimelineStorage = MakeShared<FMontageTimelineStorage>();
-		TimelineStorage->Timeline = MakeShared<Trace::TPointTimeline<FAnimMontageMessage>>(Session.GetLinearAllocator());
+		TimelineStorage->Timeline = MakeShared<TraceServices::TPointTimeline<FAnimMontageMessage>>(Session.GetLinearAllocator());
 		TimelineStorage->Timeline->SetEnumerateOutsideRange(true);
 		ObjectIdToAnimMontageTimelines.Add(InAnimInstanceId, AnimMontageTimelineStorage.Num());
 		AnimMontageTimelineStorage.Add(TimelineStorage.ToSharedRef());

@@ -4,8 +4,11 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include "Model/CallstacksProvider.h"
 
+namespace TraceServices
+{
+
 ////////////////////////////////////////////////////////////////////////////////
-FCallstacksAnalyzer::FCallstacksAnalyzer(Trace::IAnalysisSession& Session, Trace::FCallstacksProvider* InProvider)
+FCallstacksAnalyzer::FCallstacksAnalyzer(IAnalysisSession& Session, FCallstacksProvider* InProvider)
 	: Provider(InProvider)
 {
 }
@@ -32,3 +35,4 @@ bool FCallstacksAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCo
 	return true;
 }
 
+} // namespace TraceServices

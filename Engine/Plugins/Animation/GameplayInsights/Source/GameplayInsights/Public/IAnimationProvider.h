@@ -227,19 +227,19 @@ struct FAnimMontageMessage
 	uint16 FrameCounter = 0;
 };
 
-class IAnimationProvider : public Trace::IProvider
+class IAnimationProvider : public TraceServices::IProvider
 {
 public:
-	typedef Trace::ITimeline<FTickRecordMessage> TickRecordTimeline;
-	typedef Trace::ITimeline<FSkeletalMeshPoseMessage> SkeletalMeshPoseTimeline;
-	typedef Trace::ITimeline<FAnimGraphMessage> AnimGraphTimeline;
-	typedef Trace::ITimeline<FAnimNodeMessage> AnimNodesTimeline;
-	typedef Trace::ITimeline<FAnimNodeValueMessage> AnimNodeValuesTimeline;
-	typedef Trace::ITimeline<FAnimSequencePlayerMessage> AnimSequencePlayersTimeline;
-	typedef Trace::ITimeline<FAnimStateMachineMessage> StateMachinesTimeline;
-	typedef Trace::ITimeline<FBlendSpacePlayerMessage> BlendSpacePlayersTimeline;
-	typedef Trace::ITimeline<FAnimNotifyMessage> AnimNotifyTimeline;
-	typedef Trace::ITimeline<FAnimMontageMessage> AnimMontageTimeline;
+	typedef TraceServices::ITimeline<FTickRecordMessage> TickRecordTimeline;
+	typedef TraceServices::ITimeline<FSkeletalMeshPoseMessage> SkeletalMeshPoseTimeline;
+	typedef TraceServices::ITimeline<FAnimGraphMessage> AnimGraphTimeline;
+	typedef TraceServices::ITimeline<FAnimNodeMessage> AnimNodesTimeline;
+	typedef TraceServices::ITimeline<FAnimNodeValueMessage> AnimNodeValuesTimeline;
+	typedef TraceServices::ITimeline<FAnimSequencePlayerMessage> AnimSequencePlayersTimeline;
+	typedef TraceServices::ITimeline<FAnimStateMachineMessage> StateMachinesTimeline;
+	typedef TraceServices::ITimeline<FBlendSpacePlayerMessage> BlendSpacePlayersTimeline;
+	typedef TraceServices::ITimeline<FAnimNotifyMessage> AnimNotifyTimeline;
+	typedef TraceServices::ITimeline<FAnimMontageMessage> AnimMontageTimeline;
 
 	virtual bool ReadSkeletalMeshPoseTimeline(uint64 InObjectId, TFunctionRef<void(const SkeletalMeshPoseTimeline&, bool)> Callback) const = 0;
 	virtual void GetSkeletalMeshComponentSpacePose(const FSkeletalMeshPoseMessage& InMessage, const FSkeletalMeshInfo& InMeshInfo, FTransform& OutComponentToWorld, TArray<FTransform>& OutTransforms) const = 0;

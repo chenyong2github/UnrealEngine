@@ -98,7 +98,7 @@ public:
 	/** Resets internal widget's data to the default one. */
 	void Reset();
 
-	void SetConnection(uint32 GameInstanceIndex, uint32 ConnectionIndex, Trace::ENetProfilerConnectionMode ConnectionMode);
+	void SetConnection(uint32 GameInstanceIndex, uint32 ConnectionIndex, TraceServices::ENetProfilerConnectionMode ConnectionMode);
 
 	SLATE_BEGIN_ARGS(SPacketView)
 	{
@@ -147,7 +147,7 @@ public:
 private:
 	void UpdateSelectedSample();
 
-	bool IsConnectionValid(const Trace::INetProfilerProvider& NetProfilerProvider, const uint32 InGameInstanceIndex, const uint32 InConnectionIndex, const Trace::ENetProfilerConnectionMode InConnectionMode);
+	bool IsConnectionValid(const TraceServices::INetProfilerProvider& NetProfilerProvider, const uint32 InGameInstanceIndex, const uint32 InConnectionIndex, const TraceServices::ENetProfilerConnectionMode InConnectionMode);
 	void UpdateState();
 
 	void DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const;
@@ -182,7 +182,7 @@ private:
 
 	uint32 GameInstanceIndex;
 	uint32 ConnectionIndex;
-	Trace::ENetProfilerConnectionMode ConnectionMode;
+	TraceServices::ENetProfilerConnectionMode ConnectionMode;
 
 	/** The track's viewport. Encapsulates info about position and scale. */
 	FPacketViewport Viewport;

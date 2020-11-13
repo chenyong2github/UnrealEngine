@@ -33,7 +33,7 @@ public:
 
 	TSharedPtr<Insights::FUntypedTable> GetUntypedTable() const { return StaticCastSharedPtr<Insights::FUntypedTable>(GetTable()); }
 
-	void UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> SourceTable);
+	void UpdateSourceTable(TSharedPtr<TraceServices::IUntypedTable> SourceTable);
 
 	virtual void Reset();
 

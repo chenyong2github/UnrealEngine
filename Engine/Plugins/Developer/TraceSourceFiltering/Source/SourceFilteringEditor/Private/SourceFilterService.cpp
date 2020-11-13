@@ -11,7 +11,7 @@
 #include "EditorSessionSourceFilterService.h"
 #endif
 
-TSharedRef<ISessionSourceFilterService> FSourceFilterService::GetFilterServiceForSession(uint32 InHandle, TSharedRef<const Trace::IAnalysisSession> AnalysisSession)
+TSharedRef<ISessionSourceFilterService> FSourceFilterService::GetFilterServiceForSession(uint32 InHandle, TSharedRef<const TraceServices::IAnalysisSession> AnalysisSession)
 {
 	TSharedPtr<ISessionSourceFilterService> NewService = nullptr;		
 	NewService = MakeShareable(new FEditorSessionSourceFilterService());

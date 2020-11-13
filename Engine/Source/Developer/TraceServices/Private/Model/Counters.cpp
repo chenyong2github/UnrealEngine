@@ -4,7 +4,7 @@
 #include "Model/CountersPrivate.h"
 #include "AnalysisServicePrivate.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 const FName FCounterProvider::ProviderName("CounterProvider");
@@ -199,4 +199,4 @@ ICounterProvider& EditCounterProvider(IAnalysisSession& Session)
 	return *Session.EditProvider<ICounterProvider>(FCounterProvider::ProviderName);
 }
 
-}
+} // namespace TraceServices

@@ -5,7 +5,10 @@
 #include "TraceServices/Model/Counters.h"
 #include "TraceServices/Model/Frames.h"
 
-FCsvProfilerAnalyzer::FCsvProfilerAnalyzer(Trace::IAnalysisSession& InSession, Trace::FCsvProfilerProvider& InCsvProfilerProvider, Trace::ICounterProvider& InCounterProvider, const Trace::IFrameProvider& InFrameProvider, const Trace::IThreadProvider& InThreadProvider)
+namespace TraceServices
+{
+
+FCsvProfilerAnalyzer::FCsvProfilerAnalyzer(IAnalysisSession& InSession, FCsvProfilerProvider& InCsvProfilerProvider, ICounterProvider& InCounterProvider, const IFrameProvider& InFrameProvider, const IThreadProvider& InThreadProvider)
 	: Session(InSession)
 	, CsvProfilerProvider(InCsvProfilerProvider)
 	, CounterProvider(InCounterProvider)
@@ -62,7 +65,7 @@ void FCsvProfilerAnalyzer::OnAnalysisEnd()
 
 bool FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
-	Trace::FAnalysisSessionEditScope _(Session);
+	FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
@@ -208,10 +211,10 @@ void FCsvProfilerAnalyzer::DefineStatSeries(uint64 StatId, const TCHAR* Name, in
 	}
 }
 
-const TCHAR* FCsvProfilerAnalyzer::GetStatSeriesName(const FStatSeriesDefinition* Definition, Trace::ECsvStatSeriesType Type, FThreadState& ThreadState, bool bIsCount)
+const TCHAR* FCsvProfilerAnalyzer::GetStatSeriesName(const FStatSeriesDefinition* Definition, ECsvStatSeriesType Type, FThreadState& ThreadState, bool bIsCount)
 {
 	FString Name = Definition->Name;
-	if (Type == Trace::CsvStatSeriesType_Timer || bIsCount)
+	if (Type == CsvStatSeriesType_Timer || bIsCount)
 	{
 		// Add a /<Threadname> prefix
 		Name = ThreadState.ThreadName + TEXT("/") + Name;
@@ -232,7 +235,7 @@ const TCHAR* FCsvProfilerAnalyzer::GetStatSeriesName(const FStatSeriesDefinition
 	return Session.StoreString(*Name);
 }
 
-FCsvProfilerAnalyzer::FStatSeriesInstance& FCsvProfilerAnalyzer::GetStatSeries(uint64 StatId, Trace::ECsvStatSeriesType Type, FThreadState& ThreadState)
+FCsvProfilerAnalyzer::FStatSeriesInstance& FCsvProfilerAnalyzer::GetStatSeries(uint64 StatId, ECsvStatSeriesType Type, FThreadState& ThreadState)
 {
 	FStatSeriesDefinition* Definition;
 	FStatSeriesDefinition** FindIt = StatSeriesMap.Find(StatId);
@@ -261,10 +264,10 @@ FCsvProfilerAnalyzer::FStatSeriesInstance& FCsvProfilerAnalyzer::GetStatSeries(u
 	ThreadState.StatSeries[Definition->ColumnIndex] = Instance;
 	const TCHAR* StatSeriesName = GetStatSeriesName(Definition, Type, ThreadState, false);
 	Instance->ProviderHandle = CsvProfilerProvider.AddSeries(StatSeriesName, Type);
-	Instance->ProviderCountHandle = CsvProfilerProvider.AddSeries(GetStatSeriesName(Definition, Type, ThreadState, true), Trace::CsvStatSeriesType_CustomStatInt);
+	Instance->ProviderCountHandle = CsvProfilerProvider.AddSeries(GetStatSeriesName(Definition, Type, ThreadState, true), CsvStatSeriesType_CustomStatInt);
 	Instance->Counter = CounterProvider.CreateCounter();
 	Instance->Counter->SetName(StatSeriesName);
-	Instance->Counter->SetIsFloatingPoint(Type != Trace::CsvStatSeriesType_CustomStatInt);
+	Instance->Counter->SetIsFloatingPoint(Type != CsvStatSeriesType_CustomStatInt);
 	Instance->Type = Type;
 	Instance->FrameType = ThreadState.FrameType;
 
@@ -365,7 +368,7 @@ void FCsvProfilerAnalyzer::HandleMarker(const FOnEventContext& Context, FThreadS
 				{
 					const FEventTime& EventTime = Context.EventTime;
 					double Elapsed = EventTime.AsSeconds(Marker.Cycle) - EventTime.AsSeconds(StartMarker.Cycle);
-					FStatSeriesInstance& StatSeries = GetStatSeries(Marker.StatId, Trace::CsvStatSeriesType_Timer, ThreadState);
+					FStatSeriesInstance& StatSeries = GetStatSeries(Marker.StatId, CsvStatSeriesType_Timer, ThreadState);
 					SetTimerValue(StatSeries, FrameNumber, Elapsed * 1000.0, !Marker.bIsExclusiveInsertedMarker);
 				}
 			}
@@ -377,7 +380,7 @@ void FCsvProfilerAnalyzer::HandleCustomStatEvent(const FOnEventContext& Context,
 {
 	uint32 ThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context);
 	FThreadState& ThreadState = GetThreadState(ThreadId);
-	FStatSeriesInstance& StatSeries = GetStatSeries(Context.EventData.GetValue<uint64>("StatId"), bIsFloat ? Trace::CsvStatSeriesType_CustomStatFloat : Trace::CsvStatSeriesType_CustomStatInt, ThreadState);
+	FStatSeriesInstance& StatSeries = GetStatSeries(Context.EventData.GetValue<uint64>("StatId"), bIsFloat ? CsvStatSeriesType_CustomStatFloat : CsvStatSeriesType_CustomStatInt, ThreadState);
 	ECsvOpType OpType = static_cast<ECsvOpType>(Context.EventData.GetValue<uint8>("OpType"));
 	uint32 FrameNumber = GetFrameNumberForTimestamp(ThreadState.FrameType, Context.EventTime.AsSeconds(Context.EventData.GetValue<uint64>("Cycle")));
 	if (bIsFloat)
@@ -431,18 +434,18 @@ void FCsvProfilerAnalyzer::Flush(FStatSeriesInstance& StatSeries)
 	double CounterTimestamp;
 	if (StatSeries.CurrentFrame == 0)
 	{
-		const Trace::FFrame* Frame = FrameProvider.GetFrame(StatSeries.FrameType, 0);
+		const FFrame* Frame = FrameProvider.GetFrame(StatSeries.FrameType, 0);
 		check(Frame);
 		CounterTimestamp = Frame->StartTime;
 	}
 	else
 	{
-		const Trace::FFrame* Frame = FrameProvider.GetFrame(StatSeries.FrameType, StatSeries.CurrentFrame - 1);
-		const Trace::FFrame* NextFrame = FrameProvider.GetFrame(StatSeries.FrameType, StatSeries.CurrentFrame);
+		const FFrame* Frame = FrameProvider.GetFrame(StatSeries.FrameType, StatSeries.CurrentFrame - 1);
+		const FFrame* NextFrame = FrameProvider.GetFrame(StatSeries.FrameType, StatSeries.CurrentFrame);
 		check(NextFrame);
 		CounterTimestamp = Frame->EndTime;
 	}
-	if (StatSeries.Type == Trace::CsvStatSeriesType_CustomStatInt)
+	if (StatSeries.Type == CsvStatSeriesType_CustomStatInt)
 	{
 		CsvProfilerProvider.SetValue(StatSeries.ProviderHandle, StatSeries.CurrentFrame, StatSeries.CurrentValue.Value.AsInt);
 		StatSeries.Counter->SetValue(CounterTimestamp, StatSeries.CurrentValue.Value.AsInt);
@@ -548,3 +551,5 @@ void FCsvProfilerAnalyzer::SetCustomStatValue(FStatSeriesInstance& StatSeries, u
 	StatSeries.CurrentValue.bIsValid = true;
 	++StatSeries.CurrentCount;
 }
+
+} // namespace TraceServices

@@ -5,7 +5,8 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include "Containers/UnrealString.h"
 
-namespace Trace {
+namespace TraceServices
+{
 
 struct FChannelEntry
 {
@@ -25,4 +26,4 @@ public:
 	virtual FDateTime GetTimeStamp() const = 0;
 };
 
-} // namespace Trace
+} // namespace TraceServices

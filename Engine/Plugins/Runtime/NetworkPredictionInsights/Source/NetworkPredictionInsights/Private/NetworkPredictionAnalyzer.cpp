@@ -5,7 +5,7 @@
 #include "Containers/StringView.h"
 
 
-FNetworkPredictionAnalyzer::FNetworkPredictionAnalyzer(Trace::IAnalysisSession& InSession, FNetworkPredictionProvider& InNetworkPredictionProvider)
+FNetworkPredictionAnalyzer::FNetworkPredictionAnalyzer(TraceServices::IAnalysisSession& InSession, FNetworkPredictionProvider& InNetworkPredictionProvider)
 	: Session(InSession)
 	, NetworkPredictionProvider(InNetworkPredictionProvider)
 {
@@ -52,7 +52,7 @@ void FNetworkPredictionAnalyzer::OnAnalysisEnd()
 
 bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
-	Trace::FAnalysisSessionEditScope _(Session);
+	TraceServices::FAnalysisSessionEditScope _(Session);
 	const auto& EventData = Context.EventData;
 
 	auto ParseUserState = [&EventData, this](ENP_UserState Type)

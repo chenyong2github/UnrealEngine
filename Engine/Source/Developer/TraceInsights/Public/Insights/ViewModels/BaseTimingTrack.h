@@ -12,7 +12,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FMenuBuilder;
-namespace Trace { class IAnalysisSession; };
+namespace TraceServices { class IAnalysisSession; };
 
 class FTimingEventSearchParameters;
 class FTimingTrackViewport;

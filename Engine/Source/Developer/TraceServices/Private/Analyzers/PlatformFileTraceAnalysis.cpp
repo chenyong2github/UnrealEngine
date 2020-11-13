@@ -12,7 +12,10 @@
 #define PLATFORMFILETRACE_WARNING(x)
 #endif
 
-FPlatformFileTraceAnalyzer::FPlatformFileTraceAnalyzer(Trace::IAnalysisSession& InSession, Trace::FFileActivityProvider& InFileActivityProvider)
+namespace TraceServices
+{
+
+FPlatformFileTraceAnalyzer::FPlatformFileTraceAnalyzer(IAnalysisSession& InSession, FFileActivityProvider& InFileActivityProvider)
 	: Session(InSession)
 	, FileActivityProvider(InFileActivityProvider)
 {
@@ -35,7 +38,7 @@ void FPlatformFileTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Conte
 
 bool FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
-	Trace::FAnalysisSessionEditScope _(Session);
+	FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
@@ -54,7 +57,7 @@ bool FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 		const TCHAR* FileName = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
 		uint32 FileIndex = FileActivityProvider.GetFileIndex(FileName);
 		FPendingActivity& Open = PendingOpenMap.Add(ThreadId);
-		Open.ActivityIndex = FileActivityProvider.BeginActivity(FileIndex, Trace::FileActivityType_Open, ThreadId, 0, 0, Time);
+		Open.ActivityIndex = FileActivityProvider.BeginActivity(FileIndex, FileActivityType_Open, ThreadId, 0, 0, Time);
 		Open.FileIndex = FileIndex;
 		break;
 	}
@@ -101,7 +104,7 @@ bool FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 		{
 			OpenFilesMap.Remove(FileHandle);
 			FPendingActivity& Close = PendingCloseMap.Add(ThreadId);
-			Close.ActivityIndex = FileActivityProvider.BeginActivity(*FindFileIndex, Trace::FileActivityType_Close, ThreadId, 0, 0, Time);
+			Close.ActivityIndex = FileActivityProvider.BeginActivity(*FindFileIndex, FileActivityType_Close, ThreadId, 0, 0, Time);
 			Close.FileIndex = *FindFileIndex;
 		}
 		else
@@ -147,7 +150,7 @@ bool FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 			FileIndex = FileActivityProvider.GetUnknownFileIndex();
 			OpenFilesMap.Add(FileHandle, FileIndex);
 		}
-		uint64 ReadIndex = FileActivityProvider.BeginActivity(FileIndex, Trace::FileActivityType_Read, ThreadId, Offset, Size, Time);
+		uint64 ReadIndex = FileActivityProvider.BeginActivity(FileIndex, FileActivityType_Read, ThreadId, Offset, Size, Time);
 		FPendingActivity& Read = ActiveReadsMap.Add(ReadHandle);
 		Read.FileIndex = FileIndex;
 		Read.ActivityIndex = ReadIndex;
@@ -192,7 +195,7 @@ bool FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 			FileIndex = FileActivityProvider.GetUnknownFileIndex();
 			OpenFilesMap.Add(FileHandle, FileIndex);
 		}
-		uint64 WriteIndex = FileActivityProvider.BeginActivity(FileIndex, Trace::FileActivityType_Write, ThreadId, Offset, Size, Time);
+		uint64 WriteIndex = FileActivityProvider.BeginActivity(FileIndex, FileActivityType_Write, ThreadId, Offset, Size, Time);
 		FPendingActivity& Write = ActiveWritesMap.Add(WriteHandle);
 		Write.FileIndex = FileIndex;
 		Write.ActivityIndex = WriteIndex;
@@ -224,3 +227,5 @@ bool FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 
 #undef PLATFORMFILETRACE_WARNING
 #undef DEBUG_PLATFORMFILETRACE
+
+} // namespace TraceServices

@@ -6,7 +6,7 @@
 
 #define LOCTEXT_NAMESPACE "FVariantTreeNode"
 
-FString FVariantTreeNode::GetValueAsString(const Trace::IAnalysisSession& InAnalysisSession) const
+FString FVariantTreeNode::GetValueAsString(const TraceServices::IAnalysisSession& InAnalysisSession) const
 {
 	switch(Value.Type)
 	{
@@ -27,7 +27,7 @@ FString FVariantTreeNode::GetValueAsString(const Trace::IAnalysisSession& InAnal
 			const FGameplayProvider* GameplayProvider = InAnalysisSession.ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 			if(GameplayProvider)
 			{
-				Trace::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
+				TraceServices::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
 
 				const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(Value.Object.Value);
 				return ObjectInfo.PathName;
@@ -40,7 +40,7 @@ FString FVariantTreeNode::GetValueAsString(const Trace::IAnalysisSession& InAnal
 			const FGameplayProvider* GameplayProvider = InAnalysisSession.ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 			if(GameplayProvider)
 			{
-				Trace::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
+				TraceServices::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
 
 				const FClassInfo& ClassInfo = GameplayProvider->GetClassInfo(Value.Class.Value);
 				return ClassInfo.PathName;

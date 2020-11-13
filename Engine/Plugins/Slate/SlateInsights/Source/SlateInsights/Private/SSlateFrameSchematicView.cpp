@@ -169,14 +169,14 @@ namespace Private
 		}
 	};
 
-	FText GetWidgetName(const Trace::IAnalysisSession* AnalysisSession, Message::FWidgetId WidgetId)
+	FText GetWidgetName(const TraceServices::IAnalysisSession* AnalysisSession, Message::FWidgetId WidgetId)
 	{
 		if (AnalysisSession)
 		{
 			const FSlateProvider* SlateProvider = AnalysisSession->ReadProvider<FSlateProvider>(FSlateProvider::ProviderName);
 			if (SlateProvider)
 			{
-				Trace::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+				TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
 
 				if (const Message::FWidgetInfo* WidgetInfo = SlateProvider->FindWidget(WidgetId))
 				{
@@ -321,7 +321,7 @@ SSlateFrameSchematicView::~SSlateFrameSchematicView()
 	}
 }
 
-void SSlateFrameSchematicView::SetSession(Insights::ITimingViewSession* InTimingViewSession, const Trace::IAnalysisSession* InAnalysisSession)
+void SSlateFrameSchematicView::SetSession(Insights::ITimingViewSession* InTimingViewSession, const TraceServices::IAnalysisSession* InAnalysisSession)
 {
 	if (TimingViewSession)
 	{
@@ -576,7 +576,7 @@ void SSlateFrameSchematicView::RefreshNodes()
 			const FSlateProvider* SlateProvider = AnalysisSession->ReadProvider<FSlateProvider>(FSlateProvider::ProviderName);
 			if (SlateProvider)
 			{
-				Trace::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+				TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
 
 				if (FMath::IsNearlyEqual(StartTime, EndTime))
 				{
@@ -589,7 +589,7 @@ void SSlateFrameSchematicView::RefreshNodes()
 						{
 							this->StartTime = FMath::Min(StartTime, EventStartTime);
 							this->EndTime = FMath::Max(EndTime, EventEndTime+Message.DeltaTime);
-							return Trace::EEventEnumerate::Continue;
+							return TraceServices::EEventEnumerate::Continue;
 						});
 				}
 
@@ -670,7 +670,7 @@ void SSlateFrameSchematicView::RefreshNodes_Invalidation(const FSlateProvider* S
 				WidgetInfo->Callstack = Message.Callstack;
 			}
 
-			return Trace::EEventEnumerate::Continue;
+			return TraceServices::EEventEnumerate::Continue;
 		});
 
 	for (const auto& Itt : InvalidationMap)
@@ -702,7 +702,7 @@ void SSlateFrameSchematicView::RefreshNodes_Update(const FSlateProvider* SlatePr
 					Message.WidgetId,
 					MakeShared<Private::FWidgetUpdateInfo>(Message.WidgetId, Message.UpdateFlags));
 			}
-			return Trace::EEventEnumerate::Continue;
+			return TraceServices::EEventEnumerate::Continue;
 		});
 	WidgetUpdateInfosMap.GenerateValueArray(WidgetUpdateInfos);
 

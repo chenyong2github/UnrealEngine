@@ -6,7 +6,7 @@
 #include "AnimationProvider.h"
 #include "Containers/ArrayView.h"
 
-FAnimationAnalyzer::FAnimationAnalyzer(Trace::IAnalysisSession& InSession, FAnimationProvider& InAnimationProvider)
+FAnimationAnalyzer::FAnimationAnalyzer(TraceServices::IAnalysisSession& InSession, FAnimationProvider& InAnimationProvider)
 	: Session(InSession)
 	, AnimationProvider(InAnimationProvider)
 {
@@ -43,7 +43,7 @@ void FAnimationAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
-	Trace::FAnalysisSessionEditScope _(Session);
+	TraceServices::FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
@@ -119,7 +119,7 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 	case RouteId_Name:
 	{
 		uint32 Id = EventData.GetValue<uint32>("Id");
-		FString Name = FTraceAnalyzerUtils::LegacyAttachmentString<TCHAR>("Name", Context);
+		FString Name = TraceServices::FTraceAnalyzerUtils::LegacyAttachmentString<TCHAR>("Name", Context);
 		AnimationProvider.AppendName(Id, *Name);
 		break;
 	}

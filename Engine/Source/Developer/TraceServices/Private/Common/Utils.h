@@ -6,8 +6,8 @@
 #include "Trace/Analyzer.h"
 #include "TraceServices/Utils.h"
 
-namespace FTraceAnalyzerUtils
-{
+namespace TraceServices {
+namespace FTraceAnalyzerUtils {
 
 inline uint64 Decode7bit(const uint8*& BufferPtr)
 {
@@ -44,3 +44,4 @@ inline uint32 GetThreadIdField(
 }
 
 } // namespace FTraceAnalyzerUtils
+} // namespace TraceServices

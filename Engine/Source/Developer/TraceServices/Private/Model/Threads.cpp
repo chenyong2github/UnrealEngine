@@ -6,7 +6,7 @@
 #include "AnalysisServicePrivate.h"
 #include "Common/StringStore.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 const FName FThreadProvider::ProviderName = "ThreadProvider";
@@ -224,4 +224,4 @@ const IThreadProvider& ReadThreadProvider(const IAnalysisSession& Session)
 	return *Session.ReadProvider<IThreadProvider>(FThreadProvider::ProviderName);
 }
 
-}
+} // namespace TraceServices

@@ -4,7 +4,7 @@
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/Diagnostics.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 class FDiagnosticsProvider : public IDiagnosticsProvider
@@ -26,4 +26,4 @@ private:
 	bool bIsSessionInfoAvailable = false;
 };
 
-} // namespace Trace
+} // namespace TraceServices

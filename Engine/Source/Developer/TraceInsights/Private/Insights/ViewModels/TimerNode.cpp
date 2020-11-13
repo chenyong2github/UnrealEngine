@@ -54,12 +54,12 @@ FTimerNode::~FTimerNode()
 
 void FTimerNode::ResetAggregatedStats()
 {
-	AggregatedStats = Trace::FTimingProfilerAggregatedStats();
+	AggregatedStats = TraceServices::FTimingProfilerAggregatedStats();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimerNode::SetAggregatedStats(const Trace::FTimingProfilerAggregatedStats& InAggregatedStats)
+void FTimerNode::SetAggregatedStats(const TraceServices::FTimingProfilerAggregatedStats& InAggregatedStats)
 {
 	AggregatedStats = InAggregatedStats;
 }

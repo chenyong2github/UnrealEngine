@@ -267,13 +267,13 @@ int32 FMemoryGraphTrack::RemoveAllMemTagSeries()
 
 void FMemoryGraphTrack::PreUpdateMemTagSeries(FMemoryGraphSeries& Series, const FTimingTrackViewport& Viewport)
 {
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
 		// Compute Min/Max values.
-		const Trace::IMemoryProvider& MemoryProvider = Trace::ReadMemoryProvider(*Session.Get());
+		const TraceServices::IMemoryProvider& MemoryProvider = TraceServices::ReadMemoryProvider(*Session.Get());
 		const uint64 TotalSampleCount = MemoryProvider.GetTagSampleCount(Series.GetTrackerId(), Series.GetTagId());
 		if (TotalSampleCount > 0)
 		{
@@ -281,7 +281,7 @@ void FMemoryGraphTrack::PreUpdateMemTagSeries(FMemoryGraphSeries& Series, const 
 			double MaxValue = -std::numeric_limits<double>::infinity();
 
 			MemoryProvider.EnumerateTagSamples(Series.GetTrackerId(), Series.GetTagId(), Viewport.GetStartTime(), Viewport.GetEndTime(), true,
-				[&MinValue, &MaxValue](double Time, double Duration, const Trace::FMemoryTagSample& Sample)
+				[&MinValue, &MaxValue](double Time, double Duration, const TraceServices::FMemoryTagSample& Sample)
 			{
 				const double Value = static_cast<double>(Sample.Value);
 				if (Value < MinValue)
@@ -305,12 +305,12 @@ void FMemoryGraphTrack::UpdateMemTagSeries(FMemoryGraphSeries& Series, const FTi
 {
 	FGraphTrackBuilder Builder(*this, Series, Viewport);
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::IMemoryProvider& MemoryProvider = Trace::ReadMemoryProvider(*Session.Get());
+		const TraceServices::IMemoryProvider& MemoryProvider = TraceServices::ReadMemoryProvider(*Session.Get());
 
 		const uint64 TotalSampleCount = MemoryProvider.GetTagSampleCount(Series.GetTrackerId(), Series.GetTagId());
 
@@ -325,7 +325,7 @@ void FMemoryGraphTrack::UpdateMemTagSeries(FMemoryGraphSeries& Series, const FTi
 			}
 
 			MemoryProvider.EnumerateTagSamples(Series.GetTrackerId(), Series.GetTagId(), Viewport.GetStartTime(), Viewport.GetEndTime(), true,
-				[this, &Builder](double Time, double Duration, const Trace::FMemoryTagSample& Sample)
+				[this, &Builder](double Time, double Duration, const TraceServices::FMemoryTagSample& Sample)
 			{
 				Builder.AddEvent(Time, Duration, static_cast<double>(Sample.Value));
 			});

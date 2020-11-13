@@ -262,16 +262,16 @@ void SSessionInfoWindow::Tick(const FGeometry& AllottedGeometry, const double In
 		return;
 	}
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::IDiagnosticsProvider& DiagnosticsProvider = Trace::ReadDiagnosticsProvider(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::IDiagnosticsProvider& DiagnosticsProvider = TraceServices::ReadDiagnosticsProvider(*Session.Get());
 
 		if (DiagnosticsProvider.IsSessionInfoAvailable())
 		{
-			Trace::FSessionInfo SessionInfo = DiagnosticsProvider.GetSessionInfo();
+			TraceServices::FSessionInfo SessionInfo = DiagnosticsProvider.GetSessionInfo();
 			PlatformText = FText::FromString(SessionInfo.Platform);
 			AppNameText = FText::FromString(SessionInfo.AppName);
 			CommandLineText = FText::FromString(SessionInfo.CommandLine);
@@ -343,10 +343,10 @@ FReply SSessionInfoWindow::OnDrop(const FGeometry& MyGeometry, const FDragDropEv
 FText SSessionInfoWindow::GetSessionNameText() const
 {
 	FText SessionName;
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 		SessionName = FText::FromString(FPaths::GetBaseFilename(Session->GetName()));
 	}
 	return SessionName;
@@ -358,10 +358,10 @@ FText SSessionInfoWindow::GetUriText() const
 {
 	//TODO: update code to use a SessionInfo provider instead
 	FText LocalUri;
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 		LocalUri = FText::FromString(FString(Session->GetName()));
 	}
 	return LocalUri;
@@ -433,15 +433,15 @@ FText SSessionInfoWindow::GetStatusText() const
 FText SSessionInfoWindow::GetModulesText() const
 {
 	FString ModulesStr;
-	TArray<Trace::FModuleInfo> Modules;
+	TArray<TraceServices::FModuleInfo> Modules;
 
-	TSharedPtr<Trace::IModuleService> ModuleService = FInsightsManager::Get()->GetModuleService();
+	TSharedPtr<TraceServices::IModuleService> ModuleService = FInsightsManager::Get()->GetModuleService();
 	if (ModuleService)
 	{
 		ModuleService->GetAvailableModules(Modules);
 	}
 
-	for (const Trace::FModuleInfo& Module : Modules)
+	for (const TraceServices::FModuleInfo& Module : Modules)
 	{
 		ModulesStr += Module.DisplayName;
 		ModulesStr += TEXT(", ");

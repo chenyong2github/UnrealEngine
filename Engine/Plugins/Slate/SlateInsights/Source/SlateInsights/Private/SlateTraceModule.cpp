@@ -11,13 +11,13 @@ namespace SlateInsights
 	
 FName FSlateTraceModule::ModuleName("TraceModule_Slate");
 
-void FSlateTraceModule::GetModuleInfo(Trace::FModuleInfo& OutModuleInfo)
+void FSlateTraceModule::GetModuleInfo(TraceServices::FModuleInfo& OutModuleInfo)
 {
 	OutModuleInfo.Name = ModuleName;
 	OutModuleInfo.DisplayName = TEXT("Slate");
 }
 
-void FSlateTraceModule::OnAnalysisBegin(Trace::IAnalysisSession& InSession)
+void FSlateTraceModule::OnAnalysisBegin(TraceServices::IAnalysisSession& InSession)
 {
 	FSlateProvider* SlateProvider = new FSlateProvider(InSession);
 	InSession.AddProvider(FSlateProvider::ProviderName, SlateProvider);
@@ -30,7 +30,7 @@ void FSlateTraceModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
 	OutLoggers.Add(TEXT("Slate"));
 }
 
-void FSlateTraceModule::GenerateReports(const Trace::IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory)
+void FSlateTraceModule::GenerateReports(const TraceServices::IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory)
 {
 
 }

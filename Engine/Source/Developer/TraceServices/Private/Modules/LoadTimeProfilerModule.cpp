@@ -7,7 +7,7 @@
 #include "Model/FileActivity.h"
 #include "HAL/FileManager.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 static const FName LoadTimeProfilerModuleName("TraceModule_LoadTimeProfiler");
@@ -53,7 +53,7 @@ void FLoadTimeProfilerModule::GenerateReports(const IAnalysisSession& Session, c
 {
 	double CaptureStartTime = -DBL_MAX;
 	double CaptureEndTime = DBL_MAX;
-	const IBookmarkProvider& BookmarkProvider = Trace::ReadBookmarkProvider(Session);
+	const IBookmarkProvider& BookmarkProvider = ReadBookmarkProvider(Session);
 	FString BeginCaptureBookmarkName;
 	FParse::Value(CmdLine, TEXT("-BeginCaptureBookmark="), BeginCaptureBookmarkName);
 	FString EndCaptureBookmarkName;
@@ -80,7 +80,7 @@ void FLoadTimeProfilerModule::GenerateReports(const IAnalysisSession& Session, c
 		CaptureEndTime = Session.GetDurationSeconds();
 	}
 
-	const ILoadTimeProfilerProvider* LoadTimeProfiler = Trace::ReadLoadTimeProfilerProvider(Session);
+	const ILoadTimeProfilerProvider* LoadTimeProfiler = ReadLoadTimeProfilerProvider(Session);
 	FString ReportDirectory = FString(OutputDirectory) / TEXT("LoadTimeProfiler");
 	if (LoadTimeProfiler)
 	{
@@ -90,7 +90,7 @@ void FLoadTimeProfilerModule::GenerateReports(const IAnalysisSession& Session, c
 		Table2Csv(*ExportsTable.Get(), *(ReportDirectory / TEXT("Exports.csv")));
 		Table2Csv(LoadTimeProfiler->GetRequestsTable(), *(ReportDirectory / TEXT("Requests.csv")));
 	}
-	const IFileActivityProvider* FileActivityProvider = Trace::ReadFileActivityProvider(Session);
+	const IFileActivityProvider* FileActivityProvider = ReadFileActivityProvider(Session);
 	if (FileActivityProvider)
 	{
 		Table2Csv(FileActivityProvider->GetFileActivityTable(), *(FString(ReportDirectory) / TEXT("FileActivity.csv")));
@@ -114,4 +114,4 @@ const IFileActivityProvider* ReadFileActivityProvider(const IAnalysisSession& Se
 	return Session.ReadProvider<IFileActivityProvider>(FileActivityProviderName);
 }
 
-}
+} // namespace TraceServices

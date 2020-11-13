@@ -18,88 +18,88 @@ class FTraceServicesModule
 	: public ITraceServicesModule
 {
 public:
-	virtual TSharedPtr<Trace::IAnalysisService> GetAnalysisService() override;
-	virtual TSharedPtr<Trace::IModuleService> GetModuleService() override;
-	virtual TSharedPtr<Trace::IAnalysisService> CreateAnalysisService() override;
-	virtual TSharedPtr<Trace::IModuleService> CreateModuleService() override;
+	virtual TSharedPtr<TraceServices::IAnalysisService> GetAnalysisService() override;
+	virtual TSharedPtr<TraceServices::IModuleService> GetModuleService() override;
+	virtual TSharedPtr<TraceServices::IAnalysisService> CreateAnalysisService() override;
+	virtual TSharedPtr<TraceServices::IModuleService> CreateModuleService() override;
 
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
 private:
-	TSharedPtr<Trace::FAnalysisService> AnalysisService;
-	TSharedPtr<Trace::FModuleService> ModuleService;
+	TSharedPtr<TraceServices::FAnalysisService> AnalysisService;
+	TSharedPtr<TraceServices::FModuleService> ModuleService;
 
-	Trace::FTimingProfilerModule TimingProfilerModule;
-	Trace::FLoadTimeProfilerModule LoadTimeProfilerModule;
-	Trace::FStatsModule StatsModule;
-	Trace::FCsvProfilerModule CsvProfilerModule;
-	Trace::FCountersModule CountersModule;
-	Trace::FNetProfilerModule NetProfilerModule;
-	Trace::FMemoryModule MemoryModule;
-	Trace::FDiagnosticsModule DiagnosticsModule;
+	TraceServices::FTimingProfilerModule TimingProfilerModule;
+	TraceServices::FLoadTimeProfilerModule LoadTimeProfilerModule;
+	TraceServices::FStatsModule StatsModule;
+	TraceServices::FCsvProfilerModule CsvProfilerModule;
+	TraceServices::FCountersModule CountersModule;
+	TraceServices::FNetProfilerModule NetProfilerModule;
+	TraceServices::FMemoryModule MemoryModule;
+	TraceServices::FDiagnosticsModule DiagnosticsModule;
 };
 
-TSharedPtr<Trace::IAnalysisService> FTraceServicesModule::GetAnalysisService()
+TSharedPtr<TraceServices::IAnalysisService> FTraceServicesModule::GetAnalysisService()
 {
 	if (!AnalysisService.IsValid())
 	{
 		GetModuleService();
-		AnalysisService = MakeShared<Trace::FAnalysisService>(*ModuleService.Get());
+		AnalysisService = MakeShared<TraceServices::FAnalysisService>(*ModuleService.Get());
 	}
 	return AnalysisService;
 }
 
-TSharedPtr<Trace::IModuleService> FTraceServicesModule::GetModuleService()
+TSharedPtr<TraceServices::IModuleService> FTraceServicesModule::GetModuleService()
 {
 	if (!ModuleService.IsValid())
 	{
-		ModuleService = MakeShared<Trace::FModuleService>();
+		ModuleService = MakeShared<TraceServices::FModuleService>();
 	}
 	return ModuleService;
 }
 
-TSharedPtr<Trace::IAnalysisService> FTraceServicesModule::CreateAnalysisService()
+TSharedPtr<TraceServices::IAnalysisService> FTraceServicesModule::CreateAnalysisService()
 {
 	checkf(!AnalysisService.IsValid(), TEXT("A AnalysisService already exists."));
 	GetModuleService();
-	AnalysisService = MakeShared<Trace::FAnalysisService>(*ModuleService.Get());
+	AnalysisService = MakeShared<TraceServices::FAnalysisService>(*ModuleService.Get());
 	return AnalysisService;
 }
 
-TSharedPtr<Trace::IModuleService> FTraceServicesModule::CreateModuleService()
+TSharedPtr<TraceServices::IModuleService> FTraceServicesModule::CreateModuleService()
 {
 	checkf(!ModuleService.IsValid(), TEXT("A ModuleService already exists."));
-	ModuleService = MakeShared<Trace::FModuleService>();
+	ModuleService = MakeShared<TraceServices::FModuleService>();
 	return ModuleService;
 }
 
 void FTraceServicesModule::StartupModule()
 {
-	IModularFeatures::Get().RegisterModularFeature(Trace::ModuleFeatureName, &TimingProfilerModule);
-	IModularFeatures::Get().RegisterModularFeature(Trace::ModuleFeatureName, &LoadTimeProfilerModule);
+	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &TimingProfilerModule);
+	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &LoadTimeProfilerModule);
 #if EXPERIMENTAL_STATSTRACE_ENABLED
-	IModularFeatures::Get().RegisterModularFeature(Trace::ModuleFeatureName, &StatsModule);
+	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &StatsModule);
 #endif
-	IModularFeatures::Get().RegisterModularFeature(Trace::ModuleFeatureName, &CsvProfilerModule);
-	IModularFeatures::Get().RegisterModularFeature(Trace::ModuleFeatureName, &CountersModule);
-	IModularFeatures::Get().RegisterModularFeature(Trace::ModuleFeatureName, &NetProfilerModule);
-	IModularFeatures::Get().RegisterModularFeature(Trace::ModuleFeatureName, &MemoryModule);
-	IModularFeatures::Get().RegisterModularFeature(Trace::ModuleFeatureName, &DiagnosticsModule);
+	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &CsvProfilerModule);
+	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &CountersModule);
+	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &NetProfilerModule);
+	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &MemoryModule);
+	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &DiagnosticsModule);
 }
 
 void FTraceServicesModule::ShutdownModule()
 {
-	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &DiagnosticsModule);
-	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &MemoryModule);
-	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &NetProfilerModule);
-	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &CountersModule);
-	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &CsvProfilerModule);
+	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &DiagnosticsModule);
+	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &MemoryModule);
+	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &NetProfilerModule);
+	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &CountersModule);
+	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &CsvProfilerModule);
 #if EXPERIMENTAL_STATSTRACE_ENABLED
-	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &StatsModule);
+	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &StatsModule);
 #endif
-	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &LoadTimeProfilerModule);
-	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &TimingProfilerModule);
+	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &LoadTimeProfilerModule);
+	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &TimingProfilerModule);
 
 	AnalysisService.Reset();
 	ModuleService.Reset();

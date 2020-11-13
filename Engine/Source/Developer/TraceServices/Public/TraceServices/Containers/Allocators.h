@@ -2,7 +2,7 @@
 
 #pragma once
 
-namespace Trace
+namespace TraceServices
 {
 	
 class ILinearAllocator
@@ -12,4 +12,4 @@ public:
 	virtual void* Allocate(uint64 Size) = 0;
 };
 
-}
+} // namespace TraceServices

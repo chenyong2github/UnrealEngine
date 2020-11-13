@@ -7,7 +7,7 @@
 #include "Model/ThreadsPrivate.h"
 #include "Model/TimingProfilerPrivate.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 static const FName TimingProfilerModuleName("TraceModule_TimingProfiler");
@@ -43,4 +43,4 @@ const ITimingProfilerProvider* ReadTimingProfilerProvider(const IAnalysisSession
 	return Session.ReadProvider<ITimingProfilerProvider>(TimingProfilerProviderName);
 }
 
-}
+} // namespace TraceServices

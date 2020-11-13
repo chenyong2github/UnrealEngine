@@ -8,7 +8,7 @@
 
 namespace Insights { class ITimingViewSession; }
 namespace Insights { enum class ETimeChangedFlags; }
-namespace Trace { class IAnalysisSession; }
+namespace TraceServices { class IAnalysisSession; }
 class FAnimationSharedData;
 class IInsightsManager;
 class FAnimGraphSchematicNode;
@@ -26,7 +26,7 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, uint64 InAnimInstanceId, Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession);
+	void Construct(const FArguments& InArgs, uint64 InAnimInstanceId, Insights::ITimingViewSession& InTimingViewSession, const TraceServices::IAnalysisSession& InAnalysisSession);
 
 	uint64 GetAnimInstanceId() const { return AnimInstanceId; }
 
@@ -71,7 +71,7 @@ private:
 	FSlateColor GetViewButtonForegroundColor() const;
 
 private:
-	const Trace::IAnalysisSession* AnalysisSession;
+	const TraceServices::IAnalysisSession* AnalysisSession;
 
 	Insights::ITimingViewSession* TimingViewSession;
 

@@ -4,6 +4,9 @@
 
 #if defined(UE_USE_ALLOCATIONS_PROVIDER)
 
+namespace TraceServices
+{
+
 ////////////////////////////////////////////////////////////////////////////////
 struct FAllocationItem
 {
@@ -285,5 +288,7 @@ IAllocationsProvider::QueryStatus FAllocationsProvider::PollQuery(QueryHandle Qu
 	auto* Inner = (TEMP::FMockQuery*)Query;
 	return Inner->Poll();
 }
+
+} // namespace TraceServices
 
 #endif // UE_USE_ALLOCATIONS_PROVIDER

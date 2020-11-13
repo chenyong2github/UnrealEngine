@@ -19,7 +19,7 @@
 #include "Containers/ArrayView.h"
 #include "Framework/Commands/UICommandList.h"
 
-namespace Trace
+namespace TraceServices
 {
 	class IAnalysisService;
 	class IAnalysisSession;

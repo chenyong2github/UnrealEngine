@@ -25,7 +25,7 @@ class FMenuBuilder;
 class FTimingGraphTrack;
 class FUICommandList;
 
-namespace Trace
+namespace TraceServices
 {
 	class IAnalysisSession;
 }
@@ -94,7 +94,7 @@ private:
 	void UpdateTree();
 
 	void FinishAggregation();
-	void ApplyAggregation(Trace::ITable<Trace::FTimingProfilerAggregatedStats>* AggregatedStatsTable);
+	void ApplyAggregation(TraceServices::ITable<TraceServices::FTimingProfilerAggregatedStats>* AggregatedStatsTable);
 
 	/** Called when the analysis session has changed. */
 	void InsightsManager_OnSessionChanged();
@@ -276,7 +276,7 @@ private:
 	TSharedPtr<Insights::FTable> Table;
 
 	/** A weak pointer to the profiler session used to populate this widget. */
-	TSharedPtr<const Trace::IAnalysisSession>/*Weak*/ Session;
+	TSharedPtr<const TraceServices::IAnalysisSession>/*Weak*/ Session;
 
 	TSharedPtr<FUICommandList> CommandList;
 

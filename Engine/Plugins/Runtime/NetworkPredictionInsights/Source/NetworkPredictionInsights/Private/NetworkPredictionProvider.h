@@ -9,7 +9,7 @@ class FNetworkPredictionProvider : public INetworkPredictionProvider
 public:
 	static FName ProviderName;
 
-	FNetworkPredictionProvider(Trace::IAnalysisSession& InSession);
+	FNetworkPredictionProvider(TraceServices::IAnalysisSession& InSession);
 
 	// -----------------------------------------------------
 	virtual uint32 GetNetworkPredictionTraceVersion() const override { return NetworkPredictionTraceVersion; }
@@ -60,5 +60,5 @@ private:
 	uint64 DataCounter = 0;
 	uint32 NetworkPredictionTraceVersion = 0;
 	int32 PIESessionCounter = 0;
-	Trace::IAnalysisSession& Session;
+	TraceServices::IAnalysisSession& Session;
 };

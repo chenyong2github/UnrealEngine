@@ -10,12 +10,12 @@ const FName FNetEventNode::TypeName(TEXT("FNetEventNode"));
 
 void FNetEventNode::ResetAggregatedStats()
 {
-	AggregatedStats = Trace::FNetProfilerAggregatedStats();
+	AggregatedStats = TraceServices::FNetProfilerAggregatedStats();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FNetEventNode::SetAggregatedStats(const Trace::FNetProfilerAggregatedStats& InAggregatedStats)
+void FNetEventNode::SetAggregatedStats(const TraceServices::FNetProfilerAggregatedStats& InAggregatedStats)
 {
 	AggregatedStats = InAggregatedStats;
 }

@@ -5,7 +5,7 @@
 #include "Insights/ViewModels/TimingEventsTrack.h"
 #include "Framework/Docking/TabManager.h"
 
-namespace Trace { class IAnalysisSession; }
+namespace TraceServices { class IAnalysisSession; }
 namespace Insights { class ITimingViewSession; }
 class FObjectEventsTrack;
 class FObjectPropertiesTrack;
@@ -21,11 +21,11 @@ public:
 
 	void OnBeginSession(Insights::ITimingViewSession& InTimingViewSession);
 	void OnEndSession(Insights::ITimingViewSession& InTimingViewSession);
-	void Tick(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession);
+	void Tick(Insights::ITimingViewSession& InTimingViewSession, const TraceServices::IAnalysisSession& InAnalysisSession);
 	void ExtendFilterMenu(FMenuBuilder& InMenuBuilder);
 
 	// Helper function. Builds object track hierarchy on-demand and returns a track for the supplied object info.
-	TSharedRef<FObjectEventsTrack> GetObjectEventsTrackForId(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession, const FObjectInfo& InObjectInfo);
+	TSharedRef<FObjectEventsTrack> GetObjectEventsTrackForId(Insights::ITimingViewSession& InTimingViewSession, const TraceServices::IAnalysisSession& InAnalysisSession, const FObjectInfo& InObjectInfo);
 
 	// Helper function to make tracks visible when children are first added
 	void MakeTrackAndAncestorsVisible(const TSharedRef<FObjectEventsTrack>& InObjectEventsTrack, bool bInVisible);
@@ -37,7 +37,7 @@ public:
 	void InvalidateObjectTracksOrder() { bObjectTracksDirty = true; }
 
 	// Get the last cached analysis session
-	const Trace::IAnalysisSession& GetAnalysisSession() const { return *AnalysisSession; }
+	const TraceServices::IAnalysisSession& GetAnalysisSession() const { return *AnalysisSession; }
 
 	// Get the timing view session
 	Insights::ITimingViewSession& GetTimingViewSession() { return *TimingViewSession; }
@@ -94,7 +94,7 @@ private:
 	TArray<TSharedRef<FBaseTimingTrack>> RootTracks;
 
 	// Cached analysis session, set in Tick()
-	const Trace::IAnalysisSession* AnalysisSession;
+	const TraceServices::IAnalysisSession* AnalysisSession;
 
 	// Cached timing view session, set in OnBeginSession/OnEndSession
 	Insights::ITimingViewSession* TimingViewSession;

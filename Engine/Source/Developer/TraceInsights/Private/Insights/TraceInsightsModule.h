@@ -9,6 +9,10 @@
 namespace Trace
 {
 	class FStoreService;
+}
+
+namespace TraceServices
+{
 	class IAnalysisService;
 	class IModuleService;
 }
@@ -39,7 +43,7 @@ public:
 	virtual void CreateSessionBrowser(bool bAllowDebugTools = false, bool bSingleProcess = false, bool bInitializeTesting = false) override;
 	virtual void CreateSessionViewer(bool bAllowDebugTools = false) override;
 
-	virtual TSharedPtr<const Trace::IAnalysisSession> GetAnalysisSession() const override;
+	virtual TSharedPtr<const TraceServices::IAnalysisSession> GetAnalysisSession() const override;
 	virtual void StartAnalysisForTrace(uint32 InTraceId, bool InAutoQuit = false) override;
 	virtual void StartAnalysisForLastLiveSession() override;
 	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile, bool InAutoQuit = false) override;
@@ -91,8 +95,8 @@ protected:
 protected:
 	TUniquePtr<Trace::FStoreService> StoreService;
 
-	TSharedPtr<Trace::IAnalysisService> TraceAnalysisService;
-	TSharedPtr<Trace::IModuleService> TraceModuleService;
+	TSharedPtr<TraceServices::IAnalysisService> TraceAnalysisService;
+	TSharedPtr<TraceServices::IModuleService> TraceModuleService;
 
 	TMap<FName, FInsightsMajorTabConfig> TabConfigs;
 	TMap<FName, FOnRegisterMajorTabExtensions> MajorTabExtensionDelegates;

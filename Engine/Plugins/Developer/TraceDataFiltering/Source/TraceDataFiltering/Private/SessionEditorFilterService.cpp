@@ -6,7 +6,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Trace/Trace.h"
 
-FSessionEditorFilterService::FSessionEditorFilterService(Trace::FSessionHandle InHandle, TSharedPtr<const Trace::IAnalysisSession> InSession) : FBaseSessionFilterService(InHandle, InSession)
+FSessionEditorFilterService::FSessionEditorFilterService(TraceServices::FSessionHandle InHandle, TSharedPtr<const TraceServices::IAnalysisSession> InSession) : FBaseSessionFilterService(InHandle, InSession)
 {	
 }
 

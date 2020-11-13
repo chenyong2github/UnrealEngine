@@ -7,8 +7,9 @@
 #include "Model/MonotonicTimelineData.h"
 #include "TraceServices/Containers/Timelines.h"
 
-namespace Trace
+namespace TraceServices
 {
+
 template<typename InEventType, typename SettingsType>
 struct FAsyncEnumerateTaskData
 {
@@ -328,4 +329,5 @@ public:
 
 	FAsyncEnumerateTaskData<InEventType, SettingsType> Data;
 };
-}
+
+} // namespace TraceServices

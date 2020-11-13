@@ -4,7 +4,7 @@
 
 #include "Templates/Function.h"
 
-namespace Trace
+namespace TraceServices
 {
 
 enum class EEventEnumerate
@@ -69,4 +69,4 @@ public:
 	virtual bool GetEventInfo(double InTime, double DeltaTime, int32 Depth, FTimelineEventInfo& EventInfo) const = 0;
 };
 
-}
+} // namespace TraceServices

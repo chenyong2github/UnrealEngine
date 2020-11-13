@@ -8,12 +8,15 @@
 #include "Model/Channel.h"
 #include "Common/Utils.h"
 
-FMiscTraceAnalyzer::FMiscTraceAnalyzer(Trace::IAnalysisSession& InSession,
-									   Trace::FThreadProvider& InThreadProvider,
-									   Trace::FBookmarkProvider& InBookmarkProvider,
-									   Trace::FLogProvider& InLogProvider,
-									   Trace::FFrameProvider& InFrameProvider,
-									   Trace::FChannelProvider& InChannelProvider)
+namespace TraceServices
+{
+
+FMiscTraceAnalyzer::FMiscTraceAnalyzer(IAnalysisSession& InSession,
+									   FThreadProvider& InThreadProvider,
+									   FBookmarkProvider& InBookmarkProvider,
+									   FLogProvider& InLogProvider,
+									   FFrameProvider& InFrameProvider,
+									   FChannelProvider& InChannelProvider)
 	: Session(InSession)
 	, ThreadProvider(InThreadProvider)
 	, BookmarkProvider(InBookmarkProvider)
@@ -21,7 +24,7 @@ FMiscTraceAnalyzer::FMiscTraceAnalyzer(Trace::IAnalysisSession& InSession,
 	, FrameProvider(InFrameProvider)
 	, ChannelProvider(InChannelProvider)
 {
-	Trace::FLogCategory& BookmarkLogCategory = LogProvider.GetCategory(Trace::FLogProvider::ReservedLogCategory_Bookmark);
+	FLogCategory& BookmarkLogCategory = LogProvider.GetCategory(FLogProvider::ReservedLogCategory_Bookmark);
 	BookmarkLogCategory.Name = TEXT("LogBookmark");
 	BookmarkLogCategory.DefaultVerbosity = ELogVerbosity::All;
 }
@@ -52,7 +55,7 @@ void FMiscTraceAnalyzer::OnThreadInfo(const FThreadInfo& ThreadInfo)
 	uint32 ThreadId = ThreadInfo.GetId();
 	FString Name = ThreadInfo.GetName();
 
-	Trace::FAnalysisSessionEditScope _(Session);
+	FAnalysisSessionEditScope _(Session);
 
 	ThreadProvider.AddThread(ThreadId, *Name, EThreadPriority(ThreadInfo.GetSortHint()));
 
@@ -66,7 +69,7 @@ void FMiscTraceAnalyzer::OnThreadInfo(const FThreadInfo& ThreadInfo)
 
 bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
-	Trace::FAnalysisSessionEditScope _(Session);
+	FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
@@ -74,7 +77,7 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 	case RouteId_BookmarkSpec:
 	{
 		uint64 BookmarkPoint = EventData.GetValue<uint64>("BookmarkPoint");
-		Trace::FBookmarkSpec& Spec = BookmarkProvider.GetSpec(BookmarkPoint);
+		FBookmarkSpec& Spec = BookmarkProvider.GetSpec(BookmarkPoint);
 		Spec.Line = EventData.GetValue<int32>("Line");
 
 		FString FileName;
@@ -94,8 +97,8 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		}
 
 
-		Trace::FLogMessageSpec& LogMessageSpec = LogProvider.GetMessageSpec(BookmarkPoint);
-		LogMessageSpec.Category = &LogProvider.GetCategory(Trace::FLogProvider::ReservedLogCategory_Bookmark);
+		FLogMessageSpec& LogMessageSpec = LogProvider.GetMessageSpec(BookmarkPoint);
+		LogMessageSpec.Category = &LogProvider.GetCategory(FLogProvider::ReservedLogCategory_Bookmark);
 		LogMessageSpec.Line = Spec.Line;
 		LogMessageSpec.File = Spec.File;
 		LogMessageSpec.FormatString = Spec.FormatString;
@@ -242,3 +245,5 @@ FMiscTraceAnalyzer::FThreadState* FMiscTraceAnalyzer::GetThreadState(uint32 Thre
 	}
 	return &ThreadStateMap[ThreadId].Get();
 }
+
+} // namespace TraceServices

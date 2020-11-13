@@ -97,7 +97,7 @@ void FStatsAggregator::Start()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FStatsAggregator::Tick(TSharedPtr<const Trace::IAnalysisSession> InSession, const double InCurrentTime, const float InDeltaTime, TFunctionRef<void()> OnFinishedCallback)
+void FStatsAggregator::Tick(TSharedPtr<const TraceServices::IAnalysisSession> InSession, const double InCurrentTime, const float InDeltaTime, TFunctionRef<void()> OnFinishedCallback)
 {
 	if (AsyncTask && AsyncTask->IsDone())
 	{

@@ -87,11 +87,11 @@ struct FWorldInfo
 // Delegate fired when an object receives an end play event
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnObjectEndPlay, uint64 /*ObjectId*/, double /*Time*/, const FObjectInfo& /*ObjectInfo*/);
 
-class IGameplayProvider : public Trace::IProvider
+class IGameplayProvider : public TraceServices::IProvider
 {
 public:
-	typedef Trace::ITimeline<FObjectEventMessage> ObjectEventsTimeline;
-	typedef Trace::ITimeline<FObjectPropertiesMessage> ObjectPropertiesTimeline;
+	typedef TraceServices::ITimeline<FObjectEventMessage> ObjectEventsTimeline;
+	typedef TraceServices::ITimeline<FObjectPropertiesMessage> ObjectPropertiesTimeline;
 
 	virtual bool ReadObjectEventsTimeline(uint64 InObjectId, TFunctionRef<void(const ObjectEventsTimeline&)> Callback) const = 0;
 	virtual bool ReadObjectEvent(uint64 InObjectId, uint64 InMessageId, TFunctionRef<void(const FObjectEventMessage&)> Callback) const = 0;

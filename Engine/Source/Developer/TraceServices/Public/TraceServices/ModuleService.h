@@ -7,7 +7,7 @@
 
 class FName;
 
-namespace Trace
+namespace TraceServices
 {
 
 class IAnalyzer;
@@ -40,4 +40,4 @@ public:
 	virtual void GenerateReports(const IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory) = 0;
 };
 
-}
+} // namespace TraceServices
