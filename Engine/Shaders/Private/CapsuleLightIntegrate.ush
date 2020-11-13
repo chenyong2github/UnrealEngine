@@ -4,6 +4,7 @@
 
 #include "DeferredShadingCommon.ush"
 #include "MonteCarlo.ush"
+#include "AreaLightCommon.ush"
 #include "ShadingModels.ush"
 #include "CapsuleLight.ush"
 #include "SobolRandom.ush"
@@ -34,8 +35,10 @@ float IntegrateLight( FCapsuleLight Capsule, bool bInverseSquared )
 	return Falloff;
 }
 
-FDirectLighting IntegrateBxDF( FGBufferData GBuffer, half3 N, half3 V, FCapsuleLight Capsule, FShadowTerms Shadow, bool bInverseSquared )
+FAreaLightIntegrateContext CreateCapsuleIntegrateContext(float Roughness, half3 N, half3 V, FCapsuleLight Capsule, bool bInverseSquared )
 {
+	FAreaLightIntegrateContext Out = InitAreaLightIntegrateContext();
+
 	float NoL;
 	float Falloff;
 	float LineCosSubtended = 1;
@@ -90,19 +93,28 @@ FDirectLighting IntegrateBxDF( FGBufferData GBuffer, half3 N, half3 V, FCapsuleL
 	float InvDist = rsqrt( DistSqr );
 	float3 L = ToLight * InvDist;
 	
-	GBuffer.Roughness = max( GBuffer.Roughness, View.MinRoughness );
-	float a = Pow2( GBuffer.Roughness );
+	Roughness = max( Roughness, View.MinRoughness );
+	float a = Pow2( Roughness );
     
-	FAreaLight AreaLight;
-	AreaLight.SphereSinAlpha = saturate( Capsule.Radius * InvDist * (1 - a) );
-	AreaLight.SphereSinAlphaSoft = saturate( Capsule.SoftRadius * InvDist );
-	AreaLight.LineCosSubtended = LineCosSubtended;
-	AreaLight.FalloffColor = 1;
-	AreaLight.Rect = (FRect)0;
-	AreaLight.bIsRect = false;
-	AreaLight.Texture = InitRectTexture(DummyRectLightTextureForCapsuleCompilerWarning);
+	Out.AreaLight.SphereSinAlpha = saturate( Capsule.Radius * InvDist * (1 - a) );
+	Out.AreaLight.SphereSinAlphaSoft = saturate( Capsule.SoftRadius * InvDist );
+	Out.AreaLight.LineCosSubtended = LineCosSubtended;
+	Out.AreaLight.FalloffColor = 1;
+	Out.AreaLight.Rect = (FRect)0;
+	Out.AreaLight.bIsRect = false;
+	Out.AreaLight.Texture = InitRectTexture(DummyRectLightTextureForCapsuleCompilerWarning);
+	Out.NoL = NoL;
+	Out.Falloff = Falloff;	
+	Out.L = L;
+	return Out;
+}
 
-	return IntegrateBxDF( GBuffer, N, V, L, Falloff, NoL, AreaLight, Shadow );
+
+FDirectLighting IntegrateBxDF( FGBufferData GBuffer, half3 N, half3 V, FCapsuleLight Capsule, FShadowTerms Shadow, bool bInverseSquared )
+{
+	GBuffer.Roughness = max( GBuffer.Roughness, View.MinRoughness );
+	FAreaLightIntegrateContext Context = CreateCapsuleIntegrateContext(GBuffer.Roughness, N, V, Capsule, bInverseSquared);
+	return IntegrateBxDF( GBuffer, N, V, Context.L, Context.Falloff, Context.NoL, Context.AreaLight, Shadow );
 }
 
 FDirectLighting IntegrateBxDF( FGBufferData GBuffer, half3 N, half3 V, FCapsuleLight Capsule, FShadowTerms Shadow, uint2 SVPos )

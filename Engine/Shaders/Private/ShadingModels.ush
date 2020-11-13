@@ -7,6 +7,7 @@
 #include "FastMath.ush"
 #include "CapsuleLight.ush"
 #include "RectLight.ush"
+#include "AreaLightCommon.ush"
 #include "TransmissionCommon.ush"
 
 #if 0
@@ -84,19 +85,6 @@ FHairTransmittanceData InitHairStrandsTransmittanceData(bool bMultipleScatterEna
 	return o;
 }
 
-struct FAreaLight
-{
-	float		SphereSinAlpha;
-	float		SphereSinAlphaSoft;
-	float		LineCosSubtended;
-
-	float3		FalloffColor;
-
-	FRect		Rect;
-	FRectTexture Texture;
-	bool		bIsRect;
-};
-
 struct FDirectLighting
 {
 	float3	Diffuse;
@@ -113,16 +101,6 @@ struct FShadowTerms
 };
 
 #include "HairBsdf.ush"
-
-bool IsAreaLight(FAreaLight AreaLight)
-{
-	return (
-		AreaLight.bIsRect ||
-		AreaLight.SphereSinAlpha > 0.0f ||
-		AreaLight.SphereSinAlphaSoft > 0.0f ||
-		AreaLight.LineCosSubtended < 1.0f
-		) ? true : false;
-}
 
 float New_a2( float a2, float SinAlpha, float VoH )
 {

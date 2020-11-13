@@ -718,3 +718,8 @@ FRect GetRect(
 	return Rect;
 }
 
+bool IsRectVisible(FRect Rect)
+{
+	// No-visible rect light due to barn door occlusion
+	return Rect.Extent.x != 0 && Rect.Extent.y != 0;
+}

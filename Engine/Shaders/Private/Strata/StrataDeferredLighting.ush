@@ -2,6 +2,115 @@
 
 #pragma once
 
+#include "..\AreaLightCommon.ush"
+
+struct FStrataLightIntegrationContext
+{
+	float3 IncidentRadiance;
+	float3 IncidentIrradiance;	// Modified incident irradiance, based on custom are light integrator
+	float3 OutgoingRadiance;	// Continue the outgoing radiance if the BSDF evaluation/integration has been done with the custom area light integrator
+	bool bEvaluateBSDF;			// True if the BSDF need to be evalued, false, if the integration has already been done
+};
+
+FStrataLightIntegrationContext StrataIniLightIntegrationContext()
+{
+	FStrataLightIntegrationContext Out;
+	Out.bEvaluateBSDF = true;
+	Out.OutgoingRadiance = 0;
+	Out.IncidentIrradiance = 0;
+	Out.IncidentRadiance = 0;
+	return Out;
+}
+
+// Preprocess area lights and handle custom BSDF integrator
+// This computes the full area light x BSDF or precompute incident lighting & reweigth the BSDF parameters depending on the custom integrator type (LTC/MRP)
+void StrataPreprocessAreaLightIntegration(
+	in float3 ToLight,
+	in FDeferredLightData LightData, 
+	in FRectTexture RectTexture,
+	inout FStrataBSDFContext BSDFContext,
+	inout FStrataLightIntegrationContext Out)
+{
+	Out.bEvaluateBSDF = true;
+	Out.OutgoingRadiance = 0;
+
+	// Special area lighting integration
+	bool bIsValid = true;
+	float Roughness = 0;
+	StrataGetBSDFRoughness(BSDFContext.BSDF, Roughness);
+	FAreaLightIntegrateContext LightContext;
+	if (LightData.bRectLight)
+	{
+		FRect Rect = GetRect(ToLight, LightData);
+		bIsValid = IsRectVisible(Rect);
+		Out.bEvaluateBSDF = false;
+		// No-visible rect light due to barn door occlusion
+		LightContext = CreateRectIntegrateContext(Roughness, BSDFContext.N, BSDFContext.V, Rect, RectTexture);
+	}
+	else
+	{
+		FCapsuleLight Capsule = GetCapsule(ToLight, LightData);
+		LightContext = CreateCapsuleIntegrateContext(Roughness, BSDFContext.N, BSDFContext.V, Capsule, LightData.bInverseSquared);
+	}
+
+	// Special area light integrator for BSDF (opt-in)
+	// bEvaluateBSDF: Indicates if the BSDF need to be evaluate at the end, or if the custom area light integration handles the BSDF evaluation
+	if (bIsValid && IsAreaLight(LightContext.AreaLight) && StrataHasAreaLightIntegrator(BSDFContext.BSDF))
+	{
+		// Evaluate roughness / specular color
+		float SafeRoughness = 0;
+		float3 SpecularColor = 0;
+		switch (BSDFContext.BSDF.BSDFType)
+		{
+			case STRATA_BSDF_TYPE_DIELECTRIC:
+			{
+				SafeRoughness = MakeRoughnessSafe(DIELECTRIC_ROUGHNESS0(BSDFContext.BSDF));
+				SpecularColor = DielectricIorToF0(DIELECTRIC_REFLECTIVITY(BSDFContext.BSDF)) * DIELECTRIC_TINT(BSDFContext.BSDF);
+			}
+			break;
+			case STRATA_BSDF_TYPE_CONDUCTOR:
+			{
+				SafeRoughness = MakeRoughnessSafe(CONDUCTOR_ROUGHNESS0(BSDFContext.BSDF));
+				SpecularColor = CONDUCTOR_REFLECTIVITY(BSDFContext.BSDF);
+			}
+			break;
+		}		
+		
+		// Evaluate area-light preintegration
+		SafeRoughness = max(SafeRoughness, View.MinRoughness);
+		if (LightContext.AreaLight.bIsRect)
+		{
+			// Rect light uses LTC integrator, which computes the full BDSD x Area light integration. 
+			// This is why there is no need to evaluate the BSDF. The result is stored into a local 
+			// OutgoingRadiance, which will be accumulated outside of this function
+			Out.OutgoingRadiance.rgb += 
+				Out.IncidentRadiance * 
+				RectGGXApproxLTC(SafeRoughness, SpecularColor, BSDFContext.N, BSDFContext.V, LightContext.AreaLight.Rect, LightContext.AreaLight.Texture);
+			Out.bEvaluateBSDF = false;
+		}
+		else
+		{
+			// Sphere/Tube/Disk light use MRP integrator, which:
+			// 1. compute an energy rescaling factor (this is fold into the incident radiance)
+			// 2. change the BSDF roughness
+			// 3. compute a derived L 
+			// Update the BSDF context with the new L (and derived data) with value coming from MRP integrator
+			StrataUpdateBSDFContext(BSDFContext, LightContext.L);
+			SphereMaxNoH(BSDFContext.Context, LightContext.AreaLight.SphereSinAlpha, true);
+			BSDFContext.Context.NoV = saturate(abs(BSDFContext.Context.NoV) + 1e-5);
+
+			// Update incident irradiance to add the energy rescaling to due MRP integration
+			// The a2 override stored the overriden roughness, which will be used during the BSDF evaluation
+			BSDFContext.a2Override = Pow4(SafeRoughness);
+			Out.IncidentIrradiance =
+				Out.IncidentRadiance *
+				EnergyNormalization(BSDFContext.a2Override, BSDFContext.Context.VoH, LightContext.AreaLight) *
+				LightContext.AreaLight.FalloffColor * (LightContext.Falloff * LightContext.NoL);
+			Out.bEvaluateBSDF = true;
+		}
+	}
+}
+
 // Analytical lighting evaluation for strata material.
 // Unpack BSDF on-the-fly
 float4 StrataDeferredLighting(
@@ -16,40 +125,46 @@ float4 StrataDeferredLighting(
 	ByteAddressBuffer StrataDataBuffer,
 	uint PixelStrataDataByteOffset)
 {
-	float4 Radiance = 0;
+	float4 OutRadiance = 0;
 
-
-	float3 UglyIntegrationFactor = 0; // This is bad we need to make sure it is done the right way
+	FStrataPixelHeader Header = UnpackStrataHeaderIn(StrataDataBuffer, PixelStrataDataByteOffset);
+	
+	float3 PreintegratedIndicentIrradiance = 0;
 	if (LightData.bRectLight)
 	{
 		FRect Rect = GetRect(ToLight, LightData);
-		UglyIntegrationFactor = IntegrateLight(Rect, RectTexture);
+		PreintegratedIndicentIrradiance = IntegrateLight(Rect, RectTexture);
 	}
 	else
 	{
 		FCapsuleLight Capsule = GetCapsule(ToLight, LightData);
-		UglyIntegrationFactor = IntegrateLight(Capsule, LightData.bInverseSquared);
+		PreintegratedIndicentIrradiance = IntegrateLight(Capsule, LightData.bInverseSquared);
 	}
 
-	FStrataPixelHeader Header = UnpackStrataHeaderIn(StrataDataBuffer, PixelStrataDataByteOffset);
-	
 	LOOP
 	for (uint BSDFIndex = 0; BSDFIndex < Header.BSDFCount; ++BSDFIndex)
 	{
+		// Unpack BSDF data
 		const FStrataBSDF BSDF = UnpackStrataBSDFIn(StrataDataBuffer, PixelStrataDataByteOffset);
-		const float3 BSDFThroughput = BSDF.Weight;
+		FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(BSDF, V, L);
 
-		// Create the BSDF context
-		FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(BSDF, V, L);
+		// Evaluate incident lighting & (optionally) precompute area light integration
+		FStrataLightIntegrationContext IntegrationContext = StrataIniLightIntegrationContext();
+		IntegrationContext.IncidentRadiance = LightData.Color * LightMask * SurfaceShadow;
+		IntegrationContext.IncidentIrradiance = PreintegratedIndicentIrradiance * BSDFContext.SatNoL * IntegrationContext.IncidentRadiance;
+		StrataPreprocessAreaLightIntegration(ToLight, LightData, RectTexture, BSDFContext, IntegrationContext);
 
-		// Compute some common factors
-		const float3 DirLightBaseFactor = BSDFThroughput * LightData.Color * LightMask * SurfaceShadow * UglyIntegrationFactor;
-		const float3 DirLightGeometryFactor = DirLightBaseFactor * StrataBSDFContext.SatNoL;
-
-		// Evalaute the lighting coming from L
-		FStrataEvaluateResult StrataEvaluate = StrataEvaluateBSDF(StrataBSDFContext);
-		Radiance.rgb += StrataEvaluate.Value * DirLightGeometryFactor;
+		// Evaluate BSDF
+		if (IntegrationContext.bEvaluateBSDF)
+		{
+			FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(BSDFContext);
+			OutRadiance.rgb += BSDF.Weight * BSDFEvaluate.Value * IntegrationContext.IncidentIrradiance;
+		}
+		else
+		{
+			OutRadiance.rgb += IntegrationContext.OutgoingRadiance;
+		}
 	}
 
-	return Radiance;
+	return OutRadiance;
 }

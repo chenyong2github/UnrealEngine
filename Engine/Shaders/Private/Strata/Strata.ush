@@ -245,6 +245,9 @@ struct FStrataBSDFContext
 	float3x3 TangentBasis;
 	float3 TangentV;
 	float3 TangentH;
+
+	// Preprocessed roughness override used for specular BSDF evaluation when integration area light (using MRP integrator)
+	float a2Override;
 };
 
 void StrataGetBSDFNormal(in FStrataBSDF BSDF, inout float3 N)
@@ -273,6 +276,43 @@ void StrataGetBSDFNormal(in FStrataBSDF BSDF, inout float3 N)
 			break;
 		}
 	}
+}
+
+void StrataGetBSDFRoughness(in FStrataBSDF BSDF, inout float R)
+{
+	R = 0;
+	switch (BSDF.BSDFType)
+	{
+	case STRATA_BSDF_TYPE_DIFFUSE_ON:
+	case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+	{
+		R = DIFFUSE_ROUGHNESS(BSDF);
+		break;
+	}
+	case STRATA_BSDF_TYPE_DIELECTRIC:
+	{
+		R = DIELECTRIC_ROUGHNESS0(BSDF);
+		break;
+	}
+	case STRATA_BSDF_TYPE_CONDUCTOR:
+	{
+		R = CONDUCTOR_ROUGHNESS0(BSDF);
+		break;
+	}
+	case STRATA_BSDF_TYPE_VOLUME:
+	{
+		R = 0;
+		break;
+	}
+	}
+}
+
+// Return true if a BSDF has a custom area light integrator
+bool StrataHasAreaLightIntegrator(in FStrataBSDF BSDF)
+{
+	return 
+		BSDF.BSDFType == STRATA_BSDF_TYPE_CONDUCTOR ||
+		BSDF.BSDFType == STRATA_BSDF_TYPE_DIELECTRIC;
 }
 
 FStrataBSDFContext StrataCreateBSDFContext(FStrataBSDF BSDF, float3 V, float3 L)
@@ -353,11 +393,10 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext)
 			const float3 F90 = bIsDieletric ? DIELECTRIC_TINT(BSDFContext.BSDF) : CONDUCTOR_EDGECOLOR(BSDFContext.BSDF);
 			const float SafeRoughness = MakeRoughnessSafe(bIsDieletric ? DIELECTRIC_ROUGHNESS0(BSDFContext.BSDF) : CONDUCTOR_ROUGHNESS0(BSDFContext.BSDF));
 
-			float a2 = Pow4(SafeRoughness);
-			float Energy = 1.0f; // See EnergyNormalization
+			const float a2 = BSDFContext.a2Override>0 ? BSDFContext.a2Override : Pow4(SafeRoughness);
 
 			// Generalized microfacet specular
-			float D = D_GGX(a2, BSDFContext.Context.NoH) * Energy;
+			float D = D_GGX(a2, BSDFContext.Context.NoH);
 			float Vis = Vis_SmithJointApprox(a2, BSDFContext.Context.NoV, BSDFContext.SatNoL);
 			float3 F = F_Schlick(F0, F90, BSDFContext.Context.VoH);
 

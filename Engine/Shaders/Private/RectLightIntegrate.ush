@@ -4,6 +4,7 @@
 
 #include "DeferredShadingCommon.ush"
 #include "MonteCarlo.ush"
+#include "AreaLightCommon.ush"
 #include "ShadingModels.ush"
 #include "RectLight.ush"
 
@@ -68,14 +69,12 @@ float IntegrateLight( FRect Rect, FRectTexture SourceTexture )
 	return Falloff;
 }
 
-FDirectLighting IntegrateBxDF( FGBufferData GBuffer, half3 N, half3 V, FRect Rect, FShadowTerms Shadow, FRectTexture SourceTexture )
+FAreaLightIntegrateContext CreateRectIntegrateContext( float Roughness, half3 N, half3 V, FRect Rect, FRectTexture SourceTexture )
 {
-	float NoL;
-	float Falloff;
+	float NoL = 0;
+	float Falloff = 0;
 	
-	// No-visible rect light due to barn door occlusion
-	if (Rect.Extent.x == 0 || Rect.Extent.y == 0) 
-        return (FDirectLighting)0;
+	FAreaLightIntegrateContext Out = InitAreaLightIntegrateContext();
 
 #if 0	// Reference quality
 	float3 L = RectIrradianceRef( N, Rect, Falloff, NoL );
@@ -226,28 +225,44 @@ FDirectLighting IntegrateBxDF( FGBufferData GBuffer, half3 N, half3 V, FRect Rec
 	}
 #endif
 	
-	GBuffer.Roughness = max( GBuffer.Roughness, 0.02 );
-
-	FAreaLight AreaLight;
-	AreaLight.SphereSinAlpha = sqrt( Falloff * (1.0 / PI) );
-	AreaLight.SphereSinAlphaSoft = 0;
-	AreaLight.LineCosSubtended = 1;
-	AreaLight.FalloffColor = 1;
-	AreaLight.Rect = Rect;
-	AreaLight.Texture = SourceTexture;
-	AreaLight.bIsRect = false;
+	Out.AreaLight.SphereSinAlpha = sqrt( Falloff * (1.0 / PI) );
+	Out.AreaLight.SphereSinAlphaSoft = 0;
+	Out.AreaLight.LineCosSubtended = 1;
+	Out.AreaLight.FalloffColor = 1;
+	Out.AreaLight.Rect = Rect;
+	Out.AreaLight.Texture = SourceTexture;
+	Out.AreaLight.bIsRect = false;
+	Out.L = L;
+	Out.NoL = NoL;
+	Out.Falloff = Falloff;
 #else
-	FAreaLight AreaLight;
-	AreaLight.SphereSinAlpha = 0;
-	AreaLight.SphereSinAlphaSoft = 0;
-	AreaLight.LineCosSubtended = 1;
-	AreaLight.FalloffColor = FalloffColor;
-	AreaLight.Rect = Rect;
-	AreaLight.Texture = SourceTexture;
-	AreaLight.bIsRect = true;
+	Out.AreaLight.SphereSinAlpha = 0;
+	Out.AreaLight.SphereSinAlphaSoft = 0;
+	Out.AreaLight.LineCosSubtended = 1;
+	Out.AreaLight.FalloffColor = FalloffColor;
+	Out.AreaLight.Rect = Rect;
+	Out.AreaLight.Texture = SourceTexture;
+	Out.AreaLight.bIsRect = true;
+	Out.L = L;
+	Out.NoL = NoL;
+	Out.Falloff = Falloff;
 #endif
+	return Out;
+}
 
-	return IntegrateBxDF( GBuffer, N, V, L, Falloff, NoL, AreaLight, Shadow );
+FDirectLighting IntegrateBxDF(FGBufferData GBuffer, half3 N, half3 V, FRect Rect, FShadowTerms Shadow, FRectTexture SourceTexture)
+{
+	// No-visible rect light due to barn door occlusion
+	FDirectLighting Out = (FDirectLighting)0;
+	if (IsRectVisible(Rect))
+	{
+		FAreaLightIntegrateContext Context = CreateRectIntegrateContext(GBuffer.Roughness, N, V, Rect, SourceTexture);
+	#if CHEAP_RECT
+		GBuffer.Roughness = max(GBuffer.Roughness, 0.02);
+	#endif
+		Out = IntegrateBxDF(GBuffer, N, V, Context.L, Context.Falloff, Context.NoL, Context.AreaLight, Shadow);
+	}
+	return Out;
 }
 
 FDirectLighting IntegrateBxDF( FGBufferData GBuffer, half3 N, half3 V, FRect Rect, FShadowTerms Shadow, FRectTexture SourceTexture, uint2 SVPos )
@@ -262,7 +277,7 @@ FDirectLighting IntegrateBxDF( FGBufferData GBuffer, half3 N, half3 V, FRect Rec
 		return Lighting;
 	
 	// No-visible rect light due to barn door occlusion
-	if (Rect.Extent.x == 0 || Rect.Extent.y == 0) 
+	if (!IsRectVisible(Rect))
 		return Lighting;
 
 	FSphericalRect SphericalRect = BuildSphericalRect( Rect );

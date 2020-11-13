@@ -101,14 +101,10 @@ float3 ComputeF0(float Specular, float3 BaseColor, float Metallic)
 	return lerp(DielectricSpecularToF0(Specular).xxx, BaseColor, Metallic.xxx);
 }
 
-
-
 float MakeRoughnessSafe(float Roughness)
 {
 	return clamp(Roughness, 0.001f, 1.0f);
 }
-
-
 
 // [Gulbrandsen, "Artist Friendly Metallic Fresnel"]
 

@@ -1,0 +1,53 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "RectLight.ush"
+
+struct FAreaLight
+{
+	float		SphereSinAlpha;
+	float		SphereSinAlphaSoft;
+	float		LineCosSubtended;
+
+	float3		FalloffColor;
+
+	FRect		Rect;
+	FRectTexture Texture;
+	bool		bIsRect;
+};
+
+struct FAreaLightIntegrateContext
+{
+	FAreaLight AreaLight;
+	float3 L;
+	float NoL;
+	float Falloff;
+};
+
+bool IsAreaLight(FAreaLight AreaLight)
+{
+	return (
+		AreaLight.bIsRect ||
+		AreaLight.SphereSinAlpha > 0.0f ||
+		AreaLight.SphereSinAlphaSoft > 0.0f ||
+		AreaLight.LineCosSubtended < 1.0f
+		) ? true : false;
+}
+
+FAreaLightIntegrateContext InitAreaLightIntegrateContext()
+{
+	// Manual initialization of the area light as the compiler is unhappy otherwise
+	FAreaLightIntegrateContext Out;
+	Out.AreaLight.SphereSinAlpha = 0;
+	Out.AreaLight.SphereSinAlphaSoft = 0;
+	Out.AreaLight.LineCosSubtended = 0;
+	Out.AreaLight.FalloffColor = 0;
+	Out.AreaLight.Rect = (FRect)0;
+	Out.AreaLight.bIsRect = false;
+//	Out.AreaLight.Texture;
+	Out.L = 0;
+	Out.NoL = 0;
+	Out.Falloff = 0;
+	return Out;
+}
