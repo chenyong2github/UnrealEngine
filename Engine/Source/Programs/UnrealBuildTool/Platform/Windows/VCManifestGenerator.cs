@@ -575,8 +575,8 @@ namespace UnrealBuildTool
 			return new XElement(GetName("Resources", Schema2010NS), CultureElements);
 		}
 
-        protected XElement GetIdentity(out string IdentityName)
-        {
+		protected string GetIdentityPackageName()
+		{
             // Read the PackageName from config
             var PackageName = Regex.Replace(GetConfigString("PackageName", "ProjectName", "DefaultUE4Project"), "[^-.A-Za-z0-9]", "");
             if (string.IsNullOrWhiteSpace(PackageName))
@@ -585,7 +585,17 @@ namespace UnrealBuildTool
                 Log.TraceError("Consider using the setting [{0}]:PackageName to provide a specific value.", IniSection_PlatformTargetSettings);
             }
 
+			return PackageName;
+		}
+
+		protected string GetIdentityPublisherName()
+		{
             var PublisherName = GetConfigString("PublisherName", "CompanyDistinguishedName", "CN=NoPublisher");
+			return PublisherName;
+		}
+
+		protected string GetIdentityVersionNumber()
+		{
             var VersionNumber = GetConfigString("PackageVersion", "ProjectVersion", "1.0.0.0");
             VersionNumber = ValidatePackageVersion(VersionNumber);
 
@@ -595,6 +605,15 @@ namespace UnrealBuildTool
             {
 				VersionNumber = IncludeBuildVersionInPackageVersion(VersionNumber);
             }
+
+			return VersionNumber;
+		}
+
+        protected XElement GetIdentity(out string IdentityName)
+        {
+            var PackageName = GetIdentityPackageName();
+            var PublisherName = GetIdentityPublisherName();
+            var VersionNumber = GetIdentityVersionNumber();
 
             IdentityName = PackageName;
 
