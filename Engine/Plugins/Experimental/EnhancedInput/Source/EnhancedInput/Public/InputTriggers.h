@@ -259,7 +259,7 @@ protected:
 public:
 
 	// Release within this time-frame to trigger a tap
-	UPROPERTY(EditAnywhere, Config, BlueprintReadWrite, Category = "Trigger Settings")
+	UPROPERTY(EditAnywhere, Config, BlueprintReadWrite, Category = "Trigger Settings", meta = (ClampMin = "0"))
 	float TapReleaseTimeThreshold = 0.2f;
 };
 
