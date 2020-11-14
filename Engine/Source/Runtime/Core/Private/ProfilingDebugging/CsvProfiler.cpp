@@ -2619,9 +2619,9 @@ void FCsvProfiler::BeginFrame()
 							GCsvUseProcessingThread = false;
 						}
 					}
-
+					 
 					// Figure out the target framerate
-					int TargetFPS = 60;
+					int TargetFPS = FPlatformMisc::GetMaxRefreshRate();
 					static IConsoleVariable* MaxFPSCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("t.MaxFPS"));
 					static IConsoleVariable* SyncIntervalCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("rhi.SyncInterval"));
 					if (MaxFPSCVar && MaxFPSCVar->GetInt() > 0)
