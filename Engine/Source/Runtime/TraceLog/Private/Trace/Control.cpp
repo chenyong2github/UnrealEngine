@@ -103,6 +103,20 @@ static bool Writer_ControlListen()
 	GControlListen = TcpSocketListen(1985);
 	if (!GControlListen)
 	{
+		uint32 Seed = uint32(TimeGetTimestamp());
+		for (uint32 i = 0; i < 10 && !GControlListen; Seed *= 13, ++i)
+		{
+			uint32 Port = (Seed & 0x1fff) + 0x8000;
+			GControlListen = TcpSocketListen(Port);
+			if (GControlListen)
+			{
+				break;
+			}
+		}
+	}
+
+	if (!GControlListen)
+	{
 		GControlState = EControlState::Failed;
 		return false;
 	}
