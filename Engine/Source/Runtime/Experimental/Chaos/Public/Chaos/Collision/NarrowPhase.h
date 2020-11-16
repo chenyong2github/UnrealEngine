@@ -56,7 +56,7 @@ namespace Chaos
 				// @todo(mlentine): Collision particles should exist optionally on geometry particles not rigid dynamic particles
 				TPBDRigidParticleHandle<FReal, 3>* RigidParticle0 = Particle0->CastToRigidParticle();
 				TPBDRigidParticleHandle<FReal, 3>* RigidParticle1 = Particle1->CastToRigidParticle();
-				Collisions::ConstructConstraints(Particle0, Particle1, Particle0->Geometry().Get(), RigidParticle0 ? RigidParticle0->CollisionParticles().Get() : nullptr, Particle1->Geometry().Get(), RigidParticle1 ? RigidParticle1->CollisionParticles().Get() : nullptr, FRigidTransform3(), FRigidTransform3(), CullDistance, Context, NewConstraints);
+				Collisions::ConstructConstraints(Particle0, Particle1, Particle0->Geometry().Get(), RigidParticle0 ? RigidParticle0->CollisionParticles().Get() : nullptr, Particle1->Geometry().Get(), RigidParticle1 ? RigidParticle1->CollisionParticles().Get() : nullptr, FRigidTransform3(), FRigidTransform3(), CullDistance, Dt, Context, NewConstraints);
 			}
 		}
 

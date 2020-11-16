@@ -32,10 +32,10 @@ namespace Chaos
 		extern void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance);
 
 		// Update the constraint (re-runs collision detection for this contact)
-		extern void Update(FRigidBodyPointContactConstraint& Constraint, const FReal CullDistance);
+		extern void Update(FRigidBodyPointContactConstraint& Constraint, const FReal CullDistance, const FReal Dt);
 
 		// Update the constraint (select best point from the manifold)
-		extern void Update(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance);
+		extern void Update(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance, const FReal Dt);
 
 		extern void Apply(FCollisionConstraintBase& Constraint, const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
 		extern void ApplySinglePoint(FRigidBodyPointContactConstraint& Constraint, const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
