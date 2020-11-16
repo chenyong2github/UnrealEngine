@@ -43,12 +43,12 @@ public:
 	void RemoveChannelFactory(TWeakPtr<IRemoteSessionChannelFactoryWorker> Worker) override;
 
 	virtual TSharedPtr<IRemoteSessionRole>	CreateClient(const TCHAR* RemoteAddress) override;
-	virtual void StopClient(TSharedPtr<IRemoteSessionRole> InClient) override;
+	virtual void StopClient(TSharedPtr<IRemoteSessionRole> InClient, const FString& InReason) override;
 
 	virtual void InitHost(const int16 Port = 0) override;
 	virtual bool IsHostRunning() const override { return Host.IsValid(); }
 	virtual bool IsHostConnected() const override;
-	virtual void StopHost() override { Host = nullptr; }
+	virtual void StopHost(const FString& InReason) override;
 	virtual TSharedPtr<IRemoteSessionRole> GetHost() const override;
 	virtual TSharedPtr<IRemoteSessionUnmanagedRole> CreateHost(TArray<FRemoteSessionChannelInfo> SupportedChannels, int32 Port) const override;
 	//~ End IRemoteSessionModule interface
@@ -63,6 +63,7 @@ public:
 
 private:
 	void OnPostInit();
+	void OnPreExit();
 	bool HandleSettingsSaved();
 
 	TSharedPtr<FRemoteSessionHost> CreateHostInternal(TArray<FRemoteSessionChannelInfo> SupportedChannels, int32 Port) const;

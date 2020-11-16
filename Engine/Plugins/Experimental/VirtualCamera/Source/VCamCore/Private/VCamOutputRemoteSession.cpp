@@ -126,7 +126,7 @@ void UVCamOutputRemoteSession::DestroyRemoteSession()
 			InputChannel->GetOnRouteTouchDownToWidgetFailedDelegate()->RemoveAll(this);
 		}
 
-		RemoteSessionHost->Close();
+		RemoteSessionHost->Close(TEXT("Camera Shutdown"));
 		RemoteSessionHost.Reset();
 		if (MediaCapture)
 		{

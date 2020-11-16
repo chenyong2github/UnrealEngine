@@ -57,10 +57,11 @@ public:
 	/* Set the specified send and receive buffer sizes, if supported */
 	virtual void SetBufferSizes(int32 DesiredSendSize, int32 DesiredReceiveSize) override;
 
+	const FConnectionStats& GetConnectionStats() const override { return ConnectionStats; }
+
 private:
 	static int32 SendBufferSize;
 	static int32 ReceiveBufferSize;
-	static double LastStatResetTime;
 
 	void					CloseWithError(const TCHAR* Error, FSocket* InSocket=nullptr);
 	void					ResetStatsIfTime();
@@ -72,16 +73,8 @@ private:
 	FCriticalSection		SocketMutex;
 	FSocket*				Socket;
 	bool					IsListener;
-	uint32					PacketsReceived;
 
-	struct FConnectionStats
-	{
-		int32		PacketsSent = 0;
-		int32		PacketsReceived = 0;
-		int32		BytesSent = 0;
-		int32		BytesReceived = 0;
-		int32		Errors = 0;
-	};
-
-	FConnectionStats		Stats;
+	FConnectionStats		ConnectionStats;
+	FConnectionStats		LastStats;
+	double					TimeSinceStatsSet;
 };
