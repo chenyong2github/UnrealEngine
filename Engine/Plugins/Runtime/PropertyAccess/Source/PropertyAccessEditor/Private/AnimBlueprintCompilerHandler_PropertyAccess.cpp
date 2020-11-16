@@ -21,6 +21,7 @@ int32 FAnimBlueprintCompilerHandler_PropertyAccess::AddCopy(TArrayView<FString> 
 void FAnimBlueprintCompilerHandler_PropertyAccess::StartCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
 	PropertyAccessLibraryCompiler.Setup(InClass, &OutCompiledData.GetPropertyAccessLibrary());
+	PropertyAccessLibraryCompiler.BeginCompilation(InClass);
 }
 
 void FAnimBlueprintCompilerHandler_PropertyAccess::FinishCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
