@@ -218,7 +218,7 @@ struct ENGINE_API FCameraShakeState
 	 * Updates the state with a delta time.
 	 *
 	 * If the state isn't managed (i.e. it doesn't have any fixed duration information), this doesn't
-	 * do anything and returns 0.
+	 * do anything and returns 1.
 	 *
 	 * If the state is managed, this updates the internal state of this class and auto-computes when
 	 * the shake has ended, along with a blending weight if there is any blending in/out.
