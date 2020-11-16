@@ -32,6 +32,7 @@
 #define HAIR_COMPONENT_LS			0x8u 
 #define HAIR_COMPONENT_GS			0x10u
 #define HAIR_COMPONENT_MULTISCATTER	0x20u
+#define HAIR_COMPONENT_TT_MODEL  	0x40u
 
 // for debugging and to visualize
 float3 GetShadingModelColor(uint ShadingModelID)
