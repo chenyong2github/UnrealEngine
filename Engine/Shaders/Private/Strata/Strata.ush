@@ -1053,7 +1053,7 @@ void PackStrataOut(
 			{
 				if (bTopLayer)
 				{
-					AccumRoughness		+= BSDFCoverageAvg * FullyRough;
+					AccumRoughness		+= BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
 					AccumRoughnessCount += BSDFCoverageAvg;
 				}
 
@@ -1066,7 +1066,7 @@ void PackStrataOut(
 			{
 				if (bTopLayer)
 				{
-					AccumRoughness		+= BSDFCoverageAvg * FullyRough;
+					AccumRoughness		+= BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
 					AccumRoughnessCount += BSDFCoverageAvg;
 				}
 
@@ -1128,7 +1128,7 @@ void PackStrataOut(
 				
 				if (bTopLayer)
 				{
-					AccumRoughness		+= BSDFCoverageAvg * FullyRough;
+					AccumRoughness		+= BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
 					AccumRoughnessCount += BSDFCoverageAvg;
 				}
 
