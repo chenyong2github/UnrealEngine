@@ -3,7 +3,6 @@
 
 #include "Chaos/Framework/Parallel.h"
 #include "Chaos/PBDCollisionSphereConstraints.h"
-#include "Chaos/PBDCollisionSpringConstraints.h"
 #include "Chaos/PerParticleDampVelocity.h"
 #include "Chaos/PerParticleEulerStepVelocity.h"
 #include "Chaos/PerParticleGravity.h"
@@ -345,18 +344,16 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 		}
 	}
 
+	// Constraint init (clear XPBD's Lambdas, init self collisions)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosXPBDConstraintsInit);
 		MConstraintInitsActiveView.SequentialFor(
-			[Dt](TArray<TFunction<void()>>& ConstraintInits, int32 Index)
+			[this](TArray<TFunction<void(const TPBDParticles<T, d>&)>>& ConstraintInits, int32 Index)
 			{
-				ConstraintInits[Index]();  // Clear XPBD's Lambdas
+				ConstraintInits[Index](MParticles);
 			});
 	}
 
-#if !COMPILE_WITHOUT_UNREAL_SUPPORT
-	TPBDCollisionSpringConstraints<T, d> SelfCollisionRule(MParticlesActiveView, MCollisionTriangles, MDisabledCollisionElements, MParticleGroupIds, MGroupSelfCollisionThicknesses, Dt);
-#endif
 	TPerParticlePBDCollisionConstraint<T, d, EGeometryParticlesSimType::Other> CollisionRule(MCollisionParticlesActiveView, MCollided, MParticleGroupIds, MCollisionParticleGroupIds, MGroupCollisionThicknesses, MGroupCoefficientOfFrictions);
 
 	{
@@ -374,12 +371,6 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 					}
 				}, bUseSingleThreadedRange);
 
-#if !COMPILE_WITHOUT_UNREAL_SUPPORT
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ChaosPBDSelfCollisionRule);
-				SelfCollisionRule.Apply(MParticles, Dt);
-			}
-#endif
 			{
 				SCOPE_CYCLE_COUNTER(STAT_ChaosPBDCollisionRule);
 				MParticlesActiveView.RangeFor(
