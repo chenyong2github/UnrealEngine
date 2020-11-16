@@ -7271,21 +7271,10 @@ int32 FHLSLMaterialTranslator::FrontMaterial()
 	return AddInlinedCodeChunk(MCT_Strata, TEXT("GetInitialisedStrataData()"));
 }
 
-int32 FHLSLMaterialTranslator::StrataDiffuseOrenNayarBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex)
+int32 FHLSLMaterialTranslator::StrataDiffuseBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataDiffuseOrenNayarBSDF(%s, %s, %u) /* %s */"),
-		*GetParameterCode(Albedo),
-		*GetParameterCode(Roughness),
-		SharedNormalIndex,
-		*GetParameterCode(Normal)
-	);
-}
-
-int32 FHLSLMaterialTranslator::StrataDiffuseChanBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex)
-{
-	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataDiffuseChanBSDF(%s, %s, %u) /* %s */"),
+		MCT_Strata, TEXT("GetStrataDiffuseBSDF(%s, %s, %u) /* %s */"),
 		*GetParameterCode(Albedo),
 		*GetParameterCode(Roughness),
 		SharedNormalIndex,

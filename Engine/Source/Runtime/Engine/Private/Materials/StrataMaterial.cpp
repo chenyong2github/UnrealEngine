@@ -9,11 +9,8 @@ FString GetStrataBSDFName(uint8 BSDFType)
 {
 	switch (BSDFType)
 	{
-	case STRATA_BSDF_TYPE_DIFFUSE_ON:
-		return TEXT("DIFFUSE_ON");
-		break;
-	case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
-		return TEXT("DIFFUSE_CHAN");
+	case STRATA_BSDF_TYPE_DIFFUSE:
+		return TEXT("DIFFUSE");
 		break;
 	case STRATA_BSDF_TYPE_DIELECTRIC:
 		return TEXT("DIELECTRIC");
@@ -59,7 +56,7 @@ void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, 
 
 FStrataMaterialCompilationInfo StrataCompilationInfoAdd(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B)
 {
-	if ((A.TotalBSDFCount + B.TotalBSDFCount) > STRATA_MAX_TOTAL_BSDF) // See StrataDefinitions.h
+	if ((A.TotalBSDFCount + B.TotalBSDFCount) > STRATA_MAX_TOTAL_BSDF)
 	{
 		Compiler->Error(TEXT("Adding would result in too many BSDFs"));
 		return A;
@@ -73,7 +70,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoAdd(FMaterialCompiler* Compi
 		const FStrataMaterialCompilationInfo::FLayer& ALayer = A.Layers[LayerIt];
 		const FStrataMaterialCompilationInfo::FLayer& BLayer = B.Layers[LayerIt];
 
-		if ((ALayer.BSDFCount + BLayer.BSDFCount) > STRATA_MAX_BSDF_COUNT_PER_LAYER) // See StrataDefinitions.h
+		if ((ALayer.BSDFCount + BLayer.BSDFCount) > STRATA_MAX_BSDF_COUNT_PER_LAYER)
 		{
 			Compiler->Error(TEXT("Adding would result in too many BSDFs in a Layer"));
 			return A;
@@ -102,7 +99,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoMultiply(FMaterialCompiler* 
 
 FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixing(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B)
 {
-	if ((A.TotalBSDFCount + B.TotalBSDFCount) > STRATA_MAX_TOTAL_BSDF) // See StrataDefinitions.h
+	if ((A.TotalBSDFCount + B.TotalBSDFCount) > STRATA_MAX_TOTAL_BSDF)
 	{
 		Compiler->Error(TEXT("Mixing would result in too many BSDFs"));
 		return A;
@@ -120,7 +117,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoVerticalLayering(FMaterialCo
 		return Base;
 	}
 
-	if ((Top.LayerCount + Base.LayerCount) > STRATA_MAX_LAYER_COUNT) // See StrataDefinitions.h
+	if ((Top.LayerCount + Base.LayerCount) > STRATA_MAX_LAYER_COUNT)
 	{
 		Compiler->Error(TEXT("Layering would result in too many Layers"));
 		return Base;

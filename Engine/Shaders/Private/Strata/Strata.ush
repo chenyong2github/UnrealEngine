@@ -119,30 +119,13 @@ FStrataData GetInitialisedStrataData()
 	return StrataData;
 }
 
-FStrataData GetStrataDiffuseOrenNayarBSDF(float3 Albedo, float Roughness, uint SharedNormalIndex)
+FStrataData GetStrataDiffuseBSDF(float3 Albedo, float Roughness, uint SharedNormalIndex)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
 	StrataData.LayerCount++;
 
 	StrataData.Layers[0].BSDFCount++;
-	BSDF_SETTYPE			(StrataData.Layers[0].BSDFs[0],		STRATA_BSDF_TYPE_DIFFUSE_ON);
-	BSDF_SETNORMALID		(StrataData.Layers[0].BSDFs[0],		SharedNormalIndex);
-	BSDF_SETISTOPLAYER		(StrataData.Layers[0].BSDFs[0],		0);
-	DIFFUSE_ALBEDO			(StrataData.Layers[0].BSDFs[0])		= Albedo;
-	DIFFUSE_ROUGHNESS		(StrataData.Layers[0].BSDFs[0])		= Roughness;
-
-	StrataData.Layers[0].BSDFs[0].Weight						= 1.0f;
-
-	return StrataData;
-}
-
-FStrataData GetStrataDiffuseChanBSDF(float3 Albedo, float Roughness, uint SharedNormalIndex)
-{
-	FStrataData StrataData = GetInitialisedStrataData();
-	StrataData.LayerCount++;
-
-	StrataData.Layers[0].BSDFCount++;
-	BSDF_SETTYPE			(StrataData.Layers[0].BSDFs[0],		STRATA_BSDF_TYPE_DIFFUSE_CHAN);
+	BSDF_SETTYPE			(StrataData.Layers[0].BSDFs[0],		STRATA_BSDF_TYPE_DIFFUSE);
 	BSDF_SETNORMALID		(StrataData.Layers[0].BSDFs[0],		SharedNormalIndex);
 	BSDF_SETISTOPLAYER		(StrataData.Layers[0].BSDFs[0],		0);
 	DIFFUSE_ALBEDO			(StrataData.Layers[0].BSDFs[0])		= Albedo;
@@ -286,8 +269,7 @@ void StrataGetBSDFRoughness(in FStrataBSDF BSDF, inout float R)
 	const uint BSDFType = BSDF_GETTYPE(BSDF);
 	switch (BSDFType)
 	{
-	case STRATA_BSDF_TYPE_DIFFUSE_ON:
-	case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+	case STRATA_BSDF_TYPE_DIFFUSE:
 	{
 		R = DIFFUSE_ROUGHNESS(BSDF);
 		break;
@@ -405,16 +387,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext)
 	const uint BSDFType = BSDF_GETTYPE(BSDFContext.BSDF);
 	switch (BSDFType)
 	{
-		case STRATA_BSDF_TYPE_DIFFUSE_ON:
-		{
-			const float SafeRoughness = MakeRoughnessSafe(DIFFUSE_ROUGHNESS(BSDFContext.BSDF));
-
-			Sample.Value		= Diffuse_OrenNayar(DIFFUSE_ALBEDO(BSDFContext.BSDF), SafeRoughness, BSDFContext.SatNoV, BSDFContext.SatNoL, BSDFContext.Context.VoH);
-			Sample.PDF			= BSDFContext.SatNoV / PI;
-			Sample.Throughput	= OpaqueBSDFThroughput;
-			break;
-		}
-		case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+		case STRATA_BSDF_TYPE_DIFFUSE:
 		{
 			const float SafeRoughness = MakeRoughnessSafe(DIFFUSE_ROUGHNESS(BSDFContext.BSDF));
 			float a2 = Pow4(SafeRoughness);
@@ -524,8 +497,7 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FSharedNormals SharedNo
 	const uint BSDFType = BSDF_GETTYPE(BSDF);
 	switch (BSDFType)
 	{
-		case STRATA_BSDF_TYPE_DIFFUSE_ON:
-		case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+		case STRATA_BSDF_TYPE_DIFFUSE:
 		{
 			// STRATA_TODO take into account roughness
 			float4 ImportanceSample = CosineSampleHemisphere(E);
@@ -592,8 +564,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 	const uint BSDFType = BSDF_GETTYPE(BSDFContext.BSDF);
 	switch (BSDFType)
 	{
-		case STRATA_BSDF_TYPE_DIFFUSE_ON:
-		case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+		case STRATA_BSDF_TYPE_DIFFUSE:
 		{
 			StrataEnvLightResult.DiffuseAlbedo = DIFFUSE_ALBEDO(BSDFContext.BSDF);
 			StrataEnvLightResult.DiffuseNormal = BSDFContext.N;
@@ -773,8 +744,7 @@ void StrataSanitizeBSDF(inout FStrataBSDF BSDF)
 {
 	switch (BSDF_GETTYPE(BSDF))
 	{
-		case STRATA_BSDF_TYPE_DIFFUSE_ON:
-		case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+		case STRATA_BSDF_TYPE_DIFFUSE:
 		{
 			SanitizeStrataDiffuse(BSDF);
 			break; 
@@ -1049,20 +1019,7 @@ void PackStrataOut(
 
 			switch (BSDF_GETTYPE(BSDF))
 			{
-			case STRATA_BSDF_TYPE_DIFFUSE_ON:
-			{
-				if (bTopLayer)
-				{
-					AccumRoughness		+= BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
-					AccumRoughnessCount += BSDFCoverageAvg;
-				}
-
-				LayerCoverage	+= BSDFCoverage;
-				LayerThroughput += BSDFCoverage * OpaqueBSDFThroughput;
-				break;
-			}
-
-			case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+			case STRATA_BSDF_TYPE_DIFFUSE:
 			{
 				if (bTopLayer)
 				{
@@ -1197,8 +1154,7 @@ void PackStrataOut(
 			const uint BSDFType = BSDF_GETTYPE(BSDF);
 			switch (BSDF_GETTYPE(BSDF))
 			{
-			case STRATA_BSDF_TYPE_DIFFUSE_ON:
-			case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+			case STRATA_BSDF_TYPE_DIFFUSE:
 			{
 				STRATA_STORE_UINT1(PackAlbedoLinearToGamma2AlphaLinear(float4(DIFFUSE_ALBEDO(BSDF), DIFFUSE_ROUGHNESS(BSDF))));
 				// 4 bytes
@@ -1292,8 +1248,7 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout uint ByteOf
 	BSDF_SETTYPE(OutBSDF, BSDFType);
 	switch (BSDFType)
 	{
-	case STRATA_BSDF_TYPE_DIFFUSE_ON:
-	case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
+	case STRATA_BSDF_TYPE_DIFFUSE:
 	{
 		StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, DIFFUSE_ALBEDO(OutBSDF), DIFFUSE_ROUGHNESS(OutBSDF));
 	}
