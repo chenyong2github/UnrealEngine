@@ -49,80 +49,9 @@ bool FTypePromotionTest::RunTest(const FString& Parameters)
 }
 
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFindPromotedFunc, "Blueprints.Compiler.FindPromotedFunc", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
 #define MakeTestPin(OwningNode, PinArray, InPinName, InPinType)		UEdGraphPin* InPinName = UEdGraphPin::CreatePin(OwningNode);		\
 																	InPinName->PinType.PinCategory = InPinType;							\
 																	PinArray.Add(InPinName);		
-
-bool FFindPromotedFunc::RunTest(const FString& Parameters)
-{
-	TArray<UEdGraphPin*> PinTypes = {};
-
-	UEdGraphNode* TestNode = NewObject<UEdGraphNode>();			
-	
-	const FTypePromotion& TypePromo = FTypePromotion::Get();
-
-	MakeTestPin(TestNode, PinTypes, DoublePin, UEdGraphSchema_K2::PC_Double);
-	MakeTestPin(TestNode, PinTypes, FloatPin, UEdGraphSchema_K2::PC_Float);
-	MakeTestPin(TestNode, PinTypes, Int32Pin, UEdGraphSchema_K2::PC_Int);
-	MakeTestPin(TestNode, PinTypes, Int64Pin, UEdGraphSchema_K2::PC_Int64);
-
-	// Add Operation
-	{
-		TArray<UEdGraphPin*> TestPins =
-		{
-			DoublePin, FloatPin
-		};
-		UFunction* AddDoubleFunc = FTypePromotion::GetOperatorFunction(TEXT("add"), TestPins);
-		TestNotNull(TEXT("Add Double Float function"), AddDoubleFunc);
-	}
-
-	// Add Operation
-	{
-		TArray<UEdGraphPin*> TestPins =
-		{
-			FloatPin, DoublePin
-		};
-		UFunction* AddDoubleFunc = FTypePromotion::GetOperatorFunction(TEXT("add"), TestPins);
-		TestNotNull(TEXT("Add Float Double function"), AddDoubleFunc);
-	}
-
-	// Multiply
-	{
-		TArray<UEdGraphPin*> TestPins =
-		{
-			FloatPin, Int32Pin
-		};
-		UFunction* ResultFunc = FTypePromotion::GetOperatorFunction(TEXT("multiply"), TestPins);
-		TestNotNull(TEXT("multiply Float Int32 function"), ResultFunc);
-	}
-
-	// Divide
-	{
-		TArray<UEdGraphPin*> TestPins =
-		{
-			FloatPin, Int32Pin
-		};
-
-		UFunction* ResultFunc = FTypePromotion::GetOperatorFunction(TEXT("divide"), TestPins);
-		TestNotNull(TEXT("divide Float Int32 function"), ResultFunc);
-	}
-
-	// Clear our test pins
-	for(UEdGraphPin* TestPin : PinTypes)
-	{
-		if(TestPin)
-		{
-			TestPin->MarkPendingKill();
-		}
-	}
-	PinTypes.Empty();
-	TestNode->MarkPendingKill();
-
-	return true;
-}
-
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFindBestMatchingFunc, "Blueprints.Compiler.FindBestMatchingFunc", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FFindBestMatchingFunc::RunTest(const FString& Parameters)

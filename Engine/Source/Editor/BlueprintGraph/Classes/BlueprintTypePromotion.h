@@ -23,18 +23,6 @@ public:
 	/** Deletes the singleton instance of type promotion if there is one */
 	static void Shutdown();
 
-	/** 
-	* If given more than two input pins, this will just use the highest type
-	* and return the function for that operation. It's update to nodes like the 
-	* UK2Node_CommutativeAssociativeBinaryOperator to patch the input pins
-	* together on expansion
-	* 
-	* @return	A function that matches a promoted type. Nullptr if no match is found
-	*/
-	static UFunction* GetOperatorFunction(FName Operation, const TArray<UEdGraphPin*>& WildcardPins);
-
-	static UFunction* GetOperatorFunction(FName Operation, const TArray<UEdGraphPin*>& InputPins, const UEdGraphPin* OutputPin);
-
 	/**
 	* Find the function that is the best match given the pins to consider. 
 	* Ex: Given "Add" operator and an array of two Vector pins, it will return "Add_VectorVector"
@@ -118,10 +106,6 @@ private:
 
 	/** Callback that will rebuild the op table when hot reload is triggered */
 	static void OnModulesChanged(FName ModuleThatChanged, EModuleChangeReason ReasonForChange);
-
-	UFunction* GetOperatorFunction_Internal(FName Operation, const TArray<UEdGraphPin*>& WildcardPins) const;
-
-	UFunction* GetOperatorFunction_Internal(FName Operation, const TArray<UEdGraphPin*>& InputPins, const UEdGraphPin* OutputPin) const;
 
 	bool IsFunctionPromotionReady_Internal(const UFunction* const FuncToConsider) const;
 
