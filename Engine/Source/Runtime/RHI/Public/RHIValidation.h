@@ -15,6 +15,16 @@
 class FValidationComputeContext;
 class FValidationContext;
 
+// This is a macro because we only want to evaluate the message expression if the checked expression is false.
+#define RHI_VALIDATION_CHECK(InExpression, InMessage) \
+	do \
+	{ \
+		if(UNLIKELY(!(InExpression))) \
+		{ \
+			FValidationRHI::ReportValidationFailure(InMessage); \
+		} \
+	}while(0)
+
 class FValidationRHI : public FDynamicRHI
 {
 public:
@@ -1835,6 +1845,8 @@ public:
 
 
 //protected:
+	static void ReportValidationFailure(const TCHAR* InMessage);
+
 	FDynamicRHI*				RHI;
 	TIndirectArray<IRHIComputeContext> OwnedContexts;
 	TMap<FRHIDepthStencilState*, FDepthStencilStateInitializerRHI> DepthStencilStates;
@@ -1844,6 +1856,8 @@ public:
 
 private:
 	FString						RHIName;
+	static TSet<uint32>			SeenFailureHashes;
+	static FCriticalSection		SeenFailureHashesMutex;
 
 	void ValidatePipeline(const FGraphicsPipelineStateInitializer& Initializer);
 };
