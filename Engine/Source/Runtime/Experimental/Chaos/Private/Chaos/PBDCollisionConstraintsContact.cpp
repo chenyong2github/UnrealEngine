@@ -58,29 +58,29 @@ namespace Chaos
 			UpdateManifold(Constraint, Transform0, Transform1, CullDistance);
 		}
 
-		void Update(FRigidBodyPointContactConstraint& Constraint, const FReal CullDistance)
+		void Update(FRigidBodyPointContactConstraint& Constraint, const FReal CullDistance, const FReal Dt)
 		{
 			const FRigidTransform3 Transform0 = GetTransform(Constraint.Particle[0]);
 			const FRigidTransform3 Transform1 = GetTransform(Constraint.Particle[1]);
 
 			Constraint.ResetPhi(CullDistance);
-			UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(Constraint, Transform0, Transform1, CullDistance);
+			UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(Constraint, Transform0, Transform1, CullDistance, Dt);
 		}
 
-		void Update(FRigidBodySweptPointContactConstraint& Constraint, const FReal CullDistance)
+		void Update(FRigidBodySweptPointContactConstraint& Constraint, const FReal CullDistance, const FReal Dt)
 		{
 			// Update as a point constraint (base class).
 			Constraint.bShouldTreatAsSinglePoint = true;
-			Update(*Constraint.As<FRigidBodyPointContactConstraint>(), CullDistance);
+			Update(*Constraint.As<FRigidBodyPointContactConstraint>(), CullDistance, Dt);
 		}
 
-		void Update(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance)
+		void Update(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance, const FReal Dt)
 		{
 			const FRigidTransform3 Transform0 = GetTransform(Constraint.Particle[0]);
 			const FRigidTransform3 Transform1 = GetTransform(Constraint.Particle[1]);
 
 			Constraint.ResetPhi(CullDistance);
-			UpdateConstraintFromManifold(Constraint, Transform0, Transform1, CullDistance);
+			UpdateConstraintFromManifold(Constraint, Transform0, Transform1, CullDistance, Dt);
 		}
 
 		void ApplyAngularFriction(
@@ -785,7 +785,7 @@ namespace Chaos
 				bool bRequiresCollisionUpdate = true;
 				if (bRequiresCollisionUpdate)
 				{
-					Collisions::Update(Constraint, ParticleParameters.CullDistance);
+					Collisions::Update(Constraint, ParticleParameters.CullDistance, IterationParameters.Dt);
 				}
 
 				// Permanently disable a constraint that is beyond the cull distance
@@ -1140,7 +1140,7 @@ namespace Chaos
 				bool bRequiresCollisionUpdate = true;
 				if (bRequiresCollisionUpdate)
 				{
-					Update(Constraint, ParticleParameters.CullDistance);
+					Update(Constraint, ParticleParameters.CullDistance, IterationParameters.Dt);
 				}
 
 				// Permanently disable a constraint that is beyond the cull distance

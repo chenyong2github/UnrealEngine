@@ -316,9 +316,9 @@ namespace Chaos
 			const FVec3& XCoM1,
 			const FRotation3& RCoM1);
 
-		void AddOneshotManifoldContact(const FContactPoint& ContactPoint, bool bInInitialize = true);
-		void UpdateOneShotManifoldContacts();
-		void UpdateManifold(const FContactPoint& ContactPoint);
+		void AddOneshotManifoldContact(const FContactPoint& ContactPoint, const FReal Dt ,bool bInInitialize = true);
+		void UpdateOneShotManifoldContacts(FReal Dt);
+		void UpdateManifold(const FContactPoint& ContactPoint, const FReal Dt);
 		void ClearManifold();
 
 	protected:
@@ -343,9 +343,9 @@ namespace Chaos
 
 		bool AreMatchingContactPoints(const FContactPoint& A, const FContactPoint& B, FReal& OutScore) const;
 		int32 FindManifoldPoint(const FContactPoint& ContactPoint) const;
-		int32 AddManifoldPoint(const FContactPoint& ContactPoint, bool bInInitialize = true);
-		void InitManifoldPoint(FManifoldPoint& ManifoldPoint);
-		void UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint);
+		int32 AddManifoldPoint(const FContactPoint& ContactPoint, const FReal Dt, bool bInInitialize = true);
+		void InitManifoldPoint(FManifoldPoint& ManifoldPoint, FReal Dt);
+		void UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint, const FReal Dt);
 		void SetActiveContactPoint(const FContactPoint& ContactPoint);
 
 		// @todo(chaos): inline array
