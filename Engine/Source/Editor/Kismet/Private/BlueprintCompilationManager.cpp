@@ -509,7 +509,7 @@ FReinstancingJob::FReinstancingJob(TPair<UClass*, UClass*> InOldToNew)
 namespace SkelReinstUtils
 {
 	/** Flag to use the new FBlueprintCompileReinstancer::MoveDependentSkelToReinst and avoid problematic recursion during reinstancing */
-	static bool bEnableSkelReinstUpdate = false;
+	static bool bEnableSkelReinstUpdate = true;
 	static FAutoConsoleVariableRef CVarEnableSkelReinstUpdate(
 		TEXT("BP.bEnableSkelReinstUpdate"), bEnableSkelReinstUpdate,
 		TEXT("If true the Reinstancing of SKEL classes will use the new FBlueprintCompileReinstancer::MoveDependentSkelToReinst(o(n)) instead of the old MoveSkelCDOAside (o(n^2))"),
