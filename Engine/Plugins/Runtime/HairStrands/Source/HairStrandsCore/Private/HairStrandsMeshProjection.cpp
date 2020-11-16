@@ -1128,16 +1128,10 @@ void AddHairStrandInitMeshSamplesPass(
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
 	const FHairStrandsProjectionMeshData::LOD& MeshData,
-	FHairStrandsRestRootResource* StrandsResources,
 	FHairStrandsRestRootResource* RestResources,
 	FHairStrandsDeformedRootResource* DeformedResources)
 {
 	if (LODIndex < 0)
-	{
-		return;
-	}
-
-	if (LODIndex >= StrandsResources->RootData.MeshProjectionLODs.Num())
 	{
 		return;
 	}
@@ -1164,7 +1158,7 @@ void AddHairStrandInitMeshSamplesPass(
 	}
 
 	// When the number of section of a mesh is above FHairUpdateMeshTriangleCS::SectionArrayCount, the update is split into several passes
-	const TArray<uint32>& ValidSectionIndices = StrandsResources->RootData.MeshProjectionLODs[LODIndex].ValidSectionIndices;
+	const TArray<uint32>& ValidSectionIndices = RestResources->RootData.MeshProjectionLODs[LODIndex].ValidSectionIndices;
 	const uint32 ValidSectionCount = ValidSectionIndices.Num();
 	const uint32 PassCount = FMath::DivideAndRoundUp(ValidSectionCount, FHairInitMeshSamplesCS::SectionArrayCount);
 
