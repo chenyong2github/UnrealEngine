@@ -178,6 +178,8 @@ namespace Chaos
 			return ImplicitObjectType::TriangleMesh;
 		}
 
+		TUniquePtr<FTriangleMeshImplicitObject> CopySlow() const;
+
 		void SerializeImp(FChaosArchive& Ar)
 		{
 			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
@@ -254,6 +256,8 @@ namespace Chaos
 
 		const TParticles<FReal, 3>& Particles() const;
 		const FTrimeshIndexBuffer& Elements() const;
+
+		void UpdateVertices(const TArray<FVector>& Positions);
 
 	private:
 		void RebuildBV();
@@ -344,5 +348,8 @@ namespace Chaos
 
 		template <typename IdxType>
 		void RebuildBVImp(const TArray<TVec3<IdxType>>& Elements);
+
+		template <typename IdxType>
+		TUniquePtr<FTriangleMeshImplicitObject> CopySlowImpl(const TArray < TVector<IdxType, 3>>& InElements) const;
 	};
 }
