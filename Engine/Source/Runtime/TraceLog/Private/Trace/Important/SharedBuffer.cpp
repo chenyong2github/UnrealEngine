@@ -29,8 +29,10 @@ extern FStatistics		GTraceStatistics;
 ////////////////////////////////////////////////////////////////////////////////
 static FSharedBuffer* Writer_CreateSharedBuffer(uint32 SizeHint=0)
 {
+	const uint32 OverheadSize = sizeof(FSharedBuffer) + sizeof(uint32);
+
 	uint32 BlockSize = GBlockSize;
-	if (SizeHint > GBlockSize)
+	if (SizeHint > GBlockSize - OverheadSize)
 	{
 		BlockSize += SizeHint - GBlockSize;
 		BlockSize += sizeof(FSharedBuffer);
