@@ -214,6 +214,8 @@ void ULevel::HandleLegacyMapBuildData()
 				}
 			}
 		}
+
+		Registry->HandleLegacyEncodedCubemapData();
 	}
 }
 
@@ -409,7 +411,43 @@ void UMapBuildDataRegistry::PostLoad()
 	bool bFullDataRequired = GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 || bUsesMobileDeferredShading;
 	bool bEncodedDataRequired = (GIsEditor || (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 && !bUsesMobileDeferredShading));
 
+	HandleLegacyEncodedCubemapData();
+
+	if (ReflectionCaptureBuildData.Num() > 0
+		// Only strip in PostLoad for cooked platforms.  Uncooked may need to generate encoded HDR data in UReflectionCaptureComponent::OnRegister().
+		&& FPlatformProperties::RequiresCookedData())
+	{
+		// We expect to use only one type of data at cooked runtime
+		check(bFullDataRequired != bEncodedDataRequired);
+
+		for (TMap<FGuid, FReflectionCaptureMapBuildData>::TIterator It(ReflectionCaptureBuildData); It; ++It)
+		{
+			FReflectionCaptureMapBuildData& CaptureBuildData = It.Value();
+
+			if (!bFullDataRequired)
+			{
+				CaptureBuildData.FullHDRCapturedData.Empty();
+			}
+
+			if (!bEncodedDataRequired)
+			{
+				CaptureBuildData.EncodedCaptureData = nullptr;
+			}
+
+			check(CaptureBuildData.EncodedCaptureData != nullptr || CaptureBuildData.FullHDRCapturedData.Num() > 0 || FApp::CanEverRender() == false);
+		}
+	}
+
+	SetupLightmapResourceClusters();
+}
+
+
+void UMapBuildDataRegistry::HandleLegacyEncodedCubemapData()
+{
 #if WITH_EDITOR
+	bool bUsesMobileDeferredShading = IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform);
+	bool bEncodedDataRequired = (GIsEditor || (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 && !bUsesMobileDeferredShading));
+
 	if (ReflectionCaptureBuildData.Num() > 0 && bEncodedDataRequired)
 	{
 		for (TMap<FGuid, FReflectionCaptureMapBuildData>::TIterator It(ReflectionCaptureBuildData); It; ++It)
@@ -424,33 +462,6 @@ void UMapBuildDataRegistry::PostLoad()
 		}
 	}
 #endif
-
-	if (ReflectionCaptureBuildData.Num() > 0 
-		// Only strip in PostLoad for cooked platforms.  Uncooked may need to generate encoded HDR data in UReflectionCaptureComponent::OnRegister().
-		&& FPlatformProperties::RequiresCookedData())
-	{
-		// We expect to use only one type of data at cooked runtime
-		check(bFullDataRequired != bEncodedDataRequired);
-		
-		for (TMap<FGuid, FReflectionCaptureMapBuildData>::TIterator It(ReflectionCaptureBuildData); It; ++It)
-		{
-			FReflectionCaptureMapBuildData& CaptureBuildData = It.Value();
-
-			if (!bFullDataRequired)
-			{
-				CaptureBuildData.FullHDRCapturedData.Empty();
-			}
-			
-			if (!bEncodedDataRequired)
-			{
-				CaptureBuildData.EncodedCaptureData = nullptr;
-			}
-
-			check(CaptureBuildData.EncodedCaptureData != nullptr || CaptureBuildData.FullHDRCapturedData.Num() > 0  || FApp::CanEverRender() == false);
-		}
-	}
-
-	SetupLightmapResourceClusters();
 }
 
 void UMapBuildDataRegistry::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
