@@ -8,6 +8,7 @@
 #include "Party/PartyTypes.h"
 #include "Interactions/SocialInteractionHandle.h"
 
+#include "PartyPackage.h"
 #include "SocialUser.generated.h"
 
 class IOnlinePartyJoinInfo;
@@ -146,7 +147,7 @@ public:
 	void EstablishOssInfo(const TSharedRef<FOnlineBlockedPlayer>& BlockedPlayerInfo, ESocialSubsystem SubsystemType);
 	void EstablishOssInfo(const TSharedRef<FOnlineRecentPlayer>& RecentPlayerInfo, ESocialSubsystem SubsystemType);
 
-PARTY_SCOPE:
+PACKAGE_SCOPE:
 	void InitLocalUser();
 	void Initialize(const FUniqueNetIdRepl& PrimaryId);
 
