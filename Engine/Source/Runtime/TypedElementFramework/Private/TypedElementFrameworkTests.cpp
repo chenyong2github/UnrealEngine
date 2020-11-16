@@ -117,15 +117,17 @@ bool FTypedElementRegistrySmokeTest::RunTest(const FString& Parameters)
 	ElementList->Add(UntypedElement2);
 	ElementList->Add(UntypedElement3);
 	
-	for (const FTypedElementHandle& ElementHandle : *ElementList)
+	ElementList->ForEachElementHandle([&TestInterfaceAccess](const FTypedElementHandle& InElementHandle)
 	{
-		TestInterfaceAccess(ElementHandle);
-	}
+		TestInterfaceAccess(InElementHandle);
+		return true;
+	});
 	
-	for (const TTypedElement<UTestTypedElementInterfaceA>& ElementHandle : ElementList->IterateInterface<UTestTypedElementInterfaceA>())
+	ElementList->ForEachElement<UTestTypedElementInterfaceA>([&TestInterfaceAHandle](const TTypedElement<UTestTypedElementInterfaceA>& InElementHandle)
 	{
-		TestInterfaceAHandle(ElementHandle);
-	}
+		TestInterfaceAHandle(InElementHandle);
+		return true;
+	});
 
 	ElementList->Empty();
 	ElementList = nullptr;
@@ -195,27 +197,30 @@ bool FTypedElementRegistryPerfTest::RunTest(const FString& Parameters)
 	// Find an interface from each handle
 	{
 		FScopedDurationTimeLogger Timer(FString::Printf(TEXT("Finding %d interfaces from list"), ElementList->Num()));
-		for (const FTypedElementHandle& ElementHandle : *ElementList)
+		ElementList->ForEachElementHandle([Registry](const FTypedElementHandle& InElementHandle)
 		{
-			Registry->GetElementInterface<UTestTypedElementInterfaceA>(ElementHandle);
-		}
+			Registry->GetElementInterface<UTestTypedElementInterfaceA>(InElementHandle);
+			return true;
+		});
 	}
 
 	// Find an element from each handle
 	{
 		FScopedDurationTimeLogger Timer(FString::Printf(TEXT("Finding %d elements from list"), ElementList->Num()));
-		for (const FTypedElementHandle& ElementHandle : *ElementList)
+		ElementList->ForEachElementHandle([Registry](const FTypedElementHandle& InElementHandle)
 		{
-			Registry->GetElement<UTestTypedElementInterfaceA>(ElementHandle);
-		}
+			Registry->GetElement<UTestTypedElementInterfaceA>(InElementHandle);
+			return true;
+		});
 	}
 
-	// Iterate all elements that implement an interface
+	// Enumerate all elements that implement an interface
 	{
-		FScopedDurationTimeLogger Timer(FString::Printf(TEXT("Iterating %d elements in list"), ElementList->Num()));
-		for (const TTypedElement<UTestTypedElementInterfaceA>& ElementHandle : ElementList->IterateInterface<UTestTypedElementInterfaceA>())
+		FScopedDurationTimeLogger Timer(FString::Printf(TEXT("Enumerating %d elements in list"), ElementList->Num()));
+		ElementList->ForEachElement<UTestTypedElementInterfaceA>([Registry](const TTypedElement<UTestTypedElementInterfaceA>& InElementHandle)
 		{
-		}
+			return true;
+		});
 	}
 
 	// Clear the element list

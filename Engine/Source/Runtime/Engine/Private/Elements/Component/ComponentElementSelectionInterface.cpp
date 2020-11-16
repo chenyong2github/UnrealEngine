@@ -8,24 +8,24 @@
 int32 UComponentElementSelectionInterface::GetNumSelectedComponents(const UTypedElementList* InCurrentSelection)
 {
 	int32 NumSelected = 0;
-	for (const FTypedElementHandle& SelectedElement : *InCurrentSelection)
+	InCurrentSelection->ForEachElementHandle([&NumSelected](const FTypedElementHandle& InSelectedElement)
 	{
-		if (SelectedElement.GetData<FComponentElementData>(/*bSilent*/true))
+		if (InSelectedElement.GetData<FComponentElementData>(/*bSilent*/true))
 		{
 			++NumSelected;
 		}
-	}
+		return true;
+	});
 	return NumSelected;
 }
 
 bool UComponentElementSelectionInterface::HasSelectedComponents(const UTypedElementList* InCurrentSelection)
 {
-	for (const FTypedElementHandle& SelectedElement : *InCurrentSelection)
+	bool bHasSelectedComponents = false;
+	InCurrentSelection->ForEachElementHandle([&bHasSelectedComponents](const FTypedElementHandle& InSelectedElement)
 	{
-		if (SelectedElement.GetData<FComponentElementData>(/*bSilent*/true))
-		{
-			return true;
-		}
-	}
-	return false;
+		bHasSelectedComponents = InSelectedElement.GetData<FComponentElementData>(/*bSilent*/true) != nullptr;
+		return !bHasSelectedComponents;
+	});
+	return bHasSelectedComponents;
 }

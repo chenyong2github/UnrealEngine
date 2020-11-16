@@ -131,6 +131,34 @@ UTypedElementInterface* UTypedElementList::GetElementInterface(const FTypedEleme
 	return Registry->GetElementInterface(InElementHandle, InBaseInterfaceType);
 }
 
+TArray<FTypedElementHandle> UTypedElementList::GetElementHandles(const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
+{
+	TArray<FTypedElementHandle> FilteredElementHandles;
+	FilteredElementHandles.Reserve(ElementHandles.Num());
+
+	ForEachElementHandle([&FilteredElementHandles](const FTypedElementHandle& InElementHandle)
+	{
+		FilteredElementHandles.Add(InElementHandle);
+		return true;
+	}, InBaseInterfaceType);
+
+	return FilteredElementHandles;
+}
+
+void UTypedElementList::ForEachElementHandle(TFunctionRef<bool(const FTypedElementHandle&)> InCallback, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
+{
+	for (const FTypedElementHandle& ElementHandle : ElementHandles)
+	{
+		if (ElementHandle && (!InBaseInterfaceType || GetElementInterface(ElementHandle, InBaseInterfaceType)))
+		{
+			if (!InCallback(ElementHandle))
+			{
+				break;
+			}
+		}
+	}
+}
+
 bool UTypedElementList::AddElementImpl(FTypedElementHandle&& InElementHandle)
 {
 	if (!InElementHandle)

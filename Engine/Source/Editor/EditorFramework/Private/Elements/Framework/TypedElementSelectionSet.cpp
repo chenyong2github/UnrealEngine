@@ -2,6 +2,7 @@
 
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Interfaces/TypedElementObjectInterface.h"
 
 UTypedElementSelectionSet::UTypedElementSelectionSet()
 {
@@ -17,12 +18,16 @@ bool UTypedElementSelectionSet::Modify(bool bAlwaysMarkDirty)
 {
 	if (GUndo && CanModify())
 	{
-		for (const TTypedElement<UTypedElementSelectionInterface>& SelectionElement : ElementList->IterateInterface<UTypedElementSelectionInterface>())
+		bool bCanModify = true;
+		ElementList->ForEachElement<UTypedElementSelectionInterface>([&bCanModify](const TTypedElement<UTypedElementSelectionInterface>& InSelectionElement)
 		{
-			if (SelectionElement.ShouldPreventTransactions())
-			{
-				return false;
-			}
+			bCanModify = InSelectionElement.ShouldPreventTransactions();
+			return bCanModify;
+		});
+
+		if (!bCanModify)
+		{
+			return false;
 		}
 
 		return Super::Modify(bAlwaysMarkDirty);
@@ -39,13 +44,14 @@ void UTypedElementSelectionSet::Serialize(FArchive& Ar)
 	{
 		FTypedHandleTypeId ElementTypeId = 0;
 
-		for (const TTypedElement<UTypedElementSelectionInterface>& SelectionElement : ElementList->IterateInterface<UTypedElementSelectionInterface>())
+		ElementList->ForEachElement<UTypedElementSelectionInterface>([&Ar, &ElementTypeId](const TTypedElement<UTypedElementSelectionInterface>& InSelectionElement)
 		{
-			ElementTypeId = SelectionElement.GetId().GetTypeId();
+			ElementTypeId = InSelectionElement.GetId().GetTypeId();
 			Ar << ElementTypeId;
 
-			SelectionElement.WriteTransactedElement(Ar);
-		}
+			InSelectionElement.WriteTransactedElement(Ar);
+			return true;
+		});
 
 		// End of the list
 		ElementTypeId = 0;
@@ -173,11 +179,7 @@ bool UTypedElementSelectionSet::ClearSelection(const FTypedElementSelectionOptio
 	{
 		// Take a copy of the currently selected elements to avoid mutating the selection set while iterating
 		TArray<FTypedElementHandle, TInlineAllocator<8>> ElementsCopy;
-		ElementsCopy.Reserve(ElementList->Num());
-		for (const FTypedElementHandle& ElementHandle : *ElementList)
-		{
-			ElementsCopy.Emplace(ElementHandle);
-		}
+		ElementList->GetElementHandles(ElementsCopy);
 
 		for (const FTypedElementHandle& ElementHandle : ElementsCopy)
 		{
@@ -207,6 +209,33 @@ FTypedElementHandle UTypedElementSelectionSet::GetSelectionElement(const FTypedE
 {
 	FTypedElementSelectionSetElement SelectionSetElement = ResolveSelectionSetElement(InElementHandle);
 	return SelectionSetElement ? SelectionSetElement.GetSelectionElement(InSelectionMethod) : FTypedElementHandle();
+}
+
+TArray<UObject*> UTypedElementSelectionSet::GetSelectedObjects(const UClass* InRequiredClass) const
+{
+	TArray<UObject*> SelectedObjects;
+	SelectedObjects.Reserve(ElementList->Num());
+
+	ForEachSelectedObject([&SelectedObjects](UObject* InObject)
+	{
+		SelectedObjects.Add(InObject);
+		return true;
+	}, InRequiredClass);
+
+	return SelectedObjects;
+}
+
+void UTypedElementSelectionSet::ForEachSelectedObject(TFunctionRef<bool(UObject*)> InCallback, const UClass* InRequiredClass) const
+{
+	ElementList->ForEachElement<UTypedElementObjectInterface>([&InCallback, InRequiredClass](const TTypedElement<UTypedElementObjectInterface>& InObjectElement)
+	{
+		UObject* ElementObject = InObjectElement.GetObject();
+		if (ElementObject && (!InRequiredClass || ElementObject->IsA(InRequiredClass)))
+		{
+			return InCallback(ElementObject);
+		}
+		return true;
+	});
 }
 
 FTypedElementSelectionSetElement UTypedElementSelectionSet::ResolveSelectionSetElement(const FTypedElementHandle& InElementHandle) const

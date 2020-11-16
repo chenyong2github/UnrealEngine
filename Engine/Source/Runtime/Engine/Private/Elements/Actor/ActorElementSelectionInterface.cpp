@@ -8,24 +8,24 @@
 int32 UActorElementSelectionInterface::GetNumSelectedActors(const UTypedElementList* InCurrentSelection)
 {
 	int32 NumSelected = 0;
-	for (const FTypedElementHandle& SelectedElement : *InCurrentSelection)
+	InCurrentSelection->ForEachElementHandle([&NumSelected](const FTypedElementHandle& InSelectedElement)
 	{
-		if (SelectedElement.GetData<FActorElementData>(/*bSilent*/true))
+		if (InSelectedElement.GetData<FActorElementData>(/*bSilent*/true))
 		{
 			++NumSelected;
 		}
-	}
+		return true;
+	});
 	return NumSelected;
 }
 
 bool UActorElementSelectionInterface::HasSelectedActors(const UTypedElementList* InCurrentSelection)
 {
-	for (const FTypedElementHandle& SelectedElement : *InCurrentSelection)
+	bool bHasSelectedActors = false;
+	InCurrentSelection->ForEachElementHandle([&bHasSelectedActors](const FTypedElementHandle& InSelectedElement)
 	{
-		if (SelectedElement.GetData<FActorElementData>(/*bSilent*/true))
-		{
-			return true;
-		}
-	}
-	return false;
+		bHasSelectedActors = InSelectedElement.GetData<FActorElementData>(/*bSilent*/true) != nullptr;
+		return !bHasSelectedActors;
+	});
+	return bHasSelectedActors;
 }

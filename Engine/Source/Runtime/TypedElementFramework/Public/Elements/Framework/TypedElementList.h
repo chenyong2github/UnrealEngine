@@ -34,102 +34,6 @@ FORCEINLINE TTypedElement<BaseInterfaceType> GetElement(const UTypedElementRegis
 	return Element;
 }
 
-/**
- * Iterator type for ranged-for loops which only returns handles that implement the given interface.
- * @note This iterator type only supports the minimal functionality needed to support C++ ranged-for syntax.
- */
-template <typename BaseInterfaceType>
-struct TTypedElementListInterfaceIterator
-{
-public:
-	TTypedElementListInterfaceIterator(const UTypedElementRegistry* InRegistry, const TArray<FTypedElementHandle>& InElementHandles, const int32 InIndex)
-		: Registry(InRegistry)
-		, ElementHandles(InElementHandles)
-		, InitialNum(InElementHandles.Num())
-		, Index(InIndex)
-	{
-		// Walk to the first valid element
-		while (Index < ElementHandles.Num())
-		{
-			TypedElementList_Private::GetElement(Registry, ElementHandles[Index], Element);
-			if (Element)
-			{
-				break;
-			}
-			++Index;
-		}
-	}
-
-	FORCEINLINE const TTypedElement<BaseInterfaceType>& operator*() const
-	{
-		return Element;
-	}
-
-	TTypedElementListInterfaceIterator& operator++()
-	{
-		// Walk to the next valid element
-		while (++Index < ElementHandles.Num())
-		{
-			TypedElementList_Private::GetElement(Registry, ElementHandles[Index], Element);
-			if (Element)
-			{
-				break;
-			}
-		}
-		return *this;
-	}
-
-private:
-	const UTypedElementRegistry* Registry;
-	const TArray<FTypedElementHandle>& ElementHandles;
-	const int32 InitialNum;
-	int32 Index;
-	TTypedElement<BaseInterfaceType> Element;
-
-	FORCEINLINE friend bool operator!=(const TTypedElementListInterfaceIterator& Lhs, const TTypedElementListInterfaceIterator& Rhs)
-	{
-		// We only need to do the check in this operator, because no other operator will be
-		// called until after this one returns.
-		//
-		// Also, we should only need to check one side of this comparison - if the other iterator isn't
-		// even from the same array then the compiler has generated bad code.
-		ensureMsgf(Lhs.ElementHandles.Num() == Lhs.InitialNum, TEXT("Array has changed during ranged-for iteration!"));
-		return Lhs.Index != Rhs.Index;
-	}
-};
-
-/**
- * Proxy type to enable ranged-for loops which only returns handles that implement the given interface.
- */
-template <typename BaseInterfaceType>
-struct TTypedElementListInterfaceIteratorProxy
-{
-public:
-	TTypedElementListInterfaceIteratorProxy(const UTypedElementRegistry* InRegistry, const TArray<FTypedElementHandle>& InElementHandles)
-		: Registry(InRegistry)
-		, ElementHandles(InElementHandles)
-	{
-	}
-
-	TTypedElementListInterfaceIteratorProxy(const TTypedElementListInterfaceIteratorProxy&) = delete;
-	TTypedElementListInterfaceIteratorProxy& operator=(const TTypedElementListInterfaceIteratorProxy&) = delete;
-
-	TTypedElementListInterfaceIteratorProxy(TTypedElementListInterfaceIteratorProxy&&) = default;
-	TTypedElementListInterfaceIteratorProxy& operator=(TTypedElementListInterfaceIteratorProxy&&) = default;
-
-	/**
-	 * DO NOT USE DIRECTLY
-	 * STL-like iterators to enable range-based for loop support.
-	 */
-	using RangedForConstIteratorType = TTypedElementListInterfaceIterator<BaseInterfaceType>;
-	FORCEINLINE RangedForConstIteratorType begin() const { return RangedForConstIteratorType(Registry, ElementHandles, 0); }
-	FORCEINLINE RangedForConstIteratorType end() const { return RangedForConstIteratorType(Registry, ElementHandles, ElementHandles.Num()); }
-
-private:
-	const UTypedElementRegistry* Registry;
-	const TArray<FTypedElementHandle>& ElementHandles;
-};
-
 } // namespace TypedElementList_Private
 
 /**
@@ -313,6 +217,51 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementFramework|List")
 	UTypedElementInterface* GetElementInterface(const FTypedElementHandle& InElementHandle, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const;
+
+	/**
+	 * Get the handle of every element in this list, optionally filtering to elements that implement the given interface.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|List")
+	TArray<FTypedElementHandle> GetElementHandles(const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType = nullptr) const;
+
+	/**
+	 * Get the handle of every element in this list, optionally filtering to elements that implement the given interface.
+	 */
+	template <typename ArrayAllocator>
+	void GetElementHandles(TArray<FTypedElementHandle, ArrayAllocator>& OutArray, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType = nullptr) const
+	{
+		OutArray.Reset();
+		OutArray.Reserve(ElementHandles.Num());
+		ForEachElementHandle([&OutArray](const FTypedElementHandle& InElementHandle)
+		{
+			OutArray.Add(InElementHandle);
+			return true;
+		}, InBaseInterfaceType);
+	}
+
+	/**
+	 * Enumerate the handle of every element in this list, optionally filtering to elements that implement the given interface.
+	 * @note Return true from the callback to continue enumeration.
+	 */
+	void ForEachElementHandle(TFunctionRef<bool(const FTypedElementHandle&)> InCallback, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType = nullptr) const;
+
+	/**
+	 * Enumerate the elements in this list that implement the given interface.
+	 * @note Return true from the callback to continue enumeration.
+	 */
+	template <typename BaseInterfaceType>
+	void ForEachElement(TFunctionRef<bool(const TTypedElement<BaseInterfaceType>&)> InCallback) const
+	{
+		TTypedElement<BaseInterfaceType> TempElement;
+		for (const FTypedElementHandle& ElementHandle : ElementHandles)
+		{
+			GetElement(ElementHandle, TempElement);
+			if (TempElement && !InCallback(TempElement))
+			{
+				break;
+			}
+		}
+	}
 
 	/**
 	 * Is the given index a valid entry within this element list?
@@ -572,22 +521,6 @@ public:
 	 * This exists purely as a bridging mechanism and shouldn't be relied on for new code. This will return null if no legacy sync has been created for this instance.
 	 */
 	FTypedElementListLegacySync* Legacy_GetSyncPtr();
-
-	/**
-	 * Get an iterator for elements that implement the given element interface.
-	 */
-	template <typename BaseInterfaceType>
-	FORCEINLINE TypedElementList_Private::TTypedElementListInterfaceIteratorProxy<BaseInterfaceType> IterateInterface() const
-	{
-		return TypedElementList_Private::TTypedElementListInterfaceIteratorProxy<BaseInterfaceType>(Registry.Get(), ElementHandles);
-	}
-
-	/**
-	 * DO NOT USE DIRECTLY
-	 * STL-like iterators to enable range-based for loop support.
-	 */
-	FORCEINLINE TArray<FTypedElementHandle>::RangedForConstIteratorType begin() const { return ElementHandles.begin(); }
-	FORCEINLINE TArray<FTypedElementHandle>::RangedForConstIteratorType end() const { return ElementHandles.end(); }
 
 private:
 	enum class EChangeType : uint8

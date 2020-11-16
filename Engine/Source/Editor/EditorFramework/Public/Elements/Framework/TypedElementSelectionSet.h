@@ -158,6 +158,86 @@ public:
 	FTypedElementHandle GetSelectionElement(const FTypedElementHandle& InElementHandle, const ETypedElementSelectionMethod InSelectionMethod) const;
 
 	/**
+	 * Get the handle of every selected element, optionally filtering to elements that implement the given interface.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Selection")
+	TArray<FTypedElementHandle> GetSelectedElementHandles(const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType = nullptr) const
+	{
+		return ElementList->GetElementHandles(InBaseInterfaceType);
+	}
+
+	/**
+	 * Get the handle of every selected element, optionally filtering to elements that implement the given interface.
+	 */
+	template <typename ArrayAllocator>
+	void GetSelectedElementHandles(TArray<FTypedElementHandle, ArrayAllocator>& OutArray, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType = nullptr) const
+	{
+		ElementList->GetElementHandles(OutArray, InBaseInterfaceType);
+	}
+
+	/**
+	 * Enumerate the handle of every selected element, optionally filtering to elements that implement the given interface.
+	 * @note Return true from the callback to continue enumeration.
+	 */
+	void ForEachSelectedElementHandle(TFunctionRef<bool(const FTypedElementHandle&)> InCallback, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType = nullptr) const
+	{
+		ElementList->ForEachElementHandle(InCallback, InBaseInterfaceType);
+	}
+
+	/**
+	 * Enumerate the selected elements that implement the given interface.
+	 * @note Return true from the callback to continue enumeration.
+	 */
+	template <typename BaseInterfaceType>
+	void ForEachSelectedElement(TFunctionRef<bool(const TTypedElement<BaseInterfaceType>&)> InCallback) const
+	{
+		ElementList->ForEachElement<BaseInterfaceType>(InCallback);
+	}
+
+	/**
+	 * Get the array of selected objects from the currently selected elements.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Selection")
+	TArray<UObject*> GetSelectedObjects(const UClass* InRequiredClass = nullptr) const;
+
+	/**
+	 * Get the array of selected objects from the currently selected elements.
+	 */
+	template <typename RequiredClassType>
+	TArray<RequiredClassType*> GetSelectedObjects() const
+	{
+		TArray<RequiredClassType*> SelectedObjects;
+		SelectedObjects.Reserve(ElementList->Num());
+
+		ForEachSelectedObject<RequiredClassType>([&SelectedObjects](RequiredClassType* InObject)
+		{
+			SelectedObjects.Add(InObject);
+			return true;
+		});
+
+		return SelectedObjects;
+	}
+
+	/**
+	 * Enumerate the selected objects from the currently selected elements.
+	 * @note Return true from the callback to continue enumeration.
+	 */
+	void ForEachSelectedObject(TFunctionRef<bool(UObject*)> InCallback, const UClass* InRequiredClass = nullptr) const;
+
+	/**
+	 * Enumerate the selected objects from the currently selected elements.
+	 * @note Return true from the callback to continue enumeration.
+	 */
+	template <typename RequiredClassType>
+	void ForEachSelectedObject(TFunctionRef<bool(RequiredClassType*)> InCallback) const
+	{
+		ForEachSelectedObject([&InCallback](UObject* InObject)
+		{
+			return InCallback(CastChecked<RequiredClassType>(InObject));
+		}, RequiredClassType::StaticClass());
+	}
+
+	/**
 	 * Access the delegate that is invoked whenever this element list is potentially about to change.
 	 * @note This may be called even if no actual change happens, though once a change does happen it won't be called again until after the next call to NotifyPendingChanges.
 	 */
