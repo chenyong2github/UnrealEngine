@@ -379,7 +379,7 @@ void TraceCards(
 			float OpaqueHitDistance = TraceResult.OpaqueHitDistance;
 
 			float DistanceFromViewpoint = length(View.WorldCameraOrigin - WorldPosition);
-			float DistanceFade = saturate(4 * DistanceFromViewpoint / CardTraceEndDistanceFromCamera - 3);
+			float DistanceFade = saturate(6 * DistanceFromViewpoint / CardTraceEndDistanceFromCamera - 5);
 
 			Lighting *= 1 - DistanceFade;
 			Transparency = lerp(Transparency, 1, DistanceFade);
@@ -394,8 +394,7 @@ void TraceCards(
 				RWTraceRadiance[TraceCoord] = Lighting;
 			#endif
 
-			//@todo - dither to handle fractional Transparency for fade
-			if (Transparency < .5f)
+			if (Transparency < InterleavedGradientNoise(ScreenProbeScreenCoord + ProbeUV + 0.5f, 0))
 			{
 				bHit = true;
 			}
