@@ -1040,6 +1040,10 @@ namespace Chaos
 			}
 		});
 
+		{
+			GetEvolution()->WakeIslands();
+		}
+
 		//MarshallingManager.FreeData_Internal(&PushData);
 	}
 
