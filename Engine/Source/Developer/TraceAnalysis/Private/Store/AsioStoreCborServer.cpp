@@ -134,6 +134,7 @@ void FAsioStoreCborPeer::OnSessionInfo()
 	Builder.AddInteger("id", Session->GetId());
 	Builder.AddInteger("trace_id", Session->GetTraceId());
 	Builder.AddInteger("ip_address", Session->GetIpAddress());
+	Builder.AddInteger("control_port", Session->GetControlPort());
 	SendResponse(Builder.Done());
 }
 

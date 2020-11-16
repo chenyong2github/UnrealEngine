@@ -58,6 +58,7 @@ public:
 		uint32			GetId() const;
 		uint32			GetTraceId() const;
 		uint32			GetIpAddress() const;
+		uint32			GetControlPort() const;
 	};
 	uint32				GetSessionCount() const;
 	const FSessionInfo* GetSessionInfo(uint32 Index) const;

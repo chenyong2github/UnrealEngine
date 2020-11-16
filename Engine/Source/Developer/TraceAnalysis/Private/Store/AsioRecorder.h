@@ -25,6 +25,7 @@ public:
 		uint32					GetId() const;
 		uint32					GetTraceId() const;
 		uint32					GetIpAddress() const;
+		uint32					GetControlPort() const;
 
 	private:
 		friend					FAsioRecorder;

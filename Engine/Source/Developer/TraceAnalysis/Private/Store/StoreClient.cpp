@@ -416,6 +416,13 @@ uint32 FStoreClient::FSessionInfo::GetIpAddress() const
 	return Response->GetInteger("ip_address", 0);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+uint32 FStoreClient::FSessionInfo::GetControlPort() const
+{
+	const auto* Response = (const FResponse*)this;
+	return Response->GetInteger("control_port", 0);
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
