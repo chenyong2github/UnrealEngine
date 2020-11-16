@@ -103,6 +103,7 @@ namespace Chaos
 			const FImplicitBox3& Box2,
 			const FRigidTransform3& Box2Transform, //world
 			const FReal CullDistance,
+			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint,
 			bool bInInitialize)
 		{
@@ -179,7 +180,7 @@ namespace Chaos
 			const bool bIsPlaneContact = FMath::IsNearlyEqual(BestFaceNormalSizeInDirectionBox1, 1.0f, PlaneContactNormalEpsilon) || FMath::IsNearlyEqual(BestFaceNormalSizeInDirectionBox2, 1.0f, PlaneContactNormalEpsilon);
 			if (!bIsPlaneContact)
 			{
-				Constraint.AddOneshotManifoldContact(GJKContactPoint, bInInitialize);
+				Constraint.AddOneshotManifoldContact(GJKContactPoint, Dt, bInInitialize);
 				return;
 			}
 
@@ -292,7 +293,7 @@ namespace Chaos
 				ContactPoint.Normal = GJKContactPoint.Normal;
 				ContactPoint.Phi = FVec3::DotProduct(PointProjectedOntoReferenceFace - VertexInReferenceCubeCoordinates, ReferenceFaceBox1 ? SeparationDirectionLocalBox1 : -SeparationDirectionLocalBox2);
 
-				Constraint.AddOneshotManifoldContact(ContactPoint, bInInitialize);
+				Constraint.AddOneshotManifoldContact(ContactPoint, Dt, bInInitialize);
 			}
 		}
 
@@ -507,6 +508,7 @@ namespace Chaos
 			const ConvexImplicitType2& Convex2,
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
+			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint,
 			bool bInInitialize)
 		{
@@ -547,7 +549,7 @@ namespace Chaos
 			const bool bIsPlaneContact = FMath::IsNearlyEqual(BestPlaneDotNormalConvex1, 1.0f, PlaneContactNormalEpsilon) || FMath::IsNearlyEqual(BestPlaneDotNormalConvex2, 1.0f, PlaneContactNormalEpsilon);
 			if (!bIsPlaneContact)
 			{
-				Constraint.AddOneshotManifoldContact(GJKContactPoint, bInInitialize);
+				Constraint.AddOneshotManifoldContact(GJKContactPoint, Dt, bInInitialize);
 				return;
 			}
 
@@ -641,7 +643,7 @@ namespace Chaos
 				ContactPoint.Normal = GJKContactPoint.Normal;
 				ContactPoint.Phi = FVec3::DotProduct(PointProjectedOntoReferenceFace - VertexInReferenceCoordinates, ReferenceFaceConvex1 ? SeparationDirectionLocalConvex1 : -SeparationDirectionLocalConvex2) - (Convex1.GetMargin() + Convex2.GetMargin());
 
-				Constraint.AddOneshotManifoldContact(ContactPoint, bInInitialize);
+				Constraint.AddOneshotManifoldContact(ContactPoint, Dt, bInInitialize);
 			}
 		}
 
@@ -659,6 +661,7 @@ namespace Chaos
 			const FImplicitBox3& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
+			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint,
 			bool bInInitialize);
 
@@ -669,6 +672,7 @@ namespace Chaos
 			const FImplicitConvex3& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
+			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint,
 			bool bInInitialize);
 
@@ -679,6 +683,7 @@ namespace Chaos
 			const FImplicitBox3& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
+			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint,
 			bool bInInitialize);
 
@@ -690,6 +695,7 @@ namespace Chaos
 			const TImplicitObjectScaled<FImplicitConvex3>& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
+			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint,
 			bool bInInitialize);
 
@@ -700,6 +706,7 @@ namespace Chaos
 			const FImplicitBox3& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
+			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint,
 			bool bInInitialize);
 
@@ -710,6 +717,7 @@ namespace Chaos
 			const FImplicitConvex3& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
+			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint,
 			bool bInInitialize);
 
@@ -720,6 +728,7 @@ namespace Chaos
 			const FImplicitConvex3& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
+			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint,
 			bool bInInitialize);
 
@@ -730,6 +739,7 @@ namespace Chaos
 			const TImplicitObjectScaled<FImplicitConvex3>& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
+			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint,
 			bool bInInitialize);
 
@@ -740,6 +750,7 @@ namespace Chaos
 			const TImplicitObjectScaled<FImplicitConvex3>& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal CullDistance,
+			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint,
 			bool bInInitialize);
 	}

@@ -99,7 +99,7 @@ namespace ChaosTest {
 			EContactShapesType::BoxBox, true, false);
 
 		// Detect collisions
-		Collisions::Update(Constraint, Delta.Size());
+		Collisions::Update(Constraint, Delta.Size(), 1/30.0f);
 
 		EXPECT_NEAR(Constraint.Manifold.Phi, ExpectedPhi, Tolerance);
 		EXPECT_NEAR(Constraint.Manifold.Normal.X, ExpectedNormal.X, Tolerance);
@@ -206,7 +206,7 @@ namespace ChaosTest {
 			EContactShapesType::ConvexConvex, true, false);
 
 		// Detect collisions
-		Collisions::Update(Constraint, Delta.Size());
+		Collisions::Update(Constraint, Delta.Size(), 1 / 30.0f);
 
 		EXPECT_NEAR(Constraint.Manifold.Phi, ExpectedPhi, Tolerance);
 		EXPECT_NEAR(Constraint.Manifold.Normal.X, ExpectedNormal.X, Tolerance);
