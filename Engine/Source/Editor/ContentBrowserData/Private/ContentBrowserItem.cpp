@@ -294,6 +294,12 @@ bool FContentBrowserItem::IsTemporary() const
 	return PrimaryItemData && PrimaryItemData->IsTemporary();
 }
 
+bool FContentBrowserItem::IsDisplayOnlyFolder() const
+{
+	const FContentBrowserItemData* PrimaryItemData = GetPrimaryInternalItem();
+	return PrimaryItemData && PrimaryItemData->IsDisplayOnlyFolder();
+}
+
 EContentBrowserItemFlags FContentBrowserItem::GetItemFlags() const
 {
 	const FContentBrowserItemData* PrimaryItemData = GetPrimaryInternalItem();
