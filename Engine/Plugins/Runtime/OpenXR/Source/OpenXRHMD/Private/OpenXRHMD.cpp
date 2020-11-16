@@ -2015,6 +2015,13 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 {
 	ensure(IsInRenderingThread());
 
+	// Ensure xrEndFrame has been called before starting rendering the next frame.
+	// We'll discard the frame if it takes longer than 250ms to finish.
+	if (bIsRunning)
+	{
+		FrameEventRHI->Wait(250);
+	}
+
 	PipelinedFrameStateRendering = PipelinedFrameStateGame;
 
 	FPipelinedLayerState& LayerState = GetPipelinedLayerStateForThread();
@@ -2036,13 +2043,6 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		BuildOcclusionMeshes();
 	}
 #endif
-
-	// Ensure xrEndFrame has been called before starting rendering the next frame.
-	// We'll discard the frame if it takes longer than 250ms to finish.
-	if (bIsRunning)
-	{
-		FrameEventRHI->Wait(250);
-	}
 
 	// We need to re-check bIsRunning to ensure the session didn't end while waiting for FrameEventRHI.
 	// There is a chance xrBeginFrame may time out waiting for FrameEventRHI so a mutex is needed to
