@@ -144,6 +144,10 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 
 	if (!Data->RawMesh.IsEmpty())
 	{
+		// Don't recreate render states with the material update context as we will manually do it through
+		// the FStaticMeshComponentRecreateRenderStateContext below
+		FMaterialUpdateContext MaterialUpdateContext(FMaterialUpdateContext::EOptions::Default & ~FMaterialUpdateContext::EOptions::RecreateRenderStates);
+
 		// Retrieve flattened material data
 		FFlattenMaterial& FlattenMaterial = Data->Material;
 
@@ -154,7 +158,7 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 		FMaterialUtilities::OptimizeFlattenMaterial(FlattenMaterial);
 
 		// Create a new proxy material instance
-		ProxyMaterial = ProxyMaterialUtilities::CreateProxyMaterialInstance(Data->MergeData->InOuter, Data->MergeData->InProxySettings.MaterialSettings, Data->MergeData->BaseMaterial, FlattenMaterial, AssetBasePath, AssetBaseName, OutAssetsToSync);
+		ProxyMaterial = ProxyMaterialUtilities::CreateProxyMaterialInstance(Data->MergeData->InOuter, Data->MergeData->InProxySettings.MaterialSettings, Data->MergeData->BaseMaterial, FlattenMaterial, AssetBasePath, AssetBaseName, OutAssetsToSync, &MaterialUpdateContext);
 
 		for (IMeshMergeExtension* Extension : Owner->MeshMergeExtensions)
 		{

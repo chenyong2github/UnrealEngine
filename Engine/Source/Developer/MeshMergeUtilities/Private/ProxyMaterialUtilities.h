@@ -102,7 +102,7 @@ namespace ProxyMaterialUtilities
 		return NumPacked >= 2;
 	}
 
-	static UMaterialInstanceConstant* CreateProxyMaterialInstance(UPackage* InOuter, const FMaterialProxySettings& InMaterialProxySettings, UMaterialInterface* InBaseMaterial, const FFlattenMaterial& FlattenMaterial, const FString& AssetBasePath, const FString& AssetBaseName, TArray<UObject*>& OutAssetsToSync)
+	static UMaterialInstanceConstant* CreateProxyMaterialInstance(UPackage* InOuter, const FMaterialProxySettings& InMaterialProxySettings, UMaterialInterface* InBaseMaterial, const FFlattenMaterial& FlattenMaterial, const FString& AssetBasePath, const FString& AssetBaseName, TArray<UObject*>& OutAssetsToSync, FMaterialUpdateContext* MaterialUpdateContext = nullptr)
 	{
 		UMaterialInterface* BaseMaterial = InBaseMaterial;
 		
@@ -267,7 +267,7 @@ namespace ProxyMaterialUtilities
 		}
 
 		// Force initializing the static permutations according to the switches we have set
-		OutMaterial->UpdateStaticPermutation(NewStaticParameterSet);
+		OutMaterial->UpdateStaticPermutation(NewStaticParameterSet, MaterialUpdateContext);
 		OutMaterial->InitStaticPermutation();
 
 		OutMaterial->PostEditChange();
@@ -275,10 +275,10 @@ namespace ProxyMaterialUtilities
 		return OutMaterial;
 	}	
 
-	static UMaterialInstanceConstant* CreateProxyMaterialInstance(UPackage* InOuter, const FMaterialProxySettings& InMaterialProxySettings, FFlattenMaterial& FlattenMaterial, const FString& AssetBasePath, const FString& AssetBaseName, TArray<UObject*>& OutAssetsToSync)
+	static UMaterialInstanceConstant* CreateProxyMaterialInstance(UPackage* InOuter, const FMaterialProxySettings& InMaterialProxySettings, FFlattenMaterial& FlattenMaterial, const FString& AssetBasePath, const FString& AssetBaseName, TArray<UObject*>& OutAssetsToSync, FMaterialUpdateContext* MaterialUpdateContext = nullptr)
 	{
 		UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EngineMaterials/BaseFlattenMaterial.BaseFlattenMaterial"), NULL, LOAD_None, NULL);
-		return CreateProxyMaterialInstance(InOuter, InMaterialProxySettings, BaseMaterial, FlattenMaterial, AssetBasePath, AssetBasePath, OutAssetsToSync);
+		return CreateProxyMaterialInstance(InOuter, InMaterialProxySettings, BaseMaterial, FlattenMaterial, AssetBasePath, AssetBasePath, OutAssetsToSync, MaterialUpdateContext);
 	}
 
 };
