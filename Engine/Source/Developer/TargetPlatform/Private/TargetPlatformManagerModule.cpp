@@ -89,7 +89,9 @@ public:
 		, bHasInitErrors(false)
 		, bIgnoreFirstDelegateCall(true)
 	{
+#if WITH_EDITOR
 		ITurnkeySupportModule::Get().UpdateSdkInfo();
+#endif
 
 #if AUTOSDKS_ENABLED		
 		
