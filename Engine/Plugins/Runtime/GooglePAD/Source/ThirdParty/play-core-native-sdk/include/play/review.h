@@ -1,9 +1,10 @@
 // Copyright 2019 Google LLC
 //
-// The Play Core Native SDK is licensed to you under the Android Software
-// Development Kit License Agreement -
-// https://developer.android.com/studio/terms ("Agreement"). By using the Play
-// Core Native SDK, you agree to the terms of this Agreement.
+// The Play Core Native SDK is licensed to you under the Play Core Software
+// Development Kit Terms of Service -
+// https://developer.android.com/guide/playcore/license.
+// By using the Play Core Native SDK, you agree to the Play Core Software
+// Development Kit Terms of Service.
 
 #ifndef PLAY_REVIEW_H_
 #define PLAY_REVIEW_H_

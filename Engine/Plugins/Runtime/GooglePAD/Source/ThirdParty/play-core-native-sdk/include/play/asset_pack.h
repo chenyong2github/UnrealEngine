@@ -1,9 +1,10 @@
 // Copyright 2019 Google LLC
 //
-// The Play Core Native SDK is licensed to you under the Android Software
-// Development Kit License Agreement -
-// https://developer.android.com/studio/terms ("Agreement"). By using the Play
-// Core Native SDK, you agree to the terms of this Agreement.
+// The Play Core Native SDK is licensed to you under the Play Core Software
+// Development Kit Terms of Service -
+// https://developer.android.com/guide/playcore/license.
+// By using the Play Core Native SDK, you agree to the Play Core Software
+// Development Kit Terms of Service.
 
 #ifndef PLAY_ASSET_PACK_H_
 #define PLAY_ASSET_PACK_H_
@@ -219,6 +220,7 @@ AssetPackErrorCode AssetPackManager_requestInfo(const char** asset_packs,
 
 /// Asynchronously requests to start downloading the specified asset packs.
 /// Use AssetPackManager_getDownloadState() to monitor download progress.
+/// This request will fail if the app isn't in the foreground.
 /// @param asset_packs An array of asset pack names.
 /// @param num_asset_packs The length of the asset_packs array.
 /// @return ASSET_PACK_NO_ERROR if the request started successfully.
