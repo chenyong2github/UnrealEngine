@@ -616,7 +616,9 @@ void RayTraceSingleMeshSDF(
 {
 	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
-	// #lumen_todo: continue tracing from last TraceResult.HitDistance. At the moment this causes nondeterministic flickering of surfaces.
+	// Trace up to the current hit point
+	MaxTraceDistance = min(MaxTraceDistance, TraceResult.HitDistance + DFObjectData.LocalSurfaceBias);
+
 	float3 WorldRayEnd = WorldRayStart + WorldRayDirection * MaxTraceDistance;
 	float3 VolumeRayStart = mul(float4(WorldRayStart, 1), DFObjectData.WorldToVolume).xyz;
 	float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), DFObjectData.WorldToVolume).xyz;
