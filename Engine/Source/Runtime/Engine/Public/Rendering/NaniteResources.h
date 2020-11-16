@@ -421,6 +421,12 @@ public:
 	virtual void					DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override;
 	virtual void					GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
+#if RHI_RAYTRACING
+	virtual bool					IsRayTracingRelevant() const { return true; }
+	virtual bool					IsRayTracingStaticRelevant() const { return false; }
+	virtual void					GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances) override;
+#endif
+
 	virtual uint32					GetMemoryFootprint() const override;
 
 	virtual void GetLCIs(FLCIArray& LCIs) override
@@ -470,6 +476,10 @@ protected:
 	uint32 bHasMaterialErrors : 1;
 
 	const UStaticMesh* StaticMesh = nullptr;
+
+#if RHI_RAYTRACING
+	TArray<FRayTracingGeometry*> RayTracingGeometries;
+#endif
 
 #if NANITE_ENABLE_DEBUG_RENDERING
 	AActor* Owner;

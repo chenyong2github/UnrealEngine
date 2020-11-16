@@ -23,6 +23,10 @@
 #include "HAL/LowLevelMemStats.h"
 #include "Interfaces/ITargetPlatform.h"
 
+#if RHI_RAYTRACING
+#include "RayTracingInstance.h"
+#endif
+
 DEFINE_GPU_STAT(NaniteStreaming);
 DEFINE_GPU_STAT(NaniteReadback);
 
@@ -51,6 +55,14 @@ FAutoConsoleVariableRef CVarNaniteMaxInstanceCount(
 	GNaniteMaxInstanceCount,
 	TEXT("Maximum number of Nanite instances in the scene."),
 	ECVF_ReadOnly
+);
+
+int32 GRayTracingNaniteProxyMeshes = 0;
+FAutoConsoleVariableRef CVarRayTracingNaniteProxyMeshes(
+	TEXT("r.RayTracing.Geometry.NaniteProxies"),
+	GRayTracingNaniteProxyMeshes,
+	TEXT("Include Nanite proxy meshes in ray tracing effects (default = 0 (Nanite proxy meshes disabled in ray tracing))"),
+	ECVF_RenderThreadSafe
 );
 
 namespace Nanite
@@ -408,6 +420,17 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	Instance.WorldToLocal.SetIdentity();
 	Instance.RenderBounds = Component->GetStaticMesh()->GetBounds();
 	Instance.LocalBounds = Instance.RenderBounds;
+
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		RayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
+		for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
+		{
+			RayTracingGeometries[LODIndex] = &Component->GetStaticMesh()->GetRenderData()->LODResources[LODIndex].RayTracingGeometry;
+		}
+	}
+#endif
 }
 
 FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
@@ -818,6 +841,64 @@ void FSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views,
 	}
 #endif // NANITE_ENABLE_DEBUG_RENDERING
 }
+
+#if RHI_RAYTRACING
+void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
+{
+	if (GRayTracingNaniteProxyMeshes == 0)
+	{
+		return;
+	}
+
+	const uint32 LODIndex = FMath::Max(GetLOD(Context.ReferenceView), (int32)GetCurrentFirstLODIdx_RenderThread());
+	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
+
+	if (LODModel.GetNumVertices() <= 0 || RenderData->LODResources.Num() <= 0)
+	{
+		return;
+	}
+
+	const int32 InstanceCount = Instances.Num();
+
+	FRayTracingInstance RayTracingInstanceTemplate;
+	RayTracingInstanceTemplate.Geometry = RayTracingGeometries[LODIndex];
+	RayTracingInstanceTemplate.InstanceTransforms.Reserve(InstanceCount);
+
+	for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
+	{
+		FPrimitiveInstance& Instance = Instances[InstanceIndex];
+		FMatrix InstanceTransform = Instance.InstanceToLocal * GetLocalToWorld();
+		RayTracingInstanceTemplate.InstanceTransforms.Emplace(InstanceTransform);
+	}
+
+	if (RayTracingInstanceTemplate.InstanceTransforms.Num() > 0)
+	{
+		const int32 NumBatches = 1; //GetNumMeshBatches(); // Assume one batch for now for Nanite proxies
+		const auto& MeshSections = RenderData->LODResources[0].Sections;
+		const FStaticMeshVertexFactories& VFs = RenderData->LODVertexFactories[LODIndex];
+
+		RayTracingInstanceTemplate.Materials.Reserve(LODModel.Sections.Num() * NumBatches);
+		for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
+		{
+			for (int SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+			{
+				FMaterialSection& Section = MaterialSections[LODModel.Sections[SectionIndex].MaterialIndex];
+
+				FMeshBatch& MeshBatch = RayTracingInstanceTemplate.Materials.AddDefaulted_GetRef();
+				MeshBatch.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
+				MeshBatch.MaterialRenderProxy = Section.Material->GetRenderProxy();
+				MeshBatch.bWireframe = false;
+				MeshBatch.SegmentIndex = SectionIndex;
+				MeshBatch.LODIndex = LODIndex;
+				//MeshBatch.CastShadow = bCastShadow && Section.bCastShadow;
+			}
+		}
+
+		RayTracingInstanceTemplate.BuildInstanceMaskAndFlags();
+		OutRayTracingInstances.Emplace(RayTracingInstanceTemplate);
+	}
+}
+#endif
 
 const FCardRepresentationData* FSceneProxy::GetMeshCardRepresentation() const
 {
