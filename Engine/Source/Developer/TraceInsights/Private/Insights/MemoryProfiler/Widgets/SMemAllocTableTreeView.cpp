@@ -11,11 +11,16 @@
 #include "Insights/MemoryProfiler/ViewModels/MemAllocNode.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocTable.h"
 #include "Insights/MemoryProfiler/ViewModels/MemorySharedState.h"
+#include "Insights/MemoryProfiler/Widgets/SMemoryProfilerWindow.h"
+#include "Insights/Table/ViewModels/TableCellValueFormatter.h"
+#include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/TimingProfilerCommon.h"
 
 #include <limits>
 
 #define LOCTEXT_NAMESPACE "SMemAllocTableTreeView"
+
+using namespace TraceServices;
 
 namespace Insights
 {
@@ -24,6 +29,7 @@ namespace Insights
 
 SMemAllocTableTreeView::SMemAllocTableTreeView()
 {
+	bRunInAsyncMode = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -66,11 +72,12 @@ void SMemAllocTableTreeView::UpdateSourceTable(TSharedPtr<TraceServices::IMemAll
 
 void SMemAllocTableTreeView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	STableTreeView::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 	// We need to check if the list of LLM tags has changed.
 	// But, ensure we do not check too often.
 	static uint64 NextTimestamp = 0;
 	uint64 Time = FPlatformTime::Cycles64();
-	if (Time > NextTimestamp)
+	if (!bIsUpdateRunning && Time > NextTimestamp)
 	{
 		RebuildTree(false);
 
@@ -198,7 +205,7 @@ void SMemAllocTableTreeView::StartQuery()
 		return;
 	}
 
-	const IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
+	const IAllocationsProvider* AllocationsProvider = ReadAllocationsProvider(*Session.Get());
 	if (!AllocationsProvider)
 	{
 		UE_LOG(MemoryProfiler, Warning, TEXT("[MemAlloc] Invalid allocations provider!"));
@@ -295,7 +302,7 @@ void SMemAllocTableTreeView::UpdateQuery()
 #if defined(UE_USE_ALLOCATIONS_PROVIDER)
 	if (Query != 0)
 	{
-		const IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
+		const IAllocationsProvider* AllocationsProvider = ReadAllocationsProvider(*Session.Get());
 		if (!AllocationsProvider)
 		{
 			UE_LOG(MemoryProfiler, Warning, TEXT("[MemAlloc] Invalid allocations provider!"));
@@ -394,7 +401,7 @@ void SMemAllocTableTreeView::CancelQuery()
 #if defined(UE_USE_ALLOCATIONS_PROVIDER)
 	if (Query != 0)
 	{
-		const IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
+		const IAllocationsProvider* AllocationsProvider = ReadAllocationsProvider(*Session.Get());
 		if (AllocationsProvider)
 		{
 			AllocationsProvider->CancelQuery(Query);
@@ -403,6 +410,95 @@ void SMemAllocTableTreeView::CancelQuery()
 		Query = 0;
 	}
 #endif // defined(UE_USE_ALLOCATIONS_PROVIDER)
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemAllocTableTreeView::OnPreAsyncUpdate()
+{
+	auto LLMColumn = Table->FindColumn(TEXT("AllocLlmTag"));
+	OriginalLlmTagValueFormatter = LLMColumn->GetValueFormatter();
+	LLMColumn->SetValueFormatter(CreateCachedLlmTagValueFormatter());
+
+	STableTreeView::OnPreAsyncUpdate();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemAllocTableTreeView::OnPostAsyncUpdate()
+{
+	if (OriginalLlmTagValueFormatter.IsValid())
+	{
+		auto LLMColumn = Table->FindColumn(TEXT("AllocLlmTag"));
+		LLMColumn->SetValueFormatter(OriginalLlmTagValueFormatter.ToSharedRef());
+		OriginalLlmTagValueFormatter = nullptr;
+	}
+
+	STableTreeView::OnPostAsyncUpdate();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<ITableCellValueFormatter> SMemAllocTableTreeView::CreateCachedLlmTagValueFormatter()
+{
+	class FCachedMemAllocLlmTagValueFormatter : public FTableCellValueFormatter
+	{
+	public:
+		virtual FText FormatValue(const TOptional<FTableCellValue>& InValue) const override
+		{
+			if (InValue.IsSet())
+			{
+				const FMemoryTagId MemTagId = static_cast<FMemoryTagId>(InValue.GetValue().Int64);
+
+				if (TagIdToStatNameMap.Contains(MemTagId))
+				{
+					FText::FromString(TagIdToStatNameMap[MemTagId]);
+				}
+				return FText::FromString(FString());
+			}
+			return FText::GetEmpty();
+		}
+		virtual FText FormatValueForTooltip(const TOptional<FTableCellValue>& InValue) const override
+		{
+			if (InValue.IsSet())
+			{
+				const FMemoryTagId MemTagId = static_cast<FMemoryTagId>(InValue.GetValue().Int64);
+				if (TagIdToStatNameMap.Contains(MemTagId))
+				{
+					return FText::FromString(FString::Printf(TEXT("%lli (%s)"), MemTagId, *TagIdToStatNameMap[MemTagId]));
+				}
+				
+				return FText::FromString(FString::Printf(TEXT("%lli ()"), MemTagId));
+			}
+			return FText::GetEmpty();
+		}
+		virtual FText FormatValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override { return FormatValue(Column.GetValue(Node)); }
+		virtual FText FormatValueForTooltip(const FTableColumn& Column, const FBaseTreeNode& Node) const override { return FormatValueForTooltip(Column.GetValue(Node)); }
+
+		void AddTagToCache(FMemoryTagId TagId, const FString& StatName)
+		{
+			TagIdToStatNameMap.Add(TagId, StatName);
+		}
+
+	private:
+		TMap<FMemoryTagId, FString> TagIdToStatNameMap;
+	};
+
+	TSharedRef<FCachedMemAllocLlmTagValueFormatter> Formatter = MakeShared<FCachedMemAllocLlmTagValueFormatter>();
+
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = FMemoryProfilerManager::Get()->GetProfilerWindow();
+	if (ProfilerWindow)
+	{
+		auto& SharedState = ProfilerWindow->GetSharedState();
+		const Insights::FMemoryTagList& TagList = SharedState.GetTagList();
+		for (FMemoryTag* CurrentTag : TagList.GetTags())
+		{
+			Formatter->AddTagToCache(CurrentTag->GetId(), CurrentTag->GetStatName());
+		}
+
+	}
+
+	return Formatter;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -213,7 +213,7 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 	];
 
 	// Create the search filters: text based, type based etc.
-	TextFilter = MakeShared<FTableTreeNodeTextFilter>(FTableTreeNodeTextFilter::FItemToStringArray::CreateSP(this, &STableTreeView::HandleItemToStringArray));
+	TextFilter = MakeShared<FTableTreeNodeTextFilter>(FTableTreeNodeTextFilter::FItemToStringArray::CreateStatic(&STableTreeView::HandleItemToStringArray));
 	Filters = MakeShared<FTableTreeNodeFilterCollection>();
 	Filters->Add(TextFilter);
 
@@ -579,14 +579,47 @@ void STableTreeView::InsightsManager_OnSessionChanged()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void STableTreeView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	if (bRunInAsyncMode && bIsUpdateRunning)
+	{
+		check(PendingAsyncOperationEvent.IsValid());
+		if (PendingAsyncOperationEvent->IsComplete())
+		{
+			OnPostAsyncUpdate();
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STableTreeView::UpdateTree()
 {
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
 
-	CreateGroups();
-	SortTreeNodes();
-	ApplyFiltering();
+	if (bRunInAsyncMode)
+	{
+		OnPreAsyncUpdate();
+
+		FGraphEventRef GroupingCompletedEvent = TGraphTask<FTableTreeViewGroupAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(SharedThis(this));
+		
+		FGraphEventArray Prerequistes;
+		Prerequistes.Add(GroupingCompletedEvent);
+		FGraphEventRef SortingCompletedEvent = TGraphTask<FTableTreeViewSortAsyncTask>::CreateTask(&Prerequistes).ConstructAndDispatchWhenReady(SharedThis(this));
+		
+		Prerequistes.Empty();
+		Prerequistes.Add(SortingCompletedEvent);
+		FGraphEventRef FilteringCompletedEvent = TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask(&Prerequistes).ConstructAndDispatchWhenReady(SharedThis(this));
+		
+		PendingAsyncOperationEvent = FilteringCompletedEvent;
+	}
+	else
+	{
+		CreateGroups();
+		SortTreeNodes();
+		ApplyFiltering();
+	}
 
 	Stopwatch.Stop();
 	const double TotalTime = Stopwatch.GetAccumulatedTime();
@@ -619,39 +652,43 @@ void STableTreeView::ApplyFiltering()
 		}
 	}
 
-	// Only expand nodes if we have a text filter.
-	const bool bNonEmptyTextFilter = !TextFilter->GetRawFilterText().IsEmpty();
-	if (bNonEmptyTextFilter)
+	// Cannot call TreeView functions from other threads than MainThread and SlateThread. 
+	if (!bRunInAsyncMode)
 	{
-		if (!bExpansionSaved)
+		// Only expand nodes if we have a text filter.
+		const bool bNonEmptyTextFilter = !TextFilter->GetRawFilterText().IsEmpty();
+		if (bNonEmptyTextFilter)
 		{
-			ExpandedNodes.Empty();
-			TreeView->GetExpandedItems(ExpandedNodes);
-			bExpansionSaved = true;
-		}
-
-		for (int32 Fx = 0; Fx < FilteredGroupNodes.Num(); Fx++)
-		{
-			const FTableTreeNodePtr& GroupPtr = FilteredGroupNodes[Fx];
-			TreeView->SetItemExpansion(GroupPtr, GroupPtr->IsExpanded());
-		}
-	}
-	else
-	{
-		if (bExpansionSaved)
-		{
-			// Restore previously expanded nodes when the text filter is disabled.
-			TreeView->ClearExpandedItems();
-			for (auto It = ExpandedNodes.CreateConstIterator(); It; ++It)
+			if (!bExpansionSaved)
 			{
-				TreeView->SetItemExpansion(*It, true);
+				ExpandedNodes.Empty();
+				TreeView->GetExpandedItems(ExpandedNodes);
+				bExpansionSaved = true;
 			}
-			bExpansionSaved = false;
-		}
-	}
 
-	// Request tree refresh
-	TreeView->RequestTreeRefresh();
+			for (int32 Fx = 0; Fx < FilteredGroupNodes.Num(); Fx++)
+			{
+				const FTableTreeNodePtr& GroupPtr = FilteredGroupNodes[Fx];
+				TreeView->SetItemExpansion(GroupPtr, GroupPtr->IsExpanded());
+			}
+		}
+		else
+		{
+			if (bExpansionSaved)
+			{
+				// Restore previously expanded nodes when the text filter is disabled.
+				TreeView->ClearExpandedItems();
+				for (auto It = ExpandedNodes.CreateConstIterator(); It; ++It)
+				{
+					TreeView->SetItemExpansion(*It, true);
+				}
+				bExpansionSaved = false;
+			}
+		}
+
+		// Request tree refresh
+		TreeView->RequestTreeRefresh();
+	}
 
 	Stopwatch.Stop();
 	const double TotalTime = Stopwatch.GetAccumulatedTime();
@@ -707,7 +744,7 @@ bool STableTreeView::ApplyFilteringForNode(FTableTreeNodePtr NodePtr)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::HandleItemToStringArray(const FTableTreeNodePtr& FTableTreeNodePtr, TArray<FString>& OutSearchStrings) const
+void STableTreeView::HandleItemToStringArray(const FTableTreeNodePtr& FTableTreeNodePtr, TArray<FString>& OutSearchStrings)
 {
 	OutSearchStrings.Add(FTableTreeNodePtr->GetName().GetPlainNameString());
 }
@@ -837,13 +874,30 @@ void STableTreeView::SearchBox_OnTextChanged(const FText& InFilterText)
 {
 	TextFilter->SetRawFilterText(InFilterText);
 	SearchBox->SetError(TextFilter->GetFilterErrorText());
-	ApplyFiltering();
+
+	if(bRunInAsyncMode)
+	{
+		OnPreAsyncUpdate();
+
+		FGraphEventRef FilteringCompletedEvent = TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(SharedThis(this));
+
+		PendingAsyncOperationEvent = FilteringCompletedEvent;
+	}
+	else
+	{
+		ApplyFiltering();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool STableTreeView::SearchBox_IsEnabled() const
 {
+	if (bIsUpdateRunning)
+	{
+		return false;
+	}
+
 	return TableTreeNodes.Num() > 0;
 }
 
@@ -906,7 +960,10 @@ void STableTreeView::GroupNodesRec(const TArray<FTableTreeNodePtr>& Nodes, FTabl
 	{
 		ensure(GroupPtr->IsGroup());
 		FTableTreeNodePtr TableTreeGroupPtr = StaticCastSharedPtr<FTableTreeNode>(GroupPtr);
-		TreeView->SetItemExpansion(TableTreeGroupPtr, TableTreeGroupPtr->IsExpanded());
+		if (!bRunInAsyncMode)
+		{
+			TreeView->SetItemExpansion(TableTreeGroupPtr, TableTreeGroupPtr->IsExpanded());
+		}
 	}
 
 	if (GroupingDepth < CurrentGroupings.Num() - 1)
@@ -1135,11 +1192,30 @@ void STableTreeView::PostChangeGroupings()
 
 	TreeViewHeaderRow->RefreshColumns();
 
-	CreateGroups();
-	SortTreeNodes();
-	ApplyFiltering();
+	if (bRunInAsyncMode)
+	{
+		OnPreAsyncUpdate();
 
-	RebuildGroupingCrumbs();
+		FGraphEventRef GroupingCompletedEvent = TGraphTask<FTableTreeViewGroupAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(SharedThis(this));
+
+		FGraphEventArray Prerequistes;
+		Prerequistes.Add(GroupingCompletedEvent);
+		FGraphEventRef SortingCompletedEvent = TGraphTask<FTableTreeViewSortAsyncTask>::CreateTask(&Prerequistes).ConstructAndDispatchWhenReady(SharedThis(this));
+
+		Prerequistes.Empty();
+		Prerequistes.Add(SortingCompletedEvent);
+		FGraphEventRef FilteringCompletedEvent = TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask(&Prerequistes).ConstructAndDispatchWhenReady(SharedThis(this));
+
+		PendingAsyncOperationEvent = FilteringCompletedEvent;
+	}
+	else
+	{
+		CreateGroups();
+		SortTreeNodes();
+		ApplyFiltering();
+
+		RebuildGroupingCrumbs();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1256,6 +1332,11 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 	}
 	MenuBuilder.EndSection();
 
+	auto CanExecute = [this]()
+	{
+		return !this->IsRunningAsyncUpdate();
+	};
+
 	if (CrumbGroupingDepth >= 0)
 	{
 		MenuBuilder.BeginSection("CrumbGrouping", CrumbGrouping->GetTitleName());
@@ -1274,7 +1355,7 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 				FUIAction Action_MoveLeft
 				(
 					FExecuteAction::CreateSP(this, &STableTreeView::GroupingCrumbMenu_MoveLeft_Execute, CrumbGrouping),
-					FCanExecuteAction()
+					FCanExecuteAction::CreateLambda(CanExecute)
 				);
 				MenuBuilder.AddMenuEntry
 				(
@@ -1289,7 +1370,7 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 				FUIAction Action_MoveRight
 				(
 					FExecuteAction::CreateSP(this, &STableTreeView::GroupingCrumbMenu_MoveRight_Execute, CrumbGrouping),
-					FCanExecuteAction()
+					FCanExecuteAction::CreateLambda(CanExecute)
 				);
 				MenuBuilder.AddMenuEntry
 				(
@@ -1304,7 +1385,7 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 				FUIAction Action_Remove
 				(
 					FExecuteAction::CreateSP(this, &STableTreeView::GroupingCrumbMenu_Remove_Execute, CrumbGrouping),
-					FCanExecuteAction()
+					FCanExecuteAction::CreateLambda(CanExecute)
 				);
 				MenuBuilder.AddMenuEntry
 				(
@@ -1324,7 +1405,7 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 			FUIAction Action_Reset
 			(
 				FExecuteAction::CreateSP(this, &STableTreeView::GroupingCrumbMenu_Reset_Execute),
-				FCanExecuteAction()
+				FCanExecuteAction::CreateLambda(CanExecute)
 			);
 			MenuBuilder.AddMenuEntry
 			(
@@ -1435,6 +1516,11 @@ void STableTreeView::GroupingCrumbMenu_Change_Execute(const TSharedPtr<FTreeNode
 
 bool STableTreeView::GroupingCrumbMenu_Change_CanExecute(const TSharedPtr<FTreeNodeGrouping> OldGrouping, const TSharedPtr<FTreeNodeGrouping> NewGrouping) const
 {
+	if (bIsUpdateRunning)
+	{
+		return false;
+	}
+
 	return NewGrouping != OldGrouping;
 }
 
@@ -1482,6 +1568,11 @@ void STableTreeView::GroupingCrumbMenu_Add_Execute(const TSharedPtr<FTreeNodeGro
 
 bool STableTreeView::GroupingCrumbMenu_Add_CanExecute(const TSharedPtr<FTreeNodeGrouping> Grouping, const TSharedPtr<FTreeNodeGrouping> AfterGrouping) const
 {
+	if (bIsUpdateRunning)
+	{
+		return false;
+	}
+
 	if (AfterGrouping.IsValid())
 	{
 		const int32 AfterGroupingDepth = GetGroupingDepth(AfterGrouping);
@@ -1607,14 +1698,34 @@ void STableTreeView::SetSortModeForColumn(const FName& ColumnId, const EColumnSo
 	ColumnSortMode = SortMode;
 	UpdateCurrentSortingByColumn();
 
-	SortTreeNodes();
-	ApplyFiltering();
+	if (bRunInAsyncMode)
+	{
+		OnPreAsyncUpdate();
+
+		FGraphEventRef SortingCompletedEvent = TGraphTask<FTableTreeViewSortAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(SharedThis(this));
+
+		FGraphEventArray Prerequistes;
+		Prerequistes.Add(SortingCompletedEvent);
+		FGraphEventRef FilteringCompletedEvent = TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask(&Prerequistes).ConstructAndDispatchWhenReady(SharedThis(this));
+
+		PendingAsyncOperationEvent = FilteringCompletedEvent;
+	}
+	else
+	{
+		SortTreeNodes();
+		ApplyFiltering();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STableTreeView::OnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type SortMode)
 {
+	if (bIsUpdateRunning)
+	{
+		return;
+	}
+
 	SetSortModeForColumn(ColumnId, SortMode);
 	TreeView_Refresh();
 }
@@ -1632,6 +1743,11 @@ bool STableTreeView::HeaderMenu_SortMode_IsChecked(const FName ColumnId, const E
 
 bool STableTreeView::HeaderMenu_SortMode_CanExecute(const FName ColumnId, const EColumnSortMode::Type InSortMode) const
 {
+	if (bIsUpdateRunning)
+	{
+		return false;
+	}
+
 	const FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	return Column.CanBeSorted();
 }
@@ -1657,6 +1773,11 @@ bool STableTreeView::ContextMenu_SortMode_IsChecked(const EColumnSortMode::Type 
 
 bool STableTreeView::ContextMenu_SortMode_CanExecute(const EColumnSortMode::Type InSortMode) const
 {
+	if (bIsUpdateRunning)
+	{
+		return false;
+	}
+
 	return true; //ColumnSortMode != InSortMode;
 }
 
@@ -1681,6 +1802,11 @@ bool STableTreeView::ContextMenu_SortByColumn_IsChecked(const FName ColumnId)
 
 bool STableTreeView::ContextMenu_SortByColumn_CanExecute(const FName ColumnId) const
 {
+	if (bIsUpdateRunning)
+	{
+		return false;
+	}
+
 	return true; //ColumnId != ColumnBeingSorted;
 }
 
@@ -1759,6 +1885,11 @@ void STableTreeView::ShowColumn(const FName ColumnId)
 
 bool STableTreeView::CanHideColumn(const FName ColumnId) const
 {
+	if (bIsUpdateRunning)
+	{
+		return false;
+	}
+
 	const FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	return Column.CanBeHidden();
 }
@@ -1787,6 +1918,11 @@ bool STableTreeView::IsColumnVisible(const FName ColumnId)
 
 bool STableTreeView::CanToggleColumnVisibility(const FName ColumnId) const
 {
+	if (bIsUpdateRunning)
+	{
+		return false;
+	}
+
 	const FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	return !Column.IsVisible() || Column.CanBeHidden();
 }
@@ -1812,6 +1948,11 @@ void STableTreeView::ToggleColumnVisibility(const FName ColumnId)
 
 bool STableTreeView::ContextMenu_ShowAllColumns_CanExecute() const
 {
+	if (bIsUpdateRunning)
+	{
+		return false;
+	}
+
 	return true;
 }
 
@@ -1840,6 +1981,11 @@ void STableTreeView::ContextMenu_ShowAllColumns_Execute()
 
 bool STableTreeView::ContextMenu_ResetColumns_CanExecute() const
 {
+	if (bIsUpdateRunning)
+	{
+		return false;
+	}
+
 	return true;
 }
 
@@ -1903,6 +2049,31 @@ void STableTreeView::SelectNodeByTableRowIndex(int32 RowIndex)
 			TreeView->RequestScrollIntoView(NodePtr);
 		}
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::OnPreAsyncUpdate()
+{
+	check(!bIsUpdateRunning);
+
+	bIsUpdateRunning = true;
+	TreeView->SetTreeItemsSource(&DummyGroupNodes);
+	TreeView_Refresh();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::OnPostAsyncUpdate()
+{
+	check(bIsUpdateRunning);
+
+	bIsUpdateRunning = false;
+
+	RebuildGroupingCrumbs();
+
+	TreeView->SetTreeItemsSource(&FilteredGroupNodes);
+	TreeView_Refresh();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

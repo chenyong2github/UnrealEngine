@@ -47,6 +47,10 @@ typedef TTextFilter<const FTableTreeNodePtr&> FTableTreeNodeTextFilter;
  */
 class STableTreeView : public SCompoundWidget
 {
+	friend class FTableTreeViewFilterAsyncTask;
+	friend class FTableTreeViewSortAsyncTask;
+	friend class FTableTreeViewGroupAsyncTask;
+
 public:
 	/** Default constructor. */
 	STableTreeView();
@@ -71,6 +75,15 @@ public:
 	void RebuildColumns();
 
 	/**
+	 * Ticks this widget.  Override in derived classes, but always call the parent implementation.
+	 *
+	 * @param  AllottedGeometry The space allotted for this widget
+	 * @param  InCurrentTime  Current absolute real time
+	 * @param  InDeltaTime  Real time passed since last tick
+	 */
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
+	/**
 	 * Rebuilds the tree (if necessary).
 	 * @param bResync - If true, it forces a resync even if the list did not changed since last sync.
 	 */
@@ -78,6 +91,7 @@ public:
 
 	FTableTreeNodePtr GetNodeByTableRowIndex(int32 RowIndex) const;
 	void SelectNodeByTableRowIndex(int32 RowIndex);
+	bool IsRunningAsyncUpdate() { return bIsUpdateRunning;  }
 
 protected:
 	void ConstructWidget(TSharedPtr<FTable> InTablePtr);
@@ -93,7 +107,7 @@ protected:
 	 * @param OutSearchStrings   - an array of strings to use in searching.
 	 *
 	 */
-	void HandleItemToStringArray(const FTableTreeNodePtr& GroupOrStatNodePtr, TArray<FString>& OutSearchStrings) const;
+	static void HandleItemToStringArray(const FTableTreeNodePtr& GroupOrStatNodePtr, TArray<FString>& OutSearchStrings);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tree View - Context Menu
@@ -244,6 +258,10 @@ protected:
 	bool ContextMenu_ResetColumns_CanExecute() const;
 	void ContextMenu_ResetColumns_Execute();
 
+	//Async
+	virtual void OnPreAsyncUpdate();
+	virtual void OnPostAsyncUpdate();
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 protected:
@@ -335,11 +353,94 @@ protected:
 	EColumnSortMode::Type ColumnSortMode;
 
 	//////////////////////////////////////////////////
+	// Async
+	bool bRunInAsyncMode = false;
+	FGraphEventRef PendingAsyncOperationEvent;;
+	bool bIsUpdateRunning = false;
+	TArray<FTableTreeNodePtr> DummyGroupNodes;
+
+	//////////////////////////////////////////////////
 
 	double StatsStartTime;
 	double StatsEndTime;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FTableTreeViewFilterAsyncTask
+{
+public:
+	FTableTreeViewFilterAsyncTask(TSharedPtr<STableTreeView> InPtr)
+	{
+		TableTreeViewPtr = InPtr;
+	}
+
+	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FTableTreeViewFilterAsyncTask, STATGROUP_TaskGraphTasks); }
+	ENamedThreads::Type GetDesiredThread() { return ENamedThreads::Type::AnyThread; }
+	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		if (TableTreeViewPtr.IsValid())
+		{
+			TableTreeViewPtr->ApplyFiltering();
+		}
+	}
+
+private:
+	TSharedPtr<STableTreeView> TableTreeViewPtr;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FTableTreeViewSortAsyncTask
+{
+public:
+	FTableTreeViewSortAsyncTask(TSharedPtr<STableTreeView> InPtr)
+	{
+		TableTreeViewPtr = InPtr;
+	}
+
+	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FTableTreeViewSortAsyncTask, STATGROUP_TaskGraphTasks); }
+	ENamedThreads::Type GetDesiredThread() { return ENamedThreads::Type::AnyThread; }
+	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		if (TableTreeViewPtr.IsValid())
+		{
+			TableTreeViewPtr->SortTreeNodes();
+		}
+	}
+
+private:
+	TSharedPtr<STableTreeView> TableTreeViewPtr;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FTableTreeViewGroupAsyncTask
+{
+public:
+	FTableTreeViewGroupAsyncTask(TSharedPtr<STableTreeView> InPtr)
+	{
+		TableTreeViewPtr = InPtr;
+	}
+
+	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FTableTreeViewGroupAsyncTask, STATGROUP_TaskGraphTasks); }
+	ENamedThreads::Type GetDesiredThread() { return ENamedThreads::Type::AnyThread; }
+	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		if (TableTreeViewPtr.IsValid())
+		{
+			TableTreeViewPtr->CreateGroups();
+		}
+	}
+
+private:
+	TSharedPtr<STableTreeView> TableTreeViewPtr;
+};
 
 } // namespace Insights

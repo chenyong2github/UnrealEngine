@@ -70,19 +70,27 @@ public:
 	int32 GetTabIndex() const { return TabIndex; }
 	void SetTabIndex(int32 InTabIndex) { TabIndex = InTabIndex; }
 
+protected:
+	virtual void OnPreAsyncUpdate() override;
+	virtual void OnPostAsyncUpdate() override;
+
 private:
 	void OnQueryInvalidated();
 	void StartQuery();
 	void UpdateQuery();
 	void CancelQuery();
 
+	TSharedRef<class ITableCellValueFormatter> CreateCachedLlmTagValueFormatter();
+
 private:
 	int32 TabIndex = -1;
 	TSharedPtr<FMemoryRuleSpec> Rule = nullptr;
 	double TimeMarkers[4];
 #if defined(UE_USE_ALLOCATIONS_PROVIDER)
-	IAllocationsProvider::QueryHandle Query = 0;
+	TraceServices::IAllocationsProvider::QueryHandle Query = 0;
 #endif
+
+	TSharedPtr<class ITableCellValueFormatter> OriginalLlmTagValueFormatter;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
