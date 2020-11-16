@@ -132,6 +132,59 @@ struct FGenericPlatformMath
 		VectorStoreHalf(Dst + 4, Src + 4);
 	}
 
+	/** 
+	 * Performs a bit cast of the given float to an unsigned int of the same bit width.
+	 * @param F The float to bit cast to an unsigned integer.
+	*  @return A bitwise copy of the float in a 32-bit unsigned integer value.
+	 */
+	static inline uint32 AsUInt(float F)
+	{
+		uint32 U{};
+		static_assert(sizeof(F) == sizeof(U), "The float and uint sizes must be equal");
+		::memcpy(&U, &F, sizeof(F));
+		return U;
+	}
+
+	/** 
+	 * Performs a bit cast of the given double to an unsigned int of the same bit width.
+	 * @param D The double to bit cast to an unsigned integer.
+	*  @return A bitwise copy of the double in a 64-bit unsigned integer value.
+	 */
+	static inline uint64 AsUInt(double F)
+	{
+		uint64 U{};
+		static_assert(sizeof(F) == sizeof(U), "The float and uint sizes must be equal");
+		::memcpy(&U, &F, sizeof(F));
+		return U;
+	}
+
+	/** 
+	 * Performs a bit cast of the given unsigned int to float of the same bit width.
+	 * @param U The 32-bit unsigned int to bit cast to a 32-bit float.
+	*  @return A bitwise copy of the 32-bit float in a 32-bit unsigned integer value.
+	 */
+	static inline float AsFloat(uint32 U)
+	{
+		float F{};
+		static_assert(sizeof(F) == sizeof(U), "The float and uint sizes must be equal");
+		::memcpy(&F, &U, sizeof(U));
+		return F;
+	}
+
+	/** 
+	 * Performs a bit cast of the given unsigned int to float of the same bit width.
+	 * @param U The 64-bit unsigned int to bit cast to a 64-bit float.
+	*  @return A bitwise copy of the 64-bit float in a 64-bit unsigned integer value.
+	 */
+	static inline double AsFloat(uint64 U)
+	{
+		double F{};
+		static_assert(sizeof(F) == sizeof(U), "The float and uint sizes must be equal");
+		::memcpy(&F, &U, sizeof(F));
+		return F;
+	}
+
+
 	/**
 	 * Converts a float to an integer with truncation towards zero.
 	 * @param F		Floating point value to convert

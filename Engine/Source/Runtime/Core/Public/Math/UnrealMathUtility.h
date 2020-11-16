@@ -284,15 +284,8 @@ private:
 			}
 		};
 
-		union FFloatToInt { FloatType F; IntegralType I; };
-		FFloatToInt FloatA;
-		FFloatToInt FloatB;
-
-		FloatA.F = A;
-		FloatB.F = B;
-
-		IntegralType SNA = FloatToSignedNumber(FloatA.I);
-		IntegralType SNB = FloatToSignedNumber(FloatB.I);
+		IntegralType SNA = FloatToSignedNumber(FMath::AsUInt(A));
+		IntegralType SNB = FloatToSignedNumber(FMath::AsUInt(B));
 		IntegralType Distance = (SNA >= SNB) ? (SNA - SNB) : (SNB - SNA);
 		return Distance <= IntegralType(MaxUlps);
 	}

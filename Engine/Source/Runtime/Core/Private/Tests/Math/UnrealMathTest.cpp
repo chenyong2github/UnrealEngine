@@ -2232,4 +2232,26 @@ bool FNanInfVerificationTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBitCastTest, "System.Core.Math.Bitcast", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FBitCastTest::RunTest(const FString& Parameters)
+{
+	TestTrue(TEXT("CastFloatToInt32_0"),  FPlatformMath::AsUInt( 0.0f) == 0x00000000U);
+	TestTrue(TEXT("CastFloatToInt32_P1"), FPlatformMath::AsUInt(+1.0f) == 0x3f800000U);
+	TestTrue(TEXT("CastFloatToInt32_N1"), FPlatformMath::AsUInt(-1.0f) == 0xbf800000U);
+
+	TestTrue(TEXT("CastFloatToInt64_0"),  FPlatformMath::AsUInt( 0.0) == 0x0000000000000000ULL);
+	TestTrue(TEXT("CastFloatToInt64_P1"), FPlatformMath::AsUInt(+1.0) == 0x3ff0000000000000ULL);
+	TestTrue(TEXT("CastFloatToInt64_N1"), FPlatformMath::AsUInt(-1.0) == 0xbff0000000000000ULL);
+
+	TestTrue(TEXT("CastIntToFloat32_0"),  FPlatformMath::AsFloat(static_cast<uint32>(0x00000000U)) == 0.0f);
+	TestTrue(TEXT("CastIntToFloat32_P1"), FPlatformMath::AsFloat(static_cast<uint32>(0x3f800000U)) == +1.0f);
+	TestTrue(TEXT("CastIntToFloat32_N1"), FPlatformMath::AsFloat(static_cast<uint32>(0xbf800000U)) == -1.0f);
+
+	TestTrue(TEXT("CastIntToFloat64_0"),  FPlatformMath::AsFloat(static_cast<uint64>(0x0000000000000000ULL)) == 0.0);
+	TestTrue(TEXT("CastIntToFloat64_P1"), FPlatformMath::AsFloat(static_cast<uint64>(0x3ff0000000000000ULL)) == +1.0);
+	TestTrue(TEXT("CastIntToFloat64_N1"), FPlatformMath::AsFloat(static_cast<uint64>(0xbff0000000000000ULL)) == -1.0);
+
+	return true;
+}
+
 #endif //WITH_DEV_AUTOMATION_TESTS
