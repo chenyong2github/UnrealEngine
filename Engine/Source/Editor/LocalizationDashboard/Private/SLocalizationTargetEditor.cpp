@@ -13,7 +13,10 @@ void SLocalizationTargetEditor::Construct(const FArguments& InArgs, ULocalizatio
 	LocalizationTarget = InLocalizationTarget;
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	FDetailsViewArgs DetailsViewArgs(false, false, false, FDetailsViewArgs::ENameAreaSettings::HideNameArea, false, nullptr, false, NAME_None);
+	FDetailsViewArgs DetailsViewArgs;
+	DetailsViewArgs.bAllowSearch = false;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+
 	TSharedRef<IDetailsView> DetailsView = PropertyModule.CreateDetailView(DetailsViewArgs);
 	DetailsView->SetObject(InLocalizationTarget, true);
 	DetailsView->SetIsPropertyEditingEnabledDelegate(IsPropertyEditingEnabled);

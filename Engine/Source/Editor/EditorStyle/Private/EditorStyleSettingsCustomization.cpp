@@ -38,16 +38,11 @@ public:
 
 		FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-		FDetailsViewArgs DetailsViewArgs(
-			/*bUpdateFromSelection=*/ false,
-			/*bLockable=*/ false,
-			/*bAllowSearch=*/ false,
-			FDetailsViewArgs::HideNameArea,
-			/*bHideSelectionTip=*/ true,
-			/*InNotifyHook=*/ nullptr,
-			/*InSearchInitialKeyFocus=*/ false,
-			/*InViewIdentifier=*/ NAME_None);
+		FDetailsViewArgs DetailsViewArgs;
+		DetailsViewArgs.bAllowSearch = false;
 		DetailsViewArgs.bShowOptions = false;
+		DetailsViewArgs.bHideSelectionTip = true;
+		DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 
 		TSharedRef<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 

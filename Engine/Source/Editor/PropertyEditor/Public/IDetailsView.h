@@ -102,26 +102,19 @@ struct FDetailsViewArgs
 	float ColumnWidth;
 
 public:
-	/** Default constructor */
-	FDetailsViewArgs( const bool InUpdateFromSelection = false
-					, const bool InLockable = false
-					, const bool InAllowSearch = true
-					, const ENameAreaSettings InNameAreaSettings = ActorsUseNameArea
-					, const bool InHideSelectionTip = false
-					, FNotifyHook* InNotifyHook = NULL
-					, const bool InSearchInitialKeyFocus = false
-					, FName InViewIdentifier = NAME_None )
+
+	FDetailsViewArgs()
 		: DefaultsOnlyVisibility(EEditDefaultsOnlyNodeVisibility::Show)
-		, ViewIdentifier( InViewIdentifier )
-		, NotifyHook( InNotifyHook )
-		, NameAreaSettings( InNameAreaSettings )
-		, bUpdatesFromSelection( InUpdateFromSelection )
-		, bLockable(InLockable)
-		, bAllowSearch( InAllowSearch )
-		, bHideSelectionTip( InHideSelectionTip )
-		, bSearchInitialKeyFocus( InSearchInitialKeyFocus )
+		, ViewIdentifier(NAME_None)
+		, NotifyHook(nullptr)
+		, NameAreaSettings(ActorsUseNameArea)
+		, bUpdatesFromSelection(false)
+		, bLockable(false)
+		, bAllowSearch(true)
+		, bHideSelectionTip(false)
+		, bSearchInitialKeyFocus(false)
 		, bShowPropertyMatrixButton(true)
-		, bShowOptions( true )
+		, bShowOptions(true)
 		, bShowModifiedPropertiesOption(true)
 		, bShowActorLabel(true)
 		, bShowDifferingPropertiesOption(false)
@@ -136,6 +129,28 @@ public:
 		, bShowCustomFilterOption(false)
 		, ColumnWidth(.65f)
 	{
+	}
+
+	/** Default constructor */
+	UE_DEPRECATED(5.0, "This constructor is deprecated, please create an empty FDetailsViewArgs and explicitly set any values that you wish to change.")
+	FDetailsViewArgs( const bool InUpdateFromSelection
+					, const bool InLockable = false
+					, const bool InAllowSearch = true
+					, const ENameAreaSettings InNameAreaSettings = ActorsUseNameArea
+					, const bool InHideSelectionTip = false
+					, FNotifyHook* InNotifyHook = NULL
+					, const bool InSearchInitialKeyFocus = false
+					, FName InViewIdentifier = NAME_None )
+		: FDetailsViewArgs()
+	{
+		bUpdatesFromSelection = InUpdateFromSelection;
+		bLockable = InLockable;
+		bAllowSearch = InAllowSearch;
+		NameAreaSettings = InNameAreaSettings;
+		bHideSelectionTip = InHideSelectionTip;
+		NotifyHook = InNotifyHook;
+		bSearchInitialKeyFocus = InSearchInitialKeyFocus;
+		ViewIdentifier = InViewIdentifier;
 	}
 };
 

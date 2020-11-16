@@ -185,7 +185,10 @@ void SFoliagePalette::Construct(const FArguments& InArgs)
 		FoliageTypeTextFilter::FItemToStringArray::CreateSP(this, &SFoliagePalette::GetPaletteItemFilterString)));
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	FDetailsViewArgs Args(false, false, false, FDetailsViewArgs::HideNameArea, true);
+	FDetailsViewArgs Args;
+	Args.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+	Args.bAllowSearch = false; 
+	Args.bHideSelectionTip = true;
 	Args.bShowActorLabel = false;
 	DetailsWidget = PropertyModule.CreateDetailView(Args);
 	DetailsWidget->SetVisibility(FoliageEditMode->UISettings.GetShowPaletteItemDetails() ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed);

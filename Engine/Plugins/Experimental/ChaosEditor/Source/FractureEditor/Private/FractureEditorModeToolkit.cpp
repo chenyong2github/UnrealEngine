@@ -175,15 +175,10 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FFractureEditorModeToolkit::OnObjectPostEditChange);
 
-	FDetailsViewArgs DetailsViewArgs(
-		false,  //bUpdateFromSelection=
-		false, //bLockable=
-		false, //bAllowSearch=
-		FDetailsViewArgs::HideNameArea,
-		true, //bHideSelectionTip=
-		nullptr, //InNotifyHook=
-		false, //InSearchInitialKeyFocus=
-		NAME_None); //InViewIdentifier=
+	FDetailsViewArgs DetailsViewArgs;
+	DetailsViewArgs.bAllowSearch = false;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+	DetailsViewArgs.bHideSelectionTip = true;
 	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
 	DetailsViewArgs.bShowOptions = false;
 	DetailsViewArgs.bAllowMultipleTopLevelObjects = true;

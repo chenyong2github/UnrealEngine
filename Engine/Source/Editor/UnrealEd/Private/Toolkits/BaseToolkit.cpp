@@ -144,36 +144,29 @@ void FModeToolkit::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost,
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-	FDetailsViewArgs ModeDetailsViewArgs(
-		/*bUpdateFromSelection=*/ false,
-		/*bLockable=*/ false,
-		/*bAllowSearch=*/ false,
-		FDetailsViewArgs::HideNameArea,
-		/*bHideSelectionTip=*/ true,
-		/*InNotifyHook=*/ nullptr,
-		/*InSearchInitialKeyFocus=*/ false,
-		/*InViewIdentifier=*/ NAME_None);
-	ModeDetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
-	ModeDetailsViewArgs.bShowOptions = false;
-	ModeDetailsViewArgs.bAllowMultipleTopLevelObjects = true;
+	{
+		FDetailsViewArgs ModeDetailsViewArgs;
+		ModeDetailsViewArgs.bAllowSearch = false;
+		ModeDetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+		ModeDetailsViewArgs.bHideSelectionTip = true;
+		ModeDetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
+		ModeDetailsViewArgs.bShowOptions = false;
+		ModeDetailsViewArgs.bAllowMultipleTopLevelObjects = true;
 
-	ModeDetailsView = PropertyEditorModule.CreateDetailView(ModeDetailsViewArgs);
+		ModeDetailsView = PropertyEditorModule.CreateDetailView(ModeDetailsViewArgs);
+	}
 
-	FDetailsViewArgs DetailsViewArgs(
-		/*bUpdateFromSelection=*/ false,
-		/*bLockable=*/ false,
-		/*bAllowSearch=*/ false,
-		FDetailsViewArgs::HideNameArea,
-		/*bHideSelectionTip=*/ true,
-		/*InNotifyHook=*/ nullptr,
-		/*InSearchInitialKeyFocus=*/ false,
-		/*InViewIdentifier=*/ NAME_None);
-	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
-	DetailsViewArgs.bShowOptions = false;
-	DetailsViewArgs.bAllowMultipleTopLevelObjects = true;
+	{
+		FDetailsViewArgs DetailsViewArgs;
+		DetailsViewArgs.bAllowSearch = false;
+		DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+		DetailsViewArgs.bHideSelectionTip = true;
+		DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
+		DetailsViewArgs.bShowOptions = false;
+		DetailsViewArgs.bAllowMultipleTopLevelObjects = true;
 
-	DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
-
+		DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	}
 
 	FToolkitManager::Get().RegisterNewToolkit(SharedThis(this));
 }

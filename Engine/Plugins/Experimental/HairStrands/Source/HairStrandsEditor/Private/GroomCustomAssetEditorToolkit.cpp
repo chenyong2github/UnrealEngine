@@ -293,10 +293,6 @@ bool FGroomCustomAssetEditorToolkit::OnRequestClose()
 
 void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, UGroomAsset* InCustomAsset)
 {
-	const bool bIsUpdatable		= false;
-	const bool bAllowFavorites	= true;
-	const bool bIsLockable		= false;
-
 	PreviewGroomComponent		 = nullptr;
 	PreviewStaticMeshComponent	 = nullptr;
 	PreviewSkeletalMeshComponent = nullptr;
@@ -306,15 +302,18 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 	
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-	DetailView_LODProperties			= PropertyEditorModule.CreateDetailView(FDetailsViewArgs(bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false));
-	DetailView_InterpolationProperties	= PropertyEditorModule.CreateDetailView(FDetailsViewArgs(bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false));
-	DetailView_RenderingProperties		= PropertyEditorModule.CreateDetailView(FDetailsViewArgs(bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false));
-	DetailView_PhysicsProperties		= PropertyEditorModule.CreateDetailView(FDetailsViewArgs(bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false));
-	DetailView_CardsProperties			= PropertyEditorModule.CreateDetailView(FDetailsViewArgs(bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false));
-	DetailView_MeshesProperties			= PropertyEditorModule.CreateDetailView(FDetailsViewArgs(bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false));
-	DetailView_MaterialProperties		= PropertyEditorModule.CreateDetailView(FDetailsViewArgs(bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false));
+	FDetailsViewArgs DetailsViewArgs;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ObjectsUseNameArea;
+
+	DetailView_LODProperties			= PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	DetailView_InterpolationProperties	= PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	DetailView_RenderingProperties		= PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	DetailView_PhysicsProperties		= PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	DetailView_CardsProperties			= PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	DetailView_MeshesProperties			= PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	DetailView_MaterialProperties		= PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 #if GROOMEDITOR_ENABLE_COMPONENT_PANEL
-	DetailView_PreviewGroomComponent	= PropertyEditorModule.CreateDetailView(FDetailsViewArgs(bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false));
+	DetailView_PreviewGroomComponent	= PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 #endif
 
 	// Customization
