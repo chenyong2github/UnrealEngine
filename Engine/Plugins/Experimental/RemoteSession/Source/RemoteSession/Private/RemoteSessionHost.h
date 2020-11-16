@@ -16,9 +16,7 @@ class FRemoteSessionHost : public FRemoteSessionRole, public TSharedFromThis<FRe
 public:
 
 	FRemoteSessionHost(TArray<FRemoteSessionChannelInfo> SupportedChannels);
-	~FRemoteSessionHost();
-
-	virtual void Close() override;
+	~FRemoteSessionHost();	
 
 	bool StartListening(const uint16 Port);
 
@@ -28,15 +26,16 @@ public:
 
 protected:
 
-	bool 			ProcessStateChange(const ConnectionState NewState, const ConnectionState OldState) override;
+	/* Closes all connections. Called by public Close() function which first send a graceful goodbye */
+	virtual void	CloseConnections() override;
 
+	virtual bool 	ProcessStateChange(const ConnectionState NewState, const ConnectionState OldState) override;
 
 	virtual void 	BindEndpoints(TBackChannelSharedPtr<IBackChannelConnection> InConnection) override;
 
 	void			SendChannelListToConnection();
 	
 	bool			ProcessIncomingConnection(TSharedRef<IBackChannelSocketConnection> NewConnection);
-
 
 
 	TSharedPtr<IBackChannelSocketConnection> Listener;

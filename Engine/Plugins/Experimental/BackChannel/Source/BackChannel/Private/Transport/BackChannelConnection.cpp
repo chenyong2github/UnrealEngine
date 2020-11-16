@@ -21,7 +21,6 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("BC.Errors/s"), STAT_BackChannelErrors, STAT
 
 int32 FBackChannelConnection::SendBufferSize = 2 * 1024 * 1024;
 int32 FBackChannelConnection::ReceiveBufferSize = 2 * 1024 * 1024;
-double FBackChannelConnection::LastStatResetTime = 0;
 
 int32 GBackChannelLogPackets = 0;
 static FAutoConsoleVariableRef BCCVarLogPackets(
@@ -39,7 +38,7 @@ FBackChannelConnection::FBackChannelConnection()
 {
 	Socket = nullptr;
 	IsListener = false;
-	PacketsReceived = 0;
+	TimeSinceStatsSet = 0;
 	// Allow the app to override
 	GConfig->GetInt(TEXT("BackChannel"), TEXT("SendBufferSize"), SendBufferSize, GEngineIni);
 	GConfig->GetInt(TEXT("BackChannel"), TEXT("RecvBufferSize"), ReceiveBufferSize, GEngineIni);
@@ -56,7 +55,7 @@ FBackChannelConnection::~FBackChannelConnection()
 /* Todo - Proper stats */
 uint32	FBackChannelConnection::GetPacketsReceived() const
 {
-	return PacketsReceived;
+	return ConnectionStats.PacketsReceived;
 }
 
 bool FBackChannelConnection::IsConnected() const
@@ -88,7 +87,6 @@ void FBackChannelConnection::Close()
 		Socket->Close();
 		ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(Socket);
 		Socket = nullptr;
-		PacketsReceived = 0;
 	}
 }
 
@@ -330,8 +328,17 @@ bool FBackChannelConnection::WaitForConnection(double InTimeout, TFunction<bool(
 
 		if (State == ESocketConnectionState::SCS_ConnectionError)
 		{
-			const TCHAR* SocketErr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetSocketError(SE_GET_LAST_ERROR_CODE);
-			UE_LOG(LogBackChannel, Warning, TEXT("Socket has error %s"), SocketErr);
+			ESocketErrors Err = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLastErrorCode();
+
+			if (Err == ESocketErrors::SE_NO_ERROR)
+			{
+				CheckSucceeded = true;
+			}
+			else
+			{
+				const TCHAR* SocketErr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetSocketError(Err);
+				UE_LOG(LogBackChannel, Warning, TEXT("Socket has error %s"), SocketErr);
+			}
 		}
 		else
 		{
@@ -423,12 +430,15 @@ int32 FBackChannelConnection::SendData(const void* InData, const int32 InSize)
 			UE_CLOG(GBackChannelLogErrors, LogBackChannel, Error, TEXT("Failed to send %d bytes of data to %s. Err: %s"), InSize, *GetDescription(), SocketErr);
 		}
 
-		Stats.Errors++;
+		ConnectionStats.Errors++;
+		ConnectionStats.LastErrorTime = FPlatformTime::Seconds();
 	}
 	else
 	{
-		Stats.PacketsSent++;
-		Stats.BytesSent += BytesSent;
+		ConnectionStats.PacketsSent++;
+		ConnectionStats.BytesSent += BytesSent;
+		ConnectionStats.LastSuccessTime = FPlatformTime::Seconds();
+		ConnectionStats.LastSendTime = ConnectionStats.LastSuccessTime;
 
 		UE_CLOG(GBackChannelLogPackets, LogBackChannel, Log, TEXT("Sent %d bytes of data"), BytesSent);
 	}
@@ -451,12 +461,17 @@ int32 FBackChannelConnection::ReceiveData(void* OutBuffer, const int32 BufferSiz
 	// todo - close connection on certain errors
 	if (BytesRead > 0)
 	{
-		Stats.PacketsReceived++;
-		Stats.BytesReceived += BytesRead;
-
-		PacketsReceived++;
+		ConnectionStats.PacketsReceived++;
+		ConnectionStats.BytesReceived += BytesRead;
+		ConnectionStats.LastSuccessTime = FPlatformTime::Seconds();
+		ConnectionStats.LastReceiveTime = ConnectionStats.LastSuccessTime;
 		UE_CLOG(GBackChannelLogPackets, LogBackChannel, Log, TEXT("Received %d bytes of data"), BytesRead);
 	}
+	else if (BytesRead < 0)
+	{
+		// note - FSocket consumes WOULDBLOCk errors so there's not a lot to do here..
+	}
+
 	return BytesRead;
 }
 
@@ -464,18 +479,21 @@ void FBackChannelConnection::ResetStatsIfTime()
 {
 	const double TimeNow = FPlatformTime::Seconds();
 
-	if (TimeNow - LastStatResetTime  >= 1.0)
+	if (TimeNow - TimeSinceStatsSet  >= 1.0)
 	{
-		LastStatResetTime = TimeNow;
+		// stats reflect the last second
+		int PacketsReceived = ConnectionStats.PacketsReceived - LastStats.PacketsReceived;
+		int BytesReceived = ConnectionStats.BytesReceived - LastStats.BytesReceived;
+		int PacketsSent = ConnectionStats.PacketsSent - LastStats.PacketsSent;
+		int BytesSent = ConnectionStats.BytesSent - LastStats.BytesSent;
+		int Errors = ConnectionStats.Errors - LastStats.Errors;
 
-		SET_DWORD_STAT(STAT_BackChannelPacketsRecv, Stats.PacketsReceived);
-		SET_DWORD_STAT(STAT_BackChannelBytesRecv, Stats.BytesReceived);
+		SET_DWORD_STAT(STAT_BackChannelPacketsRecv, PacketsReceived);
+		SET_DWORD_STAT(STAT_BackChannelBytesRecv, BytesReceived);
+		SET_DWORD_STAT(STAT_BackChannelPacketsSent, PacketsSent);
+		SET_DWORD_STAT(STAT_BackChannelBytesSent, BytesSent);
+		SET_DWORD_STAT(STAT_BackChannelErrors, Errors);
 
-		SET_DWORD_STAT(STAT_BackChannelPacketsSent, Stats.PacketsSent);
-		SET_DWORD_STAT(STAT_BackChannelBytesSent, Stats.BytesSent);
-
-		SET_DWORD_STAT(STAT_BackChannelErrors, Stats.Errors);
-
-		Stats = FConnectionStats();
+		LastStats = ConnectionStats;
 	}
 }
