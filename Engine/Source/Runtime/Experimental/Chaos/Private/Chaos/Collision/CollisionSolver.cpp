@@ -25,10 +25,12 @@ namespace Chaos
 		extern int32 Chaos_Collision_UseShockPropagation;
 		extern float Chaos_Collision_CollisionClipTolerance;
 
+		bool Chaos_Manifold_PushOut_NegativePushOut = false;
 		bool Chaos_Manifold_PushOut_StaticFriction = true;
 		bool Chaos_Manifold_PushOut_Restitution = false;
 		bool Chaos_Manifold_PushOut_PositionCorrection = true;
 		int32 Chaos_Manifold_PushOut_VelocityCorrection = 2;
+		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_NegativePushOut(TEXT("p.Chaos.Collision.Manifold.PushOut.NegativePushOut"), Chaos_Manifold_PushOut_NegativePushOut, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_StaticFriction(TEXT("p.Chaos.Collision.Manifold.PushOut.StaticFriction"), Chaos_Manifold_PushOut_StaticFriction, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_Restitution(TEXT("p.Chaos.Collision.Manifold.PushOut.Restitution"), Chaos_Manifold_PushOut_Restitution, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_PositionCorrection(TEXT("p.Chaos.Collision.Manifold.PushOut.PositionCorrection"), Chaos_Manifold_PushOut_PositionCorrection, TEXT(""));
@@ -287,8 +289,15 @@ namespace Chaos
 			const FVec3 RelativeContactPoint1 = Q1 * LocalContactPoint1 + (PhiPadding + Margin1) * ContactNormal;
 
 			// Net error we need to correct, including lateral movement to correct for friction
-			const FVec3 ContactError = (P1 + RelativeContactPoint1) - (P0 + RelativeContactPoint0);
-			const FReal ContactErrorNormal = FVec3::DotProduct(ContactError, ContactNormal);
+			FVec3 ContactError = (P1 + RelativeContactPoint1) - (P0 + RelativeContactPoint0);
+			FReal ContactErrorNormal = FVec3::DotProduct(ContactError, ContactNormal);
+
+			// Don't allow objects to be pulled together, but we may still have to correct static friction drift
+			if ((ContactErrorNormal < 0.0f) && !Chaos_Manifold_PushOut_NegativePushOut)
+			{
+				ContactError = ContactError - ContactErrorNormal * ContactNormal;
+				ContactErrorNormal = 0.0f;
+			}
 
 			if (ContactError.SizeSquared() < Chaos_Manifold_PositionTolerance * Chaos_Manifold_PositionTolerance)
 			{
