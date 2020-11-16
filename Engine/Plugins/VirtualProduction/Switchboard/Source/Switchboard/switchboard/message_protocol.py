@@ -10,6 +10,7 @@ def create_start_process_message(
     prog_name, 
     caller, 
     update_clients_with_stdout, 
+    working_dir = "",
     force_window_focus = False,
 ):
     cmd_id = uuid.uuid4()
@@ -18,8 +19,9 @@ def create_start_process_message(
         'id': str(cmd_id), 
         'exe': prog_path, 
         'args': prog_args, 
-        'name':prog_name, 
+        'name': prog_name, 
         'caller':caller,
+        'working_dir': working_dir,
         'bUpdateClientsWithStdout' : update_clients_with_stdout,
         'bForceWindowFocus' : force_window_focus,
     }
