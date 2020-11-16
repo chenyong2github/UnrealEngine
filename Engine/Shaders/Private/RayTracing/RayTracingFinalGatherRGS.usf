@@ -34,6 +34,7 @@ float MaxNormalBias;
 float FinalGatherDistance;
 uint GatherFilterWidth;
 uint GatherPointIterations;
+uint UseFireflySuppression;
 
 RaytracingAccelerationStructure TLAS;
 
@@ -231,8 +232,13 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 		if (MinimalPayload.IsMiss() && RayPdf > 0.0)
 		{
 			float3 ExitantRadianceSample = GPIrradiance * RayThroughput * Weight / RayPdf;
-			// Firefly reduction
-			//ExitantRadianceSample *= 1.0 / (1.0 + Luminance(ExitantRadianceSample));
+
+			// Tonemap for firefly suppression
+			if (UseFireflySuppression)
+			{
+				ExitantRadianceSample *= rcp(1.0 + Luminance(ExitantRadianceSample));
+			}
+
 			ExitantRadiance += ExitantRadianceSample;
 			MaxExitantRadianceSample = Luminance(ExitantRadianceSample) > Luminance(MaxExitantRadianceSample) ? ExitantRadianceSample : MaxExitantRadianceSample;
 			HitDistance += rcp(Ray.TMax);
@@ -337,8 +343,13 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 #endif
 				{
 					float3 ExitantRadianceSample = GPIrradiance * RayThroughput * Weight / RayPdf;
-					// Firefly reduction
-					//ExitantRadianceSample *= 1.0 / (1.0 + Luminance(ExitantRadianceSample));
+
+					// Tonemap for firefly suppression
+					if (UseFireflySuppression)
+					{
+						ExitantRadianceSample *= rcp(1.0 + Luminance(ExitantRadianceSample));
+					}
+
 					ExitantRadiance += ExitantRadianceSample;
 					MaxExitantRadianceSample = Luminance(ExitantRadianceSample) > Luminance(MaxExitantRadianceSample) ? ExitantRadianceSample : MaxExitantRadianceSample;
 					HitDistance += rcp(Ray.TMax);
@@ -368,6 +379,12 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 	if (ValidSamplesPerPixel > 0)
 	{
 		ExitantRadiance /= ValidSamplesPerPixel;
+		// Tonemap inversion for firefly suppression
+		if (UseFireflySuppression)
+		{
+			ExitantRadiance *= rcp(1 - Luminance(ExitantRadiance));
+		}
+
 		AmbientOcclusion = HitCount / ValidSamplesPerPixel;
 		HitDistance = ValidSamplesPerPixel / HitDistance;
 	}
