@@ -202,8 +202,11 @@ void FRemoteSessionImageChannel::Tick(const float InDeltaTime)
 				QueuedImage = MoveTemp(IncomingDecodedImages.Last());
 				LastDecodedImageIndex = QueuedImage->ImageIndex;
 
-				UE_LOG(LogRemoteSession, Verbose, TEXT("GT: Image %d is ready, discarding %d earlier images"),
-					QueuedImage->ImageIndex, IncomingDecodedImages.Num()-1);
+				if (IncomingDecodedImages.Num() > 1)
+				{
+					UE_LOG(LogRemoteSession, Verbose, TEXT("GT: Image %d is ready, discarding %d earlier images"),
+						QueuedImage->ImageIndex, IncomingDecodedImages.Num() - 1);
+				}
 
 				IncomingDecodedImages.Reset();
 			}
@@ -331,6 +334,12 @@ void FRemoteSessionImageChannel::ReceiveHostImage(IBackChannelPacket& Message)
 		ReceivedImage->Height == 0)
 	{
 		UE_LOG(LogRemoteSession, Error, TEXT("FRemoteSessionImageChannel: Received zero width/height image. Ignoring!"));
+		return;
+	}
+
+	if (ReceivedImage->ImageData.Num() == 0)
+	{
+		UE_LOG(LogRemoteSession, Error, TEXT("FRemoteSessionImageChannel: Received empty image data. Ignoring!"));
 		return;
 	}
 
