@@ -9,6 +9,7 @@
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/MultithreadedPatching.h"
 #include "Quartz/AudioMixerClockManager.h"
+#include "UObject/StrongObjectPtr.h"
 
 // Forward Declarations
 class FOnSubmixEnvelopeBP;
@@ -96,6 +97,8 @@ namespace Audio
 		virtual void UnregisterSoundSubmix(const USoundSubmixBase* SoundSubmix) override;
 
 		virtual void InitSoundEffectPresets() override;
+		virtual void InitDefaultAudioBuses() override;
+		virtual void ShutdownDefaultAudioBuses() override;
 		virtual int32 GetNumActiveSources() const override;
 
 		// Updates the source effect chain (using unique object id). 
@@ -292,6 +295,8 @@ namespace Audio
 
 		TArray<USoundSubmix*> MasterSubmixes;
 		TArray<FMixerSubmixPtr> MasterSubmixInstances;
+
+		TArray<TStrongObjectPtr<UAudioBus>> DefaultAudioBuses;
 
 		// The active audio bus list accessible on the game thread
 		TArray<int32> ActiveAudioBuses_GameThread;

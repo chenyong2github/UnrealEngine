@@ -536,12 +536,14 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources)
 		PrecacheStartupSounds();
 	}
 
-	UE_LOG(LogInit, Log, TEXT("FAudioDevice initialized."));
-
 	bIsInitialized = true;
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FAudioDevice::OnPreGarbageCollect);
 	FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.AddRaw(this, &FAudioDevice::OnPreGarbageCollect);
+
+	InitDefaultAudioBuses();
+
+	UE_LOG(LogInit, Log, TEXT("FAudioDevice initialized."));
 
 	return true;
 }
@@ -670,6 +672,8 @@ TRange<float> FAudioDevice::GetGlobalPitchRange() const
 
 void FAudioDevice::Teardown()
 {
+	ShutdownDefaultAudioBuses();
+
 	// Make sure we process any pending game thread tasks before tearing down the audio device.
 	FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 

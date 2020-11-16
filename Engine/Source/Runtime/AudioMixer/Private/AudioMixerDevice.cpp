@@ -15,6 +15,7 @@
 #include "Sound/SoundSubmixSend.h"
 #include "SubmixEffects/AudioMixerSubmixEffectEQ.h"
 #include "SubmixEffects/AudioMixerSubmixEffectDynamicsProcessor.h"
+#include "UObject/StrongObjectPtr.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "Runtime/HeadMountedDisplay/Public/IHeadMountedDisplayModule.h"
@@ -1495,6 +1496,66 @@ namespace Audio
 		IAudioEditorModule* AudioEditorModule = &FModuleManager::LoadModuleChecked<IAudioEditorModule>("AudioEditor");
 		AudioEditorModule->RegisterEffectPresetAssetActions();
 #endif
+	}
+
+	void FMixerDevice::InitDefaultAudioBuses()
+	{
+		if (!ensure(IsInGameThread()))
+		{
+			return;
+		}
+
+		if (const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>())
+		{
+			TArray<TStrongObjectPtr<UAudioBus>> StaleBuses = DefaultAudioBuses;
+			DefaultAudioBuses.Reset();
+
+			for (const FDefaultAudioBusSettings& BusSettings : AudioSettings->DefaultAudioBuses)
+			{
+				if (UObject* BusObject = BusSettings.AudioBus.TryLoad())
+				{
+					if (UAudioBus* AudioBus = Cast<UAudioBus>(BusObject))
+					{
+						const int32 NumChannels = static_cast<int32>(AudioBus->AudioBusChannels) + 1;
+						StartAudioBus(AudioBus->GetUniqueID(), NumChannels, false /* bInIsAutomatic */);
+
+						TStrongObjectPtr<UAudioBus>AddedBus(AudioBus);
+						DefaultAudioBuses.AddUnique(AddedBus);
+						StaleBuses.Remove(AddedBus);
+					}
+				}
+			}
+
+			for (TStrongObjectPtr<UAudioBus>& Bus : StaleBuses)
+			{
+				if (Bus.IsValid())
+				{
+					StopAudioBus(Bus->GetUniqueID());
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogAudioMixer, Error, TEXT("Failed to initialized Default Audio Buses. Audio Settings not found."));
+		}
+	}
+
+	void FMixerDevice::ShutdownDefaultAudioBuses()
+	{
+		if (!ensure(IsInGameThread()))
+		{
+			return;
+		}
+
+		for (TStrongObjectPtr<UAudioBus>& Bus : DefaultAudioBuses)
+		{
+			if (Bus.IsValid())
+			{
+				StopAudioBus(Bus->GetUniqueID());
+			}
+		}
+
+		DefaultAudioBuses.Reset();
 	}
 
 	FMixerSubmixWeakPtr FMixerDevice::GetSubmixInstance(const USoundSubmixBase* SoundSubmix)
