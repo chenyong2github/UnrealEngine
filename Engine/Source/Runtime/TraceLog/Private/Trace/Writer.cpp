@@ -437,6 +437,8 @@ static void Writer_WorkerThread()
 {
 	Trace::ThreadRegister(TEXT("Trace"), 0, INT_MAX);
 
+	Writer_UpdateControl();
+
 	// At this point we haven't ever collected any trace events. So we'll stall
 	// for just a little bit to give the user a chance to set up sending the trace
 	// somewhere. This way they get all events since boot, otherwise they'll be
