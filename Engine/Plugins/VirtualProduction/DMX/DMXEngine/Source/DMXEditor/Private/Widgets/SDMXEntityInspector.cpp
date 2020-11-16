@@ -47,16 +47,12 @@ void SDMXEntityInspector::Construct(const FArguments& InArgs)
 	{
 		NotifyHook = DMXEditor.Pin().Get();
 	}
-	FDetailsViewArgs::ENameAreaSettings NameAreaSettings = InArgs._HideNameArea ? FDetailsViewArgs::HideNameArea : FDetailsViewArgs::ObjectsUseNameArea;
-	FDetailsViewArgs DetailsViewArgs( 
-		/*bUpdateFromSelection=*/ false, 
-		/*bLockable=*/ false, 
-		/*bAllowSearch=*/ bIsShowSearch,
-		/*NameAreaSettings=*/ NameAreaSettings,
-		/*bHideSelectionTip=*/ true, 
-		/*InNotifyHook=*/ NotifyHook, 
-		/*InSearchInitialKeyFocus=*/ false, 
-		/*InViewIdentifier=*/ InArgs._ViewIdentifier);
+	FDetailsViewArgs DetailsViewArgs;
+	DetailsViewArgs.bAllowSearch = bIsShowSearch;
+	DetailsViewArgs.NameAreaSettings = InArgs._HideNameArea ? FDetailsViewArgs::HideNameArea : FDetailsViewArgs::ObjectsUseNameArea;
+	DetailsViewArgs.bHideSelectionTip = true;
+	DetailsViewArgs.NotifyHook = NotifyHook; 
+	DetailsViewArgs.ViewIdentifier = InArgs._ViewIdentifier;
 	PropertyView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 
 	ChildSlot

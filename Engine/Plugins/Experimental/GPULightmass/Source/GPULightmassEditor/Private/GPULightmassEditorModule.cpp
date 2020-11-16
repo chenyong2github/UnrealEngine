@@ -93,7 +93,9 @@ void FGPULightmassEditorModule::RegisterTabSpawner()
 TSharedRef<SDockTab> FGPULightmassEditorModule::SpawnSettingsTab(const FSpawnTabArgs& Args)
 {
 	FPropertyEditorModule& PropPlugin = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	FDetailsViewArgs DetailsViewArgs(false, false, true, FDetailsViewArgs::HideNameArea, false, GUnrealEd);
+	FDetailsViewArgs DetailsViewArgs;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+	DetailsViewArgs.NotifyHook = GUnrealEd;
 	DetailsViewArgs.bShowActorLabel = false;
 
 	SettingsView = PropPlugin.CreateDetailView(DetailsViewArgs);

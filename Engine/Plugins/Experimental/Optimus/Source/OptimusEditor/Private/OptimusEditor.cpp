@@ -611,7 +611,10 @@ void FOptimusEditor::CreateWidgets()
 
 	// -- The property details panel
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	const FDetailsViewArgs DetailsViewArgs(false, false, true, FDetailsViewArgs::ObjectsUseNameArea, true, this);
+	FDetailsViewArgs DetailsViewArgs;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ObjectsUseNameArea;
+	DetailsViewArgs.bHideSelectionTip = true;
+	DetailsViewArgs.NotifyHook = this;
 	PropertyDetailsWidget = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	PropertyDetailsWidget->OnFinishedChangingProperties().AddSP(this, &FOptimusEditor::OnFinishedChangingProperties);
 
