@@ -510,11 +510,18 @@ void UTakeRecorder::DiscoverSourceWorld()
 		OverlayWidget->AddToViewport();
 	}
 
+	
 	// If recording via PIE, be sure to stop recording cleanly when PIE ends
 	if (WorldToRecordIn->WorldType == EWorldType::PIE)
 	{
-		FEditorDelegates::EndPIE.AddUObject(this, &UTakeRecorder::HandleEndPIE);
+		FEditorDelegates::EndPIE.AddUObject(this, &UTakeRecorder::HandlePIE);
 	}
+	// If not recording via PIE, be sure to stop recording if PIE Starts
+	if (WorldToRecordIn->WorldType != EWorldType::PIE)
+	{
+		FEditorDelegates::BeginPIE.AddUObject(this, &UTakeRecorder::HandlePIE);//reuse same function
+	}
+
 }
 
 bool UTakeRecorder::CreateDestinationAsset(const TCHAR* AssetPathFormat, ULevelSequence* LevelSequenceBase, UTakeRecorderSources* Sources, UTakeMetaData* MetaData, FText* OutError)
@@ -811,6 +818,7 @@ void UTakeRecorder::Stop()
 	const bool bDidEverStartRecording = State == ETakeRecorderState::Started;
 
 	FEditorDelegates::EndPIE.RemoveAll(this);
+	FEditorDelegates::BeginPIE.RemoveAll(this);
 
 	State = bDidEverStartRecording ? ETakeRecorderState::Stopped : ETakeRecorderState::Cancelled;
 
@@ -953,7 +961,7 @@ FOnTakeRecordingCancelled& UTakeRecorder::OnRecordingCancelled()
 	return OnRecordingCancelledEvent;
 }
 
-void UTakeRecorder::HandleEndPIE(bool bIsSimulating)
+void UTakeRecorder::HandlePIE(bool bIsSimulating)
 {
 	ULevelSequence* FinishedAsset = GetSequence();
 
