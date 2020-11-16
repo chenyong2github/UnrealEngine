@@ -213,19 +213,24 @@ int FBackChannelOSCMessage::Read(const TCHAR* InName, void* OutBlob, int32 MaxBl
 	return ReadWasSuccess ? 0 : 1;
 }
 
-int32 FBackChannelOSCMessage::GetSize() const 
+void FBackChannelOSCMessage::GetComponentSizes(int32& OutAddressSize, int32& OutTagSize, int32& OutBufferSize) const
 {
-	const int32 kAddressLength = RoundedArgumentSize(GetPath().Len()+1);
+	OutAddressSize = RoundedArgumentSize(GetPath().Len()+1);
 
 	const FString FinalTagString = FString::Printf(TEXT(",%s"), *GetTags());
 
-	const int32 kTagLength = RoundedArgumentSize(FinalTagString.Len()+1);		// we don't store the , internally
+	OutTagSize = RoundedArgumentSize(FinalTagString.Len()+1);		// we don't store the , internally
 
-	const int32 kArgumentSize = BufferIndex;
-
-	return kAddressLength + kTagLength + kArgumentSize;
+	OutBufferSize = BufferIndex;
 }
 
+int32 FBackChannelOSCMessage::GetSize() const
+{
+	int32 AddressSize, TagSize, BufferSize;
+	GetComponentSizes(AddressSize, TagSize, BufferSize);
+
+	return AddressSize + TagSize + BufferSize;
+}
 
 TArray<uint8> FBackChannelOSCMessage::WriteToBuffer() const
 {
@@ -236,23 +241,28 @@ TArray<uint8> FBackChannelOSCMessage::WriteToBuffer() const
 
 void FBackChannelOSCMessage::WriteToBuffer(TArray<uint8>& OutBuffer) const
 {
-	const int kRequiredSize = GetSize();
+	int32 AddressSize(0);
+	int32 TagSize(0);
+	int32 BufferSize(0);
+	GetComponentSizes(AddressSize, TagSize, BufferSize);
+
+	const int32 kRequiredSize = AddressSize + TagSize + BufferSize;
 
 	OutBuffer.AddUninitialized(kRequiredSize);
 
 	ANSICHAR* pOutBuffer = (ANSICHAR*)OutBuffer.GetData();
 
-	const int32 kAddressLength = RoundedArgumentSize(GetPath().Len()+1);
+	const int32 kAddressLength = GetPath().Len()+1;
 	const FString FinalTagString = FString::Printf(TEXT(",%s"), *GetTags());
-	const int32 kTagLength = RoundedArgumentSize(FinalTagString.Len() + 1);
+	const int32 kTagLength = FinalTagString.Len() + 1;
 
 	FCStringAnsi::Strncpy(pOutBuffer, TCHAR_TO_ANSI(*GetPath()), kAddressLength);
 	pOutBuffer[kAddressLength] = 0;
-	pOutBuffer += RoundedArgumentSize(kAddressLength);
+	pOutBuffer += AddressSize;
 
-	FCStringAnsi::Strcpy(pOutBuffer, kRequiredSize, TCHAR_TO_ANSI(*FinalTagString));
+	FCStringAnsi::Strcpy(pOutBuffer, kTagLength, TCHAR_TO_ANSI(*FinalTagString));
 	pOutBuffer[kTagLength] = 0;
-	pOutBuffer += RoundedArgumentSize(kTagLength);
+	pOutBuffer += TagSize;
 
 	FMemory::Memcpy(pOutBuffer, Buffer.GetData(), BufferIndex);
 }

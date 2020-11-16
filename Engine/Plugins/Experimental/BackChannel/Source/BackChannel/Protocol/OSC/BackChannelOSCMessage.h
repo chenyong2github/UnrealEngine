@@ -330,6 +330,9 @@ public:
 
 protected:
 
+	/* Return our sizes for each item (plus any necessary padding) */
+	void GetComponentSizes(int32& OutAddressSize, int32& OutTagSize, int32& OutBufferSize) const;
+
 	int Serialize(const TCHAR Code, void* InData, int32 InSize);
 
 	TCHAR ReadTag(const TCHAR ExpectedTag, bool SuppressWarning=false);
