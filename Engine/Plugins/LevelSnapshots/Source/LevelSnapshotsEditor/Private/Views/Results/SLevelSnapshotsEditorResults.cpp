@@ -369,7 +369,6 @@ void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSna
 	if (InLevelSnapshot != nullptr)
 	{
 		// Saving a reference to the selected LevelSnapshot for diffing
-		SelectedLevelSnapshot = InLevelSnapshot;
 		SelectedLevelSnapshotPtr = InLevelSnapshot;
 		
 		for (const TPair<FString, FLevelSnapshot_Actor>& ActorSnapshotPair : InLevelSnapshot->ActorSnapshots)
@@ -479,7 +478,7 @@ void SLevelSnapshotsEditorResults::SetShowUnchangedSnapshotGroups(const bool bSh
 	if (!bShowGroups)
 	{
 		// If we want to hide unchanged groups we first have to determine what they are
-		UnchangedGroups = DetermineUnchangedGroupsFromLevelSnapshot(SelectedLevelSnapshot);
+		UnchangedGroups = DetermineUnchangedGroupsFromLevelSnapshot(SelectedLevelSnapshotPtr.Get());
 	}
 	
 	for (TSharedPtr<FLevelSnapshotsEditorResultsRowGroup, ESPMode::Fast> Group : FieldGroups)
@@ -508,99 +507,14 @@ void SLevelSnapshotsEditorResults::SetShowUnchangedSnapshotGroups(const bool bSh
 	}
 }
 
-TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> SLevelSnapshotsEditorResults::DetermineUnchangedGroupsFromLevelSnapshot(
-	ULevelSnapshot* InLevelSnapshot)
+TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> SLevelSnapshotsEditorResults::DetermineUnchangedGroupsFromLevelSnapshot(ULevelSnapshot* InLevelSnapshot)
 {
 	TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> UnchangedGroups;
 
 	// Create transient ULevelSnapshot to compare against InLevelSnapshot
 	ULevelSnapshot* TempLevelSnapshot = ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(GEditor->GetEditorWorldContext().World());
 
-	if (!TempLevelSnapshot || !InLevelSnapshot)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Unable to Diff snapshots as at least one snapshot was invalid"));
-		return UnchangedGroups;
-	}
-
-	for (const TPair<FString, FLevelSnapshot_Actor>& SnapshotPair : TempLevelSnapshot->ActorSnapshots)
-	{
-		const FString& FirstSnapshotPathName = SnapshotPair.Key;
-		const FLevelSnapshot_Actor& FirstActorSnapshot = SnapshotPair.Value;
-
-		if (const FLevelSnapshot_Actor* SecondActorSnapshot = InLevelSnapshot->ActorSnapshots.Find(FirstSnapshotPathName))
-		{
-			// Actor paths match, so let's compare properties
-
-			AActor* FirstActor = FirstActorSnapshot.GetDeserializedActor();
-			AActor* SecondActor = SecondActorSnapshot->GetDeserializedActor();
-
-			if (FirstActor && SecondActor)
-			{
-				TArray<FSingleObjectDiffEntry> DifferingProperties;
-				DiffUtils::CompareUnrelatedObjects(FirstActor, SecondActor, DifferingProperties);
-
-				if (DifferingProperties.Num() < 1)
-				{
-					// This means there is no difference between the matching actors. It's unchanged since the last snapshot.
-					// We add it to the TArray by finding a candidate from FieldGroups whose ObjectPath matches the path of this ActorSnapshot
-
-					TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> Group = FieldGroups[FieldGroups.IndexOfByPredicate(
-						[FirstSnapshotPathName] (const TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> G)
-					{
-							return G->ObjectPath.Equals(FirstSnapshotPathName);
-					})];
-
-					UnchangedGroups.Add(Group);
-				}
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("%s exists in the First snapshot but not the Second."), *FirstSnapshotPathName);
-		}
-	}
-	
-	return UnchangedGroups;
-}
-
-		UnchangedGroups = DetermineUnchangedGroupsFromLevelSnapshot(SelectedLevelSnapshotPtr);
-	}
-	
-	for (const TSharedPtr<FLevelSnapshotsEditorResultsRowGroup, ESPMode::Fast> Group : FieldGroups)
-	{
-		if (Group->GetType() == FLevelSnapshotsEditorResultsRow::Group)
-		{
-			TSharedPtr<SLevelSnapshotsEditorResultsRowGroup> GroupWidget = StaticCastSharedPtr<
-				SLevelSnapshotsEditorResultsRowGroup>(ResultList->WidgetFromItem(Group));
-
-			EVisibility NewGroupVisibility = EVisibility::SelfHitTestInvisible;
-
-			if (!bShowGroups)
-			{
-				if (UnchangedGroups.Num() > 0 && UnchangedGroups.ContainsByPredicate(
-					[&Group](const TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> UnchangedGroup)
-					{
-						return UnchangedGroup->ObjectPath.Equals(Group->ObjectPath);
-				}))
-				{
-					NewGroupVisibility = EVisibility::Collapsed;
-				}
-			}
-			
-			GroupWidget->SetVisibility(NewGroupVisibility);
-		}
-	}
-}
-
-TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> SLevelSnapshotsEditorResults::DetermineUnchangedGroupsFromLevelSnapshot(
-	TWeakObjectPtr<ULevelSnapshot> InLevelSnapshot)
-{
-	TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> UnchangedGroups;
-
-	// Create transient ULevelSnapshot to compare against InLevelSnapshot
-	ULevelSnapshot* TempLevelSnapshot = ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(GEditor->GetEditorWorldContext().World());
-
-	if (!TempLevelSnapshot || !InLevelSnapshot.IsValid())
+	if (!TempLevelSnapshot || InLevelSnapshot == nullptr)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Unable to Diff snapshots as at least one snapshot was invalid"));
 		return UnchangedGroups;

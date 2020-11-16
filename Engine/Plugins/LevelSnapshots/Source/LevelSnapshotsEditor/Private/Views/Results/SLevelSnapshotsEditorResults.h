@@ -141,7 +141,7 @@ private:
 	// Show/hide unchanged groups
 	void OnCheckedStateChange_ShowUnchangedSnapshotActors(ECheckBoxState NewState);
 	void SetShowUnchangedSnapshotGroups(bool bShowGroups);
-	TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> DetermineUnchangedGroupsFromLevelSnapshot(TWeakObjectPtr<ULevelSnapshot> InLevelSnapshot);
+	TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> DetermineUnchangedGroupsFromLevelSnapshot(ULevelSnapshot* InLevelSnapshot);
 
 	TSharedRef<SWidget> MakeAddFilterMenu();
 
