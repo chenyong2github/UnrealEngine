@@ -72,8 +72,11 @@ struct FTrackTransforms
 
 		FInterrogationChannel Channel = Interrogator.ImportTransformHierarchy(SceneComponent, Sequencer, Sequencer->GetFocusedTemplateID());
 
-		Times.Add(TrajectoryKeys[0].Time);
-		Interrogator.AddInterrogation(TrajectoryKeys[0].Time);
+		if (TrajectoryKeys.Num() > 0)
+		{
+			Times.Add(TrajectoryKeys[0].Time);
+			Interrogator.AddInterrogation(TrajectoryKeys[0].Time);
+		}
 
 		const int32 NumTrajectoryKeys = TrajectoryKeys.Num();
 		for (int32 Index = 0; Index < TrajectoryKeys.Num(); ++Index)
