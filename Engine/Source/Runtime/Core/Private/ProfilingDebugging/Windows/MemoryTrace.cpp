@@ -724,7 +724,7 @@ FMalloc* MemoryTrace_Create(FMalloc* InMalloc)
 					break;
 				}
 
-				Start = c;
+				Start = c + 1;
 			}
 		}
 	}
