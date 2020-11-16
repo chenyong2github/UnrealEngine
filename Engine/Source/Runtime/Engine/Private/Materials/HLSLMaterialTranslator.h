@@ -799,11 +799,11 @@ protected:
 	virtual int32 StrataArtisticIOR(int32 Reflectivity, int32 EdgeColor, int32 OutputIndex) override;
 	virtual int32 StrataPhysicalIOR(int32 IOR, int32 Extinction, int32 OutputIndex) override;
 
-	virtual void AddStrataCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) override;
-	virtual bool ContainsStrataCodeChunk(int32 CodeChunk) override;
+	virtual void StrataCompilationInfoRegisterCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) override;
+	virtual bool StrataCompilationInfoContainsCodeChunk(int32 CodeChunk) override;
 	virtual const FStrataMaterialCompilationInfo& GetStrataCompilationInfo(int32 CodeChunk) override;
-	virtual uint8 GetStrataSharedNormalIndex(int32 NormalCodeChunk) override;
-	virtual uint8 GetStrataSharedNormalCount() override;
+	virtual uint8 StrataCompilationInfoRegisterSharedNormalIndex(int32 NormalCodeChunk) override;
+	virtual uint8 StrataCompilationInfoGetSharedNormalCount() override;
 
 #if HANDLE_CUSTOM_OUTPUTS_AS_MATERIAL_ATTRIBUTES
 	/** Used to translate code for custom output attributes such as ClearCoatBottomNormal */

@@ -403,11 +403,11 @@ public:
 	virtual int32 StrataArtisticIOR(int32 Reflectivity, int32 EdgeColor, int32 OutputIndex) = 0;
 	virtual int32 StrataPhysicalIOR(int32 IOR, int32 Extinction, int32 OutputIndex) = 0;
 
-	virtual void AddStrataCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) = 0;
-	virtual bool ContainsStrataCodeChunk(int32 CodeChunk) = 0;
+	virtual void StrataCompilationInfoRegisterCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) = 0;
+	virtual bool StrataCompilationInfoContainsCodeChunk(int32 CodeChunk) = 0;
 	virtual const FStrataMaterialCompilationInfo& GetStrataCompilationInfo(int32 CodeChunk) = 0;
-	virtual uint8 GetStrataSharedNormalIndex(int32 NormalCodeChunk) = 0;
-	virtual uint8 GetStrataSharedNormalCount() = 0;
+	virtual uint8 StrataCompilationInfoRegisterSharedNormalIndex(int32 NormalCodeChunk) = 0;
+	virtual uint8 StrataCompilationInfoGetSharedNormalCount() = 0;
 
 	// Water
 	virtual int32 SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth) = 0;
@@ -858,14 +858,14 @@ public:
 		return Compiler->StrataPhysicalIOR(IOR, Extinction, OutputIndex);
 	}
 
-	virtual void AddStrataCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) override
+	virtual void StrataCompilationInfoRegisterCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) override
 	{
-		Compiler->AddStrataCodeChunk(CodeChunk, StrataMaterialCompilationInfo);
+		Compiler->StrataCompilationInfoRegisterCodeChunk(CodeChunk, StrataMaterialCompilationInfo);
 	}
 
-	virtual bool ContainsStrataCodeChunk(int32 CodeChunk) override
+	virtual bool StrataCompilationInfoContainsCodeChunk(int32 CodeChunk) override
 	{
-		return Compiler->ContainsStrataCodeChunk(CodeChunk);
+		return Compiler->StrataCompilationInfoContainsCodeChunk(CodeChunk);
 	}
 	
 	virtual const FStrataMaterialCompilationInfo& GetStrataCompilationInfo(int32 CodeChunk) override
@@ -873,14 +873,14 @@ public:
 		return Compiler->GetStrataCompilationInfo(CodeChunk);
 	}
 
-	virtual uint8 GetStrataSharedNormalIndex(int32 NormalCodeChunk) override
+	virtual uint8 StrataCompilationInfoRegisterSharedNormalIndex(int32 NormalCodeChunk) override
 	{
-		return Compiler->GetStrataSharedNormalIndex(NormalCodeChunk);
+		return Compiler->StrataCompilationInfoRegisterSharedNormalIndex(NormalCodeChunk);
 	}
 
-	virtual uint8 GetStrataSharedNormalCount() override
+	virtual uint8 StrataCompilationInfoGetSharedNormalCount() override
 	{
-		return Compiler->GetStrataSharedNormalCount();
+		return Compiler->StrataCompilationInfoGetSharedNormalCount();
 	}
 
 protected:

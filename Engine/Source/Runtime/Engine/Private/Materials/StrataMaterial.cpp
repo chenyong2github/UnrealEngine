@@ -39,13 +39,13 @@ static void UpdateTotalBSDFCount(FStrataMaterialCompilationInfo& StrataInfo)
 }
 
 
-uint8 StrataCreateSharedNormal(FMaterialCompiler* Compiler, int32 NormalCodeChunk)
+uint8 StrataCompilationInfoCreateSharedNormal(FMaterialCompiler* Compiler, int32 NormalCodeChunk)
 {
-	return Compiler->GetStrataSharedNormalIndex(NormalCodeChunk);
+	return Compiler->StrataCompilationInfoRegisterSharedNormalIndex(NormalCodeChunk);
 }
 
 
-void StrataCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk, uint8 SharedNormalIndex, uint8 BSDFType)
+void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk, uint8 SharedNormalIndex, uint8 BSDFType)
 {
 	FStrataMaterialCompilationInfo StrataInfo;
 	StrataInfo.LayerCount = 1;
@@ -53,11 +53,11 @@ void StrataCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk
 	StrataInfo.Layers[0].BSDFs[0].Type = BSDFType;
 	StrataInfo.Layers[0].BSDFs[0].SharedNormalIndex = SharedNormalIndex;
 	UpdateTotalBSDFCount(StrataInfo);
-	Compiler->AddStrataCodeChunk(CodeChunk, StrataInfo);
+	Compiler->StrataCompilationInfoRegisterCodeChunk(CodeChunk, StrataInfo);
 }
 
 
-FStrataMaterialCompilationInfo StrataAdd(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B)
+FStrataMaterialCompilationInfo StrataCompilationInfoAdd(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B)
 {
 	if ((A.TotalBSDFCount + B.TotalBSDFCount) > STRATA_MAX_TOTAL_BSDF) // See StrataDefinitions.h
 	{
@@ -93,14 +93,14 @@ FStrataMaterialCompilationInfo StrataAdd(FMaterialCompiler* Compiler, const FStr
 }
 
 
-FStrataMaterialCompilationInfo StrataMultiply(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A)
+FStrataMaterialCompilationInfo StrataCompilationInfoMultiply(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A)
 {
 	FStrataMaterialCompilationInfo StrataInfo = A;
 	return StrataInfo;
 }
 
 
-FStrataMaterialCompilationInfo StrataHorizontalMixing(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B)
+FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixing(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B)
 {
 	if ((A.TotalBSDFCount + B.TotalBSDFCount) > STRATA_MAX_TOTAL_BSDF) // See StrataDefinitions.h
 	{
@@ -108,11 +108,11 @@ FStrataMaterialCompilationInfo StrataHorizontalMixing(FMaterialCompiler* Compile
 		return A;
 	}
 
-	return StrataAdd(Compiler, A, B); // Mixing is a similar operation to Add when it comes to bsdf count
+	return StrataCompilationInfoAdd(Compiler, A, B); // Mixing is a similar operation to Add when it comes to bsdf count
 }
 
 
-FStrataMaterialCompilationInfo StrataVerticalLayering(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Top, const FStrataMaterialCompilationInfo& Base)
+FStrataMaterialCompilationInfo StrataCompilationInfoVerticalLayering(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Top, const FStrataMaterialCompilationInfo& Base)
 {
 	if ((Top.TotalBSDFCount + Base.TotalBSDFCount) > STRATA_MAX_TOTAL_BSDF) // See StrataDefinitions.h
 	{

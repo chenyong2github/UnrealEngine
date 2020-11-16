@@ -1110,7 +1110,7 @@ bool FHLSLMaterialTranslator::Translate()
 
 			StrataMaterialDescription += FString::Printf(TEXT("StrataCompilationInfo -\r\n"));
 			StrataMaterialDescription += FString::Printf(TEXT(" - TotalBSDFCount    = %i\r\n"), StrataCompilationInfo.TotalBSDFCount);
-			StrataMaterialDescription += FString::Printf(TEXT(" - SharedNormalCount = %i\r\n"), GetStrataSharedNormalCount());
+			StrataMaterialDescription += FString::Printf(TEXT(" - SharedNormalCount = %i\r\n"), StrataCompilationInfoGetSharedNormalCount());
 
 			for (uint32 LayerIt = 0; LayerIt < StrataCompilationInfo.LayerCount; ++LayerIt)
 			{
@@ -7225,13 +7225,13 @@ int32 FHLSLMaterialTranslator::ShadingModel(EMaterialShadingModel InSelectedShad
 	return AddInlinedCodeChunk(MCT_ShadingModel, TEXT("%d"), InSelectedShadingModel);
 }
 
-void FHLSLMaterialTranslator::AddStrataCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo)
+void FHLSLMaterialTranslator::StrataCompilationInfoRegisterCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo)
 {
 	check(CodeChunk != INDEX_NONE);
 	CodeChunkToStrataCompilationInfoMap.Add(CodeChunk, StrataMaterialCompilationInfo);
 }
 
-bool FHLSLMaterialTranslator::ContainsStrataCodeChunk(int32 CodeChunk)
+bool FHLSLMaterialTranslator::StrataCompilationInfoContainsCodeChunk(int32 CodeChunk)
 {
 	return CodeChunk != INDEX_NONE ? CodeChunkToStrataCompilationInfoMap.Contains(CodeChunk) : false;
 }
@@ -7242,7 +7242,7 @@ const FStrataMaterialCompilationInfo& FHLSLMaterialTranslator::GetStrataCompilat
 	return CodeChunkToStrataCompilationInfoMap[CodeChunk];
 }
 
-uint8 FHLSLMaterialTranslator::GetStrataSharedNormalIndex(int32 NormalCodeChunk)
+uint8 FHLSLMaterialTranslator::StrataCompilationInfoRegisterSharedNormalIndex(int32 NormalCodeChunk)
 {
 	check(NormalCodeChunk != INDEX_NONE);
 	check(NextFreeStrataShaderNormalIndex < 255);	// Out of shared normal slots
@@ -7261,7 +7261,7 @@ uint8 FHLSLMaterialTranslator::GetStrataSharedNormalIndex(int32 NormalCodeChunk)
 	return CodeChunkToStrataSharedNormal[NormalCodeChunkHash].SharedNormalIndex;
 }
 
-uint8 FHLSLMaterialTranslator::GetStrataSharedNormalCount()
+uint8 FHLSLMaterialTranslator::StrataCompilationInfoGetSharedNormalCount()
 {
 	return CodeChunkToStrataSharedNormal.Num();
 }
