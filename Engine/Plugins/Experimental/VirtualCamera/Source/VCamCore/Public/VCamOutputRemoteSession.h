@@ -15,7 +15,7 @@
 
 #include "VCamOutputRemoteSession.generated.h"
 
-UCLASS(meta = (DisplayName = "Remote Session Output Provider"))
+UCLASS(meta = (DisplayName = "Unreal Remote Output Provider"))
 class VCAMCORE_API UVCamOutputRemoteSession : public UVCamOutputProviderBase
 {
 	GENERATED_BODY()
