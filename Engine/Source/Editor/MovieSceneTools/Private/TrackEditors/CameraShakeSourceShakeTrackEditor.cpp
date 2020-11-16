@@ -24,6 +24,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
+#include "Misc/PackageName.h"
 
 #define LOCTEXT_NAMESPACE "FCameraShakeSourceShakeTrackEditor"
 
@@ -629,8 +630,6 @@ TSharedRef<SWidget> FCameraShakeSourceShakeTrackEditor::BuildCameraShakeTracksMe
 
 void FCameraShakeSourceShakeTrackEditor::AddOtherCameraShakeBrowserSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings)
 {
-	static const FString CameraShakeClassPath(TEXT("Class'/Script/Engine.CameraShake'"));
-
 	FAssetPickerConfig AssetPickerConfig;
 	{
 		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &FCameraShakeSourceShakeTrackEditor::OnCameraShakeAssetSelected, ObjectBindings);
@@ -639,7 +638,28 @@ void FCameraShakeSourceShakeTrackEditor::AddOtherCameraShakeBrowserSubMenu(FMenu
 		AssetPickerConfig.bAllowNullSelection = false;
 		AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 		AssetPickerConfig.Filter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
-		AssetPickerConfig.Filter.TagsAndValues.Add(FBlueprintTags::ParentClassPath, CameraShakeClassPath);
+
+		IAssetRegistry & AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
+		TArray<FName> ClassNames;
+		TSet<FName> DerivedClassNames;
+		ClassNames.Add(UCameraShakeBase::StaticClass()->GetFName());
+		AssetRegistry.GetDerivedClassNames(ClassNames, TSet<FName>(), DerivedClassNames);
+						
+		AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateLambda([DerivedClassNames](const FAssetData& AssetData)
+		{
+			const FString ParentClassFromData = AssetData.GetTagValueRef<FString>(FBlueprintTags::ParentClassPath);
+			if (!ParentClassFromData.IsEmpty())
+			{
+				const FString ClassObjectPath = FPackageName::ExportTextPathToObjectPath(ParentClassFromData);
+				const FName ClassName = FName(*FPackageName::ObjectPathToObjectName(ClassObjectPath));
+
+				if (DerivedClassNames.Contains(ClassName))
+				{
+					return false;
+				}
+			}
+			return true;
+		});
 	}
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
