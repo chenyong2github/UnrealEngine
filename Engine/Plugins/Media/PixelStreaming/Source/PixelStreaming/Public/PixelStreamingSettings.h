@@ -31,7 +31,7 @@ public:
 	 * cursor invisible.
 	 */
 	UPROPERTY(config, EditAnywhere, Category = PixelStreaming)
-	FSoftClassPath PixelStreamerInvisibleCursorClassName;
+	FSoftClassPath PixelStreamerHiddenCursorClassName;
 
 	/**
 	 * Pixel Streaming may be running on a machine which has no physical mouse
