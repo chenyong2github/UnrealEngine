@@ -56,12 +56,14 @@ saveFileStates ${LIBFILES[@]}
 automake --add-missing
 autoconf -f
 
+UE_C_CPP_LD_FLAGS="-mmacosx-version-min=10.14 -gdwarf-2"
+
 # run configure and make for each architecture
-sh ./configure --prefix=${TMPDIR}/x86_64 --host=x86_64-apple-macos && make clean && make -j$(get_core_count) && make install
+sh ./configure --prefix=${TMPDIR}/x86_64 --host=x86_64-apple-macos CFLAGS="${UE_C_CPP_LD_FLAGS}" CPPFLAGS="${UE_C_CPP_LD_FLAGS}" LDFLAGS="${UE_C_CPP_LD_FLAGS}" && make clean && make -j$(get_core_count) && make install
 
 # build universal libs?
 if [ "$BUILD_UNIVERSAL" = true ] ; then
-    sh ./configure --prefix=${TMPDIR}/arm64 --host=aarch64-apple-macos && make clean && make -j$(get_core_count) && make install
+    sh ./configure --prefix=${TMPDIR}/arm64 --host=aarch64-apple-macos CFLAGS="${UE_C_CPP_LD_FLAGS}" CPPFLAGS="${UE_C_CPP_LD_FLAGS}" LDFLAGS="${UE_C_CPP_LD_FLAGS}" && make clean && make -j$(get_core_count) && make install
     # lipo the results into a universal binary
     lipo -create ${TMPDIR}/x86_64/lib/libopus.a ${TMPDIR}/arm64/lib/libopus.a -output ./Mac/libopus.a
 else
