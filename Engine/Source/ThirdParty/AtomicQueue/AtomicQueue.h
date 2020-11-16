@@ -12,7 +12,9 @@
 #include <utility>
 #include <atomic>
 
+#if !PLATFORM_CPU_ARM_FAMILY
 #include <emmintrin.h>
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -22,10 +24,15 @@ namespace atomic_queue {
 	using std::uint64_t;
 	using std::uint8_t;
 
-	// TODO(andriy): x86/x64 only
 	static inline void spin_loop_pause() noexcept {
+		// TODO(andriy): x86/x64 only
+#if !PLATFORM_CPU_ARM_FAMILY
 		_mm_pause();
+#else
+		__asm__ __volatile__("yield");
+#endif
 	}
+
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
