@@ -19159,6 +19159,7 @@ UMaterialExpressionStrataDielectricBSDF::UMaterialExpressionStrataDielectricBSDF
 int32 UMaterialExpressionStrataDielectricBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	int32 NormalCodeChunk = Normal.GetTracedInput().Expression ? Normal.Compile(Compiler) : Compiler->PixelNormalWS();
+	int32 TangentCodeChunk = Tangent.GetTracedInput().Expression ? Tangent.Compile(Compiler) : Compiler->VertexTangent();
 	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk);
 
 	int32 OutputCodeChunk = Compiler->StrataDielectricBSDF(
@@ -19166,6 +19167,7 @@ int32 UMaterialExpressionStrataDielectricBSDF::Compile(class FMaterialCompiler* 
 		IOR.GetTracedInput().Expression			? IOR.Compile(Compiler)			: Compiler->Constant(1.5f),// Default to Glass
 		Tint.GetTracedInput().Expression		? Tint.Compile(Compiler)		: Compiler->Constant3(1.0f, 1.0f, 1.0f),
 		NormalCodeChunk,
+		TangentCodeChunk,
 		SharedNormalIndex);
 	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_DIELECTRIC);
 
@@ -19198,6 +19200,9 @@ uint32 UMaterialExpressionStrataDielectricBSDF::GetInputType(int32 InputIndex)
 	case 3:
 		return MCT_Float3;
 		break;
+	case 4:
+		return MCT_Float3;
+		break;
 	}
 
 	check(false);
@@ -19227,6 +19232,7 @@ UMaterialExpressionStrataConductorBSDF::UMaterialExpressionStrataConductorBSDF(c
 int32 UMaterialExpressionStrataConductorBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	int32 NormalCodeChunk = Normal.GetTracedInput().Expression ? Normal.Compile(Compiler) : Compiler->PixelNormalWS();
+	int32 TangentCodeChunk = Tangent.GetTracedInput().Expression ? Tangent.Compile(Compiler) : Compiler->VertexTangent();
 	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk);
 
 	int32 OutputCodeChunk = Compiler->StrataConductorBSDF(
@@ -19234,6 +19240,7 @@ int32 UMaterialExpressionStrataConductorBSDF::Compile(class FMaterialCompiler* C
 		EdgeColor.GetTracedInput().Expression		? EdgeColor.Compile(Compiler)	: Compiler->Constant3(1.000f, 0.982f, 0.753f),	// Default to Gold
 		Roughness.GetTracedInput().Expression		? Roughness.Compile(Compiler)	: Compiler->Constant2(0.0f, 0.0f),
 		NormalCodeChunk,
+		TangentCodeChunk,
 		SharedNormalIndex);
 	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_CONDUCTOR);
 
@@ -19264,6 +19271,9 @@ uint32 UMaterialExpressionStrataConductorBSDF::GetInputType(int32 InputIndex)
 		return MCT_Float2;
 		break;
 	case 3:
+		return MCT_Float3;
+		break;
+	case 4:
 		return MCT_Float3;
 		break;
 	}
@@ -19680,5 +19690,61 @@ uint32 UMaterialExpressionStrataPhysicalIOR::GetInputType(int32 InputIndex)
 #endif // WITH_EDITOR
 
 
+
+
+UMaterialExpressionStrataAnisotropyToRoughness::UMaterialExpressionStrataAnisotropyToRoughness(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata", "Strata")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+
+	bShowOutputNameOnPin = true;
+
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("Roughnesses")));
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataAnisotropyToRoughness::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	return Compiler->StrataAnisotropyToRoughness(
+		Roughness.GetTracedInput().Expression ? Roughness.Compile(Compiler) : Compiler->Constant(0.5f),
+		Anisotropy.GetTracedInput().Expression ? Anisotropy.Compile(Compiler) : Compiler->Constant(0.f),
+		OutputIndex);
+}
+
+void UMaterialExpressionStrataAnisotropyToRoughness::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Anisotropy to roughnesses"));
+}
+
+uint32 UMaterialExpressionStrataAnisotropyToRoughness::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Float2;
+}
+
+uint32 UMaterialExpressionStrataAnisotropyToRoughness::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0:
+		return MCT_Float;
+		break;
+	case 1:
+		return MCT_Float;
+		break;
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

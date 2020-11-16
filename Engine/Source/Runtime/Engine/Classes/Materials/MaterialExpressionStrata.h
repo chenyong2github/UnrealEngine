@@ -130,6 +130,12 @@ class UMaterialExpressionStrataDielectricBSDF : public UMaterialExpression
 	UPROPERTY()
 	FExpressionInput Normal;
 
+	/**
+	* Tangent (type = float3, unit = unitless)
+	*/
+	UPROPERTY()
+	FExpressionInput Tangent;
+
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
@@ -168,6 +174,12 @@ class UMaterialExpressionStrataConductorBSDF : public UMaterialExpression
 	 */
 	UPROPERTY()
 	FExpressionInput Normal;
+
+	/**
+	 * Tangent (type = float3, unit = unitless)
+	 */
+	UPROPERTY()
+	FExpressionInput Tangent;
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
@@ -398,4 +410,31 @@ class UMaterialExpressionStrataPhysicalIOR : public UMaterialExpression
 	//~ End UMaterialExpression Interface
 };
 
+
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
+class UMaterialExpressionStrataAnisotropyToRoughness : public UMaterialExpression
+{
+	GENERATED_UCLASS_BODY()
+
+	/**
+	 * Input roughness
+	 */
+	UPROPERTY()
+	FExpressionInput Roughness;
+
+	/**
+	 * Anisotropy factor - 0: isotropic behavior, -1: anisotropy along the bitangent vector, 1: anisotropy along the tangent vector
+	 */
+	UPROPERTY()
+	FExpressionInput Anisotropy;
+
+	//~ Begin UMaterialExpression Interface
+#if WITH_EDITOR
+	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	virtual uint32 GetOutputType(int32 OutputIndex) override;
+	virtual uint32 GetInputType(int32 InputIndex) override;
+#endif
+	//~ End UMaterialExpression Interface
+};
 

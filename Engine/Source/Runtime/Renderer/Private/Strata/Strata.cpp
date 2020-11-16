@@ -50,7 +50,7 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 
 		// Previous GBuffer when complete was 28bytes
 		// check out Strata.ush to see how this is computed
-		const uint32 MaterialConservativeByteCountPerPixel = 84u;
+		const uint32 MaterialConservativeByteCountPerPixel = 100u;
 		const uint32 RoundToValue = 4u;
 		StrataSceneData.MaxBytesPerPixel = FMath::DivideAndRoundUp(MaterialConservativeByteCountPerPixel, RoundToValue) * RoundToValue;
 	}

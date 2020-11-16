@@ -7293,27 +7293,31 @@ int32 FHLSLMaterialTranslator::StrataDiffuseChanBSDF(int32 Albedo, int32 Roughne
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal, uint8 SharedNormalIndex)
+int32 FHLSLMaterialTranslator::StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal, int32 Tangent, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataDielectricBSDF(%s, %s, %s, %u) /* %s */"),
+		MCT_Strata, TEXT("GetStrataDielectricBSDF(%s, %s, %s, %s, %u) /* Normal:%s Tangent:%s */"),
 		*GetParameterCode(Roughness),
 		*GetParameterCode(IOR),
 		*GetParameterCode(Tint),
+		*GetParameterCode(Tangent),
 		SharedNormalIndex,
-		*GetParameterCode(Normal)
+		*GetParameterCode(Normal),
+		*GetParameterCode(Tangent)
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 Roughness, int32 Normal, uint8 SharedNormalIndex)
+int32 FHLSLMaterialTranslator::StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 Roughness, int32 Normal, int32 Tangent, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataConductorBSDF(%s, %s, %s, %u) /* %s */"),
+		MCT_Strata, TEXT("GetStrataConductorBSDF(%s, %s, %s, %s, %u) /* Normal:%s Tangent:%s */"),
 		*GetParameterCode(Reflectivity),
 		*GetParameterCode(EdgeColor),
 		*GetParameterCode(Roughness),
+		*GetParameterCode(Tangent),
 		SharedNormalIndex,
-		*GetParameterCode(Normal)
+		*GetParameterCode(Normal),
+		*GetParameterCode(Tangent)
 	);
 }
 
@@ -7409,6 +7413,23 @@ int32 FHLSLMaterialTranslator::StrataPhysicalIOR(int32 IOR, int32 Extinction, in
 		*GetParameterCode(IOR),
 		*GetParameterCode(Extinction)
 	);
+}
+
+int32 FHLSLMaterialTranslator::StrataAnisotropyToRoughness(int32 Roughness, int32 Anisotropy, int32 OutputIndex)
+{
+	if (Roughness == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+	else if (Anisotropy == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+	return AddCodeChunk(
+		MCT_Float2,
+		TEXT("GetAnisotropicRoughness(%s,%s)"),
+		*GetParameterCode(Roughness),
+		*GetParameterCode(Anisotropy));
 }
 
 int32 FHLSLMaterialTranslator::MapARPassthroughCameraUV(int32 UV)

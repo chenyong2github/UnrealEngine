@@ -58,6 +58,8 @@ float3 StrataEnvironmentLighting(
 			SkyLighting += BSDFThroughput * SpecularLuminance * StrataEnvLight.SpecularWeight * View.SkyLightColor.rgb * AmbientOcclusion;
 		}
 
+		// STRATA_TODO: Missing probe reflection here
+
 	}
 #if USE_PREEXPOSURE
 	SkyLighting *= View.PreExposure;

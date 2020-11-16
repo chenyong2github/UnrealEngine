@@ -484,6 +484,7 @@ void ModifyGGXAnisotropicNormalRoughness(float3 WorldTangent, float Anisotropy, 
 	}
 }
 
+// Convert a roughness and an anisotropy factor into GGX alpha values respectively for the major and minor axis of the tangent frame
 void GetAnisotropicRoughness(float Alpha, float Anisotropy, out float ax, out float ay)
 {
 #if 1
@@ -496,6 +497,27 @@ void GetAnisotropicRoughness(float Alpha, float Anisotropy, out float ax, out fl
 	ax = max(Alpha / K, 0.001f);
 	ay = max(Alpha * K, 0.001f);
 #endif
+}
+
+// Convert a roughness and an anisotropy factor, into two roughnesses respectively for the major and minor axis of the tangent frame
+float2 GetAnisotropicRoughness(float Roughness, float Anisotropy)
+{
+	// Anisotropic parameters: ax and ay are the roughness along the tangent and bitangent	
+	// Kulla 2017, "Revisiting Physically Based Shading at Imageworks"
+	float2 Out = saturate(Roughness);
+	Anisotropy = clamp(Anisotropy, -1.0, 1.0);
+	Out.x = max(Roughness * sqrt(1.0 + Anisotropy), 0.001f);
+	Out.y = max(Roughness * sqrt(1.0 - Anisotropy), 0.001f);
+	return Out;
+}
+
+// Return anisotropy factor (+1: Tangent is major axis, -1: Bitangent is the major axis), and the original roughness
+void GetAnisotropicFactor(float RoughnessX, float RoughnessY, inout float Anisotropy, inout float OriginalRoughness)
+{
+	const float MinRoughness = 0.001f;
+	float r = Pow2(max(RoughnessX, MinRoughness) / max(RoughnessY, MinRoughness));
+	Anisotropy = (r - 1.0) / (r + 1.0);
+	OriginalRoughness = (RoughnessX + RoughnessY) / (sqrt(1.0 + Anisotropy) + sqrt(1.0 - Anisotropy));
 }
 
 #ifndef PreIntegratedGF

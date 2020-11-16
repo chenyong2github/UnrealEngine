@@ -58,55 +58,62 @@ void StrataPreprocessAreaLightIntegration(
 	if (bIsValid && IsAreaLight(LightContext.AreaLight) && StrataHasAreaLightIntegrator(BSDFContext.BSDF))
 	{
 		// Evaluate roughness / specular color
-		float SafeRoughness = 0;
+		float SafeRoughness0 = 0;
+		float SafeRoughness1 = 0;
 		float3 SpecularColor = 0;
 		switch (BSDF_GETTYPE(BSDFContext.BSDF))
 		{
 			case STRATA_BSDF_TYPE_DIELECTRIC:
 			{
-				SafeRoughness = MakeRoughnessSafe(DIELECTRIC_ROUGHNESS0(BSDFContext.BSDF));
+				SafeRoughness0 = MakeRoughnessSafe(DIELECTRIC_ROUGHNESS0(BSDFContext.BSDF), View.MinRoughness);
+				SafeRoughness1 = MakeRoughnessSafe(DIELECTRIC_ROUGHNESS1(BSDFContext.BSDF), View.MinRoughness);
 				SpecularColor = DielectricIorToF0(DIELECTRIC_IOR(BSDFContext.BSDF)) * DIELECTRIC_TINT(BSDFContext.BSDF);
 			}
 			break;
 			case STRATA_BSDF_TYPE_CONDUCTOR:
 			{
-				SafeRoughness = MakeRoughnessSafe(CONDUCTOR_ROUGHNESS0(BSDFContext.BSDF));
+				SafeRoughness0 = MakeRoughnessSafe(CONDUCTOR_ROUGHNESS0(BSDFContext.BSDF), View.MinRoughness);
+				SafeRoughness1 = MakeRoughnessSafe(CONDUCTOR_ROUGHNESS1(BSDFContext.BSDF), View.MinRoughness);
 				SpecularColor = CONDUCTOR_REFLECTIVITY(BSDFContext.BSDF);
 			}
 			break;
-		}		
-		
-		// Evaluate area-light preintegration
-		SafeRoughness = max(SafeRoughness, View.MinRoughness);
-		if (LightContext.AreaLight.bIsRect)
-		{
-			// Rect light uses LTC integrator, which computes the full BDSD x Area light integration. 
-			// This is why there is no need to evaluate the BSDF. The result is stored into a local 
-			// OutgoingRadiance, which will be accumulated outside of this function
-			Out.OutgoingRadiance.rgb += 
-				Out.IncidentRadiance * 
-				RectGGXApproxLTC(SafeRoughness, SpecularColor, BSDFContext.N, BSDFContext.V, LightContext.AreaLight.Rect, LightContext.AreaLight.Texture);
-			Out.bEvaluateBSDF = false;
 		}
-		else
-		{
-			// Sphere/Tube/Disk light use MRP integrator, which:
-			// 1. compute an energy rescaling factor (this is fold into the incident radiance)
-			// 2. change the BSDF roughness
-			// 3. compute a derived L 
-			// Update the BSDF context with the new L (and derived data) with value coming from MRP integrator
-			StrataUpdateBSDFContext(BSDFContext, LightContext.L);
-			SphereMaxNoH(BSDFContext.Context, LightContext.AreaLight.SphereSinAlpha, true);
-			BSDFContext.Context.NoV = saturate(abs(BSDFContext.Context.NoV) + 1e-5);
 
-			// Update incident irradiance to add the energy rescaling to due MRP integration
-			// The a2 override stored the overriden roughness, which will be used during the BSDF evaluation
-			BSDFContext.a2Override = Pow4(SafeRoughness);
-			Out.IncidentIrradiance =
-				Out.IncidentRadiance *
-				EnergyNormalization(BSDFContext.a2Override, BSDFContext.Context.VoH, LightContext.AreaLight) *
-				LightContext.AreaLight.FalloffColor * (LightContext.Falloff * LightContext.NoL);
-			Out.bEvaluateBSDF = true;
+		// Currently anistropic material don't support area lighting and will fallback on punctual lighting (that is a2Override == 0)
+		const bool bAnistropy = BSDF_GETANISOTROPY(BSDFContext.BSDF);
+		if (!bAnistropy)
+		{
+			// Evaluate area-light preintegration
+			if (LightContext.AreaLight.bIsRect)
+			{
+				// Rect light uses LTC integrator, which computes the full BDSD x Area light integration. 
+				// This is why there is no need to evaluate the BSDF. The result is stored into a local 
+				// OutgoingRadiance, which will be accumulated outside of this function
+				Out.OutgoingRadiance.rgb += 
+					Out.IncidentRadiance * 
+					RectGGXApproxLTC(SafeRoughness0, SpecularColor, BSDFContext.N, BSDFContext.V, LightContext.AreaLight.Rect, LightContext.AreaLight.Texture);
+				Out.bEvaluateBSDF = false;
+			}
+			else
+			{
+				// Sphere/Tube/Disk light use MRP integrator, which:
+				// 1. compute an energy rescaling factor (this is fold into the incident radiance)
+				// 2. change the BSDF roughness
+				// 3. compute a derived L 
+				// Update the BSDF context with the new L (and derived data) with value coming from MRP integrator
+				StrataUpdateBSDFContext(BSDFContext, LightContext.L);
+				SphereMaxNoH(BSDFContext.Context, LightContext.AreaLight.SphereSinAlpha, true);
+				BSDFContext.Context.NoV = saturate(abs(BSDFContext.Context.NoV) + 1e-5);
+
+				// Update incident irradiance to add the energy rescaling to due MRP integration
+				// The a2 override stored the overriden roughness, which will be used during the BSDF evaluation
+				BSDFContext.a2Override = Pow4(SafeRoughness0);
+				Out.IncidentIrradiance =
+					Out.IncidentRadiance *
+					EnergyNormalization(BSDFContext.a2Override, BSDFContext.Context.VoH, LightContext.AreaLight) *
+					LightContext.AreaLight.FalloffColor * (LightContext.Falloff * LightContext.NoL);
+				Out.bEvaluateBSDF = true;
+			}
 		}
 	}
 }
