@@ -10,6 +10,7 @@
 #include "OnlineAchievementsEOSPlus.h"
 #include "OnlineFriendsEOSPlus.h"
 #include "OnlinePresenceEOSPlus.h"
+#include "OnlineUserEOSPlus.h"
 
 
 /**
@@ -76,6 +77,7 @@ PACKAGE_SCOPE:
 	FOnlineAchievementsEOSPlusPtr AchievementsInterfacePtr;
 	FOnlineFriendsEOSPlusPtr FriendsInterfacePtr;
 	FOnlinePresenceEOSPlusPtr PresenceInterfacePtr;
+	FOnlineUserEOSPlusPtr UserInterfacePtr;
 };
 
 typedef TSharedPtr<FOnlineSubsystemEOSPlus, ESPMode::ThreadSafe> FOnlineSubsystemEOSPlusPtr;

@@ -44,6 +44,7 @@ bool FOnlineSubsystemEOSPlus::Init()
 	AchievementsInterfacePtr = MakeShareable(new FOnlineAchievementsEOSPlus(this));
 	FriendsInterfacePtr = MakeShareable(new FOnlineFriendsEOSPlus(this));
 	PresenceInterfacePtr = MakeShareable(new FOnlinePresenceEOSPlus(this));
+	UserInterfacePtr = MakeShareable(new FOnlineUserEOSPlus(this));
 
 	return true;
 }
@@ -64,6 +65,7 @@ bool FOnlineSubsystemEOSPlus::Shutdown()
 	DESTRUCT_INTERFACE(AchievementsInterfacePtr);
 	DESTRUCT_INTERFACE(FriendsInterfacePtr);
 	DESTRUCT_INTERFACE(PresenceInterfacePtr);
+	DESTRUCT_INTERFACE(UserInterfacePtr);
 
 #undef DESTRUCT_INTERFACE
 
