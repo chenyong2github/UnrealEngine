@@ -2623,6 +2623,37 @@ void UGroomComponent::CheckForErrors()
 }
 #endif
 
+template<typename T>
+void InternalAddDedicatedVideoMemoryBytes(FResourceSizeEx& CumulativeResourceSize, T Resource)
+{
+	if (Resource)
+	{
+		CumulativeResourceSize.AddDedicatedVideoMemoryBytes(Resource->GetResourcesSize());
+	}
+}
+
+void UGroomComponent::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	for (const FHairGroupInstance* Instance : HairGroupInstances)
+	{
+		InternalAddDedicatedVideoMemoryBytes(CumulativeResourceSize, Instance->Guides.DeformedResource);
+		InternalAddDedicatedVideoMemoryBytes(CumulativeResourceSize, Instance->Guides.DeformedRootResource);
+
+		InternalAddDedicatedVideoMemoryBytes(CumulativeResourceSize, Instance->Strands.DeformedResource);
+		InternalAddDedicatedVideoMemoryBytes(CumulativeResourceSize, Instance->Strands.DeformedRootResource);
+
+		for (const FHairGroupInstance::FCards::FLOD& LOD : Instance->Cards.LODs)
+		{
+			InternalAddDedicatedVideoMemoryBytes(CumulativeResourceSize, LOD.DeformedResource);
+		}
+
+		for (const FHairGroupInstance::FMeshes::FLOD& LOD : Instance->Meshes.LODs)
+		{
+			InternalAddDedicatedVideoMemoryBytes(CumulativeResourceSize, LOD.DeformedResource);
+		}
+	}
+}
+
 #if WITH_EDITORONLY_DATA
 FGroomComponentRecreateRenderStateContext::FGroomComponentRecreateRenderStateContext(UGroomAsset* GroomAsset)
 {
