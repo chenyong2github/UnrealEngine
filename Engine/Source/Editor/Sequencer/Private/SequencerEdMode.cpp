@@ -114,6 +114,7 @@ struct FTrackTransforms
 		Interrogator.QueryWorldSpaceTransforms(Channel, Transforms);
 
 		check(Transforms.Num() == Times.Num());
+		Interrogator.Reset();
 	}
 };
 
