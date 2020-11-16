@@ -37,6 +37,7 @@ public:
 /**
  *	FOnlineStoreGameCircle - Implementation of the online store for GameCircle
  */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class FOnlineStoreGameCircle : public IOnlineStore
 {
 public:
@@ -75,6 +76,7 @@ private:
 	/** Cached in-app purchase transaction object, used to provide details to the user, of the product that has just been purchased. */
 	FOnlineInAppPurchaseTransactionPtr CachedPurchaseStateObject;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 typedef TSharedPtr<FOnlineStoreGameCircle, ESPMode::ThreadSafe> FOnlineStoreGameCirclePtr;
 
