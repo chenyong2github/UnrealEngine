@@ -1119,6 +1119,18 @@ public:
 		return DirectoryIndexReader;
 	}
 
+	bool TocChunkContainsBlockIndex(const int32 TocEntryIndex, const int32 BlockIndex) const
+	{
+		const FIoStoreTocResource& TocResource = Toc.GetTocResource();
+		const FIoOffsetAndLength& OffsetLength = TocResource.ChunkOffsetLengths[TocEntryIndex];
+
+		const uint64 CompressionBlockSize = TocResource.Header.CompressionBlockSize;
+		int32 FirstBlockIndex = int32(OffsetLength.GetOffset() / CompressionBlockSize);
+		int32 LastBlockIndex = int32((Align(OffsetLength.GetOffset() + OffsetLength.GetLength(), CompressionBlockSize) - 1) / CompressionBlockSize);
+
+		return BlockIndex >= FirstBlockIndex && BlockIndex <= LastBlockIndex;
+	}
+
 private:
 	FIoStoreTocChunkInfo GetTocChunkInfo(const int32 TocEntryIndex) const
 	{
@@ -1489,4 +1501,38 @@ TIoStatusOr<uint64> FIoStoreTocResource::Write(
 	TocFileHandle->Flush(true);
 
 	return TocFileHandle->Tell();
+}
+
+void FIoStoreReader::GetFilenames(TArray<FString>& OutFileList) const
+{
+	const FIoDirectoryIndexReader& DirectoryIndex = GetDirectoryIndexReader();
+
+	DirectoryIndex.IterateDirectoryIndex(
+		FIoDirectoryIndexHandle::RootDirectory(),
+		TEXT(""),
+		[&OutFileList](FString Filename, uint32 TocEntryIndex) -> bool
+		{
+			OutFileList.AddUnique(Filename);
+			return true;
+		});
+}
+
+void FIoStoreReader::GetFilenamesByBlockIndex(const TArray<int32>& InBlockIndexList, TArray<FString>& OutFileList) const
+{
+	const FIoDirectoryIndexReader& DirectoryIndex = GetDirectoryIndexReader();
+
+	DirectoryIndex.IterateDirectoryIndex(FIoDirectoryIndexHandle::RootDirectory(), TEXT(""),
+		[this, &InBlockIndexList, &OutFileList](FString Filename, uint32 TocEntryIndex) -> bool
+		{
+			for (int32 BlockIndex : InBlockIndexList)
+			{
+				if (Impl->TocChunkContainsBlockIndex(TocEntryIndex, BlockIndex))
+				{
+					OutFileList.AddUnique(Filename);
+					break;
+				}
+			}
+
+			return true;
+		});
 }
