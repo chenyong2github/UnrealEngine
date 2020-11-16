@@ -14,6 +14,7 @@
 #include "Async/Async.h"
 #include "GeneralProjectSettings.h"
 #include "Misc/ScopeLock.h"
+#include "BackChannel/Transport/IBackChannelSocketConnection.h"
 
 
 DEFINE_LOG_CATEGORY(LogRemoteSession);
@@ -54,10 +55,10 @@ FRemoteSessionRole::FRemoteSessionRole()
 
 FRemoteSessionRole::~FRemoteSessionRole()
 {
-	Close();
+	CloseConnections();
 }
 
-void FRemoteSessionRole::Close()
+void FRemoteSessionRole::CloseConnections()
 {
 	// order is specific since OSC uses the connection, and
 	// dispatches to channels
@@ -69,18 +70,37 @@ void FRemoteSessionRole::Close()
 	CurrentState = ConnectionState::Disconnected;
 	PendingState = ConnectionState::Unknown;
 	RemoteVersion = TEXT("");
+	LastPingTime = 0;
+	SecondsForPeerResponse = 0;
+	LastReponseTime = 0;
 	FBackChannelOSCMessage::SetLegacyMode(false);
+}
+
+void FRemoteSessionRole::Close(const FString& Message)
+{
+	FScopeLock Tmp(&CriticalSectionForMainThread);
+	ErrorMessage = Message;
+
+	if (OSCConnection && OSCConnection->IsConnected())
+	{
+		SendGoodbye(Message);
+	}
+
+	CloseConnections();
 }
 
 void FRemoteSessionRole::CloseWithError(const FString& Message)
 {
-	FScopeLock Tmp(&CriticalSectionForMainThread);
-	ErrorMessage = Message;
-	Close();
+	Close(Message);
 }
 
 void FRemoteSessionRole::Tick(float DeltaTime)
 {
+	const URemoteSessionSettings* ConnectionSettings = GetDefault<URemoteSessionSettings>();
+
+	const float kTimeout = FPlatformMisc::IsDebuggerPresent() ? ConnectionSettings->ConnectionTimeoutWhenDebugging : ConnectionSettings->ConnectionTimeout;
+	const float kPingTime = ConnectionSettings->PingTime;
+
 	if (PendingState != ConnectionState::Unknown)
 	{
 		UE_LOG(LogRemoteSession, Log, TEXT("Processing change from %s to %s"), LexToString(CurrentState), LexToString(PendingState));
@@ -130,6 +150,35 @@ void FRemoteSessionRole::Tick(float DeltaTime)
 				}
 			}
 		}
+
+		// Check if we're in an error state
+		IBackChannelSocketConnection::FConnectionStats Stats = Connection->GetConnectionStats();
+
+		// todo - needed for legacy?
+		const double TimeNow = FPlatformTime::Seconds();
+		
+		// Send a ping periodically. This is required to keep things alive
+		if (TimeNow - LastPingTime >= kPingTime)
+		{
+			SendPing();
+		}
+
+		if (LastReponseTime == 0)
+		{
+			LastReponseTime = TimeNow;
+		}
+		else
+		{
+			LastReponseTime = FMath::Max(LastReponseTime, Stats.LastReceiveTime);
+		}
+
+		//const double TimeWithErrors = Stats.LastErrorTime - Stats.Last;
+		const double TimeWithNoReceive = TimeNow - LastReponseTime;
+
+		if (TimeWithNoReceive >= kTimeout)
+		{
+			CloseWithError(FString::Printf(TEXT("Closing connection to %s after receiving no data for %.02f seconds"), *Connection->GetDescription(), TimeWithNoReceive));
+		}
 	}
 	else if (DidHaveConnection)
 	{
@@ -169,9 +218,6 @@ void FRemoteSessionRole::CreateOSCConnection(TSharedRef<IBackChannelSocketConnec
 	OSCConnection = MakeShareable(new FBackChannelOSCConnection(InConnection));
 
 	SetPendingState(ConnectionState::UnversionedConnection);
-
-	const URemoteSessionSettings* Settings = GetDefault<URemoteSessionSettings>();
-	OSCConnection->SetConnectionTimeout(Settings->ConnectionTimeout, Settings->ConnectionTimeoutWhenDebugging);
 }
 
 /* Registers a delegate for notifications of connection changes*/
@@ -204,6 +250,15 @@ void FRemoteSessionRole::BindEndpoints(TBackChannelSharedPtr<IBackChannelConnect
 {
 	auto Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionRole::OnReceiveHello);
 	InConnection->AddRouteDelegate(kHelloEndPoint, Delegate);
+
+	Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionRole::OnReceiveGoodbye);
+	InConnection->AddRouteDelegate(kGoodbyeEndPoint, Delegate);
+
+	Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionRole::OnReceivePing);
+	InConnection->AddRouteDelegate(kPingEndPoint, Delegate);
+
+	Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionRole::OnReceivePong);
+	InConnection->AddRouteDelegate(kPongEndPoint, Delegate);
 
 	Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionRole::OnReceiveLegacyVersion);
 	InConnection->AddRouteDelegate(kLegacyVersionEndPoint, Delegate);
@@ -339,6 +394,55 @@ void FRemoteSessionRole::OnReceiveHello(IBackChannelPacket& Message)
 	}
 }
 
+void FRemoteSessionRole::SendGoodbye(const FString& InReason)
+{
+	if (GetCurrentState() == ConnectionState::Connected && OSCConnection->IsConnected())
+	{
+		TBackChannelSharedPtr<IBackChannelPacket> Packet = OSCConnection->CreatePacket();
+
+		Packet->SetPath(kGoodbyeEndPoint);
+		Packet->Write(TEXT("Reason"), InReason);
+		OSCConnection->SendPacket(Packet);
+	}
+}
+
+void FRemoteSessionRole::OnReceiveGoodbye(IBackChannelPacket& Message)
+{
+	FString Reason;
+	Message.Read(TEXT("Reason"), Reason);
+
+	UE_LOG(LogRemoteSession, Display, TEXT("FRemoteSessionRole: Closing due to goodbye from peer. '%s'"), *Reason);
+
+	// note messages are received on a background thread and role operations should occur on
+	// the main thread
+	// Need to create channels on the main thread
+	AsyncTask(ENamedThreads::GameThread, [this, Reason] {
+		ErrorMessage = Reason;
+		CloseConnections();
+	});
+}
+
+void FRemoteSessionRole::SendPing()
+{
+	UE_LOG(LogRemoteSession, Verbose, TEXT("Sending ping to %s to check connection"), *Connection->GetDescription());
+	FBackChannelOSCMessage Msg(kPingEndPoint);
+	OSCConnection->SendPacket(Msg);
+	LastPingTime = FPlatformTime::Seconds();
+}
+
+void FRemoteSessionRole::OnReceivePing(IBackChannelPacket& InMessage)
+{
+	// send pong
+	UE_LOG(LogRemoteSession, Verbose, TEXT("Received Ping, Sending Pong"));
+	FBackChannelOSCMessage OutMessage(kPongEndPoint);
+	OSCConnection->SendPacket(OutMessage);
+}
+
+void FRemoteSessionRole::OnReceivePong(IBackChannelPacket& Message)
+{
+	SecondsForPeerResponse = FPlatformTime::Seconds() - LastPingTime;
+	UE_LOG(LogRemoteSession, Verbose, TEXT("Peer latency is currently %.02f seconds"), SecondsForPeerResponse);
+}
 
 void FRemoteSessionRole::OnReceiveChannelChanged(IBackChannelPacket& Message)
 {
@@ -348,20 +452,24 @@ void FRemoteSessionRole::OnReceiveChannelChanged(IBackChannelPacket& Message)
 	Message.Read(TEXT("Name"), ChannelName);
 	Message.Read(TEXT("Mode"), ChannelMode);
 
-	UE_LOG(LogRemoteSession, Log, TEXT("Peer created Channel %s with mode %s"), *ChannelName, *ChannelMode);
+	AsyncTask(ENamedThreads::GameThread, [this, ChannelName, ChannelMode] {
+		UE_LOG(LogRemoteSession, Log, TEXT("Peer created Channel %s with mode %s"), *ChannelName, *ChannelMode);
 
-	TSharedPtr<IRemoteSessionChannel> NewChannel = GetChannel(*ChannelName);
-	ChannelChangeDelegate.Broadcast(this, NewChannel, ERemoteSessionChannelChange::Created);
+		TSharedPtr<IRemoteSessionChannel> NewChannel = GetChannel(*ChannelName);
+		ChannelChangeDelegate.Broadcast(this, NewChannel, ERemoteSessionChannelChange::Created);
+	});
 }
-
 
 void FRemoteSessionRole::CreateChannels(const TArray<FRemoteSessionChannelInfo>& InChannels)
 {
 	ClearChannels();
-	
-	for (const FRemoteSessionChannelInfo& Channel : InChannels)
-	{
-		OpenChannel(Channel);
+
+	if (OSCConnection != nullptr)
+	{	
+		for (const FRemoteSessionChannelInfo& Channel : InChannels)
+		{
+			OpenChannel(Channel);
+		}
 	}
 }
 

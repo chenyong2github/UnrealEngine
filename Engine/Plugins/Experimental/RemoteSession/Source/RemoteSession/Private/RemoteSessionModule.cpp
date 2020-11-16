@@ -58,6 +58,8 @@ void FRemoteSessionModule::StartupModule()
 		EndPieDelegate = FEditorDelegates::EndPIE.AddRaw(this, &FRemoteSessionModule::OnPIEEnded);
 #endif
 		GameStartDelegate = FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FRemoteSessionModule::OnPostInit);
+		GameStartDelegate = FCoreDelegates::OnEnginePreExit.AddRaw(this, &FRemoteSessionModule::OnPreExit);
+
 	}
 }
 
@@ -126,6 +128,20 @@ void FRemoteSessionModule::OnPostInit()
 	}
 }
 
+
+void FRemoteSessionModule::OnPreExit()
+{
+	if (IsHostConnected())
+	{
+		StopHost(TEXT("Host Exited"));
+	}
+
+	if (Client.IsValid())
+	{
+		StopClient(Client, TEXT("Client Exited"));
+	}
+}
+
 /** Callback for when the settings were saved. */
 bool FRemoteSessionModule::HandleSettingsSaved()
 {
@@ -187,7 +203,7 @@ void FRemoteSessionModule::OnPIEStarted(bool bSimulating)
 void FRemoteSessionModule::OnPIEEnded(bool bSimulating)
 {
 	// always stop, in case it was started via the console
-	StopHost();
+	StopHost(TEXT("PIE Ended"));
 }
 
 TSharedPtr<IRemoteSessionRole> FRemoteSessionModule::CreateClient(const TCHAR* RemoteAddress)
@@ -195,18 +211,18 @@ TSharedPtr<IRemoteSessionRole> FRemoteSessionModule::CreateClient(const TCHAR* R
 	// todo - remove this and allow multiple clients (and hosts) to be created
 	if (Client.IsValid())
 	{
-		StopClient(Client);
+		StopClient(Client, TEXT("New Client"));
 	}
 	Client = MakeShareable(new FRemoteSessionClient(RemoteAddress));
 	return Client;
 }
 
-void FRemoteSessionModule::StopClient(TSharedPtr<IRemoteSessionRole> InClient)
+void FRemoteSessionModule::StopClient(TSharedPtr<IRemoteSessionRole> InClient, const FString& InReason)
 {
 	if (InClient.IsValid())
 	{
 		TSharedPtr<FRemoteSessionClient> CastClient = StaticCastSharedPtr<FRemoteSessionClient>(InClient);
-		CastClient->Close();
+		CastClient->Close(InReason);
 			
 		if (CastClient == Client)
 		{
@@ -255,6 +271,15 @@ void FRemoteSessionModule::InitHost(const int16 Port /*= 0*/)
 	{
 		UE_LOG(LogRemoteSession, Error, TEXT("Failed to start host listening on port %d"), SelectedPort);
 	}
+}
+
+void FRemoteSessionModule::StopHost(const FString& InReason)
+{ 
+	if (IsHostConnected())
+	{
+		Host->Close(InReason);
+	}
+	Host = nullptr; 
 }
 
 bool FRemoteSessionModule::IsHostConnected() const
@@ -330,7 +355,7 @@ FAutoConsoleCommand GRemoteDisconnectCommand(
 		if (FRemoteSessionModule* Viewer = FModuleManager::LoadModulePtr<FRemoteSessionModule>("RemoteSession"))
 		{
 			//Viewer->StopClient();
-			Viewer->StopHost();
+			Viewer->StopHost(TEXT("Console Disconnect"));
 		}
 	})
 );
