@@ -6625,6 +6625,12 @@ UBlueprintFactory::UBlueprintFactory(const FObjectInitializer& ObjectInitializer
 
 bool UBlueprintFactory::ConfigureProperties()
 {
+	if (bSkipClassPicker)
+	{
+		check(ParentClass);
+		return true;
+	}
+
 	// Null the parent class to ensure one is selected
 	ParentClass = nullptr;
 

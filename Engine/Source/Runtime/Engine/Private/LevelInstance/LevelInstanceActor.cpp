@@ -107,11 +107,18 @@ void ALevelInstance::PostUnregisterAllComponents()
 
 }
 
-void ALevelInstance::LoadLevelInstance()
+bool ALevelInstance::SupportsLoading() const
 {
 #if WITH_EDITOR
-	if (!bGuardLoadUnload && !bIsEditorPreviewActor)
+	return !bGuardLoadUnload && !bIsEditorPreviewActor;
+#else
+	return true;
 #endif
+}
+
+void ALevelInstance::LoadLevelInstance()
+{
+	if(SupportsLoading())
 	{
 		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
 		{
@@ -127,9 +134,7 @@ void ALevelInstance::LoadLevelInstance()
 
 void ALevelInstance::UnloadLevelInstance()
 {
-#if WITH_EDITOR
-	if (!bGuardLoadUnload && !bIsEditorPreviewActor)
-#endif
+	if(SupportsLoading())
 	{
 		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
 		{
@@ -223,7 +228,7 @@ void ALevelInstance::PostEditUndo()
 
 	if (CachedWorldAsset != WorldAsset)
 	{
-		UpdateLevelInstance();
+		OnWorldAssetChanged();
 	}
 
 	if (bCachedIsTemporarilyHiddenInEditor != IsTemporarilyHiddenInEditor(false))
@@ -395,7 +400,7 @@ void ALevelInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 				}
 				else
 				{
-					UpdateLevelInstance();
+					OnWorldAssetChanged();
 				}
 				CachedWorldAsset.Reset();
 			}
@@ -491,7 +496,7 @@ void ALevelInstance::UpdateLevelInstance()
 	{
 		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
 		{
-			if (IsLevelInstancePathValid())
+			if (IsLevelInstancePathValid() && SupportsLoading())
 			{
 				const bool bForceUpdate = true;
 				LevelInstanceSubsystem->RequestLoadLevelInstance(this, bForceUpdate);

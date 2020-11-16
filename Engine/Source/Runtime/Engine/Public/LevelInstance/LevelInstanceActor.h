@@ -22,6 +22,7 @@ public:
 
 	void LoadLevelInstance();
 	void UnloadLevelInstance();
+	virtual bool SupportsLoading() const;
 	bool IsLevelInstancePathValid() const;
 	const TSoftObjectPtr<UWorld>& GetWorldAsset() const { return WorldAsset; }
 	class ULevelInstanceSubsystem* GetLevelInstanceSubsystem() const;
@@ -75,6 +76,13 @@ public:
 	bool CheckForLoop(TSoftObjectPtr<UWorld> WorldAsset, TArray<TPair<FText, TSoftObjectPtr<UWorld>>>* LoopInfo = nullptr, const ALevelInstance** LoopStart = nullptr) const;
 	AActor* FindEditorInstanceActor() const;
 
+	virtual void OnWorldAssetChanged() { UpdateLevelInstance(); }
+	virtual void OnWorldAssetSaved() {}
+	virtual void OnEdit() {}
+	virtual void OnEditChild() {}
+	virtual void OnCommit() {}
+	virtual void OnCommitChild() {}
+		
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnLevelInstanceActorPostLoad, ALevelInstance*);
 	static FOnLevelInstanceActorPostLoad OnLevelInstanceActorPostLoad;
 #endif

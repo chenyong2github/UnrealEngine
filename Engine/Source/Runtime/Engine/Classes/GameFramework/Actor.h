@@ -2006,7 +2006,7 @@ public:
 
 	/** Returns true if this actor is hidden in the editor viewports, also checking temporary flags. */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing")
-	bool IsHiddenEd() const;
+	virtual bool IsHiddenEd() const;
 
 	/**
 	 * Explicitly sets whether or not this actor is hidden in the editor for the duration of the current editor session

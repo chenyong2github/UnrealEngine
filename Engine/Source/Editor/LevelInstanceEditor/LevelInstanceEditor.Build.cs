@@ -31,7 +31,8 @@ public class LevelInstanceEditor : ModuleRules
 				"MainFrame",
 				"ContentBrowser",
 				"AssetTools",
-				"ClassViewer"
+				"ClassViewer",
+				"MessageLog"
 			}
 		);
 

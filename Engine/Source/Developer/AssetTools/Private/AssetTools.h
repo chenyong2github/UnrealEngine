@@ -120,14 +120,12 @@ public:
 	virtual TSharedRef<FBlacklistPaths>& GetWritableFolderBlacklist() override;
 	virtual bool AllPassWritableFolderFilter(const TArray<FString>& InPaths) const override;
 	virtual void NotifyBlockedByWritableFolderFilter() const;
-
+	
+	virtual void SyncBrowserToAssets(const TArray<UObject*>& AssetsToSync) override;
+	virtual void SyncBrowserToAssets(const TArray<FAssetData>& AssetsToSync) override;
 public:
 	/** Gets the asset tools singleton as a FAssetTools for asset tools module use */
 	static UAssetToolsImpl& Get();
-
-	/** Syncs the primary content browser to the specified assets, whether or not it is locked. Most syncs that come from AssetTools -feel- like they came from the content browser, so this is okay. */
-	void SyncBrowserToAssets(const TArray<UObject*>& AssetsToSync);
-	void SyncBrowserToAssets(const TArray<FAssetData>& AssetsToSync);
 
 	/** The manager to handle renaming assets */
 	TSharedPtr<FAssetRenameManager> AssetRenameManager;

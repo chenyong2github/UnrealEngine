@@ -23,6 +23,10 @@ class UNREALED_API UBlueprintFactory : public UFactory
 	UPROPERTY(EditAnywhere, Category=BlueprintFactory, meta=(AllowAbstract = "", BlueprintBaseOnly = ""))
 	TSubclassOf<class UObject> ParentClass;
 
+	// Skips the class choosing dialog and uses the ParentClass as the blueprint base class
+	UPROPERTY()
+	bool bSkipClassPicker = false;
+
 	// Delegate allows overriding the class viewer initialization options before displaying it
 	DECLARE_DELEGATE_OneParam(FOnConfigureProperties, FClassViewerInitializationOptions*)
 	FOnConfigureProperties OnConfigurePropertiesDelegate;

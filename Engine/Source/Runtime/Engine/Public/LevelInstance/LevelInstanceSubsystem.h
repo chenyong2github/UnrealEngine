@@ -17,6 +17,15 @@ class ALevelInstance;
 class ULevelStreamingLevelInstance;
 class ULevelStreamingLevelInstanceEditor;
 class UWorldPartitionSubsystem;
+class UBlueprint;
+
+UENUM()
+enum class ELevelInstanceCreationType : uint8
+{
+	LevelInstance,
+	PackedLevelInstance,
+	PackedLevelInstanceBlueprint
+};
 
 /**
  * ULevelInstanceSubsystem
@@ -50,11 +59,13 @@ public:
 
 #if WITH_EDITOR
 	void Tick();
+	void PackLevelInstances();
+	bool CanPackLevelInstances() const;
 
 	bool CanEditLevelInstance(const ALevelInstance* LevelInstanceActor, FText* OutReason = nullptr) const;
 	bool CanCommitLevelInstance(const ALevelInstance* LevelInstanceActor, FText* OutReason = nullptr) const;
 	void EditLevelInstance(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr = nullptr);
-	void CommitLevelInstance(ALevelInstance* LevelInstanceActor, bool bDiscardEdits = false);
+	ALevelInstance* CommitLevelInstance(ALevelInstance* LevelInstanceActor, bool bDiscardEdits = false);
 	void SaveLevelInstanceAs(ALevelInstance* LevelInstanceActor);
 	bool IsEditingLevelInstanceDirty(const ALevelInstance* LevelInstanceActor) const;
 	bool IsEditingLevelInstance(const ALevelInstance* LevelInstanceActor) const { return GetLevelInstanceEdit(LevelInstanceActor) != nullptr; }
@@ -75,7 +86,7 @@ public:
 
 	bool SetCurrent(ALevelInstance* LevelInstanceActor) const;
 	bool IsCurrent(const ALevelInstance* LevelInstanceActor) const;
-	ALevelInstance* CreateLevelInstanceFrom(const TArray<AActor*>& ActorsToMove, UWorld* TemplateWorld = nullptr);
+	ALevelInstance* CreateLevelInstanceFrom(const TArray<AActor*>& ActorsToMove, ELevelInstanceCreationType CreationType = ELevelInstanceCreationType::LevelInstance, UWorld* TemplateWorld = nullptr);
 	bool MoveActorsToLevel(const TArray<AActor*>& ActorsToRemove, ULevel* DestinationLevel) const;
 	bool MoveActorsTo(ALevelInstance* LevelInstanceActor, const TArray<AActor*>& ActorsToMove);
 	bool BreakLevelInstance(ALevelInstance* LevelInstanceActor, uint32 Levels = 1);
@@ -86,10 +97,10 @@ public:
 	ULevel* GetLevelInstanceLevel(const ALevelInstance* LevelInstanceActor) const;
 
 	ALevelInstance* GetParentLevelInstance(const AActor* Actor) const;
+	void BlockLoadLevelInstance(ALevelInstance* LevelInstanceActor);
 #endif
 
 private:
-
 	void LoadLevelInstance(ALevelInstance* LevelInstanceActor);
 	void UnloadLevelInstance(const FLevelInstanceID& LevelInstanceID);
 	void ForEachActorInLevel(ULevel* Level, TFunctionRef<bool(AActor * LevelActor)> Operation) const;

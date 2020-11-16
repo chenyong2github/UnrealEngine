@@ -448,6 +448,10 @@ public:
 
 	/** Show notification that writable folder filter blocked an action */
 	virtual void NotifyBlockedByWritableFolderFilter() const = 0;
+
+	/** Syncs the primary content browser to the specified assets, whether or not it is locked. Most syncs that come from AssetTools -feel- like they came from the content browser, so this is okay. */
+	virtual void SyncBrowserToAssets(const TArray<UObject*>& AssetsToSync) = 0;
+	virtual void SyncBrowserToAssets(const TArray<FAssetData>& AssetsToSync) = 0;
 };
 
 UCLASS(transient)
