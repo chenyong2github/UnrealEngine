@@ -25,7 +25,8 @@
 		{
 			"Name": "ControlRigSpline",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [ "Win64" ]
 		}
 	]
 }
