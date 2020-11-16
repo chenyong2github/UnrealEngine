@@ -896,7 +896,7 @@ bool FDatasmithImporterImpl::CheckAssetPersistenceValidity(const FString& Packag
 		}
 	}
 	// Verify user has privileges to write in folder where asset file will be stored
-	else if (GUnrealEd != nullptr && !GUnrealEd->HasMountWritePersmissionForPackage(PackageName))
+	else if (GUnrealEd != nullptr && !GUnrealEd->HasMountWritePermissionForPackage(PackageName))
 	{
 		OutReason = FText::Format(LOCTEXT("DatasmithImportInvalidFolder", "Cannot write in folder {0} to store asset {1}. Check access to folder."), FText::FromString( FPaths::GetPath( FakeAbsolutePathToAsset ) ), FText::FromString( PackageName ));
 	}

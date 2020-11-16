@@ -796,6 +796,8 @@ public:
 	bool IsComponentSelected(const UPrimitiveComponent* PrimComponent);
 
 	/** Return if we have write permission under the mount point this packages lives in. */
+	bool HasMountWritePermissionForPackage(const FString& PackageName);
+	UE_DEPRECATED(5.0, "Use HasMountWritePermissionForPackage instead")
 	bool HasMountWritePersmissionForPackage(const FString& PackageName);
 
 protected:

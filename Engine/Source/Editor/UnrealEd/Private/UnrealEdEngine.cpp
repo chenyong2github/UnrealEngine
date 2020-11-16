@@ -532,7 +532,7 @@ void UUnrealEdEngine::AttemptModifiedPackageNotification()
 
 				// if we do not have write permission under the mount point for this package log an error in the message log to link to.
 				PackageName = Package->GetName();
-				if (!HasMountWritePersmissionForPackage(PackageName))
+				if (!HasMountWritePermissionForPackage(PackageName))
 				{
 					bShowWritePermissionWarning = true;
 					EditorLog.Warning(FText::Format(NSLOCTEXT("UnrealEd", "WritePermissionFailureLog", "Insufficient writing permission to save {0}"), FText::FromString(PackageName)));
@@ -974,7 +974,7 @@ void UUnrealEdEngine::GetPackageList( TArray<UPackage*>* InPackages, UClass* InC
 
 bool UUnrealEdEngine::CanSavePackage( UPackage* PackageToSave )
 {
-	return HasMountWritePersmissionForPackage(PackageToSave->GetName());
+	return HasMountWritePermissionForPackage(PackageToSave->GetName());
 }
 
 
@@ -1464,7 +1464,7 @@ void UUnrealEdEngine::OnEditorSelectionChanged(UObject* SelectionThatChanged)
 	}
 }
 
-bool UUnrealEdEngine::HasMountWritePersmissionForPackage(const FString& PackageName)
+bool UUnrealEdEngine::HasMountWritePermissionForPackage(const FString& PackageName)
 {
 	FName MountPoint = FPackageName::GetPackageMountPoint(PackageName, false);
 	if (const bool* bWritePermission = MountPointCheckedForWritePermission.Find(MountPoint))
