@@ -9,6 +9,7 @@
 #include "RHI.h"
 
 class FRHICommandListImmediate;
+class FRDGBuilder;
 
 struct FDistanceFieldDownsamplingDataTask
 {
