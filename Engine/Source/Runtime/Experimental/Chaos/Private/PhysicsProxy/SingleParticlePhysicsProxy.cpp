@@ -267,8 +267,8 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 template< >
 void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ClearAccumulatedData()
 {
-	Particle->SetF(Chaos::TVector<float, 3>(0), false);
-	Particle->SetTorque(Chaos::TVector<float, 3>(0), false);
+	Particle->ClearForces(false);
+	Particle->ClearTorques(false);
 	Particle->SetLinearImpulse(Chaos::TVector<float, 3>(0), false);
 	Particle->SetAngularImpulse(Chaos::TVector<float, 3>(0), false);
 	Particle->ClearDirtyFlags();

@@ -98,8 +98,8 @@ void PBDRigidParticleDefaultConstruct(TPBDRigidParticle<T,d>& Concrete, const TP
 	//don't bother calling parent since the call gets made by the corresponding hierarchy in FConcrete
 	Concrete.SetCollisionGroup(0);
 	//Concrete.SetDisabled(Params.bDisabled);
-	Concrete.SetF(TVector<T, d>(0));
-	Concrete.SetTorque(TVector<T, d>(0));
+	Concrete.ClearForces();
+	Concrete.ClearTorques();
 	Concrete.SetLinearImpulse(TVector<T, d>(0));
 	Concrete.SetAngularImpulse(TVector<T, d>(0));
 	Concrete.SetM(1);
@@ -2264,28 +2264,41 @@ public:
 	}
 
 	const TVector<T, d>& F() const { return MDynamics.Read().F(); }
-	void SetF(const TVector<T, d>& InF, bool bInvalidate = true)
+	void AddForce(const TVector<T, d>& InF, bool bInvalidate = true)
 	{
 		if (bInvalidate)
 		{
 			SetObjectState(EObjectStateType::Dynamic, true);
 		}
-		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InF](auto& Data){ Data.SetF(InF);});
+		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InF](auto& Data){ Data.SetF(InF + Data.F());});
 	}
 
-	void AddF(const TVector<T, d>& InF, bool bInvalidate = true)
+	void ClearForces(bool bInvalidate = true)
 	{
-		SetF(F() + InF);
+		if (bInvalidate)
+		{
+			SetObjectState(EObjectStateType::Dynamic, true);
+		}
+		MDynamics.Modify(bInvalidate, MDirtyFlags, Proxy, [](auto& Data) { Data.SetF(FVec3(0)); });
 	}
 
 	const TVector<T, d>& Torque() const { return MDynamics.Read().Torque(); }
-	void SetTorque(const TVector<T, d>& InTorque, bool bInvalidate=true)
+	void AddTorque(const TVector<T, d>& InTorque, bool bInvalidate=true)
 	{
 		if (bInvalidate)
 		{
 			SetObjectState(EObjectStateType::Dynamic, true);
 		}
-		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InTorque](auto& Data){ Data.SetTorque(InTorque);});
+		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InTorque](auto& Data){ Data.SetTorque(InTorque + Data.Torque());});
+	}
+
+	void ClearTorques(bool bInvalidate = true)
+	{
+		if (bInvalidate)
+		{
+			SetObjectState(EObjectStateType::Dynamic, true);
+		}
+		MDynamics.Modify(bInvalidate, MDirtyFlags, Proxy, [](auto& Data) { Data.SetTorque(FVec3(0)); });
 	}
 
 	const TVector<T, d>& LinearImpulse() const { return MDynamics.Read().LinearImpulse(); }

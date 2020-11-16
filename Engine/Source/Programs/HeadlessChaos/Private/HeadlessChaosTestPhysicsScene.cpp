@@ -890,7 +890,7 @@ namespace ChaosTest {
 		TArray<TGeometryParticle<FReal,3>*> Particles ={Particle};
 		Scene.AddActorsToScene_AssumesLocked(Particles);
 		Simulated->SetObjectState(EObjectStateType::Dynamic);
-		Simulated->SetF(FVec3(0,0,10) * Simulated->M());
+		Simulated->AddForce(FVec3(0,0,10) * Simulated->M());
 
 		FVec3 Grav(0,0,0);
 		Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
@@ -975,7 +975,7 @@ namespace ChaosTest {
 		for(int32 Step=0; Step<NumGTSteps;Step++)
 		{
 			//set force every external frame
-			Simulated2->AddF(ConstantForce);
+			Simulated2->AddForce(ConstantForce);
 			FVec3 Grav(0, 0, 0);
 			Scene.SetUpForFrame(&Grav, GTDt, 99999, 99999, 10, false);
 			Scene.StartFrame();
@@ -1064,7 +1064,7 @@ namespace ChaosTest {
 			Callback->GetProducerInputData_External()->ExternalFrame = Step;	//make sure input matches for all sub-steps
 
 			//set force every external frame
-			Simulated->AddF(FVec3(0, 0, 1 * Simulated->M()));	//should counteract gravity
+			Simulated->AddForce(FVec3(0, 0, 1 * Simulated->M()));	//should counteract gravity
 			FVec3 Grav(0, 0, -1);
 			Scene.GetSolver()->GetEvolution()->GetGravityForces().SetAcceleration(Grav);	//todo: remove this once SetUpForFrame sets gravity correctly
 				
