@@ -153,7 +153,7 @@ void FGroomMaterialDetails::AddMaterials(IDetailLayoutBuilder& DetailLayout)
 			.IsFocusable(false)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("PropertyWindow.Button_AddToArray"))
+				.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
 			.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 			]

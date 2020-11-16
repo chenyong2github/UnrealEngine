@@ -246,7 +246,7 @@ TSharedRef<SWidget> SPerPlatformPropertiesWidget::MakePerPlatformWidget(FName In
 				.ButtonContent()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_AddToArray"))
+					.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
 				]
 				.MenuContent()
 				[

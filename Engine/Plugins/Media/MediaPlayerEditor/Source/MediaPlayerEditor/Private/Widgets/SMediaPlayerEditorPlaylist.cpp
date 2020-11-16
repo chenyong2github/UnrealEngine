@@ -102,7 +102,7 @@ void SMediaPlayerEditorPlaylist::Construct(const FArguments& InArgs, UMediaPlaye
 							[
 								SNew(SImage)
 									.ColorAndOpacity(FSlateColor::UseForeground())
-									.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Browse"))
+									.Image(FEditorStyle::GetBrush("Icons.Search"))
 							]
 					]
 

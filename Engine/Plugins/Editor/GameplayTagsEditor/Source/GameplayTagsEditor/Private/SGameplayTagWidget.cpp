@@ -513,7 +513,7 @@ TSharedRef<ITableRow> SGameplayTagWidget::OnGenerateRow(TSharedPtr<FGameplayTagN
 				.IsFocusable( false )
 				[
 					SNew( SImage )
-					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_AddToArray"))
+					.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]

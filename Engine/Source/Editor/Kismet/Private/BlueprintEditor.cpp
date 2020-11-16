@@ -2180,7 +2180,7 @@ void FBlueprintEditor::PostRegenerateMenusAndToolbars()
 				.ForegroundColor( FSlateColor::UseForeground() )
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Browse"))
+					.Image(FEditorStyle::GetBrush("Icons.Search"))
 				]
 			]
 			+SHorizontalBox::Slot()
@@ -2197,7 +2197,7 @@ void FBlueprintEditor::PostRegenerateMenusAndToolbars()
 				.ForegroundColor( FSlateColor::UseForeground() )
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Edit"))
+					.Image(FEditorStyle::GetBrush("Icons.Edit"))
 				]
 			]
 			+ SHorizontalBox::Slot()

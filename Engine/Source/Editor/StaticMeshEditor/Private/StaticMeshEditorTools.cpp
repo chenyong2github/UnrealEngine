@@ -2489,7 +2489,7 @@ void FMeshMaterialsLayout::AddToCategory(IDetailCategoryBuilder& CategoryBuilder
 					.IsFocusable(false)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("PropertyWindow.Button_AddToArray"))
+						.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
 						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
 				]

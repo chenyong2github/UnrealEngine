@@ -455,7 +455,7 @@ TSharedPtr<SGraphNode> UK2Node_GetSequenceBinding::CreateVisualWidget()
 					[
 						SNew(SImage)
 						.ColorAndOpacity(this, &SGraphNodeGetSequenceBinding::OnGetWidgetForeground)
-						.Image( FEditorStyle::GetBrush(TEXT("PropertyWindow.Button_Use")) )
+						.Image( FEditorStyle::GetBrush(TEXT("Icons.CircleArrowLeft")) )
 					]
 				]
 
@@ -474,7 +474,7 @@ TSharedPtr<SGraphNode> UK2Node_GetSequenceBinding::CreateVisualWidget()
 					[
 						SNew(SImage)
 						.ColorAndOpacity(this, &SGraphNodeGetSequenceBinding::OnGetWidgetForeground)
-						.Image( FEditorStyle::GetBrush(TEXT("PropertyWindow.Button_Browse")) )
+						.Image( FEditorStyle::GetBrush(TEXT("Icons.Search")) )
 					]
 				]
 			];

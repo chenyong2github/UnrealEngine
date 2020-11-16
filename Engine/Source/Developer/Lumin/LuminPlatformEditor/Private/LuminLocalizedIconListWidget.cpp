@@ -37,7 +37,7 @@ void SLuminLocalizedIconListWidget::Construct(const FArguments& Args)
 				.OnClicked(this, &SLuminLocalizedIconListWidget::Add)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_AddToArray"))
+					.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
@@ -54,7 +54,7 @@ void SLuminLocalizedIconListWidget::Construct(const FArguments& Args)
 				.OnClicked(this, &SLuminLocalizedIconListWidget::RemoveAll)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_EmptyArray"))
+					.Image(FEditorStyle::GetBrush("Icons.Delete"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]

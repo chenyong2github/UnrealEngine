@@ -200,7 +200,7 @@ void FNiagaraComponentRendererPropertiesDetails::CustomizeDetails(IDetailLayoutB
 						.Content()
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("PropertyWindow.Button_EmptyArray"))
+							.Image(FEditorStyle::GetBrush("Icons.Delete"))
 						]
 					]
 				];

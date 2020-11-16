@@ -292,7 +292,7 @@ TSharedRef<SWidget> SEnvQueryProfilerTableRow::GenerateWidgetForColumn(const FNa
 				.IsFocusable(false)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Browse"))
+					.Image(FEditorStyle::GetBrush("Icons.Search"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]

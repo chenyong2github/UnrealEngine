@@ -40,7 +40,7 @@ void SLuminLocalizedAppNameListWidget::Construct(const FArguments& Args)
 				.OnClicked(this, &SLuminLocalizedAppNameListWidget::Add)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_AddToArray"))
+					.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
@@ -57,7 +57,7 @@ void SLuminLocalizedAppNameListWidget::Construct(const FArguments& Args)
 				.OnClicked(this, &SLuminLocalizedAppNameListWidget::RemoveAll)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_EmptyArray"))
+					.Image(FEditorStyle::GetBrush("Icons.Delete"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]

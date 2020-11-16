@@ -81,7 +81,7 @@ void SFunctionSelector::Construct(const FArguments& InArgs, TSharedRef<FWidgetBl
 			.ToolTipText(LOCTEXT("GotoFunction", "Goto Function"))
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Browse"))
+				.Image(FEditorStyle::GetBrush("Icons.Search"))
 			]
 		]
 	];

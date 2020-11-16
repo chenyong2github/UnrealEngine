@@ -113,7 +113,7 @@ void FSkinWeightProfileCustomization::CustomizeHeader(TSharedRef<IPropertyHandle
 			.ButtonContent()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("PropertyWindow.Button_RemoveFromArray"))
+				.Image(FEditorStyle::GetBrush("Icons.Minus"))
 			]
 			.OnGetMenuContent(FOnGetContent::CreateSP(this, &FSkinWeightProfileCustomization::GenerateRemoveMenu))
 		]

@@ -164,7 +164,7 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 	{
 		const TSharedRef<FUObjectToken> UObjectToken = StaticCastSharedRef<FUObjectToken>(InMessageToken);
 
-		IconBrushName = FName("PropertyWindow.Button_Browse");
+		IconBrushName = FName("Icons.Search");
 
 		UObject* Object = nullptr;
 
@@ -203,7 +203,7 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 		break;
 	case EMessageToken::EdGraph:
 	{
-		IconBrushName = FName("PropertyWindow.Button_Browse");
+		IconBrushName = FName("Icons.Search");
 		RowContent = CreateHyperlink(InMessageToken, InMessageToken->ToText());
 	}
 	break;
@@ -226,7 +226,7 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 	{
 		const TSharedRef<FAssetNameToken> AssetNameToken = StaticCastSharedRef<FAssetNameToken>(InMessageToken);
 
-		IconBrushName = FName("PropertyWindow.Button_Browse");
+		IconBrushName = FName("Icons.Search");
 		RowContent = CreateHyperlink(InMessageToken, AssetNameToken->ToText());
 	}
 		break;

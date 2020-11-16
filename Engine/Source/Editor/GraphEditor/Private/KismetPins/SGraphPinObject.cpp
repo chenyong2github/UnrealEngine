@@ -110,7 +110,7 @@ TSharedRef<SWidget>	SGraphPinObject::GetDefaultValueWidget()
 				[
 					SNew(SImage)
 					.ColorAndOpacity( this, &SGraphPinObject::OnGetWidgetForeground )
-					.Image( FEditorStyle::GetBrush(TEXT("PropertyWindow.Button_Use")) )
+					.Image( FEditorStyle::GetBrush(TEXT("Icons.CircleArrowLeft")) )
 				]
 			]
 			// Browse button
@@ -128,7 +128,7 @@ TSharedRef<SWidget>	SGraphPinObject::GetDefaultValueWidget()
 				[
 					SNew(SImage)
 					.ColorAndOpacity( this, &SGraphPinObject::OnGetWidgetForeground )
-					.Image( FEditorStyle::GetBrush(TEXT("PropertyWindow.Button_Browse")) )
+					.Image( FEditorStyle::GetBrush(TEXT("Icons.Search")) )
 				]
 			];
 	}

@@ -222,7 +222,7 @@ public:
 					.IsFocusable(false)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("PropertyWindow.Button_EmptyArray"))
+						.Image(FEditorStyle::GetBrush("Icons.Delete"))
 						.ColorAndOpacity(FSlateColor::UseForeground())
 					];
 			}
@@ -325,7 +325,7 @@ public:
 					.IsFocusable(false)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("PropertyWindow.Button_EmptyArray"))
+						.Image(FEditorStyle::GetBrush("Icons.Delete"))
 						.ColorAndOpacity(FSlateColor::UseForeground())
 					];
 		}

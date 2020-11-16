@@ -2555,7 +2555,7 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 							.IsFocusable(false)
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("PropertyWindow.Button_AddToArray"))
+								.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
 								.ColorAndOpacity(FSlateColor::UseForeground())
 							]
 						]
@@ -2969,7 +2969,7 @@ void FPersonaMeshDetails::CustomizeSkinWeightProfiles(IDetailLayoutBuilder& Deta
 			.ButtonContent()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("PropertyWindow.Button_AddToArray"))
+				.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
 			]
 			.OnGetMenuContent(this, &FPersonaMeshDetails::CreateSkinWeightProfileMenuContent)
 			.ToolTipText(LOCTEXT("ImportSkinWeightButtonToolTip", "Import a new Skin Weight Profile"))

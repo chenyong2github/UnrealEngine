@@ -123,7 +123,7 @@ void SNiagaraStackModuleItem::AddCustomRowWidgets(TSharedRef<SHorizontalBox> Hor
 		.ButtonContent()
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::Get().GetBrush("PropertyWindow.Button_AddToArray"))
+			.Image(FEditorStyle::Get().GetBrush("Icons.PlusCircle"))
 		]
 	];
 

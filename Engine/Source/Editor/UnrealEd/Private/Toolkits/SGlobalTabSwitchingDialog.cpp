@@ -281,7 +281,7 @@ void SGlobalTabSwitchingDialog::OnMainTabListSelectionChanged(FTabListItemPtr In
 					.VAlign(VAlign_Center)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Browse"))
+						.Image(FEditorStyle::GetBrush("Icons.Search"))
 					]
 					+SHorizontalBox::Slot()
 					.AutoWidth()

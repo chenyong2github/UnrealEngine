@@ -668,8 +668,8 @@ void LevelEditorActionHelpers::GetBlueprintSettingsSubMenu(UToolMenu* Menu, FBlu
 {
 #define LOCTEXT_NAMESPACE "LevelToolBarViewMenu"
 
-	FSlateIcon EditBPIcon(FEditorStyle::Get().GetStyleSetName(), TEXT("PropertyWindow.Button_Edit"));
-	FSlateIcon NewBPIcon(FEditorStyle::Get().GetStyleSetName(), TEXT("PropertyWindow.Button_AddToArray"));
+	FSlateIcon EditBPIcon(FEditorStyle::Get().GetStyleSetName(), TEXT("Icons.Edit"));
+	FSlateIcon NewBPIcon(FEditorStyle::Get().GetStyleSetName(), TEXT("Icons.PlusCircle"));
 	FText RootClassName = FText::FromString(InSettingsData.RootClass->GetName());
 
 	// If there is currently a valid GameMode Blueprint, offer to edit the Blueprint

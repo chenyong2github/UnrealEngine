@@ -148,9 +148,8 @@ void SColorTrash::Construct( const FArguments& InArgs )
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot() .HAlign(HAlign_Center) .FillWidth(1)
 			[
-				SNew(SImage) .Image(InArgs._UsesSmallIcon.Get() ?
-					FCoreStyle::Get().GetBrush("TrashCan_Small") :
-					FCoreStyle::Get().GetBrush("TrashCan"))
+				SNew(SImage) 
+				.Image(FAppStyle::Get().GetBrush("Icons.Delete"))
 			]
 		]
 	];

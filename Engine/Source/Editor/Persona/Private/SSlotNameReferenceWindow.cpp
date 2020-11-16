@@ -72,7 +72,7 @@ TSharedRef<SWidget> SMontageReferenceListRow::GenerateWidgetForColumn(const FNam
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Browse"))
+					.Image(FEditorStyle::GetBrush("Icons.Search"))
 				]
 			]
 			+ SHorizontalBox::Slot()
@@ -148,7 +148,7 @@ TSharedRef<SWidget> SBlueprintReferenceListRow::GenerateWidgetForColumn(const FN
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Browse"))
+					.Image(FEditorStyle::GetBrush("Icons.Search"))
 				]
 			]
 			+ SHorizontalBox::Slot()

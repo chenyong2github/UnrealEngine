@@ -301,7 +301,7 @@ TSharedPtr<SWidget> SFbxSceneStaticMeshListView::OnOpenContextMenu()
 
 	const FSlateIcon PlusIcon(FEditorStyle::GetStyleSetName(), "Plus");
 	MenuBuilder.AddMenuEntry(LOCTEXT("CheckForImport", "Add Selection To Import"), FText(), PlusIcon, FUIAction(FExecuteAction::CreateSP(this, &SFbxSceneStaticMeshListView::AddSelectionToImport)));
-	const FSlateIcon MinusIcon(FEditorStyle::GetStyleSetName(), "PropertyWindow.Button_RemoveFromArray");
+	const FSlateIcon MinusIcon(FEditorStyle::GetStyleSetName(), "Icons.Minus");
 	MenuBuilder.AddMenuEntry(LOCTEXT("UncheckForImport", "Remove Selection From Import"), FText(), MinusIcon, FUIAction(FExecuteAction::CreateSP(this, &SFbxSceneStaticMeshListView::RemoveSelectionFromImport)));
 
 	AddBakePivotMenu(MenuBuilder);

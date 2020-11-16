@@ -236,7 +236,7 @@ TSharedRef<SWidget>	SPrimaryAssetIdGraphPin::GetDefaultValueWidget()
 			[
 				SNew(SImage)
 				.ColorAndOpacity(this, &SPrimaryAssetIdGraphPin::OnGetWidgetForeground)
-				.Image(FEditorStyle::GetBrush(TEXT("PropertyWindow.Button_Use")))
+				.Image(FEditorStyle::GetBrush(TEXT("Icons.CircleArrowLeft")))
 			]
 		]
 		+ SHorizontalBox::Slot()
@@ -253,7 +253,7 @@ TSharedRef<SWidget>	SPrimaryAssetIdGraphPin::GetDefaultValueWidget()
 			[
 				SNew(SImage)
 				.ColorAndOpacity(this, &SPrimaryAssetIdGraphPin::OnGetWidgetForeground)
-				.Image(FEditorStyle::GetBrush(TEXT("PropertyWindow.Button_Browse")))
+				.Image(FEditorStyle::GetBrush(TEXT("Icons.Search")))
 			]
 		];
 }

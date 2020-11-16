@@ -115,7 +115,7 @@ TSharedRef<class SWidget> FTextureLODSettingsCellPresenter::ConstructDisplayWidg
 		.IsFocusable(false)
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Edit"))
+			.Image(FEditorStyle::GetBrush("Icons.Edit"))
 			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 	];

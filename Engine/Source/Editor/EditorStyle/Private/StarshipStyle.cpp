@@ -3106,7 +3106,7 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		Set( "PropertyWindow.FilterFont", DEFAULT_FONT( "Regular", 10 ) );
 
 		FSlateFontInfo MobilityFont = FStyleFonts::Get().SmallBold;
-		MobilityFont.LetterSpacing = 200;
+		MobilityFont.LetterSpacing = 100;
 
 		Set("PropertyWindow.MobilityFont", MobilityFont);
 		Set( "PropertyWindow.NoOverlayColor", new FSlateNoResource() );
@@ -3115,14 +3115,7 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		Set( "PropertyWindow.FilteredEditConstColor", new FSlateColorBrush( FColor( 152, 152, 152, 80 ).ReinterpretAsLinear() * FColor(0,255,0,255).ReinterpretAsLinear() ) );
 		Set( "PropertyWindow.CategoryBackground", new BOX_BRUSH( "/PropertyView/CategoryBackground", FMargin(4.f/16.f) ) );
 		Set( "PropertyWindow.CategoryForeground", FLinearColor::Black );
-		Set( "PropertyWindow.Button_Browse", new CORE_IMAGE_BRUSH_SVG("Starship/Common/search", Icon16x16));
-		Set( "PropertyWindow.Button_Use", new CORE_IMAGE_BRUSH_SVG("Starship/Common/circle-arrow-left", Icon16x16));
-		Set( "PropertyWindow.Button_Delete", new IMAGE_BRUSH("Icons/Cross_12x", Icon12x12 ) );
 		Set( "PropertyWindow.Button_Clear", new IMAGE_BRUSH( "Icons/Cross_12x", Icon12x12 ) );
-		Set( "PropertyWindow.Button_Edit", new IMAGE_BRUSH_SVG("Starship/Common/edit", Icon16x16));
-		Set( "PropertyWindow.Button_EmptyArray", new IMAGE_BRUSH( "Icons/empty_set_12x", Icon12x12 ) );
-		Set( "PropertyWindow.Button_AddToArray", new CORE_IMAGE_BRUSH_SVG("Starship/Common/plus-circle", Icon16x16));
-		Set( "PropertyWindow.Button_RemoveFromArray", new IMAGE_BRUSH_SVG("Starship/Common/minus", Icon16x16));
 		Set( "PropertyWindow.Button_Ellipsis", new IMAGE_BRUSH( "Icons/ellipsis_12x", Icon12x12 ) );
 		Set( "PropertyWindow.Button_PickAsset", new IMAGE_BRUSH( "Icons/pillarray_12x", Icon12x12 ) );
 		Set( "PropertyWindow.Button_PickActor", new IMAGE_BRUSH( "Icons/levels_16x", Icon12x12 ) );

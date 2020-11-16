@@ -500,14 +500,14 @@ TSharedRef<SWidget> FAnimTimelineTrack_Montage::BuildMontageSubMenu()
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("FindParent", "Find parent"),
 				LOCTEXT("FindParentInCBToolTip", "Find parent in Content Browser"),
-				FSlateIcon("EditorStyle", "PropertyWindow.Button_Browse"),
+				FSlateIcon("EditorStyle", "Icons.Search"),
 				FUIAction(FExecuteAction::CreateSP(this, &FAnimTimelineTrack_Montage::OnFindParentClassInContentBrowserClicked))
 			);
 
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("EditParent", "Edit parent"),
 				LOCTEXT("EditParentToolTip", "Open parent in editor"),
-				FSlateIcon("EditorStyle", "PropertyWindow.Button_Edit"),
+				FSlateIcon("EditorStyle", "Icons.Edit"),
 				FUIAction(FExecuteAction::CreateSP(this, &FAnimTimelineTrack_Montage::OnEditParentClassClicked))
 			);
 		}

@@ -180,7 +180,7 @@ void SUndoHistory::Construct( const FArguments& InArgs )
 							.ToolTipText(LOCTEXT("DiscardHistoryButtonToolTip", "Discard the Undo History."))
 							[
 								SNew(SImage)
-									.Image(FEditorStyle::Get().GetBrush("TrashCan_Small"))
+								.Image(FEditorStyle::Get().GetBrush("Icons.Delete"))
 							]
 					]
 

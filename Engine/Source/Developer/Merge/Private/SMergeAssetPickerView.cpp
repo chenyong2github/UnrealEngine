@@ -153,7 +153,7 @@ TSharedRef<SWidget> SMergeAssetPickerPanel::MakeAssetPicker()
 		.ToolTipText(NSLOCTEXT("GraphEditor", "ObjectGraphPin_Browse", "Show the selected asset in the content browser."))
 	[
 		SNew(SImage)
-			.Image(FEditorStyle::GetBrush(TEXT("PropertyWindow.Button_Browse")))
+			.Image(FEditorStyle::GetBrush(TEXT("Icons.Search")))
 	];
 	BrowseButton->SetEnabled(TAttribute<bool>(this, &SMergeAssetPickerPanel::IsBrowseButtonEnabled));
 
@@ -189,7 +189,7 @@ TSharedRef<SWidget> SMergeAssetPickerPanel::MakeAssetPicker()
 			.ToolTipText(NSLOCTEXT("GraphEditor", "ObjectGraphPin_Use", "Use content browser selection."))
 		[
 			SNew(SImage)
-				.Image(FEditorStyle::GetBrush(TEXT("PropertyWindow.Button_Use")))
+				.Image(FEditorStyle::GetBrush(TEXT("Icons.CircleArrowLeft")))
 		]
 	]
 	+ SHorizontalBox::Slot()

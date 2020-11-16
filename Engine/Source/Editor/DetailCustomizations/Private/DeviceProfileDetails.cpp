@@ -649,7 +649,7 @@ void FDeviceProfileConsoleVariablesPropertyDetails::CreateConsoleVariablesProper
 					.ButtonContent()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("PropertyWindow.Button_AddToArray"))
+						.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
 					]
 					.MenuContent()
 					[
@@ -669,7 +669,7 @@ void FDeviceProfileConsoleVariablesPropertyDetails::CreateConsoleVariablesProper
 					.IsFocusable(false)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("PropertyWindow.Button_EmptyArray"))
+						.Image(FEditorStyle::GetBrush("Icons.Delete"))
 					]
 				]
 			];

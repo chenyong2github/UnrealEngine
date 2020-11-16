@@ -83,7 +83,7 @@ void SAssetPickerButton::Construct(const FArguments& InArgs)
 			[
 				SNew(SImage)
 				.ColorAndOpacity( this, &SAssetPickerButton::OnGetWidgetForeground )
-				.Image( FEditorStyle::GetBrush(TEXT("PropertyWindow.Button_Use")) )
+				.Image( FEditorStyle::GetBrush(TEXT("Icons.CircleArrowLeft")) )
 			]
 		]
 		// Browse button
@@ -101,7 +101,7 @@ void SAssetPickerButton::Construct(const FArguments& InArgs)
 			[
 				SNew(SImage)
 				.ColorAndOpacity( this, &SAssetPickerButton::OnGetWidgetForeground )
-				.Image( FEditorStyle::GetBrush(TEXT("PropertyWindow.Button_Browse")) )
+				.Image( FEditorStyle::GetBrush(TEXT("Icons.Search")) )
 			]
 		]
 	];

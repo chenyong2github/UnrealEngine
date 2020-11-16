@@ -90,7 +90,7 @@ void SLuminLocalizedIconWidget::Construct(const FArguments& Args)
 					.OnClicked(this, &SLuminLocalizedIconWidget::OnRemove)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("PropertyWindow.Button_EmptyArray"))
+						.Image(FEditorStyle::GetBrush("Icons.Delete"))
 						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
 				]

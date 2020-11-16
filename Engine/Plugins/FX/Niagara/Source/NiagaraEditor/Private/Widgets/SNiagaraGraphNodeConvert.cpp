@@ -43,7 +43,7 @@ TSharedRef<SWidget> SNiagaraGraphNodeConvert::CreateTitleWidget(TSharedPtr<SNode
 			.Content()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Edit"))
+				.Image(FEditorStyle::GetBrush("Icons.Edit"))
 			]
 		];
 }

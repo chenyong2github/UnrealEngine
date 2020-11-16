@@ -249,7 +249,7 @@ public:
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("ShowInContentBrowser", "Show In Content Browser"),
 				LOCTEXT("ShowInContentBrowser_ToolTip", "Show this asset in the content browser."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "PropertyWindow.Button_Browse"),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Search"),
 				FUIAction(FExecuteAction::CreateSP(this, &SAssetShortcut::HandleShowInContentBrowser)));
 		}
 		MenuBuilder.EndSection();

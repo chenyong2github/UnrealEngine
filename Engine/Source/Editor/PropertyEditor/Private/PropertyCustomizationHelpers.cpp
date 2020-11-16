@@ -109,7 +109,7 @@ namespace PropertyCustomizationHelpers
 			SNew( SPropertyEditorButton )
 			.Text( LOCTEXT( "AddButtonLabel", "Add" ) )
 			.ToolTipText( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "AddButtonToolTipText", "Adds Element") : OptionalToolTipText )
-			.Image( FEditorStyle::GetBrush("PropertyWindow.Button_AddToArray") )
+			.Image( FEditorStyle::GetBrush("Icons.PlusCircle") )
 			.OnClickAction( OnAddClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
@@ -121,7 +121,7 @@ namespace PropertyCustomizationHelpers
 			SNew( SPropertyEditorButton )
 			.Text( LOCTEXT( "RemoveButtonLabel", "Remove" ) )
 			.ToolTipText( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "RemoveButtonToolTipText", "Removes Element") : OptionalToolTipText )
-			.Image( FEditorStyle::GetBrush("PropertyWindow.Button_RemoveFromArray") )
+			.Image( FEditorStyle::GetBrush("Icons.Minus") )
 			.OnClickAction( OnRemoveClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
@@ -133,7 +133,7 @@ namespace PropertyCustomizationHelpers
 			SNew( SPropertyEditorButton )
 			.Text( LOCTEXT( "EmptyButtonLabel", "Empty" ) )
 			.ToolTipText( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "EmptyButtonToolTipText", "Removes All Elements") : OptionalToolTipText )
-			.Image( FEditorStyle::GetBrush("PropertyWindow.Button_EmptyArray") )
+			.Image( FEditorStyle::GetBrush("Icons.Delete") )
 			.OnClickAction( OnEmptyClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
@@ -145,7 +145,7 @@ namespace PropertyCustomizationHelpers
 			SNew( SPropertyEditorButton )
 			.Text( LOCTEXT( "UseButtonLabel", "Use") )
 			.ToolTipText( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "UseButtonToolTipText", "Use Selected Asset from Content Browser") : OptionalToolTipText )
-			.Image( FEditorStyle::GetBrush("PropertyWindow.Button_Use") )
+			.Image( FEditorStyle::GetBrush("Icons.CircleArrowLeft") )
 			.OnClickAction( OnUseSelectedClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
@@ -207,7 +207,7 @@ namespace PropertyCustomizationHelpers
 			SNew( SPropertyEditorButton )
 			.Text( LOCTEXT( "BrowseButtonLabel", "Browse") )
 			.ToolTipText( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "BrowseButtonToolTipText", "Browse to Asset in Content Browser") : OptionalToolTipText )
-			.Image( FEditorStyle::GetBrush("PropertyWindow.Button_Browse") )
+			.Image( FEditorStyle::GetBrush("Icons.Search") )
 			.OnClickAction( OnFindClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
@@ -250,7 +250,7 @@ namespace PropertyCustomizationHelpers
 
 		return
 			SNew(SComboButton)
-			.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+			.ComboButtonStyle( FAppStyle::Get(), "SimpleComboButton" )
 			.ContentPadding(2)
 			.ForegroundColor( FSlateColor::UseForeground() )
 			.HasDownArrow(true)
@@ -1390,7 +1390,7 @@ void SMaterialSlotWidget::Construct(const FArguments& InArgs, int32 SlotIndex, b
 		]
 		+ SHorizontalBox::Slot()
 		.FillWidth(1.0f)
-		.Padding(5.0f, 3.0f, 0.0f, 3.0f)
+		.Padding(5.0f, 0.0f, 0.0f,0.0f)
 		[
 			SNew(SBox)
 			.VAlign(VAlign_Center)

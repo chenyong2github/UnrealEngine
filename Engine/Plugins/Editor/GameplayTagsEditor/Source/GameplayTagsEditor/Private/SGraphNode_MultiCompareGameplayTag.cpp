@@ -39,7 +39,7 @@ void SGraphNode_MultiCompareGameplayTag::CreateOutputSideRemoveButton(TSharedPtr
 		.Padding(7, 0, 0, 0)
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush(TEXT("PropertyWindow.Button_RemoveFromArray")))
+			.Image(FEditorStyle::GetBrush(TEXT("Icons.Minus")))
 		];
 
 	TSharedPtr<SToolTip> Tooltip;

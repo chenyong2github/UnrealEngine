@@ -582,7 +582,7 @@ TSharedRef<SWidget> SControlRigGraphNode::AddContainerPinContent(URigVMPin* InIt
 		.Padding(7,0,0,0)
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush(TEXT("PropertyWindow.Button_AddToArray")))
+			.Image(FEditorStyle::GetBrush(TEXT("Icons.PlusCircle")))
 		]
 	];
 }
