@@ -137,8 +137,8 @@ FInputDevice::FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& 
 		bool bHideCursor = FParse::Param(FCommandLine::Get(), TEXT("PixelStreamingHideCursor"));
 		if (bHideCursor)
 		{
-			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::Default, Settings->PixelStreamerInvisibleCursorClassName);
-			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::TextEditBeam, Settings->PixelStreamerInvisibleCursorClassName);
+			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::Default, Settings->PixelStreamerHiddenCursorClassName);
+			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::TextEditBeam, Settings->PixelStreamerHiddenCursorClassName);
 		}
 		else
 		{
