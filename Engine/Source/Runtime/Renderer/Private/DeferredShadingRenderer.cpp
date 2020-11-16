@@ -2048,10 +2048,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		InitVolumetricRenderTargetForViews(GraphBuilder, Views);
 	}
 
-	if (bShouldRenderVolumetricCloud)
-	{
-		InitVolumetricCloudsForViews(GraphBuilder);
-	}
+	InitVolumetricCloudsForViews(GraphBuilder, bShouldRenderVolumetricCloud);
 
 	// Generate sky LUTs once all shadow map has been evaluated (for volumetric light shafts). Requires bOcclusionBeforeBasePass.
 	// This also must happen before the BasePass for Sky material to be able to sample valid LUTs.

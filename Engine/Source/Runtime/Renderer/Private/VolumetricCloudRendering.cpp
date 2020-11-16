@@ -197,8 +197,17 @@ bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& En
 
 		const bool bShadersCompiled = ShouldPipelineCompileVolumetricCloudShader(Scene->GetShaderPlatform());
 
+		bool bCloudMaterialValid = false;
+		if (VolumetricCloud->GetVolumetricCloudSceneProxy().GetCloudVolumeMaterial())
+		{
+			FMaterialRenderProxy* CloudVolumeMaterialProxy = VolumetricCloud->GetVolumetricCloudSceneProxy().GetCloudVolumeMaterial()->GetRenderProxy();
+			const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
+			const FMaterial& MaterialTest = CloudVolumeMaterialProxy->GetMaterialWithFallback(Scene->GetFeatureLevel(), FallbackMaterialRenderProxyPtr);
+			bCloudMaterialValid = MaterialTest.GetMaterialDomain() == MD_Volume;
+		}
+
 		FLightSceneInfo* AtmosphericLight0 = Scene->AtmosphereLights[0];
-		return bShadersCompiled && CVarVolumetricCloud.GetValueOnRenderThread() > 0 && AtmosphericLight0!=nullptr && VolumetricCloud->GetVolumetricCloudSceneProxy().GetCloudVolumeMaterial()!=nullptr;
+		return bShadersCompiled && CVarVolumetricCloud.GetValueOnRenderThread() > 0 && AtmosphericLight0!=nullptr && bCloudMaterialValid;
 	}
 	return false;
 }
@@ -783,12 +792,7 @@ public:
 		// Determine the mesh's material and blend mode.
 		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
 		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
-
-		if (Material.GetMaterialDomain() != MD_Volume)
-		{
-			// Skip in this case. This can happens when the material is compiled and a fallback is provided.
-			return;
-		}
+		check(Material.GetMaterialDomain() == MD_Volume);
 
 		const ERasterizerFillMode MeshFillMode = FM_Solid;
 		const ERasterizerCullMode MeshCullMode = CM_None;
@@ -957,7 +961,6 @@ public:
 		// Determine the mesh's material and blend mode.
 		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
 		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
-
 		check(Material.GetMaterialDomain() == MD_Volume);
 
 		const ERasterizerFillMode MeshFillMode = FM_Solid;
@@ -1117,7 +1120,7 @@ IMPLEMENT_GLOBAL_SHADER(FCloudShadowTemporalProcessCS, "/Engine/Private/Volumetr
 
 
 
-void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder)
+void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, bool bShouldRenderVolumetricCloud)
 {
 	auto CleanUpCloudData = [&Views = Views](FRDGBuilder& GraphBuilder)
 	{
@@ -1137,6 +1140,13 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder)
 			}
 		});
 	};
+
+	if (!bShouldRenderVolumetricCloud)
+	{
+		// Clean everything up
+		CleanUpCloudData(GraphBuilder);
+		return;
+	}
 
 	if (Scene)
 	{
