@@ -363,22 +363,25 @@ void ReflectionEnvironmentSkyLighting(
 #if ENABLE_SKY_LIGHT
 	if (bStrataMaterial)
 	{
-		SkyLighting = StrataEnvironmentLighting(
+		// We use WorldNormal, Roughness and BaseColor (representing EnvBRDF) written by the strata top layer.
+		const float4 SSR = Texture2DSample(ScreenSpaceReflectionsTexture, ScreenSpaceReflectionsSampler, BufferUV);
+		const float3 EnvBRDF = GBuffer.BaseColor;
+		SkyLighting.rgb += SSR.rgb * EnvBRDF;
+
+		// SSR is computed for the top level by averaging BSDF components.
+		// This is the top level specular contribution factor according to areas.
+		const float TopLayerSpecularContributionFactor = 1.0f - SSR.a;
+
+		SkyLighting += StrataEnvironmentLighting(
 			BufferUV,
 			GBuffer,
 			WorldPosition,
 			CameraToPixel,
 			V,
 			AmbientOcclusion,
+			TopLayerSpecularContributionFactor,
 			Strata.MaterialLobesBuffer,
 			GetStrataPixelDataByteOffset(PixelPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel));
-
-#if 1
-		// We use WorldNormal, Roughness and BaseColor (representing EnvBRDF) written by the strata top layer.
-		const float4 SSR = Texture2DSample(ScreenSpaceReflectionsTexture, ScreenSpaceReflectionsSampler, BufferUV);
-		const float3 EnvBRDF = GBuffer.BaseColor;
-		SkyLighting.rgb = SkyLighting.rgb * (1.0-SSR.a) + SSR.rgb * EnvBRDF;
-#endif
 	}
 	else
 #endif
