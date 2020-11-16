@@ -191,6 +191,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 	bool					bUseCPULODSelection = true;
 	bool					bForceCards = false;
 	bool					bUpdatePositionOffset = false;
+	bool					bCastShadow = true;
 
 	bool IsValid() const 
 	{
