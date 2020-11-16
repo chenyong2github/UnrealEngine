@@ -1368,7 +1368,7 @@ bool UnFbx::FFbxImporter::ImportCustomAttributeToBone(UAnimSequence* TargetSeque
 			}
 			default:
 			{
-				AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("Warning_CustomCurveTypeNotSupported", "Curve ({0}) could not be imported on bone."), FText::FromString(CurveName))), FFbxErrors::Animation_InvalidData);
+				AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("Warning_CustomAttributeTypeNotSupported", "Custom Attribute ({0}) could not be imported on bone, as its type {1} is not supported."), FText::FromString(CurveName), FText::AsNumber((int32)InProperty.GetPropertyDataType().GetType()))), FFbxErrors::Animation_InvalidData);
 				return false;
 			}
 		}
@@ -1450,6 +1450,11 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 		DestSeq->RawCurveData.FloatCurves.Shrink();
 	}
 
+	if (ImportOptions->bDeleteExistingNonCurveCustomAttributes)
+	{
+		DestSeq->RemoveAllCustomAttributes();
+	}
+	
 	const bool bReimportWarnings = GetDefault<UEditorPerProjectUserSettings>()->bAnimationReimportWarnings;
 	
 	if (bReimportWarnings && !FMath::IsNearlyZero(PreviousSequenceLength) && !FMath::IsNearlyEqual(DestSeq->SequenceLength, PreviousSequenceLength))

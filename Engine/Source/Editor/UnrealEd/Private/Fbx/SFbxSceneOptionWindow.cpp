@@ -1507,6 +1507,7 @@ void SFbxSceneOptionWindow::CopySkeletalMeshOptionsToFbxOptions(UnFbx::FBXImport
 	ImportSettings->bDeleteExistingMorphTargetCurves = SkeletalMeshOptions->bDeleteExistingMorphTargetCurves;
 	ImportSettings->bImportCustomAttribute = SkeletalMeshOptions->bImportCustomAttribute;
 	ImportSettings->bDeleteExistingCustomAttributeCurves = SkeletalMeshOptions->bDeleteExistingCustomAttributeCurves;
+	ImportSettings->bDeleteExistingNonCurveCustomAttributes = SkeletalMeshOptions->bDeleteExistingNonCurveCustomAttributes;	
 	ImportSettings->bPreserveLocalTransform = SkeletalMeshOptions->bPreserveLocalTransform;
 	ImportSettings->bResample = !SkeletalMeshOptions->bUseDefaultSampleRate;
 	ImportSettings->ResampleRate = SkeletalMeshOptions->CustomSampleRate;
@@ -1532,6 +1533,7 @@ void SFbxSceneOptionWindow::CopyFbxOptionsToSkeletalMeshOptions(UnFbx::FBXImport
 	SkeletalMeshOptions->bDeleteExistingMorphTargetCurves = ImportSettings->bDeleteExistingMorphTargetCurves;
 	SkeletalMeshOptions->bImportCustomAttribute = ImportSettings->bImportCustomAttribute;
 	SkeletalMeshOptions->bDeleteExistingCustomAttributeCurves = ImportSettings->bDeleteExistingCustomAttributeCurves;
+	SkeletalMeshOptions->bDeleteExistingNonCurveCustomAttributes = ImportSettings->bDeleteExistingNonCurveCustomAttributes;	
 	SkeletalMeshOptions->bPreserveLocalTransform = ImportSettings->bPreserveLocalTransform;
 	SkeletalMeshOptions->bUseDefaultSampleRate = !ImportSettings->bResample;
 	SkeletalMeshOptions->CustomSampleRate = ImportSettings->ResampleRate;
