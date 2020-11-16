@@ -1395,6 +1395,21 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 	// save vertex positions before we delete removed (can defer kept?)
 	FVector3d KeptPos = GetVertex(vKeep);
 	FVector3d RemovedPos = GetVertex(vRemove);
+	FVector2f RemovedUV;
+	if (HasVertexUVs())
+	{
+		RemovedUV = GetVertexUV(vRemove);
+	}
+	FVector3f RemovedNormal;
+	if (HasVertexNormals())
+	{
+		RemovedNormal = GetVertexNormal(vRemove);
+	}
+	FVector3f RemovedColor;
+	if (HasVertexColors())
+	{
+		RemovedColor = GetVertexColor(vRemove);
+	}
 
 	// 1) remove edge ab from vtx b
 	// 2) find edges ad and ac, and tris tad, tac across those edges  (will use later)
@@ -1567,6 +1582,18 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 
 	// set kept vertex to interpolated collapse position
 	SetVertex(vKeep, FVector3d::Lerp(KeptPos, RemovedPos, collapse_t));
+	if (HasVertexUVs())
+	{
+		SetVertexUV(vKeep, FVector2f::Lerp(GetVertexUV(vKeep), RemovedUV, collapse_t));
+	}
+	if (HasVertexNormals())
+	{
+		SetVertexNormal(vKeep, FVector3f::Lerp(GetVertexNormal(vKeep), RemovedNormal, collapse_t).Normalized());
+	}
+	if (HasVertexColors())
+	{
+		SetVertexColor(vKeep, FVector3f::Lerp(GetVertexColor(vKeep), RemovedColor, collapse_t));
+	}
 
 	CollapseInfo.KeptVertex = vKeep;
 	CollapseInfo.RemovedVertex = vRemove;

@@ -111,7 +111,7 @@ struct FAugmentedDynamicMesh
 	const FName TangentVAttribName = "TangentVAttrib";
 	const FName VisibleAttribName = "VisibleAttrib";
 
-	FAugmentedDynamicMesh()
+	FAugmentedDynamicMesh() : Mesh(true, true, true, true)
 	{
 		Mesh.EnableAttributes();
 		Mesh.Attributes()->EnableMaterialID();
@@ -125,6 +125,10 @@ struct FAugmentedDynamicMesh
 	// re-setup attributes to augment the mesh; only call this if we've lost the attached attributes
 	void Augment()
 	{
+		Mesh.EnableVertexColors(FVector3f(1, 1, 1));
+		Mesh.EnableVertexNormals(FVector3f::UnitZ());
+		Mesh.EnableVertexUVs(FVector2f(0, 0));
+		Mesh.EnableTriangleGroups();
 		Mesh.EnableAttributes();
 		Mesh.Attributes()->EnableMaterialID();
 		ensure(Mesh.Attributes()->NumAttachedAttributes() == 0);
@@ -519,6 +523,13 @@ private:
 	{
 		TArray<FDynamicMesh3> PlaneMeshes;
 		PlaneMeshes.SetNum(Cells.Planes.Num());
+		for (FDynamicMesh3& PlaneMesh : PlaneMeshes)
+		{
+			PlaneMesh.EnableTriangleGroups();
+			PlaneMesh.EnableVertexUVs(FVector2f(0, 0));
+			PlaneMesh.EnableVertexNormals(FVector3f::UnitZ());
+			PlaneMesh.EnableVertexColors(FVector3f(1, 1, 1));
+		}
 
 		struct FPlaneIdxAndFlip
 		{
@@ -638,7 +649,7 @@ private:
 		//	// TODO: early out for plane that doesn't even intersect the domain bounding box?
 		//}
 
-		FDynamicMesh3 PlaneMesh;
+		FDynamicMesh3 PlaneMesh(true, true, true, true);
 		FVertexInfo PlaneVertInfo;
 		PlaneVertInfo.bHaveC = true;
 		PlaneVertInfo.bHaveUV = true;

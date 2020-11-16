@@ -1415,6 +1415,12 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 			Mesh->SetVertexNormal(NewVertID, Normal);
 		}
 
+		if (AppendMesh->HasVertexUVs() && Mesh->HasVertexUVs())
+		{
+			FVector2f UV = AppendMesh->GetVertexUV(VertID);
+			Mesh->SetVertexUV(NewVertID, UV);
+		}
+
 		if (AppendMesh->HasVertexColors() && Mesh->HasVertexColors())
 		{
 			FVector3f Color = AppendMesh->GetVertexColor(VertID);
