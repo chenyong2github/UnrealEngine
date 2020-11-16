@@ -164,7 +164,7 @@ IOnlineSharingPtr FOnlineSubsystemEOSPlus::GetSharingInterface() const
 
 IOnlineUserPtr FOnlineSubsystemEOSPlus::GetUserInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetUserInterface() : nullptr;
+	return UserInterfacePtr;
 }
 
 IOnlineMessagePtr FOnlineSubsystemEOSPlus::GetMessageInterface() const
