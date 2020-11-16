@@ -1066,8 +1066,6 @@ namespace ChaosTest {
 			//set force every external frame
 			Simulated->AddForce(FVec3(0, 0, 1 * Simulated->M()));	//should counteract gravity
 			FVec3 Grav(0, 0, -1);
-			Scene.GetSolver()->GetEvolution()->GetGravityForces().SetAcceleration(Grav);	//todo: remove this once SetUpForFrame sets gravity correctly
-				
 			Scene.SetUpForFrame(&Grav, GTDt, 99999, 99999, 10, false);
 			Scene.StartFrame();
 			Scene.EndFrame();

@@ -69,6 +69,7 @@ FChaosScene::FChaosScene(
 	check(SceneSolver);
 
 	SceneSolver->PhysSceneHack = this;
+	SimCallback = SceneSolver->CreateAndRegisterSimCallbackObject_External<FChaosSceneSimCallback>();
 
 	if(CVar_ApplyProjectSettings.GetValueOnAnyThread() != 0)
 	{
@@ -88,6 +89,7 @@ FChaosScene::~FChaosScene()
 	{
 		Chaos::FEventManager* EventManager = SceneSolver->GetEventManager();
 		EventManager->UnregisterHandler(Chaos::EEventType::Collision,this);
+		SceneSolver->UnregisterAndFreeSimCallbackObject_External(SimCallback);
 	}
 
 	if(ensure(ChaosModule))
@@ -96,6 +98,7 @@ FChaosScene::~FChaosScene()
 		ChaosModule->DestroySolver(GetSolver());
 	}
 
+	SimCallback = nullptr;
 	ChaosModule = nullptr;
 	SceneSolver = nullptr;
 }
@@ -283,6 +286,21 @@ void FChaosScene::AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& In
 		}
 	}
 #endif
+}
+
+Chaos::FSimCallbackNoOutput* FChaosSceneSimCallback::OnPreSimulate_Internal(const Chaos::FReal SimTime, const Chaos::FReal DeltaSeconds, const Chaos::FSimCallbackInput* BaseInput)
+{
+	if(auto Input = static_cast<const FChaosSceneCallbackInput*>(BaseInput))
+	{
+		static_cast<Chaos::FPBDRigidsSolver*>(GetSolver())->GetEvolution()->GetGravityForces().SetAcceleration(Input->Gravity);
+	}
+
+	return nullptr;
+}
+
+void FChaosScene::SetGravity(const Chaos::TVector<float, 3>& Acceleration)
+{
+	SimCallback->GetProducerInputData_External()->Gravity = Acceleration;
 }
 
 void FChaosScene::SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds /*= 0.0f*/,float InMaxPhysicsDeltaTime /*= 0.0f*/,float InMaxSubstepDeltaTime /*= 0.0f*/,int32 InMaxSubsteps,bool bSubstepping)
