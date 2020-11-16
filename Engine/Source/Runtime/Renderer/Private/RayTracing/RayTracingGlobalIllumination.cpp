@@ -144,6 +144,13 @@ static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationMaxLightCount
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationFireflySuppression(
+	TEXT("r.RayTracing.GlobalIllumination.FireflySuppression"),
+	0,
+	TEXT("Applies tonemap operator to suppress potential fireflies (default = 1). "),
+	ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationFinalGatherIterations(
 	TEXT("r.RayTracing.GlobalIllumination.FinalGather.Iterations"),
 	1,
@@ -423,6 +430,7 @@ class FGlobalIlluminationRGS : public FGlobalShader
 		SHADER_PARAMETER(float, DiffuseThreshold)
 		SHADER_PARAMETER(uint32, EvalSkyLight)
 		SHADER_PARAMETER(uint32, UseRussianRoulette)
+		SHADER_PARAMETER(uint32, UseFireflySuppression)
 		SHADER_PARAMETER(float, MaxNormalBias)
 		SHADER_PARAMETER(uint32, RenderTileOffsetX)
 		SHADER_PARAMETER(uint32, RenderTileOffsetY)
@@ -612,6 +620,7 @@ class FRayTracingGlobalIlluminationFinalGatherRGS : public FGlobalShader
 		SHADER_PARAMETER(uint32, SamplesPerPixel)
 		SHADER_PARAMETER(uint32, GatherPointIterations)
 		SHADER_PARAMETER(uint32, GatherFilterWidth)
+		SHADER_PARAMETER(uint32, UseFireflySuppression)
 		SHADER_PARAMETER(uint32, UpscaleFactor)
 		SHADER_PARAMETER(uint32, RenderTileOffsetX)
 		SHADER_PARAMETER(uint32, RenderTileOffsetY)
@@ -1172,6 +1181,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationFinalGathe
 	int32 GatherFilterWidth = FMath::Max(CVarRayTracingGlobalIlluminationFinalGatherFilterWidth.GetValueOnRenderThread(), 0);
 	GatherFilterWidth = GatherFilterWidth * 2 + 1;
 	PassParameters->GatherFilterWidth = GatherFilterWidth;
+	PassParameters->UseFireflySuppression = CVarRayTracingGlobalIlluminationFireflySuppression.GetValueOnRenderThread() != 0;
 
 	PassParameters->DiffuseThreshold = GRayTracingGlobalIlluminationDiffuseThreshold;
 	PassParameters->MaxNormalBias = GetRaytracingMaxNormalBias();
@@ -1307,6 +1317,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationBruteForce
 	PassParameters->UpscaleFactor = UpscaleFactor;
 	PassParameters->EvalSkyLight = GRayTracingGlobalIlluminationEvalSkyLight != 0;
 	PassParameters->UseRussianRoulette = GRayTracingGlobalIlluminationUseRussianRoulette != 0;
+	PassParameters->UseFireflySuppression = CVarRayTracingGlobalIlluminationFireflySuppression.GetValueOnRenderThread() != 0;
 	PassParameters->DiffuseThreshold = GRayTracingGlobalIlluminationDiffuseThreshold;
 	PassParameters->NextEventEstimationSamples = GRayTracingGlobalIlluminationNextEventEstimationSamples;
 	PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
