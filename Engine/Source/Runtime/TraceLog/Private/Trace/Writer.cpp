@@ -371,8 +371,17 @@ static bool Writer_UpdateConnection()
 	GPendingDataHandle = 0;
 
 	// Handshake.
-	const uint32 Magic = 'TRCE';
-	bool bOk = IoWrite(GDataHandle, &Magic, sizeof(Magic));
+	struct FHandshake
+	{
+		uint32 Magic			= 'TRC2';
+		uint16 MetadataSize		= uint16(0);
+		enum
+		{
+			Size				= 6,
+		};
+	};
+	FHandshake Handshake;
+	bool bOk = IoWrite(GDataHandle, &Handshake, FHandshake::Size);
 
 	// Stream header
 	const struct {

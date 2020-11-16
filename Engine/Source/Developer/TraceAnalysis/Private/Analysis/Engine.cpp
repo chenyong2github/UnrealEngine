@@ -1218,10 +1218,12 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 
 	// Check for the magic uint32. Early traces did not include this as it was
 	// used to validate a inbound socket connection and then discarded.
-	if (Header->TransportVersion == 'E' || Header->TransportVersion == 'T')
+	if (Header->TransportVersion == 'E' ||
+		Header->TransportVersion == 'T' ||
+		Header->TransportVersion == '2')
 	{
 		const uint32* Magic = (const uint32*)(Reader.GetPointer(sizeof(*Magic)));
-		if (*Magic == 'ECRT')
+		if (*Magic == 'ECRT' || *Magic == '2CRT')
 		{
 			// Source is big-endian which we don't currently support
 			return false;
@@ -1231,6 +1233,16 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 		{
 			Reader.Advance(sizeof(*Magic));
 			return EstablishTransport(Reader);
+		}
+
+		if (*Magic == 'TRC2')
+		{
+			Reader.Advance(sizeof(*Magic));
+			if (const uint16* MetadataSize = Reader.GetPointer<uint16>())
+			{
+				Reader.Advance(sizeof(*MetadataSize) + *MetadataSize);
+				return EstablishTransport(Reader);
+			}
 		}
 
 		return false;
