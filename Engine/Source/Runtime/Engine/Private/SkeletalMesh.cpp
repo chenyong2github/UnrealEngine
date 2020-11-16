@@ -4319,6 +4319,22 @@ void USkeletalMesh::SetLODSettings(USkeletalMeshLODSettings* InLODSettings)
 #endif // WITH_EDITORONLY_DATA
 }
 
+void USkeletalMesh::SetDefaultAnimatingRig(TSoftObjectPtr<UObject> InAnimatingRig)
+{
+#if WITH_EDITORONLY_DATA
+	DefaultAnimatingRig = InAnimatingRig;
+#endif // WITH_EDITORONLY_DATA
+}
+
+TSoftObjectPtr<UObject> USkeletalMesh::GetDefaultAnimatingRig()
+{
+#if WITH_EDITORONLY_DATA
+	return DefaultAnimatingRig;
+#else // WITH_EDITORONLY_DATA
+	return nullptr;
+#endif // WITH_EDITORONLY_DATA
+}
+
 void USkeletalMesh::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>& OutNodeItems) const
 {
 	TArray<FTransform> ComponentSpaceRefPose;
