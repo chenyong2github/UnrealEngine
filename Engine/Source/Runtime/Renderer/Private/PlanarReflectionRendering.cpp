@@ -392,6 +392,8 @@ static void UpdatePlanarReflectionContents_RenderThread(
 				}
 
 				FRDGBuilder GraphBuilder(RHICmdList);
+				FRDGSystemTextures::Create(GraphBuilder);
+
 				FRDGTextureRef ViewFamilyTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTarget->TextureRHI, TEXT("ViewFamilyTexture")));
 				FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(FSceneRenderTargets::Get().GetSceneColor());
 
