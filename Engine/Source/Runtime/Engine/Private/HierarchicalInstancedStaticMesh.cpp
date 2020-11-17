@@ -3081,7 +3081,8 @@ void UHierarchicalInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 {
 	SCOPE_CYCLE_COUNTER(STAT_FoliagePostLoad);
 
-	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	// Tree will be fully rebuilt when staticmesh has finished compiling
+	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) && !IsCompiling())
 	{
 		bool bForceTreeBuild = false;
 
