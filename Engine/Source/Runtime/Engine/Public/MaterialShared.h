@@ -2738,7 +2738,7 @@ public:
 		EMaterialValueType InValueType, const FVector4& InDefaultValue, EShaderFrequency InShaderFrequency,
 		int32 InTexCoordIndex = INDEX_NONE, bool bInIsHidden = false, MaterialAttributeBlendFunction InBlendFunction = nullptr);
 
-	int32 CompileDefaultValue(FMaterialCompiler* Compiler);
+	ENGINE_API int32 CompileDefaultValue(FMaterialCompiler* Compiler);
 
 	bool operator==(const FMaterialAttributeDefintion& Other) const
 	{
