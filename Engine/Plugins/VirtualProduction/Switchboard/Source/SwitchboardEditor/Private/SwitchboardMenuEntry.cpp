@@ -228,7 +228,13 @@ struct FSwitchboardMenuEntryImpl
 
 		if (!FPaths::FileExists(PythonInterpreter))
 		{
-			return TEXT("");
+			FString EnginePythonPath = FPaths::EngineDir() / TEXT("Binaries") / TEXT("ThirdParty") / TEXT("Python3");
+#if PLATFORM_WINDOWS
+			EnginePythonPath = EnginePythonPath / TEXT("Win64") / TEXT("python.exe");
+#elif PLATFORM_LINUX
+			EnginePythonPath = EnginePythonPath / TEXT("Linux") / TEXT("bin") / TEXT("python");
+#endif
+			PythonInterpreter = EnginePythonPath;
 		}
 
 		return PythonInterpreter;
