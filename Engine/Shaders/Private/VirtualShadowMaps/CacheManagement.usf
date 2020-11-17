@@ -64,8 +64,8 @@ void VirtualSmInvalidateInstancePagesCS(
 				{
 					for (int MipLevel = 0; MipLevel < NumMipLevels; ++MipLevel)
 					{
-						float ViewDim = float(VSM_VIRTUAL_MAX_RESOLUTION_XY >> MipLevel);
-						FScreenRect Rect = GetScreenRect(float2(ViewDim, ViewDim), Cull, 2);
+						int ViewDim = VSM_VIRTUAL_MAX_RESOLUTION_XY >> MipLevel;
+						FScreenRect Rect = GetScreenRect(int4(0, 0, ViewDim, ViewDim), Cull, 2);
 						// Use Hierarchical mip test to speed up (allows skipping invalidating areas that don't have any flags anyway)
 						if (OverlapsAnyValidPage(ProjectionData.VirtualShadowMapId, MipLevel, float2(0.0f, 0.0f), Rect, true /* bHasMoved - checks against allocated flags*/ ))
 						{

@@ -80,7 +80,7 @@ int MipLevelForRect( int4 RectPixels, int DesiredFootprintPixels )
 	return MipLevel;
 }
 
-FScreenRect GetScreenRect( float2 ViewSize, FFrustumCullData Cull, int DesiredFootprintPixels )
+FScreenRect GetScreenRect( int4 ViewRect, FFrustumCullData Cull, int DesiredFootprintPixels )
 {
 	FScreenRect Rect;
 	Rect.Depth = Cull.RectMax.z;
@@ -94,7 +94,10 @@ FScreenRect GetScreenRect( float2 ViewSize, FFrustumCullData Cull, int DesiredFo
 	// Only when the pixel center is covered can that pixel be rasterized by anything inside the rectangle.
 	// Using pixel centers instead of conservative floor/ceil bounds of pixel seems to typically result in ~5% fewer clusters being drawn.
 	// NOTE: This assumes anything inside RectMin/RectMax gets rasterized with one centered sample. This will have to be adjusted for conservative rasterization, MSAA or similar features.
-	Rect.Pixels = int4( RectUV * ViewSize.xyxy + float4(0.5f, 0.5f, -0.5f, -0.5f) );
+	float2 ViewSize = ViewRect.zw - ViewRect.xy;
+	Rect.Pixels = int4( RectUV * ViewSize.xyxy + ViewRect.xyxy + float4(0.5f, 0.5f, -0.5f, -0.5f) );
+	Rect.Pixels.xy = max(Rect.Pixels.xy, ViewRect.xy);
+	Rect.Pixels.zw = min(Rect.Pixels.zw, ViewRect.zw - 1);
 
 	// Otherwise rectangle has zero area or falls between pixel centers resulting in no rasterized pixels.
 	Rect.bOverlapsPixelCenter = all( Rect.Pixels.zw >= Rect.Pixels.xy );

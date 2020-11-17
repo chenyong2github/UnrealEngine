@@ -394,9 +394,11 @@ struct FPackedView
 	
 	FVector2D	LODScales;
 	float		MinBoundsRadiusSq;
-	uint32		StreamingPriorityCategory;
+	uint32		StreamingPriorityCategory_AndFlags;
 	
 	FIntVector4 TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ;
+
+	FIntVector4	HZBTestViewRect;	// In full resolution
 
 	/**
 	 * Calculates the LOD scales assuming view size and projection is already set up.
@@ -419,7 +421,7 @@ struct FCullingContext
 	uint32			RenderFlags;
 	uint32			DebugFlags;
 	TRefCountPtr<IPooledRenderTarget>	PrevHZB; // If non-null, HZB culling is enabled
-	FIntRect							PrevHZBViewRect;
+	FIntRect		HZBBuildViewRect;
 	bool			bTwoPassOcclusion;
 	bool			bSupportsMultiplePasses;
 
@@ -477,7 +479,7 @@ FCullingContext	InitCullingContext(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const TRefCountPtr<IPooledRenderTarget> &PrevHZB,
-	const FIntRect &PrevHzbViewRect,
+	const FIntRect& HZBBuildViewRect,
 	bool bTwoPassOcclusion,
 	bool bUpdateStreaming,
 	bool bSupportsMultiplePasses,
@@ -503,11 +505,14 @@ struct FPackedViewParams
 	uint32 StreamingPriorityCategory = 0;
 	float MinBoundsRadius = 0.0f;
 	float LODScaleFactor = 1.0f;
+	uint32 Flags = 0;
 
 	int32 TargetLayerIndex = 0;
 	int32 PrevTargetLayerIndex = INDEX_NONE;
 	int32 TargetMipLevel = 0;
 	int32 TargetMipCount = 1;
+
+	FIntRect HZBTestViewRect = {0, 0, 0, 0};
 };
 
 FPackedView CreatePackedView( const FPackedViewParams& Params );
@@ -516,6 +521,7 @@ FPackedView CreatePackedView( const FPackedViewParams& Params );
 FPackedView CreatePackedViewFromViewInfo(
 	const FViewInfo& View,
 	FIntPoint RasterContextSize,
+	uint32 Flags,
 	uint32 StreamingPriorityCategory = 0,
 	float MinBoundsRadius = 0.0f,
 	float LODScaleFactor = 1.0f

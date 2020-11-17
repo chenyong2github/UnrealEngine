@@ -225,7 +225,7 @@ static void VisualizeMobileDynamicCSMSubjectCapsules(FViewInfo& View, FLightScen
 			{
 				// all culling modes draw the receiver frustum.
 				FViewElementPDI ShadowFrustumPDI(&View, nullptr, nullptr);
-				FMatrix Reciever = ProjectedShadowInfo->InvReceiverMatrix;
+				FMatrix Reciever = ProjectedShadowInfo->InvReceiverInnerMatrix;
 				DrawFrustumWireframe(&ShadowFrustumPDI, Reciever * FTranslationMatrix(-ProjectedShadowInfo->PreShadowTranslation), FColor::Cyan, 0);
 			}
 		}
@@ -389,7 +389,7 @@ void FMobileSceneRenderer::BuildCSMVisibilityState(FLightSceneInfo* LightSceneIn
 				float Far = ProjectedShadowInfo->CascadeSettings.SplitFar;
 
 				DrawFrustumWireframe(&ShadowFrustumPDI, (ViewMatrix * FPerspectiveMatrix(ActualFOV, AspectRatio, 1.0f, Near, Far)).Inverse(), FColor::Emerald, 0);
-				DrawFrustumWireframe(&ShadowFrustumPDI, ProjectedShadowInfo->SubjectAndReceiverMatrix.Inverse() * FTranslationMatrix(-ProjectedShadowInfo->PreShadowTranslation), FColor::Cyan, 0);
+				DrawFrustumWireframe(&ShadowFrustumPDI, ProjectedShadowInfo->TranslatedWorldToClipInnerMatrix.Inverse() * FTranslationMatrix(-ProjectedShadowInfo->PreShadowTranslation), FColor::Cyan, 0);
 			}
 
 			FViewInfo* ShadowSubjectView = ProjectedShadowInfo->DependentView ? ProjectedShadowInfo->DependentView : &View;
@@ -407,7 +407,7 @@ void FMobileSceneRenderer::BuildCSMVisibilityState(FLightSceneInfo* LightSceneIn
 				GetViewFrustumBounds(ViewFrustum, View.ViewMatrices.GetViewProjectionMatrix(), true);
 				//FConvexVolume& ShadowReceiverFrustum = ProjectedShadowInfo->CascadeSettings.ShadowBoundsAccurate;
 				//FVector PreShadowTranslation = FVector(0, 0, 0);
-				FConvexVolume& ShadowReceiverFrustum = ProjectedShadowInfo->ReceiverFrustum;
+				FConvexVolume& ShadowReceiverFrustum = ProjectedShadowInfo->ReceiverInnerFrustum;
 				FVector& PreShadowTranslation = ProjectedShadowInfo->PreShadowTranslation;
 
 

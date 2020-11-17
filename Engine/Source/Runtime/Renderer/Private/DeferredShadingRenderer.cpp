@@ -1956,7 +1956,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 					GraphBuilder,
 					*Scene,
 					!bIsEarlyDepthComplete ? View.PrevViewInfo.NaniteHZB : View.PrevViewInfo.HZB,
-					View.PrevViewInfo.ViewRect,
+					View.ViewRect,
 					bTwoPassOcclusion,
 					bUpdateStreaming,
 					bSupportsMultiplePasses,
@@ -1966,7 +1966,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				static FString EmptyFilterName = TEXT(""); // Empty filter represents primary view.
 				const bool bExtractStats = Nanite::IsStatFilterActive(EmptyFilterName);
 
-				Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(View, RasterTextureSize, /*StreamingPriorityCategory*/ 3);
+				Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(View, RasterTextureSize, VIEW_FLAG_HZBTEST, /*StreamingPriorityCategory*/ 3);
 
 				Nanite::CullRasterize(
 					GraphBuilder,

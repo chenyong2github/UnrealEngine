@@ -97,14 +97,14 @@ FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionShaderData(co
 		check(ShadowInfo->BorderSize == 0);
 		check(ShadowInfo->X == 0);
 		check(ShadowInfo->Y == 0);
-		const FIntRect ShadowViewRect = ShadowInfo->GetViewRectForView();
+		const FIntRect ShadowViewRect = ShadowInfo->GetInnerViewRect();
 		check(ShadowViewRect.Min.X == 0);
 		check(ShadowViewRect.Min.Y == 0);
 		check(ShadowViewRect.Max.X == FVirtualShadowMap::VirtualMaxResolutionXY);
 		check(ShadowViewRect.Max.Y == FVirtualShadowMap::VirtualMaxResolutionXY);
 	}
 
-	FMatrix ViewToClip = ShadowInfo->ViewToClip;
+	FMatrix ViewToClip = ShadowInfo->ViewToClipInner;
 		
 	FVirtualShadowMapProjectionShaderData Data;
 	Data.TranslatedWorldToShadowViewMatrix = ShadowInfo->TranslatedWorldToView;

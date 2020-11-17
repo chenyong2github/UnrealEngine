@@ -739,7 +739,7 @@ void RayTraceShadows(
 		PassParameters->LightTileIntersectionParameters = LightTileIntersectionParameters;
 		PassParameters->DistanceFieldAtlasParameters = DistanceFieldAtlasParameters;
 		PassParameters->HeightFieldAtlasParameters = HeightFieldAtlasParameters;
-		PassParameters->WorldToShadow = FTranslationMatrix(ProjectedShadowInfo->PreShadowTranslation) * ProjectedShadowInfo->SubjectAndReceiverMatrix;
+		PassParameters->WorldToShadow = FTranslationMatrix(ProjectedShadowInfo->PreShadowTranslation) * ProjectedShadowInfo->TranslatedWorldToClipInnerMatrix;
 		PassParameters->TwoSidedMeshDistanceBias = GTwoSidedMeshDistanceBias;
 
 		if (ProjectedShadowInfo->bDirectionalLight)
@@ -816,12 +816,12 @@ FRDGTextureRef FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection
 			}
 			else
 			{
-				NumPlanes = CasterFrustum.Planes.Num();
-				PlaneData = CasterFrustum.Planes.GetData();
+				NumPlanes = CasterOuterFrustum.Planes.Num();
+				PlaneData = CasterOuterFrustum.Planes.GetData();
 				ShadowBoundingSphereValue = FVector4(PreShadowTranslation, 0);
 			}
 
-			const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * SubjectAndReceiverMatrix;
+			const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * TranslatedWorldToClipInnerMatrix;
 
 			FDistanceFieldObjectBufferParameters ObjectBufferParameters;
 			ObjectBufferParameters.SceneObjectBounds = Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
@@ -871,7 +871,7 @@ FRDGTextureRef FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection
 		const int32 NumPlanes = CascadeSettings.ShadowBoundsAccurate.Planes.Num();
 		const FPlane* PlaneData = CascadeSettings.ShadowBoundsAccurate.Planes.GetData();
 		const FVector4 ShadowBoundingSphereValue(0.f, 0.f, 0.f, 0.f);
-		const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * SubjectAndReceiverMatrix;
+		const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * TranslatedWorldToClipInnerMatrix;
 
 		FDistanceFieldObjectBufferParameters ObjectBufferParameters;
 		ObjectBufferParameters.SceneObjectBounds = Scene->DistanceFieldSceneData.GetHeightFieldObjectBuffers()->Bounds.SRV;

@@ -616,24 +616,37 @@ bool FProjectedShadowInfo::SetupPerObjectProjection(
 		MaxReceiverZ = FMath::Max(MaxReceiverZ, MinSubjectZ + 1);
 		MaxSubjectZ = FMath::Max(ShadowSubjectBounds.Max.Z, MinSubjectZ + 1);
 
-		const FMatrix Projection = FShadowProjectionMatrix( MinProjected, MaxProjected, Initializer.WAxis );
+		const FVector2D ProjectedExtent = MaxProjected - MinProjected;
+		const float AspectRatio = ProjectedExtent.X / ProjectedExtent.Y;
+		ResolutionY = FMath::Clamp<uint32>(FMath::TruncToInt(InResolutionX / AspectRatio), 1, MaxShadowResolutionY);
 
-		FMatrix ReceiverMatrix;
+		if (ResolutionX == 0 || ResolutionY == 0)
+		{
+			return false;
+		}
+
+		// Scale matrix to also include the border
+		FVector2D BorderScale = FVector2D(ResolutionX / float(ResolutionX + 2 * BorderSize), ResolutionY / float(ResolutionY + 2 * BorderSize));
+		FMatrix BorderScaleMatrix = FScaleMatrix(FVector(BorderScale, 1.0f));
+
+		const FMatrix ProjectionInner = FShadowProjectionMatrix( MinProjected, MaxProjected, Initializer.WAxis );
+		const FMatrix ProjectionOuter = BorderScaleMatrix * ProjectionInner;
+
+		FMatrix ReceiverInnerMatrix;
 		float MaxSubjectDepth;
-
 		if (bPreShadow)
 		{
 			// Preshadow frustum bounds go from the light to the furthest extent of the object in light space
-			ViewToClip = FShadowProjectionMatrix( Projection, Initializer.MinLightW, MaxSubjectZ );
-			SubjectAndReceiverMatrix = TranslatedWorldToView * ViewToClip;
-			ReceiverMatrix = TranslatedWorldToView * FShadowProjectionMatrix( Projection, MinSubjectZ, MaxSubjectZ );
+			ViewToClipInner = FShadowProjectionMatrix( ProjectionInner, Initializer.MinLightW, MaxSubjectZ );
+			ViewToClipOuter = FShadowProjectionMatrix( ProjectionOuter, Initializer.MinLightW, MaxSubjectZ );
+			ReceiverInnerMatrix = TranslatedWorldToView * FShadowProjectionMatrix( ProjectionInner, MinSubjectZ, MaxSubjectZ );
 			MaxSubjectDepth = bDirectionalLight ? 1.0f : Initializer.MinLightW;
 		}
 		else
 		{
-			ViewToClip = FShadowProjectionMatrix( Projection, MinSubjectZ, MaxSubjectZ );
-			SubjectAndReceiverMatrix = TranslatedWorldToView * ViewToClip;
-			ReceiverMatrix = TranslatedWorldToView * FShadowProjectionMatrix( Projection, MinSubjectZ, MaxReceiverZ );
+			ViewToClipInner = FShadowProjectionMatrix( ProjectionInner, MinSubjectZ, MaxSubjectZ );
+			ViewToClipOuter = FShadowProjectionMatrix( ProjectionOuter, MinSubjectZ, MaxSubjectZ );
+			ReceiverInnerMatrix = TranslatedWorldToView * FShadowProjectionMatrix( ProjectionInner, MinSubjectZ, MaxReceiverZ );
 			MaxSubjectDepth = bDirectionalLight ? 1.0f : MinSubjectZ;
 
 			if (bDirectionalLight)
@@ -649,19 +662,12 @@ bool FProjectedShadowInfo::SetupPerObjectProjection(
 				}
 			}
 		}
+		TranslatedWorldToClipInnerMatrix = TranslatedWorldToView * ViewToClipInner;
+		TranslatedWorldToClipOuterMatrix = TranslatedWorldToView * ViewToClipOuter;
 
 		InvMaxSubjectDepth = 1.0f / MaxSubjectDepth;
 
 		MinPreSubjectZ = Initializer.MinLightW;
-
-		const FVector2D ProjectedExtent = MaxProjected - MinProjected;
-		const float AspectRatio = ProjectedExtent.X / ProjectedExtent.Y;
-		ResolutionY = FMath::Clamp<uint32>(FMath::TruncToInt(InResolutionX / AspectRatio), 1, MaxShadowResolutionY);
-
-		if (ResolutionX == 0 || ResolutionY == 0)
-		{
-			return false;
-		}
 
 		// Store the view matrix
 		// Reorder the vectors to match the main view, since ShadowViewMatrix will be used to override the main view's view matrix during shadow depth rendering
@@ -672,10 +678,10 @@ bool FProjectedShadowInfo::SetupPerObjectProjection(
 			FPlane(0, 1, 0, 0),
 			FPlane(0, 0, 0, 1));
 
-		GetViewFrustumBounds(CasterFrustum, SubjectAndReceiverMatrix, true);
-		GetViewFrustumBounds(ReceiverFrustum, ReceiverMatrix, true);
-			
-		InvReceiverMatrix = ReceiverMatrix.InverseFast();
+		GetViewFrustumBounds(CasterOuterFrustum, TranslatedWorldToClipOuterMatrix, true);
+		GetViewFrustumBounds(ReceiverInnerFrustum, ReceiverInnerMatrix, true);
+		
+		InvReceiverInnerMatrix = ReceiverInnerMatrix.InverseFast();
 		
 		UpdateShaderDepthBias();
 
@@ -711,6 +717,12 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 	bHairStrandsDeepShadow = InLightSceneInfo->Proxy->CastsHairStrandsDeepShadow();
 	BorderSize = InBorderSize;
 
+	// Scale matrix to also include the border
+	FMatrix BorderScaleMatrix = FScaleMatrix(FVector(ResolutionX / float(ResolutionX + 2 * BorderSize), ResolutionY / float(ResolutionY + 2 * BorderSize), 1.0f));
+
+	FMatrix InnerScaleMatrix = FScaleMatrix(FVector(Initializer.Scales.X, Initializer.Scales.Y, 1.0f));
+	FMatrix OuterScaleMatrix = BorderScaleMatrix * InnerScaleMatrix;
+
 	checkf(
 		Initializer.WorldToLight.M[3][0] == 0.0f &&
 		Initializer.WorldToLight.M[3][1] == 0.0f &&
@@ -727,10 +739,9 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 
 	MaxSubjectZ = TranslatedWorldToView.TransformPosition(Initializer.SubjectBounds.Origin).Z + Initializer.SubjectBounds.SphereRadius;
 	MinSubjectZ = FMath::Max(MaxSubjectZ - Initializer.SubjectBounds.SphereRadius * 2,Initializer.MinLightW);
-	MaxSubjectZ = FMath::Min( MaxSubjectZ, Initializer.MaxDistanceToCastInLightW );
-	
-	FMatrix ScaleMatrix = FScaleMatrix( FVector( Initializer.Scales.X, Initializer.Scales.Y, 1.0f ) );
-	FMatrix WorldToViewScaled = TranslatedWorldToView * ScaleMatrix;
+	MaxSubjectZ = FMath::Min(MaxSubjectZ, Initializer.MaxDistanceToCastInLightW);
+
+	FMatrix WorldToViewScaledInner = TranslatedWorldToView * InnerScaleMatrix;
 
 	if(bDirectionalLight)
 	{
@@ -742,7 +753,7 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 		MinSubjectZ = FMath::Min(MinSubjectZ, -DepthRangeClamp);
 
 		// Transform the shadow's position into shadowmap space
-		const FVector TransformedPosition = WorldToViewScaled.TransformPosition(-PreShadowTranslation);
+		const FVector TransformedPosition = WorldToViewScaledInner.TransformPosition(-PreShadowTranslation);
 
 		// Largest amount that the shadowmap will be downsampled to during sampling
 		// We need to take this into account when snapping to get a stable result
@@ -754,7 +765,7 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 		// Snap the shadow's position and transform it back into world space
 		// This snapping prevents sub-texel camera movements which removes view dependent aliasing from the final shadow result
 		// This only maintains stable shadows under camera translation and rotation
-		const FVector SnappedWorldPosition = WorldToViewScaled.InverseFast().TransformPosition(TransformedPosition - FVector(SnapX, SnapY, 0.0f));
+		const FVector SnappedWorldPosition = WorldToViewScaledInner.InverseFast().TransformPosition(TransformedPosition - FVector(SnapX, SnapY, 0.0f));
 		PreShadowTranslation = -SnappedWorldPosition;
 	}
 
@@ -780,17 +791,16 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 	const float ClampedMaxLightW = FMath::Min(MinSubjectZ + Initializer.MaxDistanceToCastInLightW, (float)HALF_WORLD_MAX);
 	MinPreSubjectZ = Initializer.MinLightW;
 
-	ViewToClip = ScaleMatrix * FShadowProjectionMatrix(MinSubjectZ, MaxSubjectZ, Initializer.WAxis);
-	SubjectAndReceiverMatrix = TranslatedWorldToView * ViewToClip;
-
-
-	FMatrix ShadowPreTranslatedWorldToShadowClip = TranslatedWorldToView * ViewToClip;
-
+	ViewToClipInner = InnerScaleMatrix * FShadowProjectionMatrix(MinSubjectZ, MaxSubjectZ, Initializer.WAxis);
+	ViewToClipOuter = OuterScaleMatrix * FShadowProjectionMatrix(MinSubjectZ, MaxSubjectZ, Initializer.WAxis);
+	TranslatedWorldToClipInnerMatrix = TranslatedWorldToView * ViewToClipInner;
+	TranslatedWorldToClipOuterMatrix = TranslatedWorldToView * ViewToClipOuter;
+	
 	if ( VirtualSmCacheEntry != nullptr )
 	{
-
+		check(BorderSize == 0);
 		FVector SnappedSubjectWorldSpacePosition = -Initializer.PreShadowTranslation;
-		VirtualSmCacheEntry->Update(VirtualShadowMap->ID, ShadowPreTranslatedWorldToShadowClip, -Initializer.PreShadowTranslation, DependentView != nullptr, Initializer, SnappedSubjectWorldSpacePosition);
+		VirtualSmCacheEntry->Update(VirtualShadowMap->ID, TranslatedWorldToClipInnerMatrix, -Initializer.PreShadowTranslation, DependentView != nullptr, Initializer, SnappedSubjectWorldSpacePosition);
 
 		// Ignore viewport if not a view-dependent SM.
 		if (DependentView != nullptr)
@@ -799,10 +809,10 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 			
 			FVector2D AdjustedScales = Initializer.Scales * FVirtualShadowMapArrayCacheManager::ClipSpaceScaleFactor;
 			// Warning! Re-set up a bunch of things as the scales are changed
-			ScaleMatrix = FScaleMatrix( FVector(AdjustedScales.X, AdjustedScales.Y, 1.0f ) );
-			WorldToViewScaled = TranslatedWorldToView * ScaleMatrix;
-			ViewToClip = ScaleMatrix * FShadowProjectionMatrix(MinSubjectZ, MaxSubjectZ, Initializer.WAxis);
-			SubjectAndReceiverMatrix = TranslatedWorldToView * ViewToClip;
+			InnerScaleMatrix = OuterScaleMatrix = FScaleMatrix( FVector(AdjustedScales.X, AdjustedScales.Y, 1.0f ) );
+			WorldToViewScaledInner = TranslatedWorldToView * InnerScaleMatrix;
+			ViewToClipInner = ViewToClipOuter = InnerScaleMatrix * FShadowProjectionMatrix(MinSubjectZ, MaxSubjectZ, Initializer.WAxis);
+			TranslatedWorldToClipInnerMatrix = TranslatedWorldToClipOuterMatrix = TranslatedWorldToView * ViewToClipInner;
 
 			ResolutionX = FVirtualShadowMap::VirtualMaxResolutionXY;
 			ResolutionY = FVirtualShadowMap::VirtualMaxResolutionXY;
@@ -824,12 +834,12 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 		FPlane(0,	0,	0,	1));
 
 	// Any meshes between the light and the subject can cast shadows, also any meshes inside the subject region
-	const FMatrix CasterMatrix		= WorldToViewScaled * FShadowProjectionMatrix(Initializer.MinLightW, MaxSubjectZ, Initializer.WAxis);
-	const FMatrix ReceiverMatrix	= WorldToViewScaled * FShadowProjectionMatrix(MinSubjectZ, ClampedMaxLightW, Initializer.WAxis);
-	GetViewFrustumBounds(CasterFrustum, CasterMatrix, true);
-	GetViewFrustumBounds(ReceiverFrustum, ReceiverMatrix, true);
+	const FMatrix CasterOuterMatrix = WorldToViewScaledInner * BorderScaleMatrix * FShadowProjectionMatrix(Initializer.MinLightW, MaxSubjectZ, Initializer.WAxis);
+	const FMatrix ReceiverInnerMatrix = WorldToViewScaledInner * FShadowProjectionMatrix(MinSubjectZ, ClampedMaxLightW, Initializer.WAxis);
+	GetViewFrustumBounds(CasterOuterFrustum, TranslatedWorldToClipOuterMatrix, true);
+	GetViewFrustumBounds(ReceiverInnerFrustum, ReceiverInnerMatrix, true);
 	
-	InvReceiverMatrix = ReceiverMatrix.InverseFast();
+	InvReceiverInnerMatrix = ReceiverInnerMatrix.InverseFast();
 
 	UpdateShaderDepthBias();
 }
@@ -2015,7 +2025,7 @@ void FProjectedShadowInfo::GatherDynamicMeshElements(FSceneRenderer& Renderer, F
 		FMatrix OriginalViewMatrix = ShadowDepthView->ViewMatrices.GetViewMatrix();
 
 		// Override the view matrix so that billboarding primitives will be aligned to the light
-		ShadowDepthView->ViewMatrices.HackOverrideMatrixForShadows(TranslatedWorldToView, ViewToClip, -PreShadowTranslation);
+		ShadowDepthView->ViewMatrices.HackOverrideMatrixForShadows(TranslatedWorldToView, ViewToClipOuter, -PreShadowTranslation);
 
 		ReusedViewsArray[0] = ShadowDepthView;
 
@@ -2040,7 +2050,7 @@ void FProjectedShadowInfo::GatherDynamicMeshElements(FSceneRenderer& Renderer, F
 		else
 		{
 			ShadowDepthView->SetPreShadowTranslation(PreShadowTranslation);
-			ShadowDepthView->SetDynamicMeshElementsShadowCullFrustum(&CasterFrustum);
+			ShadowDepthView->SetDynamicMeshElementsShadowCullFrustum(&CasterOuterFrustum);
 			GatherDynamicMeshElementsArray(ShadowDepthView, Renderer, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, 
 				DynamicSubjectPrimitives, ReusedViewsArray, DynamicSubjectMeshElements, NumDynamicSubjectMeshElements);
 		}
@@ -2048,7 +2058,7 @@ void FProjectedShadowInfo::GatherDynamicMeshElements(FSceneRenderer& Renderer, F
 		ShadowDepthView->DrawDynamicFlags = EDrawDynamicFlags::None;
 
 		int32 NumDynamicSubjectTranslucentMeshElements = 0;
-		ShadowDepthView->SetDynamicMeshElementsShadowCullFrustum(&CasterFrustum);
+		ShadowDepthView->SetDynamicMeshElementsShadowCullFrustum(&CasterOuterFrustum);
 		GatherDynamicMeshElementsArray(ShadowDepthView, Renderer, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, 
 			SubjectTranslucentPrimitives, ReusedViewsArray, DynamicSubjectTranslucentMeshElements, NumDynamicSubjectTranslucentMeshElements);
 
@@ -2584,6 +2594,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 				// Create a projected shadow for this interaction's shadow.
 				FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get(),1,16) FProjectedShadowInfo;
 				ProjectedShadowInfo->bPerObjectOpaqueShadow = true;
+				ProjectedShadowInfo->SubjectPrimitiveComponentIndex = PrimitiveSceneInfo->PrimitiveComponentId.PrimIDValue;
 
 				// Disable Nanite geometry in per-object shadows, otherwise they will contain double shadow for Nanite stuff since it is not filtered as host-side geo.
 				// As a result, per-object shadows for any Nanite object will not work (but that can be included in virtual SMs).
@@ -2733,7 +2744,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 
 					// Only add to OutPreShadows if the preshadow doesn't already have depths cached, 
 					// Since OutPreShadows is used to generate information only used when rendering the shadow depths.
-					if (!ProjectedPreShadowInfo->bDepthsCached && ProjectedPreShadowInfo->CasterFrustum.PermutedPlanes.Num())
+					if (!ProjectedPreShadowInfo->bDepthsCached && ProjectedPreShadowInfo->CasterOuterFrustum.PermutedPlanes.Num())
 					{
 						OutPreShadows.Add(ProjectedPreShadowInfo);
 					}
@@ -3343,7 +3354,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 						const FMatrix ScaleMatrix = FScaleMatrix(FVector(1, -1, 1));
 
 						// fill in the caster frustum with the far plane from every face
-						ProjectedShadowInfo->CasterFrustum.Planes.Empty();
+						ProjectedShadowInfo->CasterOuterFrustum.Planes.Empty();
 						for (int32 FaceIndex = 0; FaceIndex < 6; FaceIndex++)
 						{
 							// Create a view projection matrix for each cube face
@@ -3352,9 +3363,9 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 							const FMatrix ShadowViewProjectionMatrix = WorldToLightMatrix * ProjectedShadowInfo->OnePassShadowFaceProjectionMatrix;
 							ProjectedShadowInfo->OnePassShadowViewProjectionMatrices.Add(ShadowViewProjectionMatrix);
 							// Add plane representing cube face to bounding volume
-							ProjectedShadowInfo->CasterFrustum.Planes.Add(FPlane(CubeDirections[FaceIndex], LightProxy.GetRadius()));
+							ProjectedShadowInfo->CasterOuterFrustum.Planes.Add(FPlane(CubeDirections[FaceIndex], LightProxy.GetRadius()));
 						}
-						ProjectedShadowInfo->CasterFrustum.Init();
+						ProjectedShadowInfo->CasterOuterFrustum.Init();
 					}
 
 					// If we have a virtual shadow map, disable nanite rendering into the regular shadow map or else we'd get double-shadowing
@@ -3571,7 +3582,7 @@ void FSceneRenderer::InitProjectedShadowVisibility(FRHICommandListImmediate& RHI
 								//DrawWireSphere(&ShadowFrustumPDI, FTransform(ProjectedShadowInfo.ShadowBounds.Center), Color, ProjectedShadowInfo.ShadowBounds.W, 40, 0);
 
 								// Shadow Map Projection Bounds
-								DrawFrustumWireframe(&ShadowFrustumPDI, ProjectedShadowInfo.SubjectAndReceiverMatrix.Inverse() * FTranslationMatrix(-ProjectedShadowInfo.PreShadowTranslation), Color, 0);
+								DrawFrustumWireframe(&ShadowFrustumPDI, ProjectedShadowInfo.TranslatedWorldToClipInnerMatrix.Inverse() * FTranslationMatrix(-ProjectedShadowInfo.PreShadowTranslation), Color, 0);
 							}
 							else
 							{
@@ -3828,7 +3839,7 @@ struct FGatherShadowPrimitivesPacket
 
 				// Note: Culling based on the primitive's bounds BEFORE dereferencing PrimitiveSceneInfo / PrimitiveProxy
 				// Check if this primitive is in the shadow's frustum.
-				bool bInFrustum = ProjectedShadowInfo->CasterFrustum.IntersectBox(PrimitiveBounds.Origin, ProjectedShadowInfo->PreShadowTranslation, PrimitiveBounds.BoxExtent);
+				bool bInFrustum = ProjectedShadowInfo->CasterOuterFrustum.IntersectBox(PrimitiveBounds.Origin, ProjectedShadowInfo->PreShadowTranslation, PrimitiveBounds.BoxExtent);
 
 				if (bInFrustum && ProjectedShadowInfo->GetLightSceneInfoCompact().AffectsPrimitive(PrimitiveBounds, PrimitiveProxy))
 				{
@@ -3986,9 +3997,9 @@ void FSceneRenderer::GatherShadowPrimitives(
 				{
 					FProjectedShadowInfo* ProjectedShadowInfo = PreShadows[ShadowIndex];
 
-					check(ProjectedShadowInfo->CasterFrustum.PermutedPlanes.Num());
+					check(ProjectedShadowInfo->CasterOuterFrustum.PermutedPlanes.Num());
 					// Check if this primitive is in the shadow's frustum.
-					if (ProjectedShadowInfo->CasterFrustum.IntersectBox(
+					if (ProjectedShadowInfo->CasterOuterFrustum.IntersectBox(
 						NodeBounds.Center + ProjectedShadowInfo->PreShadowTranslation,
 						NodeBounds.Extent
 					))
@@ -4001,7 +4012,7 @@ void FSceneRenderer::GatherShadowPrimitives(
 
 					//check(ProjectedShadowInfo->CasterFrustum.PermutedPlanes.Num());
 					// Check if this primitive is in the shadow's frustum.
-					if (ProjectedShadowInfo->CasterFrustum.IntersectBox(
+					if (ProjectedShadowInfo->CasterOuterFrustum.IntersectBox(
 						NodeBounds.Center + ProjectedShadowInfo->PreShadowTranslation,
 						NodeBounds.Extent
 					))
@@ -4185,6 +4196,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 						ShadowBorder
 					);
 					ProjectedShadowInfo->FadeAlphas = FadeAlphas;
+					ProjectedShadowInfo->ProjectionIndex = Index;
 
 					VisibleLightInfo.MemStackProjectedShadows.Add(ProjectedShadowInfo);
 					VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);

@@ -469,7 +469,7 @@ static bool AllocateProjectedShadowOcclusionQuery(
 	
 		// If the shadow frustum is farther from the view origin than the near clipping plane,
 		// it can't intersect the near clipping plane.
-		const bool bIntersectsNearClippingPlane = ProjectedShadowInfo.ReceiverFrustum.IntersectSphere(
+		const bool bIntersectsNearClippingPlane = ProjectedShadowInfo.ReceiverInnerFrustum.IntersectSphere(
 			View.ViewMatrices.GetViewOrigin() + ProjectedShadowInfo.PreShadowTranslation,
 			View.NearClippingDistance * FMath::Sqrt(3.0f)
 			);
@@ -568,7 +568,7 @@ static void PrepareProjectedShadowOcclusionQuery(uint32& BaseVertexIndex, FVecto
 		{
 			for (uint32 X = 0; X < 2; X++)
 			{
-				const FVector4 UnprojectedVertex = ProjectedShadowInfo.InvReceiverMatrix.TransformFVector4(
+				const FVector4 UnprojectedVertex = ProjectedShadowInfo.InvReceiverInnerMatrix.TransformFVector4(
 					FVector4(
 						(X ? -1.0f : 1.0f),
 						(Y ? -1.0f : 1.0f),

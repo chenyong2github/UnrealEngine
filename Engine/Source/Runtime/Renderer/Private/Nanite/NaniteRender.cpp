@@ -28,6 +28,7 @@
 #define CULLING_PASS_NO_OCCLUSION		0
 #define CULLING_PASS_OCCLUSION_MAIN		1
 #define CULLING_PASS_OCCLUSION_POST		2
+#define CULLING_PASS_EXPLICIT_LIST		3
 
 #define RENDER_FLAG_HAVE_PREV_DRAW_DATA				0x1
 #define RENDER_FLAG_FORCE_HW_RASTER					0x2
@@ -421,7 +422,6 @@ BEGIN_SHADER_PARAMETER_STRUCT( FCullingParameters, )
 	SHADER_PARAMETER( uint32,		NumPrimaryViews )
 	SHADER_PARAMETER( float,		DisocclusionLodScaleFactor )
 
-	SHADER_PARAMETER( FVector2D,	HZBViewSize )
 	SHADER_PARAMETER( FVector2D,	HZBSize )
 
 	SHADER_PARAMETER_RDG_TEXTURE( Texture2D,	HZBTexture )
@@ -496,13 +496,12 @@ class FInstanceCull_CS : public FNaniteShader
 	DECLARE_GLOBAL_SHADER( FInstanceCull_CS );
 	SHADER_USE_PARAMETER_STRUCT( FInstanceCull_CS, FNaniteShader );
 
-	class FCullingPassDim : SHADER_PERMUTATION_SPARSE_INT("CULLING_PASS", CULLING_PASS_NO_OCCLUSION, CULLING_PASS_OCCLUSION_MAIN, CULLING_PASS_OCCLUSION_POST);
+	class FCullingPassDim : SHADER_PERMUTATION_SPARSE_INT("CULLING_PASS", CULLING_PASS_NO_OCCLUSION, CULLING_PASS_OCCLUSION_MAIN, CULLING_PASS_OCCLUSION_POST, CULLING_PASS_EXPLICIT_LIST);
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
-	class FInstanceDrawListDim : SHADER_PERMUTATION_BOOL("INSTANCE_DRAW_LIST");
 	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
 	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL("DEBUG_FLAGS");
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
-	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FMultiViewDim, FInstanceDrawListDim, FNearClipDim, FDebugFlagsDim, FRasterTechniqueDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FMultiViewDim, FNearClipDim, FDebugFlagsDim, FRasterTechniqueDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -544,14 +543,13 @@ class FInstanceCull_CS : public FNaniteShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FInstanceDraw >, InInstanceDraws )
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer, OutNodes )
-		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< uint >, OutOccludedInstances )
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< FInstanceDraw >, OutOccludedInstances )
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< FPersistentState >, OutMainAndPostPassPersistentStates )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWBuffer< uint >, OutOccludedInstancesArgs )
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FNaniteStats>, OutStatsBuffer)
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >, InOccludedInstances )
 		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, InOccludedInstancesArgs )
 
 		SHADER_PARAMETER_RDG_BUFFER( Buffer< uint >, IndirectArgs )
@@ -597,7 +595,7 @@ class FInstanceCullVSM_CS : public FNaniteShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< FPersistentState >, OutMainAndPostPassPersistentStates )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer<FNaniteStats>, OutStatsBuffer )
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >, InOccludedInstances )
+		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FInstanceDraw >, InOccludedInstances )
 		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, InOccludedInstancesArgs )
 
 		SHADER_PARAMETER_RDG_BUFFER( Buffer< uint >, IndirectArgs )
@@ -2154,8 +2152,7 @@ void ListStatFilters(FSceneRenderer* SceneRenderer)
 			const auto& ShadowMapAtlases = SceneRenderer->SortedShadowsForShadowDepthPass.ShadowMapAtlases;
 			for (int32 AtlasIndex = 0; AtlasIndex < ShadowMapAtlases.Num(); AtlasIndex++)
 			{
-				const FSortedShadowMapAtlas& ShadowMapAtlas = ShadowMapAtlases[AtlasIndex];
-				// TODO: Needs to be updated for single Nanite pass atlas rendering
+				UE_LOG(LogNanite, Warning, TEXT("ShadowAtlas%d"), AtlasIndex);
 			}
 		}
 
@@ -2214,7 +2211,7 @@ FCullingContext InitCullingContext(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const TRefCountPtr<IPooledRenderTarget> &PrevHZB,
-	const FIntRect &PrevHZBViewRect,
+	const FIntRect &HZBBuildViewRect,
 	bool bTwoPassOcclusion,
 	bool bUpdateStreaming,
 	bool bSupportsMultiplePasses,
@@ -2233,7 +2230,7 @@ FCullingContext InitCullingContext(
 	FCullingContext CullingContext = {};
 
 	CullingContext.PrevHZB					= PrevHZB;
-	CullingContext.PrevHZBViewRect			= PrevHZBViewRect;
+	CullingContext.HZBBuildViewRect			= HZBBuildViewRect;
 	CullingContext.bTwoPassOcclusion		= PrevHZB != nullptr && bTwoPassOcclusion;
 	CullingContext.bSupportsMultiplePasses	= bSupportsMultiplePasses;
 	CullingContext.DrawPassIndex			= 0;
@@ -2319,7 +2316,7 @@ FCullingContext InitCullingContext(
 		CullingContext.OccludedInstances				= GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetScratchOccludedInstancesBufferRef(), TEXT("OccludedInstances"));
 		CullingContext.PostPass.CandidateClusters		= GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetPostPassBuffers().ScratchCandidateClustersBuffer, TEXT("PostPass.CandidateClusters"));
 	#else
-		CullingContext.OccludedInstances				= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(4, NumSceneInstances), TEXT("OccludedInstances"));
+		CullingContext.OccludedInstances				= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceDraw), NumSceneInstances), TEXT("OccludedInstances"));
 		CullingContext.PostPass.CandidateClusters		= GraphBuilder.CreateBuffer(VisibleClustersDesc, TEXT("PostPassCandidateClusters"));
 	#endif
 
@@ -2487,36 +2484,23 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		}
 		else
 		{
-			PassParameters->InOccludedInstances			= GraphBuilder.CreateSRV( CullingContext.OccludedInstances );
+			PassParameters->InInstanceDraws				= GraphBuilder.CreateSRV( CullingContext.OccludedInstances );
 			PassParameters->InOccludedInstancesArgs		= GraphBuilder.CreateSRV( CullingContext.OccludedInstancesArgs );
 			PassParameters->OutNodes					= GraphBuilder.CreateUAV( CullingContext.PostPass.Nodes );
 		}
 		
 		check(CullingContext.ViewsBuffer);
 
+		const uint32 InstanceCullingPass = CullingContext.InstanceDrawsBuffer != nullptr ? CULLING_PASS_EXPLICIT_LIST : CullingPass;
 		FInstanceCull_CS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FInstanceCull_CS::FCullingPassDim>(CullingPass);
+		PermutationVector.Set<FInstanceCull_CS::FCullingPassDim>(InstanceCullingPass);
 		PermutationVector.Set<FInstanceCull_CS::FMultiViewDim>(bMultiView);
-		PermutationVector.Set<FInstanceCull_CS::FInstanceDrawListDim>(CullingContext.InstanceDrawsBuffer != nullptr);
 		PermutationVector.Set<FInstanceCull_CS::FNearClipDim>(RasterState.bNearClip);
 		PermutationVector.Set<FInstanceCull_CS::FDebugFlagsDim>(GNaniteDebugFlags != 0);
 		PermutationVector.Set<FInstanceCull_CS::FRasterTechniqueDim>(int32(RasterContext.RasterTechnique));
 
 		auto ComputeShader = ShaderMap->GetShader<FInstanceCull_CS>(PermutationVector);
-
-		if( CullingPass == CULLING_PASS_NO_OCCLUSION || CullingPass == CULLING_PASS_OCCLUSION_MAIN )
-		{
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				CullingPass == CULLING_PASS_NO_OCCLUSION ? 
-					RDG_EVENT_NAME( "Main Pass: InstanceCull - No occlusion" ) :
-					RDG_EVENT_NAME( "Main Pass: InstanceCull" ),
-				ComputeShader,
-				PassParameters,
-				FComputeShaderUtils::GetGroupCount(CullingContext.NumInstancesPreCull, 64)
-			);
-		}
-		else
+		if( InstanceCullingPass == CULLING_PASS_OCCLUSION_POST )
 		{
 			PassParameters->IndirectArgs = CullingContext.OccludedInstancesArgs;
 			FComputeShaderUtils::AddPass(
@@ -2526,6 +2510,18 @@ void AddPass_InstanceHierarchyAndClusterCull(
 				PassParameters,
 				PassParameters->IndirectArgs,
 				0
+			);
+		}
+		else
+		{
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				InstanceCullingPass == CULLING_PASS_OCCLUSION_MAIN ?	RDG_EVENT_NAME( "Main Pass: InstanceCull" ) : 
+				InstanceCullingPass == CULLING_PASS_NO_OCCLUSION ?		RDG_EVENT_NAME( "Main Pass: InstanceCull - No occlusion" ) :
+																		RDG_EVENT_NAME( "Main Pass: InstanceCull - Explicit list" ),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(CullingContext.NumInstancesPreCull, 64)
 			);
 		}
 	}
@@ -3128,7 +3124,6 @@ void CullRasterizeInner(
 		CullingParameters.DisocclusionLodScaleFactor = (GNaniteDisocclusionHack && GLumenFastCameraMode) ? 0.01f : 1.0f;	// TODO: Get rid of this hack
 		CullingParameters.HZBTexture	= RegisterExternalTextureWithFallback(GraphBuilder, CullingContext.PrevHZB, GSystemTextures.BlackDummy);
 		CullingParameters.HZBSize		= CullingContext.PrevHZB ? CullingContext.PrevHZB->GetDesc().Extent : FVector2D(0.0f);
-		CullingParameters.HZBViewSize	= CullingContext.PrevHZB ? FVector2D(CullingContext.PrevHZBViewRect.Size()) : FVector2D(0.0f);
 		CullingParameters.HZBSampler	= TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
 		CullingParameters.SOAStrides	= CullingContext.SOAStrides;
 		CullingParameters.MaxClusters	= Nanite::FGlobalResources::GetMaxClusters();
@@ -3231,8 +3226,6 @@ void CullRasterizeInner(
 	// Occlusion post pass. Retest instances and clusters that were not visible last frame. If they are visible now, render them.
 	if( CullingContext.bTwoPassOcclusion )
 	{
-		ensureMsgf(Views.Num() == 1, TEXT("Multi-view does not support two pass occlusion culling"));
-
 		// Build a closest HZB with previous frame occluders to test remainder occluders against.
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "BuildPreviousOccluderHZB");
@@ -3250,18 +3243,23 @@ void CullRasterizeInner(
 
 			FRDGTextureRef OutFurthestHZBTexture;
 
-			FIntRect ViewRect(Views[0].ViewRect.X, Views[0].ViewRect.Y, Views[0].ViewRect.Z, Views[0].ViewRect.W);
+			FIntRect ViewRect(0, 0, RasterContext.TextureSize.X, RasterContext.TextureSize.Y);
+			if (Views.Num() == 1)
+			{
+				//TODO: This is a hack. Using full texture can lead to 'far' borders on left/bottom. How else can we ensure good culling perf for main view.
+				ViewRect = FIntRect(Views[0].ViewRect.X, Views[0].ViewRect.Y, Views[0].ViewRect.Z, Views[0].ViewRect.W);
+			}
+			
 			BuildHZB(
 				GraphBuilder,
 				SceneDepth,
 				RasterizedDepth,
-				ViewRect,
+				CullingContext.HZBBuildViewRect,
 				/* OutClosestHZBTexture = */ nullptr,
 				/* OutFurthestHZBTexture = */ &OutFurthestHZBTexture);
 
 			CullingParameters.HZBTexture = OutFurthestHZBTexture;
 			CullingParameters.HZBSize = CullingParameters.HZBTexture->Desc.Extent;
-			CullingParameters.HZBViewSize = ViewRect.Size();
 		}
 
 		// Post Pass
@@ -3388,7 +3386,9 @@ void CullRasterize(
 				(MipView.ViewSizeAndInvSize.X + 2.0f * MipView.ViewRect.X) * RcpExtXY - 1.0f,
 				-(MipView.ViewSizeAndInvSize.Y + 2.0f * MipView.ViewRect.Y) * RcpExtXY + 1.0f);
 
-			MipView.StreamingPriorityCategory = 0;
+			uint32 StreamingPriorityCategory = 0;
+			uint32 ViewFlags = VIEW_FLAG_HZBTEST;
+			MipView.StreamingPriorityCategory_AndFlags = (ViewFlags << NUM_STREAMING_PRIORITY_CATEGORY_BITS) | StreamingPriorityCategory;
 
 			MipView.UpdateLODScales();
 			MipView.LODScales.X *= LODScaleFactor;
@@ -4813,8 +4813,8 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 												 ( ViewSizeAndInvSize.X + 2.0f * ViewRect.Min.X) * RcpRasterContextSize.X - 1.0f,
 												-( ViewSizeAndInvSize.Y + 2.0f * ViewRect.Min.Y) * RcpRasterContextSize.Y + 1.0f );
 
-	check(Params.StreamingPriorityCategory <= 3);
-	PackedView.StreamingPriorityCategory = Params.StreamingPriorityCategory;
+	check(Params.StreamingPriorityCategory <= STREAMING_PRIORITY_CATEGORY_MASK);
+	PackedView.StreamingPriorityCategory_AndFlags = (Params.Flags << NUM_STREAMING_PRIORITY_CATEGORY_BITS) | Params.StreamingPriorityCategory;
 	PackedView.MinBoundsRadiusSq = Params.MinBoundsRadius * Params.MinBoundsRadius;
 	PackedView.UpdateLODScales();
 
@@ -4825,12 +4825,15 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 	PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Z = Params.TargetMipCount;
 	PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.W = Params.PrevTargetLayerIndex;
 
+	PackedView.HZBTestViewRect = FIntVector4(Params.HZBTestViewRect.Min.X, Params.HZBTestViewRect.Min.Y, Params.HZBTestViewRect.Max.X, Params.HZBTestViewRect.Max.Y);
+	
 	return PackedView;
 }
 
 FPackedView CreatePackedViewFromViewInfo(
 	const FViewInfo& View,
 	FIntPoint RasterContextSize,
+	uint32 Flags,
 	uint32 StreamingPriorityCategory,
 	float MinBoundsRadius,
 	float LODScaleFactor
@@ -4841,9 +4844,11 @@ FPackedView CreatePackedViewFromViewInfo(
 	Params.PrevViewMatrices = View.PrevViewInfo.ViewMatrices;
 	Params.ViewRect = View.ViewRect;
 	Params.RasterContextSize = RasterContextSize;
+	Params.Flags = Flags;
 	Params.StreamingPriorityCategory = StreamingPriorityCategory;
 	Params.MinBoundsRadius = MinBoundsRadius;
 	Params.LODScaleFactor = LODScaleFactor;
+	Params.HZBTestViewRect = View.PrevViewInfo.ViewRect;
 	return CreatePackedView(Params);
 }
 

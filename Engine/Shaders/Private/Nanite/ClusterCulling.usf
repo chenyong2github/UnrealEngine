@@ -281,6 +281,8 @@ void PersistentHierarchicalCull(
 		// Depth clipping should only be disabled with orthographic projections
 		const bool bNearClip = (NEAR_CLIP != 0);
 
+		const bool bViewHZB = ((NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0);
+
 #if DEBUG_FLAGS
 		const bool bSkipSphereCullFrustum = (DebugFlags & DEBUG_FLAG_CULL_FRUSTUM_SPHERE) == 0;
 		const bool bSkipSphereCullHZB     = (DebugFlags & DEBUG_FLAG_CULL_HZB_SPHERE) == 0;
@@ -324,7 +326,7 @@ void PersistentHierarchicalCull(
 			{
 				float3 CenterView = mul( float4( Bounds.xyz, 1 ), DynamicData.LocalToView ).xyz;
 				FFrustumCullData Cull = SphereCullFrustum(CenterView, Bounds.w * MaxObjectScale, NaniteView.ViewToClip, ZNear, bNearClip, bSkipSphereCullFrustum);
-				FScreenRect Rect = GetScreenRect( NaniteView.ViewSizeAndInvSize.xy, Cull, 4 );
+				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 
 				bVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;
 
@@ -339,20 +341,20 @@ void PersistentHierarchicalCull(
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN || VIRTUAL_TEXTURE_TARGET
 			BRANCH
-			if( bVisible )
+			if( bViewHZB && bVisible )
 			{
 				float3 CenterPrevView = mul( float4( Bounds.xyz, 1 ), DynamicData.PrevLocalToView ).xyz;
 				FFrustumCullData PrevCull = SphereCullFrustum(CenterPrevView, Bounds.w * MaxObjectScale, NaniteView.PrevViewToClip, ZNear, bNearClip, bSkipSphereCullFrustum);
-					
+			
 				BRANCH
 				if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane )
 				{
 					#if VIRTUAL_TEXTURE_TARGET
-						FScreenRect PrevRect = GetScreenRect( NaniteView.ViewSizeAndInvSize.xy, PrevCull, 4 );
+						FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
 						bVisible = bSkipSphereCullHZB ? true : IsVisibleHZB( NaniteView.TargetPrevLayerIndex, NaniteView.TargetMipLevel, PrevRect );
 					#else
 						// TODO Add prev view size to NaniteView
-						FScreenRect PrevRect = GetScreenRect( HZBViewSize, PrevCull, 4 );
+						FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
 						bWasOccluded = bSkipSphereCullHZB ? false : !IsVisibleHZB( PrevRect, true );
 					#endif
 				}
@@ -371,7 +373,7 @@ void PersistentHierarchicalCull(
 				float3 CenterView = mul( float4( Bounds.xyz, 1 ), DynamicData.LocalToView ).xyz;
 				FFrustumCullData Cull = SphereCullFrustum(CenterView, Bounds.w * MaxObjectScale, NaniteView.ViewToClip, ZNear, bNearClip, bSkipSphereCullFrustum);
 
-				FScreenRect Rect = GetScreenRect( NaniteView.ViewSizeAndInvSize.xy, Cull, 4 );
+				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 				Cull.bIsVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;
 				
 				BRANCH
@@ -515,6 +517,8 @@ void CandidateCullInner(
 	// WARNING: This is a macro/permutation because of FXC code gen issues! Be careful if you change this to test thoroughly!
 	const bool bNearClip = (NEAR_CLIP != 0);
 
+	const bool bViewHZB = ((NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0);
+
 #if DEBUG_FLAGS && COMPILER_PSSL
 	const bool bSkipBoxCullFrustum = (DebugFlags & DEBUG_FLAG_CULL_FRUSTUM_BOX) == 0;
 	const bool bSkipBoxCullHZB     = (DebugFlags & DEBUG_FLAG_CULL_HZB_BOX) == 0;
@@ -547,7 +551,7 @@ void CandidateCullInner(
 	if( bVisible )
 	{
 		FFrustumCullData Cull = BoxCullFrustum(Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.LocalToClip, bNearClip, bSkipBoxCullFrustum);
-		FScreenRect Rect = GetScreenRect( NaniteView.ViewSizeAndInvSize.xy, Cull, 4 );
+		FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 
 		bVisible = Cull.bIsVisible && ( Rect.bOverlapsPixelCenter || Cull.bCrossesNearPlane );	// Rect from box isn't valid if crossing near plane
 		bNeedsClipping = Cull.bCrossesNearPlane || Cull.bCrossesFarPlane;
@@ -589,7 +593,7 @@ void CandidateCullInner(
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN || VIRTUAL_TEXTURE_TARGET
 	BRANCH
-	if( bVisible )
+	if( bViewHZB && bVisible )
 	{
 		FFrustumCullData PrevCull = BoxCullFrustum(Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.PrevLocalToClip, bNearClip, bSkipBoxCullFrustum);
 		
@@ -597,19 +601,11 @@ void CandidateCullInner(
 		if (PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane)
 		{
 			#if VIRTUAL_TEXTURE_TARGET
-				FScreenRect PrevRect = GetScreenRect( NaniteView.ViewSizeAndInvSize.xy, PrevCull, 4 );
+				FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
 				bVisible = bSkipBoxCullHZB ? true : IsVisibleHZB( NaniteView.TargetPrevLayerIndex, NaniteView.TargetMipLevel, PrevRect );
 			#else
-				// TODO Add prev view size to NaniteView
-				FScreenRect PrevRect = GetScreenRect( HZBViewSize, PrevCull, 4 );
-			
-				//float4x4 ClipToCluster = mul( DynamicData.PrevClipToLocal, LocalToCluster );
-				float4x4 ClipToCluster = DynamicData.PrevClipToLocal;
-				float3 ViewOriginCluster = DynamicData.ViewPosScaledLocal / InstanceData.NonUniformScale.xyz;
-				float3 PlaneHZB = GetFacePlaneHZB( ViewOriginCluster, ClipToCluster, Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent);
-
-				//bWasOccluded = bSkipBoxCullHZB ? false : !IsVisibleHZB( PrevRect, PlaneHZB );
-				bWasOccluded = bSkipBoxCullHZB ? false : !IsVisibleHZB( PrevRect, true );
+				FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
+				bWasOccluded = bSkipBoxCullHZB ? false : !IsVisibleHZB(PrevRect, true);
 			#endif
 		}
 	}
@@ -634,7 +630,7 @@ void CandidateCullInner(
 	if( bVisible )
 	{
 		FFrustumCullData Cull = BoxCullFrustum(Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.LocalToClip, bNearClip, bSkipBoxCullFrustum);
-		FScreenRect Rect = GetScreenRect( NaniteView.ViewSizeAndInvSize.xy, Cull, 4 );
+		FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 
 		bVisible = Cull.bIsVisible && ( Rect.bOverlapsPixelCenter || Cull.bCrossesNearPlane );	// Rect from box isn't valid if crossing near plane
 		bNeedsClipping = Cull.bCrossesNearPlane || Cull.bCrossesFarPlane;
@@ -643,12 +639,6 @@ void CandidateCullInner(
 		BRANCH
 		if (bVisible && !Cull.bCrossesNearPlane)
 		{
-			//float4x4 ClipToCluster = mul( DynamicData.ClipToLocal, LocalToCluster );
-			float4x4 ClipToCluster = DynamicData.ClipToLocal;
-			float3 ViewOriginCluster = DynamicData.ViewPosScaledLocal / InstanceData.NonUniformScale.xyz;
-			float3 PlaneHZB = GetFacePlaneHZB( ViewOriginCluster, ClipToCluster, Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent);
-			
-			//bVisible = bSkipBoxCullHZB ? true : IsVisibleHZB( Rect, PlaneHZB );
 			bVisible = bSkipBoxCullHZB ? true : IsVisibleHZB( Rect, true );
 		}
 	}

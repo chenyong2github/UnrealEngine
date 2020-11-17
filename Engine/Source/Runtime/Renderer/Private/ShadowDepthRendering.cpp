@@ -142,7 +142,7 @@ void SetupShadowDepthPassUniformBuffer(
 {
 	SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::None, ShadowDepthPassParameters.SceneTextures);
 
-	ShadowDepthPassParameters.ProjectionMatrix = FTranslationMatrix(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) * ShadowInfo->SubjectAndReceiverMatrix;	
+	ShadowDepthPassParameters.ProjectionMatrix = FTranslationMatrix(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) * ShadowInfo->TranslatedWorldToClipOuterMatrix;	
 	ShadowDepthPassParameters.ViewMatrix = ShadowInfo->ShadowViewMatrix;
 
 	ShadowDepthPassParameters.ShadowParams = FVector4(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias(), ShadowInfo->bOnePassPointLightShadow ? 1 : ShadowInfo->InvMaxSubjectDepth);
@@ -150,6 +150,8 @@ void SetupShadowDepthPassUniformBuffer(
 
 	if (ShadowInfo->bOnePassPointLightShadow)
 	{
+		check(ShadowInfo->BorderSize == 0);
+
 		// offset from translated world space to (pre translated) shadow space 
 		const FMatrix Translation = FTranslationMatrix(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation());
 
@@ -169,7 +171,7 @@ void SetupShadowDepthPassUniformBuffer(
 {
 	SetupMobileSceneTextureUniformParameters(GraphBuilder, EMobileSceneTextureSetupMode::None, ShadowDepthPassParameters.SceneTextures);
 
-	ShadowDepthPassParameters.ProjectionMatrix = FTranslationMatrix(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) * ShadowInfo->SubjectAndReceiverMatrix;
+	ShadowDepthPassParameters.ProjectionMatrix = FTranslationMatrix(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) * ShadowInfo->TranslatedWorldToClipOuterMatrix;
 	ShadowDepthPassParameters.ViewMatrix = ShadowInfo->ShadowViewMatrix;
 
 	ShadowDepthPassParameters.ShadowParams = FVector4(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias(), ShadowInfo->InvMaxSubjectDepth);
@@ -770,11 +772,11 @@ void FProjectedShadowInfo::SetStateForView(FRHICommandList& RHICmdList) const
 	check(bAllocated);
 
 	RHICmdList.SetViewport(
-		X + BorderSize,
-		Y + BorderSize,
+		X,
+		Y,
 		0.0f,
-		X + BorderSize + ResolutionX,
-		Y + BorderSize + ResolutionY,
+		X + ResolutionX + 2 * BorderSize,
+		Y + ResolutionY + 2 * BorderSize,
 		1.0f
 	);
 }
@@ -966,13 +968,15 @@ void FProjectedShadowInfo::CopyCachedShadowMap(
 				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 				RHICmdList.SetStencilRef(StencilRef);
 
+				FIntPoint ResolutionWithBorder = FIntPoint(ResolutionX + 2 * BorderSize, ResolutionY + 2 * BorderSize);
+
 				DrawRectangle(
 					RHICmdList,
 					0, 0,
-					ResolutionX, ResolutionY,
-					BorderSize, BorderSize,
-					ResolutionX, ResolutionY,
-					FIntPoint(ResolutionX, ResolutionY),
+					ResolutionWithBorder.X, ResolutionWithBorder.Y,
+					0, 0,
+					ResolutionWithBorder.X, ResolutionWithBorder.Y,
+					ResolutionWithBorder,
 					ShadowDepthExtent,
 					ScreenVertexShader,
 					EDRF_Default,
@@ -1003,13 +1007,15 @@ void FProjectedShadowInfo::CopyCachedShadowMap(
 				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 				RHICmdList.SetStencilRef(StencilRef);
 
+				FIntPoint ResolutionWithBorder = FIntPoint(ResolutionX + 2 * BorderSize, ResolutionY + 2 * BorderSize);
+
 				DrawRectangle(
 					RHICmdList,
 					0, 0,
-					ResolutionX, ResolutionY,
-					BorderSize, BorderSize,
-					ResolutionX, ResolutionY,
-					FIntPoint(ResolutionX, ResolutionY),
+					ResolutionWithBorder.X, ResolutionWithBorder.Y,
+					0, 0,
+					ResolutionWithBorder.X, ResolutionWithBorder.Y,
+					ResolutionWithBorder,
 					ShadowDepthExtent,
 					ScreenVertexShader,
 					EDRF_Default);
@@ -1152,7 +1158,7 @@ void FProjectedShadowInfo::RenderDepth(
 void FProjectedShadowInfo::ModifyViewForShadow(FRHICommandList& RHICmdList, FViewInfo* FoundView) const
 {
 	FIntRect OriginalViewRect = FoundView->ViewRect;
-	FoundView->ViewRect = GetViewRectForView();
+	FoundView->ViewRect = GetOuterViewRect();
 
 	//FoundView->ViewMatrices.HackRemoveTemporalAAProjectionJitter();
 
@@ -1168,8 +1174,8 @@ void FProjectedShadowInfo::ModifyViewForShadow(FRHICommandList& RHICmdList, FVie
 	FoundView->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 
 	// Override the view matrix so that billboarding primitives will be aligned to the light
-	FoundView->ViewMatrices.HackOverrideMatrixForShadows(TranslatedWorldToView, ViewToClip, -PreShadowTranslation);
-	FoundView->PrevViewInfo.ViewMatrices.HackOverrideMatrixForShadows(TranslatedWorldToView, ViewToClip, -PreShadowTranslation);
+	FoundView->ViewMatrices.HackOverrideMatrixForShadows(TranslatedWorldToView, ViewToClipOuter, -PreShadowTranslation);
+	FoundView->PrevViewInfo.ViewMatrices.HackOverrideMatrixForShadows(TranslatedWorldToView, ViewToClipOuter, -PreShadowTranslation);
 
 	FBox VolumeBounds[TVC_MAX];
 	FoundView->SetupUniformBufferParameters(
@@ -1299,13 +1305,34 @@ FRHIGPUMask FSceneRenderer::GetGPUMaskForShadow(FProjectedShadowInfo* ProjectedS
 }
 #endif // WITH_MGPU
 
+static void UpdatePackedViewParamsFromPrevShadowState(Nanite::FPackedViewParams& Params, const FPersistentShadowState* PrevShadowState)
+{
+	if(PrevShadowState)
+	{
+		Params.PrevViewMatrices = PrevShadowState->ViewMatrices;
+		Params.HZBTestViewRect = PrevShadowState->HZBTestViewRect;
+		Params.Flags |= VIEW_FLAG_HZBTEST;
+	}
+}
+
+static void UpdateCurrentFrameHZB(FLightSceneInfo& LightSceneInfo, const FPersistentShadowStateKey& ShadowKey, const FProjectedShadowInfo* ProjectedShadowInfo, const TRefCountPtr<IPooledRenderTarget>& HZB)
+{
+	FPersistentShadowState State;
+	State.ViewMatrices = ProjectedShadowInfo->ShadowDepthView->ViewMatrices;
+	State.HZBTestViewRect = ProjectedShadowInfo->GetInnerViewRect();
+	State.HZB = HZB;
+	LightSceneInfo.PersistentShadows.Add(ShadowKey, State);
+}
 
 static void RenderShadowDepthAtlasNanite(
 	FRDGBuilder& GraphBuilder,
-	const FScene& Scene,
-	const FSortedShadowMapAtlas& ShadowMapAtlas)
+	FScene& Scene,
+	const FSortedShadowMapAtlas& ShadowMapAtlas,
+	const int32 AtlasIndex, bool bIsCompletePass)
 {
 	const FIntPoint AtlasSize = ShadowMapAtlas.RenderTargets.DepthTarget->GetDesc().Extent;
+
+	TArray<TRefCountPtr<IPooledRenderTarget>>&	PrevAtlasHZBs = bIsCompletePass ? Scene.PrevAtlasCompleteHZBs : Scene.PrevAtlasHZBs;
 
 	bool bWantsNearClip = false;
 	bool bWantsNoNearClip = false;
@@ -1326,14 +1353,27 @@ static void RenderShadowDepthAtlasNanite(
 			continue;
 		}
 
-		const FIntRect AtlasViewRect = ProjectedShadowInfo->GetViewRectForView();
-
 		Nanite::FPackedViewParams Initializer;
 		Initializer.ViewMatrices = ProjectedShadowInfo->ShadowDepthView->ViewMatrices;
-		Initializer.PrevViewMatrices = Initializer.ViewMatrices;
-		Initializer.ViewRect = AtlasViewRect;
+		Initializer.ViewRect = ProjectedShadowInfo->GetOuterViewRect();
 		Initializer.RasterContextSize = AtlasSize;
 		Initializer.LODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
+		Initializer.PrevViewMatrices = Initializer.ViewMatrices;
+		Initializer.HZBTestViewRect = ProjectedShadowInfo->GetInnerViewRect();
+		Initializer.Flags = 0;
+
+		FLightSceneInfo& LightSceneInfo = ProjectedShadowInfo->GetLightSceneInfo();
+		
+		FPersistentShadowStateKey ShadowKey;
+		ShadowKey.AtlasIndex = AtlasIndex;
+		ShadowKey.ProjectionId = ProjectedShadowInfo->ProjectionIndex;
+		ShadowKey.SubjectPrimitiveComponentIndex = ProjectedShadowInfo->SubjectPrimitiveComponentIndex;
+		ShadowKey.bIsCompletePass = bIsCompletePass;
+
+		FPersistentShadowState* PrevShadowState = LightSceneInfo.PrevPersistentShadows.Find(ShadowKey);
+
+		UpdatePackedViewParamsFromPrevShadowState(Initializer, PrevShadowState);
+		UpdateCurrentFrameHZB(LightSceneInfo, ShadowKey, ProjectedShadowInfo, nullptr);
 
 		// Orthographic shadow projections want depth clamping rather than clipping
 		if (ProjectedShadowInfo->ShouldClampToNearPlane())
@@ -1344,7 +1384,6 @@ static void RenderShadowDepthAtlasNanite(
 		{
 			PackedViews.Add(Nanite::CreatePackedView(Initializer));
 		}
-
 
 		ShadowsToEmit.Add(ProjectedShadowInfo);
 	}
@@ -1361,8 +1400,15 @@ static void RenderShadowDepthAtlasNanite(
 		// It might be worthwhile going through the virtual SM rendering path even for "dense" cases even just for proper handling of all the details.
 		FIntRect FullAtlasViewRect(FIntPoint(0, 0), AtlasSize);
 		const bool bUpdateStreaming = CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
-		Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, Scene, nullptr, FullAtlasViewRect, true, bUpdateStreaming, bSupportsMultiplePasses, false, bPrimaryContext);
+		Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, Scene, PrevAtlasHZBs[AtlasIndex], FullAtlasViewRect, true, bUpdateStreaming, bSupportsMultiplePasses, false, bPrimaryContext);
 		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, AtlasSize, Nanite::EOutputBufferMode::DepthOnly);
+
+		bool bExtractStats = false;		
+		if (GNaniteDebugFlags != 0 && GNaniteShowStats != 0)
+		{
+			FString AtlasFilterName = FString::Printf(TEXT("ShadowAtlas%d"), AtlasIndex);
+			bExtractStats = Nanite::IsStatFilterActive(AtlasFilterName);
+		}
 
 		if (PackedViews.Num() > 0)
 		{
@@ -1377,7 +1423,7 @@ static void RenderShadowDepthAtlasNanite(
 				RasterContext,
 				RasterState,
 				nullptr,	// InstanceDraws
-				false		// bExtractStats TODO
+				bExtractStats
 			);
 		}
 
@@ -1394,14 +1440,27 @@ static void RenderShadowDepthAtlasNanite(
 				RasterContext,
 				RasterState,
 				nullptr,	// InstanceDraws
-				false		// bExtractStats TODO
+				bExtractStats
 			);
 		}
 
+		{
+			FRDGTextureRef FurthestHZBTexture;
+			BuildHZB(
+				GraphBuilder,
+				GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy),
+				RasterContext.DepthBuffer,
+				FullAtlasViewRect,
+				/* OutClosestHZBTexture = */ nullptr,
+				/* OutFurthestHZBTexture = */ &FurthestHZBTexture);
+			ConvertToExternalTexture(GraphBuilder, FurthestHZBTexture, PrevAtlasHZBs[AtlasIndex]);
+		}
+
 		FRDGTextureRef ShadowMap = GraphBuilder.RegisterExternalTexture(ShadowMapAtlas.RenderTargets.DepthTarget);
+
 		for (FProjectedShadowInfo* ProjectedShadowInfo : ShadowsToEmit)
 		{
-			const FIntRect AtlasViewRect = ProjectedShadowInfo->GetViewRectForView();
+			const FIntRect AtlasViewRect = ProjectedShadowInfo->GetOuterViewRect();
 
 			Nanite::EmitShadowMap(
 				GraphBuilder,
@@ -1487,6 +1546,9 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 		UseNanite(ShaderPlatform) &&
 		ViewFamily.EngineShowFlags.NaniteMeshes &&
 		CVarNaniteShadows.GetValueOnRenderThread() != 0;
+
+	Scene->PrevAtlasHZBs.SetNum(SortedShadowsForShadowDepthPass.ShadowMapAtlases.Num());
+	Scene->PrevAtlasCompleteHZBs.SetNum(SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases.Num());
 
 	for (int32 AtlasIndex = 0; AtlasIndex < SortedShadowsForShadowDepthPass.ShadowMapAtlases.Num(); AtlasIndex++)
 	{
@@ -1578,15 +1640,17 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 
 		if (bNaniteEnabled)
 		{
-			RenderShadowDepthAtlasNanite(GraphBuilder, *Scene, ShadowMapAtlas);
+			RenderShadowDepthAtlasNanite(GraphBuilder, *Scene, ShadowMapAtlas, AtlasIndex, false);
 		}
 	}
 
 	// Copy/resample shadow maps into "complete" shadow maps and add Nanite geometry
 	if (SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases.Num() > 0)
 	{
-		for (const FSortedShadowMapAtlas& ShadowMapAtlas : SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases)
+		for (int32 AtlasIndex = 0; AtlasIndex < SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases.Num(); AtlasIndex++)
 		{
+			const FSortedShadowMapAtlas& ShadowMapAtlas = SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases[AtlasIndex];
+
 			FSceneRenderTargetItem& RenderTarget = ShadowMapAtlas.RenderTargets.DepthTarget->GetRenderTargetItem();
 			FIntPoint AtlasSize = ShadowMapAtlas.RenderTargets.DepthTarget->GetDesc().Extent;
 		
@@ -1603,8 +1667,8 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 				if (SourceShadowInfo && SourceShadowInfo->RenderTargets.DepthTarget != nullptr)
 				{
 					FRDGTextureRef SourceShadowMap = GraphBuilder.RegisterExternalTexture(SourceShadowInfo->RenderTargets.DepthTarget, TEXT("SourceDepthBuffer"));
-					const FIntRect SourceRect = SourceShadowInfo->GetViewRectForView();
-					const FIntRect DestRect = ProjectedShadowInfo->GetViewRectForView();
+					const FIntRect SourceRect = SourceShadowInfo->GetOuterViewRect();
+					const FIntRect DestRect = ProjectedShadowInfo->GetOuterViewRect();
 					CopyToCompleteShadowMap(GraphBuilder, SourceShadowMap, DestShadowMap, SourceRect, DestRect, bCleared ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear);
 					bCleared = true;
 				}
@@ -1619,7 +1683,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 
 			if (bNaniteEnabled)
 			{
-				RenderShadowDepthAtlasNanite(GraphBuilder, *Scene, ShadowMapAtlas);
+				RenderShadowDepthAtlasNanite(GraphBuilder, *Scene, ShadowMapAtlas, AtlasIndex, true);
 			}
 		}
 	}
@@ -1699,6 +1763,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder)
 						// NOTE: There's still the additional VSM view logic that runs on top of this in Nanite too (see CullRasterize variant)
 						Nanite::FPackedViewParams BaseParams;
 						BaseParams.ViewRect = FIntRect(0, 0, FVirtualShadowMap::VirtualMaxResolutionXY, FVirtualShadowMap::VirtualMaxResolutionXY);
+						BaseParams.HZBTestViewRect = BaseParams.ViewRect;
 						BaseParams.RasterContextSize = VirtualShadowMapArray.GetPhysicalPoolSize();
 						BaseParams.LODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
 						BaseParams.PrevTargetLayerIndex = INDEX_NONE;
@@ -1722,6 +1787,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder)
 							{
 								Params.PrevTargetLayerIndex = PrevHZB.TargetLayerIndex;
 								Params.PrevViewMatrices = PrevHZB.ViewMatrices;
+								Params.Flags = VIEW_FLAG_HZBTEST;
 							}
 							else
 							{
@@ -1746,7 +1812,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder)
 					{
 						Nanite::FPackedViewParams Params;
 						Params.ViewMatrices = ProjectedShadowInfo->ShadowDepthView->ViewMatrices;
-						Params.ViewRect = ProjectedShadowInfo->GetViewRectForView();
+						Params.ViewRect = ProjectedShadowInfo->GetOuterViewRect();
 						Params.RasterContextSize = VirtualShadowMapArray.GetPhysicalPoolSize();
 						Params.LODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
 						Params.TargetLayerIndex = ProjectedShadowInfo->VirtualShadowMap->ID;
@@ -1761,6 +1827,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder)
 						{
 							Params.PrevTargetLayerIndex = PrevHZB.TargetLayerIndex;
 							Params.PrevViewMatrices = PrevHZB.ViewMatrices;
+							Params.Flags = VIEW_FLAG_HZBTEST;
 						}
 						else
 						{
@@ -1911,14 +1978,16 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder)
 
 				const bool bUpdateStreaming = CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
 
+				FLightSceneInfo& LightSceneInfo = ProjectedShadowInfo->GetLightSceneInfo();
+
 				FString CubeFilterName;
 				if (GNaniteDebugFlags != 0 && GNaniteShowStats != 0)
 				{
 					// Get the base light filter name.
-					CubeFilterName = Nanite::GetFilterNameForLight(ProjectedShadowInfo->GetLightSceneInfo().Proxy);
+					CubeFilterName = Nanite::GetFilterNameForLight(LightSceneInfo.Proxy);
 					CubeFilterName.Append(TEXT("_Face_"));
 				}
-				
+
 				for (int32 CubemapFaceIndex = 0; CubemapFaceIndex < 6; CubemapFaceIndex++)
 				{
 					RDG_EVENT_SCOPE( GraphBuilder, "Face %u", CubemapFaceIndex );
@@ -1930,9 +1999,15 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder)
 					check(ProjectedShadowInfo->ResolutionX == ShadowViewRect.Max.X);
 					check(ProjectedShadowInfo->ResolutionY == ShadowViewRect.Max.Y);
 					check(ProjectedShadowInfo->BorderSize == 0);
-					
+
+					FPersistentShadowStateKey ShadowKey;
+					ShadowKey.ProjectionId = CubemapFaceIndex;
+					ShadowKey.SubjectPrimitiveComponentIndex = 0;
+
+					FPersistentShadowState* PrevShadowState = LightSceneInfo.PrevPersistentShadows.Find(ShadowKey);
+
 					const bool bPrimaryContext = false;
-					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, *Scene, nullptr, ShadowViewRect, true, bUpdateStreaming, false, false, bPrimaryContext);
+					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, *Scene, PrevShadowState ? PrevShadowState->HZB : nullptr, ShadowViewRect, true, bUpdateStreaming, false, false, bPrimaryContext);
 					Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, TargetSize, Nanite::EOutputBufferMode::DepthOnly);
 
 					// Setup packed view
@@ -1946,10 +2021,14 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder)
 
 						Nanite::FPackedViewParams Params;
 						Params.ViewMatrices = FViewMatrices(MatricesInitializer);
-						Params.PrevViewMatrices = Params.ViewMatrices;	// TODO: Real prev frame matrices
 						Params.ViewRect = ShadowViewRect;
 						Params.RasterContextSize = TargetSize;
 						Params.LODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
+						Params.PrevViewMatrices = Params.ViewMatrices;
+						Params.HZBTestViewRect = ShadowViewRect;
+						Params.Flags = 0;
+						UpdatePackedViewParamsFromPrevShadowState(Params, PrevShadowState);
+
 						PackedViews.Add(Nanite::CreatePackedView(Params));
 					}
 
@@ -1980,6 +2059,22 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder)
 						ShadowViewRect,
 						CubemapFaceIndex,
 						bUseGeometryShader);
+
+					{
+						TRefCountPtr<IPooledRenderTarget> HZB;
+						FRDGTextureRef FurthestHZBTexture;
+						BuildHZB(
+							GraphBuilder,
+							GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy),
+							RasterContext.DepthBuffer,
+							ShadowViewRect,
+							/* OutClosestHZBTexture = */ nullptr,
+							/* OutFurthestHZBTexture = */ &FurthestHZBTexture);
+
+
+						ConvertToExternalTexture(GraphBuilder, FurthestHZBTexture, HZB);
+						UpdateCurrentFrameHZB(LightSceneInfo, ShadowKey, ProjectedShadowInfo, HZB);
+					}
 				}
 			}
 		}
@@ -2024,6 +2119,14 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder)
 			RDG_GPU_MASK_SCOPE(GraphBuilder, GetGPUMaskForShadow(ProjectedShadowInfo));
 			ProjectedShadowInfo->RenderTranslucencyDepths(GraphBuilder, this, RenderTargets);
 		}
+	}
+
+	// Move current persistent shadow state to previous and clear current.
+	// TODO: This could be very slow.
+	for (const FLightSceneInfoCompact& Light : Scene->Lights)
+	{
+		Light.LightSceneInfo->PrevPersistentShadows = Light.LightSceneInfo->PersistentShadows;
+		Light.LightSceneInfo->PersistentShadows.Empty();
 	}
 
 	bShadowDepthRenderCompleted = true;

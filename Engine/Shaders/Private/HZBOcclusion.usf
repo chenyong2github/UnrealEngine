@@ -28,7 +28,7 @@ void HZBTestPS(float2 InUV : TEXCOORD0, out float4 OutColor : SV_Target0)
 	BRANCH
 	if( Cull.bIsVisible && !Cull.bCrossesNearPlane )
 	{
-		FScreenRect Rect = GetScreenRect( HZBViewSize, Cull, 4 );
+		FScreenRect Rect = GetScreenRect( int4(0, 0, HZBViewSize), Cull, 4 );
 
 		Cull.bIsVisible = IsVisibleHZB( Rect, true );
 	}

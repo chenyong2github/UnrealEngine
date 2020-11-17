@@ -42,6 +42,11 @@
 #define MAX_TEXCOORD_QUANTIZATION_BITS			15														// must match define in NaniteResources.h
 #define MAX_COLOR_QUANTIZATION_BITS				 8														// must match define in NaniteResources.h
 
+#define NUM_STREAMING_PRIORITY_CATEGORY_BITS	 2														// must match define in NaniteResources.h
+#define STREAMING_PRIORITY_CATEGORY_MASK		((1 << NUM_STREAMING_PRIORITY_CATEGORY_BITS) - 1)		// must match define in NaniteResources.h
+
+#define VIEW_FLAG_HZBTEST						0x1														// must match define in NaniteResources.h
+
 #define MAX_STATE_BUCKET_ID						((1 << 14) - 1)											// must match FNaniteCommandInfo::MAX_STATE_BUCKET_ID
 
 #define CLUSTER_FLAG_LEAF						0x1
@@ -60,6 +65,7 @@
 #define CULLING_PASS_NO_OCCLUSION					0
 #define CULLING_PASS_OCCLUSION_MAIN					1
 #define CULLING_PASS_OCCLUSION_POST					2
+#define CULLING_PASS_EXPLICIT_LIST					3
 
 #define RENDER_FLAG_HAVE_PREV_DRAW_DATA				0x1
 #define RENDER_FLAG_FORCE_HW_RASTER					0x2
@@ -267,10 +273,12 @@ struct FNaniteView
 	float		LODScaleHW;
 	float		MinBoundsRadiusSq;
 	uint		StreamingPriorityCategory;
+    uint		Flags;
 	int			TargetLayerIndex;
 	int			TargetMipLevel;
 	int			TargetNumMipLevels;
 	int			TargetPrevLayerIndex;
+	int4		HZBTestViewRect;
 };
 
 struct FPackedNaniteView
@@ -295,9 +303,11 @@ struct FPackedNaniteView
 	
 	float2		LODScales;
 	float		MinBoundsRadiusSq;
-	uint		StreamingPriorityCategory;
+	uint		StreamingPriorityCategory_AndFlags;
 
 	int4		TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ;
+
+	int4		HZBTestViewRect;
 };
 
 struct FInstanceDraw
@@ -1157,11 +1167,14 @@ FNaniteView GetNaniteView( uint ViewIndex )
 	NaniteView.LODScaleHW					= 1.0f;
 	NaniteView.MinBoundsRadiusSq			= 0;
 	NaniteView.StreamingPriorityCategory	= 3;
+	NaniteView.Flags						= VIEW_FLAG_HZBTEST;
 	
-	NaniteView.TargetLayerIndex = 0;
-	NaniteView.TargetMipLevel = 0;
-	NaniteView.TargetNumMipLevels = 0;
-	NaniteView.TargetPrevLayerIndex	= 0;
+	NaniteView.TargetLayerIndex				= 0;
+	NaniteView.TargetMipLevel				= 0;
+	NaniteView.TargetNumMipLevels			= 0;
+	NaniteView.TargetPrevLayerIndex			= 0;
+
+	NaniteView.HZBTestViewRect				= NaniteView.ViewRect;
 
 #else // !NANITE_USE_VIEW_UNIFORM_BUFFER
 
@@ -1194,12 +1207,15 @@ FNaniteView GetNaniteView( uint ViewIndex )
 	NaniteView.LODScale						= PackedView.LODScales.x;
 	NaniteView.LODScaleHW					= PackedView.LODScales.y;
 	NaniteView.MinBoundsRadiusSq			= PackedView.MinBoundsRadiusSq;
-	NaniteView.StreamingPriorityCategory	= PackedView.StreamingPriorityCategory;
+	NaniteView.StreamingPriorityCategory	= PackedView.StreamingPriorityCategory_AndFlags & STREAMING_PRIORITY_CATEGORY_MASK;
+	NaniteView.Flags						= PackedView.StreamingPriorityCategory_AndFlags >> NUM_STREAMING_PRIORITY_CATEGORY_BITS;
 	
 	NaniteView.TargetLayerIndex				= PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.x;
 	NaniteView.TargetMipLevel				= PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.y;
 	NaniteView.TargetNumMipLevels			= PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.z;
 	NaniteView.TargetPrevLayerIndex			= PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.w;
+
+	NaniteView.HZBTestViewRect				= PackedView.HZBTestViewRect;
 
 #endif // NANITE_USE_VIEW_UNIFORM_BUFFER
 

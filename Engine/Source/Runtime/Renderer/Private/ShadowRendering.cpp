@@ -711,7 +711,7 @@ void FProjectedShadowInfo::SetupFrustumForProjection(const FViewInfo* View, TArr
 			{
 				for(uint32 vX = 0;vX < 2;vX++)
 				{
-					const FVector4 UnprojectedVertex = InvReceiverMatrix.TransformFVector4(
+					const FVector4 UnprojectedVertex = InvReceiverInnerMatrix.TransformFVector4(
 						FVector4(
 							(vX ? -1.0f : 1.0f),
 							(vY ? -1.0f : 1.0f),
@@ -1298,7 +1298,7 @@ void FProjectedShadowInfo::RenderFrustumWireframe(FPrimitiveDrawInterface* PDI) 
 		SubjectPrimitiveId = DynamicSubjectPrimitives[0]->GetIndex();
 	}
 
-	const FMatrix InvShadowTransform = (bWholeSceneShadow || bPreShadow) ? SubjectAndReceiverMatrix.InverseFast() : InvReceiverMatrix;
+	const FMatrix InvShadowTransform = (bWholeSceneShadow || bPreShadow) ? TranslatedWorldToClipInnerMatrix.InverseFast() : InvReceiverInnerMatrix;
 
 	FColor Color;
 
@@ -1372,7 +1372,7 @@ FMatrix FProjectedShadowInfo::GetScreenToShadowMatrix(const FSceneView& View, ui
 		FTranslationMatrix(PreShadowTranslation) *
 		// Transform into the shadow's post projection space
 		// This has to be the same transform used to render the shadow depths
-		SubjectAndReceiverMatrix *
+		TranslatedWorldToClipInnerMatrix *
 		// Scale and translate x and y to be texture coordinates into the ShadowInfo's rectangle in the shadow depth buffer
 		// Normalize z by MaxSubjectDepth, as was done when writing shadow depths
 		FMatrix(
@@ -1414,7 +1414,7 @@ FMatrix FProjectedShadowInfo::GetWorldToShadowMatrix(FVector4& ShadowmapMinMax, 
 		FTranslationMatrix(PreShadowTranslation) *
 		// Transform into the shadow's post projection space
 		// This has to be the same transform used to render the shadow depths
-		SubjectAndReceiverMatrix *
+		TranslatedWorldToClipInnerMatrix *
 		// Scale and translate x and y to be texture coordinates into the ShadowInfo's rectangle in the shadow depth buffer
 		// Normalize z by MaxSubjectDepth, as was done when writing shadow depths
 		FMatrix(

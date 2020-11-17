@@ -253,14 +253,21 @@ public:
 	FMatrix ShadowViewMatrix;
 
 	FMatrix TranslatedWorldToView;
-	FMatrix ViewToClip;
 
+	/** View space to clip space. Excluding border area. */
+	FMatrix ViewToClipInner;
+	
+	/** View space to clip space. Including border area. */
+	FMatrix ViewToClipOuter;
+	
 	/** 
 	 * Matrix used for rendering the shadow depth buffer.  
 	 * Note that this does not necessarily contain all of the shadow casters with CSM, since the vertex shader flattens them onto the near plane of the projection.
 	 */
-	FMatrix SubjectAndReceiverMatrix;
-	FMatrix InvReceiverMatrix;
+	FMatrix TranslatedWorldToClipInnerMatrix;
+	FMatrix TranslatedWorldToClipOuterMatrix;
+
+	FMatrix InvReceiverInnerMatrix;
 
 	float InvMaxSubjectDepth;
 
@@ -271,9 +278,11 @@ public:
 	float MaxSubjectZ;
 	float MinSubjectZ;
 
-	/** Frustum containing all potential shadow casters. */
-	FConvexVolume CasterFrustum;
-	FConvexVolume ReceiverFrustum;
+	/** Frustum containing all potential shadow casters. Including border area. */
+	FConvexVolume CasterOuterFrustum;
+
+	/** Frustum containing all shadow receivers. Excluding border area. */
+	FConvexVolume ReceiverInnerFrustum;
 
 	float MinPreSubjectZ;
 
@@ -379,6 +388,12 @@ public:
 	float PerObjectShadowFadeStart;
 	float InvPerObjectShadowFadeLength;
 
+	/** Projection index for light types that use multiple projections for shadows. */
+	int32 ProjectionIndex = 0;
+
+	/** Index of the subject primitive for per object shadows. */
+	int32 SubjectPrimitiveComponentIndex = -1;
+
 public:
 
 	// default constructor
@@ -421,14 +436,26 @@ public:
 
 	void SetStateForView(FRHICommandList& RHICmdList) const;
 
-	FIntRect GetViewRectForView() const
+	/** Get view rect excluding border area */
+	FIntRect GetInnerViewRect() const
 	{
 		return {
 			int32(X + BorderSize),
 			int32(Y + BorderSize),
 			int32(X + BorderSize + ResolutionX),
 			int32(Y + BorderSize + ResolutionY),
-			};
+		};
+	}
+
+	/** Get view rect including border area */
+	FIntRect GetOuterViewRect() const	
+	{
+		return {
+			int32(X),
+			int32(Y),
+			int32(X + 2 * BorderSize + ResolutionX),
+			int32(Y + 2 * BorderSize + ResolutionY),
+		};
 	}
 
 	/** Set state for depth rendering */
@@ -601,7 +628,7 @@ public:
 	}
 
 	// 0 if Setup...() wasn't called yet
-	const FLightSceneInfo& GetLightSceneInfo() const { return *LightSceneInfo; }
+	FLightSceneInfo& GetLightSceneInfo() const { return *LightSceneInfo; }
 	const FLightSceneInfoCompact& GetLightSceneInfoCompact() const { return LightSceneInfoCompact; }
 	/**
 	 * Parent primitive of the shadow group that created this shadow, if not a bWholeSceneShadow.
@@ -621,7 +648,7 @@ public:
 
 private:
 	// 0 if Setup...() wasn't called yet
-	const FLightSceneInfo* LightSceneInfo;
+	FLightSceneInfo* LightSceneInfo;
 	FLightSceneInfoCompact LightSceneInfoCompact;
 
 	/**

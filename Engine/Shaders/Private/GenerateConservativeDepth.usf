@@ -37,7 +37,7 @@ void GenerateConservativeDepthBufferCS(uint3 DispatchThreadId : SV_DispatchThrea
 		CullData.bIsVisible = true;
 
 		const int DesiredFootprintPixels = 4; // Required bias avoid visual artefact in tiny gaps.
-		FScreenRect ScreenRect = GetScreenRect(ResolvedView.ViewSizeAndInvSize.xy, CullData, DesiredFootprintPixels);
+		FScreenRect ScreenRect = GetScreenRect(int4(0,0,ResolvedView.ViewSizeAndInvSize.xy), CullData, DesiredFootprintPixels);
 
 		ConservativeDepthTextureUAV[DispatchThreadId.xy] = GetMinDepthFromHZB(ScreenRect, true);
 	}

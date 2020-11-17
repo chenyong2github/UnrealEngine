@@ -66,6 +66,11 @@
 #define MAX_TEXCOORD_QUANTIZATION_BITS			15														// must match define in NaniteDataDecode.ush
 #define MAX_COLOR_QUANTIZATION_BITS				 8														// must match define in NaniteDataDecode.ush
 
+#define NUM_STREAMING_PRIORITY_CATEGORY_BITS	 2														// must match define in NaniteDataDecode.ush
+#define STREAMING_PRIORITY_CATEGORY_MASK		((1u << NUM_STREAMING_PRIORITY_CATEGORY_BITS) - 1u)		// must match define in NaniteDataDecode.ush
+
+#define VIEW_FLAG_HZBTEST						0x1														// must match define in NaniteDataDecode.ush
+
 #define MAX_TRANSCODE_GROUPS_PER_PAGE			128														// must match define in NaniteDataDecode.ush
 
 #define VERTEX_COLOR_MODE_WHITE					0

@@ -145,7 +145,7 @@ void FLightSceneInfo::CreateLightPrimitiveInteraction(const FLightSceneInfoCompa
 }
 
 
-void FLightSceneInfo::RemoveFromScene(bool bRemoveHZB)
+void FLightSceneInfo::RemoveFromScene()
 {
 	Scene->FlushAsyncLightPrimitiveInteractionCreation();
 

@@ -24,7 +24,7 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 			uint2 PixelPos = uint2(x,y);
 
 			// FIXME
-			float2 Jitter = NaniteView.ViewToClip[2].xy * 0.5 * NaniteView.ViewSizeAndInvSize;
+			float2 Jitter = NaniteView.ViewToClip[2].xy * 0.5 * NaniteView.ViewSizeAndInvSize.xy;
 			int FrameRand = (int)(Jitter.x * 417.0f);
 
 			float2 Noise = Rand3DPCG16( int3( PixelPos, FrameRand ) ).xy / 65535.0;
@@ -71,10 +71,9 @@ uint NumViews;
 uint NumPrimaryViews;
 
 StructuredBuffer<FInstanceDraw>			InInstanceDraws;
-StructuredBuffer<uint>					InOccludedInstances;
 Buffer<uint>							InOccludedInstancesArgs;
 
-RWStructuredBuffer<uint>				OutOccludedInstances;
+RWStructuredBuffer<FInstanceDraw>		OutOccludedInstances;
 RWBuffer<uint>							OutOccludedInstancesArgs;
 RWByteAddressBuffer						OutNodes;
 RWStructuredBuffer<FPersistentState>	OutMainAndPostPassPersistentStates;
@@ -97,74 +96,71 @@ void InstanceCull(
 
 	const bool bIsPostPass = (CULLING_PASS == CULLING_PASS_OCCLUSION_POST);
 
-#if NANITE_MULTI_VIEW && !INSTANCE_DRAW_LIST
-	// Loop over each of the views
-	for (uint ViewId = 0; ViewId < NumViews; ++ViewId)
-	{
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+	uint NumInstancesLocal = InOccludedInstancesArgs[3];
 #else
-	uint ViewId = 0;
-#endif
-	
-#if !INSTANCE_DRAW_LIST || (CULLING_PASS == CULLING_PASS_OCCLUSION_POST)
-	FNaniteView NaniteView = GetNaniteView( ViewId );
+	uint NumInstancesLocal = NumInstances;
 #endif
 
-	bool bIsVisible = false;
-	bool bWasOccluded = false;
-
-#if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-	uint InstanceId = DispatchIndex;
-	if (InstanceId < NumInstances)
+	if (DispatchIndex < NumInstancesLocal)
 	{
-#if INSTANCE_DRAW_LIST
-		ViewId = InInstanceDraws[ InstanceId ].ViewId;	
-		InstanceId = InInstanceDraws[ InstanceId ].InstanceId;
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST || CULLING_PASS == CULLING_PASS_EXPLICIT_LIST
+		uint InstanceId = InInstanceDraws[DispatchIndex].InstanceId;
+#else
+		uint InstanceId = DispatchIndex;
+#endif
 
-		FNaniteView NaniteView = GetNaniteView( ViewId );
-#endif // INSTANCE_DRAW_LIST
+		uint ViewId = 0;
+#if NANITE_MULTI_VIEW
+	#if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
+		for (ViewId = 0; ViewId < NumViews; ++ViewId)
+	#else
+		ViewId = InInstanceDraws[DispatchIndex].ViewId;
+	#endif
+#endif
+		{
+			bool bIsVisible = false;
+			bool bWasOccluded = false;
 
-#else // !(CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN)
-	uint InstanceId = 0;
-	if (DispatchIndex < InOccludedInstancesArgs[3])
-	{
-		InstanceId = InOccludedInstances[DispatchIndex];
-#endif // CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		
-		FInstanceSceneData InstanceData = GetInstanceData( InstanceId );
-		const uint RuntimeResourceID = InstanceData.NaniteRuntimeResourceID;
+			FNaniteView NaniteView = GetNaniteView(ViewId);
 
-		// Depth clipping should only be disabled with orthographic projections
-		const bool bNearClip = (NEAR_CLIP != 0);
+			FInstanceSceneData InstanceData = GetInstanceData( InstanceId );
+			const uint RuntimeResourceID = InstanceData.NaniteRuntimeResourceID;
+
+			// Depth clipping should only be disabled with orthographic projections
+			const bool bNearClip = (NEAR_CLIP != 0);
 
 #if DEBUG_FLAGS && COMPILER_PSSL
-		const bool bSkipBoxCullFrustum = (DebugFlags & DEBUG_FLAG_CULL_FRUSTUM_BOX) == 0;
-		const bool bSkipBoxCullHZB     = (DebugFlags & DEBUG_FLAG_CULL_HZB_BOX) == 0;
+			const bool bSkipBoxCullFrustum = (DebugFlags & DEBUG_FLAG_CULL_FRUSTUM_BOX) == 0;
+			const bool bSkipBoxCullHZB     = (DebugFlags & DEBUG_FLAG_CULL_HZB_BOX) == 0;
 #else
-		const bool bSkipBoxCullFrustum = false;
-		const bool bSkipBoxCullHZB     = false;
+			const bool bSkipBoxCullFrustum = false;
+			const bool bSkipBoxCullHZB     = false;
 #endif
 
-		float4x4 LocalToTranslatedWorld = InstanceData.LocalToWorld;
-		LocalToTranslatedWorld[3].xyz += NaniteView.PreViewTranslation.xyz;
-		float4x4 LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
+			float4x4 LocalToTranslatedWorld = InstanceData.LocalToWorld;
+			LocalToTranslatedWorld[3].xyz += NaniteView.PreViewTranslation.xyz;
+			float4x4 LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
 
-		float BoundsRadiusSq = dot(InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsExtent);
-		bIsVisible = (InstanceData.PrimitiveId != 0xFFFFFFFFu && RuntimeResourceID != 0xFFFFFFFFu) && BoundsRadiusSq > NaniteView.MinBoundsRadiusSq; // Only process valid Nanite primitives
+			float BoundsRadiusSq = dot(InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsExtent);
+			bIsVisible = (InstanceData.PrimitiveId != 0xFFFFFFFFu && RuntimeResourceID != 0xFFFFFFFFu) && BoundsRadiusSq > NaniteView.MinBoundsRadiusSq; // Only process valid Nanite primitives
+			const bool bViewHZB = ((NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0);
 
-		FFrustumCullData Cull;
-		
+			FFrustumCullData Cull;
 #if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		BRANCH
-		if( bIsVisible )
-		{
-			Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum);
-			bIsVisible = Cull.bIsVisible;
-		}
+			// Frustum test against current frame
+			BRANCH
+			if( bIsVisible )
+			{
+				Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum);
+				bIsVisible = Cull.bIsVisible;
+			}
+#endif
 
-		BRANCH
-		if( bIsVisible )
-		{
-			if( CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN )
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
+			// HZB occlusion test against previous frame
+			BRANCH
+			if( bViewHZB && bIsVisible )
 			{
 				float4x4 LocalToPrevTranslatedWorld = InstanceData.LocalToWorld;
 				LocalToPrevTranslatedWorld[ 3 ].xyz += NaniteView.PrevPreViewTranslation.xyz;
@@ -175,89 +171,84 @@ void InstanceCull(
 				BRANCH
 				if (PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane)
 				{
-					FScreenRect PrevRect = GetScreenRect( HZBViewSize, PrevCull, 4 );
+					FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
 					bWasOccluded = bSkipBoxCullHZB ? false : !IsVisibleHZB( PrevRect, true );
 				}
 
-				if(!PrevCull.bIsVisible)
-					bWasOccluded = true;	// Not in previous frame. Assume occluded instead of occluder. Enables disocclusion hack.
-
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
 				if( bWasOccluded )
 				{
 					uint OccludedInstanceOffset = 0;
 					WaveInterlockedAddScalarInGroups( OutOccludedInstancesArgs[3], OutOccludedInstancesArgs[0], 64, 1, OccludedInstanceOffset );
-					OutOccludedInstances[ OccludedInstanceOffset ] = InstanceId;
+					OutOccludedInstances[OccludedInstanceOffset].ViewId = ViewId;
+					OutOccludedInstances[OccludedInstanceOffset].InstanceId = InstanceId;
 				}
-#endif
 			}
-		}
-#elif CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-		BRANCH
-		if( bIsVisible )
-		{
-			Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum);
-
-			BRANCH
-			if (Cull.bIsVisible && !Cull.bCrossesNearPlane)
-			{
-				FScreenRect Rect = GetScreenRect( NaniteView.ViewSizeAndInvSize.xy, Cull, 4 );
-				bWasOccluded = bSkipBoxCullHZB ? false : !IsVisibleHZB( Rect, true );
-			}
-			
-			bIsVisible = !bWasOccluded;
-		}
 #endif
 
-#if !INSTANCE_DRAW_LIST
-		if( bIsVisible && !bWasOccluded )
-		{
-			FScreenRect Rect = GetScreenRect( NaniteView.ViewSizeAndInvSize.xy, Cull, 4 );
-
-			if( all( Rect.Pixels.zw - Rect.Pixels.xy < 6 ) )
-			{
-				DrawImposter( NaniteView, InstanceData, InstanceId, Rect );
-				bIsVisible = false;
-			}
-		}
-#endif
-	}
-
-	if( bIsVisible && !bWasOccluded )
-	{
-		uint NodeOffset = 0;
-		uint PersistentStateIndex = ( CULLING_PASS == CULLING_PASS_OCCLUSION_POST );
-		WaveInterlockedAddScalar_( OutMainAndPostPassPersistentStates[ PersistentStateIndex ].WriteOffset, 1, NodeOffset );
-		WaveInterlockedAddScalar(  OutMainAndPostPassPersistentStates[ PersistentStateIndex ].NumActive, 1 );
-
-#if DEBUG_FLAGS
-		if (DebugFlags & DEBUG_FLAG_WRITE_STATS)
-		{
-		#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-			WaveInterlockedAddScalar( OutStatsBuffer[0].NumPostInstancesPostCull, 1 );
-		#else
-			WaveInterlockedAddScalar( OutStatsBuffer[0].NumMainInstancesPostCull, 1 );
-		#endif
-		}
-#endif
-
-		uint Flags = CULLING_FLAG_TEST_LOD;
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-		Flags |= CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE;
+			// Retest occluded against current frame HZB
+			BRANCH
+			if( bIsVisible )
+			{
+				Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum);
+
+				BRANCH
+				if (Cull.bIsVisible && !Cull.bCrossesNearPlane)
+				{
+					FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
+					bWasOccluded = bSkipBoxCullHZB ? false : !IsVisibleHZB( Rect, true );
+				}
+			}
+#endif
+
+#if CULLING_PASS != CULLING_PASS_EXPLICIT_LIST
+			// Draw imposters
+			if( bIsVisible && !bWasOccluded )
+			{
+				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
+
+				if( all( Rect.Pixels.zw - Rect.Pixels.xy < 6 ) )
+				{
+					DrawImposter( NaniteView, InstanceData, InstanceId, Rect );
+					bIsVisible = false;
+				}
+			}
 #endif
 		
-		FVisibleNode Node;
-		Node.Flags = Flags;
-		Node.ViewId = ViewId;
-		Node.InstanceId = InstanceId;
-		Node.NodeIndex = 0;
-		Node.EnabledBitmask[0] = 0xFFFFFFFFu;
-		Node.EnabledBitmask[1] = 0xFFFFFFFFu;
-		StoreVisibleNode( OutNodes, NodeOffset, Node, bIsPostPass );
+			if( bIsVisible && !bWasOccluded )
+			{
+				uint NodeOffset = 0;
+				uint PersistentStateIndex = ( CULLING_PASS == CULLING_PASS_OCCLUSION_POST );
+				WaveInterlockedAddScalar_( OutMainAndPostPassPersistentStates[ PersistentStateIndex ].WriteOffset, 1, NodeOffset );
+				WaveInterlockedAddScalar(  OutMainAndPostPassPersistentStates[ PersistentStateIndex ].NumActive, 1 );
+
+#if DEBUG_FLAGS
+				if (DebugFlags & DEBUG_FLAG_WRITE_STATS)
+				{
+				#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+					WaveInterlockedAddScalar( OutStatsBuffer[0].NumPostInstancesPostCull, 1 );
+				#else
+					WaveInterlockedAddScalar( OutStatsBuffer[0].NumMainInstancesPostCull, 1 );
+				#endif
+				}
+#endif
+
+				uint Flags = CULLING_FLAG_TEST_LOD;
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+				Flags |= CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE;
+#endif
+		
+				FVisibleNode Node;
+				Node.Flags = Flags;
+				Node.ViewId = ViewId;
+				Node.InstanceId = InstanceId;
+				Node.NodeIndex = 0;
+				Node.EnabledBitmask[0] = 0xFFFFFFFFu;
+				Node.EnabledBitmask[1] = 0xFFFFFFFFu;
+				StoreVisibleNode( OutNodes, NodeOffset, Node, bIsPostPass );
+			}
+		}
 	}
-#if NANITE_MULTI_VIEW && !INSTANCE_DRAW_LIST
-	}
-#endif // NANITE_MULTI_VIEW && !INSTANCE_DRAW_LIST
 }
 
 [numthreads(64, 1, 1)]
@@ -298,28 +289,30 @@ void InstanceCullVSM(
 			float4x4 LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
 
 			FFrustumCullData Cull = BoxCullFrustum( InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum );
+
+			const bool bViewHZB = ((NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0);
 			
-			for(uint TargetMipLevel = 0; TargetMipLevel < NaniteView.TargetNumMipLevels; TargetMipLevel++)
+			for(uint TargetMipLevel = 0; TargetMipLevel < (uint)NaniteView.TargetNumMipLevels; TargetMipLevel++)
 			{
 				uint MipViewId = TargetMipLevel * NumPrimaryViews + PrimaryViewId;
 				float2 ViewSize = GetNaniteView(MipViewId).ViewSizeAndInvSize.xy;
-				int2 ViewMin = GetNaniteView(MipViewId).ViewRect.xy;
+				FNaniteView NaniteView = GetNaniteView(MipViewId);
 
 				// TODO: minor optimization possible, but need to duplicate setup from CullRasterize for virtual targets
 				//float2 ViewSize = float2( ( TargetViewSize + ( 1u << TargetMipLevel ) - 1u ) >> TargetMipLevel );
 
-				FScreenRect Rect = GetScreenRect( ViewSize, Cull, 4 );
+				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 
 				bool bVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;
 		
 				BRANCH
 				if( bVisible && !Cull.bCrossesNearPlane )
 				{
-					bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, TargetMipLevel, ViewMin, Rect, bHasMoved );
+					bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, TargetMipLevel, NaniteView.ViewRect.xy, Rect, bHasMoved );
 				}
 
 				BRANCH
-				if( bVisible )
+				if( bViewHZB && bVisible )
 				{
 					float4x4 LocalToPrevTranslatedWorld = InstanceData.LocalToWorld;
 					LocalToPrevTranslatedWorld[ 3 ].xyz += NaniteView.PrevPreViewTranslation.xyz;
@@ -330,7 +323,7 @@ void InstanceCullVSM(
 					BRANCH
 					if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane )
 					{
-						FScreenRect PrevRect = GetScreenRect( ViewSize, PrevCull, 4 );
+						FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
 						bVisible = bSkipBoxCullHZB ? true : IsVisibleHZB( NaniteView.TargetPrevLayerIndex, TargetMipLevel, PrevRect );
 					}
 				}

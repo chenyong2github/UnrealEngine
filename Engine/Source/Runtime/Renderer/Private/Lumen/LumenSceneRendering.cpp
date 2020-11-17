@@ -2188,7 +2188,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 							}
 						
 							CardRenderData.PatchView(GraphBuilder.RHICmdList, Scene, SharedView);
-							Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(*SharedView, DepthAtlasSize);
+							Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(*SharedView, DepthAtlasSize, 0);
 
 							Nanite::CullRasterize(
 								GraphBuilder,

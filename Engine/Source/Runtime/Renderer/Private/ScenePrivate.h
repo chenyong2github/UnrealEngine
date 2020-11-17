@@ -2611,6 +2611,10 @@ public:
 
 	/** Map from light id to the cached shadowmap data for that light. */
 	TMap<int32, FCachedShadowMapData> CachedShadowMaps;
+	
+	/** Atlas HZB textures from the previous render. */
+	TArray<TRefCountPtr<IPooledRenderTarget>>	PrevAtlasHZBs;
+	TArray<TRefCountPtr<IPooledRenderTarget>>	PrevAtlasCompleteHZBs;
 
 	TRefCountPtr<IPooledRenderTarget> PreShadowCacheDepthZ;
 

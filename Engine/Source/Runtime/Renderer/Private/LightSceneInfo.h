@@ -145,6 +145,33 @@ struct TUseBitwiseSwap<FSortedLightSceneInfo>
 /** The type of the octree used by FScene to find lights. */
 typedef TOctree2<FLightSceneInfoCompact,struct FLightOctreeSemantics> FSceneLightOctree;
 
+struct FPersistentShadowStateKey
+{
+	int32 AtlasIndex = -1;
+	int32 ProjectionId = -1;
+	int32 SubjectPrimitiveComponentIndex = -1;
+	bool bIsCompletePass = false;
+};
+
+inline uint32 GetTypeHash(const FPersistentShadowStateKey& Key)
+{
+	return HashCombine(HashCombine((uint32)Key.AtlasIndex, (uint32)Key.ProjectionId), HashCombine((uint32)Key.SubjectPrimitiveComponentIndex, (uint32)Key.bIsCompletePass));
+}
+
+inline bool operator==(const FPersistentShadowStateKey& A, const FPersistentShadowStateKey& B)
+{
+	return A.AtlasIndex == B.AtlasIndex && A.ProjectionId == B.ProjectionId && A.SubjectPrimitiveComponentIndex == B.SubjectPrimitiveComponentIndex && A.bIsCompletePass == B.bIsCompletePass;
+}
+
+class FPersistentShadowState
+{
+public:
+	FViewMatrices						ViewMatrices;
+
+	FIntRect							HZBTestViewRect;
+	TRefCountPtr<IPooledRenderTarget>	HZB;				// Direct HZB. nullptr for Atlas rendering.
+};
+
 /**
  * The information used to render a light.  This is the rendering thread's mirror of the game thread's ULightComponent.
  * FLightSceneInfo is internal to the renderer module and contains internal scene state.
@@ -173,6 +200,10 @@ public:
 
 	mutable FVertexBufferRHIRef ShadowCapsuleShapesVertexBuffer;
 	mutable FShaderResourceViewRHIRef ShadowCapsuleShapesSRV;
+
+	/** Persistent shadow state used for HZB occlusion culling. */
+	TMap<FPersistentShadowStateKey, FPersistentShadowState> PrevPersistentShadows;
+	TMap<FPersistentShadowStateKey, FPersistentShadowState> PersistentShadows;
 
 protected:
 
@@ -236,8 +267,7 @@ public:
 	void CreateLightPrimitiveInteraction(const FLightSceneInfoCompact& LightSceneInfoCompact, const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact);
 
 	/** Removes the light from the scene. */
-	// HACK: Don't remove HZB info if we are doing remove+add to move the light. Fix for no HZB on mote in Reverb.
-	void RemoveFromScene(bool bRemoveHZB=true);
+	void RemoveFromScene();
 
 	/** Detaches the light from the primitives it affects. */
 	void Detach();

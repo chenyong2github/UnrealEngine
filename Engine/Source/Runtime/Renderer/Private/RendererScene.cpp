@@ -2703,7 +2703,7 @@ void FScene::UpdateLightTransform_RenderThread(FLightSceneInfo* LightSceneInfo, 
 		if( bRemove )
 		{
 			// Remove the light from the scene.
-			LightSceneInfo->RemoveFromScene( !bHasId );	// HACK: Don't remove HZB info if we are doing remove+add to move the light. Fix for no HZB on mote in Reverb.
+			LightSceneInfo->RemoveFromScene();
 		}
 
 		// Update the light's transform and position.

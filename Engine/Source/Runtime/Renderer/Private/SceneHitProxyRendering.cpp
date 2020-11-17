@@ -675,7 +675,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 		Nanite::FRasterState RasterState;
 		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, HitProxyTextureSize);
 
-		const bool bTwoPassOcclusion = true;
+		const bool bTwoPassOcclusion = false;
 		const bool bUpdateStreaming = false;
 		const bool bSupportsMultiplePasses = false;
 		const bool bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
@@ -686,15 +686,15 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 			Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
 				GraphBuilder,
 				*Scene,
-				Views[ViewIndex].PrevViewInfo.HZB,
-				Views[ViewIndex].PrevViewInfo.ViewRect,
+				nullptr,
+				FIntRect(),
 				bTwoPassOcclusion,
 				bUpdateStreaming,
 				bSupportsMultiplePasses,
 				bForceHWRaster,
 				bPrimaryContext
 			);
-			Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(Views[ViewIndex], HitProxyTextureSize);
+			Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(Views[ViewIndex], HitProxyTextureSize, VIEW_FLAG_HZBTEST);
 			Nanite::CullRasterize(GraphBuilder, *Scene, { PackedView }, CullingContext, RasterContext, RasterState);
 			Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, NaniteRasterResults[ViewIndex]);
 		}

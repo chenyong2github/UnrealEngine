@@ -208,7 +208,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 
 			OutLightFunctionTexture = GraphBuilder.CreateTexture(LightFunctionTextureDesc, TEXT("VolumetricFogLightFunction"));
 
-			const FMatrix WorldToShadowValue = FTranslationMatrix(ProjectedShadowInfo.PreShadowTranslation) * ProjectedShadowInfo.SubjectAndReceiverMatrix;
+			const FMatrix WorldToShadowValue = FTranslationMatrix(ProjectedShadowInfo.PreShadowTranslation) * ProjectedShadowInfo.TranslatedWorldToClipInnerMatrix;
 			OutLightFunctionWorldToShadow = WorldToShadowValue;
 
 			FRenderTargetParameters* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();

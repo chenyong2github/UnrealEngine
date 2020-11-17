@@ -101,6 +101,7 @@ void BuildHZB(
 	FRDGTextureRef* OutFurthestHZBTexture,
 	EPixelFormat Format)
 {
+	RDG_EVENT_SCOPE(GraphBuilder, "BuildHZB");
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_BuildHZB);
 
 	FIntPoint HZBSize;
