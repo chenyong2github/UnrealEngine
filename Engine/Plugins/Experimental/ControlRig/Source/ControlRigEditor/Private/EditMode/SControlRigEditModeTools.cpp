@@ -23,6 +23,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
 #include "Rigs/FKControlRig.h"
+#include "SControlRigBaseListWidget.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigRootCustomization"
 
@@ -480,6 +481,139 @@ void SControlRigEditModeTools::OnRigOptionFinishedChange(const FPropertyChangedE
 	{
 		EditMode->SetObjects_Internal();
 	}
+}
+
+void SControlRigEditModeTools::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
+{
+	//TOGGLE SELECTED RIG CONTROLS
+	ToolBarBuilder.AddToolBarButton(
+		FUIAction(
+			FExecuteAction::CreateLambda([this] {
+		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+		if (ControlRigEditMode)
+		{
+			ControlRigEditMode->SetOnlySelectRigControls(!ControlRigEditMode->GetOnlySelectRigControls());
+		}
+	}),
+			FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([] {
+		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+		if (ControlRigEditMode)
+		{
+			return ControlRigEditMode->GetOnlySelectRigControls();
+		}
+		return false;
+	})
+		),
+		NAME_None,
+		LOCTEXT("OnlySelectControls", "Only Select Controls"),
+		LOCTEXT("OnlySelectControlsTooltip", "Only Select Control Rig Controls"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.SetPaint"), //todo get icon
+		EUserInterfaceActionType::ToggleButton
+		);
+	ToolBarBuilder.AddSeparator();
+
+	//POSES
+
+	ToolBarBuilder.AddToolBarButton(
+		FExecuteAction::CreateSP(this, &SControlRigEditModeTools::MakePoseDialog),
+		NAME_None,
+		LOCTEXT("Poses", "Poses"),
+		LOCTEXT("PosesTooltip", "Show Poses"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.Settings"),
+		EUserInterfaceActionType::Button
+	);
+	ToolBarBuilder.AddSeparator();
+}
+
+
+void SControlRigEditModeTools::MakePoseDialog()
+{
+
+	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	if (ControlRigEditMode)
+	{
+
+		TSharedPtr<SWindow> ExistingWindow = PoseWindow.Pin();
+		if (ExistingWindow.IsValid())
+		{
+			ExistingWindow->BringToFront();
+		}
+		else
+		{
+			ExistingWindow = SNew(SWindow)
+				.Title(LOCTEXT("Poses", "Poses"))
+				.HasCloseButton(true)
+				.SupportsMaximize(false)
+				.SupportsMinimize(false)
+				.ClientSize(FVector2D(850, 750));
+			TSharedPtr<SWindow> RootWindow = FGlobalTabmanager::Get()->GetRootWindow();
+			if (RootWindow.IsValid())
+			{
+				FSlateApplication::Get().AddWindowAsNativeChild(ExistingWindow.ToSharedRef(), RootWindow.ToSharedRef());
+			}
+			else
+			{
+				FSlateApplication::Get().AddWindow(ExistingWindow.ToSharedRef());
+			}
+
+		}
+
+		ExistingWindow->SetContent(
+			SNew(SControlRigBaseListWidget)
+		);
+		PoseWindow = ExistingWindow;
+	}
+	
+}
+
+/* MZ TODO
+void SControlRigEditModeTools::MakeSelectionSetDialog()
+{
+
+	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	if (ControlRigEditMode)
+	{
+		TSharedPtr<SWindow> ExistingWindow = SelectionSetWindow.Pin();
+		if (ExistingWindow.IsValid())
+		{
+			ExistingWindow->BringToFront();
+		}
+		else
+		{
+			ExistingWindow = SNew(SWindow)
+				.Title(LOCTEXT("SelectionSets", "Selection Set"))
+				.HasCloseButton(true)
+				.SupportsMaximize(false)
+				.SupportsMinimize(false)
+				.ClientSize(FVector2D(165, 200));
+			TSharedPtr<SWindow> RootWindow = FGlobalTabmanager::Get()->GetRootWindow();
+			if (RootWindow.IsValid())
+			{
+				FSlateApplication::Get().AddWindowAsNativeChild(ExistingWindow.ToSharedRef(), RootWindow.ToSharedRef());
+			}
+			else
+			{
+				FSlateApplication::Get().AddWindow(ExistingWindow.ToSharedRef());
+			}
+
+		}
+
+		ExistingWindow->SetContent(
+			SNew(SControlRigBaseListWidget)
+		);
+		SelectionSetWindow = ExistingWindow;
+	}
+}
+*/
+FText SControlRigEditModeTools::GetActiveToolName() const
+{
+	return  FText();
+}
+
+FText SControlRigEditModeTools::GetActiveToolMessage() const
+{
+	return  FText();
 }
 
 #undef LOCTEXT_NAMESPACE

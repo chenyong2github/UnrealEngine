@@ -35,14 +35,13 @@
 #include "SEditorViewport.h"
 #include "ControlRigControlsProxy.h"
 #include "ScopedTransaction.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "Widgets/Notifications/SNotificationList.h"
 #include "RigVMModel/RigVMController.h"
 #include "Rigs/AdditiveControlRig.h"
 #include "Rigs/FKControlRig.h"
 #include "ControlRigComponent.h"
 #include "EngineUtils.h"
 #include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
+
 
 void UControlRigEditModeDelegateHelper::OnPoseInitialized()
 {
@@ -89,6 +88,7 @@ void UControlRigEditModeDelegateHelper::RemoveDelegates()
 		BoundComponent = nullptr;
 	}
 }
+
 
 FName FControlRigEditMode::ModeName("EditMode.ControlRig");
 
@@ -2368,5 +2368,17 @@ void FControlRigEditMode::PostPoseUpdate()
 	}
 
 }
+void FControlRigEditMode::SetOnlySelectRigControls(bool Val)
+{
+	Settings->bOnlySelectRigControls = Val;
+}
+
+bool FControlRigEditMode::GetOnlySelectRigControls()const
+{
+	return Settings->bOnlySelectRigControls;
+}
+
+
+
 
 #undef LOCTEXT_NAMESPACE

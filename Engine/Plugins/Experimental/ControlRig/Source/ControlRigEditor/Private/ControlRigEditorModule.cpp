@@ -105,6 +105,8 @@
 #include "Rigs/FKControlRig.h"
 #include "SBakeToControlRigDialog.h"
 #include "Graph/SControlRigGraphPinVariableBinding.h"
+#include "AssetTypeActions_ControlRigPose.h"
+
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
@@ -183,6 +185,7 @@ void FControlRigEditorModule::StartupModule()
 
 	RegisterAssetTypeAction(MakeShareable(new FControlRigBlueprintActions()));
 	RegisterAssetTypeAction(MakeShareable(new FControlRigGizmoLibraryActions()));
+	RegisterAssetTypeAction(MakeShareable(new FAssetTypeActions_ControlRigPose()));
 	
 	// Register sequencer track editor
 	ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
@@ -238,8 +241,10 @@ void FControlRigEditorModule::StartupModule()
 	);
 
 	UThumbnailManager::Get().RegisterCustomRenderer(UControlRigBlueprint::StaticClass(), UControlRigThumbnailRenderer::StaticClass());
+	//UThumbnailManager::Get().RegisterCustomRenderer(UControlRigPoseAsset::StaticClass(), UControlRigPoseThumbnailRenderer::StaticClass());
 
 	bFilterAssetBySkeleton = true;
+
 }
 
 void FControlRigEditorModule::ShutdownModule()

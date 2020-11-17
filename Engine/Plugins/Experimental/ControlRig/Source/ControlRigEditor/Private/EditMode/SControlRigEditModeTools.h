@@ -72,4 +72,26 @@ private:
 	EVisibility GetRigOptionExpanderVisibility() const;
 
 	void OnRigOptionFinishedChange(const FPropertyChangedEvent& PropertyChangedEvent);
+
+private:
+	/** Toolbar functions and windows*/
+
+	/** Make the Pose Dialg*/
+	void MakePoseDialog();
+
+	/** Pose Dialog Window*/
+	TWeakPtr<SWindow> PoseWindow;
+
+	//TODO may put back void MakeSelectionSetDialog();
+	//TWeakPtr<SWindow> SelectionSetWindow;
+public:
+	/** Modes Panel Header Information **/
+	void CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder);
+	FText GetActiveToolName() const;
+	FText GetActiveToolMessage() const;
+
+
 };
+
+
+

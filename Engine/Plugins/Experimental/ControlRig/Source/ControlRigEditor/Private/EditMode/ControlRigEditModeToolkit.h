@@ -34,6 +34,20 @@ public:
 		}
 		return false;
 	}
+	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost) override;
+
+	/** Mode Toolbar Palettes **/
+	virtual void GetToolPaletteNames(TArray<FName>& InPaletteName) const override;
+	virtual FText GetToolPaletteDisplayName(FName PaletteName) const override;
+	virtual void BuildToolPalette(FName PaletteName, class FToolBarBuilder& ToolbarBuilder) override;
+
+	/** Modes Panel Header Information **/
+	virtual FText GetActiveToolDisplayName() const override;
+	virtual FText GetActiveToolMessage() const override;
+	virtual void OnToolPaletteChanged(FName PaletteName) override;
+
+	virtual void RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
+	virtual void UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
 
 private:
 	/** The edit mode we are bound to */

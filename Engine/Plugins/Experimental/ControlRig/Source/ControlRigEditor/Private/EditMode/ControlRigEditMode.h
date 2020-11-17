@@ -15,6 +15,7 @@
 #include "ControlRigEditMode.generated.h"
 
 
+
 class FEditorViewportClient;
 class FViewport;
 class UActorFactory;
@@ -287,6 +288,12 @@ private:
 	void OnCoordSystemChanged(ECoordSystem InCoordSystem);
 	TArray<ECoordSystem> CoordSystemPerWidgetMode;
 	bool bIsChangingCoordSystem;
+
+
+public:
+	//Toolbar functions
+	void SetOnlySelectRigControls(bool val);
+	bool GetOnlySelectRigControls()const;
 
 private:
 

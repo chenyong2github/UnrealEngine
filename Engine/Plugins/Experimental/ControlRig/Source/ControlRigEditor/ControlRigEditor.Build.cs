@@ -13,8 +13,9 @@ namespace UnrealBuildTool.Rules
                     "ControlRigEditor/Private/EditMode",
                     "ControlRigEditor/Private/Graph",
                     "ControlRigEditor/Private/Editor",
+                    "../../../../Source/Editor/UnrealEd/Private", 
 					"../../../../Source/Developer/MessageLog/Private", //compatibility for FBX importer
-					"../../../../Source/Editor/UnrealEd/Private" //compatibility for FBX importer
+					"ControlRigEditor/Private/Tools"
 				}
 			);
 
