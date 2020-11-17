@@ -2325,33 +2325,33 @@ void UpdateGlobalDistanceFieldVolume(
 			{
 				if (PageTableLayerTextures[CacheType])
 				{
-					ConvertToExternalTexture(GraphBuilder, PageTableLayerTextures[CacheType], GlobalDistanceFieldInfo.PageTableLayerTextures[CacheType]);
+					ConvertToUntrackedExternalTexture(GraphBuilder, PageTableLayerTextures[CacheType], GlobalDistanceFieldInfo.PageTableLayerTextures[CacheType], ERHIAccess::SRVMask);
 				}
 			}
 
 			if (PageFreeListAllocatorBuffer)
 			{
-				ConvertToExternalBuffer(GraphBuilder, PageFreeListAllocatorBuffer, GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer);
+				ConvertToUntrackedExternalBuffer(GraphBuilder, PageFreeListAllocatorBuffer, GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer, ERHIAccess::SRVMask);
 			}
 
 			if (PageFreeListBuffer)
 			{
-				ConvertToExternalBuffer(GraphBuilder, PageFreeListBuffer, GlobalDistanceFieldInfo.PageFreeListBuffer);
+				ConvertToUntrackedExternalBuffer(GraphBuilder, PageFreeListBuffer, GlobalDistanceFieldInfo.PageFreeListBuffer, ERHIAccess::SRVMask);
 			}
 
 			if (PageAtlasTexture)
 			{
-				ConvertToExternalTexture(GraphBuilder, PageAtlasTexture, GlobalDistanceFieldInfo.PageAtlasTexture);
+				ConvertToUntrackedExternalTexture(GraphBuilder, PageAtlasTexture, GlobalDistanceFieldInfo.PageAtlasTexture, ERHIAccess::SRVMask);
 			}
 
 			if (PageTableCombinedTexture)
 			{
-				ConvertToExternalTexture(GraphBuilder, PageTableCombinedTexture, GlobalDistanceFieldInfo.PageTableCombinedTexture);
+				ConvertToUntrackedExternalTexture(GraphBuilder, PageTableCombinedTexture, GlobalDistanceFieldInfo.PageTableCombinedTexture, ERHIAccess::SRVMask);
 			}
 
 			if (MipTexture)
 			{
-				ConvertToExternalTexture(GraphBuilder, MipTexture, GlobalDistanceFieldInfo.MipTexture);
+				ConvertToUntrackedExternalTexture(GraphBuilder, MipTexture, GlobalDistanceFieldInfo.MipTexture, ERHIAccess::SRVMask);
 			}
 		}
 	}
