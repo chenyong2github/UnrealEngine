@@ -165,6 +165,7 @@ class AIMODULE_API UEnvQueryManager : public UAISubsystem, public FSelfRegisteri
 	// FTickableGameObject begin
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override;
+	virtual bool IsTickableInEditor() const override { return true; }
 	// FTickableGameObject end
 
 	/** execute query */
