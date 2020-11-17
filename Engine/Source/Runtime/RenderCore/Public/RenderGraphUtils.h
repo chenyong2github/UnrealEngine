@@ -11,6 +11,11 @@
 
 class FGlobalShaderMap;
 
+inline bool HasBeenProduced(FRDGParentResourceRef Resource)
+{
+	return Resource && Resource->HasBeenProduced();
+}
+
 /** Fetches the RHI texture from an RDG texture or null if the RDG texture is null. */
 inline FRHITexture* TryGetRHI(FRDGTextureRef Texture)
 {

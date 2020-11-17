@@ -23,29 +23,53 @@
 class RENDERCORE_API FRDGUserValidation final
 {
 public:
-	FRDGUserValidation();
+	FRDGUserValidation(FRDGAllocator& Allocator, ERDGBuilderFlags BuilderFlags);
 	FRDGUserValidation(const FRDGUserValidation&) = delete;
 	~FRDGUserValidation();
 
-	/** Validates that the graph has not executed yet. */
-	void ExecuteGuard(const TCHAR* Operation, const TCHAR* ResourceName);
+	/** Tracks and validates inputs into resource creation functions. */
+	void ValidateCreateTexture(const FRDGTextureDesc& Desc, const TCHAR* Name, ERDGTextureFlags Flags);
+	void ValidateCreateBuffer(const FRDGBufferDesc& Desc, const TCHAR* Name, ERDGBufferFlags Flags);
+	void ValidateCreateSRV(const FRDGTextureSRVDesc& Desc);
+	void ValidateCreateSRV(const FRDGBufferSRVDesc& Desc);
+	void ValidateCreateUAV(const FRDGTextureUAVDesc& Desc);
+	void ValidateCreateUAV(const FRDGBufferUAVDesc& Desc);
+	void ValidateCreateUniformBuffer(const void* ParameterStruct, const FShaderParametersMetadata* Metadata);
 
-	/** Tracks and validates the creation of a new resource in the graph. */
+	/** Tracks and validates the creation of a new externally created / registered resource instances. */
 	void ValidateCreateTexture(FRDGTextureRef Texture);
 	void ValidateCreateBuffer(FRDGBufferRef Buffer);
+	void ValidateCreateSRV(FRDGTextureSRVRef SRV);
+	void ValidateCreateSRV(FRDGBufferSRVRef SRV);
+	void ValidateCreateUAV(FRDGTextureUAVRef UAV);
+	void ValidateCreateUAV(FRDGBufferUAVRef UAV);
+	void ValidateCreateUniformBuffer(FRDGUniformBufferRef UniformBuffer);
 
-	/** Tracks and validates the creation of a new externally registered resource. */
-	void ValidateCreateExternalTexture(FRDGTextureRef Texture);
-	void ValidateCreateExternalBuffer(FRDGBufferRef Buffer);
+	void ValidateRegisterExternalTexture(
+		const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
+		const TCHAR* Name,
+		ERenderTargetTexture RenderTargetTexture,
+		ERDGTextureFlags Flags);
+
+	void ValidateRegisterExternalBuffer(
+		const TRefCountPtr<FRDGPooledBuffer>& ExternalPooledBuffer,
+		const TCHAR* Name,
+		ERDGBufferFlags Flags);
+
+	void ValidateRegisterExternalTexture(FRDGTextureRef Texture);
+	void ValidateRegisterExternalBuffer(FRDGBufferRef Buffer);
 
 	/** Validates a resource extraction operation. */
-	void ValidateExtractResource(FRDGParentResourceRef Resource);
+	void ValidateExtractTexture(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr);
+	void ValidateExtractBuffer(FRDGBufferRef Buffer, TRefCountPtr<FRDGPooledBuffer>* OutBufferPtr);
 
 	/** Tracks and validates the addition of a new pass to the graph.
 	 *  @param bSkipPassAccessMarking Skips marking the pass as a producer or incrementing the pass access. Useful when
 	 *      the builder needs to inject a pass for debugging while preserving error messages and warnings for the original
 	 *      graph structure.
 	 */
+	void ValidateAddPass(const void* ParameterStruct, const FShaderParametersMetadata* Metadata, const FRDGEventName& Name, ERDGPassFlags Flags);
+	void ValidateAddPass(const FRDGEventName& Name, ERDGPassFlags Flags);
 	void ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAccessMarking);
 
 	/** Validate pass state before and after execution. */
@@ -62,10 +86,20 @@ public:
 	/** Attempts to mark a resource for clobbering. If already marked, returns false.  */
 	bool TryMarkForClobber(FRDGParentResourceRef Resource) const;
 
+	void ValidateGetPooledTexture(FRDGTextureRef Texture) const;
+	void ValidateGetPooledBuffer(FRDGBufferRef Buffer) const;
+
+	void ValidateSetTextureAccessFinal(FRDGTextureRef Texture, ERHIAccess AccessFinal);
+	void ValidateSetBufferAccessFinal(FRDGBufferRef Buffer, ERHIAccess AccessFinal);
+
 	/** Traverses all resources in the pass and marks whether they are externally accessible by user pass implementations. */
 	static void SetAllowRHIAccess(const FRDGPass* Pass, bool bAllowAccess);
 
 private:
+	void ValidateCreateParentResource(FRDGParentResourceRef Resource);
+	void ValidateCreateResource(FRDGResourceRef Resource);
+	void ValidateExtractResource(FRDGParentResourceRef Resource);
+
 	/** List of tracked resources for validation prior to shutdown. */
 	TArray<FRDGTextureRef, SceneRenderingAllocator> TrackedTextures;
 	TArray<FRDGBufferRef, SceneRenderingAllocator> TrackedBuffers;
@@ -74,7 +108,10 @@ private:
 	bool bHasExecuted = false;
 
 	void MemStackGuard();
+	void ExecuteGuard(const TCHAR* Operation, const TCHAR* ResourceName);
 
+	FRDGAllocator& Allocator;
+	ERDGBuilderFlags BuilderFlags;
 	int32 ExpectedNumMarks;
 };
 

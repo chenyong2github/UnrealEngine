@@ -4,39 +4,23 @@
 #include "RenderGraphPass.h"
 #include "RenderGraphPrivate.h"
 
-#if RDG_ENABLE_DEBUG
-void FRDGResource::MarkResourceAsUsed()
-{
-	ValidateRHIAccess();
-	DebugData.bIsActuallyUsedByPass = true;
-}
-
-void FRDGUniformBuffer::MarkResourceAsUsed()
-{
-	FRDGResource::MarkResourceAsUsed();
-
-	// Individual resources can't be culled from a uniform buffer, so we have to mark them all as used.
-	ParameterStruct.Enumerate([](FRDGParameter Parameter)
-	{
-		if (FRDGResourceRef Resource = Parameter.GetAsResource())
-		{
-			Resource->MarkResourceAsUsed();
-		}
-	});
-}
-#endif
-
 FRDGParentResource::FRDGParentResource(const TCHAR* InName, const ERDGParentResourceType InType)
 	: FRDGResource(InName)
 	, Type(InType)
 	, bExternal(0)
 	, bExtracted(0)
+	, bProduced(0)
 	, bTransient(0)
 	, bLastOwner(1)
 	// Culling logic runs only when immediate mode is off.
 	, bCulled(1)
 	, bUsedByAsyncComputePass(0)
 {}
+
+void FRDGParentResource::SetPassthroughRHI(FRHIResource* InResourceRHI)
+{
+	ResourceRHI = InResourceRHI;
+}
 
 bool FRDGSubresourceState::IsTransitionRequired(const FRDGSubresourceState& Previous, const FRDGSubresourceState& Next)
 {

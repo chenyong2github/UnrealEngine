@@ -83,7 +83,7 @@ public:
 
 	FRHIResource* GetRHI() const
 	{
-		ValidateRHIAccess();
+		IF_RDG_ENABLE_DEBUG(ValidateRHIAccess());
 		return ResourceRHI;
 	}
 
@@ -94,36 +94,6 @@ protected:
 		: Name(InName)
 	{}
 
-	/** Assigns this resource as a simple passthrough container for an RHI resource. */
-	void SetPassthroughRHI(FRHIResource* InResourceRHI)
-	{
-		ResourceRHI = InResourceRHI;
-#if RDG_ENABLE_DEBUG
-		DebugData.bAllowRHIAccess = true;
-		DebugData.bPassthrough = true;
-#endif
-	}
-
-	bool IsPassthrough() const
-	{
-#if RDG_ENABLE_DEBUG
-		return DebugData.bPassthrough;
-#else
-		return false;
-#endif
-	}
-
-	/** Verify that the RHI resource can be accessed at a pass execution. */
-	void ValidateRHIAccess() const
-	{
-#if RDG_ENABLE_DEBUG
-		checkf(DebugData.bAllowRHIAccess,
-			TEXT("Accessing the RHI resource of %s at this time is not allowed. If you hit this check in pass, ")
-			TEXT("that is due to this resource not being referenced in the parameters of your pass."),
-			Name);
-#endif
-	}
-
 	FRHIResource* GetRHIUnchecked() const
 	{
 		return ResourceRHI;
@@ -131,23 +101,15 @@ protected:
 
 	FRHIResource* ResourceRHI = nullptr;
 
+#if RDG_ENABLE_DEBUG
+	void ValidateRHIAccess() const;
+#endif
+
 private:
 #if RDG_ENABLE_DEBUG
-	class FDebugData
-	{
-	private:
-		/** Boolean to track at runtime whether a resource is actually used by the lambda of a pass or not, to detect unnecessary resource dependencies on passes. */
-		bool bIsActuallyUsedByPass = false;
-
-		/** Boolean to track at pass execution whether the underlying RHI resource is allowed to be accessed. */
-		bool bAllowRHIAccess = false;
-
-		/** If true, the resource is not attached to any builder and exists as a dummy container for staging code to RDG. */
-		bool bPassthrough = false;
-
-		friend FRDGResource;
-		friend FRDGUserValidation;
-	} DebugData;
+	struct FRDGResourceDebugData* DebugData = nullptr;
+	FRDGResourceDebugData& GetDebugData() const;
+	bool IsPassthrough() const;
 #endif
 
 	friend FRDGBuilder;
@@ -170,6 +132,8 @@ public:
 
 #if RDG_ENABLE_DEBUG
 	RENDERCORE_API void MarkResourceAsUsed() override;
+#else
+	inline         void MarkResourceAsUsed() {}
 #endif
 
 	//////////////////////////////////////////////////////////////////////////
@@ -241,9 +205,18 @@ public:
 	/** The type of this resource; useful for casting between types. */
 	const ERDGParentResourceType Type;
 
+	/** Whether this resource is externally registered with the graph (i.e. the user holds a reference to the underlying resource outside the graph). */
 	bool IsExternal() const
 	{
 		return bExternal;
+	}
+
+	/** Whether a prior pass added to the graph produced contents for this resource. External resources are not considered produced
+	 *  until used for a write operation. This is a union of all subresources, so any subresource write will set this to true.
+	 */
+	bool HasBeenProduced() const
+	{
+		return bProduced;
 	}
 
 protected:
@@ -254,6 +227,9 @@ protected:
 
 	/** Whether this is an extracted resource. */
 	uint8 bExtracted : 1;
+
+	/** Whether any sub-resource has been used for write by a pass. */
+	uint8 bProduced : 1;
 
 	/** Whether this resource needs acquire / discard. */
 	uint8 bTransient : 1;
@@ -266,6 +242,9 @@ protected:
 
 	/** If true, the resource has been used on an async compute pass and may have async compute states. */
 	uint8 bUsedByAsyncComputePass : 1;
+
+	/** Assigns this resource as a simple passthrough container for an RHI resource. */
+	void SetPassthroughRHI(FRHIResource* InResourceRHI);
 
 private:
 	/** Number of references in passes and deferred queries. */
@@ -280,23 +259,8 @@ private:
 	FRDGPassHandle LastPass;
 
 #if RDG_ENABLE_DEBUG
-	class FParentDebugData
-	{
-	private:
-		/** Pointer towards the pass that is the first to produce it, for even more convenient error message. */
-		const FRDGPass* FirstProducer = nullptr;
-
-		/** Count the number of times it has been used by a pass (without culling). */
-		uint32 PassAccessCount = 0;
-
-		/** Tracks at wiring time if a resource has ever been produced by a pass, to error out early if accessing a resource that has not been produced. */
-		bool bHasBeenProduced = false;
-
-		/** Tracks whether this resource was clobbered by the builder prior to use. */
-		bool bHasBeenClobbered = false;
-
-		friend FRDGUserValidation;
-	} ParentDebugData;
+	struct FRDGParentResourceDebugData* ParentDebugData = nullptr;
+	FRDGParentResourceDebugData& GetParentDebugData() const;
 #endif
 
 	friend FRDGBuilder;
@@ -667,7 +631,7 @@ public:
 	/** Returns the allocated pooled render target. */
 	IPooledRenderTarget* GetPooledRenderTarget() const
 	{
-		ValidateRHIAccess();
+		IF_RDG_ENABLE_DEBUG(ValidateRHIAccess());
 		check(PooledRenderTarget);
 		return PooledRenderTarget;
 	}
@@ -760,18 +724,8 @@ private:
 	TRDGTextureSubresourceArray<FRDGPassHandle> LastProducers;
 
 #if RDG_ENABLE_DEBUG
-	class FTextureDebugData
-	{
-	private:
-		/** Tracks whether a UAV has ever been allocated to catch when TexCreate_UAV was unneeded. */
-		bool bHasNeededUAV = false;
-
-		/** Tracks whether has ever been bound as a render target to catch when TexCreate_RenderTargetable was unneeded. */
-		bool bHasBeenBoundAsRenderTarget = false;
-
-		friend FRDGUserValidation;
-		friend FRDGBarrierValidation;
-	} TextureDebugData;
+	struct FRDGTextureDebugData* TextureDebugData = nullptr;
+	FRDGTextureDebugData& GetTextureDebugData() const;
 #endif
 
 	friend FRDGBuilder;
@@ -1323,18 +1277,13 @@ private:
 	FRDGSubresourceState* MergeState = nullptr;
 
 #if RDG_ENABLE_DEBUG
-	class FBufferDebugData
-	{
-	private:
-		/** Tracks state changes in order of execution. */
-		TArray<TPair<FRDGPassHandle, FRDGSubresourceState>, SceneRenderingAllocator> States;
-
-		friend FRDGBarrierValidation;
-	} BufferDebugData;
+	struct FRDGBufferDebugData* BufferDebugData = nullptr;
+	FRDGBufferDebugData& GetBufferDebugData() const;
 #endif
 
 	friend FRDGBuilder;
 	friend FRDGBarrierValidation;
+	friend FRDGUserValidation;
 	friend FRDGBufferRegistry;
 	friend FRDGAllocator;
 };

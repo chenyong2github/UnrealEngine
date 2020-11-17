@@ -7,18 +7,11 @@
 #include "RenderGraphResources.h"
 #include "RenderGraphPass.h"
 #include "RenderGraphValidation.h"
+#include "RenderGraphBlackboard.h"
 #include "ShaderParameterMacros.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
 class FRDGLogFile;
-
-enum class ERDGBuilderFlags
-{
-	None = 0,
-
-	/** The builder will not perform any resource barriers. This is only allowed when all resources are registered. */
-	SkipBarriers = 1 << 0,
-};
 
 /** Use the render graph builder to build up a graph of passes and then call Execute() to process them. Resource barriers
  *  and lifetimes are derived from _RDG_ parameters in the pass parameter struct provided to each AddPass call. The resulting
@@ -102,6 +95,16 @@ public:
 		return CreateUAV(FRDGBufferUAVDesc(Buffer, Format), Flags);
 	}
 
+	/** Creates a graph tracked uniform buffer which can be attached to passes. These uniform buffers require some care
+	 *  because they will bulk transition all resources. The graph will only transition resources which are not also
+	 *  bound for write access by the pass.
+	 */
+	template <typename ParameterStructType>
+	TRDGUniformBufferRef<ParameterStructType> CreateUniformBuffer(ParameterStructType* ParameterStruct);
+
+	//////////////////////////////////////////////////////////////////////////
+	// Allocation Methods
+
 	/** Allocates raw memory using an allocator tied to the lifetime of the graph. */
 	void* Alloc(uint32 SizeInBytes, uint32 AlignInBytes);
 
@@ -117,12 +120,7 @@ public:
 	template <typename ParameterStructType>
 	ParameterStructType* AllocParameters();
 
-	/** Creates a graph tracked uniform buffer which can be attached to passes. These uniform buffers require some care
-	 *  because they will bulk transition all resources. The graph will only transition resources which are not also
-	 *  bound for write access by the pass.
-	 */
-	template <typename ParameterStructType>
-	TRDGUniformBufferRef<ParameterStructType> CreateUniformBuffer(ParameterStructType* ParameterStruct);
+	//////////////////////////////////////////////////////////////////////////
 
 	/** Adds a lambda pass to the graph with an accompanied pass parameter struct.
 	 *
@@ -219,6 +217,9 @@ public:
 
 	/** The RHI command list used for the render graph. */
 	FRHICommandListImmediate& RHICmdList;
+
+	/** The blackboard used to hold common data tied to the graph lifetime. */
+	FRDGBlackboard Blackboard;
 
 private:
 	static const ERHIAccess kDefaultAccessInitial = ERHIAccess::Unknown;

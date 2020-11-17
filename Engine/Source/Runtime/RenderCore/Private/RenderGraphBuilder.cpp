@@ -384,6 +384,7 @@ const char* const FRDGBuilder::kDefaultUnaccountedCSVStat = "RDG_Pass";
 
 FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName InName, ERDGBuilderFlags InFlags)
 	: RHICmdList(InRHICmdList)
+	, Blackboard(Allocator)
 	, RHICmdListAsyncCompute(FRHICommandListExecutor::GetImmediateAsyncComputeCommandList())
 	, BuilderName(InName)
 	, BuilderFlags(InFlags)
@@ -394,6 +395,7 @@ FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName I
 	, GPUScopeStacks(RHICmdList, RHICmdListAsyncCompute)
 #endif
 #if RDG_ENABLE_DEBUG
+	, UserValidation(Allocator, BuilderFlags)
 	, BarrierValidation(&Passes, BuilderName)
 #endif
 {
@@ -446,13 +448,7 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 	ERenderTargetTexture RenderTargetTexture,
 	ERDGTextureFlags Flags)
 {
-#if RDG_ENABLE_DEBUG
-	checkf(Name, TEXT("Attempted to register external texture with NULL name."));
-	checkf(ExternalPooledTexture.IsValid(), TEXT("Attempted to register NULL external texture."));
-	checkf(ExternalPooledTexture->IsCompatibleWithRDG(), TEXT("Pooled render target %s is not a compatible type for RDG."), Name);
-	UserValidation.ExecuteGuard(TEXT("RegisterExternalTexture"), Name);
-#endif
-
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateRegisterExternalTexture(ExternalPooledTexture, Name, RenderTargetTexture, Flags));
 	FRHITexture* ExternalTextureRHI = ExternalPooledTexture->GetRenderTargetItem().GetRHI(RenderTargetTexture);
 	IF_RDG_ENABLE_DEBUG(checkf(ExternalTextureRHI, TEXT("Attempted to register texture %s, but its RHI texture is null."), Name));
 
@@ -485,6 +481,7 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 		TEXT("Externally registered texture '%s' has known RDG state. This means the graph did not sanitize it correctly, or ")
 		TEXT("an IPooledRenderTarget reference was improperly held within a pass."), Texture->Name);
 
+	if (!EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::SkipBarriers))
 	{
 		FRDGSubresourceState SubresourceState;
 		SubresourceState.Access = AccessInitial;
@@ -493,7 +490,7 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 
 	ExternalTextures.Add(Texture->GetRHIUnchecked(), Texture);
 
-	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateExternalTexture(Texture));
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateRegisterExternalTexture(Texture));
 	return Texture;
 }
 
@@ -516,11 +513,7 @@ FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
 	const TCHAR* Name,
 	ERDGBufferFlags Flags)
 {
-#if RDG_ENABLE_DEBUG
-	checkf(Name, TEXT("Attempted to register external buffer with NULL name."));
-	checkf(ExternalPooledBuffer.IsValid(), TEXT("Attempted to register NULL external buffer."));
-	UserValidation.ExecuteGuard(TEXT("RegisterExternalBuffer"), Name);
-#endif
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateRegisterExternalBuffer(ExternalPooledBuffer, Name, Flags));
 
 	if (FRDGBufferRef* FoundBufferPtr = ExternalBuffers.Find(ExternalPooledBuffer.GetReference()))
 	{
@@ -550,11 +543,15 @@ FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
 	checkf(BufferState.Access == ERHIAccess::Unknown,
 		TEXT("Externally registered buffer '%s' has known RDG state. This means the graph did not sanitize it correctly, or ")
 		TEXT("an FRDGPooledBuffer reference was improperly held within a pass."), Buffer->Name);
-	BufferState.Access = AccessInitial;
+
+	if (!EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::SkipBarriers))
+	{
+		BufferState.Access = AccessInitial;
+	}
 
 	ExternalBuffers.Add(ExternalPooledBuffer, Buffer);
 
-	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateExternalBuffer(Buffer));
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateRegisterExternalBuffer(Buffer));
 	return Buffer;
 }
 
@@ -652,7 +649,7 @@ void FRDGBuilder::Compile()
 				// The producer array needs to be at least as large as the pass state array.
 				if (bWholeProducers && !bWholePassState)
 				{
-					InitAsSubresources(LastProducers, Texture->Layout);
+					InitAsSubresources(LastProducers, Texture->Layout, GetWholeResource(LastProducers));
 				}
 
 				for (uint32 Index = 0, Count = LastProducers.Num(); Index < Count; ++Index)
@@ -1343,6 +1340,7 @@ void FRDGBuilder::Clear()
 	Textures.Clear();
 	Buffers.Clear();
 	UniformBuffers.Clear();
+	Blackboard.Clear();
 	Allocator.ReleaseAll();
 }
 
@@ -1395,6 +1393,7 @@ void FRDGBuilder::SetupPass(FRDGPass* Pass)
 		}
 
 		bPassUAVAccess |= EnumHasAnyFlags(Access, ERHIAccess::UAVMask);
+		Texture->bProduced |= IsWritableAccess(Access);
 	});
 
 	Pass->BufferStates.Reserve(PassParameters.GetBufferParameterCount());
@@ -1411,6 +1410,7 @@ void FRDGBuilder::SetupPass(FRDGPass* Pass)
 		PassState.State.SetPass(PassPipeline, PassHandle);
 
 		bPassUAVAccess |= EnumHasAnyFlags(Access, ERHIAccess::UAVMask);
+		Buffer->bProduced |= IsWritableAccess(Access);
 	});
 
 	Pass->bUAVAccess = bPassUAVAccess;
@@ -1707,7 +1707,7 @@ void FRDGBuilder::CollectPassBarriers(FRDGPassHandle PassHandle, FRDGPassHandle&
 		LastUntrackedPassHandle = PassHandle;
 	}
 
-	if (PassesWithEmptyParameters[PassHandle])
+	if (PassesWithEmptyParameters[PassHandle] || EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::SkipBarriers))
 	{
 		return;
 	}
@@ -1729,7 +1729,7 @@ void FRDGBuilder::CollectPassBarriers(FRDGPassHandle PassHandle, FRDGPassHandle&
 
 void FRDGBuilder::AddEpilogueTransition(FRDGTextureRef Texture, FRDGPassHandle LastUntrackedPassHandle)
 {
-	if (!Texture->bLastOwner || Texture->bCulled || EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::SkipBarriers))
+	if (!Texture->bLastOwner || Texture->bCulled)
 	{
 		return;
 	}
@@ -1954,10 +1954,7 @@ void FRDGBuilder::AddTransitionInternal(
 	FRDGPassHandle LastUntrackedPassHandle,
 	const FRHITransitionInfo& TransitionInfo)
 {
-	if (EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::SkipBarriers))
-	{
-		return;
-	}
+	check(!EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::SkipBarriers));
 
 	const ERHIPipeline Graphics = ERHIPipeline::Graphics;
 	const ERHIPipeline AsyncCompute = ERHIPipeline::AsyncCompute;
