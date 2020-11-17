@@ -1461,6 +1461,14 @@ void FPixelShaderInOut_MainPS(
 
 	FStrataData Strata = PixelMaterialInputs.FrontMaterial;
 
+	// Initialise a Strata header with normal in registers
+	FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
+	for (int l = 0; l < Strata.LayerCount; ++l)
+	{
+		StrataPixelHeader.BSDFCount += Strata.Layers[l].BSDFCount;
+	}
+	StrataPixelHeader.SharedNormals = MaterialParameters.SharedNormals;
+
 #if STRATA_OPAQUE_ENABLED
 
 	// Need to cancel that to make sure strata material are only lit using Strata lighting passes
@@ -1481,7 +1489,7 @@ void FPixelShaderInOut_MainPS(
 	const float3 VertexNormal = MaterialParameters.TangentToWorld[2].xyz;
 	PackStrataOut(
 		OpaqueBasePass.Strata.MaterialLobesBufferUAV, PixelStrataDataByteOffset, 
-		Strata, MaterialParameters.SharedNormals, 
+		StrataPixelHeader, Strata,
 		VertexNormal, MaterialParameters.CameraVector, GBuffer);
 #endif // STRATA_OPAQUE_ENABLED
 
@@ -1489,13 +1497,6 @@ void FPixelShaderInOut_MainPS(
 	//FORWARD_SHADING
 	if (Strata.LayerCount > 0)
 	{
-		FStrataPixelHeader Header = (FStrataPixelHeader)0;
-		for (int l = 0; l < Strata.LayerCount; ++l)
-		{
-			Header.BSDFCount += Strata.Layers[l].BSDFCount;
-		}
-		Header.SharedNormals = MaterialParameters.SharedNormals;
-
 		float3 L = ResolvedView.DirectionalLightDirection;
 		float3 V = MaterialParameters.CameraVector;
 		float3 LightColor = ResolvedView.DirectionalLightColor.rgb * PI;
@@ -1509,7 +1510,7 @@ void FPixelShaderInOut_MainPS(
 			LightColor,
 			DirectionalLightShadow,
 			IndirectOcclusion,
-			Header,
+			StrataPixelHeader,
 			Strata,
 			Throughput);
 

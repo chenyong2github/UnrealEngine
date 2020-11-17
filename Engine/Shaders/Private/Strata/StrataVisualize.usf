@@ -3,6 +3,7 @@
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/DeferredShadingCommon.ush"
 
+#define STRATA_SHARED_NORMALS_IN_REGISTERS 0
 #include "/Engine/Private/Strata/Strata.ush"
 
 #include "/Engine/Private/MiniFontCommon.ush"
