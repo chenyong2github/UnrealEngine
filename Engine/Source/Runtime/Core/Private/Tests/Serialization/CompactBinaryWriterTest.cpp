@@ -8,6 +8,7 @@
 #include "Misc/Guid.h"
 #include "Misc/Timespan.h"
 #include "Misc/StringBuilder.h"
+#include "Serialization/CompactBinaryValidation.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
