@@ -131,7 +131,7 @@ void FMarkersTimingTrack::UpdateDrawState(const FTimingTrackViewport& InViewport
 		LogProvider.EnumerateMessages(
 			Builder.GetViewport().GetStartTime(),
 			Builder.GetViewport().GetEndTime(),
-			[&Builder](const TraceServices::FLogMessage& Message) { Builder.AddLogMessage(Message); });
+			[&Builder](const TraceServices::FLogMessageInfo& Message) { Builder.AddLogMessage(Message); });
 
 		Builder.EndLog();
 	}
@@ -312,7 +312,7 @@ void FTimeMarkerTrackBuilder::BeginLog(const TraceServices::ILogProvider& LogPro
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimeMarkerTrackBuilder::AddLogMessage(const TraceServices::FLogMessage& Message)
+void FTimeMarkerTrackBuilder::AddLogMessage(const TraceServices::FLogMessageInfo& Message)
 {
 	Track.NumLogMessages++;
 
@@ -323,7 +323,7 @@ void FTimeMarkerTrackBuilder::AddLogMessage(const TraceServices::FLogMessage& Me
 		//TODO: Search API like: LogProviderPtr->SearchMessage(StartIndex, ESearchDirection::Backward, LambdaPredicate, bResolveFormatString);
 		LogProviderPtr->ReadMessage(
 			Message.Index - 1,
-			[this](const TraceServices::FLogMessage& Message) { AddLogMessage(Message); });
+			[this](const TraceServices::FLogMessageInfo& Message) { AddLogMessage(Message); });
 	}
 
 	check(Message.Category != nullptr);

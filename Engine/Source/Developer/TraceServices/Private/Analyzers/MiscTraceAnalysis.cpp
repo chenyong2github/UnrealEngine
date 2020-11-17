@@ -24,7 +24,7 @@ FMiscTraceAnalyzer::FMiscTraceAnalyzer(IAnalysisSession& InSession,
 	, FrameProvider(InFrameProvider)
 	, ChannelProvider(InChannelProvider)
 {
-	FLogCategory& BookmarkLogCategory = LogProvider.GetCategory(FLogProvider::ReservedLogCategory_Bookmark);
+	FLogCategoryInfo& BookmarkLogCategory = LogProvider.GetCategory(FLogProvider::ReservedLogCategory_Bookmark);
 	BookmarkLogCategory.Name = TEXT("LogBookmark");
 	BookmarkLogCategory.DefaultVerbosity = ELogVerbosity::All;
 }

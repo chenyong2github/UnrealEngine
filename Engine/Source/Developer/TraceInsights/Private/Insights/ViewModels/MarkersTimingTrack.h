@@ -11,7 +11,7 @@
 
 namespace TraceServices
 {
-	struct FLogMessage;
+	struct FLogMessageInfo;
 	class ILogProvider;
 }
 
@@ -125,7 +125,7 @@ public:
 	const FTimingTrackViewport& GetViewport() { return Viewport; }
 
 	void BeginLog(const TraceServices::ILogProvider& LogProvider);
-	void AddLogMessage(const TraceServices::FLogMessage& Message);
+	void AddLogMessage(const TraceServices::FLogMessageInfo& Message);
 	void EndLog();
 
 	static FLinearColor GetColorByCategory(const TCHAR* const Category);

@@ -34,7 +34,7 @@ bool FLogTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 	case RouteId_LogCategory:
 	{
 		uint64 CategoryPointer = EventData.GetValue<uint64>("CategoryPointer");
-		FLogCategory& Category = LogProvider.GetCategory(CategoryPointer);
+		FLogCategoryInfo& Category = LogProvider.GetCategory(CategoryPointer);
 
 		FString Name = FTraceAnalyzerUtils::LegacyAttachmentString<TCHAR>("Name", Context);
 		Category.Name = Session.StoreString(*Name);
@@ -47,7 +47,7 @@ bool FLogTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 		uint64 LogPoint = EventData.GetValue<uint64>("LogPoint");
 		FLogMessageSpec& Spec = LogProvider.GetMessageSpec(LogPoint);
 		uint64 CategoryPointer = EventData.GetValue<uint64>("CategoryPointer");
-		FLogCategory& Category = LogProvider.GetCategory(CategoryPointer);
+		FLogCategoryInfo& Category = LogProvider.GetCategory(CategoryPointer);
 		Spec.Category = &Category;
 		Spec.Line = EventData.GetValue<int32>("Line");
 		Spec.Verbosity = static_cast<ELogVerbosity::Type>(EventData.GetValue<uint8>("Verbosity"));

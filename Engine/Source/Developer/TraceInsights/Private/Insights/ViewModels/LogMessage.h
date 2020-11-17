@@ -8,7 +8,7 @@
 
 namespace TraceServices
 {
-	struct FLogMessage;
+	struct FLogMessageInfo;
 	class IAnalysisSession;
 }
 
@@ -18,7 +18,7 @@ class FLogMessageRecord
 {
 public:
 	FLogMessageRecord();
-	FLogMessageRecord(const TraceServices::FLogMessage& Message);
+	FLogMessageRecord(const TraceServices::FLogMessageInfo& Message);
 
 	FText GetIndexAsText() const;
 	FText GetTimeAsText() const;

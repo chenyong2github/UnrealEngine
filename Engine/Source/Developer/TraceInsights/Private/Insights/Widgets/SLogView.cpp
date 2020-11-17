@@ -730,7 +730,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 			UE_LOG(TraceInsights, Log, TEXT("[LogView] Total Log Categories: %d"), TotalNumCategories);
 
 			TSet<FName> Categories;
-			LogProvider.EnumerateCategories([&Categories](const TraceServices::FLogCategory& Category)
+			LogProvider.EnumerateCategories([&Categories](const TraceServices::FLogCategoryInfo& Category)
 			{
 				FString CategoryStr(Category.Name);
 				if (CategoryStr.StartsWith(TEXT("Log")))
