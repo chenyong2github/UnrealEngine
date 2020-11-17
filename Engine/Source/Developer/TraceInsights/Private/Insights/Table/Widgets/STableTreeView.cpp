@@ -581,7 +581,7 @@ void STableTreeView::InsightsManager_OnSessionChanged()
 
 void STableTreeView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	if (bRunInAsyncMode && bIsUpdateRunning)
+	if (bRunInAsyncMode && bIsUpdateRunning && !bIsCloseScheduled)
 	{
 		check(PendingAsyncOperationEvent.IsValid());
 		if (PendingAsyncOperationEvent->IsComplete())
@@ -602,15 +602,15 @@ void STableTreeView::UpdateTree()
 	{
 		OnPreAsyncUpdate();
 
-		FGraphEventRef GroupingCompletedEvent = TGraphTask<FTableTreeViewGroupAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(SharedThis(this));
+		FGraphEventRef GroupingCompletedEvent = TGraphTask<FTableTreeViewGroupAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(this);
 		
-		FGraphEventArray Prerequistes;
-		Prerequistes.Add(GroupingCompletedEvent);
-		FGraphEventRef SortingCompletedEvent = TGraphTask<FTableTreeViewSortAsyncTask>::CreateTask(&Prerequistes).ConstructAndDispatchWhenReady(SharedThis(this));
+		FGraphEventArray Prerequisites;
+		Prerequisites.Add(GroupingCompletedEvent);
+		FGraphEventRef SortingCompletedEvent = TGraphTask<FTableTreeViewSortAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this);
 		
-		Prerequistes.Empty();
-		Prerequistes.Add(SortingCompletedEvent);
-		FGraphEventRef FilteringCompletedEvent = TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask(&Prerequistes).ConstructAndDispatchWhenReady(SharedThis(this));
+		Prerequisites.Empty();
+		Prerequisites.Add(SortingCompletedEvent);
+		FGraphEventRef FilteringCompletedEvent = TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this);
 		
 		PendingAsyncOperationEvent = FilteringCompletedEvent;
 	}
@@ -879,7 +879,7 @@ void STableTreeView::SearchBox_OnTextChanged(const FText& InFilterText)
 	{
 		OnPreAsyncUpdate();
 
-		FGraphEventRef FilteringCompletedEvent = TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(SharedThis(this));
+		FGraphEventRef FilteringCompletedEvent = TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(this);
 
 		PendingAsyncOperationEvent = FilteringCompletedEvent;
 	}
@@ -1196,15 +1196,15 @@ void STableTreeView::PostChangeGroupings()
 	{
 		OnPreAsyncUpdate();
 
-		FGraphEventRef GroupingCompletedEvent = TGraphTask<FTableTreeViewGroupAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(SharedThis(this));
+		FGraphEventRef GroupingCompletedEvent = TGraphTask<FTableTreeViewGroupAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(this);
 
-		FGraphEventArray Prerequistes;
-		Prerequistes.Add(GroupingCompletedEvent);
-		FGraphEventRef SortingCompletedEvent = TGraphTask<FTableTreeViewSortAsyncTask>::CreateTask(&Prerequistes).ConstructAndDispatchWhenReady(SharedThis(this));
+		FGraphEventArray Prerequisites;
+		Prerequisites.Add(GroupingCompletedEvent);
+		FGraphEventRef SortingCompletedEvent = TGraphTask<FTableTreeViewSortAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this);
 
-		Prerequistes.Empty();
-		Prerequistes.Add(SortingCompletedEvent);
-		FGraphEventRef FilteringCompletedEvent = TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask(&Prerequistes).ConstructAndDispatchWhenReady(SharedThis(this));
+		Prerequisites.Empty();
+		Prerequisites.Add(SortingCompletedEvent);
+		FGraphEventRef FilteringCompletedEvent = TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this);
 
 		PendingAsyncOperationEvent = FilteringCompletedEvent;
 	}
@@ -1702,11 +1702,11 @@ void STableTreeView::SetSortModeForColumn(const FName& ColumnId, const EColumnSo
 	{
 		OnPreAsyncUpdate();
 
-		FGraphEventRef SortingCompletedEvent = TGraphTask<FTableTreeViewSortAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(SharedThis(this));
+		FGraphEventRef SortingCompletedEvent = TGraphTask<FTableTreeViewSortAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(this);
 
-		FGraphEventArray Prerequistes;
-		Prerequistes.Add(SortingCompletedEvent);
-		FGraphEventRef FilteringCompletedEvent = TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask(&Prerequistes).ConstructAndDispatchWhenReady(SharedThis(this));
+		FGraphEventArray Prerequisites;
+		Prerequisites.Add(SortingCompletedEvent);
+		FGraphEventRef FilteringCompletedEvent = TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this);
 
 		PendingAsyncOperationEvent = FilteringCompletedEvent;
 	}
@@ -2077,6 +2077,18 @@ void STableTreeView::OnPostAsyncUpdate()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::OnClose()
+{
+	if (bIsUpdateRunning && PendingAsyncOperationEvent.IsValid() && !PendingAsyncOperationEvent->IsComplete())
+	{
+		bIsCloseScheduled = true;
+
+		FGraphEventArray Prerequisites;
+		Prerequisites.Add(PendingAsyncOperationEvent);
+		TGraphTask<FTableTreeViewAsyncCompleteTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(SharedThis(this));
+	}
+}
 
 } // namespace Insights
 

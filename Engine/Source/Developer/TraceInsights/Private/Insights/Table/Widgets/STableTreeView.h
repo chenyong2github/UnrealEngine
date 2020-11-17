@@ -93,6 +93,8 @@ public:
 	void SelectNodeByTableRowIndex(int32 RowIndex);
 	bool IsRunningAsyncUpdate() { return bIsUpdateRunning;  }
 
+	void OnClose();
+
 protected:
 	void ConstructWidget(TSharedPtr<FTable> InTablePtr);
 	void UpdateTree();
@@ -358,6 +360,7 @@ protected:
 	FGraphEventRef PendingAsyncOperationEvent;;
 	bool bIsUpdateRunning = false;
 	TArray<FTableTreeNodePtr> DummyGroupNodes;
+	bool bIsCloseScheduled = false;
 
 	//////////////////////////////////////////////////
 
@@ -370,7 +373,7 @@ protected:
 class FTableTreeViewFilterAsyncTask
 {
 public:
-	FTableTreeViewFilterAsyncTask(TSharedPtr<STableTreeView> InPtr)
+	FTableTreeViewFilterAsyncTask(STableTreeView* InPtr)
 	{
 		TableTreeViewPtr = InPtr;
 	}
@@ -381,14 +384,14 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		if (TableTreeViewPtr.IsValid())
+		if (TableTreeViewPtr)
 		{
 			TableTreeViewPtr->ApplyFiltering();
 		}
 	}
 
 private:
-	TSharedPtr<STableTreeView> TableTreeViewPtr;
+	STableTreeView* TableTreeViewPtr = nullptr;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -396,7 +399,7 @@ private:
 class FTableTreeViewSortAsyncTask
 {
 public:
-	FTableTreeViewSortAsyncTask(TSharedPtr<STableTreeView> InPtr)
+	FTableTreeViewSortAsyncTask(STableTreeView* InPtr)
 	{
 		TableTreeViewPtr = InPtr;
 	}
@@ -407,14 +410,14 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		if (TableTreeViewPtr.IsValid())
+		if (TableTreeViewPtr)
 		{
 			TableTreeViewPtr->SortTreeNodes();
 		}
 	}
 
 private:
-	TSharedPtr<STableTreeView> TableTreeViewPtr;
+	STableTreeView* TableTreeViewPtr = nullptr;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -422,7 +425,7 @@ private:
 class FTableTreeViewGroupAsyncTask
 {
 public:
-	FTableTreeViewGroupAsyncTask(TSharedPtr<STableTreeView> InPtr)
+	FTableTreeViewGroupAsyncTask(STableTreeView* InPtr)
 	{
 		TableTreeViewPtr = InPtr;
 	}
@@ -433,9 +436,36 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		if (TableTreeViewPtr.IsValid())
+		if (TableTreeViewPtr)
 		{
 			TableTreeViewPtr->CreateGroups();
+		}
+	}
+
+private:
+	STableTreeView* TableTreeViewPtr = nullptr;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FTableTreeViewAsyncCompleteTask
+{
+public:
+	FTableTreeViewAsyncCompleteTask(TSharedPtr<STableTreeView> InPtr)
+	{
+		TableTreeViewPtr = InPtr;
+	}
+
+	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FTableTreeViewAsyncCompleteTask, STATGROUP_TaskGraphTasks); }
+	ENamedThreads::Type GetDesiredThread() { return ENamedThreads::Type::GameThread; }
+	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		// The role of this task is to keep the STableTreeView object alive until the task and it's prerequisits are completed and to destroy it on the game thread.
+		if (TableTreeViewPtr.IsValid())
+		{
+			TableTreeViewPtr.Reset();
 		}
 	}
 

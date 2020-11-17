@@ -341,6 +341,7 @@ void SMemoryProfilerWindow::OnMemAllocTableTreeViewTabClosed(TSharedRef<SDockTab
 
 	//FMemoryProfilerManager::Get()->SetMemAllocTableTreeViewVisible(MemAllocTableTreeView->GetTabIndex(), false);
 
+	MemAllocTableTreeView->OnClose();
 	MemAllocTableTreeViews.Remove(MemAllocTableTreeView);
 }
 
