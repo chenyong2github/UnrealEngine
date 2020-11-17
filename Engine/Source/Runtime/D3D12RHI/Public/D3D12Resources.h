@@ -812,12 +812,23 @@ inline void FD3D12BaseShaderResourceView::Remove()
 	}
 }
 
-/** Updates tracked stats for a buffer. */
-#define D3D12_BUFFER_TYPE_CONSTANT   1
-#define D3D12_BUFFER_TYPE_INDEX      2
-#define D3D12_BUFFER_TYPE_VERTEX     3
-#define D3D12_BUFFER_TYPE_STRUCTURED 4
-extern void UpdateBufferStats(FD3D12ResourceLocation* ResourceLocation, bool bAllocating, uint32 BufferType);
+extern void UpdateBufferStats(FName Name, int64 RequestedSize);
+
+inline FName GetBufferStats(uint32 Usage)
+{
+	if (Usage & BUF_VertexBuffer)
+	{
+		return GET_STATFNAME(STAT_VertexBufferMemory);
+	}
+	else if (Usage & BUF_IndexBuffer)
+	{
+		return GET_STATFNAME(STAT_IndexBufferMemory);
+	}
+	else
+	{
+		return GET_STATFNAME(STAT_StructuredBufferMemory);
+	}
+}
 
 /** Uniform buffer resource class. */
 class FD3D12UniformBuffer : public FRHIUniformBuffer, public FD3D12DeviceChild, public FD3D12LinkedAdapterObject<FD3D12UniformBuffer>
@@ -868,153 +879,54 @@ public:
 };
 #endif
 
-class FD3D12Buffer : public FD3D12BaseShaderResource, public FD3D12TransientResource, public FD3D12LinkedAdapterObject<FD3D12Buffer>
+class FD3D12Buffer : public FRHIBuffer, public FD3D12BaseShaderResource, public FD3D12TransientResource, public FD3D12LinkedAdapterObject<FD3D12Buffer>
 {
 public:
-	FD3D12Buffer(FD3D12Device* InParent)
-		: FD3D12BaseShaderResource(InParent)
+	FD3D12Buffer()
+		: FRHIBuffer(0, 0, 0)
+		, FD3D12BaseShaderResource(nullptr)
+		, LockedData(nullptr)
+	{
+	}
+
+	FD3D12Buffer(FD3D12Device* InParent, uint32 InSize, uint32 InUsage, uint32 InStride)
+		: FRHIBuffer(InSize, InUsage, InStride)
+		, FD3D12BaseShaderResource(InParent)
 		, LockedData(InParent)
 	{
 	}
 	virtual ~FD3D12Buffer()
 	{
+		int64 BufferSize = ResourceLocation.GetSize();
+		UpdateBufferStats(GetBufferStats(GetUsage()), -BufferSize);
 	}
 
 	void Rename(FD3D12ResourceLocation& NewLocation);
 	void RenameLDAChain(FD3D12ResourceLocation& NewLocation);
 
+	void Swap(FD3D12Buffer& Other);
+
 	void ReleaseUnderlyingResource();
+
+	// IRefCountedObject interface.
+	virtual uint32 AddRef() const
+	{
+		return FRHIResource::AddRef();
+	}
+	virtual uint32 Release() const
+	{
+		return FRHIResource::Release();
+	}
+	virtual uint32 GetRefCount() const
+	{
+		return FRHIResource::GetRefCount();
+	}
+
 
 	FD3D12LockedResource LockedData;
 };
 
-/** Index buffer resource class that stores stride information. */
-class FD3D12IndexBuffer : public FRHIIndexBuffer, public FD3D12Buffer
-{
-public:
-	FD3D12IndexBuffer()
-		: FD3D12Buffer(nullptr)
-	{
-	}
-
-	FD3D12IndexBuffer(FD3D12Device* InParent, uint32 InStride, uint32 InSize, uint32 InUsage)
-		: FRHIIndexBuffer(InStride, InSize, InUsage)
-		, FD3D12Buffer(InParent)
-	{
-	}
-
-	virtual ~FD3D12IndexBuffer();
-
-	void Swap(FD3D12IndexBuffer& Other);
-
-	void ReleaseUnderlyingResource();
-
-	// IRefCountedObject interface.
-	virtual uint32 AddRef() const
-	{
-		return FRHIResource::AddRef();
-	}
-	virtual uint32 Release() const
-	{
-		return FRHIResource::Release();
-	}
-	virtual uint32 GetRefCount() const
-	{
-		return FRHIResource::GetRefCount();
-	}
-};
-
 class FD3D12ShaderResourceView;
-
-/** Structured buffer resource class. */
-class FD3D12StructuredBuffer : public FRHIStructuredBuffer, public FD3D12Buffer
-{
-public:
-	FD3D12StructuredBuffer(FD3D12Device* InParent, uint32 InStride, uint32 InSize, uint32 InUsage)
-		: FRHIStructuredBuffer(InStride, InSize, InUsage)
-		, FD3D12Buffer(InParent)
-	{
-	}
-
-	virtual ~FD3D12StructuredBuffer();
-
-	// IRefCountedObject interface.
-	virtual uint32 AddRef() const
-	{
-		return FRHIResource::AddRef();
-	}
-	virtual uint32 Release() const
-	{
-		return FRHIResource::Release();
-	}
-	virtual uint32 GetRefCount() const
-	{
-		return FRHIResource::GetRefCount();
-	}
-};
-
-/** Vertex buffer resource class. */
-class FD3D12VertexBuffer : public FRHIVertexBuffer, public FD3D12Buffer
-{
-public:
-	FD3D12VertexBuffer()
-		: FD3D12Buffer(nullptr)
-	{}
-
-	FD3D12VertexBuffer(FD3D12Device* InParent, uint32 InStride, uint32 InSize, uint32 InUsage)
-		: FRHIVertexBuffer(InSize, InUsage)
-		, FD3D12Buffer(InParent)
-	{
-		UNREFERENCED_PARAMETER(InStride);
-	}
-
-	virtual ~FD3D12VertexBuffer();
-
-	void Swap(FD3D12VertexBuffer& Other);
-
-	void ReleaseUnderlyingResource();
-
-	// IRefCountedObject interface.
-	virtual uint32 AddRef() const
-	{
-		return FRHIResource::AddRef();
-	}
-	virtual uint32 Release() const
-	{
-		return FRHIResource::Release();
-	}
-	virtual uint32 GetRefCount() const
-	{
-		return FRHIResource::GetRefCount();
-	}
-};
-
-template<class BufferType>
-inline void UpdateBufferStats(FD3D12ResourceLocation* ResourceLocation, bool bAllocating);
-
-template<>
-inline void UpdateBufferStats<FD3D12UniformBuffer>(FD3D12ResourceLocation* ResourceLocation, bool bAllocating)
-{
-	UpdateBufferStats(ResourceLocation, bAllocating, D3D12_BUFFER_TYPE_CONSTANT);
-}
-
-template<>
-inline void UpdateBufferStats<FD3D12VertexBuffer>(FD3D12ResourceLocation* ResourceLocation, bool bAllocating)
-{
-	UpdateBufferStats(ResourceLocation, bAllocating, D3D12_BUFFER_TYPE_VERTEX);
-}
-
-template<>
-inline void UpdateBufferStats<FD3D12IndexBuffer>(FD3D12ResourceLocation* ResourceLocation, bool bAllocating)
-{
-	UpdateBufferStats(ResourceLocation, bAllocating, D3D12_BUFFER_TYPE_INDEX);
-}
-
-template<>
-inline void UpdateBufferStats<FD3D12StructuredBuffer>(FD3D12ResourceLocation* ResourceLocation, bool bAllocating)
-{
-	UpdateBufferStats(ResourceLocation, bAllocating, D3D12_BUFFER_TYPE_STRUCTURED);
-}
 
 class FD3D12ResourceBarrierBatcher : public FNoncopyable
 {
@@ -1180,19 +1092,9 @@ struct TD3D12ResourceTraits<FRHIUniformBuffer>
 	typedef FD3D12UniformBuffer TConcreteType;
 };
 template<>
-struct TD3D12ResourceTraits<FRHIIndexBuffer>
+struct TD3D12ResourceTraits<FRHIBuffer>
 {
-	typedef FD3D12IndexBuffer TConcreteType;
-};
-template<>
-struct TD3D12ResourceTraits<FRHIStructuredBuffer>
-{
-	typedef FD3D12StructuredBuffer TConcreteType;
-};
-template<>
-struct TD3D12ResourceTraits<FRHIVertexBuffer>
-{
-	typedef FD3D12VertexBuffer TConcreteType;
+	typedef FD3D12Buffer TConcreteType;
 };
 template<>
 struct TD3D12ResourceTraits<FRHISamplerState>

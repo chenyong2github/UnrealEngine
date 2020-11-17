@@ -453,42 +453,32 @@ public:
 		return UAV;
 	}
 
-	/** Creates an unordered access view of the given vertex buffer. */
+	/** Creates an unordered access view of the given buffer. */
 	// FlushType: Wait RHI Thread
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIVertexBuffer* VertexBuffer, uint8 Format) override final
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIBuffer* Buffer, uint8 Format) override final
 	{
 		check(IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5));
-		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessView(VertexBuffer, Format);
-		UAV->ViewIdentity = VertexBuffer->GetWholeResourceIdentity();
+		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessView(Buffer, Format);
+		UAV->ViewIdentity = Buffer->GetWholeResourceIdentity();
 		return UAV;
 	}
 
-	/** Creates an unordered access view of the given index buffer. */
+	/** Creates a shader resource view of the given buffer. */
 	// FlushType: Wait RHI Thread
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIIndexBuffer* IndexBuffer, uint8 Format) override final
-	{
-		check(IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5));
-		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessView(IndexBuffer, Format);
-		UAV->ViewIdentity = IndexBuffer->GetWholeResourceIdentity();
-		return UAV;
-	}
-
-	/** Creates a shader resource view of the given structured buffer. */
-	// FlushType: Wait RHI Thread
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIStructuredBuffer* StructuredBuffer) override final
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIBuffer* Buffer) override final
 	{
 		check(RHISupportsComputeShaders(GMaxRHIShaderPlatform));
-		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView(StructuredBuffer);
-		SRV->ViewIdentity = StructuredBuffer->GetWholeResourceIdentity();
+		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView(Buffer);
+		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
 		return SRV;
 	}
 
-	/** Creates a shader resource view of the given vertex buffer. */
+	/** Creates a shader resource view of the given buffer. */
 	// FlushType: Wait RHI Thread
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format) override final
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIBuffer* Buffer, uint32 Stride, uint8 Format) override final
 	{
-		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView(VertexBuffer, Stride, Format);
-		SRV->ViewIdentity = VertexBuffer->GetWholeResourceIdentity();
+		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView(Buffer, Stride, Format);
+		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
 		return SRV;
 	}
 
@@ -498,15 +488,6 @@ public:
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer) override final
 	{
 		return RHI->RHICreateShaderResourceView(Initializer);
-	}
-
-	/** Creates a shader resource view of the given index buffer. */
-	// FlushType: Wait RHI Thread
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIIndexBuffer* Buffer) override final
-	{
-		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView(Buffer);
-		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
-		return SRV;
 	}
 
 	// Must be called on RHI thread timeline
@@ -1409,22 +1390,7 @@ public:
 	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer) override final
 	{
 		FShaderResourceViewRHIRef SRV = RHI->CreateShaderResourceView_RenderThread(RHICmdList, Initializer);
-
-		switch (Initializer.GetType())
-		{
-		default: checkNoEntry(); // fallthrough
-
-		case FShaderResourceViewInitializer::EType::IndexBufferSRV:
-			SRV->ViewIdentity = Initializer.AsIndexBufferSRV().IndexBuffer->GetWholeResourceIdentity();
-			break;
-
-		case FShaderResourceViewInitializer::EType::StructuredBufferSRV:
-			SRV->ViewIdentity = Initializer.AsStructuredBufferSRV().StructuredBuffer->GetWholeResourceIdentity();
-			break;
-
-		case FShaderResourceViewInitializer::EType::VertexBufferSRV:
-			SRV->ViewIdentity = Initializer.AsVertexBufferSRV().VertexBuffer->GetWholeResourceIdentity();
-		}
+		SRV->ViewIdentity = Initializer.AsBufferSRV().Buffer->GetWholeResourceIdentity();
 
 		return SRV;
 	}
@@ -1596,11 +1562,11 @@ public:
 		return Texture3D;
 	}
 
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBuffer, bool bUseUAVCounter, bool bAppendBuffer) override final
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer) override final
 	{
 		check(IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5));
-		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessView_RenderThread(RHICmdList, StructuredBuffer, bUseUAVCounter, bAppendBuffer);
-		UAV->ViewIdentity = StructuredBuffer->GetWholeResourceIdentity();
+		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessView_RenderThread(RHICmdList, Buffer, bUseUAVCounter, bAppendBuffer);
+		UAV->ViewIdentity = Buffer->GetWholeResourceIdentity();
 		return UAV;
 	}
 
@@ -1612,19 +1578,11 @@ public:
 		return UAV;
 	}
 
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint8 Format) override final
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint8 Format) override final
 	{
 		check(IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5));
-		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessView_RenderThread(RHICmdList, VertexBuffer, Format);
-		UAV->ViewIdentity = VertexBuffer->GetWholeResourceIdentity();
-		return UAV;
-	}
-
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBuffer, uint8 Format) override final
-	{
-		check(IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5));
-		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessView_RenderThread(RHICmdList, IndexBuffer, Format);
-		UAV->ViewIdentity = IndexBuffer->GetWholeResourceIdentity();
+		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessView_RenderThread(RHICmdList, Buffer, Format);
+		UAV->ViewIdentity = Buffer->GetWholeResourceIdentity();
 		return UAV;
 	}
 
@@ -1635,25 +1593,17 @@ public:
 		return SRV;
 	}
 
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format) override final
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Stride, uint8 Format) override final
 	{
-		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, VertexBuffer, Stride, Format);
-		SRV->ViewIdentity = VertexBuffer->GetWholeResourceIdentity();
-		return SRV;
-	}
-
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* Buffer) override final
-	{
-		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, Buffer);
+		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, Buffer, Stride, Format);
 		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
 		return SRV;
 	}
 
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBuffer) override final
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer) override final
 	{
-		check(IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5));
-		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, StructuredBuffer);
-		SRV->ViewIdentity = StructuredBuffer->GetWholeResourceIdentity();
+		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, Buffer);
+		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
 		return SRV;
 	}
 
@@ -1724,16 +1674,6 @@ public:
 	}
 
 	virtual void RHIDiscardTransientResource_RenderThread(FRHIVertexBuffer* Buffer) override final
-	{
-		RHI->RHIDiscardTransientResource_RenderThread(Buffer);
-	}
-
-	virtual void RHIAcquireTransientResource_RenderThread(FRHIStructuredBuffer* Buffer) override final
-	{
-		RHI->RHIAcquireTransientResource_RenderThread(Buffer);
-	}
-
-	virtual void RHIDiscardTransientResource_RenderThread(FRHIStructuredBuffer* Buffer) override final
 	{
 		RHI->RHIDiscardTransientResource_RenderThread(Buffer);
 	}

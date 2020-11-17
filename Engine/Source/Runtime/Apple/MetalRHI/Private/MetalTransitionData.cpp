@@ -94,33 +94,15 @@ void FMetalTransitionData::EndResourceTransitions() const
 		switch (Info.Type)
 		{
 			case FRHITransitionInfo::EType::UAV:
-			{
 				GetMetalDeviceContext().TransitionResource(Info.UAV);
-			}
 				break;
 
-			case FRHITransitionInfo::EType::VertexBuffer:
-			{
-				GetMetalDeviceContext().TransitionRHIResource(Info.VertexBuffer);
-			}
-				break;
-
-			case FRHITransitionInfo::EType::IndexBuffer:
-			{
-				GetMetalDeviceContext().TransitionRHIResource(Info.IndexBuffer);
-			}
-				break;
-
-			case FRHITransitionInfo::EType::StructuredBuffer:
-			{
-				GetMetalDeviceContext().TransitionRHIResource(Info.StructuredBuffer);
-			}
+			case FRHITransitionInfo::EType::Buffer:
+				GetMetalDeviceContext().TransitionRHIResource(Info.Buffer);
 				break;
 
 			case FRHITransitionInfo::EType::Texture:
-			{
 				GetMetalDeviceContext().TransitionResource(Info.Texture);
-			}
 				break;
 
 			default:

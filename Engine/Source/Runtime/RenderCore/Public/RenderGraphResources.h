@@ -969,9 +969,10 @@ struct FRDGBufferDesc
 		switch (Type)
 		{
 		default: checkNoEntry();
-		case EUnderlyingType::VertexBuffer: return FRHITransitionInfo::EType::VertexBuffer;
-		case EUnderlyingType::IndexBuffer: return FRHITransitionInfo::EType::IndexBuffer;
-		case EUnderlyingType::StructuredBuffer: return FRHITransitionInfo::EType::StructuredBuffer;
+		case EUnderlyingType::VertexBuffer:
+		case EUnderlyingType::IndexBuffer:
+		case EUnderlyingType::StructuredBuffer:
+			return FRHITransitionInfo::EType::Buffer;
 		}
 	}
 

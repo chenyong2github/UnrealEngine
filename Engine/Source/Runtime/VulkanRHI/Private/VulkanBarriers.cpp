@@ -143,7 +143,7 @@ static VkPipelineStageFlags GetVkStageFlagsForLayout(VkImageLayout Layout)
 //
 // Get the Vulkan stage flags, access flags and image layout (if relevant) corresponding to an ERHIAccess value from the public API.
 //
-static void GetVkStageAndAccessFlags(ERHIAccess RHIAccess, FRHITransitionInfo::EType ResourceType, bool bIsDepthStencil, VkPipelineStageFlags& StageFlags, VkAccessFlags& AccessFlags, VkImageLayout& Layout, bool bIsSourceState)
+static void GetVkStageAndAccessFlags(ERHIAccess RHIAccess, FRHITransitionInfo::EType ResourceType, uint32 UsageFlags, bool bIsDepthStencil, VkPipelineStageFlags& StageFlags, VkAccessFlags& AccessFlags, VkImageLayout& Layout, bool bIsSourceState)
 {
 	// From Vulkan's point of view, when performing a multisample resolve via a render pass attachment, resolve targets are the same as render targets .
 	// The caller signals this situation by setting both the RTV and ResolveDst flags, and we simply remove ResolveDst in that case,
@@ -232,11 +232,15 @@ static void GetVkStageAndAccessFlags(ERHIAccess RHIAccess, FRHITransitionInfo::E
 		StageFlags |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
 		switch (ResourceType)
 		{
-			case FRHITransitionInfo::EType::IndexBuffer:
-				AccessFlags |= VK_ACCESS_INDEX_READ_BIT;
-				break;
-			case FRHITransitionInfo::EType::VertexBuffer:
-				AccessFlags |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+			case FRHITransitionInfo::EType::Buffer:
+				if ((UsageFlags & VK_BUFFER_USAGE_INDEX_BUFFER_BIT) != 0)
+				{
+					AccessFlags |= VK_ACCESS_INDEX_READ_BIT;
+				}
+				if ((UsageFlags & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) != 0)
+				{
+					AccessFlags |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+				}
 				break;
 			default:
 				checkNoEntry();
@@ -569,22 +573,17 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipe
 		FVulkanResourceMultiBuffer* Buffer = nullptr;
 		FVulkanTextureBase* Texture = nullptr;
 		FRHITransitionInfo::EType UnderlyingType = Info.Type;
+		uint32 UsageFlags = 0;
+
 		switch (Info.Type)
 		{
 		case FRHITransitionInfo::EType::Texture:
 			Texture = FVulkanTextureBase::Cast(Info.Texture);
 			break;
 
-		case FRHITransitionInfo::EType::VertexBuffer:
-			Buffer = ResourceCast(Info.VertexBuffer);
-			break;
-
-		case FRHITransitionInfo::EType::IndexBuffer:
-			Buffer = ResourceCast(Info.IndexBuffer);
-			break;
-
-		case FRHITransitionInfo::EType::StructuredBuffer:
-			Buffer = ResourceCast(Info.StructuredBuffer);
+		case FRHITransitionInfo::EType::Buffer:
+			Buffer = ResourceCast(Info.Buffer);
+			UsageFlags = Buffer->GetBufferUsageFlags();
 			break;
 
 		case FRHITransitionInfo::EType::UAV:
@@ -598,17 +597,17 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipe
 			else if (UAV->SourceIndexBuffer)
 			{
 				Buffer = UAV->SourceIndexBuffer;
-				UnderlyingType = FRHITransitionInfo::EType::IndexBuffer;
+				UnderlyingType = FRHITransitionInfo::EType::Buffer;
 			}
 			else if (UAV->SourceVertexBuffer)
 			{
 				Buffer = UAV->SourceVertexBuffer;
-				UnderlyingType = FRHITransitionInfo::EType::VertexBuffer;
+				UnderlyingType = FRHITransitionInfo::EType::Buffer;
 			}
 			else if (UAV->SourceStructuredBuffer)
 			{
 				Buffer = UAV->SourceStructuredBuffer;
-				UnderlyingType = FRHITransitionInfo::EType::StructuredBuffer;
+				UnderlyingType = FRHITransitionInfo::EType::Buffer;
 			}
 			else
 			{
@@ -679,8 +678,8 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipe
 		}
 		else
 		{
-			GetVkStageAndAccessFlags(Info.AccessBefore, UnderlyingType, bIsDepthStencil, SrcStageMask, SrcAccessFlags, SrcLayout, true);
-			GetVkStageAndAccessFlags(Info.AccessAfter, UnderlyingType, bIsDepthStencil, DstStageMask, DstAccessFlags, DstLayout, false);
+			GetVkStageAndAccessFlags(Info.AccessBefore, UnderlyingType, UsageFlags, bIsDepthStencil, SrcStageMask, SrcAccessFlags, SrcLayout, true);
+			GetVkStageAndAccessFlags(Info.AccessAfter, UnderlyingType, UsageFlags, bIsDepthStencil, DstStageMask, DstAccessFlags, DstLayout, false);
 		}
 
 		// In case of async compute, override the stage and access flags computed above, since only the compute shader stage is relevant.
@@ -1216,8 +1215,8 @@ void FVulkanPipelineBarrier::AddImageAccessTransition(const FVulkanSurface& Surf
 	VkPipelineStageFlags ImgSrcStage, ImgDstStage;
 	VkAccessFlags SrcAccessFlags, DstAccessFlags;
 	VkImageLayout SrcLayout, DstLayout;
-	GetVkStageAndAccessFlags(SrcAccess, FRHITransitionInfo::EType::Texture, bIsDepthStencil, ImgSrcStage, SrcAccessFlags, SrcLayout, true);
-	GetVkStageAndAccessFlags(DstAccess, FRHITransitionInfo::EType::Texture, bIsDepthStencil, ImgDstStage, DstAccessFlags, DstLayout, false);
+	GetVkStageAndAccessFlags(SrcAccess, FRHITransitionInfo::EType::Texture, 0, bIsDepthStencil, ImgSrcStage, SrcAccessFlags, SrcLayout, true);
+	GetVkStageAndAccessFlags(DstAccess, FRHITransitionInfo::EType::Texture, 0, bIsDepthStencil, ImgDstStage, DstAccessFlags, DstLayout, false);
 
 	SrcStageMask |= ImgSrcStage;
 	DstStageMask |= ImgDstStage;

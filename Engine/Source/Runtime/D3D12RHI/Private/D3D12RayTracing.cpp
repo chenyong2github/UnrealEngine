@@ -1379,7 +1379,7 @@ public:
 		CreateInfo.ResourceArray = &Data;
 		CreateInfo.GPUMask = FRHIGPUMask::FromIndex(Device->GetGPUIndex());
 
-		Buffer = Adapter->CreateRHIBuffer<FD3D12MemBuffer>(
+		Buffer = Adapter->CreateRHIBuffer(
 			nullptr, BufferDesc, BufferDesc.Alignment,
 			0, BufferDesc.Width, BUF_Static, ED3D12ResourceStateMode::SingleState, CreateInfo);
 
@@ -1459,7 +1459,7 @@ public:
 	TResourceArray<uint8, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT> Data;
 
 	bool bIsDirty = true;
-	TRefCountPtr<FD3D12MemBuffer> Buffer;
+	TRefCountPtr<FD3D12Buffer> Buffer;
 
 	// SBTs have their own descriptor heaps
 	FD3D12RayTracingDescriptorCache* DescriptorCache = nullptr;
@@ -2291,7 +2291,7 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(const FRayTracingGeometryInit
 
 FD3D12RayTracingGeometry::~FD3D12RayTracingGeometry()
 {
-	for (TRefCountPtr<FD3D12MemBuffer>& Buffer : AccelerationStructureBuffers)
+	for (TRefCountPtr<FD3D12Buffer>& Buffer : AccelerationStructureBuffers)
 	{
 		if (Buffer)
 		{
@@ -2300,7 +2300,7 @@ FD3D12RayTracingGeometry::~FD3D12RayTracingGeometry()
 		}
 	}
 
-	for (TRefCountPtr<FD3D12MemBuffer>& Buffer : ScratchBuffers)
+	for (TRefCountPtr<FD3D12Buffer>& Buffer : ScratchBuffers)
 	{
 		if (Buffer)
 		{
@@ -2337,8 +2337,8 @@ void FD3D12RayTracingGeometry::TransitionBuffers(FD3D12CommandContext& CommandCo
 }
 
 static void CreateAccelerationStructureBuffers(
-	TRefCountPtr<FD3D12MemBuffer>& AccelerationStructureBuffer,
-	TRefCountPtr<FD3D12MemBuffer>&  ScratchBuffer,
+	TRefCountPtr<FD3D12Buffer>& AccelerationStructureBuffer,
+	TRefCountPtr<FD3D12Buffer>&  ScratchBuffer,
 	FD3D12Adapter* Adapter, uint32 GPUIndex,
 	const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO& PrebuildInfo,
 	const TCHAR* DebugName)
@@ -2350,7 +2350,7 @@ static void CreateAccelerationStructureBuffers(
 
 	CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
 	CreateInfo.DebugName = DebugName;
-	AccelerationStructureBuffer = Adapter->CreateRHIBuffer<FD3D12MemBuffer>(
+	AccelerationStructureBuffer = Adapter->CreateRHIBuffer(
 		nullptr, AccelerationStructureBufferDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT,
 		0, AccelerationStructureBufferDesc.Width, BUF_AccelerationStructure, ED3D12ResourceStateMode::SingleState, CreateInfo);
 
@@ -2362,7 +2362,7 @@ static void CreateAccelerationStructureBuffers(
 
 	CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
 	CreateInfo.DebugName = TEXT("ScratchBuffer");
-	ScratchBuffer = Adapter->CreateRHIBuffer<FD3D12MemBuffer>(
+	ScratchBuffer = Adapter->CreateRHIBuffer(
 		nullptr, ScratchBufferDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT,
 		0, ScratchBufferDesc.Width, BUF_UnorderedAccess, ED3D12ResourceStateMode::SingleState, CreateInfo);
 
@@ -2561,7 +2561,7 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 
 		CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
 		CreateInfo.DebugName = TEXT("PostBuildInfoBuffer");
-		PostBuildInfoBuffers[GPUIndex] = Adapter->CreateRHIBuffer<FD3D12MemBuffer>(
+		PostBuildInfoBuffers[GPUIndex] = Adapter->CreateRHIBuffer(
 			nullptr, PostBuildInfoBufferDesc, 8,
 			0, PostBuildInfoBufferDesc.Width, BUF_UnorderedAccess | BUF_SourceCopy, ED3D12ResourceStateMode::MultiState, CreateInfo);
 
@@ -2686,7 +2686,7 @@ void FD3D12RayTracingGeometry::ConditionalCompactAccelerationStructure(FD3D12Com
 	DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingBLASMemory, AccelerationStructureBuffers[GPUIndex]->GetSize());
 
 	// Move old AS into this temporary variable which gets released when this function returns
-	TRefCountPtr<FD3D12MemBuffer> OldAccelerationStructure = MoveTemp(AccelerationStructureBuffers[GPUIndex]);
+	TRefCountPtr<FD3D12Buffer> OldAccelerationStructure = MoveTemp(AccelerationStructureBuffers[GPUIndex]);
 
 	{
 		FRHIResourceCreateInfo CreateInfo;
@@ -2695,7 +2695,7 @@ void FD3D12RayTracingGeometry::ConditionalCompactAccelerationStructure(FD3D12Com
 
 		CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
 		CreateInfo.DebugName = TEXT("AccelerationStructureBuffer");
-		AccelerationStructureBuffers[GPUIndex] = Adapter->CreateRHIBuffer<FD3D12MemBuffer>(
+		AccelerationStructureBuffers[GPUIndex] = Adapter->CreateRHIBuffer(
 			nullptr, AccelerationStructureBufferDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT,
 			0, AccelerationStructureBufferDesc.Width, BUF_AccelerationStructure, ED3D12ResourceStateMode::SingleState, CreateInfo);
 
@@ -2790,8 +2790,8 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 	TRACE_CPUPROFILER_EVENT_SCOPE(BuildAccelerationStructure_TopLevel);
 	SCOPE_CYCLE_COUNTER(STAT_D3D12BuildTLAS);
 
-	TRefCountPtr<FD3D12StructuredBuffer> InstanceBuffer;
-	TRefCountPtr<FD3D12MemBuffer> ScratchBuffer;
+	TRefCountPtr<FD3D12Buffer> InstanceBuffer;
+	TRefCountPtr<FD3D12Buffer> ScratchBuffer;
 
 	const uint32 GPUIndex = CommandContext.GetGPUIndex();
 	FD3D12Adapter* Adapter = CommandContext.GetParentAdapter();
@@ -2818,7 +2818,7 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 	RayTracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&PrebuildDescInputs, &PrebuildInfo);
 
-	TRefCountPtr<FD3D12MemBuffer>& AccelerationStructureBuffer = AccelerationStructureBuffers[GPUIndex];
+	TRefCountPtr<FD3D12Buffer>& AccelerationStructureBuffer = AccelerationStructureBuffers[GPUIndex];
 
 	CreateAccelerationStructureBuffers(
 		AccelerationStructureBuffer,
@@ -2865,7 +2865,7 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 		// #dxr_todo multi state only when bShouldCopyIndirectInstances is set - will still need transition to copy_src for lock behind but this can be done on the complete pool in theory (have to check cost)
-		InstanceBuffer = Adapter->CreateRHIBuffer<FD3D12StructuredBuffer>(
+		InstanceBuffer = Adapter->CreateRHIBuffer(
 			nullptr, InstanceBufferDesc, D3D12_RAYTRACING_INSTANCE_DESCS_BYTE_ALIGNMENT,
 			sizeof(D3D12_RAYTRACING_INSTANCE_DESC), InstanceBufferDesc.Width, BUF_UnorderedAccess, ED3D12ResourceStateMode::MultiState, CreateInfo);
 

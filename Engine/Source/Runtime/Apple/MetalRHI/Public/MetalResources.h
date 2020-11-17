@@ -392,6 +392,10 @@ enum EMetalBufferUsage
 {
 	EMetalBufferUsage_GPUOnly = 0x80000000,
 	EMetalBufferUsage_LinearTex = 0x40000000,
+
+	EMetalBufferUsageMask	= 0xF,
+	EMetalBufferUsageShift	= 0x1C,
+	EMetalBufferUsageFlags	= (EMetalBufferUsageMask << EMetalBufferUsageShift)
 };
 
 class FMetalLinearTextureDescriptor
@@ -582,43 +586,21 @@ private:
 	void AllocLinearTextures(const LinearTextureMapKey& InLinearTextureMapKey);
 };
 
-/** Index buffer resource class that stores stride information. */
-class FMetalIndexBuffer : public FRHIIndexBuffer, public FMetalRHIBuffer
+class FMetalResourceMultiBuffer : public FRHIBuffer, public FMetalRHIBuffer
 {
 public:
-	
-	/** Constructor */
-	FMetalIndexBuffer(uint32 InStride, uint32 InSize, uint32 InUsage);
-	virtual ~FMetalIndexBuffer();
-	
-	void Swap(FMetalIndexBuffer& Other);
-	
-	// 16- or 32-bit
+	FMetalResourceMultiBuffer(uint32 InSize, uint32 InUsage, uint32 InStride, FResourceArrayInterface* ResourceArray, ERHIResourceType ResourceType);
+	virtual ~FMetalResourceMultiBuffer();
+
+	void Swap(FMetalResourceMultiBuffer& Other);
+
+	// 16- or 32-bit; used for index buffers only.
 	mtlpp::IndexType IndexType;
 };
 
-/** Vertex buffer resource class that stores usage type. */
-class FMetalVertexBuffer : public FRHIVertexBuffer, public FMetalRHIBuffer
-{
-public:
-
-	/** Constructor */
-	FMetalVertexBuffer(uint32 InSize, uint32 InUsage);
-	virtual ~FMetalVertexBuffer();
-
-	void Swap(FMetalVertexBuffer& Other);
-};
-
-class FMetalStructuredBuffer : public FRHIStructuredBuffer, public FMetalRHIBuffer
-{
-public:
-	// Constructor
-	FMetalStructuredBuffer(uint32 Stride, uint32 Size, FResourceArrayInterface* ResourceArray, uint32 InUsage);
-
-	// Destructor
-	~FMetalStructuredBuffer();
-};
-
+typedef FMetalResourceMultiBuffer FMetalIndexBuffer;
+typedef FMetalResourceMultiBuffer FMetalVertexBuffer;
+typedef FMetalResourceMultiBuffer FMetalStructuredBuffer;
 
 class FMetalShaderResourceView : public FRHIShaderResourceView
 {
@@ -777,19 +759,9 @@ struct TMetalResourceTraits<FRHIUniformBuffer>
 	typedef FMetalSuballocatedUniformBuffer TConcreteType;
 };
 template<>
-struct TMetalResourceTraits<FRHIIndexBuffer>
+struct TMetalResourceTraits<FRHIBuffer>
 {
-	typedef FMetalIndexBuffer TConcreteType;
-};
-template<>
-struct TMetalResourceTraits<FRHIStructuredBuffer>
-{
-	typedef FMetalStructuredBuffer TConcreteType;
-};
-template<>
-struct TMetalResourceTraits<FRHIVertexBuffer>
-{
-	typedef FMetalVertexBuffer TConcreteType;
+	typedef FMetalResourceMultiBuffer TConcreteType;
 };
 template<>
 struct TMetalResourceTraits<FRHIShaderResourceView>

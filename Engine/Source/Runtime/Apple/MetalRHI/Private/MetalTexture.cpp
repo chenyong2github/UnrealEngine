@@ -2541,22 +2541,12 @@ void FMetalDynamicRHI::RHIDiscardTransientResource_RenderThread(FRHITexture* Tex
 	}
 }
 
-void FMetalDynamicRHI::RHIAcquireTransientResource_RenderThread(FRHIVertexBuffer* Buffer)
+void FMetalDynamicRHI::RHIAcquireTransientResource_RenderThread(FRHIBuffer* Buffer)
 {
 	// This is a no-op for the Metal RHI.
 }
 
-void FMetalDynamicRHI::RHIDiscardTransientResource_RenderThread(FRHIVertexBuffer* Buffer)
-{
-	// This is a no-op for the Metal RHI.
-}
-
-void FMetalDynamicRHI::RHIAcquireTransientResource_RenderThread(FRHIStructuredBuffer* Buffer)
-{
-	// This is a no-op for the Metal RHI.
-}
-
-void FMetalDynamicRHI::RHIDiscardTransientResource_RenderThread(FRHIStructuredBuffer* Buffer)
+void FMetalDynamicRHI::RHIDiscardTransientResource_RenderThread(FRHIBuffer* Buffer)
 {
 	// This is a no-op for the Metal RHI.
 }

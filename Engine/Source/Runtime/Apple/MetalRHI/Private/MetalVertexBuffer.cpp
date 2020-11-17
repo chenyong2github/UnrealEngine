@@ -81,21 +81,9 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalBufferData)
 }
 @end
 
-
-FMetalVertexBuffer::FMetalVertexBuffer(uint32 InSize, uint32 InUsage)
-	: FRHIVertexBuffer(InSize, InUsage)
-	, FMetalRHIBuffer(InSize, InUsage|EMetalBufferUsage_LinearTex, RRT_VertexBuffer)
+static uint32 MetalVertexBufferUsage(uint32 InUsage)
 {
-}
-
-FMetalVertexBuffer::~FMetalVertexBuffer()
-{
-}
-
-void FMetalVertexBuffer::Swap(FMetalVertexBuffer& Other)
-{
-	FRHIVertexBuffer::Swap(Other);
-	FMetalRHIBuffer::Swap(Other);
+	return (InUsage | BUF_VertexBuffer | EMetalBufferUsage_LinearTex);
 }
 
 void FMetalRHIBuffer::Swap(FMetalRHIBuffer& Other)
@@ -688,17 +676,61 @@ void FMetalRHIBuffer::Unlock()
 	LastLockFrame = GetMetalDeviceContext().GetFrameNumberRHIThread();
 }
 
+FMetalResourceMultiBuffer::FMetalResourceMultiBuffer(uint32 InSize, uint32 InUsage, uint32 InStride, FResourceArrayInterface* ResourceArray, ERHIResourceType Type)
+	: FRHIBuffer(InSize, InUsage & ~EMetalBufferUsageFlags, InStride)
+	, FMetalRHIBuffer(InSize, InUsage, Type)
+	, IndexType((InStride == 2) ? mtlpp::IndexType::UInt16 : mtlpp::IndexType::UInt32)
+{
+	if (InUsage & BUF_IndexBuffer)
+	{
+		if (InSize)
+		{
+			if (RHISupportsTessellation(GMaxRHIShaderPlatform))
+			{
+				EPixelFormat Format = IndexType == mtlpp::IndexType::UInt16 ? PF_R16_UINT : PF_R32_UINT;
+				CreateLinearTexture(Format, this);
+			}
+		}
+	}
+	else if (InUsage & BUF_StructuredBuffer)
+	{
+		check((InSize % InStride) == 0);
+
+		if (ResourceArray)
+		{
+			// copy any resources to the CPU address
+			void* LockedMemory = RHILockStructuredBuffer(this, 0, InSize, RLM_WriteOnly);
+			FMemory::Memcpy(LockedMemory, ResourceArray->GetResourceData(), InSize);
+			ResourceArray->Discard();
+			RHIUnlockStructuredBuffer(this);
+		}
+	}
+}
+
+FMetalResourceMultiBuffer::~FMetalResourceMultiBuffer()
+{
+}
+
+void FMetalResourceMultiBuffer::Swap(FMetalResourceMultiBuffer& Other)
+{
+	@autoreleasepool {
+		FRHIBuffer::Swap(Other);
+		FMetalRHIBuffer::Swap(Other);
+		::Swap(IndexType, Other.IndexType);
+	}
+}
+
 FVertexBufferRHIRef FMetalDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	check(0);
 	@autoreleasepool {
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FMetalVertexBuffer(0, 0);
+		return new FMetalResourceMultiBuffer(0, MetalVertexBufferUsage(0), 0, nullptr, RRT_VertexBuffer);
 	}
 	
 	// make the RHI object, which will allocate memory
-	FMetalVertexBuffer* VertexBuffer = new FMetalVertexBuffer(Size, InUsage);
+	FMetalResourceMultiBuffer* VertexBuffer = new FMetalResourceMultiBuffer(Size, MetalVertexBufferUsage(InUsage), 0, nullptr, RRT_VertexBuffer);
 
 	if (CreateInfo.ResourceArray)
 	{
@@ -853,30 +885,14 @@ FVertexBufferRHIRef FMetalDynamicRHI::CreateVertexBuffer_RenderThread(class FRHI
 	@autoreleasepool {
 		if (CreateInfo.bWithoutNativeResource)
 		{
-			return new FMetalVertexBuffer(0, 0);
+			return new FMetalResourceMultiBuffer(0, MetalVertexBufferUsage(0), 0, nullptr, RRT_VertexBuffer);
 		}
 		
 		// make the RHI object, which will allocate memory
-		TRefCountPtr<FMetalVertexBuffer> VertexBuffer = new FMetalVertexBuffer(Size, InUsage);
+		TRefCountPtr<FMetalResourceMultiBuffer> VertexBuffer = new FMetalResourceMultiBuffer(Size, MetalVertexBufferUsage(InUsage), 0, nullptr, RRT_VertexBuffer);
 		
 		VertexBuffer->Init_RenderThread(RHICmdList, Size, InUsage, CreateInfo, VertexBuffer);
 		
 		return VertexBuffer.GetReference();
-	}
-}
-
-void FMetalDynamicRHI::RHITransferVertexBufferUnderlyingResource(FRHIVertexBuffer* DestVertexBuffer, FRHIVertexBuffer* SrcVertexBuffer)
-{
-	check(DestVertexBuffer);
-	FMetalVertexBuffer* Dest = ResourceCast(DestVertexBuffer);
-	if (!SrcVertexBuffer)
-	{
-		TRefCountPtr<FMetalVertexBuffer> DeletionProxy = new FMetalVertexBuffer(0, 0);
-		Dest->Swap(*DeletionProxy);
-	}
-	else
-	{
-		FMetalVertexBuffer* Src = ResourceCast(SrcVertexBuffer);
-		Dest->Swap(*Src);
 	}
 }

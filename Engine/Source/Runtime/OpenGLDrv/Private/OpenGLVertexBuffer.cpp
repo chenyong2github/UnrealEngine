@@ -129,7 +129,7 @@ void* GetAllocation( void* Target, uint32 Size, uint32 Offset, uint32 Alignment 
 	return nullptr;
 }
 
-bool RetireAllocation( FOpenGLVertexBuffer* Target)
+bool RetireAllocation( FOpenGLBuffer* Target)
 {
 	if (FOpenGL::SupportsBufferStorage() && OpenGLConsoleVariables::bUseStagingBuffer)
 	{
@@ -180,7 +180,7 @@ FVertexBufferRHIRef FOpenGLDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32
 {
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FOpenGLVertexBuffer();
+		return new FOpenGLBuffer();
 	}
 
 	const void *Data = NULL;
@@ -192,7 +192,7 @@ FVertexBufferRHIRef FOpenGLDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32
 		Data = CreateInfo.ResourceArray->GetResourceData();
 	}
 
-	TRefCountPtr<FOpenGLVertexBuffer> VertexBuffer = new FOpenGLVertexBuffer(0, Size, InUsage, Data);
+	TRefCountPtr<FOpenGLBuffer> VertexBuffer = new FOpenGLBuffer(GL_ARRAY_BUFFER, 0, Size, InUsage | BUF_VertexBuffer, Data);
 	
 	if (CreateInfo.ResourceArray)
 	{
@@ -208,7 +208,7 @@ void* FOpenGLDynamicRHI::LockVertexBuffer_BottomOfPipe(FRHICommandListImmediate&
 	RHITHREAD_GLCOMMAND_PROLOGUE();
 
 	VERIFY_GL_SCOPE();
-	FOpenGLVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
+	FOpenGLBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
 	if( !(FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) && VertexBuffer->GetUsage() & BUF_ZeroStride )
 	{
 		check( Offset + Size <= VertexBuffer->GetSize() );
@@ -235,7 +235,7 @@ void FOpenGLDynamicRHI::UnlockVertexBuffer_BottomOfPipe(FRHICommandListImmediate
 {
 	RHITHREAD_GLCOMMAND_PROLOGUE();
 	VERIFY_GL_SCOPE();
-	FOpenGLVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
+	FOpenGLBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
 	if( (FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) || !( VertexBuffer->GetUsage() & BUF_ZeroStride ) )
 	{
 		if (!RetireAllocation(VertexBuffer))
@@ -252,28 +252,11 @@ void FOpenGLDynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, F
 	RHICopyBufferRegion(DestBufferRHI, 0, SourceBufferRHI, 0, SourceBufferRHI->GetSize());
 }
 
-void FOpenGLDynamicRHI::RHITransferVertexBufferUnderlyingResource(FRHIVertexBuffer* DestVertexBuffer, FRHIVertexBuffer* SrcVertexBuffer)
-{
-	VERIFY_GL_SCOPE();
-	check(DestVertexBuffer);
-	FOpenGLVertexBuffer* Dest = ResourceCast(DestVertexBuffer);
-	if (!SrcVertexBuffer)
-	{
-		TRefCountPtr<FOpenGLVertexBuffer> Src = new FOpenGLVertexBuffer();
-		Dest->Swap(*Src);
-	}
-	else
-	{
-		FOpenGLVertexBuffer* Src = ResourceCast(SrcVertexBuffer);
-		Dest->Swap(*Src);
-	}
-}
-
 void FOpenGLDynamicRHI::RHICopyBufferRegion(FRHIVertexBuffer* DestBufferRHI, uint64 DstOffset, FRHIVertexBuffer* SourceBufferRHI, uint64 SrcOffset, uint64 NumBytes)
 {
 	VERIFY_GL_SCOPE();
-	FOpenGLVertexBuffer* SourceBuffer = ResourceCast(SourceBufferRHI);
-	FOpenGLVertexBuffer* DestBuffer = ResourceCast(DestBufferRHI);
+	FOpenGLBuffer* SourceBuffer = ResourceCast(SourceBufferRHI);
+	FOpenGLBuffer* DestBuffer = ResourceCast(DestBufferRHI);
 
 	glBindBuffer(GL_COPY_READ_BUFFER, SourceBuffer->Resource);
 	glBindBuffer(GL_COPY_WRITE_BUFFER, DestBuffer->Resource);

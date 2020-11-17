@@ -88,7 +88,7 @@ FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Conten
 		}
 	}
 
-	UpdateBufferStats<FD3D12UniformBuffer>(&UniformBufferOut->ResourceLocation, true);
+	UpdateBufferStats(GET_STATFNAME(STAT_UniformBufferMemory), UniformBufferOut->ResourceLocation.GetSize());
 
 	return UniformBufferOut;
 }
@@ -212,7 +212,8 @@ FD3D12UniformBuffer::~FD3D12UniformBuffer()
 {
 	check(!GRHISupportsRHIThread || IsInRenderingThread());
 
-	UpdateBufferStats<FD3D12UniformBuffer>(&ResourceLocation, false);
+	int64 BufferSize = ResourceLocation.GetSize();
+	UpdateBufferStats(GET_STATFNAME(STAT_UniformBufferMemory), -BufferSize);
 
 #if USE_STATIC_ROOT_SIGNATURE
 	delete View;

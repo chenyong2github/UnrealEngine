@@ -220,9 +220,9 @@ struct FRayTracingSceneInitializer
 
 struct FShaderResourceViewInitializer
 {
-	struct FVertexBufferShaderResourceViewInitializer
+	struct FBufferShaderResourceViewInitializer
 	{
-		FRHIVertexBuffer* VertexBuffer;
+		FRHIBuffer* Buffer;
 		uint32 StartOffsetBytes;
 		uint32 NumElements;
 		EPixelFormat Format;
@@ -233,55 +233,37 @@ struct FShaderResourceViewInitializer
 		}
 	};
 
-	RHI_API FShaderResourceViewInitializer(FRHIVertexBuffer* InVertexBuffer, EPixelFormat InFormat, uint32 InStartOffsetBytes, uint32 InNumElements);
-	RHI_API FShaderResourceViewInitializer(FRHIVertexBuffer* InVertexBuffer, EPixelFormat InFormat);
+	typedef FBufferShaderResourceViewInitializer FVertexBufferShaderResourceViewInitializer;
+	typedef FBufferShaderResourceViewInitializer FIndexBufferShaderResourceViewInitializer;
+	typedef FBufferShaderResourceViewInitializer FStructuredBufferShaderResourceViewInitializer;
+
+
+	RHI_API FShaderResourceViewInitializer(FRHIBuffer* InBuffer, EPixelFormat InFormat, uint32 InStartOffsetBytes, uint32 InNumElements);
+	RHI_API FShaderResourceViewInitializer(FRHIBuffer* InBuffer, EPixelFormat InFormat);
+	RHI_API FShaderResourceViewInitializer(FRHIBuffer* InBuffer, uint32 InStartOffsetBytes, uint32 InNumElements);
+	RHI_API FShaderResourceViewInitializer(FRHIBuffer* InBuffer);
 
 	const FVertexBufferShaderResourceViewInitializer& AsVertexBufferSRV() const
 	{
 		check(Type == EType::VertexBufferSRV);
-		return VertexBufferInitializer;
+		return BufferInitializer;
 	}
-
-	struct FStructuredBufferShaderResourceViewInitializer
-	{
-		FRHIStructuredBuffer* StructuredBuffer;
-		uint32 StartOffsetBytes;
-		uint32 NumElements;
-
-		inline bool IsWholeResource() const 
-		{
-			return StartOffsetBytes == 0 && NumElements == UINT32_MAX;
-		}
-	};
-
-	RHI_API FShaderResourceViewInitializer(FRHIStructuredBuffer* InStructuredBuffer, uint32 InStartOffsetBytes, uint32 InNumElements);
-	RHI_API FShaderResourceViewInitializer(FRHIStructuredBuffer* InStructuredBuffer);
 
 	const FStructuredBufferShaderResourceViewInitializer& AsStructuredBufferSRV() const
 	{
 		check(Type == EType::StructuredBufferSRV);
-		return StructuredBufferInitializer;
+		return BufferInitializer;
 	}
-
-	struct FIndexBufferShaderResourceViewInitializer
-	{
-		FRHIIndexBuffer* IndexBuffer;
-		uint32 StartOffsetBytes;
-		uint32 NumElements;
-
-		inline bool IsWholeResource() const 
-		{ 
-			return StartOffsetBytes == 0 && NumElements == UINT32_MAX;
-		}
-	};
-
-	RHI_API FShaderResourceViewInitializer(FRHIIndexBuffer* InIndexBuffer, uint32 InStartOffsetBytes, uint32 InNumElements);
-	RHI_API FShaderResourceViewInitializer(FRHIIndexBuffer* InIndexBuffer);
 
 	const FIndexBufferShaderResourceViewInitializer& AsIndexBufferSRV() const
 	{
 		check(Type == EType::IndexBufferSRV);
-		return IndexBufferInitializer;
+		return BufferInitializer;
+	}
+
+	const FBufferShaderResourceViewInitializer& AsBufferSRV() const
+	{
+		return BufferInitializer;
 	}
 
 	enum class EType : uint8
@@ -297,14 +279,11 @@ struct FShaderResourceViewInitializer
 	}
 
 private:
-	union
-	{
-		FVertexBufferShaderResourceViewInitializer VertexBufferInitializer;
-		FStructuredBufferShaderResourceViewInitializer StructuredBufferInitializer;
-		FIndexBufferShaderResourceViewInitializer IndexBufferInitializer;
-	};
+	FBufferShaderResourceViewInitializer BufferInitializer;
 
-	const EType Type;
+	void InitType();
+
+	EType Type;
 };
 
 class FDynamicRHI;
@@ -551,13 +530,6 @@ public:
 	virtual void RHIUnlockIndexBuffer(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBuffer);
 
 	/**
-	* Transfer metadata and underlying resource from src to dest and release any resource owned by dest.
-	* @param DestIndexBuffer - the index buffer to update
-	* @param SrcIndexBuffer - don't use after call. If null, will release any resource owned by DestIndexBuffer
-	*/
-	virtual void RHITransferIndexBufferUnderlyingResource(FRHIIndexBuffer* DestIndexBuffer, FRHIIndexBuffer* SrcIndexBuffer);
-
-	/**
 	* @param ResourceArray - An optional pointer to a resource array containing the resource's data.
 	*/
 	// FlushType: Wait RHI Thread
@@ -575,10 +547,10 @@ public:
 
 	/**
 	 * Transfer metadata and underlying resource from src to dest and release any resource owned by dest.
-	 * @param DestVertexBuffer - the vertex buffer to update
-	 * @param SrcVertexBuffer - don't use after call. If null, will release any resource owned by DestVertexBuffer
+	 * @param DestBuffer - the buffer to update
+	 * @param SrcBuffer - don't use after call. If null, will release any resource owned by DestBuffer
 	 */
-	virtual void RHITransferVertexBufferUnderlyingResource(FRHIVertexBuffer* DestVertexBuffer, FRHIVertexBuffer* SrcVertexBuffer);
+	virtual void RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer);
 
 	/**
 	* @param ResourceArray - An optional pointer to a resource array containing the resource's data.
@@ -594,7 +566,7 @@ public:
 
 	/** Creates an unordered access view of the given structured buffer. */
 	// FlushType: Wait RHI Thread
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIStructuredBuffer* StructuredBuffer, bool bUseUAVCounter, bool bAppendBuffer) = 0;
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer) = 0;
 
 	/** Creates an unordered access view of the given texture. */
 	// FlushType: Wait RHI Thread
@@ -606,32 +578,24 @@ public:
 
 	/** Creates an unordered access view of the given vertex buffer. */
 	// FlushType: Wait RHI Thread
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIVertexBuffer* VertexBuffer, uint8 Format) = 0;
-
-	/** Creates an unordered access view of the given index buffer. */
-	// FlushType: Wait RHI Thread
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIIndexBuffer* IndexBuffer, uint8 Format) = 0;
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIBuffer* Buffer, uint8 Format) = 0;
 
 	/** Creates a shader resource view of the given structured buffer. */
 	// FlushType: Wait RHI Thread
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIStructuredBuffer* StructuredBuffer) = 0;
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIBuffer* Buffer) = 0;
 
 	/** Creates a shader resource view of the given vertex buffer. */
 	// FlushType: Wait RHI Thread
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format) = 0;
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIBuffer* Buffer, uint32 Stride, uint8 Format) = 0;
 
 	/** Creates a shader resource view **/
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer) = 0;
 
-	/** Creates a shader resource view of the given index buffer. */
-	// FlushType: Wait RHI Thread
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIIndexBuffer* Buffer) = 0;
-
 	// Must be called on RHI thread timeline
 	// Make sure to call RHIThreadFence(true) afterwards so that parallel translation doesn't refer old resources
-	virtual void RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format);
+	virtual void RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIBuffer* Buffer, uint32 Stride, uint8 Format);
 
-	virtual void RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIIndexBuffer* IndexBuffer);
+	virtual void RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIBuffer* Buffer);
 
 	/**
 	* Computes the total size of a 2D texture with the specified parameters.
@@ -1329,16 +1293,14 @@ public:
 	virtual FTexture2DArrayRHIRef RHICreateTexture2DArray_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo);
 	
 	virtual FTexture3DRHIRef RHICreateTexture3D_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo);
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBuffer, bool bUseUAVCounter, bool bAppendBuffer);
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer);
 	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 MipLevel);
 	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 MipLevel, uint8 Format);
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint8 Format);
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBuffer, uint8 Format);
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint8 Format);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo);
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format);
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Stride, uint8 Format);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer);
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* Buffer);
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBuffer);
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewWriteMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewFMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D);
 	virtual FTextureCubeRHIRef RHICreateTextureCube_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo);
@@ -1353,8 +1315,6 @@ public:
 	virtual void RHIDiscardTransientResource_RenderThread(FRHITexture* Texture) { }
 	virtual void RHIAcquireTransientResource_RenderThread(FRHIVertexBuffer* Buffer) { }
 	virtual void RHIDiscardTransientResource_RenderThread(FRHIVertexBuffer* Buffer) { }
-	virtual void RHIAcquireTransientResource_RenderThread(FRHIStructuredBuffer* Buffer) { }
-	virtual void RHIDiscardTransientResource_RenderThread(FRHIStructuredBuffer* Buffer) { }
 
 
 	virtual void RHIMapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight);

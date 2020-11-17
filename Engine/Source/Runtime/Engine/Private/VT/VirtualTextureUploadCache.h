@@ -9,7 +9,7 @@
 #include "PixelFormat.h"
 
 class FRHITexture2D;
-class FRHIStructuredBuffer;
+class FRHIBuffer;
 
 struct FVTUploadTileBuffer
 {

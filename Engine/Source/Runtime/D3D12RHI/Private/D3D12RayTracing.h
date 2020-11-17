@@ -11,8 +11,6 @@
 class FD3D12RayTracingPipelineState;
 class FD3D12RayTracingShaderTable;
 
-typedef FD3D12VertexBuffer FD3D12MemBuffer; // Generic GPU memory buffer
-
 // Built-in local root parameters that are always bound to all hit shaders
 struct FHitGroupSystemParameters
 {
@@ -57,11 +55,11 @@ public:
 	FIndexBufferRHIRef  RHIIndexBuffer;
 	static FVertexBufferRHIRef NullTransformBuffer; // Null transform for hidden sections
 
-	TRefCountPtr<FD3D12MemBuffer> AccelerationStructureBuffers[MAX_NUM_GPUS];
-	TRefCountPtr<FD3D12MemBuffer> ScratchBuffers[MAX_NUM_GPUS];
+	TRefCountPtr<FD3D12Buffer> AccelerationStructureBuffers[MAX_NUM_GPUS];
+	TRefCountPtr<FD3D12Buffer> ScratchBuffers[MAX_NUM_GPUS];
 
 	uint64 PostBuildInfoBufferReadbackFences[MAX_NUM_GPUS];
-	TRefCountPtr<FD3D12MemBuffer> PostBuildInfoBuffers[MAX_NUM_GPUS];
+	TRefCountPtr<FD3D12Buffer> PostBuildInfoBuffers[MAX_NUM_GPUS];
 	FStagingBufferRHIRef PostBuildInfoStagingBuffers[MAX_NUM_GPUS];
 
 	// Hit shader parameters per geometry segment
@@ -84,7 +82,7 @@ public:
 
 	void BuildAccelerationStructure(FD3D12CommandContext& CommandContext, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS BuildFlags);
 
-	TRefCountPtr<FD3D12MemBuffer> AccelerationStructureBuffers[MAX_NUM_GPUS];
+	TRefCountPtr<FD3D12Buffer> AccelerationStructureBuffers[MAX_NUM_GPUS];
 	bool bAccelerationStructureViewInitialized[MAX_NUM_GPUS] = {};
 
 	TArray<FRayTracingGeometryInstance> Instances;

@@ -258,8 +258,7 @@ public:
 		const TCHAR* Name,
 		D3D12_RESOURCE_FLAGS Flags = D3D12_RESOURCE_FLAG_NONE);
 
-	template <typename BufferType> 
-	BufferType* CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
+	FD3D12Buffer* CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
 		const D3D12_RESOURCE_DESC& Desc,
 		uint32 Alignment, uint32 Stride, uint32 Size, uint32 InUsage,
 		ED3D12ResourceStateMode InResourceStateMode,

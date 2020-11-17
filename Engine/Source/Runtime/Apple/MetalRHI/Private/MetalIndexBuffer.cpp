@@ -14,42 +14,13 @@
 
 static uint32 MetalIndexBufferUsage(uint32 InUsage)
 {
-	uint32 Usage = InUsage;
+	uint32 Usage = InUsage | BUF_IndexBuffer;
 	if (RHISupportsTessellation(GMaxRHIShaderPlatform))
 	{
 		Usage |= BUF_ShaderResource;
 	}
-	Usage |= EMetalBufferUsage_GPUOnly|EMetalBufferUsage_LinearTex;
+	Usage |= (EMetalBufferUsage_GPUOnly | EMetalBufferUsage_LinearTex);
 	return Usage;
-}
-
-/** Constructor */
-FMetalIndexBuffer::FMetalIndexBuffer(uint32 InStride, uint32 InSize, uint32 InUsage)
-	: FRHIIndexBuffer(InStride, InSize, InUsage)
-	, FMetalRHIBuffer(InSize, MetalIndexBufferUsage(InUsage), RRT_IndexBuffer)
-	, IndexType((InStride == 2) ? mtlpp::IndexType::UInt16 : mtlpp::IndexType::UInt32)
-{
-	if (InSize)
-	{
-		if (RHISupportsTessellation(GMaxRHIShaderPlatform))
-		{
-			EPixelFormat Format = IndexType == mtlpp::IndexType::UInt16 ? PF_R16_UINT : PF_R32_UINT;
-			CreateLinearTexture(Format, this);
-		}
-	}
-}
-
-FMetalIndexBuffer::~FMetalIndexBuffer()
-{
-}
-
-void FMetalIndexBuffer::Swap(FMetalIndexBuffer& Other)
-{
-	@autoreleasepool {
-	FRHIIndexBuffer::Swap(Other);
-	FMetalRHIBuffer::Swap(Other);
-	::Swap(IndexType, Other.IndexType);
-	}
 }
 
 FIndexBufferRHIRef FMetalDynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
@@ -57,11 +28,11 @@ FIndexBufferRHIRef FMetalDynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 
 	@autoreleasepool {
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FMetalIndexBuffer(2, 0, 0);
+		return new FMetalResourceMultiBuffer(0, MetalIndexBufferUsage(0), 2, nullptr, RRT_IndexBuffer);
 	}
 		
 	// make the RHI object, which will allocate memory
-	FMetalIndexBuffer* IndexBuffer = new FMetalIndexBuffer(Stride, Size, InUsage);
+	FMetalResourceMultiBuffer* IndexBuffer = new FMetalResourceMultiBuffer(Size, MetalIndexBufferUsage(InUsage), Stride, nullptr, RRT_IndexBuffer);
 	
 	if (CreateInfo.ResourceArray)
 	{
@@ -83,20 +54,19 @@ FIndexBufferRHIRef FMetalDynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 
 	}
 }
 
-void FMetalDynamicRHI::RHITransferIndexBufferUnderlyingResource(FRHIIndexBuffer* DestIndexBuffer, FRHIIndexBuffer* SrcIndexBuffer)
+void FMetalDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer)
 {
 	@autoreleasepool {
-	check(DestIndexBuffer);
-	FMetalIndexBuffer* Dest = ResourceCast(DestIndexBuffer);
-	if (!SrcIndexBuffer)
+	check(DestBuffer);
+	FMetalResourceMultiBuffer* Dest = ResourceCast(DestBuffer);
+	if (!SrcBuffer)
 	{
-		FRHIResourceCreateInfo CreateInfo;
-		TRefCountPtr<FMetalIndexBuffer> DeletionProxy = new FMetalIndexBuffer(2, 0, 0);
+		TRefCountPtr<FMetalResourceMultiBuffer> DeletionProxy = new FMetalResourceMultiBuffer(0, Dest->GetUsage(), Dest->GetStride(), nullptr, Dest->Type);
 		Dest->Swap(*DeletionProxy);
 	}
 	else
 	{
-		FMetalIndexBuffer* Src = ResourceCast(SrcIndexBuffer);
+		FMetalResourceMultiBuffer* Src = ResourceCast(SrcBuffer);
 		Dest->Swap(*Src);
 	}
 	}
@@ -125,11 +95,11 @@ FIndexBufferRHIRef FMetalDynamicRHI::CreateIndexBuffer_RenderThread(class FRHICo
 	@autoreleasepool {
 		if (CreateInfo.bWithoutNativeResource)
 		{
-			return new FMetalIndexBuffer(2, 0, 0);
+			return new FMetalResourceMultiBuffer(0, MetalIndexBufferUsage(0), 2, nullptr, RRT_IndexBuffer);
 		}
 		
 		// make the RHI object, which will allocate memory
-		TRefCountPtr<FMetalIndexBuffer> IndexBuffer = new FMetalIndexBuffer(Stride, Size, InUsage);
+		TRefCountPtr<FMetalResourceMultiBuffer> IndexBuffer = new FMetalResourceMultiBuffer(Size, MetalIndexBufferUsage(InUsage), Stride, nullptr, RRT_IndexBuffer);
 		
 		IndexBuffer->Init_RenderThread(RHICmdList, Size, InUsage, CreateInfo, IndexBuffer);
 		

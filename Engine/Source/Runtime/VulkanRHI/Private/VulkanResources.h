@@ -1095,13 +1095,13 @@ protected:
 	friend class FVulkanCommandListContext;
 };
 
-class FVulkanResourceMultiBuffer : public FVulkanEvictable, public VulkanRHI::FDeviceChild
+class FVulkanResourceMultiBuffer : public FRHIBuffer, public FVulkanEvictable, public VulkanRHI::FDeviceChild
 {
 	virtual void Evict(FVulkanDevice& Device);
 	virtual void Move(FVulkanDevice& Device, VulkanRHI::FVulkanAllocation& NewAllocation);
 
 public:
-	FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, VkBufferUsageFlags InBufferUsageFlags, uint32 InSize, uint32 InUEUsage, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList = nullptr);
+	FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, VkBufferUsageFlags InBufferUsageFlags, uint32 InSize, uint32 InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList = nullptr);
 	virtual ~FVulkanResourceMultiBuffer();
 
 	inline const VulkanRHI::FVulkanAllocation& GetCurrentAllocation() const
@@ -1164,9 +1164,13 @@ public:
 
 	inline uint32 GetUEUsage() const
 	{
-		return BufferUsageFlags;
+		return UEUsage;
 	}
 
+	inline VkIndexType GetIndexType() const
+	{
+		return (GetStride() == 4)? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
+	}
 
 	void* Lock(bool bFromRenderingThread, EResourceLockMode LockMode, uint32 Size, uint32 Offset);
 	void Unlock(bool bFromRenderingThread);
@@ -1206,30 +1210,6 @@ protected:
 
 	friend class FVulkanCommandListContext;
 	friend struct FRHICommandMultiBufferUnlock;
-};
-
-class FVulkanIndexBuffer : public FRHIIndexBuffer, public FVulkanResourceMultiBuffer
-{
-public:
-	FVulkanIndexBuffer(FVulkanDevice* InDevice, uint32 InStride, uint32 InSize, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList);
-
-	inline VkIndexType GetIndexType() const
-	{
-		return IndexType;
-	}
-
-	void Swap(FVulkanIndexBuffer& Other);
-
-private:
-	VkIndexType IndexType;
-};
-
-class FVulkanVertexBuffer : public FRHIVertexBuffer, public FVulkanResourceMultiBuffer
-{
-public:
-	FVulkanVertexBuffer(FVulkanDevice* InDevice, uint32 InSize, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList);
-
-	void Swap(FVulkanVertexBuffer& Other);
 };
 
 class FVulkanUniformBuffer : public FRHIUniformBuffer
@@ -1276,26 +1256,13 @@ public:
 	VulkanRHI::FVulkanAllocation Allocation;
 };
 
-class FVulkanStructuredBuffer : public FRHIStructuredBuffer, public FVulkanResourceMultiBuffer
-{
-public:
-	FVulkanStructuredBuffer(FVulkanDevice* InDevice, uint32 Stride, uint32 Size, FRHIResourceCreateInfo& CreateInfo, uint32 InUsage);
-
-	~FVulkanStructuredBuffer();
-
-};
-
-
-
 class FVulkanUnorderedAccessView : public FRHIUnorderedAccessView, public VulkanRHI::FVulkanViewBase
 {
 public:
 
-	FVulkanUnorderedAccessView(FVulkanDevice* Device, FVulkanStructuredBuffer* StructuredBuffer, bool bUseUAVCounter, bool bAppendBuffer);
+	FVulkanUnorderedAccessView(FVulkanDevice* Device, FVulkanResourceMultiBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer);
 	FVulkanUnorderedAccessView(FVulkanDevice* Device, FRHITexture* TextureRHI, uint32 MipLevel);
-	FVulkanUnorderedAccessView(FVulkanDevice* Device, FVulkanVertexBuffer* VertexBuffer, EPixelFormat Format);
-	FVulkanUnorderedAccessView(FVulkanDevice* Device, FVulkanIndexBuffer* IndexBuffer, EPixelFormat Format);
-
+	FVulkanUnorderedAccessView(FVulkanDevice* Device, FVulkanResourceMultiBuffer* Buffer, EPixelFormat Format);
 
 	~FVulkanUnorderedAccessView();
 
@@ -1305,15 +1272,15 @@ public:
 
 protected:
 	// the potential resources to refer to with the UAV object
-	TRefCountPtr<FVulkanStructuredBuffer> SourceStructuredBuffer;
+	TRefCountPtr<FVulkanResourceMultiBuffer> SourceStructuredBuffer;
 	// The texture that this UAV come from
 	TRefCountPtr<FRHITexture> SourceTexture;
 	FVulkanTextureView TextureView;
 	uint32 MipLevel;
 
 	// The vertex buffer this UAV comes from (can be null)
-	TRefCountPtr<FVulkanVertexBuffer> SourceVertexBuffer;
-	TRefCountPtr<FVulkanIndexBuffer> SourceIndexBuffer;
+	TRefCountPtr<FVulkanResourceMultiBuffer> SourceVertexBuffer;
+	TRefCountPtr<FVulkanResourceMultiBuffer> SourceIndexBuffer;
 	TRefCountPtr<FVulkanBufferView> BufferView;
 	EPixelFormat BufferViewFormat;
 
@@ -1331,7 +1298,7 @@ class FVulkanShaderResourceView : public FRHIShaderResourceView, public VulkanRH
 public:
 	FVulkanShaderResourceView(FVulkanDevice* Device, FRHIResource* InRHIBuffer, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InSize, EPixelFormat InFormat, uint32 InOffset = 0);
 	FVulkanShaderResourceView(FVulkanDevice* Device, FRHITexture* InSourceTexture, const FRHITextureSRVCreateInfo& InCreateInfo);
-	FVulkanShaderResourceView(FVulkanDevice* Device, FVulkanStructuredBuffer* InStructuredBuffer, uint32 InOffset = 0);
+	FVulkanShaderResourceView(FVulkanDevice* Device, FVulkanResourceMultiBuffer* InStructuredBuffer, uint32 InOffset = 0);
 
 	void Clear();
 
@@ -1351,7 +1318,7 @@ public:
 	// The texture that this SRV come from
 	TRefCountPtr<FRHITexture> SourceTexture;
 	FVulkanTextureView TextureView;
-	FVulkanStructuredBuffer* SourceStructuredBuffer;
+	FVulkanResourceMultiBuffer* SourceStructuredBuffer;
 	uint32 MipLevel = 0;
 	uint32 NumMips = MAX_uint32;
 	uint32 FirstArraySlice = 0;
@@ -1616,19 +1583,9 @@ struct TVulkanResourceTraits<FRHIUniformBuffer>
 	typedef FVulkanUniformBuffer TConcreteType;
 };
 template<>
-struct TVulkanResourceTraits<FRHIIndexBuffer>
+struct TVulkanResourceTraits<FRHIBuffer>
 {
-	typedef FVulkanIndexBuffer TConcreteType;
-};
-template<>
-struct TVulkanResourceTraits<FRHIStructuredBuffer>
-{
-	typedef FVulkanStructuredBuffer TConcreteType;
-};
-template<>
-struct TVulkanResourceTraits<FRHIVertexBuffer>
-{
-	typedef FVulkanVertexBuffer TConcreteType;
+	typedef FVulkanResourceMultiBuffer TConcreteType;
 };
 template<>
 struct TVulkanResourceTraits<FRHIShaderResourceView>

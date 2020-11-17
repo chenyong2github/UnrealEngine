@@ -6,25 +6,6 @@ D3D12Buffer.cpp: D3D Common code for buffers.
 
 #include "D3D12RHIPrivate.h"
 
-// Forward declarations are required for the template functions
-template FD3D12VertexBuffer* FD3D12Adapter::CreateRHIBuffer<FD3D12VertexBuffer>(FRHICommandListImmediate* RHICmdList,
-	const D3D12_RESOURCE_DESC& Desc,
-	uint32 Alignment, uint32 Stride, uint32 Size, uint32 InUsage,
-	ED3D12ResourceStateMode InResourceStateMode,
-	FRHIResourceCreateInfo& CreateInfo);
-
-template FD3D12IndexBuffer* FD3D12Adapter::CreateRHIBuffer<FD3D12IndexBuffer>(FRHICommandListImmediate* RHICmdList,
-	const D3D12_RESOURCE_DESC& Desc,
-	uint32 Alignment, uint32 Stride, uint32 Size, uint32 InUsage,
-	ED3D12ResourceStateMode InResourceStateMode,
-	FRHIResourceCreateInfo& CreateInfo);
-
-template FD3D12StructuredBuffer* FD3D12Adapter::CreateRHIBuffer<FD3D12StructuredBuffer>(FRHICommandListImmediate* RHICmdList,
-	const D3D12_RESOURCE_DESC& Desc,
-	uint32 Alignment, uint32 Stride, uint32 Size, uint32 InUsage,
-	ED3D12ResourceStateMode InResourceStateMode,
-	FRHIResourceCreateInfo& CreateInfo);
-
 struct FRHICommandUpdateBufferString
 {
 	static const TCHAR* TStr() { return TEXT("FRHICommandUpdateBuffer"); }
@@ -166,9 +147,7 @@ void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 	}
 }
 
-// This is a templated function used to create FD3D12VertexBuffers, FD3D12IndexBuffers and FD3D12StructuredBuffers
-template<class BufferType>
-BufferType* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
+FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
 	const D3D12_RESOURCE_DESC& InDesc,
 	uint32 Alignment,
 	uint32 Stride,
@@ -182,13 +161,13 @@ BufferType* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
 	const bool bIsDynamic = (InUsage & BUF_AnyDynamic) ? true : false;
 	const uint32 FirstGPUIndex = CreateInfo.GPUMask.GetFirstIndex();
 
-	BufferType* BufferOut = nullptr;
+	FD3D12Buffer* BufferOut = nullptr;
 	if (bIsDynamic)
 	{
-		BufferType* NewBuffer0 = nullptr;
-		BufferOut = CreateLinkedObject<BufferType>(CreateInfo.GPUMask, [&](FD3D12Device* Device)
+		FD3D12Buffer* NewBuffer0 = nullptr;
+		BufferOut = CreateLinkedObject<FD3D12Buffer>(CreateInfo.GPUMask, [&](FD3D12Device* Device)
 		{
-			BufferType* NewBuffer = new BufferType(Device, Stride, Size, InUsage);
+			FD3D12Buffer* NewBuffer = new FD3D12Buffer(Device, Size, InUsage, Stride);
 			NewBuffer->BufferAlignment = Alignment;
 
 			if (Device->GetGPUIndex() == FirstGPUIndex)
@@ -207,9 +186,9 @@ BufferType* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
 	}
 	else
 	{
-		BufferOut = CreateLinkedObject<BufferType>(CreateInfo.GPUMask, [&](FD3D12Device* Device)
+		BufferOut = CreateLinkedObject<FD3D12Buffer>(CreateInfo.GPUMask, [&](FD3D12Device* Device)
 		{
-			BufferType* NewBuffer = new BufferType(Device, Stride, Size, InUsage);
+			FD3D12Buffer* NewBuffer = new FD3D12Buffer(Device, Size, InUsage, Stride);
 			NewBuffer->BufferAlignment = Alignment;
 
 			AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, CreateInfo, Alignment, *NewBuffer, NewBuffer->ResourceLocation);
@@ -286,7 +265,7 @@ BufferType* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
 		CreateInfo.ResourceArray->Discard();
 	}
 
-	UpdateBufferStats<BufferType>(&BufferOut->ResourceLocation, true);
+	UpdateBufferStats(GetBufferStats(InUsage), BufferOut->ResourceLocation.GetSize());
 
 	return BufferOut;
 }
@@ -328,6 +307,15 @@ void FD3D12Buffer::RenameLDAChain(FD3D12ResourceLocation& NewLocation)
 			}
 		}
 	}
+}
+
+void FD3D12Buffer::Swap(FD3D12Buffer& Other)
+{
+	check(!LockedData.bLocked && !Other.LockedData.bLocked);
+	FRHIBuffer::Swap(Other);
+	FD3D12BaseShaderResource::Swap(Other);
+	FD3D12TransientResource::Swap(Other);
+	FD3D12LinkedAdapterObject<FD3D12Buffer>::Swap(Other);
 }
 
 void FD3D12Buffer::ReleaseUnderlyingResource()

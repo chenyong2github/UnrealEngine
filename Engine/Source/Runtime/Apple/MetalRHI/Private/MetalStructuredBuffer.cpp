@@ -6,40 +6,15 @@
 #include "MetalCommandBuffer.h"
 #include "Containers/ResourceArray.h"
 
-FMetalStructuredBuffer::FMetalStructuredBuffer(uint32 Stride, uint32 InSize, FResourceArrayInterface* ResourceArray, uint32 InUsage)
-	: FRHIStructuredBuffer(Stride, InSize, InUsage)
-	, FMetalRHIBuffer(InSize, InUsage|EMetalBufferUsage_GPUOnly, RRT_StructuredBuffer)
+static uint32 MetalStructuredBufferUsage(uint32 InUsage)
 {
-	check((InSize % Stride) == 0);
-	
-	if (ResourceArray)
-	{
-		// copy any resources to the CPU address
-		void* LockedMemory = RHILockStructuredBuffer(this, 0, InSize, RLM_WriteOnly);
- 		FMemory::Memcpy(LockedMemory, ResourceArray->GetResourceData(), InSize);
-		ResourceArray->Discard();
-		RHIUnlockStructuredBuffer(this);
-	}
+	return (InUsage | EMetalBufferUsage_GPUOnly);
 }
-
-FMetalStructuredBuffer::~FMetalStructuredBuffer()
-{
-}
-
 
 FStructuredBufferRHIRef FMetalDynamicRHI::RHICreateStructuredBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	@autoreleasepool {
-		FMetalStructuredBuffer* Buffer = new FMetalStructuredBuffer(Stride, Size, CreateInfo.ResourceArray, InUsage);
-//		if (!CreateInfo.ResourceArray && Buffer->Mode == mtlpp::StorageMode::Private)
-//		{
-//			if (Buffer->TransferBuffer)
-//			{
-//				SafeReleaseMetalBuffer(Buffer->TransferBuffer);
-//				Buffer->TransferBuffer = nil;
-//			}
-//		}
-		return Buffer;
+		return new FMetalResourceMultiBuffer(Size, MetalStructuredBufferUsage(InUsage), Stride, CreateInfo.ResourceArray, RRT_StructuredBuffer);
 	}
 }
 
@@ -65,7 +40,7 @@ FStructuredBufferRHIRef FMetalDynamicRHI::CreateStructuredBuffer_RenderThread(cl
 {
 	@autoreleasepool {
 		// make the RHI object, which will allocate memory
-		TRefCountPtr<FMetalStructuredBuffer> VertexBuffer = new FMetalStructuredBuffer(Stride, Size, nullptr, InUsage);
+		TRefCountPtr<FMetalResourceMultiBuffer> VertexBuffer = new FMetalResourceMultiBuffer(Size, MetalStructuredBufferUsage(InUsage), Stride, nullptr, RRT_StructuredBuffer);
 		
 		VertexBuffer->Init_RenderThread(RHICmdList, Size, InUsage, CreateInfo, VertexBuffer);
 		

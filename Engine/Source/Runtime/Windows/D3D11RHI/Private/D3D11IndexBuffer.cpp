@@ -6,11 +6,13 @@
 
 #include "D3D11RHIPrivate.h"
 
-FIndexBufferRHIRef FD3D11DynamicRHI::RHICreateIndexBuffer(uint32 Stride,uint32 Size,uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+FIndexBufferRHIRef FD3D11DynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
+	InUsage |= BUF_IndexBuffer;
+
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FD3D11IndexBuffer();
+		return new FD3D11Buffer();
 	}
 
 	// Explicitly check that the size is nonzero before allowing CreateIndexBuffer to opaquely fail.
@@ -75,7 +77,7 @@ FIndexBufferRHIRef FD3D11DynamicRHI::RHICreateIndexBuffer(uint32 Stride,uint32 S
 		CreateInfo.ResourceArray->Discard();
 	}
 
-	return new FD3D11IndexBuffer(IndexBufferResource, Stride, Size, InUsage);
+	return new FD3D11Buffer(IndexBufferResource, Size, InUsage, Stride);
 }
 
 FIndexBufferRHIRef FD3D11DynamicRHI::CreateIndexBuffer_RenderThread(
@@ -91,7 +93,7 @@ FIndexBufferRHIRef FD3D11DynamicRHI::CreateIndexBuffer_RenderThread(
 
 void* FD3D11DynamicRHI::LockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
-	FD3D11IndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+	FD3D11Buffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 	// If this resource is bound to the device, unbind it
 	ConditionalClearShaderResource(IndexBuffer, true);
 
@@ -155,7 +157,7 @@ void* FD3D11DynamicRHI::LockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& R
 
 void FD3D11DynamicRHI::UnlockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI)
 {
-	FD3D11IndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+	FD3D11Buffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 
 	// Determine whether the index buffer is dynamic or not.
 	D3D11_BUFFER_DESC Desc;
@@ -191,17 +193,17 @@ void FD3D11DynamicRHI::UnlockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& 
 	}
 }
 
-void FD3D11DynamicRHI::RHITransferIndexBufferUnderlyingResource(FRHIIndexBuffer* DestIndexBuffer, FRHIIndexBuffer* SrcIndexBuffer)
+void FD3D11DynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer)
 {
-	check(DestIndexBuffer);
-	FD3D11IndexBuffer* Dest = ResourceCast(DestIndexBuffer);
-	if (!SrcIndexBuffer)
+	check(DestBuffer);
+	FD3D11Buffer* Dest = ResourceCast(DestBuffer);
+	if (!SrcBuffer)
 	{
 		Dest->ReleaseUnderlyingResource();
 	}
 	else
 	{
-		FD3D11IndexBuffer* Src = ResourceCast(SrcIndexBuffer);
+		FD3D11Buffer* Src = ResourceCast(SrcBuffer);
 		Dest->Swap(*Src);
 	}
 }

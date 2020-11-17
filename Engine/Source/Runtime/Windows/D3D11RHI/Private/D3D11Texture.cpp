@@ -2724,8 +2724,8 @@ void FD3D11DynamicRHI::RHICopyBufferRegion(FRHIVertexBuffer* DstBuffer, uint64 D
 		return;
 	}
 
-	FD3D11VertexBuffer* DstBufferD3D11 = ResourceCast(DstBuffer);
-	FD3D11VertexBuffer* SrcBufferD3D11 = ResourceCast(SrcBuffer);
+	FD3D11Buffer* DstBufferD3D11 = ResourceCast(DstBuffer);
+	FD3D11Buffer* SrcBufferD3D11 = ResourceCast(SrcBuffer);
 
 	check(DstBufferD3D11 && SrcBufferD3D11);
 	check(DstOffset + NumBytes <= DstBuffer->GetSize() && SrcOffset + NumBytes <= SrcBuffer->GetSize());

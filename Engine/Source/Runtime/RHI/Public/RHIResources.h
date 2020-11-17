@@ -818,41 +818,47 @@ private:
 	uint32 LayoutConstantBufferSize;
 };
 
-class FRHIIndexBuffer : public FRHIResource
+class FRHIBuffer : public FRHIResource
 #if ENABLE_RHI_VALIDATION
 	, public RHIValidation::FBufferResource
 #endif
 {
 public:
-
 	/** Initialization constructor. */
-	FRHIIndexBuffer(uint32 InStride,uint32 InSize,uint32 InUsage)
-	: Stride(InStride)
-	, Size(InSize)
-	, Usage(InUsage)
-	{}
+	FRHIBuffer(uint32 InSize, uint32 InUsage, uint32 InStride)
+		: Size(InSize)
+		, Usage(InUsage)
+		, Stride(InStride)
+	{
+	}
 
-	/** @return The stride in bytes of the index buffer; must be 2 or 4. */
+	/** @return The stride in bytes of the buffer. */
 	uint32 GetStride() const { return Stride; }
 
-	/** @return The number of bytes in the index buffer. */
+	/** @return The number of bytes in the buffer. */
 	uint32 GetSize() const { return Size; }
 
-	/** @return The usage flags used to create the index buffer. */
+	/** @return The usage flags used to create the buffer. */
 	uint32 GetUsage() const { return Usage; }
 
 protected:
-	FRHIIndexBuffer()
-		: Stride(0)
-		, Size(0)
+	FRHIBuffer()
+		: Size(0)
 		, Usage(0)
+		, Stride(0)
 	{}
 
-	void Swap(FRHIIndexBuffer& Other)
+	void Swap(FRHIBuffer& Other)
 	{
 		::Swap(Stride, Other.Stride);
 		::Swap(Size, Other.Size);
 		::Swap(Usage, Other.Usage);
+	}
+
+	// Used by RHI implementations that may adjust internal usage flags during object construction.
+	void SetUsage(uint32 InUsage)
+	{
+		Usage = InUsage;
 	}
 
 	void ReleaseUnderlyingResource()
@@ -861,85 +867,14 @@ protected:
 	}
 
 private:
+	uint32 Size;
+	uint32 Usage;
 	uint32 Stride;
-	uint32 Size;
-	uint32 Usage;
 };
 
-class FRHIVertexBuffer : public FRHIResource
-#if ENABLE_RHI_VALIDATION
-	, public RHIValidation::FBufferResource
-#endif
-{
-public:
-
-	/**
-	 * Initialization constructor.
-	 * @apram InUsage e.g. BUF_UnorderedAccess
-	 */
-	FRHIVertexBuffer(uint32 InSize,uint32 InUsage)
-	: Size(InSize)
-	, Usage(InUsage)
-	{}
-
-	/** @return The number of bytes in the vertex buffer. */
-	uint32 GetSize() const { return Size; }
-
-	/** @return The usage flags used to create the vertex buffer. e.g. BUF_UnorderedAccess */
-	uint32 GetUsage() const { return Usage; }
-
-protected:
-	FRHIVertexBuffer()
-		: Size(0)
-		, Usage(0)
-	{}
-
-	void Swap(FRHIVertexBuffer& Other)
-	{
-		::Swap(Size, Other.Size);
-		::Swap(Usage, Other.Usage);
-	}
-
-	void ReleaseUnderlyingResource()
-	{
-		Size = 0;
-		Usage = 0;
-	}
-
-private:
-	uint32 Size;
-	// e.g. BUF_UnorderedAccess
-	uint32 Usage;
-};
-
-class FRHIStructuredBuffer : public FRHIResource
-#if ENABLE_RHI_VALIDATION
-	, public RHIValidation::FBufferResource
-#endif
-{
-public:
-
-	/** Initialization constructor. */
-	FRHIStructuredBuffer(uint32 InStride,uint32 InSize,uint32 InUsage)
-	: Stride(InStride)
-	, Size(InSize)
-	, Usage(InUsage)
-	{}
-
-	/** @return The stride in bytes of the structured buffer; must be 2 or 4. */
-	uint32 GetStride() const { return Stride; }
-
-	/** @return The number of bytes in the structured buffer. */
-	uint32 GetSize() const { return Size; }
-
-	/** @return The usage flags used to create the structured buffer. */
-	uint32 GetUsage() const { return Usage; }
-
-private:
-	uint32 Stride;
-	uint32 Size;
-	uint32 Usage;
-};
+typedef class FRHIBuffer FRHIIndexBuffer;
+typedef class FRHIBuffer FRHIVertexBuffer;
+typedef class FRHIBuffer FRHIStructuredBuffer;
 
 //
 // Textures

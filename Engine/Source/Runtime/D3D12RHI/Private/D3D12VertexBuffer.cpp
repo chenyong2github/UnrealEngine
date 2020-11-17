@@ -36,44 +36,20 @@ D3D12_RESOURCE_DESC CreateVertexBufferResourceDesc(uint32 Size, uint32 InUsage)
 	return Desc;
 }
 
-FD3D12VertexBuffer::~FD3D12VertexBuffer()
-{
-	if (ResourceLocation.GetResource() != nullptr)
-	{
-		UpdateBufferStats<FD3D12VertexBuffer>(&ResourceLocation, false);
-	}
-}
-
-void FD3D12VertexBuffer::Swap(FD3D12VertexBuffer& Other)
-{
-	check(!LockedData.bLocked && !Other.LockedData.bLocked);
-	FRHIVertexBuffer::Swap(Other);
-	FD3D12BaseShaderResource::Swap(Other);
-	FD3D12TransientResource::Swap(Other);
-	FD3D12LinkedAdapterObject<FD3D12Buffer>::Swap(Other);
-}
-
-void FD3D12VertexBuffer::ReleaseUnderlyingResource()
-{
-	UpdateBufferStats<FD3D12VertexBuffer>(&ResourceLocation, false);
-	FRHIVertexBuffer::ReleaseUnderlyingResource();
-	FD3D12Buffer::ReleaseUnderlyingResource();
-}
-
 FVertexBufferRHIRef FD3D12DynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return GetAdapter().CreateLinkedObject<FD3D12VertexBuffer>(CreateInfo.GPUMask, [](FD3D12Device* Device)
+		return GetAdapter().CreateLinkedObject<FD3D12Buffer>(CreateInfo.GPUMask, [](FD3D12Device* Device)
 			{
-				return new FD3D12VertexBuffer();
+				return new FD3D12Buffer();
 			});
 	}
 
 	const D3D12_RESOURCE_DESC Desc = CreateVertexBufferResourceDesc(Size, InUsage);
 	const uint32 Alignment = 4;
 
-	FD3D12VertexBuffer* Buffer = GetAdapter().CreateRHIBuffer<FD3D12VertexBuffer>(nullptr, Desc, Alignment, 0, Size, InUsage, ED3D12ResourceStateMode::Default, CreateInfo);
+	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(nullptr, Desc, Alignment, 0, Size, InUsage | BUF_VertexBuffer, ED3D12ResourceStateMode::Default, CreateInfo);
 	if (Buffer->ResourceLocation.IsTransient() )
 	{
 		// TODO: this should ideally be set in platform-independent code, since this tracking is for the high level
@@ -85,13 +61,13 @@ FVertexBufferRHIRef FD3D12DynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 
 
 void* FD3D12DynamicRHI::RHILockVertexBuffer(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
-	FD3D12VertexBuffer* Buffer = FD3D12DynamicRHI::ResourceCast(VertexBufferRHI);
+	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(VertexBufferRHI);
 	return LockBuffer(&RHICmdList, Buffer, Buffer->GetSize(), Buffer->GetUsage(), Offset, Size, LockMode);
 }
 
 void FD3D12DynamicRHI::RHIUnlockVertexBuffer(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI)
 {
-	FD3D12VertexBuffer* Buffer = FD3D12DynamicRHI::ResourceCast(VertexBufferRHI);
+	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(VertexBufferRHI);
 	UnlockBuffer(&RHICmdList, Buffer, Buffer->GetUsage());
 }
 
@@ -99,16 +75,16 @@ FVertexBufferRHIRef FD3D12DynamicRHI::CreateVertexBuffer_RenderThread(FRHIComman
 {	
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return GetAdapter().CreateLinkedObject<FD3D12VertexBuffer>(CreateInfo.GPUMask, [](FD3D12Device* Device)
+		return GetAdapter().CreateLinkedObject<FD3D12Buffer>(CreateInfo.GPUMask, [](FD3D12Device* Device)
 			{
-				return new FD3D12VertexBuffer();
+				return new FD3D12Buffer();
 			});
 	}
 
 	const D3D12_RESOURCE_DESC Desc = CreateVertexBufferResourceDesc(Size, InUsage);
 	const uint32 Alignment = 4;
 
-	FD3D12VertexBuffer* Buffer = GetAdapter().CreateRHIBuffer<FD3D12VertexBuffer>(&RHICmdList, Desc, Alignment, 0, Size, InUsage, ED3D12ResourceStateMode::Default, CreateInfo);
+	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(&RHICmdList, Desc, Alignment, 0, Size, InUsage | BUF_VertexBuffer, ED3D12ResourceStateMode::Default, CreateInfo);
 	if (Buffer->ResourceLocation.IsTransient())
 	{
 		// TODO: this should ideally be set in platform-independent code, since this tracking is for the high level
@@ -120,8 +96,8 @@ FVertexBufferRHIRef FD3D12DynamicRHI::CreateVertexBuffer_RenderThread(FRHIComman
 
 void FD3D12DynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, FRHIVertexBuffer* DestBufferRHI)
 {
-	FD3D12VertexBuffer* SrcBuffer = FD3D12DynamicRHI::ResourceCast(SourceBufferRHI);
-	FD3D12VertexBuffer* DstBuffer = FD3D12DynamicRHI::ResourceCast(DestBufferRHI);
+	FD3D12Buffer* SrcBuffer = FD3D12DynamicRHI::ResourceCast(SourceBufferRHI);
+	FD3D12Buffer* DstBuffer = FD3D12DynamicRHI::ResourceCast(DestBufferRHI);
 	check(SrcBuffer->GetSize() == DstBuffer->GetSize());
 
 	FD3D12Buffer* SourceBuffer = SrcBuffer;
@@ -152,21 +128,6 @@ void FD3D12DynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, FR
 		DEBUG_EXECUTE_COMMAND_CONTEXT(Device->GetDefaultCommandContext());
 
 		Device->RegisterGPUWork(1);
-	}
-}
-
-void FD3D12DynamicRHI::RHITransferVertexBufferUnderlyingResource(FRHIVertexBuffer* DestVertexBuffer, FRHIVertexBuffer* SrcVertexBuffer)
-{
-	check(DestVertexBuffer);
-	FD3D12VertexBuffer* Dest = ResourceCast(DestVertexBuffer);
-	if (!SrcVertexBuffer)
-	{
-		Dest->ReleaseUnderlyingResource();
-	}
-	else
-	{
-		FD3D12VertexBuffer* Src = ResourceCast(SrcVertexBuffer);
-		Dest->Swap(*Src);
 	}
 }
 
@@ -348,7 +309,7 @@ FVertexBufferRHIRef FD3D12DynamicRHI::CreateAndLockVertexBuffer_RenderThread(FRH
 	const D3D12_RESOURCE_DESC Desc = CreateVertexBufferResourceDesc(Size, InUsage);
 	const uint32 Alignment = 4;
 
-	FD3D12VertexBuffer* Buffer = GetAdapter().CreateRHIBuffer<FD3D12VertexBuffer>(nullptr, Desc, Alignment, 0, Size, InUsage, ED3D12ResourceStateMode::Default, CreateInfo);
+	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(nullptr, Desc, Alignment, 0, Size, InUsage | BUF_VertexBuffer, ED3D12ResourceStateMode::Default, CreateInfo);
 	if (Buffer->ResourceLocation.IsTransient())
 	{
 		// TODO: this should ideally be set in platform-independent code, since this tracking is for the high level
