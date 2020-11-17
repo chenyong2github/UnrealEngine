@@ -10,7 +10,7 @@ static float GHairTT = 1;
 static float GHairTRT = 1;
 static float GHairGlobalScattering = 1;
 static float GHairLocalScattering = 1;
-static int32 GHairTTModel = 1;
+static int32 GHairTTModel = 0;
 static FAutoConsoleVariableRef CVarHairR(TEXT("r.HairStrands.Components.R"), GHairR, TEXT("Enable/disable hair BSDF component R"));
 static FAutoConsoleVariableRef CVarHairTT(TEXT("r.HairStrands.Components.TT"), GHairTT, TEXT("Enable/disable hair BSDF component TT"));
 static FAutoConsoleVariableRef CVarHairTRT(TEXT("r.HairStrands.Components.TRT"), GHairTRT, TEXT("Enable/disable hair BSDF component TRT"));
