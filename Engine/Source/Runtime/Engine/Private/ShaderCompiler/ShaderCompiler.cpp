@@ -1932,17 +1932,12 @@ bool FShaderCompilingManager::AllTargetPlatformSupportsRemoteShaderCompiling()
 
 IDistributedBuildController* FShaderCompilingManager::FindRemoteCompilerController() const
 {
-	TArray<FString> AvailableControllers;
-	GConfig->GetArray(TEXT("CompileDistributionControllers"),TEXT("Controllers"),AvailableControllers, GEngineIni);
-
-	for (const FString& Controller : AvailableControllers)
+	TArray<IDistributedBuildController*> AvailableControllers = IModularFeatures::Get().GetModularFeatureImplementations<IDistributedBuildController>(IDistributedBuildController::GetModularFeatureType());
+	for (IDistributedBuildController* Controller : AvailableControllers)
 	{
-		if (IDistributedBuildController* ControllerPtr = FModuleManager::LoadModulePtr<IDistributedBuildController>(*Controller))
+		if (Controller != nullptr && Controller->IsSupported())
 		{
-			if (ControllerPtr->IsSupported())
-			{
-				return ControllerPtr;
-			}
+			return Controller;
 		}
 	}
 	return nullptr;
