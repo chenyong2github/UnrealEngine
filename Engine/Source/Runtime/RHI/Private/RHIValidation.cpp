@@ -7,6 +7,7 @@
 #include "RHIValidation.h"
 #include "RHIValidationContext.h"
 #include "HAL/PlatformStackWalk.h"
+#include "Misc/OutputDeviceRedirector.h"
 
 #if ENABLE_RHI_VALIDATION
 
