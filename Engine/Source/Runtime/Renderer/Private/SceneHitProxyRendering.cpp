@@ -226,6 +226,7 @@ void InitHitProxyRender(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRe
 
 	// Initialize global system textures (pass-through if already initialized).
 	GSystemTextures.InitializeTextures(GraphBuilder.RHICmdList, FeatureLevel);
+	FRDGSystemTextures::Create(GraphBuilder);
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	// Allocate the maximum scene render target space for the current view family.
