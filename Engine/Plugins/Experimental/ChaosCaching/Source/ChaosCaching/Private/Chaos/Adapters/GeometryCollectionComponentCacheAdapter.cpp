@@ -201,7 +201,33 @@ namespace Chaos
 
 			for(TPair<FClusterParticle*, TArray<FRigidParticle*>> Cluster : NewClusters)
 			{
-				Solver->GetEvolution()->GetRigidClustering().ReleaseClusterParticles(Cluster.Value);
+				TArray<FRigidParticle*>& ChildrenParticles = Cluster.Value;
+				if (ChildrenParticles.Num())
+				{
+					FRigidParticle* ClusterHandle = nullptr;
+					
+					for (FRigidParticle* ChildHandle : ChildrenParticles)
+					{
+						if (FClusterParticle* ClusteredChildHandle = ChildHandle->CastToClustered())
+						{
+							if (ClusteredChildHandle->Disabled() && ClusteredChildHandle->ClusterIds().Id != nullptr)
+							{
+								if (ensure(!ClusterHandle || ClusteredChildHandle->ClusterIds().Id == ClusterHandle))
+								{
+									ClusterHandle = ClusteredChildHandle->ClusterIds().Id;
+								}
+								else
+								{
+									break; //shouldn't be here
+								}
+							}
+						}
+					}
+					if (ClusterHandle)
+					{
+						Solver->GetEvolution()->GetRigidClustering().ReleaseClusterParticlesNoInternalCluster(ClusterHandle->CastToClustered(), nullptr, true);
+					}
+				}
 			}
 		}
 
