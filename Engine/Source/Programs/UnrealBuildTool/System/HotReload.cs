@@ -162,7 +162,12 @@ namespace UnrealBuildTool
 		public static void Setup(TargetDescriptor TargetDescriptor, TargetMakefile Makefile, BuildConfiguration BuildConfiguration)
 		{
 			// Get the hot-reload mode
-			if (Makefile.HotReloadModuleNames.Count == 0)
+			if (TargetDescriptor.HotReloadMode == HotReloadMode.LiveCoding)
+			{
+				// In some instances such as packaged builds, we might not have hot reload modules names.
+				// We don't want to lose the live coding setting in that case.
+			}
+			else if (Makefile.HotReloadModuleNames.Count == 0)
 			{
 				TargetDescriptor.HotReloadMode = HotReloadMode.Disabled;
 			}
