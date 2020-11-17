@@ -13,36 +13,34 @@
 #include "Editor.h"
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
-#include "SPerPlatformPropertiesWidget.h"
 #include "PlatformInfo.h"
 #include "ScopedTransaction.h"
 #include "IPropertyUtilities.h"
 #include "UObject/MetaData.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "SPerPlatformPropertiesWidget.h"
 
 #define LOCTEXT_NAMESPACE "PerPlatformPropertyCustomization"
 
 template<typename PerPlatformType>
-void FPerPlatformPropertyCustomization<PerPlatformType>::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+void FPerPlatformPropertyCustomization<PerPlatformType>::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	PropertyUtilities = StructCustomizationUtils.GetPropertyUtilities();
 
 	int32 PlatformNumber = PlatformInfo::GetAllPlatformGroupNames().Num();
 
-	HeaderRow.NameContent()
-	[
-		StructPropertyHandle->CreatePropertyNameWidget()
-	]
-	.ValueContent()
-	.MinDesiredWidth(CalcDesiredWidth(StructPropertyHandle))
-	.MaxDesiredWidth((float)(PlatformNumber + 1)*125.0f)
-	[
-		SNew(SPerPlatformPropertiesWidget)
-		.OnGenerateWidget(this, &FPerPlatformPropertyCustomization<PerPlatformType>::GetWidget, StructPropertyHandle)
-		.OnAddPlatform(this, &FPerPlatformPropertyCustomization<PerPlatformType>::AddPlatformOverride, StructPropertyHandle)
-		.OnRemovePlatform(this, &FPerPlatformPropertyCustomization<PerPlatformType>::RemovePlatformOverride, StructPropertyHandle)
-		.PlatformOverrideNames(this, &FPerPlatformPropertyCustomization<PerPlatformType>::GetPlatformOverrideNames, StructPropertyHandle)
-	];
+	TAttribute<TArray<FName>> PlatformOverrideNames = TAttribute<TArray<FName>>::Create(TAttribute<TArray<FName>>::FGetter::CreateSP(this, &FPerPlatformPropertyCustomization<PerPlatformType>::GetPlatformOverrideNames, StructPropertyHandle));
+
+	FPerPlatformPropertyCustomNodeBuilderArgs Args;
+	Args.NameWidget = StructPropertyHandle->CreatePropertyNameWidget();
+	Args.PlatformOverrideNames = PlatformOverrideNames;
+	Args.OnAddPlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FPerPlatformPropertyCustomization<PerPlatformType>::AddPlatformOverride, StructPropertyHandle);
+	Args.OnRemovePlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FPerPlatformPropertyCustomization<PerPlatformType>::RemovePlatformOverride, StructPropertyHandle);
+	Args.OnGenerateWidgetForPlatformRow = FOnGenerateWidget::CreateSP(this, &FPerPlatformPropertyCustomization<PerPlatformType>::GetWidget, StructPropertyHandle);
+
+	StructBuilder.AddCustomBuilder(MakeShared<FPerPlatformPropertyCustomNodeBuilder>(MoveTemp(Args)));
 }
+
 
 template<typename PerPlatformType>
 TSharedRef<SWidget> FPerPlatformPropertyCustomization<PerPlatformType>::GetWidget(FName PlatformGroupName, TSharedRef<IPropertyHandle> StructPropertyHandle) const
@@ -99,36 +97,14 @@ TSharedRef<SWidget> FPerPlatformPropertyCustomization<PerPlatformType>::GetWidge
 		}
 	}
 
-	if (EditProperty.IsValid())
+	if (ensure(EditProperty.IsValid()))
 	{
 		return EditProperty->CreatePropertyValueWidget(false);
 	}
-	else
-	{
-		return
-			SNew(STextBlock)
-			.Text(NSLOCTEXT("FPerPlatformPropertyCustomization", "GetWidget", "Could not find valid property"))
-			.ColorAndOpacity(FLinearColor::Red);
-	}
+	
+	return SNullWidget::NullWidget;
 }
 
-template<typename PerPlatformType>
-float FPerPlatformPropertyCustomization<PerPlatformType>::CalcDesiredWidth(TSharedRef<IPropertyHandle> StructPropertyHandle)
-{
-	int32 NumOverrides = 0;
-	TSharedPtr<IPropertyHandle>	MapProperty = StructPropertyHandle->GetChildHandle(FName("PerPlatform"));
-	if (MapProperty.IsValid())
-	{
-		TArray<const void*> RawData;
-		MapProperty->AccessRawData(RawData);
-		for (const void* Data : RawData)
-		{
-			const TMap<FName, typename PerPlatformType::ValueType>* PerPlatformMap = (const TMap<FName, typename PerPlatformType::ValueType>*)(Data);
-			NumOverrides = FMath::Max<int32>(PerPlatformMap->Num(), NumOverrides);
-		}
-	}
-	return (float)(1 + NumOverrides) * 125.f;
-}
 
 template<typename PerPlatformType>
 bool FPerPlatformPropertyCustomization<PerPlatformType>::AddPlatformOverride(FName PlatformGroupName, TSharedRef<IPropertyHandle> StructPropertyHandle)
@@ -164,11 +140,6 @@ bool FPerPlatformPropertyCustomization<PerPlatformType>::AddPlatformOverride(FNa
 							DefaultProperty->GetValue(DefaultValue);
 							ChildProperty->SetValue(DefaultValue);
 
-							if(PropertyUtilities.IsValid())
-							{
-								PropertyUtilities.Pin()->ForceRefresh();
-							}
-
 							return true;
 						}
 					}
@@ -182,7 +153,6 @@ bool FPerPlatformPropertyCustomization<PerPlatformType>::AddPlatformOverride(FNa
 template<typename PerPlatformType>
 bool FPerPlatformPropertyCustomization<PerPlatformType>::RemovePlatformOverride(FName PlatformGroupName, TSharedRef<IPropertyHandle> StructPropertyHandle)
 {
-
 	FScopedTransaction Transaction(LOCTEXT("RemovePlatformOverride", "Remove Platform Override"));
 
 	TSharedPtr<IPropertyHandle>	MapProperty = StructPropertyHandle->GetChildHandle(FName("PerPlatform"));
@@ -200,13 +170,8 @@ bool FPerPlatformPropertyCustomization<PerPlatformType>::RemovePlatformOverride(
 			{
 				if (PlatformName == PlatformGroupName)
 				{
-
 					PerPlatformMap->Remove(PlatformName);
 
-					if (PropertyUtilities.IsValid())
-					{
-						PropertyUtilities.Pin()->ForceRefresh();
-					}
 					return true;
 				}
 			}
@@ -256,3 +221,170 @@ template class FPerPlatformPropertyCustomization<FPerPlatformFloat>;
 template class FPerPlatformPropertyCustomization<FPerPlatformBool>;
 
 #undef LOCTEXT_NAMESPACE
+
+void FPerPlatformPropertyCustomNodeBuilder::SetOnRebuildChildren(FSimpleDelegate InOnRegenerateChildren)
+{
+	OnRebuildChildren = InOnRegenerateChildren;
+}
+
+void FPerPlatformPropertyCustomNodeBuilder::SetOnToggleExpansion(FOnToggleNodeExpansion InOnToggleExpansion)
+{
+	OnToggleExpansion = InOnToggleExpansion;
+}
+
+void FPerPlatformPropertyCustomNodeBuilder::GenerateHeaderRowContent(FDetailWidgetRow& HeaderRow)
+{
+	// Build Platform menu
+	FMenuBuilder AddPlatformMenuBuilder(true, nullptr, nullptr, true);
+
+	// Platform (group) names
+	const TArray<FName>& PlatformGroupNameArray = PlatformInfo::GetAllPlatformGroupNames();
+	const TArray<FName>& VanillaPlatformNameArray = PlatformInfo::GetAllVanillaPlatformNames();
+
+	// Sanitized platform names
+	TArray<FName> BasePlatformNameArray;
+	// Mapping from platform group name to individual platforms
+	TMultiMap<FName, FName> GroupToPlatform;
+
+	TArray<FName> PlatformOverrides = Args.PlatformOverrideNames.Get();
+
+	// Create mapping from platform to platform groups and remove postfixes and invalid platform names
+	for (const FName& PlatformName : VanillaPlatformNameArray)
+	{
+		// Add platform name if it isn't already set, and also add to group mapping
+		if (!PlatformOverrides.Contains(PlatformName))
+		{
+			BasePlatformNameArray.AddUnique(PlatformName);
+			GroupToPlatform.AddUnique(PlatformInfo::FindPlatformInfo(PlatformName)->DataDrivenPlatformInfo->PlatformGroupName, PlatformName);
+		}
+	}
+
+	// Create section for platform groups 
+	const FName PlatformGroupSection(TEXT("PlatformGroupSection"));
+	AddPlatformMenuBuilder.BeginSection(PlatformGroupSection, FText::FromString(TEXT("Platform Groups")));
+	for (const FName& GroupName : PlatformGroupNameArray)
+	{
+		if (!PlatformOverrides.Contains(GroupName))
+		{
+			const FTextFormat Format = NSLOCTEXT("SPerPlatformPropertiesWidget", "AddOverrideGroupFor", "Add Override for Platforms part of the {0} Platform Group");
+			AddPlatformToMenu(GroupName, Format, AddPlatformMenuBuilder);
+		}
+	}
+	AddPlatformMenuBuilder.EndSection();
+
+	for (const FName& GroupName : PlatformGroupNameArray)
+	{
+		// Create a section for each platform group and their respective platforms
+		AddPlatformMenuBuilder.BeginSection(GroupName, FText::FromName(GroupName));
+
+		TArray<FName> PlatformNames;
+		GroupToPlatform.MultiFind(GroupName, PlatformNames);
+
+		const FTextFormat Format = NSLOCTEXT("SPerPlatformPropertiesWidget", "AddOverrideFor", "Add Override specifically for {0}");
+		for (const FName& PlatformName : PlatformNames)
+		{
+			AddPlatformToMenu(PlatformName, Format, AddPlatformMenuBuilder);
+		}
+
+		AddPlatformMenuBuilder.EndSection();
+	}
+
+
+	HeaderRow.NameContent()
+	[
+		Args.NameWidget.ToSharedRef()
+	]
+	.ValueContent()
+	.MinDesiredWidth(125+28.0f)
+	[
+		SNew(SHorizontalBox)
+		.IsEnabled(Args.IsEnabled)
+		.ToolTipText(NSLOCTEXT("SPerPlatformPropertiesWidget", "DefaultPlatformDesc", "This property can have per-platform or platform group overrides.\nThis is the default value used when no override has been set for a platform or platform group."))
+		+SHorizontalBox::Slot()
+		[
+			SNew(SPerPlatformPropertiesRow, NAME_None)
+			.OnGenerateWidget(Args.OnGenerateWidgetForPlatformRow)
+		]
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SComboButton)
+			.ComboButtonStyle(FEditorStyle::Get(), "SimpleComboButton")
+			.HasDownArrow(false)
+			.ToolTipText(NSLOCTEXT("SPerPlatformPropertiesWidget", "AddOverrideToolTip", "Add an override for a specific platform or platform group"))
+			.ButtonContent()
+			[
+				SNew(SImage)
+				.Image(FEditorStyle::GetBrush("Icons.PlusCircle"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
+			]
+			.MenuContent()
+			[
+				AddPlatformMenuBuilder.MakeWidget()
+			]	
+		]
+	];
+}
+
+void FPerPlatformPropertyCustomNodeBuilder::GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder)
+{
+	TArray<FName> PlatformOverrides = Args.PlatformOverrideNames.Get();
+	for (FName PlatformName : PlatformOverrides)
+	{
+		FText PlatformDisplayName = FText::AsCultureInvariant(PlatformName.ToString());
+		FDetailWidgetRow& Row = ChildrenBuilder.AddCustomRow(PlatformDisplayName);
+		Row.IsEnabled(Args.IsEnabled);
+
+		Row.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(PlatformDisplayName)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		];
+
+		Row.ValueContent()
+		[
+			SNew(SPerPlatformPropertiesRow, PlatformName)
+			.OnGenerateWidget(Args.OnGenerateWidgetForPlatformRow)
+			.OnRemovePlatform(this, &FPerPlatformPropertyCustomNodeBuilder::OnRemovePlatformOverride)
+		];
+	}
+}
+
+FName FPerPlatformPropertyCustomNodeBuilder::GetName() const
+{
+	static const FName Name("FPerPlatformPropertyCustomNodeBuilder");
+	return Name;
+}
+
+void FPerPlatformPropertyCustomNodeBuilder::OnAddPlatformOverride(const FName PlatformName)
+{
+	if (Args.OnAddPlatformOverride.IsBound() && Args.OnAddPlatformOverride.Execute(PlatformName))
+	{
+		OnRebuildChildren.ExecuteIfBound();
+		OnToggleExpansion.ExecuteIfBound(true);
+	}
+}
+
+bool FPerPlatformPropertyCustomNodeBuilder::OnRemovePlatformOverride(const FName PlatformName)
+{
+	if (Args.OnRemovePlatformOverride.IsBound() && Args.OnRemovePlatformOverride.Execute(PlatformName))
+	{
+		OnRebuildChildren.ExecuteIfBound();
+	}
+
+	return true;
+}
+void FPerPlatformPropertyCustomNodeBuilder::AddPlatformToMenu(const FName PlatformName, const FTextFormat Format, FMenuBuilder& AddPlatformMenuBuilder)
+{
+	const FText MenuText = FText::Format(FText::FromString(TEXT("{0}")), FText::AsCultureInvariant(PlatformName.ToString()));
+	const FText MenuTooltipText = FText::Format(Format, FText::AsCultureInvariant(PlatformName.ToString()));
+	AddPlatformMenuBuilder.AddMenuEntry(
+		MenuText,
+		MenuTooltipText,
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "PerPlatformWidget.AddPlatform"),
+		FUIAction(FExecuteAction::CreateSP(this, &FPerPlatformPropertyCustomNodeBuilder::OnAddPlatformOverride, PlatformName))
+	);
+}

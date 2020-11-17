@@ -8,6 +8,7 @@ class FDetailWidgetRow;
 class IDetailChildrenBuilder;
 class IPropertyHandle;
 
+DECLARE_DELEGATE_OneParam(FOnToggleNodeExpansion, bool)
 /**
  * A custom node that can be given to a details panel category to customize widgets
  */
@@ -21,7 +22,14 @@ public:
 	 *
 	 * @param A delegate to invoke when the tree should rebuild this nodes children
 	 */
-	virtual void SetOnRebuildChildren( FSimpleDelegate InOnRegenerateChildren ) = 0;
+	virtual void SetOnRebuildChildren(FSimpleDelegate InOnRegenerateChildren) {}
+
+	/**
+	 * Sets a delegate that should be used when the custom node wants to expand
+	 *
+	 * @param A delegate to invoke when the tree should expand
+	 */
+	virtual void SetOnToggleExpansion(FOnToggleNodeExpansion InOnToggleExpansion) {}
 
 	/**
 	 * Called to generate content in the header of this node ( the actual node content ). 
@@ -41,17 +49,17 @@ public:
 	/**
 	 * Called each tick if ReqiresTick is true
 	 */
-	virtual void Tick( float DeltaTime ) = 0;
+	virtual void Tick(float DeltaTime) {}
 
 	/**
 	 * @return true if this node requires tick, false otherwise
 	 */
-	virtual bool RequiresTick() const = 0;
+	virtual bool RequiresTick() const { return false; }
 
 	/**
 	 * @return true if this node should be collapsed in the tree
 	 */
-	virtual bool InitiallyCollapsed() const = 0;
+	virtual bool InitiallyCollapsed() const { return true; }
 
 	/**
 	 * @return The name of this custom builder.  This is used as an identifier to save expansion state if needed

@@ -31,11 +31,10 @@ public:
 	 */
 	void Initialize();
 
-
 	void ToggleExpansion();
 
 	void SetExpansionState(bool bWantsExpanded, bool bSaveState);
-
+	void SetExpansionState(bool bWantsExpanded);
 	/**
 	 * Generates children for this node
 	 *

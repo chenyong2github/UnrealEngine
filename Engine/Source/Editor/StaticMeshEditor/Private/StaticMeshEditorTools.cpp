@@ -29,9 +29,7 @@
 #include "FbxMeshUtils.h"
 #include "Widgets/Input/SVectorInputBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
-#include "SPerPlatformPropertiesWidget.h"
 #include "PlatformInfo.h"
-
 #include "ContentStreaming.h"
 #include "EditorDirectories.h"
 #include "EditorFramework/AssetImportData.h"
@@ -48,6 +46,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "Widgets/Input/SFilePathPicker.h"
 #include "Widgets/Input/STextComboBox.h"
+#include "PerPlatformPropertyCustomization.h"
 
 const uint32 MaxHullCount = 64;
 const uint32 MinHullCount = 2;
@@ -1753,7 +1752,7 @@ void FMeshSectionSettingsLayout::AddToCategory( IDetailCategoryBuilder& Category
 	SectionListDelegates.OnPasteSectionItem.BindSP(this, &FMeshSectionSettingsLayout::OnPasteSectionItem);
 	//We need a valid name if we want the section expand state to be saved
 	FName StaticMeshSectionListName = FName(*(FString(TEXT("StaticMeshSectionListNameLOD_")) + FString::FromInt(LODIndex)));
-	CategoryBuilder.AddCustomBuilder(MakeShareable(new FSectionList(CategoryBuilder.GetParentLayout(), SectionListDelegates, true, 64, LODIndex, StaticMeshSectionListName)));
+	CategoryBuilder.AddCustomBuilder(MakeShareable(new FSectionList(CategoryBuilder.GetParentLayout(), SectionListDelegates, true, 48, LODIndex, StaticMeshSectionListName)));
 
 	StaticMeshEditor.RegisterOnSelectedLODChanged(FOnSelectedLODChanged::CreateSP(this, &FMeshSectionSettingsLayout::UpdateLODCategoryVisibility), false);
 }
@@ -3247,45 +3246,41 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 			.OnSelectionChanged(this, &FLevelOfDetailSettingsLayout::OnImportLOD)
 		];
 
-	int32 PlatformNumber = PlatformInfo::GetAllPlatformGroupNames().Num();
+	{
+		TAttribute<TArray<FName>> PlatformOverrideNames = TAttribute<TArray<FName>>::Create(TAttribute<TArray<FName>>::FGetter::CreateSP(this, &FLevelOfDetailSettingsLayout::GetMinLODPlatformOverrideNames));
+		FPerPlatformPropertyCustomNodeBuilderArgs Args;
+		Args.NameWidget =
+			SNew(STextBlock)
+			.IsEnabled(FLevelOfDetailSettingsLayout::GetLODCount() > 1)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("MinLOD", "Minimum LOD"));
 
-	LODSettingsCategory.AddCustomRow( LOCTEXT("MinLOD", "Minimum LOD") )
-	.NameContent()
-	[
-		SNew(STextBlock)
-		.Font( IDetailLayoutBuilder::GetDetailFont() )
-		.Text(LOCTEXT("MinLOD", "Minimum LOD"))
-	]
-	.ValueContent()
-	.MinDesiredWidth((float)(StaticMesh->GetMinLOD().PerPlatform.Num() + 1)*125.0f)
-	.MaxDesiredWidth((float)(PlatformNumber + 1)*125.0f)
-	[
-		SNew(SPerPlatformPropertiesWidget)
-		.IsEnabled(FLevelOfDetailSettingsLayout::GetLODCount() > 1)
-		.OnGenerateWidget(this, &FLevelOfDetailSettingsLayout::GetMinLODWidget)
-		.OnAddPlatform(this, &FLevelOfDetailSettingsLayout::AddMinLODPlatformOverride)
-		.OnRemovePlatform(this, &FLevelOfDetailSettingsLayout::RemoveMinLODPlatformOverride)
-		.PlatformOverrideNames(this, &FLevelOfDetailSettingsLayout::GetMinLODPlatformOverrideNames)
-	];
+		Args.PlatformOverrideNames = PlatformOverrideNames;
+		Args.OnAddPlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FLevelOfDetailSettingsLayout::AddMinLODPlatformOverride);
+		Args.OnRemovePlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FLevelOfDetailSettingsLayout::RemoveMinLODPlatformOverride);
+		Args.OnGenerateWidgetForPlatformRow = FOnGenerateWidget::CreateSP(this, &FLevelOfDetailSettingsLayout::GetMinLODWidget);
+		Args.IsEnabled = TAttribute<bool>(FLevelOfDetailSettingsLayout::GetLODCount() > 1);
 
-	LODSettingsCategory.AddCustomRow(LOCTEXT("NumStreamedLODs", "Num Streamed LODs"))
-	.NameContent()
-	[
-		SNew(STextBlock)
-		.Font(IDetailLayoutBuilder::GetDetailFont())
-		.Text(LOCTEXT("NumStreamdLODs", "Num Streamed LODs"))
-	]
-	.ValueContent()
-	.MinDesiredWidth((float)(StaticMesh->NumStreamedLODs.PerPlatform.Num() + 1)*125.0f)
-	.MaxDesiredWidth((float)(PlatformNumber + 1)*125.0f)
-	[
-		SNew(SPerPlatformPropertiesWidget)
-		.IsEnabled(FLevelOfDetailSettingsLayout::GetLODCount() > 1)
-		.OnGenerateWidget(this, &FLevelOfDetailSettingsLayout::GetNumStreamedLODsWidget)
-		.OnAddPlatform(this, &FLevelOfDetailSettingsLayout::AddNumStreamedLODsPlatformOverride)
-		.OnRemovePlatform(this, &FLevelOfDetailSettingsLayout::RemoveNumStreamedLODsPlatformOverride)
-		.PlatformOverrideNames(this, &FLevelOfDetailSettingsLayout::GetNumStreamedLODsPlatformOverrideNames)
-	];
+		LODSettingsCategory.AddCustomBuilder(MakeShared<FPerPlatformPropertyCustomNodeBuilder>(MoveTemp(Args)));
+	}
+
+	{
+		TAttribute<TArray<FName>> PlatformOverrideNames = TAttribute<TArray<FName>>::Create(TAttribute<TArray<FName>>::FGetter::CreateSP(this, &FLevelOfDetailSettingsLayout::GetNumStreamedLODsPlatformOverrideNames));
+		FPerPlatformPropertyCustomNodeBuilderArgs Args;
+		Args.NameWidget =
+			SNew(STextBlock)
+			.IsEnabled(FLevelOfDetailSettingsLayout::GetLODCount() > 1)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("NumStreamdLODs", "Num Streamed LODs"));
+
+		Args.PlatformOverrideNames = PlatformOverrideNames;
+		Args.OnAddPlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FLevelOfDetailSettingsLayout::AddNumStreamedLODsPlatformOverride);
+		Args.OnRemovePlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FLevelOfDetailSettingsLayout::RemoveNumStreamedLODsPlatformOverride);
+		Args.OnGenerateWidgetForPlatformRow = FOnGenerateWidget::CreateSP(this, &FLevelOfDetailSettingsLayout::GetNumStreamedLODsWidget);
+		Args.IsEnabled = TAttribute<bool>(FLevelOfDetailSettingsLayout::GetLODCount() > 1);
+
+		LODSettingsCategory.AddCustomBuilder(MakeShared<FPerPlatformPropertyCustomNodeBuilder>(MoveTemp(Args)));
+	}
 
 	// Add Number of LODs slider.
 	const int32 MinAllowedLOD = 1;
@@ -3572,24 +3567,22 @@ void FLevelOfDetailSettingsLayout::AddLODLevelCategories( IDetailLayoutBuilder& 
 
 			int32 PlatformNumber = PlatformInfo::GetAllPlatformGroupNames().Num();
 
-			LODCategory.AddCustomRow(( LOCTEXT("ScreenSizeRow", "ScreenSize")))
-			.NameContent()
-			[
+			TAttribute<TArray<FName>> PlatformOverrideNames = TAttribute<TArray<FName>>::Create(TAttribute<TArray<FName>>::FGetter::CreateSP(this, &FLevelOfDetailSettingsLayout::GetLODScreenSizePlatformOverrideNames, LODIndex));
+
+			FPerPlatformPropertyCustomNodeBuilderArgs Args;
+			Args.NameWidget =
 				SNew(STextBlock)
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-				.Text(LOCTEXT("ScreenSizeName", "Screen Size"))
-			]
-			.ValueContent()
-			.MinDesiredWidth(GetScreenSizeWidgetWidth(LODIndex))
-			.MaxDesiredWidth((float)(PlatformNumber + 1)*125.0f)
-			[
-				SNew(SPerPlatformPropertiesWidget)
 				.IsEnabled(this, &FLevelOfDetailSettingsLayout::CanChangeLODScreenSize)
-				.OnGenerateWidget(this, &FLevelOfDetailSettingsLayout::GetLODScreenSizeWidget, LODIndex)
-				.OnAddPlatform(this, &FLevelOfDetailSettingsLayout::AddLODScreenSizePlatformOverride, LODIndex)
-				.OnRemovePlatform(this, &FLevelOfDetailSettingsLayout::RemoveLODScreenSizePlatformOverride, LODIndex)
-				.PlatformOverrideNames(this, &FLevelOfDetailSettingsLayout::GetLODScreenSizePlatformOverrideNames, LODIndex)
-			];
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Text(LOCTEXT("ScreenSizeName", "Screen Size"));
+
+			Args.PlatformOverrideNames = PlatformOverrideNames;
+			Args.OnAddPlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FLevelOfDetailSettingsLayout::AddLODScreenSizePlatformOverride, LODIndex);
+			Args.OnRemovePlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FLevelOfDetailSettingsLayout::RemoveLODScreenSizePlatformOverride, LODIndex);
+			Args.OnGenerateWidgetForPlatformRow = FOnGenerateWidget::CreateSP(this, &FLevelOfDetailSettingsLayout::GetLODScreenSizeWidget, LODIndex);
+			Args.IsEnabled = TAttribute<bool>(this, &FLevelOfDetailSettingsLayout::CanChangeLODScreenSize);
+
+			LODCategory.AddCustomBuilder(MakeShared<FPerPlatformPropertyCustomNodeBuilder>(MoveTemp(Args)));
 
 			if(LODIndex > 0 && StaticMesh->IsMeshDescriptionValid(LODIndex))
 			{
@@ -4483,7 +4476,6 @@ TSharedRef<SWidget> FLevelOfDetailSettingsLayout::OnGenerateLodComboBoxForLodPic
 		.IsEnabled(this, &FLevelOfDetailSettingsLayout::IsLodComboBoxEnabledForLodPicker)
 		.OnGetMenuContent(this, &FLevelOfDetailSettingsLayout::OnGenerateLodMenuForLodPicker)
 		.VAlign(VAlign_Center)
-		.ContentPadding(2)
 		.ButtonContent()
 		[
 			SNew(STextBlock)

@@ -44,7 +44,8 @@ public class StaticMeshEditor : ModuleRules
 				"EditorSubsystem",
 				"MeshDescription",
 				"StaticMeshDescription",
-				"ToolMenus"
+				"ToolMenus",
+				"DetailCustomizations",
 			}
 		);
 

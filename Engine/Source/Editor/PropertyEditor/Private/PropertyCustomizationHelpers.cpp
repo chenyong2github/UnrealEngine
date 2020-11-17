@@ -157,7 +157,7 @@ namespace PropertyCustomizationHelpers
 			SNew( SPropertyEditorButton )
 			.Text( LOCTEXT( "DeleteButtonLabel", "Delete") )
 			.ToolTipText( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "DeleteButtonToolTipText", "Delete") : OptionalToolTipText )
-			.Image( FEditorStyle::GetBrush("Icons.X") )
+			.Image( FEditorStyle::GetBrush("Icons.Delete") )
 			.OnClickAction( OnDeleteClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
@@ -1394,7 +1394,6 @@ void SMaterialSlotWidget::Construct(const FArguments& InArgs, int32 SlotIndex, b
 		[
 			SNew(SBox)
 			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Fill)
 			.MinDesiredWidth(160.0f)
 			[
 				SNew(SEditableTextBox)
@@ -1409,14 +1408,13 @@ void SMaterialSlotWidget::Construct(const FArguments& InArgs, int32 SlotIndex, b
 	
 	if (bIsMaterialUsed)
 	{
-		DeleteButton->SetVisibility(EVisibility::Hidden);
+		DeleteButton->SetEnabled(false);
 	}
 	
 
 	SlotNameBox->AddSlot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Left)
 		.Padding(2)
 		[
 			DeleteButton

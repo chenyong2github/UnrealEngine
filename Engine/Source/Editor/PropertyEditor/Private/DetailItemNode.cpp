@@ -219,6 +219,12 @@ void FDetailItemNode::SetExpansionState(bool bWantsExpanded, bool bSaveState)
 	OnItemExpansionChanged(bIsExpanded, bSaveState);
 }
 
+void FDetailItemNode::SetExpansionState(bool bWantsExpanded)
+{
+	const bool bSaveState = true;
+	SetExpansionState(bWantsExpanded, bSaveState);
+}
+
 TSharedRef< ITableRow > FDetailItemNode::GenerateWidgetForTableView( const TSharedRef<STableViewBase>& OwnerTable, bool bAllowFavoriteSystem)
 {
 	FTagMetaData TagMeta(TEXT("DetailRowItem"));
