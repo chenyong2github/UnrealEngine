@@ -169,7 +169,7 @@ void SControlRigAssetEditableTextBox::OnTextChanged(const FText& InLabel)
 	FText OutErrorMessage;
 	if (!AssetViewUtils::IsValidObjectPathForCreate(ObjectPath, OutErrorMessage))
 	{
-		TextBox->SetError(FText::GetEmpty());
+		TextBox->SetError(OutErrorMessage);
 	}
 	else
 	{
