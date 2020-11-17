@@ -9,6 +9,7 @@
 class SWidget;
 class FWidgetPath;
 class FWidgetReflectorNodeBase;
+class FJsonValue;
 
 struct FNavigationSimulationWidgetInfo;
 struct FNavigationSimulationWidgetNodeItem;
@@ -26,8 +27,9 @@ struct FNavigationSimulationWidgetInfo
 	// Should be PTRINT but if the platform that produce the file is 64bits and the reader is not then we could have a issue
 	using TPointerAsInt = uint64;
 
-	FNavigationSimulationWidgetInfo(const TSharedPtr<const SWidget>& Widget);
-	FNavigationSimulationWidgetInfo(const FWidgetPath& WidgetPath);
+	FNavigationSimulationWidgetInfo() = default;
+	explicit FNavigationSimulationWidgetInfo(const TSharedPtr<const SWidget>& Widget);
+	explicit FNavigationSimulationWidgetInfo(const FWidgetPath& WidgetPath);
 
 	/** Is the widget set to null. */
 	bool IsWidgetExplicitlyNull() const { return WidgetPtr == 0; }
@@ -42,7 +44,8 @@ struct FNavigationSimulationWidgetInfo
 
 struct FNavigationSimulationWidgetNodeItem
 {
-	FNavigationSimulationWidgetNodeItem(const FSlateNavigationEventSimulator::FSimulationResult& Result);
+	FNavigationSimulationWidgetNodeItem() = default;
+	explicit FNavigationSimulationWidgetNodeItem(const FSlateNavigationEventSimulator::FSimulationResult& Result);
 
 	EUINavigation NavigationType;
 	FNavigationSimulationWidgetInfo Destination;
@@ -63,11 +66,18 @@ struct FNavigationSimulationWidgetNodeItem
 
 struct FNavigationSimulationWidgetNode
 {
-	FNavigationSimulationWidgetNode(ENavigationSimulationNodeType NodeType, const FWidgetPath& InNavigationSource);
+	FNavigationSimulationWidgetNode() = default;
+	explicit FNavigationSimulationWidgetNode(ENavigationSimulationNodeType NodeType, const FWidgetPath& InNavigationSource);
 
 	FNavigationSimulationWidgetInfo NavigationSource;
 	TArray<FNavigationSimulationWidgetNodeItem, TInlineAllocator<4>> Simulations;
 	ENavigationSimulationNodeType NodeType;
+
+	/** Save this node data as a JSON object */
+	static TSharedRef<FJsonValue> ToJson(const FNavigationSimulationWidgetNode& Node);
+
+	/** Populate this node data from a JSON object */
+	static FNavigationSimulationWidgetNodePtr FromJson(const TSharedRef<FJsonValue>& RootJsonValue);
 };
 
 

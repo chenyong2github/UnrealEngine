@@ -28,8 +28,8 @@ enum class EWidgetReflectorNodeType : uint8
  */
 struct FWidgetHitTestInfo
 {
-	bool IsHitTestVisible;
-	bool AreChildrenHitTestVisible;
+	bool IsHitTestVisible = false;
+	bool AreChildrenHitTestVisible = false;
 };
 
 /** 
@@ -328,7 +328,7 @@ private:
 	/** The type string of the widget at the point it was passed to Initialize */
 	FText CachedWidgetType;
 
-	/**  */
+	/** The type and short name string of the widget at the point it was passed to Initialize */
 	FText CachedWidgetTypeAndShortName;
 
 	/** The visibility string of the widget at the point it was passed to Initialize */
@@ -340,10 +340,20 @@ private:
 	/** The focusability of the widget at the point it was passed to Initialize */
 	bool bCachedWidgetFocusable;
 
-	bool CachedWidgetNeedsTick;
-	bool CachedWidgetIsVolatile;
-	bool CachedWidgetIsVolatileIndirectly;
-	bool CachedWidgetHasActiveTimers;
+	/** The ticking state of the widget at the point it was passed to Initialize */
+	bool bCachedWidgetNeedsTick;
+
+	/** The volatility state of the widget at the point it was passed to Initialize */
+	bool bCachedWidgetIsVolatile;
+
+	/** The volatility indirectly state of the widget at the point it was passed to Initialize */
+	bool bCachedWidgetIsVolatileIndirectly;
+
+	/** The active timer state of the widget at the point it was passed to Initialize */
+	bool bCachedWidgetHasActiveTimers;
+
+	/** The enabled state of the widget at the point it was passed to Initialize */
+	bool bCachedWidgetEnabled;
 	
 	/** The clipping string of the widget at the point it was passed to Initialize */
 	FText CachedWidgetClippingText;
@@ -368,9 +378,6 @@ private:
 
 	/** The in-memory address of the widget at the point it was passed to Initialize */
 	TPointerAsInt CachedWidgetAddress;
-
-	/** The enabled state of the widget at the point it was passed to Initialize */
-	bool CachedWidgetEnabled;
 };
 
 

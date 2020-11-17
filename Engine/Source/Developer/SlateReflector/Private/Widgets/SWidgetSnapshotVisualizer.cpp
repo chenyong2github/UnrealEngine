@@ -385,7 +385,7 @@ void FWidgetSnapshotData::CreateSnapshot(const TArray<TSharedRef<SWindow>>& Visi
 	Reset();
 	Reserve(VisibleWindows.Num());
 
-	for (const auto& VisibleWindow : VisibleWindows)
+	for (const TSharedRef<SWindow>& VisibleWindow : VisibleWindows)
 	{
 		// Snapshot the current state of this window widget hierarchy
 		Windows.Add(FWidgetReflectorNodeUtils::NewSnapshotNodeTreeFrom(FArrangedWidget(VisibleWindow, VisibleWindow->GetWindowGeometryInScreen())));
@@ -446,20 +446,44 @@ void FWidgetSnapshotData::SaveSnapshotToBuffer(TArray<uint8>& OutData) const
 	BufferWriter.SerializeCompressed(TmpJsonData.GetData(), TmpJsonData.Num(), NAME_Zlib);
 }
 
+double SnapshotJsonVersion = 2.0;
+
 TSharedRef<FJsonObject> FWidgetSnapshotData::SaveSnapshotAsJson() const
 {
 	check(Windows.Num() == WindowTextureData.Num());
 
-	TSharedRef<FJsonObject> RootJsonObject = MakeShareable(new FJsonObject());
+	TSharedRef<FJsonObject> RootJsonObject = MakeShared<FJsonObject>();
+
+	{
+		RootJsonObject->SetNumberField(TEXT("Version"), SnapshotJsonVersion);
+	}
 
 	{
 		TArray<TSharedPtr<FJsonValue>> WindowsJsonArray;
-		for (const auto& Window : Windows)
+		for (const TSharedPtr<FWidgetReflectorNodeBase>& Window : Windows)
 		{
 			check(Window->GetNodeType() == EWidgetReflectorNodeType::Snapshot);
 			WindowsJsonArray.Add(FSnapshotWidgetReflectorNode::ToJson(StaticCastSharedRef<FSnapshotWidgetReflectorNode>(Window.ToSharedRef())));
 		}
 		RootJsonObject->SetArrayField(TEXT("Windows"), WindowsJsonArray);
+	}
+
+	{
+		TArray<TSharedPtr<FJsonValue>> NavigationDataArray;
+		
+		for (const FWidgetSnapshotNavigationSimulationData& NavigationSimulation : NavigationSimulationData)
+		{
+			TSharedRef<FJsonObject> NavigationData = MakeShared<FJsonObject>();
+			TArray<TSharedPtr<FJsonValue>> SimulationDataArray;
+			for (const FNavigationSimulationWidgetNodePtr& SimulationData : NavigationSimulation.SimulationData)
+			{
+				check(SimulationData.Get());
+				SimulationDataArray.Add(FNavigationSimulationWidgetNode::ToJson(*SimulationData.Get()));
+			}
+			NavigationData->SetArrayField(TEXT("SimulationData"), SimulationDataArray);
+			NavigationDataArray.Add(MakeShared<FJsonValueObject>(NavigationData));
+		}
+		RootJsonObject->SetArrayField(TEXT("NavigationData"), NavigationDataArray);
 	}
 
 	{
@@ -581,10 +605,34 @@ void FWidgetSnapshotData::LoadSnapshotFromJson(const TSharedRef<FJsonObject>& In
 	Reset();
 
 	{
+		const double VersionNumber = InRootJsonObject->GetNumberField(TEXT("Version"));
+		if (VersionNumber < SnapshotJsonVersion)
+		{
+			UE_LOG(LogSlate, Error, TEXT("The version of the snapshot (%f) is older than the current version (%f). New fields will be initialized to their defaulted value."), VersionNumber, SnapshotJsonVersion);
+		}
+	}
+
+	{
 		const TArray<TSharedPtr<FJsonValue>>& WindowsJsonArray = InRootJsonObject->GetArrayField(TEXT("Windows"));
 		for (const TSharedPtr<FJsonValue>& WindowJsonValue : WindowsJsonArray)
 		{
 			Windows.Add(FSnapshotWidgetReflectorNode::FromJson(WindowJsonValue.ToSharedRef()));
+		}
+	}
+
+	{
+		const TArray<TSharedPtr<FJsonValue>>& NavigationDataJsonArray = InRootJsonObject->GetArrayField(TEXT("NavigationData"));
+		for (const TSharedPtr<FJsonValue>& NavigationDataJsonValue : NavigationDataJsonArray)
+		{
+			FWidgetSnapshotNavigationSimulationData NavigationData;
+			const TSharedPtr<FJsonObject>& NavigationDataJsonObject = NavigationDataJsonValue->AsObject();
+			const TArray<TSharedPtr<FJsonValue>>& SimulationDataJsonArray = NavigationDataJsonObject->GetArrayField(TEXT("SimulationData"));
+			for (const TSharedPtr<FJsonValue>& SimulationDataJsonValue : SimulationDataJsonArray)
+			{
+				FNavigationSimulationWidgetNodePtr SimulationData = FNavigationSimulationWidgetNode::FromJson(SimulationDataJsonValue.ToSharedRef());
+				NavigationData.SimulationData.Add(SimulationData);
+			}
+			NavigationSimulationData.Add(MoveTemp(NavigationData));
 		}
 	}
 

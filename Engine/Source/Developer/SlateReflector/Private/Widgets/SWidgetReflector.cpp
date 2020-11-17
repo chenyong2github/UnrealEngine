@@ -7,6 +7,7 @@
 #include "Rendering/DrawElements.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Parse.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/TabManager.h"
@@ -74,12 +75,12 @@ namespace WidgetReflectorImpl
 {
 
 /** Command to take a snapshot. */
-void TakeSnapshotCommand();
+void TakeSnapshotCommand(const TArray<FString>&);
 
 FAutoConsoleCommand CCommandWidgetReflectorTakeSnapshot(
 	TEXT("WidgetReflector.TakeSnapshot")
-	, TEXT("Take a snapshot and save the result on the local drive.")
-	, FConsoleCommandDelegate::CreateStatic(&TakeSnapshotCommand));
+	, TEXT("Take a snapshot and save the result on the local drive. ie. WidgetReflector.TakeSnapshot [Delay=1.0] [Navigation=false]")
+	, FConsoleCommandWithArgsDelegate::CreateStatic(&TakeSnapshotCommand));
 
 /** Information about a potential widget snapshot target */
 struct FWidgetSnapshotTarget
@@ -1924,7 +1925,7 @@ void SWidgetReflector::HandleReflectorTreeSelectionChanged( TSharedPtr<FWidgetRe
 		}
 	}
 
-	if (SelectedWidgetObjects.Num() > 0)
+	if (GIsEditor && SelectedWidgetObjects.Num() > 0)
 	{
 		TabManager->TryInvokeTab(WidgetReflectorTabID::WidgetDetails);
 		if (PropertyViewPtr.IsValid())
@@ -2016,14 +2017,45 @@ void SWidgetReflector::HandleStartTreeWithUMG()
 	ReflectorTree->RequestTreeRefresh();
 }
 
-// command line
+// console command
 
-void TakeSnapshotCommand()
+static FDelegateHandle TakeSnapshotEndFrameHandle;
+
+void TakeSnapshotCommand_EndFrame(double RequestedTime, bool bRequestNavigation)
 {
-	FWidgetSnapshotData SnapshotData;
-	SnapshotData.TakeSnapshot(false);
-	FString Filename = FPaths::CreateTempFilename(*FPaths::GameAgnosticSavedDir(), TEXT(""), TEXT(".widgetsnapshot"));
-	SnapshotData.SaveSnapshotToFile(Filename);
+	if (RequestedTime <= FApp::GetCurrentTime())
+	{
+		FWidgetSnapshotData SnapshotData;
+		SnapshotData.TakeSnapshot(bRequestNavigation);
+		FString Filename = FPaths::CreateTempFilename(*FPaths::GameAgnosticSavedDir(), TEXT(""), TEXT(".widgetsnapshot"));
+		SnapshotData.SaveSnapshotToFile(Filename);
+
+		FCoreDelegates::OnEndFrame.Remove(TakeSnapshotEndFrameHandle);
+		TakeSnapshotEndFrameHandle.Reset();
+	}
+}
+
+void TakeSnapshotCommand(const TArray<FString>& Args)
+{
+	FCoreDelegates::OnEndFrame.Remove(TakeSnapshotEndFrameHandle);
+
+	float RequestedDelay = 0.001f;
+	bool bRequestNavigation = false;
+	for (const FString& Arg : Args)
+	{
+		if (FParse::Value(*Arg, TEXT("Delay="), RequestedDelay))
+		{
+			continue;
+		}
+		if (FParse::Bool(*Arg, TEXT("Navigation="), bRequestNavigation))
+		{
+			continue;
+		}
+	}
+
+	const double CurrentTime = FApp::GetCurrentTime();
+	const double RequestedTimeDelay = CurrentTime + (double)RequestedDelay;
+	TakeSnapshotEndFrameHandle = FCoreDelegates::OnEndFrame.AddStatic(&TakeSnapshotCommand_EndFrame, RequestedTimeDelay, bRequestNavigation);
 }
 
 } // namespace WidgetReflectorImpl
