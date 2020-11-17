@@ -34,9 +34,7 @@ public:
 	void SpawnHLODActor(const TCHAR* InName, const TArray<UPrimitiveComponent*>& InSubComponents, FCreateComponentsFunction InCreateComponentsFunc)
 	{
 		FString HLODActorName = FString::Printf(TEXT("%s_%s_%s"), *HLODLayer->GetName(), *CellName.ToString(), InName);
-		FString HLODActorPath = FString::Printf(TEXT("%s.%s"), *World->PersistentLevel->GetPathName(), *HLODActorName);
-
-		AWorldPartitionHLOD* HLODActor = FindObject<AWorldPartitionHLOD>(ANY_PACKAGE, *HLODActorPath);
+		AWorldPartitionHLOD* HLODActor = FindObjectFast<AWorldPartitionHLOD>(World->PersistentLevel, *HLODActorName);
 		if (!HLODActor)
 		{
 			FActorSpawnParameters SpawnParams;

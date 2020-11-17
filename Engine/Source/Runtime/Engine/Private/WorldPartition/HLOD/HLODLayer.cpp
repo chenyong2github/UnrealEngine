@@ -10,7 +10,6 @@
 #if WITH_EDITOR
 #include "UObject/ConstructorHelpers.h"
 #include "Materials/MaterialInterface.h"
-#include "Math/UnitConversion.h"
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
@@ -90,9 +89,15 @@ UHLODLayer* UHLODLayer::GetHLODLayer(const AActor* InActor)
 	{
 		return HLODLayer;
 	}
-	if (UWorldPartition* WorldPartition = InActor->GetWorld()->GetWorldPartition())
+
+	// Only fallback to the default HLODLayer for the first level of HLOD
+	bool bIsHLOD0 = !InActor->IsA<AWorldPartitionHLOD>();
+	if (!bIsHLOD0) 
 	{
-		return WorldPartition->DefaultHLODLayer;
+		if (UWorldPartition* WorldPartition = InActor->GetWorld()->GetWorldPartition())
+		{
+			return WorldPartition->DefaultHLODLayer;
+		}
 	}
 	return nullptr;
 }
@@ -103,15 +108,7 @@ UHLODLayer* UHLODLayer::GetHLODLayer(const AActor* InActor)
 
 FName UHLODLayer::GetRuntimeGridName(uint32 InLODLevel, int32 InCellSize, float InLoadingRange)
 {
-	FNumericUnit<float> CellSize(InCellSize, EUnit::Centimeters);
-	FNumericUnit<float> CellSizeQuantized = CellSize.QuantizeUnitsToBestFit();
-	FString CellSizeString = FString::SanitizeFloat(CellSizeQuantized.Value, 0) + FUnitConversion::GetUnitDisplayString(CellSizeQuantized.Units);
-
-	FNumericUnit<float> LoadingRange(InLoadingRange, EUnit::Centimeters);
-	FNumericUnit<float> LoadingRangeQuantized = LoadingRange.QuantizeUnitsToBestFit();
-	FString LoadingRangeString = FString::SanitizeFloat(LoadingRangeQuantized.Value, 0) + FUnitConversion::GetUnitDisplayString(LoadingRangeQuantized.Units);
-
-	return *FString::Format(TEXT("HLOD{0}_{1}_{2}"), { InLODLevel, CellSizeString, LoadingRangeString });
+	return *FString::Format(TEXT("HLOD{0}_{1}m_{2}m"), { InLODLevel, int32(InCellSize * 0.01f), int32(InLoadingRange * 0.01f)});
 }
 
 FName UHLODLayer::GetRuntimeGrid(uint32 InHLODLevel) const
