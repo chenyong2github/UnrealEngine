@@ -194,10 +194,15 @@ void GetShadowTerms(FGBufferData GBuffer, FDeferredLightData LightData, float3 W
 	}
 
 #if SUPPORT_CONTACT_SHADOWS
-	if ((LightData.ShadowedBits < 2 && (GBuffer.ShadingModelID == SHADINGMODELID_HAIR))
-		|| GBuffer.ShadingModelID == SHADINGMODELID_EYE)
+	if (LightData.ShadowedBits < 2 && (GBuffer.ShadingModelID == SHADINGMODELID_HAIR))
 	{
 		ContactShadowLength = 0.2 * ContactShadowLengthScreenScale;
+	}
+	// World space distance to cover eyelids and eyelashes but not beyond
+	if (GBuffer.ShadingModelID == SHADINGMODELID_EYE)
+	{
+		ContactShadowLength = 0.5;
+		
 	}
 
 	#if MATERIAL_CONTACT_SHADOWS
