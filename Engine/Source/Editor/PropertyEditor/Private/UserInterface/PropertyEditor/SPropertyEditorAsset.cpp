@@ -501,6 +501,7 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 				[
 					SNew(SImage)
 					.Image(this, &SPropertyEditorAsset::GetThumbnailBorder)
+					.Visibility(EVisibility::SelfHitTestInvisible)
 				]
 			]
 		];
