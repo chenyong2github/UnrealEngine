@@ -201,17 +201,6 @@ void FHemisphereDirectionSampleGenerator::GenerateSamples(int32 TargetNumSamples
 	}
 }
 
-
-bool ShouldRenderLumenDiffuseGI(EShaderPlatform ShaderPlatform, const FSceneViewFamily& ViewFamily)
-{
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
-
-	return GAllowLumenScene
-		&& DoesPlatformSupportLumenGI(ShaderPlatform)
-		&& ViewFamily.EngineShowFlags.LumenDiffuseIndirect
-		&& CVar->GetValueOnRenderThread() != 0;
-}
-
 bool FDeferredShadingSceneRenderer::ShouldRenderLumenDiffuseGI(const FViewInfo& View) const
 {
 	return Lumen::ShouldRenderLumenForView(Scene, View) && ViewFamily.EngineShowFlags.GlobalIllumination;

@@ -667,7 +667,7 @@ bool ShouldRenderDeferredDynamicSkyLight(const FScene* Scene, const FSceneViewFa
 {
 	return ShouldRenderDynamicSkyLight(Scene, ViewFamily)
 		&& !ShouldRenderRayTracingSkyLight(Scene->SkyLight) // Disable diffuse sky contribution if evaluated by RT Sky.
-		&& !ShouldRenderLumenDiffuseGI(Scene->GetShaderPlatform(), ViewFamily);
+		&& !Lumen::ShouldRenderLumenForViewFamily(Scene, ViewFamily);
 }
 
 bool FDeferredShadingSceneRenderer::ShouldPrepareForDistanceFieldAO() const

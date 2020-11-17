@@ -226,21 +226,33 @@ bool Lumen::ShouldPrepareGlobalDistanceField(EShaderPlatform ShaderPlatform)
 	return GAllowLumenScene && DoesPlatformSupportLumenGI(ShaderPlatform);
 }
 
-bool Lumen::ShouldRenderLumenForView(const FScene* Scene, const FViewInfo& View)
+bool Lumen::ShouldRenderLumenForViewFamily(const FScene* Scene, const FSceneViewFamily& ViewFamily)
 {
 	return Scene 
 		&& Scene->LumenSceneData
-		&& View.Family
-		&& View.Family->Views.Num() == 1
+		&& ViewFamily.Views.Num() == 1
 		&& GAllowLumenScene
 		&& DoesPlatformSupportLumenGI(Scene->GetShaderPlatform())
-		&& (Scene->LumenSceneData->VisibleCardsIndices.Num() > 0 || ShouldRenderDynamicSkyLight(Scene, *View.Family))
-		&& Scene->LumenSceneData->AlbedoAtlas
+		&& (Scene->LumenSceneData->VisibleCardsIndices.Num() > 0 || ShouldRenderDynamicSkyLight(Scene, ViewFamily))
+		&& Scene->LumenSceneData->AlbedoAtlas;
+}
+
+bool Lumen::ShouldRenderLumenForViewWithoutMeshSDFs(const FScene* Scene, const FViewInfo& View)
+{
+	return View.Family
+		&& ShouldRenderLumenForViewFamily(Scene, *View.Family)
 		// Don't update scene lighting for secondary views
 		&& !View.bIsPlanarReflection
 		&& !View.bIsSceneCapture
 		&& !View.bIsReflectionCapture
 		&& View.ViewState;
+}
+
+bool Lumen::ShouldRenderLumenForView(const FScene* Scene, const FViewInfo& View)
+{
+	static const auto CMeshSDFVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
+
+	return ShouldRenderLumenForViewWithoutMeshSDFs(Scene, View) && CMeshSDFVar->GetValueOnRenderThread() != 0;
 }
 
 bool Lumen::ShouldRenderLumenCardsForView(const FScene* Scene, const FViewInfo& View)

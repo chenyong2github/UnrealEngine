@@ -24,6 +24,8 @@ namespace Lumen
 	bool AnyLumenHardwareRayTracingPassEnabled();
 	int32 GetGlobalDFResolution();
 	float GetGlobalDFClipmapExtent();
+	bool ShouldRenderLumenForViewFamily(const FScene* Scene, const FSceneViewFamily& ViewFamily);
+	bool ShouldRenderLumenForViewWithoutMeshSDFs(const FScene* Scene, const FViewInfo& View);
 	bool ShouldRenderLumenForView(const FScene* Scene, const FViewInfo& View);
 	bool ShouldRenderLumenCardsForView(const FScene* Scene, const FViewInfo& View);
 

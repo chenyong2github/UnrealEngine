@@ -22,8 +22,6 @@ inline bool DoesPlatformSupportLumenGI(EShaderPlatform Platform)
 
 extern int32 GAllowLumenScene;
 
-extern bool ShouldRenderLumenDiffuseGI(EShaderPlatform ShaderPlatform, const FSceneViewFamily& ViewFamily);
-
 class FCardRenderData
 {
 public:

@@ -64,6 +64,7 @@
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
 #include "FXSystem.h"
+#include "Lumen/Lumen.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -2844,7 +2845,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 		const bool bShowPointLightWarning = UsedWholeScenePointLightNames.Num() > 0 && !ReadOnlyCVARCache.bEnablePointLightShadows;
 		const bool bShowShadowedLightOverflowWarning = Scene->OverflowingDynamicShadowedLights.Num() > 0;
 
-		const bool bLumenEnabledButNoDistanceFieldsWarning = ShouldRenderLumenDiffuseGI(ShaderPlatform, ViewFamily) && !Scene->DistanceFieldSceneData.bTrackAllPrimitives;
+		const bool bLumenEnabledButNoDistanceFieldsWarning = Lumen::ShouldRenderLumenForViewWithoutMeshSDFs(Scene, Views[0]) && !Scene->DistanceFieldSceneData.bTrackAllPrimitives;
 
 		// Mobile-specific warnings
 		const bool bMobile = (FeatureLevel <= ERHIFeatureLevel::ES3_1);
