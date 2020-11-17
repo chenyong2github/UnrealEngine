@@ -110,6 +110,11 @@ public:
 		const TMap<TGeometryParticleHandle<T, d>*, float>* ExternalStrainMap = nullptr,
 		bool bForceRelease = false);
 
+	TSet<TPBDRigidParticleHandle<T, d>*> ReleaseClusterParticlesNoInternalCluster(
+		TPBDRigidClusteredParticleHandle<T, d>* ClusteredParticle,
+		const TMap<TGeometryParticleHandle<T, d>*, float>* ExternalStrainMap = nullptr,
+		bool bForceRelease = false);
+
 	/*
 	*  ReleaseClusterParticles
 	*    Release all rigid body IDs passed,

@@ -944,6 +944,226 @@ namespace Chaos
 		return ActivatedChildren;
 	}
 
+
+
+	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::ReleaseClusterParticlesNoInternalCluster"), STAT_ReleaseClusterParticlesNoInternalCluster, STATGROUP_Chaos);
+	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint, class T, int d>
+	TSet<TPBDRigidParticleHandle<T, d>*>
+		TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint, T, d>::ReleaseClusterParticlesNoInternalCluster(
+			TPBDRigidClusteredParticleHandle<T, d>* ClusteredParticle,
+			const TMap<TGeometryParticleHandle<T, d>*, float>* ExternalStrainMap,
+			bool bForceRelease)
+	{
+		/* This is a near duplicate of the ReleaseClusterParticles() method with the internal cluster creation removed.
+		*  This method should be used exclusively by the GeometryCollectionComponentCacheAdaptor in order to implement
+		*  correct behavior when cluster grouping is used. 
+		*/
+		
+		SCOPE_CYCLE_COUNTER(STAT_ReleaseClusterParticlesNoInternalCluster);
+
+		TSet<TPBDRigidParticleHandle<T, d>*> ActivatedChildren;
+		if (!ensureMsgf(MChildren.Contains(ClusteredParticle), TEXT("Removing Cluster that does not exist!")))
+		{
+			return ActivatedChildren;
+		}
+		TArray<TPBDRigidParticleHandle<T, d>*>& Children = MChildren[ClusteredParticle];
+
+		bool bChildrenChanged = false;
+		const bool bRewindOnDecluster = ChaosClusteringChildrenInheritVelocity < 1;
+		const TRigidTransform<T, d> PreSolveTM =
+			bRewindOnDecluster ?
+			TRigidTransform<T, d>(ClusteredParticle->X(), ClusteredParticle->R()) :
+			TRigidTransform<T, d>(ClusteredParticle->P(), ClusteredParticle->Q());
+
+		//@todo(ocohen): iterate with all the potential parents at once?
+		//find all children within some distance of contact point
+
+		auto RemoveChildLambda = [&](TPBDRigidParticleHandle<T, d>* Child/*, const int32 Idx*/)
+		{
+			TPBDRigidClusteredParticleHandle<T, d>* ClusteredChild = Child->CastToClustered();
+
+			MEvolution.EnableParticle(Child, ClusteredParticle);
+			TopLevelClusterParents.Add(ClusteredChild);
+
+			//make sure to remove multi child proxy if it exists
+			ClusteredChild->MultiChildProxyData().Reset();
+			ClusteredChild->MultiChildProxyId().Id = nullptr;
+			ClusteredChild->SetClusterId(ClusterId(nullptr, ClusteredChild->ClusterIds().NumChildren)); // clear Id but retain number of children
+
+			const TRigidTransform<T, d> ChildFrame = ClusteredChild->ChildToParent() * PreSolveTM;
+			Child->SetX(ChildFrame.GetTranslation());
+			Child->SetR(ChildFrame.GetRotation());
+
+			if (!bRewindOnDecluster)
+			{
+				Child->SetP(Child->X());
+				Child->SetQ(Child->R());
+			}
+
+			//todo(ocohen): for now just inherit velocity at new COM. This isn't quite right for rotation
+			//todo(ocohen): in the presence of collisions, this will leave all children with the post-collision
+			// velocity. This should be controlled by material properties so we can allow the broken pieces to
+			// maintain the clusters pre-collision velocity.
+			Child->SetV(ClusteredParticle->V());
+			Child->SetW(ClusteredParticle->W());
+			Child->SetPreV(ClusteredParticle->PreV());
+			Child->SetPreW(ClusteredParticle->PreW());
+
+			ActivatedChildren.Add(Child);
+			//if (ChildIdx != INDEX_NONE)
+			//{
+			//	Children.RemoveAtSwap(ChildIdx, 1, /*bAllowShrinking=*/false); //@todo(ocohen): maybe avoid this until we know all children are not going away?
+			//}
+
+			bChildrenChanged = true;
+		};
+
+		for (int32 ChildIdx = Children.Num() - 1; ChildIdx >= 0; --ChildIdx)
+		{
+			TPBDRigidClusteredParticleHandle<T, d>* Child = Children[ChildIdx]->CastToClustered();
+
+			if (!Child)
+			{
+				continue;
+			}
+
+			Chaos::FReal ChildStrain = 0.0;
+
+			if (ExternalStrainMap)
+			{
+				const Chaos::FReal* MapStrain = ExternalStrainMap->Find(Child);
+				ChildStrain = MapStrain ? *MapStrain : Child->CollisionImpulses();
+			}
+			else
+			{
+				ChildStrain = Child->CollisionImpulses();
+			}
+
+
+			if (ChildStrain >= Child->Strain() || bForceRelease)
+			{
+				//UE_LOG(LogTemp, Warning, TEXT("Releasing child %d from parent %p due to strain %.5f Exceeding internal strain %.5f (Source: %s)"), ChildIdx, ClusteredParticle, ChildStrain, Child->Strain(), bForceRelease ? TEXT("Forced by caller") : ExternalStrainMap ? TEXT("External") : TEXT("Collision"));
+
+				// The piece that hits just breaks off - we may want more control 
+				// by looking at the edges of this piece which would give us cleaner 
+				// breaks (this approach produces more rubble)
+				RemoveChildLambda(Child);
+
+				// Remove from the children array without freeing memory yet. 
+				// We're looping over Children and it'd be silly to free the array
+				// 1 entry at a time.
+				Children.RemoveAtSwap(ChildIdx, 1, false);
+
+				if (Child->ToBeRemovedOnFracture())
+				{
+					MActiveRemovalIndices.Add(Child);
+				}
+				else
+				{
+					if (DoGenerateBreakingData)
+					{
+						const int32 NewIdx = MAllClusterBreakings.Add(TBreakingData<float, 3>());
+						TBreakingData<float, 3>& ClusterBreak = MAllClusterBreakings[NewIdx];
+						ClusterBreak.Particle = Child;
+						ClusterBreak.ParticleProxy = nullptr;
+						ClusterBreak.Location = Child->X();
+						ClusterBreak.Velocity = Child->V();
+						ClusterBreak.AngularVelocity = Child->W();
+						ClusterBreak.Mass = Child->M();
+					}
+				}
+			}
+		}
+
+		if (bChildrenChanged)
+		{
+			if (Children.Num() == 0)
+			{
+				// Free the memory if we can do so cheaply (no data copies).
+				Children.Empty();
+			}
+
+			if (UseConnectivity)
+			{
+				// The cluster may have contained forests, so find the connected pieces and cluster them together.
+
+				//first update the connected graph of the children we already removed
+				for (TPBDRigidParticleHandle<T, d>* Child : ActivatedChildren)
+				{
+					RemoveNodeConnections(Child);
+				}
+
+				if (Children.Num())
+				{
+					TArray<TArray<TPBDRigidParticleHandle<T, d>*>> ConnectedPiecesArray;
+
+					{ // tmp scope
+
+						//traverse connectivity and see how many connected pieces we have
+						TSet<TPBDRigidParticleHandle<T, d>*> ProcessedChildren;
+						ProcessedChildren.Reserve(Children.Num());
+
+						for (TPBDRigidParticleHandle<T, d>* PotentialActivatedChild : Children)
+						{
+							if (ProcessedChildren.Contains(PotentialActivatedChild))
+							{
+								continue;
+							}
+							ConnectedPiecesArray.AddDefaulted();
+							TArray<TPBDRigidParticleHandle<T, d>*>& ConnectedPieces = ConnectedPiecesArray.Last();
+
+							TArray<TPBDRigidParticleHandle<T, d>*> ProcessingQueue;
+							ProcessingQueue.Add(PotentialActivatedChild);
+							while (ProcessingQueue.Num())
+							{
+								TPBDRigidParticleHandle<T, d>* Child = ProcessingQueue.Pop();
+								if (!ProcessedChildren.Contains(Child))
+								{
+									ProcessedChildren.Add(Child);
+									ConnectedPieces.Add(Child);
+									for (const TConnectivityEdge<T>& Edge : Child->CastToClustered()->ConnectivityEdges())
+									{
+										if (!ProcessedChildren.Contains(Edge.Sibling))
+										{
+											ProcessingQueue.Add(Edge.Sibling);
+										}
+									}
+								}
+							}
+						}
+					} // tmp scope
+
+					int32 NumNewClusters = 0;
+					for (TArray<TPBDRigidParticleHandle<T, d>*>& ConnectedPieces : ConnectedPiecesArray)
+					{
+						if (ConnectedPieces.Num() == 1) //need to break single pieces first in case multi child proxy needs to be invalidated
+						{
+							TPBDRigidParticleHandle<T, d>* Child = ConnectedPieces[0];
+							RemoveChildLambda(Child);
+						}
+						else if (ConnectedPieces.Num() > 1)
+						{
+							NumNewClusters++;
+						}
+					}			
+				}
+			}
+
+			for (TPBDRigidParticleHandle<T, d>* Child : ActivatedChildren)
+			{
+				UpdateKinematicProperties(Child);
+			}
+
+			//disable cluster
+			DisableCluster(ClusteredParticle);
+		} // bChildrenChanged
+
+		return ActivatedChildren;
+	}
+
+
+
+
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::ReleaseClusterParticles(LIST)"), STAT_ReleaseClusterParticles_LIST, STATGROUP_Chaos);
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
 	TSet<TPBDRigidParticleHandle<T, d>*> TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::ReleaseClusterParticles(
