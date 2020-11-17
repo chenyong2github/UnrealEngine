@@ -28,7 +28,7 @@
 #define MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS	12														// must match define in NaniteResources.h
 #define MAX_VIEWS_PER_CULL_RASTERIZE_PASS_MASK	( ( 1 << MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS ) - 1 )	// must match define in NaniteResources.h
 #define MAX_VIEWS_PER_CULL_RASTERIZE_PASS		( 1 << MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS )			// must match define in NaniteResources.h
-#define MAX_GPU_PAGES_BITS						13														// must match define in NaniteResources.h
+#define MAX_GPU_PAGES_BITS						14														// must match define in NaniteResources.h
 #define	MAX_GPU_PAGES_MASK						( ( 1 << MAX_GPU_PAGES_BITS ) - 1 )						// must match define in NaniteResources.h
 #define	MAX_GPU_PAGES							( 1 << MAX_GPU_PAGES_BITS )								// must match define in NaniteResources.h
 #define MAX_INSTANCES_BITS						24														// must match define in NaniteResources.h

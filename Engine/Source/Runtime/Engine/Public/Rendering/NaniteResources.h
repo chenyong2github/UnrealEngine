@@ -45,7 +45,7 @@
 																										// enough that it won't overflow after constraint-based splitting
 #define MAX_HIERACHY_CHILDREN_BITS				6														// must match define in NaniteDataDecode.ush
 #define MAX_HIERACHY_CHILDREN					( 1 << MAX_HIERACHY_CHILDREN_BITS )						// must match define in NaniteDataDecode.ush
-#define MAX_GPU_PAGES_BITS						13														// must match define in NaniteDataDecode.ush
+#define MAX_GPU_PAGES_BITS						14														// must match define in NaniteDataDecode.ush
 #define	MAX_GPU_PAGES							( 1 << MAX_GPU_PAGES_BITS )								// must match define in NaniteDataDecode.ush
 #define MAX_INSTANCES_BITS						24														// must match define in NaniteDataDecode.ush
 #define MAX_INSTANCES							( 1 << MAX_INSTANCES_BITS )								// must match define in NaniteDataDecode.ush
