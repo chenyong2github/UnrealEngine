@@ -13,7 +13,6 @@
 #include "SubdividePolyTool.generated.h"
 
 class USubdividePolyTool;
-class USimpleDynamicMeshComponent;
 class UPreviewGeometry;
 
 /**
@@ -84,14 +83,10 @@ protected:
 	UWorld* TargetWorld;
 
 	UPROPERTY()
-	USimpleDynamicMeshComponent* PreviewDynamicMeshComponent = nullptr;
+	UPreviewMesh* PreviewMesh = nullptr;
 
 	UPROPERTY()
 	USubdividePolyToolProperties* Properties = nullptr;
-
-	// The temporary actor we create internally to own the preview DynamicMeshComponent
-	UPROPERTY()
-	APreviewMeshActor* TemporaryParentActor = nullptr;
 
 	// Input mesh
 	TSharedPtr<FDynamicMesh3> OriginalMesh;
