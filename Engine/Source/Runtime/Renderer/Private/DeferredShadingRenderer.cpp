@@ -1562,6 +1562,9 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		// Allocate the maximum scene render target space for the current view family.
 		SceneContext.Allocate(GraphBuilder, this);
+
+		// Initialize the RDG read-only system textures.
+		FRDGSystemTextures::Create(GraphBuilder);
 	}
 
 	const bool bUseVirtualTexturing = UseVirtualTexturing(FeatureLevel);

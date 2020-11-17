@@ -8,6 +8,27 @@
 
 #include "RenderGraph.h"
 
+/** Contains system textures which can be registered for read-only access on an RDG pass. */
+struct FRDGSystemTextures
+{
+	/** Call to initialize for the requested builder instance. */
+	RENDERER_API static const FRDGSystemTextures& Create(FRDGBuilder& GraphBuilder);
+
+	/** Returns the instance for the builder. Must be called after Create. */
+	RENDERER_API static const FRDGSystemTextures& Get(FRDGBuilder& GraphBuilder);
+
+	FRDGTextureRef White{};
+	FRDGTextureRef Black{};
+	FRDGTextureRef BlackAlphaOne{};
+	FRDGTextureRef MaxFP16Depth{};
+	FRDGTextureRef DepthDummy{};
+	FRDGTextureRef StencilDummy{};
+	FRDGTextureRef Green{};
+	FRDGTextureRef DefaultNormal8Bit{};
+	FRDGTextureRef MidGrey{};
+	FRDGTextureRef VolumetricBlack{};
+};
+
 /**
  * Encapsulates the system textures used for scene rendering.
  */
@@ -22,25 +43,7 @@ public:
 	/**
 	 * Initialize/allocate textures if not already.
 	 */
-	inline void InitializeTextures(FRHICommandListImmediate& RHICmdList, const ERHIFeatureLevel::Type InFeatureLevel)
-	{
-		// When we render to system textures it should occur on all GPUs since this only
-		// happens once on startup (or when the feature level changes).
-		SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
-
-		// if this is the first call initialize everything
-		if (FeatureLevelInitializedTo == ERHIFeatureLevel::Num)
-		{
-			InitializeCommonTextures(RHICmdList);
-			InitializeFeatureLevelDependentTextures(RHICmdList, InFeatureLevel);
-		}
-		// otherwise, if we request a higher feature level, we might need to initialize those textures that depend on the feature level
-		else if (InFeatureLevel > FeatureLevelInitializedTo)
-		{
-			InitializeFeatureLevelDependentTextures(RHICmdList, InFeatureLevel);
-		}
-		// there's no needed setup for those feature levels lower or identical to the current one
-	}
+	void InitializeTextures(FRHICommandListImmediate& RHICmdList, const ERHIFeatureLevel::Type InFeatureLevel);
 
 	// FRenderResource interface.
 	/**
@@ -69,8 +72,6 @@ public:
 	TRefCountPtr<IPooledRenderTarget> SobolSampling;
 	/** SSAO randomization */
 	TRefCountPtr<IPooledRenderTarget> SSAORandomization;
-	/** GTAO randomization */
-	TRefCountPtr<IPooledRenderTarget> GTAORandomization;
 	/** GTAO PreIntegrated */
 	TRefCountPtr<IPooledRenderTarget> GTAOPreIntegrated;
 
@@ -112,13 +113,6 @@ public:
 	FRDGTextureRef GetBlackDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetZeroUIntDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetBlackAlphaOneDummy(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetPerlinNoiseGradient(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetPerlinNoise3D(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetSobolSampling(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetSSAORandomization(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetPreintegratedGF(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetLTCMat(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetLTCAmp(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetMaxFP16Depth(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetDepthDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetStencilDummy(FRDGBuilder& GraphBuilder) const;

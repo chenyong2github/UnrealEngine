@@ -454,9 +454,6 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 
 	if (FRDGTextureRef FoundTexture = FindExternalTexture(ExternalTextureRHI))
 	{
-#if RDG_ENABLE_DEBUG
-		checkf(FoundTexture->Flags == Flags, TEXT("External texture %s is already registered, but with different resource flags."), Name);
-#endif
 		return FoundTexture;
 	}
 
@@ -517,11 +514,7 @@ FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
 
 	if (FRDGBufferRef* FoundBufferPtr = ExternalBuffers.Find(ExternalPooledBuffer.GetReference()))
 	{
-		FRDGBufferRef FoundBuffer = *FoundBufferPtr;
-#if RDG_ENABLE_DEBUG
-		checkf(FoundBuffer->Flags == Flags, TEXT("External buffer %s is already registered, but with different resource flags."), Name);
-#endif
-		return FoundBuffer;
+		return *FoundBufferPtr;
 	}
 
 	FRDGBufferRef Buffer = Buffers.Allocate(Allocator, Name, ExternalPooledBuffer->Desc, Flags);

@@ -111,7 +111,10 @@ enum class ERDGBufferFlags : uint8
 	None = 0,
 
 	/** Tag the buffer to survive through frame, that is important for multi GPU alternate frame rendering. */
-	MultiFrame = 1 << 0
+	MultiFrame = 1 << 0,
+
+	/** The buffer may only be used for read-only access within the graph. This flag is only allowed for registered buffers. */
+	ReadOnly = 1 << 1
 };
 ENUM_CLASS_FLAGS(ERDGBufferFlags);
 
@@ -123,8 +126,11 @@ enum class ERDGTextureFlags : uint8
 	/** Tag the texture to survive through frame, that is important for multi GPU alternate frame rendering. */
 	MultiFrame = 1 << 0,
 
+	/** The texture may only be used for read-only access within the graph. This flag is only allowed for registered textures. */
+	ReadOnly = 1 << 1,
+
 	/** Prevents metadata decompression on this texture. */
-	MaintainCompression = 1 << 1,
+	MaintainCompression = 1 << 2,
 };
 ENUM_CLASS_FLAGS(ERDGTextureFlags);
 

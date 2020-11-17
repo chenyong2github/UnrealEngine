@@ -295,6 +295,8 @@ void FRDGUserValidation::ValidateCreateTexture(const FRDGTextureDesc& Desc, cons
 	const bool bIsUAVForMSAATexture = bIsMSAA && bCanHaveUAV;
 	checkf(!bIsUAVForMSAATexture, TEXT("TexCreate_UAV is not allowed on MSAA texture %s."), Name);
 
+	checkf(!EnumHasAnyFlags(Flags, ERDGTextureFlags::ReadOnly), TEXT("Cannot create texture %s with the ReadOnly flag. Only registered textures can use this flag."), Name);
+
 	checkf(!EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::SkipBarriers), TEXT("Cannot create texture '%s' because RDG builder has 'SkipBarriers' flag."), Name);
 }
 
@@ -311,6 +313,8 @@ void FRDGUserValidation::ValidateCreateBuffer(const FRDGBufferDesc& Desc, const 
 	{
 		checkf(Desc.BytesPerElement == 4, TEXT("Creating buffer '%s' as a structured buffer that is also byte addressable, BytesPerElement must be 4! Instead it is %d"), Name, Desc.BytesPerElement);
 	}
+
+	checkf(!EnumHasAnyFlags(Flags, ERDGBufferFlags::ReadOnly), TEXT("Cannot create buffer %s with the ReadOnly flag. Only registered buffers can use this flag."), Name);
 
 	checkf(!EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::SkipBarriers), TEXT("Cannot create buffer '%s' because RDG builder has 'SkipBarriers' flag."), Name);
 }
@@ -517,7 +521,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 	const bool bIsAnyCompute = EnumHasAnyFlags(PassFlags, ERDGPassFlags::Compute | ERDGPassFlags::AsyncCompute);
 	const bool bSkipRenderPass = EnumHasAnyFlags(PassFlags, ERDGPassFlags::SkipRenderPass);
 
-	const auto MarkAsProduced = [&] (FRDGParentResourceRef Resource)
+	const auto MarkAsProduced = [&](FRDGParentResourceRef Resource)
 	{
 		if (!bSkipPassAccessMarking)
 		{
@@ -528,6 +532,18 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 			}
 			Debug.PassAccessCount++;
 		}
+	};
+
+	const auto MarkTextureAsProduced = [&](FRDGTextureRef Texture)
+	{
+		checkf(!EnumHasAnyFlags(Texture->Flags, ERDGTextureFlags::ReadOnly), TEXT("Pass %s is attempting to write to texture %s which is marked as ReadOnly."), Pass->GetName(), Texture->Name);
+		MarkAsProduced(Texture);
+	};
+
+	const auto MarkBufferAsProduced = [&](FRDGBufferRef Buffer)
+	{
+		checkf(!EnumHasAnyFlags(Buffer->Flags, ERDGBufferFlags::ReadOnly), TEXT("Pass %s is attempting to write to buffer %s which is marked as ReadOnly."), Pass->GetName(), Buffer->Name);
+		MarkAsProduced(Buffer);
 	};
 
 	const auto MarkAsConsumed = [&] (FRDGParentResourceRef Resource)
@@ -598,7 +614,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 			{
 				FRDGTextureRef Texture = UAV->GetParent();
 				CheckNotCopy(Texture);
-				MarkAsProduced(Texture);
+				MarkTextureAsProduced(Texture);
 			}
 		}
 		break;
@@ -627,7 +643,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 			{
 				FRDGBufferRef Buffer = UAV->GetParent();
 				CheckNotCopy(Buffer);
-				MarkAsProduced(Buffer);
+				MarkBufferAsProduced(Buffer);
 			}
 		}
 		break;
@@ -647,7 +663,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 
 				if (bIsWriteAccess)
 				{
-					MarkAsProduced(Texture);
+					MarkTextureAsProduced(Texture);
 				}
 			}
 		}
@@ -668,7 +684,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 
 				if (IsWritableAccess(BufferAccess.GetAccess()))
 				{
-					MarkAsProduced(Buffer);
+					MarkBufferAsProduced(Buffer);
 				}
 			}
 		}
@@ -710,7 +726,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 				CheckNotPassthrough(Texture);
 				if (DepthStencil.GetDepthStencilAccess().IsAnyWrite())
 				{
-					MarkAsProduced(Texture);
+					MarkTextureAsProduced(Texture);
 				}
 				else
 				{
@@ -754,7 +770,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 						PassName, ResolveTexture->Name);
 
 					CheckNotPassthrough(ResolveTexture);
-					MarkAsProduced(ResolveTexture);
+					MarkTextureAsProduced(ResolveTexture);
 				}
 
 				if (Texture)
@@ -793,7 +809,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 					}
 
 					/** Mark the pass as a producer for render targets with a store action. */
-					MarkAsProduced(Texture);
+					MarkTextureAsProduced(Texture);
 				}
 				else
 				{

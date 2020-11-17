@@ -331,15 +331,7 @@ static FSSAOShaderParameters GetSSAOShaderParameters(
 {
 	const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
 
-	FIntPoint RandomizationSize;
-	if (AOTechnique == EAOTechnique::GTAO)
-	{
-		RandomizationSize = GSystemTextures.GTAORandomization->GetDesc().Extent;
-	}
-	else
-	{
-		RandomizationSize = GSystemTextures.SSAORandomization->GetDesc().Extent;
-	}
+	const FIntPoint RandomizationSize = GSystemTextures.SSAORandomization->GetDesc().Extent;
 	FVector2D ViewportUVToRandomUV(InputViewport.Extent.X / (float)RandomizationSize.X, InputViewport.Extent.Y / (float)RandomizationSize.Y);
 
 	// e.g. 4 means the input texture is 4x smaller than the buffer size
@@ -681,7 +673,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FAmbientOcclusionParameters, )
 
 	SHADER_PARAMETER_SAMPLER(SamplerState, SSAO_Sampler)
 
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RandomNormalTexture)
+	SHADER_PARAMETER_TEXTURE(Texture2D, RandomNormalTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, RandomNormalTextureSampler)
 END_SHADER_PARAMETER_STRUCT();
 
@@ -828,7 +820,7 @@ FScreenPassTexture AddAmbientOcclusionPass(
 
 	SharedParameters.SSAO_Sampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	SharedParameters.RandomNormalTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.SSAORandomization, TEXT("SSAORandomization"));
+	SharedParameters.RandomNormalTexture = GSystemTextures.SSAORandomization->GetShaderResourceRHI();
 	SharedParameters.RandomNormalTextureSampler = TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 
 	FRDGEventName EventName(TEXT("AmbientOcclusion%s %dx%d SetupAsInput=%d Upsample=%d ShaderQuality=%d"),

@@ -15,8 +15,58 @@
 SystemTextures
 -----------------------------------------------------------------------------*/
 
+RDG_REGISTER_BLACKBOARD_STRUCT(FRDGSystemTextures);
+
+const FRDGSystemTextures& FRDGSystemTextures::Create(FRDGBuilder& GraphBuilder)
+{
+	const auto Register = [&](const TRefCountPtr<IPooledRenderTarget>& RenderTarget)
+	{
+		return GraphBuilder.RegisterExternalTexture(RenderTarget, ERenderTargetTexture::ShaderResource, ERDGTextureFlags::ReadOnly);
+	};
+
+	auto& SystemTextures = GraphBuilder.Blackboard.Create<FRDGSystemTextures>();
+	SystemTextures.White = Register(GSystemTextures.WhiteDummy);
+	SystemTextures.Black = Register(GSystemTextures.BlackDummy);
+	SystemTextures.BlackAlphaOne = Register(GSystemTextures.BlackAlphaOneDummy);
+	SystemTextures.MaxFP16Depth = Register(GSystemTextures.MaxFP16Depth);
+	SystemTextures.DepthDummy = Register(GSystemTextures.DepthDummy);
+	SystemTextures.StencilDummy = Register(GSystemTextures.StencilDummy);
+	SystemTextures.Green = Register(GSystemTextures.GreenDummy);
+	SystemTextures.DefaultNormal8Bit = Register(GSystemTextures.DefaultNormal8Bit);
+	SystemTextures.MidGrey = Register(GSystemTextures.MidGreyDummy);
+	SystemTextures.VolumetricBlack = Register(GSystemTextures.VolumetricBlackDummy);
+	return SystemTextures;
+}
+
+const FRDGSystemTextures& FRDGSystemTextures::Get(FRDGBuilder& GraphBuilder)
+{
+	const FRDGSystemTextures* SystemTextures = GraphBuilder.Blackboard.Get<FRDGSystemTextures>();
+	checkf(SystemTextures, TEXT("FRDGSystemTextures were not initialized. Call FRDGSystemTextures::Create() first."));
+	return *SystemTextures;
+}
+
 /** The global render targets used for scene rendering. */
 TGlobalResource<FSystemTextures> GSystemTextures;
+
+void FSystemTextures::InitializeTextures(FRHICommandListImmediate& RHICmdList, const ERHIFeatureLevel::Type InFeatureLevel)
+{
+	// When we render to system textures it should occur on all GPUs since this only
+	// happens once on startup (or when the feature level changes).
+	SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+
+	// if this is the first call initialize everything
+	if (FeatureLevelInitializedTo == ERHIFeatureLevel::Num)
+	{
+		InitializeCommonTextures(RHICmdList);
+		InitializeFeatureLevelDependentTextures(RHICmdList, InFeatureLevel);
+	}
+	// otherwise, if we request a higher feature level, we might need to initialize those textures that depend on the feature level
+	else if (InFeatureLevel > FeatureLevelInitializedTo)
+	{
+		InitializeFeatureLevelDependentTextures(RHICmdList, InFeatureLevel);
+	}
+	// there's no needed setup for those feature levels lower or identical to the current one
+}
 
 void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdList)
 {
@@ -571,36 +621,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 		        }
 		        RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)SSAORandomization->GetRenderTargetItem().ShaderResourceTexture, 0, false);
 			}
-	
-			{
-				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(4, 4), PF_R8G8B8A8, FClearValueBinding::None, TexCreate_HideInVisualizeTexture, TexCreate_None | TexCreate_NoFastClear, false));
-				Desc.AutoWritable = false;
-				GRenderTargetPool.FindFreeElement(RHICmdList, Desc,GTAORandomization, TEXT("GTAORandomization"), ERenderTargetTransience::NonTransient);
-				// Write the contents of the texture.
-				uint32 DestStride;
-				uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D((FTexture2DRHIRef&)GTAORandomization->GetRenderTargetItem().ShaderResourceTexture, 0, RLM_WriteOnly, DestStride, false);
 
-				for(int32 y = 0; y < Desc.Extent.Y; ++y)
-				{
-					for(int32 x = 0; x < Desc.Extent.X; ++x)
-					{
-						uint8* Dest = (uint8*)(DestBuffer + x * sizeof(uint32) + y * DestStride);
-			
-						float Angle  = (PI/16.0f)  * ((((x + y) & 0x3) << 2) + (x & 0x3));
-						float Step   = (1.0f / 4.0f) * ((y - x) & 0x3);
-
-						float ScaleCos = FMath::Cos(Angle) ;
-						float ScaleSin = FMath::Sin(Angle) ;
-			
-						Dest[0] = (uint8_t)(ScaleCos*127.5f + 127.5f);
-						Dest[1] = (uint8_t)(ScaleSin*127.5f + 127.5f);
-						Dest[2] = (uint8_t)(Step*255.0f);
-						Dest[3] = 0;
-					}
-				}
-			}
-			RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)GTAORandomization->GetRenderTargetItem().ShaderResourceTexture, 0, false);
-			
 		    {
 			    FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(LTC_Size, LTC_Size), PF_FloatRGBA, FClearValueBinding::None, TexCreate_FastVRAM, TexCreate_ShaderResource, false));
 			    Desc.AutoWritable = false;
@@ -759,7 +780,6 @@ void FSystemTextures::ReleaseDynamicRHI()
 	PerlinNoise3D.SafeRelease();
 	SobolSampling.SafeRelease();
 	SSAORandomization.SafeRelease();
-	GTAORandomization.SafeRelease();
 	GTAOPreIntegrated.SafeRelease();
 	PreintegratedGF.SafeRelease();
 	HairLUT0.SafeRelease();
@@ -797,41 +817,6 @@ FRDGTextureRef FSystemTextures::GetBlackAlphaOneDummy(FRDGBuilder& GraphBuilder)
 FRDGTextureRef FSystemTextures::GetWhiteDummy(FRDGBuilder& GraphBuilder) const
 {
 	return GraphBuilder.RegisterExternalTexture(WhiteDummy, TEXT("WhiteDummy"));
-}
-
-FRDGTextureRef FSystemTextures::GetPerlinNoiseGradient(FRDGBuilder& GraphBuilder) const
-{
-	return GraphBuilder.RegisterExternalTexture(PerlinNoiseGradient, TEXT("PerlinNoiseGradient"));
-}
-
-FRDGTextureRef FSystemTextures::GetPerlinNoise3D(FRDGBuilder& GraphBuilder) const
-{
-	return GraphBuilder.RegisterExternalTexture(PerlinNoise3D, TEXT("PerlinNoise3D"));
-}
-
-FRDGTextureRef FSystemTextures::GetSobolSampling(FRDGBuilder& GraphBuilder) const
-{
-	return GraphBuilder.RegisterExternalTexture(SobolSampling, TEXT("SobolSampling"));
-}
-
-FRDGTextureRef FSystemTextures::GetSSAORandomization(FRDGBuilder& GraphBuilder) const
-{
-	return GraphBuilder.RegisterExternalTexture(SSAORandomization, TEXT("SSAORandomization"));
-}
-
-FRDGTextureRef FSystemTextures::GetPreintegratedGF(FRDGBuilder& GraphBuilder) const
-{
-	return GraphBuilder.RegisterExternalTexture(PreintegratedGF, TEXT("PreintegratedGF"));
-}
-
-FRDGTextureRef FSystemTextures::GetLTCMat(FRDGBuilder& GraphBuilder) const
-{
-	return GraphBuilder.RegisterExternalTexture(LTCMat, TEXT("LTCMat"));
-}
-
-FRDGTextureRef FSystemTextures::GetLTCAmp(FRDGBuilder& GraphBuilder) const
-{
-	return GraphBuilder.RegisterExternalTexture(LTCAmp, TEXT("LTCAmp"));
 }
 
 FRDGTextureRef FSystemTextures::GetMaxFP16Depth(FRDGBuilder& GraphBuilder) const
