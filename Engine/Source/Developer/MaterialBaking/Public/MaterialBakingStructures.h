@@ -5,6 +5,7 @@
 #include "Math/IntPoint.h"
 #include "SceneTypes.h"
 #include "LightMap.h"
+#include "MaterialPropertyEx.h"
 
 class UMaterialInterface;
 struct FMeshDescription;
@@ -21,6 +22,22 @@ struct FMaterialData
 	UMaterialInterface* Material;
 	/** Properties and the texture size at which they should be baked out */
 	TMap<EMaterialProperty, FIntPoint> PropertySizes;
+	/** Whether to smear borders after baking */
+	bool bPerformBorderSmear;
+};
+
+/** Structure containing extended information about the material and properties which is being baked out */
+struct FMaterialDataEx
+{
+	FMaterialDataEx()
+		: Material(nullptr)
+		, bPerformBorderSmear(true)
+	{}
+
+	/** Material to bake out */
+	UMaterialInterface* Material;
+	/** Extended properties and the texture size at which they should be baked out */
+	TMap<FMaterialPropertyEx, FIntPoint> PropertySizes;
 	/** Whether to smear borders after baking */
 	bool bPerformBorderSmear;
 };
@@ -77,6 +94,23 @@ struct FBakeOutput
 
 	/** Contains the resulting texture size for baking out a material's property */
 	TMap<EMaterialProperty, FIntPoint> PropertySizes;
+
+	/** Scale used to allow having wide ranges of emissive values in the source materials, the final proxy material will use this value to scale the emissive texture's pixel values */
+	float EmissiveScale;
+};
+
+/** Structure containing extended data being processed while baking out materials*/
+struct FBakeOutputEx
+{
+	FBakeOutputEx()
+		: EmissiveScale(1.0f)
+	{}
+
+	/** Contains the resulting texture data for baking out a extened material's property */
+	TMap<FMaterialPropertyEx, TArray<FColor>> PropertyData;
+
+	/** Contains the resulting texture size for baking out a extened material's property */
+	TMap<FMaterialPropertyEx, FIntPoint> PropertySizes;
 
 	/** Scale used to allow having wide ranges of emissive values in the source materials, the final proxy material will use this value to scale the emissive texture's pixel values */
 	float EmissiveScale;

@@ -303,6 +303,11 @@ void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 		Ar << UsageInt;
 		Usage = (EMaterialShaderMapUsage::Type)UsageInt;
 
+		if (Usage == EMaterialShaderMapUsage::MaterialExportCustomOutput)
+		{
+			Ar << UsageCustomOutput;
+		}
+
 		Ar << BaseMaterialId;
 	}
 #endif
@@ -415,6 +420,10 @@ void FMaterialShaderMapId::GetMaterialHash(FSHAHash& OutHash) const
 	FSHA1 HashState;
 
 	HashState.Update((const uint8*)&Usage, sizeof(Usage));
+	if (Usage == EMaterialShaderMapUsage::MaterialExportCustomOutput)
+	{
+		HashState.UpdateWithString(*UsageCustomOutput, UsageCustomOutput.Len());
+	}
 
 	HashState.Update((const uint8*)&BaseMaterialId, sizeof(BaseMaterialId));
 
@@ -487,6 +496,7 @@ bool FMaterialShaderMapId::operator==(const FMaterialShaderMapId& ReferenceSet) 
 	if (!IsCookedId())
 	{
 		if (Usage != ReferenceSet.Usage
+			|| UsageCustomOutput != ReferenceSet.UsageCustomOutput
 			|| BaseMaterialId != ReferenceSet.BaseMaterialId)
 		{
 			return false;
@@ -713,6 +723,12 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 	KeyString += TEXT("_");
 	KeyString += FString::FromInt(Usage);
 	KeyString += TEXT("_");
+
+	if (Usage == EMaterialShaderMapUsage::MaterialExportCustomOutput)
+	{
+		KeyString += UsageCustomOutput;
+		KeyString += TEXT("_");
+	}
 
 	// Add any referenced functions to the key so that we will recompile when they are changed
 	for (int32 FunctionIndex = 0; FunctionIndex < ReferencedFunctions.Num(); FunctionIndex++)
