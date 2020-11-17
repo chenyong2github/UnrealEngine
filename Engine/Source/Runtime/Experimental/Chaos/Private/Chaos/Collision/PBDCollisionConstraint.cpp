@@ -226,7 +226,7 @@ namespace Chaos
 		auto CalculatePrevCoMTransform = [Dt](const TConstGenericParticleHandle<FReal, 3>& ParticleHandle) -> FRigidTransform3
 		{
 			FRigidTransform3 PrevCoMTransform = FParticleUtilitiesXR::GetCoMWorldTransform(ParticleHandle);
-			if (ParticleHandle->ObjectState() == EObjectStateType::Kinematic && ParticleHandle->V().SizeSquared() > 0.0f)
+			if (ParticleHandle->ObjectState() == EObjectStateType::Kinematic && (ParticleHandle->V().SizeSquared() > 0.0f || ParticleHandle->W().SizeSquared() > 0.0f))
 			{
 				// Undo velocity integration (see KinematicTargets) for kinematic bodies
 				PrevCoMTransform.AddToTranslation(-Dt * ParticleHandle->V());
