@@ -3552,7 +3552,7 @@ namespace AutomationTool
 				}
 			}
 			if (AllowSpew) CommandUtils.LogLog(SpecInput);
-            LogP4("client -i", SpecInput, AllowSpew: AllowSpew, WithClient: false);
+            LogP4("", "client -i", SpecInput, AllowSpew: AllowSpew, WithClient: false);
             return ClientSpec;
         }
 
