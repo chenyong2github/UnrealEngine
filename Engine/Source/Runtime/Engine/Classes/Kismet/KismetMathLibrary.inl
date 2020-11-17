@@ -2644,6 +2644,12 @@ float UKismetMathLibrary::Conv_ByteToFloat(uint8 InByte)
 }
 
 KISMET_MATH_FORCEINLINE
+double UKismetMathLibrary::Conv_ByteToDouble(uint8 InByte)
+{
+	return (double)InByte;
+}
+
+KISMET_MATH_FORCEINLINE
 float UKismetMathLibrary::Conv_IntToFloat(int32 InInt)
 {
 	return (float)InInt;
@@ -2692,9 +2698,27 @@ uint8 UKismetMathLibrary::Conv_Int64ToByte(int64 InInt)
 }
 
 KISMET_MATH_FORCEINLINE
+int64 UKismetMathLibrary::Conv_DoubleToInt64(double InDouble)
+{
+	return (int64)InDouble;
+}
+
+KISMET_MATH_FORCEINLINE
+double UKismetMathLibrary::Conv_Int64ToDouble(int64 InInt)
+{
+	return (double)InInt;
+}
+
+KISMET_MATH_FORCEINLINE
 FIntVector UKismetMathLibrary::Conv_IntToIntVector(int32 InInt)
 {
 	return FIntVector(InInt, InInt, InInt);
+}
+
+KISMET_MATH_FORCEINLINE
+FVector UKismetMathLibrary::Conv_IntToVector(int32 InInt)
+{
+	return FVector((float)InInt);
 }
 
 KISMET_MATH_FORCEINLINE
@@ -2725,6 +2749,12 @@ KISMET_MATH_FORCEINLINE
 int32 UKismetMathLibrary::Conv_ByteToInt(uint8 InByte)
 {
 	return (int32)InByte;
+}
+
+KISMET_MATH_FORCEINLINE
+int64 UKismetMathLibrary::Conv_ByteToInt64(uint8 InByte)
+{
+	return (int64)InByte;
 }
 
 KISMET_MATH_FORCEINLINE
