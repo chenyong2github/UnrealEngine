@@ -147,7 +147,7 @@ static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationMaxLightCount
 static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationFireflySuppression(
 	TEXT("r.RayTracing.GlobalIllumination.FireflySuppression"),
 	0,
-	TEXT("Applies tonemap operator to suppress potential fireflies (default = 1). "),
+	TEXT("Applies tonemap operator to suppress potential fireflies (default = 0). "),
 	ECVF_RenderThreadSafe
 );
 
