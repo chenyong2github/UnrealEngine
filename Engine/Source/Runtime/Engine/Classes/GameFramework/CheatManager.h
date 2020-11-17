@@ -17,6 +17,10 @@
 #include "UObject/ScriptMacros.h"
 #include "CheatManager.generated.h"
 
+#ifndef UE_WITH_CHEAT_MANAGER
+#define UE_WITH_CHEAT_MANAGER (1 && !UE_BUILD_SHIPPING)
+#endif
+
 /** Debug Trace info for capturing **/
 struct FDebugTraceInfo
 {
@@ -61,6 +65,13 @@ struct FDebugTraceInfo
 
 };
 
+/** A cheat manager extension can extend the main cheat manager in a modular way, being enabled or disabled when the system associated with the cheats is enabled or disabled */
+UCLASS(Blueprintable, Within=CheatManager)
+class ENGINE_API UCheatManagerExtension : public UObject
+{
+	GENERATED_BODY()
+};
+
 /** 
 	Cheat Manager is a central blueprint to implement test and debug code and actions that are not to ship with the game.
 	As the Cheat Manager is not instanced in shipping builds, it is for debugging purposes only
@@ -69,6 +80,10 @@ UCLASS(Blueprintable, Within=PlayerController)
 class ENGINE_API UCheatManager : public UObject
 {
 	GENERATED_UCLASS_BODY()
+
+	//~UObject interface
+	virtual bool ProcessConsoleExec(const TCHAR* Cmd, FOutputDevice& Ar, UObject* Executor) override;
+	//~End of UObject interface
 
 	/** Debug camera - used to have independent camera without stopping gameplay */
 	UPROPERTY()
@@ -390,8 +405,40 @@ class ENGINE_API UCheatManager : public UObject
 
 	/** Use the Outer Player Controller to get a World.  */
 	virtual UWorld* GetWorld() const override;
-protected:
 
+public:
+	/** Registers a cheat manager extension with this cheat manager */
+	void AddCheatManagerExtension(UCheatManagerExtension* CheatObject);
+
+	/** Removes a cheat manager extension from this cheat manager */
+	void RemoveCheatManagerExtension(UCheatManagerExtension* CheatObject);
+	
+	/** Finds a previously registered cheat manager extension of the specified class */
+	UCheatManagerExtension* FindCheatManagerExtension(const UClass* InClass) const;
+
+	/** Finds a previously registered cheat manager extension of the specified class */
+	template<typename T>
+	T* FindCheatManagerExtension() const
+	{
+		return CastChecked<T>(FindCheatManagerExtension(T::StaticClass()), ECastCheckedType::NullAllowed);
+	}
+
+	/** Finds a previously registered cheat manager extension that implements the specified interface */
+	UCheatManagerExtension* FindCheatManagerExtensionInterface(const UClass* InClass) const;
+
+	/** Finds a previously registered cheat manager extension that implements the specified interface */
+	template<class T = UInterface>
+	T* FindCheatManagerExtensionInterface() const
+	{
+		return CastChecked<T>(FindCheatManagerExtensionInterface(T::UClassType::StaticClass()), ECastCheckedType::NullAllowed);
+	}
+
+protected:
+	/** List of registered cheat manager extensions */
+	UPROPERTY(Transient)
+	TArray<UCheatManagerExtension*> CheatManagerExtensions;
+
+protected:
 	/** Do game specific bugIt */
 	virtual bool DoGameSpecificBugItLog(FOutputDevice& OutputFile) { return true; }
 
