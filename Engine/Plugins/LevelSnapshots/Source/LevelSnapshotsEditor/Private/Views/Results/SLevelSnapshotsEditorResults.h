@@ -154,7 +154,7 @@ private:
 	void OnSnapshotSelected(ULevelSnapshot* InLevelSnapshot);
 
 	// Called by OnSnapshotSelected - separated out to allow it to be called for the selected snapshot and a transient snapshot for the current level
-	void ProvisionSnapshotActors(ULevelSnapshot* InLevelSnapshot, FPropertyEditorModule& PropertyEditorModule, bool bFromCurrentLevel);
+	void ProvisionSnapshotActors(ULevelSnapshot* InLevelSnapshot, bool bFromCurrentLevel);
 	
 	// For the Select/Deselect All buttons
 	FReply SetAllGroupsSelected();
@@ -172,7 +172,7 @@ private:
 	TWeakObjectPtr<ULevelSnapshot> SelectedLevelSnapshotPtr;
 
 	// Actor Unique ID and Counterpart Info struct
-	TMap<int32, FActorSnapshotCounterpartInfo> ActorSnapshotCounterpartMap;
+	TMap<FSoftObjectPath, FActorSnapshotCounterpartInfo> ActorSnapshotCounterpartMap;
 
 private:
 	TWeakPtr<FLevelSnapshotsEditorResults> EditorResultsPtr;

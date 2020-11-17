@@ -52,6 +52,8 @@ struct LEVELSNAPSHOTS_API FLevelSnapshot_Actor
 
 	AActor* GetDeserializedActor() const;
 
+	void FixupComponents(AActor* TargetActor) const;
+
 	void Deserialize(AActor* TargetActor) const;
 
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")

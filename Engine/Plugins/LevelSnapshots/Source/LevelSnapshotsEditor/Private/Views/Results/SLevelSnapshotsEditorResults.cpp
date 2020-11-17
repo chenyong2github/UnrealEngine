@@ -352,9 +352,6 @@ void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSna
 	FieldGroups.Empty();
 	ActorSnapshotCounterpartMap.Empty();
 
-	TSharedPtr<FLevelSnapshotsEditorViewBuilder> Builder = BuilderPtr.Pin();
-	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
 	if (InLevelSnapshot != nullptr)
 	{
 		// Saving a reference to the selected LevelSnapshot for diffing
@@ -362,9 +359,9 @@ void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSna
 
 		// TODO: Get World from world selection combobox
 		ULevelSnapshot* CurrentLevelSnapshot = ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(GEditor->GetEditorWorldContext().World());
-		ProvisionSnapshotActors(CurrentLevelSnapshot, PropertyEditorModule, true);
+		ProvisionSnapshotActors(CurrentLevelSnapshot, true);
 		FieldGroups.Empty();
-		ProvisionSnapshotActors(InLevelSnapshot, PropertyEditorModule, false);
+		ProvisionSnapshotActors(InLevelSnapshot, false);
 
 		RefreshGroups();
 
@@ -372,8 +369,11 @@ void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSna
 	}
 }
 
-void SLevelSnapshotsEditorResults::ProvisionSnapshotActors(ULevelSnapshot* InLevelSnapshot, FPropertyEditorModule& PropertyEditorModule, bool bFromCurrentLevel)
+void SLevelSnapshotsEditorResults::ProvisionSnapshotActors(ULevelSnapshot* InLevelSnapshot, bool bFromCurrentLevel)
 {
+	TSharedPtr<FLevelSnapshotsEditorViewBuilder> Builder = BuilderPtr.Pin();
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	
 	for (const TPair<FString, FLevelSnapshot_Actor>& ActorSnapshotPair : InLevelSnapshot->ActorSnapshots)
 	{
 		FString ActorPath = ActorSnapshotPair.Key;
@@ -386,13 +386,6 @@ void SLevelSnapshotsEditorResults::ProvisionSnapshotActors(ULevelSnapshot* InLev
 				UE_LOG(LogTemp, Error, TEXT("Couldn't deserialize actor from %s"), *ActorPath);
 				continue; // Skip this line if ActorObject is not available
 			}
-
-			// All actors in a snapshot are serialized with a TrackingComponent so let's get it from the transient actor to match UniqueIDs
-			// with Actors in the current level
-			ULevelSnapshotTrackingComponent* TrackingComponent =
-				Cast<ULevelSnapshotTrackingComponent>(ActorObject->GetComponentByClass(ULevelSnapshotTrackingComponent::StaticClass()));
-
-			int32 ActorUniqueID = TrackingComponent->UniqueIdentifier;
 			
 			TStrongObjectPtr<UObject> ActorObjectPtr = TStrongObjectPtr<UObject>(ActorObject);
 			ActorObjects.Add(ActorObjectPtr);
@@ -417,26 +410,28 @@ void SLevelSnapshotsEditorResults::ProvisionSnapshotActors(ULevelSnapshot* InLev
 
 					TSharedRef<SWidget> PropertyWidget = CreatePropertyWidget(NewGroup, Node, true);
 
-					TArray<int32> ActorSnapshotCounterpartKeys;
+					// TODO: get soft object path from deserialized actor
+					FSoftObjectPath CounterpartPath;
+					TArray<FSoftObjectPath> ActorSnapshotCounterpartKeys;
 					ActorSnapshotCounterpartMap.GetKeys(ActorSnapshotCounterpartKeys);
 					
 					if (bFromCurrentLevel && Node.Get()->GetRow().IsValid() && Node.Get()->GetRow()->GetPropertyHandle().IsValid())
 					{
 						// If we already have this actor in the TMap
-						if (ActorSnapshotCounterpartKeys.Num() > 0 && ActorSnapshotCounterpartKeys.Contains(ActorUniqueID))
+						if (ActorSnapshotCounterpartKeys.Num() > 0 && ActorSnapshotCounterpartKeys.Contains(CounterpartPath))
 						{
-							ActorSnapshotCounterpartMap[ActorUniqueID].CurrentLevelProperties.Add(PropertyString, Node.Get()->GetRow()->GetPropertyHandle());
+							ActorSnapshotCounterpartMap[CounterpartPath].CurrentLevelProperties.Add(PropertyString, Node.Get()->GetRow()->GetPropertyHandle());
 						}
 						else // Otherwise add a new entry entirely
 						{
-							ActorSnapshotCounterpartMap.Add(ActorUniqueID, FActorSnapshotCounterpartInfo(PropertyString, Node.Get()->GetRow()->GetPropertyHandle()));
+							ActorSnapshotCounterpartMap.Add(CounterpartPath, FActorSnapshotCounterpartInfo(PropertyString, Node.Get()->GetRow()->GetPropertyHandle()));
 						}
 					}
 					else
 					{
-						if (ActorSnapshotCounterpartKeys.Contains(ActorUniqueID))
+						if (ActorSnapshotCounterpartKeys.Contains(CounterpartPath))
 						{
-							NewGroup->AddCurrentPropertyWidget(ActorSnapshotCounterpartMap[ActorUniqueID].CurrentLevelProperties[PropertyString]);
+							NewGroup->AddCurrentPropertyWidget(ActorSnapshotCounterpartMap[CounterpartPath].CurrentLevelProperties[PropertyString]);
 						}
 						else
 						{

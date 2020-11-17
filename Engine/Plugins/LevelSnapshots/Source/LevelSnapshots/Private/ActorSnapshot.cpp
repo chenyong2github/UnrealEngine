@@ -316,11 +316,23 @@ AActor* FLevelSnapshot_Actor::GetDeserializedActor() const
 		//void* DeserializationBuffer = FMemory::Malloc(TargetClass->GetStructureSize());
 
 		DeserializedActor = NewObject<AActor>(GetTransientPackage(), TargetClass, NAME_None, EObjectFlags::RF_Transient);
+
+		//FixupComponents(DeserializedActor);
 		
 		Deserialize(DeserializedActor);
 	}
 
 	return DeserializedActor;;
+}
+
+void FLevelSnapshot_Actor::FixupComponents(AActor* TargetActor) const
+{
+	for (const TTuple<FString, FLevelSnapshot_Component>& ComponentSnapshot : ComponentSnapshots)
+	{
+		UClass* ComponentClass = FSoftClassPath(ComponentSnapshot.Value.Base.ObjectClassPathName).ResolveClass();
+
+		UActorComponent* Component = TargetActor->AddComponentByClass(ComponentClass, false, FTransform(), false);
+	}
 }
 
 void FLevelSnapshot_Actor::Deserialize(AActor* TargetActor) const
@@ -342,33 +354,22 @@ void FLevelSnapshot_Actor::Deserialize(AActor* TargetActor) const
 
 	// This commented code below operates on the existing components on the target actor, not the components in the snapshot.
 	// For this reason the components container initialized below never has any members. I've rewritten the routine below.
-	//TArray<UActorComponent*> Components;
-	//TargetActor->GetComponents<UActorComponent>(Components);
+	TArray<UActorComponent*> Components;
+	TargetActor->GetComponents<UActorComponent>(Components);
 
-	//for (UActorComponent* Component : Components)
-	//{
-	//	if (const FLevelSnapshot_Component* ComponentSnapshot = ComponentSnapshots.Find(Component->GetPathName()))
-	//	{
-	//		UE_LOG(LogTemp, Warning, TEXT("Deserializing Component: %s"), *ComponentSnapshot->Base.ObjectName.ToString());
-
-	//		FActorSnapshotReader ComponentReader(ComponentSnapshot->Base);
-
-	//		Component->Serialize(ComponentReader);
-	//	}
-	//}
-
-	for (const TTuple<FString, FLevelSnapshot_Component>& ComponentSnapshot : ComponentSnapshots)
+	for (UActorComponent* Component : Components)
 	{
-		UClass* ComponentClass = FSoftClassPath(ComponentSnapshot.Value.Base.ObjectClassPathName).ResolveClass();
+		if (const FLevelSnapshot_Component* ComponentSnapshot = ComponentSnapshots.Find(Component->GetPathName()))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Deserializing Component: %s"), *ComponentSnapshot->Base.ObjectName.ToString());
 
-		UActorComponent* Component = TargetActor->AddComponentByClass(ComponentClass, false, FTransform(), false);
+			FActorSnapshotReader ComponentReader(ComponentSnapshot->Base);
 
-		FActorSnapshotReader ComponentReader(ComponentSnapshot.Value.Base);
-
-		Component->Serialize(ComponentReader);
+			Component->Serialize(ComponentReader);
+		}
 	}
 
-	//TargetActor->UpdateComponentTransforms();
+	TargetActor->UpdateComponentTransforms();
 	TargetActor->PostLoad();
 }
 

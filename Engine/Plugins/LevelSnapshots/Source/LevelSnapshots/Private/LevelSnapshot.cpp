@@ -33,37 +33,6 @@ void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 
 }
 
-int32 ULevelSnapshot::GetOrGenerateUniqueID(ULevelSnapshotTrackingComponent* TrackingComponent)
-{
-	int32 UniqueID = TrackingComponent->UniqueIdentifier;
-
-	// If the unique identifier is -1 then it was never set, so we should create a new one
-	while (UniqueIdentifiers.Contains(UniqueID) || UniqueID == -1)
-	{
-		UniqueID = FMath::Rand();
-	}
-	TrackingComponent->UniqueIdentifier = UniqueID;
-	UniqueIdentifiers.Add(UniqueID);
-	
-	return UniqueID;
-}
-
-void ULevelSnapshot::FindOrCreateTrackingComponent(AActor* TargetActor)
-{
-	// Create a tracking component and add it to the target actor (if it doesn't exist) so we can track information the LevelSnapshot system needs
-	ULevelSnapshotTrackingComponent* TrackingComponent = 
-		Cast<ULevelSnapshotTrackingComponent>(TargetActor->GetComponentByClass(ULevelSnapshotTrackingComponent::StaticClass()));
-	
-	if (!TrackingComponent)
-	{
-		TrackingComponent =
-			Cast<ULevelSnapshotTrackingComponent>(TargetActor->AddComponentByClass(
-				ULevelSnapshotTrackingComponent::StaticClass(), false, FTransform(), true));
-	}
-
-	GetOrGenerateUniqueID(TrackingComponent);
-}
-
 bool ULevelSnapshot::DoesActorHaveSupportedClass(const AActor* Actor)
 {
 	UClass* ActorClass = Actor->GetClass();
@@ -86,12 +55,5 @@ bool ULevelSnapshot::DoesActorHaveSupportedClass(const AActor* Actor)
 
 void ULevelSnapshot::SnapshotActor(AActor* TargetActor)
 {
-	FindOrCreateTrackingComponent(TargetActor);
-	
 	FLevelSnapshot_Actor& NewSnapshot = ActorSnapshots.Add(TargetActor->GetPathName(), FLevelSnapshot_Actor(TargetActor));
-}
-
-ULevelSnapshotTrackingComponent::ULevelSnapshotTrackingComponent()
-	: UniqueIdentifier(INDEX_NONE)
-{
 }
