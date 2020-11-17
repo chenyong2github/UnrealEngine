@@ -1222,6 +1222,9 @@ void UBodySetup::UpdateTriMeshVertices(const TArray<FVector> & NewPositions)
 
 		TriMeshes[0]->refitBVH();
 	}
+#elif WITH_CHAOS
+	ensure(false);
+
 #endif
 }
 
