@@ -38,11 +38,14 @@ namespace Chaos
 		/** Get the target transform (asserts if not in Position mode) */
 		const TRigidTransform<T, d>& GetTarget() const { check(Mode == EKinematicTargetMode::Position); return Target; }
 
+		/** Get the particle's previous transform for velocity calculations) */
+		const TRigidTransform<T, d>& GetPrevious() const { return Previous; }
+
 		/** Clear the kinematic target */
 		void Clear() { Target = TRigidTransform<T, d>(); Mode = EKinematicTargetMode::None; }
 
 		/** Use transform target mode and set the transform target */
-		void SetTargetMode(const TRigidTransform<T, d>& InTarget) { Target = InTarget;  Mode = EKinematicTargetMode::Position; }
+		void SetTargetMode(const TRigidTransform<T, d>& InTarget, const TRigidTransform<T, d>& InPrevious) { Target = InTarget; Previous = InPrevious;  Mode = EKinematicTargetMode::Position; }
 
 		/** Use velocity target mode */
 		void SetVelocityMode() { Mode = EKinematicTargetMode::Velocity; }
@@ -62,7 +65,10 @@ namespace Chaos
 				Mode == other.Mode &&
 				Target.GetTranslation() == other.Target.GetTranslation() &&
 				Target.GetRotation() == other.Target.GetRotation() &&
-				Target.GetScale3D() == other.Target.GetScale3D()
+				Target.GetScale3D() == other.Target.GetScale3D() &&
+				Previous.GetTranslation() == other.Previous.GetTranslation() &&
+				Previous.GetRotation() == other.Previous.GetRotation() &&
+				Previous.GetScale3D() == other.Previous.GetScale3D()
 				);
 		}
 
@@ -78,6 +84,7 @@ namespace Chaos
 		}
 
 	private:
+		TRigidTransform<T, d> Previous;
 		TRigidTransform<T, d> Target;
 		EKinematicTargetMode Mode;
 	};
