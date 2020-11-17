@@ -433,6 +433,51 @@ static int32 GetCustomDepthPassLocation()
 	return FMath::Clamp(CVarCustomDepthOrder.GetValueOnRenderThread(), 0, 1);
 }
 
+BEGIN_SHADER_PARAMETER_STRUCT(FRenderOpaqueFXPassParameters, )
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+END_SHADER_PARAMETER_STRUCT()
+
+static void RenderOpaqueFX(
+	FRDGBuilder& GraphBuilder,
+	TArrayView<const FViewInfo> Views,
+	FFXSystemInterface* FXSystem,
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer)
+{
+	// Notify the FX system that opaque primitives have been rendered and we now have a valid depth buffer.
+	if (FXSystem && Views.Num() > 0)
+	{
+		RDG_GPU_STAT_SCOPE(GraphBuilder, PostRenderOpsFX);
+		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderOpaqueFX);
+
+		auto* PassParameters = GraphBuilder.AllocParameters<FRenderOpaqueFXPassParameters>();
+		PassParameters->SceneTextures = SceneTexturesUniformBuffer;
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("OpaqueFX"),
+			PassParameters,
+			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+			[FXSystem, Views](FRHICommandListImmediate& RHICmdList)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FXSystem_PostRenderOpaque);
+
+			FXSystem->PostRenderOpaque(
+				RHICmdList,
+				Views[0].ViewUniformBuffer,
+				&FSceneTextureUniformParameters::StaticStructMetadata,
+				nullptr,
+				Views[0].AllowGPUParticleUpdate()
+			);
+
+			if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
+			{
+				GPUSortManager->OnPostRenderOpaque(RHICmdList);
+			}
+
+			ServiceLocalQueue();
+		});
+	}
+}
+
 void FDeferredShadingSceneRenderer::PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, bool bSplitDispatch)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDFAO);
@@ -2590,32 +2635,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	FRendererModule& RendererModule = static_cast<FRendererModule&>(GetRendererModule());
 	RendererModule.RenderPostOpaqueExtensions(GraphBuilder, Views, SceneColorTexture.Target, SceneDepthTexture.Target, SceneTextures, SceneContext);
 
-	// Notify the FX system that opaque primitives have been rendered and we now have a valid depth buffer.
-	if (FXSystem && Views.IsValidIndex(0))
-	{
-		RDG_GPU_STAT_SCOPE(GraphBuilder, PostRenderOpsFX);
-		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderOpaqueFX);
-
-		AddPass(GraphBuilder, [this](FRHICommandListImmediate& InRHICmdList)
-		{
-			SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FXSystem_PostRenderOpaque);
-
-			FXSystem->PostRenderOpaque(
-				InRHICmdList,
-				Views[0].ViewUniformBuffer,
-				nullptr,
-				nullptr,
-				Views[0].AllowGPUParticleUpdate()
-			);
-
-			if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
-			{
-				GPUSortManager->OnPostRenderOpaque(InRHICmdList);
-			}
-
-			ServiceLocalQueue();
-		});
-	}
+	RenderOpaqueFX(GraphBuilder, Views, FXSystem, SceneTextures);
 
 	if (bShouldRenderSkyAtmosphere)
 	{
