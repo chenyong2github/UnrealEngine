@@ -19529,7 +19529,7 @@ uint32 UMaterialExpressionStrataMultiply::GetInputType(int32 InputIndex)
 	{
 		return MCT_Strata;
 	}
-	return MCT_Float3;
+	return MCT_Float;
 }
 #endif // WITH_EDITOR
 

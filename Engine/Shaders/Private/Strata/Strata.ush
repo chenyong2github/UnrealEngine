@@ -704,7 +704,7 @@ FStrataData StrataAdd(FStrataData A, FStrataData B)
 	return StrataData;
 }
 
-FStrataData StrataMultiply(FStrataData A, float3 Weight)
+FStrataData StrataMultiply(FStrataData A, float Weight)
 {
 	FStrataData StrataData = A;
 
