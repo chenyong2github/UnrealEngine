@@ -66,9 +66,16 @@ namespace UnrealBuildTool
 		None,
 
 		/// <summary>
+		/// Use the default static analyzer for the selected compiler, if it has one. For
+		/// Visual Studio and Clang, this means using their built-in static analysis tools.
+		/// Any compiler that doesn't support static analysis will ignore this option.
+		/// </summary>
+		Default, 
+
+		/// <summary>
 		/// Use the built-in Visual C++ static analyzer
 		/// </summary>
-		VisualCpp,
+		VisualCpp = Default,
 
 		/// <summary>
 		/// Use PVS-Studio for static analysis
@@ -810,6 +817,15 @@ namespace UnrealBuildTool
 				Target.bCompileCEF3 = false;
 			}
 
+			// Disable static analysis if not appropriate for the compiler.
+			if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.Default)
+			{
+				if (Target.WindowsPlatform.Compiler == WindowsCompiler.Intel)
+				{
+					Target.WindowsPlatform.StaticAnalyzer = WindowsStaticAnalyzer.None;
+				}
+			}
+
 			// Set the compiler version if necessary
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Default)
 			{
@@ -829,8 +845,12 @@ namespace UnrealBuildTool
 				Target.bDisableLinking = true;
 			}
 
-			// Disable PCHs for PVS studio
+			 // Disable PCHs for PVS studio and clang static analyzer.
 			if(Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio)
+			{
+				Target.bUsePCHFiles = false;
+			}
+			else if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang && Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.Default)
 			{
 				Target.bUsePCHFiles = false;
 			}

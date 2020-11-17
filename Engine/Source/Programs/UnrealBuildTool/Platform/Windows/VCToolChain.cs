@@ -157,18 +157,65 @@ namespace UnrealBuildTool
 			// in object file sizes (and link times) due to the amount of stuff we inline.
 			Arguments.Add("/Zc:inline");
 
-			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
-			{
-				Arguments.Add("-fms-compatibility-version=19.1");
-			}
-
 			// @todo clang: Clang on Windows doesn't respect "#pragma warning (error: ####)", and we're not passing "/WX", so warnings are not
 			// treated as errors when compiling on Windows using Clang right now.
 
 			// NOTE re: clang: the arguments for clang-cl can be found at http://llvm.org/viewvc/llvm-project/cfe/trunk/include/clang/Driver/CLCompatOptions.td?view=markup
 			// This will show the cl.exe options that map to clang.exe ones, which ones are ignored and which ones are unsupported.
+			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+			{
+				// FIXME: We should be compatible with the latest MSVC compiler toolkit installed instead of hard-coding it here.
+				Arguments.Add("-fms-compatibility-version=19.1");
 
-			if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.VisualCpp)
+				if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.Default)
+				{
+					// Enable the static analyzer but only via the backend. Using the frontend
+					// flag ('--analyze') will enable a suite of default checkers, some of which
+					// we don't want (like deadcode.DeadStore)
+					Arguments.Add("-Xclang -analyze");
+
+					// Make sure we get textual output and not XML.
+					Arguments.Add("-Xclang -analyzer-output=text");
+
+					// Make sure we check inside nested blocks (e.g. 'if ((foo = getchar()) == 0) {}')
+					Arguments.Add("-Xclang -analyzer-opt-analyze-nested-blocks");
+
+					// Needed for some of the C++ checkers.
+					Arguments.Add("-Xclang -analyzer-config -Xclang aggressive-binary-operation-simplification=true");
+
+					// Enable only specific checkers of families of checkers
+					// See https://clang.llvm.org/docs/analyzer/checkers.html for a full list. Or run:
+					//    'clang -Xclang -analyzer-checker-help' 
+					// or: 
+					//    'clang -Xclang -analyzer-checker-help-alpha' 
+					// for the list of experimental checkers.
+					String[] EnabledCheckers = 
+					{
+						"core",
+						"unix.Malloc",
+						"unix.MallocSizeof",
+						"cplusplus",
+						"optin.cplusplus.UninitializedObject",
+						"optin.cplusplus.VirtualCall",
+						// "deadstore",					// Check for dead stores (noisy in UE).
+						// "security.FloatLoopCounter",	// Check if using floats for loop counters
+						// Experimental checkers (as of clang 11.0)
+						// "alpha.core.Conversion",		// Sign conversion (noisy)
+						// "alpha.core.PointerArithm",	// Sketchy pointer arithmetic
+						// "alpha.cplusplus.DeleteWithNonVirtualDtor",
+						// "alpha.cplusplus.InvalidatedIterator",
+						// "alpha.cplusplus.IteratorRange",
+						// "alpha.cplusplus.MismatchedIterator",
+						// "alpha.cplusplus.InvalidatedIterator",
+					};
+
+					foreach (String Checker in EnabledCheckers)
+					{
+						Arguments.Add(String.Format("-Xclang -analyzer-checker={0}", Checker));
+					}
+				}
+			}
+			else if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.Default)
 			{
 				Arguments.Add("/analyze");
 
@@ -221,7 +268,7 @@ namespace UnrealBuildTool
 			// Allow 750% of the default memory allocation limit when using the static analyzer, and 1000% at other times.
 			if(Target.WindowsPlatform.PCHMemoryAllocationFactor == 0)
 			{
-				if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.VisualCpp)
+				if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.Default)
 				{
 					Arguments.Add("/Zm750");
 				}
@@ -245,7 +292,7 @@ namespace UnrealBuildTool
 			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2017 && Target.WindowsPlatform.bStrictConformanceMode)
 			{
 				// Do not enable if we are running the MSVC code analyzer as it will fail to compile.
-				if (Target.WindowsPlatform.StaticAnalyzer != WindowsStaticAnalyzer.VisualCpp)
+				if (Target.WindowsPlatform.StaticAnalyzer != WindowsStaticAnalyzer.Default)
 				{
 					Arguments.Add("/permissive-");
 					Arguments.Add("/Zc:strictStrings-"); // Have to disable strict const char* semantics due to Windows headers not being compliant.
