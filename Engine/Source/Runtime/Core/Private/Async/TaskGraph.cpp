@@ -1297,8 +1297,8 @@ public:
 #endif
 			if (GroupName != PrevGroupName)
 			{
-				Trace::ThreadGroupEnd();
-				Trace::ThreadGroupBegin(GroupName);
+				UE::Trace::ThreadGroupEnd();
+				UE::Trace::ThreadGroupBegin(GroupName);
 				PrevGroupName = GroupName;
 			}
 
@@ -1314,7 +1314,7 @@ public:
 			
 			WorkerThreads[ThreadIndex].bAttached = true;
 		}
-		Trace::ThreadGroupEnd();
+		UE::Trace::ThreadGroupEnd();
 	}
 
 	/** 

@@ -10,9 +10,12 @@
 #include "HAL/CriticalSection.h"
 #include "Templates/Atomic.h"
 
+namespace UE
+{
 namespace Trace
 {
 	class FStoreClient;
+}
 }
 
 namespace Insights
@@ -81,7 +84,7 @@ public:
 	void Unlock() { check(bTracesLocked); bTracesLocked = false; TracesCriticalSection.Unlock(); }
 
 private:
-	Trace::FStoreClient* GetStoreClient() const;
+	UE::Trace::FStoreClient* GetStoreClient() const;
 
 	void UpdateTraces();
 	void ResetTraces();

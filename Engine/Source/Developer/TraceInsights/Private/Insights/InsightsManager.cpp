@@ -313,7 +313,7 @@ void FInsightsManager::OnSessionInfoTabClosed(TSharedRef<SDockTab> TabBeingClose
 
 bool FInsightsManager::ConnectToStore(const TCHAR* Host, uint32 Port)
 {
-	using namespace Trace;
+	using namespace UE::Trace;
 	FStoreClient* Client = FStoreClient::Connect(Host, Port);
 	StoreClient = TUniquePtr<FStoreClient>(Client);
 	return StoreClient.IsValid();
@@ -507,7 +507,7 @@ void FInsightsManager::LoadLastLiveSession()
 		return;
 	}
 
-	const Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionCount - 1);
+	const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionCount - 1);
 	if (SessionInfo == nullptr)
 	{
 		return;
@@ -531,7 +531,7 @@ void FInsightsManager::LoadTrace(uint32 InTraceId, bool InAutoQuit)
 		return;
 	}
 
-	Trace::FStoreClient::FTraceData TraceData = StoreClient->ReadTrace(InTraceId);
+	UE::Trace::FStoreClient::FTraceData TraceData = StoreClient->ReadTrace(InTraceId);
 	if (!TraceData)
 	{
 		if (InAutoQuit)
@@ -542,7 +542,7 @@ void FInsightsManager::LoadTrace(uint32 InTraceId, bool InAutoQuit)
 	}
 
 	FString TraceName;
-	const Trace::FStoreClient::FTraceInfo* TraceInfo = StoreClient->GetTraceInfoById(InTraceId);
+	const UE::Trace::FStoreClient::FTraceInfo* TraceInfo = StoreClient->GetTraceInfoById(InTraceId);
 	if (TraceInfo != nullptr)
 	{
 		FAnsiStringView Name = TraceInfo->GetName();

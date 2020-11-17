@@ -8,6 +8,7 @@
 #include "Trace/Detail/Atomic.h"
 #include "Trace/Detail/Important/ImportantLogScope.inl"
 
+namespace UE {
 namespace Trace {
 namespace Private {
 
@@ -185,5 +186,6 @@ void Writer_ShutdownSharedBuffers()
 
 } // namespace Private
 } // namespace Trace
+} // namespace UE
 
 #endif // UE_TRACE_ENABLED

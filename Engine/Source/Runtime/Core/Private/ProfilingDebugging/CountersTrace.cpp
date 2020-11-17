@@ -12,7 +12,7 @@ UE_TRACE_EVENT_BEGIN(Counters, Spec, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(uint16, Id)
 	UE_TRACE_EVENT_FIELD(uint8, Type)
 	UE_TRACE_EVENT_FIELD(uint8, DisplayHint)
-	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Name)
+	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Name)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Counters, SetValueInt)

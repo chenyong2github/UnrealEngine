@@ -16,9 +16,12 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+namespace UE
+{
 namespace Trace
 {
 	class FStoreClient;
+}
 }
 
 namespace TraceServices
@@ -98,7 +101,7 @@ public:
 	const FString& GetStoreDir() const { return StoreDir; }
 
 	bool ConnectToStore(const TCHAR* Host, uint32 Port);
-	Trace::FStoreClient* GetStoreClient() const { return StoreClient.Get(); }
+	UE::Trace::FStoreClient* GetStoreClient() const { return StoreClient.Get(); }
 
 	/** @return an instance of the trace analysis session. */
 	TSharedPtr<const TraceServices::IAnalysisSession> GetSession() const;
@@ -274,7 +277,7 @@ private:
 	FString StoreDir;
 
 	/** The client used to connect to the trace store. */
-	TUniquePtr<Trace::FStoreClient> StoreClient;
+	TUniquePtr<UE::Trace::FStoreClient> StoreClient;
 
 	/** The trace analysis session. */
 	TSharedPtr<const TraceServices::IAnalysisSession> Session;

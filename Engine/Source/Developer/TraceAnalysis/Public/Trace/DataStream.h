@@ -4,8 +4,8 @@
 
 #include "CoreTypes.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 class IInDataStream
 {
@@ -15,4 +15,5 @@ public:
 	virtual void	Close() {}
 };
 
-}
+} // namespace Trace
+} // namespace UE

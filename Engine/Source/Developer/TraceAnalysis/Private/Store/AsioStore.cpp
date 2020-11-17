@@ -13,8 +13,8 @@
 #	include "Windows/HideWindowsPlatformTypes.h"
 #endif // PLATFORM_WINDOWS
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 #if PLATFORM_WINDOWS
@@ -396,3 +396,4 @@ void FAsioStore::Refresh()
 }
 
 } // namespace Trace
+} // namespace UE

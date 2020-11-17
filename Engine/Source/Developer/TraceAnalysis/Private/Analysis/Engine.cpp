@@ -15,8 +15,8 @@
 #include "Transport/Transport.h"
 #include "Transport/TidPacketTransport.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 void SerializeToCborImpl(TArray<uint8>&, const IAnalyzer::FEventData&, uint32);
@@ -442,7 +442,7 @@ IAnalyzer::FEventFieldInfo::EType IAnalyzer::FEventFieldInfo::GetType() const
 {
 	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
 
-	if (Inner->Class == Protocol0::Field_String)
+	if (Inner->Class == UE::Trace::Protocol0::Field_String)
 	{
 		return (Inner->SizeAndType == 1) ? EType::AnsiString : EType::WideString;
 	}
@@ -581,7 +581,7 @@ bool IAnalyzer::FEventData::GetString(const ANSICHAR* FieldName, FAnsiStringView
 	}
 
 	const auto& Field = Dispatch.Fields[Index];
-	if (Field.Class != Protocol0::Field_String || Field.SizeAndType != sizeof(ANSICHAR))
+	if (Field.Class != UE::Trace::Protocol0::Field_String || Field.SizeAndType != sizeof(ANSICHAR))
 	{
 		return false;
 	}
@@ -608,7 +608,7 @@ bool IAnalyzer::FEventData::GetString(const ANSICHAR* FieldName, FStringView& Ou
 	}
 
 	const auto& Field = Dispatch.Fields[Index];
-	if (Field.Class != Protocol0::Field_String || Field.SizeAndType != sizeof(TCHAR))
+	if (Field.Class != UE::Trace::Protocol0::Field_String || Field.SizeAndType != sizeof(TCHAR))
 	{
 		return false;
 	}
@@ -641,7 +641,7 @@ bool IAnalyzer::FEventData::GetString(const ANSICHAR* FieldName, FString& Out) c
 	}
 
 	const auto& Field = Dispatch.Fields[Index];
-	if (Field.Class == Protocol0::Field_String)
+	if (Field.Class == UE::Trace::Protocol0::Field_String)
 	{
 		if (Field.SizeAndType == sizeof(ANSICHAR))
 		{
@@ -717,6 +717,8 @@ FAnalysisEngine::~FAnalysisEngine()
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::Begin()
 {
+	using namespace UE::Trace;
+
 	// Call out to all registered analyzers to have them register event interest
 	struct : IAnalyzer::FInterfaceBuilder
 	{
@@ -937,7 +939,7 @@ void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 	Hint &= Serial.Mask;
 	Serial.Value = Hint|0x80000000;
 
-	UserUidBias = EventData.GetValue<uint32>("UserUidBias", uint32(Protocol3::EKnownEventUids::User));
+	UserUidBias = EventData.GetValue<uint32>("UserUidBias", uint32(UE::Trace::Protocol3::EKnownEventUids::User));
 
 	OnTiming(Context);
 }
@@ -1070,6 +1072,8 @@ void FAnalysisEngine::ForEachRoute(uint32 RouteIndex, bool bScoped, ImplType&& I
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::OnNewEventInternal(const void* EventData)
 {
+	using namespace UE::Trace;
+
 	FDispatchBuilder Builder;
 	switch (ProtocolVersion)
 	{
@@ -1148,6 +1152,8 @@ bool FAnalysisEngine::AddDispatch(FDispatch* Dispatch)
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::OnNewEventProtocol0(FDispatchBuilder& Builder, const void* EventData)
 {
+	using namespace UE::Trace;
+
 	const auto& NewEvent = *(Protocol0::FNewEventEvent*)(EventData);
 
 	const auto* NameCursor = (const ANSICHAR*)(NewEvent.Fields + NewEvent.FieldCount);
@@ -1184,6 +1190,8 @@ void FAnalysisEngine::OnNewEventProtocol0(FDispatchBuilder& Builder, const void*
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::OnNewEventProtocol1(FDispatchBuilder& Builder, const void* EventData)
 {
+	using namespace UE::Trace;
+
 	OnNewEventProtocol0(Builder, EventData);
 
 	const auto& NewEvent = *(Protocol1::FNewEventEvent*)(EventData);
@@ -1207,6 +1215,8 @@ void FAnalysisEngine::OnNewEventProtocol1(FDispatchBuilder& Builder, const void*
 ////////////////////////////////////////////////////////////////////////////////
 bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 {
+	using namespace UE::Trace;
+
 	const struct {
 		uint8 TransportVersion;
 		uint8 ProtocolVersion;
@@ -1323,6 +1333,8 @@ bool FAnalysisEngine::OnData(FStreamReader& Reader)
 ////////////////////////////////////////////////////////////////////////////////
 bool FAnalysisEngine::OnDataProtocol0()
 {
+	using namespace UE::Trace;
+
 	FThreads::FInfo ThreadInfo;
 
 	while (true)
@@ -1417,7 +1429,7 @@ bool FAnalysisEngine::OnDataProtocol2()
 			FThreads::FInfo& ThreadInfo = Threads.GetInfo(RotaItem.ThreadId);
 
 			uint32 AvailableSerial;
-			if (ProtocolVersion == Protocol4::EProtocol::Id)
+			if (ProtocolVersion == UE::Trace::Protocol4::EProtocol::Id)
 			{
 				AvailableSerial = OnDataProtocol4(*(RotaItem.Reader), ThreadInfo);
 			}
@@ -1512,6 +1524,8 @@ bool FAnalysisEngine::OnDataProtocol2()
 ////////////////////////////////////////////////////////////////////////////////
 int32 FAnalysisEngine::OnDataProtocol2(FStreamReader& Reader, FThreads::FInfo& ThreadInfo)
 {
+	using namespace UE::Trace;
+
 	while (true)
 	{
 		auto Mark = Reader.SaveMark();
@@ -1624,6 +1638,8 @@ int32 FAnalysisEngine::OnDataProtocol2(FStreamReader& Reader, FThreads::FInfo& T
 ////////////////////////////////////////////////////////////////////////////////
 int32 FAnalysisEngine::OnDataProtocol2Aux(FStreamReader& Reader, FAuxDataCollector& Collector)
 {
+	using namespace UE::Trace;
+
 	while (true)
 	{
 		const uint8* NextByte = Reader.GetPointer<uint8>();
@@ -1683,7 +1699,7 @@ int32 FAnalysisEngine::OnDataProtocol4Known(
 	FStreamReader& Reader,
 	FThreads::FInfo& ThreadInfo)
 {
-	using namespace Protocol4;
+	using namespace UE::Trace::Protocol4;
 
 	switch (Uid)
 	{
@@ -1770,7 +1786,7 @@ int32 FAnalysisEngine::OnDataProtocol4Impl(
 {
 	/* Returns 0 if an event was successfully processed, 1 if there's not enough
 	 * data available, or ~AvailableLogSerial if the pending event is in the future */
-	using namespace Protocol4;
+	using namespace UE::Trace::Protocol4;
 
 	auto Mark = Reader.SaveMark();
 
@@ -1829,7 +1845,7 @@ int32 FAnalysisEngine::OnDataProtocol4Impl(
 	// Make sure we consume events in the correct order
 	if ((Dispatch->Flags & FDispatch::Flag_NoSync) == 0)
 	{
-		const auto* HeaderSync = (Protocol4::FEventHeaderSync*)Header;
+		const auto* HeaderSync = (UE::Trace::Protocol4::FEventHeaderSync*)Header;
 		uint32 EventSerial = HeaderSync->SerialLow|(uint32(HeaderSync->SerialHigh) << 16);
 		if (EventSerial != (Serial.Value & Serial.Mask))
 		{
@@ -1924,3 +1940,4 @@ int32 FAnalysisEngine::OnDataProtocol4Impl(
 }
 
 } // namespace Trace
+} // namespace UE

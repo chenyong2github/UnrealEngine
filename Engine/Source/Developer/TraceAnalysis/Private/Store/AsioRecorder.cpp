@@ -13,8 +13,8 @@
 	THIRD_PARTY_INCLUDES_END
 #endif
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAsioRecorderRelay
@@ -329,3 +329,4 @@ void FAsioRecorder::OnTick()
 }
 
 } // namespace Trace
+} // namespace UE

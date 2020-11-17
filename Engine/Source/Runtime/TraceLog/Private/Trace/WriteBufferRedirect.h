@@ -2,6 +2,7 @@
 
 #pragma once
 
+namespace UE {
 namespace Trace {
 namespace Private {
 
@@ -88,3 +89,4 @@ inline void TWriteBufferRedirect<BufferSize>::Reset()
 
 } // namespace Private
 } // namespace Trace
+} // namespace UE

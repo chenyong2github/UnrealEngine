@@ -43,7 +43,7 @@ namespace TraceServices
 
 ////////////////////////////////////////////////////////////////////////////////
 class IAllocationsProvider
-	: public Trace::IProvider
+	: public UE::Trace::IProvider
 {
 public:
 	struct FAllocation

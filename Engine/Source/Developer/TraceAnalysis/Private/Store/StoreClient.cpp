@@ -6,8 +6,8 @@
 #include "CborPayload.h"
 #include "Templates/UnrealTemplate.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 class FTraceDataStream
@@ -342,10 +342,11 @@ bool FStoreCborClient::GetSessionInfoByTraceId(uint32 TraceId)
 }
 
 } // namespace Trace
+} // namespace UE
 
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 uint32 FStoreClient::FStatus::GetRecorderPort() const
@@ -578,3 +579,4 @@ const FStoreClient::FSessionInfo* FStoreClient::GetSessionInfoByTraceId(uint32 T
 }
 
 } // namespace Trace
+} // namespace UE

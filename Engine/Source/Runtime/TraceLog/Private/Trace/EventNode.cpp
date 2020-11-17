@@ -7,6 +7,7 @@
 #include "Trace/Detail/Atomic.h"
 #include "Trace/Detail/LogScope.inl"
 
+namespace UE {
 namespace Trace {
 namespace Private {
 
@@ -202,6 +203,7 @@ void FEventNode::OnConnect()
 
 } // namespace Private
 } // namespace Trace
+} // namespace UE
 
 #endif // UE_TRACE_ENABLED
 

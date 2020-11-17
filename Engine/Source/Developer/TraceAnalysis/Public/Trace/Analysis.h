@@ -4,8 +4,8 @@
 
 #include "Containers/Array.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 class IAnalyzer;
 class IInDataStream;
@@ -68,3 +68,4 @@ private:
 };
 
 } // namespace Trace
+} // namespace UE

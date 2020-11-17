@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <errno.h>
 
+namespace UE {
 namespace Trace {
 namespace Private {
 
@@ -224,5 +225,6 @@ UPTRINT FileOpen(const ANSICHAR* Path)
 
 } // namespace Private
 } // namespace Trace
+} // namespace UE
 
 #endif // UE_TRACE_ENABLED

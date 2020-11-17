@@ -8,8 +8,8 @@
 class FEvent;
 class FRunnableThread;
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAnalysisProcessor::FImpl
@@ -34,3 +34,4 @@ private:
 };
 
 } // namespace Trace
+} // namespace UE

@@ -6,9 +6,12 @@
 #include "Insights/IUnrealInsightsModule.h"
 #include "Framework/Docking/TabManager.h"
 
+namespace UE
+{
 namespace Trace
 {
 	class FStoreService;
+}
 }
 
 namespace TraceServices
@@ -37,7 +40,7 @@ public:
 
 	virtual void CreateDefaultStore() override;
 
-	virtual Trace::FStoreClient* GetStoreClient() override;
+	virtual UE::Trace::FStoreClient* GetStoreClient() override;
 	virtual bool ConnectToStore(const TCHAR* InStoreHost, uint32 InStorePort) override;
 
 	virtual void CreateSessionBrowser(bool bAllowDebugTools = false, bool bSingleProcess = false, bool bInitializeTesting = false) override;
@@ -93,7 +96,7 @@ protected:
 	void OnWindowClosedEvent(const TSharedRef<SWindow>&);
 
 protected:
-	TUniquePtr<Trace::FStoreService> StoreService;
+	TUniquePtr<UE::Trace::FStoreService> StoreService;
 
 	TSharedPtr<TraceServices::IAnalysisService> TraceAnalysisService;
 	TSharedPtr<TraceServices::IModuleService> TraceModuleService;

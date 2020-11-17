@@ -135,7 +135,7 @@ void FTraceAuxiliaryImpl::AddChannel(const TCHAR* Name)
 bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter)
 {
 	// Connect/write to file. But only if we're not already sending/writing
-	bool bConnected = Trace::IsTracing();
+	bool bConnected = UE::Trace::IsTracing();
 	if (!bConnected)
 	{
 		if (Type == ETraceConnectType::Network)
@@ -176,7 +176,7 @@ bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter
 ////////////////////////////////////////////////////////////////////////////////
 bool FTraceAuxiliaryImpl::Stop()
 {
-	if (!Trace::Stop())
+	if (!UE::Trace::Stop())
 	{
 		return false;
 	}
@@ -197,12 +197,12 @@ void FTraceAuxiliaryImpl::EnableChannel(FChannel& Channel)
 	// Channel names have been provided by the user and may not exist yet. As
 	// we want to maintain bActive accurately (channels toggles are reference
 	// counted), we will first check Trace knows of the channel.
-	if (!Trace::IsChannel(*Channel.Name))
+	if (!UE::Trace::IsChannel(*Channel.Name))
 	{
 		return;
 	}
 
-	Trace::ToggleChannel(*Channel.Name, true);
+	UE::Trace::ToggleChannel(*Channel.Name, true);
 	Channel.bActive = true;
 }
 
@@ -223,7 +223,7 @@ void FTraceAuxiliaryImpl::DisableChannels()
 		FChannel& Channel = ChannelPair.Value;
 		if (Channel.bActive)
 		{
-			Trace::ToggleChannel(*Channel.Name, false);
+			UE::Trace::ToggleChannel(*Channel.Name, false);
 			Channel.bActive = false;
 		}
 	}
@@ -232,7 +232,7 @@ void FTraceAuxiliaryImpl::DisableChannels()
 ////////////////////////////////////////////////////////////////////////////////
 bool FTraceAuxiliaryImpl::SendToHost(const TCHAR* Host)
 {
-	if (!Trace::SendTo(Host))
+	if (!UE::Trace::SendTo(Host))
 	{
 		UE_LOG(LogCore, Warning, TEXT("Unable to trace to host '%s'"), Host);
 		return false;
@@ -288,7 +288,7 @@ bool FTraceAuxiliaryImpl::WriteToFile(const TCHAR* Path)
 
 	// Finally, tell trace to write the trace to a file.
 	FString NativePath = FileManager.ConvertToAbsolutePathForExternalAppForWrite(*WritePath);
-	if (!Trace::WriteTo(*NativePath))
+	if (!UE::Trace::WriteTo(*NativePath))
 	{
 		UE_LOG(LogCore, Warning, TEXT("Unable to trace to file '%s'"), *WritePath);
 		return false;
@@ -375,9 +375,9 @@ static FAutoConsoleCommand TraceAuxiliaryStopCmd(
 
 ////////////////////////////////////////////////////////////////////////////////
 UE_TRACE_EVENT_BEGIN(Diagnostics, Session2, NoSync|Important)
-	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Platform)
-	UE_TRACE_EVENT_FIELD(Trace::AnsiString, AppName)
-	UE_TRACE_EVENT_FIELD(Trace::WideString, CommandLine)
+	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Platform)
+	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, AppName)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, CommandLine)
 	UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
 	UE_TRACE_EVENT_FIELD(uint8, TargetType)
 UE_TRACE_EVENT_END()
@@ -392,7 +392,7 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 		(UE_ARRAY_COUNT(PREPROCESSOR_TO_STRING(UBT_COMPILED_PLATFORM)) * sizeof(ANSICHAR)) +
 		(UE_ARRAY_COUNT(UE_APP_NAME) * sizeof(ANSICHAR)) +
 		(FCString::Strlen(CommandLine) * sizeof(TCHAR));
-	UE_TRACE_LOG(Diagnostics, Session2, Trace::TraceLogChannel, DataSize)
+	UE_TRACE_LOG(Diagnostics, Session2, UE::Trace::TraceLogChannel, DataSize)
 		<< Session2.Platform(PREPROCESSOR_TO_STRING(UBT_COMPILED_PLATFORM))
 		<< Session2.AppName(UE_APP_NAME)
 		<< Session2.CommandLine(CommandLine)
@@ -400,11 +400,11 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 		<< Session2.TargetType(uint8(FApp::GetBuildTargetType()));
 
 	// Initialize Trace
-	Trace::FInitializeDesc Desc;
+	UE::Trace::FInitializeDesc Desc;
 	Desc.bUseWorkerThread = FPlatformProcess::SupportsMultithreading();
-	Trace::Initialize(Desc);
+	UE::Trace::Initialize(Desc);
 
-	FCoreDelegates::OnEndFrame.AddStatic(Trace::Update);
+	FCoreDelegates::OnEndFrame.AddStatic(UE::Trace::Update);
 	FModuleManager::Get().OnModulesChanged().AddLambda([](FName Name, EModuleChangeReason Reason){
 		if (Reason == EModuleChangeReason::ModuleLoaded)
 		{
@@ -434,8 +434,7 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 		GTraceAuxiliary.Connect(ETraceConnectType::File, nullptr);
 	}
 
-	Trace::ThreadRegister(TEXT("GameThread"), FPlatformTLS::GetCurrentThreadId(), -1);
-
+	UE::Trace::ThreadRegister(TEXT("GameThread"), FPlatformTLS::GetCurrentThreadId(), -1);
 #endif
 }
 

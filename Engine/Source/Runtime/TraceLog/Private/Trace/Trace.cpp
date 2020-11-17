@@ -8,8 +8,8 @@
 #include "Trace/Detail/Channel.h"
 
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 namespace Private
 {
@@ -125,11 +125,11 @@ UE_TRACE_EVENT_BEGIN($Trace, ThreadInfo, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 	UE_TRACE_EVENT_FIELD(uint32, SystemId)
 	UE_TRACE_EVENT_FIELD(int32, SortHint)
-	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Name)
+	UE_TRACE_EVENT_FIELD(AnsiString, Name)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN($Trace, ThreadGroupBegin, NoSync|Important)
-	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Name)
+	UE_TRACE_EVENT_FIELD(AnsiString, Name)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN($Trace, ThreadGroupEnd, NoSync|Important)
@@ -162,6 +162,7 @@ void ThreadGroupEnd()
 }
 
 } // namespace Trace
+} // namespace UE
 
 #else
 

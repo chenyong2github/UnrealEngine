@@ -12,7 +12,7 @@ namespace TraceServices
 class IAnalysisSession;
 
 class FNetTraceAnalyzer
-	: public Trace::IAnalyzer
+	: public UE::Trace::IAnalyzer
 {
 public:
 	FNetTraceAnalyzer(IAnalysisSession& Session, FNetProfilerProvider& NetProfilerProvider);

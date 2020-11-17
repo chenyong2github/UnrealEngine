@@ -68,7 +68,7 @@ struct FCpuProfilerTrace
 
 	struct FEventScope
 	{
-		FEventScope(uint32 InSpecId, const Trace::FChannel& Channel)
+		FEventScope(uint32 InSpecId, const UE::Trace::FChannel& Channel)
 			: bEnabled(Channel | CpuChannel)
 		{
 			if (bEnabled)
@@ -90,7 +90,7 @@ struct FCpuProfilerTrace
 
 	struct FDynamicEventScope
 	{
-		FDynamicEventScope(const ANSICHAR* InEventName, const Trace::FChannel& Channel)
+		FDynamicEventScope(const ANSICHAR* InEventName, const UE::Trace::FChannel& Channel)
 			: bEnabled(Channel | CpuChannel)
 		{
 			if (bEnabled)
@@ -99,7 +99,7 @@ struct FCpuProfilerTrace
 			}
 		}
 
-		FDynamicEventScope(const TCHAR* InEventName, const Trace::FChannel& Channel)
+		FDynamicEventScope(const TCHAR* InEventName, const UE::Trace::FChannel& Channel)
 			: bEnabled(Channel | CpuChannel)
 		{
 			if (bEnabled)

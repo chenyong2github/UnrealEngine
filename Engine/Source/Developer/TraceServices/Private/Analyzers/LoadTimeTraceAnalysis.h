@@ -19,7 +19,7 @@ inline bool operator!=(const FLoadTimeProfilerCpuEvent& Lhs, const FLoadTimeProf
 		Lhs.EventType != Rhs.EventType;
 }
 
-class FAsyncLoadingTraceAnalyzer : public Trace::IAnalyzer
+class FAsyncLoadingTraceAnalyzer : public UE::Trace::IAnalyzer
 {
 public:
 	FAsyncLoadingTraceAnalyzer(IAnalysisSession& Session, FLoadTimeProfilerProvider& LoadTimeProfilerProvider);

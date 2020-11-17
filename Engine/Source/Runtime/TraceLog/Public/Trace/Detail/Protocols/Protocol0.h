@@ -2,8 +2,8 @@
 
 #pragma once
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 #if defined(TRACE_PRIVATE_PROTOCOL_0)
 inline
@@ -99,5 +99,5 @@ struct FEventHeader
 };
 
 } // namespace Protocol0
-
 } // namespace Trace
+} // namespace UE

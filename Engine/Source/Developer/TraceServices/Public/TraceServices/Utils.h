@@ -8,7 +8,7 @@ namespace FTraceAnalyzerUtils {
 template <typename AttachedCharType>
 inline FString LegacyAttachmentString(
 	const ANSICHAR* FieldName,
-	const Trace::IAnalyzer::FOnEventContext& Context)
+	const UE::Trace::IAnalyzer::FOnEventContext& Context)
 {
 	FString Out;
 	if (!Context.EventData.GetString(FieldName, Out))

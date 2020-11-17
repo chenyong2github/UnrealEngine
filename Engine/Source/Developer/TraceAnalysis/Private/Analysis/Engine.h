@@ -6,8 +6,8 @@
 #include "Trace/Analysis.h"
 #include "Trace/Analyzer.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 class FStreamReader;
 
@@ -127,3 +127,4 @@ private:
 };
 
 } // namespace Trace
+} // namespace UE

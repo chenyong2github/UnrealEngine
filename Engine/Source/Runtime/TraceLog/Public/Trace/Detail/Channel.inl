@@ -6,8 +6,8 @@
 
 #if UE_TRACE_ENABLED
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 extern TRACELOG_API FChannel& TraceLogChannel;
 
@@ -30,5 +30,6 @@ inline bool FChannel::operator | (const FChannel& Rhs) const
 }
 
 } // namespace Trace
+} // namespace UE
 
 #endif // UE_TRACE_ENABLED

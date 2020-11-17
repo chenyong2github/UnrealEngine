@@ -8,6 +8,7 @@
 
 #include "Field.h"
 
+namespace UE {
 namespace Trace {
 namespace Private {
 
@@ -53,5 +54,6 @@ private:
 
 } // namespace Private
 } // namespace Trace
+} // namespace UE
 
 #endif // UE_TRACE_ENABLED

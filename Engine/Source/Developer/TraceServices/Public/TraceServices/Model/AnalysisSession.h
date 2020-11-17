@@ -7,12 +7,13 @@
 
 class FName;
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 class IAnalyzer;
 
-}
+} // namespace Trace
+} // namespace UE
 
 namespace TraceServices
 {
@@ -49,7 +50,7 @@ public:
 	virtual const TCHAR* StoreString(const TCHAR* String) = 0;
 	virtual const TCHAR* StoreString(const FStringView& String) = 0;
 	
-	virtual void AddAnalyzer(Trace::IAnalyzer* Analyzer) = 0;
+	virtual void AddAnalyzer(UE::Trace::IAnalyzer* Analyzer) = 0;
 
 	virtual void AddProvider(const FName& Name, IProvider* Provider) = 0;
 	template<typename ProviderType>

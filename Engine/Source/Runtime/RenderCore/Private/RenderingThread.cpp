@@ -329,12 +329,12 @@ public:
 
 	void Start()
 	{
-		Trace::ThreadGroupBegin(TEXT("Render"));
+		UE::Trace::ThreadGroupBegin(TEXT("Render"));
 		Thread = FRunnableThread::Create(this, TEXT("RHIThread"), 512 * 1024, FPlatformAffinity::GetRHIThreadPriority(),
 			FPlatformAffinity::GetRHIThreadMask(), FPlatformAffinity::GetRHIThreadFlags()
 			);
 		check(Thread);
-		Trace::ThreadGroupEnd();
+		UE::Trace::ThreadGroupEnd();
 	}
 };
 
@@ -766,12 +766,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Create the rendering thread.
 	GRenderingThreadRunnable = new FRenderingThread();
 
-	Trace::ThreadGroupBegin(TEXT("Render"));
+	UE::Trace::ThreadGroupBegin(TEXT("Render"));
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	GRenderingThread = 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		FRunnableThread::Create(GRenderingThreadRunnable, *BuildRenderingThreadName(ThreadCount), 0, FPlatformAffinity::GetRenderingThreadPriority(), FPlatformAffinity::GetRenderingThreadMask(), FPlatformAffinity::GetRenderingThreadFlags());
-	Trace::ThreadGroupEnd();
+	UE::Trace::ThreadGroupEnd();
 
 	// Wait for render thread to have taskgraph bound before we dispatch any tasks for it.
 	((FRenderingThread*)GRenderingThreadRunnable)->TaskGraphBoundSyncEvent->Wait();
@@ -788,9 +788,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Create the rendering thread heartbeat
 	GRenderingThreadRunnableHeartbeat = new FRenderingThreadTickHeartbeat();
 
-	Trace::ThreadGroupBegin(TEXT("Render"));
+	UE::Trace::ThreadGroupBegin(TEXT("Render"));
 	GRenderingThreadHeartbeat = FRunnableThread::Create(GRenderingThreadRunnableHeartbeat, *FString::Printf(TEXT("RTHeartBeat %d"), ThreadCount), 16 * 1024, TPri_AboveNormal, FPlatformAffinity::GetRTHeartBeatMask());
-	Trace::ThreadGroupEnd();
+	UE::Trace::ThreadGroupEnd();
 
 	ThreadCount++;
 

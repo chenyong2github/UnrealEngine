@@ -31,7 +31,7 @@ inline int64 DecodeZigZag(const uint8*& BufferPtr)
 }
 
 inline uint32 GetThreadIdField(
-	const Trace::IAnalyzer::FOnEventContext& Context,
+	const UE::Trace::IAnalyzer::FOnEventContext& Context,
 	const ANSICHAR* FieldName="ThreadId")
 {
 	// Trace analysis was changed to be able to provide a suitable id. Prior to

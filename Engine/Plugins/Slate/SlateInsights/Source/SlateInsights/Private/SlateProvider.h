@@ -49,7 +49,7 @@ struct FWidgetInfo
 	uint64 EventIndex;
 
 	FWidgetInfo() = default;
-	FWidgetInfo(const Trace::IAnalyzer::FEventData& EventData);
+	FWidgetInfo(const UE::Trace::IAnalyzer::FEventData& EventData);
 	friend bool operator==(const FWidgetInfo& A, FWidgetId B) { return A.WidgetId == B; }
 };
 
@@ -59,7 +59,7 @@ struct FWidgetUpdatedMessage
 	/** Flag that was set by an invalidation or on the widget directly. */
 	EWidgetUpdateFlags UpdateFlags;
 
-	FWidgetUpdatedMessage(const Trace::IAnalyzer::FEventData& EventData);
+	FWidgetUpdatedMessage(const UE::Trace::IAnalyzer::FEventData& EventData);
 };
 
 struct FWidgetInvalidatedMessage
@@ -72,10 +72,10 @@ struct FWidgetInvalidatedMessage
 	FString ScriptTrace;
 	FString Callstack;
 
-	static FWidgetInvalidatedMessage FromWidget(const Trace::IAnalyzer::FEventData& EventData);
-	static FWidgetInvalidatedMessage FromRoot(const Trace::IAnalyzer::FEventData& EventData);
-	static FWidgetInvalidatedMessage FromChildOrder(const Trace::IAnalyzer::FEventData& EventData);
-	static FString GetCallstack(const Trace::IAnalyzer::FEventData& EventData);
+	static FWidgetInvalidatedMessage FromWidget(const UE::Trace::IAnalyzer::FEventData& EventData);
+	static FWidgetInvalidatedMessage FromRoot(const UE::Trace::IAnalyzer::FEventData& EventData);
+	static FWidgetInvalidatedMessage FromChildOrder(const UE::Trace::IAnalyzer::FEventData& EventData);
+	static FString GetCallstack(const UE::Trace::IAnalyzer::FEventData& EventData);
 };
 
 struct FApplicationTickedMessage
@@ -91,7 +91,7 @@ struct FApplicationTickedMessage
 	uint32 RootInvalidatedCount;
 	ESlateTraceApplicationFlags Flags;
 
-	FApplicationTickedMessage(const Trace::IAnalyzer::FEventData& EventData);
+	FApplicationTickedMessage(const UE::Trace::IAnalyzer::FEventData& EventData);
 };
 
 } //namespace Message

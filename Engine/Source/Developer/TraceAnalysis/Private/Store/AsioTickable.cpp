@@ -5,8 +5,8 @@
 
 #include <chrono>
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 FAsioTickable::FAsioTickable(asio::io_context& IoContext)
@@ -100,3 +100,4 @@ void FAsioTickable::AsyncTick()
 }
 
 } // namespace Trace
+} // namespace UE

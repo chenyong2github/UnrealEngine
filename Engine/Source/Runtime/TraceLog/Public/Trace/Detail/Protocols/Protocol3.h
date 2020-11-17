@@ -2,8 +2,8 @@
 
 #pragma once
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 #if defined(TRACE_PRIVATE_PROTOCOL_3)
 inline
@@ -25,3 +25,4 @@ using Protocol2::FEventHeaderSync;
 
 } // namespace Protocol3
 } // namespace Trace
+} // namespace UE

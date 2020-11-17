@@ -13,7 +13,7 @@ namespace SlateInsights
 
 class FSlateProvider;
 
-class FSlateAnalyzer : public Trace::IAnalyzer
+class FSlateAnalyzer : public UE::Trace::IAnalyzer
 {
 public:
 	FSlateAnalyzer(TraceServices::IAnalysisSession& InSession, FSlateProvider& InSlateProvider);

@@ -39,14 +39,14 @@ class FNetworkPredictionModule : public INetworkPredictionModule
 void FNetworkPredictionModule::StartupModule()
 {
 	// Disable by default unless in the command line args. This is temp as the existing insights -trace parsing happen before the plugin is loaded
-	Trace::ToggleChannel(TEXT("NetworkPredictionChannel"), false);
+	UE::Trace::ToggleChannel(TEXT("NetworkPredictionChannel"), false);
 
 	FString EnabledChannels;
 	FParse::Value(FCommandLine::Get(), TEXT("-trace="), EnabledChannels, false);
 	UE::String::ParseTokens(EnabledChannels, TEXT(","), [](FStringView Token) {
 		if (Token.Compare(TEXT("NetworkPrediction"), ESearchCase::IgnoreCase)==0 || Token.Compare(TEXT("NP"), ESearchCase::IgnoreCase)==0)
 		{
-			Trace::ToggleChannel(TEXT("NetworkPredictionChannel"), true);
+		UE::Trace::ToggleChannel(TEXT("NetworkPredictionChannel"), true);
 		}
 	});
 

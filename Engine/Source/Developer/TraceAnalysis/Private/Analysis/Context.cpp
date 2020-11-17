@@ -3,8 +3,8 @@
 #include "Processor.h"
 #include "Trace/Analysis.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisContext::AddAnalyzer(IAnalyzer& Analyzer)
@@ -24,3 +24,4 @@ FAnalysisProcessor FAnalysisContext::Process(IInDataStream& DataStream)
 }
 
 } // namespace Trace
+} // namespace UE

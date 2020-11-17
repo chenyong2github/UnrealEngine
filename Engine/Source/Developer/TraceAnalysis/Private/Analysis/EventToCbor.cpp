@@ -5,8 +5,8 @@
 #include "Templates/UniquePtr.h"
 #include "Trace/Analyzer.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 void SerializeToCborImpl(
@@ -110,3 +110,4 @@ void SerializeToCborImpl(
 }
 
 } // namespace Trace
+} // namespace UE

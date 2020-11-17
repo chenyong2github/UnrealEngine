@@ -25,6 +25,7 @@
 #	define TRACE_PRIVATE_STOMP 0
 #endif
 
+namespace UE {
 namespace Trace {
 namespace Private {
 
@@ -439,7 +440,7 @@ static void Writer_WorkerUpdate()
 ////////////////////////////////////////////////////////////////////////////////
 static void Writer_WorkerThread()
 {
-	Trace::ThreadRegister(TEXT("Trace"), 0, INT_MAX);
+	ThreadRegister(TEXT("Trace"), 0, INT_MAX);
 
 	Writer_UpdateControl();
 
@@ -650,5 +651,6 @@ bool Writer_Stop()
 
 } // namespace Private
 } // namespace Trace
+} // namespace UE
 
 #endif // UE_TRACE_ENABLED

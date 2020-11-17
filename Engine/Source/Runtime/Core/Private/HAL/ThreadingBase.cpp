@@ -434,7 +434,7 @@ void FThreadManager::AddThread(uint32 ThreadId, FRunnableThread* Thread)
 	}
 
 	// Note that this must be called from thread being registered.
-	Trace::ThreadRegister(*(Thread->GetThreadName()), Thread->GetThreadID(), SortHint);
+	UE::Trace::ThreadRegister(*(Thread->GetThreadName()), Thread->GetThreadID(), SortHint);
 
 	const bool bIsSingleThreadEnvironment = FPlatformProcess::SupportsMultithreading() == false;
 
@@ -1032,7 +1032,7 @@ public:
 
 	virtual bool Create(uint32 InNumQueuedThreads, uint32 StackSize, EThreadPriority ThreadPriority, const TCHAR* Name) override
 	{
-		Trace::ThreadGroupBegin(Name);
+		UE::Trace::ThreadGroupBegin(Name);
 
 		// Make sure we have synch objects
 		bool bWasSuccessful = true;
@@ -1074,7 +1074,7 @@ public:
 			Destroy();
 		}
 
-		Trace::ThreadGroupEnd();
+		UE::Trace::ThreadGroupEnd();
 		return bWasSuccessful;
 	}
 

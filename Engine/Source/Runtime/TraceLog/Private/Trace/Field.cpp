@@ -6,6 +6,7 @@
 
 #include "Trace/Detail/Writer.inl"
 
+namespace UE {
 namespace Trace {
 namespace Private {
 
@@ -110,5 +111,6 @@ void Field_WriteStringWide(uint32 Index, const TCHAR* String, int32 Length)
 
 } // namespace Private
 } // namespace Trace
+} // namespace UE
 
 #endif // UE_TRACE_ENABLED

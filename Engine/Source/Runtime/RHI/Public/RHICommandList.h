@@ -86,7 +86,7 @@ extern RHI_API uint32 GWorkingRHIThreadStartCycles;
 /** How many cycles the from sampling input to the frame being flipped. */
 extern RHI_API uint64 GInputLatencyTime;
 
-/*Trace::FChannel& FORCEINLINE GetRHICommandsChannel() 
+/*UE::Trace::FChannel& FORCEINLINE GetRHICommandsChannel() 
 {
 
 }*/

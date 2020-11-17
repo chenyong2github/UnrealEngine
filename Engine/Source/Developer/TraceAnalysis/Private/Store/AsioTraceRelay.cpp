@@ -4,8 +4,8 @@
 #include "AsioRecorder.h"
 #include "AsioSocket.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 FAsioTraceRelay::FAsioTraceRelay(
@@ -124,3 +124,4 @@ void FAsioTraceRelay::OnIoComplete(uint32 Id, int32 Size)
 }
 
 } // namespace Trace
+} // namespace UE

@@ -24,7 +24,7 @@ class IAnalysisService
 public:
 	virtual TSharedPtr<const IAnalysisSession> Analyze(const TCHAR* SessionUri) = 0;
 	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(const TCHAR* SessionUri) = 0;
-	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& DataStream) = 0;
+	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(const TCHAR* SessionName, TUniquePtr<UE::Trace::IInDataStream>&& DataStream) = 0;
 };
 
 } // namespace TraceServices

@@ -154,11 +154,11 @@ void FGameplayInsightsModule::StartupModule()
 			{
 				// Create the Store Service.
 				FString StoreDir = FPaths::ProjectSavedDir() / TEXT("TraceSessions");
-				Trace::FStoreService::FDesc StoreServiceDesc;
+				UE::Trace::FStoreService::FDesc StoreServiceDesc;
 				StoreServiceDesc.StoreDir = *StoreDir;
 				StoreServiceDesc.RecorderPort = 0; // Let system decide port
 				StoreServiceDesc.ThreadCount = 2;
-				StoreService = TSharedPtr<Trace::FStoreService>(Trace::FStoreService::Create(StoreServiceDesc));
+				StoreService = TSharedPtr<UE::Trace::FStoreService>(UE::Trace::FStoreService::Create(StoreServiceDesc));
 
 				FCoreDelegates::OnPreExit.AddLambda([this]() {
 					StoreService.Reset();
@@ -166,7 +166,7 @@ void FGameplayInsightsModule::StartupModule()
 
 				// Connect to our newly created store and setup the insights module
 				UnrealInsightsModule.ConnectToStore(TEXT("localhost"), StoreService->GetPort());
-				Trace::SendTo(TEXT("localhost"), StoreService->GetRecorderPort());
+				UE::Trace::SendTo(TEXT("localhost"), StoreService->GetRecorderPort());
 
 				UnrealInsightsModule.CreateSessionViewer(false);
 				UnrealInsightsModule.StartAnalysisForLastLiveSession();

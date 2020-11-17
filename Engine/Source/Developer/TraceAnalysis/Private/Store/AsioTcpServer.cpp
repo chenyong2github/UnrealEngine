@@ -3,8 +3,8 @@
 #include "AsioTcpServer.h"
 #include "Templates/UnrealTemplate.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 FAsioTcpServer::FAsioTcpServer(asio::io_context& IoContext)
@@ -129,3 +129,4 @@ void FAsioTcpServer::AsyncAccept()
 }
 
 } // namespace Trace
+} // namespace UE

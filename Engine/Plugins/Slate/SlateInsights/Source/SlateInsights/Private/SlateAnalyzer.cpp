@@ -21,7 +21,7 @@ FSlateAnalyzer::FSlateAnalyzer(TraceServices::IAnalysisSession& InSession, FSlat
 
 void FSlateAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 {
-	Trace::IAnalyzer::FInterfaceBuilder& Builder = Context.InterfaceBuilder;
+	UE::Trace::IAnalyzer::FInterfaceBuilder& Builder = Context.InterfaceBuilder;
 
 	Builder.RouteEvent(RouteId_ApplicationTickAndDrawWidgets, "SlateTrace", "ApplicationTickAndDrawWidgets");
 	Builder.RouteEvent(RouteId_AddWidget, "SlateTrace", "AddWidget");
@@ -37,7 +37,7 @@ bool FSlateAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 {
 	TraceServices::FAnalysisSessionEditScope _(Session);
 
-	const Trace::IAnalyzer::FEventData& EventData = Context.EventData;
+	const UE::Trace::IAnalyzer::FEventData& EventData = Context.EventData;
 	switch (RouteId)
 	{
 	case RouteId_ApplicationTickAndDrawWidgets:

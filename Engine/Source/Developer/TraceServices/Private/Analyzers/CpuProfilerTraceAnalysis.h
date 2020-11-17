@@ -13,7 +13,7 @@ class IAnalysisSession;
 class FThreadProvider;
 
 class FCpuProfilerAnalyzer
-	: public Trace::IAnalyzer
+	: public UE::Trace::IAnalyzer
 {
 public:
 	FCpuProfilerAnalyzer(IAnalysisSession& Session, FTimingProfilerProvider& TimingProfilerProvider, FThreadProvider& InThreadProvider);

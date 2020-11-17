@@ -34,7 +34,7 @@ struct FNtDllFunction
 UE_TRACE_CHANNEL(ModuleChannel, "Module information needed for symbols resolution", true)
 
 UE_TRACE_EVENT_BEGIN(Diagnostics, ModuleLoad, NoSync|Important)
-	UE_TRACE_EVENT_FIELD(Trace::WideString, Name)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
 	UE_TRACE_EVENT_FIELD(uint32, Base)
 	UE_TRACE_EVENT_FIELD(uint32, Size)
 UE_TRACE_EVENT_END()
@@ -90,7 +90,7 @@ FModuleTrace* FModuleTrace::Get()
 ////////////////////////////////////////////////////////////////////////////////
 void FModuleTrace::Initialize()
 {
-	using namespace Trace;
+	using namespace UE::Trace;
 
 	// Register for DLL load/unload notifications.
 	auto Thunk = [] (ULONG Reason, const void* Data, void* Context)

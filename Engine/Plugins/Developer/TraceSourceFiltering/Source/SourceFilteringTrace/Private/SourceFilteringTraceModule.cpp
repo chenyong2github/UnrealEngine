@@ -75,7 +75,7 @@ void FSourceFilteringTraceModule::StartupModule()
 	FTraceSourceFiltering::Initialize();
 
 	// Forcefully enable the source trace channel
-	Trace::ToggleChannel(TEXT("TraceSourceFiltersChannel"), true);
+	UE::Trace::ToggleChannel(TEXT("TraceSourceFiltersChannel"), true);
 
 #if WITH_EDITOR
 	// Add callback to trace out Filter Classes once the Asset Registry has finished loading 

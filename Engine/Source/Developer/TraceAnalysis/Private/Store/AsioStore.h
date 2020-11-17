@@ -9,8 +9,8 @@
 #include "Containers/UnrealString.h"
 #include "Utils.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 class FAsioReadable;
 class FAsioWriteable;
@@ -76,3 +76,4 @@ private:
 };
 
 } // namespace Trace
+} // namespace UE

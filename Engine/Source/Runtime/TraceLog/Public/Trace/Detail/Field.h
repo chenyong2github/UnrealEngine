@@ -16,8 +16,11 @@
  * where and partially how to implement them */
 #define STATICALLY_SIZED_ARRAY_FIELDS_SUPPORT 0
 
+namespace UE {
 namespace Trace {
-namespace Private {
+
+namespace Private
+{
 
 ////////////////////////////////////////////////////////////////////////////////
 UE_TRACE_API void Field_WriteAuxData(uint32, const uint8*, int32);
@@ -65,8 +68,8 @@ struct TFieldType<T[N]>
 };
 #endif // STATICALLY_SIZED_ARRAY_FIELDS_SUPPORT
 
-template <> struct TFieldType<Trace::AnsiString> { enum { Tid  = int(EFieldType::AnsiString), Size = 0, }; };
-template <> struct TFieldType<Trace::WideString> { enum { Tid  = int(EFieldType::WideString), Size = 0, }; };
+template <> struct TFieldType<AnsiString> { enum { Tid  = int(EFieldType::AnsiString), Size = 0, }; };
+template <> struct TFieldType<WideString> { enum { Tid  = int(EFieldType::WideString), Size = 0, }; };
 
 
 
@@ -152,16 +155,16 @@ struct TField<InIndex, InOffset, Type[Count]>
 
 ////////////////////////////////////////////////////////////////////////////////
 template <int InIndex, int InOffset>
-struct TField<InIndex, InOffset, Trace::AnsiString>
+struct TField<InIndex, InOffset, AnsiString>
 {
-	TRACE_PRIVATE_FIELD(InIndex + int(EIndexPack::AuxFieldCounter), InOffset, Trace::AnsiString);
+	TRACE_PRIVATE_FIELD(InIndex + int(EIndexPack::AuxFieldCounter), InOffset, AnsiString);
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 template <int InIndex, int InOffset>
-struct TField<InIndex, InOffset, Trace::WideString>
+struct TField<InIndex, InOffset, WideString>
 {
-	TRACE_PRIVATE_FIELD(InIndex + int(EIndexPack::AuxFieldCounter), InOffset, Trace::WideString);
+	TRACE_PRIVATE_FIELD(InIndex + int(EIndexPack::AuxFieldCounter), InOffset, WideString);
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -199,5 +202,6 @@ struct TField<0, InOffset, Attachment>
 };
 
 } // namespace Trace
+} // namespace UE
 
 #endif // UE_TRACE_ENABLED

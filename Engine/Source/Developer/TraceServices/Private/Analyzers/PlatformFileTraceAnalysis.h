@@ -13,7 +13,7 @@ class FTimeline;
 class FFileActivityProvider;
 
 class FPlatformFileTraceAnalyzer
-	: public Trace::IAnalyzer
+	: public UE::Trace::IAnalyzer
 {
 public:
 	FPlatformFileTraceAnalyzer(IAnalysisSession& Session, FFileActivityProvider& FileActivityProvider);

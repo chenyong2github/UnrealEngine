@@ -10,9 +10,12 @@
 
 class FExtender;
 
+namespace UE
+{
 namespace Trace
 {
 	class FStoreClient;
+}
 }
 
 namespace TraceServices
@@ -177,7 +180,7 @@ public:
 	/**
 	 * Gets the store client.
 	 */
-	virtual Trace::FStoreClient* GetStoreClient() = 0;
+	virtual UE::Trace::FStoreClient* GetStoreClient() = 0;
 
 	/**
 	 * Connects to a specified store.

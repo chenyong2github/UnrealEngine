@@ -16,7 +16,7 @@ FName FSlateProvider::ProviderName("SlateProvider");
 
 namespace Message
 {
-	FApplicationTickedMessage::FApplicationTickedMessage(const Trace::IAnalyzer::FEventData& EventData)
+	FApplicationTickedMessage::FApplicationTickedMessage(const UE::Trace::IAnalyzer::FEventData& EventData)
 		: DeltaTime(EventData.GetValue<float>("DeltaTime"))
 		, WidgetCount(EventData.GetValue<uint32>("WidgetCount"))
 		, TickCount(EventData.GetValue<uint32>("TickCount"))
@@ -31,7 +31,7 @@ namespace Message
 		static_assert(sizeof(ESlateTraceApplicationFlags) == sizeof(uint8), "ESlateTraceApplicationFlags is not a uint8");
 	}
 
-	FWidgetInfo::FWidgetInfo(const Trace::IAnalyzer::FEventData& EventData)
+	FWidgetInfo::FWidgetInfo(const UE::Trace::IAnalyzer::FEventData& EventData)
 		: WidgetId(EventData.GetValue<uint64>("WidgetId"))
 		, Path()
 		, DebugInfo()
@@ -41,14 +41,14 @@ namespace Message
 		EventData.GetString("DebugInfo", DebugInfo);
 	}
 	
-	FWidgetUpdatedMessage::FWidgetUpdatedMessage(const Trace::IAnalyzer::FEventData& EventData)
+	FWidgetUpdatedMessage::FWidgetUpdatedMessage(const UE::Trace::IAnalyzer::FEventData& EventData)
 		: WidgetId(EventData.GetValue<uint64>("WidgetId"))
 		, UpdateFlags(static_cast<EWidgetUpdateFlags>(EventData.GetValue<uint8>("UpdateFlags")))
 	{
 		static_assert(sizeof(EWidgetUpdateFlags) == sizeof(uint8), "EWidgetUpdateFlags is not a uint8");
 	}
 	
-	FWidgetInvalidatedMessage FWidgetInvalidatedMessage::FromWidget(const Trace::IAnalyzer::FEventData& EventData)
+	FWidgetInvalidatedMessage FWidgetInvalidatedMessage::FromWidget(const UE::Trace::IAnalyzer::FEventData& EventData)
 	{
 		static_assert(sizeof(EInvalidateWidgetReason) == sizeof(uint8), "EInvalidateWidgetReason is not a uint8");
 
@@ -61,7 +61,7 @@ namespace Message
 		return Message;
 	}
 
-	FWidgetInvalidatedMessage FWidgetInvalidatedMessage::FromRoot(const Trace::IAnalyzer::FEventData& EventData)
+	FWidgetInvalidatedMessage FWidgetInvalidatedMessage::FromRoot(const UE::Trace::IAnalyzer::FEventData& EventData)
 	{
 		FWidgetInvalidatedMessage Message;
 		Message.WidgetId = EventData.GetValue<uint64>("WidgetId");
@@ -72,7 +72,7 @@ namespace Message
 		return Message;
 	}
 
-	FWidgetInvalidatedMessage FWidgetInvalidatedMessage::FromChildOrder(const Trace::IAnalyzer::FEventData& EventData)
+	FWidgetInvalidatedMessage FWidgetInvalidatedMessage::FromChildOrder(const UE::Trace::IAnalyzer::FEventData& EventData)
 	{
 		FWidgetInvalidatedMessage Message;
 		Message.WidgetId = EventData.GetValue<uint64>("WidgetId");
@@ -83,7 +83,7 @@ namespace Message
 		return Message;
 	}
 
-	FString FWidgetInvalidatedMessage::GetCallstack(const Trace::IAnalyzer::FEventData& EventData)
+	FString FWidgetInvalidatedMessage::GetCallstack(const UE::Trace::IAnalyzer::FEventData& EventData)
 	{
 		FString Callstack = "";
 		const auto& CallstackReader = EventData.GetArrayView<uint64>("Callstack");

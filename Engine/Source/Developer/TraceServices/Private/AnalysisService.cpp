@@ -79,7 +79,7 @@ void FAnalysisSessionLock::EndEdit()
 	}
 }
 
-FAnalysisSession::FAnalysisSession(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& InDataStream)
+FAnalysisSession::FAnalysisSession(const TCHAR* SessionName, TUniquePtr<UE::Trace::IInDataStream>&& InDataStream)
 	: Name(SessionName)
 	, DurationSeconds(0.0)
 	, Allocator(32 << 20)
@@ -102,8 +102,8 @@ FAnalysisSession::~FAnalysisSession()
 
 void FAnalysisSession::Start()
 {
-	Trace::FAnalysisContext Context;
-	for (Trace::IAnalyzer* Analyzer : ReadAnalyzers())
+	UE::Trace::FAnalysisContext Context;
+	for (UE::Trace::IAnalyzer* Analyzer : ReadAnalyzers())
 	{
 		Context.AddAnalyzer(*Analyzer);
 	}
@@ -124,7 +124,7 @@ void FAnalysisSession::Wait() const
 	Processor.Wait();
 }
 
-void FAnalysisSession::AddAnalyzer(Trace::IAnalyzer* Analyzer)
+void FAnalysisSession::AddAnalyzer(UE::Trace::IAnalyzer* Analyzer)
 {
 	Analyzers.Add(Analyzer);
 }
@@ -180,7 +180,7 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::Analyze(const TCHAR* Sessio
 TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* SessionUri)
 {
 	struct FFileDataStream
-		: public Trace::IInDataStream
+		: public UE::Trace::IInDataStream
 	{
 		virtual int32 Read(void* Data, uint32 Size) override
 		{
@@ -209,11 +209,11 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* 
 	FileStream->Handle = TUniquePtr<IFileHandle>(Handle);
 	FileStream->Remaining = Handle->Size();
 
-	TUniquePtr<Trace::IInDataStream> DataStream(FileStream);
+	TUniquePtr<UE::Trace::IInDataStream> DataStream(FileStream);
 	return StartAnalysis(SessionUri, MoveTemp(DataStream));
 }
 
-TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& DataStream)
+TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* SessionName, TUniquePtr<UE::Trace::IInDataStream>&& DataStream)
 {
 	TSharedRef<FAnalysisSession> Session = MakeShared<FAnalysisSession>(SessionName, MoveTemp(DataStream));
 

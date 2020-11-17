@@ -16,7 +16,7 @@ void FSessionEditorFilterService::OnApplyChannelChanges()
 	{
 		for (const FString& ChannelName : FrameEnabledChannels)
 		{
-			Trace::ToggleChannel(*ChannelName, true);
+			UE::Trace::ToggleChannel(*ChannelName, true);
 		}
 		FrameEnabledChannels.Empty();
 	}
@@ -25,7 +25,7 @@ void FSessionEditorFilterService::OnApplyChannelChanges()
 	{
 		for (const FString& ChannelName : FrameDisabledChannels)
 		{
-			Trace::ToggleChannel(*ChannelName, false);
+			UE::Trace::ToggleChannel(*ChannelName, false);
 		}
 
 		FrameDisabledChannels.Empty();

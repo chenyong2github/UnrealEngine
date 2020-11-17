@@ -8,8 +8,8 @@
 #include "AsioStoreCborServer.h"
 #include "HAL/PlatformFile.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 struct FStoreServiceImpl
@@ -93,3 +93,4 @@ uint32 FStoreService::GetRecorderPort() const
 }
 
 } // namespace Trace
+} // namespace UE

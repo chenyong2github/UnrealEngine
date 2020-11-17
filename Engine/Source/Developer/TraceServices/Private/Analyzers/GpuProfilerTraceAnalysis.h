@@ -11,7 +11,7 @@ namespace TraceServices
 class FAnalysisSession;
 
 class FGpuProfilerAnalyzer
-	: public Trace::IAnalyzer
+	: public UE::Trace::IAnalyzer
 {
 public:
 	FGpuProfilerAnalyzer(FAnalysisSession& Session, FTimingProfilerProvider& TimingProfilerProvider);

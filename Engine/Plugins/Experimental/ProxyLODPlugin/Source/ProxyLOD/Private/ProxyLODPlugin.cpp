@@ -286,7 +286,7 @@ public:
 		ThreadName = FString::Printf(TEXT("TBB %d"), ThreadIndex++);
 		ThreadID = FPlatformTLS::GetCurrentThreadId();
 		SetTls();
-		Trace::ThreadRegister(TEXT("TBB"), ThreadID, TPri_Normal);
+		UE::Trace::ThreadRegister(TEXT("TBB"), ThreadID, TPri_Normal);
 
 		FPlatformProcess::SetThreadName(*ThreadName);
 	}

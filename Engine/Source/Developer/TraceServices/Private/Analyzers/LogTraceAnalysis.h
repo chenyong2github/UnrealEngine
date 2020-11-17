@@ -11,7 +11,7 @@ class IAnalysisSession;
 class FLogProvider;
 
 class FLogTraceAnalyzer
-	: public Trace::IAnalyzer
+	: public UE::Trace::IAnalyzer
 {
 public:
 	FLogTraceAnalyzer(IAnalysisSession& Session, FLogProvider& LogProvider);

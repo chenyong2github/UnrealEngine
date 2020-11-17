@@ -9,8 +9,8 @@
 #include "asio/posix/stream_descriptor.hpp"
 #endif
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAsioFile
@@ -37,3 +37,4 @@ private:
 };
 
 } // namespace Trace
+} // namespace UE

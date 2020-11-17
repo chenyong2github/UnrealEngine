@@ -11,10 +11,13 @@
 
 struct FInsightsMajorTabExtender;
 
+namespace UE 
+{
 namespace Trace 
 {
 	class FStoreService;
 	class FStoreClient;
+}
 }
 
 class FGameplayInsightsModule : public IModuleInterface
@@ -44,6 +47,6 @@ private:
 	FDelegateHandle CustomDebugObjectHandle;
 #endif
 
-	TSharedPtr<Trace::FStoreService> StoreService;
+	TSharedPtr<UE::Trace::FStoreService> StoreService;
 	TWeakPtr<FTabManager> WeakTimingProfilerTabManager;
 };

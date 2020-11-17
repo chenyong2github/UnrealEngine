@@ -7,8 +7,8 @@
 #include "Templates/UniquePtr.h"
 #include "Trace/DataStream.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 class IInDataStream;
 
@@ -87,3 +87,4 @@ private:
 };
 
 } // namespace Trace
+} // namespace UE

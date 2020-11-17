@@ -15,6 +15,7 @@
 #pragma warning(push)
 #pragma warning(disable : 6031) // WSAStartup() return ignore  - we're error tolerant
 
+namespace UE {
 namespace Trace {
 namespace Private {
 
@@ -266,6 +267,7 @@ UPTRINT FileOpen(const ANSICHAR* Path)
 
 } // namespace Private
 } // namespace Trace
+} // namespace UE
 
 #pragma warning(pop)
 

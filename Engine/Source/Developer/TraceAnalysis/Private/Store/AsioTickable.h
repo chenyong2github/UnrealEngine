@@ -4,8 +4,8 @@
 
 #include "Asio/Asio.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAsioTickable
@@ -27,3 +27,4 @@ private:
 };
 
 } // namespace Trace
+} // namespace UE

@@ -5,18 +5,21 @@
 
 #include <initializer_list>
 
-namespace Trace
-{
-
 ////////////////////////////////////////////////////////////////////////////////
-namespace Private
-{
+namespace UE {
+namespace Trace {
+namespace Private {
 
 TRACELOG_API int32 Decode(const void*, int32, void*, int32);
 
 } // namespace Private
+} // namespace Trace
+} // namespace UE
 
 
+
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 struct FPacketTransport::FPacketNode
@@ -150,7 +153,7 @@ bool FPacketTransport::GetNextBatch()
 			};
 			auto* PacketEncoded = (FPacketEncoded*)PacketBase;
 
-			Node->Size = Private::Decode(
+			Node->Size = UE::Trace::Private::Decode(
 				PacketEncoded->Data,
 				int32(PacketEncoded->PacketSize - sizeof(FPacketEncoded)),
 				Node->Data,
@@ -175,3 +178,4 @@ bool FPacketTransport::GetNextBatch()
 }
 
 } // namespace Trace
+} // namespace UE

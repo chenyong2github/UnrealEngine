@@ -7,8 +7,8 @@
 #include "AsioTickable.h"
 #include "Containers/Array.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 class FAsioRecorder;
 class FAsioStore;
@@ -38,3 +38,4 @@ private:
 };
 
 } // namespace Trace
+} // namespace UE

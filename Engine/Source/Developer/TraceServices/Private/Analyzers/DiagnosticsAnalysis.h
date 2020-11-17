@@ -13,7 +13,7 @@ namespace TraceServices
 class IAnalysisSession;
 
 class FDiagnosticsAnalyzer
-	: public Trace::IAnalyzer
+	: public UE::Trace::IAnalyzer
 {
 public:
 	FDiagnosticsAnalyzer(IAnalysisSession& Session);

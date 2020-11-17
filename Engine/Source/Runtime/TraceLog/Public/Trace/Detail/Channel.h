@@ -8,6 +8,7 @@
 
 #include "CoreTypes.h"
 
+namespace UE {
 namespace Trace {
 
 /*
@@ -67,5 +68,6 @@ private:
 };
 
 } // namespace Trace
+} // namespace UE
 
 #endif // UE_TRACE_ENABLED

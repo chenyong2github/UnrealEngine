@@ -103,7 +103,7 @@ UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, ClassInfo, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(const UClass*, Class)
-	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Name)
+	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Name)
 UE_TRACE_EVENT_END()
 
 void FLoadTimeProfilerTracePrivate::Init()

@@ -11,8 +11,8 @@
 #include "Serialization/MemoryArchive.h"
 #include "Serialization/MemoryReader.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 template <int BufferSize>
@@ -248,3 +248,4 @@ inline FAnsiStringView FResponse::GetString(const char* Key, const char (&Defaul
 }
 
 } // namespace Trace
+} // namespace UE

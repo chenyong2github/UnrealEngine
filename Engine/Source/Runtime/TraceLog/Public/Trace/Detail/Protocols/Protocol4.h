@@ -2,8 +2,8 @@
 
 #pragma once
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 #if defined(TRACE_PRIVATE_PROTOCOL_4)
 inline
@@ -43,3 +43,4 @@ struct EKnownEventUids
 
 } // namespace Protocol4
 } // namespace Trace
+} // namespace UE

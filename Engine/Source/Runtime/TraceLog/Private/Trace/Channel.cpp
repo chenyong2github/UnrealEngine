@@ -11,6 +11,7 @@
 
 #if UE_TRACE_ENABLED
 
+namespace UE {
 namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -28,7 +29,7 @@ UE_TRACE_EVENT_BEGIN(Trace, ChannelAnnounce, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(uint32, Id)
 	UE_TRACE_EVENT_FIELD(bool, IsEnabled)
 	UE_TRACE_EVENT_FIELD(bool, ReadOnly)
-	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Name)
+	UE_TRACE_EVENT_FIELD(AnsiString, Name)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Trace, ChannelToggle, NoSync|Important)
@@ -252,5 +253,6 @@ bool FChannel::Toggle(const ANSICHAR* ChannelName, bool bEnabled)
 }
 
 } // namespace Trace
+} // namespace UE
 
 #endif // UE_TRACE_ENABLED

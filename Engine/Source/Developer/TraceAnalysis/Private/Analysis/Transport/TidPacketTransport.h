@@ -6,8 +6,8 @@
 #include "Analysis/StreamReader.h"
 #include "Containers/Array.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 class FStreamReader;
 
@@ -36,3 +36,4 @@ private:
 };
 
 } // namespace Trace
+} // namespace UE

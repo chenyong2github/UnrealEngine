@@ -15,7 +15,7 @@ class IAnalysisSession;
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAllocationsAnalyzer
-	: public Trace::IAnalyzer
+	: public UE::Trace::IAnalyzer
 {
 public:
 					FAllocationsAnalyzer(IAnalysisSession& Session);

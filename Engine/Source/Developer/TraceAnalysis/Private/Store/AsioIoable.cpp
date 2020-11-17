@@ -2,8 +2,8 @@
 
 #include "AsioIoable.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 bool FAsioIoable::SetSink(FAsioIoSink* Ptr, uint32 Id)
@@ -44,3 +44,4 @@ void FAsioIoable::OnIoComplete(const asio::error_code& ErrorCode, int32 Size)
 }
 
 } // namespace Trace
+} // namespace UE

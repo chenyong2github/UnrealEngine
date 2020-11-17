@@ -36,14 +36,14 @@ void FSessionTraceFilterService::OnApplyChannelChanges()
 	}
 
 	IUnrealInsightsModule& InsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
-	Trace::FStoreClient* StoreClient = InsightsModule.GetStoreClient();
+	UE::Trace::FStoreClient* StoreClient = InsightsModule.GetStoreClient();
 
 	if (!StoreClient)
 	{
 		return;
 	}
 
-	const Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfoByTraceId(Handle);
+	const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfoByTraceId(Handle);
 
 	if (!SessionInfo)
 	{
@@ -55,7 +55,7 @@ void FSessionTraceFilterService::OnApplyChannelChanges()
 	ClientAddr->SetIp(SessionInfo->GetIpAddress());
 	ClientAddr->SetPort(1985);
 
-	Trace::FControlClient ControlClient;
+	UE::Trace::FControlClient ControlClient;
 	if (!ControlClient.Connect(ClientAddr.Get()))
 	{
 		return;

@@ -15,7 +15,7 @@ namespace TraceServices { class IAnalysisSession; }
 //
 // The analyzer is what populates the data in the Provider.
 
-class FNetworkPredictionAnalyzer : public Trace::IAnalyzer
+class FNetworkPredictionAnalyzer : public UE::Trace::IAnalyzer
 {
 public:
 

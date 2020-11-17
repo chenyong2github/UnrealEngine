@@ -183,12 +183,12 @@ void STraceSourceFilteringWidget::Tick(const FGeometry& AllottedGeometry, const 
 		TSharedPtr<const TraceServices::IAnalysisSession> AnalysisSession = InsightsModule.GetAnalysisSession();
 		if (AnalysisSession.IsValid())
 		{
-			Trace::FStoreClient* StoreClient = InsightsModule.GetStoreClient();
+			UE::Trace::FStoreClient* StoreClient = InsightsModule.GetStoreClient();
 			const int32 SessionCount = StoreClient->GetSessionCount();
 
 			if (SessionCount > 0)
 			{
-				const Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionCount - 1);
+				const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionCount - 1);
 				if (SessionInfo)
 				{
 					SetCurrentAnalysisSession(SessionInfo->GetTraceId(), AnalysisSession.ToSharedRef());

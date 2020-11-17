@@ -8,6 +8,7 @@
 #	include <immintrin.h>
 #endif
 
+namespace UE {
 namespace Trace {
 namespace Private {
 
@@ -122,3 +123,4 @@ inline Type AtomicAddRelease(Type volatile* Target, Type Value)
 
 } // namespace Private
 } // namespace Trace
+} // namespace UE

@@ -7,7 +7,7 @@
 class FGameplayProvider;
 namespace TraceServices { class IAnalysisSession; }
 
-class FGameplayAnalyzer : public Trace::IAnalyzer
+class FGameplayAnalyzer : public UE::Trace::IAnalyzer
 {
 public:
 	FGameplayAnalyzer(TraceServices::IAnalysisSession& InSession, FGameplayProvider& InGameplayProvider);

@@ -4,8 +4,8 @@
 
 #include "Analysis/StreamReader.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 class FTransport
@@ -57,3 +57,4 @@ inline const uint8* FTransport::GetPointerImpl(uint32 BlockSize)
 }
 
 } // namespace Trace
+} // namespace UE

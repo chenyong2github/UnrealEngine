@@ -5,11 +5,9 @@
 #include "CoreTypes.h"
 #include "Containers/ArrayView.h"
 #include "Containers/StringView.h"
-#include "Logging/LogMacros.h"
-#include "Trace/Detail/Field.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 /**
  * Interface that users implement to analyze the events in a trace. Analysis
@@ -326,3 +324,4 @@ const ValueType* IAnalyzer::TArrayReader<ValueType>::GetData() const
 }
 
 } // namespace Trace
+} // namespace UE

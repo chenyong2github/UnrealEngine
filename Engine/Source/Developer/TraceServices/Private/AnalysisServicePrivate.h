@@ -34,7 +34,7 @@ class FAnalysisSession
 	: public IAnalysisSession
 {
 public:
-	FAnalysisSession(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& InDataStream);
+	FAnalysisSession(const TCHAR* SessionName, TUniquePtr<UE::Trace::IInDataStream>&& InDataStream);
 	virtual ~FAnalysisSession();
 	void Start();
 	virtual void Stop(bool bAndWait) const override;
@@ -58,10 +58,10 @@ public:
 	virtual void ReadAccessCheck() const override { return Lock.ReadAccessCheck(); }
 	virtual void WriteAccessCheck() override { return Lock.WriteAccessCheck(); }
 
-	virtual void AddAnalyzer(Trace::IAnalyzer* Analyzer) override;
+	virtual void AddAnalyzer(UE::Trace::IAnalyzer* Analyzer) override;
 	virtual void AddProvider(const FName& Name, IProvider* Provider) override;
 
-	const TArray<Trace::IAnalyzer*> ReadAnalyzers() { return Analyzers; }
+	const TArray<UE::Trace::IAnalyzer*> ReadAnalyzers() { return Analyzers; }
 
 private:
 	virtual const IProvider* ReadProviderPrivate(const FName& Name) const override;
@@ -73,11 +73,11 @@ private:
 	double DurationSeconds = 0.0;
 	FSlabAllocator Allocator;
 	FStringStore StringStore;
-	TArray<Trace::IAnalyzer*> Analyzers;
+	TArray<UE::Trace::IAnalyzer*> Analyzers;
 	TArray<IProvider*> Providers;
 	TMap<FName, IProvider*> ProvidersMap;
-	mutable TUniquePtr<Trace::IInDataStream> DataStream;
-	mutable Trace::FAnalysisProcessor Processor;
+	mutable TUniquePtr<UE::Trace::IInDataStream> DataStream;
+	mutable UE::Trace::FAnalysisProcessor Processor;
 };
 
 class FAnalysisService
@@ -88,7 +88,7 @@ public:
 	virtual ~FAnalysisService();
 	virtual TSharedPtr<const IAnalysisSession> Analyze(const TCHAR* SessionUri) override;
 	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(const TCHAR* SessionUri) override;
-	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& DataStream) override;
+	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(const TCHAR* SessionName, TUniquePtr<UE::Trace::IInDataStream>&& DataStream) override;
 
 private:
 	FModuleService& ModuleService;

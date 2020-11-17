@@ -1181,7 +1181,7 @@ FReply SStartPageWindow::Connect_OnClicked()
 	}
 
 	bool bConnectedSuccessfully = false;
-	Trace::FControlClient ControlClient;
+	UE::Trace::FControlClient ControlClient;
 	if (ControlClient.Connect(*HostText.ToString()))
 	{
 		TSharedPtr<FInternetAddr> RecorderAddr;
@@ -1230,7 +1230,7 @@ FReply SStartPageWindow::Connect_OnClicked()
 
 void SStartPageWindow::RefreshTraceList()
 {
-	Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
+	UE::Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
 	if (StoreClient == nullptr)
 	{
 		return;
@@ -1722,7 +1722,7 @@ TSharedRef<SWidget> SStartPageWindow::MakeTraceListMenu()
 
 	MenuBuilder.BeginSection("AvailableTraces", LOCTEXT("AvailableTracesHeading", "Top Most Recently Created Traces"));
 	{
-		Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
+		UE::Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
 		if (StoreClient != nullptr)
 		{
 			// Make a copy of the trace list (to allow list view to be sorted by other criteria).
@@ -1830,7 +1830,7 @@ FReply SStartPageWindow::ExploreTraceStoreDirectory_OnClicked()
 
 FText SStartPageWindow::GetRecorderStatusText() const
 {
-	Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
+	UE::Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
 	const bool bIsRecorderServerRunning = (StoreClient != nullptr); // TODO: StoreClient->IsRecorderServerRunning();
 
 	if (bIsRecorderServerRunning)
@@ -1847,7 +1847,7 @@ FText SStartPageWindow::GetRecorderStatusText() const
 
 EVisibility SStartPageWindow::StartTraceRecorder_Visibility() const
 {
-	Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
+	UE::Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
 	const bool bIsRecorderServerRunning = (StoreClient != nullptr); // TODO: StoreClient->IsRecorderServerRunning();
 
 	return bIsRecorderServerRunning ? EVisibility::Collapsed : EVisibility::Visible;
@@ -1857,7 +1857,7 @@ EVisibility SStartPageWindow::StartTraceRecorder_Visibility() const
 
 EVisibility SStartPageWindow::StopTraceRecorder_Visibility() const
 {
-	Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
+	UE::Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
 	const bool bIsRecorderServerRunning = (StoreClient != nullptr); // TODO: StoreClient->IsRecorderServerRunning();
 
 	return bIsRecorderServerRunning ? EVisibility::Visible : EVisibility::Collapsed;

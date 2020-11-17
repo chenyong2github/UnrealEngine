@@ -7,8 +7,8 @@
 
 #include <thread>
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAsioContext
@@ -28,3 +28,4 @@ private:
 };
 
 } // namespace Trace
+} // namespace UE

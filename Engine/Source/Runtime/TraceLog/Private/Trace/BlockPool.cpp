@@ -8,6 +8,7 @@
 #include "Trace/Detail/Atomic.h"
 #include "Trace/Detail/Writer.inl"
 
+namespace UE {
 namespace Trace {
 namespace Private {
 
@@ -182,5 +183,6 @@ void Writer_ShutdownPool()
 
 } // namespace Private
 } // namespace Trace
+} // namespace UE
 
 #endif // UE_TRACE_ENABLED

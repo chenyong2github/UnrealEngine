@@ -7,8 +7,8 @@
 #include "SocketSubsystem.h"
 #include "AddressInfoTypes.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 FControlClient::~FControlClient()
@@ -173,3 +173,4 @@ void FControlClient::Send(const uint8* Data, int Length)
 }
 
 } // namespace Trace
+} // namespace UE

@@ -51,8 +51,8 @@ UE_TRACE_EVENT_END()
 UE_TRACE_EVENT_BEGIN(SlateTrace, WidgetInfo)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, WidgetId)				// Created/Updated widget unique ID.
-	UE_TRACE_EVENT_FIELD(Trace::WideString, Path)		// FReflectionMetaData::GetWidgetPath
-	UE_TRACE_EVENT_FIELD(Trace::WideString, DebugInfo)	// FReflectionMetaData::GetWidgetDebugInfo
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Path)	// FReflectionMetaData::GetWidgetPath
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, DebugInfo)// FReflectionMetaData::GetWidgetDebugInfo
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(SlateTrace, RemoveWidget)
@@ -71,7 +71,7 @@ UE_TRACE_EVENT_BEGIN(SlateTrace, WidgetInvalidated)
 	UE_TRACE_EVENT_FIELD(uint64, WidgetId)					// Invalidated widget unique ID.
 	UE_TRACE_EVENT_FIELD(uint64, InvestigatorId)			// Widget unique ID that investigated the invalidation.
 	UE_TRACE_EVENT_FIELD(uint8, InvalidateWidgetReason)		// The reason of the invalidation. (EInvalidateWidgetReason)
-	UE_TRACE_EVENT_FIELD(Trace::WideString, ScriptTrace)	// Optional script trace for root widget invalidations
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, ScriptTrace)// Optional script trace for root widget invalidations
 	UE_TRACE_EVENT_FIELD(uint64[], Callstack)				// Optional callstack for root widget invalidations
 	UE_TRACE_EVENT_FIELD(uint32, ProcessId)					// Optional proccess ID where the invalidation occureed.
 UE_TRACE_EVENT_END()

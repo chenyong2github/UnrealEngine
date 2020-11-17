@@ -9,8 +9,8 @@
 #include "Trace/Analysis.h"
 #include "Trace/DataStream.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 FAnalysisProcessor::FImpl::FImpl(IInDataStream& InDataStream, TArray<IAnalyzer*>&& InAnalyzers)
@@ -125,3 +125,4 @@ FAnalysisProcessor::~FAnalysisProcessor()
 }
 
 } // namespace Trace
+} // namespace UE

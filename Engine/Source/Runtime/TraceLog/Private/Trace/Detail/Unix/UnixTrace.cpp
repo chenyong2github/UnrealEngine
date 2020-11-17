@@ -17,6 +17,7 @@
 	#include <sys/syscall.h>
 #endif // _GNU_SOURCE
 
+namespace UE {
 namespace Trace {
 namespace Private {
 
@@ -248,5 +249,6 @@ UPTRINT FileOpen(const ANSICHAR* Path)
 
 } // namespace Private
 } // namespace Trace
+} // namespace UE
 
 #endif // UE_TRACE_ENABLED

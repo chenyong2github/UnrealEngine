@@ -4,8 +4,8 @@
 #include "HAL/UnrealMemory.h"
 #include "Math/UnrealMath.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 FStreamReader::~FStreamReader()
@@ -103,3 +103,4 @@ void FStreamBuffer::Consolidate()
 }
 
 } // namespace Trace
+} // namespace UE

@@ -13,7 +13,7 @@ class IEditableCounter;
 class ICounterProvider;
 
 class FCountersAnalyzer
-	: public Trace::IAnalyzer
+	: public UE::Trace::IAnalyzer
 {
 public:
 	FCountersAnalyzer(IAnalysisSession& Session, ICounterProvider& CounterProvider);

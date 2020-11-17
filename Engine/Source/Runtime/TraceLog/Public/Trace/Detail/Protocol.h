@@ -25,8 +25,8 @@
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 enum ETransport : uint8
 {
@@ -43,3 +43,4 @@ enum ETransportTid : uint32
 };
 
 } // namespace Trace
+} // namespace UE

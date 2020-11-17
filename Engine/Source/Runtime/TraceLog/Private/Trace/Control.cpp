@@ -9,6 +9,7 @@
 #include "Misc/CString.h"
 #include "Templates/UnrealTemplate.h"
 
+namespace UE {
 namespace Trace {
 namespace Private {
 
@@ -335,5 +336,6 @@ void Writer_ShutdownControl()
 
 } // namespace Private
 } // namespace Trace
+} // namespace UE
 
 #endif // UE_TRACE_ENABLED

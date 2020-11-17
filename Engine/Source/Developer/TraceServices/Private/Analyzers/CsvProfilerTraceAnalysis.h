@@ -17,7 +17,7 @@ class ICounterProvider;
 class IEditableCounter;
 
 class FCsvProfilerAnalyzer
-	: public Trace::IAnalyzer
+	: public UE::Trace::IAnalyzer
 {
 public:
 	FCsvProfilerAnalyzer(IAnalysisSession& Session, FCsvProfilerProvider& CsvProfilerProvider, ICounterProvider& CounterProvider, const IFrameProvider& FrameProvider, const IThreadProvider& ThreadProvider);

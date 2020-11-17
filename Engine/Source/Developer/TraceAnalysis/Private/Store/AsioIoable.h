@@ -4,8 +4,8 @@
 
 #include "Asio/Asio.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAsioIoSink
@@ -51,3 +51,4 @@ public:
 };
 
 } // namespace Trace
+} // namespace UE

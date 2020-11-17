@@ -4,8 +4,8 @@
 
 #include "Containers/StringView.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T>
@@ -33,3 +33,4 @@ inline uint32 QuickStoreHash(TStringView<CharType> View)
 }
 
 } // namespace Trace
+} // namespace UE

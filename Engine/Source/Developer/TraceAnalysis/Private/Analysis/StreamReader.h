@@ -4,8 +4,8 @@
 
 #include "CoreTypes.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 class FStreamReader
@@ -68,3 +68,4 @@ inline int32 FStreamBuffer::Fill(Lambda&& Source)
 }
 
 } // namespace Trace
+} // namespace UE

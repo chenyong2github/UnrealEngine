@@ -17,7 +17,7 @@
 #include "NetworkPredictionLog.h"
 #include "Trace/Trace.inl"
 
-// Also should update string tracing with Trace::AnsiString
+// Also should update string tracing with UE::Trace::AnsiString
 
 UE_TRACE_CHANNEL_DEFINE(NetworkPredictionChannel)
 

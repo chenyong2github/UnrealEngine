@@ -7,8 +7,8 @@
 #include "AsioTcpServer.h"
 #include "AsioTickable.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 class FAsioRecorder;
 class FAsioSocket;
@@ -39,3 +39,4 @@ private:
 };
 
 } // namespace Trace
+} // namespace UE

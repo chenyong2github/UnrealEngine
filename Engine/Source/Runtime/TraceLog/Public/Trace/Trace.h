@@ -14,8 +14,8 @@
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 // Field types
 enum AnsiString {};
@@ -50,6 +50,7 @@ UE_TRACE_API void	ThreadGroupBegin(const TCHAR* Name) UE_TRACE_IMPL();
 UE_TRACE_API void	ThreadGroupEnd() UE_TRACE_IMPL();
 
 } // namespace Trace
+} // namespace UE
 
 ////////////////////////////////////////////////////////////////////////////////
 #define UE_TRACE_EVENT_DEFINE(LoggerName, EventName)					TRACE_PRIVATE_EVENT_DEFINE(LoggerName, EventName)

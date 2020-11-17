@@ -13,6 +13,7 @@
 #include "Trace/Detail/Field.h"
 #include "Trace/Detail/EventNode.h"
 
+namespace UE {
 namespace Trace {
 namespace Private {
 
@@ -204,5 +205,6 @@ struct FImportantLogScope::FFieldSet<FieldMeta, Attachment>
 
 } // namespace Private
 } // namespace Trace
+} // namespace UE
 
 #endif // UE_TRACE_ENABLED

@@ -4,6 +4,7 @@
 
 #if UE_TRACE_ENABLED
 
+namespace UE {
 namespace Trace {
 namespace Private {
 
@@ -46,5 +47,6 @@ inline uint64 Writer_GetTimestamp(FWriteBuffer* Buffer)
 
 } // namespace Private
 } // namespace Trace
+} // namespace UE
 
 #endif // UE_TRACE_ENABLED

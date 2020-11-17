@@ -18,7 +18,7 @@ class FFrameProvider;
 class FChannelProvider;
 
 class FMiscTraceAnalyzer
-	: public Trace::IAnalyzer
+	: public UE::Trace::IAnalyzer
 {
 public:
 	FMiscTraceAnalyzer(IAnalysisSession& Session,

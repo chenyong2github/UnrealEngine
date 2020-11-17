@@ -8,6 +8,7 @@
 
 #include <memory.h>
 
+namespace UE {
 namespace Trace {
 namespace Private {
 
@@ -175,5 +176,6 @@ void Writer_ShutdownCache()
 
 } // namespace Private
 } // namespace Trace
+} // namespace UE
 
 #endif // UE_TRACE_ENABLED

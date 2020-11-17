@@ -2,8 +2,8 @@
 
 #include "AsioContext.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 FAsioContext::FAsioContext(int32 ThreadCount)
@@ -79,3 +79,4 @@ asio::io_context& FAsioContext::Get()
 }
 
 } // namespace Trace
+} // namespace UE

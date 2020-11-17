@@ -13,7 +13,7 @@ class FCallstacksProvider;
 
 ////////////////////////////////////////////////////////////////////////////////
 class FCallstacksAnalyzer
-	: public Trace::IAnalyzer
+	: public UE::Trace::IAnalyzer
 {
 public:
 					FCallstacksAnalyzer(IAnalysisSession& Session, FCallstacksProvider* Provider);

@@ -8,8 +8,8 @@
 #include <errno.h>
 #endif
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 FAsioFile::FAsioFile(asio::io_context& IoContext, UPTRINT OsHandle)
@@ -142,3 +142,4 @@ FAsioReadable* FAsioFile::ReadFile(asio::io_context& IoContext, const TCHAR* Pat
 }
 
 } // namespace Trace
+} // namespace UE

@@ -14,7 +14,7 @@ namespace TraceServices
 class IAnalysisSession;
 
 class FMemoryAnalyzer
-	: public Trace::IAnalyzer
+	: public UE::Trace::IAnalyzer
 {
 public:
 	FMemoryAnalyzer(IAnalysisSession& Session);

@@ -108,11 +108,11 @@ void FTraceInsightsModule::CreateDefaultStore()
 	FInsightsManager::Get()->SetStoreDir(StoreDir);
 
 	// Create the Store Service.
-	Trace::FStoreService::FDesc StoreServiceDesc;
+	UE::Trace::FStoreService::FDesc StoreServiceDesc;
 	StoreServiceDesc.StoreDir = *StoreDir;
 	StoreServiceDesc.RecorderPort = 1980;
 	StoreServiceDesc.ThreadCount = 2;
-	StoreService = TUniquePtr<Trace::FStoreService>(Trace::FStoreService::Create(StoreServiceDesc));
+	StoreService = TUniquePtr<UE::Trace::FStoreService>(UE::Trace::FStoreService::Create(StoreServiceDesc));
 
 	if (StoreService.IsValid())
 	{
@@ -122,7 +122,7 @@ void FTraceInsightsModule::CreateDefaultStore()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Trace::FStoreClient* FTraceInsightsModule::GetStoreClient()
+UE::Trace::FStoreClient* FTraceInsightsModule::GetStoreClient()
 {
 	return FInsightsManager::Get()->GetStoreClient();
 }

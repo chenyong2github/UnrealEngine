@@ -7,7 +7,7 @@
 class FAnimationProvider;
 namespace TraceServices { class IAnalysisSession; }
 
-class FAnimationAnalyzer : public Trace::IAnalyzer
+class FAnimationAnalyzer : public UE::Trace::IAnalyzer
 {
 public:
 	FAnimationAnalyzer(TraceServices::IAnalysisSession& InSession, FAnimationProvider& InAnimationProvider);

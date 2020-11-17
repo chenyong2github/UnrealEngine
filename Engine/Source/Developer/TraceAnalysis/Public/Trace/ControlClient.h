@@ -7,8 +7,8 @@
 class FSocket;
 class FInternetAddr;
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 /**
  * Simple helper class for communicating with trace system of a running instance.
@@ -63,3 +63,4 @@ private:
 };
 
 } // namespace Trace
+} // namespace UE

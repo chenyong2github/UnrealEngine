@@ -12,6 +12,7 @@
 #include "Protocol.h"
 #include "Writer.inl"
 
+namespace UE {
 namespace Trace {
 namespace Private {
 
@@ -307,5 +308,6 @@ struct FLogScope::FFieldSet<FieldMeta, Attachment>
 
 } // namespace Private
 } // namespace Trace
+} // namespace UE
 
 #endif // UE_TRACE_ENABLED

@@ -5,8 +5,8 @@
 #include "Asio/Asio.h"
 #include "AsioIoable.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAsioSocket
@@ -31,3 +31,4 @@ private:
 };
 
 } // namespace Trace
+} // namespace UE

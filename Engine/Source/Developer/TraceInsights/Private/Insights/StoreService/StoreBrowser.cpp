@@ -78,7 +78,7 @@ void FStoreBrowser::Exit()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Trace::FStoreClient* FStoreBrowser::GetStoreClient() const
+UE::Trace::FStoreClient* FStoreBrowser::GetStoreClient() const
 {
 	// TODO: thread safety !?
 	return FInsightsManager::Get()->GetStoreClient();
@@ -88,7 +88,7 @@ Trace::FStoreClient* FStoreBrowser::GetStoreClient() const
 
 void FStoreBrowser::UpdateTraces()
 {
-	Trace::FStoreClient* StoreClient = GetStoreClient();
+	UE::Trace::FStoreClient* StoreClient = GetStoreClient();
 	if (StoreClient == nullptr)
 	{
 		ResetTraces();
@@ -100,7 +100,7 @@ void FStoreBrowser::UpdateTraces()
 
 	// Check if the list of trace sessions has changed.
 	{
-		const Trace::FStoreClient::FStatus* Status = StoreClient->GetStatus();
+		const UE::Trace::FStoreClient::FStatus* Status = StoreClient->GetStatus();
 		if (StoreChangeSerial != Status->GetChangeSerial())
 		{
 			StoreChangeSerial = Status->GetChangeSerial();
@@ -110,7 +110,7 @@ void FStoreBrowser::UpdateTraces()
 				for (int32 TraceIndex = Traces.Num() - 1; TraceIndex >= 0; --TraceIndex)
 				{
 					const uint32 TraceId = Traces[TraceIndex]->TraceId;
-					const Trace::FStoreClient::FTraceInfo* TraceInfo = StoreClient->GetTraceInfoById(TraceId);
+					const UE::Trace::FStoreClient::FTraceInfo* TraceInfo = StoreClient->GetTraceInfoById(TraceId);
 					if (TraceInfo == nullptr)
 					{
 						FScopeLock Lock(&TracesCriticalSection);
@@ -126,7 +126,7 @@ void FStoreBrowser::UpdateTraces()
 				const int32 TraceCount = StoreClient->GetTraceCount();
 				for (int32 TraceIndex = 0; TraceIndex < TraceCount; ++TraceIndex)
 				{
-					const Trace::FStoreClient::FTraceInfo* TraceInfo = StoreClient->GetTraceInfo(TraceIndex);
+					const UE::Trace::FStoreClient::FTraceInfo* TraceInfo = StoreClient->GetTraceInfo(TraceIndex);
 					if (TraceInfo != nullptr)
 					{
 						const uint32 TraceId = TraceInfo->GetId();
@@ -172,14 +172,14 @@ void FStoreBrowser::UpdateTraces()
 
 			FDateTime Timestamp(0);
 			uint64 Size = 0;
-			const Trace::FStoreClient::FTraceInfo* TraceInfo = StoreClient->GetTraceInfoById(TraceId);
+			const UE::Trace::FStoreClient::FTraceInfo* TraceInfo = StoreClient->GetTraceInfoById(TraceId);
 			if (TraceInfo != nullptr)
 			{
 				Timestamp = FStoreBrowserTraceInfo::ConvertTimestamp(TraceInfo->GetTimestamp());
 				Size = TraceInfo->GetSize();
 			}
 
-			const Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfoByTraceId(TraceId);
+			const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfoByTraceId(TraceId);
 			if (SessionInfo != nullptr)
 			{
 				// The trace is still live.
@@ -223,7 +223,7 @@ void FStoreBrowser::UpdateTraces()
 		const uint32 SessionCount = StoreClient->GetSessionCount();
 		for (uint32 SessionIndex = 0; SessionIndex < SessionCount; ++SessionIndex)
 		{
-			const Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionIndex);
+			const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionIndex);
 			if (SessionInfo != nullptr)
 			{
 				const uint32 TraceId = SessionInfo->GetTraceId();
@@ -239,7 +239,7 @@ void FStoreBrowser::UpdateTraces()
 
 						FDateTime Timestamp(0);
 						uint64 Size = 0;
-						const Trace::FStoreClient::FTraceInfo* TraceInfo = StoreClient->GetTraceInfoById(TraceId);
+						const UE::Trace::FStoreClient::FTraceInfo* TraceInfo = StoreClient->GetTraceInfoById(TraceId);
 						if (TraceInfo != nullptr)
 						{
 							Timestamp = FStoreBrowserTraceInfo::ConvertTimestamp(TraceInfo->GetTimestamp());
@@ -315,7 +315,7 @@ void FStoreBrowser::UpdateMetadata(FStoreBrowserTraceInfo& Trace)
 {
 	//UE_LOG(TraceInsights, Log, TEXT("[StoreBrowser] Updating metadata for trace 0x%08X (%s)..."), TraceSession.TraceId, *TraceSession.Name.ToString());
 
-	Trace::FStoreClient* StoreClient = GetStoreClient();
+	UE::Trace::FStoreClient* StoreClient = GetStoreClient();
 	if (StoreClient == nullptr)
 	{
 		return;
@@ -323,13 +323,13 @@ void FStoreBrowser::UpdateMetadata(FStoreBrowserTraceInfo& Trace)
 
 	FPlatformProcess::SleepNoStats(0.0f);
 
-	Trace::FStoreClient::FTraceData TraceData = StoreClient->ReadTrace(Trace.TraceId);
+	UE::Trace::FStoreClient::FTraceData TraceData = StoreClient->ReadTrace(Trace.TraceId);
 	if (!TraceData)
 	{
 		return;
 	}
 
-	struct FDataStream : public Trace::IInDataStream
+	struct FDataStream : public UE::Trace::IInDataStream
 	{
 		virtual int32 Read(void* Data, uint32 Size) override
 		{
@@ -350,14 +350,14 @@ void FStoreBrowser::UpdateMetadata(FStoreBrowserTraceInfo& Trace)
 		}
 
 		int32 BytesRead = 0;
-		Trace::IInDataStream* Inner;
+		UE::Trace::IInDataStream* Inner;
 	};
 
 	FDataStream DataStream;
 	DataStream.Inner = TraceData.Get();
 
 	FDiagnosticsSessionAnalyzer Analyzer;
-	Trace::FAnalysisContext Context;
+	UE::Trace::FAnalysisContext Context;
 	Context.AddAnalyzer(Analyzer);
 	Context.Process(DataStream).Wait();
 

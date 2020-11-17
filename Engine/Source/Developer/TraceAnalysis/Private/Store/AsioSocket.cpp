@@ -4,8 +4,8 @@
 
 #include "Templates/UnrealTemplate.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 FAsioSocket::FAsioSocket(asio::ip::tcp::socket& InSocket)
@@ -134,3 +134,4 @@ bool FAsioSocket::Write(const void* Src, uint32 Size, FAsioIoSink* Sink, uint32 
 }
 
 } // namespace Trace
+} // namespace UE

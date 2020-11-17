@@ -8,8 +8,8 @@
 #include "AsioTraceRelay.h"
 #include "CborPayload.h"
 
-namespace Trace
-{
+namespace UE {
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAsioStoreCborPeer
@@ -448,3 +448,4 @@ FAsioTraceRelay* FAsioStoreCborServer::RelayTrace(uint32 Id)
 }
 
 } // namespace Trace
+} // namespace UE

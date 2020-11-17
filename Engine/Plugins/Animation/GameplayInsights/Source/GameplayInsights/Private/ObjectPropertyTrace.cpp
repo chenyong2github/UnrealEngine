@@ -12,7 +12,7 @@ UE_TRACE_CHANNEL(ObjectProperties)
 
 UE_TRACE_EVENT_BEGIN(Object, ClassPropertyStringId, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(uint32, Id)
-	UE_TRACE_EVENT_FIELD(Trace::WideString, Value)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Value)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Object, ClassProperty, NoSync|Important)
@@ -37,7 +37,7 @@ UE_TRACE_EVENT_BEGIN(Object, PropertyValue)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, ObjectId)
 	UE_TRACE_EVENT_FIELD(int32, PropertyId)
-	UE_TRACE_EVENT_FIELD(Trace::WideString, Value)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Value)
 UE_TRACE_EVENT_END()
 
 namespace ObjectPropertyTrace

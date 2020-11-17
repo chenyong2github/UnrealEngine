@@ -10,10 +10,13 @@
 
 struct FInsightsMajorTabExtender;
 
+namespace UE
+{
 namespace Trace 
 {
 	class FStoreService;
 	class FStoreClient;
+}
 }
 
 class FNetworkPredictionInsightsModule : public IModuleInterface
@@ -29,7 +32,7 @@ private:
 	FDelegateHandle TickerHandle;
 	FDelegateHandle StoreServiceHandle;
 
-	TSharedPtr<Trace::FStoreService> StoreService;
+	TSharedPtr<UE::Trace::FStoreService> StoreService;
 	//TWeakPtr<FTabManager> WeakTimingProfilerTabManager;
 
 	static const FName InsightsTabName;	
