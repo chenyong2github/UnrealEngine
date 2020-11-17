@@ -1031,12 +1031,19 @@ public:
 	/** Adds a component to the SCS tree */
 	struct FAddNewComponentParams
 	{
+		FAddNewComponentParams()
+			: bSkipMarkBlueprintModified(false)
+			, bSetFocusToNewItem(true)
+			, bConformTransformToParent(true)
+		{
+		}
+		
 		/** Optionally skip marking this blueprint as modified (e.g. if we're handling that externally */
-		bool bSkipMarkBlueprintModified = false;
+		bool bSkipMarkBlueprintModified;
 		/** Whether the newly created component should be focused */
-		bool bSetFocusToNewItem = true;
+		bool bSetFocusToNewItem;
 		/** Whether the newly created component should keep its transform, or conform it to its parent */
-		bool bConformTransformToParent = true;
+		bool bConformTransformToParent;
 	};
 
 	/** Adds a component to the SCS Table
