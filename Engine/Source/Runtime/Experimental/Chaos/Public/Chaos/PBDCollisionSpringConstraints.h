@@ -5,21 +5,30 @@
 #include "Chaos/Array.h"
 #include "Chaos/PBDCollisionSpringConstraintsBase.h"
 #include "Chaos/PBDParticles.h"
-#include "Chaos/PBDConstraintContainer.h"
 
 namespace Chaos
 {
 template<class T, int d>
-class TPBDCollisionSpringConstraints : public PBDCollisionSpringConstraintsBase<T, d>, public FPBDConstraintContainer
+class TPBDCollisionSpringConstraints : public TPBDCollisionSpringConstraintsBase<T, d>
 {
-	typedef PBDCollisionSpringConstraintsBase<T, d> Base;
+	typedef TPBDCollisionSpringConstraintsBase<T, d> Base;
 	using Base::MBarys;
 	using Base::MConstraints;
 
-  public:
-	TPBDCollisionSpringConstraints(const TPBDActiveView<TPBDParticles<T, d>>& ParticlesActiveView, const TArray<TVector<int32, 3>>& Elements, const TSet<TVector<int32, 2>>& DisabledCollisionElements, const TArray<uint32>& DynamicGroupIds, const TArray<T>& PerGroupThicknesses, const T Dt, const T Stiffness = (T)1.0)
-	    : Base(ParticlesActiveView, Elements, DisabledCollisionElements, DynamicGroupIds, PerGroupThicknesses, Dt, Stiffness) {}
+public:
+	TPBDCollisionSpringConstraints(
+		const int32 InOffset,
+		const int32 InNumParticles,
+		const TArray<TVector<int32, 3>>& InElements,
+		TSet<TVector<int32, 2>>&& InDisabledCollisionElements,
+		const T InThickness = (T)1.0,
+		const T InStiffness = (T)1.0)
+	    : Base(InOffset, InNumParticles, InElements, MoveTemp(InDisabledCollisionElements), InThickness, InStiffness)
+	{}
+
 	virtual ~TPBDCollisionSpringConstraints() {}
+
+	using Base::Init;
 
 	void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const int32 InConstraintIndex) const
 	{

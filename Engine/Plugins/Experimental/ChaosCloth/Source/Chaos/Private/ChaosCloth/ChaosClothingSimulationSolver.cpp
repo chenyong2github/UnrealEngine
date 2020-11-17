@@ -630,34 +630,6 @@ void FClothingSimulationSolver::SetLegacyWind(uint32 GroupId, bool bUseLegacyWin
 	}
 }
 
-void FClothingSimulationSolver::SetSelfCollisions(uint32 GroupId, float SelfCollisionThickness, const TTriangleMesh<float>* TriangleMesh)
-{
-#ifdef CHAOS_CLOTH_MUST_IMPROVE_SELF_COLLISION  // TODO: Improve self-collision until it can run in engine tests without crashing the simulation.
-	if (TriangleMesh)
-	{
-		// TODO(mlentine): Parallelize these for multiple meshes
-		// TODO(Kriss.Gossart): Check/fix potential issue with CollisionTriangles/mesh indices
-		Evolution->CollisionTriangles().Append(TriangleMesh->GetSurfaceElements());
-
-		const TVector<int32, 2> VertexRange = TriangleMesh->GetVertexRange();
-		for (int32 Index = VertexRange[0]; Index <= VertexRange[1]; ++Index)
-		{
-			const TSet<int32> Neighbors = TriangleMesh->GetNRing(Index, 5);
-			for (int32 Element : Neighbors)
-			{
-				check(Index != Element);
-				Evolution->DisabledCollisionElements().Add(TVector<int32, 2>(Index, Element));
-				Evolution->DisabledCollisionElements().Add(TVector<int32, 2>(Element, Index));
-			}
-		}
-	}
-#endif  // #ifdef CHAOS_CLOTH_MUST_IMPROVE_SELF_COLLISION
-
-	// TODO: Note that enabling self collision also enable collisions between all cloths running within the same solver.
-	//       Therefore this function should be called nevertheless.
-	Evolution->SetSelfCollisionThickness(SelfCollisionThickness, GroupId);
-}
-
 void FClothingSimulationSolver::ApplyPreSimulationTransforms()
 {
 	const TVector<float, 3> DeltaLocalSpaceLocation = LocalSpaceLocation - OldLocalSpaceLocation;

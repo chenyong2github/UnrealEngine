@@ -21,6 +21,7 @@ namespace Chaos
 	template<typename T, int d> class TPBDSphericalBackstopConstraint;
 	template<typename T, int d> class TPBDAnimDriveConstraint;
 	template<typename T, int d> class TPBDShapeConstraints;
+	template<typename T, int d> class TPBDCollisionSpringConstraints;
 
 	class FClothConstraints final
 	{
@@ -51,6 +52,7 @@ namespace Chaos
 		void SetBackstopConstraints(const TConstArrayView<float>& BackstopDistances, const TConstArrayView<float>& BackstopRadiuses, bool bUseLegacyBackstop);
 		void SetAnimDriveConstraints(const TConstArrayView<float>& AnimDriveMultipliers);
 		void SetShapeTargetConstraints(float ShapeTargetStiffness);
+		void SetSelfCollisionConstraints(const TArray<TVector<int32, 3>>& SurfaceElements, TSet<TVector<int32, 2>>&& DisabledCollisionElements, float SelfCollisionThickness);
 
 		void CreateRules();
 		void Enable(bool bEnable);
@@ -75,6 +77,7 @@ namespace Chaos
 		const TSharedPtr<TPBDSphericalBackstopConstraint<float, 3>>& GetBackstopConstraints() const { return BackstopConstraints; }
 		const TSharedPtr<TPBDAnimDriveConstraint<float, 3>>& GetAnimDriveConstraints() const { return AnimDriveConstraints; }
 		const TSharedPtr<TPBDShapeConstraints<float, 3>>& GetShapeConstraints() const { return ShapeConstraints; }
+		const TSharedPtr<TPBDCollisionSpringConstraints<float, 3>>& GetSelfCollisionConstraints() const { return SelfCollisionConstraints; }
 		// ---- End of debug functions ----
 
 	private:
@@ -93,6 +96,7 @@ namespace Chaos
 		TSharedPtr<TPBDSphericalBackstopConstraint<float, 3>> BackstopConstraints;
 		TSharedPtr<TPBDAnimDriveConstraint<float, 3>> AnimDriveConstraints;
 		TSharedPtr<TPBDShapeConstraints<float, 3>> ShapeConstraints;
+		TSharedPtr<TPBDCollisionSpringConstraints<float, 3>> SelfCollisionConstraints;
 		
 		TPBDEvolution<float, 3>* Evolution;
 		const TArray<TVector<float, 3>>* AnimationPositions;

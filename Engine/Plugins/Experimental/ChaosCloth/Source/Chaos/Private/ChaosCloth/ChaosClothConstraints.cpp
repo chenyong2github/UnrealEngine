@@ -10,6 +10,7 @@
 #include "Chaos/PBDSphericalConstraint.h"
 #include "Chaos/PBDAnimDriveConstraint.h"
 #include "Chaos/PBDShapeConstraints.h"
+#include "Chaos/PBDCollisionSpringConstraints.h"
 #include "Chaos/PBDEvolution.h"
 
 using namespace Chaos;
@@ -74,7 +75,7 @@ void FClothConstraints::CreateRules()
 		ConstraintRuleOffset = Evolution->AddConstraintRuleRange(NumConstraintRules, false);
 	}
 
-	TFunction<void()>* const ConstraintInits = Evolution->ConstraintInits().GetData() + ConstraintInitOffset;
+	TFunction<void(const TPBDParticles<float, 3>&)>* const ConstraintInits = Evolution->ConstraintInits().GetData() + ConstraintInitOffset;
 	TFunction<void(TPBDParticles<float, 3>&, const float)>* const ConstraintRules = Evolution->ConstraintRules().GetData() + ConstraintRuleOffset;
 
 	int32 ConstraintInitIndex = 0;
@@ -83,7 +84,7 @@ void FClothConstraints::CreateRules()
 	if (XEdgeConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this]()
+			[this](const TPBDParticles<float, 3>& /*InParticles*/)
 			{
 				XEdgeConstraints->Init();
 			};
@@ -105,7 +106,7 @@ void FClothConstraints::CreateRules()
 	if (XBendingConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this]()
+			[this](const TPBDParticles<float, 3>& /*InParticles*/)
 			{
 				XBendingConstraints->Init();
 			};
@@ -134,7 +135,7 @@ void FClothConstraints::CreateRules()
 	if (XAreaConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this]()
+			[this](const TPBDParticles<float, 3>& /*InParticles*/)
 			{
 				XAreaConstraints->Init();
 			};
@@ -171,7 +172,7 @@ void FClothConstraints::CreateRules()
 	if (XLongRangeConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this]()
+			[this](const TPBDParticles<float, 3>& /*InParticles*/)
 			{
 				XLongRangeConstraints->Init();
 			};
@@ -221,6 +222,19 @@ void FClothConstraints::CreateRules()
 			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
 				ShapeConstraints->Apply(InParticles, Dt);
+			};
+	}
+	if (SelfCollisionConstraints)
+	{
+		ConstraintInits[ConstraintInitIndex++] =
+			[this](const TPBDParticles<float, 3>& InParticles)
+			{
+				SelfCollisionConstraints->Init(InParticles);
+			};
+		ConstraintRules[ConstraintRuleIndex++] =
+			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
+			{
+				SelfCollisionConstraints->Apply(InParticles, Dt);
 			};
 	}
 	check(ConstraintInitIndex == NumConstraintInits);
@@ -377,3 +391,17 @@ void FClothConstraints::SetShapeTargetConstraints(float ShapeTargetStiffness)
 		ShapeTargetStiffness);
 	++NumConstraintRules;
 }
+
+void FClothConstraints::SetSelfCollisionConstraints(const TArray<TVector<int32, 3>>& SurfaceElements, TSet<TVector<int32, 2>>&& DisabledCollisionElements, float SelfCollisionThickness)
+{
+	SelfCollisionConstraints = MakeShared<TPBDCollisionSpringConstraints<float, 3>>(
+		ParticleOffset,
+		NumParticles,
+		SurfaceElements,
+		MoveTemp(DisabledCollisionElements),
+		SelfCollisionThickness,
+		/*Stiffness =*/ 1.f);
+	++NumConstraintInits;  // Self collision has an init
+	++NumConstraintRules;  // and a rule
+}
+
