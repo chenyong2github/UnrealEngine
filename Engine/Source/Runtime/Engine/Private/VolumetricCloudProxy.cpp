@@ -23,6 +23,7 @@ FVolumetricCloudSceneProxy::FVolumetricCloudSceneProxy(const UVolumetricCloudCom
 	, ShadowViewSampleCountScale(InComponent->ShadowViewSampleCountScale)
 	, ShadowReflectionSampleCountScale(InComponent->ShadowReflectionSampleCountScale)
 	, ShadowTracingDistance(InComponent->ShadowTracingDistance)
+	, StopTracingTransmittanceThreshold(InComponent->StopTracingTransmittanceThreshold)
 	, CloudVolumeMaterial(InComponent->Material)
 {
 }
