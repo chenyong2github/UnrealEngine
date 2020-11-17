@@ -601,6 +601,12 @@ void FGameplayTagBlueprintPropertyMap::Initialize(UObject* Owner, UAbilitySystem
 		return;
 	}
 
+	if ((CachedOwner == Owner) && (CachedASC == ASC))
+	{
+		// Already initialized.
+		return;
+	}
+
 	if (CachedOwner.IsValid())
 	{
 		Unregister();
