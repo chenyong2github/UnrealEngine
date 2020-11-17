@@ -19,13 +19,17 @@ public class IntelTBB : ModuleRules
 			(Target.Platform == UnrealTargetPlatform.HoloLens))
 		{
 			string PlatformSubPath = (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86) ? "Win32" : "Win64";
-			string LibDir = Path.Combine(IntelTBBLibPath, PlatformSubPath, "vc14");
+			
+			string LibDirTBB = Path.Combine(IntelTBBLibPath, PlatformSubPath, "vc14");
+			string LibDirTBBMalloc = LibDirTBB;
+			
 			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
 			{
-				LibDir = Path.Combine(LibDir, Target.WindowsPlatform.GetArchitectureSubpath());
+				LibDirTBBMalloc = Path.Combine(LibDirTBBMalloc, Target.WindowsPlatform.GetArchitectureSubpath());
 			}
 
-			PublicSystemLibraryPaths.Add(LibDir);
+			PublicSystemLibraryPaths.Add(LibDirTBB);
+			PublicSystemLibraryPaths.Add(LibDirTBBMalloc);
 
 			// Disable the #pragma comment(lib, ...) used by default in TBB & MallocTBB...
 			// We want to explicitly include the libraries.
@@ -34,13 +38,13 @@ public class IntelTBB : ModuleRules
 
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(LibDir, "tbb_debug.lib"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibDir, "tbbmalloc_debug.lib"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibDirTBB, "tbb_debug.lib"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibDirTBBMalloc, "tbbmalloc_debug.lib"));
 			}
 			else
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(LibDir, "tbb.lib"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibDir, "tbbmalloc.lib"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibDirTBB, "tbb.lib"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibDirTBBMalloc, "tbbmalloc.lib"));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
