@@ -66,6 +66,11 @@ FString UKismetStringLibrary::Conv_IntToString(int32 InInt)
 	return FString::Printf(TEXT("%d"), InInt);	
 }
 
+FString UKismetStringLibrary::Conv_Int64ToString(int64 InInt)
+{
+	return FString::Printf(TEXT("%ld"), InInt);
+}
+
 FString UKismetStringLibrary::Conv_ByteToString(uint8 InByte)
 {
 	return FString::Printf(TEXT("%d"), InByte);	

@@ -24,6 +24,10 @@ class ENGINE_API UKismetStringLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "ToString (integer)", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|String")
 	static FString Conv_IntToString(int32 InInt);
 
+	/** Converts an 64-bit integer value to a string */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "ToString (Int64)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|String")
+	static FString Conv_Int64ToString(int64 InInt);
+	
 	/** Converts a byte value to a string */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "ToString (byte)", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|String")
 	static FString Conv_ByteToString(uint8 InByte);
