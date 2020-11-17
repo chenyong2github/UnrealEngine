@@ -2,6 +2,7 @@
 
 #include "Chaos/ChaosConstraintSettings.h"
 #include "Chaos/PBDJointConstraintTypes.h"
+#include "HAL/IConsoleManager.h"
 
 namespace Chaos
 {
