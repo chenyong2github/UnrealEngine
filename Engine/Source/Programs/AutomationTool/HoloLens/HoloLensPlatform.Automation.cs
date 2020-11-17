@@ -13,7 +13,7 @@ using Tools.DotNETCommon;
 using System.Xml;
 using System.Text.RegularExpressions;
 
-#if !__MonoCS__ && !NET_CORE
+#if !__MonoCS__
 using Windows.Management.Deployment;
 using Windows.Foundation;
 #if false
@@ -196,7 +196,7 @@ namespace HoloLens.Automation
 		}
 	}
 
-#if !__MonoCS__ && !NET_CORE
+#if !__MonoCS__
 	class HoloLensDevicePortalCreatedProcess : IProcessResult
 	{
 		object StateLock;
@@ -585,7 +585,7 @@ namespace HoloLens.Automation
 				{
 					string ArchString = Target.Receipt.Architecture;
 					SC.StageBuildProductsFromReceipt(Target.Receipt, Target.RequireFilesExist, Params.bTreatNonShippingBinariesAsDebugFiles);
-					DeployExports.AddWinMDReferencesFromReceipt(Target.Receipt, Params.RawProjectPath.Directory, SC.LocalRoot.FullName);
+					DeployExports.AddWinMDReferencesFromReceipt(Target.Receipt, Params.RawProjectPath.Directory, SC.LocalRoot.FullName, Windows10SDKVersion);
 
 					// Stage HoloLens-specific assets (tile, splash, etc.)
 					DirectoryReference assetsPath = new DirectoryReference(Path.Combine(ProjectBinariesFolder.FullName, ArchString, "Resources"));
@@ -1224,7 +1224,7 @@ namespace HoloLens.Automation
 			return !result;
 		}
 
-#if !__MonoCS__ && !NET_CORE
+#if !__MonoCS__
 		private void WaitFor(IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> deploymentOperation)
 		{
 			// This event is signaled when the operation completes
@@ -1262,7 +1262,7 @@ namespace HoloLens.Automation
 
 		private void DeployToLocalDevice(ProjectParams Params, DeploymentContext SC)
 		{
-#if !__MonoCS__ && !NET_CORE
+#if !__MonoCS__
             if (Utils.IsRunningOnMono)
             {
                 return;
@@ -1564,7 +1564,7 @@ namespace HoloLens.Automation
 
 		private IProcessResult RunUsingDevicePortal(string DeviceAddress, ERunOptions ClientRunFlags, string ClientApp, string ClientCmdLine, ProjectParams Params)
 		{
-#if !__MonoCS__ && !NET_CORE
+#if !__MonoCS__
             if (Utils.IsRunningOnMono)
             {
                 return null;

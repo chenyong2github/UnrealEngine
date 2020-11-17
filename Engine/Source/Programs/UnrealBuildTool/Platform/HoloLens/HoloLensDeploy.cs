@@ -474,7 +474,15 @@ namespace UnrealBuildTool
 				NewReceipt = new TargetReceipt(Receipt.ProjectFile, Receipt.TargetName, Receipt.TargetType, Receipt.Platform, Receipt.Configuration, Receipt.Version, "Multi");
 			}
 
-			AddWinMDReferencesFromReceipt(Receipt, Receipt.ProjectDir != null ? Receipt.ProjectDir : UnrealBuildTool.EngineDirectory, UnrealBuildTool.EngineDirectory.ParentDirectory.FullName);
+			string SDK = "";
+			var Results = Receipt.AdditionalProperties.Where(x => x.Name == "SDK");
+			if (Results.Any())
+			{
+				SDK = Results.First().Value;
+			}
+			HoloLensExports.InitWindowsSdkToolPath(SDK);
+
+			AddWinMDReferencesFromReceipt(Receipt, Receipt.ProjectDir != null ? Receipt.ProjectDir : UnrealBuildTool.EngineDirectory, UnrealBuildTool.EngineDirectory.ParentDirectory.FullName, SDK);
 
 			//PrepForUATPackageOrDeploy(InTarget.ProjectFile, InAppName, InTarget.ProjectDirectory.FullName, InTarget.OutputPath.FullName, TargetBuildEnvironment.RelativeEnginePath, false, "", false);
 			List<UnrealTargetConfiguration> TargetConfigs = new List<UnrealTargetConfiguration> { Receipt.Configuration };
@@ -487,13 +495,6 @@ namespace UnrealBuildTool
 				Arch = WindowsArchitecture.x64;
 			}
 
-			string SDK = "";
-			var Results = Receipt.AdditionalProperties.Where(x => x.Name == "SDK");
-			if (Results.Any())
-			{
-				SDK = Results.First().Value;
-			}
-			HoloLensExports.InitWindowsSdkToolPath(SDK);
 
 			string AbsoluteExeDirectory = Path.GetDirectoryName(ExePaths[0]);
 			UnrealTargetPlatform Platform = UnrealTargetPlatform.HoloLens;
@@ -513,7 +514,7 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		public void AddWinMDReferencesFromReceipt(TargetReceipt Receipt, DirectoryReference SourceProjectDir, string DestRelativeTo)
+		public void AddWinMDReferencesFromReceipt(TargetReceipt Receipt, DirectoryReference SourceProjectDir, string DestRelativeTo, string SDKVersion)
 		{
 			// Dependency paths in receipt are already expanded at this point
 			foreach (var Dep in Receipt.RuntimeDependencies)
@@ -528,7 +529,7 @@ namespace UnrealBuildTool
 						DestPath = Dep.Path.FullName.Replace(UnrealBuildTool.EngineDirectory.FullName, Path.Combine(DestRelativeTo, "Engine"));
 						DestPath = DestPath.Replace(SourceProjectDir.FullName, Path.Combine(DestRelativeTo, SourceProjectDir.GetDirectoryName()));
 						DestPath = Utils.MakePathRelativeTo(DestPath, DestRelativeTo);
-						WinMDReferences.Add(new WinMDRegistrationInfo(new FileReference(WinMDFile), DestPath));
+						WinMDReferences.Add(new WinMDRegistrationInfo(new FileReference(WinMDFile), DestPath, SDKVersion));
 					}
 				}
 			}

@@ -49,9 +49,10 @@ namespace UnrealBuildTool
 		/// <param name="Receipt"></param>
 		/// <param name="SourceProjectDir"></param>
 		/// <param name="DestPackageRoot"></param>
-		public void AddWinMDReferencesFromReceipt(TargetReceipt Receipt, DirectoryReference SourceProjectDir, string DestPackageRoot)
+		/// <param name="SdkVersion"></param>
+		public void AddWinMDReferencesFromReceipt(TargetReceipt Receipt, DirectoryReference SourceProjectDir, string DestPackageRoot, string SdkVersion)
 		{
-			InnerDeploy.AddWinMDReferencesFromReceipt(Receipt, SourceProjectDir, DestPackageRoot);
+			InnerDeploy.AddWinMDReferencesFromReceipt(Receipt, SourceProjectDir, DestPackageRoot, SdkVersion);
 		}
 
 		/// <summary>
