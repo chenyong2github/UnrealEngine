@@ -808,7 +808,7 @@ static const UTexture* GetTextureParameter(const FMaterialRenderContext& Context
 static void EvaluateTextureSize(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const UTexture* Texture = GetTextureParameter(Context, Data);
-	if (Texture)
+	if (Texture && Texture->Resource)
 	{
 		const uint32 SizeX = Texture->Resource->GetSizeX();
 		const uint32 SizeY = Texture->Resource->GetSizeY();
@@ -820,7 +820,7 @@ static void EvaluateTextureSize(const FMaterialRenderContext& Context, FPreshade
 static void EvaluateTexelSize(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const UTexture* Texture = GetTextureParameter(Context, Data);
-	if (Texture)
+	if (Texture && Texture->Resource)
 	{
 		const uint32 SizeX = Texture->Resource->GetSizeX();
 		const uint32 SizeY = Texture->Resource->GetSizeY();
