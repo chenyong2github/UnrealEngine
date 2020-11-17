@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "DiffUtils.h"
 #include "LevelSnapshotsFunctionLibrary.generated.h"
 
 class ULevelSnapshot;
@@ -48,7 +46,7 @@ class LEVELSNAPSHOTS_API ULevelSnapshotsFunctionLibrary : public UBlueprintFunct
 public:
 
 	UFUNCTION(BlueprintCallable, Category = "LevelSnapshots", meta = (WorldContext = "WorldContextObject"))
-	static ULevelSnapshot* TakeLevelSnapshot(const UObject* WorldContextObject);
+	static ULevelSnapshot* TakeLevelSnapshot(const UObject* WorldContextObject, const FName& NewSnapshotName = "NewLevelSnapshot");
 
 	UFUNCTION(BlueprintCallable, Category = "LevelSnapshots", meta = (WorldContext = "WorldContextObject"))
 	static void ApplySnapshotToWorld(const UObject* WorldContextObject, const ULevelSnapshot* Snapshot, const ULevelSnapshotFilter* Filter = nullptr);

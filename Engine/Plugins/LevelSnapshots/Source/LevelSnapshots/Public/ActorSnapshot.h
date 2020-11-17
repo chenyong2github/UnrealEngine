@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "BaseObjectInfo.h"
-#include "PropertySnapshot.h"
 
 #include "ActorSnapshot.generated.h"
 

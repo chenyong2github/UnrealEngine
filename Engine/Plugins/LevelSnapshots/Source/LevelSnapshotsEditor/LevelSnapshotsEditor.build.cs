@@ -34,6 +34,7 @@ public class LevelSnapshotsEditor : ModuleRules
 				"ToolMenus",
 				"Projects",
 				"EditorStyle",
+				"PropertyEditor"
 			}
 			);
 	}

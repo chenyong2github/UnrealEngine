@@ -1,17 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSnapshotsFunctionLibrary.h"
+
 #include "DiffUtils.h"
 #include "EngineUtils.h"
-#include "Engine/LevelStreaming.h"
 #include "LevelSnapshot.h"
 #include "LevelSnapshotFilters.h"
+#include "Engine/LevelStreaming.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
 
-ULevelSnapshot* ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(const UObject* WorldContextObject)
+ULevelSnapshot* ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(const UObject* WorldContextObject, const FName& NewSnapshotName)
 {
 	UWorld* TargetWorld = nullptr;
 	if (WorldContextObject)
@@ -29,7 +30,6 @@ ULevelSnapshot* ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(const UObject*
 		return nullptr;
 	}
 
-	FName NewSnapshotName(TEXT("Snapshot"));
 	ULevelSnapshot* NewSnapshot = NewObject<ULevelSnapshot>(GetTransientPackage(), NewSnapshotName);
 
 	NewSnapshot->SnapshotWorld(TargetWorld);

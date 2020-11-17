@@ -2,6 +2,7 @@
 
 #include "LevelSnapshot.h"
 #include "EngineUtils.h"
+#include "Engine/LevelScriptActor.h"
 #include "Engine/LevelStreaming.h"
 
 void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
@@ -12,6 +13,7 @@ void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 	}
 
 	MapName = TargetWorld->GetMapName();
+	ActorSnapshots.Empty(); // If we keep calling this method on the same asset it will add the same actors over and over unless we empty
 
 	UE_LOG(LogTemp, Warning, TEXT("Attempting to Snapshot World - %s"), *TargetWorld->GetMapName());
 
@@ -20,7 +22,8 @@ void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 		AActor* Actor = *It;
 
 		// For now only snapshot the actors which would be visible in the scene outliner to avoid complications with special hidden actors
-		if (Actor->IsListedInSceneOutliner())
+		// We'll also filter out actors of specific classes
+		if (Actor->IsListedInSceneOutliner() && DoesActorHaveSupportedClass(Actor))
 		{
 
 			UE_LOG(LogTemp, Warning, TEXT("Found Valid Object - %s"), *Actor->GetPathName());
@@ -30,7 +33,65 @@ void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 
 }
 
+int32 ULevelSnapshot::GetOrGenerateUniqueID(ULevelSnapshotTrackingComponent* TrackingComponent)
+{
+	int32 UniqueID = TrackingComponent->UniqueIdentifier;
+
+	// If the unique identifier is -1 then it was never set, so we should create a new one
+	while (UniqueIdentifiers.Contains(UniqueID) || UniqueID == -1)
+	{
+		UniqueID = FMath::Rand();
+	}
+	TrackingComponent->UniqueIdentifier = UniqueID;
+	UniqueIdentifiers.Add(UniqueID);
+	
+	return UniqueID;
+}
+
+void ULevelSnapshot::FindOrCreateTrackingComponent(AActor* TargetActor)
+{
+	// Create a tracking component and add it to the target actor (if it doesn't exist) so we can track information the LevelSnapshot system needs
+	ULevelSnapshotTrackingComponent* TrackingComponent = 
+		Cast<ULevelSnapshotTrackingComponent>(TargetActor->GetComponentByClass(ULevelSnapshotTrackingComponent::StaticClass()));
+	
+	if (!TrackingComponent)
+	{
+		TrackingComponent =
+			Cast<ULevelSnapshotTrackingComponent>(TargetActor->AddComponentByClass(
+				ULevelSnapshotTrackingComponent::StaticClass(), false, FTransform(), true));
+	}
+
+	GetOrGenerateUniqueID(TrackingComponent);
+}
+
+bool ULevelSnapshot::DoesActorHaveSupportedClass(const AActor* Actor)
+{
+	UClass* ActorClass = Actor->GetClass();
+	// An array of classes we don't support
+	TArray<UClass*> ClassFilter = 
+	{
+		ALevelScriptActor::StaticClass() // THe level blueprint. Filtered out to avoid external map errors when saving a snapshot.
+	};
+
+	for (UClass* Class : ClassFilter)
+	{
+		if (Actor->IsA(Class))
+		{
+			return false;
+		}
+	}
+	
+	return true;
+}
+
 void ULevelSnapshot::SnapshotActor(AActor* TargetActor)
 {
+	FindOrCreateTrackingComponent(TargetActor);
+	
 	FLevelSnapshot_Actor& NewSnapshot = ActorSnapshots.Add(TargetActor->GetPathName(), FLevelSnapshot_Actor(TargetActor));
+}
+
+ULevelSnapshotTrackingComponent::ULevelSnapshotTrackingComponent()
+	: UniqueIdentifier(INDEX_NONE)
+{
 }

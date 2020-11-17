@@ -2,11 +2,11 @@
 
 #pragma once
 
+#include "ActorSnapshot.h"
+
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-#include "LevelSnapshot.h"
-#include "PropertySnapshot.h"
 #include "UObject/StrongObjectPtr.h"
 
 #include "Widgets/Views/STableRow.h"
@@ -81,12 +81,32 @@ struct FLevelSnapshotsEditorResultsRowGroup : public FLevelSnapshotsEditorResult
 
 	virtual void GetNodeChildren(TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>& OutChildren) override;
 
+	void AddCurrentPropertyWidget(const TSharedPtr<IPropertyHandle> InPropertyHandle);
+
 public:
 	FString ObjectPath;
 	FLevelSnapshot_Actor ActorSnapshot;
 
 	/** This group's fields' widget. */
 	TArray<TSharedPtr<SLevelSnapshotsEditorResultsField>> Fields;
+
+	TArray<TSharedRef<SHorizontalBox>> FieldWidgetHBoxes;
+	
+};
+
+struct FActorSnapshotCounterpartInfo
+{
+	FActorSnapshotCounterpartInfo() = default;
+
+	FActorSnapshotCounterpartInfo(const FString PropertyName, const TSharedPtr<IPropertyHandle> InHandle)
+	{
+		CurrentLevelProperties.Add(PropertyName, InHandle);
+	}
+	
+public:
+
+	// Property name and handle
+	TMap<FString,TSharedPtr<IPropertyHandle>> CurrentLevelProperties;
 };
 
 class SLevelSnapshotsEditorResultsRowGroup : public STableRow<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>>
@@ -130,9 +150,12 @@ private:
 	void Refresh();
 
 	void RefreshGroups();
-
+	
 	void OnSnapshotSelected(ULevelSnapshot* InLevelSnapshot);
 
+	// Called by OnSnapshotSelected - separated out to allow it to be called for the selected snapshot and a transient snapshot for the current level
+	void ProvisionSnapshotActors(ULevelSnapshot* InLevelSnapshot, FPropertyEditorModule& PropertyEditorModule, bool bFromCurrentLevel);
+	
 	// For the Select/Deselect All buttons
 	FReply SetAllGroupsSelected();
 	FReply SetAllGroupsUnselected();
@@ -147,6 +170,9 @@ private:
 
 	// When a ULevelSnapshot is selected in the UI, let's save a reference to it in case we need it for diffing or other things
 	TWeakObjectPtr<ULevelSnapshot> SelectedLevelSnapshotPtr;
+
+	// Actor Unique ID and Counterpart Info struct
+	TMap<int32, FActorSnapshotCounterpartInfo> ActorSnapshotCounterpartMap;
 
 private:
 	TWeakPtr<FLevelSnapshotsEditorResults> EditorResultsPtr;

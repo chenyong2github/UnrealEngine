@@ -2,7 +2,7 @@
 
 #include "Views/Results/SLevelSnapshotsEditorResults.h"
 
-#include "ActorSnapshot.h"
+#include "LevelSnapshot.h"
 #include "PropertySnapshot.h"
 #include "LevelSnapshotsEditorStyle.h"
 #include "ILevelSnapshotsEditorView.h"
@@ -15,7 +15,6 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Views/SExpanderArrow.h"
-#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
 
 #include "Types/ISlateMetaData.h"
@@ -24,7 +23,8 @@
 #include "PropertyEditorModule.h"
 #include "IDetailTreeNode.h"
 #include "PropertyHandle.h"
-#include "ISinglePropertyView.h"
+#include "PropertyCustomizationHelpers.h"
+#include "PropertyEditor/Private/PropertyEditorHelpers.h"
 #include "EditorStyleSet.h"
 #include "Components/SlateWrapperTypes.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -302,6 +302,7 @@ static TSharedRef<SWidget> CreatePropertyWidget(TSharedPtr<FLevelSnapshotsEditor
 	NodeWidgets.ValueWidget->SetEnabled(false);
 
 	TSharedRef<SHorizontalBox> FieldWidget = SNew(SHorizontalBox);
+	InRowGroup->FieldWidgetHBoxes.Add(FieldWidget);
 
 	if (NodeWidgets.NameWidget && NodeWidgets.ValueWidget)
 	{
@@ -330,12 +331,6 @@ static TSharedRef<SWidget> CreatePropertyWidget(TSharedPtr<FLevelSnapshotsEditor
 			];
 	}
 
-	//VerticalWrapper->AddSlot()
-	//	.AutoHeight()
-	//	[
-	//		FieldWidget
-	//	];
-
 	InRowGroup->Fields.Add(SNew(SLevelSnapshotsEditorResultsField, FieldWidget));
 
 	if (bGenerateChildren)
@@ -345,73 +340,118 @@ static TSharedRef<SWidget> CreatePropertyWidget(TSharedPtr<FLevelSnapshotsEditor
 
 		for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
 		{
-			//VerticalWrapper->AddSlot()
-			//	.AutoHeight()
-			//	.Padding(5.0f, 0.0f)
-			//	[
 			CreatePropertyWidget(InRowGroup, ChildNode);
-			//	];
 		}
 	}
 
-	//return VerticalWrapper;
 	return FieldWidget;
 }
 
 void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSnapshot)
 {
 	FieldGroups.Empty();
+	ActorSnapshotCounterpartMap.Empty();
 
 	TSharedPtr<FLevelSnapshotsEditorViewBuilder> Builder = BuilderPtr.Pin();
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
 
 	if (InLevelSnapshot != nullptr)
 	{
 		// Saving a reference to the selected LevelSnapshot for diffing
 		SelectedLevelSnapshotPtr = InLevelSnapshot;
-		
-		for (const TPair<FString, FLevelSnapshot_Actor>& ActorSnapshotPair : InLevelSnapshot->ActorSnapshots)
+
+		// TODO: Get World from world selection combobox
+		ULevelSnapshot* CurrentLevelSnapshot = ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(GEditor->GetEditorWorldContext().World());
+		ProvisionSnapshotActors(CurrentLevelSnapshot, PropertyEditorModule, true);
+		FieldGroups.Empty();
+		ProvisionSnapshotActors(InLevelSnapshot, PropertyEditorModule, false);
+
+		RefreshGroups();
+
+		// TODO: Mark the CurrentLevelSnapshot for destruction
+	}
+}
+
+void SLevelSnapshotsEditorResults::ProvisionSnapshotActors(ULevelSnapshot* InLevelSnapshot, FPropertyEditorModule& PropertyEditorModule, bool bFromCurrentLevel)
+{
+	for (const TPair<FString, FLevelSnapshot_Actor>& ActorSnapshotPair : InLevelSnapshot->ActorSnapshots)
+	{
+		FString ActorPath = ActorSnapshotPair.Key;
+		TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> NewGroup = MakeShared<FLevelSnapshotsEditorResultsRowGroup>(ActorPath, ActorSnapshotPair.Value);
 		{
-			TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> NewGroup = MakeShared<FLevelSnapshotsEditorResultsRowGroup>(ActorSnapshotPair.Key, ActorSnapshotPair.Value);
+			AActor* ActorObject = ActorSnapshotPair.Value.GetDeserializedActor();
 
+			if (!ActorObject)
 			{
-				UObject* ActorObject = ActorSnapshotPair.Value.GetDeserializedActor(); 
+				UE_LOG(LogTemp, Error, TEXT("Couldn't deserialize actor from %s"), *ActorPath);
+				continue; // Skip this line if ActorObject is not available
+			}
 
-				TStrongObjectPtr<UObject> ActorObjectPtr = TStrongObjectPtr<UObject>(ActorObject);
-				ActorObjects.Add(ActorObjectPtr);
+			// All actors in a snapshot are serialized with a TrackingComponent so let's get it from the transient actor to match UniqueIDs
+			// with Actors in the current level
+			ULevelSnapshotTrackingComponent* TrackingComponent =
+				Cast<ULevelSnapshotTrackingComponent>(ActorObject->GetComponentByClass(ULevelSnapshotTrackingComponent::StaticClass()));
 
-				FPropertyRowGeneratorArgs GeneratorArgs;
-				TSharedPtr<IPropertyRowGenerator> RowGenerator = PropertyEditorModule.CreatePropertyRowGenerator(GeneratorArgs);
-				Generators.Add(RowGenerator);
+			int32 ActorUniqueID = TrackingComponent->UniqueIdentifier;
+			
+			TStrongObjectPtr<UObject> ActorObjectPtr = TStrongObjectPtr<UObject>(ActorObject);
+			ActorObjects.Add(ActorObjectPtr);
 
-				TArray<UObject*> Objects;
-				Objects.Add(ActorObjectPtr.Get());
-				RowGenerator->SetObjects(Objects);
+			FPropertyRowGeneratorArgs GeneratorArgs;
+			TSharedPtr<IPropertyRowGenerator> RowGenerator = PropertyEditorModule.CreatePropertyRowGenerator(GeneratorArgs);
+			Generators.Add(RowGenerator);
 
-				for (const TPair<FName, FLevelSnapshot_Property>& PropertyPair : ActorSnapshotPair.Value.Base.Properties)
+			TArray<UObject*> Objects;
+			Objects.Add(ActorObjectPtr.Get());
+			RowGenerator->SetObjects(Objects);
+
+			for (const TPair<FName, FLevelSnapshot_Property>& PropertyPair : ActorSnapshotPair.Value.Base.Properties)
+			{
+				FString PropertyString = PropertyPair.Key.ToString();
+
+				// Check should we expose this property from filtered list
+				if (TSharedPtr<IDetailTreeNode> Node = LevelSnapshotsEditorResultsUtil::FindNode(RowGenerator->GetRootTreeNodes(), PropertyString, true))
 				{
-					FString PropertyString = PropertyPair.Key.ToString();
-
-					// Check should we expose this property from filtered list
-					if (TSharedPtr<IDetailTreeNode> Node = LevelSnapshotsEditorResultsUtil::FindNode(RowGenerator->GetRootTreeNodes(), PropertyString, true))
-					{
-						/*ExposedFieldWidgets.Add(SAssignNew(ExposedFieldWidget, SRCPanelExposedField, RCProperty, RowGenerator, WeakPanel)
+					/*ExposedFieldWidgets.Add(SAssignNew(ExposedFieldWidget, SRCPanelExposedField, RCProperty, RowGenerator, WeakPanel)
 							.EditMode_Raw(this, &SRemoteControlTarget::GetPanelEditMode));*/
 
-						CreatePropertyWidget(NewGroup, Node, true);
+					TSharedRef<SWidget> PropertyWidget = CreatePropertyWidget(NewGroup, Node, true);
+
+					TArray<int32> ActorSnapshotCounterpartKeys;
+					ActorSnapshotCounterpartMap.GetKeys(ActorSnapshotCounterpartKeys);
+					
+					if (bFromCurrentLevel && Node.Get()->GetRow().IsValid() && Node.Get()->GetRow()->GetPropertyHandle().IsValid())
+					{
+						// If we already have this actor in the TMap
+						if (ActorSnapshotCounterpartKeys.Num() > 0 && ActorSnapshotCounterpartKeys.Contains(ActorUniqueID))
+						{
+							ActorSnapshotCounterpartMap[ActorUniqueID].CurrentLevelProperties.Add(PropertyString, Node.Get()->GetRow()->GetPropertyHandle());
+						}
+						else // Otherwise add a new entry entirely
+						{
+							ActorSnapshotCounterpartMap.Add(ActorUniqueID, FActorSnapshotCounterpartInfo(PropertyString, Node.Get()->GetRow()->GetPropertyHandle()));
+						}
 					}
 					else
 					{
-						UE_LOG(LogTemp, Warning, TEXT("Not in the list"));
+						if (ActorSnapshotCounterpartKeys.Contains(ActorUniqueID))
+						{
+							NewGroup->AddCurrentPropertyWidget(ActorSnapshotCounterpartMap[ActorUniqueID].CurrentLevelProperties[PropertyString]);
+						}
+						else
+						{
+							UE_LOG(LogTemp, Warning, TEXT("Actor's UniqueID from path '%s' not in ActorSnapshotCounterpartKeys and therefore not in current level"), *ActorPath);
+						}
 					}
 				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("Node not in the list; PropertyString is %s"), *PropertyString);
+				}
 			}
-
-			FieldGroups.Add(NewGroup);
 		}
 
-		RefreshGroups();
+		FieldGroups.Add(NewGroup);
 	}
 }
 
@@ -507,14 +547,15 @@ void SLevelSnapshotsEditorResults::SetShowUnchangedSnapshotGroups(const bool bSh
 	}
 }
 
-TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> SLevelSnapshotsEditorResults::DetermineUnchangedGroupsFromLevelSnapshot(ULevelSnapshot* InLevelSnapshot)
+TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> SLevelSnapshotsEditorResults::DetermineUnchangedGroupsFromLevelSnapshot(
+	ULevelSnapshot* InLevelSnapshot)
 {
 	TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> UnchangedGroups;
 
 	// Create transient ULevelSnapshot to compare against InLevelSnapshot
 	ULevelSnapshot* TempLevelSnapshot = ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(GEditor->GetEditorWorldContext().World());
 
-	if (!TempLevelSnapshot || InLevelSnapshot == nullptr)
+	if (!TempLevelSnapshot || !InLevelSnapshot)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Unable to Diff snapshots as at least one snapshot was invalid"));
 		return UnchangedGroups;
@@ -542,18 +583,13 @@ TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> SLevelSnapshotsEditorRe
 					// This means there is no difference between the matching actors. It's unchanged since the last snapshot.
 					// We add it to the TArray by finding a candidate from FieldGroups whose ObjectPath matches the path of this ActorSnapshot
 
-					const int32 MatchingIndex = FieldGroups.IndexOfByPredicate(
-						[&FirstSnapshotPathName](const TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> FieldGroup)
-						{
-							return FieldGroup->ObjectPath.Equals(FirstSnapshotPathName);
-						});
-
-					if (MatchingIndex != INDEX_NONE && MatchingIndex > -1)
+					TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> Group = FieldGroups[FieldGroups.IndexOfByPredicate(
+						[FirstSnapshotPathName] (const TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> G)
 					{
-						TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> Group = FieldGroups[MatchingIndex];
+							return G->ObjectPath.Equals(FirstSnapshotPathName);
+					})];
 
-						UnchangedGroups.Add(Group);
-					}
+					UnchangedGroups.Add(Group);
 				}
 			}
 		}
@@ -646,6 +682,44 @@ void SLevelSnapshotsEditorResultsRowGroup::Construct(const FArguments& InArgs, c
 void FLevelSnapshotsEditorResultsRowGroup::GetNodeChildren(TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>& OutChildren)
 {
 	OutChildren.Append(Fields);
+}
+
+void FLevelSnapshotsEditorResultsRowGroup::AddCurrentPropertyWidget(const TSharedPtr<IPropertyHandle> InPropertyHandle)
+{
+	const int32 FieldWidgetIndex = FieldWidgetHBoxes.Num() - 1;
+	
+	if (FieldWidgetIndex < 0)
+	{
+		UE_LOG(LogTemp, Error, TEXT("SLevelSnapshotsEditorResults::AddCurrentPropertyWidget: Length of FieldWidgetHBoxes is 0."))
+		return;
+	}
+	
+	TSharedRef<SHorizontalBox> FieldWidget = FieldWidgetHBoxes[FieldWidgetIndex];
+	TSharedPtr<SProperty> CurrentPropertyWidget;
+
+	// Add separation between snapshot value and current value
+	FieldWidget->AddSlot()
+		.Padding(FMargin(3.0f, 2.0f))
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.Text(INVTEXT("| "))
+		];
+	FieldWidget->AddSlot()
+		.Padding(FMargin(3.0f, 2.0f))
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("CurrentValue", "Current: "))
+		];
+	FieldWidget->AddSlot()
+		.Padding(FMargin(3.0f, 2.0f))
+		.AutoWidth()
+		[
+			SAssignNew(CurrentPropertyWidget, SProperty, InPropertyHandle)
+			.ShouldDisplayName(false)
+			.IsEnabled(false)
+		];
 }
 
 void SLevelSnapshotsEditorResultsField::Construct(const FArguments& InArgs, const TSharedRef<SWidget>& InContent)

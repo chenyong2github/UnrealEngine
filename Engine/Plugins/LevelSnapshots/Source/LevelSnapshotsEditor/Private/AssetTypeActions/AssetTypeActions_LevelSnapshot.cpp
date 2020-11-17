@@ -36,8 +36,6 @@ void FAssetTypeActions_LevelSnapshot::GetActions(const TArray<UObject*>& InObjec
 					{
 						if (UWorld* World = GEditor->GetEditorWorldContext().World())
 						{
-							LevelSnapshotAsset->MapName = World->GetMapName();
-
 							LevelSnapshotAsset->SnapshotWorld(World);
 
 							LevelSnapshotAsset->MarkPackageDirty();
