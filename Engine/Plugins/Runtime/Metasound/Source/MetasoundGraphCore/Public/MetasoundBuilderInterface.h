@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MetasoundEnvironment.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
 
@@ -50,10 +51,14 @@ namespace Metasound
 		/** Collection of input parameters available for to an IOperator. */
 		const FDataReferenceCollection& InputDataReferences;
 
-		FCreateOperatorParams(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences)
+		/** Environment settings available. */
+		const FMetasoundEnvironment& Environment;
+
+		FCreateOperatorParams(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, const FMetasoundEnvironment& InEnvironment)
 		:	Node(InNode)
 		,	OperatorSettings(InOperatorSettings)
 		,	InputDataReferences(InInputDataReferences)
+		,	Environment(InEnvironment)
 		{
 		}
 	};
@@ -113,11 +118,13 @@ namespace Metasound
 			/** Build a graph operator from a graph. 
 			 *
 			 * @params InGraph - The input graph object containing edges, input vertices and output vertices.
+			 * @param InOperatorSettings - Settings to be passed to all operators on creation.
+			 * @param InEnvironment - The environment variables to use during construction. 
 			 * @param OutErrors - An array of errors. Errors can be added if issues occur while creating the IOperator.
 			 *
 			 * @return A unique pointer to an IOperator. 
 			 */
-			virtual TUniquePtr<IOperator> BuildGraphOperator(const IGraph& InGraph, TArray<FBuildErrorPtr>& OutErrors) = 0;
+			virtual TUniquePtr<IOperator> BuildGraphOperator(const IGraph& InGraph, const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment, TArray<FBuildErrorPtr>& OutErrors) = 0;
 	};
 }
 

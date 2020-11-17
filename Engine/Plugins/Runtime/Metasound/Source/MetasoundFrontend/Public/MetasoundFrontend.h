@@ -460,7 +460,7 @@ namespace Metasound
 			// metasound operator, which can then be used for playback.
 			// @returns nullptr on failure.
 			// @todo: make an API for doing this async.
-			TUniquePtr<IOperator> BuildOperator(const FOperatorSettings& InSettings, TArray<IOperatorBuilder::FBuildErrorPtr>& OutBuildErrors) const;
+			TUniquePtr<IOperator> BuildOperator(const FOperatorSettings& InSettings, const FMetasoundEnvironment& InEnvironment, TArray<IOperatorBuilder::FBuildErrorPtr>& OutBuildErrors) const;
 
 			// This function will ensure that the document's root class has the inputs and outputs required by the archetype.
 			void FixDocumentToMatchArchetype();

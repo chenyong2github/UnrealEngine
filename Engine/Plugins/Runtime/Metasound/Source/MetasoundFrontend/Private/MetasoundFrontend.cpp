@@ -163,9 +163,6 @@ namespace Metasound
 				}
 
 				const FName NodeName = DummyNode->GetClassName();
-				const FVertexInterface& DummyNodeInterface = DummyNode->GetDefaultVertexInterface();
-				const FInputVertexInterface& DummyInputInterface = DummyNodeInterface.GetInputInterface();
-				const FOutputVertexInterface& DummyOutputInterface = DummyNodeInterface.GetOutputInterface();
 
 				FMetasoundClassMetadata NodeMetadata;
 				NodeMetadata.NodeName = NodeName.ToString();
@@ -177,9 +174,11 @@ namespace Metasound
 				FMetasoundClassDescription ClassDescription;
 				ClassDescription.Metadata = NodeMetadata;
 
+				const FVertexInterface& DummyNodeInterface = DummyNode->GetDefaultVertexInterface();
+
 				// External metasounds aren't dependent on any other nodes by definition, so all we need to do
 				// is populate the Input and Output sets.
-				for (auto& InputTuple : DummyInputInterface)
+				for (auto& InputTuple : DummyNodeInterface.GetInputInterface())
 				{
 					FMetasoundInputDescription InputDescription;
 					InputDescription.Name = InputTuple.Value.GetVertexName();
@@ -189,7 +188,7 @@ namespace Metasound
 					ClassDescription.Inputs.Add(InputDescription);
 				}
 
-				for (auto& OutputTuple : DummyOutputInterface)
+				for (auto& OutputTuple : DummyNodeInterface.GetOutputInterface())
 				{
 					FMetasoundOutputDescription OutputDescription;
 					OutputDescription.Name = OutputTuple.Value.GetVertexName();
@@ -197,6 +196,15 @@ namespace Metasound
 					OutputDescription.ToolTip = OutputTuple.Value.GetDescription();
 
 					ClassDescription.Outputs.Add(OutputDescription);
+				}
+
+				for (auto& EnvTuple : DummyNodeInterface.GetEnvironmentInterface())
+				{
+					FMetasoundEnvironmentVariableDescription EnvironmentDescription;
+					EnvironmentDescription.Name = EnvTuple.Value.GetVertexName();
+					EnvironmentDescription.ToolTip = EnvTuple.Value.GetDescription();
+
+					ClassDescription.EnvironmentVariables.Add(EnvironmentDescription);
 				}
 
 				// Populate lookup data.
@@ -2327,7 +2335,7 @@ namespace Metasound
 			return TTuple<FGraphHandle, FNodeHandle>(SubgraphHandle, SubgraphNode);
 		}
 
-		TUniquePtr<IOperator> FGraphHandle::BuildOperator(const FOperatorSettings& InSettings, TArray<IOperatorBuilder::FBuildErrorPtr>& OutBuildErrors) const
+		TUniquePtr<IOperator> FGraphHandle::BuildOperator(const FOperatorSettings& InSettings, const FMetasoundEnvironment& InEnvironment, TArray<IOperatorBuilder::FBuildErrorPtr>& OutBuildErrors) const
 		{
 			if (!IsValid())
 			{
@@ -2621,9 +2629,9 @@ namespace Metasound
 			/** NOTE: In the future- we should split steps 1-4 above, and 5 below. GraphToBuild and the node map can be cached on the graph handle. */
 
 			// Step 5: Invoke Operator Builder
-			FOperatorBuilder Builder(InSettings, FOperatorBuilderSettings::GetDefaultSettings());
+			FOperatorBuilder Builder(FOperatorBuilderSettings::GetDefaultSettings());
 
-			return Builder.BuildGraphOperator(GraphToBuild, OutBuildErrors);
+			return Builder.BuildGraphOperator(GraphToBuild, InSettings, InEnvironment, OutBuildErrors);
 		}
 
 		const FText& FGraphHandle::GetInputDisplayName(FString InputName) const

@@ -8,6 +8,7 @@
 
 #include "MetasoundAssetBase.h"
 #include "MetasoundBop.h"
+#include "MetasoundEngineEnvironment.h"
 #include "MetasoundGenerator.h"
 #include "MetasoundAudioFormats.h"
 #include "MetasoundPrimitives.h"
@@ -60,32 +61,50 @@ float UMetasoundSource::GetDuration()
 
 ISoundGeneratorPtr UMetasoundSource::CreateSoundGenerator(const FSoundGeneratorInitParams& InParams)
 {
+	using namespace Metasound;
+
 	NumChannels = 1;
 	Duration = INDEFINITELY_LOOPING_DURATION;
 	bLooping = true;
 	SampleRate = InParams.SampleRate;
 	const float BlockRate = 100.f; // Metasound graph gets evaluated 100 times per second.
 
-	Metasound::FOperatorSettings InSettings(InParams.SampleRate, BlockRate);
+	FOperatorSettings InSettings(InParams.SampleRate, BlockRate);
+	FMetasoundEnvironment Environment;
 
-	TArray<Metasound::IOperatorBuilder::FBuildErrorPtr> BuildErrors;
+	// Add audio device ID to environment.
+	FAudioDeviceHandle DeviceHandle;
+	if (UWorld* World = GetWorld())
+	{
+		DeviceHandle = World->GetAudioDevice();
+	}
+	if (!DeviceHandle.IsValid())
+	{
+		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+		{
+			DeviceHandle = DeviceManager->GetMainAudioDeviceHandle();
+		}
+	}
+	Environment.SetValue<FAudioDeviceHandle>(GetAudioDeviceHandleVariableName(), DeviceHandle);
 
-	Metasound::Frontend::FGraphHandle RootGraph = GetRootGraphHandle();
+	TArray<IOperatorBuilder::FBuildErrorPtr> BuildErrors;
+
+	Frontend::FGraphHandle RootGraph = GetRootGraphHandle();
 	ensureAlways(RootGraph.IsValid());
 
-	TUniquePtr<Metasound::IOperator> Operator = RootGraph.BuildOperator(InSettings, BuildErrors);
+	TUniquePtr<IOperator> Operator = RootGraph.BuildOperator(InSettings, Environment, BuildErrors);
 	if (ensureAlways(Operator.IsValid()))
 	{
-		Metasound::FDataReferenceCollection Outputs = Operator->GetOutputs();
+		FDataReferenceCollection Outputs = Operator->GetOutputs();
 
-		Metasound::FMetasoundGeneratorInitParams InitParams =
+		FMetasoundGeneratorInitParams InitParams =
 		{
 			MoveTemp(Operator),
-			Outputs.GetDataReadReferenceOrConstruct<Metasound::FAudioBuffer>(GetAudioOutputName(), InSettings.GetNumFramesPerBlock()),
-			Outputs.GetDataReadReferenceOrConstruct<Metasound::FBop>(GetIsFinishedOutputName(), InSettings, false)
+			Outputs.GetDataReadReferenceOrConstruct<FAudioBuffer>(GetAudioOutputName(), InSettings.GetNumFramesPerBlock()),
+			Outputs.GetDataReadReferenceOrConstruct<FBop>(GetIsFinishedOutputName(), InSettings, false)
 		};
 
-		return ISoundGeneratorPtr(new Metasound::FMetasoundGenerator(MoveTemp(InitParams)));
+		return ISoundGeneratorPtr(new FMetasoundGenerator(MoveTemp(InitParams)));
 	}
 	else
 	{
@@ -118,6 +137,12 @@ const FString& UMetasoundSource::GetIsFinishedOutputName()
 	return OnFinishedOutputName;
 }
 
+const FString& UMetasoundSource::GetAudioDeviceHandleVariableName()
+{
+	static FString AudioDeviceHandleVarName = FString(TEXT("AudioDeviceHandle"));
+	return AudioDeviceHandleVarName;
+}
+
 FMetasoundArchetype UMetasoundSource::GetArchetype() const
 {
 	FMetasoundArchetype Archetype;
@@ -144,6 +169,12 @@ FMetasoundArchetype UMetasoundSource::GetArchetype() const
 	OnFinished.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FBop>();
 	OnFinished.ToolTip = LOCTEXT("OnFinishedToolTip", "Bop executed to initiate stopping the source.");
 	Archetype.RequiredOutputs.Add(OnFinished);
+
+	FMetasoundEnvironmentVariableDescription AudioDeviceHandle;
+	AudioDeviceHandle.Name = GetAudioDeviceHandleVariableName();
+	AudioDeviceHandle.DisplayName = FText::FromString(AudioDeviceHandle.Name);
+	AudioDeviceHandle.ToolTip = LOCTEXT("AudioDeviceHandleToolTip", "Audio device handle");
+	Archetype.EnvironmentVariables.Add(AudioDeviceHandle);
 
 	return Archetype;
 }

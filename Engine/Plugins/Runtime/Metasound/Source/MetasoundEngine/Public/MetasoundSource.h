@@ -114,4 +114,5 @@ private:
 	static const FString& GetOnPlayInputName();
 	static const FString& GetAudioOutputName();
 	static const FString& GetIsFinishedOutputName();
+	static const FString& GetAudioDeviceHandleVariableName();
 };

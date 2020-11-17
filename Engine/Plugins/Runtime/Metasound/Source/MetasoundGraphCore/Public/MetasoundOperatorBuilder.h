@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MetasoundEnvironment.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundBuilderInterface.h"
@@ -96,24 +97,23 @@ namespace Metasound
 
 			/** FOperatorBuilder constructor.
 			 *
-			 * @param InOperatorSettings - Settings to be passed to all operators
-			 *                             on creation.
 			 * @param InBuilderSettings  - Settings to configure builder options.
 			 */
-			FOperatorBuilder(const FOperatorSettings& InOperatorSettings, const FOperatorBuilderSettings& InBuilderSettings);
+			FOperatorBuilder(const FOperatorBuilderSettings& InBuilderSettings);
 
 			virtual ~FOperatorBuilder();
 
 			/** Create an IOperator from an IGraph.
 			 *
-			 * @param InGraph   - The graph containing input, output and edge information.
-			 * @param OutErrors - An array of build errors that will be populated 
-			 *                    with any issues encountered during the build process.
+			 * @param InGraph            - The graph containing input, output and edge information.
+			 * @param InOperatorSettings - Settings to be passed to all operators on creation.
+			 * @param InEnvironment      - The environment variables to use during construction. 
+			 * @param OutErrors          - An array of build errors that will be populated with any issues encountered during the build process.
 			 *
 			 * @return A TUniquePtr to an IOperator. If the processes was unsuccessful, 
 			 *         the returned pointer will contain a nullptr and be invalid.
 			 */
-			virtual TUniquePtr<IOperator> BuildGraphOperator(const IGraph& InGraph, TArray<FBuildErrorPtr>& OutErrors) override;
+			virtual TUniquePtr<IOperator> BuildGraphOperator(const IGraph& InGraph, const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment, TArray<FBuildErrorPtr>& OutErrors) override;
 			
 
 		private:
@@ -185,28 +185,45 @@ namespace Metasound
 				EStatus Value = NoError;
 			};
 
+			struct FBuildContext
+			{
+				const IGraph& Graph;
+				const FDirectedGraphAlgoAdapter& AlgoAdapter;
+				const FOperatorSettings& Settings;
+				const FMetasoundEnvironment& Environment;
+
+				TArray<FBuildErrorPtr>& Errors;
+
+				FBuildContext(const IGraph& InGraph, FDirectedGraphAlgoAdapter& InAlgoAdapter, const FOperatorSettings& InSettings, const FMetasoundEnvironment& InEnvironment, TArray<FBuildErrorPtr>& InOutErrors)
+				:	Graph(InGraph)
+				,	AlgoAdapter(InAlgoAdapter)
+				,	Settings(InSettings)
+				,	Environment(InEnvironment)
+				,	Errors(InOutErrors)
+				{
+				}
+			};
+
 			// Perform topological sort using depth first algorithm.
-			FBuildStatus DepthFirstTopologicalSort(const FDirectedGraphAlgoAdapter& InAdapter, TArray<const INode*>& OutNodes, TArray<FBuildErrorPtr>& OutErrors) const;
+			FBuildStatus DepthFirstTopologicalSort(FBuildContext& InContext, TArray<const INode*>& OutNodes) const;
 
 			// Perform topological sort using kahns algorithm.
-			FBuildStatus KahnsTopologicalSort(const FDirectedGraphAlgoAdapter& InAdapter, TArray<const INode*>& OutNodes, TArray<FBuildErrorPtr>& OutErrors) const;
+			FBuildStatus KahnsTopologicalSort(FBuildContext& InContext, TArray<const INode*>& OutNodes) const;
 
 			// Prune unreachable nodes from InOutNodes
-			FBuildStatus PruneNodes(const FDirectedGraphAlgoAdapter& InAdapter, TArray<const INode*>& InOutNodes, TArray<FBuildErrorPtr>& OutErrors) const;
+			FBuildStatus PruneNodes(FBuildContext& InContext, TArray<const INode*>& InOutNodes) const;
 
 			// Get all input data references for a given node.
-			FBuildStatus GatherInputDataReferences(const INode* InNode, const FNodeEdgeMultiMap& InEdgeMap, const FNodeDataReferenceMap& InDataReferenceMap, FDataReferenceCollection& OutCollection, TArray<FBuildErrorPtr>& OutErrors) const;
+			FBuildStatus GatherInputDataReferences(FBuildContext& InContext, const INode* InNode, const FNodeEdgeMultiMap& InEdgeMap, const FNodeDataReferenceMap& InDataReferenceMap, FDataReferenceCollection& OutCollection) const;
 
 			// Get all input/output data references for a given graph.
-			FBuildStatus GatherGraphDataReferences(const IGraph& InGraph, FNodeDataReferenceMap& InNodeDataReferences, FDataReferenceCollection& OutGraphInputs, FDataReferenceCollection& OutGraphOutputs, TArray<FBuildErrorPtr>& OutErrors) const;
+			FBuildStatus GatherGraphDataReferences(FBuildContext& InContext, FNodeDataReferenceMap& InNodeDataReferences, FDataReferenceCollection& OutGraphInputs, FDataReferenceCollection& OutGraphOutputs) const;
 
 			// Call the operator factories for the nodes
-			FBuildStatus CreateOperators(const IGraph& InGraph, const TArray<const INode*>& InSortedNodes, TArray<FOperatorPtr>& OutOperators, FNodeDataReferenceMap& OutDataReferences, TArray<FBuildErrorPtr>& OutErrors) const;
+			FBuildStatus CreateOperators(FBuildContext& InContext, const TArray<const INode*>& InSortedNodes, TArray<FOperatorPtr>& OutOperators, FNodeDataReferenceMap& OutDataReferences) const;
 
 			// Create the final graph operator from the individual operators.
-			TUniquePtr<IOperator> CreateGraphOperator(const IGraph& InGraph, TArray<FOperatorPtr>& InOperators, FNodeDataReferenceMap& InNodeDataReferences, TArray<FBuildErrorPtr>& OutErrors) const;
-
-			FOperatorSettings OperatorSettings;
+			TUniquePtr<IOperator> CreateGraphOperator(FBuildContext& InContext, TArray<FOperatorPtr>& InOperators, FNodeDataReferenceMap& InNodeDataReferences) const;
 
 			FOperatorBuilderSettings BuilderSettings;
 

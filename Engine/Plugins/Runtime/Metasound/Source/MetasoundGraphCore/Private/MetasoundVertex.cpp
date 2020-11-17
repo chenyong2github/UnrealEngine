@@ -185,10 +185,87 @@ namespace Metasound
 		}
 	}
 
-			/** Construct with an input and output interface. */
+	FEnvironmentVertex::FEnvironmentVertex()
+	:	VertexModel(MakeUnique<FEmptyVertexModel>(TEXT(""), FText::GetEmpty()))
+	{
+	}
+
+	/** Copy constructor */
+	FEnvironmentVertex::FEnvironmentVertex(const FEnvironmentVertex& InOther)
+	{
+		if (InOther.VertexModel.IsValid())
+		{
+			// call underlying model's clone to copy model.
+			VertexModel = InOther.VertexModel->Clone();
+		}
+		else
+		{
+			// Make an empty model if no valid model exists.
+			VertexModel = MakeUnique<FEmptyVertexModel>(TEXT(""), FText::GetEmpty());
+		}
+	}
+
+	FEnvironmentVertex& FEnvironmentVertex::operator=(const FEnvironmentVertex& InOther)
+	{
+		if (InOther.VertexModel.IsValid())
+		{
+			// call underlying model's clone to copy model.
+			VertexModel = InOther.VertexModel->Clone();
+		}
+		else
+		{
+			// Make an empty model if no valid model exists.
+			VertexModel = MakeUnique<FEmptyVertexModel>(TEXT(""), FText::GetEmpty());
+		}
+
+		return *this;
+	}
+
+	const FString& FEnvironmentVertex::GetVertexName() const
+	{
+		return VertexModel->VertexName;
+	}
+
+	const FText& FEnvironmentVertex::GetDescription() const
+	{
+		return VertexModel->Description;
+	}
+
+	bool FEnvironmentVertex::IsVariableOfSameType(const IMetasoundEnvironmentVariable& InVariable) const
+	{
+		return VertexModel->IsVariableOfSameType(InVariable);
+	}
+
+	bool operator==(const FEnvironmentVertex& InLHS, const FEnvironmentVertex& InRHS)
+	{
+		return (InLHS.VertexModel->IsEqual(*InRHS.VertexModel) && InRHS.VertexModel->IsEqual(*InLHS.VertexModel));
+	}
+
+	bool operator!=(const FEnvironmentVertex& InLHS, const FEnvironmentVertex& InRHS)
+	{
+		return !(InLHS == InRHS);
+	}
+
+	bool operator<(const FEnvironmentVertex& InLHS, const FEnvironmentVertex& InRHS)
+	{
+		if (InLHS == InRHS)
+		{
+			return false;
+		}
+
+		return InLHS.GetVertexName() < InRHS.GetVertexName();
+	}
+
 	FVertexInterface::FVertexInterface(const FInputVertexInterface& InInputs, const FOutputVertexInterface& InOutputs)
 	:	InputInterface(InInputs)
 	,	OutputInterface(InOutputs)
+	{
+	}
+
+	FVertexInterface::FVertexInterface(const FInputVertexInterface& InInputs, const FOutputVertexInterface& InOutputs, const FEnvironmentVertexInterface& InEnvironmentVariables)
+	:	InputInterface(InInputs)
+	,	OutputInterface(InOutputs)
+	,	EnvironmentInterface(InEnvironmentVariables)
 	{
 	}
 
@@ -202,12 +279,12 @@ namespace Metasound
 		return InputInterface;
 	}
 
-	const FInputDataVertex& FVertexInterface::GetInputVertex(const FDataVertexKey& InKey) const
+	const FInputDataVertex& FVertexInterface::GetInputVertex(const FVertexKey& InKey) const
 	{
 		return InputInterface[InKey];
 	}
 
-	bool FVertexInterface::ContainsInputVertex(const FDataVertexKey& InKey) const
+	bool FVertexInterface::ContainsInputVertex(const FVertexKey& InKey) const
 	{
 		return InputInterface.Contains(InKey);
 	}
@@ -222,19 +299,43 @@ namespace Metasound
 		return OutputInterface;
 	}
 
-	const FOutputDataVertex& FVertexInterface::GetOutputVertex(const FDataVertexKey& InKey) const
+	const FOutputDataVertex& FVertexInterface::GetOutputVertex(const FVertexKey& InKey) const
 	{
 		return OutputInterface[InKey];
 	}
 
-	bool FVertexInterface::ContainsOutputVertex(const FDataVertexKey& InKey) const
+	bool FVertexInterface::ContainsOutputVertex(const FVertexKey& InKey) const
 	{
 		return OutputInterface.Contains(InKey);
 	}
 
+	const FEnvironmentVertexInterface& FVertexInterface::GetEnvironmentInterface() const
+	{
+		return EnvironmentInterface;
+	}
+
+	FEnvironmentVertexInterface& FVertexInterface::GetEnvironmentInterface()
+	{
+		return EnvironmentInterface;
+	}
+
+	const FEnvironmentVertex& FVertexInterface::GetEnvironmentVertex(const FVertexKey& InKey) const
+	{
+		return EnvironmentInterface[InKey];
+	}
+
+	bool FVertexInterface::ContainsEnvironmentVertex(const FVertexKey& InKey) const
+	{
+		return EnvironmentInterface.Contains(InKey);
+	}
+
 	bool operator==(const FVertexInterface& InLHS, const FVertexInterface& InRHS)
 	{
-		return (InLHS.InputInterface == InRHS.InputInterface) && (InLHS.OutputInterface == InRHS.OutputInterface);
+		const bool bIsEqual = (InLHS.InputInterface == InRHS.InputInterface) && 
+			(InLHS.OutputInterface == InRHS.OutputInterface) && 
+			(InLHS.EnvironmentInterface == InRHS.EnvironmentInterface);
+
+		return bIsEqual;
 	}
 
 	bool operator!=(const FVertexInterface& InLHS, const FVertexInterface& InRHS)

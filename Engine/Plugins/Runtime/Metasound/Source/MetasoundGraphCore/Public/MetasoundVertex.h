@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Containers/SortedMap.h"
 #include "MetasoundDataReference.h"
+#include "MetasoundEnvironment.h"
 
 #include <type_traits>
 
@@ -13,13 +14,17 @@ namespace Metasound
 	/** Key type for an FInputDataVertexColletion or 
 	 * FOutputDataVertexCollection. 
 	 */
-	typedef FString FDataVertexKey;
+	typedef FString FVertexKey;
+	typedef FString FDataVertexKey; // TODO: Remove
 
 	// Forward declare.
 	class FInputDataVertex;
 
 	// Forward declare.
 	class FOutputDataVertex;
+
+	// Forward declare
+	class FEnvironmentVertex;
 
 	/** FDataVertexModel
 	 *
@@ -350,28 +355,191 @@ namespace Metasound
 			TUniquePtr<FOutputDataVertexModel> VertexModel;
 	};
 
+	/** FEnvironmentVertexModel
+	 *
+	 * An FEnvironmentVertexModel implements various vertex behaviors. 
+	 *
+	 * The FEnvironmentVertex supplies copy constructors and assignment operators 
+	 * by utilizing the Clone() operator of the FEnvironmentVertexModel. 
+	 * This allows FEnvironmentVertexModel behavior to be passed to other objects 
+	 * without having to know the concrete implementation of the FEnvironmentVertexModel.
+	 */
+	struct FEnvironmentVertexModel
+	{
+		/** FEnvironmentVertexModel Construtor
+		 *
+		 * @InVertexName - Name of vertex.
+		 * @InDescription - Human readable vertex description.
+		 */
+		FEnvironmentVertexModel(const FString& InVertexName, const FText& InDescription)
+		:	VertexName(InVertexName)
+		,	Description(InDescription)
+		{
+		}
 
-	/** Create an FDataVertexKey from a FDataVertex. */
-	FORCEINLINE FDataVertexKey MakeDataVertexKey(const FInputDataVertex& InVertex)
+		virtual ~FEnvironmentVertexModel() = default;
+
+		/** Name of vertex. */
+		const FString VertexName;
+
+		/** Description of the vertex. */
+		const FText Description;
+
+		/** Test if a IMetasoundEnvironmentVariable matches the DataType of this vertex model.
+		 *
+		 * @param InVariable - Environment variable object.
+		 *
+		 * @return True if the types are equal, false otherwise.
+		 */
+		virtual bool IsVariableOfSameType(const IMetasoundEnvironmentVariable& InVariable) const = 0;
+
+		virtual FMetasoundEnvironmentVariableTypeId GetVariableTypeId() const = 0;
+
+		/** Create a clone of this FEnvironmentVertexModel */
+		virtual TUniquePtr<FEnvironmentVertexModel> Clone() const = 0;
+
+		friend bool METASOUNDGRAPHCORE_API operator==(const FEnvironmentVertex& InLHS, const FEnvironmentVertex& InRHS);
+		friend bool METASOUNDGRAPHCORE_API operator!=(const FEnvironmentVertex& InLHS, const FEnvironmentVertex& InRHS);
+
+		private:
+
+		/** Compare another FEnvironmentVertexModel is equal to this
+		 *
+		 * @return True if models are equal, false otherwise.
+		 */
+		virtual bool IsEqual(const FEnvironmentVertexModel& InOther) const = 0;
+	};
+
+	/** TEnvironmentVertexModel creates a simple, unchanging, environment vertex. */
+	template<typename VarType>
+	struct TEnvironmentVertexModel : FEnvironmentVertexModel
+	{
+		/** Inherited constructor. */
+		using FEnvironmentVertexModel::FEnvironmentVertexModel;
+
+		/** Test if a IMetasoundEnvironmentVariable matches the DataType of this vertex model.
+		 *
+		 * @param InVariable - Environment variable object.
+		 *
+		 * @return True if the types are equal, false otherwise.
+		 */
+		bool IsVariableOfSameType(const IMetasoundEnvironmentVariable& InVariable) const override
+		{
+			return IsEnvironmentVariableOfType<VarType>(InVariable);
+		}
+		
+		/** Return the type id of the vertex. */
+		FMetasoundEnvironmentVariableTypeId GetVariableTypeId() const override
+		{
+			return GetMetasoundEnvironmentVariableTypeId<VarType>();
+		}
+
+		/** Create a clone of this TEnvironmentVertexModel*/
+		virtual TUniquePtr<FEnvironmentVertexModel> Clone() const override
+		{
+			return MakeUnique<TEnvironmentVertexModel<VarType>>(this->VertexName, this->Description);
+		}
+
+		friend bool METASOUNDGRAPHCORE_API operator==(const FEnvironmentVertex& InLHS, const FEnvironmentVertex& InRHS);
+		friend bool METASOUNDGRAPHCORE_API operator!=(const FEnvironmentVertex& InLHS, const FEnvironmentVertex& InRHS);
+	private:
+
+		bool IsEqual(const FEnvironmentVertexModel& InOther) const override
+		{
+			return (GetVariableTypeId() == InOther.GetVariableTypeId()) && (VertexName == InOther.VertexName);
+		}
+	};
+
+	/** FEnvironmentVertex represents an input vertex to an interface. It uses
+	 * a FEnvironmentVertexModel to determine its behavior.
+	 */
+	class METASOUNDGRAPHCORE_API FEnvironmentVertex
+	{
+		using FEmptyVertexModel = TEnvironmentVertexModel<void>;
+
+		public:
+
+			/** Construct an FEnvironmentVertex with a given vertex model.
+			 *
+			 * @param InVertexModel - A model subclass of FEnvironmentVertexModel.
+			 */
+			template<typename VertexModelType>
+			FEnvironmentVertex(const VertexModelType& InVertexModel)
+			:	VertexModel(InVertexModel.Clone())
+			{
+				static_assert(TIsDerivedFrom<VertexModelType, FEnvironmentVertexModel>::Value, "Vertex implementation must be a subclass of FEnvironmentVertexModel");
+
+				if (!VertexModel.IsValid())
+				{
+					VertexModel = MakeUnique<FEmptyVertexModel>(TEXT(""), FText::GetEmpty());
+				}
+			}
+
+			/** Construct an empty FInputDataVertex. */
+			FEnvironmentVertex();
+
+			/** Copy constructor */
+			FEnvironmentVertex(const FEnvironmentVertex& InOther);
+
+			/** Assignment operator. */
+			FEnvironmentVertex& operator=(const FEnvironmentVertex& InOther);
+
+			/** Name of vertex. */
+			const FString& GetVertexName() const;
+
+			/** Description of the vertex. */
+			const FText& GetDescription() const;
+
+			/** Test if a IMetasoundEnvironmentVariable matches the DataType of this vertex.
+			 *
+			 * @param InVariable - Environment variable object.
+			 *
+			 * @return True if the types are equal, false otherwise.
+			 */
+			bool IsVariableOfSameType(const IMetasoundEnvironmentVariable& InVariable) const;
+
+			friend bool METASOUNDGRAPHCORE_API operator==(const FEnvironmentVertex& InLHS, const FEnvironmentVertex& InRHS);
+			friend bool METASOUNDGRAPHCORE_API operator!=(const FEnvironmentVertex& InLHS, const FEnvironmentVertex& InRHS);
+			friend bool METASOUNDGRAPHCORE_API operator<(const FEnvironmentVertex& InLHS, const FEnvironmentVertex& InRHS);
+
+		private:
+
+			TUniquePtr<FEnvironmentVertexModel> VertexModel;
+	};
+
+
+	/** Create an FVertexKey from a FDataVertex. */
+	FORCEINLINE FVertexKey MakeDataVertexKey(const FInputDataVertex& InVertex)
 	{
 		return InVertex.GetVertexName();
 	}
 
-	/** Create an FDataVertexKey from a FDataVertex. */
-	FORCEINLINE FDataVertexKey MakeDataVertexKey(const FOutputDataVertex& InVertex)
+	/** Create an FVertexKey from a FDataVertex. */
+	FORCEINLINE FVertexKey MakeDataVertexKey(const FOutputDataVertex& InVertex)
+	{
+		return InVertex.GetVertexName();
+	}
+
+	/** Create an FVertexKey from a FEnvironmentVariableVertex. */
+	FORCEINLINE FVertexKey MakeEnvironmentVertexKey(const FEnvironmentVertex& InVertex)
 	{
 		return InVertex.GetVertexName();
 	}
 
 	/** TVertexInterfaceGroups encapsulates multiple related data vertices. It 
-	 * requires that each vertex in the group have a unique FDataVertexKey.
+	 * requires that each vertex in the group have a unique FVertexKey.
 	 */
 	template<typename VertexType>
 	class TVertexInterfaceGroup
 	{
-			static_assert(std::is_base_of<FInputDataVertex, VertexType>::value || std::is_base_of<FOutputDataVertex, VertexType>::value, "VertexType must be derived from either FInputDataVertex or FOutputDataVertex");
+			static constexpr bool bIsDerivedFromFInputDataVertex = std::is_base_of<FInputDataVertex, VertexType>::value;
+			static constexpr bool bIsDerivedFromFOutputDataVertex = std::is_base_of<FOutputDataVertex, VertexType>::value;
+			static constexpr bool bIsDerivedFromFEnvironmentVertex = std::is_base_of<FEnvironmentVertex, VertexType>::value;
+			static constexpr bool bIsSupportedVertexType = bIsDerivedFromFInputDataVertex || bIsDerivedFromFOutputDataVertex || bIsDerivedFromFEnvironmentVertex;
 
-			using FContainerType = TSortedMap<FDataVertexKey, VertexType>;
+			static_assert(bIsSupportedVertexType, "VertexType must be derived from FInputDataVertex, FOutputDataVertex, or FEnvironmentVertex");
+
+			using FContainerType = TSortedMap<FVertexKey, VertexType>;
 
 			// Required for end of recursion.
 			static void CopyInputs(FContainerType& InStorage)
@@ -396,7 +564,7 @@ namespace Metasound
 
 		public:
 
-			using RangedForConstIteratorType = typename TSortedMap<FDataVertexKey, VertexType>::RangedForConstIteratorType;
+			using RangedForConstIteratorType = typename TSortedMap<FVertexKey, VertexType>::RangedForConstIteratorType;
 
 			/** TVertexInterfaceGroup constructor with variadic list of vertex
 			 * models.
@@ -422,20 +590,20 @@ namespace Metasound
 			}
 
 			/** Remove a vertex by key. */
-			bool Remove(const FDataVertexKey& InKey)
+			bool Remove(const FVertexKey& InKey)
 			{
 				int32 NumRemoved = Vertices.Remove();
 				return (NumRemoved > 0);
 			}
 
 			/** Returns true if the group contains a vertex with a matching key. */
-			bool Contains(const FDataVertexKey& InKey) const
+			bool Contains(const FVertexKey& InKey) const
 			{
 				return Vertices.Contains(InKey);
 			}
 
 			/** Return the vertex for a given vertex key. */
-			const VertexType& operator[](const FDataVertexKey& InKey) const
+			const VertexType& operator[](const FVertexKey& InKey) const
 			{
 				return Vertices[InKey];
 			}
@@ -482,6 +650,9 @@ namespace Metasound
 	/** FOutputVertexInterface is a TVertexInterfaceGroup which holds FOutputDataVertexes. */
 	typedef TVertexInterfaceGroup<FOutputDataVertex> FOutputVertexInterface;
 
+	/** FEnvironmentVertexInterface is a TVertexInterfaceGroup which holds FEnvironmentVertexes. */
+	typedef TVertexInterfaceGroup<FEnvironmentVertex> FEnvironmentVertexInterface;
+
 	/** FVertexInterface provides access to a collection of input and output vertex
 	 * interfaces. 
 	 */
@@ -495,6 +666,9 @@ namespace Metasound
 			/** Construct with an input and output interface. */
 			FVertexInterface(const FInputVertexInterface& InInputs, const FOutputVertexInterface& InOutputs);
 
+			/** Construct with input, output and environment interface. */
+			FVertexInterface(const FInputVertexInterface& InInputs, const FOutputVertexInterface& InOutputs, const FEnvironmentVertexInterface& InEnvironmentVariables);
+
 			/** Return the input interface. */
 			const FInputVertexInterface& GetInputInterface() const;
 
@@ -502,10 +676,10 @@ namespace Metasound
 			FInputVertexInterface& GetInputInterface();
 
 			/** Return an input vertex. */
-			const FInputDataVertex& GetInputVertex(const FDataVertexKey& InKey) const;
+			const FInputDataVertex& GetInputVertex(const FVertexKey& InKey) const;
 
 			/** Returns true if an input vertex with the given key exists. */
-			bool ContainsInputVertex(const FDataVertexKey& InKey) const;
+			bool ContainsInputVertex(const FVertexKey& InKey) const;
 
 			/** Return the output interface. */
 			const FOutputVertexInterface& GetOutputInterface() const;
@@ -514,10 +688,22 @@ namespace Metasound
 			FOutputVertexInterface& GetOutputInterface();
 
 			/** Return an output vertex. */
-			const FOutputDataVertex& GetOutputVertex(const FDataVertexKey& InKey) const;
+			const FOutputDataVertex& GetOutputVertex(const FVertexKey& InKey) const;
 
 			/** Returns true if an outptu vertex with the given key exists. */
-			bool ContainsOutputVertex(const FDataVertexKey& InKey) const;
+			bool ContainsOutputVertex(const FVertexKey& InKey) const;
+
+			/** Return the output interface. */
+			const FEnvironmentVertexInterface& GetEnvironmentInterface() const;
+
+			/** Return the output interface. */
+			FEnvironmentVertexInterface& GetEnvironmentInterface();
+
+			/** Return an output vertex. */
+			const FEnvironmentVertex& GetEnvironmentVertex(const FVertexKey& InKey) const;
+
+			/** Returns true if an outptu vertex with the given key exists. */
+			bool ContainsEnvironmentVertex(const FVertexKey& InKey) const;
 
 			/** Test for equality between two interfaces. */
 			friend bool METASOUNDGRAPHCORE_API operator==(const FVertexInterface& InLHS, const FVertexInterface& InRHS);
@@ -529,5 +715,6 @@ namespace Metasound
 
 			FInputVertexInterface InputInterface;
 			FOutputVertexInterface OutputInterface;
+			FEnvironmentVertexInterface EnvironmentInterface;
 	};
 }

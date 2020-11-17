@@ -2,10 +2,11 @@
 
 #include "SynthComponentMetasoundExample.h"
 
-#include "MetasoundOperatorInterface.h"
-#include "MetasoundNodeInterface.h"
 #include "MetasoundAudioFormats.h"
+#include "MetasoundEnvironment.h"
 #include "MetasoundGenerator.h"
+#include "MetasoundNodeInterface.h"
+#include "MetasoundOperatorInterface.h"
 
 #include "MetasoundOscNode.h"
 #include "MetasoundAudioMultiplyNode.h"
@@ -219,11 +220,12 @@ ISoundGeneratorPtr USynthComponentMetasoundExample::CreateSoundGenerator(const F
 
 	TUniquePtr<FSynthComponentMetasoundExampleGraph> ExampleGraph = CreateSynthComponentMetasoundExampleGraph();
 
-	FOperatorSettings Settings(InParams.SampleRate, InParams.NumFramesPerCallback);
-	FOperatorBuilder Builder(Settings, FOperatorBuilderSettings::GetDefaultSettings());
+	FOperatorBuilder Builder(FOperatorBuilderSettings::GetDefaultSettings());
 
+	FOperatorSettings Settings(InParams.SampleRate, InParams.NumFramesPerCallback);
+	FMetasoundEnvironment Environment;
 	TArray<IOperatorBuilder::FBuildErrorPtr> Errors;
-	FOperatorUniquePtr Operator = Builder.BuildGraphOperator(*ExampleGraph->Graph, Errors);
+	FOperatorUniquePtr Operator = Builder.BuildGraphOperator(*ExampleGraph->Graph, Settings, Environment, Errors);
 
 	SetGraphOperator(MoveTemp(Operator), Settings, TEXT("Audio"));
 

@@ -143,6 +143,24 @@ struct FMetasoundOutputDescription
 	FText ToolTip;
 };
 
+USTRUCT() 
+struct FMetasoundEnvironmentVariableDescription
+{
+	GENERATED_BODY()
+
+	// The name of this environment variable.
+	UPROPERTY(VisibleAnywhere, Category = CustomView)
+	FString Name;
+
+	// The name of this input displayed to users.
+	UPROPERTY(EditAnywhere, Category = Parameters, meta = (DisplayName = "Name"))
+	FText DisplayName;
+
+	// Optional description text about this input.
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	FText ToolTip;
+};
+
 // This is used to describe a single incoming connection or literal for a given input on a FMetasoundNodeDescription.
 USTRUCT()
 struct FMetasoundNodeConnectionDescription
@@ -256,6 +274,9 @@ struct FMetasoundClassDescription
 	UPROPERTY(EditAnywhere, Category = CustomView)
 	TArray<FMetasoundOutputDescription> Outputs;
 
+	UPROPERTY(EditAnywhere, Category = CustomView)
+	TArray<FMetasoundEnvironmentVariableDescription> EnvironmentVariables;
+
 	// If this object is itself of the Metasound type, here we list the unique IDs of other objects it depends on to be built.
 	// These unique IDs are then found in FMetasoundDocument::Dependencies.
 	UPROPERTY()
@@ -292,6 +313,10 @@ struct FMetasoundArchetype
 	// call Special Outputs
 	UPROPERTY()
 	TArray<FMetasoundOutputDescription> RequiredOutputs;
+
+	// The environment variables supplied by the archetype.
+	UPROPERTY()
+	TArray<FMetasoundEnvironmentVariableDescription> EnvironmentVariables;
 };
 
 // Outermost description of a single metasound.
