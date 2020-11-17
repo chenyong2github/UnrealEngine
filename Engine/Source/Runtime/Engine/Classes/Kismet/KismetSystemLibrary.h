@@ -316,6 +316,14 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	static int32 MakeLiteralInt(int32 Value);
 
 	/**
+	 * Creates a literal 64-bit integer
+	 * @param	Value	value to set the 64-bit integer to
+	 * @return	The literal 64-bit integer
+	 */
+	UFUNCTION(BlueprintPure, Category = "Math|Integer", meta = (BlueprintThreadSafe))
+	static int64 MakeLiteralInt64(int64 Value);
+
+	/**
 	 * Creates a literal float
 	 * @param	Value	value to set the float to
 	 * @return	The literal float
@@ -2004,6 +2012,11 @@ FORCEINLINE_DEBUGGABLE bool UKismetSystemLibrary::IsValidClass(UClass* Class)
 }
 
 FORCEINLINE int32 UKismetSystemLibrary::MakeLiteralInt(int32 Value)
+{
+	return Value;
+}
+
+FORCEINLINE int64 UKismetSystemLibrary::MakeLiteralInt64(int64 Value)
 {
 	return Value;
 }
