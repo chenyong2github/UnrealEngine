@@ -1308,7 +1308,6 @@ static void SortGroupClusters(TArray<FClusterGroup>& ClusterGroups, const TArray
 */
 
 static void AssignClustersToPages(
-	FResources& Resources,
 	TArray< FClusterGroup >& ClusterGroups,
 	TArray< FCluster >& Clusters,
 	const TArray< FEncodingInfo >& EncodingInfos,
@@ -3783,7 +3782,7 @@ void Encode(
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::AssignClustersToPages"));
-		AssignClustersToPages(Resources, Groups, Clusters, EncodingInfos, Pages, GroupParts);
+		AssignClustersToPages(Groups, Clusters, EncodingInfos, Pages, GroupParts);
 	}
 
 	TArray< Nanite::FHierarchyNode > HierarchyNodes;
