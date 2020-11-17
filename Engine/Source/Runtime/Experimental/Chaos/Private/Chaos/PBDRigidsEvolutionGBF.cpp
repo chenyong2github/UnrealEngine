@@ -141,8 +141,8 @@ void TPBDRigidsEvolutionGBF<Traits>::Advance(const FReal Dt,const FReal MaxStepD
 		for (int32 Step = 0; Step < NumSteps; ++Step)
 		{
 			// StepFraction: how much of the remaining time this step represents, used to interpolate kinematic targets
-			// E.g., for 4 steps this will be: 1/4, 1/3, 1/2, 1
-			const float StepFraction = (FReal)1 / (FReal)(NumSteps - Step);
+			// E.g., for 4 steps this will be: 1/4, 1/2, 3/4, 1
+			const float StepFraction = (FReal)(Step + 1) / (NumSteps);
 		
 			UE_LOG(LogChaos, Verbose, TEXT("Advance dt = %f [%d/%d]"), StepDt, Step + 1, NumSteps);
 
