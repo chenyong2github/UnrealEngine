@@ -6,7 +6,8 @@
 /* UMovieSceneCinematicshotSection structors
  *****************************************************************************/
 
-UMovieSceneCinematicShotSection::UMovieSceneCinematicShotSection() : UMovieSceneSubSection()
+UMovieSceneCinematicShotSection::UMovieSceneCinematicShotSection(const FObjectInitializer& ObjInitializer)
+	: Super(ObjInitializer)
 { }
 
 void UMovieSceneCinematicShotSection::PostLoad()
