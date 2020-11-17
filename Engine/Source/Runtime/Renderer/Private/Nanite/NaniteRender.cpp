@@ -4531,6 +4531,7 @@ void DrawLumenMeshCapturePass(
 	FIntPoint ViewportSize,
 	FRDGTextureRef AlbedoAtlasTexture,
 	FRDGTextureRef NormalAtlasTexture,
+	FRDGTextureRef EmissiveAtlasTexture,
 	FRDGTextureRef DepthAtlasTexture
 	)
 {
@@ -4652,6 +4653,7 @@ void DrawLumenMeshCapturePass(
 
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(AlbedoAtlasTexture, ERenderTargetLoadAction::ELoad);
 		PassParameters->RenderTargets[1] = FRenderTargetBinding(NormalAtlasTexture, ERenderTargetLoadAction::ELoad);
+		PassParameters->RenderTargets[2] = FRenderTargetBinding(EmissiveAtlasTexture, ERenderTargetLoadAction::ELoad);
 
 		PassParameters->View = SharedView->ViewUniformBuffer; // To get VTFeedbackBuffer
 		PassParameters->CardPass = GraphBuilder.CreateUniformBuffer(PassUniformParameters);

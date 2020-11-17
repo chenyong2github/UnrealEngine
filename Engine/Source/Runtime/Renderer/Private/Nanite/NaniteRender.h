@@ -644,6 +644,7 @@ void DrawLumenMeshCapturePass(
 	FIntPoint ViewportSize,
 	FRDGTextureRef AlbedoAtlasTexture,
 	FRDGTextureRef NormalAtlasTexture,
+	FRDGTextureRef EmissiveAtlasTexture,
 	FRDGTextureRef DepthAtlasTexture
 );
 

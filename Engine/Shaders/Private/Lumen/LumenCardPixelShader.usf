@@ -23,7 +23,8 @@ void Main(
 	in INPUT_POSITION_QUALIFIERS float4 SvPosition : SV_Position		// after all interpolators
 	OPTIONAL_IsFrontFace,
 	out float4 OutTarget0 : SV_Target0,
-	out float4 OutTarget1 : SV_Target1)
+	out float4 OutTarget1 : SV_Target1,
+	out float4 OutTarget2 : SV_Target2)
 {
 	ResolvedView = ResolveView();
 
@@ -53,4 +54,5 @@ void Main(
 	//@todo DynamicGI better encoding for low precision, hemispherical normal encoding
 	OutTarget0 = float4(sqrt(DiffuseColor), Opacity);
 	OutTarget1 = float4(MaterialParameters.WorldNormal * .5f + .5f, 0);
+	OutTarget2 = float4(GetMaterialEmissive(PixelMaterialInputs), 0);
 }

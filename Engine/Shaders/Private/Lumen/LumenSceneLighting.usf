@@ -464,15 +464,14 @@ void LumenCardPrefilterLightingPS(
 Texture2D RadiosityAtlas;
 Texture2D OpacityAtlas;
 
-void LumenCardLightingCombinePS(
+void LumenCardLightingInitializePS(
 	FCardVSToPS CardInterpolants,
 	out float4 OutColor : SV_Target0)
 {   
 	float3 Radiosity = Texture2DSampleLevel(RadiosityAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).xyz;
-
+	
 	// Secure again strange values, as we are writing it to a persistent atlas with a feedback loop
 	Radiosity = max(MakeFinite(Radiosity), float3(0.0f, 0.0f, 0.0f));
-
 	OutColor = float4(Radiosity, 0);
 }
 
@@ -487,11 +486,13 @@ void LumenCardCopyAtlasPS(
 }
 
 Texture2D AlbedoAtlas;
+Texture2D EmissiveAtlas;
 float DiffuseReflectivityOverride;
 
 void LumenCardBlendAlbedoPS(
 	FCardVSToPS CardInterpolants,
-	out float4 OutColor : SV_Target0)
+	out float4 OutColor0 : SV_Target0,
+	out float4 OutColor1 : SV_Target1)
 {
 	float3 AlbedoSqr = Texture2DSampleLevel(AlbedoAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).xyz;
 	float3 DiffuseColor = AlbedoSqr * AlbedoSqr;
@@ -502,14 +503,18 @@ void LumenCardBlendAlbedoPS(
 		DiffuseColor = saturate(DiffuseColor * max(DiffuseReflectivityOverride / max(DiffuseMaxComponent, .0001f), 1.0f));
 	}
 
-	OutColor = float4(Diffuse_Lambert(DiffuseColor), 0);
+	float3 Emissive = Texture2DSampleLevel(EmissiveAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).xyz;
+	OutColor0 = float4(Emissive, 0);
+	OutColor1 = float4(Diffuse_Lambert(DiffuseColor), 0);
 }
 
 void ClearLumenCardsPS(
 	out float4 OutAlbedo : SV_Target0,
-	out float4 OutNormals : SV_Target1
+	out float4 OutNormals : SV_Target1,
+	out float4 OutEmissive : SV_Target2
 )
 {
 	OutAlbedo = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	OutNormals = float4(0.0f, 0.0f, 0.0f, 0.0f);
+	OutEmissive = float4(0.0f, 0.0f, 0.0f, 0.0f);
 }

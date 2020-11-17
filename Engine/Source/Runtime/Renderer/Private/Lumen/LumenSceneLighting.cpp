@@ -325,10 +325,10 @@ uint32 FLumenCardScatterContext::GetIndirectArgOffset(int32 ScatterInstanceIndex
 	return ScatterInstanceIndex * sizeof(FRHIDrawIndexedIndirectParameters);
 }
 
-class FLumenCardLightingCombinePS : public FGlobalShader
+class FLumenCardLightingInitializePS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FLumenCardLightingCombinePS);
-	SHADER_USE_PARAMETER_STRUCT(FLumenCardLightingCombinePS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FLumenCardLightingInitializePS);
+	SHADER_USE_PARAMETER_STRUCT(FLumenCardLightingInitializePS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -345,11 +345,11 @@ class FLumenCardLightingCombinePS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FLumenCardLightingCombinePS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "LumenCardLightingCombinePS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FLumenCardLightingInitializePS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "LumenCardLightingInitializePS", SF_Pixel);
 
-BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardLightingCombine, )
+BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardLightingEmissive, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToCardsVS::FParameters, VS)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardLightingCombinePS::FParameters, PS)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardLightingInitializePS::FParameters, PS)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -389,6 +389,7 @@ class FLumenCardBlendAlbedoPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AlbedoAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EmissiveAtlas)
 		SHADER_PARAMETER(float, DiffuseReflectivityOverride)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -423,7 +424,7 @@ void CombineLumenSceneLighting(
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
 	{
-		FLumenCardLightingCombine* PassParameters = GraphBuilder.AllocParameters<FLumenCardLightingCombine>();
+		FLumenCardLightingEmissive* PassParameters = GraphBuilder.AllocParameters<FLumenCardLightingEmissive>();
 		
 		extern int32 GLumenRadiosityDownsampleFactor;
 		FVector2D CardUVSamplingOffset = FVector2D::ZeroVector;
@@ -450,8 +451,8 @@ void CombineLumenSceneLighting(
 			ERDGPassFlags::Raster,
 			[MaxAtlasSize = Scene->LumenSceneData->MaxAtlasSize, PassParameters, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
 		{
-			FLumenCardLightingCombinePS::FPermutationDomain PermutationVector;
-			auto PixelShader = GlobalShaderMap->GetShader< FLumenCardLightingCombinePS >(PermutationVector);
+			FLumenCardLightingInitializePS::FPermutationDomain PermutationVector;
+			auto PixelShader = GlobalShaderMap->GetShader< FLumenCardLightingInitializePS >(PermutationVector);
 
 			DrawQuadsToAtlas(MaxAtlasSize, PixelShader, PassParameters, GlobalShaderMap, TStaticBlendState<>::GetRHI(), RHICmdList);
 		});
@@ -505,6 +506,7 @@ void ApplyLumenCardAlbedo(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureRef FinalLightingAtlas,
 	FRDGTextureRef AlbedoAtlas,
+	FRDGTextureRef EmissiveAtlas, 
 	FGlobalShaderMap* GlobalShaderMap,
 	const FLumenCardScatterContext& VisibleCardScatterContext
 )
@@ -521,6 +523,7 @@ void ApplyLumenCardAlbedo(
 	PassParameters->PS.View = View.ViewUniformBuffer;
 	PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
 	PassParameters->PS.AlbedoAtlas = AlbedoAtlas;
+	PassParameters->PS.EmissiveAtlas = EmissiveAtlas;
 	PassParameters->PS.DiffuseReflectivityOverride = FMath::Clamp<float>(GLumenSceneDiffuseReflectivityOverride, 0.0f, 1.0f);
 
 	GraphBuilder.AddPass(
@@ -536,7 +539,7 @@ void ApplyLumenCardAlbedo(
 			PixelShader,
 			PassParameters,
 			GlobalShaderMap,
-			TStaticBlendState<CW_RGB, BO_Add, BF_Zero, BF_SourceColor>::GetRHI(),
+			TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_Source1Color>::GetRHI(),	// Add Emissive, multiply accumulated lighting with Albedo which is output to SV_Target1 (dual source blending)
 			RHICmdList);
 	});
 }
@@ -671,12 +674,14 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 		}
 
 		FRDGTextureRef AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas, TEXT("AlbedoAtlas"));
+		FRDGTextureRef EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas, TEXT("EmissiveAtlas"));
 		ApplyLumenCardAlbedo(
 			Scene,
 			View,
 			GraphBuilder,
 			TracingInputs.FinalLightingAtlas,
 			AlbedoAtlas,
+			EmissiveAtlas,
 			GlobalShaderMap,
 			DirectLightingCardScatterContext);
 

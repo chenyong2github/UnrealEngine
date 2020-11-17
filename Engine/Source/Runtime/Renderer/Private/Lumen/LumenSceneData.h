@@ -41,6 +41,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, PrimitiveToDFObjectIndexBuffer)
 	SHADER_PARAMETER_TEXTURE(Texture2D, AlbedoAtlas)
 	SHADER_PARAMETER_TEXTURE(Texture2D, NormalAtlas)
+	SHADER_PARAMETER_TEXTURE(Texture2D, EmissiveAtlas)
 	SHADER_PARAMETER_TEXTURE(Texture2D, DepthBufferAtlas)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -217,6 +218,7 @@ public:
 	// --- Captured from the triangle scene ---
 	TRefCountPtr<IPooledRenderTarget> AlbedoAtlas;
 	TRefCountPtr<IPooledRenderTarget> NormalAtlas;
+	TRefCountPtr<IPooledRenderTarget> EmissiveAtlas;
 	// Inverted Z
 	TRefCountPtr<IPooledRenderTarget> DepthBufferAtlas;
 

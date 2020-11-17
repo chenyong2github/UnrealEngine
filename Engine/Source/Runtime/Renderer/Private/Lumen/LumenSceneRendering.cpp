@@ -922,6 +922,9 @@ void AllocateCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneD
 	Desc.AutoWritable = false;
 	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, LumenSceneData.AlbedoAtlas, TEXT("LumenSceneAlbedo"), ERenderTargetTransience::NonTransient);
 	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, LumenSceneData.NormalAtlas, TEXT("LumenSceneNormal"), ERenderTargetTransience::NonTransient);
+	
+	FPooledRenderTargetDesc EmissiveDesc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.MaxAtlasSize, PF_FloatR11G11B10, FClearValueBinding::Green, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false));
+	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, EmissiveDesc, LumenSceneData.EmissiveAtlas, TEXT("LumenSceneEmissive"), ERenderTargetTransience::NonTransient);
 
 	FPooledRenderTargetDesc DepthBufferDesc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.MaxAtlasSize, PF_DepthStencil, FClearValueBinding::DepthZero, TexCreate_None, TexCreate_ShaderResource | TexCreate_DepthStencilTargetable | TexCreate_NoFastClear, false));
 	DepthBufferDesc.AutoWritable = false;
@@ -1778,12 +1781,14 @@ void SetupLumenCardSceneParameters(FScene* Scene, FLumenCardScene& OutParameters
 	{
 		OutParameters.AlbedoAtlas = LumenSceneData.AlbedoAtlas->GetRenderTargetItem().ShaderResourceTexture;
 		OutParameters.NormalAtlas = LumenSceneData.NormalAtlas->GetRenderTargetItem().ShaderResourceTexture;
+		OutParameters.EmissiveAtlas = LumenSceneData.EmissiveAtlas->GetRenderTargetItem().ShaderResourceTexture;
 		OutParameters.DepthBufferAtlas = LumenSceneData.DepthBufferAtlas->GetRenderTargetItem().ShaderResourceTexture;
 	}
 	else
 	{
 		OutParameters.AlbedoAtlas = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
 		OutParameters.NormalAtlas = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
+		OutParameters.EmissiveAtlas = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
 		OutParameters.DepthBufferAtlas = GSystemTextures.DepthDummy->GetRenderTargetItem().ShaderResourceTexture;
 	}
 	
@@ -1892,6 +1897,7 @@ void ClearLumenCards(FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FRDGTextureRef AlbedoAtlas,
 	FRDGTextureRef NormalAtlas,
+	FRDGTextureRef EmissiveAtlas,
 	FRDGTextureRef DepthBufferAtlas,
 	FIntPoint ViewportSize,
 	FRDGBufferSRVRef RectMinMaxBufferSRV,
@@ -1903,6 +1909,7 @@ void ClearLumenCards(FRDGBuilder& GraphBuilder,
 
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(AlbedoAtlas, ERenderTargetLoadAction::ELoad);
 	PassParameters->RenderTargets[1] = FRenderTargetBinding(NormalAtlas, ERenderTargetLoadAction::ELoad);
+	PassParameters->RenderTargets[2] = FRenderTargetBinding(EmissiveAtlas, ERenderTargetLoadAction::ELoad);
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(DepthBufferAtlas, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
 	auto PixelShader = View.ShaderMap->GetShader<FClearLumenCardsPS>();
@@ -1979,6 +1986,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 			FRDGTextureRef DepthAtlasTexture = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthBufferAtlas);
 			FRDGTextureRef AlbedoAtlasTexture = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas);
 			FRDGTextureRef NormalAtlasTexture = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
+			FRDGTextureRef EmissiveAtlasTexture = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas);
 
 			uint32 NumRects = 0;
 			FRDGBufferRef RectMinMaxBuffer = nullptr;
@@ -2004,7 +2012,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 				FPixelShaderUtils::UploadRectMinMaxBuffer(GraphBuilder, RectMinMaxToRender, RectMinMaxBuffer);
 
 				FRDGBufferSRVRef RectMinMaxBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(RectMinMaxBuffer, PF_R32G32B32A32_UINT));
-				ClearLumenCards(GraphBuilder, Views[0], AlbedoAtlasTexture, NormalAtlasTexture, DepthAtlasTexture, LumenSceneData.MaxAtlasSize, RectMinMaxBufferSRV, NumRects);
+				ClearLumenCards(GraphBuilder, Views[0], AlbedoAtlasTexture, NormalAtlasTexture, EmissiveAtlasTexture, DepthAtlasTexture, LumenSceneData.MaxAtlasSize, RectMinMaxBufferSRV, NumRects);
 			}
 
 			FViewInfo* SharedView = Views[0].CreateSnapshot();
@@ -2034,6 +2042,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 				PassParameters->CardPass = GraphBuilder.CreateUniformBuffer(PassUniformParameters);
 				PassParameters->RenderTargets[0] = FRenderTargetBinding(AlbedoAtlasTexture, ERenderTargetLoadAction::ELoad);
 				PassParameters->RenderTargets[1] = FRenderTargetBinding(NormalAtlasTexture, ERenderTargetLoadAction::ELoad);
+				PassParameters->RenderTargets[2] = FRenderTargetBinding(EmissiveAtlasTexture, ERenderTargetLoadAction::ELoad);
 				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(DepthAtlasTexture, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilNop);
 
 				GraphBuilder.AddPass(
@@ -2235,6 +2244,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 					LumenSceneData.MaxAtlasSize,
 					AlbedoAtlasTexture,
 					NormalAtlasTexture,
+					EmissiveAtlasTexture,
 					DepthAtlasTexture
 				);
 			}
