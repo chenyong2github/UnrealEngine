@@ -102,9 +102,14 @@ protected:
 	FColor PreHoverPointColor;
 
 	// Support for Shift and Ctrl toggle
-	bool bAddToSelectionToggle = false;
-	const int32 AddToSelectionModifierId = 1;
-	
+	bool bShiftToggle = false;
+	bool bCtrlToggle = false;
+	static const int32 ShiftModifierID = 1;
+	static const int32 CtrlModifierID = 2;
+
+	// Default modifier key behavior is consistent with PolygonSelectionMechanic
+	TFunction<bool(void)> ShouldAddToSelectionFunc = [this]() {return bShiftToggle; };
+	TFunction<bool(void)> ShouldRemoveFromSelectionFunc = [this]() {return bCtrlToggle; };
 
 	// Support for gizmo. Since the points aren't individual components, we don't actually use UTransformProxy
 	// for the transform forwarding- we just use it for the callbacks.
@@ -130,7 +135,8 @@ protected:
 	void ClearHover();
 
 	// Support for selection
-	TArray<int32> SelectedPointIDs;
+	TSet<int32> SelectedPointIDs;
+	TSet<int32> PreDragSelection;
 	URectangleMarqueeMechanic* MarqueeMechanic;
 	TArray<int32> CurrentDragSelection;
 	void OnDragRectangleStarted();
@@ -138,7 +144,7 @@ protected:
 	void OnDragRectangleFinished();
 
 	// We need the selected point start positions so we can move multiple points appropriately.
-	TArray<FVector3d> SelectedPointStartPositions;
+	TMap<int32, FVector3d> SelectedPointStartPositions;
 
 	// The starting point of the gizmo is needed to determine the offset by which to move the points.
 	// TODO: Replace with single FTransform?
@@ -155,7 +161,7 @@ protected:
 	void SelectPoint(int32 PointID);
 	bool DeselectPoint(int32 PointID);
 	void UpdateGizmoLocation();
-	void UpdatePointLocations(const TArray<int32>& PointIDs, const TArray<FVector3d>& NewLocations);
+	void UpdatePointLocations(const TMap<int32, FVector3d>& NewLocations);
 
 	void RebuildDrawables();
 	void UpdateDrawables();
@@ -177,7 +183,7 @@ public:
 	FLatticeControlPointsMechanicSelectionChange(int32 PointIDIn, bool bAddedIn, const FTransform& PreviousTransformIn,
 												 const FTransform& NewTransformIn, int32 ChangeStampIn);
 
-	FLatticeControlPointsMechanicSelectionChange(const TArray<int32>& PointIDsIn, bool bAddedIn, const FTransform& PreviousTransformIn,
+	FLatticeControlPointsMechanicSelectionChange(const TSet<int32>& PointIDsIn, bool bAddedIn, const FTransform& PreviousTransformIn,
 												 const FTransform& NewTransformIn, int32 ChangeStampIn);
 
 	virtual void Apply(UObject* Object) override;
@@ -189,7 +195,7 @@ public:
 	virtual FString ToString() const override;
 
 protected:
-	TArray<int32> PointIDs;
+	TSet<int32> PointIDs;
 	bool bAdded;
 
 	const FTransform PreviousTransform;
@@ -204,9 +210,9 @@ class MODELINGCOMPONENTS_API FLatticeControlPointsMechanicMovementChange : publi
 {
 public:
 
-	FLatticeControlPointsMechanicMovementChange(const TArray<int32>& PointIDsIn, 
-		const TArray<FVector3d>& OriginalPositionIn,
-		const TArray<FVector3d>& NewPositionIn, 
+	FLatticeControlPointsMechanicMovementChange(
+		const TMap<int32, FVector3d>& OriginalPositionsIn,
+		const TMap<int32, FVector3d>& NewPositionsIn,
 		int32 ChangeStampIn,
 		bool bFirstMovementIn);
 
@@ -220,9 +226,8 @@ public:
 
 protected:
 
-	TArray<int32> PointIDs;
-	TArray<FVector3d> OriginalPositions;
-	TArray<FVector3d> NewPositions;
+	TMap<int32, FVector3d> OriginalPositions;
+	TMap<int32, FVector3d> NewPositions;
 	int32 ChangeStamp;
 	bool bFirstMovement;
 };
