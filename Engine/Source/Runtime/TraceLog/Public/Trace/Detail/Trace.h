@@ -79,7 +79,7 @@ class FChannel;
 			{ \
 				using namespace UE::Trace; \
 				static F##LoggerName##EventName##Fields Fields; \
-				static Private::FEventInfo Info = \
+				static UE::Trace::Private::FEventInfo Info = \
 				{ \
 					FLiteralName(#LoggerName), \
 					FLiteralName(#EventName), \
