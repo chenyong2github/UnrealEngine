@@ -154,7 +154,7 @@ private:
 	void MarkWidgetUpdatedThisFrame();
 	
 	void MarkWidgetDirty(EInvalidateWidgetReason InvalidateReason);
-	void UpdateWidgetFlags(const SWidget* Widget, EWidgetUpdateFlags NewFlags);
+	SLATECORE_API void UpdateWidgetFlags(const SWidget* Widget, EWidgetUpdateFlags NewFlags);
 
 private:
 	FWidgetProxyHandle(const FSlateInvalidationRootHandle& InInvalidationRoot, FSlateInvalidationWidgetIndex InIndex, FSlateInvalidationWidgetSortOrder InSortIndex, int32 InGenerationNumber);
