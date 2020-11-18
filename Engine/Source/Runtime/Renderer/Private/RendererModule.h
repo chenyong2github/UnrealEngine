@@ -21,6 +21,7 @@ class FSceneViewFamily;
 class FSceneViewStateInterface;
 struct FMeshBatch;
 struct FSynthBenchmarkResults;
+struct FSceneTextures;
 
 template<class ResourceType> class TGlobalResource;
 
