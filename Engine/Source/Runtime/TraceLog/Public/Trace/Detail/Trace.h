@@ -72,7 +72,7 @@ namespace Trace
 			{ \
 				using namespace Trace; \
 				static F##LoggerName##EventName##Fields Fields; \
-				static Private::FEventInfo Info = \
+				static Trace::Private::FEventInfo Info = \
 				{ \
 					FLiteralName(#LoggerName), \
 					FLiteralName(#EventName), \
