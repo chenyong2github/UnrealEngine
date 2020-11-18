@@ -1,15 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
-/*=============================================================================
-	AudioSettings.cpp: Unreal audio settings
-=============================================================================*/
-
 #include "Sound/AudioSettings.h"
+
+#include "AudioDevice.h"
+#include "AudioDeviceManager.h"
+#include "AudioMixerDevice.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
-#include "Sound/SoundSubmix.h"
 #include "Sound/SoundBase.h"
 #include "Sound/SoundNodeQualityLevel.h"
+#include "Sound/SoundSubmix.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
@@ -125,6 +124,17 @@ void UAudioSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FAudioQualitySettings, DisplayName))
 		{
 			bReconcileQualityNodes = true;
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, DefaultAudioBuses)
+			|| PropertyName == GET_MEMBER_NAME_CHECKED(FDefaultAudioBusSettings, AudioBus))
+		{
+			if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+			{
+				DeviceManager->IterateOverAllDevices([this](Audio::FDeviceId, FAudioDevice* InDevice)
+				{
+					InDevice->InitDefaultAudioBuses();
+				});
+			}
 		}
 
 		if (bReconcileQualityNodes)
