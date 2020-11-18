@@ -2500,7 +2500,10 @@ static void SetupMobileSceneTextureUniformParameters(
 
 	if (bUseCustomDepth)
 	{
-		CustomDepth = GetRDG(SceneContext.MobileCustomDepth);
+		if (SceneContext.MobileCustomDepth)
+		{
+			CustomDepth = GetRDG(SceneContext.MobileCustomDepth);
+		}
 		
 		if (SceneContext.MobileCustomStencil && (SceneContext.MobileCustomStencil->GetDesc().Flags & TexCreate_Memoryless) == 0)
 		{
