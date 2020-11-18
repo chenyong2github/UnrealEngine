@@ -3733,7 +3733,7 @@ void FPakPrecacher::DoSignatureCheck(bool bWasCanceled, IAsyncReadRequest* Reque
 class FPakAsyncReadFileHandle final : public IAsyncReadFileHandle
 {
 	FName PakFile;
-	FPakFile* ActualPakFile;
+	TRefCountPtr<FPakFile> ActualPakFile;
 	int64 PakFileSize;
 	int64 OffsetInPak;
 	int64 UncompressedFileSize;
@@ -3761,7 +3761,7 @@ class FPakAsyncReadFileHandle final : public IAsyncReadFileHandle
 
 
 public:
-	FPakAsyncReadFileHandle(const FPakEntry* InFileEntry, FPakFile* InPakFile, const TCHAR* Filename)
+	FPakAsyncReadFileHandle(const FPakEntry* InFileEntry, const TRefCountPtr<FPakFile>& InPakFile, const TCHAR* Filename)
 		: PakFile(InPakFile->GetFilenameName())
 		, ActualPakFile(InPakFile)
 		, PakFileSize(InPakFile->TotalSize())
@@ -3833,10 +3833,12 @@ public:
 
 			if (FileEntry.IsEncrypted())
 			{
+				// Note that the lifetime of FPakEncryptedReadRequest is within our lifetime, so we can send the raw pointer in
 				return new FPakEncryptedReadRequest(ActualPakFile, PakFile, PakFileSize, CompleteCallback, OffsetInPak, Offset, BytesToRead, PriorityAndFlags, UserSuppliedMemory, EncryptionKeyGuid);
 			}
 			else
 			{
+				// Note that the lifetime of FPakReadRequest is within our lifetime, so we can send the raw pointer in
 				return new FPakReadRequest(ActualPakFile, PakFile, PakFileSize, CompleteCallback, OffsetInPak + Offset, BytesToRead, PriorityAndFlags, UserSuppliedMemory);
 			}
 		}
@@ -3889,6 +3891,7 @@ public:
 			Block.RawSize = Align(Block.RawSize, FAES::AESBlockSize);
 		}
 		NumLiveRawRequests++;
+		// Note that the lifetime of FPakEncryptedReadRequest is within our lifetime, so we can send the raw pointer in
 		Block.RawRequest = new FPakReadRequest(ActualPakFile, PakFile, PakFileSize, &ReadCallbackFunction, FileEntry.CompressionBlocks[BlockIndex].CompressedStart + CompressedChunkOffset, Block.RawSize, PriorityAndFlags, nullptr, true, &Block);
 	}
 	void RawReadCallback(bool bWasCancelled, IAsyncReadRequest* InRequest)
@@ -4321,7 +4324,7 @@ class FBypassPakAsyncReadFileHandle final : public IAsyncReadFileHandle
 	IAsyncReadFileHandle* LowerHandle;
 
 public:
-	FBypassPakAsyncReadFileHandle(const FPakEntry* InFileEntry, FPakFile* InPakFile, const TCHAR* Filename)
+	FBypassPakAsyncReadFileHandle(const FPakEntry* InFileEntry, const TRefCountPtr<FPakFile>& InPakFile, const TCHAR* Filename)
 		: PakFile(InPakFile->GetFilenameName())
 		, PakFileSize(InPakFile->TotalSize())
 		, FileEntry(*InFileEntry)
@@ -4382,7 +4385,7 @@ IAsyncReadFileHandle* FPakPlatformFile::OpenAsyncRead(const TCHAR* Filename)
 	if (FPlatformProcess::SupportsMultithreading() && GPakCache_Enable > 0)
 	{
 		FPakEntry FileEntry;
-		FPakFile* PakFile = NULL;
+		TRefCountPtr<FPakFile> PakFile;
 		bool bFoundEntry = FindFileInPakFiles(Filename, &PakFile, &FileEntry);
 		if (bFoundEntry && PakFile && PakFile->GetFilenameName() != NAME_None)
 		{
@@ -4396,7 +4399,7 @@ IAsyncReadFileHandle* FPakPlatformFile::OpenAsyncRead(const TCHAR* Filename)
 #elif PLATFORM_BYPASS_PAK_PRECACHE
 	{
 		FPakEntry FileEntry;
-		FPakFile* PakFile = NULL;
+		TRefCountPtr<FPakFile> PakFile;
 		bool bFoundEntry = FindFileInPakFiles(Filename, &PakFile, &FileEntry);
 		if (bFoundEntry && PakFile && PakFile->GetFilenameName() != NAME_None && FileEntry.CompressionMethodIndex == 0 && !FileEntry.IsEncrypted())
 		{
@@ -4559,8 +4562,8 @@ IMappedFileHandle* FPakPlatformFile::OpenMapped(const TCHAR* Filename)
 
 	// Check pak files first
 	FPakEntry FileEntry;
-	FPakFile* PakEntry = nullptr;
-	if (FindFileInPakFiles(Filename, &PakEntry, &FileEntry) && PakEntry)
+	TRefCountPtr<FPakFile> PakEntry;
+	if (FindFileInPakFiles(Filename, &PakEntry, &FileEntry) && PakEntry.IsValid())
 	{
 		if (FileEntry.CompressionMethodIndex != 0 || (FileEntry.Flags & FPakEntry::Flag_Encrypted) != 0)
 		{
@@ -6794,8 +6797,7 @@ FPakPlatformFile::~FPakPlatformFile()
 		FScopeLock ScopedLock(&PakListCritical);
 		for (int32 PakFileIndex = 0; PakFileIndex < PakFiles.Num(); PakFileIndex++)
 		{
-			delete PakFiles[PakFileIndex].PakFile;
-			PakFiles[PakFileIndex].PakFile = nullptr;
+			PakFiles[PakFileIndex].PakFile.SafeRelease();
 		}
 	}
 }
@@ -7131,8 +7133,8 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 	TSharedPtr<IFileHandle> PakHandle = MakeShareable(LowerLevel->OpenRead(InPakFilename));
 	if (PakHandle.IsValid())
 	{
-		FPakFile* Pak = new FPakFile(LowerLevel, InPakFilename, bSigned, bLoadIndex);
-		if (Pak->IsValid())
+		TRefCountPtr<FPakFile> Pak = new FPakFile(LowerLevel, InPakFilename, bSigned, bLoadIndex);
+		if (Pak.GetReference()->IsValid())
 		{
 			if (!Pak->GetInfo().EncryptionKeyGuid.IsValid() || GetRegisteredEncryptionKeys().HasKey(Pak->GetInfo().EncryptionKeyGuid))
 			{
@@ -7191,7 +7193,7 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 				Entry.EncryptionKeyGuid = Pak->GetInfo().EncryptionKeyGuid;
 				Entry.PakchunkIndex = Pak->PakchunkIndex;
 
-				delete Pak;
+				Pak.SafeRelease();
 				PakHandle.Reset();
 				return false;
 			}
@@ -7244,7 +7246,7 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 		}
 		else
 		{
-			delete Pak;
+			Pak.SafeRelease();
 		}
 	}
 	else
@@ -7271,7 +7273,7 @@ bool FPakPlatformFile::Unmount(const TCHAR* InPakFilename)
 			{
 				FPakListEntry& PakListEntry = PakFiles[PakIndex];
 				RemoveCachedPakSignaturesFile(*PakListEntry.PakFile->GetFilename());
-				delete PakListEntry.PakFile;
+				PakListEntry.PakFile.SafeRelease();
 				PakFiles.RemoveAt(PakIndex);
 				return true;
 			}
@@ -7295,31 +7297,35 @@ bool FPakPlatformFile::ReloadPakReaders()
 	return true;
 }
 
-IFileHandle* FPakPlatformFile::CreatePakFileHandle(const TCHAR* Filename, FPakFile* PakFile, const FPakEntry* FileEntry)
+IFileHandle* FPakPlatformFile::CreatePakFileHandle(const TCHAR* Filename, const TRefCountPtr<FPakFile>& PakFile, const FPakEntry* FileEntry)
 {
 	IFileHandle* Result = NULL;
 	bool bNeedsDelete = true;
-	TFunction<FArchive*()> AcquirePakReader = [PakFile, LowerLevelPlatformFile = LowerLevel]() { return PakFile->GetSharedReader(LowerLevelPlatformFile); };
+	TFunction<FArchive*()> AcquirePakReader = [StoredPakFile=TRefCountPtr<FPakFile>(PakFile), LowerLevelPlatformFile = LowerLevel]()
+	{
+		return StoredPakFile->GetSharedReader(LowerLevelPlatformFile);
+	};
 
 	// Create the handle.
+	const TRefCountPtr<const FPakFile>& ConstPakFile = (const TRefCountPtr<const FPakFile>&)PakFile;
 	if (FileEntry->CompressionMethodIndex != 0 && PakFile->GetInfo().Version >= FPakInfo::PakFile_Version_CompressionEncryption)
 	{
 		if (FileEntry->IsEncrypted())
 		{
-			Result = new FPakFileHandle< FPakCompressedReaderPolicy<FPakSimpleEncryption> >(*PakFile, *FileEntry, AcquirePakReader, bNeedsDelete);
+			Result = new FPakFileHandle< FPakCompressedReaderPolicy<FPakSimpleEncryption> >(ConstPakFile, *FileEntry, AcquirePakReader, bNeedsDelete);
 		}
 		else
 		{
-			Result = new FPakFileHandle< FPakCompressedReaderPolicy<> >(*PakFile, *FileEntry, AcquirePakReader, bNeedsDelete);
+			Result = new FPakFileHandle< FPakCompressedReaderPolicy<> >(ConstPakFile, *FileEntry, AcquirePakReader, bNeedsDelete);
 		}
 	}
 	else if (FileEntry->IsEncrypted())
 	{
-		Result = new FPakFileHandle< FPakReaderPolicy<FPakSimpleEncryption> >(*PakFile, *FileEntry, AcquirePakReader, bNeedsDelete);
+		Result = new FPakFileHandle< FPakReaderPolicy<FPakSimpleEncryption> >(ConstPakFile, *FileEntry, AcquirePakReader, bNeedsDelete);
 	}
 	else
 	{
-		Result = new FPakFileHandle<>(*PakFile, *FileEntry, AcquirePakReader, bNeedsDelete);
+		Result = new FPakFileHandle<>(ConstPakFile, *FileEntry, AcquirePakReader, bNeedsDelete);
 	}
 
 	return Result;
@@ -7539,7 +7545,7 @@ void FPakPlatformFile::RegisterEncryptionKey(const FGuid& InGuid, const FAES::FA
 IFileHandle* FPakPlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)
 {
 	IFileHandle* Result = NULL;
-	FPakFile* PakFile = NULL;
+	TRefCountPtr<FPakFile> PakFile;
 	FPakEntry FileEntry;
 	if (FindFileInPakFiles(Filename, &PakFile, &FileEntry))
 	{
@@ -7646,7 +7652,7 @@ bool FPakPlatformFile::CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFil
 {
 	bool Result = false;
 	FPakEntry FileEntry;
-	FPakFile* PakFile = NULL;
+	TRefCountPtr<FPakFile> PakFile;
 	if (FindFileInPakFiles(From, &PakFile, &FileEntry))
 	{
 		// Copy from pak to LowerLevel->
@@ -7740,11 +7746,11 @@ void FPakPlatformFile::MakeUniquePakFilesForTheseFiles(const TArray<TArray<FStri
 {
 	for (int k = 0; k < InFiles.Num(); k++)
 	{
-		FPakFile* NewPakFile = NULL;
+		TRefCountPtr<FPakFile> NewPakFile;
 		for (int i = 0; i < InFiles[k].Num(); i++)
 		{
 			FPakEntry FileEntry;
-			FPakFile* ExistingRealPakFile = nullptr;
+			TRefCountPtr<FPakFile> ExistingRealPakFile;
 			bool bFoundEntry = FindFileInPakFiles(*InFiles[k][i], &ExistingRealPakFile, &FileEntry);
 			if (bFoundEntry && ExistingRealPakFile && ExistingRealPakFile->GetFilenameName() != NAME_None)
 			{
