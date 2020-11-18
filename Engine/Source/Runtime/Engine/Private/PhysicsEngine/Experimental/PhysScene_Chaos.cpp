@@ -598,7 +598,6 @@ void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 		UE_LOG(LogChaos, Warning, TEXT("Attempted to remove an object that wasn't found in its solver's gamethread storage - it's likely the solver has been mistakenly changed."));
 	}
 	RemoveFromComponentMaps(InObject);
-	RemovePhysicsProxy(InObject, Solver, ChaosModule);
 }
 
 #if XGE_FIXED

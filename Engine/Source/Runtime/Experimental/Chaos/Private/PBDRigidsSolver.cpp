@@ -570,20 +570,33 @@ namespace Chaos
 			InProxy->InitializeBodiesPT(this, *InParticles);
 		});
 	}
-
+	
 	template <typename Traits>
 	bool TPBDRigidsSolver<Traits>::UnregisterObject(FGeometryCollectionPhysicsProxy* InProxy)
 	{
+		check(InProxy);
 		// mark proxy timestamp so we avoid trying to pull from sim after deletion
 		InProxy->SetSyncTimestamp(MarshallingManager.GetExternalTimestamp_External());
 
-		EnqueueCommandImmediate([InProxy,this]()
-		{
-			InProxy->OnRemoveFromSolver(this);
-			InProxy->SetSolver(static_cast<TPBDRigidsSolver<Traits>*>(nullptr));
-		});
-		
-		return GeometryCollectionPhysicsProxies.Remove(InProxy) != 0;
+		RemoveDirtyProxy(InProxy);
+
+		int32 NumRemoved = GeometryCollectionPhysicsProxies_External.Remove(InProxy);
+
+		EnqueueCommandImmediate([InProxy, this]()
+			{
+				GeometryCollectionPhysicsProxies_Internal.RemoveSingle(InProxy);
+
+				const TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = InProxy->GetSolverParticleHandles();
+				for (const Chaos::TPBDRigidClusteredParticleHandle<float, 3> * ParticleHandle : ParticleHandles)
+				{
+					RemoveParticleToProxy(ParticleHandle);
+				}
+
+				InProxy->SyncBeforeDestroy();
+				delete InProxy;
+			});
+
+		return NumRemoved == 1;
 	}
 
 	template <typename Traits>
