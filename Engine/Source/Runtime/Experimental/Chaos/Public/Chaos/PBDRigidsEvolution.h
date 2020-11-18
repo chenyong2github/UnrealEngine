@@ -607,6 +607,10 @@ public:
 		for (auto& Particle : Particles.GetActiveKinematicParticlesView())
 		{
 			TKinematicTarget<FReal, 3>& KinematicTarget = Particle.KinematicTarget();
+			const TRigidTransform<FReal, 3>& Previous = KinematicTarget.GetPrevious();
+			const FVec3 PrevX = Previous.GetTranslation();
+			const FRotation3 PrevR = Previous.GetRotation();
+
 			switch (KinematicTarget.GetMode())
 			{
 			case EKinematicTargetMode::None:
@@ -636,15 +640,15 @@ public:
 				}
 				else
 				{
-					TargetPos = FVec3::Lerp(Particle.X(), KinematicTarget.GetTarget().GetLocation(), StepFraction);
-					TargetRot = FRotation3::Slerp(Particle.R(), KinematicTarget.GetTarget().GetRotation(), StepFraction);
+					TargetPos = FVec3::Lerp(PrevX, KinematicTarget.GetTarget().GetLocation(), StepFraction);
+					TargetRot = FRotation3::Slerp(PrevR, KinematicTarget.GetTarget().GetRotation(), StepFraction);
 				}
 				if (Dt > MinDt)
 				{
-					FVec3 V = FVec3::CalculateVelocity(Particle.X(), TargetPos, Dt);
+					FVec3 V = FVec3::CalculateVelocity(PrevX, TargetPos, Dt);
 					Particle.V() = V;
 
-					FVec3 W = FRotation3::CalculateAngularVelocity(Particle.R(), TargetRot, Dt);
+					FVec3 W = FRotation3::CalculateAngularVelocity(PrevR, TargetRot, Dt);
 					Particle.W() = W;
 				}
 				Particle.X() = TargetPos;
