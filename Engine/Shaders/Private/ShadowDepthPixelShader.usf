@@ -28,7 +28,7 @@
 void Main( 
 	FShadowDepthVSToPS Inputs,
 	in float4 SvPosition : SV_Position		// after all interpolators
-#if PERSPECTIVE_CORRECT_DEPTH
+#if PERSPECTIVE_CORRECT_DEPTH || COMPILER_METAL
 	,out float OutDepth : SV_DEPTH
 #endif
 	)
@@ -64,5 +64,9 @@ void Main(
 	Inputs.ShadowDepth += Inputs.DepthBias;
 
 	OutDepth = saturate(Inputs.ShadowDepth);
+#elif COMPILER_METAL
+	// Metal fragment shader must not be empty,
+	// so output depth value explicitly if this shader permuation was not discarded
+	OutDepth = SvPosition.z;
 #endif
 }
