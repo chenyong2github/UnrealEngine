@@ -53,9 +53,11 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, MaximumCollisionParticles(60)
 	, EnableRemovePiecesOnFracture(false)
 	, GeometryCollection(new FGeometryCollection())
+	, bManualDataCreate(false)
 {
 	PersistentGuid = FGuid::NewGuid();
 	InvalidateCollection();
+	SimulationDataGuid = StateGuid;
 }
 
 FGeometryCollectionSizeSpecificData::FGeometryCollectionSizeSpecificData()
@@ -424,12 +426,18 @@ void UGeometryCollection::CreateSimulationDataImp(bool bCopyFromDDC, const TCHAR
 void UGeometryCollection::CreateSimulationData()
 {
 	CreateSimulationDataImp(/*bCopyFromDDC=*/false);
+	SimulationDataGuid = StateGuid;
 }
 #endif
 
 void UGeometryCollection::InvalidateCollection()
 {
 	StateGuid = FGuid::NewGuid();
+}
+
+bool UGeometryCollection::IsSimulationDataDirty() const
+{
+	return StateGuid != SimulationDataGuid;
 }
 
 FGuid UGeometryCollection::GetIdGuid() const
@@ -448,7 +456,11 @@ void UGeometryCollection::PostEditChangeProperty(struct FPropertyChangedEvent& P
 	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() != GET_MEMBER_NAME_CHECKED(UGeometryCollection, Materials))
 	{
 		InvalidateCollection();
-		CreateSimulationData();
+
+		if (!bManualDataCreate)
+		{
+			CreateSimulationData();
+		}
 	}
 }
 
