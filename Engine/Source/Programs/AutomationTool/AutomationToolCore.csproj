@@ -4,7 +4,7 @@
     <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)obj-core\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
     <BaseOutputPath>$(MSBuildThisFileDirectory)bin-core\$(MSBuildProjectName)\</BaseOutputPath>
   </PropertyGroup>
-  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <Configuration Condition=" '$(Configuration)' == '' ">Development</Configuration>
@@ -44,6 +44,11 @@
         <RuntimeIdentifier>osx-x64</RuntimeIdentifier>
       </PropertyGroup>
     </When>
+    <When Condition="'$(IsWindows)'=='true'">
+      <PropertyGroup>
+        <UseWindowsForms>true</UseWindowsForms>
+      </PropertyGroup>
+    </When>
   </Choose>
   <ItemGroup>
     <Reference Include="Ionic.Zip.Reduced">
@@ -51,8 +56,21 @@
       <Private>true</Private>
     </Reference>
   </ItemGroup>
-  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
 
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk.WindowsDesktop" Condition="'$(IsWindows)'=='true'"/>
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk.WindowsDesktop" Condition="'$(IsWindows)'=='true'"/>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" Condition="'$(IsWindows)'!='true'"/>
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" Condition="'$(IsWindows)'!='true'"/>
+
+  <Choose>
+    <When Condition="'$(IsWindows)'=='true'">
+      <PropertyGroup>
+        <!-- Reset output type back to a console application as the import of WindowsDesktop sets it to a windows executable -->
+        <OutputType>Exe</OutputType>
+      </PropertyGroup>
+    </When>
+  </Choose>
+  
   <ItemGroup>
     <Compile Remove="obj\**" />
     <EmbeddedResource Remove="obj\**" />
@@ -76,8 +94,6 @@
     <ProjectReference Include="AutomationUtils\AutomationUtils.Automation.Core.csproj" />
   </ItemGroup>
 
-  <!-- If building inside visual studio it means we generate projects, thus UBT will have output this file and we do not need to add the relativley slow task of globbing this in msbuild -->
-  <Import Project="AutomationTool.proj" Condition="'$(AutomationToolProjectOnly)' == '' AND '$(BuildingInsideVisualStudio)' != 'true'" />
   <Import Project="AutomationToolCore.csproj.References" Condition="Exists('AutomationToolCore.csproj.References') And '$(AutomationToolProjectOnly)' == ''" />
   
 </Project>

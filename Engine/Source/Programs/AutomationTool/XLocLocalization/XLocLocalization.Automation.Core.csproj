@@ -19,6 +19,7 @@
     <OutputPath>..\..\..\..\Binaries\DotNET\AutomationTool\AutomationScripts</OutputPath>
     <DefineConstants>NET_CORE</DefineConstants>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Development|AnyCPU' ">
     <DefineConstants>NET_CORE;TRACE</DefineConstants>

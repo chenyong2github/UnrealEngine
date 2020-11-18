@@ -22,6 +22,7 @@
     <OutputPath>..\..\..\..\Binaries\DotNET\AutomationTool</OutputPath>
     <Configurations>Debug;Release;Development</Configurations>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
     <ItemGroup>
     <Reference Include="Ionic.Zip.Reduced">

@@ -26,8 +26,12 @@ rem ## Change the CWD to /Engine.
 pushd "%~dp0..\..\"
 if not exist Build\BatchFiles\RunUAT.bat goto Error_BatchFileInWrongLocation
 
+set MSBUILD_LOGLEVEL=quiet
+for %%P in (%*) do if /I "%%P" == "-msbuild-verbose" set MSBUILD_LOGLEVEL=normal
+
 rem ## Use the pre-compiled UAT scripts if -nocompile is specified in the command line
 for %%P in (%*) do if /I "%%P" == "-nocompile" goto RunPrecompiled
+
 
 rem ## If we're running in an installed build, default to precompiled
 if exist Build\InstalledBuild.txt goto RunPrecompiled
@@ -59,7 +63,10 @@ call "%~dp0GetDotnetPath.bat"
 if errorlevel 1 goto Error_NoDotnetSDK
 
 echo Building AutomationTool...
-dotnet build Source\Programs\AutomationTool\AutomationToolCore.csproj -c Development -v quiet 
+dotnet msbuild /restore /property:Configuration=Development /property:AutomationToolProjectOnly=true /verbosity:%MSBUILD_LOGLEVEL% Source\Programs\AutomationTool\AutomationToolCore.csproj
+if errorlevel 1 goto Error_UATCompileFailed
+echo Building AutomationTool Plugins...
+dotnet msbuild /restore /property:Configuration=Development /verbosity:%MSBUILD_LOGLEVEL% Source\Programs\AutomationTool\AutomationTool.proj
 if errorlevel 1 goto Error_UATCompileFailed
 goto DoRunUAT
 

@@ -79,9 +79,17 @@ if [ "$UATCompileArg" = "-compile" ]; then
 		UATCompileArg=
 	else
 		if [ ${UE_USE_DOTNET:=0} -ne 0 ]; then
-			dotnet build Source/Programs/AutomationTool/AutomationToolCore.csproj -c Development
+			echo Building AutomationTool...
+			dotnet msbuild -restore Source/Programs/AutomationTool/AutomationToolCore.csproj /property:Configuration=Development /property:AutomationToolProjectOnly=true /verbosity:quiet
 			if [ $? -ne 0 ]; then
 				echo RunUAT ERROR: AutomationTool failed to compile.
+				exit 1
+			fi
+
+			echo Building AutomationTool Plugins...
+			dotnet msbuild -restore Source/Programs/AutomationTool/AutomationTool.proj /property:Configuration=Development /verbosity:quiet
+			if [ $? -ne 0 ]; then
+				echo RunUAT ERROR: AutomationTool plugins failed to compile.
 				exit 1
 			fi
 		else
