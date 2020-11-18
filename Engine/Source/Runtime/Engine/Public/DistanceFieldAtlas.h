@@ -16,6 +16,7 @@
 #include "TextureLayout3d.h"
 #include "Templates/UniquePtr.h"
 #include "DerivedMeshDataTaskUtils.h"
+#include "Async/AsyncWork.h"
 
 class FDistanceFieldVolumeData;
 class UStaticMesh;
@@ -380,6 +381,26 @@ public:
 	}
 };
 
+class FAsyncDistanceFieldTask;
+class FAsyncDistanceFieldTaskWorker : public FNonAbandonableTask
+{
+public:
+	FAsyncDistanceFieldTaskWorker(FAsyncDistanceFieldTask& InTask)
+		: Task(InTask)
+	{
+	}
+
+	FORCEINLINE TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FAsyncDistanceFieldTaskWorker, STATGROUP_ThreadPoolAsyncTasks);
+	}
+
+	void DoWork();
+
+private:
+	FAsyncDistanceFieldTask& Task;
+};
+
 /** A task to build a distance field for a single mesh */
 class FAsyncDistanceFieldTask
 {
@@ -395,6 +416,7 @@ public:
 	const ITargetPlatform* TargetPlatform;
 	FString DDCKey;
 	FDistanceFieldVolumeData* GeneratedVolumeData;
+	TUniquePtr<FAsyncTask<FAsyncDistanceFieldTaskWorker>> AsyncTask = nullptr;
 };
 
 /** Class that manages asynchronous building of mesh distance fields. */
@@ -408,6 +430,12 @@ public:
 
 	/** Adds a new build task. (Thread-Safe) */
 	ENGINE_API void AddTask(FAsyncDistanceFieldTask* Task);
+
+	/** Cancel the build on this specific static mesh or block until it is completed if already started. */
+	ENGINE_API void CancelBuild(UStaticMesh* StaticMesh);
+
+	/** Blocks the main thread until the async build are either cancelled or completed. */
+	ENGINE_API void CancelAllOutstandingBuilds();
 
 	/** Blocks the main thread until the async build of the specified mesh is complete. */
 	ENGINE_API void BlockUntilBuildComplete(UStaticMesh* StaticMesh, bool bWarnIfBlocked);
@@ -434,12 +462,22 @@ public:
 	}
 
 private:
+	friend FAsyncDistanceFieldTaskWorker;
 	void ProcessPendingTasks();
 
 	TUniquePtr<FQueuedThreadPool> ThreadPool;
 
 	/** Builds a single task with the given threadpool.  Called from the worker thread. */
 	void Build(FAsyncDistanceFieldTask* Task, class FQueuedThreadPool& ThreadPool);
+
+	/** Change the priority of the background task. */
+	void RescheduleBackgroundTask(FAsyncDistanceFieldTask* InTask, EQueuedWorkPriority InPriority);
+
+	/** Task will be sent to a background worker. */
+	void StartBackgroundTask(FAsyncDistanceFieldTask* Task);
+
+	/** Cancel or finish any background work for the given task. */
+	void CancelBackgroundTask(TArray<FAsyncDistanceFieldTask*> Tasks);
 
 	/** Game-thread managed list of tasks in the async system. */
 	TArray<FAsyncDistanceFieldTask*> ReferencedTasks;

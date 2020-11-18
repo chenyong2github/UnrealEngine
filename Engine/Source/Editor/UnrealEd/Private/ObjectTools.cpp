@@ -2604,8 +2604,15 @@ namespace ObjectTools
 			UStaticMesh* StaticMesh = Cast<UStaticMesh>(ObjectToDelete);
 			if (StaticMesh != nullptr)
 			{
-				GDistanceFieldAsyncQueue->BlockUntilBuildComplete(StaticMesh, true);
-				GCardRepresentationAsyncQueue->BlockUntilBuildComplete(StaticMesh, true);
+				if (GDistanceFieldAsyncQueue)
+				{
+					GDistanceFieldAsyncQueue->CancelBuild(StaticMesh);
+				}
+				
+				if (GCardRepresentationAsyncQueue)
+				{
+					GCardRepresentationAsyncQueue->CancelBuild(StaticMesh);
+				}
 			}
 		}
 

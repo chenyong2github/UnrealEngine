@@ -173,17 +173,16 @@ void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bI
 		{
 			if (StaticMesh->GetRenderData())
 			{
-				// #TODO Editor-Perf Those should be canceled instead of blocking on them
-				// Finish any previous async builds before modifying RenderData
+				// Cancel any previous async builds before modifying RenderData
 				// This can happen during import as the mesh is rebuilt redundantly
 				if (GDistanceFieldAsyncQueue)
 				{
-					GDistanceFieldAsyncQueue->BlockUntilBuildComplete(StaticMesh, true);
+					GDistanceFieldAsyncQueue->CancelBuild(StaticMesh);
 				}
 
 				if (GCardRepresentationAsyncQueue)
 				{
-					GCardRepresentationAsyncQueue->BlockUntilBuildComplete(StaticMesh, true);
+					GCardRepresentationAsyncQueue->CancelBuild(StaticMesh);
 				}
 			}
 		}

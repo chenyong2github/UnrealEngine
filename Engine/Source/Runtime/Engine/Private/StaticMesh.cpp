@@ -4880,16 +4880,16 @@ void UStaticMesh::CacheDerivedData()
 		// on the main thread when calling CacheDerivedData() from another thread.
 		if (IsInGameThread())
 		{
-			// Finish any previous async builds before modifying RenderData
+			// Cancel any previous async builds before modifying RenderData
 			// This can happen during import as the mesh is rebuilt redundantly
 			if (GDistanceFieldAsyncQueue)
 			{
-				GDistanceFieldAsyncQueue->BlockUntilBuildComplete(this, true);
+				GDistanceFieldAsyncQueue->CancelBuild(this);
 			}
 
 			if (GCardRepresentationAsyncQueue)
 			{
-				GCardRepresentationAsyncQueue->BlockUntilBuildComplete(this, true);
+				GCardRepresentationAsyncQueue->CancelBuild(this);
 			}
 		}
 

@@ -15,6 +15,7 @@
 #include "RenderingThread.h"
 #include "Templates/UniquePtr.h"
 #include "DerivedMeshDataTaskUtils.h"
+#include "Async/AsyncWork.h"
 
 template <class T> class TLockFreePointerListLIFO;
 
@@ -155,6 +156,27 @@ public:
 	}
 };
 
+
+class FAsyncCardRepresentationTask;
+class FAsyncCardRepresentationTaskWorker : public FNonAbandonableTask
+{
+public:
+	FAsyncCardRepresentationTaskWorker(FAsyncCardRepresentationTask& InTask)
+		: Task(InTask)
+	{
+	}
+
+	FORCEINLINE TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FAsyncCardRepresentationTaskWorker, STATGROUP_ThreadPoolAsyncTasks);
+	}
+
+	void DoWork();
+
+private:
+	FAsyncCardRepresentationTask& Task;
+};
+
 class FAsyncCardRepresentationTask
 {
 public:
@@ -167,6 +189,7 @@ public:
 	UStaticMesh* GenerateSource;
 	FString DDCKey;
 	FCardRepresentationData* GeneratedCardRepresentation;
+	TUniquePtr<FAsyncTask<FAsyncCardRepresentationTaskWorker>> AsyncTask = nullptr;
 };
 
 /** Class that manages asynchronous building of mesh distance fields. */
@@ -180,6 +203,12 @@ public:
 
 	/** Adds a new build task. */
 	ENGINE_API void AddTask(FAsyncCardRepresentationTask* Task);
+
+	/** Cancel the build on this specific static mesh or block until it is completed if already started. */
+	ENGINE_API void CancelBuild(UStaticMesh* StaticMesh);
+
+	/** Blocks the main thread until the async build are either cancelled or completed. */
+	ENGINE_API void CancelAllOutstandingBuilds();
 
 	/** Blocks the main thread until the async build of the specified mesh is complete. */
 	ENGINE_API void BlockUntilBuildComplete(UStaticMesh* StaticMesh, bool bWarnIfBlocked);
@@ -205,12 +234,22 @@ public:
 	}
 
 private:
+	friend FAsyncCardRepresentationTaskWorker;
 	void ProcessPendingTasks();
 
 	TUniquePtr<FQueuedThreadPool> ThreadPool;
 
 	/** Builds a single task with the given threadpool.  Called from the worker thread. */
 	void Build(FAsyncCardRepresentationTask* Task, class FQueuedThreadPool& ThreadPool);
+
+	/** Change the priority of the background task. */
+	void RescheduleBackgroundTask(FAsyncCardRepresentationTask* InTask, EQueuedWorkPriority InPriority);
+
+	/** Task will be sent to a background worker. */
+	void StartBackgroundTask(FAsyncCardRepresentationTask* Task);
+
+	/** Cancel or finish any background work for the given task. */
+	void CancelBackgroundTask(TArray<FAsyncCardRepresentationTask*> Tasks);
 
 	/** Game-thread managed list of tasks in the async system. */
 	TArray<FAsyncCardRepresentationTask*> ReferencedTasks;
