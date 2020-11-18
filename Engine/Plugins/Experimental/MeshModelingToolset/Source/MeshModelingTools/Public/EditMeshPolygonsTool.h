@@ -112,6 +112,46 @@ enum class EEditMeshPolygonsToolActions
 
 
 
+UCLASS()
+class MESHMODELINGTOOLS_API UEditMeshPolygonsActionModeToolBuilder : public UEditMeshPolygonsToolBuilder
+{
+	GENERATED_BODY()
+public:
+	EEditMeshPolygonsToolActions StartupAction = EEditMeshPolygonsToolActions::Extrude;
+
+	virtual void InitializeNewTool(UMeshSurfacePointTool* Tool, const FToolBuilderState& SceneState) const override;
+};
+
+
+
+
+UENUM()
+enum class EEditMeshPolygonsToolSelectionMode
+{
+	Faces,
+	Edges,
+	Vertices,
+	Loops,
+	Rings,
+	FacesEdgesVertices
+};
+
+UCLASS()
+class MESHMODELINGTOOLS_API UEditMeshPolygonsSelectionModeToolBuilder : public UEditMeshPolygonsToolBuilder
+{
+	GENERATED_BODY()
+public:
+	EEditMeshPolygonsToolSelectionMode SelectionMode = EEditMeshPolygonsToolSelectionMode::Faces;
+
+	virtual void InitializeNewTool(UMeshSurfacePointTool* Tool, const FToolBuilderState& SceneState) const override;
+};
+
+
+
+
+
+
+
 
 UCLASS()
 class MESHMODELINGTOOLS_API UEditMeshPolygonsToolActionPropertySet : public UInteractiveToolPropertySet
@@ -690,6 +730,14 @@ protected:
 	friend class FEditPolygonsTopologyPreEditChange;
 	friend class FEditPolygonsTopologyPostEditChange;
 	friend class FBeginInteractivePolyEditChange;
+
+
+
+	// custom setup support
+	friend class UEditMeshPolygonsSelectionModeToolBuilder;
+	friend class UEditMeshPolygonsActionModeToolBuilder;
+	TUniqueFunction<void(UEditMeshPolygonsTool*)> PostSetupFunction;
+	void SetToSelectionModeInterface();
 };
 
 

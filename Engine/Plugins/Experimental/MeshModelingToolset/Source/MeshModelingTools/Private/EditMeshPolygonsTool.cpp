@@ -63,6 +63,73 @@ UMeshSurfacePointTool* UEditMeshPolygonsToolBuilder::CreateNewTool(const FToolBu
 
 
 
+
+
+void UEditMeshPolygonsActionModeToolBuilder::InitializeNewTool(UMeshSurfacePointTool* ToolIn, const FToolBuilderState& SceneState) const
+{
+	UEditMeshPolygonsToolBuilder::InitializeNewTool(ToolIn, SceneState);
+
+	UEditMeshPolygonsTool* Tool = Cast<UEditMeshPolygonsTool>(ToolIn);
+	EEditMeshPolygonsToolActions UseAction = StartupAction;
+	Tool->PostSetupFunction = [UseAction](UEditMeshPolygonsTool* PolyTool)
+	{
+		PolyTool->SetToSelectionModeInterface();
+		PolyTool->RequestAction(UseAction);
+	};
+}
+
+
+void UEditMeshPolygonsSelectionModeToolBuilder::InitializeNewTool(UMeshSurfacePointTool* ToolIn, const FToolBuilderState& SceneState) const
+{
+	UEditMeshPolygonsToolBuilder::InitializeNewTool(ToolIn, SceneState);
+
+	UEditMeshPolygonsTool* Tool = Cast<UEditMeshPolygonsTool>(ToolIn);
+	EEditMeshPolygonsToolSelectionMode UseMode = SelectionMode;
+	Tool->PostSetupFunction = [UseMode](UEditMeshPolygonsTool* PolyTool)
+	{
+		PolyTool->SetToSelectionModeInterface();
+
+		UPolygonSelectionMechanic* SelectionMechanic = PolyTool->SelectionMechanic;
+		UPolygonSelectionMechanicProperties* SelectionProps = SelectionMechanic->Properties;
+		SelectionProps->bSelectFaces = SelectionProps->bSelectEdges = SelectionProps->bSelectVertices = false;
+		SelectionProps->bSelectEdgeLoops = SelectionProps->bSelectEdgeRings = false;
+
+		switch (UseMode)
+		{
+		default:
+		case EEditMeshPolygonsToolSelectionMode::Faces:
+			SelectionProps->bSelectFaces = true;
+			break;
+		case EEditMeshPolygonsToolSelectionMode::Edges:
+			SelectionProps->bSelectEdges = true;
+			break;
+		case EEditMeshPolygonsToolSelectionMode::Vertices:
+			SelectionProps->bSelectVertices = true;
+			break;
+		case EEditMeshPolygonsToolSelectionMode::Loops:
+			SelectionProps->bSelectEdges = true;
+			SelectionProps->bSelectEdgeLoops = true;
+			break;
+		case EEditMeshPolygonsToolSelectionMode::Rings:
+			SelectionProps->bSelectEdges = true;
+			SelectionProps->bSelectEdgeRings = true;
+			break;
+		case EEditMeshPolygonsToolSelectionMode::FacesEdgesVertices:
+			SelectionProps->bSelectFaces = SelectionProps->bSelectEdges = SelectionProps->bSelectVertices = true;
+			break;
+		}
+	};
+}
+
+void UEditMeshPolygonsTool::SetToSelectionModeInterface()
+{
+	if (EditActions) SetToolPropertySourceEnabled(EditActions, false);
+	if (EditEdgeActions) SetToolPropertySourceEnabled(EditEdgeActions, false);
+	if (EditUVActions) SetToolPropertySourceEnabled(EditUVActions, false);
+}
+
+
+
 void UEditMeshPolygonsToolActionPropertySet::PostAction(EEditMeshPolygonsToolActions Action)
 {
 	if (ParentTool.IsValid())
@@ -271,6 +338,11 @@ void UEditMeshPolygonsTool::Setup()
 	if (Topology->Groups.Num() < 2)
 	{
 		GetToolManager()->DisplayMessage( LOCTEXT("NoGroupsWarning", "This object has a single PolyGroup. Use the PolyGroups or Select Tool to assign PolyGroups."), EToolMessageLevel::UserWarning);
+	}
+
+	if (PostSetupFunction)
+	{
+		PostSetupFunction(this);
 	}
 }
 

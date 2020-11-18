@@ -101,6 +101,21 @@ public:
 	TSharedPtr<FUICommandInfo> BeginGroomMeshToCardsTool;
 	TSharedPtr<FUICommandInfo> BeginGroomCardsEditorTool;
 
+
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_FaceSelect;
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_EdgeSelect;
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_VertexSelect;
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_AllSelect;
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_LoopSelect;
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_RingSelect;
+
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Extrude;
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Offset;
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Inset;
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Outset;
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_CutFaces;
+
+
 	TSharedPtr<FUICommandInfo> AcceptActiveTool;
 	TSharedPtr<FUICommandInfo> CancelActiveTool;
 	TSharedPtr<FUICommandInfo> CompleteActiveTool;
