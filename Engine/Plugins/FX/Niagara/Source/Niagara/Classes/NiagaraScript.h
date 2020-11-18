@@ -497,32 +497,33 @@ public:
 	/** Is usage A dependent on Usage B?*/
 	NIAGARA_API static bool IsUsageDependentOn(ENiagaraScriptUsage InUsageA, ENiagaraScriptUsage InUsageB);
 
-	bool IsParticleSpawnScript() const { return Usage == ENiagaraScriptUsage::ParticleSpawnScript || Usage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated; }
-	bool IsInterpolatedParticleSpawnScript()const { return Usage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated; }
-	bool IsParticleUpdateScript()const { return Usage == ENiagaraScriptUsage::ParticleUpdateScript; }
-	bool IsModuleScript()const { return Usage == ENiagaraScriptUsage::Module; }
-	bool IsFunctionScript()	const { return Usage == ENiagaraScriptUsage::Function; }
-	bool IsDynamicInputScript()	const { return Usage == ENiagaraScriptUsage::DynamicInput; }
-	bool IsParticleEventScript()const { return Usage == ENiagaraScriptUsage::ParticleEventScript; }
-	bool IsParticleScript() const {	return Usage >= ENiagaraScriptUsage::ParticleSpawnScript && Usage <= ENiagaraScriptUsage::ParticleGPUComputeScript;}
+	bool IsParticleSpawnScript() const { return IsParticleSpawnScript(Usage); }
+	bool IsInterpolatedParticleSpawnScript() const { return IsInterpolatedParticleSpawnScript(Usage); }
+	bool IsParticleUpdateScript() const { return IsParticleUpdateScript(Usage); }
+	bool IsModuleScript() const { return IsModuleScript(Usage); }
+	bool IsFunctionScript()	const { return IsFunctionScript(Usage); }
+	bool IsDynamicInputScript() const { return IsDynamicInputScript(Usage); }
+	bool IsParticleEventScript() const { return IsParticleEventScript(Usage); }
+	bool IsParticleScript() const {	return IsParticleScript(Usage);}
 
-	bool IsNonParticleScript()const { return Usage >= ENiagaraScriptUsage::EmitterSpawnScript; }
+	bool IsNonParticleScript() const { return IsNonParticleScript(Usage); }
 	
-	bool IsSystemSpawnScript()const { return Usage == ENiagaraScriptUsage::SystemSpawnScript; }
-	bool IsSystemUpdateScript()const { return Usage == ENiagaraScriptUsage::SystemUpdateScript; }
-	bool IsEmitterSpawnScript()const { return Usage == ENiagaraScriptUsage::EmitterSpawnScript; }
-	bool IsEmitterUpdateScript()const { return Usage == ENiagaraScriptUsage::EmitterUpdateScript; }
-	bool IsStandaloneScript() const { return IsDynamicInputScript() || IsFunctionScript() || IsModuleScript(); }
+	bool IsSystemSpawnScript() const { return IsSystemSpawnScript(Usage); }
+	bool IsSystemUpdateScript() const { return IsSystemUpdateScript(Usage); }
+	bool IsEmitterSpawnScript() const { return IsEmitterSpawnScript(Usage); }
+	bool IsEmitterUpdateScript() const { return IsEmitterUpdateScript(Usage); }
+	bool IsStandaloneScript() const { return IsStandaloneScript(Usage); }
 
-	bool IsSpawnScript()const { return IsParticleSpawnScript() || IsEmitterSpawnScript() || IsSystemSpawnScript(); }
+	bool IsSpawnScript() const { return IsParticleSpawnScript() || IsEmitterSpawnScript() || IsSystemSpawnScript(); }
 
-	bool IsCompilable() const { return !IsEmitterSpawnScript() && !IsEmitterUpdateScript(); }
+	bool IsCompilable() const { return IsCompilable(Usage); }
 
 
 	static bool IsGPUScript(ENiagaraScriptUsage Usage) { return Usage == ENiagaraScriptUsage::ParticleGPUComputeScript; }
 	static bool IsParticleSpawnScript(ENiagaraScriptUsage Usage)  { return Usage == ENiagaraScriptUsage::ParticleSpawnScript || Usage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated; }
 	static bool IsInterpolatedParticleSpawnScript(ENiagaraScriptUsage Usage) { return Usage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated; }
 	static bool IsParticleUpdateScript(ENiagaraScriptUsage Usage) { return Usage == ENiagaraScriptUsage::ParticleUpdateScript; }
+	static bool IsParticleStageScript(ENiagaraScriptUsage Usage) { return Usage == ENiagaraScriptUsage::ParticleSimulationStageScript; }
 	static bool IsModuleScript(ENiagaraScriptUsage Usage) { return Usage == ENiagaraScriptUsage::Module; }
 	static bool IsFunctionScript(ENiagaraScriptUsage Usage)	 { return Usage == ENiagaraScriptUsage::Function; }
 	static bool IsDynamicInputScript(ENiagaraScriptUsage Usage)	 { return Usage == ENiagaraScriptUsage::DynamicInput; }

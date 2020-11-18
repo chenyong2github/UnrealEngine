@@ -536,10 +536,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 	switch (SimTargetToBuild)
 	{
 	case ENiagaraSimTarget::CPUSim:
-		Id.AdditionalDefines.Add(TEXT("CPUSim"));
+		Id.AdditionalDefines.AddUnique(FNiagaraCompileOptions::CpuScriptDefine);
 		break;
 	case ENiagaraSimTarget::GPUComputeSim:
-		Id.AdditionalDefines.Add(TEXT("GPUComputeSim"));
+		Id.AdditionalDefines.AddUnique(FNiagaraCompileOptions::GpuScriptDefine);
 		break;
 	default:
 		checkf(false, TEXT("Unknown sim target type!"));

@@ -1132,3 +1132,6 @@ bool FVMExternalFunctionBindingInfo::Serialize(FArchive& Ar)
 
 	return true;
 }
+
+const FString FNiagaraCompileOptions::CpuScriptDefine = TEXT("CPUSim");
+const FString FNiagaraCompileOptions::GpuScriptDefine = TEXT("GPUComputeSim");
