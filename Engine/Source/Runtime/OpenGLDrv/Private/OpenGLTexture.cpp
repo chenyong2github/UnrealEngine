@@ -19,28 +19,52 @@
 static TAutoConsoleVariable<int32> CVarDeferTextureCreation(
 	TEXT("r.OpenGL.DeferTextureCreation"),
 	0,
-	TEXT("0: OpenGL textures are created immediately. \n")
-	TEXT("1: Where possible OpenGL textures are stored in system memory and created only when required for rendering. (avoiding some memory overhead from GL driver)"),
+	TEXT("0: OpenGL textures are sent to the driver to be created immediately. (default)\n")
+	TEXT("1: Where possible OpenGL textures are stored in system memory and created only when required for rendering.\n")
+	TEXT("   This can avoid memory overhead seen in some GL drivers."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarDeferTextureCreationExcludeMask(
 	TEXT("r.OpenGL.DeferTextureCreationExcludeFlags"),
-	~(TexCreate_SRGB | TexCreate_Transient | TexCreate_Streamable | TexCreate_OfflineProcessed),
+	~(TexCreate_ShaderResource | TexCreate_SRGB | TexCreate_Transient | TexCreate_Streamable | TexCreate_OfflineProcessed),
 	TEXT("Deferred texture creation exclusion mask, any texture requested with flags in this mask will be excluded from deferred creation."),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> DeferTextureCreationKeepLowerMipCount(
+static int32 GOGLDeferTextureCreationKeepLowerMipCount = -1;
+static FAutoConsoleVariableRef CVarDeferTextureCreationKeepLowerMipCount(
 	TEXT("r.OpenGL.DeferTextureCreationKeepLowerMipCount"),
-	16,
-	TEXT("Maximum number of texture mips to retain after a deferred texture has been created."),
+	GOGLDeferTextureCreationKeepLowerMipCount,
+	TEXT("Maximum number of texture mips to retain in CPU memory after a deferred texture has been sent to the driver for GPU memory creation.\n")
+	TEXT("-1: to match the number of mips kept resident by the texture streamer (default).\n")
+	TEXT(" 0: to disable texture eviction and discard CPU mips after sending them to the driver.\n")
+	TEXT(" 16: keep all mips around.\n"),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> DeferTextureCreationAllowEviction(
-	TEXT("r.OpenGL.DeferTextureCreationAllowEviction"),
-	1,
-	TEXT("Attempt to delete an OpenGL texture from memory after a texture reference discards it. (can be used to remove a streaming texture from driver memory when a texture is not longer streaming it)\n")
-	TEXT("requires r.OpenGL.DeferTextureCreation."),
-	ECVF_RenderThreadSafe);
+static int32 GOGLTextureEvictFramesToLive = 500;
+static FAutoConsoleVariableRef CVarTextureEvictionFrameCount(
+	TEXT("r.OpenGL.TextureEvictionFrameCount"),
+	GOGLTextureEvictFramesToLive,
+	TEXT("The number of frames since a texture was last referenced before it will considered for eviction.\n")
+	TEXT("Textures can only be evicted after creation if all their mips are resident, ie its mip count <= r.OpenGL.DeferTextureCreationKeepLowerMipCount."),
+	ECVF_RenderThreadSafe
+);
+
+int32 GOGLTexturesToEvictPerFrame = 10;
+static FAutoConsoleVariableRef CVarTexturesToEvictPerFrame(
+	TEXT("r.OpenGL.TextureEvictsPerFrame"),
+	GOGLTexturesToEvictPerFrame,
+	TEXT("The maximum number of evictable textures to evict per frame, limited to avoid potential driver CPU spikes.\n")
+	TEXT("Textures can only be evicted after creation if all their mips are resident, ie its mip count <= r.OpenGL.DeferTextureCreationKeepLowerMipCount."),
+	ECVF_RenderThreadSafe
+);
+
+static int32 GOGLTextureEvictLogging = 0;
+static FAutoConsoleVariableRef CVarTextureEvictionLogging(
+	TEXT("r.OpenGL.TextureEvictionLogging"),
+	GOGLTextureEvictLogging,
+	TEXT("Enables debug logging for texture eviction."),
+	ECVF_RenderThreadSafe
+);
 
 class FOpenGLDynamicRHI* FOpenGLTextureBase::OpenGLRHI = nullptr;
 
@@ -945,15 +969,23 @@ template<typename RHIResourceType>
 void TOpenGLTexture<RHIResourceType>::Unlock(uint32 MipIndex,uint32 ArrayIndex)
 {
 	VERIFY_GL_SCOPE();
-
 	SCOPE_CYCLE_COUNTER(STAT_OpenGLUnlockTextureTime);
 
+	if (IsEvicted())
+	{
+		// evicted textures didn't actually perform a lock, so we can bail out early
+		check(ArrayIndex == 0);
+		// check the space was allocated
+		ensure(MipIndex < (uint32)EvictionParamsPtr->MipImageData.Num() && EvictionParamsPtr->MipImageData[MipIndex].Num());
+		return;
+	}
+
 	const int32 BufferIndex = MipIndex * (bCubemap ? 6 : 1) * this->GetEffectiveSizeZ() + ArrayIndex;
-	TRefCountPtr<FOpenGLPixelBuffer> PixelBuffer = PixelBuffers[BufferIndex];
 	const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[this->GetFormat()];
 	const bool bSRGB = (this->GetFlags() & TexCreate_SRGB) != 0;
+	TRefCountPtr<FOpenGLPixelBuffer> PixelBuffer = PixelBuffers[BufferIndex];
 
-	check(IsValidRef(PixelBuffers[BufferIndex]));
+	check(IsValidRef(PixelBuffer));
 	
 #if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
 	// check for FloatRGBA to RGBA8 conversion needed
@@ -1173,9 +1205,11 @@ void TOpenGLTexture<RHIResourceType>::RestoreEvictedGLResource(bool bAttemptToRe
 			Unlock(i, 0);
 		}
 	}
-	
-	uint32 RetainMips = bAttemptToRetainMips && (this->GetFlags() & TexCreate_Streamable) && this->GetNumMips() > 1 && !this->IsAliased() ? DeferTextureCreationKeepLowerMipCount.GetValueOnAnyThread() : 0;
 
+	// Use the resident streaming mips if our cvar is -1.
+	uint32 DeferTextureCreationKeepLowerMipCount = (uint32)(GOGLDeferTextureCreationKeepLowerMipCount >= 0 ? GOGLDeferTextureCreationKeepLowerMipCount : UTexture::GetStaticMinTextureResidentMipCount());
+
+	uint32 RetainMips = bAttemptToRetainMips && (this->GetFlags() & TexCreate_Streamable) && this->GetNumMips() > 1 && !this->IsAliased() ? DeferTextureCreationKeepLowerMipCount : 0;
 
 	if (CanBeEvicted())
 	{
@@ -1268,6 +1302,11 @@ bool TOpenGLTexture<RHIResourceType>::CanCreateAsEvicted()
 		&& (CVarDeferTextureCreationExcludeMask.GetValueOnAnyThread() & this->GetFlags())==0  // Anything outside of these flags cannot be evicted.
 		&& Target == GL_TEXTURE_2D
 		&& this->GetTexture2D(); // 2d only.
+
+	if (GOGLTextureEvictLogging)
+	{
+		UE_CLOG(!bRet, LogRHI, Warning, TEXT("CanDeferTextureCreation:%d, SupportsCopyImage:%d, Flags:%x Flags&Mask:%d, Target:%x"), CanDeferTextureCreation(), FOpenGL::SupportsCopyImage(), this->GetFlags(), (CVarDeferTextureCreationExcludeMask.GetValueOnAnyThread() & this->GetFlags()), Target);
+	}
 
 	return bRet;
 }
@@ -1836,7 +1875,6 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHITex
 		if (FRHITexture2D* Texture2DRHI = Texture->GetTexture2D())
 		{
 			FOpenGLTexture2D* Texture2D = ResourceCast(Texture2DRHI);
-			check(!Texture2D->IsEvicted());
 			FOpenGLShaderResourceView *View = 0;
 
 			if (FOpenGL::SupportsTextureView())
@@ -3013,14 +3051,6 @@ void FOpenGLDynamicRHI::UnlockTexture2DArray_RenderThread(class FRHICommandListI
 	}
 }
 
-static int32 GOGLTextureEvictLogging = 0;
-static FAutoConsoleVariableRef CVarTextureEvictionLogging(
-	TEXT("r.OpenGL.TextureEvictionLogging"),
-	GOGLTextureEvictLogging,
-	TEXT(""),
-	ECVF_RenderThreadSafe
-);
-
 void LogTextureEvictionDebugInfo()
 {
 	static int counter = 0;
@@ -3039,22 +3069,6 @@ void LogTextureEvictionDebugInfo()
 		counter = 0;
 	}
 }
-
-static int32 GOGLTextureEvictFramesToLive = 500;
-static FAutoConsoleVariableRef CVarTextureEvictionFrameCount(
-	TEXT("r.OpenGL.TextureEvictionFrameCount"),
-	GOGLTextureEvictFramesToLive,
-	TEXT(""),
-	ECVF_RenderThreadSafe
-);
-
-int32 GOGLTexturesToEvictPerFrame = 10;
-static FAutoConsoleVariableRef CVarTexturesToEvictPerFrame(
-	TEXT("OpenGL.TextureEvictsPerFrame"),
-	GOGLTexturesToEvictPerFrame,
-	TEXT(""),
-	ECVF_RenderThreadSafe
-);
 
 void FTextureEvictionLRU::TickEviction()
 {
@@ -3147,7 +3161,7 @@ FTextureEvictionParams::~FTextureEvictionParams()
 
 void FTextureEvictionParams::SetMipData(uint32 MipIndex, const void* Data, uint32 Bytes)
 {
-	checkf(Bytes && Data, TEXT("MipIndex %d, Data %p, Bytes %d)"), MipIndex, Data, Bytes);
+	checkf(Bytes, TEXT("FTextureEvictionParams::SetMipData: MipIndex %d, Data %p, Bytes %d)"), MipIndex, Data, Bytes);
 
 	VERIFY_GL_SCOPE();
 	if (MipImageData[MipIndex].Num())
@@ -3161,7 +3175,10 @@ void FTextureEvictionParams::SetMipData(uint32 MipIndex, const void* Data, uint3
 	}
 	MipImageData[MipIndex].Reserve(Bytes);
 	MipImageData[MipIndex].SetNumUninitialized(Bytes);
-	FMemory::Memcpy(MipImageData[MipIndex].GetData(), Data, Bytes);
+	if (Data)
+	{
+		FMemory::Memcpy(MipImageData[MipIndex].GetData(), Data, Bytes);
+	}
 	GTotalEvictedMipMemStored += Bytes;
 }
 
