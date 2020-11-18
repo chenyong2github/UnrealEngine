@@ -1111,7 +1111,8 @@ class SwitchboardDialog(QtCore.QObject):
         if not CONFIG.P4_ENABLED.get_value():
             return
         LOGGER.info("Refreshing p4 project changelists")
-        changelists = p4_utils.p4_latest_changelist(CONFIG.P4_PROJECT_PATH.get_value())
+        working_dir = os.path.dirname(CONFIG.UPROJECT_PATH.get_value())
+        changelists = p4_utils.p4_latest_changelist(CONFIG.P4_PROJECT_PATH.get_value(), working_dir)
         self.window.project_cl_combo_box.clear()
 
         if changelists:
@@ -1134,7 +1135,8 @@ class SwitchboardDialog(QtCore.QObject):
 
             engine_p4_path = CONFIG.P4_ENGINE_PATH.get_value()
             if engine_p4_path:
-                changelists = p4_utils.p4_latest_changelist(engine_p4_path)
+                working_dir = os.path.dirname(CONFIG.UPROJECT_PATH.get_value())
+                changelists = p4_utils.p4_latest_changelist(engine_p4_path, working_dir)
                 if changelists:
                     self.window.engine_cl_combo_box.addItems(changelists)
                     self.window.engine_cl_combo_box.setCurrentIndex(0)

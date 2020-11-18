@@ -568,7 +568,7 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 	const bool bLaunchHidden = false;
 	const bool bLaunchReallyHidden = false;
 	const int32 PriorityModifier = 0;
-	TCHAR* WorkingDirectory = nullptr;
+	const TCHAR* WorkingDirectory = InRunTask.WorkingDir.IsEmpty() ? nullptr : *InRunTask.WorkingDir;
 
 	NewProcess->Handle = FPlatformProcess::CreateProc(
 		*InRunTask.Command, 

@@ -57,14 +57,14 @@ def p4_where(client, local_path):
 
 
 @p4_login
-def p4_latest_changelist(p4_path, num_changelists=10):
+def p4_latest_changelist(p4_path, working_dir, num_changelists=10):
     """
     Return (num_changelists) latest CLs
     """
     p4_command = f'p4 -ztag -F "%change%" changes -m {num_changelists} {p4_path}/...'
     LOGGER.info(f"Executing: {p4_command}")
 
-    p4_result = subprocess.check_output(p4_command, startupinfo=get_sp_startupinfo()).decode()
+    p4_result = subprocess.check_output(p4_command, cwd=working_dir, startupinfo=get_sp_startupinfo()).decode()
 
     if p4_result:
         return p4_result.split()
