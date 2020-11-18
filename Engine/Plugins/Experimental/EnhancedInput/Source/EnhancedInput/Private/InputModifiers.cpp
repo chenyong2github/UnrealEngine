@@ -56,7 +56,7 @@ FInputActionValue UInputModifierDeadZone::ModifyRaw_Implementation(const UEnhanc
 	auto DeadZoneLambda = [this](const float AxisVal)
 	{
 		// We need to translate and scale the input to the +/- 1 range after removing the dead zone.
-		return (FMath::Max(0.f, FMath::Abs(AxisVal) - LowerThreshold) / (UpperThreshold - LowerThreshold)) * FMath::Sign(AxisVal);
+		return FMath::Min(1.f, (FMath::Max(0.f, FMath::Abs(AxisVal) - LowerThreshold) / (UpperThreshold - LowerThreshold))) * FMath::Sign(AxisVal);
 	};
 
 	FVector NewValue = CurrentValue.Get<FVector>();
