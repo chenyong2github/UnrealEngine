@@ -20,6 +20,8 @@
 
 cmake_minimum_required(VERSION 3.6)
 
+include(GenerateExportHeader)
+
 project(hwcpipe LANGUAGES C CXX)
 
 set(PROJECT_FILES
@@ -52,6 +54,12 @@ find_library( # Defines the name of the path variable that stores the
               # CMake needs to locate.
               log )
 
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++14")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fuse-ld=lld")
+
 source_group("\\" FILES ${PROJECT_FILES})
 
 add_library(${PROJECT_NAME} SHARED ${PROJECT_FILES})
@@ -66,4 +74,4 @@ target_link_libraries( # Specifies the target library.
                        # Links the log library to the target library.
                        ${log-lib} )
 
-set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 11)
+generate_export_header(${PROJECT_NAME} EXPORT_FILE_NAME ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}_export.h)

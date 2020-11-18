@@ -139,18 +139,7 @@ DECLARE_FLOAT_COUNTER_STAT(TEXT("Shader Texture Cycles (Mln)"), STAT_ShaderTextu
 DECLARE_FLOAT_COUNTER_STAT(TEXT("External Memory Read (MB)"), STAT_ExternalMemoryRead, STATGROUP_AndroidGPU);
 DECLARE_FLOAT_COUNTER_STAT(TEXT("External Memory Write (MB)"), STAT_ExternalMemoryWrite, STATGROUP_AndroidGPU);
 
-static bool GIsHWCPipeInitialized = false;
-
-static hwcpipe::HWCPipe GHWCPipe({}, {hwcpipe::GpuCounter::GpuCycles,
-									  hwcpipe::GpuCounter::VertexComputeCycles,
-									  hwcpipe::GpuCounter::FragmentCycles,
-									  hwcpipe::GpuCounter::Pixels,
-									  hwcpipe::GpuCounter::ShaderCycles,
-									  hwcpipe::GpuCounter::ShaderArithmeticCycles,
-									  hwcpipe::GpuCounter::ShaderLoadStoreCycles,
-									  hwcpipe::GpuCounter::ShaderTextureCycles,
-									  hwcpipe::GpuCounter::ExternalMemoryReadBytes,
-									  hwcpipe::GpuCounter::ExternalMemoryWriteBytes,});
+static hwcpipe::HWCPipe* GHWCPipe = nullptr;
 #endif
 
 static void UpdateGPUStats();
@@ -175,10 +164,20 @@ CSV_DEFINE_STAT(AndroidMemory, MemoryWarningState);
 void FAndroidStats::Init()
 {
 #if HWCPIPE_SUPPORTED
+	static hwcpipe::HWCPipe HWCPipe({}, {hwcpipe::GpuCounter::GpuCycles,
+										 hwcpipe::GpuCounter::VertexComputeCycles,
+										 hwcpipe::GpuCounter::FragmentCycles,
+										 hwcpipe::GpuCounter::Pixels,
+										 hwcpipe::GpuCounter::ShaderCycles,
+										 hwcpipe::GpuCounter::ShaderArithmeticCycles,
+										 hwcpipe::GpuCounter::ShaderLoadStoreCycles,
+										 hwcpipe::GpuCounter::ShaderTextureCycles,
+										 hwcpipe::GpuCounter::ExternalMemoryReadBytes,
+										 hwcpipe::GpuCounter::ExternalMemoryWriteBytes,});
 	if (hwcpipe::get_last_error() == nullptr)
 	{
-		GIsHWCPipeInitialized = true;
-		GHWCPipe.run();
+		GHWCPipe = &HWCPipe;
+		GHWCPipe->run();
 	}
 #endif
 }
@@ -421,7 +420,7 @@ void FAndroidStats::UpdateAndroidStats()
 static void UpdateGPUStats()
 {
 #if HWCPIPE_SUPPORTED
-	if (!GIsHWCPipeInitialized)
+	if (!GHWCPipe)
 	{
 		return;
 	}
@@ -430,7 +429,7 @@ static void UpdateGPUStats()
 	{
 		const double Mln = 1000000.0;
 		const double MB = 1024.0 * 1024.0;
-		hwcpipe::GpuMeasurements counters = GHWCPipe.gpu_profiler()->sample();
+		hwcpipe::GpuMeasurements counters = GHWCPipe->gpu_profiler()->sample();
 		for (hwcpipe::GpuMeasurements::iterator it = counters.begin(); it != counters.end(); ++it)
 		{
 			float value;
