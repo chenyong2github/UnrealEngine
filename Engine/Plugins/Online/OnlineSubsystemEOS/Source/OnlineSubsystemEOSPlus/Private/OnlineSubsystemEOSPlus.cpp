@@ -129,7 +129,7 @@ IOnlineTimePtr FOnlineSubsystemEOSPlus::GetTimeInterface() const
 
 IOnlineIdentityPtr FOnlineSubsystemEOSPlus::GetIdentityInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetIdentityInterface() : nullptr;
+	return UserInterfacePtr;
 }
 
 IOnlineTitleFilePtr FOnlineSubsystemEOSPlus::GetTitleFileInterface() const
