@@ -28,7 +28,7 @@ namespace Chaos
 	extern CHAOS_API int32 UseAsyncInterpolation;
 	extern CHAOS_API int32 ForceDisableAsyncPhysics;
 
-	CHAOS_API struct FSubStepInfo
+	struct CHAOS_API FSubStepInfo
 	{
 		FSubStepInfo()
 			: PseudoFraction(1.0)
