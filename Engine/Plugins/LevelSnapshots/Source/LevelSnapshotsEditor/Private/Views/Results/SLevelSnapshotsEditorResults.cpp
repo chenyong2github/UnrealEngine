@@ -6,6 +6,7 @@
 #include "PropertySnapshot.h"
 #include "LevelSnapshotsEditorStyle.h"
 #include "ILevelSnapshotsEditorView.h"
+#include "LevelSnapshotsLog.h"
 #include "Views/Results/LevelSnapshotsEditorResults.h"
 #include "Widgets/SLevelSnapshotsEditorResultsGroup.h"
 #include "LevelSnapshotsEditorData.h"
@@ -377,13 +378,15 @@ void SLevelSnapshotsEditorResults::ProvisionSnapshotActors(ULevelSnapshot* InLev
 	for (const TPair<FString, FLevelSnapshot_Actor>& ActorSnapshotPair : InLevelSnapshot->ActorSnapshots)
 	{
 		FString ActorPath = ActorSnapshotPair.Key;
+		FSoftObjectPath ActorSoftPath = ActorSnapshotPair.Value.Base.SoftObjectPath;
+		
 		TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> NewGroup = MakeShared<FLevelSnapshotsEditorResultsRowGroup>(ActorPath, ActorSnapshotPair.Value);
 		{
 			AActor* ActorObject = ActorSnapshotPair.Value.GetDeserializedActor();
 
 			if (!ActorObject)
 			{
-				UE_LOG(LogTemp, Error, TEXT("Couldn't deserialize actor from %s"), *ActorPath);
+				UE_LOG(LogLevelSnapshots, Error, TEXT("Couldn't deserialize actor from %s"), *ActorPath);
 				continue; // Skip this line if ActorObject is not available
 			}
 			
@@ -410,38 +413,36 @@ void SLevelSnapshotsEditorResults::ProvisionSnapshotActors(ULevelSnapshot* InLev
 
 					TSharedRef<SWidget> PropertyWidget = CreatePropertyWidget(NewGroup, Node, true);
 
-					// TODO: get soft object path from deserialized actor
-					FSoftObjectPath CounterpartPath;
 					TArray<FSoftObjectPath> ActorSnapshotCounterpartKeys;
 					ActorSnapshotCounterpartMap.GetKeys(ActorSnapshotCounterpartKeys);
 					
 					if (bFromCurrentLevel && Node.Get()->GetRow().IsValid() && Node.Get()->GetRow()->GetPropertyHandle().IsValid())
 					{
 						// If we already have this actor in the TMap
-						if (ActorSnapshotCounterpartKeys.Num() > 0 && ActorSnapshotCounterpartKeys.Contains(CounterpartPath))
+						if (ActorSnapshotCounterpartKeys.Num() > 0 && ActorSnapshotCounterpartKeys.Contains(ActorSoftPath))
 						{
-							ActorSnapshotCounterpartMap[CounterpartPath].CurrentLevelProperties.Add(PropertyString, Node.Get()->GetRow()->GetPropertyHandle());
+							ActorSnapshotCounterpartMap[ActorSoftPath].CurrentLevelProperties.Add(PropertyString, Node.Get()->GetRow()->GetPropertyHandle());
 						}
 						else // Otherwise add a new entry entirely
 						{
-							ActorSnapshotCounterpartMap.Add(CounterpartPath, FActorSnapshotCounterpartInfo(PropertyString, Node.Get()->GetRow()->GetPropertyHandle()));
+							ActorSnapshotCounterpartMap.Add(ActorSoftPath, FActorSnapshotCounterpartInfo(PropertyString, Node.Get()->GetRow()->GetPropertyHandle()));
 						}
 					}
 					else
 					{
-						if (ActorSnapshotCounterpartKeys.Contains(CounterpartPath))
+						if (ActorSnapshotCounterpartKeys.Contains(ActorSoftPath))
 						{
-							NewGroup->AddCurrentPropertyWidget(ActorSnapshotCounterpartMap[CounterpartPath].CurrentLevelProperties[PropertyString]);
+							NewGroup->AddCurrentPropertyWidget(ActorSnapshotCounterpartMap[ActorSoftPath].CurrentLevelProperties[PropertyString]);
 						}
 						else
 						{
-							UE_LOG(LogTemp, Warning, TEXT("Actor's UniqueID from path '%s' not in ActorSnapshotCounterpartKeys and therefore not in current level"), *ActorPath);
+							UE_LOG(LogLevelSnapshots, Warning, TEXT("Actor's UniqueID from path '%s' not in ActorSnapshotCounterpartKeys and therefore not in current level"), *ActorPath);
 						}
 					}
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("Node not in the list; PropertyString is %s"), *PropertyString);
+					UE_LOG(LogLevelSnapshots, Warning, TEXT("Node not in the list; PropertyString is %s"), *PropertyString);
 				}
 			}
 		}
@@ -552,7 +553,7 @@ TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> SLevelSnapshotsEditorRe
 
 	if (!TempLevelSnapshot || !InLevelSnapshot)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Unable to Diff snapshots as at least one snapshot was invalid"));
+		UE_LOG(LogLevelSnapshots, Warning, TEXT("Unable to Diff snapshots as at least one snapshot was invalid"));
 		return UnchangedGroups;
 	}
 
@@ -590,7 +591,7 @@ TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> SLevelSnapshotsEditorRe
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("%s exists in the First snapshot but not the Second."), *FirstSnapshotPathName);
+			UE_LOG(LogLevelSnapshots, Warning, TEXT("%s exists in the First snapshot but not the Second."), *FirstSnapshotPathName);
 		}
 	}
 	
@@ -685,7 +686,7 @@ void FLevelSnapshotsEditorResultsRowGroup::AddCurrentPropertyWidget(const TShare
 	
 	if (FieldWidgetIndex < 0)
 	{
-		UE_LOG(LogTemp, Error, TEXT("SLevelSnapshotsEditorResults::AddCurrentPropertyWidget: Length of FieldWidgetHBoxes is 0."))
+		UE_LOG(LogLevelSnapshots, Error, TEXT("SLevelSnapshotsEditorResults::AddCurrentPropertyWidget: Length of FieldWidgetHBoxes is 0."))
 		return;
 	}
 	

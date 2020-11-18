@@ -180,7 +180,7 @@ public:
 	{
 		this->SetWantBinaryPropertySerialization(false);
 		this->SetIsSaving(true);
-		this->SetIsTransacting(false);
+		this->SetIsTransacting(true);
 	}
 
 	virtual int64 Tell() override
