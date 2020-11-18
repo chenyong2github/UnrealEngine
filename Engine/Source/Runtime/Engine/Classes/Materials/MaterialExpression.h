@@ -418,6 +418,12 @@ class ENGINE_API UMaterialExpression : public UObject
 	virtual FName GetParameterName() const { return NAME_None; }
 	virtual void SetParameterName(const FName& Name) {}
 
+	/**
+	 * Called after a node copy, once the Material and Function properties are set correctly and that all new expressions are added to Material->Expressions
+	 * @param	CopiedExpressions	The expressions copied in this copy
+	 */
+	virtual void PostCopyNode(const TArray<UMaterialExpression*>& CopiedExpressions) {}
+
 	virtual bool HasConnectedOutputs() const;
 
 	/** Checks whether any inputs to this expression create a loop */

@@ -132,7 +132,9 @@
 #include "Materials/MaterialExpressionParameter.h"
 #include "Materials/MaterialExpressionPreSkinnedLocalBounds.h"
 #include "Materials/MaterialExpressionPreviousFrameSwitch.h"
+#include "Materials/MaterialExpressionRerouteBase.h"
 #include "Materials/MaterialExpressionReroute.h"
+#include "Materials/MaterialExpressionNamedReroute.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionSetMaterialAttributes.h"
 #include "Materials/MaterialExpressionShadowReplace.h"
@@ -14901,6 +14903,121 @@ void UMaterialExpressionObjectOrientation::GetCaption(TArray<FString>& OutCaptio
 }
 #endif // WITH_EDITOR
 
+UMaterialExpressionRerouteBase::UMaterialExpressionRerouteBase(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+UMaterialExpression* UMaterialExpressionRerouteBase::TraceInputsToRealExpression(int32& OutputIndex) const
+{
+#if WITH_EDITORONLY_DATA
+	TSet<FMaterialExpressionKey> VisitedExpressions;
+	FExpressionInput RealInput = TraceInputsToRealExpressionInternal(VisitedExpressions);
+	OutputIndex = RealInput.OutputIndex;
+	return RealInput.Expression;
+#else
+	OutputIndex = 0;
+	return nullptr;
+#endif
+}
+
+FExpressionInput UMaterialExpressionRerouteBase::TraceInputsToRealInput() const
+{
+	TSet<FMaterialExpressionKey> VisitedExpressions;
+	FExpressionInput RealInput = TraceInputsToRealExpressionInternal(VisitedExpressions);
+	return RealInput;
+}
+
+FExpressionInput UMaterialExpressionRerouteBase::TraceInputsToRealExpressionInternal(TSet<FMaterialExpressionKey>& VisitedExpressions) const
+{
+#if WITH_EDITORONLY_DATA
+	FExpressionInput Input;
+	if (GetRerouteInput(Input))
+	{
+		// First check to see if this is a terminal node, if it is then we have a reroute to nowhere.
+		if (Input.Expression != nullptr)
+		{
+			// Now check to see if we're also connected to another reroute. If we are, then keep going unless we hit a loop condition.
+			UMaterialExpressionRerouteBase* RerouteInput = Cast<UMaterialExpressionRerouteBase>(Input.Expression);
+			if (RerouteInput != nullptr)
+			{
+				FMaterialExpressionKey InputExpressionKey(Input.Expression, Input.OutputIndex);
+				// prevent recurring visits to expressions we've already checked
+				if (VisitedExpressions.Contains(InputExpressionKey))
+				{
+					// We have a loop! This should result in not finding the value!
+					return FExpressionInput();
+				}
+				else
+				{
+					VisitedExpressions.Add(InputExpressionKey);
+					FExpressionInput OutputExpressionInput = RerouteInput->TraceInputsToRealExpressionInternal(VisitedExpressions);
+					return OutputExpressionInput;
+				}
+			}
+			else
+			{
+				// We aren't connected to another Reroute, so we are good.
+				return Input;
+			}
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+	// We went to nowhere, so bail out.
+	return FExpressionInput();
+}
+
+#if WITH_EDITOR
+uint32 UMaterialExpressionRerouteBase::GetInputType(int32 InputIndex)
+{
+	FExpressionInput Input;
+	if (GetRerouteInput(Input))
+	{
+		// Our input type should match the node that we are ultimately connected to, no matter how many reroute nodes lie between us.
+		if (InputIndex == 0 && Input.IsConnected() && Input.Expression != nullptr)
+		{
+			int32 RealExpressionOutputIndex = -1;
+			UMaterialExpression* RealExpression = TraceInputsToRealExpression(RealExpressionOutputIndex);
+
+			// If we found a valid connection to a real output, then our type becomes that type.
+			if (RealExpression != nullptr && RealExpressionOutputIndex != -1 && RealExpression->Outputs.Num() > RealExpressionOutputIndex && RealExpressionOutputIndex >= 0)
+			{
+				return RealExpression->GetOutputType(RealExpressionOutputIndex);
+			}
+		}
+	}
+	return MCT_Unknown;
+}
+
+uint32 UMaterialExpressionRerouteBase::GetOutputType(int32 OutputIndex)
+{
+	// Our node is a passthrough so input and output types must match.
+	return GetInputType(0);
+}
+
+bool UMaterialExpressionRerouteBase::IsResultMaterialAttributes(int32 OutputIndex)
+{
+	FExpressionInput Input;
+	if (GetRerouteInput(Input))
+	{
+		// Most code checks to make sure that there aren't loops before going here. In our case, we rely on the fact that
+		// UMaterialExpressionReroute's implementation of TraceInputsToRealExpression is resistant to input loops.
+		if (Input.IsConnected() && Input.Expression != nullptr && OutputIndex == 0)
+		{
+			int32 RealExpressionOutputIndex = -1;
+			UMaterialExpression* RealExpression = TraceInputsToRealExpression(RealExpressionOutputIndex);
+			if (RealExpression != nullptr)
+			{
+				return RealExpression->IsResultMaterialAttributes(RealExpressionOutputIndex);
+			}
+		}
+	}
+
+	return false;
+}
+#endif // WITH_EDITOR
+
+
 UMaterialExpressionReroute::UMaterialExpressionReroute(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -14918,62 +15035,6 @@ UMaterialExpressionReroute::UMaterialExpressionReroute(const FObjectInitializer&
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_Utility);
 #endif
-}
-
-
-UMaterialExpression* UMaterialExpressionReroute::TraceInputsToRealExpression(int32& OutputIndex) const
-{
-#if WITH_EDITORONLY_DATA
-	TSet<FMaterialExpressionKey> VisitedExpressions;
-	FExpressionInput RealInput = TraceInputsToRealExpressionInternal(VisitedExpressions);
-	OutputIndex = RealInput.OutputIndex;
-	return RealInput.Expression;
-#else
-	OutputIndex = 0;
-	return nullptr;
-#endif
-}
-
-FExpressionInput UMaterialExpressionReroute::TraceInputsToRealInput() const
-{
-	TSet<FMaterialExpressionKey> VisitedExpressions;
-	FExpressionInput RealInput = TraceInputsToRealExpressionInternal(VisitedExpressions);
-	return RealInput;
-}
-
-FExpressionInput UMaterialExpressionReroute::TraceInputsToRealExpressionInternal(TSet<FMaterialExpressionKey>& VisitedExpressions) const
-{
-#if WITH_EDITORONLY_DATA
-	// First check to see if this is a terminal node, if it is then we have a reroute to nowhere.
-	if (Input.Expression != nullptr)
-	{
-		// Now check to see if we're also connected to another reroute. If we are, then keep going unless we hit a loop condition.
-		UMaterialExpressionReroute* RerouteInput = Cast<UMaterialExpressionReroute>(Input.Expression);
-		if (RerouteInput != nullptr)
-		{
-			FMaterialExpressionKey InputExpressionKey(Input.Expression, Input.OutputIndex);
-			// prevent recurring visits to expressions we've already checked
-			if (VisitedExpressions.Contains(InputExpressionKey))
-			{
-				// We have a loop! This should result in not finding the value!
-				return FExpressionInput();
-			}
-			else 
-			{
-				VisitedExpressions.Add(InputExpressionKey);
-				FExpressionInput OutputExpressionInput = RerouteInput->TraceInputsToRealExpressionInternal(VisitedExpressions);
-				return OutputExpressionInput;
-			}
-		}
-		else
-		{
-			// We aren't connected to another Reroute, so we are good.
-			return Input;
-		}
-	}
-#endif // WITH_EDITORONLY_DATA
-	// We went to nowhere, so bail out.
-	return FExpressionInput();
 }
 
 #if WITH_EDITOR
@@ -15000,49 +15061,339 @@ FText UMaterialExpressionReroute::GetCreationName() const
 {
 	return LOCTEXT("RerouteNodeCreationName", "Add Reroute Node...");
 }
-
-
-uint32 UMaterialExpressionReroute::GetInputType(int32 InputIndex)
-{
-	// Our input type should match the node that we are ultimately connected to, no matter how many reroute nodes lie between us.
-	if (InputIndex == 0 && Input.IsConnected() && Input.Expression != nullptr )
-	{
-		int32 RealExpressionOutputIndex = -1;
-		UMaterialExpression* RealExpression = TraceInputsToRealExpression(RealExpressionOutputIndex);
-
-		// If we found a valid connection to a real output, then our type becomes that type.
-		if (RealExpression != nullptr && RealExpressionOutputIndex != -1 && RealExpression->Outputs.Num() > RealExpressionOutputIndex && RealExpressionOutputIndex >= 0)
-		{
-			return RealExpression->GetOutputType(RealExpressionOutputIndex);
-		}
-	}
-	return MCT_Unknown;
-}
-
-uint32 UMaterialExpressionReroute::GetOutputType(int32 OutputIndex)
-{
-	// Our node is a passthrough so input and output types must match.
-	return GetInputType(0);
-}
-
-bool UMaterialExpressionReroute::IsResultMaterialAttributes(int32 OutputIndex)
-{
-	// Most code checks to make sure that there aren't loops before going here. In our case, we rely on the fact that
-	// UMaterialExpressionReroute's implementation of TraceInputsToRealExpression is resistant to input loops.
-	if (Input.IsConnected() && Input.Expression != nullptr && OutputIndex == 0)
-	{
-		int32 RealExpressionOutputIndex = -1;
-		UMaterialExpression* RealExpression = TraceInputsToRealExpression(RealExpressionOutputIndex);
-		if (RealExpression != nullptr)
-		{
-			return RealExpression->IsResultMaterialAttributes(RealExpressionOutputIndex);
-		}
-	}
-
-	return false;
-}
-
 #endif // WITH_EDITOR
+
+bool UMaterialExpressionReroute::GetRerouteInput(FExpressionInput& OutInput) const
+{
+	OutInput = Input;
+	return true;
+}
+
+UMaterialExpressionNamedRerouteBase::UMaterialExpressionNamedRerouteBase(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+
+}
+
+UMaterialExpressionNamedRerouteDeclaration* UMaterialExpressionNamedRerouteBase::FindDeclarationInArray(const FGuid& VariableGuid, const TArray<UMaterialExpression*>& Expressions) const
+{
+	for (UMaterialExpression* Expression : Expressions)
+	{
+		auto* Declaration = Cast<UMaterialExpressionNamedRerouteDeclaration>(Expression);
+		if (Declaration && this != Declaration && Declaration->VariableGuid == VariableGuid)
+		{
+			return Declaration;
+		}
+	}
+	return nullptr;
+}
+
+UMaterialExpressionNamedRerouteDeclaration* UMaterialExpressionNamedRerouteBase::FindDeclarationInMaterial(const FGuid& VariableGuid) const
+{
+	UMaterialExpressionNamedRerouteDeclaration* Declaration = nullptr;
+	if (Material)
+	{
+		Declaration = FindDeclarationInArray(VariableGuid, Material->Expressions);
+	}
+	else if (Function) // Material should always be valid, but just in case also check Function
+	{
+		Declaration = FindDeclarationInArray(VariableGuid, Function->FunctionExpressions);
+	}
+	return Declaration;
+}
+
+UMaterialExpressionNamedRerouteDeclaration::UMaterialExpressionNamedRerouteDeclaration(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+#endif
+	Name = TEXT("Name");
+}
+
+void UMaterialExpressionNamedRerouteDeclaration::PostInitProperties()
+{
+	Super::PostInitProperties();
+	// Init the GUID
+	UpdateVariableGuid(false, false);
+}
+
+void UMaterialExpressionNamedRerouteDeclaration::PostLoad()
+{
+	Super::PostLoad();
+	// Init the GUID
+	UpdateVariableGuid(false, false);
+}
+
+void UMaterialExpressionNamedRerouteDeclaration::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+
+	// We do not force a guid regen here because this function is used when the Material Editor makes a copy of a material to edit.
+	// If we forced a GUID regen, it would cause all of the guids for a material to change every time a material was edited.
+	UpdateVariableGuid(false, true);
+}
+
+#if WITH_EDITOR
+void UMaterialExpressionNamedRerouteDeclaration::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.MemberProperty &&
+		PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UMaterialExpressionNamedRerouteDeclaration, Name))
+	{
+		MakeNameUnique();
+	}
+}
+
+int32 UMaterialExpressionNamedRerouteDeclaration::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	// Just forward to the input
+	return Input.Compile(Compiler);
+}
+
+void UMaterialExpressionNamedRerouteDeclaration::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(Name.ToString());
+}
+
+
+FText UMaterialExpressionNamedRerouteDeclaration::GetCreationDescription() const 
+{
+	return LOCTEXT("NamedRerouteDeclCreationDesc", "Captures the value of an input, may be used at multiple other points in the graph without requiring connecting wires, allows tiding up of complex graphs");
+}
+
+FText UMaterialExpressionNamedRerouteDeclaration::GetCreationName() const
+{
+	return LOCTEXT("NamedRerouteDeclCreationName", "Add Named Reroute Declaration Node...");
+}
+
+bool UMaterialExpressionNamedRerouteDeclaration::MatchesSearchQuery(const TCHAR* SearchQuery)
+{
+	if (Name.ToString().Contains(SearchQuery))
+	{
+		return true;
+	}
+
+	return Super::MatchesSearchQuery(SearchQuery);
+}
+
+bool UMaterialExpressionNamedRerouteDeclaration::CanRenameNode() const
+{
+	return true;
+}
+
+FString UMaterialExpressionNamedRerouteDeclaration::GetEditableName() const
+{
+	return Name.ToString();
+}
+
+void UMaterialExpressionNamedRerouteDeclaration::SetEditableName(const FString& NewName)
+{
+	Name = *NewName;
+	MakeNameUnique();
+
+	// Refresh usage names
+	if (Material || Function)
+	{
+		auto& Expressions = Material ? Material->Expressions : Function->FunctionExpressions;
+		for (UMaterialExpression* Expression : Expressions)
+		{
+			auto* Usage = Cast<UMaterialExpressionNamedRerouteUsage>(Expression);
+			if (Usage && Usage->Declaration == this && Usage->GraphNode)
+			{
+				Usage->GraphNode->ReconstructNode();
+			}
+		}
+	}
+}
+
+void UMaterialExpressionNamedRerouteDeclaration::PostCopyNode(const TArray<UMaterialExpression*>& CopiedExpressions)
+{
+	Super::PostCopyNode(CopiedExpressions);
+
+	// Only force regeneration of Guid if there's already a variable with the same one
+	if (FindDeclarationInMaterial(VariableGuid))
+	{
+		// Update Guid, and update the copied usages accordingly
+		FGuid OldGuid = VariableGuid;
+		UpdateVariableGuid(true, true);
+		for (UMaterialExpression* Expression : CopiedExpressions)
+		{
+			auto* Usage = Cast<UMaterialExpressionNamedRerouteUsage>(Expression);
+			if (Usage && Usage->DeclarationGuid == OldGuid)
+			{
+				Usage->Declaration = this;
+				Usage->DeclarationGuid = VariableGuid;
+			}
+		}
+
+		// Find a new name
+		MakeNameUnique();
+	}
+	else
+	{
+		// If there's no existing variable with this GUID, only create it if needed
+		UpdateVariableGuid(false, true);
+	}
+}
+#endif // WITH_EDITOR
+
+bool UMaterialExpressionNamedRerouteDeclaration::GetRerouteInput(FExpressionInput& OutInput) const
+{
+	OutInput = Input;
+	return true;
+}
+
+void UMaterialExpressionNamedRerouteDeclaration::UpdateVariableGuid(bool bForceGeneration, bool bAllowMarkingPackageDirty)
+{
+	// If we are in the editor, and we don't have a valid GUID yet, generate one.
+	if (GIsEditor && !FApp::IsGame())
+	{
+		if (bForceGeneration || !VariableGuid.IsValid())
+		{
+			VariableGuid = FGuid::NewGuid();
+
+			if (bAllowMarkingPackageDirty)
+			{
+				MarkPackageDirty();
+			}
+		}
+	}
+}
+
+void UMaterialExpressionNamedRerouteDeclaration::MakeNameUnique()
+{
+	if (Material || Function)
+	{
+		auto& Expressions = Material ? Material->Expressions : Function->FunctionExpressions;
+
+		int32 NameIndex = 1;
+		bool bResultNameIndexValid = true;
+		FName PotentialName;
+
+		// Find an available unique name
+		do
+		{
+			PotentialName = Name;
+			if (NameIndex != 1)
+			{
+				PotentialName.SetNumber(NameIndex);
+			}
+
+			bResultNameIndexValid = true;
+			for (UMaterialExpression* Expression : Expressions)
+			{
+				auto* OtherDeclaration = Cast<UMaterialExpressionNamedRerouteDeclaration>(Expression);
+				if (OtherDeclaration && OtherDeclaration != this && OtherDeclaration->Name == PotentialName)
+				{
+					bResultNameIndexValid = false;
+					break;
+				}
+			}
+
+			NameIndex++;
+		} while (!bResultNameIndexValid);
+
+		Name = PotentialName;
+	}
+}
+
+
+UMaterialExpressionNamedRerouteUsage::UMaterialExpressionNamedRerouteUsage(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionNamedRerouteUsage::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!IsDeclarationValid())
+	{
+		return Compiler->Errorf(TEXT("Invalid named reroute variable"));
+	}
+	return Declaration->Compile(Compiler, OutputIndex);
+}
+
+void UMaterialExpressionNamedRerouteUsage::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(IsDeclarationValid() ? Declaration->Name.ToString() : TEXT("Invalid named reroute"));
+}
+
+uint32 UMaterialExpressionNamedRerouteUsage::GetOutputType(int32 OutputIndex)
+{
+	if (IsDeclarationValid())
+	{
+		return Declaration->GetInputType(OutputIndex);
+	}
+	else
+	{
+		return Super::GetOutputType(OutputIndex);
+	}
+}
+
+bool UMaterialExpressionNamedRerouteUsage::MatchesSearchQuery(const TCHAR* SearchQuery)
+{
+	if (IsDeclarationValid())
+	{
+		return Declaration->MatchesSearchQuery(SearchQuery);
+	}
+	return Super::MatchesSearchQuery(SearchQuery);
+}
+
+void UMaterialExpressionNamedRerouteUsage::PostCopyNode(const TArray<UMaterialExpression*>& CopiedExpressions)
+{
+	Super::PostCopyNode(CopiedExpressions);
+
+	ensure(!Declaration || Declaration->VariableGuid == DeclarationGuid);
+
+	if (!Declaration)
+	{
+		// First try to find the declaration in the copied expressions
+		Declaration = FindDeclarationInArray(DeclarationGuid, CopiedExpressions);
+		if (!Declaration)
+		{
+			// If unsuccessful, try to find it in the whole material
+			Declaration = FindDeclarationInMaterial(DeclarationGuid);
+		}
+		if (Declaration)
+		{
+			// Save that Declaration change
+			MarkPackageDirty();
+		}
+	}
+}
+
+bool UMaterialExpressionNamedRerouteUsage::IsDeclarationValid() const
+{
+	// Deleted expressions are marked as pending kill (see FMaterialEditor::DeleteNodes)
+	return Declaration && !Declaration->IsPendingKill();
+}
+#endif // WITH_EDITOR
+
+bool UMaterialExpressionNamedRerouteUsage::GetRerouteInput(FExpressionInput& OutInput) const
+{
+	if (IsDeclarationValid())
+	{
+		// Forward to the declaration input
+		OutInput = Declaration->Input;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
 
 UMaterialExpressionRotateAboutAxis::UMaterialExpressionRotateAboutAxis(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

@@ -24,7 +24,7 @@
 #include "Materials/MaterialExpressionStaticSwitchParameter.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialExpressionMaterialAttributeLayers.h"
-#include "Materials/MaterialExpressionReroute.h"
+#include "Materials/MaterialExpressionRerouteBase.h"
 
 #include "Toolkits/ToolkitManager.h"
 #include "MaterialEditor.h"
@@ -249,7 +249,7 @@ bool FMaterialEditorUtilities::GetStaticSwitchExpressionValue(UMaterialInstance*
 {
 	// Trace any re-route nodes between the input pin and the actual expression
 	UMaterialExpression* TracedExpression = SwitchValueExpression;
-	if (UMaterialExpressionReroute* Reroute = Cast<UMaterialExpressionReroute>(TracedExpression))
+	if (UMaterialExpressionRerouteBase* Reroute = Cast<UMaterialExpressionRerouteBase>(TracedExpression))
 	{
 		TracedExpression = Reroute->TraceInputsToRealInput().Expression;
 	}

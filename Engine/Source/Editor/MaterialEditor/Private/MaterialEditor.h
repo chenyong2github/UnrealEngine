@@ -660,6 +660,14 @@ private:
 	void OnConvertObjects();
 	/** Command for converting nodes to textures */
 	void OnConvertTextures();
+	/** Command to select local variable declaration */
+	void OnSelectNamedRerouteDeclaration();
+	/** Command to select local variable usages */
+	void OnSelectNamedRerouteUsages();
+	/** Command to convert a reroute node to local variables */
+	void OnConvertRerouteToNamedReroute();
+	/** Command to convert local variables to a reroute node */
+	void OnConvertNamedRerouteToReroute();
 	/** Command for previewing a selected node */
 	void OnPreviewNode();
 	/** Command for toggling real time preview of selected node */
