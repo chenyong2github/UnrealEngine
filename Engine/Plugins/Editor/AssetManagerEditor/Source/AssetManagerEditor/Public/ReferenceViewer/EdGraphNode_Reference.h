@@ -36,6 +36,8 @@ class ASSETMANAGEREDITOR_API UEdGraphNode_Reference : public UEdGraphNode
 	virtual UObject* GetJumpTargetForDoubleClick() const override;
 	// End UEdGraphNode implementation
 
+	void SetAllowThumbnail(bool bInAllow) { bAllowThumbnail = bInAllow; }
+	bool AllowsThumbnail() const;
 	bool UsesThumbnail() const;
 	bool IsPackage() const;
 	bool IsCollapsed() const;
@@ -46,13 +48,14 @@ class ASSETMANAGEREDITOR_API UEdGraphNode_Reference : public UEdGraphNode
 
 private:
 	void CacheAssetData(const FAssetData& AssetData);
-	void SetupReferenceNode(const FIntPoint& NodeLoc, const TArray<FAssetIdentifier>& NewIdentifiers, const FAssetData& InAssetData);
+	void SetupReferenceNode(const FIntPoint& NodeLoc, const TArray<FAssetIdentifier>& NewIdentifiers, const FAssetData& InAssetData, bool bInAllowThumbnail);
 	void SetReferenceNodeCollapsed(const FIntPoint& NodeLoc, int32 InNumReferencesExceedingMax);
 	void AddReferencer(class UEdGraphNode_Reference* ReferencerNode);
 
 	TArray<FAssetIdentifier> Identifiers;
 	FText NodeTitle;
 
+	bool bAllowThumbnail;
 	bool bUsesThumbnail;
 	bool bIsPackage;
 	bool bIsPrimaryAsset;

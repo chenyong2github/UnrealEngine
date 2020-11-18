@@ -672,12 +672,20 @@ struct FReferenceViewerParams
 		, bShowShowReferencesOptions(true)
 		, bShowShowSearchableNames(true)
 		, bShowShowNativePackages(true)
+		, bShowShowFilteredPackagesOnly(true)
+		, bShowCompactMode(true)
 	{}
 
 	/* Whether to display the Referencers */
 	bool bShowReferencers;
 	/* Whether to display the Dependencies */
 	bool bShowDependencies;
+	/* Whether to only display the References/Dependencies which match the text filter, if any. 
+	   If the optional is not set, don't change the current reference viewer's value. */
+	TOptional<bool> bShowFilteredPackagesOnly;
+	/* Compact mode allows to hide the thumbnail and minimize the space taken by the nodes. Useful when there are many dependencies to inspect, to keep the UI responsive. 
+	   If the optional is not set, don't change the current reference viewer's value. */
+	TOptional<bool> bCompactMode;
 	/**
 	 * Whether to visually show to the user the option of "Search Depth Limit" or hide it and fix it to a default value:
 	 * - If 0 or negative, it will show to the user the option of "Search Depth Limit".
@@ -698,6 +706,10 @@ struct FReferenceViewerParams
 	bool bShowShowSearchableNames;
 	/** Whether to visually show to the user the option of "Show Native Packages" */
 	bool bShowShowNativePackages;
+	/** Whether to visually show to the user the option of "Show Filtered Packages Only" */
+	bool bShowShowFilteredPackagesOnly;
+	/** Whether to visually show to the user the option of "Compact Mode" */
+	bool bShowCompactMode;
 };
 #endif // WITH_EDITORONLY_DATA
 
