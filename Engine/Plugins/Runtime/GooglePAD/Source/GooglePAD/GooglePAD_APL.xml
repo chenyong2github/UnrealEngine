@@ -78,6 +78,7 @@
 	</resourceCopies>
 
 	<gradleCopies>
+	<!--
 		<if condition="bEnabled">
 			<true>
 				<log text="Modifying Gradle version used by replacing gradle-wrapper.properties"/>
@@ -85,15 +86,18 @@
 							dst="$S(BuildDir)/gradle/gradle/wrapper/gradle-wrapper.properties" />
 			</true>
 		</if>
+	-->
 	</gradleCopies>
 
 	<gradleProperties>
+	<!--
 		<if condition="bEnabled">
 			<true>
 				<insertValue value="ANDROID_TOOLS_BUILD_GRADLE_VERSION=com.android.tools.build:gradle:4.0.0"/>
 				<insertNewline/>
 			</true>
 		</if>
+	-->
 	</gradleProperties>
 
 	<settingsGradleAdditions>

@@ -22,7 +22,7 @@ namespace UnrealBuildTool
 		private const string BUNDLETOOL_JAR = "bundletool-all-0.13.0.jar";
 
 		// classpath of default android build tools gradle plugin
-		private const string ANDROID_TOOLS_BUILD_GRADLE_VERSION = "com.android.tools.build:gradle:3.5.3";
+		private const string ANDROID_TOOLS_BUILD_GRADLE_VERSION = "com.android.tools.build:gradle:4.0.0";
 
 		// Minimum Android SDK that must be used for Java compiling
 		readonly int MinimumSDKLevel = 28;
