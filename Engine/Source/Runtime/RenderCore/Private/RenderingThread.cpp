@@ -1138,7 +1138,7 @@ static void GameThreadWaitForTask(const FGraphEventRef& Task, ENamedThreads::Typ
 				if(GIsAutomationTesting)
 				{
 					// temp test to log callstacks for this being triggered during automation tests
-					ensureMsgf(false, TEXT("FlushRenderingCommands called recursively! %d calls on the stack."));
+					ensureMsgf(false, TEXT("FlushRenderingCommands called recursively! %d calls on the stack."), NumRecursiveCalls);
 				}
 				UE_LOG(LogRendererCore,Warning,TEXT("FlushRenderingCommands called recursively! %d calls on the stack."), NumRecursiveCalls);
 			}
