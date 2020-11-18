@@ -49,7 +49,7 @@ public:
 class FMeshMaterialRenderItem : public FCanvasBaseRenderItem
 {
 public:
-	FMeshMaterialRenderItem(const FMaterialData* InMaterialSettings, const FMeshData* InMeshSettings, EMaterialProperty InMaterialProperty, FDynamicMeshBufferAllocator* InDynamicMeshBufferAllocator = nullptr);
+	FMeshMaterialRenderItem(const FIntPoint& InTextureSize, const FMeshData* InMeshSettings, FDynamicMeshBufferAllocator* InDynamicMeshBufferAllocator = nullptr);
 	virtual ~FMeshMaterialRenderItem();
 
 	/** Begin FCanvasBaseRenderItem overrides */
@@ -67,11 +67,10 @@ protected:
 	void PopulateWithQuadData();
 	void PopulateWithMeshData();
 public:
-	/** Mesh and material settings to use while baking out the material */
+	/** Mesh settings to use while baking out the material */
 	const FMeshData* MeshSettings;
-	const FMaterialData* MaterialSettings;
-	/** Material property to bake out */
-	EMaterialProperty MaterialProperty;
+	/** The texture size to use while baking */
+	FIntPoint TextureSize;
 	/** Material render proxy (material/shader) to use while baking */
 	FMaterialRenderProxy* MaterialRenderProxy;
 	/** Vertex and index data representing the mesh or a quad */

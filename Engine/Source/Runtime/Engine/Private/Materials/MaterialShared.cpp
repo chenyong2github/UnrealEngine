@@ -4368,6 +4368,19 @@ void FMaterialAttributeDefinitionMap::AddCustomAttribute(const FGuid& AttributeI
 	}
 }
 
+FGuid FMaterialAttributeDefinitionMap::GetCustomAttributeID(const FString& AttributeName)
+{
+	for (auto& Attribute : GMaterialPropertyAttributesMap.CustomAttributes)
+	{
+		if (Attribute.AttributeName == AttributeName)
+		{
+			return Attribute.AttributeID;
+		}
+	}
+
+	return GMaterialPropertyAttributesMap.Find(MP_MAX)->AttributeID;
+}
+
 void FMaterialAttributeDefinitionMap::GetCustomAttributeList(TArray<FMaterialCustomOutputAttributeDefintion>& CustomAttributeList)
 {
 	CustomAttributeList.Empty(GMaterialPropertyAttributesMap.CustomAttributes.Num());
