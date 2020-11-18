@@ -763,7 +763,7 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 	}
 	else // Otherwise check for growing and possibly shrinking (if GNiagaraGPUDataBufferBufferSlack > 1) .
 	{
-		TArray <FRHITransitionInfo, TInlineAllocator<4>> Transitions;
+		TArray<FRHITransitionInfo, TInlineAllocator<5>> Transitions;
 
 		// Float buffer requires growing or shrinking?
 		const int32 RequiredFloatByteSize = Align(FloatStride * Owner->GetNumFloatComponents(), GNiagaraGPUDataBufferChunkSize);

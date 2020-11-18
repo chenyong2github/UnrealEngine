@@ -725,17 +725,19 @@ void NiagaraEmitterInstanceBatcher::BuildDispatchGroups(FOverlappableTicks& Over
 
 						if (bRequiresPersistentIDs)
 						{
+							// Ensure GPU Free IDs are readable, this only needs to happen once as they will remain readable through all simulation stages
+							if (FinalIDToIndexUAV == nullptr)
+							{
+								StageGroup->TransitionsBefore.Add(FRHITransitionInfo(Context->MainDataSet->GetGPUFreeIDs().UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
+							}
+
 							// Insert a UAV barrier on the ID to index table, to prevent a race with the previous dispatch which also wrote to it.
 							FRHIUnorderedAccessView* IDToIndexUAV = DestinationData->GetGPUIDToIndexTable().UAV;
-							StageGroup->TransitionsBefore.Add(FRHITransitionInfo(IDToIndexUAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+							ensure((FinalIDToIndexUAV != nullptr) || (IDToIndexUAV == InstanceData.SimStageData[0].Destination->GetGPUIDToIndexTable().UAV));
+							StageGroup->TransitionsBefore.Add(FRHITransitionInfo(IDToIndexUAV, FinalIDToIndexUAV == nullptr ? ERHIAccess::UAVCompute : ERHIAccess::SRVCompute, ERHIAccess::UAVCompute));
+							StageGroup->TransitionsAfter.Add(FRHITransitionInfo(IDToIndexUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
 							FinalIDToIndexUAV = IDToIndexUAV;
 						}
-					}
-
-					// Make the free ID buffer readable.
-					if (bRequiresPersistentIDs)
-					{
-						StageGroup->TransitionsBefore.Add(FRHITransitionInfo(Context->MainDataSet->GetGPUFreeIDs().UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
 					}
 				}
 
@@ -759,7 +761,6 @@ void NiagaraEmitterInstanceBatcher::BuildDispatchGroups(FOverlappableTicks& Over
 			if (FinalIDToIndexUAV)
 			{
 				InstancesWithPersistentIDs.Add(&InstanceData);
-				DispatchGroups.Last().TransitionsAfter.Add(FRHITransitionInfo(FinalIDToIndexUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
 			}
 
 			// Final tick, if so enqueue a readback and set the data to render
@@ -848,35 +849,31 @@ void NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(FDispatchInstanceList& 
 	}
 }
 
-void NiagaraEmitterInstanceBatcher::ResizeFreeIDsListSizesBuffer(FRHICommandList& RHICmdList, uint32 NumInstances)
+void NiagaraEmitterInstanceBatcher::UpdateFreeIDsListSizesBuffer(FRHICommandList& RHICmdList, uint32 NumInstances)
 {
-	if (NumInstances <= NumAllocatedFreeIDListSizes)
+	ERHIAccess BeforeState = ERHIAccess::SRVCompute;
+	if (NumInstances > NumAllocatedFreeIDListSizes)
 	{
-		return;
-	}
+		constexpr uint32 ALLOC_CHUNK_SIZE = 128;
+		NumAllocatedFreeIDListSizes = Align(NumInstances, ALLOC_CHUNK_SIZE);
+		if (FreeIDListSizesBuffer.Buffer)
+		{
+			FreeIDListSizesBuffer.Release();
+		}
+		FreeIDListSizesBuffer.Initialize(sizeof(uint32), NumAllocatedFreeIDListSizes, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("NiagaraFreeIDListSizes"));
 
-	constexpr uint32 ALLOC_CHUNK_SIZE = 128;
-	NumAllocatedFreeIDListSizes = Align(NumInstances, ALLOC_CHUNK_SIZE);
-	if (FreeIDListSizesBuffer.Buffer)
+		BeforeState = ERHIAccess::Unknown;
+
+		bFreeIDListSizesBufferCleared = false;
+	}
+	
+	if ( !bFreeIDListSizesBufferCleared )
 	{
-		FreeIDListSizesBuffer.Release();
+		SCOPED_DRAW_EVENT(RHICmdList, NiagaraGPUComputeClearFreeIDListSizes);
+		RHICmdList.Transition(FRHITransitionInfo(FreeIDListSizesBuffer.UAV, BeforeState, ERHIAccess::UAVCompute));
+		NiagaraFillGPUIntBuffer(RHICmdList, FeatureLevel, FreeIDListSizesBuffer, 0);
+		bFreeIDListSizesBufferCleared = true;
 	}
-	FreeIDListSizesBuffer.Initialize(sizeof(uint32), NumAllocatedFreeIDListSizes, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("NiagaraFreeIDListSizes"));
-	RHICmdList.Transition(FRHITransitionInfo(FreeIDListSizesBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-	bFreeIDListSizesBufferCleared = false;
-}
-
-void NiagaraEmitterInstanceBatcher::ClearFreeIDsListSizesBuffer(FRHICommandList& RHICmdList)
-{
-	if (bFreeIDListSizesBufferCleared)
-	{
-		return;
-	}
-
-	SCOPED_DRAW_EVENT(RHICmdList, NiagaraGPUComputeClearFreeIDListSizes);
-	// The buffer has already been transitioned to UAVCompute.
-	NiagaraFillGPUIntBuffer(RHICmdList, FeatureLevel, FreeIDListSizesBuffer, 0);
-	bFreeIDListSizesBufferCleared = true;
 }
 
 void NiagaraEmitterInstanceBatcher::UpdateFreeIDBuffers(FRHICommandList& RHICmdList, FEmitterInstanceList& Instances)
@@ -889,17 +886,21 @@ void NiagaraEmitterInstanceBatcher::UpdateFreeIDBuffers(FRHICommandList& RHICmdL
 	SCOPED_DRAW_EVENT(RHICmdList, NiagaraGPUComputeFreeIDs);
 	SCOPED_GPU_STAT(RHICmdList, NiagaraGPUComputeFreeIDs);
 
-	FNiagaraTransitionList Transitions;
-	Transitions.Reserve(Instances.Num() + 1);
+	FNiagaraTransitionList TransitionsBefore;
+	TransitionsBefore.Reserve(Instances.Num() * 2 + 1);
+
 	// Insert a UAV barrier on the buffer, to make sure the previous clear finished writing to it.
-	Transitions.Add(FRHITransitionInfo(FreeIDListSizesBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+	TransitionsBefore.Add(FRHITransitionInfo(FreeIDListSizesBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
 	for(FNiagaraComputeInstanceData* Instance : Instances)
 	{
+		FNiagaraDataSet* MainDataSet = Instance->Context->MainDataSet;
+		FNiagaraDataBuffer* FinalData = MainDataSet->GetCurrentData();
+
 		// The ID to index tables should already be in SRVCompute. Make the free ID tables writable.
-		Transitions.Add(FRHITransitionInfo(Instance->Context->MainDataSet->GetGPUFreeIDs().UAV, ERHIAccess::SRVCompute, ERHIAccess::UAVCompute));
+		TransitionsBefore.Add(FRHITransitionInfo(MainDataSet->GetGPUFreeIDs().UAV, ERHIAccess::SRVCompute, ERHIAccess::UAVCompute));
 	}
 
-	RHICmdList.Transition(Transitions);
+	RHICmdList.Transition(TransitionsBefore);
 
 	check((uint32)Instances.Num() <= NumAllocatedFreeIDListSizes);
 
@@ -1329,13 +1330,7 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 					// If we're the first group and the FreeIDListSizesBuffer is in use, transition it here, so the clear we do at the end can overlap the simulation dispatches.
 					if (bIsFirstGroup && bHasInstancesWithPersistentIDs && FreeIDListSizesBuffer.Buffer)
 					{
-						Group.TransitionsBefore.Add(FRHITransitionInfo(FreeIDListSizesBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
-					}
-
-					// If we're the first group and the FreeIDListSizesBuffer is in use, transition it here, so the clear we do at the end can overlap the simulation dispatches.
-					if (bIsFirstGroup && bHasInstancesWithPersistentIDs && FreeIDListSizesBuffer.Buffer)
-					{
-						Group.TransitionsBefore.Add(FRHITransitionInfo(FreeIDListSizesBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+						Group.TransitionsBefore.Add(FRHITransitionInfo(FreeIDListSizesBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
 					}
 
 					// If we're the last group, make the instance count buffer readable after the dispatch.
@@ -1350,6 +1345,8 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 					DispatchAllOnCompute(Group.DispatchInstances, RHICmdList, ViewUniformBuffer);
 					RHICmdList.EndUAVOverlap(GPUInstanceCounterManager.GetInstanceCountBuffer().UAV);
 
+					RHICmdList.Transition(Group.TransitionsAfter);
+
 					// If we're the last group and we have emitters with persistent IDs, clear the ID list sizes before doing the final transitions, to overlap that dispatch with the simulation dispatches.
 					if (bIsLastGroup && bHasInstancesWithPersistentIDs)
 					{
@@ -1359,24 +1356,16 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 						// running normally, with one tick per frame.
 						if (SimPassIdx < SimPasses.Num() - 1)
 						{
-							ResizeFreeIDsListSizesBuffer(RHICmdList, InstancesWithPersistentIDs.Num());
-							ClearFreeIDsListSizesBuffer(RHICmdList);
+							UpdateFreeIDsListSizesBuffer(RHICmdList, InstancesWithPersistentIDs.Num());
 							UpdateFreeIDBuffers(RHICmdList, InstancesWithPersistentIDs);
 						}
 						else
 						{
+						//-TODO: FIX ME:  AppendUnique?
 							DeferredIDBufferUpdates.Append(InstancesWithPersistentIDs);
-							ResizeFreeIDsListSizesBuffer(RHICmdList, DeferredIDBufferUpdates.Num());
-
-							// Speculatively clear the list sizes buffer here. Under normal circumstances, this happens in the first stage which finds instances with persistent IDs
-							// (usually PreInitViews) and it's finished by the time the deferred updates need to be processed. If a subsequent tick stage runs multiple time ticks,
-							// the first step will find the buffer already cleared and will not clear again. The only time when this clear is superfluous is when a following stage
-							// reallocates the buffer, but that's unlikely (and amortized) because we allocate in chunks.
-							ClearFreeIDsListSizesBuffer(RHICmdList);
+							UpdateFreeIDsListSizesBuffer(RHICmdList, DeferredIDBufferUpdates.Num());
 						}
 					}
-
-					RHICmdList.Transition(Group.TransitionsAfter);
 				}
 			}
 		}

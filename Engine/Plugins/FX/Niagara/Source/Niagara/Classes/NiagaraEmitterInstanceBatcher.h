@@ -230,8 +230,7 @@ private:
 	bool UseOverlapCompute();
 	void FinishDispatches();
 	void ReleaseTicks();
-	void ResizeFreeIDsListSizesBuffer(FRHICommandList& RHICmdList, uint32 NumInstances);
-	void ClearFreeIDsListSizesBuffer(FRHICommandList& RHICmdList);
+	void UpdateFreeIDsListSizesBuffer(FRHICommandList& RHICmdList, uint32 NumInstances);
 	void UpdateFreeIDBuffers(FRHICommandList& RHICmdList, FEmitterInstanceList& Instances);
 
 	void SetConstantBuffers(FRHICommandList &RHICmdList, const FNiagaraShaderRef& Shader, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData* Instance);
