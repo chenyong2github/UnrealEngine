@@ -1445,7 +1445,7 @@ void ComputeHairStrandsInterpolation(
 			if (HairGroupCluster.bVisible)
 			{
 				// Optim: If an instance is using CPU selection and does not voxelize it's data, then there is no need for having valid AABB
-				const bool bNeedAABB = !Instance->bUseCPULODSelection || Instance->Strands.Modifier.bSupportVoxelization;
+				const bool bNeedAABB = !Instance->bUseCPULODSelection || (Instance->Strands.Modifier.bSupportVoxelization && Instance->bCastShadow);
 
 				if (bNeedAABB)
 				{
@@ -1655,7 +1655,7 @@ void ComputeHairStrandsInterpolation(
 
 	Instance->HairGroupPublicData->VFInput.GeometryType = InstanceGeometryType;
 	Instance->HairGroupPublicData->VFInput.LocalToWorldTransform = Instance->LocalToWorld;
-	Instance->HairGroupPublicData->bSupportVoxelization = Instance->Strands.Modifier.bSupportVoxelization;
+	Instance->HairGroupPublicData->bSupportVoxelization = Instance->Strands.Modifier.bSupportVoxelization && Instance->bCastShadow;
 }
 
 void ResetHairStrandsInterpolation(
