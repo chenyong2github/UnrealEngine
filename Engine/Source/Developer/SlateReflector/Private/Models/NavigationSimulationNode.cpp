@@ -210,7 +210,7 @@ FNavigationSimulationWidgetNodePtr FNavigationSimulationWidgetNode::FromJson(con
 			const TArray<TSharedPtr<FJsonValue>>& StructJsonArray = InJsonValue->AsArray();
 			check(StructJsonArray.Num() == 2);
 
-			Out = FVector2D(StructJsonArray[0]->AsNumber(), StructJsonArray[1]->AsNumber());
+			Out = FVector2D((float)StructJsonArray[0]->AsNumber(), (float)StructJsonArray[1]->AsNumber());
 		}
 		static FNavigationSimulationWidgetInfo::TPointerAsInt ParsePtrIntFromString(const FString& Value)
 		{
@@ -228,10 +228,10 @@ FNavigationSimulationWidgetNodePtr FNavigationSimulationWidgetNode::FromJson(con
 			check(StructJsonArray.Num() == 4);
 
 			Out = FMatrix2x2(
-				StructJsonArray[0]->AsNumber(),
-				StructJsonArray[1]->AsNumber(),
-				StructJsonArray[2]->AsNumber(),
-				StructJsonArray[3]->AsNumber()
+				(float)StructJsonArray[0]->AsNumber(),
+				(float)StructJsonArray[1]->AsNumber(),
+				(float)StructJsonArray[2]->AsNumber(),
+				(float)StructJsonArray[3]->AsNumber()
 			);
 		}
 		static void ParseJsonValue(const TSharedPtr<FJsonValue>& InJsonValue, FSlateLayoutTransform& Out)
@@ -244,7 +244,7 @@ FNavigationSimulationWidgetNodePtr FNavigationSimulationWidgetNode::FromJson(con
 			check(StructJsonObject.IsValid());
 
 
-			float Scale = StructJsonObject->GetNumberField(TEXT("Scale"));
+			float Scale = (float)StructJsonObject->GetNumberField(TEXT("Scale"));
 			FVector2D Translation;
 			ParseJsonValue(StructJsonObject->GetField<EJson::None>(TEXT("Translation")), Translation);
 			Out = FSlateLayoutTransform(Scale, Translation);
