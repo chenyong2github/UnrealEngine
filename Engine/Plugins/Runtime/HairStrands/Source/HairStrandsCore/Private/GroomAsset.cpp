@@ -1978,7 +1978,7 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 
 				// Update card stats to display
 				Desc->CardsInfo.NumCardVertices = LOD.Data.Cards.GetNumVertices();
-				Desc->CardsInfo.NumCards = LOD.Data.Cards.PointOffsets.Num();
+				Desc->CardsInfo.NumCards = LOD.Data.Cards.IndexOffsets.Num();
 			}
 		}
 	}
