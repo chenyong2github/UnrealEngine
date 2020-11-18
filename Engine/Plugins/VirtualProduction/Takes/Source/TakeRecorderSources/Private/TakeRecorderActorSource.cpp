@@ -182,6 +182,11 @@ UTakeRecorderActorSource::UTakeRecorderActorSource(const FObjectInitializer& Obj
 	RebuildRecordedPropertyMap();
 }
 
+bool UTakeRecorderActorSource::IsValid() const
+{
+	return (Target.IsValid());
+}
+
 
 TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PreRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
 {
