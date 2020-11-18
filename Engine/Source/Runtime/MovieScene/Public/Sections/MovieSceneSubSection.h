@@ -41,8 +41,8 @@ class MOVIESCENE_API UMovieSceneSubSection
 
 public:
 
-	/** Default constructor. */
-	UMovieSceneSubSection();
+	/** Object constructor. */
+	UMovieSceneSubSection(const FObjectInitializer& ObjInitializer);
 
 	/**
 	 * Get the sequence that is assigned to this section.

@@ -16,8 +16,8 @@ class MOVIESCENETRACKS_API UMovieSceneCinematicShotSection
 {
 	GENERATED_BODY()
 
-	/** Default constructor. */
-	UMovieSceneCinematicShotSection();
+	/** Object constructor. */
+	UMovieSceneCinematicShotSection(const FObjectInitializer& ObjInitializer);
 
 	/** ~UObject interface */
 	virtual void PostLoad() override;

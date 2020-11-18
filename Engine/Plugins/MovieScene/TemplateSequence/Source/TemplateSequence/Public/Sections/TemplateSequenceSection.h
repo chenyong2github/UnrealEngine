@@ -18,7 +18,7 @@ public:
 
 	GENERATED_BODY()
 
-	UTemplateSequenceSection();
+	UTemplateSequenceSection(const FObjectInitializer& ObjInitializer);
 
 	// UMovieSceneSection interface
 	virtual void OnDilated(float DilationFactor, FFrameNumber Origin) override;
