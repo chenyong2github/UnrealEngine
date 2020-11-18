@@ -18,8 +18,9 @@ namespace Chaos
 	class CHAOS_API FContactPoint
 	{
 	public:
-		FVec3 ShapeContactPoints[2];	// Shape-space contact points on the two bodies
+		FVec3 ShapeContactPoints[2];	// Shape-space contact points on the two bodies, without the margin added (i.e., contact point on the core shape)
 		FVec3 ShapeContactNormal;		// Shape-space contact normal relative to the NormalOwner, but with direction that always goes from body 1 to body 0
+		FReal ShapeMargins[2];			// Margins used in collision detection
 		int32 ContactNormalOwnerIndex;	// The shape which owns the contact normal (usually the second body, but not always for manifolds)
 
 		// @todo(chaos): these do not need to be stored here (they can be derived from above)
@@ -73,8 +74,8 @@ namespace Chaos
 
 		// @todo(chaos): Normal and plane owner should be per manifold, not per manifold-point when we are not using incremental manifolds any more
 		FContactPoint ContactPoint;			// Shape-space data from low-level collision detection
-		FVec3 CoMContactPoints[2];			// CoM-space contact points on the two bodies
-		FVec3 PrevCoMContactPoints[2];		// CoM-space contact points on the two bodies at previous transforms (used for static friction)
+		FVec3 CoMContactPoints[2];			// CoM-space contact points on the two bodies core shapes (not including margin)
+		FVec3 PrevCoMContactPoints[2];		// CoM-space contact points on the two bodies core shapes at previous transforms (used for static friction)
 		FVec3 CoMContactNormal;				// CoM-space contact normal relative to ContactNormalOwner body	
 		FVec3 NetImpulse;					// Total impulse applied by this contact point
 		FVec3 NetPushOut;					// Total pushout applied at this contact point
