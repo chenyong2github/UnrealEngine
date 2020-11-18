@@ -21,6 +21,7 @@
 #include "Sound/SoundSourceBus.h"
 #include "AudioVirtualLoop.h"
 #include "AudioMixer.h"
+#include "UObject/StrongObjectPtr.h"
 
 /**
  * Forward declares
@@ -412,6 +413,9 @@ public:
 	//End FExec Interface
 
 #if !UE_BUILD_SHIPPING
+	UAudioComponent* GetTestComponent(UWorld* InWorld);
+	void StopTestComponent();
+
 private:
 	/**
 	 * Exec command handlers
@@ -437,8 +441,6 @@ private:
 	bool HandleListAudioComponentsCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleListSoundDurationsCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleSoundTemplateInfoCommand(const TCHAR* Cmd, FOutputDevice& Ar);
-	bool HandlePlaySoundCueCommand(const TCHAR* Cmd, FOutputDevice& Ar);
-	bool HandlePlaySoundWaveCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleSetBaseSoundMixCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleIsolateDryAudioCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleIsolateReverbCommand(const TCHAR* Cmd, FOutputDevice& Ar);
@@ -1805,7 +1807,7 @@ private:
 	uint64 CurrentTick;
 
 	/** An AudioComponent to play test sounds on */
-	TWeakObjectPtr<UAudioComponent> TestAudioComponent;
+	TStrongObjectPtr<UAudioComponent> TestAudioComponent;
 
 	/** The debug state of the audio device */
 	TEnumAsByte<enum EDebugState> DebugState;

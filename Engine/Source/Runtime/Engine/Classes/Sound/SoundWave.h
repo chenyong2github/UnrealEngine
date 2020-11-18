@@ -814,11 +814,6 @@ public:
 	void RemoveAudioResource();
 
 	/**
-	 * Prints the subtitle associated with the SoundWave to the console
-	 */
-	void LogSubtitle( FOutputDevice& Ar );
-
-	/**
 	 * Handle any special requirements when the sound starts (e.g. subtitles)
 	 */
 	FWaveInstance& HandleStart(FActiveSound& ActiveSound, const UPTRINT WaveInstanceHash) const;

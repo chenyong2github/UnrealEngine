@@ -8,6 +8,7 @@
 #include "AudioEffect.h"
 #include "AudioVirtualLoop.h"
 #include "CanvasTypes.h"
+#include "Components/AudioComponent.h"
 #include "DrawDebugHelpers.h"
 #include "DSP/Dsp.h"
 #include "Engine/Font.h"
@@ -16,12 +17,16 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Parse.h"
+#include "Serialization/Archive.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/AudioVolume.h"
 #include "Sound/ReverbEffect.h"
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundClass.h"
 #include "Sound/SoundConcurrency.h"
+#include "Sound/SoundCue.h"
+#include "Sound/SoundNodeWavePlayer.h"
 #include "Sound/SoundMix.h"
 #include "Sound/SoundSourceBus.h"
 #include "Sound/SoundWave.h"
@@ -377,6 +382,215 @@ namespace Audio
 		}
 	}
 
+	template <typename SoundType>
+	void PlayDebugSound(const TCHAR* Cmd, FAudioDevice& InAudioDevice, UWorld& InWorld, TUniqueFunction<void(SoundType& /*InSound*/)> InInitFunction)
+	{
+		UAudioComponent* TestComp = InAudioDevice.GetTestComponent(&InWorld);
+		if (!TestComp)
+		{
+			return;
+		}
+
+		bool bAssetPathSet = false;
+		FString AssetPath;
+		if (FParse::Value(Cmd, TEXT("Name"), AssetPath))
+		{
+			if (const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>())
+			{
+				const FName SoundName(*AssetPath);
+				for (const FSoundDebugEntry& DebugSound : AudioSettings->DebugSounds)
+				{
+					const FSoftObjectPath& ObjectPath = DebugSound.Sound;
+					if (DebugSound.DebugName == SoundName && ObjectPath.IsValid())
+					{
+						AssetPath = ObjectPath.ToString();
+						bAssetPathSet = true;
+						break;
+					}
+				}
+			}
+		}
+
+		if (!bAssetPathSet)
+		{
+			bAssetPathSet = FParse::Value(Cmd, TEXT("Path"), AssetPath);
+		}
+
+		if (!bAssetPathSet)
+		{
+			TArray<FString> Tokens;
+			FString CmdStr = Cmd;
+			CmdStr.ParseIntoArray(Tokens, TEXT(" "));
+			if (!Tokens.Num())
+			{
+				return;
+			}
+
+			AssetPath = Tokens[0];
+		}
+
+		// Load up an arbitrary cue
+		SoundType* SoundObject = LoadObject<SoundType>(nullptr, *AssetPath, nullptr, LOAD_None, nullptr);
+		if (!SoundObject)
+		{
+			return;
+		}
+
+		TestComp->Stop();
+		TestComp->Sound = SoundObject;
+		TestComp->bAutoDestroy = true;
+
+		float Radius = 1.0f;
+		float Azimuth = 0.0f;
+		float Elevation = 0.0f;
+		TestComp->bAllowSpatialization |= FParse::Value(Cmd, TEXT("Radius"), Radius);
+		TestComp->bAllowSpatialization |= FParse::Value(Cmd, TEXT("Azimuth"), Azimuth);
+		TestComp->bAllowSpatialization |= FParse::Value(Cmd, TEXT("Elevation"), Elevation);
+		if (TestComp->bAllowSpatialization)
+		{
+			TestComp->bAllowSpatialization = true;
+			FTransform TestTransform;
+			InAudioDevice.GetListenerTransform(0, TestTransform);
+
+			static const float AziOffset = 90.0f;
+			static const float ElevOffset = 90.0f;
+
+			const FVector EulerAngles = TestTransform.GetRotation().Euler();
+			Azimuth = FMath::DegreesToRadians(-1.0f * (EulerAngles.Z + Azimuth + AziOffset));
+			Elevation = FMath::DegreesToRadians(Elevation + EulerAngles.Y - ElevOffset);
+
+			const float X = Radius * FMath::Sin(Elevation) * FMath::Sin(Azimuth);
+			const float Y = Radius * FMath::Sin(Elevation) * FMath::Cos(Azimuth);
+			const float Z = Radius * FMath::Cos(Elevation);
+
+			const FVector Translation(X, Y, Z);
+			TestTransform.AddToTranslation(Translation);
+			TestComp->SetComponentToWorld(TestTransform);
+		}
+
+		InInitFunction(*SoundObject);
+		TestComp->Play();
+	}
+
+	void HandlePlayDebugSoundCue(const TArray<FString>& InArgs, UWorld* World)
+	{
+		if (!World)
+		{
+			return;
+		}
+
+		auto PlayDebugSoundCue = [](const TCHAR * InCmd, FAudioDevice & InAudioDevice, UWorld & InWorld)
+		{
+			bool bSetLooping = false;
+			PlayDebugSound<USoundCue>(InCmd, InAudioDevice, InWorld, [InCmd](USoundCue& InCue)
+			{
+				TArray<USoundNodeWavePlayer*> WavePlayers;
+				InCue.RecursiveFindNode<USoundNodeWavePlayer>(InCue.FirstNode, WavePlayers);
+
+				for (int32 i = 0; i < WavePlayers.Num(); ++i)
+				{
+					if (USoundWave* SoundWave = WavePlayers[i]->GetSoundWave())
+					{
+						FAudioDebugger::LogSubtitle(InCmd, *SoundWave);
+					}
+				}
+			});
+		};
+
+		FString Cmd = FString::Join(InArgs, TEXT(" "));
+
+		if (FParse::Param(*Cmd, TEXT("AllViews")))
+		{
+			if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+			{
+				DeviceManager->IterateOverAllDevices([PlayDebugSoundCue, Cmd, World](Audio::FDeviceId, FAudioDevice* AudioDevice)
+				{
+					if (AudioDevice)
+					{
+						PlayDebugSoundCue(*Cmd, *AudioDevice, *World);
+					}
+				});
+			}
+		}
+		else
+		{
+			if (FAudioDevice* AudioDevice = World->GetAudioDeviceRaw())
+			{
+				PlayDebugSoundCue(*Cmd, *AudioDevice, *World);
+			}
+		}
+	}
+
+	void HandlePlayDebugSoundWave(const TArray<FString>& InArgs, UWorld* World)
+	{
+		if (!World)
+		{
+			return;
+		}
+
+		FString Cmd = FString::Join(InArgs, TEXT(" "));
+
+		auto PlayDebugSoundWave = [](const TCHAR * InCmd, FAudioDevice & InAudioDevice, UWorld & InWorld)
+		{
+			PlayDebugSound<USoundWave>(InCmd, InAudioDevice, InWorld, [InCmd](USoundWave& InSoundWave)
+			{
+				FAudioDebugger::LogSubtitle(InCmd, InSoundWave);
+			});
+		};
+
+		if (FParse::Param(*Cmd, TEXT("AllViews")))
+		{
+			if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+			{
+				DeviceManager->IterateOverAllDevices([PlayDebugSoundWave, Cmd, World](Audio::FDeviceId, FAudioDevice* AudioDevice)
+				{
+					if (AudioDevice)
+					{
+						PlayDebugSoundWave(*Cmd, *AudioDevice, *World);
+					}
+				});
+			}
+		}
+		else if (World)
+		{
+			if (FAudioDevice* AudioDevice = World->GetAudioDeviceRaw())
+			{
+				PlayDebugSoundWave(*Cmd, *AudioDevice, *World);
+			}
+		}
+	}
+
+	void HandleStopDebugSound(const TArray<FString>& InArgs, UWorld* InWorld)
+	{
+		if (!InWorld)
+		{
+			return;
+		}
+
+		FString Cmd = FString::Join(InArgs, TEXT(" "));
+
+		if (FParse::Param(*Cmd, TEXT("AllViews")))
+		{
+			if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+			{
+				DeviceManager->IterateOverAllDevices([InWorld](Audio::FDeviceId, FAudioDevice* AudioDevice)
+				{
+					if (AudioDevice)
+					{
+						AudioDevice->StopTestComponent();
+					}
+				});
+			}
+		}
+		else if (InWorld)
+		{
+			if (FAudioDevice* AudioDevice = InWorld->GetAudioDeviceRaw())
+			{
+				AudioDevice->StopTestComponent();
+			}
+		}
+	}
+
 	void DebugSoundObject(const TArray<FString>& Args, UWorld* InWorld, const uint32 InStatToEnable, bool& bAllEnabled)
 	{
 		bAllowUsingDeprecatedDebugStats = false;
@@ -431,6 +645,45 @@ namespace Audio
 // Console Commands
 static FAutoConsoleCommandWithWorld GAudioDumpActiveSounds(TEXT("au.DumpActiveSounds"), TEXT("Outputs data about all the currently active sounds."), FConsoleCommandWithWorldDelegate::CreateStatic(&Audio::HandleDumpActiveSounds), ECVF_Cheat);
 static FAutoConsoleCommandWithWorld GAudioClearMutesAndSolos(TEXT("au.ClearMutesAndSolos"), TEXT("Clears any solo-ing/mute-ing sounds"), FConsoleCommandWithWorldDelegate::CreateStatic(&Audio::HandleClearMutesAndSolos), ECVF_Cheat);
+
+static FAutoConsoleCommandWithWorldAndArgs GAudioPlayDebugSoundCue
+(
+	TEXT("au.Debug.PlaySoundCue"),
+	TEXT("Plays a SoundCue:\n")
+	TEXT("-Name <SoundName>: If a debug sound with the short name is specified in AudioSettings, plays that sound.\n")
+	TEXT("-Path <ObjectPath>: Finds SoundCue asset at the provided path and if found, plays that sound.\n")
+	TEXT("-Radius <Distance>: If set, enables sound spatialization and sets radial distance between listener and source emitting sound.\n")
+	TEXT("-Azimuth <Angle>: If set, enables sound spatialization and sets azimuth angle between listener and source emitting sound (in degrees, where 0 is straight ahead, negative to left, positive to right).\n")
+	TEXT("-Elevation <Angle>: If set, enables sound spatialization and sets azimuth angle between listener and source emitting sound (in degrees, where 0 is straight ahead, negative to left, positive to right).\n")
+	TEXT("-AllViews: If option provided, plays sound through all viewports.\n")
+	TEXT("-LogSubtitles: If option provided, logs sounds subtitle if set\n"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Audio::HandlePlayDebugSoundCue),
+	ECVF_Cheat
+);
+
+static FAutoConsoleCommandWithWorldAndArgs GAudioPlayDebugSoundWave
+(
+	TEXT("au.Debug.PlaySoundWave"),
+	TEXT("Plays a SoundWave:\n")
+		TEXT("-Name <SoundName>: If a debug sound with the short name is specified in AudioSettings, plays that sound.\n")
+		TEXT("-Path <ObjectPath>: Finds SoundWave asset at the provided path and if found, plays that sound.\n")
+		TEXT("-Radius: If set, enables sound spatialization and sets radial distance between listener and source emitting sound.\n")
+		TEXT("-Azimuth <Angle>: If set, enables sound spatialization and sets azimuth angle between listener and source emitting sound (in degrees, where 0 is straight ahead, negative to left, positive to right).\n")
+		TEXT("-Elevation <Angle>: If set, enables sound spatialization and sets azimuth angle between listener and source emitting sound (in degrees, where 0 is straight ahead, negative to left, positive to right).\n")
+		TEXT("-AllViews: If option provided, plays sound through all viewports.\n")
+		TEXT("-LogSubtitles: If option provided, logs sounds subtitle if set\n"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Audio::HandlePlayDebugSoundWave),
+	ECVF_Cheat
+);
+
+static FAutoConsoleCommandWithWorldAndArgs GAudioStopDebugSound
+(
+	TEXT("au.Debug.StopSound"),
+	TEXT("Stops debug sound.\n")
+		TEXT("-AllViews: If option provided, stops all debug sounds in all viewports.\n"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Audio::HandleStopDebugSound),
+	ECVF_Cheat
+);
 
 static FAutoConsoleCommandWithWorldAndArgs GAudioDebugSoundCues
 (
@@ -2296,6 +2549,35 @@ namespace Audio
 		DebugNames.SoloSoundClass.Empty();
 		DebugNames.SoloSoundCue.Empty();
 		DebugNames.SoloSoundWave.Empty();
+	}
+
+	void FAudioDebugger::LogSubtitle(const TCHAR* InCmd, USoundWave& InSoundWave)
+	{
+		const bool bLogSubtitle = FParse::Param(InCmd, TEXT("LogSubtitle"));
+		if (bLogSubtitle)
+		{
+			FString Subtitle;
+			for (int32 i = 0; i < InSoundWave.Subtitles.Num(); i++)
+			{
+				Subtitle += InSoundWave.Subtitles[i].Text.ToString();
+			}
+
+			if (Subtitle.Len() == 0)
+			{
+				Subtitle = InSoundWave.SpokenText;
+			}
+
+			if (Subtitle.Len() == 0)
+			{
+				Subtitle = "<NO SUBTITLE>";
+			}
+
+			UE_LOG(LogAudio, Display, TEXT("Subtitle:  %s"), *Subtitle);
+#if WITH_EDITORONLY_DATA
+			UE_LOG(LogAudio, Display, TEXT("Comment:   %s"), *InSoundWave.Comment);
+#endif // WITH_EDITORONLY_DATA
+			UE_LOG(LogAudio, Display, TEXT("Mature:    %s"), InSoundWave.bMature ? TEXT("Yes") : TEXT("No"));
+		}
 	}
 } // namespace Audio
 #endif // ENABLE_AUDIO_DEBUG
