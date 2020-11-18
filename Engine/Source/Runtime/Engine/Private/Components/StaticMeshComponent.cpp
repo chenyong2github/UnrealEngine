@@ -1951,8 +1951,8 @@ bool UStaticMeshComponent::GetLightMapResolution( int32& Width, int32& Height ) 
 		// Use the lightmap resolution defined in the static mesh.
 		else
 		{
-			Width	= GetStaticMesh()->LightMapResolution;
-			Height	= GetStaticMesh()->LightMapResolution;
+			Width	= GetStaticMesh()->GetLightMapResolution();
+			Height	= GetStaticMesh()->GetLightMapResolution();
 		}
 		bPadded = true;
 	}
@@ -1991,8 +1991,8 @@ void UStaticMeshComponent::GetEstimatedLightMapResolution(int32& Width, int32& H
 		// Use the lightmap resolution defined in the static mesh.
 		if (bUseSourceMesh == true)
 		{
-			Width	= GetStaticMesh()->LightMapResolution;
-			Height	= GetStaticMesh()->LightMapResolution;
+			Width	= GetStaticMesh()->GetLightMapResolution();
+			Height	= GetStaticMesh()->GetLightMapResolution();
 		}
 
 		// If it was not set by anything, give it a default value...
@@ -2052,14 +2052,14 @@ bool UStaticMeshComponent::HasLightmapTextureCoordinates() const
 {
 	const UStaticMesh* Mesh = GetStaticMesh();
 	if (Mesh != nullptr &&
-		Mesh->LightMapCoordinateIndex >= 0 &&
+		Mesh->GetLightMapCoordinateIndex() >= 0 &&
 		Mesh->GetRenderData() != nullptr &&
 		Mesh->GetRenderData()->LODResources.Num() > 0)
 	{
-		int32 MeshMinLOD = Mesh->MinLOD.GetValue();
+		int32 MeshMinLOD = Mesh->GetMinLOD().GetValue();
 		MeshMinLOD = FMath::Min(MeshMinLOD,  Mesh->GetRenderData()->LODResources.Num() - 1);
 		
-		return ((uint32)Mesh->LightMapCoordinateIndex < Mesh->GetRenderData()->LODResources[MeshMinLOD].VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords());
+		return ((uint32)Mesh->GetLightMapCoordinateIndex() < Mesh->GetRenderData()->LODResources[MeshMinLOD].VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords());
 	}
 	return false;
 }

@@ -117,7 +117,7 @@ namespace GLTF
 		if (bGenerateLightmapUVs)
 		{
 			// Generate a new UV set based off the highest index UV set in the mesh
-			StaticMesh.LightMapCoordinateIndex             = NumUVs;
+			StaticMesh.SetLightMapCoordinateIndex(NumUVs);
 			SourceModel.BuildSettings.SrcLightmapIndex     = NumUVs - 1;
 			SourceModel.BuildSettings.DstLightmapIndex     = NumUVs;
 			SourceModel.BuildSettings.bGenerateLightmapUVs = true;
@@ -125,14 +125,14 @@ namespace GLTF
 		else if (!bMeshHasUVs)
 		{
 			// Generate automatically a UV for correct lighting if mesh has none
-			StaticMesh.LightMapCoordinateIndex             = 1;
+			StaticMesh.SetLightMapCoordinateIndex(1);
 			SourceModel.BuildSettings.SrcLightmapIndex     = 0;
 			SourceModel.BuildSettings.DstLightmapIndex     = 1;
 			SourceModel.BuildSettings.bGenerateLightmapUVs = true;
 		}
 		else
 		{
-			StaticMesh.LightMapCoordinateIndex             = NumUVs - 1;
+			StaticMesh.SetLightMapCoordinateIndex(NumUVs - 1);
 			SourceModel.BuildSettings.bGenerateLightmapUVs = false;
 		}
 

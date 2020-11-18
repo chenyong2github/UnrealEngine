@@ -188,9 +188,9 @@ UObject* UDatasmithStaticMeshTemplate::UpdateObject( UObject* Destination, bool 
 #if WITH_EDITORONLY_DATA
 	UDatasmithStaticMeshTemplate* PreviousStaticMeshTemplate = !bForce ? FDatasmithObjectTemplateUtils::GetObjectTemplate< UDatasmithStaticMeshTemplate >( StaticMesh ) : nullptr;
 
-	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( LightMapCoordinateIndex, StaticMesh, PreviousStaticMeshTemplate );
+	DATASMITHOBJECTTEMPLATE_CONDITIONALSET_ACCESSORS( LightMapCoordinateIndex, StaticMesh, PreviousStaticMeshTemplate );
 
-	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( LightMapResolution, StaticMesh, PreviousStaticMeshTemplate );
+	DATASMITHOBJECTTEMPLATE_CONDITIONALSET_ACCESSORS( LightMapResolution, StaticMesh, PreviousStaticMeshTemplate );
 
 	// Section info map
 	bool bResetSectionInfoMap = false;
@@ -309,8 +309,8 @@ void UDatasmithStaticMeshTemplate::Load( const UObject* Source )
 		return;
 	}
 
-	LightMapCoordinateIndex = SourceStaticMesh->LightMapCoordinateIndex;
-	LightMapResolution = SourceStaticMesh->LightMapResolution;
+	LightMapCoordinateIndex = SourceStaticMesh->GetLightMapCoordinateIndex();
+	LightMapResolution = SourceStaticMesh->GetLightMapResolution();
 
 	// Section info map
 	SectionInfoMap.Load( SourceStaticMesh->GetSectionInfoMap() );

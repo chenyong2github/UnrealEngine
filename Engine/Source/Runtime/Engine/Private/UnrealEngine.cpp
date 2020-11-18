@@ -5478,9 +5478,9 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 		int32		MobileMinLOD = -1;
 
 #if WITH_EDITORONLY_DATA 
-		if (Mesh->MinLOD.PerPlatform.Find(("Mobile")) != nullptr)
+		if (Mesh->GetMinLOD().PerPlatform.Find(("Mobile")) != nullptr)
 		{
-			MobileMinLOD = *Mesh->MinLOD.PerPlatform.Find(("Mobile"));
+			MobileMinLOD = *Mesh->GetMinLOD().PerPlatform.Find(("Mobile"));
 		}
 #endif
 

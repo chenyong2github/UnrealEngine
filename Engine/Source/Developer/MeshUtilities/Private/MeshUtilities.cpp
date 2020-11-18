@@ -573,7 +573,7 @@ UStaticMesh* FMeshUtilities::ConvertMeshesToStaticMesh(const TArray<UMeshCompone
 			StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
 
 			// Set light map coordinate index to match DstLightmapIndex
-			StaticMesh->LightMapCoordinateIndex = LightMapIndex;
+			StaticMesh->SetLightMapCoordinateIndex(LightMapIndex);
 
 			// setup section info map
 			for (int32 RawMeshLODIndex = 0; RawMeshLODIndex < RawMeshes.Num(); RawMeshLODIndex++)

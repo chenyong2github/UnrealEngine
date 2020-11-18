@@ -1178,8 +1178,8 @@ TSharedPtr<FExistingStaticMeshData> SaveExistingStaticMeshData(UStaticMesh* Exis
 		ExistingMeshDataPtr->ExistingCustomizedCollision = ExistingMesh->bCustomizedCollision;
 		ExistingMeshDataPtr->bAutoComputeLODScreenSize = ExistingMesh->bAutoComputeLODScreenSize;
 
-		ExistingMeshDataPtr->ExistingLightMapResolution = ExistingMesh->LightMapResolution;
-		ExistingMeshDataPtr->ExistingLightMapCoordinateIndex = ExistingMesh->LightMapCoordinateIndex;
+		ExistingMeshDataPtr->ExistingLightMapResolution = ExistingMesh->GetLightMapResolution();
+		ExistingMeshDataPtr->ExistingLightMapCoordinateIndex = ExistingMesh->GetLightMapCoordinateIndex();
 
 		ExistingMeshDataPtr->ExistingImportData = ExistingMesh->AssetImportData;
 		ExistingMeshDataPtr->ExistingThumbnailInfo = ExistingMesh->ThumbnailInfo;
@@ -1189,15 +1189,15 @@ TSharedPtr<FExistingStaticMeshData> SaveExistingStaticMeshData(UStaticMesh* Exis
 		ExistingMeshDataPtr->LpvBiasMultiplier = ExistingMesh->LpvBiasMultiplier;
 		ExistingMeshDataPtr->bHasNavigationData = ExistingMesh->bHasNavigationData;
 		ExistingMeshDataPtr->LODGroup = ExistingMesh->LODGroup;
-		ExistingMeshDataPtr->MinLOD = ExistingMesh->MinLOD;
+		ExistingMeshDataPtr->MinLOD = ExistingMesh->GetMinLOD();
 
 		ExistingMeshDataPtr->ExistingGenerateMeshDistanceField = ExistingMesh->bGenerateMeshDistanceField;
 		ExistingMeshDataPtr->ExistingLODForCollision = ExistingMesh->LODForCollision;
 		ExistingMeshDataPtr->ExistingDistanceFieldSelfShadowBias = ExistingMesh->DistanceFieldSelfShadowBias;
 		ExistingMeshDataPtr->ExistingSupportUniformlyDistributedSampling = ExistingMesh->bSupportUniformlyDistributedSampling;
 		ExistingMeshDataPtr->ExistingAllowCpuAccess = ExistingMesh->bAllowCPUAccess;
-		ExistingMeshDataPtr->ExistingPositiveBoundsExtension = ExistingMesh->PositiveBoundsExtension;
-		ExistingMeshDataPtr->ExistingNegativeBoundsExtension = ExistingMesh->NegativeBoundsExtension;
+		ExistingMeshDataPtr->ExistingPositiveBoundsExtension = ExistingMesh->GetPositiveBoundsExtension();
+		ExistingMeshDataPtr->ExistingNegativeBoundsExtension = ExistingMesh->GetNegativeBoundsExtension();
 
 		UFbxStaticMeshImportData* ImportData = Cast<UFbxStaticMeshImportData>(ExistingMesh->AssetImportData);
 		if (ImportData && ExistingMeshDataPtr->UseMaterialNameSlotWorkflow)
@@ -1249,7 +1249,7 @@ void RestoreExistingMeshSettings(const FExistingStaticMeshData* ExistingMesh, US
 		return;
 	}
 	NewMesh->LODGroup = ExistingMesh->LODGroup;
-	NewMesh->MinLOD = ExistingMesh->MinLOD;
+	NewMesh->SetMinLOD(ExistingMesh->MinLOD);
 	int32 ExistingNumLods = ExistingMesh->ExistingLODData.Num();
 	int32 CurrentNumLods = NewMesh->GetNumSourceModels();
 	if (LODIndex == INDEX_NONE)
@@ -1660,8 +1660,8 @@ void RestoreExistingMeshData(TSharedPtr<const FExistingStaticMeshData> ExistingM
 	NewMesh->bCustomizedCollision = ExistingMeshDataPtr->ExistingCustomizedCollision;
 	NewMesh->bAutoComputeLODScreenSize = ExistingMeshDataPtr->bAutoComputeLODScreenSize;
 
-	NewMesh->LightMapResolution = ExistingMeshDataPtr->ExistingLightMapResolution;
-	NewMesh->LightMapCoordinateIndex = ExistingMeshDataPtr->ExistingLightMapCoordinateIndex;
+	NewMesh->SetLightMapResolution(ExistingMeshDataPtr->ExistingLightMapResolution);
+	NewMesh->SetLightMapCoordinateIndex(ExistingMeshDataPtr->ExistingLightMapCoordinateIndex);
 
 	if (ExistingMeshDataPtr->ExistingImportData.IsValid())
 	{
@@ -1729,8 +1729,8 @@ void RestoreExistingMeshData(TSharedPtr<const FExistingStaticMeshData> ExistingM
 	NewMesh->DistanceFieldSelfShadowBias = ExistingMeshDataPtr->ExistingDistanceFieldSelfShadowBias;
 	NewMesh->bSupportUniformlyDistributedSampling = ExistingMeshDataPtr->ExistingSupportUniformlyDistributedSampling;
 	NewMesh->bAllowCPUAccess = ExistingMeshDataPtr->ExistingAllowCpuAccess;
-	NewMesh->PositiveBoundsExtension = ExistingMeshDataPtr->ExistingPositiveBoundsExtension;
-	NewMesh->NegativeBoundsExtension = ExistingMeshDataPtr->ExistingNegativeBoundsExtension;
+	NewMesh->SetPositiveBoundsExtension(ExistingMeshDataPtr->ExistingPositiveBoundsExtension);
+	NewMesh->SetNegativeBoundsExtension(ExistingMeshDataPtr->ExistingNegativeBoundsExtension);
 
 	NewMesh->ComplexCollisionMesh = ExistingMeshDataPtr->ExistingComplexCollisionMesh;
 }

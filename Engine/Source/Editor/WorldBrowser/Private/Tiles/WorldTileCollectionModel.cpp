@@ -2149,8 +2149,8 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 				StaticMesh->SetLightingGuid();
 
 				// Set it to use textured lightmaps. Note that Build Lighting will do the error-checking (texcoordindex exists for all LODs, etc).
-				StaticMesh->LightMapResolution = 64;
-				StaticMesh->LightMapCoordinateIndex = 1;
+				StaticMesh->SetLightMapResolution(64);
+				StaticMesh->SetLightMapCoordinateIndex(1);
 
 				FStaticMeshSourceModel& SrcModel = StaticMesh->AddSourceModel();
 				/*Don't allow the engine to recalculate normals*/

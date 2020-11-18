@@ -356,7 +356,9 @@ uint32 UHLODProxy::GetCRC(UStaticMesh* InStaticMesh, uint32 InCRC)
 	// Default to just the path name if we don't have render data
 	FString DerivedDataKey = InStaticMesh->GetRenderData() ? InStaticMesh->GetRenderData()->DerivedDataKey : InStaticMesh->GetPathName();
 	KeyBuffer.Append((uint8*)DerivedDataKey.GetCharArray().GetData(), DerivedDataKey.GetCharArray().Num() * DerivedDataKey.GetCharArray().GetTypeSize());
-	KeyBuffer.Append((uint8*)&InStaticMesh->LightMapCoordinateIndex, sizeof(int32));
+
+	const int32 LightMapCoordinateIndex = InStaticMesh->GetLightMapCoordinateIndex();
+	KeyBuffer.Append((uint8*)&LightMapCoordinateIndex, sizeof(int32));
 	if(InStaticMesh->GetBodySetup())
 	{
 		// Incorporate physics data
