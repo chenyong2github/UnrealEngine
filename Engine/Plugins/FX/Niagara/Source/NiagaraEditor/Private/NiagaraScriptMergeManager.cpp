@@ -1785,8 +1785,8 @@ FNiagaraEmitterDiffResults FNiagaraScriptMergeManager::DiffEmitters(UNiagaraEmit
 	BaseScratchPadScripts.Append(BaseEmitter.ParentScratchPadScripts);
 	BaseScratchPadScripts.Append(BaseEmitter.ScratchPadScripts);
 	TArray<UNiagaraScript*> OtherScratchPadScripts;
-	BaseScratchPadScripts.Append(BaseEmitter.ParentScratchPadScripts);
-	BaseScratchPadScripts.Append(BaseEmitter.ScratchPadScripts);
+	OtherScratchPadScripts.Append(OtherEmitter.ParentScratchPadScripts);
+	OtherScratchPadScripts.Append(OtherEmitter.ScratchPadScripts);
 	DiffScratchPadScripts(BaseScratchPadScripts, OtherScratchPadScripts, EmitterDiffResults);
 
 	EmitterDiffResults.BaseEmitterAdapter = BaseEmitterAdapter;
