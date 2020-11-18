@@ -5,6 +5,8 @@
 #include "ReflectionEnvironmentShared.ush"
 #include "LightGridCommon.ush"
 #include "MobileShadingModels.ush"
+#include "IESLightProfilesCommon.ush"
+
 #if APPLY_SKY_REFLECTION
 #define ENABLE_SKY_LIGHT 1
 #endif
@@ -162,6 +164,13 @@ half3 GetLightGridLocalLighting(
 	for (uint LocalLightListIndex = FirstNonSimpleLightIndex; LocalLightListIndex < NumLocalLights; LocalLightListIndex++)
 	{
 		const FLocalLightData LocalLight = GetLocalLightData(InLightGridData.DataStartIndex + LocalLightListIndex, EyeIndex);
+
+		// The lights are sorted such that all that support clustered deferred are at the beginning, there might be others
+		// (e.g., lights with dynamic shadows) so we break out when the condition fails.
+		if (!LocalLight.bClusteredDeferredSupported)
+		{
+			break;
+		}
 		
 		FMobileLightData LightData = (FMobileLightData)0;
 		LightData.Position = LocalLight.LightPositionAndInvRadius.xyz;
@@ -331,12 +340,13 @@ void MobileRadialLightPS(
 	}
 			
 	half3 Color = GetDirectLighting(LightData, ShadingModelContext, GBuffer, WorldPosition, CameraVector);
+	const half Attenuation = ComputeLightProfileMultiplier(WorldPosition, DeferredLightUniforms.Position, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
 
 #if USE_PREEXPOSURE
 	// MobileHDR applies PreExposure in tonemapper
 	Color.rgb *= View.PreExposure;	
 #endif
 
-	OutColor.rgb = Color;
+	OutColor.rgb = Color * Attenuation;
 	OutColor.a = 1;
 }
