@@ -2,6 +2,10 @@
 
 #pragma once
 
+#include "Containers/SortedMap.h"
+#include "CoreMinimal.h"
+#include <type_traits>
+
 #define DECLARE_METASOUND_ENVIRONMENT_VARIABLE_TYPE(VarType) \
 	template<> \
 	struct ::Metasound::TEnvironmentVariableTypeInfo<VarType> \
@@ -19,10 +23,6 @@
 	const void* const ::Metasound::TEnvironmentVariableTypeInfo<VarType>::TypeId = static_cast<const FMetasoundEnvironmentVariableTypeId>(&::Metasound::TEnvironmentVariableTypeInfo<VarType>::TypePtr);
 	
 using FMetasoundEnvironmentVariableTypeId = void const*;
-
-#include "Containers/SortedMap.h"
-#include "CoreMinimal.h"
-#include <type_traits>
 
 namespace Metasound
 {
