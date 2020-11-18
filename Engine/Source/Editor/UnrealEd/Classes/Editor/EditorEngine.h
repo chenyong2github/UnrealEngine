@@ -2287,10 +2287,10 @@ public:
 	void AddPackagesToDefaultChangelist(TArray<FString>& InPackageNames);
 
 	/**
-	 * Delegate used when a source control connection dialog has been closed.
-	 * @param	bEnabled	Whether source control was enabled or not
+	 * Will run a batch mark for add source control operation for files recently saved if source control is enabled
+	 * @param	bool	Unused param to for the function to be used as a delegate when source control dialog is closed.
 	 */
-	void OnSourceControlDialogClosed(bool bEnabled);
+	void RunDeferredMarkForAddFiles(bool = false);
 
 	/** 
 	 * @return - returns the currently selected positional snap grid setting

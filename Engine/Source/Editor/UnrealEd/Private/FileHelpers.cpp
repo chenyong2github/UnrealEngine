@@ -1358,6 +1358,8 @@ static bool IsCheckOutSelectedDisabled()
 
 bool FEditorFileUtils::AddCheckoutPackageItems(bool bCheckDirty, TArray<UPackage*> PackagesToCheckOut, TArray<UPackage*>* OutPackagesNotNeedingCheckout, bool* bOutHavePackageToCheckOut)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorFileUtils_AddCheckoutPackageItems);
+
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	if (ISourceControlModule::Get().IsEnabled() && SourceControlProvider.IsAvailable())
 	{
@@ -1738,6 +1740,8 @@ bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<U
 
 ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<UPackage*>& PkgsToCheckOut, TArray<UPackage*>* OutPackagesCheckedOut, const bool bErrorIfAlreadyCheckedOut, const bool bConfirmPackageBranchCheckOutStatus)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorFileUtils_CheckoutPackages);
+
 	const bool bErrorIfFileMissing = false;
 
 	ECommandResult::Type CheckOutResult = ECommandResult::Succeeded;
@@ -3329,6 +3333,12 @@ static bool InternalSavePackagesFast(const TArray<UPackage*>& PackagesToSave, bo
 	{
 		ObjectTools::CleanupAfterSuccessfulDelete(PackagesToClean, true);
 	}
+
+	// Add all files that needs to be marked for add in one command, if any
+	if (GEditor)
+	{
+		GEditor->RunDeferredMarkForAddFiles();
+	}
 	
 	GWarn->EndSlowTask();
 	SaveErrors.Flush();
@@ -3694,6 +3704,12 @@ FEditorFileUtils::EPromptReturnCode InternalPromptForCheckoutAndSave(const TArra
 	if (PackagesToClean.Num() > 0)
 	{
 		ObjectTools::CleanupAfterSuccessfulDelete(PackagesToClean, true);
+	}
+
+	// Add all files that needs to be marked for add in one command, if any
+	if (GEditor)
+	{
+		GEditor->RunDeferredMarkForAddFiles();
 	}
 
 	// If any packages were saved that weren't actually in source control but instead forcibly made writable,

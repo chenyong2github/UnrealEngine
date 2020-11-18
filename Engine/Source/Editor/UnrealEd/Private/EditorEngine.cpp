@@ -4330,7 +4330,9 @@ bool UEditorEngine::IsPackageValidForAutoAdding(UPackage* InPackage, const FStri
 
 	// Ensure the package exists, the user is running the editor (and not a commandlet or cooking), and that source control
 	// is enabled and expecting new files to be auto-added before attempting to test the validity of the package
-	if ( InPackage && GIsEditor && !IsRunningCommandlet() && ISourceControlModule::Get().IsEnabled() && GetDefault<UEditorLoadingSavingSettings>()->bSCCAutoAddNewFiles )
+	if (InPackage && GIsEditor && !IsRunningCommandlet() 
+		&& ISourceControlModule::Get().IsEnabled() 
+		&& GetDefault<UEditorLoadingSavingSettings>()->bSCCAutoAddNewFiles)
 	{
 		const FString CleanFilename = FPaths::GetCleanFilename(InFilename);
 
@@ -4364,26 +4366,23 @@ bool UEditorEngine::IsPackageOKToSave(UPackage* InPackage, const FString& InFile
 	return true;
 }
 
-void UEditorEngine::OnSourceControlDialogClosed(bool bEnabled)
+void UEditorEngine::RunDeferredMarkForAddFiles(bool)
 {
+	if (DeferredFilesToAddToSourceControl.IsEmpty())
+	{
+		return;
+	}
+
 	if(ISourceControlModule::Get().IsEnabled())
 	{
 		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 		if(SourceControlProvider.IsAvailable())
 		{
-			if(DeferredFilesToAddToSourceControl.Num() > 0)
-			{
-				SourceControlProvider.Execute(ISourceControlOperation::Create<FMarkForAdd>(), SourceControlHelpers::PackageFilenames(DeferredFilesToAddToSourceControl));
-			}
-	
-			DeferredFilesToAddToSourceControl.Empty();
+			SourceControlProvider.Execute(ISourceControlOperation::Create<FMarkForAdd>(), SourceControlHelpers::PackageFilenames(DeferredFilesToAddToSourceControl));
 		}
 	}
-	else
-	{
-		// the user decided to disable source control, so clear the deferred list so we dont try to add them again at a later time
-		DeferredFilesToAddToSourceControl.Empty();
-	}
+	// Clear the list when this run whether source control is active or not, since we do not want to accumulate those if the user is running without source control
+	DeferredFilesToAddToSourceControl.Empty();
 }
 
 bool UEditorEngine::InitializePhysicsSceneForSaveIfNecessary(UWorld* World, bool &bOutForceInitialized)
@@ -4544,13 +4543,9 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 		{
 			// Show the login window here & store the file we are trying to add.
 			// We defer the add operation until we have a valid source control connection.
-			ISourceControlModule::Get().ShowLoginDialog(FSourceControlLoginClosed::CreateUObject(this, &UEditorEngine::OnSourceControlDialogClosed), ELoginWindowMode::Modeless);
-			DeferredFilesToAddToSourceControl.Add( Filename );
+			ISourceControlModule::Get().ShowLoginDialog(FSourceControlLoginClosed::CreateUObject(this, &UEditorEngine::RunDeferredMarkForAddFiles), ELoginWindowMode::Modeless);
 		}
-		else
-		{
-			ISourceControlModule::Get().GetProvider().Execute(ISourceControlOperation::Create<FMarkForAdd>(), SourceControlHelpers::PackageFilename(Filename));
-		}
+		DeferredFilesToAddToSourceControl.Add(Filename);
 	}
 
 	SlowTask.EnterProgressFrame(10);
