@@ -176,8 +176,8 @@ namespace Chaos
 		for (int32 Step = 0; Step < NumSteps; ++Step)
 		{
 			// StepFraction: how much of the remaining time this step represents, used to interpolate kinematic targets
-			// E.g., for 4 steps this will be: 1/4, 1/3, 1/2, 1
-			const float StepFraction = (FReal)1 / (FReal)(NumSteps - Step);
+			// E.g., for 4 steps this will be: 1/4, 1/2, 3/4, 1
+			const float StepFraction = (FReal)(Step + 1) / (NumSteps);
 
 			UE_LOG(LogChaosMinEvolution, Verbose, TEXT("Advance dt = %f [%d/%d]"), StepDt, Step + 1, NumSteps);
 
@@ -558,10 +558,13 @@ namespace Chaos
 		const FReal MinDt = 1e-6f;
 		for (auto& Particle : Particles.GetActiveKinematicParticlesView())
 		{
-			const FVec3 PrevX = Particle.X();
-			const FRotation3 PrevR = Particle.R();
-
 			TKinematicTarget<FReal, 3>& KinematicTarget = Particle.KinematicTarget();
+
+			const TRigidTransform<FReal, 3>& Previous = KinematicTarget.GetPrevious();
+			const FVec3 PrevX = Previous.GetTranslation();
+			const FRotation3 PrevR = Previous.GetRotation();
+
+
 			switch (KinematicTarget.GetMode())
 			{
 			case EKinematicTargetMode::None:
@@ -591,13 +594,13 @@ namespace Chaos
 				}
 				else
 				{
-					TargetPos = FVec3::Lerp(Particle.X(), KinematicTarget.GetTarget().GetLocation(), StepFraction);
-					TargetRot = FRotation3::Slerp(Particle.R(), KinematicTarget.GetTarget().GetRotation(), StepFraction);
+					TargetPos = FVec3::Lerp(PrevX, KinematicTarget.GetTarget().GetLocation(), StepFraction);
+					TargetRot = FRotation3::Slerp(PrevR, KinematicTarget.GetTarget().GetRotation(), StepFraction);
 				}
 				if (Dt > MinDt)
 				{
-					Particle.V() = FVec3::CalculateVelocity(Particle.X(), TargetPos, Dt);
-					Particle.W() = FRotation3::CalculateAngularVelocity(Particle.R(), TargetRot, Dt);
+					Particle.V() = FVec3::CalculateVelocity(PrevX, TargetPos, Dt);
+					Particle.W() = FRotation3::CalculateAngularVelocity(PrevR, TargetRot, Dt);
 				}
 				Particle.X() = TargetPos;
 				Particle.R() = TargetRot;

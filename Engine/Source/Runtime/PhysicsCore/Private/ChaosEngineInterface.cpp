@@ -1641,8 +1641,16 @@ void FChaosEngineInterface::SetKinematicTarget_AssumesLocked(const FPhysicsActor
 	if (KinematicGeometryParticle)
 	{
 		Chaos::TKinematicTarget<float, 3> newKinematicTarget;
-		newKinematicTarget.SetTargetMode(InNewTarget);
+		Chaos::TRigidTransform<Chaos::FReal, 3> PreviousTM(InActorReference->X(), InActorReference->R());
+		newKinematicTarget.SetTargetMode(InNewTarget, PreviousTM);
 		KinematicGeometryParticle->SetKinematicTarget(newKinematicTarget);
+
+		InActorReference->SetX(InNewTarget.GetLocation());
+		InActorReference->SetR(InNewTarget.GetRotation());
+		InActorReference->UpdateShapeBounds();
+
+		FChaosScene* Scene = GetCurrentScene(InActorReference);
+		Scene->UpdateActorInAccelerationStructure(InActorReference);
 	}
 }
 
