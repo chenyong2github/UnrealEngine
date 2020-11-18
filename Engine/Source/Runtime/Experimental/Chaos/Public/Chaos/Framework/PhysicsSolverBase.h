@@ -219,11 +219,6 @@ namespace Chaos
 			Owner = InOwner;
 		}
 
-		void SetUseAsync(const bool bInUseAsync)
-		{
-			bUseAsync = bInUseAsync;
-		}
-
 		void SetThreadingMode_External(EThreadingModeTemp InThreadingMode)
 		{
 			if(InThreadingMode != ThreadingMode)
@@ -427,7 +422,7 @@ namespace Chaos
 
 		bool IsUsingAsyncResults() const
 		{
-			return !ForceDisableAsyncPhysics && bUseAsync && AsyncDt >= 0;
+			return !ForceDisableAsyncPhysics && AsyncDt >= 0;
 		}
 
 		bool IsUsingFixedDt() const
@@ -516,7 +511,6 @@ namespace Chaos
 		ETraits TraitIdx;
 
 		bool bIsShuttingDown;
-		bool bUseAsync;
 		FReal AsyncDt;
 		FReal AccumulatedTime;
 		int32 ExternalSteps;
