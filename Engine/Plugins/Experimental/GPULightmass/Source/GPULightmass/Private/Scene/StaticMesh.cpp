@@ -43,8 +43,8 @@ void FStaticMeshInstance::AllocateLightmaps(TEntityArray<FLightmap>& LightmapCon
 		bool bValidTextureMap = false;
 		if (BaseLightMapWidth > 0
 			&& BaseLightMapHeight > 0
-			&& ComponentUObject->GetStaticMesh()->LightMapCoordinateIndex >= 0
-			&& (uint32)ComponentUObject->GetStaticMesh()->LightMapCoordinateIndex < LODModel.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords())
+			&& ComponentUObject->GetStaticMesh()->GetLightMapCoordinateIndex() >= 0
+			&& (uint32)ComponentUObject->GetStaticMesh()->GetLightMapCoordinateIndex() < LODModel.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords())
 		{
 			bValidTextureMap = true;
 		}

@@ -2901,8 +2901,8 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 
 		// Lightmap data
 		StaticMesh->SetLightingGuid();
-		StaticMesh->LightMapResolution = SpeedTree.LightmapSize();
-		StaticMesh->LightMapCoordinateIndex = (NumUVs - 1);
+		StaticMesh->SetLightMapResolution(SpeedTree.LightmapSize());
+		StaticMesh->SetLightMapCoordinateIndex(NumUVs - 1);
 
 		// make geometry LODs
 		for (uint32 LODIndex = 0; LODIndex < SpeedTree.Lods().Count(); ++LODIndex)
