@@ -43,7 +43,7 @@ public:
 	virtual TSharedPtr<IRemoteSessionRole> CreateClient(const TCHAR* RemoteAddress) = 0;
 
 	/** Stops the client. After this CreateClient() must be called if a new connection is desired */
-	virtual void StopClient(TSharedPtr<IRemoteSessionRole> Client) = 0;
+	virtual void StopClient(TSharedPtr<IRemoteSessionRole> Client, const FString& InReason) = 0;
 
 	static FString 		GetLocalVersion();
 
@@ -62,7 +62,7 @@ public:
 	virtual bool IsHostConnected() const = 0;
 
 	/** Stops the server, after this InitHost() must be called if a new connection is desired */
-	virtual void StopHost() = 0;
+	virtual void StopHost(const FString& InReason) = 0;
 
 	/** Returns a reference to the server role (if any) */
 	virtual TSharedPtr<IRemoteSessionRole> GetHost() const = 0;

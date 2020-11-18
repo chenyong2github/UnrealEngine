@@ -44,12 +44,12 @@ FRemoteSessionHost::~FRemoteSessionHost()
 		Listener->Close();
 	}
 
-	Close();
+	CloseConnections();
 }
 
-void FRemoteSessionHost::Close()
+void FRemoteSessionHost::CloseConnections()
 {
-	FRemoteSessionRole::Close();
+	FRemoteSessionRole::CloseConnections();
 
 	if (FSlateApplication::IsInitialized())
 	{
@@ -182,7 +182,8 @@ void FRemoteSessionHost::Tick(float DeltaTime)
         if (Listener.IsValid())
         {
             Listener->WaitForConnection(0, [this](TSharedRef<IBackChannelSocketConnection> InConnection) {
-                Close();
+                CloseConnections();
+				Connection = InConnection;
                 CreateOSCConnection(InConnection);
                 return true;
             });

@@ -46,17 +46,18 @@ protected:
 	const TCHAR* kLegacyChannelSelectionEndPoint = TEXT("/ChannelSelection");
 
 	const TCHAR* kHelloEndPoint = TEXT("/RS.Hello");
+	const TCHAR* kGoodbyeEndPoint = TEXT("/RS.Goodbye");
 	const TCHAR* kChannelListEndPoint = TEXT("/RS.ChannelList");
 	const TCHAR* kChangeChannelEndPoint = TEXT("/RS.ChangeChannel");
+	const TCHAR* kPingEndPoint = TEXT("/RS.Ping");
+	const TCHAR* kPongEndPoint = TEXT("/RS.Pong");
 
 public:
 
 	FRemoteSessionRole();
 	virtual ~FRemoteSessionRole();
-
-	virtual void Close() override;
 	
-	virtual void CloseWithError(const FString& Message) override;
+	virtual void Close(const FString& Message) override;
 
 	virtual bool IsConnected() const override;
 	
@@ -84,9 +85,16 @@ public:
 
 	virtual bool IsLegacyConnection() const override;
 
+	virtual float GetPeerResponseInSeconds() const { return SecondsForPeerResponse; }
+
 protected:
 
-		
+	/* Closes all connections. Called by public Close() function which first send a graceful goodbye */
+	virtual void	CloseConnections();
+
+	/* Similar (and calls) Close(Message), but marks us as having closed due to an error */
+	void			CloseWithError(const FString& Message);
+
 	void			CreateOSCConnection(TSharedRef<IBackChannelSocketConnection> InConnection);
 	
 	void			SendLegacyVersionCheck();
@@ -97,6 +105,13 @@ protected:
 
 	void			SendHello();
 	void 			OnReceiveHello(IBackChannelPacket& Message);
+
+	void			SendGoodbye(const FString& InMessage);
+	void 			OnReceiveGoodbye(IBackChannelPacket& Message);
+
+	void			SendPing();
+	void 			OnReceivePing(IBackChannelPacket& Message);
+	void 			OnReceivePong(IBackChannelPacket& Message);
 		
 	void 			CreateChannels(const TArray<FRemoteSessionChannelInfo>& Channels);
 
@@ -126,7 +141,6 @@ protected:
 	bool			IsStateCurrentOrPending(ConnectionState InState) const { return CurrentState == InState || PendingState == InState; }
 
 
-
 protected:
 
 	mutable FCriticalSection			CriticalSectionForMainThread;
@@ -146,12 +160,22 @@ protected:
 
 private:
 
+	FString					RemoteVersion;
+
 	FString					ErrorMessage;
 	
-	TArray<TSharedPtr<IRemoteSessionChannel>> Channels;
-	
+	TArray<TSharedPtr<IRemoteSessionChannel>> Channels;	
+
 	ConnectionState			CurrentState = ConnectionState::Disconnected;
+
 	ConnectionState			PendingState = ConnectionState::Unknown;
 
-	FString					RemoteVersion;
+	/* Time since last ping */
+	double				LastPingTime = 0;
+
+	/* Time since last response */
+	double				LastReponseTime = 0;
+
+	/* Latency based on most recent ping/ping */
+	float				SecondsForPeerResponse = 0;
 };

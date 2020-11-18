@@ -73,11 +73,15 @@ public:
 
 	/* Time until a connection will timeout  */
 	UPROPERTY(config)
-	int32 ConnectionTimeout = 5;
+	int32 ConnectionTimeout = 7;
 
 	/* Time until a connection will timeout when a debugger is attached  */
 	UPROPERTY(config)
 	int32 ConnectionTimeoutWhenDebugging = 30;
+
+	/* Time between pings  */
+	UPROPERTY(config)
+	int32 PingTime = 1;
 
 	/* Whether RemoteSession is functional in a shipping build */
 	UPROPERTY(config)

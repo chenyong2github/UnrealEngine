@@ -12,8 +12,6 @@
 FBackChannelOSCConnection::FBackChannelOSCConnection(TSharedRef<IBackChannelSocketConnection> InConnection)
 	: Connection(InConnection)
 {
-	LastReceiveTime = FPlatformTime::Seconds();
-	
 	const int32 kDefaultBufferSize = 4096;
 	ReceiveBuffer.AddUninitialized(kDefaultBufferSize);
 }
@@ -89,26 +87,8 @@ void FBackChannelOSCConnection::RemoveMessageHandler(const TCHAR* Path, FDelegat
 
 void FBackChannelOSCConnection::ReceiveAndDispatchMessages(const float MaxTime /*= 0*/)
 {
-	const float kTimeout = FPlatformMisc::IsDebuggerPresent() ? ConnectionTImeoutWhenDebugging : ConnectionTimeout;
-
 	ReceiveMessages(MaxTime);
 	DispatchMessages();
-
-	const float TimeSinceSend = FPlatformTime::Seconds() - LastSendTime;
-
-	if (TimeSinceSend >= PingTime)
-	{
-		FBackChannelOSCMessage Msg(TEXT("/ping"));
-		SendPacket(Msg);
-	}
-
-	const double TimeSinceActivity = (FPlatformTime::Seconds() - LastReceiveTime);
-	if (TimeSinceActivity >= kTimeout)
-	{
-		UE_LOG(LogBackChannel, Error, TEXT("Connection to %s timed out after %.02f seconds"), *Connection->GetDescription(), TimeSinceActivity);
-		HasErrorState = true;
-		ExitRequested = true;
-	}
 }
 
 void FBackChannelOSCConnection::ReceiveMessages(const float MaxTime /*= 0*/)
@@ -131,7 +111,6 @@ void FBackChannelOSCConnection::ReceiveMessages(const float MaxTime /*= 0*/)
 
 		if (Received > 0)
 		{
-			LastReceiveTime = FPlatformTime::Seconds();
 			ReceivedDataSize += Received;
 
 			if (ReceivedDataSize == ExpectedSizeOfNextPacket)
@@ -266,16 +245,13 @@ uint32 FBackChannelOSCConnection::Run()
 	TArray<uint8> Buffer;
 	Buffer.AddUninitialized(kDefaultBufferSize);
 
-	LastReceiveTime = LastSendTime = FPlatformTime::Seconds();
-
 	UE_LOG(LogBackChannel, Verbose, TEXT("OSC Connection to %s is Running"), *Connection->GetDescription());
 
 	while (ExitRequested == false)
 	{
         // This call itself will yield to the OS while waiting for recv so while this looks like a spinloop
         // it really isn't :)
-        ReceiveAndDispatchMessages(kMaxReceiveTime);
-        
+        ReceiveAndDispatchMessages(kMaxReceiveTime);        
 	}
 
 	UE_LOG(LogBackChannel, Verbose, TEXT("OSC Connection to %s is exiting."), *Connection->GetDescription());
@@ -339,8 +315,6 @@ bool FBackChannelOSCConnection::SendPacketData(const void* Data, const int32 Dat
 		ANSICHAR* RawData = (ANSICHAR*)Data;
 		check(FCStringAnsi::Strlen(RawData) < 64);
 		Sent = Connection->SendData(Data, DataLen);
-
-		LastSendTime = FPlatformTime::Seconds();
 	}
 
 	return Sent > 0;
