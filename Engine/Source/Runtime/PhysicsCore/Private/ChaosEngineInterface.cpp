@@ -1383,6 +1383,45 @@ bool FChaosEngineInterface::IsBroken(const FPhysicsConstraintHandle& InConstrain
 	return false;
 }
 
+
+void FChaosEngineInterface::SetGeometry(FPhysicsShapeHandle& InShape, TUniquePtr<Chaos::FImplicitObject>&& InGeometry)
+{
+	using namespace Chaos;
+
+	// This sucks, we build a new union with input geometry. All other geo is copied.
+	// Cannot modify union as it is shared between threads.
+	const FShapesArray& ShapeArray = InShape.ActorRef->ShapesArray();
+
+	TArray<TUniquePtr<FImplicitObject>> NewGeometry;
+	NewGeometry.Reserve(ShapeArray.Num());
+
+	int32 ShapeIdx = 0;
+	for (const TUniquePtr<Chaos::FPerShapeData>& Shape : ShapeArray)
+	{
+		if (Shape.Get() == InShape.Shape)
+		{
+			NewGeometry.Emplace(MoveTemp(InGeometry));
+		}
+		else
+		{
+			NewGeometry.Emplace(Shape->GetGeometry()->Copy());
+		}
+
+		ShapeIdx++;
+	}
+
+	if (ensure(NewGeometry.Num() == ShapeArray.Num()))
+	{
+		InShape.ActorRef->SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(NewGeometry)));
+		
+		FChaosScene* Scene = FChaosEngineInterface::GetCurrentScene(InShape.ActorRef);
+		if (ensure(Scene))
+		{
+			Scene->UpdateActorInAccelerationStructure(InShape.ActorRef);
+		}
+	}
+}
+
 // @todo(chaos): We probably need to actually duplicate the data here, add virtual TImplicitObject::NewCopy()
 FPhysicsShapeHandle FChaosEngineInterface::CloneShape(const FPhysicsShapeHandle& InShape)
 {

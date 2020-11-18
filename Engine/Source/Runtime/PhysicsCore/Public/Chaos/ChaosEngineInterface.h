@@ -493,6 +493,8 @@ public:
 	static void SetLinearLimit(const FPhysicsConstraintHandle& InConstraintRef,float InLimit);
 
 	static bool IsBroken(const FPhysicsConstraintHandle& InConstraintRef);
+
+	static void SetGeometry(FPhysicsShapeHandle& InShape, TUniquePtr<Chaos::FImplicitObject>&& InGeometry);
 	
 	static FCollisionFilterData GetSimulationFilter(const FPhysicsShapeHandle& InShape);
 	static FCollisionFilterData GetQueryFilter(const FPhysicsShapeHandle& InShape);
@@ -515,7 +517,6 @@ public:
 	static void SetQueryFilter(const FPhysicsShapeHandle& InShape,const FCollisionFilterData& InFilter);
 	static void SetIsSimulationShape(const FPhysicsShapeHandle& InShape,bool bIsSimShape);
 	static void SetIsQueryShape(const FPhysicsShapeHandle& InShape,bool bIsQueryShape);
-	static void SetGeometry(const FPhysicsShapeHandle& InShape,physx::PxGeometry& InGeom) {}
 	static void SetLocalTransform(const FPhysicsShapeHandle& InShape,const FTransform& NewLocalTransform);
 };
 
