@@ -42,11 +42,14 @@ void UBuoyancyComponent::BeginPlay()
 			Pontoon.bUseCenterSocket = true;
 		}
 	}
-	AActor* Owner = GetOwner();
-	check(Owner);
-	SimulatingComponent = Cast<UPrimitiveComponent>(Owner->GetRootComponent());
-	check(SimulatingComponent);
-	SetupWaterBodyOverlaps();
+	if (AActor* Owner = GetOwner())
+	{
+		SimulatingComponent = Cast<UPrimitiveComponent>(Owner->GetRootComponent());
+		if (SimulatingComponent)
+		{
+			SetupWaterBodyOverlaps();
+		}
+	}
 }
 
 void UBuoyancyComponent::PostLoad()
