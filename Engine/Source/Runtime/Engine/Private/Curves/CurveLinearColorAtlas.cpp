@@ -14,6 +14,8 @@ UCurveLinearColorAtlas::UCurveLinearColorAtlas(const FObjectInitializer& ObjectI
 	: Super(ObjectInitializer)
 {
 	TextureSize = 256;
+	bSquareResolution = true;
+	TextureHeight = 256;
 #if WITH_EDITORONLY_DATA
 	bHasAnyDirtyTextures = false;
 	bShowDebugColorsForNullGradients = false;
@@ -68,15 +70,22 @@ void UCurveLinearColorAtlas::PostEditChangeProperty(struct FPropertyChangedEvent
 	{
 		const FName PropertyName(PropertyChangedEvent.Property->GetFName());
 		// if Resizing
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(UCurveLinearColorAtlas, TextureSize))
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UCurveLinearColorAtlas, TextureSize) || 
+			PropertyName == GET_MEMBER_NAME_CHECKED(UCurveLinearColorAtlas, bSquareResolution) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(UCurveLinearColorAtlas, TextureHeight))
 		{
-			if ((uint32)GradientCurves.Num() > TextureSize)
+			if (bSquareResolution)
 			{
-				int32 OldCurveCount = GradientCurves.Num();
-				GradientCurves.RemoveAt(TextureSize, OldCurveCount - TextureSize);
+				TextureHeight = TextureSize;
 			}
 
-			Source.Init(TextureSize, TextureSize, 1, 1, TSF_RGBA16F);
+			if ((uint32)GradientCurves.Num() > TextureHeight)
+			{
+				int32 OldCurveCount = GradientCurves.Num();
+				GradientCurves.RemoveAt(TextureHeight, OldCurveCount - TextureHeight);
+			}
+
+			Source.Init(TextureSize, TextureHeight, 1, 1, TSF_RGBA16F);
 
 			SizeXY = { (float)TextureSize, 1.0f };
 			UpdateTextures();
@@ -84,10 +93,10 @@ void UCurveLinearColorAtlas::PostEditChangeProperty(struct FPropertyChangedEvent
 		}
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UCurveLinearColorAtlas, GradientCurves))
 		{
-			if ((uint32)GradientCurves.Num() > TextureSize)
+			if ((uint32)GradientCurves.Num() > TextureHeight)
 			{
 				int32 OldCurveCount = GradientCurves.Num();
-				GradientCurves.RemoveAt(TextureSize, OldCurveCount - TextureSize);
+				GradientCurves.RemoveAt(TextureHeight, OldCurveCount - TextureHeight);
 			}
 			else
 			{
@@ -229,7 +238,12 @@ void UCurveLinearColorAtlas::PostLoad()
 			GradientCurves[i]->OnUpdateCurve.AddUObject(this, &UCurveLinearColorAtlas::OnCurveUpdated);
 		}
 	}
-	Source.Init(TextureSize, TextureSize, 1, 1, TSF_RGBA16F);
+	
+	if (bSquareResolution)
+	{
+		TextureHeight = TextureSize;
+	}
+	Source.Init(TextureSize, TextureHeight, 1, 1, TSF_RGBA16F);
 	SizeXY = { (float)TextureSize, 1.0f };
 	UpdateTextures();
 #endif
@@ -318,20 +332,16 @@ void UCurveLinearColorAtlas::UpdateTextures()
 	int32 NumSlotsToRender = FMath::Min(GradientCurves.Num(), (int32)MaxSlotsPerTexture());
 	for (int32 i = 0; i < NumSlotsToRender; ++i)
 	{
-		if (GradientCurves[i] != nullptr)
-		{
-			int32 StartXY = i * TextureSize;
-			RenderGradient(SrcData, GradientCurves[i], StartXY, SizeXY, bDisableAllAdjustments);
-		}
-
+		int32 StartXY = i * TextureSize;
+		RenderGradient(SrcData, GradientCurves[i], StartXY, SizeXY, bDisableAllAdjustments);
 	}
 
-	for (uint32 y = 0; y < TextureSize; y++)
+	for (uint32 y = GradientCurves.Num(); y < TextureHeight; y++)
 	{
 		// Create base mip for the texture we created.
-		for (uint32 x = GradientCurves.Num(); x < TextureSize; x++)
+		for (uint32 x = 0; x < TextureSize; x++)
 		{
-			SrcData[x*TextureSize + y] = FLinearColor::White;
+			SrcData[y*TextureSize + x] = FLinearColor::White;
 		}
 	}
 
