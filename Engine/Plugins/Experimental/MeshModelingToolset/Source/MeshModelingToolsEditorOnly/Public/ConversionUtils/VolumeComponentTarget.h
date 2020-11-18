@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "ComponentSourceInterfaces.h"
-#include "ConversionUtils/VolumeDynamicMeshConversion.h"
+#include "ConversionUtils/VolumeToDynamicMesh.h"
 #include "MeshDescription.h"
 
 class MESHMODELINGTOOLSEDITORONLY_API FVolumeComponentTargetFactory : public FComponentTargetFactory

@@ -3,6 +3,8 @@
 #include "ConversionUtils/VolumeComponentTarget.h"
 
 #include "Components/BrushComponent.h"
+#include "ConversionUtils/VolumeToDynamicMesh.h"
+#include "ConversionUtils/DynamicMeshToVolume.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "Engine/Brush.h"
 #include "GameFramework/Volume.h"

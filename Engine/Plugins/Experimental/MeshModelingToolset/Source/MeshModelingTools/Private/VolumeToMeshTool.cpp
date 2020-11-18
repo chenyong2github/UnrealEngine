@@ -4,7 +4,7 @@
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 
-#include "ConversionUtils/VolumeDynamicMeshConversion.h"
+#include "ConversionUtils/VolumeToDynamicMesh.h"
 #include "DynamicMesh3.h"
 #include "MeshNormals.h"
 #include "DynamicMeshEditor.h"

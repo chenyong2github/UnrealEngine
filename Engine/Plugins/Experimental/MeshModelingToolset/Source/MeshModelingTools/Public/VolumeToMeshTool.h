@@ -17,7 +17,7 @@ class IAssetGenerationAPI;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UVolumeToMeshToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UVolumeToMeshToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
 public:
@@ -42,7 +42,7 @@ enum class EVolumeToMeshMode
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UVolumeToMeshToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UVolumeToMeshToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -66,7 +66,7 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UVolumeToMeshTool : public UInteractiveTool
+class MESHMODELINGTOOLS_API UVolumeToMeshTool : public UInteractiveTool
 {
 	GENERATED_BODY()
 

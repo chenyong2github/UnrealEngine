@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "ConversionUtils/VolumeDynamicMeshConversion.h"
+#include "ConversionUtils/DynamicMeshToVolume.h"
 #include "GameFramework/Volume.h"
 #include "Engine/Classes/Engine/BlockingVolume.h"
 #include "SingleSelectionTool.h"
@@ -66,7 +66,10 @@ public:
 
 
 /**
+ * Converts a mesh to a volume.
  *
+ * Note: If ConversionUtils/DynamicMeshToVolume is rewritten to be safe for runtime, this
+ * tool can be moved out of the editor-only section and put with VolumeToMeshTool.
  */
 UCLASS()
 class MESHMODELINGTOOLSEDITORONLY_API UMeshToVolumeTool : public USingleSelectionTool

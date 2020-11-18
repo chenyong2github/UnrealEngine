@@ -6,31 +6,22 @@
 #include "FrameTypes.h"
 #include "VectorTypes.h"
 
+// NOTE: The current implementation of DynamicMeshToVolume is editor-only,
+// and is therefore split here from VolumeToDynamicMesh. If it ever becomes
+// safe for runtime, we should move it to the same place (or combine it in
+// one file).
+
 class AVolume;
 class FDynamicMesh3;
 
 namespace UE {
 namespace Conversion { 
 
-struct FVolumeToMeshOptions
-{
-	bool bInWorldSpace = false;
-	bool bSetGroups = true;
-	bool bMergeVertices = true;
-	bool bAutoRepairMesh = true;
-	bool bOptimizeMesh = true;
-};
-
 struct FDynamicMeshFace
 {
 	FFrame3d Plane;
 	TArray<FVector3d> BoundaryLoop;
 };
-
-/**
- * Converts a volume to a dynamic mesh. Does not initialize normals and does not delete the volume.
- */
-void MESHMODELINGTOOLSEDITORONLY_API VolumeToDynamicMesh(AVolume* Volume, FDynamicMesh3& Mesh, const FVolumeToMeshOptions& Options);
 
 /**
  * Gets an array of face objects that can be used to convert a dynamic mesh to a volume. This version tries to
@@ -49,5 +40,4 @@ void MESHMODELINGTOOLSEDITORONLY_API GetTriangleFaces(const FDynamicMesh3& Input
 void MESHMODELINGTOOLSEDITORONLY_API DynamicMeshToVolume(const FDynamicMesh3& InputMesh, AVolume* TargetVolume);
 void MESHMODELINGTOOLSEDITORONLY_API DynamicMeshToVolume(const FDynamicMesh3& InputMesh, TArray<FDynamicMeshFace>& Faces, AVolume* TargetVolume);
 
-}//end namespace UE::Conversion
-}//end namespace UE
+}}//end namespace UE::Conversion
