@@ -2498,10 +2498,15 @@ public partial class Project : CommandUtils
 				{
 					GameOpenOrderFileLocation = FileLocation;
 				}
-				FileLocation = FileReference.Combine(IoStoreOrderFileLocationBase, "CookerOpenOrder.log");
-				if (FileExists_NoExceptions(FileLocation.FullName))
+				bool bUseSecondaryOrder = false;
+				PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bPakUsesSecondaryOrder", out bUseSecondaryOrder);
+				if (bUseSecondaryOrder)
 				{
-					CookerOpenOrderFileLocation = FileLocation;
+					FileLocation = FileReference.Combine(IoStoreOrderFileLocationBase, "CookerOpenOrder.log");
+					if (FileExists_NoExceptions(FileLocation.FullName))
+					{
+						CookerOpenOrderFileLocation = FileLocation;
+					}
 				}
 			}
 
