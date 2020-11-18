@@ -20,6 +20,7 @@
 #include "Chaos/PBDAnimDriveConstraint.h"
 #include "Chaos/PBDLongRangeConstraints.h"
 #include "Chaos/PBDSpringConstraints.h"
+#include "Chaos/PBDCollisionSpringConstraints.h"
 #include "Chaos/VelocityField.h"
 #endif  // #if WITH_EDITOR || CHAOS_DEBUG_DRAW
 
@@ -67,47 +68,59 @@ DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Create Actor"), STAT_ChaosClothCreateActor,
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Get Simulation Data"), STAT_ChaosClothGetSimulationData, STATGROUP_ChaosCloth);
 
 #if CHAOS_DEBUG_DRAW
-namespace ChaosClothingSimulationConsoleVariables
+namespace ChaosClothingSimulationCVar
 {
-	TAutoConsoleVariable<bool> CVarDebugDrawLocalSpace      (TEXT("p.ChaosCloth.DebugDrawLocalSpace"          ), false, TEXT("Whether to debug draw the Chaos Cloth local space"), ECVF_Cheat);
-	TAutoConsoleVariable<bool> CVarDebugDrawBounds          (TEXT("p.ChaosCloth.DebugDrawBounds"              ), false, TEXT("Whether to debug draw the Chaos Cloth bounds"), ECVF_Cheat);
-	TAutoConsoleVariable<bool> CVarDebugDrawGravity         (TEXT("p.ChaosCloth.DebugDrawGravity"             ), false, TEXT("Whether to debug draw the Chaos Cloth gravity acceleration vector"), ECVF_Cheat);
-	TAutoConsoleVariable<bool> CVarDebugDrawPhysMeshWired   (TEXT("p.ChaosCloth.DebugDrawPhysMeshWired"       ), false, TEXT("Whether to debug draw the Chaos Cloth wireframe meshes"), ECVF_Cheat);
-	TAutoConsoleVariable<bool> CVarDebugDrawAnimMeshWired   (TEXT("p.ChaosCloth.DebugDrawAnimMeshWired"       ), false, TEXT("Whether to debug draw the animated/kinematic Cloth wireframe meshes"), ECVF_Cheat);
-	TAutoConsoleVariable<bool> CVarDebugPointNormals        (TEXT("p.ChaosCloth.DebugDrawPointNormals"        ), false, TEXT("Whether to debug draw the Chaos Cloth point normals"), ECVF_Cheat);
-	TAutoConsoleVariable<bool> CVarDebugInversedPointNormals(TEXT("p.ChaosCloth.DebugDrawInversedPointNormals"), false, TEXT("Whether to debug draw the Chaos Cloth inversed point normals"), ECVF_Cheat);
-	TAutoConsoleVariable<bool> CVarDebugFaceNormals         (TEXT("p.ChaosCloth.DebugDrawFaceNormals"         ), false, TEXT("Whether to debug draw the Chaos Cloth face normals"), ECVF_Cheat);
-	TAutoConsoleVariable<bool> CVarDebugInversedFaceNormals (TEXT("p.ChaosCloth.DebugDrawInversedFaceNormals" ), false, TEXT("Whether to debug draw the Chaos Cloth inversed face normals"), ECVF_Cheat);
-	TAutoConsoleVariable<bool> CVarDebugCollision           (TEXT("p.ChaosCloth.DebugDrawCollision"           ), false, TEXT("Whether to debug draw the Chaos Cloth collisions"), ECVF_Cheat);
-	TAutoConsoleVariable<bool> CVarDebugBackstops           (TEXT("p.ChaosCloth.DebugDrawBackstops"           ), false, TEXT("Whether to debug draw the Chaos Cloth backstops"), ECVF_Cheat);
-	TAutoConsoleVariable<bool> CVarDebugBackstopDistances   (TEXT("p.ChaosCloth.DebugDrawBackstopDistances"   ), false, TEXT("Whether to debug draw the Chaos Cloth backstop distances"), ECVF_Cheat);
-	TAutoConsoleVariable<bool> CVarDebugMaxDistances        (TEXT("p.ChaosCloth.DebugDrawMaxDistances"        ), false, TEXT("Whether to debug draw the Chaos Cloth max distances"), ECVF_Cheat);
-	TAutoConsoleVariable<bool> CVarDebugAnimDrive           (TEXT("p.ChaosCloth.DebugDrawAnimDrive"           ), false, TEXT("Whether to debug draw the Chaos Cloth anim drive"), ECVF_Cheat);
-	TAutoConsoleVariable<bool> CVarDebugBendingConstraint   (TEXT("p.ChaosCloth.DebugDrawBendingConstraint"   ), false, TEXT("Whether to debug draw the Chaos Cloth bending constraint"), ECVF_Cheat);
-	TAutoConsoleVariable<bool> CVarDebugLongRangeConstraint (TEXT("p.ChaosCloth.DebugDrawLongRangeConstraint" ), false, TEXT("Whether to debug draw the Chaos Cloth long range constraint (aka tether constraint)"), ECVF_Cheat);
-	TAutoConsoleVariable<bool> CVarDebugWindForces          (TEXT("p.ChaosCloth.DebugDrawWindForces"          ), false, TEXT("Whether to debug draw the Chaos Cloth wind forces"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawLocalSpace          (TEXT("p.ChaosCloth.DebugDrawLocalSpace"          ), false, TEXT("Whether to debug draw the Chaos Cloth local space"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawBounds              (TEXT("p.ChaosCloth.DebugDrawBounds"              ), false, TEXT("Whether to debug draw the Chaos Cloth bounds"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawGravity             (TEXT("p.ChaosCloth.DebugDrawGravity"             ), false, TEXT("Whether to debug draw the Chaos Cloth gravity acceleration vector"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawPhysMeshWired       (TEXT("p.ChaosCloth.DebugDrawPhysMeshWired"       ), false, TEXT("Whether to debug draw the Chaos Cloth wireframe meshes"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawAnimMeshWired       (TEXT("p.ChaosCloth.DebugDrawAnimMeshWired"       ), false, TEXT("Whether to debug draw the animated/kinematic Cloth wireframe meshes"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawPointNormals        (TEXT("p.ChaosCloth.DebugDrawPointNormals"        ), false, TEXT("Whether to debug draw the Chaos Cloth point normals"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawInversedPointNormals(TEXT("p.ChaosCloth.DebugDrawInversedPointNormals"), false, TEXT("Whether to debug draw the Chaos Cloth inversed point normals"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawFaceNormals         (TEXT("p.ChaosCloth.DebugDrawFaceNormals"         ), false, TEXT("Whether to debug draw the Chaos Cloth face normals"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawInversedFaceNormals (TEXT("p.ChaosCloth.DebugDrawInversedFaceNormals" ), false, TEXT("Whether to debug draw the Chaos Cloth inversed face normals"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawCollision           (TEXT("p.ChaosCloth.DebugDrawCollision"           ), false, TEXT("Whether to debug draw the Chaos Cloth collisions"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawBackstops           (TEXT("p.ChaosCloth.DebugDrawBackstops"           ), false, TEXT("Whether to debug draw the Chaos Cloth backstops"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawBackstopDistances   (TEXT("p.ChaosCloth.DebugDrawBackstopDistances"   ), false, TEXT("Whether to debug draw the Chaos Cloth backstop distances"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawMaxDistances        (TEXT("p.ChaosCloth.DebugDrawMaxDistances"        ), false, TEXT("Whether to debug draw the Chaos Cloth max distances"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawAnimDrive           (TEXT("p.ChaosCloth.DebugDrawAnimDrive"           ), false, TEXT("Whether to debug draw the Chaos Cloth anim drive"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawBendingConstraint   (TEXT("p.ChaosCloth.DebugDrawBendingConstraint"   ), false, TEXT("Whether to debug draw the Chaos Cloth bending constraint"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawLongRangeConstraint (TEXT("p.ChaosCloth.DebugDrawLongRangeConstraint" ), false, TEXT("Whether to debug draw the Chaos Cloth long range constraint (aka tether constraint)"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawWindForces          (TEXT("p.ChaosCloth.DebugDrawWindForces"          ), false, TEXT("Whether to debug draw the Chaos Cloth wind forces"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> DebugDrawSelfCollision       (TEXT("p.ChaosCloth.DebugDrawSelfCollision"       ), false, TEXT("Whether to debug draw the Chaos Cloth self collision information"), ECVF_Cheat);
 }
 #endif  // #if CHAOS_DEBUG_DRAW
 
-#if INTEL_ISPC && !UE_BUILD_SHIPPING
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "HAL/IConsoleManager.h"
 
-namespace ChaosClothingSimulationConsoleCommands
+namespace ChaosClothingSimulationConsole
 {
-	class FConsoleCommands final
+	class FCommand final
 	{
 	public:
-		FConsoleCommands()
+		FCommand()
+			: StepCount(0)
+			, bIsPaused(false)
 		{
+#if INTEL_ISPC
 			// Register Ispc console command
 			ConsoleObjects.Add(IConsoleManager::Get().RegisterConsoleCommand(
 				TEXT("p.ChaosCloth.Ispc"),
 				TEXT("Enable or disable ISPC optimizations for cloth simulation."),
-				FConsoleCommandWithArgsDelegate::CreateRaw(this, &FConsoleCommands::Ispc),
+				FConsoleCommandWithArgsDelegate::CreateRaw(this, &FCommand::Ispc),
+				ECVF_Cheat));
+#endif // #if INTEL_ISPC
+
+			// Register DebugStep console command
+			ConsoleObjects.Add(IConsoleManager::Get().RegisterConsoleCommand(
+				TEXT("p.ChaosCloth.DebugStep"),
+				TEXT("Pause/step/resume cloth simulations."),
+				FConsoleCommandWithArgsDelegate::CreateRaw(this, &FCommand::DebugStep),
 				ECVF_Cheat));
 		}
 
-		~FConsoleCommands()
+		~FCommand()
 		{
 			for (IConsoleObject* ConsoleObject : ConsoleObjects)
 			{
@@ -115,7 +128,15 @@ namespace ChaosClothingSimulationConsoleCommands
 			}
 		}
 
+		bool MustStep(int32& InOutStepCount) const
+		{
+			const bool bMustStep = !bIsPaused || (InOutStepCount != StepCount);
+			InOutStepCount = StepCount;
+			return bMustStep;
+		}
+
 	private:
+#if INTEL_ISPC
 		void Ispc(const TArray<FString>& Args)
 		{
 			bool bEnableISPC;
@@ -152,13 +173,60 @@ namespace ChaosClothingSimulationConsoleCommands
 			UE_LOG(LogChaosCloth, Display, TEXT("  p.ChaosCloth.Ispc [0|1]|[true|false]|[on|off]"));
 			UE_LOG(LogChaosCloth, Display, TEXT("Example: p.Chaos.Ispc on"));
 		}
+#endif // #if INTEL_ISPC
+
+		void DebugStep(const TArray<FString>& Args)
+		{
+			switch (Args.Num())
+			{
+			default:
+				break;  // Invalid arguments
+			case 1:
+				if (Args[0].Compare(TEXT("Pause"), ESearchCase::IgnoreCase) == 0)
+				{
+					UE_CLOG(bIsPaused, LogChaosCloth, Warning, TEXT("Cloth simulations are already paused!"));
+					UE_CLOG(!bIsPaused, LogChaosCloth, Display, TEXT("Cloth simulations are now pausing..."));
+					bIsPaused = true;
+				}
+				else if (Args[0].Compare(TEXT("Step"), ESearchCase::IgnoreCase) == 0)
+				{
+					if (bIsPaused)
+					{
+						UE_LOG(LogChaosCloth, Display, TEXT("Cloth simulations are now stepping..."));
+						++StepCount;
+					}
+					else
+					{
+						UE_LOG(LogChaosCloth, Warning, TEXT("The Cloth simulations aren't paused yet!"));
+						UE_LOG(LogChaosCloth, Display, TEXT("Cloth simulations are now pausing..."));
+						bIsPaused = true;
+					}
+				}
+				else if (Args[0].Compare(TEXT("Resume"), ESearchCase::IgnoreCase) == 0)
+				{
+					UE_CLOG(!bIsPaused, LogChaosCloth, Warning, TEXT("Cloth simulations haven't been paused yet!"));
+					UE_CLOG(bIsPaused, LogChaosCloth, Display, TEXT("Cloth simulations are now resuming..."));
+					bIsPaused = false;
+				}
+				else
+				{
+					break;  // Invalid arguments
+				}
+				return;
+			}
+			UE_LOG(LogChaosCloth, Display, TEXT("Invalid arguments."));
+			UE_LOG(LogChaosCloth, Display, TEXT("Usage:"));
+			UE_LOG(LogChaosCloth, Display, TEXT("  p.ChaosCloth.DebugStep [Pause|Step|Resume]"));
+		}
 
 	private:
 		TArray<IConsoleObject*> ConsoleObjects;
+		TAtomic<int32> StepCount;
+		TAtomic<bool> bIsPaused;
 	};
-	static TUniquePtr<FConsoleCommands> ConsoleCommands;
+	static TUniquePtr<FCommand> Command;
 }
-#endif  // #if INTEL_ISPC && !UE_BUILD_SHIPPING
+#endif  // #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 // Default parameters, will be overwritten when cloth assets are loaded
 namespace ChaosClothingSimulationDefault
@@ -175,17 +243,20 @@ FClothingSimulation::FClothingSimulation()
 	, GravityOverride(ChaosClothingSimulationDefault::Gravity)
 	, MaxDistancesMultipliers(ChaosClothingSimulationDefault::MaxDistancesMultipliers)
 	, AnimDriveSpringStiffness(ChaosClothingSimulationDefault::AnimDriveSpringStiffness)
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	, StepCount(0)
+#endif
 {
 #if WITH_EDITOR
 	DebugClothMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
 	DebugClothMaterialVertex = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/WidgetVertexColorMaterial"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
 #endif  // #if WITH_EDITOR
-#if INTEL_ISPC && !UE_BUILD_SHIPPING
-	if (!ChaosClothingSimulationConsoleCommands::ConsoleCommands)
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (!ChaosClothingSimulationConsole::Command)
 	{
-		ChaosClothingSimulationConsoleCommands::ConsoleCommands = MakeUnique<ChaosClothingSimulationConsoleCommands::FConsoleCommands>();
+		ChaosClothingSimulationConsole::Command = MakeUnique<ChaosClothingSimulationConsole::FCommand>();
 	}
-#endif  // #if INTEL_ISPC && !UE_BUILD_SHIPPING
+#endif
 }
 
 FClothingSimulation::~FClothingSimulation()
@@ -367,74 +438,80 @@ bool FClothingSimulation::ShouldSimulate() const
 
 void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 {
-	SCOPE_CYCLE_COUNTER(STAT_ChaosClothSimulate);
-	const FClothingSimulationContext* const Context = static_cast<FClothingSimulationContext*>(InContext);
-	if (Context->DeltaSeconds == 0.f)
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (ChaosClothingSimulationConsole::Command && ChaosClothingSimulationConsole::Command->MustStep(StepCount))
+#endif
 	{
-		return;
-	}
-
-	const double StartTime = FPlatformTime::Seconds();
-
-	const bool bNeedsReset = (Context->TeleportMode == EClothingTeleportMode::TeleportAndReset);
-	const bool bNeedsTeleport = (Context->TeleportMode > EClothingTeleportMode::None);
-	bIsTeleported = bNeedsTeleport;
-
-	// Update Solver animatable parameters
-	Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : TVector<float, 3>(0.f), bNeedsReset);
-	Solver->SetWindVelocity(Context->WindVelocity, Context->WindAdaption);
-	Solver->SetGravity(bUseGravityOverride ? GravityOverride : Context->WorldGravity);
-	Solver->EnableClothGravityOverride(!bUseGravityOverride);  // Disable all cloth gravity overrides when the interactor takes over
-
-	// Check teleport modes
-	for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
-	{
-		// Update Cloth animatable parameters
-		Cloth->SetAnimDriveSpringStiffness(AnimDriveSpringStiffness);
-		Cloth->SetMaxDistancesMultiplier(Context->MaxDistanceScale);
-
-		if (bNeedsReset)
+		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSimulate);
+		const FClothingSimulationContext* const Context = static_cast<FClothingSimulationContext*>(InContext);
+		if (Context->DeltaSeconds == 0.f)
 		{
-			Cloth->Reset();
+			return;
 		}
-		if (bNeedsTeleport)
+
+		const double StartTime = FPlatformTime::Seconds();
+
+		const bool bNeedsReset = (Context->TeleportMode == EClothingTeleportMode::TeleportAndReset);
+		const bool bNeedsTeleport = (Context->TeleportMode > EClothingTeleportMode::None);
+		bIsTeleported = bNeedsTeleport;
+
+		// Update Solver animatable parameters
+		Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : TVector<float, 3>(0.f), bNeedsReset);
+		Solver->SetWindVelocity(Context->WindVelocity, Context->WindAdaption);
+		Solver->SetGravity(bUseGravityOverride ? GravityOverride : Context->WorldGravity);
+		Solver->EnableClothGravityOverride(!bUseGravityOverride);  // Disable all cloth gravity overrides when the interactor takes over
+
+		// Check teleport modes
+		for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
 		{
-			Cloth->Teleport();
+			// Update Cloth animatable parameters
+			Cloth->SetAnimDriveSpringStiffness(AnimDriveSpringStiffness);
+			Cloth->SetMaxDistancesMultiplier(Context->MaxDistanceScale);
+
+			if (bNeedsReset)
+			{
+				Cloth->Reset();
+			}
+			if (bNeedsTeleport)
+			{
+				Cloth->Teleport();
+			}
 		}
-	}
 
-	// Step the simulation
-	Solver->Update(Context->DeltaSeconds);
+		// Step the simulation
+		Solver->Update(Context->DeltaSeconds);
 
-	// Update simulation time in ms (and provide an instant average instead of the value in real-time)
-	const float PrevSimulationTime = SimulationTime;  // Copy the atomic to prevent a re-read
-	const float CurrSimulationTime = (float)((FPlatformTime::Seconds() - StartTime) * 1000.);
-	static const float SimulationTimeDecay = 0.03f; // 0.03 seems to provide a good rate of update for the instant average
-	SimulationTime = PrevSimulationTime ? PrevSimulationTime + (CurrSimulationTime - PrevSimulationTime) * SimulationTimeDecay : CurrSimulationTime;
+		// Update simulation time in ms (and provide an instant average instead of the value in real-time)
+		const float PrevSimulationTime = SimulationTime;  // Copy the atomic to prevent a re-read
+		const float CurrSimulationTime = (float)((FPlatformTime::Seconds() - StartTime) * 1000.);
+		static const float SimulationTimeDecay = 0.03f; // 0.03 seems to provide a good rate of update for the instant average
+		SimulationTime = PrevSimulationTime ? PrevSimulationTime + (CurrSimulationTime - PrevSimulationTime) * SimulationTimeDecay : CurrSimulationTime;
 
 #if FRAMEPRO_ENABLED
-	FRAMEPRO_CUSTOM_STAT("ChaosClothSimulationTimeMs", SimulationTime, "ChaosCloth", "ms", FRAMEPRO_COLOUR(0,128,255));
-	FRAMEPRO_CUSTOM_STAT("ChaosClothNumDynamicParticles", NumDynamicParticles, "ChaosCloth", "Particles", FRAMEPRO_COLOUR(0,128,128));
-	FRAMEPRO_CUSTOM_STAT("ChaosClothNumKinematicParticles", NumKinematicParticles, "ChaosCloth", "Particles", FRAMEPRO_COLOUR(128, 0, 128));
+		FRAMEPRO_CUSTOM_STAT("ChaosClothSimulationTimeMs", SimulationTime, "ChaosCloth", "ms", FRAMEPRO_COLOUR(0,128,255));
+		FRAMEPRO_CUSTOM_STAT("ChaosClothNumDynamicParticles", NumDynamicParticles, "ChaosCloth", "Particles", FRAMEPRO_COLOUR(0,128,128));
+		FRAMEPRO_CUSTOM_STAT("ChaosClothNumKinematicParticles", NumKinematicParticles, "ChaosCloth", "Particles", FRAMEPRO_COLOUR(128, 0, 128));
 #endif
+	}
 
 	// Debug draw
 #if CHAOS_DEBUG_DRAW
-	if (ChaosClothingSimulationConsoleVariables::CVarDebugDrawLocalSpace      .GetValueOnAnyThread()) { DebugDrawLocalSpace          (); }
-	if (ChaosClothingSimulationConsoleVariables::CVarDebugDrawBounds          .GetValueOnAnyThread()) { DebugDrawBounds              (); }
-	if (ChaosClothingSimulationConsoleVariables::CVarDebugDrawGravity         .GetValueOnAnyThread()) { DebugDrawGravity             (); }
-	if (ChaosClothingSimulationConsoleVariables::CVarDebugDrawPhysMeshWired   .GetValueOnAnyThread()) { DebugDrawPhysMeshWired       (); }
-	if (ChaosClothingSimulationConsoleVariables::CVarDebugDrawAnimMeshWired   .GetValueOnAnyThread()) { DebugDrawAnimMeshWired       (); }
-	if (ChaosClothingSimulationConsoleVariables::CVarDebugPointNormals        .GetValueOnAnyThread()) { DebugDrawPointNormals        (); }
-	if (ChaosClothingSimulationConsoleVariables::CVarDebugInversedPointNormals.GetValueOnAnyThread()) { DebugDrawInversedPointNormals(); }
-	if (ChaosClothingSimulationConsoleVariables::CVarDebugCollision           .GetValueOnAnyThread()) { DebugDrawCollision           (); }
-	if (ChaosClothingSimulationConsoleVariables::CVarDebugBackstops           .GetValueOnAnyThread()) { DebugDrawBackstops           (); }
-	if (ChaosClothingSimulationConsoleVariables::CVarDebugBackstopDistances   .GetValueOnAnyThread()) { DebugDrawBackstopDistances   (); }
-	if (ChaosClothingSimulationConsoleVariables::CVarDebugMaxDistances        .GetValueOnAnyThread()) { DebugDrawMaxDistances        (); }
-	if (ChaosClothingSimulationConsoleVariables::CVarDebugAnimDrive           .GetValueOnAnyThread()) { DebugDrawAnimDrive           (); }
-	if (ChaosClothingSimulationConsoleVariables::CVarDebugBendingConstraint   .GetValueOnAnyThread()) { DebugDrawBendingConstraint   (); }
-	if (ChaosClothingSimulationConsoleVariables::CVarDebugLongRangeConstraint .GetValueOnAnyThread()) { DebugDrawLongRangeConstraint (); }
-	if (ChaosClothingSimulationConsoleVariables::CVarDebugWindForces          .GetValueOnAnyThread()) { DebugDrawWindForces          (); }
+	if (ChaosClothingSimulationCVar::DebugDrawLocalSpace          .GetValueOnAnyThread()) { DebugDrawLocalSpace          (); }
+	if (ChaosClothingSimulationCVar::DebugDrawBounds              .GetValueOnAnyThread()) { DebugDrawBounds              (); }
+	if (ChaosClothingSimulationCVar::DebugDrawGravity             .GetValueOnAnyThread()) { DebugDrawGravity             (); }
+	if (ChaosClothingSimulationCVar::DebugDrawPhysMeshWired       .GetValueOnAnyThread()) { DebugDrawPhysMeshWired       (); }
+	if (ChaosClothingSimulationCVar::DebugDrawAnimMeshWired       .GetValueOnAnyThread()) { DebugDrawAnimMeshWired       (); }
+	if (ChaosClothingSimulationCVar::DebugDrawPointNormals        .GetValueOnAnyThread()) { DebugDrawPointNormals        (); }
+	if (ChaosClothingSimulationCVar::DebugDrawInversedPointNormals.GetValueOnAnyThread()) { DebugDrawInversedPointNormals(); }
+	if (ChaosClothingSimulationCVar::DebugDrawCollision           .GetValueOnAnyThread()) { DebugDrawCollision           (); }
+	if (ChaosClothingSimulationCVar::DebugDrawBackstops           .GetValueOnAnyThread()) { DebugDrawBackstops           (); }
+	if (ChaosClothingSimulationCVar::DebugDrawBackstopDistances   .GetValueOnAnyThread()) { DebugDrawBackstopDistances   (); }
+	if (ChaosClothingSimulationCVar::DebugDrawMaxDistances        .GetValueOnAnyThread()) { DebugDrawMaxDistances        (); }
+	if (ChaosClothingSimulationCVar::DebugDrawAnimDrive           .GetValueOnAnyThread()) { DebugDrawAnimDrive           (); }
+	if (ChaosClothingSimulationCVar::DebugDrawBendingConstraint   .GetValueOnAnyThread()) { DebugDrawBendingConstraint   (); }
+	if (ChaosClothingSimulationCVar::DebugDrawLongRangeConstraint .GetValueOnAnyThread()) { DebugDrawLongRangeConstraint (); }
+	if (ChaosClothingSimulationCVar::DebugDrawWindForces          .GetValueOnAnyThread()) { DebugDrawWindForces          (); }
+	if (ChaosClothingSimulationCVar::DebugDrawSelfCollision       .GetValueOnAnyThread()) { DebugDrawSelfCollision       (); }
 #endif  // #if CHAOS_DEBUG_DRAW
 }
 
@@ -1747,4 +1824,76 @@ void FClothingSimulation::DebugDrawLocalSpace(FPrimitiveDrawInterface* PDI) cons
 		DrawCoordinateSystem(PDI, ReferenceSpaceTransform.GetRotation(), ReferenceSpaceTransform.GetLocation());
 	}
 }
+
+void FClothingSimulation::DebugDrawSelfCollision(FPrimitiveDrawInterface* PDI) const
+{
+	const TVector<float, 3>& LocalSpaceLocation = Solver->GetLocalSpaceLocation();
+
+	for (const FClothingSimulationCloth* const Cloth : Solver->GetCloths())
+	{
+		const int32 Offset = Cloth->GetOffset(Solver.Get());
+		if (Offset == INDEX_NONE)
+		{
+			continue;
+		}
+
+		// Draw constraints
+		const FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
+
+		if (const TPBDCollisionSpringConstraints<float, 3>* const SelfCollisionConstraints = ClothConstraints.GetSelfCollisionConstraints().Get())
+		{
+			const TConstArrayView<TVector<float, 3>> Positions = Cloth->GetParticlePositions(Solver.Get());
+			const TConstArrayView<TVector<float, 3>> ParticleNormals = Cloth->GetParticleNormals(Solver.Get());
+			const TArray<TVector<int32, 4>>& Constraints = SelfCollisionConstraints->GetConstraints();
+			const TArray<TVector<float, 3>>& Barys = SelfCollisionConstraints->GetBarys();
+			const TArray<TVector<float, 3>>& Normals = SelfCollisionConstraints->GetNormals();
+			const float Thickness = SelfCollisionConstraints->GetThickness();
+			const float Height = Thickness + Thickness;
+
+			for (int32 Index = 0; Index < Constraints.Num(); ++Index)
+			{
+				const TVector<int32, 4>& Constraint = Constraints[Index];
+				const TVector<float, 3>& Bary = Barys[Index];
+				const TVector<float, 3>& Normal = Normals[Index];
+
+				const FVector P = LocalSpaceLocation + Positions[Constraint[0]];
+				const FVector P0 = LocalSpaceLocation + Positions[Constraint[1]];
+				const FVector P1 = LocalSpaceLocation + Positions[Constraint[2]];
+				const FVector P2 = LocalSpaceLocation + Positions[Constraint[3]];
+
+				const FVector Pos0 = P0 * Bary[0] + P1 * Bary[1] + P2 * Bary[2];
+				const FVector Pos1 = Pos0 + Height * Normal;
+
+				// Draw point to surface line (=normal)
+				static const FLinearColor Brown(0.1f, 0.05f, 0.f);
+				DrawLine(PDI, Pos0, Pos1, Brown);
+
+				// Draw barycentric coordinate
+				DrawLine(PDI, Pos0, P0, Brown);
+				DrawLine(PDI, Pos0, P1, Brown);
+				DrawLine(PDI, Pos0, P2, Brown);
+
+				// Draw pushup to point
+				static const FLinearColor Orange(0.3f, 0.15f, 0.f);
+				DrawLine(PDI, Pos1, P, Orange);
+
+				// Draw contact
+				TVector<float, 3> TangentU, TangentV;
+				Normal.FindBestAxisVectors(TangentU, TangentV);
+
+				DrawLine(PDI, Pos0 + TangentU, Pos0 + TangentV, Brown);
+				DrawLine(PDI, Pos0 + TangentU, Pos0 - TangentV, Brown);
+				DrawLine(PDI, Pos0 - TangentU, Pos0 - TangentV, Brown);
+				DrawLine(PDI, Pos0 - TangentU, Pos0 + TangentV, Brown);
+
+				// Draw hit triangle (with thickness and added colliding particle's thickness)
+				static const FLinearColor Red(0.3f, 0.f, 0.f);
+				DrawLine(PDI, P0, P1, Red);
+				DrawLine(PDI, P1, P2, Red);
+				DrawLine(PDI, P2, P0, Red);
+			}
+		}
+	}
+}
+
 #endif  // #if WITH_EDITOR || CHAOS_DEBUG_DRAW
