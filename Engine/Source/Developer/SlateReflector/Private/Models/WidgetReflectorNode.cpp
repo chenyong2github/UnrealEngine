@@ -158,6 +158,11 @@ bool FLiveWidgetReflectorNode::GetWidgetHasActiveTimers() const
 	return FWidgetReflectorNodeUtils::GetWidgetHasActiveTimers(Widget.Pin());
 }
 
+bool FLiveWidgetReflectorNode::GetWidgetIsInvalidationRoot() const
+{
+	return FWidgetReflectorNodeUtils::GetWidgetIsInvalidationRoot(Widget.Pin());
+}
+
 FText FLiveWidgetReflectorNode::GetWidgetReadableLocation() const
 {
 	return FWidgetReflectorNodeUtils::GetWidgetReadableLocation(Widget.Pin());
@@ -236,6 +241,7 @@ FSnapshotWidgetReflectorNode::FSnapshotWidgetReflectorNode(const FArrangedWidget
 	, bCachedWidgetIsVolatile(FWidgetReflectorNodeUtils::GetWidgetIsVolatile(InArrangedWidget.Widget))
 	, bCachedWidgetIsVolatileIndirectly(FWidgetReflectorNodeUtils::GetWidgetIsVolatileIndirectly(InArrangedWidget.Widget))
 	, bCachedWidgetHasActiveTimers(FWidgetReflectorNodeUtils::GetWidgetHasActiveTimers(InArrangedWidget.Widget))
+	, bCachedWidgetIsInvalidationRoot(FWidgetReflectorNodeUtils::GetWidgetIsInvalidationRoot(InArrangedWidget.Widget))
 	, bCachedWidgetEnabled(FWidgetReflectorNodeUtils::GetWidgetEnabled(InArrangedWidget.Widget))
 	, CachedWidgetClippingText(FWidgetReflectorNodeUtils::GetWidgetClippingText(InArrangedWidget.Widget))
 	, CachedWidgetReadableLocation(FWidgetReflectorNodeUtils::GetWidgetReadableLocation(InArrangedWidget.Widget))
@@ -306,6 +312,11 @@ bool FSnapshotWidgetReflectorNode::GetWidgetIsVolatileIndirectly() const
 bool FSnapshotWidgetReflectorNode::GetWidgetHasActiveTimers() const
 {
 	return bCachedWidgetHasActiveTimers;
+}
+
+bool FSnapshotWidgetReflectorNode::GetWidgetIsInvalidationRoot() const
+{
+	return bCachedWidgetIsInvalidationRoot;
 }
 
 FText FSnapshotWidgetReflectorNode::GetWidgetReadableLocation() const
@@ -445,6 +456,7 @@ TSharedRef<FJsonValue> FSnapshotWidgetReflectorNode::ToJson(const TSharedRef<FSn
 	RootJsonObject->SetBoolField(TEXT("WidgetIsVolatile"), RootSnapshotNode->bCachedWidgetIsVolatile);
 	RootJsonObject->SetBoolField(TEXT("WidgetIsVolatileIndirectly"), RootSnapshotNode->bCachedWidgetIsVolatileIndirectly);
 	RootJsonObject->SetBoolField(TEXT("WidgetHasActiveTimers"), RootSnapshotNode->bCachedWidgetHasActiveTimers);
+	RootJsonObject->SetBoolField(TEXT("WidgetIsInvalidationRoot"), RootSnapshotNode->bCachedWidgetIsInvalidationRoot);
 	RootJsonObject->SetBoolField(TEXT("WidgetEnabled"), RootSnapshotNode->bCachedWidgetEnabled);
 	RootJsonObject->SetStringField(TEXT("WidgetClippingText"), RootSnapshotNode->CachedWidgetClippingText.ToString());
 	RootJsonObject->SetStringField(TEXT("WidgetReadableLocation"), RootSnapshotNode->CachedWidgetReadableLocation.ToString());
@@ -480,8 +492,8 @@ TSharedRef<FSnapshotWidgetReflectorNode> FSnapshotWidgetReflectorNode::FromJson(
 			check(StructJsonArray.Num() == 2);
 
 			return FVector2D(
-				StructJsonArray[0]->AsNumber(), 
-				StructJsonArray[1]->AsNumber()
+				(float)StructJsonArray[0]->AsNumber(),
+				(float)StructJsonArray[1]->AsNumber()
 				);
 		}
 
@@ -495,10 +507,10 @@ TSharedRef<FSnapshotWidgetReflectorNode> FSnapshotWidgetReflectorNode::FromJson(
 			check(StructJsonArray.Num() == 4);
 
 			return FMatrix2x2(
-				StructJsonArray[0]->AsNumber(), 
-				StructJsonArray[1]->AsNumber(), 
-				StructJsonArray[2]->AsNumber(), 
-				StructJsonArray[3]->AsNumber()
+				(float)StructJsonArray[0]->AsNumber(), 
+				(float)StructJsonArray[1]->AsNumber(), 
+				(float)StructJsonArray[2]->AsNumber(),
+				(float)StructJsonArray[3]->AsNumber()
 				);
 		}
 
@@ -512,7 +524,7 @@ TSharedRef<FSnapshotWidgetReflectorNode> FSnapshotWidgetReflectorNode::FromJson(
 			check(StructJsonObject.IsValid());
 
 			return FSlateLayoutTransform(
-				StructJsonObject->GetNumberField(TEXT("Scale")),
+				(float)StructJsonObject->GetNumberField(TEXT("Scale")),
 				ParseVector2DJsonValue(StructJsonObject->GetField<EJson::None>(TEXT("Translation")))
 				);
 		}
@@ -542,10 +554,10 @@ TSharedRef<FSnapshotWidgetReflectorNode> FSnapshotWidgetReflectorNode::FromJson(
 			check(StructJsonArray.Num() == 4);
 
 			return FLinearColor(
-				StructJsonArray[0]->AsNumber(), 
-				StructJsonArray[1]->AsNumber(), 
-				StructJsonArray[2]->AsNumber(), 
-				StructJsonArray[3]->AsNumber()
+				(float)StructJsonArray[0]->AsNumber(),
+				(float)StructJsonArray[1]->AsNumber(),
+				(float)StructJsonArray[2]->AsNumber(),
+				(float)StructJsonArray[3]->AsNumber()
 				);
 		}
 
@@ -613,6 +625,7 @@ TSharedRef<FSnapshotWidgetReflectorNode> FSnapshotWidgetReflectorNode::FromJson(
 	RootSnapshotNode->bCachedWidgetIsVolatile = RootJsonObject->GetBoolField(TEXT("WidgetIsVolatile"));
 	RootSnapshotNode->bCachedWidgetIsVolatileIndirectly = RootJsonObject->GetBoolField(TEXT("WidgetIsVolatileIndirectly"));
 	RootSnapshotNode->bCachedWidgetHasActiveTimers = RootJsonObject->GetBoolField(TEXT("WidgetHasActiveTimers"));
+	RootSnapshotNode->bCachedWidgetIsInvalidationRoot = RootJsonObject->GetBoolField(TEXT("WidgetIsInvalidationRoot"));
 	RootSnapshotNode->bCachedWidgetEnabled = RootJsonObject->GetBoolField(TEXT("WidgetEnabled"));
 	RootSnapshotNode->CachedWidgetClippingText = FText::FromString(RootJsonObject->GetStringField(TEXT("WidgetClippingText")));
 	RootSnapshotNode->CachedWidgetReadableLocation = FText::FromString(RootJsonObject->GetStringField(TEXT("WidgetReadableLocation")));
@@ -865,6 +878,11 @@ bool FWidgetReflectorNodeUtils::GetWidgetIsVolatileIndirectly(const TSharedPtr<c
 bool FWidgetReflectorNodeUtils::GetWidgetHasActiveTimers(const TSharedPtr<const SWidget>& InWidget)
 {
 	return InWidget.IsValid() ? InWidget->HasActiveTimers() : false;
+}
+
+bool FWidgetReflectorNodeUtils::GetWidgetIsInvalidationRoot(const TSharedPtr<const SWidget>& InWidget)
+{
+	return InWidget.IsValid() ? InWidget->Advanced_IsInvalidationRoot() : false;
 }
 
 FText FWidgetReflectorNodeUtils::GetWidgetClippingText(const TSharedPtr<const SWidget>& InWidget)

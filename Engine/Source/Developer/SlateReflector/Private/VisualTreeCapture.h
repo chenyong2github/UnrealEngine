@@ -24,9 +24,11 @@ public:
 	int32 LayerId;
 	int32 ClippingIndex;
 	int32 ElementIndex;
+	bool bFromCache;
 	TWeakPtr<const SWidget> Widget;
 
-	FVisualEntry(int32 InElementIndex);
+	FVisualEntry(const TWeakPtr<const SWidget>& Widget, int32 InElementIndex);
+	FVisualEntry(const TSharedRef<const SWidget>& Widget, const FSlateDrawElement& InElement);
 
 	void Resolve(const FSlateWindowElementList& ElementList);
 
@@ -41,6 +43,7 @@ public:
 public:
 	TArray<FVisualEntry> Entries;
 	TArray<FSlateClippingState> ClippingStates;
+	TArray<FSlateClippingState> CachedClippingStates;
 	TArray<TWeakPtr<const SWidget>> WidgetStack;
 };
 
@@ -62,6 +65,10 @@ public:
 	TSharedPtr<FVisualTreeSnapshot> GetVisualTreeForWindow(SWindow* InWindow);
 	
 private:
+
+	void AddInvalidationRootCachedEntries(TSharedRef<FVisualTreeSnapshot> Tree, const FSlateInvalidationRoot* Entries);
+
+
 	void BeginWindow(const FSlateWindowElementList& ElementList);
 	void EndWindow(const FSlateWindowElementList& ElementList);
 
@@ -77,4 +84,7 @@ private:
 private:
 	TMap<const SWindow*, TSharedPtr<FVisualTreeSnapshot>> VisualTrees;
 	bool bIsEnabled;
+	int32 WindowIsInvalidationRootCounter;
+	int32 WidgetIsInvalidationRootCounter;
+	int32 WidgetIsInvisibleToWidgetReflectorCounter;
 };

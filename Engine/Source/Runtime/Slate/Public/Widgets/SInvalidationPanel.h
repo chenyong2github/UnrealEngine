@@ -55,6 +55,7 @@ public:
 protected:
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
 	virtual bool Advanced_IsInvalidationRoot() const override;
+	virtual const FSlateInvalidationRoot* Advanced_AsInvalidationRoot() const override;
 	virtual int32 PaintSlowPath(const FSlateInvalidationContext& Context) override;
 private:
 	void OnGlobalInvalidationToggled(bool bGlobalInvalidationEnabled);

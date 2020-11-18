@@ -86,6 +86,7 @@ public:
 
 	/** @return the cached draw elements for this window and its widget hierarchy*/
 	FSlateCachedElementData& GetCachedElements() { return *CachedElementData; }
+	const FSlateCachedElementData& GetCachedElements() const { return *CachedElementData; }
 	const SWidget* GetInvalidationRootWidget() const;
 	int32 GetFastPathGenerationNumber() const { return FastPathGenerationNumber; }
 	FSlateInvalidationRootHandle GetInvalidationRootHandle() const { return InvalidationRootHandle; }

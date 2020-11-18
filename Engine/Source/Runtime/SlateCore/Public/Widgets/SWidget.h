@@ -1373,6 +1373,7 @@ public:
 	/** Is this widget derivative of SWindow */
 	virtual bool Advanced_IsWindow() const { return false; }
 	virtual bool Advanced_IsInvalidationRoot() const { return false; }
+	virtual const FSlateInvalidationRoot* Advanced_AsInvalidationRoot() const { return nullptr; }
 protected:
 
 	/**

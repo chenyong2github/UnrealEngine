@@ -93,6 +93,7 @@ protected:
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 	virtual FVector2D ComputeDesiredSize(float Scale) const override;
 	virtual bool Advanced_IsInvalidationRoot() const { return bEnableRetainedRendering; }
+	virtual const FSlateInvalidationRoot* Advanced_AsInvalidationRoot() const override { return bEnableRetainedRendering ? this : nullptr; }
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
 
 	/** FSlateInvalidationRoot interface */

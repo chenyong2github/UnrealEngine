@@ -29,11 +29,11 @@ void SReflectorTreeWidgetItem::Construct(const FArguments& InArgs, const TShared
 	this->WidgetInfo = InArgs._WidgetInfoToVisualize;
 	this->OnAccessSourceCode = InArgs._SourceCodeAccessor;
 	this->OnAccessAsset = InArgs._AssetAccessor;
-	this->SetPadding(0);
+	this->SetPadding(0.f);
 
 	check(WidgetInfo.IsValid());
 
-	SMultiColumnTableRow< TSharedRef<FWidgetReflectorNodeBase> >::Construct(SMultiColumnTableRow< TSharedRef<FWidgetReflectorNodeBase> >::FArguments().Padding(0), InOwnerTableView);
+	SMultiColumnTableRow< TSharedRef<FWidgetReflectorNodeBase> >::Construct(SMultiColumnTableRow< TSharedRef<FWidgetReflectorNodeBase> >::FArguments().Padding(0.f), InOwnerTableView);
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -55,17 +55,29 @@ TSharedRef<SWidget> SReflectorTreeWidgetItem::GenerateWidgetForColumn(const FNam
 
 	if (ColumnName == NAME_WidgetName )
 	{
-		return SNew(SHorizontalBox)
+		TSharedRef<SHorizontalBox> HorizontalBox = SNew(SHorizontalBox);
 
-		+ SHorizontalBox::Slot()
+		HorizontalBox->AddSlot()
 		.AutoWidth()
 		[
 			SNew(SExpanderArrow, SharedThis(this))
 			.IndentAmount(16)
 			.ShouldDrawWires(true)
-		]
+		];
 
-		+ SHorizontalBox::Slot()
+		if (WidgetInfo->GetWidgetIsInvalidationRoot())
+		{
+			HorizontalBox->AddSlot()
+			.AutoWidth()
+			.Padding(2.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("InvalidationRoot_Short", "[IR]"))
+			];
+		}
+
+		HorizontalBox->AddSlot()
 		.AutoWidth()
 		.Padding(2.0f, 0.0f)
 		.VAlign(VAlign_Center)
@@ -74,6 +86,8 @@ TSharedRef<SWidget> SReflectorTreeWidgetItem::GenerateWidgetForColumn(const FNam
 			.Text(WidgetInfo->GetWidgetTypeAndShortName())
 			.ColorAndOpacity(this, &SReflectorTreeWidgetItem::GetTint)
 		];
+
+		return HorizontalBox;
 	}
 	else if (ColumnName == NAME_WidgetInfo )
 	{
@@ -169,7 +183,7 @@ TSharedRef<SWidget> SReflectorTreeWidgetItem::GenerateWidgetForColumn(const FNam
 
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
-			.Padding(FMargin(0, 0, 2, 0))
+			.Padding(FMargin(0.f, 0.f, 2.f, 0.f))
 			[
 				SNew(SHyperlink)
 				.ToolTipText(LOCTEXT("ClickToCopy", "Click to copy address."))

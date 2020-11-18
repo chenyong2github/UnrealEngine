@@ -270,6 +270,11 @@ bool SInvalidationPanel::Advanced_IsInvalidationRoot() const
 	return GetCanCache();
 }
 
+const FSlateInvalidationRoot* SInvalidationPanel::Advanced_AsInvalidationRoot() const
+{
+	return GetCanCache() ? this : nullptr;
+}
+
 int32 SInvalidationPanel::PaintSlowPath(const FSlateInvalidationContext& Context)
 {
 	return SCompoundWidget::OnPaint(*Context.PaintArgs, GetPaintSpaceGeometry(), Context.CullingRect, *Context.WindowElementList, Context.IncomingLayerId, Context.WidgetStyle, Context.bParentEnabled);
