@@ -201,39 +201,36 @@ void FAndroidStats::OnTrimMemory(int TrimLevel)
 		TRIM_MEMORY_UI_HIDDEN = 20,
 	};
 
+	GTrimMemoryBackgroundLevel = 0;
+	GTrimMemoryForegroundLevel = 0;
+
 	switch (TrimLevel)
 	{
 	case TRIM_MEMORY_UI_HIDDEN:
 		GTrimMemoryBackgroundLevel = 1;
-		GTrimMemoryForegroundLevel = 0;
 		break;
 	case TRIM_MEMORY_BACKGROUND:
 		GTrimMemoryBackgroundLevel = 2;
-		GTrimMemoryForegroundLevel = 0;
 		break;
 	case TRIM_MEMORY_MODERATE:
 		GTrimMemoryBackgroundLevel = 3;
-		GTrimMemoryForegroundLevel = 0;
 		break;
 	case TRIM_MEMORY_COMPLETE:
 		GTrimMemoryBackgroundLevel = 4;
-		GTrimMemoryForegroundLevel = 0;
 		break;
 
 	case TRIM_MEMORY_RUNNING_LOW:
 		GTrimMemoryForegroundLevel = 1;
-		GTrimMemoryBackgroundLevel = 0;
 		break;
 	case TRIM_MEMORY_RUNNING_MODERATE:
 		GTrimMemoryForegroundLevel = 2;
-		GTrimMemoryBackgroundLevel = 0;
 		break;
 	case TRIM_MEMORY_RUNNING_CRITICAL:
 		GTrimMemoryForegroundLevel = 3;
-		GTrimMemoryBackgroundLevel = 0;
 		break;
 	default:
-		GTrimMemoryForegroundLevel = GTrimMemoryBackgroundLevel = -1;
+		GTrimMemoryForegroundLevel = -1;
+		GTrimMemoryBackgroundLevel = -1;
 		break;
 }
 }
