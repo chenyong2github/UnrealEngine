@@ -43,6 +43,7 @@ UVolumetricCloudComponent::UVolumetricCloudComponent(const FObjectInitializer& O
 	, ShadowViewSampleCountScale(1.0f)
 	, ShadowReflectionSampleCountScale(1.0f)
 	, ShadowTracingDistance(15.0f)
+	, StopTracingTransmittanceThreshold(0.005f)
 	, VolumetricCloudSceneProxy(nullptr)
 {
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> VolumetricCloudDefaultMaterialRef(TEXT("/Engine/EngineSky/VolumetricClouds/m_SimpleVolumetricCloud_Inst.m_SimpleVolumetricCloud_Inst"));
@@ -145,6 +146,7 @@ CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, ReflectionSampleCountScale);
 CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, ShadowViewSampleCountScale);
 CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, ShadowReflectionSampleCountScale);
 CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, ShadowTracingDistance);
+CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, StopTracingTransmittanceThreshold);
 CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(UMaterialInterface*, Material);
 
 /*=============================================================================

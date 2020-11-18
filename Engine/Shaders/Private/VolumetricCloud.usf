@@ -397,9 +397,6 @@ ParticipatingMediaPhaseContext SetupParticipatingMediaPhaseContext(float BasePha
 	return PMPC;
 }
 
-// When transmittance is below, end tracing and accept full opacity
-#define TransmittanceCutThreshold 0.005f
-
 bool TraceClouds(
 	in float4 SvPosition,
 	inout float4 OutColor0,
@@ -994,7 +991,7 @@ bool TraceClouds(
 		}
 
 		// This is helpful for performance. Can result in less light pucnhing through clouds. Should be a setting.
-		if (all(TransmittanceToView < TransmittanceCutThreshold))
+		if (all(TransmittanceToView < RenderVolumetricCloudParameters.StopTracingTransmittanceThreshold))
 		{
 			break;
 		}
@@ -1149,7 +1146,7 @@ void MainPS(
 	// Output result
 	//
 
-	float GrayScaleTransmittance = MeanTransmittance < TransmittanceCutThreshold ? 0.0f : MeanTransmittance;
+	float GrayScaleTransmittance = MeanTransmittance < RenderVolumetricCloudParameters.StopTracingTransmittanceThreshold ? 0.0f : MeanTransmittance;
 	OutColor0 = float4(Luminance * OutputPreExposure, GrayScaleTransmittance);
 
 	OutColor1.x = MaxHalfFloat; // Default to far away depth to be flat and not intersect with any geometry.
