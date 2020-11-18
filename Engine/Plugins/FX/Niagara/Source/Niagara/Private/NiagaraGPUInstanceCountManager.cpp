@@ -55,6 +55,8 @@ DECLARE_CYCLE_STAT(TEXT("GPU Readback Lock"), STAT_NiagaraGPUReadbackLock, STATG
 
 //*****************************************************************************
 
+const ERHIAccess FNiagaraGPUInstanceCountManager::kCountBufferDefaultState = ERHIAccess::SRVMask | ERHIAccess::CopySrc;
+
 FNiagaraGPUInstanceCountManager::FNiagaraGPUInstanceCountManager() 
 {
 	NumRegisteredGPURenderers = new FNiagaraGPURendererCount();
