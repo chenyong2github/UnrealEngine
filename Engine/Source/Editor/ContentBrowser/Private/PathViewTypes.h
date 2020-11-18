@@ -52,6 +52,12 @@ public:
 	/** Sort the children by name (but only if they need to be) */
 	void SortChildrenIfNeeded();
 
+	/** Represents a folder that does not correspond to a mounted location */
+	bool IsDisplayOnlyFolder() const;
+
+	/** Follows tree until it finds folders that are not display only*/
+	void ExpandToNonDisplayOnlyFolders(TArray<TSharedPtr<FTreeItem>>& OutTreeItems);
+
 public:
 	/** The children of this tree item */
 	TArray<TSharedPtr<FTreeItem>> Children;

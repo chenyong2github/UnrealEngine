@@ -161,6 +161,12 @@ public:
 	bool IsTemporary() const;
 
 	/**
+	 * Check to see whether this item is a display only folder.
+	 * @note Equivalent to testing whether all of EContentBrowserItemFlags::Category_MASK are unset on GetItemFlags().
+	 */
+	bool IsDisplayOnlyFolder() const;
+
+	/**
 	 * Get the pointer to the data source that manages the thing represented by this item.
 	 * @note This is usually set for valid items, but may be null in rare circumstances (ie, creating a dummy placeholder item with no owner).
 	 */
