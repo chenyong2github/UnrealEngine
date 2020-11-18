@@ -1821,7 +1821,7 @@ static void PrepForInsertReplaceAnimation(bool bInsert, const FFBXNodeAndChannel
 			TArray<FKeyHandle> Handles;
 			Channel->GetKeys(TRange<FFrameNumber>(), &KeyTimes, &Handles);
 			TArray<FKeyHandle> HandlesToDelete;
-			for (int32 Index = KeyTimes.Num() - 1; Index < KeyTimes.Num(); Index++)
+			for (int32 Index = 0; Index < KeyTimes.Num(); Index++)
 			{
 				FFrameNumber FrameNumber = KeyTimes[Index];
 				if (FrameNumber >= FrameToInsertOrReplace && FrameNumber <= (FrameToInsertOrReplace + EndFrame))
@@ -1829,7 +1829,7 @@ static void PrepForInsertReplaceAnimation(bool bInsert, const FFBXNodeAndChannel
 					HandlesToDelete.Add(Handles[Index]);
 				}
 			}
-			Channel->DeleteKeys(HandlesToDelete);
+			Channel->DeleteKeys(HandlesToDelete);		
 		}
 	}
 }
