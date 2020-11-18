@@ -55,6 +55,17 @@ FName UInterchangeBaseNode::GetDisplayLabel() const
 	return DisplayLabel;
 }
 
+bool UInterchangeBaseNode::SetDisplayLabel(FName DisplayLabel)
+{
+	UE::Interchange::EAttributeStorageResult Result = Attributes.RegisterAttribute(UE::Interchange::FBaseNodeStaticData::DisplayLabelKey(), DisplayLabel);
+	if (IsAttributeStorageResultSuccess(Result))
+	{
+		UE::Interchange::FAttributeStorage::TAttributeHandle<FName> Handle = Attributes.GetAttributeHandle<FName>(UE::Interchange::FBaseNodeStaticData::DisplayLabelKey());
+		return Handle.IsValid();
+	}
+	return false;
+}
+
 FName UInterchangeBaseNode::GetParentUID() const
 {
 	if (!Attributes.ContainAttribute(UE::Interchange::FBaseNodeStaticData::ParentIDKey()))

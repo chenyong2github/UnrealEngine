@@ -307,11 +307,18 @@ public:
 	FName GetUniqueID() const;
 
 	/**
-	 * Return the display label pass in the constructor.
+	 * Return the display label.
 	 *
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
 	FName GetDisplayLabel() const;
+
+	/**
+	 * Change the display label.
+	 *
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool SetDisplayLabel(FName DisplayName);
 
 	/**
 	 * Return the parent unique id. In case the attribute does not exist it will return InvalidNodeUID()

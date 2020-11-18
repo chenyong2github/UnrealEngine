@@ -30,6 +30,14 @@ FName UInterchangeBaseNodeContainer::AddNode(UInterchangeBaseNode* Node)
 		return NodeUniqueID;
 	}
 
+	if (Node->GetDisplayLabel() == NAME_None)
+	{
+		//Replace None by Null, since None name will be interpret like NAME_None which will not work with UObject creation
+		//UObject Creation will name it ClassName_X instead of None
+		//TODO Log an warning to the user
+		Node->SetDisplayLabel(FName("Null"));
+	}
+
 	//Copy the node
 	Nodes.Add(NodeUniqueID, Node);
 	return NodeUniqueID;
