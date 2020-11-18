@@ -1069,10 +1069,10 @@ namespace Audio
 	FPatchOutputStrongPtr FMixerSourceManager::AddPatchForAudioBus(uint32 InAudioBusId, float PatchGain)
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
-		TSharedPtr<FMixerAudioBus>* AudioBusPtr = AudioBuses.Find(InAudioBusId);
-		if (AudioBusPtr)
+		TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusId);
+		if (AudioBusPtr.IsValid())
 		{
-			return (*AudioBusPtr)->AddNewPatch(NumOutputFrames * 2, PatchGain);
+			return AudioBusPtr->AddNewPatch(NumOutputFrames * AudioBusPtr->GetNumChannels(), PatchGain);
 		}
 		return nullptr;
 	}
@@ -2646,10 +2646,10 @@ namespace Audio
 
 	const float* FMixerSourceManager::GetPreviousAudioBusBuffer(const int32 AudioBusId) const
 	{
-		const TSharedPtr<FMixerAudioBus>* AudioBusPtr = AudioBuses.Find(AudioBusId);
-		if (AudioBusPtr)
+		const TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(AudioBusId);
+		if (AudioBusPtr.IsValid())
 		{
-			return (*AudioBusPtr)->GetPreviousBusBuffer();
+			return AudioBusPtr->GetPreviousBusBuffer();
 		}
 		return nullptr;
 	}

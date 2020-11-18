@@ -4,6 +4,8 @@
 #include "AudioDevice.h"
 #include "Delegates/IDelegateInstance.h"
 #include "DSP/DynamicsProcessor.h"
+#include "DSP/MultithreadedPatching.h"
+#include "Misc/ScopeLock.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundSubmixSend.h"
@@ -48,6 +50,21 @@ enum class ESubmixEffectDynamicsChannelLinkMode : uint8
 	Count UMETA(Hidden)
 };
 
+UENUM(BlueprintType)
+enum class ESubmixEffectDynamicsKeySource : uint8
+{
+	// Defaults to use local submix (input) as key
+	Default = 0,
+
+	// Uses audio bus as key
+	AudioBus,
+
+	// Uses external submix as key
+	Submix,
+
+	Count UMETA(Hidden)
+};
+
 USTRUCT(BlueprintType)
 struct AUDIOMIXER_API FSubmixEffectDynamicProcessorFilterSettings
 {
@@ -81,103 +98,100 @@ struct AUDIOMIXER_API FSubmixEffectDynamicsProcessorSettings
 
 	// Type of processor to apply
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = General, meta = (DisplayName = "Type"))
-	ESubmixEffectDynamicsProcessorType DynamicsProcessorType;
+	ESubmixEffectDynamicsProcessorType DynamicsProcessorType = ESubmixEffectDynamicsProcessorType::Compressor;
 
 	// Mode of peak detection used on input key signal
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Dynamics)
-	ESubmixEffectDynamicsPeakMode PeakMode;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Dynamics, meta = (EditCondition = "!bBypass"))
+	ESubmixEffectDynamicsPeakMode PeakMode = ESubmixEffectDynamicsPeakMode::RootMeanSquared;
 
 	// Mode of peak detection if key signal is multi-channel
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Dynamics)
-	ESubmixEffectDynamicsChannelLinkMode LinkMode;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Dynamics, meta = (EditCondition = "!bBypass"))
+	ESubmixEffectDynamicsChannelLinkMode LinkMode = ESubmixEffectDynamicsChannelLinkMode::Average;
 
 	// The input gain of the dynamics processor
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = General, meta = (DisplayName = "Input Gain (dB)", UIMin = "-12.0", UIMax = "20.0"))
-	float InputGainDb;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = General, meta = (DisplayName = "Input Gain (dB)", UIMin = "-12.0", UIMax = "20.0", EditCondition = "!bBypass"))
+	float InputGainDb = 0.0f;
 
 	// The threshold at which to perform a dynamics processing operation
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Dynamics, meta = (DisplayName = "Threshold (dB)", ClampMin = "-60.0", ClampMax = "0.0", UIMin = "-60.0", UIMax = "0.0"))
-	float ThresholdDb;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Dynamics, meta = (DisplayName = "Threshold (dB)", ClampMin = "-60.0", ClampMax = "0.0", UIMin = "-60.0", UIMax = "0.0", EditCondition = "!bBypass"))
+	float ThresholdDb = -6.0f;
 
 	// The dynamics processor ratio used for compression/expansion
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Dynamics, meta = (
-		EditCondition = "DynamicsProcessorType == ESubmixEffectDynamicsProcessorType::Compressor || DynamicsProcessorType == ESubmixEffectDynamicsProcessorType::Expander",
+		EditCondition = "!bBypass && DynamicsProcessorType == ESubmixEffectDynamicsProcessorType::Compressor || DynamicsProcessorType == ESubmixEffectDynamicsProcessorType::Expander",
 		ClampMin = "1.0", ClampMax = "20.0", UIMin = "1.0", UIMax = "20.0"))
-	float Ratio;
+	float Ratio = 1.5f;
 
 	// The knee bandwidth of the processor to use
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Dynamics, meta = (DisplayName = "Knee (dB)", ClampMin = "0.0", ClampMax = "20.0", UIMin = "0.0", UIMax = "20.0"))
-	float KneeBandwidthDb;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Dynamics, meta = (DisplayName = "Knee (dB)", ClampMin = "0.0", ClampMax = "20.0", UIMin = "0.0", UIMax = "20.0", EditCondition = "!bBypass"))
+	float KneeBandwidthDb = 10.0f;
 
 	// The amount of time to look ahead of the current audio (Allows for transients to be included in dynamics processing)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Response,  meta = (DisplayName = "Look Ahead (ms)", ClampMin = "0.0", ClampMax = "50.0", UIMin = "0.0", UIMax = "50.0"))
-	float LookAheadMsec;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Response,  meta = (DisplayName = "Look Ahead (ms)", ClampMin = "0.0", ClampMax = "50.0", UIMin = "0.0", UIMax = "50.0", EditCondition = "!bBypass"))
+	float LookAheadMsec = 3.0f;
 
 	// The amount of time to ramp into any dynamics processing effect
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Response, meta = (DisplayName = "AttackTime (ms)", ClampMin = "1.0", ClampMax = "300.0", UIMin = "1.0", UIMax = "200.0"))
-	float AttackTimeMsec;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Response, meta = (DisplayName = "AttackTime (ms)", ClampMin = "1.0", ClampMax = "300.0", UIMin = "1.0", UIMax = "200.0", EditCondition = "!bBypass"))
+	float AttackTimeMsec = 10.0f;
 
 	// The amount of time to release the dynamics processing effect
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Response, meta = (DisplayName = "Release Time (ms)", ClampMin = "20.0", ClampMax = "5000.0", UIMin = "20.0", UIMax = "5000.0"))
-	float ReleaseTimeMsec;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Response, meta = (DisplayName = "Release Time (ms)", ClampMin = "20.0", ClampMax = "5000.0", UIMin = "20.0", UIMax = "5000.0", EditCondition = "!bBypass"))
+	float ReleaseTimeMsec = 100.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (EditCondition = "!bBypass"))
+	ESubmixEffectDynamicsKeySource KeySource = ESubmixEffectDynamicsKeySource::Default;
 
 	// If set, uses output of provided submix as modulator of input signal for dynamics processor (Uses input signal as default modulator)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain)
-	USoundSubmix* ExternalSubmix;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (EditCondition = "!bBypass && KeySource == ESubmixEffectDynamicsKeySource::AudioBus", EditConditionHides))
+	UAudioBus* ExternalAudioBus = nullptr;
+
+	// If set, uses output of provided submix as modulator of input signal for dynamics processor (Uses input signal as default modulator)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (EditCondition = "!bBypass && KeySource == ESubmixEffectDynamicsKeySource::Submix", EditConditionHides))
+	USoundSubmix* ExternalSubmix = nullptr;
 
 	UPROPERTY()
 	uint8 bChannelLinked_DEPRECATED : 1;
 
 	// Toggles treating the attack and release envelopes as analog-style vs digital-style (Analog will respond a bit more naturally/slower)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Response)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Response, meta = (EditCondition = "!bBypass"))
 	uint8 bAnalogMode : 1;
 
+	// Whether or not to bypass effect
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = General, meta = (DisplayName = "Bypass", DisplayAfter = "DynamicsProcessorType"))
+	uint8 bBypass : 1;
+
 	// Audition the key modulation signal, bypassing enveloping and processing the input signal.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (DisplayName = "Key Audition"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (DisplayName = "Key Audition", EditCondition = "!bBypass"))
 	uint8 bKeyAudition : 1;
 
 	// Gain to apply to key signal if external input is supplied
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (DisplayName = "External Input Gain (dB)", EditCondition = "ExternalSubmix != nullptr", UIMin = "-60.0", UIMax = "30.0"))
-	float KeyGainDb;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (DisplayName = "External Input Gain (dB)", EditCondition = "!bBypass && ExternalSubmix != nullptr", UIMin = "-60.0", UIMax = "30.0"))
+	float KeyGainDb = 0.0f;
 
 	// The output gain of the dynamics processor
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Output, meta = (DisplayName = "Output Gain (dB)", UIMin = "-60.0", UIMax = "30.0"))
-	float OutputGainDb;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Output, meta = (DisplayName = "Output Gain (dB)", UIMin = "-60.0", UIMax = "30.0", EditCondition = "!bBypass"))
+	float OutputGainDb = 0.0f;
 
 	// High Shelf filter settings for key signal (external signal if supplied or input signal if not)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (DisplayName = "Key Highshelf"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (DisplayName = "Key Highshelf", EditCondition = "!bBypass"))
 	FSubmixEffectDynamicProcessorFilterSettings KeyHighshelf;
 
 	// Low Shelf filter settings for key signal (external signal if supplied or input signal if not)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (DisplayName = "Key Lowshelf"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (DisplayName = "Key Lowshelf", EditCondition = "!bBypass"))
 	FSubmixEffectDynamicProcessorFilterSettings KeyLowshelf;
 
 	FSubmixEffectDynamicsProcessorSettings()
-		: DynamicsProcessorType(ESubmixEffectDynamicsProcessorType::Compressor)
-		, PeakMode(ESubmixEffectDynamicsPeakMode::RootMeanSquared)
-		, LinkMode(ESubmixEffectDynamicsChannelLinkMode::Average)
-		, InputGainDb(0.0f)
-		, ThresholdDb(-6.0f)
-		, Ratio(1.5f)
-		, KneeBandwidthDb(10.0f)
-		, LookAheadMsec(3.0f)
-		, AttackTimeMsec(10.0f)
-		, ReleaseTimeMsec(100.0f)
-		, ExternalSubmix(nullptr)
-		, bChannelLinked_DEPRECATED(true)
+		: bChannelLinked_DEPRECATED(true)
 		, bAnalogMode(true)
+		, bBypass(false)
 		, bKeyAudition(false)
-		, KeyGainDb(0.0f)
-		, OutputGainDb(0.0f)
 	{
 		KeyLowshelf.Cutoff = 20000.0f;
 	}
 };
 
 
-class AUDIOMIXER_API FSubmixEffectDynamicsProcessor :
-	public FSoundEffectSubmix,
-	public ISubmixBufferListener
+class AUDIOMIXER_API FSubmixEffectDynamicsProcessor : public FSoundEffectSubmix
 {
 public:
 	FSubmixEffectDynamicsProcessor();
@@ -196,33 +210,94 @@ public:
 	// Called when an audio effect preset is changed
 	virtual void OnPresetChanged() override;
 
-	void SetExternalSubmix(USoundSubmix* InSoundSubmix);
 
 protected:
-	// ISubmixBufferListener interface
-	virtual void OnNewSubmixBuffer(
-		const USoundSubmix* InOwningSubmix,
-		float*				InAudioData,
-		int32				InNumSamples,
-		int32				InNumChannels,
-		const int32			InSampleRate,
-		double				InAudioClock) override;
+	Audio::FMixerDevice* GetMixerDevice();
+
+	void ResetKey();
+	void UpdateKeyFromSettings(const FSubmixEffectDynamicsProcessorSettings& InSettings);
+	bool UpdateKeySourcePatch();
 
 	void OnNewDeviceCreated(Audio::FDeviceId InDeviceId);
 	
-	TWeakObjectPtr<USoundSubmix> ExternalSubmix;
 	Audio::AlignedFloatBuffer AudioExternal;
-
-	FThreadSafeBool bUseExternalSubmix;
 
 	TArray<float> AudioKeyFrame;
 	TArray<float> AudioInputFrame;
 	TArray<float> AudioOutputFrame;
 
-	Audio::FDeviceId DeviceId;
-	Audio::FDynamicsProcessor DynamicsProcessor;
+	Audio::FDeviceId DeviceId = INDEX_NONE;
 
+	bool bBypass = false;
+
+private:
+	struct FKeySource
+	{
+		ESubmixEffectDynamicsKeySource Type = ESubmixEffectDynamicsKeySource::Default;
+		int32 NumChannels = 0;
+		uint32 ObjectId = INDEX_NONE;
+
+		mutable FCriticalSection MutateSourceCritSection;
+
+	public:
+		Audio::FPatchOutputStrongPtr Patch;
+
+		bool IsValid() const
+		{
+			const FScopeLock ScopeLock(&MutateSourceCritSection);
+			return Patch.IsValid();
+		}
+
+		void Reset()
+		{
+			Patch.Reset();
+
+			const FScopeLock ScopeLock(&MutateSourceCritSection);
+			{
+				NumChannels = 0;
+				ObjectId = INDEX_NONE;
+				Type = ESubmixEffectDynamicsKeySource::Default;
+			}
+		}
+
+		uint32 GetObjectId() const
+		{
+			const FScopeLock ScopeLock(&MutateSourceCritSection);
+			return ObjectId;
+		}
+
+		int32 GetNumChannels() const
+		{
+			const FScopeLock ScopeLock(&MutateSourceCritSection);
+			return NumChannels;
+		}
+
+		void SetNumChannels(const int32 InNumChannels)
+		{
+			const FScopeLock ScopeLock(&MutateSourceCritSection);
+			NumChannels = InNumChannels;
+		}
+
+		void Update(ESubmixEffectDynamicsKeySource InType, uint32 InObjectId, int32 InNumChannels = 0)
+		{
+			const FScopeLock ScopeLock(&MutateSourceCritSection);
+
+			if (Type != InType || ObjectId != InObjectId || NumChannels != InNumChannels)
+			{
+				Type = InType;
+				ObjectId = InObjectId;
+				NumChannels = InNumChannels;
+
+				Patch.Reset();
+			}
+		}
+	};
+
+	FKeySource KeySource;
+	Audio::FDynamicsProcessor DynamicsProcessor;
 	FDelegateHandle DeviceCreatedHandle;
+
+	friend class USubmixEffectDynamicsProcessorPreset;
 };
 
 UCLASS(ClassGroup = AudioSourceEffect, meta = (BlueprintSpawnableComponent))
@@ -238,6 +313,16 @@ public:
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
+	void ResetKey();
+
+	// Sets the source key input as the provided AudioBus' output.  If no object is provided, key is set
+	// to effect's input.
+	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
+	void SetAudioBus(UAudioBus* AudioBus);
+
+	// Sets the source key input as the provided Submix's output.  If no object is provided, key is set
+	// to effect's input.
+	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
 	void SetExternalSubmix(USoundSubmix* Submix);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
@@ -245,4 +330,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixEffectPreset, meta = (ShowOnlyInnerProperties))
 	FSubmixEffectDynamicsProcessorSettings Settings;
+
+private:
+	void SetKey(ESubmixEffectDynamicsKeySource InKeySource, UObject* InObject, int32 InNumChannels = 0);
 };

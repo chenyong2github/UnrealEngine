@@ -139,6 +139,9 @@ namespace Audio
 		// Submix buffer listener callbacks
 		virtual void RegisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* InSubmix = nullptr) override;
 		virtual void UnregisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* InSubmix = nullptr) override;
+
+		virtual FPatchOutputStrongPtr AddPatchForSubmix(uint32 InObjectId, float InPatchGain) override;
+
 		virtual void FlushExtended(UWorld* WorldToFlush, bool bClearActivatedReverb);
 		virtual void FlushAudioRenderingCommands(bool bPumpSynchronously = false) override;
 
@@ -151,6 +154,9 @@ namespace Audio
 		virtual bool OnProcessAudioStream(AlignedFloatBuffer& OutputBuffer) override;
 		virtual void OnAudioStreamShutdown() override;
 		//~ End IAudioMixer
+
+		FMixerSubmixPtr FindSubmixInstanceByObjectId(uint32 InObjectId);
+		FMixerSubmixPtr GetSubmixInstance(uint32 InSubmixId);
 
 		FMixerSubmixWeakPtr GetSubmixInstance(const USoundSubmixBase* SoundSubmix);
 
@@ -243,7 +249,7 @@ namespace Audio
 		void StartAudioBus(uint32 InAudioBusId, int32 InNumChannels, bool bInIsAutomatic);
 		void StopAudioBus(uint32 InAudioBusId);
 		bool IsAudioBusActive(uint32 InAudioBusId);
-		FPatchOutputStrongPtr AddPatchForAudioBus(uint32 InAudioBusId, float PatchGain);
+		FPatchOutputStrongPtr AddPatchForAudioBus(uint32 InAudioBusId, float InPatchGain);
 
 		// Clock Manager for quantized event handling on Audio Render Thread
 		FQuartzClockManager QuantizedEventClockManager;
@@ -288,6 +294,7 @@ namespace Audio
 	private:
 
 		bool IsMasterSubmixType(const USoundSubmixBase* InSubmix) const;
+		FMixerSubmixPtr GetMasterSubmixInstance(uint32 InSubmixId);
 		FMixerSubmixPtr GetMasterSubmixInstance(const USoundSubmixBase* InSubmix);
 		
 		// Pumps the audio render thread command queue

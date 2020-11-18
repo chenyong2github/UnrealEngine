@@ -5,6 +5,7 @@
 #include "AudioDeviceManager.h"
 #include "Components/AudioComponent.h"
 #include "CoreMinimal.h"
+#include "DSP/MultithreadedPatching.h"
 #include "DSP/SpectrumAnalyzer.h"
 #include "Engine/Engine.h"
 #include "EngineGlobals.h"
@@ -868,6 +869,12 @@ public:
 	virtual void UnregisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* SoundSubmix = nullptr)
 	{
 		UE_LOG(LogAudio, Error, TEXT("Submix buffer listener only works with the audio mixer. Please run with audio mixer enabled."));
+	}
+
+	virtual Audio::FPatchOutputStrongPtr AddPatchForSubmix(uint32 InObjectId, float InPatchGain)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submix patching only works with the audio mixer. Please run with audio mixer enabled."));
+		return nullptr;
 	}
 
 	virtual void InitSoundEffectPresets() {}
