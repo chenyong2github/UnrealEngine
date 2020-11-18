@@ -168,10 +168,10 @@ void UTexture::ReleaseResource()
 
 		FTextureResource* ToDelete = PrivateResource;
 		// Free the resource.
-		BeginReleaseResource(ToDelete);
 		SetResource(nullptr);
 		ENQUEUE_RENDER_COMMAND(DeleteResource)([ToDelete](FRHICommandListImmediate& RHICmdList)
 		{
+			ToDelete->ReleaseResource();
 			delete ToDelete;
 		});
 	}
