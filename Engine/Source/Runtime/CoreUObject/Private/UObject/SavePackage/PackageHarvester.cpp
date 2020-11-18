@@ -4,6 +4,7 @@
 #include "UObject/SavePackage/PackageHarvester.h"
 
 #include "UObject/SavePackage/SaveContext.h"
+#include "UObject/SavePackage/SavePackageUtilities.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
 
@@ -166,7 +167,8 @@ UObject* FPackageHarvester::PopExportToProcess()
 void FPackageHarvester::ProcessExport(UObject* InObject)
 {
 	check(SaveContext.IsExport(InObject));
-	FExportScope HarvesterScope(*this, InObject, IsEditorOnlyObject(InObject, true /* bCheckRecursive */, true /* bCheckMarks */));
+	bool bReferencerIsEditorOnly = IsEditorOnlyObject(InObject, true /* bCheckRecursive */, true /* bCheckMarks */) && !HasGameDependenciesEvenWhenEditorOnly(InObject);
+	FExportScope HarvesterScope(*this, InObject, bReferencerIsEditorOnly);
 
 	// Harvest its class 
 	UClass* Class = InObject->GetClass();
