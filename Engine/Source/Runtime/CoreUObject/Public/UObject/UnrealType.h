@@ -365,7 +365,7 @@ private:
 
 	FORCEINLINE void* ContainerVoidPtrToValuePtrInternal(void* ContainerPtr, int32 ArrayIndex) const
 	{
-		check(ArrayIndex < ArrayDim);
+		checkf((ArrayIndex >= 0) && (ArrayIndex < ArrayDim), TEXT("Array index out of bounds: %i from an array of size %i"), ArrayIndex, ArrayDim);
 		check(ContainerPtr);
 
 		if (0)
@@ -379,7 +379,7 @@ private:
 
 	FORCEINLINE void* ContainerUObjectPtrToValuePtrInternal(UObject* ContainerPtr, int32 ArrayIndex) const
 	{
-		check(ArrayIndex < ArrayDim);
+		checkf((ArrayIndex >= 0) && (ArrayIndex < ArrayDim), TEXT("Array index out of bounds: %i from an array of size %i"), ArrayIndex, ArrayDim);
 		check(ContainerPtr);
 
 		// in the future, these checks will be tested if the property is supposed be from a UClass
