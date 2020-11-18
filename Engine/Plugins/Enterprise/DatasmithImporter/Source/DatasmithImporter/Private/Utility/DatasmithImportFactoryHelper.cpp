@@ -69,7 +69,7 @@ namespace DatasmithImportFactoryHelper
 		}
 	}
 
-	void CaptureSceneThumbnail(AActor* SceneActor, TArray<FAssetData>& AssetDataList)
+	void SetupSceneViewport(AActor* SceneActor, TArray<FAssetData>& AssetDataList)
 	{
 		if ( !GCurrentLevelEditingViewportClient || !GEditor->GetActiveViewport())
 		{
@@ -97,11 +97,6 @@ namespace DatasmithImportFactoryHelper
 		bool bIsInGameView = GCurrentLevelEditingViewportClient->IsInGameView();
 		GCurrentLevelEditingViewportClient->SetGameView( true );
 		GCurrentLevelEditingViewportClient->SetIsCameraCut();
-
-		GEditor->GetActiveViewport()->Draw();
-
-		IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
-		ContentBrowser.CaptureThumbnailFromViewport( GEditor->GetActiveViewport(), AssetDataList );
 
 		// Unlock the viewport if we locked it to capture the thumbnail
 		if ( OriginalActorLock )

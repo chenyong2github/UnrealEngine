@@ -90,21 +90,21 @@ namespace DatasmithImportFactoryImpl
 		return nullptr;
 	}
 
-	static void CaptureSceneThumbnail(FDatasmithImportContext& InContext)
+	static void SetupSceneViewport(FDatasmithImportContext& InContext)
 	{
 		if ( !InContext.ShouldImportActors() || !InContext.SceneAsset || InContext.ActorsContext.FinalSceneActors.Num() == 0)
 		{
 			return;
 		}
 
-		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithImportFactoryImpl::CaptureSceneThumbnail);
+		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithImportFactoryImpl::SetupSceneViewport);
 
 		// Use the first scene actor for the thumbnail
 		ADatasmithSceneActor* SceneActor = *InContext.ActorsContext.FinalSceneActors.CreateIterator();
 
 		TArray< FAssetData > AssetDataList;
 		AssetDataList.Add( FAssetData( InContext.SceneAsset ) );
-		DatasmithImportFactoryHelper::CaptureSceneThumbnail(SceneActor, AssetDataList);
+		DatasmithImportFactoryHelper::SetupSceneViewport(SceneActor, AssetDataList);
 	}
 
 	static bool CreateSceneAsset( FDatasmithImportContext& InContext )
@@ -293,9 +293,8 @@ namespace DatasmithImportFactoryImpl
 		}
 		FDatasmithImporter::FinalizeImport(InContext, TSet<UObject*>());
 
-		// THUMBNAIL
 		// Must be called after the actors are spawned since we will compute the scene bounds
-		DatasmithImportFactoryImpl::CaptureSceneThumbnail( InContext );
+		DatasmithImportFactoryImpl::SetupSceneViewport( InContext );
 
 		return true;
 	}

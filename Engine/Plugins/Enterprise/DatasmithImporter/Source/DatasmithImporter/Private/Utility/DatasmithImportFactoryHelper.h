@@ -17,5 +17,5 @@ namespace DatasmithImportFactoryHelper
 
 	void ComputeBounds( USceneComponent* ActorComponent, FBox& Bounds );
 
-	void CaptureSceneThumbnail(AActor* SceneActor, TArray<FAssetData>& AssetDataList);
+	void SetupSceneViewport(AActor* SceneActor, TArray<FAssetData>& AssetDataList);
 }
