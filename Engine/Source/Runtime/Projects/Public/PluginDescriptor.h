@@ -110,7 +110,7 @@ struct PROJECTS_API FPluginDescriptor
 	/** Post-build steps for each host platform */
 	FCustomBuildSteps PostBuildSteps;
 
-	/** Dependent plugins */
+	/** Plugins used by this plugin */
 	TArray<FPluginReferenceDescriptor> Plugins;
 
 #if WITH_EDITOR
