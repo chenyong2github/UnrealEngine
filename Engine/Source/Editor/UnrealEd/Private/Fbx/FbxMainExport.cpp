@@ -3187,8 +3187,10 @@ void FFbxExporter::ExportLevelSequenceInterrogated3DTransformTrack(FbxNode* FbxN
 
 	FMovieSceneTimeTransform LocatToRootTransform = RootToLocalTransform.InverseLinearOnly();
 
+	USceneComponent* InterrogatedComponent = BoundComponent ? BoundComponent : BoundActor->GetRootComponent();
+
 	FSystemInterrogator Interrogator;
-	Interrogator.ImportTransformHierarchy(BoundComponent ? BoundComponent : BoundActor->GetRootComponent(), MovieScenePlayer, InSequenceID);
+	Interrogator.ImportTransformHierarchy(InterrogatedComponent, MovieScenePlayer, InSequenceID);
 	
 	int32 LocalStartFrame = FFrameRate::TransformTime(FFrameTime(DiscreteInclusiveLower(InPlaybackRange)), TickResolution, DisplayRate).RoundToFrame().Value;
 	int32 AnimationLength = FFrameRate::TransformTime(FFrameTime(FFrameNumber(DiscreteSize(InPlaybackRange))), TickResolution, DisplayRate).RoundToFrame().Value + 1; // Add one so that we export a key for the end frame
@@ -3202,7 +3204,7 @@ void FFbxExporter::ExportLevelSequenceInterrogated3DTransformTrack(FbxNode* FbxN
 	Interrogator.Update();
 
 	TArray<FTransform> WorldTransforms;
-	Interrogator.QueryWorldSpaceTransforms(BoundComponent ? BoundComponent : BoundActor->GetRootComponent(), WorldTransforms);
+	Interrogator.QueryWorldSpaceTransforms(InterrogatedComponent, WorldTransforms);
 
 	ensure(WorldTransforms.Num() == AnimationLength);
 
