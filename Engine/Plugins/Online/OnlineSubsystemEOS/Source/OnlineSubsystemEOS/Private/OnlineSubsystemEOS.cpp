@@ -319,6 +319,9 @@ bool FOnlineSubsystemEOS::Init()
 	LeaderboardsInterfacePtr = MakeShareable(new FOnlineLeaderboardsEOS(this));
 	AchievementsInterfacePtr = MakeShareable(new FOnlineAchievementsEOS(this));
 
+	// We initialized ok so we can tick
+	StartTicker();
+
 	return true;
 }
 
@@ -326,6 +329,7 @@ bool FOnlineSubsystemEOS::Shutdown()
 {
 	UE_LOG_ONLINE(VeryVerbose, TEXT("FOnlineSubsystemEOS::Shutdown()"));
 
+	StopTicker();
 	FOnlineSubsystemImpl::Shutdown();
 
 #if !WITH_EDITOR
@@ -358,19 +362,17 @@ bool FOnlineSubsystemEOS::Shutdown()
 
 bool FOnlineSubsystemEOS::Tick(float DeltaTime)
 {
-	if (EOSPlatformHandle == nullptr)
+	if (!bTickerStarted)
 	{
-			return false;
+		return true;
 	}
+
 	{
 		FScopeCycleCounter Scope(GET_STATID(STAT_EOS_Tick), true);
 		EOS_Platform_Tick(EOSPlatformHandle);
 	}
-	if (!FOnlineSubsystemImpl::Tick(DeltaTime))
-	{
-		return false;
-	}
 	SessionInterfacePtr->Tick(DeltaTime);
+	FOnlineSubsystemImpl::Tick(DeltaTime);
 
 	return true;
 }
