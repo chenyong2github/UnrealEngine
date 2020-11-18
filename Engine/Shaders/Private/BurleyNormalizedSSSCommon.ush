@@ -150,7 +150,7 @@ float GetSearchLightDiffuseScalingFactor(float SurfaceAlbedo)
 
 float3 GetSearchLightDiffuseScalingFactor3D(float3 SurfaceAlbedo)
 {
-	return 3.5 + 100.0 * UnClampedPow(SurfaceAlbedo - 0.33, 4.0);
+	return 3.5 + 100.0 * UnClampedPow(max(SurfaceAlbedo - 0.33,0.0), 4.0);
 }
 
 //@TODO Revisit here after offline comparison.
