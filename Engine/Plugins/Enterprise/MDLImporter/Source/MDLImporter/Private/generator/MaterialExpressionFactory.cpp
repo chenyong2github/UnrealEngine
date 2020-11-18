@@ -48,17 +48,17 @@ namespace Generator
 
 		void RerouteNormal(const FMaterialExpressionConnection& From, UMaterialExpression* ToExpression)
 		{
-			check((From.ConnectionType == EConnectionType::Expression) && From.ExpressionData.Expression && ToExpression);
+			check((From.GetConnectionType() == EConnectionType::Expression) && From.GetExpressionUnused() && ToExpression);
 			if (ToExpression->IsA<UMaterialExpressionMakeMaterialAttributes>())
 			{
 				auto* Expression = Cast<UMaterialExpressionMakeMaterialAttributes>(ToExpression);
-				Expression->Normal.Connect(From.ExpressionData.Index, From.ExpressionData.Expression);
+				Expression->Normal.Connect(From.GetExpressionOutputIndex(), From.GetExpressionAndUse());
 			}
 			else if (ToExpression->IsA<UMaterialExpressionMaterialFunctionCall>())
 			{
 				check(Cast<UMaterialExpressionMaterialFunctionCall>(ToExpression)->FunctionInputs.Last().Input.InputName == TEXT("normal"));
 				auto* Expression = Cast<UMaterialExpressionMaterialFunctionCall>(ToExpression);
-				Expression->FunctionInputs.Last().Input.Connect(From.ExpressionData.Index, From.ExpressionData.Expression);
+				Expression->FunctionInputs.Last().Input.Connect(From.GetExpressionOutputIndex(), From.GetExpressionAndUse());
 			}
 			else
 			{
@@ -206,12 +206,11 @@ namespace Generator
 				{
 					if (Outputs.Num() == 1)
 					{
-						if (Outputs[0].ConnectionType == EConnectionType::Expression)
+						if (Outputs[0].GetConnectionType() == EConnectionType::Expression)
 						{
-							UMaterialExpression* Expression = Outputs[0].ExpressionData.Expression;
-
-							if (Expression->IsA<UMaterialExpressionTextureSampleParameter>())
+							if (Outputs[0].IsExpressionA<UMaterialExpressionTextureSampleParameter>())
 							{
+								UMaterialExpression* Expression = Outputs[0].GetExpressionAndMaybeUse();
 								UMaterialExpressionTextureSampleParameter* TextureExpression = Cast<UMaterialExpressionTextureSampleParameter>(Expression);
 								if (UTexture2D* Texture = Cast<UTexture2D>(TextureExpression->Texture))
 								{
@@ -262,15 +261,15 @@ namespace Generator
 		{
 			case mi::neuraylib::IFunction_definition::DS_CONV_OPERATOR:
 				check(Inputs.Num() == 1);
-				check(Inputs[0].ConnectionType == EConnectionType::Expression);
-				check(Inputs[0].ExpressionData.Expression->IsA<UMaterialExpressionScalarParameter>() &&
+				check(Inputs[0].GetConnectionType() == EConnectionType::Expression);
+				check(Inputs[0].IsExpressionA<UMaterialExpressionScalarParameter>() &&
 				      (MDLType.get_kind() == mi::neuraylib::IType::TK_INT));
 				return { Inputs };
 
 			case mi::neuraylib::IFunction_definition::DS_LOGICAL_NOT:
 			{
 				check(Inputs.Num() == 1);
-				check(Inputs[0].ConnectionType == EConnectionType::Expression);
+				check(Inputs[0].GetConnectionType() == EConnectionType::Expression);
 
 				if (IsStatic(Inputs[0]))
 				{
@@ -356,19 +355,19 @@ namespace Generator
 			case mi::neuraylib::IFunction_definition::DS_EQUAL:
 			{
 				check(Inputs.Num() == 2);
-				check(Inputs[0].ConnectionType == EConnectionType::Expression);
-				check(Inputs[1].ConnectionType == EConnectionType::Expression);
+				check(Inputs[0].GetConnectionType() == EConnectionType::Expression);
+				check(Inputs[1].GetConnectionType() == EConnectionType::Expression);
 
-				if (Inputs[0].ExpressionData.Expression->IsA<UMaterialExpressionStaticBool>())
+				if (Inputs[0].IsExpressionA<UMaterialExpressionStaticBool>())
 				{
-					check(!Inputs[1].ExpressionData.Expression->IsA<UMaterialExpressionStaticBool>());
-					return {CompareStaticBool(CurrentMaterial, Cast<UMaterialExpressionStaticBool>(Inputs[0].ExpressionData.Expression),
-					                          Inputs[1].ExpressionData.Expression, true)};
+					check(!Inputs[1].IsExpressionA<UMaterialExpressionStaticBool>());
+					return {CompareStaticBool(CurrentMaterial, Cast<UMaterialExpressionStaticBool>(Inputs[0].GetExpressionAndMaybeUse()),
+					                          Inputs[1].GetExpressionAndMaybeUse(), true)};
 				}
-				else if (Inputs[1].ExpressionData.Expression->IsA<UMaterialExpressionStaticBool>())
+				else if (Inputs[1].IsExpressionA<UMaterialExpressionStaticBool>())
 				{
-					return {CompareStaticBool(CurrentMaterial, Cast<UMaterialExpressionStaticBool>(Inputs[1].ExpressionData.Expression),
-					                          Inputs[0].ExpressionData.Expression, true)};
+					return {CompareStaticBool(CurrentMaterial, Cast<UMaterialExpressionStaticBool>(Inputs[1].GetExpressionAndMaybeUse()),
+					                          Inputs[0].GetExpressionAndMaybeUse(), true)};
 				}
 				else
 				{
@@ -378,19 +377,19 @@ namespace Generator
 			case mi::neuraylib::IFunction_definition::DS_NOT_EQUAL:
 			{
 				check(Inputs.Num() == 2);
-				check(Inputs[0].ConnectionType == EConnectionType::Expression);
-				check(Inputs[1].ConnectionType == EConnectionType::Expression);
+				check(Inputs[0].GetConnectionType() == EConnectionType::Expression);
+				check(Inputs[1].GetConnectionType() == EConnectionType::Expression);
 
-				if (Inputs[0].ExpressionData.Expression->IsA<UMaterialExpressionStaticBool>())
+				if (Inputs[0].IsExpressionA<UMaterialExpressionStaticBool>())
 				{
-					check(!Inputs[1].ExpressionData.Expression->IsA<UMaterialExpressionStaticBool>());
-					return {CompareStaticBool(CurrentMaterial, Cast<UMaterialExpressionStaticBool>(Inputs[0].ExpressionData.Expression),
-					                          Inputs[1].ExpressionData.Expression, false)};
+					check(!Inputs[1].IsExpressionA<UMaterialExpressionStaticBool>());
+					return {CompareStaticBool(CurrentMaterial, Cast<UMaterialExpressionStaticBool>(Inputs[0].GetExpressionAndMaybeUse()),
+					                          Inputs[1].GetExpressionAndMaybeUse(), false)};
 				}
-				else if (Inputs[1].ExpressionData.Expression->IsA<UMaterialExpressionStaticBool>())
+				else if (Inputs[1].IsExpressionA<UMaterialExpressionStaticBool>())
 				{
-					return {CompareStaticBool(CurrentMaterial, Cast<UMaterialExpressionStaticBool>(Inputs[1].ExpressionData.Expression),
-					                          Inputs[0].ExpressionData.Expression, false)};
+					return {CompareStaticBool(CurrentMaterial, Cast<UMaterialExpressionStaticBool>(Inputs[1].GetExpressionAndMaybeUse()),
+					                          Inputs[0].GetExpressionAndMaybeUse(), false)};
 				}
 				else
 				{
@@ -400,8 +399,8 @@ namespace Generator
 			case mi::neuraylib::IFunction_definition::DS_LOGICAL_AND:
 			{
 				check(Inputs.Num() == 2);
-				check(Inputs[0].ConnectionType == EConnectionType::Expression);
-				check(Inputs[1].ConnectionType == EConnectionType::Expression);
+				check(Inputs[0].GetConnectionType() == EConnectionType::Expression);
+				check(Inputs[1].GetConnectionType() == EConnectionType::Expression);
 
 				if (IsStatic(Inputs[0]))
 				{
@@ -433,8 +432,8 @@ namespace Generator
 			case mi::neuraylib::IFunction_definition::DS_LOGICAL_OR:
 			{
 				check(Inputs.Num() == 2);
-				check(Inputs[0].ConnectionType == EConnectionType::Expression);
-				check(Inputs[1].ConnectionType == EConnectionType::Expression);
+				check(Inputs[0].GetConnectionType() == EConnectionType::Expression);
+				check(Inputs[1].GetConnectionType() == EConnectionType::Expression);
 
 				if (IsStatic(Inputs[0]))
 				{
@@ -471,7 +470,7 @@ namespace Generator
 	FMaterialExpressionConnectionList FMaterialExpressionFactory::CreateExpressionTernary(const FMaterialExpressionConnectionList& Inputs)
 	{
 		check((Inputs.Num() - 1) % 2 == 0 && Inputs.Num() >= 3);
-		check(Inputs[0].ConnectionType == EConnectionType::Expression);
+		check(Inputs[0].GetConnectionType() == EConnectionType::Expression);
 
 		const int32 NumOutputs = (Inputs.Num() - 1) / 2;
 
@@ -482,9 +481,9 @@ namespace Generator
 			if (IsTexture(Inputs[i]))
 			{
 				// StaticSwitch and If on Texture would fail -> store everything for evaluating later on
-				check((Inputs.Num() == 3) && (Inputs[0].ConnectionType == EConnectionType::Expression) &&
-				      (Inputs[1].ConnectionType == EConnectionType::Expression) && (Inputs[2].ConnectionType == EConnectionType::Expression));
-				Outputs.Add(FMaterialExpressionConnection(Inputs[0].ExpressionData, Inputs[1].ExpressionData, Inputs[2].ExpressionData));
+				check((Inputs.Num() == 3) && (Inputs[0].GetConnectionType() == EConnectionType::Expression) &&
+				      (Inputs[1].GetConnectionType() == EConnectionType::Expression) && (Inputs[2].GetConnectionType() == EConnectionType::Expression));
+				Outputs.Add(FMaterialExpressionConnection(Inputs[0].GetExpressionData(), Inputs[1].GetExpressionData(), Inputs[2].GetExpressionData()));
 			}
 			else if (IsStatic(Inputs[0]))
 			{
@@ -753,13 +752,13 @@ namespace Generator
 			case mi::neuraylib::IFunction_definition::DS_ARRAY_INDEX:
 			{
 				check(Inputs.Num() == 2);
-				check(Inputs[0].ConnectionType == EConnectionType::Expression);
-				check(Inputs[1].ConnectionType == EConnectionType::Expression);
-				check(Inputs[1].ExpressionData.Expression->IsA<UMaterialExpressionConstant>());
+				check(Inputs[0].GetConnectionType() == EConnectionType::Expression);
+				check(Inputs[1].GetConnectionType() == EConnectionType::Expression);
+				check(Inputs[1].IsExpressionA<UMaterialExpressionConstant>());
 				check(FunctionName == TEXT("operator[](<0>[],int)"));
 
-				const int32 Index = (int32)Cast<UMaterialExpressionConstant>(Inputs[1].ExpressionData.Expression)->R;
-				CurrentMaterial->Expressions.Remove(Inputs[1].ExpressionData.Expression);
+				const int32 Index = (int32)Cast<UMaterialExpressionConstant>(Inputs[1].GetExpressionUnused())->R;
+				CurrentMaterial->Expressions.Remove(Inputs[1].GetExpressionUnused());
 
 				return {NewMaterialExpressionComponentMask(CurrentMaterial, Inputs[0], 1 << Index)};
 			}
@@ -851,44 +850,44 @@ namespace Generator
 		switch (Semantic)
 		{
 			case mi::neuraylib::IFunction_definition::DS_INTRINSIC_DF_WEIGHTED_LAYER:
-				check(Inputs[1].ConnectionType == EConnectionType::Expression);
-				check(Inputs[1].ExpressionData.Expression && Inputs[3].ExpressionData.Expression);
-				if (Inputs[1].ExpressionData.Expression->IsA<UMaterialExpressionStaticSwitch>())
+				check(Inputs[1].HasExpression());
+				check(Inputs[3].HasExpression());
+				if (Inputs[1].IsExpressionA<UMaterialExpressionStaticSwitch>())
 				{
-					UMaterialExpressionStaticSwitch* StaticSwitch = Cast<UMaterialExpressionStaticSwitch>(Inputs[1].ExpressionData.Expression);
+					UMaterialExpressionStaticSwitch* StaticSwitch = Cast<UMaterialExpressionStaticSwitch>(Inputs[1].GetExpressionAndMaybeUse());
 					check(StaticSwitch->A.Expression && StaticSwitch->B.Expression && StaticSwitch->Value.Expression);
 					RerouteNormal(Inputs[3], StaticSwitch->A.Expression);
 					RerouteNormal(Inputs[3], StaticSwitch->B.Expression);
 				}
 				else
 				{
-					RerouteNormal(Inputs[3], Inputs[1].ExpressionData.Expression);
+					RerouteNormal(Inputs[3], Inputs[1].GetExpressionAndMaybeUse());
 				}
 				break;
 			case mi::neuraylib::IFunction_definition::DS_INTRINSIC_DF_FRESNEL_LAYER:
-				check((Inputs[2].ConnectionType == EConnectionType::Expression) && Inputs[2].ExpressionData.Expression);
-				check((Inputs[3].ConnectionType == EConnectionType::Expression) && Inputs[3].ExpressionData.Expression);
-				check((Inputs[4].ConnectionType == EConnectionType::Expression) && Inputs[4].ExpressionData.Expression);
-				RerouteNormal(Inputs[4], Inputs[2].ExpressionData.Expression);
+				check(Inputs[2].HasExpression());
+				check(Inputs[3].HasExpression());
+				check(Inputs[4].HasExpression());
+				RerouteNormal(Inputs[4], Inputs[2].GetExpressionAndMaybeUse());
 				break;
 			case mi::neuraylib::IFunction_definition::DS_INTRINSIC_DF_CUSTOM_CURVE_LAYER:
-				check(Inputs[4].ConnectionType == EConnectionType::Expression);
-				check((Inputs[5].ConnectionType == EConnectionType::Expression) && Inputs[5].ExpressionData.Expression);
-				check((Inputs[6].ConnectionType == EConnectionType::Expression) && Inputs[6].ExpressionData.Expression);
-				check(Inputs[4].ExpressionData.Expression ||
-				      (Inputs[6].ExpressionData.Expression->IsA<UMaterialExpressionMaterialFunctionCall>() &&
-				       Cast<UMaterialExpressionMaterialFunctionCall>(Inputs[6].ExpressionData.Expression)->MaterialFunction->GetName() ==
+				check(Inputs[4].GetConnectionType() == EConnectionType::Expression);
+				check(Inputs[5].HasExpression());
+				check(Inputs[6].HasExpression());
+				check(Inputs[4].GetExpressionUnused() ||
+				      (Inputs[6].IsExpressionA<UMaterialExpressionMaterialFunctionCall>() &&
+				       Cast<UMaterialExpressionMaterialFunctionCall>(Inputs[6].GetExpressionUnused())->MaterialFunction->GetName() ==
 				           TEXT("mdl_state_normal")));
-				if (Inputs[4].ExpressionData.Expression)
+				if (Inputs[4].GetExpressionAndMaybeUse())
 				{
-					RerouteNormal(Inputs[6], Inputs[4].ExpressionData.Expression);
+					RerouteNormal(Inputs[6], Inputs[4].GetExpressionAndMaybeUse());
 				}
 				break;
 			case mi::neuraylib::IFunction_definition::DS_INTRINSIC_DF_MEASURED_CURVE_LAYER:
-				check((Inputs[2].ConnectionType == EConnectionType::Expression) && Inputs[2].ExpressionData.Expression);
-				check((Inputs[3].ConnectionType == EConnectionType::Expression) && Inputs[3].ExpressionData.Expression);
-				check((Inputs[4].ConnectionType == EConnectionType::Expression) && Inputs[4].ExpressionData.Expression);
-				RerouteNormal(Inputs[4], Inputs[2].ExpressionData.Expression);
+				check(Inputs[2].HasExpression());
+				check(Inputs[3].HasExpression());
+				check(Inputs[4].HasExpression());
+				RerouteNormal(Inputs[4], Inputs[2].GetExpressionAndMaybeUse());
 				break;
 		}
 
@@ -896,12 +895,12 @@ namespace Generator
 		switch (Semantic)
 		{
 			case mi::neuraylib::IFunction_definition::DS_INTRINSIC_DF_FRESNEL_LAYER:
-				check(Inputs[4].ConnectionType == EConnectionType::Expression);
-				SetClearCoatNormal(Inputs[3], Inputs[4].ExpressionData.Expression);
+				check(Inputs[4].GetConnectionType() == EConnectionType::Expression);
+				SetClearCoatNormal(Inputs[3], Inputs[4].GetExpressionAndMaybeUse());
 				break;
 			case mi::neuraylib::IFunction_definition::DS_INTRINSIC_DF_CUSTOM_CURVE_LAYER:
-				check(Inputs[6].ConnectionType == EConnectionType::Expression);
-				SetClearCoatNormal(Inputs[5], Inputs[6].ExpressionData.Expression);
+				check(Inputs[6].GetConnectionType() == EConnectionType::Expression);
+				SetClearCoatNormal(Inputs[5], Inputs[6].GetExpressionAndMaybeUse());
 				break;
 		}
 	}
@@ -955,8 +954,8 @@ namespace Generator
 			{
 				for (int32 k = 0; k < ArgumentExpressions.Num(); k++)
 				{
-					check(ArgumentExpressions[k].ConnectionType == EConnectionType::Expression);
-					ArgumentExpressions[k].ExpressionData.bIsDefault = true;
+					check(ArgumentExpressions[k].GetConnectionType() == EConnectionType::Expression);
+					ArgumentExpressions[k].SetExpressionDefault();
 				}
 			}
 
@@ -1193,7 +1192,7 @@ namespace Generator
 			// create a texture coodrinate expression with the correct index
 			check(OutInputs.Num() == 1);
 
-			UMaterialExpression* InputExpression = OutInputs[0].ExpressionData.Expression;
+			UMaterialExpression* InputExpression = OutInputs[0].GetExpressionUnused();
 			int32 CoordinateIndex = 0;
 			if (UMaterialExpressionConstant* Index = Cast<UMaterialExpressionConstant>(InputExpression))
 			{
@@ -1234,7 +1233,7 @@ namespace Generator
 			}
 			else
 			{
-				UMaterialExpressionConstant* Index = Cast<UMaterialExpressionConstant>(OutInputs[0].ExpressionData.Expression);
+				UMaterialExpressionConstant* Index = Cast<UMaterialExpressionConstant>(OutInputs[0].GetExpressionUnused());
 			}
 			OutInputs.SetNum(1); // base::coordinate_source will use only the first param(the coordinate_system)
 			AssetName = TEXT("_base_coordinate_source");
@@ -1261,22 +1260,22 @@ namespace Generator
 			return Outputs;
 
 		int32 TextureSelectionIndex = OutInputs.FindLastByPredicate(
-		    [](FMaterialExpressionConnection const& MEC) { return MEC.ConnectionType == EConnectionType::TextureSelection; });
+		    [](FMaterialExpressionConnection const& MEC) { return MEC.GetConnectionType() == EConnectionType::TextureSelection; });
 		if (TextureSelectionIndex != INDEX_NONE)
 		{
-			FMaterialExpressionConnection::FData Value = OutInputs[TextureSelectionIndex].TextureSelectionData[0];
-			FMaterialExpressionConnection::FData True  = OutInputs[TextureSelectionIndex].TextureSelectionData[1];
-			FMaterialExpressionConnection::FData False = OutInputs[TextureSelectionIndex].TextureSelectionData[2];
-			OutInputs[TextureSelectionIndex]           = {True.Expression, True.Index, True.bIsDefault};
+			FMaterialExpressionConnection::FData Value = OutInputs[TextureSelectionIndex].GetTextureSelectionData()[0];
+			FMaterialExpressionConnection::FData True  = OutInputs[TextureSelectionIndex].GetTextureSelectionData()[1];
+			FMaterialExpressionConnection::FData False = OutInputs[TextureSelectionIndex].GetTextureSelectionData()[2];
+			OutInputs[TextureSelectionIndex]           = {True.GetMaterialExpression(), True.Index, True.bIsDefault};
 			check(OutInputs.FindLastByPredicate([](FMaterialExpressionConnection const& MEC) {
-				return MEC.ConnectionType == EConnectionType::TextureSelection;
+				return MEC.GetConnectionType() == EConnectionType::TextureSelection;
 			}) == INDEX_NONE);
 			UMaterialExpressionMaterialFunctionCall* TrueCall  = NewMaterialExpressionFunctionCall(CurrentMaterial, Function, OutInputs);
-			OutInputs[TextureSelectionIndex]                   = {False.Expression, False.Index, False.bIsDefault};
+			OutInputs[TextureSelectionIndex]                   = {False.GetMaterialExpression(), False.Index, False.bIsDefault};
 			UMaterialExpressionMaterialFunctionCall* FalseCall = NewMaterialExpressionFunctionCall(CurrentMaterial, Function, OutInputs);
 			check(TrueCall->Outputs.Num() == FalseCall->Outputs.Num());
 
-			FMaterialExpressionConnection ValueConnection(Value.Expression, Value.Index, Value.bIsDefault);
+			FMaterialExpressionConnection ValueConnection(Value.GetMaterialExpression(), Value.Index, Value.bIsDefault);
 			Outputs.Reserve(TrueCall->Outputs.Num());
 			for (int32 i = 0; i < TrueCall->Outputs.Num(); i++)
 			{
@@ -1316,21 +1315,21 @@ namespace Generator
 		{
 			case mi::neuraylib::IType::TK_FLOAT:
 			{
-				if (!ensure(Inputs[0].ConnectionType == EConnectionType::Expression))
+				if (!ensure(Inputs[0].GetConnectionType() == EConnectionType::Expression))
 				{
 					break;
 				}
 
 				if (Inputs.Num() == 1)
 				{
-					if ((Inputs[0].ExpressionData.Expression->IsA<UMaterialExpressionStaticBool>() ||
-					     Inputs[0].ExpressionData.Expression->IsA<UMaterialExpressionStaticBoolParameter>()))
+					if ((Inputs[0].IsExpressionA<UMaterialExpressionStaticBool>() ||
+					     Inputs[0].IsExpressionA<UMaterialExpressionStaticBoolParameter>()))
 					{
 						return {NewMaterialExpressionStaticSwitch(CurrentMaterial, Inputs[0], 1.0f, 0.0f)};
 					}
 					else
 					{
-						check(Inputs[0].ExpressionData.Expression->IsA<UMaterialExpressionScalarParameter>());
+						check(Inputs[0].IsExpressionA<UMaterialExpressionScalarParameter>());
 						return Inputs;
 					}
 				}
@@ -1496,11 +1495,11 @@ namespace Generator
 
 	void FMaterialExpressionFactory::SetClearCoatNormal(const FMaterialExpressionConnection& Base, const UMaterialExpression* Normal)
 	{
-		check(Base.ConnectionType == EConnectionType::Expression);
+		check(Base.GetConnectionType() == EConnectionType::Expression);
 		UMaterialExpression* BaseNormal = nullptr;
-		if (Base.ExpressionData.Expression->IsA<UMaterialExpressionIf>())
+		if (Base.IsExpressionA<UMaterialExpressionIf>())
 		{
-			UMaterialExpressionIf* If = Cast<UMaterialExpressionIf>(Base.ExpressionData.Expression);
+			UMaterialExpressionIf* If = Cast<UMaterialExpressionIf>(Base.GetExpressionUnused());
 			check(If->ALessThanB.Expression->IsA<UMaterialExpressionMaterialFunctionCall>() &&
 			      If->AEqualsB.Expression->IsA<UMaterialExpressionMaterialFunctionCall>() &&
 			      If->AGreaterThanB.Expression->IsA<UMaterialExpressionMaterialFunctionCall>());
@@ -1517,9 +1516,9 @@ namespace Generator
 				                                     BaseNormalALessThanB, BaseNormalAEqualsB, BaseNormalAGreaterThanB);
 			}
 		}
-		else if (Base.ExpressionData.Expression->IsA<UMaterialExpressionStaticSwitch>())
+		else if (Base.IsExpressionA<UMaterialExpressionStaticSwitch>())
 		{
-			UMaterialExpressionStaticSwitch* StaticSwitch = Cast<UMaterialExpressionStaticSwitch>(Base.ExpressionData.Expression);
+			UMaterialExpressionStaticSwitch* StaticSwitch = Cast<UMaterialExpressionStaticSwitch>(Base.GetExpressionUnused());
 			check(StaticSwitch->A.Expression->IsA<UMaterialExpressionMaterialFunctionCall>() &&
 			      StaticSwitch->B.Expression->IsA<UMaterialExpressionMaterialFunctionCall>());
 			UMaterialExpression* BaseNormalA =
@@ -1534,11 +1533,11 @@ namespace Generator
 		}
 		else
 		{
-			check(Base.ExpressionData.Expression->IsA<UMaterialExpressionMakeMaterialAttributes>() ||
-			      Base.ExpressionData.Expression->IsA<UMaterialExpressionMaterialFunctionCall>());
-			BaseNormal = Base.ExpressionData.Expression->IsA<UMaterialExpressionMakeMaterialAttributes>()
-			                 ? Cast<UMaterialExpressionMakeMaterialAttributes>(Base.ExpressionData.Expression)->Normal.Expression
-			                 : Cast<UMaterialExpressionMaterialFunctionCall>(Base.ExpressionData.Expression)->FunctionInputs.Last().Input.Expression;
+			check(Base.IsExpressionA<UMaterialExpressionMakeMaterialAttributes>() ||
+			      Base.IsExpressionA<UMaterialExpressionMaterialFunctionCall>());
+			BaseNormal = Base.IsExpressionA<UMaterialExpressionMakeMaterialAttributes>()
+			                 ? Cast<UMaterialExpressionMakeMaterialAttributes>(Base.GetExpressionAndUse())->Normal.Expression
+			                 : Cast<UMaterialExpressionMaterialFunctionCall>(Base.GetExpressionAndUse())->FunctionInputs.Last().Input.Expression;
 		}
 		if (BaseNormal && (BaseNormal != Normal))
 		{

@@ -57,7 +57,7 @@ namespace Mat
 			Inputs.Emplace(Parameters[Parameter]);
 			Inputs.Emplace(Tiling, 0);
 			Inputs.Emplace(ColorExpression, 0);
-			Generator::SetMaterialExpressionGroup(GroupName, Inputs[0].ExpressionData.Expression);
+			Generator::SetMaterialExpressionGroup(GroupName, Inputs[0].GetExpressionUnused());
 
 			return Generator::NewMaterialExpressionFunctionCall(&Material, MapCall, Inputs);
 		}
@@ -103,8 +103,8 @@ namespace Mat
 			Inputs.Emplace(Parameters[Parameter]);
 			Inputs.Emplace(Tiling, 0);
 			Inputs.Emplace(Parameters[ParameterStrength]);
-			Generator::SetMaterialExpressionGroup(GroupName, Inputs[0].ExpressionData.Expression);
-			Generator::SetMaterialExpressionGroup(GroupName, Inputs[2].ExpressionData.Expression);
+			Generator::SetMaterialExpressionGroup(GroupName, Inputs[0].GetExpressionAndUse());
+			Generator::SetMaterialExpressionGroup(GroupName, Inputs[2].GetExpressionAndUse());
 
 			UMaterialFunction*   MapCall    = &FunctionLoader.Get(Generator::ECommonFunction::NormalMap);
 			UMaterialExpression* Expression = Generator::NewMaterialExpressionFunctionCall(&Material, MapCall, Inputs);

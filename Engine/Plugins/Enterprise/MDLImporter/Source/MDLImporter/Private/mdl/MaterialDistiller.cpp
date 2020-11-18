@@ -232,7 +232,6 @@ namespace Mdl
 		                       float MetersPerSceneUnit)
 		{
 			TArray<FBakeParam>& BakeParams = MaterialBakeParams;
-			BakeParams.Empty();
 			// Setup some UE4 material parameters
 			BakeParams.Emplace((int)EParameterType::BaseColor, Material.BaseColor);
 			BakeParams.Emplace((int)EParameterType::Metallic, Material.Metallic);
@@ -320,7 +319,6 @@ namespace Mdl
 		                                  TArray<FBakeParam>&                      MaterialBakeParams)
 		{
 			TArray<FBakeParam>& BakeParams = MaterialBakeParams;
-			BakeParams.Empty();
 
 			BakeParams.Emplace((int)EParameterType::VolumeAbsorption, Material.Absorption);
 			BakeParams.Emplace((int)EParameterType::VolumeScattering, Material.Scattering);
@@ -334,11 +332,12 @@ namespace Mdl
 		{
 #if MDL_DEBUG_PRINT_MATERIAL != 0
 			Mdl::FMaterialPrinter Printer;
-
-#if MDL_DEBUG_PRINT_MATERIAL == 2
+#if MDL_DEBUG_PRINT_MATERIAL & 1
 			UE_LOG(LogMDLImporter, Log, TEXT("Compiled:\n%s"), *Printer.Print(*CompiledMaterial, Transaction));
 #endif
+#if MDL_DEBUG_PRINT_MATERIAL & 2
 			UE_LOG(LogMDLImporter, Log, TEXT("Distilled:\n%s"), *Printer.Print(*DistilledMaterial, Transaction));
+#endif
 #endif
 		}
 
@@ -454,7 +453,9 @@ namespace Mdl
 		PrintDebug(CompiledMaterial.get(), DistilledMaterial, Transaction);
 
 		// Setup material maps and bake them after
+		MaterialBakeParams.Empty();
 		SetupBaseMaterial(Transaction, DistilledMaterial, Material, MaterialBakeParams, MetersPerSceneUnit);
+		SetupExtraMaterialProperties(Transaction, DistilledMaterial, Material, MaterialBakeParams);
 		if (Material.PreProcessFunction)
 		{
 			Material.PreProcessFunction(Transaction, MaterialBakeParams);
@@ -470,20 +471,6 @@ namespace Mdl
 			MapHandler->PreImport(*MaterialDefinition, *DistilledMaterial, *Transaction);
 		}
 		DistilMaps(Transaction, MaterialName, DistilledMaterial, BakeTextureSize, MaterialBakeParams);
-		if (MapHandler)
-		{
-			MapHandler->PostImport();
-		}
-
-
-		// Bake extra properties from the compiled material
-		SetupExtraMaterialProperties(Transaction, CompiledMaterial.get(), Material, MaterialBakeParams);
-
-		if (MapHandler)
-		{
-			MapHandler->PreImport(*MaterialDefinition, *CompiledMaterial, *Transaction);
-		}
-		DistilMaps(Transaction, MaterialName, CompiledMaterial.get(), BakeTextureSize, MaterialBakeParams);
 		if (MapHandler)
 		{
 			MapHandler->PostImport();

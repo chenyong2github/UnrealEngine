@@ -6,8 +6,8 @@
 
 namespace Generator
 {
-	bool   EvaluateBool(const FMaterialExpressionConnection& Connection);
 	float  EvaluateFloat(const FMaterialExpressionConnection& Connection);
+	float  EvaluateFloat(UMaterialExpression* Expression, int32 OutputIndex);
 	uint32 ComponentCount(const FMaterialExpressionConnection& Input);
 
 	void SetMaterialExpressionGroup(const FString& GroupName, UMaterialExpression* ParameterExpression)
@@ -22,69 +22,22 @@ namespace Generator
 		}
 	}
 
-	bool EvaluateBool(const FMaterialExpressionConnection& Connection)
-	{
-		check((Connection.ConnectionType == Expression) && Connection.ExpressionData.Expression);
-		// Note: IsBool() is too restrictive here, as constants are viewed as bool here, but not in IsBool() !
-		check(IsScalar(Connection));
-
-		if (Connection.ExpressionData.Expression->IsA<UMaterialExpressionConstant>())
-		{
-			return (Cast<UMaterialExpressionConstant>(Connection.ExpressionData.Expression)->R != 0.0f);
-		}
-		else if (Connection.ExpressionData.Expression->IsA<UMaterialExpressionIf>())
-		{
-			UMaterialExpressionIf* If = Cast<UMaterialExpressionIf>(Connection.ExpressionData.Expression);
-			float                  A  = EvaluateFloat({If->A.Expression, If->A.OutputIndex});
-			float                  B  = If->B.Expression ? EvaluateFloat({If->B.Expression, If->B.OutputIndex}) : If->ConstB;
-			if (A < B)
-			{
-				return EvaluateBool({If->ALessThanB.Expression, If->ALessThanB.OutputIndex});
-			}
-			else if (A == B)
-			{
-				return EvaluateBool({If->AEqualsB.Expression, If->AEqualsB.OutputIndex});
-			}
-			else
-			{
-				return EvaluateBool({If->AGreaterThanB.Expression, If->AGreaterThanB.OutputIndex});
-			}
-		}
-		else if (Connection.ExpressionData.Expression->IsA<UMaterialExpressionStaticBool>())
-		{
-			return Cast<UMaterialExpressionStaticBool>(Connection.ExpressionData.Expression)->Value;
-		}
-		else if (Connection.ExpressionData.Expression->IsA<UMaterialExpressionStaticBoolParameter>())
-		{
-			return Cast<UMaterialExpressionStaticBoolParameter>(Connection.ExpressionData.Expression)->DefaultValue;
-		}
-		else if (Connection.ExpressionData.Expression->IsA<UMaterialExpressionStaticSwitch>())
-		{
-			UMaterialExpressionStaticSwitch* StaticSwitch = Cast<UMaterialExpressionStaticSwitch>(Connection.ExpressionData.Expression);
-			return (StaticSwitch->Value.Expression ? EvaluateBool({StaticSwitch->Value.Expression, StaticSwitch->Value.OutputIndex})
-			                                       : StaticSwitch->DefaultValue)
-			           ? EvaluateBool({StaticSwitch->A.Expression, StaticSwitch->A.OutputIndex})
-			           : EvaluateBool({StaticSwitch->B.Expression, StaticSwitch->B.OutputIndex});
-		}
-		else
-		{
-			check(false);
-			return false;
-		}
-	}
-
 	float EvaluateFloat(const FMaterialExpressionConnection& Connection)
 	{
-		check((Connection.ConnectionType == Expression) && Connection.ExpressionData.Expression);
+		check(Connection.HasExpression());
 		check(IsScalar(Connection));
+		return EvaluateFloat(Connection.GetExpressionUnused(), Connection.GetExpressionOutputIndex());
+	}
 
-		if (Connection.ExpressionData.Expression->IsA<UMaterialExpressionConstant>())
+	float  EvaluateFloat(UMaterialExpression* Expression, int32 OutputIndex)
+	{
+		if (Expression->IsA<UMaterialExpressionConstant>())
 		{
-			return Cast<UMaterialExpressionConstant>(Connection.ExpressionData.Expression)->R;
+			return Cast<UMaterialExpressionConstant>(Expression)->R;
 		}
-		else if (Connection.ExpressionData.Expression->IsA<UMaterialExpressionScalarParameter>())
+		else if (Expression->IsA<UMaterialExpressionScalarParameter>())
 		{
-			return Cast<UMaterialExpressionScalarParameter>(Connection.ExpressionData.Expression)->DefaultValue;
+			return Cast<UMaterialExpressionScalarParameter>(Expression)->DefaultValue;
 		}
 		else
 		{
@@ -93,68 +46,73 @@ namespace Generator
 		}
 	}
 
+	bool IsBool(UMaterialExpression* Expression, int32 OutputIndex)
+	{
+		if (Expression->IsA<UMaterialExpressionIf>())
+		{
+			UMaterialExpressionIf* If = Cast<UMaterialExpressionIf>(Expression);
+			bool                   bIsALessThanB = IsBool(If->ALessThanB.Expression, If->ALessThanB.OutputIndex);
+			check((bIsALessThanB == IsBool(If->AGreaterThanB.Expression, If->AGreaterThanB.OutputIndex)) &&
+				(!If->AEqualsB.Expression || (bIsALessThanB == IsBool(If->AEqualsB.Expression, If->AEqualsB.OutputIndex))));
+			return bIsALessThanB;
+		}
+		else if (Expression->IsA<UMaterialExpressionFunctionInput>())
+		{
+			return (Cast<UMaterialExpressionFunctionInput>(Expression)->InputType == FunctionInput_StaticBool);
+		}
+		else if (Expression->IsA<UMaterialExpressionMaterialFunctionCall>())
+		{
+			UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall =
+				Cast<UMaterialExpressionMaterialFunctionCall>(Expression);
+			check(MaterialFunctionCall->FunctionOutputs[OutputIndex].ExpressionOutput->A.Expression);
+			return IsBool(MaterialFunctionCall->FunctionOutputs[OutputIndex].ExpressionOutput->A.Expression,
+						   MaterialFunctionCall->FunctionOutputs[OutputIndex].ExpressionOutput->A.OutputIndex);
+		}
+		else if (Expression->IsA<UMaterialExpressionStaticBool>() ||
+			Expression->IsA<UMaterialExpressionStaticBoolParameter>())
+		{
+			return true;
+		}
+		else if (Expression->IsA<UMaterialExpressionStaticSwitch>())
+		{
+			UMaterialExpressionStaticSwitch* StaticSwitch = Cast<UMaterialExpressionStaticSwitch>(Expression);
+			bool                             bValue = IsBool(StaticSwitch->A.Expression, StaticSwitch->A.OutputIndex);
+			check(bValue == IsBool(StaticSwitch->B.Expression, StaticSwitch->B.OutputIndex));
+			return bValue;
+		}
+		else
+		{
+			check(Expression->IsA<UMaterialExpressionAbs>() ||
+				Expression->IsA<UMaterialExpressionAdd>() ||
+				Expression->IsA<UMaterialExpressionAppendVector>() ||
+				Expression->IsA<UMaterialExpressionComponentMask>() ||
+				Expression->IsA<UMaterialExpressionConstant>() ||
+				Expression->IsA<UMaterialExpressionConstant3Vector>() ||
+				Expression->IsA<UMaterialExpressionCosine>() ||
+				Expression->IsA<UMaterialExpressionDivide>() ||
+				Expression->IsA<UMaterialExpressionDotProduct>() ||
+				Expression->IsA<UMaterialExpressionLinearInterpolate>() ||
+				Expression->IsA<UMaterialExpressionMakeMaterialAttributes>() ||
+				Expression->IsA<UMaterialExpressionMax>() ||
+				Expression->IsA<UMaterialExpressionMultiply>() ||
+				Expression->IsA<UMaterialExpressionNormalize>() ||
+				Expression->IsA<UMaterialExpressionOneMinus>() ||
+				Expression->IsA<UMaterialExpressionScalarParameter>() ||
+				Expression->IsA<UMaterialExpressionSine>() ||
+				Expression->IsA<UMaterialExpressionSubtract>() ||
+				Expression->IsA<UMaterialExpressionVectorParameter>() ||
+				Expression->IsA<UMaterialExpressionTransform>() ||
+				Expression->IsA<UMaterialExpressionTransformPosition>());
+			return false;
+		}
+	}
+
 	bool IsBool(const FMaterialExpressionConnection& Input)
 	{
-		switch (Input.ConnectionType)
+		switch (Input.GetConnectionType())
 		{
 			case Expression:
-				if (Input.ExpressionData.Expression->IsA<UMaterialExpressionIf>())
-				{
-					UMaterialExpressionIf* If            = Cast<UMaterialExpressionIf>(Input.ExpressionData.Expression);
-					bool                   bIsALessThanB = IsBool({If->ALessThanB.Expression, If->ALessThanB.OutputIndex});
-					check((bIsALessThanB == IsBool({If->AGreaterThanB.Expression, If->AGreaterThanB.OutputIndex})) &&
-					      (!If->AEqualsB.Expression || (bIsALessThanB == IsBool({If->AEqualsB.Expression, If->AEqualsB.OutputIndex}))));
-					return bIsALessThanB;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionFunctionInput>())
-				{
-					return (Cast<UMaterialExpressionFunctionInput>(Input.ExpressionData.Expression)->InputType == FunctionInput_StaticBool);
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionMaterialFunctionCall>())
-				{
-					UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall =
-					    Cast<UMaterialExpressionMaterialFunctionCall>(Input.ExpressionData.Expression);
-					check(MaterialFunctionCall->FunctionOutputs[Input.ExpressionData.Index].ExpressionOutput->A.Expression);
-					return IsBool({MaterialFunctionCall->FunctionOutputs[Input.ExpressionData.Index].ExpressionOutput->A.Expression,
-					               MaterialFunctionCall->FunctionOutputs[Input.ExpressionData.Index].ExpressionOutput->A.OutputIndex});
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionStaticBool>() ||
-				         Input.ExpressionData.Expression->IsA<UMaterialExpressionStaticBoolParameter>())
-				{
-					return true;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionStaticSwitch>())
-				{
-					UMaterialExpressionStaticSwitch* StaticSwitch = Cast<UMaterialExpressionStaticSwitch>(Input.ExpressionData.Expression);
-					bool                             bValue       = IsBool({StaticSwitch->A.Expression, StaticSwitch->A.OutputIndex});
-					check(bValue == IsBool({StaticSwitch->B.Expression, StaticSwitch->B.OutputIndex}));
-					return bValue;
-				}
-				else
-				{
-					check(Input.ExpressionData.Expression->IsA<UMaterialExpressionAbs>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionAdd>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionAppendVector>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionComponentMask>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionConstant>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionConstant3Vector>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionCosine>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionDivide>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionDotProduct>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionLinearInterpolate>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionMakeMaterialAttributes>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionMax>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionMultiply>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionNormalize>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionOneMinus>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionScalarParameter>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionSine>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionSubtract>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionVectorParameter>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionTransform>() ||
-						Input.ExpressionData.Expression->IsA<UMaterialExpressionTransformPosition>());
-					return false;
-				}
+				return IsBool(Input.GetExpressionUnused(), Input.GetExpressionOutputIndex());
 			case Boolean:
 				return true;
 			case Float:
@@ -170,71 +128,76 @@ namespace Generator
 		}
 	}
 
+	bool IsMaterialAttribute(UMaterialExpression* Expression, int32 OutputIndex)
+	{
+		if (Expression->IsA<UMaterialExpressionFunctionInput>())
+		{
+			return (Cast<UMaterialExpressionFunctionInput>(Expression)->InputType == FunctionInput_MaterialAttributes);
+		}
+		else if (Expression->IsA<UMaterialExpressionIf>())
+		{
+			UMaterialExpressionIf* If = Cast<UMaterialExpressionIf>(Expression);
+			bool                   bIsAGreaterThanB = IsMaterialAttribute(If->AGreaterThanB.Expression, If->AGreaterThanB.OutputIndex);
+			check((!If->AEqualsB.Expression || (bIsAGreaterThanB == IsMaterialAttribute(If->AEqualsB.Expression, If->AEqualsB.OutputIndex))) &&
+				(bIsAGreaterThanB == IsMaterialAttribute(If->ALessThanB.Expression, If->ALessThanB.OutputIndex)));
+			return bIsAGreaterThanB;
+		}
+		else if (Expression->IsA<UMaterialExpressionMakeMaterialAttributes>())
+		{
+			return true;
+		}
+		else if (Expression->IsA<UMaterialExpressionMaterialFunctionCall>())
+		{
+			UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall =
+				Cast<UMaterialExpressionMaterialFunctionCall>(Expression);
+			check(MaterialFunctionCall->FunctionOutputs[OutputIndex].ExpressionOutput->A.Expression);
+			return IsMaterialAttribute(MaterialFunctionCall->FunctionOutputs[OutputIndex].ExpressionOutput->A.Expression,
+										MaterialFunctionCall->FunctionOutputs[OutputIndex].ExpressionOutput->A.OutputIndex);
+		}
+		else if (Expression->IsA<UMaterialExpressionStaticSwitch>())
+		{
+			UMaterialExpressionStaticSwitch* StaticSwitch = Cast<UMaterialExpressionStaticSwitch>(Expression);
+			bool                             bValue = IsMaterialAttribute(StaticSwitch->A.Expression, StaticSwitch->A.OutputIndex);
+			check(bValue == IsMaterialAttribute(StaticSwitch->B.Expression, StaticSwitch->B.OutputIndex));
+			return bValue;
+		}
+		else
+		{
+			check(Expression->IsA<UMaterialExpressionAbs>() ||
+				Expression->IsA<UMaterialExpressionAdd>() ||
+				Expression->IsA<UMaterialExpressionAppendVector>() ||
+				Expression->IsA<UMaterialExpressionClamp>() ||
+				Expression->IsA<UMaterialExpressionComponentMask>() ||
+				Expression->IsA<UMaterialExpressionConstant>() ||
+				Expression->IsA<UMaterialExpressionConstant3Vector>() ||
+				Expression->IsA<UMaterialExpressionCosine>() ||
+				Expression->IsA<UMaterialExpressionCustom>() ||
+				Expression->IsA<UMaterialExpressionDivide>() ||
+				Expression->IsA<UMaterialExpressionDotProduct>() ||
+				Expression->IsA<UMaterialExpressionLinearInterpolate>() ||
+				Expression->IsA<UMaterialExpressionMax>() ||
+				Expression->IsA<UMaterialExpressionMultiply>() ||
+				Expression->IsA<UMaterialExpressionNormalize>() ||
+				Expression->IsA<UMaterialExpressionOneMinus>() ||
+				Expression->IsA<UMaterialExpressionPower>() ||
+				Expression->IsA<UMaterialExpressionScalarParameter>() ||
+				Expression->IsA<UMaterialExpressionSine>() ||
+				Expression->IsA<UMaterialExpressionSubtract>() ||
+				Expression->IsA<UMaterialExpressionTextureObject>() ||
+				Expression->IsA<UMaterialExpressionTextureSample>() ||
+				Expression->IsA<UMaterialExpressionTransform>() ||
+				Expression->IsA<UMaterialExpressionTransformPosition>() ||
+				Expression->IsA<UMaterialExpressionVectorParameter>());
+			return false;
+		}
+	}
+
 	bool IsMaterialAttribute(const FMaterialExpressionConnection& Input)
 	{
-		if (Input.ConnectionType == EConnectionType::Expression)
+		if (Input.GetConnectionType() == EConnectionType::Expression)
 		{
-			check(Input.ExpressionData.Expression);
-			if (Input.ExpressionData.Expression->IsA<UMaterialExpressionFunctionInput>())
-			{
-				return (Cast<UMaterialExpressionFunctionInput>(Input.ExpressionData.Expression)->InputType == FunctionInput_MaterialAttributes);
-			}
-			else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionIf>())
-			{
-				UMaterialExpressionIf* If               = Cast<UMaterialExpressionIf>(Input.ExpressionData.Expression);
-				bool                   bIsAGreaterThanB = IsMaterialAttribute({If->AGreaterThanB.Expression, If->AGreaterThanB.OutputIndex});
-				check((!If->AEqualsB.Expression || (bIsAGreaterThanB == IsMaterialAttribute({If->AEqualsB.Expression, If->AEqualsB.OutputIndex}))) &&
-				      (bIsAGreaterThanB == IsMaterialAttribute({If->ALessThanB.Expression, If->ALessThanB.OutputIndex})));
-				return bIsAGreaterThanB;
-			}
-			else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionMakeMaterialAttributes>())
-			{
-				return true;
-			}
-			else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionMaterialFunctionCall>())
-			{
-				UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall =
-				    Cast<UMaterialExpressionMaterialFunctionCall>(Input.ExpressionData.Expression);
-				check(MaterialFunctionCall->FunctionOutputs[Input.ExpressionData.Index].ExpressionOutput->A.Expression);
-				return IsMaterialAttribute({MaterialFunctionCall->FunctionOutputs[Input.ExpressionData.Index].ExpressionOutput->A.Expression,
-				                            MaterialFunctionCall->FunctionOutputs[Input.ExpressionData.Index].ExpressionOutput->A.OutputIndex});
-			}
-			else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionStaticSwitch>())
-			{
-				UMaterialExpressionStaticSwitch* StaticSwitch = Cast<UMaterialExpressionStaticSwitch>(Input.ExpressionData.Expression);
-				bool                             bValue       = IsMaterialAttribute({StaticSwitch->A.Expression, StaticSwitch->A.OutputIndex});
-				check(bValue == IsMaterialAttribute({StaticSwitch->B.Expression, StaticSwitch->B.OutputIndex}));
-				return bValue;
-			}
-			else
-			{
-				check(Input.ExpressionData.Expression->IsA<UMaterialExpressionAbs>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionAdd>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionAppendVector>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionClamp>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionComponentMask>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionConstant>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionConstant3Vector>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionCosine>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionCustom>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionDivide>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionDotProduct>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionLinearInterpolate>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionMax>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionMultiply>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionNormalize>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionOneMinus>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionPower>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionScalarParameter>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionSine>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionSubtract>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionTextureObject>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionTextureSample>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionTransform>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionTransformPosition>() ||
-				      Input.ExpressionData.Expression->IsA<UMaterialExpressionVectorParameter>());
-				return false;
-			}
+			check(Input.HasExpression());
+			return IsMaterialAttribute(Input.GetExpressionUnused(), Input.GetExpressionOutputIndex());
 		}
 		return false;
 	}
@@ -242,80 +205,85 @@ namespace Generator
 	bool IsScalar(const FMaterialExpressionConnection& Input)
 	{
 		// no expression always means, it's a fit
-		return ((Input.ConnectionType == EConnectionType::Expression) && !Input.ExpressionData.Expression) || (ComponentCount(Input) == 1);
+		return ((Input.GetConnectionType() == EConnectionType::Expression) && !Input.GetExpressionUnused()) || (ComponentCount(Input) == 1);
 	}
 
 	bool IsStatic(const FMaterialExpressionConnection& Input)
 	{
 		// check that, if Input is a StaticSwitch and Input->A is Static, then Input->B has to be Static as well
-		check(!(Input.ExpressionData.Expression->IsA<UMaterialExpressionStaticSwitch>() &&
-		        IsStatic(Cast<UMaterialExpressionStaticSwitch>(Input.ExpressionData.Expression)->A.Expression)) ||
-		      IsStatic(Cast<UMaterialExpressionStaticSwitch>(Input.ExpressionData.Expression)->B.Expression));
+		check(!(Input.IsExpressionA<UMaterialExpressionStaticSwitch>() &&
+		        IsStatic(Cast<UMaterialExpressionStaticSwitch>(Input.GetExpressionUnused())->A.Expression)) ||
+		      IsStatic(Cast<UMaterialExpressionStaticSwitch>(Input.GetExpressionUnused())->B.Expression));
 
-		return Input.ExpressionData.Expression->IsA<UMaterialExpressionStaticBool>() ||
-		       Input.ExpressionData.Expression->IsA<UMaterialExpressionStaticBoolParameter>() ||
-		       (Input.ExpressionData.Expression->IsA<UMaterialExpressionStaticSwitch>() &&
-		        IsStatic(Cast<UMaterialExpressionStaticSwitch>(Input.ExpressionData.Expression)->A.Expression));
+		return Input.IsExpressionA<UMaterialExpressionStaticBool>() ||
+		       Input.IsExpressionA<UMaterialExpressionStaticBoolParameter>() ||
+		       (Input.IsExpressionA<UMaterialExpressionStaticSwitch>() &&
+		        IsStatic(Cast<UMaterialExpressionStaticSwitch>(Input.GetExpressionUnused())->A.Expression));
+	}
+
+	bool IsTexture(UMaterialExpression* Expression, int32 OutputIndex)
+	{
+		if (Expression->IsA<UMaterialExpressionFunctionInput>())
+		{
+			return (Cast<UMaterialExpressionFunctionInput>(Expression)->InputType == FunctionInput_Texture2D);
+		}
+		else if (Expression->IsA<UMaterialExpressionIf>())
+		{
+			UMaterialExpressionIf* If = Cast<UMaterialExpressionIf>(Expression);
+			bool                   bIsTex = IsTexture(If->ALessThanB.Expression, If->ALessThanB.OutputIndex);
+			check((bIsTex == IsTexture(If->AEqualsB.Expression, If->AEqualsB.OutputIndex)) &&
+				(bIsTex == IsTexture(If->AGreaterThanB.Expression, If->AGreaterThanB.OutputIndex)));
+			return bIsTex;
+		}
+		else if (Expression->IsA<UMaterialExpressionStaticSwitch>())
+		{
+			UMaterialExpressionStaticSwitch* StaticSwitch = Cast<UMaterialExpressionStaticSwitch>(Expression);
+			bool                             bValue = IsTexture(StaticSwitch->A.Expression, StaticSwitch->A.OutputIndex);
+			check(bValue == IsTexture(StaticSwitch->B.Expression, StaticSwitch->B.OutputIndex));
+			return bValue;
+		}
+		else if (Expression->IsA<UMaterialExpressionTextureObject>() ||
+			Expression->IsA<UMaterialExpressionTextureObjectParameter>())
+		{
+			return true;
+		}
+		else
+		{
+			check(Expression->IsA<UMaterialExpressionAbs>() ||
+				Expression->IsA<UMaterialExpressionAdd>() ||
+				Expression->IsA<UMaterialExpressionBreakMaterialAttributes>() ||
+				Expression->IsA<UMaterialExpressionComponentMask>() ||
+				Expression->IsA<UMaterialExpressionConstant>() ||
+				Expression->IsA<UMaterialExpressionConstant3Vector>() ||
+				Expression->IsA<UMaterialExpressionCosine>() ||
+				Expression->IsA<UMaterialExpressionDivide>() ||
+				Expression->IsA<UMaterialExpressionLinearInterpolate>() ||
+				Expression->IsA<UMaterialExpressionMakeMaterialAttributes>() ||
+				Expression->IsA<UMaterialExpressionMaterialFunctionCall>() ||
+				Expression->IsA<UMaterialExpressionMultiply>() ||
+				Expression->IsA<UMaterialExpressionNormalize>() ||
+				Expression->IsA<UMaterialExpressionOneMinus>() ||
+				Expression->IsA<UMaterialExpressionPower>() ||
+				Expression->IsA<UMaterialExpressionScalarParameter>() ||
+				Expression->IsA<UMaterialExpressionSine>() ||
+				Expression->IsA<UMaterialExpressionSubtract>() ||
+				Expression->IsA<UMaterialExpressionTextureSample>() ||
+				Expression->IsA<UMaterialExpressionTransform>() ||
+				Expression->IsA<UMaterialExpressionTransformPosition>() ||
+				Expression->IsA<UMaterialExpressionVectorParameter>());
+			return false;
+		}
 	}
 
 	bool IsTexture(const FMaterialExpressionConnection& Input)
 	{
-		switch (Input.ConnectionType)
+		switch (Input.GetConnectionType())
 		{
 			case EConnectionType::Expression:
-				check(Input.ExpressionData.Expression);
-				if (Input.ExpressionData.Expression->IsA<UMaterialExpressionFunctionInput>())
-				{
-					return (Cast<UMaterialExpressionFunctionInput>(Input.ExpressionData.Expression)->InputType == FunctionInput_Texture2D);
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionIf>())
-				{
-					UMaterialExpressionIf* If     = Cast<UMaterialExpressionIf>(Input.ExpressionData.Expression);
-					bool                   bIsTex = IsTexture({If->ALessThanB.Expression, If->ALessThanB.OutputIndex});
-					check((bIsTex == IsTexture({If->AEqualsB.Expression, If->AEqualsB.OutputIndex})) &&
-					      (bIsTex == IsTexture({If->AGreaterThanB.Expression, If->AGreaterThanB.OutputIndex})));
-					return bIsTex;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionStaticSwitch>())
-				{
-					UMaterialExpressionStaticSwitch* StaticSwitch = Cast<UMaterialExpressionStaticSwitch>(Input.ExpressionData.Expression);
-					bool                             bValue       = IsTexture({StaticSwitch->A.Expression, StaticSwitch->A.OutputIndex});
-					check(bValue == IsTexture({StaticSwitch->B.Expression, StaticSwitch->B.OutputIndex}));
-					return bValue;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionTextureObject>() ||
-				         Input.ExpressionData.Expression->IsA<UMaterialExpressionTextureObjectParameter>())
-				{
-					return true;
-				}
-				else
-				{
-					check(Input.ExpressionData.Expression->IsA<UMaterialExpressionAbs>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionAdd>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionBreakMaterialAttributes>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionComponentMask>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionConstant>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionConstant3Vector>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionCosine>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionDivide>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionLinearInterpolate>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionMakeMaterialAttributes>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionMaterialFunctionCall>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionMultiply>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionNormalize>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionOneMinus>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionPower>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionScalarParameter>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionSine>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionSubtract>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionTextureSample>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionTransform>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionTransformPosition>() ||
-					      Input.ExpressionData.Expression->IsA<UMaterialExpressionVectorParameter>());
-					return false;
-				}
+				check(Input.HasExpression());
+				return IsTexture(Input.GetExpressionUnused(), Input.GetExpressionOutputIndex());
 			case EConnectionType::Texture:
-				return !!Input.Texture;
+				return !!Input.GetTextureUnused();
 			case EConnectionType::Boolean:
 			case EConnectionType::Float:
 			case EConnectionType::Float2:
@@ -331,39 +299,45 @@ namespace Generator
 	bool IsVector3(const FMaterialExpressionConnection& Input)
 	{
 		// no expression always means, it's a fit
-		return ((Input.ConnectionType == EConnectionType::Expression) && !Input.ExpressionData.Expression) || (ComponentCount(Input) == 3);
+		return (Input.IsExpressionWithoutExpression()) || (ComponentCount(Input) == 3);
 	}
 
 	void CheckedConnect(UObject* Parent, const FMaterialExpressionConnection& Connection, FExpressionInput& Input)
 	{
-		switch (Connection.ConnectionType)
+		switch (Connection.GetConnectionType())
 		{
 			case EConnectionType::Expression:
-				if (Connection.ExpressionData.Expression)
+				if (Connection.HasExpression())
 				{
-					Input.Connect(Connection.ExpressionData.Index, Connection.ExpressionData.Expression);
+					Input.Connect(Connection.GetExpressionOutputIndex(), Connection.GetExpressionAndUse());
 				}
 				break;
 			case EConnectionType::Boolean:
-				Input.Connect(0, NewMaterialExpressionStaticBool(Parent, Connection.bValue));
+				Input.Connect(0, NewMaterialExpressionStaticBool(Parent, Connection.GetBoolValue()));
 				break;
 			case EConnectionType::Float:
-				Input.Connect(0, NewMaterialExpressionConstant(Parent, Connection.Values[0]));
+				Input.Connect(0, NewMaterialExpressionConstant(Parent, Connection.GetVectorValue()[0]));
 				break;
 			case EConnectionType::Float2:
-				Input.Connect(0, NewMaterialExpressionConstant(Parent, Connection.Values[0], Connection.Values[1]));
+				Input.Connect(0, NewMaterialExpressionConstant(Parent, Connection.GetVectorValue()[0], Connection.GetVectorValue()[1]));
 				break;
 			case EConnectionType::Float3:
-				Input.Connect(0, NewMaterialExpressionConstant(Parent, Connection.Values[0], Connection.Values[1], Connection.Values[2]));
+				Input.Connect(0, NewMaterialExpressionConstant(Parent, Connection.GetVectorValue()[0], Connection.GetVectorValue()[1], Connection.GetVectorValue()[2]));
 				break;
 			case EConnectionType::Float4:
 				Input.Connect(
-				    0, NewMaterialExpressionConstant(Parent, Connection.Values[0], Connection.Values[1], Connection.Values[2], Connection.Values[3]));
+				    0, NewMaterialExpressionConstant(Parent, 
+						Connection.GetVectorValue()[0], Connection.GetVectorValue()[1], Connection.GetVectorValue()[2], Connection.GetVectorValue()[3]));
 				break;
 			case EConnectionType::Texture:
-				check(Connection.Texture);
-				Input.Connect(0, NewMaterialExpressionTextureObject(Parent, Connection.Texture));
+			{
+				UTexture* Texture = Connection.GetTextureAndUse();
+				if (ensure(Texture))
+				{
+					Input.Connect(0, NewMaterialExpressionTextureObject(Parent, Texture));
+				}
 				break;
+			}
 			default:
 				check(false);
 		}
@@ -371,9 +345,9 @@ namespace Generator
 
 	void CheckedConnect(UObject* Parent, const FMaterialExpressionConnection& Connection, FExpressionInput& Input, float& Value)
 	{
-		if (Connection.ConnectionType == EConnectionType::Float)
+		if (Connection.GetConnectionType() == EConnectionType::Float)
 		{
-			Value = Connection.Values[0];
+			Value = Connection.GetVectorValue()[0];
 		}
 		else
 		{
@@ -383,10 +357,13 @@ namespace Generator
 
 	void CheckedConnect(UObject* Parent, const FMaterialExpressionConnection& Connection, FExpressionInput& Input, UTexture** TexturePtr)
 	{
-		if (Connection.ConnectionType == EConnectionType::Texture)
+		if (Connection.GetConnectionType() == EConnectionType::Texture)
 		{
-			check(TexturePtr && Connection.Texture);
-			*TexturePtr = Connection.Texture;
+			UTexture* Texture = Connection.GetTextureAndUse();
+			if (ensure(TexturePtr && Texture))
+			{
+				*TexturePtr = Texture;
+			}
 		}
 		else
 		{
@@ -394,355 +371,361 @@ namespace Generator
 		}
 	}
 
+	uint32 ComponentCount(UMaterialExpression* Expression, int32 OutputIndex = 0)
+	{
+		if (Expression->IsA<UMaterialExpressionAbs>())
+		{
+			UMaterialExpressionAbs* Abs = Cast<UMaterialExpressionAbs>(Expression);
+			return ComponentCount(Abs->Input.Expression, Abs->Input.OutputIndex);
+		}
+		else if (Expression->IsA<UMaterialExpressionAdd>())
+		{
+			UMaterialExpressionAdd* Add = Cast<UMaterialExpressionAdd>(Expression);
+			const uint32 ACount = Add->A.Expression ? ComponentCount(Add->A.Expression, Add->A.OutputIndex) : 1;
+			const uint32 BCount = Add->B.Expression ? ComponentCount(Add->B.Expression, Add->B.OutputIndex) : 1;
+			check((ACount == 1) || (BCount == 1) || (ACount == BCount));
+			return FMath::Max(ACount, BCount);
+		}
+		else if (Expression->IsA<UMaterialExpressionAppendVector>())
+		{
+			UMaterialExpressionAppendVector* AppendVector = Cast<UMaterialExpressionAppendVector>(Expression);
+			return ComponentCount(AppendVector->A.Expression, AppendVector->A.OutputIndex) +
+				ComponentCount(AppendVector->B.Expression, AppendVector->B.OutputIndex);
+		}
+		else if (Expression->IsA<UMaterialExpressionArccosine>())
+		{
+			// arccosine always returns a float... check that it also just gets one!
+			check(ComponentCount(Cast<UMaterialExpressionArccosine>(Expression)->Input.Expression,
+								  OutputIndex) == 1);
+			return 1;
+		}
+		else if (Expression->IsA<UMaterialExpressionArctangent2>())
+		{
+			// arctangent2 always returns a float... check that it also just gets one!
+			UMaterialExpressionArctangent2* ArcTangent2 = Cast<UMaterialExpressionArctangent2>(Expression);
+			check(ComponentCount(ArcTangent2->Y.Expression, ArcTangent2->Y.OutputIndex) == 1);
+			check(ComponentCount(ArcTangent2->X.Expression, ArcTangent2->X.OutputIndex) == 1);
+			return 1;
+		}
+		else if (Expression->IsA<UMaterialExpressionBlackBody>())
+		{
+			// BlackBody always returns a color, and digests a float
+			UMaterialExpressionBlackBody* BlackBody = Cast<UMaterialExpressionBlackBody>(Expression);
+			check(ComponentCount(BlackBody->Temp.Expression, BlackBody->Temp.OutputIndex) == 1);
+			return 3;
+		}
+		else if (Expression->IsA<UMaterialExpressionBreakMaterialAttributes>())
+		{
+			check(OutputIndex < Expression->Outputs.Num());
+			FExpressionOutput const& Output = Expression->Outputs[OutputIndex];
+			return Output.MaskR + Output.MaskG + Output.MaskB + Output.MaskA;
+		}
+		else if (Expression->IsA<UMaterialExpressionCameraVectorWS>())
+		{
+			return 3;
+		}
+		else if (Expression->IsA<UMaterialExpressionVertexNormalWS>())
+		{
+			return 3;
+		}
+		else if (Expression->IsA<UMaterialExpressionPixelNormalWS>())
+		{
+			return 3;
+		}
+		else if (Expression->IsA<UMaterialExpressionClamp>())
+		{
+			UMaterialExpressionClamp* Clamp = Cast<UMaterialExpressionClamp>(Expression);
+			return ComponentCount(Clamp->Input.Expression, Clamp->Input.OutputIndex);
+		}
+		else if (Expression->IsA<UMaterialExpressionComponentMask>())
+		{
+			UMaterialExpressionComponentMask* ComponentMask = Cast<UMaterialExpressionComponentMask>(Expression);
+			return ComponentMask->R + ComponentMask->G + ComponentMask->B + ComponentMask->A;
+		}
+		else if (Expression->IsA<UMaterialExpressionConstant>())
+		{
+			return 1;
+		}
+		else if (Expression->IsA<UMaterialExpressionConstant2Vector>())
+		{
+			return 2;
+		}
+		else if (Expression->IsA<UMaterialExpressionConstant3Vector>())
+		{
+			return 3;
+		}
+		else if (Expression->IsA<UMaterialExpressionCosine>())
+		{
+			// cosine always returns a float... check that it also just gets one!
+			check(ComponentCount(
+				Cast<UMaterialExpressionCosine>(Expression)->Input.Expression, OutputIndex) == 1);
+			return 1;
+		}
+		else if (Expression->IsA<UMaterialExpressionCrossProduct>())
+		{
+			// cross product always returns a float3... check that it also just gets such!
+			UMaterialExpressionCrossProduct* CrossProduct = Cast<UMaterialExpressionCrossProduct>(Expression);
+			check(ComponentCount(CrossProduct->A.Expression, CrossProduct->A.OutputIndex) == 3);
+			check(ComponentCount(CrossProduct->B.Expression, CrossProduct->B.OutputIndex) == 3);
+			return 3;
+		}
+		else if (Expression->IsA<UMaterialExpressionCustom>())
+		{
+			UMaterialExpressionCustom* Custom = Cast<UMaterialExpressionCustom>(Expression);
+			switch (Custom->OutputType)
+			{
+			case CMOT_Float1:
+				return 1;
+			case CMOT_Float2:
+				return 2;
+			case CMOT_Float3:
+				return 3;
+			case CMOT_Float4:
+				return 4;
+			default:
+				check(false);
+				return 0;
+			}
+		}
+		else if (Expression->IsA<UMaterialExpressionDistance>())
+		{
+			UMaterialExpressionDistance* Distance = Cast<UMaterialExpressionDistance>(Expression);
+			const uint32 ACount = ComponentCount(Distance->A.Expression, Distance->A.OutputIndex);
+			const uint32 BCount = ComponentCount(Distance->B.Expression, Distance->B.OutputIndex);
+			check((1 == ACount) || (1 == BCount) || (ACount == BCount));
+			return 1;
+		}
+		else if (Expression->IsA<UMaterialExpressionDivide>())
+		{
+			UMaterialExpressionDivide* Divide = Cast<UMaterialExpressionDivide>(Expression);
+			const uint32 ACount = Divide->A.Expression ? ComponentCount(Divide->A.Expression, Divide->A.OutputIndex) : 1;
+			const uint32 BCount = Divide->B.Expression ? ComponentCount(Divide->B.Expression, Divide->B.OutputIndex) : 1;
+			check((1 == ACount) || (1 == BCount) || (ACount == BCount));
+			return FMath::Max(ACount, BCount);
+		}
+		else if (Expression->IsA<UMaterialExpressionDotProduct>())
+		{
+			return 1;
+		}
+		else if (Expression->IsA<UMaterialExpressionFloor>())
+		{
+			UMaterialExpressionFloor* Floor = Cast<UMaterialExpressionFloor>(Expression);
+			return ComponentCount(Floor->Input.Expression, Floor->Input.OutputIndex);
+		}
+		else if (Expression->IsA<UMaterialExpressionFmod>())
+		{
+			UMaterialExpressionFmod* Fmod = Cast<UMaterialExpressionFmod>(Expression);
+			const uint32 ACount = ComponentCount(Fmod->A.Expression, Fmod->A.OutputIndex);
+			check(ACount == ComponentCount(Fmod->B.Expression, Fmod->B.OutputIndex));
+			return ACount;
+		}
+		else if (Expression->IsA<UMaterialExpressionFrac>())
+		{
+			UMaterialExpressionFrac* Frac = Cast<UMaterialExpressionFrac>(Expression);
+			return ComponentCount(Frac->Input.Expression, Frac->Input.OutputIndex);
+		}
+		else if (Expression->IsA<UMaterialExpressionFresnel>())
+		{
+			return 1;
+		}
+		else if (Expression->IsA<UMaterialExpressionFunctionInput>())
+		{
+			switch (Cast<UMaterialExpressionFunctionInput>(Expression)->InputType)
+			{
+			case FunctionInput_Scalar:
+				return 1;
+			case FunctionInput_Vector2:
+				return 2;
+			case FunctionInput_Vector3:
+				return 3;
+			case FunctionInput_Vector4:
+				return 4;
+			case FunctionInput_Texture2D:
+			case FunctionInput_TextureCube:
+			case FunctionInput_StaticBool:
+			case FunctionInput_MaterialAttributes:
+			default:
+				check(false);
+				return 0;
+			}
+		}
+		else if (Expression->IsA<UMaterialExpressionIf>())
+		{
+			UMaterialExpressionIf* If = Cast<UMaterialExpressionIf>(Expression);
+			const uint32 ALessThanBCount = ComponentCount(If->ALessThanB.Expression, If->ALessThanB.OutputIndex);
+			check((!If->AEqualsB.Expression || (ALessThanBCount == ComponentCount(If->AEqualsB.Expression, If->AEqualsB.OutputIndex))) &&
+				(ALessThanBCount == ComponentCount(If->AGreaterThanB.Expression, If->AGreaterThanB.OutputIndex)));
+			return ALessThanBCount;
+		}
+		else if (Expression->IsA<UMaterialExpressionLinearInterpolate>())
+		{
+			UMaterialExpressionLinearInterpolate* LinearInterpolate =
+				Cast<UMaterialExpressionLinearInterpolate>(Expression);
+			const uint32 ACount =
+				LinearInterpolate->A.Expression ? ComponentCount(LinearInterpolate->A.Expression, LinearInterpolate->A.OutputIndex) : 1;
+			const uint32 BCount =
+				LinearInterpolate->B.Expression ? ComponentCount(LinearInterpolate->B.Expression, LinearInterpolate->B.OutputIndex) : 1;
+			check(ACount == BCount);
+			return ACount;
+		}
+		else if (Expression->IsA<UMaterialExpressionLogarithm2>())
+		{
+			UMaterialExpressionLogarithm2* Logarithm2 = Cast<UMaterialExpressionLogarithm2>(Expression);
+			return ComponentCount(Logarithm2->X.Expression, Logarithm2->X.OutputIndex);
+		}
+		else if (Expression->IsA<UMaterialExpressionMaterialFunctionCall>())
+		{
+			UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall =
+				Cast<UMaterialExpressionMaterialFunctionCall>(Expression);
+			check(MaterialFunctionCall->FunctionOutputs[OutputIndex].ExpressionOutput->A.Expression);
+			return ComponentCount(MaterialFunctionCall->FunctionOutputs[OutputIndex].ExpressionOutput->A.Expression,
+								   MaterialFunctionCall->FunctionOutputs[OutputIndex].ExpressionOutput->A.OutputIndex);
+		}
+		else if (Expression->IsA<UMaterialExpressionMax>())
+		{
+			UMaterialExpressionMax* Max = Cast<UMaterialExpressionMax>(Expression);
+			const uint32 ACount = Max->A.Expression ? ComponentCount(Max->A.Expression, Max->A.OutputIndex) : 1;
+			check(ACount == (Max->B.Expression ? ComponentCount(Max->B.Expression, Max->B.OutputIndex) : 1));
+			return ACount;
+		}
+		else if (Expression->IsA<UMaterialExpressionMin>())
+		{
+			UMaterialExpressionMin* Min = Cast<UMaterialExpressionMin>(Expression);
+			const uint32 ACount = Min->A.Expression ? ComponentCount(Min->A.Expression, Min->A.OutputIndex) : 1;
+			check(ACount == (Min->B.Expression ? ComponentCount(Min->B.Expression, Min->B.OutputIndex) : 1));
+			return ACount;
+		}
+		else if (Expression->IsA<UMaterialExpressionMultiply>())
+		{
+			UMaterialExpressionMultiply* Multiply = Cast<UMaterialExpressionMultiply>(Expression);
+			const uint32 ACount = Multiply->A.Expression ? ComponentCount(Multiply->A.Expression, Multiply->A.OutputIndex) : 1;
+			const uint32 BCount = Multiply->B.Expression ? ComponentCount(Multiply->B.Expression, Multiply->B.OutputIndex) : 1;
+			check((ACount == 1) || (BCount == 1) || (ACount == BCount));
+			return FMath::Max(ACount, BCount);
+		}
+		else if (Expression->IsA<UMaterialExpressionNormalize>())
+		{
+			UMaterialExpressionNormalize* Normalize = Cast<UMaterialExpressionNormalize>(Expression);
+			return ComponentCount(Normalize->VectorInput.Expression, Normalize->VectorInput.OutputIndex);
+		}
+		else if (Expression->IsA<UMaterialExpressionOneMinus>())
+		{
+			UMaterialExpressionOneMinus* OneMinus = Cast<UMaterialExpressionOneMinus>(Expression);
+			return ComponentCount(OneMinus->Input.Expression, OneMinus->Input.OutputIndex);
+		}
+		else if (Expression->IsA<UMaterialExpressionPower>())
+		{
+			UMaterialExpressionPower* Power = Cast<UMaterialExpressionPower>(Expression);
+			return ComponentCount(Power->Base.Expression, Power->Base.OutputIndex);
+		}
+		else if (Expression->IsA<UMaterialExpressionScalarParameter>())
+		{
+			return 1;
+		}
+		else if (Expression->IsA<UMaterialExpressionSine>())
+		{
+			// sine always returns a float... check that it also just gets one!
+			check(ComponentCount(
+				Cast<UMaterialExpressionSine>(Expression)->Input.Expression, OutputIndex) == 1);
+			return 1;
+		}
+		else if (Expression->IsA<UMaterialExpressionSphereMask>())
+		{
+			UMaterialExpressionSphereMask* SphereMask = Cast<UMaterialExpressionSphereMask>(Expression);
+			check(ComponentCount(SphereMask->A.Expression, SphereMask->A.OutputIndex) ==
+				ComponentCount(SphereMask->B.Expression, SphereMask->B.OutputIndex));
+			return 1;
+		}
+		else if (Expression->IsA<UMaterialExpressionSquareRoot>())
+		{
+			UMaterialExpressionSquareRoot* SquareRoot = Cast<UMaterialExpressionSquareRoot>(Expression);
+			return ComponentCount(SquareRoot->Input.Expression, SquareRoot->Input.OutputIndex);
+		}
+		else if (Expression->IsA<UMaterialExpressionStaticBool>())
+		{
+			return 1;
+		}
+		else if (Expression->IsA<UMaterialExpressionStaticSwitch>())
+		{
+			UMaterialExpressionStaticSwitch* StaticSwitch = Cast<UMaterialExpressionStaticSwitch>(Expression);
+			const uint32 ACount = ComponentCount(StaticSwitch->A.Expression, StaticSwitch->A.OutputIndex);
+			const uint32 BCount = ComponentCount(StaticSwitch->B.Expression, StaticSwitch->B.OutputIndex);
+			check(ACount == BCount);
+			return ACount;
+		}
+		else if (Expression->IsA<UMaterialExpressionSubtract>())
+		{
+			UMaterialExpressionSubtract* Subtract = Cast<UMaterialExpressionSubtract>(Expression);
+			const uint32 ACount = Subtract->A.Expression ? ComponentCount(Subtract->A.Expression, Subtract->A.OutputIndex) : 1;
+			const uint32 BCount = Subtract->B.Expression ? ComponentCount(Subtract->B.Expression, Subtract->B.OutputIndex) : 1;
+			check((ACount == 1) || (BCount == 1) || (ACount == BCount));
+			return FMath::Max(ACount, BCount);
+		}
+		else if (Expression->IsA<UMaterialExpressionTextureCoordinate>())
+		{
+			return 2;
+		}
+		else if (Expression->IsA<UMaterialExpressionTextureProperty>())
+		{
+			return 2;
+		}
+		else if (Expression->IsA<UMaterialExpressionTextureSample>())
+		{
+			return (OutputIndex == 0) ? 3 : 1;  // output 0 is color, the others are floats
+		}
+		else if (Expression->IsA<UMaterialExpressionTransform>())
+		{
+			UMaterialExpressionTransform* Transform = Cast<UMaterialExpressionTransform>(Expression);
+			return ComponentCount(Transform->Input.Expression, Transform->Input.OutputIndex);
+		}
+		else if (Expression->IsA<UMaterialExpressionTransformPosition>())
+		{
+			UMaterialExpressionTransformPosition* TransformPosition =
+				Cast<UMaterialExpressionTransformPosition>(Expression);
+			return ComponentCount(TransformPosition->Input.Expression, TransformPosition->Input.OutputIndex);
+		}
+		else if (Expression->IsA<UMaterialExpressionTwoSidedSign>())
+		{
+			return 1;
+		}
+		else if (Expression->IsA<UMaterialExpressionVectorParameter>())
+		{
+			return (OutputIndex == 0) ? 3 : 1;  // output 0 is color, the others are floats
+		}
+		else if (Expression->IsA<UMaterialExpressionWorldPosition>())
+		{
+			return 3;
+		}
+		else if (Expression->IsA<UMaterialExpressionFunctionOutput>())
+		{
+			UMaterialExpressionFunctionOutput* Output = Cast<UMaterialExpressionFunctionOutput>(Expression);
+			return ComponentCount(Output->A.Expression);
+		}
+		else if (Expression->IsA<UMaterialExpressionSaturate>())
+		{
+			UMaterialExpressionSaturate* Saturate = Cast<UMaterialExpressionSaturate>(Expression);
+			return ComponentCount(Saturate->Input.Expression);
+		}
+		else if (Expression->IsA<UMaterialExpressionDesaturation>())
+		{
+			UMaterialExpressionDesaturation* Desaturate = Cast<UMaterialExpressionDesaturation>(Expression);
+			return ComponentCount(Desaturate->Input.Expression);
+		}
+		ensure(false);
+		return 0;
+	}
+
 	uint32 ComponentCount(const FMaterialExpressionConnection& Input)
 	{
-		switch (Input.ConnectionType)
+		switch (Input.GetConnectionType())
 		{
 			case Expression:
-				if (!ensure(Input.ExpressionData.Expression))
+				if (!ensure(Input.HasExpression()))
 				{
 					return 0;
 				}
-				if (Input.ExpressionData.Expression->IsA<UMaterialExpressionAbs>())
-				{
-					UMaterialExpressionAbs* Abs = Cast<UMaterialExpressionAbs>(Input.ExpressionData.Expression);
-					return ComponentCount({Abs->Input.Expression, Abs->Input.OutputIndex});
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionAdd>())
-				{
-					UMaterialExpressionAdd* Add = Cast<UMaterialExpressionAdd>(Input.ExpressionData.Expression);
-					const uint32 ACount = Add->A.Expression ? ComponentCount({Add->A.Expression, Add->A.OutputIndex}) : 1;
-					const uint32 BCount = Add->B.Expression ? ComponentCount({Add->B.Expression, Add->B.OutputIndex}) : 1;
-					check((ACount == 1) || (BCount == 1) || (ACount == BCount));
-					return FMath::Max(ACount, BCount);
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionAppendVector>())
-				{
-					UMaterialExpressionAppendVector* AppendVector = Cast<UMaterialExpressionAppendVector>(Input.ExpressionData.Expression);
-					return ComponentCount({AppendVector->A.Expression, AppendVector->A.OutputIndex}) +
-					       ComponentCount({AppendVector->B.Expression, AppendVector->B.OutputIndex});
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionArccosine>())
-				{
-					// arccosine always returns a float... check that it also just gets one!
-					check(ComponentCount({Cast<UMaterialExpressionArccosine>(Input.ExpressionData.Expression)->Input.Expression,
-					                      Input.ExpressionData.Index}) == 1);
-					return 1;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionArctangent2>())
-				{
-					// arctangent2 always returns a float... check that it also just gets one!
-					UMaterialExpressionArctangent2* ArcTangent2 = Cast<UMaterialExpressionArctangent2>(Input.ExpressionData.Expression);
-					check(ComponentCount({ArcTangent2->Y.Expression, ArcTangent2->Y.OutputIndex}) == 1);
-					check(ComponentCount({ArcTangent2->X.Expression, ArcTangent2->X.OutputIndex}) == 1);
-					return 1;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionBlackBody>())
-				{
-					// BlackBody always returns a color, and digests a float
-					UMaterialExpressionBlackBody* BlackBody = Cast<UMaterialExpressionBlackBody>(Input.ExpressionData.Expression);
-					check(ComponentCount({BlackBody->Temp.Expression, BlackBody->Temp.OutputIndex}) == 1);
-					return 3;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionBreakMaterialAttributes>())
-				{
-					check(Input.ExpressionData.Index < Input.ExpressionData.Expression->Outputs.Num());
-					FExpressionOutput const& Output = Input.ExpressionData.Expression->Outputs[Input.ExpressionData.Index];
-					return Output.MaskR + Output.MaskG + Output.MaskB + Output.MaskA;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionCameraVectorWS>())
-				{
-					return 3;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionVertexNormalWS>())
-				{
-					return 3;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionPixelNormalWS>())
-				{
-					return 3;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionClamp>())
-				{
-					UMaterialExpressionClamp* Clamp = Cast<UMaterialExpressionClamp>(Input.ExpressionData.Expression);
-					return ComponentCount({Clamp->Input.Expression, Clamp->Input.OutputIndex});
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionComponentMask>())
-				{
-					UMaterialExpressionComponentMask* ComponentMask = Cast<UMaterialExpressionComponentMask>(Input.ExpressionData.Expression);
-					return ComponentMask->R + ComponentMask->G + ComponentMask->B + ComponentMask->A;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionConstant>())
-				{
-					return 1;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionConstant2Vector>())
-				{
-					return 2;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionConstant3Vector>())
-				{
-					return 3;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionCosine>())
-				{
-					// cosine always returns a float... check that it also just gets one!
-					check(ComponentCount(
-					          {Cast<UMaterialExpressionCosine>(Input.ExpressionData.Expression)->Input.Expression, Input.ExpressionData.Index}) == 1);
-					return 1;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionCrossProduct>())
-				{
-					// cross product always returns a float3... check that it also just gets such!
-					UMaterialExpressionCrossProduct* CrossProduct = Cast<UMaterialExpressionCrossProduct>(Input.ExpressionData.Expression);
-					check(ComponentCount({CrossProduct->A.Expression, CrossProduct->A.OutputIndex}) == 3);
-					check(ComponentCount({CrossProduct->B.Expression, CrossProduct->B.OutputIndex}) == 3);
-					return 3;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionCustom>())
-				{
-					UMaterialExpressionCustom* Custom = Cast<UMaterialExpressionCustom>(Input.ExpressionData.Expression);
-					switch (Custom->OutputType)
-					{
-						case CMOT_Float1:
-							return 1;
-						case CMOT_Float2:
-							return 2;
-						case CMOT_Float3:
-							return 3;
-						case CMOT_Float4:
-							return 4;
-						default:
-							check(false);
-							return 0;
-					}
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionDistance>())
-				{
-					UMaterialExpressionDistance* Distance = Cast<UMaterialExpressionDistance>(Input.ExpressionData.Expression);
-					const uint32 ACount = ComponentCount({Distance->A.Expression, Distance->A.OutputIndex});
-					const uint32 BCount = ComponentCount({Distance->B.Expression, Distance->B.OutputIndex});
-					check((1 == ACount) || (1 == BCount) || (ACount == BCount));
-					return 1;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionDivide>())
-				{
-					UMaterialExpressionDivide* Divide = Cast<UMaterialExpressionDivide>(Input.ExpressionData.Expression);
-					const uint32 ACount = Divide->A.Expression ? ComponentCount({Divide->A.Expression, Divide->A.OutputIndex}) : 1;
-					const uint32 BCount = Divide->B.Expression ? ComponentCount({Divide->B.Expression, Divide->B.OutputIndex}) : 1;
-					check((1 == ACount) || (1 == BCount) || (ACount == BCount));
-					return FMath::Max(ACount, BCount);
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionDotProduct>())
-				{
-					return 1;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionFloor>())
-				{
-					UMaterialExpressionFloor* Floor = Cast<UMaterialExpressionFloor>(Input.ExpressionData.Expression);
-					return ComponentCount({Floor->Input.Expression, Floor->Input.OutputIndex});
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionFmod>())
-				{
-					UMaterialExpressionFmod* Fmod = Cast<UMaterialExpressionFmod>(Input.ExpressionData.Expression);
-					const uint32 ACount = ComponentCount({Fmod->A.Expression, Fmod->A.OutputIndex});
-					check(ACount == ComponentCount({Fmod->B.Expression, Fmod->B.OutputIndex}));
-					return ACount;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionFrac>())
-				{
-					UMaterialExpressionFrac* Frac = Cast<UMaterialExpressionFrac>(Input.ExpressionData.Expression);
-					return ComponentCount({Frac->Input.Expression, Frac->Input.OutputIndex});
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionFresnel>())
-				{
-					return 1;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionFunctionInput>())
-				{
-					switch (Cast<UMaterialExpressionFunctionInput>(Input.ExpressionData.Expression)->InputType)
-					{
-						case FunctionInput_Scalar:
-							return 1;
-						case FunctionInput_Vector2:
-							return 2;
-						case FunctionInput_Vector3:
-							return 3;
-						case FunctionInput_Vector4:
-							return 4;
-						case FunctionInput_Texture2D:
-						case FunctionInput_TextureCube:
-						case FunctionInput_StaticBool:
-						case FunctionInput_MaterialAttributes:
-						default:
-							check(false);
-							return 0;
-					}
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionIf>())
-				{
-					UMaterialExpressionIf* If = Cast<UMaterialExpressionIf>(Input.ExpressionData.Expression);
-					const uint32 ALessThanBCount = ComponentCount({If->ALessThanB.Expression, If->ALessThanB.OutputIndex});
-					check((!If->AEqualsB.Expression || (ALessThanBCount == ComponentCount({If->AEqualsB.Expression, If->AEqualsB.OutputIndex}))) &&
-					      (ALessThanBCount == ComponentCount({If->AGreaterThanB.Expression, If->AGreaterThanB.OutputIndex})));
-					return ALessThanBCount;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionLinearInterpolate>())
-				{
-					UMaterialExpressionLinearInterpolate* LinearInterpolate =
-					    Cast<UMaterialExpressionLinearInterpolate>(Input.ExpressionData.Expression);
-					const uint32 ACount =
-					    LinearInterpolate->A.Expression ? ComponentCount({LinearInterpolate->A.Expression, LinearInterpolate->A.OutputIndex}) : 1;
-					const uint32 BCount =
-						LinearInterpolate->B.Expression ? ComponentCount({LinearInterpolate->B.Expression, LinearInterpolate->B.OutputIndex}) : 1;
-					check(ACount == BCount);
-					return ACount;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionLogarithm2>())
-				{
-					UMaterialExpressionLogarithm2* Logarithm2 = Cast<UMaterialExpressionLogarithm2>(Input.ExpressionData.Expression);
-					return ComponentCount({Logarithm2->X.Expression, Logarithm2->X.OutputIndex});
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionMaterialFunctionCall>())
-				{
-					UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall =
-					    Cast<UMaterialExpressionMaterialFunctionCall>(Input.ExpressionData.Expression);
-					check(MaterialFunctionCall->FunctionOutputs[Input.ExpressionData.Index].ExpressionOutput->A.Expression);
-					return ComponentCount({MaterialFunctionCall->FunctionOutputs[Input.ExpressionData.Index].ExpressionOutput->A.Expression,
-					                       MaterialFunctionCall->FunctionOutputs[Input.ExpressionData.Index].ExpressionOutput->A.OutputIndex});
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionMax>())
-				{
-					UMaterialExpressionMax* Max = Cast<UMaterialExpressionMax>(Input.ExpressionData.Expression);
-					const uint32 ACount = Max->A.Expression ? ComponentCount({Max->A.Expression, Max->A.OutputIndex}) : 1;
-					check(ACount == (Max->B.Expression ? ComponentCount({Max->B.Expression, Max->B.OutputIndex}) : 1));
-					return ACount;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionMin>())
-				{
-					UMaterialExpressionMin* Min = Cast<UMaterialExpressionMin>(Input.ExpressionData.Expression);
-					const uint32 ACount = Min->A.Expression ? ComponentCount({Min->A.Expression, Min->A.OutputIndex}) : 1;
-					check(ACount == (Min->B.Expression ? ComponentCount({Min->B.Expression, Min->B.OutputIndex}) : 1));
-					return ACount;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionMultiply>())
-				{
-					UMaterialExpressionMultiply* Multiply = Cast<UMaterialExpressionMultiply>(Input.ExpressionData.Expression);
-					const uint32 ACount = Multiply->A.Expression ? ComponentCount({Multiply->A.Expression, Multiply->A.OutputIndex}) : 1;
-					const uint32 BCount = Multiply->B.Expression ? ComponentCount({Multiply->B.Expression, Multiply->B.OutputIndex}) : 1;
-					check((ACount == 1) || (BCount == 1) || (ACount == BCount));
-					return FMath::Max(ACount, BCount);
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionNormalize>())
-				{
-					UMaterialExpressionNormalize* Normalize = Cast<UMaterialExpressionNormalize>(Input.ExpressionData.Expression);
-					return ComponentCount({Normalize->VectorInput.Expression, Normalize->VectorInput.OutputIndex});
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionOneMinus>())
-				{
-					UMaterialExpressionOneMinus* OneMinus = Cast<UMaterialExpressionOneMinus>(Input.ExpressionData.Expression);
-					return ComponentCount({OneMinus->Input.Expression, OneMinus->Input.OutputIndex});
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionPower>())
-				{
-					UMaterialExpressionPower* Power = Cast<UMaterialExpressionPower>(Input.ExpressionData.Expression);
-					return ComponentCount({Power->Base.Expression, Power->Base.OutputIndex});
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionScalarParameter>())
-				{
-					return 1;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionSine>())
-				{
-					// sine always returns a float... check that it also just gets one!
-					check(ComponentCount(
-					          {Cast<UMaterialExpressionSine>(Input.ExpressionData.Expression)->Input.Expression, Input.ExpressionData.Index}) == 1);
-					return 1;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionSphereMask>())
-				{
-					UMaterialExpressionSphereMask* SphereMask = Cast<UMaterialExpressionSphereMask>(Input.ExpressionData.Expression);
-					check(ComponentCount({SphereMask->A.Expression, SphereMask->A.OutputIndex}) ==
-					      ComponentCount({SphereMask->B.Expression, SphereMask->B.OutputIndex}));
-					return 1;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionSquareRoot>())
-				{
-					UMaterialExpressionSquareRoot* SquareRoot = Cast<UMaterialExpressionSquareRoot>(Input.ExpressionData.Expression);
-					return ComponentCount({SquareRoot->Input.Expression, SquareRoot->Input.OutputIndex});
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionStaticBool>())
-				{
-					return 1;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionStaticSwitch>())
-				{
-					UMaterialExpressionStaticSwitch* StaticSwitch = Cast<UMaterialExpressionStaticSwitch>(Input.ExpressionData.Expression);
-					const uint32 ACount = ComponentCount({StaticSwitch->A.Expression, StaticSwitch->A.OutputIndex});
-					const uint32 BCount = ComponentCount({StaticSwitch->B.Expression, StaticSwitch->B.OutputIndex});
-					check(ACount == BCount);
-					return ACount;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionSubtract>())
-				{
-					UMaterialExpressionSubtract* Subtract = Cast<UMaterialExpressionSubtract>(Input.ExpressionData.Expression);
-					const uint32 ACount = Subtract->A.Expression ? ComponentCount({Subtract->A.Expression, Subtract->A.OutputIndex}) : 1;
-					const uint32 BCount = Subtract->B.Expression ? ComponentCount({Subtract->B.Expression, Subtract->B.OutputIndex}) : 1;
-					check((ACount == 1) || (BCount == 1) || (ACount == BCount));
-					return FMath::Max(ACount, BCount);
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionTextureCoordinate>())
-				{
-					return 2;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionTextureProperty>())
-				{
-					return 2;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionTextureSample>())
-				{
-					return (Input.ExpressionData.Index == 0) ? 3 : 1;  // output 0 is color, the others are floats
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionTransform>())
-				{
-					UMaterialExpressionTransform* Transform = Cast<UMaterialExpressionTransform>(Input.ExpressionData.Expression);
-					return ComponentCount({Transform->Input.Expression, Transform->Input.OutputIndex});
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionTransformPosition>())
-				{
-					UMaterialExpressionTransformPosition* TransformPosition =
-					    Cast<UMaterialExpressionTransformPosition>(Input.ExpressionData.Expression);
-					return ComponentCount({TransformPosition->Input.Expression, TransformPosition->Input.OutputIndex});
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionTwoSidedSign>())
-				{
-					return 1;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionVectorParameter>())
-				{
-					return (Input.ExpressionData.Index == 0) ? 3 : 1;  // output 0 is color, the others are floats
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionWorldPosition>())
-				{
-					return 3;
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionFunctionOutput>())
-				{
-					UMaterialExpressionFunctionOutput* Output = Cast<UMaterialExpressionFunctionOutput>(Input.ExpressionData.Expression);
-					return ComponentCount(Output->A.Expression);
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionSaturate>())
-				{
-					UMaterialExpressionSaturate* Saturate = Cast<UMaterialExpressionSaturate>(Input.ExpressionData.Expression);
-					return ComponentCount(Saturate->Input.Expression);
-				}
-				else if (Input.ExpressionData.Expression->IsA<UMaterialExpressionDesaturation>())
-				{
-					UMaterialExpressionDesaturation* Desaturate = Cast<UMaterialExpressionDesaturation>(Input.ExpressionData.Expression);
-					return ComponentCount(Desaturate->Input.Expression);
-				}
-				ensure(false);
-				return 0;
+				return ComponentCount(Input.GetExpressionUnused(), Input.GetExpressionOutputIndex());
+
 			case Boolean:
 			case Float:
 				return 1;
@@ -1091,7 +1074,7 @@ namespace Generator
 	{
 		ensure(IsScalar(A) && IsScalar(B) &&
 		      (((ComponentCount(Less) == ComponentCount(Greater)) &&
-		        (!Equal.ExpressionData.Expression || (ComponentCount(Less) == ComponentCount(Equal))))));
+		        (!Equal.GetExpressionUnused() || (ComponentCount(Less) == ComponentCount(Equal))))));
 		UMaterialExpressionIf* Expression = NewMaterialExpression<UMaterialExpressionIf>(Parent);
 		CheckedConnect(Parent, A, Expression->A);
 		CheckedConnect(Parent, B, Expression->B, Expression->ConstB);
@@ -1105,13 +1088,13 @@ namespace Generator
 	                                                    const FMaterialExpressionConnection& B, const FMaterialExpressionConnection& Yes,
 	                                                    const FMaterialExpressionConnection& No)
 	{
-		if (B.ConnectionType == EConnectionType::Float3)
+		if (B.GetConnectionType() == EConnectionType::Float3)
 		{
 			return NewMaterialExpressionIfEqual(
-			    Parent, NewMaterialExpressionComponentMask(Parent, A, 1), B.Values[0],
+			    Parent, NewMaterialExpressionComponentMask(Parent, A, 1), B.GetVectorValue()[0],
 			    NewMaterialExpressionIfEqual(
-			        Parent, NewMaterialExpressionComponentMask(Parent, A, 2), B.Values[1],
-			        NewMaterialExpressionIfEqual(Parent, NewMaterialExpressionComponentMask(Parent, A, 4), B.Values[2], Yes, No), No),
+			        Parent, NewMaterialExpressionComponentMask(Parent, A, 2), B.GetVectorValue()[1],
+			        NewMaterialExpressionIfEqual(Parent, NewMaterialExpressionComponentMask(Parent, A, 4), B.GetVectorValue()[2], Yes, No), No),
 			    No);
 		}
 		else
@@ -1235,7 +1218,7 @@ namespace Generator
 		{
 			for (int32 i = 0; i < Inputs.Num(); i++)
 			{
-				if ((Inputs[i].ConnectionType != EConnectionType::Expression) || !Inputs[i].ExpressionData.bIsDefault)
+				if ((Inputs[i].GetConnectionType() != EConnectionType::Expression) || !Inputs[i].IsExpressionDefault())
 				{
 					CheckedConnect(Parent, Inputs[i], Expression->FunctionInputs[i].Input);
 				}
@@ -1503,14 +1486,14 @@ namespace Generator
 		CheckedConnect(Parent, B, Expression->B);
 
 		// needs some special coding, as DefaultValue is not a float!
-		if ((Value.ConnectionType == EConnectionType::Expression) && Value.ExpressionData.Expression)
+		if (Value.HasExpression())
 		{
-			Expression->Value.Connect(Value.ExpressionData.Index, Value.ExpressionData.Expression);
+			Expression->Value.Connect(Value.GetExpressionOutputIndex(), Value.GetExpressionAndUse());
 		}
 		else
 		{
-			check(Value.ConnectionType == EConnectionType::Float);
-			Expression->DefaultValue = !!Value.Values[0];
+			check(Value.GetConnectionType() == EConnectionType::Float);
+			Expression->DefaultValue = !!Value.GetVectorValue()[0];
 		}
 		return Expression;
 	}
@@ -1606,7 +1589,7 @@ namespace Generator
 	UMaterialExpressionTextureSample* NewMaterialExpressionTextureSample(UObject* Parent, const FMaterialExpressionConnection& TextureObject,
 	                                                                     const FMaterialExpressionConnection& Coordinates)
 	{
-		check(IsTexture(TextureObject) && ((!Coordinates.ExpressionData.Expression || ComponentCount(Coordinates) < 3)));
+		check(IsTexture(TextureObject) && ((!Coordinates.GetExpressionUnused() || ComponentCount(Coordinates) < 3)));
 		UMaterialExpressionTextureSample* Expression = NewMaterialExpression<UMaterialExpressionTextureSample>(Parent);
 		CheckedConnect(Parent, TextureObject, Expression->TextureObject, &Expression->Texture);
 		CheckedConnect(Parent, Coordinates, Expression->Coordinates);
