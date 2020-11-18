@@ -29,17 +29,15 @@
 void FEnvQueryDebugData::Store(const FEnvQueryInstance& QueryInstance, const float ExecutionTime, const bool bStepDone)
 {
 #if USE_EQS_DEBUGGER
-	const int32 NumGenerators = OptionData[QueryInstance.OptionIndex].NumGenerators;
-	const int32 StepIdx = (QueryInstance.CurrentTest + NumGenerators);
+	const int32 GeneratorIdx = (CurrentOptionGeneratorIdx != INDEX_NONE ? CurrentOptionGeneratorIdx : OptionData[QueryInstance.OptionIndex].NumGenerators);
+	const int32 StepIdx = QueryInstance.CurrentTest + GeneratorIdx;
 	OptionStats[QueryInstance.OptionIndex].StepData[StepIdx].ExecutionTime += ExecutionTime;
-
+	OptionStats[QueryInstance.OptionIndex].StepData[StepIdx].NumProcessedItems = QueryInstance.NumProcessedItems;
 	if (bStepDone)
 	{
 		DebugItemDetails = QueryInstance.ItemDetails;
 		DebugItems = QueryInstance.Items;
 		RawData = QueryInstance.RawData;
-
-		OptionStats[QueryInstance.OptionIndex].StepData[StepIdx].NumProcessedItems = QueryInstance.NumProcessedItems;
 	}
 #endif // USE_EQS_DEBUGGER
 }
@@ -355,7 +353,7 @@ void FEnvQueryInstance::ExecuteOneStep(float TimeLimit)
 			if (GeneratorList.Num())
 			{
 				bRunGenerator = false;
-
+				DebugData.CurrentOptionGeneratorIdx = 0;
 				for (int32 GeneratorIdx = 0; GeneratorIdx < GeneratorList.Num() - 1; GeneratorIdx++)
 				{
 					{
@@ -365,11 +363,12 @@ void FEnvQueryInstance::ExecuteOneStep(float TimeLimit)
 
 					const double GenTime = FPlatformTime::Seconds();
 					const float StepExecutionTime = GenTime - StepStartTime;
+					StepStartTime += StepExecutionTime;
 					TotalExecutionTime += StepExecutionTime;
 					StartTime = GenTime;
 					NumProcessedItems = Items.Num() - LastValidItems;
 					LastValidItems = Items.Num();
-
+					DebugData.CurrentOptionGeneratorIdx++;
 					DebugData.Store(*this, StepExecutionTime, false);
 					NumProcessedItems = 0;
 				}
@@ -378,6 +377,7 @@ void FEnvQueryInstance::ExecuteOneStep(float TimeLimit)
 					FScopeCycleCounterUObject GeneratorScope(GeneratorList.Last());
 					GeneratorList.Last()->GenerateItems(*this);
 				}
+				DebugData.CurrentOptionGeneratorIdx = INDEX_NONE;
 			}
 		}
 #endif // USE_EQS_DEBUGGER
