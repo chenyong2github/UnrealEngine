@@ -208,13 +208,13 @@ void FMeshNormals::QuickComputeVertexNormalsForTriangles(FDynamicMesh3& Mesh, co
 
 
 
-bool FMeshNormals::QuickRecomputeOverlayNormals(FDynamicMesh3& Mesh, bool bInvert)
+bool FMeshNormals::QuickRecomputeOverlayNormals(FDynamicMesh3& Mesh, bool bInvert, bool bWeightByArea, bool bWeightByAngle)
 {
 	if (Mesh.HasAttributes() && Mesh.Attributes()->GetNormalLayer(0) != nullptr)
 	{
 		FDynamicMeshNormalOverlay* NormalOverlay = Mesh.Attributes()->GetNormalLayer(0);
 		FMeshNormals Normals(&Mesh);
-		Normals.RecomputeOverlayNormals(NormalOverlay);
+		Normals.RecomputeOverlayNormals(NormalOverlay, bWeightByArea, bWeightByAngle);
 		Normals.CopyToOverlay(NormalOverlay, bInvert);
 		return true;
 	}
@@ -327,6 +327,28 @@ void FMeshNormals::InitializeOverlayToPerTriangleNormals(FDynamicMeshNormalOverl
 		int32 e2 = NormalOverlay->AppendElement((FVector3f)Normal);
 		NormalOverlay->SetTriangle(tid, FIndex3i(e0, e1, e2));
 	}
+}
+
+
+void FMeshNormals::InitializeOverlayTopologyFromOpeningAngle(const FDynamicMesh3* Mesh, FDynamicMeshNormalOverlay* NormalOverlay, 
+	double AngleThresholdDeg)
+{
+	double NormalDotProdThreshold = FMathd::Cos(AngleThresholdDeg * FMathd::DegToRad);
+
+	FMeshNormals FaceNormals(Mesh);
+	FaceNormals.ComputeTriangleNormals();
+	const TArray<FVector3d>& Normals = FaceNormals.GetNormals();
+	NormalOverlay->CreateFromPredicate([&Normals, &NormalDotProdThreshold](int VID, int TA, int TB) {
+		return Normals[TA].Dot(Normals[TB]) > NormalDotProdThreshold;
+	}, 0);
+}
+
+void FMeshNormals::InitializeOverlayTopologyFromFaceGroups(const FDynamicMesh3* Mesh, FDynamicMeshNormalOverlay* NormalOverlay)
+{
+	ensure(Mesh->HasTriangleGroups());
+	NormalOverlay->CreateFromPredicate([Mesh](int VID, int TA, int TB) {
+		return Mesh->GetTriangleGroup(TA) == Mesh->GetTriangleGroup(TB);
+	}, 0);
 }
 
 

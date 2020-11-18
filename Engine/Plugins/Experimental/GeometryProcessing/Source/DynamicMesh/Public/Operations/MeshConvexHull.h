@@ -16,6 +16,9 @@ public:
 	/** Input Mesh */
 	const FDynamicMesh3* Mesh;
 
+	/** If set, hull will be computed on subset of vertices */
+	TArray<int32> VertexSet;
+
 	/** If true, output convex hull is simplified down to MaxTargetFaceCount */
 	bool bPostSimplify = false;
 	/** Target triangle count of the output Convex Hull */
@@ -37,4 +40,9 @@ public:
 	 */
 	bool Compute();
 
+
+
+protected:
+	bool Compute_FullMesh();
+	bool Compute_VertexSubset();
 };

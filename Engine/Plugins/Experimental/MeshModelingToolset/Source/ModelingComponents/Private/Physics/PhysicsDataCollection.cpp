@@ -15,6 +15,22 @@ void FPhysicsDataCollection::InitializeFromComponent(const UActorComponent* Comp
 	const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 	
 	SourceComponent = StaticMeshComponent;
+	SourceStaticMesh = StaticMesh;
+	BodySetup = StaticMesh->GetBodySetup();
+
+	ExternalScale3D = FVector(1.f, 1.f, 1.f);
+
+	if (bInitializeAggGeom)
+	{
+		AggGeom = BodySetup->AggGeom;
+		// transfer AggGeom to FSimpleShapeSet3d...
+	}
+}
+
+
+void FPhysicsDataCollection::InitializeFromStaticMesh(const UStaticMesh* StaticMesh, bool bInitializeAggGeom)
+{
+	SourceStaticMesh = StaticMesh;
 	BodySetup = StaticMesh->GetBodySetup();
 
 	ExternalScale3D = FVector(1.f, 1.f, 1.f);
@@ -30,6 +46,7 @@ void FPhysicsDataCollection::InitializeFromComponent(const UActorComponent* Comp
 void FPhysicsDataCollection::InitializeFromExisting(const FPhysicsDataCollection& Other)
 {
 	SourceComponent = Other.SourceComponent;
+	SourceStaticMesh = Other.SourceStaticMesh;
 	BodySetup = Other.BodySetup;
 
 	ExternalScale3D = Other.ExternalScale3D;

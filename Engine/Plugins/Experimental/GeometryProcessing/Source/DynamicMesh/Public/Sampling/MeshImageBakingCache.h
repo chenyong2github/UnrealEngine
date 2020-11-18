@@ -19,10 +19,11 @@ public:
 
 	void SetDimensions(FImageDimensions Dimensions);
 	void SetUVLayer(int32 UVLayer);
-
+	void SetThickness(double Thickness);
 
 	FImageDimensions GetDimensions() const { return Dimensions; }
 	int32 GetUVLayer() const { return UVLayer; }
+	double GetThickness() const { return Thickness; }
 
 	const FDynamicMesh3* GetBakeTargetMesh() const { return TargetMesh; }
 	const FDynamicMeshUVOverlay* GetBakeTargetUVs() const;
@@ -61,7 +62,7 @@ protected:
 
 	FImageDimensions Dimensions;
 	int32 UVLayer;
-
+	double Thickness;
 
 	TDenseGrid2<FCorrespondenceSample> SampleMap;
 	bool bSamplesValid = false;

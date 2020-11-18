@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "MathUtil.h"
 #include "VectorTypes.h"
+#include "DenseGrid2.h"
 
 
 
@@ -22,8 +23,7 @@ template<typename RealType, typename ValueType>
 class TSampledScalarField2
 {
 public:
-	FVector2i GridDimensions;
-	TArray<ValueType> GridValues;
+	TDenseGrid2<ValueType> GridValues;
 
 	FVector2<RealType> GridOrigin;
 	FVector2<RealType> CellDimensions;
@@ -33,19 +33,40 @@ public:
 	 */
 	TSampledScalarField2()
 	{
-		GridDimensions = FVector2i(2, 2);
-		GridValues.SetNum(4);
+		GridValues.Resize(2, 2);
 		GridOrigin = FVector2<RealType>::Zero();
 		CellDimensions = FVector2<RealType>::One();
+	}
+
+	void CopyConfiguration(const TSampledScalarField2<RealType,ValueType>& OtherField)
+	{
+		GridValues.Resize(OtherField.GridValues.Width(), OtherField.GridValues.Height());
+		GridOrigin = OtherField.GridOrigin;
+		CellDimensions = OtherField.CellDimensions;
 	}
 
 	/**
 	 * Resize the grid to given Width/Height, and initialize w/ given InitValue
 	 */
-	void Resize(int Width, int Height, const ValueType& InitValue)
+	void Resize(int64 Width, int64 Height, const ValueType& InitValue)
 	{
-		GridDimensions = FVector2i(Width, Height);
-		GridValues.Init(InitValue, Width*Height);
+		GridValues.Resize(Width, Height);
+		GridValues.AssignAll(InitValue);
+	}
+
+	int32 Width() const
+	{
+		return (int32)GridValues.Width();
+	}
+
+	int32 Height() const
+	{
+		return (int32)GridValues.Height();
+	}
+
+	int64 Num() const
+	{
+		return GridValues.Size();
 	}
 
 	/**
@@ -77,16 +98,17 @@ public:
 			((Position.Y - GridOrigin.Y) / CellDimensions.Y));
 
 		// compute integer grid coordinates
-		int x0 = (int)GridPoint.X;
-		int x1 = x0 + 1;
-		int y0 = (int)GridPoint.Y;
-		int y1 = y0 + 1;
+		int64 x0 = (int64)GridPoint.X;
+		int64 x1 = x0 + 1;
+		int64 y0 = (int64)GridPoint.Y;
+		int64 y1 = y0 + 1;
 
 		// clamp to valid range
-		x0 = FMath::Clamp(x0, 0, GridDimensions.X - 1);
-		x1 = FMath::Clamp(x1, 0, GridDimensions.X - 1);
-		y0 = FMath::Clamp(y0, 0, GridDimensions.Y - 1);
-		y1 = FMath::Clamp(y1, 0, GridDimensions.Y - 1);
+		int64 Width = GridValues.Width(), Height = GridValues.Height();
+		x0 = FMath::Clamp(x0, (int64)0, Width - 1);
+		x1 = FMath::Clamp(x1, (int64)0, Width - 1);
+		y0 = FMath::Clamp(y0, (int64)0, Height - 1);
+		y1 = FMath::Clamp(y1, (int64)0, Height - 1);
 
 		// convert real-valued grid coords to [0,1] range
 		RealType fAx = FMath::Clamp(GridPoint.X - (RealType)x0, (RealType)0, (RealType)1);
@@ -95,16 +117,69 @@ public:
 		RealType OneMinusfAy = (RealType)1 - fAy;
 
 		// fV## is grid cell corner index
-		const ValueType& fV00 = GridValues[y0*GridDimensions.X + x0];
-		const ValueType& fV01 = GridValues[y0*GridDimensions.X + x1];
-		const ValueType& fV10 = GridValues[y1*GridDimensions.X + x0];
-		const ValueType& fV11 = GridValues[y1*GridDimensions.X + x1];
+		const ValueType& fV00 = GridValues[y0*Width + x0];
+		const ValueType& fV10 = GridValues[y0*Width + x1];
+		const ValueType& fV01 = GridValues[y1*Width + x0];
+		const ValueType& fV11 = GridValues[y1*Width + x1];
 
 		return
 			(OneMinusfAx * OneMinusfAy) * fV00 +
 			(OneMinusfAx * fAy)         * fV01 +
 			(fAx         * OneMinusfAy) * fV10 +
 			(fAx         * fAy)         * fV11;
+	}
+
+
+
+
+	/**
+	 * Sample scalar field gradient with bilinear interpolation at given Position
+	 * @param Position sample point relative to grid origin/dimensions
+	 * @return interpolated value at this position
+	 */
+	void BilinearSampleGradientClamped(const FVector2<RealType>& Position, ValueType& GradXOut, ValueType& GradYOut) const
+	{
+		// transform Position into grid coordinates
+		FVector2<RealType> GridPoint(
+			((Position.X - GridOrigin.X) / CellDimensions.X),
+			((Position.Y - GridOrigin.Y) / CellDimensions.Y));
+
+		// compute integer grid coordinates
+		int64 x0 = (int64)GridPoint.X;
+		int64 x1 = x0 + 1;
+		int64 y0 = (int64)GridPoint.Y;
+		int64 y1 = y0 + 1;
+
+		// clamp to valid range
+		int64 Width = GridValues.Width(), Height = GridValues.Height();
+		x0 = FMath::Clamp(x0, (int64)0, Width - 1);
+		x1 = FMath::Clamp(x1, (int64)0, Width - 1);
+		y0 = FMath::Clamp(y0, (int64)0, Height - 1);
+		y1 = FMath::Clamp(y1, (int64)0, Height - 1);
+
+		// convert real-valued grid coords to [0,1] range
+		RealType fAx = FMath::Clamp(GridPoint.X - (RealType)x0, (RealType)0, (RealType)1);
+		RealType fAy = FMath::Clamp(GridPoint.Y - (RealType)y0, (RealType)0, (RealType)1);
+		RealType OneMinusfAx = (RealType)1 - fAx;
+		RealType OneMinusfAy = (RealType)1 - fAy;
+
+		// fV## is grid cell corner index
+		const ValueType& fV00 = GridValues[y0 * Width + x0];
+		const ValueType& fV10 = GridValues[y0 * Width + x1];
+		const ValueType& fV01 = GridValues[y1 * Width + x0];
+		const ValueType& fV11 = GridValues[y1 * Width + x1];
+
+		GradXOut =
+			-fV00 * (OneMinusfAy) +
+			-fV01 * (fAy) +
+			fV10 * (OneMinusfAy) +
+			fV11 * (fAy);
+
+		GradYOut =
+			-fV00 * (OneMinusfAx) +
+			fV01 * (OneMinusfAx)  +
+			-fV10 * (fAx) +
+			fV11 * (fAx);
 	}
 
 };

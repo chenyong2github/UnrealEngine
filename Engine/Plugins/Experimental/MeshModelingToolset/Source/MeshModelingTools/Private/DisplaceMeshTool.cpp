@@ -585,15 +585,15 @@ namespace {
 		}
 		else
 		{
-			int TextureWidth = Parameters.DisplacementMap->GetSizeX();
-			int TextureHeight = Parameters.DisplacementMap->GetSizeY();
+			int64 TextureWidth = Parameters.DisplacementMap->GetSizeX();
+			int64 TextureHeight = Parameters.DisplacementMap->GetSizeY();
 			Parameters.DisplaceField.Resize(TextureWidth, TextureHeight, 0.0f);
 			Parameters.DisplaceField.SetCellSize(1.0f / (float)TextureWidth);
 
 			const FColor* FormattedData = TextureAccess.GetData();
-			for (int y = 0; y < TextureHeight; ++y)
+			for (int64 y = 0; y < TextureHeight; ++y)
 			{
-				for (int x = 0; x < TextureWidth; ++x)
+				for (int64 x = 0; x < TextureWidth; ++x)
 				{
 					FColor PixelColor = FormattedData[y * TextureWidth + x];
 					float Value = PixelColor.R / 255.0;

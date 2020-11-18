@@ -153,7 +153,7 @@ void UBakeMeshAttributeMapsTool::Setup()
 	Settings->WatchProperty(Settings->Resolution, [this](EBakeTextureResolution) { bResultValid = false; });
 	Settings->WatchProperty(Settings->UVLayer, [this](FString) { bResultValid = false; });
 	Settings->WatchProperty(Settings->bUseWorldSpace, [this](bool) { bDetailMeshValid = false; bResultValid = false; });
-
+	Settings->WatchProperty(Settings->Thickness, [this](float) { bResultValid = false; });
 
 	NormalMapProps = NewObject<UBakedNormalMapToolProperties>(this);
 	NormalMapProps->RestoreProperties(this);
@@ -353,6 +353,7 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 	{
 		UpdateDetailMesh();
 		bDetailMeshValid = true;
+		CachedBakeCacheSettings = FBakeCacheSettings();
 	}
 
 	if (bResultValid)
@@ -370,6 +371,7 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 	BakeCacheSettings.Dimensions = Dimensions;
 	BakeCacheSettings.UVLayer = FCString::Atoi(*Settings->UVLayer);
 	BakeCacheSettings.DetailTimestamp = this->DetailMeshTimestamp;
+	BakeCacheSettings.Thickness = Settings->Thickness;
 
 	// rebuild bake cache if we need to
 	if (!(CachedBakeCacheSettings == BakeCacheSettings))
@@ -379,7 +381,15 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 		BakeCache->SetBakeTargetMesh(&BaseMesh);
 		BakeCache->SetDimensions(Dimensions);
 		BakeCache->SetUVLayer(BakeCacheSettings.UVLayer);
+		BakeCache->SetThickness(BakeCacheSettings.Thickness);
 		BakeCache->ValidateCache();
+		CachedBakeCacheSettings = BakeCacheSettings;
+
+		CachedNormalMapSettings = FNormalMapSettings();
+		CachedOcclusionMapSettings = FOcclusionMapSettings();
+		CachedCurvatureMapSettings = FCurvatureMapSettings();
+		CachedMeshPropertyMapSettings = FMeshPropertyMapSettings();
+		CachedTexture2DImageSettings = FTexture2DImageSettings();
 	}
 
 	// rebuild select map type

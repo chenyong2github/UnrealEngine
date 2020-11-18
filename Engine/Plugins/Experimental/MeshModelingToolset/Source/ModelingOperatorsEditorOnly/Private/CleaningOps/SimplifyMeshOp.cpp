@@ -65,8 +65,11 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 														 true, !bPreserveSharpEdges, bAllowSeamCollapse);
 	Reducer.SetExternalConstraints(MoveTemp(constraints));
 
-	FMeshProjectionTarget ProjTarget(&OriginalMesh, &OriginalMeshSpatial);
-	Reducer.SetProjectionTarget(&ProjTarget);
+	if (bReproject)
+	{
+		FMeshProjectionTarget ProjTarget(&OriginalMesh, &OriginalMeshSpatial);
+		Reducer.SetProjectionTarget(&ProjTarget);
+	}
 
 	if (TargetMode == ESimplifyTargetType::Percentage)
 	{

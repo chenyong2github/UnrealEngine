@@ -39,6 +39,14 @@ void FMeshImageBakingCache::SetUVLayer(int32 UVLayerIn)
 }
 
 
+void FMeshImageBakingCache::SetThickness(double ThicknessIn)
+{
+	Thickness = ThicknessIn;
+	InvalidateSamples();
+	InvalidateOccupancy();   // do we need to do this?
+}
+
+
 const FDynamicMeshNormalOverlay* FMeshImageBakingCache::GetDetailNormals() const
 {
 	check(DetailMesh && DetailMesh->HasAttributes());
@@ -82,10 +90,15 @@ void FMeshImageBakingCache::InvalidateOccupancy()
 
 /**
  * Find point on Detail mesh that corresponds to point on Base mesh.
- * If nearest point on Detail mesh is within DistanceThreshold, uses that point (cleanly handles coplanar/etc).
- * Otherwise casts a ray in Normal direction.
- * If Normal-direction ray misses, use reverse direction.
- * If both miss, we return false, no correspondence found
+ * Strategy is:
+ *    1) cast a ray inwards along -Normal from BasePoint + Thickness*Normal
+ *    2) cast a ray outwards along Normal from BasePoint 
+ *    3) cast a ray inwards along -Normal from BasePoint
+ * We take (1) preferentially, and then (2), and then (3)
+ * 
+ * If all of those fail, we try to find a nearest-point within distance Thickess
+ * 
+ * If all the above fail, return false
  */
 static bool GetDetailTrianglePoint(
 	const FDynamicMesh3& DetailMesh,
@@ -94,43 +107,67 @@ static bool GetDetailTrianglePoint(
 	const FVector3d& BaseNormal,
 	int32& DetailTriangleOut,
 	FVector3d& DetailTriBaryCoords,
-	double DistanceThreshold = FMathf::ZeroTolerance * 100.0f)
+	double Thickness)
 {
-	// check if we are within on-surface tolerance, if so we use nearest point
-	IMeshSpatial::FQueryOptions OnSurfQueryOptions;
-	OnSurfQueryOptions.MaxDistance = DistanceThreshold;
-	double NearDistSqr = 0;
-	int32 NearestTriID = DetailSpatial.FindNearestTriangle(BasePoint, NearDistSqr, OnSurfQueryOptions);
-	if (DetailMesh.IsTriangle(NearestTriID))
-	{
-		DetailTriangleOut = NearestTriID;
-		FDistPoint3Triangle3d DistQuery = TMeshQueries<FDynamicMesh3>::TriangleDistance(DetailMesh, NearestTriID, BasePoint);
-		DetailTriBaryCoords = DistQuery.TriangleBaryCoords;
-		return true;
-	}
-
 	// TODO: should we check normals here? inverse normal should probably not be considered valid
 
 	// shoot rays forwards and backwards
-	FRay3d Ray(BasePoint, BaseNormal), BackwardsRay(BasePoint, -BaseNormal);
-	int32 HitTID = IndexConstants::InvalidID, BackwardHitTID = IndexConstants::InvalidID;
-	double HitDist, BackwardHitDist;
-	bool bHitForward = DetailSpatial.FindNearestHitTriangle(Ray, HitDist, HitTID);
-	bool bHitBackward = DetailSpatial.FindNearestHitTriangle(BackwardsRay, BackwardHitDist, BackwardHitTID);
+	FRay3d InwardRay = FRay3d(BasePoint + Thickness * BaseNormal, -BaseNormal);
+	FRay3d ForwardRay(BasePoint, BaseNormal);
+	FRay3d BackwardRay(BasePoint, -BaseNormal);
+	int32 ForwardHitTID = IndexConstants::InvalidID, InwardHitTID = IndexConstants::InvalidID, BackwardHitTID = IndexConstants::InvalidID;
+	double ForwardHitDist, InwardHitDist, BackwardHitDist;
 
-	// use the backwards hit if it is closer than the forwards hit
-	if ((bHitBackward && bHitForward == false) || (bHitForward && bHitBackward && BackwardHitDist < HitDist))
+	IMeshSpatial::FQueryOptions Options;
+	Options.MaxDistance = Thickness;
+	bool bHitInward = DetailSpatial.FindNearestHitTriangle(InwardRay, InwardHitDist, InwardHitTID, Options);
+	bool bHitForward = DetailSpatial.FindNearestHitTriangle(ForwardRay, ForwardHitDist, ForwardHitTID, Options);
+	bool bHitBackward = DetailSpatial.FindNearestHitTriangle(BackwardRay, BackwardHitDist, BackwardHitTID, Options);
+
+	FRay3d HitRay;
+	int32 HitTID = IndexConstants::InvalidID;
+	double HitDist = TNumericLimits<double>::Max();
+
+	if (bHitInward)
 	{
-		Ray = BackwardsRay;
+		HitRay = InwardRay;
+		HitTID = InwardHitTID;
+		HitDist = InwardHitDist;
+	}
+	else if (bHitForward)
+	{
+		HitRay = ForwardRay;
+		HitTID = ForwardHitTID;
+		HitDist = ForwardHitDist;
+	}
+	else if (bHitBackward)
+	{
+		HitRay = BackwardRay;
 		HitTID = BackwardHitTID;
 		HitDist = BackwardHitDist;
+	}
+
+	// if we did not find any hits, try nearest-point
+	if (DetailMesh.IsTriangle(HitTID) == false)
+	{
+		IMeshSpatial::FQueryOptions OnSurfQueryOptions;
+		OnSurfQueryOptions.MaxDistance = Thickness;
+		double NearDistSqr = 0;
+		int32 NearestTriID = DetailSpatial.FindNearestTriangle(BasePoint, NearDistSqr, OnSurfQueryOptions);
+		if (DetailMesh.IsTriangle(NearestTriID))
+		{
+			DetailTriangleOut = NearestTriID;
+			FDistPoint3Triangle3d DistQuery = TMeshQueries<FDynamicMesh3>::TriangleDistance(DetailMesh, NearestTriID, BasePoint);
+			DetailTriBaryCoords = DistQuery.TriangleBaryCoords;
+			return true;
+		}
 	}
 
 	// if we got a valid ray hit, use it
 	if (DetailMesh.IsTriangle(HitTID))
 	{
 		DetailTriangleOut = HitTID;
-		FIntrRay3Triangle3d IntrQuery = TMeshQueries<FDynamicMesh3>::TriangleIntersection(DetailMesh, HitTID, Ray);
+		FIntrRay3Triangle3d IntrQuery = TMeshQueries<FDynamicMesh3>::TriangleIntersection(DetailMesh, HitTID, HitRay);
 		DetailTriBaryCoords = IntrQuery.TriangleBaryCoords;
 		return true;
 	}
@@ -202,9 +239,11 @@ bool FMeshImageBakingCache::ValidateCache()
 
 			ValueOut.BaseSample = SampleInfo;
 
+			double SampleThickness = this->GetThickness();		// could modulate w/ a map here...
+
 			// find detail mesh triangle point
 			bool bFoundTri = GetDetailTrianglePoint(*DetailMesh, *DetailSpatial, SampleInfo.SurfacePoint, RayDir,
-				ValueOut.DetailTriID, ValueOut.DetailBaryCoords);
+				ValueOut.DetailTriID, ValueOut.DetailBaryCoords, SampleThickness);
 			if (!bFoundTri)
 			{
 				ValueOut.DetailTriID = FDynamicMesh3::InvalidID;

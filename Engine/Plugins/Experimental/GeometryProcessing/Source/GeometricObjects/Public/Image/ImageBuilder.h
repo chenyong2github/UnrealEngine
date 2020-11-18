@@ -87,6 +87,22 @@ public:
 
 
 	/**
+	 * Convert to a different data type of same Dimensions using ConvertFunc
+	 */
+	template<typename OtherType>
+	void Convert(TFunctionRef<OtherType(const PixelType&)> ConvertFunc,
+				 TImageBuilder<OtherType>& ConvertedImageOut) const
+	{
+		ConvertedImageOut.SetDimensions(Dimensions);
+		int64 NumPixels = Dimensions.Num();
+		for (int64 k = 0; k < NumPixels; ++k)
+		{
+			ConvertedImageOut.Image[k] = ConvertFunc(Image[k]);
+		}
+	}
+
+
+	/**
 	 * Sample the image value at floating-point pixel coords with Bilinear interpolation
 	 */
 	template<typename ScalarType>

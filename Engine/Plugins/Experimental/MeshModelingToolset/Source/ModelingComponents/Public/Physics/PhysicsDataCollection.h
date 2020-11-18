@@ -28,10 +28,12 @@ public:
 
 	/** The Component this physics data came from / is for */
 	TWeakObjectPtr<const UActorComponent> SourceComponent;
+	/** The StaticMesh this physics data came from / is for */
+	TWeakObjectPtr<const UStaticMesh> SourceStaticMesh;
 	/** The BodySetup in use by the SourceComponent */
 	TWeakObjectPtr<const UBodySetup> BodySetup;
 	/** Scaling factor applied to the SourceComponent, which should be transferred to Collision Geometry in some cases */
-	FVector ExternalScale3D;
+	FVector ExternalScale3D = FVector::OneVector;
 
 
 	//
@@ -53,6 +55,11 @@ public:
 	 * Initialize from the given Component, and optionally initialize internal geometry members
 	 */
 	void InitializeFromComponent(const UActorComponent* Component, bool bInitializeAggGeom);
+
+	/**
+	 * Initialize from the given StaticMesh, and optionally initialize internal geometry members
+	 */
+	void InitializeFromStaticMesh(const UStaticMesh* StaticMesh, bool bInitializeAggGeom);
 
 	/**
 	 * Initialize 

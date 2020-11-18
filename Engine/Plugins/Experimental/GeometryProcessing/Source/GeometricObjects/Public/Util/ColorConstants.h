@@ -212,7 +212,7 @@ namespace LinearColors
 			MediumAquamarine3f(), Thistle3f(), Wheat3f(),
 			LightSkyBlue3f(), LightPink3f(), MediumSpringGreen3f()
 		};
-		return (Index < 0) ? VectorType(White3f()) : VectorType(ColorMap[Index % (7 * 3)]);
+		return VectorType( (Index <= 0) ? White3f() : ColorMap[(Index-1) % (7*3)] );
 	}
 
 

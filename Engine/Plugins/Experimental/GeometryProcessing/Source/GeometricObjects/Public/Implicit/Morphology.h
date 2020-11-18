@@ -45,7 +45,7 @@ public:
 	///
 	/// Inputs
 	///
-	TriangleMeshType* Source = nullptr;
+	const TriangleMeshType* Source = nullptr;
 	TMeshAABBTree3<TriangleMeshType>* SourceSpatial = nullptr;
 	EMorphologyOp MorphologyOp = EMorphologyOp::Dilate;
 
