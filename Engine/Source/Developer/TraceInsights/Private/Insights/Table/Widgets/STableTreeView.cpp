@@ -602,17 +602,9 @@ void STableTreeView::UpdateTree()
 	{
 		OnPreAsyncUpdate();
 
-		FGraphEventRef GroupingCompletedEvent = TGraphTask<FTableTreeViewGroupAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(this);
-		
-		FGraphEventArray Prerequisites;
-		Prerequisites.Add(GroupingCompletedEvent);
-		FGraphEventRef SortingCompletedEvent = TGraphTask<FTableTreeViewSortAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this);
-		
-		Prerequisites.Empty();
-		Prerequisites.Add(SortingCompletedEvent);
-		FGraphEventRef FilteringCompletedEvent = TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this);
-		
-		PendingAsyncOperationEvent = FilteringCompletedEvent;
+		FGraphEventRef CompletedEvent = StartCreateGroupsTask();
+		CompletedEvent = StartSortTreeNodesTask(CompletedEvent);
+		PendingAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
 	}
 	else
 	{
@@ -879,9 +871,7 @@ void STableTreeView::SearchBox_OnTextChanged(const FText& InFilterText)
 	{
 		OnPreAsyncUpdate();
 
-		FGraphEventRef FilteringCompletedEvent = TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(this);
-
-		PendingAsyncOperationEvent = FilteringCompletedEvent;
+		PendingAsyncOperationEvent = StartApplyFiltersTask();
 	}
 	else
 	{
@@ -1196,17 +1186,9 @@ void STableTreeView::PostChangeGroupings()
 	{
 		OnPreAsyncUpdate();
 
-		FGraphEventRef GroupingCompletedEvent = TGraphTask<FTableTreeViewGroupAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(this);
-
-		FGraphEventArray Prerequisites;
-		Prerequisites.Add(GroupingCompletedEvent);
-		FGraphEventRef SortingCompletedEvent = TGraphTask<FTableTreeViewSortAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this);
-
-		Prerequisites.Empty();
-		Prerequisites.Add(SortingCompletedEvent);
-		FGraphEventRef FilteringCompletedEvent = TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this);
-
-		PendingAsyncOperationEvent = FilteringCompletedEvent;
+		FGraphEventRef CompletedEvent = StartCreateGroupsTask();
+		CompletedEvent = StartSortTreeNodesTask(CompletedEvent);
+		PendingAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
 	}
 	else
 	{
@@ -1702,13 +1684,8 @@ void STableTreeView::SetSortModeForColumn(const FName& ColumnId, const EColumnSo
 	{
 		OnPreAsyncUpdate();
 
-		FGraphEventRef SortingCompletedEvent = TGraphTask<FTableTreeViewSortAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(this);
-
-		FGraphEventArray Prerequisites;
-		Prerequisites.Add(SortingCompletedEvent);
-		FGraphEventRef FilteringCompletedEvent = TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this);
-
-		PendingAsyncOperationEvent = FilteringCompletedEvent;
+		FGraphEventRef CompletedEvent = StartSortTreeNodesTask();
+		PendingAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
 	}
 	else
 	{
@@ -2058,6 +2035,10 @@ void STableTreeView::OnPreAsyncUpdate()
 	check(!bIsUpdateRunning);
 
 	bIsUpdateRunning = true;
+
+	ExpandedNodes.Empty();
+	TreeView->GetExpandedItems(ExpandedNodes);
+
 	TreeView->SetTreeItemsSource(&DummyGroupNodes);
 	TreeView_Refresh();
 }
@@ -2073,7 +2054,74 @@ void STableTreeView::OnPostAsyncUpdate()
 	RebuildGroupingCrumbs();
 
 	TreeView->SetTreeItemsSource(&FilteredGroupNodes);
+
+	TreeView->ClearExpandedItems();
+
+	// Grouping can result in old group nodes no longer existing in the tree, so we don't keep the expanded list.
+	if (!HasPendingAsyncOperation(EAsyncOperationType::GroupingOp))
+	{
+		for (auto It = ExpandedNodes.CreateConstIterator(); It; ++It)
+		{
+			TreeView->SetItemExpansion(*It, true);
+		}
+	}
+
+	ClearPendingAsyncOperations();
 	TreeView_Refresh();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FGraphEventRef STableTreeView::StartSortTreeNodesTask(FGraphEventRef Prerequisite)
+{
+	AddPendingAsyncOperation(EAsyncOperationType::SortingOp);
+
+	if (Prerequisite.IsValid())
+	{
+		FGraphEventArray Prerequisites;
+		Prerequisites.Add(Prerequisite);
+		return TGraphTask<FTableTreeViewSortAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this);
+	}
+	else
+	{
+		return TGraphTask<FTableTreeViewSortAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(this);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FGraphEventRef STableTreeView::StartCreateGroupsTask(FGraphEventRef Prerequisite)
+{
+	AddPendingAsyncOperation(EAsyncOperationType::GroupingOp);
+
+	if (Prerequisite.IsValid())
+	{
+		FGraphEventArray Prerequisites;
+		Prerequisites.Add(Prerequisite);
+		return TGraphTask<FTableTreeViewGroupAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this);
+	}
+	else
+	{
+		return TGraphTask<FTableTreeViewGroupAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(this);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FGraphEventRef STableTreeView::StartApplyFiltersTask(FGraphEventRef Prerequisite)
+{
+	AddPendingAsyncOperation(EAsyncOperationType::FilteringOp);
+
+	if (Prerequisite.IsValid())
+	{
+		FGraphEventArray Prerequisites;
+		Prerequisites.Add(Prerequisite);
+		return TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this);
+	}
+	else
+	{
+		return TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(this);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2089,6 +2137,8 @@ void STableTreeView::OnClose()
 		TGraphTask<FTableTreeViewAsyncCompleteTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(SharedThis(this));
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 } // namespace Insights
 

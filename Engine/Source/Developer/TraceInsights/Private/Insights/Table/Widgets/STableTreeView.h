@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/EnumClassFlags.h"
 #include "Misc/FilterCollection.h"
 #include "Misc/TextFilter.h"
 #include "SlateFwd.h"
@@ -40,6 +41,17 @@ typedef TFilterCollection<const FTableTreeNodePtr&> FTableTreeNodeFilterCollecti
 
 /** The text based filter - used for updating the list of tree nodes. */
 typedef TTextFilter<const FTableTreeNodePtr&> FTableTreeNodeTextFilter;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+enum class EAsyncOperationType : uint32
+{
+	FilteringOp = 1,
+	SortingOp = 1 << 1,
+	GroupingOp = 1 << 2,
+};
+
+ENUM_CLASS_FLAGS(EAsyncOperationType);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
@@ -264,6 +276,14 @@ protected:
 	virtual void OnPreAsyncUpdate();
 	virtual void OnPostAsyncUpdate();
 
+	FGraphEventRef StartSortTreeNodesTask(FGraphEventRef Prerequisite = nullptr);
+	FGraphEventRef StartCreateGroupsTask(FGraphEventRef Prerequisite = nullptr);
+	FGraphEventRef StartApplyFiltersTask(FGraphEventRef Prerequisite = nullptr);
+
+	void AddPendingAsyncOperation(EAsyncOperationType InType) { EnumAddFlags(PendingAsyncOperations, InType); }
+	bool HasPendingAsyncOperation(EAsyncOperationType InType) const { return EnumHasAnyFlags(PendingAsyncOperations, InType); }
+	void ClearPendingAsyncOperations() { PendingAsyncOperations = static_cast<EAsyncOperationType>(0); }
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 protected:
@@ -361,7 +381,7 @@ protected:
 	bool bIsUpdateRunning = false;
 	TArray<FTableTreeNodePtr> DummyGroupNodes;
 	bool bIsCloseScheduled = false;
-
+	EAsyncOperationType PendingAsyncOperations = static_cast<EAsyncOperationType>(0);
 	//////////////////////////////////////////////////
 
 	double StatsStartTime;
