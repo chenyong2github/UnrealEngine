@@ -61,11 +61,11 @@ public:
 	{
 		if (Constraint.GetType() == FPointContactConstraint::StaticType())
 		{
-			Collisions::Update(*Constraint.As<FPointContactConstraint>(), CullDistance);
+			Collisions::Update(*Constraint.As<FPointContactConstraint>(), CullDistance, 1/30.0f);
 		}
 		else if(Constraint.GetType() == FMultiPointContactConstraint::StaticType())
 		{
-			Collisions::Update(*Constraint.As<FMultiPointContactConstraint>(), CullDistance);
+			Collisions::Update(*Constraint.As<FMultiPointContactConstraint>(), CullDistance, 1/30.0f);
 		}
 	}
 
@@ -83,7 +83,7 @@ public:
 		FRigidTransform3 WorldTransform0 = Constraint.ImplicitTransform[0] * Collisions::GetTransform(Constraint.Particle[0]);
 		FRigidTransform3 WorldTransform1 = Constraint.ImplicitTransform[1] * Collisions::GetTransform(Constraint.Particle[1]);
 
-		Collisions::UpdateLevelsetLevelsetConstraint<ECollisionUpdateType::Deepest>(WorldTransform0, WorldTransform1, FReal(0), Constraint);
+		Collisions::UpdateLevelsetLevelsetConstraint<ECollisionUpdateType::Deepest>(WorldTransform0, WorldTransform1, FReal(0), FReal(1 / 30.0f), Constraint);
 	}
 
 	int32 NumConstraints() const

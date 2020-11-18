@@ -22,6 +22,7 @@ namespace Chaos
 			const Chaos::FImplicitBox3& Box2,
 			const Chaos::FRigidTransform3& Box2Transform, //world
 			const Chaos::FReal CullDistance,
+			const Chaos::FReal Dt,
 			Chaos::FRigidBodyPointContactConstraint& Constraint,
 			bool bInInitialize);
 	}
@@ -36,6 +37,7 @@ namespace ChaosTest
 
 	TEST(OneShotManifoldTest, Boxes)
 	{
+		FReal Dt = 1 / 30.0f;
 		// Test 1 is a degenerate case where 2 boxes are on top of each other. Make sure that it does not crash
 		{
 			TBox<FReal, 3> Box1(FVec3(-100.0f, -100, -100.0f), FVec3(100.0f, 100.0f, 100.0f));
@@ -47,7 +49,7 @@ namespace ChaosTest
 			Constraint.SetUseOneShotManifold(true);
 			FReal CullingDistance = 100.0f;
 
-			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullingDistance, Constraint, false);
+			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullingDistance, Dt, Constraint, false);
 
 			// Result should give a negative phi on all contacts
 			// Phi direction may be in a random face direction
@@ -72,7 +74,7 @@ namespace ChaosTest
 			Constraint.SetUseOneShotManifold(true);
 			FReal CullingDistance = 100.0f;
 
-			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullingDistance, Constraint, false);
+			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullingDistance, Dt, Constraint, false);
 			int ContactCount = Constraint.GetManifoldPoints().Num();
 			EXPECT_EQ(ContactCount, 4);
 			for (int ConstraintIndex = 0; ConstraintIndex < ContactCount; ConstraintIndex++)
@@ -95,7 +97,7 @@ namespace ChaosTest
 			Constraint.SetUseOneShotManifold(true);
 			FReal CullingDistance = 100.0f;
 
-			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullingDistance, Constraint, false);
+			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullingDistance, Dt, Constraint, false);
 			int ContactCount = Constraint.GetManifoldPoints().Num();
 			EXPECT_EQ(ContactCount, 4);
 			for (int ConstraintIndex = 0; ConstraintIndex < ContactCount; ConstraintIndex++)
@@ -120,7 +122,7 @@ namespace ChaosTest
 			Constraint.SetUseOneShotManifold(true);
 			FReal CullingDistance = 100.0f;
 
-			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullingDistance, Constraint, false);
+			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullingDistance, Dt, Constraint, false);
 			int ContactCount = Constraint.GetManifoldPoints().Num();
 			EXPECT_EQ(ContactCount, 4);
 			for (int ConstraintIndex = 0; ConstraintIndex < ContactCount; ConstraintIndex++)
@@ -158,7 +160,7 @@ namespace ChaosTest
 			Constraint.SetUseOneShotManifold(true);
 			FReal CullingDistance = 100.0f;
 
-			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullingDistance, Constraint, false);
+			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullingDistance, Dt, Constraint, false);
 			int ContactCount = Constraint.GetManifoldPoints().Num();
 			EXPECT_EQ(ContactCount, 4);
 			for (int ConstraintIndex = 0; ConstraintIndex < ContactCount; ConstraintIndex++)
@@ -194,7 +196,7 @@ namespace ChaosTest
 			Constraint.SetUseOneShotManifold(true);
 			FReal CullingDistance = 100.0f;
 
-			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullingDistance, Constraint, false);
+			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullingDistance, Dt, Constraint, false);
 			int ContactCount = Constraint.GetManifoldPoints().Num();
 			for (int ConstraintIndex = 0; ConstraintIndex < ContactCount; ConstraintIndex++)
 			{
@@ -215,7 +217,7 @@ namespace ChaosTest
 			Constraint.SetUseOneShotManifold(true);
 			FReal CullingDistance = 100.0f;
 
-			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullingDistance, Constraint, false);
+			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullingDistance, Dt, Constraint, false);
 			int ContactCount = Constraint.GetManifoldPoints().Num();
 			EXPECT_EQ(ContactCount, 4);  
 			for (int ConstraintIndex = 0; ConstraintIndex < ContactCount; ConstraintIndex++)

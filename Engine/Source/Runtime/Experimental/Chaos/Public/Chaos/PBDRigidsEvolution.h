@@ -660,6 +660,15 @@ public:
 				break;
 			}
 			}
+			
+			// Set previous velocities if we can
+			// Note: At present kininematics are in fact rigid bodies
+			auto* Rigid = Particle.CastToRigidParticle();
+			if (Rigid)
+			{
+				Rigid->PreV() = Rigid->V();
+				Rigid->PreW() = Rigid->W();
+			}
 		}
 	}
 
