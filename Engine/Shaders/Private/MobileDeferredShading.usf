@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Common.ush"
 #include "SHCommon.ush"
+#include "/Engine/Generated/Material.ush"
 #include "DynamicLightingCommon.ush"
 #include "ReflectionEnvironmentShared.ush"
 #include "LightGridCommon.ush"
 #include "MobileShadingModels.ush"
 #include "IESLightProfilesCommon.ush"
+#include "LightFunctionCommon.ush"
 
 #if APPLY_SKY_REFLECTION
 #define ENABLE_SKY_LIGHT 1
@@ -101,6 +103,30 @@ FGBufferData DecodeGBufferMobile(
 	return GBuffer;
 }
 
+float4x4 WorldToLight;
+float3 LightFunctionParameters2;
+
+half ComputeLightFunctionMultiplier(float3 WorldPosition)
+{
+#if USE_LIGHT_FUNCTION	
+	float4 LightVector = mul(float4(WorldPosition, 1.0), WorldToLight);
+	LightVector.xyz /= LightVector.w;
+	//float3 LightVector = View.WorldCameraOrigin - WorldPosition;
+
+	half3 LightFunction = GetLightFunctionColor(LightVector.xyz, WorldPosition);
+	half GreyScale = dot(LightFunction, .3333f);
+	// Calculate radial view distance for stable fading
+	float ViewDistance = length(View.WorldCameraOrigin - WorldPosition);
+	half DistanceFadeAlpha = saturate((LightFunctionParameters2.x - ViewDistance) / (LightFunctionParameters2.x * .2f));
+	// Fade to disabled based on LightFunctionFadeDistance
+	GreyScale = lerp(LightFunctionParameters2.y, GreyScale, DistanceFadeAlpha);
+	// Fade to disabled based on ShadowFadeFraction
+	GreyScale = lerp(LightFunctionParameters2.y, GreyScale, LightFunctionParameters.y);
+	return GreyScale; 
+#else
+	return 1.0;
+#endif
+}
 
 half3 GetDirectLighting(
 	FMobileLightData LightData, 
@@ -201,18 +227,21 @@ half3 GetLightGridLocalLighting(
 	return DirectLighting;
 }
 
-void MobileDeferredShadingPS(
+void MobileDirectLightPS(
 	noperspective float4 UVAndScreenPos : TEXCOORD0, 
 	float4 SvPosition : SV_POSITION, 
 	out half4 OutColor : SV_Target0)
 {
-	float4 GBufferA = 0; 
-	float4 GBufferB = 0; 
-	float4 GBufferC = 0; 
-	float4 GBufferD = 0;
+	FGBufferData GBuffer = (FGBufferData)0;
 	float SceneDepth = 0; 
-	FetchGBuffer(UVAndScreenPos.xy, GBufferA, GBufferB, GBufferC, GBufferD, SceneDepth);
-	FGBufferData GBuffer = DecodeGBufferMobile(GBufferA, GBufferB, GBufferC, GBufferD);
+	{
+		float4 GBufferA = 0; 
+		float4 GBufferB = 0; 
+		float4 GBufferC = 0; 
+		float4 GBufferD = 0;
+		FetchGBuffer(UVAndScreenPos.xy, GBufferA, GBufferB, GBufferC, GBufferD, SceneDepth);
+		GBuffer = DecodeGBufferMobile(GBufferA, GBufferB, GBufferC, GBufferD);
+	}
 	
 	float2 ScreenPos = UVAndScreenPos.zw;
 	float3 WorldPosition = mul(float4(ScreenPos * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
@@ -283,13 +312,14 @@ void MobileDeferredShadingPS(
 #endif
 	half3 SkyDiffuseLighting = GetSkySHDiffuseSimple(GBuffer.WorldNormal);
 	Color+= SkyDiffuseLighting * half3(View.SkyLightColor.rgb) * ShadingModelContext.DiffuseColor * GBuffer.GBufferAO;
+	half LightAttenuation = ComputeLightFunctionMultiplier(WorldPosition);
 
 #if USE_PREEXPOSURE
 	// MobileHDR applies PreExposure in tonemapper
-	Color.rgb *= View.PreExposure;	
+	LightAttenuation *= View.PreExposure;	
 #endif
 					
-	OutColor.rgb = Color;
+	OutColor.rgb = Color.rgb * LightAttenuation;
 	OutColor.a = 1;
 }
 
@@ -340,13 +370,15 @@ void MobileRadialLightPS(
 	}
 			
 	half3 Color = GetDirectLighting(LightData, ShadingModelContext, GBuffer, WorldPosition, CameraVector);
-	const half Attenuation = ComputeLightProfileMultiplier(WorldPosition, DeferredLightUniforms.Position, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
+	
+	half LightAttenuation = ComputeLightProfileMultiplier(WorldPosition, DeferredLightUniforms.Position, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
+	LightAttenuation*= ComputeLightFunctionMultiplier(WorldPosition);
 
 #if USE_PREEXPOSURE
 	// MobileHDR applies PreExposure in tonemapper
-	Color.rgb *= View.PreExposure;	
+	LightAttenuation*= View.PreExposure;	
 #endif
 
-	OutColor.rgb = Color * Attenuation;
+	OutColor.rgb = Color * LightAttenuation;
 	OutColor.a = 1;
 }
