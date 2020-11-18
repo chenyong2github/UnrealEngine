@@ -86,10 +86,16 @@ class UMaterialExpressionStrataDielectricBSDF : public UMaterialExpression
 	FExpressionInput Tint;
 		
 	/**
-	 * Roughness (type = float2, unit = unitless)
+	 * RoughnessX (type = float, unit = unitless)
 	 */
 	UPROPERTY()
-	FExpressionInput Roughness;
+	FExpressionInput RoughnessX;
+		
+	/**
+	 * RoughnessY (type = float, unit = unitless), If not plugged in, RoughnessY is set to RoughnessX to get an isotropic behavior.
+	 */
+	UPROPERTY()
+	FExpressionInput RoughnessY;
 
 	/**
 	 * Normal (type = float3, unit = unitless)
@@ -129,12 +135,18 @@ class UMaterialExpressionStrataConductorBSDF : public UMaterialExpression
 	 */
 	UPROPERTY()
 	FExpressionInput EdgeColor;
-
+		
 	/**
-	 * Roughness (type = float2, unit = unitless)
+	 * RoughnessX (type = float, unit = unitless)
 	 */
 	UPROPERTY()
-	FExpressionInput Roughness;
+	FExpressionInput RoughnessX;
+		
+	/**
+	 * RoughnessY (type = float, unit = unitless), If not plugged in, RoughnessY is set to RoughnessX to get an isotropic behavior.
+	 */
+	UPROPERTY()
+	FExpressionInput RoughnessY;
 
 	/**
 	 * Normal (type = float3, unit = unitless)

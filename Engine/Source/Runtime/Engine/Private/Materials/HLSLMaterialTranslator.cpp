@@ -7282,11 +7282,12 @@ int32 FHLSLMaterialTranslator::StrataDiffuseBSDF(int32 Albedo, int32 Roughness, 
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataDielectricBSDF(int32 Roughness, int32 IOR, int32 Tint, int32 Normal, int32 Tangent, uint8 SharedNormalIndex)
+int32 FHLSLMaterialTranslator::StrataDielectricBSDF(int32 RoughnessX, int32 RoughnessY, int32 IOR, int32 Tint, int32 Normal, int32 Tangent, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataDielectricBSDF(%s, %s, %s, %s, %u) /* Normal:%s Tangent:%s */"),
-		*GetParameterCode(Roughness),
+		MCT_Strata, TEXT("GetStrataDielectricBSDF(float2(%s, %s), %s, %s, %s, %u) /* Normal:%s Tangent:%s */"),
+		*GetParameterCode(RoughnessX),
+		*GetParameterCode(RoughnessY),
 		*GetParameterCode(IOR),
 		*GetParameterCode(Tint),
 		*GetParameterCode(Tangent),
@@ -7296,13 +7297,14 @@ int32 FHLSLMaterialTranslator::StrataDielectricBSDF(int32 Roughness, int32 IOR, 
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 Roughness, int32 Normal, int32 Tangent, uint8 SharedNormalIndex)
+int32 FHLSLMaterialTranslator::StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 RoughnessX, int32 RoughnessY, int32 Normal, int32 Tangent, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataConductorBSDF(%s, %s, %s, %s, %u) /* Normal:%s Tangent:%s */"),
+		MCT_Strata, TEXT("GetStrataConductorBSDF(%s, %s, float2(%s, %s), %s, %u) /* Normal:%s Tangent:%s */"),
 		*GetParameterCode(Reflectivity),
 		*GetParameterCode(EdgeColor),
-		*GetParameterCode(Roughness),
+		*GetParameterCode(RoughnessX),
+		*GetParameterCode(RoughnessY),
 		*GetParameterCode(Tangent),
 		SharedNormalIndex,
 		*GetParameterCode(Normal),

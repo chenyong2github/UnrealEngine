@@ -19098,8 +19098,13 @@ int32 UMaterialExpressionStrataDielectricBSDF::Compile(class FMaterialCompiler* 
 	int32 TangentCodeChunk = Tangent.GetTracedInput().Expression ? Tangent.Compile(Compiler) : Compiler->VertexTangent();
 	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk);
 
+	int32 RoughnessXCodeChunk = RoughnessX.GetTracedInput().Expression ? RoughnessX.Compile(Compiler) : Compiler->Constant(0.0f);
+	// If not plugged in, RoughnessYCodeChunk is set to RoughnessXCodeChunk to get an isotropic behavior
+	int32 RoughnessYCodeChunk = RoughnessY.GetTracedInput().Expression ? RoughnessY.Compile(Compiler) : RoughnessXCodeChunk;
+
 	int32 OutputCodeChunk = Compiler->StrataDielectricBSDF(
-		Roughness.GetTracedInput().Expression	? Roughness.Compile(Compiler)	: Compiler->Constant2(0.0f, 0.0f),
+		RoughnessXCodeChunk,
+		RoughnessYCodeChunk,
 		IOR.GetTracedInput().Expression			? IOR.Compile(Compiler)			: Compiler->Constant(1.5f),// Default to Glass
 		Tint.GetTracedInput().Expression		? Tint.Compile(Compiler)		: Compiler->Constant3(1.0f, 1.0f, 1.0f),
 		NormalCodeChunk,
@@ -19131,12 +19136,15 @@ uint32 UMaterialExpressionStrataDielectricBSDF::GetInputType(int32 InputIndex)
 		return MCT_Float3;
 		break;
 	case 2:
-		return MCT_Float2;
+		return MCT_Float;
 		break;
 	case 3:
-		return MCT_Float3;
+		return MCT_Float;
 		break;
 	case 4:
+		return MCT_Float3;
+		break;
+	case 5:
 		return MCT_Float3;
 		break;
 	}
@@ -19171,10 +19179,15 @@ int32 UMaterialExpressionStrataConductorBSDF::Compile(class FMaterialCompiler* C
 	int32 TangentCodeChunk = Tangent.GetTracedInput().Expression ? Tangent.Compile(Compiler) : Compiler->VertexTangent();
 	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk);
 
+	int32 RoughnessXCodeChunk = RoughnessX.GetTracedInput().Expression ? RoughnessX.Compile(Compiler) : Compiler->Constant(0.0f);
+	// If not plugged in, RoughnessYCodeChunk is set to RoughnessXCodeChunk to get an isotropic behavior
+	int32 RoughnessYCodeChunk = RoughnessY.GetTracedInput().Expression ? RoughnessY.Compile(Compiler) : RoughnessXCodeChunk;
+
 	int32 OutputCodeChunk = Compiler->StrataConductorBSDF(
 		Reflectivity.GetTracedInput().Expression	? Reflectivity.Compile(Compiler): Compiler->Constant3(0.947f, 0.776f, 0.371f),	// Default to Gold
 		EdgeColor.GetTracedInput().Expression		? EdgeColor.Compile(Compiler)	: Compiler->Constant3(1.000f, 0.982f, 0.753f),	// Default to Gold
-		Roughness.GetTracedInput().Expression		? Roughness.Compile(Compiler)	: Compiler->Constant2(0.0f, 0.0f),
+		RoughnessXCodeChunk,
+		RoughnessYCodeChunk,
 		NormalCodeChunk,
 		TangentCodeChunk,
 		SharedNormalIndex);
@@ -19204,12 +19217,15 @@ uint32 UMaterialExpressionStrataConductorBSDF::GetInputType(int32 InputIndex)
 		return MCT_Float3;
 		break;
 	case 2:
-		return MCT_Float2;
+		return MCT_Float;
 		break;
 	case 3:
-		return MCT_Float3;
+		return MCT_Float;
 		break;
 	case 4:
+		return MCT_Float3;
+		break;
+	case 5:
 		return MCT_Float3;
 		break;
 	}
