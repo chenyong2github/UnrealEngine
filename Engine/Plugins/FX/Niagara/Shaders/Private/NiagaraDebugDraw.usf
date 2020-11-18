@@ -28,7 +28,7 @@ void MainCS(in uint3 ThreadID : SV_DispatchThreadID)
 ////////////////////////////////////////////////////////////////////////////////////
 
 #if NIAGARA_DEBUGDRAW_DRAWLINE_VS
-Buffer<float>	LineBuffer;
+Buffer<float>	GpuLineBuffer;
 
 void MainVS(
 	in uint InstanceID		: SV_InstanceID,
@@ -41,7 +41,7 @@ void MainVS(
 	float3 Position1;
 	float4 Color;
 
-	UnpackLine(LineBuffer, InstanceID, Position0, Position1, Color);
+	UnpackLine(GpuLineBuffer, InstanceID, Position0, Position1, Color);
 
 	float3 Position = VertexID == 0 ? Position0 : Position1;
 	OutPosition = mul(float4(Position, 1), View.WorldToClip);

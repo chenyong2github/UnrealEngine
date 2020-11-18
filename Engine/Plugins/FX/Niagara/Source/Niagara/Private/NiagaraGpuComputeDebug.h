@@ -8,6 +8,7 @@ Class used help realtime debug Gpu Compute simulations
 #include "CoreMinimal.h"
 #include "NiagaraCommon.h"
 #include "RHICommandList.h"
+#include "RenderGraphDefinitions.h"
 
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 
