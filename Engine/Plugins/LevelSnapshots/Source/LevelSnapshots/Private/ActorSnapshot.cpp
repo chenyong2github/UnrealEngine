@@ -42,7 +42,7 @@ public:
 	{
 		this->SetWantBinaryPropertySerialization(false);
 		this->SetIsLoading(true);
-		this->SetIsTransacting(true);
+		this->SetIsTransacting(false);
 	}
 
 	virtual FString GetArchiveName() const override
@@ -180,7 +180,7 @@ public:
 	{
 		this->SetWantBinaryPropertySerialization(false);
 		this->SetIsSaving(true);
-		this->SetIsTransacting(true);
+		this->SetIsTransacting(false);
 	}
 
 	virtual int64 Tell() override
