@@ -1328,21 +1328,17 @@ static void BeginOcclusionTests(
 
 void FDeferredShadingSceneRenderer::RenderOcclusion(
 	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef SceneDepthTexture,
-	FRDGTextureRef SmallDepthTexture,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	const FSceneTextures& SceneTextures,
 	bool bIsOcclusionTesting)
 {
 	if (bIsOcclusionTesting)
 	{
-		check(SceneDepthTexture);
-		check(SmallDepthTexture);
-
 		RDG_GPU_STAT_SCOPE(GraphBuilder, HZB);
 
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 		uint32 DownsampleFactor = 1;
+		FRDGTextureRef SceneDepthTexture = SceneTextures.Depth.Target;
 		FRDGTextureRef OcclusionDepthTexture = SceneDepthTexture;
 
 		// Update the quarter-sized depth buffer with the current contents of the scene depth texture.
@@ -1350,7 +1346,7 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 		if (SceneContext.UseDownsizedOcclusionQueries())
 		{
 			DownsampleFactor = SceneContext.GetSmallColorDepthDownsampleFactor();
-			OcclusionDepthTexture = SmallDepthTexture;
+			OcclusionDepthTexture = SceneTextures.SmallDepth;
 
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
@@ -1358,7 +1354,7 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
 				const FScreenPassTexture SceneDepth(SceneDepthTexture, View.ViewRect);
-				const FScreenPassRenderTarget SmallDepth(SmallDepthTexture, GetDownscaledRect(View.ViewRect, DownsampleFactor), ERenderTargetLoadAction::ELoad);
+				const FScreenPassRenderTarget SmallDepth(SceneTextures.SmallDepth, GetDownscaledRect(View.ViewRect, DownsampleFactor), ERenderTargetLoadAction::ELoad);
 				AddDownsampleDepthPass(GraphBuilder, View, SceneDepth, SmallDepth, EDownsampleDepthFilter::Max);
 			}
 		}
@@ -1406,7 +1402,7 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 		}
 	}
 
-	const bool bUseHzbOcclusion = RenderHzb(GraphBuilder, SceneTexturesUniformBuffer);
+	const bool bUseHzbOcclusion = RenderHzb(GraphBuilder, SceneTextures);
 
 	if (bUseHzbOcclusion || bIsOcclusionTesting)
 	{

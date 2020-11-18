@@ -198,10 +198,8 @@ public:
 
 	void RenderBasePass(
 		FRDGBuilder& GraphBuilder,
+		const FSceneTextures& SceneTextures,
 		FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
-		FRDGTextureRef SceneColorTexture,
-		FRDGTextureRef SceneDepthTexture,
-		ERenderTargetLoadAction SceneDepthLoadAction,
 		FRDGTextureRef ForwardShadowMaskTexture);
 
 	void RenderBasePassInternal(
@@ -221,16 +219,13 @@ public:
 
 	void RenderSingleLayerWater(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureMSAA SceneColorTexture,
-		FRDGTextureMSAA SceneDepthTexture,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FSceneTextures& SceneTextures,
 		bool bShouldRenderVolumetricCloud,
 		FSceneWithoutWaterTextures& SceneWithoutWaterTextures);
 	
 	void RenderSingleLayerWaterInner(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureMSAA SceneColorTexture,
-		FRDGTextureMSAA SceneDepthTexture,
+		const FSceneTextures& SceneTextures,
 		const FSceneWithoutWaterTextures& SceneWithoutWaterTextures);
 
 	void RenderSingleLayerWaterReflections(
@@ -240,14 +235,12 @@ public:
 
 	void RenderOcclusion(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef SceneDepthTexture,
-		FRDGTextureRef SmallDepthTexture,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FSceneTextures& SceneTextures,
 		bool bIsOcclusionTesting);
 
 	bool RenderHzb(
 		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer);
+		const FSceneTextures& SceneTextures);
 
 	/** Renders the view family. */
 	virtual void Render(FRHICommandListImmediate& RHICmdList) override;
@@ -400,10 +393,8 @@ private:
 
 	void RenderFog(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef SceneColorTexture,
-		FRDGTextureRef SceneDepthTexture,
-		FRDGTextureRef LightShaftOcclusionTexture,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesWithDepth);
+		const FMinimalSceneTextures& SceneTextures,
+		FRDGTextureRef LightShaftOcclusionTexture);
 
 	void RenderUnderWaterFog(
 		FRDGBuilder& GraphBuilder,
@@ -412,10 +403,8 @@ private:
 
 	void RenderAtmosphere(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef SceneColorTexture,
-		FRDGTextureRef SceneDepthTexture,
-		FRDGTextureRef LightShaftOcclusionTexture,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesWithDepth);
+		const FMinimalSceneTextures& SceneTextures,
+		FRDGTextureRef LightShaftOcclusionTexture);
 
 	/** Render debug visualizations about the sky atmosphere into the scene render target.*/
 	void RenderDebugSkyAtmosphere(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthTexture);
@@ -438,18 +427,15 @@ private:
 	/** Render diffuse indirect (regardless of the method) of the views into the scene color. */
 	void RenderDiffuseIndirectAndAmbientOcclusion(
 		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-		FRDGTextureRef SceneColorTexture,
+		const FMinimalSceneTextures& SceneTextures,
 		FHairStrandsRenderingData* HairDatas,
 		bool bIsVisualizePass);
 
 	/** Renders sky lighting and reflections that can be done in a deferred pass. */
 	void RenderDeferredReflectionsAndSkyLighting(
 		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-		FRDGTextureMSAA SceneColorTexture,
+		const FSceneTextures& SceneTextures,
 		FRDGTextureRef DynamicBentNormalAOTexture,
-		FRDGTextureRef VelocityTexture,
 		struct FHairStrandsRenderingData* HairDatas);
 
 	void RenderDeferredReflectionsAndSkyLightingHair(FRDGBuilder& GraphBuilder, struct FHairStrandsRenderingData* HairDatas);
@@ -457,9 +443,7 @@ private:
 	/** Computes DFAO, modulates it to scene color (which is assumed to contain diffuse indirect lighting), and stores the output bent normal for use occluding specular. */
 	void RenderDFAOAsIndirectShadowing(
 		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-		FRDGTextureRef SceneColorTexture,
-		FRDGTextureRef VelocityTexture,
+		const FSceneTextures& SceneTextures,
 		FRDGTextureRef& DynamicBentNormalAO);
 
 	bool ShouldRenderDistanceFieldLighting() const;
@@ -467,10 +451,8 @@ private:
 	/** Render Ambient Occlusion using mesh distance fields and the surface cache, which supports dynamic rigid meshes. */
 	void RenderDistanceFieldLighting(
 		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FSceneTextures& SceneTextures,
 		const class FDistanceFieldAOParameters& Parameters,
-		FRDGTextureRef SceneColorTexture,
-		FRDGTextureRef VelocityTexture,
 		FRDGTextureRef& OutDynamicBentNormalAO,
 		bool bModulateToSceneColor,
 		bool bVisualizeAmbientOcclusion);
@@ -478,18 +460,15 @@ private:
 	/** Render Ambient Occlusion using mesh distance fields on a screen based grid. */
 	void RenderDistanceFieldAOScreenGrid(
 		FRDGBuilder& GraphBuilder,
+		const FSceneTextures& SceneTextures,
 		const FViewInfo& View,
 		const FDistanceFieldAOParameters& Parameters,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-		FRDGTextureRef VelocityTexture,
 		FRDGTextureRef DistanceFieldNormal,
 		FRDGTextureRef& OutDynamicBentNormalAO);
 
 	void RenderMeshDistanceFieldVisualization(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef SceneColorTexture,
-		FRDGTextureRef SceneDepthTexture,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FMinimalSceneTextures& SceneTextures,
 		const FDistanceFieldAOParameters& Parameters);
 
 	bool ShouldRenderLumenDiffuseGI(const FViewInfo& View) const;
@@ -570,27 +549,23 @@ private:
 	/** Add a clustered deferred shading lighting render pass.	Note: in the future it should take the RenderGraph builder as argument */
 	void AddClusteredDeferredShadingPass(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef SceneColorTexture,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FMinimalSceneTextures& SceneTextures,
 		const FSortedLightSetSceneInfo& SortedLightsSet);
 
 	/** Renders the lights in SortedLights in the range [TiledDeferredLightsStart, TiledDeferredLightsEnd) using tiled deferred shading. */
-	FRDGTextureRef RenderTiledDeferredLighting(
+	void RenderTiledDeferredLighting(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef InSceneColorTexture,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		FMinimalSceneTextures& SceneTextures,
 		const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights,
 		int32 TiledDeferredLightsStart,
 		int32 TiledDeferredLightsEnd,
 		const FSimpleLightArray& SimpleLights);
 
 	/** Renders the scene's lighting. */
-	FRDGTextureRef RenderLights(
+	void RenderLights(
 		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		FMinimalSceneTextures& SceneTextures,
 		const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
-		FRDGTextureRef SceneColorTexture,
-		FRDGTextureRef SceneDepthTexture,
 		FRDGTextureRef LightingChannelsTexture,
 		FSortedLightSetSceneInfo& SortedLightSet,
 		const FHairStrandsRenderingData* HairDatas);
@@ -604,26 +579,22 @@ private:
 	/** Render stationary light overlap as complexity to scene color. */
 	void RenderStationaryLightOverlap(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef SceneColorTexture,
-		FRDGTextureRef SceneDepthTexture,
-		FRDGTextureRef LightingChannelsTexture,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer);
+		const FMinimalSceneTextures& SceneTextures,
+		FRDGTextureRef LightingChannelsTexture);
 	
 	/** Renders the scene's translucency passes. */
 	void RenderTranslucency(
 		FRDGBuilder& GraphBuilder,
+		const FMinimalSceneTextures& SceneTextures,
 		const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
-		FRDGTextureMSAA SceneColorTexture,
-		FRDGTextureMSAA SceneDepthTexture,
 		FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
 		ETranslucencyView ViewsToRender);
 
 	/** Renders the scene's translucency given a specific pass. */
 	void RenderTranslucencyInner(
 		FRDGBuilder& GraphBuilder,
+		const FMinimalSceneTextures& SceneTextures,
 		const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
-		FRDGTextureMSAA SceneColorTexture,
-		FRDGTextureMSAA SceneDepthTexture,
 		FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
 		ETranslucencyView ViewsToRender,
 		FRDGTextureRef SceneColorCopyTexture,
@@ -632,23 +603,18 @@ private:
 	/** Renders the scene's light shafts */
 	FRDGTextureRef RenderLightShaftOcclusion(
 		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-		FIntPoint SceneTextureExtent);
+		const FMinimalSceneTextures& SceneTextures);
 
 	void RenderLightShaftBloom(
 		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-		FIntPoint SceneTextureExtent,
-		FRDGTextureRef SceneColorTexture,
+		const FMinimalSceneTextures& SceneTextures,
 		FSeparateTranslucencyTextures& OutSeparateTranslucencyTextures);
 
 	bool ShouldRenderVelocities() const;
 
 	void RenderVelocities(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef SceneDepthTexture,
-		FRDGTextureRef& VelocityTexture,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		FSceneTextures& SceneTextures,
 		EVelocityPass VelocityPass,
 		bool bForceVelocity);
 
@@ -689,29 +655,26 @@ private:
 
 	void RenderShadowProjections(
 		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FMinimalSceneTextures& SceneTextures,
 		FRDGTextureRef ScreenShadowMaskTexture,
 		FRDGTextureRef ScreenShadowMaskSubPixelTexture,
-		FRDGTextureRef SceneDepthTexture,
 		const FLightSceneInfo* LightSceneInfo,
 		const FHairStrandsVisibilityViews* HairVisibilityViews,
 		bool bProjectingForForwardShading);
 
 	void RenderDeferredShadowProjections(
 		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FMinimalSceneTextures& SceneTextures,
 		const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
 		const FLightSceneInfo* LightSceneInfo,
 		FRDGTextureRef ScreenShadowMaskTexture,
 		FRDGTextureRef ScreenShadowMaskSubPixelTexture,
-		FRDGTextureRef SceneDepthTexture,
 		const FHairStrandsRenderingData* HairDatas,
 		bool& bInjectedTranslucentVolume);
 
 	void RenderForwardShadowProjections(
 		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-		FRDGTextureRef SceneDepthTexture,
+		const FMinimalSceneTextures& SceneTextures,
 		FRDGTextureRef& ForwardScreenSpaceShadowMask,
 		FRDGTextureRef& ForwardScreenSpaceShadowMaskSubPixel,
 		const FHairStrandsRenderingData* InHairDatas);
@@ -719,8 +682,7 @@ private:
 	/** Used by RenderLights to render a light function to the attenuation buffer. */
 	bool RenderLightFunction(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef SceneDepthTexture,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FMinimalSceneTextures& SceneTextures,
 		const FLightSceneInfo* LightSceneInfo,
 		FRDGTextureRef ScreenShadowMaskTexture,
 		bool bLightAttenuationCleared,
@@ -729,8 +691,7 @@ private:
 	/** Renders a light function indicating that whole scene shadowing being displayed is for previewing only, and will go away in game. */
 	bool RenderPreviewShadowsIndicator(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef SceneDepthTexture,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FMinimalSceneTextures& SceneTextures,
 		const FLightSceneInfo* LightSceneInfo,
 		FRDGTextureRef ScreenShadowMaskTexture,
 		bool bLightAttenuationCleared);
@@ -738,8 +699,7 @@ private:
 	/** Renders a light function with the given material. */
 	bool RenderLightFunctionForMaterial(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef SceneDepthTexture,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FMinimalSceneTextures& SceneTextures,
 		const FLightSceneInfo* LightSceneInfo,
 		FRDGTextureRef ScreenShadowMaskTexture,
 		const FMaterialRenderProxy* MaterialProxy,
@@ -759,9 +719,7 @@ private:
 
 	void RenderLight(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef SceneColorTexture,
-		FRDGTextureRef SceneDepthTexture,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FMinimalSceneTextures& SceneTextures,
 		const FLightSceneInfo* LightSceneInfo,
 		FRDGTextureRef ScreenShadowMaskTexture,
 		FRDGTextureRef LightingChannelsTexture,
@@ -789,9 +747,7 @@ private:
 	/** Renders an array of simple lights using standard deferred shading. */
 	void RenderSimpleLightsStandardDeferred(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef SceneColorTexture,
-		FRDGTextureRef SceneDepthTexture,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FMinimalSceneTextures& SceneTextures,
 		const FSimpleLightArray& SimpleLights);
 
 	/** Initializes the translucency lighting volumes. Can be compute or async compute. */
@@ -875,10 +831,7 @@ private:
 
 	void ComputeVolumetricFog(FRDGBuilder& GraphBuilder);
 
-	void VisualizeVolumetricLightmap(
-		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef SceneColorTexture,
-		FRDGTextureRef SceneDepthTexture);
+	void VisualizeVolumetricLightmap(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);
 
 	/** Render image based reflections (SSR, Env, SkyLight) without compute shaders */
 	void RenderStandardDeferredImageBasedReflections(FRHICommandListImmediate& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, bool bReflectionEnv, const TRefCountPtr<IPooledRenderTarget>& DynamicBentNormalAO, TRefCountPtr<IPooledRenderTarget>& VelocityRT);
@@ -945,8 +898,7 @@ private:
 
 	void CompositeRayTracingSkyLight(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef SceneColorTexture,
-		FIntPoint SceneTextureExtent,
+		const FMinimalSceneTextures& SceneTextures,
 		FRDGTextureRef SkyLightRT,
 		FRDGTextureRef HitDistanceRT);
 	

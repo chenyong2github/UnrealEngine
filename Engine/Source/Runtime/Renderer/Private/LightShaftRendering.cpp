@@ -423,8 +423,7 @@ void AddOcclusionTermPass(
 
 FRDGTextureRef FDeferredShadingSceneRenderer::RenderLightShaftOcclusion(
 	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-	FIntPoint SceneTextureExtent)
+	const FMinimalSceneTextures& SceneTextures)
 {
 	FScreenPassRenderTarget Output;
 
@@ -459,7 +458,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLightShaftOcclusion(
 						RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 						INC_DWORD_STAT(STAT_LightShaftsLights);
 
-						const FScreenPassTextureViewport SceneViewport(SceneTextureExtent, View.ViewRect);
+						const FScreenPassTextureViewport SceneViewport(SceneTextures.Extent, View.ViewRect);
 						const FScreenPassTextureViewport OutputViewport(GetDownscaledViewport(SceneViewport, GetLightShaftDownsampleFactor()));
 						const FLightShaftPixelShaderParameters LightShaftParameters = GetLightShaftParameters(View, LightSceneInfo, SceneViewport, OutputViewport);
 						FTemporalAAHistory* TemporalHistory = nullptr;
@@ -482,7 +481,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLightShaftOcclusion(
 							GraphBuilder,
 							View,
 							LightShaftParameters,
-							SceneTexturesUniformBuffer,
+							SceneTextures.UniformBuffer,
 							SceneViewport,
 							OutputViewport,
 							TemporalHistory,
@@ -526,9 +525,7 @@ void AddLightShaftBloomPass(
 
 void FDeferredShadingSceneRenderer::RenderLightShaftBloom(
 	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-	FIntPoint SceneTextureExtent,
-	FRDGTextureRef SceneColorTexture,
+	const FMinimalSceneTextures& SceneTextures,
 	FSeparateTranslucencyTextures& SeparateTranslucencyTextures)
 {
 	if (ShouldRenderLightShafts(ViewFamily))
@@ -558,7 +555,7 @@ void FDeferredShadingSceneRenderer::RenderLightShaftBloom(
 				if (bWillRenderLightShafts)
 				{
 					// Default to scene color output.
-					FRDGTextureMSAA OutputTexture(SceneColorTexture);
+					FRDGTextureMSAA OutputTexture(SceneTextures.Color.Target);
 					ERenderTargetLoadAction OutputLoadAction = ERenderTargetLoadAction::ELoad;
 					float OutputViewRectScale = 1.0f;
 
@@ -586,7 +583,7 @@ void FDeferredShadingSceneRenderer::RenderLightShaftBloom(
 							RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 							INC_DWORD_STAT(STAT_LightShaftsLights);
 
-							const FScreenPassTextureViewport SceneViewport(SceneTextureExtent, View.ViewRect);
+							const FScreenPassTextureViewport SceneViewport(SceneTextures.Extent, View.ViewRect);
 							const FScreenPassTextureViewport LightShaftViewport(GetDownscaledViewport(SceneViewport, GetLightShaftDownsampleFactor()));
 							const FScreenPassTextureViewport OutputViewport(OutputTexture.Target, GetScaledRect(View.ViewRect, OutputViewRectScale));
 							const FLightShaftPixelShaderParameters LightShaftParameters = GetLightShaftParameters(View, LightSceneInfo, SceneViewport, LightShaftViewport);
@@ -601,7 +598,7 @@ void FDeferredShadingSceneRenderer::RenderLightShaftBloom(
 								GraphBuilder,
 								View,
 								LightShaftParameters,
-								SceneTexturesUniformBuffer,
+								SceneTextures.UniformBuffer,
 								SceneViewport,
 								LightShaftViewport,
 								TemporalHistory,

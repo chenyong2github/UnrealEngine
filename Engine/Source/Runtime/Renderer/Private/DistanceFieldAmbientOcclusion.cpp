@@ -720,16 +720,14 @@ bool FDeferredShadingSceneRenderer::ShouldPrepareGlobalDistanceField() const
 
 void FDeferredShadingSceneRenderer::RenderDFAOAsIndirectShadowing(
 	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-	FRDGTextureRef SceneColorTexture,
-	FRDGTextureRef VelocityTexture,
+	const FSceneTextures& SceneTextures,
 	FRDGTextureRef& DynamicBentNormalAO)
 {
 	if (GDistanceFieldAOApplyToStaticIndirect && ShouldRenderDistanceFieldAO() && ShouldRenderDistanceFieldLighting())
 	{
 		// Use the skylight's max distance if there is one, to be consistent with DFAO shadowing on the skylight
 		const float OcclusionMaxDistance = Scene->SkyLight && !Scene->SkyLight->bWantsStaticShadowing ? Scene->SkyLight->OcclusionMaxDistance : Scene->DefaultMaxDistanceFieldOcclusionDistance;
-		RenderDistanceFieldLighting(GraphBuilder, SceneTexturesUniformBuffer, FDistanceFieldAOParameters(OcclusionMaxDistance), SceneColorTexture, VelocityTexture, DynamicBentNormalAO, true, false);
+		RenderDistanceFieldLighting(GraphBuilder, SceneTextures, FDistanceFieldAOParameters(OcclusionMaxDistance), DynamicBentNormalAO, true, false);
 	}
 }
 
@@ -749,10 +747,8 @@ bool FDeferredShadingSceneRenderer::ShouldRenderDistanceFieldLighting() const
 
 void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	const FSceneTextures& SceneTextures,
 	const FDistanceFieldAOParameters& Parameters,
-	FRDGTextureRef SceneColorTexture,
-	FRDGTextureRef VelocityTexture,
 	FRDGTextureRef& OutDynamicBentNormalAO,
 	bool bModulateToSceneColor,
 	bool bVisualizeAmbientOcclusion)
@@ -795,7 +791,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 		CullObjectsToView(GraphBuilder, Scene, View, Parameters, GAOCulledObjectBuffers);
 	}
 
-	ComputeDistanceFieldNormal(GraphBuilder, Views, SceneTexturesUniformBuffer, DistanceFieldNormal, Parameters);
+	ComputeDistanceFieldNormal(GraphBuilder, Views, SceneTextures.UniformBuffer, DistanceFieldNormal, Parameters);
 
 	// Intersect objects with screen tiles, build lists
 	if (UseAOObjectDistanceField())
@@ -807,10 +803,9 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 
 	RenderDistanceFieldAOScreenGrid(
 		GraphBuilder,
+		SceneTextures,
 		View,
 		Parameters,
-		SceneTexturesUniformBuffer,
-		VelocityTexture,
 		DistanceFieldNormal,
 		BentNormalOutput);
 
@@ -825,12 +820,12 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 		});
 	}
 
-	RenderCapsuleShadowsForMovableSkylight(GraphBuilder, SceneTexturesUniformBuffer, BentNormalOutput);
+	RenderCapsuleShadowsForMovableSkylight(GraphBuilder, SceneTextures.UniformBuffer, BentNormalOutput);
 
 	// Upsample to full resolution, write to output in case of debug AO visualization or scene color modulation (standard upsampling is done later together with sky lighting and reflection environment)
 	if (bModulateToSceneColor || bVisualizeAmbientOcclusion)
 	{
-		UpsampleBentNormalAO(GraphBuilder, Views, SceneTexturesUniformBuffer, SceneColorTexture, BentNormalOutput, bModulateToSceneColor && !bVisualizeAmbientOcclusion);
+		UpsampleBentNormalAO(GraphBuilder, Views, SceneTextures.UniformBuffer, SceneTextures.Color.Target, BentNormalOutput, bModulateToSceneColor && !bVisualizeAmbientOcclusion);
 	}
 
 	OutDynamicBentNormalAO = BentNormalOutput;

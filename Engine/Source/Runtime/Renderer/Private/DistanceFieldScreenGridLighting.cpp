@@ -484,10 +484,9 @@ END_SHADER_PARAMETER_STRUCT()
 
 void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 	FRDGBuilder& GraphBuilder,
+	const FSceneTextures& SceneTextures,
 	const FViewInfo& View,
 	const FDistanceFieldAOParameters& Parameters,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-	FRDGTextureRef VelocityTexture,
 	FRDGTextureRef DistanceFieldNormal,
 	FRDGTextureRef& OutDynamicBentNormalAO)
 {
@@ -520,7 +519,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 
 	{
 		FDistanceFieldAOScreenGridParameters* PassParameters = GraphBuilder.AllocParameters<FDistanceFieldAOScreenGridParameters>();
-		PassParameters->SceneTextures = SceneTexturesUniformBuffer;
+		PassParameters->SceneTextures = SceneTextures.UniformBuffer;
 		PassParameters->DistanceFieldNormal = DistanceFieldNormal;
 
 		GraphBuilder.AddPass(
@@ -648,8 +647,8 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 		GraphBuilder,
 		Parameters,
 		View,
-		SceneTexturesUniformBuffer,
-		VelocityTexture,
+		SceneTextures.UniformBuffer,
+		SceneTextures.Velocity,
 		DownsampledBentNormal,
 		DistanceFieldNormal,
 		OutDynamicBentNormalAO);

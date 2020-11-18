@@ -1726,11 +1726,9 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 
 void FSceneRenderer::RenderVolumetricCloud(
 	FRDGBuilder& GraphBuilder,
-	const FSceneTextureShaderParameters& SceneTextures,
+	const FMinimalSceneTextures& SceneTextures,
 	bool bSkipVolumetricRenderTarget,
 	bool bSkipPerPixelTracing,
-	FRDGTextureMSAA SceneColorTexture,
-	FRDGTextureMSAA SceneDepthTexture,
 	FRDGTextureRef HalfResolutionDepthCheckerboardMinMaxTexture)
 {
 	check(ShouldRenderVolumetricCloud(Scene, ViewFamily.EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
@@ -1752,7 +1750,7 @@ void FSceneRenderer::RenderVolumetricCloud(
 
 			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
-			FRDGTextureRef SceneDepthZ = SceneDepthTexture.Resolve;
+			FRDGTextureRef SceneDepthZ = SceneTextures.Depth.Resolve;
 
 			FCloudRenderContext CloudRC;
 			CloudRC.CloudInfo = &CloudInfo;
@@ -1914,7 +1912,7 @@ void FSceneRenderer::RenderVolumetricCloud(
 					SkyRC.bShouldSampleCloudSkyAO = CloudShadowAOData.bShouldSampleCloudSkyAO;
 					SkyRC.VolumetricCloudSkyAO = CloudShadowAOData.VolumetricCloudSkyAO;
 
-					RenderSkyAtmosphereInternal(GraphBuilder, SceneTextures, SkyRC);
+					RenderSkyAtmosphereInternal(GraphBuilder, GetSceneTextureShaderParameters(SceneTextures.UniformBuffer), SkyRC);
 				}
 
 
@@ -1948,7 +1946,7 @@ void FSceneRenderer::RenderVolumetricCloud(
 						const int DebugLightIndex = 0;	// only debug atmospheric light 0 for now
 						const int32 CloudShadowmapSampleCount = VolumetricCloudParams.VolumetricCloud.CloudShadowmapSampleCount[DebugLightIndex];
 
-						AddDrawCanvasPass(GraphBuilder, {}, ViewInfo, FScreenPassRenderTarget(SceneColorTexture.Target, ViewInfo.ViewRect, ERenderTargetLoadAction::ELoad), [CloudShadowmapSampleCount, &ViewInfo](FCanvas& Canvas)
+						AddDrawCanvasPass(GraphBuilder, {}, ViewInfo, FScreenPassRenderTarget(SceneTextures.Color.Target, ViewInfo.ViewRect, ERenderTargetLoadAction::ELoad), [CloudShadowmapSampleCount, &ViewInfo](FCanvas& Canvas)
 						{
 							const float ViewPortWidth = float(ViewInfo.ViewRect.Width());
 							const float ViewPortHeight = float(ViewInfo.ViewRect.Height());

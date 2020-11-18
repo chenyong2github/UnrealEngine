@@ -1755,11 +1755,7 @@ void FSceneRenderer::RenderSkyAtmosphereInternal(
 
 
 
-void FSceneRenderer::RenderSkyAtmosphere(
-	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-	FRDGTextureRef SceneColor,
-	FRDGTextureRef SceneDepth)
+void FSceneRenderer::RenderSkyAtmosphere(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures)
 {
 	check(!IsMobilePlatform(Scene->GetShaderPlatform()));
 
@@ -1791,8 +1787,8 @@ void FSceneRenderer::RenderSkyAtmosphere(
 	SkyRC.TransmittanceLut = GraphBuilder.RegisterExternalTexture(SkyInfo.GetTransmittanceLutTexture());
 	SkyRC.MultiScatteredLuminanceLut = GraphBuilder.RegisterExternalTexture(SkyInfo.GetMultiScatteredLuminanceLutTexture());
 
-	SkyRC.RenderTargets[0] = FRenderTargetBinding(SceneColor, ERenderTargetLoadAction::ELoad);
-	SkyRC.RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthRead_StencilNop);
+	SkyRC.RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, ERenderTargetLoadAction::ELoad);
+	SkyRC.RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthRead_StencilNop);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -1827,7 +1823,7 @@ void FSceneRenderer::RenderSkyAtmosphere(
 		SkyRC.bShouldSampleCloudSkyAO = CloudShadowAOData.bShouldSampleCloudSkyAO;
 		SkyRC.VolumetricCloudSkyAO = CloudShadowAOData.VolumetricCloudSkyAO;
 
-		RenderSkyAtmosphereInternal(GraphBuilder, GetSceneTextureShaderParameters(SceneTexturesUniformBuffer), SkyRC);
+		RenderSkyAtmosphereInternal(GraphBuilder, GetSceneTextureShaderParameters(SceneTextures.UniformBuffer), SkyRC);
 	}
 
 #if WITH_EDITOR
@@ -1837,7 +1833,7 @@ void FSceneRenderer::RenderSkyAtmosphere(
 		{
 			const FViewInfo& View = Views[ViewIndex];
 
-			AddDrawCanvasPass(GraphBuilder, {}, View, FScreenPassRenderTarget(SceneColor, View.ViewRect, ERenderTargetLoadAction::ELoad),
+			AddDrawCanvasPass(GraphBuilder, {}, View, FScreenPassRenderTarget(SceneTextures.Color.Target, View.ViewRect, ERenderTargetLoadAction::ELoad),
 				[&View](FCanvas& Canvas)
 			{
 				const float ViewPortWidth = float(View.ViewRect.Width());

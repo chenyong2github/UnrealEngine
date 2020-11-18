@@ -82,6 +82,26 @@ struct FCustomDepthTextures
 	FRDGTextureRef MobileCustomStencil{};
 };
 
+struct FMinimalSceneTextures
+{
+	FRDGTextureMSAA Color{};
+	FRDGTextureMSAA Depth{};
+	FRDGTextureSRVRef Stencil{};
+
+	FIntPoint Extent = FIntPoint::ZeroValue;
+
+	ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::None;
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> UniformBuffer{};
+};
+
+struct FSceneTextures : public FMinimalSceneTextures
+{
+	RENDERER_API static FSceneTextures& Create(FRDGBuilder& GraphBuilder);
+
+	FRDGTextureRef SmallDepth{};
+	FRDGTextureRef Velocity{};
+};
+
 /**
  * Encapsulates the render targets used for scene rendering.
  */
@@ -570,11 +590,3 @@ private:
 	/** True if the a variable resolution texture is allocated to control sampling or shading rate */
 	bool bAllocatedFoveationTexture;
 };
-
-/** Sets up scene texture parameters for RDG (builder is valid) or passthrough RHI access (builder is null). Intended for temporary use during RDG refactor. */
-extern void SetupSceneTextureUniformParameters(
-	FRDGBuilder* GraphBuilder,
-	ERHIFeatureLevel::Type FeatureLevel,
-	const FSceneRenderTargets& SceneContext,
-	ESceneTextureSetupMode SetupMode,
-	FSceneTextureUniformParameters& SceneTextureParameters);

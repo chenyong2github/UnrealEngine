@@ -224,32 +224,13 @@ END_SHADER_PARAMETER_STRUCT()
 
 void FDeferredShadingSceneRenderer::RenderVelocities(
 	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef DepthTexture,
-	FRDGTextureRef& InOutVelocityTexture,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	FSceneTextures& SceneTextures,
 	EVelocityPass VelocityPass,
 	bool bForceVelocity)
 {
-	check(FeatureLevel >= ERHIFeatureLevel::SM5);
-
-	
 	if (!ShouldRenderVelocities())
 	{
 		return;
-	}
-
-	{
-		const EMeshPass::Type MeshPass = GetMeshPassFromVelocityPass(VelocityPass);
-		bool bHasAnyDraw = false;
-		for (const FViewInfo& View : Views)
-		{
-			bHasAnyDraw |= View.ParallelMeshDrawCommandPasses[MeshPass].HasAnyDraw();
-		}
-
-		if( !bHasAnyDraw )
-		{
-			return;
-		}
 	}
 
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderVelocities);
@@ -257,12 +238,11 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 	SCOPE_CYCLE_COUNTER(STAT_RenderVelocities);
 
 	ERenderTargetLoadAction VelocityLoadAction = ERenderTargetLoadAction::ELoad;
-	FRDGTextureRef VelocityTexture = InOutVelocityTexture;
 	bool bVelocityRendered = false;
 
-	if (!VelocityTexture)
+	if (!SceneTextures.Velocity)
 	{
-		VelocityTexture = GraphBuilder.CreateTexture(FVelocityRendering::GetRenderTargetDesc(ShaderPlatform), TEXT("Velocity"));
+		SceneTextures.Velocity = GraphBuilder.CreateTexture(FVelocityRendering::GetRenderTargetDesc(ShaderPlatform), TEXT("Velocity"));
 		VelocityLoadAction = ERenderTargetLoadAction::EClear;
 	}
 
@@ -289,7 +269,7 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 
 			if (VelocityLoadAction == ERenderTargetLoadAction::EClear)
 			{
-				AddClearRenderTargetPass(GraphBuilder, VelocityTexture);
+				AddClearRenderTargetPass(GraphBuilder, SceneTextures.Velocity);
 
 				if (!View.Family->bMultiGPUForkAndJoin)
 				{
@@ -304,9 +284,9 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 			}
 
 			FVelocityPassParameters* PassParameters = GraphBuilder.AllocParameters<FVelocityPassParameters>();
-			PassParameters->SceneTextures = SceneTexturesUniformBuffer;
+			PassParameters->SceneTextures = SceneTextures.UniformBuffer;
 			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
-				DepthTexture,
+				SceneTextures.Depth.Resolve,
 				ERenderTargetLoadAction::ELoad,
 				ERenderTargetLoadAction::ELoad,
 				(VelocityPass == EVelocityPass::Opaque && !(Scene->EarlyZPassMode == DDM_AllOpaqueNoVelocity))
@@ -315,7 +295,7 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 
 			if (IsParallelVelocity())
 			{
-				PassParameters->RenderTargets[0] = FRenderTargetBinding(VelocityTexture, ERenderTargetLoadAction::ELoad);
+				PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Velocity, ERenderTargetLoadAction::ELoad);
 
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("VelocityParallel"),
@@ -330,7 +310,7 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 			}
 			else
 			{
-				PassParameters->RenderTargets[0] = FRenderTargetBinding(VelocityTexture, ERenderTargetLoadAction::ELoad);
+				PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Velocity, ERenderTargetLoadAction::ELoad);
 
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("Velocity"),
@@ -348,11 +328,9 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 		}
 	}
 
-	if (!InOutVelocityTexture && bVelocityRendered)
+	if (bVelocityRendered)
 	{
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-		ConvertToExternalTexture(GraphBuilder, VelocityTexture, SceneContext.SceneVelocity);
-		InOutVelocityTexture = VelocityTexture;
+		ConvertToExternalTexture(GraphBuilder, SceneTextures.Velocity, FSceneRenderTargets::Get().SceneVelocity);
 	}
 }
 

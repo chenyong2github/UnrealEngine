@@ -71,10 +71,10 @@ class FClusteredShadingPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, LTCMatTexture)
+		SHADER_PARAMETER_TEXTURE(Texture2D, LTCMatTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LTCMatSampler)
 
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, LTCAmpTexture)
+		SHADER_PARAMETER_TEXTURE(Texture2D, LTCAmpTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LTCAmpSampler)
 
 		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
@@ -100,8 +100,7 @@ IMPLEMENT_GLOBAL_SHADER(FClusteredShadingPS, "/Engine/Private/ClusteredDeferredS
 
 void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef SceneColorTexture,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	const FMinimalSceneTextures& SceneTextures,
 	const FSortedLightSetSceneInfo &SortedLightsSet)
 {
 	check(GUseClusteredDeferredShading);
@@ -113,7 +112,7 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 		RDG_GPU_STAT_SCOPE(GraphBuilder, ClusteredShading);
 		RDG_EVENT_SCOPE(GraphBuilder, "ClusteredShading");
 
-		const FIntPoint SceneTextureExtent = SceneColorTexture->Desc.Extent;
+		const FIntPoint SceneTextureExtent = SceneTextures.Extent;
 
 		for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
 		{
@@ -123,16 +122,16 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->Forward = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
-			PassParameters->SceneTextures = SceneTexturesUniformBuffer;
+			PassParameters->SceneTextures = SceneTextures.UniformBuffer;
 
-			PassParameters->LTCMatTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.LTCMat);
+			PassParameters->LTCMatTexture = GSystemTextures.LTCMat->GetShaderResourceRHI();
 			PassParameters->LTCMatSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			PassParameters->LTCAmpTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.LTCAmp);
+			PassParameters->LTCAmpTexture = GSystemTextures.LTCAmp->GetShaderResourceRHI();
 			PassParameters->LTCAmpSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			PassParameters->SSProfilesTexture = GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList)->GetShaderResourceRHI();
 			PassParameters->TransmissionProfilesLinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, ERenderTargetLoadAction::ELoad);
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("ClusteredDeferredShading, #Lights: %d", NumLightsToRender),

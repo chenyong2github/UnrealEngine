@@ -773,10 +773,8 @@ END_SHADER_PARAMETER_STRUCT()
 
 void FDeferredShadingSceneRenderer::RenderBasePass(
 	FRDGBuilder& GraphBuilder,
+	const FSceneTextures& SceneTextures,
 	FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
-	FRDGTextureRef SceneColorTexture,
-	FRDGTextureRef SceneDepthTexture,
-	ERenderTargetLoadAction SceneDepthLoadAction,
 	FRDGTextureRef ForwardShadowMaskTexture)
 {
 	const bool bEnableParallelBasePasses = GRHICommandList.UseParallelAlgorithms() && CVarParallelBasePass.GetValueOnRenderThread();
@@ -842,7 +840,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets> BasePassTextures;
 	uint32 BasePassTextureCount = SceneContext.GetGBufferRenderTargets(GraphBuilder, BasePassTextures);
 	TArrayView<FRDGTextureRef> BasePassTexturesView = MakeArrayView(BasePassTextures.GetData(), BasePassTextureCount);
-	FRDGTextureRef BasePassDepthTexture = SceneDepthTexture;
+	FRDGTextureRef BasePassDepthTexture = SceneTextures.Depth.Target;
 	FLinearColor SceneColorClearValue;
 
 	if (bRequiresRHIClear)
@@ -863,7 +861,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 
 		ERenderTargetLoadAction ColorLoadAction = ERenderTargetLoadAction::ELoad;
 
-		if (SceneColorTexture->Desc.ClearValue.GetClearColor() == SceneColorClearValue)
+		if (SceneTextures.Color.Target->Desc.ClearValue.GetClearColor() == SceneColorClearValue)
 		{
 			ColorLoadAction = ERenderTargetLoadAction::EClear;
 		}
@@ -874,11 +872,6 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
 		PassParameters->RenderTargets = GetRenderTargetBindings(ColorLoadAction, BasePassTexturesView);
-
-		if (SceneDepthLoadAction == ERenderTargetLoadAction::EClear)
-		{
-			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(BasePassDepthTexture, SceneDepthLoadAction, SceneDepthLoadAction, ExclusiveDepthStencil);
-		}
 
 		GraphBuilder.AddPass(RDG_EVENT_NAME("GBufferClear"), PassParameters, ERDGPassFlags::Raster,
 			[PassParameters, ColorLoadAction, SceneColorClearValue](FRHICommandList& RHICmdList)
@@ -912,7 +905,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 		{
 			// We only render this warning text when bRequiresRHIClear==true to make sure the scene color buffer is allocated at this stage.
 			// When false, the option specifies that all pixels must be written to by a sky dome anyway.
-			RenderSkyAtmosphereEditorNotifications(GraphBuilder, SceneColorTexture);
+			RenderSkyAtmosphereEditorNotifications(GraphBuilder, SceneTextures.Color.Target);
 		}
 	}
 
@@ -976,7 +969,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	if (ShouldRenderAnisotropyPass())
 	{
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AnisotropyPass));
-		RenderAnisotropyPass(GraphBuilder, SceneDepthTexture, bEnableParallelBasePasses);
+		RenderAnisotropyPass(GraphBuilder, SceneTextures.Depth.Target, bEnableParallelBasePasses);
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterAnisotropyPass));
 	}
 }

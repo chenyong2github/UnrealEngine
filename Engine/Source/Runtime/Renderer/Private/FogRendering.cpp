@@ -494,10 +494,8 @@ END_SHADER_PARAMETER_STRUCT()
 
 void FDeferredShadingSceneRenderer::RenderFog(
 	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef SceneColorTexture,
-	FRDGTextureRef SceneDepthTexture,
-	FRDGTextureRef LightShaftOcclusionTexture,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesWithDepth)
+	const FMinimalSceneTextures& SceneTextures,
+	FRDGTextureRef LightShaftOcclusionTexture)
 {
 	if (Scene->ExponentialFogs.Num() > 0 
 		// Fog must be done in the base pass for MSAA to work
@@ -518,11 +516,11 @@ void FDeferredShadingSceneRenderer::RenderFog(
 				TRDGUniformBufferRef<FFogUniformParameters> FogUniformBuffer = CreateFogUniformBuffer(GraphBuilder, View);
 
 				FFogPassParameters* PassParameters = GraphBuilder.AllocParameters<FFogPassParameters>();
-				PassParameters->SceneTextures = SceneTexturesWithDepth;
+				PassParameters->SceneTextures = SceneTextures.UniformBuffer;
 				PassParameters->Fog = FogUniformBuffer;
 				PassParameters->LightShaftOcclusionTexture = LightShaftOcclusionTexture;
-				PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
-				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
+				PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, ERenderTargetLoadAction::ELoad);
+				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
 
 				GraphBuilder.AddPass({}, PassParameters, ERDGPassFlags::Raster, [this, &View, bShouldRenderVolumetricFog, LightShaftOcclusionTexture, FogUniformBuffer](FRHICommandList& RHICmdList)
 				{

@@ -643,9 +643,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 
 void FDeferredShadingSceneRenderer::RenderSingleLayerWater(
 	FRDGBuilder& GraphBuilder,
-	FRDGTextureMSAA SceneColorTexture,
-	FRDGTextureMSAA SceneDepthTexture,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> DepthOnlySceneTextures,
+	const FSceneTextures& SceneTextures,
 	bool bShouldRenderVolumetricCloud,
 	FSceneWithoutWaterTextures& SceneWithoutWaterTextures)
 {
@@ -653,12 +651,12 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWater(
 	RDG_GPU_STAT_SCOPE(GraphBuilder, SingleLayerWater);
 
 	// Copy the texture to be available for the water surface to refract
-	SceneWithoutWaterTextures = AddCopySceneWithoutWaterPass(GraphBuilder, Views, SceneColorTexture.Resolve, SceneDepthTexture.Resolve);
+	SceneWithoutWaterTextures = AddCopySceneWithoutWaterPass(GraphBuilder, Views, SceneTextures.Color.Resolve, SceneTextures.Depth.Resolve);
 
 	// Render height fog over the color buffer if it is allocated, e.g. SingleLayerWaterUsesSimpleShading is true which is not the case on Switch.
 	if (SceneWithoutWaterTextures.ColorTexture && ShouldRenderFog(ViewFamily))
 	{
-		RenderUnderWaterFog(GraphBuilder, SceneWithoutWaterTextures, DepthOnlySceneTextures);
+		RenderUnderWaterFog(GraphBuilder, SceneWithoutWaterTextures, SceneTextures.UniformBuffer);
 	}
 	if (SceneWithoutWaterTextures.ColorTexture && bShouldRenderVolumetricCloud)
 	{
@@ -666,13 +664,13 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWater(
 		ComposeVolumetricRenderTargetOverSceneUnderWater(GraphBuilder, Views, SceneWithoutWaterTextures);
 	}
 
-	RenderSingleLayerWaterInner(GraphBuilder, SceneColorTexture, SceneDepthTexture, SceneWithoutWaterTextures);
+	RenderSingleLayerWaterInner(GraphBuilder, SceneTextures, SceneWithoutWaterTextures);
 
 	// No SSR or composite needed in Forward. Reflections are applied in the WaterGBuffer pass.
 	if (!IsAnyForwardShadingEnabled(ShaderPlatform))
 	{
 		// If supported render SSR, the composite pass in non deferred and/or under water effect.
-		RenderSingleLayerWaterReflections(GraphBuilder, SceneColorTexture.Resolve, SceneWithoutWaterTextures);
+		RenderSingleLayerWaterReflections(GraphBuilder, SceneTextures.Color.Resolve, SceneWithoutWaterTextures);
 	}
 }
 
@@ -683,8 +681,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 	FRDGBuilder& GraphBuilder,
-	FRDGTextureMSAA SceneColorTexture,
-	FRDGTextureMSAA SceneDepthTexture,
+	const FSceneTextures& SceneTextures,
 	const FSceneWithoutWaterTextures& SceneWithoutWaterTextures)
 {
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, Water);
@@ -696,12 +693,13 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 	const bool bRenderInParallel = GRHICommandList.UseParallelAlgorithms() && CVarParallelSingleLayerWaterPass.GetValueOnRenderThread() == 1;
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	FRenderTargetBindingSlots RenderTargets;
 	SceneContext.GetGBufferRenderTargets(GraphBuilder, ERenderTargetLoadAction::ELoad, RenderTargets);
-	RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+	RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
-	FRDGTextureRef WhiteForwardScreenSpaceShadowMask = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
+	FRDGTextureRef WhiteForwardScreenSpaceShadowMask = SystemTextures.White;
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
@@ -747,7 +745,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 		}
 	}
 
-	AddResolveSceneDepthPass(GraphBuilder, Views, SceneDepthTexture);
+	AddResolveSceneDepthPass(GraphBuilder, Views, SceneTextures.Depth);
 }
 
 class FSingleLayerWaterPassMeshProcessor : public FMeshPassProcessor

@@ -110,16 +110,13 @@ public:
 	void RenderPostOpaqueExtensions(
 		FRDGBuilder& GraphBuilder,
 		TArrayView<const FViewInfo> Views,
-		FRDGTextureRef SceneColorTexture,
-		FRDGTextureRef SceneDepthTexture,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FSceneTextures& SceneTextures,
 		const FSceneRenderTargets& SceneContext);
 
 	void RenderOverlayExtensions(
 		FRDGBuilder& GraphBuilder,
 		TArrayView<const FViewInfo> Views,
-		FRDGTextureRef SceneColorTexture,
-		FRDGTextureRef SceneDepthTexture,
+		const FSceneTextures& SceneTextures,
 		const FSceneRenderTargets& SceneContext);
 
 	void RenderPostResolvedSceneColorExtension(FRDGBuilder& GraphBuilder, FSceneRenderTargets& SceneContext);

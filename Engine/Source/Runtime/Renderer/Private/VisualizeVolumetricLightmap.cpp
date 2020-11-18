@@ -94,8 +94,7 @@ IMPLEMENT_GLOBAL_SHADER(FVisualizeVolumetricLightmapPS, "/Engine/Private/Visuali
 
 void FDeferredShadingSceneRenderer::VisualizeVolumetricLightmap(
 	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef SceneColorTexture,
-	FRDGTextureRef SceneDepthTexture)
+	const FMinimalSceneTextures& SceneTextures)
 {
 	if (!ViewFamily.EngineShowFlags.VisualizeVolumetricLightmap)
 	{
@@ -124,8 +123,8 @@ void FDeferredShadingSceneRenderer::VisualizeVolumetricLightmap(
 	for (const FViewInfo& View : Views)
 	{
 		auto* PassParameters = GraphBuilder.AllocParameters<FVisualizeVolumetricLightmapPS::FParameters>();
-		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
+		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, ERenderTargetLoadAction::ELoad);
 
 		if (SceneContext.GBufferB)
 		{

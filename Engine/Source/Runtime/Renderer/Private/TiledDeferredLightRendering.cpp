@@ -335,10 +335,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTiledDeferredLightingParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 END_SHADER_PARAMETER_STRUCT()
 
-FRDGTextureRef FDeferredShadingSceneRenderer::RenderTiledDeferredLighting(
+void FDeferredShadingSceneRenderer::RenderTiledDeferredLighting(
 	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef SceneColorTexture,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	FMinimalSceneTextures& SceneTextures,
 	const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights,
 	int32 TiledDeferredLightsStart,
 	int32 TiledDeferredLightsEnd,
@@ -358,6 +357,8 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderTiledDeferredLighting(
 		INC_DWORD_STAT_BY(STAT_NumLightsUsingSimpleTiledDeferred, SimpleLights.InstanceData.Num());
 		SCOPE_CYCLE_COUNTER(STAT_DirectLightRenderingTime);
 
+		FRDGTextureRef& SceneColorTexture = SceneTextures.Color.Target;
+
 		// Determine how many compute shader passes will be needed to process all the lights
 		const int32 NumPassesNeeded = FMath::DivideAndRoundUp(NumLightsToRender, GMaxNumTiledDeferredLights);
 		for (int32 PassIndex = 0; PassIndex < NumPassesNeeded; PassIndex++)
@@ -370,7 +371,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderTiledDeferredLighting(
 			FRDGTextureRef SceneColorOutputTexture = nullptr;
 
 			{
-				FRDGTextureDesc Desc = SceneColorTexture->Desc;
+				FRDGTextureDesc Desc = SceneTextures.Color.Target->Desc;
 				Desc.Flags |= TexCreate_UAV;
 				SceneColorOutputTexture = GraphBuilder.CreateTexture(Desc, TEXT("SceneColorTiled"));
 			}
@@ -384,7 +385,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderTiledDeferredLighting(
 				FTiledDeferredLightingParameters* PassParameters = GraphBuilder.AllocParameters<FTiledDeferredLightingParameters>();
 				PassParameters->SceneColorInput = SceneColorTexture;
 				PassParameters->SceneColorOutput = SceneColorOutputTexture;
-				PassParameters->SceneTextures = SceneTexturesUniformBuffer;
+				PassParameters->SceneTextures = SceneTextures.UniformBuffer;
 
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("TiledDeferredLighting"),
@@ -409,6 +410,4 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderTiledDeferredLighting(
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 		ConvertToExternalTexture(GraphBuilder, SceneColorTexture, SceneContext.GetSceneColor());
 	}
-
-	return SceneColorTexture;
 }

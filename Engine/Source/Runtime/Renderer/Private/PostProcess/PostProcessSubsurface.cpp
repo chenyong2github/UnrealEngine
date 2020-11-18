@@ -1303,28 +1303,22 @@ FScreenPassTexture AddVisualizeSubsurfacePass(FRDGBuilder& GraphBuilder, const F
 	return MoveTemp(Output);
 }
 
-FRDGTextureRef AddSubsurfacePass(
+void AddSubsurfacePass(
 	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-	TArrayView<const FViewInfo> Views,
-	FRDGTextureRef SceneColorTexture)
+	FMinimalSceneTextures& SceneTextures,
+	TArrayView<const FViewInfo> Views)
 {
 	const uint32 ViewMask = GetSubsurfaceRequiredViewMask(Views);
 
 	if (!ViewMask)
 	{
-		return SceneColorTexture;
+		return;
 	}
 
-	checkf(SceneColorTexture->Desc.NumSamples == 1, TEXT("Subsurface rendering requires the deferred renderer."));
+	checkf(!SceneTextures.Color.IsSeparate(), TEXT("Subsurface rendering requires the deferred renderer."));
 
-	FRDGTextureRef SceneColorOutputTexture = GraphBuilder.CreateTexture(SceneColorTexture->Desc, TEXT("SceneColorSubsurface"));
-	AddSubsurfacePass(GraphBuilder, Views, ViewMask, SceneTexturesUniformBuffer, SceneColorTexture, SceneColorOutputTexture);
-
-	{
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-		ConvertToExternalTexture(GraphBuilder, SceneColorOutputTexture, SceneContext.GetSceneColor());
-	}
-
-	return SceneColorOutputTexture;
+	FRDGTextureRef SceneColorOutputTexture = GraphBuilder.CreateTexture(SceneTextures.Color.Target->Desc, TEXT("SceneColorSubsurface"));
+	AddSubsurfacePass(GraphBuilder, Views, ViewMask, SceneTextures.UniformBuffer, SceneTextures.Color.Target, SceneColorOutputTexture);
+	ConvertToExternalTexture(GraphBuilder, SceneColorOutputTexture, FSceneRenderTargets::Get().GetSceneColor());
+	SceneTextures.Color = SceneColorOutputTexture;
 }

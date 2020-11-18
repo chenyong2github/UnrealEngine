@@ -54,6 +54,9 @@ struct FHairStrandsVisibilityViews;
 struct FSortedLightSetSceneInfo;
 struct FStrataSceneData;
 
+struct FMinimalSceneTextures;
+struct FSceneTextures;
+
 DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, STATCAT_Advanced);
 
 DECLARE_GPU_DRAWCALL_STAT_EXTERN(VirtualTextureUpdate);
@@ -1989,11 +1992,7 @@ protected:
 	void RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder);
 
 	/** Render the sky atmosphere over the scene.*/
-	void RenderSkyAtmosphere(
-		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-		FRDGTextureRef SceneColorTexture,
-		FRDGTextureRef SceneDepthTexture);
+	void RenderSkyAtmosphere(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);
 
 	/** Initialise volumetric cloud resources.*/
 	void InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, bool bShouldRenderVolumetricCloud);
@@ -2001,11 +2000,9 @@ protected:
 	/** Render volumetric cloud. */
 	void RenderVolumetricCloud(
 		FRDGBuilder& GraphBuilder,
-		const FSceneTextureShaderParameters& SceneTextures,
+		const FMinimalSceneTextures& SceneTextures,
 		bool bSkipVolumetricRenderTarget,
 		bool bSkipPerPixelTracing,
-		FRDGTextureMSAA SceneColorTexture,
-		FRDGTextureMSAA SceneDepthTexture,
 		FRDGTextureRef HalfResolutionDepthCheckerboardMinMaxTexture);
 
 	/** Render notification to artist when a sky material is used but it might comtains the camera (and then the sky/background would look black).*/

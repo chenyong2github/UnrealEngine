@@ -472,10 +472,8 @@ END_SHADER_PARAMETER_STRUCT()
 
 void FDeferredShadingSceneRenderer::RenderAtmosphere(
 	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef SceneColorTexture,
-	FRDGTextureRef SceneDepthTexture,
-	FRDGTextureRef LightShaftOcclusionTexture,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures)
+	const FMinimalSceneTextures& SceneTextures,
+	FRDGTextureRef LightShaftOcclusionTexture)
 {
 	FAtmosphericFogSceneInfo* AtmosphericFog = Scene->AtmosphericFog;
 	if (!AtmosphericFog)
@@ -505,10 +503,10 @@ void FDeferredShadingSceneRenderer::RenderAtmosphere(
 	RDG_EVENT_SCOPE(GraphBuilder, "AtmosphericFog");
 
 	FAtmospherePassParameters* PassParameters = GraphBuilder.AllocParameters<FAtmospherePassParameters>();
-	PassParameters->SceneTextures = SceneTextures;
+	PassParameters->SceneTextures = SceneTextures.UniformBuffer;
 	PassParameters->LightShaftOcclusionTexture = LightShaftOcclusionTexture;
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
-	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, ERenderTargetLoadAction::ELoad);
+	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
 
 	for(int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{

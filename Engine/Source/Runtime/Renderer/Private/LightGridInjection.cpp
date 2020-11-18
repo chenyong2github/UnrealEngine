@@ -785,14 +785,15 @@ void FDeferredShadingSceneRenderer::GatherLightsAndComputeLightGrid(FRDGBuilder&
 
 void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-	FRDGTextureRef SceneDepthTexture,
+	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef& OutForwardScreenSpaceShadowMask,
 	FRDGTextureRef& OutForwardScreenSpaceShadowMaskSubPixel,
 	const FHairStrandsRenderingData* InHairDatas)
 {
 	const bool bIsHairEnable = InHairDatas != nullptr;
 	bool bScreenShadowMaskNeeded = false;
+
+	FRDGTextureRef SceneDepthTexture = SceneTextures.Depth.Target;
 
 	for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
 	{
@@ -811,8 +812,7 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 		FRDGTextureMSAA ForwardScreenSpaceShadowMaskSubPixel;
 
 		{
-			const FIntPoint SceneTextureExtent = SceneDepthTexture->Desc.Extent;
-			FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(SceneTextureExtent, PF_B8G8R8A8, FClearValueBinding::White, TexCreate_RenderTargetable | TexCreate_ShaderResource));
+			FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(SceneTextures.Extent, PF_B8G8R8A8, FClearValueBinding::White, TexCreate_RenderTargetable | TexCreate_ShaderResource));
 			Desc.NumSamples = SceneDepthTexture->Desc.NumSamples;
 			ForwardScreenSpaceShadowMask = CreateTextureMSAA(GraphBuilder, Desc, TEXT("ShadowMaskTexture"), GFastVRamConfig.ScreenSpaceShadowMask);
 			if (bIsHairEnable)
@@ -850,10 +850,9 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 			{
 				RenderShadowProjections(
 					GraphBuilder,
-					SceneTexturesUniformBuffer,
+					SceneTextures,
 					ForwardScreenSpaceShadowMask.Target,
 					ForwardScreenSpaceShadowMaskSubPixel.Target,
-					SceneDepthTexture,
 					LightSceneInfo,
 					HairVisibilityViews,
 					bProjectingForForwardShading);
@@ -864,14 +863,13 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 				}
 			}
 
-			RenderCapsuleDirectShadows(GraphBuilder, SceneTexturesUniformBuffer, *LightSceneInfo, ForwardScreenSpaceShadowMask.Target, VisibleLightInfo.CapsuleShadowsToProject, bProjectingForForwardShading);
+			RenderCapsuleDirectShadows(GraphBuilder, SceneTextures.UniformBuffer, *LightSceneInfo, ForwardScreenSpaceShadowMask.Target, VisibleLightInfo.CapsuleShadowsToProject, bProjectingForForwardShading);
 
 			if (LightSceneInfo->GetDynamicShadowMapChannel() >= 0 && LightSceneInfo->GetDynamicShadowMapChannel() < 4)
 			{
 				RenderLightFunction(
 					GraphBuilder,
-					SceneDepthTexture,
-					SceneTexturesUniformBuffer,
+					SceneTextures,
 					LightSceneInfo,
 					ForwardScreenSpaceShadowMask.Target,
 					true, true);

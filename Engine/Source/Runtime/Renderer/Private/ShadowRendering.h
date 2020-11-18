@@ -505,9 +505,8 @@ public:
 	/** Renders ray traced distance field shadows. */
 	void RenderRayTracedDistanceFieldProjection(
 		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FMinimalSceneTextures& SceneTextures,
 		FRDGTextureRef ScreenShadowMaskTexture,
-		FRDGTextureRef SceneDepthTexture,
 		const FViewInfo& View,
 		FIntRect ScissorRect,
 		bool bProjectingForForwardShading) const;

@@ -159,7 +159,7 @@ struct FRDGTextureMSAA
 		, Resolve(InResolve)
 	{}
 
-	explicit FRDGTextureMSAA(FRDGTextureRef InTexture)
+	FRDGTextureMSAA(FRDGTextureRef InTexture)
 		: Target(InTexture)
 		, Resolve(InTexture)
 	{}

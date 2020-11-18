@@ -622,7 +622,7 @@ void SetupTranslucentBasePassUniformParameters(
 	};
 
 	SetupSharedBasePassParameters(GraphBuilder, View, BasePassParameters.Shared);
-	SetupSceneTextureUniformParameters(&GraphBuilder, View.FeatureLevel, SceneRenderTargets, SceneTextureSetupMode, BasePassParameters.SceneTextures);
+	SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, SceneTextureSetupMode, BasePassParameters.SceneTextures);
 
 	FRDGTextureRef BlackDummyTexture = GetRDG(GSystemTextures.BlackDummy);
 
@@ -960,9 +960,8 @@ static void RenderTranslucencyViewInner(
 
 void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 	FRDGBuilder& GraphBuilder,
+	const FMinimalSceneTextures& SceneTextures,
 	const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
-	FRDGTextureMSAA SceneColorTexture,
-	FRDGTextureMSAA SceneDepthTexture,
 	FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
 	ETranslucencyView ViewsToRender,
 	FRDGTextureRef SceneColorCopyTexture,
@@ -1024,7 +1023,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 			}
 
 			// When rendering to a 1-to-1 separate translucency target, use the existing scene depth.
-			FRDGTextureMSAA SeparateTranslucencyDepthTexture = SceneDepthTexture;
+			FRDGTextureMSAA SeparateTranslucencyDepthTexture = SceneTextures.Depth;
 
 			// Rendering to a downscaled target; allocate a new depth texture and downsample depth.
 			if (SeparateTranslucencyDimensions.Scale < 1.0f)
@@ -1036,7 +1035,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 
 				AddDownsampleDepthPass(
 					GraphBuilder, View,
-					FScreenPassTexture(SceneDepthTexture.Resolve, View.ViewRect),
+					FScreenPassTexture(SceneTextures.Depth.Resolve, View.ViewRect),
 					FScreenPassRenderTarget(SeparateTranslucencyDepthTexture.Target, SeparateTranslucencyViewport.Rect, ERenderTargetLoadAction::ENoAction),
 					EDownsampleDepthFilter::Point);
 			}
@@ -1067,10 +1066,10 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 
 				AddTranslucencyUpsamplePass(
 					GraphBuilder, View,
-					FScreenPassRenderTarget(SceneColorTexture.Target, View.ViewRect, ERenderTargetLoadAction::ELoad),
+					FScreenPassRenderTarget(SceneTextures.Color.Target, View.ViewRect, ERenderTargetLoadAction::ELoad),
 					FScreenPassTexture(SeparateTranslucencyColorTexture.Resolve, SeparateTranslucencyViewport.Rect),
 					SeparateTranslucencyDepthTexture.Resolve,
-					SceneDepthTexture.Resolve,
+					SceneTextures.Depth.Resolve,
 					SeparateTranslucencyDimensions.Scale);
 			}
 
@@ -1095,7 +1094,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 			AddBeginTranslucencyTimerPass(GraphBuilder, View);
 
 			const ERenderTargetLoadAction SceneColorLoadAction = ERenderTargetLoadAction::ELoad;
-			const FScreenPassTextureViewport Viewport(SceneColorTexture.Target, View.ViewRect);
+			const FScreenPassTextureViewport Viewport(SceneTextures.Color.Target, View.ViewRect);
 			const float ViewportScale = 1.0f;
 			const bool bResolveColorTexture = false;
 
@@ -1105,9 +1104,9 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 				View,
 				Viewport,
 				ViewportScale,
-				SceneColorTexture,
+				SceneTextures.Color,
 				SceneColorLoadAction,
-				SceneDepthTexture.Target,
+				SceneTextures.Depth.Target,
 				CreateTranslucentBasePassUniformBuffer(GraphBuilder, View, &TranslucentVolumeLightingTextures, SceneColorCopyTexture, SceneTextureSetupMode, ViewIndex),
 				TranslucencyPass,
 				bResolveColorTexture,
@@ -1120,9 +1119,8 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 
 void FDeferredShadingSceneRenderer::RenderTranslucency(
 	FRDGBuilder& GraphBuilder,
+	const FMinimalSceneTextures& SceneTextures,
 	const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
-	FRDGTextureMSAA SceneColorTexture,
-	FRDGTextureMSAA SceneDepthTexture,
 	FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
 	ETranslucencyView ViewsToRender)
 {
@@ -1137,17 +1135,17 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(
 
 	if (EnumHasAnyFlags(ViewsToRender, ETranslucencyView::AboveWater))
 	{
-		SceneColorCopyTexture = AddCopySceneColorPass(GraphBuilder, Views, SceneColorTexture);
+		SceneColorCopyTexture = AddCopySceneColorPass(GraphBuilder, Views, SceneTextures.Color);
 	}
 
 	if (ViewFamily.AllowTranslucencyAfterDOF())
 	{
-		RenderTranslucencyInner(GraphBuilder, TranslucentVolumeLightingTextures, SceneColorTexture, SceneDepthTexture, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_StandardTranslucency);
-		RenderTranslucencyInner(GraphBuilder, TranslucentVolumeLightingTextures, SceneColorTexture, SceneDepthTexture, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_TranslucencyAfterDOF);
-		RenderTranslucencyInner(GraphBuilder, TranslucentVolumeLightingTextures, SceneColorTexture, SceneDepthTexture, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_TranslucencyAfterDOFModulate);
+		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentVolumeLightingTextures, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_StandardTranslucency);
+		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentVolumeLightingTextures, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_TranslucencyAfterDOF);
+		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentVolumeLightingTextures, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_TranslucencyAfterDOFModulate);
 	}
 	else // Otherwise render translucent primitives in a single bucket.
 	{
-		RenderTranslucencyInner(GraphBuilder, TranslucentVolumeLightingTextures, SceneColorTexture, SceneDepthTexture, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_AllTranslucency);
+		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentVolumeLightingTextures, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_AllTranslucency);
 	}
 }

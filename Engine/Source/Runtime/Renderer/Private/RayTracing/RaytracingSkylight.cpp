@@ -694,8 +694,7 @@ IMPLEMENT_GLOBAL_SHADER(FCompositeSkyLightPS, "/Engine/Private/RayTracing/Compos
 
 void FDeferredShadingSceneRenderer::CompositeRayTracingSkyLight(
 	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef SceneColorTexture,
-	FIntPoint SceneTextureExtent,
+	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef SkyLightRT,
 	FRDGTextureRef HitDistanceRT)
 #if RHI_RAYTRACING
@@ -706,21 +705,21 @@ void FDeferredShadingSceneRenderer::CompositeRayTracingSkyLight(
 	{
 		const FViewInfo& View = Views[ViewIndex];
 
-		FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
 
 		FCompositeSkyLightPS::FParameters *PassParameters = GraphBuilder.AllocParameters<FCompositeSkyLightPS::FParameters>();
 		PassParameters->SkyLightTexture = SkyLightRT;
 		PassParameters->SkyLightTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->ViewUniformBuffer = Views[ViewIndex].ViewUniformBuffer;
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
-		PassParameters->SceneTextures = SceneTextures;
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, ERenderTargetLoadAction::ELoad);
+		PassParameters->SceneTextures = SceneTextureParameters;
 
 		// dxr_todo: Unify with RTGI compositing workflow
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("GlobalIlluminationComposite"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[this, &View, PassParameters, SceneTextureExtent](FRHICommandListImmediate& RHICmdList)
+			[this, &View, PassParameters, SceneTextureExtent = SceneTextures.Extent](FRHICommandListImmediate& RHICmdList)
 		{
 			TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 			TShaderMapRef<FCompositeSkyLightPS> PixelShader(View.ShaderMap);

@@ -4004,9 +4004,7 @@ void FRendererModule::RemoveOverlayRenderDelegate(FDelegateHandle InOverlayRende
 void FRendererModule::RenderPostOpaqueExtensions(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<const FViewInfo> Views,
-	FRDGTextureRef SceneColorTexture,
-	FRDGTextureRef SceneDepthTexture,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	const FSceneTextures& SceneTextures,
 	const FSceneRenderTargets& SceneContext)
 {
 	if (PostOpaqueRenderDelegate.IsBound())
@@ -4023,13 +4021,13 @@ void FRendererModule::RenderPostOpaqueExtensions(
 			FPostOpaqueRenderParameters RenderParameters;
 			RenderParameters.ViewMatrix = View.ViewMatrices.GetViewMatrix();
 			RenderParameters.ProjMatrix = View.ViewMatrices.GetProjectionMatrix();
-			RenderParameters.ColorTexture = SceneColorTexture;
-			RenderParameters.DepthTexture = SceneDepthTexture;
+			RenderParameters.ColorTexture = SceneTextures.Color.Target;
+			RenderParameters.DepthTexture = SceneTextures.Depth.Target;
 			RenderParameters.NormalTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferA);
-			RenderParameters.VelocityTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.SceneVelocity);
-			RenderParameters.SmallDepthTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.SmallDepthZ);
+			RenderParameters.VelocityTexture = SceneTextures.Velocity;
+			RenderParameters.SmallDepthTexture = SceneTextures.SmallDepth;
 			RenderParameters.ViewUniformBuffer = View.ViewUniformBuffer;
-			RenderParameters.SceneTexturesUniformParams = SceneTexturesUniformBuffer;
+			RenderParameters.SceneTexturesUniformParams = SceneTextures.UniformBuffer;
 			RenderParameters.GlobalDistanceFieldParams = &View.GlobalDistanceFieldInfo.ParameterData;
 
 			RenderParameters.ViewportRect = View.ViewRect;
@@ -4044,8 +4042,7 @@ void FRendererModule::RenderPostOpaqueExtensions(
 void FRendererModule::RenderOverlayExtensions(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<const FViewInfo> Views,
-	FRDGTextureRef SceneColorTexture,
-	FRDGTextureRef SceneDepthTexture,
+	const FSceneTextures& SceneTextures,
 	const FSceneRenderTargets& SceneContext)
 {
 	if (OverlayRenderDelegate.IsBound())
@@ -4061,9 +4058,9 @@ void FRendererModule::RenderOverlayExtensions(
 			FPostOpaqueRenderParameters RenderParameters;
 			RenderParameters.ViewMatrix = View.ViewMatrices.GetViewMatrix();
 			RenderParameters.ProjMatrix = View.ViewMatrices.GetProjectionMatrix();
-			RenderParameters.ColorTexture = SceneColorTexture;
-			RenderParameters.DepthTexture = SceneDepthTexture;
-			RenderParameters.SmallDepthTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.SmallDepthZ);
+			RenderParameters.ColorTexture = SceneTextures.Color.Target;
+			RenderParameters.DepthTexture = SceneTextures.Depth.Target;
+			RenderParameters.SmallDepthTexture = SceneTextures.SmallDepth;
 
 			RenderParameters.ViewportRect = View.ViewRect;
 			RenderParameters.GraphBuilder = &GraphBuilder;

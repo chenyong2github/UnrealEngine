@@ -154,6 +154,22 @@ static TGlobalResource<FSceneRenderTargets> SceneRenderTargetsSingleton;
 
 extern int32 GUseTranslucentLightingVolumes;
 
+RDG_REGISTER_BLACKBOARD_STRUCT(FSceneTextures);
+
+FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder)
+{
+	auto& SceneTextures = GraphBuilder.Blackboard.Create<FSceneTextures>();
+
+	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
+	SceneTextures.Extent = SceneContext.GetBufferSizeXY();
+
+	SceneTextures.Depth = RegisterExternalTextureMSAA(GraphBuilder, SceneContext.SceneDepthZ);
+	SceneTextures.Stencil = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(SceneTextures.Depth.Target, PF_X24_G8));
+	SceneTextures.SmallDepth = GraphBuilder.RegisterExternalTexture(SceneContext.SmallDepthZ, ERenderTargetTexture::Targetable);
+
+	return SceneTextures;
+}
+
 FSceneRenderTargets& FSceneRenderTargets::Get()
 {
 	check(IsInRenderingThread());
@@ -2230,35 +2246,33 @@ IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(SceneTextures);
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FSceneTextureUniformParameters, "SceneTexturesStruct", SceneTextures);
 
 void SetupSceneTextureUniformParameters(
-	FRDGBuilder* GraphBuilder,
+	FRDGBuilder& GraphBuilder,
 	ERHIFeatureLevel::Type FeatureLevel,
-	const FSceneRenderTargets& SceneContext,
 	ESceneTextureSetupMode SetupMode,
 	FSceneTextureUniformParameters& SceneTextureParameters)
 {
+	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+
 	const auto GetRDG = [&](const TRefCountPtr<IPooledRenderTarget>& PooledRenderTarget, ERDGTextureFlags Flags = ERDGTextureFlags::None)
 	{
-		return RegisterExternalOrPassthroughTexture(GraphBuilder, PooledRenderTarget, Flags);
+		return GraphBuilder.RegisterExternalTexture(PooledRenderTarget, ERenderTargetTexture::ShaderResource, Flags);
 	};
 
-	FRDGTextureRef WhiteDefault2D = GetRDG(GSystemTextures.WhiteDummy);
-	FRDGTextureRef BlackDefault2D = GetRDG(GSystemTextures.BlackDummy);
-	FRDGTextureRef DepthDefault = GetRDG(GSystemTextures.DepthDummy);
-	check(WhiteDefault2D && BlackDefault2D && DepthDefault);
+	SceneTextureParameters.SceneColorTexture = SystemTextures.Black;
+	SceneTextureParameters.SceneDepthTexture = SystemTextures.DepthDummy;
 
 	// Scene Color / Depth
+	if (const FSceneTextures* SceneTextures = GraphBuilder.Blackboard.Get<FSceneTextures>())
 	{
-		SceneTextureParameters.SceneColorTexture = BlackDefault2D;
-		SceneTextureParameters.SceneDepthTexture = DepthDefault;
-
 		if (EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::SceneColor))
 		{
-			SceneTextureParameters.SceneColorTexture = GetRDG(SceneContext.GetSceneColor());
+			SceneTextureParameters.SceneColorTexture = SceneTextures->Color.Resolve;
 		}
 
 		if (EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::SceneDepth))
 		{
-			SceneTextureParameters.SceneDepthTexture = GetRDG(SceneContext.SceneDepthZ);
+			SceneTextureParameters.SceneDepthTexture = SceneTextures->Depth.Resolve;
 		}
 	}
 
@@ -2268,30 +2282,30 @@ void SetupSceneTextureUniformParameters(
 		const bool bCanReadGBufferUniforms = IsUsingGBuffers(ShaderPlatform) || IsSimpleForwardShadingEnabled(ShaderPlatform);
 
 		// Allocate the Gbuffer resource uniform buffer.
-		SceneTextureParameters.GBufferATexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferA) && SceneContext.GBufferA ? GetRDG(SceneContext.GBufferA) : BlackDefault2D;
-		SceneTextureParameters.GBufferBTexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferB) && SceneContext.GBufferB ? GetRDG(SceneContext.GBufferB) : BlackDefault2D;
-		SceneTextureParameters.GBufferCTexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferC) && SceneContext.GBufferC ? GetRDG(SceneContext.GBufferC) : BlackDefault2D;
-		SceneTextureParameters.GBufferDTexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferD) && SceneContext.GBufferD ? GetRDG(SceneContext.GBufferD) : BlackDefault2D;
-		SceneTextureParameters.GBufferETexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferE) && SceneContext.GBufferE ? GetRDG(SceneContext.GBufferE) : BlackDefault2D;
-		SceneTextureParameters.GBufferFTexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferF) && SceneContext.GBufferF ? GetRDG(SceneContext.GBufferF) : BlackDefault2D;
+		SceneTextureParameters.GBufferATexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferA) && SceneContext.GBufferA ? GetRDG(SceneContext.GBufferA) : SystemTextures.Black;
+		SceneTextureParameters.GBufferBTexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferB) && SceneContext.GBufferB ? GetRDG(SceneContext.GBufferB) : SystemTextures.Black;
+		SceneTextureParameters.GBufferCTexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferC) && SceneContext.GBufferC ? GetRDG(SceneContext.GBufferC) : SystemTextures.Black;
+		SceneTextureParameters.GBufferDTexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferD) && SceneContext.GBufferD ? GetRDG(SceneContext.GBufferD) : SystemTextures.Black;
+		SceneTextureParameters.GBufferETexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferE) && SceneContext.GBufferE ? GetRDG(SceneContext.GBufferE) : SystemTextures.Black;
+		SceneTextureParameters.GBufferFTexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferF) && SceneContext.GBufferF ? GetRDG(SceneContext.GBufferF) : SystemTextures.Black;
 	}
 
 	// Velocity
 	{
-		SceneTextureParameters.GBufferVelocityTexture = EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::SceneVelocity) && SceneContext.SceneVelocity ? GetRDG(SceneContext.SceneVelocity) : BlackDefault2D;
+		SceneTextureParameters.GBufferVelocityTexture = EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::SceneVelocity) && SceneContext.SceneVelocity ? GetRDG(SceneContext.SceneVelocity) : SystemTextures.Black;
 	}
 
 	// SSAO
 	{
 		const bool bSetupSSAO = EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::SSAO);
-		SceneTextureParameters.ScreenSpaceAOTexture = bSetupSSAO && SceneContext.bScreenSpaceAOIsValid && SceneContext.ScreenSpaceAO ? GetRDG(SceneContext.ScreenSpaceAO) : WhiteDefault2D;
+		SceneTextureParameters.ScreenSpaceAOTexture = bSetupSSAO && SceneContext.bScreenSpaceAOIsValid && SceneContext.ScreenSpaceAO ? GetRDG(SceneContext.ScreenSpaceAO) : SystemTextures.White;
 	}
 
 	// Custom Depth / Stencil
 	{
 		const bool bSetupCustomDepth = EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::CustomDepth);
 
-		FRDGTextureRef CustomDepth = DepthDefault;
+		FRDGTextureRef CustomDepth = SystemTextures.DepthDummy;
 		FRHIShaderResourceView* CustomStencilSRV = GSystemTextures.StencilDummySRV;
 
 		if (SceneContext.bCustomDepthIsValid)
@@ -2314,17 +2328,8 @@ void SetupSceneTextureUniformParameters(
 	ESceneTextureSetupMode SetupMode,
 	FSceneTextureUniformParameters& SceneTextureParameters)
 {
-	SetupSceneTextureUniformParameters(nullptr, FeatureLevel, SceneContext, SetupMode, SceneTextureParameters);
-}
-
-void SetupSceneTextureUniformParameters(
-	FRDGBuilder& GraphBuilder,
-	ERHIFeatureLevel::Type FeatureLevel,
-	ESceneTextureSetupMode SetupMode,
-	FSceneTextureUniformParameters& SceneTextureParameters)
-{
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	SetupSceneTextureUniformParameters(&GraphBuilder, FeatureLevel, SceneContext, SetupMode, SceneTextureParameters);
+	// Deprecated.
+	checkNoEntry();
 }
 
 TUniformBufferRef<FSceneTextureUniformParameters> CreateSceneTextureUniformBuffer(
@@ -2332,10 +2337,9 @@ TUniformBufferRef<FSceneTextureUniformParameters> CreateSceneTextureUniformBuffe
 	ERHIFeatureLevel::Type FeatureLevel,
 	ESceneTextureSetupMode SetupMode)
 {
-	FSceneTextureUniformParameters SceneTextures;
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	SetupSceneTextureUniformParameters(nullptr, FeatureLevel, SceneContext, SetupMode, SceneTextures);
-	return TUniformBufferRef<FSceneTextureUniformParameters>::CreateUniformBufferImmediate(SceneTextures, EUniformBufferUsage::UniformBuffer_SingleFrame);
+	// Deprecated.
+	checkNoEntry();
+	return {};
 }
 
 TRDGUniformBufferRef<FSceneTextureUniformParameters> CreateSceneTextureUniformBuffer(
@@ -2344,8 +2348,7 @@ TRDGUniformBufferRef<FSceneTextureUniformParameters> CreateSceneTextureUniformBu
 	ESceneTextureSetupMode SetupMode)
 {
 	FSceneTextureUniformParameters* SceneTextures = GraphBuilder.AllocParameters<FSceneTextureUniformParameters>();
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	SetupSceneTextureUniformParameters(&GraphBuilder, FeatureLevel, SceneContext, SetupMode, *SceneTextures);
+	SetupSceneTextureUniformParameters(GraphBuilder, FeatureLevel, SetupMode, *SceneTextures);
 	return GraphBuilder.CreateUniformBuffer(SceneTextures);
 }
 

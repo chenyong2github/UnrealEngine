@@ -1708,10 +1708,9 @@ void FSceneRenderer::RenderShadowProjections(
 
 void FDeferredShadingSceneRenderer::RenderShadowProjections(
 	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef ScreenShadowMaskTexture,
 	FRDGTextureRef ScreenShadowMaskSubPixelTexture,
-	FRDGTextureRef SceneDepthTexture,
 	const FLightSceneInfo* LightSceneInfo,
 	const FHairStrandsVisibilityViews* HairVisibilityViews,
 	bool bProjectingForForwardShading)
@@ -1756,10 +1755,10 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 			RDG_EVENT_SCOPE(GraphBuilder, "%s", *LightNameWithLevel);
 
 			FShadowProjectionPassParameters CommonPassParameters;
-			CommonPassParameters.SceneTextures = GetSceneTextureShaderParameters(SceneTexturesUniformBuffer);
+			CommonPassParameters.SceneTextures = GetSceneTextureShaderParameters(SceneTextures.UniformBuffer);
 			CommonPassParameters.HairCategorizationTexture = bSubPixel && HairVisibilityViews->HairDatas.Num() > 0 ? HairVisibilityViews->HairDatas[0].CategorizationTexture : nullptr;
 			CommonPassParameters.RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
-			CommonPassParameters.RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, ExclusiveDepthStencil);
+			CommonPassParameters.RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, ExclusiveDepthStencil);
 
 			const bool bMobileModulatedProjections = false;
 			FSceneRenderer::RenderShadowProjections(
@@ -1796,7 +1795,7 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "Virtual Shadow Maps" );
 
-			FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTexturesUniformBuffer);
+			FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
 
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
@@ -1819,7 +1818,7 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 						const FLinearColor ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 						{
 							FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-								SceneTextures.SceneDepthTexture->Desc.Extent,
+								SceneTextures.Extent,
 								PF_FloatRGBA,
 								FClearValueBinding(ClearColor),
 								TexCreate_ShaderResource | TexCreate_RenderTargetable);
@@ -1865,7 +1864,7 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 								GraphBuilder,
 								View,
 								&View.PrevViewInfo,
-								SceneTextures,
+								SceneTextureParameters,
 								LightSceneInfo,
 								ScissorRect,
 								Inputs);
@@ -1930,9 +1929,8 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 					const FProjectedShadowInfo* ProjectedShadowInfo = DistanceFieldShadows[ShadowIndex];
 					ProjectedShadowInfo->RenderRayTracedDistanceFieldProjection(
 						GraphBuilder,
-						SceneTexturesUniformBuffer,
+						SceneTextures,
 						ScreenShadowMaskTexture,
-						SceneDepthTexture,
 						View,
 						ScissorRect,
 						bProjectingForForwardShading);
@@ -1944,12 +1942,11 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 
 void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	const FMinimalSceneTextures& SceneTextures,
 	const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
 	const FLightSceneInfo* LightSceneInfo,
 	FRDGTextureRef ScreenShadowMaskTexture,
 	FRDGTextureRef ScreenShadowMaskSubPixelTexture,
-	FRDGTextureRef SceneDepthTexture,
 	const FHairStrandsRenderingData* HairDatas,
 	bool& bInjectedTranslucentVolume)
 {
@@ -1962,7 +1959,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 	const FHairStrandsVisibilityViews* HairVisibilityViews = HairDatas ? &HairDatas->HairVisibilityViews : nullptr;
 
 	const bool bProjectingForForwardShading = false;
-	RenderShadowProjections(GraphBuilder, SceneTexturesUniformBuffer, ScreenShadowMaskTexture, ScreenShadowMaskSubPixelTexture, SceneDepthTexture, LightSceneInfo, HairVisibilityViews, bProjectingForForwardShading);
+	RenderShadowProjections(GraphBuilder, SceneTextures, ScreenShadowMaskTexture, ScreenShadowMaskSubPixelTexture, LightSceneInfo, HairVisibilityViews, bProjectingForForwardShading);
 
 	// Perform injection on tranlucent lighting volume
 	{
@@ -2015,7 +2012,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 		}
 	}
 
-	RenderCapsuleDirectShadows(GraphBuilder, SceneTexturesUniformBuffer, *LightSceneInfo, ScreenShadowMaskTexture, VisibleLightInfo.CapsuleShadowsToProject, bProjectingForForwardShading);
+	RenderCapsuleDirectShadows(GraphBuilder, SceneTextures.UniformBuffer, *LightSceneInfo, ScreenShadowMaskTexture, VisibleLightInfo.CapsuleShadowsToProject, bProjectingForForwardShading);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
