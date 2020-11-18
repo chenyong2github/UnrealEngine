@@ -172,6 +172,7 @@ namespace Chaos
 #endif
 
 		FORCEINLINE TArray<TVector<T, d>>& AllX() { return MX; }
+		FORCEINLINE const TArray<TVector<T, d>>& AllX() const { return MX; }
 
 	private:
 		TArrayCollectionArray<TVector<T, d>> MX;

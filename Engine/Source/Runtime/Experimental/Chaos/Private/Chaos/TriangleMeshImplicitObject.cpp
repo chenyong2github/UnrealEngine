@@ -874,6 +874,37 @@ FVec3 FTriangleMeshImplicitObject::FindGeometryOpposingNormal(const FVec3& Denor
 	return GetFaceNormal(FaceIndex);
 }
 
+template <typename IdxType>
+TUniquePtr<FTriangleMeshImplicitObject> FTriangleMeshImplicitObject::CopySlowImpl(const TArray<TVector<IdxType, 3>>& InElements) const
+{
+	using namespace Chaos;
+
+	TArray<Chaos::FVec3> XArray = MParticles.AllX();
+	TParticles<FReal, 3> ParticlesCopy(MoveTemp(XArray));
+	TArray<TVector<IdxType, 3>> ElementsCopy(InElements);
+	TArray<uint16> MaterialIndicesCopy = MaterialIndices;
+	TUniquePtr<TArray<int32>> ExternalFaceIndexMapCopy = nullptr;
+	if (ExternalFaceIndexMap)
+	{
+		ExternalFaceIndexMapCopy = MakeUnique<TArray<int32>>(*ExternalFaceIndexMap.Get());
+	}
+
+	return MakeUnique<FTriangleMeshImplicitObject>(MoveTemp(ParticlesCopy), MoveTemp(ElementsCopy), MoveTemp(MaterialIndicesCopy), MoveTemp(ExternalFaceIndexMapCopy), bCullsBackFaceRaycast);
+}
+
+TUniquePtr<FTriangleMeshImplicitObject> FTriangleMeshImplicitObject::CopySlow() const
+{
+	if (MElements.RequiresLargeIndices())
+	{
+		return CopySlowImpl(MElements.GetLargeIndexBuffer());
+	}
+	else
+	{
+		return CopySlowImpl(MElements.GetSmallIndexBuffer());
+	}
+}
+
+
 void FTriangleMeshImplicitObject::Serialize(FChaosArchive& Ar)
 {
 	FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName());
@@ -984,6 +1015,21 @@ void Chaos::FTriangleMeshImplicitObject::RebuildBV()
 	{
 		RebuildBVImp(MElements.GetSmallIndexBuffer());
 	}
+}
+
+void FTriangleMeshImplicitObject::UpdateVertices(const TArray<FVector>& NewPositions)
+{
+	for (int32 i = 0; i < (int32)MParticles.Size(); ++i)
+	{
+		int32 ExternalIdx = (*ExternalFaceIndexMap.Get())[i];
+		if (ExternalIdx < NewPositions.Num())
+		{
+			MParticles.X(i) = Chaos::FVec3(NewPositions[ExternalIdx]);
+		}
+
+	}
+
+	RebuildBV();
 }
 
 
