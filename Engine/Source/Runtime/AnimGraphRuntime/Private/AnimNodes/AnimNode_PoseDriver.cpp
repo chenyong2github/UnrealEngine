@@ -9,7 +9,7 @@
 
 FAnimNode_PoseDriver::FAnimNode_PoseDriver()
 	: DriveSource(EPoseDriverSource::Rotation)
-	, DriveOutput(EPoseDriverOutput::DrivePoses)	
+	, DriveOutput(EPoseDriverOutput::DrivePoses)
 	, bOnlyDriveSelectedBones(false)
 	, LODThreshold(INDEX_NONE)
 {
@@ -52,7 +52,7 @@ void FAnimNode_PoseDriver::RebuildPoseList(const FBoneContainer& InBoneContainer
 				PoseTarget.DrivenUID = INDEX_NONE;
 			}
 
-			const int32 PoseIndex = InPoseAsset->GetPoseIndexByName(PoseTarget.DrivenName); 
+			const int32 PoseIndex = InPoseAsset->GetPoseIndexByName(PoseTarget.DrivenName);
 			if (PoseIndex != INDEX_NONE)
 			{
 				TArray<uint16> const& LUTIndex = InBoneContainer.GetUIDToArrayLookupTable();
@@ -180,7 +180,7 @@ bool FAnimNode_PoseDriver::IsBoneDriven(FName BoneName) const
 
 void FAnimNode_PoseDriver::GetRBFTargets(TArray<FRBFTarget>& OutTargets) const
 {
-	OutTargets.Empty();
+	OutTargets.Reset();
 	OutTargets.AddZeroed(PoseTargets.Num());
 
 	// Create entry for each target
@@ -242,7 +242,7 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 		// Get the index of the source bone
 		const FBoneContainer& BoneContainer = SourceData.Pose.GetBoneContainer();
 
-		FRBFEntry Input;
+		RBFInput.Values.Reset();
 
 		SourceBoneTMs.Reset();
 		bool bFoundAnyBone = false;
@@ -278,11 +278,11 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 			// Build RBFInput entry
 			if (DriveSource == EPoseDriverSource::Translation)
 			{
-				Input.AddFromVector(SourceBoneTM.GetTranslation());
+				RBFInput.AddFromVector(SourceBoneTM.GetTranslation());
 			}
 			else
 			{
-				Input.AddFromRotator(SourceBoneTM.Rotator());
+				RBFInput.AddFromRotator(SourceBoneTM.Rotator());
 			}
 
 			// Record this so we can use it for drawing in edit mode
@@ -300,20 +300,24 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 
 		OutputWeights.Reset();
 
-	#if WITH_EDITORONLY_DATA
+#if WITH_EDITORONLY_DATA
 		if (SoloTargetIndex != INDEX_NONE && SoloTargetIndex < PoseTargets.Num())
 		{
 			OutputWeights.Add(FRBFOutputWeight(SoloTargetIndex, 1.0f));
 		}
 		else
-	#endif
+#endif
 		{
 			// Get target array as RBF types
-			TArray<FRBFTarget> RBFTargets;
 			GetRBFTargets(RBFTargets);
 
+			if (!SolverData.IsValid() || !FRBFSolver::IsSolverDataValid(*SolverData, RBFParams, RBFTargets))
+			{
+				SolverData = FRBFSolver::InitSolver(RBFParams, RBFTargets);
+			}
+
 			// Run RBF solver
-			FRBFSolver::Solve(RBFParams, RBFTargets, Input, OutputWeights);
+			FRBFSolver::Solve(*SolverData, RBFParams, RBFTargets, RBFInput, OutputWeights);
 		}
 
 		// Track if we have filled Output with valid pose
@@ -323,9 +327,9 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 		if (OutputWeights.Num() > 0)
 		{
 			// If we want to drive poses, and PoseAsset is assigned and compatible
-			if (DriveOutput == EPoseDriverOutput::DrivePoses && 
-				CurrentPoseAsset.IsValid() && 
-				Output.AnimInstanceProxy->IsSkeletonCompatible(CurrentPoseAsset->GetSkeleton()) )
+			if (DriveOutput == EPoseDriverOutput::DrivePoses &&
+				CurrentPoseAsset.IsValid() &&
+				Output.AnimInstanceProxy->IsSkeletonCompatible(CurrentPoseAsset->GetSkeleton()))
 			{
 				FPoseContext CurrentPose(Output);
 
@@ -346,9 +350,7 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 					}
 				}
 
-				FAnimationPoseData CurrentAnimationPoseData(CurrentPose);
-
-				if (CurrentPoseAsset.Get()->GetAnimationPose(CurrentAnimationPoseData, PoseExtractContext))
+				if (CurrentPoseAsset.Get()->GetAnimationPose(CurrentPose.Pose, CurrentPose.Curve, PoseExtractContext))
 				{
 					// blend by weight
 					if (CurrentPoseAsset->IsValidAdditive())
@@ -372,27 +374,23 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 						}
 
 						Output = SourceData;
-    
-					    FAnimationPoseData BaseAnimationPoseData(Output);
-					    const FAnimationPoseData AdditiveAnimationPoseData(CurrentPose);
-					    FAnimationRuntime::AccumulateAdditivePose(BaseAnimationPoseData, AdditiveAnimationPoseData, 1.f, EAdditiveAnimationType::AAT_LocalSpaceBase);
+
+						FAnimationRuntime::AccumulateAdditivePose(Output.Pose, CurrentPose.Pose, Output.Curve, CurrentPose.Curve, 1.f, EAdditiveAnimationType::AAT_LocalSpaceBase);
 					}
 					else
 					{
-					    FAnimationPoseData BlendedAnimationPoseData(Output);
-					    const FAnimationPoseData SourceAnimationPoseData(SourceData);
-					    FAnimationRuntime::BlendTwoPosesTogetherPerBone(SourceAnimationPoseData, CurrentAnimationPoseData, BoneBlendWeights, BlendedAnimationPoseData);
+						FAnimationRuntime::BlendTwoPosesTogetherPerBone(SourceData.Pose, CurrentPose.Pose, SourceData.Curve, CurrentPose.Curve, BoneBlendWeights, Output.Pose, Output.Curve);
 					}
 
 					bHaveValidPose = true;
 				}
 			}
 			// Drive curves (morphs, materials etc)
-			else if(DriveOutput == EPoseDriverOutput::DriveCurves)
+			else if (DriveOutput == EPoseDriverOutput::DriveCurves)
 			{
 				// Start by copying input
 				Output = SourceData;
-			
+
 				// Then set curves based on target weights
 				for (const FRBFOutputWeight& Weight : OutputWeights)
 				{
@@ -413,7 +411,7 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 			Output = SourceData;
 		}
 
-	#if WITH_EDITORONLY_DATA
+#if WITH_EDITORONLY_DATA
 		else if (!bSoloDrivenOnly && SoloTargetIndex != INDEX_NONE && SoloTargetIndex < PoseTargets.Num())
 		{
 			SourceBoneTMs.Reset();
@@ -427,10 +425,10 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 				if (PoseTarget.BoneTransforms.IsValidIndex(SourceIdx) && SourceCompactIndex.GetInt() != INDEX_NONE)
 				{
 					FTransform& TargetTransform = Output.Pose[SourceCompactIndex];
-					const FPoseDriverTransform &SourceTransform = PoseTarget.BoneTransforms[SourceIdx];
+					const FPoseDriverTransform& SourceTransform = PoseTarget.BoneTransforms[SourceIdx];
 
 					if (DriveSource == EPoseDriverSource::Translation)
-					{ 
+					{
 						TargetTransform.SetTranslation(SourceTransform.TargetTranslation);
 					}
 					else
@@ -441,9 +439,9 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 				}
 			}
 		}
-	#endif
+#endif
 	}
-	else 
+	else
 	{
 		Output = SourceData;
 	}

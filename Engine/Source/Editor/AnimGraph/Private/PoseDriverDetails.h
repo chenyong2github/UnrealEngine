@@ -16,6 +16,7 @@ class FPoseDriverDetails;
 class SExpandableArea;
 class SCurveEditor;
 class SComboButton;
+class SSearchableComboBox;
 struct FPoseDriverTarget;
 
 /** Entry in backing list for target list widget */
@@ -91,8 +92,8 @@ public:
 	void ExpandTargetInfo();
 	void OnTargetExpansionChanged(bool bExpanded);
 	FText GetDrivenNameText() const;
-	void OnDrivenNameChanged(TSharedPtr<FName> NewName, ESelectInfo::Type SelectInfo);
-	TSharedRef<SWidget> MakeDrivenNameWidget(TSharedPtr<FName> InItem);
+	void OnDrivenNameChanged(TSharedPtr<FString> NewName, ESelectInfo::Type SelectInfo);
+	TSharedRef<SWidget> MakeDrivenNameWidget(TSharedPtr<FString> InItem);
 
 	bool IsCustomCurveEnabled() const;
 	void OnApplyCustomCurveChanged(const ECheckBoxState NewCheckState);
@@ -101,9 +102,9 @@ public:
 	void OnIsHiddenChanged(const ECheckBoxState NewCheckState);
 
 	FText GetDistanceMethodAsText() const;
-	void OnDistanceMethodChanged(TSharedPtr<FName> InItem, ESelectInfo::Type SelectionType);
+	void OnDistanceMethodChanged(TSharedPtr<FString> InItem, ESelectInfo::Type SelectionType);
 	FText GetFunctionTypeAsText() const;
-	void OnFunctionTypeChanged(TSharedPtr<FName> InItem, ESelectInfo::Type SelectionType);
+	void OnFunctionTypeChanged(TSharedPtr<FString> InItem, ESelectInfo::Type SelectionType);
 
 	/** Remove this target from  */
 	void RemoveTarget();
@@ -135,8 +136,8 @@ public:
 	/** Info that this widget represents */
 	TWeakPtr<FPDD_TargetInfo> TargetInfoPtr;
 
-	static TArray< TSharedPtr<FName> > DistanceMethodOptions;
-	static TArray< TSharedPtr<FName> > FunctionTypeOptions;
+	static TArray< TSharedPtr<FString> > DistanceMethodOptions;
+	static TArray< TSharedPtr<FString> > FunctionTypeOptions;
 };
 
 
@@ -199,7 +200,7 @@ public:
 	/** Array source for target list */
 	TArray< TSharedPtr<FPDD_TargetInfo> > TargetInfos;
 	/** List of things a target can drive (curves or morphs), used by combo box */
-	TArray< TSharedPtr<FName> > DrivenNameOptions;
+	TArray< TSharedPtr<FString> > DrivenNameOptions;
 	/** Target list widget */
 	TSharedPtr<SPDD_TargetListType> TargetListWidget;
 	/** Property handle to node */

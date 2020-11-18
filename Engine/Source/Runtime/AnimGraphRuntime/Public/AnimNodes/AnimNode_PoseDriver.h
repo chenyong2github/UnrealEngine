@@ -237,4 +237,9 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_PoseDriver : public FAnimNode_PoseHandler
 
 	/* Rebuild Pose List*/
 	virtual void RebuildPoseList(const FBoneContainer& InBoneContainer, const UPoseAsset* InPoseAsset) override;
+
+private:
+	TSharedPtr<const FRBFSolverData> SolverData;
+	FRBFEntry RBFInput;
+	TArray<FRBFTarget> RBFTargets;
 };
