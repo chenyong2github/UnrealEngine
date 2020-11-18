@@ -2980,6 +2980,12 @@ public:
 	/** Gets a list of FullPaths (includes Mount directory) for every File in the given Pak's Pruned DirectoryIndex */
 	void GetPrunedFilenamesInPakFile(const FString& InPakFilename, TArray<FString>& OutFileList);
 
+	/** Returns the RelativePathFromMount Filename for every file found in the given Iostore Container */
+	static void GetFilenamesFromIostoreContainer(const FString& InContainerName, TArray<FString>& OutFileList);
+
+	/** Returns the RelativePathFromMount Filename for every Filename found in the Iostore Container that relates to the provided block indexes */
+	static void GetFilenamesFromIostoreByBlockIndex(const FString& InContainerName, const TArray<int32>& InBlockIndex, TArray<FString>& OutFileList);
+
 	// BEGIN Console commands
 #if !UE_BUILD_SHIPPING
 	void HandlePakListCommand(const TCHAR* Cmd, FOutputDevice& Ar);

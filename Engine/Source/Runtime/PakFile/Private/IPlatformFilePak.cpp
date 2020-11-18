@@ -135,6 +135,11 @@ public:
 		return Keys.Contains(InGuid);
 	}
 
+	const TMap<FGuid, FAES::FAESKey>& GetKeys() const
+	{
+		return Keys;
+	}
+
 private:
 
 	TMap<FGuid, FAES::FAESKey> Keys;
@@ -259,6 +264,32 @@ void FPakPlatformFile::GetPrunedFilenamesInChunk(const FString& InPakFilename, c
 	}
 }
 
+void FPakPlatformFile::GetFilenamesFromIostoreByBlockIndex(const FString& InContainerName, const TArray<int32>& InBlockIndex, TArray<FString>& OutFileList)
+{
+	if (FIoDispatcher::IsInitialized())
+	{
+		FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
+
+		for (const FIoDispatcherMountedContainer& Container : IoDispatcher.GetMountedContainers())
+		{
+			if (FPaths::GetBaseFilename(Container.Environment.GetPath()) == InContainerName)
+			{
+				FIoStoreEnvironment IoEnvironment;
+				IoEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(Container.Environment.GetPath(), TEXT("")));
+				TUniquePtr<FIoStoreReader> IoStoreReader(new FIoStoreReader());
+
+				FIoStatus Status = IoStoreReader->Initialize(IoEnvironment, GetRegisteredEncryptionKeys().GetKeys());
+				if (Status.IsOk())
+				{
+					IoStoreReader->GetFilenamesByBlockIndex(InBlockIndex, OutFileList);
+				}
+	
+				break;
+			}
+		}
+	}
+}
+
 void FPakPlatformFile::GetPrunedFilenamesInPakFile(const FString& InPakFilename, TArray<FString>& OutFileList)
 {
 	TArray<FPakListEntry> Paks;
@@ -270,6 +301,31 @@ void FPakPlatformFile::GetPrunedFilenamesInPakFile(const FString& InPakFilename,
 		{
 			Pak.PakFile->GetPrunedFilenames(OutFileList);
 			break;
+		}
+	}
+}
+
+void FPakPlatformFile::GetFilenamesFromIostoreContainer(const FString& InContainerName, TArray<FString>& OutFileList)
+{
+	if (FIoDispatcher::IsInitialized())
+	{
+		FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
+
+		for (const FIoDispatcherMountedContainer& Container : IoDispatcher.GetMountedContainers())
+		{
+			if (FPaths::GetBaseFilename(Container.Environment.GetPath()) == InContainerName)
+			{
+				FIoStoreEnvironment IoEnvironment;
+				IoEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(Container.Environment.GetPath(), TEXT("")));
+				TUniquePtr<FIoStoreReader> IoStoreReader(new FIoStoreReader());
+
+				FIoStatus Status = IoStoreReader->Initialize(IoEnvironment, GetRegisteredEncryptionKeys().GetKeys());
+				if (Status.IsOk())
+				{
+					IoStoreReader->GetFilenames(OutFileList);
+				}
+				break;
+			}
 		}
 	}
 }
@@ -7729,6 +7785,5 @@ void FPakPlatformFile::MakeUniquePakFilesForTheseFiles(const TArray<TArray<FStri
 
 	}
 }
-
 
 IMPLEMENT_MODULE(FPakFileModule, PakFile);

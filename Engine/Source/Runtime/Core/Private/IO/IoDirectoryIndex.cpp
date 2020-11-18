@@ -382,6 +382,40 @@ public:
 			: ~uint32(0);
 	}
 
+	bool IterateDirectoryIndex(FIoDirectoryIndexHandle DirectoryIndexHandle, const FString& Path, FDirectoryIndexVisitorFunction Visit)
+	{
+		FIoDirectoryIndexHandle File = GetFile(DirectoryIndexHandle);
+		while (File.IsValid())
+		{
+			const uint32 TocEntryIndex = GetFileData(File);
+			FStringView FileName = GetFileName(File);
+			FString FilePath = GetMountPoint() / Path / FString(FileName);
+
+			if (!Visit(MoveTemp(FilePath), TocEntryIndex))
+			{
+				return false;
+			}
+
+			File = GetNextFile(File);
+		}
+
+		FIoDirectoryIndexHandle ChildDirectory = GetChildDirectory(DirectoryIndexHandle);
+		while (ChildDirectory.IsValid())
+		{
+			FStringView DirectoryName = GetDirectoryName(ChildDirectory);
+			FString ChildDirectoryPath = Path / FString(DirectoryName);
+
+			if (!IterateDirectoryIndex(ChildDirectory, ChildDirectoryPath, Visit))
+			{
+				return false;
+			}
+
+			ChildDirectory = GetNextDirectory(ChildDirectory);
+		}
+
+		return true;
+	}
+
 private:
 	const FIoDirectoryIndexEntry& GetDirectoryEntry(FIoDirectoryIndexHandle Directory) const
 	{
@@ -454,4 +488,9 @@ FStringView FIoDirectoryIndexReader::GetFileName(FIoDirectoryIndexHandle File) c
 uint32 FIoDirectoryIndexReader::GetFileData(FIoDirectoryIndexHandle File) const
 {
 	return Impl->GetFileData(File);
+}
+
+bool FIoDirectoryIndexReader::IterateDirectoryIndex(FIoDirectoryIndexHandle Directory, const FString& Path, FDirectoryIndexVisitorFunction Visit) const
+{
+	return Impl->IterateDirectoryIndex(Directory, Path, Visit);
 }

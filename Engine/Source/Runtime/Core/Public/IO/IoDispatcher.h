@@ -997,6 +997,8 @@ private:
 	uint32 Handle = InvalidHandle;
 };
 
+using FDirectoryIndexVisitorFunction = TFunctionRef<bool(FString, const uint32)>;
+
 class FIoDirectoryIndexReader
 {
 public:
@@ -1012,6 +1014,8 @@ public:
 	CORE_API FStringView GetDirectoryName(FIoDirectoryIndexHandle Directory) const;
 	CORE_API FStringView GetFileName(FIoDirectoryIndexHandle File) const;
 	CORE_API uint32 GetFileData(FIoDirectoryIndexHandle File) const;
+
+	CORE_API bool IterateDirectoryIndex(FIoDirectoryIndexHandle Directory, const FString& Path, FDirectoryIndexVisitorFunction Visit) const;
 
 private:
 	UE_NONCOPYABLE(FIoDirectoryIndexReader);
@@ -1153,6 +1157,9 @@ public:
 	CORE_API TIoStatusOr<FIoBuffer> Read(const FIoChunkId& Chunk, const FIoReadOptions& Options) const;
 
 	CORE_API const FIoDirectoryIndexReader& GetDirectoryIndexReader() const;
+
+	CORE_API void GetFilenamesByBlockIndex(const TArray<int32>& InBlockIndexList, TArray<FString>& OutFileList) const;
+	CORE_API void GetFilenames(TArray<FString>& OutFileList) const;
 
 private:
 	FIoStoreReaderImpl* Impl;
