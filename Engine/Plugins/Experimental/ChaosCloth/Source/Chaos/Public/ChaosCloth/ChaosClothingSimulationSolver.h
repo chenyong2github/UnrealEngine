@@ -91,9 +91,6 @@ namespace Chaos
 		// Set legacy noise wind.
 		void SetLegacyWind(uint32 GroupId, bool bUseLegacyWind);
 
-		// Enable self collision, or disable if TriangleMesh is null.
-		void SetSelfCollisions(uint32 GroupId, float SelfCollisionThickness, const TTriangleMesh<float>* TriangleMesh = nullptr);
-
 		const TVector<float, 3>* GetOldAnimationPositions(int32 Offset) const { return OldAnimationPositions.GetData() + Offset; }
 		TVector<float, 3>* GetOldAnimationPositions(int32 Offset) { return OldAnimationPositions.GetData() + Offset; }
 		const TVector<float, 3>* GetAnimationPositions(int32 Offset) const { return AnimationPositions.GetData() + Offset; }

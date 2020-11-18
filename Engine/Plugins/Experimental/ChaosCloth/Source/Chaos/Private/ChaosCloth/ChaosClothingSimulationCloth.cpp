@@ -93,12 +93,29 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	}
 	const TConstArrayView<float> InvMasses(Solver->GetParticleInvMasses(Offset), NumParticles);
 
-	// Self collisions
-	Solver->SetSelfCollisions(Cloth->GroupId, Cloth->SelfCollisionThickness, Cloth->bUseSelfCollisions ? &TriangleMesh : nullptr);
-
 	// Setup solver constraints
 	FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
 	const TArray<TVector<int32, 3>>& SurfaceElements = TriangleMesh.GetSurfaceElements();
+
+	// Self collisions
+	if (Cloth->bUseSelfCollisions)
+	{
+		static const int32 DisabledCollisionElementsN = 5;  // TODO: Make this a parameter?
+		TSet<TVector<int32, 2>> DisabledCollisionElements;  // TODO: Is this needed? Turn this into a bit array?
+	
+		const int32 Range = Offset + NumParticles;
+		for (int32 Index = Offset; Index < Range; ++Index)
+		{
+			const TSet<int32> Neighbors = TriangleMesh.GetNRing(Index, DisabledCollisionElementsN);
+			for (int32 Element : Neighbors)
+			{
+				check(Index != Element);
+				DisabledCollisionElements.Emplace(TVector<int32, 2>(Index, Element));
+				DisabledCollisionElements.Emplace(TVector<int32, 2>(Element, Index));
+			}
+		}
+		ClothConstraints.SetSelfCollisionConstraints(SurfaceElements, MoveTemp(DisabledCollisionElements), Cloth->SelfCollisionThickness);
+	}
 
 	// Edge constraints
 	if (Cloth->EdgeStiffness)
