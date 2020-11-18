@@ -85,6 +85,15 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (DisplayName = "Niagara Tick Behavior"))
 	ENiagaraTickBehavior TickBehavior = ENiagaraTickBehavior::UsePrereqs;
 
+	/**
+	 * Offsets the deterministic random seed of all emitters. Used to achieve variety between components, while still achieving determinism.
+	 * WARNINGS:
+	 * - If this value is set in a non-deterministic way, it has the potential to break determinism of the entire system.
+	 * - This value is applied when emitters are activated/reset, and changing them while the emitter is active has no effect.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Randomness")
+	int32 RandomSeedOffset;
+
 	UPROPERTY()
 	FNiagaraUserRedirectionParameterStore OverrideParameters;
 
@@ -312,6 +321,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Tick Behavior"))
 	ENiagaraTickBehavior GetTickBehavior() const { return TickBehavior; }
+
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Random Seed Offset"))
+	void SetRandomSeedOffset(int32 NewRandomSeedOffset);
+
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Random Seed Offset"))
+	int32 GetRandomSeedOffset() const { return RandomSeedOffset; }
 
 	/** Sets a Niagara FLinearColor parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (LinearColor)"))

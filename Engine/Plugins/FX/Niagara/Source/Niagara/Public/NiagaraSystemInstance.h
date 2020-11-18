@@ -358,6 +358,9 @@ public:
 
 	void OnSimulationDestroyed();
 
+	void SetRandomSeedOffset(int32 Offset) { RandomSeedOffset = Offset; }
+	int32 GetRandomSeedOffset() const { return RandomSeedOffset; }
+
 private:
 	void DestroyDataInterfaceInstanceData();
 
@@ -405,6 +408,9 @@ private:
 
 	/** The tick count of the System instance. */
 	int32 TickCount;
+
+	/** A system-wide offset to permute the deterministic random seed (allows for variance among multiple instances while still being deterministic) */
+	int32 RandomSeedOffset;
 
 	/** LODDistance driven by our component. */
 	float LODDistance;

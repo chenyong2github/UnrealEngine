@@ -865,6 +865,7 @@ bool UNiagaraComponent::InitializeSystem()
 #if WITH_EDITORONLY_DATA
 		OnSystemInstanceChangedDelegate.Broadcast();
 #endif
+		SystemInstance->SetRandomSeedOffset(RandomSeedOffset);
 		SystemInstance->Init(bForceSolo);
 		SystemInstance->SetOnPostTick(FNiagaraSystemInstance::FOnPostTick::CreateUObject(this, &UNiagaraComponent::PostSystemTick_GameThread));
 		SystemInstance->SetOnComplete(FNiagaraSystemInstance::FOnComplete::CreateUObject(this, &UNiagaraComponent::OnSystemComplete));
@@ -1932,6 +1933,15 @@ void UNiagaraComponent::SetTickBehavior(ENiagaraTickBehavior NewTickBehavior)
 	if (SystemInstance.IsValid())
 	{
 		SystemInstance->SetTickBehavior(TickBehavior);
+	}
+}
+
+void UNiagaraComponent::SetRandomSeedOffset(int32 NewRandomSeedOffset)
+{
+	RandomSeedOffset = NewRandomSeedOffset;
+	if (SystemInstance.IsValid())
+	{
+		SystemInstance->SetRandomSeedOffset(RandomSeedOffset);
 	}
 }
 
