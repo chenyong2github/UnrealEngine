@@ -5252,6 +5252,41 @@ void UAnimSequence::RemoveCustomAttribute(const FName& BoneName, const FName& At
 	}
 }
 
+void UAnimSequence::RemoveAllCustomAttributesForBone(const FName& BoneName)
+{
+	const USkeleton* CurrentSkeleton = GetSkeleton();
+
+	if (CurrentSkeleton)
+	{
+		const int32 BoneIndex = CurrentSkeleton->GetReferenceSkeleton().FindBoneIndex(BoneName);
+
+		if (BoneIndex != INDEX_NONE)
+		{
+			const int32 NumRemoved = PerBoneCustomAttributeData.RemoveAll([BoneIndex](const FCustomAttributePerBoneData PerBoneData)
+			{
+				return PerBoneData.BoneTreeIndex == BoneIndex;
+			});
+
+			if (NumRemoved)
+			{
+				// Update the Guid used to keep track of raw / baked versions
+				CustomAttributesGuid = FGuid::NewGuid();
+			}
+		}
+	}
+}
+
+void UAnimSequence::RemoveAllCustomAttributes()
+{
+	if (PerBoneCustomAttributeData.Num())
+	{
+		// Update the Guid used to keep track of raw / baked versions
+		CustomAttributesGuid = FGuid::NewGuid();
+	}
+
+	PerBoneCustomAttributeData.Empty();
+}
+
 void UAnimSequence::GetCustomAttributesForBone(const FName& BoneName, TArray<FCustomAttribute>& OutAttributes) const
 {
 	const USkeleton* CurrentSkeleton = GetSkeleton();

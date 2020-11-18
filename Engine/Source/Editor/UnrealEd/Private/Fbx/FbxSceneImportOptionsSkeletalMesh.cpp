@@ -25,6 +25,7 @@ UFbxSceneImportOptionsSkeletalMesh::UFbxSceneImportOptionsSkeletalMesh(const FOb
 	, CustomSampleRate(0)
 	, bImportCustomAttribute(true)
 	, bDeleteExistingCustomAttributeCurves(false)
+	, bDeleteExistingNonCurveCustomAttributes(false)
 	, bPreserveLocalTransform(false)
 	, bDeleteExistingMorphTargetCurves(false)
 {
@@ -57,6 +58,7 @@ void UFbxSceneImportOptionsSkeletalMesh::FillSkeletalMeshInmportData(UFbxSkeleta
 	AnimSequenceImportData->bDeleteExistingMorphTargetCurves = bDeleteExistingMorphTargetCurves;
 	AnimSequenceImportData->bImportCustomAttribute = bImportCustomAttribute;
 	AnimSequenceImportData->bDeleteExistingCustomAttributeCurves = bDeleteExistingCustomAttributeCurves;
+	AnimSequenceImportData->bDeleteExistingNonCurveCustomAttributes = bDeleteExistingNonCurveCustomAttributes;
 	AnimSequenceImportData->bPreserveLocalTransform = bPreserveLocalTransform;
 	AnimSequenceImportData->bUseDefaultSampleRate = bUseDefaultSampleRate;
 	AnimSequenceImportData->CustomSampleRate = CustomSampleRate;

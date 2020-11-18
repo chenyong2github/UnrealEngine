@@ -200,6 +200,7 @@ struct FBXImportOptions
 	bool	bDeleteExistingMorphTargetCurves;
 	bool	bImportCustomAttribute;
 	bool	bDeleteExistingCustomAttributeCurves;
+	bool	bDeleteExistingNonCurveCustomAttributes;
 	bool	bImportBoneTracks;
 	bool	bSetMaterialDriveParameterOnCustomAttribute;
 	bool	bRemoveRedundantKeys;
