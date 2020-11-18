@@ -371,6 +371,8 @@ USkinnedMeshComponent::USkinnedMeshComponent(const FObjectInitializer& ObjectIni
 #endif
 
 	CurrentSkinWeightProfileName = NAME_None;
+
+	PredictedLODLevel = 0;
 }
 
 
@@ -670,21 +672,25 @@ void USkinnedMeshComponent::SendRenderDynamicData_Concurrent()
 
 		const int32 UseLOD = PredictedLODLevel;
 
-		const bool bMorphTargetsAllowed = CVarEnableMorphTargets.GetValueOnAnyThread(true) != 0;
-
-		// Are morph targets disabled for this LOD?
-		if (bDisableMorphTarget || !bMorphTargetsAllowed)
+		// Only update the state if PredictedLODLevel is valid
+		FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();
+		if (SkelMeshRenderData && SkelMeshRenderData->LODRenderData.IsValidIndex(UseLOD))
 		{
-			ActiveMorphTargets.Empty();
-		}
+			const bool bMorphTargetsAllowed = CVarEnableMorphTargets.GetValueOnAnyThread(true) != 0;
 
-		check (UseLOD < MeshObject->GetSkeletalMeshRenderData().LODRenderData.Num());
-		MeshObject->Update(UseLOD,this,ActiveMorphTargets, MorphTargetWeights, bExternalEvaluationRateLimited && !bExternalInterpolate ? EPreviousBoneTransformUpdateMode::DuplicateCurrentToPrevious : EPreviousBoneTransformUpdateMode::None);  // send to rendering thread
-		MeshObject->bHasBeenUpdatedAtLeastOnce = true;
-		bForceMeshObjectUpdate = false; 
-		
-		// scene proxy update of material usage based on active morphs
-		UpdateMorphMaterialUsageOnProxy();
+			// Are morph targets disabled for this LOD?
+			if (bDisableMorphTarget || !bMorphTargetsAllowed)
+			{
+				ActiveMorphTargets.Empty();
+			}
+
+			MeshObject->Update(UseLOD, this, ActiveMorphTargets, MorphTargetWeights, bExternalEvaluationRateLimited && !bExternalInterpolate ? EPreviousBoneTransformUpdateMode::DuplicateCurrentToPrevious : EPreviousBoneTransformUpdateMode::None);  // send to rendering thread
+			MeshObject->bHasBeenUpdatedAtLeastOnce = true;
+			bForceMeshObjectUpdate = false;
+
+			// scene proxy update of material usage based on active morphs
+			UpdateMorphMaterialUsageOnProxy();
+		}
 	}
 }
 
@@ -1520,6 +1526,7 @@ void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRei
 		FRenderStateRecreator RenderStateRecreator(this);
 
 		SkeletalMesh = InSkelMesh;
+		PredictedLODLevel = 0;
 
 		//SlavePoseComponents is an array of weak obj ptrs, so it can contain null elements
 		for (auto Iter = SlavePoseComponents.CreateIterator(); Iter; ++Iter)
