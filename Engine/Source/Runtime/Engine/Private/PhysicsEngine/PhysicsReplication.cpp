@@ -538,10 +538,7 @@ FPhysicsReplication::FPhysicsReplication(FPhysScene* InPhysicsScene)
 	AsyncCallback = nullptr;
 	if (auto* Solver = PhysScene->GetSolver())
 	{
-		if(Solver->IsUsingAsyncResults())
-		{
-			AsyncCallback = Solver->CreateAndRegisterSimCallbackObject_External<FPhysicsReplicationAsyncCallback>();
-		}
+		AsyncCallback = Solver->CreateAndRegisterSimCallbackObject_External<FPhysicsReplicationAsyncCallback>();
 	}
 #endif
 }
