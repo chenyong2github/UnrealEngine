@@ -181,7 +181,7 @@ void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIBuffer* Argument
 	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-	ID3D12CommandSignature* CommandSignature = bIsAsyncComputeContext ? Adapter->GetDispatchIndirectComputeCommandSignature() : Adapter->GetDispatchIndirectGraphicsCommandSignature();
+	ID3D12CommandSignature* CommandSignature = IsAsyncComputeContext() ? Adapter->GetDispatchIndirectComputeCommandSignature() : Adapter->GetDispatchIndirectGraphicsCommandSignature();
 	
 	numDispatches++;
 	CommandListHandle->ExecuteIndirect(
@@ -388,7 +388,7 @@ void FD3D12CommandContext::RHIBeginTransitions(TArrayView<const FRHITransition*>
 {
 	// Can't correctly handle RHITransitions from multiple threads at the samae time right now - only internal transitions work correctly then
 	// (will be fixed if unknown before state is not allowed anymore)
-	check(bIsDefaultContext || bIsAsyncComputeContext || GUseInternalTransitions);
+	check(bIsDefaultContext || GUseInternalTransitions);
 
 	RHIBeginTransitionsWithoutFencing(Transitions);
 	SignalTransitionFences(Transitions);
@@ -490,7 +490,7 @@ void FD3D12CommandContext::RHIWriteGPUFence(FRHIGPUFence* FenceRHI)
 	// @todo-mattc we don't want to flush here. That should be the caller's responsibility.
 	RHISubmitCommandsHint();
 	FD3D12GPUFence* Fence = FD3D12DynamicRHI::ResourceCast(FenceRHI);
-	Fence->WriteInternal(ED3D12CommandQueueType::Default);
+	Fence->WriteInternal(ED3D12CommandQueueType::Direct);
 }
 
 void FD3D12CommandContext::RHISetViewport(float MinX, float MinY, float MinZ, float MaxX, float MaxY, float MaxZ)
@@ -1202,7 +1202,7 @@ void FD3D12CommandContext::RHIBeginRenderQuery(FRHIRenderQuery* QueryRHI)
 	check(IsDefaultContext());
 	check(Query->Type == RQT_Occlusion);
 
-	GetParentDevice()->GetOcclusionQueryHeap()->BeginQuery(*this, Query);
+	GetParentDevice()->GetOcclusionQueryHeap(CommandQueueType)->BeginQuery(*this, Query);
 
 #if EXECUTE_DEBUG_COMMAND_LISTS
 	GIsDoingQuery = true;
@@ -1219,11 +1219,11 @@ void FD3D12CommandContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 	switch (Query->Type)
 	{
 	case RQT_Occlusion:
-		QueryHeap = GetParentDevice()->GetOcclusionQueryHeap();
+		QueryHeap = GetParentDevice()->GetOcclusionQueryHeap(CommandQueueType);
 		break;
 
 	case RQT_AbsoluteTime:
-		QueryHeap = GetParentDevice()->GetTimestampQueryHeap();
+		QueryHeap = GetParentDevice()->GetTimestampQueryHeap(CommandQueueType);
 		break;
 
 	default:
@@ -2018,7 +2018,7 @@ void FD3D12CommandContext::RHISetShadingRateImage(FRHITexture* RateImageTexture,
 void FD3D12CommandContext::RHISubmitCommandsHint()
 {
 	// Resolve any timestamp queries so far (if any).
-	GetParentDevice()->GetTimestampQueryHeap()->EndQueryBatchAndResolveQueryData(*this);
+	GetParentDevice()->GetTimestampQueryHeap(CommandQueueType)->EndQueryBatchAndResolveQueryData(*this);
 
 	// Submit the work we have so far, and start a new command list.
 	FlushCommands();
@@ -2049,7 +2049,7 @@ void FD3D12CommandContext::RHIWaitForTemporalEffect(const FName& InEffectName)
 		// Execute the current command list so we can have a point to insert a wait
 		FlushCommands();
 
-		Effect->WaitForPrevious(GPUIndex, bIsAsyncComputeContext ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Default);
+		Effect->WaitForPrevious(GPUIndex, CommandQueueType);
 	}
 #endif // WITH_MGPU
 }
@@ -2092,7 +2092,7 @@ void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName,
 	FlushCommands();
 
 	// Tell the copy queue to wait for the current queue to finish rendering before starting the copy.
-	Effect->SignalSyncComplete(GPUIndex, bIsAsyncComputeContext ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Default);
+	Effect->SignalSyncComplete(GPUIndex, CommandQueueType);
 	Effect->WaitForPrevious(GPUIndex, ED3D12CommandQueueType::Copy);
 
 	FD3D12CommandAllocatorManager& CopyCommandAllocatorManager = Device->GetTextureStreamingCommandAllocatorManager();
@@ -2131,7 +2131,7 @@ void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName,
 
 	FlushCommands();
 
-	Effect->SignalSyncComplete(GPUIndex, bIsAsyncComputeContext ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Default);
+	Effect->SignalSyncComplete(GPUIndex, CommandQueueType);
 
 #endif // USE_COPY_QUEUE_FOR_RESOURCE_SYNC
 #endif // WITH_MGPU

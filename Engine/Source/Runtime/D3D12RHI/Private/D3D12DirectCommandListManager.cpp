@@ -783,7 +783,7 @@ void FD3D12CommandListManager::ReleaseResourceBarrierCommandListAllocator()
 void FD3D12CommandListManager::StartTrackingCommandListTime()
 {
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
-	check(QueueType == ED3D12CommandQueueType::Default && !GetShouldTrackCmdListTime());
+	check(QueueType == ED3D12CommandQueueType::Direct && !GetShouldTrackCmdListTime());
 	ResolvedTimingPairs.Reset();
 	SetShouldTrackCmdListTime(true);
 #endif
@@ -792,7 +792,7 @@ void FD3D12CommandListManager::StartTrackingCommandListTime()
 void FD3D12CommandListManager::EndTrackingCommandListTime()
 {
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
-	check(QueueType == ED3D12CommandQueueType::Default && GetShouldTrackCmdListTime());
+	check(QueueType == ED3D12CommandQueueType::Direct && GetShouldTrackCmdListTime());
 	SetShouldTrackCmdListTime(false);
 #endif
 }
@@ -800,7 +800,7 @@ void FD3D12CommandListManager::EndTrackingCommandListTime()
 void FD3D12CommandListManager::GetCommandListTimingResults(TArray<FResolvedCmdListExecTime>& OutTimingPairs, bool bUseBlockingCall)
 {
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
-	check(!GetShouldTrackCmdListTime() && QueueType == ED3D12CommandQueueType::Default);
+	check(!GetShouldTrackCmdListTime() && QueueType == ED3D12CommandQueueType::Direct);
 	FlushPendingTimingPairs(bUseBlockingCall);
 	if (bUseBlockingCall)
 	{

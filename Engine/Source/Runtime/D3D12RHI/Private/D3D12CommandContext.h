@@ -33,7 +33,7 @@ class FD3D12CommandContextBase : public IRHICommandContext, public FD3D12Adapter
 {
 public:
 
-	FD3D12CommandContextBase(class FD3D12Adapter* InParent, FRHIGPUMask InGPUMask, bool InIsDefaultContext, bool InIsAsyncComputeContext);
+	FD3D12CommandContextBase(class FD3D12Adapter* InParent, FRHIGPUMask InGPUMask, ED3D12CommandQueueType InCommandQueueType, bool InIsDefaultContext);
 
 	void RHIBeginDrawingViewport(FRHIViewport* Viewport, FRHITexture* RenderTargetRHI) final override;
 	void RHIEndDrawingViewport(FRHIViewport* Viewport, bool bPresent, bool bLockToVsync) final override;
@@ -47,7 +47,9 @@ public:
 
 	FRHIGPUMask GetGPUMask() const { return GPUMask; }
 
+	ED3D12CommandQueueType GetCommandQueueType() const { return CommandQueueType; }
 	bool IsDefaultContext() const { return bIsDefaultContext; }
+	bool IsAsyncComputeContext() const { return (CommandQueueType == ED3D12CommandQueueType::Async); }
 
 	virtual void RHISetAsyncComputeBudget(EAsyncComputeBudget Budget) {}
 
@@ -60,8 +62,8 @@ protected:
 	FRHIGPUMask GPUMask;
 
 	bool bTrackingEvents;
+	const ED3D12CommandQueueType CommandQueueType;
 	const bool bIsDefaultContext;
-	const bool bIsAsyncComputeContext;
 };
 
 class FD3D12CommandContext : public FD3D12CommandContextBase, public FD3D12DeviceChild
@@ -75,7 +77,7 @@ public:
 		FCEA_Num
 	};
 
-	FD3D12CommandContext(class FD3D12Device* InParent, bool InIsDefaultContext, bool InIsAsyncComputeContext);
+	FD3D12CommandContext(class FD3D12Device* InParent, ED3D12CommandQueueType InCommandQueueType, bool InIsDefaultContext);
 	virtual ~FD3D12CommandContext();
 
 	FD3D12CommandListManager& GetCommandListManager();
@@ -463,7 +465,7 @@ private:
 class FD3D12CommandContextRedirector final : public FD3D12CommandContextBase
 {
 public:
-	FD3D12CommandContextRedirector(class FD3D12Adapter* InParent, bool InIsDefaultContext, bool InIsAsyncComputeContext);
+	FD3D12CommandContextRedirector(class FD3D12Adapter* InParent, ED3D12CommandQueueType InCommandQueueType, bool InIsDefaultContext);
 
 #define ContextRedirect(Call) { for (uint32 GPUIndex : GPUMask) PhysicalContexts[GPUIndex]->##Call; }
 #define ContextGPU0(Call) { PhysicalContexts[0]->##Call; }

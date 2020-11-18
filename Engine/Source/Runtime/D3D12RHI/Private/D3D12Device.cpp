@@ -34,7 +34,6 @@ FD3D12Device::FD3D12Device(FRHIGPUMask InGPUMask, FD3D12Adapter* InAdapter) :
 	GlobalSamplerHeap(this, InGPUMask),
 	GlobalViewHeap(this, InGPUMask),
 	OcclusionQueryHeap(this, D3D12_QUERY_TYPE_OCCLUSION, 65536, 4 /*frames to keep results */ * 1 /*batches per frame*/),
-	TimestampQueryHeap(this, D3D12_QUERY_TYPE_TIMESTAMP, 8192, 4 /*frames to keep results */ * 5 /*batches per frame*/ ),
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	CmdListExecTimeQueryHeap(this, D3D12_QUERY_HEAP_TYPE_TIMESTAMP, 8192),
 #endif
@@ -44,6 +43,11 @@ FD3D12Device::FD3D12Device(FRHIGPUMask InGPUMask, FD3D12Adapter* InAdapter) :
 	TextureAllocator(this, FRHIGPUMask::All()),
 	GPUProfilingData(this)
 {
+	for (uint32 QueueType = 0; QueueType < (uint32)ED3D12CommandQueueType::Count; ++QueueType)
+	{
+		TimestampQueryHeaps[QueueType] = new FD3D12QueryHeap(this, D3D12_QUERY_TYPE_TIMESTAMP, 8192, 4 /*frames to keep results */ * 5 /*batches per frame*/);
+	}
+
 	InitPlatformSpecific();
 }
 
@@ -116,8 +120,8 @@ void FD3D12Device::CreateCommandContexts()
 	for (uint32 i = 0; i < NumContexts; ++i)
 	{	
 		const bool bIsDefaultContext = (i == 0);
-		const bool bIsAsyncComputeContext = false;
-		FD3D12CommandContext* NewCmdContext = GetOwningRHI()->CreateCommandContext(this, bIsDefaultContext, bIsAsyncComputeContext);
+		const ED3D12CommandQueueType CommandQueueType = ED3D12CommandQueueType::Direct;
+		FD3D12CommandContext* NewCmdContext = GetOwningRHI()->CreateCommandContext(this, CommandQueueType, bIsDefaultContext);
 
 		// without that the first RHIClear would get a scissor rect of (0,0)-(0,0) which means we get a draw call clear 
 		NewCmdContext->RHISetScissorRect(false, 0, 0, 0, 0);
@@ -134,8 +138,8 @@ void FD3D12Device::CreateCommandContexts()
 	for (uint32 i = 0; i < NumAsyncComputeContexts; ++i)
 	{		
 		const bool bIsDefaultContext = (i == 0); //-V547
-		const bool bIsAsyncComputeContext = true;
-		FD3D12CommandContext* NewCmdContext = GetOwningRHI()->CreateCommandContext(this, bIsDefaultContext, bIsAsyncComputeContext);
+		const ED3D12CommandQueueType CommandQueueType = ED3D12CommandQueueType::Async;
+		FD3D12CommandContext* NewCmdContext = GetOwningRHI()->CreateCommandContext(this, CommandQueueType, bIsDefaultContext);
 	
 		AsyncComputeContextArray.Add(NewCmdContext);
 	}
@@ -287,7 +291,10 @@ void FD3D12Device::SetupAfterDeviceCreation()
 
 	// Init the occlusion and timestamp query heaps
 	OcclusionQueryHeap.Init();
-	TimestampQueryHeap.Init();
+	for (uint32 QueueType = 0; QueueType < (uint32)ED3D12CommandQueueType::Count; ++QueueType)
+	{
+		TimestampQueryHeaps[QueueType]->Init();
+	}
 
 	CommandListManager->Create(*FString::Printf(TEXT("3D Queue %d"), GetGPUIndex()));
 	gD3D12CommandQueue = CommandListManager->GetD3DCommandQueue();
@@ -360,7 +367,7 @@ void FD3D12Device::Cleanup()
 	};
 
 	// Validate that all the D3D command queues are still valid (temp code to check for a shutdown crash)
-	ValidateCommandQueue(ED3D12CommandQueueType::Default, TEXT("Direct"));
+	ValidateCommandQueue(ED3D12CommandQueueType::Direct, TEXT("Direct"));
 	ValidateCommandQueue(ED3D12CommandQueueType::Copy, TEXT("Copy"));
 	ValidateCommandQueue(ED3D12CommandQueueType::Async, TEXT("Async"));
 
@@ -408,7 +415,12 @@ void FD3D12Device::Cleanup()
 	AsyncCommandListManager->Destroy();
 
 	OcclusionQueryHeap.Destroy();
-	TimestampQueryHeap.Destroy();
+	for (uint32 QueueType = 0; QueueType < (uint32)ED3D12CommandQueueType::Count; ++QueueType)
+	{
+		TimestampQueryHeaps[QueueType]->Destroy();
+		delete TimestampQueryHeaps[QueueType];
+		TimestampQueryHeaps[QueueType] = nullptr;
+	}
 
 	D3DX12Residency::DestroyResidencyManager(ResidencyManager);
 
@@ -420,7 +432,7 @@ FD3D12CommandListManager* FD3D12Device::GetCommandListManager(ED3D12CommandQueue
 {
 	switch (InQueueType)
 	{
-	case ED3D12CommandQueueType::Default:
+	case ED3D12CommandQueueType::Direct:
 		check(CommandListManager->GetQueueType() == InQueueType);
 		return CommandListManager;
 	case ED3D12CommandQueueType::Async:

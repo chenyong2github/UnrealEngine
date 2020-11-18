@@ -135,7 +135,7 @@ static const TCHAR* GetD3DCommandQueueTypeName(ED3D12CommandQueueType QueueType)
 {
 	switch (QueueType)
 	{
-	case ED3D12CommandQueueType::Default:	 return TEXT("3D");
+	case ED3D12CommandQueueType::Direct:	 return TEXT("3D");
 	case ED3D12CommandQueueType::Async:		 return TEXT("Compute");
 	case ED3D12CommandQueueType::Copy:		 return TEXT("Copy");
 	}

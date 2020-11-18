@@ -20,9 +20,11 @@ class FD3D12Device;
 // Defines a unique command queue type within a FD3D12Device (owner by the command list managers).
 enum class ED3D12CommandQueueType
 {
-	Default,
+	Direct = 0,
 	Copy,
-	Async
+	Async,
+
+	Count,
 };
 
 class FD3D12AdapterChild

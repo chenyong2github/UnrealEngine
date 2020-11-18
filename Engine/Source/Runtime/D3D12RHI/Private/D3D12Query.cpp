@@ -198,7 +198,7 @@ bool FD3D12Device::GetQueryData(FD3D12RenderQuery& Query, bool bWait)
 
 void FD3D12CommandContext::RHIBeginOcclusionQueryBatch(uint32 NumQueriesInBatch)
 {
-	GetParentDevice()->GetOcclusionQueryHeap()->StartQueryBatch(*this, NumQueriesInBatch);
+	GetParentDevice()->GetOcclusionQueryHeap(CommandQueueType)->StartQueryBatch(*this, NumQueriesInBatch);
 	if (RHIConsoleVariables::GInsertOuterOcclusionQuery)
 	{
 		if (!OuterOcclusionQuery.IsValid())
@@ -207,7 +207,7 @@ void FD3D12CommandContext::RHIBeginOcclusionQueryBatch(uint32 NumQueriesInBatch)
 		}
 		
 		FD3D12RenderQuery* OuterOcclusionQueryD3D12 = RetrieveObject<FD3D12RenderQuery>(OuterOcclusionQuery.GetReference());
-		GetParentDevice()->GetOcclusionQueryHeap()->BeginQuery(*this, OuterOcclusionQueryD3D12);
+		GetParentDevice()->GetOcclusionQueryHeap(CommandQueueType)->BeginQuery(*this, OuterOcclusionQueryD3D12);
 		bOuterOcclusionQuerySubmitted = true;
 	}
 }
@@ -219,10 +219,10 @@ void FD3D12CommandContext::RHIEndOcclusionQueryBatch()
 		check(OuterOcclusionQuery.IsValid());
 		FD3D12RenderQuery* OuterOcclusionQueryD3D12 = RetrieveObject<FD3D12RenderQuery>(OuterOcclusionQuery.GetReference());
 		check(OuterOcclusionQueryD3D12->HeapIndex != INDEX_NONE);
-		GetParentDevice()->GetOcclusionQueryHeap()->EndQuery(*this, OuterOcclusionQueryD3D12);
+		GetParentDevice()->GetOcclusionQueryHeap(CommandQueueType)->EndQuery(*this, OuterOcclusionQueryD3D12);
 		bOuterOcclusionQuerySubmitted = false;
 	}
-	GetParentDevice()->GetOcclusionQueryHeap()->EndQueryBatchAndResolveQueryData(*this);
+	GetParentDevice()->GetOcclusionQueryHeap(CommandQueueType)->EndQueryBatchAndResolveQueryData(*this);
 
 	// Note: We want to execute this ASAP. The Engine will call RHISubmitCommandHint after this.
 	// We'll break up the command list there so that the wait on the previous frame's results don't block.
@@ -313,6 +313,8 @@ uint32 FD3D12QueryHeap::AllocQuery(FD3D12CommandContext& CmdContext)
 			check(CurrentQueryBatch.bOpen && CurrentQueryBatch.ElementCount == 0);
 		}
 
+		// No support for more than 256 timestamp queries?
+		check(CurrentQueryBatch.ElementCount < 256);
 		if (CurrentQueryBatch.StartElement > CurrentElement)
 		{
 			// We're in the middle of a batch, but we're at the end of the heap
@@ -487,7 +489,7 @@ void FD3D12QueryHeap::CreateQueryHeap()
 
 	// Create the upload heap
 	VERIFYD3D12RESULT(GetParentDevice()->GetDevice()->CreateQueryHeap(&QueryHeapDesc, IID_PPV_ARGS(ActiveQueryHeap.GetInitReference())));
-	SetName(ActiveQueryHeap, L"Query Heap");
+	SetName(ActiveQueryHeap, (QueryType == D3D12_QUERY_TYPE_OCCLUSION) ? TEXT("Occlusion Query Heap") : TEXT("Timestamp Query Heap"));
 
 #if ENABLE_RESIDENCY_MANAGEMENT
 	D3DX12Residency::Initialize(ActiveQueryHeapResidencyHandle, ActiveQueryHeap, ResultSize * QueryHeapDesc.Count);
@@ -507,7 +509,7 @@ void FD3D12QueryHeap::CreateQueryHeap()
 		D3D12_RESOURCE_STATE_COPY_DEST,
 		nullptr,
 		ActiveResultBuffer.GetInitReference(),
-		TEXT("Query Heap Result Buffer")));
+		(QueryType == D3D12_QUERY_TYPE_OCCLUSION) ? TEXT(" Occlusion Query Heap Result Buffer") : TEXT("Timestamp Query Heap Result Buffer")));
 }
 
 void FD3D12QueryHeap::DestroyQueryHeap()

@@ -55,8 +55,8 @@ public:
 
 	FD3D12DynamicRHI* GetOwningRHI();
 
-	inline FD3D12QueryHeap* GetOcclusionQueryHeap() { return &OcclusionQueryHeap; }
-	inline FD3D12QueryHeap* GetTimestampQueryHeap() { return &TimestampQueryHeap; }
+	inline FD3D12QueryHeap* GetOcclusionQueryHeap(ED3D12CommandQueueType inQueueType) { check(inQueueType == ED3D12CommandQueueType::Direct); return &OcclusionQueryHeap; }
+	inline FD3D12QueryHeap* GetTimestampQueryHeap(ED3D12CommandQueueType inQueueType) { return TimestampQueryHeaps[(uint32)inQueueType]; }
 	FD3D12LinearQueryHeap* GetCmdListExecTimeQueryHeap();
 
 	template <typename TViewDesc> FD3D12OfflineDescriptorManager& GetViewDescriptorAllocator();
@@ -102,7 +102,7 @@ public:
 	}
 
 	FD3D12CommandListManager* GetCommandListManager(ED3D12CommandQueueType inQueueType) const;
-	ID3D12CommandQueue* GetD3DCommandQueue(ED3D12CommandQueueType InQueueType = ED3D12CommandQueueType::Default) { return GetCommandListManager(InQueueType)->GetD3DCommandQueue(); }
+	ID3D12CommandQueue* GetD3DCommandQueue(ED3D12CommandQueueType InQueueType = ED3D12CommandQueueType::Direct) { return GetCommandListManager(InQueueType)->GetD3DCommandQueue(); }
 
 	inline FD3D12CommandContext& GetDefaultCommandContext() const { return GetCommandContext(0); }
 	inline FD3D12CommandContext& GetDefaultAsyncComputeContext() const { return GetAsyncComputeContext(0); }
@@ -149,7 +149,7 @@ protected:
 	FD3D12GlobalHeap GlobalViewHeap;
 
 	FD3D12QueryHeap OcclusionQueryHeap;
-	FD3D12QueryHeap TimestampQueryHeap;
+	FD3D12QueryHeap* TimestampQueryHeaps[(uint32)ED3D12CommandQueueType::Count];
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	FD3D12LinearQueryHeap CmdListExecTimeQueryHeap;
 #endif

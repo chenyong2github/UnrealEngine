@@ -36,16 +36,16 @@ static FAutoConsoleVariableRef CVarEmitRgpFrameMarkers(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
-FD3D12CommandContextBase::FD3D12CommandContextBase(class FD3D12Adapter* InParentAdapter, FRHIGPUMask InGPUMask, bool InIsDefaultContext, bool InIsAsyncComputeContext)
+FD3D12CommandContextBase::FD3D12CommandContextBase(class FD3D12Adapter* InParentAdapter, FRHIGPUMask InGPUMask, ED3D12CommandQueueType InCommandQueueType, bool InIsDefaultContext)
 	: FD3D12AdapterChild(InParentAdapter)
 	, GPUMask(InGPUMask)
 	, bTrackingEvents(false)
+	, CommandQueueType(InCommandQueueType)
 	, bIsDefaultContext(InIsDefaultContext)
-	, bIsAsyncComputeContext(InIsAsyncComputeContext)
 {
 }
 
-static D3D12_RESOURCE_STATES GetValidResourceStates(D3D12_COMMAND_LIST_TYPE CommandListType)
+static D3D12_RESOURCE_STATES GetValidResourceStates(ED3D12CommandQueueType CommandListType)
 {
 	// For reasons, we can't just list the allowed states, we have to list the disallowed states.
 	// For reference on allowed/disallowed states, see:
@@ -73,12 +73,12 @@ static D3D12_RESOURCE_STATES GetValidResourceStates(D3D12_COMMAND_LIST_TYPE Comm
 		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 
 
-	if (CommandListType == D3D12_COMMAND_LIST_TYPE_COPY)
+	if (CommandListType == ED3D12CommandQueueType::Copy)
 	{
 		return ~DisallowedCopyStates;
 	}
 
-	if (CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+	if (CommandListType == ED3D12CommandQueueType::Async)
 	{
 		return ~DisallowedComputeStates;
 	}
@@ -86,13 +86,13 @@ static D3D12_RESOURCE_STATES GetValidResourceStates(D3D12_COMMAND_LIST_TYPE Comm
 	return ~DisallowedDirectStates;
 }
 
-FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, bool InIsDefaultContext, bool InIsAsyncComputeContext) :
-	FD3D12CommandContextBase(InParent->GetParentAdapter(), InParent->GetGPUMask(), InIsDefaultContext, InIsAsyncComputeContext),
+FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, ED3D12CommandQueueType InCommandQueueType, bool InIsDefaultContext) :
+	FD3D12CommandContextBase(InParent->GetParentAdapter(), InParent->GetGPUMask(), InCommandQueueType, InIsDefaultContext),
 	FD3D12DeviceChild(InParent),
 	ConstantsAllocator(InParent, InParent->GetGPUMask()),
 	CommandListHandle(),
 	CommandAllocator(nullptr),
-	CommandAllocatorManager(InParent, InIsAsyncComputeContext ? D3D12_COMMAND_LIST_TYPE_COMPUTE : D3D12_COMMAND_LIST_TYPE_DIRECT),
+	CommandAllocatorManager(InParent, (InCommandQueueType == ED3D12CommandQueueType::Async) ? D3D12_COMMAND_LIST_TYPE_COMPUTE : D3D12_COMMAND_LIST_TYPE_DIRECT),
 	StateCache(InParent->GetGPUMask()),
 	OwningRHI(*InParent->GetOwningRHI()),
 	CurrentDepthStencilTarget(nullptr),
@@ -108,7 +108,7 @@ FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, bool InIsDefa
 	VRSShadingRate(D3D12_SHADING_RATE_1X1),
 #endif
 	SkipFastClearEliminateState(D3D12_RESOURCE_STATES(0)),
-	ValidResourceStates(GetValidResourceStates(InIsAsyncComputeContext ? D3D12_COMMAND_LIST_TYPE_COMPUTE : D3D12_COMMAND_LIST_TYPE_DIRECT)),
+	ValidResourceStates(GetValidResourceStates(InCommandQueueType)),
 #if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
 	bNeedFlushTextureCache(false),
 #endif
@@ -276,7 +276,7 @@ void FD3D12CommandContext::RHIPopEvent()
 
 FD3D12CommandListManager& FD3D12CommandContext::GetCommandListManager()
 {
-	return bIsAsyncComputeContext ? GetParentDevice()->GetAsyncCommandListManager() : GetParentDevice()->GetCommandListManager();
+	return *GetParentDevice()->GetCommandListManager(CommandQueueType);
 }
 
 void FD3D12CommandContext::ConditionalObtainCommandAllocator()
@@ -338,7 +338,7 @@ FD3D12CommandListHandle FD3D12CommandContext::FlushCommands(bool WaitForCompleti
 	bool bHasProfileGPUAction = false;
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	// Only graphics command list supports ID3D12GraphicsCommandList::EndQuery currently
-	if (!bIsAsyncComputeContext)
+	if (!IsAsyncComputeContext())
 	{
 		if (ExtraAction == FCEA_StartProfilingGPU)
 		{
@@ -457,10 +457,10 @@ void FD3D12CommandContextBase::RHIBeginFrame()
 		FD3D12CommandContext* ContextAtIndex = GetContext(GPUIndex);
 		if (ensure(ContextAtIndex))
 		{
-			Device->GetTimestampQueryHeap()->EndQueryBatchAndResolveQueryData(*ContextAtIndex);
+			Device->GetTimestampQueryHeap(CommandQueueType)->EndQueryBatchAndResolveQueryData(*ContextAtIndex);
 #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 			uint64 TimeStampFrequency = 0;
-			VERIFYD3D12RESULT(Device->GetCommandListManager().GetTimestampFrequency(&TimeStampFrequency));
+			VERIFYD3D12RESULT(Device->GetCommandListManager(CommandQueueType)->GetTimestampFrequency(&TimeStampFrequency));
 			Device->GetBackBufferWriteBarrierTracker()->ResolveBatches(TimeStampFrequency, false);
 #endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 		}
@@ -510,7 +510,7 @@ void FD3D12CommandContext::ClearState()
 		}
 	}
 
-	if (!bIsAsyncComputeContext)
+	if (!IsAsyncComputeContext())
 	{
 		FMemory::Memzero(CurrentRenderTargets, sizeof(CurrentRenderTargets));
 		NumSimultaneousRenderTargets = 0;
@@ -638,7 +638,7 @@ void FD3D12CommandContextBase::SignalTransitionFences(TArrayView<const FRHITrans
 				RHISubmitCommandsHint();
 				bSubmitted = true;
 			}
-			Fence->Signal(bIsAsyncComputeContext ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Default);
+			Fence->Signal(IsAsyncComputeContext() ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Direct);
 		}
 	}
 }
@@ -657,7 +657,7 @@ void FD3D12CommandContextBase::WaitForTransitionFences(TArrayView<const FRHITran
 				RHISubmitCommandsHint();
 				bSubmitted = true;
 			}
-			Fence->GpuWait(bIsAsyncComputeContext ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Default, Fence->GetLastSignaledFence());
+			Fence->GpuWait(IsAsyncComputeContext() ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Direct, Fence->GetLastSignaledFence());
 		}
 	}
 }
@@ -763,7 +763,7 @@ public:
 		}
 		else
 		{
-			CmdContextRedirector = new FD3D12CommandContextRedirector(Adapter, false, false);
+			CmdContextRedirector = new FD3D12CommandContextRedirector(Adapter, ED3D12CommandQueueType::Direct, false);
 			CmdContextRedirector->SetPhysicalGPUMask(GPUMask);
 
 			for (uint32 GPUIndex : GPUMask)
@@ -930,8 +930,8 @@ void FD3D12DynamicRHI::RHIReleaseTransition(FRHITransition* Transition)
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FD3D12CommandContextRedirector::FD3D12CommandContextRedirector(class FD3D12Adapter* InParent, bool InIsDefaultContext, bool InIsAsyncComputeContext)
-	: FD3D12CommandContextBase(InParent, FRHIGPUMask::All(), InIsDefaultContext, InIsAsyncComputeContext)
+FD3D12CommandContextRedirector::FD3D12CommandContextRedirector(class FD3D12Adapter* InParent, ED3D12CommandQueueType InCommandQueueType, bool InIsDefaultContext)
+	: FD3D12CommandContextBase(InParent, FRHIGPUMask::All(), InCommandQueueType, InIsDefaultContext)
 {
 	FMemory::Memzero(PhysicalContexts, sizeof(PhysicalContexts[0]) * MAX_NUM_GPUS);
 }

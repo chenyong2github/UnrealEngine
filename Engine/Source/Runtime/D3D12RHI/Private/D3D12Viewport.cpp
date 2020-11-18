@@ -844,7 +844,7 @@ bool FD3D12Viewport::Present(bool bLockToVsync)
 		// system present queue out of order.
 		const uint32 PresentGPUIndex = BackBufferGPUIndices[CurrentBackBufferIndex_RHIThread];
 		const uint32 LastGPUIndex = BackBufferGPUIndices[(CurrentBackBufferIndex_RHIThread + NumBackBuffers - 1) % NumBackBuffers];
-		Fence.GpuWait(PresentGPUIndex, ED3D12CommandQueueType::Default, LastSignaledValue, LastGPUIndex);
+		Fence.GpuWait(PresentGPUIndex, ED3D12CommandQueueType::Direct, LastSignaledValue, LastGPUIndex);
 	}
 
 #if 0 // Multi-GPU support : figure out what kind of synchronization is needed.
@@ -899,7 +899,7 @@ void FD3D12Viewport::WaitForFrameEventCompletion()
 void FD3D12Viewport::IssueFrameEvent()
 {
 	// Signal the fence.
-	LastSignaledValue = Fence.Signal(ED3D12CommandQueueType::Default);
+	LastSignaledValue = Fence.Signal(ED3D12CommandQueueType::Direct);
 }
 
 bool FD3D12Viewport::CheckHDRSupport()
@@ -1092,14 +1092,14 @@ void FD3D12DynamicRHI::RHIAdvanceFrameFence()
 	if (RHICmdList.Bypass())
 	{
 		// In bypass mode, we should execute this directly
-		FRHICommandSignalFrameFence Cmd(ED3D12CommandQueueType::Default, FrameFence, PreviousFence);
+		FRHICommandSignalFrameFence Cmd(ED3D12CommandQueueType::Direct, FrameFence, PreviousFence);
 		Cmd.Execute(RHICmdList);
 	}
 	else
 	{
 		// Queue a command to signal on RHI thread that the current frame is a complete on the GPU.
 		// This must be done in a deferred way even if RHI thread is disabled, just for correct ordering of operations.
-		ALLOC_COMMAND_CL(RHICmdList, FRHICommandSignalFrameFence)(ED3D12CommandQueueType::Default, FrameFence, PreviousFence);
+		ALLOC_COMMAND_CL(RHICmdList, FRHICommandSignalFrameFence)(ED3D12CommandQueueType::Direct, FrameFence, PreviousFence);
 	}
 #if D3D12_SUBMISSION_GAP_RECORDER
 	FD3D12Adapter* Adapter = &GetAdapter();

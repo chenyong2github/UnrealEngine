@@ -514,7 +514,7 @@ void FD3D12DynamicRHI::RHIMultiGPULockstep(FRHIGPUMask GPUMask)
 		{
 			if (GPUIndex != GPUIndex2)
 			{
-				Fence.GpuWait(GPUIndex2, ED3D12CommandQueueType::Default, Fence.GetLastSignaledFence(), GPUIndex);
+				Fence.GpuWait(GPUIndex2, ED3D12CommandQueueType::Direct, Fence.GetLastSignaledFence(), GPUIndex);
 			}
 		}
 	}
