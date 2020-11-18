@@ -682,13 +682,13 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::RecursivelyConstructNodes(bool
 		{
 			// There are more references than allowed to be displayed. Make a collapsed node.
 			UEdGraphNode_Reference* ReferenceNode = CreateReferenceNode();
-			ReferenceNode->SetAllowThumbnail(!bIsCompactMode);
 			FIntPoint RefNodeLoc;
 			RefNodeLoc.X = ReferenceNodeLoc.X;
 			RefNodeLoc.Y = ReferenceNodeLoc.Y;
 
 			if ( ensure(ReferenceNode) )
 			{
+				ReferenceNode->SetAllowThumbnail(!bIsCompactMode);
 				ReferenceNode->SetReferenceNodeCollapsed(RefNodeLoc, NumReferencesExceedingMax);
 
 				if ( bReferencers )
