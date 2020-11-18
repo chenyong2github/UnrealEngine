@@ -389,7 +389,10 @@ struct FGBufferData
 bool CastContactShadow(FGBufferData GBufferData)
 {
 	uint PackedAlpha = (uint)(GBufferData.PerObjectGBufferData * 3.999f);
-	return PackedAlpha & 1;
+	bool bCastContactShadowBit = PackedAlpha & 1;
+	// Exclude eye materials from ever casting contact shadows
+	bool bShadingModelCastContactShadows = (GBufferData.ShadingModelID != SHADINGMODELID_EYE);
+	return bCastContactShadowBit && bShadingModelCastContactShadows;
 }
 
 bool HasDynamicIndirectShadowCasterRepresentation(FGBufferData GBufferData)
