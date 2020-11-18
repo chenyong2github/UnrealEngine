@@ -679,6 +679,8 @@ EObjectFlags AWaterBody::GetTransientMIDFlags() const
 
 void AWaterBody::OnConstruction(const FTransform& Transform)
 {
+	Super::OnConstruction(Transform);
+
 	InitializeBody();
 
 	UpdateAll(true);
