@@ -115,8 +115,6 @@ protected:
 	//~ End UMaterialExpressionRerouteBase Interface
 
 private:
-#if WITH_EDITOR
 	// Check that the declaration isn't deleted
 	bool IsDeclarationValid() const;
-#endif // WITH_EDITOR
 };
