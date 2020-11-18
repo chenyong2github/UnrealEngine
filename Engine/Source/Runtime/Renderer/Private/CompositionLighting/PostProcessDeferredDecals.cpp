@@ -45,6 +45,9 @@ static TAutoConsoleVariable<bool> CVarDBufferDecalNormalReprojectionEnabled(
 	TEXT("in depth prepass is enabled as well (r.DepthPassMergedWithVelocity). Otherwise the fallback is the normal extracted from the depth buffer."),
 	ECVF_RenderThreadSafe);
 
+// This is a temporary extern while testing the Velocity changes. Will be removed once a decision is made.
+extern bool IsVelocityMergedWithDepthPass();
+
 FDeferredDecalPassTextures GetDeferredDecalPassTextures(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -698,3 +701,27 @@ void AddDeferredDecalPass(
 		ConvertToExternalTexture(GraphBuilder, OutputTexture, SceneContext.DBufferMask);
 	}
 }
+
+void ExtractNormalsForNextFrameReprojection(FRDGBuilder& GraphBuilder, FSceneRenderTargets& SceneContext, const TArray<FViewInfo>& Views)
+{
+	static auto CVarNormalReprojectionEnabled = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Decal.NormalReprojectionEnabled"));
+
+	// save the previous frame if early motion vectors are enabled and normal reprojection is enabled, so there should be no cost if these options are off
+	bool bApplyReproject = IsVelocityMergedWithDepthPass() && CVarNormalReprojectionEnabled && CVarNormalReprojectionEnabled->GetInt() > 0;
+
+	if (bApplyReproject)
+	{
+		bool bAnyViewWriteable = false;
+		for (int32 Index = 0; Index < Views.Num(); Index++)
+		{
+			if (Views[Index].bStatePrevViewInfoIsReadOnly == false)
+			{
+				GraphBuilder.QueueTextureExtraction(GraphBuilder.RegisterExternalTexture(SceneContext.GBufferA),&Views[Index].ViewState->PrevFrameViewInfo.GBufferA);
+			}
+		}
+
+	}
+}
+
+
+

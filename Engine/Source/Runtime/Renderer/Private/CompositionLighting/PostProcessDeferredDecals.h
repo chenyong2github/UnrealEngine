@@ -83,3 +83,8 @@ void RenderMeshDecals(
 	const FViewInfo& View,
 	FDeferredDecalPassTextures& DecalPassTextures,
 	EDecalRenderStage DecalRenderStage);
+
+void ExtractNormalsForNextFrameReprojection(
+	FRDGBuilder& GraphBuilder,
+	FSceneRenderTargets& SceneContext,
+	const TArray<FViewInfo>& Views);
