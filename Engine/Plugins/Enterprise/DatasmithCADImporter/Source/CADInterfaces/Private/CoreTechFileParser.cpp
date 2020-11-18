@@ -30,8 +30,8 @@ namespace {
 	{
 		float VMin, VMax, UMin, UMax;
 		VMin = UMin = HUGE_VALF;
-		VMax = UMax = -HUGE_VALF;
-
+		VMax = UMax =  -HUGE_VALF;
+		 
 		for (const FVector2D& TexCoord : TexCoordArray)
 		{
 			UMin = FMath::Min(TexCoord[0], UMin);
@@ -244,6 +244,7 @@ uint32 GetFaceTessellation(CT_OBJECT_ID FaceID, TArray<FTessellationData>& FaceT
 	}
 
 	FTessellationData& Tessellation = FaceTessellationSet.Emplace_GetRef();
+	Tessellation.PatchId = FaceID;
 	Tessellation.IndexArray.SetNum(IndexCount);
 
 	switch (IndexType)
@@ -644,7 +645,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile(const FFile
 		return EProcessResult::FileNotFound;
 	}
 
-		uint32 FileHash = GetFileHash();
+	uint32 FileHash = GetFileHash();
 
 	SceneGraphArchive.ArchiveFileName = FString::Printf(TEXT("UEx%08x"), FileHash);
 
@@ -657,7 +658,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile(const FFile
 
 	bool bNeedToProceed = true;
 #ifndef IGNORE_CACHE
-	if (ImportParameters.bEnableCacheUsage && IFileManager::Get().FileExists(*SceneGraphArchiveFilePath))
+	if (ImportParameters.bEnableCacheUsage && IFileManager::Get().FileExists(*CTFilePath))
 	{
 		if (IFileManager::Get().FileExists(*MeshArchiveFilePath)) // the file has been proceed with same meshing parameters
 		{
