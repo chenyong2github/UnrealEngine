@@ -8,10 +8,10 @@
 #include "SimpleVirtualCamera.generated.h"
 
 /**
- * A CineCameraActor with a preattached VCamComponent for sample usage
+ * A simple native virtual camera actor
  */
-UCLASS()
-class VCAMCORE_API ASimpleVirtualCamera : public ACineCameraActor
+UCLASS(Abstract)
+class UE_DEPRECATED(4.26, "This class is deprecated in favor of the Blueprint version")  ASimpleVirtualCamera : public ACineCameraActor
 {
 	GENERATED_BODY()
 

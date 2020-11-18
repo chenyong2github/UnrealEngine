@@ -72,13 +72,22 @@ public:
 		{
 			if (const FPlacementCategoryInfo* Info = IVPUtilitiesEditorModule::Get().GetVirtualProductionPlacementCategoryInfo())
 			{
-				// register VirtualCameraLite
-				IPlacementModeModule::Get().RegisterPlaceableItem(Info->UniqueHandle, MakeShared<FPlaceableItem>(
-					*ASimpleVirtualCamera::StaticClass(),
-					FAssetData(ASimpleVirtualCamera::StaticClass()),
-					FName("ClassIcon.CameraActor")
-				));
+				FAssetData SimpleVirtualCameraAssetData(
+					TEXT("/VirtualCamera/VCamCore/Blueprints/SimpleVirtualCamera"),
+					TEXT("/VirtualCamera/VCamCore/Blueprints"),
+					TEXT("SimpleVirtualCamera"),
+					TEXT("Blueprint")
+				);
 
+				// register the simple virtual camera
+				IPlacementModeModule::Get().RegisterPlaceableItem(Info->UniqueHandle, MakeShared<FPlaceableItem>(
+					*UActorFactoryBlueprint::StaticClass(),
+					SimpleVirtualCameraAssetData,
+					FName("ClassIcon.CameraActor"),
+					TOptional<FLinearColor>(),
+					TOptional<int32>(0),
+					LOCTEXT("VSimpleVCamPlacementName", "Simple Virtual Camera")
+					));
 
 				FAssetData VirtualCamera2ActorAssetData(
 					TEXT("/VirtualCamera/V2/VirtualCamera2Actor"), 
@@ -87,12 +96,13 @@ public:
 					TEXT("Blueprint")
 				);
 				
+				// register the full-fat camera
 				IPlacementModeModule::Get().RegisterPlaceableItem(Info->UniqueHandle, MakeShared<FPlaceableItem>(
 					*UActorFactoryBlueprint::StaticClass(),
 					VirtualCamera2ActorAssetData,
 					FName("ClassIcon.CameraActor"),
 					TOptional<FLinearColor>(),
-					TOptional<int32>(),
+					TOptional<int32>(1),
 					LOCTEXT("VCamActorPlacementName", "VirtualCamera2 Actor")
 				));
 			}
