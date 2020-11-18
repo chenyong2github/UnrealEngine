@@ -55,10 +55,8 @@ const ERHIAccess AccessMaskCompute = ERHIAccess::SRVCompute | ERHIAccess::UAVCom
 const ERHIAccess AccessMaskRaster  = ERHIAccess::ResolveSrc | ERHIAccess::ResolveDst | ERHIAccess::DSVRead | ERHIAccess::DSVWrite | ERHIAccess::RTV | ERHIAccess::SRVGraphics | ERHIAccess::UAVGraphics | ERHIAccess::Present | ERHIAccess::VertexOrIndexBuffer;
 const ERHIAccess AccessMaskComputeOrRaster = ERHIAccess::IndirectArgs;
 
-/** Validates that we are only executing a single render graph instance in the callstack. Used to catch if a
- *  user creates a second FRDGBuilder instance inside of a pass that is executing.
- */
-bool GRDGInExecutePassScope = false;
+/** Validates that only one builder instance exists at any time. This is currently a requirement for state tracking and allocation lifetimes. */
+bool GRDGBuilderActive = false;
 } //! namespace
 
 struct FRDGResourceDebugData
@@ -142,7 +140,7 @@ FRDGTextureDebugData& FRDGTexture::GetTextureDebugData() const
 struct FRDGBufferDebugData
 {
 	/** Tracks state changes in order of execution. */
-	TArray<TPair<FRDGPassHandle, FRDGSubresourceState>, SceneRenderingAllocator> States;
+	TArray<TPair<FRDGPassHandle, FRDGSubresourceState>, FRDGArrayAllocator> States;
 };
 
 FRDGBufferDebugData& FRDGBuffer::GetBufferDebugData() const
@@ -169,11 +167,15 @@ FRDGUserValidation::FRDGUserValidation(FRDGAllocator& InAllocator, ERDGBuilderFl
 	: Allocator(InAllocator)
 	, BuilderFlags(InBuilderFlags)
 	, ExpectedNumMarks(FMemStack::Get().GetNumMarks())
-{}
+{
+	checkf(!GRDGBuilderActive, TEXT("Another FRDGBuilder already exists on the stack. Only one builder can be created at a time. This builder instance should be merged into the parent one."));
+	GRDGBuilderActive = true;
+}
 
 FRDGUserValidation::~FRDGUserValidation()
 {
 	checkf(bHasExecuted, TEXT("Render graph execution is required to ensure consistency with immediate mode."));
+	GRDGBuilderActive = false;
 }
 
 void FRDGUserValidation::MemStackGuard()
@@ -191,19 +193,19 @@ void FRDGUserValidation::ValidateCreateResource(FRDGResourceRef Resource)
 {
 	MemStackGuard();
 	check(Resource);
-	Resource->DebugData = Allocator.AllocObject<FRDGResourceDebugData>();
+	Resource->DebugData = Allocator.Alloc<FRDGResourceDebugData>();
 }
 
 void FRDGUserValidation::ValidateCreateParentResource(FRDGParentResourceRef Resource)
 {
 	ValidateCreateResource(Resource);
-	Resource->ParentDebugData = Allocator.AllocObject<FRDGParentResourceDebugData>();
+	Resource->ParentDebugData = Allocator.Alloc<FRDGParentResourceDebugData>();
 }
 
 void FRDGUserValidation::ValidateCreateTexture(FRDGTextureRef Texture)
 {
 	ValidateCreateParentResource(Texture);
-	Texture->TextureDebugData = Allocator.AllocObject<FRDGTextureDebugData>();
+	Texture->TextureDebugData = Allocator.Alloc<FRDGTextureDebugData>();
 	if (GRDGDebug)
 	{
 		TrackedTextures.Add(Texture);
@@ -213,7 +215,7 @@ void FRDGUserValidation::ValidateCreateTexture(FRDGTextureRef Texture)
 void FRDGUserValidation::ValidateCreateBuffer(FRDGBufferRef Buffer)
 {
 	ValidateCreateParentResource(Buffer);
-	Buffer->BufferDebugData = Allocator.AllocObject<FRDGBufferDebugData>();
+	Buffer->BufferDebugData = Allocator.Alloc<FRDGBufferDebugData>();
 	if (GRDGDebug)
 	{
 		TrackedBuffers.Add(Buffer);
@@ -897,9 +899,6 @@ void FRDGUserValidation::ValidateExecuteEnd()
 void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 {
 	check(Pass);
-	checkf(!GRDGInExecutePassScope, TEXT("Render graph is being executed recursively. This usually means a separate FRDGBuilder instance was created inside of an executing pass."));
-
-	GRDGInExecutePassScope = true;
 
 	SetAllowRHIAccess(Pass, true);
 
@@ -1029,8 +1028,6 @@ void FRDGUserValidation::ValidateExecutePassEnd(const FRDGPass* Pass)
 			}
 		}
 	});
-
-	GRDGInExecutePassScope = false;
 }
 
 void FRDGUserValidation::SetAllowRHIAccess(const FRDGPass* Pass, bool bAllowAccess)

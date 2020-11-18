@@ -218,19 +218,18 @@ public:
 	/** The RHI command list used for the render graph. */
 	FRHICommandListImmediate& RHICmdList;
 
+	/** The RDG allocator instance tied to the graph lifetime. All memory is released after Execute(). */
+	FRDGAllocator& Allocator;
+
+	/** The blackboard used to hold common data tied to the graph lifetime. */
+	FRDGBlackboard Blackboard;
+
 private:
 	static const ERHIAccess kDefaultAccessInitial = ERHIAccess::Unknown;
 	static const ERHIAccess kDefaultAccessFinal = ERHIAccess::SRVMask;
 	static const char* const kDefaultUnaccountedCSVStat;
 
 	FRHIAsyncComputeCommandListImmediate& RHICmdListAsyncCompute;
-	FRDGAllocator Allocator;
-
-public:
-	/** The blackboard used to hold common data tied to the graph lifetime. */
-	FRDGBlackboard Blackboard;
-
-private:
 
 	const FRDGEventName BuilderName;
 	const ERDGBuilderFlags BuilderFlags;
@@ -262,11 +261,11 @@ private:
 	FRDGPassBitArray PassesWithEmptyParameters;
 
 	/** Tracks external resources to their registered render graph counterparts for de-duplication. */
-	TSortedMap<FRHITexture*, FRDGTexture*, SceneRenderingAllocator> ExternalTextures;
-	TSortedMap<const FRDGPooledBuffer*, FRDGBuffer*, SceneRenderingAllocator> ExternalBuffers;
+	TSortedMap<FRHITexture*, FRDGTexture*, FRDGArrayAllocator> ExternalTextures;
+	TSortedMap<const FRDGPooledBuffer*, FRDGBuffer*, FRDGArrayAllocator> ExternalBuffers;
 
 	/** Map of barrier batches begun from more than one pipe. */
-	TMap<FRDGBarrierBatchBeginId, FRDGBarrierBatchBegin*, SceneRenderingSetAllocator> BarrierBatchMap;
+	TMap<FRDGBarrierBatchBeginId, FRDGBarrierBatchBegin*, FRDGSetAllocator> BarrierBatchMap;
 
 	/** The epilogue and prologue passes are sentinels that are used to simplify graph logic around barriers
 	 *  and traversal. The prologue pass is used exclusively for barriers before the graph executes, while the
@@ -278,8 +277,8 @@ private:
 	FRDGPass* EpiloguePass = nullptr;
 
 	/** Array of all requested resource extractions from the graph. */
-	TArray<TPair<FRDGTextureRef, TRefCountPtr<IPooledRenderTarget>*>, TInlineAllocator<4, SceneRenderingAllocator>> ExtractedTextures;
-	TArray<TPair<FRDGBufferRef, TRefCountPtr<FRDGPooledBuffer>*>, TInlineAllocator<4, SceneRenderingAllocator>> ExtractedBuffers;
+	TArray<TPair<FRDGTextureRef, TRefCountPtr<IPooledRenderTarget>*>, FRDGArrayAllocator> ExtractedTextures;
+	TArray<TPair<FRDGBufferRef, TRefCountPtr<FRDGPooledBuffer>*>, FRDGArrayAllocator> ExtractedBuffers;
 
 	/** Texture state used for intermediate operations. Held here to avoid re-allocating. */
 	FRDGTextureTransientSubresourceStateIndirect ScratchTextureState;

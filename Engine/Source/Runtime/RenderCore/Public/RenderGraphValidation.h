@@ -101,8 +101,8 @@ private:
 	void ValidateExtractResource(FRDGParentResourceRef Resource);
 
 	/** List of tracked resources for validation prior to shutdown. */
-	TArray<FRDGTextureRef, SceneRenderingAllocator> TrackedTextures;
-	TArray<FRDGBufferRef, SceneRenderingAllocator> TrackedBuffers;
+	TArray<FRDGTextureRef, FRDGArrayAllocator> TrackedTextures;
+	TArray<FRDGBufferRef, FRDGArrayAllocator> TrackedBuffers;
 
 	/** Whether the Execute() has already been called. */
 	bool bHasExecuted = false;

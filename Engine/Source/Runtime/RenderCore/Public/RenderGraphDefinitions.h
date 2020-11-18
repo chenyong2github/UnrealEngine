@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "RenderGraphAllocator.h"
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 
 /** DEFINES */
@@ -220,91 +220,6 @@ inline int32 GetResourceTransitionPlaneForMetadataAccess(ERDGTextureMetaDataAcce
 	}
 }
 
-/** Simple C++ object allocator which tracks and destructs objects allocated using the MemStack allocator. */
-class FRDGAllocator final
-{
-public:
-	FRDGAllocator()
-		: MemStack(0)
-	{
-		TrackedAllocs.Reserve(16);
-	}
-
-	~FRDGAllocator()
-	{
-		checkSlow(MemStack.IsEmpty());
-	}
-
-	/** Allocates raw memory. */
-	FORCEINLINE void* Alloc(uint32 SizeInBytes, uint32 AlignInBytes)
-	{
-		return MemStack.Alloc(SizeInBytes, AlignInBytes);
-	}
-
-	/** Allocates POD memory without destructor tracking. */
-	template <typename PODType>
-	FORCEINLINE PODType* AllocPOD()
-	{
-		return reinterpret_cast<PODType*>(Alloc(sizeof(PODType), alignof(PODType)));
-	}
-
-	/** Allocates a C++ object with destructor tracking. */
-	template <typename ObjectType, typename... TArgs>
-	FORCEINLINE ObjectType* AllocObject(TArgs&&... Args)
-	{
-		TTrackedAlloc<ObjectType>* TrackedAlloc = new(MemStack) TTrackedAlloc<ObjectType>(Forward<TArgs&&>(Args)...);
-		check(TrackedAlloc);
-		TrackedAllocs.Add(TrackedAlloc);
-		return TrackedAlloc->Get();
-	}
-
-	/** Allocates a C++ object with no destructor tracking (dangerous!). */
-	template <typename ObjectType, typename... TArgs>
-	FORCEINLINE ObjectType* AllocNoDestruct(TArgs&&... Args)
-	{
-		return new (MemStack) ObjectType(Forward<TArgs&&>(Args)...);
-	}
-
-	/** Releases all allocations. */
-	void ReleaseAll()
-	{
-		for (int32 Index = TrackedAllocs.Num() - 1; Index >= 0; --Index)
-		{
-			TrackedAllocs[Index]->~FTrackedAlloc();
-		}
-		TrackedAllocs.Empty();
-		MemStack.Flush();
-	}
-
-	FORCEINLINE int32 GetByteCount() const
-	{
-		return MemStack.GetByteCount();
-	}
-
-private:
-	class FTrackedAlloc
-	{
-	public:
-		virtual ~FTrackedAlloc() = default;
-	};
-
-	template <typename ObjectType>
-	class TTrackedAlloc : public FTrackedAlloc
-	{
-	public:
-		template <typename... TArgs>
-		FORCEINLINE TTrackedAlloc(TArgs&&... Args) : Object(Forward<TArgs&&>(Args)...) {}
-
-		FORCEINLINE ObjectType* Get() { return &Object; }
-
-	private:
-		ObjectType Object;
-	};
-
-	FMemStackBase MemStack;
-	TArray<FTrackedAlloc*, TMemStackAllocator<>> TrackedAllocs;
-};
-
 /** HANDLE UTILITIES */
 
 /** Handle helper class for internal tracking of RDG types. */
@@ -379,7 +294,7 @@ public:
 	DerivedType* Allocate(FRDGAllocator& Allocator, TArgs&&... Args)
 	{
 		static_assert(TIsDerivedFrom<DerivedType, ObjectType>::Value, "You must specify a type that derives from ObjectType");
-		DerivedType* Object = Allocator.AllocObject<DerivedType>(Forward<TArgs>(Args)...);
+		DerivedType* Object = Allocator.Alloc<DerivedType>(Forward<TArgs>(Args)...);
 		Insert(Object);
 		return Object;
 	}
@@ -430,14 +345,14 @@ public:
 	}
 
 private:
-	TArray<ObjectType*, TMemStackAllocator<>> Array;
+	TArray<ObjectType*, FRDGArrayAllocator> Array;
 };
 
 /** Specialization of bit array with compile-time type checking for handles and a pre-configured allocator. */
 template <typename HandleType>
-class TRDGHandleBitArray : public TBitArray<TInlineAllocator<4, TMemStackAllocator<>>>
+class TRDGHandleBitArray : public TBitArray<FRDGBitArrayAllocator>
 {
-	using Base = TBitArray<TInlineAllocator<4, TMemStackAllocator<>>>;
+	using Base = TBitArray<FRDGBitArrayAllocator>;
 public:
 	TRDGHandleBitArray() = default;
 	TRDGHandleBitArray(const TRDGHandleBitArray&) = default;
@@ -552,7 +467,7 @@ class FRDGPass;
 using FRDGPassRef = const FRDGPass*;
 using FRDGPassHandle = TRDGHandle<FRDGPass, uint16>;
 using FRDGPassRegistry = TRDGHandleRegistry<FRDGPassHandle>;
-using FRDGPassHandleArray = TArray<FRDGPassHandle, TInlineAllocator<4, TMemStackAllocator<>>>;
+using FRDGPassHandleArray = TArray<FRDGPassHandle, TInlineAllocator<4, FRDGArrayAllocator>>;
 using FRDGPassBitArray = TRDGHandleBitArray<FRDGPassHandle>;
 
 class FRDGUniformBuffer;

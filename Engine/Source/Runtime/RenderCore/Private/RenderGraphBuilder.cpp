@@ -384,8 +384,9 @@ const char* const FRDGBuilder::kDefaultUnaccountedCSVStat = "RDG_Pass";
 
 FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName InName, ERDGBuilderFlags InFlags)
 	: RHICmdList(InRHICmdList)
-	, RHICmdListAsyncCompute(FRHICommandListExecutor::GetImmediateAsyncComputeCommandList())
+	, Allocator(FRDGAllocator::Get())
 	, Blackboard(Allocator)
+	, RHICmdListAsyncCompute(FRHICommandListExecutor::GetImmediateAsyncComputeCommandList())
 	, BuilderName(InName)
 	, BuilderFlags(InFlags)
 #if RDG_CPU_SCOPES
@@ -702,7 +703,7 @@ void FRDGBuilder::Compile()
 	if (GRDGCullPasses)
 	{
 		SCOPED_NAMED_EVENT(FRDGBuilder_Compile_Cull_Passes, FColor::Emerald);
-		TArray<FRDGPassHandle, TInlineAllocator<32, SceneRenderingAllocator>> PassStack;
+		TArray<FRDGPassHandle, TInlineAllocator<32, FRDGArrayAllocator>> PassStack;
 		PassesToCull.Init(true, Passes.Num());
 
 	#if STATS
@@ -1037,7 +1038,7 @@ void FRDGBuilder::Compile()
 	{
 		SCOPED_NAMED_EVENT(FRDGBuilder_Compile_RenderPassMerge, FColor::Emerald);
 
-		TArray<FRDGPassHandle, SceneRenderingAllocator> PassesToMerge;
+		TArray<FRDGPassHandle, FRDGArrayAllocator> PassesToMerge;
 		FRDGPass* PrevPass = nullptr;
 		const FRenderTargetBindingSlots* PrevRenderTargets = nullptr;
 

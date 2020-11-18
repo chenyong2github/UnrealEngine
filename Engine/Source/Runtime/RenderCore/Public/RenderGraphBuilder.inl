@@ -82,26 +82,24 @@ FORCEINLINE void* FRDGBuilder::Alloc(uint32 SizeInBytes, uint32 AlignInBytes)
 template <typename PODType>
 FORCEINLINE PODType* FRDGBuilder::AllocPOD()
 {
-	return Allocator.AllocPOD<PODType>();
+	return Allocator.AllocUninitialized<PODType>();
 }
 
 template <typename ObjectType, typename... TArgs>
 FORCEINLINE ObjectType* FRDGBuilder::AllocObject(TArgs&&... Args)
 {
-	return Allocator.AllocObject<ObjectType>(Forward<TArgs&&>(Args)...);
+	return Allocator.Alloc<ObjectType>(Forward<TArgs&&>(Args)...);
 }
 
 template <typename ParameterStructType>
 FORCEINLINE ParameterStructType* FRDGBuilder::AllocParameters()
 {
-	return Allocator.AllocObject<ParameterStructType>();
+	return Allocator.Alloc<ParameterStructType>();
 }
 
 FORCEINLINE FRDGSubresourceState* FRDGBuilder::AllocSubresource(const FRDGSubresourceState& Other)
 {
-	FRDGSubresourceState* State = Allocator.AllocPOD<FRDGSubresourceState>();
-	*State = Other;
-	return State;
+	return Allocator.AllocNoDestruct<FRDGSubresourceState>(Other);
 }
 
 template <typename ParameterStructType>
@@ -142,7 +140,7 @@ FRDGPassRef FRDGBuilder::AddPass(
 
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateAddPass(ParameterStruct, ParametersMetadata, Name, Flags));
 
-	FRDGPass* Pass = Allocator.AllocObject<LambdaPassType>(
+	FRDGPass* Pass = Allocator.Alloc<LambdaPassType>(
 		MoveTemp(Name),
 		ParametersMetadata,
 		ParameterStruct,

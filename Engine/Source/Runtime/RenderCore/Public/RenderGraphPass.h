@@ -17,8 +17,8 @@ public:
 	void End(FRHIComputeCommandList& RHICmdList);
 
 private:
-	TArray<const FRHITransition*, TInlineAllocator<1, SceneRenderingAllocator>> Queue;
-	TArray<const FRHITransition*, TInlineAllocator<1, SceneRenderingAllocator>> QueueWithFences;
+	TArray<const FRHITransition*, TInlineAllocator<1, FRDGArrayAllocator>> Queue;
+	TArray<const FRHITransition*, TInlineAllocator<1, FRDGArrayAllocator>> QueueWithFences;
 };
 
 struct FRDGBarrierBatchBeginId
@@ -60,7 +60,7 @@ public:
 
 private:
 	const FRHITransition* Transition = nullptr;
-	TArray<FRHITransitionInfo, TInlineAllocator<1, SceneRenderingAllocator>> Transitions;
+	TArray<FRHITransitionInfo, TInlineAllocator<1, FRDGArrayAllocator>> Transitions;
 	ERHICreateTransitionFlags TransitionFlags = ERHICreateTransitionFlags::NoFence;
 	bool bTransitionNeeded = false;
 
@@ -70,7 +70,7 @@ private:
 
 #if RDG_ENABLE_DEBUG
 	FRDGPassHandlesByPipeline DebugPasses;
-	TArray<FRDGParentResource*, SceneRenderingAllocator> DebugResources;
+	TArray<FRDGParentResource*, FRDGArrayAllocator> DebugResources;
 	const TCHAR* DebugName;
 	ERHIPipeline DebugPipelinesToBegin;
 	ERHIPipeline DebugPipelinesToEnd;
@@ -91,7 +91,7 @@ public:
 	void Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline);
 
 private:
-	TArray<FRDGBarrierBatchBegin*, TInlineAllocator<1, SceneRenderingAllocator>> Dependencies;
+	TArray<FRDGBarrierBatchBegin*, TInlineAllocator<1, FRDGArrayAllocator>> Dependencies;
 
 	friend class FRDGBarrierValidation;
 };
@@ -335,21 +335,21 @@ private:
 	};
 
 	/** Maps textures / buffers to information on how they are used in the pass. */
-	TSortedMap<FRDGTexture*, FTextureState, SceneRenderingAllocator> TextureStates;
-	TSortedMap<FRDGBuffer*, FBufferState, SceneRenderingAllocator> BufferStates;
+	TSortedMap<FRDGTexture*, FTextureState, FRDGArrayAllocator> TextureStates;
+	TSortedMap<FRDGBuffer*, FBufferState, FRDGArrayAllocator> BufferStates;
 
 	/** Lists of pass parameters scheduled for begin during execution of this pass. */
-	TArray<FRDGPass*, TInlineAllocator<1, SceneRenderingAllocator>> ResourcesToBegin;
-	TArray<FRDGPass*, TInlineAllocator<1, SceneRenderingAllocator>> ResourcesToEnd;
+	TArray<FRDGPass*, TInlineAllocator<1, FRDGArrayAllocator>> ResourcesToBegin;
+	TArray<FRDGPass*, TInlineAllocator<1, FRDGArrayAllocator>> ResourcesToEnd;
 
 	/** List of textures to acquire *after* the pass completes, *before* discards. Acquires apply to all allocated textures. */
-	TArray<FRHITexture*, SceneRenderingAllocator> TexturesToAcquire;
+	TArray<FRHITexture*, FRDGArrayAllocator> TexturesToAcquire;
 
 	/** List of textures to discard *after* the pass completes, *after* acquires. Discards only apply to textures marked as
 	 *  transient and the last alias of the texture uses the automatic discard behavior (in order to support cleaner hand-off
 	 *  to the user or back to the pool.
 	 */
-	TArray<FRHITexture*, SceneRenderingAllocator> TexturesToDiscard;
+	TArray<FRHITexture*, FRDGArrayAllocator> TexturesToDiscard;
 
 	/** Split-barrier batches at various points of execution of the pass. */
 	FRDGBarrierBatchBegin* PrologueBarriersToBegin = nullptr;

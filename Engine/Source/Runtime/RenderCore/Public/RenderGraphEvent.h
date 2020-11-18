@@ -99,7 +99,7 @@ private:
 	const TScopeType* CurrentScope = nullptr;
 
 	/** Tracks scopes allocated through MemStack for destruction. */
-	TArray<TScopeType*, SceneRenderingAllocator> Scopes;
+	TArray<TScopeType*, FRDGArrayAllocator> Scopes;
 
 	/** Stacks of scopes pushed to the RHI command list during execution. */
 	TStaticArray<const TScopeType*, kScopeStackDepthMax> ScopeStack;
