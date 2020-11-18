@@ -152,7 +152,7 @@ public:
 		TArray<FLineItemInfo> LineItems;
 
 		BEGIN_ONLINE_JSON_SERIALIZER
-			ONLINE_JSON_SERIALIZE("items", Namespace);
+			ONLINE_JSON_SERIALIZE("namespace", Namespace);
 			ONLINE_JSON_SERIALIZE("offerId", OfferId);
 			ONLINE_JSON_SERIALIZE("quantity", Quantity);
 			ONLINE_JSON_SERIALIZE_ARRAY_SERIALIZABLE("items", LineItems, FLineItemInfo);
