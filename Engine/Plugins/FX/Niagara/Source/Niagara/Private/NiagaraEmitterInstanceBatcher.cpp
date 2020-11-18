@@ -851,7 +851,7 @@ void NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(FDispatchInstanceList& 
 
 void NiagaraEmitterInstanceBatcher::UpdateFreeIDsListSizesBuffer(FRHICommandList& RHICmdList, uint32 NumInstances)
 {
-	ERHIAccess BeforeState = ERHIAccess::SRVCompute;
+	ERHIAccess BeforeState = ERHIAccess::UAVCompute;
 	if (NumInstances > NumAllocatedFreeIDListSizes)
 	{
 		constexpr uint32 ALLOC_CHUNK_SIZE = 128;
@@ -1327,12 +1327,6 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 					ERHIAccess InstanceCountBufferSrcAccess = bIsFirstGroup ? FNiagaraGPUInstanceCountManager::kCountBufferDefaultState : ERHIAccess::UAVCompute;
 					Group.TransitionsBefore.Add(FRHITransitionInfo(GPUInstanceCounterManager.GetInstanceCountBuffer().UAV, InstanceCountBufferSrcAccess, ERHIAccess::UAVCompute));
 
-					// If we're the first group and the FreeIDListSizesBuffer is in use, transition it here, so the clear we do at the end can overlap the simulation dispatches.
-					if (bIsFirstGroup && bHasInstancesWithPersistentIDs && FreeIDListSizesBuffer.Buffer)
-					{
-						Group.TransitionsBefore.Add(FRHITransitionInfo(FreeIDListSizesBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
-					}
-
 					// If we're the last group, make the instance count buffer readable after the dispatch.
 					if (bIsLastGroup)
 					{
@@ -1361,8 +1355,10 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 						}
 						else
 						{
-						//-TODO: FIX ME:  AppendUnique?
-							DeferredIDBufferUpdates.Append(InstancesWithPersistentIDs);
+							for (FNiagaraComputeInstanceData* Instance : InstancesWithPersistentIDs)
+							{
+								DeferredIDBufferUpdates.AddUnique(Instance);
+							}
 							UpdateFreeIDsListSizesBuffer(RHICmdList, DeferredIDBufferUpdates.Num());
 						}
 					}
