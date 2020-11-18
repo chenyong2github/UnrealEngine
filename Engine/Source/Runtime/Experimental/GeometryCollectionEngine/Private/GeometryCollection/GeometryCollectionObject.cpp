@@ -53,11 +53,15 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, MaximumCollisionParticles(60)
 	, EnableRemovePiecesOnFracture(false)
 	, GeometryCollection(new FGeometryCollection())
+#if WITH_EDITOR
 	, bManualDataCreate(false)
+#endif
 {
 	PersistentGuid = FGuid::NewGuid();
 	InvalidateCollection();
+#if WITH_EDITOR
 	SimulationDataGuid = StateGuid;
+#endif
 }
 
 FGeometryCollectionSizeSpecificData::FGeometryCollectionSizeSpecificData()
@@ -437,7 +441,11 @@ void UGeometryCollection::InvalidateCollection()
 
 bool UGeometryCollection::IsSimulationDataDirty() const
 {
+#if WITH_EDITOR
 	return StateGuid != SimulationDataGuid;
+#else
+	return false;
+#endif
 }
 
 FGuid UGeometryCollection::GetIdGuid() const
