@@ -333,6 +333,9 @@ static FORCEINLINE bool NeedsPrePass(const FDeferredShadingSceneRenderer* Render
 		(Renderer->DepthPass.EarlyZPassMode != DDM_None || Renderer->DepthPass.bEarlyZPassMovable != 0);
 }
 
+// This is a temporary extern while testing the Velocity changes. Will be removed once a decision is made.
+extern bool IsVelocityMergedWithDepthPass();
+
 bool FDeferredShadingSceneRenderer::RenderHzb(
 	FRDGBuilder& GraphBuilder,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer)
@@ -2252,6 +2255,27 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Rebuild scene textures to include GBuffers.
 	SceneTexturesSetupMode |= ESceneTextureSetupMode::GBuffers;
 	SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, FeatureLevel, SceneTexturesSetupMode);
+
+	// mark GBufferA for saving for next frame
+	{
+		static auto CVarNormalReprojectionEnabled = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Decal.NormalReprojectionEnabled"));
+
+		// save the previous frame if early motion vectors are enabled and normal reprojection is enabled, so there should be no cost if these options are off
+		bool bApplyReproject = IsVelocityMergedWithDepthPass() && CVarNormalReprojectionEnabled && CVarNormalReprojectionEnabled->GetInt() > 0;
+
+		if (bApplyReproject)
+		{
+			bool bAnyViewWriteable = false;
+			for (int32 Index = 0; Index < Views.Num(); Index++)
+			{
+				if (Views[Index].bStatePrevViewInfoIsReadOnly == false)
+				{
+					GraphBuilder.QueueTextureExtraction(GraphBuilder.RegisterExternalTexture(SceneContext.GBufferA),&Views[Index].ViewState->PrevFrameViewInfo.GBufferA);
+				}
+			}
+		
+		}
+	}
 
 	if (ViewFamily.EngineShowFlags.VisualizeLightCulling)
 	{

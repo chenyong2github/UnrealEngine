@@ -4871,6 +4871,54 @@ int32 FHLSLMaterialTranslator::SceneTextureLookup(int32 ViewportUV, uint32 InSce
 									SceneTextureId == PPI_SceneDepth ||
 									SceneTextureId == PPI_CustomStencil;
 
+	// special case for DBuffer normals
+	bool bIsUsingReprojectedNormal = false;
+
+	if(Material->GetMaterialDomain() == MD_DeferredDecal)
+	{
+		EDecalBlendMode DecalBlendMode = (EDecalBlendMode)Material->GetDecalBlendMode();
+		bool bDBuffer = IsDBufferDecalBlendMode(DecalBlendMode);
+
+		if(bDBuffer)
+		{
+			if(SceneTextureId == PPI_WorldNormal)
+			{
+				bIsUsingReprojectedNormal = true;
+			}
+		}
+	}
+
+	// The normal is valid, sample from previous frame with reprojection. Otherwise, return the original geometry normal, both for SM5 when the normal is missing,
+	// but also on Mobile as a fallback.
+	if (bIsUsingReprojectedNormal)
+	{
+		int32 BufferUV;
+		if (ViewportUV != INDEX_NONE)
+		{
+			BufferUV = AddCodeChunk(MCT_Float2,
+				TEXT("ClampSceneTextureUV(ViewportUVToSceneTextureUV(%s, %d), %d)"),
+				*CoerceParameter(ViewportUV, MCT_Float2), (int)SceneTextureId, (int)SceneTextureId);
+		}
+		else
+		{
+			BufferUV = AddInlinedCodeChunk(MCT_Float2, TEXT("GetDefaultSceneTextureUV(Parameters, %d)"), (int)SceneTextureId);
+		}
+
+		if (FeatureLevel >= ERHIFeatureLevel::SM5)
+		{
+			return AddCodeChunk(MCT_Float4,
+				TEXT("GetDBufferReprojectedWorldNormal(%s,%s)"),
+				*CoerceParameter(BufferUV, MCT_Float2),
+				*CoerceParameter(PixelNormalWS(),MCT_Float3));
+		}
+		else
+		{
+			return AddCodeChunk(MCT_Float4,
+				TEXT("float4(%s,1.0f)"),
+				*CoerceParameter(PixelNormalWS(),MCT_Float3));
+		}
+	}
+
 	if (!bSupportedOnMobile	&& ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 	{
 		return INDEX_NONE;
@@ -4952,10 +5000,10 @@ void FHLSLMaterialTranslator::UseSceneTextureId(ESceneTextureId SceneTextureId, 
 
 		if(bDBuffer)
 		{
-			if(!(SceneTextureId == PPI_SceneDepth || SceneTextureId == PPI_CustomDepth || SceneTextureId == PPI_CustomStencil))
+			if(!(SceneTextureId == PPI_SceneDepth || SceneTextureId == PPI_CustomDepth || SceneTextureId == PPI_CustomStencil || SceneTextureId == PPI_WorldNormal))
 			{
 				// Note: For DBuffer decals: CustomDepth and CustomStencil are only available if r.CustomDepth.Order = 0
-				Errorf(TEXT("DBuffer decals (MaterialDomain=DeferredDecal and DecalBlendMode is using DBuffer) can only access SceneDepth, CustomDepth, CustomStencil"));
+				Errorf(TEXT("DBuffer decals (MaterialDomain=DeferredDecal and DecalBlendMode is using DBuffer) can only access SceneDepth, CustomDepth, CustomStencil, and WorldNormal"));
 			}
 		}
 		else

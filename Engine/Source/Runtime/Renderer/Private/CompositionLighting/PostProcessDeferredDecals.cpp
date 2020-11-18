@@ -18,6 +18,33 @@ static TAutoConsoleVariable<float> CVarStencilSizeThreshold(
 	TEXT("0..1: optimization is enabled, value defines the minimum size (screen space) to trigger the optimization (default 0.1)")
 );
 
+static TAutoConsoleVariable<float> CVarDBufferDecalNormalReprojectionThresholdLow(
+	TEXT("r.Decal.NormalReprojectionThresholdLow"),
+	0.990f, 
+	TEXT("When reading the normal from a SceneTexture node in a DBuffer decal shader, ")
+	TEXT("the normal is a mix of the geometry normal (extracted from the depth buffer) and the normal from the reprojected ")
+	TEXT("previous frame. When the dot product of the geometry and reprojected normal is below the r.Decal.NormalReprojectionThresholdLow, ")
+	TEXT("the geometry normal is used. When that value is above r.Decal.NormalReprojectionThresholdHigh, the reprojected ")
+	TEXT("normal is used. Otherwise it uses a lerp between them."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarDBufferDecalNormalReprojectionThresholdHigh(
+	TEXT("r.Decal.NormalReprojectionThresholdHigh"),
+	0.995f, 
+	TEXT("When reading the normal from a SceneTexture node in a DBuffer decal shader, ")
+	TEXT("the normal is a mix of the geometry normal (extracted from the depth buffer) and the normal from the reprojected ")
+	TEXT("previous frame. When the dot product of the geometry and reprojected normal is below the r.Decal.NormalReprojectionThresholdLow, ")
+	TEXT("the geometry normal is used. When that value is above r.Decal.NormalReprojectionThresholdHigh, the reprojected ")
+	TEXT("normal is used. Otherwise it uses a lerp between them."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<bool> CVarDBufferDecalNormalReprojectionEnabled(
+	TEXT("r.Decal.NormalReprojectionEnabled"),
+	true, 
+	TEXT("If true, normal reprojection from the previous frame is allowed in SceneTexture nodes on DBuffer decals, provided that motion ")
+	TEXT("in depth prepass is enabled as well (r.DepthPassMergedWithVelocity). Otherwise the fallback is the normal extracted from the depth buffer."),
+	ECVF_RenderThreadSafe);
+
 FDeferredDecalPassTextures GetDeferredDecalPassTextures(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -132,6 +159,36 @@ void GetDeferredDecalPassParameters(
 		ERenderTargetLoadAction::ELoad,
 		ERenderTargetLoadAction::ELoad,
 		bWritingToDepth ? FExclusiveDepthStencil::DepthWrite_StencilWrite : FExclusiveDepthStencil::DepthRead_StencilWrite);
+}
+
+void GetDeferredDecalUniformParameters(
+	const FViewInfo& View,
+	FDeferredDecalUniformParameters& UniformParameters)
+{
+	// This extern is not pretty, but it's only temporary. The plan is to make velocity in DepthPass the only option, but requires some testing to 
+	// ensure quality and perf is what we expect.
+	extern bool IsVelocityMergedWithDepthPass();
+
+	bool bIsMotionInDepth = IsVelocityMergedWithDepthPass();
+	// if we have early motion vectors (bIsMotionInDepth) and the cvar is enabled and we actually have a buffer from the previous frame (View.PrevViewInfo.GBufferA.IsValid())
+	bool bIsNormalReprojectionEnabled = (bIsMotionInDepth && CVarDBufferDecalNormalReprojectionEnabled.GetValueOnRenderThread() && View.PrevViewInfo.GBufferA.IsValid());
+
+	UniformParameters.NormalReprojectionThresholdLow  = CVarDBufferDecalNormalReprojectionThresholdLow .GetValueOnRenderThread();
+	UniformParameters.NormalReprojectionThresholdHigh = CVarDBufferDecalNormalReprojectionThresholdHigh.GetValueOnRenderThread();
+	UniformParameters.NormalReprojectionEnabled = bIsNormalReprojectionEnabled ? 1 : 0;
+	
+	// the algorithm is:
+	//    value = (dot - low)/(high - low)
+	// so calculate the divide in the helper to turn the math into:
+	//    helper = 1.0f/(high - low)
+	//    value = (dot - low)*helper;
+	// also check for the case where high <= low.
+	float Denom = FMath::Max(UniformParameters.NormalReprojectionThresholdHigh - UniformParameters.NormalReprojectionThresholdLow,1e-4f);
+	UniformParameters.NormalReprojectionThresholdScaleHelper = 1.0f / Denom;
+
+	UniformParameters.PreviousFrameNormal = (bIsNormalReprojectionEnabled) ? View.PrevViewInfo.GBufferA->GetShaderResourceRHI() : GSystemTextures.BlackDummy->GetShaderResourceRHI();
+
+	UniformParameters.NormalReprojectionJitter = View.PrevViewInfo.ViewMatrices.GetTemporalAAJitter();
 }
 
 enum EDecalDepthInputState
@@ -481,13 +538,22 @@ void AddDeferredDecalPass(
 	{
 		auto* PassParameters = GraphBuilder.AllocParameters<FDeferredDecalPassParameters>();
 		GetDeferredDecalPassParameters(View, PassTextures, RenderTargetMode, *PassParameters);
+
+		FDeferredDecalUniformParameters DecalParams;
+		GetDeferredDecalUniformParameters(
+			View,
+			DecalParams);
+
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("Batch [%d, %d]", DecalIndexBegin, DecalIndexEnd - 1),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[&View, FeatureLevel, ShaderPlatform, DecalIndexBegin, DecalIndexEnd, SortedDecals, DecalRenderStage, bStencilSizeThreshold, bShaderComplexity](FRHICommandList& RHICmdList)
+			[&View, FeatureLevel, ShaderPlatform, DecalIndexBegin, DecalIndexEnd, SortedDecals, DecalRenderStage, bStencilSizeThreshold, bShaderComplexity, DecalParams](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+			const FScene & Scene = *View.Family->Scene->GetRenderScene();
+			const_cast<FScene&>(Scene).UniformBuffers.DeferredDecalUniformBuffer.UpdateUniformBufferImmediate(DecalParams);
 
 			for (uint32 DecalIndex = DecalIndexBegin; DecalIndex < DecalIndexEnd; ++DecalIndex)
 			{

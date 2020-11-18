@@ -459,6 +459,11 @@ void FDecalRendering::SetDecalCompilationEnvironment(const FMaterialShaderPermut
 	OutEnvironment.SetDefine(TEXT("MATERIAL_DBUFFERC"), (bDBufferMask & 0x4) != 0);
 	// define so that we know to output the proper MRTs in the derived defines.
 	OutEnvironment.SetDefine(TEXT("IS_DECAL"), 1);
+
+	if (IsDBufferDecalBlendMode(FinalDecalBlendMode))
+	{
+		OutEnvironment.SetDefine(TEXT("IS_DBUFFER_DECAL"), 1);
+	}
 }
 
 void FDecalRendering::SetEmissiveDBufferDecalCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

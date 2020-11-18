@@ -1591,6 +1591,16 @@ public:
 		return NaniteUniformBuffer;
 	}
 
+	FORCEINLINE_DEBUGGABLE void SetDeferredDecalUniformBuffer(FRHIUniformBuffer* InDeferredDecalUniformBuffer)
+	{
+		DeferredDecalUniformBuffer = InDeferredDecalUniformBuffer;
+	}
+
+	FORCEINLINE_DEBUGGABLE FRHIUniformBuffer* GetDeferredDecalUniformBuffer() const
+	{
+		return DeferredDecalUniformBuffer;
+	}
+
 	FORCEINLINE_DEBUGGABLE uint32 GetStencilRef() const
 	{
 		return StencilRef;
@@ -1615,6 +1625,7 @@ private:
 
 	FRHIUniformBuffer*				PassUniformBuffer = nullptr;
 	FRHIUniformBuffer*				NaniteUniformBuffer = nullptr;
+	FRHIUniformBuffer*				DeferredDecalUniformBuffer = nullptr;
 
 	uint32							StencilRef = 0;
 };

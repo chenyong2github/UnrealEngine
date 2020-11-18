@@ -56,6 +56,7 @@
 #include "Lumen/LumenViewState.h"
 #include "VolumetricRenderTargetViewStateData.h"
 #include "GPUScene.h"
+#include "CompositionLighting/PostProcessDeferredDecals.h"
 
 /** Factor by which to grow occlusion tests **/
 #define OCCLUSION_SLOP (1.0f)
@@ -2404,6 +2405,7 @@ public:
 	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer;
 	TUniformBufferRef<FInstancedViewUniformShaderParameters> InstancedViewUniformBuffer;
 	TUniformBufferRef<FNaniteUniformParameters> NaniteUniformBuffer;
+	TUniformBufferRef<FDeferredDecalUniformParameters> DeferredDecalUniformBuffer;
 	TUniformBufferRef<FReflectionCaptureShaderData> ReflectionCaptureUniformBuffer;
 	TUniformBufferRef<FViewUniformShaderParameters> CSMShadowDepthViewUniformBuffer;
 	TUniformBufferRef<FViewUniformShaderParameters> VoxelizeVolumeViewUniformBuffer;

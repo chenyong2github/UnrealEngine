@@ -926,6 +926,9 @@ void FPersistentUniformBuffers::Initialize()
 	FNaniteUniformParameters NaniteUniformBufferParameters;
 	NaniteUniformBuffer = TUniformBufferRef<FNaniteUniformParameters>::CreateUniformBufferImmediate(NaniteUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 
+	FDeferredDecalUniformParameters DeferredDecalUniformBufferParameters;
+	DeferredDecalUniformBuffer = TUniformBufferRef<FDeferredDecalUniformParameters>::CreateUniformBufferImmediate(DeferredDecalUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
+
 	FReflectionCaptureShaderData ReflectionCaptureParameters;
 	ReflectionCaptureUniformBuffer = TUniformBufferRef<FReflectionCaptureShaderData>::CreateUniformBufferImmediate(ReflectionCaptureParameters, UniformBuffer_MultiFrame);
 

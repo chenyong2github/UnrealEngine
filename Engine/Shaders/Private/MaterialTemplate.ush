@@ -90,6 +90,7 @@
 #endif
 
 #include "/Engine/Private/PaniniProjection.ush"
+#include "/Engine/Private/DBufferNormalReprojection.ush"
 
 #ifndef USE_DITHERED_LOD_TRANSITION
     #if USE_INSTANCING
