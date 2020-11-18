@@ -667,8 +667,8 @@ public:
 	uint8* RawPCMData;
 
 	/** Memory containing the data copied from the compressed bulk data */
-	FOwnedBulkDataPtr* OwnedBulkDataPtr;
-	const uint8* ResourceData;
+	FOwnedBulkDataPtr* OwnedBulkDataPtr{ nullptr };
+	const uint8* ResourceData{ nullptr };
 
 	/** Zeroth Chunk of audio for sources that use Load On Demand. */
 	FBulkDataBuffer<uint8> ZerothChunkData;
