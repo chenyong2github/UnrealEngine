@@ -109,6 +109,7 @@ namespace Chaos
 		CHAOSCLOTH_API void DebugDrawLongRangeConstraint(FPrimitiveDrawInterface* PDI = nullptr) const;
 		CHAOSCLOTH_API void DebugDrawWindForces(FPrimitiveDrawInterface* PDI = nullptr) const;
 		CHAOSCLOTH_API void DebugDrawLocalSpace(FPrimitiveDrawInterface* PDI = nullptr) const;
+		CHAOSCLOTH_API void DebugDrawSelfCollision(FPrimitiveDrawInterface* PDI = nullptr) const;
 #endif  // #if WITH_EDITOR || CHAOS_DEBUG_DRAW
 
 	private:
@@ -156,7 +157,11 @@ namespace Chaos
 		// Visualization material
 		UMaterial* DebugClothMaterial;
 		UMaterial* DebugClothMaterialVertex;
-#endif  // #if WITH_EDITOR
+#endif
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		int32 StepCount;
+#endif
 	};
 } // namespace Chaos
 
