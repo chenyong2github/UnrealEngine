@@ -11,6 +11,7 @@
 #include "Interfaces/OnlinePartyInterface.h"
 #include "Interactions/SocialInteractionHandle.h"
 
+#include "PartyPackage.h"
 #include "SocialManager.generated.h"
 
 class ULocalPlayer;
@@ -107,7 +108,7 @@ public:
 
 	virtual void NotifyPartyInitialized(USocialParty& Party);
 
-PARTY_SCOPE:
+PACKAGE_SCOPE:
 	/** Validates that the target user has valid join info for us to use and that we can join any party of the given type */
 	FJoinPartyResult ValidateJoinTarget(const USocialUser& UserToJoin, const FOnlinePartyTypeId& PartyTypeId) const;
 	

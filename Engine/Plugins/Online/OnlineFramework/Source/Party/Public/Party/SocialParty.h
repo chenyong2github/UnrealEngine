@@ -12,6 +12,7 @@
 #include "Interfaces/OnlineChatInterface.h"
 #include "Containers/Queue.h"
 #include "Engine/EngineBaseTypes.h"
+#include "PartyPackage.h"
 #include "SocialParty.generated.h"
 
 class APartyBeaconClient;
@@ -199,7 +200,7 @@ public:
 	void ResetPrivacySettings();
 	const FPartyPrivacySettings& GetPrivacySettings() const;
 
-PARTY_SCOPE:
+PACKAGE_SCOPE:
 	void InitializeParty(const TSharedRef<const FOnlineParty>& InOssParty);
 	bool IsInitialized() const;
 	void TryFinishInitialization();

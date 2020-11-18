@@ -59,7 +59,7 @@ public:
 		RepDataType->GetCppStructOps()->Construct(RepDataCopy);
 	}
 
-PARTY_SCOPE:
+PACKAGE_SCOPE:
 	void ProcessReceivedData(const FOnlinePartyData& IncomingPartyData, bool bCompareToPrevious = true)
 	{
 		// If the rep data can be edited locally, disregard any replication updates (they're the same at best or out of date at worst)
