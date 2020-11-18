@@ -996,16 +996,15 @@ void FPhysScene_Chaos::AddForce_AssumesLocked(FBodyInstance* BodyInstance, const
 			{
 				Rigid->SetObjectState(EObjectStateType::Dynamic);
 
-				const Chaos::TVector<float, 3> CurrentForce = Rigid->F();
 				if (bAccelChange)
 				{
 					const float Mass = Rigid->M();
-					const Chaos::TVector<float, 3> TotalAcceleration = CurrentForce + (Force * Mass);
-					Rigid->SetF(TotalAcceleration);
+					const Chaos::TVector<float, 3> Acceleration = Force * Mass;
+					Rigid->AddForce(Acceleration);
 				}
 				else
 				{
-					Rigid->SetF(CurrentForce + Force);
+					Rigid->AddForce(Force);
 				}
 
 			}
@@ -1027,8 +1026,6 @@ void FPhysScene_Chaos::AddForceAtPosition_AssumesLocked(FBodyInstance* BodyInsta
 			EObjectStateType ObjectState = Rigid->ObjectState();
 			if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
 			{
-				const Chaos::FVec3& CurrentForce = Rigid->F();
-				const Chaos::FVec3& CurrentTorque = Rigid->Torque();
 				const Chaos::FVec3 WorldCOM = FParticleUtilitiesGT::GetCoMWorldPosition(Rigid);
 
 				Rigid->SetObjectState(EObjectStateType::Dynamic);
@@ -1039,14 +1036,14 @@ void FPhysScene_Chaos::AddForceAtPosition_AssumesLocked(FBodyInstance* BodyInsta
 					const Chaos::FVec3 WorldPosition = CurrentTransform.TransformPosition(Position);
 					const Chaos::FVec3 WorldForce = CurrentTransform.TransformVector(Force);
 					const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(WorldPosition - WorldCOM, WorldForce);
-					Rigid->SetF(CurrentForce + WorldForce);
-					Rigid->SetTorque(CurrentTorque + WorldTorque);
+					Rigid->AddForce(WorldForce);
+					Rigid->AddTorque(WorldTorque);
 				}
 				else
 				{
 					const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(Position - WorldCOM, Force);
-					Rigid->SetF(CurrentForce + Force);
-					Rigid->SetTorque(CurrentTorque + WorldTorque);
+					Rigid->AddForce(Force);
+					Rigid->AddTorque(WorldTorque);
 				}
 
 			}
@@ -1066,8 +1063,6 @@ void FPhysScene_Chaos::AddRadialForceToBody_AssumesLocked(FBodyInstance* BodyIns
 			Chaos::EObjectStateType ObjectState = Rigid->ObjectState();
 			if (CHAOS_ENSURE(ObjectState == Chaos::EObjectStateType::Dynamic || ObjectState == Chaos::EObjectStateType::Sleeping))
 			{
-				const Chaos::FVec3& CurrentForce = Rigid->F();
-				const Chaos::FVec3& CurrentTorque = Rigid->Torque();
 				const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Rigid);
 
 				Chaos::FVec3 Direction = WorldCOM - Origin;
@@ -1100,12 +1095,12 @@ void FPhysScene_Chaos::AddRadialForceToBody_AssumesLocked(FBodyInstance* BodyIns
 				if (bAccelChange)
 				{
 					const float Mass = Rigid->M();
-					const Chaos::TVector<float, 3> TotalAcceleration = CurrentForce + (Force * Mass);
-					Rigid->SetF(TotalAcceleration);
+					const Chaos::TVector<float, 3> Acceleration = Force * Mass;
+					Rigid->AddForce(Acceleration);
 				}
 				else
 				{
-					Rigid->SetF(CurrentForce + Force);
+					Rigid->AddForce(Force);
 				}
 			}
 		}
@@ -1120,7 +1115,7 @@ void FPhysScene_Chaos::ClearForces_AssumesLocked(FBodyInstance* BodyInstance, bo
 		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->CastToRigidParticle();
 		if (ensure(Rigid))
 		{
-			Rigid->SetF(Chaos::TVector<float, 3>(0.f,0.f,0.f));
+			Rigid->ClearForces();
 		}
 	}
 }
@@ -1139,14 +1134,13 @@ void FPhysScene_Chaos::AddTorque_AssumesLocked(FBodyInstance* BodyInstance, cons
 			EObjectStateType ObjectState = Rigid->ObjectState();
 			if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
 			{
-				const Chaos::TVector<float, 3> CurrentTorque = Rigid->Torque();
 				if (bAccelChange)
 				{
-					Rigid->SetTorque(CurrentTorque + (FParticleUtilitiesXR::GetWorldInertia(Rigid) * Torque));
+					Rigid->AddTorque(FParticleUtilitiesXR::GetWorldInertia(Rigid) * Torque);
 				}
 				else
 				{
-					Rigid->SetTorque(CurrentTorque + Torque);
+					Rigid->AddTorque(Torque);
 				}
 			}
 		}
@@ -1161,7 +1155,7 @@ void FPhysScene_Chaos::ClearTorques_AssumesLocked(FBodyInstance* BodyInstance, b
 		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->CastToRigidParticle();
 		if (ensure(Rigid))
 		{
-			Rigid->SetTorque(Chaos::TVector<float, 3>(0.f, 0.f, 0.f));
+			Rigid->ClearTorques();
 		}
 	}
 }

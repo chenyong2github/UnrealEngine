@@ -138,7 +138,7 @@ namespace ChaosTest {
 			for(int Step = 0; Step < 11; ++Step)
 			{
 				//sim-writable property that changes every step
-				Particle->SetF(FVec3(0,0,Step + 1));
+				Particle->AddForce(FVec3(0,0,Step + 1));
 
 
 				TickSolverHelper(Module,Solver);
@@ -187,12 +187,12 @@ namespace ChaosTest {
 				//sim-writable property that changes infrequently and not at beginning
 				if(Step == 3)
 				{
-					Particle->SetF(FVec3(0,0,Step));
+					Particle->AddForce(FVec3(0,0,Step));
 				}
 
 				if(Step == 5)
 				{
-					Particle->SetF(FVec3(0,0,Step));
+					Particle->AddForce(FVec3(0,0,Step));
 				}
 
 				TickSolverHelper(Module,Solver);
@@ -1254,12 +1254,12 @@ namespace ChaosTest {
 			{
 				if(Step == 7)
 				{
-					Particle->SetF(FVec3(0,1,0));
+					Particle->AddForce(FVec3(0,1,0));
 				}
 
 				if(Step == 9)
 				{
-					Particle->SetF(FVec3(100,0,0));
+					Particle->AddForce(FVec3(100,0,0));
 				}
 				TickSolverHelper(Module,Solver);
 			}
@@ -1277,7 +1277,7 @@ namespace ChaosTest {
 
 					if(Step == 7)
 					{
-						Particle->SetF(FVec3(0,1,0));
+						Particle->AddForce(FVec3(0,1,0));
 					}
 
 					//skip step 9 SetF to trigger a desync
