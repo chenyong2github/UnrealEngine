@@ -159,9 +159,10 @@ private:
 
 	/* Retrieves HierarchicalLODVolumes and creates a cluster for each individual one
 	*
-	* @param InLevel - Level for which the HLODs are currently being build
+	* @param InLevel	Level for which the HLODs are currently being build
+	* @param LODIdx		LOD index to process
 	*/
-	void HandleHLODVolumes(ULevel* InLevel);
+	void HandleHLODVolumes(ULevel* InLevel, int32 LODIdx);
 
 	/**
 	* Determine whether or not this level should have HLODs built for it in the specified world

@@ -14,7 +14,14 @@ class AHierarchicalLODVolume : public AVolume
 	GENERATED_UCLASS_BODY()
 
 public:
+	bool AppliesToHLODLevel(int32 LODIdx) const;
+
+public:
 	/** When set this volume will incorporate actors which bounds overlap with the volume, otherwise only actors which are completely inside of the volume are incorporated */
 	UPROPERTY(EditAnywhere, Category = "HLOD Volume")
 	bool bIncludeOverlappingActors;
+
+	/** If set, this volume will only be applied to HLOD levels contained in the array.  If empty, it will apply to ALL HLOD levels */
+	UPROPERTY(EditAnywhere, Category = "HLOD Volume")
+	TArray<int32> ApplyOnlyToSpecificHLODLevels;
 };
