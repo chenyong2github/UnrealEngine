@@ -110,10 +110,9 @@ struct FAsyncPhysicsRepCallbackData : public Chaos::FSimCallbackInput
 
 class FPhysicsReplicationAsyncCallback final : public Chaos::TSimCallbackObject<FAsyncPhysicsRepCallbackData>
 {
-	virtual Chaos::FSimCallbackNoOutput* OnPreSimulate_Internal(const float SimStart, const float DeltaSeconds, const Chaos::FSimCallbackInput* Input) override
+	virtual void OnPreSimulate_Internal(const float SimStart, const float DeltaSeconds, const Chaos::FSimCallbackInput* Input) override
 	{
 		FPhysicsReplication::ApplyAsyncDesiredState(DeltaSeconds, Input);
-		return nullptr;
 	}
 };
 #endif

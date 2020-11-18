@@ -43,20 +43,25 @@ public:
 		OnContactModification_Internal(SimTime, CurrentInput_Internal, Modifications);
 	}
 
-	void PostSimulate_Internal(const FReal SimTime, const FReal DeltaSeconds)
+	void FinalizeOutputData_Internal()
 	{
-		OnPostSimulate_Internal(SimTime, DeltaSeconds, CurrentInput_Internal);
+		if(CurrentOutput_Internal)
+		{
+			OnFinalizeOutputData_Internal(CurrentOutput_Internal);
+			CurrentOutput_Internal = nullptr;
+		}
 	}
 
 	/**
-	 * Free the output data. There is no API for allocating because that's done by the user directly in the callback.
-	 * Note that allocation is done on the internal thread, but freeing is done on the external thread.
+	 * Free the output data. Note that allocation is done on the internal thread, but freeing is done on the external thread.
 	 * A common pattern is to use a single producer single consumer thread safe queue to manage this.
-	 *
-	 * In the case of a resim, pending outputs can be thrown out if we know the callback will be re-run with old time stamps
 	 */
 	virtual void FreeOutputData_External(FSimCallbackOutput* Output) = 0;
 
+	/**
+	 * Free the input data. Note that allocation is done on the external thread, but freeing is done on the internal thread.
+	 * A common pattern is to use a single producer single consumer thread safe queue to manage this.
+	 */
 	virtual void FreeInputData_Internal(FSimCallbackInput* Input) = 0;
 
 
@@ -71,6 +76,7 @@ protected:
 	, CurrentInput_Internal(nullptr)
 	, CurrentExternalInput_External(nullptr)
 	, Solver(nullptr)
+	, CurrentOutput_Internal(nullptr)
 	{
 	}
 
@@ -93,7 +99,7 @@ protected:
 private:
 	
 	/**
-	 * Allocate/Free the input data.
+	 * Allocate the input data.
 	 * A common pattern is to use a single producer single consumer thread safe queue to manage this
 	 * Note that allocation is done on the external thread, and freeing is done on the internal one
 	 */
@@ -104,7 +110,7 @@ private:
 	* Input passed in will correspond to the input the user gave for this particular simulation step
 	* Return output for external thread (optional, null means no output)
 	*/
-	virtual FSimCallbackOutput* OnPreSimulate_Internal(const FReal SimTime, const FReal DeltaSeconds, const FSimCallbackInput* Input) = 0;
+	virtual void OnPreSimulate_Internal(const FReal SimTime, const FReal DeltaSeconds, const FSimCallbackInput* Input) = 0;
 
 	/**
 	* Called once per simulation step. Allows user to modify contacts
@@ -118,15 +124,13 @@ private:
 		check(false);
 	}
 
-	/**
-	* Called after simulation step
-	* Input passed in will correspond to the input the user gave for this particular simulation step
-	* 
-	* NOTE: this only runs if contact modification is requested. TODO: fix this
-	*/
-	virtual void OnPostSimulate_Internal(const FReal SimTime, const FReal Dt, const FSimCallbackInput* Input)
+	/** If we've already allocated an output in this simulation step, use it again. This way multiple sim callbacks only generate one output.
+*   Otherwise allocate an output for us and mark it as pending for external thread */
+	virtual void OnFinalizeOutputData_Internal(FSimCallbackOutput* CurOutput)
 	{
+		check(false);	//wrote to output but not finalizing it. Typically this is pushed into some kind of thread safe queue
 	}
+	
 
 	template <typename T>
 	friend class TPBDRigidsSolver;
@@ -145,6 +149,9 @@ private:
 	//putting this here so that user classes don't have to bother with non-default constructor
 	void SetSolver_External(FPhysicsSolverBase* InSolver) { Solver = InSolver;}
 	void SetContactModification(bool InContactModification) { bContactModification = InContactModification; }
+
+protected:
+	FSimCallbackOutput* CurrentOutput_Internal;	//the output currently being written to in this sim step
 };
 
 /** Simple callback command object. Commands are typically passed in as lambdas and there's no need for data management. Should not be used directly, see FPhysicsSolverBase::EnqueueCommand */
@@ -176,10 +183,9 @@ private:
 		check(false);
 	}
 
-	virtual FSimCallbackOutput* OnPreSimulate_Internal(const FReal SimTime, const FReal DeltaSeconds, const FSimCallbackInput* Input) override
+	virtual void OnPreSimulate_Internal(const FReal SimTime, const FReal DeltaSeconds, const FSimCallbackInput* Input) override
 	{
 		Func();
-		return nullptr;
 	}
 
 	TFunction<void()> Func;
@@ -193,11 +199,9 @@ class TSimCallbackObject : public ISimCallbackObject
 {
 public:
 
-	TOutputType* NewOutputData_Internal(const FReal InternalTime)
+	TSimCallbackObject()
+	: CurrentOutput_External(nullptr)
 	{
-		auto NewOutput = NewDataHelper(OutputBacking, OutputPool);
-		NewOutput->InternalTime = InternalTime;
-		return NewOutput;
 	}
 
 	virtual void FreeOutputData_External(FSimCallbackOutput* Output) override
@@ -215,7 +219,51 @@ public:
 		return static_cast<TInputType*>(ISimCallbackObject::GetProducerInputData_External());
 	}
 
+	/**
+	* Gets the output data produced in order up to and including SimTime. Typical usage is:
+	* while(auto Output = PopOutputData_External(ExternalTime)) { //process output }
+	*/
+	TSimCallbackOutputHandle<TOutputType> PopOutputData_External(const FReal SimTime)
+	{
+		if(!CurrentOutput_External)
+		{
+			OutputQueue.Dequeue(CurrentOutput_External);
+		}
+
+		if(CurrentOutput_External && CurrentOutput_External->InternalTime <= SimTime)
+		{
+			TOutputType* Output = CurrentOutput_External;
+			CurrentOutput_External = nullptr;
+			return TSimCallbackOutputHandle<TOutputType>(Output, this);
+		}
+		else
+		{
+			return TSimCallbackOutputHandle<TOutputType>();
+		}
+	}
+
+	/**
+	* Gets the current producer output data. This is what the callback generates. If multiple callbacks are triggered in one step, the same output is used
+	*/
+
+	TOutputType& GetProducerOutputData_Internal(const FReal InternalTime)
+	{
+		if(!CurrentOutput_Internal)
+		{
+			CurrentOutput_Internal = NewOutputData_Internal(InternalTime);
+		}
+
+		return static_cast<TOutputType&>(*CurrentOutput_Internal);
+	}
+
 private:
+
+	TOutputType* NewOutputData_Internal(const FReal InternalTime)
+	{
+		auto NewOutput = NewDataHelper(OutputBacking, OutputPool);
+		NewOutput->InternalTime = InternalTime;
+		return NewOutput;
+	}
 
 	template <typename T>
 	T* NewDataHelper(TArray<TUniquePtr<T>>& Backing, TQueue<T*, EQueueMode::Spsc>& Queue)
@@ -247,11 +295,19 @@ private:
 		return NewInputData_External();
 	}
 
+	void OnFinalizeOutputData_Internal(FSimCallbackOutput* BaseOutput) override
+	{
+		OutputQueue.Enqueue(static_cast<TOutputType*>(BaseOutput));
+	}
+
 	TQueue<TInputType*, EQueueMode::Spsc> InputPool;
 	TArray<TUniquePtr<TInputType>> InputBacking;
 
 	TQueue<TOutputType*, EQueueMode::Spsc> OutputPool;
 	TArray<TUniquePtr<TOutputType>> OutputBacking;
+	TQueue<TOutputType*, EQueueMode::Spsc> OutputQueue;	//holds the outputs in order
+
+	TOutputType* CurrentOutput_External;	//the earliest output we can consume
 };
 
 struct FSimCallbackInputAndObject
@@ -267,6 +323,14 @@ inline void FSimCallbackInput::Release_Internal(ISimCallbackObject& CallbackObj)
 	if(--NumSteps == 0)
 	{
 		CallbackObj.FreeInputData_Internal(this);
+	}
+}
+
+inline void FSimCallbackOutputHandle::Free_External()
+{
+	if (SimCallbackOutput)
+	{
+		SimCallbackObject->FreeOutputData_External(SimCallbackOutput);
 	}
 }
 

@@ -169,7 +169,6 @@ FSimCallbackInput* ISimCallbackObject::GetProducerInputData_External()
 	{
 		FChaosMarshallingManager& Manager = Solver->GetMarshallingManager();
 		CurrentExternalInput_External = AllocateInputData_External();
-		CurrentExternalInput_External->ExternalTime = Manager.GetExternalTime_External();
 		Manager.AddSimCallbackInputData_External(this, CurrentExternalInput_External);
 	}
 
