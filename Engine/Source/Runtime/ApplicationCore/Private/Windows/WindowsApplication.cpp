@@ -953,13 +953,13 @@ int32 FWindowsApplication::ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam,
 		}
 
 #if WINVER >= 0x0601
-		// ORION - REMOVED FOR WACOM SUPPORT!
-		/*
-		if (IsFakeMouseInputMessage(msg))
+
+		//Only check fake mouse inputs in game or Wacom devices will not work in the editor.
+		if (FApp::IsGame() && IsFakeMouseInputMessage(msg))
 		{
 			return 0;
 		}
-		*/
+	
 #endif
 
 		switch(msg)
@@ -2604,8 +2604,8 @@ bool FWindowsApplication::IsInputMessage( uint32 msg )
 	return false;
 }
 
-#define MOUSEEVENTF_FROMTOUCH 0xFF515780
-#define SIGNATURE_MASK 0xFFFFFF80
+#define MOUSEEVENTF_FROMTOUCH 0xFF515700
+#define SIGNATURE_MASK 0xFFFFFF00
 #define IsTouchEvent(dw) (((dw) & SIGNATURE_MASK) == MOUSEEVENTF_FROMTOUCH)
 
 bool FWindowsApplication::IsFakeMouseInputMessage(uint32 msg)
