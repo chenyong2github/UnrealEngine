@@ -25,6 +25,9 @@ public class SwitchboardListener : ModuleRules
 					"NVAPI",
 				}
 			);
+
+			// Add PresentMon as a Runtime Dependency to avoid it from being filtered out when generating the release binaries.
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/PresentMon/Win64/PresentMon64-1.5.2.exe");
 		}
 
 		PrivateIncludePathModuleNames.AddRange(
