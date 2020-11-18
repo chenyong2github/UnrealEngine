@@ -394,7 +394,7 @@ namespace GroomBinding_RBFWeighting
 				TArray<bool> ValidPoints;
 				for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 				{
-					FillLocalValidPoints(LODRenderData, TargetSection, OutHairGroupDatas[GroupIt].RenRootData.MeshProjectionLODs[LODIndex], ValidPoints);
+					FillLocalValidPoints(LODRenderData, TargetSection, OutHairGroupDatas[GroupIt].SimRootData.MeshProjectionLODs[LODIndex], ValidPoints);
 
 					FPointsSampler PointsSampler(ValidPoints, PositionsPointer, MaxSamples);
 					const uint32 SampleCount = PointsSampler.SamplePositions.Num();

@@ -72,7 +72,6 @@ void AddHairStrandInitMeshSamplesPass(
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
 	const FHairStrandsProjectionMeshData::LOD& MeshData,
-	FHairStrandsRestRootResource* StrandsResources,
 	FHairStrandsRestRootResource* RestResources,
 	FHairStrandsDeformedRootResource* DeformedResources);
 
