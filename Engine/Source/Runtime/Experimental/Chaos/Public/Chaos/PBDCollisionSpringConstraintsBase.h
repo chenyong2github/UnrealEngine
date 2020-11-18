@@ -4,30 +4,45 @@
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 #include "Chaos/Array.h"
 #include "Chaos/PBDParticles.h"
-#include "Chaos/PBDActiveView.h"
-
-#include <unordered_set>
+#include "Containers/Set.h"
 
 namespace Chaos
 {
 // This is an invertible spring class, typical springs are not invertible aware
 template<class T, int d>
-class PBDCollisionSpringConstraintsBase
+class TPBDCollisionSpringConstraintsBase
 {
-  public:
-	PBDCollisionSpringConstraintsBase(const TPBDActiveView<TPBDParticles<T, d>>& ParticlesActiveView, const TArray<TVector<int32, 3>>& Elements, const TSet<TVector<int32, 2>>& DisabledCollisionElements, const TArray<uint32>& DynamicGroupIds, const TArray<T>& PerGroupThicknesses, const T Dt, const T Stiffness = (T)1);
-	virtual ~PBDCollisionSpringConstraintsBase() {}
+public:
+	TPBDCollisionSpringConstraintsBase(
+		const int32 InOffset,
+		const int32 InNumParticles,
+		const TArray<TVector<int32, 3>>& InElements,
+		TSet<TVector<int32, 2>>&& InDisabledCollisionElements,
+		const T InThickness = (T)1.,
+		const T InStiffness = (T)1.);
+
+	virtual ~TPBDCollisionSpringConstraintsBase() {}
+
+	void Init(const TPBDParticles<T, d>& Particles);
 
 	TVector<T, d> GetDelta(const TPBDParticles<T, d>& InParticles, const int32 i) const;
 
-  protected:
-	TArray<TVector<int32, 4>> MConstraints;
-	TArray<TVector<T, 3>> MBarys;
+	const TArray<TVector<int32, 4>>& GetConstraints() const { return MConstraints;  }
+	const TArray<TVector<T, d>>& GetBarys() const { return MBarys; }
+	const TArray<TVector<T, d>>& GetNormals() const { return MNormals; }
+	float GetThickness() const { return MThickness; }
 
-  private:
-	const TArray<uint32>& MDynamicGroupIds;
-	const TArray<T>& MPerGroupThicknesses;
-	TArray<TVector<T, d>> MNormals; // per constraint, sign changes depending on orientation of colliding particle
+protected:
+	TArray<TVector<int32, 4>> MConstraints;
+	TArray<TVector<T, d>> MBarys;
+	TArray<TVector<T, d>> MNormals;
+
+private:
+	const TArray<TVector<int32, 3>>& MElements;
+	const TSet<TVector<int32, 2>> MDisabledCollisionElements;  // TODO: Make this a bitarray
+	int32 MOffset;
+	int32 MNumParticles;
+	T MThickness;
 	T MStiffness;
 };
 }
