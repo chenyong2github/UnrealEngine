@@ -23,6 +23,7 @@
 #include "BoundShaderStateCache.h"
 #include "RenderResource.h"
 #include "OpenGLShaderResources.h"
+#include "PsoLruCache.h"
 
 class FOpenGLDynamicRHI;
 class FOpenGLLinkedProgram;
@@ -1315,6 +1316,34 @@ public:
 	virtual void TryEvictGLResource() = 0;
 };
 
+class FTextureEvictionLRU
+{
+private:
+	typedef TPsoLruCache<class FOpenGLTextureBase*, class FOpenGLTextureBase*> FOpenGLTextureLRUContainer;
+	FCriticalSection TextureLRULock;
+
+	static FORCEINLINE_DEBUGGABLE FOpenGLTextureLRUContainer& GetLRUContainer()
+	{
+		const int32 MaxNumLRUs = 10000;
+		static FOpenGLTextureLRUContainer TextureLRU(MaxNumLRUs);
+		return TextureLRU;
+	}
+
+public:
+
+	static FORCEINLINE_DEBUGGABLE FTextureEvictionLRU& Get()
+	{
+		static FTextureEvictionLRU Lru;
+		return Lru;
+	}
+	uint32 Num() const { return GetLRUContainer().Num(); }
+
+	void Remove(class FOpenGLTextureBase* TextureBase);
+	bool Add(class FOpenGLTextureBase* TextureBase);
+	void Touch(class FOpenGLTextureBase* TextureBase);
+	void TickEviction();
+	class FOpenGLTextureBase* GetLeastRecent();
+};
 class FTextureEvictionParams
 {
 public:
@@ -1323,7 +1352,8 @@ public:
 	TArray<TArray<uint8>> MipImageData;
 
  	uint32 bHasRestored : 1;	
-	uint32 bIsDestructing : 1; // TODO: try to avoid this, it is used to avoid recreating the texture during destruction, We access the resource during destructor.
+	FSetElementId LRUNode;
+	uint32 FrameLastRendered;
 
 #if GLDEBUG_LABELS_ENABLED
 	FAnsiCharArray TextureDebugName;
@@ -1376,11 +1406,18 @@ private:
 
 	void TryRestoreGLResource()
 	{
-		if (EvictionParamsPtr.IsValid() && !EvictionParamsPtr->bIsDestructing && !EvictionParamsPtr->bHasRestored)
+		if (EvictionParamsPtr.IsValid() && !EvictionParamsPtr->bHasRestored)
 		{
 			VERIFY_GL_SCOPE();
-			GTotalMipRestores++;
-			RestoreEvictedGLResource(true);
+			if (!EvictionParamsPtr->bHasRestored)
+			{
+				RestoreEvictedGLResource(true);
+			}
+			else 
+			{
+				check(CanBeEvicted());
+				FTextureEvictionLRU::Get().Touch(this);
+			}
 		}
 	}
 public:
@@ -1391,18 +1428,24 @@ public:
 		return Resource;
 	}
 
-	GLuint GetResource() const
-	{
-		// const accessor asking for an evicted resource
-		// TODO: remove this or make it more explicit.
-		check(!EvictionParamsPtr.IsValid() || EvictionParamsPtr->bHasRestored || EvictionParamsPtr->bIsDestructing);
-		return Resource;
-	}
-
 	GLuint& GetResourceRef() 
 	{ 
 		VERIFY_GL_SCOPE();
 		TryRestoreGLResource();
+		return Resource;
+	}
+
+	// GetRawResourceName - A const accessor to the resource name, this could potentially be an evicted resource.
+	// It will not trigger the GL resource's creation.
+	GLuint GetRawResourceName() const
+	{
+		return Resource;
+	}
+
+	// GetRawResourceNameRef - A const accessor to the resource name, this could potentially be an evicted resource.
+	// It will not trigger the GL resource's creation.
+	const GLuint& GetRawResourceNameRef() const
+	{
 		return Resource;
 	}
 
@@ -1449,6 +1492,8 @@ public:
 
 	virtual ~FOpenGLTextureBase()
 	{
+		FTextureEvictionLRU::Get().Remove(this);
+
 		if (EvictionParamsPtr.IsValid())
 		{
 			RunOnGLRenderContextThread([EvictionParamsPtr = MoveTemp(EvictionParamsPtr)]() {
@@ -1559,7 +1604,7 @@ public:
 private:
 	void DeleteGLResource()
 	{
-		auto DeleteGLResources = [OpenGLRHI = this->OpenGLRHI, Resource = this->GetResource(), SRVResource = this->SRVResource, Target = this->Target, Flags = this->GetFlags(), Aliased = this->IsAliased()]()
+		auto DeleteGLResources = [OpenGLRHI = this->OpenGLRHI, Resource = this->GetRawResourceName(), SRVResource = this->SRVResource, Target = this->Target, Flags = this->GetFlags(), Aliased = this->IsAliased()]()
 		{
 			VERIFY_GL_SCOPE();
 			if (Resource != 0)
@@ -1620,11 +1665,6 @@ public:
 			if (IsInActualRenderingThread())
 			{
 				this->CreationFence.WaitFence();
-			}
-
-			if (EvictionParamsPtr.IsValid())
-			{
-				EvictionParamsPtr->bIsDestructing = true;
 			}
 
 			if(!CanCreateAsEvicted())

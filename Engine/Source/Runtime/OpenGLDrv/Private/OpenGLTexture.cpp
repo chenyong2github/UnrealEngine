@@ -31,7 +31,7 @@ static TAutoConsoleVariable<int32> CVarDeferTextureCreationExcludeMask(
 
 static TAutoConsoleVariable<int32> DeferTextureCreationKeepLowerMipCount(
 	TEXT("r.OpenGL.DeferTextureCreationKeepLowerMipCount"),
-	7,
+	16,
 	TEXT("Maximum number of texture mips to retain after a deferred texture has been created."),
 	ECVF_RenderThreadSafe);
 
@@ -455,7 +455,7 @@ void FOpenGLDynamicRHI::InitializeGLTexture(FRHITexture* Texture, uint32 SizeX, 
 	}
 }
 
-void FOpenGLDynamicRHI::InitializeGLTextureInternal(GLuint& TextureID, FRHITexture* Texture, uint32 SizeX, const uint32 SizeY, const bool bCubeTexture, const bool bArrayTexture, const bool bIsExternal, const uint8 Format, const uint32 NumMips, const uint32 NumSamples, const uint32 ArraySize, const ETextureCreateFlags Flags, const FClearValueBinding& InClearValue, FResourceBulkDataInterface* BulkData)
+void FOpenGLDynamicRHI::InitializeGLTextureInternal(GLuint TextureID, FRHITexture* Texture, uint32 SizeX, const uint32 SizeY, const bool bCubeTexture, const bool bArrayTexture, const bool bIsExternal, const uint8 Format, const uint32 NumMips, const uint32 NumSamples, const uint32 ArraySize, const ETextureCreateFlags Flags, const FClearValueBinding& InClearValue, FResourceBulkDataInterface* BulkData)
 {
 	VERIFY_GL_SCOPE();
 
@@ -1153,7 +1153,7 @@ void TOpenGLTexture<RHIResourceType>::RestoreEvictedGLResource(bool bAttemptToRe
 	EvictionParamsPtr->bHasRestored = true;
 
 	const FClearValueBinding ClearBinding = this->GetClearBinding();
-	OpenGLRHI->InitializeGLTextureInternal(GetResourceRef(), this, this->GetSizeX(), this->GetSizeY(), bCubemap, false, false, this->GetFormat(), this->GetNumMips(), this->GetNumSamples(), 0, this->GetFlags(), ClearBinding, nullptr);
+	OpenGLRHI->InitializeGLTextureInternal(GetRawResourceName(), this, this->GetSizeX(), this->GetSizeY(), bCubemap, false, false, this->GetFormat(), this->GetNumMips(), this->GetNumSamples(), 0, this->GetFlags(), ClearBinding, nullptr);
 
 	EPixelFormat PixelFormat = this->GetFormat();
 	const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[PixelFormat];
@@ -1176,13 +1176,23 @@ void TOpenGLTexture<RHIResourceType>::RestoreEvictedGLResource(bool bAttemptToRe
 	
 	uint32 RetainMips = bAttemptToRetainMips && (this->GetFlags() & TexCreate_Streamable) && this->GetNumMips() > 1 && !this->IsAliased() ? DeferTextureCreationKeepLowerMipCount.GetValueOnAnyThread() : 0;
 
+
+	if (CanBeEvicted())
+	{
+		if (FTextureEvictionLRU::Get().Add(this) == false)
+		{
+			// could not store this in the LRU. Deleting all backup mips, as this texture will never be evicted.
+			RetainMips = 0;
+		}
+	}
+
 	// keep the mips for streamable textures
 	EvictionParamsPtr->ReleaseMipData(RetainMips);
 #if GLDEBUG_LABELS_ENABLED
 	FAnsiCharArray& TextureDebugName = EvictionParamsPtr->GetDebugLabelName();
 	if(TextureDebugName.Num())
 	{
-		FOpenGL::LabelObject(GL_TEXTURE, this->GetResource(), TextureDebugName.GetData());
+		FOpenGL::LabelObject(GL_TEXTURE, this->GetRawResourceName(), TextureDebugName.GetData());
 		if (RetainMips == 0)
 		{
 			TextureDebugName.Empty();
@@ -2469,22 +2479,6 @@ void FOpenGLDynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureR
 	auto* TextureRef = (FOpenGLTextureReference*)TextureRefRHI;
 	if (TextureRef)
 	{
-		if( DeferTextureCreationAllowEviction.GetValueOnAnyThread() )
-		{
-			FRHITexture* OldTexture = TextureRef->GetReferencedTexture();
-			if(OldTexture)
-			{
-				FOpenGLTextureBase* OldTextureGL = GetOpenGLTextureFromRHITexture(OldTexture);
-				if(OldTextureGL->CanCreateAsEvicted())
-				{
-					RunOnGLRenderContextThread([OldTextureGL = OldTextureGL]()
-						{
-							OldTextureGL->TryEvictGLResource();
-						});
-				}
-			}
-		}
-
 		TextureRef->SetReferencedTexture(NewTextureRHI);
 	}
 }
@@ -2964,7 +2958,6 @@ void FOpenGLDynamicRHI::RHIUnlockTextureCubeFace_RenderThread(class FRHICommandL
 	}
 }
 
-
 void* FOpenGLDynamicRHI::LockTexture2DArray_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2DArray* Texture, uint32 ArrayIndex, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail)
 {
 	check(IsInRenderingThread());
@@ -3020,20 +3013,117 @@ void FOpenGLDynamicRHI::UnlockTexture2DArray_RenderThread(class FRHICommandListI
 	}
 }
 
+static int32 GOGLTextureEvictLogging = 0;
+static FAutoConsoleVariableRef CVarTextureEvictionLogging(
+	TEXT("r.OpenGL.TextureEvictionLogging"),
+	GOGLTextureEvictLogging,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
 
 void LogTextureEvictionDebugInfo()
 {
-	UE_LOG(LogRHI, Warning, TEXT("txdbg: Texture mipmem %d. GTotalTexStorageSkipped %d, GTotalCompressedTexStorageSkipped %d, Total noncompressed = %d"), GTotalEvictedMipMemStored, GTotalTexStorageSkipped, GTotalCompressedTexStorageSkipped, GTotalTexStorageSkipped - GTotalCompressedTexStorageSkipped);
-	UE_LOG(LogRHI, Warning, TEXT("txdbg: Texture GTotalEvictedMipMemDuplicated %d"), GTotalEvictedMipMemDuplicated);
+	static int counter = 0;
+	if (GOGLTextureEvictLogging && ++counter == 100)
+	{
+		UE_LOG(LogRHI, Warning, TEXT("txdbg: Texture mipmem %d. GTotalTexStorageSkipped %d, GTotalCompressedTexStorageSkipped %d, Total noncompressed = %d"), GTotalEvictedMipMemStored, GTotalTexStorageSkipped, GTotalCompressedTexStorageSkipped, GTotalTexStorageSkipped - GTotalCompressedTexStorageSkipped);
+		UE_LOG(LogRHI, Warning, TEXT("txdbg: Texture GTotalEvictedMipMemDuplicated %d"), GTotalEvictedMipMemDuplicated);
 	UE_LOG(LogRHI, Warning, TEXT("txdbg: Texture GTotalMipRestores %d, GTotalMipStoredCount %d"), GTotalMipRestores, GTotalMipStoredCount);
-	UE_LOG(LogRHI, Warning, TEXT("txdbg: Texture GAvgRestoreTime %f (%d), GMaxRestoreTime %f"), GAvgRestoreCount ? GAvgRestoreTime / GAvgRestoreCount : 0.f, GAvgRestoreCount, GMaxRestoreTime);
+		UE_LOG(LogRHI, Warning, TEXT("txdbg: Texture GAvgRestoreTime %f (%d), GMaxRestoreTime %f"), GAvgRestoreCount ? GAvgRestoreTime / GAvgRestoreCount : 0.f, GAvgRestoreCount, GMaxRestoreTime);
+		UE_LOG(LogRHI, Warning, TEXT("txdbg: Texture LRU %d"), FTextureEvictionLRU::Get().Num());
 
-	GAvgRestoreCount = 0;
-	GMaxRestoreTime = 0;
-	GAvgRestoreTime = 0;
+		GAvgRestoreCount = 0;
+		GMaxRestoreTime = 0;
+		GAvgRestoreTime = 0;
+
+		counter = 0;
+	}
 }
 
-FTextureEvictionParams::FTextureEvictionParams(uint32 NumMips) : bHasRestored(0), bIsDestructing(0)
+static int32 GOGLTextureEvictFramesToLive = 500;
+static FAutoConsoleVariableRef CVarTextureEvictionFrameCount(
+	TEXT("r.OpenGL.TextureEvictionFrameCount"),
+	GOGLTextureEvictFramesToLive,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+int32 GOGLTexturesToEvictPerFrame = 10;
+static FAutoConsoleVariableRef CVarTexturesToEvictPerFrame(
+	TEXT("OpenGL.TextureEvictsPerFrame"),
+	GOGLTexturesToEvictPerFrame,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+void FTextureEvictionLRU::TickEviction()
+{
+#if (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT)
+	LogTextureEvictionDebugInfo();
+#endif
+
+	FScopeLock Lock(&TextureLRULock);
+	FOpenGLTextureLRUContainer& TextureLRU = GetLRUContainer();
+	for (int32 EvictCount = 0; 
+		TextureLRU.Num() && (TextureLRU.GetLeastRecent()->EvictionParamsPtr->FrameLastRendered + GOGLTextureEvictFramesToLive) < GFrameNumberRenderThread && EvictCount < GOGLTexturesToEvictPerFrame
+		;EvictCount++)
+	{
+		FOpenGLTextureBase* RemovedFromLRU = TextureLRU.RemoveLeastRecent();
+		RemovedFromLRU->EvictionParamsPtr->LRUNode = FSetElementId();
+		RemovedFromLRU->TryEvictGLResource();
+	}
+}
+
+void FTextureEvictionLRU::Remove(FOpenGLTextureBase* TextureBase)
+{
+	if( TextureBase->EvictionParamsPtr.IsValid() )
+	{
+		FScopeLock Lock(&TextureLRULock);
+
+		check(!TextureBase->EvictionParamsPtr->LRUNode.IsValidId() || GetLRUContainer().Contains(TextureBase));
+		check(TextureBase->EvictionParamsPtr->LRUNode.IsValidId() || !GetLRUContainer().Contains(TextureBase));
+		if( TextureBase->EvictionParamsPtr->LRUNode.IsValidId())
+		{
+			GetLRUContainer().Remove(TextureBase);
+			TextureBase->EvictionParamsPtr->LRUNode = FSetElementId();
+		}
+	}
+}
+
+bool FTextureEvictionLRU::Add(FOpenGLTextureBase* TextureBase)
+{
+	FScopeLock Lock(&TextureLRULock); 
+	check(TextureBase->EvictionParamsPtr);
+	check(!TextureBase->EvictionParamsPtr->LRUNode.IsValidId())
+	FOpenGLTextureLRUContainer& TextureLRU = GetLRUContainer();
+	check(!TextureLRU.Contains(TextureBase));
+
+	if(ensure(TextureLRU.Num() != TextureLRU.Max()))
+	{
+		TextureBase->EvictionParamsPtr->LRUNode = TextureLRU.Add(TextureBase, TextureBase);
+		TextureBase->EvictionParamsPtr->FrameLastRendered = GFrameNumberRenderThread;
+		return true;
+	}
+	return false;
+}
+
+void FTextureEvictionLRU::Touch(FOpenGLTextureBase* TextureBase)
+{
+	FScopeLock Lock(&TextureLRULock);
+	check(TextureBase->EvictionParamsPtr);
+	check(TextureBase->EvictionParamsPtr->LRUNode.IsValidId())
+	check(GetLRUContainer().Contains(TextureBase));
+	GetLRUContainer().MarkAsRecent(TextureBase->EvictionParamsPtr->LRUNode);
+	TextureBase->EvictionParamsPtr->FrameLastRendered = GFrameNumberRenderThread;
+}
+
+FOpenGLTextureBase* FTextureEvictionLRU::GetLeastRecent()
+{
+	return GetLRUContainer().GetLeastRecent();
+}
+
+
+FTextureEvictionParams::FTextureEvictionParams(uint32 NumMips) : bHasRestored(0), FrameLastRendered(0)
 {
 	MipImageData.Reserve(NumMips);
 	MipImageData.SetNum(NumMips);
@@ -3057,7 +3147,7 @@ FTextureEvictionParams::~FTextureEvictionParams()
 
 void FTextureEvictionParams::SetMipData(uint32 MipIndex, const void* Data, uint32 Bytes)
 {
-	checkf(Bytes, TEXT("MipIndex %d, Data %p, Bytes %d)"), MipIndex, Data, Bytes);
+	checkf(Bytes && Data, TEXT("MipIndex %d, Data %p, Bytes %d)"), MipIndex, Data, Bytes);
 
 	VERIFY_GL_SCOPE();
 	if (MipImageData[MipIndex].Num())
@@ -3071,10 +3161,7 @@ void FTextureEvictionParams::SetMipData(uint32 MipIndex, const void* Data, uint3
 	}
 	MipImageData[MipIndex].Reserve(Bytes);
 	MipImageData[MipIndex].SetNumUninitialized(Bytes);
-	if(Data)
-	{
-		FMemory::Memcpy(MipImageData[MipIndex].GetData(), Data, Bytes);
-	}
+	FMemory::Memcpy(MipImageData[MipIndex].GetData(), Data, Bytes);
 	GTotalEvictedMipMemStored += Bytes;
 }
 
