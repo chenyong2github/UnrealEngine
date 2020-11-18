@@ -506,7 +506,7 @@ void MainPS(
 		#endif	
 
 		FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
-		TraversalSettings.DensityScale = VirtualVoxel.DensityScale;
+		TraversalSettings.DensityScale = VirtualVoxel.DensityScale_Shadow;
 		TraversalSettings.CountThreshold = 1;
 		TraversalSettings.DistanceThreshold = DistanceThreshold;
 		TraversalSettings.bDebugEnabled = bDebugEnabled;
