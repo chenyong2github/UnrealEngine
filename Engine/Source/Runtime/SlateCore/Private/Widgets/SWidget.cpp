@@ -25,6 +25,8 @@
 #include "HAL/CriticalSection.h"
 #include "Widgets/SWidgetUtils.h"
 
+#include <limits>
+
 #if WITH_ACCESSIBILITY
 #include "Widgets/Accessibility/SlateCoreAccessibleWidgets.h"
 #include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"

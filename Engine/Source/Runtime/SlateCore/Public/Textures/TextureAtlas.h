@@ -8,6 +8,8 @@
 
 #define WITH_ATLAS_DEBUGGING (WITH_EDITOR || IS_PROGRAM) && !UE_BUILD_SHIPPING
 
+class FSlateShaderResource;
+
 /** 
  * Specifies how to handle texture atlas padding (when specified for the atlas). 
  * We only support one pixel of padding because we don't support mips or aniso filtering on atlas textures right now.
@@ -123,7 +125,14 @@ public:
 	 * Updates the texture used for rendering if needed
 	 */
 	virtual void ConditionalUpdateTexture() = 0;
-	
+
+	/**
+	 * Releases rendering resources of this texture
+	 */
+	virtual void ReleaseResources() = 0;
+
+	virtual FSlateShaderResource* GetAtlasTexture() const = 0;
+
 #if WITH_ATLAS_DEBUGGING
 	const FAtlasedTextureSlot* GetSlotAtPosition(FIntPoint InPosition) const;
 #endif
@@ -185,7 +194,7 @@ protected:
 
 private:
 	/** Returns the amount of padding needed for the current padding style */
-	FORCEINLINE int32 GetPaddingAmount() const
+	FORCEINLINE uint8 GetPaddingAmount() const
 	{
 		return (PaddingStyle == ESlateTextureAtlasPaddingStyle::NoPadding) ? 0 : 1;
 	}
@@ -234,6 +243,61 @@ struct FAtlasSlotInfo
 	FName TextureName;
 };
 
+
+/** A factory capable of generating a texture atlas or shader resource for textures too big to be in an atlas */
+class ISlateTextureAtlasFactory
+{
+public:
+	virtual ~ISlateTextureAtlasFactory() {}
+	virtual TUniquePtr<FSlateTextureAtlas> CreateTextureAtlas(int32 AtlasSize, int32 AtlasStride, ESlateTextureAtlasPaddingStyle PaddingStyle, bool bUpdatesAfterInitialization) const = 0;
+
+	virtual TUniquePtr<FSlateShaderResource> CreateNonAtlasedTexture(const uint32 InWidth, const uint32 InHeight, const TArray<uint8>& InRawData) const = 0;
+
+	virtual void ReleaseTextureAtlases(const TArray<TUniquePtr<FSlateTextureAtlas>>& InTextureAtlases, const TArray<TUniquePtr<FSlateShaderResource>>& InNonAtlasedTextures, const bool bWaitForRelease) const = 0;
+};
+
+
+/** Base class for any atlas cache which has flushing logic to keep the number of in use pages small */
+class FSlateFlushableAtlasCache
+{
+public:
+	FSlateFlushableAtlasCache();
+	FSlateFlushableAtlasCache(int32 InInitialMaxAtlasPagesBeforeFlushRequest, int32 InInitialMaxNonAtlasedTexturesBeforeFlushRequest);
+
+	virtual ~FSlateFlushableAtlasCache() {}
+
+	/** 
+	 * Called when this cache must be flushed 
+	 * 
+ 	 * @param Reason A string explaining the reason the cache was flushed (generally for debugging or logging
+	 */
+	virtual void RequestFlushCache(const FString& Reason) = 0;
+
+	/** Resets all counters to their initial state to start over flushing logic */
+	void ResetFlushCounters();
+
+	/** Increments counters that determine if a flush is needed.  If a flush is needed RequestFlushCache will be called from here */
+	void UpdateFlushCounters(int32 NumGrayscale, int32 NumColor, int32 NumNonAtlased);
+
+private:
+	bool UpdateInternal(int32 CurrentNum, int32& MaxNum, int32 InitialMax, int32 FrameWindowNum);
+private:
+	int32 InitialMaxAtlasPagesBeforeFlushRequest;
+	int32 InitialMaxNonAtlasPagesBeforeFlushRequest;
+
+	/** Number of grayscale atlas pages we can have before we request that the cache be flushed */
+	int32 CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest;
+
+	/** Number of color atlas pages we can have before we request that the cache be flushed */
+	int32 CurrentMaxColorAtlasPagesBeforeFlushRequest;
+
+	/** Number of non-atlased textures we can have before we request that the cache be flushed */
+	int32 CurrentMaxNonAtlasedTexturesBeforeFlushRequest;
+
+	/** The frame counter the last time the font cache was asked to be flushed */
+	uint64 FrameCounterLastFlushRequest;
+};
+
 /**
  * Interface to allow the Slate atlas visualizer to query atlas page information for an atlas provider
  */
@@ -257,3 +321,5 @@ public:
 	virtual FAtlasSlotInfo GetAtlasSlotInfoAtPosition(FIntPoint InPosition, int32 AtlasIndex) const = 0;
 #endif
 };
+
+

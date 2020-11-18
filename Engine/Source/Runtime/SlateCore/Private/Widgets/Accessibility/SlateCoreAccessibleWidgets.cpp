@@ -270,7 +270,7 @@ TSharedPtr<IAccessibleWidget> FSlateAccessibleWindow::GetChildAtPosition(int32 X
 		if (UseHitTestGrid)
 		{
 			TSharedPtr<SWindow> SlateWindow = StaticCastSharedPtr<SWindow>(Widget.Pin());
-			TArray<FWidgetAndPointer> Hits = SlateWindow->GetHittestGrid().GetBubblePath(FVector2D(X, Y), 0.0f, false, INDEX_NONE);
+			TArray<FWidgetAndPointer> Hits = SlateWindow->GetHittestGrid().GetBubblePath(FVector2D((float)X, (float)Y), 0.0f, false, INDEX_NONE);
 			TSharedPtr<SWidget> LastAccessibleWidget = nullptr;
 			for (int32 i = 0; i < Hits.Num(); ++i)
 			{
@@ -299,7 +299,7 @@ TSharedPtr<IAccessibleWidget> FSlateAccessibleWindow::GetChildAtPosition(int32 X
 				const TSharedPtr<IAccessibleWidget> Current = ToProcess.Pop(false);
 				// Because children are weak pointers, Current could be invalid in the case where the SWidget and all
 				// shared pointers were deleted while in the middle of FSlateAccessibleMessageHandler refreshing the data.
-				if (Current.IsValid() && !Current->IsHidden() && Current->GetBounds().IsInside(FVector2D(X, Y)))
+				if (Current.IsValid() && !Current->IsHidden() && Current->GetBounds().IsInside(FVector2D((float)X, (float)Y)))
 				{
 					// The widgets are being traversed in reverse render order, so usually if a widget is rendered
 					// on top of another this will return the rendered one. But it's not 100% guarantee, and opacity

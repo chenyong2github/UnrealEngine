@@ -320,11 +320,11 @@ void SWindow::Construct(const FArguments& InArgs)
 	{
 		if ( !SizeLimits.GetMaxWidth().IsSet() )
 		{
-			SizeLimits.SetMaxWidth(PrimaryDisplayRect.Right - PrimaryDisplayRect.Left);
+			SizeLimits.SetMaxWidth(static_cast<float>(PrimaryDisplayRect.Right - PrimaryDisplayRect.Left));
 		}
 		if ( !SizeLimits.GetMaxHeight().IsSet() )
 		{
-			SizeLimits.SetMaxHeight(PrimaryDisplayRect.Bottom - PrimaryDisplayRect.Top);
+			SizeLimits.SetMaxHeight(static_cast<float>(PrimaryDisplayRect.Bottom - PrimaryDisplayRect.Top));
 		}
 	}
 
@@ -383,13 +383,13 @@ void SWindow::Construct(const FArguments& InArgs)
 	{
 		if (InArgs._SaneWindowPlacement)
 		{
-			float PrimaryWidthPadding = DisplayMetrics.PrimaryDisplayWidth -
-				(PrimaryDisplayRect.Right - PrimaryDisplayRect.Left);
-			float PrimaryHeightPadding = DisplayMetrics.PrimaryDisplayHeight -
-				(PrimaryDisplayRect.Bottom - PrimaryDisplayRect.Top);
+			float PrimaryWidthPadding = static_cast<float>(DisplayMetrics.PrimaryDisplayWidth -
+				(PrimaryDisplayRect.Right - PrimaryDisplayRect.Left));
+			float PrimaryHeightPadding = static_cast<float>(DisplayMetrics.PrimaryDisplayHeight -
+				(PrimaryDisplayRect.Bottom - PrimaryDisplayRect.Top));
 
-			float VirtualWidth = (VirtualDisplayRect.Right - VirtualDisplayRect.Left);
-			float VirtualHeight = (VirtualDisplayRect.Bottom - VirtualDisplayRect.Top);
+			float VirtualWidth = static_cast<float>(VirtualDisplayRect.Right - VirtualDisplayRect.Left);
+			float VirtualHeight = static_cast<float>(VirtualDisplayRect.Bottom - VirtualDisplayRect.Top);
 
 			// Make sure that the window size is no larger than the virtual display area.
 			WindowSize.X = FMath::Clamp(WindowSize.X, 0.0f, VirtualWidth - PrimaryWidthPadding);
@@ -829,14 +829,14 @@ FVector2D SWindow::GetSizeInScreen() const
 
 FSlateRect SWindow::GetNonMaximizedRectInScreen() const
 {
-	int X = 0;
-	int Y = 0;
-	int Width = 0;
-	int Height = 0;
+	int32 X = 0;
+	int32 Y = 0;
+	int32 Width = 0;
+	int32 Height = 0;
 
 	if ( NativeWindow.IsValid() && NativeWindow->GetRestoredDimensions(X, Y, Width, Height) )
 	{
-		return FSlateRect( X, Y, X+Width, Y+Height );
+		return FSlateRect( (float)X, (float)Y, static_cast<float>(X+Width), static_cast<float>(Y+Height) );
 	}
 	else
 	{
@@ -926,7 +926,7 @@ void SWindow::MoveWindowTo( FVector2D NewPosition )
 		// This expectation is generally invalid (see UE-1308) as there may be a delay before the OS reports it back.
 		// This hack sets the position speculatively, keeping Slate happy while also giving the OS chance to report it
 		// correctly after or even during the actual call.
-		FVector2D SpeculativeScreenPosition(FMath::TruncToInt(NewPosition.X), FMath::TruncToInt(NewPosition.Y));
+		FVector2D SpeculativeScreenPosition(FMath::TruncToFloat(NewPosition.X), FMath::TruncToFloat(NewPosition.Y));
 		SetCachedScreenPosition(SpeculativeScreenPosition);
 #endif // PLATFORM_LINUX
 
@@ -1017,7 +1017,7 @@ FSlateRect SWindow::GetFullScreenInfo() const
 
 		if ( NativeWindow->GetFullScreenInfo( X, Y, Width, Height ) )
 		{
-			return FSlateRect( X, Y, X + Width, Y + Height );
+			return FSlateRect( (float)X, (float)Y, (float)(X + Width), (float)(Y + Height) );
 		}
 	}
 
@@ -2196,7 +2196,7 @@ void SWindow::SetWindowMode( EWindowMode::Type NewWindowMode )
 		NativeWindow->SetWindowMode( NewWindowMode );
 
 		const FVector2D vp = IsMirrorWindow() ? GetSizeInScreen() : GetViewportSize();
-		FSlateApplicationBase::Get().GetRenderer()->UpdateFullscreenState(SharedThis(this), vp.X, vp.Y);
+		FSlateApplicationBase::Get().GetRenderer()->UpdateFullscreenState(SharedThis(this), (uint32)vp.X, (uint32)vp.Y);
 
 		if( TitleArea.IsValid() )
 		{

@@ -18,7 +18,8 @@ TSharedPtr<FSlateDynamicImageBrush> FSlateDynamicImageBrush::CreateWithImageData
 {
 	TSharedPtr<FSlateDynamicImageBrush> Brush;
 	if (FSlateApplicationBase::IsInitialized() &&
-		FSlateApplicationBase::Get().GetRenderer()->GenerateDynamicImageResource(InTextureName, InImageSize.X, InImageSize.Y, InImageData))
+		InImageSize.X > 0.f && InImageSize.Y > 0.f &&
+		FSlateApplicationBase::Get().GetRenderer()->GenerateDynamicImageResource(InTextureName, (uint32)InImageSize.X, (uint32)InImageSize.Y, InImageData))
 	{
 		Brush = MakeShareable(new FSlateDynamicImageBrush(
 			InTextureName,

@@ -1947,8 +1947,8 @@ struct SLATECORE_API FWindowStyle : public FSlateWidgetStyle
 
 	/** Window corner rounding.  If this value is <= 0 no rounding will occur.   Used for regular, non-maximized windows only (not tool-tips or decorators.) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
-	float WindowCornerRadius;
-	FWindowStyle& SetCornerRadius(float InCornerRadius) { WindowCornerRadius = InCornerRadius; return *this; }
+	int32 WindowCornerRadius;
+	FWindowStyle& SetCornerRadius(int32 InCornerRadius) { WindowCornerRadius = InCornerRadius; return *this; }
 
 	/** Window corner rounding.  If this value is <= 0 no rounding will occur.   Used for regular, non-maximized windows only (not tool-tips or decorators.) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)

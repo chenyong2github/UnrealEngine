@@ -7,9 +7,35 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Misc/MemStack.h"
 
+#include <limits>
+
 DEFINE_STAT(STAT_SlateTextureGPUMemory);
 DEFINE_STAT(STAT_SlateTextureDataMemory);
 DECLARE_MEMORY_STAT(TEXT("Texture Atlas Memory (CPU)"), STAT_SlateTextureAtlasMemory, STATGROUP_SlateMemory);
+
+static int32 GInitialMaxAtlasPagesBeforeFlushRequest = 1;
+FAutoConsoleVariableRef CVarMaxAtlasPagesBeforeFlush(
+	TEXT("Slate.MaxAtlasPagesBeforeFlush"),
+	GInitialMaxAtlasPagesBeforeFlushRequest,
+	TEXT("The number of atlas textures created and used before we flush the cache if a texture atlas is full"));
+
+static int32 GInitialMaxNonAtlasedTexturesBeforeFlushRequest = 1;
+FAutoConsoleVariableRef CVarMaxFontNonAtlasPagesBeforeFlush(
+	TEXT("Slate.MaxNonAtlasTexturesBeforeFlush"),
+	GInitialMaxNonAtlasedTexturesBeforeFlushRequest,
+	TEXT("The number of large textures initially."));
+
+static int32 GGrowAtlasFrameWindow = 1;
+FAutoConsoleVariableRef CVarGrowFontAtlasFrameWindow(
+	TEXT("Slate.GrowAtlasFrameWindow"),
+	GGrowAtlasFrameWindow,
+	TEXT("The number of frames within the atlas will resize rather than flush."));
+
+static int32 GGrowNonAtlasFrameWindow = 1;
+FAutoConsoleVariableRef CVarGrowFontNonAtlasFrameWindow(
+	TEXT("Slate.GrowNonAtlasFrameWindow"),
+	GGrowNonAtlasFrameWindow,
+	TEXT("The number of frames within the large pool will resize rather than flush."));
 
 ESlateTextureAtlasThreadId GetCurrentSlateTextureAtlasThreadId()
 {
@@ -70,12 +96,12 @@ void FSlateTextureAtlas::EmptyAtlasData()
 	DeleteSlots.Empty();
 
 
-	STAT(uint32 MemoryBefore = AtlasData.GetAllocatedSize());
+	STAT(SIZE_T MemoryBefore = AtlasData.GetAllocatedSize());
 
 	// Clear all raw data
 	AtlasData.Empty();
 
-	STAT(uint32 MemoryAfter = AtlasData.GetAllocatedSize());
+	STAT(SIZE_T MemoryAfter = AtlasData.GetAllocatedSize());
 	DEC_MEMORY_STAT_BY(STAT_SlateTextureAtlasMemory, MemoryBefore-MemoryAfter);
 }
 
@@ -253,13 +279,15 @@ const FAtlasedTextureSlot* FSlateTextureAtlas::GetSlotAtPosition(FIntPoint InPos
 	{
 		FAtlasedTextureSlot& CurSlot = *SlotIt;
 
-		FSlateRect CurSlotRect(FVector2D(CurSlot.X, CurSlot.Y), FVector2D(CurSlot.X + CurSlot.Width, CurSlot.Y + CurSlot.Height));
-
-		if (CurSlotRect.ContainsPoint(InPosition))
+		checkSlow(CurSlot.X <= (uint32)std::numeric_limits<int32>()::max());
+		checkSlow(CurSlot.Y <= (uint32)std::numeric_limits<int32>()::max());
+		checkSlow(CurSlot.X + CurSlot.Width <= (uint32)std::numeric_limits<int32>()::max());
+		checkSlow(CurSlot.Y + CurSlot.Height <= (uint32)std::numeric_limits<int32>()::max());
+		FIntRect CurSlotRect(FIntPoint((int32)CurSlot.X, (int32)CurSlot.Y), FIntPoint((int32)(CurSlot.X + CurSlot.Width), (int32)(CurSlot.Y + CurSlot.Height)));
+		if (CurSlotRect.Contains(InPosition))
 		{
 			return &CurSlot;
 		}
-
 	}
 
 	return nullptr;
@@ -271,7 +299,7 @@ const FAtlasedTextureSlot* FSlateTextureAtlas::FindSlotForTexture(uint32 InWidth
 	FAtlasedTextureSlot* ReturnVal = NULL;
 
 	// Account for padding on both sides
-	const uint32 Padding = GetPaddingAmount();
+	const uint8 Padding = GetPaddingAmount();
 	const uint32 TotalPadding = Padding * 2;
 	const uint32 PaddedWidth = InWidth + TotalPadding;
 	const uint32 PaddedHeight = InHeight + TotalPadding;
@@ -360,3 +388,75 @@ const FAtlasedTextureSlot* FSlateTextureAtlas::FindSlotForTexture(uint32 InWidth
 	return ReturnVal;
 }
 
+
+
+FSlateFlushableAtlasCache::FSlateFlushableAtlasCache()
+	: InitialMaxAtlasPagesBeforeFlushRequest(GInitialMaxAtlasPagesBeforeFlushRequest)
+	, InitialMaxNonAtlasPagesBeforeFlushRequest(GInitialMaxNonAtlasedTexturesBeforeFlushRequest)
+	, CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest(GInitialMaxAtlasPagesBeforeFlushRequest)
+	, CurrentMaxColorAtlasPagesBeforeFlushRequest(GInitialMaxAtlasPagesBeforeFlushRequest)
+	, CurrentMaxNonAtlasedTexturesBeforeFlushRequest(GInitialMaxNonAtlasedTexturesBeforeFlushRequest)
+{
+}
+
+FSlateFlushableAtlasCache::FSlateFlushableAtlasCache(int32 InInitialMaxAtlasPagesBeforeFlushRequest, int32 InInitialMaxNonAtlasedTexturesBeforeFlushRequest)
+	: InitialMaxAtlasPagesBeforeFlushRequest(InInitialMaxAtlasPagesBeforeFlushRequest)
+	, InitialMaxNonAtlasPagesBeforeFlushRequest(InInitialMaxNonAtlasedTexturesBeforeFlushRequest)
+	, CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest(InInitialMaxAtlasPagesBeforeFlushRequest)
+	, CurrentMaxColorAtlasPagesBeforeFlushRequest(InInitialMaxAtlasPagesBeforeFlushRequest)
+	, CurrentMaxNonAtlasedTexturesBeforeFlushRequest(InInitialMaxNonAtlasedTexturesBeforeFlushRequest)
+{
+}
+
+void FSlateFlushableAtlasCache::ResetFlushCounters()
+{
+	CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest = InitialMaxAtlasPagesBeforeFlushRequest;
+	CurrentMaxColorAtlasPagesBeforeFlushRequest = InitialMaxAtlasPagesBeforeFlushRequest;
+	CurrentMaxNonAtlasedTexturesBeforeFlushRequest = InitialMaxNonAtlasPagesBeforeFlushRequest;
+	FrameCounterLastFlushRequest = GFrameCounter;
+}
+
+void FSlateFlushableAtlasCache::UpdateFlushCounters(int32 NumGrayscale, int32 NumColor, int32 NumNonAtlased)
+{
+	bool bFlushRequested = false;
+	bFlushRequested |= UpdateInternal(NumGrayscale, CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest, InitialMaxAtlasPagesBeforeFlushRequest, GGrowAtlasFrameWindow);
+	bFlushRequested |= UpdateInternal(NumColor, CurrentMaxColorAtlasPagesBeforeFlushRequest, InitialMaxAtlasPagesBeforeFlushRequest, GGrowAtlasFrameWindow);
+	bFlushRequested |= UpdateInternal(NumNonAtlased, CurrentMaxNonAtlasedTexturesBeforeFlushRequest, InitialMaxNonAtlasPagesBeforeFlushRequest, GGrowNonAtlasFrameWindow);
+
+	if (bFlushRequested)
+	{
+		ResetFlushCounters();
+	}
+}
+
+bool FSlateFlushableAtlasCache::UpdateInternal(int32 CurrentNum, int32& MaxNum, int32 InitialMax, int32 FrameWindowNum)
+{
+	const uint64 LastFlushRequestFrameDelta = GFrameCounter - FrameCounterLastFlushRequest;
+
+	if (CurrentNum > MaxNum)
+	{
+		// The InitialMaxNonAtlasedTexturesBeforeFlushRequest may have changed since last flush,
+		// so double check that we're below the current max or initial, if we're under it,
+		// update the current to the initial.
+		if (CurrentNum <= InitialMax)
+		{
+			MaxNum = InitialMax;
+		}
+		// If we grew back up to this number of non-atlased textures within the same or next frame of the previous flush request, then we likely legitimately have 
+		// a lot of data cached. We should update CurrentMaxNonAtlasedTexturesBeforeFlushRequest to give us a bit more flexibility before the next flush request
+		else if (LastFlushRequestFrameDelta <= FrameWindowNum)
+		{
+			MaxNum = CurrentNum;
+			UE_LOG(LogSlate, Warning, TEXT("Setting the threshold to trigger a flush to %d non-atlased textures as there is a lot of font data being cached."), CurrentNum);
+		}
+		else
+		{
+			// We've grown beyond our current stable limit - try and request a flush
+			RequestFlushCache(FString::Printf(TEXT("Large atlases out of space; %d/%d Textures; frames since last flush: %llu"), CurrentNum, MaxNum, LastFlushRequestFrameDelta));
+			
+			return true;
+		}
+	}
+
+	return false;
+}
