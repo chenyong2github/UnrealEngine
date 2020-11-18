@@ -132,6 +132,8 @@ class UVolumetricCloudComponent : public USceneComponent
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetShadowTracingDistance(float NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	ENGINE_API void SetStopTracingTransmittanceThreshold(float NewValue);
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetMaterial(UMaterialInterface* NewValue);
 
 
