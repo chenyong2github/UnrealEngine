@@ -36,13 +36,17 @@ FSlateColor PropertyEditorConstants::GetRowBackgroundColor(int32 IndentLevel)
 		}
 	}
 
-	static const FLinearColor Colors[] =
+	static const uint8 ColorOffsets[] =
 	{
-		COLOR("#2D2D2D"),
-		COLOR("#373737"),
-		COLOR("#434343"),
-		COLOR("#515151")
+		2, (2 + 4), (6 + 6), (12 + 8)
 	};
 
-	return FSlateColor(Colors[ColorIndex]);
+	FColor BaseColor = FAppStyle::Get().GetSlateColor("Colors.Background").GetSpecifiedColor().ToFColor(true);
+
+	FColor ColorWithOffset(
+		BaseColor.R + ColorOffsets[ColorIndex], 
+		BaseColor.G + ColorOffsets[ColorIndex], 
+		BaseColor.B + ColorOffsets[ColorIndex]);
+
+	return FSlateColor(FLinearColor::FromSRGBColor(ColorWithOffset));
 }

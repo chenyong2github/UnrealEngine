@@ -149,6 +149,10 @@ public:
 		return DecoratorWidget;
 	}
 
-	TWeakPtr<class SDetailSingleItemRow> Row;
-	TSharedPtr<STextBlock> DecoratorText;
+	TWeakPtr<SDetailSingleItemRow> Row;
+	bool IsValidTarget;
+
+private:
+	FText GetDecoratorText() const;
+	const FSlateBrush* GetDecoratorIcon() const;
 };
