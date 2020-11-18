@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
 #include "RenderUtils.h"
+#include "RenderGraphDefinitions.h"
 
 class FCanvas;
 class FGPUSpriteResources;
