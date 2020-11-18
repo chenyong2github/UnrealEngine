@@ -67,7 +67,7 @@ void ULevelSnapshotsFunctionLibrary::ApplySnapshotToWorld(const UObject* WorldCo
 			// See if the Snapshot is for the same actor
 			if (SnapshotPathName == Actor->GetPathName())
 			{
-				ActorSnapshot.Deserialize(Actor);
+				ActorSnapshot.Deserialize(Actor, Filter);
 				break;
 			}
 		}

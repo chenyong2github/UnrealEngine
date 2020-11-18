@@ -7,6 +7,7 @@
 #include "ActorSnapshot.generated.h"
 
 class ULevelSnapshot;
+class ULevelSnapshotFilter;
 
 /**
  * TypeTraits to define FSerializedActorData with a Serialize function
@@ -31,13 +32,13 @@ struct LEVELSNAPSHOTS_API FLevelSnapshot_Component
 	explicit FLevelSnapshot_Component(UActorComponent* TargetComponent);
 
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-		FBaseObjectInfo Base;
+	FBaseObjectInfo Base;
 
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-		bool bIsSceneComponent = false;
+	bool bIsSceneComponent = false;
 
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-		FString ParentComponentPath;
+	FString ParentComponentPath;
 };
 
 USTRUCT()
@@ -54,13 +55,13 @@ struct LEVELSNAPSHOTS_API FLevelSnapshot_Actor
 
 	void FixupComponents(AActor* TargetActor) const;
 
-	void Deserialize(AActor* TargetActor) const;
+	void Deserialize(AActor* TargetActor, const ULevelSnapshotFilter* InFilter = nullptr) const;
 
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-		FBaseObjectInfo Base;
+	FBaseObjectInfo Base;
 
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-		TMap<FString, FLevelSnapshot_Component> ComponentSnapshots;
+	TMap<FString, FLevelSnapshot_Component> ComponentSnapshots;
 
 	bool operator==(const FLevelSnapshot_Actor& OtherSnapshot) const
 	{

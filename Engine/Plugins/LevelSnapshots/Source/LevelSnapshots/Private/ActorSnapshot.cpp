@@ -335,7 +335,7 @@ void FLevelSnapshot_Actor::FixupComponents(AActor* TargetActor) const
 	}
 }
 
-void FLevelSnapshot_Actor::Deserialize(AActor* TargetActor) const
+void FLevelSnapshot_Actor::Deserialize(AActor* TargetActor, const ULevelSnapshotFilter* InFilter /*= nullptr*/) const
 {
 	if (!TargetActor)
 	{
@@ -346,7 +346,7 @@ void FLevelSnapshot_Actor::Deserialize(AActor* TargetActor) const
 	TargetActor->Modify(true);
 #endif
 
-	FActorSnapshotReader Reader(Base);
+	FActorSnapshotReader Reader(Base, InFilter);
 
 	TargetActor->Serialize(Reader);
 
@@ -363,7 +363,7 @@ void FLevelSnapshot_Actor::Deserialize(AActor* TargetActor) const
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Deserializing Component: %s"), *ComponentSnapshot->Base.ObjectName.ToString());
 
-			FActorSnapshotReader ComponentReader(ComponentSnapshot->Base);
+			FActorSnapshotReader ComponentReader(ComponentSnapshot->Base, InFilter);
 
 			Component->Serialize(ComponentReader);
 		}
