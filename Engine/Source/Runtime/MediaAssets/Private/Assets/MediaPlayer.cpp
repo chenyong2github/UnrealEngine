@@ -25,6 +25,7 @@
 #include "MediaPlaylist.h"
 #include "MediaSource.h"
 #include "StreamMediaSource.h"
+#include "MediaPlayerLimits.h"
 
 
 /* UMediaPlayer structors
@@ -115,6 +116,12 @@ void UMediaPlayer::SetPlaylistInternal(UMediaPlaylist* InPlaylist)
 void UMediaPlayer::Close()
 {
 	UE_LOG(LogMediaAssets, VeryVerbose, TEXT("%s.Close"), *GetFName().ToString());
+
+	if (bClaimedMediaPlayer)
+	{
+		UMediaPlayerLimits::ReleasePlayer();
+		bClaimedMediaPlayer = false;
+	}
 
 	PlayerFacade->Close();
 
@@ -483,6 +490,14 @@ bool UMediaPlayer::OpenSourceInternal(UMediaSource* MediaSource, const FMediaPla
 	if (!MediaSource->Validate())
 	{
 		UE_LOG(LogMediaAssets, Error, TEXT("Failed to validate media source %s (%s)"), *MediaSource->GetName(), *MediaSource->GetUrl());
+		return false;
+	}
+
+	bClaimedMediaPlayer = UMediaPlayerLimits::ClaimPlayer();
+	if (!bClaimedMediaPlayer)
+	{
+		UE_LOG(LogMediaAssets, Error, TEXT("Failed to claim media player, max concurrent players reached."));
+		OnMediaOpenFailed.Broadcast(*MediaSource->GetUrl());
 		return false;
 	}
 
@@ -876,6 +891,13 @@ void UMediaPlayer::HandlePlayerMediaEvent(EMediaEvent Event)
 	{
 	case EMediaEvent::MediaClosed:
 		OnMediaClosed.Broadcast();
+
+		if (bClaimedMediaPlayer)
+		{
+			UMediaPlayerLimits::ReleasePlayer();
+			bClaimedMediaPlayer = false;
+		}
+
 		break;
 
 	case EMediaEvent::MediaOpened:
@@ -912,6 +934,12 @@ void UMediaPlayer::HandlePlayerMediaEvent(EMediaEvent Event)
 	case EMediaEvent::MediaOpenFailed:
 		OnMediaOpenFailed.Broadcast(PlayerFacade->GetUrl());
 
+		if (bClaimedMediaPlayer)
+		{
+			UMediaPlayerLimits::ReleasePlayer();
+			bClaimedMediaPlayer = false;
+		}
+
 		if ((Loop && (Playlist->Num() != 1)) || (PlaylistIndex + 1 < Playlist->Num()))
 		{
 			Next();
@@ -920,6 +948,12 @@ void UMediaPlayer::HandlePlayerMediaEvent(EMediaEvent Event)
 
 	case EMediaEvent::PlaybackEndReached:
 		OnEndReached.Broadcast();
+
+		if (bClaimedMediaPlayer)
+		{
+			UMediaPlayerLimits::ReleasePlayer();
+			bClaimedMediaPlayer = false;
+		}
 
 		check(Playlist != nullptr);
 

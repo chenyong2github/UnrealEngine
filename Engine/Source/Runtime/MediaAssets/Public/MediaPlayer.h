@@ -1192,6 +1192,9 @@ private:
 	/** Has registered with the media module */
 	bool RegisteredWithMediaModule;
 
+	/** Hase Claimed a media player from the MediaPlayerLimits */
+	bool bClaimedMediaPlayer = false;
+
 #if WITH_EDITORONLY_DATA
 public:
 	/** Whether this player should stop when entering or exiting PIE. */
