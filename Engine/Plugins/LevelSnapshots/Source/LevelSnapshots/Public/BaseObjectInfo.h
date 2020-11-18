@@ -29,9 +29,17 @@ struct FBaseObjectInfo
 	
 	bool operator==(const FBaseObjectInfo& Other) const
 	{
-		// Placeholder. Likely we want to do more extensive checks here
-		return Other.ObjectName == this->ObjectName;
+		return Other.SoftObjectPath == this->SoftObjectPath;
 	};
+
+	// Checks whether this Snapshot corresponds to a given object
+	bool CorrespondsTo(const UObject* OtherObject) const
+	{
+		return FSoftObjectPath(OtherObject) == this->SoftObjectPath;
+	};
+
+	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
+	FSoftObjectPath SoftObjectPath;
 	
 	/** The name of the object when it was serialized */
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
@@ -45,21 +53,9 @@ struct FBaseObjectInfo
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
 	FString ObjectClassPathName;
 
-	/** The object flags that would be loaded from an package file. */
-	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	uint32 ObjectFlags;
-
-	/** The object internal flags. i.e IsPendingKill */
-	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	uint32 InternalObjectFlags;
-
 	/** The object pointer address used to help identify renamed/moved object. */
 	UPROPERTY()
 	uint64 ObjectAddress;
-
-	/** The object internal index in the global object array used to help identify renamed/moved object. */
-	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	uint32 InternalIndex;
 
 	/** List of references to other objects, captured as soft object paths. */
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")

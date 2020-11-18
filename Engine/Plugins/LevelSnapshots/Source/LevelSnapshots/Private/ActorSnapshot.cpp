@@ -300,7 +300,7 @@ FLevelSnapshot_Actor::FLevelSnapshot_Actor(AActor* TargetActor)
 	{
 		if (Component)
 		{
-			ComponentSnapshots.Add(Component->GetPathName(), FLevelSnapshot_Component(Component));
+			ComponentSnapshots.Add(FLevelSnapshot_Component(Component));
 		}
 	}
 }
@@ -327,13 +327,21 @@ AActor* FLevelSnapshot_Actor::GetDeserializedActor() const
 
 void FLevelSnapshot_Actor::FixupComponents(AActor* TargetActor) const
 {
-	for (const TTuple<FString, FLevelSnapshot_Component>& ComponentSnapshot : ComponentSnapshots)
+	for (const FLevelSnapshot_Component& ComponentSnapshot : ComponentSnapshots)
 	{
-		UClass* ComponentClass = FSoftClassPath(ComponentSnapshot.Value.Base.ObjectClassPathName).ResolveClass();
+		UClass* ComponentClass = FSoftClassPath(ComponentSnapshot.Base.ObjectClassPathName).ResolveClass();
 
 		UActorComponent* Component = TargetActor->AddComponentByClass(ComponentClass, false, FTransform(), false);
 	}
 }
+
+// Helper function for finding a corresponding snapshot to a given component
+const FLevelSnapshot_Component* FindComponentSnapshot(const TArray<FLevelSnapshot_Component>& ComponentSnapshots, const UActorComponent* Component)
+{
+	return ComponentSnapshots.FindByPredicate([Component](const FLevelSnapshot_Component& Snapshot) {
+		return Snapshot.Base.CorrespondsTo(Component);
+	});
+};
 
 void FLevelSnapshot_Actor::Deserialize(AActor* TargetActor, const ULevelSnapshotFilter* InFilter /*= nullptr*/) const
 {
@@ -359,9 +367,9 @@ void FLevelSnapshot_Actor::Deserialize(AActor* TargetActor, const ULevelSnapshot
 
 	for (UActorComponent* Component : Components)
 	{
-		if (const FLevelSnapshot_Component* ComponentSnapshot = ComponentSnapshots.Find(Component->GetPathName()))
+		if (const FLevelSnapshot_Component* ComponentSnapshot = FindComponentSnapshot(ComponentSnapshots, Component))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Deserializing Component: %s"), *ComponentSnapshot->Base.ObjectName.ToString());
+			// UE_LOG(LogTemp, Warning, TEXT("Deserializing Component: %s"), *ComponentSnapshot->Base.ObjectName.ToString());
 
 			FActorSnapshotReader ComponentReader(ComponentSnapshot->Base, InFilter);
 

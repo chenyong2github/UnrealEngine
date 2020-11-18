@@ -61,10 +61,16 @@ struct LEVELSNAPSHOTS_API FLevelSnapshot_Actor
 	FBaseObjectInfo Base;
 
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	TMap<FString, FLevelSnapshot_Component> ComponentSnapshots;
+	TArray<FLevelSnapshot_Component> ComponentSnapshots;
 
 	bool operator==(const FLevelSnapshot_Actor& OtherSnapshot) const
 	{
 		return OtherSnapshot.Base == this->Base;
+	};
+
+	// Checks whether this Snapshot corresponds to a given actor
+	bool CorrespondsTo(const AActor* OtherActor) const
+	{
+		return Base.CorrespondsTo(OtherActor);
 	};
 };
