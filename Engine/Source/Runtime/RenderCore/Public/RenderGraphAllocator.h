@@ -72,6 +72,25 @@ private:
 
 	template <uint32>
 	friend class TRDGArrayAllocator;
+	friend class FRDGAllocatorScope;
+};
+
+/** Base class for RDG builder which scopes the allocations and releases them in the destructor. */
+class FRDGAllocatorScope
+{
+protected:
+	FRDGAllocator& Allocator;
+
+private:
+	FRDGAllocatorScope()
+		: Allocator(FRDGAllocator::Get())
+	{}
+
+	~FRDGAllocatorScope()
+	{
+		Allocator.ReleaseAll();
+	}
+
 	friend class FRDGBuilder;
 };
 

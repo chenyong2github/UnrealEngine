@@ -384,7 +384,6 @@ const char* const FRDGBuilder::kDefaultUnaccountedCSVStat = "RDG_Pass";
 
 FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName InName, ERDGBuilderFlags InFlags)
 	: RHICmdList(InRHICmdList)
-	, Allocator(FRDGAllocator::Get())
 	, Blackboard(Allocator)
 	, RHICmdListAsyncCompute(FRHICommandListExecutor::GetImmediateAsyncComputeCommandList())
 	, BuilderName(InName)
@@ -1335,7 +1334,6 @@ void FRDGBuilder::Clear()
 	Buffers.Clear();
 	UniformBuffers.Clear();
 	Blackboard.Clear();
-	Allocator.ReleaseAll();
 }
 
 void FRDGBuilder::SetupPass(FRDGPass* Pass)

@@ -19,6 +19,7 @@ class FRDGLogFile;
  *  destruction.
  */
 class RENDERCORE_API FRDGBuilder
+	: FRDGAllocatorScope
 {
 public:
 	FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName InName = {}, ERDGBuilderFlags Flags = ERDGBuilderFlags::None);
@@ -217,9 +218,6 @@ public:
 
 	/** The RHI command list used for the render graph. */
 	FRHICommandListImmediate& RHICmdList;
-
-	/** The RDG allocator instance tied to the graph lifetime. All memory is released after Execute(). */
-	FRDGAllocator& Allocator;
 
 	/** The blackboard used to hold common data tied to the graph lifetime. */
 	FRDGBlackboard Blackboard;
