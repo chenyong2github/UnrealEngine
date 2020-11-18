@@ -91,7 +91,12 @@ namespace Chaos
 
 		Solver.SetExternalTimestampConsumed_Internal(PushData->ExternalTimestamp);
 		Solver.ProcessPushedData_Internal(*PushData);
-		Solver.AdvanceSolverBy(PushData->ExternalDt);
+		
+		// StepFraction: how much of the remaining time this step represents, used to interpolate kinematic targets
+		// E.g., for 4 steps this will be: 1/4, 1/3, 1/2, 1
+		const FReal PseudoFraction = (FReal)1 / (FReal)(PushData->IntervalNumSteps - PushData->IntervalStep);
+		
+		Solver.AdvanceSolverBy(PushData->ExternalDt, FSubStepInfo{PseudoFraction, PushData->IntervalStep, PushData->IntervalNumSteps });
 		Solver.GetMarshallingManager().FreeData_Internal(PushData);	//cannot use push data after this point
 		PushData = nullptr;
 	}

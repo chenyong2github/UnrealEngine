@@ -146,7 +146,7 @@ namespace Chaos
 		}
 
 		CHAOS_API void Advance(const FReal Dt, const FReal MaxStepDt, const int32 MaxSteps);
-		CHAOS_API void AdvanceOneTimeStep(const FReal dt, const FReal StepFraction = (FReal)1.0);
+		CHAOS_API void AdvanceOneTimeStep(const FReal dt, const FSubStepInfo& SubStepInfo = FSubStepInfo());
 
 		FORCEINLINE FCollisionConstraints& GetCollisionConstraints() { return CollisionConstraints; }
 		FORCEINLINE const FCollisionConstraints& GetCollisionConstraints() const { return CollisionConstraints; }
@@ -247,7 +247,7 @@ namespace Chaos
 
 	protected:
 
-		CHAOS_API void AdvanceOneTimeStepImpl(const FReal dt, const FReal StepFraction);
+		CHAOS_API void AdvanceOneTimeStepImpl(const FReal dt, const FSubStepInfo& SubStepInfo);
 		
 		FEvolutionResimCache* GetCurrentStepResimCache()
 		{
