@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Modules/ModuleInterface.h"
+#include "Features/IModularFeatures.h"
 #include "Async/Async.h"
 
 struct FDistributedBuildTaskResult
@@ -38,7 +39,7 @@ struct FTaskResponse
 	int32 ReturnCode;
 };
 
-class IDistributedBuildController : public IModuleInterface
+class IDistributedBuildController : public IModuleInterface, public IModularFeature
 {
 public:
 	virtual bool SupportsDynamicReloading() override { return false; }
@@ -56,4 +57,10 @@ public:
 
 	// Launches a task. Returns a future which can be waited on for the results.
 	virtual TFuture<FDistributedBuildTaskResult> EnqueueTask(const FTaskCommandData& CommandData) = 0;
+	
+	static const FName& GetModularFeatureType()
+	{
+		static FName FeatureTypeName = FName(TEXT("DistributedBuildController"));
+		return FeatureTypeName;
+	}
 };
