@@ -33,48 +33,19 @@ public:
 	virtual ~ISimCallbackObject() = default;
 	ISimCallbackObject(const ISimCallbackObject&) = delete;	//not copyable
 
-	/**
-	* Called once per simulation interval.
-	* Inputs passed in are ordered by time and are in the interval [SimStart, SimStart + DeltaSeconds]
-	* Return output for external thread (optional, null means no output)
-	*/
-	void PreSimulate_Internal(const FReal SimStart, const FReal DeltaSeconds)
+	void PreSimulate_Internal(const FReal SimTime, const FReal DeltaSeconds)
 	{
-		//const_cast needed because c++ doesn't automatically promote const when double ptr
-		//what we want is const T** = t where t = T**. As you can see this is becoming MORE const so it's safe
-		auto ConstInputs = const_cast<const FSimCallbackInput**>(IntervalData.GetData());
-		TArrayView<const FSimCallbackInput*> ConstInputsView(ConstInputs, IntervalData.Num());
-		OnPreSimulate_Internal(SimStart, DeltaSeconds, ConstInputsView);
+		OnPreSimulate_Internal(SimTime, DeltaSeconds, CurrentInput_Internal);
 	}
 
-	/**
-	* Called once per simulation step.
-	* Inputs passed in are for the entire interval containing the step. So you may see multiple inputs for one step, or multiple steps for one input
-	* 
-	* NOTE: you must explicitly request contact modification when registering the callback for this to be called
-	*/
-	void ContactModification_Internal(const FReal SimTime, const FReal DeltaSeconds, const TArrayView<FPBDCollisionConstraintHandleModification>& Modifications)
+	void ContactModification_Internal(const FReal SimTime, const TArrayView<FPBDCollisionConstraintHandleModification>& Modifications)
 	{
-		//const_cast needed because c++ doesn't automatically promote const when double ptr
-		//what we want is const T** = t where t = T**. As you can see this is becoming MORE const so it's safe
-		auto ConstInputs = const_cast<const FSimCallbackInput**>(IntervalData.GetData());
-		TArrayView<const FSimCallbackInput*> ConstInputsView(ConstInputs, IntervalData.Num());
-		OnContactModification_Internal(SimTime, DeltaSeconds, ConstInputsView, Modifications);
+		OnContactModification_Internal(SimTime, CurrentInput_Internal, Modifications);
 	}
 
-	/**
-	* Called after simulation interval has finished.
-	* Inputs passed in are ordered by time and are in the interval [SimStart, SimStart + DeltaSeconds]
-	*
-	* NOTE: (this currently requires contact modification to trigger), TODO: fix this
-	*/
 	void PostSimulate_Internal(const FReal SimTime, const FReal DeltaSeconds)
 	{
-		//const_cast needed because c++ doesn't automatically promote const when double ptr
-		//what we want is const T** = t where t = T**. As you can see this is becoming MORE const so it's safe
-		auto ConstInputs = const_cast<const FSimCallbackInput**>(IntervalData.GetData());
-		TArrayView<const FSimCallbackInput*> ConstInputsView(ConstInputs, IntervalData.Num());
-		OnPostSimulate_Internal(SimTime, DeltaSeconds, ConstInputsView);
+		OnPostSimulate_Internal(SimTime, DeltaSeconds, CurrentInput_Internal);
 	}
 
 	/**
@@ -86,6 +57,9 @@ public:
 	 */
 	virtual void FreeOutputData_External(FSimCallbackOutput* Output) = 0;
 
+	virtual void FreeInputData_Internal(FSimCallbackInput* Input) = 0;
+
+
 	FPhysicsSolverBase* GetSolver() { return Solver; }
 	
 protected:
@@ -94,6 +68,7 @@ protected:
 	: bRunOnceMore(false)
 	, bPendingDelete(false)
 	, bContactModification(false)
+	, CurrentInput_Internal(nullptr)
 	, CurrentExternalInput_External(nullptr)
 	, Solver(nullptr)
 	{
@@ -105,6 +80,16 @@ protected:
 	 */
 	FSimCallbackInput* GetProducerInputData_External();
 
+	void SetCurrentInput_Internal(FSimCallbackInput* NewInput)
+	{
+		if(CurrentInput_Internal)
+		{
+			CurrentInput_Internal->Release_Internal(*this);
+		}
+
+		CurrentInput_Internal = NewInput;
+	}
+
 private:
 	
 	/**
@@ -113,33 +98,48 @@ private:
 	 * Note that allocation is done on the external thread, and freeing is done on the internal one
 	 */
 	virtual FSimCallbackInput* AllocateInputData_External() = 0;
-	virtual void FreeInputData_Internal(FSimCallbackInput* Input) = 0;
-	
-	virtual FSimCallbackOutput* OnPreSimulate_Internal(const FReal SimStart, const FReal DeltaSeconds, const TArrayView<const FSimCallbackInput*>& Inputs) = 0;
 
-	virtual void OnContactModification_Internal(const FReal SimTime, const FReal DeltaSeconds, const TArrayView<const FSimCallbackInput*>& Inputs, const TArrayView<FPBDCollisionConstraintHandleModification>& Modifications)
+	/**
+	* Called before simulation step
+	* Input passed in will correspond to the input the user gave for this particular simulation step
+	* Return output for external thread (optional, null means no output)
+	*/
+	virtual FSimCallbackOutput* OnPreSimulate_Internal(const FReal SimTime, const FReal DeltaSeconds, const FSimCallbackInput* Input) = 0;
+
+	/**
+	* Called once per simulation step. Allows user to modify contacts
+	* This means the input could be from a few frames ago if the sim is running asynchronously
+	*
+	* NOTE: you must explicitly request contact modification when registering the callback for this to be called
+	*/
+	virtual void OnContactModification_Internal(const FReal SimTime, const FSimCallbackInput* Input, const TArrayView<FPBDCollisionConstraintHandleModification>& Modifications)
 	{
 		//registered for contact modification, but implementation is missing
 		check(false);
 	}
 
-	virtual void OnPostSimulate_Internal(const float SimTime, const float Dt, const TArrayView<const Chaos::FSimCallbackInput*>& IntervalInputs)
+	/**
+	* Called after simulation step
+	* Input passed in will correspond to the input the user gave for this particular simulation step
+	* 
+	* NOTE: this only runs if contact modification is requested. TODO: fix this
+	*/
+	virtual void OnPostSimulate_Internal(const FReal SimTime, const FReal Dt, const FSimCallbackInput* Input)
 	{
 	}
-
-	friend class FPhysicsSolverBase;
 
 	template <typename T>
 	friend class TPBDRigidsSolver;
 
+	friend class FPhysicsSolverBase;
 	friend class FChaosMarshallingManager;
 
 	bool bRunOnceMore;
 	bool bPendingDelete;
 	bool bContactModification;
 
-	TArray<FSimCallbackInput*> IntervalData; //storage for current interval input data.
-	FSimCallbackInput* CurrentExternalInput_External;
+	FSimCallbackInput* CurrentInput_Internal;	        //the input associated with the step we are executing.
+	FSimCallbackInput* CurrentExternalInput_External;	//the input currently being filled out by external thread
 	FPhysicsSolverBase* Solver;
 
 	//putting this here so that user classes don't have to bother with non-default constructor
@@ -176,13 +176,15 @@ private:
 		check(false);
 	}
 
-	virtual FSimCallbackOutput* OnPreSimulate_Internal(const FReal SimStart, const FReal DeltaSeconds, const TArrayView<const FSimCallbackInput*>& Inputs) override
+	virtual FSimCallbackOutput* OnPreSimulate_Internal(const FReal SimTime, const FReal DeltaSeconds, const FSimCallbackInput* Input) override
 	{
 		Func();
 		return nullptr;
 	}
 
 	TFunction<void()> Func;
+
+	friend struct FSimCallbackInput;
 };
 
 /** Simple templated implementation that uses lock free queues to manage memory */
@@ -257,5 +259,15 @@ struct FSimCallbackInputAndObject
 	ISimCallbackObject* CallbackObject;
 	FSimCallbackInput* Input;
 };
+
+inline void FSimCallbackInput::Release_Internal(ISimCallbackObject& CallbackObj)
+{
+	//free once all steps are done with this input
+	ensure(NumSteps);
+	if(--NumSteps == 0)
+	{
+		CallbackObj.FreeInputData_Internal(this);
+	}
+}
 
 }; // namespace Chaos

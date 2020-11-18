@@ -115,13 +115,12 @@ namespace ChaosTest
 
 		struct FCallback : public TSimCallbackObject<FDummyInt>
 		{
-			virtual FSimCallbackOutput* OnPreSimulate_Internal(const float StartTime, const float DeltaTime, const TArrayView<const FSimCallbackInput*>& Inputs) override
+			virtual FSimCallbackOutput* OnPreSimulate_Internal(const float StartTime, const float DeltaTime, const FSimCallbackInput* Input) override
 			{
 				EXPECT_EQ(1 / 30.f, DeltaTime);
-				EXPECT_EQ(Inputs.Num(), 1);
-				EXPECT_EQ(static_cast<const FDummyInt*>(Inputs[0])->Data, *CountPtr);
+				EXPECT_EQ(static_cast<const FDummyInt*>(Input)->Data, *CountPtr);
 				++(*CountPtr);
-				EXPECT_EQ(*Time, Inputs[0]->GetExternalTime());
+				EXPECT_EQ(*Time, Input->GetExternalTime());
 				return nullptr;
 			}
 

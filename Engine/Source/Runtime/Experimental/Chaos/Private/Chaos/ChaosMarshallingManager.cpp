@@ -62,6 +62,7 @@ void FChaosMarshallingManager::Step_External(FReal ExternalDT, const int32 NumSt
 		for (FSimCallbackInputAndObject& Pair : ProducerData->SimCallbackInputs)
 		{
 			Pair.CallbackObject->CurrentExternalInput_External = nullptr;	//mark data as marshalled, any new data must be in a new data packet
+			Pair.Input->SetNumSteps_External(NumSteps);
 		}
 
 		//stored in reverse order for easy removal later. Might want to use a circular buffer if perf is bad here
@@ -154,6 +155,9 @@ void FPushPhysicsData::CopySubstepData(const FPushPhysicsData& FirstStepData, co
 			default: { break; }
 		}
 	});
+
+	//make sure inputs are available to every sub-step
+	SimCallbackInputs = FirstStepData.SimCallbackInputs;
 }
 
 FSimCallbackInput* ISimCallbackObject::GetProducerInputData_External()

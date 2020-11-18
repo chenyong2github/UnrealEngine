@@ -343,11 +343,7 @@ namespace Chaos
 					Callback->bPendingDelete = true;
 				}
 
-				for (FSimCallbackInput* Input : Callback->IntervalData)
-				{
-					Callback->FreeInputData_Internal(Input);
-				}
-				Callback->IntervalData.Reset();
+				Callback->SetCurrentInput_Internal(nullptr);
 			}
 
 			//typically one shot callbacks are added to end of array, so removing in reverse order should be O(1)
