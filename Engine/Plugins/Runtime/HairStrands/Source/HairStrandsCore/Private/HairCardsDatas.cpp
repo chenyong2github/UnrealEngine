@@ -23,8 +23,8 @@ FArchive& operator<<(FArchive& Ar, FHairCardsGeometry& CardGeometry)
 	Ar << CardGeometry.Positions;
 	Ar << CardGeometry.Indices;
 
-	Ar << CardGeometry.PointOffsets;
-	Ar << CardGeometry.PointCounts;
+	Ar << CardGeometry.PointOffsets; // No longer used, kept only for backward compatibility
+	Ar << CardGeometry.PointCounts;  // No longer used, kept only for backward compatibility
 
 	Ar << CardGeometry.IndexOffsets;
 	Ar << CardGeometry.IndexCounts;

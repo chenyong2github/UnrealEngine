@@ -2109,9 +2109,6 @@ namespace HairCards
 				const uint32 PointCount =  InClusters.BoundCount[ClusterIt] * 2;
 				const uint32 IndexCount	= (InClusters.BoundCount[ClusterIt]-1) * 6;
 
-				OutCards.PointCounts[ClusterIt]  = PointCount;
-				OutCards.PointOffsets[ClusterIt] = TotalPointCount;
-
 				OutCards.IndexCounts[ClusterIt]  = IndexCount;
 				OutCards.IndexOffsets[ClusterIt] = TotalIndexCount;
 
@@ -2472,7 +2469,7 @@ namespace HairCards
 		// Build the guides from the triangles that form the card
 		// The guides are derived from the line that passes through the middle of each quad
 
-		const uint32 NumCards = InCards.PointOffsets.Num();
+		const uint32 NumCards = InCards.IndexOffsets.Num();
 		const uint32 MaxGuidePoints = InCards.Indices.Num() / 3;
 		OutCardLengths.SetNum(NumCards);
 
@@ -2667,19 +2664,20 @@ namespace HairCards
 		// For each cards, and for each cards vertex,
 		// Compute the closest guide points (two guide points to interpolation in-between), 
 		// and compute their indices and lerping value
-		const uint32 CardsCount = InCards.PointOffsets.Num();
+		const uint32 CardsCount = InCards.IndexOffsets.Num();
 		for (uint32 CardIt = 0; CardIt < CardsCount; ++CardIt)
 		{
 			const uint32 GuidePointOffset = InGuides.StrandsCurves.CurvesOffset[CardIt];
 			const uint32 GuidePointCount = InGuides.StrandsCurves.CurvesCount[CardIt];
 
-			const uint32 VertexOffset = InCards.PointOffsets[CardIt];
-			const uint32 VertexCount = InCards.PointCounts[CardIt];
+			const uint32 IndexOffset = InCards.IndexOffsets[CardIt];
+			const uint32 IndexCount  = InCards.IndexCounts[CardIt];
+
 			const float CardLength = CardLengths[CardIt];
 
-			for (uint32 VertexIt = 0; VertexIt < VertexCount; ++VertexIt)
+			for (uint32 IndexIt = 0; IndexIt < IndexCount; ++IndexIt)
 			{
-				const uint32 VertexIndex = VertexOffset + VertexIt;
+				const uint32 VertexIndex = InCards.Indices[IndexOffset + IndexIt];
 				const float CoordU = InCards.CoordU[VertexIndex];
 
 				uint32 GuideIndex0 = GuidePointOffset + 0;
@@ -3277,7 +3275,6 @@ bool ImportGeometry(
 	}
 
 	// The offsets always start at 0
-	Out.Cards.PointOffsets.Add(0);
 	Out.Cards.IndexOffsets.Add(0);
 
 	uint32 NumTrianglesInCard = 0;
@@ -3313,12 +3310,6 @@ bool ImportGeometry(
 			Out.Cards.IndexCounts.Add(NumIndices);
 			Out.Cards.IndexOffsets.Add(IndexOffset);
 
-			const uint32 PointCount = IndicesInCard.Num();
-			const uint32 PointOffset = PointCount + Out.Cards.PointOffsets.Last();
-
-			Out.Cards.PointOffsets.Add(PointOffset);
-			Out.Cards.PointCounts.Add(PointCount);
-
 			// Setup the new card and add the current triangle vertices to it
 			IndicesInCard.Reset();
 			NumTrianglesInCard = 0;
@@ -3334,7 +3325,6 @@ bool ImportGeometry(
 	// Finalize the last card
 	if (NumTrianglesInCard > 0)
 	{
-		Out.Cards.PointCounts.Add(IndicesInCard.Num());
 		Out.Cards.IndexCounts.Add(NumTrianglesInCard * 3);
 	}
 
@@ -3363,7 +3353,7 @@ bool ImportGeometry(
 	Out.AttributeTexture = nullptr;
 
 	TArray<float> CardLengths;
-	CardLengths.Reserve(Out.Cards.PointOffsets.Num());
+	CardLengths.Reserve(Out.Cards.IndexOffsets.Num());
 	bool bSuccess = HairCards::CreateCardsGuides(Out.Cards, OutGuides, CardLengths);
 	if (bSuccess)
 	{

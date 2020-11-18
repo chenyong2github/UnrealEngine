@@ -184,6 +184,7 @@ struct FHairCardsGeometry
 	TArray<float>    CoordU; // Transient data storing [0..1] parametric value along main axis. This is used for generating guides & interpolation data
 
 	// Vertex offset and vertex count of each cards geometry
+	// No longer used, kept only for backward compatibility
 	TArray<uint32> PointOffsets;
 	TArray<uint32> PointCounts;
 
@@ -202,9 +203,6 @@ struct FHairCardsGeometry
 		Indices.Reset();
 		CoordU.Reset();
 
-		PointOffsets.Reset();
-		PointCounts.Reset();
-
 		IndexOffsets.Reset();
 		IndexCounts.Reset();
 
@@ -220,10 +218,6 @@ struct FHairCardsGeometry
 		Positions.Empty();
 		Indices.Empty();
 		CoordU.Reset();
-
-		// Cards' points offset & count
-		PointOffsets.SetNum(Count);
-		PointCounts.SetNum(Count);
 
 		// Cards' indices offset & count
 		IndexOffsets.SetNum(Count);
@@ -242,7 +236,7 @@ struct FHairCardsGeometry
 
 	uint32 GetNumCards() const
 	{
-		return PointOffsets.Num();
+		return IndexOffsets.Num();
 	}
 };
 
