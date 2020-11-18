@@ -789,6 +789,7 @@ public:
 	virtual FOnSelectionChangedTracks& GetSelectionChangedTracks() override { return OnSelectionChangedTracksDelegate; }
 	virtual FOnCurveDisplayChanged& GetCurveDisplayChanged() override { return OnCurveDisplayChanged; }
 	virtual FOnSelectionChangedSections& GetSelectionChangedSections() override { return OnSelectionChangedSectionsDelegate; }
+	virtual FOnTreeViewChanged& OnTreeViewChanged() override { return OnTreeViewChangedDelegate; }
 	virtual FGuid CreateBinding(UObject& InObject, const FString& InName) override;
 	virtual UObject* GetPlaybackContext() const override;
 	virtual IMovieScenePlaybackClient* GetPlaybackClient() override;
@@ -1289,6 +1290,9 @@ private:
 
 	/** A delegate which is called whenever the user stops playing the sequence. */
 	FOnStopEvent OnStopDelegate;
+
+	/** A delegate which is called whenever the treeview changes. */
+	FOnTreeViewChanged OnTreeViewChangedDelegate;
 
 	/** A delegate which is called whenever the user begins scrubbing. */
 	FOnBeginScrubbingEvent OnBeginScrubbingDelegate;
