@@ -165,6 +165,10 @@ static FAutoConsoleVariableRef CVarAndroidCollectCPUStatsRate(
 	ECVF_Default);
 
 static int GThermalStatus = 0;
+static int GTrimMemoryBackgroundLevel = 0;
+CSV_DEFINE_STAT(AndroidMemory, TrimMemoryBackgroundLevel);
+static int GTrimMemoryForegroundLevel = 0;
+CSV_DEFINE_STAT(AndroidMemory, TrimMemoryForegroundLevel);
 static int GMemoryWarningStatus = 0;
 CSV_DEFINE_STAT(AndroidMemory, MemoryWarningState);
 
@@ -179,14 +183,65 @@ void FAndroidStats::Init()
 #endif
 }
 
-void FAndroidStats::OnThermalStatusChanged(int status)
+void FAndroidStats::OnThermalStatusChanged(int Status)
 {
-	GThermalStatus = status;
+	GThermalStatus = Status;
 }
 
-void FAndroidStats::OnMemoryWarningChanged(int status)
+void FAndroidStats::OnTrimMemory(int TrimLevel)
 {
-	GMemoryWarningStatus = status;
+	// https://developer.android.com/reference/android/content/ComponentCallbacks2#constants_1
+	enum ETrimLevel
+	{
+		TRIM_MEMORY_BACKGROUND = 40,
+		TRIM_MEMORY_COMPLETE = 80,
+		TRIM_MEMORY_MODERATE = 60,
+		TRIM_MEMORY_RUNNING_CRITICAL = 15,
+		TRIM_MEMORY_RUNNING_LOW = 10,
+		TRIM_MEMORY_RUNNING_MODERATE = 5,
+		TRIM_MEMORY_UI_HIDDEN = 20,
+	};
+
+	switch (TrimLevel)
+	{
+	case TRIM_MEMORY_UI_HIDDEN:
+		GTrimMemoryBackgroundLevel = 1;
+		GTrimMemoryForegroundLevel = 0;
+		break;
+	case TRIM_MEMORY_BACKGROUND:
+		GTrimMemoryBackgroundLevel = 2;
+		GTrimMemoryForegroundLevel = 0;
+		break;
+	case TRIM_MEMORY_MODERATE:
+		GTrimMemoryBackgroundLevel = 3;
+		GTrimMemoryForegroundLevel = 0;
+		break;
+	case TRIM_MEMORY_COMPLETE:
+		GTrimMemoryBackgroundLevel = 4;
+		GTrimMemoryForegroundLevel = 0;
+		break;
+
+	case TRIM_MEMORY_RUNNING_LOW:
+		GTrimMemoryForegroundLevel = 1;
+		GTrimMemoryBackgroundLevel = 0;
+		break;
+	case TRIM_MEMORY_RUNNING_MODERATE:
+		GTrimMemoryForegroundLevel = 2;
+		GTrimMemoryBackgroundLevel = 0;
+		break;
+	case TRIM_MEMORY_RUNNING_CRITICAL:
+		GTrimMemoryForegroundLevel = 3;
+		GTrimMemoryBackgroundLevel = 0;
+		break;
+	default:
+		GTrimMemoryForegroundLevel = GTrimMemoryBackgroundLevel = -1;
+		break;
+}
+}
+
+void FAndroidStats::OnMemoryWarningChanged(int Status)
+{
+	GMemoryWarningStatus = Status;
 }
 
 void FAndroidStats::UpdateAndroidStats()
@@ -208,6 +263,8 @@ void FAndroidStats::UpdateAndroidStats()
 
 	CSV_CUSTOM_STAT_DEFINED(CPUTemp, CPUTemp, ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT_DEFINED(ThermalStatus, GThermalStatus, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT_DEFINED(TrimMemoryBackgroundLevel, GTrimMemoryBackgroundLevel, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT_DEFINED(TrimMemoryForegroundLevel, GTrimMemoryForegroundLevel, ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT_DEFINED(MemoryWarningState, GMemoryWarningStatus, ECsvCustomStatOp::Set);
 
 	static const uint32 MaxFrequencyGroupStats = 4;
