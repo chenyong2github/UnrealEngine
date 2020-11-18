@@ -122,6 +122,7 @@ namespace Chaos
 		, Owner(InOwner)
 		, ExternalDataLock_External(new FPhysicsSceneGuard())
 		, TraitIdx(InTraitIdx)
+		, bIsShuttingDown(false)
 		, AsyncDt(DefaultAsyncDt)
 		, AccumulatedTime(0)
 		, ExternalSteps(0)
@@ -169,6 +170,7 @@ namespace Chaos
 
 		// Advance in single threaded because we cannot block on an async task here if in multi threaded mode. see above comments.
 		InSolver.SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+		InSolver.MarkShuttingDown();
 		InSolver.AdvanceAndDispatch_External(0);
 
 		// Ensure callbacks actually get cleaned up, only necessary when solver is disabled.
