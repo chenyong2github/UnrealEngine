@@ -9,7 +9,8 @@
 #include "Engine/LevelStreaming.h"
 
 #if WITH_EDITOR
-#include "Editor.h"
+#include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
 #endif
 
 ULevelSnapshot* ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(const UObject* WorldContextObject, const FName& NewSnapshotName)
@@ -72,6 +73,14 @@ void ULevelSnapshotsFunctionLibrary::ApplySnapshotToWorld(const UObject* WorldCo
 			}
 		}
 	}
+
+	// If we're in the editor then update the gizmos locations as they can get out of sync if any of the deserialized actors were selected
+#if WITH_EDITOR
+	if (GUnrealEd)
+	{
+		GUnrealEd->UpdatePivotLocationForSelection();
+	}
+#endif
 }
 
 void PrintObjectDifferences(const AActor* A, const AActor* B)
