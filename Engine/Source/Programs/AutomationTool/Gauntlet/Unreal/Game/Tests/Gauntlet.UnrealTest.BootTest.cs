@@ -8,13 +8,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using UE4Game;
 
 namespace Gauntlet.UnrealTest
 {
 	/// <summary>
 	/// Test that waits for the client and server to get to the front-end then quits
 	/// </summary>
-	public class BootTest : UE4Game.DefaultTest
+	public class BootTest : UnrealTestNode<UE4TestConfig>
 	{
 		/// <summary>
 		/// Used to track progress via logging
@@ -44,9 +45,9 @@ namespace Gauntlet.UnrealTest
 		/// Returns the configuration description for this test
 		/// </summary>
 		/// <returns></returns>
-		public override UE4Game.UE4TestConfig GetConfiguration()
+		public override UE4TestConfig GetConfiguration()
 		{
-			UE4Game.UE4TestConfig Config = base.GetConfiguration();
+			UE4TestConfig Config = base.GetConfiguration();
 
 			UnrealTestRole Client = Config.RequireRole(UnrealTargetRole.Client);
 
