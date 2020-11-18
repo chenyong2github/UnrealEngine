@@ -416,8 +416,16 @@ public:
 
 	CHAOS_API void SetParticleObjectState(TPBDRigidParticleHandle<FReal, 3>* Particle, EObjectStateType ObjectState)
 	{
+		EObjectStateType InitialState = Particle->ObjectState();
+
 		Particle->SetObjectStateLowLevel(ObjectState);
 		Particles.SetDynamicParticleSOA(Particle);
+
+		if (InitialState == EObjectStateType::Sleeping && InitialState != ObjectState)
+		{
+			// GT has forced a wake so have to wake everything in the island
+			IslandsToWake.Enqueue(Particle->Island());
+		}
 	}
 
 	CHAOS_API void DisableParticles(const TSet<TGeometryParticleHandle<FReal, 3>*>& InParticles)
@@ -432,9 +440,27 @@ public:
 		DisableConstraints(InParticles);
 	}
 
+	CHAOS_API void WakeIslands()
+	{
+		TArray<int32> UniqueIslands;
+
+		// there could easily be duplicates, best to remove these since WakeIsland is potentially expensive call
+		int32 IslandIdx = 0;
+		while (!IslandsToWake.IsEmpty())
+		{
+			IslandsToWake.Dequeue(IslandIdx);
+			UniqueIslands.AddUnique(IslandIdx);
+		}
+
+		for (int32 Island : UniqueIslands)
+		{
+			WakeIsland(Island);
+		}
+	}
+
 	CHAOS_API void WakeIsland(const int32 Island)
 	{
-		ConstraintGraph.WakeIsland(Island);
+		ConstraintGraph.WakeIsland(Particles, Island);
 		//Update Particles SOAs
 		/*for (auto Particle : ContactGraph.GetIslandParticles(Island))
 		{
@@ -798,6 +824,7 @@ protected:
 
 	// Allows us to tell evolution to stop starting async tasks if we are trying to cleanup solver/evo.
 	bool bCanStartAsyncTasks;
+	TQueue<int32, EQueueMode::Mpsc> IslandsToWake;
 
 	TArray<FUniqueIdx> UniqueIndicesPendingRelease;
 public:
