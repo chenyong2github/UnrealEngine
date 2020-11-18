@@ -262,6 +262,7 @@ public:
 		const D3D12_RESOURCE_DESC& Desc,
 		uint32 Alignment, uint32 Stride, uint32 Size, uint32 InUsage,
 		ED3D12ResourceStateMode InResourceStateMode,
+		ERHIAccess InResourceState,
 		FRHIResourceCreateInfo& CreateInfo);
 
 	template <typename ObjectType, typename CreationCoreFunction>
@@ -312,6 +313,7 @@ protected:
 		uint32 Size,
 		uint32 InUsage,
 		ED3D12ResourceStateMode InResourceStateMode,
+		D3D12_RESOURCE_STATES InCreateState,
 		FRHIResourceCreateInfo& CreateInfo,
 		uint32 Alignment,
 		FD3D12TransientResource& TransientResource,

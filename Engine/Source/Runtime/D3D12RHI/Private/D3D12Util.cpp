@@ -1073,6 +1073,81 @@ void LogResourceBarriers(uint32 NumBarriers, D3D12_RESOURCE_BARRIER* pBarriers, 
 }
 
 
+D3D12_RESOURCE_STATES GetD3D12ResourceState(ERHIAccess InRHIAccess, bool InIsAsyncCompute)
+{
+	// Add switch for common states (should cover all writeable states)
+	switch (InRHIAccess)
+	{
+	// all single write states
+	case ERHIAccess::RTV:					return D3D12_RESOURCE_STATE_RENDER_TARGET;
+	case ERHIAccess::UAVMask:		
+	case ERHIAccess::UAVCompute:	
+	case ERHIAccess::UAVGraphics:			return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+	case ERHIAccess::DSVWrite:				return D3D12_RESOURCE_STATE_DEPTH_WRITE;
+	case ERHIAccess::CopyDest:				return D3D12_RESOURCE_STATE_COPY_DEST;
+	case ERHIAccess::ResolveDst:			return D3D12_RESOURCE_STATE_RESOLVE_DEST;
+
+	// Generic read for mask read states
+	case ERHIAccess::ReadOnlyMask:	
+	case ERHIAccess::ReadOnlyExclusiveMask:	return D3D12_RESOURCE_STATE_GENERIC_READ;
+	default:
+	{
+		// Special case for DSV read & write (Depth write allows depth read as well in D3D)
+		if (InRHIAccess == ERHIAccess(ERHIAccess::DSVRead | ERHIAccess::DSVWrite))
+		{
+			return D3D12_RESOURCE_STATE_DEPTH_WRITE;
+		}
+		else
+		{
+			// Should be combination from read only flags (write flags covered above)
+			check(!(EnumHasAnyFlags(InRHIAccess, ERHIAccess::WritableMask)));
+			check(EnumHasAnyFlags(InRHIAccess, ERHIAccess::ReadOnlyMask));
+
+			D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
+
+			// Translate the requested after state to a D3D state
+			if (EnumHasAnyFlags(InRHIAccess, ERHIAccess::SRVGraphics) && !InIsAsyncCompute)
+			{
+				State |= D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+			}
+			if (EnumHasAnyFlags(InRHIAccess, ERHIAccess::SRVCompute))
+			{
+				State |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+			}
+			if (EnumHasAnyFlags(InRHIAccess, ERHIAccess::VertexOrIndexBuffer))
+			{
+				State |= D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER | D3D12_RESOURCE_STATE_INDEX_BUFFER;
+			}
+			if (EnumHasAnyFlags(InRHIAccess, ERHIAccess::CopySrc))
+			{
+				State |= D3D12_RESOURCE_STATE_COPY_SOURCE;
+			}
+			if (EnumHasAnyFlags(InRHIAccess, ERHIAccess::IndirectArgs))
+			{
+				State |= D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
+			}
+			if (EnumHasAnyFlags(InRHIAccess, ERHIAccess::ResolveSrc))
+			{
+				State |= D3D12_RESOURCE_STATE_RESOLVE_SOURCE;
+			}
+			if (EnumHasAnyFlags(InRHIAccess, ERHIAccess::DSVRead))
+			{
+				State |= D3D12_RESOURCE_STATE_DEPTH_READ;
+			}
+
+			// Should have at least one valid state
+			check(State != D3D12_RESOURCE_STATE_COMMON);
+
+			return State;
+		}
+	}
+	}
+
+	// unreachable code
+	return D3D12_RESOURCE_STATE_COMMON;
+}
+
+
 //==================================================================================================================================
 // CResourceState
 // Tracking of per-resource or per-subresource state
@@ -1137,6 +1212,35 @@ D3D12_RESOURCE_STATES CResourceState::GetSubresourceState(uint32 SubresourceInde
 	{
 		check(SubresourceIndex < static_cast<uint32>(m_SubresourceState.Num()));
 		return m_SubresourceState[SubresourceIndex];
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------
+
+bool CResourceState::CheckAllSubresourceSame()
+{
+	// already marked same?
+	if (m_AllSubresourcesSame)
+	{
+		return true;
+	}
+	else
+	{
+		D3D12_RESOURCE_STATES State = m_SubresourceState[0];
+
+		// All subresources must be individually checked
+		const uint32 numSubresourceStates = m_SubresourceState.Num();
+		for (uint32 i = 1; i < numSubresourceStates; i++)
+		{
+			if (m_SubresourceState[i] != State)
+			{
+				return false;
+			}
+		}
+
+		SetResourceState(State);
+
+		return true;
 	}
 }
 

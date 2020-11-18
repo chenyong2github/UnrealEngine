@@ -1071,7 +1071,7 @@ void FD3D12DefaultBufferPool::CleanUpAllocations(uint64 FrameLag)
 }
 
 // Grab a buffer from the available buffers or create a new buffer if none are available
-void FD3D12DefaultBufferPool::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& Desc, EBufferUsageFlags InUsage, ED3D12ResourceStateMode InResourceStateMode, FD3D12ResourceLocation& ResourceLocation, uint32 Alignment, const TCHAR* Name)
+void FD3D12DefaultBufferPool::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& Desc, EBufferUsageFlags InUsage, ED3D12ResourceStateMode InResourceStateMode, D3D12_RESOURCE_STATES InCreateState, FD3D12ResourceLocation& ResourceLocation, uint32 Alignment, const TCHAR* Name)
 {
 	FD3D12Device* Device = GetParentDevice();
 	FD3D12Adapter* Adapter = Device->GetParentAdapter();
@@ -1084,17 +1084,23 @@ void FD3D12DefaultBufferPool::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, c
 		return;
 	}
 
-#if D3D12_RHI_RAYTRACING
-	// RayTracing acceleration structures must be created in a particular state and may never transition out of it.
-	D3D12_RESOURCE_STATES InitialState = (InUsage & BUF_AccelerationStructure) ? D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE : D3D12_RESOURCE_STATE_GENERIC_READ;
-#else
-	D3D12_RESOURCE_STATES InitialState = D3D12_RESOURCE_STATE_GENERIC_READ;
-#endif
-
+#if DO_CHECK
+	// Validate the create state
 	if (InHeapType == D3D12_HEAP_TYPE_READBACK)
 	{
-		InitialState = D3D12_RESOURCE_STATE_COPY_DEST;
+		check(InCreateState == D3D12_RESOURCE_STATE_COPY_DEST);
 	}
+	else if (InHeapType == D3D12_HEAP_TYPE_UPLOAD)
+	{
+		check(InCreateState == D3D12_RESOURCE_STATE_GENERIC_READ);
+	}
+#if D3D12_RHI_RAYTRACING
+	else if (InUsage & BUF_AccelerationStructure)
+	{
+		check(InCreateState == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
+	}
+#endif // D3D12_RHI_RAYTRACING
+#endif  // DO_CHECK
 
 	const bool PoolResource = Desc.Width < Allocator->GetMaximumAllocationSizeForPooling()/* && ((Desc.Width % (1024 * 64)) != 0)*/;
 
@@ -1128,7 +1134,7 @@ void FD3D12DefaultBufferPool::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, c
 				uint64 HeapOffset = ResourceLocation.GetAllocator()->GetAllocationOffsetInBytes(ResourceLocation.GetBuddyAllocatorPrivateData());
 
 				FD3D12Resource* NewResource = nullptr;
-				VERIFYD3D12RESULT(Adapter->CreatePlacedResource(Desc, BackingHeap, HeapOffset, InitialState, ED3D12ResourceStateMode::MultiState, D3D12_RESOURCE_STATE_TBD, nullptr, &NewResource, Name));
+				VERIFYD3D12RESULT(Adapter->CreatePlacedResource(Desc, BackingHeap, HeapOffset, InCreateState, ED3D12ResourceStateMode::MultiState, D3D12_RESOURCE_STATE_TBD, nullptr, &NewResource, Name));
 
 				ResourceLocation.SetResource(NewResource);
 			}
@@ -1145,7 +1151,7 @@ void FD3D12DefaultBufferPool::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, c
 	// Allocate Standalone
 	// Todo: track stand alone allocations and see how much memory we use by this and how many we have
 	FD3D12Resource* NewResource = nullptr;
-	VERIFYD3D12RESULT(Adapter->CreateBuffer(InHeapType, GetGPUMask(), GetVisibilityMask(), InitialState, Desc.Width, &NewResource, Name, Desc.Flags));
+	VERIFYD3D12RESULT(Adapter->CreateBuffer(InHeapType, GetGPUMask(), GetVisibilityMask(), InCreateState, Desc.Width, &NewResource, Name, Desc.Flags));
 
 	ResourceLocation.AsStandAlone(NewResource, Desc.Width);
 }
@@ -1208,8 +1214,44 @@ FD3D12DefaultBufferPool* FD3D12DefaultBufferAllocator::CreateBufferPool(D3D12_HE
 	return NewPool;
 }
 
+
+bool FD3D12DefaultBufferAllocator::IsPlacedResource(D3D12_RESOURCE_FLAGS InResourceFlags, ED3D12ResourceStateMode InResourceStateMode)
+{
+#ifdef USE_BUCKET_ALLOCATOR
+	return false;
+#else
+	FD3D12BuddyAllocator::EAllocationStrategy AllocationStrategy = FD3D12DefaultBufferPool::GetBuddyAllocatorAllocationStrategy(InResourceFlags, InResourceStateMode);
+	return (AllocationStrategy == FD3D12BuddyAllocator::EAllocationStrategy::kPlacedResource);
+#endif
+}
+
+
+D3D12_RESOURCE_STATES FD3D12DefaultBufferAllocator::GetDefaultInitialResourceState(D3D12_HEAP_TYPE InHeapType, EBufferUsageFlags InBufferFlags)
+{
+	// Validate the create state
+	if (InHeapType == D3D12_HEAP_TYPE_READBACK)
+	{
+		return D3D12_RESOURCE_STATE_COPY_DEST;
+	}
+	else if (InHeapType == D3D12_HEAP_TYPE_UPLOAD)
+	{
+		return D3D12_RESOURCE_STATE_GENERIC_READ;
+	}
+#if D3D12_RHI_RAYTRACING
+	else if (InBufferFlags & BUF_AccelerationStructure)
+	{
+		return D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+	}
+#endif // D3D12_RHI_RAYTRACING
+	else
+	{
+		return D3D12_RESOURCE_STATE_GENERIC_READ;
+	}
+}
+
+
 // Grab a buffer from the available buffers or create a new buffer if none are available
-void FD3D12DefaultBufferAllocator::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InResourceDesc, EBufferUsageFlags InBufferUsage, ED3D12ResourceStateMode InResourceStateMode, FD3D12ResourceLocation& ResourceLocation, uint32 Alignment, const TCHAR* Name)
+void FD3D12DefaultBufferAllocator::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InResourceDesc, EBufferUsageFlags InBufferUsage, ED3D12ResourceStateMode InResourceStateMode, D3D12_RESOURCE_STATES InCreateState, FD3D12ResourceLocation& ResourceLocation, uint32 Alignment, const TCHAR* Name)
 {
 	// Patch out deny shader resource because it doesn't add anything for buffers and allows more pool sharing
 	// TODO: check if this is different on Xbox?
@@ -1234,7 +1276,7 @@ void FD3D12DefaultBufferAllocator::AllocDefaultResource(D3D12_HEAP_TYPE InHeapTy
 	}
 
 	// Perform actual allocation
-	BufferPool->AllocDefaultResource(InHeapType, ResourceDesc, InBufferUsage, InResourceStateMode, ResourceLocation, Alignment, Name);
+	BufferPool->AllocDefaultResource(InHeapType, ResourceDesc, InBufferUsage, InResourceStateMode, InCreateState, ResourceLocation, Alignment, Name);
 }
 
 

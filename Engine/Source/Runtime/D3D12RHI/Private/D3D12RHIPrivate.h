@@ -86,8 +86,6 @@ typedef FD3D12StateCacheBase FD3D12StateCache;
 #include "D3D12Device.h"
 #include "D3D12Adapter.h"
 
-// Definitions.
-#define USE_D3D12RHI_RESOURCE_STATE_TRACKING 1	// Fully relying on the engine's resource barriers is a work in progress. For now, continue to use the D3D12 RHI's resource state tracking.
 
 #define EXECUTE_DEBUG_COMMAND_LISTS 0
 #define DEBUG_BARRIER_DISPATCHES 1
@@ -148,6 +146,11 @@ extern bool GIsDoingQuery;
 #define DEBUG_EXECUTE_COMMAND_CONTEXT(context) 
 #define DEBUG_RHI_EXECUTE_COMMAND_LIST(scope) 
 #endif
+
+// Use the D3D12 RHI internal transitions to drive all resource transitions
+extern bool GUseInternalTransitions;
+// Use the D3D12 RHI internal transitions to validate the engine pushed RHI transitions
+extern bool GValidateInternalTransitions;
 
 template< typename t_A, typename t_B >
 inline t_A RoundUpToNextMultiple(const t_A& a, const t_B& b)
@@ -552,7 +555,7 @@ public:
 		return !pLeftView->DoesNotOverlap(*pRightView);
 	}
 
-	static inline bool IsTransitionNeeded(D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES& After)
+	static inline bool IsTransitionNeeded(bool bInAllowStateMerging, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES& After)
 	{
 		check(Before != D3D12_RESOURCE_STATE_CORRUPT && After != D3D12_RESOURCE_STATE_CORRUPT);
 		check(Before != D3D12_RESOURCE_STATE_TBD && After != D3D12_RESOURCE_STATE_TBD);
@@ -567,29 +570,40 @@ public:
 		// having exactly one bit set so we need to special case these
 		if (After == D3D12_RESOURCE_STATE_COMMON)
 		{
-			// The resource state tracking code in FD3D12CommandContext::RHITransitionResources forces all EReadable transitions
-			// to go through the COMMON state right now, so we can end up with some COMMON -> COMMON transitions which can be
-			// skipped. Once that is fixed or removed, we shouldn't get here anymore if we're already in the COMMON state,
-			// so we can simply return true and let the ensure in FD3D12CommandListHandle::AddTransitionBarrier catch bad usage.
-			return (Before != D3D12_RESOURCE_STATE_COMMON);
+			// Before state should not have the common state otherwise it's invalid transition
+			check(Before != D3D12_RESOURCE_STATE_COMMON);
+			return true;
 		}
 
-		// We should avoid doing read-to-read state transitions. But when we do, we should avoid turning off already transitioned bits,
-		// e.g. VERTEX_BUFFER -> SHADER_RESOURCE is turned into VERTEX_BUFFER -> VERTEX_BUFFER | SHADER_RESOURCE.
-		// This reduces the number of resource transitions and ensures automatic states from resource bindings get properly combined.
-		D3D12_RESOURCE_STATES Combined = Before | After;
-		if ((Combined & (D3D12_RESOURCE_STATE_GENERIC_READ | D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT)) == Combined)
+		if (bInAllowStateMerging)
 		{
-			After = Combined;
+			// We should avoid doing read-to-read state transitions. But when we do, we should avoid turning off already transitioned bits,
+			// e.g. VERTEX_BUFFER -> SHADER_RESOURCE is turned into VERTEX_BUFFER -> VERTEX_BUFFER | SHADER_RESOURCE.
+			// This reduces the number of resource transitions and ensures automatic states from resource bindings get properly combined.
+			D3D12_RESOURCE_STATES Combined = Before | After;
+			if ((Combined & (D3D12_RESOURCE_STATE_GENERIC_READ | D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT)) == Combined)
+			{
+				After = Combined;
+			}
 		}
 
 		return Before != After;
 	}
 
-	/** Transition a resource's state based on a Render target view */
-	static inline void TransitionResource(FD3D12CommandListHandle& hCommandList, FD3D12RenderTargetView* pView, D3D12_RESOURCE_STATES after)
+	enum class ETransitionMode
 	{
-#if USE_D3D12RHI_RESOURCE_STATE_TRACKING
+		Apply,
+		Validate
+	};
+
+	/** Transition a resource's state based on a Render target view */
+	static inline void TransitionResource(FD3D12CommandListHandle& hCommandList, FD3D12RenderTargetView* pView, D3D12_RESOURCE_STATES after, ETransitionMode InMode)
+	{
+		// Early out if we are not using engine transitions and not validating them
+		check(InMode == ETransitionMode::Validate);
+		if (!GUseInternalTransitions && !GValidateInternalTransitions)
+			return;
+
 		FD3D12Resource* pResource = pView->GetResource();
 
 		const D3D12_RENDER_TARGET_VIEW_DESC &desc = pView->GetDesc();
@@ -601,13 +615,13 @@ public:
 		case D3D12_RTV_DIMENSION_TEXTURE2D:
 		case D3D12_RTV_DIMENSION_TEXTURE2DMS:
 			// Only one subresource to transition
-			TransitionResource(hCommandList, pResource, after, desc.Texture2D.MipSlice);
+			TransitionResource(hCommandList, pResource, D3D12_RESOURCE_STATE_TBD, after, desc.Texture2D.MipSlice, InMode);
 			break;
 
 		case D3D12_RTV_DIMENSION_TEXTURE2DARRAY:
 		{
 			// Multiple subresources to transition
-			TransitionResource(hCommandList, pResource, after, pView->GetViewSubresourceSubset());
+			TransitionResource(hCommandList, pResource, D3D12_RESOURCE_STATE_TBD, after, pView->GetViewSubresourceSubset(), InMode);
 			break;
 		}
 
@@ -615,13 +629,16 @@ public:
 			check(false);	// Need to update this code to include the view type
 			break;
 		}
-#endif // USE_D3D12RHI_RESOURCE_STATE_TRACKING
 	}
 
 	/** Transition a resource's state based on a Depth stencil view's desc flags */
-	static inline void TransitionResource(FD3D12CommandListHandle& hCommandList, FD3D12DepthStencilView* pView)
+	static inline void TransitionResource(FD3D12CommandListHandle& hCommandList, FD3D12DepthStencilView* pView, ETransitionMode InMode)
 	{
-#if USE_D3D12RHI_RESOURCE_STATE_TRACKING
+		// Early out if we are not using engine transitions and not validating them
+		check(InMode == ETransitionMode::Validate);
+		if (!GUseInternalTransitions && !GValidateInternalTransitions)
+			return;
+
 		// Determine the required subresource states from the view desc
 		const D3D12_DEPTH_STENCIL_VIEW_DESC& DSVDesc = pView->GetDesc();
 		const bool bDSVDepthIsWritable = (DSVDesc.Flags & D3D12_DSV_FLAG_READ_ONLY_DEPTH) == 0;
@@ -639,20 +656,23 @@ public:
 		FD3D12Resource* pResource = pView->GetResource();
 		if (bDepthIsWritable)
 		{
-			TransitionResource(hCommandList, pResource, D3D12_RESOURCE_STATE_DEPTH_WRITE, pView->GetDepthOnlyViewSubresourceSubset());
+			TransitionResource(hCommandList, pResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_DEPTH_WRITE, pView->GetDepthOnlyViewSubresourceSubset(), InMode);
 		}
 
 		if (bStencilIsWritable)
 		{
-			TransitionResource(hCommandList, pResource, D3D12_RESOURCE_STATE_DEPTH_WRITE, pView->GetStencilOnlyViewSubresourceSubset());
+			TransitionResource(hCommandList, pResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_DEPTH_WRITE, pView->GetStencilOnlyViewSubresourceSubset(), InMode);
 		}
-#endif // USE_D3D12RHI_RESOURCE_STATE_TRACKING
 	}
 
 	/** Transition a resource's state based on a Depth stencil view */
-	static inline void TransitionResource(FD3D12CommandListHandle& hCommandList, FD3D12DepthStencilView* pView, D3D12_RESOURCE_STATES after)
+	static inline void TransitionResource(FD3D12CommandListHandle& hCommandList, FD3D12DepthStencilView* pView, D3D12_RESOURCE_STATES after, ETransitionMode InMode)
 	{
-#if USE_D3D12RHI_RESOURCE_STATE_TRACKING
+		// Early out if we are not using engine transitions and not validating them
+		check(InMode == ETransitionMode::Validate);
+		if (!GUseInternalTransitions && !GValidateInternalTransitions)
+			return;
+
 		FD3D12Resource* pResource = pView->GetResource();
 
 		const D3D12_DEPTH_STENCIL_VIEW_DESC &desc = pView->GetDesc();
@@ -663,14 +683,14 @@ public:
 			if (pResource->GetPlaneCount() > 1)
 			{
 				// Multiple subresources to transtion
-				TransitionResource(hCommandList, pResource, after, pView->GetViewSubresourceSubset());
+				TransitionResource(hCommandList, pResource, D3D12_RESOURCE_STATE_TBD, after, pView->GetViewSubresourceSubset(), InMode);
 				break;
 			}
 			else
 			{
 				// Only one subresource to transition
 				check(pResource->GetPlaneCount() == 1);
-				TransitionResource(hCommandList, pResource, after, desc.Texture2D.MipSlice);
+				TransitionResource(hCommandList, pResource, D3D12_RESOURCE_STATE_TBD, after, desc.Texture2D.MipSlice, InMode);
 			}
 			break;
 
@@ -678,7 +698,7 @@ public:
 		case D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY:
 		{
 			// Multiple subresources to transtion
-			TransitionResource(hCommandList, pResource, after, pView->GetViewSubresourceSubset());
+			TransitionResource(hCommandList, pResource, D3D12_RESOURCE_STATE_TBD, after, pView->GetViewSubresourceSubset(), InMode);
 			break;
 		}
 
@@ -686,37 +706,39 @@ public:
 			check(false);	// Need to update this code to include the view type
 			break;
 		}
-#endif // USE_D3D12RHI_RESOURCE_STATE_TRACKING
 	}
 
 	/** Transition a resource's state based on a Unordered access view */
-	static inline void TransitionResource(FD3D12CommandListHandle& hCommandList, FD3D12UnorderedAccessView* pView, D3D12_RESOURCE_STATES after)
+	static inline void TransitionResource(FD3D12CommandListHandle& hCommandList, FD3D12UnorderedAccessView* pView, D3D12_RESOURCE_STATES after, ETransitionMode InMode)
 	{
-#if USE_D3D12RHI_RESOURCE_STATE_TRACKING
+		// Early out if we are not using engine transitions and not validating them
+		if (!GUseInternalTransitions && !GValidateInternalTransitions)
+			return;
+
 		FD3D12Resource* pResource = pView->GetResource();
 
 		const D3D12_UNORDERED_ACCESS_VIEW_DESC &desc = pView->GetDesc();
 		switch (desc.ViewDimension)
 		{
 		case D3D12_UAV_DIMENSION_BUFFER:
-			TransitionResource(hCommandList, pResource, after, 0);
+			TransitionResource(hCommandList, pResource, D3D12_RESOURCE_STATE_TBD, after, 0, InMode);
 			break;
 
 		case D3D12_UAV_DIMENSION_TEXTURE2D:
 			// Only one subresource to transition
-			TransitionResource(hCommandList, pResource, after, desc.Texture2D.MipSlice);
+			TransitionResource(hCommandList, pResource, D3D12_RESOURCE_STATE_TBD, after, desc.Texture2D.MipSlice, InMode);
 			break;
 
 		case D3D12_UAV_DIMENSION_TEXTURE2DARRAY:
 		{
 			// Multiple subresources to transtion
-			TransitionResource(hCommandList, pResource, after, pView->GetViewSubresourceSubset());
+			TransitionResource(hCommandList, pResource, D3D12_RESOURCE_STATE_TBD, after, pView->GetViewSubresourceSubset(), InMode);
 			break;
 		}
 		case D3D12_UAV_DIMENSION_TEXTURE3D:
 		{
 			// Multiple subresources to transtion
-			TransitionResource(hCommandList, pResource, after, pView->GetViewSubresourceSubset());
+			TransitionResource(hCommandList, pResource, D3D12_RESOURCE_STATE_TBD, after, pView->GetViewSubresourceSubset(), InMode);
 			break;
 		}
 
@@ -724,13 +746,15 @@ public:
 			check(false);	// Need to update this code to include the view type
 			break;
 		}
-#endif // USE_D3D12RHI_RESOURCE_STATE_TRACKING
 	}
 
 	/** Transition a resource's state based on a Shader resource view */
-	static inline void TransitionResource(FD3D12CommandListHandle& hCommandList, FD3D12ShaderResourceView* pView, D3D12_RESOURCE_STATES after)
+	static inline void TransitionResource(FD3D12CommandListHandle& hCommandList, FD3D12ShaderResourceView* pView, D3D12_RESOURCE_STATES after, ETransitionMode InMode)
 	{
-#if USE_D3D12RHI_RESOURCE_STATE_TRACKING
+		// Early out if we are not using engine transitions and not validating them
+		if (!GUseInternalTransitions && !GValidateInternalTransitions)
+			return;
+
 		FD3D12Resource* pResource = pView->GetResource();
 
 		if (!pResource || !pResource->RequiresResourceStateTracking())
@@ -748,7 +772,7 @@ public:
 		default:
 		{
 			// Transition the resource
-			TransitionResource(hCommandList, pResource, after, subresourceSubset);
+			TransitionResource(hCommandList, pResource, D3D12_RESOURCE_STATE_TBD, after, subresourceSubset, InMode);
 			break;
 		}
 
@@ -757,37 +781,40 @@ public:
 			if (pResource->GetHeapType() == D3D12_HEAP_TYPE_DEFAULT)
 			{
 				// Transition the resource
-				TransitionResource(hCommandList, pResource, after, subresourceSubset);
+				TransitionResource(hCommandList, pResource, D3D12_RESOURCE_STATE_TBD, after, subresourceSubset, InMode);
 			}
 			break;
 		}
 		}
-#endif // USE_D3D12RHI_RESOURCE_STATE_TRACKING
 	}
 
 	// Transition a specific subresource to the after state.
-	static inline void TransitionResource(FD3D12CommandListHandle& hCommandList, FD3D12Resource* pResource, D3D12_RESOURCE_STATES after, uint32 subresource)
+	// Return true if UAV barrier is required
+	static inline bool TransitionResource(FD3D12CommandListHandle& hCommandList, FD3D12Resource* pResource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after, uint32 subresource, ETransitionMode InMode)
 	{
-#if USE_D3D12RHI_RESOURCE_STATE_TRACKING
-		TransitionResourceWithTracking(hCommandList, pResource, after, subresource);
-#endif // USE_D3D12RHI_RESOURCE_STATE_TRACKING
+		// Early out if we are not using engine transitions and not validating them
+		if (InMode == ETransitionMode::Validate && !GUseInternalTransitions && !GValidateInternalTransitions)
+			return false;
+
+		return TransitionResourceWithTracking(hCommandList, pResource, before, after, subresource, InMode);
 	}
 
 	// Transition a subset of subresources to the after state.
-	static inline void TransitionResource(FD3D12CommandListHandle& hCommandList, FD3D12Resource* pResource, D3D12_RESOURCE_STATES after, const CViewSubresourceSubset& subresourceSubset)
+	// Return true if UAV barrier is required
+	static inline bool TransitionResource(FD3D12CommandListHandle& hCommandList, FD3D12Resource* pResource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after, const CViewSubresourceSubset& subresourceSubset, ETransitionMode InMode)
 	{
-#if USE_D3D12RHI_RESOURCE_STATE_TRACKING
-		TransitionResourceWithTracking(hCommandList, pResource, after, subresourceSubset);
-#endif // USE_D3D12RHI_RESOURCE_STATE_TRACKING
+		// Early out if we are not using engine transitions and not validating them
+		if (InMode == ETransitionMode::Validate && !GUseInternalTransitions && !GValidateInternalTransitions)
+			return false;
+
+		return TransitionResourceWithTracking(hCommandList, pResource, before, after, subresourceSubset, InMode);
 	}
 
 	// Transition a subresource from current to a new state, using resource state tracking.
-	static void TransitionResourceWithTracking(FD3D12CommandListHandle& hCommandList, FD3D12Resource* pResource, D3D12_RESOURCE_STATES after, uint32 subresource)
+	static bool TransitionResourceWithTracking(FD3D12CommandListHandle& hCommandList, FD3D12Resource* pResource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after, uint32 subresource, ETransitionMode InMode)
 	{
-#if USE_D3D12RHI_RESOURCE_STATE_TRACKING
 		check(pResource);
 		check(pResource->RequiresResourceStateTracking());
-
 		check(!((after & (D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)) && (pResource->GetDesc().Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE)));
 
 #ifdef PLATFORM_SUPPORTS_RESOURCE_COMPRESSION
@@ -795,6 +822,8 @@ public:
 #endif
 
 		hCommandList.UpdateResidency(pResource);
+
+		bool bRequireUAVBarrier = false;
 
 		CResourceState& ResourceState = hCommandList.GetResourceState(pResource);
 		if (subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES && !ResourceState.AreAllSubresourcesSame())
@@ -804,51 +833,28 @@ public:
 			const uint8 SubresourceCount = pResource->GetSubresourceCount();
 			for (uint32 SubresourceIndex = 0; SubresourceIndex < SubresourceCount; SubresourceIndex++)
 			{
-				const D3D12_RESOURCE_STATES before = ResourceState.GetSubresourceState(SubresourceIndex);
-				if (before == D3D12_RESOURCE_STATE_TBD)
-				{
-					// We need a pending resource barrier so we can setup the state before this command list executes
-					hCommandList.AddPendingResourceBarrier(pResource, after, SubresourceIndex);
-					ResourceState.SetSubresourceState(SubresourceIndex, after);
-				}
-				// We're not using IsTransitionNeeded() because we do want to transition even if 'after' is a subset of 'before'
-				// This is so that we can ensure all subresources are in the same state, simplifying future barriers
-				else if (before != after)
-				{
-					hCommandList.AddTransitionBarrier(pResource, before, after, SubresourceIndex);
-					ResourceState.SetSubresourceState(SubresourceIndex, after);
-				}
+				bool bForceInAfterState = true;
+				bRequireUAVBarrier |= ValidateAndSetResourceState(hCommandList, pResource, ResourceState, SubresourceIndex, before, after, bForceInAfterState, InMode);
 			}
 
 			// The entire resource should now be in the after state on this command list (even if all barriers are pending)
-			check(ResourceState.CheckResourceState(after));
-			ResourceState.SetResourceState(after);
+			verify(ResourceState.CheckAllSubresourceSame());
+			check(EnumHasAllFlags(ResourceState.GetSubresourceState(D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES), after));
 		}
 		else
 		{
-			const D3D12_RESOURCE_STATES before = ResourceState.GetSubresourceState(subresource);
-			if (before == D3D12_RESOURCE_STATE_TBD)
-			{
-				// We need a pending resource barrier so we can setup the state before this command list executes
-				hCommandList.AddPendingResourceBarrier(pResource, after, subresource);
-				ResourceState.SetSubresourceState(subresource, after);
-			}
-			else if (IsTransitionNeeded(before, after))
-			{
-				hCommandList.AddTransitionBarrier(pResource, before, after, subresource);
-				ResourceState.SetSubresourceState(subresource, after);
-			}
+			bool bForceInAfterState = false;
+			bRequireUAVBarrier = ValidateAndSetResourceState(hCommandList, pResource, ResourceState, subresource, before, after, bForceInAfterState, InMode);
 		}
-#endif // USE_D3D12RHI_RESOURCE_STATE_TRACKING
+
+		return bRequireUAVBarrier;
 	}
 
 	// Transition subresources from current to a new state, using resource state tracking.
-	static void TransitionResourceWithTracking(FD3D12CommandListHandle& hCommandList, FD3D12Resource* pResource, D3D12_RESOURCE_STATES after, const CViewSubresourceSubset& subresourceSubset)
+	static bool TransitionResourceWithTracking(FD3D12CommandListHandle& hCommandList, FD3D12Resource* pResource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after, const CViewSubresourceSubset& subresourceSubset, ETransitionMode InMode)
 	{
-#if USE_D3D12RHI_RESOURCE_STATE_TRACKING
 		check(pResource);
 		check(pResource->RequiresResourceStateTracking());
-
 		check(!((after & (D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)) && (pResource->GetDesc().Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE)));
 
 #ifdef PLATFORM_SUPPORTS_RESOURCE_COMPRESSION
@@ -856,24 +862,16 @@ public:
 #endif
 
 		hCommandList.UpdateResidency(pResource);
-		D3D12_RESOURCE_STATES before;
 		const bool bIsWholeResource = subresourceSubset.IsWholeResource();
 		CResourceState& ResourceState = hCommandList.GetResourceState(pResource);
+
+		bool bRequireUAVBarrier = false;
+
 		if (bIsWholeResource && ResourceState.AreAllSubresourcesSame())
 		{
 			// Fast path. Transition the entire resource from one state to another.
-			before = ResourceState.GetSubresourceState(D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-			if (before == D3D12_RESOURCE_STATE_TBD)
-			{
-				// We need a pending resource barrier so we can setup the state before this command list executes
-				hCommandList.AddPendingResourceBarrier(pResource, after, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-				ResourceState.SetResourceState(after);
-			}
-			else if (IsTransitionNeeded(before, after))
-			{
-				hCommandList.AddTransitionBarrier(pResource, before, after, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-				ResourceState.SetResourceState(after);
-			}
+			bool bForceInAfterState = false;
+			bRequireUAVBarrier = ValidateAndSetResourceState(hCommandList, pResource, ResourceState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, before, after, bForceInAfterState, InMode);
 		}
 		else
 		{
@@ -885,26 +883,12 @@ public:
 			{
 				for (uint32 SubresourceIndex = it.StartSubresource(); SubresourceIndex < it.EndSubresource(); SubresourceIndex++)
 				{
-					before = ResourceState.GetSubresourceState(SubresourceIndex);
-					if (before == D3D12_RESOURCE_STATE_TBD)
-					{
-						// We need a pending resource barrier so we can setup the state before this command list executes
-						hCommandList.AddPendingResourceBarrier(pResource, after, SubresourceIndex);
-						ResourceState.SetSubresourceState(SubresourceIndex, after);
-					}
-					else if (IsTransitionNeeded(before, after))
-					{
-						hCommandList.AddTransitionBarrier(pResource, before, after, SubresourceIndex);
-						ResourceState.SetSubresourceState(SubresourceIndex, after);
-					}
-					else
-					{
-						// Didn't need to transition the subresource.
-						if (before != after)
-						{
-							bWholeResourceWasTransitionedToSameState = false;
-						}
-					}
+					bool bForceInAfterState = false;
+					bRequireUAVBarrier |= ValidateAndSetResourceState(hCommandList, pResource, ResourceState, SubresourceIndex, before, after, bForceInAfterState, InMode);
+
+					// Subresource not in the same state, then whole resource is not in the same state anymore
+					if (ResourceState.GetSubresourceState(SubresourceIndex) != after)
+						bWholeResourceWasTransitionedToSameState = false;
 				}
 			}
 
@@ -912,12 +896,96 @@ public:
 			if (bWholeResourceWasTransitionedToSameState)
 			{
 				// Sanity check to make sure all subresources are really in the 'after' state
-				check(ResourceState.CheckResourceState(after));
-
-				ResourceState.SetResourceState(after);
+				verify(ResourceState.CheckAllSubresourceSame());
+				check(EnumHasAllFlags(ResourceState.GetSubresourceState(D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES), after));
 			}
 		}
-#endif // USE_D3D12RHI_RESOURCE_STATE_TRACKING
+
+		return bRequireUAVBarrier;
+	}
+
+	static bool ValidateAndSetResourceState(FD3D12CommandListHandle& InCommandList, FD3D12Resource* InResource, CResourceState& InResourceState, uint32 InSubresourceIndex, D3D12_RESOURCE_STATES InBeforeState, D3D12_RESOURCE_STATES InAfterState, bool bInForceAfterState, ETransitionMode InMode)
+	{
+		// Only validate the current state?
+		bool bValidateState = !GUseInternalTransitions && (InMode == ETransitionMode::Validate);
+
+		// Try and get the correct D3D before state for the transition
+		D3D12_RESOURCE_STATES BeforeState = InResourceState.GetSubresourceState(InSubresourceIndex);
+
+		// Still untracked in this command list, then try and find out a before state to use
+		if (BeforeState == D3D12_RESOURCE_STATE_TBD)
+		{
+			if (bValidateState)
+			{
+				// Can't correctly validate on parallel command list because command list with final state which
+				// updates the resource state might not have been executed yet (on RHI Thread)
+				// Unless it's a transition on the default context and all transitions happen on the default context (validated somewhere else)
+				if (GRHICommandList.Bypass() || InCommandList.GetCurrentOwningContext()->IsDefaultContext())
+				{
+					BeforeState = InResource->GetResourceState().GetSubresourceState(InSubresourceIndex);
+				}
+			}
+			else if (GUseInternalTransitions)
+			{
+				// We need a pending resource barrier so we can setup the state before this command list executes
+				InCommandList.AddPendingResourceBarrier(InResource, InAfterState, InSubresourceIndex);
+				InResourceState.SetSubresourceState(InSubresourceIndex, InAfterState);
+			}
+			else
+			{
+				// We have enqueue the transition right now in the command list and can't add it to the pending list because
+				// this resource can already have been used in the current state in the command list
+				// so changing that state before this command list is invalid.				
+				BeforeState = InBeforeState;
+				if (BeforeState == D3D12_RESOURCE_STATE_TBD)
+				{
+					// If we don't have a valid before state, then we have to use the actual last stored state of the
+					// resource. We can sadly enough only correctly do this when parallel command lists don't perform
+					// any resource transition because then the current stored state might be invalid
+					// (Currently validated during begin/end transition in D3D12Commands)
+					BeforeState = InResource->GetResourceState().GetSubresourceState(InSubresourceIndex);
+				}
+
+				// Add dummy pending barrier, because the end state needs to be updated during execute
+				InCommandList.AddPendingResourceBarrier(InResource, D3D12_RESOURCE_STATE_TBD, InSubresourceIndex);
+			}
+		}
+
+		bool bRequireUAVBarrier = false;
+
+		// Have a valid state now?
+		check(BeforeState != D3D12_RESOURCE_STATE_TBD || GUseInternalTransitions || bValidateState);
+		if (BeforeState != D3D12_RESOURCE_STATE_TBD)
+		{
+			// Make sure the before states match up or are unknown
+			check(InBeforeState == D3D12_RESOURCE_STATE_TBD || BeforeState == InBeforeState);
+
+			if (bValidateState)
+			{
+				// Check if all after states are valid and special case for DepthRead because then DepthWrite is also valid
+				check(EnumHasAllFlags(BeforeState, InAfterState) || (BeforeState == D3D12_RESOURCE_STATE_DEPTH_WRITE && InAfterState == D3D12_RESOURCE_STATE_DEPTH_READ));
+			}
+			else
+			{
+				// Require UAV barrier when before and after are UAV
+				if (BeforeState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS && InAfterState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+				{
+					bRequireUAVBarrier = true;
+				}
+
+				// We're not using IsTransitionNeeded() when bInForceAfterState is set because we do want to transition even if 'after' is a subset of 'before'
+				// This is so that we can ensure all subresources are in the same state, simplifying future barriers
+				// No state merging when using engine transitions - otherwise next before state might not match up anymore)
+				bool bAllowStateMerging = GUseInternalTransitions;
+				if ((bInForceAfterState && BeforeState != InAfterState) || IsTransitionNeeded(bAllowStateMerging, BeforeState, InAfterState))
+				{
+					InCommandList.AddTransitionBarrier(InResource, BeforeState, InAfterState, InSubresourceIndex);
+					InResourceState.SetSubresourceState(InSubresourceIndex, InAfterState);
+				}				
+			}
+		}
+
+		return bRequireUAVBarrier;
 	}
 
 public:
@@ -979,9 +1047,9 @@ protected:
 
 	template<typename BaseResourceType>
 	TD3D12Texture2D<BaseResourceType>* CreateD3D12Texture2D(class FRHICommandListImmediate* RHICmdList, uint32 SizeX, uint32 SizeY, uint32 SizeZ, bool bTextureArray, bool CubeTexture, EPixelFormat Format,
-		uint32 NumMips, uint32 NumSamples, ETextureCreateFlags InFlags, FRHIResourceCreateInfo& CreateInfo);
+		uint32 NumMips, uint32 NumSamples, ETextureCreateFlags InFlags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo);
 
-	FD3D12Texture3D* CreateD3D12Texture3D(class FRHICommandListImmediate* RHICmdList, uint32 SizeX, uint32 SizeY, uint32 SizeZ, EPixelFormat Format, uint32 NumMips, ETextureCreateFlags InFlags, FRHIResourceCreateInfo& CreateInfo);
+	FD3D12Texture3D* CreateD3D12Texture3D(class FRHICommandListImmediate* RHICmdList, uint32 SizeX, uint32 SizeY, uint32 SizeZ, EPixelFormat Format, uint32 NumMips, ETextureCreateFlags InFlags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo);
 
 	template<typename BaseResourceType>
 	TD3D12Texture2D<BaseResourceType>* CreateTextureFromResource(bool bTextureArray, bool bCubeTexture, EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D12Resource* Resource);
@@ -1095,52 +1163,77 @@ public:
 };
 
 /**
-*	Class of a scoped resource barrier.
-*	This class conditionally uses resource state tracking.
-*	This should only be used with the Editor.
+*	Class of a scoped resource barrier - handles both tracked and untracked resources
 */
-class FConditionalScopeResourceBarrier
+class FScopedResourceBarrier
 {
 private:
 	FD3D12CommandListHandle& hCommandList;
 	FD3D12Resource* const pResource;
-	D3D12_RESOURCE_STATES Current;
-	const D3D12_RESOURCE_STATES Desired;
+	D3D12_RESOURCE_STATES CurrentState;
+	const D3D12_RESOURCE_STATES DesiredState;
 	const uint32 Subresource;
-	bool bRestoreDefaultState;
+	FD3D12DynamicRHI::ETransitionMode TransitionMode;
+
+	bool bRestoreState;
 
 public:
-	explicit FConditionalScopeResourceBarrier(FD3D12CommandListHandle& hInCommandList, FD3D12Resource* pInResource, const D3D12_RESOURCE_STATES InDesired, const uint32 InSubresource)
+	FScopedResourceBarrier(FD3D12CommandListHandle& hInCommandList, FD3D12Resource* pInResource, const D3D12_RESOURCE_STATES InDesiredState, const uint32 InSubresource, FD3D12DynamicRHI::ETransitionMode InTransitionMode)
 		: hCommandList(hInCommandList)
 		, pResource(pInResource)
-		, Current(D3D12_RESOURCE_STATE_TBD)
-		, Desired(InDesired)
+		, CurrentState(D3D12_RESOURCE_STATE_TBD)
+		, DesiredState(InDesiredState)
 		, Subresource(InSubresource)
-		, bRestoreDefaultState(false)
+		, TransitionMode(InTransitionMode)
+		, bRestoreState(false)
 	{
 		// when we don't use resource state tracking, transition the resource (only if necessary)
 		if (!pResource->RequiresResourceStateTracking())
 		{
-			Current = pResource->GetDefaultResourceState();
-			if (Current != Desired)
+			CurrentState = pResource->GetDefaultResourceState();
+			if (CurrentState != DesiredState)
 			{
 				// we will add a transition, we need to transition back to the default state when the scoped object dies : 
-				bRestoreDefaultState = true;
-				hCommandList.AddTransitionBarrier(pResource, Current, Desired, Subresource);
+				bRestoreState = true;
+				hCommandList.AddTransitionBarrier(pResource, CurrentState, DesiredState, Subresource);
 			}
 		}
 		else
 		{
-			FD3D12DynamicRHI::TransitionResource(hCommandList, pResource, Desired, Subresource);
+			// If we are not using the internal transitions and need to apply the state change, then store the current state of restore
+			if (!GUseInternalTransitions && InTransitionMode == FD3D12DynamicRHI::ETransitionMode::Apply)
+			{
+				// try tracked state in command list
+				CResourceState& ResourceState = hCommandList.GetResourceState(pInResource);
+				CurrentState = ResourceState.GetSubresourceState(InSubresource);
+
+				// if still unknown then use the stored state (not valid when transitions happen in parallel command lists)
+				if (CurrentState == D3D12_RESOURCE_STATE_TBD)
+				{
+					CurrentState = pInResource->GetResourceState().GetSubresourceState(InSubresource);
+				}
+
+				// Restore state to current state when done
+				bRestoreState = true;
+			}
+
+			FD3D12DynamicRHI::TransitionResource(hCommandList, pResource, CurrentState, DesiredState, Subresource, TransitionMode);
 		}
 	}
 
-	~FConditionalScopeResourceBarrier()
+	~FScopedResourceBarrier()
 	{
-		// Return the resource to it's default state if necessary : 
-		if (bRestoreDefaultState)
+		// Return the resource to the original state if requested
+		if (bRestoreState)
 		{
-			hCommandList.AddTransitionBarrier(pResource, Desired, Current, Subresource);
+			if (!pResource->RequiresResourceStateTracking())
+			{
+				hCommandList.AddTransitionBarrier(pResource, DesiredState, CurrentState, Subresource);
+			}
+			else
+			{
+				FD3D12DynamicRHI::TransitionResource(hCommandList, pResource, DesiredState, CurrentState, Subresource, TransitionMode);
+			}
 		}
 	}
 };

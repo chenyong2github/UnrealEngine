@@ -332,7 +332,7 @@ void FD3D12DescriptorCache::SetUAVs(const FD3D12RootSignature* RootSignature, FD
 		{
 			SrcDescriptors[SlotIndex] = UAVs[SlotIndex]->GetView();
 
-			FD3D12DynamicRHI::TransitionResource(CommandList, UAVs[SlotIndex], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			FD3D12DynamicRHI::TransitionResource(CommandList, UAVs[SlotIndex], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, FD3D12DynamicRHI::ETransitionMode::Validate);
 			CommandList.UpdateResidency(Cache.ResidencyHandles[ShaderStage][SlotIndex]);
 		}
 	}
@@ -378,15 +378,15 @@ void FD3D12DescriptorCache::SetRenderTargets(FD3D12RenderTargetView** RenderTarg
 
 	FD3D12CommandListHandle& CommandList = CmdContext->CommandListHandle;
 
+	// RTV & DS stace should already be in the correct state. It is transitioned in RHISetRenderTargetsAndClear coming from BeginPass because
+	// then we know the correct depth & stencil read & write flags.
+
 	// Fill heap slots
 	for (uint32 i = 0; i < Count; i++)
 	{
 		if (RenderTargetViewArray[i] != NULL)
 		{
-			// RTV should already be in the correct state. It is transitioned in RHISetRenderTargets.
-			FD3D12DynamicRHI::TransitionResource(CommandList, RenderTargetViewArray[i], D3D12_RESOURCE_STATE_RENDER_TARGET);
 			RTVDescriptors[i] = RenderTargetViewArray[i]->GetView();
-
 			CommandList.UpdateResidency(RenderTargetViewArray[i]->GetResource());
 		}
 		else
@@ -397,8 +397,6 @@ void FD3D12DescriptorCache::SetRenderTargets(FD3D12RenderTargetView** RenderTarg
 
 	if (DepthStencilTarget != nullptr)
 	{
-		FD3D12DynamicRHI::TransitionResource(CommandList, DepthStencilTarget);
-
 		const D3D12_CPU_DESCRIPTOR_HANDLE DSVDescriptor = DepthStencilTarget->GetView();
 		CommandList->OMSetRenderTargets(Count, RTVDescriptors, 0, &DSVDescriptor);
 		CommandList.UpdateResidency(DepthStencilTarget->GetResource());
@@ -412,49 +410,7 @@ void FD3D12DescriptorCache::SetRenderTargets(FD3D12RenderTargetView** RenderTarg
 
 void FD3D12DescriptorCache::SetStreamOutTargets(FD3D12Resource** Buffers, uint32 Count, const uint32* Offsets)
 {
-	// Determine how many slots are really needed, since the Count passed in is a pre-defined maximum
-	uint32 SlotsNeeded = 0;
-	for (int32 i = Count - 1; i >= 0; i--)
-	{
-		if (Buffers[i] != NULL)
-		{
-			SlotsNeeded = i + 1;
-			break;
-		}
-	}
-
-	if (0 == SlotsNeeded)
-	{
-		return; // No-op
-	}
-
-	D3D12_STREAM_OUTPUT_BUFFER_VIEW SOViews[D3D12_SO_BUFFER_SLOT_COUNT] = { };
-
-	FD3D12CommandListHandle& CommandList = CmdContext->CommandListHandle;
-
-	// Fill heap slots
-	for (uint32 i = 0; i < SlotsNeeded; i++)
-	{
-		if (Buffers[i])
-		{
-			CommandList.UpdateResidency(Buffers[i]);
-		}
-
-		D3D12_STREAM_OUTPUT_BUFFER_VIEW &currentView = SOViews[i];
-		currentView.BufferLocation = (Buffers[i] != nullptr) ? Buffers[i]->GetGPUVirtualAddress() : 0;
-
-		// MS - The following view members are not correct
-		check(0);
-		currentView.BufferFilledSizeLocation = 0;
-		currentView.SizeInBytes = -1;
-
-		if (Buffers[i] != nullptr)
-		{
-			FD3D12DynamicRHI::TransitionResource(CommandList, Buffers[i], D3D12_RESOURCE_STATE_STREAM_OUT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-		}
-	}
-
-	CommandList->SOSetTargets(0, SlotsNeeded, SOViews);
+	check(Count == 0);
 }
 
 template <EShaderFrequency ShaderStage>
@@ -596,19 +552,19 @@ void FD3D12DescriptorCache::SetSRVs(const FD3D12RootSignature* RootSignature, FD
 		{
 			SrcDescriptors[SlotIndex] = SRVs[SlotIndex]->GetView();
 
+			D3D12_RESOURCE_STATES State = (ShaderStage == SF_Compute) ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 			if (SRVs[SlotIndex]->IsDepthStencilResource())
 			{
-				FD3D12DynamicRHI::TransitionResource(CommandList, SRVs[SlotIndex], (D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_DEPTH_READ) & ValidResourceStates);
+				if (GUseInternalTransitions)
+				{
+					State |= D3D12_RESOURCE_STATE_DEPTH_READ;
+				}
 			}
 			else if (SRVs[SlotIndex]->GetSkipFastClearFinalize())
 			{
-				D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | CmdContext->SkipFastClearEliminateState;
-				FD3D12DynamicRHI::TransitionResource(CommandList, SRVs[SlotIndex], State & ValidResourceStates);
+				State |= CmdContext->SkipFastClearEliminateState;
 			}
-			else
-			{
-				FD3D12DynamicRHI::TransitionResource(CommandList, SRVs[SlotIndex], (D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) & ValidResourceStates);
-			}
+			FD3D12DynamicRHI::TransitionResource(CommandList, SRVs[SlotIndex], State & ValidResourceStates, FD3D12DynamicRHI::ETransitionMode::Validate);
 
 			CommandList.UpdateResidency(Cache.ResidencyHandles[ShaderStage][SlotIndex]);
 		}

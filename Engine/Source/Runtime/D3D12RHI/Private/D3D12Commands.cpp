@@ -177,7 +177,7 @@ void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIBuffer* Argument
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
-	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
 	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
@@ -216,31 +216,35 @@ void EnumerateSubresources(FD3D12Resource* Resource, const FRHITransitionInfo& I
 	uint32 ArraySize = Resource->GetArraySize();
 	uint32 PlaneCount = Resource->GetPlaneCount();
 
+	uint32 IterationMipCount = MipCount;
+	uint32 IterationArraySize = ArraySize;
+	uint32 IterationPlaneCount = PlaneCount;
+
 	if (!Info.IsAllMips())
 	{
 		FirstMipSlice = Info.MipIndex;
-		MipCount = 1;
+		IterationMipCount = 1;
 	}
 
 	if (!Info.IsAllArraySlices())
 	{
 		FirstArraySlice = Info.ArraySlice;
-		ArraySize = 1;
+		IterationArraySize = 1;
 	}
 
 	if (!Info.IsAllPlaneSlices())
 	{
 		FirstPlaneSlice = Info.PlaneSlice;
-		PlaneCount = 1;
+		IterationPlaneCount = 1;
 	}
 
-	for (uint32 PlaneSlice = FirstPlaneSlice; PlaneSlice < FirstPlaneSlice + PlaneCount; ++PlaneSlice)
+	for (uint32 PlaneSlice = FirstPlaneSlice; PlaneSlice < FirstPlaneSlice + IterationPlaneCount; ++PlaneSlice)
 	{
-		for (uint32 ArraySlice = FirstArraySlice; ArraySlice < FirstArraySlice + ArraySize; ++ArraySlice)
+		for (uint32 ArraySlice = FirstArraySlice; ArraySlice < FirstArraySlice + IterationArraySize; ++ArraySlice)
 		{
-			for (uint32 MipSlice = FirstMipSlice; MipSlice < FirstMipSlice + MipCount; ++MipSlice)
+			for (uint32 MipSlice = FirstMipSlice; MipSlice < FirstMipSlice + IterationMipCount; ++MipSlice)
 			{
-				const uint32 Subresource = D3D12CalcSubresource(FirstMipSlice, FirstArraySlice, FirstPlaneSlice, MipCount, ArraySize);
+				const uint32 Subresource = D3D12CalcSubresource(MipSlice, ArraySlice, PlaneSlice, MipCount, ArraySize);
 				Function(Subresource);
 			}
 		}
@@ -282,49 +286,77 @@ void ProcessResource(FD3D12CommandContext& Context, const FRHITransitionInfo& In
 	}
 }
 
-static D3D12_RESOURCE_STATES GetEndTransitionState(const FRHITransitionInfo& Info, FD3D12Resource* Resource, ERHIPipeline Pipelines, D3D12_RESOURCE_STATES SkipFastClearEliminateState)
+static void HandleResourceTransitions(FD3D12CommandContext& Context, const FD3D12TransitionData* TransitionData, D3D12_RESOURCE_STATES SkipFastClearEliminateState, bool& bUAVBarrier)
 {
-	D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
+	const bool bDstAllPipelines = EnumHasAllFlags(TransitionData->DstPipelines, ERHIPipeline::All);
 
-	if (EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::MaintainCompression) && IsReadOnlyAccess(Info.AccessAfter))
+	for (const FRHITransitionInfo& Info : TransitionData->Infos)
 	{
-		State |= SkipFastClearEliminateState;
-	}
+		const bool bUAVAccess = EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask);
 
-	const bool bIsAsyncComputeContext = EnumHasAnyFlags(Pipelines, ERHIPipeline::AsyncCompute);
-
-	if (Info.AccessAfter == ERHIAccess::ResolveSrc)
-	{
-		State |= D3D12_RESOURCE_STATE_RESOLVE_SOURCE;
-	}
-	else if (Info.AccessAfter == ERHIAccess::ResolveDst)
-	{
-		State |= D3D12_RESOURCE_STATE_RESOLVE_DEST;
-	}
-	else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::WritableMask))
-	{
-		if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask) || bIsAsyncComputeContext)
+		// If targeting all pipelines and UAV access then add UAV barrier even with RHI based transitions
+		if (bDstAllPipelines)
 		{
-			State |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+			bUAVBarrier |= bUAVAccess;
+		}
+
+		// Use the engine defined transitions?
+		if (GUseInternalTransitions)
+		{
+			// Only need to check for UAV barriers here, all other transitions are handled inside the RHI
+			bUAVBarrier |= bUAVAccess;
 		}
 		else
 		{
-			State |= Resource->GetWritableState();
-		}
-	}
-	else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::ReadableMask))
-	{
-		if (bIsAsyncComputeContext)
-		{
-			State |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-		}
-		else
-		{
-			State |= Resource->GetReadableState();
-		}
-	}
+			// Sometimes we could still have barriers without resources, invalid but can still happen
+			if (!Info.Resource)
+			{
+				// Add a UAV barrier in case of no resource and after state is UAV - user probably requested a force UAV barrier here				
+				bUAVBarrier |= bUAVAccess;
+			}
+			else
+			{
+				ProcessResource(Context, Info, [&](const FRHITransitionInfo& Info, FD3D12Resource* Resource)
+					{
+						if (!Resource->RequiresResourceStateTracking())
+						{
+							return;
+						}
 
-	return State;
+						const bool bIsAsyncCompute = EnumHasAnyFlags(TransitionData->DstPipelines, ERHIPipeline::AsyncCompute);
+
+						// Derive or get the correct before & after state
+						D3D12_RESOURCE_STATES BeforeState = (Info.AccessBefore != ERHIAccess::Unknown) ? GetD3D12ResourceState(Info.AccessBefore, bIsAsyncCompute) : D3D12_RESOURCE_STATE_TBD;
+						D3D12_RESOURCE_STATES AfterState = GetD3D12ResourceState(Info.AccessAfter, bIsAsyncCompute);
+
+						// Add the compression flags if needed
+						if (EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::MaintainCompression))
+						{
+							AfterState |= SkipFastClearEliminateState;
+						}
+
+						// enqueue the correct transitions
+						if (Info.IsWholeResource() || Resource->GetSubresourceCount() == 1)
+						{
+							bUAVBarrier = bUAVBarrier | FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, BeforeState, AfterState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
+						}
+						else
+						{
+							EnumerateSubresources(Resource, Info, [&](uint32 Subresource)
+								{
+									bUAVBarrier = bUAVBarrier | FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, BeforeState, AfterState, Subresource, FD3D12DynamicRHI::ETransitionMode::Apply);
+								});
+						}
+					});
+			}
+		}
+	}
+}
+
+static bool ProcessTransitionDuringBegin(const FD3D12TransitionData* Data)
+{
+	// Pipe changes which are not ending with graphics or targeting all pipelines are handle during begin
+	return ((Data->SrcPipelines != Data->DstPipelines && Data->DstPipelines != ERHIPipeline::Graphics) || EnumHasAllFlags(Data->DstPipelines, ERHIPipeline::All));
 }
 
 void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FRHITransition*> Transitions)
@@ -339,69 +371,10 @@ void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FR
 	{
 		const FD3D12TransitionData* Data = Transition->GetPrivateData<FD3D12TransitionData>();
 
-		// Same pipe transitions or transitions onto the graphics pipe are handled in End.
-		if (Data->SrcPipelines == Data->DstPipelines || Data->DstPipelines == ERHIPipeline::Graphics)
+		// Handle transition during BeginTransitions?
+		if (ProcessTransitionDuringBegin(Data))
 		{
-			continue;
-		}
-
-		const bool bDstAllPipelines = EnumHasAllFlags(Data->DstPipelines, ERHIPipeline::All);
-
-		for (const FRHITransitionInfo& Info : Data->Infos)
-		{
-			if (bDstAllPipelines)
-			{
-				bUAVBarrier |= EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask);
-			}
-
-			if (!Info.Resource)
-			{
-				continue;
-			}
-
-			ProcessResource(*this, Info, [&](const FRHITransitionInfo& Info, FD3D12Resource* Resource)
-			{
-				if (!Resource->RequiresResourceStateTracking())
-				{
-					return;
-				}
-
-				D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
-
-				// When forking from one pipeline to all, we perform the end transitions immediately.
-				if (bDstAllPipelines)
-				{
-					State = GetEndTransitionState(Info, Resource, Data->DstPipelines, SkipFastClearEliminateState);
-				}
-				else
-				{
-					if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::WritableMask))
-					{
-						State |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-					}
-					else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::ReadableMask))
-					{
-						State |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-					}
-				}
-
-				if (State == D3D12_RESOURCE_STATE_COMMON)
-				{
-					return;
-				}
-
-				if (Info.IsWholeResource() || Resource->GetSubresourceCount() == 1)
-				{
-					FD3D12DynamicRHI::TransitionResource(CommandListHandle, Resource, State, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-				}
-				else
-				{
-					EnumerateSubresources(Resource, Info, [&](uint32 Subresource)
-					{
-						FD3D12DynamicRHI::TransitionResource(CommandListHandle, Resource, State, Subresource);
-					});
-				}
-			});
+			HandleResourceTransitions(*this, Data, SkipFastClearEliminateState, bUAVBarrier);
 		}
 	}
 
@@ -413,6 +386,10 @@ void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FR
 
 void FD3D12CommandContext::RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions)
 {
+	// Can't correctly handle RHITransitions from multiple threads at the samae time right now - only internal transitions work correctly then
+	// (will be fixed if unknown before state is not allowed anymore)
+	check(bIsDefaultContext || bIsAsyncComputeContext || GUseInternalTransitions);
+
 	RHIBeginTransitionsWithoutFencing(Transitions);
 	SignalTransitionFences(Transitions);
 }
@@ -425,62 +402,16 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 	const bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;
 	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHIEndTransitions, bShowTransitionEvents, TEXT("RHIEndTransitions"));
 
-	static_assert(USE_D3D12RHI_RESOURCE_STATE_TRACKING, "RHIEndTransitions is not implemented properly for this to be disabled.");
-
 	bool bUAVBarrier = false;
 
 	for (const FRHITransition* Transition : Transitions)
 	{
 		const FD3D12TransitionData* Data = Transition->GetPrivateData<FD3D12TransitionData>();
 
-		const bool bSamePipeline = !Data->bCrossPipeline;
-		const bool bDstAllPipelines = EnumHasAllFlags(Data->DstPipelines, ERHIPipeline::All);
-
-		for (const FRHITransitionInfo& Info : Data->Infos)
+		// Handle transition during EndTransitions?
+		if (!ProcessTransitionDuringBegin(Data))
 		{
-			// Sometimes we could still have barriers with resources, invalid but can still happen
-			if (bSamePipeline && !bDstAllPipelines)
-			{
-				bUAVBarrier |= EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask);
-			}
-
-			if (!Info.Resource)
-			{
-				continue;
-			}
-
-			ProcessResource(*this, Info, [&](const FRHITransitionInfo& Info, FD3D12Resource* Resource)
-			{
-				if (!Resource->RequiresResourceStateTracking())
-				{
-					return;
-				}
-
-				D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
-
-				// When forking from one pipeline to all, we perform the end transitions in begin.
-				if (!bDstAllPipelines)
-				{
-					State = GetEndTransitionState(Info, Resource, Data->DstPipelines, SkipFastClearEliminateState);
-				}
-
-				if (State == D3D12_RESOURCE_STATE_COMMON)
-				{
-					return;
-				}
-
-				if (Info.IsWholeResource() || Resource->GetSubresourceCount() == 1)
-				{
-					FD3D12DynamicRHI::TransitionResource(CommandListHandle, Resource, State, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-				}
-				else
-				{
-					EnumerateSubresources(Resource, Info, [&](uint32 Subresource)
-					{
-						FD3D12DynamicRHI::TransitionResource(CommandListHandle, Resource, State, Subresource);
-					});
-				}
-			});
+			HandleResourceTransitions(*this, Data, SkipFastClearEliminateState, bUAVBarrier);
 		}
 	}
 
@@ -522,7 +453,7 @@ void FD3D12CommandContext::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBuffer
 		// Unknown aligment requirement for sub allocated read back buffer data
 		uint32 AllocationAlignment = 16;
 		const D3D12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(NumBytes, D3D12_RESOURCE_FLAG_NONE);		
-		GetParentDevice()->GetDefaultBufferAllocator().AllocDefaultResource(D3D12_HEAP_TYPE_READBACK, BufferDesc, (EBufferUsageFlags)BUF_None, ED3D12ResourceStateMode::SingleState, StagingBuffer->ResourceLocation, AllocationAlignment, TEXT("StagedRead"));
+		GetParentDevice()->GetDefaultBufferAllocator().AllocDefaultResource(D3D12_HEAP_TYPE_READBACK, BufferDesc, (EBufferUsageFlags)BUF_None, ED3D12ResourceStateMode::SingleState, D3D12_RESOURCE_STATE_COPY_DEST, StagingBuffer->ResourceLocation, AllocationAlignment, TEXT("StagedRead"));
 		check(StagingBuffer->ResourceLocation.GetSize() == NumBytes);
 		StagingBuffer->ShadowBufferSize = NumBytes;
 	}
@@ -540,7 +471,7 @@ void FD3D12CommandContext::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBuffer
 
 		if (pSourceResource->RequiresResourceStateTracking())
 		{
-			FD3D12DynamicRHI::TransitionResource(CommandListHandle, pSourceResource, D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
+			FD3D12DynamicRHI::TransitionResource(CommandListHandle, pSourceResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_SOURCE, 0, FD3D12DynamicRHI::ETransitionMode::Validate);
 			CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
 		}
 
@@ -1183,6 +1114,54 @@ void FD3D12CommandContext::SetRenderTargetsAndClear(const FRHISetRenderTargetsIn
 		RenderTargetsInfo.ColorRenderTarget,
 		&RenderTargetsInfo.DepthStencilRenderTarget);
 
+	FD3D12RenderTargetView* RenderTargetViews[MaxSimultaneousRenderTargets];
+	FD3D12DepthStencilView* DSView = nullptr;
+	uint32 NumSimultaneousRTs = 0;
+	StateCache.GetRenderTargets(RenderTargetViews, &NumSimultaneousRTs, &DSView);
+	FD3D12BoundRenderTargets BoundRenderTargets(RenderTargetViews, NumSimultaneousRTs, DSView);
+	FD3D12DepthStencilView* DepthStencilView = BoundRenderTargets.GetDepthStencilView();
+
+	// perform the correct barrier transitions to RTV
+	{
+		for (int32 TargetIndex = 0; TargetIndex < BoundRenderTargets.GetNumActiveTargets(); TargetIndex++)
+		{
+			FD3D12RenderTargetView* RTView = BoundRenderTargets.GetRenderTargetView(TargetIndex);
+			if (RTView != nullptr)
+			{
+				FD3D12DynamicRHI::TransitionResource(CommandListHandle, RTView, D3D12_RESOURCE_STATE_RENDER_TARGET, FD3D12DynamicRHI::ETransitionMode::Validate);
+			}
+		}
+	}
+
+	// perform the optimal barrier transition for depth stencil as well
+	if (DepthStencilView)
+	{
+		// Find out the desired state for both the depth & the stencil
+		FExclusiveDepthStencil DepthStencilAccess = RenderTargetsInfo.DepthStencilRenderTarget.GetDepthStencilAccess();
+		D3D12_RESOURCE_STATES DepthState = DepthStencilAccess.IsDepthWrite() ? D3D12_RESOURCE_STATE_DEPTH_WRITE : (DepthStencilAccess.IsDepthRead() ? D3D12_RESOURCE_STATE_DEPTH_READ : D3D12_RESOURCE_STATE_COMMON);
+		D3D12_RESOURCE_STATES StencilState = DepthStencilAccess.IsStencilWrite() ? D3D12_RESOURCE_STATE_DEPTH_WRITE : (DepthStencilAccess.IsStencilRead() ? D3D12_RESOURCE_STATE_DEPTH_READ : D3D12_RESOURCE_STATE_COMMON);
+
+		// Same target state for both depth & stencil, then it can be done with single barrier
+		if (DepthState == StencilState)
+		{
+			if (DepthState != D3D12_RESOURCE_STATE_COMMON)
+			{
+				FD3D12DynamicRHI::TransitionResource(CommandListHandle, DepthStencilView, DepthState, FD3D12DynamicRHI::ETransitionMode::Validate);
+			}
+		}
+		else
+		{
+			if (DepthState != D3D12_RESOURCE_STATE_COMMON)
+			{
+				FD3D12DynamicRHI::TransitionResource(CommandListHandle, DepthStencilView->GetResource(), D3D12_RESOURCE_STATE_TBD, DepthState, DepthStencilView->GetDepthOnlyViewSubresourceSubset(), FD3D12DynamicRHI::ETransitionMode::Validate);
+			}
+			if (StencilState != D3D12_RESOURCE_STATE_COMMON)
+			{
+				FD3D12DynamicRHI::TransitionResource(CommandListHandle, DepthStencilView->GetResource(), D3D12_RESOURCE_STATE_TBD, StencilState, DepthStencilView->GetStencilOnlyViewSubresourceSubset(), FD3D12DynamicRHI::ETransitionMode::Validate);
+			}
+		}
+	}
+
 	if (RenderTargetsInfo.bClearColor || RenderTargetsInfo.bClearStencil || RenderTargetsInfo.bClearDepth)
 	{
 		FLinearColor ClearColors[MaxSimultaneousRenderTargets];
@@ -1349,6 +1328,10 @@ FORCEINLINE void SetResource(FD3D12CommandContext& CmdContext, uint32 BindIndex,
 template <EShaderFrequency ShaderFrequency>
 inline int32 SetShaderResourcesFromBuffer_Surface(FD3D12CommandContext& CmdContext, FD3D12UniformBuffer* RESTRICT Buffer, const uint32 * RESTRICT ResourceMap, int32 BufferIndex)
 {
+#if ENABLE_RHI_VALIDATION
+	constexpr ERHIAccess SRVAccess = (ShaderFrequency == SF_Compute) ? ERHIAccess::SRVCompute : ERHIAccess::SRVGraphics;
+#endif
+
 	const TRefCountPtr<FRHIResource>* RESTRICT Resources = Buffer->ResourceTable.GetData();
 	const float CurrentTime = FApp::GetCurrentTime();
 	int32 NumSetCalls = 0;
@@ -1373,6 +1356,13 @@ inline int32 SetShaderResourcesFromBuffer_Surface(FD3D12CommandContext& CmdConte
 				D3D12Resource = CmdContext.RetrieveTextureBase(GWhiteTexture->TextureRHI)->GetShaderResourceView();
 			}
 
+#if ENABLE_RHI_VALIDATION
+			if (CmdContext.Tracker)
+			{
+				CmdContext.Tracker->Assert(TextureRHI->GetWholeResourceIdentitySRV(), SRVAccess);
+			}
+#endif
+
 			SetResource<ShaderFrequency>(CmdContext, BindIndex, D3D12Resource);
 			NumSetCalls++;
 			ResourceInfo = *ResourceInfos++;
@@ -1386,6 +1376,10 @@ inline int32 SetShaderResourcesFromBuffer_Surface(FD3D12CommandContext& CmdConte
 template <EShaderFrequency ShaderFrequency>
 inline int32 SetShaderResourcesFromBuffer_SRV(FD3D12CommandContext& CmdContext, FD3D12UniformBuffer* RESTRICT Buffer, const uint32 * RESTRICT ResourceMap, int32 BufferIndex)
 {
+#if ENABLE_RHI_VALIDATION
+	constexpr ERHIAccess SRVAccess = (ShaderFrequency == SF_Compute) ? ERHIAccess::SRVCompute : ERHIAccess::SRVGraphics;
+#endif
+
 	const TRefCountPtr<FRHIResource>* RESTRICT Resources = Buffer->ResourceTable.GetData();
 	int32 NumSetCalls = 0;
 	const uint32 BufferOffset = ResourceMap[BufferIndex];
@@ -1400,6 +1394,13 @@ inline int32 SetShaderResourcesFromBuffer_SRV(FD3D12CommandContext& CmdContext, 
 			const uint8 BindIndex = FRHIResourceTableEntry::GetBindIndex(ResourceInfo);
 
 			FD3D12ShaderResourceView* D3D12Resource = CmdContext.RetrieveObject<FD3D12ShaderResourceView>((FRHIShaderResourceView*)(Resources[ResourceIndex].GetReference()));
+
+#if ENABLE_RHI_VALIDATION
+			if (CmdContext.Tracker)
+			{
+				CmdContext.Tracker->Assert(D3D12Resource->ViewIdentity, SRVAccess);
+			}
+#endif
 
 			SetResource<ShaderFrequency>(CmdContext, BindIndex, D3D12Resource);
 			NumSetCalls++;
@@ -1471,6 +1472,10 @@ void FD3D12CommandContext::SetResourcesFromTables(const ShaderType* RESTRICT Sha
 template <EShaderFrequency ShaderFrequency>
 inline int32 SetShaderResourcesFromBuffer_UAVPS(FD3D12CommandContext& CmdContext, FD3D12UniformBuffer* RESTRICT Buffer, const uint32 * RESTRICT ResourceMap, int32 BufferIndex)
 {
+#if ENABLE_RHI_VALIDATION
+	constexpr ERHIAccess UAVAccess = (ShaderFrequency == SF_Compute) ? ERHIAccess::UAVCompute : ERHIAccess::UAVGraphics;
+#endif
+
 	const TRefCountPtr<FRHIResource>* RESTRICT Resources = Buffer->ResourceTable.GetData();
 	int32 NumSetCalls = 0;
 	const uint32 BufferOffset = ResourceMap[BufferIndex];
@@ -1487,6 +1492,14 @@ inline int32 SetShaderResourcesFromBuffer_UAVPS(FD3D12CommandContext& CmdContext
 			FRHIUnorderedAccessView* RHIUAV = (FRHIUnorderedAccessView*)(Resources[ResourceIndex].GetReference());
 
 			FD3D12UnorderedAccessView* D3D12Resource = CmdContext.RetrieveObject<FD3D12UnorderedAccessView>(RHIUAV);
+
+#if ENABLE_RHI_VALIDATION
+			if (CmdContext.Tracker)
+			{
+				CmdContext.Tracker->Assert(D3D12Resource->ViewIdentity, UAVAccess);
+			}
+#endif
+
 			SetResource<ShaderFrequency>(CmdContext, BindIndex, D3D12Resource);
 
 			NumSetCalls++;
@@ -1614,7 +1627,7 @@ void FD3D12CommandContext::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBufferRH
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
-	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
 	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
 	CommandListHandle->ExecuteIndirect(
@@ -1663,7 +1676,7 @@ void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, FR
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
-	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
 	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
 	CommandListHandle->ExecuteIndirect(
@@ -1747,7 +1760,7 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuff
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
-	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
 	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
 	CommandListHandle->ExecuteIndirect(
@@ -1835,19 +1848,6 @@ void FD3D12CommandContext::RHIClearMRTImpl(bool bClearColor, int32 NumClearColor
 	const bool ClearRTV = bClearColor && BoundRenderTargets.GetNumActiveTargets() > 0;
 	const bool ClearDSV = (bClearDepth || bClearStencil) && DepthStencilView;
 
-	if (ClearRTV)
-	{
-		for (int32 TargetIndex = 0; TargetIndex < BoundRenderTargets.GetNumActiveTargets(); TargetIndex++)
-		{
-			FD3D12RenderTargetView* RTView = BoundRenderTargets.GetRenderTargetView(TargetIndex);
-
-			if (RTView != nullptr)
-			{
-				FD3D12DynamicRHI::TransitionResource(CommandListHandle, RTView, D3D12_RESOURCE_STATE_RENDER_TARGET);
-			}
-		}
-	}
-
 	uint32 ClearFlags = 0;
 	if (ClearDSV)
 	{
@@ -1867,28 +1867,6 @@ void FD3D12CommandContext::RHIClearMRTImpl(bool bClearColor, int32 NumClearColor
 		else if (bClearStencil)
 		{
 			UE_LOG(LogD3D12RHI, Warning, TEXT("RHIClearMRTImpl: Asking to clear a DSV that does not store stencil."));
-		}
-
-		if (bClearDepth && (!DepthStencilView->HasStencil() || bClearStencil))
-		{
-			// Transition the entire view (Both depth and stencil planes if applicable)
-			// Some DSVs don't have stencil bits.
-			FD3D12DynamicRHI::TransitionResource(CommandListHandle, DepthStencilView, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-		}
-		else
-		{
-			if (bClearDepth)
-			{
-				// Transition just the depth plane
-				check(bClearDepth && !bClearStencil);
-				FD3D12DynamicRHI::TransitionResource(CommandListHandle, DepthStencilView->GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, DepthStencilView->GetDepthOnlyViewSubresourceSubset());
-			}
-			else
-			{
-				// Transition just the stencil plane
-				check(!bClearDepth && bClearStencil);
-				FD3D12DynamicRHI::TransitionResource(CommandListHandle, DepthStencilView->GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, DepthStencilView->GetStencilOnlyViewSubresourceSubset());
-			}
 		}
 	}
 
@@ -2105,8 +2083,8 @@ void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName,
 	for (int32 i = 0; i < NumTextures; i++)
 	{
 		// Resources must be in the COMMON state before using on the copy queue.
-		FD3D12DynamicRHI::TransitionResource(CommandListHandle, SrcTextures[i]->GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-		FD3D12DynamicRHI::TransitionResource(CommandListHandle, DstTextures[i]->GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+		FD3D12DynamicRHI::TransitionResource(CommandListHandle, SrcTextures[i]->GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
+		FD3D12DynamicRHI::TransitionResource(CommandListHandle, DstTextures[i]->GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
 	}
 	CommandListHandle.FlushResourceBarriers();
 
@@ -2140,8 +2118,8 @@ void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName,
 
 	for (int32 i = 0; i < NumTextures; i++)
 	{
-		FD3D12DynamicRHI::TransitionResource(CommandListHandle, SrcTextures[i]->GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-		FD3D12DynamicRHI::TransitionResource(CommandListHandle, DstTextures[i]->GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+		FD3D12DynamicRHI::TransitionResource(CommandListHandle, SrcTextures[i]->GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+		FD3D12DynamicRHI::TransitionResource(CommandListHandle, DstTextures[i]->GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 	}
 	CommandListHandle.FlushResourceBarriers();
 

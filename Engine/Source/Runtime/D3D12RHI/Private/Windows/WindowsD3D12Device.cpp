@@ -47,6 +47,25 @@ extern bool D3D12RHI_ShouldForceCompatibility();
 
 FD3D12DynamicRHI* GD3D12RHI = nullptr;
 
+bool GUseInternalTransitions = true;
+static FAutoConsoleVariableRef CVarUseInternalTransitions(
+	TEXT("r.D3D12.UseInternalTransitions"),
+	GUseInternalTransitions,
+	TEXT("Use the D3D12 RHI internal transitions to drive all resource transitions"),
+	ECVF_ReadOnly
+);
+
+#if UE_BUILD_SHIPPING || UE_BUILD_TEST
+bool GValidateInternalTransitions = false;
+#else
+bool GValidateInternalTransitions = true;
+#endif
+static FAutoConsoleVariableRef CVarValidateInternalTransitions(
+	TEXT("r.D3D12.ValidateInternalTransitions"),
+	GValidateInternalTransitions,
+	TEXT("Use the D3D12 RHI internal transitions to validate the engine pushed RHI transitions")
+);
+
 #if NV_AFTERMATH
 // Disabled by default since introduces stalls between render and driver threads
 int32 GDX12NVAfterMathEnabled = 0;

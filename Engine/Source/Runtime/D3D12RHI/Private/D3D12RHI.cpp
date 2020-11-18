@@ -329,7 +329,7 @@ void FD3D12DynamicRHI::UpdateBuffer(FD3D12Resource* Dest, uint32 DestOffset, FD3
 	FD3D12CommandContext& DefaultContext = Device->GetDefaultCommandContext();
 	FD3D12CommandListHandle& hCommandList = DefaultContext.CommandListHandle;
 
-	FConditionalScopeResourceBarrier ScopeResourceBarrierDest(hCommandList, Dest, D3D12_RESOURCE_STATE_COPY_DEST, 0);
+	FScopedResourceBarrier ScopeResourceBarrierDest(hCommandList, Dest, D3D12_RESOURCE_STATE_COPY_DEST, 0, FD3D12DynamicRHI::ETransitionMode::Apply);
 	// Don't need to transition upload heaps
 
 	DefaultContext.numCopies++;
@@ -575,91 +575,98 @@ uint64 FD3D12SubmissionGapRecorder::SubmitSubmissionTimestampsForFrame(uint32 Fr
 #endif
 		}
 
-		// Store the timestamp values
-		for (int i = 0; i < PrevFrameBeginSubmissionTimestamps.Num() - 1; i++)
+		if (PrevFrameBeginSubmissionTimestamps.Num() > 0)
 		{
-			FGapSpan GapSpan;
-
-			uint64 BeginTimestampPtr = PrevFrameEndSubmissionTimestamps[i];
-			uint64 EndTimestampPtr = PrevFrameBeginSubmissionTimestamps[i + 1];
-
-			GapSpan.BeginCycles = BeginTimestampPtr;
-			uint64 EndCycles = EndTimestampPtr;
-
-			// Check begin/end is contiguous
-			if (EndCycles < GapSpan.BeginCycles)
+			// Store the timestamp values
+			for (int i = 0; i < PrevFrameBeginSubmissionTimestamps.Num() - 1; i++)
 			{
-#if D3D12_SUBMISSION_GAP_RECORDER_DEBUG_INFO
-				UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("SubmitSubmissionTimestampsForFrame EndCycles occurs before BeginCycles not valid"));
-#endif
-				bValid = false;
-				break;
-			}
-			GapSpan.DurationCycles = EndCycles - GapSpan.BeginCycles;
+				FGapSpan GapSpan;
 
-			UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("GapSpan Begin %lu End %lu Duration %lu"),GapSpan.BeginCycles,EndCycles,GapSpan.DurationCycles);
+				uint64 BeginTimestampPtr = PrevFrameEndSubmissionTimestamps[i];
+				uint64 EndTimestampPtr = PrevFrameBeginSubmissionTimestamps[i + 1];
 
-			// Check gap spans are contiguous (TODO: we might want to modify this to support async compute submissions which overlap)
-			if (i > 0)
-			{
-				const FGapSpan& PrevGap = Frame.GapSpans[i - 1];
-				uint64 PrevGapEndCycles = PrevGap.BeginCycles + PrevGap.DurationCycles;
-				if (GapSpan.BeginCycles < PrevGapEndCycles)
+				GapSpan.BeginCycles = BeginTimestampPtr;
+				uint64 EndCycles = EndTimestampPtr;
+
+				// Check begin/end is contiguous
+				if (EndCycles < GapSpan.BeginCycles)
 				{
-					UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("SubmitSubmissionTimestampsForFrame Gap Span Begin Cycle is later than Prev Gap Cycle End not valid"));
+#if D3D12_SUBMISSION_GAP_RECORDER_DEBUG_INFO
+					UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("SubmitSubmissionTimestampsForFrame EndCycles occurs before BeginCycles not valid"));
+#endif
 					bValid = false;
 					break;
 				}
+				GapSpan.DurationCycles = EndCycles - GapSpan.BeginCycles;
+
+				UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("GapSpan Begin %lu End %lu Duration %lu"), GapSpan.BeginCycles, EndCycles, GapSpan.DurationCycles);
+
+				// Check gap spans are contiguous (TODO: we might want to modify this to support async compute submissions which overlap)
+				if (i > 0)
+				{
+					const FGapSpan& PrevGap = Frame.GapSpans[i - 1];
+					uint64 PrevGapEndCycles = PrevGap.BeginCycles + PrevGap.DurationCycles;
+					if (GapSpan.BeginCycles < PrevGapEndCycles)
+					{
+						UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("SubmitSubmissionTimestampsForFrame Gap Span Begin Cycle is later than Prev Gap Cycle End not valid"));
+						bValid = false;
+						break;
+					}
+				}
+
+				TotalWaitCycles += GapSpan.DurationCycles;
+
+				Frame.GapSpans.Add(GapSpan);
 			}
 
-			TotalWaitCycles += GapSpan.DurationCycles;
-
-			Frame.GapSpans.Add(GapSpan);
-		}
-
 #if D3D12_SUBMISSION_GAP_RECORDER_DEBUG_INFO
-		float Timing = (float)FGPUTiming::GetTimingFrequency();
+			float Timing = (float)FGPUTiming::GetTimingFrequency();
 
-		uint64 CurrSpan = 0;
-		uint64 TotalDuration = 0;
+			uint64 CurrSpan = 0;
+			uint64 TotalDuration = 0;
 
-		for (int i = 0; i < PrevFrameBeginSubmissionTimestamps.Num(); i++)
-		{
-			CurrSpan = PrevFrameEndSubmissionTimestamps[i] - PrevFrameBeginSubmissionTimestamps[i];
+			for (int i = 0; i < PrevFrameBeginSubmissionTimestamps.Num(); i++)
+			{
+				CurrSpan = PrevFrameEndSubmissionTimestamps[i] - PrevFrameBeginSubmissionTimestamps[i];
 
-			double CurrSpanSeconds = (CurrSpan / Timing);
-			double CurrSpanOutputTime = FMath::TruncToInt(CurrSpanSeconds / FPlatformTime::GetSecondsPerCycle());
+				double CurrSpanSeconds = (CurrSpan / Timing);
+				double CurrSpanOutputTime = FMath::TruncToInt(CurrSpanSeconds / FPlatformTime::GetSecondsPerCycle());
 
-			UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("Total GPU Duration for span Begin %lu End %lu Duration %lu Seconds %f"),
-				PrevFrameBeginSubmissionTimestamps[i],
-				PrevFrameEndSubmissionTimestamps[i],
-				CurrSpan,
-				(CurrSpanSeconds * 1000.0f));
-			TotalDuration += CurrSpan;
-		}
+				UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("Total GPU Duration for span Begin %lu End %lu Duration %lu Seconds %f"),
+					PrevFrameBeginSubmissionTimestamps[i],
+					PrevFrameEndSubmissionTimestamps[i],
+					CurrSpan,
+					(CurrSpanSeconds * 1000.0f));
+				TotalDuration += CurrSpan;
+			}
 
-		int32 len = PrevFrameEndSubmissionTimestamps.Num() - 1;
-		uint64 tbegin = PrevFrameBeginSubmissionTimestamps[0];
-		uint64 tend = PrevFrameEndSubmissionTimestamps[len];
-		uint64 duration = tend - tbegin;
-		double seconds = (duration / Timing);
-		double TotalDurationSeconds = (TotalDuration / Timing);
+			int32 len = PrevFrameEndSubmissionTimestamps.Num() - 1;
+			uint64 tbegin = PrevFrameBeginSubmissionTimestamps[0];
+			uint64 tend = PrevFrameEndSubmissionTimestamps[len];
+			uint64 duration = tend - tbegin;
+			double seconds = (duration / Timing);
+			double TotalDurationSeconds = (TotalDuration / Timing);
 
-		UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("Total GPU Duration for all Timestamps for Frame %u Cycles %lu Timing %f Milliseconds %f"),
-			FrameNumber,
-			TotalDuration,
-			Timing,
-			TotalDurationSeconds);
+			UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("Total GPU Duration for all Timestamps for Frame %u Cycles %lu Timing %f Milliseconds %f"),
+				FrameNumber,
+				TotalDuration,
+				Timing,
+				TotalDurationSeconds);
 
-		UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("Total GPU Duration from StartTimestamp %lu to EndTimestamp %lu Duration %lu MilliSeconds %f Timing %f"),
-			tbegin, 
-			tend, 
-			duration,
-			seconds,
-			Timing);
+			UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("Total GPU Duration from StartTimestamp %lu to EndTimestamp %lu Duration %lu MilliSeconds %f Timing %f"),
+				tbegin,
+				tend,
+				duration,
+				seconds,
+				Timing);
 
-		CSV_CUSTOM_STAT_GLOBAL(GPUTimestamps, float(TotalDurationSeconds * 1000.0f), ECsvCustomStatOp::Set);
+			CSV_CUSTOM_STAT_GLOBAL(GPUTimestamps, float(TotalDurationSeconds * 1000.0f), ECsvCustomStatOp::Set);
 #endif
+		}
+		else
+		{
+			bValid = false;
+		}
 	}
 
 	UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("SubmitSubmissionTimestampsForFrame Frame %u FN %u TotalWaitCycles %lu"), FrameCounter, FrameNumber, TotalWaitCycles);

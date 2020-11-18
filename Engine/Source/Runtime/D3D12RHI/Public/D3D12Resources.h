@@ -247,7 +247,7 @@ public:
 
 	struct FD3D12ResourceTypeHelper
 	{
-		FD3D12ResourceTypeHelper(D3D12_RESOURCE_DESC& Desc, D3D12_HEAP_TYPE HeapType) :
+		FD3D12ResourceTypeHelper(const D3D12_RESOURCE_DESC& Desc, D3D12_HEAP_TYPE HeapType) :
 			bSRV((Desc.Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) == 0),
 			bDSV((Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0),
 			bRTV((Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0),
@@ -258,41 +258,51 @@ public:
 			bReadBackResource(HeapType == D3D12_HEAP_TYPE_READBACK)
 		{}
 
-		const D3D12_RESOURCE_STATES GetOptimalInitialState(bool bAccurateWriteableStates) const
+		const D3D12_RESOURCE_STATES GetOptimalInitialState(ERHIAccess InResourceState, bool bAccurateWriteableStates) const
 		{
-			if (bSRVOnly)
+			// Ignore the requested resource state for non tracked resource because RHI will assume it's always in default resource 
+			// state then when a transition is required (will transition via scoped push/pop to requested state)
+			if (!bSRVOnly && InResourceState != ERHIAccess::Unknown)
 			{
-				return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+				bool bAsyncCompute = false;
+				return GetD3D12ResourceState(InResourceState, bAsyncCompute);
 			}
-			else if (bBuffer && !bUAV)
+			else
 			{
-				return (bReadBackResource) ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
-			}
-			else if (bWritable)
-			{
-				if (bAccurateWriteableStates)
+				if (bSRVOnly)
 				{
-					if (bDSV)
+					return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+				}
+				else if (bBuffer && !bUAV)
+				{
+					return (bReadBackResource) ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
+				}
+				else if (bWritable)
+				{
+					if (bAccurateWriteableStates)
 					{
-						return D3D12_RESOURCE_STATE_DEPTH_WRITE;
+						if (bDSV)
+						{
+							return D3D12_RESOURCE_STATE_DEPTH_WRITE;
+						}
+						else if (bRTV)
+						{
+							return D3D12_RESOURCE_STATE_RENDER_TARGET;
+						}
+						else if (bUAV)
+						{
+							return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+						}
 					}
-					else if (bRTV)
+					else
 					{
-						return D3D12_RESOURCE_STATE_RENDER_TARGET;
-					}
-					else if (bUAV)
-					{
-						return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+						// This things require tracking anyway
+						return D3D12_RESOURCE_STATE_COMMON;
 					}
 				}
-				else
-				{
-					// This things require tracking anyway
-					return D3D12_RESOURCE_STATE_COMMON;
-				}
-			}
 
-			return D3D12_RESOURCE_STATE_COMMON;
+				return D3D12_RESOURCE_STATE_COMMON;
+			}
 		}
 
 		const uint32 bSRV : 1;

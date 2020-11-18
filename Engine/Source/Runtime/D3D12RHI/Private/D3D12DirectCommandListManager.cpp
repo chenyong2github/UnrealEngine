@@ -663,11 +663,6 @@ void FD3D12CommandListManager::ExecuteCommandListInteral(TArray<FD3D12CommandLis
 	FD3D12CommandListHandle BarrierCommandList[128];
 	if (NeedsResourceBarriers)
 	{
-#if !USE_D3D12RHI_RESOURCE_STATE_TRACKING
-		// If we're using the engine's resource state tracking and barriers, then we should never have pending resource barriers.
-		check(false);
-#endif // !USE_D3D12RHI_RESOURCE_STATE_TRACKING
-
 #if UE_BUILD_DEBUG	
 		if (ResourceStateCS.TryLock())
 		{
@@ -910,7 +905,10 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FD3D12CommandList
 
 			Desc.Transition.Subresource = PRB.SubResource;
 			const D3D12_RESOURCE_STATES Before = ResourceState.GetSubresourceState(Desc.Transition.Subresource);
-			const D3D12_RESOURCE_STATES After = PRB.State;
+
+			// If state unknown then we don't enqueue a transition - only want to update the end state on the resource
+			// and not really enqueue a transition
+			const D3D12_RESOURCE_STATES After = (PRB.State != D3D12_RESOURCE_STATE_TBD) ? PRB.State : Before;
 
 			check(Before != D3D12_RESOURCE_STATE_TBD && Before != D3D12_RESOURCE_STATE_CORRUPT);
 			if (Before != After)

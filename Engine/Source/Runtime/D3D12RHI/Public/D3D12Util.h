@@ -281,6 +281,8 @@ static bool IsValidD3D12ResourceState(D3D12_RESOURCE_STATES InState)
 	return (InState != D3D12_RESOURCE_STATE_TBD && InState != D3D12_RESOURCE_STATE_CORRUPT);
 }
 
+D3D12_RESOURCE_STATES GetD3D12ResourceState(ERHIAccess InRHIAccess, bool InIsAsyncCompute);
+
 //==================================================================================================================================
 // CResourceState
 // Tracking of per-resource or per-subresource state
@@ -294,6 +296,7 @@ public:
 	bool CheckResourceState(D3D12_RESOURCE_STATES State) const;
 	bool CheckResourceStateInitalized() const;
 	D3D12_RESOURCE_STATES GetSubresourceState(uint32 SubresourceIndex) const;
+	bool CheckAllSubresourceSame();
 	void SetResourceState(D3D12_RESOURCE_STATES State);
 	void SetSubresourceState(uint32 SubresourceIndex, D3D12_RESOURCE_STATES State);
 
