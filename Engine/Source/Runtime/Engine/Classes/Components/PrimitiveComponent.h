@@ -820,19 +820,19 @@ public:
 	/** Get the mask filter checked when others move into us. */
 	FMaskFilter GetMaskFilterOnBodyInstance(FMaskFilter InMaskFilter) const { return BodyInstance.GetMaskFilter(); }
 
-	/** Set custom primitive data at index DataIndex. */
+	/** Set custom primitive data at index DataIndex. This sets the run-time data only, so it doesn't serialize. */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
 	void SetCustomPrimitiveDataFloat(int32 DataIndex, float Value);
 
-	/** Set custom primitive data, two floats at once, from index DataIndex to index DataIndex + 1. */
+	/** Set custom primitive data, two floats at once, from index DataIndex to index DataIndex + 1. This sets the run-time data only, so it doesn't serialize. */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
 	void SetCustomPrimitiveDataVector2(int32 DataIndex, FVector2D Value);
 
-	/** Set custom primitive data, three floats at once, from index DataIndex to index DataIndex + 2. */
+	/** Set custom primitive data, three floats at once, from index DataIndex to index DataIndex + 2. This sets the run-time data only, so it doesn't serialize. */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
 	void SetCustomPrimitiveDataVector3(int32 DataIndex, FVector Value);
 
-	/** Set custom primitive data, four floats at once, from index DataIndex to index DataIndex + 3. */
+	/** Set custom primitive data, four floats at once, from index DataIndex to index DataIndex + 3. This sets the run-time data only, so it doesn't serialize. */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
 	void SetCustomPrimitiveDataVector4(int32 DataIndex, FVector4 Value);
 
@@ -841,6 +841,28 @@ public:
 	 * @return The payload of custom data that will be set on the primitive and accessible in the material through a material expression.
 	 */
 	const FCustomPrimitiveData& GetCustomPrimitiveData() const { return CustomPrimitiveDataInternal; }
+
+	/** Set default custom primitive data at index DataIndex, and marks the render state dirty */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
+	void SetDefaultCustomPrimitiveDataFloat(int32 DataIndex, float Value);
+
+	/** Set default custom primitive data, two floats at once, from index DataIndex to index DataIndex + 1, and marks the render state dirty */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
+	void SetDefaultCustomPrimitiveDataVector2(int32 DataIndex, FVector2D Value);
+
+	/** Set default custom primitive data, three floats at once, from index DataIndex to index DataIndex + 2, and marks the render state dirty */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
+	void SetDefaultCustomPrimitiveDataVector3(int32 DataIndex, FVector Value);
+
+	/** Set default custom primitive data, four floats at once, from index DataIndex to index DataIndex + 3, and marks the render state dirty */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
+	void SetDefaultCustomPrimitiveDataVector4(int32 DataIndex, FVector4 Value);
+
+	/**
+	 * Get the default custom primitive data for this primitive component.
+	 * @return The payload of custom data that will be set on the primitive and accessible in the material through a material expression.
+	 */
+	const FCustomPrimitiveData& GetDefaultCustomPrimitiveData() const { return CustomPrimitiveData; }
 
 #if WITH_EDITOR
 	/** Override delegate used for checking the selection state of a component */
@@ -855,6 +877,9 @@ protected:
 
 	/** Insert an array of floats into the CustomPrimitiveData, starting at the given index */
 	void SetCustomPrimitiveDataInternal(int32 DataIndex, const TArray<float>& Values);
+
+	/** Insert an array of floats into the CustomPrimitiveData defaults, starting at the given index */
+	void SetDefaultCustomPrimitiveData(int32 DataIndex, const TArray<float>& Values);
 
 	/** Set of components that this component is currently overlapping. */
 	TArray<FOverlapInfo> OverlappingComponents;
