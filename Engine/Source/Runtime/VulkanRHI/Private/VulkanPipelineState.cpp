@@ -439,7 +439,7 @@ auto GetVkDescriptorTypeString = [](VkDescriptorType Type)
 
 		uint32 TailCount = Writes % 32;
 		check(TailCount != 0);
-		uint32 TailMask = 1llu << TailCount;
+		uint32 TailMask = (1llu << TailCount)-1;
 		bFail = bFail || TailMask != WrittenMask[Last];
 	}
 
