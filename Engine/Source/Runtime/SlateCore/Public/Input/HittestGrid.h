@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "FastUpdate/SlateInvalidationWidgetSortOrder.h"
 #include "Layout/SlateRect.h"
 #include "Layout/ArrangedWidget.h"
 #include "Layout/Clipping.h"
@@ -78,13 +79,16 @@ public:
 	void Clear();
 
 	/** Add SWidget from the HitTest Grid */
-	void AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchPriorityGroup, int32 InLayerId, int32 InSecondarySort);
+	void AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchPriorityGroup, int32 InLayerId, FSlateInvalidationWidgetSortOrder InSecondarySort);
 
 	/** Remove SWidget from the HitTest Grid */
 	void RemoveWidget(const TSharedRef<SWidget>& InWidget);
 
 	/** Remove SWidget from the HitTest Grid */
 	void RemoveWidget(const SWidget* InWidget);
+
+	/** Update the widget SecondarySort without removing it and readding it again. */
+	void UpdateWidget(const TSharedRef<SWidget>& InWidget, FSlateInvalidationWidgetSortOrder InSecondarySort);
 
 	/** Append an already existing grid that occupy the same space. */
 	UE_DEPRECATED(4.26, "Deprecated. Use the FHittestGrid::AddGrid method instead")
@@ -134,6 +138,14 @@ public:
 		UseFocusBrush = 1 << 2,
 	};
 	void DisplayGrid(int32 InLayer, const FGeometry& AllottedGeometry, FSlateWindowElementList& WindowElementList, EDisplayGridFlags DisplayFlags = EDisplayGridFlags::UseFocusBrush) const;
+
+	struct FWidgetSortData
+	{
+		const TWeakPtr<SWidget> WeakWidget;
+		int64 PrimarySort;
+		FSlateInvalidationWidgetSortOrder SecondarySort;
+	};
+	TArray<FWidgetSortData> GetAllWidgetSortDatas() const;
 #endif
 
 private:
@@ -142,7 +154,7 @@ private:
 	 */
 	struct FWidgetData
 	{
-		FWidgetData(TSharedRef<SWidget> InWidget, const FIntPoint& InUpperLeftCell, const FIntPoint& InLowerRightCell, int64 InPrimarySort, int32 InSecondarySort, int32 InUserIndex)
+		FWidgetData(TSharedRef<SWidget> InWidget, const FIntPoint& InUpperLeftCell, const FIntPoint& InLowerRightCell, int64 InPrimarySort, FSlateInvalidationWidgetSortOrder InSecondarySort, int32 InUserIndex)
 			: WeakWidget(InWidget)
 			, UpperLeftCell(InUpperLeftCell)
 			, LowerRightCell(InLowerRightCell)
@@ -155,7 +167,7 @@ private:
 		FIntPoint UpperLeftCell;
 		FIntPoint LowerRightCell;
 		int64 PrimarySort;
-		int32 SecondarySort;
+		FSlateInvalidationWidgetSortOrder SecondarySort;
 		int32 UserIndex;
 
 		TSharedPtr<SWidget> GetWidget() const { return WeakWidget.Pin(); }

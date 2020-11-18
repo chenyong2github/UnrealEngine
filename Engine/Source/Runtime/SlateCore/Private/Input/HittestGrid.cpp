@@ -652,7 +652,7 @@ bool FHittestGrid::SameSize(const FHittestGrid* OtherGrid) const
 	return GridOrigin == OtherGrid->GridOrigin && GridWindowOrigin == OtherGrid->GridWindowOrigin && GridSize == OtherGrid->GridSize;
 }
 
-void FHittestGrid::AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchPriorityGroup, int32 InLayerId, int32 InSecondarySort)
+void FHittestGrid::AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchPriorityGroup, int32 InLayerId, FSlateInvalidationWidgetSortOrder InSecondarySort)
 {
 	if (!InWidget->GetVisibility().IsHitTestVisible())
 	{
@@ -741,6 +741,14 @@ void FHittestGrid::RemoveWidget(const SWidget* InWidget)
 	}
 
 	RemoveGrid(InWidget);
+}
+
+void FHittestGrid::UpdateWidget(const TSharedRef<SWidget>& InWidget, FSlateInvalidationWidgetSortOrder InSecondarySort)
+{
+	if (int32* FoundWidgetIndex = WidgetMap.Find(&*InWidget))
+	{
+		WidgetArray[*FoundWidgetIndex].SecondarySort = InSecondarySort;
+	}
 }
 
 void FHittestGrid::InsertCustomHitTestPath(const TSharedRef<SWidget> InWidget, TSharedRef<ICustomHitTestPath> CustomHitTestPath)
@@ -1038,6 +1046,18 @@ void FHittestGrid::DisplayGrid(int32 InLayer, const FGeometry& AllottedGeometry,
 			}
 		}
 	}
+}
+
+TArray<FHittestGrid::FWidgetSortData> FHittestGrid::GetAllWidgetSortDatas() const
+{
+	TArray<FWidgetSortData> Result;
+	Result.Reserve(WidgetArray.Num());
+	for (const FWidgetData& WidgetData : WidgetArray)
+	{
+		FWidgetSortData WidgetSortData = { WidgetData.WeakWidget, WidgetData.PrimarySort, WidgetData.SecondarySort };
+		Result.Add(MoveTemp(WidgetSortData));
+	}
+	return Result;
 }
 #endif // WITH_SLATE_DEBUGGING
 

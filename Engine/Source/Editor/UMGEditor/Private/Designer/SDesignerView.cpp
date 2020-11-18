@@ -5,6 +5,7 @@
 #include "Components/PanelWidget.h"
 #include "Misc/ConfigCacheIni.h"
 #include "WidgetBlueprint.h"
+#include "FastUpdate/SlateInvalidationWidgetSortOrder.h"
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBorder.h"
@@ -2145,7 +2146,7 @@ void SDesignerView::PopulateWidgetGeometryCache_Loop(FArrangedWidget& CurrentWid
 
 	if (bIncludeInHitTestGrid)
 	{
-		DesignerHittestGrid->AddWidget(CurrentWidget.Widget, 0, 0, 0);
+		DesignerHittestGrid->AddWidget(CurrentWidget.Widget, 0, 0, FSlateInvalidationWidgetSortOrder());
 	}
 
 	FArrangedChildren ArrangedChildren(EVisibility::All);

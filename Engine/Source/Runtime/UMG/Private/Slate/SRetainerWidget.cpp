@@ -271,7 +271,7 @@ void SRetainerWidget::RefreshRenderingMode()
 	if ( bEnableRetainedRendering != bShouldBeRenderingOffscreen )
 	{
 		bEnableRetainedRendering = bShouldBeRenderingOffscreen;
-		InvalidateChildOrder();
+		InvalidateRoot();
 	}
 }
 
