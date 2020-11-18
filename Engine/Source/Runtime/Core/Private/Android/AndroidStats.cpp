@@ -161,23 +161,27 @@ CSV_DEFINE_STAT(AndroidMemory, TrimMemoryForegroundLevel);
 static int GMemoryWarningStatus = 0;
 CSV_DEFINE_STAT(AndroidMemory, MemoryWarningState);
 
-void FAndroidStats::Init()
+void FAndroidStats::Init(bool bEnableHWCPipe)
 {
+	(void)bEnableHWCPipe;
 #if HWCPIPE_SUPPORTED
-	static hwcpipe::HWCPipe HWCPipe({}, {hwcpipe::GpuCounter::GpuCycles,
-										 hwcpipe::GpuCounter::VertexComputeCycles,
-										 hwcpipe::GpuCounter::FragmentCycles,
-										 hwcpipe::GpuCounter::Pixels,
-										 hwcpipe::GpuCounter::ShaderCycles,
-										 hwcpipe::GpuCounter::ShaderArithmeticCycles,
-										 hwcpipe::GpuCounter::ShaderLoadStoreCycles,
-										 hwcpipe::GpuCounter::ShaderTextureCycles,
-										 hwcpipe::GpuCounter::ExternalMemoryReadBytes,
-										 hwcpipe::GpuCounter::ExternalMemoryWriteBytes,});
-	if (hwcpipe::get_last_error() == nullptr)
+	if (bEnableHWCPipe)
 	{
-		GHWCPipe = &HWCPipe;
-		GHWCPipe->run();
+		static hwcpipe::HWCPipe HWCPipe({}, {hwcpipe::GpuCounter::GpuCycles,
+											 hwcpipe::GpuCounter::VertexComputeCycles,
+											 hwcpipe::GpuCounter::FragmentCycles,
+											 hwcpipe::GpuCounter::Pixels,
+											 hwcpipe::GpuCounter::ShaderCycles,
+											 hwcpipe::GpuCounter::ShaderArithmeticCycles,
+											 hwcpipe::GpuCounter::ShaderLoadStoreCycles,
+											 hwcpipe::GpuCounter::ShaderTextureCycles,
+											 hwcpipe::GpuCounter::ExternalMemoryReadBytes,
+											 hwcpipe::GpuCounter::ExternalMemoryWriteBytes,});
+		if (hwcpipe::get_last_error() == nullptr)
+		{
+			GHWCPipe = &HWCPipe;
+			GHWCPipe->run();
+		}
 	}
 #endif
 }
@@ -409,9 +413,9 @@ void FAndroidStats::UpdateAndroidStats()
 	static const FName ThermalStatus = GET_STATFNAME(STAT_ThermalStatus);
 	SET_FLOAT_STAT_BY_FNAME(CPUStatName, CPUTemp);
 	SET_FLOAT_STAT_BY_FNAME(ThermalStatus, GThermalStatus);
+#endif
 
 	UpdateGPUStats();
-#endif
 }
 
 static void UpdateGPUStats()
