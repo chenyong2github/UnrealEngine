@@ -160,6 +160,10 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 	// define all parameters independent from sorted nodes
 	for (const FRigVMExprAST* Expr : AST->Expressions)
 	{
+		if (Expr->IsA(FRigVMExprAST::EType::Literal))
+		{
+			continue;
+		}
 		if (Expr->IsA(FRigVMExprAST::EType::Var))
 		{
 			const FRigVMVarExprAST* VarExpr = Expr->To<FRigVMVarExprAST>();
@@ -811,6 +815,7 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 				FRigVMOperand WatchOperand = FindOrAddRegister(SourceExpr, WorkData, true /*debug watch*/);
 				if (WatchOperand.IsValid())
 				{
+					Source.RegisterOffset = INDEX_NONE;
 					WorkData.VM->GetByteCode().AddCopyOp(Source, WatchOperand);
 				}
 			}
@@ -823,6 +828,7 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 				FRigVMOperand WatchOperand = FindOrAddRegister(TargetExpr, WorkData, true /*debug watch*/);
 				if (WatchOperand.IsValid())
 				{
+					Target.RegisterOffset = INDEX_NONE;
 					WorkData.VM->GetByteCode().AddCopyOp(Target, WatchOperand);
 				}
 			}
@@ -1261,7 +1267,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 	FString RegisterKey = Hash;
 
 	bool bIsExecutePin = Pin->IsExecuteContext();
-	bool bIsLiteral = InVarExpr->GetType() == FRigVMExprAST::EType::Literal;
+	bool bIsLiteral = InVarExpr->GetType() == FRigVMExprAST::EType::Literal && !bIsDebugValue;
 	bool bIsParameter = InVarExpr->IsGraphParameter();
 
 	FRigVMOperand const* ExistingOperand = WorkData.PinPathToOperand->Find(Hash);
@@ -1635,7 +1641,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 			}
 		}
 
-		if (bIsParameter)
+		if (bIsParameter && !bIsLiteral)
 		{
 			URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Pin->GetNode());
 			check(ParameterNode);

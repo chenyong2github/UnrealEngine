@@ -25,10 +25,12 @@ class FRigVMIfExprAST;
 class FRigVMSelectExprAST;
 
 class URigVMPin;
-class URigVMNode;
 class URigVMLink;
+class URigVMNode;
 class URigVMGraph;
 class URigVMController;
+
+typedef TPair<URigVMPin*, URigVMPin*> FRigVMPinPair;
 
 /*
  * Base class for an expression within an abstract syntax tree.
@@ -1087,10 +1089,6 @@ struct RIGVMDEVELOPER_API FRigVMParserASTSettings
 {
 	GENERATED_BODY()
 
-	// remove no op nodes - used for reroutes and other expressions.
-	UPROPERTY(EditAnywhere, Category = "AST")
-	bool bFoldReroutes;
-
 	// fold assignments / copies
 	UPROPERTY(EditAnywhere, Category = "AST")
 	bool bFoldAssignments;
@@ -1111,7 +1109,6 @@ struct RIGVMDEVELOPER_API FRigVMParserASTSettings
 	static FRigVMParserASTSettings Fast()
 	{
 		FRigVMParserASTSettings Settings;
-		Settings.bFoldReroutes = false;
 		Settings.bFoldAssignments = false;
 		Settings.bFoldLiterals = false;
 		Settings.bFoldConstantBranches = false;
@@ -1123,7 +1120,6 @@ struct RIGVMDEVELOPER_API FRigVMParserASTSettings
 	static FRigVMParserASTSettings Optimized()
 	{
 		FRigVMParserASTSettings Settings;
-		Settings.bFoldReroutes = true;
 		Settings.bFoldAssignments = true;
 		Settings.bFoldLiterals = true;
 		Settings.bFoldConstantBranches = true;
@@ -1198,8 +1194,8 @@ public:
 	FString DumpDot() const;
 
 	// returns an obsolete block for unmanaged expression
-	FRigVMBlockExprAST* GetObsoleteBlock();
-	const FRigVMBlockExprAST* GetObsoleteBlock() const;
+	FRigVMBlockExprAST* GetObsoleteBlock(bool bCreateIfMissing = true);
+	const FRigVMBlockExprAST* GetObsoleteBlock(bool bCreateIfMissing = true) const;
 
 	// returns the AST's override table for pin defaults
 	const URigVMPin::FDefaultValueOverride& GetPinDefaultOverrides() const { return PinDefaultValueOverrides; }
@@ -1287,7 +1283,7 @@ private:
 	// helper function to refresh the expression indices (used after deleting an expression)
 	void RefreshExprIndices();
 
-	// helper function to fold / remove the no op expressions
+	// helper function to fold / remove the no op expressions (parameters mostly)
 	void FoldNoOps();
 
 	// helper function to fold / merge redundant literals with the same value
@@ -1301,6 +1297,16 @@ private:
 
 	// helper function to fold unreachable branches 
 	bool FoldUnreachableBranches(URigVMGraph* InGraph);
+
+	// helper function to inline all contributing nodes of the graph
+	void Inline(URigVMGraph* InGraph);
+	void Inline(URigVMGraph* InGraph, const TArray<URigVMNode*>& InNodes);
+
+	// helper functions to retrieve links for a given pin
+	const TArray<URigVMPin*>& GetSourcePins(URigVMPin* InPin) const;
+	const TArray<URigVMPin*>& GetTargetPins(URigVMPin* InPin) const;
+	TArray<FRigVMPinPair> GetSourceLinks(URigVMPin* InPin, bool bRecursive = false) const;
+	TArray<FRigVMPinPair> GetTargetLinks(URigVMPin* InPin, bool bRecursive = false) const;
 
 	// traverse a single mutable node (constructs entry, call extern and other expressions)
 	FRigVMExprAST* TraverseMutableNode(URigVMNode* InNode, FRigVMExprAST* InParentExpr);
@@ -1318,7 +1324,11 @@ private:
 	FRigVMExprAST* TraversePin(URigVMPin* InPin, FRigVMExprAST* InParentExpr);
 
 	// traverse a single link (constructs assign + copy expressions)
-	FRigVMExprAST* TraverseLink(URigVMLink* InLink, FRigVMExprAST* InParentExpr);
+	FRigVMExprAST* TraverseLink(const FRigVMPinPair& InLink, FRigVMExprAST* InParentExpr);
+
+	bool ShouldLinkBeSkipped(const FRigVMPinPair& InLink) const;
+
+	static FString GetLinkAsString(const FRigVMPinPair& InLink);
 
 	TMap<UObject*, FRigVMExprAST*> SubjectToExpression;
 	TMap<UObject*, int32> NodeExpressionIndex;
@@ -1326,6 +1336,10 @@ private:
 	TArray<FRigVMExprAST*> RootExpressions;
 	FRigVMBlockExprAST* ObsoleteBlock;
 
+	TArray<URigVMNode*> Nodes;
+	TMap<URigVMPin*, TArray<URigVMPin*>> TargetLinks;
+	TMap<URigVMPin*, TArray<URigVMPin*>> SourceLinks;
+	static const TArray<URigVMPin*> EmptyLinks;
 	URigVMPin::FDefaultValueOverride PinDefaultValueOverrides;
 
 	enum ETraverseRelationShip

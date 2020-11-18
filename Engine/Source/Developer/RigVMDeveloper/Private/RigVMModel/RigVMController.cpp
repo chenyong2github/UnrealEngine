@@ -972,10 +972,6 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnPin(const FString& InPinPat
 
 	ForEveryPinRecursively(ValuePin, [](URigVMPin* Pin) {
 		Pin->bIsExpanded = true;
-		if (Pin->GetParentPin() != nullptr)
-		{
-			Pin->Direction = ERigVMPinDirection::Visible;
-		}
 	});
 
 	Graph->Nodes.Add(Node);
