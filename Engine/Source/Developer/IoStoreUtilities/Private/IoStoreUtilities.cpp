@@ -578,34 +578,29 @@ using FPackageIdMap = TMap<FPackageId, FPackage*>;
 using FSourceToLocalizedPackageMultimap = TMultiMap<FPackage*, FPackage*>;
 using FLocalizedToSourceImportIndexMap = TMap<FPackageObjectIndex, FPackageObjectIndex>;
 
-static constexpr TCHAR L10NPrefix[] = TEXT("/Game/L10N/");
+static constexpr TCHAR L10NString[] = TEXT("/L10N/");
 static constexpr TCHAR ScriptPrefix[] = TEXT("/Script/");
 
 // modified copy from PakFileUtilities
 static FString RemapLocalizationPathIfNeeded(const FString& Path, FString* OutRegion)
 {
-	static constexpr int32 L10NPrefixLength = sizeof(L10NPrefix)/sizeof(TCHAR) - 1;
+	static constexpr int32 L10NPrefixLength = sizeof(L10NString) / sizeof(TCHAR) - 1;
 
-	int32 FoundIndex = Path.Find(L10NPrefix, ESearchCase::IgnoreCase);
-	if (FoundIndex >= 0)
+	int32 BeginL10NOffset = Path.Find(L10NString, ESearchCase::IgnoreCase);
+	if (BeginL10NOffset >= 0)
 	{
-		// Validate the content index is the first one
-		int32 ContentIndex = Path.Find(TEXT("/Game/"), ESearchCase::IgnoreCase);
-		if (ContentIndex == FoundIndex)
+		int32 EndL10NOffset = BeginL10NOffset + L10NPrefixLength;
+		int32 NextSlashIndex = Path.Find(TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromStart, EndL10NOffset);
+		int32 RegionLength = NextSlashIndex - EndL10NOffset;
+		if (RegionLength >= 2)
 		{
-			int32 EndL10NOffset = ContentIndex + L10NPrefixLength;
-			int32 NextSlashIndex = Path.Find(TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromStart, EndL10NOffset);
-			int32 RegionLength = NextSlashIndex - EndL10NOffset;
-			if (RegionLength >= 2)
+			FString NonLocalizedPath = Path.Mid(0, BeginL10NOffset) + Path.Mid(NextSlashIndex);
+			if (OutRegion)
 			{
-				FString NonLocalizedPath = Path.Mid(0, ContentIndex) + TEXT("/Game") + Path.Mid(NextSlashIndex);
-				if (OutRegion)
-				{
-					*OutRegion = Path.Mid(EndL10NOffset, RegionLength);
-					OutRegion->ToLowerInline();
-				}
-				return NonLocalizedPath;
+				*OutRegion = Path.Mid(EndL10NOffset, RegionLength);
+				OutRegion->ToLowerInline();
 			}
+			return NonLocalizedPath;
 		}
 	}
 	return Path;
