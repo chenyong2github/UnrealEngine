@@ -115,7 +115,6 @@ FInputActionInstance& UEnhancedPlayerInput::ProcessActionValue(const UInputActio
 		if (bResetActionData)
 		{
 			ActionsWithEventsThisTick.Add(Action);
-			ActionData.ElapsedProcessedTime = 0.f;
 			ActionData.Value.Reset();	// TODO: what if default value isn't 0 (e.g. bool value with negate modifier). Move reset out to a pre-pass? This may be confusing as triggering requires key interaction for value processing for performance reasons.
 		}
 
@@ -304,7 +303,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		}
 
 		// Evaluate time per action after establishing the internal trigger state across all mappings
-		ActionData.ElapsedTriggeredTime = ActionData.TriggerEvent != ETriggerEvent::Triggered ? 0.f : ActionData.ElapsedTriggeredTime + DeltaTime;
+		ActionData.ElapsedTriggeredTime += (ActionData.TriggerEvent == ETriggerEvent::Triggered) ? DeltaTime : 0.f;
 	}
 
 
@@ -402,6 +401,24 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 			{
 				Binding.CurrentValue.Reset();
 			}
+		}
+	}
+
+	// Reset action instance timers where necessary post delegate calls
+	for (TPair<const UInputAction*, FInputActionInstance>& ActionPair : ActionInstanceData)
+	{
+		FInputActionInstance& ActionData = ActionPair.Value;
+		switch (ActionData.TriggerEvent)
+		{
+		case ETriggerEvent::None:
+		case ETriggerEvent::Canceled:
+		case ETriggerEvent::Completed:
+			ActionData.ElapsedProcessedTime = 0.f;
+			break;
+		}
+		if (ActionData.TriggerEvent != ETriggerEvent::Triggered)
+		{
+			ActionData.ElapsedTriggeredTime = 0.f;
 		}
 	}
 }
