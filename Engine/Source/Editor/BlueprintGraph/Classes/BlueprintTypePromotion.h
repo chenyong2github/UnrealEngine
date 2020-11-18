@@ -99,6 +99,8 @@ public:
 
 	static void ClearNodeSpawners();
 
+	static const TMap<FName, TArray<FName>>* const GetPrimativePromotionTable();
+
 private:
 
 	explicit FTypePromotion();

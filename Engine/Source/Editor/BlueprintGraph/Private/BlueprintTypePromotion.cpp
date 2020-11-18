@@ -98,6 +98,16 @@ void FTypePromotion::CreatePromotionTable()
 	};
 }
 
+const TMap<FName, TArray<FName>>* const FTypePromotion::GetPrimativePromotionTable()
+{
+	if (Instance)
+	{
+		return &Instance->PromotionTable;
+	}
+
+	return nullptr;
+}
+
 bool FTypePromotion::IsValidPromotion(const FEdGraphPinType& A, const FEdGraphPinType& B)
 {
 	// If either of these pin types is a struct, than we have to have some kind of valid
