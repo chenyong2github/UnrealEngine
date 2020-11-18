@@ -126,6 +126,21 @@ void PrintFloatNoFractionLarge(int2 PixelPos, inout float3 OutColor, float3 Font
 	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 10));
 	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 1));
 }
+void PrintFloatNoFraction(int2 PixelPos, inout float3 OutColor, float3 FontColor, int2 LeftTop, float Number, uint DigitCount)
+{
+	int2 Cursor = LeftTop;
+
+	uint DigitValue = 1;
+	for (int i = 0; i < DigitCount-1; ++i)
+	{
+		DigitValue *= 10;
+	}
+	for (int i = 0; i < DigitCount; ++i)
+	{
+		PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, DigitValue));
+		DigitValue /= 10;
+	}
+}
 
 // for printf debugging in the shader, has to be positive (other abs is taken)
 // outputs a float number in the form: xx.yy
