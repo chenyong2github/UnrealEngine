@@ -495,33 +495,40 @@ namespace Chaos
 								NormalColor = FColor(100, 100, 100);
 							}
 
-							const FVec3 SpacePointLocation = SpaceTransform.TransformPosition(PointLocation);
-							const FVec3 SpacePlaneLocation = SpaceTransform.TransformPosition(PlaneLocation);
-							const FVec3 SpacePointPlaneLocation = SpaceTransform.TransformPosition(PointPlaneLocation);
-							const FVec3 SpaceOldPointPlaneLocation = SpaceTransform.TransformPosition(OldPointPlaneLocation);
-							const FVec3 SpacePlaneNormal = SpaceTransform.TransformVectorNoScale(PlaneNormal);
+							const FVec3 WorldPointLocation = SpaceTransform.TransformPosition(PointLocation);
+							const FVec3 WorldPlaneLocation = SpaceTransform.TransformPosition(PlaneLocation);
+							const FVec3 WorldPointPlaneLocation = SpaceTransform.TransformPosition(PointPlaneLocation);
+							const FVec3 WorldOldPointPlaneLocation = SpaceTransform.TransformPosition(OldPointPlaneLocation);
+							const FVec3 WorldPlaneNormal = SpaceTransform.TransformVectorNoScale(PlaneNormal);
 
 							// Pushout
 							if ((Settings.ImpulseScale > 0) && !ManifoldPoint.NetPushOut.IsNearlyZero())
 							{
 								FColor Color = (ColorScale * PushOutImpusleColor).ToFColor(false);
-								FDebugDrawQueue::GetInstance().DrawDebugLine(SpacePointPlaneLocation, SpacePointPlaneLocation + Settings.DrawScale * ManifoldPoint.NetPushOut, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+								FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPointPlaneLocation, WorldPointPlaneLocation + Settings.DrawScale * ManifoldPoint.NetPushOut, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 							}
-							if ((Settings.ImpulseScale > 0) && !FMath::IsNearlyZero(ManifoldPoint.NetPushOutImpulse))
+							if ((Settings.ImpulseScale > 0) && !FMath::IsNearlyZero(ManifoldPoint.NetPushOutImpulseNormal))
 							{
 								FColor Color = (ColorScale * PushOutImpusleColor).ToFColor(false);
-								FDebugDrawQueue::GetInstance().DrawDebugLine(SpacePointPlaneLocation, SpacePointPlaneLocation + Settings.DrawScale * Settings.ImpulseScale * ManifoldPoint.NetPushOutImpulse * SpacePlaneNormal, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+								FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPointPlaneLocation, WorldPointPlaneLocation + Settings.DrawScale * Settings.ImpulseScale * ManifoldPoint.NetPushOutImpulseNormal * WorldPlaneNormal, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+							}
+							if ((Settings.ImpulseScale > 0) && !FMath::IsNearlyZero(ManifoldPoint.NetPushOutImpulseTangent))
+							{
+								const FColor Color = (ColorScale * PushOutImpusleColor).ToFColor(false);
+								const FVec3 Tangent = (ManifoldPoint.NetPushOut - FVec3::DotProduct(ManifoldPoint.NetPushOut, ManifoldPoint.ContactPoint.Normal) * ManifoldPoint.ContactPoint.Normal).GetSafeNormal();
+								const FVec3 WorldTangent = SpaceTransform.TransformVectorNoScale(Tangent);
+								FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPointPlaneLocation, WorldPointPlaneLocation + Settings.DrawScale * Settings.ImpulseScale * ManifoldPoint.NetPushOutImpulseTangent * WorldTangent, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 							}
 
 							// Static friction error
-							FDebugDrawQueue::GetInstance().DrawDebugLine(SpacePointPlaneLocation, SpaceOldPointPlaneLocation, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+							FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPointPlaneLocation, WorldOldPointPlaneLocation, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 
 							// Manifold plane and normal
-							DrawCollisionImpl(SpacePlaneLocation, SpacePlaneNormal, ManifoldPoint.ContactPoint.Phi, ManifoldPoint.NetImpulse, DiscColor, NormalColor, ImpulseColor, ColorScale, Settings);
+							DrawCollisionImpl(WorldPlaneLocation, WorldPlaneNormal, ManifoldPoint.ContactPoint.Phi, ManifoldPoint.NetImpulse, DiscColor, NormalColor, ImpulseColor, ColorScale, Settings);
 
 							// Manifold point
-							FMatrix Axes = FRotationMatrix::MakeFromX(SpacePlaneNormal);
-							FDebugDrawQueue::GetInstance().DrawDebugCircle(SpacePointLocation, 0.5f * Settings.DrawScale * Settings.ContactWidth, 12, DiscColor, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
+							FMatrix Axes = FRotationMatrix::MakeFromX(WorldPlaneNormal);
+							FDebugDrawQueue::GetInstance().DrawDebugCircle(WorldPointLocation, 0.5f * Settings.DrawScale * Settings.ContactWidth, 12, DiscColor, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
 						}
 					}
 					else
