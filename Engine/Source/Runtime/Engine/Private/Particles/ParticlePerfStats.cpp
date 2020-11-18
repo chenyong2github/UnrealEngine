@@ -17,6 +17,10 @@
 #include "Misc/OutputDeviceArchiveWrapper.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/ProfilingHelpers.h"
+#include "Containers/UnrealString.h"
+#include "Misc/Paths.h"
+#include "CanvasTypes.h"
+#include "Engine/Font.h"
 
 namespace ParticlePerfStatsLocal
 {
