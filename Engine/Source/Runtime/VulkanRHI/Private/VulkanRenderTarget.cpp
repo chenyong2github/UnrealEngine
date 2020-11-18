@@ -12,6 +12,17 @@
 #include "SceneUtils.h"
 #include "RHISurfaceDataConversion.h"
 
+static int32 GVulkanFlushOnMapStaging = 0;
+static FAutoConsoleVariableRef CVarGVulkanFlushOnMapStaging(
+	TEXT("r.Vulkan.FlushOnMapStaging"),
+	GVulkanFlushOnMapStaging,
+	TEXT("Flush GPU on MapStagingSurface calls without any fence.\n")
+	TEXT(" 0: Do not Flush (default)\n")
+	TEXT(" 1: Flush"),
+	ECVF_Default
+);
+
+
 static int32 GSubmitOnCopyToResolve = 0;
 static FAutoConsoleVariableRef CVarVulkanSubmitOnCopyToResolve(
 	TEXT("r.Vulkan.SubmitOnCopyToResolve"),
@@ -457,13 +468,18 @@ void FVulkanDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFen
 
 	if (FenceRHI && !FenceRHI->Poll())
 	{
+		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 		Device->SubmitCommandsAndFlushGPU();
 		FVulkanGPUFence* Fence = ResourceCast(FenceRHI);
 		Device->GetImmediateContext().GetCommandBufferManager()->WaitForCmdBuffer(Fence->GetCmdBuffer());
 	}
 	else
 	{
-		Device->WaitUntilIdle();
+		if(GVulkanFlushOnMapStaging)
+		{
+			FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+			Device->WaitUntilIdle();
+		}
 	}
 
 
