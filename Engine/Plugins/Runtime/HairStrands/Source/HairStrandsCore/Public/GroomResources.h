@@ -11,6 +11,11 @@
 #include "HairStrandsInterface.h"
 #include "HairStrandsMeshProjection.h"
 
+inline uint32 GetBufferTotalNumBytes(const FRDGExternalBuffer& In) 
+{
+	return In.Buffer ? In.Buffer->Desc.GetTotalNumBytes() : 0;
+}
+
 /* Render buffers for root deformation for dynamic meshes */
 struct FHairStrandsRestRootResource : public FRenderResource
 {
@@ -29,6 +34,27 @@ struct FHairStrandsRestRootResource : public FRenderResource
 
 	/* Populate GPU LOD data from RootData (this function doesn't initialize resources) */
 	void PopulateFromRootData();
+
+	/* Return the memory size for GPU resources */
+	uint32 GetResourcesSize() const 
+	{
+		uint32 Total = 0;
+		Total += GetBufferTotalNumBytes(RootNormalBuffer);
+		Total += GetBufferTotalNumBytes(RootNormalBuffer);
+		Total += GetBufferTotalNumBytes(VertexToCurveIndexBuffer);
+		for (const FLOD& LOD : LODs)
+		{
+			Total += GetBufferTotalNumBytes(LOD.RootTriangleIndexBuffer);
+			Total += GetBufferTotalNumBytes(LOD.RootTriangleBarycentricBuffer);
+			Total += GetBufferTotalNumBytes(LOD.RestRootTrianglePosition0Buffer);
+			Total += GetBufferTotalNumBytes(LOD.RestRootTrianglePosition1Buffer);
+			Total += GetBufferTotalNumBytes(LOD.RestRootTrianglePosition2Buffer);
+			Total += GetBufferTotalNumBytes(LOD.MeshInterpolationWeightsBuffer);
+			Total += GetBufferTotalNumBytes(LOD.MeshSampleIndicesBuffer);
+			Total += GetBufferTotalNumBytes(LOD.RestSamplePositionsBuffer);
+		}
+		return Total;
+	}
 
 	FRDGExternalBuffer RootPositionBuffer;
 	FRDGExternalBuffer RootNormalBuffer;
@@ -87,6 +113,21 @@ struct FHairStrandsDeformedRootResource : public FRenderResource
 	bool IsValid() const { return MeshLODIndex >= 0 && MeshLODIndex < LODs.Num() && LODs[MeshLODIndex].IsValid(); }
 	bool IsValid(int32 InMeshLODIndex) const { return InMeshLODIndex >= 0 && InMeshLODIndex < LODs.Num() && LODs[InMeshLODIndex].IsValid(); }
 
+	/* Return the memory size for GPU resources */
+	uint32 GetResourcesSize() const
+	{
+		uint32 Total = 0;
+		for (const FLOD& LOD : LODs)
+		{
+			Total += GetBufferTotalNumBytes(LOD.DeformedRootTrianglePosition0Buffer);
+			Total += GetBufferTotalNumBytes(LOD.DeformedRootTrianglePosition1Buffer);
+			Total += GetBufferTotalNumBytes(LOD.DeformedRootTrianglePosition2Buffer);
+			Total += GetBufferTotalNumBytes(LOD.DeformedSamplePositionsBuffer);
+			Total += GetBufferTotalNumBytes(LOD.MeshSampleWeightsBuffer);
+		}
+		return Total;
+	}
+
 	struct FLOD
 	{
 		enum class EStatus { Invalid, Initialized, Completed };
@@ -132,6 +173,16 @@ struct FHairStrandsRestResource : public FRenderResource
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsResource"); }
 
+	/* Return the memory size for GPU resources */
+	uint32 GetResourcesSize() const
+	{
+		uint32 Total = 0;
+		Total += GetBufferTotalNumBytes(RestPositionBuffer);
+		Total += GetBufferTotalNumBytes(AttributeBuffer);
+		Total += GetBufferTotalNumBytes(MaterialBuffer);
+		return Total;
+	}
+
 	/* Strand hair rest position buffer */
 	FRDGExternalBuffer  RestPositionBuffer;
 
@@ -163,6 +214,16 @@ struct FHairStrandsDeformedResource : public FRenderResource
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsDeformedResource"); }
+
+	/* Return the memory size for GPU resources */
+	uint32 GetResourcesSize() const
+	{
+		uint32 Total = 0;
+		Total += GetBufferTotalNumBytes(DeformedPositionBuffer[0]);
+		Total += GetBufferTotalNumBytes(DeformedPositionBuffer[1]);
+		Total += GetBufferTotalNumBytes(TangentBuffer);
+		return Total;
+	}
 
 	/* Strand hair deformed position buffer (previous and current) */
 	FRDGExternalBuffer DeformedPositionBuffer[2];
@@ -214,6 +275,17 @@ struct FHairStrandsClusterCullingResource : public FRenderResource
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsClusterResource"); }
 
+	/* Return the memory size for GPU resources */
+	uint32 GetResourcesSize() const
+	{
+		uint32 Total = 0;
+		Total += GetBufferTotalNumBytes(ClusterInfoBuffer);
+		Total += GetBufferTotalNumBytes(ClusterLODInfoBuffer);
+		Total += GetBufferTotalNumBytes(VertexToClusterIdBuffer);
+		Total += GetBufferTotalNumBytes(ClusterVertexIdBuffer);
+		return Total;
+	}
+
 	/* Cluster info buffer */
 	FRDGExternalBuffer ClusterInfoBuffer;
 	FRDGExternalBuffer ClusterLODInfoBuffer;
@@ -240,6 +312,16 @@ struct FHairStrandsInterpolationResource : public FRenderResource
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsInterplationResource"); }
+
+	/* Return the memory size for GPU resources */
+	uint32 GetResourcesSize() const
+	{
+		uint32 Total = 0;
+		Total += GetBufferTotalNumBytes(Interpolation0Buffer);
+		Total += GetBufferTotalNumBytes(Interpolation1Buffer);
+		Total += GetBufferTotalNumBytes(SimRootPointIndexBuffer);
+		return Total;
+	}
 
 	FRDGExternalBuffer Interpolation0Buffer;
 	FRDGExternalBuffer Interpolation1Buffer;
@@ -268,6 +350,14 @@ struct FHairStrandsRaytracingResource : public FRenderResource
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsRaytracingResource"); }
+
+	/* Return the memory size for GPU resources */
+	uint32 GetResourcesSize() const
+	{
+		uint32 Total = 0;
+		Total += GetBufferTotalNumBytes(PositionBuffer);
+		return Total;
+	}
 
 	FRDGExternalBuffer PositionBuffer;
 	FRayTracingGeometry RayTracingGeometry;
@@ -311,6 +401,17 @@ struct FHairCardsRestResource : public FRenderResource
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairCardsResource"); }
 
+	/* Return the memory size for GPU resources */
+	uint32 GetResourcesSize() const
+	{
+		uint32 Total = 0;
+		Total += RenderData.Positions.GetAllocatedSize();
+		Total += RenderData.Normals.GetAllocatedSize();
+		Total += RenderData.Indices.GetAllocatedSize();
+		Total += RenderData.UVs.GetAllocatedSize();
+		return Total;
+	}
+
 	/* Strand hair rest position buffer */
 	FHairCardsVertexBuffer RestPositionBuffer;
 	FHairCardIndexBuffer RestIndexBuffer;
@@ -352,6 +453,12 @@ struct FHairCardsProceduralResource : public FRenderResource
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairCardsResource"); }
 
+	/* Return the memory size for GPU resources */
+	uint32 GetResourcesSize() const
+	{
+		return 0;
+	}
+
 	/* Strand hair rest position buffer */		
 	uint32 CardBoundCount;
 	FIntPoint AtlasResolution;
@@ -386,6 +493,15 @@ struct FHairCardsDeformedResource : public FRenderResource
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairCardsDeformedResource"); }
+
+	/* Return the memory size for GPU resources */
+	uint32 GetResourcesSize() const
+	{
+		uint32 Total = 0;
+		Total += GetBufferTotalNumBytes(DeformedPositionBuffer[0]);
+		Total += GetBufferTotalNumBytes(DeformedPositionBuffer[1]);
+		return Total;
+	}
 
 	/* Strand hair deformed position buffer (previous and current) */
 	FRDGExternalBuffer DeformedPositionBuffer[2];
@@ -456,6 +572,14 @@ struct FHairCardsInterpolationResource : public FRenderResource
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairCardsInterplationResource"); }
 
+	/* Return the memory size for GPU resources */
+	uint32 GetResourcesSize() const
+	{
+		uint32 Total = 0;
+		Total += GetBufferTotalNumBytes(InterpolationBuffer);
+		return Total;
+	}
+
 	FRDGExternalBuffer InterpolationBuffer;
 
 	/* Reference to the hair strands interpolation render data */
@@ -482,6 +606,17 @@ struct FHairMeshesRestResource : public FRenderResource
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairMeshesRestResource"); }
+
+	/* Return the memory size for GPU resources */
+	uint32 GetResourcesSize() const
+	{
+		uint32 Total = 0;
+		Total += RenderData.Positions.GetAllocatedSize();
+		Total += RenderData.Normals.GetAllocatedSize();
+		Total += RenderData.Indices.GetAllocatedSize();
+		Total += RenderData.UVs.GetAllocatedSize();
+		return Total;
+	}
 
 	/* Strand hair rest position buffer */
 	FHairCardsVertexBuffer RestPositionBuffer;
@@ -523,6 +658,15 @@ struct FHairMeshesDeformedResource : public FRenderResource
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairMeshesDeformedResource"); }
+
+	/* Return the memory size for GPU resources */
+	uint32 GetResourcesSize() const
+	{
+		uint32 Total = 0;
+		Total += GetBufferTotalNumBytes(DeformedPositionBuffer[0]);
+		Total += GetBufferTotalNumBytes(DeformedPositionBuffer[1]);
+		return Total;
+	}
 
 	/* Strand hair deformed position buffer (previous and current) */
 	FRDGExternalBuffer DeformedPositionBuffer[2];

@@ -101,6 +101,7 @@ public:
 	FHairGroupDatas HairGroupDatas;
 
 	//~ Begin UObject Interface.
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	virtual void PostLoad() override;
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	virtual void PostSaveRoot(bool bCleanupIsRequired) override;
