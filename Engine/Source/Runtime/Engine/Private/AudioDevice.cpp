@@ -4410,7 +4410,7 @@ void FAudioDevice::UpdateAudioVolumeEffects()
 	FAudioVolumeSettings PlayerAudioVolumeSettings;
 	FAudioVolumeSettings PreviousPlayerAudioVolumeSettings;
 	bool bUsingDefaultReverb = true;
-	bool bAudioVolumeChanged = false;
+	bool bReverbChanged = false;
 
 	// Gets the current state of the interior settings
 	for (FListener& Listener : Listeners)
@@ -4437,7 +4437,7 @@ void FAudioDevice::UpdateAudioVolumeEffects()
 	{
 		PreviousPlayerAudioVolumeSettings = CurrentAudioVolumeSettings;
 		CurrentAudioVolumeSettings = PlayerAudioVolumeSettings;
-		bAudioVolumeChanged = true;
+		bReverbChanged = true;
 	}
 
 	if (Effects)
@@ -4448,10 +4448,11 @@ void FAudioDevice::UpdateAudioVolumeEffects()
 			if (HighestPriorityActivatedReverb.Priority > PlayerAudioVolumeSettings.Priority || bUsingDefaultReverb)
 			{
 				CurrentAudioVolumeSettings.ReverbSettings = HighestPriorityActivatedReverb.ReverbSettings;
+				bReverbChanged = true;
 			}
 		}
 
-		if (bAudioVolumeChanged)
+		if (bReverbChanged)
 		{
 			Effects->SetReverbSettings(CurrentAudioVolumeSettings.ReverbSettings);
 		}
@@ -4460,7 +4461,7 @@ void FAudioDevice::UpdateAudioVolumeEffects()
 		Effects->Update();
 
 		// If we any submix override settings apply those overrides to the indicated submixes
-		if (IsAudioMixerEnabled() && bAudioVolumeChanged)
+		if (IsAudioMixerEnabled() && bReverbChanged)
 		{
 			// Clear out any previous submix effect chain overrides if the audio volume changed
 			if (PreviousPlayerAudioVolumeSettings.SubmixOverrideSettings.Num() > 0)
