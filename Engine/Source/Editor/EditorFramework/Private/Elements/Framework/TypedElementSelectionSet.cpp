@@ -2,7 +2,6 @@
 
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Framework/TypedElementRegistry.h"
-#include "Elements/Interfaces/TypedElementObjectInterface.h"
 
 UTypedElementSelectionSet::UTypedElementSelectionSet()
 {
@@ -209,33 +208,6 @@ FTypedElementHandle UTypedElementSelectionSet::GetSelectionElement(const FTypedE
 {
 	FTypedElementSelectionSetElement SelectionSetElement = ResolveSelectionSetElement(InElementHandle);
 	return SelectionSetElement ? SelectionSetElement.GetSelectionElement(InSelectionMethod) : FTypedElementHandle();
-}
-
-TArray<UObject*> UTypedElementSelectionSet::GetSelectedObjects(const UClass* InRequiredClass) const
-{
-	TArray<UObject*> SelectedObjects;
-	SelectedObjects.Reserve(ElementList->Num());
-
-	ForEachSelectedObject([&SelectedObjects](UObject* InObject)
-	{
-		SelectedObjects.Add(InObject);
-		return true;
-	}, InRequiredClass);
-
-	return SelectedObjects;
-}
-
-void UTypedElementSelectionSet::ForEachSelectedObject(TFunctionRef<bool(UObject*)> InCallback, const UClass* InRequiredClass) const
-{
-	ElementList->ForEachElement<UTypedElementObjectInterface>([&InCallback, InRequiredClass](const TTypedElement<UTypedElementObjectInterface>& InObjectElement)
-	{
-		UObject* ElementObject = InObjectElement.GetObject();
-		if (ElementObject && (!InRequiredClass || ElementObject->IsA(InRequiredClass)))
-		{
-			return InCallback(ElementObject);
-		}
-		return true;
-	});
 }
 
 FTypedElementSelectionSetElement UTypedElementSelectionSet::ResolveSelectionSetElement(const FTypedElementHandle& InElementHandle) const

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Elements/Framework/TypedElementList.h"
+#include "Elements/Framework/TypedElementListObjectUtil.h"
 #include "Elements/Framework/TypedElementAssetEditorCustomization.h"
 #include "Elements/Interfaces/TypedElementSelectionInterface.h"
 #include "TypedElementSelectionSet.generated.h"
@@ -195,10 +196,31 @@ public:
 	}
 
 	/**
+	 * Get the first selected element implementing the given interface.
+	 */
+	template <typename BaseInterfaceType>
+	TTypedElement<BaseInterfaceType> GetTopSelectedElement() const
+	{
+		return ElementList->GetTopElement<BaseInterfaceType>();
+	}
+
+	/**
+	 * Get the last selected element implementing the given interface.
+	 */
+	template <typename BaseInterfaceType>
+	TTypedElement<BaseInterfaceType> GetBottomSelectedElement() const
+	{
+		return ElementList->GetBottomElement<BaseInterfaceType>();
+	}
+
+	/**
 	 * Get the array of selected objects from the currently selected elements.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Selection")
-	TArray<UObject*> GetSelectedObjects(const UClass* InRequiredClass = nullptr) const;
+	TArray<UObject*> GetSelectedObjects(const UClass* InRequiredClass = nullptr) const
+	{
+		return TypedElementListObjectUtil::GetObjects(ElementList, InRequiredClass);
+	}
 
 	/**
 	 * Get the array of selected objects from the currently selected elements.
@@ -206,23 +228,17 @@ public:
 	template <typename RequiredClassType>
 	TArray<RequiredClassType*> GetSelectedObjects() const
 	{
-		TArray<RequiredClassType*> SelectedObjects;
-		SelectedObjects.Reserve(ElementList->Num());
-
-		ForEachSelectedObject<RequiredClassType>([&SelectedObjects](RequiredClassType* InObject)
-		{
-			SelectedObjects.Add(InObject);
-			return true;
-		});
-
-		return SelectedObjects;
+		return TypedElementListObjectUtil::GetObjects<RequiredClassType>(ElementList);
 	}
 
 	/**
 	 * Enumerate the selected objects from the currently selected elements.
 	 * @note Return true from the callback to continue enumeration.
 	 */
-	void ForEachSelectedObject(TFunctionRef<bool(UObject*)> InCallback, const UClass* InRequiredClass = nullptr) const;
+	void ForEachSelectedObject(TFunctionRef<bool(UObject*)> InCallback, const UClass* InRequiredClass = nullptr) const
+	{
+		TypedElementListObjectUtil::ForEachObject(ElementList, InCallback, InRequiredClass);
+	}
 
 	/**
 	 * Enumerate the selected objects from the currently selected elements.
@@ -231,10 +247,43 @@ public:
 	template <typename RequiredClassType>
 	void ForEachSelectedObject(TFunctionRef<bool(RequiredClassType*)> InCallback) const
 	{
-		ForEachSelectedObject([&InCallback](UObject* InObject)
-		{
-			return InCallback(CastChecked<RequiredClassType>(InObject));
-		}, RequiredClassType::StaticClass());
+		TypedElementListObjectUtil::ForEachObject<RequiredClassType>(ElementList, InCallback);
+	}
+
+	/**
+	 * Get the first selected object of the given type.
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection")
+	UObject* GetTopSelectedObject(const UClass* InRequiredClass = nullptr) const
+	{
+		return TypedElementListObjectUtil::GetTopObject(ElementList, InRequiredClass);
+	}
+
+	/**
+	 * Get the first selected object of the given type.
+	 */
+	template <typename RequiredClassType>
+	RequiredClassType* GetTopSelectedObject() const
+	{
+		return TypedElementListObjectUtil::GetTopObject<RequiredClassType>(ElementList);
+	}
+
+	/**
+	 * Get the last selected object of the given type.
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection")
+	UObject* GetBottomSelectedObject(const UClass* InRequiredClass = nullptr) const
+	{
+		return TypedElementListObjectUtil::GetBottomObject(ElementList, InRequiredClass);
+	}
+
+	/**
+	 * Get the last selected object of the given type.
+	 */
+	template <typename RequiredClassType>
+	RequiredClassType* GetBottomSelectedObject() const
+	{
+		return TypedElementListObjectUtil::GetBottomObject<RequiredClassType>(ElementList);
 	}
 
 	/**

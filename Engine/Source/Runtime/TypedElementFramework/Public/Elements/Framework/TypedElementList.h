@@ -204,6 +204,42 @@ public:
 	}
 
 	/**
+	 * Get the first element implementing the given interface.
+	 */
+	template <typename BaseInterfaceType>
+	TTypedElement<BaseInterfaceType> GetTopElement() const
+	{
+		TTypedElement<BaseInterfaceType> TempElement;
+		for (int32 ElementIndex = 0; ElementIndex < Num(); ++ElementIndex)
+		{
+			GetElementAt(ElementIndex, TempElement);
+			if (TempElement)
+			{
+				break;
+			}
+		}
+		return TempElement;
+	}
+
+	/**
+	 * Get the last element implementing the given interface.
+	 */
+	template <typename BaseInterfaceType>
+	TTypedElement<BaseInterfaceType> GetBottomElement() const
+	{
+		TTypedElement<BaseInterfaceType> TempElement;
+		for (int32 ElementIndex = Num() - 1; ElementIndex >= 0; --ElementIndex)
+		{
+			GetElementAt(ElementIndex, TempElement);
+			if (TempElement)
+			{
+				break;
+			}
+		}
+		return TempElement;
+	}
+
+	/**
 	 * Get the element interface from the given handle.
 	 */
 	template <typename BaseInterfaceType>
