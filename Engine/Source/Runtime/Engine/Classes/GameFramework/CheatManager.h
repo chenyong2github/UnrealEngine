@@ -15,6 +15,8 @@
 #include "Templates/SubclassOf.h"
 #include "Engine/EngineTypes.h"
 #include "UObject/ScriptMacros.h"
+#include "UObject/Interface.h"
+
 #include "CheatManager.generated.h"
 
 #ifndef UE_WITH_CHEAT_MANAGER
