@@ -13,6 +13,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Styling/SlateWidgetStyleAsset.h"
 #include "Widgets/Layout/SSplitter.h"
+#include "Framework/SlateDelegates.h"
 
 class FMenuBuilder;
 class SScrollBar;
@@ -127,7 +128,9 @@ public:
 			SLATE_ARGUMENT( EVerticalAlignment, VAlignHeader )
 			SLATE_ARGUMENT( TOptional< FMargin >, HeaderContentPadding )
 			SLATE_ARGUMENT( EHeaderComboVisibility, HeaderComboVisibility )
+
 			SLATE_NAMED_SLOT( FArguments, MenuContent )
+			SLATE_EVENT( FOnGetContent, OnGetMenuContent )
 
 			SLATE_ARGUMENT( EHorizontalAlignment, HAlignCell )
 			SLATE_ARGUMENT( EVerticalAlignment, VAlignCell )
@@ -149,6 +152,7 @@ public:
 			, SizeRule( EColumnSizeMode::Fill )
 			, HeaderContent( InArgs._HeaderContent )
 			, HeaderMenuContent( InArgs._MenuContent )
+			, OnGetMenuContent( InArgs._OnGetMenuContent )
 			, HeaderHAlignment( InArgs._HAlignHeader )
 			, HeaderVAlignment( InArgs._VAlignHeader )
 			, HeaderContentPadding( InArgs._HeaderContentPadding )
@@ -220,6 +224,8 @@ public:
 
 		TAlwaysValidWidget HeaderContent;	
 		TAlwaysValidWidget HeaderMenuContent;
+
+		FOnGetContent OnGetMenuContent;
 
 		EHorizontalAlignment HeaderHAlignment;
 		EVerticalAlignment HeaderVAlignment;
@@ -319,6 +325,10 @@ public:
 	//~ Begin SWidget interface
 	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	//~ End SWidget interface
+
+	/** Show or Hide a generated column */
+	void SetShowGeneratedColumn(const FName& InColumnIdm, bool InShow = true);
+
 
 private:
 

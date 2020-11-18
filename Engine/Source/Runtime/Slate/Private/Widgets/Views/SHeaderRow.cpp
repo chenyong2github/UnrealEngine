@@ -146,7 +146,8 @@ public:
 			PrimaryContent
 		];
 
-		if( Column.HeaderMenuContent.Widget != SNullWidget::NullWidget )
+		if( Column.HeaderMenuContent.Widget != SNullWidget::NullWidget || 
+			Column.OnGetMenuContent.IsBound())
 		{
 			// Add Drop down menu button (only if menu content has been specified)
 			Box->AddSlot()
@@ -175,10 +176,6 @@ public:
 							SNew( SSpacer )
 							.Size( FVector2D( 14.0f, 0 ) )
 						]
-						.MenuContent()
-						[
-							ContextMenuContent
-						]
 					]
 				]
 
@@ -192,6 +189,16 @@ public:
 					.Visibility( EVisibility::HitTestInvisible )
 				]
 			];		
+
+
+			if (Column.HeaderMenuContent.Widget != SNullWidget::NullWidget)
+			{
+				ComboButton->SetMenuContent(ContextMenuContent);
+			}
+			else if (Column.OnGetMenuContent.IsBound())
+			{
+				ComboButton->SetOnGetMenuContent(Column.OnGetMenuContent);
+			}
 
 			AdjustedDefaultHeaderContentPadding.Right = 0;
 		}
@@ -924,6 +931,29 @@ void SHeaderRow::ToggleGeneratedColumn(FName ColumnId)
 ECheckBoxState SHeaderRow::GetGeneratedColumnCheckedState(FName ColumnId) const
 {
 	return IsColumnGenerated(ColumnId) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SHeaderRow::SetShowGeneratedColumn(const FName& ColumnId, bool InShow)
+{
+	// Only column that doesn't have a ShouldGenerateWidget, can be toggled
+	for (FColumn& SomeColumn : Columns)
+	{
+		if (SomeColumn.ColumnId == ColumnId)
+		{
+			if (!SomeColumn.ShouldGenerateWidget.IsSet())
+			{
+				if (SomeColumn.bIsVisible != InShow)
+				{
+					SomeColumn.bIsVisible = !SomeColumn.bIsVisible;
+
+					RefreshColumns();
+					ColumnsChanged.Broadcast(SharedThis(this));
+					OnHiddenColumnsListChanged.ExecuteIfBound();
+				}
+			}
+			break;
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
