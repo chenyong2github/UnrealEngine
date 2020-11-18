@@ -180,7 +180,7 @@ namespace Chaos
 						PositionTarget, PositionTargetedParticles, /*AnimatedPositions,*/ MSolver->GetSolverTime());
 				}
 
-				for (FGeometryCollectionPhysicsProxy* Obj : MSolver->GetGeometryCollectionPhysicsProxies())
+				for (FGeometryCollectionPhysicsProxy* Obj : MSolver->GetGeometryCollectionPhysicsProxies_Internal())
 				{
 					Obj->ParameterUpdateCallback(MSolver, MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles(), MSolver->GetSolverTime());
 				}
@@ -233,7 +233,7 @@ namespace Chaos
 						FieldObj.FieldForcesUpdateCallback(MSolver, ClusteredParticles, Forces, Torques, MSolver->GetSolverTime());
 					}
 
-					for (FGeometryCollectionPhysicsProxy* Obj : MSolver->GetGeometryCollectionPhysicsProxies())
+					for (FGeometryCollectionPhysicsProxy* Obj : MSolver->GetGeometryCollectionPhysicsProxies_Internal())
 					{
 						Obj->ParameterUpdateCallback(MSolver, MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles(), MSolver->GetSolverTime());
 					}
@@ -555,7 +555,7 @@ namespace Chaos
 	void TPBDRigidsSolver<Traits>::RegisterObject(FGeometryCollectionPhysicsProxy* InProxy)
 	{
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("TPBDRigidsSolver::RegisterObject(FGeometryCollectionPhysicsProxy*)"));
-		GeometryCollectionPhysicsProxies.AddUnique(InProxy);
+		GeometryCollectionPhysicsProxies_External.AddUnique(InProxy);
 		InProxy->SetSolver(this);
 		InProxy->Initialize();
 		InProxy->NewData(); // Buffers data on the proxy.
@@ -568,6 +568,7 @@ namespace Chaos
 				TEXT("TPBDRigidsSolver::RegisterObject(FGeometryCollectionPhysicsProxy*)"));
 			check(InParticles);
 			InProxy->InitializeBodiesPT(this, *InParticles);
+			GeometryCollectionPhysicsProxies_Internal.Add(InProxy);
 		});
 	}
 	
@@ -580,7 +581,7 @@ namespace Chaos
 
 		RemoveDirtyProxy(InProxy);
 
-		int32 NumRemoved = GeometryCollectionPhysicsProxies.Remove(InProxy);
+		int32 NumRemoved = GeometryCollectionPhysicsProxies_External.Remove(InProxy);
 
 		EnqueueCommandImmediate([InProxy, this]()
 			{
@@ -589,7 +590,7 @@ namespace Chaos
 				{
 					RemoveParticleToProxy(ParticleHandle);
 				}
-
+				GeometryCollectionPhysicsProxies_Internal.RemoveSingle(InProxy);
 				InProxy->SyncBeforeDestroy();
 				delete InProxy;
 			});
@@ -603,7 +604,8 @@ namespace Chaos
 		FJointConstraintPhysicsProxy* JointProxy = new FJointConstraintPhysicsProxy(GTConstraint, nullptr);
 		JointProxy->SetSolver(this);
 
-		JointConstraintPhysicsProxies.AddUnique(JointProxy);
+
+		JointConstraintPhysicsProxies_External.AddUnique(JointProxy);
 		AddDirtyProxy(JointProxy);
 	}
 
@@ -618,7 +620,8 @@ namespace Chaos
 		// mark proxy timestamp so we avoid trying to pull from sim after deletion
 		GTConstraint->GetProxy()->SetSyncTimestamp(MarshallingManager.GetExternalTimestamp_External());
 
-		int32 NumRemoved = JointConstraintPhysicsProxies.Remove(JointProxy);
+
+		int32 NumRemoved = JointConstraintPhysicsProxies_External.Remove(JointProxy);
 		GTConstraint->SetProxy(static_cast<FJointConstraintPhysicsProxy*>(nullptr));
 
 		GTConstraint->ReleaseKinematicEndPoint(this);
@@ -629,6 +632,7 @@ namespace Chaos
 		EnqueueCommandImmediate([InParticles, JointProxy, this]()
 			{
 				JointProxy->DestroyOnPhysicsThread(this);
+				JointConstraintPhysicsProxies_Internal.RemoveSingle(JointProxy);
 				delete JointProxy;
 			});
 
@@ -689,10 +693,10 @@ namespace Chaos
 		for (FStaticMeshPhysicsProxy* Obj : StaticMeshPhysicsProxies)
 			if (Obj->IsSimulating())
 				return true;
-		for (FGeometryCollectionPhysicsProxy* Obj : GeometryCollectionPhysicsProxies)
+		for (FGeometryCollectionPhysicsProxy* Obj : GeometryCollectionPhysicsProxies_External)
 			if (Obj->IsSimulating())
 				return true;
-		for (FJointConstraintPhysicsProxy* Obj : JointConstraintPhysicsProxies)
+		for (FJointConstraintPhysicsProxy* Obj : JointConstraintPhysicsProxies_External)
 			if (Obj->IsSimulating())
 				return true;
 		for (FSuspensionConstraintPhysicsProxy* Obj : SuspensionConstraintPhysicsProxies)
@@ -1096,7 +1100,7 @@ namespace Chaos
 	{
 		//ensure(IsInPhysicsThread());
 		TArray<FGeometryCollectionPhysicsProxy*> ActiveGC;
-		ActiveGC.Reserve(GeometryCollectionPhysicsProxies.Num());
+		ActiveGC.Reserve(GeometryCollectionPhysicsProxies_Internal.Num());
 
 		FPullPhysicsData* PullData = MarshallingManager.GetCurrentPullData_Internal();
 
@@ -1156,12 +1160,12 @@ namespace Chaos
 
 		{
 			ensure(PullData->DirtyJointConstraints.Num() == 0);	//we only fill this once per frame
-			PullData->DirtyJointConstraints.Reserve(JointConstraintPhysicsProxies.Num());
+			PullData->DirtyJointConstraints.Reserve(JointConstraintPhysicsProxies_Internal.Num());
 
-			for(int32 Idx = 0; Idx < JointConstraintPhysicsProxies.Num(); ++Idx)
+			for(int32 Idx = 0; Idx < JointConstraintPhysicsProxies_Internal.Num(); ++Idx)
 			{
 				PullData->DirtyJointConstraints.AddDefaulted();
-				JointConstraintPhysicsProxies[Idx]->BufferPhysicsResults(PullData->DirtyJointConstraints.Last());
+				JointConstraintPhysicsProxies_Internal[Idx]->BufferPhysicsResults(PullData->DirtyJointConstraints.Last());
 			}
 		}
 		
