@@ -183,6 +183,11 @@ void FTrailHierarchy::Update()
 			AccumulatedParentStates.GetParentStates(CurGuid)
 		};
 
+		if (!AllTrails.Contains(CurGuid))
+		{
+			continue;
+		}
+
 		// Update the trail
 		ETrailCacheState CurCacheState = AllTrails[CurGuid]->UpdateTrail(SceneContext);
 		AccumulatedParentStates.ResetParentStates(CurGuid);
