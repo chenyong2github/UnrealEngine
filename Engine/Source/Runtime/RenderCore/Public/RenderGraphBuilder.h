@@ -230,7 +230,7 @@ public:
 	/** The blackboard used to hold common data tied to the graph lifetime. */
 	FRDGBlackboard Blackboard;
 
-private
+private:
 
 	const FRDGEventName BuilderName;
 	const ERDGBuilderFlags BuilderFlags;
