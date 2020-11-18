@@ -1971,18 +1971,17 @@ const FIntPoint FMobileAverageLuminanceCS::TexelsPerThreadGroup(ThreadGroupSizeX
 IMPLEMENT_GLOBAL_SHADER(FMobileAverageLuminanceCS, "/Engine/Private/PostProcessMobile.usf", "AverageLuminance_MainCS", SF_Compute);
 
 /** Encapsulates the post processing histogram compute shader. */
-class FMobileHistogramCS : public FGlobalShader
+class FMobileHistogram : public FGlobalShader
 {
 public:
 	// Changing these numbers requires PostProcessMobile.usf to be recompiled.
-	static const uint32 MetalThreadGroupSizeX = 8;
-	static const uint32 MetalThreadGroupSizeY = 4; // the maximum total threadgroup memory allocation on A7 and A8 GPU is 16KB-32B, so it has to limit the thread group size on IOS/TVOS platform.
+	// the maximum total threadgroup memory allocation on A7 and A8 GPU is 16KB-32B, so it has to limit the thread group size on IOS/TVOS platform.
+	// this is also needed by some Android devices
+	static const uint32 LowThreadGroupSizeX = 8;
+	static const uint32 LowThreadGroupSizeY = 4; 
 
-	static const uint32 MetalLoopCountX = 2;
-	static const uint32 MetalLoopCountY = 4;
-
-	// The number of texels on each axis processed by a single thread group.
-	static const FIntPoint MetalTexelsPerThreadGroup;
+	static const uint32 LowLoopCountX = 2;
+	static const uint32 LowLoopCountY = 4;
 
 	static const uint32 ThreadGroupSizeX = 16;
 	static const uint32 ThreadGroupSizeY = 8;
@@ -1990,13 +1989,7 @@ public:
 	static const uint32 LoopCountX = 2;
 	static const uint32 LoopCountY = 2;
 
-	// The number of texels on each axis processed by a single thread group.
-	static const FIntPoint TexelsPerThreadGroup;
-
 	static const uint32 HistogramSize = 64; // HistogramSize must be 64 and ThreadGroupSizeX * ThreadGroupSizeY must be larger than 32
-
-	DECLARE_GLOBAL_SHADER(FMobileHistogramCS);
-	SHADER_USE_PARAMETER_STRUCT(FMobileHistogramCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -2012,30 +2005,59 @@ public:
 		return IsMobilePlatform(Parameters.Platform);
 	}
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		bool bIsMetalMobilePlatform = IsMetalMobilePlatform(Parameters.Platform);
+	FMobileHistogram()
+	{}
 
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), bIsMetalMobilePlatform ? MetalThreadGroupSizeX : ThreadGroupSizeX);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), bIsMetalMobilePlatform ? MetalThreadGroupSizeY : ThreadGroupSizeY);
-		OutEnvironment.SetDefine(TEXT("LOOP_SIZEX"), bIsMetalMobilePlatform ? MetalLoopCountX : LoopCountX);
-		OutEnvironment.SetDefine(TEXT("LOOP_SIZEY"), bIsMetalMobilePlatform ? MetalLoopCountY : LoopCountY);
-		OutEnvironment.SetDefine(TEXT("HISTOGRAM_COMPUTE_SHADER"), 1u);
-		OutEnvironment.CompilerFlags.Add(CFLAG_StandardOptimization);
+	FMobileHistogram(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		Bindings.BindForLegacyShaderParameters(this, Initializer.PermutationId, Initializer.ParameterMap, *FParameters::FTypeInfo::GetStructMetadata());
 	}
 };
 
-const FIntPoint FMobileHistogramCS::MetalTexelsPerThreadGroup(MetalThreadGroupSizeX * MetalLoopCountX * 2, MetalThreadGroupSizeY * MetalLoopCountY * 2); // Multiply 2 because we use bilinear filter, to reduce the sample count
 
-const FIntPoint FMobileHistogramCS::TexelsPerThreadGroup(ThreadGroupSizeX * LoopCountX * 2, ThreadGroupSizeY * LoopCountY * 2); // Multiply 2 because we use bilinear filter, to reduce the sample count
 
-IMPLEMENT_GLOBAL_SHADER(FMobileHistogramCS, "/Engine/Private/PostProcessMobile.usf", "Histogram_MainCS", SF_Compute);
+template< bool LowSharedComputeMemory >
+class TMobileHistogramCS : public FMobileHistogram
+{
+public:
+	typedef TMobileHistogramCS< LowSharedComputeMemory > ClassName; // typedef is only so that we can use in DECLARE_SHADER_TYPE macro
+	DECLARE_SHADER_TYPE(ClassName, Global);
+
+	// The number of texels on each axis processed by a single thread group.
+	static const FIntPoint TexelsPerThreadGroup;
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), LowSharedComputeMemory ? LowThreadGroupSizeX : ThreadGroupSizeX);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), LowSharedComputeMemory ? LowThreadGroupSizeY : ThreadGroupSizeY);
+		OutEnvironment.SetDefine(TEXT("LOOP_SIZEX"), LowSharedComputeMemory ? LowLoopCountX : LoopCountX);
+		OutEnvironment.SetDefine(TEXT("LOOP_SIZEY"), LowSharedComputeMemory ? LowLoopCountY : LoopCountY);
+		OutEnvironment.SetDefine(TEXT("HISTOGRAM_COMPUTE_SHADER"), 1u);
+		OutEnvironment.SetDefine(TEXT("LOW_SHARED_COMPUTE_MEMORY"), LowSharedComputeMemory);
+		OutEnvironment.CompilerFlags.Add(CFLAG_StandardOptimization);
+	}
+
+	TMobileHistogramCS()
+	{}
+
+	TMobileHistogramCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FMobileHistogram(Initializer)
+	{}
+};
+
+template<> const FIntPoint TMobileHistogramCS<true>::TexelsPerThreadGroup(LowThreadGroupSizeX* LowLoopCountX * 2, LowThreadGroupSizeY* LowLoopCountY * 2); // Multiply 2 because we use bilinear filter, to reduce the sample count
+template<> const FIntPoint TMobileHistogramCS<false>::TexelsPerThreadGroup(ThreadGroupSizeX* LoopCountX * 2, ThreadGroupSizeY* LoopCountY * 2); // Multiply 2 because we use bilinear filter, to reduce the sample count
+
+IMPLEMENT_SHADER_TYPE(template<>, TMobileHistogramCS< true >, TEXT("/Engine/Private/PostProcessMobile.usf"), TEXT("Histogram_MainCS"), SF_Compute);
+IMPLEMENT_SHADER_TYPE(template<>, TMobileHistogramCS< false >, TEXT("/Engine/Private/PostProcessMobile.usf"), TEXT("Histogram_MainCS"), SF_Compute);
 
 FMobileEyeAdaptationSetupOutputs AddMobileEyeAdaptationSetupPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FEyeAdaptationParameters& EyeAdaptationParameters, const FMobileEyeAdaptationSetupInputs& Inputs)
 {
 	// clear EyeAdaptationSetupBuffer History
-	FRDGBufferRef EyeAdaptationSetupBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), Inputs.bUseBasicEyeAdaptation ? 2 : FMobileHistogramCS::HistogramSize), TEXT("EyeAdaptationSetupBuffer"));
+	FRDGBufferRef EyeAdaptationSetupBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), Inputs.bUseBasicEyeAdaptation ? 2 : FMobileHistogram::HistogramSize), TEXT("EyeAdaptationSetupBuffer"));
 	FRDGBufferSRVRef EyeAdaptationSetupBufferSRV = GraphBuilder.CreateSRV(EyeAdaptationSetupBuffer, PF_R32_UINT);
 	FRDGBufferUAVRef EyeAdaptationSetupBufferUAV = GraphBuilder.CreateUAV(EyeAdaptationSetupBuffer, PF_R32_UINT);
 	AddClearUAVPass(GraphBuilder, EyeAdaptationSetupBufferUAV, 0);
@@ -2063,7 +2085,7 @@ FMobileEyeAdaptationSetupOutputs AddMobileEyeAdaptationSetupPass(FRDGBuilder& Gr
 	}
 	else if (Inputs.bUseHistogramEyeAdaptation)
 	{
-		FMobileHistogramCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMobileHistogramCS::FParameters>();
+		FMobileHistogram::FParameters* PassParameters = GraphBuilder.AllocParameters<FMobileHistogram::FParameters>();
 
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SourceSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
@@ -2072,14 +2094,30 @@ FMobileEyeAdaptationSetupOutputs AddMobileEyeAdaptationSetupPass(FRDGBuilder& Gr
 		PassParameters->RWHistogramBuffer = EyeAdaptationSetupBufferUAV;
 		PassParameters->EyeAdaptation = EyeAdaptationParameters;
 
-		TShaderMapRef<FMobileHistogramCS> ComputeShader(View.ShaderMap);
+		bool LowSharedComputeMemory = (GetMaxComputeSharedMemory() < (1 << 15));
 
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("EyeAdaptation_Histogram (CS)"),
-			ComputeShader,
-			PassParameters,
-			FComputeShaderUtils::GetGroupCount(BufferSize, IsMetalMobilePlatform(View.GetShaderPlatform()) ? FMobileHistogramCS::MetalTexelsPerThreadGroup : FMobileHistogramCS::TexelsPerThreadGroup));
+		if (LowSharedComputeMemory)
+		{
+			TShaderMapRef<TMobileHistogramCS<true>> ComputeShader(View.ShaderMap);
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("EyeAdaptation_Histogram (CS)"),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(BufferSize, TMobileHistogramCS<true>::TexelsPerThreadGroup));
+		}
+		else
+		{
+			TShaderMapRef<TMobileHistogramCS<false>> ComputeShader(View.ShaderMap);
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("EyeAdaptation_Histogram (CS)"),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(BufferSize, TMobileHistogramCS<false>::TexelsPerThreadGroup));
+		}
 	}
 
 	FMobileEyeAdaptationSetupOutputs EyeAdaptationSetupOutputs;

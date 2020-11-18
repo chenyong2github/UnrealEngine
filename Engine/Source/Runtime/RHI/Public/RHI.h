@@ -433,6 +433,9 @@ extern RHI_API TRHIGlobal<int32> GMaxTextureDimensions;
 /** The maximum size allowed for 2D textures in both dimensions. */
 extern RHI_API TRHIGlobal<int64> GMaxBufferDimensions;
 
+/** The maximum size allowed for Shared Compute Memory. */
+extern RHI_API TRHIGlobal<int64> GMaxComputeSharedMemory;
+
 /** The maximum size allowed for 3D textures in all three dimensions. */
 extern RHI_API TRHIGlobal<int32> GMaxVolumeTextureDimensions;
 
@@ -442,6 +445,11 @@ extern RHI_API bool GRHISupportsRWTextureBuffers;
 FORCEINLINE uint64 GetMaxBufferDimension()
 {
 	return GMaxBufferDimensions;
+}
+
+FORCEINLINE uint64 GetMaxComputeSharedMemory()
+{
+	return GMaxComputeSharedMemory;
 }
 
 FORCEINLINE uint32 GetMax2DTextureDimension()
