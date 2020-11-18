@@ -505,6 +505,8 @@ void UWaterMeshComponent::Update()
 #if WITH_EDITOR
 void UWaterMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 	FProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
 	if (PropertyThatChanged)
 	{

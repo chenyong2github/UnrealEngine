@@ -901,6 +901,8 @@ void AWaterBrushManager::SetBrushMIDParams(const FBrushRenderContext& BrushRende
 
 void AWaterBrushManager::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 	FName ChangedProperty = PropertyChangedEvent.GetPropertyName();
 	if (ChangedProperty == GET_MEMBER_NAME_CHECKED(AWaterBrushManager, RenderRiverSplineDepthMaterial))
 	{
