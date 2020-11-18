@@ -272,13 +272,13 @@ namespace DatasmithRevitExporter
 				}
 				else
 				{
-					PushElement(CurrentFamilySymbol, WorldTransformStack.Peek(), "Symbol Begin");
+					CurrentElementSkipped = !PushElement(CurrentFamilySymbol, WorldTransformStack.Peek(), "Symbol Begin");
 				}
 			}
 
 			// We always wanna proceed, because in certain cases where InInstanceNode is valid but CurrentInstance is not,
 			// what follows is valid geometry related to the instance previously exported.
-            return RenderNodeAction.Proceed;
+            return CurrentElementSkipped ? RenderNodeAction.Skip : RenderNodeAction.Proceed;
 		}
 
 		// OnInstanceEnd marks the end of a family instance being exported.
