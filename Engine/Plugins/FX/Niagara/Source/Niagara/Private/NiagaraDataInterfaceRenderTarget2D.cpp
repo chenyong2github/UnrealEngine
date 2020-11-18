@@ -29,7 +29,7 @@ const FName UNiagaraDataInterfaceRenderTarget2D::LinearToIndexName("LinearToInde
 
 FNiagaraVariableBase UNiagaraDataInterfaceRenderTarget2D::ExposedRTVar;
 
-int32 GNiagaraReleaseResourceOnRemove = true;
+int32 GNiagaraReleaseResourceOnRemove = false;
 static FAutoConsoleVariableRef CVarNiagaraReleaseResourceOnRemove(
 	TEXT("fx.Niagara.RenderTarget.ReleaseResourceOnRemove"),
 	GNiagaraReleaseResourceOnRemove,
