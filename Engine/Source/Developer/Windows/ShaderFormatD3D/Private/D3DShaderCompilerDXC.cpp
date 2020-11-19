@@ -589,7 +589,7 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 {
 	auto AnsiSourceFile = StringCast<ANSICHAR>(*PreprocessedShaderSource);
 
-	const bool bIsRayTracingShader = IsRayTracingShader(Input.Target);
+	const bool bIsRayTracingShader = Input.IsRayTracingShader();
 	const bool bUseDXC = bIsRayTracingShader
 		|| Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations)
 		|| Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
