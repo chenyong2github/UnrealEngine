@@ -1089,11 +1089,6 @@ public:
 	FRWBuffer IndirectShadowVolumetricLightmapDerivedLightDirection;
 	FRWBuffer CapsuleTileIntersectionCountsBuffer;
 
-	/** Contains both DynamicPrimitiveShaderData (per view) and primitive shader data (per scene).  Stored in ViewState for pooling only (contents are not persistent). */
-	/** Only one of the resources(TextureBuffer or Texture2D) will be used depending on the Mobile.UseGPUSceneTexture cvar */
-	FRWBufferStructured PrimitiveShaderDataBuffer;
-	FTextureRWBuffer2D PrimitiveShaderDataTexture;
-
 	/** Timestamp queries around separate translucency, used for auto-downsampling. */
 	FRenderQueryPoolRHIRef TimerQueryPool;
 	FLatentGPUTimer TranslucencyTimer;

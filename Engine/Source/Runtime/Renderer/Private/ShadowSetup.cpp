@@ -2043,7 +2043,7 @@ void FProjectedShadowInfo::GatherDynamicMeshElements(FSceneRenderer& Renderer, F
 		{
 			ShadowDepthView->SetPreShadowTranslation(FVector(0, 0, 0));
 			ShadowDepthView->SetDynamicMeshElementsShadowCullFrustum(&CascadeSettings.ShadowBoundsAccurate);
-			GatherDynamicMeshElementsArray(ShadowDepthView, Renderer, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, 
+			GatherDynamicMeshElementsArray(Renderer, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, 
 				DynamicSubjectPrimitives, ReusedViewsArray, DynamicSubjectMeshElements, NumDynamicSubjectMeshElements);
 			ShadowDepthView->SetPreShadowTranslation(PreShadowTranslation);
 		}
@@ -2051,7 +2051,7 @@ void FProjectedShadowInfo::GatherDynamicMeshElements(FSceneRenderer& Renderer, F
 		{
 			ShadowDepthView->SetPreShadowTranslation(PreShadowTranslation);
 			ShadowDepthView->SetDynamicMeshElementsShadowCullFrustum(&CasterOuterFrustum);
-			GatherDynamicMeshElementsArray(ShadowDepthView, Renderer, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, 
+			GatherDynamicMeshElementsArray(Renderer, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, 
 				DynamicSubjectPrimitives, ReusedViewsArray, DynamicSubjectMeshElements, NumDynamicSubjectMeshElements);
 		}
 
@@ -2059,18 +2059,19 @@ void FProjectedShadowInfo::GatherDynamicMeshElements(FSceneRenderer& Renderer, F
 
 		int32 NumDynamicSubjectTranslucentMeshElements = 0;
 		ShadowDepthView->SetDynamicMeshElementsShadowCullFrustum(&CasterOuterFrustum);
-		GatherDynamicMeshElementsArray(ShadowDepthView, Renderer, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, 
+		GatherDynamicMeshElementsArray(Renderer, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, 
 			SubjectTranslucentPrimitives, ReusedViewsArray, DynamicSubjectTranslucentMeshElements, NumDynamicSubjectTranslucentMeshElements);
 
 		Renderer.MeshCollector.ProcessTasks();
     }
+
+	ShadowDepthView->DynamicPrimitiveCollector.Commit();
 
 	SetupMeshDrawCommandsForShadowDepth(Renderer);
 	SetupMeshDrawCommandsForProjectionStenciling(Renderer);
 }
 
 void FProjectedShadowInfo::GatherDynamicMeshElementsArray(
-	FViewInfo* FoundView,
 	FSceneRenderer& Renderer, 
 	FGlobalDynamicIndexBuffer& DynamicIndexBuffer,
 	FGlobalDynamicVertexBuffer& DynamicVertexBuffer,
@@ -2085,10 +2086,10 @@ void FProjectedShadowInfo::GatherDynamicMeshElementsArray(
 
 	Renderer.MeshCollector.ClearViewMeshArrays();
 	Renderer.MeshCollector.AddViewMeshArrays(
-		FoundView, 
+		ShadowDepthView,
 		&OutDynamicMeshElements, 
 		&DynamicSubjectSimpleElements, 
-		&FoundView->DynamicPrimitiveShaderData, 
+		&ShadowDepthView->DynamicPrimitiveCollector,
 		Renderer.ViewFamily.GetFeatureLevel(),
 		&DynamicIndexBuffer,
 		&DynamicVertexBuffer,
@@ -2103,12 +2104,12 @@ void FProjectedShadowInfo::GatherDynamicMeshElementsArray(
 		const FPrimitiveSceneProxy* PrimitiveSceneProxy = PrimitiveSceneInfo->Proxy;
 
 		// Lookup the primitive's cached view relevance
-		FPrimitiveViewRelevance ViewRelevance = FoundView->PrimitiveViewRelevanceMap[PrimitiveSceneInfo->GetIndex()];
+		FPrimitiveViewRelevance ViewRelevance = ShadowDepthView->PrimitiveViewRelevanceMap[PrimitiveSceneInfo->GetIndex()];
 
 		if (!ViewRelevance.bInitializedThisFrame)
 		{
 			// Compute the subject primitive's view relevance since it wasn't cached
-			ViewRelevance = PrimitiveSceneInfo->Proxy->GetViewRelevance(FoundView);
+			ViewRelevance = PrimitiveSceneInfo->Proxy->GetViewRelevance(ShadowDepthView);
 		}
 
 		// Only draw if the subject primitive is shadow relevant.
@@ -3549,7 +3550,7 @@ void FSceneRenderer::InitProjectedShadowVisibility(FRHICommandListImmediate& RHI
 						if ((ViewFamily.EngineShowFlags.ShadowFrustums)
 							&& ((bDrawPreshadowFrustum && ProjectedShadowInfo.bPreShadow) || (!bDrawPreshadowFrustum && !ProjectedShadowInfo.bPreShadow)))
 						{
-							FViewElementPDI ShadowFrustumPDI(&Views[ViewIndex], nullptr, &Views[ViewIndex].DynamicPrimitiveShaderData);
+							FViewElementPDI ShadowFrustumPDI(&Views[ViewIndex], nullptr, &Views[ViewIndex].DynamicPrimitiveCollector);
 							
 							if(ProjectedShadowInfo.IsWholeSceneDirectionalShadow())
 							{

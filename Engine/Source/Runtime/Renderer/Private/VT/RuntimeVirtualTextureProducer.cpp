@@ -29,7 +29,8 @@ FRuntimeVirtualTextureFinalizer::FRuntimeVirtualTextureFinalizer(
 
 bool FRuntimeVirtualTextureFinalizer::IsReady()
 {
-	return RuntimeVirtualTexture::IsSceneReadyToRender(Scene->GetRenderScene());
+	FScene* RenderScene = Scene->GetRenderScene();
+	return RuntimeVirtualTexture::IsSceneReadyToRender(RenderScene) && RenderScene->GPUScene.IsRendering();
 }
 
 void FRuntimeVirtualTextureFinalizer::InitProducer(const FVirtualTextureProducerHandle& ProducerHandle)

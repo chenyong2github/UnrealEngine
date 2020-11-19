@@ -590,6 +590,8 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder);
 
+	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, *Scene);
+
 	PrepareViewRectsForRendering();
 
 #if WITH_EDITOR
@@ -621,7 +623,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 		}
 	}
 
-	UpdateGPUScene(GraphBuilder, *Scene);
+	Scene->GPUScene.Update(GraphBuilder, *Scene);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -630,7 +632,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
-		UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, *Scene, Views[ViewIndex]);
+		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, *Scene, Views[ViewIndex]);
 	}
 
 	if (bNaniteEnabled)

@@ -27,11 +27,11 @@ struct FMeshBatchElement;
 struct TStatId;
 template<typename TTask> class TGraphTask;
 
-inline FViewElementPDI::FViewElementPDI(FViewInfo* InViewInfo,FHitProxyConsumer* InHitProxyConsumer,TArray<FPrimitiveUniformShaderParameters>* InDynamicPrimitiveShaderData):
+inline FViewElementPDI::FViewElementPDI(FViewInfo* InViewInfo,FHitProxyConsumer* InHitProxyConsumer, FGPUScenePrimitiveCollector* InDynamicPrimitiveCollector):
 	FPrimitiveDrawInterface(InViewInfo),
 	ViewInfo(InViewInfo),
 	HitProxyConsumer(InHitProxyConsumer),
-	DynamicPrimitiveShaderData(InDynamicPrimitiveShaderData)
+	DynamicPrimitiveCollector(InDynamicPrimitiveCollector)
 {}
 
 inline bool FViewElementPDI::IsHitTesting()
@@ -218,11 +218,10 @@ inline int32 FViewElementPDI::DrawMesh(const FMeshBatch& Mesh)
 		}
 
 		{
-			TArray<FPrimitiveUniformShaderParameters>* DynamicPrimitiveShaderDataForRT = DynamicPrimitiveShaderData;
 			ERHIFeatureLevel::Type FeatureLevel = ViewInfo->GetFeatureLevel();
 
 			ENQUEUE_RENDER_COMMAND(FCopyDynamicPrimitiveShaderData)(
-				[NewMesh, DynamicPrimitiveShaderDataForRT, FeatureLevel](FRHICommandListImmediate& RHICmdList)
+				[NewMesh, DynamicPrimitiveCollectorForRT = DynamicPrimitiveCollector, FeatureLevel](FRHICommandListImmediate& RHICmdList)
 				{
 					const bool bPrimitiveShaderDataComesFromSceneBuffer = NewMesh->VertexFactory->GetPrimitiveIdStreamIndex(EVertexInputStreamType::Default) >= 0;
 
@@ -249,10 +248,9 @@ inline int32 FViewElementPDI::DrawMesh(const FMeshBatch& Mesh)
 
 							if (PrimitiveUniformBufferResource)
 							{
-								const int32 DataIndex = DynamicPrimitiveShaderDataForRT->AddUninitialized(1);
+								const int32 DataIndex = DynamicPrimitiveCollectorForRT->Add(reinterpret_cast<const FPrimitiveUniformShaderParameters*>(PrimitiveUniformBufferResource->GetContents()), 1);
 								NewMesh->Elements[Index].PrimitiveIdMode = PrimID_DynamicPrimitiveShaderData;
 								NewMesh->Elements[Index].DynamicPrimitiveShaderDataIndex = DataIndex;
-								FPlatformMemory::Memcpy(&(*DynamicPrimitiveShaderDataForRT)[DataIndex], PrimitiveUniformBufferResource->GetContents(), sizeof(FPrimitiveUniformShaderParameters));
 							}
 						}
 					}

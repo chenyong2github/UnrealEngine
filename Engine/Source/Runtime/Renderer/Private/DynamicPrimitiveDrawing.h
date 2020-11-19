@@ -10,12 +10,14 @@
 #include "SceneManagement.h"
 #include "SceneRendering.h"
 
+class FGPUScenePrimitiveCollector;
+
 /** A primitive draw interface which adds the drawn elements to the view's batched elements. */
 class FViewElementPDI : public FPrimitiveDrawInterface
 {
 public:
 
-	FViewElementPDI(FViewInfo* InViewInfo,FHitProxyConsumer* InHitProxyConsumer,TArray<FPrimitiveUniformShaderParameters>* InDynamicPrimitiveShaderData);
+	FViewElementPDI(FViewInfo* InViewInfo,FHitProxyConsumer* InHitProxyConsumer, FGPUScenePrimitiveCollector *InDynamicPrimitiveCollector);
 
 	// FPrimitiveDrawInterface interface.
 	virtual bool IsHitTesting() override;
@@ -67,7 +69,7 @@ private:
 	FViewInfo* ViewInfo;
 	TRefCountPtr<HHitProxy> CurrentHitProxy;
 	FHitProxyConsumer* HitProxyConsumer;
-	TArray<FPrimitiveUniformShaderParameters>* DynamicPrimitiveShaderData;
+	FGPUScenePrimitiveCollector* DynamicPrimitiveCollector;
 
 	/** Depending of the DPG we return a different FBatchedElement instance. */
 	FBatchedElements& GetElements(uint8 DepthPriorityGroup) const;

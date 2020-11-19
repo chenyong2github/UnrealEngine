@@ -468,7 +468,7 @@ void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBu
 
 		PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;
 		PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
-		PassParameters->GPUSceneFrameNumber = GPUScene.SceneFrameNumber;
+		PassParameters->GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
 		PassParameters->InstanceDataSOAStride = GPUScene.InstanceDataSOAStride;
 
 		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FVirtualSmInvalidateInstancePagesCS>();

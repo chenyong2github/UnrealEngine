@@ -1733,45 +1733,18 @@ void FViewInfo::SetupUniformBufferParameters(
 		{
 			ViewUniformShaderParameters.PrimitiveSceneData = PrimitiveSceneDataOverrideSRV;
 		}
-		else
+		else if (Scene && Scene->GPUScene.PrimitiveBuffer.SRV != nullptr)
 		{
-			const FRWBufferStructured* ViewPrimitiveShaderDataBuffer = nullptr;
-
-			if (DynamicPrimitiveShaderData.Num() > 0)
-			{
-				ViewPrimitiveShaderDataBuffer = ViewState ? &ViewState->PrimitiveShaderDataBuffer : &OneFramePrimitiveShaderDataBuffer;
-			}
-			else if (Scene)
-			{
-				ViewPrimitiveShaderDataBuffer = &Scene->GPUScene.PrimitiveBuffer;
-			}
-
-			if (ViewPrimitiveShaderDataBuffer && ViewPrimitiveShaderDataBuffer->SRV)
-			{
-				ViewUniformShaderParameters.PrimitiveSceneData = ViewPrimitiveShaderDataBuffer->SRV;
-			}
+			ViewUniformShaderParameters.PrimitiveSceneData = Scene->GPUScene.PrimitiveBuffer.SRV;
 		}
 
 		if (PrimitiveSceneDataTextureOverrideRHI)
 		{
 			ViewUniformShaderParameters.PrimitiveSceneDataTexture = PrimitiveSceneDataTextureOverrideRHI;
 		}
-		else
+		else if (Scene)
 		{
-			const FTextureRWBuffer2D* ViewPrimitiveShaderDataTexture = nullptr;
-			if (DynamicPrimitiveShaderData.Num() > 0)
-			{
-				ViewPrimitiveShaderDataTexture = ViewState ? &ViewState->PrimitiveShaderDataTexture : &OneFramePrimitiveShaderDataTexture;
-			}
-			else if (Scene)
-			{
-				ViewPrimitiveShaderDataTexture = &Scene->GPUScene.PrimitiveTexture;
-			}
-
-			if (ViewPrimitiveShaderDataTexture)
-			{
-				ViewUniformShaderParameters.PrimitiveSceneDataTexture = OrBlack2DIfNull(ViewPrimitiveShaderDataTexture->Buffer);
-			}
+			ViewUniformShaderParameters.PrimitiveSceneDataTexture = OrBlack2DIfNull(Scene->GPUScene.PrimitiveTexture.Buffer);
 		}
 		
 		if (InstanceSceneDataOverrideSRV)
@@ -1903,15 +1876,6 @@ FViewInfo* FViewInfo::CreateSnapshot() const
 	FMemory::Memcpy(Result->CachedViewUniformShaderParameters, NullViewParameters); 
 
 	TArray<FPrimitiveUniformShaderParameters> NullDynamicPrimitiveShaderData;
-	FMemory::Memcpy(Result->DynamicPrimitiveShaderData, NullDynamicPrimitiveShaderData);
-	Result->DynamicPrimitiveShaderData = DynamicPrimitiveShaderData;
-
-	FRWBufferStructured NullOneFramePrimitiveShaderDataBuffer;
-	FMemory::Memcpy(Result->OneFramePrimitiveShaderDataBuffer, NullOneFramePrimitiveShaderDataBuffer);
-	
-	FTextureRWBuffer2D NullOneFramePrimitiveShaderDataTexture;
-	FMemory::Memcpy(Result->OneFramePrimitiveShaderDataTexture, NullOneFramePrimitiveShaderDataTexture);
-
 	TStaticArray<FParallelMeshDrawCommandPass, EMeshPass::Num> NullParallelMeshDrawCommandPasses;
 	FMemory::Memcpy(Result->ParallelMeshDrawCommandPasses, NullParallelMeshDrawCommandPasses);
 
@@ -1944,9 +1908,6 @@ void FViewInfo::DestroyAllSnapshots()
 	{
 		Snapshot->ViewUniformBuffer.SafeRelease();
 		Snapshot->CachedViewUniformShaderParameters.Reset();
-		Snapshot->DynamicPrimitiveShaderData.Empty();
-		Snapshot->OneFramePrimitiveShaderDataBuffer.Release();
-		Snapshot->OneFramePrimitiveShaderDataTexture.Release();
 
 		for (int32 Index = 0; Index < Snapshot->ParallelMeshDrawCommandPasses.Num(); ++Index)
 		{
@@ -2189,6 +2150,7 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 ,	InstancedStereoWidth(0)
 ,	RootMark(nullptr)
 ,	FamilySize(0, 0)
+,	GPUSceneDynamicContext(Scene->GPUScene)
 ,	bShadowDepthRenderCompleted(false)
 {
 	check(Scene != NULL);
@@ -2217,6 +2179,9 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 		ViewInfo->Family = &ViewFamily;
 		bAnyViewIsLocked |= ViewInfo->bIsLocked;
 
+		// Must initialize to have a GPUScene connected to be able to collect dynamic primitives.
+		ViewInfo->DynamicPrimitiveCollector = FGPUScenePrimitiveCollector(&GPUSceneDynamicContext);
+
 		check(ViewInfo->ViewRect.Area() == 0);
 
 #if WITH_EDITOR
@@ -2229,7 +2194,7 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 		// Batch the view's elements for later rendering.
 		if(ViewInfo->Drawer)
 		{
-			FViewElementPDI ViewElementPDI(ViewInfo,HitProxyConsumer,&ViewInfo->DynamicPrimitiveShaderData);
+			FViewElementPDI ViewElementPDI(ViewInfo,HitProxyConsumer,&ViewInfo->DynamicPrimitiveCollector);
 			ViewInfo->Drawer->Draw(ViewInfo,&ViewElementPDI);
 		}
 

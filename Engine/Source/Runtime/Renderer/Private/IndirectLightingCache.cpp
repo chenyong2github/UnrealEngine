@@ -594,7 +594,7 @@ void FIndirectLightingCache::FinalizeUpdateInternal_RenderThread(FScene* Scene, 
 
 	if (GCacheDrawLightingSamples || Renderer.ViewFamily.EngineShowFlags.VolumeLightingSamples || GCacheDrawDirectionalShadowing)
 	{
-		FViewElementPDI DebugPDI(&Renderer.Views[0], nullptr, &Renderer.Views[0].DynamicPrimitiveShaderData);
+		FViewElementPDI DebugPDI(&Renderer.Views[0], nullptr, &Renderer.Views[0].DynamicPrimitiveCollector);
 
 		for (int32 VolumeIndex = 0; VolumeIndex < Scene->PrecomputedLightVolumes.Num(); VolumeIndex++)
 		{

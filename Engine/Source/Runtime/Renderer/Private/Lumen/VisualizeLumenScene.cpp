@@ -546,7 +546,7 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 
 	if (Lumen::ShouldRenderLumenCardsForView(Scene, Views[0]) && GVisualizeLumenCardPlacement != 0)
 	{
-		FViewElementPDI ViewPDI(&Views[0], nullptr, &Views[0].DynamicPrimitiveShaderData);
+		FViewElementPDI ViewPDI(&Views[0], nullptr, &Views[0].DynamicPrimitiveCollector);
 
 		FConvexVolume ViewFrustum;
 		GetViewFrustumBounds(ViewFrustum, Views[0].ViewMatrices.GetViewProjectionMatrix(), true);
@@ -610,7 +610,7 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 
 		for (int32 ClipmapIndex = 0; ClipmapIndex < NumClipmaps; ClipmapIndex++)
 		{
-			FViewElementPDI ViewPDI(&Views[0], nullptr, &Views[0].DynamicPrimitiveShaderData);
+			FViewElementPDI ViewPDI(&Views[0], nullptr, &Views[0].DynamicPrimitiveCollector);
 			const uint8 MarkerHue = (ClipmapIndex * 100) & 0xFF;
 			const uint8 MarkerSaturation = 0xFF;
 			const uint8 MarkerValue = 0xFF;

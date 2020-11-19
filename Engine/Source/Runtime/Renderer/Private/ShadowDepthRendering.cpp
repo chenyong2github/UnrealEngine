@@ -1047,7 +1047,7 @@ void FProjectedShadowInfo::BeginRenderView(FRDGBuilder& GraphBuilder, FScene* Sc
 	}
 
 	// This needs to be done for both mobile and deferred
-	UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, *Scene, *ShadowDepthView);
+	Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, *Scene, *ShadowDepthView);
 }
 
 static bool IsShadowDepthPassWaitForTasksEnabled()
@@ -1235,6 +1235,9 @@ void FProjectedShadowInfo::SetupShadowDepthView(FRHICommandListImmediate& RHICmd
 	FViewInfo* FoundView = FindViewForShadow(SceneRenderer);
 	check(FoundView && IsInRenderingThread());
 	FViewInfo* DepthPassView = FoundView->CreateSnapshot();
+	// We are starting a new collection of dynamic primitives for the shadow views.
+	DepthPassView->DynamicPrimitiveCollector = FGPUScenePrimitiveCollector(&SceneRenderer->GetGPUSceneDynamicContext());
+
 	ModifyViewForShadow(RHICmdList, DepthPassView);
 	ShadowDepthView = DepthPassView;
 }

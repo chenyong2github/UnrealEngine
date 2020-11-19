@@ -424,10 +424,11 @@ void FScene::AddLight(LightComponentType* PointLightComponent)
 	{
 		for (FPrimitiveSceneProxy* SceneProxy : SceneProxiesToUpdateOnRenderThread)
 		{
-			if (SceneProxy->GetPrimitiveSceneInfo() && SceneProxy->GetPrimitiveSceneInfo()->IsIndexValid())
+			FPrimitiveSceneInfo* PrimitiveSceneInfo = SceneProxy->GetPrimitiveSceneInfo();
+			if (PrimitiveSceneInfo && PrimitiveSceneInfo->IsIndexValid())
 			{
-				SceneProxy->GetPrimitiveSceneInfo()->UpdateStaticLightingBuffer();
-				AddPrimitiveToUpdateGPU(*SceneProxy->GetPrimitiveSceneInfo()->Scene, SceneProxy->GetPrimitiveSceneInfo()->GetIndex());
+				PrimitiveSceneInfo->UpdateStaticLightingBuffer();
+				PrimitiveSceneInfo->Scene->GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->GetIndex());
 			}
 		}
 	});
@@ -505,10 +506,11 @@ void FScene::RemoveLight(LightComponentType* PointLightComponent)
 	{
 		for (FPrimitiveSceneProxy* SceneProxy : SceneProxiesToUpdateOnRenderThread)
 		{
-			if (SceneProxy->GetPrimitiveSceneInfo() && SceneProxy->GetPrimitiveSceneInfo()->IsIndexValid())
+			FPrimitiveSceneInfo* PrimitiveSceneInfo = SceneProxy->GetPrimitiveSceneInfo();
+			if (PrimitiveSceneInfo && PrimitiveSceneInfo->IsIndexValid())
 			{
-				SceneProxy->GetPrimitiveSceneInfo()->UpdateStaticLightingBuffer();
-				AddPrimitiveToUpdateGPU(*SceneProxy->GetPrimitiveSceneInfo()->Scene, SceneProxy->GetPrimitiveSceneInfo()->GetIndex());
+				PrimitiveSceneInfo->UpdateStaticLightingBuffer();
+				PrimitiveSceneInfo->Scene->GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->GetIndex());
 			}
 		}
 	});

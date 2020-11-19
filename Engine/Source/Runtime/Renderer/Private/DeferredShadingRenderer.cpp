@@ -573,7 +573,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 	TArray<int> DynamicMeshBatchStartOffset;
 	TArray<int> VisibleDrawCommandStartOffset;
 
-	TArray<FPrimitiveUniformShaderParameters> DummyDynamicPrimitiveShaderData;
+	FGPUScenePrimitiveCollector DummyDynamicPrimitiveCollector;
 
 	TArray<FRayTracingInstance> RayTracingInstances;
 
@@ -588,7 +588,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 			&View,
 			&View.RayTracedDynamicMeshElements,
 			&View.SimpleElementCollector,
-			&DummyDynamicPrimitiveShaderData,
+			&DummyDynamicPrimitiveCollector,
 			ViewFamily.GetFeatureLevel(),
 			&DynamicIndexBufferForInitViews,
 			&DynamicVertexBufferForInitViews,
@@ -1472,6 +1472,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, true);
 
+	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, *Scene);
 	if (bNaniteEnabled)
 	{
 		Nanite::GGlobalResources.Update(GraphBuilder); // Needed to managed scratch buffers for Nanite.
@@ -1644,23 +1645,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, GPUSceneUpdate);
 
-		if (bUseVirtualTexturing)
-		{
-			RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
-
-			FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene);
-
-			AddPass(GraphBuilder, [this, &SceneContext](FRHICommandListImmediate& InRHICmdList)
-			{
-				// Clear virtual texture feedback to default value
-				FUnorderedAccessViewRHIRef FeedbackUAV = SceneContext.GetVirtualTextureFeedbackUAV();
-				InRHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-				InRHICmdList.ClearUAVUint(FeedbackUAV, FUintVector4(~0u, ~0u, ~0u, ~0u));
-				InRHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::UAVCompute, ERHIAccess::UAVGraphics));
-				InRHICmdList.BeginUAVOverlap(FeedbackUAV);
-			});
-		}
-
 		auto FlushResourcesPass = [this](FRHICommandListImmediate& InRHICmdList)
 		{
 			// we will probably stall on occlusion queries, so might as well have the RHI thread and GPU work while we wait.
@@ -1674,7 +1658,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			AddPass(GraphBuilder, FlushResourcesPass);
 		}
 
-		UpdateGPUScene(GraphBuilder, *Scene);
+		Scene->GPUScene.Update(GraphBuilder, *Scene);
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -1690,7 +1674,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			FViewInfo& View = Views[ViewIndex];
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
-			UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, *Scene, View);
+			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, *Scene, View);
 		}
 
 		if (!bDoInitViewAftersPrepass)
@@ -1712,6 +1696,23 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	FSceneTextures& SceneTextures = FSceneTextures::Create(GraphBuilder);
+	// Note, should happen after the GPU-Scene update to ensure rendering to runtime virtual textures is using the correctly updated scene
+	if (bUseVirtualTexturing)
+	{
+		RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
+
+		FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene);
+
+		AddPass(GraphBuilder, [this, &SceneContext](FRHICommandListImmediate& InRHICmdList)
+		{
+			// Clear virtual texture feedback to default value
+			FUnorderedAccessViewRHIRef FeedbackUAV = SceneContext.GetVirtualTextureFeedbackUAV();
+			InRHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+			InRHICmdList.ClearUAVUint(FeedbackUAV, FUintVector4(~0u, ~0u, ~0u, ~0u));
+			InRHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::UAVCompute, ERHIAccess::UAVGraphics));
+			InRHICmdList.BeginUAVOverlap(FeedbackUAV);
+		});
+	}
 
 	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
 	bool bCanOverlayRayTracingOutput = CanOverlayRayTracingOutput(Views[0]);// #dxr_todo: UE-72557 multi-view case

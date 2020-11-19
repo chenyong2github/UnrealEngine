@@ -761,7 +761,7 @@ static void OnVirtualTextureDestroyed(const FVirtualTextureProducerHandle& InHan
 	PrimitiveSceneInfo->UpdateStaticLightingBuffer();
 
 	// Also need to update lightmap data inside GPUScene, if that's enabled
-	AddPrimitiveToUpdateGPU(*PrimitiveSceneInfo->Scene, PrimitiveSceneInfo->GetIndex());
+	PrimitiveSceneInfo->Scene->GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->GetIndex());
 }
 
 static void GetRuntimeVirtualTextureLODRange(TArray<class FStaticMeshBatchRelevance> const& MeshRelevances, int8& OutMinLOD, int8& OutMaxLOD)
@@ -1201,7 +1201,7 @@ void FPrimitiveSceneInfo::UpdateUniformBuffer(FRHICommandListImmediate& RHICmdLi
 	checkSlow(bNeedsUniformBufferUpdate);
 	bNeedsUniformBufferUpdate = false;
 	Proxy->UpdateUniformBuffer();
-	AddPrimitiveToUpdateGPU(*Scene, PackedIndex);
+	Scene->GPUScene.AddPrimitiveToUpdate(PackedIndex);
 }
 
 void FPrimitiveSceneInfo::BeginDeferredUpdateStaticMeshes()
@@ -1322,7 +1322,7 @@ void FPrimitiveSceneInfo::RequestGPUSceneUpdate()
 {
 	if (Scene && IsIndexValid())
 	{
-		AddPrimitiveToUpdateGPU(*Scene, GetIndex());
+		Scene->GPUScene.AddPrimitiveToUpdate(GetIndex());
 	}
 }
 

@@ -751,7 +751,6 @@ private:
 
 	/** Gathers dynamic mesh elements for the given primitive array. */
 	void GatherDynamicMeshElementsArray(
-		FViewInfo* FoundView,
 		FSceneRenderer& Renderer, 
 		FGlobalDynamicIndexBuffer& DynamicIndexBuffer,
 		FGlobalDynamicVertexBuffer& DynamicVertexBuffer,

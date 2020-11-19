@@ -1320,9 +1320,11 @@ void FMeshPassProcessor::GetDrawCommandPrimitiveId(
 			check(PrimitiveSceneInfo);
 			DrawPrimitiveId = PrimitiveSceneInfo->GetIndex();
 		}
-		else if (BatchElement.PrimitiveIdMode == PrimID_DynamicPrimitiveShaderData)
+		else if (BatchElement.PrimitiveIdMode == PrimID_DynamicPrimitiveShaderData && ViewIfDynamicMeshCommand != nullptr)
 		{
-			DrawPrimitiveId = (Scene ? Scene->Primitives.Num() : 0) + BatchElement.DynamicPrimitiveShaderDataIndex;
+			checkSlow(ViewIfDynamicMeshCommand->bIsViewInfo);
+			const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(ViewIfDynamicMeshCommand);
+			DrawPrimitiveId = ViewInfo->DynamicPrimitiveCollector.GetFinalId(BatchElement.DynamicPrimitiveShaderDataIndex);
 		}
 		else
 		{

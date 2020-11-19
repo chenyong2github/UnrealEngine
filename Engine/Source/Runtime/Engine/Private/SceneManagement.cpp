@@ -294,12 +294,8 @@ void FMeshElementCollector::AddMesh(int32 ViewIndex, FMeshBatch& MeshBatch)
 
 			if (PrimitiveUniformBufferResource)
 			{
-				TArray<FPrimitiveUniformShaderParameters>* DynamicPrimitiveShaderData = DynamicPrimitiveShaderDataPerView[ViewIndex];
-
-				const int32 DataIndex = DynamicPrimitiveShaderData->AddUninitialized(1);
 				MeshBatch.Elements[Index].PrimitiveIdMode = PrimID_DynamicPrimitiveShaderData;
-				MeshBatch.Elements[Index].DynamicPrimitiveShaderDataIndex = DataIndex;
-				FPlatformMemory::Memcpy(&(*DynamicPrimitiveShaderData)[DataIndex], PrimitiveUniformBufferResource->GetContents(), sizeof(FPrimitiveUniformShaderParameters));
+				MeshBatch.Elements[Index].DynamicPrimitiveShaderDataIndex = DynamicPrimitiveCollectorPerView[ViewIndex]->Add(reinterpret_cast<const FPrimitiveUniformShaderParameters*>(PrimitiveUniformBufferResource->GetContents()), 1);;
 			}
 		}
 	}

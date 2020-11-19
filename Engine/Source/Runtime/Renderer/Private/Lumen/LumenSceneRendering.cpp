@@ -2029,7 +2029,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 
 			FViewInfo* SharedView = Views[0].CreateSnapshot();
 			{
-				SharedView->DynamicPrimitiveShaderData.Empty();
+				SharedView->DynamicPrimitiveCollector = FGPUScenePrimitiveCollector(&GetGPUSceneDynamicContext());
 				SharedView->StereoPass = eSSP_FULL;
 				SharedView->DrawDynamicFlags = EDrawDynamicFlags::ForceLowestLOD;
 

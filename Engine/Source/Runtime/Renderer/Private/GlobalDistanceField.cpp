@@ -641,7 +641,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 
 		int32 NumClipmapUpdateRequests = 0;
 
-		FViewElementPDI ViewPDI(&View, nullptr, &View.DynamicPrimitiveShaderData);
+		FViewElementPDI ViewPDI(&View, nullptr, &View.DynamicPrimitiveCollector);
 
 		bool bSharedDataReallocated = false;
 

@@ -375,10 +375,10 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	UpdateGPUScene(GraphBuilder, *Scene);
+	Scene->GPUScene.Update(GraphBuilder, *Scene);
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
-		UploadDynamicPrimitiveShaderDataForView(RHICmdList, *Scene, Views[ViewIndex]);
+		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(RHICmdList, *Scene, Views[ViewIndex]);
 	}
 
 	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
@@ -428,6 +428,9 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	SCOPED_GPU_STAT(RHICmdList, MobileSceneRender);
 
 	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
+
+	// Establish scene primitive count (must be done after UpdateAllPrimitiveSceneInfos)
+	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, *Scene);
 
 	PrepareViewRectsForRendering();
 

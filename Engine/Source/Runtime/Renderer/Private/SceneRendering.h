@@ -35,6 +35,7 @@
 #include "Nanite/NaniteRender.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
 #include "Lumen/LumenTranslucencyVolumeLighting.h"
+#include "GPUScene.h"
 
 // Forward declarations.
 class FScene;
@@ -1159,13 +1160,6 @@ public:
 
 	FSimpleElementCollector EditorSimpleElementCollector;
 
-	/** Tracks dynamic primitive data for upload to GPU Scene, when enabled. */
-	TArray<FPrimitiveUniformShaderParameters> DynamicPrimitiveShaderData;
-
-	/** Only one of the resources(TextureBuffer or Texture2D) will be used depending on the Mobile.UseGPUSceneTexture cvar */
-	FRWBufferStructured OneFramePrimitiveShaderDataBuffer;
-	FTextureRWBuffer2D OneFramePrimitiveShaderDataTexture;
-
 	TStaticArray<FParallelMeshDrawCommandPass, EMeshPass::Num> ParallelMeshDrawCommandPasses;
 	
 #if RHI_RAYTRACING
@@ -1543,6 +1537,10 @@ public:
 	// @return range (start is inclusive, end is exclusive)
 	FInt32Range GetDynamicMeshElementRange(uint32 PrimitiveIndex) const;
 
+	/**
+	 * Collector for view-dependent data.
+	 */
+	FGPUScenePrimitiveCollector DynamicPrimitiveCollector;
 private:
 	// Cache of TEXTUREGROUP_World to create view's samplers on render thread.
 	// may not have a valid value if FViewInfo is created on the render thread.
@@ -1825,6 +1823,8 @@ public:
 	/** Cache the FXSystem value from the Scene. Must be ran on the renderthread to ensure it is valid throughout rendering. */
 	void InitFXSystem();
 
+	FGPUSceneDynamicContext& GetGPUSceneDynamicContext() { return GPUSceneDynamicContext; }
+
 protected:
 
 	/** Size of the family. */
@@ -2036,6 +2036,8 @@ protected:
 
 	void SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate& RHICmdList);
 
+protected:
+	FGPUSceneDynamicContext GPUSceneDynamicContext;
 private:
 	void ComputeFamilySize();
 

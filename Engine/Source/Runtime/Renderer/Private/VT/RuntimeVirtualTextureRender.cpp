@@ -1043,7 +1043,7 @@ namespace RuntimeVirtualTexture
 		View->CachedViewUniformShaderParameters->RuntimeVirtualTexturePackHeight = WorldHeightPackParameter;
 		View->CachedViewUniformShaderParameters->RuntimeVirtualTextureDebugParams = FVector4(DebugType == ERuntimeVirtualTextureDebugType::Debug ? 1.f : 0.f, 0.f, 0.f, 0.f);
 		View->ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*View->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
-		UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, *(const_cast<FScene*>(Scene)), *View);
+		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, *(const_cast<FScene*>(Scene)), *View);
 
 		AddPass(GraphBuilder, [Scene, View](FRHICommandList&)
 		{
@@ -1138,10 +1138,6 @@ namespace RuntimeVirtualTexture
 		RDG_EVENT_SCOPE(GraphBuilder, "RuntimeVirtualTextureRenderPages");
 		check(InDesc.NumPageDescs <= EMaxRenderPageBatch);
 
-		// Make sure GPUScene is up to date. 
-		// Usually this is a no-op since we updated before calling, but RuntimeVirtualTexture::BuildStreamedMips() needs this.
-		UpdateGPUScene(GraphBuilder, *InDesc.Scene->GetRenderScene());
-
 		for (int32 PageIndex = 0; PageIndex < InDesc.NumPageDescs; ++PageIndex)
 		{
 			FRenderPageDesc const& PageDesc = InDesc.PageDescs[PageIndex];
@@ -1163,6 +1159,23 @@ namespace RuntimeVirtualTexture
 				InDesc.MaxLevel,
 				InDesc.DebugType);
 		}
+	}
+
+	void RenderPagesStandAlone(FRHICommandListImmediate& RHICmdList, FRenderPageBatchDesc const& InDesc)
+	{
+		FMemMark MemMark(FMemStack::Get());
+		FRDGBuilder GraphBuilder(RHICmdList);
+
+		// This is required to collect dynamic primitives from the views (not used here, but we must provide one).
+		FGPUSceneDynamicContext GPUSceneDynamicContext(InDesc.Scene->GPUScene);
+
+		InDesc.Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, true);
+
+		// Call to let GPU-Scene determine if it is active and record scene primitive count
+		FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(InDesc.Scene->GPUScene, GPUSceneDynamicContext, *InDesc.Scene);
+		InDesc.Scene->GPUScene.Update(GraphBuilder, *InDesc.Scene);
+		RenderPages(GraphBuilder, InDesc);
+		GraphBuilder.Execute();
 	}
 
 	void RenderPages(FRHICommandListImmediate& RHICmdList, FRenderPageBatchDesc const& InDesc)

@@ -1124,6 +1124,8 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 
 	FeatureLevel = World->FeatureLevel;
 
+	GPUScene.SetEnabled(UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel));
+
 	if (World->FXSystem)
 	{
 		FFXSystemInterface::Destroy(World->FXSystem);
@@ -3891,8 +3893,8 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 							TBitArraySwapElements(PrimitivesAlwaysVisible, DestIndex, SourceIndex);
 							TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 
-							AddPrimitiveToUpdateGPU(*this, SourceIndex);
-							AddPrimitiveToUpdateGPU(*this, DestIndex);
+							GPUScene.AddPrimitiveToUpdate(SourceIndex);
+							GPUScene.AddPrimitiveToUpdate(DestIndex);
 
 							SourceIndex = DestIndex;
 						}
@@ -3966,7 +3968,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				PrimitiveSceneInfo->RemoveFromScene(true);
 
 				// Update the primitive that was swapped to this index
-				AddPrimitiveToUpdateGPU(*this, PrimitiveIndex);
+				GPUScene.AddPrimitiveToUpdate(PrimitiveIndex);
 
 				DistanceFieldSceneData.RemovePrimitive(PrimitiveSceneInfo);
 				LumenSceneData->RemovePrimitive(PrimitiveSceneInfo);
@@ -4028,7 +4030,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				const int32 SourceIndex = PrimitiveSceneProxies.Num() - 1;
 				PrimitiveSceneInfo->PackedIndex = SourceIndex;
 
-				AddPrimitiveToUpdateGPU(*this, SourceIndex);
+				GPUScene.AddPrimitiveToUpdate(SourceIndex);
 			}
 
 			bool EntryFound = false;
@@ -4104,7 +4106,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 							TBitArraySwapElements(PrimitivesAlwaysVisible, DestIndex, SourceIndex);
 							TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 
-							AddPrimitiveToUpdateGPU(*this, DestIndex);
+							GPUScene.AddPrimitiveToUpdate(DestIndex);
 						}
 					}
 				}
@@ -4168,7 +4170,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 					VelocityData.UpdateTransform(PrimitiveSceneInfo, PrimitiveTransforms[PrimitiveIndex], PrimitiveTransforms[PrimitiveIndex]);
 				}
 
-				AddPrimitiveToUpdateGPU(*this, PrimitiveIndex);
+				GPUScene.AddPrimitiveToUpdate(PrimitiveIndex);
 
 				// Invalidate PathTraced image because we added something to the scene
 				bPathTracingNeedsInvalidation = true;
@@ -4246,7 +4248,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				PrimitiveSceneInfo->MarkIndirectLightingCacheBufferDirty();
 			}
 
-			AddPrimitiveToUpdateGPU(*this, PrimitiveSceneInfo->PackedIndex);
+			GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->PackedIndex);
 
 			DistanceFieldSceneData.UpdatePrimitive(PrimitiveSceneInfo);
 			LumenSceneData->UpdatePrimitive(PrimitiveSceneInfo);

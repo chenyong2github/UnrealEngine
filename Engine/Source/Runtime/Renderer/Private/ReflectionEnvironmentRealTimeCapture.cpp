@@ -298,10 +298,6 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 	CubeView.FOV = 90.0f;
 	// Note: We cannot override exposure because sky input texture are using exposure
 
-	// DYNAMIC PRIMITIVES - We empty the CubeView dynamic primitive list to make sure UploadDynamicPrimitiveShaderDataForViewInternal is going through the cheap fast path only updating unfirm buffer.
-	// This means we cannot render procedurally animated meshes into the real-time sky capture as of today.
-	CubeView.DynamicPrimitiveShaderData.Empty();
-
 	// Other view data clean up
 	CubeView.StereoPass = eSSP_FULL;
 	CubeView.DrawDynamicFlags = EDrawDynamicFlags::ForceLowestLOD;
@@ -495,8 +491,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 				CubeView.ViewUniformBuffer = CubeViewUniformBuffer;
 				if (CubeView.bSceneHasSkyMaterial)
 				{
-					// DYNAMIC PRIMITIVES - This will hit the fast path not updating the GPU scene, but only setting the GPUSCene resources on the view uniform buffer.
-					UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, *this, CubeView);
+					GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, *this, CubeView);
 				}
 
 				SkyRC.ViewUniformBuffer = CubeViewUniformBuffer;

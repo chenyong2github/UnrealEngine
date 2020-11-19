@@ -2539,7 +2539,7 @@ struct FRelevancePacket
 			PrimitiveSceneInfo->ConditionalUpdateUniformBuffer(RHICmdList);
 
 			FScene& WriteScene = *const_cast<FScene*>(Scene);
-			AddPrimitiveToUpdateGPU(WriteScene, PrimitiveSceneInfo->GetIndex());
+			WriteScene.GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->GetIndex());
 		}
 
 		for (int32 Index = 0; Index < LazyUpdatePrimitives.NumPrims; Index++)
@@ -2951,7 +2951,7 @@ void FSceneRenderer::GatherDynamicMeshElements(
 				&InViews[ViewIndex], 
 				&InViews[ViewIndex].DynamicMeshElements,
 				&InViews[ViewIndex].SimpleElementCollector,
-				&InViews[ViewIndex].DynamicPrimitiveShaderData, 
+				&InViews[ViewIndex].DynamicPrimitiveCollector,
 				InViewFamily.GetFeatureLevel(),
 				&DynamicIndexBuffer,
 				&DynamicVertexBuffer,
@@ -3026,7 +3026,7 @@ void FSceneRenderer::GatherDynamicMeshElements(
 				&InViews[ViewIndex], 
 				&InViews[ViewIndex].DynamicEditorMeshElements, 
 				&InViews[ViewIndex].EditorSimpleElementCollector, 
-				&InViews[ViewIndex].DynamicPrimitiveShaderData, 
+				&InViews[ViewIndex].DynamicPrimitiveCollector,
 				InViewFamily.GetFeatureLevel(),
 				&DynamicIndexBuffer,
 				&DynamicVertexBuffer,
@@ -3047,6 +3047,11 @@ void FSceneRenderer::GatherDynamicMeshElements(
 		}
 	}
 	MeshCollector.ProcessTasks();
+
+	for (FViewInfo& View : InViews)
+	{
+		View.DynamicPrimitiveCollector.Commit();
+	}
 }
 
 /**
@@ -3154,7 +3159,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder)
 						for (int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 						{
 							FViewInfo& View = Views[ViewIndex];
-							FViewElementPDI LightInfluencesPDI(&View,nullptr,&View.DynamicPrimitiveShaderData);
+							FViewElementPDI LightInfluencesPDI(&View,nullptr,&View.DynamicPrimitiveCollector);
 							LightInfluencesPDI.DrawLine(PrimitiveSceneInfo->Proxy->GetBounds().Origin, LightSceneInfo->Proxy->GetLightToWorld().GetOrigin(), LineColor, SDPG_World);
 						}
 					}
@@ -4374,7 +4379,7 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 					FMatrix LightToWorld = Proxy->GetLightToWorld();
 					LightToWorld.RemoveScaling();
 
-					FViewElementPDI LightPDI( &View, NULL, &View.DynamicPrimitiveShaderData );
+					FViewElementPDI LightPDI( &View, NULL, &View.DynamicPrimitiveCollector);
 
 					if( bIsRectLight )
 					{

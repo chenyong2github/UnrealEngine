@@ -3143,7 +3143,7 @@ void CullRasterizeInner(
 	FGPUSceneParameters GPUSceneParameters;
 	GPUSceneParameters.GPUSceneInstanceSceneData = Scene.GPUScene.InstanceDataBuffer.SRV;
 	GPUSceneParameters.GPUScenePrimitiveSceneData = Scene.GPUScene.PrimitiveBuffer.SRV;
-	GPUSceneParameters.GPUSceneFrameNumber = Scene.GPUScene.SceneFrameNumber;
+	GPUSceneParameters.GPUSceneFrameNumber = Scene.GPUScene.GetSceneFrameNumber();
 	
 	{
 		FInitArgs_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInitArgs_CS::FParameters >();

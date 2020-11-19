@@ -51,6 +51,7 @@ class FSkyAtmosphereRenderSceneInfo;
 class USkyLightComponent;
 struct FDynamicMeshVertex;
 class ULightMapVirtualTexture2D;
+class FGPUScenePrimitiveCollector;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogBufferVisualization, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogMultiView, Log, All);
@@ -2348,7 +2349,7 @@ protected:
 		MeshBatches.Empty();
 		SimpleElementCollectors.Empty();
 		MeshIdInPrimitivePerView.Empty();
-		DynamicPrimitiveShaderDataPerView.Empty();
+		DynamicPrimitiveCollectorPerView.Empty();
 		NumMeshBatchElementsPerView.Empty();
 		DynamicIndexBuffer = nullptr;
 		DynamicVertexBuffer = nullptr;
@@ -2359,7 +2360,7 @@ protected:
 		FSceneView* InView, 
 		TArray<FMeshBatchAndRelevance,SceneRenderingAllocator>* ViewMeshes,
 		FSimpleElementCollector* ViewSimpleElementCollector, 
-		TArray<FPrimitiveUniformShaderParameters>* InDynamicPrimitiveShaderData,
+		FGPUScenePrimitiveCollector* InDynamicPrimitiveCollector,
 		ERHIFeatureLevel::Type InFeatureLevel,
 		FGlobalDynamicIndexBuffer* InDynamicIndexBuffer,
 		FGlobalDynamicVertexBuffer* InDynamicVertexBuffer,
@@ -2370,7 +2371,7 @@ protected:
 		MeshBatches.Add(ViewMeshes);
 		NumMeshBatchElementsPerView.Add(0);
 		SimpleElementCollectors.Add(ViewSimpleElementCollector);
-		DynamicPrimitiveShaderDataPerView.Add(InDynamicPrimitiveShaderData);
+		DynamicPrimitiveCollectorPerView.Add(InDynamicPrimitiveCollector);
 
 		check(InDynamicIndexBuffer && InDynamicVertexBuffer && InDynamicReadBuffer);
 		DynamicIndexBuffer = InDynamicIndexBuffer;
@@ -2422,7 +2423,7 @@ protected:
 	TArray<TFunction<void()>*, SceneRenderingAllocator> ParallelTasks;
 
 	/** Tracks dynamic primitive data for upload to GPU Scene for every view, when enabled. */
-	TArray<TArray<FPrimitiveUniformShaderParameters>*, TInlineAllocator<2> > DynamicPrimitiveShaderDataPerView;
+	TArray<FGPUScenePrimitiveCollector*, TInlineAllocator<2> > DynamicPrimitiveCollectorPerView;
 
 	friend class FSceneRenderer;
 	friend class FDeferredShadingSceneRenderer;

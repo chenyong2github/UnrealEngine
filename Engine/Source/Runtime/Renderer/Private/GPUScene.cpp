@@ -62,29 +62,19 @@ FAutoConsoleVariableRef CVarGPUSceneInstanceClearList(
 
 
 template<typename ResourceType>
-ResourceType* GetMirrorGPU(FScene& Scene);
+ResourceType* GetMirrorGPU(FGPUScene& GPUScene);
+
 template<>
-FRWBufferStructured* GetMirrorGPU<FRWBufferStructured>(FScene& Scene)
+FRWBufferStructured* GetMirrorGPU<FRWBufferStructured>(FGPUScene& GPUScene)
 {
-	return &Scene.GPUScene.PrimitiveBuffer;
-}
-template<>
-FTextureRWBuffer2D* GetMirrorGPU<FTextureRWBuffer2D>(FScene& Scene)
-{
-	return &Scene.GPUScene.PrimitiveTexture;
+	return &GPUScene.PrimitiveBuffer;
 }
 
-template<typename ResourceType>
-ResourceType& GetViewStateResourceRef(FViewInfo& View, bool bSingle);
+
 template<>
-FRWBufferStructured& GetViewStateResourceRef(FViewInfo& View, bool bSingle)
+FTextureRWBuffer2D* GetMirrorGPU<FTextureRWBuffer2D>(FGPUScene& GPUScene)
 {
-	return bSingle ? View.OneFramePrimitiveShaderDataBuffer: View.ViewState->PrimitiveShaderDataBuffer;
-}
-template<>
-FTextureRWBuffer2D& GetViewStateResourceRef(FViewInfo& View, bool bSingle)
-{
-	return bSingle ? View.OneFramePrimitiveShaderDataTexture: View.ViewState->PrimitiveShaderDataTexture;
+	return &GPUScene.PrimitiveTexture;
 }
 
 template<typename ResourceType>
@@ -115,16 +105,18 @@ void UnlockResourceGPUScene<FTextureRWBuffer2D>(FTextureRWBuffer2D& Resource)
 }
 
 template<typename ResourceType>
-void UpdateUniformResource(FViewInfo& View, FScene& Scene, bool bDynamicPrimitives);
+void UpdateUniformResource(FViewInfo& View, FGPUScene& GPUScene);
+
+
 template<>
-void UpdateUniformResource<FTextureRWBuffer2D>(FViewInfo& View, FScene& Scene, bool bDynamicPrimitives)
+void UpdateUniformResource<FTextureRWBuffer2D>(FViewInfo& View, FGPUScene& GPUScene)
 {
-	View.CachedViewUniformShaderParameters->PrimitiveSceneDataTexture = bDynamicPrimitives ? GetViewStateResourceRef<FTextureRWBuffer2D>(View, View.ViewState == nullptr).Buffer: GetMirrorGPU<FTextureRWBuffer2D>(Scene)->Buffer;
+	View.CachedViewUniformShaderParameters->PrimitiveSceneDataTexture = GetMirrorGPU<FTextureRWBuffer2D>(GPUScene)->Buffer;
 }
 template<>
-void UpdateUniformResource<FRWBufferStructured>(FViewInfo& View, FScene& Scene, bool bDynamicPrimitives)
+void UpdateUniformResource<FRWBufferStructured>(FViewInfo& View, FGPUScene& GPUScene)
 {
-	View.CachedViewUniformShaderParameters->PrimitiveSceneData = bDynamicPrimitives ? GetViewStateResourceRef<FRWBufferStructured>(View, View.ViewState == nullptr).SRV: GetMirrorGPU<FRWBufferStructured>(Scene)->SRV;
+	View.CachedViewUniformShaderParameters->PrimitiveSceneData = GetMirrorGPU<FRWBufferStructured>(GPUScene)->SRV;
 }
 
 static int32 GetMaxPrimitivesUpdate(uint32 NumUploads, uint32 InStrideInFloat4s)
@@ -168,10 +160,54 @@ static int32 PartitionUpdateRanges(FParallelUpdateRanges& Ranges, int32 ItemCoun
 	return Ranges.Range[3].ItemCount > 0 ? 4 : 3;
 }
 
-template<typename ResourceType>
-void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
+void FGPUScenePrimitiveCollector::Commit()
 {
-	if (UseGPUScene(GMaxRHIShaderPlatform, Scene.GetFeatureLevel()))
+	ensure(!bCommitted);
+	if (UploadData)
+	{
+		PrimitiveIdRange = GPUSceneDynamicContext->GPUScene.CommitPrimitiveCollector(*this);
+	}
+	bCommitted = true;
+}
+
+
+FGPUScenePrimitiveCollector::FUploadData* FGPUScenePrimitiveCollector::AllocateUploadData()
+{
+	return GPUSceneDynamicContext->AllocateDynamicPrimitiveData();
+}
+
+
+FGPUScene::~FGPUScene()
+{
+}
+
+void FGPUScene::BeginRender(FScene& Scene, FGPUSceneDynamicContext &GPUSceneDynamicContext)
+{
+	ensure(!bInBeginEndBlock);
+	ensure(CurrentDynamicContext == nullptr);
+	ensure(bIsEnabled == UseGPUScene(GMaxRHIShaderPlatform, Scene.GetFeatureLevel()));
+	CurrentDynamicContext = &GPUSceneDynamicContext;
+	NumScenePrimitives = Scene.Primitives.Num();
+	DynamicPrimitivesOffset = NumScenePrimitives;
+	bInBeginEndBlock = true;
+}
+
+void FGPUScene::EndRender()
+{
+	ensure(bInBeginEndBlock);
+	ensure(CurrentDynamicContext != nullptr);
+	DynamicPrimitivesOffset = -1;
+	bInBeginEndBlock = false;
+	CurrentDynamicContext = nullptr;
+}
+
+template<typename ResourceType>
+void FGPUScene::UpdateInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
+{
+	ensure(bInBeginEndBlock);
+	ensure(bIsEnabled == UseGPUScene(GMaxRHIShaderPlatform, Scene.GetFeatureLevel()));
+	ensure(NumScenePrimitives == Scene.Primitives.Num());
+	ensure(DynamicPrimitivesOffset >= Scene.Primitives.Num());
 	{
 		SCOPED_NAMED_EVENT( STAT_UpdateGPUScene, FColor::Green );
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UpdateGPUScene);
@@ -182,63 +218,62 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 		// for any primitives that update on consecutive frames.
 		SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 
-		const uint32 SceneFrameNumber = Scene.GetFrameNumber();
 		// Store in GPU-scene to enable validation that update has been carried out.
-		Scene.GPUScene.SceneFrameNumber = SceneFrameNumber;
+		SceneFrameNumber = Scene.GetFrameNumber();
 
 		const bool bNaniteEnabled = DoesPlatformSupportNanite(GMaxRHIShaderPlatform);
 
 		const bool bExecuteInParallel = GGPUSceneParallelUpdate != 0 && FApp::ShouldUseThreadingForPerformance();
 
-		if (GGPUSceneUploadEveryFrame || Scene.GPUScene.bUpdateAllPrimitives)
+		if (GGPUSceneUploadEveryFrame || bUpdateAllPrimitives)
 		{
-			Scene.GPUScene.PrimitivesMarkedToUpdate.Init(false, Scene.GPUScene.PrimitivesMarkedToUpdate.Num());
-			Scene.GPUScene.PrimitivesToUpdate.Reset();
+			PrimitivesMarkedToUpdate.Init(false, PrimitivesMarkedToUpdate.Num());
+			PrimitivesToUpdate.Reset();
 
 			for (int32 Index = 0; Index < Scene.Primitives.Num(); ++Index)
 			{
-				Scene.GPUScene.PrimitivesToUpdate.Add(Index);
+				PrimitivesToUpdate.Add(Index);
 			}
 
 			// Clear the full instance data range, except primitives that use a slot (they will unset the bits).
-			Scene.GPUScene.InstanceDataToClear.Init(true, Scene.GPUScene.InstanceDataToClear.Num());
+			InstanceDataToClear.Init(true, InstanceDataToClear.Num());
 
 			// Set entire instance range for possible clearing.
 			if (GGPUSceneInstanceClearList != 0)
 			{
-				for (int32 Index = 0; Index < Scene.GPUScene.InstanceDataToClear.Num(); ++Index)
+				for (int32 Index = 0; Index < InstanceDataToClear.Num(); ++Index)
 				{
-					Scene.GPUScene.InstanceClearList.Add(Index);
+					InstanceClearList.Add(Index);
 				}
 			}
 
-			Scene.GPUScene.bUpdateAllPrimitives = false;
+			bUpdateAllPrimitives = false;
 		}
 
 		bool bResizedPrimitiveData = false;
 		bool bResizedInstanceData = false;
 		bool bResizedLightmapData = false;
 
-		ResourceType* MirrorResourceGPU = GetMirrorGPU<ResourceType>(Scene);
+		ResourceType* MirrorResourceGPU = GetMirrorGPU<ResourceType>(*this);
 		{
-			const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo( FMath::Max( Scene.Primitives.Num(), 256 ) );
+			const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo( FMath::Max(DynamicPrimitivesOffset, 256 ) );
 			bResizedPrimitiveData = ResizeResourceIfNeeded(RHICmdList, *MirrorResourceGPU, SizeReserve * sizeof(FPrimitiveSceneShaderData::Data), TEXT("PrimitiveData"));
 		}
 
 		const uint32 InstanceDataNumArrays = FInstanceSceneShaderData::InstanceDataStrideInFloat4s;
-		const uint32 InstanceDataSizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(Scene.GPUScene.InstanceDataAllocator.GetMaxSize(), 256));
-		bResizedInstanceData = ResizeResourceSOAIfNeeded(RHICmdList, Scene.GPUScene.InstanceDataBuffer, InstanceDataSizeReserve * sizeof(FInstanceSceneShaderData::Data), InstanceDataNumArrays, TEXT("InstanceData"));
-		Scene.GPUScene.InstanceDataSOAStride = InstanceDataSizeReserve;
+		const uint32 InstanceDataSizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(InstanceDataAllocator.GetMaxSize(), 256));
+		bResizedInstanceData = ResizeResourceSOAIfNeeded(RHICmdList, InstanceDataBuffer, InstanceDataSizeReserve * sizeof(FInstanceSceneShaderData::Data), InstanceDataNumArrays, TEXT("InstanceData"));
+		InstanceDataSOAStride = InstanceDataSizeReserve;
 		
 		{
-			const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo( FMath::Max( Scene.GPUScene.LightmapDataAllocator.GetMaxSize(), 256 ) );
-			bResizedLightmapData = ResizeResourceIfNeeded(RHICmdList, Scene.GPUScene.LightmapDataBuffer, SizeReserve * sizeof(FLightmapSceneShaderData::Data), TEXT("LightmapData"));
+			const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo( FMath::Max( LightmapDataAllocator.GetMaxSize(), 256 ) );
+			bResizedLightmapData = ResizeResourceIfNeeded(RHICmdList, LightmapDataBuffer, SizeReserve * sizeof(FLightmapSceneShaderData::Data), TEXT("LightmapData"));
 		}
 
 		// These should always be in sync with each other.
-		check(Scene.GPUScene.InstanceDataToClear.Num() == Scene.GPUScene.InstanceDataAllocator.GetMaxSize());
+		check(InstanceDataToClear.Num() == InstanceDataAllocator.GetMaxSize());
 
-		const int32 NumPrimitiveDataUploads = Scene.GPUScene.PrimitivesToUpdate.Num();
+		const int32 NumPrimitiveDataUploads = PrimitivesToUpdate.Num();
 
 		if (bNaniteEnabled)
 		{
@@ -258,7 +293,7 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 
 		if (NumPrimitiveDataUploads > 0)
 		{
-			auto ProcessPrimitiveFn = [&Scene, &NumLightmapDataUploads, &NumInstanceDataUploads, bNaniteEnabled](int32 PrimitiveIndex, bool bThreaded)
+			auto ProcessPrimitiveFn = [this, &Scene, &NumLightmapDataUploads, &NumInstanceDataUploads, bNaniteEnabled](int32 PrimitiveIndex, bool bThreaded)
 			{
 				// PrimitivesToUpdate may contain a stale out of bounds index, as we don't remove update request on primitive removal from scene.
 				if (PrimitiveIndex < Scene.PrimitiveSceneProxies.Num())
@@ -287,13 +322,13 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 						// Cancel out any pending clear bits for these instances.
 						if (TaskInstanceUploadCount > 0)
 						{
-							Scene.GPUScene.InstanceDataToClear.SetRange(TaskInstanceDataOffset, TaskInstanceUploadCount, false);
+							InstanceDataToClear.SetRange(TaskInstanceDataOffset, TaskInstanceUploadCount, false);
 						}
 
 						NumLightmapDataUploads += TaskLightmapUploadCount; // Not thread safe
 						NumInstanceDataUploads += TaskInstanceUploadCount; // Not thread safe
 
-						void* UploadDst = Scene.GPUScene.PrimitiveUploadBuffer.Add_GetRef(PrimitiveIndex); // Not thread safe
+						void* UploadDst = PrimitiveUploadBuffer.Add_GetRef(PrimitiveIndex); // Not thread safe
 
 						if (bThreaded)
 						{
@@ -374,16 +409,16 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 				// One large batch
 				SCOPED_DRAW_EVENTF(RHICmdList, UpdateGPUScene, TEXT("UpdateGPUScene PrimitivesToUpdate %u"), NumPrimitiveDataUploads);
 
-				Scene.GPUScene.PrimitiveUploadBuffer.Init(NumPrimitiveDataUploads, sizeof(FPrimitiveSceneShaderData::Data), true, TEXT("PrimitiveUploadBuffer"));
+				PrimitiveUploadBuffer.Init(NumPrimitiveDataUploads, sizeof(FPrimitiveSceneShaderData::Data), true, TEXT("PrimitiveUploadBuffer"));
 
 				int32 RangeCount = PartitionUpdateRanges(ParallelRanges, NumPrimitiveDataUploads, bExecuteInParallel);
 
 				ParallelFor(RangeCount,
-					[&ProcessPrimitiveFn, &ParallelRanges, &Scene, RangeCount](int32 RangeIndex)
+					[this, &ProcessPrimitiveFn, &ParallelRanges, &Scene, RangeCount](int32 RangeIndex)
 					{
 						for (int32 ItemIndex = ParallelRanges.Range[RangeIndex].ItemStart; ItemIndex < ParallelRanges.Range[RangeIndex].ItemStart + ParallelRanges.Range[RangeIndex].ItemCount; ++ItemIndex)
 						{
-							const int32 Index = Scene.GPUScene.PrimitivesToUpdate[ItemIndex];
+							const int32 Index = PrimitivesToUpdate[ItemIndex];
 							ProcessPrimitiveFn(Index, RangeCount > 1);
 						}
 					},
@@ -393,7 +428,7 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 				RHICmdList.Transition(FRHITransitionInfo(MirrorResourceGPU->UAV, CurrentAccess, ERHIAccess::UAVCompute));
 				CurrentAccess = ERHIAccess::UAVCompute;
 
-				Scene.GPUScene.PrimitiveUploadBuffer.ResourceUploadTo(RHICmdList, *MirrorResourceGPU, true);
+				PrimitiveUploadBuffer.ResourceUploadTo(RHICmdList, *MirrorResourceGPU, true);
 			}
 			else
 			{
@@ -402,11 +437,11 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 				{
 					SCOPED_DRAW_EVENTF(RHICmdList, UpdateGPUScene, TEXT("UpdateGPUScene PrimitivesToUpdate and Offset = %u %u"), NumPrimitiveDataUploads, PrimitiveOffset);
 
-					Scene.GPUScene.PrimitiveUploadBuffer.Init(MaxPrimitivesUploads, sizeof(FPrimitiveSceneShaderData::Data), true, TEXT("PrimitiveUploadBuffer"));
+					PrimitiveUploadBuffer.Init(MaxPrimitivesUploads, sizeof(FPrimitiveSceneShaderData::Data), true, TEXT("PrimitiveUploadBuffer"));
 
 					for (int32 IndexUpdate = 0; (IndexUpdate < MaxPrimitivesUploads) && ((IndexUpdate + PrimitiveOffset) < NumPrimitiveDataUploads); ++IndexUpdate)
 					{
-						const int32 Index = Scene.GPUScene.PrimitivesToUpdate[IndexUpdate + PrimitiveOffset];
+						const int32 Index = PrimitivesToUpdate[IndexUpdate + PrimitiveOffset];
 						ProcessPrimitiveFn(Index, false /* threaded */);
 					}
 
@@ -415,7 +450,7 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 
 					{
 						QUICK_SCOPE_CYCLE_COUNTER(UploadTo);
-						Scene.GPUScene.PrimitiveUploadBuffer.ResourceUploadTo(RHICmdList, *MirrorResourceGPU, true);
+						PrimitiveUploadBuffer.ResourceUploadTo(RHICmdList, *MirrorResourceGPU, true);
 					}
 				}
 			}
@@ -423,7 +458,7 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 			RHICmdList.Transition(FRHITransitionInfo(MirrorResourceGPU->UAV, CurrentAccess, ERHIAccess::SRVMask));
 		}
 
-		Scene.GPUScene.PrimitivesMarkedToUpdate.Init(false, Scene.GPUScene.PrimitivesMarkedToUpdate.Num());
+		PrimitivesMarkedToUpdate.Init(false, PrimitivesMarkedToUpdate.Num());
 
 		if (bNaniteEnabled)
 		{
@@ -447,41 +482,41 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 				// bits - such as clear list contains an entry from an earlier removal,
 				// but clear bit was unset prior to clearing because a slot was reused
 				// by an instance added.
-				for (int32 InstanceIndex = 0; InstanceIndex < Scene.GPUScene.InstanceDataAllocator.GetMaxSize(); ++InstanceIndex)
+				for (int32 InstanceIndex = 0; InstanceIndex < InstanceDataAllocator.GetMaxSize(); ++InstanceIndex)
 				{
-					if (Scene.GPUScene.InstanceDataToClear[InstanceIndex])
+					if (InstanceDataToClear[InstanceIndex])
 					{
-						check(Scene.GPUScene.InstanceClearList.Contains(InstanceIndex));
+						check(InstanceClearList.Contains(InstanceIndex));
 					}
 				}
 			}
 		#endif
 
-			for (uint32 InstanceIndex : Scene.GPUScene.InstanceClearList)
+			for (uint32 InstanceIndex : InstanceClearList)
 			{
 				// Any clear bits set after enumerating the primitives being updated are
 				// stale sections of the instance data buffer, so they should be reset to
 				// an invalid state and skipped on the GPU.
-				if (Scene.GPUScene.InstanceDataToClear[InstanceIndex])
+				if (InstanceDataToClear[InstanceIndex])
 				{
-					Scene.GPUScene.InstanceDataToClear[InstanceIndex] = false;
+					InstanceDataToClear[InstanceIndex] = false;
 					InstancesToClear.Add(InstanceIndex);
 				}
 			}
 
-			Scene.GPUScene.InstanceClearList.Reset();
+			InstanceClearList.Reset();
 		}
 		else
 		{
-			for (int32 InstanceIndex = 0; InstanceIndex < Scene.GPUScene.InstanceDataAllocator.GetMaxSize(); ++InstanceIndex)
+			for (int32 InstanceIndex = 0; InstanceIndex < InstanceDataAllocator.GetMaxSize(); ++InstanceIndex)
 			{
 				// Any clear bits set after enumerating the primitives being updated are
 				// stale sections of the instance data buffer, so they should be reset to
 				// an invalid state and skipped on the GPU.
-				if (Scene.GPUScene.InstanceDataToClear[InstanceIndex])
+				if (InstanceDataToClear[InstanceIndex])
 				{
 					InstancesToClear.Add(InstanceIndex);
-					Scene.GPUScene.InstanceDataToClear[InstanceIndex] = false;
+					InstanceDataToClear[InstanceIndex] = false;
 				}
 			}
 		}
@@ -489,7 +524,7 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 		// Clears count toward the total instance data uploads - batched together for efficiency.
 		NumInstanceDataUploads += InstancesToClear.Num();
 
-		if (GGPUSceneValidatePrimitiveBuffer && (Scene.GPUScene.PrimitiveBuffer.NumBytes > 0 || Scene.GPUScene.PrimitiveTexture.NumBytes > 0))
+		if (GGPUSceneValidatePrimitiveBuffer && (PrimitiveBuffer.NumBytes > 0 || PrimitiveTexture.NumBytes > 0))
 		{
 			//UE_LOG(LogRenderer, Warning, TEXT("r.GPUSceneValidatePrimitiveBuffer enabled, doing slow readback from GPU"));
 			uint32 Stride = 0;
@@ -519,13 +554,13 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 			// Upload instancing data for the scene.
 			if (NumInstanceDataUploads > 0)
 			{
-				Scene.GPUScene.InstanceUploadBuffer.Init(NumInstanceDataUploads * InstanceDataNumArrays, sizeof( FVector4 ), true, TEXT("InstanceUploadBuffer"));
+				InstanceUploadBuffer.Init(NumInstanceDataUploads * InstanceDataNumArrays, sizeof( FVector4 ), true, TEXT("InstanceUploadBuffer"));
 
 				int32 RangeCount = PartitionUpdateRanges(ParallelRanges, InstancesToClear.Num(), bExecuteInParallel);
 
 				// Reset any instance slots marked for clearing.
 				ParallelFor(RangeCount,
-					[&InstancesToClear, &ParallelRanges, &Scene, RangeCount, InstanceDataNumArrays, InstanceDataSizeReserve](int32 RangeIndex)
+					[this, &InstancesToClear, &ParallelRanges, &Scene, RangeCount, InstanceDataNumArrays, InstanceDataSizeReserve](int32 RangeIndex)
 					{
 						for (int32 ItemIndex = ParallelRanges.Range[RangeIndex].ItemStart; ItemIndex < ParallelRanges.Range[RangeIndex].ItemStart + ParallelRanges.Range[RangeIndex].ItemCount; ++ItemIndex)
 						{
@@ -542,7 +577,7 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 
 							for (uint32 RefIndex = 0; RefIndex < InstanceDataNumArrays; ++RefIndex)
 							{
-								DstRefs[RefIndex] = Scene.GPUScene.InstanceUploadBuffer.Add_GetRef(RefIndex * InstanceDataSizeReserve + Index);
+								DstRefs[RefIndex] = InstanceUploadBuffer.Add_GetRef(RefIndex * InstanceDataSizeReserve + Index);
 							}
 
 							if (RangeCount > 1)
@@ -560,15 +595,15 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 					RangeCount == 1
 				);
 
-				RangeCount = PartitionUpdateRanges(ParallelRanges, Scene.GPUScene.PrimitivesToUpdate.Num(), bExecuteInParallel);
+				RangeCount = PartitionUpdateRanges(ParallelRanges, PrimitivesToUpdate.Num(), bExecuteInParallel);
 
 				// Upload any out of data instance slots.
 				ParallelFor(RangeCount,
-					[&Scene, &ParallelRanges, RangeCount, InstanceDataNumArrays, InstanceDataSizeReserve, SceneFrameNumber](int32 RangeIndex)
+					[this, &Scene, &ParallelRanges, RangeCount, InstanceDataNumArrays, InstanceDataSizeReserve](int32 RangeIndex)
 					{
 						for (int32 ItemIndex = ParallelRanges.Range[RangeIndex].ItemStart; ItemIndex < ParallelRanges.Range[RangeIndex].ItemStart + ParallelRanges.Range[RangeIndex].ItemCount; ++ItemIndex)
 						{
-							const int32 Index = Scene.GPUScene.PrimitivesToUpdate[ItemIndex];
+							const int32 Index = PrimitivesToUpdate[ItemIndex];
 
 							// PrimitivesToUpdate may contain a stale out of bounds index, as we don't remove update request on primitive removal from scene.
 							if (Index < Scene.PrimitiveSceneProxies.Num())
@@ -652,7 +687,7 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 
 									for (uint32 RefIndex = 0; RefIndex < InstanceDataNumArrays; ++RefIndex)
 									{
-										DstRefs[RefIndex] = Scene.GPUScene.InstanceUploadBuffer.Add_GetRef(RefIndex * InstanceDataSizeReserve + InstanceDataOffset + InstanceIndex);
+										DstRefs[RefIndex] = InstanceUploadBuffer.Add_GetRef(RefIndex * InstanceDataSizeReserve + InstanceDataOffset + InstanceIndex);
 									}
 
 									if (RangeCount > 1)
@@ -672,13 +707,13 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 					RangeCount == 1
 				);
 
-				RHICmdList.Transition(FRHITransitionInfo(Scene.GPUScene.InstanceDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-				Scene.GPUScene.InstanceUploadBuffer.ResourceUploadTo(RHICmdList, Scene.GPUScene.InstanceDataBuffer, false);
-				RHICmdList.Transition(FRHITransitionInfo(Scene.GPUScene.InstanceDataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+				RHICmdList.Transition(FRHITransitionInfo(InstanceDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+				InstanceUploadBuffer.ResourceUploadTo(RHICmdList, InstanceDataBuffer, false);
+				RHICmdList.Transition(FRHITransitionInfo(InstanceDataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 			}
 			else if (bResizedInstanceData)
 			{
-				RHICmdList.Transition(FRHITransitionInfo(Scene.GPUScene.InstanceDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+				RHICmdList.Transition(FRHITransitionInfo(InstanceDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 			 }
 
 			if (NumLightmapDataUploads > 0)
@@ -688,11 +723,11 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 				const int32 MaxLightmapsUploads = GetMaxPrimitivesUpdate(NumLightmapDataUploads, FLightmapSceneShaderData::LightmapDataStrideInFloat4s);
 				for (int32 PrimitiveOffset = 0; PrimitiveOffset < NumPrimitiveDataUploads; PrimitiveOffset += MaxLightmapsUploads)
 				{
-					Scene.GPUScene.LightmapUploadBuffer.Init(MaxLightmapsUploads, sizeof(FLightmapSceneShaderData::Data), true, TEXT("LightmapUploadBuffer"));
+					LightmapUploadBuffer.Init(MaxLightmapsUploads, sizeof(FLightmapSceneShaderData::Data), true, TEXT("LightmapUploadBuffer"));
 
 					for (int32 IndexUpdate = 0; (IndexUpdate < MaxLightmapsUploads) && ((IndexUpdate + PrimitiveOffset) < NumPrimitiveDataUploads); ++IndexUpdate)
 					{
-						int32 Index = Scene.GPUScene.PrimitivesToUpdate[IndexUpdate + PrimitiveOffset];
+						int32 Index = PrimitivesToUpdate[IndexUpdate + PrimitiveOffset];
 						// PrimitivesToUpdate may contain a stale out of bounds index, as we don't remove update request on primitive removal from scene.
 						if (Index < Scene.PrimitiveSceneProxies.Num())
 						{
@@ -707,270 +742,319 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 							for (int32 i = 0; i < LCIs.Num(); i++)
 							{
 								FLightmapSceneShaderData LightmapSceneData(LCIs[i], Scene.GetFeatureLevel());
-								Scene.GPUScene.LightmapUploadBuffer.Add(LightmapDataOffset + i, &LightmapSceneData.Data[0]);
+								LightmapUploadBuffer.Add(LightmapDataOffset + i, &LightmapSceneData.Data[0]);
 							}
 						}
 					}
 
-					RHICmdList.Transition(FRHITransitionInfo(Scene.GPUScene.LightmapDataBuffer.UAV, CurrentAccess, ERHIAccess::UAVCompute));
+					RHICmdList.Transition(FRHITransitionInfo(LightmapDataBuffer.UAV, CurrentAccess, ERHIAccess::UAVCompute));
 					CurrentAccess = ERHIAccess::UAVCompute;
 
-					Scene.GPUScene.LightmapUploadBuffer.ResourceUploadTo(RHICmdList, Scene.GPUScene.LightmapDataBuffer, false);
+					LightmapUploadBuffer.ResourceUploadTo(RHICmdList, LightmapDataBuffer, false);
 				}
 
-				RHICmdList.Transition(FRHITransitionInfo(Scene.GPUScene.LightmapDataBuffer.UAV, CurrentAccess, ERHIAccess::SRVMask));
+				RHICmdList.Transition(FRHITransitionInfo(LightmapDataBuffer.UAV, CurrentAccess, ERHIAccess::SRVMask));
 			}
 
-			Scene.GPUScene.PrimitivesToUpdate.Reset();
+			PrimitivesToUpdate.Reset();
 			
-			if (Scene.GPUScene.PrimitiveUploadBuffer.GetNumBytes() > (uint32)GGPUSceneMaxPooledUploadBufferSize)
+			if (PrimitiveUploadBuffer.GetNumBytes() > (uint32)GGPUSceneMaxPooledUploadBufferSize)
 			{
-				Scene.GPUScene.PrimitiveUploadBuffer.Release();
+				PrimitiveUploadBuffer.Release();
 			}
 
-			if (Scene.GPUScene.InstanceUploadBuffer.GetNumBytes() > (uint32)GGPUSceneMaxPooledUploadBufferSize)
+			if (InstanceUploadBuffer.GetNumBytes() > (uint32)GGPUSceneMaxPooledUploadBufferSize)
 			{
-				Scene.GPUScene.InstanceUploadBuffer.Release();
+				InstanceUploadBuffer.Release();
 			}
 
-			if (Scene.GPUScene.LightmapUploadBuffer.GetNumBytes() > (uint32)GGPUSceneMaxPooledUploadBufferSize)
+			if (LightmapUploadBuffer.GetNumBytes() > (uint32)GGPUSceneMaxPooledUploadBufferSize)
 			{
-				Scene.GPUScene.LightmapUploadBuffer.Release();
+				LightmapUploadBuffer.Release();
 			}
 		}
 		// Clear the flags that mark newly added primitives.
-		Scene.GPUScene.AddedPrimitiveFlags.Init(false, Scene.GPUScene.AddedPrimitiveFlags.Num());
+		AddedPrimitiveFlags.Init(false, AddedPrimitiveFlags.Num());
+
+		// Dynamic primitives are allocated after the regular ones, this needs to match the value passed in in BeginRender
+		ensure(DynamicPrimitivesOffset >= Scene.Primitives.Num());
 	}
 
-	checkSlow(Scene.GPUScene.PrimitivesToUpdate.Num() == 0);
+	checkSlow(PrimitivesToUpdate.Num() == 0);
 }
-
-template void UpdateGPUSceneInternal<FRWBufferStructured>(FRHICommandListImmediate& RHICmdList, FScene& Scene);
-template void UpdateGPUSceneInternal<FTextureRWBuffer2D>(FRHICommandListImmediate& RHICmdList, FScene& Scene);
 
 template<typename ResourceType>
-void UploadDynamicPrimitiveShaderDataForViewInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene, FViewInfo& View)
+void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene, FViewInfo& View)
 {
-	if (UseGPUScene(GMaxRHIShaderPlatform, Scene.GetFeatureLevel()))
+	ensure(bInBeginEndBlock);
+	ensure(DynamicPrimitivesOffset >= Scene.Primitives.Num());
+	
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UploadDynamicPrimitiveShaderData);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_UploadDynamicPrimitiveShaderData);
+
+	FGPUScenePrimitiveCollector& Collector = View.DynamicPrimitiveCollector;
+
+	const int32 NumPrimitiveDataUploads = Collector.Num();
+	ensure(Collector.GetPrimitiveIdRange().Size<int32>() == NumPrimitiveDataUploads);
+	
+	// Make sure we are not trying to upload data that lives in a different context.
+	ensure(Collector.UploadData == nullptr || CurrentDynamicContext->DymamicPrimitiveUploadData.Find(Collector.UploadData) != INDEX_NONE);
+	
+	// Skip uploading empty & already uploaded data
+	if (NumPrimitiveDataUploads > 0 && !Collector.UploadData->bIsUploaded)
 	{
-		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UploadDynamicPrimitiveShaderData);
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_UploadDynamicPrimitiveShaderData);
+		Collector.UploadData->bIsUploaded = true;
+		/** Tracks dynamic primitive data for upload to GPU Scene, when enabled. */
+		auto &DynamicPrimitiveShaderData = Collector.UploadData->PrimitiveShaderData;
 
-		const int32 NumPrimitiveDataUploads = View.DynamicPrimitiveShaderData.Num();
-		if (NumPrimitiveDataUploads > 0)
+		int32 UploadIdStart = Collector.GetPrimitiveIdRange().GetLowerBoundValue();
+		ensure(UploadIdStart < DynamicPrimitivesOffset);
+
+		ResourceType* MirrorResourceGPU = GetMirrorGPU<ResourceType>(*this);
 		{
-			ResourceType& ViewPrimitiveShaderDataResource = GetViewStateResourceRef<ResourceType>(View, View.ViewState == nullptr);
+			// Work out space requirements for all dynamic primitives
+			const int32 TotalNumberPrimitives = DynamicPrimitivesOffset;
+			const uint32 PrimitiveSceneNumFloat4s = TotalNumberPrimitives * FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s;
 
-			const int32 NumPrimitiveEntries = Scene.Primitives.Num() + View.DynamicPrimitiveShaderData.Num();
-			const uint32 PrimitiveSceneNumFloat4s = NumPrimitiveEntries * FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s;
+			const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(TotalNumberPrimitives, 256));
 
-			uint32 ViewPrimitiveSceneNumFloat4s = FMath::RoundUpToPowerOfTwo(PrimitiveSceneNumFloat4s);
-			uint32 BytesPerElement = GPixelFormats[PF_A32B32G32R32F].BlockBytes;
-
-			ERHIAccess CurrentAccess = ERHIAccess::Unknown;
-
+			ERHIAccess CurrentAccess = ERHIAccess::SRVMask;
 			// Reserve enough space
-			if (ViewPrimitiveSceneNumFloat4s * BytesPerElement != ViewPrimitiveShaderDataResource.NumBytes)
+			if (ResizeResourceIfNeeded(RHICmdList, *MirrorResourceGPU, SizeReserve * sizeof(FPrimitiveSceneShaderData::Data), TEXT("PrimitiveData")))
 			{
-				ViewPrimitiveShaderDataResource.Release();
-				ResizeResourceIfNeeded(RHICmdList, ViewPrimitiveShaderDataResource, ViewPrimitiveSceneNumFloat4s * BytesPerElement, TEXT("ViewPrimitiveShaderDataBuffer"));
+				CurrentAccess = ERHIAccess::Unknown;
 			}
+			RHICmdList.Transition(FRHITransitionInfo(MirrorResourceGPU->UAV, CurrentAccess, ERHIAccess::UAVCompute));
+			CurrentAccess = ERHIAccess::UAVCompute;
 
-			// Copy scene primitive data into view primitive data
+			// Upload DynamicPrimitiveShaderData to the allocated range in the primitive data resource
+			int32 MaxPrimitivesUploads = GetMaxPrimitivesUpdate(NumPrimitiveDataUploads, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s);
+			for (int32 BatchStartIndex = 0; BatchStartIndex < NumPrimitiveDataUploads; BatchStartIndex += MaxPrimitivesUploads)
 			{
-				RHICmdList.Transition(FRHITransitionInfo(ViewPrimitiveShaderDataResource.UAV, CurrentAccess, ERHIAccess::UAVCompute));
-				MemcpyResource(RHICmdList, ViewPrimitiveShaderDataResource, *GetMirrorGPU<ResourceType>(Scene), Scene.Primitives.Num() * sizeof(FPrimitiveSceneShaderData::Data), 0, 0);
-				RHICmdList.Transition(FRHITransitionInfo(ViewPrimitiveShaderDataResource.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
-				CurrentAccess = ERHIAccess::UAVCompute;
-			}
+				PrimitiveUploadViewBuffer.Init(MaxPrimitivesUploads, sizeof(FPrimitiveSceneShaderData::Data), true, TEXT("PrimitiveUploadViewBuffer"));
 
-			// Append View.DynamicPrimitiveShaderData to the end of the view primitive data resource
-			if (NumPrimitiveDataUploads > 0)
-			{
-				int32 MaxPrimitivesUploads = GetMaxPrimitivesUpdate(NumPrimitiveDataUploads, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s);
-				for (int32 PrimitiveOffset = 0; PrimitiveOffset < NumPrimitiveDataUploads; PrimitiveOffset += MaxPrimitivesUploads)
+				for (int32 IndexUpdate = 0; (IndexUpdate < MaxPrimitivesUploads) && ((IndexUpdate + BatchStartIndex) < NumPrimitiveDataUploads); ++IndexUpdate)
 				{
-					Scene.GPUScene.PrimitiveUploadViewBuffer.Init( MaxPrimitivesUploads, sizeof( FPrimitiveSceneShaderData::Data ), true, TEXT("PrimitiveUploadViewBuffer") );
-
-					for (int32 IndexUpdate = 0; (IndexUpdate < MaxPrimitivesUploads) && ((IndexUpdate + PrimitiveOffset) < NumPrimitiveDataUploads); ++IndexUpdate)
-					{
-						int32 DynamicUploadIndex = IndexUpdate + PrimitiveOffset;
-						FPrimitiveSceneShaderData PrimitiveSceneData(View.DynamicPrimitiveShaderData[DynamicUploadIndex]);
-						// Place dynamic primitive shader data just after scene primitive data
-						Scene.GPUScene.PrimitiveUploadViewBuffer.Add(Scene.Primitives.Num() + DynamicUploadIndex, &PrimitiveSceneData.Data[0]);
-					}
-
-					{
-						RHICmdList.Transition(FRHITransitionInfo(ViewPrimitiveShaderDataResource.UAV, CurrentAccess, ERHIAccess::UAVCompute));
-						CurrentAccess = ERHIAccess::UAVCompute;
-
-						Scene.GPUScene.PrimitiveUploadViewBuffer.ResourceUploadTo(RHICmdList, ViewPrimitiveShaderDataResource, false);
-					}
-				}
-			}
-
-			if (Scene.GPUScene.PrimitiveUploadViewBuffer.GetNumBytes() > (uint32)GGPUSceneMaxPooledUploadBufferSize)
-			{
-				Scene.GPUScene.PrimitiveUploadViewBuffer.Release();
-			}
-
-			RHICmdList.Transition(FRHITransitionInfo(ViewPrimitiveShaderDataResource.UAV, CurrentAccess, ERHIAccess::SRVMask));
-
-			if (GGPUSceneValidatePrimitiveBuffer && (Scene.GPUScene.PrimitiveBuffer.NumBytes > 0 || Scene.GPUScene.PrimitiveTexture.NumBytes > 0))
-			{
-				uint32 Stride = 0;
-				FPrimitiveSceneShaderData* InstanceBufferCopy = (FPrimitiveSceneShaderData*)LockResource(ViewPrimitiveShaderDataResource, Stride);
-
-				const int32 TotalNumberPrimitives = Scene.PrimitiveSceneProxies.Num() + View.DynamicPrimitiveShaderData.Num();
-				int32 MaxPrimitivesUploads = GetMaxPrimitivesUpdate(TotalNumberPrimitives, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s);
-				for (int32 IndexOffset = 0; IndexOffset < TotalNumberPrimitives; IndexOffset += MaxPrimitivesUploads)
-				{
-					for (int32 Index = 0; (Index < MaxPrimitivesUploads) && ((Index + IndexOffset) < TotalNumberPrimitives); ++Index)
-					{
-						FPrimitiveSceneShaderData PrimitiveSceneData;
-						if ((Index + IndexOffset) < Scene.PrimitiveSceneProxies.Num())
-						{
-							PrimitiveSceneData = (Scene.PrimitiveSceneProxies[Index + IndexOffset]);
-						}
-						else
-						{
-							PrimitiveSceneData = FPrimitiveSceneShaderData(View.DynamicPrimitiveShaderData[Index + IndexOffset - Scene.PrimitiveSceneProxies.Num()]);
-						}
-
-						check(FMemory::Memcmp(&InstanceBufferCopy[Index + IndexOffset], &PrimitiveSceneData, sizeof(FPrimitiveSceneShaderData)) == 0);
-					}
-					InstanceBufferCopy += Stride / sizeof(FPrimitiveSceneShaderData);
+					int32 DynamicUploadIndex = BatchStartIndex + IndexUpdate;
+					FPrimitiveSceneShaderData PrimitiveSceneData(DynamicPrimitiveShaderData[DynamicUploadIndex]);
+					// Place dynamic primitive shader data after any previous batches of dynamic primitive data
+					PrimitiveUploadViewBuffer.Add(UploadIdStart + DynamicUploadIndex, &PrimitiveSceneData.Data[0]);
 				}
 
-				UnlockResourceGPUScene(ViewPrimitiveShaderDataResource);
+				PrimitiveUploadViewBuffer.ResourceUploadTo(RHICmdList, *MirrorResourceGPU, false);
 			}
-
+			RHICmdList.Transition(FRHITransitionInfo(MirrorResourceGPU->UAV, CurrentAccess, ERHIAccess::SRVMask));
+		}
+		if (PrimitiveUploadViewBuffer.GetNumBytes() > (uint32)GGPUSceneMaxPooledUploadBufferSize)
+		{
+			PrimitiveUploadViewBuffer.Release();
 		}
 
-		UpdateUniformResource<ResourceType>(View, Scene, NumPrimitiveDataUploads > 0);
 
-		// Update view uniform buffer
-		View.CachedViewUniformShaderParameters->InstanceSceneData = Scene.GPUScene.InstanceDataBuffer.SRV;
-		View.CachedViewUniformShaderParameters->LightmapSceneData = Scene.GPUScene.LightmapDataBuffer.SRV;
-		View.ViewUniformBuffer.UpdateUniformBufferImmediate(*View.CachedViewUniformShaderParameters);
+		if (GGPUSceneValidatePrimitiveBuffer && (PrimitiveBuffer.NumBytes > 0 || PrimitiveTexture.NumBytes > 0))
+		{
+			uint32 Stride = 0;
+			FPrimitiveSceneShaderData* InstanceBufferCopy = (FPrimitiveSceneShaderData*)LockResource(*MirrorResourceGPU, Stride);
+
+			const int32 TotalNumberPrimitives = DynamicPrimitivesOffset;
+			int32 MaxPrimitivesUploads = GetMaxPrimitivesUpdate(TotalNumberPrimitives, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s);
+			for (int32 IndexOffset = 0; IndexOffset < TotalNumberPrimitives; IndexOffset += MaxPrimitivesUploads)
+			{
+				for (int32 Index = 0; (Index < MaxPrimitivesUploads) && ((Index + IndexOffset) < TotalNumberPrimitives); ++Index)
+				{
+					if ((Index + IndexOffset) < Scene.PrimitiveSceneProxies.Num())
+					{
+						const FPrimitiveSceneShaderData &PrimitiveSceneData = Scene.PrimitiveSceneProxies[Index + IndexOffset];
+						check(FMemory::Memcmp(&InstanceBufferCopy[Index + IndexOffset], &PrimitiveSceneData, sizeof(FPrimitiveSceneShaderData)) == 0);
+					}
+					else if (Collector.GetPrimitiveIdRange().Contains(Index + IndexOffset))
+					{
+						const FPrimitiveSceneShaderData& PrimitiveSceneData = FPrimitiveSceneShaderData(DynamicPrimitiveShaderData[Index + IndexOffset - Scene.PrimitiveSceneProxies.Num()]);
+						check(FMemory::Memcmp(&InstanceBufferCopy[Index + IndexOffset], &PrimitiveSceneData, sizeof(FPrimitiveSceneShaderData)) == 0);
+					}
+
+				}
+				InstanceBufferCopy += Stride / sizeof(FPrimitiveSceneShaderData);
+			}
+
+			UnlockResourceGPUScene(*MirrorResourceGPU);
+		}
 	}
+
+	UpdateUniformResource<ResourceType>(View, *this);
+
+	// Update view uniform buffer
+	View.CachedViewUniformShaderParameters->InstanceSceneData = InstanceDataBuffer.SRV;
+	View.CachedViewUniformShaderParameters->LightmapSceneData = LightmapDataBuffer.SRV;
+	View.ViewUniformBuffer.UpdateUniformBufferImmediate(*View.CachedViewUniformShaderParameters);
 }
 
-template void UploadDynamicPrimitiveShaderDataForViewInternal<FRWBufferStructured>(FRHICommandListImmediate& RHICmdList, FScene& Scene, FViewInfo& View);
-template void UploadDynamicPrimitiveShaderDataForViewInternal<FTextureRWBuffer2D>(FRHICommandListImmediate& RHICmdList, FScene& Scene, FViewInfo& View);
 
 void AddPrimitiveToUpdateGPU(FScene& Scene, int32 PrimitiveId)
 {
-	if (UseGPUScene(GMaxRHIShaderPlatform, Scene.GetFeatureLevel()))
+	Scene.GPUScene.AddPrimitiveToUpdate(PrimitiveId);
+}
+
+void FGPUScene::AddPrimitiveToUpdate(int32 PrimitiveId)
+{
+	if (bIsEnabled)
 	{ 
-		if (PrimitiveId + 1 > Scene.GPUScene.PrimitivesMarkedToUpdate.Num())
+		if (PrimitiveId + 1 > PrimitivesMarkedToUpdate.Num())
 		{
 			const int32 NewSize = Align(PrimitiveId + 1, 64);
-			Scene.GPUScene.PrimitivesMarkedToUpdate.Add(0, NewSize - Scene.GPUScene.PrimitivesMarkedToUpdate.Num());
+			PrimitivesMarkedToUpdate.Add(0, NewSize - PrimitivesMarkedToUpdate.Num());
 		}
 
 		// Make sure we aren't updating same primitive multiple times.
-		if (!Scene.GPUScene.PrimitivesMarkedToUpdate[PrimitiveId])
+		if (!PrimitivesMarkedToUpdate[PrimitiveId])
 		{
-			Scene.GPUScene.PrimitivesToUpdate.Add(PrimitiveId);
-			Scene.GPUScene.PrimitivesMarkedToUpdate[PrimitiveId] = true;
+			PrimitivesToUpdate.Add(PrimitiveId);
+			PrimitivesMarkedToUpdate[PrimitiveId] = true;
 		}
 	}
 }
-void UpdateGPUScene(FRDGBuilder& GraphBuilder, FScene& Scene)
+void FGPUScene::Update(FRDGBuilder& GraphBuilder, FScene& Scene)
 {
-	// Invoke the cache manager to invalidate the previous location of all instances that are to be updated, 
-	// must be done prior to update of GPU-side data to use the previous transforms.
-	if (Scene.VirtualShadowMapArrayCacheManager)
+	if (bIsEnabled)
 	{
-		Scene.VirtualShadowMapArrayCacheManager->ProcessPrimitivesToUpdate(GraphBuilder, Scene);
-	}
-	if (GPUSceneUseTexture2D(Scene.GetShaderPlatform()))
-	{
-		UpdateGPUSceneInternal<FTextureRWBuffer2D>(GraphBuilder.RHICmdList, Scene);
-	}
-	else
-	{
-		UpdateGPUSceneInternal<FRWBufferStructured>(GraphBuilder.RHICmdList, Scene);
+		ensure(bInBeginEndBlock);
+		// Invoke the cache manager to invalidate the previous location of all instances that are to be updated, 
+		// must be done prior to update of GPU-side data to use the previous transforms.
+		if (Scene.VirtualShadowMapArrayCacheManager)
+		{
+			Scene.VirtualShadowMapArrayCacheManager->ProcessPrimitivesToUpdate(GraphBuilder, Scene);
+		}
+		if (GPUSceneUseTexture2D(Scene.GetShaderPlatform()))
+		{
+			UpdateInternal<FTextureRWBuffer2D>(GraphBuilder.RHICmdList, Scene);
+		}
+		else
+		{
+			UpdateInternal<FRWBufferStructured>(GraphBuilder.RHICmdList, Scene);
+		}
 	}
 }
 
-void UploadDynamicPrimitiveShaderDataForView(FRHICommandListImmediate& RHICmdList, FScene& Scene, FViewInfo& View)
+void FGPUScene::UploadDynamicPrimitiveShaderDataForView(FRHICommandListImmediate& RHICmdList, FScene& Scene, FViewInfo& View)
 {
-	if (GPUSceneUseTexture2D(Scene.GetShaderPlatform()))
+	if (bIsEnabled)
 	{
-		UploadDynamicPrimitiveShaderDataForViewInternal<FTextureRWBuffer2D>(RHICmdList, Scene, View);
-	}
-	else
-	{
-		UploadDynamicPrimitiveShaderDataForViewInternal<FRWBufferStructured>(RHICmdList, Scene, View);
+		if (GPUSceneUseTexture2D(Scene.GetShaderPlatform()))
+		{
+			UploadDynamicPrimitiveShaderDataForViewInternal<FTextureRWBuffer2D>(RHICmdList, Scene, View);
+		}
+		else
+		{
+			UploadDynamicPrimitiveShaderDataForViewInternal<FRWBufferStructured>(RHICmdList, Scene, View);
+		}
 	}
 }
-
-
 
 int32 FGPUScene::AllocateInstanceSlots(int32 NumInstanceDataEntries)
 {
-	if (NumInstanceDataEntries > 0)
+	if (bIsEnabled)
 	{
-		int32 InstanceDataOffset = InstanceDataAllocator.Allocate(NumInstanceDataEntries);
-
-		// Allocate enough storage space, if needed.
-		const int32 NewSize = InstanceDataOffset + NumInstanceDataEntries;
-		if (NewSize >= InstanceDataToClear.Num())
+		if (NumInstanceDataEntries > 0)
 		{
-			InstanceDataToClear.Add(false, NewSize - InstanceDataToClear.Num());
+			int32 InstanceDataOffset = InstanceDataAllocator.Allocate(NumInstanceDataEntries);
+
+			// Allocate enough storage space, if needed.
+			const int32 NewSize = InstanceDataOffset + NumInstanceDataEntries;
+			if (NewSize >= InstanceDataToClear.Num())
+			{
+				InstanceDataToClear.Add(false, NewSize - InstanceDataToClear.Num());
+			}
+
+			if (GGPUSceneInstanceClearList != 0)
+			{
+				InstanceClearList.Reserve(InstanceDataToClear.Num());
+			}
+
+			// Unset all bits associated with newly allocated instance data.
+			InstanceDataToClear.SetRange(InstanceDataOffset, NumInstanceDataEntries, false);
+			check(InstanceDataToClear.Num() == InstanceDataAllocator.GetMaxSize());
+
+			return InstanceDataOffset;
 		}
-
-		if (GGPUSceneInstanceClearList != 0)
-		{
-			InstanceClearList.Reserve(InstanceDataToClear.Num());
-		}
-
-		// Unset all bits associated with newly allocated instance data.
-		InstanceDataToClear.SetRange(InstanceDataOffset, NumInstanceDataEntries, false);
-		check(InstanceDataToClear.Num() == InstanceDataAllocator.GetMaxSize());
-
-		return InstanceDataOffset;
 	}
-
 	return INDEX_NONE;
 }
 
 
 void FGPUScene::FreeInstanceSlots(int InstanceDataOffset, int32 NumInstanceDataEntries)
 {
-	InstanceDataAllocator.Free(InstanceDataOffset, NumInstanceDataEntries);
-	InstanceDataToClear.SetRange(InstanceDataOffset, NumInstanceDataEntries, true);
-
-	if (GGPUSceneInstanceClearList != 0)
+	if (bIsEnabled)
 	{
-		InstanceClearList.Reserve(InstanceDataToClear.Num());
-		for (int32 AddIndex = 0; AddIndex < NumInstanceDataEntries; ++AddIndex)
+		InstanceDataAllocator.Free(InstanceDataOffset, NumInstanceDataEntries);
+		InstanceDataToClear.SetRange(InstanceDataOffset, NumInstanceDataEntries, true);
+
+		if (GGPUSceneInstanceClearList != 0)
 		{
-			InstanceClearList.Add(InstanceDataOffset + AddIndex);
+			InstanceClearList.Reserve(InstanceDataToClear.Num());
+			for (int32 AddIndex = 0; AddIndex < NumInstanceDataEntries; ++AddIndex)
+			{
+				InstanceClearList.Add(InstanceDataOffset + AddIndex);
+			}
 		}
-	}
 
-	// Resize bit arrays to match new high watermark
-	if (InstanceDataToClear.Num() > InstanceDataAllocator.GetMaxSize())
-	{
-		const int32 OldBitCount = InstanceDataToClear.Num();
-		const int32 NewBitCount = InstanceDataAllocator.GetMaxSize();
-		const int32 RemBitCount = OldBitCount - NewBitCount;
-		InstanceDataToClear.RemoveAt(NewBitCount, RemBitCount);
-		check(InstanceDataToClear.Num() == InstanceDataAllocator.GetMaxSize());
+		// Resize bit arrays to match new high watermark
+		if (InstanceDataToClear.Num() > InstanceDataAllocator.GetMaxSize())
+		{
+			const int32 OldBitCount = InstanceDataToClear.Num();
+			const int32 NewBitCount = InstanceDataAllocator.GetMaxSize();
+			const int32 RemBitCount = OldBitCount - NewBitCount;
+			InstanceDataToClear.RemoveAt(NewBitCount, RemBitCount);
+			check(InstanceDataToClear.Num() == InstanceDataAllocator.GetMaxSize());
+		}
 	}
 }
 
 
 void FGPUScene::MarkPrimitiveAdded(int32 PrimitiveId)
 {
-	check(PrimitiveId >= 0);
-
-	if (PrimitiveId >= AddedPrimitiveFlags.Num())
+	if (bIsEnabled)
 	{
-		AddedPrimitiveFlags.Add(false, PrimitiveId + 1 - AddedPrimitiveFlags.Num());
+		check(PrimitiveId >= 0);
+
+		if (PrimitiveId >= AddedPrimitiveFlags.Num())
+		{
+			AddedPrimitiveFlags.Add(false, PrimitiveId + 1 - AddedPrimitiveFlags.Num());
+		}
+		AddedPrimitiveFlags[PrimitiveId] = true;
 	}
-	AddedPrimitiveFlags[PrimitiveId] = true;
 }
+
+
+
+TRange<int32> FGPUScene::CommitPrimitiveCollector(FGPUScenePrimitiveCollector& PrimitiveCollector)
+{
+	ensure(bInBeginEndBlock);
+	ensure(CurrentDynamicContext != nullptr);
+
+	// Make sure we are not trying to commit data that lives in a different context.
+	ensure(CurrentDynamicContext->DymamicPrimitiveUploadData.Find(PrimitiveCollector.UploadData) != INDEX_NONE);
+
+	int32 StartOffset = DynamicPrimitivesOffset;
+	DynamicPrimitivesOffset += PrimitiveCollector.UploadData->PrimitiveShaderData.Num();
+
+	return TRange<int32>(StartOffset, DynamicPrimitivesOffset);
+}
+
+
+FGPUSceneDynamicContext::~FGPUSceneDynamicContext()
+{
+	for (auto UploadData : DymamicPrimitiveUploadData)
+	{
+		delete UploadData;
+	}
+	DymamicPrimitiveUploadData.Empty();
+}
+
+
+FGPUScenePrimitiveCollector::FUploadData* FGPUSceneDynamicContext::AllocateDynamicPrimitiveData()
+{
+	FGPUScenePrimitiveCollector::FUploadData* UploadData = new FGPUScenePrimitiveCollector::FUploadData;
+	DymamicPrimitiveUploadData.Add(UploadData);
+	return UploadData;
+}
+

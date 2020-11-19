@@ -184,7 +184,7 @@ void FDeferredShadingSceneRenderer::LumenRadianceCachePDIVisualization()
 	{
 		const FRadianceCacheState& RadianceCacheState = Views[0].ViewState->RadianceCacheState;
 
-		FViewElementPDI ViewPDI(&Views[0], nullptr, &Views[0].DynamicPrimitiveShaderData);
+		FViewElementPDI ViewPDI(&Views[0], nullptr, &Views[0].DynamicPrimitiveCollector);
 
 		const int32 VisualizationClipmapIndex = FMath::Clamp(GLumenRadianceCacheVisualizeClipmapIndex, -1, RadianceCacheState.Clipmaps.Num() - 1);
 		for (int32 ClipmapIndex = 0; ClipmapIndex < RadianceCacheState.Clipmaps.Num(); ++ClipmapIndex)

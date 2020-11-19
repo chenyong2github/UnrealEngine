@@ -338,7 +338,7 @@ void UpdateDistantScene(FScene* Scene, FViewInfo& View)
 		
 		if (GLumenDrawCascadeBounds)
 		{
-			FViewElementPDI ViewPDI(&View, nullptr, &View.DynamicPrimitiveShaderData);
+			FViewElementPDI ViewPDI(&View, nullptr, &View.DynamicPrimitiveCollector);
 
 			for (int32 CascadeIndex = 0; CascadeIndex < NumDesiredCascades; CascadeIndex++)
 			{
