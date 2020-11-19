@@ -316,7 +316,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 
 			if (BasePassType == FEditorPrimitiveInputs::EBasePassType::Deferred)
 			{
-				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, *EditorView, nullptr, nullptr, 0);
+				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, *EditorView, 0);
 			}
 
 			GraphBuilder.AddPass(

@@ -42,7 +42,7 @@ struct FRayTracingReflectionOptions;
 struct FHairStrandsTransmittanceMaskData;
 struct FHairStrandsRenderingData;
 
-struct FTranslucentVolumeLightingTextures;
+struct FTranslucencyLightingVolumeTextures;
 
 /**   
  * Data for rendering meshes into Lumen Lighting Cards.
@@ -565,7 +565,7 @@ private:
 	void RenderLights(
 		FRDGBuilder& GraphBuilder,
 		FMinimalSceneTextures& SceneTextures,
-		const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
+		const FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures,
 		FRDGTextureRef LightingChannelsTexture,
 		FSortedLightSetSceneInfo& SortedLightSet,
 		const FHairStrandsRenderingData* HairDatas);
@@ -586,7 +586,7 @@ private:
 	void RenderTranslucency(
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
-		const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
+		const FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures,
 		FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
 		ETranslucencyView ViewsToRender);
 
@@ -594,7 +594,7 @@ private:
 	void RenderTranslucencyInner(
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
-		const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
+		const FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures,
 		FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
 		ETranslucencyView ViewsToRender,
 		FRDGTextureRef SceneColorCopyTexture,
@@ -665,7 +665,7 @@ private:
 	void RenderDeferredShadowProjections(
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
-		const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
+		const FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures,
 		const FLightSceneInfo* LightSceneInfo,
 		FRDGTextureRef ScreenShadowMaskTexture,
 		FRDGTextureRef ScreenShadowMaskSubPixelTexture,
@@ -749,51 +749,6 @@ private:
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
 		const FSimpleLightArray& SimpleLights);
-
-	/** Initializes the translucency lighting volumes. Can be compute or async compute. */
-	void InitTranslucentVolumeLighting(
-		FRDGBuilder& GraphBuilder,
-		ERDGPassFlags PassFlags,
-		FTranslucentVolumeLightingTextures& Textures);
-
-	/** Add AmbientCubemap to the lighting volumes. */
-	void InjectAmbientCubemapTranslucentVolumeLighting(
-		FRDGBuilder& GraphBuilder,
-		const FTranslucentVolumeLightingTextures& Textures,
-		const FViewInfo& View,
-		int32 ViewIndex);
-
-	/** Accumulates direct lighting for the given light.  InProjectedShadowInfo can be NULL in which case the light will be unshadowed. */
-	void InjectTranslucentVolumeLighting(
-		FRDGBuilder& GraphBuilder,
-		const FTranslucentVolumeLightingTextures& Textures,
-		const FLightSceneInfo& LightSceneInfo,
-		const FProjectedShadowInfo* InProjectedShadowInfo,
-		const FViewInfo& View,
-		int32 ViewIndex);
-
-	/** Accumulates direct lighting for an array of unshadowed lights. */
-	void InjectTranslucentVolumeLightingArray(
-		FRDGBuilder& GraphBuilder,
-		const FTranslucentVolumeLightingTextures& Textures,
-		const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights,
-		int32 FirstLightIndex,
-		int32 LightsEndIndex);
-
-	/** Accumulates direct lighting for simple lights. */
-	void InjectSimpleTranslucentVolumeLightingArray(
-		FRDGBuilder& GraphBuilder,
-		const FTranslucentVolumeLightingTextures& Textures,
-		const FSimpleLightArray& SimpleLights,
-		const FViewInfo& View,
-		const int32 ViewIndex);
-
-	/** Filters the translucency lighting volumes to reduce aliasing. */
-	void FilterTranslucentVolumeLighting(
-		FRDGBuilder& GraphBuilder,
-		FTranslucentVolumeLightingTextures& Textures,
-		const FViewInfo& View,
-		const int32 ViewIndex);
 
 	bool ShouldRenderVolumetricFog() const;
 

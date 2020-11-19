@@ -2194,11 +2194,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			SceneContext.bScreenSpaceAOIsValid);
 	}
 
-	FTranslucentVolumeLightingTextures TranslucentLightingVolumeTextures;
+	FTranslucencyLightingVolumeTextures TranslucencyLightingVolumeTextures;
 
 	if (bRenderDeferredLighting && GbEnableAsyncComputeTranslucencyLightingVolumeClear && GSupportsEfficientAsyncCompute)
 	{
-		InitTranslucentVolumeLighting(GraphBuilder, ERDGPassFlags::AsyncCompute, TranslucentLightingVolumeTextures);
+		InitTranslucencyLightingVolumeTextures(GraphBuilder, Views, ERDGPassFlags::AsyncCompute, TranslucencyLightingVolumeTextures);
 	}
 
 	SceneContext.AllocSceneColor(RHICmdList);
@@ -2476,7 +2476,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		// Clear the translucent lighting volumes before we accumulate
 		if ((GbEnableAsyncComputeTranslucencyLightingVolumeClear && GSupportsEfficientAsyncCompute) == false)
 		{
-			InitTranslucentVolumeLighting(GraphBuilder, ERDGPassFlags::Compute, TranslucentLightingVolumeTextures);
+			InitTranslucencyLightingVolumeTextures(GraphBuilder, Views, ERDGPassFlags::Compute, TranslucencyLightingVolumeTextures);
 		}
 
 #if RHI_RAYTRACING
@@ -2487,26 +2487,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 #endif
 
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Lighting));
-		RenderLights(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, LightingChannelsTexture, SortedLightSet, HairDatas);
+		RenderLights(GraphBuilder, SceneTextures, TranslucencyLightingVolumeTextures, LightingChannelsTexture, SortedLightSet, HairDatas);
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterLighting));
 		AddServiceLocalQueuePass(GraphBuilder);
 
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-		{
-			const FViewInfo& View = Views[ViewIndex];
-			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-			InjectAmbientCubemapTranslucentVolumeLighting(GraphBuilder, TranslucentLightingVolumeTextures, Views[ViewIndex], ViewIndex);
-		}
-		AddServiceLocalQueuePass(GraphBuilder);
-
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-		{
-			const FViewInfo& View = Views[ViewIndex];
-			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-
-			// Filter the translucency lighting volume now that it is complete
-			FilterTranslucentVolumeLighting(GraphBuilder, TranslucentLightingVolumeTextures, View, ViewIndex);
-		}
+		InjectTranslucencyLightingVolumeAmbientCubemap(GraphBuilder, Views, TranslucencyLightingVolumeTextures);
+		FilterTranslucencyLightingVolume(GraphBuilder, Views, TranslucencyLightingVolumeTextures);
 		AddServiceLocalQueuePass(GraphBuilder);
 
 		// Render diffuse sky lighting and reflections that only operate on opaque pixels
@@ -2566,7 +2552,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderTranslucency);
 			SCOPE_CYCLE_COUNTER(STAT_TranslucencyDrawTime);
 			AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Translucency));
-			RenderTranslucency(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, nullptr, ETranslucencyView::UnderWater);
+			RenderTranslucency(GraphBuilder, SceneTextures, TranslucencyLightingVolumeTextures, nullptr, ETranslucencyView::UnderWater);
 			EnumRemoveFlags(TranslucencyViewsToRender, ETranslucencyView::UnderWater);
 		}
 
@@ -2661,7 +2647,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		// Render all remaining translucency views.
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Translucency));
-		RenderTranslucency(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, &SeparateTranslucencyTextures, TranslucencyViewsToRender);
+		RenderTranslucency(GraphBuilder, SceneTextures, TranslucencyLightingVolumeTextures, &SeparateTranslucencyTextures, TranslucencyViewsToRender);
 		AddServiceLocalQueuePass(GraphBuilder);
 		TranslucencyViewsToRender = ETranslucencyView::None;
 
@@ -2851,7 +2837,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			}
 		}
 
-		AddPass(GraphBuilder, [this, &SceneContext](FRHICommandListImmediate&)
+		AddPass(GraphBuilder, [&SceneContext](FRHICommandListImmediate&)
 		{
 			SceneContext.SetSceneColor(nullptr);
 		});

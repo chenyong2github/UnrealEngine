@@ -1190,7 +1190,7 @@ void GetRenderLightParameters(
 void FDeferredShadingSceneRenderer::RenderLights(
 	FRDGBuilder& GraphBuilder,
 	FMinimalSceneTextures& SceneTextures,
-	const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
+	const FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures,
 	FRDGTextureRef LightingChannelsTexture,
 	FSortedLightSetSceneInfo &SortedLightSet,
 	const FHairStrandsRenderingData* HairDatas)
@@ -1313,7 +1313,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 				if (AttenuationLightStart)
 				{
 					// Inject non-shadowed, non-simple, non-light function lights in to the volume.
-					InjectTranslucentVolumeLightingArray(GraphBuilder, TranslucentVolumeLightingTextures, SortedLights, SimpleLightsEnd, AttenuationLightStart);
+					InjectTranslucencyLightingVolumeArray(GraphBuilder, Views, Scene, TranslucencyLightingVolumeTextures, VisibleLightInfos, SortedLights, TInterval<int32>(SimpleLightsEnd, AttenuationLightStart));
 				}
 
 				if (SimpleLights.InstanceData.Num() > 0)
@@ -1332,7 +1332,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 							FViewInfo& View = Views[ViewIndex];
 							RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 							RDG_EVENT_SCOPE(GraphBuilder, "InjectSimpleLightsTranslucentLighting");
-							InjectSimpleTranslucentVolumeLightingArray(GraphBuilder, TranslucentVolumeLightingTextures, SimpleLightArray, View, ViewIndex);
+							InjectSimpleTranslucencyLightingVolumeArray(GraphBuilder, View, ViewIndex, Views.Num(), TranslucencyLightingVolumeTextures, SimpleLightArray);
 						}
 					}
 				}
@@ -1863,7 +1863,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 							ClearShadowMask(ScreenShadowMaskSubPixelTexture);
 						}
 
-						RenderDeferredShadowProjections(GraphBuilder, SceneTextures, TranslucentVolumeLightingTextures, &LightSceneInfo, ScreenShadowMaskTexture, ScreenShadowMaskSubPixelTexture, HairDatas, bInjectedTranslucentVolume);
+						RenderDeferredShadowProjections(GraphBuilder, SceneTextures, TranslucencyLightingVolumeTextures, &LightSceneInfo, ScreenShadowMaskTexture, ScreenShadowMaskSubPixelTexture, HairDatas, bInjectedTranslucentVolume);
 					}
 
 					bUsedShadowMaskTexture = true;
@@ -1904,7 +1904,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 						RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
 						// Accumulate this light's unshadowed contribution to the translucency lighting volume
-						InjectTranslucentVolumeLighting(GraphBuilder, TranslucentVolumeLightingTextures, LightSceneInfo, nullptr, View, ViewIndex);
+						InjectTranslucencyLightingVolume(GraphBuilder, View, ViewIndex, Scene, TranslucencyLightingVolumeTextures, VisibleLightInfos, LightSceneInfo, nullptr);
 					}
 				}
 

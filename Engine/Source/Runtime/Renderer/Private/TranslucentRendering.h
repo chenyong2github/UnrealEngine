@@ -62,38 +62,6 @@ private:
 	FRDGTextureMSAA ColorModulateTexture;
 };
 
-struct FTranslucentVolumeLightingTextures
-{
-	bool IsValid() const
-	{
-		return VolumeDim != 0;
-	}
-
-	FRDGTextureRef GetAmbient(int32 ViewIndex, int32 CascadeIndex) const
-	{
-		return Ambient[(ViewIndex * TVC_MAX) + CascadeIndex];
-	}
-
-	void SetAmbient(int32 ViewIndex, int32 CascadeIndex, FRDGTextureRef Texture)
-	{
-		Ambient[(ViewIndex * TVC_MAX) + CascadeIndex] = Texture;
-	}
-
-	FRDGTextureRef GetDirectional(int32 ViewIndex, int32 CascadeIndex) const
-	{
-		return Directional[(ViewIndex * TVC_MAX) + CascadeIndex];
-	}
-
-	void SetDirectional(int32 ViewIndex, int32 CascadeIndex, FRDGTextureRef Texture)
-	{
-		Directional[(ViewIndex * TVC_MAX) + CascadeIndex] = Texture;
-	}
-
-	TArray<FRDGTextureRef, TInlineAllocator<TVC_MAX>> Ambient;
-	TArray<FRDGTextureRef, TInlineAllocator<TVC_MAX>> Directional;
-	int32 VolumeDim = 0;
-};
-
 DECLARE_GPU_DRAWCALL_STAT_EXTERN(Translucency);
 
 /** Creates separate translucency textures. */

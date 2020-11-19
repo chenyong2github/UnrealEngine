@@ -1847,7 +1847,7 @@ void FSceneRenderer::RenderSkyAtmosphere(FRDGBuilder& GraphBuilder, const FMinim
 #endif
 }
 
-bool FSceneRenderer::ShouldRenderSkyAtmosphereEditorNotifications()
+bool FSceneRenderer::ShouldRenderSkyAtmosphereEditorNotifications() const
 {
 #if WITH_EDITOR
 	bool bAnyViewHasSkyMaterial = false;
@@ -1860,7 +1860,7 @@ bool FSceneRenderer::ShouldRenderSkyAtmosphereEditorNotifications()
 	return false;
 }
 
-void FSceneRenderer::RenderSkyAtmosphereEditorNotifications(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture)
+void FSceneRenderer::RenderSkyAtmosphereEditorNotifications(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture) const
 {
 #if WITH_EDITOR
 	RDG_EVENT_SCOPE(GraphBuilder, "SkyAtmosphereEditor");
@@ -1868,7 +1868,7 @@ void FSceneRenderer::RenderSkyAtmosphereEditorNotifications(FRDGBuilder& GraphBu
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
-		FViewInfo& View = Views[ViewIndex];
+		const FViewInfo& View = Views[ViewIndex];
 		if (View.bSceneHasSkyMaterial && View.Family->EngineShowFlags.Atmosphere)
 		{
 			RenderSkyAtmosphereEditorHudPS::FPermutationDomain PermutationVector;

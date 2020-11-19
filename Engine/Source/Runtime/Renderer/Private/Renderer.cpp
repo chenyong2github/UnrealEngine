@@ -242,7 +242,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 		{
 			if (ShadingPath == EShadingPath::Deferred)
 			{
-				PassParameters->TranslucentBasePass = CreateTranslucentBasePassUniformBuffer(GraphBuilder, View, nullptr, nullptr, ESceneTextureSetupMode::None, 0);
+				PassParameters->TranslucentBasePass = CreateTranslucentBasePassUniformBuffer(GraphBuilder, View);
 
 				GraphBuilder.AddPass({}, PassParameters, PassFlags,
 					[Scene, &View, &Mesh, &DrawRenderState, bUse128bitRT](FRHICommandListImmediate& InRHICmdList)
@@ -317,7 +317,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 			{
 				if (ShadingPath == EShadingPath::Deferred)
 				{
-					PassParameters->OpaqueBasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, nullptr, nullptr, 0);
+					PassParameters->OpaqueBasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View);
 
 					GraphBuilder.AddPass({}, PassParameters, PassFlags,
 						[Scene, &View, &DrawRenderState, &Mesh, bUse128bitRT](FRHICommandListImmediate& InRHICmdList)

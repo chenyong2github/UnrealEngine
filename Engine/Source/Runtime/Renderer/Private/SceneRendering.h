@@ -2006,10 +2006,10 @@ protected:
 		FRDGTextureRef HalfResolutionDepthCheckerboardMinMaxTexture);
 
 	/** Render notification to artist when a sky material is used but it might comtains the camera (and then the sky/background would look black).*/
-	void RenderSkyAtmosphereEditorNotifications(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture);
+	void RenderSkyAtmosphereEditorNotifications(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture) const;
 
 	/** We should render on screen notification only if any of the scene contains a mesh using a sky material.*/
-	bool ShouldRenderSkyAtmosphereEditorNotifications();
+	bool ShouldRenderSkyAtmosphereEditorNotifications() const;
 
 	void ResolveSceneColor(FRHICommandListImmediate& RHICmdList);
 	void ResolveSceneDepth(FRHICommandListImmediate& RHICmdList);
@@ -2265,8 +2265,6 @@ struct FFastVramConfig
 	ETextureCreateFlags VolumetricFog;
 	ETextureCreateFlags SeparateTranslucency;
 	ETextureCreateFlags SeparateTranslucencyModulate;
-	ETextureCreateFlags LightAccumulation;
-	ETextureCreateFlags LightAttenuation;
 	ETextureCreateFlags ScreenSpaceAO;
 	ETextureCreateFlags SSR;
 	ETextureCreateFlags DBufferA;

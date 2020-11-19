@@ -135,18 +135,10 @@ struct FBasePassInterpolantsVSToDS : FSharedBasePassInterpolants
 
 #endif
 
-
-#if SUPPORTS_INDEPENDENT_SAMPLERS
-	#define SharedAmbientInnerSampler View.SharedBilinearClampedSampler
-	#define SharedAmbientOuterSampler View.SharedBilinearClampedSampler
-	#define SharedDirectionalInnerSampler View.SharedBilinearClampedSampler
-	#define SharedDirectionalOuterSampler View.SharedBilinearClampedSampler
-#else
-	#define SharedAmbientInnerSampler TranslucentBasePass.TranslucencyLightingVolumeAmbientInnerSampler
-	#define SharedAmbientOuterSampler TranslucentBasePass.TranslucencyLightingVolumeAmbientOuterSampler
-	#define SharedDirectionalInnerSampler TranslucentBasePass.TranslucencyLightingVolumeDirectionalInnerSampler
-	#define SharedDirectionalOuterSampler TranslucentBasePass.TranslucencyLightingVolumeDirectionalOuterSampler
-#endif
+#define SharedAmbientInnerSampler View.SharedBilinearClampedSampler
+#define SharedAmbientOuterSampler View.SharedBilinearClampedSampler
+#define SharedDirectionalInnerSampler View.SharedBilinearClampedSampler
+#define SharedDirectionalOuterSampler View.SharedBilinearClampedSampler
 
 void ComputeVolumeUVs(float3 WorldPosition, float3 LightingPositionOffset, out float3 InnerVolumeUVs, out float3 OuterVolumeUVs, out float FinalLerpFactor)
 {

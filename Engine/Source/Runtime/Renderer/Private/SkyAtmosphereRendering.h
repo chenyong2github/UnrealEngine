@@ -6,9 +6,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EngineDefines.h"
-#include "RendererInterface.h"
+#include "RenderGraph.h"
 #include "RenderResource.h"
 #include "Rendering/SkyAtmosphereCommonData.h"
 #include "RenderGraphResources.h"
@@ -133,6 +132,8 @@ public:
 	TRefCountPtr<IPooledRenderTarget>& GetTransmittanceLutTexture() { return TransmittanceLutTexture; }
 	TRefCountPtr<IPooledRenderTarget>& GetMultiScatteredLuminanceLutTexture() { return MultiScatteredLuminanceLutTexture; }
 	TRefCountPtr<IPooledRenderTarget>& GetDistantSkyLightLutTexture();
+
+	FRDGTextureRef GetTransmittanceLutTexture(FRDGBuilder& GraphBuilder) const { return GraphBuilder.RegisterExternalTexture(TransmittanceLutTexture); }
 
 	const FAtmosphereUniformShaderParameters* GetAtmosphereShaderParameters() const { return &AtmosphereUniformShaderParameters; }
 	const FSkyAtmosphereSceneProxy& GetSkyAtmosphereSceneProxy() const { return SkyAtmosphereSceneProxy; }

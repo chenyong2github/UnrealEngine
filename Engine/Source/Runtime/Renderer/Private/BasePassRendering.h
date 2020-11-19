@@ -22,6 +22,7 @@
 #include "MeshMaterialShader.h"
 #include "ShaderBaseClasses.h"
 #include "FogRendering.h"
+#include "TranslucentLighting.h"
 #include "PlanarReflectionRendering.h"
 #include "UnrealEngine.h"
 #include "ReflectionEnvironment.h"
@@ -32,7 +33,6 @@ class FScene;
 template<typename TBufferStruct> class TUniformBufferRef;
 
 struct FSceneWithoutWaterTextures;
-struct FTranslucentVolumeLightingTextures;
 
 class FViewInfo;
 class UMaterialExpressionSingleLayerWaterMaterialOutput;
@@ -108,14 +108,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FTranslucentBasePassUniformParameters,)
 	SHADER_PARAMETER_SAMPLER(SamplerState, VolumetricCloudDepthSampler)
 	SHADER_PARAMETER(float, ApplyVolumetricCloudOnTransparent)
 	// Translucency Lighting Volume
-	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, TranslucencyLightingVolumeAmbientInner)
-	SHADER_PARAMETER_SAMPLER(SamplerState, TranslucencyLightingVolumeAmbientInnerSampler)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, TranslucencyLightingVolumeAmbientOuter)
-	SHADER_PARAMETER_SAMPLER(SamplerState, TranslucencyLightingVolumeAmbientOuterSampler)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, TranslucencyLightingVolumeDirectionalInner)
-	SHADER_PARAMETER_SAMPLER(SamplerState, TranslucencyLightingVolumeDirectionalInnerSampler)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, TranslucencyLightingVolumeDirectionalOuter)
-	SHADER_PARAMETER_SAMPLER(SamplerState, TranslucencyLightingVolumeDirectionalOuterSampler)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FTranslucencyLightingVolumeParameters, TranslucencyLightingVolume)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenTranslucencyLightingParameters, LumenParameters)
 	SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGFTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
@@ -136,17 +129,17 @@ extern void SetupSharedBasePassParameters(
 extern TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUniformBuffer(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FRDGTextureRef ForwardScreenSpaceShadowMask,
-	const FSceneWithoutWaterTextures* SceneWithoutWaterTextures,
-	const int32 ViewIndex);
+	FRDGTextureRef ForwardScreenSpaceShadowMask = nullptr,
+	const FSceneWithoutWaterTextures* SceneWithoutWaterTextures = nullptr,
+	const int32 ViewIndex = 0);
 
 extern TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBasePassUniformBuffer(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FTranslucentVolumeLightingTextures* TranslucentVolumeLightingTextures,
-	FRDGTextureRef SceneColorCopy,
-	ESceneTextureSetupMode SceneTextureSetupMode,
-	const int32 ViewIndex);
+	const int32 ViewIndex = 0,
+	const FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures = {},
+	FRDGTextureRef SceneColorCopyTexture = nullptr,
+	const ESceneTextureSetupMode SceneTextureSetupMode = ESceneTextureSetupMode::None);
 
 /** Parameters for computing forward lighting. */
 class FForwardLightingParameters

@@ -533,7 +533,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 					{
 						auto* PassParameters = GraphBuilder.AllocParameters<FCaptureSkyMeshReflectionPassParameters>();
 						PassParameters->RenderTargets = SkyRC.RenderTargets;
-						PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, MainView, nullptr, nullptr, 0);
+						PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, MainView, 0);
 
 						// Setup the depth buffer
 						if (bUseDepthBuffer)

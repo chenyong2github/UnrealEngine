@@ -1943,7 +1943,7 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
+	const FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures,
 	const FLightSceneInfo* LightSceneInfo,
 	FRDGTextureRef ScreenShadowMaskTexture,
 	FRDGTextureRef ScreenShadowMaskSubPixelTexture,
@@ -1961,7 +1961,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 	const bool bProjectingForForwardShading = false;
 	RenderShadowProjections(GraphBuilder, SceneTextures, ScreenShadowMaskTexture, ScreenShadowMaskSubPixelTexture, LightSceneInfo, HairVisibilityViews, bProjectingForForwardShading);
 
-	// Perform injection on tranlucent lighting volume
+	// Perform injection on translucent lighting volume
 	{
 		const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& ShadowMaps = VisibleLightInfo.CompleteProjectedShadows.Num() > 0
 			? VisibleLightInfo.CompleteProjectedShadows
@@ -1997,7 +1997,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 					}
 
 					RDG_GPU_MASK_SCOPE(GraphBuilder, ProjectedShadowInfo->DependentView->GPUMask);
-					InjectTranslucentVolumeLighting(GraphBuilder, TranslucentVolumeLightingTextures, *LightSceneInfo, ProjectedShadowInfo, *ProjectedShadowInfo->DependentView, ViewIndex);
+					InjectTranslucencyLightingVolume(GraphBuilder, *ProjectedShadowInfo->DependentView, ViewIndex, Scene, TranslucencyLightingVolumeTextures, VisibleLightInfos, *LightSceneInfo, ProjectedShadowInfo);
 				}
 				else
 				{
@@ -2005,7 +2005,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 					{
 						FViewInfo& View = Views[ViewIndex];
 						RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-						InjectTranslucentVolumeLighting(GraphBuilder, TranslucentVolumeLightingTextures, *LightSceneInfo, ProjectedShadowInfo, View, ViewIndex);
+						InjectTranslucencyLightingVolume(GraphBuilder, View, ViewIndex, Scene, TranslucencyLightingVolumeTextures, VisibleLightInfos, *LightSceneInfo, ProjectedShadowInfo);
 					}
 				}
 			}
