@@ -35,6 +35,7 @@ bool FMemoryViewTest::RunTest(const FString& Parameters)
 	auto TestMutableMemoryView = [this](const FMutableMemoryView& View, void* Data, uint64 Size)
 	{
 		TestEqual(TEXT("MemoryView.GetData()"), View.GetData(), Data);
+		TestEqual(TEXT("MemoryView.GetDataEnd()"), View.GetDataEnd(), static_cast<void*>(static_cast<uint8*>(Data) + Size));
 		TestEqual(TEXT("MemoryView.GetSize()"), View.GetSize(), Size);
 		TestEqual(TEXT("MemoryView.IsEmpty()"), View.IsEmpty(), Size == 0);
 	};
@@ -42,6 +43,7 @@ bool FMemoryViewTest::RunTest(const FString& Parameters)
 	auto TestConstMemoryView = [this](const FConstMemoryView& View, const void* Data, uint64 Size)
 	{
 		TestEqual(TEXT("MemoryView.GetData()"), View.GetData(), Data);
+		TestEqual(TEXT("MemoryView.GetDataEnd()"), View.GetDataEnd(), static_cast<const void*>(static_cast<const uint8*>(Data) + Size));
 		TestEqual(TEXT("MemoryView.GetSize()"), View.GetSize(), Size);
 		TestEqual(TEXT("MemoryView.IsEmpty()"), View.IsEmpty(), Size == 0);
 	};
@@ -61,13 +63,15 @@ bool FMemoryViewTest::RunTest(const FString& Parameters)
 	TestConstMemoryView(FMutableMemoryView(), nullptr, 0);
 	TestConstMemoryView(FConstMemoryView(), nullptr, 0);
 
-	// Test Construction from Type[], TArrayView, (Type*, uint64)
+	// Test Construction from Type[], TArrayView, (Type*, uint64), (Type*, Type*)
 	TestMutableMemoryView(MakeMemoryView(IntArray), IntArray, sizeof(IntArray));
 	TestMutableMemoryView(MakeMemoryView(MakeArrayView(IntArray)), IntArray, sizeof(IntArray));
 	TestMutableMemoryView(MakeMemoryView(IntArray, sizeof(IntArray)), IntArray, sizeof(IntArray));
+	TestMutableMemoryView(MakeMemoryView(IntArray, IntArray + 6), IntArray, sizeof(*IntArray) * 6);
 	TestConstMemoryView(MakeMemoryView(AsConst(IntArray)), IntArray, sizeof(IntArray));
 	TestConstMemoryView(MakeMemoryView(MakeArrayView(AsConst(IntArray))), IntArray, sizeof(IntArray));
 	TestConstMemoryView(MakeMemoryView(AsConst(IntArray), sizeof(IntArray)), IntArray, sizeof(IntArray));
+	TestConstMemoryView(MakeMemoryView(AsConst(IntArray), AsConst(IntArray) + 6), IntArray, sizeof(*IntArray) * 6);
 
 	// Test Construction from std::initializer_list
 	//MakeMemoryView({1, 2, 3}); // fail because the type must be deduced
