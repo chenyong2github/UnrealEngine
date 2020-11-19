@@ -109,6 +109,12 @@ void FAnimNode_SaveCachedPose::PostGraphUpdate()
 			}
 		}
 
+		// Update the max weighted pose node
+		{
+			TRACE_SCOPED_ANIM_NODE(CachedUpdateContexts[MaxWeightIdx].Context);
+			Pose.Update(CachedUpdateContexts[MaxWeightIdx].Context);
+		}
+
 		// Update any branches that will be skipped
 		UE::Anim::FMessageStack& MessageStack = CachedUpdateContexts[MaxWeightIdx].SharedContext->MessageStack;
 		if(MessageStack.HasMessage<UE::Anim::FCachedPoseSkippedUpdateHandler>())
@@ -132,12 +138,6 @@ void FAnimNode_SaveCachedPose::PostGraphUpdate()
 				// We only want the topmost registered node here, so early out
 				return UE::Anim::FMessageStack::EEnumerate::Stop;
 			});
-		}
-
-		// Update the max weighted pose node
-		{
-			TRACE_SCOPED_ANIM_NODE(CachedUpdateContexts[MaxWeightIdx].Context);
-			Pose.Update(CachedUpdateContexts[MaxWeightIdx].Context);
 		}
 	}
 
