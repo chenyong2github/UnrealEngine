@@ -8,13 +8,14 @@
 #if WITH_EDITOR
 #include "Components/BillboardComponent.h"
 #include "WaterIconHelper.h"
+#include "WaterSubsystem.h"
 #endif
 
 AWaterBodyExclusionVolume::AWaterBodyExclusionVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 #if WITH_EDITORONLY_DATA
-	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyExclusionVolumeSprite"), NSLOCTEXT("Water", "WaterBodExclusionVolumeSpriteName", "Water Body Exclusion Volume"));
+	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyExclusionVolumeSprite"), NSLOCTEXT("Water", "WaterBodyExclusionVolumeSpriteName", "Water Body Exclusion Volume"));
 #endif
 }
 
@@ -67,7 +68,12 @@ void AWaterBodyExclusionVolume::UpdateOverlappingWaterBodies()
 #if WITH_EDITOR
 void AWaterBodyExclusionVolume::UpdateActorIcon()
 {
-	FWaterIconHelper::UpdateSpriteComponent(this, ActorIcon->Sprite);
+	UTexture2D* IconTexture = ActorIcon->Sprite;
+	if (const UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
+	{
+		IconTexture = WaterSubsystem->GetWaterActorSprite(GetClass());
+	}
+	FWaterIconHelper::UpdateSpriteComponent(this, IconTexture);
 }
 #endif // WITH_EDITOR
 

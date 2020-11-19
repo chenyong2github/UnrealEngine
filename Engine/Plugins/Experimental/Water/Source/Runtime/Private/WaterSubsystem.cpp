@@ -141,9 +141,14 @@ UWaterSubsystem::UWaterSubsystem()
 		ConstructorHelpers::FObjectFinderOptional<UStaticMesh> LakeMesh;
 		ConstructorHelpers::FObjectFinderOptional<UStaticMesh> RiverMesh;
 
+		ConstructorHelpers::FObjectFinderOptional<UTexture2D> DefaultWaterActorSprite;
+		ConstructorHelpers::FObjectFinderOptional<UTexture2D> ErrorSprite;
+
 		FConstructorStatics()
 			: LakeMesh(TEXT("/Water/Meshes/LakeMesh.LakeMesh"))
 			, RiverMesh(TEXT("/Water/Meshes/RiverMesh.RiverMesh"))
+			, DefaultWaterActorSprite(TEXT("/Water/Icons/WaterSprite"))
+			, ErrorSprite(TEXT("/Water/Icons/WaterErrorSprite"))
 		{
 		}
 	};
@@ -151,9 +156,13 @@ UWaterSubsystem::UWaterSubsystem()
 
 	DefaultLakeMesh = ConstructorStatics.LakeMesh.Get();
 	DefaultRiverMesh = ConstructorStatics.RiverMesh.Get();
+#if WITH_EDITOR
+	DefaultWaterActorSprite = ConstructorStatics.DefaultWaterActorSprite.Get();
+	ErrorSprite = ConstructorStatics.ErrorSprite.Get();
+#endif // WITH_EDITOR
 }
 
-UWaterSubsystem* UWaterSubsystem::GetWaterSubsystem(UWorld* InWorld)
+UWaterSubsystem* UWaterSubsystem::GetWaterSubsystem(const UWorld* InWorld)
 {
 	if (InWorld)
 	{
@@ -416,7 +425,7 @@ void UWaterSubsystem::SetOceanFloodHeight(float InFloodHeight)
 	}
 }
 
-AWaterMeshActor* UWaterSubsystem::GetWaterMeshActor()
+AWaterMeshActor* UWaterSubsystem::GetWaterMeshActor() const
 {
 	// @todo water: this assumes only one water mesh actor right now.  In the future we may need to associate a water mesh actor with a water body more directly
 	TActorIterator<AWaterMeshActor> It(GetWorld());
@@ -442,6 +451,32 @@ void UWaterSubsystem::MarkAllWaterMeshesForRebuild()
 		WaterMesh->MarkWaterMeshComponentForRebuild();
 	}
 }
+
+#if WITH_EDITOR
+UTexture2D* UWaterSubsystem::GetWaterActorSprite(UClass* InClass) const
+{
+	UClass const* Class = InClass;
+	UTexture2D* const* SpritePtr = nullptr;
+
+	// Traverse the class hierarchy and find the first available sprite
+	while (Class != nullptr && SpritePtr == nullptr)
+	{
+		SpritePtr = WaterActorSprites.Find(Class);
+		Class = Class->GetSuperClass();
+	}
+
+	if (SpritePtr != nullptr)
+	{
+		return *SpritePtr;
+	}
+	return DefaultWaterActorSprite;
+}
+
+void UWaterSubsystem::RegisterWaterActorClassSprite(UClass* Class, UTexture2D* Sprite)
+{
+	WaterActorSprites.Add(Class, Sprite);
+}
+#endif
 
 void UWaterSubsystem::NotifyWaterScalabilityChangedInternal(IConsoleVariable* CVar)
 {

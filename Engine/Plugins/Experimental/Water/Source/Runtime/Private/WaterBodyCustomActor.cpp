@@ -6,6 +6,7 @@
 
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
+#include "WaterSubsystem.h"
 #endif
 
 // ----------------------------------------------------------------------------------

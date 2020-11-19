@@ -7,8 +7,9 @@
 #include "Components/BillboardComponent.h"
 #include "Engine/Texture2D.h"
 #include "WaterRuntimeSettings.h"
+#include "WaterSubsystem.h"
 
-UBillboardComponent* FWaterIconHelper::EnsureSpriteComponentCreated(AActor* Actor, const TCHAR* InIconTextureName, const FText& InDisplayName)
+UBillboardComponent* FWaterIconHelper::EnsureSpriteComponentCreated_Internal(AActor* Actor, UClass* InClass, const TCHAR* InIconTextureName, const FText& InDisplayName)
 {
 	UBillboardComponent* ActorIcon = nullptr;
 	if (!Actor->IsTemplate())
@@ -22,6 +23,12 @@ UBillboardComponent* FWaterIconHelper::EnsureSpriteComponentCreated(AActor* Acto
 		if (ActorIcon != nullptr)
 		{
 			ConstructorHelpers::FObjectFinderOptional<UTexture2D> Texture(InIconTextureName);
+
+			if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(Actor->GetWorld()))
+			{
+				WaterSubsystem->RegisterWaterActorClassSprite(InClass, Texture.Get());
+			}
+
 			ActorIcon->Sprite = Texture.Get();
 			ActorIcon->bHiddenInGame = true;
 			ActorIcon->SpriteInfo.Category = TEXT("Water");
