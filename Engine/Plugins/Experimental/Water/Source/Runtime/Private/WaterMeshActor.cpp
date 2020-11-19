@@ -46,6 +46,14 @@ void AWaterMeshActor::Update()
 	}
 }
 
+void AWaterMeshActor::SetLandscapeInfo(const FVector& InRTWorldLocation, const FVector& InRTWorldSizeVector)
+{
+	if (WaterMesh)
+	{
+		WaterMesh->SetLandscapeInfo(InRTWorldLocation, InRTWorldSizeVector);
+	}
+}
+
 #if	WITH_EDITOR
 void AWaterMeshActor::PostEditMove(bool bFinished)
 {
