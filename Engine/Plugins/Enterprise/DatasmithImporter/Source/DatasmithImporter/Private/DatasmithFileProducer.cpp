@@ -301,11 +301,13 @@ void UDatasmithFileProducer::SceneElementToWorld()
 		}
 	}
 
-	for ( TPair< TSharedRef< IDatasmithTextureElement >, UE::Interchange::FAsyncImportResult >& AssetPair : ImportContextPtr->ImportedTextures )
+	for ( TPair< TSharedRef< IDatasmithTextureElement >, UE::Interchange::FAssetImportResultRef >& AssetPair : ImportContextPtr->ImportedTextures )
 	{
-		if(AssetPair.Value.IsValid())
+		AssetPair.Value->WaitUntilDone();
+
+		if ( UTexture* ImportedTexture = Cast< UTexture >( AssetPair.Value->GetFirstAssetOfClass( UTexture::StaticClass() ) ) )
 		{
-			Assets.Emplace( AssetPair.Value.Get() );
+			Assets.Emplace( ImportedTexture );
 		}
 	}
 

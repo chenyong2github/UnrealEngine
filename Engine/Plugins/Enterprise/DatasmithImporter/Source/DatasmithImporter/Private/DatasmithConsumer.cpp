@@ -1528,8 +1528,10 @@ namespace DatasmithConsumerUtils
 					TSharedRef< IDatasmithTextureElement > TextureElement = FDatasmithSceneFactory::CreateTexture( *AssetTag );
 					TextureElement->SetLabel( *Texture->GetName() );
 
-					TPromise< UObject* > TexturePromise = MakeFulfilledPromise< UObject* >( Texture );
-					ImportContext.ImportedTextures.FindOrAdd( TextureElement ) = UE::Interchange::FAsyncImportResult{ TexturePromise.GetFuture(), FGraphEventRef() };
+					UE::Interchange::FAssetImportResultRef& AssetImportResults = ImportContext.ImportedTextures.Add( TextureElement, MakeShared< UE::Interchange::FAssetImportResult, ESPMode::ThreadSafe >() );
+					AssetImportResults->AddImportedAsset( Texture );
+					AssetImportResults->SetDone();
+
 					ImportContext.Scene->AddTexture( TextureElement );
 				}
 				else if(UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Asset))

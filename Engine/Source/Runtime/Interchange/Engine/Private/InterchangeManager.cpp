@@ -70,8 +70,8 @@ UInterchangeTranslatorBase* UE::Interchange::FScopedTranslator::GetTranslator()
 }
 
 UE::Interchange::FImportAsyncHelper::FImportAsyncHelper()
+	: AssetImportResult(new FAssetImportResult())
 {
-	RootObjectCompletionEvent = FGraphEvent::CreateGraphEvent();
 	bCancel = false;
 }
 
@@ -153,11 +153,11 @@ void UE::Interchange::FImportAsyncHelper::CancelAndWaitUntilDoneSynchronously()
 	{
 		FTaskGraphInterface::Get().WaitUntilTasksComplete(TasksToComplete, ENamedThreads::GameThread);
 	}
+
 	//Async import result in a null object when we cancel
-	if (!RootObjectCompletionEvent->IsComplete())
+	if (AssetImportResult->GetStatus() != FAssetImportResult::EStatus::Done)
 	{
-		RootObject.SetValue(nullptr);
-		RootObjectCompletionEvent->DispatchSubsequents();
+		AssetImportResult->SetDone();
 	}
 }
 
@@ -204,31 +204,92 @@ void UE::Interchange::FImportAsyncHelper::CleanUp()
 	Factories.Empty();
 }
 
-UE::Interchange::FAsyncImportResult::FAsyncImportResult( TFuture< UObject* >&& InFutureObject, const FGraphEventRef& InGraphEvent )
-	: FutureObject( MoveTemp( InFutureObject ) )
-	, GraphEvent( InGraphEvent )
+UE::Interchange::FAssetImportResult::FAssetImportResult()
+	: ImportStatus(EStatus::Invalid)
 {
 }
 
-bool UE::Interchange::FAsyncImportResult::IsValid() const
+UE::Interchange::FAssetImportResult::EStatus UE::Interchange::FAssetImportResult::GetStatus() const
 {
-	return FutureObject.IsValid();
+	return ImportStatus;
 }
 
-UObject* UE::Interchange::FAsyncImportResult::Get() const
+bool UE::Interchange::FAssetImportResult::IsValid() const
 {
-	if ( !FutureObject.IsReady() )
+	return GetStatus() != EStatus::Invalid;
+}
+
+void UE::Interchange::FAssetImportResult::SetInProgress()
+{
+	EStatus ExpectedStatus = EStatus::Invalid;
+	if (ImportStatus.compare_exchange_strong(ExpectedStatus, EStatus::InProgress))
 	{
-		// Tick the task graph until our FutureObject is ready
-		FTaskGraphInterface::Get().WaitUntilTaskCompletes( GraphEvent );
+		GraphEvent = FGraphEvent::CreateGraphEvent();
+	}
+}
+
+void UE::Interchange::FAssetImportResult::SetDone()
+{
+	SetInProgress(); // Make sure we always pass through the InProgress state
+
+	EStatus ExpectedStatus = EStatus::InProgress;
+	if (ImportStatus.compare_exchange_strong(ExpectedStatus, EStatus::Done))
+	{
+		if (DoneCallback)
+		{
+			DoneCallback(*this);
+		}
+
+		GraphEvent->DispatchSubsequents();
+	}
+}
+
+void UE::Interchange::FAssetImportResult::WaitUntilDone()
+{
+	if (ImportStatus == EStatus::InProgress)
+	{
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(GraphEvent);
+	}
+}
+
+const TArray< UObject* >& UE::Interchange::FAssetImportResult::GetImportedAssets() const
+{
+	FReadScopeLock ReadScopeLock(ImportedAssetsRWLock);
+	return ImportedAssets;
+}
+
+UObject* UE::Interchange::FAssetImportResult::GetFirstAssetOfClass(UClass* InClass) const
+{
+	UObject* Asset = nullptr;
+
+	FReadScopeLock ReadScopeLock(ImportedAssetsRWLock);
+	for (UObject* ImportedAsset : ImportedAssets)
+	{
+		if (ImportedAsset->IsA(InClass))
+		{
+			Asset = ImportedAsset;
+			break;
+		}
 	}
 
-	return FutureObject.Get();
+	return Asset;
 }
 
-UE::Interchange::FAsyncImportResult UE::Interchange::FAsyncImportResult::Next( TFunction< UObject*( UObject* ) > Continuation )
+void UE::Interchange::FAssetImportResult::AddImportedAsset(UObject* ImportedAsset)
 {
-	return UE::Interchange::FAsyncImportResult{ FutureObject.Next( Continuation ), GraphEvent };
+	FWriteScopeLock WriteScopeLock(ImportedAssetsRWLock);
+	ImportedAssets.Add(ImportedAsset);
+}
+
+void UE::Interchange::FAssetImportResult::OnDone(TFunction< void(FAssetImportResult&) > Callback)
+{
+	DoneCallback = Callback;
+}
+
+void UE::Interchange::FAssetImportResult::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	FReadScopeLock ReadScopeLock(ImportedAssetsRWLock);
+	Collector.AddReferencedObjects(ImportedAssets);
 }
 
 void UE::Interchange::SanitizeInvalidChar(FString& String)
@@ -459,15 +520,15 @@ void UInterchangeManager::StartQueuedTasks(bool bCancelAllTasks /*= false*/)
 
 bool UInterchangeManager::ImportAsset(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters)
 {
-	return ImportAssetAsync( ContentPath, SourceData, ImportAssetParameters ).IsValid();
+	return ImportAssetAsync( ContentPath, SourceData, ImportAssetParameters )->IsValid();
 }
 
-UE::Interchange::FAsyncImportResult UInterchangeManager::ImportAssetAsync(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters)
+UE::Interchange::FAssetImportResultRef UInterchangeManager::ImportAssetAsync(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters)
 {
 	if (!ensure(IsInGameThread()))
 	{
-		//Import process can be start only in game thread
-		return UE::Interchange::FAsyncImportResult{};
+		//Import process can be started only in the game thread
+		return MakeShared< UE::Interchange::FAssetImportResult, ESPMode::ThreadSafe >();
 	}
 
 	FString PackageBasePath = ContentPath;
@@ -533,7 +594,7 @@ UE::Interchange::FAsyncImportResult UInterchangeManager::ImportAssetAsync(const 
 
 	StartQueuedTasks();
 
-	return UE::Interchange::FAsyncImportResult{ AsyncHelper->RootObject.GetFuture(), AsyncHelper->RootObjectCompletionEvent };
+	return AsyncHelper->AssetImportResult;
 }
 
 bool UInterchangeManager::ImportScene(const FString& ImportContext, const UInterchangeSourceData* SourceData, bool bIsReimport, bool bIsAutomated)
@@ -567,6 +628,8 @@ TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> UInterchang
 	//Copy the task data
 	AsyncHelper->TaskData = Data;
 	
+	AsyncHelper->AssetImportResult->SetInProgress();
+
 	return AsyncHelper;
 }
 

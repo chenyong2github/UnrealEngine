@@ -24,7 +24,6 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 	//No need anymore of the translators sources
 	AsyncHelper->ReleaseTranslatorsSource();
 
-	bool bIsFutureRootObjectSet = false;
 	for(TPair<int32, TArray<FImportAsyncHelper::FImportedAssetInfo>>& AssetInfosPerSourceIndexPair : AsyncHelper->ImportedAssetsPerSourceIndex)
 	{
 		//Verify if the task was cancel
@@ -68,12 +67,7 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 				FAssetRegistryModule::AssetCreated(Asset);
 			}
 
-			if (!bIsFutureRootObjectSet && SourceIndex == 0)
-			{
-				bIsFutureRootObjectSet = true;
-				AsyncHelper->RootObject.SetValue(Asset);
-				AsyncHelper->RootObjectCompletionEvent->DispatchSubsequents();
-			}
+			AsyncHelper->AssetImportResult->AddImportedAsset(Asset);
 		}
 	}
 
@@ -98,11 +92,7 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 		}
 	}
 
-	if (!AsyncHelper->RootObjectCompletionEvent->IsComplete())
-	{
-		AsyncHelper->RootObject.SetValue(nullptr);
-		AsyncHelper->RootObjectCompletionEvent->DispatchSubsequents();
-	}
+	AsyncHelper->AssetImportResult->SetDone();
 
 	//Release the async helper
 	AsyncHelper = nullptr;

@@ -259,7 +259,7 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	TMap< FString, TSharedRef < IDatasmithMeshElement > > ImportedStaticMeshesByName;
 
 	/** Map of imported texture for each texture element */
-	TMap< TSharedRef< IDatasmithTextureElement >, UE::Interchange::FAsyncImportResult > ImportedTextures;
+	TMap< TSharedRef< IDatasmithTextureElement >, UE::Interchange::FAssetImportResultRef > ImportedTextures;
 
 	/** Map of imported material for each material element */
 	TMap< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialInterface* > ImportedMaterials;

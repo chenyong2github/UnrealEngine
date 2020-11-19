@@ -342,21 +342,18 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 				break;
 			}
 
-			UE::Interchange::FAsyncImportResult FutureTexture = DatasmithTextureImporter.CreateTextureAsync( FilteredTextureElements[TextureIndex] );
+			UE::Interchange::FAssetImportResultRef FutureTexture = DatasmithTextureImporter.CreateTextureAsync( FilteredTextureElements[TextureIndex] );
 
-			if ( FutureTexture.IsValid() )
+			if ( FutureTexture->IsValid() )
 			{
-				FutureTexture = FutureTexture.Next(
-					[ TextureElement = FilteredTextureElements[TextureIndex].ToSharedRef(), &ImportContext ]( UObject* Future )
+				FutureTexture->OnDone(
+					[ TextureElement = FilteredTextureElements[TextureIndex].ToSharedRef(), &ImportContext ]( UE::Interchange::FAssetImportResult& AssetImportResults )
 					{
-						ImportMetaDataForObject( ImportContext, TextureElement, Future );
-
-						return Future;
+						ImportMetaDataForObject( ImportContext, TextureElement, AssetImportResults.GetFirstAssetOfClass( UTexture::StaticClass() ) );
 					}
 				);
 
-				UE::Interchange::FAsyncImportResult& ImportedTexture = ImportContext.ImportedTextures.FindOrAdd( FilteredTextureElements[TextureIndex].ToSharedRef() );
-				ImportedTexture = MoveTemp( FutureTexture );
+				ImportContext.ImportedTextures.Add( FilteredTextureElements[TextureIndex].ToSharedRef(), MoveTemp( FutureTexture ) );
 			}
 		}
 
@@ -449,19 +446,20 @@ UTexture* FDatasmithImporter::ImportTexture( FDatasmithImportContext& ImportCont
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::ImportTexture);
 
-	UE::Interchange::FAsyncImportResult& ImportedTexture = ImportContext.ImportedTextures.FindOrAdd( TextureElement );
-	TPromise< UObject* > TexturePromise = MakeFulfilledPromise< UObject* >( DatasmithTextureImporter.CreateTexture( TextureElement, TextureData, Extension ) );
-	ImportedTexture = UE::Interchange::FAsyncImportResult{ TexturePromise.GetFuture(), FGraphEventRef() };
+	UTexture* ImportedTexture = DatasmithTextureImporter.CreateTexture( TextureElement, TextureData, Extension );
 
-	if ( !ImportedTexture.Get() )
+	if ( !ImportedTexture )
 	{
-		ImportContext.ImportedTextures.Remove( TextureElement );
 		return nullptr;
 	}
 
-	ImportMetaDataForObject( ImportContext, TextureElement, ImportedTexture.Get() );
+	UE::Interchange::FAssetImportResultRef& AssetImportResults = ImportContext.ImportedTextures.Add( TextureElement, MakeShared< UE::Interchange::FAssetImportResult, ESPMode::ThreadSafe >() );
+	AssetImportResults->AddImportedAsset( ImportedTexture );
+	AssetImportResults->SetDone();
 
-	return Cast< UTexture >( ImportedTexture.Get() );
+	ImportMetaDataForObject( ImportContext, TextureElement, ImportedTexture );
+
+	return Cast< UTexture >( ImportedTexture );
 }
 
 UTexture* FDatasmithImporter::FinalizeTexture( UTexture* SourceTexture, const TCHAR* TexturesFolderPath, UTexture* ExistingTexture, TMap< UObject*, UObject* >* ReferencesToRemap )
@@ -1521,14 +1519,15 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 	FScopedSlowTask* Progress = ProgressPtr.Get();
 
 	// Needs to be done in dependencies order (textures -> materials -> static meshes)
-	for (const TPair< TSharedRef< IDatasmithTextureElement >, UE::Interchange::FAsyncImportResult >& ImportedTexturePair : ImportContext.ImportedTextures)
+	for (const TPair< TSharedRef< IDatasmithTextureElement >, UE::Interchange::FAssetImportResultRef >& ImportedTexturePair : ImportContext.ImportedTextures)
 	{
 		if (ImportContext.bUserCancelled)
 		{
 			break;
 		}
 
-		UTexture* SourceTexture = Cast< UTexture >( ImportedTexturePair.Value.Get() );
+		ImportedTexturePair.Value->WaitUntilDone();
+		UTexture* SourceTexture = Cast<UTexture>(ImportedTexturePair.Value->GetFirstAssetOfClass(UTexture::StaticClass()));
 
 		if (!SourceTexture || (ValidAssets.Num() > 0 && !ValidAssets.Contains(Cast<UObject>(SourceTexture))))
 		{

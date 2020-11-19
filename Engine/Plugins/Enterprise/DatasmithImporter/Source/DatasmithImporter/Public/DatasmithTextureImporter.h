@@ -7,6 +7,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/StrongObjectPtr.h"
 
+#include "InterchangeEngineFwd.h"
 #include "InterchangePipelineBase.h"
 #include "Async/TaskGraphInterfaces.h"
 
@@ -16,14 +17,6 @@ struct FDatasmithImportContext;
 class IDatasmithTextureElement;
 class UTexture;
 class UTextureFactory;
-
-namespace UE
-{
-	namespace Interchange
-	{
-		class FAsyncImportResult;
-	}
-}
 
 class FDatasmithTextureImporter : private FNoncopyable
 {
@@ -35,7 +28,7 @@ public:
 	bool GetTextureData(const TSharedPtr<IDatasmithTextureElement>& TextureElement, TArray<uint8>& TextureData, FString& Extension);
 	UTexture* CreateIESTexture(const TSharedPtr<IDatasmithTextureElement>& TextureElement);
 
-	UE::Interchange::FAsyncImportResult CreateTextureAsync(const TSharedPtr<IDatasmithTextureElement>& TextureElement);
+	UE::Interchange::FAssetImportResultRef CreateTextureAsync(const TSharedPtr<IDatasmithTextureElement>& TextureElement);
 
 private:
 	bool ResizeTextureElement(const TSharedPtr<IDatasmithTextureElement>& TextureElement, FString& ResizedFilename);

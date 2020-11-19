@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include "Async/TaskGraphInterfaces.h"
+#include "Containers/Queue.h"
 #include "CoreMinimal.h"
 #include "Delegates/DelegateCombinations.h"
 #include "HAL/Thread.h"
@@ -65,7 +66,67 @@ namespace UE
 			UObject* ReimportObject = nullptr;
 		};
 
-		class FImportAsyncHelper : public FGCObject
+		class INTERCHANGEENGINE_API FAssetImportResult : protected FGCObject
+		{
+		public:
+			FAssetImportResult();
+
+			FAssetImportResult(FAssetImportResult&&) = delete;
+			FAssetImportResult& operator=(FAssetImportResult&&) = delete;
+
+			FAssetImportResult(const FAssetImportResult&) = delete;
+			FAssetImportResult& operator=(const FAssetImportResult&) = delete;
+
+			virtual ~FAssetImportResult() = default;
+
+		public:
+			enum class EStatus
+			{
+				Invalid,
+				InProgress,
+				Done
+			};
+
+			EStatus GetStatus() const;
+
+			bool IsValid() const;
+
+			void SetInProgress();
+			void SetDone();
+			void WaitUntilDone();
+
+			// Assets are only made available once they have been completely imported (passed through the entire import pipeline)
+			// While the status isn't EStatus::Done, the list can grow between subsequent calls.
+			// FAssetImportResult holds a reference to the assets so that they aren't garbage collected.
+			const TArray< UObject* >& GetImportedAssets() const;
+
+			// Helper to get the first asset of a certain class. Use when expecting a single asset of that class to be imported since the order isn't deterministic.
+			UObject* GetFirstAssetOfClass(UClass* InClass) const;
+
+			// Adds an asset to the list of imported assets.
+			void AddImportedAsset(UObject* ImportedAsset);
+
+			// Callback when the status switches to done.
+			void OnDone(TFunction< void(FAssetImportResult&) > Callback);
+
+		protected:
+			/* FGCObject interface */
+			virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+
+		private:
+			std::atomic< EStatus > ImportStatus;
+
+			TArray< UObject* > ImportedAssets;
+			mutable FRWLock ImportedAssetsRWLock;
+
+			FGraphEventRef GraphEvent; // WaitUntilDone waits for this event to be triggered.
+
+			TFunction< void(FAssetImportResult&) > DoneCallback;
+		};
+
+		using FAssetImportResultRef = TSharedRef< FAssetImportResult, ESPMode::ThreadSafe >;
+
+		class FImportAsyncHelper : protected FGCObject
 		{
 		public:
 			FImportAsyncHelper();
@@ -79,7 +140,7 @@ namespace UE
 			virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
 			//The following Arrays are per source data
-			TArray <TStrongObjectPtr<UInterchangeBaseNodeContainer>> BaseNodeContainers;
+			TArray<TStrongObjectPtr<UInterchangeBaseNodeContainer>> BaseNodeContainers;
 			TArray<UInterchangeSourceData* > SourceDatas;
 			TArray<UInterchangeTranslatorBase* > Translators;
 			TArray<UInterchangeFactoryBase* > Factories;
@@ -113,8 +174,7 @@ namespace UE
 
 			FImportAsyncHelperData TaskData;
 
-			TPromise< UObject* > RootObject;
-			FGraphEventRef RootObjectCompletionEvent;
+			FAssetImportResultRef AssetImportResult;
 			
 			//If we cancel the tasks, we set this boolean to true
 			std::atomic<bool> bCancel;
@@ -124,21 +184,6 @@ namespace UE
 			void CancelAndWaitUntilDoneSynchronously();
 
 			void CleanUp();
-		};
-
-		class INTERCHANGEENGINE_API FAsyncImportResult
-		{
-		public:
-			FAsyncImportResult() = default;
-			explicit FAsyncImportResult(TFuture< UObject* >&& InFutureObject, const FGraphEventRef& InGraphEvent);
-
-			bool IsValid() const;
-			UObject* Get() const;
-			FAsyncImportResult Next(TFunction< UObject* (UObject*) > Continuation);
-
-		private:
-			TFuture< UObject* > FutureObject;
-			FGraphEventRef GraphEvent;
 		};
 
 		void SanitizeInvalidChar(FString& String);
@@ -240,7 +285,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Import Manager")
 	bool ImportAsset(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters);
-	UE::Interchange::FAsyncImportResult ImportAssetAsync(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters);
+	UE::Interchange::FAssetImportResultRef ImportAssetAsync(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters);
 
 	/**
 	 * Call this to start an import scene process, the caller must specify a source data.
