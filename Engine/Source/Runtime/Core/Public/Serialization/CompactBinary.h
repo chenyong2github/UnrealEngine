@@ -276,22 +276,9 @@ public:
 	 * @param InField The first field, or the default field if there are no fields.
 	 * @param InFieldsEnd A pointer to the end of the payload of the last field, or null.
 	 */
-	constexpr inline TCbFieldIterator(const FieldType& InField, const void* InFieldsEnd)
-		: FieldType(InField)
-		, FieldsEnd(InFieldsEnd)
-	{
-	}
-
-	/**
-	 * Construct a field iterator.
-	 *
-	 * @param InField The first field, or the default field if there are no fields.
-	 * @param InIterator An iterator from which to take the pointer to the end of the payload of the last field.
-	 */
-	template <typename OtherType>
-	constexpr inline TCbFieldIterator(FieldType&& InField, const TCbFieldIterator<OtherType>& InIterator)
+	constexpr inline TCbFieldIterator(FieldType&& InField, const void* InFieldsEnd)
 		: FieldType(MoveTemp(InField))
-		, FieldsEnd(InIterator.FieldsEnd)
+		, FieldsEnd(InFieldsEnd)
 	{
 	}
 
@@ -332,14 +319,30 @@ public:
 	constexpr inline FieldType& operator*() { return *this; }
 	constexpr inline FieldType* operator->() { return this; }
 
-	constexpr inline bool operator!() const { return !bool(*this); }
-
 	constexpr inline bool operator==(const TCbFieldIterator& Other) const
 	{
 		return FieldType::GetPayload() == Other.FieldType::GetPayload();
 	}
 
-	constexpr inline bool operator!=(const TCbFieldIterator& Other) const { return !(*this == Other); }
+	constexpr inline bool operator!=(const TCbFieldIterator& Other) const
+	{
+		return !(*this == Other);
+	}
+
+protected:
+	/** Returns the end of the last field, or null for an iterator at the end. */
+	template <typename OtherFieldType>
+	static inline const void* GetFieldsEnd(const TCbFieldIterator<OtherFieldType>& It)
+	{
+		return It.FieldsEnd;
+	}
+
+	/** Create a view of the field iterator. */
+	template <typename OtherFieldType>
+	static inline FConstMemoryView AsMemoryView(const TCbFieldIterator<OtherFieldType>& It)
+	{
+		return MakeMemoryView(It.OtherFieldType::AsMemoryView().GetData(), It.FieldsEnd);
+	}
 
 private:
 	friend inline TCbFieldIterator begin(const TCbFieldIterator& Iterator) { return Iterator; }
@@ -609,9 +612,24 @@ public:
 
 	FCbFieldIterator() = default;
 
-	inline FCbFieldIterator(TCbFieldIterator<FCbField>&& Field)
-		: TCbFieldIterator(MoveTemp(Field))
+	/** Construct an iterator from another iterator. */
+	template <typename OtherFieldType>
+	inline FCbFieldIterator(const TCbFieldIterator<OtherFieldType>& It)
+		: TCbFieldIterator(ImplicitConv<FCbField>(It), GetFieldsEnd(It))
 	{
+	}
+
+	/** Construct an iterator for the fields in the view. */
+	inline explicit FCbFieldIterator(FConstMemoryView View)
+		: FCbFieldIterator(MakeFromView(View))
+	{
+	}
+
+private:
+	/** Construct an iterator for the fields in the view. */
+	static inline FCbFieldIterator MakeFromView(FConstMemoryView View)
+	{
+		return !View.IsEmpty() ? FCbFieldIterator(FCbField(View.GetData()), View.GetDataEnd()) : FCbFieldIterator();
 	}
 };
 
@@ -986,6 +1004,51 @@ class FCbFieldRefIterator : public TCbFieldIterator<FCbFieldRef>
 {
 public:
 	using TCbFieldIterator::TCbFieldIterator;
+
+	/** Construct a field iterator that has no fields to iterate. */
+	constexpr FCbFieldRefIterator() = default;
+
+	/** Construct an iterator that holds a reference to the buffer that contains its fields. */
+	inline FCbFieldRefIterator(const FCbFieldIterator& It, const FSharedBufferConstPtr& ValueBuffer)
+		: TCbFieldIterator(MakeFieldRef(It, ValueBuffer), GetFieldsEnd(It))
+	{
+	}
+
+	/** Construct an iterator that holds a reference to the buffer that contains its fields. */
+	inline FCbFieldRefIterator(const FCbFieldIterator& It, FSharedBufferConstPtr&& ValueBuffer)
+		: TCbFieldIterator(MakeFieldRef(It, MoveTemp(ValueBuffer)), GetFieldsEnd(It))
+	{
+	}
+
+	/** Construct an iterator and hold a reference to the buffer that contains its fields. */
+	inline explicit FCbFieldRefIterator(const FSharedBufferConstPtr& ValueBuffer)
+		: FCbFieldRefIterator(MakeFieldIterator(ValueBuffer), ValueBuffer)
+	{
+	}
+
+	/** Construct an iterator and hold a reference to the buffer that contains its fields. */
+	inline explicit FCbFieldRefIterator(FSharedBufferConstPtr&& ValueBuffer)
+		: FCbFieldRefIterator(MakeFieldIterator(ValueBuffer), MoveTemp(ValueBuffer))
+	{
+	}
+
+private:
+	/** Make a field ref from an iterator and the buffer that contains its fields. */
+	template <typename BufferType>
+	static inline FCbFieldRef MakeFieldRef(const FCbFieldIterator& It, BufferType&& ValueBuffer)
+	{
+		if (ValueBuffer)
+		{
+			check(ValueBuffer->GetView().Contains(AsMemoryView(It)));
+		}
+		return FCbFieldRef(It, Forward<BufferType>(ValueBuffer));
+	}
+
+	/** Make a field iterator from the possibly-null buffer that contains its fields. */
+	static inline FCbFieldIterator MakeFieldIterator(const FSharedBufferConstPtr& ValueBuffer)
+	{
+		return ValueBuffer ? FCbFieldIterator(ValueBuffer->GetView()) : FCbFieldIterator();
+	}
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -999,8 +1062,7 @@ public:
 	/** Create an iterator for the fields of this array. */
 	inline FCbFieldRefIterator CreateRefIterator() const
 	{
-		FCbFieldIterator It = CreateIterator();
-		return FCbFieldRefIterator(FCbFieldRef(It, GetBuffer()), It);
+		return FCbFieldRefIterator(CreateIterator(), GetBuffer());
 	}
 
 	/** Access the array as an array field. */
@@ -1027,8 +1089,7 @@ public:
 	/** Create an iterator for the fields of this object. */
 	inline FCbFieldRefIterator CreateRefIterator() const
 	{
-		FCbFieldIterator It = CreateIterator();
-		return FCbFieldRefIterator(FCbFieldRef(It, GetBuffer()), It);
+		return FCbFieldRefIterator(CreateIterator(), GetBuffer());
 	}
 
 	/** Find a field by case-sensitive name comparison. */

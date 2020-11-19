@@ -1215,6 +1215,119 @@ bool FCbObjectRefTest::RunTest(const FString& Parameters)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbFieldRefIteratorTest, "System.Core.Serialization.CbFieldRefIterator", CompactBinaryTestFlags)
+bool FCbFieldRefIteratorTest::RunTest(const FString& Parameters)
+{
+	static_assert(std::is_constructible<FCbFieldIterator, const FCbField&>::value, "Missing constructor for FCbFieldIterator");
+	static_assert(std::is_constructible<FCbFieldIterator, const FCbFieldRef&>::value, "Missing constructor for FCbFieldIterator");
+	static_assert(std::is_constructible<FCbFieldIterator, const FCbFieldRefIterator&>::value, "Missing constructor for FCbFieldIterator");
+	static_assert(std::is_constructible<FCbFieldIterator, FCbField&&>::value, "Missing constructor for FCbFieldIterator");
+	static_assert(std::is_constructible<FCbFieldIterator, FCbFieldRef&&>::value, "Missing constructor for FCbFieldIterator");
+	static_assert(std::is_constructible<FCbFieldIterator, FCbFieldRefIterator&&>::value, "Missing constructor for FCbFieldIterator");
+	static_assert(std::is_constructible<FCbFieldIterator, FCbField&&, const void*>::value, "Missing constructor for FCbFieldIterator");
+
+	static_assert(std::is_constructible<FCbFieldRefIterator, const FCbFieldRef&>::value, "Missing constructor for FCbFieldRefIterator");
+	static_assert(std::is_constructible<FCbFieldRefIterator, const FCbFieldRefIterator&>::value, "Missing constructor for FCbFieldRefIterator");
+	static_assert(std::is_constructible<FCbFieldRefIterator, FCbFieldRef&&>::value, "Missing constructor for FCbFieldRefIterator");
+	static_assert(std::is_constructible<FCbFieldRefIterator, FCbFieldRefIterator&&>::value, "Missing constructor for FCbFieldRefIterator");
+	static_assert(std::is_constructible<FCbFieldRefIterator, FCbFieldRef&&, const void*>::value, "Missing constructor for FCbFieldRefIterator");
+
+	static_assert(std::is_constructible<FCbFieldRefIterator, const FCbFieldIterator&, const FSharedBufferRef&>::value, "Missing constructor for FCbFieldRefIterator");
+	static_assert(std::is_constructible<FCbFieldRefIterator, const FCbFieldIterator&, const FSharedBufferPtr&>::value, "Missing constructor for FCbFieldRefIterator");
+	static_assert(std::is_constructible<FCbFieldRefIterator, const FCbFieldIterator&, const FSharedBufferConstRef&>::value, "Missing constructor for FCbFieldRefIterator");
+	static_assert(std::is_constructible<FCbFieldRefIterator, const FCbFieldIterator&, const FSharedBufferConstPtr&>::value, "Missing constructor for FCbFieldRefIterator");
+
+	static_assert(std::is_constructible<FCbFieldRefIterator, const FCbFieldIterator&, FSharedBufferRef&&>::value, "Missing constructor for FCbFieldRefIterator");
+	static_assert(std::is_constructible<FCbFieldRefIterator, const FCbFieldIterator&, FSharedBufferPtr&&>::value, "Missing constructor for FCbFieldRefIterator");
+	static_assert(std::is_constructible<FCbFieldRefIterator, const FCbFieldIterator&, FSharedBufferConstRef&&>::value, "Missing constructor for FCbFieldRefIterator");
+	static_assert(std::is_constructible<FCbFieldRefIterator, const FCbFieldIterator&, FSharedBufferConstPtr&&>::value, "Missing constructor for FCbFieldRefIterator");
+
+	const auto GetCount = [](auto It) -> uint32
+	{
+		uint32 Count = 0;
+		for (; It; ++It)
+		{
+			++Count;
+		}
+		return Count;
+	};
+
+	// Test FCbField[Ref]Iterator()
+	{
+		TestEqual(TEXT("FCbFieldIterator()"), GetCount(FCbFieldIterator()), 0);
+		TestEqual(TEXT("FCbFieldRefIterator()"), GetCount(FCbFieldRefIterator()), 0);
+	}
+
+	// Test FCbField[Ref]Iterator(Range)
+	{
+		constexpr uint8 T = uint8(ECbFieldType::IntegerPositive);
+		const uint8 Payload[] = { T, 0, T, 1, T, 2, T, 3 };
+		const uint8* const PayloadEnd = Payload + UE_ARRAY_COUNT(Payload);
+
+		const FSharedBufferConstPtr View = FSharedBuffer::MakeView(MakeMemoryView(Payload));
+		const void* const ViewEnd = View->GetView().GetDataEnd();
+		const FSharedBufferConstPtr Clone = FSharedBuffer::Clone(MakeMemoryView(Payload));
+		const void* const CloneEnd = Clone->GetView().GetDataEnd();
+
+		const FConstMemoryView EmptyView;
+		const FSharedBufferConstPtr NullBuffer;
+
+		const FCbFieldIterator FieldIt(FCbField(View->GetData()), ViewEnd);
+		const FCbFieldRefIterator FieldRefIt(FCbFieldRef(View), ViewEnd);
+
+		TestEqual(TEXT("FCbFieldIterator(EmptyView)"), GetCount(FCbFieldIterator(EmptyView)), 0);
+		TestEqual(TEXT("FCbFieldRefIterator(BufferNullL)"), GetCount(FCbFieldRefIterator(NullBuffer)), 0);
+		TestEqual(TEXT("FCbFieldRefIterator(BufferNullR)"), GetCount(FCbFieldRefIterator(FSharedBufferConstPtr(NullBuffer))), 0);
+
+		TestEqual(TEXT("FCbFieldIterator(View)"), GetCount(FCbFieldIterator(MakeMemoryView(Payload))), 4);
+		TestEqual(TEXT("FCbFieldRefIterator(BufferCloneL)"), GetCount(FCbFieldRefIterator(Clone)), 4);
+		TestEqual(TEXT("FCbFieldRefIterator(BufferCloneR)"), GetCount(FCbFieldRefIterator(FSharedBufferConstPtr(Clone))), 4);
+
+		TestEqual(TEXT("FCbFieldIterator(Field, End)"), GetCount(FCbFieldIterator(FCbField(Payload), PayloadEnd)), 4);
+		TestEqual(TEXT("FCbFieldRefIterator(FieldRef, End)"), GetCount(FCbFieldRefIterator(FCbFieldRef(View), PayloadEnd)), 4);
+
+		TestEqual(TEXT("FCbFieldRefIterator(FieldIt, BufferNullL)"), GetCount(FCbFieldRefIterator(FCbFieldIterator(FCbField(View->GetData()), ViewEnd), NullBuffer)), 4);
+		TestEqual(TEXT("FCbFieldRefIterator(FieldIt, BufferNullR)"), GetCount(FCbFieldRefIterator(FCbFieldIterator(FCbField(View->GetData()), ViewEnd), FSharedBufferConstPtr(NullBuffer))), 4);
+		TestEqual(TEXT("FCbFieldRefIterator(FieldIt, BufferViewL)"), GetCount(FCbFieldRefIterator(FCbFieldIterator(FCbField(View->GetData()), ViewEnd), View)), 4);
+		TestEqual(TEXT("FCbFieldRefIterator(FieldIt, BufferViewR)"), GetCount(FCbFieldRefIterator(FCbFieldIterator(FCbField(View->GetData()), ViewEnd), FSharedBufferConstPtr(View))), 4);
+		TestEqual(TEXT("FCbFieldRefIterator(FieldIt, BufferCloneL)"), GetCount(FCbFieldRefIterator(FCbFieldIterator(FCbField(Clone->GetData()), CloneEnd), Clone)), 4);
+		TestEqual(TEXT("FCbFieldRefIterator(FieldIt, BufferCloneR)"), GetCount(FCbFieldRefIterator(FCbFieldIterator(FCbField(Clone->GetData()), CloneEnd), FSharedBufferConstPtr(Clone))), 4);
+
+		TestEqual(TEXT("FCbFieldIterator(FieldRefItL)"), GetCount(FCbFieldIterator(FieldRefIt)), 4);
+		TestEqual(TEXT("FCbFieldIterator(FieldRefItR)"), GetCount(FCbFieldIterator(FCbFieldRefIterator(FieldRefIt))), 4);
+
+		// These lines are expected to assert when uncommented.
+		//const FSharedBufferConstPtr ShortView = FSharedBuffer::MakeView(MakeMemoryView(Payload).LeftChop(2));
+		//TestEqual(TEXT("FCbFieldRefIterator(FieldIt, InvalidBufferL)"), GetCount(FCbFieldRefIterator(FCbFieldIterator(FCbField(View->GetData()), ViewEnd), ShortView)), 4);
+		//TestEqual(TEXT("FCbFieldRefIterator(FieldIt, InvalidBufferR)"), GetCount(FCbFieldRefIterator(FCbFieldIterator(FCbField(View->GetData()), ViewEnd), FSharedBufferConstPtr(ShortView))), 4);
+	}
+
+	// Test FCbField[Ref]Iterator(Scalar)
+	{
+		constexpr uint8 T = uint8(ECbFieldType::IntegerPositive);
+		const uint8 Payload[] = { T, 0 };
+		const uint8* const PayloadEnd = Payload + UE_ARRAY_COUNT(Payload);
+
+		const FSharedBufferConstPtr View = FSharedBuffer::MakeView(MakeMemoryView(Payload));
+		const void* const ViewEnd = View->GetView().GetDataEnd();
+		const FSharedBufferConstPtr Clone = FSharedBuffer::Clone(MakeMemoryView(Payload));
+		const void* const CloneEnd = Clone->GetView().GetDataEnd();
+		const FSharedBufferConstPtr NullBuffer;
+
+		const FCbField Field(Payload);
+		const FCbFieldRef FieldRef(View);
+
+		TestEqual(TEXT("FCbFieldIterator(FieldL)"), GetCount(FCbFieldIterator(Field)), 1);
+		TestEqual(TEXT("FCbFieldIterator(FieldR)"), GetCount(FCbFieldIterator(FCbField(Field))), 1);
+		TestEqual(TEXT("FCbFieldRefIterator(FieldRefL)"), GetCount(FCbFieldRefIterator(FieldRef)), 1);
+		TestEqual(TEXT("FCbFieldRefIterator(FieldRefR)"), GetCount(FCbFieldRefIterator(FCbFieldRef(FieldRef))), 1);
+	}
+
+	return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbMeasureTest, "System.Core.Serialization.MeasureCompactBinary", CompactBinaryTestFlags)
 bool FCbMeasureTest::RunTest(const FString& Parameters)
 {

@@ -72,7 +72,7 @@ FCbFieldRefIterator FCbWriter::Save() const
 	const uint64 Size = SaveSize();
 	FSharedBufferPtr Buffer = FSharedBuffer::Alloc(Size);
 	const FCbFieldIterator Output = SaveToMemory(Buffer->GetView());
-	return FCbFieldRefIterator(FCbFieldRef(Output, FSharedBuffer::MakeReadOnly(MoveTemp(Buffer))), Output);
+	return FCbFieldRefIterator(Output, FSharedBuffer::MakeReadOnly(MoveTemp(Buffer)));
 }
 
 FCbFieldIterator FCbWriter::SaveToMemory(const FMutableMemoryView Buffer) const
@@ -83,7 +83,7 @@ FCbFieldIterator FCbWriter::SaveToMemory(const FMutableMemoryView Buffer) const
 	checkf(Buffer.GetSize() == Data.Num(),
 		TEXT("Buffer is %" UINT64_FMT " bytes but %" INT64_FMT " is required."), Buffer.GetSize(), Data.Num());
 	FMemory::Memcpy(Buffer.GetData(), Data.GetData(), Data.Num());
-	return FCbFieldIterator(FCbField(Buffer.GetData()), Buffer.RightChop(Buffer.GetSize()).GetData());
+	return FCbFieldIterator(FCbField(Buffer.GetData()), Buffer.GetDataEnd());
 }
 
 uint64 FCbWriter::SaveSize() const
