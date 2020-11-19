@@ -19,26 +19,28 @@ public class TurnkeySupport : ModuleRules
 				"RenderCore",
 				"Slate",
 				"SlateCore",
-				"EditorStyle",
-				"SourceControl",
-				"SourceControlWindows",
 				"TargetPlatform",
 				"DesktopPlatform",
-				"EditorFramework",
-				"UnrealEd",
 				"WorkspaceMenuStructure",
 				"MessageLog",
-				"UATHelper",
-				"TranslationEditor",
 				"Projects",
-				"DeviceProfileEditor",
-				"UndoHistory",
-				"Analytics",
 				"ToolMenus",
 				"LauncherServices",
 				"SettingsEditor"
 			}
 		);
+
+		if (Target.Type == TargetType.Editor)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"UnrealEd",
+					"UATHelper",
+					"EditorStyle",
+					"SourceControl",
+				}
+			);
+		}
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
