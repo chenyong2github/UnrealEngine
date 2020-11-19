@@ -1558,7 +1558,6 @@ void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSi
 		return;
 	}
 
-	bool bReInitDataInterfaces = false;
 	if (bPostSimulate)
 	{
 		for (int32 DIPairIndex : PostTickDataInterfaces)
@@ -1566,8 +1565,11 @@ void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSi
 			TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair = DataInterfaceInstanceDataOffsets[DIPairIndex];
 			if (UNiagaraDataInterface* Interface = Pair.Key.Get())
 			{
-				//Ideally when we make the batching changes, we can keep the instance data in big single type blocks that can all be updated together with a single virtual call.
-				bReInitDataInterfaces |= Interface->PerInstanceTickPostSimulate(&DataInterfaceInstanceData[Pair.Value], this, DeltaSeconds);
+				//Ideally when we make the batching changes, we can keep the instance data in big single type blocks that can all be updated together with a single virtual call.				
+				if (Interface->PerInstanceTickPostSimulate(&DataInterfaceInstanceData[Pair.Value], this, DeltaSeconds))
+				{
+					Interface->InitPerInstanceData(&DataInterfaceInstanceData[Pair.Value], this);
+				}
 			}
 		}
 	}
@@ -1579,14 +1581,12 @@ void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSi
 			if (UNiagaraDataInterface* Interface = Pair.Key.Get())
 			{
 				//Ideally when we make the batching changes, we can keep the instance data in big single type blocks that can all be updated together with a single virtual call.
-				bReInitDataInterfaces |= Interface->PerInstanceTick(&DataInterfaceInstanceData[Pair.Value], this, DeltaSeconds);
+				if (Interface->PerInstanceTick(&DataInterfaceInstanceData[Pair.Value], this, DeltaSeconds))
+				{
+					Interface->InitPerInstanceData(&DataInterfaceInstanceData[Pair.Value], this);
+				}
 			}
 		}
-	}
-
-	if (bReInitDataInterfaces)
-	{
-		InitDataInterfaces();
 	}
 }
 
