@@ -1,5 +1,4 @@
 @echo off
-setlocal
 
 rem ## Unreal Engine 5 utility script
 rem ## Copyright Epic Games, Inc. All Rights Reserved.
