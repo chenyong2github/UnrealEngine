@@ -3295,6 +3295,19 @@ void USkeletalMesh::MoveMaterialFlagsToSections()
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
+
+/** IInterface_AsyncCompilation implementation begin*/
+
+bool USkeletalMesh::IsCompiling() const
+{
+	//The code here is temporary we have to verify more then the async flag in case we are building asynchronously
+	const EInternalObjectFlags AsyncFlags = EInternalObjectFlags::Async | EInternalObjectFlags::AsyncLoading;
+	return HasAnyInternalFlags(AsyncFlags);
+}
+
+/** IInterface_AsyncCompilation implementation end*/
+
+
 FDelegateHandle USkeletalMesh::RegisterOnClothingChange(const FSimpleMulticastDelegate::FDelegate& InDelegate)
 {
 	return OnClothingChange.Add(InDelegate);

@@ -7,6 +7,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SOverlay.h"
 #include "Engine/GameViewportClient.h"
+#include "Interfaces/Interface_AsyncCompilation.h"
 #include "Modules/ModuleManager.h"
 #include "Animation/CurveHandle.h"
 #include "Animation/CurveSequence.h"
@@ -1037,14 +1038,20 @@ void FAssetThumbnailPool::Tick( float DeltaTime )
 					if( InfoRef->AssetData.IsAssetLoaded() && !bAssetsBeingCompiled)
 					{
 						UObject* Asset = InfoRef->AssetData.GetAsset();
-						FThumbnailRenderingInfo* RenderInfo = GUnrealEd->GetThumbnailManager()->GetRenderingInfo( Asset );
-						if ( RenderInfo != NULL && RenderInfo->Renderer != NULL )
+						
+						//Avoid rendering the thumbnail of an asset that is currently edited asynchronously
+						const IInterface_AsyncCompilation* Interface_AsyncCompilation = Cast<IInterface_AsyncCompilation>(Asset);
+						const bool bIsAssetCurrentlyEditedAsynchronously = Interface_AsyncCompilation && Interface_AsyncCompilation->IsCompiling();
+						if (!bIsAssetCurrentlyEditedAsynchronously)
 						{
-							FThumbnailInfo_RenderThread ThumbInfo = InfoRef.Get();
-							ENQUEUE_RENDER_COMMAND(SyncSlateTextureCommand)(
-								[ThumbInfo](FRHICommandListImmediate& RHICmdList)
+							FThumbnailRenderingInfo* RenderInfo = GUnrealEd->GetThumbnailManager()->GetRenderingInfo(Asset);
+							if (RenderInfo != NULL && RenderInfo->Renderer != NULL)
+							{
+								FThumbnailInfo_RenderThread ThumbInfo = InfoRef.Get();
+								ENQUEUE_RENDER_COMMAND(SyncSlateTextureCommand)(
+									[ThumbInfo](FRHICommandListImmediate& RHICmdList)
 								{
-									if ( ThumbInfo.ThumbnailTexture->GetTypedResource() != ThumbInfo.ThumbnailRenderTarget->GetTextureRHI() )
+									if (ThumbInfo.ThumbnailTexture->GetTypedResource() != ThumbInfo.ThumbnailRenderTarget->GetTextureRHI())
 									{
 										ThumbInfo.ThumbnailTexture->ClearTextureData();
 										ThumbInfo.ThumbnailTexture->ReleaseDynamicRHI();
@@ -1052,19 +1059,20 @@ void FAssetThumbnailPool::Tick( float DeltaTime )
 									}
 								});
 
-							if (InfoRef->LastUpdateTime <= 0.0f || RenderInfo->Renderer->AllowsRealtimeThumbnails(Asset))
-							{
-								//@todo: this should be done on the GPU only but it is not supported by thumbnail tools yet
-								ThumbnailTools::RenderThumbnail(
-									Asset,
-									InfoRef->Width,
-									InfoRef->Height,
-									ThumbnailTools::EThumbnailTextureFlushMode::NeverFlush,
-									InfoRef->ThumbnailRenderTarget
+								if (InfoRef->LastUpdateTime <= 0.0f || RenderInfo->Renderer->AllowsRealtimeThumbnails(Asset))
+								{
+									//@todo: this should be done on the GPU only but it is not supported by thumbnail tools yet
+									ThumbnailTools::RenderThumbnail(
+										Asset,
+										InfoRef->Width,
+										InfoRef->Height,
+										ThumbnailTools::EThumbnailTextureFlushMode::NeverFlush,
+										InfoRef->ThumbnailRenderTarget
 									);
-							}
+								}
 
-							bLoadedThumbnail = true;
+								bLoadedThumbnail = true;
+							}
 						}
 					}
 				

@@ -18,6 +18,7 @@
 #include "GPUSkinPublicDefs.h"
 #include "Animation/PreviewAssetAttachComponent.h"
 #include "BoneContainer.h"
+#include "Interfaces/Interface_AsyncCompilation.h"
 #include "Interfaces/Interface_CollisionDataProvider.h"
 #include "EngineTypes.h"
 #include "Engine/Engine.h"
@@ -504,7 +505,7 @@ namespace NSSkeletalMeshSourceFileLabels
  * @see https://docs.unrealengine.com/latest/INT/Engine/Content/Types/SkeletalMeshes/
  */
 UCLASS(hidecategories=Object, BlueprintType)
-class ENGINE_API USkeletalMesh : public UStreamableRenderAsset, public IInterface_CollisionDataProvider, public IInterface_AssetUserData, public INodeMappingProviderInterface
+class ENGINE_API USkeletalMesh : public UStreamableRenderAsset, public IInterface_CollisionDataProvider, public IInterface_AssetUserData, public INodeMappingProviderInterface, public IInterface_AsyncCompilation
 {
 	GENERATED_UCLASS_BODY()
 
@@ -1413,6 +1414,11 @@ private:
 
 #if WITH_EDITOR
 public:
+
+	/** IInterface_AsyncCompilation begin*/
+	virtual bool IsCompiling() const;
+	/** IInterface_AsyncCompilation end*/
+
 	/** Delegates for asset editor events */
 
 	FDelegateHandle RegisterOnClothingChange(const FSimpleMulticastDelegate::FDelegate& InDelegate);
