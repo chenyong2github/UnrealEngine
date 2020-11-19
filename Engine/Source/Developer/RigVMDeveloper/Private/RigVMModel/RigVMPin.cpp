@@ -299,7 +299,7 @@ FString URigVMPin::GetDefaultValue(const FDefaultValueOverride& InDefaultValueOv
 				{
 					ElementDefaultValue = TEXT("\"") + ElementDefaultValue + TEXT("\"");
 				}
-				else if (ElementDefaultValue.IsEmpty() || ElementDefaultValue == TEXT("()"))
+				else if (ElementDefaultValue.IsEmpty())
 				{
 					continue;
 				}
