@@ -843,6 +843,7 @@ public:
 
 	TMap<FPackageId, FPackageStoreEntry*> StoreEntriesMap;
 	TMap<FPackageId, FPackageId> RedirectsPackageMap;
+	TSet<FPackageId> TargetRedirectIds;
 	int32 NextCustomPackageIndex = 0;
 
 	FGlobalImportStore ImportStore;
@@ -1016,6 +1017,7 @@ public:
 									const FPackageId& SourceId = Pair.Key;
 									const FPackageId& LocalizedId = Pair.Value;
 									RedirectsPackageMap.Emplace(SourceId, LocalizedId);
+									TargetRedirectIds.Add(LocalizedId);
 								}
 							}
 						}
@@ -1024,7 +1026,10 @@ public:
 							TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreRedirects);
 							for (const TPair<FPackageId, FPackageId>& Redirect : ContainerHeader.PackageRedirects)
 							{
-								RedirectsPackageMap.Emplace(Redirect.Key, Redirect.Value);
+								const FPackageId& SourceId = Redirect.Key;
+								const FPackageId& RedirectedId = Redirect.Value;
+								RedirectsPackageMap.Emplace(SourceId, RedirectedId);
+								TargetRedirectIds.Add(RedirectedId);
 							}
 						}
 					}
@@ -1166,6 +1171,11 @@ public:
 		FScopeLock Lock(&PackageNameMapsCritical);
 		FPackageId RedirectedId = RedirectsPackageMap.FindRef(PackageId);
 		return RedirectedId;
+	}
+
+	bool IsRedirect(FPackageId PackageId) const
+	{
+		return TargetRedirectIds.Contains(PackageId);
 	}
 };
 
@@ -5626,6 +5636,15 @@ int32 FAsyncLoadingThread2::LoadPackage(const FString& InName, const FGuid* InGu
 			}
 		}
 	}
+	// When explicitly requesting a redirected package then set CustomName to
+	// the redirected name, otherwise the UPackage name will be set to the base game name.
+	else if (GlobalPackageStore.IsRedirect(DiskPackageId))
+	{
+		bHasCustomPackageName = true;
+		CustomPackageName = DiskPackageName;
+		CustomPackageId = DiskPackageId;
+	}
+
 	check(CustomPackageId.IsValid() == !CustomPackageName.IsNone());
 
 	bool bCustomNameIsValid = (!bHasCustomPackageName && CustomPackageName.IsNone()) || (bHasCustomPackageName && !CustomPackageName.IsNone());
