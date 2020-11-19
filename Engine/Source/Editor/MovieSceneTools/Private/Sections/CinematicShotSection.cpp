@@ -67,6 +67,42 @@ FText FCinematicShotSection::GetSectionTitle() const
 	return GetRenameVisibility() == EVisibility::Visible ? FText::GetEmpty() : HandleThumbnailTextBlockText();
 }
 
+FText FCinematicShotSection::GetSectionToolTip() const
+{
+	const UMovieSceneCinematicShotSection& SectionObject = GetSectionObjectAs<UMovieSceneCinematicShotSection>();
+	const UMovieScene* MovieScene = SectionObject.GetTypedOuter<UMovieScene>();
+	const UMovieSceneSequence* InnerSequence = SectionObject.GetSequence();
+	const UMovieScene* InnerMovieScene = InnerSequence ? InnerSequence->GetMovieScene() : nullptr;
+
+	if (!MovieScene || !InnerMovieScene || !SectionObject.HasStartFrame() || !SectionObject.HasEndFrame())
+	{
+		return FText::GetEmpty();
+	}
+
+	FFrameRate InnerTickResolution = InnerMovieScene->GetTickResolution();
+
+	// Calculate the length of this section and convert it to the timescale of the sequence's internal sequence
+	FFrameTime SectionLength = ConvertFrameTime(SectionObject.GetExclusiveEndFrame() - SectionObject.GetInclusiveStartFrame(), MovieScene->GetTickResolution(), InnerTickResolution);
+
+	// Calculate the inner start time of the sequence in both full tick resolution and frame number
+	FFrameTime StartOffset = SectionObject.GetOffsetTime().Get(0);
+	FFrameTime InnerStartTime = InnerMovieScene->GetPlaybackRange().GetLowerBoundValue() + StartOffset;
+	int32 InnerStartFrame = ConvertFrameTime(InnerStartTime, InnerTickResolution, InnerMovieScene->GetDisplayRate()).RoundToFrame().Value;
+
+	// Calculate the length, which is limited by both the outer section length and internal sequence length, in terms of internal frames
+	int32 InnerFrameLength = ConvertFrameTime(FMath::Min(SectionLength, InnerMovieScene->GetPlaybackRange().GetUpperBoundValue() - InnerStartTime), InnerTickResolution, InnerMovieScene->GetDisplayRate()).RoundToFrame().Value;
+	
+	// Calculate the inner frame number of the end frame
+	int32 InnerEndFrame = InnerStartFrame + InnerFrameLength;
+
+	return FText::Format(LOCTEXT("ToolTipContentFormat", "{0} - {1} ({2} frames @ {3})"),
+		InnerStartFrame,
+		InnerEndFrame,
+		InnerFrameLength,
+		InnerMovieScene->GetDisplayRate().ToPrettyText()
+		);
+}
+
 float FCinematicShotSection::GetSectionHeight() const
 {
 	return FViewportThumbnailSection::GetSectionHeight() + 2*9.f;
