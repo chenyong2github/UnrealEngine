@@ -720,22 +720,34 @@ struct FGlobalActorReplicationInfoMap
 	}
 
 	/** Removes actor data from map */
-	int32 Remove(const FActorRepListType& Actor)
+	int32 Remove(const FActorRepListType& RemovedActor)
 	{
-		if (FGlobalActorReplicationInfo* ActorInfo = Find(Actor))
+		// Clean the references to the removed actor from his dependency chain.
+		if (FGlobalActorReplicationInfo* RemovedActorInfo = Find(RemovedActor))
 		{
-			for (AActor* ChildActor : ActorInfo->DependentActorList)
+			// Remove child dependents
+			for (AActor* ChildActor : RemovedActorInfo->DependentActorList)
 			{
-				RemoveDependentActor(Actor, ChildActor);
+				if (FGlobalActorReplicationInfo* ChildInfo = Find(ChildActor))
+				{
+					ChildInfo->ParentActorList.RemoveSingleSwap(RemovedActor);
+				}
 			}
 
-			for (AActor* ParentActor : ActorInfo->ParentActorList)
+			// Remove parent dependents
+			for (AActor* ParentActor : RemovedActorInfo->ParentActorList)
 			{
-				RemoveDependentActor(ParentActor, Actor);
+				if (FGlobalActorReplicationInfo* ParentInfo = Find(ParentActor))
+				{
+					ParentInfo->DependentActorList.RemoveSingleSwap(RemovedActor);
+				}
 			}
+
+			RemovedActorInfo->DependentActorList.Reset();
+			RemovedActorInfo->ParentActorList.Reset();
 		}
 
-		return ActorMap.Remove(Actor);
+		return ActorMap.Remove(RemovedActor);
 	}
 
 	/** Returns ClassInfo for a given class. */
