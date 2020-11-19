@@ -59,6 +59,9 @@ private:
 	/** Gets the additional pin that was created at this index */
 	UEdGraphPin* GetAdditionalPin(int32 PinIndex) const;
 		
+	/** Returns true if the given pin is a tolerance pin for a comparison operator */
+	bool IsTolerancePin(const UEdGraphPin* Pin) const;
+
 	/** Helper function to recombine all split pins that this node may have */
 	void RecombineAllSplitPins();
 
@@ -118,6 +121,14 @@ private:
 	*						This is useful for gathering what the highest type may be
 	*/
 	TArray<UEdGraphPin*> GetInputPins(bool bIncludeLinks = false) const;
+
+	/**
+	* Get all pins on this node that can be considered when determining what function
+	* is the best match
+	*
+	* @param OutArray	Array to populate with the considered pins
+	*/
+	void GetPinsToConsider(TArray<UEdGraphPin*>& OutArray);
 
 	/** The name that this operation uses ("Add", "Multiply", etc) */
 	FName OperationName;
