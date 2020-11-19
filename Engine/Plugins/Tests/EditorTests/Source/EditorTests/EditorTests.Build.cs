@@ -68,6 +68,7 @@ public class EditorTests : ModuleRules
 				"StaticMeshDescription",
                 "MeshBuilder",
                 "RawMesh",
+				"FunctionalTesting",
 			}
 		);
 
