@@ -229,13 +229,6 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 {
 	const bool bAllowVendorDevice = !FParse::Param(FCommandLine::Get(), TEXT("novendordevice"));
 
-	CreateDXGIFactory(bWithDebug);
-
-	// QI for the Adapter
-	TRefCountPtr<IDXGIAdapter> TempAdapter;
-	DxgiFactory->EnumAdapters(Desc.AdapterIndex, TempAdapter.GetInitReference());
-	VERIFYD3D12RESULT(TempAdapter->QueryInterface(IID_PPV_ARGS(DxgiAdapter.GetInitReference())));
-
 #if PLATFORM_WINDOWS || (PLATFORM_HOLOLENS && !UE_BUILD_SHIPPING && D3D12_PROFILING_ENABLED)
 	
 	// Two ways to enable GPU crash debugging, command line or the r.GPUCrashDebugging variable
@@ -363,6 +356,13 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	UE_LOG(LogD3D12RHI, Log, TEXT("Emitting draw events for PIX profiling."));
 	SetEmitDrawEvents(true);
 #endif
+
+	CreateDXGIFactory(bWithDebug);
+
+	// QI for the Adapter
+	TRefCountPtr<IDXGIAdapter> TempAdapter;
+	DxgiFactory->EnumAdapters(Desc.AdapterIndex, TempAdapter.GetInitReference());
+	VERIFYD3D12RESULT(TempAdapter->QueryInterface(IID_PPV_ARGS(DxgiAdapter.GetInitReference())));
 
 	bool bDeviceCreated = false;
 #if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS)
