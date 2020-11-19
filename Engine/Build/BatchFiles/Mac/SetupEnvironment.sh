@@ -25,7 +25,7 @@ do
             ;;
         -dotnet) 
             # echo "setting up dotnet"
-            source $2/SetupDotnet.sh "$2"
+            source "$2/SetupDotnet.sh" "$2"
             shift
             ;;
         -*) echo "bad argument $1"
