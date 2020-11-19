@@ -115,6 +115,38 @@ struct TScopedGraphMessage : FScopedGraphMessage
 	}
 };
 
+// Optionally pushes a message onto the shared context stack
+template<typename TGraphMessageType>
+struct TOptionalScopedGraphMessage : FScopedGraphMessage
+{
+	template<typename... TArgs>
+	TOptionalScopedGraphMessage(bool bInCondition, const FAnimationBaseContext& InContext, TArgs&&... Args)
+		: FScopedGraphMessage(InContext)
+		, bCondition(bInCondition)
+	{
+		static_assert(TIsDerivedFrom<TGraphMessageType, IGraphMessage>::IsDerived, "Argument TGraphMessageType must derive from IGraphMessage");
+		static_assert(!TIsSame<TGraphMessageType, IGraphMessage>::Value, "Argument TGraphMessageType must not be IGraphMessage");
+
+		if(bInCondition)
+		{
+			TSharedRef<TGraphMessageType> Message = MakeShared<TGraphMessageType>(Forward<TArgs>(Args)...);
+			PushMessage(InContext, Message, Message->GetTypeName());
+		}
+	}
+
+	~TOptionalScopedGraphMessage()
+	{
+		if(bCondition)
+		{
+			PopMessage();
+		}
+	}
+
+private:
+	// Record of condition
+	bool bCondition;
+};
+
 // Stack of tags & events used to track context during graph execution
 struct ENGINE_API FMessageStack
 {

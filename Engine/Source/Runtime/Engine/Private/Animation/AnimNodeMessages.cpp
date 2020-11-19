@@ -15,10 +15,19 @@ FScopedGraphTag::FScopedGraphTag(const FAnimationBaseContext& InContext, FName I
 	check(SharedContext);
 
 	int32 NodeId = InContext.GetCurrentNodeId();
-	FStructProperty* NodeProperty = InContext.AnimInstanceProxy->GetAnimClassInterface()->GetAnimNodeProperties()[NodeId];
-	FAnimNode_Base* AnimNode = NodeProperty->ContainerPtrToValuePtr<FAnimNode_Base>(InContext.AnimInstanceProxy->GetAnimInstanceObject());
+	UScriptStruct* Struct = nullptr;
+	FAnimNode_Base* AnimNode = nullptr;
+	if(NodeId != INDEX_NONE)
+	{
+		if(IAnimClassInterface* Interface = InContext.AnimInstanceProxy->GetAnimClassInterface())
+		{
+			FStructProperty* NodeProperty = Interface->GetAnimNodeProperties()[NodeId];
+			Struct = NodeProperty->Struct;
+			AnimNode = NodeProperty->ContainerPtrToValuePtr<FAnimNode_Base>(InContext.AnimInstanceProxy->GetAnimInstanceObject());
+		}
+	}
 
-	SharedContext->MessageStack.PushTag(AnimNode, NodeProperty->Struct, Tag);
+	SharedContext->MessageStack.PushTag(AnimNode, Struct, Tag);
 }
 
 FScopedGraphTag::~FScopedGraphTag()
@@ -39,10 +48,19 @@ void FScopedGraphMessage::PushMessage(const FAnimationBaseContext& InContext, TS
 	MessageType = InMessageType;
 
 	int32 NodeId = InContext.GetCurrentNodeId();
-	FStructProperty* NodeProperty = InContext.AnimInstanceProxy->GetAnimClassInterface()->GetAnimNodeProperties()[NodeId];
-	FAnimNode_Base* AnimNode = NodeProperty->ContainerPtrToValuePtr<FAnimNode_Base>(InContext.AnimInstanceProxy->GetAnimInstanceObject());
+	UScriptStruct* Struct = nullptr;
+	FAnimNode_Base* AnimNode = nullptr;
+	if(NodeId != INDEX_NONE)
+	{
+		if(IAnimClassInterface* Interface = InContext.AnimInstanceProxy->GetAnimClassInterface())
+		{
+			FStructProperty* NodeProperty = Interface->GetAnimNodeProperties()[NodeId];
+			Struct = NodeProperty->Struct;
+			AnimNode = NodeProperty->ContainerPtrToValuePtr<FAnimNode_Base>(InContext.AnimInstanceProxy->GetAnimInstanceObject());
+		}
+	}
 
-	SharedContext->MessageStack.PushMessage(MessageType, AnimNode, NodeProperty->Struct, InMessage);
+	SharedContext->MessageStack.PushMessage(MessageType, AnimNode, Struct, InMessage);
 }
 
 void FScopedGraphMessage::PopMessage()
