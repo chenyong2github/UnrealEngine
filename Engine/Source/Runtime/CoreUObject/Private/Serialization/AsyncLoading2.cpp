@@ -703,9 +703,9 @@ public:
 	{
 		check(!bAreAllPublicExportsLoaded);
 		check(!bIsMissing);
+		check(!bHasFailed);
 		check(!Package);
 		Package = InPackage;
-		bHasFailed = false;
 	}
 
 	inline bool AreAllPublicExportsLoaded() const
@@ -731,11 +731,6 @@ public:
 		bAreAllPublicExportsLoaded = false;
 	}
 
-	inline bool IsMissingPackage() const
-	{
-		return bIsMissing;
-	}
-
 	inline void SetIsMissingPackage()
 	{
 		check(!bAreAllPublicExportsLoaded);
@@ -744,12 +739,10 @@ public:
 		bAreAllPublicExportsLoaded = false;
 	}
 
-	inline void ClearIsMissingPackage()
+	inline void ClearErrorFlags()
 	{
-		check(!bAreAllPublicExportsLoaded);
-		check(!Package);
 		bIsMissing = false;
-		bAreAllPublicExportsLoaded = false;
+		bHasFailed = false;
 	}
 
 	inline void SetHasFailed()
@@ -1323,6 +1316,7 @@ private:
 		if (Desc.CanBeImported())
 		{
 			FLoadedPackageRef& PackageRef = GlobalPackageStore.LoadedPackageStore.GetPackageRef(Desc.DiskPackageId);
+			PackageRef.ClearErrorFlags();
 			if (PackageRef.AddRef())
 			{
 				AddAsyncFlags(PackageRef.GetPackage());
@@ -3313,10 +3307,6 @@ void FAsyncPackage2::ImportPackagesRecursive()
 				TEXT("Skipping non mounted imported package with id '0x%llX'"), ImportedPackageId.Value());
 			PackageRef.SetIsMissingPackage();
 			continue;
-		}
-		else if (PackageRef.IsMissingPackage())
-		{
-			PackageRef.ClearIsMissingPackage();
 		}
 
 		FAsyncPackageDesc2 PackageDesc(INDEX_NONE, Desc.Priority, ImportedPackageId, ImportedPackageEntry);
