@@ -135,6 +135,7 @@ UWaterSubsystem::UWaterSubsystem()
 	NonSmoothedWorldTimeSeconds = 0.f;
 	PrevWorldTimeSeconds = 0.f;
 	bUnderWaterForAudio = false;
+	bPauseWaveTime = false;
 
 	struct FConstructorStatics
 	{
@@ -185,7 +186,7 @@ FWaterBodyManager* UWaterSubsystem::GetWaterBodyManager(UWorld* InWorld)
 void UWaterSubsystem::Tick(float DeltaTime)
 {
 	UWorld* World = GetWorld();
-	if (FreezeWaves == 0)
+	if (FreezeWaves == 0 && bPauseWaveTime == false)
 	{
 		NonSmoothedWorldTimeSeconds += DeltaTime;
 	}
@@ -216,6 +217,11 @@ void UWaterSubsystem::Tick(float DeltaTime)
 TStatId UWaterSubsystem::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UWaterSubsystem, STATGROUP_Tickables);
+}
+
+bool UWaterSubsystem::DoesSupportWorldType(EWorldType::Type WorldType) const
+{
+	return WorldType == EWorldType::Game || WorldType == EWorldType::Editor || WorldType == EWorldType::PIE || WorldType == EWorldType::EditorPreview;
 }
 
 void UWaterSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -399,6 +405,11 @@ void UWaterSubsystem::SetOverrideSmoothedWorldTimeSeconds(float InTime)
 void UWaterSubsystem::SetShouldOverrideSmoothedWorldTimeSeconds(bool bOverride)
 {
 	bUsingOverrideWorldTimeSeconds = bOverride;
+}
+
+void UWaterSubsystem::SetShouldPauseWaveTime(bool bInPauseWaveTime)
+{
+	bPauseWaveTime = bInPauseWaveTime;
 }
 
 void UWaterSubsystem::SetOceanFloodHeight(float InFloodHeight)

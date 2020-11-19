@@ -56,6 +56,8 @@ class WATER_API UWaterWavesAsset : public UObject
 	GENERATED_BODY()
 
 public:
+	UWaterWavesAsset();
+
 	void SetWaterWaves(UWaterWaves* InWaterWaves);
 	const UWaterWaves* GetWaterWaves() const { return WaterWaves; }
 	UWaterWaves* GetWaterWaves() { return WaterWaves; }
