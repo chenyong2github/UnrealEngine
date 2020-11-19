@@ -78,7 +78,7 @@ namespace Metasound
 			 *
 			 * @return True if the edge was successfully added. False otherwise.
 			 */
-			bool AddDataEdge(const INode& FromNode, const FDataVertexKey& FromVertexKey, const INode& ToNode, const FDataVertexKey& ToVertexKey);
+			bool AddDataEdge(const INode& FromNode, const FVertexKey& FromVertexKey, const INode& ToNode, const FVertexKey& ToVertexKey);
 
 			/** Add an input data destination to describe how data provided 
 			 * outside this graph should be routed internally.
@@ -89,7 +89,7 @@ namespace Metasound
 			 * @return True if the destination was successfully added. False 
 			 * otherwise.
 			 */
-			bool AddInputDataDestination(const INode& InNode, const FDataVertexKey& InVertexKey);
+			bool AddInputDataDestination(const INode& InNode, const FVertexKey& InVertexKey);
 
 
 			/** Add an input data destination to describe how data provided 
@@ -106,7 +106,7 @@ namespace Metasound
 			 * @return True if the source was successfully added. False 
 			 * otherwise.
 			 */
-			bool AddOutputDataSource(const INode& InNode, const FDataVertexKey& InVertexKey);
+			bool AddOutputDataSource(const INode& InNode, const FVertexKey& InVertexKey);
 
 			/** Add an output data source which describes routing of data which is 
 			 * owned this graph and exposed externally.

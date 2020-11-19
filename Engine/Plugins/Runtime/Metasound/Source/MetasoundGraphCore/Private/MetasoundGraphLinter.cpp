@@ -27,7 +27,7 @@ namespace Metasound
 
 			const FInputVertexInterface& InputInterface = InDest.Node->GetVertexInterface().GetInputInterface();
 
-			FDataVertexKey VertexKey = MakeDataVertexKey(InDest.Vertex);
+			FVertexKey VertexKey = MakeDataVertexKey(InDest.Vertex);
 
 			if (!InputInterface.Contains(VertexKey))
 			{
@@ -52,7 +52,7 @@ namespace Metasound
 
 			const FOutputVertexInterface& OutputInterface = InSource.Node->GetVertexInterface().GetOutputInterface();
 
-			FDataVertexKey VertexKey = MakeDataVertexKey(InSource.Vertex);
+			FVertexKey VertexKey = MakeDataVertexKey(InSource.Vertex);
 
 			if (!OutputInterface.Contains(VertexKey))
 			{

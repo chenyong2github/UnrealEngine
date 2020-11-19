@@ -15,7 +15,6 @@ namespace Metasound
 	 * FOutputDataVertexCollection. 
 	 */
 	typedef FString FVertexKey;
-	typedef FString FDataVertexKey; // TODO: Remove
 
 	// Forward declare.
 	class FInputDataVertex;
