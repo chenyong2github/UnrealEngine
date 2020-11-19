@@ -728,6 +728,13 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 
 			if (ItemAssetData.IsValid() && ItemAssetData.PackageName != NAME_None)
 			{
+				const FString PackagePathWithinRoot = ContentBrowserUtils::GetPackagePathWithinRoot(ItemAssetData.PackageName.ToString());
+				int32 PackageNameLength = PackagePathWithinRoot.Len();
+
+				int32 MaxAssetPathLen = ContentBrowserUtils::GetMaxAssetPathLen();
+				AddToToolTipInfoBox( InfoBox, LOCTEXT( "TileViewTooltipAssetPathLengthKey", "Asset Filepath Length" ), FText::Format( LOCTEXT( "TileViewTooltipAssetPathLengthValue", "{0} / {1}" ),
+					FText::AsNumber( PackageNameLength ), FText::AsNumber( MaxAssetPathLen ) ), PackageNameLength > MaxAssetPathLen ? true : false );
+
 				int32 PackageNameLengthForCooking = ContentBrowserUtils::GetPackageLengthForCooking(ItemAssetData.PackageName.ToString(), FEngineBuildSettings::IsInternalBuild());
 
 				int32 MaxCookPathLen = ContentBrowserUtils::GetMaxCookPathLen();

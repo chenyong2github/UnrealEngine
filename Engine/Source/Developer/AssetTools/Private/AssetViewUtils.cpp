@@ -1318,6 +1318,23 @@ bool AssetViewUtils::IsValidFolderPathForCreate(const FString& InFolderPath, con
 	return true;
 }
 
+FString AssetViewUtils::GetPackagePathWithinRoot(const FString& PackageName)
+{
+	const FString AbsoluteRootPath = FPaths::ConvertRelativePathToFull(FPaths::RootDir());
+
+	FString RelativePathToAsset;
+	if (FPackageName::TryConvertLongPackageNameToFilename(PackageName, RelativePathToAsset))
+	{
+		const FString AbsolutePathToAsset = FPaths::ConvertRelativePathToFull(RelativePathToAsset);
+
+		RelativePathToAsset = AbsolutePathToAsset;
+		FPaths::RemoveDuplicateSlashes(RelativePathToAsset);
+		RelativePathToAsset.RemoveFromStart(AbsoluteRootPath, ESearchCase::CaseSensitive);
+	}
+
+	return RelativePathToAsset;
+}
+
 int32 AssetViewUtils::GetPackageLengthForCooking(const FString& PackageName, bool IsInternalBuild)
 {
 	// We assume the game name is 20 characters (the maximum allowed) to make sure that content can be ported between projects
@@ -1433,6 +1450,22 @@ bool AssetViewUtils::IsValidPackageForCooking(const FString& PackageName, FText&
 	}
 
 	return true;
+}
+
+int32 AssetViewUtils::GetMaxAssetPathLen()
+{
+	const int32 PathRootAffordance = 50;
+
+	if ( GetDefault<UEditorExperimentalSettings>()->bEnableLongPathsSupport )
+	{
+		// Allow the longest path allowed by the system
+		return FPlatformMisc::GetMaxPathLength() - PathRootAffordance;
+	}
+	else
+	{
+		// 260 characters is the limit on Windows, which is the shortest max path of any platforms that support cooking
+		return 260 - PathRootAffordance;
+	}
 }
 
 int32 AssetViewUtils::GetMaxCookPathLen()
