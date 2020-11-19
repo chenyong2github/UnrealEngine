@@ -590,6 +590,11 @@ ERefractionMode FMaterial::GetRefractionMode() const
 	return RM_IndexOfRefraction; 
 }
 
+bool FMaterial::IsRequiredComplete() const
+{
+	return IsDefaultMaterial() || IsSpecialEngineMaterial();
+}
+
 #if WITH_EDITOR
 void FMaterial::GetShaderMapIDsWithUnfinishedCompilation(TArray<int32>& ShaderMapIds)
 {
@@ -1660,6 +1665,10 @@ bool FMaterialResource::ShouldInlineShaderCode() const
 
 FString FMaterialResource::GetFullPath() const
 {
+	if (MaterialInstance)
+	{
+		return MaterialInstance->GetPathName();
+	}
 	if (Material)
 	{
 		return Material->GetPathName();
@@ -2084,10 +2093,10 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 
 	UMaterialInterface* MaterialInterface = GetMaterialInterface();
 	const bool bMaterialInstance = MaterialInterface && MaterialInterface->IsA(UMaterialInstance::StaticClass());
-	const bool bSpecialEngineMaterial = !bMaterialInstance && (IsSpecialEngineMaterial() || IsDefaultMaterial());
+	const bool bRequiredComplete = !bMaterialInstance && IsRequiredComplete();
 
 	bool bShaderMapValid = (bool)GameThreadShaderMap;
-	if (bShaderMapValid && bSpecialEngineMaterial)
+	if (bShaderMapValid && bRequiredComplete)
 	{
 		// Special engine materials (default materials) are required to be complete
 		bShaderMapValid = GameThreadShaderMap->IsComplete(this, false);
@@ -2097,7 +2106,7 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 	{
 		if (bContainsInlineShaders || FPlatformProperties::RequiresCookedData())
 		{
-			if (bSpecialEngineMaterial)
+			if (bRequiredComplete)
 			{
 				UMaterialInterface* Interface = GetMaterialInterface();
 				FString Instance;
@@ -2229,7 +2238,7 @@ bool FMaterial::BeginCompileShaderMap(
 
 		// we can ignore requests for synch compilation if we are compiling for a different platform than we're running, or we're a commandlet that doesn't render (e.g. cooker)
 		const bool bCanIgnoreSynchronousRequirement = (TargetPlatform && !TargetPlatform->IsRunningPlatform()) || (IsRunningCommandlet() && !IsAllowCommandletRendering());
-		const bool bSkipCompilationForODSC = !IsSpecialEngineMaterial() && GShaderCompilingManager->IsShaderCompilationSkipped();
+		const bool bSkipCompilationForODSC = !IsRequiredComplete() && GShaderCompilingManager->IsShaderCompilationSkipped();
 		if (bSkipCompilationForODSC)
 		{
 			// Force compilation off.

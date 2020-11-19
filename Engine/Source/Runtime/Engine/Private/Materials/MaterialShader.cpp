@@ -1217,7 +1217,7 @@ void FMaterialShaderMap::SaveForRemoteRecompile(FArchive& Ar, const TMap<FString
 	}
 }
 
-void FMaterialShaderMap::LoadForRemoteRecompile(FArchive& Ar, EShaderPlatform ShaderPlatform, const TArray<FString>& MaterialsForShaderMaps)
+void FMaterialShaderMap::LoadForRemoteRecompile(FArchive& Ar, EShaderPlatform ShaderPlatform, TArray<UMaterialInterface*>& OutLoadedMaterials)
 {
 	int32 MapSize;
 	Ar << MapSize;
@@ -1228,6 +1228,7 @@ void FMaterialShaderMap::LoadForRemoteRecompile(FArchive& Ar, EShaderPlatform Sh
 		Ar << MaterialName;
 
 		UMaterialInterface* MatchingMaterial = FindObjectChecked<UMaterialInterface>(NULL, *MaterialName);
+		OutLoadedMaterials.Add(MatchingMaterial);
 
 		int32 NumShaderMaps = 0;
 		Ar << NumShaderMaps;
@@ -1260,7 +1261,7 @@ void FMaterialShaderMap::LoadForRemoteRecompile(FArchive& Ar, EShaderPlatform Sh
 			for (int32 ShaderMapIndex = 0; ShaderMapIndex < LoadedShaderMaps.Num(); ShaderMapIndex++)
 			{
 				FMaterialShaderMap* LoadedShaderMap = LoadedShaderMaps[ShaderMapIndex];
-
+	
 				if (LoadedShaderMap->GetShaderPlatform() == ShaderPlatform 
 					&& LoadedShaderMap->GetShaderMapId().FeatureLevel == GetMaxSupportedFeatureLevel(ShaderPlatform))
 				{
@@ -1274,9 +1275,8 @@ void FMaterialShaderMap::LoadForRemoteRecompile(FArchive& Ar, EShaderPlatform Sh
 							|| (PassIndex == 1 && QualityLevelIndex == LoadedQualityLevel))
 						{
 							FMaterialResource* MaterialResource = MatchingMaterial->GetMaterialResource(GetMaxSupportedFeatureLevel(ShaderPlatform), (EMaterialQualityLevel::Type)QualityLevelIndex);
-
+							checkf(LoadedShaderMap->IsComplete(MaterialResource, false), TEXT("Shader map %s loaded for remote recompile is not complete"), LoadedShaderMap->GetFriendlyName());
 							MaterialResource->SetGameThreadShaderMap(LoadedShaderMap);
-							MaterialResource->RegisterInlineShaderMap(false);
 						}
 					}
 				}

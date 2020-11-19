@@ -4557,19 +4557,16 @@ void ProcessCookOnTheFlyShaders(bool bReloadGlobalShaders, const TArray<uint8>& 
 		// parse the shaders
 		FMemoryReader MemoryReader(MeshMaterialMaps, true);
 		FNameAsStringProxyArchive Ar(MemoryReader);
-		FMaterialShaderMap::LoadForRemoteRecompile(Ar, GMaxRHIShaderPlatform, MaterialsToLoad);
+
+		TArray<UMaterialInterface*> LoadedMaterials;
+		FMaterialShaderMap::LoadForRemoteRecompile(Ar, GMaxRHIShaderPlatform, LoadedMaterials);
 
 		// gather the shader maps to reattach
-		for (TObjectIterator<UMaterial> It; It; ++It)
+		for (UMaterialInterface* Material : LoadedMaterials)
 		{
-			UpdateContext.AddMaterial(*It);
+			Material->RecacheUniformExpressions(true);
+			UpdateContext.AddMaterialInterface(Material);
 		}
-
-		// fixup uniform expressions
-		UMaterialInterface::RecacheAllMaterialUniformExpressions(true);
-
-		// Need to recache all cached mesh draw commands, as they store pointers to material uniform buffers which we just invalidated.
-		GetRendererModule().UpdateStaticDrawLists();
 	}
 }
 

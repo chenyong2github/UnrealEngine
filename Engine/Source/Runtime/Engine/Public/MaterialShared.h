@@ -1174,7 +1174,7 @@ public:
 
 	/** Serializes a shader map to an archive (used with recompiling shaders for a remote console) */
 	ENGINE_API static void SaveForRemoteRecompile(FArchive& Ar, const TMap<FString, TArray<TRefCountPtr<FMaterialShaderMap> > >& CompiledShaderMaps);
-	ENGINE_API static void LoadForRemoteRecompile(FArchive& Ar, EShaderPlatform ShaderPlatform, const TArray<FString>& MaterialsForShaderMaps);
+	ENGINE_API static void LoadForRemoteRecompile(FArchive& Ar, EShaderPlatform ShaderPlatform, TArray<UMaterialInterface*>& OutLoadedMaterials);
 
 #if WITH_EDITOR
 	/** Returns the maximum number of texture samplers used by any shader in this shader map. */
@@ -1747,6 +1747,9 @@ public:
 	 */
 	virtual bool IsPersistent() const = 0;
 	virtual UMaterialInterface* GetMaterialInterface() const { return NULL; }
+
+	/** Is the material required to be complete? Default materials, special engine materials, etc */
+	ENGINE_API bool IsRequiredComplete() const;
 
 #if WITH_EDITOR
 	/**
