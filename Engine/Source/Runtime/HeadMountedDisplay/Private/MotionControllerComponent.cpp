@@ -597,7 +597,7 @@ void UMotionControllerComponent::FViewExtension::PreRenderViewFamily_RenderThrea
 	LateUpdate.Apply_RenderThread(InViewFamily.Scene, OldTransform, NewTransform);
 }
 
-bool UMotionControllerComponent::FViewExtension::IsActiveThisFrame(class FViewport* InViewport) const
+bool UMotionControllerComponent::FViewExtension::IsActiveThisFrame_Internal(const FSceneViewExtensionContext&) const
 {
 	check(IsInGameThread());
 	return MotionControllerComponent && !MotionControllerComponent->bDisableLowLatencyUpdate && CVarEnableMotionControllerLateUpdate.GetValueOnGameThread();

@@ -125,7 +125,7 @@ TSharedPtr<FSceneViewFamilyContext> UMoviePipelineImagePassBase::CalculateViewFa
 		}
 	}
 
-	OutViewFamily->ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions();
+	OutViewFamily->ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(GetWorld()->Scene));
 
 	AddViewExtensions(*OutViewFamily, InOutSampleState);
 

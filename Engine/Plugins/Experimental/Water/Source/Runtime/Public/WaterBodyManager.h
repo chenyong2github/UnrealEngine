@@ -10,7 +10,7 @@ class FGerstnerWaterWaveViewExtension;
 class FWaterBodyManager
 {
 public:
-	void Initialize();
+	void Initialize(UWorld* World);
 	void Deinitialize();
 
 	/** Called at the beginning of the frame */

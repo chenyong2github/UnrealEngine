@@ -9,11 +9,11 @@
 class AWaterBody;
 class UGerstnerWaterWaves;
 
-class FGerstnerWaterWaveViewExtension : public FSceneViewExtensionBase
+class FGerstnerWaterWaveViewExtension : public FWorldSceneViewExtension
 {
 public:
 
-	FGerstnerWaterWaveViewExtension(const FAutoRegister& AutoReg);
+	FGerstnerWaterWaveViewExtension(const FAutoRegister& AutoReg, UWorld* InWorld);
 	~FGerstnerWaterWaveViewExtension();
 
 	// FSceneViewExtensionBase implementation : 

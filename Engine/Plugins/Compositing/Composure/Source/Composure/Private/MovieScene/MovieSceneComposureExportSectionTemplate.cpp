@@ -58,7 +58,7 @@ private:
 
 	virtual void SetupViewFamily( FSceneViewFamily& InViewFamily ) override;
 	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override;
-	virtual bool IsActiveThisFrame(FViewport* InViewport) const override;
+	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 
 	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override {}
 	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override {}
@@ -301,7 +301,7 @@ void FExportIntermediateBuffersViewExtension::SetupView(FSceneViewFamily& InView
 	}
 }
 
-bool FExportIntermediateBuffersViewExtension::IsActiveThisFrame(FViewport* InViewport) const
+bool FExportIntermediateBuffersViewExtension::IsActiveThisFrame_Internal(const FSceneViewExtensionContext&) const
 {
 	return NumOutstandingFrames > 0;
 }

@@ -18,9 +18,7 @@ public:
 	// The id of the nDisplay viewport being rendered.
 	FString ViewportId;
 
-	FDisplayClusterSceneViewExtensionContext()
-		: FSceneViewExtensionContext(nullptr)
-	{}
+	FDisplayClusterSceneViewExtensionContext() {}
 
 	FDisplayClusterSceneViewExtensionContext(FViewport* InViewport, const FString& InViewportId)
 		: FSceneViewExtensionContext(InViewport)

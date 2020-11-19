@@ -149,7 +149,7 @@ private:
 	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override;
 	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
 	virtual void PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
-	virtual bool IsActiveThisFrame(FViewport* InViewport) const override;
+	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 	//~ISceneViewExtension interface
 
 	void RenderARCamera_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView);
@@ -308,7 +308,7 @@ void FARCameraSceneViewExtension::RenderARCamera_RenderThread(FRHICommandListImm
 #endif
 }
 
-bool FARCameraSceneViewExtension::IsActiveThisFrame(FViewport* InViewport) const
+bool FARCameraSceneViewExtension::IsActiveThisFrame_Internal(const FSceneViewExtensionContext&) const
 {
 	return PLATFORM_DESKTOP && Channel.GetPostProcessMaterial() != nullptr;
 }
