@@ -19,7 +19,6 @@ extern const int32 MAX_BUNCH_SIZE;
 //
 // A bunch of data to send.
 //
-PRAGMA_DISABLE_DEPRECATION_WARNINGS //UE_DEPRECATED(4.22, "ChType deprecated in favor of ChName.")
 class ENGINE_API FOutBunch : public FNetBitWriter
 {
 public:
@@ -28,16 +27,12 @@ public:
 	UChannel *				Channel;
 	double					Time;
 	int32					ChIndex;
-	UE_DEPRECATED(4.22, "ChType deprecated in favor of ChName.")
-	int32					ChType;
 	FName					ChName;
 	int32					ChSequence;
 	int32					PacketId;
 	uint8					ReceivedAck:1;
 	uint8					bOpen:1;
 	uint8					bClose:1;
-	UE_DEPRECATED(4.22, "bDormant is deprecated in favor of CloseReason")
-	uint8					bDormant:1;
 	uint8					bIsReplicationPaused:1;   // Replication on this channel is being paused by the server
 	uint8					bReliable:1;
 	uint8					bPartial:1;				// Not a complete bunch
@@ -90,7 +85,6 @@ public:
 		Str += FString::Printf(TEXT("PacketId: %d "), PacketId);
 		Str += FString::Printf(TEXT("bOpen: %d "), bOpen);
 		Str += FString::Printf(TEXT("bClose: %d "), bClose);
-		Str += FString::Printf(TEXT("bDormant: %d "), bDormant);
 		if (bClose)
 		{
 			Str += FString::Printf(TEXT("CloseReason: %s "), LexToString(CloseReason));
@@ -120,14 +114,10 @@ public:
 	FInBunch *			Next;
 	UNetConnection *	Connection;
 	int32				ChIndex;
-	UE_DEPRECATED(4.22, "ChType deprecated in favor of ChName.")
-	int32				ChType;
 	FName				ChName;
 	int32				ChSequence;
 	uint8				bOpen:1;
 	uint8				bClose:1;
-	UE_DEPRECATED(4.22, "bDormant is deprecated in favor of CloseReason")
-	uint8				bDormant:1;					// Close, but go dormant
 	uint8				bIsReplicationPaused:1;		// Replication on this channel is being paused by the server
 	uint8				bReliable:1;
 	uint8				bPartial:1;					// Not a complete bunch
@@ -150,7 +140,6 @@ public:
 		Str += FString::Printf(TEXT("PacketId: %d "), PacketId);
 		Str += FString::Printf(TEXT("bOpen: %d "), bOpen);
 		Str += FString::Printf(TEXT("bClose: %d "), bClose);
-		Str += FString::Printf(TEXT("bDormant: %d "), bDormant);
 		if (bClose)
 		{
 			Str += FString::Printf(TEXT("CloseReason: %s "), LexToString(CloseReason));
@@ -173,7 +162,6 @@ public:
 
 	virtual void CountMemory(FArchive& Ar) const override;
 };
-PRAGMA_ENABLE_DEPRECATION_WARNINGS //UE_DEPRECATED(4.22, "ChType deprecated in favor of ChName.")
 
 /** out bunch for the control channel (special restrictions) */
 struct FControlChannelOutBunch : public FOutBunch
