@@ -346,6 +346,11 @@ public:
 		}
 	}
 
+	virtual void RHIResummarizeHTile(FRHITexture2D* DepthTexture) override final
+	{
+		RHIContext->RHIResummarizeHTile(DepthTexture);
+	}
+
 	virtual void RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions) override final
 	{
 		ensureMsgf(!State.bInsideBeginRenderPass, TEXT("Beginning a transition within a renderpass is not supported!"));
