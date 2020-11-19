@@ -321,8 +321,12 @@ void FUserInterfaceCommand::InitializeSlateApplication(bool bOpenTraceFile, cons
 			{
 				TraceInsightsModule.ConnectToStore(StoreHost, StorePort);
 			}
-			const bool bSingleProcess = FParse::Param(FCommandLine::Get(), TEXT("SingleProcess"));
-			TraceInsightsModule.CreateSessionBrowser(bAllowDebugTools, bSingleProcess, bInitializeTesting);
+
+			FCreateSessionBrowserParams Params;
+			Params.bAllowDebugTools = bAllowDebugTools;
+			Params.bInitializeTesting = bInitializeTesting;
+			Params.bStartProcessWithStompMalloc = FParse::Param(FCommandLine::Get(), TEXT("stompmalloc"));
+			TraceInsightsModule.CreateSessionBrowser(Params);
 		}
 	}
 

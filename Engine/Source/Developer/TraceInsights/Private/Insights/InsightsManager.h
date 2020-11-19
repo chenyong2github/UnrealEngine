@@ -177,9 +177,6 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	bool ShouldOpenAnalysisInSeparateProcess() const { return bShouldOpenAnalysisInSeparateProcess; }
-	void SetOpenAnalysisInSeparateProcess(bool bOnOff) { bShouldOpenAnalysisInSeparateProcess = bOnOff; }
-
 	/** Creates a new analysis session instance and loads the latest available trace that is live. */
 	void LoadLastLiveSession();
 
@@ -305,8 +302,6 @@ private:
 
 	/** If enabled, UI can display additional info for debugging purposes. */
 	bool bIsDebugInfoEnabled;
-
-	bool bShouldOpenAnalysisInSeparateProcess;
 
 	FStopwatch AnalysisStopwatch;
 	bool bIsAnalysisComplete;

@@ -121,11 +121,6 @@ FInsightsManager::FInsightsManager(TSharedRef<TraceServices::IAnalysisService> I
 	, ActionManager(this)
 	, Settings()
 	, bIsDebugInfoEnabled(false)
-#if WITH_EDITOR
-	, bShouldOpenAnalysisInSeparateProcess(false)
-#else
-	, bShouldOpenAnalysisInSeparateProcess(true)
-#endif
 	, AnalysisStopwatch()
 	, bIsAnalysisComplete(false)
 	, SessionDuration(0.0)

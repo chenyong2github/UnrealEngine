@@ -110,6 +110,9 @@ public:
 	void SetEnableDebugTools(bool InValue) { bEnableDebugTools = InValue; };
 	bool GetEnableDebugTools() const { return bEnableDebugTools; };
 
+	void SetStartProcessWithStompMalloc(bool InValue) { bStartProcessWithStompMalloc = InValue; };
+	bool GetStartProcessWithStompMalloc() const { return bStartProcessWithStompMalloc; };
+
 private:
 	TSharedRef<SWidget> ConstructSessionsPanel();
 	TSharedRef<SWidget> ConstructLoadPanel();
@@ -289,4 +292,5 @@ private:
 
 	bool bEnableAutomaticTesting = false;
 	bool bEnableDebugTools = false;
+	bool bStartProcessWithStompMalloc = false;
 };

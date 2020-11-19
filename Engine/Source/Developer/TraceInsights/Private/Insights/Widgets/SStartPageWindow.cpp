@@ -1611,92 +1611,76 @@ void SStartPageWindow::LoadTraceSession(TSharedPtr<FTraceViewModel> InTraceSessi
 
 void SStartPageWindow::LoadTraceFile(const FString& InTraceFile)
 {
-	if (FInsightsManager::Get()->ShouldOpenAnalysisInSeparateProcess())
+	UE_LOG(TraceInsights, Log, TEXT("[StartPage] Start analysis (in separate process) for trace file: \"%s\""), *InTraceFile);
+
+	const TCHAR* ExecutablePath = FPlatformProcess::ExecutablePath();
+
+	FString CmdLine = TEXT("-OpenTraceFile=\"") + InTraceFile + TEXT("\"");
+
+	FString ExtraCmdParams;
+	GetExtraCommandLineParams(ExtraCmdParams);
+	CmdLine += ExtraCmdParams;
+
+	constexpr bool bLaunchDetached = true;
+	constexpr bool bLaunchHidden = false;
+	constexpr bool bLaunchReallyHidden = false;
+
+	uint32 ProcessID = 0;
+	const int32 PriorityModifier = 0;
+	const TCHAR* OptionalWorkingDirectory = nullptr;
+
+	void* PipeWriteChild = nullptr;
+	void* PipeReadChild = nullptr;
+
+	FProcHandle Handle = FPlatformProcess::CreateProc(ExecutablePath, *CmdLine, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, &ProcessID, PriorityModifier, OptionalWorkingDirectory, PipeWriteChild, PipeReadChild);
+	if (Handle.IsValid())
 	{
-		UE_LOG(TraceInsights, Log, TEXT("[StartPage] Start analysis (in separate process) for trace file: \"%s\""), *InTraceFile);
-
-		const TCHAR* ExecutablePath = FPlatformProcess::ExecutablePath();
-
-		FString CmdLine = TEXT("-OpenTraceFile=\"") + InTraceFile + TEXT("\"");
-
-		FString ExtraCmdParams;
-		GetExtraCommandLineParams(ExtraCmdParams);
-		CmdLine += ExtraCmdParams;
-
-		constexpr bool bLaunchDetached = true;
-		constexpr bool bLaunchHidden = false;
-		constexpr bool bLaunchReallyHidden = false;
-
-		uint32 ProcessID = 0;
-		const int32 PriorityModifier = 0;
-		const TCHAR* OptionalWorkingDirectory = nullptr;
-
-		void* PipeWriteChild = nullptr;
-		void* PipeReadChild = nullptr;
-
-		FProcHandle Handle = FPlatformProcess::CreateProc(ExecutablePath, *CmdLine, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, &ProcessID, PriorityModifier, OptionalWorkingDirectory, PipeWriteChild, PipeReadChild);
-		if (Handle.IsValid())
-		{
-			FPlatformProcess::CloseProc(Handle);
-		}
-
-		SplashScreenOverlayTraceFile = FPaths::GetBaseFilename(InTraceFile);
-		ShowSplashScreenOverlay();
+		FPlatformProcess::CloseProc(Handle);
 	}
-	else
-	{
-		UE_LOG(TraceInsights, Log, TEXT("[StartPage] Start analysis for trace file: \"%s\""), *InTraceFile);
-		FInsightsManager::Get()->LoadTraceFile(InTraceFile);
-	}
+
+	SplashScreenOverlayTraceFile = FPaths::GetBaseFilename(InTraceFile);
+	ShowSplashScreenOverlay();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SStartPageWindow::LoadTrace(uint32 InTraceId)
 {
-	if (FInsightsManager::Get()->ShouldOpenAnalysisInSeparateProcess())
-	{
-		UE_LOG(TraceInsights, Log, TEXT("[StartPage] Start analysis (in separate process) for trace id: 0x%08X"), InTraceId);
+	UE_LOG(TraceInsights, Log, TEXT("[StartPage] Start analysis (in separate process) for trace id: 0x%08X"), InTraceId);
 
-		const TCHAR* ExecutablePath = FPlatformProcess::ExecutablePath();
+	const TCHAR* ExecutablePath = FPlatformProcess::ExecutablePath();
 
-		const uint32 StorePort = FInsightsManager::Get()->GetStoreClient()->GetStorePort();
-		FString CmdLine = FString::Printf(TEXT("-OpenTraceId=%d -StorePort=%d"), InTraceId, StorePort);
+	const uint32 StorePort = FInsightsManager::Get()->GetStoreClient()->GetStorePort();
+	FString CmdLine = FString::Printf(TEXT("-OpenTraceId=%d -StorePort=%d"), InTraceId, StorePort);
 		
-		FString ExtraCmdParams;
-		GetExtraCommandLineParams(ExtraCmdParams);
-		CmdLine += ExtraCmdParams;
+	FString ExtraCmdParams;
+	GetExtraCommandLineParams(ExtraCmdParams);
+	CmdLine += ExtraCmdParams;
 
-		constexpr bool bLaunchDetached = true;
-		constexpr bool bLaunchHidden = false;
-		constexpr bool bLaunchReallyHidden = false;
+	constexpr bool bLaunchDetached = true;
+	constexpr bool bLaunchHidden = false;
+	constexpr bool bLaunchReallyHidden = false;
 
-		uint32 ProcessID = 0;
-		const int32 PriorityModifier = 0;
-		const TCHAR* OptionalWorkingDirectory = nullptr;
+	uint32 ProcessID = 0;
+	const int32 PriorityModifier = 0;
+	const TCHAR* OptionalWorkingDirectory = nullptr;
 
-		void* PipeWriteChild = nullptr;
-		void* PipeReadChild = nullptr;
+	void* PipeWriteChild = nullptr;
+	void* PipeReadChild = nullptr;
 
-		FProcHandle Handle = FPlatformProcess::CreateProc(ExecutablePath, *CmdLine, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, &ProcessID, PriorityModifier, OptionalWorkingDirectory, PipeWriteChild, PipeReadChild);
-		if (Handle.IsValid())
-		{
-			FPlatformProcess::CloseProc(Handle);
-		}
-
-		TSharedPtr<FTraceViewModel>* TraceSessionPtrPtr = TraceViewModelMap.Find(InTraceId);
-		if (TraceSessionPtrPtr)
-		{
-			FTraceViewModel& TraceSession = **TraceSessionPtrPtr;
-			SplashScreenOverlayTraceFile = FPaths::GetBaseFilename(TraceSession.Uri.ToString());
-		}
-		ShowSplashScreenOverlay();
-	}
-	else
+	FProcHandle Handle = FPlatformProcess::CreateProc(ExecutablePath, *CmdLine, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, &ProcessID, PriorityModifier, OptionalWorkingDirectory, PipeWriteChild, PipeReadChild);
+	if (Handle.IsValid())
 	{
-		UE_LOG(TraceInsights, Log, TEXT("[StartPage] Start analysis for trace id: 0x%08X"), InTraceId);
-		FInsightsManager::Get()->LoadTrace(InTraceId);
+		FPlatformProcess::CloseProc(Handle);
 	}
+
+	TSharedPtr<FTraceViewModel>* TraceSessionPtrPtr = TraceViewModelMap.Find(InTraceId);
+	if (TraceSessionPtrPtr)
+	{
+		FTraceViewModel& TraceSession = **TraceSessionPtrPtr;
+		SplashScreenOverlayTraceFile = FPaths::GetBaseFilename(TraceSession.Uri.ToString());
+	}
+	ShowSplashScreenOverlay();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1922,6 +1906,10 @@ void SStartPageWindow::GetExtraCommandLineParams(FString& OutParams) const
 	if (bEnableDebugTools)
 	{
 		OutParams.Append(TEXT(" -DebugTools"));
+	}
+	if (bStartProcessWithStompMalloc)
+	{
+		OutParams.Append(TEXT(" -stompmalloc"));
 	}
 }
 

@@ -43,7 +43,7 @@ public:
 	virtual UE::Trace::FStoreClient* GetStoreClient() override;
 	virtual bool ConnectToStore(const TCHAR* InStoreHost, uint32 InStorePort) override;
 
-	virtual void CreateSessionBrowser(bool bAllowDebugTools = false, bool bSingleProcess = false, bool bInitializeTesting = false) override;
+	virtual void CreateSessionBrowser(const FCreateSessionBrowserParams& Params) override;
 	virtual void CreateSessionViewer(bool bAllowDebugTools = false) override;
 
 	virtual TSharedPtr<const TraceServices::IAnalysisSession> GetAnalysisSession() const override;

@@ -146,6 +146,16 @@ protected:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/** Contains parameters that are passed to the CreateSessionBrowser function to control specific behaviors. */
+struct TRACEINSIGHTS_API FCreateSessionBrowserParams
+{
+	bool bAllowDebugTools = false;
+	bool bInitializeTesting = false;
+	bool bStartProcessWithStompMalloc = false;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /** Called back to register common layout extensions */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnRegisterMajorTabExtensions, FInsightsMajorTabExtender& /*MajorTabExtender*/);
 
@@ -253,7 +263,7 @@ public:
 	/**
 	 * Called when the application starts in "Browser" mode.
 	 */
-	virtual void CreateSessionBrowser(bool bAllowDebugTools = false, bool bSingleProcess = false, bool bInitializeTesting = false) = 0;
+	virtual void CreateSessionBrowser(const FCreateSessionBrowserParams& Params) = 0;
 
 	/**
 	 * Called when the application starts in "Viewer" mode.
