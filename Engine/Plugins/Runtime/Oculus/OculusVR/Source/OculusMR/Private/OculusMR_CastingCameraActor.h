@@ -18,6 +18,7 @@ class AOculusMR_BoundaryActor;
 class UTextureRenderTarget2D;
 class UOculusMR_Settings;
 class UOculusMR_State;
+class UMaterialInstanceDynamic;
 
 /**
 * The camera actor in the level that tracks the binded physical camera in game

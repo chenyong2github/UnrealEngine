@@ -10,6 +10,7 @@
 #include "DragAndDrop/FolderDragDropOp.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "EditorActorFolders.h"
+#include "Engine/World.h"
 
 #define LOCTEXT_NAMESPACE "LayersView"
 

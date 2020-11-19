@@ -10,6 +10,7 @@
 #include "Misc/Paths.h"
 #include "Misc/Guid.h"
 #include "Serialization/MemoryWriter.h"
+#include "Modules/ModuleManager.h"
 
 // Comma separated list of executable file names which should be intercepted by XGE.
 // Update this list if adding new tasks.

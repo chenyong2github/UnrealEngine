@@ -3,6 +3,7 @@
 #include "LevelInstance/Packed/PackedLevelInstanceActor.h"
 #include "LevelInstance/Packed/PackedLevelInstanceBuilder.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
+#include "Components/InstancedStaticMeshComponent.h"
 
 APackedLevelInstance::APackedLevelInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

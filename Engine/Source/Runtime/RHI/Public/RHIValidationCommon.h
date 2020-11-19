@@ -14,6 +14,8 @@ const bool GRHIValidationEnabled = false;
 
 #if ENABLE_RHI_VALIDATION
 
+#include "RHI.h"
+
 class FRHIUniformBuffer;
 
 // Forward declaration of function defined in RHIUtilities.h

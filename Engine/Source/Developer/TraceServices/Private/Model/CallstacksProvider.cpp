@@ -4,6 +4,8 @@
 #include "Misc/ScopeRWLock.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "Algo/Unique.h"
+#include "Containers/ArrayView.h"
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {

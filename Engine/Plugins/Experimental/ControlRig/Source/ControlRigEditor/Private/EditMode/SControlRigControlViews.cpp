@@ -17,6 +17,7 @@
 #include "Tools/ControlRigPoseMirrorSettings.h"
 #include "ControlRigEditMode.h"
 #include "EditorModeManager.h"
+#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigBaseListWidget"
 

@@ -6,6 +6,7 @@
 class UStaticMesh;
 class USkeletalMesh;
 class UGeometryCollection;
+class UMaterialInterface;
 
 typedef TTuple<const UStaticMesh *, const UStaticMeshComponent *, FTransform> GeometryCollectionStaticMeshConversionTuple;
 typedef TTuple<const USkeletalMesh *, const USkeletalMeshComponent *, FTransform> GeometryCollectionSkeletalMeshConversionTuple;

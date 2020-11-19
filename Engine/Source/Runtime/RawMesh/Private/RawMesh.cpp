@@ -6,6 +6,7 @@
 #include "Misc/SecureHash.h"
 #include "Modules/ModuleManager.h"
 #include "Serialization/BulkDataReader.h"
+#include "Misc/ScopeRWLock.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, RawMesh);
 

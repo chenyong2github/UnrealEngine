@@ -13,6 +13,8 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "RenderUtils.h"
 #include "RHI.h"
+#include "SceneManagement.h"
+#include "Engine/EngineTypes.h"
 
 #include "GBufferInfo.h"
 

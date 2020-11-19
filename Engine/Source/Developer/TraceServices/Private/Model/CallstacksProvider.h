@@ -5,6 +5,7 @@
 #include "TraceServices/Model/Callstack.h"
 #include "HAL/CriticalSection.h"
 #include "Common/PagedArray.h"
+#include "Containers/Map.h"
 
 namespace TraceServices
 {

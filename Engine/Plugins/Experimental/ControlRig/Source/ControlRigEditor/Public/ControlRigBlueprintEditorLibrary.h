@@ -10,6 +10,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "ControlRigBlueprint.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 #include "ControlRigBlueprintEditorLibrary.generated.h"
 
 UCLASS(meta=(ScriptName="ControlRigBlueprintLibrary"))

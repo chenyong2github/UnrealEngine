@@ -15,6 +15,7 @@ class SControlPicker;
 class SExpandableArea;
 class SControlHierarchy;
 class UControlRig;
+class FToolBarBuilder;
 
 class SControlRigEditModeTools : public SCompoundWidget, public IDetailKeyframeHandler
 {

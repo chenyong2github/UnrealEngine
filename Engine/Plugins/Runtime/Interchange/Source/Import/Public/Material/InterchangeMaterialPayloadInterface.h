@@ -6,6 +6,7 @@
 #include "Material/InterchangeMaterialPayloadData.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/Interface.h"
 
 #include "InterchangeMaterialPayloadInterface.generated.h"
 

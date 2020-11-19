@@ -3,6 +3,7 @@
 #include "AssetPlacementEdModeModule.h"
 #include "AssetPlacementEdModeCommands.h"
 #include "AssetPlacementEdModeStyle.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "AssetPlacementEdMode"
 

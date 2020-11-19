@@ -21,11 +21,13 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "EditorStyleSet.h"
 #include "RenderingThread.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Engine/Texture2D.h"
 #include "UnrealEdGlobals.h"
+
 
 #define LOCTEXT_NAMESPACE "NewLevelDialog"
 

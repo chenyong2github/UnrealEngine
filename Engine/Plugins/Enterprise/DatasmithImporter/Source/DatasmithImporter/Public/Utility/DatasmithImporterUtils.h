@@ -7,6 +7,7 @@
 #include "IDatasmithSceneElements.h"
 #include "InterchangeManager.h"
 #include "UObject/UObjectHash.h"
+#include "Engine/Texture.h"
 
 class ADatasmithSceneActor;
 class IDatasmithScene;

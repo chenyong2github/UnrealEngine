@@ -16,6 +16,7 @@
 #include "ContentBrowserDataDragDropOp.h"
 #include "EditorClassUtils.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Docking/SDockTab.h"
 
 
 struct FSortPlaceableItems
@@ -91,6 +92,7 @@ public:
 
 	SLATE_ARGUMENT( TOptional<FLinearColor>, AssetTypeColorOverride )
 	SLATE_END_ARGS()
+
 
 	void Construct( const FArguments& InArgs, const FAssetData& InAsset)
 	{

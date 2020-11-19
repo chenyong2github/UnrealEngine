@@ -11,6 +11,7 @@
 #include "EditorModeManager.h"
 #include "SControlRigEditModeTools.h"
 #include "ControlRigEditMode.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "FControlRigEditModeToolkit"
 

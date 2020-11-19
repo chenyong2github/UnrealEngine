@@ -12,6 +12,7 @@ class FSlateWindowElementList;
 class FPaintArgs;
 struct FGeometry;
 class FSlateRect;
+class FSlateInvalidationRoot;
 
 class FVisualEntry
 {

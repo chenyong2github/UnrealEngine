@@ -11,6 +11,7 @@ class AActor;
 class APackedLevelInstance;
 class UActorComponent;
 class FPackedLevelInstanceBuilderContext;
+class UStaticMeshComponent;
 
 class FLevelInstanceISMPacker : public ILevelInstancePacker
 {

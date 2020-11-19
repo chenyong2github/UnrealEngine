@@ -5,6 +5,7 @@
 #include "IInterchangeExportPlugin.h"
 #include "InterchangeManager.h"
 #include "InterchangeTextureWriter.h"
+#include "Engine/Engine.h"
 
 class FInterchangeExportPlugin : public IInterchangeExportPlugin
 {

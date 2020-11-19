@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "Trace/Analyzer.h"
+#include "Containers/UnrealString.h"
+
 namespace TraceServices {
 namespace FTraceAnalyzerUtils {
 

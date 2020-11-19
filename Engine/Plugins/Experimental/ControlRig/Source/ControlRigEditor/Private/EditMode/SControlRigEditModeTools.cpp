@@ -24,6 +24,7 @@
 #include "DetailWidgetRow.h"
 #include "Rigs/FKControlRig.h"
 #include "SControlRigBaseListWidget.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigRootCustomization"
 

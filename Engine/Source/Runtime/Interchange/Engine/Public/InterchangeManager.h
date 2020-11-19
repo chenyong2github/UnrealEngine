@@ -18,6 +18,7 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/StrongObjectPtr.h"
+#include "Containers/Queue.h"
 
 #include "InterchangeManager.generated.h"
 

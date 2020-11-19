@@ -9,6 +9,7 @@
 #include "EditorStyleSet.h"
 
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "ScopedTransaction.h"
 

@@ -6,6 +6,7 @@
 #include "Mesh/InterchangeStaticMeshPayload.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/Interface.h"
 
 #include "InterchangeStaticMeshPayloadInterface.generated.h"
 

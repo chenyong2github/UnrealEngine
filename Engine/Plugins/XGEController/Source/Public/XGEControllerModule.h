@@ -3,6 +3,7 @@
 
 #include "DistributedBuildInterface/Public/DistributedBuildControllerInterface.h"
 #include "Windows/WindowsPlatformNamedPipe.h"
+#include "Containers/Queue.h"
 
 class FXGEControllerModule : public IDistributedBuildController
 {

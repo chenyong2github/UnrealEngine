@@ -12,6 +12,7 @@
 #include "LandscapeMaterialInstanceConstant.h"
 #include "Misc/ConfigCacheIni.h"
 #include "EngineUtils.h"
+#include "Misc/MessageDialog.h"
 
 //#define LOCTEXT_NAMESPACE "LandscapeEditor"
 

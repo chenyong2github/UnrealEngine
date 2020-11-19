@@ -5,6 +5,7 @@
 */
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "Engine/EngineTypes.h"
 #include "ControlRigPoseProjectSettings.generated.h"
 
 

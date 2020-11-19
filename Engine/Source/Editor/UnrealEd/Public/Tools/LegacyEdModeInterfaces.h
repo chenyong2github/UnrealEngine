@@ -15,6 +15,8 @@ enum EModeTools : int8;
 class FModeTool;
 struct FBox;
 struct FMatrix;
+class FSceneView;
+class FPrimitiveDrawInterface;
 
 UINTERFACE(NotBlueprintable, MinimalAPI)
 class ULegacyEdModeSelectInterface : public UInterface

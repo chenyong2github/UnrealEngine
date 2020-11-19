@@ -10,6 +10,7 @@
 #include "ISkeletonEditorModule.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Animation/AnimBlueprint.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "BlendProfileCustomization"
 

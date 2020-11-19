@@ -12,6 +12,7 @@
 class FControlRigEditor;
 class SControlRigStackView;
 class FUICommandList;
+class SSearchBox;
 
 namespace ERigStackEntry
 {

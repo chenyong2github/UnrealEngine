@@ -18,6 +18,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "Widgets/Docking/SDockTab.h"
 
 class SNiagaraGeneratedCodeView : public SCompoundWidget
 {
