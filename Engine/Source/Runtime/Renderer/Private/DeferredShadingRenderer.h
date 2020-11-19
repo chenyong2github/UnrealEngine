@@ -199,6 +199,7 @@ public:
 	void RenderBasePass(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
+		const FDBufferTextures& DBufferTextures,
 		FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
 		FRDGTextureRef ForwardShadowMaskTexture);
 
@@ -206,7 +207,8 @@ public:
 		FRDGBuilder& GraphBuilder,
 		const FRenderTargetBindingSlots& BasePassRenderTargets,
 		FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
-		FRDGTextureRef ForwardScreenSpaceShadowMask,
+		const FForwardBasePassTextures& ForwardBasePassTextures,
+		const FDBufferTextures& DBufferTextures,
 		bool bParallelBasePass,
 		bool bRenderLightmapDensity);
 
@@ -238,9 +240,7 @@ public:
 		const FSceneTextures& SceneTextures,
 		bool bIsOcclusionTesting);
 
-	bool RenderHzb(
-		FRDGBuilder& GraphBuilder,
-		const FSceneTextures& SceneTextures);
+	bool RenderHzb(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture);
 
 	/** Renders the view family. */
 	virtual void Render(FRHICommandListImmediate& RHICmdList) override;
@@ -427,7 +427,7 @@ private:
 	/** Render diffuse indirect (regardless of the method) of the views into the scene color. */
 	void RenderDiffuseIndirectAndAmbientOcclusion(
 		FRDGBuilder& GraphBuilder,
-		const FMinimalSceneTextures& SceneTextures,
+		FSceneTextures& SceneTextures,
 		FHairStrandsRenderingData* HairDatas,
 		bool bIsVisualizePass);
 
@@ -640,12 +640,7 @@ private:
 		FRHIShaderResourceView*& IndirectShadowLightDirectionSRV) const;
 
 	/** Renders indirect shadows from capsules modulated onto scene color. */
-	void RenderIndirectCapsuleShadows(
-		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextureUniformBuffer,
-		FRDGTextureRef SceneColorTexture,
-		FRDGTextureRef ScreenSpaceAO,
-		bool& bScreenSpaceAOIsValid) const;
+	void RenderIndirectCapsuleShadows(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures) const;
 
 	/** Renders capsule shadows for movable skylights, using the cone of visibility (bent normal) from DFAO. */
 	void RenderCapsuleShadowsForMovableSkylight(

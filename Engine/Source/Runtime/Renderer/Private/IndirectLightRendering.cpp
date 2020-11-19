@@ -10,6 +10,7 @@
 #include "DeferredShadingRenderer.h"
 #include "PostProcess/PostProcessSubsurface.h"
 #include "PostProcess/TemporalAA.h"
+#include "CompositionLighting/PostProcessAmbientOcclusion.h"
 #include "PostProcessing.h" // for FPostProcessVS
 #include "RendererModule.h" 
 #include "RayTracing/RaytracingOptions.h"
@@ -687,7 +688,7 @@ void FDeferredShadingSceneRenderer::SetupCommonDiffuseIndirectParameters(
 
 void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 	FRDGBuilder& GraphBuilder,
-	const FMinimalSceneTextures& SceneTextures,
+	FSceneTextures& SceneTextures,
 	FHairStrandsRenderingData* InHairDatas,
 	bool bIsVisualizePass)
 {
@@ -700,10 +701,10 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "DiffuseIndirectAndAO");
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-
 	FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
 	FRDGTextureRef SceneColorTexture = SceneTextures.Color.Target;
+
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	for (FViewInfo& View : Views)
 	{
@@ -801,7 +802,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		else if (ViewPipelineState.DiffuseIndirectDenoiser == IScreenSpaceDenoiser::EMode::Disabled)
 		{
 			DenoiserOutputs.Textures[0] = DenoiserInputs.Color;
-			DenoiserOutputs.Textures[1] = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
+			DenoiserOutputs.Textures[1] = SystemTextures.White;
 		}
 		else
 		{
@@ -847,7 +848,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 		if (ViewPipelineState.AmbientOcclusionMethod == EAmbientOcclusionMethod::Disabled)
 		{
-			ensure(!SceneContext.bScreenSpaceAOIsValid);
+			ensure(!HasBeenProduced(SceneTextures.ScreenSpaceAO));
 			AmbientOcclusionMask = nullptr;
 		}
 		else if (ViewPipelineState.AmbientOcclusionMethod == EAmbientOcclusionMethod::RTAO)
@@ -865,15 +866,14 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		}
 		else if (ViewPipelineState.AmbientOcclusionMethod == EAmbientOcclusionMethod::SSAO)
 		{
-			// TODO: Calls SSAO here once converted to RDG.
-			if (SceneContext.bScreenSpaceAOIsValid)
+			// Fetch result of SSAO that was done earlier.
+			if (HasBeenProduced(SceneTextures.ScreenSpaceAO))
 			{
-				// Fetch result of SSAO that was done earlier.
-				AmbientOcclusionMask = GraphBuilder.RegisterExternalTexture(SceneContext.ScreenSpaceAO);
+				AmbientOcclusionMask = SceneTextures.ScreenSpaceAO;
 			}
 			else
 			{
-				AmbientOcclusionMask = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
+				AmbientOcclusionMask = GetScreenSpaceAOFallback(SystemTextures);
 			}
 		}
 		else
@@ -886,8 +886,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		{
 			//ensureMsgf(!bApplySSAO, TEXT("Looks like SSAO has been computed for this view but is being overridden."));
 			ensureMsgf(Views.Num() == 1, TEXT("Need to add support for one AO texture per view in FSceneRenderTargets")); // TODO.
-			ConvertToExternalTexture(GraphBuilder, AmbientOcclusionMask, SceneContext.ScreenSpaceAO);
-			SceneContext.bScreenSpaceAOIsValid = true;
+			SceneTextures.ScreenSpaceAO = AmbientOcclusionMask;
 		}
 
 		if (InHairDatas 
@@ -949,7 +948,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			
 			if (!PassParameters->AmbientOcclusionTexture || bIsVisualizePass)
 			{
-				PassParameters->AmbientOcclusionTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
+				PassParameters->AmbientOcclusionTexture = SystemTextures.White;
 			}
 
 			Denoiser::SetupCommonShaderParameters(
@@ -1044,7 +1043,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			
 			if (!PassParameters->AmbientOcclusionTexture)
 			{
-				PassParameters->AmbientOcclusionTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
+				PassParameters->AmbientOcclusionTexture = SystemTextures.White;
 			}
 
 			PassParameters->SceneTextures = SceneTextureParameters;
@@ -1161,17 +1160,17 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "ReflectionIndirect");
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	const bool bReflectionEnv = ShouldDoReflectionEnvironment();
 
-	FRDGTextureRef AmbientOcclusionTexture = GraphBuilder.RegisterExternalTexture(SceneContext.bScreenSpaceAOIsValid ? SceneContext.ScreenSpaceAO : GSystemTextures.WhiteDummy);
-	float DynamicBentNormalAO = 1.0f;
-
-	if (!DynamicBentNormalAOTexture)
+	float DynamicBentNormalAO = 0.0f;
+	FRDGTextureRef AmbientOcclusionTexture = GetScreenSpaceAOFallback(SystemTextures);
+	
+	if (HasBeenProduced(SceneTextures.ScreenSpaceAO))
 	{
-		DynamicBentNormalAOTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
-		DynamicBentNormalAO = 0.0f;
+		DynamicBentNormalAO = 1.0f;
+		AmbientOcclusionTexture = SceneTextures.ScreenSpaceAO;
 	}
 
 	FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder);
@@ -1401,21 +1400,21 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 				PassParameters->AmbientOcclusionTexture = AmbientOcclusionTexture;
 				PassParameters->AmbientOcclusionSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
-				PassParameters->ScreenSpaceReflectionsTexture = ReflectionsColor ? ReflectionsColor : GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+				PassParameters->ScreenSpaceReflectionsTexture = ReflectionsColor ? ReflectionsColor : SystemTextures.Black;
 				PassParameters->ScreenSpaceReflectionsSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
 				if (Scene->HasVolumetricCloud())
 				{
 					FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
 
-					PassParameters->CloudSkyAOTexture = GraphBuilder.RegisterExternalTexture(View.VolumetricCloudSkyAO.IsValid() ? View.VolumetricCloudSkyAO : GSystemTextures.BlackDummy);
+					PassParameters->CloudSkyAOTexture = View.VolumetricCloudSkyAO.IsValid() ? GraphBuilder.RegisterExternalTexture(View.VolumetricCloudSkyAO) : SystemTextures.Black;
 					PassParameters->CloudSkyAOWorldToLightClipMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudSkyAOWorldToLightClipMatrix;
 					PassParameters->CloudSkyAOFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudSkyAOFarDepthKm;
 					PassParameters->CloudSkyAOEnabled = 1;
 				}
 				else
 				{
-					PassParameters->CloudSkyAOTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+					PassParameters->CloudSkyAOTexture = SystemTextures.Black;
 					PassParameters->CloudSkyAOEnabled = 0;
 				}
 				PassParameters->CloudSkyAOSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();

@@ -333,7 +333,7 @@ static FORCEINLINE bool NeedsPrePass(const FDeferredShadingSceneRenderer* Render
 		(Renderer->DepthPass.EarlyZPassMode != DDM_None || Renderer->DepthPass.bEarlyZPassMovable != 0);
 }
 
-bool FDeferredShadingSceneRenderer::RenderHzb(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures)
+bool FDeferredShadingSceneRenderer::RenderHzb(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture)
 {
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HZB);
 
@@ -356,7 +356,7 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRDGBuilder& GraphBuilder, const F
 
 			BuildHZB(
 				GraphBuilder,
-				SceneTextures.Depth.Resolve,
+				SceneDepthTexture,
 				/* VisBufferTexture = */ nullptr,
 				View,
 				/* OutClosestHZBTexture = */ ViewPipelineState.bClosestHZB ? &ClosestHZBTexture : nullptr,
@@ -386,12 +386,6 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRDGBuilder& GraphBuilder, const F
 			check(ViewState->HZBOcclusionTests.IsValidFrame(ViewState->OcclusionFrameCounter));
 			ViewState->HZBOcclusionTests.Submit(GraphBuilder, View);
 		}
-	}
-
-	// Async ssao only requires HZB and depth as inputs so get started ASAP
-	if (CanOverlayRayTracingOutput(Views[0]) && GCompositionLighting.CanProcessAsyncSSAO(Views))
-	{
-		GCompositionLighting.ProcessAsyncSSAO(GraphBuilder, Views, SceneTextures.UniformBuffer);
 	}
 
 	return FamilyPipelineState->bHZBOcclusion;
@@ -1534,8 +1528,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// this way we make sure the SceneColor format is the correct one and not the one from the end of frame before
 	SceneContext.ReleaseSceneColor();
 
-	const bool bDBuffer = !ViewFamily.EngineShowFlags.ShaderComplexity && ViewFamily.EngineShowFlags.Decals && IsUsingDBuffers(ShaderPlatform);
-
 	WaitOcclusionTests(RHICmdList);
 
 	if (!ViewFamily.EngineShowFlags.Rendering)
@@ -2057,12 +2049,24 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 	};
 
+	CompositionLighting::FAsyncResults CompositionLightingAsyncResults;
+
+	const auto RenderOcclusionLambda = [&]()
+	{
+		RenderOcclusion(GraphBuilder, SceneTextures, bIsOcclusionTesting);
+
+		if (CompositionLighting::CanProcessAsync(Views))
+		{
+			CompositionLightingAsyncResults = CompositionLighting::ProcessAsync(GraphBuilder, Views, SceneTextures);
+		}
+	};
+
 	// Early occlusion queries
 	const bool bOcclusionBeforeBasePass = !bNaniteEnabled && ((DepthPass.EarlyZPassMode == EDepthDrawingMode::DDM_AllOccluders) || bIsEarlyDepthComplete);
 
 	if (bOcclusionBeforeBasePass)
 	{
-		RenderOcclusion(GraphBuilder, SceneTextures, bIsOcclusionTesting);
+		RenderOcclusionLambda();
 	}
 
 	AddServiceLocalQueuePass(GraphBuilder);
@@ -2153,46 +2157,17 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderForwardShadowProjections(GraphBuilder, SceneTextures, ForwardScreenSpaceShadowMaskTexture, ForwardScreenSpaceShadowMaskHairTexture, HairDatas);
 	}
 
-	// only temporarily available after early z pass and until base pass
-	check(!SceneContext.DBufferA);
-	check(!SceneContext.DBufferB);
-	check(!SceneContext.DBufferC);
+	FDBufferTextures DBufferTextures = CreateDBufferTextures(GraphBuilder, SceneTextures.Extent, ShaderPlatform);
 
-	if (bDBuffer || IsForwardShadingEnabled(ShaderPlatform))
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(DeferredShadingSceneRenderer_DBuffer);
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_DBuffer);
-
-		// e.g. DBuffer deferred decals
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-		{
-			const FViewInfo& View = Views[ViewIndex];
-
-			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-
-			uint32 SSAOLevels = FSSAOHelper::ComputeAmbientOcclusionPassCount(View);
-			// In deferred shader, the SSAO uses the GBuffer and must be executed after base pass. Otherwise, async compute runs the shader in RenderHzb()
-			// In forward, if zprepass is off - as SSAO here requires a valid HZB buffer - disable SSAO
-			if (!IsForwardShadingEnabled(ShaderPlatform) || !View.HZB || FSSAOHelper::IsAmbientOcclusionAsyncCompute(View, SSAOLevels))
-			{
-				SSAOLevels = 0;
-			}
-
-			GCompositionLighting.ProcessBeforeBasePass(GraphBuilder, Scene->UniformBuffers, View, SceneTextures.UniformBuffer, bDBuffer, SSAOLevels);
-		}
-
-		AddServiceLocalQueuePass(GraphBuilder);
+		CompositionLighting::ProcessBeforeBasePass(GraphBuilder, Views, Scene->UniformBuffers, SceneTextures, DBufferTextures);
 	}
 	
 	if (IsForwardShadingEnabled(ShaderPlatform) && SceneContext.IsStaticLightingAllowed())
 	{
-		RenderIndirectCapsuleShadows(
-			GraphBuilder,
-			SceneTextures.UniformBuffer,
-			nullptr,
-			GraphBuilder.RegisterExternalTexture(SceneContext.ScreenSpaceAO),
-			SceneContext.bScreenSpaceAOIsValid);
+		RenderIndirectCapsuleShadows(GraphBuilder, SceneTextures);
 	}
 
 	FTranslucencyLightingVolumeTextures TranslucencyLightingVolumeTextures;
@@ -2206,7 +2181,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	SceneTextures.Color = RegisterExternalTextureMSAA(GraphBuilder, SceneContext.GetSceneColor());
 
 	{
-		RenderBasePass(GraphBuilder, SceneTextures, BasePassDepthStencilAccess, ForwardScreenSpaceShadowMaskTexture);
+		RenderBasePass(GraphBuilder, SceneTextures, DBufferTextures, BasePassDepthStencilAccess, ForwardScreenSpaceShadowMaskTexture);
 		AddServiceLocalQueuePass(GraphBuilder);
 		
 		if (bNaniteEnabled && bShouldApplyNaniteMaterials)
@@ -2221,6 +2196,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				Nanite::DrawBasePass(
 					GraphBuilder,
 					SceneDepth,
+					DBufferTextures,
 					*Scene,
 					View,
 					RasterResults
@@ -2259,20 +2235,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		Scene->ValidateSkyLightRealTimeCapture(GraphBuilder, Views[0], SceneTextures.Color.Target);
 	}
 
-	AddPass(GraphBuilder, [&SceneContext](FRHICommandList&)
-	{
-		SceneContext.DBufferA = nullptr;
-		SceneContext.DBufferB = nullptr;
-		SceneContext.DBufferC = nullptr;
-		SceneContext.DBufferMask = nullptr;
-	});
-
 	VisualizeVolumetricLightmap(GraphBuilder, SceneTextures);
 
 	// Occlusion after base pass
 	if (!bOcclusionBeforeBasePass)
 	{
-		RenderOcclusion(GraphBuilder, SceneTextures, bIsOcclusionTesting);
+		RenderOcclusionLambda();
 	}
 
 	AddServiceLocalQueuePass(GraphBuilder);
@@ -2382,19 +2350,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Copy lighting channels out of stencil before deferred decals which overwrite those values
 	FRDGTextureRef LightingChannelsTexture = CopyStencilToLightingChannelTexture(GraphBuilder, Views, SceneTextures.Stencil);
 
-	if (IsForwardShadingEnabled(ShaderPlatform))
-	{
-		AddPass(GraphBuilder, [this, &SceneContext](FRHICommandList&)
-		{
-			// Release SSAO texture and HZB texture earlier to free resources, such as FastVRAM.
-			SceneContext.ScreenSpaceAO.SafeRelease();
-			SceneContext.bScreenSpaceAOIsValid = false;
-		});
-	}
-
 	// Pre-lighting composition lighting stage
 	// e.g. deferred decals, SSAO
-	if (FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(AfterBasePass);
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_AfterBasePass);
@@ -2411,11 +2368,10 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
 			bool bEnableSSAO = ViewPipelineState->AmbientOcclusionMethod == EAmbientOcclusionMethod::SSAO;
-			GCompositionLighting.ProcessAfterBasePass(GraphBuilder, Scene->UniformBuffers, View, SceneTextures.UniformBuffer, bEnableSSAO);
+			CompositionLighting::ProcessAfterBasePass(GraphBuilder, View, Scene->UniformBuffers, SceneTextures, CompositionLightingAsyncResults, bEnableSSAO);
 		}
-		SceneContext.ScreenSpaceGTAOHorizons.SafeRelease();
-		AddServiceLocalQueuePass(GraphBuilder);
 	}
+
 	// Hair base pass for deferred shading
 	if (bHairEnable && !IsForwardShadingEnabled(ShaderPlatform))
 	{
@@ -2450,7 +2406,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		AddClearStencilPass(GraphBuilder, SceneTextures.Depth.Target);
 	}
 
-
 	if (bRenderDeferredLighting)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, RenderDeferredLighting);
@@ -2463,12 +2418,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		// These modulate the scenecolor output from the basepass, which is assumed to be indirect lighting
 		if (SceneContext.IsStaticLightingAllowed())
 		{
-			RenderIndirectCapsuleShadows(
-				GraphBuilder,
-				SceneTextures.UniformBuffer,
-				SceneTextures.Color.Target,
-				GraphBuilder.RegisterExternalTexture(SceneContext.ScreenSpaceAO),
-				SceneContext.bScreenSpaceAOIsValid);
+			RenderIndirectCapsuleShadows(GraphBuilder, SceneTextures);
 		}
 
 		// These modulate the scene color output from the base pass, which is assumed to be indirect lighting

@@ -13,6 +13,8 @@ class FCardRenderData;
 class FVirtualShadowMapArray;
 class FLumenCardPassUniformParameters;
 
+struct FDBufferTextures;
+
 DECLARE_LOG_CATEGORY_EXTERN(LogNanite, Warning, All);
 
 static constexpr uint32 NANITE_MAX_MATERIALS = 64;
@@ -632,6 +634,7 @@ void EmitDepthTargets(
 void DrawBasePass(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureRef SceneDepth,
+	const FDBufferTextures& DBufferTextures,
 	const FScene& Scene,
 	const FViewInfo& View,
 	const FRasterResults& RasterResults

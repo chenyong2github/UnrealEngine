@@ -12,6 +12,8 @@
 
 class FViewInfo;
 
+struct FRDGSystemTextures;
+
 enum class ESSAOType
 {
 	// pixel shader
@@ -49,6 +51,10 @@ enum EGTAOPass
 	EGTAOPass_TemporalFilter			= 0x10,
 	EGTAOPass_Upsample					= 0x20,
 };
+
+FRDGTextureRef CreateScreenSpaceAOTexture(FRDGBuilder& GraphBuilder, FIntPoint Extent);
+
+FRDGTextureRef GetScreenSpaceAOFallback(const FRDGSystemTextures& SystemTextures);
 
 class FGTAOContext
 {

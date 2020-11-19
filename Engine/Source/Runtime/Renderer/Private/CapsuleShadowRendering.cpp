@@ -1156,12 +1156,7 @@ void FDeferredShadingSceneRenderer::SetupIndirectCapsuleShadows(
 	NumMeshDistanceFieldCasters = MeshDistanceFieldCasterIndices.Num();
 }
 
-void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(
-	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-	FRDGTextureRef SceneColorTexture,
-	FRDGTextureRef ScreenSpaceAOTexture,
-	bool& bScreenSpaceAOIsValid) const
+void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures) const
 {
 	if (!SupportsCapsuleIndirectShadows(FeatureLevel, GShaderPlatformForFeatureLevel[FeatureLevel])
 		|| !ViewFamily.EngineShowFlags.DynamicShadows
@@ -1170,7 +1165,6 @@ void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(
 		return;
 	}
 
-	check(ScreenSpaceAOTexture);
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderIndirectCapsuleShadows);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RenderIndirectCapsuleShadows);
 
@@ -1204,21 +1198,17 @@ void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(
 
 	TArray<FRDGTextureRef, TInlineAllocator<2>> RenderTargets;
 
-	if (SceneColorTexture)
+	if (SceneTextures.Color.IsValid())
 	{
-		RenderTargets.Add(SceneColorTexture);
+		RenderTargets.Add(SceneTextures.Color.Target);
 	}
 
-	if (bScreenSpaceAOIsValid)
+	check(SceneTextures.ScreenSpaceAO);
+	if (!SceneTextures.ScreenSpaceAO->HasBeenProduced())
 	{
-		RenderTargets.Add(ScreenSpaceAOTexture);
+		AddClearRenderTargetPass(GraphBuilder, SceneTextures.ScreenSpaceAO);
 	}
-	else if (!SceneColorTexture)
-	{
-		bScreenSpaceAOIsValid = true;
-		RenderTargets.Add(ScreenSpaceAOTexture);
-		AddClearRenderTargetPass(GraphBuilder, ScreenSpaceAOTexture);
-	}
+	RenderTargets.Add(SceneTextures.ScreenSpaceAO);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -1259,7 +1249,7 @@ void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(
 			{
 				FTiledCapsuleShadowParameters* PassParameters = GraphBuilder.AllocParameters<FTiledCapsuleShadowParameters>();
 				PassParameters->RayTracedShadows = RayTracedShadowsRT;
-				PassParameters->SceneTextures = SceneTexturesUniformBuffer;
+				PassParameters->SceneTextures = SceneTextures.UniformBuffer;
 
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("TiledCapsuleShadowing %u capsules among %u meshes", NumCapsuleShapes, NumMeshesWithCapsules),
@@ -1321,7 +1311,7 @@ void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(
 					PassParameters->RenderTargets[Index] = FRenderTargetBinding(RenderTargets[Index], ERenderTargetLoadAction::ELoad);
 				}
 				PassParameters->RayTracedShadows = RayTracedShadowsRT;
-				PassParameters->SceneTextures = SceneTexturesUniformBuffer;
+				PassParameters->SceneTextures = SceneTextures.UniformBuffer;
 
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("UpsampleCapsuleShadow %dx%d", ScissorRect.Width(), ScissorRect.Height()),

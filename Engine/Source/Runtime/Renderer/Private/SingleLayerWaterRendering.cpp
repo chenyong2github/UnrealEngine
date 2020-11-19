@@ -714,7 +714,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
 		FSingleLayerWaterPassParameters* PassParameters = GraphBuilder.AllocParameters<FSingleLayerWaterPassParameters>();
-		PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, WhiteForwardScreenSpaceShadowMask, &SceneWithoutWaterTextures, ViewIndex);
+		PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, ViewIndex, {}, {}, &SceneWithoutWaterTextures);
 		PassParameters->RenderTargets = RenderTargets;
 
 		if (bRenderInParallel)

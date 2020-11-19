@@ -3355,7 +3355,6 @@ void FSceneRenderer::OnStartRender(FRHICommandListImmediate& RHICmdList)
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	FVisualizeTexturePresent::OnStartRender(Views[0]);
-	SceneContext.bScreenSpaceAOIsValid = false;
 	SceneContext.bCustomDepthIsValid = false;
 
 	for (FViewInfo& View : Views)

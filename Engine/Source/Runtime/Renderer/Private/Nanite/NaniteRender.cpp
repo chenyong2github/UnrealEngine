@@ -4138,6 +4138,7 @@ static void BuildNaniteMaterialPassCommands(
 void DrawBasePass(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureRef SceneDepth,
+	const FDBufferTextures& DBufferTextures,
 	const FScene& Scene,
 	const FViewInfo& View,
 	const FRasterResults& RasterResults
@@ -4264,7 +4265,7 @@ void DrawBasePass(
 		}
 
 		PassParameters->View = View.ViewUniformBuffer; // To get VTFeedbackBuffer
-		PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, nullptr, nullptr, 0);
+		PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, 0, {}, DBufferTextures, nullptr);
 
 		switch (GNaniteMaterialCulling)
 		{

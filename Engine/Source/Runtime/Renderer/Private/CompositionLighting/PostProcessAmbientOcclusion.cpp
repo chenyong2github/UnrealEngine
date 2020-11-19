@@ -305,6 +305,17 @@ EGTAOType FSSAOHelper::GetGTAOPassType(const FViewInfo& View, uint32 Levels)
 	return EGTAOType::EOff;
 }
 
+FRDGTextureRef CreateScreenSpaceAOTexture(FRDGBuilder& GraphBuilder, FIntPoint Extent)
+{
+	const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(Extent, PF_G8, FClearValueBinding::White, TexCreate_UAV | TexCreate_RenderTargetable | TexCreate_ShaderResource | GFastVRamConfig.ScreenSpaceAO));
+	return GraphBuilder.CreateTexture(Desc, TEXT("ScreenSpaceAO"));
+}
+
+FRDGTextureRef GetScreenSpaceAOFallback(const FRDGSystemTextures& SystemTextures)
+{
+	return SystemTextures.White;
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 enum class EAOTechnique
@@ -807,6 +818,8 @@ FScreenPassTexture AddAmbientOcclusionPass(
 	SharedParameters.SSAO_SetupTexture = SetupTexture.Texture;
 	SharedParameters.SSAO_NormalsTexture = NormalsTexture.Texture;
 
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+
 	if (DownsampledAO.IsValid())
 	{
 		SharedParameters.SSAO_DownsampledAO = DownsampledAO.Texture;
@@ -814,7 +827,7 @@ FScreenPassTexture AddAmbientOcclusionPass(
 	}
 	else
 	{
-		SharedParameters.SSAO_DownsampledAO = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy, TEXT("BlackDummy"));
+		SharedParameters.SSAO_DownsampledAO = SystemTextures.Black;
 		SharedParameters.SSAO_DownsampledAOInverseSize = FVector2D(1.0f, 1.0f);
 	}
 

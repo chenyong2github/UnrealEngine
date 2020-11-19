@@ -1402,7 +1402,7 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 		}
 	}
 
-	const bool bUseHzbOcclusion = RenderHzb(GraphBuilder, SceneTextures);
+	const bool bUseHzbOcclusion = RenderHzb(GraphBuilder, SceneTextures.Depth.Resolve);
 
 	if (bUseHzbOcclusion || bIsOcclusionTesting)
 	{

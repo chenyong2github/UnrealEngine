@@ -8,39 +8,38 @@
 
 #include "CoreMinimal.h"
 #include "SceneRendering.h"
+#include "PostProcessDeferredDecals.h"
 
 class FPersistentUniformBuffers;
 
 /**
  * The center for all screen space processing activities (e.g. G-buffer manipulation, lighting).
  */
-class FCompositionLighting
+namespace CompositionLighting
 {
-public:
+	struct FAsyncResults
+	{
+		FRDGTextureRef HorizonsTexture = nullptr;
+	};
+
+	bool CanProcessAsync(TArrayView<const FViewInfo> Views);
+
 	void ProcessBeforeBasePass(
 		FRDGBuilder& GraphBuilder,
+		TArrayView<const FViewInfo> Views,
 		FPersistentUniformBuffers& UniformBuffers,
-		const FViewInfo& View,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-		bool bDBuffer,
-		uint32 SSAOLevels);
+		const FSceneTextures& SceneTextures,
+		FDBufferTextures& DBufferTextures);
 
 	void ProcessAfterBasePass(
 		FRDGBuilder& GraphBuilder,
-		FPersistentUniformBuffers& UniformBuffers,
 		const FViewInfo& View,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		FPersistentUniformBuffers& UniformBuffers,
+		const FSceneTextures& SceneTextures,
+		const FAsyncResults& AsyncResults,
 		bool bEnableSSAO);
 
-	bool CanProcessAsyncSSAO(const TArray<FViewInfo>& Views);
-
-	void ProcessAsyncSSAO(
-		FRDGBuilder& GraphBuilder,
-		const TArray<FViewInfo>& Views,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer);
+	FAsyncResults ProcessAsync(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, const FMinimalSceneTextures& SceneTextures);
 };
-
-/** The global used for deferred lighting. */
-extern FCompositionLighting GCompositionLighting;
 
 extern bool ShouldRenderScreenSpaceAmbientOcclusion(const FViewInfo& View);

@@ -310,25 +310,20 @@ void FMeshDecalMeshProcessor::Process(
 
 	FMaterialShaderTypes ShaderTypes;
 	ShaderTypes.AddShaderType<FMeshDecalsVS>();
-	//MeshDecalPassShaders.VertexShader = MaterialResource.GetShader<FMeshDecalsVS>(VertexFactoryType, 0, false);
 
 	if (bNeedsHSDS)
 	{
 		ShaderTypes.AddShaderType<FMeshDecalsDS>();
 		ShaderTypes.AddShaderType<FMeshDecalsHS>();
-		//MeshDecalPassShaders.DomainShader = MaterialResource.GetShader<FMeshDecalsDS>(VertexFactoryType, 0, false);
-		//MeshDecalPassShaders.HullShader = MaterialResource.GetShader<FMeshDecalsHS>(VertexFactoryType, 0, false);
 	}
 
 	if (PassDecalStage == DRS_Emissive)
 	{
 		ShaderTypes.AddShaderType<FMeshDecalsEmissivePS>();
-		//MeshDecalPassShaders.PixelShader = MaterialResource.GetShader<FMeshDecalsEmissivePS>(VertexFactoryType, 0, false);
 	}
 	else
 	{
 		ShaderTypes.AddShaderType<FMeshDecalsPS>();
-		//MeshDecalPassShaders.PixelShader = MaterialResource.GetShader<FMeshDecalsPS>(VertexFactoryType, 0, false);
 	}
 
 	FMaterialShaders Shaders;
@@ -371,7 +366,7 @@ void FMeshDecalMeshProcessor::Process(
 void DrawDecalMeshCommands(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FDeferredDecalPassTextures& DecalPassTextures,
+	const FDeferredDecalPassTextures& DecalPassTextures,
 	EDecalRenderStage DecalRenderStage,
 	FDecalRenderingCommon::ERenderTargetMode RenderTargetMode)
 {
@@ -419,7 +414,7 @@ void DrawDecalMeshCommands(
 void RenderMeshDecals(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FDeferredDecalPassTextures& DecalPassTextures,
+	const FDeferredDecalPassTextures& DecalPassTextures,
 	EDecalRenderStage DecalRenderStage)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_RenderMeshDecals);

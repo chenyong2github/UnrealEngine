@@ -89,6 +89,7 @@ struct FMinimalSceneTextures
 	FRDGTextureSRVRef Stencil{};
 
 	FIntPoint Extent = FIntPoint::ZeroValue;
+	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::SM5;
 
 	ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::None;
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> UniformBuffer{};
@@ -100,6 +101,7 @@ struct FSceneTextures : public FMinimalSceneTextures
 
 	FRDGTextureRef SmallDepth{};
 	FRDGTextureRef Velocity{};
+	FRDGTextureRef ScreenSpaceAO{};
 };
 
 /**
@@ -112,8 +114,7 @@ public:
 
 protected:
 	/** Constructor */
-	FSceneRenderTargets(): 
-		bScreenSpaceAOIsValid(false),
+	FSceneRenderTargets():
 		bCustomDepthIsValid(false),
 		GBufferRefCount(0),
 		ThisFrameNumber( 0 ),
@@ -375,15 +376,6 @@ public:
 	// Optional color attachment to store SceneDepth
 	TRefCountPtr<IPooledRenderTarget> SceneDepthAux;
 
-	// DBuffer: For decals before base pass (only temporarily available after early z pass and until base pass)
-	TRefCountPtr<IPooledRenderTarget> DBufferA;
-	TRefCountPtr<IPooledRenderTarget> DBufferB;
-	TRefCountPtr<IPooledRenderTarget> DBufferC;
-	TRefCountPtr<IPooledRenderTarget> DBufferMask;
-
-	// for AmbientOcclusion, only valid for a short time during the frame to allow reuse
-	TRefCountPtr<IPooledRenderTarget> ScreenSpaceAO;
-	TRefCountPtr<IPooledRenderTarget> ScreenSpaceGTAOHorizons;
 	// for shader/quad complexity, the temporary quad descriptors and complexity.
 	TRefCountPtr<IPooledRenderTarget> QuadOverdrawBuffer;
 	// used by the CustomDepth material feature, is allocated on demand or if r.CustomDepth is 2
@@ -422,10 +414,6 @@ public:
 	FVertexBufferRHIRef VirtualTextureFeedback;
 	FUnorderedAccessViewRHIRef VirtualTextureFeedbackUAV;
 
-	// todo: free ScreenSpaceAO so pool can reuse
-	bool bScreenSpaceAOIsValid;
-
-	// todo: free ScreenSpaceAO so pool can reuse
 	bool bCustomDepthIsValid;
 
 private:

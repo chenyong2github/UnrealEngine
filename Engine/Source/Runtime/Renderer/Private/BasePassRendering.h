@@ -16,6 +16,7 @@
 #include "SceneManagement.h"
 #include "Materials/Material.h"
 #include "PostProcess/SceneRenderTargets.h"
+#include "CompositionLighting/PostProcessDeferredDecals.h"
 #include "LightMapRendering.h"
 #include "VelocityRendering.h"
 #include "MeshMaterialShaderType.h"
@@ -51,6 +52,13 @@ public:
 	FVector4 RectBarnDoor;
 };
 
+struct FForwardBasePassTextures
+{
+	FRDGTextureRef ScreenSpaceAO = nullptr;
+	FRDGTextureRef ScreenSpaceShadowMask = nullptr;
+	FRDGTextureRef SceneDepthIfResolved = nullptr;
+};
+
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSharedBasePassUniformParameters,)
 	SHADER_PARAMETER_STRUCT(FForwardLightData, Forward)
 	SHADER_PARAMETER_STRUCT(FForwardLightData, ForwardISR)
@@ -70,13 +78,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FOpaqueBasePassUniformParameters,)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IndirectOcclusionTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolvedSceneDepthTexture)
 	// DBuffer decals
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DBufferATexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, DBufferATextureSampler)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DBufferBTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, DBufferBTextureSampler)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DBufferCTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, DBufferCTextureSampler)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, DBufferRenderMask)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FDBufferParameters, DBuffer)
 	// Single Layer Water
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorWithoutSingleLayerWaterTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorWithoutSingleLayerWaterSampler)
@@ -129,9 +131,10 @@ extern void SetupSharedBasePassParameters(
 extern TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUniformBuffer(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FRDGTextureRef ForwardScreenSpaceShadowMask = nullptr,
-	const FSceneWithoutWaterTextures* SceneWithoutWaterTextures = nullptr,
-	const int32 ViewIndex = 0);
+	const int32 ViewIndex = 0,
+	const FForwardBasePassTextures& ForwardBasePassTextures = {},
+	const FDBufferTextures& DBufferTextures = {},
+	const FSceneWithoutWaterTextures* SceneWithoutWaterTextures = nullptr);
 
 extern TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBasePassUniformBuffer(
 	FRDGBuilder& GraphBuilder,

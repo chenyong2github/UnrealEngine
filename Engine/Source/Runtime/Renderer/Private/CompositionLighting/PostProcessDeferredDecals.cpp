@@ -48,27 +48,56 @@ static TAutoConsoleVariable<bool> CVarDBufferDecalNormalReprojectionEnabled(
 // This is a temporary extern while testing the Velocity changes. Will be removed once a decision is made.
 extern bool IsVelocityMergedWithDepthPass();
 
-FDeferredDecalPassTextures GetDeferredDecalPassTextures(
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer)
+bool IsDBufferEnabled(const FSceneViewFamily& ViewFamily, EShaderPlatform ShaderPlatform)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
+	return !ViewFamily.EngineShowFlags.ShaderComplexity && ViewFamily.EngineShowFlags.Decals && IsUsingDBuffers(ShaderPlatform);
+}
 
+FDBufferParameters GetDBufferParameters(FRDGBuilder& GraphBuilder, const FDBufferTextures& DBufferTextures, EShaderPlatform ShaderPlatform)
+{
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+
+	FDBufferParameters Parameters;
+	Parameters.DBufferATextureSampler = TStaticSamplerState<>::GetRHI();
+	Parameters.DBufferBTextureSampler = TStaticSamplerState<>::GetRHI();
+	Parameters.DBufferCTextureSampler = TStaticSamplerState<>::GetRHI();
+	Parameters.DBufferATexture = SystemTextures.BlackAlphaOne;
+	Parameters.DBufferBTexture = SystemTextures.DefaultNormal8Bit;
+	Parameters.DBufferCTexture = SystemTextures.BlackAlphaOne;
+	Parameters.DBufferRenderMask = SystemTextures.White;
+
+	if (DBufferTextures.IsValid())
+	{
+		Parameters.DBufferATexture = DBufferTextures.DBufferA;
+		Parameters.DBufferBTexture = DBufferTextures.DBufferB;
+		Parameters.DBufferCTexture = DBufferTextures.DBufferC;
+
+		if (DBufferTextures.DBufferMask)
+		{
+			Parameters.DBufferRenderMask = DBufferTextures.DBufferMask;
+		}
+	}
+
+	return Parameters;
+}
+
+FDeferredDecalPassTextures GetDeferredDecalPassTextures(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, FDBufferTextures* DBufferTextures)
+{
 	FDeferredDecalPassTextures PassTextures;
-	PassTextures.SceneTexturesUniformBuffer = SceneTexturesUniformBuffer;
-	PassTextures.Depth = RegisterExternalTextureMSAA(GraphBuilder, SceneContext.SceneDepthZ);
-	PassTextures.Color = TryRegisterExternalTexture(GraphBuilder, SceneContext.GetSceneColor(), ERenderTargetTexture::Targetable);
-	PassTextures.GBufferA = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferA);
-	PassTextures.GBufferB = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferB);
-	PassTextures.GBufferC = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferC);
-	PassTextures.GBufferE = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferE);
+	PassTextures.SceneTexturesUniformBuffer = SceneTextures.UniformBuffer;
+	PassTextures.Depth = SceneTextures.Depth;
+	PassTextures.Color = SceneTextures.Color.Target;
+	PassTextures.GBufferA = (*SceneTextures.UniformBuffer)->GBufferATexture;
+	PassTextures.GBufferB = (*SceneTextures.UniformBuffer)->GBufferBTexture;
+	PassTextures.GBufferC = (*SceneTextures.UniformBuffer)->GBufferCTexture;
+	PassTextures.GBufferE = (*SceneTextures.UniformBuffer)->GBufferETexture;
+	PassTextures.DBufferTextures = DBufferTextures;
 	return PassTextures;
 }
 
 void GetDeferredDecalPassParameters(
 	const FViewInfo& View,
-	FDeferredDecalPassTextures& Textures,
+	const FDeferredDecalPassTextures& Textures,
 	FDecalRenderingCommon::ERenderTargetMode RenderTargetMode,
 	FDeferredDecalPassParameters& PassParameters)
 {
@@ -124,27 +153,25 @@ void GetDeferredDecalPassParameters(
 
 	case FDecalRenderingCommon::RTM_DBuffer:
 	{
-		// If this is a secondary view we need to load the buffer from the primary view
-		if (IStereoRendering::IsASecondaryView(View))
-		{
-			Textures.DBufferLoadAction = ERenderTargetLoadAction::ELoad;
-		}
+		check(Textures.DBufferTextures);
 
-		AddColorTarget(Textures.DBufferA, Textures.DBufferLoadAction);
-		AddColorTarget(Textures.DBufferB, Textures.DBufferLoadAction);
-		AddColorTarget(Textures.DBufferC, Textures.DBufferLoadAction);
-		if (Textures.DBufferMask)
+		const FDBufferTextures& DBufferTextures = *Textures.DBufferTextures;
+
+		const ERenderTargetLoadAction LoadAction = DBufferTextures.DBufferA->HasBeenProduced()
+			? ERenderTargetLoadAction::ELoad
+			: ERenderTargetLoadAction::EClear;
+
+		AddColorTarget(DBufferTextures.DBufferA, LoadAction);
+		AddColorTarget(DBufferTextures.DBufferB, LoadAction);
+		AddColorTarget(DBufferTextures.DBufferC, LoadAction);
+
+		if (DBufferTextures.DBufferMask)
 		{
-			AddColorTarget(Textures.DBufferMask, Textures.DBufferLoadAction);
+			AddColorTarget(DBufferTextures.DBufferMask, LoadAction);
 		}
 
 		// D-Buffer always uses the resolved depth; no MSAA.
 		DepthTexture = Textures.Depth.Resolve;
-
-		if (!View.Family->bMultiGPUForkAndJoin)
-		{
-			Textures.DBufferLoadAction = ERenderTargetLoadAction::ELoad;
-		}
 		break;
 	}
 	case FDecalRenderingCommon::RTM_AmbientOcclusion:
@@ -478,13 +505,56 @@ static const TCHAR* GetStageName(EDecalRenderStage Stage)
 	return TEXT("<UNKNOWN>");
 }
 
+FDBufferTextures CreateDBufferTextures(FRDGBuilder& GraphBuilder, FIntPoint Extent, EShaderPlatform ShaderPlatform)
+{
+	FDBufferTextures DBufferTextures;
+
+	if (IsUsingDBuffers(ShaderPlatform))
+	{
+		const EDecalDBufferMaskTechnique DBufferMaskTechnique = GetDBufferMaskTechnique(ShaderPlatform);
+		const ETextureCreateFlags WriteMaskFlags = DBufferMaskTechnique == EDecalDBufferMaskTechnique::WriteMask ? TexCreate_NoFastClearFinalize | TexCreate_DisableDCC : TexCreate_None;
+		const ETextureCreateFlags BaseFlags = WriteMaskFlags | TexCreate_ShaderResource | TexCreate_RenderTargetable;
+		const ERDGTextureFlags TextureFlags = DBufferMaskTechnique != EDecalDBufferMaskTechnique::Disabled
+			? ERDGTextureFlags::MaintainCompression
+			: ERDGTextureFlags::None;
+
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Extent, PF_B8G8R8A8, FClearValueBinding::None, BaseFlags);
+
+		Desc.Flags = BaseFlags | GFastVRamConfig.DBufferA;
+		Desc.ClearValue = FClearValueBinding::Black;
+		DBufferTextures.DBufferA = GraphBuilder.CreateTexture(Desc, TEXT("DBufferA"), TextureFlags);
+
+		Desc.Flags = BaseFlags | GFastVRamConfig.DBufferB;
+		Desc.ClearValue = FClearValueBinding(FLinearColor(128.0f / 255.0f, 128.0f / 255.0f, 128.0f / 255.0f, 1));
+		DBufferTextures.DBufferB = GraphBuilder.CreateTexture(Desc, TEXT("DBufferB"), TextureFlags);
+
+		Desc.Flags = BaseFlags | GFastVRamConfig.DBufferC;
+		Desc.ClearValue = FClearValueBinding(FLinearColor(0, 0, 0, 1));
+		DBufferTextures.DBufferC = GraphBuilder.CreateTexture(Desc, TEXT("DBufferC"), TextureFlags);
+
+		if (DBufferMaskTechnique == EDecalDBufferMaskTechnique::PerPixel)
+		{
+			// Note: 32bpp format is used here to utilize color compression hardware (same as other DBuffer targets).
+			// This significantly reduces bandwidth for clearing, writing and reading on some GPUs.
+			// While a smaller format, such as R8_UINT, will use less video memory, it will result in slower clears and higher bandwidth requirements.
+			check(Desc.Format == PF_B8G8R8A8);
+			Desc.Flags = TexCreate_ShaderResource;
+			Desc.ClearValue = FClearValueBinding::Transparent;
+			DBufferTextures.DBufferMask = GraphBuilder.CreateTexture(Desc, TEXT("DBufferMask"));
+		}
+	}
+
+	return DBufferTextures;
+}
+
 void AddDeferredDecalPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FDeferredDecalPassTextures& PassTextures,
+	const FDeferredDecalPassTextures& PassTextures,
 	EDecalRenderStage DecalRenderStage)
 {
 	check(PassTextures.Depth.IsValid());
+	check(DecalRenderStage != DRS_BeforeBasePass || PassTextures.DBufferTextures);
 
 	const FSceneViewFamily& ViewFamily = *(View.Family);
 
@@ -493,8 +563,6 @@ void AddDeferredDecalPass(
 	{
 		return;
 	}
-
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	const FScene& Scene = *(FScene*)ViewFamily.Scene;
 	const EShaderPlatform ShaderPlatform = View.GetShaderPlatform();
@@ -522,20 +590,6 @@ void AddDeferredDecalPass(
 
 	// Attempt to clear the D-Buffer if it's appropriate for this view.
 	const EDecalDBufferMaskTechnique DBufferMaskTechnique = GetDBufferMaskTechnique(ShaderPlatform);
-
-	const auto CreateOrImportTexture = [&](TRefCountPtr<IPooledRenderTarget>& Target, const FRDGTextureDesc& Desc, const TCHAR* Name, ERDGTextureFlags Flags = ERDGTextureFlags::None)
-	{
-		if (Target)
-		{
-			return GraphBuilder.RegisterExternalTexture(Target);
-		}
-		else
-		{
-			FRDGTextureRef Texture = GraphBuilder.CreateTexture(Desc, Name, Flags);
-			ConvertToExternalTexture(GraphBuilder, Texture, Target);
-			return Texture;
-		}
-	};
 
 	const auto RenderDecals = [&](uint32 DecalIndexBegin, uint32 DecalIndexEnd, FDecalRenderingCommon::ERenderTargetMode RenderTargetMode)
 	{
@@ -615,47 +669,6 @@ void AddDeferredDecalPass(
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "DeferredDecals %s", GetStageName(DecalRenderStage));
 
-		if (DecalRenderStage == DRS_BeforeBasePass)
-		{
-			const ETextureCreateFlags WriteMaskFlags = DBufferMaskTechnique == EDecalDBufferMaskTechnique::WriteMask ? TexCreate_NoFastClearFinalize | TexCreate_DisableDCC : TexCreate_None;
-			const ETextureCreateFlags BaseFlags = WriteMaskFlags | TexCreate_ShaderResource | TexCreate_RenderTargetable;
-
-			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(PassTextures.Depth.Target->Desc.Extent, PF_B8G8R8A8, FClearValueBinding::None, BaseFlags);
-
-			ERDGTextureFlags RDGTexFlags = DBufferMaskTechnique != EDecalDBufferMaskTechnique::Disabled
-				? ERDGTextureFlags::MaintainCompression
-				: ERDGTextureFlags::None;
-
-			{
-				Desc.Flags = BaseFlags | GFastVRamConfig.DBufferA;
-				Desc.ClearValue = FClearValueBinding::Black;
-				PassTextures.DBufferA = CreateOrImportTexture(SceneContext.DBufferA, Desc, TEXT("DBufferA"), RDGTexFlags);
-			}
-
-			{
-				Desc.Flags = BaseFlags | GFastVRamConfig.DBufferB;
-				Desc.ClearValue = FClearValueBinding(FLinearColor(128.0f / 255.0f, 128.0f / 255.0f, 128.0f / 255.0f, 1));
-				PassTextures.DBufferB = CreateOrImportTexture(SceneContext.DBufferB, Desc, TEXT("DBufferB"), RDGTexFlags);
-			}
-
-			{
-				Desc.Flags = BaseFlags | GFastVRamConfig.DBufferC;
-				Desc.ClearValue = FClearValueBinding(FLinearColor(0, 0, 0, 1));
-				PassTextures.DBufferC = CreateOrImportTexture(SceneContext.DBufferC, Desc, TEXT("DBufferC"), RDGTexFlags);
-			}
-
-			if (DBufferMaskTechnique == EDecalDBufferMaskTechnique::PerPixel)
-			{
-				// Note: 32bpp format is used here to utilize color compression hardware (same as other DBuffer targets).
-				// This significantly reduces bandwidth for clearing, writing and reading on some GPUs.
-				// While a smaller format, such as R8_UINT, will use less video memory, it will result in slower clears and higher bandwidth requirements.
-				check(Desc.Format == PF_B8G8R8A8);
-				Desc.Flags = TexCreate_ShaderResource;
-				Desc.ClearValue = FClearValueBinding::Transparent;
-				PassTextures.DBufferMask = CreateOrImportTexture(SceneContext.DBufferMask, Desc, TEXT("DBufferMask"));
-			}
-		}
-
 		if (MeshDecalCount > 0 && (DecalRenderStage == DRS_BeforeBasePass || DecalRenderStage == DRS_BeforeLighting || DecalRenderStage == DRS_Emissive))
 		{
 			RenderMeshDecals(GraphBuilder, View, PassTextures, DecalRenderStage);
@@ -691,14 +704,12 @@ void AddDeferredDecalPass(
 	// Last D-Buffer pass in the frame decodes the write mask (if supported and decals were rendered).
 	if (DBufferMaskTechnique == EDecalDBufferMaskTechnique::WriteMask &&
 		DecalRenderStage == DRS_BeforeBasePass &&
-		PassTextures.DBufferA != nullptr &&
+		PassTextures.DBufferTextures->IsValid() &&
 		View.IsLastInFamily())
 	{
 		// Combine DBuffer RTWriteMasks; will end up in one texture we can load from in the base pass PS and decide whether to do the actual work or not.
-		FRDGTextureRef Textures[] = { PassTextures.DBufferA, PassTextures.DBufferB, PassTextures.DBufferC };
-		FRDGTextureRef OutputTexture = nullptr;
-		FRenderTargetWriteMask::Decode(GraphBuilder, View.ShaderMap, MakeArrayView(Textures), OutputTexture, GFastVRamConfig.DBufferMask, TEXT("DBufferMaskCombine"));
-		ConvertToExternalTexture(GraphBuilder, OutputTexture, SceneContext.DBufferMask);
+		FRDGTextureRef Textures[] = { PassTextures.DBufferTextures->DBufferA, PassTextures.DBufferTextures->DBufferB, PassTextures.DBufferTextures->DBufferC };
+		FRenderTargetWriteMask::Decode(GraphBuilder, View.ShaderMap, MakeArrayView(Textures), PassTextures.DBufferTextures->DBufferMask, GFastVRamConfig.DBufferMask, TEXT("DBufferMaskCombine"));
 	}
 }
 

@@ -12,6 +12,7 @@
 #include "Rendering/SkyAtmosphereCommonData.h"
 #include "SceneTextureParameters.h"
 #include "CompositionLighting/CompositionLighting.h"
+#include "CompositionLighting/PostProcessAmbientOcclusion.h"
 #include "SceneViewExtension.h"
 #include "OneColorShader.h"
 #include "ClearQuad.h"
@@ -573,87 +574,50 @@ void SetupSharedBasePassParameters(
 	}
 }
 
-void SetupSharedOpaqueBasePassParameters(
+TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUniformBuffer(
 	FRDGBuilder& GraphBuilder,
-	const FSceneRenderTargets& SceneRenderTargets,
 	const FViewInfo& View,
-	FRDGTextureRef ForwardScreenSpaceShadowMask,
-	const FSceneWithoutWaterTextures* SceneWithoutWaterTextures,
 	const int32 ViewIndex,
-	FOpaqueBasePassUniformParameters& BasePassParameters)
+	const FForwardBasePassTextures& ForwardBasePassTextures,
+	const FDBufferTextures& DBufferTextures,
+	const FSceneWithoutWaterTextures* SceneWithoutWaterTextures)
 {
-	const auto GetRDG = [&](const TRefCountPtr<IPooledRenderTarget>& PooledRenderTarget, ERDGTextureFlags Flags = ERDGTextureFlags::None)
-	{
-		return GraphBuilder.RegisterExternalTexture(PooledRenderTarget, ERenderTargetTexture::ShaderResource, Flags);
-	};
-
+	FOpaqueBasePassUniformParameters& BasePassParameters = *GraphBuilder.AllocParameters<FOpaqueBasePassUniformParameters>();
 	SetupSharedBasePassParameters(GraphBuilder, View, BasePassParameters.Shared);
 
-	FRDGTextureRef WhiteDummy = GetRDG(GSystemTextures.WhiteDummy);
-	FRDGTextureRef BlackDummy = GetRDG(GSystemTextures.BlackDummy);
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	// Forward shading
 	{
-		if (ForwardScreenSpaceShadowMask)
+		BasePassParameters.UseForwardScreenSpaceShadowMask = 0;
+		BasePassParameters.ForwardScreenSpaceShadowMaskTexture = SystemTextures.White;
+		BasePassParameters.IndirectOcclusionTexture = SystemTextures.White;
+		BasePassParameters.ResolvedSceneDepthTexture = SystemTextures.White;
+
+		if (ForwardBasePassTextures.ScreenSpaceShadowMask)
 		{
 			BasePassParameters.UseForwardScreenSpaceShadowMask = 1;
-			BasePassParameters.ForwardScreenSpaceShadowMaskTexture = ForwardScreenSpaceShadowMask;
+			BasePassParameters.ForwardScreenSpaceShadowMaskTexture = ForwardBasePassTextures.ScreenSpaceShadowMask;
 		}
-		else
+
+		if (HasBeenProduced(ForwardBasePassTextures.ScreenSpaceAO))
 		{
-			BasePassParameters.UseForwardScreenSpaceShadowMask = 0;
-			BasePassParameters.ForwardScreenSpaceShadowMaskTexture = WhiteDummy;
+			BasePassParameters.IndirectOcclusionTexture = ForwardBasePassTextures.ScreenSpaceAO;
 		}
 
-		IPooledRenderTarget* IndirectOcclusion = SceneRenderTargets.ScreenSpaceAO;
-
-		if (!SceneRenderTargets.bScreenSpaceAOIsValid)
+		if (ForwardBasePassTextures.SceneDepthIfResolved)
 		{
-			IndirectOcclusion = GSystemTextures.WhiteDummy;
+			BasePassParameters.ResolvedSceneDepthTexture = ForwardBasePassTextures.SceneDepthIfResolved;
 		}
-
-		BasePassParameters.IndirectOcclusionTexture = GetRDG(IndirectOcclusion);
-
-		FRDGTextureRef ResolvedSceneDepthTextureValue = WhiteDummy;
-
-		if (SceneRenderTargets.GetMSAACount() > 1)
-		{
-			ResolvedSceneDepthTextureValue = GetRDG(SceneRenderTargets.SceneDepthZ);
-		}
-
-		BasePassParameters.ResolvedSceneDepthTexture = ResolvedSceneDepthTextureValue;
 	}
 
 	// DBuffer Decals
-	{
-		const bool bIsDBufferEnabled = IsUsingDBuffers(View.GetShaderPlatform());
-		IPooledRenderTarget* DBufferA = bIsDBufferEnabled && SceneRenderTargets.DBufferA ? SceneRenderTargets.DBufferA : GSystemTextures.BlackAlphaOneDummy;
-		IPooledRenderTarget* DBufferB = bIsDBufferEnabled && SceneRenderTargets.DBufferB ? SceneRenderTargets.DBufferB : GSystemTextures.DefaultNormal8Bit;
-		IPooledRenderTarget* DBufferC = bIsDBufferEnabled && SceneRenderTargets.DBufferC ? SceneRenderTargets.DBufferC : GSystemTextures.BlackAlphaOneDummy;
-
-		ERDGTextureFlags Flags = ERDGTextureFlags::None;
-		if ((RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) || IsUsingPerPixelDBufferMask(View.GetShaderPlatform())) && SceneRenderTargets.DBufferMask)
-		{
-			BasePassParameters.DBufferRenderMask = GetRDG(SceneRenderTargets.DBufferMask);
-			Flags = ERDGTextureFlags::MaintainCompression;
-		}
-		else
-		{
-			BasePassParameters.DBufferRenderMask = WhiteDummy;
-		}
-
-		BasePassParameters.DBufferATexture = GetRDG(DBufferA, Flags);
-		BasePassParameters.DBufferBTexture = GetRDG(DBufferB, Flags);
-		BasePassParameters.DBufferCTexture = GetRDG(DBufferC, Flags);
-		BasePassParameters.DBufferATextureSampler = TStaticSamplerState<>::GetRHI();
-		BasePassParameters.DBufferBTextureSampler = TStaticSamplerState<>::GetRHI();
-		BasePassParameters.DBufferCTextureSampler = TStaticSamplerState<>::GetRHI();
-	}
+	BasePassParameters.DBuffer = GetDBufferParameters(GraphBuilder, DBufferTextures, View.GetShaderPlatform());
 
 	// Single Layer Water
 	BasePassParameters.SceneWithoutSingleLayerWaterMinMaxUV = FVector4(0.0f, 0.0f, 1.0f, 1.0f);
-	BasePassParameters.SceneColorWithoutSingleLayerWaterTexture = BlackDummy;
-	BasePassParameters.SceneDepthWithoutSingleLayerWaterTexture = BlackDummy;
+	BasePassParameters.SceneColorWithoutSingleLayerWaterTexture = SystemTextures.Black;
+	BasePassParameters.SceneDepthWithoutSingleLayerWaterTexture = SystemTextures.Black;
 	BasePassParameters.SceneColorWithoutSingleLayerWaterSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 	BasePassParameters.SceneDepthWithoutSingleLayerWaterSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
@@ -672,27 +636,13 @@ void SetupSharedOpaqueBasePassParameters(
 	Strata::BindStrataBasePassUniformParameters(View, BasePassParameters.Strata);
 
 	// Misc
+	BasePassParameters.EyeAdaptationTexture = SystemTextures.White;
 	if (View.HasValidEyeAdaptationTexture())
 	{
-		BasePassParameters.EyeAdaptationTexture = GetRDG(View.GetEyeAdaptationTexture(), ERDGTextureFlags::MultiFrame);
+		BasePassParameters.EyeAdaptationTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptationTexture());
 	}
-	else
-	{
-		BasePassParameters.EyeAdaptationTexture = WhiteDummy;
-	}
-}
 
-TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUniformBuffer(
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	FRDGTextureRef ForwardScreenSpaceShadowMask,
-	const FSceneWithoutWaterTextures* SceneWithoutWaterTextures,
-	const int32 ViewIndex)
-{
-	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get();
-	FOpaqueBasePassUniformParameters* BasePassParameters = GraphBuilder.AllocParameters<FOpaqueBasePassUniformParameters>();
-	SetupSharedOpaqueBasePassParameters(GraphBuilder, SceneRenderTargets, View, ForwardScreenSpaceShadowMask, SceneWithoutWaterTextures, ViewIndex, *BasePassParameters);
-	return GraphBuilder.CreateUniformBuffer(BasePassParameters);
+	return GraphBuilder.CreateUniformBuffer(&BasePassParameters);
 }
 
 static void ClearGBufferAtMaxZ(
@@ -774,6 +724,7 @@ END_SHADER_PARAMETER_STRUCT()
 void FDeferredShadingSceneRenderer::RenderBasePass(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
+	const FDBufferTextures& DBufferTextures,
 	FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
 	FRDGTextureRef ForwardShadowMaskTexture)
 {
@@ -933,8 +884,13 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	FRenderTargetBindingSlots BasePassRenderTargets = GetRenderTargetBindings(ERenderTargetLoadAction::ELoad, BasePassTexturesView);
 	BasePassRenderTargets.DepthStencil = FDepthStencilBinding(BasePassDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, ExclusiveDepthStencil);
 
+	FForwardBasePassTextures ForwardBasePassTextures{};
+	ForwardBasePassTextures.SceneDepthIfResolved = SceneTextures.Depth.IsSeparate() ? SceneTextures.Depth.Resolve : nullptr;
+	ForwardBasePassTextures.ScreenSpaceAO = SceneTextures.ScreenSpaceAO;
+	ForwardBasePassTextures.ScreenSpaceShadowMask = ForwardShadowMaskTexture;
+
 	AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_BasePass));
-	RenderBasePassInternal(GraphBuilder, BasePassRenderTargets, BasePassDepthStencilAccess, ForwardShadowMaskTexture, bDoParallelBasePass, bRenderLightmapDensity);
+	RenderBasePassInternal(GraphBuilder, BasePassRenderTargets, BasePassDepthStencilAccess, ForwardBasePassTextures, DBufferTextures, bDoParallelBasePass, bRenderLightmapDensity);
 	AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterBasePass));
 
 	if (ViewFamily.ViewExtensions.Num() > 0)
@@ -1099,7 +1055,8 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 	FRDGBuilder& GraphBuilder,
 	const FRenderTargetBindingSlots& BasePassRenderTargets,
 	FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
-	FRDGTextureRef ForwardScreenSpaceShadowMask,
+	const FForwardBasePassTextures& ForwardBasePassTextures,
+	const FDBufferTextures& DBufferTextures,
 	bool bParallelBasePass,
 	bool bRenderLightmapDensity)
 {
@@ -1128,7 +1085,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 			{
-				FViewInfo& View = Views[ViewIndex];
+				const FViewInfo& View = Views[ViewIndex];
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
@@ -1136,7 +1093,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				SetupBasePassState(BasePassDepthStencilAccess, ViewFamily.EngineShowFlags.ShaderComplexity, DrawRenderState);
 
 				FOpaqueBasePassParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueBasePassParameters>();
-				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, ForwardScreenSpaceShadowMask, nullptr, ViewIndex);
+				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, ViewIndex, ForwardBasePassTextures, DBufferTextures, nullptr);
 				PassParameters->RenderTargets = BasePassRenderTargets;
 
 				const bool bShouldRenderView = View.ShouldRenderView();
@@ -1174,7 +1131,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 		{
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 			{
-				FViewInfo& View = Views[ViewIndex];
+				const FViewInfo& View = Views[ViewIndex];
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
@@ -1182,7 +1139,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				SetupBasePassState(BasePassDepthStencilAccess, ViewFamily.EngineShowFlags.ShaderComplexity, DrawRenderState);
 
 				FOpaqueBasePassParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueBasePassParameters>();
-				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, ForwardScreenSpaceShadowMask, nullptr, ViewIndex);
+				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, ViewIndex, ForwardBasePassTextures, DBufferTextures, nullptr);
 				PassParameters->RenderTargets = BasePassRenderTargets;
 
 				const bool bShouldRenderView = View.ShouldRenderView();

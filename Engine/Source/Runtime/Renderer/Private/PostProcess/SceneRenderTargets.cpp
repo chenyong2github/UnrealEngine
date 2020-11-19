@@ -26,6 +26,7 @@
 #include "StereoRenderTargetManager.h"
 #include "VT/VirtualTextureSystem.h"
 #include "VT/VirtualTextureFeedback.h"
+#include "CompositionLighting/PostProcessAmbientOcclusion.h"
 #include "VisualizeTexture.h"
 #include "GpuDebugRendering.h"
 #include "GBufferInfo.h"
@@ -162,10 +163,12 @@ FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder)
 
 	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	SceneTextures.Extent = SceneContext.GetBufferSizeXY();
+	SceneTextures.FeatureLevel = SceneContext.GetCurrentFeatureLevel();
 
 	SceneTextures.Depth = RegisterExternalTextureMSAA(GraphBuilder, SceneContext.SceneDepthZ);
 	SceneTextures.Stencil = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(SceneTextures.Depth.Target, PF_X24_G8));
 	SceneTextures.SmallDepth = GraphBuilder.RegisterExternalTexture(SceneContext.SmallDepthZ, ERenderTargetTexture::Targetable);
+	SceneTextures.ScreenSpaceAO = CreateScreenSpaceAOTexture(GraphBuilder, SceneTextures.Extent);
 
 	return SceneTextures;
 }
@@ -1740,24 +1743,6 @@ void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRDGBuilder& 
 		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, SmallDepthZ, TEXT("SmallDepthZ"), ERenderTargetTransience::NonTransient);
 	}
 
-	// Create the required render targets if running Highend.
-	if (CurrentFeatureLevel >= ERHIFeatureLevel::SM5)
-	{
-		// Create the screen space ambient occlusion buffer
-		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_G8, FClearValueBinding::White, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
-			Desc.Flags |= GFastVRamConfig.ScreenSpaceAO;
-
-			if (CurrentFeatureLevel >= ERHIFeatureLevel::SM5)
-			{
-				// UAV is only needed to support "r.AmbientOcclusion.Compute"
-				// todo: ideally this should be only UAV or RT, not both
-				Desc.TargetableFlags |= TexCreate_UAV;
-			}
-			GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, ScreenSpaceAO, TEXT("ScreenSpaceAO"), ERenderTargetTransience::NonTransient);
-		}
-	}
-
 	if (bAllocateVelocityGBuffer)
 	{
 		FPooledRenderTargetDesc VelocityRTDesc = Translate(FVelocityRendering::GetRenderTargetDesc(ShaderPlatform));
@@ -1915,11 +1900,6 @@ void FSceneRenderTargets::ReleaseAllTargets()
 	SceneDepthZ.SafeRelease();
 	SceneStencilSRV.SafeRelease();
 	SmallDepthZ.SafeRelease();
-	DBufferA.SafeRelease();
-	DBufferB.SafeRelease();
-	DBufferC.SafeRelease();
-	ScreenSpaceAO.SafeRelease();
-	ScreenSpaceGTAOHorizons.SafeRelease();
 	QuadOverdrawBuffer.SafeRelease();
 	CustomDepth.SafeRelease();
 	MobileCustomDepth.SafeRelease();
@@ -2298,7 +2278,18 @@ void SetupSceneTextureUniformParameters(
 	// SSAO
 	{
 		const bool bSetupSSAO = EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::SSAO);
-		SceneTextureParameters.ScreenSpaceAOTexture = bSetupSSAO && SceneContext.bScreenSpaceAOIsValid && SceneContext.ScreenSpaceAO ? GetRDG(SceneContext.ScreenSpaceAO) : SystemTextures.White;
+		SceneTextureParameters.ScreenSpaceAOTexture = GetScreenSpaceAOFallback(SystemTextures);
+
+		if (bSetupSSAO)
+		{
+			if (const FSceneTextures* SceneTextures = GraphBuilder.Blackboard.Get<FSceneTextures>())
+			{
+				if (HasBeenProduced(SceneTextures->ScreenSpaceAO))
+				{
+					SceneTextureParameters.ScreenSpaceAOTexture = SceneTextures->ScreenSpaceAO;
+				}
+			}
+		}
 	}
 
 	// Custom Depth / Stencil
