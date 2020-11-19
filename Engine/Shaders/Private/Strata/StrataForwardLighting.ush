@@ -23,11 +23,13 @@ float3 StrataForwardLighting(
 	float3 Color = 0;
 	OutThroughput = 1.0f;
 
+	UNROLL
 	for (int l = 0; l < Strata.LayerCount; ++l)
 	{
 		float3 LayerThroughput = 0.0f;
 		float3 LayerCoverage = 0.0f;
 
+		UNROLL
 		for (int i = 0; i < Strata.Layers[l].BSDFCount; ++i)
 		{
 			FStrataBSDF BSDF = Strata.Layers[l].BSDFs[i];
