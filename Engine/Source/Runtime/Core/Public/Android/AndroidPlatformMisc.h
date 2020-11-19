@@ -172,8 +172,10 @@ public:
 	enum class EOSMemoryStatusCategory { OSTrim, MemoryAdvisorState, MemoryAdvisorEstimateMB, OomScore };
 	static void UpdateOSMemoryStatus(EOSMemoryStatusCategory OSMemoryStatusCategory, int value);
 
-	static void SetVersionInfo(FString AndroidVersion, FString DeviceMake, FString DeviceModel, FString DeviceBuildNumber, FString OSLanguage);
+	static void SetVersionInfo(FString AndroidVersion, int32 InTargetSDKVersion, FString DeviceMake, FString DeviceModel, FString DeviceBuildNumber, FString OSLanguage);
 	static const FString GetAndroidVersion();
+	static int32 GetAndroidMajorVersion();
+	static int32 GetTargetSDKVersion();
 	static const FString GetDeviceMake();
 	static const FString GetDeviceModel();
 	static const FString GetOSLanguage();
@@ -255,6 +257,8 @@ public:
 	
 	// run time compatibility information
 	static FString AndroidVersion; // version of android we are running eg "4.0.4"
+	static int32 AndroidMajorVersion; // integer major version of Android we are running, eg 10
+	static int32 TargetSDKVersion; // Target SDK version, eg 29.
 	static FString DeviceMake; // make of the device we are running on eg. "samsung"
 	static FString DeviceModel; // model of the device we are running on eg "SAMSUNG-SGH-I437"
 	static FString DeviceBuildNumber; // platform image build number of device "R16NW.G960NKSU1ARD6"
