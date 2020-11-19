@@ -139,13 +139,24 @@ public:
 
 	FORCEINLINE_DEBUGGABLE void Reset(ObjectType* InNewObject = nullptr)
 	{
-		if (ReferenceCollector)
+		if (InNewObject)
 		{
-			ReferenceCollector->Set(InNewObject);
+			if (ReferenceCollector)
+			{
+				// Update the referenced object
+				ReferenceCollector->Set(InNewObject);
+			}
+			else
+			{
+				// Lazily create the ReferenceCollector to allow TStrongObjectPtr to be used during static initialization
+				ReferenceCollector = MakeUnique<UE4StrongObjectPtr_Private::FInternalReferenceCollector>(InNewObject);
+			}
 		}
-		else if (InNewObject)
+		else
 		{
-			ReferenceCollector = MakeUnique<UE4StrongObjectPtr_Private::FInternalReferenceCollector>(InNewObject);
+			// Destroy the ReferenceCollector immediately to allow TStrongObjectPtr to be manually cleared prior to 
+			// static deinitialization, as not all platforms use the main thread as their game thread
+			ReferenceCollector.Reset();
 		}
 	}
 
