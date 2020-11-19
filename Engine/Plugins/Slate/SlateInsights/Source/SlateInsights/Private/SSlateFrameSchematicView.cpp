@@ -628,7 +628,7 @@ void SSlateFrameSchematicView::RefreshNodes_Invalidation(const FSlateProvider* S
 	// Build a flat list of all the invalidation
 	const FSlateProvider::TWidgetInvalidatedTimeline& InvalidatedTimeline = SlateProvider->GetWidgetInvalidatedTimeline();
 	InvalidatedTimeline.EnumerateEvents(StartTime, EndTime,
-		[&InvalidationMap](double EventStartTime, double EventEndTime, uint32 /*Depth*/, const Message::FWidgetInvalidatedMessage& Message)
+		[&InvalidationMap, &SlateProvider](double EventStartTime, double EventEndTime, uint32 /*Depth*/, const Message::FWidgetInvalidatedMessage& Message)
 		{
 			TSharedPtr<Private::FWidgetUniqueInvalidatedInfo> WidgetInfo;
 			TSharedPtr<Private::FWidgetUniqueInvalidatedInfo> InvestigatorInfo;
@@ -665,9 +665,10 @@ void SSlateFrameSchematicView::RefreshNodes_Invalidation(const FSlateProvider* S
 				WidgetInfo->ScriptTrace = Message.ScriptTrace;
 			}
 
-			if (!Message.Callstack.IsEmpty())
+			const FString* Callstack = SlateProvider->FindInvalidationCallstack(Message.SourceCycle);
+			if (Callstack)
 			{
-				WidgetInfo->Callstack = Message.Callstack;
+				WidgetInfo->Callstack = *Callstack;
 			}
 
 			return TraceServices::EEventEnumerate::Continue;

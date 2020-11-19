@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Trace/SlateTrace.h"
+#include "Async/Async.h"
 
 #if UE_SLATE_TRACE_ENABLED
 
@@ -73,7 +74,6 @@ UE_TRACE_EVENT_BEGIN(SlateTrace, WidgetInvalidated)
 	UE_TRACE_EVENT_FIELD(uint8, InvalidateWidgetReason)		// The reason of the invalidation. (EInvalidateWidgetReason)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, ScriptTrace)// Optional script trace for root widget invalidations
 	UE_TRACE_EVENT_FIELD(uint64[], Callstack)				// Optional callstack for root widget invalidations
-	UE_TRACE_EVENT_FIELD(uint32, ProcessId)					// Optional proccess ID where the invalidation occureed.
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(SlateTrace, RootInvalidated)
@@ -87,6 +87,12 @@ UE_TRACE_EVENT_BEGIN(SlateTrace, RootChildOrderInvalidated)
 	UE_TRACE_EVENT_FIELD(uint64, WidgetId)				// Invalidated InvalidationRoot widget unique ID.
 	UE_TRACE_EVENT_FIELD(uint64, InvestigatorId)		// Widget unique ID that investigated the invalidation.
 UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(SlateTrace, InvalidationCallstack)
+	UE_TRACE_EVENT_FIELD(uint64, SourceCycle)              // Cycle during which a callstack was captured
+	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, CallstackText) // Text of the captured callstack
+UE_TRACE_EVENT_END()
+
 
 //-----------------------------------------------------------------------------------//
 
@@ -229,15 +235,51 @@ void FSlateTrace::WidgetInvalidated(const SWidget* Widget, const SWidget* Invest
 
 		const uint64 WidgetId = SlateTraceDetail::GetWidgetId(Widget);
 		const uint64 InvestigatorId = SlateTraceDetail::GetWidgetIdIfValid(Investigator);
+		const uint64 Cycle = FPlatformTime::Cycles64();
 
 		UE_TRACE_LOG(SlateTrace, WidgetInvalidated, SlateChannel)
-			<< WidgetInvalidated.Cycle(FPlatformTime::Cycles64())
+			<< WidgetInvalidated.Cycle(Cycle)
 			<< WidgetInvalidated.WidgetId(WidgetId)
 			<< WidgetInvalidated.InvestigatorId(InvestigatorId)
 			<< WidgetInvalidated.ScriptTrace(*ScriptTrace)
 			<< WidgetInvalidated.Callstack(StackTrace, StackTraceDepth)
-			<< WidgetInvalidated.ProcessId(ProcessId)
 			<< WidgetInvalidated.InvalidateWidgetReason(static_cast<uint8>(Reason));
+
+#if !(UE_BUILD_SHIPPING)
+		if (!Investigator && bCaptureRootInvalidationCallstacks)
+		{
+			// Note: Done in seperate thread as symbol resolution is very slow, possibly 1~80ms based on widget complexity.
+			AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [Cycle, StackTrace, StackTraceDepth]()
+			{
+				const SIZE_T CallStackSize = 65535;
+				ANSICHAR* CallStack = (ANSICHAR*)FMemory::SystemMalloc(CallStackSize);
+				if (CallStack != nullptr)
+				{
+					CallStack[0] = 0;
+				}
+
+				uint32 StackDepth = 0;
+				while (StackDepth < StackTraceDepth)
+				{
+					// Skip the first two backraces, that's from us.
+					if (StackDepth >= 2 && StackTrace[StackDepth])
+					{
+						FProgramCounterSymbolInfo SymbolInfo;
+						FPlatformStackWalk::ProgramCounterToSymbolInfo(StackTrace[StackDepth], SymbolInfo);
+						FPlatformStackWalk::SymbolInfoToHumanReadableString(SymbolInfo, CallStack, CallStackSize);
+						FCStringAnsi::Strncat(CallStack, LINE_TERMINATOR_ANSI, CallStackSize);
+					}
+					StackDepth++;
+				}
+
+				UE_TRACE_LOG(SlateTrace, InvalidationCallstack, SlateChannel)
+					<< InvalidationCallstack.SourceCycle(Cycle)
+					<< InvalidationCallstack.CallstackText(CallStack);
+
+				FMemory::SystemFree(CallStack);
+			});
+		}
+#endif // !(UE_BUILD_SHIPPING)
 	}
 }
 

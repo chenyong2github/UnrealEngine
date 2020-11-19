@@ -33,6 +33,7 @@ private:
 		RouteId_WidgetInvalidated,
 		RouteId_RootInvalidated,
 		RouteId_RootChildOrderInvalidated,
+		RouteId_InvalidationCallstack,
 	};
 
 	TraceServices::IAnalysisSession& Session;

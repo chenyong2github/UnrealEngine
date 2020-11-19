@@ -4,6 +4,7 @@
 #include "HAL/PlatformStackWalk.h"
 #include "HAL/PlatformProcess.h"
 #include "Insights/ViewModels/TimingEventsTrack.h"
+#include "Trace/SlateTrace.h"
 
 #define LOCTEXT_NAMESPACE "SlateProvider"
 
@@ -31,6 +32,12 @@ namespace Message
 		static_assert(sizeof(ESlateTraceApplicationFlags) == sizeof(uint8), "ESlateTraceApplicationFlags is not a uint8");
 	}
 
+	UE::SlateInsights::Message::FInvalidationCallstackMessage::FInvalidationCallstackMessage(const UE::Trace::IAnalyzer::FEventData& EventData)
+		: SourceCycle(EventData.GetValue<uint64>("SourceCycle"))
+	{
+		EventData.GetString("CallstackText", Callstack);
+	}
+
 	FWidgetInfo::FWidgetInfo(const UE::Trace::IAnalyzer::FEventData& EventData)
 		: WidgetId(EventData.GetValue<uint64>("WidgetId"))
 		, Path()
@@ -53,62 +60,36 @@ namespace Message
 		static_assert(sizeof(EInvalidateWidgetReason) == sizeof(uint8), "EInvalidateWidgetReason is not a uint8");
 
 		FWidgetInvalidatedMessage Message;
+		Message.SourceCycle = EventData.GetValue<uint64>("Cycle");
 		Message.WidgetId = EventData.GetValue<uint64>("WidgetId");
 		Message.InvestigatorId = EventData.GetValue<uint64>("InvestigatorId");
 		Message.InvalidationReason = static_cast<EInvalidateWidgetReason>(EventData.GetValue<uint8>("InvalidateWidgetReason"));
 		EventData.GetString("ScriptTrace", Message.ScriptTrace);
-		Message.Callstack = GetCallstack(EventData);
 		return Message;
 	}
 
 	FWidgetInvalidatedMessage FWidgetInvalidatedMessage::FromRoot(const UE::Trace::IAnalyzer::FEventData& EventData)
 	{
 		FWidgetInvalidatedMessage Message;
+		Message.SourceCycle = EventData.GetValue<uint64>("Cycle");
 		Message.WidgetId = EventData.GetValue<uint64>("WidgetId");
 		Message.InvestigatorId = EventData.GetValue<uint64>("InvestigatorId");
 		Message.InvalidationReason = EInvalidateWidgetReason::Layout;
 		EventData.GetString("ScriptTrace", Message.ScriptTrace);
-		Message.Callstack = GetCallstack(EventData);
 		return Message;
 	}
 
 	FWidgetInvalidatedMessage FWidgetInvalidatedMessage::FromChildOrder(const UE::Trace::IAnalyzer::FEventData& EventData)
 	{
 		FWidgetInvalidatedMessage Message;
+		Message.SourceCycle = EventData.GetValue<uint64>("Cycle");
 		Message.WidgetId = EventData.GetValue<uint64>("WidgetId");
 		Message.InvestigatorId = EventData.GetValue<uint64>("InvestigatorId");
 		Message.InvalidationReason = EInvalidateWidgetReason::ChildOrder;
 		EventData.GetString("ScriptTrace", Message.ScriptTrace);
-		Message.Callstack = GetCallstack(EventData);
 		return Message;
 	}
 
-	FString FWidgetInvalidatedMessage::GetCallstack(const UE::Trace::IAnalyzer::FEventData& EventData)
-	{
-		FString Callstack = "";
-		const auto& CallstackReader = EventData.GetArrayView<uint64>("Callstack");
-		if (CallstackReader.Num() != 0)
-		{
-			FPlatformStackWalk::InitStackWalkingForProcess(FPlatformProcess::OpenProcess(EventData.GetValue<uint32>("ProcessId")));
-			uint8 StackDepth = 0;
-			for (uint64 ProgramCounter : CallstackReader)
-			{
-				// Skip the first two backraces, that's from us.
-				if (StackDepth++ >= 2)
-				{
-					FString SymbolAsText;
-
-					// Note: Done insight thread as this process is very slow, possibly 1~80ms based on widget complexity.
-					FProgramCounterSymbolInfoEx SymbolInfo;
-					FPlatformStackWalk::ProgramCounterToSymbolInfoEx(ProgramCounter, SymbolInfo);
-					FPlatformStackWalk::SymbolInfoToHumanReadableStringEx(SymbolInfo, SymbolAsText);
-
-					Callstack += SymbolAsText + "\r\n";
-				}
-			}
-		}
-		return Callstack;
-	}
 } //namespace Message
 
 FSlateProvider::FSlateProvider(TraceServices::IAnalysisSession& InSession)
@@ -176,6 +157,13 @@ void FSlateProvider::AddWidgetInvalidatedEvent(double Seconds, Message::FWidgetI
 	Session.WriteAccessCheck();
 
 	WidgetInvalidatedTimeline.EmplaceEvent(Seconds, UpdatedMessage);
+}
+
+void FSlateProvider::ProcessInvalidationCallstack(Message::FInvalidationCallstackMessage CallstackMessage)
+{
+	Session.WriteAccessCheck();
+
+	InvalidationCallstacks.Add(CallstackMessage.SourceCycle, CallstackMessage.Callstack);
 }
 
 } //namespace SlateInsights

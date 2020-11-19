@@ -31,6 +31,7 @@ void FSlateAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_WidgetInvalidated, "SlateTrace", "WidgetInvalidated");
 	Builder.RouteEvent(RouteId_RootInvalidated, "SlateTrace", "RootInvalidated");
 	Builder.RouteEvent(RouteId_RootChildOrderInvalidated, "SlateTrace", "RootChildOrderInvalidated");
+	Builder.RouteEvent(RouteId_InvalidationCallstack, "SlateTrace", "InvalidationCallstack");
 }
 
 bool FSlateAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
@@ -96,6 +97,11 @@ bool FSlateAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 		const double Time = Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle"));
 
 		SlateProvider.AddWidgetInvalidatedEvent(Time, Message::FWidgetInvalidatedMessage::FromChildOrder(EventData));
+		break;
+	}
+	case RouteId_InvalidationCallstack:
+	{
+		SlateProvider.ProcessInvalidationCallstack(Message::FInvalidationCallstackMessage(EventData));
 		break;
 	}
 	}

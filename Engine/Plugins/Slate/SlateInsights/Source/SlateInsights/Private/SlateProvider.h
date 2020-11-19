@@ -64,18 +64,17 @@ struct FWidgetUpdatedMessage
 
 struct FWidgetInvalidatedMessage
 {
+	uint64 SourceCycle;
 	FWidgetId WidgetId;
 	FWidgetId InvestigatorId;
 	EInvalidateWidgetReason InvalidationReason = EInvalidateWidgetReason::None;
 	bool bRootInvalidated = false;
 	bool bRootChildOrderInvalidated = false;
 	FString ScriptTrace;
-	FString Callstack;
 
 	static FWidgetInvalidatedMessage FromWidget(const UE::Trace::IAnalyzer::FEventData& EventData);
 	static FWidgetInvalidatedMessage FromRoot(const UE::Trace::IAnalyzer::FEventData& EventData);
 	static FWidgetInvalidatedMessage FromChildOrder(const UE::Trace::IAnalyzer::FEventData& EventData);
-	static FString GetCallstack(const UE::Trace::IAnalyzer::FEventData& EventData);
 };
 
 struct FApplicationTickedMessage
@@ -92,6 +91,14 @@ struct FApplicationTickedMessage
 	ESlateTraceApplicationFlags Flags;
 
 	FApplicationTickedMessage(const UE::Trace::IAnalyzer::FEventData& EventData);
+};
+
+struct FInvalidationCallstackMessage
+{
+	uint64 SourceCycle;
+	FString Callstack;
+
+	FInvalidationCallstackMessage(const Trace::IAnalyzer::FEventData& EventData);
 };
 
 } //namespace Message
@@ -112,6 +119,7 @@ public:
 	void AddApplicationTickedEvent(double Seconds, Message::FApplicationTickedMessage Message);
 	void AddWidgetUpdatedEvent(double Seconds, Message::FWidgetUpdatedMessage UpdatedMessage);
 	void AddWidgetInvalidatedEvent(double Seconds, Message::FWidgetInvalidatedMessage InvalidatedMessage);
+	void ProcessInvalidationCallstack(Message::FInvalidationCallstackMessage InvalidatedMessage);
 
 	/** */
 	using TApplicationTickedTimeline = TraceServices::TPointTimeline<Message::FApplicationTickedMessage>;
@@ -170,10 +178,17 @@ public:
 		return WidgetInfos.Find(WidgetId);
 	}
 
+	/** Find a callstack that should have been saved off from the Slate Provider */
+	const FString* FindInvalidationCallstack(uint64 SourceCycle) const
+	{
+		return InvalidationCallstacks.Find(SourceCycle);
+	}
+
 private:
 	TraceServices::IAnalysisSession& Session;
 
 	TMap<Message::FWidgetId, Message::FWidgetInfo> WidgetInfos;
+	TMap<uint64, FString> InvalidationCallstacks;
 
 	TWidgetTimeline WidgetTimelines;
 	TApplicationTickedTimeline ApplicationTickedTimeline;
