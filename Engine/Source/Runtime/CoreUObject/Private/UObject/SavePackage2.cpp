@@ -756,8 +756,6 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 
 		bool bUseUnversionedProperties = SaveContext.IsUsingUnversionedProperties();
 		SaveContext.Linker->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
-		SaveContext.Linker->Saver->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
-
 
 #if WITH_EDITOR
 		if (SaveContext.IsCooking())
@@ -841,7 +839,15 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 				ObjectImport.ObjectName = ReplacedName;
 			}
 		}
-		Sort(&Linker->ImportMap[0], Linker->ImportMap.Num(), FObjectResourceSortHelper());
+		//Sort(&Linker->ImportMap[0], Linker->ImportMap.Num(), FObjectResourceSortHelper());
+
+		// @todo: To stay consistent with the old save and prevent binary diff between the algo, use the old import sort for now
+		// a future cvar could allow projects use the less expensive sort in their own time down the line
+		FObjectImportSortHelper ImportSortHelper;
+		{
+			SCOPED_SAVETIMER(UPackage_Save_SortImports);
+			ImportSortHelper.SortImports(Linker, nullptr);
+		}
 		Linker->Summary.ImportCount = Linker->ImportMap.Num();
 	}
 
@@ -862,8 +868,10 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 		}
 		//Sort(&Linker->ExportMap[0], Linker->ExportMap.Num(), FObjectResourceSortHelper());
 
-		// @todo: To remove but for now object sort freaking matter in an incidental manner where it should be properly tracked with dependencies
-		// for example where FAnimInstanceProxy PostLoad actually depends on  UAnimBlueprintGeneratedClass PostLoad to be properly initialized.
+		// @todo: To stay consistent with the old save and prevent binary diff between the algo, use the old import sort for now
+		// a future cvar could allow projects use the less expensive sort in their own time down the line
+		// Also, currently the export sort order matters in an incidental manner where it should be properly tracked with dependencies instead.
+		// for example where FAnimInstanceProxy PostLoad actually depends on UAnimBlueprintGeneratedClass PostLoad to be properly initialized.
 		FObjectExportSortHelper ExportSortHelper;
 		{
 			SCOPED_SAVETIMER(UPackage_Save_SortExports);

@@ -769,6 +769,106 @@ bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bChe
 	return false;
 }
 
+bool FObjectImportSortHelper::operator()(const FObjectImport& A, const FObjectImport& B) const
+{
+	int32 Result = 0;
+	if (A.XObject == nullptr)
+	{
+		Result = 1;
+	}
+	else if (B.XObject == nullptr)
+	{
+		Result = -1;
+	}
+	else
+	{
+		const FString* FullNameA = ObjectToFullNameMap.Find(A.XObject);
+		const FString* FullNameB = ObjectToFullNameMap.Find(B.XObject);
+		checkSlow(FullNameA);
+		checkSlow(FullNameB);
+
+		Result = FCString::Stricmp(**FullNameA, **FullNameB);
+	}
+
+	return Result < 0;
+}
+
+void FObjectImportSortHelper::SortImports(FLinkerSave* Linker, FLinkerLoad* LinkerToConformTo)
+{
+	int32 SortStartPosition = 0;
+	TArray<FObjectImport>& Imports = Linker->ImportMap;
+	if (LinkerToConformTo)
+	{
+		// intended to be a copy
+		TArray<FObjectImport> Orig = Imports;
+		Imports.Empty(Imports.Num());
+
+		// this array tracks which imports from the new package exist in the old package
+		TArray<uint8> Used;
+		Used.AddZeroed(Orig.Num());
+
+		TMap<FString, int32> OriginalImportIndexes;
+		OriginalImportIndexes.Reserve(Orig.Num());
+		ObjectToFullNameMap.Reserve(Orig.Num());
+		for (int32 i = 0; i < Orig.Num(); i++)
+		{
+			FObjectImport& Import = Orig[i];
+			FString ImportFullName = Import.XObject->GetFullName();
+
+			OriginalImportIndexes.Add(*ImportFullName, i);
+			ObjectToFullNameMap.Add(Import.XObject, *ImportFullName);
+		}
+
+		for (int32 i = 0; i < LinkerToConformTo->ImportMap.Num(); i++)
+		{
+			// determine whether the new version of the package contains this export from the old package
+			int32* OriginalImportPosition = OriginalImportIndexes.Find(*LinkerToConformTo->GetImportFullName(i));
+			if (OriginalImportPosition)
+			{
+				// this import exists in the new package as well,
+				// create a copy of the FObjectImport located at the original index and place it
+				// into the matching position in the new package's import map
+				FObjectImport* NewImport = new(Imports) FObjectImport(Orig[*OriginalImportPosition]);
+				check(NewImport->XObject == Orig[*OriginalImportPosition].XObject);
+				Used[*OriginalImportPosition] = 1;
+			}
+			else
+			{
+				// this import no longer exists in the new package
+				new(Imports)FObjectImport(nullptr);
+			}
+		}
+
+		SortStartPosition = LinkerToConformTo->ImportMap.Num();
+		for (int32 i = 0; i < Used.Num(); i++)
+		{
+			if (!Used[i])
+			{
+				// the FObjectImport located at pos "i" in the original import table did not
+				// exist in the old package - add it to the end of the import table
+				new(Imports) FObjectImport(Orig[i]);
+			}
+		}
+	}
+	else
+	{
+		ObjectToFullNameMap.Reserve(Linker->ImportMap.Num());
+		for (int32 ImportIndex = 0; ImportIndex < Linker->ImportMap.Num(); ImportIndex++)
+		{
+			const FObjectImport& Import = Linker->ImportMap[ImportIndex];
+			if (Import.XObject)
+			{
+				ObjectToFullNameMap.Add(Import.XObject, Import.XObject->GetFullName());
+			}
+		}
+	}
+
+	if (SortStartPosition < Linker->ImportMap.Num())
+	{
+		Sort(&Linker->ImportMap[SortStartPosition], Linker->ImportMap.Num() - SortStartPosition, *this);
+	}
+}
+
 bool FObjectExportSortHelper::operator()(const FObjectExport& A, const FObjectExport& B) const
 {
 	int32 Result = 0;

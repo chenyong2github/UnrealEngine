@@ -73,6 +73,37 @@ struct FCanSkipEditorReferencedPackagesWhenCooking
 	FORCEINLINE operator bool() const { return bCanSkipEditorReferencedPackagesWhenCooking; }
 };
 
+ /**
+  * Helper structure to encapsulate sorting a linker's import table alphabetically, taking into account conforming to other linkers.
+  * @note Save2 should not have to use this sorting long term
+  * @note Conforming is a deprecated feature however
+  */
+struct FObjectImportSortHelper
+{
+private:
+	/**
+	 * Map of UObject => full name; optimization for sorting.
+	 */
+	TMap<UObject*, FString>			ObjectToFullNameMap;
+
+	/** the linker that we're sorting names for */
+	friend struct TDereferenceWrapper<FObjectImport, FObjectImportSortHelper>;
+
+	/** Comparison function used by Sort */
+	bool operator()(const FObjectImport& A, const FObjectImport& B) const;
+
+public:
+
+	/**
+	 * Sorts imports according to the order in which they occur in the list of imports.  If a package is specified to be conformed against, ensures that the order
+	 * of the imports match the order in which the corresponding imports occur in the old package.
+	 *
+	 * @param	Linker				linker containing the imports that need to be sorted
+	 * @param	LinkerToConformTo	optional linker to conform against.
+	 */
+	void SortImports(FLinkerSave* Linker, FLinkerLoad* LinkerToConformTo = nullptr);
+};
+
 /**
  * Helper structure to encapsulate sorting a linker's export table alphabetically, taking into account conforming to other linkers.
  * @note Save2 should not have to use this sorting long term

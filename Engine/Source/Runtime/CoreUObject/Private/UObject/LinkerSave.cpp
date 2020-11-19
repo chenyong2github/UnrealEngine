@@ -359,3 +359,28 @@ void FLinkerSave::UsingCustomVersion(const struct FGuid& Guid)
 		UE_LOG(LogLinker, Warning, TEXT("%s"), *CustomVersionWarning);
 	}
 }
+
+void FLinkerSave::SetUseUnversionedPropertySerialization(bool bInUseUnversioned)
+{
+	FArchiveUObject::SetUseUnversionedPropertySerialization(bInUseUnversioned);
+	if (Saver)
+	{
+		Saver->SetUseUnversionedPropertySerialization(bInUseUnversioned);
+	}
+	if (bInUseUnversioned)
+	{
+		Summary.PackageFlags |= PKG_UnversionedProperties;
+		if (LinkerRoot)
+		{
+			LinkerRoot->SetPackageFlags(PKG_UnversionedProperties);
+		}
+	}
+	else
+	{
+		Summary.PackageFlags &= ~PKG_UnversionedProperties;
+		if (LinkerRoot)
+		{
+			LinkerRoot->ClearPackageFlags(PKG_UnversionedProperties);
+		}
+	}
+}
