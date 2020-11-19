@@ -7,6 +7,7 @@
 #include "LevelEditorViewport.h"
 #include "WaterBodyIslandActor.h"
 #include "Engine/Canvas.h"
+#include "Engine/World.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/KismetRenderingLibrary.h"
@@ -21,9 +22,11 @@
 #include "WaterEditorSettings.h"
 #include "WaterSubsystem.h"
 #include "WaterUtils.h"
+#include "WaterMeshActor.h"
 #include "WaterVersion.h"
 #include "Algo/Transform.h"
 #include "Curves/CurveFloat.h"
+#include "EngineUtils.h"
 
 AWaterBrushManager::AWaterBrushManager(const FObjectInitializer& ObjectInitializer)
 	: Super()
@@ -87,7 +90,32 @@ void AWaterBrushManager::PostLoad()
 			}
 		}
 	}
+
+	if (GetLinkerCustomVersion(FWaterCustomVersion::GUID) < FWaterCustomVersion::MoveWaterMPCParamsToWaterMesh)
+	{
+		// OnPostLoad, the world is not set so we cannot retrieve the water mesh actor, we have to delay it to post-init :  
+		FWorldDelegates::OnPostWorldInitialization.AddLambda([this](UWorld* World, const UWorld::InitializationValues IVS)
+		{
+			TActorIterator<AWaterMeshActor> It(GetWorld());
+			if (AWaterMeshActor* WaterMeshActor = It ? *It : nullptr)
+			{
+				FVector RTWorldLocation, RTWorldSizeVector;
+				ComputeWaterLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
+				WaterMeshActor->SetLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
+			}
+		});
+		
+	}
 }
+
+void AWaterBrushManager::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	FWorldDelegates::OnPostWorldInitialization.Remove(OnWorldPostInitHandle);
+	OnWorldPostInitHandle.Reset();
+}
+	
 
 void AWaterBrushManager::PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph)
 {
@@ -988,18 +1016,24 @@ void AWaterBrushManager::BeginPlay()
 	SetMPCParams();
 }
 
+void AWaterBrushManager::ComputeWaterLandscapeInfo(FVector& OutRTWorldLocation, FVector& OutRTWorldSizeVector) const
+{
+	FVector LandscapeScale = LandscapeTransform.GetScale3D();
+	OutRTWorldSizeVector = FVector(LandscapeRTRes - FIntPoint(1, 1));
+	OutRTWorldSizeVector *= LandscapeScale;
+	OutRTWorldSizeVector.Z = 1.0f;
+	OutRTWorldLocation = LandscapeTransform.GetLocation();
+	OutRTWorldLocation -= FVector(LandscapeScale.X, LandscapeScale.Y, 0.0f) * 0.5f;
+}
+
 void AWaterBrushManager::SetMPCParams()
 {
 	UWorld* World = GetWorld();
 	UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(World);
 	if ((World != nullptr) && (WaterSubsystem != nullptr))
 	{
-		FVector LandscapeScale = LandscapeTransform.GetScale3D();
-		FVector RTWorldSizeVector(LandscapeRTRes - FIntPoint(1, 1));
-		RTWorldSizeVector *= LandscapeScale;
-		RTWorldSizeVector.Z = 1.0f;
-		FVector RTWorldLocation = LandscapeTransform.GetLocation();
-		RTWorldLocation -= FVector(LandscapeScale.X, LandscapeScale.Y, 0.0f) * 0.5f;
+		FVector RTWorldLocation, RTWorldSizeVector;
+		ComputeWaterLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
 
 		UMaterialParameterCollection* LandscapeCollection = GEditor->GetEditorSubsystem<UWaterEditorSubsystem>()->GetLandscapeMaterialParameterCollection();
 		if (LandscapeCollection == nullptr)
@@ -1066,23 +1100,12 @@ void AWaterBrushManager::SetMPCParams()
 			}
 		}
 
-		UMaterialParameterCollection* WaterCollection = WaterSubsystem->GetMaterialParameterCollection();
-		if (WaterCollection == nullptr)
+		// HACK [jonathan.bard] : Quick and dirty way to move the responsability of updating the Water MPC to the water mesh actor (because AWaterBrushManager doesn't exist on client builds, this 
+		//  information needs to live somewhere, at least until we get rid of the water MPC and the water texture/params are handled outside of the water landscape brush) :
+		TActorIterator<AWaterMeshActor> It(World);
+		if (AWaterMeshActor* WaterMeshActor = It ? *It : nullptr)
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("No Water MaterialParameterCollection Assigned"));
-		}
-		else
-		{
-			UMaterialParameterCollectionInstance* WaterCollectionInstance = World->GetParameterCollectionInstance(CastChecked<UMaterialParameterCollection>(WaterCollection));
-			check(WaterCollectionInstance != nullptr);
-			if (!WaterCollectionInstance->SetVectorParameterValue(FName(TEXT("LandscapeWorldSize")), FLinearColor(RTWorldSizeVector)))
-			{
-				UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LandscapeWorldSize\" on Water MaterialParameterCollection"));
-			}
-			if (!WaterCollectionInstance->SetVectorParameterValue(FName(TEXT("LandscapeLocation")), FLinearColor(RTWorldLocation)))
-			{
-				UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LandscapeLocation\" on Water MaterialParameterCollection"));
-			}
+			WaterMeshActor->SetLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
 		}
 	}
 }

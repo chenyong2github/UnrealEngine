@@ -23,6 +23,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Texture)
 	UTexture2D* WaterVelocityTexture;
 
+	// HACK [jonathan.bard] : See UWaterMeshComponent, r : emove ASAP
+	void SetLandscapeInfo(const FVector& InRTWorldLocation, const FVector& InRTWorldSizeVector);
+
 #if WITH_EDITOR
 	virtual void PostEditMove(bool bFinished) override;
 #endif
