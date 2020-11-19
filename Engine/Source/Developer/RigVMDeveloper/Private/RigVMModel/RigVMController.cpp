@@ -3759,13 +3759,6 @@ URigVMRerouteNode* URigVMController::AddFreeRerouteNode(bool bShowAsFullNode, co
 		SetPinDefaultValue(ValuePin, InDefaultValue, true, false, false);
 	}
 
-	ForEveryPinRecursively(ValuePin, [](URigVMPin* Pin) {
-		if (Pin->GetParentPin() != nullptr)
-		{
-			Pin->Direction = ERigVMPinDirection::Visible;
-		}
-	});
-
 	if (bSetupUndoRedo)
 	{
 		ActionStack->AddAction(FRigVMAddRerouteNodeAction(Node));
