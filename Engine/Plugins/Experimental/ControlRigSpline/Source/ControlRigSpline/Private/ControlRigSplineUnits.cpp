@@ -13,12 +13,7 @@ FRigUnit_ControlRigSplineFromPoints_Execute()
 		case EControlRigState::Init:
 		case EControlRigState::Update:
 		{
-			const int32 ControlPointsCount = Points.Num();
-		
-			bool bModeChanged = Spline.SplineMode != SplineMode;
-			Spline.SplineMode = SplineMode;
-
-			Spline.SetControlPoints(Points, bModeChanged);
+			Spline.SetControlPoints(Points, SplineMode, SamplesPerSegment);
 			break;
 		}
 		default:
@@ -58,7 +53,7 @@ FRigUnit_TransformFromControlRigSpline_Execute()
 			UpVectorNormalized.Normalize();
 
 			const float ClampedU = FMath::Clamp<float>(U, 0.f, 1.f);
-			const float ClampedTwist = FMath::Clamp<float>(Twist, -180.f, 180.f);
+			const float ClampedRoll = FMath::Clamp<float>(Roll, -180.f, 180.f);
 		
 			FVector Tangent = Spline.TangentAtParam(ClampedU);
 
@@ -68,8 +63,8 @@ FRigUnit_TransformFromControlRigSpline_Execute()
 				Tangent = Transform.ToMatrixNoScale().GetUnitAxis(EAxis::X);
 			}
 			FVector Binormal = FVector::CrossProduct(Tangent, UpVectorNormalized);
-			Binormal = Binormal.RotateAngleAxis(ClampedTwist * ClampedU, Tangent);
-
+			Binormal = Binormal.RotateAngleAxis(ClampedRoll * ClampedU, Tangent);
+			
 			FMatrix RotationMatrix = FRotationMatrix::MakeFromXZ(Tangent, Binormal);
 
 			Transform.SetFromMatrix(RotationMatrix);
@@ -110,4 +105,22 @@ FRigUnit_DrawControlRigSpline_Execute()
 	}
 
 	Context.DrawInterface->Instructions.Add(Instruction);
+}
+
+FRigUnit_GetLengthControlRigSpline_Execute()
+{
+	switch (Context.State)
+	{
+		case EControlRigState::Init:
+		case EControlRigState::Update:
+		{
+			Length = Spline.SplineData->AccumulatedLenth.Last();
+			break;
+		}
+		default:
+		{
+			checkNoEntry(); // Execute is only defined for Init and Update
+			break;
+		}
+	}
 }

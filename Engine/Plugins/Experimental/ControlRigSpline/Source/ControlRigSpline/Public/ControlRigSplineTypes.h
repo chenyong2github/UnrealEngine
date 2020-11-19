@@ -24,18 +24,46 @@ enum class ESplineType : uint8
 	Max UMETA(Hidden),
 };
 
+USTRUCT()
+struct CONTROLRIGSPLINE_API FControlRigSplineImpl
+{
+	GENERATED_BODY()
+
+	FControlRigSplineImpl()	
+	{
+		SplineMode = ESplineType::BSpline;
+		SamplesPerSegment = 16;
+	}
+
+	// Spline type
+	ESplineType SplineMode;
+
+	// The control points to construct the spline
+	TArray<FVector> ControlPoints;
+
+	// The actual spline
+	tinyspline::BSpline Spline;
+
+	// Samples per segment, where segment is the portion between two control points
+	int32 SamplesPerSegment;
+
+	// Positions along the "real" curve (no samples in the first and last segments of a hermite spline)
+	TArray<FVector> SamplesArray;
+
+	// Accumulated length along the spline given by samples
+	TArray<float> AccumulatedLenth;
+};
+
 USTRUCT(BlueprintType)
 struct CONTROLRIGSPLINE_API FControlRigSpline 
 {
 	GENERATED_BODY()
 
 	FControlRigSpline()	{}
+
 	virtual ~FControlRigSpline() {}
 
-	// Spline type
-	ESplineType SplineMode;
-
-	TSharedPtr<tinyspline::BSpline> BSpline;
+	TSharedPtr<FControlRigSplineImpl> SplineData;
 
 	/**
 	* Sets the control points in the spline. It will build the spline if needed, or forceRebuild is true,
@@ -45,7 +73,7 @@ struct CONTROLRIGSPLINE_API FControlRigSpline
 	* @param InPoints	The control points to set.
 	* @param forceRebuild	If true, will build the spline from scratch.
 	*/
-	void SetControlPoints(const TArray<FVector>& InPoints, const bool forceRebuild = false);
+	void SetControlPoints(const TArray<FVector>& InPoints, const ESplineType SplineMode = ESplineType::BSpline, const int32 SamplesPerSegment = 16);
 
 	/**
 	* Populates OutPoints and returns the number of control points in the spline.
@@ -71,8 +99,4 @@ struct CONTROLRIGSPLINE_API FControlRigSpline
 	* @return			The tangent of the spline at InParam.
 	*/
 	FVector TangentAtParam(const float InParam) const;
-
-	// Auxiliary control points array, which is different from the Points array
-	// when SplineMode is Hermite
-	TArray<float> ControlPointsArray;
 };

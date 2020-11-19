@@ -13,7 +13,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineBase : public FRigUnit
 	GENERATED_BODY()
 };
 
-USTRUCT(meta = (DisplayName = "Control Rig Spline From Points", Category = "Control Rig"))
+USTRUCT(meta = (DisplayName = "Spline From Points", Keywords="Spline From Positions", Category = "Control Rig"))
 struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineFromPoints : public FRigUnit_ControlRigSplineBase
 {
 	GENERATED_BODY()
@@ -21,6 +21,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineFromPoints : public FRigUni
 	FRigUnit_ControlRigSplineFromPoints()
 	{
 		SplineMode = ESplineType::BSpline;
+		SamplesPerSegment = 16;
 	}
 
 	/** Execute logic for this rig unit */
@@ -30,14 +31,17 @@ struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineFromPoints : public FRigUni
 	UPROPERTY(meta = (Input))
 	TArray<FVector> Points;
 
-	UPROPERTY(meta = (Output))
-	FControlRigSpline Spline;
-
 	UPROPERTY(meta = (Input))
 	ESplineType SplineMode;
+
+	UPROPERTY(meta = (Input))
+	int32 SamplesPerSegment;
+
+	UPROPERTY(meta = (Output))
+	FControlRigSpline Spline;
 };
 
-USTRUCT(meta = (DisplayName = "Position From Control Rig Spline", Category = "Control Rig"))
+USTRUCT(meta = (DisplayName = "Position From Spline", Keywords="Point From Spline", Category = "Control Rig"))
 struct CONTROLRIGSPLINE_API FRigUnit_PositionFromControlRigSpline : public FRigUnit_ControlRigSplineBase
 {
 	GENERATED_BODY()
@@ -62,7 +66,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_PositionFromControlRigSpline : public FRigU
 	FVector Position;
 };
 
-USTRUCT(meta = (DisplayName = "Transform From Control Rig Spline", Category = "Control Rig"))
+USTRUCT(meta = (DisplayName = "Transform From Spline", Category = "Control Rig"))
 struct CONTROLRIGSPLINE_API FRigUnit_TransformFromControlRigSpline : public FRigUnit_ControlRigSplineBase
 {
 	GENERATED_BODY()
@@ -70,7 +74,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_TransformFromControlRigSpline : public FRig
 	FRigUnit_TransformFromControlRigSpline()
 	{
 		UpVector = FVector::UpVector;
-		Twist = 0.f;
+		Roll = 0.f;
 		U = 0.f;
 		Transform = FTransform::Identity;
 	}
@@ -86,7 +90,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_TransformFromControlRigSpline : public FRig
 	FVector UpVector;
 
 	UPROPERTY(meta = (Input))
-	float Twist;
+	float Roll;
 
 	UPROPERTY(meta = (Input))
 	float U;
@@ -95,7 +99,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_TransformFromControlRigSpline : public FRig
 	FTransform Transform;
 };
 
-USTRUCT(meta = (DisplayName = "Draw Control Rig Spline", Category = "Control Rig"))
+USTRUCT(meta = (DisplayName = "Draw Spline", Category = "Control Rig"))
 struct CONTROLRIGSPLINE_API FRigUnit_DrawControlRigSpline : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -124,3 +128,23 @@ struct CONTROLRIGSPLINE_API FRigUnit_DrawControlRigSpline : public FRigUnitMutab
 	int32 Detail;
 };
 
+USTRUCT(meta = (DisplayName = "Get Length Of Spline", Category = "Control Rig"))
+struct CONTROLRIGSPLINE_API FRigUnit_GetLengthControlRigSpline : public FRigUnit
+{
+	GENERATED_BODY()
+
+	FRigUnit_GetLengthControlRigSpline()
+	{
+		Length = 0.f;
+	}
+
+	/** Execute logic for this rig unit */
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FControlRigSpline Spline;
+
+	UPROPERTY(meta = (Output))
+	float Length;
+};
