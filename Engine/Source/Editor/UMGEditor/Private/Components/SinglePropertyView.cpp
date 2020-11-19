@@ -121,6 +121,20 @@ void USinglePropertyView::SetPropertyName(FName InPropertyName)
 	}
 }
 
+FText USinglePropertyView::GetNameOverride() const
+{
+	return NameOverride;
+}
+
+
+void USinglePropertyView::SetNameOverride(FText InNameOverride)
+{
+	if (!NameOverride.EqualTo(InNameOverride))
+	{
+		NameOverride = InNameOverride;
+		BuildContentWidget();
+	}
+}
 
 void USinglePropertyView::OnObjectChanged()
 {

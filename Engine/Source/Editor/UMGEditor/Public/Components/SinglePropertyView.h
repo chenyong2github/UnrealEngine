@@ -32,6 +32,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "View")
 	void SetPropertyName(FName NewPropertyName);
 
+	UFUNCTION(BlueprintCallable, Category = "View")
+	FText GetNameOverride() const;
+
+	UFUNCTION(BlueprintCallable, Category = "View")
+	void SetNameOverride(FText NewPropertyName);
+
 private:
 	void InternalSinglePropertyChanged();
 
