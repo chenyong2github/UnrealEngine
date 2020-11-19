@@ -324,6 +324,7 @@ public:
 		bChangedSelectionOnMouseDown = false;
 
 		FReply Reply = SObjectWidget::OnMouseButtonDown(MyGeometry, MouseEvent);
+		Reply.CaptureMouse(SharedThis(this));
 		if (!Reply.IsEventHandled())
 		{
 			TSharedRef<ITypedTableView<ItemType>> OwnerTable = OwnerTablePtr.Pin().ToSharedRef();
