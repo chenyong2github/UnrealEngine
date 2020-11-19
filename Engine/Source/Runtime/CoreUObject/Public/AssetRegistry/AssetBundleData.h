@@ -13,8 +13,6 @@ struct COREUOBJECT_API FAssetBundleEntry
 	FORCEINLINE FAssetBundleEntry() {}
 	FORCEINLINE ~FAssetBundleEntry() {}
 
-	/** Asset this bundle is saved within. This is empty for global bundles, or in the saved bundle info */
-	FPrimaryAssetId BundleScope;
 
 	/** Specific name of this bundle, should be unique for a given scope */
 	FName BundleName;
@@ -23,33 +21,40 @@ struct COREUOBJECT_API FAssetBundleEntry
 	TArray<FSoftObjectPath> BundleAssets;
 
 	FAssetBundleEntry(const FAssetBundleEntry& OldEntry)
-		: BundleScope(OldEntry.BundleScope), BundleName(OldEntry.BundleName), BundleAssets(OldEntry.BundleAssets)
+		: BundleName(OldEntry.BundleName), BundleAssets(OldEntry.BundleAssets)
+	{
+
+	}
+	
+	explicit FAssetBundleEntry(FName InBundleName)
+		: BundleName(InBundleName)
 	{
 
 	}
 
+	UE_DEPRECATED(4.27, "Bundles scopes are removed, please use FAssetBundleEntry(FName InBundleName) instead")
 	FAssetBundleEntry(const FPrimaryAssetId& InBundleScope, FName InBundleName)
-		: BundleScope(InBundleScope), BundleName(InBundleName)
+		: FAssetBundleEntry(InBundleName)
 	{
-
+		check(InBundleScope == FPrimaryAssetId());
 	}
 
 	/** Returns true if this represents a real entry */
-	bool IsValid() const { return BundleName != NAME_None; }
+	bool IsValid() const { return !BundleName.IsNone(); }
 
-	/** Returns true if it has a valid scope, if false is a global entry or in the process of being created */
-	bool IsScoped() const { return BundleScope.IsValid(); }
 
 	/** Equality */
 	bool operator==(const FAssetBundleEntry& Other) const
 	{
-		return BundleScope == Other.BundleScope && BundleName == Other.BundleName && BundleAssets == Other.BundleAssets;
+		return BundleName == Other.BundleName && BundleAssets == Other.BundleAssets;
 	}
 	bool operator!=(const FAssetBundleEntry& Other) const
 	{
 		return !(*this == Other);
 	}
 
+	bool ExportTextItem(FString& ValueStr, const FAssetBundleEntry& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
+	bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
 };
 
 /** A struct with a list of asset bundle entries. If one of these is inside a UObject it will get automatically exported as the asset registry tag AssetBundleData */
@@ -58,6 +63,10 @@ struct COREUOBJECT_API FAssetBundleData
 	/** Declare constructors inline so this can be a header only class */
 	FORCEINLINE FAssetBundleData() {}
 	FORCEINLINE ~FAssetBundleData() {}
+	FAssetBundleData(const FAssetBundleData&) = default;
+	FAssetBundleData(FAssetBundleData&&) = default;
+	FAssetBundleData& operator=(const FAssetBundleData&) = default;
+	FAssetBundleData& operator=(FAssetBundleData&&) = default;
 
 	/** List of bundles defined */
 	TArray<FAssetBundleEntry> Bundles;
@@ -72,11 +81,15 @@ struct COREUOBJECT_API FAssetBundleData
 		return !(*this == Other);
 	}
 
-	/** Extract this out of an AssetData */
-	bool SetFromAssetData(const struct FAssetData& AssetData);
-
 	/** Returns pointer to an entry with given Scope/Name */
-	FAssetBundleEntry* FindEntry(const FPrimaryAssetId& SearchScope, FName SearchName);
+	FAssetBundleEntry* FindEntry(FName SearchName);
+	
+	UE_DEPRECATED(4.27, "Bundles scopes are removed, please use FindEntry(FName) instead")
+	FAssetBundleEntry* FindEntry(const FPrimaryAssetId& SearchScope, FName SearchName)
+	{
+		check(SearchScope == FPrimaryAssetId());
+		return FindEntry(SearchName);
+	}
 
 	/** Adds or updates an entry with the given BundleName -> Path. Scope is empty and will be filled in later */
 	void AddBundleAsset(FName BundleName, const FSoftObjectPath& AssetPath);

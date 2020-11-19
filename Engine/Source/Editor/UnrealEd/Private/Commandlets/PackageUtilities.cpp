@@ -1383,9 +1383,9 @@ void FPkgInfoReporter_Log::GeneratePackageReport( FLinkerLoad* InLinker /*=nullp
 				Out.Logf(ELogVerbosity::Display, TEXT("\t\t%d) %s'%s' (%d Tags)"), AssetIdx++, *AssetData->AssetClass.ToString(), *AssetData->ObjectPath.ToString(), AssetData->TagsAndValues.Num());
 
 				// Display all tags on the asset
-				for (const TPair<FName,FString>& Pair : AssetData->TagsAndValues)
+				for (const TPair<FName, FAssetTagValueRef>& Pair : AssetData->TagsAndValues)
 				{
-					Out.Logf(ELogVerbosity::Display, TEXT("\t\t\t\"%s\": \"%s\""), *Pair.Key.ToString(), *Pair.Value );
+					Out.Logf(ELogVerbosity::Display, TEXT("\t\t\t\"%s\": \"%s\""), *Pair.Key.ToString(), *Pair.Value.AsString() );
 				}
 
 				delete AssetData;

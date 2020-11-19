@@ -698,10 +698,7 @@ bool FAssetRegistryGenerator::LoadPreviousAssetRegistry(const FString& Filename)
 
 	if (IFileManager::Get().FileExists(*Filename) && FFileHelper::LoadFileToArray(SerializedAssetData, *Filename))
 	{
-		FAssetRegistrySerializationOptions Options;
-		Options.ModifyForDevelopment();
-
-		return PreviousState.Serialize(SerializedAssetData, Options);
+		return PreviousState.Load(SerializedAssetData);
 	}
 
 	return false;
@@ -754,7 +751,7 @@ void FAssetRegistryGenerator::InjectEncryptionData(FAssetRegistryState& TargetSt
 
 							if (Guid.IsValid())
 							{
-								FAssetDataTagMap TagsAndValues = AssetData->TagsAndValues.GetMap();
+								FAssetDataTagMap TagsAndValues = AssetData->TagsAndValues.CopyMap();
 								TagsAndValues.Add(UAssetManager::GetEncryptionKeyAssetTagName(), Guid.ToString());
 								FAssetData NewAssetData = FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName, AssetData->AssetClass, TagsAndValues, AssetData->ChunkIDs, AssetData->PackageFlags);
 								TargetState.UpdateAssetData(AssetData, NewAssetData);
@@ -931,7 +928,7 @@ void FAssetRegistryGenerator::UpdateCollectionAssetData()
 		const FAssetData* AssetData = State.GetAssetByObjectPath(AssetPathName);
 		if (AssetData)
 		{
-			FAssetDataTagMap TagsAndValues = AssetData->TagsAndValues.GetMap();
+			FAssetDataTagMap TagsAndValues = AssetData->TagsAndValues.CopyMap();
 			for (const FName& CollectionTagName : CollectionTagsForAsset)
 			{
 				TagsAndValues.Add(CollectionTagName, FString()); // TODO: Does this need a value to avoid being trimmed?
@@ -1262,7 +1259,7 @@ void FAssetRegistryGenerator::AddAssetToFileOrderRecursive(const FName& InPackag
 
 bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool bSerializeDevelopmentAssetRegistry, bool bForceNoFilter)
 {
-	UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Saving asset registry."));
+	UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Saving asset registry v%d."), FAssetRegistryVersion::Type::LatestVersion);
 	const TMap<FName, const FAssetData*>& ObjectToDataMap = State.GetObjectPathToAssetDataMap();
 	
 	// Write development first, this will always write
@@ -1292,7 +1289,7 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 		// Create development registry data, used for incremental cook and editor viewing
 		FArrayWriter SerializedAssetRegistry;
 
-		State.Serialize(SerializedAssetRegistry, DevelopmentSaveOptions);
+		State.Save(SerializedAssetRegistry, DevelopmentSaveOptions);
 
 		// Save the generated registry
 		FString PlatformSandboxPath = SandboxPath.Replace(TEXT("[Platform]"), *TargetPlatform->PlatformName());
@@ -1367,7 +1364,7 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 				FArrayWriter SerializedAssetRegistry;
 				SerializedAssetRegistry.SetFilterEditorOnly(true);
 
-				NewState.Serialize(SerializedAssetRegistry, SaveOptions);
+				NewState.Save(SerializedAssetRegistry, SaveOptions);
 
 				// Save the generated registry
 				FString PlatformSandboxPath = SandboxPathWithoutExtension.Replace(TEXT("[Platform]"), *TargetPlatform->PlatformName());
@@ -1396,7 +1393,7 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 			FArrayWriter SerializedAssetRegistry;
 			SerializedAssetRegistry.SetFilterEditorOnly(true);
 
-			State.Serialize(SerializedAssetRegistry, SaveOptions);
+			State.Save(SerializedAssetRegistry, SaveOptions);
 
 			// Save the generated registry
 			FString PlatformSandboxPath = SandboxPath.Replace(TEXT("[Platform]"), *TargetPlatform->PlatformName());

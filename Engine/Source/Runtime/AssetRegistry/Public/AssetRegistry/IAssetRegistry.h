@@ -284,14 +284,9 @@ public:
 	/** Uses the asset registry to look for ObjectRedirectors. This will follow the chain of redirectors. It will return the original path if no redirectors are found */
 	virtual FName GetRedirectedObjectPath(const FName ObjectPath) const = 0;
 
-	/**
-	 * Removes a key from the key value pairs for an object
-	 *
-	 * @param ObjectPath the path of the object to be trimmed
-	 * @param Key the key to remove
-	 * @return the reduction in memory from removing this key
-	 */
-	virtual void StripAssetRegistryKeyForObject(FName ObjectPath, FName Key) = 0;
+	UE_DEPRECATED(4.27, "Loading then discarding tags is no longer allowed as it can "
+						"increase engine init time and since the new fixed tag store uses less memory. ")
+	virtual void StripAssetRegistryKeyForObject(FName ObjectPath, FName Key) {}
 
 	/** Returns true if the specified ClassName's ancestors could be found. If so, OutAncestorClassNames is a list of all its ancestors. This can be slow if temporary caching mode is not on */
 	virtual bool GetAncestorClassNames(FName ClassName, TArray<FName>& OutAncestorClassNames) const = 0;
@@ -515,12 +510,7 @@ public:
 
 	/** Load FPackageRegistry data from the supplied package */
 	virtual void LoadPackageRegistryData(FArchive& Ar, TArray<FAssetData*>& Data) const = 0;
-
-	UE_DEPRECATED(4.16, "Deprecated. Use InitializeTemporaryAssetRegistryState and call Serialize on it directly")
-	virtual void SaveRegistryData(FArchive& Ar, TMap<FName, FAssetData*>& Data, TArray<FName>* InMaps = nullptr) = 0;
 	
-	UE_DEPRECATED(4.16, "Deprecated. Create a FAssetRegistryState and call Serialize on it directly")
-	virtual void LoadRegistryData(FArchive& Ar, TMap<FName, FAssetData*>& Data) = 0;
 	
 protected:
 	// Functions specifically for calling from the asset manager

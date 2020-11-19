@@ -576,7 +576,7 @@ bool GetClassFileItemAttributes(const FContentBrowserClassFileItemDataPayload& I
 		for (const auto& TagAndValue : AssetData.TagsAndValues)
 		{
 			FContentBrowserItemDataAttributeValue& GenericAttributeValue = OutAttributeValues.Add(TagAndValue.Key);
-			GetGenericItemAttribute(TagAndValue.Key, TagAndValue.Value, InIncludeMetaData, GenericAttributeValue);
+			GetGenericItemAttribute(TagAndValue.Key, TagAndValue.Value.AsString(), InIncludeMetaData, GenericAttributeValue);
 		}
 	}
 

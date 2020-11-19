@@ -1260,7 +1260,7 @@ TSharedRef<SToolTip> SAnimationSequenceBrowser::CreateCustomAssetToolTip(FAssetD
 
 	// Add asset registry tags to a text list; except skeleton as that is implied in Persona
 	TSharedRef<SVerticalBox> DescriptionBox = SNew(SVerticalBox);
-	for(TPair<FName, FString> TagPair : AssetData.TagsAndValues)
+	for(TPair<FName, FAssetTagValueRef> TagPair : AssetData.TagsAndValues)
 	{
 		if(TagsToShow.Contains(TagPair.Key))
 		{
@@ -1292,7 +1292,7 @@ TSharedRef<SToolTip> SAnimationSequenceBrowser::CreateCustomAssetToolTip(FAssetD
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.Text(FText::FromString(TagPair.Value))
+					.Text(TagPair.Value.AsText())
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			];
@@ -1546,7 +1546,7 @@ bool SAnimationSequenceBrowser::HandleFilterAsset(const FAssetData& InAssetData)
 		{
 			FString SkeletonString = FAssetData(DesiredSkeleton).GetExportTextName();
 
-			return (InAssetData.TagsAndValues.FindRef(TEXT("Skeleton")) != SkeletonString);
+			return (InAssetData.TagsAndValues.FindTag(TEXT("Skeleton")) != SkeletonString);
 		}
 	}
 

@@ -20,6 +20,7 @@
 #include "Misc/CoreDelegates.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Misc/RedirectCollector.h"
+#include "Async/Async.h"
 #include "Serialization/LargeMemoryReader.h"
 #include "Misc/ScopeExit.h"
 #include "HAL/ThreadHeartBeat.h"
@@ -64,6 +65,112 @@ FAssetRegistryInterface GAssetRegistryInterface;
 
 DEFINE_LOG_CATEGORY(LogAssetRegistry);
 
+/** This will always read the ini, public version may return cache */
+static void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName);
+
+// Loads cooked AssetRegistry.bin using an async preload task if available and sync otherwise
+static class FCookedAssetRegistryPreloader
+{
+public:
+	FCookedAssetRegistryPreloader()
+		: bLoadOnce(FPlatformProperties::RequiresCookedData())
+	{
+		if (bLoadOnce)
+		{
+			OnTaskGraphReady.Emplace(STATS ? EDelayedRegisterRunPhase::StatSystemReady :
+											 EDelayedRegisterRunPhase::TaskGraphSystemReady,
+				[this] () 
+				{
+					// TaskGraphSystemReady callback doesn't really mean it's running
+					bool bCanPreload = FPlatformProcess::SupportsMultithreading() && FTaskGraphInterface::IsRunning();
+					if (bLoadOnce && bCanPreload)
+					{
+						if (IFileManager::Get().FileExists(GetPath()))
+						{
+							KickPreload();
+						}
+						else
+						{
+							// The PAK with the main registry isn't mounted yet
+							FCoreDelegates::OnPakFileMounted2.AddLambda([this](const IPakFile& Pak)
+								{
+									if (bLoadOnce && Pak.PakContains(GetPath()))
+									{
+										KickPreload();
+									}
+								});
+						}
+					}
+				});
+		}
+	}
+
+	bool Consume(FAssetRegistryState& Out)
+	{
+		if (StateReady.IsValid())
+		{
+			StateReady.Wait();
+
+			Out = MoveTemp(State);
+			return true;
+		}
+		else if (bLoadOnce && IFileManager::Get().FileExists(GetPath()))
+		{
+			bLoadOnce = false;
+			Load();
+
+			Out = MoveTemp(State);
+			return true;
+		}
+
+		return false;
+	}
+
+	void CleanUp()
+	{
+		bLoadOnce = false;
+		StateReady.Reset();
+	}
+
+private:
+	void Load()
+	{
+		TUniquePtr<FArchive> Reader(IFileManager::Get().CreateFileReader(GetPath()));
+		checkf(Reader, TEXT("Failed to load %s"), GetPath());
+		State.Load(*Reader);	
+	}
+
+	void KickPreload()
+	{
+		check(!StateReady.IsValid() && bLoadOnce);
+
+		bLoadOnce = false;
+
+		StateReady = Async(EAsyncExecution::TaskGraph, [this]() { Load(); });
+		
+		// Free FEvent held by TFuture in case of early shut down
+		TFunction<void()> OnTaskGraphShutdown = [this]() { CleanUp(); };
+		FTaskGraphInterface::Get().AddShutdownCallback(OnTaskGraphShutdown);
+	}
+
+	const TCHAR* GetPath()
+	{
+		if (Path.IsEmpty())
+		{
+			Path = FPaths::ProjectDir() + TEXT("AssetRegistry.bin");
+		}
+	
+		return *Path;
+	}
+	
+	bool bLoadOnce;
+	TOptional<FDelayedAutoRegisterHelper> OnTaskGraphReady;
+	FString Path;
+	TFuture<void> StateReady; // void since TFuture lack move support
+	FAssetRegistryState State;
+}
+GCookedAssetRegistryPreloader;
+
 /** Returns the appropriate ChunkProgressReportingType for the given Asset enum */
 EChunkProgressReportingType::Type GetChunkAvailabilityProgressType(EAssetAvailabilityProgressReportingType::Type ReportType)
 {
@@ -88,9 +195,6 @@ UAssetRegistry::UAssetRegistry(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
-
-#include "Misc/PreLoadFile.h"
-static FPreLoadFile GPreLoadAssetRegistry(TEXT("{PROJECT}AssetRegistry.bin"));
 
 UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -144,25 +248,12 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 		bInitialSearchCompleted = false;
 		SearchAllAssets(false);
 	}
-	// for platforms that require cooked data, we attempt to load a premade asset registry
 	else if (FPlatformProperties::RequiresCookedData())
 	{
-		// load the cooked data
-		int64 Size;
-		void* PreloadedData = GPreLoadAssetRegistry.TakeOwnershipOfLoadedData(&Size);
-
-		if (SerializationOptions.bSerializeAssetRegistry)
+		if (SerializationOptions.bSerializeAssetRegistry &&
+			GCookedAssetRegistryPreloader.Consume(/* Out */ State))
 		{
-			if (PreloadedData != nullptr)
-			{
-				FLargeMemoryReader SerializedAssetData((uint8*)PreloadedData, Size, ELargeMemoryReaderFlags::TakeOwnership);
-				// serialize the data with the memory reader (will convert FStrings to FNames, etc)
-				Serialize(SerializedAssetData);
-			}
-		}
-		else
-		{
-			FMemory::Free(PreloadedData);
+			CachePathsFromState(State);
 		}
 
 		TArray<TSharedRef<IPlugin>> ContentPlugins = IPluginManager::Get().GetEnabledPluginsWithContent();
@@ -180,6 +271,8 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 			}
 		}
 	}
+
+	GCookedAssetRegistryPreloader.CleanUp();
 
 	// Report startup time. This does not include DirectoryWatcher startup time.
 	UE_LOG(LogAssetRegistry, Log, TEXT("FAssetRegistry took %0.4f seconds to start up"), FPlatformTime::Seconds() - StartupStartTime);
@@ -375,7 +468,19 @@ void UAssetRegistryImpl::InitializeSerializationOptions(FAssetRegistrySerializat
 	}
 }
 
-void UAssetRegistryImpl::InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName) const
+static TSet<FName> MakeNameSet(const TArray<FString>& Strings)
+{
+	TSet<FName> Out;
+	Out.Reserve(Strings.Num());
+	for (const FString& String : Strings)
+	{
+		Out.Add(FName(*String));
+	}
+
+	return Out;
+}
+
+static void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName)
 {
 	FConfigFile* EngineIni = nullptr;
 #if WITH_EDITOR
@@ -412,11 +517,11 @@ void UAssetRegistryImpl::InitializeSerializationOptionsFromIni(FAssetRegistrySer
 		// this only needs to be done once, and only on builds using USE_COMPACT_ASSET_REGISTRY
 		TArray<FString> AsFName;
 		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("CookedTagsAsFName"), AsFName);
+		Options.CookTagsAsName = MakeNameSet(AsFName);
+
 		TArray<FString> AsPathName;
 		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("CookedTagsAsPathName"), AsPathName);
-		TArray<FString> AsLocText;
-		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("CookedTagsAsLocText"), AsLocText);
-		FAssetRegistryState::IngestIniSettingsForCompact(AsFName, AsPathName, AsLocText);
+		Options.CookTagsAsPath = MakeNameSet(AsPathName);
 	}
 
 	// Takes on the pattern "(Class=SomeClass,Tag=SomeTag)"
@@ -760,8 +865,6 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 		// Skip assets that were loaded for diffing
 		const uint32 FilterWithoutPackageFlags = InFilter.WithoutPackageFlags | PKG_ForDiffing;
 		const uint32 FilterWithPackageFlags = InFilter.WithPackageFlags;
-		// Reusable structures to avoid memory allocations
-		TArray<UObject::FAssetRegistryTag> ObjectTags;
 
 		auto FilterInMemoryObjectLambda = [&](const UObject* Obj, bool& OutContinue)
 		{
@@ -815,57 +918,35 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 				{
 					return;
 				}
+			
+				// Could perhaps save some FName -> String conversions by creating this a bit earlier using the UObject constructor
+				// to get package name and path.
+				FAssetData AssetData(PackageNameStr, ObjectPathStr, Obj->GetClass()->GetFName(), FAssetDataTagMap(), InMemoryPackage->GetChunkIDs(), InMemoryPackage->GetPackageFlags());
+				Obj->GetAssetRegistryTags(AssetData);
 
 				// Tags and values
-				check(ObjectTags.Num() == 0);
-				Obj->GetAssetRegistryTags(ObjectTags);
 				if (InFilter.TagsAndValues.Num() > 0)
 				{
 					bool bMatch = false;
-					for (auto FilterTagIt = InFilter.TagsAndValues.CreateConstIterator(); FilterTagIt; ++FilterTagIt)
+					for (const TPair<FName, TOptional<FString>>& FilterPair : InFilter.TagsAndValues)
 					{
-						const FName Tag = FilterTagIt.Key();
-						const TOptional<FString>& Value = FilterTagIt.Value();
+						FAssetTagValueRef RegistryValue = AssetData.TagsAndValues.FindTag(FilterPair.Key);
 
-						for (UObject::FAssetRegistryTag& AssetRegistryTag : ObjectTags)
+						if (RegistryValue.IsSet() && (!FilterPair.Value.IsSet() || RegistryValue == FilterPair.Value.GetValue()))
 						{
-							if (AssetRegistryTag.Name == Tag)
-							{
-								if (!Value.IsSet() || AssetRegistryTag.Value == Value.GetValue())
-								{
-									bMatch = true;
-								}
-
-								break;
-							}
-						}
-
-						if (bMatch)
-						{
+							bMatch = true;
 							break;
 						}
 					}
 
 					if (!bMatch)
 					{
-						ObjectTags.Reset();
 						return;
 					}
 				}
 
-				FAssetDataTagMap TagMap;
-				for (UObject::FAssetRegistryTag& AssetRegistryTag : ObjectTags)
-				{
-					if (AssetRegistryTag.Name != NAME_None && !AssetRegistryTag.Value.IsEmpty())
-					{
-						// Don't add empty tags
-						TagMap.Add(AssetRegistryTag.Name, AssetRegistryTag.Value);
-					}
-				}
-				ObjectTags.Reset();
-
-				// This asset is in memory and passes all filters
-				OutContinue = Callback(FAssetData(PackageNameStr, ObjectPathStr, Obj->GetClass()->GetFName(), MoveTemp(TagMap), InMemoryPackage->GetChunkIDs(), InMemoryPackage->GetPackageFlags()));
+				// All filters passed
+				OutContinue = Callback(AssetData);
 			}
 		};
 
@@ -1146,11 +1227,6 @@ FName UAssetRegistryImpl::GetRedirectedObjectPath(const FName ObjectPath) const
 	}
 
 	return FName(*RedirectedPath);
-}
-
-void UAssetRegistryImpl::StripAssetRegistryKeyForObject(FName ObjectPath, FName Key)
-{
-	return State.StripAssetRegistryKeyForObject(ObjectPath, Key);
 }
 
 bool UAssetRegistryImpl::GetAncestorClassNames(FName ClassName, TArray<FName>& OutAncestorClassNames) const
@@ -1834,9 +1910,15 @@ void UAssetRegistryImpl::Tick(float DeltaTime)
 
 void UAssetRegistryImpl::Serialize(FArchive& Ar)
 {
-	LLM_SCOPE(ELLMTag::AssetRegistry);
-	State.Serialize(Ar, SerializationOptions);
-	CachePathsFromState(State);
+	if (Ar.IsLoading())
+	{
+		State.Load(Ar);
+		CachePathsFromState(State);
+	}
+	else
+	{
+		State.Save(Ar, SerializationOptions);
+	}
 }
 
 /** Append the assets from the incoming state into our own */
@@ -1855,6 +1937,8 @@ void UAssetRegistryImpl::AppendState(const FAssetRegistryState& InState)
 
 void UAssetRegistryImpl::CachePathsFromState(const FAssetRegistryState& InState)
 {
+	LLM_SCOPE(ELLMTag::AssetRegistry);
+
 	// Refreshes ClassGeneratorNames if out of date due to module load
 	CollectCodeGeneratorClasses();
 
@@ -1870,13 +1954,12 @@ void UAssetRegistryImpl::CachePathsFromState(const FAssetRegistryState& InState)
 			// Populate the class map if adding blueprint
 			if (ClassGeneratorNames.Contains(AssetData->AssetClass))
 			{
-				const FString GeneratedClass = AssetData->GetTagValueRef<FString>(FBlueprintTags::GeneratedClassPath);
-				const FString ParentClass = AssetData->GetTagValueRef<FString>(FBlueprintTags::ParentClassPath);
-				if (!GeneratedClass.IsEmpty() && !ParentClass.IsEmpty())
+				FAssetRegistryExportPath GeneratedClass = AssetData->GetTagValueRef<FAssetRegistryExportPath>(FBlueprintTags::GeneratedClassPath);
+				FAssetRegistryExportPath ParentClass = AssetData->GetTagValueRef<FAssetRegistryExportPath>(FBlueprintTags::ParentClassPath);
+
+				if (GeneratedClass && ParentClass)
 				{
-					const FName GeneratedClassFName = *ExportTextPathToObjectName(GeneratedClass);
-					const FName ParentClassFName = *ExportTextPathToObjectName(ParentClass);
-					CachedBPInheritanceMap.Add(GeneratedClassFName, ParentClassFName);
+					CachedBPInheritanceMap.Add(GeneratedClass.Object, ParentClass.Object);
 
 					// Invalidate caching because CachedBPInheritanceMap got modified
 					bIsTempCachingUpToDate = false;
@@ -1940,36 +2023,6 @@ void UAssetRegistryImpl::LoadPackageRegistryData(FArchive& Ar, TArray<FAssetData
 	Reader.ReadAssetRegistryDataIfCookedPackage(AssetDataList, CookedPackageNamesWithoutAssetDataGathered);
 
 	// Dependency Data not currently read for this function
-}
-
-void UAssetRegistryImpl::SaveRegistryData(FArchive& Ar, TMap<FName, FAssetData*>& Data, TArray<FName>* InMaps /* = nullptr */)
-{
-	FAssetRegistryState TempState;
-	InitializeTemporaryAssetRegistryState(TempState, SerializationOptions, false, Data);
-
-	TempState.Serialize(Ar, SerializationOptions);
-}
-
-void UAssetRegistryImpl::LoadRegistryData(FArchive& Ar, TMap<FName, FAssetData*>& Data)
-{
-	FAssetRegistryState TempState;
-
-	TempState.Serialize(Ar, SerializationOptions);
-
-	if (Ar.IsLoading())
-	{
-		for (const TPair<FName, FAssetData*>& AssetDataPair : State.CachedAssetsByObjectPath)
-		{
-			const FAssetData* AssetData = AssetDataPair.Value;
-
-			if (AssetData != nullptr)
-			{
-				FAssetData *NewAssetData = new FAssetData(*AssetData);
-
-				Data.Add(NewAssetData->PackageName, NewAssetData);
-			}
-		}
-	}
 }
 
 void UAssetRegistryImpl::InitializeTemporaryAssetRegistryState(FAssetRegistryState& OutState, const FAssetRegistrySerializationOptions& Options, bool bRefreshExisting, const TMap<FName, FAssetData*>& OverrideData) const
@@ -2800,7 +2853,7 @@ void UAssetRegistryImpl::ProcessLoadedAssetsToUpdateCache(const double TickStart
 
 		FAssetData NewAssetData = FAssetData(LoadedAsset);
 
-		if (NewAssetData.TagsAndValues.GetMap() != (*CachedData)->TagsAndValues.GetMap())
+		if (NewAssetData.TagsAndValues != (*CachedData)->TagsAndValues)
 		{
 			// We need to actually update disk cache
 			UpdateAssetData(*CachedData, NewAssetData);
@@ -3362,12 +3415,12 @@ bool UAssetRegistryImpl::SetPrimaryAssetIdForObjectPath(const FName ObjectPath, 
 
 	FAssetData* AssetData = *FoundAssetData;
 
-	FAssetDataTagMap TagsAndValues = AssetData->TagsAndValues.GetMap();
+	FAssetDataTagMap TagsAndValues = AssetData->TagsAndValues.CopyMap();
 	TagsAndValues.Add(FPrimaryAssetId::PrimaryAssetTypeTag, PrimaryAssetId.PrimaryAssetType.ToString());
 	TagsAndValues.Add(FPrimaryAssetId::PrimaryAssetNameTag, PrimaryAssetId.PrimaryAssetName.ToString());
 
 	FAssetData NewAssetData = FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName, AssetData->AssetClass, TagsAndValues, AssetData->ChunkIDs, AssetData->PackageFlags);
-
+	NewAssetData.TaggedAssetBundles = AssetData->TaggedAssetBundles;
 	UpdateAssetData(AssetData, NewAssetData);
 
 	return true;

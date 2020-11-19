@@ -1904,6 +1904,14 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 	{
 		NoPluginCompressionExtensions.Add(Ext);
 	}
+	
+	TArray<FString> FileNamesToNotUsePluginCompression;
+	GConfig->GetArray(TEXT("Pak"), TEXT("FileNamesToNotUsePluginCompression"), FileNamesToNotUsePluginCompression, GEngineIni);
+	TSet<FString> NoPluginCompressionFileNames;
+	for (const FString& FileName : FileNamesToNotUsePluginCompression)
+	{
+		NoPluginCompressionFileNames.Add(FileName);
+	}
 
 	struct FAsyncCompressor
 	{
@@ -1913,6 +1921,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		FPakEntryPair Entry;
 		const TArray<FName>* CompressionFormats;
 		const TSet<FString>* NoPluginCompressionExtensions;
+		const TSet<FString>* NoPluginCompressionFileNames;
 
 		// output
 		FCompressedFileBuffer CompressedFileBuffer;
@@ -1923,7 +1932,10 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		bool bForceCompress = false;
 		volatile bool bIsComplete;
 		
-		void Init(FPakInputPair* InFileToAdd, const FPakCommandLineParameters& InParams, const TSet<FString>* InNoPluginCompressionExtensions)
+		void Init(	FPakInputPair* InFileToAdd,
+					const FPakCommandLineParameters& InParams, 
+					const TSet<FString>* InNoPluginCompressionExtensions, 
+					const TSet<FString>* InNoPluginCompressionFileNames)
 		{
 			CompressionMethod = NAME_None;
 			if (InFileToAdd->bIsDeleteRecord)
@@ -1935,6 +1947,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 			bForceCompress = InParams.bForceCompress;
 			FileToAdd = InFileToAdd;
 			NoPluginCompressionExtensions = InNoPluginCompressionExtensions;
+			NoPluginCompressionFileNames = InNoPluginCompressionFileNames;
 			CompressionFormats = &InParams.CompressionFormats;
 			CompressionBlockSize = InParams.CompressionBlockSize;
 			bIsComplete = false;
@@ -1975,7 +1988,8 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 				// because compression is a plugin, certain files need to be loadable out of pak files before plugins are loadable
 				// (like .uplugin files). for these, we enforce a non-plugin compression - zlib
 				bool bForceCompressionFormat = false;
-				if (NoPluginCompressionExtensions->Find(FPaths::GetExtension(FileToAdd->Source)) != nullptr)
+				if (NoPluginCompressionExtensions->Find(FPaths::GetExtension(FileToAdd->Source)) != nullptr ||
+					NoPluginCompressionFileNames->Find(FPaths::GetCleanFilename(FileToAdd->Source)) != nullptr)
 				{
 					CompressionMethod = NAME_Zlib;
 					bForceCompressionFormat = true;
@@ -2068,7 +2082,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 
 	for (int32 FileIndex = 0; FileIndex < FilesToAdd.Num(); FileIndex++)
 	{
-		AsyncCompressors[FileIndex].Init(&FilesToAdd[FileIndex], CmdLineParameters, &NoPluginCompressionExtensions);
+		AsyncCompressors[FileIndex].Init(&FilesToAdd[FileIndex], CmdLineParameters, &NoPluginCompressionExtensions, &NoPluginCompressionFileNames);
 		if (bRunAsync)
 		{
 			if (FilesToAdd[FileIndex].bNeedsCompression)
