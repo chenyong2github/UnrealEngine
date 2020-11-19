@@ -63,6 +63,7 @@ struct FRigidBodyErrorCorrection;
 class UWorld;
 class UPrimitiveComponent;
 class FPhysicsReplicationAsyncCallback;
+struct FAsyncPhysicsRepCallbackData;
 
 class ENGINE_API FPhysicsReplication
 {
@@ -100,7 +101,7 @@ private:
 	float GetOwnerPing(const AActor* const Owner, const FReplicatedPhysicsTarget& Target) const;
 
 #if WITH_CHAOS
-	static void ApplyAsyncDesiredState(float DeltaSeconds, const Chaos::FSimCallbackInput* Input);
+	static void ApplyAsyncDesiredState(float DeltaSeconds, const FAsyncPhysicsRepCallbackData* Input);
 #endif
 
 private:
@@ -111,7 +112,7 @@ private:
 	FPhysicsReplicationAsyncCallback* AsyncCallback;
 	
 	void PrepareAsyncData_External(const FRigidBodyErrorCorrection& ErrorCorrection);	//prepare async data for writing. Call on external thread (i.e. game thread)
-	struct FAsyncPhysicsRepCallbackData* CurAsyncData;	//async data being written into before we push into callback
+	FAsyncPhysicsRepCallbackData* CurAsyncData;	//async data being written into before we push into callback
 	friend FPhysicsReplicationAsyncCallback;
 #endif
 

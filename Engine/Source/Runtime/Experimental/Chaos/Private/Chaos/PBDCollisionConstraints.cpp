@@ -408,8 +408,7 @@ namespace Chaos
 				ModificationResults.Emplace(Handle);
 			}
 
-				//TODO: fix dt and sim time
-				Modifier->ContactModification_Internal(0, TArrayView<FPBDCollisionConstraintHandleModification>(ModificationResults.GetData(), ModificationResults.Num()));
+				Modifier->ContactModification_Internal(TArrayView<FPBDCollisionConstraintHandleModification>(ModificationResults.GetData(), ModificationResults.Num()));
 				
 			for (const FPBDCollisionConstraintHandleModification& Modification : ModificationResults)
 			{

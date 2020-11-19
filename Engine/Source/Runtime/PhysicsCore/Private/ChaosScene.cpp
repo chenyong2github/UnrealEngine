@@ -288,9 +288,9 @@ void FChaosScene::AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& In
 #endif
 }
 
-void FChaosSceneSimCallback::OnPreSimulate_Internal(const Chaos::FReal SimTime, const Chaos::FReal DeltaSeconds, const Chaos::FSimCallbackInput* BaseInput)
+void FChaosSceneSimCallback::OnPreSimulate_Internal()
 {
-	if(auto Input = static_cast<const FChaosSceneCallbackInput*>(BaseInput))
+	if(const FChaosSceneCallbackInput* Input = GetConsumerInput_Internal())
 	{
 		static_cast<Chaos::FPBDRigidsSolver*>(GetSolver())->GetEvolution()->GetGravityForces().SetAcceleration(Input->Gravity);
 	}

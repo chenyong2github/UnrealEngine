@@ -110,9 +110,9 @@ struct FAsyncPhysicsRepCallbackData : public Chaos::FSimCallbackInput
 
 class FPhysicsReplicationAsyncCallback final : public Chaos::TSimCallbackObject<FAsyncPhysicsRepCallbackData>
 {
-	virtual void OnPreSimulate_Internal(const float SimStart, const float DeltaSeconds, const Chaos::FSimCallbackInput* Input) override
+	virtual void OnPreSimulate_Internal() override
 	{
-		FPhysicsReplication::ApplyAsyncDesiredState(DeltaSeconds, Input);
+		FPhysicsReplication::ApplyAsyncDesiredState(GetDeltaTime_Internal(), GetConsumerInput_Internal());
 	}
 };
 #endif
@@ -559,13 +559,11 @@ void FPhysicsReplication::PrepareAsyncData_External(const FRigidBodyErrorCorrect
 	CurAsyncData->AngularVelocityCoefficient = AngularVelocityCoefficient;
 }
 
-void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const Chaos::FSimCallbackInput* CallbackData)
+void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const FAsyncPhysicsRepCallbackData* AsyncData)
 {
 	using namespace Chaos;
-	if(CallbackData)
+	if(AsyncData)
 	{
-		const FAsyncPhysicsRepCallbackData* AsyncData = static_cast<const FAsyncPhysicsRepCallbackData*>(CallbackData);
-
 		const float LinearVelocityCoefficient = AsyncData->LinearVelocityCoefficient;
 		const float AngularVelocityCoefficient = AsyncData->AngularVelocityCoefficient;
 		const float PositionLerp = AsyncData->PositionLerp;
