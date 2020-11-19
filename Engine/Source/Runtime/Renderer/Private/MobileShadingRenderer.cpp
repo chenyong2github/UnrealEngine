@@ -1111,7 +1111,7 @@ FRHITexture* FMobileSceneRenderer::RenderDeferred(FRHICommandListImmediate& RHIC
 		// SceneColor write, SceneDepth is read only
 		RHICmdList.NextSubpass();
 		
-		MobileDeferredShadingPass(RHICmdList, *Scene, *ViewList[0], SortedLightSet);
+		MobileDeferredShadingPass(RHICmdList, *Scene, ViewList, SortedLightSet);
 		// Draw translucency.
 		if (ViewFamily.EngineShowFlags.Translucency)
 		{
@@ -1170,7 +1170,7 @@ FRHITexture* FMobileSceneRenderer::RenderDeferred(FRHICommandListImmediate& RHIC
 			
 			RHICmdList.BeginRenderPass(ShadingPassInfo, TEXT("MobileShadingPass"));
 			
-			MobileDeferredShadingPass(RHICmdList, *Scene, *ViewList[0], SortedLightSet);
+			MobileDeferredShadingPass(RHICmdList, *Scene, ViewList, SortedLightSet);
 			// Draw translucency.
 			if (ViewFamily.EngineShowFlags.Translucency)
 			{
