@@ -22,6 +22,7 @@ class UInterpTrackMove;
 class UInterpTrackSound;
 class UInterpTrackVectorProp;
 class UInterpTrackVisibility;
+class UInterpTrackSlomo;
 class UMovieScene3DTransformTrack;
 class UMovieSceneAudioTrack;
 class UMovieSceneBoolTrack;
@@ -35,6 +36,7 @@ class UMovieSceneParticleTrack;
 class UMovieSceneSkeletalAnimationTrack;
 class UMovieSceneVectorTrack;
 class UMovieSceneVisibilityTrack;
+class UMovieSceneSlomoTrack;
 
 class MOVIESCENETOOLS_API FMatineeImportTools
 {
@@ -97,4 +99,7 @@ public:
 
 	/** Copies keys from a matinee visibility track to a sequencer visibility track. */
 	static bool CopyInterpVisibilityTrack( UInterpTrackVisibility* MatineeVisibilityTrack, UMovieSceneVisibilityTrack* VisibilityTrack );
+
+	/** Copies keys from a matinee Slomo track to a sequencer Slomo track. */
+	static bool CopyInterpSlomoTrack(UInterpTrackSlomo* MatineeSlomoTrack, UMovieSceneSlomoTrack* SlomoTrack);
 };

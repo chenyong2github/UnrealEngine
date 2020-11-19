@@ -33,6 +33,7 @@
 #include "Matinee/InterpTrackEvent.h"
 #include "Matinee/InterpTrackVectorProp.h"
 #include "Matinee/InterpTrackVisibility.h"
+#include "Matinee/InterpTrackSlomo.h"
 
 #include "Tracks/MovieSceneBoolTrack.h"
 #include "Tracks/MovieSceneFloatTrack.h"
@@ -47,6 +48,7 @@
 #include "Tracks/MovieSceneVisibilityTrack.h"
 #include "Tracks/MovieSceneAudioTrack.h"
 #include "Tracks/MovieSceneVectorTrack.h"
+#include "Tracks/MovieSceneSlomoTrack.h"
 
 #include "Sections/MovieSceneColorSection.h"
 #include "Sections/MovieSceneBoolSection.h"
@@ -60,6 +62,7 @@
 #include "Sections/MovieSceneEventTriggerSection.h"
 #include "Sections/MovieSceneVectorSection.h"
 #include "Sections/MovieSceneParameterSection.h"
+#include "Sections/MovieSceneSlomoSection.h"
 
 
 #include "Animation/AnimSequence.h"
@@ -995,5 +998,49 @@ bool FMatineeImportTools::CopyInterpVisibilityTrack( UInterpTrackVisibility* Mat
 		}
 	}	
 	
+	return bSectionCreated;
+}
+
+bool FMatineeImportTools::CopyInterpSlomoTrack(UInterpTrackSlomo* MatineeSlomoTrack, UMovieSceneSlomoTrack* SlomoTrack)
+{
+	const FScopedTransaction Transaction(NSLOCTEXT("Sequencer", "PasteMatineeSlomoTrack", "Paste Matinee Slomo Track"));
+	bool bSectionCreated = false;
+
+	SlomoTrack->Modify();
+
+	FFrameRate   FrameRate = SlomoTrack->GetTypedOuter<UMovieScene>()->GetTickResolution();
+	FFrameNumber FirstKeyTime = (MatineeSlomoTrack->GetKeyframeTime(0) * FrameRate).RoundToFrame();
+
+	UMovieSceneSlomoSection* Section = Cast<UMovieSceneSlomoSection>(MovieSceneHelpers::FindSectionAtTime(SlomoTrack->GetAllSections(), FirstKeyTime));
+	if (Section == nullptr)
+	{
+		Section = Cast<UMovieSceneSlomoSection>(SlomoTrack->CreateNewSection());
+		SlomoTrack->AddSection(*Section);
+		bSectionCreated = true;
+	}
+	if (Section->TryModify())
+	{
+		TRange<FFrameNumber> KeyRange = TRange<FFrameNumber>::Empty();
+
+		FMovieSceneFloatChannel* SlomoChannel = Section->GetChannelProxy().GetChannel<FMovieSceneFloatChannel>(0);
+		check(SlomoChannel);
+		TMovieSceneChannelData<FMovieSceneFloatValue> SlomoInterface = SlomoChannel->GetData();
+		for (const auto& Point : MatineeSlomoTrack->FloatTrack.Points)
+		{
+			FFrameNumber KeyTime = (Point.InVal * FrameRate).RoundToFrame();
+
+			FMatineeImportTools::SetOrAddKey(SlomoInterface, KeyTime, Point.OutVal, Point.ArriveTangent, Point.LeaveTangent, Point.InterpMode, FrameRate);
+
+			KeyRange = TRange<FFrameNumber>::Hull(KeyRange, TRange<FFrameNumber>(KeyTime));
+		}
+
+		CleanupCurveKeys(SlomoChannel);
+
+		if (!KeyRange.IsEmpty())
+		{
+			Section->SetRange(KeyRange);
+		}
+	}
+
 	return bSectionCreated;
 }
