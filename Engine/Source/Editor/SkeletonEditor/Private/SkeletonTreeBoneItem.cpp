@@ -42,26 +42,32 @@ FSkeletonTreeBoneItem::FSkeletonTreeBoneItem(const FName& InBoneName, const TSha
 
 const FSlateBrush* FSkeletonTreeBoneItem::GetLODIcon() const
 {
-	if (bRequiredBone)
+	if (!bRequiredBone)
 	{
-		return FEditorStyle::GetBrush("SkeletonTree.LODBone");
+		return FAppStyle::Get().GetBrush("SkeletonTree.NonRequiredBone");
 	}
 
-	return FEditorStyle::GetBrush("SkeletonTree.NonRequiredBone");
+	else if (!bWeightedBone)
+	{
+		return FAppStyle::Get().GetBrush("SkeletonTree.BoneNonWeighted");
+	}
+
+	return FAppStyle::Get().GetBrush("SkeletonTree.Bone");
+
 }
 
 void FSkeletonTreeBoneItem::GenerateWidgetForNameColumn( TSharedPtr< SHorizontalBox > Box, const TAttribute<FText>& FilterText, FIsSelected InIsSelected )
 {
-	const FSlateBrush* LODIcon = FEditorStyle::GetBrush("SkeletonTree.LODBone");
+	const FSlateBrush* LODIcon = FEditorStyle::GetBrush("SkeletonTree.Bone");
 
 	Box->AddSlot()
 		.AutoWidth()
-		.Padding(FMargin(0.0f, 1.0f))
+		.Padding(FMargin(0.0f, 2.0f))
 		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Center)
 		[
 			SNew(SImage)
-			.ColorAndOpacity(FSlateColor::UseForeground())
+			.ColorAndOpacity(this, &FSkeletonTreeBoneItem::GetBoneTextColor, InIsSelected)
 			.Image(this, &FSkeletonTreeBoneItem::GetLODIcon)
 		];
 
@@ -74,11 +80,11 @@ void FSkeletonTreeBoneItem::GenerateWidgetForNameColumn( TSharedPtr< SHorizontal
 	FText ToolTip = GetBoneToolTip();
 	Box->AddSlot()
 		.AutoWidth()
-		.Padding(2, 0, 0, 0)
+		.Padding(4, 0, 0, 0)
 		.VAlign(VAlign_Center)
 		[
 			SNew( STextBlock )
-			.ColorAndOpacity(this, &FSkeletonTreeBoneItem::GetBoneTextColor)
+			.ColorAndOpacity(this, &FSkeletonTreeBoneItem::GetBoneTextColor, InIsSelected)
 			.Text( FText::FromName(BoneName) )
 			.HighlightText( FilterText )
 			.Font(this, &FSkeletonTreeBoneItem::GetBoneTextFont)
@@ -86,7 +92,7 @@ void FSkeletonTreeBoneItem::GenerateWidgetForNameColumn( TSharedPtr< SHorizontal
 		];
 }
 
-TSharedRef< SWidget > FSkeletonTreeBoneItem::GenerateWidgetForDataColumn(const FName& DataColumnName)
+TSharedRef< SWidget > FSkeletonTreeBoneItem::GenerateWidgetForDataColumn(const FName& DataColumnName, FIsSelected InIsSelected)
 {
 	if(DataColumnName == ISkeletonTree::Columns::Retargeting)
 	{
@@ -94,53 +100,63 @@ TSharedRef< SWidget > FSkeletonTreeBoneItem::GenerateWidgetForDataColumn(const F
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
 			.HAlign(HAlign_Left)
+			.Padding(0.0f)
 			[
 				SAssignNew(RetargetingComboButton, SComboButton)
-				.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
-				.ForegroundColor(this, &FSkeletonTreeBoneItem::GetRetargetingComboButtonForegroundColor)
+            	.ComboButtonStyle( &FAppStyle::Get().GetWidgetStyle< FComboButtonStyle >("SkeletonTree.RetargetingComboButton"))
+				.ForegroundColor(this, &FSkeletonTreeBoneItem::GetBoneTextColor, InIsSelected)
 				.ContentPadding(0)
 				.OnGetMenuContent(this, &FSkeletonTreeBoneItem::CreateBoneTranslationRetargetingModeMenu)
 				.ToolTip(IDocumentation::Get()->CreateToolTip(
-				LOCTEXT("RetargetingToolTip", "Set bone translation retargeting mode"),
-				nullptr,
-				TEXT("Shared/Editors/Persona"),
-				TEXT("TranslationRetargeting")))
+					LOCTEXT("RetargetingToolTip", "Set bone translation retargeting mode"),
+					nullptr,
+					TEXT("Shared/Editors/Persona"),
+					TEXT("TranslationRetargeting")))
+				.VAlign(VAlign_Center)
 				.ButtonContent()
 				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Text(this, &FSkeletonTreeBoneItem::GetTranslationRetargetingModeMenuTitle)
-					]
+					SNew(STextBlock)
+					.Text(this, &FSkeletonTreeBoneItem::GetTranslationRetargetingModeMenuTitle)
 				]
 			];
 	}
 	else if(DataColumnName == ISkeletonTree::Columns::BlendProfile)
 	{
-		bool bWritable = true;
-
-		UBlendProfile* CurrentProfile = GetSkeletonTree()->GetSelectedBlendProfile();
-
-		// We should never have this column if we don't have a profile
-		check(CurrentProfile);
-
 		return SNew(SBox)
 			.Padding(0.0f)
-			.HAlign(HAlign_Left)
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Center)
 			[
 				SNew(SSpinBox<float>)
-				.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("SkeletonTree.HyperlinkSpinBox"))
+				.Visibility(this, &FSkeletonTreeBoneItem::GetBoneBlendProfileVisibility)
+				.Style(&FAppStyle::Get(), "SkeletonTree.HyperlinkSpinBox")
+				.Font(FAppStyle::Get().GetFontStyle("SmallFont"))
 				.ContentPadding(0.0f)
+				.Delta(0.01f)
 				.MinValue(0.0f)
-				.MaxValue(1000.0f)
-				.Value(CurrentProfile->GetBoneBlendScale(BoneName))
+				.MaxValue(1.0f)
+				.Value(this, &FSkeletonTreeBoneItem::GetBoneBlendProfileScale)
 				.OnValueCommitted(this, &FSkeletonTreeBoneItem::OnBlendSliderCommitted)
+				.OnValueChanged(this, &FSkeletonTreeBoneItem::OnBlendSliderCommitted, ETextCommit::OnEnter)
 			];
 	}
 
 	return SNullWidget::NullWidget;
+}
+
+EVisibility FSkeletonTreeBoneItem::GetBoneBlendProfileVisibility() const
+{
+	return GetSkeletonTree()->GetSelectedBlendProfile() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+float FSkeletonTreeBoneItem::GetBoneBlendProfileScale()	const 
+{
+	if (UBlendProfile* CurrentProfile = GetSkeletonTree()->GetSelectedBlendProfile())
+	{
+		return CurrentProfile->GetBoneBlendScale(BoneName);
+	}
+
+	return 0.0;
 }
 
 FSlateColor FSkeletonTreeBoneItem::GetRetargetingComboButtonForegroundColor() const
@@ -216,9 +232,9 @@ void FSkeletonTreeBoneItem::SetBoneBlendProfileScale(float NewScale, bool bRecur
 
 FSlateFontInfo FSkeletonTreeBoneItem::GetBoneTextFont() const
 {
-	if (bWeightedBone)
+	if (!bRequiredBone)
 	{
-		return FEditorStyle::GetWidgetStyle<FTextBlockStyle>("SkeletonTree.BoldFont").Font;
+		return FEditorStyle::GetWidgetStyle<FTextBlockStyle>("SkeletonTree.ItalicFont").Font;
 	}
 	else
 	{
@@ -254,19 +270,25 @@ void FSkeletonTreeBoneItem::EnableBoneProxyTick(bool bEnable)
 	BoneProxy->bIsTickable = bEnable;
 }
 
-FSlateColor FSkeletonTreeBoneItem::GetBoneTextColor() const
+FSlateColor FSkeletonTreeBoneItem::GetBoneTextColor(FIsSelected InIsSelected) const
 {
 	if (FilterResult == ESkeletonTreeFilterResult::ShownDescendant)
 	{
 		return FSlateColor(FLinearColor::Gray * 0.5f);
 	}
-	else if (bRequiredBone)
+
+	bool bIsSelected = InIsSelected.IsBound() ? InIsSelected.Execute() : false;
+	if (bIsSelected)
 	{
-		return FSlateColor(FLinearColor::White);
+		return FAppStyle::Get().GetSlateColor("Colors.ForegroundInverted");
+	}
+	else if (bRequiredBone && bWeightedBone)
+	{
+		return FSlateColor::UseForeground();
 	}
 	else
 	{
-		return FSlateColor(FLinearColor::Gray);
+		return FSlateColor::UseSubduedForeground();
 	}
 }
 

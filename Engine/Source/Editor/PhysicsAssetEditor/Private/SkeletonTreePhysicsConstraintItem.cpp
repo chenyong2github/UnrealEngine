@@ -33,7 +33,7 @@ void FSkeletonTreePhysicsConstraintItem::GenerateWidgetForNameColumn( TSharedPtr
 	];
 }
 
-TSharedRef< SWidget > FSkeletonTreePhysicsConstraintItem::GenerateWidgetForDataColumn(const FName& DataColumnName)
+TSharedRef< SWidget > FSkeletonTreePhysicsConstraintItem::GenerateWidgetForDataColumn(const FName& DataColumnName, FIsSelected InIsSelected)
 {
 	return SNullWidget::NullWidget;
 }

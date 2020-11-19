@@ -28,7 +28,7 @@ public:
 
 	/** ISkeletonTreeItem interface */
 	virtual void GenerateWidgetForNameColumn(TSharedPtr< SHorizontalBox > Box, const TAttribute<FText>& FilterText, FIsSelected InIsSelected) override;
-	virtual TSharedRef< SWidget > GenerateWidgetForDataColumn(const FName& DataColumnName) override;
+	virtual TSharedRef< SWidget > GenerateWidgetForDataColumn(const FName& DataColumnName, FIsSelected InIsSelected) override;
 	virtual FName GetRowItemName() const override { return BoneName; }
 	virtual void HandleDragEnter(const FDragDropEvent& DragDropEvent) override;
 	virtual void HandleDragLeave(const FDragDropEvent& DragDropEvent) override;
@@ -56,7 +56,7 @@ private:
 	FSlateFontInfo GetBoneTextFont() const;
 
 	/** Get the text color based on bone part of skeleton or part of mesh */
-	FSlateColor GetBoneTextColor() const;
+	FSlateColor GetBoneTextColor(FIsSelected InIsSelected) const;
 
 	/** Brush of the icon */
 	const FSlateBrush* GetLODIcon() const;
@@ -81,6 +81,12 @@ private:
 
 	/** Set current Blend Scale for this bone */
 	void SetBoneBlendProfileScale(float NewScale, bool bRecurse);
+
+	/** Get the current Blend Scale for this bone */
+	float GetBoneBlendProfileScale() const;
+
+	/** Used to hide the Bone Profile row widget if there is no current Blend Profile */
+	EVisibility GetBoneBlendProfileVisibility() const;
 
 private:
 	/** Bone proxy object */

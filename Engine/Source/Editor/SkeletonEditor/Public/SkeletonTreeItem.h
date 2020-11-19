@@ -26,7 +26,7 @@ public:
 
 	/** ISkeletonTreeItem interface */
 	virtual TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, const TAttribute<FText>& InFilterText) override;
-	virtual TSharedRef< SWidget > GenerateWidgetForDataColumn(const FName& DataColumnName) override { return SNullWidget::NullWidget; }
+	virtual TSharedRef< SWidget > GenerateWidgetForDataColumn(const FName& DataColumnName, FIsSelected InIsSelected) override { return SNullWidget::NullWidget; }
 	virtual TSharedRef< SWidget > GenerateInlineEditWidget(const TAttribute<FText>& FilterText, FIsSelected InIsSelected) override { return SNullWidget::NullWidget; }
 	virtual bool HasInlineEditor() const override { return false; }
 	virtual void ToggleInlineEditorExpansion() override {}

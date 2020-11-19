@@ -176,6 +176,9 @@ private:
 	/** Called to display context menu when right clicking on the widget */
 	TSharedPtr< SWidget > CreateContextMenu();
 
+	/** Called to display the add new menu */
+	TSharedRef< SWidget > CreateNewMenu();
+
 	/** Called to display the filter menu */
 	TSharedRef< SWidget > CreateFilterMenu();
 
@@ -320,6 +323,17 @@ private:
 	/** Handle package reloading (might be our skeleton) */
 	void HandlePackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent);
 
+	/** Creates a new Blend Profile */
+	void OnCreateBlendProfile();
+
+	/** Removes the active Blend Profile */
+	void OnDeleteCurrentBlendProfile();
+
+	/** Generate Blend Profile Menu */
+	void GetBlendProfileMenu(FMenuBuilder& MenuBuilder);
+
+	TSharedRef<SWidget> GetBlendProfileColumnMenuContent();
+
 private:
 	/** Pointer back to the skeleton tree that owns us */
 	TWeakPtr<FEditableSkeleton> EditableSkeleton;
@@ -332,6 +346,9 @@ private:
 
 	/** The blend profile picker displaying the selected profile */
 	TSharedPtr<SBlendProfilePicker> BlendProfilePicker;
+
+	/** Blend Profile Header Label.  Also used to name new blend profiles */
+	TSharedPtr<SInlineEditableTextBlock> BlendProfileHeader;
 
 	/** Widget user to hold the skeleton tree */
 	TSharedPtr<SOverlay> TreeHolder;
@@ -385,6 +402,9 @@ private:
 
 	/** Add virtual bones to the skeleton tree */
 	void AddVirtualBones(const TArray<FVirtualBone>& VirtualBones);
+
+	/** Checks if the named profile is the currently selected/active one */
+	bool IsBlendProfileSelected(FName ProfileName) const;
 
 	/** The builder we use to construct the tree */
 	TSharedPtr<class ISkeletonTreeBuilder> Builder;

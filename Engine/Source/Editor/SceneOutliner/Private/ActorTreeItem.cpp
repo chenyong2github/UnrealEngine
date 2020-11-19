@@ -59,15 +59,15 @@ struct SActorTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWidget
 				})
 			]
 
-		+ SHorizontalBox::Slot()
+			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
 			.AutoWidth()
 			.Padding(0.0f, 0.f, 3.0f, 0.0f)
 			[
 				SNew(STextBlock)
 				.Text(this, &SActorTreeLabel::GetTypeText)
-			.Visibility(this, &SActorTreeLabel::GetTypeTextVisibility)
-			.HighlightText(HighlightText)
+				.Visibility(this, &SActorTreeLabel::GetTypeTextVisibility)
+				.HighlightText(HighlightText)
 			];
 
 		if (WeakSceneOutliner.Pin()->GetMode()->IsInteractive())

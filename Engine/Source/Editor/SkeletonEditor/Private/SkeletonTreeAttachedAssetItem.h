@@ -19,7 +19,7 @@ public:
 
 	/** ISkeletonTreeItem interface */
 	virtual void GenerateWidgetForNameColumn(TSharedPtr< SHorizontalBox > Box, const TAttribute<FText>& FilterText, FIsSelected InIsSelected) override;
-	virtual TSharedRef< SWidget > GenerateWidgetForDataColumn(const FName& DataColumnName) override;
+	virtual TSharedRef< SWidget > GenerateWidgetForDataColumn(const FName& DataColumnName, FIsSelected InIsSelected) override;
 	virtual FName GetRowItemName() const { return Asset->GetFName(); }
 	virtual FName GetAttachName() const { return GetParentName(); }
 	virtual void OnItemDoubleClicked() override;

@@ -4976,22 +4976,32 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 		Set("SkeletonTree.SkeletonSocket", new IMAGE_BRUSH("Persona/SkeletonTree/icon_SocketG_16px", Icon16x16));
 		Set("SkeletonTree.MeshSocket", new IMAGE_BRUSH("Persona/SkeletonTree/icon_SocketC_16px", Icon16x16));
 		Set("SkeletonTree.LODBone", new IMAGE_BRUSH(TEXT("Persona/SkeletonTree/icon_LODBone_16x"), Icon16x16));
+		Set("SkeletonTree.Bone", 	new IMAGE_BRUSH_SVG(TEXT("Starship/Animation/Bone"), Icon16x16) );
+		Set("SkeletonTree.BoneNonWeighted", new IMAGE_BRUSH_SVG(TEXT("Starship/Animation/BoneNonWeighted"), Icon16x16) );
 		Set("SkeletonTree.NonRequiredBone", new IMAGE_BRUSH(TEXT("Persona/SkeletonTree/icon_NonRequiredBone_16x"), Icon16x16));
-		Set("SkeletonTree.NormalFont", FTextBlockStyle(NormalText)
-			.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f)));
-		Set("SkeletonTree.BoldFont", FTextBlockStyle(NormalText)
-			.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f))
-			.SetFont(DEFAULT_FONT("Bold", 10)));
+		Set("SkeletonTree.NormalFont", FTextBlockStyle(NormalText));
+		Set("SkeletonTree.ItalicFont", FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("Italic", 10)));
 
-		Set("SkeletonTree.HyperlinkSpinBox", FSpinBoxStyle(GetWidgetStyle<FSpinBoxStyle>("SpinBox"))
-			.SetTextPadding(FMargin(0))
-			.SetBackgroundBrush(BORDER_BRUSH("Old/HyperlinkDotted", FMargin(0, 0, 0, 3 / 16.0f), FSlateColor::UseSubduedForeground()))
-			.SetHoveredBackgroundBrush(FSlateNoResource())
-			.SetInactiveFillBrush(FSlateNoResource())
-			.SetActiveFillBrush(FSlateNoResource())
-			.SetForegroundColor(FSlateColor::UseSubduedForeground())
+		Set("SkeletonTree.HyperlinkSpinBox", FSpinBoxStyle()
+			.SetBackgroundBrush(       FSlateRoundedBoxBrush(FStyleColors::Input, 3.f, FStyleColors::Transparent, 1.0f))
+			.SetHoveredBackgroundBrush(FSlateRoundedBoxBrush(FStyleColors::Input, 3.f, FStyleColors::Transparent, 1.0f))
+			.SetActiveFillBrush(       FSlateRoundedBoxBrush(FStyleColors::Hover, 3.f, FStyleColors::Transparent, 1.0f))
+			.SetInactiveFillBrush(     FSlateRoundedBoxBrush(FStyleColors::Secondary, 3.f, FStyleColors::Transparent, 1.0f))
 			.SetArrowsImage(FSlateNoResource())
-			);
+			.SetForegroundColor(FStyleColors::ForegroundHover)
+			.SetTextPadding(FMargin(8.f, 4.f, 8.f, 3.f))
+			.SetArrowsImage(FSlateNoResource())
+		);
+
+
+		const FButtonStyle BorderlessButton = FButtonStyle(GetWidgetStyle<FButtonStyle>("SimpleButton"))
+			.SetNormalPadding(0.f)
+			.SetPressedPadding(0.f);
+
+		Set("SkeletonTree.RetargetingComboButton", FComboButtonStyle(GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
+			.SetButtonStyle(BorderlessButton)
+			.SetDownArrowPadding(FMargin(2.0f, 0.0f, 0.0f, 0.0f)));
 
 		Set("SkeletonTree.BlendProfile", new IMAGE_BRUSH(TEXT("Icons/icon_Persona_NewBlendSpace_16x"), Icon16x16));
 		Set("SkeletonTree.InlineEditorShadowTop", new IMAGE_BRUSH(TEXT("Common/ScrollBoxShadowTop"), FVector2D(64, 8)));

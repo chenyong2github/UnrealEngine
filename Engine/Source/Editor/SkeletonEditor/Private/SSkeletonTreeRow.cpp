@@ -55,6 +55,7 @@ TSharedRef< SWidget > SSkeletonTreeRow::GenerateWidgetForColumn( const FName& Co
 			.AutoWidth()
 			[
 				SNew( SExpanderArrow, SharedThis(this) )
+				.ShouldDrawWires(true)
 			];
 
 		Item.Pin()->GenerateWidgetForNameColumn( RowBox, FilterText, FIsSelected::CreateSP(this, &STableRow::IsSelectedExclusively ) );
@@ -63,7 +64,7 @@ TSharedRef< SWidget > SSkeletonTreeRow::GenerateWidgetForColumn( const FName& Co
 	}
 	else
 	{
-		return Item.Pin()->GenerateWidgetForDataColumn(ColumnName);
+		return Item.Pin()->GenerateWidgetForDataColumn(ColumnName, FIsSelected::CreateSP(this, &STableRow::IsSelectedExclusively ));
 	}
 }
 

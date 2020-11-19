@@ -115,6 +115,18 @@ FPhysicsAssetEditor::~FPhysicsAssetEditor()
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.Remove(OnAssetReimportDelegateHandle);
 }
 
+static void FillAddShapeMenu(FMenuBuilder& InSubMenuBuilder)
+{
+	const FPhysicsAssetEditorCommands& PhysicsAssetEditorCommands = FPhysicsAssetEditorCommands::Get();
+
+	InSubMenuBuilder.BeginSection("ShapeTypeHeader", LOCTEXT("ShapeTypeHeader", "Shape Type"));
+	InSubMenuBuilder.AddMenuEntry( PhysicsAssetEditorCommands.AddBox );
+	InSubMenuBuilder.AddMenuEntry( PhysicsAssetEditorCommands.AddSphere );
+	InSubMenuBuilder.AddMenuEntry( PhysicsAssetEditorCommands.AddSphyl );
+	InSubMenuBuilder.AddMenuEntry( PhysicsAssetEditorCommands.AddTaperedCapsule );
+	InSubMenuBuilder.EndSection();
+}
+
 void FPhysicsAssetEditor::InitPhysicsAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UPhysicsAsset* ObjectToEdit)
 {
 	SelectedSimulation = false;
@@ -149,6 +161,7 @@ void FPhysicsAssetEditor::InitPhysicsAssetEditor(const EToolkitMode::Type Mode, 
 	SkeletonTreeArgs.Extenders = MakeShared<FExtender>();
 	SkeletonTreeArgs.Extenders->AddMenuExtension("FilterOptions", EExtensionHook::After, GetToolkitCommands(), FMenuExtensionDelegate::CreateSP(this, &FPhysicsAssetEditor::HandleExtendFilterMenu));
 	SkeletonTreeArgs.Extenders->AddMenuExtension("SkeletonTreeContextMenu", EExtensionHook::After, GetToolkitCommands(), FMenuExtensionDelegate::CreateSP(this, &FPhysicsAssetEditor::HandleExtendContextMenu));
+	SkeletonTreeArgs.Extenders->AddMenuExtension("CreateNew", EExtensionHook::After, GetToolkitCommands(), FMenuExtensionDelegate::CreateStatic( &FillAddShapeMenu));
 	SkeletonTreeArgs.Builder = SkeletonTreeBuilder = MakeShared<FPhysicsAssetEditorSkeletonTreeBuilder>(ObjectToEdit);
 	SkeletonTreeArgs.ContextName = GetToolkitFName();
 
@@ -1154,18 +1167,6 @@ void FPhysicsAssetEditor::Mirror()
 	RecreatePhysicsState();
 	RefreshHierachyTree();
 	RefreshPreviewViewport();
-}
-
-static void FillAddShapeMenu(FMenuBuilder& InSubMenuBuilder)
-{
-	const FPhysicsAssetEditorCommands& PhysicsAssetEditorCommands = FPhysicsAssetEditorCommands::Get();
-
-	InSubMenuBuilder.BeginSection("ShapeTypeHeader", LOCTEXT("ShapeTypeHeader", "Shape Type"));
-	InSubMenuBuilder.AddMenuEntry( PhysicsAssetEditorCommands.AddBox );
-	InSubMenuBuilder.AddMenuEntry( PhysicsAssetEditorCommands.AddSphere );
-	InSubMenuBuilder.AddMenuEntry( PhysicsAssetEditorCommands.AddSphyl );
-	InSubMenuBuilder.AddMenuEntry( PhysicsAssetEditorCommands.AddTaperedCapsule );
-	InSubMenuBuilder.EndSection();
 }
 
 void FPhysicsAssetEditor::BuildMenuWidgetBody(FMenuBuilder& InMenuBuilder)

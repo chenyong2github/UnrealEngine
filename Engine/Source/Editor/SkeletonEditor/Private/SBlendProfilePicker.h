@@ -53,15 +53,19 @@ public:
 	/** Get the currently selected blend profile name */
 	FName GetSelectedBlendProfileName() const;
 
+	/** Create a New Blend profile withe the provided profile name */
+	void OnCreateNewProfileComitted(const FText& NewName, ETextCommit::Type CommitType);
+	
+	/* Deselect the current blend profile */
+	void OnClearSelection();
+
 private:
 
 	/** FEditorUndoClient interface */
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
 
-	void OnClearSelection();
 	void OnCreateNewProfile();
-	void OnCreateNewProfileComitted(const FText& NewName, ETextCommit::Type CommitType);
 
 	void OnProfileSelected(FName InBlendProfileName);
 	void OnProfileRemoved(FName InBlendProfileName);

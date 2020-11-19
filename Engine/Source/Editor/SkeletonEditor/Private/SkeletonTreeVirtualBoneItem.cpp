@@ -36,16 +36,16 @@ EVisibility FSkeletonTreeVirtualBoneItem::GetLODIconVisibility() const
 
 void FSkeletonTreeVirtualBoneItem::GenerateWidgetForNameColumn(TSharedPtr< SHorizontalBox > Box, const TAttribute<FText>& FilterText, FIsSelected InIsSelected)
 {
-	const FSlateBrush* LODIcon = FEditorStyle::GetBrush("SkeletonTree.LODBone");
+	const FSlateBrush* LODIcon = FAppStyle::Get().GetBrush("SkeletonTree.Bone");
 
 	Box->AddSlot()
 		.AutoWidth()
-		.Padding(FMargin(0.0f, 1.0f))
+		.Padding(FMargin(0.0f, 2.0f))
 		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Center)
 		[
 			SNew(SImage)
-			.ColorAndOpacity(FSlateColor::UseForeground())
+			.ColorAndOpacity(this, &FSkeletonTreeVirtualBoneItem::GetBoneTextColor, InIsSelected)
 			.Image(LODIcon)
 			.Visibility(this, &FSkeletonTreeVirtualBoneItem::GetLODIconVisibility)
 		];
@@ -69,7 +69,7 @@ void FSkeletonTreeVirtualBoneItem::GenerateWidgetForNameColumn(TSharedPtr< SHori
 
 	Box->AddSlot()
 		.AutoWidth()
-		.Padding(2, 2, 1, 0)
+		.Padding(4, 0, 0, 0)
 		[
 			SNew(STextBlock)
 			.ColorAndOpacity(this, &FSkeletonTreeVirtualBoneItem::GetBoneTextColor, InIsSelected)
@@ -79,13 +79,14 @@ void FSkeletonTreeVirtualBoneItem::GenerateWidgetForNameColumn(TSharedPtr< SHori
 		];
 
 	Box->AddSlot()
+		.Padding(4, 0, 0, 0)
 		.AutoWidth()
 		[
 			InlineWidget.ToSharedRef()
 		];
 }
 
-TSharedRef< SWidget > FSkeletonTreeVirtualBoneItem::GenerateWidgetForDataColumn(const FName& DataColumnName)
+TSharedRef< SWidget > FSkeletonTreeVirtualBoneItem::GenerateWidgetForDataColumn(const FName& DataColumnName, FIsSelected InIsSelected)
 {
 	return SNullWidget::NullWidget;
 }

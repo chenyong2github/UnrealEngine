@@ -25,7 +25,7 @@ void FSkeletonTreeSocketItem::GenerateWidgetForNameColumn( TSharedPtr< SHorizont
 
 	Box->AddSlot()
 	.AutoWidth()
-	.Padding(FMargin(0.0f, 1.0f))
+	.Padding(FMargin(0.0f, 2.0f))
 	[
 		SNew( SImage )
 		.ColorAndOpacity(FSlateColor::UseForeground())
@@ -130,7 +130,7 @@ FSlateColor FSkeletonTreeSocketItem::GetTextColor() const
 	}
 }
 
-TSharedRef< SWidget > FSkeletonTreeSocketItem::GenerateWidgetForDataColumn(const FName& DataColumnName)
+TSharedRef< SWidget > FSkeletonTreeSocketItem::GenerateWidgetForDataColumn(const FName& DataColumnName, FIsSelected InIsSelected)
 {
 	return SNullWidget::NullWidget;
 }

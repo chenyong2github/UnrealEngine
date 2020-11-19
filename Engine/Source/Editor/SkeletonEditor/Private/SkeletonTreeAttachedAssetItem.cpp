@@ -32,7 +32,7 @@ void FSkeletonTreeAttachedAssetItem::GenerateWidgetForNameColumn( TSharedPtr< SH
 	const FSlateBrush* IconBrush = ActorFactory ? FSlateIconFinder::FindIconBrushForClass(ActorFactory->GetDefaultActorClass(FAssetData())) : nullptr;
 	
 	Box->AddSlot()
-		.Padding(FMargin(0.0f, 1.0f))
+		.Padding(FMargin(0.0f, 2.0f))
 		.AutoWidth()
 		[
 			SNew( SImage )
@@ -64,7 +64,7 @@ void FSkeletonTreeAttachedAssetItem::GenerateWidgetForNameColumn( TSharedPtr< SH
 		];
 }
 
-TSharedRef< SWidget > FSkeletonTreeAttachedAssetItem::GenerateWidgetForDataColumn(const FName& DataColumnName)
+TSharedRef< SWidget > FSkeletonTreeAttachedAssetItem::GenerateWidgetForDataColumn(const FName& DataColumnName, FIsSelected InIsSelected)
 {
 	if(DataColumnName == ISkeletonTree::Columns::Retargeting)
 	{
@@ -81,7 +81,7 @@ TSharedRef< SWidget > FSkeletonTreeAttachedAssetItem::GenerateWidgetForDataColum
 				[
 					SNew(SImage)
 					.Image(this, &FSkeletonTreeAttachedAssetItem::OnGetAssetDisplayedButtonImage)
-					.ColorAndOpacity(FLinearColor::Black)
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			];
 	}

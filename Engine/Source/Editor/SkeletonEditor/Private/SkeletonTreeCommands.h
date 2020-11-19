@@ -98,4 +98,10 @@ public:
 
 	/** Focus the camera on the current selection */
 	TSharedPtr< FUICommandInfo > FocusCamera;
+
+	/** Create a new blend profile */
+	TSharedPtr< FUICommandInfo > CreateBlendProfile;
+
+	/** Remove the currently active blend profile */
+	TSharedPtr< FUICommandInfo > DeleteCurrentBlendProfile;
 };

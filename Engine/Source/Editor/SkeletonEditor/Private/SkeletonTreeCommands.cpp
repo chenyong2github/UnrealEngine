@@ -35,6 +35,10 @@ void FSkeletonTreeCommands::RegisterCommands()
 	UI_COMMAND( HideSockets, "Hide Sockets", "Show no sockets", EUserInterfaceActionType::RadioButton, FInputChord() );
 
 	UI_COMMAND( FocusCamera, "Focus Camera", "Focus the camera on the current selection", EUserInterfaceActionType::Button, FInputChord(EKeys::F) );
+
+	UI_COMMAND( CreateBlendProfile, "Add Blend Profile", "Add a new blend profile for this skeleton", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( DeleteCurrentBlendProfile, "Delete the Current Blend Profile", "Delete the active blend profile for this skeleton", EUserInterfaceActionType::Button, FInputChord() );
+
 }
 
 #undef LOCTEXT_NAMESPACE
