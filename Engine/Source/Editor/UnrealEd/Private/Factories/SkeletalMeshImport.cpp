@@ -482,6 +482,10 @@ TSharedPtr<FExistingSkelMeshData> SkeletalMeshHelper::SaveExistingSkelMeshData(U
 	//Store mesh changed delegate data
 	ExistingMeshDataPtr->ExistingOnMeshChanged = SourceSkeletalMesh->GetOnMeshChanged();
 
+	//Store mesh bounds extensions
+	ExistingMeshDataPtr->PositiveBoundsExtension = SourceSkeletalMesh->GetPositiveBoundsExtension();
+	ExistingMeshDataPtr->NegativeBoundsExtension = SourceSkeletalMesh->GetNegativeBoundsExtension();
+
 	return ExistingMeshDataPtr;
 }
 
@@ -1008,6 +1012,10 @@ void SkeletalMeshHelper::RestoreExistingSkelMeshData(TSharedPtr<const FExistingS
 
 	//Copy mesh changed delegate data
 	SkeletalMesh->GetOnMeshChanged() = MeshData->ExistingOnMeshChanged;
+
+	//Copy mesh bounds extensions
+	SkeletalMesh->SetPositiveBoundsExtension(MeshData->PositiveBoundsExtension);
+	SkeletalMesh->SetNegativeBoundsExtension(MeshData->NegativeBoundsExtension);
 }
 
 void SkeletalMeshHelperImpl::RestoreMaterialNameWorkflowSection(const TSharedPtr<const FExistingSkelMeshData>& MeshData, USkeletalMesh* SkeletalMesh, int32 LodIndex, TArray<int32>& RemapMaterial, bool bMaterialReset)

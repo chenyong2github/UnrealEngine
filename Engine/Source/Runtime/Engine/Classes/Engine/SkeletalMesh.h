@@ -660,8 +660,14 @@ public:
 	/** Set bound extension values in the positive direction of XYZ, positive value increases bound size */
 	void SetPositiveBoundsExtension(const FVector& InExtension);
 
+	/** Get bound extension values in the positive direction of XYZ **/
+	const FVector& GetPositiveBoundsExtension() const { return PositiveBoundsExtension; }
+
 	/** Set bound extension values in the negative direction of XYZ, positive value increases bound size */
 	void SetNegativeBoundsExtension(const FVector& InExtension);
+
+	/** Get bound extension values in the negative direction of XYZ **/
+	const FVector& GetNegativeBoundsExtension() const { return NegativeBoundsExtension; }
 
 	/** Calculate the extended bounds based on the imported bounds and the extension values */
 	void CalculateExtendedBounds();
