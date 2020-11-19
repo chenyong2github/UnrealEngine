@@ -339,9 +339,9 @@ protected:
 
 	/** Create a view of the field iterator. */
 	template <typename OtherFieldType>
-	static inline FConstMemoryView AsMemoryView(const TCbFieldIterator<OtherFieldType>& It)
+	static inline FConstMemoryView GetFieldRangeView(const TCbFieldIterator<OtherFieldType>& It)
 	{
-		return MakeMemoryView(It.OtherFieldType::AsMemoryView().GetData(), It.FieldsEnd);
+		return MakeMemoryView(It.OtherFieldType::GetFieldView().GetData(), It.FieldsEnd);
 	}
 
 private:
@@ -535,11 +535,25 @@ public:
 	constexpr inline ECbFieldError GetError() const { return Error; }
 
 protected:
+	/** Returns the type of the field including any relevant flags. */
 	constexpr inline ECbFieldType GetType() const { return Type; }
+
+	/** Returns the type to use when constructing a new field after using CopyTo. */
 	constexpr inline ECbFieldType GetCopyType() const { return Type; }
+
+	/** Size of the field payload in bytes. That is the field excluding its type and name. */
+	CORE_API uint64 GetPayloadSize() const;
+
+	/** Returns the start of the value payload. */
 	constexpr inline const void* GetPayload() const { return Payload; }
+
+	/** Returns the end of the value payload. */
 	inline const void* GetPayloadEnd() const { return static_cast<const uint8*>(Payload) + GetPayloadSize(); }
 
+	/** Returns a view of the value payload, which excludes the type and name. */
+	inline FConstMemoryView GetPayloadView() const { return MakeMemoryView(Payload, GetPayloadSize()); }
+
+	/** Assign a field from a pointer to its data and an optional externally-provided type. */
 	inline void Assign(const void* InData, const ECbFieldType InType)
 	{
 		static_assert(TIsTriviallyDestructible<FCbField>::Value,
@@ -555,12 +569,9 @@ protected:
 	CORE_API void CopyTo(FMutableMemoryView Buffer) const;
 
 	/** Create a view of the field, including the type and name when present. */
-	CORE_API FConstMemoryView AsMemoryView() const;
+	CORE_API FConstMemoryView GetFieldView() const;
 
 private:
-	/** Size of the field payload in bytes. That is the field excluding its type and name. */
-	CORE_API uint64 GetPayloadSize() const;
-
 	/** Parameters for converting to an integer. */
 	struct FIntegerParams
 	{
@@ -644,7 +655,7 @@ private:
  * This type only provides a view into memory and does not perform any memory management itself.
  * Use \ref FCbArrayRef to hold a reference to the underlying memory when necessary.
  */
-class FCbArray
+class FCbArray : protected FCbField
 {
 public:
 	/** Construct an array with no fields. */
@@ -656,7 +667,10 @@ public:
 	 * @param Data Pointer to the start of the array data.
 	 * @param Type HasFieldType means that Data contains the type. Otherwise, use the given type.
 	 */
-	CORE_API explicit FCbArray(const void* Data, ECbFieldType Type = ECbFieldType::HasFieldType);
+	inline explicit FCbArray(const void* Data, ECbFieldType Type = ECbFieldType::HasFieldType)
+		: FCbField(Data, Type)
+	{
+	}
 
 	/** Size of the array in bytes if serialized by itself with no name. */
 	CORE_API uint64 GetSize() const;
@@ -679,27 +693,26 @@ public:
 	CORE_API bool Equals(const FCbArray& Other) const;
 
 	/** Access the array as an array field. */
-	inline FCbField AsField() const
-	{
-		return FCbField(Payload, FCbFieldType::GetType(Type));
-	}
+	inline FCbField AsField() const { return static_cast<const FCbField&>(*this); }
+
+	/** Construct an array from an array field. No type check is performed! */
+	static FCbArray FromField(const FCbField& Field) { return FCbArray(Field); }
 
 protected:
-	inline ECbFieldType GetCopyType() const { return FCbFieldType::GetType(Type) | ECbFieldType::HasFieldType; }
+	/** Returns the type to use when constructing a new array after using CopyTo. */
+	constexpr inline ECbFieldType GetCopyType() const
+	{
+		return FCbFieldType::GetType(GetType()) | ECbFieldType::HasFieldType;
+	}
 
 	/** Copy the array into a buffer of at least GetSize() bytes. */
 	CORE_API void CopyTo(FMutableMemoryView Buffer) const;
-
-	/** Create a view of the payload, excluding the type or the name of the outer field. */
-	CORE_API FConstMemoryView AsMemoryView() const;
 
 private:
 	friend inline FCbFieldIterator begin(const FCbArray& Array) { return Array.CreateIterator(); }
 	friend inline FCbFieldIterator end(const FCbArray&) { return FCbFieldIterator(); }
 
-private:
-	const void* Payload;
-	ECbFieldType Type;
+	inline explicit FCbArray(const FCbField& Field) : FCbField(Field) {}
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -715,7 +728,7 @@ private:
  * This type only provides a view into memory and does not perform any memory management itself.
  * Use \ref FCbObjectRef to hold a reference to the underlying memory when necessary.
  */
-class FCbObject
+class FCbObject : protected FCbField
 {
 public:
 	/** Construct an object with no fields. */
@@ -727,7 +740,10 @@ public:
 	 * @param Data Pointer to the start of the object data.
 	 * @param Type HasFieldType means that Data contains the type. Otherwise, use the given type.
 	 */
-	CORE_API explicit FCbObject(const void* Data, ECbFieldType Type = ECbFieldType::HasFieldType);
+	inline explicit FCbObject(const void* Data, ECbFieldType Type = ECbFieldType::HasFieldType)
+		: FCbField(Data, Type)
+	{
+	}
 
 	/** Size of the object in bytes if serialized by itself with no name. */
 	CORE_API uint64 GetSize() const;
@@ -764,27 +780,26 @@ public:
 	inline FCbField operator[](FAnsiStringView Name) const { return Find(Name); }
 
 	/** Access the object as an object field. */
-	inline FCbField AsField() const
-	{
-		return FCbField(Payload, FCbFieldType::GetType(Type));
-	}
+	inline FCbField AsField() const { return static_cast<const FCbField&>(*this); }
+
+	/** Construct an object from an object field. No type check is performed! */
+	static FCbObject FromField(const FCbField& Field) { return FCbObject(Field); }
 
 protected:
-	inline ECbFieldType GetCopyType() const { return FCbFieldType::GetType(Type) | ECbFieldType::HasFieldType; }
+	/** Returns the type to use when constructing a new object after using CopyTo. */
+	constexpr inline ECbFieldType GetCopyType() const
+	{
+		return FCbFieldType::GetType(GetType()) | ECbFieldType::HasFieldType;
+	}
 
 	/** Copy the object into a buffer of at least GetSize() bytes. */
 	CORE_API void CopyTo(FMutableMemoryView Buffer) const;
-
-	/** Create a view of the payload, excluding the type or the name of the outer field. */
-	CORE_API FConstMemoryView AsMemoryView() const;
 
 private:
 	friend inline FCbFieldIterator begin(const FCbObject& Object) { return Object.CreateIterator(); }
 	friend inline FCbFieldIterator end(const FCbObject&) { return FCbFieldIterator(); }
 
-private:
-	const void* Payload;
-	ECbFieldType Type;
+	inline explicit FCbObject(const FCbField& Field) : FCbField(Field) {}
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -851,7 +866,7 @@ public:
 	{
 		if (ValueBuffer)
 		{
-			check(ValueBuffer->GetView().Contains(BaseType::AsMemoryView()));
+			check(ValueBuffer->GetView().Contains(BaseType::GetFieldView()));
 			if (ValueBuffer->IsOwned())
 			{
 				Buffer = ValueBuffer;
@@ -865,7 +880,7 @@ public:
 	{
 		if (ValueBuffer)
 		{
-			check(ValueBuffer->GetView().Contains(BaseType::AsMemoryView()));
+			check(ValueBuffer->GetView().Contains(BaseType::GetFieldView()));
 			if (ValueBuffer->IsOwned())
 			{
 				Buffer = MoveTemp(ValueBuffer);
@@ -1039,7 +1054,7 @@ private:
 	{
 		if (ValueBuffer)
 		{
-			check(ValueBuffer->GetView().Contains(AsMemoryView(It)));
+			check(ValueBuffer->GetView().Contains(GetFieldRangeView(It)));
 		}
 		return FCbFieldRef(It, Forward<BufferType>(ValueBuffer));
 	}
@@ -1095,7 +1110,7 @@ public:
 	/** Find a field by case-sensitive name comparison. */
 	inline FCbFieldRef FindRef(FAnsiStringView Name) const
 	{
-		if (FCbField Field = Find(Name))
+		if (::FCbField Field = Find(Name))
 		{
 			return FCbFieldRef(Field, *this);
 		}
@@ -1105,7 +1120,7 @@ public:
 	/** Find a field by case-insensitive name comparison. */
 	inline FCbFieldRef FindRefIgnoreCase(FAnsiStringView Name) const
 	{
-		if (FCbField Field = FindIgnoreCase(Name))
+		if (::FCbField Field = FindIgnoreCase(Name))
 		{
 			return FCbFieldRef(Field, *this);
 		}

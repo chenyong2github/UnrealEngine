@@ -45,6 +45,22 @@ static constexpr bool IsUniformType(const ECbFieldType Type)
 	}
 }
 
+/** Append the payload from the compact binary value to the array and return its type. */
+template <typename T>
+static inline ECbFieldType AppendCompactBinary(const T& Value, TArray64<uint8>& OutData)
+{
+	struct FCopy : public T
+	{
+		using T::GetCopyType;
+		using T::GetPayloadView;
+	};
+	const FCopy& ValueCopy = static_cast<const FCopy&>(Value);
+	const FConstMemoryView SourceView = ValueCopy.GetPayloadView();
+	const int64 TargetOffset = OutData.AddUninitialized(SourceView.GetSize());
+	FMemory::Memcpy(OutData.GetData() + TargetOffset, SourceView.GetData(), SourceView.GetSize());
+	return FCbFieldType::GetType(ValueCopy.GetCopyType());
+}
+
 FCbWriter::FCbWriter()
 {
 	States.Emplace();
@@ -209,18 +225,7 @@ void FCbWriter::Field(const FCbField& Value)
 {
 	checkf(Value.HasValue(), TEXT("It is invalid to write a field with no value."));
 	BeginField();
-	struct FCbFieldCopy : public FCbField
-	{
-		using FCbField::GetCopyType;
-		using FCbField::GetPayload;
-		using FCbField::GetPayloadEnd;
-	};
-	const FCbFieldCopy& ValueCopy = static_cast<const FCbFieldCopy&>(Value);
-	const void* const SourceData = ValueCopy.GetPayload();
-	const int64 SourceSize = PTRINT(ValueCopy.GetPayloadEnd()) - PTRINT(SourceData);
-	const int64 TargetOffset = Data.AddUninitialized(SourceSize);
-	FMemory::Memcpy(Data.GetData() + TargetOffset, SourceData, SourceSize);
-	EndField(FCbFieldType::GetType(ValueCopy.GetCopyType()));
+	EndField(AppendCompactBinary(Value, Data));
 }
 
 void FCbWriter::BeginObject()
@@ -268,16 +273,7 @@ void FCbWriter::EndObject()
 void FCbWriter::Object(const FCbObject& Value)
 {
 	BeginField();
-	struct FCbObjectCopy : public FCbObject
-	{
-		using FCbObject::GetCopyType;
-		using FCbObject::AsMemoryView;
-	};
-	const FCbObjectCopy& ValueCopy = static_cast<const FCbObjectCopy&>(Value);
-	const FConstMemoryView SourceView = ValueCopy.AsMemoryView();
-	const int64 TargetOffset = Data.AddUninitialized(SourceView.GetSize());
-	FMemory::Memcpy(Data.GetData() + TargetOffset, SourceView.GetData(), SourceView.GetSize());
-	EndField(FCbFieldType::GetType(ValueCopy.GetCopyType()));
+	EndField(AppendCompactBinary(Value, Data));
 }
 
 void FCbWriter::BeginArray()
@@ -327,16 +323,7 @@ void FCbWriter::EndArray()
 void FCbWriter::Array(const FCbArray& Value)
 {
 	BeginField();
-	struct FCbArrayCopy : public FCbArray
-	{
-		using FCbArray::GetCopyType;
-		using FCbArray::AsMemoryView;
-	};
-	const FCbArrayCopy& ValueCopy = static_cast<const FCbArrayCopy&>(Value);
-	const FConstMemoryView SourceView = ValueCopy.AsMemoryView();
-	const int64 TargetOffset = Data.AddUninitialized(SourceView.GetSize());
-	FMemory::Memcpy(Data.GetData() + TargetOffset, SourceView.GetData(), SourceView.GetSize());
-	EndField(FCbFieldType::GetType(ValueCopy.GetCopyType()));
+	EndField(AppendCompactBinary(Value, Data));
 }
 
 void FCbWriter::Null()

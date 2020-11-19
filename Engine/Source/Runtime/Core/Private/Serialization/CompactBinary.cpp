@@ -84,7 +84,7 @@ FCbField::FCbField(const void* const InData, const ECbFieldType InType)
 	Payload = Bytes;
 }
 
-FConstMemoryView FCbField::AsMemoryView() const
+FConstMemoryView FCbField::GetFieldView() const
 {
 	const uint32 TypeSize = FCbFieldType::HasFieldType(Type) ? sizeof(ECbFieldType) : 0;
 	const uint32 NameSize = FCbFieldType::HasFieldName(Type) ? NameLen + MeasureVarUInt(NameLen) : 0;
@@ -94,7 +94,7 @@ FConstMemoryView FCbField::AsMemoryView() const
 
 uint64 FCbField::GetSize() const
 {
-	return AsMemoryView().GetSize();
+	return GetFieldView().GetSize();
 }
 
 uint64 FCbField::GetPayloadSize() const
@@ -141,7 +141,7 @@ uint64 FCbField::GetPayloadSize() const
 
 bool FCbField::Equals(const FCbField& Other) const
 {
-	return Type == Other.Type && AsMemoryView().EqualBytes(Other.AsMemoryView());
+	return Type == Other.Type && GetFieldView().EqualBytes(Other.GetFieldView());
 }
 
 FCbObject FCbField::AsObject()
@@ -150,7 +150,7 @@ FCbObject FCbField::AsObject()
 	if (FCbFieldType::IsObject(LocalType))
 	{
 		Error = ECbFieldError::None;
-		return FCbObject(Payload, FCbFieldType::GetType(LocalType));
+		return FCbObject::FromField(*this);
 	}
 	else
 	{
@@ -165,7 +165,7 @@ FCbArray FCbField::AsArray()
 	if (FCbFieldType::IsArray(LocalType))
 	{
 		Error = ECbFieldError::None;
-		return FCbArray(Payload, FCbFieldType::GetType(LocalType));
+		return FCbArray::FromField(*this);
 	}
 	else
 	{
@@ -432,45 +432,25 @@ FTimespan FCbField::AsTimeSpan(FTimespan Default)
 
 void FCbField::CopyTo(const FMutableMemoryView Buffer) const
 {
-	const FConstMemoryView Source = AsMemoryView();
+	const FConstMemoryView Source = GetFieldView();
 	FMemory::Memcpy(Buffer.GetData(), Source.GetData(), FMath::Min(Buffer.GetSize(), Source.GetSize()));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FCbArray::FCbArray()
-	: Payload(CompactBinaryPrivate::GEmptyArrayPayload)
-	, Type(ECbFieldType::Array)
+	: FCbField(CompactBinaryPrivate::GEmptyArrayPayload, ECbFieldType::Array)
 {
-}
-
-FCbArray::FCbArray(const void* const InData, const ECbFieldType InType)
-{
-	const uint8* Bytes = static_cast<const uint8*>(InData);
-	const ECbFieldType LocalType = FCbFieldType::HasFieldType(InType) ? (ECbFieldType(*Bytes++) | ECbFieldType::HasFieldType) : InType;
-	uint32 NameLenByteCount = 0;
-	const uint64 NameLen = FCbFieldType::HasFieldName(LocalType) ? ReadVarUInt(Bytes, NameLenByteCount) : 0;
-	Bytes += NameLen + NameLenByteCount;
-
-	Type = LocalType;
-	Payload = Bytes;
-}
-
-FConstMemoryView FCbArray::AsMemoryView() const
-{
-	uint32 PayloadSizeByteCount;
-	const uint64 PayloadSize = ReadVarUInt(Payload, PayloadSizeByteCount);
-	return MakeMemoryView(Payload, PayloadSizeByteCount + PayloadSize);
 }
 
 uint64 FCbArray::GetSize() const
 {
-	return sizeof(ECbFieldType) + AsMemoryView().GetSize();
+	return sizeof(ECbFieldType) + GetPayloadSize();
 }
 
 uint64 FCbArray::Num() const
 {
-	const uint8* PayloadBytes = static_cast<const uint8*>(Payload);
+	const uint8* PayloadBytes = static_cast<const uint8*>(GetPayload());
 	PayloadBytes += MeasureVarUInt(PayloadBytes);
 	uint32 NumByteCount;
 	return ReadVarUInt(PayloadBytes, NumByteCount);
@@ -478,7 +458,7 @@ uint64 FCbArray::Num() const
 
 FCbFieldIterator FCbArray::CreateIterator() const
 {
-	const uint8* PayloadBytes = static_cast<const uint8*>(Payload);
+	const uint8* PayloadBytes = static_cast<const uint8*>(GetPayload());
 	uint32 PayloadSizeByteCount;
 	const uint64 PayloadSize = ReadVarUInt(PayloadBytes, PayloadSizeByteCount);
 	PayloadBytes += PayloadSizeByteCount;
@@ -487,7 +467,7 @@ FCbFieldIterator FCbArray::CreateIterator() const
 	{
 		const void* const PayloadEnd = PayloadBytes + PayloadSize;
 		PayloadBytes += NumByteCount;
-		const ECbFieldType UniformType = FCbFieldType::GetType(Type) == ECbFieldType::UniformArray ?
+		const ECbFieldType UniformType = FCbFieldType::GetType(GetType()) == ECbFieldType::UniformArray ?
 			ECbFieldType(*PayloadBytes++) : ECbFieldType::HasFieldType;
 		return FCbFieldIterator(FCbField(PayloadBytes, UniformType), PayloadEnd);
 	}
@@ -496,59 +476,40 @@ FCbFieldIterator FCbArray::CreateIterator() const
 
 bool FCbArray::Equals(const FCbArray& Other) const
 {
-	return FCbFieldType::GetType(Type) == FCbFieldType::GetType(Other.Type) && AsMemoryView().EqualBytes(Other.AsMemoryView());
+	return FCbFieldType::GetType(GetType()) == FCbFieldType::GetType(Other.GetType()) &&
+		GetPayloadView().EqualBytes(Other.GetPayloadView());
 }
 
 void FCbArray::CopyTo(const FMutableMemoryView Buffer) const
 {
 	uint8* BufferBytes = static_cast<uint8*>(Buffer.GetData());
-	*BufferBytes++ = uint8(FCbFieldType::GetType(Type));
-	const FConstMemoryView Source = AsMemoryView();
+	*BufferBytes++ = uint8(FCbFieldType::GetType(GetType()));
+	const FConstMemoryView Source = GetPayloadView();
 	FMemory::Memcpy(BufferBytes, Source.GetData(), FMath::Min(Buffer.GetSize() - 1, Source.GetSize()));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FCbObject::FCbObject()
-	: Payload(CompactBinaryPrivate::GEmptyObjectPayload)
-	, Type(ECbFieldType::Object)
+	: FCbField(CompactBinaryPrivate::GEmptyObjectPayload, ECbFieldType::Object)
 {
-}
-
-FCbObject::FCbObject(const void* const InData, const ECbFieldType InType)
-{
-	const uint8* Bytes = static_cast<const uint8*>(InData);
-	const ECbFieldType LocalType = FCbFieldType::HasFieldType(InType) ? (ECbFieldType(*Bytes++) | ECbFieldType::HasFieldType) : InType;
-	uint32 NameLenByteCount = 0;
-	const uint64 NameLen = FCbFieldType::HasFieldName(LocalType) ? ReadVarUInt(Bytes, NameLenByteCount) : 0;
-	Bytes += NameLen + NameLenByteCount;
-
-	Type = LocalType;
-	Payload = Bytes;
-}
-
-FConstMemoryView FCbObject::AsMemoryView() const
-{
-	uint32 PayloadSizeByteCount;
-	const uint64 PayloadSize = ReadVarUInt(Payload, PayloadSizeByteCount);
-	return MakeMemoryView(Payload, PayloadSizeByteCount + PayloadSize);
 }
 
 uint64 FCbObject::GetSize() const
 {
-	return sizeof(ECbFieldType) + AsMemoryView().GetSize();
+	return sizeof(ECbFieldType) + GetPayloadSize();
 }
 
 FCbFieldIterator FCbObject::CreateIterator() const
 {
-	const uint8* PayloadBytes = static_cast<const uint8*>(Payload);
+	const uint8* PayloadBytes = static_cast<const uint8*>(GetPayload());
 	uint32 PayloadSizeByteCount;
 	const uint64 PayloadSize = ReadVarUInt(PayloadBytes, PayloadSizeByteCount);
 	PayloadBytes += PayloadSizeByteCount;
 	if (PayloadSize)
 	{
 		const void* const PayloadEnd = PayloadBytes + PayloadSize;
-		const ECbFieldType UniformType = FCbFieldType::GetType(Type) == ECbFieldType::UniformObject ?
+		const ECbFieldType UniformType = FCbFieldType::GetType(GetType()) == ECbFieldType::UniformObject ?
 			ECbFieldType(*PayloadBytes++) : ECbFieldType::HasFieldType;
 		return FCbFieldIterator(FCbField(PayloadBytes, UniformType), PayloadEnd);
 	}
@@ -557,7 +518,8 @@ FCbFieldIterator FCbObject::CreateIterator() const
 
 bool FCbObject::Equals(const FCbObject& Other) const
 {
-	return FCbFieldType::GetType(Type) == FCbFieldType::GetType(Other.Type) && AsMemoryView().EqualBytes(Other.AsMemoryView());
+	return FCbFieldType::GetType(GetType()) == FCbFieldType::GetType(Other.GetType()) &&
+		GetPayloadView().EqualBytes(Other.GetPayloadView());
 }
 
 FCbField FCbObject::Find(const FAnsiStringView Name) const
@@ -587,8 +549,8 @@ FCbField FCbObject::FindIgnoreCase(const FAnsiStringView Name) const
 void FCbObject::CopyTo(const FMutableMemoryView Buffer) const
 {
 	uint8* BufferBytes = static_cast<uint8*>(Buffer.GetData());
-	*BufferBytes++ = uint8(FCbFieldType::GetType(Type));
-	const FConstMemoryView Source = AsMemoryView();
+	*BufferBytes++ = uint8(FCbFieldType::GetType(GetType()));
+	const FConstMemoryView Source = GetPayloadView();
 	FMemory::Memcpy(BufferBytes, Source.GetData(), FMath::Min(Buffer.GetSize() - 1, Source.GetSize()));
 }
 

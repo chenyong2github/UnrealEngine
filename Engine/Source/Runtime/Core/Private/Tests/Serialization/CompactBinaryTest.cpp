@@ -263,6 +263,11 @@ bool FCbFieldNullTest::RunTest(const FString& Parameters)
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FCbFieldObjectTest, FCbFieldTestBase, "System.Core.Serialization.CbField.Object", CompactBinaryTestFlags)
 bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 {
+	static_assert(!std::is_constructible<FCbField, const FCbObject&>::value, "Invalid constructor for FCbField");
+	static_assert(!std::is_assignable<FCbField, const FCbObject&>::value, "Invalid assignment for FCbField");
+	static_assert(!std::is_convertible<FCbField, FCbObject>::value, "Invalid conversion to FCbObject");
+	static_assert(!std::is_assignable<FCbObject, const FCbField&>::value, "Invalid assignment for FCbObject");
+
 	auto TestIntObject = [this](const FCbObject& Object, int32 ExpectedNum, uint64 ExpectedPayloadSize)
 	{
 		TestEqual(TEXT("FCbField(Object)::AsObject().GetSize()"), Object.GetSize(), ExpectedPayloadSize + sizeof(ECbFieldType));
@@ -358,8 +363,8 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 		const uint8 NamedPayload[] = { 1, 'O', 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
 		FCbField NamedField(NamedPayload, ECbFieldType::UniformObject | ECbFieldType::HasFieldName);
 		TestTrue(TEXT("FCbObject::Equals()"), Object.Equals(NamedField.AsObject()));
-		TestTrue(TEXT("FCbObject::AsField().Equals()"), Field.Equals(NamedField.AsObject().AsField()));
-		TestFalse(TEXT("FCbObject::AsField().Equals()"), NamedField.Equals(NamedField.AsObject().AsField()));
+		TestTrue(TEXT("FCbObject::AsField().Equals()"), Field.Equals(Field.AsObject().AsField()));
+		TestTrue(TEXT("FCbObject::AsField().Equals()"), NamedField.Equals(NamedField.AsObject().AsField()));
 	}
 
 	// Test FCbField(None) as Object
@@ -421,6 +426,11 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FCbFieldArrayTest, FCbFieldTestBase, "System.Core.Serialization.CbField.Array", CompactBinaryTestFlags)
 bool FCbFieldArrayTest::RunTest(const FString& Parameters)
 {
+	static_assert(!std::is_constructible<FCbField, const FCbArray&>::value, "Invalid constructor for FCbField");
+	static_assert(!std::is_assignable<FCbField, const FCbArray&>::value, "Invalid assignment for FCbField");
+	static_assert(!std::is_convertible<FCbField, FCbArray>::value, "Invalid conversion to FCbArray");
+	static_assert(!std::is_assignable<FCbArray, const FCbField&>::value, "Invalid assignment for FCbArray");
+
 	auto TestIntArray = [this](FCbArray Array, int32 ExpectedNum, uint64 ExpectedPayloadSize)
 	{
 		TestEqual(TEXT("FCbField(Array)::AsArray().GetSize()"), Array.GetSize(), ExpectedPayloadSize + sizeof(ECbFieldType));
@@ -494,8 +504,8 @@ bool FCbFieldArrayTest::RunTest(const FString& Parameters)
 		const uint8 NamedPayload[] = { 1, 'A', 5, 3, IntType, 1, 2, 3 };
 		FCbField NamedField(NamedPayload, ECbFieldType::UniformArray | ECbFieldType::HasFieldName);
 		TestTrue(TEXT("FCbArray::Equals()"), Array.Equals(NamedField.AsArray()));
-		TestTrue(TEXT("FCbArray::AsField().Equals()"), Field.Equals(NamedField.AsArray().AsField()));
-		TestFalse(TEXT("FCbArray::AsField().Equals()"), NamedField.Equals(NamedField.AsArray().AsField()));
+		TestTrue(TEXT("FCbArray::AsField().Equals()"), Field.Equals(Field.AsArray().AsField()));
+		TestTrue(TEXT("FCbArray::AsField().Equals()"), NamedField.Equals(NamedField.AsArray().AsField()));
 	}
 
 	// Test FCbField(None) as Array
