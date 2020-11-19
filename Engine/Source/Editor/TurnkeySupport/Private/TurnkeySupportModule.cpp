@@ -9,7 +9,6 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "MessageLogModule.h"
-#include "EditorStyleSet.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -17,14 +16,12 @@
 #include "HAL/PlatformFileManager.h"
 #include "ITargetDeviceServicesModule.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
-#include "ISettingsEditorModule.h"
 #include "Async/Async.h"
 #include "Misc/FileHelper.h"
 #include "Interfaces/TargetDeviceId.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/IProjectManager.h"
-#include "ISettingsModule.h"
 #include "SourceControlHelpers.h"
 #include "ISourceControlModule.h"
 #include "ITargetDeviceProxy.h"
@@ -34,13 +31,13 @@
 #include "DesktopPlatformModule.h"
 #include "PlatformInfo.h"
 #include "InstalledPlatformInfo.h"
-#include "Settings/EditorExperimentalSettings.h"
-#include "CookerSettings.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Developer/DerivedDataCache/Public/DerivedDataCacheInterface.h"
 #include "Misc/MonitoredProcess.h"
+#include "EditorStyleSet.h"
+#include "CookerSettings.h"
 
 #include "Misc/App.h"
 #include "Framework/Application/SlateApplication.h"
@@ -173,11 +170,6 @@ protected:
 
 public:
 
-	/** Opens the Packaging settings tab */
-	static void PackagingSettings()
-	{
-		FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Project", "Project", "Packaging");
-	}
 
 	static void OpenProjectLauncher()
 	{
@@ -279,11 +271,6 @@ public:
 		if (FApp::IsEngineInstalled())
 		{
 			BuildCookRunParams += TEXT(" -installed");
-		}
-		int32 NumCookers = GetDefault<UEditorExperimentalSettings>()->MultiProcessCooking;
-		if (NumCookers > 0)
-		{
-			BuildCookRunParams += FString::Printf(TEXT(" -NumCookersToSpawn=%d"), NumCookers);
 		}
 
 
@@ -527,7 +514,7 @@ public:
 	void RegisterCommands()
 	{
 		UI_COMMAND(PackagingSettings, "Packaging Settings...", "Opens the settings for project packaging", EUserInterfaceActionType::Button, FInputChord());
-		ActionList->MapAction(PackagingSettings, FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::PackagingSettings));
+		ActionList->MapAction(PackagingSettings, FExecuteAction::CreateLambda([] {} ));
 
 	}
 
@@ -615,11 +602,11 @@ static void TurnkeyInstallSdk(FString PlatformName, bool bPreferFull, bool bForc
 			// update the Sdk status
 //			FDataDrivenPlatformInfoRegistry::UpdateSdkStatus();
 			GetTargetPlatformManager()->UpdateAfterSDKInstall(*PlatformName);
+#if WITH_ENGINE
 			RenderUtilsInit();
+#endif
 
-
-			// show restart dialog
-			FModuleManager::GetModuleChecked<ISettingsEditorModule>("SettingsEditor").OnApplicationRestartRequired();
+			FTurnkeyEditorSupport::ShowRestartToast();
 		});
 	}
 	);
@@ -923,15 +910,7 @@ static void LaunchOnDevice(const FString& DeviceId, const FString& DeviceName, b
 
 static void PrepareLaunchOn(FString DeviceId, FString DeviceName)
 {
-	ULevelEditorPlaySettings* PlaySettings = GetMutableDefault<ULevelEditorPlaySettings>();
-
-	PlaySettings->LastExecutedLaunchModeType = LaunchMode_OnDevice;
-	PlaySettings->LastExecutedLaunchDevice = DeviceId;
-	PlaySettings->LastExecutedLaunchName = DeviceName;
-
-	PlaySettings->PostEditChange();
-
-	PlaySettings->SaveConfig();
+	FTurnkeyEditorSupport::PrepareToLaunchRunningMap(DeviceId, DeviceName);
 }
 
 static void HandleLaunchOnDeviceActionExecute(FString DeviceId, FString DeviceName, bool bUseTurnkey)
@@ -1197,15 +1176,6 @@ TSharedRef<SWidget> FTurnkeySupportModule::MakeTurnkeyMenu() const
 			LOCTEXT("OpenDeviceManager_ToolTip", "View and manage connected devices."),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "DeviceDetails.TabIcon"),
 			FUIAction(FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::OpenDeviceManager))
-		);
-
-		MenuBuilder.AddSeparator();
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("PackagingSettings", "Packaging Settings..."),
-			LOCTEXT("PackagingSettings_ToolTip", "Opens the settings for project packaging"),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::PackagingSettings))
 		);
 
 // 		MenuBuilder.AddMenuEntry(Commands.ZipUpProject,

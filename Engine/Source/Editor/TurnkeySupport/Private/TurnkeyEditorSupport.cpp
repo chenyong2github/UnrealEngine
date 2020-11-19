@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TurnkeyEditorSupport.h"
+#include "Misc/AssertionMacros.h"
 
 #if WITH_EDITOR
 #include "UnrealEdMisc.h"
@@ -14,6 +15,9 @@
 #include "Dialogs/Dialogs.h"
 #include "Async/Async.h"
 #include "GameProjectGenerationModule.h"
+#include "ISettingsModule.h"
+#include "ISettingsEditorModule.h"
+#include "Settings/EditorExperimentalSettings.h"
 
 #endif
 
@@ -22,15 +26,50 @@
 FString FTurnkeyEditorSupport::GetUATOptions()
 {
 #if WITH_EDITOR
-	return FUnrealEdMisc::Get().GetExecutableForCommandlets();
+	FString Options;
+	Options += FString::Printf(TEXT(" -ue4exe=%s"), *FUnrealEdMisc::Get().GetExecutableForCommandlets());
+
+	int32 NumCookers = GetDefault<UEditorExperimentalSettings>()->MultiProcessCooking;
+	if (NumCookers > 0)
+	{
+		Options += FString::Printf(TEXT(" -NumCookersToSpawn=%d"), NumCookers);
+	}
+	return Options;
 #else
 	return TEXT("");
 #endif
 }
 
+
 void FTurnkeyEditorSupport::AddEditorOptions(FMenuBuilder& MenuBuilder)
 {
+#if WITH_EDITOR
+	MenuBuilder.AddSeparator();
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("OpenPackagingSettings", "Packaging Settings..."),
+		LOCTEXT("OpenPackagingSettings_ToolTip", "Opens the settings for project packaging."),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "DeviceDetails.TabIcon"),
+		FUIAction(FExecuteAction::CreateLambda([] { FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Project", "Project", "Packaging"); }))
+	);
+
 	FModuleManager::LoadModuleChecked<IProjectTargetPlatformEditorModule>("ProjectTargetPlatformEditor").AddOpenProjectTargetPlatformEditorMenuItem(MenuBuilder);
+#endif
+}
+
+void FTurnkeyEditorSupport::PrepareToLaunchRunningMap(const FString& DeviceId, const FString& DeviceName)
+{
+#if WITH_EDITOR
+	ULevelEditorPlaySettings* PlaySettings = GetMutableDefault<ULevelEditorPlaySettings>();
+
+	PlaySettings->LastExecutedLaunchModeType = LaunchMode_OnDevice;
+	PlaySettings->LastExecutedLaunchDevice = DeviceId;
+	PlaySettings->LastExecutedLaunchName = DeviceName;
+
+	PlaySettings->PostEditChange();
+
+	PlaySettings->SaveConfig();
+#endif
 }
 
 void FTurnkeyEditorSupport::LaunchRunningMap(const FString& DeviceId, const FString& DeviceName, bool bUseTurnkey)
@@ -116,7 +155,8 @@ bool FTurnkeyEditorSupport::DoesProjectHaveCode()
 	FGameProjectGenerationModule& GameProjectModule = FModuleManager::LoadModuleChecked<FGameProjectGenerationModule>(TEXT("GameProjectGeneration"));
 	return GameProjectModule.Get().ProjectHasCodeFiles();
 #else
-	unimplemented;
+	unimplemented();
+	return false;
 #endif
 }
 
@@ -125,7 +165,7 @@ void FTurnkeyEditorSupport::RunUAT(const FString& CommandLine, const FText& Plat
 #if WITH_EDITOR
 	IUATHelperModule::Get().CreateUatTask(CommandLine, PlatformDisplayName, TaskName, TaskShortName, TaskIcon, ResultCallback);
 #else
-	unimplemented;
+	unimplemented();
 #endif
 }
 
@@ -148,6 +188,13 @@ bool FTurnkeyEditorSupport::ShowOKCancelDialog(FText Message, FText Title)
 #endif
 }
 
+void FTurnkeyEditorSupport::ShowRestartToast()
+{
+#if WITH_EDITOR
+	// show restart dialog
+	FModuleManager::GetModuleChecked<ISettingsEditorModule>("SettingsEditor").OnApplicationRestartRequired();
+#endif
+}
 
 bool FTurnkeyEditorSupport::CheckSupportedPlatforms(FName IniPlatformName)
 {

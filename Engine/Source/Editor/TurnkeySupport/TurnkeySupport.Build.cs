@@ -12,7 +12,7 @@ public class TurnkeySupport : ModuleRules
 				"Core",
 				"CoreUObject",
 				"ApplicationCore",
-				"Engine",
+//				"Engine",
 				"EngineSettings",
 				"InputCore",
 				"RHI",
@@ -23,10 +23,11 @@ public class TurnkeySupport : ModuleRules
 				"DesktopPlatform",
 				"WorkspaceMenuStructure",
 				"MessageLog",
-				"Projects",
-				"ToolMenus",
-				"LauncherServices",
-				"SettingsEditor"
+ 				"Projects",
+ 				"ToolMenus",
+ 				"LauncherServices",
+				"SourceControl",
+				"EditorStyle",
 			}
 		);
 
@@ -34,26 +35,25 @@ public class TurnkeySupport : ModuleRules
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
-					"UnrealEd",
-					"UATHelper",
-					"EditorStyle",
-					"SourceControl",
+				"UnrealEd",
+				"UATHelper",
+ 				"SettingsEditor"
+				}
+			);
+			PrivateIncludePathModuleNames.AddRange(
+				new string[] {
+					"AssetTools",
+					"DesktopPlatform",
+					"GameProjectGeneration",
+					"ProjectTargetPlatformEditor",
+					"LevelEditor",
+					"Settings",
+					"SourceCodeAccess",
+					"LocalizationDashboard",
 				}
 			);
 		}
 
-		PrivateIncludePathModuleNames.AddRange(
-			new string[] {
-				"AssetTools",
-				"DesktopPlatform",
-				"GameProjectGeneration",
-				"ProjectTargetPlatformEditor",
-				"LevelEditor",
-				"Settings",
-				"SourceCodeAccess",
-				"LocalizationDashboard",
-			}
-		);
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
