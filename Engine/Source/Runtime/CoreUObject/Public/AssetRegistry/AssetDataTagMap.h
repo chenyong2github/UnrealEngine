@@ -105,7 +105,7 @@ namespace FixedTagPrivate
 	};
 
 	// Handle to a tag map owned by a managed FStore
-	struct alignas(uint64) COREUOBJECT_API FMapHandle
+	struct COREUOBJECT_API alignas(uint64) FMapHandle
 	{
 		static constexpr uint32 StoreIndexBits = 14;
 

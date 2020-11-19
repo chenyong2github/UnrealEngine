@@ -51,7 +51,7 @@ namespace FixedTagPrivate
 
 	// Incomplete handle to a map in an unspecified FStore.
 	// Used for serialization where the store index is implicit.
-	struct alignas(uint64) COREUOBJECT_API FPartialMapHandle
+	struct COREUOBJECT_API alignas(uint64) FPartialMapHandle
 	{
 		bool bHasNumberlessKeys = false;
 		uint16 Num = 0;
