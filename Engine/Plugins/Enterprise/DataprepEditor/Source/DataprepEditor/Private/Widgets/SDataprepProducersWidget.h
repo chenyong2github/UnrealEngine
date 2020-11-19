@@ -97,12 +97,18 @@ private:
 	TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData;
 };
 
+/** Delegates for producers import */
+DECLARE_DELEGATE(FDataprepImportProducers);
+DECLARE_DELEGATE_RetVal(bool, FDataprepImportProducersEnabled);
+
 class SDataprepProducersWidget : public SCompoundWidget
 {
 public:
 
 	SLATE_BEGIN_ARGS(SDataprepProducersWidget) {}
 	SLATE_ARGUMENT(TSharedPtr< FDataprepDetailsViewColumnSizeData >, ColumnSizeData)
+	SLATE_ARGUMENT(FDataprepImportProducers, DataprepImportProducersDelegate) 
+	SLATE_ARGUMENT(FDataprepImportProducersEnabled, DataprepImportProducersEnabledDelegate)
 	SLATE_END_ARGS()
 
 	~SDataprepProducersWidget();
@@ -125,6 +131,8 @@ private:
 	TSharedPtr<SWidget> AddNewMenu;
 	TWeakObjectPtr<UDataprepAssetProducers> AssetProducersPtr;
 	TSharedPtr<SDataprepProducersTreeView> TreeView;
+	FDataprepImportProducers DataprepImportProducersDelegate;
+	FDataprepImportProducersEnabled DataprepImportProducersEnabledDelegate;
 };
 
 // Customization of the details of the Datasmith Scene for the data prep editor.

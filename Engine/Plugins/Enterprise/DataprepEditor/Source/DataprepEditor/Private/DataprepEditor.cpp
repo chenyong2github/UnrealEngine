@@ -662,11 +662,6 @@ void FDataprepEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FDataprepEditor::OnSaveScene));
 
 	UICommandList->MapAction(
-		Commands.BuildWorld,
-		FExecuteAction::CreateSP( this, &FDataprepEditor::OnBuildWorld ),
-		FCanExecuteAction::CreateSP( this, &FDataprepEditor::CanBuildWorld ) );
-
-	UICommandList->MapAction(
 		Commands.ExecutePipeline,
 		FExecuteAction::CreateSP(this, &FDataprepEditor::OnExecutePipeline),
 		FCanExecuteAction::CreateSP(this, &FDataprepEditor::CanExecutePipeline));
@@ -994,7 +989,6 @@ void FDataprepEditor::ExtendToolBar()
 		{
 			ToolbarBuilder.BeginSection("Run");
 			{
-				ToolbarBuilder.AddToolBarButton(FDataprepEditorCommands::Get().BuildWorld);
 				ToolbarBuilder.AddToolBarButton(FDataprepEditorCommands::Get().ExecutePipeline);
 				ToolbarBuilder.AddToolBarButton(FDataprepEditorCommands::Get().CommitWorld);
 			}
@@ -1025,7 +1019,9 @@ void FDataprepEditor::CreateTabs()
 
 	CreateGraphEditor();
 
-	DataprepAssetView = SNew( SDataprepAssetView, DataprepAssetInterfacePtr.Get() );
+	DataprepAssetView = SNew( SDataprepAssetView, DataprepAssetInterfacePtr.Get() )
+		.DataprepImportProducersDelegate( FDataprepImportProducers::CreateSP(this, &FDataprepEditor::OnBuildWorld) )
+		.DataprepImportProducersEnabledDelegate( FDataprepImportProducersEnabled::CreateSP(this, &FDataprepEditor::CanBuildWorld) );
 
 	CreateScenePreviewTab();
 
