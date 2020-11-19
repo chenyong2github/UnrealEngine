@@ -488,8 +488,6 @@ void ULevelSequence::SetDirectorBlueprint(UBlueprint* NewDirectorBlueprint)
 	}
 
 	MarkAsChanged();
-
-	UMovieSceneCompiledDataManager::GetPrecompiledData()->Reset(this);
 }
 
 void ULevelSequence::OnDirectorRecompiled(UBlueprint* InCompiledBlueprint)
@@ -498,8 +496,6 @@ void ULevelSequence::OnDirectorRecompiled(UBlueprint* InCompiledBlueprint)
 	DirectorClass = DirectorBlueprint->GeneratedClass.Get();
 
 	MarkAsChanged();
-
-	UMovieSceneCompiledDataManager::GetPrecompiledData()->Reset(this);
 }
 
 FGuid ULevelSequence::FindOrAddBinding(UObject* InObject)

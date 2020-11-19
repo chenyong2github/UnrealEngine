@@ -265,6 +265,7 @@ private:
 
 	FMovieSceneCompiledDataEntry* GetEntryPtr(FMovieSceneCompiledDataID DataID)
 	{
+		check(CompiledDataEntries.IsValidIndex(DataID.Value));
 		return &CompiledDataEntries[DataID.Value];
 	}
 
