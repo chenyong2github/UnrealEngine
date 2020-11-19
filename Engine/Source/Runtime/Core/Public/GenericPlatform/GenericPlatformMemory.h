@@ -715,6 +715,11 @@ public:
 	FORCEINLINE static void OnLowLevelMemory_Free(void const* Pointer, uint64 Size, uint64 Tag) { }
 
 	/**
+	* Called once at LLM initialization time to let the platform add any custom tags
+	*/
+	static void RegisterCustomLLMTags() { };
+
+	/**
 	* Called once per frame when LLM is collating the data for the current frame.
 	* Can be used to set platform-specific calculated tag data via SetTagAmountForTracker
 	*/
