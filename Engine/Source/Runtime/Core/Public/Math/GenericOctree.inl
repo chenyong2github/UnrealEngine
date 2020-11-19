@@ -70,7 +70,7 @@ FORCEINLINE FOctreeChildNodeRef FOctreeNodeContext::GetContainingChild(const FBo
 	const VectorRegister MinDifference = VectorMin(PositiveCenterDifference,NegativeCenterDifference);
 	if(VectorAnyGreaterThan(VectorAdd(QueryBoundsExtent,MinDifference),VectorLoadFloat1(&ChildExtent)))
 	{
-		Result.bNULL = true;
+		Result.SetNULL();
 	}
 	else
 	{
