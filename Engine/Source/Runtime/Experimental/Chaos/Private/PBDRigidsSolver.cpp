@@ -161,7 +161,10 @@ namespace Chaos
 			UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("AdvanceOneTimeStepTask::DoWork()"));
 			MSolver->StartingSceneSimulation();
 
-			MSolver->ApplyCallbacks_Internal(MSolver->GetSolverTime(), MDeltaTime);	//question: is SolverTime the right thing to pass in here?
+			if(MDeltaTime > 0)	//if delta time is 0 we are flushing data, user callbacks should not be triggered because there is no sim
+			{
+				MSolver->ApplyCallbacks_Internal(MSolver->GetSolverTime(), MDeltaTime);	//question: is SolverTime the right thing to pass in here?
+			}
 			MSolver->GetEvolution()->GetRigidClustering().ResetAllClusterBreakings();
 
 			{
@@ -293,7 +296,7 @@ namespace Chaos
 				RewindData->FinishFrame();
 			}
 
-			MSolver->FreeCallbacksData_Internal(MSolver->GetSolverTime(), MDeltaTime);	//question: is SolverTime the right thing to pass in here?
+			MSolver->FinalizeCallbackData_Internal();
 
 			MSolver->GetSolverTime() += MDeltaTime;
 			MSolver->GetCurrentFrame()++;
@@ -1049,30 +1052,15 @@ namespace Chaos
 
 	template <typename Traits>
 	void TPBDRigidsSolver<Traits>::ProcessPushedData_Internal(FPushPhysicsData& PushData)
-		{
-			//update callbacks
+	{
+		//update callbacks
 		SimCallbackObjects.Reserve(SimCallbackObjects.Num() + PushData.SimCallbackObjectsToAdd.Num());
 		for(ISimCallbackObject* SimCallbackObject : PushData.SimCallbackObjectsToAdd)
 		{
 			SimCallbackObjects.Add(SimCallbackObject);
-			if(SimCallbackObject->bContactModification)
+			if (SimCallbackObject->bContactModification)
 			{
 				ContactModifiers.Add(SimCallbackObject);
-			}
-		}
-
-		for (int32 Idx = 0; Idx < PushData.SimCallbackObjectsToRemove.Num(); ++Idx)
-		{
-			ISimCallbackObject* RemovedCallbackObject = PushData.SimCallbackObjectsToRemove[Idx];
-			if (Idx == 0)
-			{
-				//callback was removed right away so skip it entirely (unless it was tagged as running at least once no matter what)
-				RemovedCallbackObject->bPendingDelete = !RemovedCallbackObject->bRunOnceMore;
-			}
-			else
-			{
-				//want to delete, but came later in interval so need to run at least once
-				RemovedCallbackObject->bRunOnceMore = true;
 			}
 		}
 
@@ -1082,7 +1070,44 @@ namespace Chaos
 			InputAndCallbackObj.CallbackObject->SetCurrentInput_Internal(InputAndCallbackObj.Input);
 		}
 
+		//remove any callbacks that are unregistered
+		for (ISimCallbackObject* RemovedCallbackObject : PushData.SimCallbackObjectsToRemove)
+		{
+			RemovedCallbackObject->bPendingDelete = true;
+		}
+
+		for (int32 Idx = ContactModifiers.Num() - 1; Idx >= 0; --Idx)
+		{
+			ISimCallbackObject* Callback = ContactModifiers[Idx];
+			if (Callback->bPendingDelete)
+			{
+				//will also be in SimCallbackObjects so we'll delete it in that loop
+				ContactModifiers.RemoveAtSwap(Idx);
+			}
+		}
+
+		for (int32 Idx = SimCallbackObjects.Num() - 1; Idx >= 0; --Idx)
+		{
+			ISimCallbackObject* Callback = SimCallbackObjects[Idx];
+			if (Callback->bPendingDelete)
+			{
+				Callback->SetCurrentInput_Internal(nullptr);	//free any pending input
+				delete Callback;
+				SimCallbackObjects.RemoveAtSwap(Idx);
+			}
+		}
+
 		ProcessSinglePushedData_Internal(PushData);
+
+		//run any commands passed in. These don't generate outputs and are a one off so just do them here
+		//note: commands run before sim callbacks. This is important for sub-stepping since we want each sub-step to have a consistent view
+		//so for example if the user deletes a floor surface, we want all sub-steps to see that in the same way
+		//also note, the commands run after data is marshalled over. This is important because data marshalling ensures any GT property changes are seen by command
+		//for example a particle may not be created until marshalling occurs, and then a command could explicitly modify something like a collision setting
+		for (FSimCallbackCommandObject* SimCallbackObject : PushData.SimCommands)
+		{
+			SimCallbackObject->PreSimulate_Internal();
+		}
 	}
 
 	template <typename Traits>

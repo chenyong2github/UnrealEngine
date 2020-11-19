@@ -171,11 +171,7 @@ namespace Chaos
 		// Advance in single threaded because we cannot block on an async task here if in multi threaded mode. see above comments.
 		InSolver.SetThreadingMode_External(EThreadingModeTemp::SingleThread);
 		InSolver.MarkShuttingDown();
-		InSolver.AdvanceAndDispatch_External(0);
-
-		// Ensure callbacks actually get cleaned up, only necessary when solver is disabled.
-		InSolver.ApplyCallbacks_Internal(0, 0);
-		InSolver.FreeCallbacksData_Internal(0, 0);
+		InSolver.AdvanceAndDispatch_External(0);	//flush any pending commands are executed (for example unregister object)
 
 		// verify callbacks have been processed and we're not leaking.
 		// TODO: why is this still firing in 14.30? (Seems we're still leaking)

@@ -194,6 +194,7 @@ struct FPushPhysicsData
 	TArray<ISimCallbackObject*> SimCallbackObjectsToAdd;	//callback object registered at this specific time
 	TArray<ISimCallbackObject*> SimCallbackObjectsToRemove;	//callback object removed at this specific time
 	TArray<FSimCallbackInputAndObject> SimCallbackInputs; //set of callback inputs pushed at this specific time
+	TArray<FSimCallbackCommandObject*> SimCommands;	//commands to run (this is a one off command)
 
 	void Reset();
 	void CopySubstepData(const FPushPhysicsData& FirstStepData);
@@ -218,9 +219,13 @@ public:
 		GetProducerData_External()->SimCallbackObjectsToAdd.Add(SimCallbackObject);
 	}
 
-	void UnregisterSimCallbackObject_External(ISimCallbackObject* SimCallbackObject, bool bRunOnceMore = false)
+	void RegisterSimCommand_External(FSimCallbackCommandObject* SimCommand)
 	{
-		SimCallbackObject->bRunOnceMore = bRunOnceMore;
+		GetProducerData_External()->SimCommands.Add(SimCommand);
+	}
+
+	void UnregisterSimCallbackObject_External(ISimCallbackObject* SimCallbackObject)
+	{
 		GetProducerData_External()->SimCallbackObjectsToRemove.Add(SimCallbackObject);
 	}
 
