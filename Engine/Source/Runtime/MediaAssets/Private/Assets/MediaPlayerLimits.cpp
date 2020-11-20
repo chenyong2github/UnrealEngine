@@ -1,4 +1,6 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "MediaPlayerLimits.h"
+#include "Misc/ConfigCacheIni.h"
 
 int32 UMediaPlayerLimits::CurrentPlayerCount = 0;
 int32 UMediaPlayerLimits::MaxPlayerCount = -1;
