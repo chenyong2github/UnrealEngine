@@ -1590,9 +1590,20 @@ void FHLSLMaterialTranslator::GetSharedInputsMaterialCode(FString& PixelMembersD
 		if (CodeChunkToStrataSharedNormal.Num() > 0)
 		{
 			// Generate code to fill up the array containing normal shared between Strata BSDFs
-			for (TMap<uint64, FStrataSharedNormalInfo>::TIterator It(CodeChunkToStrataSharedNormal); It; ++It)
+			for (TMultiMap<uint64, FStrataSharedNormalInfo>::TIterator It(CodeChunkToStrataSharedNormal); It; ++It)
 			{
 				PixelInputInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.Normals[%u] = %s;\n"), It->Value.SharedNormalIndex, *It->Value.SharedNormalCode);
+			}
+			for (TMultiMap<uint64, FStrataSharedNormalInfo>::TIterator It(CodeChunkToStrataSharedNormal); It; ++It)
+			{
+				if (It->Value.TangentCodeChunk != -1)
+				{
+					PixelInputInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.Tangents[%u] = %s;\n"), It->Value.SharedNormalIndex, *It->Value.SharedTangentCode);
+				}
+				else
+				{
+					PixelInputInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.Tangents[%u] = float3(1,0,0);\n"), It->Value.SharedNormalIndex);
+				}
 			}
 			PixelInputInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.NormalCount = %u;\n"), CodeChunkToStrataSharedNormal.Num());
 		}
@@ -7298,15 +7309,66 @@ uint8 FHLSLMaterialTranslator::StrataCompilationInfoRegisterSharedNormalIndex(in
 
 	const uint64 NormalCodeChunkHash = GetParameterHash(NormalCodeChunk);
 
-	if (CodeChunkToStrataSharedNormal.Find(NormalCodeChunkHash) == nullptr)
+	// Find any basis which match the Normal code chunk
+	// A normal can be duplicated when it is paired with different tangent, so find the first one which matches
+	TArray<FStrataSharedNormalInfo*> NormalInfos;
+	CodeChunkToStrataSharedNormal.MultiFindPointer(NormalCodeChunkHash, NormalInfos);
+	if (NormalInfos.Num() == 0)
 	{
 		// Allocate a new slot for a new shared normal
 		uint8 NewSharedNormalIndex = NextFreeStrataShaderNormalIndex++;
-		CodeChunkToStrataSharedNormal.Add(NormalCodeChunkHash, { NormalCodeChunk , NewSharedNormalIndex, *GetParameterCode(NormalCodeChunk) });
+		CodeChunkToStrataSharedNormal.Add(NormalCodeChunkHash, { NormalCodeChunk , -1, NewSharedNormalIndex, *GetParameterCode(NormalCodeChunk), FString() });
 		return NewSharedNormalIndex;
 	}
+	// Return the first existing code chunk which match the normal chunk code
+	return NormalInfos[0]->SharedNormalIndex;
+}
+
+uint8 FHLSLMaterialTranslator::StrataCompilationInfoRegisterSharedNormalIndex(int32 NormalCodeChunk, int32 TangentCodeChunk)
+{
+	check(NormalCodeChunk != INDEX_NONE);
+	check(TangentCodeChunk != INDEX_NONE);
+	check(NextFreeStrataShaderNormalIndex < 255);	// Out of shared normal slots
+	check(NextFreeStrataShaderNormalIndex < STRATA_MAX_TOTAL_BSDF);	// This is our current budget if normal per material. STRATA_TODO change that to a byte per pixel
+
+	const uint64 NormalCodeChunkHash = GetParameterHash(NormalCodeChunk);
+	const uint64 TangentCodeChunkHash = GetParameterHash(TangentCodeChunk);
+
+	// Find a basis which matches both the Normal & the Tangent code chunks
+	TArray<FStrataSharedNormalInfo*> NormalInfos;
+	CodeChunkToStrataSharedNormal.MultiFindPointer(NormalCodeChunkHash, NormalInfos);
+	bool bFound = false;
+	uint8 SharedNormalIndex = 0;
+	for (FStrataSharedNormalInfo* NormalInfo : NormalInfos)
+	{
+		// * Either we find a perfect match (normal & tangent matches)
+		// * Or we find a normal which doesn't have a tangent associated with, and we set the tangent for code
+		if (TangentCodeChunkHash == GetParameterHash(NormalInfo->TangentCodeChunk))
+		{
+			SharedNormalIndex = NormalInfo->SharedNormalIndex;
+			bFound = true;
+			break;
+		}
+		else if (NormalInfo->TangentCodeChunk == -1)
+		{
+			NormalInfo->TangentCodeChunk = TangentCodeChunk;
+			NormalInfo->SharedTangentCode = *GetParameterCode(TangentCodeChunk);
+			SharedNormalIndex = NormalInfo->SharedNormalIndex;
+			bFound = true;
+			break;
+		}
+	}
+	
+	if (NormalInfos.Num() == 0 || !bFound)
+	{
+		// Allocate a new slot for a new shared normal & tangent
+		uint8 NewSharedNormalIndex = NextFreeStrataShaderNormalIndex++;
+		CodeChunkToStrataSharedNormal.Add(NormalCodeChunkHash, { NormalCodeChunk , TangentCodeChunk, NewSharedNormalIndex, *GetParameterCode(NormalCodeChunk), *GetParameterCode(TangentCodeChunk) });
+		return NewSharedNormalIndex;
+	}
+
 	// Return the existing code chunk
-	return CodeChunkToStrataSharedNormal[NormalCodeChunkHash].SharedNormalIndex;
+	return SharedNormalIndex;
 }
 
 uint8 FHLSLMaterialTranslator::StrataCompilationInfoGetSharedNormalCount()
@@ -7333,12 +7395,11 @@ int32 FHLSLMaterialTranslator::StrataDiffuseBSDF(int32 Albedo, int32 Roughness, 
 int32 FHLSLMaterialTranslator::StrataDielectricBSDF(int32 RoughnessX, int32 RoughnessY, int32 IOR, int32 Tint, int32 Normal, int32 Tangent, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataDielectricBSDF(float2(%s, %s), %s, %s, %s, %u) /* Normal:%s Tangent:%s */"),
+		MCT_Strata, TEXT("GetStrataDielectricBSDF(float2(%s, %s), %s, %s, %u) /* Normal:%s Tangent:%s */"),
 		*GetParameterCode(RoughnessX),
 		*GetParameterCode(RoughnessY),
 		*GetParameterCode(IOR),
 		*GetParameterCode(Tint),
-		*GetParameterCode(Tangent),
 		SharedNormalIndex,
 		*GetParameterCode(Normal),
 		*GetParameterCode(Tangent)
@@ -7348,12 +7409,11 @@ int32 FHLSLMaterialTranslator::StrataDielectricBSDF(int32 RoughnessX, int32 Roug
 int32 FHLSLMaterialTranslator::StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 RoughnessX, int32 RoughnessY, int32 Normal, int32 Tangent, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataConductorBSDF(%s, %s, float2(%s, %s), %s, %u) /* Normal:%s Tangent:%s */"),
+		MCT_Strata, TEXT("GetStrataConductorBSDF(%s, %s, float2(%s, %s), %u) /* Normal:%s Tangent:%s */"),
 		*GetParameterCode(Reflectivity),
 		*GetParameterCode(EdgeColor),
 		*GetParameterCode(RoughnessX),
 		*GetParameterCode(RoughnessY),
-		*GetParameterCode(Tangent),
 		SharedNormalIndex,
 		*GetParameterCode(Normal),
 		*GetParameterCode(Tangent)

@@ -307,15 +307,18 @@ protected:
 	/** Will contain all the shading models picked up from the material expression graph */
 	FMaterialShadingModelField ShadingModelsFromCompilation;
 
+	/** Tracks shared normal & tangent for strata materials. */
 	TMap<int32, FStrataMaterialCompilationInfo> CodeChunkToStrataCompilationInfoMap; // Mapping from node output to StrataMaterial
 	uint8 NextFreeStrataShaderNormalIndex;
 	struct FStrataSharedNormalInfo
 	{
 		int32 NormalCodeChunk;
+		int32 TangentCodeChunk;
 		uint8 SharedNormalIndex;
 		FString SharedNormalCode;
+		FString SharedTangentCode;
 	};
-	TMap<uint64, FStrataSharedNormalInfo> CodeChunkToStrataSharedNormal;
+	TMultiMap<uint64, FStrataSharedNormalInfo> CodeChunkToStrataSharedNormal; // Stored into to a multi-map as a normal can be shared accross several tangent basis (i.e. having different tangent)
 
 	/** Tracks the total number of vt samples in the shader. */
 	uint32 NumVtSamples;
@@ -803,6 +806,7 @@ protected:
 	virtual bool StrataCompilationInfoContainsCodeChunk(int32 CodeChunk) override;
 	virtual const FStrataMaterialCompilationInfo& GetStrataCompilationInfo(int32 CodeChunk) override;
 	virtual uint8 StrataCompilationInfoRegisterSharedNormalIndex(int32 NormalCodeChunk) override;
+	virtual uint8 StrataCompilationInfoRegisterSharedNormalIndex(int32 NormalCodeChunk, int32 TangentCodeChunk) override;
 	virtual uint8 StrataCompilationInfoGetSharedNormalCount() override;
 
 #if HANDLE_CUSTOM_OUTPUTS_AS_MATERIAL_ATTRIBUTES

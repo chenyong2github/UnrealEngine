@@ -407,6 +407,7 @@ public:
 	virtual bool StrataCompilationInfoContainsCodeChunk(int32 CodeChunk) = 0;
 	virtual const FStrataMaterialCompilationInfo& GetStrataCompilationInfo(int32 CodeChunk) = 0;
 	virtual uint8 StrataCompilationInfoRegisterSharedNormalIndex(int32 NormalCodeChunk) = 0;
+	virtual uint8 StrataCompilationInfoRegisterSharedNormalIndex(int32 NormalCodeChunk, int32 TangentCodeChunk) = 0;
 	virtual uint8 StrataCompilationInfoGetSharedNormalCount() = 0;
 
 	// Water
@@ -876,6 +877,11 @@ public:
 	virtual uint8 StrataCompilationInfoRegisterSharedNormalIndex(int32 NormalCodeChunk) override
 	{
 		return Compiler->StrataCompilationInfoRegisterSharedNormalIndex(NormalCodeChunk);
+	}
+
+	virtual uint8 StrataCompilationInfoRegisterSharedNormalIndex(int32 NormalCodeChunk, int32 TangentCodeChunk) override
+	{
+		return Compiler->StrataCompilationInfoRegisterSharedNormalIndex(NormalCodeChunk, TangentCodeChunk);
 	}
 
 	virtual uint8 StrataCompilationInfoGetSharedNormalCount() override
