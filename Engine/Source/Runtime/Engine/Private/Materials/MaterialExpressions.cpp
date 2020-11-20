@@ -15091,6 +15091,7 @@ UMaterialExpressionNamedRerouteDeclaration* UMaterialExpressionNamedRerouteBase:
 UMaterialExpressionNamedRerouteDeclaration* UMaterialExpressionNamedRerouteBase::FindDeclarationInMaterial(const FGuid& VariableGuid) const
 {
 	UMaterialExpressionNamedRerouteDeclaration* Declaration = nullptr;
+#if WITH_EDITORONLY_DATA
 	if (Material)
 	{
 		Declaration = FindDeclarationInArray(VariableGuid, Material->Expressions);
@@ -15099,6 +15100,7 @@ UMaterialExpressionNamedRerouteDeclaration* UMaterialExpressionNamedRerouteBase:
 	{
 		Declaration = FindDeclarationInArray(VariableGuid, Function->FunctionExpressions);
 	}
+#endif // WITH_EDITORONLY_DATA
 	return Declaration;
 }
 
@@ -15274,6 +15276,7 @@ void UMaterialExpressionNamedRerouteDeclaration::UpdateVariableGuid(bool bForceG
 
 void UMaterialExpressionNamedRerouteDeclaration::MakeNameUnique()
 {
+#if WITH_EDITORONLY_DATA
 	if (Material || Function)
 	{
 		auto& Expressions = Material ? Material->Expressions : Function->FunctionExpressions;
@@ -15307,6 +15310,7 @@ void UMaterialExpressionNamedRerouteDeclaration::MakeNameUnique()
 
 		Name = PotentialName;
 	}
+#endif // WITH_EDITORONLY_DATA
 }
 
 
@@ -15373,13 +15377,13 @@ void UMaterialExpressionNamedRerouteUsage::PostCopyNode(const TArray<UMaterialEx
 		}
 	}
 }
+#endif // WITH_EDITOR
 
 bool UMaterialExpressionNamedRerouteUsage::IsDeclarationValid() const
 {
 	// Deleted expressions are marked as pending kill (see FMaterialEditor::DeleteNodes)
 	return Declaration && !Declaration->IsPendingKill();
 }
-#endif // WITH_EDITOR
 
 bool UMaterialExpressionNamedRerouteUsage::GetRerouteInput(FExpressionInput& OutInput) const
 {
