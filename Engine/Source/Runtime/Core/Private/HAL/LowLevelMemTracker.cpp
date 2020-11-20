@@ -1318,6 +1318,9 @@ void FLowLevelMemTracker::InitialiseTagDatas()
 		FLLMTagDeclaration::SetCreationCallback(GlobalRegisterTagDeclaration);
 	}
 
+	// now let the platform add any custom tags
+	FPlatformMemory::RegisterCustomLLMTags();
+
 	// All parents in the ELLMTags and the initial modules' list of LLM_DEFINE_TAG must be contained within that same set, so we can FinishConstruct them now, which we do in UpdateTags
 	bTagAdded = true;
 	UpdateTags();
