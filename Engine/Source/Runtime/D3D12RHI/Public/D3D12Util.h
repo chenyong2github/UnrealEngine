@@ -270,6 +270,7 @@ void LogExecuteCommandLists(uint32 NumCommandLists, ID3D12CommandList *const *pp
 FString ConvertToResourceStateString(uint32 ResourceState);
 void LogResourceBarriers(uint32 NumBarriers, D3D12_RESOURCE_BARRIER *pBarriers, ID3D12CommandList *const pCommandList);
 
+void StallRHIThreadAndForceFlush(FD3D12Device* InDevice);
 
 // Custom resource states
 // To Be Determined (TBD) means we need to fill out a resource barrier before the command list is executed.

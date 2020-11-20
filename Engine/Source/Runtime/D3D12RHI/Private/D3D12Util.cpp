@@ -1147,6 +1147,16 @@ D3D12_RESOURCE_STATES GetD3D12ResourceState(ERHIAccess InRHIAccess, bool InIsAsy
 	return D3D12_RESOURCE_STATE_COMMON;
 }
 
+void StallRHIThreadAndForceFlush(FD3D12Device* InDevice)
+{
+	// We need to flush, but the RHI thread may be using the default command list...so stall it first.
+	check(IsInRenderingThread());
+	FScopedRHIThreadStaller StallRHIThread(FRHICommandListExecutor::GetImmediateCommandList());
+	InDevice->GetDefaultCommandContext().FlushCommands();	// Don't wait yet, since we're stalling the RHI thread.
+
+	// We have to make sure all command lists have actually flush and executed here
+	InDevice->GetCommandListManager().WaitOnExecuteTask();
+}
 
 //==================================================================================================================================
 // CResourceState

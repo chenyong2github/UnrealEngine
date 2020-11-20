@@ -1309,6 +1309,7 @@ void FD3D12DynamicRHI::RHIReadSurfaceData(FRHITexture* InRHITexture, FIntRect In
 		CommandListState ListState = GetRHIDevice(GPUIndex)->GetCommandListManager().GetCommandListState(SyncPoint);
 		if (ListState == CommandListState::kOpen)
 		{
+			// This should not happen because RHI thread has been flushed before a call to RHIReadSurfaceData
 			CommandContext.FlushCommands(true);
 		}
 		else
@@ -1525,7 +1526,9 @@ void FD3D12DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFenc
 	CommandListState listState = GetRHIDevice(GPUIndex)->GetCommandListManager().GetCommandListState(SyncPoint);
 	if (listState == CommandListState::kOpen)
 	{
-		GetRHIDevice(GPUIndex)->GetDefaultCommandContext().FlushCommands(true);
+		// We should really try to avoid this!
+		UE_LOG(LogD3D12RHI, Verbose, TEXT("Stalling the RHI thread and flushing GPU commands to wait for a open fence that hasn't been submitted to the GPU yet."));
+		StallRHIThreadAndForceFlush(GetRHIDevice(GPUIndex));
 	}
 	else
 	{

@@ -166,15 +166,7 @@ bool FD3D12Device::GetQueryData(FD3D12RenderQuery& Query, bool bWait)
 		{
 			// We should really try to avoid this!
 			UE_LOG(LogD3D12RHI, Verbose, TEXT("Stalling the RHI thread and flushing GPU commands to wait for a RenderQuery that hasn't been submitted to the GPU yet."));
-
-			// The query is on a command list that hasn't been submitted yet.
-			// We need to flush, but the RHI thread may be using the default command list...so stall it first.
-			check(IsInRenderingThread());
-			FScopedRHIThreadStaller StallRHIThread(FRHICommandListExecutor::GetImmediateCommandList());
-			GetDefaultCommandContext().FlushCommands();	// Don't wait yet, since we're stalling the RHI thread.
-
-			// We have to make sure all command lists have actually flush and executed here
-			CommandListManager->WaitOnExecuteTask();
+			StallRHIThreadAndForceFlush(this);
 		}
 
 		SyncPoint.WaitForCompletion();
