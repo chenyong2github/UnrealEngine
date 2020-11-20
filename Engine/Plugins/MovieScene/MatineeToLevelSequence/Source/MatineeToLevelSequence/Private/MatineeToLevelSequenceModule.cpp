@@ -1033,7 +1033,7 @@ protected:
 				if (MatineeSlomoTrack && MatineeSlomoTrack->GetNumKeyframes() != 0)
 				{
 					UMovieSceneSlomoTrack* SlomoTrack = NewMovieScene->AddMasterTrack<UMovieSceneSlomoTrack>();
-					FMatineeImportTools::CopyInterpFloatTrack(MatineeSlomoTrack, SlomoTrack);
+					FMatineeImportTools::CopyInterpSlomoTrack(MatineeSlomoTrack, SlomoTrack);
 				}
 				
 				UInterpTrackColorScale* MatineeColorScaleTrack = DirGroup->GetColorScaleTrack();
