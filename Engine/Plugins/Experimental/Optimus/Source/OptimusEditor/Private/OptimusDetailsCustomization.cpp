@@ -10,6 +10,7 @@
 #include "IPropertyTypeCustomization.h"
 #include "IDetailChildrenBuilder.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "Widgets/Layout/SBox.h"
 
 
 #define LOCTEXT_NAMESPACE "OptimusDetailCustomization"
