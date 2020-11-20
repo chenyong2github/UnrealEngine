@@ -131,6 +131,46 @@ UTypedElementInterface* UTypedElementList::GetElementInterface(const FTypedEleme
 	return Registry->GetElementInterface(InElementHandle, InBaseInterfaceType);
 }
 
+bool UTypedElementList::HasElements(const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
+{
+	bool bHasFilteredElements = false;
+
+	if (InBaseInterfaceType)
+	{
+		ForEachElementHandle([&bHasFilteredElements](const FTypedElementHandle&)
+		{
+			bHasFilteredElements = true;
+			return false;
+		}, InBaseInterfaceType);
+	}
+	else
+	{
+		bHasFilteredElements = Num() > 0;
+	}
+
+	return bHasFilteredElements;
+}
+
+int32 UTypedElementList::CountElements(const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
+{
+	int32 NumFilteredElements = 0;
+
+	if (InBaseInterfaceType)
+	{
+		ForEachElementHandle([&NumFilteredElements](const FTypedElementHandle&)
+		{
+			++NumFilteredElements;
+			return true;
+		}, InBaseInterfaceType);
+	}
+	else
+	{
+		NumFilteredElements = Num();
+	}
+
+	return NumFilteredElements;
+}
+
 TArray<FTypedElementHandle> UTypedElementList::GetElementHandles(const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
 {
 	TArray<FTypedElementHandle> FilteredElementHandles;

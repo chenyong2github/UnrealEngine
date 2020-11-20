@@ -14,6 +14,32 @@ UObject* GetObjectOfType(const TTypedElement<UTypedElementObjectInterface>& InOb
 		: nullptr;
 }
 
+bool HasObjects(const UTypedElementList* InElementList, const UClass* InRequiredClass)
+{
+	bool bHasObjects = false;
+
+	ForEachObject(InElementList, [&bHasObjects](const UObject*)
+	{
+		bHasObjects = true;
+		return false;
+	}, InRequiredClass);
+
+	return bHasObjects;
+}
+
+int32 CountObjects(const UTypedElementList* InElementList, const UClass* InRequiredClass)
+{
+	int32 NumObjects = 0;
+
+	ForEachObject(InElementList, [&NumObjects](const UObject*)
+	{
+		++NumObjects;
+		return true;
+	}, InRequiredClass);
+
+	return NumObjects;
+}
+
 void ForEachObject(const UTypedElementList* InElementList, TFunctionRef<bool(UObject*)> InCallback, const UClass* InRequiredClass)
 {
 	InElementList->ForEachElement<UTypedElementObjectInterface>([&InCallback, InRequiredClass](const TTypedElement<UTypedElementObjectInterface>& InObjectElement)

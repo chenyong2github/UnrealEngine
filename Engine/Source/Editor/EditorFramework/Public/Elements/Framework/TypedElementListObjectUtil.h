@@ -8,6 +8,34 @@ namespace TypedElementListObjectUtil
 {
 
 /**
+ * Test whether there are any objects in the given list of elements.
+ */
+EDITORFRAMEWORK_API bool HasObjects(const UTypedElementList* InElementList, const UClass* InRequiredClass = nullptr);
+
+/**
+ * Test whether there are any objects in the given list of elements.
+ */
+template <typename RequiredClassType>
+bool HasObjects(const UTypedElementList* InElementList)
+{
+	return HasObjects(InElementList, RequiredClassType::StaticClass());
+}
+
+/**
+ * Count the number of objects in the given list of elements.
+ */
+EDITORFRAMEWORK_API int32 CountObjects(const UTypedElementList* InElementList, const UClass* InRequiredClass = nullptr);
+
+/**
+ * Count the number of objects in the given list of elements.
+ */
+template <typename RequiredClassType>
+int32 CountObjects(const UTypedElementList* InElementList)
+{
+	return CountObjects(InElementList, RequiredClassType::StaticClass());
+}
+
+/**
  * Enumerate the objects from the given list of elements.
  * @note Return true from the callback to continue enumeration.
  */

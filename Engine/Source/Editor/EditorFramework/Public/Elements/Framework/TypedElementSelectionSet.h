@@ -159,6 +159,33 @@ public:
 	FTypedElementHandle GetSelectionElement(const FTypedElementHandle& InElementHandle, const ETypedElementSelectionMethod InSelectionMethod) const;
 
 	/**
+	 * Get the number of selected elements.
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection")
+	int32 GetNumSelectedElements() const
+	{
+		return ElementList->Num();
+	}
+
+	/**
+	 * Test whether there selected elements, optionally filtering to elements that implement the given interface.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Selection")
+	bool HasSelectedElements(const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType = nullptr) const
+	{
+		return ElementList->HasElements(InBaseInterfaceType);
+	}
+
+	/**
+	 * Count the number of selected elements, optionally filtering to elements that implement the given interface.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Selection")
+	int32 CountSelectedElements(const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType = nullptr) const
+	{
+		return ElementList->CountElements(InBaseInterfaceType);
+	}
+
+	/**
 	 * Get the handle of every selected element, optionally filtering to elements that implement the given interface.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Selection")
@@ -211,6 +238,42 @@ public:
 	TTypedElement<BaseInterfaceType> GetBottomSelectedElement() const
 	{
 		return ElementList->GetBottomElement<BaseInterfaceType>();
+	}
+
+	/**
+	 * Test whether there are any selected objects.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Selection")
+	bool HasSelectedObjects(const UClass* InRequiredClass = nullptr) const
+	{
+		return TypedElementListObjectUtil::HasObjects(ElementList, InRequiredClass);
+	}
+
+	/**
+	 * Test whether there are any selected objects.
+	 */
+	template <typename RequiredClassType>
+	bool HasSelectedObjects() const
+	{
+		return TypedElementListObjectUtil::HasObjects<RequiredClassType>(ElementList);
+	}
+
+	/**
+	 * Count the number of selected objects.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Selection")
+	int32 CountSelectedObjects(const UClass* InRequiredClass = nullptr) const
+	{
+		return TypedElementListObjectUtil::CountObjects(ElementList, InRequiredClass);
+	}
+
+	/**
+	 * Count the number of selected objects.
+	 */
+	template <typename RequiredClassType>
+	int32 CountSelectedObjects() const
+	{
+		return TypedElementListObjectUtil::CountObjects<RequiredClassType>(ElementList);
 	}
 
 	/**
