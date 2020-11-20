@@ -25,7 +25,7 @@ namespace Chaos
 		int32 Chaos_Collision_EnergyClampEnabled = 1;
 		FAutoConsoleVariableRef CVarChaosCollisionEnergyClampEnabled(TEXT("p.Chaos.Collision.EnergyClampEnabled"), Chaos_Collision_EnergyClampEnabled, TEXT("Whether to use energy clamping in collision apply step"));
 
-		int32 Chaos_Collision_RelaxationEnabled = 0; // TODO remove this feature soon
+		int32 Chaos_Collision_RelaxationEnabled = 1; // TODO remove this feature soon
 		FAutoConsoleVariableRef CVarChaosCollisionRelaxationEnabled(TEXT("p.Chaos.Collision.RelaxationEnabled"), Chaos_Collision_RelaxationEnabled, TEXT("Whether to reduce applied impulses during iterations for improved solver stability but reduced convergence"));
 
 		int32 Chaos_Collision_PrevVelocityRestitutionEnabled = 0;
