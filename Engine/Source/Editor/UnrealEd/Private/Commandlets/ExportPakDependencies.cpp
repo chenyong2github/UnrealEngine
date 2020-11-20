@@ -121,7 +121,8 @@ bool ExportDependencies(const TCHAR * PakFilename, const TCHAR* GameName, const 
 	// Example command line used for this tool
 	// C:\Development\BB\WEX\Saved\StagedBuilds\WindowsNoEditor\WorldExplorers\Content\Paks\WorldExplorers-WindowsNoEditor.pak WorldExplorers WEX -exportdependencies=c:\dvtemp\output -debug -NoAssetRegistryCache -ForceDependsGathering
 	
-	FPakFile PakFile(&FPlatformFileManager::Get().GetPlatformFile(), PakFilename, bSigned);
+	TRefCountPtr<FPakFile> PakFilePtr = new FPakFile(&FPlatformFileManager::Get().GetPlatformFile(), PakFilename, bSigned);
+	FPakFile& PakFile = *PakFilePtr;
 
 	if(PakFile.IsValid())
 	{
