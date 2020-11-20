@@ -32,9 +32,17 @@ public:
 	/** Ignore all mesh attributes (e.g. UV/Normal layers, material groups) */
 	bool bDisableAttributes = false;
 
-	/** map from triangle ID to (polygon,triangle) pair */
-	TArray<FIndex2i> TriToPolyTriMap;
 
+	/** map from DynamicMesh triangle ID to MeshDescription FTriangleID*/
+	TArray<FTriangleID> TriIDMap;
+
+	/**
+	* map from DynamicMesh vertex Id to MeshDecription FVertexID. 
+	* NB: due to vertex splitting, multiple DynamicMesh vertex ids 
+	* may map to the same MeshDescription FVertexID.
+	*  ( a vertex split is a result of reconciling non-manifold MeshDescription vertex ) 	  
+	*/
+	TArray<FVertexID> VertIDMap;
 
 	/**
 	 * Various modes can be used to create output triangle groups

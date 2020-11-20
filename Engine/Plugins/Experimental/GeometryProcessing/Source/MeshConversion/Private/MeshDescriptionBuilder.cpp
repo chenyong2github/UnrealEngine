@@ -44,6 +44,16 @@ void FMeshDescriptionBuilder::EnablePolyGroups()
 }
 
 
+
+
+void FMeshDescriptionBuilder::ReserveNewVertices(int32 Count)
+{
+	MeshDescription->ReserveNewVertices(Count);
+}
+
+
+
+
 FVertexID FMeshDescriptionBuilder::AppendVertex(const FVector& Position)
 {
 	FVertexID VertexID = MeshDescription->CreateVertex();
@@ -59,13 +69,16 @@ FPolygonGroupID FMeshDescriptionBuilder::AppendPolygonGroup()
 
 
 
-FPolygonID FMeshDescriptionBuilder::AppendTriangle(const FVertexID& Vertex0, const FVertexID& Vertex1, const FVertexID& Vertex2, const FPolygonGroupID& PolygonGroup)
+FTriangleID FMeshDescriptionBuilder::AppendTriangle(const FVertexID& Vertex0, const FVertexID& Vertex1, const FVertexID& Vertex2, const FPolygonGroupID& PolygonGroup)
 {
-	TempBuffer.SetNum(3, false);
-	TempBuffer[0] = Vertex0;
-	TempBuffer[1] = Vertex1;
-	TempBuffer[2] = Vertex2;
-	return AppendPolygon(TempBuffer, PolygonGroup);
+	
+	FVertexInstanceID TriVertexInstances[3];
+	TriVertexInstances[0] = MeshDescription->CreateVertexInstance(Vertex0);
+	TriVertexInstances[1] = MeshDescription->CreateVertexInstance(Vertex1);
+	TriVertexInstances[2] = MeshDescription->CreateVertexInstance(Vertex2);
+
+
+	return AppendTriangle(TriVertexInstances[0], TriVertexInstances[1], TriVertexInstances[2], PolygonGroup);
 }
 
 
@@ -74,7 +87,45 @@ FVertexInstanceID FMeshDescriptionBuilder::AppendInstance(const FVertexID& Verte
 	return MeshDescription->CreateVertexInstance(VertexID);
 }
 
+void FMeshDescriptionBuilder::ReserveNewUVs(int32 Count, int UVLayerIndex)
+{
+	// the reserve new UVs can only be called after the UV channels have been created.
+	
+	check(MeshDescription->GetNumUVElementChannels() > UVLayerIndex )
 
+	MeshDescription->ReserveNewUVs(Count, UVLayerIndex);
+}
+
+FUVID FMeshDescriptionBuilder::AppendUV(const FVector2D& UVvalue, int32 UVLayerIndex)
+{
+	TUVAttributesRef<FVector2D> UVCoordinates = UVCoordinateLayers[UVLayerIndex];
+	FUVID UVID = MeshDescription->CreateUV(UVLayerIndex);
+	UVCoordinates[UVID] = UVvalue;
+	return UVID;
+}
+
+void FMeshDescriptionBuilder::AppendUVTriangle(const FTriangleID& TriangleID, const FUVID UVvertexID0, const FUVID UVvertexID1, const FUVID UVvertexID2, int32 UVLayerIndex)
+{
+	// set the shared UVs
+	TempUVBuffer.SetNum(3, false);
+	TempUVBuffer[0] = UVvertexID0;
+	TempUVBuffer[1] = UVvertexID1;
+	TempUVBuffer[2] = UVvertexID2;
+	MeshDescription->SetTriangleUVIndices(TriangleID, TempUVBuffer, UVLayerIndex);
+
+	TUVAttributesRef<FVector2D> UVCoordinates = UVCoordinateLayers[UVLayerIndex];
+
+	// set per-instance UVs.  
+	// NB: per-instance UVs should go away on MeshDescription.
+	TArrayView<const FVertexInstanceID> TriVertInstances = MeshDescription->GetTriangleVertexInstances(TriangleID);
+	for (int32 j = 0; j < 3; ++j)
+	{
+		const FVertexInstanceID CornerInstanceID = TriVertInstances[j];
+		const FVector2D& UVvalue = UVCoordinates[TempUVBuffer[j]];
+		
+		SetInstanceUV(CornerInstanceID, UVvalue, UVLayerIndex);
+	}
+}
 
 void FMeshDescriptionBuilder::SetPosition(const FVertexID& VertexID, const FVector& NewPosition)
 {
@@ -92,18 +143,6 @@ FVector FMeshDescriptionBuilder::GetPosition(const FVertexInstanceID& InstanceID
 }
 
 
-void FMeshDescriptionBuilder::SetInstance(const FVertexInstanceID& InstanceID, const FVector2D& InstanceUV, const FVector& InstanceNormal)
-{
-	if (InstanceUVs.IsValid())
-	{
-		InstanceUVs.Set(InstanceID, InstanceUV); 
-	}
-	if (InstanceNormals.IsValid())
-	{
-		InstanceNormals.Set(InstanceID, InstanceNormal);
-	}
-}
-
 
 void FMeshDescriptionBuilder::SetInstanceNormal(const FVertexInstanceID& InstanceID, const FVector& Normal)
 {
@@ -118,7 +157,7 @@ void FMeshDescriptionBuilder::SetInstanceUV(const FVertexInstanceID& InstanceID,
 {
 	if (InstanceUVs.IsValid() && ensure(UVLayerIndex < InstanceUVs.GetNumChannels()))
 	{
-		InstanceUVs.Set(InstanceID, UVLayerIndex, InstanceUV); 
+		InstanceUVs.Set(InstanceID, UVLayerIndex, InstanceUV);
 	}
 }
 
@@ -127,7 +166,18 @@ void FMeshDescriptionBuilder::SetNumUVLayers(int32 NumUVLayers)
 {
 	if (ensure(InstanceUVs.IsValid()))
 	{
+		// initialize the instanced UV channels
 		InstanceUVs.SetNumChannels(NumUVLayers);
+	}
+
+	// initialize the shared UV channels
+	MeshDescription->SetNumUVChannels(NumUVLayers);
+
+	// cache reference to uv vertex buffers
+	UVCoordinateLayers.SetNum(NumUVLayers);
+	for (int i = 0; i < NumUVLayers; ++i)
+	{
+		UVCoordinateLayers[i] = MeshDescription->UVAttributes(i).GetAttributesRef<FVector2D>(MeshAttribute::UV::UVCoordinate);
 	}
 }
 
@@ -141,40 +191,18 @@ void FMeshDescriptionBuilder::SetInstanceColor(const FVertexInstanceID& Instance
 }
 
 
-FPolygonID FMeshDescriptionBuilder::AppendTriangle(const FVertexID* Triangle, const FPolygonGroupID& PolygonGroup, 
-	const FVector2D * VertexUVs, const FVector* VertexNormals)
+FTriangleID FMeshDescriptionBuilder::AppendTriangle(const FVertexID* Triangle, const FPolygonGroupID& PolygonGroup)
 {
-	TempBuffer.SetNum(3, false);
-	TempBuffer[0] = Triangle[0];
-	TempBuffer[1] = Triangle[1];
-	TempBuffer[2] = Triangle[2];
+	FVertexInstanceID TriVertexInstances[3];
+	TriVertexInstances[0] = MeshDescription->CreateVertexInstance(Triangle[0]);
+	TriVertexInstances[1] = MeshDescription->CreateVertexInstance(Triangle[1]);
+	TriVertexInstances[2] = MeshDescription->CreateVertexInstance(Triangle[2]);
 
-	const TArray<FVector2D> * UseUVs = nullptr;
-	if (VertexUVs != nullptr) 
-	{
-		UVBuffer.SetNum(3, false);
-		UVBuffer[0] = VertexUVs[0];
-		UVBuffer[1] = VertexUVs[1];
-		UVBuffer[2] = VertexUVs[2];
-		UseUVs = &UVBuffer;
-	}
-
-	const TArray<FVector> * UseNormals = nullptr;
-	if (VertexNormals != nullptr)
-	{
-		NormalBuffer.SetNum(3, false);
-		NormalBuffer[0] = VertexNormals[0];
-		NormalBuffer[1] = VertexNormals[1];
-		NormalBuffer[2] = VertexNormals[2];
-		UseNormals = &NormalBuffer;
-	}
-
-	return AppendPolygon(TempBuffer, PolygonGroup, UseUVs, UseNormals);
+	return AppendTriangle(TriVertexInstances[0], TriVertexInstances[1], TriVertexInstances[2], PolygonGroup);
 }
 
 
-FPolygonID FMeshDescriptionBuilder::AppendPolygon(const TArray<FVertexID>& Vertices, const FPolygonGroupID& PolygonGroup, 
-	const TArray<FVector2D> * VertexUVs, const TArray<FVector>* VertexNormals)
+FPolygonID FMeshDescriptionBuilder::AppendPolygon(const TArray<FVertexID>& Vertices, const FPolygonGroupID& PolygonGroup)
 {
 	int NumVertices = Vertices.Num();
 	TArray<FVertexInstanceID> Polygon; 
@@ -184,15 +212,6 @@ FPolygonID FMeshDescriptionBuilder::AppendPolygon(const TArray<FVertexID>& Verti
 		FVertexInstanceID VertexInstance = MeshDescription->CreateVertexInstance(Vertices[j]);
 		Polygon.Add(VertexInstance);
 
-		if (VertexUVs != nullptr)
-		{
-			InstanceUVs.Set(VertexInstance, (*VertexUVs)[j]);
-		}
-		if (VertexNormals != nullptr)
-		{
-			InstanceNormals.Set(VertexInstance, (*VertexNormals)[j]);
-		}
-
 	}
 
 	const FPolygonID NewPolygonID = MeshDescription->CreatePolygon(PolygonGroup, Polygon);
@@ -203,24 +222,26 @@ FPolygonID FMeshDescriptionBuilder::AppendPolygon(const TArray<FVertexID>& Verti
 
 
 
-FPolygonID FMeshDescriptionBuilder::AppendTriangle(const FVertexInstanceID& Instance0, const FVertexInstanceID& Instance1, const FVertexInstanceID& Instance2, const FPolygonGroupID& PolygonGroup)
+FTriangleID FMeshDescriptionBuilder::AppendTriangle(const FVertexInstanceID& Instance0, const FVertexInstanceID& Instance1, const FVertexInstanceID& Instance2, const FPolygonGroupID& PolygonGroup)
 {
-	TArray<FVertexInstanceID> Polygon;
-	Polygon.Add(Instance0);
-	Polygon.Add(Instance1);
-	Polygon.Add(Instance2);
+	TArray<FVertexInstanceID> CornerInstanceIDs;
+	CornerInstanceIDs.Add(Instance0);
+	CornerInstanceIDs.Add(Instance1);
+	CornerInstanceIDs.Add(Instance2);
 
-	const FPolygonID NewPolygonID = MeshDescription->CreatePolygon(PolygonGroup, Polygon);
+	TArray<FEdgeID> NewEdgeIDs; 
+	const FTriangleID NewTriangleID = MeshDescription->CreateTriangle(PolygonGroup, CornerInstanceIDs, &NewEdgeIDs);
 
-	return NewPolygonID;
+	return NewTriangleID;
 }
 
 
 
 
 
-void FMeshDescriptionBuilder::SetPolyGroupID(const FPolygonID& PolygonID, int GroupID)
+void FMeshDescriptionBuilder::SetPolyGroupID(const FTriangleID& TriangleID, int GroupID)
 {
+	FPolygonID PolygonID = MeshDescription->GetTrianglePolygon(TriangleID);
 	PolyGroups.Set(PolygonID, 0, GroupID);
 }
 
@@ -266,4 +287,27 @@ FBox FMeshDescriptionBuilder::ComputeBoundingBox() const
 		bounds.Contain(VertexPositions.Get(VertexID));
 	}
 	return (FBox)bounds;
+}
+
+
+
+
+void FMeshDescriptionBuilder::SuspendMeshDescriptionIndexing()
+{
+	MeshDescription->SuspendVertexInstanceIndexing();
+	MeshDescription->SuspendEdgeIndexing();
+	MeshDescription->SuspendPolygonIndexing();
+	MeshDescription->SuspendPolygonGroupIndexing();
+	MeshDescription->SuspendUVIndexing();
+}
+
+
+
+void FMeshDescriptionBuilder::ResumeMeshDescriptionIndexing()
+{
+	MeshDescription->ResumeVertexInstanceIndexing();
+	MeshDescription->ResumeEdgeIndexing();
+	MeshDescription->ResumePolygonIndexing();
+	MeshDescription->ResumePolygonGroupIndexing();
+	MeshDescription->ResumeUVIndexing();
 }

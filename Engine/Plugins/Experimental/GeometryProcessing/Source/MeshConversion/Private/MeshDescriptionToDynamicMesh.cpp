@@ -125,16 +125,21 @@ public:
 
 void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDynamicMesh3& MeshOut)
 {
+	TriIDMap.Reset();
+	VertIDMap.Reset();
+
+	// allocate the VertIDMap.  Unfortunately the array will need to grow more if MeshIn has non-manifold edges that need to be split
+	VertIDMap.SetNumUninitialized(MeshIn->Vertices().Num());
+
 	// look up vertex positions
-	const FVertexArray& VertexIDs = MeshIn->Vertices();
 	TVertexAttributesConstRef<FVector> VertexPositions = MeshIn->GetVertexPositions();
 
-	// copy vertex positions
-	for (const FVertexID VertexID : VertexIDs.GetElementIDs())
+	// copy vertex positions. Later we may have to append duplicate vertices to resolve non-manifold structures.
+	for (const FVertexID VertexID : MeshIn->Vertices().GetElementIDs())
 	{
 		const FVector Position = VertexPositions.Get(VertexID);
 		int NewVertIdx = MeshOut.AppendVertex(Position);
-		check(NewVertIdx == VertexID.GetValue());
+		VertIDMap[NewVertIdx] = VertexID;
 	}
 
 	// look up vertex-instance UVs and normals
@@ -167,36 +172,29 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	{
 		FPolygonID PolygonID;
 		int32 PolygonGroupID;
-		int32 TriIndex;
 		FVertexInstanceID TriInstances[3];
 	};
 	TArray<FTriData> AddedTriangles;
 	AddedTriangles.SetNum(MeshIn->Triangles().Num());
 
+	// allocate the TriIDMap
+	TriIDMap.SetNumUninitialized(MeshIn->Triangles().Num());
+
+
+	// Iterate over triangles in the Mesh Description
 	// NOTE: If you change the iteration order here, please update the corresponding iteration in FDynamicMeshToMeshDescription::UpdateAttributes, 
-	//	which assumes the iteration order here is polygons -> triangles, to correspond the triangles when writing updated attributes back!
-	const FPolygonArray& Polygons = MeshIn->Polygons();
-	for (const FPolygonID PolygonID : Polygons.GetElementIDs())
+	//	which assumes the iteration order here is the same as here to correspond the triangles when writing updated attributes back!
+	for (const FTriangleID TriangleID : MeshIn->Triangles().GetElementIDs())
 	{
-		int32 PolygonGroupID = MeshIn->GetPolygonPolygonGroup(PolygonID).GetValue();
 
-		TArrayView<const FTriangleID> TriangleIDs = MeshIn->GetPolygonTriangles(PolygonID);
-		int NumTriangles = TriangleIDs.Num();
-		for (int TriIdx = 0; TriIdx < NumTriangles; ++TriIdx)
+		// Get the PolygonID, PolygonGroupID and general GroupID
+		//---
+		FPolygonID PolygonID = MeshIn->GetTrianglePolygon(TriangleID);
+		FPolygonGroupID PolygonGroupID = MeshIn->GetTrianglePolygonGroup(TriangleID);
+
+		int GroupID = 0;
+		switch (GroupMode)
 		{
-			FTriData TriData;
-			TriData.PolygonID = PolygonID;
-			TriData.PolygonGroupID = PolygonGroupID;
-			TriData.TriIndex = TriIdx;
-
-			TArrayView<const FVertexInstanceID> InstanceTri = MeshIn->GetTriangleVertexInstances(TriangleIDs[TriIdx]);
-			TriData.TriInstances[0] = InstanceTri[0];
-			TriData.TriInstances[1] = InstanceTri[1];
-			TriData.TriInstances[2] = InstanceTri[2];
-
-			int GroupID = 0;
-			switch (GroupMode)
-			{
 			case EPrimaryGroupMode::SetToPolyGroup:
 				if (PolyGroups.IsValid())
 				{
@@ -207,85 +205,132 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 				GroupID = PolygonID.GetValue() + 1; // Shift IDs up by 1 to leave ID 0 as a default/unassigned group
 				break;
 			case EPrimaryGroupMode::SetToPolygonGroupID:
-				GroupID = PolygonGroupID + 1; // Shift IDs up by 1 to leave ID 0 as a default/unassigned group
+				GroupID = PolygonGroupID.GetValue() + 1; // Shift IDs up by 1 to leave ID 0 as a default/unassigned group
 				break;
 			case EPrimaryGroupMode::SetToZero:
 				break; // keep at 0
-			}
-
-			// append triangle
-			int32 VertexID0 = MeshIn->GetVertexInstanceVertex(InstanceTri[0]).GetValue();
-			int32 VertexID1 = MeshIn->GetVertexInstanceVertex(InstanceTri[1]).GetValue();
-			int32 VertexID2 = MeshIn->GetVertexInstanceVertex(InstanceTri[2]).GetValue();
-			int NewTriangleID = MeshOut.AppendTriangle(VertexID0, VertexID1, VertexID2, GroupID);
-
-			if (NewTriangleID == FDynamicMesh3::DuplicateTriangleID)
-			{
-				continue;
-			}
-
-			// if append failed due to non-manifold, duplicate verts
-			if (NewTriangleID == FDynamicMesh3::NonManifoldID)
-			{
-				int e0 = MeshOut.FindEdge(VertexID0, VertexID1);
-				int e1 = MeshOut.FindEdge(VertexID1, VertexID2);
-				int e2 = MeshOut.FindEdge(VertexID2, VertexID0);
-
-				// determine which verts need to be duplicated
-				bool bDuplicate[3] = { false, false, false };
-				if (e0 != FDynamicMesh3::InvalidID && MeshOut.IsBoundaryEdge(e0) == false)
-				{
-					bDuplicate[0] = true;
-					bDuplicate[1] = true;
-				}
-				if (e1 != FDynamicMesh3::InvalidID && MeshOut.IsBoundaryEdge(e1) == false)
-				{
-					bDuplicate[1] = true;
-					bDuplicate[2] = true;
-				}
-				if (e2 != FDynamicMesh3::InvalidID && MeshOut.IsBoundaryEdge(e2) == false)
-				{
-					bDuplicate[2] = true;
-					bDuplicate[0] = true;
-				}
-				if (bDuplicate[0])
-				{
-					FVertexID VertexID = MeshIn->GetVertexInstanceVertex(InstanceTri[0]);
-					const FVector Position = VertexPositions.Get(VertexID);
-					int NewVertIdx = MeshOut.AppendVertex(Position);
-					VertexID0 = NewVertIdx;
-				}
-				if (bDuplicate[1])
-				{
-					FVertexID VertexID = MeshIn->GetVertexInstanceVertex(InstanceTri[1]);
-					const FVector Position = VertexPositions.Get(VertexID);
-					int NewVertIdx = MeshOut.AppendVertex(Position);
-					VertexID1 = NewVertIdx;
-				}
-				if (bDuplicate[2])
-				{
-					FVertexID VertexID = MeshIn->GetVertexInstanceVertex(InstanceTri[2]);
-					const FVector Position = VertexPositions.Get(VertexID);
-					int NewVertIdx = MeshOut.AppendVertex(Position);
-					VertexID2 = NewVertIdx;
-				}
-
-				NewTriangleID = MeshOut.AppendTriangle(VertexID0, VertexID1, VertexID2, GroupID);
-				checkSlow(NewTriangleID != FDynamicMesh3::NonManifoldID);
-			}
-
-			checkSlow(NewTriangleID >= 0);
-			AddedTriangles[NewTriangleID] = TriData;
 		}
+		
+		FTriData TriData;
+		TriData.PolygonID = PolygonID;
+		TriData.PolygonGroupID = PolygonGroupID;
+		
+
+		// stash the vertex instance IDs for this triangle.  potentially needed for per-instance attribute welding
+		TArrayView<const FVertexInstanceID> InstanceTri = MeshIn->GetTriangleVertexInstances(TriangleID);
+		TriData.TriInstances[0] = InstanceTri[0];
+		TriData.TriInstances[1] = InstanceTri[1];
+		TriData.TriInstances[2] = InstanceTri[2];
+
+		//---
+
+		// Get the vertex IDs for this triangle.
+		TArrayView<const FVertexID> TriangleVertexIDs = MeshIn->GetTriangleVertices(TriangleID);
+
+		// sanity
+		checkSlow(TriangleVertexIDs.Num() == 3);
+
+		FIndex3i VertexIDs; 
+		VertexIDs[0] = TriangleVertexIDs[0].GetValue();
+		VertexIDs[1] = TriangleVertexIDs[1].GetValue(); 
+		VertexIDs[2] = TriangleVertexIDs[2].GetValue();
+
+		int NewTriangleID = MeshOut.AppendTriangle(VertexIDs, GroupID);
+
+		// Deal with potential failure cases
+
+		//-- already seen this triangle for some reason.. or the MeshDecription had a degenerate tri
+		if (NewTriangleID == FDynamicMesh3::DuplicateTriangleID || NewTriangleID == FDynamicMesh3::InvalidID)
+		{
+			continue;
+		}
+
+		//-- non manifold 
+		// if append failed due to non-manifold, duplicate verts
+		if (NewTriangleID == FDynamicMesh3::NonManifoldID)
+		{
+			int e0 = MeshOut.FindEdge(VertexIDs[0], VertexIDs[1]);
+			int e1 = MeshOut.FindEdge(VertexIDs[1], VertexIDs[2]);
+			int e2 = MeshOut.FindEdge(VertexIDs[2], VertexIDs[0]);
+
+			// determine which verts need to be duplicated
+			bool bDuplicate[3] = { false, false, false };
+			if (e0 != FDynamicMesh3::InvalidID && MeshOut.IsBoundaryEdge(e0) == false)
+			{
+				bDuplicate[0] = true;
+				bDuplicate[1] = true;
+			}
+			if (e1 != FDynamicMesh3::InvalidID && MeshOut.IsBoundaryEdge(e1) == false)
+			{
+				bDuplicate[1] = true;
+				bDuplicate[2] = true;
+			}
+			if (e2 != FDynamicMesh3::InvalidID && MeshOut.IsBoundaryEdge(e2) == false)
+			{
+				bDuplicate[2] = true;
+				bDuplicate[0] = true;
+			}
+			if (bDuplicate[0])
+			{
+				const FVector Position = VertexPositions[TriangleVertexIDs[0]];
+				const int32 NewVertIdx = MeshOut.AppendVertex(Position);
+				VertexIDs[0] = NewVertIdx;
+				VertIDMap.Insert(TriangleVertexIDs[0], NewVertIdx); // note 'insert', because the array may need to grow
+			}
+			if (bDuplicate[1])
+			{
+				const FVector Position = VertexPositions[TriangleVertexIDs[1]];
+				const int32 NewVertIdx = MeshOut.AppendVertex(Position);
+				VertexIDs[1] = NewVertIdx;
+				VertIDMap.Insert(TriangleVertexIDs[1], NewVertIdx);
+			}
+			if (bDuplicate[2])
+			{
+				const FVector Position = VertexPositions[TriangleVertexIDs[2]];
+				const int32 NewVertIdx = MeshOut.AppendVertex(Position);
+				VertexIDs[2] = NewVertIdx;
+				VertIDMap.Insert(TriangleVertexIDs[2], NewVertIdx);
+			}
+
+			NewTriangleID = MeshOut.AppendTriangle(VertexIDs, GroupID);
+			checkSlow(NewTriangleID != FDynamicMesh3::NonManifoldID);
+		}
+
+		checkSlow(NewTriangleID >= 0);
+		AddedTriangles[NewTriangleID] = TriData;
+		TriIDMap[NewTriangleID] = TriangleID;
+	
 	}
 
 	FDateTime Time_AfterTriangles = FDateTime::Now();
+
 
 	//
 	// Enable relevant attributes and initialize UV/Normal welders
 	// 
 
-	int NumUVLayers = InstanceUVs.GetNumChannels();
+	// the shared UV representation.  
+	const int32 NumUVElementChannels = MeshIn->GetNumUVElementChannels();
+
+	// the instanced UV representation.
+	const int NumUVLayers = InstanceUVs.GetNumChannels();
+
+	// determine if we really have shared UVS. Legacy geo might not have them 
+	// - at the time of this writing MeshDescription has not been updated
+	// to always populated the shared UVs during load time for legacy geometry that only has per-instance UVs. 
+	// but that is a promised improvement. 
+
+	bool bUseSharedUVs =  (NumUVLayers == NumUVElementChannels);
+	if (bUseSharedUVs)
+	{
+		for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers; ++UVLayerIndex)
+		{
+			const int32 NumSharedUVs   = MeshIn->UVs(UVLayerIndex).GetArraySize();
+			bUseSharedUVs = bUseSharedUVs && (NumSharedUVs != 0);
+		}
+	}
+
+
 	TArray<FDynamicMeshUVOverlay*> UVOverlays;
 	TArray<FUVWelder> UVWelders;
 	FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
@@ -313,39 +358,123 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	}
 
 
-	// we will weld/populate all the attributes simultaneously, hold on to futures in this array and then Wait for them at the end
-	TArray<TFuture<void>> Pending;
-
-	if (bCalculateMaps)
-	{
-		auto Future = Async(EAsyncExecution::ThreadPool, [&]()
-		{
-			for (int32 TriangleID : MeshOut.TriangleIndicesItr())
-			{
-				const FTriData& TriData = AddedTriangles[TriangleID];
-				TriToPolyTriMap.Insert(FIndex2i(TriData.PolygonID.GetValue(), TriData.TriIndex), TriangleID);
-			}
-		});
-		Pending.Add(MoveTemp(Future));
-	}
+	
 
 	if (!bDisableAttributes)
 	{
+		// we will weld/populate all the attributes simultaneously, hold on to futures in this array and then Wait for them at the end
+		TArray<TFuture<void>> Pending;
+
 		for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers; UVLayerIndex++)
 		{
-			auto UVFuture = Async(EAsyncExecution::ThreadPool, [&, UVLayerIndex]() // must copy UVLayerIndex here!
+			auto UVFuture = Async(EAsyncExecution::ThreadPool, [&, UVLayerIndex, bUseSharedUVs]() // must copy UVLayerIndex here!
 			{
-				for (int32 TriangleID : MeshOut.TriangleIndicesItr())
+
+				if (!bUseSharedUVs) // have to rely on welding the per-instance uvs 
 				{
-					FIndex3i Tri = MeshOut.GetTriangle(TriangleID);
-					const FTriData& TriData = AddedTriangles[TriangleID];
-					FIndex3i TriUV;
-					for (int j = 0; j < 3; ++j)
+					for (int32 TriangleID : MeshOut.TriangleIndicesItr())
 					{
-						FVector2D UV = InstanceUVs.Get(TriData.TriInstances[j], UVLayerIndex);
-						TriUV[j] = UVWelders[UVLayerIndex].FindOrAddUnique(UV, Tri[j]);
+						FIndex3i Tri = MeshOut.GetTriangle(TriangleID);
+						const FTriData& TriData = AddedTriangles[TriangleID];
+						FIndex3i TriUV;
+						for (int j = 0; j < 3; ++j)
+						{
+							FVector2D UV = InstanceUVs.Get(TriData.TriInstances[j], UVLayerIndex);
+							TriUV[j] = UVWelders[UVLayerIndex].FindOrAddUnique(UV, Tri[j]);
+						}
+						UVOverlays[UVLayerIndex]->SetTriangle(TriangleID, TriUV);
 					}
-					UVOverlays[UVLayerIndex]->SetTriangle(TriangleID, TriUV);
+				}
+				else
+				{
+					// the overlay to fill.
+					FDynamicMeshUVOverlay* UVOverlay = UVOverlays[UVLayerIndex];
+
+					// copy uv "vertex buffer"
+					const FUVArray& UVs = MeshIn->UVs(UVLayerIndex);
+					TUVAttributesRef<const FVector2D> UVCoordinates = UVs.GetAttributes().GetAttributesRef<FVector2D>(MeshAttribute::UV::UVCoordinate);
+						
+					// map to translate UVIds from FUVID::int32() to DynamicOverlay Index.
+					TArray<int32> UVIndexMap;
+					UVIndexMap.Reserve(UVs.GetArraySize() + 1);
+
+					for (FUVID UVID : UVs.GetElementIDs())
+					{
+						const FVector2D UVvalue = UVCoordinates[UVID];
+						int32 NewIndex = UVOverlay->AppendElement(FVector2f(UVvalue));
+
+						// forced to use Insert since this array might have to resize (unfortunately we can only guess the max UVID in the mesh description)
+						UVIndexMap.Insert(NewIndex, UVID.GetValue());
+
+					}
+
+					// copy uv "index buffer"
+					for (int32 TriID : MeshOut.TriangleIndicesItr())
+					{
+						FTriangleID TriangleID = TriIDMap[TriID];
+						// NB: the mesh description lacks a const method variant of this function, hence the const_cast. 
+						// Don't change the UVIndices values!
+						TArrayView<FUVID> UVIndices = const_cast<FMeshDescription*>(MeshIn)->GetTriangleUVIndices(TriangleID, UVLayerIndex);
+
+						// translate to Overlay indicies 
+						FIndex3i TriUV( UVIndexMap[UVIndices[0].GetValue()],
+							            UVIndexMap[UVIndices[1].GetValue()],
+							            UVIndexMap[UVIndices[2].GetValue()] );
+							
+						///--  We have to do some clean-up on the shared UVs that come from MeshDecription --///
+						// This clean up should go away if MeshDescription can solve these problems during import from the source fbx files
+						{
+							// MeshDescription can attach multiple vertices to the same UV element.  DynamicMesh does not.
+							// if we have already used this element for a different mesh vertex, split it.
+							const FIndex3i ParentTriangle = MeshOut.GetTriangle(TriID);
+							for (int i = 0; i < 3; ++i)
+							{
+								int32 ParentVID = UVOverlay->GetParentVertex(TriUV[i]);
+								if (ParentVID != FDynamicMesh3::InvalidID && ParentVID != ParentTriangle[i])
+								{
+									const FVector2D UVvalue = UVCoordinates[UVIndices[1]];
+									TriUV[i] = UVIndexMap.Add(UVOverlay->AppendElement(FVector2f(UVvalue)));
+								}
+							}
+
+							// MeshDescription allows for degenerate UV tris.  Dynamic Mesh does not.
+							// if the UV tri is degenerate we split the degenerate UV edge by adding two new UVs
+							// in its place, or if it is totally degenerate we add 3 new UVs
+
+							if (TriUV[0] == TriUV[1] && TriUV[0] == TriUV[2])
+							{
+								const FVector2D UVvalue = UVCoordinates[UVIndices[1]];
+								TriUV[0] = UVIndexMap.Add(UVOverlay->AppendElement(FVector2f(UVvalue)));
+								TriUV[1] = UVIndexMap.Add(UVOverlay->AppendElement(FVector2f(UVvalue)));
+								TriUV[2] = UVIndexMap.Add(UVOverlay->AppendElement(FVector2f(UVvalue)));
+
+							}
+							else
+							{
+								if (TriUV[0] == TriUV[1])
+								{
+									const FVector2D UVvalue = UVCoordinates[UVIndices[0]];
+									TriUV[0] = UVIndexMap.Add(UVOverlay->AppendElement(FVector2f(UVvalue)));
+									TriUV[1] = UVIndexMap.Add(UVOverlay->AppendElement(FVector2f(UVvalue)));
+								}
+								if (TriUV[0] == TriUV[2])
+								{
+									const FVector2D UVvalue = UVCoordinates[UVIndices[0]];
+									TriUV[0] = UVIndexMap.Add(UVOverlay->AppendElement(FVector2f(UVvalue)));
+									TriUV[2] = UVIndexMap.Add(UVOverlay->AppendElement(FVector2f(UVvalue)));
+								}
+								if (TriUV[1] == TriUV[2])
+								{
+									const FVector2D UVvalue = UVCoordinates[UVIndices[1]];
+									TriUV[1] = UVIndexMap.Add(UVOverlay->AppendElement(FVector2f(UVvalue)));
+									TriUV[2] = UVIndexMap.Add(UVOverlay->AppendElement(FVector2f(UVvalue)));
+								}
+							}
+						}
+
+						// set the triangle in the overlay
+						UVOverlay->SetTriangle(TriID, TriUV);
+					}
 				}
 			});
 			Pending.Add(MoveTemp(UVFuture));
@@ -385,12 +514,19 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 			});
 			Pending.Add(MoveTemp(MaterialFuture));
 		}
+
+		// wait for all work to be done
+		for (TFuture<void>& Future : Pending)
+		{
+			Future.Wait();
+		}
 	}
 
-	// wait for all work to be done
-	for (TFuture<void>& Future : Pending)
+	// free maps if no longer needed
+	if (!bCalculateMaps)
 	{
-		Future.Wait();
+		TriIDMap.Empty();
+		VertIDMap.Empty();
 	}
 
 	FDateTime Time_AfterAttribs = FDateTime::Now();
@@ -410,7 +546,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 
 
 template<typename RealType>
-static void CopyTangents_Internal(const FMeshDescription* SourceMesh, const FDynamicMesh3* TargetMesh, TMeshTangents<RealType>* TangentsOut, const TArray<FIndex2i>& TriToPolyTriMap)
+static void CopyTangents_Internal(const FMeshDescription* SourceMesh, const FDynamicMesh3* TargetMesh, TMeshTangents<RealType>* TangentsOut, const TArray<FTriangleID>& TriIDMap)
 {
 
 	FStaticMeshConstAttributes Attributes(*SourceMesh);
@@ -425,12 +561,11 @@ static void CopyTangents_Internal(const FMeshDescription* SourceMesh, const FDyn
 
 	TangentsOut->SetMesh(TargetMesh);
 	TangentsOut->InitializeTriVertexTangents(false);
-
+	
 	for (int32 TriID : TargetMesh->TriangleIndicesItr())
 	{
-		FIndex2i PolyTriIdx = TriToPolyTriMap[TriID];
-		TArrayView<const FTriangleID> TriangleIDs = SourceMesh->GetPolygonTriangles(FPolygonID(PolyTriIdx.A));
-		const FTriangleID TriangleID = TriangleIDs[PolyTriIdx.B];
+
+		const FTriangleID TriangleID = TriIDMap[TriID];
 		TArrayView<const FVertexInstanceID> InstanceTri = SourceMesh->GetTriangleVertexInstances(TriangleID);
 		for (int32 j = 0; j < 3; ++j)
 		{
@@ -449,8 +584,8 @@ static void CopyTangents_Internal(const FMeshDescription* SourceMesh, const FDyn
 void FMeshDescriptionToDynamicMesh::CopyTangents(const FMeshDescription* SourceMesh, const FDynamicMesh3* TargetMesh, TMeshTangents<float>* TangentsOut)
 {
 	if (!ensureMsgf(bCalculateMaps, TEXT("Cannot CopyTangents unless Maps were calculated"))) return;
-	if (!ensureMsgf(TriToPolyTriMap.Num() == TargetMesh->TriangleCount(), TEXT("Tried to CopyTangents to mesh with different triangle count"))) return;
-	CopyTangents_Internal<float>(SourceMesh, TargetMesh, TangentsOut, TriToPolyTriMap);
+	if (!ensureMsgf(TriIDMap.Num() == TargetMesh->TriangleCount(), TEXT("Tried to CopyTangents to mesh with different triangle count"))) return;
+	CopyTangents_Internal<float>(SourceMesh, TargetMesh, TangentsOut, TriIDMap);
 }
 
 
@@ -458,8 +593,8 @@ void FMeshDescriptionToDynamicMesh::CopyTangents(const FMeshDescription* SourceM
 void FMeshDescriptionToDynamicMesh::CopyTangents(const FMeshDescription* SourceMesh, const FDynamicMesh3* TargetMesh, TMeshTangents<double>* TangentsOut)
 {
 	if (!ensureMsgf(bCalculateMaps, TEXT("Cannot CopyTangents unless Maps were calculated"))) return;
-	if (!ensureMsgf(TriToPolyTriMap.Num() == TargetMesh->TriangleCount(), TEXT("Tried to CopyTangents to mesh with different triangle count"))) return;
-	CopyTangents_Internal<double>(SourceMesh, TargetMesh, TangentsOut, TriToPolyTriMap);
+	if (!ensureMsgf(TriIDMap.Num() == TargetMesh->TriangleCount(), TEXT("Tried to CopyTangents to mesh with different triangle count"))) return;
+	CopyTangents_Internal<double>(SourceMesh, TargetMesh, TangentsOut, TriIDMap);
 }
 
 

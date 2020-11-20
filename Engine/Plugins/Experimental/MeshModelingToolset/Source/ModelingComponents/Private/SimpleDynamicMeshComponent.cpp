@@ -168,8 +168,11 @@ void USimpleDynamicMeshComponent::ApplyTransform(const FTransform3d& Transform, 
 
 void USimpleDynamicMeshComponent::Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology, const FConversionToMeshDescriptionOptions& ConversionOptions)
 {
+	// shared UVs on MeshDescription can't currently be updated. this forces us to rebuild the mesh.
+	const bool bModifiedUVsOrTopology = ( ConversionOptions.bUpdateUVs || bHaveModifiedTopology ); 
+	
 	FDynamicMeshToMeshDescription Converter(ConversionOptions);
-	if (bHaveModifiedTopology == false && Converter.HaveMatchingElementCounts(Mesh.Get(), MeshDescription))
+	if (bModifiedUVsOrTopology == false && Converter.HaveMatchingElementCounts(Mesh.Get(), MeshDescription))
 	{
 		if (ConversionOptions.bUpdatePositions)
 		{

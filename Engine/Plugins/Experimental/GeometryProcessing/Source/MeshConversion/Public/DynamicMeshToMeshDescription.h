@@ -83,14 +83,14 @@ public:
 
 	/**
 	 * Update only attributes, assuming the mesh topology has not changed.  Does not touch positions.
-	 *	NOTE: assumes the order of triangles in the MeshIn correspond to the ordering you'd get by iterating over polygons, then tris-in-polygons, on MeshOut
+	 *	NOTE: assumes the order of triangles in the MeshIn correspond to the ordering you'd get by iterating over triangles, on MeshOut
 	 *		  This matches conversion currently used in MeshDescriptionToDynamicMesh.cpp, but if that changes we will need to change this function to match!
 	 */
 	void UpdateAttributes(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, bool bUpdateNormals, bool bUpdateUVs);
 
 	/**
 	 * Update the Tangent and BinormalSign attributes of the MeshDescription, assuming mesh topology has not changed. Does not modify any other attributes.
-	 *	NOTE: assumes the order of triangles in the MeshIn correspond to the ordering you'd get by iterating over polygons, then tris-in-polygons, on MeshOut
+	 *	NOTE: assumes the order of triangles in the MeshIn correspond to the ordering you'd get by iterating over triangles, on MeshOut
 	 *		  This matches conversion currently used in MeshDescriptionToDynamicMesh.cpp, but if that changes we will need to change this function to match!
 	 */
 	void UpdateTangents(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, const TMeshTangents<double>* Tangents);
@@ -113,7 +113,8 @@ public:
 
 	/**
 	 * Convert with no shared VertexInstances. A new VertexInstance is created for
-	 * each triangle vertex (ie corner). However vertex positions are shared.
+	 * each triangle vertex (ie corner). However vertex positions are shared and
+     * the shared UVs structures are populated.
 	 */
 	void Convert_NoSharedInstances(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut);
 };

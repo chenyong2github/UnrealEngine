@@ -25,6 +25,9 @@ class MESHCONVERSION_API FMeshDescriptionBuilder
 public:
 	void SetMeshDescription(FMeshDescription* Description);
 
+	/** Pre-allocate space in the mesh description */
+	void ReserveNewVertices(int32 Count);
+
 	/** Append vertex and return new vertex ID */
 	FVertexID AppendVertex(const FVector& Position);
 
@@ -37,22 +40,27 @@ public:
 	/** Set the position of a vertex */
 	void SetPosition(const FVertexID& VertexID, const FVector& NewPosition);
 
+	/** Set the number of UV layers */
+	void SetNumUVLayers(int32 NumUVLayers);
 
+	/** Pre-allocate space in the mesh description for UVs in the indicated UVLayer */
+	void ReserveNewUVs(int32 Count, int UVLayerIndex);
+
+	/** Append a UV 'vertex' and return a new UV ID*/
+	FUVID AppendUV(const FVector2D& UVvalue, int32 UVLayerIndex);
 
 	/** Append new vertex instance and return ID */
 	FVertexInstanceID AppendInstance(const FVertexID& VertexID);
 
-	/** Set the UV and Normal of a vertex instance*/
-	void SetInstance(const FVertexInstanceID& InstanceID, const FVector2D& InstanceUV, const FVector& InstanceNormal);
+	/** 
+	* Set the UV of a vertex instance.
+	* Note: this generally shouldn't be called directly because it alters the instance UVs but not the shared UVs
+	* When setting UVs use AppendUVTriangle	  
+	*/
+	void SetInstanceUV(const FVertexInstanceID& InstanceID, const FVector2D& InstanceUV, int32 UVLayerIndex = 0);
 
 	/** Set the Normal of a vertex instance*/
 	void SetInstanceNormal(const FVertexInstanceID& InstanceID, const FVector& Normal);
-
-	/** Set the UV of a vertex instance */
-	void SetInstanceUV(const FVertexInstanceID& InstanceID, const FVector2D& InstanceUV, int32 UVLayerIndex = 0);
-
-	/** Set the number of UV layers */
-	void SetNumUVLayers(int32 NumUVLayers);
 
 	/** Set the Color of a vertex instance*/
 	void SetInstanceColor(const FVertexInstanceID& InstanceID, const FVector4& Color);
@@ -63,31 +71,30 @@ public:
 	/** Create a new polygon group and return it's ID */
 	FPolygonGroupID AppendPolygonGroup();
 
-	/** Set the PolyTriGroups attribute value to a specific GroupID for a Polygon */
-	void SetPolyGroupID(const FPolygonID& PolygonID, int GroupID);
+	/** Set the PolyTriGroups attribute value to a specific GroupID for a Triangle */
+	void SetPolyGroupID(const FTriangleID& TriangleID, int GroupID);
 
+	/** Append a UV triangle to the specified UV layer. This will use both shared and per-instance UV storage*/
+	void AppendUVTriangle(const FTriangleID& TriangleID, const FUVID UVverterxID0, const FUVID UVvertexID1, const FUVID UVvertexID2, int32 UVLayerIndex);
+
+	/** Append a triangle to the mesh with the given PolygonGroup ID */
+	FTriangleID AppendTriangle(const FVertexID& Vertex0, const FVertexID& Vertex1, const FVertexID& Vertex2, const FPolygonGroupID& PolygonGroup);
 
 
 	/** Append a triangle to the mesh with the given PolygonGroup ID */
-	FPolygonID AppendTriangle(const FVertexID& Vertex0, const FVertexID& Vertex1, const FVertexID& Vertex2, const FPolygonGroupID& PolygonGroup);
+	FTriangleID AppendTriangle(const FVertexID* Triangle, const FPolygonGroupID& PolygonGroup);
 
-	/** Append a triangle to the mesh with the given PolygonGroup ID, and optionally with triangle-vertex UVs and Normals */
-	FPolygonID AppendTriangle(const FVertexID* Triangle, const FPolygonGroupID& PolygonGroup, 
-		const FVector2D* VertexUVs = nullptr, const FVector* VertexNormals = nullptr);
-
-	/** 
-	 * Append an arbitrary polygon to the mesh with the given PolygonGroup ID, and optionally with polygon-vertex UVs and Normals
-	 * Unique Vertex instances will be created for each polygon-vertex.
-	 */
-	FPolygonID AppendPolygon(const TArray<FVertexID>& Vertices, const FPolygonGroupID& PolygonGroup, 
-		const TArray<FVector2D>* VertexUVs = nullptr, const TArray<FVector>* VertexNormals = nullptr);
 
 	/**
 	 * Append a triangle to the mesh using the given vertex instances and PolygonGroup ID
 	 */
-	FPolygonID AppendTriangle(const FVertexInstanceID& Instance0, const FVertexInstanceID& Instance1, const FVertexInstanceID& Instance2, const FPolygonGroupID& PolygonGroup);
+	FTriangleID AppendTriangle(const FVertexInstanceID& Instance0, const FVertexInstanceID& Instance1, const FVertexInstanceID& Instance2, const FPolygonGroupID& PolygonGroup);
 
-
+	/**
+	 * Append an arbitrary polygon to the mesh with the given PolygonGroup ID
+	 * Unique Vertex instances will be created for each polygon-vertex.
+	 */
+	FPolygonID AppendPolygon(const TArray<FVertexID>& Vertices, const FPolygonGroupID& PolygonGroup);
 
 	/** Set MeshAttribute::Edge::IsHard to true for all edges */
 	void SetAllEdgesHardness(bool bHard);
@@ -99,16 +106,24 @@ public:
 	/** Return the current bounding box of the mesh */
 	FBox ComputeBoundingBox() const;
 
+	/** Disable the construction of secondary data structures in the mesh description */
+	void SuspendMeshDescriptionIndexing();
+
+	/** Enable the construction of secondary data structures in the mesh description */
+	void ResumeMeshDescriptionIndexing();
+
 protected:
+
 	FMeshDescription* MeshDescription;
 
 	TVertexAttributesRef<FVector> VertexPositions;
 	TVertexInstanceAttributesRef<FVector2D> InstanceUVs;
 	TVertexInstanceAttributesRef<FVector> InstanceNormals;
 	TVertexInstanceAttributesRef<FVector4> InstanceColors;
+
+	TArray<TUVAttributesRef<FVector2D>> UVCoordinateLayers; 
 	TArray<FVertexID> TempBuffer;
-	TArray<FVector2D> UVBuffer;
-	TArray<FVector> NormalBuffer;
+	TArray<FUVID> TempUVBuffer;
 
 	TPolygonAttributesRef<int> PolyGroups;
 };
