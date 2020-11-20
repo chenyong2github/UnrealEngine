@@ -164,12 +164,13 @@ public:
 	TArray<FGenerationInfo> Generations;
 
 	/**
-	* Engine version this package was saved with. For hotfix releases and engine versions which maintain strict binary compatibility with another version, this may differ from CompatibleWithEngineVersion.
+	* Engine version this package was saved with. This may differ from CompatibleWithEngineVersion for assets saved with a hotfix release.
 	*/
 	FEngineVersion SavedByEngineVersion;
 
 	/**
-	* Engine version this package is compatible with. See SavedByEngineVersion.
+	* Engine version this package is compatible with. Assets saved by Hotfix releases and engine versions that maintain binary compatibility will have
+	* a CompatibleWithEngineVersion.Patch that matches the original release (as opposed to SavedByEngineVersion which will have a patch version of the new release).
 	*/
 	FEngineVersion CompatibleWithEngineVersion;
 
