@@ -122,12 +122,12 @@ public:
 	int8 Index;
 
 	/** Initialization constructor. */
-	FOctreeChildNodeRef(int8 InX,int8 InY,int8 InZ)
+	FOctreeChildNodeRef(int8 InX, int8 InY, int8 InZ)
 	{
 		checkSlow(InX >= 0 && InX <= 1);
 		checkSlow(InY >= 0 && InY <= 1);
 		checkSlow(InZ >= 0 && InZ <= 1);
-		Index = (InX << 0) | (InY << 1) | (InZ << 2);
+		Index = int8(InX << 0) | int8(InY << 1) | int8(InZ << 2);
 	}
 
 	/** Initialized the reference with a child index. */
@@ -499,7 +499,7 @@ private:
 	void FreeEightNodes(FNodeIndex Index)
 	{
 		checkSlow(Index != INDEX_NONE && Index != 0);
-		for (int i = 0; i < 8; i++)
+		for (int8 i = 0; i < 8; i++)
 		{
 			TreeNodes[Index + i] = FNode();
 			checkSlow(TreeElements[Index + i].Num() == 0);
@@ -569,7 +569,7 @@ private:
 		if (!TreeNodes[CurrentNodeIndex].IsLeaf())
 		{
 			FNodeIndex ChildStartIndex = TreeNodes[CurrentNodeIndex].ChildNodes;
-			for (int i = 0; i < 8; i++)
+			for (int8 i = 0; i < 8; i++)
 			{
 				CollapseNodesInternal(ChildStartIndex + i, CollapsedNodeElements);
 			}
@@ -589,7 +589,7 @@ private:
 				if (!TreeNodes[CurrentNodeIndex].IsLeaf())
 				{
 					FNodeIndex ChildStartIndex = TreeNodes[CurrentNodeIndex].ChildNodes;
-					for (int i = 0; i < 8; i++)
+					for (int8 i = 0; i < 8; i++)
 					{
 						FindNodesWithPredicateInternal(ChildStartIndex + i, NodeContext.GetChildContext(FOctreeChildNodeRef(i)), Predicate, Func);
 					}
@@ -615,7 +615,7 @@ private:
 			{
 				const FOctreeChildNodeSubset IntersectingChildSubset = NodeContext.GetIntersectingChildren(BoxBounds);
 				FNodeIndex ChildStartIndex = TreeNodes[CurrentNodeIndex].ChildNodes;
-				for (int i = 0; i < 8; i++)
+				for (int8 i = 0; i < 8; i++)
 				{
 					if(IntersectingChildSubset.Contains(FOctreeChildNodeRef(i)))
 					{
@@ -644,7 +644,7 @@ private:
 			{
 				const FOctreeChildNodeSubset IntersectingChildSubset = NodeContext.GetIntersectingChildren(BoxBounds);
 				FNodeIndex ChildStartIndex = TreeNodes[CurrentNodeIndex].ChildNodes;
-				for (int i = 0; i < 8; i++)
+				for (int8 i = 0; i < 8; i++)
 				{
 					if (IntersectingChildSubset.Contains(FOctreeChildNodeRef(i)))
 					{
@@ -681,7 +681,7 @@ private:
 					// anything to match vs. the new point, process all of the children of the current octree node
 					else
 					{
-						for (int i = 0; i < 8; i++)
+						for (int8 i = 0; i < 8; i++)
 						{
 							FindNearbyElementsInternal(ChildStartIndex + i, NodeContext.GetChildContext(FOctreeChildNodeRef(i)), BoxBounds, Func);
 						}
