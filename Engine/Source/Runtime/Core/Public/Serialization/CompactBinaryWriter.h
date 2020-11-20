@@ -250,6 +250,12 @@ inline FCbWriter& operator<<(FCbWriter& Writer, FAnsiStringView NameOrValue)
 	return Writer;
 }
 
+/** Write the field name if valid in this state, otherwise write the string value. */
+inline FCbWriter& operator<<(FCbWriter& Writer, const ANSICHAR* NameOrValue)
+{
+	return Writer << FAnsiStringView(NameOrValue);
+}
+
 inline FCbWriter& operator<<(FCbWriter& Writer, const FCbField& Value)
 {
 	Writer.Field(Value);

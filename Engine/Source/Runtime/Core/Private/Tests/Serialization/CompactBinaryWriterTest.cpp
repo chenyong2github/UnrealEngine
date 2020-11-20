@@ -972,6 +972,8 @@ bool FCbWriterStreamTest::RunTest(const FString& Parameters)
 		Writer << "DateTime"_ASV << FDateTime(2020, 5, 13, 15, 10);
 		Writer << "TimeSpan"_ASV << FTimespan(1, 2, 4, 8);
 
+		Writer << "LiteralName" << nullptr;
+
 		Writer.EndObject();
 		Object = Writer.Save().AsObjectRef();
 	}
