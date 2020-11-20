@@ -319,6 +319,7 @@ protected:
 		FString SharedTangentCode;
 	};
 	TMultiMap<uint64, FStrataSharedNormalInfo> CodeChunkToStrataSharedNormal; // Stored into to a multi-map as a normal can be shared accross several tangent basis (i.e. having different tangent)
+	FStrataMaterialAnalysisResult StrataMaterialAnalysis;
 
 	/** Tracks the total number of vt samples in the shader. */
 	uint32 NumVtSamples;

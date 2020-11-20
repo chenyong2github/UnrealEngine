@@ -16,9 +16,14 @@
 static TAutoConsoleVariable<int32> CVarStrata(
 	TEXT("r.Strata"),
 	0,
-	TEXT("Enables Strata."),
+	TEXT("Enable Strata materials (Beta)."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarStrataBytePerPixel(
+	TEXT("r.Strata.BytesPerPixel"),
+	80,
+	TEXT("Strata allocated byte per pixel to store materials data. Higher value means more complex material can be represented."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, "Strata");

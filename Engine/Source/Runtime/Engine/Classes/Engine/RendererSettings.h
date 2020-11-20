@@ -711,13 +711,22 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 bSupportSkyAtmosphereAffectsHeightFog : 1;
 
 	/**
-	"Strata settings."
+	"Enable Strata materials (Beta)."
 	*/
 	UPROPERTY(config, EditAnywhere, Category = Strata, meta = (
-		ConsoleVariable = "r.Strata", DisplayName = "Strata materials",
-		ToolTip = "Enable the new strata material worfklow and evaluation.",
+		ConsoleVariable = "r.Strata", DisplayName = "Strata materials (Beta)",
+		ToolTip = "Enable Strata materials (Beta).",
 		ConfigRestartRequired = true))
 		uint32 bEnableStrata : 1;
+
+	/**
+	"Strata allocated byte per pixel to store materials data. Higher value means more complex material can be represented."
+	*/
+	UPROPERTY(config, EditAnywhere, Category = Strata, meta = (
+		ConsoleVariable = "r.Strata.BytesPerPixel", DisplayName = "Strata bytes per pixel",
+		ToolTip = "Strata allocated byte per pixel to store materials data. Higher value means more complex material can be represented.",
+		ConfigRestartRequired = true))
+		uint32 StrataBytePerPixel;
 
 	/**
 	"Skin cache allows a compute shader to skin once each vertex, save those results into a new buffer and reuse those calculations when later running the depth, base and velocity passes. This also allows opting into the 'recompute tangents' for skinned mesh instance feature. Disabling will reduce the number of shader permutations required per material. Changing this setting requires restarting the editor."

@@ -1106,8 +1106,14 @@ bool FHLSLMaterialTranslator::Translate()
 		{
 			const FStrataMaterialCompilationInfo& StrataCompilationInfo = CodeChunkToStrataCompilationInfoMap[Chunk[MP_FrontMaterial]];
 
-			FString StrataMaterialDescription = "";
+			static const auto CVarStrataBytePerPixel = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata.BytesPerPixel"));
+			check(CVarStrataBytePerPixel)
+			const uint32 StrataBytePerPixel = CVarStrataBytePerPixel ? CVarStrataBytePerPixel->GetValueOnAnyThread() : 0;
+			StrataMaterialAnalysis = StrataCompilationInfoMaterialAnalysis(this, StrataCompilationInfo, StrataBytePerPixel);
 
+			FString StrataMaterialDescription;
+
+			StrataMaterialDescription += FString::Printf(TEXT("----- STRATA -----\r\n"));
 			StrataMaterialDescription += FString::Printf(TEXT("StrataCompilationInfo -\r\n"));
 			StrataMaterialDescription += FString::Printf(TEXT(" - TotalBSDFCount    = %i\r\n"), StrataCompilationInfo.TotalBSDFCount);
 			StrataMaterialDescription += FString::Printf(TEXT(" - SharedNormalCount = %i\r\n"), StrataCompilationInfoGetSharedNormalCount());
@@ -1123,11 +1129,33 @@ bool FHLSLMaterialTranslator::Translate()
 				}
 			}
 
+			StrataMaterialDescription += FString::Printf(TEXT("Byte Per Pixel Budget      %u\r\n"), StrataBytePerPixel);
+			StrataMaterialDescription += FString::Printf(TEXT("Result.bFitInMemoryBudget  %s\r\n"), StrataMaterialAnalysis.bFitInMemoryBudget ? TEXT("YES") : TEXT("NO"));
+			StrataMaterialDescription += FString::Printf(TEXT("Result.RequestedLayerCount %u\r\n"), StrataMaterialAnalysis.RequestedLayerCount);
+			StrataMaterialDescription += FString::Printf(TEXT("Result.RequestedBSDFCount  %u\r\n"), StrataMaterialAnalysis.RequestedBSDFCount);
+			StrataMaterialDescription += FString::Printf(TEXT("Result.RequestedByteCount  %u\r\n"), StrataMaterialAnalysis.RequestedByteCount);
+			if (!StrataMaterialAnalysis.bFitInMemoryBudget)
+			{
+				StrataMaterialDescription += FString::Printf(TEXT("Result.ClampedLayerCount   %u\r\n"), StrataMaterialAnalysis.ClampedLayerCount);
+				StrataMaterialDescription += FString::Printf(TEXT("Result.ClampedBSDFCount    %u\r\n"), StrataMaterialAnalysis.ClampedBSDFCount);
+				StrataMaterialDescription += FString::Printf(TEXT("Result.UsedByteCount       %u\r\n"), StrataMaterialAnalysis.UsedByteCount);
+			}
+			StrataMaterialDescription += FString::Printf(TEXT("------------------\r\n"));
+
 			ResourcesString += TEXT("/*");
 			ResourcesString += StrataMaterialDescription;
 			ResourcesString += TEXT("*/");
 
 			MaterialCompilationOutput.StrataMaterialDescription = StrataMaterialDescription;
+
+			if (StrataMaterialAnalysis.ClampedLayerCount == 0)
+			{
+				UE_LOG(LogMaterial, Fatal, TEXT("Material %s cannot have any layers rendered due to its complexity (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
+			}
+			else if (StrataMaterialAnalysis.RequestedLayerCount > StrataMaterialAnalysis.ClampedLayerCount)
+			{
+				UE_LOG(LogMaterial, Warning, TEXT("Material %s is not fitting the allocated byte per pixel budget for starta. Layers will be removed (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath());
+			}
 		}
 		else
 		{
@@ -1464,6 +1492,12 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 
 	// if duals source blending (colored transmittance) is not supported on a platform, it will fall back to standard alpha blending (grey scale transmittance)
 	OutEnvironment.SetDefine(TEXT("DUAL_SOURCE_COLOR_BLENDING_ENABLED"), bMaterialRequestsDualSourceBlending && Material->IsDualBlendingEnabled(Platform) ? TEXT("1") : TEXT("0"));
+
+	// Translate() is called before getting here so we can create
+	if (StrataMaterialAnalysis.RequestedBSDFCount > 0)
+	{
+		OutEnvironment.SetDefine(TEXT("STRATA_CLAMPED_LAYER_COUNT"), StrataMaterialAnalysis.ClampedLayerCount);
+	}
 }
 
 // Assign custom interpolators to slots, packing them as much as possible in unused slots.
@@ -7329,7 +7363,7 @@ uint8 FHLSLMaterialTranslator::StrataCompilationInfoRegisterSharedNormalIndex(in
 	check(NormalCodeChunk != INDEX_NONE);
 	check(TangentCodeChunk != INDEX_NONE);
 	check(NextFreeStrataShaderNormalIndex < 255);	// Out of shared normal slots
-	check(NextFreeStrataShaderNormalIndex < STRATA_MAX_TOTAL_BSDF);	// This is our current budget if normal per material. STRATA_TODO change that to a byte per pixel
+	check(NextFreeStrataShaderNormalIndex < STRATA_MAX_SHARED_NORMAL_REGISTERS);	// This is the size of the HLSL array limiting the maximum shared normal count.
 
 	const uint64 NormalCodeChunkHash = GetParameterHash(NormalCodeChunk);
 	const uint64 TangentCodeChunkHash = GetParameterHash(TangentCodeChunk);

@@ -60,12 +60,6 @@ void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, 
 
 FStrataMaterialCompilationInfo StrataCompilationInfoAdd(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B)
 {
-	if ((A.TotalBSDFCount + B.TotalBSDFCount) > STRATA_MAX_TOTAL_BSDF)
-	{
-		Compiler->Error(TEXT("Adding would result in too many BSDFs"));
-		return A;
-	}
-
 	FStrataMaterialCompilationInfo StrataInfo = A;
 
 	// Append each BSDF from B to A, with same layer position
@@ -103,24 +97,12 @@ FStrataMaterialCompilationInfo StrataCompilationInfoMultiply(FMaterialCompiler* 
 
 FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixing(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B)
 {
-	if ((A.TotalBSDFCount + B.TotalBSDFCount) > STRATA_MAX_TOTAL_BSDF)
-	{
-		Compiler->Error(TEXT("Mixing would result in too many BSDFs"));
-		return A;
-	}
-
 	return StrataCompilationInfoAdd(Compiler, A, B); // Mixing is a similar operation to Add when it comes to bsdf count
 }
 
 
 FStrataMaterialCompilationInfo StrataCompilationInfoVerticalLayering(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Top, const FStrataMaterialCompilationInfo& Base)
 {
-	if ((Top.TotalBSDFCount + Base.TotalBSDFCount) > STRATA_MAX_TOTAL_BSDF) // See StrataDefinitions.h
-	{
-		Compiler->Error(TEXT("Layering would result in too many BSDFs"));
-		return Base;
-	}
-
 	if ((Top.LayerCount + Base.LayerCount) > STRATA_MAX_LAYER_COUNT)
 	{
 		Compiler->Error(TEXT("Layering would result in too many Layers"));
@@ -140,4 +122,105 @@ FStrataMaterialCompilationInfo StrataCompilationInfoVerticalLayering(FMaterialCo
 	UpdateTotalBSDFCount(StrataInfo);
 	return StrataInfo;
 }
+
+FStrataMaterialAnalysisResult::FStrataMaterialAnalysisResult()
+{
+	bFitInMemoryBudget = true;
+	RequestedLayerCount = 0;
+	RequestedBSDFCount = 0;
+	RequestedByteCount = 0;
+	ClampedLayerCount = 0;
+	ClampedBSDFCount = 0;
+	UsedByteCount = 0;
+}
+
+FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Material, const uint32 StrataBytePerPixel)
+{
+	const uint32 UintByteSize = sizeof(uint32);
+
+	FStrataMaterialAnalysisResult Result;
+
+	// 1. Header
+
+	// SharedNormals_BSDFCount
+	Result.RequestedByteCount += UintByteSize;
+	// Shared normals between BSDFs
+	Result.RequestedByteCount += Compiler->StrataCompilationInfoGetSharedNormalCount() * STRATA_PACKED_NORMAL_STRIDE_BYTES;
+
+	// 2. The list of BSDFs
+
+	// We process layers from top to bottom to cull the bottom ones in case we run out of pixel bytes
+	for (uint32 LayerIt = 0; LayerIt < Material.LayerCount; LayerIt++)
+	{
+		const FStrataMaterialCompilationInfo::FLayer& Layer = Material.Layers[LayerIt];
+
+		for (uint32 BSDFIt = 0; BSDFIt < Layer.BSDFCount; BSDFIt++)
+		{
+			const FStrataMaterialCompilationInfo::FBSDF& BSDF = Layer.BSDFs[BSDFIt];
+
+			// BSDF state
+			Result.RequestedByteCount += UintByteSize;
+
+			// From the compiler side, we can only assume the top layer has grey scale weight/throughput
+			const bool bMayBeColoredWeight = LayerIt > 0;
+			if (bMayBeColoredWeight)
+			{
+				Result.RequestedByteCount += UintByteSize;
+			}
+
+			switch (BSDF.Type)
+			{
+			case STRATA_BSDF_TYPE_DIFFUSE:
+			{
+				Result.RequestedByteCount += UintByteSize;
+				break;
+			}
+			case STRATA_BSDF_TYPE_DIELECTRIC:
+			{
+				Result.RequestedByteCount += UintByteSize;
+				Result.RequestedByteCount += UintByteSize;
+				break;
+			}
+			case STRATA_BSDF_TYPE_CONDUCTOR:
+			{
+				Result.RequestedByteCount += UintByteSize;
+				Result.RequestedByteCount += UintByteSize;
+				break;
+			}
+			case STRATA_BSDF_TYPE_VOLUME:
+			{
+				Result.RequestedByteCount += UintByteSize;
+
+				const bool bMayHaveScattering = true;
+				if (bMayHaveScattering)
+				{
+					Result.RequestedByteCount += UintByteSize;
+				}
+				break;
+			}
+			}
+		}
+
+		Result.RequestedLayerCount++;
+		Result.RequestedBSDFCount += Layer.BSDFCount;
+
+		if (Result.RequestedByteCount <= StrataBytePerPixel && Result.bFitInMemoryBudget)
+		{
+			// We only validate all the BSDF of a layer if it remains within budget and we are not already out of budget
+			Result.ClampedBSDFCount += Layer.BSDFCount;
+			Result.ClampedLayerCount++;
+
+			// Set the current used bytes
+			Result.UsedByteCount = Result.RequestedByteCount;
+		}
+		else
+		{
+			// Used byte count remains unchanged and we notify that we start peeling off top layers now
+			Result.bFitInMemoryBudget = false;
+		}
+	}
+	return Result;
+
+}
+	
 

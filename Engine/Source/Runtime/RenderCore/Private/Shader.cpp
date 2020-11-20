@@ -1699,9 +1699,16 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 
 	{
 		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
-		if (CVar && CVar->GetValueOnAnyThread() > 0)
+		const bool bStrataEnabled = CVar && CVar->GetValueOnAnyThread() > 0;
+		if (bStrataEnabled)
 		{
 			KeyString += TEXT("_STRATA");
+		}
+
+		static const auto CVarBudget = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata.BytesPerPixel"));
+		if (bStrataEnabled && CVarBudget)
+		{
+			KeyString += FString::Printf(TEXT("_BUDGET%u"), CVarBudget->GetValueOnAnyThread());
 		}
 	}
 

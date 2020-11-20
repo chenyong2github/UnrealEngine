@@ -51,3 +51,15 @@ FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixing(FMaterialCo
 FStrataMaterialCompilationInfo StrataCompilationInfoVerticalLayering(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Top, const FStrataMaterialCompilationInfo& Base);
 
 
+struct FStrataMaterialAnalysisResult
+{
+	FStrataMaterialAnalysisResult();
+	bool bFitInMemoryBudget;
+	uint32 RequestedLayerCount;
+	uint32 RequestedBSDFCount;
+	uint32 RequestedByteCount;
+	uint32 ClampedLayerCount;
+	uint32 ClampedBSDFCount;
+	uint32 UsedByteCount;
+};
+FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Material, const uint32 StrataBytePerPixel);

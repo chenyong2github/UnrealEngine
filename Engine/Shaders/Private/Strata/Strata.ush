@@ -19,16 +19,15 @@
 #define STRATA_SHARED_NORMALS_IN_REGISTERS 1
 #endif
 
+#ifndef STRATA_CLAMPED_LAYER_COUNT
+#define STRATA_CLAMPED_LAYER_COUNT 1
+#endif
+
 
 
 
 ///////////////////////////////////////////////////////////////////////////////
 // BSDFs representation
-//		STRATA_MAX_TOTAL_BSDF * sizeof(FStrataConductor) +				// 4 * 12
-//		STRATA_MAX_TOTAL_BSDF * (sizeof(State) + sizeof(Weight))		// 4 * 8
-//		sizeof(NormalCount_BSDFCount)									// 1 * 4
-//		STRATA_MAX_TOTAL_BSDF * sizeof(Normal)							// 4 * 4
-//		= 100															// See Strata.cpp
 struct FStrataBSDF
 {
 	uint				State;		// (27 unused bits) (1bit as HasAnisotropy) (2bits as SharedNormalIndex) (3bits as BSDFType)
@@ -66,7 +65,7 @@ struct FStrataBSDF
 #define BSDF_SETTYPE(X, NewType)		BSDF_SETSTATE(X, STATE_BITS_BSDF, STATE_BIT_OFFSET_BSDF, NewType)
 
 // Accessors for Shared Normal
-// This assumes Normals[STRATA_MAX_TOTAL_BSDF]
+// This assumes Normals[STRATA_MAX_SHARED_NORMAL_REGISTERS]
 #define BSDF_GETNORMALID(X)				BSDF_GETSTATE(X, STATE_BITS_SHAREDNORMALID, STATE_BIT_OFFSET_SHAREDNORMALID)
 #define BSDF_SETNORMALID(X, NrmlIdx)	BSDF_SETSTATE(X, STATE_BITS_SHAREDNORMALID, STATE_BIT_OFFSET_SHAREDNORMALID, NrmlIdx)
 
@@ -253,8 +252,6 @@ float3 StrataGetOffSpecularPeakReflectionDir(float3 Normal, float3 ReflectionVec
 float3 StrataUnpackNormal(uint PackedNormal);
 void StrataUnpackNormalAndTangent(inout float3 Normal, inout float3 Tangent, in uint InPacked);
 
-#define STRATA_PACKED_NORMAL_STRIDE 4
-
 #if STRATA_SHARED_NORMALS_IN_REGISTERS
 struct FSharedNormals
 {
@@ -305,7 +302,7 @@ float3x3 StrataGetBSDFSharedBasis(in FStrataPixelHeader StrataPixelHeader, in FS
 	return float3x3(Tangent, Bitangent, Normal);
 #else
 	const bool bHasAnisotropy = BSDF_GETANISOTROPY(BSDF) != 0;
-	uint PackedBasis = StrataPixelHeader.StrataBuffer.Load(StrataPixelHeader.SharedNormalByteOffset + BSDF_GETNORMALID(BSDF) * STRATA_PACKED_NORMAL_STRIDE);
+	uint PackedBasis = StrataPixelHeader.StrataBuffer.Load(StrataPixelHeader.SharedNormalByteOffset + BSDF_GETNORMALID(BSDF) * STRATA_PACKED_NORMAL_STRIDE_BYTES);
 	float3x3 OutTangentBasis;
 	if (bHasAnisotropy)
 	{
@@ -1128,6 +1125,7 @@ uint GetStrataPixelDataByteOffset(uint2 PixelPos, uint ViewBufferSizeX, uint Str
 	return (PixelPos.y * ViewBufferSizeX + PixelPos.x) * StrataMaxBytesPerPixel;
 }
 
+// If this is changed, please update the compiler side material size evaluation in StrataMaterial.cpp
 void PackStrataOut(
 	RWByteAddressBuffer StrataBuffer, 
 	uint ByteOffset, 
@@ -1137,13 +1135,6 @@ void PackStrataOut(
 	float3 V,
 	inout FGBufferData GBuffer)
 {
-	// We cannot output (layers x bsdf) information because if we try to load them later, the reserved amount of VGPRS would be crazy high.
-	// So instead we simply store a list of BSDF and we allow only up to STRATA_MAX_TOTAL_BSDF of them.
-	// For each of the BSDF, we evaluated their final waight according to the material operation performed (layering, mixing, etc.).
-
-	// STRATA_TODO:
-	//	- We could clean up irrelevant BSDFs 
-	//	- We could generate transmittance BSDFs 
 
 	const float OpaqueBSDFThroughput = 0.0f;
 	const float FullThroughput = 1.0f;
@@ -1152,6 +1143,10 @@ void PackStrataOut(
 	uint BSDFCount = 0;
 	float3 Throughput = 1.0f;
 
+	// We clamp the layer count to the maximum one according to our byte per pixel budget (removing the bottom layer first)
+	Strata.LayerCount = STRATA_CLAMPED_LAYER_COUNT;
+
+	// For each of the BSDF, we evaluated their combined weight/throughput according to the material operation performed (layering, mixing, etc.).
 	int l;
 	UNROLL
 	for (l = 0; l < Strata.LayerCount; ++l)
@@ -1298,7 +1293,6 @@ void PackStrataOut(
 	// Now write out Strata data
 
 	// 1. the header
-	BSDFCount = min(BSDFCount, uint(STRATA_MAX_TOTAL_BSDF));
 
 	uint SharedNormals_BSDFCount = BSDFCount;
 #if STRATA_SHARED_NORMALS_IN_REGISTERS
@@ -1379,15 +1373,12 @@ void PackStrataOut(
 
 			// Stop writing if above budget.
 			BSDFCount++;
-			if (BSDFCount >= STRATA_MAX_TOTAL_BSDF)
-			{
-				return;
-			}
 		}
 	}
 }
 
 // Unpack only strata header
+// If this is changed, please update the compiler side material size evaluation in StrataMaterial.cpp
 FStrataPixelHeader UnpackStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout uint ByteOffset)
 {
 	FStrataPixelHeader Out = InitialiseStrataPixelHeader();
@@ -1404,7 +1395,7 @@ FStrataPixelHeader UnpackStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout ui
 	Out.StrataBuffer = StrataBuffer;
 
 	// Now skip over the shared normal memory to be able to load the BSDF content
-	ByteOffset += NormalCount * STRATA_PACKED_NORMAL_STRIDE;
+	ByteOffset += NormalCount * STRATA_PACKED_NORMAL_STRIDE_BYTES;
 #endif
 
 	return Out;
@@ -1412,6 +1403,7 @@ FStrataPixelHeader UnpackStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout ui
 
 // Unpack a single BSDF
 // Note: All BSDF lobes needs to be unpack in a sequential manner since each BSDF has a variable footprint.
+// If this is changed, please update the compiler side material size evaluation in StrataMaterial.cpp
 FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout uint ByteOffset)
 {
 	FStrataBSDF OutBSDF = (FStrataBSDF)0;
