@@ -1705,7 +1705,7 @@ void FSceneRenderer::RenderVolumetricCloud(
 					CloudRC.NoiseFrameIndexModPattern = VRT.GetNoiseFrameIndexModPattern();
 
 					check(VRT.GetMode() != 0 || ViewInfo.HalfResDepthSurfaceCheckerboardMinMax.IsValid());
-					CloudRC.SceneDepthZ = VRT.GetMode() == 0 ? ViewInfo.HalfResDepthSurfaceCheckerboardMinMax : SceneDepthZ;
+					CloudRC.SceneDepthZ = (VRT.GetMode() == 0 || VRT.GetMode() == 3) ? ViewInfo.HalfResDepthSurfaceCheckerboardMinMax : SceneDepthZ;
 				}
 				else
 				{
