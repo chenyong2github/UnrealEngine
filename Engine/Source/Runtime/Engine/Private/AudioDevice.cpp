@@ -9,6 +9,7 @@
 #include "AudioEffect.h"
 #include "AudioPluginUtilities.h"
 #include "Audio/AudioDebug.h"
+#include "Components/AudioComponent.h"
 #include "ContentStreaming.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/GameUserSettings.h"
@@ -48,7 +49,8 @@
 #include "Developer/AssetTools/Public/IAssetTools.h"
 #include "Editor/EditorEngine.h"
 #endif // WITH_EDITOR
-	
+
+
 static int32 AudioChannelCountCVar = 0;
 FAutoConsoleVariableRef CVarSetAudioChannelCount(
 	TEXT("au.SetAudioChannelCount"),
@@ -171,7 +173,7 @@ FAutoConsoleVariableRef CVarFlushAudioRenderThreadOnGC(
 	TEXT("When set to 1, every time the GC runs, we flush all pending audio render thread commands.\n"),
 	ECVF_Default);
 
-namespace
+namespace AudioDeviceUtils
 {
 	using FVirtualLoopPair = TPair<FActiveSound*, FAudioVirtualLoop>;
 
@@ -821,7 +823,7 @@ void FAudioDevice::AddReferencedObjects(FReferenceCollector& Collector)
 		ActiveSound->AddReferencedObjects(Collector);
 	}
 
-	for (FVirtualLoopPair& Pair : VirtualLoops)
+	for (AudioDeviceUtils::FVirtualLoopPair& Pair : VirtualLoops)
 	{
 		Pair.Key->AddReferencedObjects(Collector);
 	}
@@ -889,6 +891,30 @@ void FAudioDevice::EnableRadioEffect(bool bEnable)
 }
 
 #if !UE_BUILD_SHIPPING
+UAudioComponent* FAudioDevice::GetTestComponent(UWorld* InWorld)
+{
+	if (InWorld)
+	{
+		if (!TestAudioComponent.IsValid() || TestAudioComponent->GetWorld() != InWorld)
+		{
+			TestAudioComponent = TStrongObjectPtr<UAudioComponent>(NewObject<UAudioComponent>());
+			TestAudioComponent->RegisterComponentWithWorld(InWorld);
+		}
+
+		return TestAudioComponent.Get();
+	}
+
+	return nullptr;
+}
+
+void FAudioDevice::StopTestComponent()
+{
+	if (TestAudioComponent.IsValid())
+	{
+		TestAudioComponent->Stop();
+	}
+}
+
 bool FAudioDevice::HandleShowSoundClassHierarchyCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	FAudioThreadSuspendContext AudioThreadSuspend;
@@ -1078,6 +1104,8 @@ void FAudioDevice::ShowSoundClassHierarchy(FOutputDevice& Ar, USoundClass* InSou
 
 bool FAudioDevice::HandleDumpSoundInfoCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
+	using namespace AudioDeviceUtils;
+
 	FAudioThreadSuspendContext AudioThreadSuspend;
 
 	Ar.Logf(TEXT("Native Count: %d\nRealtime Count: %d\n"), PrecachedNative, PrecachedRealtime);
@@ -1180,72 +1208,6 @@ bool FAudioDevice::HandleListSoundDurationsCommand(const TCHAR* Cmd, FOutputDevi
 	{
 		USoundWave* SoundWave = *It;
 		Ar.Logf(TEXT("%s,%f,%i"), *SoundWave->GetPathName(), SoundWave->Duration, SoundWave->NumChannels);
-	}
-	return true;
-}
-
-
-bool FAudioDevice::HandlePlaySoundCueCommand(const TCHAR* Cmd, FOutputDevice& Ar)
-{
-	// Stop any existing sound playing
-	if (!TestAudioComponent.IsValid())
-	{
-		TestAudioComponent = NewObject<UAudioComponent>();
-	}
-
-	UAudioComponent* AudioComp = TestAudioComponent.Get();
-	if (AudioComp != nullptr)
-	{
-		AudioComp->Stop();
-
-		// Load up an arbitrary cue
-		USoundCue* Cue = LoadObject<USoundCue>(nullptr, Cmd, nullptr, LOAD_None, nullptr);
-		if (Cue != nullptr)
-		{
-			AudioComp->Sound = Cue;
-			AudioComp->bAllowSpatialization = false;
-			AudioComp->bAutoDestroy = true;
-			AudioComp->Play();
-
-			TArray<USoundNodeWavePlayer*> WavePlayers;
-			Cue->RecursiveFindNode<USoundNodeWavePlayer>(Cue->FirstNode, WavePlayers);
-			for (int32 i = 0; i < WavePlayers.Num(); ++i)
-			{
-				USoundWave* SoundWave = WavePlayers[ i ]->GetSoundWave();
-				if (SoundWave)
-				{
-					SoundWave->LogSubtitle(Ar);
-				}
-			}
-		}
-	}
-	return true;
-}
-
-bool FAudioDevice::HandlePlaySoundWaveCommand(const TCHAR* Cmd, FOutputDevice& Ar)
-{
-	// Stop any existing sound playing
-	if (!TestAudioComponent.IsValid())
-	{
-		TestAudioComponent = NewObject<UAudioComponent>();
-	}
-
-	UAudioComponent* AudioComp = TestAudioComponent.Get();
-	if (AudioComp != nullptr)
-	{
-		AudioComp->Stop();
-
-		// Load up an arbitrary wave
-		USoundWave* Wave = LoadObject<USoundWave>(NULL, Cmd, NULL, LOAD_None, NULL);
-		if (Wave != NULL)
-		{
-			AudioComp->Sound = Wave;
-			AudioComp->bAllowSpatialization = false;
-			AudioComp->bAutoDestroy = true;
-			AudioComp->Play();
-
-			Wave->LogSubtitle(Ar);
-		}
 	}
 	return true;
 }
@@ -2002,151 +1964,155 @@ void FAudioDevice::SetMixDebugState(EDebugState InDebugState)
 bool FAudioDevice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 #if !UE_BUILD_SHIPPING
-	if (FParse::Command(&Cmd, TEXT("DumpSoundInfo")))
+	auto ParseAudioExecCmd = [](const TCHAR** InCmd, const TCHAR* InMatch)
 	{
-		HandleDumpSoundInfoCommand(Cmd, Ar);
+		if (FParse::Command(InCmd, InMatch))
+		{
+			UE_LOG(LogAudio, Warning, TEXT("The Exec command '%s' is deprecated. Use 'au.Debug.%s' instead"), InCmd);
+			return true;
+		}
+
+		const FString InMatchFull = FString::Printf(TEXT("au.Debug.%s"), InMatch);
+		return FParse::Command(InCmd, *InMatchFull);
+	};
+
+	if (ParseAudioExecCmd(&Cmd, TEXT("DumpSoundInfo")))
+	{
+		return HandleDumpSoundInfoCommand(Cmd, Ar);
 	}
-	if (FParse::Command(&Cmd, TEXT("ListSounds")))
+	if (ParseAudioExecCmd(&Cmd, TEXT("ListSounds")))
 	{
 		return HandleListSoundsCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("ListWaves")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("ListWaves")))
 	{
 		return HandleListWavesCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("ListSoundClasses")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("ListSoundClasses")))
 	{
 		return HandleListSoundClassesCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("ShowSoundClassHierarchy")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("ShowSoundClassHierarchy")))
 	{
 		return HandleShowSoundClassHierarchyCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("ListSoundClassVolumes")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("ListSoundClassVolumes")))
 	{
 		return HandleListSoundClassVolumesCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("ListAudioComponents")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("ListAudioComponents")))
 	{
 		return HandleListAudioComponentsCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("ListSoundDurations")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("ListSoundDurations")))
 	{
 		return HandleListSoundDurationsCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("PlaySoundCue")))
-	{
-		return HandlePlaySoundCueCommand(Cmd, Ar);
-	}
-	else if (FParse::Command(&Cmd, TEXT("PlaySoundWave")))
-	{
-		return HandlePlaySoundWaveCommand(Cmd, Ar);
-	}
-	else if (FParse::Command(&Cmd, TEXT("SetBaseSoundMix")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("SetBaseSoundMix")))
 	{
 		return HandleSetBaseSoundMixCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("IsolateDryAudio")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("IsolateDryAudio")))
 	{
 		return HandleIsolateDryAudioCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("IsolateReverb")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("IsolateReverb")))
 	{
 		return HandleIsolateReverbCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("TestLPF")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("TestLPF")))
 	{
 		return HandleTestLPFCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("TestLFEBleed")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("TestLFEBleed")))
 	{
 		return HandleTestLPFCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("DisableLPF")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("DisableLPF")))
 	{
 		return HandleDisableLPFCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("DisableHPF")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("DisableHPF")))
 	{
 		return HandleDisableHPFCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("DisableRadio")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("DisableRadio")))
 	{
 		return HandleDisableRadioCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("EnableRadio")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("EnableRadio")))
 	{
 		return HandleEnableRadioCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("ResetSoundState")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("ResetSoundState")))
 	{
 		return HandleResetSoundStateCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("ToggleSpatExt")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("ToggleSpatExt")))
 	{
 		return HandleToggleSpatializationExtensionCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("ToggleHRTFForAll")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("ToggleHRTFForAll")))
 	{
 		return HandleEnableHRTFForAllCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("SoloAudio")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("SoloAudio")))
 	{
 		return HandleSoloCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("ClearSoloAudio")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("ClearSoloAudio")))
 	{
 		return HandleClearSoloCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("PlayAllPIEAudio")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("PlayAllPIEAudio")))
 	{
 		return HandlePlayAllPIEAudioCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("Audio3dVisualize")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("Audio3dVisualize")))
 	{
 		return HandleAudio3dVisualizeCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("AudioSoloSoundClass")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("AudioSoloSoundClass")))
 	{
 		return HandleAudioSoloSoundClass(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("AudioSoloSoundWave")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("AudioSoloSoundWave")))
 	{
 		return HandleAudioSoloSoundWave(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("AudioSoloSoundCue")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("AudioSoloSoundCue")))
 	{
 		return HandleAudioSoloSoundCue(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("AudioMemReport")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("AudioMemReport")))
 	{
 		return HandleAudioMemoryInfo(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("AudioMixerDebugSound")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("AudioMixerDebugSound")))
 	{
 		return HandleAudioMixerDebugSound(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("AudioDebugSound")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("AudioDebugSound")))
 	{
 		return HandleAudioDebugSound(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("SoundClassFixup")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("SoundClassFixup")))
 	{
 		return HandleSoundClassFixup(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("AudioResetDynamicSoundVolume")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("AudioResetDynamicSoundVolume")))
 	{
 		return HandleResetDynamicSoundVolumeCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("AudioResetAllDynamicSoundVolumes")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("AudioResetAllDynamicSoundVolumes")))
 	{
 		return HandleResetAllDynamicSoundVolumesCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("AudioGetDynamicSoundVolume")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("AudioGetDynamicSoundVolume")))
 	{
 		return HandleGetDynamicSoundVolumeCommand(Cmd, Ar);
 	}
-	else if (FParse::Command(&Cmd, TEXT("AudioSetDynamicSoundVolume")))
+	else if (ParseAudioExecCmd(&Cmd, TEXT("AudioSetDynamicSoundVolume")))
 	{
 		return HandleSetDynamicSoundCommand(Cmd, Ar);
 	}
@@ -4572,7 +4538,7 @@ void FAudioDevice::StopAllSounds(bool bShouldStopUISounds)
 		}
 	}
 
-	for (FVirtualLoopPair& Pair : VirtualLoops)
+	for (AudioDeviceUtils::FVirtualLoopPair& Pair : VirtualLoops)
 	{
 		AddSoundToStop(Pair.Key);
 	}
@@ -5868,7 +5834,7 @@ void FAudioDevice::Flush(UWorld* WorldToFlush, bool bClearActivatedReverb)
 		}
 	}
 
-	for (FVirtualLoopPair& Pair : VirtualLoops)
+	for (AudioDeviceUtils::FVirtualLoopPair& Pair : VirtualLoops)
 	{
 		AddSoundToStop(Pair.Key);
 	}
@@ -5945,6 +5911,8 @@ void FAudioDevice::FlushExtended(UWorld* WorldToFlush, bool bClearActivatedRever
 
 void FAudioDevice::Precache(USoundWave* SoundWave, bool bSynchronous, bool bTrackMemory, bool bForceFullDecompression)
 {
+	using namespace AudioDeviceUtils;
+
 	LLM_SCOPE(ELLMTag::AudioPrecache);
 
 	if (SoundWave == nullptr)
@@ -6057,7 +6025,7 @@ void FAudioDevice::Precache(USoundWave* SoundWave, bool bSynchronous, bool bTrac
 			// Fully expand loaded audio data into PCM
 			SoundWave->DecompressionType = DTYPE_Native;
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			++PrecachedNative;
+			++AudioDeviceUtils::PrecachedNative;
 			AverageNativeLength = (AverageNativeLength * (PrecachedNative - 1) + SoundWave->Duration) / PrecachedNative;
 			NativeSampleRateCount.FindOrAdd(SoundWave->GetSampleRateForCurrentPlatform())++;
 			NativeChannelCount.FindOrAdd(SoundWave->NumChannels)++;
@@ -6468,6 +6436,8 @@ const FVector& FAudioDevice::GetListenerAttenuationOverride(int32 ListenerIndex)
 
 void FAudioDevice::UpdateVirtualLoops(bool bForceUpdate)
 {
+	using namespace AudioDeviceUtils;
+
 	check(IsInAudioThread());
 
 	if (FAudioVirtualLoop::IsEnabled())
