@@ -1303,7 +1303,7 @@ bool GetAssetFileItemAttributes(const FContentBrowserAssetFileItemDataPayload& I
 		for (const auto& TagAndValue : AssetData.TagsAndValues)
 		{
 			FContentBrowserItemDataAttributeValue& GenericAttributeValue = OutAttributeValues.Add(TagAndValue.Key);
-			GetGenericItemAttribute(TagAndValue.Key, TagAndValue.Value, ClassPropertyTagCache, InIncludeMetaData, GenericAttributeValue);
+			GetGenericItemAttribute(TagAndValue.Key, TagAndValue.Value.AsString(), ClassPropertyTagCache, InIncludeMetaData, GenericAttributeValue);
 		}
 	}
 

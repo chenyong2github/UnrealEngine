@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "CoreMinimal.h"
+#include "AssetRegistry/AssetData.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
@@ -1718,29 +1719,33 @@ FString GetConfigFilename( UObject* SourceObject )
 	}
 }
 
-void GetAssetRegistryTagFromProperty(const void* BaseMemoryLocation, const UObject* OwnerObject, FProperty* Prop, TSet<FName>& OutFoundSpecialStructs, TArray<UObject::FAssetRegistryTag>& OutTags)
+const FName GAssetBundleDataName("AssetBundleData");
+
+// Thread local state to avoid UObject::GetAssetRegistryTags() API change
+thread_local FAssetBundleData const** TGetAssetRegistryTags_OutBundles = nullptr;
+
+static void GetAssetRegistryTagFromProperty(const void* BaseMemoryLocation, const UObject* OwnerObject, FProperty* Prop, TArray<UObject::FAssetRegistryTag>& OutTags)
 {
-	FName TagName;
-	UObject::FAssetRegistryTag::ETagType TagType = UObject::FAssetRegistryTag::ETagType::TT_Alphabetical;
 	FStructProperty* StructProp = CastField<FStructProperty>(Prop);
-
-	if (StructProp && StructProp->Struct && UObject::FAssetRegistryTag::IsUniqueAssetRegistryTagStruct(StructProp->Struct->GetFName(), TagType))
+	if (StructProp && StructProp->Struct && StructProp->Struct->GetFName() == GAssetBundleDataName)
 	{
-		// Special unique structure type
-		TagName = StructProp->Struct->GetFName();
+		const FAssetBundleData* Bundles = reinterpret_cast<const FAssetBundleData*>(Prop->ContainerPtrToValuePtr<uint8>(BaseMemoryLocation));
 
-		if (OutFoundSpecialStructs.Contains(TagName))
+		if (FAssetBundleData const** OutBundles = TGetAssetRegistryTags_OutBundles)
 		{
-			UE_LOG(LogObj, Error, TEXT("Object %s has more than one unique asset registry struct %s!"), *OwnerObject->GetPathName(), *TagName.ToString());
+			checkf(*OutBundles == nullptr, TEXT("Object %s has more than one FAssetBundleData!"), *OwnerObject->GetPathName());
+			*OutBundles = Bundles;
 		}
 		else
 		{
-			OutFoundSpecialStructs.Add(TagName);
+			FString PropertyStr;
+			Prop->ExportTextItem(PropertyStr, Bundles, Bundles, nullptr, PPF_None);
+			OutTags.Add(UObject::FAssetRegistryTag(GAssetBundleDataName, MoveTemp(PropertyStr), UObject::FAssetRegistryTag::ETagType::TT_Alphabetical));
 		}
 	}
 	else if (Prop->HasAnyPropertyFlags(CPF_AssetRegistrySearchable))
 	{
-		TagName = Prop->GetFName();
+		UObject::FAssetRegistryTag::ETagType TagType = UObject::FAssetRegistryTag::ETagType::TT_Alphabetical;
 
 		if (Prop->IsA(FIntProperty::StaticClass()) ||
 			Prop->IsA(FFloatProperty::StaticClass()) ||
@@ -1773,31 +1778,22 @@ void GetAssetRegistryTagFromProperty(const void* BaseMemoryLocation, const UObje
 			// Arrays/maps/sets/structs are hidden, it is often too much information to display and sort
 			TagType = UObject::FAssetRegistryTag::ETagType::TT_Hidden;
 		}
-		else
-		{
-			// All other types are alphabetical, there are special UI parsers for object properties
-			TagType = UObject::FAssetRegistryTag::ETagType::TT_Alphabetical;
-		}
-	}
 
-	if (TagName != NAME_None)
-	{
 		FString PropertyStr;
 		const uint8* PropertyAddr = Prop->ContainerPtrToValuePtr<uint8>(BaseMemoryLocation);
 		Prop->ExportTextItem(PropertyStr, PropertyAddr, PropertyAddr, nullptr, PPF_None);
 
-		OutTags.Add(UObject::FAssetRegistryTag(TagName, PropertyStr, TagType));
+		OutTags.Add(UObject::FAssetRegistryTag(Prop->GetFName(), MoveTemp(PropertyStr), TagType));
 	}
 }
 
-void UObject::FAssetRegistryTag::GetAssetRegistryTagsFromSearchableProperties(const UObject* Object, TArray<FAssetRegistryTag>& OutTags)
+static void GetAssetRegistryTagsFromSearchableProperties(const UObject* Object, TArray<UObject::FAssetRegistryTag>& OutTags)
 {
-	TSet<FName> FoundSpecialStructs;
-
 	check(nullptr != Object);
+
 	for (TFieldIterator<FProperty> FieldIt( Object->GetClass() ); FieldIt; ++FieldIt)
 	{
-		GetAssetRegistryTagFromProperty(Object, Object, CastField<FProperty>(*FieldIt), FoundSpecialStructs, OutTags);
+		GetAssetRegistryTagFromProperty(Object, Object, CastField<FProperty>(*FieldIt), OutTags);
 	}
 
 	UScriptStruct* SparseClassDataStruct = Object->GetClass()->GetSparseClassDataStruct();
@@ -1806,22 +1802,9 @@ void UObject::FAssetRegistryTag::GetAssetRegistryTagsFromSearchableProperties(co
 		void* SparseClassData = Object->GetClass()->GetOrCreateSparseClassData();
 		for (TFieldIterator<FProperty> FieldIt(SparseClassDataStruct); FieldIt; ++FieldIt)
 		{
-			GetAssetRegistryTagFromProperty(SparseClassData, Object, CastField<FProperty>(*FieldIt), FoundSpecialStructs, OutTags);
+			GetAssetRegistryTagFromProperty(SparseClassData, Object, CastField<FProperty>(*FieldIt), OutTags);
 		}
 	}
-}
-
-bool UObject::FAssetRegistryTag::IsUniqueAssetRegistryTagStruct(FName StructName, ETagType& TagType)
-{
-	static const FName AssetBundleDataName("AssetBundleData"); // Name of FAssetBundleData in Engine
-
-	if (StructName == AssetBundleDataName)
-	{
-		TagType = FAssetRegistryTag::TT_Hidden;
-		return true;
-	}
-
-	return false;
 }
 
 const FName FPrimaryAssetId::PrimaryAssetTypeTag(TEXT("PrimaryAssetType"));
@@ -1837,7 +1820,7 @@ void UObject::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 		OutTags.Add(FAssetRegistryTag(FPrimaryAssetId::PrimaryAssetNameTag, PrimaryAssetId.PrimaryAssetName.ToString(), UObject::FAssetRegistryTag::TT_Alphabetical));
 	}
 
-	FAssetRegistryTag::GetAssetRegistryTagsFromSearchableProperties(this, OutTags);
+	GetAssetRegistryTagsFromSearchableProperties(this, OutTags);
 
 #if WITH_EDITOR
 	// Notify external sources that we need tags.
@@ -1861,6 +1844,45 @@ void UObject::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 		}
 	}
 #endif // WITH_EDITOR
+}
+
+static FAssetDataTagMapSharedView MakeSharedTagMap(TArray<UObject::FAssetRegistryTag>&& Tags)
+{
+	FAssetDataTagMap Out;
+	Out.Reserve(Tags.Num());
+	for (UObject::FAssetRegistryTag& Tag : Tags)
+	{
+		// Don't add empty tags
+		if (!Tag.Name.IsNone() && !Tag.Value.IsEmpty())
+		{
+			Out.Add(Tag.Name, MoveTemp(Tag.Value));
+		}
+	}
+
+	return FAssetDataTagMapSharedView(MoveTemp(Out));
+}
+
+static TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> MakeSharedBundles(const FAssetBundleData* Bundles)
+{
+	if (Bundles && Bundles->Bundles.Num())
+	{
+		return MakeShared<FAssetBundleData, ESPMode::ThreadSafe>(*Bundles);
+	}
+
+	return TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe>();
+}
+
+void UObject::GetAssetRegistryTags(FAssetData& Out) const
+{
+	const FAssetBundleData* Bundles = nullptr;
+
+	TArray<FAssetRegistryTag> Tags;
+	TGetAssetRegistryTags_OutBundles = &Bundles;
+	GetAssetRegistryTags(Tags);
+	TGetAssetRegistryTags_OutBundles = nullptr;
+
+	Out.TagsAndValues = MakeSharedTagMap(MoveTemp(Tags));
+	Out.TaggedAssetBundles = MakeSharedBundles(Bundles);
 }
 
 const FName& UObject::SourceFileTagName()

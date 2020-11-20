@@ -13,6 +13,7 @@
 #include "ProfilingDebugging/ResourceSize.h"
 #include "UObject/PrimaryAssetId.h"
 
+struct FAssetData;
 class FConfigCacheIni;
 class FEditPropertyChain;
 class ITargetPlatform;
@@ -720,12 +721,6 @@ public:
 		FAssetRegistryTag(FName InName, const FString& InValue, ETagType InType, uint32 InDisplayFlags = TD_None)
 			: Name(InName), Value(InValue), Type(InType), DisplayFlags(InDisplayFlags) {}
 
-		/** Gathers a list of asset registry searchable tags from given objects properties */
-		COREUOBJECT_API static void GetAssetRegistryTagsFromSearchableProperties(const UObject* Object, TArray<FAssetRegistryTag>& InOutTags);
-
-		/** Returns true if this FName is a special UStruct that should be exported even if not tagged, with the struct name as the tag name */
-		COREUOBJECT_API static bool IsUniqueAssetRegistryTagStruct(FName StructName, ETagType& TagType);
-
 #if WITH_EDITOR
 		/** Callback  */
 		DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGetObjectAssetRegistryTags, const UObject* /*Object*/, TArray<FAssetRegistryTag>& /*InOutTags*/);
@@ -740,6 +735,9 @@ public:
 	 * @param	OutTags		A list of key-value pairs associated with this object and their types
 	 */
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const;
+
+	/** Gathers a list of asset registry tags for an FAssetData  */
+	void GetAssetRegistryTags(FAssetData& Out) const;
 
 	/** Get the common tag name used for all asset source file import paths */
 	static const FName& SourceFileTagName();

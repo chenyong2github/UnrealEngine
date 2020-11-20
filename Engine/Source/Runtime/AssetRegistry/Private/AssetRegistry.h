@@ -61,7 +61,6 @@ public:
 	virtual bool GetReferencers(FName PackageName, TArray<FName>& OutReferencers, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::Package, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) const override;
 	virtual const FAssetPackageData* GetAssetPackageData(FName PackageName) const override;
 	virtual FName GetRedirectedObjectPath(const FName ObjectPath) const override;
-	virtual void StripAssetRegistryKeyForObject(FName ObjectPath, FName Key) override;
 	virtual bool GetAncestorClassNames(FName ClassName, TArray<FName>& OutAncestorClassNames) const override;
 	virtual void GetDerivedClassNames(const TArray<FName>& ClassNames, const TSet<FName>& ExcludedClassNames, TSet<FName>& OutDerivedClassNames) const override;
 	virtual void GetAllCachedPaths(TArray<FString>& OutPathList) const override;
@@ -100,9 +99,6 @@ public:
 	virtual const FAssetRegistryState* GetAssetRegistryState() const override;
 	virtual const TSet<FName>& GetCachedEmptyPackages() const override;
 	virtual void InitializeSerializationOptions(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName = FString()) const override;
-
-	virtual void SaveRegistryData(FArchive& Ar, TMap<FName, FAssetData*>& Data, TArray<FName>* InMaps = nullptr) override;
-	virtual void LoadRegistryData(FArchive& Ar, TMap<FName, FAssetData*>& Data) override;
 
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FPathAddedEvent, FPathAddedEvent);
 	virtual FPathAddedEvent& OnPathAdded() override { return PathAddedEvent; }
@@ -256,9 +252,6 @@ private:
 
 	/** Deletes any temporary cached data as needed */
 	void ClearTemporaryCaches() const;
-
-	/** This will always read the ini, public version may return cache */
-	void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName) const;
 
 	/** Initialize the scan filters from the ini */
 	void InitializeBlacklistScanFiltersFromIni();

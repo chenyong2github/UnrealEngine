@@ -13,6 +13,7 @@
 #include "Misc/StringBuilder.h"
 #include "Containers/StringView.h"
 #include "UObject/LinkerLoad.h"
+#include "AssetRegistry/AssetBundleData.h"
 #include "AssetRegistry/AssetDataTagMap.h"
 #include "UObject/PrimaryAssetId.h"
 
@@ -31,6 +32,18 @@ struct COREUOBJECT_API FAssetRegistryVersion
 		AddedHardManage,		// Added hard/soft manage references
 		AddedCookedMD5Hash,		// Added MD5 hash of cooked package to package data
 		AddedDependencyFlags,   // Added UE::AssetRegistry::EDependencyProperty to each dependency
+		FixedTags,				// Major tag format change that replaces USE_COMPACT_ASSET_REGISTRY:
+								// * Target tag INI settings cooked into tag data
+								// * Instead of FString values are stored directly as one of:
+								//		- Narrow / wide string
+								//		- [Numberless] FName
+								//		- [Numberless] export path
+								//		- Localized string
+								// * All value types are deduplicated
+								// * All key-value maps are cooked into a single contiguous range 
+								// * Switched from FName table to seek-free and more optimized FName batch loading
+								// * Removed global tag storage, a tag map reference-counts one store per asset registry
+								// * All configs can mix fixed and loose tag maps 
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
@@ -73,6 +86,14 @@ public:
 	FName AssetClass;
 	/** The map of values for properties that were marked AssetRegistrySearchable or added by GetAssetRegistryTags */
 	FAssetDataTagMapSharedView TagsAndValues;
+	/**
+	 * The 'AssetBundles' tag key is separated from TagsAndValues and typed for performance reasons.
+	 * This is likely a temporary solution that will be generalized in some other fashion. 	
+	 */
+	TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> TaggedAssetBundles;
+
+	COREUOBJECT_API void SetTagsAndAssetBundles(FAssetDataTagMap&& Tags);
+
 	/** The IDs of the pakchunks this asset is located in for streaming install.  Empty if not assigned to a chunk */
 	TArray<int32> ChunkIDs;
 	/** Asset package flags */
@@ -83,79 +104,12 @@ public:
 	FAssetData() = default;
 
 	/** Constructor building the ObjectPath in the form of InPackageName.InAssetName. does not work for object outer-ed to a different package. */
-	FAssetData(FName InPackageName, FName InPackagePath, FName InAssetName, FName InAssetClass, FAssetDataTagMap InTags = FAssetDataTagMap(), TArray<int32> InChunkIDs = TArray<int32>(), uint32 InPackageFlags = 0)
-		: PackageName(InPackageName)
-		, PackagePath(InPackagePath)
-		, AssetName(InAssetName)
-		, AssetClass(InAssetClass)
-		, TagsAndValues(MoveTemp(InTags))
-		, ChunkIDs(MoveTemp(InChunkIDs))
-		, PackageFlags(InPackageFlags)
-	{
-		TStringBuilder<FName::StringBufferSize> ObjectPathStr;
-		PackageName.AppendString(ObjectPathStr);
-		ObjectPathStr << TEXT('.');
-		AssetName.AppendString(ObjectPathStr);
-		ObjectPath = FName(FStringView(ObjectPathStr));
-	}
-
+	COREUOBJECT_API FAssetData(FName InPackageName, FName InPackagePath, FName InAssetName, FName InAssetClass, FAssetDataTagMap InTags = FAssetDataTagMap(), TArray<int32> InChunkIDs = TArray<int32>(), uint32 InPackageFlags = 0);
 	/** Constructor with a long package name and a full object path which might not be part of the package this asset is in. */
-	FAssetData(const FString& InLongPackageName, const FString& InObjectPath, FName InAssetClass, FAssetDataTagMap InTags = FAssetDataTagMap(), TArray<int32> InChunkIDs = TArray<int32>(), uint32 InPackageFlags = 0)
-		: ObjectPath(*InObjectPath)
-		, PackageName(*InLongPackageName)
-		, AssetClass(InAssetClass)
-		, TagsAndValues(MoveTemp(InTags))
-		, ChunkIDs(MoveTemp(InChunkIDs))
-		, PackageFlags(InPackageFlags)
-	{
-		PackagePath = FName(*FPackageName::GetLongPackagePath(InLongPackageName));
-
-		// Find the object name from the path, FPackageName::ObjectPathToObjectName(InObjectPath)) doesn't provide what we want here
-		int32 CharPos = InObjectPath.FindLastCharByPredicate([](TCHAR Char)
-		{
-			return Char == ':' || Char == '.';
-		});
-		AssetName = FName(*InObjectPath.Mid(CharPos + 1));
-	}
+	COREUOBJECT_API FAssetData(const FString& InLongPackageName, const FString& InObjectPath, FName InAssetClass, FAssetDataTagMap InTags = FAssetDataTagMap(), TArray<int32> InChunkIDs = TArray<int32>(), uint32 InPackageFlags = 0);
 
 	/** Constructor taking a UObject. By default trying to create one for a blueprint class will create one for the UBlueprint instead, but this can be overridden */
-	FAssetData(const UObject* InAsset, bool bAllowBlueprintClass = false)
-	{
-		if (InAsset != nullptr)
-		{
-			const UClass* InClass = Cast<UClass>(InAsset);
-			if (InClass && InClass->ClassGeneratedBy && !bAllowBlueprintClass)
-			{
-				// For Blueprints, the AssetData refers to the UBlueprint and not the UBlueprintGeneratedClass
-				InAsset = InClass->ClassGeneratedBy;
-			}
-
-			const UPackage* Outermost = InAsset->GetOutermost();
-
-			PackageName = Outermost->GetFName();
-			PackagePath = FName(*FPackageName::GetLongPackagePath(Outermost->GetName()));
-			AssetName = InAsset->GetFName();
-			AssetClass = InAsset->GetClass()->GetFName();
-			ObjectPath = FName(*InAsset->GetPathName());
-
-			TArray<UObject::FAssetRegistryTag> ObjectTags;
-			InAsset->GetAssetRegistryTags(ObjectTags);
-
-			FAssetDataTagMap NewTagsAndValues;
-			for (UObject::FAssetRegistryTag& AssetRegistryTag : ObjectTags)
-			{
-				if (AssetRegistryTag.Name != NAME_None && !AssetRegistryTag.Value.IsEmpty())
-				{
-					// Don't add empty tags
-					NewTagsAndValues.Add(AssetRegistryTag.Name, AssetRegistryTag.Value);
-				}
-			}
-
-			TagsAndValues = FAssetDataTagMapSharedView(MoveTemp(NewTagsAndValues));
-			ChunkIDs = Outermost->GetChunkIDs();
-			PackageFlags = Outermost->GetPackageFlags();
-		}
-	}
+	COREUOBJECT_API FAssetData(const UObject* InAsset, bool bAllowBlueprintClass = false);
 
 	/** FAssetDatas are equal if their object paths match */
 	bool operator==(const FAssetData& Other) const
@@ -181,7 +135,7 @@ public:
 	/** Checks to see if this AssetData refers to an asset or is NULL */
 	bool IsValid() const
 	{
-		return ObjectPath != NAME_None;
+		return !ObjectPath.IsNone();
 	}
 
 	/** Returns true if this is the primary asset in a package, true for maps and assets but false for secondary objects like class redirectors */
@@ -286,7 +240,7 @@ public:
 	/** Convert to a SoftObjectPath for loading */
 	FSoftObjectPath ToSoftObjectPath() const
 	{
-		return FSoftObjectPath(ObjectPath.ToString());
+		return FSoftObjectPath(ObjectPath);
 	}
 
 	UE_DEPRECATED(4.18, "ToStringReference was renamed to ToSoftObjectPath")
@@ -296,19 +250,7 @@ public:
 	}
 	
 	/** Gets primary asset id of this data */
-	FPrimaryAssetId GetPrimaryAssetId() const
-	{
-		FName PrimaryAssetType, PrimaryAssetName;
-		GetTagValueNameImpl(FPrimaryAssetId::PrimaryAssetTypeTag, PrimaryAssetType);
-		GetTagValueNameImpl(FPrimaryAssetId::PrimaryAssetNameTag, PrimaryAssetName);
-
-		if (PrimaryAssetType != NAME_None && PrimaryAssetName != NAME_None)
-		{
-			return FPrimaryAssetId(PrimaryAssetType, PrimaryAssetName);
-		}
-
-		return FPrimaryAssetId();
-	}
+	COREUOBJECT_API FPrimaryAssetId GetPrimaryAssetId() const;
 
 	/** Returns the asset UObject if it is loaded or loads the asset if it is unloaded then returns the result */
 	UObject* FastGetAsset(bool bLoad=false) const
@@ -403,11 +345,11 @@ public:
 
 	/** Try and get the value associated with the given tag as a type converted value */
 	template <typename ValueType>
-	bool GetTagValue(const FName InTagName, ValueType& OutTagValue) const;
+	bool GetTagValue(FName Tag, ValueType& OutValue) const;
 
 	/** Try and get the value associated with the given tag as a type converted value, or an empty value if it doesn't exist */
 	template <typename ValueType>
-	ValueType GetTagValueRef(const FName InTagName) const;
+	ValueType GetTagValueRef(const FName Tag) const;
 
 	/** Returns true if the asset is loaded */
 	bool IsAssetLoaded() const
@@ -428,7 +370,7 @@ public:
 
 		for (const auto& TagValue: TagsAndValues)
 		{
-			UE_LOG(LogAssetData, Log, TEXT("            %s : %s"), *TagValue.Key.ToString(), *FString(TagValue.Value));
+			UE_LOG(LogAssetData, Log, TEXT("            %s : %s"), *TagValue.Key.ToString(), *TagValue.Value.AsString());
 		}
 
 		UE_LOG(LogAssetData, Log, TEXT("        ChunkIDs: %d"), ChunkIDs.Num());
@@ -470,7 +412,8 @@ public:
 	 * Serialize as part of the registry cache. This is not meant to be serialized as part of a package so  it does not handle versions normally
 	 * To version this data change FAssetRegistryVersion
 	 */
-	void SerializeForCache(FArchive& Ar)
+	template<class Archive>
+	void SerializeForCache(Archive&& Ar)
 	{
 		// Serialize out the asset info
 		Ar << ObjectPath;
@@ -481,63 +424,10 @@ public:
 		Ar << PackageName;
 		Ar << AssetName;
 
-		Ar << TagsAndValues;
+		Ar.SerializeTagsAndBundles(*this);
+
 		Ar << ChunkIDs;
 		Ar << PackageFlags;
-	}
-
-private:
-	bool GetTagValueStringImpl(const FName InTagName, FString& OutTagValue) const
-	{
-		const FAssetDataTagMapSharedView::FFindTagResult FoundValue = TagsAndValues.FindTag(InTagName);
-		if (FoundValue.IsSet())
-		{
-			const FString& FoundString(FoundValue.GetValue());
-			bool bIsHandled = false;
-			if (FTextStringHelper::IsComplexText(*FoundString))
-			{
-				FText TmpText;
-				if (FTextStringHelper::ReadFromBuffer(*FoundString, TmpText))
-				{
-					bIsHandled = true;
-					OutTagValue = TmpText.ToString();
-				}
-			}
-
-			if (!bIsHandled)
-			{
-				OutTagValue = FoundString;
-			}
-
-			return true;
-		}
-
-		return false;
-	}
-	bool GetTagValueTextImpl(const FName InTagName, FText& OutTagValue) const
-	{
-		const FAssetDataTagMapSharedView::FFindTagResult FoundValue = TagsAndValues.FindTag(InTagName);
-		if (FoundValue.IsSet())
-		{
-			const FString& FoundString(FoundValue.GetValue());
-			if (!FTextStringHelper::ReadFromBuffer(*FoundString, OutTagValue))
-			{
-				OutTagValue = FText::FromString(FoundString);
-			}
-			return true;
-		}
-		return false;
-	}
-
-	bool GetTagValueNameImpl(const FName InTagName, FName& OutTagValue) const
-	{
-		FString StrValue;
-		if (GetTagValueStringImpl(InTagName, StrValue))
-		{
-			OutTagValue = *StrValue;
-			return true;
-		}
-		return false;
 	}
 };
 
@@ -557,42 +447,56 @@ struct TStructOpsTypeTraits<FAssetData> : public TStructOpsTypeTraitsBase2<FAsse
 };
 
 template <typename ValueType>
-inline bool FAssetData::GetTagValue(const FName InTagName, ValueType& OutTagValue) const
+inline bool FAssetData::GetTagValue(FName Tag, ValueType& OutValue) const
 {
-	const FAssetDataTagMapSharedView::FFindTagResult FoundValue = TagsAndValues.FindTag(InTagName);
+	const FAssetDataTagMapSharedView::FFindTagResult FoundValue = TagsAndValues.FindTag(Tag);
 	if (FoundValue.IsSet())
 	{
-		FMemory::Memzero(&OutTagValue, sizeof(ValueType));
-		LexFromString(OutTagValue, *FoundValue.GetValue());
+		FMemory::Memzero(&OutValue, sizeof(ValueType));
+		LexFromString(OutValue, *FoundValue.GetValue());
 		return true;
 	}
 	return false;
 }
 
 template <>
-inline bool FAssetData::GetTagValue<FString>(const FName InTagName, FString& OutTagValue) const
+inline bool FAssetData::GetTagValue<FString>(FName Tag, FString& OutValue) const
 {
-	return GetTagValueStringImpl(InTagName, OutTagValue);
+	const FAssetDataTagMapSharedView::FFindTagResult FoundValue = TagsAndValues.FindTag(Tag);
+	if (FoundValue.IsSet())
+	{
+		OutValue = FoundValue.AsString();
+		return true;
+	}
+
+	return false;
 }
 
 template <>
-inline bool FAssetData::GetTagValue<FText>(const FName InTagName, FText& OutTagValue) const
+inline bool FAssetData::GetTagValue<FText>(FName Tag, FText& OutValue) const
 {
-	return GetTagValueTextImpl(InTagName, OutTagValue);
+	const FAssetDataTagMapSharedView::FFindTagResult FoundValue = TagsAndValues.FindTag(Tag);
+	return FoundValue.IsSet() && FoundValue.TryGetAsText(OutValue);
 }
 
 template <>
-inline bool FAssetData::GetTagValue<FName>(const FName InTagName, FName& OutTagValue) const
+inline bool FAssetData::GetTagValue<FName>(FName Tag, FName& OutValue) const
 {
-	return GetTagValueNameImpl(InTagName, OutTagValue);
+	const FAssetDataTagMapSharedView::FFindTagResult FoundValue = TagsAndValues.FindTag(Tag);
+	if (FoundValue.IsSet())
+	{
+		OutValue = FoundValue.AsName();
+		return true;
+	}
+	return false;
 }
 
 template <typename ValueType>
-inline ValueType FAssetData::GetTagValueRef(const FName InTagName) const
+inline ValueType FAssetData::GetTagValueRef(FName Tag) const
 {
 	ValueType TmpValue;
 	FMemory::Memzero(&TmpValue, sizeof(ValueType));
-	const FAssetDataTagMapSharedView::FFindTagResult FoundValue = TagsAndValues.FindTag(InTagName);
+	const FAssetDataTagMapSharedView::FFindTagResult FoundValue = TagsAndValues.FindTag(Tag);
 	if (FoundValue.IsSet())
 	{
 		LexFromString(TmpValue, *FoundValue.GetValue());
@@ -601,27 +505,32 @@ inline ValueType FAssetData::GetTagValueRef(const FName InTagName) const
 }
 
 template <>
-inline FString FAssetData::GetTagValueRef<FString>(const FName InTagName) const
+inline FString FAssetData::GetTagValueRef<FString>(FName Tag) const
 {
-	FString TmpValue;
-	GetTagValueStringImpl(InTagName, TmpValue);
-	return TmpValue;
+	const FAssetDataTagMapSharedView::FFindTagResult FoundValue = TagsAndValues.FindTag(Tag);
+	return FoundValue.IsSet() ? FoundValue.AsString() : FString();
 }
 
 template <>
-inline FText FAssetData::GetTagValueRef<FText>(const FName InTagName) const
+inline FText FAssetData::GetTagValueRef<FText>(FName Tag) const
 {
 	FText TmpValue;
-	GetTagValueTextImpl(InTagName, TmpValue);
+	GetTagValue(Tag, TmpValue);
 	return TmpValue;
 }
 
 template <>
-inline FName FAssetData::GetTagValueRef<FName>(const FName InTagName) const
+inline FName FAssetData::GetTagValueRef<FName>(FName Tag) const
 {
-	FName TmpValue;
-	GetTagValueNameImpl(InTagName, TmpValue);
-	return TmpValue;
+	const FAssetDataTagMapSharedView::FFindTagResult FoundValue = TagsAndValues.FindTag(Tag);
+	return FoundValue.IsSet() ? FoundValue.AsName() : FName();
+}
+
+template <>
+inline FAssetRegistryExportPath FAssetData::GetTagValueRef<FAssetRegistryExportPath>(FName Tag) const
+{
+	const FAssetDataTagMapSharedView::FFindTagResult FoundValue = TagsAndValues.FindTag(Tag);
+	return FoundValue.IsSet() ? FoundValue.AsExportPath() : FAssetRegistryExportPath();
 }
 
 /** A class to hold data about a package on disk, this data is updated on save/load and is not updated when an asset changes in memory */
@@ -726,13 +635,13 @@ struct FAssetIdentifier
 	FName ValueName;
 
 	/** Can be implicitly constructed from just the package name */
-	FAssetIdentifier(FName InPackageName, FName InObjectName = NAME_None, FName InValueName = NAME_None)
-		: PackageName(InPackageName), PrimaryAssetType(NAME_None), ObjectName(InObjectName), ValueName(InValueName)
+	FAssetIdentifier(FName InPackageName, FName InObjectName = FName(), FName InValueName = FName())
+		: PackageName(InPackageName), PrimaryAssetType(), ObjectName(InObjectName), ValueName(InValueName)
 	{}
 
 	/** Construct from a primary asset id */
-	FAssetIdentifier(const FPrimaryAssetId& PrimaryAssetId, FName InValueName = NAME_None)
-		: PackageName(NAME_None), PrimaryAssetType(PrimaryAssetId.PrimaryAssetType), ObjectName(PrimaryAssetId.PrimaryAssetName), ValueName(InValueName)
+	FAssetIdentifier(const FPrimaryAssetId& PrimaryAssetId, FName InValueName = FName())
+		: PackageName(), PrimaryAssetType(PrimaryAssetId.PrimaryAssetType), ObjectName(PrimaryAssetId.PrimaryAssetName), ValueName(InValueName)
 	{}
 
 	FAssetIdentifier(UObject* SourceObject, FName InValueName)
@@ -746,9 +655,7 @@ struct FAssetIdentifier
 		}
 	}
 
-	FAssetIdentifier()
-		: PackageName(NAME_None), PrimaryAssetType(NAME_None), ObjectName(NAME_None), ValueName(NAME_None)
-	{}
+	FAssetIdentifier() {}
 
 	/** Returns primary asset id for this identifier, if valid */
 	FPrimaryAssetId GetPrimaryAssetId() const

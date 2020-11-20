@@ -630,7 +630,7 @@ protected:
 	TMap<FPrimaryAssetId, TArray<FPrimaryAssetId>> ManagementParentMap;
 
 	/** Cached map of asset bundles, global and per primary asset */
-	TMap<FPrimaryAssetId, TMap<FName, FAssetBundleEntry>> CachedAssetBundles;
+	TMap<FPrimaryAssetId, TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe>> CachedAssetBundles;
 
 	/** List of directories that have already been synchronously scanned */
 	mutable TArray<FString> AlreadyScannedDirectories;
