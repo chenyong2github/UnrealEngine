@@ -210,7 +210,7 @@ bool FOnlineSubsystemEOS::Init()
 {
 	// Check for being launched by EGS
 	bWasLaunchedByEGS = FParse::Param(FCommandLine::Get(), TEXT("EpicPortal"));
-	if (!bWasLaunchedByEGS && GetDefault<UEOSSettings>()->bShouldEnforceBeingLaunchedByEGS)
+	if (!IsRunningDedicatedServer() && !bWasLaunchedByEGS && GetDefault<UEOSSettings>()->bShouldEnforceBeingLaunchedByEGS)
 	{
 		FString ArtifactName;
 		FParse::Value(FCommandLine::Get(), TEXT("EpicApp="), ArtifactName);
