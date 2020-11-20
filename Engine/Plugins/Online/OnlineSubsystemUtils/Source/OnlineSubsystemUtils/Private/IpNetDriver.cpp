@@ -353,7 +353,7 @@ private:
 					// NOTE: For RecvMulti, this will mass-dump packets, leading to packetloss. Avoid using with RecvMulti.
 					bBreak = true;
 
-					UE_LOG(LogNet, Warning, TEXT("Stopping packet reception after processing for more than %f seconds. %s"),
+					UE_LOG(LogNet, Verbose, TEXT("Stopping packet reception after processing for more than %f seconds. %s"),
 							Driver->MaxSecondsInReceive, *Driver->GetName());
 				}
 			}
