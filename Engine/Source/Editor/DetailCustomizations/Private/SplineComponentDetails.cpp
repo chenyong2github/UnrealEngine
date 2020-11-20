@@ -28,7 +28,6 @@
 #include "Widgets/Input/SVectorInputBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "ScopedTransaction.h"
-#include "Editor.h"
 #include "LevelEditorViewport.h"
 #include "Engine/Blueprint.h"
 #include "BlueprintEditor.h"
