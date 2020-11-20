@@ -23,6 +23,7 @@
 #include "MRUFavoritesList.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "HAL/FileManager.h"
+#include "TextFilterKeyValueHandlers.h"
 #include "AssetCompilingManager.h"
 
 /** Helper functions for frontend filters */
@@ -380,6 +381,11 @@ public:
 
 	virtual bool TestComplexExpression(const FName& InKey, const FTextFilterString& InValue, const ETextFilterComparisonOperation InComparisonOperation, const ETextFilterTextComparisonMode InTextComparisonMode) const override
 	{
+		if (UTextFilterKeyValueHandlers::HandleTextFilterKeyValue(*AssetPtr, InKey, InValue, InComparisonOperation, InTextComparisonMode))
+		{
+			return true;
+		}
+
 		// Special case for the asset name, as this isn't contained within the asset registry meta-data
 		if (InKey == NameKeyName)
 		{
