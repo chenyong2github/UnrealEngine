@@ -739,7 +739,8 @@ void UBlueprint::PostLoad()
 	for (int32 i = 0; i < Breakpoints.Num(); ++i)
 	{
 		UBreakpoint* Breakpoint = Breakpoints[i];
-		if (!Breakpoint || !Breakpoint->GetLocation())
+		const UEdGraphNode* const Location = Breakpoint ? Breakpoint->GetLocation() : nullptr;
+		if (!Location || !Location->IsIn(this))
 		{
 			Breakpoints.RemoveAt(i);
 			--i;
@@ -749,9 +750,9 @@ void UBlueprint::PostLoad()
 	// Make sure we have an SCS and ensure it's transactional
 	if( FBlueprintEditorUtils::SupportsConstructionScript(this) )
 	{
-		if(SimpleConstructionScript == NULL)
+		if(SimpleConstructionScript == nullptr)
 		{
-			check(NULL != GeneratedClass);
+			check(nullptr != GeneratedClass);
 			SimpleConstructionScript = NewObject<USimpleConstructionScript>(GeneratedClass);
 			SimpleConstructionScript->SetFlags(RF_Transactional);
 
