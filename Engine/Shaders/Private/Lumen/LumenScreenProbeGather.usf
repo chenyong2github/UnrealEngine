@@ -475,7 +475,7 @@ void ScreenProbeIndirectCS(
 			{
 				//@todo - expose fade distance
 				float EffectiveJitterWidth = FullResolutionJitterWidth * lerp(1.0f, .5f, saturate((SceneDepth - 500.0f) / 500.0f));
-				uint2 RandomSeed = Rand3DPCG16(int3(DispatchThreadId.xy, View.StateFrameIndexMod8)).xy;
+				uint2 RandomSeed = Rand3DPCG16(int3(DispatchThreadId.xy, GENERAL_TEMPORAL_INDEX)).xy;
 				float2 JitterNoiseOffset = (Hammersley16(0, 1, RandomSeed) * 2 - 1) * ScreenProbeDownsampleFactor * EffectiveJitterWidth;
 
 				float2 JitteredScreenUV = clamp(DispatchThreadId.xy + JitterNoiseOffset, View.ViewRectMin.xy, View.ViewSizeAndInvSize.xy - 1) * View.BufferSizeAndInvSize.zw;
@@ -568,7 +568,7 @@ void ScreenProbeIndirectCS(
 				const uint TermMask = SHADING_TERM_DIFFUSE | SHADING_TERM_HAIR_R | SHADING_TERM_HAIR_TT | SHADING_TERM_HAIR_TRT;
 				//@todo - calculate based on solid angle
 				float DiffuseMipLevel = ScreenProbeGatherMaxMip;
-				float VisibilityThreshold = InterleavedGradientNoise(DispatchThreadId.xy, View.StateFrameIndexMod8);
+				float VisibilityThreshold = InterleavedGradientNoise(DispatchThreadId.xy, GENERAL_TEMPORAL_INDEX);
 				FSphericalGaussian HemisphereSG = Hemisphere_ToSphericalGaussian(GBufferData.WorldNormal);
 				FSphericalGaussian VisibleSG = BentNormalAO_ToSphericalGaussian(UnitBentNormal, AO);
 
@@ -661,7 +661,7 @@ void ScreenProbeIndirectCS(
 							float DirectionalOcclusion = 1.0f;
 
 							#if SCREEN_SPACE_BENT_NORMAL
-								float VisibilityThreshold = InterleavedGradientNoise(DispatchThreadId.xy * float2(ScreenProbeResolutionFloat, ScreenProbeResolutionFloat) + float2(X, Y), View.StateFrameIndexMod8);
+								float VisibilityThreshold = InterleavedGradientNoise(DispatchThreadId.xy * float2(ScreenProbeResolutionFloat, ScreenProbeResolutionFloat) + float2(X, Y), GENERAL_TEMPORAL_INDEX);
 								float LVisibility = saturate(Evaluate(VisibleSG, WorldConeDirection) / Evaluate(HemisphereSG, WorldConeDirection));
 								DirectionalOcclusion *= LVisibility < VisibilityThreshold ? 0 : 1;
 							#endif

@@ -177,6 +177,14 @@ FAutoConsoleVariableRef GVarLumenScreenSpaceBentNormal(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenScreenProbeUseJitter = 1;
+FAutoConsoleVariableRef CVarLumenScreenProbeUseJitter(
+	TEXT("r.Lumen.ScreenProbeGather.Jitter"),
+	GLumenScreenProbeUseJitter,
+	TEXT("Whether to use different random seeds every frame.  Can be disabled for easier debugging."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 namespace LumenScreenProbeGather 
 {
 	int32 GetTracingOctahedronResolution()
@@ -758,6 +766,8 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	ScreenProbeParameters.AdaptiveScreenTileSampleResolution = GLumenScreenProbeGatherAdaptiveScreenTileSampleResolution;
 	ScreenProbeParameters.NumUniformScreenProbes = ScreenProbeParameters.ScreenProbeViewSize.X * ScreenProbeParameters.ScreenProbeViewSize.Y;
 	ScreenProbeParameters.MaxNumAdaptiveProbes = FMath::TruncToInt(ScreenProbeParameters.NumUniformScreenProbes * GLumenScreenProbeGatherAdaptiveProbeAllocationFraction);
+	extern int32 GLumenScreenProbeGatherVisualizeTraces;
+	ScreenProbeParameters.UseJitter = GLumenScreenProbeGatherVisualizeTraces == 0 ? GLumenScreenProbeUseJitter : 0;
 
 	FRDGTextureDesc DownsampledDepthDesc(FRDGTextureDesc::Create2D(ScreenProbeParameters.ScreenProbeAtlasBufferSize, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	ScreenProbeParameters.DownsampledDepth = GraphBuilder.CreateTexture(DownsampledDepthDesc, TEXT("DownsampledDepth"));

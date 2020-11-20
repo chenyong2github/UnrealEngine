@@ -60,6 +60,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeParameters, )
 	SHADER_PARAMETER(uint32, AdaptiveScreenTileSampleResolution)
 	SHADER_PARAMETER(uint32, NumUniformScreenProbes)
 	SHADER_PARAMETER(uint32, MaxNumAdaptiveProbes)
+	SHADER_PARAMETER(uint32, UseJitter)
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, NumAdaptiveScreenProbes)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, AdaptiveScreenProbeData)

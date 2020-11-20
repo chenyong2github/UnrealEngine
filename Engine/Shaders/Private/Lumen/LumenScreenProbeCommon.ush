@@ -36,6 +36,7 @@ uint AdaptiveScreenTileSampleResolution;
 // Number of screen probes with SubsampleIndex == 0
 uint NumUniformScreenProbes;
 uint MaxNumAdaptiveProbes;
+uint UseJitter;
 
 // Note: negative if unlit
 Texture2D DownsampledDepth;
@@ -45,19 +46,9 @@ Texture2D DownsampledWorldSpeed;
 Buffer<uint> NumAdaptiveScreenProbes;
 Buffer<uint> AdaptiveScreenProbeData;
 
-#if 1
-	#define SCREEN_TEMPORAL_INDEX			View.StateFrameIndexMod8
-	#define SCREEN_HISTORY_TEMPORAL_INDEX	(SCREEN_TEMPORAL_INDEX == 0 ? 7 : SCREEN_TEMPORAL_INDEX - 1)
-#else
-	#define SCREEN_TEMPORAL_INDEX			0
-	#define SCREEN_HISTORY_TEMPORAL_INDEX	0
-#endif
-
-#if 1
-	#define RAY_DIRECTION_TEMPORAL_INDEX View.StateFrameIndex
-#else
-	#define RAY_DIRECTION_TEMPORAL_INDEX 0
-#endif
+#define SCREEN_TEMPORAL_INDEX			(UseJitter != 0 ? View.StateFrameIndexMod8 : 0)
+#define RAY_DIRECTION_TEMPORAL_INDEX	(UseJitter != 0 ? View.StateFrameIndex : 0)
+#define GENERAL_TEMPORAL_INDEX			(UseJitter != 0 ? View.StateFrameIndexMod8 : 0)
 
 // Returns the jitter offset in the range [0, ScreenProbeDownsampleFactor - 1]
 float2 GetScreenTileJitter(uint TemporalIndex, uint SubsampleIndex)

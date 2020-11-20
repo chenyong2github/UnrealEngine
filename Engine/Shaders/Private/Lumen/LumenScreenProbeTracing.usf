@@ -585,7 +585,7 @@ void ScreenProbeSetupVisualizeTraces(
 		RWVisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 0] = float4(WorldPosition, 0);
 		RWVisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 1] = float4(WorldConeDirection * TraceHitDistance, 0);
 
-		bool bVisualizeRefinementRays = true;
+		bool bVisualizeRefinementRays = false;
 		RWVisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 2] = bVisualizeRefinementRays ? RefinementRay : TraceRadiance[TraceCoord];
 	}
 }

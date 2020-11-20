@@ -358,7 +358,7 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 
 			if (EffectiveHistoryWeight > 0.0f)
 			{
-				float2 UnclampedHistoryScreenProbeCoord = GetScreenProbeCoordFromScreenUV(HistoryScreenUV, SCREEN_HISTORY_TEMPORAL_INDEX, 0);
+				float2 UnclampedHistoryScreenProbeCoord = GetScreenProbeCoordFromScreenUV(HistoryScreenUV, SCREEN_TEMPORAL_INDEX, 0);
 				float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
 
 				float3 HistoryRadiance = 0;

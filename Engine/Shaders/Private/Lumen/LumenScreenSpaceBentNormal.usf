@@ -41,7 +41,7 @@ void ScreenSpaceBentNormalCS(
 			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 			float3 V = normalize(View.WorldCameraOrigin - WorldPosition);
 			float3x3 TangentBasis = GetTangentBasis(GBufferData.WorldNormal);
-			uint2 Seed0 = Rand3DPCG16(int3(DispatchThreadId.xy, View.StateFrameIndexMod8)).xy;
+			uint2 Seed0 = Rand3DPCG16(int3(DispatchThreadId.xy, GENERAL_TEMPORAL_INDEX)).xy;
 			float MaxScreenTraceFraction = ScreenProbeDownsampleFactor * 2 * View.ViewSizeAndInvSize.z;
 			float TraceDistance = SceneDepth * MaxScreenTraceFraction * 2.0 * GetTanHalfFieldOfView().x;
 
