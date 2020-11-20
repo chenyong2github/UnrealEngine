@@ -46,7 +46,7 @@ TAutoConsoleVariable<float> CVarConstraintAngularStiffnessScale(
 	TEXT("The multiplier of constraint angular stiffness in simulation. Default: 100000"),
 	ECVF_ReadOnly);
 
-bool bEnableSkeletalMeshConstraints = false;
+bool bEnableSkeletalMeshConstraints = true;
 FAutoConsoleVariableRef CVarEnableSkeletalMeshConstraints(TEXT("p.EnableSkeletalMeshConstraints"), bEnableSkeletalMeshConstraints, TEXT("Enable skeletal mesh constraints defined within the Physics Asset Editor"));
 
 /** Handy macro for setting BIT of VAR based on the bool CONDITION */
