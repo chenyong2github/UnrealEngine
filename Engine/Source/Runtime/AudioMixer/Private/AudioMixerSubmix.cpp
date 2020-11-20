@@ -463,7 +463,6 @@ namespace Audio
 		return 0;
 	}
 
-
 	void FMixerSubmix::AddOrSetSourceVoice(FMixerSourceVoice* InSourceVoice, const float InSendLevel, EMixerSourceSubmixSendStage InSubmixSendStage)
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
@@ -473,6 +472,17 @@ namespace Audio
 		NewVoiceData.SubmixSendStage = InSubmixSendStage;
 
 		MixerSourceVoices.Add(InSourceVoice, NewVoiceData);
+	}
+
+	FPatchOutputStrongPtr FMixerSubmix::AddPatch(float InGain)
+	{
+		if (IsSoundfieldSubmix())
+		{
+			UE_LOG(LogAudioMixer, Warning, TEXT("Patch listening to SoundfieldSubmixes is not supported."));
+			return nullptr;
+		}
+
+		return PatchSplitter.AddNewPatch(NumSamples, InGain);
 	}
 
 	void FMixerSubmix::RemoveSourceVoice(FMixerSourceVoice* InSourceVoice)
@@ -795,7 +805,7 @@ namespace Audio
 				// If this is true, the Soundfield Factory explicitly requested that a seperate encoder stream was set up for every
 				// non-soundfield child submix.
 				if (Child.Encoder.IsValid())
-				{					
+				{
 					ChildSubmixSharedPtr->ProcessAudio(ScratchBuffer);
 
 					// Encode the resulting audio and mix it in.
@@ -1265,6 +1275,8 @@ namespace Audio
 				check(BufferListener);
 				BufferListener->OnNewSubmixBuffer(SoundSubmix, OutAudioBuffer.GetData(), OutAudioBuffer.Num(), NumChannels, SampleRate, AudioClock);
 			}
+
+			PatchSplitter.PushAudio(OutAudioBuffer.GetData(), OutAudioBuffer.Num());
 		}
 	}
 
@@ -1333,7 +1345,6 @@ namespace Audio
 
 		return bProcessedAnEffect;
 	}
-
 
 	void FMixerSubmix::ProcessAudio(ISoundfieldAudioPacket& OutputAudio)
 	{

@@ -1289,6 +1289,19 @@ namespace Audio
 		return false;
 	}
 
+	FMixerSubmixPtr FMixerDevice::GetMasterSubmixInstance(uint32 InSubmixId)
+	{
+		check(MasterSubmixes.Num() == EMasterSubmixType::Count);
+		for (int32 i = 0; i < EMasterSubmixType::Count; ++i)
+		{
+			if (InSubmixId == MasterSubmixes[i]->GetUniqueID())
+			{
+				return MasterSubmixInstances[i];
+			}
+		}
+		return nullptr;
+	}
+
 	FMixerSubmixPtr FMixerDevice::GetMasterSubmixInstance(const USoundSubmixBase* InSubmix)
 	{
 		check(MasterSubmixes.Num() == EMasterSubmixType::Count);
@@ -1496,6 +1509,63 @@ namespace Audio
 		IAudioEditorModule* AudioEditorModule = &FModuleManager::LoadModuleChecked<IAudioEditorModule>("AudioEditor");
 		AudioEditorModule->RegisterEffectPresetAssetActions();
 #endif
+	}
+
+	FMixerSubmixPtr FMixerDevice::FindSubmixInstanceByObjectId(uint32 InObjectId)
+	{
+		for (const USoundSubmix* MasterSubmix : MasterSubmixes)
+		{
+			if (!ensure(MasterSubmix))
+			{
+				continue;
+			}
+
+			if (MasterSubmix->GetUniqueID() == InObjectId)
+			{
+				return GetMasterSubmixInstance(MasterSubmix);
+			}
+		}
+
+		for (TPair<const USoundSubmixBase*, FMixerSubmixPtr>& Pair : Submixes)
+		{
+			const USoundSubmixBase* SubmixBase = Pair.Key;
+			if (SubmixBase)
+			{
+				if (SubmixBase->GetUniqueID() == InObjectId)
+				{
+					return Pair.Value;
+				}
+			}
+		}
+
+		return nullptr;
+	}
+
+	FMixerSubmixPtr FMixerDevice::GetSubmixInstance(uint32 InSubmixId)
+	{
+		LLM_SCOPE(ELLMTag::AudioMixer);
+
+		ensure(!IsInAudioThread() && !IsInGameThread());
+
+		FMixerSubmixPtr MixerSubmix = GetMasterSubmixInstance(InSubmixId);
+		if (MixerSubmix.IsValid())
+		{
+			return MixerSubmix;
+		}
+
+		for (TPair<const USoundSubmixBase*, FMixerSubmixPtr>& Pair : Submixes)
+		{
+			FMixerSubmixPtr SubmixPtr = Pair.Value;
+			if (ensure(SubmixPtr.IsValid()))
+			{
+				if (SubmixPtr->GetId() == InSubmixId)
+				{
+					return SubmixPtr;
+				}
+			}
+		}
+
+		return nullptr;
 	}
 
 	void FMixerDevice::InitDefaultAudioBuses()
@@ -2247,16 +2317,32 @@ namespace Audio
 		return SourceManager->IsAudioBusActive(InAudioBusId);
 	}
 
-	FPatchOutputStrongPtr FMixerDevice::AddPatchForAudioBus(uint32 InAudioBusId, float PatchGain)
+	FPatchOutputStrongPtr FMixerDevice::AddPatchForAudioBus(uint32 InAudioBusId, float InPatchGain)
 	{
 		if (ensure(!IsInGameThread() && !IsInAudioThread()))
 		{
-			return SourceManager->AddPatchForAudioBus(InAudioBusId, PatchGain);
+			return SourceManager->AddPatchForAudioBus(InAudioBusId, InPatchGain);
 		}
 		else
 		{
 			return nullptr;
 		}
+	}
+
+	Audio::FPatchOutputStrongPtr FMixerDevice::AddPatchForSubmix(uint32 InObjectId, float InPatchGain)
+	{
+		if (!ensure(!IsInGameThread() && !IsInAudioThread()))
+		{
+			return nullptr;
+		}
+
+		FMixerSubmixPtr SubmixPtr = FindSubmixInstanceByObjectId(InObjectId);
+		if (SubmixPtr.IsValid())
+		{
+			return SubmixPtr->AddPatch(InPatchGain);
+		}
+
+		return nullptr;
 	}
 
 	int32 FMixerDevice::GetDeviceSampleRate() const

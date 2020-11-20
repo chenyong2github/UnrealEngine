@@ -38,7 +38,10 @@ namespace Audio
 		FDynamicsProcessor();
 		~FDynamicsProcessor();
 
-		void Init(const float SampleRate, const int32 NumChannels = 2);
+		void Init(const float InSampleRate, const int32 InNumChannels = 2);
+
+		int32 GetNumChannels() const;
+		int32 GetKeyNumChannels() const;
 
 		void SetLookaheadMsec(const float InLookAheadMsec);
 		void SetAttackTime(const float InAttackTimeMsec);
@@ -55,6 +58,8 @@ namespace Audio
 		void SetKeyLowshelfCutoffFrequency(const float InCutoffFreq);
 		void SetKeyLowshelfEnabled(const bool bInEnabled);
 		void SetKeyLowshelfGain(const float InGainDb);
+		void SetKeyNumChannels(const int32 InNumChannels);
+		void SetNumChannels(const int32 InNumChannels);
 		void SetOutputGain(const float InOutputGainDb);
 		void SetChannelLinkMode(const EDynamicsProcessorChannelLinkMode InLinkMode);
 		void SetAnalogMode(const bool bInIsAnalogMode);
@@ -69,6 +74,10 @@ namespace Audio
 
 		float ComputeGain(const float InEnvFollowerDb);
 
+		// Process key frame, returning true if should continue processing
+		// (Returns false in audition mode and writes straight to output).
+		bool ProcessKeyFrame(const float* InKeyFrame, float* OutFrame);
+
 		// (Optional) Low-pass filter for input signal
 		FBiquadFilter InputLowshelfFilter;
 
@@ -76,6 +85,9 @@ namespace Audio
 		FBiquadFilter InputHighshelfFilter;
 
 		EDynamicsProcessingMode::Type ProcessingMode;
+
+		// Peak mode of envelope followers
+		EPeakMode::Type EnvelopeFollowerPeakMode;
 
 		// Lookahead delay lines
 		TArray<FDelay> LookaheadDelay;
@@ -119,8 +131,8 @@ namespace Audio
 		// Gain of key detector signal in dB
 		float KeyGain;
 
-		// Number of channels to use for the dynamics processor
-		int32 NumChannels;
+		// Sample rate of both key and input (must match)
+		float SampleRate;
 
 		// Whether or not input channels are linked, and if so, how to calculate gain
 		EDynamicsProcessorChannelLinkMode LinkMode;

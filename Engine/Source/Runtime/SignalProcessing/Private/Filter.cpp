@@ -35,7 +35,7 @@ namespace Audio
 		SampleRate = InSampleRate;
 		NumChannels = InNumChannels;
 		FilterType = InFilterType;
-        Frequency = ClampCutoffFrequency(InCutoffFrequency);
+		Frequency = ClampCutoffFrequency(InCutoffFrequency);
 		Bandwidth = InBandwidth;
 		GainDB = InGainDB;
 
@@ -47,6 +47,11 @@ namespace Audio
 		Biquad = new FBiquad[NumChannels];
 		Reset();
 		CalculateBiquadCoefficients();
+	}
+
+	int32 FBiquadFilter::GetNumChannels() const
+	{
+		return NumChannels;
 	}
 
 	void FBiquadFilter::ProcessAudioFrame(const float* InFrame, float* OutFrame)

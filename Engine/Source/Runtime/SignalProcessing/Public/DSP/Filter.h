@@ -40,6 +40,9 @@ namespace Audio
 		// Initialize the filter
 		void Init(const float InSampleRate, const int32 InNumChannels, const EBiquadFilter::Type InType, const float InCutoffFrequency = 20000.0f, const float InBandwidth = 2.0f, const float InGain = 0.0f);
 
+		// Returns number of channels initialized with
+		int32 GetNumChannels() const;
+
 		// Resets the filter state
 		void Reset();
 
@@ -72,9 +75,9 @@ namespace Audio
 		// Function computes biquad coefficients based on current filter settings
 		void CalculateBiquadCoefficients();
 
-        // Function used to clamp the cutoff frequency.
-        float ClampCutoffFrequency(float InCutoffFrequency);
-        
+		// Function used to clamp the cutoff frequency.
+		float ClampCutoffFrequency(float InCutoffFrequency);
+
 		// What kind of filter to use when computing coefficients
 		EBiquadFilter::Type FilterType;
 
