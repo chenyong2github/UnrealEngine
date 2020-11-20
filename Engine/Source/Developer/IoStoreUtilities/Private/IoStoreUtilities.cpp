@@ -5244,6 +5244,300 @@ int32 Describe(
 	return 0;
 }
 
+static int32 Diff(
+	const FString& SourcePath,
+	const FKeyChain& SourceKeyChain,
+	const FString& TargetPath,
+	const FKeyChain& TargetKeyChain,
+	const FString& OutPath)
+{
+	struct FContainerChunkInfo
+	{
+		FString ContainerName;
+		TMap<FIoChunkId, FIoStoreTocChunkInfo> ChunkInfoById;
+		int64 UncompressedContainerSize = 0;
+		int64 CompressedContainerSize = 0;
+	};
+
+	struct FContainerDiff
+	{
+		TSet<FIoChunkId> Unmodified;
+		TSet<FIoChunkId> Modified;
+		TSet<FIoChunkId> Added;
+		TSet<FIoChunkId> Removed;
+		int64 UnmodifiedCompressedSize = 0;
+		int64 ModifiedCompressedSize = 0;
+		int64 AddedCompressedSize = 0;
+		int64 RemovedCompressedSize = 0;
+	};
+
+	using FContainers = TMap<FString, FContainerChunkInfo>;
+
+	auto ReadContainers = [](const FString& Directory, const FKeyChain& KeyChain, FContainers& OutContainers)
+	{
+		TArray<FString> ContainerFileNames;
+		IFileManager::Get().FindFiles(ContainerFileNames, *(Directory / TEXT("*.utoc")), true, false);
+
+		for (const FString& ContainerFileName : ContainerFileNames)
+		{
+			FString ContainerFilePath = Directory / ContainerFileName;
+			UE_LOG(LogIoStore, Display, TEXT("Reading container '%s'"), *ContainerFilePath);
+
+			TUniquePtr<FIoStoreReader> Reader = CreateIoStoreReader(*ContainerFilePath, KeyChain);
+			if (!Reader.IsValid())
+			{
+				UE_LOG(LogIoStore, Warning, TEXT("Failed to read container '%s'"), *ContainerFilePath);
+				continue;
+			}
+
+			FString ContainerName = FPaths::GetBaseFilename(ContainerFileName);
+			FContainerChunkInfo& ContainerChunkInfo = OutContainers.FindOrAdd(ContainerName);
+			ContainerChunkInfo.ContainerName = MoveTemp(ContainerName);
+
+			Reader->EnumerateChunks([&ContainerChunkInfo](const FIoStoreTocChunkInfo& ChunkInfo)
+			{
+				ContainerChunkInfo.ChunkInfoById.Add(ChunkInfo.Id, ChunkInfo);
+				ContainerChunkInfo.UncompressedContainerSize += ChunkInfo.Size;
+				ContainerChunkInfo.CompressedContainerSize += ChunkInfo.CompressedSize;
+				return true;
+			});
+		}
+	};
+
+	auto ComputeDiff = [](const FContainerChunkInfo& SourceContainer, const FContainerChunkInfo& TargetContainer) -> FContainerDiff 
+	{
+		check(SourceContainer.ContainerName == TargetContainer.ContainerName);
+
+		FContainerDiff ContainerDiff;
+
+		for (const auto& TargetChunkInfo : TargetContainer.ChunkInfoById)
+		{
+			if (const FIoStoreTocChunkInfo* SourceChunkInfo = SourceContainer.ChunkInfoById.Find(TargetChunkInfo.Key))
+			{
+				if (SourceChunkInfo->Hash != TargetChunkInfo.Value.Hash)
+				{
+					ContainerDiff.Modified.Add(TargetChunkInfo.Key);
+					ContainerDiff.ModifiedCompressedSize += TargetChunkInfo.Value.CompressedSize;
+				}
+				else
+				{
+					ContainerDiff.Unmodified.Add(TargetChunkInfo.Key);
+					ContainerDiff.UnmodifiedCompressedSize += TargetChunkInfo.Value.CompressedSize;
+				}
+			}
+			else
+			{
+				ContainerDiff.Added.Add(TargetChunkInfo.Key);
+				ContainerDiff.AddedCompressedSize += TargetChunkInfo.Value.CompressedSize;
+			}
+		}
+
+		for (const auto& SourceChunkInfo : SourceContainer.ChunkInfoById)
+		{
+			if (!TargetContainer.ChunkInfoById.Contains(SourceChunkInfo.Key))
+			{
+				ContainerDiff.Removed.Add(SourceChunkInfo.Key);
+				ContainerDiff.RemovedCompressedSize += SourceChunkInfo.Value.CompressedSize;
+			}
+		}
+
+		return MoveTemp(ContainerDiff);
+	};
+
+	FOutputDevice* OutputDevice = GWarn;
+	TUniquePtr<FOutputDeviceFile> FileOutputDevice;
+
+	if (!OutPath.IsEmpty())
+	{
+		UE_LOG(LogIoStore, Error, TEXT("Redirecting output to: '%s'"), *OutPath);
+
+		FileOutputDevice = MakeUnique<FOutputDeviceFile>(*OutPath, true);
+		FileOutputDevice->SetSuppressEventTag(true);
+		OutputDevice = FileOutputDevice.Get();
+	}
+
+	FContainers SourceContainers, TargetContainers;
+	TArray<FString> AddedContainers, ModifiedContainers, RemovedContainers;
+	TArray<FContainerDiff> ContainerDiffs;
+
+	UE_LOG(LogIoStore, Display, TEXT("Reading source container(s) from '%s':"), *SourcePath);
+	ReadContainers(SourcePath, SourceKeyChain, SourceContainers);
+
+	if (!SourceContainers.Num())
+	{
+		UE_LOG(LogIoStore, Error, TEXT("Failed to read source container(s) from '%s':"), *SourcePath);
+		return -1;
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("Reading target container(s) from '%s':"), *TargetPath);
+	ReadContainers(TargetPath, TargetKeyChain, TargetContainers);
+
+	if (!TargetContainers.Num())
+	{
+		UE_LOG(LogIoStore, Error, TEXT("Failed to read target container(s) from '%s':"), *SourcePath);
+		return -1;
+	}
+
+	for (const auto& TargetContainer : TargetContainers)
+	{
+		if (SourceContainers.Contains(TargetContainer.Key))
+		{
+			ModifiedContainers.Add(TargetContainer.Key);
+		}
+		else
+		{
+			AddedContainers.Add(TargetContainer.Key);
+		}
+	}
+
+	for (const auto& SourceContainer : SourceContainers)
+	{
+		if (!TargetContainers.Contains(SourceContainer.Key))
+		{
+			RemovedContainers.Add(SourceContainer.Key);
+		}
+	}
+
+	for (const FString& ModifiedContainer : ModifiedContainers)
+	{
+		ContainerDiffs.Emplace(ComputeDiff(*SourceContainers.Find(ModifiedContainer), *TargetContainers.Find(ModifiedContainer)));
+	}
+
+	OutputDevice->Logf(ELogVerbosity::Display, TEXT(""));
+	OutputDevice->Logf(ELogVerbosity::Display, TEXT("------------------------------ Container Diff Summary ------------------------------"));
+	OutputDevice->Logf(ELogVerbosity::Display, TEXT("Source path '%s'"), *SourcePath);
+	OutputDevice->Logf(ELogVerbosity::Display, TEXT("Target path '%s'"), *TargetPath);
+
+	OutputDevice->Logf(ELogVerbosity::Display, TEXT(""));
+	OutputDevice->Logf(ELogVerbosity::Display, TEXT("Source container file(s):"));
+	OutputDevice->Logf(ELogVerbosity::Display, TEXT(""));
+	OutputDevice->Logf(ELogVerbosity::Display, TEXT("%-40s %15s %15s"), TEXT("Container"), TEXT("Size (MB)"), TEXT("Chunks"));
+	OutputDevice->Logf(ELogVerbosity::Display, TEXT("-------------------------------------------------------------------------"));
+
+	{
+		uint64 TotalSourceBytes = 0;
+		uint64 TotalSourceChunks = 0;
+
+		for (const auto& NameContainerPair : SourceContainers)
+		{
+			const FContainerChunkInfo& SourceContainer = NameContainerPair.Value;
+			OutputDevice->Logf(ELogVerbosity::Display, TEXT("%-40s %15.2lf %15d"), *SourceContainer.ContainerName, double(SourceContainer.CompressedContainerSize) / 1024.0 / 1024.0, SourceContainer.ChunkInfoById.Num());
+
+			TotalSourceBytes += SourceContainer.CompressedContainerSize;
+			TotalSourceChunks += SourceContainer.ChunkInfoById.Num();
+		}
+
+		OutputDevice->Logf(ELogVerbosity::Display, TEXT("-------------------------------------------------------------------------"));
+		OutputDevice->Logf(ELogVerbosity::Display, TEXT("%-40s %15.2lf %15d"), *FString::Printf(TEXT("Total of %d container file(s)"), SourceContainers.Num()), double(TotalSourceBytes) / 1024.0 / 1024.0, TotalSourceChunks);
+	}
+
+	{
+		uint64 TotalTargetBytes = 0;
+		uint64 TotalTargetChunks = 0;
+		uint64 TotalUnmodifiedChunks = 0;
+		uint64 TotalUnmodifiedCompressedBytes = 0;
+		uint64 TotalModifiedChunks = 0;
+		uint64 TotalModifiedCompressedBytes = 0;
+		uint64 TotalAddedChunks = 0;
+		uint64 TotalAddedCompressedBytes = 0;
+		uint64 TotalRemovedChunks = 0;
+		uint64 TotalRemovedCompressedBytes = 0;
+
+		if (ModifiedContainers.Num())
+		{
+			OutputDevice->Logf(ELogVerbosity::Display, TEXT(""));
+			OutputDevice->Logf(ELogVerbosity::Display, TEXT("Target container file(s):"));
+			OutputDevice->Logf(ELogVerbosity::Display, TEXT(""));
+			OutputDevice->Logf(ELogVerbosity::Display, TEXT("%-40s %15s %15s %25s %25s %25s %25s %25s %25s %25s %25s"), TEXT("Container"), TEXT("Size (MB)"), TEXT("Chunks"), TEXT("Unmodified"), TEXT("Unmodified (MB)"), TEXT("Modified"), TEXT("Modified (MB)"), TEXT("Added"), TEXT("Added (MB)"), TEXT("Removed"), TEXT("Removed (MB)"));
+			OutputDevice->Logf(ELogVerbosity::Display, TEXT("----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"));
+
+			for (int32 Idx = 0; Idx < ModifiedContainers.Num(); Idx++)
+			{
+				const FContainerChunkInfo& SourceContainer = *SourceContainers.Find(ModifiedContainers[Idx]);
+				const FContainerChunkInfo& TargetContainer = *TargetContainers.Find(ModifiedContainers[Idx]);
+				const FContainerDiff& Diff = ContainerDiffs[Idx];
+
+				const int32 NumChunks = TargetContainer.ChunkInfoById.Num();
+				const int32 NumSourceChunks = SourceContainer.ChunkInfoById.Num();
+
+				OutputDevice->Logf(ELogVerbosity::Display, TEXT("%-40s %15s %15d %25s %25s %25s %25s %25s %25s %25s %25s"),
+					*TargetContainer.ContainerName,
+					*FString::Printf(TEXT("%.2lf"),
+						double(TargetContainer.CompressedContainerSize) / 1024.0 / 1024.0),
+					NumChunks,
+					*FString::Printf(TEXT("%d (%.2lf%%)"),
+						Diff.Unmodified.Num(),
+						100.0 * (double(Diff.Unmodified.Num()) / double(NumChunks))),
+					*FString::Printf(TEXT("%.2lf (%.2lf%%)"),
+						double(Diff.UnmodifiedCompressedSize) / 1024.0 / 1024.0,
+						100.0 * (Diff.UnmodifiedCompressedSize) / double(TargetContainer.CompressedContainerSize)),
+					*FString::Printf(TEXT("%d (%.2lf%%)"),
+						Diff.Modified.Num(),
+						100.0 * (double(Diff.Modified.Num()) / double(NumChunks))),
+					*FString::Printf(TEXT("%.2lf (%.2lf%%)"),
+						double(Diff.ModifiedCompressedSize) / 1024.0 / 1024.0,
+						100.0 * (Diff.ModifiedCompressedSize) / double(TargetContainer.CompressedContainerSize)),
+					*FString::Printf(TEXT("%d (%.2lf%%)"),
+						Diff.Added.Num(),
+						100.0 * (double(Diff.Added.Num()) / double(NumChunks))),
+					*FString::Printf(TEXT("%.2lf (%.2lf%%)"),
+						double(Diff.AddedCompressedSize) / 1024.0 / 1024.0,
+						100.0 * (Diff.AddedCompressedSize) / double(TargetContainer.CompressedContainerSize)),
+					*FString::Printf(TEXT("%d/%d (%.2lf%%)"),
+						Diff.Removed.Num(),
+						NumSourceChunks,
+						100.0 * (double(Diff.Removed.Num()) / double(NumSourceChunks))),
+					*FString::Printf(TEXT("%.2lf (%.2lf%%)"),
+						double(Diff.RemovedCompressedSize) / 1024.0 / 1024.0,
+						100.0 * (Diff.RemovedCompressedSize) / double(SourceContainer.CompressedContainerSize)));
+
+				TotalTargetBytes += TargetContainer.CompressedContainerSize;
+				TotalTargetChunks += NumChunks;
+				TotalUnmodifiedChunks += Diff.Unmodified.Num();
+				TotalUnmodifiedCompressedBytes += Diff.UnmodifiedCompressedSize;
+				TotalModifiedChunks += Diff.Modified.Num();
+				TotalModifiedCompressedBytes += Diff.ModifiedCompressedSize;
+				TotalAddedChunks += Diff.Added.Num();
+				TotalAddedCompressedBytes += Diff.AddedCompressedSize;
+				TotalRemovedChunks += Diff.Removed.Num();
+				TotalRemovedCompressedBytes += Diff.RemovedCompressedSize;
+			}
+		}
+
+		if (AddedContainers.Num())
+		{
+			for (const FString& AddedContainer : AddedContainers)
+			{
+				const FContainerChunkInfo& TargetContainer = *TargetContainers.Find(AddedContainer);
+				OutputDevice->Logf(ELogVerbosity::Display, TEXT("+%-39s %15.2lf %15d %25s %25s %25s %25s %25s %25s %25s %25s"),
+					*TargetContainer.ContainerName,
+					double(TargetContainer.CompressedContainerSize) / 1024.0 / 1024.0,
+					TargetContainer.ChunkInfoById.Num(),
+					TEXT("-"), TEXT("-"), TEXT("-"), TEXT("-"), TEXT("-"), TEXT("-"), TEXT("-"), TEXT("-"));
+
+				TotalTargetBytes += TargetContainer.CompressedContainerSize;
+				TotalTargetChunks += TargetContainer.ChunkInfoById.Num();
+			}
+		}
+
+		OutputDevice->Logf(ELogVerbosity::Display, TEXT("----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"));
+		OutputDevice->Logf(ELogVerbosity::Display, TEXT("%-40s %15.2lf %15d %25d %25.2f %25d %25.2f %25d %25.2f %25d %25.2f"),
+			*FString::Printf(TEXT("Total of %d container file(s)"), TargetContainers.Num()),
+			double(TotalTargetBytes) / 1024.0 / 1024.0,
+			TotalTargetChunks,
+			TotalUnmodifiedChunks,
+			double(TotalUnmodifiedCompressedBytes) / 1024.0 / 1024.0,
+			TotalModifiedChunks,
+			double(TotalModifiedCompressedBytes) / 1024.0 / 1024.0,
+			TotalAddedChunks,
+			double(TotalAddedCompressedBytes) / 1024.0 / 1024.0,
+			TotalRemovedChunks,
+			double(TotalRemovedCompressedBytes) / 1024.0 / 1024.0);
+	}
+
+	return 0;
+}
+
 static bool ParsePakResponseFile(const TCHAR* FilePath, TArray<FContainerSourceFile>& OutFiles)
 {
 	TArray<FString> ResponseFileContents;
@@ -5797,6 +6091,51 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 			FParse::Value(FCommandLine::Get(), TEXT("DumpToFile="), OutPath);
 			bool bIncludeExportHashes = FParse::Param(FCommandLine::Get(), TEXT("IncludeExportHashes"));
 			return Describe(ContainerPathOrWildcard, Arguments.KeyChain, PackageFilter, OutPath, bIncludeExportHashes);
+		}
+		else if (FParse::Param(FCommandLine::Get(), TEXT("Diff")))
+		{
+			FString SourcePath, TargetPath, OutPath;
+			FKeyChain SourceKeyChain, TargetKeyChain;
+
+			if (!FParse::Value(FCommandLine::Get(), TEXT("Source="), SourcePath))
+			{
+				UE_LOG(LogIoStore, Error, TEXT("Incorrect arguments. Expected: -Diff -Source=<Path> -Target=<path>"));
+				return -1;
+			}
+
+			if (!IFileManager::Get().DirectoryExists(*SourcePath))
+			{
+				UE_LOG(LogIoStore, Error, TEXT("Source directory '%s' doesn't exist"), *SourcePath);
+				return -1;
+			}
+
+			if (!FParse::Value(FCommandLine::Get(), TEXT("Target="), TargetPath))
+			{
+				UE_LOG(LogIoStore, Error, TEXT("Incorrect arguments. Expected: -Diff -Source=<Path> -Target=<path>"));
+			}
+
+			if (!IFileManager::Get().DirectoryExists(*TargetPath))
+			{
+				UE_LOG(LogIoStore, Error, TEXT("Target directory '%s' doesn't exist"), *TargetPath);
+				return -1;
+			}
+
+			FParse::Value(FCommandLine::Get(), TEXT("DumpToFile="), OutPath);
+
+			FString CryptoKeysCacheFilename;
+			if (FParse::Value(CmdLine, TEXT("SourceCryptoKeys="), CryptoKeysCacheFilename))
+			{
+				UE_LOG(LogIoStore, Display, TEXT("Parsing source crypto keys from '%s'"), *CryptoKeysCacheFilename);
+				KeyChainUtilities::LoadKeyChainFromFile(CryptoKeysCacheFilename, SourceKeyChain);
+			}
+
+			if (FParse::Value(CmdLine, TEXT("TargetCryptoKeys="), CryptoKeysCacheFilename))
+			{
+				UE_LOG(LogIoStore, Display, TEXT("Parsing target crypto keys from '%s'"), *CryptoKeysCacheFilename);
+				KeyChainUtilities::LoadKeyChainFromFile(CryptoKeysCacheFilename, TargetKeyChain);
+			}
+			
+			return Diff(SourcePath, SourceKeyChain, TargetPath, TargetKeyChain, OutPath);
 		}
 		else
 		{
