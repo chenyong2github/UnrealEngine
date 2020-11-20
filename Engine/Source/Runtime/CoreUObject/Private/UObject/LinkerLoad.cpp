@@ -42,6 +42,7 @@
 #include "HAL/FileManager.h"
 #include "UObject/CoreRedirects.h"
 #include "Misc/StringBuilder.h"
+#include "Misc/EngineBuildSettings.h"
 
 class FTexture2DResourceMem;
 
@@ -1193,10 +1194,34 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 		UE_LOG(LogLinker, Warning, TEXT("The file %s was saved by a previous version which is not backwards compatible with this one. Min Required Version: %i  Package Version: %i"), *Filename, (int32)VER_UE4_OLDEST_LOADABLE_PACKAGE, Summary.GetFileVersionUE4());
 		return LINKER_Failed;
 	}
+
+	// Check that no content saved with a licensee version has snuck into the source tree. This can result in licensees builds being unable to open
+	// the asset because their CL is very likely to be lower than ours.
+	if (FEngineBuildSettings::IsInternalBuild())
+	{
+		// I think this is the better check without the outer IsInternalBuild, but that gives an extra degree of safety against this leading to false-positives
+		// this late in 4.26's cycle
+		if (FEngineVersion::Current().IsLicenseeVersion() == false && Summary.CompatibleWithEngineVersion.IsLicenseeVersion())
+		{
+			// Only warn about things under Engine and Engine/Plugins so licensee projects can be opened
+			bool IsEngineContent = Filename.StartsWith(FPaths::EngineContentDir()) || Filename.StartsWith(FPaths::EnginePluginsDir());
+
+			if (IsEngineContent)
+			{
+				UE_LOG(LogLinker, Warning, TEXT("The file %s is Engine content that was saved with a licensee flag. This can result in the file failing to open on licensee builds"), *Filename);
+			}
+		}
+	}
+
 	// Don't load packages that are only compatible with an engine version newer than the current one.
 	if (!FEngineVersion::Current().IsCompatibleWith(Summary.CompatibleWithEngineVersion))
 	{
-		UE_LOG(LogLinker, Warning, TEXT("Asset '%s' has been saved with engine version newer than current and therefore can't be loaded. CurrEngineVersion: %s AssetEngineVersion: %s"), *Filename, *FEngineVersion::Current().ToString(), *Summary.CompatibleWithEngineVersion.ToString());
+		UE_LOG(LogLinker, Warning, TEXT("Asset '%s' has been saved with a newer engine and can't be loaded. CurrentEngineVersion: %s (Licensee=%d). AssetEngineVersion: %s (Licensee=%d)"),
+			*Filename,
+			*FEngineVersion::Current().ToString(),
+			FEngineVersion::Current().IsLicenseeVersion(),
+			*Summary.CompatibleWithEngineVersion.ToString(),
+			Summary.CompatibleWithEngineVersion.IsLicenseeVersion());
 		return LINKER_Failed;
 	}
 
