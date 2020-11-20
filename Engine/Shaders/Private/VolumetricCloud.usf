@@ -404,6 +404,8 @@ ParticipatingMediaPhaseContext SetupParticipatingMediaPhaseContext(float BasePha
 	return PMPC;
 }
 
+int StepSizeOnZeroConservativeDensity;
+
 bool TraceClouds(
 	in float4 SvPosition,
 	inout float4 OutColor0,
@@ -630,7 +632,8 @@ bool TraceClouds(
 	#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
 		if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 		{
-			t += StepT;
+			i += StepSizeOnZeroConservativeDensity - 1;
+			t += StepSizeOnZeroConservativeDensity * StepT;
 			continue; // Conservative density is 0 so skip and go to the next sample
 		}
 	#endif
