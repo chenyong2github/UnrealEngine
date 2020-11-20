@@ -411,12 +411,6 @@ struct FPackedView
 	void UpdateLODScales();
 };
 
-struct FInstanceDraw
-{
-	uint32 InstanceId;
-	uint32 ViewId;
-};
-
 struct FCullingContext
 {
 	uint32			DrawPassIndex;

@@ -1055,7 +1055,7 @@ void FGlobalResources::Update(FRDGBuilder& GraphBuilder)
 
 		if (!ScratchOccludedInstancesBuffer.IsValid())
 		{
-			GetPooledFreeBuffer(GraphBuilder.RHICmdList, FRDGBufferDesc::CreateStructuredDesc(8, GetMaxInstances()), ScratchOccludedInstancesBuffer, TEXT("OccludedInstances"));
+			GetPooledFreeBuffer(GraphBuilder.RHICmdList, FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceDraw), GetMaxInstances()), ScratchOccludedInstancesBuffer, TEXT("OccludedInstances"));
 		}
 
 		if (!MainPassBuffers.ScratchCandidateClustersBuffer.IsValid())

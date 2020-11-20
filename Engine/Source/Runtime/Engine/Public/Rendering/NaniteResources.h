@@ -308,6 +308,12 @@ public:
 	uint32				GetSize() const { return sizeof( Header ) + Header.NumHierachyFixups * sizeof( FHierarchyFixup ) + Header.NumClusterFixups * sizeof( FClusterFixup ); }
 };
 
+struct FInstanceDraw
+{
+	uint32 InstanceId;
+	uint32 ViewId;
+};
+
 struct FResources
 {
 	// Persistent State
