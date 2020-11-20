@@ -1348,6 +1348,10 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 			NewHandles.Add(NewHandle);
 			NewAssets.Add(PrimaryAssetId);
 		}
+		else
+		{
+ 			UE_LOG(LogAssetManager, Verbose, TEXT("%s - UAssetManager::ChangeBundleStateForPrimaryAssets found no NameData for this primary asset."), *PrimaryAssetId.ToString());
+		}
 	}
 
 	if (NewHandles.Num() > 1 || ExistingHandles.Num() > 0)
