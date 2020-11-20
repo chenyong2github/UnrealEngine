@@ -833,8 +833,23 @@ struct FVectorKernelDivSafe : public TBinaryVectorKernel<FVectorKernelDivSafe>
 {
 	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
 	{
+	#if defined(__clang__)
+		float Src0F[4];
+		float Src1F[4];
+		float DstF[4];
+		VectorStore(Src0, Src0F);
+		VectorStore(Src1, Src1F);
+
+		DstF[0] = FMath::Abs(Src1F[0]) > SMALL_NUMBER ? Src0F[0] / Src1F[0] : 0.0f;
+		DstF[1] = FMath::Abs(Src1F[1]) > SMALL_NUMBER ? Src0F[1] / Src1F[1] : 0.0f;
+		DstF[2] = FMath::Abs(Src1F[2]) > SMALL_NUMBER ? Src0F[2] / Src1F[2] : 0.0f;
+		DstF[3] = FMath::Abs(Src1F[3]) > SMALL_NUMBER ? Src0F[3] / Src1F[3] : 0.0f;
+
+		*Dst = VectorLoad(DstF);
+	#else
 		VectorRegister ValidMask = VectorCompareGT(VectorAbs(Src1), GlobalVectorConstants::SmallNumber);
 		*Dst = VectorSelect(ValidMask, VectorDivide(Src0, Src1), GlobalVectorConstants::FloatZero);
+	#endif
 	}
 };
 
