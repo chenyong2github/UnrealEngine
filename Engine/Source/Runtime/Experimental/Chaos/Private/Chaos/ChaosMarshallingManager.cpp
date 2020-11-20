@@ -127,6 +127,7 @@ void FPushPhysicsData::Reset()
 	SimCallbackObjectsToAdd.Reset();
 	SimCallbackObjectsToRemove.Reset();
 	SimCallbackInputs.Reset();
+	SimCommands.Reset();
 }
 
 void FPushPhysicsData::CopySubstepData(const FPushPhysicsData& FirstStepData)

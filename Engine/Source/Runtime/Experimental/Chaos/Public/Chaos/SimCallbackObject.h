@@ -76,8 +76,7 @@ public:
 protected:
 
 	ISimCallbackObject()
-	: bRunOnceMore(false)
-	, bPendingDelete(false)
+	: bPendingDelete(false)
 	, bContactModification(false)
 	, CurrentExternalInput_External(nullptr)
 	, Solver(nullptr)
@@ -147,8 +146,7 @@ private:
 	friend class FPhysicsSolverBase;
 	friend class FChaosMarshallingManager;
 
-	bool bRunOnceMore;
-	bool bPendingDelete;
+	bool bPendingDelete;	//used internally for more efficient deletion. Callbacks do not need to check this
 	bool bContactModification;
 
 	FSimCallbackInput* CurrentExternalInput_External;	//the input currently being filled out by external thread
@@ -206,7 +204,7 @@ private:
 };
 
 /** Simple templated implementation that uses lock free queues to manage memory */
-template <typename TInputType, typename TOutputType = FSimCallbackNoOutput>
+template <typename TInputType = FSimCallbackNoInput, typename TOutputType = FSimCallbackNoOutput>
 class TSimCallbackObject : public ISimCallbackObject
 {
 public:

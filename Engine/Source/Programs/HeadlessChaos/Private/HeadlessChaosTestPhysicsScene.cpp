@@ -971,7 +971,7 @@ namespace ChaosTest {
 		Callback->NumPTSteps = NumPTSteps;
 		float Time = 0;
 		const float GTDt = FixedDT * 0.25f;
-		for(int32 Step=0; Step<NumGTSteps;Step++)
+		for (int32 Step = 0; Step < NumGTSteps; Step++)
 		{
 			//set force every external frame
 			Simulated2->AddForce(ConstantForce);
@@ -979,11 +979,11 @@ namespace ChaosTest {
 			Scene.SetUpForFrame(&Grav, GTDt, 99999, 99999, 10, false);
 			Scene.StartFrame();
 			Scene.EndFrame();
-			
+
 			Time += GTDt;
 			const float InterpolatedTime = Time - FixedDT * Chaos::AsyncInterpolationMultiplier;
 			const float ExpectedVFromForce = Time;
-			if(InterpolatedTime < 0)
+			if (InterpolatedTime < 0)
 			{
 				//not enough time to interpolate so just take initial value
 				EXPECT_NEAR(Simulated->X()[2], ZStart, 1e-2);
@@ -992,7 +992,7 @@ namespace ChaosTest {
 			else
 			{
 				//interpolated
-				EXPECT_NEAR(Simulated->X()[2], ZStart + ZVel* InterpolatedTime, 1e-2);
+				EXPECT_NEAR(Simulated->X()[2], ZStart + ZVel * InterpolatedTime, 1e-2);
 				EXPECT_NEAR(Simulated2->V()[2], InterpolatedTime, 1e-2);
 			}
 		}
@@ -1001,6 +1001,67 @@ namespace ChaosTest {
 		const float LastInterpolatedTime = NumGTSteps * GTDt - FixedDT * Chaos::AsyncInterpolationMultiplier;
 		EXPECT_NEAR(Simulated->X()[2], ZStart + ZVel * LastInterpolatedTime, 1e-2);
 		EXPECT_NEAR(Simulated->V()[2], ZVel, 1e-2);
+	}
+
+	GTEST_TEST(EngineInterface, FlushCommand)
+	{
+		//Need to test:
+		//flushing commands works and sees state changes for both fixed dt and not
+		//sim callback is not called
+
+		bool bHitOnShutDown = false;
+		{
+			FChaosScene Scene(nullptr);
+			Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+			Scene.GetSolver()->EnableAsyncMode(1);	//tick 1 dt at a time
+
+			FActorCreationParams Params;
+			Params.Scene = &Scene;
+
+			TGeometryParticle<FReal, 3>* Particle = nullptr;
+
+			FChaosEngineInterface::CreateActor(Params, Particle);
+			{
+				auto Sphere = MakeUnique<TSphere<FReal, 3>>(FVec3(0), 3);
+				Particle->SetGeometry(MoveTemp(Sphere));
+			}
+
+			TPBDRigidParticle<FReal, 3>* Simulated = static_cast<TPBDRigidParticle<FReal, 3>*>(Particle);
+
+			TArray<TGeometryParticle<FReal, 3>*> Particles = { Particle };
+			Scene.AddActorsToScene_AssumesLocked(Particles);
+			Simulated->SetX(FVec3(0, 0, 3));
+			auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(Simulated->GetProxy());
+
+			Scene.GetSolver()->EnqueueCommandImmediate([Proxy]()
+			{
+				//sees change immediately
+				EXPECT_EQ(Proxy->GetHandle()->X()[2], 3);
+			});
+
+			struct FCallback : public TSimCallbackObject<>
+			{
+				virtual void OnPreSimulate_Internal() override
+				{
+					EXPECT_FALSE(true);	//this should never hit
+				}
+			};
+
+			auto Callback = Scene.GetSolver()->CreateAndRegisterSimCallbackObject_External<FCallback>();
+
+			FVec3 Grav(0, 0, 0);
+			Scene.SetUpForFrame(&Grav, 0, 99999, 99999, 10, false);	//flush with dt 0
+			Scene.StartFrame();
+			Scene.EndFrame();
+
+			Scene.GetSolver()->EnqueueCommandImmediate([&bHitOnShutDown]()
+			{
+					//command enqueued and then solver shuts down, so flush must happen
+				bHitOnShutDown = true;
+			});
+		}
+		
+		EXPECT_TRUE(bHitOnShutDown);
 	}
 
 	GTEST_TEST(EngineInterface, SimSubstep)
