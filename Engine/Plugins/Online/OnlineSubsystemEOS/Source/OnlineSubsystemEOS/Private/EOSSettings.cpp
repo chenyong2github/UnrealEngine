@@ -146,6 +146,7 @@ FEOSSettings UEOSSettings::ManualGetSettings()
 
 	GConfig->GetBool(INI_SECTION, TEXT("bEnableOverlay"), Native.bEnableOverlay, GEngineIni);
 	GConfig->GetBool(INI_SECTION, TEXT("bEnableSocialOverlay"), Native.bEnableSocialOverlay, GEngineIni);
+	GConfig->GetBool(INI_SECTION, TEXT("bShouldEnforceBeingLaunchedByEGS"), Native.bShouldEnforceBeingLaunchedByEGS, GEngineIni);
 	GConfig->GetString(INI_SECTION, TEXT("CacheDir"), Native.CacheDir, GEngineIni);
 	GConfig->GetString(INI_SECTION, TEXT("DefaultArtifactName"), Native.DefaultArtifactName, GEngineIni);
 	GConfig->GetInt(INI_SECTION, TEXT("TickBudgetInMilliseconds"), Native.TickBudgetInMilliseconds, GEngineIni);

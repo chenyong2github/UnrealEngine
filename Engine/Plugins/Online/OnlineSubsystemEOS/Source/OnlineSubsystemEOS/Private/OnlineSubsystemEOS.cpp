@@ -210,6 +210,15 @@ bool FOnlineSubsystemEOS::Init()
 {
 	// Check for being launched by EGS
 	bWasLaunchedByEGS = FParse::Param(FCommandLine::Get(), TEXT("EpicPortal"));
+	if (!bWasLaunchedByEGS && GetDefault<UEOSSettings>()->bShouldEnforceBeingLaunchedByEGS)
+	{
+		FString ArtifactName;
+		FParse::Value(FCommandLine::Get(), TEXT("EpicApp="), ArtifactName);
+		UE_LOG_ONLINE(Warning, TEXT("FOnlineSubsystemEOS::Init() relaunching artifact (%s) via the store"), *ArtifactName);
+		FPlatformProcess::LaunchURL(*FString::Printf(TEXT("com.epicgames.launcher://store/product/%s?action=launch&silent=true"), *ArtifactName), nullptr, nullptr);
+		FPlatformMisc::RequestExit(false);
+		return false;
+	}
 
 	// The editor build will call this completely differently, so give it a chance to run it
 	if (IsRunningGame() || IsRunningDedicatedServer())
