@@ -953,12 +953,12 @@ namespace ChaosTest {
 
 		struct FCallback : public TSimCallbackObject<FSimCallbackNoInput>
 		{
-			virtual void OnPreSimulate_Internal(const FReal SimStart, const FReal DeltaSeconds, const FSimCallbackInput* Input) override
+			virtual void OnPreSimulate_Internal() override
 			{
-				EXPECT_EQ(Input, nullptr);	//no inputs passed in
+				EXPECT_EQ(GetConsumerInput_Internal(), nullptr);	//no inputs passed in
 				//we expect the dt to be 1
-				EXPECT_EQ(DeltaSeconds, 1);
-				EXPECT_EQ(SimStart, Count);
+				EXPECT_EQ(GetDeltaTime_Internal(), 1);
+				EXPECT_EQ(GetSimTime_Internal(), Count);
 				Count++;
 			}
 
@@ -1041,10 +1041,10 @@ namespace ChaosTest {
 
 		struct FCallback : public TSimCallbackObject<FDummyInput>
 		{
-			virtual void OnPreSimulate_Internal(const FReal SimStart, const FReal DeltaSeconds, const FSimCallbackInput* Input) override
+			virtual void OnPreSimulate_Internal() override
 			{
-				EXPECT_EQ(static_cast<const FDummyInput*>(Input)->ExternalFrame, ExpectedFrame);
-				EXPECT_NEAR(SimStart, InternalSteps * DeltaSeconds, 1e-2);	//sim start is changing per sub-step
+				EXPECT_EQ(GetConsumerInput_Internal()->ExternalFrame, ExpectedFrame);
+				EXPECT_NEAR(GetSimTime_Internal(), InternalSteps * GetDeltaTime_Internal(), 1e-2);	//sim start is changing per sub-step
 				++InternalSteps;
 			}
 

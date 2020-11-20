@@ -33,14 +33,20 @@ public:
 	virtual ~ISimCallbackObject() = default;
 	ISimCallbackObject(const ISimCallbackObject&) = delete;	//not copyable
 
-	void PreSimulate_Internal(const FReal SimTime, const FReal DeltaSeconds)
+	/** The point in time when this simulation step begins*/
+	FReal GetSimTime_Internal() const { return SimTime_Internal; }
+
+	/** The delta time associated with this simulation step */
+	FReal GetDeltaTime_Internal() const { return DeltaTime_Internal; }
+
+	void PreSimulate_Internal()
 	{
-		OnPreSimulate_Internal(SimTime, DeltaSeconds, CurrentInput_Internal);
+		OnPreSimulate_Internal();
 	}
 
-	void ContactModification_Internal(const FReal SimTime, const TArrayView<FPBDCollisionConstraintHandleModification>& Modifications)
+	void ContactModification_Internal(const TArrayView<FPBDCollisionConstraintHandleModification>& Modifications)
 	{
-		OnContactModification_Internal(SimTime, CurrentInput_Internal, Modifications);
+		OnContactModification_Internal(Modifications);
 	}
 
 	void FinalizeOutputData_Internal()
@@ -73,9 +79,9 @@ protected:
 	: bRunOnceMore(false)
 	, bPendingDelete(false)
 	, bContactModification(false)
-	, CurrentInput_Internal(nullptr)
 	, CurrentExternalInput_External(nullptr)
 	, Solver(nullptr)
+	, CurrentInput_Internal(nullptr)
 	, CurrentOutput_Internal(nullptr)
 	{
 	}
@@ -96,6 +102,12 @@ protected:
 		CurrentInput_Internal = NewInput;
 	}
 
+	void SetSimAndDeltaTime_Internal(const FReal InSimTime, const FReal InDeltaTime)
+	{
+		SimTime_Internal = InSimTime;
+		DeltaTime_Internal = InDeltaTime;
+	}
+
 private:
 	
 	/**
@@ -107,18 +119,15 @@ private:
 
 	/**
 	* Called before simulation step
-	* Input passed in will correspond to the input the user gave for this particular simulation step
-	* Return output for external thread (optional, null means no output)
 	*/
-	virtual void OnPreSimulate_Internal(const FReal SimTime, const FReal DeltaSeconds, const FSimCallbackInput* Input) = 0;
+	virtual void OnPreSimulate_Internal() = 0;
 
 	/**
 	* Called once per simulation step. Allows user to modify contacts
-	* This means the input could be from a few frames ago if the sim is running asynchronously
 	*
 	* NOTE: you must explicitly request contact modification when registering the callback for this to be called
 	*/
-	virtual void OnContactModification_Internal(const FReal SimTime, const FSimCallbackInput* Input, const TArrayView<FPBDCollisionConstraintHandleModification>& Modifications)
+	virtual void OnContactModification_Internal(const TArrayView<FPBDCollisionConstraintHandleModification>& Modifications)
 	{
 		//registered for contact modification, but implementation is missing
 		check(false);
@@ -142,7 +151,6 @@ private:
 	bool bPendingDelete;
 	bool bContactModification;
 
-	FSimCallbackInput* CurrentInput_Internal;	        //the input associated with the step we are executing.
 	FSimCallbackInput* CurrentExternalInput_External;	//the input currently being filled out by external thread
 	FPhysicsSolverBase* Solver;
 
@@ -151,7 +159,11 @@ private:
 	void SetContactModification(bool InContactModification) { bContactModification = InContactModification; }
 
 protected:
+	FSimCallbackInput* CurrentInput_Internal;	        //the input associated with the step we are executing.
 	FSimCallbackOutput* CurrentOutput_Internal;	//the output currently being written to in this sim step
+private:
+	FReal SimTime_Internal;
+	FReal DeltaTime_Internal;
 };
 
 /** Simple callback command object. Commands are typically passed in as lambdas and there's no need for data management. Should not be used directly, see FPhysicsSolverBase::EnqueueCommand */
@@ -183,7 +195,7 @@ private:
 		check(false);
 	}
 
-	virtual void OnPreSimulate_Internal(const FReal SimTime, const FReal DeltaSeconds, const FSimCallbackInput* Input) override
+	virtual void OnPreSimulate_Internal() override
 	{
 		Func();
 	}
@@ -219,18 +231,27 @@ public:
 		return static_cast<TInputType*>(ISimCallbackObject::GetProducerInputData_External());
 	}
 
+	/** 
+	* Get the input associated with the current sim step. This input was provided by the external thread. Note the data could be from a few frames ago
+	*/
+	const TInputType* GetConsumerInput_Internal() const
+	{
+		return static_cast<const TInputType*>(CurrentInput_Internal);
+	}
+
 	/**
 	* Gets the output data produced in order up to and including SimTime. Typical usage is:
 	* while(auto Output = PopOutputData_External(ExternalTime)) { //process output }
 	*/
-	TSimCallbackOutputHandle<TOutputType> PopOutputData_External(const FReal SimTime)
+	TSimCallbackOutputHandle<TOutputType> PopOutputData_External()
 	{
+		const FReal ResultsTime = GetSolver()->GetPhysicsResultsTime_External();
 		if(!CurrentOutput_External)
 		{
 			OutputQueue.Dequeue(CurrentOutput_External);
 		}
 
-		if(CurrentOutput_External && CurrentOutput_External->InternalTime <= SimTime)
+		if(CurrentOutput_External && CurrentOutput_External->InternalTime <= ResultsTime)
 		{
 			TOutputType* Output = CurrentOutput_External;
 			CurrentOutput_External = nullptr;
@@ -246,11 +267,11 @@ public:
 	* Gets the current producer output data. This is what the callback generates. If multiple callbacks are triggered in one step, the same output is used
 	*/
 
-	TOutputType& GetProducerOutputData_Internal(const FReal InternalTime)
+	TOutputType& GetProducerOutputData_Internal()
 	{
 		if(!CurrentOutput_Internal)
 		{
-			CurrentOutput_Internal = NewOutputData_Internal(InternalTime);
+			CurrentOutput_Internal = NewOutputData_Internal(GetSimTime_Internal());
 		}
 
 		return static_cast<TOutputType&>(*CurrentOutput_Internal);
