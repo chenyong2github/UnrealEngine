@@ -173,6 +173,32 @@ uint NumSpatialReconstructionSamples;
 float SpatialReconstructionScreenWidth;
 float SpatialReconstructionRoughnessScale;
 
+float Luma(float3 Color) 
+{
+	// Rec 709 function for luma.
+	return dot(Color, float3(0.2126f, 0.7152f, 0.0722f));
+}
+
+#define TONEMAP_DURING_RESOLVE 0
+
+float3 TonemapLighting(float3 Lighting)
+{
+#if TONEMAP_DURING_RESOLVE
+	return Lighting / (1.0f + Luma(Lighting));
+#else
+	return Lighting;
+#endif
+}
+
+float3 InverseTonemapLighting(float3 TonemappedLighting)
+{
+#if TONEMAP_DURING_RESOLVE
+	return TonemappedLighting / (1.0f - Luma(TonemappedLighting));
+#else
+	return TonemappedLighting;
+#endif
+}
+
 [numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
 void ReflectionResolveCS(
 	uint GroupId : SV_GroupID,
@@ -224,7 +250,6 @@ void ReflectionResolveCS(
 
 				for (uint SampleIndex = 0; SampleIndex < NumSpatialReconstructionSamples; SampleIndex++)
 				{
-					// First sample assigned to center ray
 					int2 Offset = (Hammersley16(SampleIndex, NumSpatialReconstructionSamples, RandomSeed) - .5f) * KernelWidth;
 					int2 NeighborTracingCoord = ReflectionScreenCoord + Offset;
 
@@ -258,7 +283,7 @@ void ReflectionResolveCS(
 							float NewPDF = min(VisibleGGXPDF(TangentV, TangentH, a2), 1.0f / MinReflectionConeAngle);
 							float Weight = NewPDF / RayData.PDF;
 
-							ReflectionLighting += TraceRadiance[NeighborTracingCoord] * Weight;
+							ReflectionLighting += TonemapLighting(TraceRadiance[NeighborTracingCoord]) * Weight;
 
 							if (Weight > .001f)
 							{
@@ -273,7 +298,7 @@ void ReflectionResolveCS(
 				if (TotalWeight > 0.0f)
 				{
 					float InvTotalWeight = 1.0f / TotalWeight;
-					ReflectionLighting *= InvTotalWeight;
+					ReflectionLighting = InverseTonemapLighting(ReflectionLighting * InvTotalWeight);
 				}
 			}
 #else
