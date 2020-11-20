@@ -17,6 +17,7 @@ struct FNiagaraCollisionDIFunctionVersion
 	{
 		InitialVersion = 0,
 		AddedTraceSkip = 1,
+		AddedCustomDepthCollision = 2,
 
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
@@ -24,6 +25,7 @@ struct FNiagaraCollisionDIFunctionVersion
 };
 
 const FName UNiagaraDataInterfaceCollisionQuery::SceneDepthName(TEXT("QuerySceneDepthGPU"));
+const FName UNiagaraDataInterfaceCollisionQuery::CustomDepthName(TEXT("QueryCustomDepthGPU"));
 const FName UNiagaraDataInterfaceCollisionQuery::DistanceFieldName(TEXT("QueryMeshDistanceFieldGPU"));
 const FName UNiagaraDataInterfaceCollisionQuery::SyncTraceName(TEXT("PerformCollisionQuerySyncCPU"));
 const FName UNiagaraDataInterfaceCollisionQuery::AsyncTraceName(TEXT("PerformCollisionQueryAsyncCPU"));
@@ -84,6 +86,23 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	SigDepth.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("SamplePosWorld")));
 	SigDepth.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("SampleWorldNormal")));
 	OutFunctions.Add(SigDepth);
+
+	FNiagaraFunctionSignature SigCustomDepth;
+	SigCustomDepth.Name = UNiagaraDataInterfaceCollisionQuery::CustomDepthName;
+	SigCustomDepth.bMemberFunction = true;
+	SigCustomDepth.bRequiresContext = false;
+	SigCustomDepth.bSupportsCPU = false;
+#if WITH_EDITORONLY_DATA
+	SigCustomDepth.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
+#endif
+	SigCustomDepth.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
+	SigCustomDepth.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("DepthSamplePosWorld")));
+	SigCustomDepth.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("SceneDepth")));
+	SigCustomDepth.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CameraPosWorld")));
+	SigCustomDepth.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsInsideView")));
+	SigCustomDepth.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("SamplePosWorld")));
+	SigCustomDepth.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("SampleWorldNormal")));
+	OutFunctions.Add(SigCustomDepth);
 
 	FNiagaraFunctionSignature SigMeshField;
 	SigMeshField.Name = UNiagaraDataInterfaceCollisionQuery::DistanceFieldName;
@@ -152,40 +171,51 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 // 
 bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	if (FunctionInfo.DefinitionName == TEXT("QuerySceneDepthGPU"))
+
+	if (FunctionInfo.DefinitionName == SceneDepthName || FunctionInfo.DefinitionName == CustomDepthName)
 	{
-		OutHLSL += TEXT("void ") + FunctionInfo.InstanceName + TEXT("(in float3 In_SamplePos, out float Out_SceneDepth, out float3 Out_CameraPosWorld, out bool Out_IsInsideView, out float3 Out_WorldPos, out float3 Out_WorldNormal) \n{\n");
-		OutHLSL += TEXT("\
-			Out_SceneDepth = -1;\n\
-			Out_WorldPos = float3(0.0, 0.0, 0.0);\n\
-			Out_WorldNormal = float3(0.0, 0.0, 1.0);\n\
-			Out_IsInsideView = true;\n\
-			Out_CameraPosWorld.xyz = View.WorldCameraOrigin.xyz;\n\
-			#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5\n\
-			float4 SamplePosition = float4(In_SamplePos + View.PreViewTranslation, 1);\n\
-			float4 ClipPosition = mul(SamplePosition, View.TranslatedWorldToClip);\n\
-			float2 ScreenPosition = ClipPosition.xy / ClipPosition.w;\n\
-			// Check if the sample is inside the view.\n\
-			if (all(abs(ScreenPosition.xy) <= float2(1, 1)))\n\
-			{\n\
-				// Sample the depth buffer to get a world position near the sample position.\n\
-				float2 ScreenUV = ScreenPosition * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;\n\
-				float SceneDepth = CalcSceneDepth(ScreenUV);\n\
-				Out_SceneDepth = SceneDepth;\n\
-				// Reconstruct world position.\n\
-				Out_WorldPos = WorldPositionFromSceneDepth(ScreenPosition.xy, SceneDepth);\n\
-				// Sample the normal buffer\n\
-				Out_WorldNormal = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct_GBufferATextureSampler, ScreenUV, 0).xyz * 2.0 - 1.0;\n\
-			}\n\
-			else\n\
-			{\n\
-				Out_IsInsideView = false;\n\
-			}\n\
-			#endif\n\
-			}\n\n");
+		static const FString SceneDepthSampleExpr = TEXT("CalcSceneDepth(ScreenUV)");
+		static const FString CustomDepthSampleExpr = TEXT("ConvertFromDeviceZ(Texture2DSampleLevel(SceneTexturesStruct.CustomDepthTexture, SceneTexturesStruct_SceneDepthTextureSampler, ScreenUV, 0).r)");
+		const FStringFormatOrderedArguments Args = {
+			FunctionInfo.InstanceName,
+			FunctionInfo.DefinitionName == SceneDepthName ? SceneDepthSampleExpr : CustomDepthSampleExpr
+		};
+
+		OutHLSL += FString::Format(TEXT(R"(
+			void {0}(in float3 In_SamplePos, out float Out_SceneDepth, out float3 Out_CameraPosWorld, out bool Out_IsInsideView, out float3 Out_WorldPos, out float3 Out_WorldNormal)
+			{				
+				Out_SceneDepth = -1;
+				Out_WorldPos = float3(0.0, 0.0, 0.0);
+				Out_WorldNormal = float3(0.0, 0.0, 1.0);
+				Out_IsInsideView = true;
+				Out_CameraPosWorld.xyz = View.WorldCameraOrigin.xyz;
+
+			#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
+				float4 SamplePosition = float4(In_SamplePos + View.PreViewTranslation, 1);
+				float4 ClipPosition = mul(SamplePosition, View.TranslatedWorldToClip);
+				float2 ScreenPosition = ClipPosition.xy / ClipPosition.w;
+				// Check if the sample is inside the view.
+				if (all(abs(ScreenPosition.xy) <= float2(1, 1)))
+				{
+					// Sample the depth buffer to get a world position near the sample position.
+					float2 ScreenUV = ScreenPosition * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
+					float SceneDepth = {1};
+					Out_SceneDepth = SceneDepth;
+					// Reconstruct world position.
+					Out_WorldPos = WorldPositionFromSceneDepth(ScreenPosition.xy, SceneDepth);
+					// Sample the normal buffer
+					Out_WorldNormal = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct_GBufferATextureSampler, ScreenUV, 0).xyz * 2.0 - 1.0;
+				}
+				else
+				{
+					Out_IsInsideView = false;
+				}
+			#endif
+			}
+		)"), Args);
 		return true;
 	}
-	else if (FunctionInfo.DefinitionName == TEXT("QueryMeshDistanceFieldGPU"))
+	else if (FunctionInfo.DefinitionName == DistanceFieldName)
 	{
 		OutHLSL += TEXT("void ") + FunctionInfo.InstanceName + TEXT("(in float3 In_SamplePos, out float Out_DistanceToNearestSurface, out float3 Out_FieldGradient, out bool Out_IsDistanceFieldValid) \n{\n");
 		OutHLSL += TEXT("\
@@ -279,7 +309,8 @@ void UNiagaraDataInterfaceCollisionQuery::GetVMExternalFunction(const FVMExterna
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, PerformQueryAsyncCPU)::Bind(this, OutFunc);
 	}
-	else if (BindingInfo.Name == UNiagaraDataInterfaceCollisionQuery::SceneDepthName)
+	else if (BindingInfo.Name == UNiagaraDataInterfaceCollisionQuery::SceneDepthName ||
+			 BindingInfo.Name == UNiagaraDataInterfaceCollisionQuery::CustomDepthName)
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, QuerySceneDepth)::Bind(this, OutFunc);
 	}
