@@ -3837,7 +3837,7 @@ void EmitDepthTargets(
 		FClearValueBinding::Transparent,
 		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV);
 
-	FRDGTextureDesc VelocityBufferDesc = FVelocityRendering::GetRenderTargetDesc(ShaderPlatform);
+	FRDGTextureDesc VelocityBufferDesc = FVelocityRendering::GetRenderTargetDesc(ShaderPlatform, SceneTargets.GetBufferSizeXY());
 
 	// TODO: Can be 16bit UNORM (PF_ShadowDepth) (32bit float w/ 8bit stencil is a waste of bandwidth and memory)
 	FRDGTextureDesc MaterialDepthDesc = FRDGTextureDesc::Create2D(
@@ -4137,7 +4137,7 @@ static void BuildNaniteMaterialPassCommands(
 
 void DrawBasePass(
 	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef SceneDepth,
+	const FSceneTextures& SceneTextures,
 	const FDBufferTextures& DBufferTextures,
 	const FScene& Scene,
 	const FViewInfo& View,
@@ -4150,15 +4150,12 @@ void DrawBasePass(
 	RDG_EVENT_SCOPE(GraphBuilder, "NaniteBasePass");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteMaterials);
 
-	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get();
-
 	const int32 ViewWidth		= View.ViewRect.Max.X - View.ViewRect.Min.X;
 	const int32 ViewHeight		= View.ViewRect.Max.Y - View.ViewRect.Min.Y;
 	const FIntPoint ViewSize	= FIntPoint(ViewWidth, ViewHeight);
 
-	int32 VelocityRTIndex = -1;
-	FRenderTargetBinding RenderTargets[MaxSimultaneousRenderTargets] = {};
-	int32 NumMRTs = SceneTargets.GetGBufferRenderTargets(GraphBuilder, ERenderTargetLoadAction::ELoad, RenderTargets, VelocityRTIndex);
+	FRenderTargetBindingSlots GBufferRenderTargets;
+	SceneTextures.GetGBufferRenderTargets(ERenderTargetLoadAction::ELoad, GBufferRenderTargets);
 
 	FRDGTextureRef MaterialDepth	= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.MaterialDepth, GSystemTextures.BlackDummy);
 	FRDGTextureRef VisBuffer64		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.VisBuffer64,   GSystemTextures.BlackDummy);
@@ -4258,11 +4255,7 @@ void DrawBasePass(
 		PassParameters->VisBuffer64 = VisBuffer64;
 		PassParameters->DbgBuffer64 = DbgBuffer64;
 		PassParameters->DbgBuffer32 = DbgBuffer32;
-
-		for (int32 MRTIdx = 0; MRTIdx < NumMRTs; ++MRTIdx)
-		{
-			PassParameters->RenderTargets[MRTIdx] = RenderTargets[MRTIdx];
-		}
+		PassParameters->RenderTargets = GBufferRenderTargets;
 
 		PassParameters->View = View.ViewUniformBuffer; // To get VTFeedbackBuffer
 		PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, 0, {}, DBufferTextures, nullptr);

@@ -189,15 +189,11 @@ int32 GetSSSBurleyBilateralFilterKernelFunctionType()
 // Actually we do not need this for the burley normalized SSS.
 FRHITexture* GetSubsurfaceProfileTexture(FRHICommandListImmediate& RHICmdList)
 {
-	const IPooledRenderTarget* ProfileTextureTarget = GetSubsufaceProfileTexture_RT(RHICmdList);
-
-	if (!ProfileTextureTarget)
+	if (const IPooledRenderTarget* ProfileTextureTarget = GetSubsufaceProfileTexture_RT(RHICmdList))
 	{
-		// No subsurface profile was used yet
-		ProfileTextureTarget = GSystemTextures.BlackDummy;
+		return ProfileTextureTarget->GetShaderResourceRHI();
 	}
-
-	return ProfileTextureTarget->GetRenderTargetItem().ShaderResourceTexture;
+	return GBlackTexture->TextureRHI;
 }
 
 // Returns the current subsurface mode required by the current view.
@@ -250,11 +246,6 @@ FSubsurfaceParameters GetSubsurfaceCommonParameters(FRDGBuilder& GraphBuilder, c
 	const float SSSScaleX = SSSScaleZ / SUBSURFACE_KERNEL_SIZE * 0.5f;
 
 	const float SSSOverrideNumSamples = float(CVarSSSBurleyNumSamplesOverride.GetValueOnRenderThread());
-
-	if (!SceneTextures)
-	{
-		SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
-	}
 
 	FSubsurfaceParameters Parameters;
 	Parameters.SubsurfaceParams = FVector4(SSSScaleX, SSSScaleZ, SSSOverrideNumSamples, 0);
@@ -819,15 +810,14 @@ IMPLEMENT_GLOBAL_SHADER(FSubsurfaceRecombinePS, "/Engine/Private/PostProcessSubs
 void AddSubsurfaceViewPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FScreenPassTextureViewport& SceneViewport,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures,
-	FRDGTextureRef SceneColorTexture,
+	const FSceneTextures& SceneTextures,
 	FRDGTextureRef SceneColorTextureOutput,
 	ERenderTargetLoadAction SceneColorTextureLoadAction)
 {
-	check(SceneTextures);
+	FRDGTextureRef SceneColorTexture = SceneTextures.Color.Target;
+	const FScreenPassTextureViewport SceneViewport(SceneColorTexture, View.ViewRect);
+
 	check(SceneColorTextureOutput);
-	check(SceneViewport.Extent == SceneColorTexture->Desc.Extent);
 
 	const FSceneViewFamily* ViewFamily = View.Family;
 
@@ -881,7 +871,9 @@ void AddSubsurfaceViewPass(
 		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV,
 		FMath::Min(6u, 1 + FMath::FloorLog2((uint32)SubsurfaceViewport.Extent.GetMin())));
 
-	const FSubsurfaceParameters SubsurfaceCommonParameters = GetSubsurfaceCommonParameters(GraphBuilder, View, SceneTextures);
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+
+	const FSubsurfaceParameters SubsurfaceCommonParameters = GetSubsurfaceCommonParameters(GraphBuilder, View, SceneTextures.UniformBuffer);
 	const FScreenPassTextureViewportParameters SubsurfaceViewportParameters = GetScreenPassTextureViewportParameters(SubsurfaceViewport);
 	const FScreenPassTextureViewportParameters SceneViewportParameters = GetScreenPassTextureViewportParameters(SceneViewport);
 
@@ -918,11 +910,11 @@ void AddSubsurfaceViewPass(
 		}
 		else
 		{
-			ProfileIdTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy, TEXT("ProfileIdTexture"));
+			ProfileIdTexture = SystemTextures.Black;
 		}
 
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-		FRDGTextureRef VelocityTexture = RegisterExternalRenderTarget(GraphBuilder, &(SceneContext.SceneVelocity), SubsurfaceTextureDescriptor.Extent, TEXT("Velocity")); 
+		FRDGTextureRef VelocityTexture = GetIfProduced(SceneTextures.Velocity, SystemTextures.Black);
 		FSubsurfaceUniformRef UniformBuffer = CreateUniformBuffer(View, MaxGroupCount);
 		
 		// Pre-allocate black UAV together.
@@ -1187,14 +1179,14 @@ FRDGTextureRef AddSubsurfacePass(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<const FViewInfo> Views,
 	const uint32 ViewMask,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures,
-	FRDGTextureRef SceneColorTexture,
+	const FSceneTextures& SceneTextures,
 	FRDGTextureRef SceneColorTextureOutput)
 {
 	const uint32 ViewCount = Views.Num();
 	const uint32 ViewMaskAll = (1 << ViewCount) - 1;
 	check(ViewMask);
 
+	FRDGTextureRef SceneColorTexture = SceneTextures.Color.Target;
 	ERenderTargetLoadAction SceneColorTextureLoadAction = ERenderTargetLoadAction::ENoAction;
 
 	const bool bHasNonSubsurfaceView = ViewMask != ViewMaskAll;
@@ -1243,9 +1235,7 @@ FRDGTextureRef AddSubsurfacePass(
 			RDG_EVENT_SCOPE(GraphBuilder, "SubsurfaceScattering(ViewId=%d)", ViewIndex);
 
 			const FViewInfo& View = Views[ViewIndex];
-			const FScreenPassTextureViewport SceneViewport(SceneColorTexture, View.ViewRect);
-
-			AddSubsurfaceViewPass(GraphBuilder, View, SceneViewport, SceneTextures, SceneColorTexture, SceneColorTextureOutput, SceneColorTextureLoadAction);
+			AddSubsurfaceViewPass(GraphBuilder, View, SceneTextures, SceneColorTextureOutput, SceneColorTextureLoadAction);
 			SceneColorTextureLoadAction = ERenderTargetLoadAction::ELoad;
 		}
 	}
@@ -1305,7 +1295,7 @@ FScreenPassTexture AddVisualizeSubsurfacePass(FRDGBuilder& GraphBuilder, const F
 
 void AddSubsurfacePass(
 	FRDGBuilder& GraphBuilder,
-	FMinimalSceneTextures& SceneTextures,
+	FSceneTextures& SceneTextures,
 	TArrayView<const FViewInfo> Views)
 {
 	const uint32 ViewMask = GetSubsurfaceRequiredViewMask(Views);
@@ -1318,7 +1308,7 @@ void AddSubsurfacePass(
 	checkf(!SceneTextures.Color.IsSeparate(), TEXT("Subsurface rendering requires the deferred renderer."));
 
 	FRDGTextureRef SceneColorOutputTexture = GraphBuilder.CreateTexture(SceneTextures.Color.Target->Desc, TEXT("SceneColorSubsurface"));
-	AddSubsurfacePass(GraphBuilder, Views, ViewMask, SceneTextures.UniformBuffer, SceneTextures.Color.Target, SceneColorOutputTexture);
+	AddSubsurfacePass(GraphBuilder, Views, ViewMask, SceneTextures, SceneColorOutputTexture);
 	ConvertToExternalTexture(GraphBuilder, SceneColorOutputTexture, FSceneRenderTargets::Get().GetSceneColor());
 	SceneTextures.Color = SceneColorOutputTexture;
 }

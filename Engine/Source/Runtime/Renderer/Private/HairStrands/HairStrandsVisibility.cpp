@@ -658,8 +658,7 @@ static void AddHairMaterialGBufferPass(
 	bool bIsVelocityDummy = false;
 	if (OutVelocityTexture == nullptr)
 	{
-		FRDGTextureDesc VelocityDesc = FVelocityRendering::GetRenderTargetDesc(ViewInfo->GetShaderPlatform());
-		VelocityDesc.Extent = OutDepthTexture->Desc.Extent;
+		FRDGTextureDesc VelocityDesc = FVelocityRendering::GetRenderTargetDesc(ViewInfo->GetShaderPlatform(), OutDepthTexture->Desc.Extent);
 		OutVelocityTexture = GraphBuilder.CreateTexture(VelocityDesc, TEXT("DummyVelocity"));
 		bIsVelocityDummy = true;
 	}
@@ -3161,28 +3160,19 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const TArray<FViewInfo>& Views,
-	TRefCountPtr<IPooledRenderTarget> InSceneGBufferATexture,
-	TRefCountPtr<IPooledRenderTarget> InSceneGBufferBTexture,
-	TRefCountPtr<IPooledRenderTarget> InSceneGBufferCTexture,
-	TRefCountPtr<IPooledRenderTarget> InSceneGBufferDTexture,
-	TRefCountPtr<IPooledRenderTarget> InSceneGBufferETexture,
-	TRefCountPtr<IPooledRenderTarget> InSceneColorTexture,
-	TRefCountPtr<IPooledRenderTarget> InSceneDepthTexture,
-	TRefCountPtr<IPooledRenderTarget> InSceneVelocityTexture,
+	FRDGTextureRef SceneGBufferATexture,
+	FRDGTextureRef SceneGBufferBTexture,
+	FRDGTextureRef SceneGBufferCTexture,
+	FRDGTextureRef SceneGBufferDTexture,
+	FRDGTextureRef SceneGBufferETexture,
+	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef SceneDepthTexture,
+	FRDGTextureRef SceneVelocityTexture,
 	const FHairStrandsMacroGroupViews& MacroGroupViews)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CLM_RenderHairStrandsVisibility);
 	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsVisibility");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsVisibility);
-
-	FRDGTextureRef SceneGBufferATexture = TryRegisterExternalTexture(GraphBuilder, InSceneGBufferATexture);
-	FRDGTextureRef SceneGBufferBTexture = TryRegisterExternalTexture(GraphBuilder, InSceneGBufferBTexture);
-	FRDGTextureRef SceneGBufferCTexture = TryRegisterExternalTexture(GraphBuilder, InSceneGBufferCTexture);
-	FRDGTextureRef SceneGBufferDTexture = TryRegisterExternalTexture(GraphBuilder, InSceneGBufferDTexture);
-	FRDGTextureRef SceneGBufferETexture = TryRegisterExternalTexture(GraphBuilder, InSceneGBufferETexture);
-	FRDGTextureRef SceneColorTexture = TryRegisterExternalTexture(GraphBuilder, InSceneColorTexture);
-	FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(InSceneDepthTexture);
-	FRDGTextureRef SceneVelocityTexture = TryRegisterExternalTexture(GraphBuilder, InSceneVelocityTexture);
 
 	FHairStrandsVisibilityViews Output;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -3203,8 +3193,8 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 			// Use the scene color for computing target resolution as the View.ViewRect, 
 			// doesn't include the actual resolution padding which make buffer size 
 			// mismatch, and create artifact (e.g. velocity computation)
-			check(InSceneDepthTexture);
-			const FIntPoint Resolution = InSceneDepthTexture->GetDesc().Extent;
+			check(SceneDepthTexture);
+			const FIntPoint Resolution = SceneDepthTexture->Desc.Extent;
 
 			const bool bRunColorAndDepthPatching = SceneGBufferBTexture && SceneColorTexture;
 			const EHairVisibilityRenderMode RenderMode = GetHairVisibilityRenderMode();

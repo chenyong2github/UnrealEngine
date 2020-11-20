@@ -1551,10 +1551,9 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		// Allocate the maximum scene render target space for the current view family.
 		SceneContext.Allocate(GraphBuilder, this);
-
-		// Initialize the RDG read-only system textures.
-		FRDGSystemTextures::Create(GraphBuilder);
 	}
+
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Create(GraphBuilder);
 
 	const bool bUseVirtualTexturing = UseVirtualTexturing(FeatureLevel);
 	if (bUseVirtualTexturing)
@@ -1687,7 +1686,14 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
+	// GBuffers are temporarily being allocated here until they are converted to RDG.
+	{
+		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_AllocGBufferTargets);
+		SceneContext.AllocGBufferTargets(RHICmdList);
+	}
+
 	FSceneTextures& SceneTextures = FSceneTextures::Create(GraphBuilder);
+
 	// Note, should happen after the GPU-Scene update to ensure rendering to runtime virtual textures is using the correctly updated scene
 	if (bUseVirtualTexturing)
 	{
@@ -1832,20 +1838,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		Nanite::GStreamingManager.EndAsyncUpdate(GraphBuilder);
 	}
 
-	SceneTextures.Velocity = TryRegisterExternalTexture(GraphBuilder, SceneContext.SceneVelocity);
-
 	const bool bShouldRenderVelocities = ShouldRenderVelocities();
 	const bool bBasePassCanOutputVelocity = FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel);
 	const bool bUseSelectiveBasePassOutputs = IsUsingSelectiveBasePassOutputs(ShaderPlatform);
 	const bool bIsViewCompatible = Views.Num() > 0;
 	const bool bHairEnable = HairStrandsBookmarkParameters.bHasElements && bIsViewCompatible && IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Views[0].GetShaderPlatform());
-
-	{
-		// Even if !bShouldRenderVelocities, the velocity buffer must be bound because it's a compile time option for the shader. Also, this pass was modified
-		// to allocate the velocity texture, since we need it earlier in the frame and itss usage is separate from the rest of the GBuffer passes.
-		SceneContext.PreallocGBufferTargets();
-		SceneContext.AllocVelocityTarget(RHICmdList);
-	}
 
 	{
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_PrePass));
@@ -1983,7 +1980,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 					// Won't have a complete SceneDepth for post pass so can't use complete HZB for main pass or it will poke holes in the post pass HZB killing occlusion culling.
 					RDG_EVENT_SCOPE(GraphBuilder, "BuildNaniteHZB");
 
-					FRDGTextureRef SceneDepth = GraphBuilder.RegisterExternalTexture( GSystemTextures.BlackDummy );
+					FRDGTextureRef SceneDepth = SystemTextures.Black;
 					FRDGTextureRef GraphHZB = nullptr;
 
 					BuildHZB(
@@ -2022,11 +2019,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	CSV_CUSTOM_STAT(LightCount, All,  float(SortedLightSet.SortedLights.Num()), ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT(LightCount, ShadowOff, float(SortedLightSet.AttenuationLightStart), ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT(LightCount, ShadowOn, float(SortedLightSet.SortedLights.Num()) - float(SortedLightSet.AttenuationLightStart), ECsvCustomStatOp::Set);
-
-	{
-		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_AllocGBufferTargets);
-		SceneContext.AllocGBufferTargets(RHICmdList);
-	}
 
 	// Local helper function to perform virtual shadow map allocation, which can occur early, or late.
 	auto AllocateVirtualShadowMaps = [
@@ -2150,7 +2142,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		if (bHairEnable)
 		{
 			RenderHairPrePass(GraphBuilder, Scene, Views, HairDatasStorage);
-			RenderHairBasePass(GraphBuilder, Scene, SceneContext, Views, HairDatasStorage);
+			RenderHairBasePass(GraphBuilder, Scene, SceneTextures, Views, HairDatasStorage);
 			HairDatas = &HairDatasStorage;
 		}
 
@@ -2195,7 +2187,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 				Nanite::DrawBasePass(
 					GraphBuilder,
-					SceneDepth,
+					SceneTextures,
 					DBufferTextures,
 					*Scene,
 					View,
@@ -2376,7 +2368,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (bHairEnable && !IsForwardShadingEnabled(ShaderPlatform))
 	{
 		check(HairDatas);
-		RenderHairBasePass(GraphBuilder, Scene,  SceneContext, Views, HairDatasStorage);
+		RenderHairBasePass(GraphBuilder, Scene,  SceneTextures, Views, HairDatasStorage);
 
 		// Disable temporarly HZB update with hair data. This is not mandatory.
 		#if 0
@@ -2630,8 +2622,9 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 #if !UE_BUILD_SHIPPING
 	if (CVarForceBlackVelocityBuffer.GetValueOnRenderThread())
 	{
-		SceneContext.SceneVelocity = GSystemTextures.BlackDummy;
-		SceneTextures.Velocity = GraphBuilder.RegisterExternalTexture(SceneContext.SceneVelocity);
+		SceneTextures.Velocity = SystemTextures.Black;
+
+		// Rebuild the scene texture uniform buffer to include black.
 		SceneTextures.UniformBuffer = CreateSceneTextureUniformBuffer(GraphBuilder, FeatureLevel, SceneTextures.SetupMode);
 	}
 #endif
@@ -2805,7 +2798,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		GEngine->GetPostRenderDelegate().Broadcast();
 
 		SceneContext.AdjustGBufferRefCount(InRHICmdList, -1);
-		SceneContext.SceneVelocity.SafeRelease();
 
 #if RHI_RAYTRACING
 		// Release resources that were bound to the ray tracing scene to allow them to be immediately recycled.

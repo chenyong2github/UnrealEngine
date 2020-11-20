@@ -696,7 +696,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	FRenderTargetBindingSlots RenderTargets;
-	SceneContext.GetGBufferRenderTargets(GraphBuilder, ERenderTargetLoadAction::ELoad, RenderTargets);
+	SceneTextures.GetGBufferRenderTargets(ERenderTargetLoadAction::ELoad, RenderTargets);
 	RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
 	FRDGTextureRef WhiteForwardScreenSpaceShadowMask = SystemTextures.White;

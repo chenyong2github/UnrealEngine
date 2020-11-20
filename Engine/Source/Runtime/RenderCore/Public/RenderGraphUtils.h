@@ -16,6 +16,16 @@ inline bool HasBeenProduced(FRDGParentResourceRef Resource)
 	return Resource && Resource->HasBeenProduced();
 }
 
+inline FRDGTextureRef GetIfProduced(FRDGTextureRef Texture, FRDGTextureRef FallbackTexture = nullptr)
+{
+	return HasBeenProduced(Texture) ? Texture : FallbackTexture;
+}
+
+inline FRDGBufferRef GetIfProduced(FRDGBufferRef Buffer, FRDGBufferRef FallbackBuffer = nullptr)
+{
+	return HasBeenProduced(Buffer) ? Buffer : FallbackBuffer;
+}
+
 /** Fetches the RHI texture from an RDG texture or null if the RDG texture is null. */
 inline FRHITexture* TryGetRHI(FRDGTextureRef Texture)
 {

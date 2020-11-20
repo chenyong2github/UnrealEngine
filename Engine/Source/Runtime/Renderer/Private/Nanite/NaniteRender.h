@@ -13,6 +13,7 @@ class FCardRenderData;
 class FVirtualShadowMapArray;
 class FLumenCardPassUniformParameters;
 
+struct FSceneTextures;
 struct FDBufferTextures;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogNanite, Warning, All);
@@ -633,7 +634,7 @@ void EmitDepthTargets(
 
 void DrawBasePass(
 	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef SceneDepth,
+	const FSceneTextures& SceneTextures,
 	const FDBufferTextures& DBufferTextures,
 	const FScene& Scene,
 	const FViewInfo& View,

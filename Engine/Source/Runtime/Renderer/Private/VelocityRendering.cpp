@@ -224,7 +224,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 void FDeferredShadingSceneRenderer::RenderVelocities(
 	FRDGBuilder& GraphBuilder,
-	FSceneTextures& SceneTextures,
+	const FSceneTextures& SceneTextures,
 	EVelocityPass VelocityPass,
 	bool bForceVelocity)
 {
@@ -237,14 +237,9 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderVelocities, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_RenderVelocities);
 
-	ERenderTargetLoadAction VelocityLoadAction = ERenderTargetLoadAction::ELoad;
-	bool bVelocityRendered = false;
-
-	if (!SceneTextures.Velocity)
-	{
-		SceneTextures.Velocity = GraphBuilder.CreateTexture(FVelocityRendering::GetRenderTargetDesc(ShaderPlatform), TEXT("Velocity"));
-		VelocityLoadAction = ERenderTargetLoadAction::EClear;
-	}
+	ERenderTargetLoadAction VelocityLoadAction = HasBeenProduced(SceneTextures.Velocity)
+		? ERenderTargetLoadAction::ELoad
+		: ERenderTargetLoadAction::EClear;
 
 	RDG_GPU_STAT_SCOPE(GraphBuilder, RenderVelocities);
 	RDG_WAIT_FOR_TASKS_CONDITIONAL(GraphBuilder, IsVelocityWaitForTasksEnabled());
@@ -276,7 +271,6 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 					VelocityLoadAction = ERenderTargetLoadAction::ELoad;
 				}
 			}
-			bVelocityRendered = true;
 
 			if (!bHasAnyDraw)
 			{
@@ -324,13 +318,7 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 					ParallelMeshPass.DispatchDraw(nullptr, RHICmdList);
 				});
 			}
-
 		}
-	}
-
-	if (bVelocityRendered)
-	{
-		ConvertToExternalTexture(GraphBuilder, SceneTextures.Velocity, FSceneRenderTargets::Get().SceneVelocity);
 	}
 }
 
@@ -341,10 +329,9 @@ EPixelFormat FVelocityRendering::GetFormat(EShaderPlatform ShaderPlatform)
 	return bNeedVelocityDepth ? PF_A16B16G16R16 : PF_G16R16;
 }
 
-FRDGTextureDesc FVelocityRendering::GetRenderTargetDesc(EShaderPlatform ShaderPlatform)
+FRDGTextureDesc FVelocityRendering::GetRenderTargetDesc(EShaderPlatform ShaderPlatform, FIntPoint Extent)
 {
-	const FIntPoint BufferSize = FSceneRenderTargets::Get().GetBufferSizeXY();
-	return FRDGTextureDesc::Create2D(BufferSize, GetFormat(ShaderPlatform), FClearValueBinding::Transparent, TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_ShaderResource);
+	return FRDGTextureDesc::Create2D(Extent, GetFormat(ShaderPlatform), FClearValueBinding::Transparent, TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_ShaderResource);
 }
 
 bool FVelocityRendering::IsSeparateVelocityPassSupported(EShaderPlatform ShaderPlatform)

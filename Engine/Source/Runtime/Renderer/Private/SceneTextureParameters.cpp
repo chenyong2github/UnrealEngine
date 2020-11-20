@@ -8,23 +8,24 @@
 
 FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder)
 {
-	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
+	const auto& SceneTextures = FSceneTextures::Get(GraphBuilder);
+	const auto& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	FSceneTextureParameters Parameters;
 
 	// Should always have a depth buffer around allocated, since early z-pass is first.
-	Parameters.SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ, ERenderTargetTexture::ShaderResource);
+	Parameters.SceneDepthTexture = SceneTextures.Depth.Resolve;
 	Parameters.SceneStencilTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(Parameters.SceneDepthTexture, PF_X24_G8));
 
 	// Registers all the scene texture from the scene context. No fallback is provided to catch mistake at shader parameter validation time
 	// when a pass is trying to access a resource before any other pass actually created it.
-	Parameters.GBufferVelocityTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.SceneVelocity);
-	Parameters.GBufferATexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferA);
-	Parameters.GBufferBTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferB);
-	Parameters.GBufferCTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferC);
-	Parameters.GBufferDTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferD);
-	Parameters.GBufferETexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferE);
-	Parameters.GBufferFTexture = RegisterExternalTextureWithFallback(GraphBuilder, SceneContext.GBufferF, GSystemTextures.BlackDummy);
+	Parameters.GBufferVelocityTexture = GetIfProduced(SceneTextures.Velocity);
+	Parameters.GBufferATexture = GetIfProduced(SceneTextures.GBufferA);
+	Parameters.GBufferBTexture = GetIfProduced(SceneTextures.GBufferB);
+	Parameters.GBufferCTexture = GetIfProduced(SceneTextures.GBufferC);
+	Parameters.GBufferDTexture = GetIfProduced(SceneTextures.GBufferD);
+	Parameters.GBufferETexture = GetIfProduced(SceneTextures.GBufferE);
+	Parameters.GBufferFTexture = GetIfProduced(SceneTextures.GBufferF, SystemTextures.Black);
 
 	return Parameters;
 }

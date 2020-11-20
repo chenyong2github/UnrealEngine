@@ -39,7 +39,7 @@ void RenderHairPrePass(
 void RenderHairBasePass(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
-	FSceneRenderTargets& SceneContext,
+	const FSceneTextures& SceneTextures,
 	TArray<FViewInfo>& Views,
 	FHairStrandsRenderingData& OutHairDatas);
 

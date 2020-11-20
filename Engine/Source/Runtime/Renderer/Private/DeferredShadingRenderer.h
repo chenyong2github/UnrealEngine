@@ -614,7 +614,7 @@ private:
 
 	void RenderVelocities(
 		FRDGBuilder& GraphBuilder,
-		FSceneTextures& SceneTextures,
+		const FSceneTextures& SceneTextures,
 		EVelocityPass VelocityPass,
 		bool bForceVelocity);
 

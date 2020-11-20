@@ -544,7 +544,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		ETextureCreateFlags AddFlags = bRequiresMultiPass ? TexCreate_InputAttachmentRead : (TexCreate_InputAttachmentRead | TexCreate_Memoryless);
 
-		SceneContext.AllocVelocityTarget(RHICmdList);
 		SceneContext.AllocGBufferTargets(RHICmdList, AddFlags);
 	}
 

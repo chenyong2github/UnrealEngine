@@ -395,9 +395,10 @@ static void UpdatePlanarReflectionContents_RenderThread(
 				FRDGSystemTextures::Create(GraphBuilder);
 
 				FRDGTextureRef ViewFamilyTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTarget->TextureRHI, TEXT("ViewFamilyTexture")));
-				FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(FSceneRenderTargets::Get().GetSceneColor());
 
-				FSceneTextureShaderParameters SceneTextures = CreateSceneTextureShaderParameters(GraphBuilder, SceneRenderer->FeatureLevel, ESceneTextureSetupMode::SceneDepth);
+				const FSceneTextures& SceneTextures = FSceneTextures::CreateMinimal(GraphBuilder);
+
+				FSceneTextureShaderParameters SceneTextureParameters = CreateSceneTextureShaderParameters(GraphBuilder, SceneRenderer->FeatureLevel, ESceneTextureSetupMode::SceneDepth);
 
 				for (int32 ViewIndex = 0; ViewIndex < SceneRenderer->Views.Num(); ++ViewIndex)
 				{
@@ -405,11 +406,11 @@ static void UpdatePlanarReflectionContents_RenderThread(
 					RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 					if (MainSceneRenderer->Scene->GetShadingPath() == EShadingPath::Deferred)
 					{
-						PrefilterPlanarReflection<true>(GraphBuilder, View, SceneTextures, SceneProxy, SceneColorTexture, ViewFamilyTexture);
+						PrefilterPlanarReflection<true>(GraphBuilder, View, SceneTextureParameters, SceneProxy, SceneTextures.Color.Resolve, ViewFamilyTexture);
 					}
 					else
 					{
-						PrefilterPlanarReflection<false>(GraphBuilder, View, SceneTextures, SceneProxy, SceneColorTexture, ViewFamilyTexture);
+						PrefilterPlanarReflection<false>(GraphBuilder, View, SceneTextureParameters, SceneProxy, SceneTextures.Color.Resolve, ViewFamilyTexture);
 					}
 				}
 				GraphBuilder.Execute();

@@ -33,7 +33,7 @@ void RenderHairPrePass(
 void RenderHairBasePass(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
-	FSceneRenderTargets& SceneContext,
+	const FSceneTextures& SceneTextures,
 	TArray<FViewInfo>& Views,
 	FHairStrandsRenderingData& OutHairDatas)
 {
@@ -44,19 +44,18 @@ void RenderHairBasePass(
 		const ERHIFeatureLevel::Type FeatureLevel = Scene->GetFeatureLevel();
 
 		// Hair visibility pass
-		TRefCountPtr<IPooledRenderTarget> SceneColor = SceneContext.IsSceneColorAllocated() ? SceneContext.GetSceneColor() : nullptr;
 		OutHairDatas.HairVisibilityViews = RenderHairStrandsVisibilityBuffer(
 			GraphBuilder, 
 			Scene, 
 			Views, 
-			SceneContext.GBufferA, 
-			SceneContext.GBufferB,
-			SceneContext.GBufferC,
-			SceneContext.GBufferD,
-			SceneContext.GBufferE,
-			SceneColor, 
-			SceneContext.SceneDepthZ, 
-			SceneContext.SceneVelocity, 
+			SceneTextures.GBufferA,
+			SceneTextures.GBufferB,
+			SceneTextures.GBufferC,
+			SceneTextures.GBufferD,
+			SceneTextures.GBufferE,
+			SceneTextures.Color.Resolve,
+			SceneTextures.Depth.Resolve,
+			SceneTextures.Velocity,
 			OutHairDatas.MacroGroupsPerViews);
 	}
 }

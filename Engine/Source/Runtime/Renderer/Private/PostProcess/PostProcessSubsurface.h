@@ -32,5 +32,5 @@ FScreenPassTexture AddVisualizeSubsurfacePass(FRDGBuilder& GraphBuilder, const F
 
 void AddSubsurfacePass(
 	FRDGBuilder& GraphBuilder,
-	FMinimalSceneTextures& SceneTextures,
+	FSceneTextures& SceneTextures,
 	TArrayView<const FViewInfo> Views);

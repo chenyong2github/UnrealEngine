@@ -90,17 +90,30 @@ struct FMinimalSceneTextures
 
 	FIntPoint Extent = FIntPoint::ZeroValue;
 	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::SM5;
+	EShaderPlatform ShaderPlatform = SP_PCD3D_SM5;
 
 	ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::None;
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> UniformBuffer{};
 };
 
-struct FSceneTextures : public FMinimalSceneTextures
+struct RENDERER_API FSceneTextures : public FMinimalSceneTextures
 {
-	RENDERER_API static FSceneTextures& Create(FRDGBuilder& GraphBuilder);
+	static FSceneTextures& Create(FRDGBuilder& GraphBuilder);
+	static FSceneTextures& CreateMinimal(FRDGBuilder& GraphBuilder);
+
+	static const FSceneTextures& Get(FRDGBuilder& GraphBuilder);
+
+	uint32 GetGBufferRenderTargets(TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets>& RenderTargets) const;
+	uint32 GetGBufferRenderTargets(ERenderTargetLoadAction LoadAction, FRenderTargetBindingSlots& RenderTargets) const;
 
 	FRDGTextureRef SmallDepth{};
 	FRDGTextureRef Velocity{};
+	FRDGTextureRef GBufferA{};
+	FRDGTextureRef GBufferB{};
+	FRDGTextureRef GBufferC{};
+	FRDGTextureRef GBufferD{};
+	FRDGTextureRef GBufferE{};
+	FRDGTextureRef GBufferF{};
 	FRDGTextureRef ScreenSpaceAO{};
 };
 
@@ -266,7 +279,6 @@ public:
 	const FTexture2DRHIRef& GetGBufferDTexture() const { return (const FTexture2DRHIRef&)GBufferD->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferETexture() const { return (const FTexture2DRHIRef&)GBufferE->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferFTexture() const { return (const FTexture2DRHIRef&)GBufferF->GetRenderTargetItem().ShaderResourceTexture; }
-	const FTexture2DRHIRef& GetGBufferVelocityTexture() const { return (const FTexture2DRHIRef&)SceneVelocity->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetFoveationTexture() const { return (const FTexture2DRHIRef&)FoveationTexture->GetRenderTargetItem().ShaderResourceTexture; }
 
 	const FTextureRHIRef& GetSceneColorSurface() const;
@@ -295,8 +307,6 @@ public:
 	FIntPoint GetTranslucentShadowDepthTextureResolution() const;
 	int32 GetTranslucentShadowDownsampleFactor() const { return 2; }
 
-	int32 GetNumGBufferTargets() const;
-
 	int32 GetMSAACount() const { return CurrentMSAACount; }
 
 	// ---
@@ -323,7 +333,6 @@ public:
 	// @param 1: add a reference, -1: remove a reference
 	void AdjustGBufferRefCount(FRHICommandList& RHICmdList, int Delta);
 
-	void PreallocGBufferTargets();
 	bool AllocateGBufferTargets(const FName& TargetName, ETextureCreateFlags TargetFlags) const;
 
 	EPixelFormat GetGBufferAFormat() const;
@@ -334,7 +343,6 @@ public:
 	EPixelFormat GetGBufferFFormat() const;
 	void AllocGBufferTargets(FRHICommandList& RHICmdList);
 	void AllocGBufferTargets(FRHICommandList& RHICmdList, ETextureCreateFlags AddTargetableFlags);
-	void AllocVelocityTarget(FRHICommandList& RHICmdList);
 
 	void AllocateReflectionTargets(FRHICommandList& RHICmdList, int32 TargetSize);
 
@@ -359,8 +367,6 @@ public:
 	// Scene depth and stencil.
 	TRefCountPtr<IPooledRenderTarget> SceneDepthZ;
 	TRefCountPtr<FRHIShaderResourceView> SceneStencilSRV;
-	// Scene velocity.
-	TRefCountPtr<IPooledRenderTarget> SceneVelocity;
 
 	// Quarter-sized version of the scene depths
 	TRefCountPtr<IPooledRenderTarget> SmallDepthZ;
@@ -451,16 +457,6 @@ public:
 	void AllocateDeferredShadingPathRenderTargets(FRDGBuilder& GraphBuilder, const int32 NumViews = 1);
 
 	void AllocateAnisotropyTarget(FRHICommandListImmediate& RHICmdList);
-
-	/** Fills the given FRenderPassInfo with the current GBuffer */
-	int32 FillGBufferRenderPassInfo(ERenderTargetLoadAction ColorLoadAction, FRHIRenderPassInfo& OutRenderPassInfo, int32& OutVelocityRTIndex) const;
-
-	/** Gets all GBuffers to use.  Returns the number actually used. */
-	int32 GetGBufferRenderTargets(const TRefCountPtr<IPooledRenderTarget>* OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex) const;
-	int32 GetGBufferRenderTargets(ERenderTargetLoadAction ColorLoadAction, FRHIRenderTargetView OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex) const;
-	int32 GetGBufferRenderTargets(FRDGBuilder& GraphBuilder, TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets>& OutRenderTargets) const;
-	int32 GetGBufferRenderTargets(FRDGBuilder& GraphBuilder, ERenderTargetLoadAction ColorLoadAction, FRenderTargetBinding OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex) const;
-	int32 GetGBufferRenderTargets(FRDGBuilder& GraphBuilder, ERenderTargetLoadAction ColorLoadAction, FRenderTargetBindingSlots& OutRenderTargets) const;
 
 private:
 

@@ -157,20 +157,123 @@ extern int32 GUseTranslucentLightingVolumes;
 
 RDG_REGISTER_BLACKBOARD_STRUCT(FSceneTextures);
 
-FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder)
+FSceneTextures& FSceneTextures::CreateMinimal(FRDGBuilder& GraphBuilder)
 {
 	auto& SceneTextures = GraphBuilder.Blackboard.Create<FSceneTextures>();
 
 	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	SceneTextures.Extent = SceneContext.GetBufferSizeXY();
 	SceneTextures.FeatureLevel = SceneContext.GetCurrentFeatureLevel();
+	SceneTextures.ShaderPlatform = GetFeatureLevelShaderPlatform(SceneTextures.FeatureLevel);
+	SceneTextures.Color = TryRegisterExternalTextureMSAA(GraphBuilder, SceneContext.GetSceneColor());
 
-	SceneTextures.Depth = RegisterExternalTextureMSAA(GraphBuilder, SceneContext.SceneDepthZ);
-	SceneTextures.Stencil = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(SceneTextures.Depth.Target, PF_X24_G8));
+	if (SceneContext.SceneDepthZ)
+	{
+		SceneTextures.Depth = RegisterExternalTextureMSAA(GraphBuilder, SceneContext.SceneDepthZ);
+		SceneTextures.Stencil = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(SceneTextures.Depth.Target, PF_X24_G8));
+	}
+
+	return SceneTextures;
+}
+
+FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder)
+{
+	auto& SceneTextures = CreateMinimal(GraphBuilder);
+
+	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	SceneTextures.SmallDepth = GraphBuilder.RegisterExternalTexture(SceneContext.SmallDepthZ, ERenderTargetTexture::Targetable);
 	SceneTextures.ScreenSpaceAO = CreateScreenSpaceAOTexture(GraphBuilder, SceneTextures.Extent);
 
+	{
+		FRDGTextureDesc Desc = FVelocityRendering::GetRenderTargetDesc(SceneTextures.ShaderPlatform, SceneTextures.Extent);
+
+		if (FVelocityRendering::BasePassCanOutputVelocity(SceneTextures.FeatureLevel))
+		{
+			Desc.Flags |= GFastVRamConfig.GBufferVelocity;
+		}
+
+		SceneTextures.Velocity = GraphBuilder.CreateTexture(Desc, TEXT("SceneVelocity"));
+	}
+
+	SceneTextures.GBufferA = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferA);
+	SceneTextures.GBufferB = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferB);
+	SceneTextures.GBufferC = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferC);
+	SceneTextures.GBufferD = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferD);
+	SceneTextures.GBufferE = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferE);
+	SceneTextures.GBufferF = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferF);
+
 	return SceneTextures;
+}
+
+const FSceneTextures& FSceneTextures::Get(FRDGBuilder& GraphBuilder)
+{
+	const FSceneTextures* SceneTextures = GraphBuilder.Blackboard.Get<FSceneTextures>();
+	checkf(SceneTextures, TEXT("FSceneTextures was not initialized. Call FSceneTextures::Create() first."));
+	return *SceneTextures;
+}
+
+uint32 FSceneTextures::GetGBufferRenderTargets(TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets>& RenderTargets) const
+{
+	uint32 RenderTargetCount = 0;
+
+	// All configurations use scene color in the first slot.
+	RenderTargets[RenderTargetCount++] = Color.Target;
+
+	if (IsUsingGBuffers(ShaderPlatform))
+	{
+		struct FGBufferEntry
+		{
+			FGBufferEntry(FRDGTextureRef InTexture, const TCHAR* InName)
+				: Texture(InTexture)
+				, Name(InName)
+			{}
+
+			FRDGTextureRef Texture;
+			const TCHAR* Name;
+		};
+
+		const FGBufferEntry GBufferEntries[] =
+		{
+			{ GBufferA, TEXT("GBufferA") },
+			{ GBufferB, TEXT("GBufferB") },
+			{ GBufferC, TEXT("GBufferC") },
+			{ GBufferD, TEXT("GBufferD") },
+			{ GBufferE, TEXT("GBufferE") },
+			{ GBufferF, TEXT("GBufferF") },
+			{ Velocity, TEXT("Velocity") }
+		};
+
+		const FGBufferInfo GBufferInfo = FetchFullGBufferInfo(FShaderCompileUtilities::FetchGBufferParamsRuntime(ShaderPlatform));
+
+		for (const FGBufferEntry& Entry : GBufferEntries)
+		{
+			const int32 Index = FindGBufferTargetByName(GBufferInfo, Entry.Name);
+			checkf(Index <= 0 || Entry.Texture != nullptr, TEXT("Texture '%s' was requested by FGBufferInfo, but it is null."), Entry.Name);
+			if (Index > 0)
+			{
+				RenderTargets[Index] = Entry.Texture;
+				RenderTargetCount = FMath::Max(RenderTargetCount, uint32(Index + 1));
+			}
+		}
+	}
+	// Forward shading path. Simple forward shading does not use velocity.
+	else if (IsUsingBasePassVelocity(ShaderPlatform) && !IsSimpleForwardShadingEnabled(ShaderPlatform))
+	{
+		RenderTargets[RenderTargetCount++] = Velocity;
+	}
+
+	return RenderTargetCount;
+}
+
+uint32 FSceneTextures::GetGBufferRenderTargets(ERenderTargetLoadAction LoadAction, FRenderTargetBindingSlots& RenderTargetBindingSlots) const
+{
+	TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets> RenderTargets;
+	const uint32 RenderTargetCount = GetGBufferRenderTargets(RenderTargets);
+	for (uint32 Index = 0; Index < RenderTargetCount; ++Index)
+	{
+		RenderTargetBindingSlots[Index] = FRenderTargetBinding(RenderTargets[Index], LoadAction);
+	}
+	return RenderTargetCount;
 }
 
 FSceneRenderTargets& FSceneRenderTargets::Get()
@@ -579,301 +682,6 @@ void FSceneRenderTargets::Allocate(FRDGBuilder& GraphBuilder, const FSceneRender
 	AllocateRenderTargets(GraphBuilder, ViewFamily.Views.Num());
 }
 
-static int32 FindGBufferTargetIndex(const FGBufferInfo& GBufferInfo, const FString& Name)
-{
-	for (int32 I = 0; I < GBufferInfo.NumTargets; I++)
-	{
-		if (GBufferInfo.Targets[I].TargetName.Compare(Name) == 0)
-		{
-			return I;
-		}
-	}
-
-	return -1;
-}
-
-// This code is copy/paste/modified from the existing logic. Where in the old code it would set the targets using this logic, now it's just checks and verifies.
-static void CheckLegacyGBufferFormat(const FGBufferInfo& GBufferInfo, EShaderPlatform ShaderPlatform, bool bAllocateVelocityGBuffer, bool bAllowTangentGBuffer, bool bAllowStaticLighting)
-{
-	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
-
-	int32 TempOutVelocityRTIndex = -1;
-	int32 TempOutTangentRTIndex = -1;
-
-	// make sure that the GBuffer slots aligned with the old render target lobic
-	int32 MRTCount = 0;
-	MRTCount++;
-
-	if (bUseGBuffer)
-	{
-		check(GBufferInfo.Targets[MRTCount].TargetName.Compare(TEXT("GBufferA")) == 0);
-		MRTCount++;
-		check(GBufferInfo.Targets[MRTCount].TargetName.Compare(TEXT("GBufferB")) == 0);
-		MRTCount++;
-		check(GBufferInfo.Targets[MRTCount].TargetName.Compare(TEXT("GBufferC")) == 0);
-		MRTCount++;
-	}
-
-	// The velocity buffer needs to be bound before other optionnal rendertargets (when UseSelectiveBasePassOutputs() is true).
-	// Otherwise there is an issue on some AMD hardware where the target does not get updated. Seems to be related to the velocity buffer format as it works fine with other targets.
-	if (bAllocateVelocityGBuffer && !IsSimpleForwardShadingEnabled(ShaderPlatform))
-	{
-		TempOutVelocityRTIndex = MRTCount;
-		check(TempOutVelocityRTIndex == 4 || (!bUseGBuffer && TempOutVelocityRTIndex == 1)); // As defined in BasePassPixelShader.usf
-
-		check(GBufferInfo.Targets[MRTCount].TargetName.Compare(TEXT("Velocity")) == 0);
-		MRTCount++;
-	}
-	else
-	{
-		//OutVelocityRTIndex = -1;
-	}
-
-	if (bUseGBuffer && bAllowTangentGBuffer)
-	{
-		check(!bAllocateVelocityGBuffer);
-		TempOutTangentRTIndex = MRTCount;
-
-		check(GBufferInfo.Targets[MRTCount].TargetName.Compare(TEXT("GBufferF")) == 0);
-		MRTCount++;
-	}
-	else
-	{
-		TempOutTangentRTIndex = -1;
-	}
-
-	if (bUseGBuffer)
-	{
-		check(GBufferInfo.Targets[MRTCount].TargetName.Compare(TEXT("GBufferD")) == 0);
-		MRTCount++;
-
-		if (bAllowStaticLighting)
-		{
-			check(MRTCount == (bAllocateVelocityGBuffer || bAllowTangentGBuffer ? 6 : 5)); // As defined in BasePassPixelShader.usf
-			check(GBufferInfo.Targets[MRTCount].TargetName.Compare(TEXT("GBufferE")) == 0);
-			MRTCount++;
-		}
-	}
-}
-
-// temporary #if, keeping backup for emergency testing in case it's necessary briefly
-#if 1
-
-int32 FSceneRenderTargets::GetGBufferRenderTargets(const TRefCountPtr<IPooledRenderTarget>* OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex) const
-{
-	int32 OutTangentRTIndex = -1;
-	FGBufferInfo GBufferInfo = {};
-
-	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
-	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
-
-	int32 NumTargets = 0;
-
-	if (!bUseGBuffer)
-	{
-		OutTangentRTIndex = -1; // no tangent allowed
-
-		if (bAllocateVelocityGBuffer && !IsSimpleForwardShadingEnabled(ShaderPlatform))
-		{
-			// if velocity buffer SceneColor is 0 and Velocity is 1
-			OutRenderTargets[0] = &GetSceneColor();
-			OutRenderTargets[1] = &SceneVelocity;
-			OutVelocityRTIndex = 1;
-			NumTargets = 2;
-		}
-		else
-		{
-			// otherwise, SceneColor is 0, with no velocity
-			OutRenderTargets[0] = &GetSceneColor();
-			OutVelocityRTIndex = -1;
-			NumTargets = 1;
-		}
-	}
-	else
-	{
-		{
-			FGBufferParams Params = FShaderCompileUtilities::FetchGBufferParamsRuntime(ShaderPlatform);
-			GBufferInfo = FetchFullGBufferInfo(Params);
-		}
-
-		// validate legacy GBuffer
-		bool bAllowTangentGBuffer = false; // in the past, this was an option, then it was taken out for 4.26, and now we're putting it back in
-		CheckLegacyGBufferFormat(GBufferInfo, ShaderPlatform, bAllocateVelocityGBuffer, bAllowTangentGBuffer, bAllowStaticLighting);
-
-		{
-			OutRenderTargets[0] = &GetSceneColor();
-
-			int32 IndexGBufferA = FindGBufferTargetByName(GBufferInfo, "GBufferA");
-			int32 IndexGBufferB = FindGBufferTargetByName(GBufferInfo, "GBufferB");
-			int32 IndexGBufferC = FindGBufferTargetByName(GBufferInfo, "GBufferC");
-			int32 IndexGBufferD = FindGBufferTargetByName(GBufferInfo, "GBufferD");
-			int32 IndexGBufferE = FindGBufferTargetByName(GBufferInfo, "GBufferE");
-			int32 IndexGBufferF = FindGBufferTargetByName(GBufferInfo, "GBufferF");
-			int32 IndexVelocity = FindGBufferTargetByName(GBufferInfo, "Velocity");
-
-			// sanity checks
-			if (bUseGBuffer)
-			{
-				check(IndexGBufferA >= 0);
-				check(IndexGBufferB >= 0);
-				check(IndexGBufferC >= 0);
-			}
-
-			if (bAllocateVelocityGBuffer && !IsSimpleForwardShadingEnabled(ShaderPlatform))
-			{
-				check(IndexVelocity >= 0);
-			}
-
-			if (bUseGBuffer && bAllowTangentGBuffer)
-			{
-				check(IndexGBufferF >= 0);
-			}
-
-			if (bUseGBuffer)
-			{
-				check(IndexGBufferD >= 0);
-
-				if (bAllowStaticLighting)
-				{
-					check(IndexGBufferE >= 0);
-				}
-			}
-
-			if (IndexGBufferA >= 0) OutRenderTargets[IndexGBufferA] = &GBufferA;
-			if (IndexGBufferB >= 0) OutRenderTargets[IndexGBufferB] = &GBufferB;
-			if (IndexGBufferC >= 0) OutRenderTargets[IndexGBufferC] = &GBufferC;
-			if (IndexGBufferD >= 0) OutRenderTargets[IndexGBufferD] = &GBufferD;
-			if (IndexGBufferE >= 0) OutRenderTargets[IndexGBufferE] = &GBufferE;
-			if (IndexGBufferF >= 0) OutRenderTargets[IndexGBufferF] = &GBufferF;
-			if (IndexVelocity >= 0) OutRenderTargets[IndexVelocity] = &SceneVelocity;
-
-			OutTangentRTIndex = IndexGBufferF;
-			OutVelocityRTIndex = IndexVelocity;
-		}
-
-		check(GBufferInfo.NumTargets <= MaxSimultaneousRenderTargets);
-		NumTargets = GBufferInfo.NumTargets;
-	}
-
-	return NumTargets;
-}
-
-#else
-
-int32 FSceneRenderTargets::GetGBufferRenderTargets(const TRefCountPtr<IPooledRenderTarget>* OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex) const
-{
-	int32 MRTCount = 0;
-	OutRenderTargets[MRTCount++] = &GetSceneColor();
-
-	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
-	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
-
-	if (bUseGBuffer)
-	{
-		OutRenderTargets[MRTCount++] = &GBufferA;
-		OutRenderTargets[MRTCount++] = &GBufferB;
-		OutRenderTargets[MRTCount++] = &GBufferC;
-	}
-
-	// The velocity buffer needs to be bound before other optionnal rendertargets (when UseSelectiveBasePassOutputs() is true).
-	// Otherwise there is an issue on some AMD hardware where the target does not get updated. Seems to be related to the velocity buffer format as it works fine with other targets.
-	if (bAllocateVelocityGBuffer && !IsSimpleForwardShadingEnabled(ShaderPlatform))
-	{
-		OutVelocityRTIndex = MRTCount;
-		check(OutVelocityRTIndex == 4 || (!bUseGBuffer && OutVelocityRTIndex == 1)); // As defined in BasePassPixelShader.usf
-		OutRenderTargets[MRTCount++] = &SceneVelocity;
-	}
-	else
-	{
-		OutVelocityRTIndex = -1;
-	}
-
-	if (bUseGBuffer)
-	{
-		OutRenderTargets[MRTCount++] = &GBufferD;
-
-		if (bAllowStaticLighting)
-		{
-			check(MRTCount == (bAllocateVelocityGBuffer ? 6 : 5)); // As defined in BasePassPixelShader.usf
-			OutRenderTargets[MRTCount++] = &GBufferE;
-		}
-	}
-
-	check(MRTCount <= MaxSimultaneousRenderTargets);
-	return MRTCount;
-}
-
-#endif
-
-
-int32 FSceneRenderTargets::FillGBufferRenderPassInfo(ERenderTargetLoadAction ColorLoadAction, FRHIRenderPassInfo& OutRenderPassInfo, int32& OutVelocityRTIndex) const
-{
-	const TRefCountPtr<IPooledRenderTarget>* RenderTargets[MaxSimultaneousRenderTargets];
-	int32 MRTCount = GetGBufferRenderTargets(RenderTargets, OutVelocityRTIndex);
-
-	for (int32 MRTIdx = 0; MRTIdx < MRTCount; ++MRTIdx)
-	{
-		OutRenderPassInfo.ColorRenderTargets[MRTIdx].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
-		OutRenderPassInfo.ColorRenderTargets[MRTIdx].RenderTarget = (*RenderTargets[MRTIdx])->GetTargetableRHI();
-		OutRenderPassInfo.ColorRenderTargets[MRTIdx].ArraySlice = -1;
-		OutRenderPassInfo.ColorRenderTargets[MRTIdx].MipIndex = 0;
-	}
-
-	return MRTCount;
-}
-
-int32 FSceneRenderTargets::GetGBufferRenderTargets(ERenderTargetLoadAction ColorLoadAction, FRHIRenderTargetView OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex) const
-{
-	const TRefCountPtr<IPooledRenderTarget>* RenderTargets[MaxSimultaneousRenderTargets];
-	int32 MRTCount = GetGBufferRenderTargets(RenderTargets, OutVelocityRTIndex);
-
-	for (int32 MRTIdx = 0; MRTIdx < MRTCount; ++MRTIdx)
-	{
-		OutRenderTargets[MRTIdx] = FRHIRenderTargetView((*RenderTargets[MRTIdx])->GetTargetableRHI(), 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
-	}
-
-	return MRTCount;
-}
-
-int32 FSceneRenderTargets::GetGBufferRenderTargets(FRDGBuilder& GraphBuilder, ERenderTargetLoadAction ColorLoadAction, FRenderTargetBinding OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex) const
-{
-	const TRefCountPtr<IPooledRenderTarget>* RenderTargets[MaxSimultaneousRenderTargets];
-	int32 MRTCount = GetGBufferRenderTargets(RenderTargets, OutVelocityRTIndex);
-
-	for (int32 MRTIdx = 0; MRTIdx < MRTCount; ++MRTIdx)
-	{
-		OutRenderTargets[MRTIdx] = FRenderTargetBinding(GraphBuilder.RegisterExternalTexture(*RenderTargets[MRTIdx], ERenderTargetTexture::Targetable), ColorLoadAction);
-	}
-
-	return MRTCount;
-}
-
-int32 FSceneRenderTargets::GetGBufferRenderTargets(FRDGBuilder& GraphBuilder, TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets>& OutRenderTargets) const
-{
-	int32 OutVelocityRTIndex = -1;
-	const TRefCountPtr<IPooledRenderTarget>* RenderTargets[MaxSimultaneousRenderTargets];
-	const int32 Count = GetGBufferRenderTargets(RenderTargets, OutVelocityRTIndex);
-
-	for (int32 Index = 0; Index < Count; ++Index)
-	{
-		OutRenderTargets[Index] = GraphBuilder.RegisterExternalTexture(*RenderTargets[Index], ERenderTargetTexture::Targetable);
-	}
-	return Count;
-}
-
-int32 FSceneRenderTargets::GetGBufferRenderTargets(FRDGBuilder& GraphBuilder, ERenderTargetLoadAction ColorLoadAction, FRenderTargetBindingSlots& OutRenderTargets) const
-{
-	int32 OutVelocityRTIndex = -1;
-	const TRefCountPtr<IPooledRenderTarget>* RenderTargets[MaxSimultaneousRenderTargets];
-	const int32 Count = GetGBufferRenderTargets(RenderTargets, OutVelocityRTIndex);
-
-	for (int32 Index = 0; Index < Count; ++Index)
-	{
-		OutRenderTargets[Index] = FRenderTargetBinding(GraphBuilder.RegisterExternalTexture(*RenderTargets[Index], ERenderTargetTexture::Targetable), ColorLoadAction);
-	}
-	return Count;
-}
-
 FUnorderedAccessViewRHIRef FSceneRenderTargets::GetVirtualTextureFeedbackUAV() const
 {
 	return VirtualTextureFeedbackUAV.IsValid() ? VirtualTextureFeedbackUAV : GEmptyVertexBufferWithUAV->UnorderedAccessViewRHI;
@@ -936,27 +744,6 @@ FUnorderedAccessViewRHIRef FSceneRenderTargets::GetQuadOverdrawBufferUAV() const
 	}
 #endif
 	return GBlackTextureWithUAV->UnorderedAccessViewRHI;
-}
-
-int32 FSceneRenderTargets::GetNumGBufferTargets() const
-{
-	int32 NumGBufferTargets = 1;
-
-	if (CurrentFeatureLevel >= ERHIFeatureLevel::SM5)
-	{
-		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
-		if (IsUsingGBuffers(ShaderPlatform))
-		{
-			// This needs to match TBasePassPixelShaderBaseType::ModifyCompilationEnvironment()
-			NumGBufferTargets = bAllowStaticLighting ? 6 : 5;
-		}
-
-		if (bAllocateVelocityGBuffer)
-		{
-			++NumGBufferTargets;
-		}
-	}
-	return NumGBufferTargets;
 }
 
 void FSceneRenderTargets::AllocSceneColor(FRHICommandList& RHICmdList)
@@ -1070,12 +857,6 @@ void FSceneRenderTargets::ReleaseGBufferTargets()
 	GBufferD.SafeRelease();
 	GBufferE.SafeRelease();
 	GBufferF.SafeRelease();
-	SceneVelocity.SafeRelease();
-}
-
-void FSceneRenderTargets::PreallocGBufferTargets()
-{
-	bAllocateVelocityGBuffer = FVelocityRendering::BasePassCanOutputVelocity(CurrentFeatureLevel);
 }
 
 EPixelFormat FSceneRenderTargets::GetGBufferAFormat() const
@@ -1201,18 +982,6 @@ static FPooledRenderTargetDesc GetDescFromRenderTarget(FIntPoint BufferSize, con
 	return Desc;
 }
 
-void FSceneRenderTargets::AllocVelocityTarget(FRHICommandList& RHICmdList)
-{
-	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
-
-	if (bAllocateVelocityGBuffer)
-	{
-		FPooledRenderTargetDesc VelocityRTDesc = Translate(FVelocityRendering::GetRenderTargetDesc(ShaderPlatform));
-		VelocityRTDesc.Flags |= GFastVRamConfig.GBufferVelocity;
-		GRenderTargetPool.FindFreeElement(RHICmdList, VelocityRTDesc, SceneVelocity, TEXT("GBufferVelocity"));
-	}
-}
-
 void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList, ETextureCreateFlags AddTargetableFlags)
 {	
 	// AdjustGBufferRefCount +1 doesn't match -1 (within the same frame)
@@ -1305,7 +1074,6 @@ void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList, EText
 
 	}
 
-	FVelocityRendering::GetRenderTargetDesc(ShaderPlatform);
 #else
 	if (bUseGBuffer)
 	{
@@ -1346,13 +1114,6 @@ void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList, EText
 
 		// otherwise we have a severe problem
 		check(GBufferA);
-	}
-
-	if (bAllocateVelocityGBuffer)
-	{
-		FPooledRenderTargetDesc VelocityRTDesc = Translate(FVelocityRendering::GetRenderTargetDesc(ShaderPlatform));
-		VelocityRTDesc.Flags |= GFastVRamConfig.GBufferVelocity;
-		GRenderTargetPool.FindFreeElement(RHICmdList, VelocityRTDesc, SceneVelocity, TEXT("GBufferVelocity"));
 	}
 #endif
 
@@ -1407,10 +1168,6 @@ void FSceneRenderTargets::AdjustGBufferRefCount(FRHICommandList& RHICmdList, int
 		}
 	}	
 }
-
-
-
-
 
 void FSceneRenderTargets::CleanUpEditorPrimitiveTargets()
 {
@@ -1741,13 +1498,6 @@ void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRDGBuilder& 
 
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(SmallDepthZSize, PF_DepthStencil, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, true));
 		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, SmallDepthZ, TEXT("SmallDepthZ"), ERenderTargetTransience::NonTransient);
-	}
-
-	if (bAllocateVelocityGBuffer)
-	{
-		FPooledRenderTargetDesc VelocityRTDesc = Translate(FVelocityRendering::GetRenderTargetDesc(ShaderPlatform));
-		VelocityRTDesc.Flags |= GFastVRamConfig.GBufferVelocity;
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, VelocityRTDesc, SceneVelocity, TEXT("GBufferVelocity"));
 	}
 
 	AllocateVirtualTextureFeedbackBuffer(GraphBuilder.RHICmdList);
@@ -2231,20 +1981,24 @@ void SetupSceneTextureUniformParameters(
 	ESceneTextureSetupMode SetupMode,
 	FSceneTextureUniformParameters& SceneTextureParameters)
 {
-	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
-	const auto GetRDG = [&](const TRefCountPtr<IPooledRenderTarget>& PooledRenderTarget, ERDGTextureFlags Flags = ERDGTextureFlags::None)
-	{
-		return GraphBuilder.RegisterExternalTexture(PooledRenderTarget, ERenderTargetTexture::ShaderResource, Flags);
-	};
-
+	SceneTextureParameters.PointClampSampler = TStaticSamplerState<SF_Point>::GetRHI();
 	SceneTextureParameters.SceneColorTexture = SystemTextures.Black;
 	SceneTextureParameters.SceneDepthTexture = SystemTextures.DepthDummy;
+	SceneTextureParameters.GBufferATexture = SystemTextures.Black;
+	SceneTextureParameters.GBufferBTexture = SystemTextures.Black;
+	SceneTextureParameters.GBufferCTexture = SystemTextures.Black;
+	SceneTextureParameters.GBufferDTexture = SystemTextures.Black;
+	SceneTextureParameters.GBufferETexture = SystemTextures.Black;
+	SceneTextureParameters.GBufferFTexture = SystemTextures.Black;
+	SceneTextureParameters.GBufferVelocityTexture = SystemTextures.Black;
+	SceneTextureParameters.ScreenSpaceAOTexture = GetScreenSpaceAOFallback(SystemTextures);
 
-	// Scene Color / Depth
 	if (const FSceneTextures* SceneTextures = GraphBuilder.Blackboard.Get<FSceneTextures>())
 	{
+		const EShaderPlatform ShaderPlatform = SceneTextures->ShaderPlatform;
+
 		if (EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::SceneColor))
 		{
 			SceneTextureParameters.SceneColorTexture = SceneTextures->Color.Resolve;
@@ -2254,46 +2008,54 @@ void SetupSceneTextureUniformParameters(
 		{
 			SceneTextureParameters.SceneDepthTexture = SceneTextures->Depth.Resolve;
 		}
-	}
 
-	// GBuffer
-	{
-		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
-		const bool bCanReadGBufferUniforms = IsUsingGBuffers(ShaderPlatform) || IsSimpleForwardShadingEnabled(ShaderPlatform);
-
-		// Allocate the Gbuffer resource uniform buffer.
-		SceneTextureParameters.GBufferATexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferA) && SceneContext.GBufferA ? GetRDG(SceneContext.GBufferA) : SystemTextures.Black;
-		SceneTextureParameters.GBufferBTexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferB) && SceneContext.GBufferB ? GetRDG(SceneContext.GBufferB) : SystemTextures.Black;
-		SceneTextureParameters.GBufferCTexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferC) && SceneContext.GBufferC ? GetRDG(SceneContext.GBufferC) : SystemTextures.Black;
-		SceneTextureParameters.GBufferDTexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferD) && SceneContext.GBufferD ? GetRDG(SceneContext.GBufferD) : SystemTextures.Black;
-		SceneTextureParameters.GBufferETexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferE) && SceneContext.GBufferE ? GetRDG(SceneContext.GBufferE) : SystemTextures.Black;
-		SceneTextureParameters.GBufferFTexture = bCanReadGBufferUniforms && EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferF) && SceneContext.GBufferF ? GetRDG(SceneContext.GBufferF) : SystemTextures.Black;
-	}
-
-	// Velocity
-	{
-		SceneTextureParameters.GBufferVelocityTexture = EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::SceneVelocity) && SceneContext.SceneVelocity ? GetRDG(SceneContext.SceneVelocity) : SystemTextures.Black;
-	}
-
-	// SSAO
-	{
-		const bool bSetupSSAO = EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::SSAO);
-		SceneTextureParameters.ScreenSpaceAOTexture = GetScreenSpaceAOFallback(SystemTextures);
-
-		if (bSetupSSAO)
+		if (IsUsingGBuffers(ShaderPlatform) || IsSimpleForwardShadingEnabled(ShaderPlatform))
 		{
-			if (const FSceneTextures* SceneTextures = GraphBuilder.Blackboard.Get<FSceneTextures>())
+			if (EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferA) && HasBeenProduced(SceneTextures->GBufferA))
 			{
-				if (HasBeenProduced(SceneTextures->ScreenSpaceAO))
-				{
-					SceneTextureParameters.ScreenSpaceAOTexture = SceneTextures->ScreenSpaceAO;
-				}
+				SceneTextureParameters.GBufferATexture = SceneTextures->GBufferA;
 			}
+
+			if (EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferB) && HasBeenProduced(SceneTextures->GBufferB))
+			{
+				SceneTextureParameters.GBufferBTexture = SceneTextures->GBufferB;
+			}
+
+			if (EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferC) && HasBeenProduced(SceneTextures->GBufferC))
+			{
+				SceneTextureParameters.GBufferCTexture = SceneTextures->GBufferC;
+			}
+
+			if (EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferD) && HasBeenProduced(SceneTextures->GBufferD))
+			{
+				SceneTextureParameters.GBufferDTexture = SceneTextures->GBufferD;
+			}
+
+			if (EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferE) && HasBeenProduced(SceneTextures->GBufferE))
+			{
+				SceneTextureParameters.GBufferETexture = SceneTextures->GBufferE;
+			}
+
+			if (EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferF) && HasBeenProduced(SceneTextures->GBufferF))
+			{
+				SceneTextureParameters.GBufferFTexture = SceneTextures->GBufferF;
+			}
+		}
+
+		if (EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::SceneVelocity) && HasBeenProduced(SceneTextures->Velocity))
+		{
+			SceneTextureParameters.GBufferVelocityTexture = SceneTextures->Velocity;
+		}
+
+		if (EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::SSAO) && HasBeenProduced(SceneTextures->ScreenSpaceAO))
+		{
+			SceneTextureParameters.ScreenSpaceAOTexture = SceneTextures->ScreenSpaceAO;
 		}
 	}
 
 	// Custom Depth / Stencil
 	{
+		const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 		const bool bSetupCustomDepth = EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::CustomDepth);
 
 		FRDGTextureRef CustomDepth = SystemTextures.DepthDummy;
@@ -2302,15 +2064,13 @@ void SetupSceneTextureUniformParameters(
 		if (SceneContext.bCustomDepthIsValid)
 		{
 			check(SceneContext.CustomDepth && SceneContext.CustomStencilSRV);
-			CustomDepth = GetRDG(SceneContext.CustomDepth);
+			CustomDepth = GraphBuilder.RegisterExternalTexture(SceneContext.CustomDepth);
 			CustomStencilSRV = SceneContext.CustomStencilSRV;
 		}
 
 		SceneTextureParameters.CustomDepthTexture = CustomDepth;
 		SceneTextureParameters.CustomStencilTexture = CustomStencilSRV;
 	}
-
-	SceneTextureParameters.PointClampSampler = TStaticSamplerState<SF_Point>::GetRHI();
 }
 
 void SetupSceneTextureUniformParameters(
