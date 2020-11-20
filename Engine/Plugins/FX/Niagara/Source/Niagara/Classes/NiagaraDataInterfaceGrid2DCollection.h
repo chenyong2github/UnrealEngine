@@ -130,10 +130,10 @@ public:
 	uint8 bOverrideFormat : 1;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(Transient, EditAnywhere, Category = "Grid2DCollection", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = "Grid2DCollection", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bPreviewGrid : 1;
 
-	UPROPERTY(Transient, EditAnywhere, Category = "Grid2DCollection", meta = (EditCondition = "bPreviewGrid", ToolTip = "When enabled allows you to preview the grid in a debug display") )
+	UPROPERTY(EditAnywhere, Category = "Grid2DCollection", meta = (EditCondition = "bPreviewGrid", ToolTip = "When enabled allows you to preview the grid in a debug display") )
 	FName PreviewAttribute = NAME_None;
 #endif
 
