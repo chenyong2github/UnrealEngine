@@ -121,6 +121,14 @@ public:
 	/** Converts selected objects to constants */
 	TSharedPtr< FUICommandInfo > ConvertToConstant;
 
+	/** Local variables select helpers */
+	TSharedPtr< FUICommandInfo > SelectNamedRerouteDeclaration;
+	TSharedPtr< FUICommandInfo > SelectNamedRerouteUsages;
+
+	/** Conversion between reroute nodes and local variables */
+	TSharedPtr< FUICommandInfo > ConvertRerouteToNamedReroute;
+	TSharedPtr< FUICommandInfo > ConvertNamedRerouteToReroute;
+
 	/** Stops a node from being previewed in the viewport */
 	TSharedPtr< FUICommandInfo > StopPreviewNode;
 	

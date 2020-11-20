@@ -97,6 +97,33 @@ struct UNREALED_API FMaterialGraphSchemaAction_NewComment : public FEdGraphSchem
 	//~ End FEdGraphSchemaAction Interface
 };
 
+/** Action to add a local variable usage to the graph */
+USTRUCT()
+struct UNREALED_API FMaterialGraphSchemaAction_NewNamedRerouteUsage : public FEdGraphSchemaAction
+{
+	GENERATED_USTRUCT_BODY();
+
+	// Declaration that we want to add an usage of
+	UPROPERTY()
+	class UMaterialExpressionNamedRerouteDeclaration* Declaration = nullptr;
+
+	// Simple type info
+	static FName StaticGetTypeId() {static FName Type("FMaterialGraphSchemaAction_NewNamedRerouteUsage"); return Type;}
+	virtual FName GetTypeId() const override { return StaticGetTypeId(); } 
+
+	FMaterialGraphSchemaAction_NewNamedRerouteUsage() 
+		: FEdGraphSchemaAction()
+	{}
+
+	FMaterialGraphSchemaAction_NewNamedRerouteUsage(FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping)
+		: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping)
+	{}
+
+	//~ Begin FEdGraphSchemaAction Interface
+	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	//~ End FEdGraphSchemaAction Interface
+};
+
 /** Action to paste clipboard contents into the graph */
 USTRUCT()
 struct UNREALED_API FMaterialGraphSchemaAction_Paste : public FEdGraphSchemaAction
@@ -214,6 +241,8 @@ private:
 	void GetMaterialFunctionActions(FGraphActionMenuBuilder& ActionMenuBuilder) const;
 	/** Adds action for creating a comment */
 	void GetCommentAction(FGraphActionMenuBuilder& ActionMenuBuilder, const UEdGraph* CurrentGraph = NULL) const;
+	/** Adds actions for local variables */
+	void GetNamedRerouteActions(FGraphActionMenuBuilder& ActionMenuBuilder, const UEdGraph* CurrentGraph) const;
 	/**
 	 * Checks whether a Material Function has any connections that are compatible with a type/direction
 	 *

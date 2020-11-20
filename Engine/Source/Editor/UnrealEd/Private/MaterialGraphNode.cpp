@@ -32,6 +32,8 @@
 #include "Materials/MaterialExpressionViewProperty.h"
 #include "Materials/MaterialExpressionMaterialLayerOutput.h"
 #include "Materials/MaterialExpressionTextureObjectParameter.h"
+#include "Materials/MaterialExpressionNamedReroute.h"
+#include "Materials/MaterialExpressionReroute.h"
 
 #include "MaterialEditorUtilities.h"
 #include "MaterialEditorActions.h"
@@ -273,6 +275,10 @@ FLinearColor UMaterialGraphNode::GetNodeTitleColor() const
 		// Previously FColor(255, 155, 0);
 		return Settings->ResultNodeTitleColor;
 	}
+	else if (MaterialExpression->IsA(UMaterialExpressionNamedRerouteBase::StaticClass()))
+	{
+		return FColor::Black;
+	}
 	else if (UMaterial::IsParameter(MaterialExpression))
 	{
 		if (Material->HasDuplicateParameters(MaterialExpression))
@@ -359,6 +365,28 @@ void UMaterialGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 						Section.AddMenuEntry(FMaterialEditorCommands::Get().ConvertToTextureSamples);
 					}
 				}
+			}
+
+			// Add a 'Convert to Local Variables' option to reroute nodes
+			if (MaterialExpression->IsA(UMaterialExpressionReroute::StaticClass()))
+			{
+				FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenu1");
+				Section.AddMenuEntry(FMaterialEditorCommands::Get().ConvertRerouteToNamedReroute);
+			}
+
+			// Add local variables selection & conversion to reroute nodes
+			if (MaterialExpression->IsA(UMaterialExpressionNamedRerouteBase::StaticClass()))
+			{
+				FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenu1");
+				if (MaterialExpression->IsA(UMaterialExpressionNamedRerouteDeclaration::StaticClass()))
+				{
+					Section.AddMenuEntry(FMaterialEditorCommands::Get().SelectNamedRerouteUsages);
+				}
+				if (MaterialExpression->IsA(UMaterialExpressionNamedRerouteUsage::StaticClass()))
+				{
+					Section.AddMenuEntry(FMaterialEditorCommands::Get().SelectNamedRerouteDeclaration);
+				}
+				Section.AddMenuEntry(FMaterialEditorCommands::Get().ConvertNamedRerouteToReroute);
 			}
 
 			// Add a 'Convert To Parameter' option for convertible types

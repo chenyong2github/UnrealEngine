@@ -22,7 +22,7 @@
 #include "ComponentReregisterContext.h"
 #include "Materials/MaterialExpressionBreakMaterialAttributes.h"
 #include "Materials/MaterialExpressionShadingModel.h"
-#include "Materials/MaterialExpressionReroute.h"
+#include "Materials/MaterialExpressionRerouteBase.h"
 #include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
 #include "ShaderCompiler.h"
 #include "MaterialCompiler.h"
@@ -275,9 +275,9 @@ void FExpressionInput::Connect( int32 InOutputIndex, class UMaterialExpression* 
 FExpressionInput FExpressionInput::GetTracedInput() const
 {
 #if WITH_EDITORONLY_DATA
-	if (Expression != nullptr && Expression->IsA(UMaterialExpressionReroute::StaticClass()))
+	if (Expression != nullptr && Expression->IsA(UMaterialExpressionRerouteBase::StaticClass()))
 	{
-		UMaterialExpressionReroute* Reroute = CastChecked<UMaterialExpressionReroute>(Expression);
+		UMaterialExpressionRerouteBase* Reroute = CastChecked<UMaterialExpressionRerouteBase>(Expression);
 		return Reroute->TraceInputsToRealInput();
 	}
 #endif

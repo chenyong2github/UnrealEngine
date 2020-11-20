@@ -31,6 +31,7 @@
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "Materials/MaterialExpressionReroute.h"
+#include "Materials/MaterialExpressionNamedReroute.h"
 
 #include "ScopedTransaction.h"
 #include "MaterialEditorUtilities.h"
@@ -158,6 +159,29 @@ UEdGraphNode* FMaterialGraphSchemaAction_NewComment::PerformAction(class UEdGrap
 	if (NewComment)
 	{
 		return NewComment->GraphNode;
+	}
+
+	return NULL;
+}
+
+//////////////////////////////////////////////////////
+// FMaterialGraphSchemaAction_NewNamedRerouteUsage //
+
+UEdGraphNode* FMaterialGraphSchemaAction_NewNamedRerouteUsage::PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode /*= true*/)
+{
+	check(Declaration);
+
+	const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MaterialEditorNewNamedRerouteUsage", "Material Editor: New Named Reroute Usage") );
+	
+	UMaterialExpression* NewExpression = FMaterialEditorUtilities::CreateNewMaterialExpression(ParentGraph, UMaterialExpressionNamedRerouteUsage::StaticClass(), Location, bSelectNewNode, /*bAutoAssignResource*/true);
+
+	if (NewExpression)
+	{
+		auto* Usage = CastChecked<UMaterialExpressionNamedRerouteUsage>(NewExpression);
+		Usage->Declaration = Declaration;
+		Usage->DeclarationGuid = Declaration->VariableGuid;
+		NewExpression->GraphNode->AutowireNewNode(FromPin);
+		return NewExpression->GraphNode;
 	}
 
 	return NULL;
@@ -386,6 +410,8 @@ void UMaterialGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Cont
 	GetMaterialFunctionActions(ContextMenuBuilder);
 
 	GetCommentAction(ContextMenuBuilder, ContextMenuBuilder.CurrentGraph);
+
+	GetNamedRerouteActions(ContextMenuBuilder, ContextMenuBuilder.CurrentGraph);
 
 	// Add Paste here if appropriate
 	if (!ContextMenuBuilder.FromPin && FMaterialEditorUtilities::CanPasteNodes(ContextMenuBuilder.CurrentGraph))
@@ -836,6 +862,28 @@ void UMaterialGraphSchema::GetCommentAction(FGraphActionMenuBuilder& ActionMenuB
 		const FText MenuDescription = bIsManyNodesSelected ? MultiCommentDesc : CommentDesc;
 		TSharedPtr<FMaterialGraphSchemaAction_NewComment> NewAction(new FMaterialGraphSchemaAction_NewComment(FText::GetEmpty(), MenuDescription, CommentToolTip, 0));
 		ActionMenuBuilder.AddAction( NewAction );
+	}
+}
+
+void UMaterialGraphSchema::GetNamedRerouteActions(FGraphActionMenuBuilder& ActionMenuBuilder, const UEdGraph* CurrentGraph) const
+{
+	if (CurrentGraph)
+	{
+		for (UEdGraphNode* GraphNode : CurrentGraph->Nodes)
+		{
+			if (auto* MaterialGraphNode = Cast<UMaterialGraphNode>(GraphNode))
+			{
+				if (auto* Declaration = Cast<UMaterialExpressionNamedRerouteDeclaration>(MaterialGraphNode->MaterialExpression))
+				{
+					static const FText Category = LOCTEXT("NamedRerouteCategory", "Named Reroutes");
+					const FText Name = FText::FromString(Declaration->Name.ToString());
+					const FText Tooltip = FText::Format(LOCTEXT("NamedRerouteTooltip", "Add a usage of {0} here"), Name);
+					TSharedPtr<FMaterialGraphSchemaAction_NewNamedRerouteUsage> NewAction(new FMaterialGraphSchemaAction_NewNamedRerouteUsage(Category, Name, Tooltip, 1 /* We want named reroutes to be on top */));
+					NewAction->Declaration = Declaration;
+					ActionMenuBuilder.AddAction(NewAction);
+				}
+			}
+		}
 	}
 }
 
