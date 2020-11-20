@@ -372,13 +372,15 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 		FPackageFileSizeVisitor PackageSearch(PackageFileSizes);
 		IFileManager::Get().IterateDirectoryStatRecursively(*SandboxPath, PackageSearch);
 	}
-
+	
 	bool bEnableGameOpenOrderSort = false;
+	bool bUseSecondaryOpenOrder = false;
 	{
 		FConfigFile PlatformIniFile;
 		FConfigCacheIni::LoadLocalIniFile(PlatformIniFile, TEXT("Game"), true, *TargetPlatform->IniPlatformName());
 		FString ConfigString;
 		PlatformIniFile.GetBool(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("bEnableAssetRegistryGameOpenOrderSort"), bEnableGameOpenOrderSort);
+		PlatformIniFile.GetBool(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("bPakUsesSecondaryOrder"), bUseSecondaryOpenOrder);
 	}
 	
 
@@ -391,10 +393,19 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 	FPakOrderMap OrderMap;
 	if (bEnableGameOpenOrderSort && IFileManager::Get().FileExists(*OpenOrderFullPath) )
 	{
-		OrderMap.ProcessOrderFile(*OpenOrderFullPath, true);
+		OrderMap.ProcessOrderFile(*OpenOrderFullPath);
 
 		UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Found game open order %s using it to sort input files"), *OpenOrderFullPath);
 		bHaveGameOpenOrder = true;
+	}
+	if (bUseSecondaryOpenOrder)
+	{
+		FString SecondaryOpenOrderFullPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(), TEXT("Build"), Platform, TEXT("FileOpenOrder"), TEXT("CookerOpenOrder.log")));
+		UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Looking for secondary openorder in dir %s"), *SecondaryOpenOrderFullPath);
+		if(IFileManager::Get().FileExists(*SecondaryOpenOrderFullPath))
+		{
+			OrderMap.ProcessOrderFile(*SecondaryOpenOrderFullPath, true);
+		}
 	}
 
 	// generate per-chunk pak list files
@@ -533,7 +544,7 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 
 						if (AOrder == MAX_uint64 && BOrder == MAX_uint64)
 						{
-							return A.RelativeFilename.Compare(B.RelativeFilename) < 0;
+							return A.RelativeFilename.Compare(B.RelativeFilename, ESearchCase::IgnoreCase) < 0;
 						}
 						else 
 						{
