@@ -48,6 +48,8 @@ struct FCSVImportSettings
 	UPROPERTY(BlueprintReadWrite, Category="Misc")
 	TEnumAsByte<ERichCurveInterpMode> ImportCurveInterpMode;
 
+	/** Despite its name, DataToImport can be JSON instead of CSV if this bool is set */
+	bool bDataIsJson = false;
 	FString DataToImport;
 };
 
