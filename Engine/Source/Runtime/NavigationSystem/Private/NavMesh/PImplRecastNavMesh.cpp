@@ -322,7 +322,8 @@ void FPImplRecastNavMesh::Serialize( FArchive& Ar, int32 NavMeshVersion )
 	{
 		TilesToSave.Reserve(DetourNavMesh->getMaxTiles());
 		
-		if (NavMeshOwner->SupportsStreaming() && !IsRunningCommandlet())
+		const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<const UNavigationSystemV1>(NavMeshOwner->GetWorld());
+		if (NavMeshOwner->SupportsStreaming() && NavSys)
 		{
 			// We save only tiles that belongs to this level
 			GetNavMeshTilesIn(NavMeshOwner->GetNavigableBoundsInLevel(NavMeshOwner->GetLevel()), TilesToSave);
@@ -342,6 +343,7 @@ void FPImplRecastNavMesh::Serialize( FArchive& Ar, int32 NavMeshVersion )
 		}
 		
 		NumTiles = TilesToSave.Num();
+		UE_LOG(LogNavigation, VeryVerbose, TEXT("%s Ar.IsSaving() %i tiles in %s."), ANSI_TO_TCHAR(__FUNCTION__), NumTiles, *NavMeshOwner->GetFullName());
 	}
 
 	Ar << NumTiles;
