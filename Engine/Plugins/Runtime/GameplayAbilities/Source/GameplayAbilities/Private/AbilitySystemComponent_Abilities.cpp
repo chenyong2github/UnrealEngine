@@ -272,7 +272,7 @@ FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbility(const FGameplayA
 	return OwnedSpec.Handle;
 }
 
-FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbilityAndActivateOnce(FGameplayAbilitySpec& Spec)
+FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbilityAndActivateOnce(FGameplayAbilitySpec& Spec, const FGameplayEventData* GameplayEventData)
 {
 	check(Spec.Ability);
 
@@ -300,7 +300,7 @@ FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbilityAndActivateOnce(F
 	{
 		FoundSpec->RemoveAfterActivation = true;
 
-		if (!InternalTryActivateAbility(AddedAbilityHandle))
+		if (!InternalTryActivateAbility(AddedAbilityHandle, FPredictionKey(), nullptr, nullptr, GameplayEventData))
 		{
 			// We failed to activate it, so remove it now
 			ClearAbility(AddedAbilityHandle);
