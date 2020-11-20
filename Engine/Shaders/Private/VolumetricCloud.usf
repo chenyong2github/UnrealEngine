@@ -12,21 +12,28 @@
 #include "Random.ush"
 #include "VolumetricCloudCommon.ush"
 
-#if defined(SHADER_MAINVS) || defined(SHADER_RENDERVIEW_PS) || defined(SHADER_SHADOW_PS)
+#ifndef SHADER_RENDERVIEW_CS
+#define SHADER_RENDERVIEW_CS 0
+#endif
+
+#if defined(SHADER_MAINVS) || defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_CS
 
 #include "/Engine/Generated/Material.ush"
+
+#if !SHADER_RENDERVIEW_CS
 #include "/Engine/Generated/VertexFactory.ush"
-
-#include "ReflectionEnvironmentShared.ush"
-
 
 struct RenderVolumetricCloudVSToPS
 {
 	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
 	float4 Position : SV_POSITION;
 };
+#endif
 
-#if defined(SHADER_RENDERVIEW_PS) || defined(SHADER_SHADOW_PS)
+#include "ReflectionEnvironmentShared.ush"
+
+
+#if defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_CS
 
 float3 SampleExtinctionCoefficients(in FPixelMaterialInputs PixelMaterialInputs)
 {
@@ -230,7 +237,7 @@ void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters,
 // Single full screen triangle vertex shader
 ////////////////////////////////////////////////////////////
 
-#ifdef SHADER_RENDERVIEW_PS
+#if SHADER_RENDERVIEW_CS
 
 #include "/Engine/Private/SkyAtmosphereCommon.ush"
 
@@ -1002,16 +1009,7 @@ bool TraceClouds(
 	return true;
 }
 
-
-
-
-
-void MainPS(
-	  in FVertexFactoryInterpolantsVSToPS FactoryInterpolants
-	, in float4 SvPosition : SV_Position
-	, out float4 OutColor0 : SV_Target0
-	, out float2 OutColor1 : SV_Target1
-)
+void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosition, out float4 OutColor0, out float2 OutColor1)
 {
 	ResolvedView = ResolveView();
 
@@ -1032,7 +1030,6 @@ void MainPS(
 	OutColor0					= float4(0.0f, 0.0f, 0.0f, 1.0f);
 	OutColor1					= MaxHalfFloat;
 
-	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(FactoryInterpolants, SvPosition);
 	FPixelMaterialInputs PixelMaterialInputs	= (FPixelMaterialInputs)0;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true);
 
@@ -1185,7 +1182,58 @@ void MainPS(
 #endif
 }
 
-#endif // SHADER_RENDERVIEW_PS
+float4 OutputViewRect;
+int bBlendCloudColor;
+int TargetCubeFace;
+
+RWTexture2D<float4> OutCloudColor;
+RWTexture2D<float2> OutCloudDepth;
+RWTextureCube<float4> OutCloudColorCube;
+
+[numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
+void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	BRANCH
+	if (all(DispatchThreadId < OutputViewRect.zw))
+	{
+		float4 SvPosition = float4(DispatchThreadId.x + 0.5, DispatchThreadId.y + 0.5, 0.5, 1);
+		float4 OutColor0;
+		float2 OutColor1;
+
+		FMaterialPixelParameters MaterialParameters = MakeInitializedMaterialPixelParameters();
+
+		MainCommon(MaterialParameters, SvPosition, OutColor0, OutColor1);
+
+		if (TargetCubeFace >= 0)
+		{
+			uint3 CubemapCoord = uint3(DispatchThreadId, TargetCubeFace);
+			if (bBlendCloudColor)
+			{
+				float4 CurColor0 = OutCloudColorCube[CubemapCoord];
+				OutCloudColorCube[CubemapCoord] = float4(CurColor0.rgb * OutColor0.a + OutColor0.rgb, CurColor0.a * OutColor0.a);
+			}
+			else
+			{
+				OutCloudColorCube[CubemapCoord] = OutColor0;
+			}
+		}
+		else
+		{
+			if (bBlendCloudColor)
+			{
+				float4 CurColor0 = OutCloudColor[DispatchThreadId];
+				OutCloudColor[DispatchThreadId] = float4(CurColor0.rgb * OutColor0.a + OutColor0.rgb, CurColor0.a * OutColor0.a);
+			}
+			else
+			{
+				OutCloudColor[DispatchThreadId] = OutColor0;
+			}
+		}
+		OutCloudDepth[DispatchThreadId] = OutColor1;
+	}
+}
+
+#endif // SHADER_RENDERVIEW_CS
 
 
 
