@@ -61,9 +61,15 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, MaximumCollisionParticles(60)
 	, EnableRemovePiecesOnFracture(false)
 	, GeometryCollection(new FGeometryCollection())
+#if WITH_EDITOR
+	, bManualDataCreate(false)
+#endif
 {
 	PersistentGuid = FGuid::NewGuid();
 	InvalidateCollection();
+#if WITH_EDITOR
+	SimulationDataGuid = StateGuid;
+#endif
 }
 
 FGeometryCollectionSizeSpecificData::FGeometryCollectionSizeSpecificData()
@@ -462,6 +468,7 @@ void UGeometryCollection::CreateSimulationDataImp(bool bCopyFromDDC)
 void UGeometryCollection::CreateSimulationData()
 {
 	CreateSimulationDataImp(/*bCopyFromDDC=*/false);
+	SimulationDataGuid = StateGuid;
 }
 
 TUniquePtr<FGeometryCollectionNaniteData> UGeometryCollection::CreateNaniteData(FGeometryCollection* Collection)
@@ -606,6 +613,13 @@ void UGeometryCollection::InvalidateCollection()
 	StateGuid = FGuid::NewGuid();
 }
 
+#if WITH_EDITOR
+bool UGeometryCollection::IsSimulationDataDirty() const
+{
+	return StateGuid != SimulationDataGuid;
+}
+#endif
+
 FGuid UGeometryCollection::GetIdGuid() const
 {
 	return PersistentGuid;
@@ -630,7 +644,11 @@ void UGeometryCollection::PostEditChangeProperty(struct FPropertyChangedEvent& P
 		else if (PropertyChangedEvent.Property->GetFName() != GET_MEMBER_NAME_CHECKED(UGeometryCollection, Materials))
 		{
 			InvalidateCollection();
-			CreateSimulationData();
+			
+			if (!bManualDataCreate)
+			{
+				CreateSimulationData();
+			}
 		}
 	}
 }
