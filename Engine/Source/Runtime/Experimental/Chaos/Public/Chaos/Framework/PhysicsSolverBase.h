@@ -27,6 +27,7 @@ namespace Chaos
 
 	extern CHAOS_API int32 UseAsyncInterpolation;
 	extern CHAOS_API int32 ForceDisableAsyncPhysics;
+	extern CHAOS_API float AsyncInterpolationMultiplier;
 
 	struct CHAOS_API FSubStepInfo
 	{
@@ -341,12 +342,13 @@ namespace Chaos
 		{
 			for (ISimCallbackObject* Callback : SimCallbackObjects)
 			{
+				Callback->SetSimAndDeltaTime_Internal(SimTime, Dt);
 				if (!Callback->bPendingDelete)
 				{
 					//if we're shutting down, we only want to run callbacks that are "run once more". This generally means it's a one shot command that may free resources
 					if(!bIsShuttingDown || Callback->bRunOnceMore)
 					{
-						Callback->PreSimulate_Internal(SimTime, Dt);
+						Callback->PreSimulate_Internal();
 					}
 				}
 			}
@@ -418,6 +420,21 @@ namespace Chaos
 		bool IsUsingFixedDt() const
 		{
 			return IsUsingAsyncResults() && UseAsyncInterpolation;
+		}
+
+		/** Returns the time used by physics results. If fixed dt is used this will be the interpolated time */
+		FReal GetPhysicsResultsTime_External() const
+		{
+			const FReal ExternalTime = MarshallingManager.GetExternalTime_External() + AccumulatedTime;
+			if (IsUsingFixedDt())
+			{
+				//fixed dt uses interpolation and looks into the past
+				return ExternalTime - AsyncDt * AsyncInterpolationMultiplier;
+			}
+			else
+			{
+				return ExternalTime;
+			}
 		}
 
 	protected:
