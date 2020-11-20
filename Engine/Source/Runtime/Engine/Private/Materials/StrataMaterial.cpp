@@ -21,6 +21,9 @@ FString GetStrataBSDFName(uint8 BSDFType)
 	case STRATA_BSDF_TYPE_VOLUME:
 		return TEXT("VOLUME");
 		break;
+	case STRATA_BSDF_TYPE_SHEEN:
+		return TEXT("SHEEN");
+		break;
 	}
 	check(false);
 	return "";
@@ -196,6 +199,11 @@ FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCom
 				{
 					Result.RequestedByteCount += UintByteSize;
 				}
+				break;
+			}
+			case STRATA_BSDF_TYPE_SHEEN:
+			{
+				Result.RequestedByteCount += UintByteSize;
 				break;
 			}
 			}

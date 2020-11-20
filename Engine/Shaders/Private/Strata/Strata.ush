@@ -108,6 +108,9 @@ struct FStrataBSDF
 #define VOLUME_ANISOTROPY(X)			X.VGPRs[0].w
 #define VOLUME_THICKNESS(X)				X.VGPRs[1].w
 
+#define SHEEN_ALBEDO(X)					X.VGPRs[0].xyz
+#define SHEEN_ROUGHNESS(X)				X.VGPRs[0].w
+
 void StrataRequestSharedNormalTangentBasis(inout uint NormalTypes, uint Index);
 
 bool StrataHasAnisotropy(in float Roughness0, float Roughness1)
@@ -247,6 +250,23 @@ FStrataData GetStrataVolumeBSDF(float3 Albedo, float3 Extinction, float Anisotro
 	return StrataData;
 }
 
+FStrataData GetStrataSheenBSDF(float3 Albedo, float Roughness, uint SharedNormalIndex)
+{
+	FStrataData StrataData = GetInitialisedStrataData();
+	StrataData.LayerCount++;
+
+	StrataData.Layers[0].BSDFCount++;
+	BSDF_SETTYPE			(StrataData.Layers[0].BSDFs[0],		STRATA_BSDF_TYPE_SHEEN);
+	BSDF_SETNORMALID		(StrataData.Layers[0].BSDFs[0],		SharedNormalIndex);
+	BSDF_SETISTOPLAYER		(StrataData.Layers[0].BSDFs[0],		0);
+	SHEEN_ALBEDO			(StrataData.Layers[0].BSDFs[0])		= Albedo;
+	SHEEN_ROUGHNESS			(StrataData.Layers[0].BSDFs[0])		= Roughness;
+
+	StrataData.Layers[0].BSDFs[0].Weight						= 1.0f;
+
+	return StrataData;
+}
+
 // STRATA_TODO put in a common file
 // Point lobe in off-specular peak direction
 float3 StrataGetOffSpecularPeakReflectionDir(float3 Normal, float3 ReflectionVector, float Roughness)
@@ -264,7 +284,6 @@ void StrataUnpackNormalAndTangent(inout float3 Normal, inout float3 Tangent, in 
 
 #define STRATA_BASIS_TYPE_NORMAL 0
 #define STRATA_BASIS_TYPE_TANGENT 1
-#if STRATA_SHARED_NORMALS_IN_REGISTERS
 struct FSharedNormals
 {
 	uint NormalCount;
@@ -278,7 +297,6 @@ FSharedNormals StrataInitialiseSharedNormals()
 	FSharedNormals SharedNormals = (FSharedNormals)0;
 	return SharedNormals;
 }
-#endif
 
 void StrataRequestSharedNormalTangentBasis(inout uint NormalTypes, uint Index)
 {
@@ -401,6 +419,11 @@ void StrataGetBSDFRoughness(in FStrataBSDF BSDF, inout float R)
 	case STRATA_BSDF_TYPE_VOLUME:
 	{
 		R = 0;
+		break;
+	}
+	case STRATA_BSDF_TYPE_SHEEN:
+	{
+		R = SHEEN_ROUGHNESS(BSDF);
 		break;
 	}
 	}
@@ -545,6 +568,24 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext)
 			Sample.Throughput	= SafePathSegmentTransmittance;
 			break;
 		}
+		case STRATA_BSDF_TYPE_SHEEN:
+		{
+			const float3 F0  = SHEEN_ALBEDO(BSDFContext.BSDF);
+			const float SafeRoughness = MakeRoughnessSafe(SHEEN_ROUGHNESS(BSDFContext.BSDF));
+
+			// Special override for roughness for supporting area light integrator with Sphere/Tube/Disk light, which modifies/increase roughness.
+			const float a2 = BSDFContext.a2Override > 0 ? BSDFContext.a2Override : Pow4(SafeRoughness);
+
+			// Generalized inverse microfacet specular
+			float D   = D_InvGGX(a2, BSDFContext.Context.NoH);
+			float Vis = Vis_Cloth(BSDFContext.Context.NoV, BSDFContext.SatNoL);
+			float3 F  = F_Schlick(F0, BSDFContext.Context.VoH);
+
+			Sample.Value = D * Vis * F;
+			Sample.PDF = BSDFContext.SatNoV / PI; // Per "Production Friendly Microfacet Sheen BRDF", hemispherical sampling give good result as the roughness is usually high.
+			Sample.Throughput = (1.0f - F);
+			break;
+		}
 	}
 
 	return Sample;
@@ -615,6 +656,16 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataPixelHeader Stra
 			float4 PhaseSample = ImportanceSampleHenyeyGreensteinPhase(E, VOLUME_ANISOTROPY(BSDFContext.BSDF));
 			Sample.Direction = mul(PhaseSample.xyz, BSDFContext.TangentBasis);
 			PDF = PhaseSample.w;
+			Sample.ConeAngle = 1.0f / PDF;
+			break;
+		}
+		case STRATA_BSDF_TYPE_SHEEN:
+		{
+			// Per "Production Friendly Microfacet Sheen BRDF", uniform hemispherical sampling gives good result as the roughness is 
+			// usually high and avoid issue at grazing angle
+			float4 ImportanceSample = CosineSampleHemisphere(E);
+			Sample.Direction = mul(ImportanceSample.xyz, BSDFContext.TangentBasis);
+			PDF = ImportanceSample.w;
 			Sample.ConeAngle = 1.0f / PDF;
 			break;
 		}
@@ -701,6 +752,12 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			float3 NormLuminanceSingleScattering = (NormLuminanceTransfert - NormLuminanceTransfert * SafePathSegmentTransmittance) / SafeExtinctionCoefficients;
 
 			StrataEnvLightResult.DiffuseAlbedo = NormLuminanceSingleScattering;
+			StrataEnvLightResult.DiffuseNormal = BSDFContext.N;
+			break;
+		}
+		case STRATA_BSDF_TYPE_SHEEN:
+		{
+			StrataEnvLightResult.DiffuseAlbedo = SHEEN_ALBEDO(BSDFContext.BSDF);;
 			StrataEnvLightResult.DiffuseNormal = BSDFContext.N;
 			break;
 		}
@@ -825,6 +882,12 @@ void SanitizeStrataVolume(inout FStrataBSDF BSDF)
 	VOLUME_THICKNESS(BSDF) = max(0.0f, VOLUME_THICKNESS(BSDF));
 }
 
+void SanitizeStrataSheen(inout FStrataBSDF BSDF)
+{
+	SHEEN_ALBEDO(BSDF) = saturate(SHEEN_ALBEDO(BSDF));
+	SHEEN_ROUGHNESS(BSDF) = saturate(SHEEN_ROUGHNESS(BSDF));
+}
+
 void StrataSanitizeBSDF(inout FStrataBSDF BSDF)
 {
 	switch (BSDF_GETTYPE(BSDF))
@@ -847,6 +910,11 @@ void StrataSanitizeBSDF(inout FStrataBSDF BSDF)
 		case STRATA_BSDF_TYPE_VOLUME:
 		{
 			SanitizeStrataVolume(BSDF);
+			break;
+		}
+		case STRATA_BSDF_TYPE_SHEEN:
+		{
+			SanitizeStrataSheen(BSDF);
 			break;
 		}
 	}
@@ -1282,6 +1350,26 @@ void PackStrataOut(
 				LayerThroughput += BSDFCoverage * SafePathSegmentTransmittance;
 				break;
 			}
+
+			case STRATA_BSDF_TYPE_SHEEN:
+			{
+				const float3 F0  = SHEEN_ALBEDO(BSDF);
+				const float3 F = F_Schlick(F0, ContextNoLight.VoH);
+
+				if (bTopLayer)
+				{
+					AccumRoughness		+= SHEEN_ROUGHNESS(BSDF);
+					AccumRoughnessCount += 1.0f;
+
+					const float SafeRoughness = MakeRoughnessSafe(SHEEN_ROUGHNESS(BSDF));
+					AccumBaseColor      += BSDFCoverage * EnvBRDFApprox(F0, SafeRoughness, saturate(ContextNoLight.NoV));
+				}
+
+				LayerCoverage	+= BSDFCoverage;
+				LayerThroughput += BSDFCoverage * (1.0f - F); // STRATA_TODO use 1-FGD instead of simple 1-F, event if we ignore ray scattering/spreading
+				break;
+			}
+
 			} // switch
 
 			// Update the weights to take into account throughput towards the view from layers above
@@ -1395,6 +1483,12 @@ void PackStrataOut(
 				// 8 bytes
 			}
 			break;
+			case STRATA_BSDF_TYPE_SHEEN:
+			{
+				STRATA_STORE_UINT1(PackAlbedoLinearToGamma2AlphaLinear(float4(SHEEN_ALBEDO(BSDF), SHEEN_ROUGHNESS(BSDF))));
+				// 4 bytes
+			}
+			break;
 			}
 
 			// Stop writing if above budget.
@@ -1490,6 +1584,11 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout uint ByteOf
 		}
 		// else, albedo and anisotropy have already cleared out to zero when creating OutBSDF.
 		VOLUME_THICKNESS(OutBSDF) = 1.0f;
+	}
+	break;
+	case STRATA_BSDF_TYPE_SHEEN:
+	{
+		StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, SHEEN_ALBEDO(OutBSDF), SHEEN_ROUGHNESS(OutBSDF));
 	}
 	break;
 	}

@@ -7467,6 +7467,17 @@ int32 FHLSLMaterialTranslator::StrataVolumeBSDF(int32 Albedo, int32 Extinction, 
 	);
 }
 
+int32 FHLSLMaterialTranslator::StrataSheenBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex)
+{
+	return AddCodeChunk(
+		MCT_Strata, TEXT("GetStrataSheenBSDF(%s, %s, %u) /* %s */"),
+		*GetParameterCode(Albedo),
+		*GetParameterCode(Roughness),
+		SharedNormalIndex,
+		*GetParameterCode(Normal)
+	);
+}
+
 int32 FHLSLMaterialTranslator::StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix)
 {
 	if (Foreground == INDEX_NONE || Background == INDEX_NONE || Mix == INDEX_NONE)

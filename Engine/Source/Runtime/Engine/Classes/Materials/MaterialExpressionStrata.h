@@ -209,7 +209,40 @@ class UMaterialExpressionStrataVolumeBSDF : public UMaterialExpression
 	//~ End UMaterialExpression Interface
 };
 
-// STRATA_TODO Sheen, Subsurface, thinfilm, generalised schlick
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
+class UMaterialExpressionStrataSheenBSDF : public UMaterialExpression
+{
+	GENERATED_UCLASS_BODY()
+
+	/**
+	* Albedo (type = float3, unit = unitless)
+	*/
+	UPROPERTY()
+	FExpressionInput Albedo;
+
+	/**
+	 * Roughness (type = float, unit = unitless)
+	 */
+	UPROPERTY()
+	FExpressionInput Roughness;
+
+	/**
+	 * Normal (type = float3, unit = unitless)
+	 */
+	UPROPERTY()
+	FExpressionInput Normal;
+
+	//~ Begin UMaterialExpression Interface
+#if WITH_EDITOR
+	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	virtual uint32 GetOutputType(int32 OutputIndex) override;
+	virtual uint32 GetInputType(int32 InputIndex) override;
+#endif
+	//~ End UMaterialExpression Interface
+};
+
+// Subsurface, thinfilm, generalised schlick
 
 
 
