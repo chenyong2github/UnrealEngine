@@ -331,6 +331,11 @@ struct FShaderCompilerInput
 			return false;
 		}
 	}
+
+	bool IsRayTracingShader() const
+	{
+		return IsRayTracingShaderFrequency(Target.GetFrequency());
+	}
 };
 
 /** A shader compiler error or warning. */

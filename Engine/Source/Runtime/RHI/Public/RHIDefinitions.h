@@ -1807,6 +1807,20 @@ inline const TCHAR* GetShaderFrequencyString(EShaderFrequency Frequency, bool bI
 	return String;
 };
 
+inline bool IsRayTracingShaderFrequency(EShaderFrequency Frequency)
+{
+	switch (Frequency)
+	{
+	case SF_RayGen:
+	case SF_RayMiss:
+	case SF_RayHitGroup:
+	case SF_RayCallable:
+		return true;
+	default:
+		return false;
+	}
+}
+
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	#define GEOMETRY_SHADER(GeometryShader)	(GeometryShader)
 #else
