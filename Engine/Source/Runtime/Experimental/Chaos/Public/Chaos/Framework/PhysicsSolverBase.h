@@ -354,21 +354,11 @@ namespace Chaos
 
 		void FreeCallbacksData_Internal(float SimTime, float DeltaTime)
 		{
-			//final post solve call. TODO: move this out of here, just putting it here for now because we're forced to call callbacks manually during destroy
-			for(ISimCallbackObject* Callback : ContactModifiers)
-			{
-				if (!Callback->bPendingDelete)
-				{
-					//if we're shutting down, we only want to run callbacks that are "run once more". This generally means it's a one shot command that may free resources
-					if (!bIsShuttingDown || Callback->bRunOnceMore)
-					{
-						Callback->PostSimulate_Internal(SimTime, DeltaTime);
-					}
-				}
-			}
-
+			//todo: rename this function as it also generates outputs
 			for (ISimCallbackObject* Callback : SimCallbackObjects)
 			{
+				Callback->FinalizeOutputData_Internal();
+
 				if (Callback->bRunOnceMore)
 				{
 					Callback->bPendingDelete = true;

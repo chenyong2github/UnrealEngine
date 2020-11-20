@@ -288,14 +288,12 @@ void FChaosScene::AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& In
 #endif
 }
 
-Chaos::FSimCallbackNoOutput* FChaosSceneSimCallback::OnPreSimulate_Internal(const Chaos::FReal SimTime, const Chaos::FReal DeltaSeconds, const Chaos::FSimCallbackInput* BaseInput)
+void FChaosSceneSimCallback::OnPreSimulate_Internal(const Chaos::FReal SimTime, const Chaos::FReal DeltaSeconds, const Chaos::FSimCallbackInput* BaseInput)
 {
 	if(auto Input = static_cast<const FChaosSceneCallbackInput*>(BaseInput))
 	{
 		static_cast<Chaos::FPBDRigidsSolver*>(GetSolver())->GetEvolution()->GetGravityForces().SetAcceleration(Input->Gravity);
 	}
-
-	return nullptr;
 }
 
 void FChaosScene::SetGravity(const Chaos::TVector<float, 3>& Acceleration)
