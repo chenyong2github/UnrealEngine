@@ -49,7 +49,7 @@ class UAnimStateTransitionNode : public UAnimStateNodeBase
 	UCurveFloat* CustomBlendCurve;
 
 	// The blend profile to use to evaluate this transition per-bone
-	UPROPERTY(EditAnywhere, Category=Transition)
+	UPROPERTY(EditAnywhere, Category=Transition, meta=(UseAsBlendProfile=true))
 	UBlendProfile* BlendProfile;
 
 	// The blend profile mode to use. This determines how the per bone blend weights are calculated when transitioning.

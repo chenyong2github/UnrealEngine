@@ -24,9 +24,11 @@ enum class EBlendProfileMode : uint8
 	// Values should typically be equal or greater than 1.0.
 	// If you want certain bones to instantly transition into the target state
 	// the Time Factor based method might be a better choice.
-	WeightFactor
-};
+	WeightFactor,
 
+	// Used for blend masks. Per bone alpha
+	BlendMask UMETA(Hidden),
+};
 
 /** A single entry for a blend scale within a profile, mapping a bone to a blendscale */
 USTRUCT()
@@ -108,6 +110,11 @@ public:
 	virtual void PostLoad() override;
 	// End UObject
 
+	// Default value of entries. Default values are not saved
+	virtual float GetDefaultBlendScale() const { return IsBlendMask() ? 0.0f : 1.0f; }
+
+	bool IsBlendMask() const { return BlendProfileMode == EBlendProfileMode::BlendMask;  }
+
 private:
 
 	/** Sets the skeleton this blend profile is used with */
@@ -124,4 +131,8 @@ public:
 	// List of blend scale entries
 	UPROPERTY()
 	TArray<FBlendProfileBoneEntry> ProfileEntries;
+
+	// Blend Profile Mode. Read EBlendProfileMode for more details
+	UPROPERTY()
+	EBlendProfileMode BlendProfileMode;
 };

@@ -41,7 +41,15 @@ void FAnimNode_LayeredBoneBlend::RebuildCacheData(const USkeleton* InSkeleton)
 {
 	if (InSkeleton)
 	{
-		FAnimationRuntime::CreateMaskWeights(PerBoneBlendWeights, LayerSetup, InSkeleton);
+		if (BlendMode == ELayeredBoneBlendMode::BranchFilter)
+		{
+			FAnimationRuntime::CreateMaskWeights(PerBoneBlendWeights, LayerSetup, InSkeleton);
+		}
+		else
+		{
+			FAnimationRuntime::CreateMaskWeights(PerBoneBlendWeights, BlendMasks, InSkeleton);
+		}
+
 		SkeletonGuid = InSkeleton->GetGuid();
 		VirtualBoneGuid = InSkeleton->GetVirtualBoneGuid();
 	}
@@ -322,7 +330,7 @@ void FAnimNode_LayeredBoneBlend::ValidateData()
 	// so here we add code to fix this up manually in editor, so that they can continue working on it. 
 	int32 PoseNum = BlendPoses.Num();
 	int32 WeightNum = BlendWeights.Num();
-	int32 LayerNum = LayerSetup.Num();
+	int32 LayerNum = (BlendMode == ELayeredBoneBlendMode::BranchFilter) ? LayerSetup.Num() : BlendMasks.Num();
 
 	int32 Max = FMath::Max3(PoseNum, WeightNum, LayerNum);
 	int32 Min = FMath::Min3(PoseNum, WeightNum, LayerNum);
@@ -341,9 +349,30 @@ void FAnimNode_LayeredBoneBlend::ValidateData()
 			BlendWeights.Add(1.f);
 		}
 
-		for(int32 Index=LayerNum; Index<Max; ++Index)
+		if (BlendMode == ELayeredBoneBlendMode::BranchFilter)
 		{
-			LayerSetup.Add(FInputBlendPose());
+			for (int32 Index = LayerNum; Index < Max; ++Index)
+			{
+				LayerSetup.Add(FInputBlendPose());
+			}
+		}
+		else
+		{
+			// Get rid of our branch filters if we are not using them to avoid saving into the asset
+			LayerSetup.Reset();
+		}
+
+		if (BlendMode == ELayeredBoneBlendMode::BlendMask)
+		{
+			for (int32 Index = LayerNum; Index < Max; ++Index)
+			{
+				BlendMasks.Add(nullptr);
+			}
+		}
+		else
+		{
+			// Get rid of blend masks array if we are not using them to avoid saving into the asset
+			BlendMasks.Reset();
 		}
 	}
 }

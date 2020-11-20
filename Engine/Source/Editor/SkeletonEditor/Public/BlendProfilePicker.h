@@ -8,6 +8,14 @@ class UBlendProfile;
 
 DECLARE_DELEGATE_OneParam(FOnBlendProfileSelected, UBlendProfile*);
 
+enum class EBlendProfilePickerMode : uint8
+{
+	BlendProfile = (1U << 0),
+	BlendMask = (1U << 1),
+	AllModes = BlendProfile | BlendMask,
+};
+ENUM_CLASS_FLAGS(EBlendProfilePickerMode);
+
 /** Argument used to set up the blend profile picker */
 struct FBlendProfilePickerArgs
 {
@@ -24,13 +32,21 @@ struct FBlendProfilePickerArgs
 	bool bAllowClear;
 
 	/** Allow the option to delete blend profiles from the skeleton */
-	bool bAllowRemove;
+	bool bAllowModify;
+
+	/** Only display Blend Profiles w/ specified Blend Profile modes (EBlendProfilePickerMode values are flags.) */
+	EBlendProfilePickerMode SupportedBlendProfileModes;
+
+	/** Optional property handle, when the picker is tied to a property */
+	TSharedPtr<class IPropertyHandle> PropertyHandle;
 
 	FBlendProfilePickerArgs()
 		: InitialProfile(nullptr)
 		, OnBlendProfileSelected()
 		, bAllowNew(false)
 		, bAllowClear(false)
-		, bAllowRemove(false)
+		, bAllowModify(false)
+		, SupportedBlendProfileModes(EBlendProfilePickerMode::AllModes)
+		, PropertyHandle(nullptr)
 	{}
 };

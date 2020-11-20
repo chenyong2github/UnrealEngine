@@ -4,6 +4,7 @@
 
 UBlendProfile::UBlendProfile()
 	: OwningSkeleton(nullptr)
+	, BlendProfileMode(EBlendProfileMode::WeightFactor)
 {
 	// Set up our owning skeleton and initialise bone references
 	if(USkeleton* OuterAsSkeleton = Cast<USkeleton>(GetOuter()))
@@ -50,7 +51,7 @@ float UBlendProfile::GetBoneBlendScale(int32 InBoneIdx) const
 		return FoundEntry->BlendScale;
 	}
 
-	return 1.0f;
+	return GetDefaultBlendScale();
 }
 
 float UBlendProfile::GetBoneBlendScale(const FName& InBoneName) const
@@ -65,7 +66,7 @@ float UBlendProfile::GetBoneBlendScale(const FName& InBoneName) const
 		return FoundEntry->BlendScale;
 	}
 
-	return 1.0f;
+	return GetDefaultBlendScale();
 }
 
 void UBlendProfile::SetSkeleton(USkeleton* InSkeleton)
@@ -129,7 +130,7 @@ float UBlendProfile::GetEntryBlendScale(const int32 InEntryIdx) const
 		return ProfileEntries[InEntryIdx].BlendScale;
 	}
 	// No overriden blend scale, return no scale
-	return 1.0f;
+	return GetDefaultBlendScale();
 }
 
 int32 UBlendProfile::GetPerBoneInterpolationIndex(int32 BoneIndex, const FBoneContainer& RequiredBones) const
@@ -160,8 +161,8 @@ void UBlendProfile::SetSingleBoneBlendScale(int32 InBoneIdx, float InScale, bool
 		Modify();
 		Entry->BlendScale = InScale;
 
-		// Remove any entry that gets set back to 1.0f - so we only store entries that actually contain a scale
-		if(Entry->BlendScale == 1.0f)
+		// Remove any entry that gets set back to DefautBlendScale - so we only store entries that actually contain a scale
+		if(Entry->BlendScale == GetDefaultBlendScale())
 		{
 			ProfileEntries.RemoveAll([InBoneIdx](const FBlendProfileBoneEntry& Current)
 			{

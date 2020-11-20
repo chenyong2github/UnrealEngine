@@ -9,6 +9,13 @@
 #include "Animation/AnimData/BoneMaskFilter.h"
 #include "AnimNode_LayeredBoneBlend.generated.h"
 
+UENUM()
+enum class ELayeredBoneBlendMode : uint8
+{
+	BranchFilter,
+	BlendMask,
+};
+
 // Layered blend (per bone); has dynamic number of blendposes that can blend per different bone sets
 USTRUCT(BlueprintInternalUseOnly)
 struct ANIMGRAPHRUNTIME_API FAnimNode_LayeredBoneBlend : public FAnimNode_Base
@@ -24,9 +31,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, editfixedsize, Category=Links)
 	TArray<FPoseLink> BlendPoses;
 
+	/** Whether to use branch filters or a blend mask to specify an input pose per-bone influence */
+	UPROPERTY(EditAnywhere, Category = Config)
+	ELayeredBoneBlendMode BlendMode;
+
+	/** 
+	 * The blend masks to use for our layer inputs. Allows the use of per-bone alphas.
+	 * Blend masks are used when BlendMode is BlendMask.
+	 */
+	UPROPERTY(EditAnywhere, editfixedsize, Category=Config, meta=(UseAsBlendMask=true))
+	TArray<UBlendProfile*> BlendMasks;
+
 	/** 
 	 * Configuration for the parts of the skeleton to blend for each layer. Allows
 	 * certain parts of the tree to be blended out or omitted from the pose.
+	 * LayerSetup is used when BlendMode is BranchFilter.
 	 */
 	UPROPERTY(EditAnywhere, editfixedsize, Category=Config)
 	TArray<FInputBlendPose> LayerSetup;

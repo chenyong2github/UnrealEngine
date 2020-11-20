@@ -606,7 +606,7 @@ void SSkeletonTree::CreateTreeColumns()
 				FName CurrentProfile = BlendProfilePicker->GetSelectedBlendProfileName();
 				return CurrentProfile != NAME_None ? FText::FromName(CurrentProfile) : LOCTEXT("NoBlendProfile", "No Blend");
 			})
-			.OnTextCommitted(BlendProfilePicker.ToSharedRef(), &SBlendProfilePicker::OnCreateNewProfileComitted)
+			.OnTextCommitted(BlendProfilePicker.ToSharedRef(), &SBlendProfilePicker::OnCreateNewProfileComitted, EBlendProfileMode::TimeFactor)
 			.IsReadOnly(true)
 		]
 	];

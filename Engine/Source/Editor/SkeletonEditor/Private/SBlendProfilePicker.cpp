@@ -24,10 +24,22 @@
 
 #define LOCTEXT_NAMESPACE "BlendProfilePicker"
 
+namespace BlendProfilePickerNames
+{
+	static const FText BlendProfileModeName = LOCTEXT("Blend Profile Mode Name", "Blend Profile");
+	static const FText BlendMaskModeName = LOCTEXT("Blend Mask Mode Name", "Blend Mask");
+
+	const FText& GetNameForMode(EBlendProfileMode InMode)
+	{
+		return (InMode == EBlendProfileMode::BlendMask) ? BlendProfilePickerNames::BlendMaskModeName : BlendProfilePickerNames::BlendProfileModeName;
+	}
+}
 
 class SBlendProfileMenuEntry : public SCompoundWidget
 {
 public:
+
+	DECLARE_DELEGATE_OneParam(FBlendProfileModeChanged, EBlendProfileMode);
 
 	SLATE_BEGIN_ARGS(SBlendProfileMenuEntry){}
 		SLATE_ARGUMENT( FText, LabelOverride )
@@ -35,8 +47,10 @@ public:
 		SLATE_EVENT( FExecuteAction, OnOpenClickedDelegate )
 		/** Called to when the button remove an entry is clicked */
 		SLATE_EVENT( FExecuteAction, OnRemoveClickedDelegate )
+		SLATE_EVENT(FBlendProfileModeChanged, OnProfileModeChangedDelegate)
 		/** Whether to show the remove button */
-		SLATE_ARGUMENT(bool, AllowRemove)
+		SLATE_ARGUMENT(bool, AllowModify)
+		SLATE_ARGUMENT(TWeakObjectPtr<UBlendProfile>, BlendProfile)
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs )
@@ -44,64 +58,157 @@ public:
 		const FText DisplayName = InArgs._LabelOverride;
 		OnOpenClickedDelegate = InArgs._OnOpenClickedDelegate;
 		OnRemoveClickedDelegate = InArgs._OnRemoveClickedDelegate;
+		OnProfileModeChangedDelegate = InArgs._OnProfileModeChangedDelegate;
+		BlendProfile = InArgs._BlendProfile;
 
 		FSlateFontInfo MenuEntryFont = FEditorStyle::GetFontStyle( "Menu.Label.Font" );
 
-		TSharedPtr<SOverlay> Overlay;
+		TSharedPtr<SHorizontalBox> HorizontalBox;
+
+		EBlendProfileMode BlendProfileMode = GetProfileMode();
 
 		ChildSlot
 		[
 			SNew(SButton)
 			.ButtonStyle( FEditorStyle::Get(), "Menu.Button" )
 			.ForegroundColor( TAttribute<FSlateColor>::Create( TAttribute<FSlateColor>::FGetter::CreateRaw( this, &SBlendProfileMenuEntry::InvertOnHover ) ) )
-			.Text(DisplayName)
 			.ToolTipText(LOCTEXT("OpenBlendProfileToolTip", "Select this profile for editing."))
 			.OnClicked(this, &SBlendProfileMenuEntry::OnOpen)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Fill)
 			.ContentPadding( FMargin(4.0, 2.0) )
 			[
-				SAssignNew(Overlay, SOverlay)
-
+				SNew(SOverlay)
 				+SOverlay::Slot()
-				.Padding( FMargin( 12.0, 0.0 ) )
 				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Left)
+				.HAlign(HAlign_Fill)
 				[
-					SNew( STextBlock )
-					.Font( MenuEntryFont )
-					.ColorAndOpacity( TAttribute<FSlateColor>::Create( TAttribute<FSlateColor>::FGetter::CreateRaw( this, &SBlendProfileMenuEntry::InvertOnHover ) ) )
-					.Text( DisplayName )
+					SAssignNew(HorizontalBox, SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.Padding( FMargin( 12.0, 0.0 ) )
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Fill)
+					[
+						SNew(STextBlock)
+						.Font(MenuEntryFont)
+						.ColorAndOpacity(TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateRaw(this, &SBlendProfileMenuEntry::InvertOnHover)))
+						.Text(DisplayName)
+					]
 				]
 			]
 		];
 
-		if(InArgs._AllowRemove)
+		if(InArgs._AllowModify)
 		{
-			Overlay->AddSlot()
-				.Padding(FMargin(0.0, 0.0))
+			HorizontalBox->AddSlot()
+				.Padding(FMargin(8.0, 0.0))
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Right)
+				.AutoWidth()
 				[
-					SNew(SButton)
-					.ContentPadding(FMargin(4.0, 0.0))
-					.ButtonStyle(FEditorStyle::Get(), "Docking.Tab.CloseButton")
-					.ToolTipText(FText::Format(LOCTEXT("RemoveBlendProfileToolTipFmt", "Remove {0}"), DisplayName))
-					.OnClicked(this, &SBlendProfileMenuEntry::OnRemove)
+					SNew(SComboButton)
+					.ButtonColorAndOpacity(FLinearColor::Transparent)
+					.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
+					.HasDownArrow(false)
+					.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+					.ContentPadding(2.0f)
+					.ToolTipText(FText::Format(LOCTEXT("ModifyBlendProfileToolTipFmt", "Modify {0}"), DisplayName))
+					.MenuPlacement(MenuPlacement_MenuRight)
+					.OnGetMenuContent(this, &SBlendProfileMenuEntry::GetMenuContent)
+					.ButtonContent()
+					[
+						SNew(SImage)
+						.ColorAndOpacity(FSlateColor::UseForeground())
+						.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+					]
 				];
 		}
+	}
+
+	void OnProfileModeSelected(EBlendProfileMode InMode)
+	{
+		OnProfileModeChangedDelegate.ExecuteIfBound(InMode);
+	}
+
+	EBlendProfileMode GetProfileMode()
+	{
+		if (BlendProfile.IsValid())
+		{
+			return BlendProfile->BlendProfileMode;
+		}
+		return EBlendProfileMode::WeightFactor;
+	}
+
+	bool IsProfileModeSelected(EBlendProfileMode InMode)
+	{
+		if (BlendProfile.IsValid())
+		{
+			return BlendProfile->BlendProfileMode == InMode;
+		}
+		return false;
+	}
+
+	TSharedRef<SWidget> GetMenuContent()
+	{
+		FMenuBuilder MenuBuilder(false, nullptr, TSharedPtr<FExtender>(), true);
+
+		EBlendProfileMode BlendProfileMode = GetProfileMode();
+
+		if (BlendProfileMode != EBlendProfileMode::BlendMask)
+		{
+			MenuBuilder.BeginSection(NAME_None, LOCTEXT("BlendProfileMode", "Mode"));
+			{
+				UEnum* ModeEnum = StaticEnum<EBlendProfileMode>();
+				check(ModeEnum);
+
+				// Last enum entry is _MAX
+				int32 NumEnums = ModeEnum->NumEnums() - 1;
+				static const TCHAR* HiddenMeta = TEXT("Hidden");
+
+				for (int32 EnumIndex = 0; EnumIndex < NumEnums; ++EnumIndex)
+				{
+					if (!ModeEnum->HasMetaData(HiddenMeta, EnumIndex))
+					{
+						EBlendProfileMode IndexMode = (EBlendProfileMode)ModeEnum->GetValueByIndex(EnumIndex);
+						MenuBuilder.AddMenuEntry(
+							ModeEnum->GetDisplayNameTextByIndex(EnumIndex),
+							ModeEnum->GetToolTipTextByIndex(EnumIndex),
+							FSlateIcon(),
+							FUIAction(
+								FExecuteAction::CreateSP(this, &SBlendProfileMenuEntry::OnProfileModeSelected, IndexMode),
+								FCanExecuteAction(),
+								FIsActionChecked::CreateSP(this, &SBlendProfileMenuEntry::IsProfileModeSelected, IndexMode)
+							),
+							NAME_None,
+							EUserInterfaceActionType::RadioButton);
+					}
+				}
+			}
+			MenuBuilder.EndSection();
+		}
+
+		MenuBuilder.BeginSection(NAME_None, LOCTEXT("BlendProfileActions", "Actions"));
+		{
+			const FText& ModeName = BlendProfilePickerNames::GetNameForMode(BlendProfileMode);
+			MenuBuilder.AddMenuEntry(
+				FText::Format(LOCTEXT("RemoveBlendProfile", "Remove {0}"), ModeName),
+				FText::Format(LOCTEXT("RemoveBlendProfile_ToolTip", "Remove this {0} from the skeleton"), ModeName),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateLambda([this]()
+					{
+						OnRemoveClickedDelegate.ExecuteIfBound();
+						FSlateApplication::Get().DismissAllMenus();
+					})));
+
+		}
+		MenuBuilder.EndSection();
+
+		return MenuBuilder.MakeWidget();
 	}
 
 	FReply OnOpen()
 	{
 		OnOpenClickedDelegate.ExecuteIfBound();
-		FSlateApplication::Get().DismissAllMenus();
-		return FReply::Handled();
-	}
-
-	FReply OnRemove()
-	{
-		OnRemoveClickedDelegate.ExecuteIfBound();
 		FSlateApplication::Get().DismissAllMenus();
 		return FReply::Handled();
 	}
@@ -121,6 +228,8 @@ private:
 
 	FExecuteAction OnOpenClickedDelegate;
 	FExecuteAction OnRemoveClickedDelegate;
+	FBlendProfileModeChanged OnProfileModeChangedDelegate;
+	TWeakObjectPtr<UBlendProfile> BlendProfile;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -132,12 +241,30 @@ void SBlendProfilePicker::Construct(const FArguments& InArgs, TSharedRef<class I
 	bShowClearOption = InArgs._AllowClear;
 	bIsStandalone = InArgs._Standalone;
 	EditableSkeleton = InEditableSkeleton;
-	bAllowRemove = InArgs._AllowRemove;
+	SupportedBlendProfileModes = InArgs._SupportedBlendProfileModes;
+	bAllowModify = InArgs._AllowModify;
 
 	UEditorEngine* Editor = Cast<UEditorEngine>(GEngine);
 	if (Editor != nullptr)
 	{
 		Editor->RegisterForUndo(this);
+	}
+
+	PropertyHandle = InArgs._PropertyHandle;
+
+	if (PropertyHandle.IsValid())
+	{
+		FSimpleDelegate OnModeChanged = FSimpleDelegate::CreateLambda([this]
+			{
+				UObject * PropertyValue = nullptr;
+				PropertyHandle->GetValue(PropertyValue);
+				UBlendProfile * CurrentProfile = Cast<UBlendProfile>(PropertyValue);
+				// Avoid broadcasting to not double call FBlendProfileCustomization::OnBlendProfileChanged
+				SetSelectedProfile(CurrentProfile, false);
+			});
+
+		// Sometimes, the property value changes externally (not through the blend profile picker i.e. Reset to default). Must notify the blend profile picker
+		PropertyHandle->SetOnPropertyValueChanged(OnModeChanged);
 	}
 
 	if(InArgs._InitialProfile != nullptr && InEditableSkeleton->GetBlendProfiles().Contains(InArgs._InitialProfile))
@@ -170,8 +297,7 @@ void SBlendProfilePicker::Construct(const FArguments& InArgs, TSharedRef<class I
 				.Image(FEditorStyle::GetBrush("SkeletonTree.BlendProfile"))
 			]
 			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2, 0, 0, 0)
+			.Padding(2.0f, 0, 8.0f, 0)
 			.VAlign(VAlign_Center)
 			[
 				TextBlock
@@ -213,7 +339,7 @@ FText SBlendProfilePicker::GetSelectedProfileName() const
 	{
 		if (bIsStandalone)
 		{
-			return FText::Format(FText(LOCTEXT("SelectedNameEntryStandalone", "Blend Profile: {0}")), FText::FromName(SelectedProfileName));
+			return FText::Format(FText(LOCTEXT("SelectedNameEntryStandalone", "{0}: {1}")), BlendProfilePickerNames::GetNameForMode(SelectedProfile->BlendProfileMode), FText::FromName(SelectedProfileName));
 		}
 		else
 		{
@@ -222,7 +348,7 @@ FText SBlendProfilePicker::GetSelectedProfileName() const
 	}
 	if (bIsStandalone)
 	{
-		return FText(LOCTEXT("NoSelectionEntryStandalone", "Blend Profile: None"));
+		return FText(LOCTEXT("NoSelectionEntryStandalone", "Blend Profile/Mask: None"));
 	}
 	else
 	{
@@ -243,10 +369,16 @@ TSharedRef<SWidget> SBlendProfilePicker::GetMenuContent()
 			if(bShowNewOption)
 			{
 				MenuBuilder.AddMenuEntry(
-					LOCTEXT("CreateNew", "Create New Blend Profile"),
-					LOCTEXT("CreateNew_ToolTip", "Creates a new blend profile inside the skeleton."),
+					LOCTEXT("CreateNewBlendProfile", "Create New Blend Profile"),
+					LOCTEXT("CreateNewBlendProfile_ToolTip", "Creates a new blend profile inside the skeleton."),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateSP(this, &SBlendProfilePicker::OnCreateNewProfile)));
+					FUIAction(FExecuteAction::CreateSP(this, &SBlendProfilePicker::OnCreateNewProfile, EBlendProfileMode::TimeFactor))); //Default blend profiles to time factor
+
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("CreateNewBlendMask", "Create New Blend Mask"),
+					LOCTEXT("CreateNewBlendMask_ToolTip", "Creates a new blend mask inside the skeleton."),
+					FSlateIcon(),
+					FUIAction(FExecuteAction::CreateSP(this, &SBlendProfilePicker::OnCreateNewProfile, EBlendProfileMode::BlendMask)));
 			}
 
 			if(bShowClearOption)
@@ -261,25 +393,44 @@ TSharedRef<SWidget> SBlendProfilePicker::GetMenuContent()
 		MenuBuilder.EndSection();
 	}
 
-	MenuBuilder.BeginSection(NAME_None, LOCTEXT("Profiles", "Available Blend Profiles"));
+	const static FText AvailableModesHeadings[] = { LOCTEXT("BlendProfiles", "Available Blend Profiles"), LOCTEXT("BlendMasks", "Available Blend Masks") };
+	const static EBlendProfilePickerMode AvailableModesFilters[] = { EBlendProfilePickerMode::BlendProfile, EBlendProfilePickerMode::BlendMask };
+	static_assert(UE_ARRAY_COUNT(AvailableModesHeadings) == UE_ARRAY_COUNT(AvailableModesFilters), "Arrays must be of same size");
+
+	for (int32 ModeIndex = 0; ModeIndex < UE_ARRAY_COUNT(AvailableModesHeadings); ++ModeIndex)
 	{
-		if (EditableSkeleton.IsValid())
+		// Skip section if we don't support it
+		if (EnumHasAnyFlags(SupportedBlendProfileModes, AvailableModesFilters[ModeIndex]))
 		{
-			for (UBlendProfile* Profile : EditableSkeleton->GetBlendProfiles())
+			// Note: Section won't get populated if there are no available items for this mode type
+			MenuBuilder.BeginSection(NAME_None, AvailableModesHeadings[ModeIndex]);
 			{
-				MenuBuilder.AddWidget(
-					SNew(SBlendProfileMenuEntry)
-						.LabelOverride(FText::FromString(Profile->GetName()))
-						.OnOpenClickedDelegate(FExecuteAction::CreateSP(this, &SBlendProfilePicker::OnProfileSelected, Profile->GetFName()))
-						.OnRemoveClickedDelegate(FExecuteAction::CreateSP(this, &SBlendProfilePicker::OnProfileRemoved, Profile->GetFName()))
-						.AllowRemove(bAllowRemove),
-					FText(),
-					true
-				);
+				if (EditableSkeleton.IsValid())
+				{
+					for (UBlendProfile* Profile : EditableSkeleton->GetBlendProfiles())
+					{
+						// Only display blend profiles w/ a matching mode
+						if ((AvailableModesFilters[ModeIndex] == EBlendProfilePickerMode::BlendMask) ? Profile->IsBlendMask() : !Profile->IsBlendMask())
+						{
+							MenuBuilder.AddWidget(
+								SNew(SBlendProfileMenuEntry)
+								.LabelOverride(FText::FromString(Profile->GetName()))
+								.OnOpenClickedDelegate(FExecuteAction::CreateSP(this, &SBlendProfilePicker::OnProfileSelected, Profile->GetFName()))
+								.OnRemoveClickedDelegate(FExecuteAction::CreateSP(this, &SBlendProfilePicker::OnProfileRemoved, Profile->GetFName()))
+								.OnProfileModeChangedDelegate(SBlendProfileMenuEntry::FBlendProfileModeChanged::CreateSP(this, &SBlendProfilePicker::OnProfileModeChanged, Profile->GetFName()))
+								.BlendProfile(MakeWeakObjectPtr(Profile))
+								.AllowModify(bAllowModify),
+								FText(),
+								true
+							);
+						}
+					}
+				}
 			}
 		}
+
+		MenuBuilder.EndSection();
 	}
-	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
 }
@@ -303,11 +454,16 @@ void SBlendProfilePicker::OnProfileRemoved(FName InBlendProfileName)
 	BlendProfileSelectedDelegate.ExecuteIfBound(nullptr);
 }
 
-void SBlendProfilePicker::OnCreateNewProfile()
+void SBlendProfilePicker::OnProfileModeChanged(EBlendProfileMode ProfileMode, FName InBlendProfileName)
+{
+	EditableSkeleton->SetBlendProfileMode(InBlendProfileName, ProfileMode);
+}
+
+void SBlendProfilePicker::OnCreateNewProfile(EBlendProfileMode InMode)
 {
 	TSharedRef<STextEntryPopup> TextEntry = SNew(STextEntryPopup)
 		.Label(LOCTEXT("NewProfileName", "Profile Name"))
-		.OnTextCommitted(this, &SBlendProfilePicker::OnCreateNewProfileComitted);
+		.OnTextCommitted(this, &SBlendProfilePicker::OnCreateNewProfileComitted, InMode);
 
 	FSlateApplication::Get().PushMenu(
 		AsShared(),
@@ -317,7 +473,7 @@ void SBlendProfilePicker::OnCreateNewProfile()
 		FPopupTransitionEffect(FPopupTransitionEffect::TypeInPopup));
 }
 
-void SBlendProfilePicker::OnCreateNewProfileComitted(const FText& NewName, ETextCommit::Type CommitType)
+void SBlendProfilePicker::OnCreateNewProfileComitted(const FText& NewName, ETextCommit::Type CommitType, EBlendProfileMode InMode)
 {
 	FSlateApplication::Get().DismissAllMenus();
 
@@ -334,6 +490,8 @@ void SBlendProfilePicker::OnCreateNewProfileComitted(const FText& NewName, EText
 		}
 		else if(UBlendProfile* NewProfile = EditableSkeleton->CreateNewBlendProfile(NameToUse))
 		{
+			// Set our initial blend profile mode. Blend masks can't change this.
+			NewProfile->BlendProfileMode = InMode;
 			OnProfileSelected(NewProfile->GetFName());
 		}
 	}

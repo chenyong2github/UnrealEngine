@@ -48,7 +48,7 @@ public:
 	UPROPERTY(EditAnywhere, Category=BlendType)
 	UCurveFloat* CustomBlendCurve;
 
-	UPROPERTY(EditAnywhere, Category=BlendType)
+	UPROPERTY(EditAnywhere, Category=BlendType, meta=(UseAsBlendProfile=true))
 	UBlendProfile* BlendProfile;
 
 	TArray<struct FAlphaBlend> Blends;

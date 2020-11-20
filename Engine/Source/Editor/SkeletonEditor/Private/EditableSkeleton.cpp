@@ -183,6 +183,30 @@ void FEditableSkeleton::SetBlendProfileScale(const FName& InBlendProfileName, co
 	}
 }
 
+void FEditableSkeleton::SetBlendProfileMode(FName InBlendProfileName, EBlendProfileMode ProfileMode)
+{
+	UBlendProfile* BlendProfile = GetBlendProfile(InBlendProfileName);
+	if (BlendProfile)
+	{
+		FScopedTransaction Transaction(LOCTEXT("SetBlendProfileMode", "Set Blend Profile Mode"));
+
+		const bool bWasBlendMask = BlendProfile->IsBlendMask();
+		BlendProfile->SetFlags(RF_Transactional);
+		BlendProfile->Modify();
+		BlendProfile->BlendProfileMode = ProfileMode;
+		const bool bIsBlendMask = BlendProfile->IsBlendMask();
+		// Re-set entry indices from the end to properly handle different default values when changing from/to blend mask
+		if (bWasBlendMask != bIsBlendMask)
+		{
+			for (int32 EntryIndex = BlendProfile->GetNumBlendEntries() - 1; EntryIndex >= 0; --EntryIndex)
+			{
+				const FBlendProfileBoneEntry& Entry = BlendProfile->ProfileEntries[EntryIndex];
+				BlendProfile->SetBoneBlendScale(Entry.BoneReference.BoneName, Entry.BlendScale);
+			}
+		}
+	}
+}
+
 void FEditableSkeleton::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(Skeleton);
@@ -1061,7 +1085,9 @@ TSharedRef<SWidget> FEditableSkeleton::CreateBlendProfilePicker(const FBlendProf
 		.OnBlendProfileSelected(InArgs.OnBlendProfileSelected)
 		.AllowNew(InArgs.bAllowNew)
 		.AllowClear(InArgs.bAllowClear)
-		.AllowRemove(InArgs.bAllowRemove);
+		.AllowModify(InArgs.bAllowModify)
+		.SupportedBlendProfileModes(InArgs.SupportedBlendProfileModes)
+		.PropertyHandle(InArgs.PropertyHandle);
 
 	BlendProfilePickers.Add(BlendProfilePicker);
 	return BlendProfilePicker;

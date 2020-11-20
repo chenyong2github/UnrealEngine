@@ -332,8 +332,8 @@ public:
 	static void UpdateDesiredBoneWeight(const TArray<FPerBoneBlendWeight>& SrcBoneBlendWeights, TArray<FPerBoneBlendWeight>& TargetBoneBlendWeights, const TArray<float>& BlendWeights);
 
 	/**
-	 *	Create Mast Weight for skeleton joints, not per mesh or per required bones
-	 *  You'll have to filter properly with correct mesh joint or required boens
+	 *	Create Mask Weight for skeleton joints, not per mesh or per required bones
+	 *  You'll have to filter properly with correct mesh joint or required bones
 	 *  The depth should not change based on LOD or mesh or skeleton
 	 *	They still should contain same depth
 	 */
@@ -341,6 +341,15 @@ public:
 			TArray<FPerBoneBlendWeight>& BoneBlendWeights,
 			const TArray<FInputBlendPose>& BlendFilters, 
 			const USkeleton* Skeleton);
+
+	/**
+	 *	Create Mask Weight for skeleton joints, not per mesh or per required bones
+	 *  Individual alphas are read from a BlendProfile using a BlendMask mode
+	 */
+	static void CreateMaskWeights(
+		TArray<FPerBoneBlendWeight>& BoneBlendWeights,
+		const TArray<class UBlendProfile*>& BlendMasks,
+		const USkeleton* Skeleton);
 
 	static void CombineWithAdditiveAnimations(
 		int32 NumAdditivePoses,

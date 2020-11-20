@@ -13,6 +13,7 @@
 #include "Animation/CustomAttributesRuntime.h"
 #include "GenericPlatform/GenericPlatformCompilerPreSetup.h"
 #include "Animation/AnimationPoseData.h"
+#include "Animation/BlendProfile.h"
 #if INTEL_ISPC
 #include "AnimationRuntime.ispc.generated.h"
 #endif
@@ -1813,6 +1814,39 @@ void FAnimationRuntime::CreateMaskWeights(TArray<FPerBoneBlendWeight>& BoneBlend
 							BoneBlendWeight.BlendWeight = FMath::Clamp<float>(BoneBlendWeight.BlendWeight + BlendIncrease, 0.f, 1.f);
 						}
 					}
+				}
+			}
+		}
+	}
+}
+
+void FAnimationRuntime::CreateMaskWeights(TArray<FPerBoneBlendWeight>& BoneBlendWeights, const TArray<class UBlendProfile*>& BlendMasks, const USkeleton* Skeleton)
+{
+	if (Skeleton)
+	{
+		const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+
+		const int32 NumBones = RefSkeleton.GetNum();
+		BoneBlendWeights.Reset(NumBones);
+		// We only store non-zero weights in blend masks. Initialize all to zero.
+		BoneBlendWeights.AddZeroed(NumBones);
+
+		for (int32 MaskIndex = 0; MaskIndex < BlendMasks.Num(); ++MaskIndex)
+		{
+			const UBlendProfile* BlendMask = BlendMasks[MaskIndex];
+
+			if (!BlendMask || BlendMask->BlendProfileMode != EBlendProfileMode::BlendMask)
+			{
+				ensureMsgf(false, TEXT("FAnimationRuntime::CreateMaskWeights BlendMask null or BlendProfile mode is not blend mask.  BlendProfile=%s"), *GetNameSafe(BlendMask));
+				continue;
+			}
+
+			for (int32 EntryIndex = 0; EntryIndex < BlendMask->GetNumBlendEntries(); EntryIndex++)
+			{
+				int32 BoneIndex = BlendMask->ProfileEntries[EntryIndex].BoneReference.BoneIndex;
+				if (BoneBlendWeights.IsValidIndex(BoneIndex))
+				{
+					BoneBlendWeights[BoneIndex].BlendWeight = BlendMask->ProfileEntries[EntryIndex].BlendScale;
 				}
 			}
 		}

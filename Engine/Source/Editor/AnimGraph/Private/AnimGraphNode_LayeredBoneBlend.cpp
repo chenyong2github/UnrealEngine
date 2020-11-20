@@ -7,6 +7,8 @@
 #include "GraphEditorActions.h"
 #include "ScopedTransaction.h"
 
+#include "DetailLayoutBuilder.h"
+#include "Kismet2/CompilerResultsLog.h"
 /////////////////////////////////////////////////////
 // UAnimGraphNode_LayeredBoneBlend
 
@@ -33,9 +35,57 @@ FText UAnimGraphNode_LayeredBoneBlend::GetNodeTitle(ENodeTitleType::Type TitleTy
 	return LOCTEXT("AnimGraphNode_LayeredBoneBlend_Title", "Layered blend per bone");
 }
 
+void UAnimGraphNode_LayeredBoneBlend::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	const FName PropertyName = (PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None);
+
+	// Reconstruct node to show updates to PinFriendlyNames.
+	if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_LayeredBoneBlend, BlendMode))
+	{
+		// If we  change blend modes, we need to resize our containers
+		Node.ValidateData();
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetBlueprint());
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
 FString UAnimGraphNode_LayeredBoneBlend::GetNodeCategory() const
 {
 	return TEXT("Blends");
+}
+
+void UAnimGraphNode_LayeredBoneBlend::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	TSharedRef<IPropertyHandle> NodeHandle = DetailBuilder.GetProperty(FName(TEXT("Node")), GetClass());
+
+	if (Node.BlendMode != ELayeredBoneBlendMode::BranchFilter)
+	{
+		DetailBuilder.HideProperty(NodeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAnimNode_LayeredBoneBlend, LayerSetup)));
+	}
+
+	if (Node.BlendMode != ELayeredBoneBlendMode::BlendMask)
+	{
+		DetailBuilder.HideProperty(NodeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAnimNode_LayeredBoneBlend, BlendMasks)));
+	}
+
+	Super::CustomizeDetails(DetailBuilder);
+}
+
+void UAnimGraphNode_LayeredBoneBlend::PreloadRequiredAssets()
+{
+	// Preload our blend profiles in case they haven't been loaded by the skeleton yet.
+	if (Node.BlendMode == ELayeredBoneBlendMode::BlendMask)
+	{
+		int32 NumBlendMasks = Node.BlendMasks.Num();
+		for (int32 MaskIndex = 0; MaskIndex < NumBlendMasks; ++MaskIndex)
+		{
+			UBlendProfile* BlendMask = Node.BlendMasks[MaskIndex];
+			PreloadObject(BlendMask);
+		}
+	}
+
+	Super::PreloadRequiredAssets();
 }
 
 void UAnimGraphNode_LayeredBoneBlend::AddPinToBlendByFilter()
@@ -100,6 +150,34 @@ void UAnimGraphNode_LayeredBoneBlend::Serialize(FArchive& Ar)
 void UAnimGraphNode_LayeredBoneBlend::ValidateAnimNodeDuringCompilation(class USkeleton* ForSkeleton, class FCompilerResultsLog& MessageLog)
 {
 	UAnimGraphNode_Base::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
+
+	bool bCompilationError = false;
+	// Validate blend masks
+	if (Node.BlendMode == ELayeredBoneBlendMode::BlendMask)
+	{
+		int32 NumBlendMasks = Node.BlendMasks.Num();
+		for (int32 MaskIndex = 0; MaskIndex < NumBlendMasks; ++MaskIndex)
+		{
+			const UBlendProfile* BlendMask = Node.BlendMasks[MaskIndex];
+			if (BlendMask == nullptr)
+			{
+				MessageLog.Error(*FText::Format(LOCTEXT("LayeredBlendNullMask", "@@ has null BlendMask for Blend Pose {0}. "), FText::AsNumber(MaskIndex)).ToString(), this, BlendMask);
+				bCompilationError = true;
+				continue;
+			}
+			else if (BlendMask->BlendProfileMode != EBlendProfileMode::BlendMask)
+			{
+				MessageLog.Error(*FText::Format(LOCTEXT("LayeredBlendProfileModeError", "@@ is using a BlendProfile(@@) without a BlendMask mode for Blend Pose {0}. "), FText::AsNumber(MaskIndex)).ToString(), this, BlendMask);
+				bCompilationError = true;
+			}
+		}
+	}
+
+	// Don't rebuild the node's data if compilation failed. We may be attempting to do so with invalid data.
+	if (bCompilationError)
+	{
+		return;
+	}
 
 	// ensure to cache the data
  	if (Node.IsCacheInvalid(ForSkeleton))

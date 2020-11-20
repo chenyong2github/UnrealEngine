@@ -6,6 +6,7 @@
 #include "BoneContainer.h"
 #include "Animation/Skeleton.h"
 
+enum class EBlendProfileMode : uint8;
 class UBlendProfile;
 class USkeletalMesh;
 
@@ -40,6 +41,9 @@ public:
 
 	/** Set the blend profile scale for the specified bone */
 	virtual void SetBlendProfileScale(const FName& InBlendProfileName, const FName& InBoneName, float InNewScale, bool bInRecurse) = 0;
+
+	/** Change an existing blend profile's mode (See EBlendProfileMode for details) */
+	virtual void SetBlendProfileMode(FName InBlendProfileName, EBlendProfileMode ProfileMode) = 0;
 
 	/** Creates a new socket on the skeleton */
 	virtual USkeletalMeshSocket* AddSocket(const FName& InBoneName) = 0;
