@@ -3854,17 +3854,15 @@ bool UWorld::AllowLevelLoadRequests()
 
 void UWorld::HandleTimelineScrubbed()
 {
-	// Stop any FX from the pools
-	GetPSCPool().ReclaimActiveParticleSystems();
-
-	// Stop particles that belong to the AWorldSettings actor, as this persists on scrub
+	// Deactivate all FX components that belong to world settings
+	// These components are all one shot unmanaged FX that are generally going to destroy on complete or be returned back to the component pool they belong to
 	if (AWorldSettings* WorldSettings = GetWorldSettings())
 	{
-		TArray<UParticleSystemComponent*> ParticleSystemComponents;
-		WorldSettings->GetComponents(ParticleSystemComponents);
-		for (UParticleSystemComponent* PSC : ParticleSystemComponents)
+		TArray<UFXSystemComponent*> FXSystemComponents;
+		WorldSettings->GetComponents(FXSystemComponents);
+		for (UFXSystemComponent* FXSystemComponent : FXSystemComponents)
 		{
-			PSC->Complete();
+			FXSystemComponent->DeactivateImmediate();
 		}
 	}
 }
@@ -4566,7 +4564,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 		}
 	}
 
-	PSCPool.Cleanup();
+	PSCPool.Cleanup(this);
 
 	FWorldDelegates::OnPostWorldCleanup.Broadcast(this, bSessionEnded, bCleanupResources);
 

@@ -2181,7 +2181,7 @@ void FNiagaraSystemSimulation::OnChanged_UseLegacySystemSimulationContexts(ICons
 		FNiagaraWorldManager::ForAllWorldManagers(
 			[](FNiagaraWorldManager& WorldMan)
 			{
-				WorldMan.GetComponentPool()->Cleanup(true);
+				WorldMan.GetComponentPool()->Cleanup(nullptr);
 			}
 		);
 

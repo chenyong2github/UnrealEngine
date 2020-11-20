@@ -416,6 +416,9 @@ public:
 	virtual uint32 GetApproxMemoryUsage() const { return 0; }
 
 	virtual void ActivateSystem(bool bFlagAsJustAttached = false) { };
+
+	/** Forces component to deactivate immediately. */
+	virtual void DeactivateImmediate() {}
 };
 
 
@@ -1379,6 +1382,7 @@ protected:
 public:
 	virtual void Activate(bool bReset=false) override;
 	virtual void Deactivate() override;
+	virtual void DeactivateImmediate() override;
 	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 	//~ End USceneComponent Interface
 

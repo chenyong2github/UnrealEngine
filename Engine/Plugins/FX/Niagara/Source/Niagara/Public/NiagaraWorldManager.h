@@ -131,6 +131,7 @@ public:
 	void PostActorTick(float DeltaSeconds);
 
 	void OnWorldCleanup(bool bSessionEnded, bool bCleanupResources);
+	void OnPostWorldCleanup(bool bSessionEnded, bool bCleanupResources);
 
 	void PreGarbageCollect();
 	void PostReachabilityAnalysis();
@@ -186,6 +187,9 @@ private:
 	// Callback function registered with global world delegates to cleanup world manager contents
 	static void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
 
+	// Callback function registered with global world delegates to cleanup world manager contentx
+	static void OnPostWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
+
 	// Callback function registered with global world delegates to cleanup world manager when a game world is destroyed
 	static void OnPreWorldFinishDestroy(UWorld* World);
 
@@ -220,6 +224,7 @@ private:
 	
 	static FDelegateHandle OnWorldInitHandle;
 	static FDelegateHandle OnWorldCleanupHandle;
+	static FDelegateHandle OnPostWorldCleanupHandle;
 	static FDelegateHandle OnPreWorldFinishDestroyHandle;
 	static FDelegateHandle OnWorldBeginTearDownHandle;
 	static FDelegateHandle TickWorldHandle;
