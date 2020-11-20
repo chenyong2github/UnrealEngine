@@ -724,7 +724,7 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 			CachedPlayerViewLocations.Append(World->ViewLocationsRenderedLastFrame);
 		}
 
-		UpdateScalabilityManagers(false);
+		UpdateScalabilityManagers(DeltaSeconds, false);
 
 		//Tick our collections to push any changes to bound stores.
 		//-TODO: Do we need to do this per tick group?
@@ -765,7 +765,7 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 	if (GNiagaraSpawnPerTickGroup && (SimulationsWithPostActorWork.Num() > 0))
 	{
 		//We update scalability managers here so that any new systems can be culled or setup with other scalability based parameters correctly for their spawn.
-		UpdateScalabilityManagers(true);
+		UpdateScalabilityManagers(DeltaSeconds, true);
 
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_NiagaraSpawnPerTickGroup_GT);
 		for (int32 i = 0; i < SimulationsWithPostActorWork.Num(); ++i)
@@ -815,7 +815,7 @@ UWorld* FNiagaraWorldManager::GetWorld()
 
 //////////////////////////////////////////////////////////////////////////
 
-void FNiagaraWorldManager::UpdateScalabilityManagers(bool bNewSpawnsOnly)
+void FNiagaraWorldManager::UpdateScalabilityManagers(float DeltaSeconds, bool bNewSpawnsOnly)
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateScalabilityManagers);
 
@@ -827,7 +827,7 @@ void FNiagaraWorldManager::UpdateScalabilityManagers(bool bNewSpawnsOnly)
 
 		if (bNewSpawnsOnly)
 		{
-			ScalabilityMan.Update(this, true);
+			ScalabilityMan.Update(this, DeltaSeconds, true);
 		}
 		else
 		{
@@ -836,7 +836,7 @@ void FNiagaraWorldManager::UpdateScalabilityManagers(bool bNewSpawnsOnly)
 			//TODO: Work out how best to budget each effect type.
 			//EffectType->ApplyDynamicBudget(DynamicBudget_GT, DynamicBudget_GT_CNC, DynamicBudget_RT);
 
-			ScalabilityMan.Update(this, false);
+			ScalabilityMan.Update(this, DeltaSeconds, false);
 		}
 	}
 }
@@ -914,7 +914,7 @@ bool FNiagaraWorldManager::ShouldPreCull(UNiagaraSystem* System, FVector Locatio
 
 void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, FVector Location, bool bIsPreCull, FNiagaraScalabilityState& OutState)
 {
-	bool bOldCulled = OutState.bCulled;
+	OutState.bPreviousCulled = OutState.bCulled;
 
 	DistanceCull(EffectType, ScalabilitySettings, Location, OutState);
 
@@ -924,14 +924,13 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 		InstanceCountCull(EffectType, System, ScalabilitySettings, OutState);
 	}
 
-	OutState.bDirty = OutState.bCulled != bOldCulled;
 
 	//TODO: More progressive scalability options?
 }
 
 void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, UNiagaraComponent* Component, bool bIsPreCull, FNiagaraScalabilityState& OutState)
 {
-	bool bOldCulled = OutState.bCulled;
+	OutState.bPreviousCulled = OutState.bCulled;
 	OutState.bCulled = false;
 
 	DistanceCull(EffectType, ScalabilitySettings, Component, OutState);
@@ -946,8 +945,6 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 	{
 		InstanceCountCull(EffectType, System, ScalabilitySettings, OutState);
 	}
-
-	OutState.bDirty = OutState.bCulled != bOldCulled;
 
 	//TODO: More progressive scalability options?
 }

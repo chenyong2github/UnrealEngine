@@ -96,7 +96,6 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 , bHasAnyGPUEmitters(false)
 , bNeedsSortedSignificanceCull(false)
 , ActiveInstances(0)
-, ActiveInstancesTemp(0)
 {
 	ExposedParameters.SetOwner(this);
 #if WITH_EDITORONLY_DATA
