@@ -75,8 +75,6 @@ class ENGINE_API UChannel
 	uint32				bOpenedForCheckpoint:1;	// Whether channel was opened by replay checkpoint recording
 	int32				ChIndex;			// Index of this channel.
 	FPacketIdRange		OpenPacketId;		// If OpenedLocally is true, this is the packet we sent the bOpen bunch on. Otherwise, it's the packet we received the bOpen bunch on.
-	UE_DEPRECATED(4.22, "ChType has been deprecated in favor of ChName.")
-	EChannelType		ChType;				// Type of this channel.
 	FName				ChName;				// Name of the type of this channel.
 	int32				NumInRec;			// Number of packets in InRec.
 	int32				NumOutRec;			// Number of packets in OutRec.
@@ -94,18 +92,11 @@ public:
 public:	
 
 	/** UChannel interface. */
-	UE_DEPRECATED(4.22, "Use Init that takes channel create flags instead.")
-	virtual void Init(UNetConnection* InConnection, int32 InChIndex, bool InOpenedLocally) { Init(InConnection, InChIndex, InOpenedLocally ? EChannelCreateFlags::OpenedLocally : EChannelCreateFlags::None);  }
-
 	/** Initialize this channel for the given connection and index. */
 	virtual void Init(UNetConnection* InConnection, int32 InChIndex, EChannelCreateFlags CreateFlags);
 
 	/** Set the closing flag. */
 	virtual void SetClosingFlag();
-
-	/** Close the base channel. Returns how many bits were written to the send buffer */
-	UE_DEPRECATED(4.22, "Use the Close that takes a reason instead")
-	virtual int64 Close() { return Close(EChannelCloseReason::Destroyed); }
 
 	/** Close the base channel. Returns how many bits were written to the send buffer */
 	virtual int64 Close(EChannelCloseReason Reason);
@@ -160,10 +151,6 @@ public:
 	void AssertInSequenced();
 
 	/** cleans up channel if it hasn't already been */
-	UE_DEPRECATED(4.22, "Please use ConditionalCleanUp that takes a close reason")
-	void ConditionalCleanUp(const bool bForDestroy = false) { ConditionalCleanUp(bForDestroy, EChannelCloseReason::Destroyed);  }
-
-	/** cleans up channel if it hasn't already been */
 	void ConditionalCleanUp(const bool bForDestroy, EChannelCloseReason CloseReason);
 
 	/** Returns true if channel is ready to go dormant (e.g., all outstanding property updates have been ACK'd) */
@@ -181,10 +168,6 @@ protected:
 
 	/** Closes the actor channel but with a 'dormant' flag set so it can be reopened */
 	virtual void BecomeDormant() { }
-
-	/** cleans up channel structures and nulls references to the channel */
-	UE_DEPRECATED(4.22, "Please use Cleanup that takes a close reason")
-	virtual bool CleanUp( const bool bForDestroy ) { return CleanUp(bForDestroy, EChannelCloseReason::Destroyed); }
 
 	/** cleans up channel structures and nulls references to the channel */
 	virtual bool CleanUp( const bool bForDestroy, EChannelCloseReason CloseReason );

@@ -846,7 +846,7 @@ public:
 	TMap<FName, FChannelDefinition> ChannelDefinitionMap;
 
 	/** @return true if the specified channel definition exists. */
-	FORCEINLINE bool IsKnownChannelName(const FName& ChName)
+	FORCEINLINE bool IsKnownChannelName(const FName& ChName) const
 	{
 		return ChannelDefinitionMap.Contains(ChName);
 	}
@@ -1448,7 +1448,7 @@ public:
 	ENGINE_API virtual class UChildConnection* CreateChild(UNetConnection* Parent);
 
 	/** @return String that uniquely describes the net driver instance */
-	FString GetDescription() 
+	FString GetDescription() const
 	{ 
 		return FString::Printf(TEXT("%s %s%s"), *NetDriverName.ToString(), *GetName(), bIsPeer ? TEXT("(PEER)") : TEXT(""));
 	}
@@ -1567,10 +1567,10 @@ public:
 	/** Explicitly sets the ReplicationDriver instance (you instantiate it and initialize it). Shouldn't be done during gameplay: ok to do in GameMode startup or via console commands for testing. Existing ReplicationDriver (if set) is destroyed when this is called.  */
 	ENGINE_API void SetReplicationDriver(UReplicationDriver* NewReplicationManager);
 
-	ENGINE_API UReplicationDriver* GetReplicationDriver() { return ReplicationDriver; }
+	ENGINE_API UReplicationDriver* GetReplicationDriver() const { return ReplicationDriver; }
 
 	template<class T>
-	T* GetReplicationDriver() { return Cast<T>(ReplicationDriver); }
+	T* GetReplicationDriver() const { return Cast<T>(ReplicationDriver); }
 
 	void RemoveClientConnection(UNetConnection* ClientConnectionToRemove);
 

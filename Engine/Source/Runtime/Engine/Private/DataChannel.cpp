@@ -165,9 +165,6 @@ int64 UChannel::Close(EChannelCloseReason Reason)
 			check(!CloseBunch.IsError());
 			check(CloseBunch.bClose);
 			CloseBunch.bReliable = 1;
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			CloseBunch.bDormant = Dormant;
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			CloseBunch.CloseReason = Reason;
 			SendBunch( &CloseBunch, 0 );
 			NumBits = CloseBunch.GetNumBits();
@@ -416,9 +413,7 @@ bool UChannel::ReceivedSequencedBunch( FInBunch& Bunch )
 	// We have fully received the bunch, so process it.
 	if( Bunch.bClose )
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		Dormant = Bunch.bDormant || (Bunch.CloseReason == EChannelCloseReason::Dormancy);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		Dormant = (Bunch.CloseReason == EChannelCloseReason::Dormancy);
 
 		// Handle a close-notify.
 		if( InRec )
@@ -700,9 +695,6 @@ bool UChannel::ReceivedNextBunch( FInBunch & Bunch, bool & bOutSkipAck )
 
 					InPartialBunch->bPartialFinal			= true;
 					InPartialBunch->bClose					= Bunch.bClose;
-					PRAGMA_DISABLE_DEPRECATION_WARNINGS
-					InPartialBunch->bDormant				= Bunch.bDormant;
-					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					InPartialBunch->CloseReason				= Bunch.CloseReason;
 					InPartialBunch->bIsReplicationPaused	= Bunch.bIsReplicationPaused;
 					InPartialBunch->bHasMustBeMappedGUIDs	= Bunch.bHasMustBeMappedGUIDs;
@@ -885,9 +877,6 @@ UActorChannel::UActorChannel(const FObjectInitializer& ObjectInitializer)
 	, bBlockChannelFailure(false)
 #endif
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	ChType = CHTYPE_Actor;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	ChName = NAME_Actor;
 	bClearRecentActorRefs = true;
 	bHoldQueuedExportBunchesAndGUIDs = false;
@@ -954,7 +943,6 @@ void UActorChannel::AppendMustBeMappedGuids( FOutBunch* Bunch )
 	Super::AppendMustBeMappedGuids( Bunch );
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 {
 	if (!ensure(ChIndex != -1))
@@ -1159,11 +1147,9 @@ FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 		NextBunch->bReliable = Bunch->bReliable;
 		NextBunch->bOpen = Bunch->bOpen;
 		NextBunch->bClose = Bunch->bClose;
-		NextBunch->bDormant = Bunch->bDormant;
 		NextBunch->CloseReason = Bunch->CloseReason;
 		NextBunch->bIsReplicationPaused = Bunch->bIsReplicationPaused;
 		NextBunch->ChIndex = Bunch->ChIndex;
-		NextBunch->ChType = Bunch->ChType;
 		NextBunch->ChName = Bunch->ChName;
 
 		if ( !NextBunch->bHasPackageMapExports )
@@ -1221,7 +1207,6 @@ FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 
 	return PacketIdRange;
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /** This returns a pointer to Bunch, but it may either be a direct pointer, or a pointer to a copied instance of it */
 
@@ -2408,10 +2393,7 @@ int64 UActorChannel::SetChannelActorForDestroy( FActorDestructionInfo *DestructI
 		check(!CloseBunch.IsError());
 		check(CloseBunch.bClose);
 		CloseBunch.bReliable = 1;
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		CloseBunch.bDormant = 0;
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			CloseBunch.CloseReason = DestructInfo->Reason;
+		CloseBunch.CloseReason = DestructInfo->Reason;
 
 		// Serialize DestructInfo
 		NET_CHECKSUM(CloseBunch); // This is to mirror the Checksum in UPackageMapClient::SerializeNewActor

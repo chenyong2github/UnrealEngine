@@ -1508,11 +1508,6 @@ void UNetDriver::InitConnectionlessHandler()
 
 		if (ConnectionlessHandler.IsValid())
 		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			ConnectionlessHandler->InitializeAddressSerializer([this](const FString& InAddress) {
-				return GetSocketSubsystem()->GetAddressFromString(InAddress);
-			});
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			ConnectionlessHandler->NotifyAnalyticsProvider(AnalyticsProvider, AnalyticsAggregator);
 			ConnectionlessHandler->Initialize(Handler::Mode::Server, MAX_PACKET_SIZE, true, nullptr, nullptr, NetDriverName);
 

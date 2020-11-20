@@ -453,11 +453,6 @@ void UNetConnection::InitHandler()
 		{
 			Handler::Mode Mode = Driver->ServerConnection != nullptr ? Handler::Mode::Client : Handler::Mode::Server;
 
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			Handler->InitializeAddressSerializer([this](const FString& InAddress){
-				return Driver->GetSocketSubsystem()->GetAddressFromString(InAddress);
-			});
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			Handler->InitializeDelegates(FPacketHandlerLowLevelSendTraits::CreateUObject(this, &UNetConnection::LowLevelSend));
 			Handler->NotifyAnalyticsProvider(Driver->AnalyticsProvider, Driver->AnalyticsAggregator);
 			Handler->Initialize(Mode, MaxPacket * 8, false, nullptr, nullptr, Driver->NetDriverName);
@@ -2333,18 +2328,15 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 			Bunch.bOpen					= bControl ? Reader.ReadBit() : 0;
 			Bunch.bClose				= bControl ? Reader.ReadBit() : 0;
 			
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			if (Bunch.EngineNetVer() < HISTORY_CHANNEL_CLOSE_REASON)
 			{
-				Bunch.bDormant = Bunch.bClose ? Reader.ReadBit() : 0;
-				Bunch.CloseReason = Bunch.bDormant ? EChannelCloseReason::Dormancy : EChannelCloseReason::Destroyed;
+				const uint8 bDormant = Bunch.bClose ? Reader.ReadBit() : 0;
+				Bunch.CloseReason = bDormant ? EChannelCloseReason::Dormancy : EChannelCloseReason::Destroyed;
 			}
 			else
 			{
 				Bunch.CloseReason = Bunch.bClose ? (EChannelCloseReason)Reader.ReadInt((uint32)EChannelCloseReason::MAX) : EChannelCloseReason::Destroyed;
-				Bunch.bDormant = (Bunch.CloseReason == EChannelCloseReason::Dormancy);
 			}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			Bunch.bIsReplicationPaused  = Reader.ReadBit();
 			Bunch.bReliable				= Reader.ReadBit();
@@ -2451,11 +2443,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			Bunch.bPartialInitial = Bunch.bPartial ? Reader.ReadBit() : 0;
 			Bunch.bPartialFinal = Bunch.bPartial ? Reader.ReadBit() : 0;
 
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			if (Bunch.EngineNetVer() < HISTORY_CHANNEL_NAMES)
 			{
-				Bunch.ChType = (Bunch.bReliable || Bunch.bOpen) ? Reader.ReadInt(CHTYPE_MAX) : CHTYPE_None;
-				switch (Bunch.ChType)
+				uint32 ChType = (Bunch.bReliable || Bunch.bOpen) ? Reader.ReadInt(CHTYPE_MAX) : CHTYPE_None;
+				switch (ChType)
 				{
 					case CHTYPE_Control:
 						Bunch.ChName = NAME_Control;
@@ -2480,27 +2471,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 						CLOSE_CONNECTION_DUE_TO_SECURITY_VIOLATION(this, ESecurityEvent::Malformed_Packet, TEXT("Channel name serialization failed."));
 						return;
 					}
-
-					if (Bunch.ChName == NAME_Control)
-					{
-						Bunch.ChType = CHTYPE_Control;
-					}
-					else if (Bunch.ChName == NAME_Voice)
-					{
-						Bunch.ChType = CHTYPE_Voice;
-					}
-					else if (Bunch.ChName == NAME_Actor)
-					{
-						Bunch.ChType = CHTYPE_Actor;
-					}
 				}
 				else
 				{
-					Bunch.ChType = CHTYPE_None;
 					Bunch.ChName = NAME_None;
 				}
 			}
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			UChannel* Channel = Channels[Bunch.ChIndex];
 
