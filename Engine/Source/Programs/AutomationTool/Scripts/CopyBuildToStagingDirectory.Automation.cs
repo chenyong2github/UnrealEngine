@@ -3280,7 +3280,7 @@ public partial class Project : CommandUtils
 
 	private static string GetTmpPackagingPath(ProjectParams Params, DeploymentContext SC)
 	{
-		string TmpPackagingPath = CombinePaths(Path.GetDirectoryName(Params.RawProjectPath.FullName), "Saved", "TmpPackaging", SC.FinalCookPlatform);
+		string TmpPackagingPath = CombinePaths(Path.GetDirectoryName(Params.RawProjectPath.FullName), "Saved", "TmpPackaging", SC.CookPlatform);
 		if (Params.bUseExtraFlavor)
 		{
 			TmpPackagingPath = CombinePaths(TmpPackagingPath, "ExtraFlavor");
