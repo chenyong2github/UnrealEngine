@@ -144,12 +144,11 @@ void FConsoleVariableSwapperTempl<T>::Restore()
 	}
 }
 
-class FAutomationViewExtension : public FSceneViewExtensionBase
+class FAutomationViewExtension : public FWorldSceneViewExtension
 {
 public:
 	FAutomationViewExtension(const FAutoRegister& AutoRegister, UWorld* InWorld, FAutomationScreenshotOptions& InOptions, float InCurrentTimeToSimulate)
-		: FSceneViewExtensionBase(AutoRegister)
-		, WorldPtr(InWorld)
+		: FWorldSceneViewExtension(AutoRegister, InWorld)
 		, Options(InOptions)
 		, CurrentTime(InCurrentTimeToSimulate)
 	{
@@ -226,25 +225,10 @@ public:
 	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) {}
 	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) {}
 
-	virtual bool IsActiveThisFrame(class FViewport* InViewport) const
-	{
-		if (InViewport)
-		{
-			FViewportClient* Client = InViewport->GetClient();
-			if (Client)
-			{
-				return WorldPtr->GetWorld() == Client->GetWorld();
-	}
-}
-
-		return false;
-	}
-
 	/** We always want to go last. */
 	virtual int32 GetPriority() const override { return MIN_int32; }
 
 private:
-	TWeakObjectPtr<UWorld> WorldPtr;
 	FAutomationScreenshotOptions Options;
 	float CurrentTime;
 };

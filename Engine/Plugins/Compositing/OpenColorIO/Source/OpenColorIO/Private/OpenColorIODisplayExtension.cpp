@@ -33,9 +33,9 @@ FOpenColorIODisplayExtension::FOpenColorIODisplayExtension(const FAutoRegister& 
 {
 }
 
-bool FOpenColorIODisplayExtension::IsActiveThisFrame(class FViewport* InViewport) const
+bool FOpenColorIODisplayExtension::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
 {
-	if (InViewport && LinkedViewportClient == InViewport->GetClient() && DisplayConfiguration.bIsEnabled)
+	if (Context.Viewport && LinkedViewportClient == Context.Viewport->GetClient() && DisplayConfiguration.bIsEnabled)
 	{
 		return DisplayConfiguration.ColorConfiguration.IsValid();
 	}

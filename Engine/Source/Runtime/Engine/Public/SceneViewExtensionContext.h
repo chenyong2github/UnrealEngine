@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SceneInterface.h"
 #include "SceneViewExtensionContext.generated.h"
 
 class ISceneViewExtension;
@@ -18,14 +19,14 @@ private:
 	virtual FName GetRTTI() const { return TEXT("FSceneViewExtensionContext"); }
 
 public:
+	// The scene view extension can be defined with either a Viewport or a Scene
 
-	// The default object that defines a scene view extension is a viewport.
 	FViewport* Viewport = nullptr;
+	FSceneInterface* Scene = nullptr;
 
-	FSceneViewExtensionContext(FViewport* InViewport = nullptr) 
-		: Viewport(InViewport)
-	{
-	}
+	FSceneViewExtensionContext() : Viewport(nullptr), Scene(nullptr) {}
+	FSceneViewExtensionContext(FViewport* InViewport) : Viewport(InViewport) {}
+	FSceneViewExtensionContext(FSceneInterface* InScene) : Scene(InScene) {}
 
 	virtual ~FSceneViewExtensionContext() {}
 	
@@ -34,13 +35,33 @@ public:
 	{ 
 		return GetRTTI() == Other.GetRTTI(); 
 	}
+
+	/** Retrieve the world pointer for this context */
+	UWorld* GetWorld() const
+	{
+		if (Viewport != nullptr)
+		{
+			const FViewportClient* ViewportClient = Viewport->GetClient();
+			if (ViewportClient != nullptr)
+			{
+				return Viewport->GetClient()->GetWorld();
+			}
+		}
+		
+		if (Scene != nullptr)
+		{
+			return Scene->GetWorld();
+		}
+
+		return nullptr;
+	}
 };
 
 
 /**
  * Convenience type definition of a function that gives an opinion of whether the scene view extension should be active in the given context for the current frame.
  */
-using TSceneViewExtensionIsActiveFunction = TFunction<TOptional<bool>(const ISceneViewExtension* SceneViewExtension, FSceneViewExtensionContext& Context)>;
+using TSceneViewExtensionIsActiveFunction = TFunction<TOptional<bool>(const ISceneViewExtension* SceneViewExtension, const FSceneViewExtensionContext& Context)>;
 
 /**
  * Contains the TFunction that determines if a scene view extension should be valid in the given context given for the current frame.
@@ -73,7 +94,7 @@ public:
 	TSceneViewExtensionIsActiveFunction IsActiveFunction;
 
 	// Make this a functor so that it behaves like the lambda it carries.
-	TOptional<bool> operator () (const ISceneViewExtension* SceneViewExtension, FSceneViewExtensionContext& Context) const
+	TOptional<bool> operator () (const ISceneViewExtension* SceneViewExtension, const FSceneViewExtensionContext& Context) const
 	{
 		// If there is no lambda assigned, simply return an unset optional.
 		if (!IsActiveFunction)

@@ -507,7 +507,7 @@ int32 FMotionDelayClient::GetPriority() const
 }
 
 //------------------------------------------------------------------------------
-bool FMotionDelayClient::IsActiveThisFrame(class FViewport* InViewport) const
+bool FMotionDelayClient::IsActiveThisFrame_Internal(const FSceneViewExtensionContext&) const
 {
 	using namespace MotionDelayService_Impl;
 

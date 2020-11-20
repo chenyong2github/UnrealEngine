@@ -178,12 +178,24 @@ public:
 	/**
 	 * Returning false disables the extension for the current frame. This will be queried each frame to determine if the extension wants to run.
 	 */
+	UE_DEPRECATED(4.27, "Deprecated. Please use IsActiveThisFrame by passing an FSceneViewExtensionContext parameter")
 	virtual bool IsActiveThisFrame(class FViewport* InViewport) const { return true; }
+
+	/**
+	 * Returning false disables the extension for the current frame in the given context. This will be queried each frame to determine if the extension wants to run.
+	 */
+	virtual bool IsActiveThisFrame(const FSceneViewExtensionContext& Context) const { return IsActiveThisFrame_Internal(Context); }
 
 	/**
      * Returning false disables the extension for the current frame in the given context. This will be queried each frame to determine if the extension wants to run.
      */
-	virtual bool IsActiveThisFrameInContext(FSceneViewExtensionContext& Context) const { return IsActiveThisFrame(Context.Viewport); }
+	UE_DEPRECATED(4.27, "Deprecated. Please use IsActiveThisFrame_Internal instead.")
+	virtual bool IsActiveThisFrameInContext(FSceneViewExtensionContext& Context) const { return IsActiveThisFrame(Context); }
+protected:
+	/**
+	 * Called if no IsActive functors returned a definitive answer to whether this extension should be active this frame.
+	 */
+	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const { return true; }
 };
 
 
@@ -210,10 +222,25 @@ public:
 	TArray<FSceneViewExtensionIsActiveFunctor> IsActiveThisFrameFunctions;
 
 	// Determines if the extension should be active for the current frame and given context.
-	virtual bool IsActiveThisFrameInContext(FSceneViewExtensionContext& Context) const override;
+	virtual bool IsActiveThisFrame(const FSceneViewExtensionContext& Context) const override final;
+protected:
+	// Temporary override so that old behaviour still functions. Will be removed along with IsActiveThisFrame(FViewport*).
+	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 };
 
+/** Scene View Extension which is enabled for all Viewports/Scenes which have the same world. */
+class ENGINE_API FWorldSceneViewExtension : public FSceneViewExtensionBase
+{
+public:
+	FWorldSceneViewExtension(const FAutoRegister& AutoReg, UWorld* InWorld);
+protected:
+	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
+private:
+	/** The world of this view extension. */
+	TWeakObjectPtr<UWorld> World;
+};
 
+using FSceneViewExtensionRef = TSharedRef<ISceneViewExtension, ESPMode::ThreadSafe>;
 
 /**
  * Repository of all registered scene view extensions.
@@ -235,19 +262,28 @@ public:
 	}
 
 	/**
-	 * Gathers all ViewExtensions that want to be active this frame (@see ISceneViewExtension::IsActiveThisFrame()).
-	 * The list is sorted by priority (@see ISceneViewExtension::GetPriority())
+	 * Executes a function on each view extension which is active in a given context.
 	 */
-	const TArray<TSharedRef<class ISceneViewExtension, ESPMode::ThreadSafe>> GatherActiveExtensions(class FViewport* InViewport = nullptr) const;
+	static void ForEachActiveViewExtension(
+		const TArray<TWeakPtr<ISceneViewExtension, ESPMode::ThreadSafe>>& InExtensions, 
+		const FSceneViewExtensionContext& InContext,
+		const TFunctionRef<void(const FSceneViewExtensionRef&)>& Func);
 
 	/**
-     * Gathers all ViewExtensions that want to be active this frame (@see ISceneViewExtension::IsActiveThisFrame()).
+	 * Gathers all ViewExtensions that want to be active for a given viewport (@see ISceneViewExtension::IsActiveThisFrame()).
+	 * The list is sorted by priority (@see ISceneViewExtension::GetPriority())
+	 */
+	UE_DEPRECATED(4.27, "Deprecated. Please use GatherActiveExtensions by passing an FSceneViewExtensionContext parameter")
+	const TArray<FSceneViewExtensionRef> GatherActiveExtensions(class FViewport* InViewport = nullptr) const;
+
+	/**
+     * Gathers all ViewExtensions that want to be active in a given context (@see ISceneViewExtension::IsActiveThisFrame()).
      * The list is sorted by priority (@see ISceneViewExtension::GetPriority())
      */
-	const TArray<TSharedRef<class ISceneViewExtension, ESPMode::ThreadSafe>> GatherActiveExtensions(FSceneViewExtensionContext& InContext) const;
+	const TArray<FSceneViewExtensionRef> GatherActiveExtensions(const FSceneViewExtensionContext& InContext) const;
 
 private:
-	static void RegisterExtension(const TSharedRef<class ISceneViewExtension, ESPMode::ThreadSafe>& RegisterMe);
-	TArray< TWeakPtr<class ISceneViewExtension, ESPMode::ThreadSafe> > KnownExtensions;
+	static void RegisterExtension(const FSceneViewExtensionRef& RegisterMe);
+	TArray< TWeakPtr<ISceneViewExtension, ESPMode::ThreadSafe> > KnownExtensions;
 };
 

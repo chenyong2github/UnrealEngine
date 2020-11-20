@@ -50,7 +50,7 @@ public:
 	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override {}
 	virtual void PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
 	virtual int32 GetPriority() const override;
-	virtual bool IsActiveThisFrame(class FViewport* InViewport) const override;
+	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 
 protected:
 	bool FindDelayTransform(USceneComponent* Target, uint32 Delay, FTransform& TransformOut);

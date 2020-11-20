@@ -142,7 +142,7 @@ struct FFrameCaptureViewExtension : public FSceneViewExtensionBase
 	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) {}
 	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) {}
 
-	virtual bool IsActiveThisFrame(class FViewport* InViewport) const override { return IsEnabled(); }
+	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext&) const override { return IsEnabled(); }
 
 private:
 	const TArray<FString>& RenderPasses;

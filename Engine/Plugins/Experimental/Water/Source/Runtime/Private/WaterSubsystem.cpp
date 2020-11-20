@@ -220,7 +220,7 @@ TStatId UWaterSubsystem::GetStatId() const
 
 void UWaterSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-	WaterBodyManager.Initialize();
+	WaterBodyManager.Initialize(GetWorld());
 
 	bUsingSmoothedTime = false;
 	FConsoleVariableDelegate NotifyWaterScalabilityChanged = FConsoleVariableDelegate::CreateUObject(this, &UWaterSubsystem::NotifyWaterScalabilityChangedInternal);

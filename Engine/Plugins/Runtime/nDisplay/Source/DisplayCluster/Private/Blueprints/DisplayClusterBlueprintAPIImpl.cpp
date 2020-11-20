@@ -390,7 +390,7 @@ void UDisplayClusterBlueprintAPIImpl::GetLocalViewports(TArray<FString>& Viewpor
 
 void UDisplayClusterBlueprintAPIImpl::SceneViewExtensionIsActiveInContextFunction(const TArray<FString>& ViewportIDs, FSceneViewExtensionIsActiveFunctor& OutIsActiveFunction) const
 {
-	OutIsActiveFunction.IsActiveFunction = [ViewportIDs](const ISceneViewExtension* SceneViewExtension, FSceneViewExtensionContext& Context) 
+	OutIsActiveFunction.IsActiveFunction = [ViewportIDs](const ISceneViewExtension* SceneViewExtension, const FSceneViewExtensionContext& Context) 
 	{
 		// If the context is not a known one, offer no opinion.
 		{
@@ -400,7 +400,7 @@ void UDisplayClusterBlueprintAPIImpl::SceneViewExtensionIsActiveInContextFunctio
 			}
 		}
 
-		FDisplayClusterSceneViewExtensionContext& DisplayContext = static_cast<FDisplayClusterSceneViewExtensionContext&>(Context);
+		const FDisplayClusterSceneViewExtensionContext& DisplayContext = static_cast<const FDisplayClusterSceneViewExtensionContext&>(Context);
 		
 		// If no nDisplay viewport ids are given, assume this Scene View Extension should apply to all viewports.
 		if (!ViewportIDs.Num())

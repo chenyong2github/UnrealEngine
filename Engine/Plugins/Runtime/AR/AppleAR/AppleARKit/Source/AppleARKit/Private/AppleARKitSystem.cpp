@@ -189,11 +189,11 @@ private:
 		return VideoOverlay.GetPassthroughCameraUVs_RenderThread(OutUVs, ARKitSystem.DeviceOrientation);
 	}
 
-	virtual bool IsActiveThisFrame(class FViewport* InViewport) const override
+	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override
 	{
 		// Base implementation needs this call as it updates bCurrentFrameIsStereoRendering as a side effect.
 		// We'll ignore the result however.
-		FDefaultXRCamera::IsActiveThisFrame(InViewport);
+		FDefaultXRCamera::IsActiveThisFrame_Internal(Context);
 
 		// Check to see if they have disabled the automatic rendering or not
 		// Most Face AR apps that are driving other meshes using the face capture (animoji style) will disable this.
