@@ -93,7 +93,7 @@ void AWaterBrushManager::PostLoad()
 	if (GetLinkerCustomVersion(FWaterCustomVersion::GUID) < FWaterCustomVersion::MoveWaterMPCParamsToWaterMesh)
 	{
 		// OnPostLoad, the world is not set so we cannot retrieve the water mesh actor, we have to delay it to post-init :  
-		FWorldDelegates::OnPostWorldInitialization.AddLambda([this](UWorld* World, const UWorld::InitializationValues IVS)
+		OnWorldPostInitHandle = FWorldDelegates::OnPostWorldInitialization.AddLambda([this](UWorld* World, const UWorld::InitializationValues IVS)
 		{
 			TActorIterator<AWaterMeshActor> It(GetWorld());
 			if (AWaterMeshActor* WaterMeshActor = It ? *It : nullptr)
