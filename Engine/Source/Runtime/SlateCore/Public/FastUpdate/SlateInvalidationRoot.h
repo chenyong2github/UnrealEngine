@@ -6,9 +6,12 @@
 #include "UObject/GCObject.h"
 #include "WidgetProxy.h"
 #include "FastUpdate/SlateInvalidationRootHandle.h"
+#include "FastUpdate/SlateInvalidationWidgetIndex.h"
 #include "Rendering/DrawElements.h"
 
 struct FSlateCachedElementData;
+class FSlateInvalidationWidgetHeap;
+class FSlateInvalidationWidgetList;
 class FSlateWindowElementList;
 class FWidgetStyle;
 
@@ -75,14 +78,9 @@ public:
 
 	SLATECORE_API void InvalidateRoot(const SWidget* Investigator = nullptr);
 
-	/** Call to notify that the ordering of children somewhere in the hierarchy below this root has changed and the fast path is no longer valid */
-	SLATECORE_API void InvalidateChildOrder(const SWidget* Investigator = nullptr);
-
 	SLATECORE_API void InvalidateScreenPosition(const SWidget* Investigator = nullptr);
 
 	bool NeedsSlowPath() const { return bNeedsSlowPath; }
-
-	void RemoveWidgetFromFastPath(FWidgetProxy& Proxy);
 
 	/** @return the cached draw elements for this window and its widget hierarchy*/
 	FSlateCachedElementData& GetCachedElements() { return *CachedElementData; }
@@ -90,6 +88,8 @@ public:
 	const SWidget* GetInvalidationRootWidget() const;
 	int32 GetFastPathGenerationNumber() const { return FastPathGenerationNumber; }
 	FSlateInvalidationRootHandle GetInvalidationRootHandle() const { return InvalidationRootHandle; }
+	FSlateInvalidationWidgetList& GetFastPathWidgetList() { return *FastWidgetPathList; }
+	const FSlateInvalidationWidgetList& GetFastPathWidgetList() const { return *FastWidgetPathList; }
 
 	SLATECORE_API FSlateInvalidationResult PaintInvalidationRoot(const FSlateInvalidationContext& Context);
 
@@ -123,17 +123,22 @@ protected:
 private:
 	bool PaintFastPath(const FSlateInvalidationContext& Context);
 
-	void BuildFastPathList(SWidget* RootWidget);
-	bool BuildNewFastPathList_Recursive(FSlateInvalidationRoot& Root, FWidgetProxy& Proxy, int32 ParentIndex, int32& NextTreeIndex, TArray<FWidgetProxy>& CurrentFastPathList, TArray<FWidgetProxy, TMemStackAllocator<>>& NewFastPathList);
+	/** Call to notify that the ordering of children below this Widget has changed and the fast path is no longer valid. */
+	void InvalidateWidgetChildOrder(TSharedRef<SWidget> Widget);
+	void ProcessChildOrderUpdate();
+	void BuildFastPathWidgetList(TSharedRef<SWidget> RootWidget);
 
 	void AdjustWidgetsDesktopGeometry(FVector2D WindowToDesktopTransform);
 
 private:
-	TArray<FWidgetProxy> FastWidgetPathList;
+	/** List of all the Widget included by this SlateInvalidationRoot. */
+	FSlateInvalidationWidgetList* FastWidgetPathList;
 	/** Index to widgets which are dirty, volatile, or need some sort of per frame update (such as a tick or timer) */
-	FWidgetUpdateList WidgetsNeedingUpdate;
-
-	TArray<int32, TInlineAllocator<100>> FinalUpdateList;
+	FSlateInvalidationWidgetHeap* WidgetsNeedingUpdate;
+	/** Index to widgets that will be updated. */
+	TArray<FSlateInvalidationWidgetIndex> FinalUpdateList;
+	/** Widget that has ChildOrder invalidation. */
+	TArray<TWeakPtr<SWidget>> WidgetsNeedingChildOrderUpdate;
 
 	FSlateCachedElementData* CachedElementData;
 
@@ -155,6 +160,7 @@ private:
 	bool bChildOrderInvalidated;
 	bool bNeedsSlowPath;
 	bool bNeedScreenPositionShift;
+	bool bProcessingChildOrderUpdate;
 
 #if WITH_SLATE_DEBUGGING
 	ESlateInvalidationPaintType LastPaintType;

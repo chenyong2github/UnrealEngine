@@ -93,9 +93,9 @@ bool SInvalidationPanel::GetCanCache() const
 	// In global invalidation this code makes no sense so we don't bother running it because everything is in an "invalidation panel" at the window level
 #if WITH_SLATE_DEBUGGING
 	// Disable invalidation panels if global invalidation is turned on
-	return bCanCache && !GSlateEnableGlobalInvalidation && !GetProxyHandle().IsValid() && InvalidationPanelsEnabled;
+	return bCanCache && !GSlateEnableGlobalInvalidation && !GetProxyHandle().IsValid(this) && InvalidationPanelsEnabled;
 #else
-	return bCanCache && !GSlateEnableGlobalInvalidation && !GetProxyHandle().IsValid();
+	return bCanCache && !GSlateEnableGlobalInvalidation && !GetProxyHandle().IsValid(this);
 #endif
 }
 

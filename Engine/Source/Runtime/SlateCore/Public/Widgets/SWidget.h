@@ -212,6 +212,7 @@ class SLATECORE_API SWidget
 	friend struct FCurveSequence;
 	friend class FWidgetProxy;
 	friend class FSlateInvalidationRoot;
+	friend class FSlateInvalidationWidgetList;
 	friend class FSlateWindowElementList;
 	friend class SWindow;
 	friend struct FSlateCachedElementList;
@@ -689,7 +690,6 @@ public:
 
 protected:
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) { return false; }
-	bool AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 ParentIndex, TArray<FWidgetProxy, TMemStackAllocator<>>& FastPathList, bool bParentVisible, bool bParentVolatile);
 
 	/**
 	 * The system calls this method. It performs a breadth-first traversal of every visible widget and asks
@@ -718,6 +718,9 @@ protected:
 	}
 
 private:
+	void SetFastPathProxyHandle(const FWidgetProxyHandle& Handle) { FastPathProxyHandle = Handle; }
+	void SetFastPathProxyHandle(const FWidgetProxyHandle& Handle, bool bInvisibleDueToParentOrSelfVisibility, bool bParentVolatile);
+	void SetFastPathSortOrder(const FSlateInvalidationWidgetSortOrder SortOrder);
 
 	void UpdateFastPathVisibility(bool bParentVisible, bool bWidgetRemoved, FHittestGrid* ParentHittestGrid);
 
@@ -739,19 +742,13 @@ private:
 	void AddUpdateFlags(EWidgetUpdateFlags FlagsToAdd)
 	{
 		UpdateFlags |= FlagsToAdd;
-		if (FastPathProxyHandle.IsValid())
-		{
-			FastPathProxyHandle.UpdateWidgetFlags(UpdateFlags);
-		}
+		FastPathProxyHandle.UpdateWidgetFlags(this, UpdateFlags);
 	}
 
 	void RemoveUpdateFlags(EWidgetUpdateFlags FlagsToRemove)
 	{
 		UpdateFlags &= (~FlagsToRemove);
-		if (FastPathProxyHandle.IsValid())
-		{
-			FastPathProxyHandle.UpdateWidgetFlags(UpdateFlags);
-		}
+		FastPathProxyHandle.UpdateWidgetFlags(this, UpdateFlags);
 
 #if WITH_SLATE_DEBUGGING
 		if (EnumHasAnyFlags(FlagsToRemove, EWidgetUpdateFlags::NeedsRepaint))

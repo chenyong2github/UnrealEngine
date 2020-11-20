@@ -550,7 +550,7 @@ void SDMXPixelMappingDesignerView::PopulateWidgetGeometryCache_Loop(FArrangedWid
 
 	if (bIncludeInHitTestGrid)
 	{
-		HittestGrid->AddWidget(CurrentWidget.Widget, 0, 0, 0);
+		HittestGrid->AddWidget(CurrentWidget.Widget, 0, 0, FSlateInvalidationWidgetSortOrder());
 	}
 
 	FArrangedChildren ArrangedChildren(EVisibility::All);

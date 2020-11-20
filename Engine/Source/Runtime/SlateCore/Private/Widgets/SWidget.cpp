@@ -164,7 +164,7 @@ void SWidget::UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementsHandle& Ca
 	}
 	PersistentState.CachedElementHandle = CacheHandle;
 
-	if (FastPathProxyHandle.IsValid())
+	if (FastPathProxyHandle.IsValid(this))
 	{
 		FWidgetProxy& MyProxy = FastPathProxyHandle.GetProxy();
 
@@ -265,11 +265,7 @@ SWidget::~SWidget()
 		}
 
 		// Warn the invalidation root
-		FSlateInvalidationRootHandle SlateInvalidationRootHandle = FastPathProxyHandle.GetInvalidationRootHandle();
-#if WITH_SLATE_DEBUGGING
-		ensure(!SlateInvalidationRootHandle.IsStale());
-#endif
-		if (FSlateInvalidationRoot* InvalidationRoot = SlateInvalidationRootHandle.GetInvalidationRoot())
+		if (FSlateInvalidationRoot* InvalidationRoot = FastPathProxyHandle.GetInvalidationRootHandle().GetInvalidationRoot())
 		{
 			InvalidationRoot->OnWidgetDestroyed(this);
 		}
@@ -728,75 +724,39 @@ bool SWidget::ConditionallyDetatchParentWidget(SWidget* InExpectedParent)
 	return false;
 }
 
-bool SWidget::AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 ParentIndex, TArray<FWidgetProxy, TMemStackAllocator<>>& FastPathList, bool bParentVisible, bool bParentVolatile)
+void SWidget::SetFastPathSortOrder(const FSlateInvalidationWidgetSortOrder InSortOrder)
 {
-	// Because null widgets are a shared static widget they are not valid for the fast path and are treated as non-existent
-	if (this == &SNullWidget::NullWidget.Get())
+	if (InSortOrder != FastPathProxyHandle.GetWidgetSortOrder())
 	{
-		return false;
+		FastPathProxyHandle.WidgetSortOrder = InSortOrder;
+		if (FSlateInvalidationRoot* Root = FastPathProxyHandle.GetInvalidationRootHandle().GetInvalidationRoot())
+		{
+			if (FHittestGrid* HittestGrid = Root->GetHittestGrid())
+			{
+				HittestGrid->UpdateWidget(AsShared(), InSortOrder);
+			}
+		}
+
+		//TODO, update Cached LayerId
 	}
+}
 
-	if (FastPathProxyHandle.IsValid())
-	{
-		ensureAlwaysMsgf(!FastPathProxyHandle.IsValid(), TEXT("Widget %s was already assigned a proxy handle. If this is being hit this widget is in the active slate tree more than once.  This is illegal and at best will result in UI corruption."), *FReflectionMetaData::GetWidgetDebugInfo(*this));
-		return false;
-	}
+void SWidget::SetFastPathProxyHandle(const FWidgetProxyHandle& Handle, bool bInInvisibleDueToParentOrSelfVisibility, bool bParentVolatile)
+{
+	check(this != &SNullWidget::NullWidget.Get());
 
-	FWidgetProxy MyProxy(*this);
-	MyProxy.Index = FastPathList.Num();
-	MyProxy.ParentIndex = ParentIndex;
-	MyProxy.Visibility = GetVisibility();
+	FastPathProxyHandle = Handle;
 
-	check(ParentIndex != MyProxy.Index);
-
-	// If this method is being called, child order changed.  Initial visibility and volatility needs to be propagated
-	// Update visibility
-	const bool bParentAndSelfVisible = bParentVisible && MyProxy.Visibility.IsVisible();
-	const bool bWasInvisible = bInvisibleDueToParentOrSelfVisibility;
-	bInvisibleDueToParentOrSelfVisibility = !bParentAndSelfVisible;
-	MyProxy.bInvisibleDueToParentOrSelfVisibility = bInvisibleDueToParentOrSelfVisibility;
-
-	// Update volatility
+	bInvisibleDueToParentOrSelfVisibility = bInInvisibleDueToParentOrSelfVisibility;
 	bInheritedVolatility = bParentVolatile;
 
-	FastPathProxyHandle = FWidgetProxyHandle(Root, MyProxy.Index);
-
-	if (bInvisibleDueToParentOrSelfVisibility&& PersistentState.CachedElementHandle.IsValid())
+	if (bInvisibleDueToParentOrSelfVisibility && PersistentState.CachedElementHandle.IsValid())
 	{
 #if WITH_SLATE_DEBUGGING
 		check(PersistentState.CachedElementHandle.IsOwnedByWidget(this));
 #endif
 		PersistentState.CachedElementHandle.RemoveFromCache();
 	}
-
-	FastPathList.Add(MyProxy);
-
-	// Don't recur into children if we are at a different invalidation root(nested invalidation panels) than where we started and not at the root of the tree. Those children should belong to that roots tree.
-	if (!Advanced_IsInvalidationRoot() || ParentIndex == INDEX_NONE)
-	{
-		FChildren* MyChildren = GetAllChildren();
-		const int32 NumChildren = MyChildren->Num();
-
-		int32 NumChildrenValidForFastPath = 0;
-		for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
-		{
-			// Because null widgets are a shared static widget they are not valid for the fast path and are treated as non-existent
-			const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
-			if (Child->AssignIndicesToChildren(Root, MyProxy.Index, FastPathList, bParentAndSelfVisible, bParentVolatile || IsVolatile()))
-			{
-				NumChildrenValidForFastPath++;
-			}
-		}
-
-		{
-			FWidgetProxy& MyProxyRef = FastPathList[MyProxy.Index];
-			MyProxyRef.NumChildren = NumChildrenValidForFastPath;
-			int32 LastIndex = FastPathList.Num() - 1;
-			MyProxyRef.LeafMostChildIndex = LastIndex != MyProxy.Index ? LastIndex : INDEX_NONE;
-		}
-	}
-
-	return true;
 }
 
 void SWidget::UpdateFastPathVisibility(bool bParentVisible, bool bWidgetRemoved, FHittestGrid* ParentHittestGrid)
@@ -808,18 +768,13 @@ void SWidget::UpdateFastPathVisibility(bool bParentVisible, bool bWidgetRemoved,
 	const bool bVisibilityChanged = bWasInvisible != bInvisibleDueToParentOrSelfVisibility;
 
 	FHittestGrid* HittestGridToRemoveFrom = ParentHittestGrid;
-	if (FastPathProxyHandle.IsValid())
+	if (FastPathProxyHandle.IsValid(this))
 	{	
 		// Try and remove this from the current handles hit test grid.  If we are in a nested invalidation situation the hittest grid may have changed
 		HittestGridToRemoveFrom = FastPathProxyHandle.GetInvalidationRoot()->GetHittestGrid();
 		FWidgetProxy& Proxy = FastPathProxyHandle.GetProxy();
 		Proxy.Visibility = CurrentVisibility;
 		Proxy.bInvisibleDueToParentOrSelfVisibility = bInvisibleDueToParentOrSelfVisibility;
-
-		if (bWidgetRemoved)
-		{
-			FastPathProxyHandle.GetInvalidationRoot()->RemoveWidgetFromFastPath(Proxy);
-		}
 	}
 	else if (bWidgetRemoved)
 	{
@@ -1147,7 +1102,7 @@ void SWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 		InvalidatePrepass();
 	}
 
-	if(FastPathProxyHandle.IsValid())
+	if(FastPathProxyHandle.IsValid(this))
 	{
 		// Current thinking is that visibility and volatility should be updated right away, not during fast path invalidation processing next frame
 		if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::Visibility))
@@ -1344,7 +1299,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 #endif
 
 #if WITH_SLATE_DEBUGGING
-	if (!FastPathProxyHandle.IsValid() && PersistentState.CachedElementHandle.IsValid())
+	if (!FastPathProxyHandle.IsValid(this) && PersistentState.CachedElementHandle.IsValid())
 	{
 		ensure(!bInvisibleDueToParentOrSelfVisibility);
 	}
@@ -1354,7 +1309,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 
 	if (bOutgoingHittestability)
 	{
-		Args.GetHittestGrid().AddWidget(MutableThis, 0, LayerId, FastPathProxyHandle.GetIndex());
+		Args.GetHittestGrid().AddWidget(MutableThis, 0, LayerId, FastPathProxyHandle.GetWidgetSortOrder());
 	}
 
 	if (bClipToBounds)

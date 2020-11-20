@@ -713,7 +713,7 @@ void SWindow::SetAllowFastUpdate(bool bInAllowFastUpdate)
 		bAllowFastUpdate = bInAllowFastUpdate;
 		if (bAllowFastUpdate)
 		{
-			InvalidateChildOrder();
+			InvalidateRoot();
 		}
 	}
 }
