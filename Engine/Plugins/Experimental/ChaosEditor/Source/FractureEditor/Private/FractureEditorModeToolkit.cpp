@@ -1509,6 +1509,7 @@ void FFractureEditorModeToolkit::ResetAsset()
 				}
 
 				GeometryCollectionObject->InitializeMaterials();
+				AddSingleRootNodeIfRequired(GeometryCollectionObject);
 				FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection, -1);
 				
 				GeometryCollectionComponent->MarkRenderDynamicDataDirty();
