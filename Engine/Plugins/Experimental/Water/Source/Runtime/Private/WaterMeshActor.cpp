@@ -9,6 +9,7 @@
 #include "Algo/Transform.h"
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
+#include "WaterIconHelper.h"
 #endif
 
 AWaterMeshActor::AWaterMeshActor(const FObjectInitializer& Initializer)
@@ -22,6 +23,8 @@ AWaterMeshActor::AWaterMeshActor(const FObjectInitializer& Initializer)
 		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 		LevelEditorModule.OnActorSelectionChanged().AddUObject(this, &AWaterMeshActor::OnActorSelectionChanged);
 	}
+
+	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterMeshActorSprite"), NSLOCTEXT("Water", "WaterMeshActorSpriteName", "Water Mesh Actor"));
 #endif
 }
 

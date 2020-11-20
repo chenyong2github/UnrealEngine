@@ -70,7 +70,7 @@ class WATER_API UWaterSubsystem : public UWorldSubsystem, public FTickableGameOb
 public:
 
 	/** Static helper function to get a water subsystem from a world, returns nullptr if world or subsystem don't exist */
-	static UWaterSubsystem* GetWaterSubsystem(UWorld* InWorld);
+	static UWaterSubsystem* GetWaterSubsystem(const UWorld* InWorld);
 
 	/** Static helper function to get a waterbody manager from a world, returns nullptr if world or manager don't exist */
 	static FWaterBodyManager* GetWaterBodyManager(UWorld* InWorld);
@@ -84,7 +84,7 @@ public:
 
 	FWaterBodyManager WaterBodyManager;
 
-	AWaterMeshActor* GetWaterMeshActor();
+	AWaterMeshActor* GetWaterMeshActor() const;
 
 	TWeakObjectPtr<AWaterBody> GetOceanActor() { return OceanActor; }
 	void SetOceanActor(TWeakObjectPtr<AWaterBody> InOceanActor) { OceanActor = InOceanActor; }
@@ -146,6 +146,11 @@ public:
 	
 	void MarkAllWaterMeshesForRebuild();
 
+#if WITH_EDITOR
+	void RegisterWaterActorClassSprite(UClass* Class, UTexture2D* Sprite);
+	UTexture2D* GetWaterActorSprite(UClass* Class) const;
+#endif // WITH_EDITOR
+
 public:
 	DECLARE_EVENT_OneParam(UWaterSubsystem, FOnWaterSubsystemInitialized, UWaterSubsystem*)
 	static FOnWaterSubsystemInitialized OnWaterSubsystemInitialized;
@@ -161,6 +166,17 @@ public:
 	
 	UPROPERTY()
 	UStaticMesh* DefaultLakeMesh;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TMap<UClass*, UTexture2D*> WaterActorSprites;
+
+	UPROPERTY()
+	UTexture2D* DefaultWaterActorSprite;
+
+	UPROPERTY()
+	UTexture2D* ErrorSprite;
+#endif // WITH_EDITORONLY_DATA
 
 private:
 	void NotifyWaterScalabilityChangedInternal(IConsoleVariable* CVar);
@@ -179,7 +195,7 @@ private:
 private:
 
 	UPROPERTY()
-	AWaterMeshActor* WaterMeshActor;
+	mutable AWaterMeshActor* WaterMeshActor;
 
 	TWeakObjectPtr<AWaterBody> OceanActor;
 

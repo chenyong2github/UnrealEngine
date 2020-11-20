@@ -23,6 +23,7 @@ public:
 	AWaterLandscapeBrush(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void PostInitProperties() override;
+	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginDestroy() override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
@@ -83,8 +84,24 @@ public:
 	void ForceUpdate();
 
 #if WITH_EDITOR
+	enum class EWaterBrushStatus : uint8
+	{
+		Valid,
+		MissingLandscapeWithEditLayers,
+		MissingFromLandscapeEditLayers
+	};
+
+	EWaterBrushStatus CheckWaterBrushStatus();
+
 	virtual void CheckForErrors() override;
+	
+	void UpdateActorIcon();
 #endif // WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient)
+	UBillboardComponent* ActorIcon;
+#endif // WITH_EDITORONLY_DATA
 
 protected:
 	void MarkRenderTargetsDirty();

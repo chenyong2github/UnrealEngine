@@ -49,7 +49,6 @@ AWaterBrushManager::AWaterBrushManager(const FObjectInitializer& ObjectInitializ
 
 	PrimaryActorTick.TickGroup = ETickingGroup::TG_PrePhysics;
 	bIsEditorOnlyActor = false;
-	bLockLocation = true;
 }
 
 void AWaterBrushManager::Serialize(FArchive& Ar)
@@ -1368,3 +1367,4 @@ void AWaterBrushManager::UpdateBrushCacheKeys()
 	}
 }
 
+#undef LOCTEXT_NAMESPACE
