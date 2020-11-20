@@ -281,10 +281,8 @@ Texture2D VelocityTexture;
 
 groupshared float SharedPDF[LIGHTING_PDF_THREADGROUP_SIZE * LIGHTING_PDF_THREADGROUP_SIZE * 4];
 
-float ComputeHistoryWeightBasedOnPosition(float2 ScreenPosition, float SceneDepth, float2 OldScreenPosition, float HistoryCameraDepth, float Noise)
+float ComputeHistoryWeightBasedOnPosition(float3 WorldPosition, float SceneDepth, float2 OldScreenPosition, float HistoryCameraDepth, float Noise)
 {
-	float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
-
 	float3 PrevPositionTranslatedWorld = mul(float4(OldScreenPosition * HistoryCameraDepth, HistoryCameraDepth, 1), View.PrevScreenToTranslatedWorld).xyz;
 	float3 PrevWorldPosition = PrevPositionTranslatedWorld - View.PrevPreViewTranslation;
 
@@ -360,19 +358,34 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 
 			if (EffectiveHistoryWeight > 0.0f)
 			{
-				float2 HistoryScreenProbeCoord = GetScreenProbeCoordFromScreenUV(HistoryScreenUV, SCREEN_HISTORY_TEMPORAL_INDEX, 0);
+				float2 UnclampedHistoryScreenProbeCoord = GetScreenProbeCoordFromScreenUV(HistoryScreenUV, SCREEN_HISTORY_TEMPORAL_INDEX, 0);
+				float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
 
-				//@todo - interpolate from 4 neighbors
-				float HistoryDepth = HistoryDownsampledDepth.Load(int3(HistoryScreenProbeCoord, 0)).x;
-				float PositionWeight = ComputeHistoryWeightBasedOnPosition(ScreenPosition, SceneDepth, HistoryScreenPosition.xy, HistoryDepth, 1.0f);
+				float3 HistoryRadiance = 0;
+				float HistoryRadianceWeight = 0;
 
-				EffectiveHistoryWeight *= PositionWeight;
+				for (float Y = 0; Y < 2; Y++)
+				{
+					for (float X = 0; X < 2; X++)
+					{
+						uint2 HistoryScreenProbeCoord = clamp(UnclampedHistoryScreenProbeCoord + float2(X, Y), float2(0, 0), float2(ScreenProbeViewSize - 1));
 
-				uint2 HistoryRadianceCoord = ((uint2)HistoryScreenProbeCoord) * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord;
-				float3 HistoryRadiance = HistoryScreenProbeRadiance.Load(int3(HistoryRadianceCoord, 0)).xyz * PrevInvPreExposure * View.PreExposure;
+						float HistoryDepth = HistoryDownsampledDepth.Load(int3(HistoryScreenProbeCoord, 0)).x;
+						float PositionWeight = ComputeHistoryWeightBasedOnPosition(WorldPosition, SceneDepth, HistoryScreenPosition.xy, HistoryDepth, 1.0f);
+						float HistoryWeight = EffectiveHistoryWeight * PositionWeight;
 
-				Lighting = HistoryRadiance * EffectiveHistoryWeight;
-				Transparency = 1.0f - EffectiveHistoryWeight;
+						uint2 HistoryRadianceCoord = HistoryScreenProbeCoord * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord;
+						HistoryRadiance += HistoryScreenProbeRadiance.Load(int3(HistoryRadianceCoord, 0)).xyz * (PrevInvPreExposure * View.PreExposure * HistoryWeight);
+						HistoryRadianceWeight += HistoryWeight;
+					}
+				}
+
+				if (HistoryRadianceWeight > 0)
+				{
+					Lighting = HistoryRadiance / HistoryRadianceWeight;
+				}
+
+				Transparency = 1.0f - saturate(HistoryRadianceWeight / 4.0f);
 			}
 #endif
 			float2 ProbeTexelCenter = GetProbeTexelCenter(ScreenProbeScreenCoord);
