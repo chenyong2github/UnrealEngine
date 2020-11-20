@@ -31,7 +31,23 @@ void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread(int64 Timeout)
 	WaitInfo.type = XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO;
 	WaitInfo.next = nullptr;
 	WaitInfo.timeout = Timeout;
-	XR_ENSURE(xrWaitSwapchainImage(Handle, &WaitInfo));
+
+	XrResult WaitResult;
+	int RetryCount = 3;
+	do
+	{
+		XR_ENSURE(WaitResult = xrWaitSwapchainImage(Handle, &WaitInfo));
+		if (WaitResult == XR_TIMEOUT_EXPIRED)
+		{
+			UE_LOG(LogHMD, Warning, TEXT("Timed out waiting on swapchain image %u! Attempts remaining %d."), SwapChainIndex_RHIThread, RetryCount);
+		}
+	} while (WaitResult == XR_TIMEOUT_EXPIRED && RetryCount-- > 0);
+
+	if (WaitResult != XR_SUCCESS)
+	{
+		// We can't continue without acquiring a new swapchain image since we won't have an image available to render to.
+		UE_LOG(LogHMD, Fatal, TEXT("Failed to wait on acquired swapchain image. This usually indicates a problem with the OpenXR runtime."));
+	}
 
 	GDynamicRHI->RHIAliasTextureResources((FTextureRHIRef&)RHITexture, (FTextureRHIRef&)RHITextureSwapChain[SwapChainIndex_RHIThread]);
 }
