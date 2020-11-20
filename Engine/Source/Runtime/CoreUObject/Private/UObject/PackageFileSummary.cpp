@@ -30,6 +30,21 @@ static ECustomVersionSerializationFormat::Type GetCustomVersionFormatForArchive(
 	return CustomVersionFormat;
 }
 
+static void FixCorruptEngineVersion(int ObjectVersion, FEngineVersion& Version)
+{
+	// The move of EpicInternal.txt in CL 12740027 broke checks for non-licensee builds in UGS. resulted in checks for Epic internal builds in UGS breaking, and assets being saved out with the licensee flag set.
+	// Detect such assets and clear the licensee bit.
+	if (ObjectVersion < VER_UE4_CORRECT_LICENSEE_FLAG
+		&& Version.GetMajor() == 4
+		&& Version.GetMinor() == 26
+		&& Version.GetPatch() == 0
+		&& Version.GetChangelist() >= 12740027
+		&& Version.IsLicenseeVersion())
+	{
+		Version.Set(4, 26, 0, Version.GetChangelist(), Version.GetBranch());
+	}
+}
+
 void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 {
 	FArchive& BaseArchive = Slot.GetUnderlyingArchive();
@@ -263,6 +278,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 			else
 			{
 				Record << SA_VALUE(TEXT("SavedByEngineVersion"), Sum.SavedByEngineVersion);
+				FixCorruptEngineVersion(Sum.GetFileVersionUE4(), Sum.SavedByEngineVersion);
 			}
 		}
 		else
@@ -286,6 +302,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 			else
 			{
 				Record << SA_VALUE(TEXT("CompatibleWithEngineVersion"), Sum.CompatibleWithEngineVersion);
+				FixCorruptEngineVersion(Sum.GetFileVersionUE4(), Sum.CompatibleWithEngineVersion);
 			}
 		}
 		else
