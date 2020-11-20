@@ -1448,7 +1448,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 		for (ULevel* CollectionLevel : LevelCollections[i].GetLevels())
 		{
 			const bool bAddToTickList = (bValidateLevelList == false) || Levels.Contains(CollectionLevel);
-			if (bAddToTickList)
+			if (bAddToTickList && CollectionLevel)
 			{
 				LevelsToTick.Add(CollectionLevel);
 			}
