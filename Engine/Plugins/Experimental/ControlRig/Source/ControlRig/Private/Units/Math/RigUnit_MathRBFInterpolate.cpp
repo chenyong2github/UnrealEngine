@@ -195,7 +195,7 @@ void FRigUnit_MathRBFInterpolateQuatBase::GetInterpolatedWeights(
 	{
 		WorkData.Targets = Quats;
 		WorkData.Hash = HashTargets(FRigVMFixedArray<FQuat>(Quats.GetData(), Quats.Num()));
-		WorkData.Interpolator = TRBFInterpolator<FQuat>(WorkData.Targets, WeightFunc, false);
+		WorkData.Interpolator = TRBFInterpolator<FQuat>(WorkData.Targets, WeightFunc);
 		WorkData.bAreTargetsConstant = true;
 	}
 	else if (WorkData.bAreTargetsConstant)
@@ -212,7 +212,7 @@ void FRigUnit_MathRBFInterpolateQuatBase::GetInterpolatedWeights(
 	if (!WorkData.bAreTargetsConstant)
 	{
 		// Re-initialize the interpolator with the new target values.
-		WorkData.Interpolator = TRBFInterpolator<FQuat>(Quats, WeightFunc, false);
+		WorkData.Interpolator = TRBFInterpolator<FQuat>(Quats, WeightFunc);
 	}
 
 	WorkData.Interpolator.Interpolate(Weights, Input, /*bClip=*/true, bNormalizeOutput);
@@ -258,7 +258,7 @@ void FRigUnit_MathRBFInterpolateVectorBase::GetInterpolatedWeights(
 	{
 		WorkData.Targets = Vectors;
 		WorkData.Hash = HashTargets(FRigVMFixedArray<FVector>(Vectors.GetData(), Vectors.Num()));
-		WorkData.Interpolator = TRBFInterpolator<FVector>(WorkData.Targets, WeightFunc, false);
+		WorkData.Interpolator = TRBFInterpolator<FVector>(WorkData.Targets, WeightFunc);
 	}
 	else if (WorkData.bAreTargetsConstant)
 	{
@@ -274,7 +274,7 @@ void FRigUnit_MathRBFInterpolateVectorBase::GetInterpolatedWeights(
 	if (!WorkData.bAreTargetsConstant)
 	{
 		// Re-initialize the interpolator with the new target values.
-		WorkData.Interpolator = TRBFInterpolator<FVector>(Vectors, WeightFunc, false);
+		WorkData.Interpolator = TRBFInterpolator<FVector>(Vectors, WeightFunc);
 	}
 
 	WorkData.Interpolator.Interpolate(Weights, Input, /*bClip=*/true, bNormalizeOutput);
