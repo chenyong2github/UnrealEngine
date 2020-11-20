@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "FastUpdate/SlateInvalidationWidgetList.h"
 
 #include "FastUpdate/SlateInvalidationRoot.h"
