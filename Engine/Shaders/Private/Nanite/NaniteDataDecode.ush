@@ -4,6 +4,7 @@
 
 #include "../Common.ush"
 #include "../SceneData.ush"
+#include "PackedNaniteView.ush"
 
 #define USE_IMPLICIT_TANGENT_SPACE				1														// must match define in NaniteBuilder.cpp
 #define USE_CONSTRAINED_CLUSTERS				1														// must match define in NaniteBuilder.h
@@ -278,35 +279,6 @@ struct FNaniteView
 	int			TargetMipLevel;
 	int			TargetNumMipLevels;
 	int			TargetPrevLayerIndex;
-	int4		HZBTestViewRect;
-};
-
-struct FPackedNaniteView
-{
-	float4x4	TranslatedWorldToView;
-	float4x4	TranslatedWorldToClip;
-	float4x4	ViewToClip;
-	float4x4	ClipToWorld;
-	
-	float4x4	PrevTranslatedWorldToView;
-	float4x4	PrevTranslatedWorldToClip;
-	float4x4	PrevViewToClip;
-	float4x4	PrevClipToWorld;
-
-	int4		ViewRect;
-	float4		ViewSizeAndInvSize;
-	float4		ClipSpaceScaleOffset;
-	float4		PreViewTranslation;
-	float4		PrevPreViewTranslation;
-	float4		WorldCameraOrigin;
-	float4		ViewForwardAndNearPlane;
-	
-	float2		LODScales;
-	float		MinBoundsRadiusSq;
-	uint		StreamingPriorityCategory_AndFlags;
-
-	int4		TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ;
-
 	int4		HZBTestViewRect;
 };
 
@@ -1140,52 +1112,11 @@ uint GetMaterialBucketIdFromDepth(float Depth)
 	return (uint)(Depth * MAX_STATE_BUCKET_ID);
 }
 
-StructuredBuffer< FPackedNaniteView > InViews;
-FNaniteView GetNaniteView( uint ViewIndex )
+
+FNaniteView UnpackNaniteView(FPackedNaniteView PackedView)
 {
-#if NANITE_USE_VIEW_UNIFORM_BUFFER
 	FNaniteView NaniteView;
-
-	NaniteView.TranslatedWorldToView		= View.TranslatedWorldToView;
-	NaniteView.TranslatedWorldToClip		= View.TranslatedWorldToClip;
-	NaniteView.ViewToClip					= View.ViewToClip;
-	NaniteView.ClipToWorld					= View.ClipToWorld;
 	
-	NaniteView.PrevTranslatedWorldToView	= View.PrevTranslatedWorldToView;
-	NaniteView.PrevTranslatedWorldToClip	= View.PrevTranslatedWorldToClip;
-	NaniteView.PrevViewToClip				= View.PrevViewToClip;
-	NaniteView.PrevClipToWorld				= View.PrevInvViewProj;
-
-	NaniteView.ViewSizeAndInvSize			= View.ViewSizeAndInvSize;
-	NaniteView.ViewRect						= int4(int2(View.ViewRectMin.xy + 0.5f), int2(View.ViewRectMin.xy + View.ViewSizeAndInvSize.zy + 0.5f));
-	NaniteView.PreViewTranslation			= View.PreViewTranslation;
-	NaniteView.PrevPreViewTranslation		= View.PrevPreViewTranslation;
-	NaniteView.WorldCameraOrigin			= View.WorldCameraOrigin;
-	NaniteView.ViewForward					= View.ViewForward;
-	NaniteView.NearPlane					= View.NearPlane;
-	NaniteView.LODScale						= 1.0f;
-	NaniteView.LODScaleHW					= 1.0f;
-	NaniteView.MinBoundsRadiusSq			= 0;
-	NaniteView.StreamingPriorityCategory	= 3;
-	NaniteView.Flags						= VIEW_FLAG_HZBTEST;
-	
-	NaniteView.TargetLayerIndex				= 0;
-	NaniteView.TargetMipLevel				= 0;
-	NaniteView.TargetNumMipLevels			= 0;
-	NaniteView.TargetPrevLayerIndex			= 0;
-
-	NaniteView.HZBTestViewRect				= NaniteView.ViewRect;
-
-#else // !NANITE_USE_VIEW_UNIFORM_BUFFER
-
-#if NANITE_MULTI_VIEW
-	FPackedNaniteView PackedView = InViews[ViewIndex];
-#else
-	FPackedNaniteView PackedView = InViews[0];
-#endif
-
-	FNaniteView NaniteView;
-
 	NaniteView.TranslatedWorldToView		= PackedView.TranslatedWorldToView;
 	NaniteView.TranslatedWorldToClip		= PackedView.TranslatedWorldToClip;
 	NaniteView.ViewToClip					= PackedView.ViewToClip;
@@ -1216,6 +1147,54 @@ FNaniteView GetNaniteView( uint ViewIndex )
 	NaniteView.TargetPrevLayerIndex			= PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.w;
 
 	NaniteView.HZBTestViewRect				= PackedView.HZBTestViewRect;
+
+	return NaniteView;
+}
+
+StructuredBuffer< FPackedNaniteView > InViews;
+FNaniteView GetNaniteView( uint ViewIndex )
+{
+#if NANITE_USE_VIEW_UNIFORM_BUFFER
+	FNaniteView NaniteView;
+
+	NaniteView.TranslatedWorldToView		= View.TranslatedWorldToView;
+	NaniteView.TranslatedWorldToClip		= View.TranslatedWorldToClip;
+	NaniteView.ViewToClip					= View.ViewToClip;
+	NaniteView.ClipToWorld					= View.ClipToWorld;
+	
+	NaniteView.PrevTranslatedWorldToView	= View.PrevTranslatedWorldToView;
+	NaniteView.PrevTranslatedWorldToClip	= View.PrevTranslatedWorldToClip;
+	NaniteView.PrevViewToClip				= View.PrevViewToClip;
+	NaniteView.PrevClipToWorld				= View.PrevInvViewProj;
+
+	NaniteView.ViewSizeAndInvSize			= View.ViewSizeAndInvSize;
+	NaniteView.ViewRect						= int4(int2(View.ViewRectMin.xy + 0.5f), int2(View.ViewRectMin.xy + View.ViewSizeAndInvSize.zy + 0.5f));
+	NaniteView.PreViewTranslation			= View.PreViewTranslation;
+	NaniteView.PrevPreViewTranslation		= View.PrevPreViewTranslation;
+	NaniteView.WorldCameraOrigin			= View.WorldCameraOrigin;
+	NaniteView.ViewForward					= View.ViewForward;
+	NaniteView.NearPlane					= View.NearPlane;
+	NaniteView.LODScale						= 1.0f;
+	NaniteView.LODScaleHW					= 1.0f;
+	NaniteView.MinBoundsRadiusSq			= 0;
+	NaniteView.StreamingPriorityCategory	= 3;
+	NaniteView.Flags						= VIEW_FLAG_HZBTEST;
+	
+	NaniteView.TargetLayerIndex = 0;
+	NaniteView.TargetMipLevel = 0;
+	NaniteView.TargetNumMipLevels = 0;
+	NaniteView.TargetPrevLayerIndex	= 0;
+
+	NaniteView.HZBTestViewRect				= NaniteView.ViewRect;
+
+#else // !NANITE_USE_VIEW_UNIFORM_BUFFER
+
+#if NANITE_MULTI_VIEW
+	FPackedNaniteView PackedView = InViews[ViewIndex];
+#else
+	FPackedNaniteView PackedView = InViews[0];
+#endif
+	FNaniteView NaniteView = UnpackNaniteView(PackedView);
 
 #endif // NANITE_USE_VIEW_UNIFORM_BUFFER
 
