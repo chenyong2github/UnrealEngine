@@ -144,6 +144,24 @@ bool FCbField::Equals(const FCbField& Other) const
 	return Type == Other.Type && GetFieldView().EqualBytes(Other.GetFieldView());
 }
 
+void FCbField::IterateReferences(FCbFieldVisitor Visitor) const
+{
+	switch (FCbFieldType::GetType(Type))
+	{
+	case ECbFieldType::Object:
+	case ECbFieldType::UniformObject:
+		return FCbObject::FromField(*this).IterateReferences(Visitor);
+	case ECbFieldType::Array:
+	case ECbFieldType::UniformArray:
+		return FCbArray::FromField(*this).IterateReferences(Visitor);
+	case ECbFieldType::Reference:
+	case ECbFieldType::BinaryReference:
+		return Visitor(*this);
+	default:
+		return;
+	}
+}
+
 FCbObject FCbField::AsObject()
 {
 	const ECbFieldType LocalType = Type;

@@ -68,10 +68,12 @@
  */
 
 class FCbArray;
+class FCbField;
 class FCbObject;
 struct FDateTime;
 struct FGuid;
 struct FTimespan;
+template <typename FuncType> class TFunctionRef;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -253,7 +255,18 @@ public:
 
 	static constexpr inline bool IsDateTime(ECbFieldType Type)   { return GetType(Type) == ECbFieldType::DateTime; }
 	static constexpr inline bool IsTimeSpan(ECbFieldType Type)   { return GetType(Type) == ECbFieldType::TimeSpan; }
+
+	/** Whether the type is or may contain fields of any reference type. */
+	static constexpr inline bool MayContainReferences(ECbFieldType Type)
+	{
+		return IsObject(Type) | IsArray(Type) | IsAnyReference(Type);
+	}
 };
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** A reference to a function that is used to visit fields. */
+using FCbFieldVisitor = TFunctionRef<void (FCbField)>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -339,10 +352,37 @@ public:
 		return !Equals(Other);
 	}
 
-	/** Calculate the hash of the fields by hashing their underlying memory. */
-	inline FBlake3Hash GetHash() const { return FBlake3::HashBuffer(GetFieldRangeView(*this)); }
-	/** Calculate the hash of the fields by hashing their underlying memory. */
-	inline void GetHash(FBlake3& Hash) const { Hash.Update(GetFieldRangeView(*this)); }
+	/** Calculate the hash of the field range by hashing their underlying memory. */
+	inline FBlake3Hash GetRangeHash() const { return FBlake3::HashBuffer(GetFieldRangeView(*this)); }
+	/** Calculate the hash of the field range by hashing their underlying memory. */
+	inline void GetRangeHash(FBlake3& Hash) const { Hash.Update(GetFieldRangeView(*this)); }
+
+	/** Invoke the visitor for every reference or binary reference in the field range. */
+	inline void IterateRangeReferences(FCbFieldVisitor Visitor) const
+	{
+		// Always iterate over non-uniform ranges because we do not know if they contain a reference.
+		if (FCbFieldType::HasFieldType(FieldType::GetType()))
+		{
+			for (TCbFieldIterator It(*this); It; ++It)
+			{
+				if (FCbFieldType::MayContainReferences(It.GetType()))
+				{
+					It.IterateReferences(Visitor);
+				}
+			}
+		}
+		// Only iterate over uniform ranges if the uniform type may contain a reference.
+		else
+		{
+			if (FCbFieldType::MayContainReferences(FieldType::GetType()))
+			{
+				for (TCbFieldIterator It(*this); It; ++It)
+				{
+					It.IterateReferences(Visitor);
+				}
+			}
+		}
+	}
 
 protected:
 	/** Returns the end of the last field, or null for an iterator at the end. */
@@ -444,6 +484,9 @@ public:
 	inline FBlake3Hash GetHash() const { return FBlake3::HashBuffer(GetFieldView()); }
 	/** Calculate the hash of the field by hashing its underlying memory. */
 	inline void GetHash(FBlake3& Hash) const { Hash.Update(GetFieldView()); }
+
+	/** Invoke the visitor for every reference or binary reference in the field. */
+	CORE_API void IterateReferences(FCbFieldVisitor Visitor) const;
 
 	/** Access the field as an object. Defaults to an empty object on error. */
 	CORE_API FCbObject AsObject();
@@ -723,6 +766,9 @@ public:
 	/** Calculate the hash of the array if serialized by itself with no name. */
 	CORE_API void GetHash(FBlake3& Hash) const;
 
+	/** Invoke the visitor for every reference or binary reference in the array. */
+	inline void IterateReferences(FCbFieldVisitor Visitor) const { CreateIterator().IterateRangeReferences(Visitor); }
+
 protected:
 	/** Returns the type to use when constructing a new array after using CopyTo. */
 	constexpr inline ECbFieldType GetCopyType() const
@@ -814,6 +860,9 @@ public:
 	CORE_API FBlake3Hash GetHash() const;
 	/** Calculate the hash of the object if serialized by itself with no name. */
 	CORE_API void GetHash(FBlake3& Hash) const;
+
+	/** Invoke the visitor for every reference or binary reference in the object. */
+	inline void IterateReferences(FCbFieldVisitor Visitor) const { CreateIterator().IterateRangeReferences(Visitor); }
 
 protected:
 	/** Returns the type to use when constructing a new object after using CopyTo. */

@@ -7,6 +7,8 @@
 #include "Misc/DateTime.h"
 #include "Misc/Guid.h"
 #include "Misc/Timespan.h"
+#include "Serialization/CompactBinaryValidation.h"
+#include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/VarInt.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -994,6 +996,180 @@ bool FCbFieldTimeSpanTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FCbFieldIterateReferencesTest, FCbFieldTestBase, "System.Core.Serialization.CbField.IterateReferences", CompactBinaryTestFlags)
+bool FCbFieldIterateReferencesTest::RunTest(const FString& Parameters)
+{
+	const auto MakeTestHash = [](uint32 Index) { return FBlake3::HashBuffer(&Index, sizeof(Index)); };
+
+	FCbFieldRefIterator Fields;
+	{
+		FCbWriter Writer;
+
+		Writer.Name("IgnoredTypeInRoot").Hash(MakeTestHash(100));
+		Writer.Reference(MakeTestHash(0));
+		Writer.BinaryReference(MakeTestHash(1));
+		Writer.Name("RefInRoot").Reference(MakeTestHash(2));
+		Writer.Name("BinRefInRoot").BinaryReference(MakeTestHash(3));
+
+		// Uniform array of type to ignore.
+		Writer.BeginArray();
+		{
+			Writer << 1;
+			Writer << 2;
+		}
+		Writer.EndArray();
+		// Uniform array of binary references.
+		Writer.BeginArray();
+		{
+			Writer.BinaryReference(MakeTestHash(4));
+			Writer.BinaryReference(MakeTestHash(5));
+		}
+		Writer.EndArray();
+		// Uniform array of uniform arrays.
+		Writer.BeginArray();
+		{
+			Writer.BeginArray();
+			Writer.BinaryReference(MakeTestHash(6));
+			Writer.BinaryReference(MakeTestHash(7));
+			Writer.EndArray();
+			Writer.BeginArray();
+			Writer.BinaryReference(MakeTestHash(8));
+			Writer.BinaryReference(MakeTestHash(9));
+			Writer.EndArray();
+		}
+		Writer.EndArray();
+		// Uniform array of non-uniform arrays.
+		Writer.BeginArray();
+		{
+			Writer.BeginArray();
+			Writer << 0;
+			Writer << false;
+			Writer.EndArray();
+			Writer.BeginArray();
+			Writer.Reference(MakeTestHash(10));
+			Writer << false;
+			Writer.EndArray();
+		}
+		Writer.EndArray();
+		// Uniform array of uniform objects.
+		Writer.BeginArray();
+		{
+			Writer.BeginObject();
+			Writer.Name("RefInUniObjInUniObj1").Reference(MakeTestHash(11));
+			Writer.Name("RefInUniObjInUniObj2").Reference(MakeTestHash(12));
+			Writer.EndObject();
+			Writer.BeginObject();
+			Writer.Name("RefInUniObjInUniObj3").Reference(MakeTestHash(13));
+			Writer.Name("RefInUniObjInUniObj4").Reference(MakeTestHash(14));
+			Writer.EndObject();
+		}
+		Writer.EndArray();
+		// Uniform array of non-uniform objects.
+		Writer.BeginArray();
+		{
+			Writer.BeginObject();
+			Writer << "Int" << 0;
+			Writer << "Bool" << false;
+			Writer.EndObject();
+			Writer.BeginObject();
+			Writer.Name("RefInNonUniObjInUniObj").Reference(MakeTestHash(15));
+			Writer << "Bool" << false;
+			Writer.EndObject();
+		}
+		Writer.EndArray();
+
+		// Uniform object of type to ignore.
+		Writer.BeginObject();
+		{
+			Writer << "Int1" << 1;
+			Writer << "Int2" << 2;
+		}
+		Writer.EndObject();
+		// Uniform object of binary references.
+		Writer.BeginObject();
+		{
+			Writer.Name("BinRefInUniObj1").BinaryReference(MakeTestHash(16));
+			Writer.Name("BinRefInUniObj2").BinaryReference(MakeTestHash(17));
+		}
+		Writer.EndObject();
+		// Uniform object of uniform arrays.
+		Writer.BeginObject();
+		{
+			Writer.Name("Array1");
+			Writer.BeginArray();
+			Writer.BinaryReference(MakeTestHash(18));
+			Writer.BinaryReference(MakeTestHash(19));
+			Writer.EndArray();
+			Writer.Name("Array2");
+			Writer.BeginArray();
+			Writer.BinaryReference(MakeTestHash(20));
+			Writer.BinaryReference(MakeTestHash(21));
+			Writer.EndArray();
+		}
+		Writer.EndObject();
+		// Uniform object of non-uniform arrays.
+		Writer.BeginObject();
+		{
+			Writer.Name("Array1");
+			Writer.BeginArray();
+			Writer << 0;
+			Writer << false;
+			Writer.EndArray();
+			Writer.Name("Array2");
+			Writer.BeginArray();
+			Writer.Reference(MakeTestHash(22));
+			Writer << false;
+			Writer.EndArray();
+		}
+		Writer.EndObject();
+		// Uniform object of uniform objects.
+		Writer.BeginObject();
+		{
+			Writer.Name("Object1");
+			Writer.BeginObject();
+			Writer.Name("RefInUniObjInUniObj1").Reference(MakeTestHash(23));
+			Writer.Name("RefInUniObjInUniObj2").Reference(MakeTestHash(24));
+			Writer.EndObject();
+			Writer.Name("Object2");
+			Writer.BeginObject();
+			Writer.Name("RefInUniObjInUniObj3").Reference(MakeTestHash(25));
+			Writer.Name("RefInUniObjInUniObj4").Reference(MakeTestHash(26));
+			Writer.EndObject();
+		}
+		Writer.EndObject();
+		// Uniform object of non-uniform objects.
+		Writer.BeginObject();
+		{
+			Writer.Name("Object1");
+			Writer.BeginObject();
+			Writer << "Int" << 0;
+			Writer << "Bool" << false;
+			Writer.EndObject();
+			Writer.Name("Object2");
+			Writer.BeginObject();
+			Writer.Name("RefInNonUniObjInUniObj").Reference(MakeTestHash(27));
+			Writer << "Bool" << false;
+			Writer.EndObject();
+		}
+		Writer.EndObject();
+
+		Fields = Writer.Save();
+	}
+
+	TestEqual(TEXT("FCbField::IterateReferences Validate"), ValidateCompactBinaryRange(*Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None);
+
+	uint32 ReferenceIndex = 0;
+	Fields.IterateRangeReferences([this, &ReferenceIndex, &MakeTestHash](FCbField Field)
+		{
+			TestTrue(FString::Printf(TEXT("FCbField::IterateReferences(%u)::IsAnyReference"), ReferenceIndex), Field.IsAnyReference());
+			TestEqual(FString::Printf(TEXT("FCbField::IterateReferences(%u)"), ReferenceIndex), Field.AsReference(Field.AsBinaryReference()), MakeTestHash(ReferenceIndex));
+			++ReferenceIndex;
+		});
+	TestEqual(TEXT("FCbField::IterateReferences"), ReferenceIndex, 28);
+
+	return true;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FCbFieldRefTest, FCbFieldTestBase, "System.Core.Serialization.CbFieldRef", CompactBinaryTestFlags)
@@ -1293,8 +1469,8 @@ bool FCbFieldRefIteratorTest::RunTest(const FString& Parameters)
 		const FCbFieldIterator FieldIt(FCbField(View->GetData()), ViewEnd);
 		const FCbFieldRefIterator FieldRefIt(FCbFieldRef(View), ViewEnd);
 
-		TestEqual(TEXT("FCbFieldIterator::GetHash()"), FieldIt.GetHash(), FBlake3::HashBuffer(*View));
-		TestEqual(TEXT("FCbFieldRefIterator::GetHash()"), FieldRefIt.GetHash(), FBlake3::HashBuffer(*View));
+		TestEqual(TEXT("FCbFieldIterator::GetRangeHash()"), FieldIt.GetRangeHash(), FBlake3::HashBuffer(*View));
+		TestEqual(TEXT("FCbFieldRefIterator::GetRangeHash()"), FieldRefIt.GetRangeHash(), FBlake3::HashBuffer(*View));
 
 		TestEqual(TEXT("FCbFieldIterator(EmptyView)"), GetCount(FCbFieldIterator(EmptyView)), 0);
 		TestEqual(TEXT("FCbFieldRefIterator(BufferNullL)"), GetCount(FCbFieldRefIterator(NullBuffer)), 0);
