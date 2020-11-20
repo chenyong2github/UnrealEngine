@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "SceneInterface.h"
+#include "UnrealClient.h"
 #include "SceneViewExtensionContext.generated.h"
 
 class ISceneViewExtension;
@@ -25,8 +26,8 @@ public:
 	FSceneInterface* Scene = nullptr;
 
 	FSceneViewExtensionContext() : Viewport(nullptr), Scene(nullptr) {}
-	FSceneViewExtensionContext(FViewport* InViewport) : Viewport(InViewport) {}
-	FSceneViewExtensionContext(FSceneInterface* InScene) : Scene(InScene) {}
+	explicit FSceneViewExtensionContext(FViewport* InViewport) : Viewport(InViewport) {}
+	explicit FSceneViewExtensionContext(FSceneInterface* InScene) : Scene(InScene) {}
 
 	virtual ~FSceneViewExtensionContext() {}
 	
@@ -41,10 +42,9 @@ public:
 	{
 		if (Viewport != nullptr)
 		{
-			const FViewportClient* ViewportClient = Viewport->GetClient();
-			if (ViewportClient != nullptr)
+			if (const FViewportClient* ViewportClient = Viewport->GetClient())
 			{
-				return Viewport->GetClient()->GetWorld();
+				return ViewportClient->GetWorld();
 			}
 		}
 		

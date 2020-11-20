@@ -17,7 +17,7 @@ FSceneViewExtensionBase::~FSceneViewExtensionBase()
 bool FSceneViewExtensionBase::IsActiveThisFrame_Internal(const FSceneViewExtensionContext & Context) const
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return IsActiveThisFrame(Context.Viewport);
+	return ISceneViewExtension::IsActiveThisFrame(Context.Viewport);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
