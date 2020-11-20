@@ -523,7 +523,6 @@ void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
 {
 	EmitterAge = 0;
 	TickCount = 0;
-	RandomSeed = CachedEmitter->RandomSeed + ParentSystemInstance->GetRandomSeedOffset();
 	InstanceSeed = FGenericPlatformMath::Rand();
 	CachedBounds.Init();
 
@@ -538,6 +537,9 @@ void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
 	{
 		return;
 	}
+
+	check(CachedEmitter);
+	RandomSeed = CachedEmitter->RandomSeed + ParentSystemInstance->GetRandomSeedOffset();
 
 	SetExecutionState(ENiagaraExecutionState::Active);
 
