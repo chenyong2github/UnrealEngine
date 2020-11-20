@@ -1064,7 +1064,7 @@ void SWidget::SetToolTipText(const TAttribute<FText>& ToolTipText)
 
 void SWidget::SetToolTipText( const FText& ToolTipText )
 {
-	if (ToolTipText.IsEmptyOrWhitespace())
+	if (!ToolTipText.IsEmptyOrWhitespace())
 	{
 		Private::FindOrAddToolTipMetaData(this)->ToolTip = FSlateApplicationBase::Get().MakeToolTip(ToolTipText);
 	}
