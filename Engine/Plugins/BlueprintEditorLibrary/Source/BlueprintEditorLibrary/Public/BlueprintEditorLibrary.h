@@ -5,11 +5,11 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Components/ActorComponent.h"
+#include "EdGraph/EdGraphNode.h"
 #include "BlueprintEditorLibrary.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogBlueprintEditorLib, Warning, All);
-
-class UActorComponent;
 
 UCLASS()
 class UBlueprintEditorLibrary : public UBlueprintFunctionLibrary
