@@ -46,6 +46,9 @@ namespace GeometryCollectionCookStats
 
 UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	#if WITH_EDITOR
+	, bManualDataCreate(false)
+	#endif
 	, EnableNanite(false)
 	, CollisionType(ECollisionTypeEnum::Chaos_Volumetric)
 	, ImplicitType(EImplicitTypeEnum::Chaos_Implicit_Box)
@@ -61,9 +64,6 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, MaximumCollisionParticles(60)
 	, EnableRemovePiecesOnFracture(false)
 	, GeometryCollection(new FGeometryCollection())
-#if WITH_EDITOR
-	, bManualDataCreate(false)
-#endif
 {
 	PersistentGuid = FGuid::NewGuid();
 	InvalidateCollection();
