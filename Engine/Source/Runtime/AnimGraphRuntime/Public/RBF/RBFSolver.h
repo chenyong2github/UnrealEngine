@@ -250,6 +250,8 @@ struct ANIMGRAPHRUNTIME_API FRBFParams
 	FVector GetTwistAxisVector() const;
 };
 
+struct ANIMGRAPHRUNTIME_API FRBFSolverData;
+
 /** Library of Radial Basis Function solver functions */
 struct ANIMGRAPHRUNTIME_API FRBFSolver
 {
@@ -258,7 +260,12 @@ struct ANIMGRAPHRUNTIME_API FRBFSolver
 	static bool ValidateTargets(const FRBFParams& Params, const TArray<FRBFTarget>& Targets, TArray<int>& InvalidTargets);
 
 	/** Given a set of targets and new input entry, give list of activated targets with weights */
-	static void Solve(const FRBFParams& Params, const TArray<FRBFTarget>& Targets, const FRBFEntry& Input, TArray<FRBFOutputWeight>& OutputWeights);
+	static TSharedPtr<const FRBFSolverData> InitSolver(const FRBFParams& Params, const TArray<FRBFTarget>& Targets);
+
+	static bool IsSolverDataValid(const FRBFSolverData& SolverData, const FRBFParams& Params, const TArray<FRBFTarget>& Targets);
+
+	/** Given a set of targets and new input entry, give list of activated targets with weights */
+	static void Solve(const FRBFSolverData& SolverData, const FRBFParams& Params, const TArray<FRBFTarget>& Targets, const FRBFEntry& Input, TArray<FRBFOutputWeight>& OutputWeights);
 
 	/** Util to find distance to nearest neighbour target for each target */
 	static bool FindTargetNeighbourDistances(const FRBFParams& Params, const TArray<FRBFTarget>& Targets, TArray<float>& NeighbourDists);

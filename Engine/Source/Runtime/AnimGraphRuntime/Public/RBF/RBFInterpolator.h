@@ -136,7 +136,7 @@ namespace RBFKernel
 class FRBFInterpolatorBase
 {
 protected:
-	ANIMGRAPHRUNTIME_API bool SetUpperKernel(const TArrayView<float>& UpperKernel, int32 Size, bool bSmoothing);
+	ANIMGRAPHRUNTIME_API bool SetUpperKernel(const TArrayView<float>& UpperKernel, int32 Size);
 
 	// A square matrix of the solved coefficients.
 public:
@@ -160,12 +160,11 @@ public:
 	*/
 	TRBFInterpolator(
 		const TArrayView<T>& InNodes,
-		WeightFuncT InWeightFunc,
-		bool bApplySmoothing)
+		WeightFuncT InWeightFunc)
 		: Nodes(InNodes)
 		, WeightFunc(InWeightFunc)
 	{
-		MakeUpperKernel(bApplySmoothing);
+		MakeUpperKernel();
 	}
 
 	TRBFInterpolator(const TRBFInterpolator<T>&) = default;
@@ -181,7 +180,7 @@ public:
 		TArray<float, InAllocator>& OutWeights,
 		const U& Value,
 		bool bClip = true,
-		bool bNormalize = false)
+		bool bNormalize = false) const
 	{
 		int NumNodes = Nodes.Num();
 
@@ -309,7 +308,7 @@ public:
 	}
 
 private:
-	void MakeUpperKernel(bool bSmoothing)
+	void MakeUpperKernel()
 	{
 		// If there are less than two nodes, nothing to do, since the interpolated value
 		// will be the same across the entire space. This is handled in Interpolate().
@@ -335,7 +334,7 @@ private:
 			}
 		}
 
-		bIsValid = SetUpperKernel(UpperKernel, NumNodes, bSmoothing);
+		bIsValid = SetUpperKernel(UpperKernel, NumNodes);
 	}
 
 
