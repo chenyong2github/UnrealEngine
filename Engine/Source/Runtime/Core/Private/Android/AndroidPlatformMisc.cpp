@@ -108,6 +108,8 @@ static bool bUseNativeSystrace = false;
 
 // run time compatibility information
 FString FAndroidMisc::AndroidVersion; // version of android we are running eg "4.0.4"
+int32 FAndroidMisc::AndroidMajorVersion = 0; // integer major version of Android we are running, eg 10
+int32 FAndroidMisc::TargetSDKVersion = 0; // Target SDK version, eg 29.
 FString FAndroidMisc::DeviceMake; // make of the device we are running on eg. "samsung"
 FString FAndroidMisc::DeviceModel; // model of the device we are running on eg "SAMSUNG-SGH-I437"
 FString FAndroidMisc::DeviceBuildNumber; // platform image build number of device "R16NW.G960NKSU1ARD6"
@@ -1600,9 +1602,11 @@ bool FAndroidMisc::FileExistsInPlatformPackage(const FString& RelativePath)
 	return false;
 }
 
-void FAndroidMisc::SetVersionInfo( FString InAndroidVersion, FString InDeviceMake, FString InDeviceModel, FString InDeviceBuildNumber, FString InOSLanguage )
+void FAndroidMisc::SetVersionInfo( FString InAndroidVersion, int32 InTargetSDKVersion, FString InDeviceMake, FString InDeviceModel, FString InDeviceBuildNumber, FString InOSLanguage )
 {
 	AndroidVersion = InAndroidVersion;
+	AndroidMajorVersion = FCString::Atoi(*InAndroidVersion);
+	TargetSDKVersion = InTargetSDKVersion;
 	DeviceMake = InDeviceMake;
 	DeviceModel = InDeviceModel;
 	DeviceBuildNumber = InDeviceBuildNumber;
@@ -1614,6 +1618,16 @@ void FAndroidMisc::SetVersionInfo( FString InAndroidVersion, FString InDeviceMak
 const FString FAndroidMisc::GetAndroidVersion()
 {
 	return AndroidVersion;
+}
+
+int32 FAndroidMisc::GetAndroidMajorVersion()
+{
+	return AndroidMajorVersion;
+}
+
+int32 FAndroidMisc::GetTargetSDKVersion()
+{
+	return TargetSDKVersion;
 }
 
 const FString FAndroidMisc::GetDeviceMake()
