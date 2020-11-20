@@ -119,7 +119,51 @@ bool SSequencerSectionAreaView::GetSectionEnabled(TSharedRef<ISequencerSection> 
 
 FText SSequencerSectionAreaView::GetSectionToolTip(TSharedRef<ISequencerSection> InSequencerSection) const
 {
-	return InSequencerSection->GetSectionToolTip();
+	const UMovieSceneSection* SectionObject = InSequencerSection->GetSectionObject();
+	const UMovieScene* MovieScene = SectionObject ? SectionObject->GetTypedOuter<UMovieScene>() : nullptr;
+
+	// Optional section specific content to add to tooltip
+	FText SectionToolTipContent = InSequencerSection->GetSectionToolTip();
+
+	FText SectionTitleText = InSequencerSection->GetSectionTitle();
+	if (!SectionTitleText.IsEmpty())
+	{
+		SectionTitleText = FText::Format(FText::FromString(TEXT("{0}\n")), SectionTitleText);
+	}
+
+	// If the objects are valid and the section is not unbounded, add frame information to the tooltip
+	if (SectionObject && MovieScene && SectionObject->HasStartFrame() && SectionObject->HasEndFrame())
+	{
+		int32 StartFrame = ConvertFrameTime(SectionObject->GetInclusiveStartFrame(), MovieScene->GetTickResolution(), MovieScene->GetDisplayRate()).RoundToFrame().Value;
+		int32 EndFrame = ConvertFrameTime(SectionObject->GetExclusiveEndFrame(), MovieScene->GetTickResolution(), MovieScene->GetDisplayRate()).RoundToFrame().Value;
+	
+		if (SectionToolTipContent.IsEmpty())
+		{
+			return FText::Format(NSLOCTEXT("SequencerSection", "TooltipFormat", "{0}{1} - {2} ({3} frames)"), SectionTitleText,
+				StartFrame,
+				EndFrame,
+				EndFrame - StartFrame);
+		}
+		else
+		{
+			return FText::Format(NSLOCTEXT("SequencerSection", "TooltipFormatWithSectionContent", "{0}{1} - {2} ({3} frames)\n{4}"), SectionTitleText,
+				StartFrame,
+				EndFrame,
+				EndFrame - StartFrame,
+				SectionToolTipContent);
+		}
+	}
+	else
+	{
+		if (SectionToolTipContent.IsEmpty())
+		{
+			return InSequencerSection->GetSectionTitle();
+		}
+		else
+		{
+			return FText::Format(NSLOCTEXT("SequencerSection", "TooltipSectionContentFormat", "{0}{1}"), SectionTitleText, SectionToolTipContent);
+		}
+	}
 }
 
 
