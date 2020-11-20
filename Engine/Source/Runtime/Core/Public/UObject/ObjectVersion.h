@@ -639,6 +639,8 @@ enum EUnrealEngineObjectUE4Version
 	VER_UE4_NON_OUTER_PACKAGE_IMPORT,
 	// Added DependencyFlags to AssetRegistry
 	VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS,
+	// Fixed corrupt licensee flag in 4.26 assets
+	VER_UE4_CORRECT_LICENSEE_FLAG,
 
 	// -----<new versions can be added before this line>-------------------------------------------------
 	// - this needs to be the last line (see note below)
