@@ -94,6 +94,16 @@ public:
 		COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
 		for (int32 CacheIndex = 0; CacheIndex < InnerBackends.Num(); CacheIndex++)
 		{
+			// Skip slow caches because the primary users of this function assume that
+			// they will have fast access to the data if this returns true. It will be
+			// better in those cases to rebuild the data locally than to block on slow
+			// fetch operations because the build may be, and often is, asynchronous.
+			bool bFastCache = InnerBackends[CacheIndex]->GetSpeedClass() >= ESpeedClass::Fast;
+			if (!bFastCache)
+			{
+				continue;
+			}
+
 			if (InnerBackends[CacheIndex]->CachedDataProbablyExists(CacheKey))
 			{
 				COOK_STAT(Timer.AddHit(0));
