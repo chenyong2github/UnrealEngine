@@ -115,20 +115,6 @@ void ReflectionTraceScreenTexturesCS(
 	}
 }
 
-uint2 EncodeTraceTexel(uint2 ReflectionTracingCoord, float TraceHitDistance)
-{
-	return uint2(
-		(ReflectionTracingCoord.x & 0xFFFF) | ((ReflectionTracingCoord.y & 0xFFFF) << 16),
-		asuint(TraceHitDistance));
-}
-
-void DecodeTraceTexel(uint2 TraceTexelData, inout uint2 ReflectionTracingCoord, inout float TraceHitDistance)
-{
-	ReflectionTracingCoord.x = TraceTexelData.x & 0xFFFF;
-	ReflectionTracingCoord.y = (TraceTexelData.x >> 16) & 0xFFFF;
-	TraceHitDistance = asfloat(TraceTexelData.y);
-}
-
 RWBuffer<uint> RWCompactedTraceTexelAllocator;
 RWBuffer<uint2> RWCompactedTraceTexelData;
 
@@ -185,7 +171,6 @@ void ReflectionCompactTracesCS(
 	}
 }
 
-Buffer<uint> CompactedTraceTexelAllocator;
 RWBuffer<uint> RWReflectionCompactTracingIndirectArgs;
 
 [numthreads(1, 1, 1)]
@@ -276,8 +261,6 @@ void TraceCards(
 
 	RWTraceHit[ReflectionTracingCoord] = EncodeRayDistance(TraceHitDistance, bHit);
 }
-
-Buffer<uint2> CompactedTraceTexelData;
 
 [numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
 void ReflectionTraceCardsCS(uint DispatchThreadId : SV_DispatchThreadID)

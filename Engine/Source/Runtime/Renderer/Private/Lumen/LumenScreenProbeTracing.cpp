@@ -123,12 +123,6 @@ class FScreenProbeTraceScreenTexturesCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FScreenProbeTraceScreenTexturesCS, "/Engine/Private/Lumen/LumenScreenProbeTracing.usf", "ScreenProbeTraceScreenTexturesCS", SF_Compute);
 
-BEGIN_SHADER_PARAMETER_STRUCT(FCompactedTraceParameters, )
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CompactedTraceTexelAllocator)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, CompactedTraceTexelData)
-	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
-END_SHADER_PARAMETER_STRUCT()
-
 class FScreenProbeCompactTracesCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FScreenProbeCompactTracesCS)
@@ -612,8 +606,12 @@ void TraceScreenProbes(
 
 		if (Lumen::UseHardwareRayTracedScreenProbeGather())
 		{
-			FRDGTextureRef NewTraceHit = GraphBuilder.CreateTexture(ScreenProbeParameters.TraceHit->Desc, TEXT("NewTraceHit"));
-			ScreenProbeParameters.RWTraceHit = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewTraceHit));
+			FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
+				GraphBuilder,
+				View,
+				ScreenProbeParameters,
+				WORLD_MAX,
+				IndirectTracingParameters.MaxTraceDistance);
 
 			RenderHardwareRayTracingScreenProbe(GraphBuilder,
 				Scene,
@@ -623,9 +621,8 @@ void TraceScreenProbes(
 				TracingInputs,
 				MeshSDFGridParameters,
 				IndirectTracingParameters,
-				RadianceCacheParameters);
-
-			ScreenProbeParameters.TraceHit = NewTraceHit;
+				RadianceCacheParameters,
+				CompactedTraceParameters);
 		}
 		else if (MeshSDFGridParameters.TracingParameters.NumSceneObjects > 0)
 		{

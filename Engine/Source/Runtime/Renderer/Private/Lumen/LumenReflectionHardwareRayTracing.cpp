@@ -103,6 +103,7 @@ class FLumenReflectionHardwareRayTracingRGS : public FGlobalShader
 		// Surface cache
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFGridParameters, MeshSDFGridParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedReflectionTraceParameters, CompactedTraceParameters)
 		
 		// Constants
 		SHADER_PARAMETER(float, MaxTraceDistance)
@@ -145,7 +146,7 @@ void RenderLumenHardwareRayTracingReflections(
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
 	const FLumenCardTracingInputs& TracingInputs,
 	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
-	float MaxCardTraceDistance,
+	const FCompactedReflectionTraceParameters& CompactedTraceParameters,
 	float MaxVoxelTraceDistance
 )
 {
@@ -164,6 +165,7 @@ void RenderLumenHardwareRayTracingReflections(
 	// Use surface cache, instead
 	GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
 	PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
+	PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
 	PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 	PassParameters->ReflectionTileParameters = ReflectionTileParameters;
@@ -183,8 +185,9 @@ void RenderLumenHardwareRayTracingReflections(
 			FRayTracingShaderBindingsWriter GlobalResources;
 			SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
 
+			const uint32 NumTracingThreads = ReflectionTracingParameters.ReflectionTracingViewSize.X * ReflectionTracingParameters.ReflectionTracingViewSize.Y;
 			FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
-			RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, ReflectionTracingParameters.ReflectionTracingViewSize.X, ReflectionTracingParameters.ReflectionTracingViewSize.Y);
+			RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, NumTracingThreads, 1);
 		}
 	);
 #else

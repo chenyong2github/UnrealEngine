@@ -90,6 +90,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeGatherParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, ScreenProbeMoving)
 END_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT(FCompactedTraceParameters, )
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CompactedTraceTexelAllocator)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, CompactedTraceTexelData)
+	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
+END_SHADER_PARAMETER_STRUCT()
+
 extern void GenerateImportanceSamplingRays(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -108,6 +114,18 @@ extern void TraceScreenProbes(
 	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
 	FScreenProbeParameters& ScreenProbeParameters,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters);
+
+void RenderHardwareRayTracingScreenProbe(
+	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	const FSceneTextureParameters& SceneTextures,
+	FScreenProbeParameters& CommonDiffuseParameters,
+	const FViewInfo& View,
+	const FLumenCardTracingInputs& TracingInputs,
+	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+	FLumenIndirectTracingParameters& DiffuseTracingParameters,
+	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
+	const FCompactedTraceParameters& CompactedTraceParameters);
 
 extern void FilterScreenProbes(
 	FRDGBuilder& GraphBuilder,

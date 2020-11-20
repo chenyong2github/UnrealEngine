@@ -116,3 +116,20 @@ uint2 GetReflectionTracingScreenCoord(uint TileIndex, uint ThreadIndex)
 	uint2 TileOffset = uint2(ReflectionTracingTileData[TileIndex] & 0xFFFF, (ReflectionTracingTileData[TileIndex] >> 16) & 0xFFFF);
 	return TileOffset * REFLECTION_THREADGROUP_SIZE_2D + uint2(ThreadIndex % REFLECTION_THREADGROUP_SIZE_2D, ThreadIndex / REFLECTION_THREADGROUP_SIZE_2D);
 }
+
+Buffer<uint> CompactedTraceTexelAllocator;
+Buffer<uint2> CompactedTraceTexelData;
+
+uint2 EncodeTraceTexel(uint2 ReflectionTracingCoord, float TraceHitDistance)
+{
+	return uint2(
+		(ReflectionTracingCoord.x & 0xFFFF) | ((ReflectionTracingCoord.y & 0xFFFF) << 16),
+		asuint(TraceHitDistance));
+}
+
+void DecodeTraceTexel(uint2 TraceTexelData, inout uint2 ReflectionTracingCoord, inout float TraceHitDistance)
+{
+	ReflectionTracingCoord.x = TraceTexelData.x & 0xFFFF;
+	ReflectionTracingCoord.y = (TraceTexelData.x >> 16) & 0xFFFF;
+	TraceHitDistance = asfloat(TraceTexelData.y);
+}

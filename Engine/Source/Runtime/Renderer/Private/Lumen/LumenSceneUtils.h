@@ -415,29 +415,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenDiffuseTracingParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DownsampledNormal)	
 END_SHADER_PARAMETER_STRUCT()
 
-void RenderHardwareRayTracingScreenProbe(FRDGBuilder& GraphBuilder,
-	const FScene* Scene,
-	const FSceneTextureParameters& SceneTextures,
-	FScreenProbeParameters& CommonDiffuseParameters,
-	const FViewInfo& View,
-	const FLumenCardTracingInputs& TracingInputs,
-	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
-	FLumenIndirectTracingParameters& DiffuseTracingParameters,
-	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters);
-
-class FLumenReflectionTracingParameters;
-class FLumenReflectionTileParameters;
-extern void RenderLumenHardwareRayTracingReflections(
-	FRDGBuilder& GraphBuilder,
-	const FSceneTextureParameters& SceneTextures,
-	const FViewInfo& View,
-	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
-	const FLumenReflectionTileParameters& ReflectionTileParameters,
-	const FLumenCardTracingInputs& TracingInputs,
-	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
-	float MaxCardTraceDistance,
-	float MaxTraceDistance);
-
 extern void CullMeshSDFObjectsToViewGrid(
 	const FViewInfo& View,
 	const FScene* Scene,

@@ -278,3 +278,21 @@ float OctahedralSolidAngleLUT(float2 UV, float Resolution)
 {
 	return OctahedralSolidAngleTexture.SampleLevel(GlobalBilinearClampedSampler, UV, 0).x * OctahedralSolidAngleTextureResolutionSq / (Resolution * Resolution);
 }
+
+Buffer<uint> CompactedTraceTexelAllocator;
+Buffer<uint2> CompactedTraceTexelData;
+
+uint2 EncodeTraceTexel(uint ScreenProbeIndex, uint2 TraceTexelCoord, float TraceHitDistance)
+{
+	return uint2(
+		(ScreenProbeIndex & 0xFFFFF) | ((TraceTexelCoord.x & 0x1F) << 20) | ((TraceTexelCoord.y & 0x1F) << 25),
+		asuint(TraceHitDistance));
+}
+
+void DecodeTraceTexel(uint2 TraceTexelData, inout uint ScreenProbeIndex, inout uint2 TraceTexelCoord, inout float TraceHitDistance)
+{
+	ScreenProbeIndex = TraceTexelData.x & 0xFFFFF;
+	TraceTexelCoord.x = (TraceTexelData.x >> 20) & 0x1F;
+	TraceTexelCoord.y = (TraceTexelData.x >> 25) & 0x1F;
+	TraceHitDistance = asfloat(TraceTexelData.y);
+}

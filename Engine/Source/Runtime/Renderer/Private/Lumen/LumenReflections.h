@@ -39,6 +39,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionTileParameters, )
 	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, TracingIndirectArgs)
 END_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT(FCompactedReflectionTraceParameters, )
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CompactedTraceTexelAllocator)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, CompactedTraceTexelData)
+	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
+END_SHADER_PARAMETER_STRUCT()
+
 extern void TraceReflections(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -50,3 +56,16 @@ extern void TraceReflections(
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters, 
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
 	const FLumenMeshSDFGridParameters& InMeshSDFGridParameters);
+
+class FLumenReflectionTracingParameters;
+class FLumenReflectionTileParameters;
+extern void RenderLumenHardwareRayTracingReflections(
+	FRDGBuilder& GraphBuilder,
+	const FSceneTextureParameters& SceneTextures,
+	const FViewInfo& View,
+	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
+	const FLumenReflectionTileParameters& ReflectionTileParameters,
+	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+	const FCompactedReflectionTraceParameters& CompactedTraceParameters,
+	float MaxTraceDistance);

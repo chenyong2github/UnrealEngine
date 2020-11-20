@@ -17,6 +17,7 @@
 #include "../MonteCarlo.ush"
 #include "../SceneTextureParameters.ush"
 
+#define UE_RAY_TRACING_DISPATCH_1D 1
 #include "../RayTracing/RayTracingCommon.ush"
 #include "../RayTracing/RayTracingDeferredShadingCommon.ush"
 #include "../RayTracing/RayTracingLightingCommon.ush"
@@ -73,14 +74,15 @@ bool IsValidDFObject(inout FPackedMaterialClosestHitPayload Payload, out int DFO
 
 RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 {
-	uint2 ReflectionTracingCoord = DispatchRaysIndex().xy;
-	float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(ReflectionTracingCoord);
-
-	float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord, 0)).x;
-	bool bHit;
-	float TMin = DecodeRayDistance(TraceHit[ReflectionTracingCoord].x, bHit);
-	if (SceneDepth > 0.0f && !bHit)
+	if (DispatchRaysIndex().x < CompactedTraceTexelAllocator[0])
 	{
+		uint2 ReflectionTracingCoord;
+		float TMin;
+		DecodeTraceTexel(CompactedTraceTexelData[DispatchRaysIndex().x], ReflectionTracingCoord, TMin);
+
+		float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(ReflectionTracingCoord);
+		float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord, 0)).x;
+
 		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 		FRayData RayData = DecodeRayData(RayBuffer[ReflectionTracingCoord]);
 

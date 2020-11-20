@@ -220,6 +220,7 @@ class FLumenCardHardwareRayTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
 		SHADER_PARAMETER_STRUCT_REF(FRGSRadianceCacheParameters, RGSRadianceCacheParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedTraceParameters, CompactedTraceParameters)
 
 		//-----------------------------------------------------------------------------------------
 		//Pass Parameters
@@ -668,6 +669,7 @@ void RenderHardwareRayTracingScreenProbeSubpass(FRDGBuilder& GraphBuilder,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	FLumenIndirectTracingParameters& IndirectTracingParameters,
 	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
+	const FCompactedTraceParameters& CompactedTraceParameters,
 	bool bUseNormalCache,
 	FRDGTextureRef SurfaceNormalCacheTexture = nullptr)
 {
@@ -690,6 +692,7 @@ void RenderHardwareRayTracingScreenProbeSubpass(FRDGBuilder& GraphBuilder,
 		PassParameters->GeometryNormalOnlyForCHS = GLumenScreenProbeGatherHardwareTraceCardsGeometryNormalOnly != 0;
 		
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
+		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
 		FRGSRadianceCacheParameters RGSRadianceCacheParameters;
 		SetupRGSRadianceCacheParameters(RadianceCacheParameters, RGSRadianceCacheParameters);
@@ -751,12 +754,13 @@ void RenderHardwareRayTracingScreenProbeSubpass(FRDGBuilder& GraphBuilder,
 			FRayTracingShaderBindingsWriter GlobalResources;
 
 			SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);
+			const uint32 NumTracingThreads = RayTracingResolution.X * RayTracingResolution.Y;
 
 			if (SHADER::UseFullMaterialPayloadSetup(MaterialEvaluationType))
 			{
 				FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
 
-				RHICmdList.RayTraceDispatch(Pipeline, RayGenShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, RayTracingResolution.X, RayTracingResolution.Y);
+				RHICmdList.RayTraceDispatch(Pipeline, RayGenShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, NumTracingThreads, 1);
 			}
 			else
 			{
@@ -773,7 +777,7 @@ void RenderHardwareRayTracingScreenProbeSubpass(FRDGBuilder& GraphBuilder,
 				Initializer.bAllowHitGroupIndexing = false; // Use the same hit shader for all geometry in the scene by disabling SBT indexing.
 
 				FRayTracingPipelineState* Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
-				RHICmdList.RayTraceDispatch(Pipeline, RayGenShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, RayTracingResolution.X, RayTracingResolution.Y);
+				RHICmdList.RayTraceDispatch(Pipeline, RayGenShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, NumTracingThreads, 1);
 			}
 		});
 
@@ -793,7 +797,8 @@ void RenderHardwareRayTracingScreenProbe(FRDGBuilder& GraphBuilder,
 	const FLumenCardTracingInputs& TracingInputs,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	FLumenIndirectTracingParameters& IndirectTracingParameters,
-	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters)
+	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
+	const FCompactedTraceParameters& CompactedTraceParameters)
 #if RHI_RAYTRACING
 {
 	ERayTracingPrimaryRaysFlag Flags = ERayTracingPrimaryRaysFlag::AllowSkipSkySample | ERayTracingPrimaryRaysFlag::ConsiderSurfaceScatter;
@@ -810,6 +815,7 @@ void RenderHardwareRayTracingScreenProbe(FRDGBuilder& GraphBuilder,
 			MeshSDFGridParameters,
 			IndirectTracingParameters,
 			RadianceCacheParameters,
+			CompactedTraceParameters,
 			false);
 	}
 	else
@@ -837,6 +843,7 @@ void RenderHardwareRayTracingScreenProbe(FRDGBuilder& GraphBuilder,
 				MeshSDFGridParameters,
 				IndirectTracingParameters,
 				RadianceCacheParameters,
+				CompactedTraceParameters,
 				true,
 				FaceNormalCacheTexture);
 		}

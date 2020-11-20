@@ -91,12 +91,6 @@ class FReflectionTraceScreenTexturesCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FReflectionTraceScreenTexturesCS, "/Engine/Private/Lumen/LumenReflectionTracing.usf", "ReflectionTraceScreenTexturesCS", SF_Compute);
 
-BEGIN_SHADER_PARAMETER_STRUCT(FCompactedReflectionTraceParameters, )
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CompactedTraceTexelAllocator)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, CompactedTraceTexelData)
-	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
-END_SHADER_PARAMETER_STRUCT()
-
 class FReflectionCompactTracesCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FReflectionCompactTracesCS)
@@ -423,6 +417,14 @@ void TraceReflections(
 		{
 			if (Lumen::UseHardwareRayTracedReflections())
 			{
+				FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
+					GraphBuilder,
+					View,
+					ReflectionTracingParameters,
+					ReflectionTileParameters,
+					WORLD_MAX,
+					IndirectTracingParameters.MaxTraceDistance);
+
 				RenderLumenHardwareRayTracingReflections(
 					GraphBuilder,
 					SceneTextures,
@@ -431,7 +433,7 @@ void TraceReflections(
 					ReflectionTileParameters,
 					TracingInputs,
 					MeshSDFGridParameters,
-					IndirectTracingParameters.MaxCardTraceDistance,
+					CompactedTraceParameters,
 					IndirectTracingParameters.MaxTraceDistance);
 			}
 			else

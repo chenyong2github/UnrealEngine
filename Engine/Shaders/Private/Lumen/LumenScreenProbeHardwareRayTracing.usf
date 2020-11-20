@@ -57,6 +57,7 @@
 #include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
 #include "../Common.ush"
 #if LUMEN_HARDWARE_RAYTRACING
+#define UE_RAY_TRACING_DISPATCH_1D 1
 #include "../RayTracing/RayTracingCommon.ush"
 #endif
 
@@ -764,27 +765,28 @@ RAY_TRACING_ENTRY_RAYGEN(LumenCardHardwareRayTracingRGS)
 	float3 Debug = float3(0.0f, 0.0f, 0.0f);
 	uint2 DispatchThreadId = DispatchRaysIndex().xy;
 	
-	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy / ScreenProbeTracingOctahedronResolution;
-	uint2 TraceTexelCoord = DispatchThreadId.xy - ScreenProbeAtlasCoord * ScreenProbeTracingOctahedronResolution;
-	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
-
-	uint2 ScreenProbeScreenCoord;
-	uint ScreenProbeSubsampleIndex;
-	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
-
-	uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
-
-	if (all(ScreenProbeIndex < GetNumScreenProbes() && TraceTexelCoord < ScreenProbeTracingOctahedronResolution))
+	if (DispatchThreadId.x < CompactedTraceTexelAllocator[0])
 	{
+		uint ScreenProbeIndex;
+		uint2 TraceTexelCoord;
+		float TraceHitDistance;
+		DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId.x], ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
+
+		uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
+
+		uint2 ScreenProbeScreenCoord;
+		uint ScreenProbeSubsampleIndex;
+		GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+
+		uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
+
 		float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
 		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
 
-		bool bHit;
-		float TraceHitDistance = DecodeProbeRayDistance(TraceHit[TraceCoord].x, bHit);
 		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 		float3 SceneNormal = DecodeNormal(GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
 		
-		if (SceneDepth > 0 && !bHit)
+		bool bHit = false;
 		{
 			float2 ProbeUV;
 			float ConeHalfAngle;
@@ -850,6 +852,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenCardHardwareRayTracingRGS)
 #else
 			RWTraceRadiance[TraceCoord] = Lighting;
 #endif
+
 			//@todo - dither to handle fractional Transparency for fade
 			if (Transparency < .5f)
 			{
@@ -865,7 +868,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenCardHardwareRayTracingRGS)
 			}
 		}
 
-		// This shader must always write hit distance even if no hit
 		//@todo - set bMoving based on hit object velocity
 		RWTraceHit[TraceCoord] = EncodeProbeRayDistance(TraceHitDistance, bHit, false);
 	}

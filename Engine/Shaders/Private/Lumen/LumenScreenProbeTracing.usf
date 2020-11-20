@@ -213,21 +213,6 @@ void ScreenProbeTraceScreenTexturesCS(
 	}
 }
 
-uint2 EncodeTraceTexel(uint ScreenProbeIndex, uint2 TraceTexelCoord, float TraceHitDistance)
-{
-	return uint2(
-		(ScreenProbeIndex & 0xFFFFF) | ((TraceTexelCoord.x & 0x1F) << 20) | ((TraceTexelCoord.y & 0x1F) << 25),
-		asuint(TraceHitDistance));
-}
-
-void DecodeTraceTexel(uint2 TraceTexelData, inout uint ScreenProbeIndex, inout uint2 TraceTexelCoord, inout float TraceHitDistance)
-{
-	ScreenProbeIndex = TraceTexelData.x & 0xFFFFF;
-	TraceTexelCoord.x = (TraceTexelData.x >> 20) & 0x1F;
-	TraceTexelCoord.y = (TraceTexelData.x >> 25) & 0x1F;
-	TraceHitDistance = asfloat(TraceTexelData.y);
-}
-
 RWBuffer<uint> RWCompactedTraceTexelAllocator;
 RWBuffer<uint2> RWCompactedTraceTexelData;
 
@@ -293,7 +278,6 @@ void ScreenProbeCompactTracesCS(
 	}
 }
 
-Buffer<uint> CompactedTraceTexelAllocator;
 RWBuffer<uint> RWScreenProbeCompactTracingIndirectArgs;
 
 [numthreads(1, 1, 1)]
@@ -406,8 +390,6 @@ void TraceCards(
 		RWTraceHit[TraceCoord] = EncodeProbeRayDistance(TraceHitDistance, bHit, false);
 	}
 }
-
-Buffer<uint2> CompactedTraceTexelData;
 
 [numthreads(PROBE_THREADGROUP_SIZE_1D, 1, 1)]
 void ScreenProbeTraceCardsCS(
