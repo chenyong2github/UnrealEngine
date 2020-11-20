@@ -113,30 +113,40 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupIndex : 
 			uint TriIndex = 0;
 			UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
 
-			FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-			FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster);
-			FTriCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-			const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable);
-
-		#if MATERIAL_CULLING_METHOD == 3
-			InterlockedMin(TileMinMax.x, MaterialDepthId);
-			InterlockedMax(TileMinMax.y, MaterialDepthId);
-		#else
-			const uint MaterialBucket = GetMaterialBucketIdFromDepth(asfloat(MaterialDepthId));
-
-			uint2 MaterialMask = uint2(0, 0);
-			if ((MaterialBucket >> 5u) & 1u)
-			{
-				MaterialMask.y = 1u << (MaterialBucket & 0x1F);
-			}
-			else
-			{
-				MaterialMask.x = 1u << (MaterialBucket & 0x1F);
-			}
-
-			InterlockedOr(TileMinMax.x, MaterialMask.x);
-			InterlockedOr(TileMinMax.y, MaterialMask.y);
+			const bool ValidClusterIndex = (VisibleClusterIndex != 0xFFFFFFFF);
+		#if COMPILER_SUPPORTS_WAVE_VOTE
+			const bool TileHasNanite = WaveActiveAnyTrue(ValidClusterIndex);
+			if (TileHasNanite)
 		#endif
+			{
+				if (ValidClusterIndex)
+				{
+					FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
+					FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster);
+					FTriCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+					const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable);
+
+				#if MATERIAL_CULLING_METHOD == 3
+					InterlockedMin(TileMinMax.x, MaterialDepthId);
+					InterlockedMax(TileMinMax.y, MaterialDepthId);
+				#else
+					const uint MaterialBucket = GetMaterialBucketIdFromDepth(asfloat(MaterialDepthId));
+
+					uint2 MaterialMask = uint2(0, 0);
+					if ((MaterialBucket >> 5u) & 1u)
+					{
+						MaterialMask.y = 1u << (MaterialBucket & 0x1F);
+					}
+					else
+					{
+						MaterialMask.x = 1u << (MaterialBucket & 0x1F);
+					}
+
+					InterlockedOr(TileMinMax.x, MaterialMask.x);
+					InterlockedOr(TileMinMax.y, MaterialMask.y);
+				#endif
+				}
+			}
 		}
 	}
 
