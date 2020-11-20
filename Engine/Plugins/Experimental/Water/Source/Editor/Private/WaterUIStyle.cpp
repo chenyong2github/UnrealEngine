@@ -73,6 +73,8 @@ void FWaterUIStyle::Initialize()
 	// WaterWavesAsset
 	StyleSet->Set("ClassIcon.WaterWavesAsset", new IMAGE_BRUSH("Icons/WaterWaveAsset_16x", Icon16x16));
 	StyleSet->Set("ClassThumbnail.WaterWavesAsset", new IMAGE_BRUSH("Icons/WaterWaveAsset_64x", Icon64x64));
+	// WaterWaves Asset Editor
+	StyleSet->Set("WaterWavesEditor.TogglePauseWaveTime", new IMAGE_BRUSH("Icons/PauseWaveTime_40x", Icon40x40));
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 };

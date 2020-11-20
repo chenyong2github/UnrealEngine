@@ -67,6 +67,8 @@ class WATER_API UWaterSubsystem : public UWorldSubsystem, public FTickableGameOb
 	/** return the stat id to use for this tickable **/
 	virtual TStatId GetStatId() const override;
 
+	/** Override to support water subsystems in editor preview worlds */
+	virtual bool DoesSupportWorldType(EWorldType::Type WorldType) const override;
 public:
 
 	/** Static helper function to get a water subsystem from a world, returns nullptr if world or subsystem don't exist */
@@ -142,6 +144,8 @@ public:
 	void SetShouldOverrideSmoothedWorldTimeSeconds(bool bOverride);
 	bool GetShouldOverrideSmoothedWorldTimeSeconds() const { return bUsingOverrideWorldTimeSeconds; }
 
+	void SetShouldPauseWaveTime(bool bInPauseWaveTime);
+
 	UMaterialParameterCollection* GetMaterialParameterCollection() const {	return MaterialParameterCollection; }
 	
 	void MarkAllWaterMeshesForRebuild();
@@ -210,6 +214,7 @@ private:
 	bool bUsingSmoothedTime;
 	bool bUsingOverrideWorldTimeSeconds;
 	bool bUnderWaterForAudio;
+	bool bPauseWaveTime;
 
 	/** The parameter collection asset that holds the global parameters that are updated by this actor */
 	UPROPERTY()
