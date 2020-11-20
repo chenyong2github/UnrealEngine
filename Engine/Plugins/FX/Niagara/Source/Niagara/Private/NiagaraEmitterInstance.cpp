@@ -271,6 +271,8 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		return;
 	}
 
+	RandomSeed = CachedEmitter->RandomSeed + ParentSystemInstance->GetRandomSeedOffset();
+
 	MaxAllocationCount = CachedEmitter->GetMaxParticleCountEstimate();
 	if (!IsAllowedToExecute())
 	{
@@ -521,6 +523,7 @@ void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
 {
 	EmitterAge = 0;
 	TickCount = 0;
+	RandomSeed = CachedEmitter->RandomSeed + ParentSystemInstance->GetRandomSeedOffset();
 	InstanceSeed = FGenericPlatformMath::Rand();
 	CachedBounds.Init();
 
@@ -1312,7 +1315,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		auto& EmitterParameters = ParentSystemInstance->EditEmitterParameters(EmitterIdx);
 		EmitterParameters.EmitterTotalSpawnedParticles = TotalSpawnedParticles;
 		EmitterParameters.EmitterAge = EmitterAge;
-		EmitterParameters.EmitterRandomSeed = CachedEmitter->RandomSeed;
+		EmitterParameters.EmitterRandomSeed = RandomSeed;
 		EmitterParameters.EmitterInstanceSeed = InstanceSeed;
 	}
 

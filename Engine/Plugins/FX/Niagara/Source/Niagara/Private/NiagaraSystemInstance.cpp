@@ -111,6 +111,7 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& 
 	, Age(0.0f)
 	, LastRenderTime(0.0f)
 	, TickCount(0)
+	, RandomSeedOffset(0)
 	, LODDistance(0.0f)
 	, MaxLODDistance(FLT_MAX)
 	, CurrentFrameIndex(1)
@@ -1791,7 +1792,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 		{
 			CurrentEmitterParameters.EmitterNumParticles = Emitter->GetNumParticles();
 			CurrentEmitterParameters.EmitterTotalSpawnedParticles = Emitter->GetTotalSpawnedParticles();
-			CurrentEmitterParameters.EmitterRandomSeed = Emitter->GetCachedEmitter() ? Emitter->GetCachedEmitter()->RandomSeed : 0;
+			CurrentEmitterParameters.EmitterRandomSeed = Emitter->GetRandomSeed();
 			CurrentEmitterParameters.EmitterInstanceSeed = Emitter->GetInstanceSeed();
 			const FNiagaraEmitterScalabilitySettings& ScalabilitySettings = Emitter->GetScalabilitySettings();
 			CurrentEmitterParameters.EmitterSpawnCountScale = ScalabilitySettings.bScaleSpawnCount ? ScalabilitySettings.SpawnCountScale : 1.0f;
