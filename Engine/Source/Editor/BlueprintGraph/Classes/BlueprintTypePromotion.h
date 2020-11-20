@@ -38,6 +38,12 @@ public:
 	/** Set of comparison operator names (GreaterThan, LessThan, etc) */
 	static const TSet<FName>& GetComparisonOpNames();
 
+	/** Get the keywords metadata for the given operator name */
+	static const FText& GetKeywordsForOperator(const FName Operator);
+
+	/** Get the user facing version of this operator name */
+	static const FText& GetUserFacingOperatorName(const FName Operator);
+
 	/** Returns true if the given function is a comparison operator */
 	static bool IsComparisonFunc(UFunction const* const Func);
 

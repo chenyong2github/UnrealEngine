@@ -7,6 +7,8 @@
 
 FTypePromotion* FTypePromotion::Instance = nullptr;
 
+#define LOCTEXT_NAMESPACE "TypePromotion"
+
 namespace OperatorNames
 {
 	static const FName NoOp			= TEXT("NO_OP");
@@ -21,6 +23,7 @@ namespace OperatorNames
 	static const FName Less			= TEXT("Less");
 	static const FName LessEq		= TEXT("LessEqual");
 	static const FName NotEq		= TEXT("NotEqual");
+	static const FName Equal		= TEXT("EqualEqual");
 }
 
 namespace TypePromoDebug
@@ -397,7 +400,8 @@ const TSet<FName>& FTypePromotion::GetAllOpNames()
 		OperatorNames::GreaterEq,
 		OperatorNames::Less,
 		OperatorNames::LessEq,
-		OperatorNames::NotEq
+		OperatorNames::NotEq,
+		OperatorNames::Equal
 	};
 
 	return OpsArray;
@@ -411,9 +415,52 @@ const TSet<FName>& FTypePromotion::GetComparisonOpNames()
 		OperatorNames::GreaterEq,
 		OperatorNames::Less,
 		OperatorNames::LessEq,
-		OperatorNames::NotEq
+		OperatorNames::NotEq,
+		OperatorNames::Equal
 	};
 	return ComparisonOps;
+}
+
+const FText& FTypePromotion::GetKeywordsForOperator(const FName Operator)
+{
+	static const TMap<FName, FText> OpKeywords =
+	{
+		{ OperatorNames::Add,		LOCTEXT("AddKeywords",			"+ add plus") },
+		{ OperatorNames::Multiply,  LOCTEXT("MultiplyKeywords",		"* multiply") },
+		{ OperatorNames::Subtract,  LOCTEXT("SubtractKeywords",		"- subtract minus") },
+		{ OperatorNames::Divide,	LOCTEXT("DivideKeywords",		"/ divide division") },
+		{ OperatorNames::Greater,	LOCTEXT("GreaterKeywords",		"> greater") },
+		{ OperatorNames::GreaterEq, LOCTEXT("GreaterEqKeywords",	">= greater") },
+		{ OperatorNames::Less,		LOCTEXT("LessKeywords",			"< less") },
+		{ OperatorNames::LessEq,	LOCTEXT("LessEqKeywords",		"<= less") },
+		{ OperatorNames::NotEq,		LOCTEXT("NotEqKeywords",		"!= not equal") },
+		{ OperatorNames::Equal,		LOCTEXT("EqualKeywords",		"== equal") },
+		{ OperatorNames::NoOp,		LOCTEXT("NoOpKeywords",			"") },
+	};
+	const FText* Keywords = OpKeywords.Find(Operator);
+	return Keywords ? *Keywords : OpKeywords[OperatorNames::NoOp];
+}
+
+const FText& FTypePromotion::GetUserFacingOperatorName(const FName Operator)
+{
+	static const TMap<FName, FText> OperatorDisplayNames = 
+	{
+		{ OperatorNames::Add,		LOCTEXT("AddDisplayName",			"Add") },
+		{ OperatorNames::Multiply,  LOCTEXT("MultiplyDisplayName",		"Multiply") },
+		{ OperatorNames::Subtract,  LOCTEXT("SubtractDisplayName",		"Subtract") },
+		{ OperatorNames::Divide,	LOCTEXT("DivideDisplayName",		"Division") },
+		{ OperatorNames::Greater,	LOCTEXT("GreaterDisplayName",		"Greater") },
+		{ OperatorNames::GreaterEq, LOCTEXT("GreaterEqDisplayName",		"Greater Equal") },
+		{ OperatorNames::Less,		LOCTEXT("LessDisplayName",			"Less") },
+		{ OperatorNames::LessEq,	LOCTEXT("LessEqDisplayName",		"Less Equal") },
+		{ OperatorNames::NotEq,		LOCTEXT("NotEqDisplayName",			"Not Equal") },
+		{ OperatorNames::Equal,		LOCTEXT("EqualDisplayName",			"Equal") },
+		{ OperatorNames::NoOp,		LOCTEXT("NoOpDisplayName",			"") },
+	};
+
+
+	const FText* Keywords = OperatorDisplayNames.Find(Operator);
+	return Keywords ? *Keywords : OperatorDisplayNames[OperatorNames::NoOp];
 }
 
 bool FTypePromotion::IsComparisonFunc(UFunction const* const Func)
@@ -532,3 +579,5 @@ void FTypePromotion::ClearNodeSpawners()
 		Instance->OperatorNodeSpawnerMap.Empty();
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
