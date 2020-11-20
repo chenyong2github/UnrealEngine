@@ -39,14 +39,14 @@ FORCEINLINE FString LexToString(FJsonFragment&& Fragment)
  */
 struct FAnalyticsEventAttribute
 {
-	UE_DEPRECATED(4.25, "This property has been deprecated, use GetName() instead")
+	UE_DEPRECATED(4.26, "This property has been deprecated, use GetName() instead")
 	const FString AttrName;
 
-	UE_DEPRECATED(4.25, "This property has been deprecated, use GetValue() instead")
+	UE_DEPRECATED(4.26, "This property has been deprecated, use GetValue() instead")
 	const FString AttrValueString;
-	UE_DEPRECATED(4.25, "This property has been deprecated, use GetValue() instead. You cannot recover the original non-string value anymore")
+	UE_DEPRECATED(4.26, "This property has been deprecated, use GetValue() instead. You cannot recover the original non-string value anymore")
 	const double AttrValueNumber;
-	UE_DEPRECATED(4.25, "This property has been deprecated, use GetValue() instead. You cannot recover the original non-string value anymore")
+	UE_DEPRECATED(4.26, "This property has been deprecated, use GetValue() instead. You cannot recover the original non-string value anymore")
 	const bool AttrValueBool;
 
 	enum class AttrTypeEnum
@@ -57,7 +57,7 @@ struct FAnalyticsEventAttribute
 		Null,
 		JsonFragment
 	};
-	UE_DEPRECATED(4.25, "This property has been deprecated, use GetType() instead")
+	UE_DEPRECATED(4.26, "This property has been deprecated, use IsJsonFragment or GetValue instead")
 	const AttrTypeEnum AttrType;
 
 	template <typename ValueType>
@@ -88,11 +88,11 @@ struct FAnalyticsEventAttribute
 	FAnalyticsEventAttribute& operator=(FAnalyticsEventAttribute&& RHS);
 
 	/** If you need the old AttrValue behavior (i.e. stringify everything), call this function instead. */
-	UE_DEPRECATED(4.25, "This property has been deprecated, use GetValue() instead")
+	UE_DEPRECATED(4.26, "This property has been deprecated, use GetValue() instead")
 	FString ToString() const;
 
 	/** Legacy support for old RecordEventJson API. Don't call this directly. */
-	UE_DEPRECATED(4.25, "This property is used to support the deprecated APIs, construct Json values using FJsonFragment instead")
+	UE_DEPRECATED(4.26, "This property is used to support the deprecated APIs, construct Json values using FJsonFragment instead")
 	void SwitchToJsonFragment();
 
 	static bool IsValidAttributeName(const FString& InName)
