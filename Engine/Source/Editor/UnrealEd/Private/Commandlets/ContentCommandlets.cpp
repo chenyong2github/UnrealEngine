@@ -1239,10 +1239,19 @@ void UResavePackagesCommandlet::PerformPreloadOperations( FLinkerLoad* PackageLi
 	}
 
 	// Check if the package was saved by licensees
-	if ( bOnlyLicenseed && !PackageLinker->Summary.SavedByEngineVersion.IsLicenseeVersion() )
+	if ( bOnlyLicenseed)
 	{
-		bSavePackage = false;
-		return;
+		if (!PackageLinker->Summary.SavedByEngineVersion.IsLicenseeVersion())
+		{
+			bSavePackage = false;
+			return;
+		}
+		else
+		{
+			UE_LOG(LogContentCommandlet, Display, TEXT("Resaving %s that contains licensee version (%s)"),
+				*PackageLinker->GetArchiveName(),
+				*PackageLinker->Summary.SavedByEngineVersion.ToString());
+		}
 	}
 
 	// Check if the package contains any instances of the class that needs to be resaved.
