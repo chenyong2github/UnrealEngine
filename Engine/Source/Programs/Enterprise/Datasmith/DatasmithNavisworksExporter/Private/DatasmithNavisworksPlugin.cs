@@ -523,6 +523,7 @@ namespace DatasmithNavisworks
 			public List<Appearance> Appearances;
 			public GuiProperties Metadata;
 			public FDatasmithFacadeActorMesh MeshActor;
+			public GeometryUtil.BoundingBox BoundingBox;
 
 			public GeometryInstance(InstancedWithInstancesToExport Instanced, SceneItem Item, int MeshesCountHint)
 			{
@@ -935,6 +936,24 @@ namespace DatasmithNavisworks
 						}
 
 						{
+							EventInfo("Set Actor Transforms");
+							ProgressBar.BeginSubOperation(0.1, "Set Actor Transforms");
+							try
+							{
+								SetActorTransforms(SceneContext, ProgressBar);
+								if (ProgressBar.IsCanceled)
+								{
+									return 0;
+								}
+							}
+							finally
+							{
+								ProgressBar.EndSubOperation();
+							}
+							EventInfo("Done - Set Actor Transforms");
+						}
+
+						{
 							EventInfo("Building Scene Hierarchy");
 							ProgressBar.BeginSubOperation(0.1, "Building Scene Hierarchy");
 							try
@@ -1250,9 +1269,39 @@ namespace DatasmithNavisworks
 				// Geometry nodes will be added as MeshActors
 				if ((CurrentNode.Children.Count > 0) || CurrentNode.HasMetadata() || (Item.Parent == null))
 				{
-					CurrentNode.CreateDatasmithActor(SceneContext);
+					Debug.Assert(CurrentNode.SceneItem.DatasmithActor == null);
+					CurrentNode.SceneItem.DatasmithActor = CreateDatasmithActorForSceneItem(SceneContext, CurrentNode.SceneItem);
 				}
 			}
+		}
+
+		[MethodImpl(MethodImplOptions.NoInlining)]
+		private static void SetActorTransforms(SceneContext SceneContext, Progress ProgressBar)
+		{
+			SetActorTransforms(SceneContext.RootNode);
+		}
+
+		// Set transforms recursively computing subtree bounding boxes and setting translation to box center
+		private static GeometryUtil.BoundingBox SetActorTransforms(Node Node)
+		{
+			GeometryUtil.BoundingBox BoundingBox = new GeometryUtil.BoundingBox();
+
+			if (Node.Instance != null)
+			{
+				BoundingBox.Extend(Node.Instance.BoundingBox);
+			}
+
+			foreach (Node Child in Node.Children)
+			{
+				BoundingBox.Extend(SetActorTransforms(Child));
+			}
+
+			if (BoundingBox.IsSet())
+			{
+				Node.SceneItem.DatasmithActor?.SetWorldTransform(TransformMatrix.Identity
+					.ConcatTranslation(BoundingBox.BottomCenter).Floats);
+			}
+			return BoundingBox;
 		}
 
 		[MethodImpl(MethodImplOptions.NoInlining)]
@@ -1574,6 +1623,9 @@ namespace DatasmithNavisworks
 
 								TotalSingleFragmentsInstanced++;
 								SceneContext.TotalMeshSectionInstancedCount++;
+
+								Instance.BoundingBox = new GeometryUtil.BoundingBox();
+								Instance.BoundingBox.Extend(Geometry, Transform);
 							}
 						}
 					}	
@@ -1642,7 +1694,7 @@ namespace DatasmithNavisworks
 						SceneContext.TotalMeshSectionInstancedCount += SlotCount;
 
 						// For each mesh that is composed from fragments with distinct transforms create its own DatasmithMesh 
-						using (FDatasmithFacadeMesh DatasmithMesh = CreateDatasmithMeshForBakedFragmentGeometry(SceneContext, Instance, SlotRemap))
+						using (FDatasmithFacadeMesh DatasmithMesh = CreateDatasmithMeshForBakedFragmentGeometry(SceneContext, Instance, SlotRemap, out Vector3d Translation))
 						{
 							if (DatasmithMesh == null)
 							{
@@ -1652,11 +1704,14 @@ namespace DatasmithNavisworks
 
 							ExportDatasmithMesh(SceneContext, DatasmithMesh, DatasmithMeshElement);
 							TotalBakedMeshTriangles += DatasmithMesh.GetFacesCount();
-						}
 
-						FDatasmithFacadeActorMesh ItemMeshActor =
-							CreateDatasmithActorMeshForInstance(SceneContext, Instance, 0);
-						ItemMeshActor.SetMesh(DatasmithMeshElement.GetName());
+							FDatasmithFacadeActorMesh ItemMeshActor =
+								CreateDatasmithActorMeshForInstance(SceneContext, Instance, 0);
+							// Translation is expected to be in export(Unreal) coordinates already
+							TransformMatrix Transform = TransformMatrix.Identity.ConcatTranslation(Translation);
+							ItemMeshActor.SetWorldTransform(Transform.Floats);
+							ItemMeshActor.SetMesh(DatasmithMeshElement.GetName());
+						}
 
 						TotalBakedMeshInstances++;
 					}
@@ -1674,12 +1729,26 @@ namespace DatasmithNavisworks
 							FDatasmithFacadeMeshElement DatasmithMeshElement = CreateDatasmithMeshElementForItem(SceneContext, InstancedGeometry.Item, It.Index);
 							int SlotCount = AssignAppearancesListToDatasmithMesh(SceneContext, DatasmithMeshElement, AppearanceList.Appearances, out List<int> SlotRemap);
 
+							// Compute bounding box of consolidated geometry to repivot merged geometry to the bbox center
+							// Bounding box is computed in local coordinates(before item transform applied)
+							GeometryUtil.BoundingBox BoundingBox = new GeometryUtil.BoundingBox();
+							foreach (FragmentGeometry FragmentGeometry in InstancedGeometry.FragmentGeometries)
+							{
+								OptimizeSourceGeometry(FragmentGeometry);
+								if (FragmentGeometry.GetGeometry(out Geometry Geometry))
+								{
+									BoundingBox.Extend(Geometry);
+								}
+							}
+							Vector3d PivotTranslation = BoundingBox.BottomCenter;
+							TransformMatrix CenterTransform = TransformMatrix.Identity.ConcatTranslation(PivotTranslation);
+
 							// TODO: Potential optimization - same mesh might have different set of appearances
 							// Right now we are creating separate mesh for each appearance list, might want to make override materials on mesh actor
 							using (FDatasmithFacadeMesh MergedDatasmithMesh = CreateDatasmithMeshForItem(SceneContext, InstancedGeometry.Item, AppearanceListAndInstances.Index)) // Instantiate mesh with different name for each appearance
 							{
 								TotalMergedMeshes++;
-								FillDatasmithMeshFromInstancedGeometry(InstancedGeometry, MergedDatasmithMesh, SlotRemap);
+								FillDatasmithMeshFromInstancedGeometry(InstancedGeometry, MergedDatasmithMesh, SlotRemap, -PivotTranslation);
 
 								ExportDatasmithMesh(SceneContext, MergedDatasmithMesh, DatasmithMeshElement);
 
@@ -1695,9 +1764,13 @@ namespace DatasmithNavisworks
 								}
 
 								FDatasmithFacadeActorMesh ItemMeshActor = CreateDatasmithActorMeshForInstance(SceneContext, Instance, 0);
-								TransformMatrix Transform = SceneContext.NavisworksToUnrealTransform.Multiply(Instance.GetTransform(0));
-								ItemMeshActor.SetWorldTransform(Transform.Floats);
+
+								// Repivot to BBox center. Note - CenterTransform applied first(i.e. to local vertex positions)
+								TransformMatrix TransformRepivoted = Instance.GetTransform(0).Multiply(CenterTransform);
+								TransformMatrix WorldTransform = SceneContext.NavisworksToUnrealTransform.Multiply(TransformRepivoted);
+								ItemMeshActor.SetWorldTransform(WorldTransform.Floats);
 								ItemMeshActor.SetMesh(DatasmithMeshElement.GetName());
+								Instance.BoundingBox = BoundingBox.Transform(WorldTransform);
 
 								TotalMergedMeshInstances++;
 								SceneContext.TotalMeshSectionInstancedCount += SlotCount;
@@ -1889,12 +1962,6 @@ namespace DatasmithNavisworks
 			public bool HasMetadata()
 			{
 				return Instance?.Metadata != null;
-			}
-
-			public void CreateDatasmithActor(SceneContext SceneContext)
-			{
-				Debug.Assert(SceneItem.DatasmithActor == null);
-				SceneItem.DatasmithActor = CreateDatasmithActorForSceneItem(SceneContext, SceneItem);
 			}
 		};
 
@@ -2449,7 +2516,8 @@ namespace DatasmithNavisworks
 			}
 		}
 
-		private unsafe void FillDatasmithMeshFromInstancedGeometry(SceneItemInstancedGeometry InstancedGeometry, FDatasmithFacadeMesh DatasmithMesh, List<int> SlotRemap)
+		private unsafe void FillDatasmithMeshFromInstancedGeometry(SceneItemInstancedGeometry InstancedGeometry,
+			FDatasmithFacadeMesh DatasmithMesh, List<int> SlotRemap, Vector3d PositionOffset)
 		{
 			const int UVChannelCount = 1;
 			const int DefaultUVChannel = 0;
@@ -2482,7 +2550,7 @@ namespace DatasmithNavisworks
 				{
 					GeometryVertex Vertex = new GeometryVertex(Geometry, VertexIndex);
 
-					Vector3d Position = Vertex.Position;
+					Vector3d Position = Vertex.Position + PositionOffset;
 					DatasmithMesh.SetVertex(VertexIndexOffset + VertexIndex, (float)Position.X, (float)Position.Y, (float)Position.Z);
 
 					Vector3d Normal = Vertex.Normal;
@@ -2510,7 +2578,7 @@ namespace DatasmithNavisworks
 			}
 		}
 
-		private unsafe FDatasmithFacadeMesh  CreateDatasmithMeshForBakedFragmentGeometry(SceneContext SceneContext, GeometryInstance Instance, List<int> SlotRemap)
+		private unsafe FDatasmithFacadeMesh  CreateDatasmithMeshForBakedFragmentGeometry(SceneContext SceneContext, GeometryInstance Instance, List<int> SlotRemap, out Vector3d OutTranslation)
 		{
 			FDatasmithFacadeMesh DatasmithMesh = CreateDatasmithMeshForItem(SceneContext, Instance.SceneItem, 0);
 			const int UVChannelCount = 1;
@@ -2537,6 +2605,21 @@ namespace DatasmithNavisworks
 				}
 			}
 
+			// Compute bounding box of consolidated geometry to repivot merged geometry to the bbox center
+			GeometryUtil.BoundingBox BoundingBox = new GeometryUtil.BoundingBox();
+			for (int FragmentIndex = 0; FragmentIndex < Instance.SharedInstancedForInstancesRef.InstancedGeometry.FragmentGeometryCount; FragmentIndex++)
+			{
+				FragmentGeometry FragmentGeometry = Instance.SharedInstancedForInstancesRef.InstancedGeometry.GetFragmentGeometry(FragmentIndex);
+				OptimizeSourceGeometry(FragmentGeometry);
+				if (FragmentGeometry.GetGeometry(out Geometry Geometry))
+				{
+					BoundingBox.Extend(Geometry, SceneContext.NavisworksToUnrealTransform.Multiply(Instance.GetTransform(FragmentIndex)));
+				}
+			}
+			// Center of the bounding box of vertices already transformed to export(Unreal) coordinates
+			Vector3d PivotTranslation = BoundingBox.BottomCenter;
+			OutTranslation = PivotTranslation; 
+
 			DatasmithMesh.SetVerticesCount(VerticesCount);
 			DatasmithMesh.SetUVChannelsCount(UVChannelCount);
 			DatasmithMesh.SetUVCount(DefaultUVChannel, VerticesCount);
@@ -2557,7 +2640,7 @@ namespace DatasmithNavisworks
 					{
 						GeometryVertex Vertex = new GeometryVertex(Geometry, VertexIndex);
 
-						Vector3d CoordTransformed = Transform.TransformPosition(Vertex.Position);
+						Vector3d CoordTransformed = Transform.TransformPosition(Vertex.Position) - PivotTranslation;
 						DatasmithMesh.SetVertex(VertexIndexOffset + VertexIndex, (float)CoordTransformed.X, (float)CoordTransformed.Y, (float)CoordTransformed.Z);
 
 						Vector3 NormalTransformed = new Vector3(Transform.TransformNormal(Vertex.Normal));
@@ -2584,6 +2667,7 @@ namespace DatasmithNavisworks
 				}
 			}
 
+			Instance.BoundingBox = BoundingBox;
 			return DatasmithMesh;
 		}
 
@@ -2814,6 +2898,7 @@ namespace DatasmithNavisworks
 			public bool bIsSimpleGeometry;
 			public bool bChildrenOnlySimple;
 			public FDatasmithFacadeActor DatasmithActor;
+			public TransformMatrix Transform;
 		}
 
 		class Appearance : IEquatable<Appearance>
@@ -3465,7 +3550,11 @@ namespace DatasmithNavisworks
 		public double LengthSquared() => X*X + Y*Y + Z*Z;
 
 		public Vector3d Abs() => new Vector3d(){ X =  Math.Abs(X), Y = Math.Abs(Y),  Z = Math.Abs(Z)};
+		public Vector3d Min(double S) => new Vector3d(){ X =  Math.Min(X, S), Y = Math.Min(Y, S),  Z = Math.Min(Z, S)};
 		public Vector3d Max(double S) => new Vector3d(){ X =  Math.Max(X, S), Y = Math.Max(Y, S),  Z = Math.Max(Z, S)};
+ 
+		public Vector3d Min(Vector3d Other) => new Vector3d(){ X =  Math.Min(X, Other.X), Y = Math.Min(Y, Other.Y),  Z = Math.Min(Z, Other.Z)};
+		public Vector3d Max(Vector3d Other) => new Vector3d(){ X =  Math.Max(X, Other.X), Y = Math.Max(Y, Other.Y),  Z = Math.Max(Z, Other.Z)};
 
 		public bool AlmostEqual(Vector3d Other, double Threshold)
 		{
@@ -3636,6 +3725,14 @@ namespace DatasmithNavisworks
 
 			return Result;
 		}
+
+		public static TransformMatrix Identity => new TransformMatrix(new double[]
+			{
+				1, 0, 0, 0,
+				0, 1, 0, 0,
+				0, 0, 1, 0,
+				0, 0, 0, 1,
+			});
 	};
 
 	class Converters
@@ -3694,6 +3791,93 @@ namespace DatasmithNavisworks
 
 	class GeometryUtil
 	{
+		public class BoundingBox
+		{
+			private Vector3d BoundMin;
+			private Vector3d BoundMax;
+			private bool bIsSet;
+
+			public BoundingBox()
+			{
+				bIsSet = false;
+			}
+
+			public bool IsSet()
+			{
+				return bIsSet;
+			}
+
+			public Vector3d Center => (BoundMin + BoundMax) * 0.5;
+			public Vector3d BottomCenter => new Vector3d((BoundMin.X + BoundMax.X) * 0.5, (BoundMin.Y + BoundMax.Y) * 0.5, BoundMin.Z);
+
+			public void Extend(Geometry Geometry, TransformMatrix Transform=null)
+			{
+				foreach (GeometryVertex Vertex in EnumerateVertices(Geometry))
+				{
+					Vector3d CoordTransformed = Transform?.TransformPosition(Vertex.Position) ?? Vertex.Position;
+
+					Extend(CoordTransformed);
+				}
+			}
+
+			public void Extend(BoundingBox Other)
+			{
+				if (!Other.bIsSet)
+				{
+					return;
+				}
+
+				foreach (Vector3d V in Other.EnumerateCorners())
+				{
+					Extend(V);
+				}
+			}
+
+			private void Extend(Vector3d V)
+			{
+				if (bIsSet)
+				{
+					BoundMin = BoundMin.Min(V);
+					BoundMax = BoundMax.Max(V);
+				}
+				else
+				{
+					BoundMin = V;
+					BoundMax = V;
+					bIsSet = true;
+				}
+			}
+
+			public IEnumerable<Vector3d> EnumerateCorners()
+			{
+				Vector3d[] Bounds = { BoundMin, BoundMax };
+
+				for (int i = 0; i < 8; ++i)
+				{
+					yield return new Vector3d(Bounds[i & 1].X, Bounds[(i & 2) >> 1].Y, Bounds[(i & 4) >> 2].Z);
+				}
+			}
+
+			public BoundingBox Transform(TransformMatrix TransformMatrix)
+			{
+				BoundingBox Result = new BoundingBox();
+				if (!bIsSet)
+				{
+					return Result;
+				}
+
+				foreach (Vector3d V in EnumerateCorners())
+				{
+					Result.Extend(TransformMatrix.TransformPosition(V));
+				}
+
+				return Result;
+			}
+
+		};
+
+
+
 		public static IEnumerable<GeometryVertex> EnumerateVertices(Geometry Geometry)
 		{
 			for (int VertexIndex = 0; VertexIndex < Geometry.VertexCount; VertexIndex++)
