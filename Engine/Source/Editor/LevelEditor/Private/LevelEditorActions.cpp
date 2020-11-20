@@ -1479,7 +1479,7 @@ void FLevelEditorActionCallbacks::ReplaceActorsFromClass_Clicked( UClass* ActorC
 
 			FText ErrorMessage;
 			FText UnusedErrorMessage;
-			const FAssetData NoAssetData;
+			const FAssetData NoAssetData {};
 			const FAssetData TargetAssetData(TargetAsset);
 			if( ActorFactory->CanCreateActorFrom( TargetAssetData, ErrorMessage ) )
 			{
