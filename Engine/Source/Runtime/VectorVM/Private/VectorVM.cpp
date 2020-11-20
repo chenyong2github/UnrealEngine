@@ -833,7 +833,7 @@ struct FVectorKernelDivSafe : public TBinaryVectorKernel<FVectorKernelDivSafe>
 {
 	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
 	{
-	#if defined(__clang__)
+	#if defined(__SCE__)
 		float Src0F[4];
 		float Src1F[4];
 		float DstF[4];
@@ -1078,7 +1078,14 @@ struct FVectorKernelMod : public TBinaryVectorKernel<FVectorKernelMod>
 {
 	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
 	{
+	#if defined(__SCE__)
+		VectorRegister ModResult = VectorMod(Src0, Src1);
+		VectorRegister ModResultMinusSec1 = VectorSubtract(ModResult, Src1);
+		VectorRegister SelectMask = VectorCompareLT(VectorAbs(ModResult), VectorAbs(Src1));
+		*Dst = VectorSelect(SelectMask, ModResult, ModResultMinusSec1);
+	#else
 		*Dst = VectorMod(Src0, Src1);
+	#endif
 	}
 };
 
