@@ -319,15 +319,30 @@ public:
 	constexpr inline FieldType& operator*() { return *this; }
 	constexpr inline FieldType* operator->() { return this; }
 
-	constexpr inline bool operator==(const TCbFieldIterator& Other) const
+	using FieldType::Equals;
+
+	template <typename OtherFieldType>
+	constexpr inline bool Equals(const TCbFieldIterator<OtherFieldType>& Other) const
 	{
 		return FieldType::GetPayload() == Other.FieldType::GetPayload();
 	}
 
-	constexpr inline bool operator!=(const TCbFieldIterator& Other) const
+	template <typename OtherFieldType>
+	constexpr inline bool operator==(const TCbFieldIterator<OtherFieldType>& Other) const
 	{
-		return !(*this == Other);
+		return Equals(Other);
 	}
+
+	template <typename OtherFieldType>
+	constexpr inline bool operator!=(const TCbFieldIterator<OtherFieldType>& Other) const
+	{
+		return !Equals(Other);
+	}
+
+	/** Calculate the hash of the fields by hashing their underlying memory. */
+	inline FBlake3Hash GetHash() const { return FBlake3::HashBuffer(GetFieldRangeView(*this)); }
+	/** Calculate the hash of the fields by hashing their underlying memory. */
+	inline void GetHash(FBlake3& Hash) const { Hash.Update(GetFieldRangeView(*this)); }
 
 protected:
 	/** Returns the end of the last field, or null for an iterator at the end. */
@@ -424,6 +439,11 @@ public:
 	 * be performed with \ref ValidateCompactBinary, except for field order and field name case.
 	 */
 	CORE_API bool Equals(const FCbField& Other) const;
+
+	/** Calculate the hash of the field by hashing its underlying memory. */
+	inline FBlake3Hash GetHash() const { return FBlake3::HashBuffer(GetFieldView()); }
+	/** Calculate the hash of the field by hashing its underlying memory. */
+	inline void GetHash(FBlake3& Hash) const { Hash.Update(GetFieldView()); }
 
 	/** Access the field as an object. Defaults to an empty object on error. */
 	CORE_API FCbObject AsObject();
@@ -698,6 +718,11 @@ public:
 	/** Construct an array from an array field. No type check is performed! */
 	static FCbArray FromField(const FCbField& Field) { return FCbArray(Field); }
 
+	/** Calculate the hash of the array if serialized by itself with no name. */
+	CORE_API FBlake3Hash GetHash() const;
+	/** Calculate the hash of the array if serialized by itself with no name. */
+	CORE_API void GetHash(FBlake3& Hash) const;
+
 protected:
 	/** Returns the type to use when constructing a new array after using CopyTo. */
 	constexpr inline ECbFieldType GetCopyType() const
@@ -784,6 +809,11 @@ public:
 
 	/** Construct an object from an object field. No type check is performed! */
 	static FCbObject FromField(const FCbField& Field) { return FCbObject(Field); }
+
+	/** Calculate the hash of the object if serialized by itself with no name. */
+	CORE_API FBlake3Hash GetHash() const;
+	/** Calculate the hash of the object if serialized by itself with no name. */
+	CORE_API void GetHash(FBlake3& Hash) const;
 
 protected:
 	/** Returns the type to use when constructing a new object after using CopyTo. */

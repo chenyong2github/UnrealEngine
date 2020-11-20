@@ -4,6 +4,7 @@
 
 #include "Containers/StringFwd.h"
 #include "HAL/UnrealMemory.h"
+#include "Memory/MemoryView.h"
 #include "String/BytesToHex.h"
 #include "Templates/TypeCompatibleBytes.h"
 
@@ -48,11 +49,23 @@ public:
 	/** Add the data as input to the hash. May be called any number of times. */
 	CORE_API void Update(const void* Data, uint64 Size);
 
+	/** Add the view as input to the hash. May be called any number of times. */
+	inline void Update(FConstMemoryView View)
+	{
+		Update(View.GetData(), View.GetSize());
+	}
+
 	/** Finalize the hash of the input data. May be called any number of times, and more input may be added after. */
 	CORE_API FBlake3Hash Finalize() const;
 
 	/** Calculate the hash of the input data. */
 	CORE_API static FBlake3Hash HashBuffer(const void* Data, uint64 Size);
+
+	/** Calculate the hash of the input view. */
+	static inline FBlake3Hash HashBuffer(FConstMemoryView View)
+	{
+		return HashBuffer(View.GetData(), View.GetSize());
+	}
 
 private:
 	TAlignedBytes<1912, 8> HasherBytes;

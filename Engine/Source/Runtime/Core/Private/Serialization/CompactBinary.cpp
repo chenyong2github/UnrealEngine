@@ -480,6 +480,20 @@ bool FCbArray::Equals(const FCbArray& Other) const
 		GetPayloadView().EqualBytes(Other.GetPayloadView());
 }
 
+FBlake3Hash FCbArray::GetHash() const
+{
+	FBlake3 Hash;
+	GetHash(Hash);
+	return Hash.Finalize();
+}
+
+void FCbArray::GetHash(FBlake3& Hash) const
+{
+	const uint8 LocalType = uint8(FCbFieldType::GetType(GetType()));
+	Hash.Update(&LocalType, sizeof(LocalType));
+	Hash.Update(GetPayloadView());
+}
+
 void FCbArray::CopyTo(const FMutableMemoryView Buffer) const
 {
 	uint8* BufferBytes = static_cast<uint8*>(Buffer.GetData());
@@ -544,6 +558,20 @@ FCbField FCbObject::FindIgnoreCase(const FAnsiStringView Name) const
 		}
 	}
 	return FCbField();
+}
+
+FBlake3Hash FCbObject::GetHash() const
+{
+	FBlake3 Hash;
+	GetHash(Hash);
+	return Hash.Finalize();
+}
+
+void FCbObject::GetHash(FBlake3& Hash) const
+{
+	const uint8 LocalType = uint8(FCbFieldType::GetType(GetType()));
+	Hash.Update(&LocalType, sizeof(LocalType));
+	Hash.Update(GetPayloadView());
 }
 
 void FCbObject::CopyTo(const FMutableMemoryView Buffer) const

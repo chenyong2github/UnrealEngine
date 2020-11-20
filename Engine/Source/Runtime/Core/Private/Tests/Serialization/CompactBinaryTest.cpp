@@ -189,6 +189,7 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("!FCbField()::HasValue()"), DefaultField.HasValue());
 		TestFalse(TEXT("!FCbField()::HasError()"), DefaultField.HasError());
 		TestEqual(TEXT("FCbField()::GetError() == None"), DefaultField.GetError(), ECbFieldError::None);
+		TestEqual(TEXT("FCbField()::GetHash()"), DefaultField.GetHash(), FBlake3::HashBuffer(FConstMemoryView()));
 	}
 
 	// Test FCbField(None)
@@ -200,6 +201,7 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("!FCbField(None)::HasValue()"), NoneField.HasValue());
 		TestFalse(TEXT("!FCbField(None)::HasError()"), NoneField.HasError());
 		TestEqual(TEXT("FCbField(None)::GetError() == None"), NoneField.GetError(), ECbFieldError::None);
+		TestEqual(TEXT("FCbField(None)::GetHash()"), NoneField.GetHash(), FCbField().GetHash());
 	}
 
 	// Test FCbField(None|Type|Name)
@@ -211,6 +213,7 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("FCbField(None|Type|Name)::GetName()"), NoneField.GetName(), "Name"_ASV);
 		TestTrue(TEXT("FCbField(None|Type|Name)::HasName()"), NoneField.HasName());
 		TestFalse(TEXT("!FCbField(None|Type|Name)::HasValue()"), NoneField.HasValue());
+		TestNotEqual(TEXT("FCbField(None|Type|Name)::GetHash()"), NoneField.GetHash(), FCbField().GetHash());
 	}
 
 	// Test FCbField(None|Type)
@@ -222,6 +225,7 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("FCbField(None|Type)::GetName()"), NoneField.GetName().Len(), 0);
 		TestFalse(TEXT("FCbField(None|Type)::HasName()"), NoneField.HasName());
 		TestFalse(TEXT("!FCbField(None|Type)::HasValue()"), NoneField.HasValue());
+		TestNotEqual(TEXT("FCbField(None|Type)::GetHash()"), NoneField.GetHash(), FCbField().GetHash());
 	}
 
 	// Test FCbField(None|Name)
@@ -233,6 +237,7 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("FCbField(None|Name)::GetName()"), NoneField.GetName(), "Name"_ASV);
 		TestTrue(TEXT("FCbField(None|Name)::HasName()"), NoneField.HasName());
 		TestFalse(TEXT("!FCbField(None|Name)::HasValue()"), NoneField.HasValue());
+		TestNotEqual(TEXT("FCbField(None|Name)::GetHash()"), NoneField.GetHash(), FCbField().GetHash());
 	}
 
 	return true;
@@ -249,6 +254,7 @@ bool FCbFieldNullTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("FCbField(Null)::HasValue()"), NullField.HasValue());
 		TestFalse(TEXT("!FCbField(Null)::HasError()"), NullField.HasError());
 		TestEqual(TEXT("FCbField(Null)::GetError() == None"), NullField.GetError(), ECbFieldError::None);
+		TestEqual(TEXT("FCbField(Null)::GetHash()"), NullField.GetHash(), FBlake3::HashBuffer(FConstMemoryView()));
 	}
 
 	// Test FCbField(None) as Null
@@ -383,6 +389,7 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 		const FCbObjectRef ObjectClone = FCbObjectRef::Clone(Object);
 		TestEqual(TEXT("FCbObjectRef(ObjectWithName)::GetSize()"), ObjectClone.GetSize(), uint64(6));
 		TestTrue(TEXT("FCbObject::Equals()"), Object.Equals(ObjectClone));
+		TestEqual(TEXT("FCbObject::GetHash()"), ObjectClone.GetHash(), Object.GetHash());
 		for (FCbFieldRefIterator It = ObjectClone.CreateRefIterator(); It; ++It)
 		{
 			FCbFieldRef Field = *It;
@@ -524,6 +531,7 @@ bool FCbFieldArrayTest::RunTest(const FString& Parameters)
 		const FCbArrayRef ArrayClone = FCbArrayRef::Clone(Array);
 		TestEqual(TEXT("FCbArrayRef(ArrayWithName)::GetSize()"), ArrayClone.GetSize(), uint64(5));
 		TestTrue(TEXT("FCbArray::Equals()"), Array.Equals(ArrayClone));
+		TestEqual(TEXT("FCbArray::GetHash()"), ArrayClone.GetHash(), Array.GetHash());
 		for (FCbFieldRefIterator It = ArrayClone.CreateRefIterator(); It; ++It)
 		{
 			FCbFieldRef Field = *It;
@@ -1284,6 +1292,9 @@ bool FCbFieldRefIteratorTest::RunTest(const FString& Parameters)
 
 		const FCbFieldIterator FieldIt(FCbField(View->GetData()), ViewEnd);
 		const FCbFieldRefIterator FieldRefIt(FCbFieldRef(View), ViewEnd);
+
+		TestEqual(TEXT("FCbFieldIterator::GetHash()"), FieldIt.GetHash(), FBlake3::HashBuffer(*View));
+		TestEqual(TEXT("FCbFieldRefIterator::GetHash()"), FieldRefIt.GetHash(), FBlake3::HashBuffer(*View));
 
 		TestEqual(TEXT("FCbFieldIterator(EmptyView)"), GetCount(FCbFieldIterator(EmptyView)), 0);
 		TestEqual(TEXT("FCbFieldRefIterator(BufferNullL)"), GetCount(FCbFieldRefIterator(NullBuffer)), 0);
