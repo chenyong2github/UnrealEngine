@@ -506,7 +506,7 @@ int32 AndroidMain(struct android_app* state)
 	}
 #endif
 
-	FAndroidStats::Init();
+	FAndroidStats::Init(FParse::Param(FCommandLine::Get(), TEXT("hwcpipe")));
 
 	BootTimingPoint("Tick loop starting");
 	DumpBootTiming();
