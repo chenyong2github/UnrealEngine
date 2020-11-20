@@ -275,6 +275,22 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 						const FSkeletalMeshLODRenderData & SkeletalMeshLODRenderData = SkelMeshRenderData->LODRenderData[0];
 						const FSkinWeightVertexBuffer & SkinWeightVertexBuffer = *SkeletalMeshLODRenderData.GetSkinWeightVertexBuffer();
 
+						const FStaticMeshVertexBuffers& VertexBuffers = SkeletalMeshLODRenderData.StaticVertexBuffers;
+						const FPositionVertexBuffer& PositionVertexBuffer = VertexBuffers.PositionVertexBuffer;
+						const int32 VertexCount = PositionVertexBuffer.GetNumVertices();
+						
+						// Check that all vertex weightings are rigid.
+						for (int32 VertexIndex = 0; VertexIndex < VertexCount; VertexIndex++)
+						{
+							int32 SkeletalBoneIndex = -1;
+							if (!SkinWeightVertexBuffer.GetRigidWeightBone(VertexIndex, SkeletalBoneIndex))
+							{
+								UE_LOG(UGeometryCollectionConversionLogging, Error, TEXT("Non-rigid weighting found on vertex %d: Cannot convert to GeometryCollection."), VertexIndex);
+								return;
+							}
+						}
+						
+											
 						const FSkelMeshRenderSection & RenderSection = SkeletalMeshLODRenderData.RenderSections[0];
 						const TArray<FBoneIndexType> & SkeletalBoneMap = RenderSection.BoneMap;
 
@@ -344,10 +360,6 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 						TManagedArray<int32>& Parent = GeometryCollection->Parent;
 						TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
 
-						const FStaticMeshVertexBuffers & VertexBuffers = SkeletalMeshLODRenderData.StaticVertexBuffers;
-						const FPositionVertexBuffer & PositionVertexBuffer = VertexBuffers.PositionVertexBuffer;
-
-						const int32 VertexCount = PositionVertexBuffer.GetNumVertices();
 						int InitialNumVertices = GeometryCollection->NumElements(FGeometryCollection::VerticesGroup);
 						int VertexBaseIndex = GeometryCollection->AddElements(VertexCount, FGeometryCollection::VerticesGroup);
 						for (int32 VertexIndex = 0; VertexIndex < VertexCount; VertexIndex++)
@@ -355,7 +367,6 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 							int VertexOffset = VertexBaseIndex + VertexIndex;
 							BoneMap[VertexOffset] = -1;
 							int32 SkeletalBoneIndex = -1;
-							check(SkinWeightVertexBuffer.GetRigidWeightBone(VertexIndex, SkeletalBoneIndex));
 							if (SkeletalBoneIndex > -1)
 							{
 								BoneMap[VertexOffset] = SkeletalBoneIndex + TransformBaseIndex;
