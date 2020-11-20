@@ -36,6 +36,4 @@ private:
 	UMaterialParameterCollection* LandscapeMaterialParameterCollection;
 
 	TWeakObjectPtr<AWaterMeshActor> WaterMeshActor;
-
-	TSet<TWeakObjectPtr<UWorld>> WorldsToUpdate;
 };

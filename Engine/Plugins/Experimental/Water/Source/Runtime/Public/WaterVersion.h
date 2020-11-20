@@ -24,6 +24,8 @@ struct WATER_API FWaterCustomVersion
 		MoveJumpFloodMaterialsToWaterBrushManager,
 		// Fixup Gerstner waves that were not recomputed at the right moment
 		FixupUnserializedGerstnerWaves,
+		// Move responsability of updating the Water MPC params to WaterMesh
+		MoveWaterMPCParamsToWaterMesh,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

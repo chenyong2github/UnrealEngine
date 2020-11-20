@@ -8,9 +8,12 @@
 #include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Engine/Classes/Materials/MaterialInstanceDynamic.h"
+#include "Engine/Classes/Materials/MaterialParameterCollection.h"
+#include "Engine/Classes/Materials/MaterialParameterCollectionInstance.h"
 #include "Engine/Engine.h"
 #include "WaterMeshSceneProxy.h"
 #include "WaterSubsystem.h"
+#include "WaterModule.h"
 #include "Math/NumericLimits.h"
 
 /** Scalability CVars*/
@@ -498,7 +501,41 @@ void UWaterMeshComponent::Update()
 		LODScaleBiasScalability = NewLODScaleBias;
 		const float LODCountBiasFactor = FMath::Pow(2.0f, (float)LODCountBiasScalability);
 		RebuildWaterMesh(TileSize / LODCountBiasFactor, FIntPoint(FMath::CeilToInt(ExtentInTiles.X * LODCountBiasFactor), FMath::CeilToInt(ExtentInTiles.Y * LODCountBiasFactor)));
+		UpdateWaterMPC();
 		bNeedsRebuild = false;
+	}
+}
+
+void UWaterMeshComponent::SetLandscapeInfo(const FVector& InRTWorldLocation, const FVector& InRTWorldSizeVector)
+{
+	RTWorldLocation = InRTWorldLocation;
+	RTWorldSizeVector = InRTWorldSizeVector;
+
+	UpdateWaterMPC();
+}
+
+void UWaterMeshComponent::UpdateWaterMPC()
+{
+	if (const UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
+	{
+		UMaterialParameterCollection* WaterCollection = WaterSubsystem->GetMaterialParameterCollection();
+		if (WaterCollection == nullptr)
+		{
+			UE_LOG(LogWater, Error, TEXT("No Water MaterialParameterCollection Assigned"));
+		}
+		else
+		{
+			UMaterialParameterCollectionInstance* WaterCollectionInstance = GetWorld()->GetParameterCollectionInstance(CastChecked<UMaterialParameterCollection>(WaterCollection));
+			check(WaterCollectionInstance != nullptr);
+			if (!WaterCollectionInstance->SetVectorParameterValue(FName(TEXT("LandscapeWorldSize")), FLinearColor(RTWorldSizeVector)))
+			{
+				UE_LOG(LogWater, Error, TEXT("Failed to set \"LandscapeWorldSize\" on Water MaterialParameterCollection"));
+			}
+			if (!WaterCollectionInstance->SetVectorParameterValue(FName(TEXT("LandscapeLocation")), FLinearColor(RTWorldLocation)))
+			{
+				UE_LOG(LogWater, Error, TEXT("Failed to set \"LandscapeLocation\" on Water MaterialParameterCollection"));
+			}
+		}
 	}
 }
 
