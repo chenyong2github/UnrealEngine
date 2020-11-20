@@ -171,7 +171,7 @@ WaveOutput GetSingleGerstnerWave(GerstnerWaveRenderer inWaveRenderer, Texture2D 
 WaveOutput GetAllGerstnerWaves(GerstnerWaveRenderer inWaveRenderer, Texture2D inWaveParamsRT, SamplerState inWaveParamsRTSampler, int inWaterBodyIndex)
 {
 		
-	WaveOutput OutWaves;
+	WaveOutput OutWaves = (WaveOutput)0;
 	WaveOutput CurrentWave;
 		
 	int MaxWaveRange = inWaveRenderer.MaxWaves - 1;
@@ -190,7 +190,7 @@ WaveOutput GetAllGerstnerWaves(GerstnerWaveRenderer inWaveRenderer, Texture2D in
 WaveOutput GetAllGerstnerWavesVectorized(GerstnerWaveRenderer inWaveRenderer, int inWaterBodyIndex)
 {
 		
-	WaveOutput OutWaves;
+	WaveOutput OutWaves = (WaveOutput)0;
 	WaveOutput CurrentWave;
 		
 	int MaxWaveRange = (inWaveRenderer.MaxWaves / 4) - 1;
@@ -379,7 +379,7 @@ WaveOutput GetSingleGerstnerWaveNew(int InWaveIndex, FWaterBodyHeader InWaterBod
 
 WaveOutput GetAllGerstnerWavesNew(int InWaterBodyIndex, float InTime, float2 InWorldPos)
 {		
-	WaveOutput OutWaves;
+	WaveOutput OutWaves = (WaveOutput)0;
 	WaveOutput CurrentWave;
 		
 	const FWaterBodyHeader WaterBodyHeader = DecodeWaterBodyHeader(View.WaterIndirection[InWaterBodyIndex]);
