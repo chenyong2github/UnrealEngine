@@ -325,6 +325,11 @@ uint32 FThreadHeartBeat::Run()
 
 		if (ThreadThatHung == FThreadHeartBeat::InvalidThreadId)
 		{
+			ThreadThatHung = CheckCheckpointHeartBeat(HangDuration);
+		}
+
+		if (ThreadThatHung == FThreadHeartBeat::InvalidThreadId)
+		{
 			InHungState = false;
 		}
 		else if (InHungState == false)
@@ -645,7 +650,79 @@ uint32 FThreadHeartBeat::CheckFunctionHeartBeat(double& OutHangDuration)
 	return InvalidThreadId;
 }
 
+void FThreadHeartBeat::MonitorCheckpointStart(FName EndCheckpoint, double TimeToReachCheckpoint)
+{
+#if USE_HANG_DETECTION
+	// disable on platforms that don't start the thread
+	if (FPlatformMisc::AllowThreadHeartBeat() == false)
+	{
+		return;
+	}
 
+	FScopeLock CheckpointHeartBeatLock(&CheckpointHeartBeatCritical);
+
+	if (CheckpointHeartBeat.Find(EndCheckpoint) == nullptr)
+	{
+		FHeartBeatInfo& HeartBeatInfo = CheckpointHeartBeat.Add(EndCheckpoint);
+		HeartBeatInfo.LastHeartBeatTime = Clock.Seconds();
+		HeartBeatInfo.HangDuration = TimeToReachCheckpoint;
+		HeartBeatInfo.HeartBeatName = EndCheckpoint;
+		HeartBeatInfo.SuspendedCount = 0;
+	}
+#endif
+}
+
+void FThreadHeartBeat::MonitorCheckpointEnd(FName Checkpoint)
+{
+#if USE_HANG_DETECTION
+	// disable on platforms that don't start the thread
+	if (FPlatformMisc::AllowThreadHeartBeat() == false)
+	{
+		return;
+	}
+	FScopeLock CheckpointHeartBeatLock(&CheckpointHeartBeatCritical);
+	CheckpointHeartBeat.Remove(Checkpoint);
+#endif
+}
+
+uint32 FThreadHeartBeat::CheckCheckpointHeartBeat(double& OutHangDuration)
+{
+	// Editor and debug builds run too slow to measure them correctly
+#if USE_HANG_DETECTION
+	bool CheckBeats = IsEnabled();
+
+	if (CheckBeats)
+	{
+		const double CurrentTime = Clock.Seconds();
+		FScopeLock HeartBeatLock(&CheckpointHeartBeatCritical);
+		if (ConfigHangDuration > 0.0)
+		{
+			// Check heartbeat for all checkpoints and return thread ID of the thread that initally marked the checkpoint when it hung.
+			// Note: We only return a thread id for a thread that has updated since the last hang, i.e. is still alive
+			// This avoids the case where a user may be in a deep and minorly varying callstack and flood us with reports
+			for (TPair<FName, FHeartBeatInfo>& LastHeartBeat : CheckpointHeartBeat)
+			{
+				FHeartBeatInfo& HeartBeatInfo = LastHeartBeat.Value;
+				if (CurrentTime - HeartBeatInfo.LastHeartBeatTime > HeartBeatInfo.HangDuration && HeartBeatInfo.LastHeartBeatTime >= HeartBeatInfo.LastHangTime)
+				{
+					UE_LOG(LogCore, Warning, TEXT("Failed to reach checkpoint within allotted time %.2f triggering hang detector."), HeartBeatInfo.HangDuration);
+
+					HeartBeatInfo.LastHangTime = CurrentTime;
+					OutHangDuration = HeartBeatInfo.HangDuration;
+					LastHungThreadId = FPlatformTLS::GetCurrentThreadId();
+#if PLATFORM_SWITCH
+					FPlatformCrashContext::UpdateDynamicData();
+#endif
+					* ((uint32*)3) = 0xe0000001;
+
+					return 0;
+				}
+			}
+		}
+	}
+#endif
+	return InvalidThreadId;
+}
 
 void FThreadHeartBeat::KillHeartBeat()
 {
