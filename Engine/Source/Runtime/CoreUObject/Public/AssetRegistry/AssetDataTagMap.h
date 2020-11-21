@@ -272,7 +272,7 @@ class COREUOBJECT_API FAssetDataTagMapSharedView
 
 	bool IsLoose() const
 	{
-		return !Fixed.IsValid & (Loose != nullptr);
+		return !Fixed.IsValid && (Loose != nullptr);
 	}
 
 	FAssetTagValueRef FindFixedValue(FName Key) const
