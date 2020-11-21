@@ -3,6 +3,7 @@
 #include "Particles/WorldPSCPool.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
+#include "GameFramework/WorldSettings.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "ParticleHelper.h"
 
