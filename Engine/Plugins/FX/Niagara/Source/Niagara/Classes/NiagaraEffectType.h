@@ -211,7 +211,7 @@ class NIAGARA_API UNiagaraSignificanceHandler : public UObject
 	GENERATED_BODY()
 
 public:
-	virtual void CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState)PURE_VIRTUAL(CalculateSignificance, );
+	virtual void CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState, TArray<int32>& OutIndices)PURE_VIRTUAL(CalculateSignificance, );
 };
 
 /** Significance is determined by the system's distance to the nearest camera. Closer systems are more significant. */
@@ -221,7 +221,7 @@ class NIAGARA_API UNiagaraSignificanceHandlerDistance : public UNiagaraSignifica
 	GENERATED_BODY()
 
 public:
-	virtual void CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState) override;
+	virtual void CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState, TArray<int32>& OutIndices) override;
 };
 
 /** Significance is determined by the system's age. Newer systems are more significant. */
@@ -231,7 +231,7 @@ class NIAGARA_API UNiagaraSignificanceHandlerAge : public UNiagaraSignificanceHa
 	GENERATED_BODY()
 
 public:
-	virtual void CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState) override;
+	virtual void CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState, TArray<int32>& OutIndices) override;
 };
 
 //////////////////////////////////////////////////////////////////////////

@@ -13,6 +13,59 @@ static FAutoConsoleVariableRef CVarScalabilityUpdateTime_High(TEXT("fx.NiagaraSc
 static int32 GScalabilityManParallelThreshold = 50;
 static FAutoConsoleVariableRef CVarScalabilityManParallelThreshold(TEXT("fx.ScalabilityManParallelThreshold"), GScalabilityManParallelThreshold, TEXT("Number of instances required for a niagara significance manger to go parallel for it's update. \n"), ECVF_Default);
 
+static int32 GScalabilityMaxUpdatesPerFrame = 50;
+static FAutoConsoleVariableRef CVarScalabilityMaxUpdatesPerFrame(TEXT("fx.ScalabilityMaxUpdatesPerFrame"), GScalabilityMaxUpdatesPerFrame, TEXT("Number of instances that can be processed per frame when updating scalability state. -1 for all of them. \n"), ECVF_Default);
+
+static float GetScalabilityUpdatePeriod(ENiagaraScalabilityUpdateFrequency Frequency)
+{
+	switch (Frequency)
+	{
+	case ENiagaraScalabilityUpdateFrequency::High: return GScalabilityUpdateTime_High;
+	case ENiagaraScalabilityUpdateFrequency::Medium: return GScalabilityUpdateTime_Medium;
+	case ENiagaraScalabilityUpdateFrequency::Low: return GScalabilityUpdateTime_Low;
+	}
+
+	return 0.0f;
+}
+
+static int32 GetMaxUpdatesPerFrame(const UNiagaraEffectType* EffectType, int32 ItemsRemaining, float UpdatePeriod, float DeltaSeconds)
+{
+	if (GScalabilityMaxUpdatesPerFrame > 0)
+	{
+		int32 UpdateCount = ItemsRemaining;
+
+		if ((UpdatePeriod > SMALL_NUMBER) && (DeltaSeconds < UpdatePeriod))
+		{
+			UpdateCount = FMath::Min(FMath::CeilToInt(((float)ItemsRemaining) * DeltaSeconds / UpdatePeriod), ItemsRemaining);
+		}
+
+		if (UpdateCount > GScalabilityMaxUpdatesPerFrame)
+		{
+#if !NO_LOGGING
+			static TSet<const void*> MessagedEffectTypeSet;
+
+			bool AlreadyAdded = false;
+			MessagedEffectTypeSet.Add(EffectType, &AlreadyAdded);
+
+			if (!AlreadyAdded)
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("NiagaraScalabilityManager needs to process %d updates (will be clamped to %d) for EffectType - %s - (%d items, %f period (s), %f delta (s)"),
+					UpdateCount,
+					GScalabilityMaxUpdatesPerFrame,
+					*EffectType->GetName(),
+					ItemsRemaining,
+					UpdatePeriod,
+					DeltaSeconds);
+			}
+#endif // !NO_LOGGING
+			UpdateCount = GScalabilityMaxUpdatesPerFrame;
+		}
+		return UpdateCount;
+	}
+
+	return ItemsRemaining;
+}
+
 FNiagaraScalabilityManager::FNiagaraScalabilityManager()
 	: EffectType(nullptr)
 	, LastUpdateTime(0.0f)
@@ -22,7 +75,7 @@ FNiagaraScalabilityManager::FNiagaraScalabilityManager()
 
 FNiagaraScalabilityManager::~FNiagaraScalabilityManager()
 {
-	for(UNiagaraComponent* Component : ManagedComponents)
+	for (UNiagaraComponent* Component : ManagedComponents)
 	{
 		if (Component)
 		{
@@ -69,6 +122,11 @@ void FNiagaraScalabilityManager::Register(UNiagaraComponent* Component)
 	Component->ScalabilityManagerHandle = ManagedComponents.Add(Component);
 	State.AddDefaulted();
 
+	if (HasPendingUpdates())
+	{
+		DefaultContext.ComponentRequiresUpdate.Add(true);
+	}
+
 	//UE_LOG(LogNiagara, Warning, TEXT("Registered Component %p at index %d"), Component, Component->ScalabilityManagerHandle);
 }
 
@@ -90,6 +148,11 @@ void FNiagaraScalabilityManager::UnregisterAt(int32 IndexToRemove)
 	{
 		ManagedComponents.RemoveAtSwap(IndexToRemove);
 		State.RemoveAtSwap(IndexToRemove);
+
+		if (HasPendingUpdates())
+		{
+			DefaultContext.ComponentRequiresUpdate.RemoveAtSwap(IndexToRemove);
+		}
 	}
 	else
 	{
@@ -106,7 +169,236 @@ void FNiagaraScalabilityManager::UnregisterAt(int32 IndexToRemove)
 	}
 }
 
-void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan, bool bNewOnly)
+// Note that this function may unregister elements in the ManagedComponents array (if the Component or System are no longer valid).
+// Returns false if there was a problem evaluating the specified index and something had to be unregistered
+bool FNiagaraScalabilityManager::EvaluateCullState(FNiagaraWorldManager* WorldMan, FComponentIterationContext& Context, int32 ComponentIndex, int32& UpdateCounter)
+{
+	check(ManagedComponents.IsValidIndex(ComponentIndex));
+	UNiagaraComponent* Component = ManagedComponents[ComponentIndex];
+
+	if (!Component)
+	{
+		UnregisterAt(ComponentIndex);
+		return false;
+	}
+	//Belt and braces GC safety. If someone calls MarkPendingKill() directly and we get here before we clear these out in the post GC callback.
+	else if (Component->IsPendingKill())
+	{
+		Unregister(Component);
+		return false;
+	}
+
+	//Don't update if we're doing new systems only and this is not new.
+	//Saves the potential cost of reavaluating every effect in every tick group something new is added.
+	//Though this does mean the sorted significance values will be using out of date distances etc.
+	//I'm somewhat on the fence currently as to whether it's better to pay this cost for correctness.
+	const bool UpdateScalability = Component->ScalabilityManagerHandle == ComponentIndex
+		&& (!Context.bNewOnly || Component->GetSystemInstance()->IsPendingSpawn());
+
+	if (UpdateScalability)
+	{
+		UNiagaraSystem* System = Component->GetAsset();
+		if (System == nullptr)
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("Niagara System has been destroyed with components still registered to the scalability manager. Unregistering this component.\nComponent: 0x%P - %s\nEffectType: 0x%P - %s"),
+				Component, *Component->GetName(), EffectType, *EffectType->GetName());
+			Unregister(Component);
+			return false;
+		}
+
+		FNiagaraScalabilityState& CompState = State[ComponentIndex];
+		const FNiagaraSystemScalabilitySettings& Scalability = System->GetScalabilitySettings();
+
+#if DEBUG_SCALABILITY_STATE
+		CompState.bCulledByInstanceCount = false;
+		CompState.bCulledByDistance = false;
+		CompState.bCulledByVisibility = false;
+#endif
+		WorldMan->CalculateScalabilityState(System, Scalability, EffectType, Component, false, CompState);
+
+		// components that are not dirty and are culled can be safely skipped because we don't care about their
+		// significance.  We also don't care about the significance of those components that are dirty and culled
+		// but we do have to make sure to reset their significance index
+		if (!CompState.bCulled || CompState.IsDirty())
+		{
+			Context.bRequiresGlobalSignificancePass |= System->NeedsSortedSignificanceCull();
+		}
+
+		// we may find that this is a false positive because our CompState may get reset in ProcessSignificance
+		// but that shouldn't really cost us much
+		Context.bHasDirtyState |= CompState.IsDirty();
+
+		++UpdateCounter;
+	}
+
+	return true;
+}
+
+void FNiagaraScalabilityManager::ProcessSignificance(FNiagaraWorldManager* WorldMan, UNiagaraSignificanceHandler* SignificanceHandler, FComponentIterationContext& Context)
+{
+	// it would be good to get a better estimate for how many indices we're going to need to process
+	Context.SignificanceIndices.Reset(ManagedComponents.Num());
+
+	SignificanceHandler->CalculateSignificance(ManagedComponents, State, Context.SignificanceIndices);
+
+	// sort predicate which will order things in the following buckets:
+	// -stale (not dirty) culled -> these can be skipped, we don't care about their significance
+	// -dirty culled -> these have just been made culled, so we don't care about their significance, but we need to update their Index
+	// -not culled, ordered by significance
+	auto ComparePredicate = [&](const FNiagaraScalabilityState& A, const FNiagaraScalabilityState& B)
+	{
+		if (A.bCulled)
+		{
+			return !A.IsDirty();
+		}
+		else if (B.bCulled)
+		{
+			return !B.IsDirty();
+		}
+
+		return A.Significance > B.Significance;
+	};
+
+	Context.SignificanceIndices.Sort([&](int32 A, int32 B) { return ComparePredicate(State[A], State[B]); });
+
+	const FNiagaraScalabilityState ClearSignificanceIndexMarker(FLT_MAX, true, false);
+	const FNiagaraScalabilityState EvaluateSignificanceCullMarker(FLT_MAX, false, false);
+
+	const int32 ClearSignificanceIndexBegin = Algo::LowerBoundBy(Context.SignificanceIndices, ClearSignificanceIndexMarker, [&](int32 A) { return State[A]; }, ComparePredicate);
+	const int32 EvaluateSignificanceCullBegin = Algo::LowerBoundBy(Context.SignificanceIndices, EvaluateSignificanceCullMarker, [&](int32 A) { return State[A]; }, ComparePredicate);
+	const int32 EvaluateSignificanceCullEnd = Context.SignificanceIndices.Num();
+
+	// process all Culled + Dirty components, invalidating their SystemSignificanceIndex
+	for (int32 SortedIt = ClearSignificanceIndexBegin; SortedIt < EvaluateSignificanceCullBegin; ++SortedIt)
+	{
+		const int32 ComponentIt = Context.SignificanceIndices[SortedIt];
+		if (UNiagaraComponent* Component = ManagedComponents[ComponentIt])
+		{
+			Component->SetSystemSignificanceIndex(INDEX_NONE);
+		}
+	}
+
+	// process all initially non Culled components (they still might get called because of instance count limits)
+	int32 EffectTypeActiveInstances = 0;
+
+	TMap<const UNiagaraSystem*, int32> SystemInstanceCounts;
+	for (int32 SortedIt = EvaluateSignificanceCullBegin; SortedIt < EvaluateSignificanceCullEnd; ++SortedIt)
+	{
+		int32 SortedIdx = Context.SignificanceIndices[SortedIt];
+		UNiagaraComponent* Component = ManagedComponents[SortedIdx];
+		FNiagaraScalabilityState& CompState = State[SortedIdx];
+		UNiagaraSystem* System = Component->GetAsset();
+
+		int32& SystemInstanceCountRef = SystemInstanceCounts.FindOrAdd(System);
+
+		bool bOldCulled = CompState.bCulled;
+
+		const FNiagaraSystemScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings();
+		WorldMan->SortedSignificanceCull(EffectType, ScalabilitySettings, CompState.Significance, EffectTypeActiveInstances, SystemInstanceCountRef, CompState);
+
+		//Inform the component how significant it is so emitters internally can scale based on that information.
+		//e.g. expensive emitters can turn off for all but the N most significant systems.
+		int32 SignificanceIndex = CompState.bCulled ? INDEX_NONE : SystemInstanceCountRef - 1;
+		Component->SetSystemSignificanceIndex(SignificanceIndex);
+
+		Context.bHasDirtyState |= CompState.IsDirty();
+	}
+}
+
+bool FNiagaraScalabilityManager::ApplyScalabilityState(int32 ComponentIndex, ENiagaraCullReaction CullReaction)
+{
+	FNiagaraScalabilityState& CompState = State[ComponentIndex];
+
+	if (!CompState.IsDirty())
+	{
+		return true;
+	}
+
+	bool bContinueIteration = true;
+	if (UNiagaraComponent* Component = ManagedComponents[ComponentIndex])
+	{
+		CompState.bPreviousCulled = CompState.bCulled;
+		if (CompState.bCulled)
+		{
+			switch (CullReaction)
+			{
+			case ENiagaraCullReaction::Deactivate:					Component->DeactivateInternal(false); bContinueIteration = false; break;//We don't increment CompIdx here as this call will remove an entry from ManagedObjects;
+			case ENiagaraCullReaction::DeactivateImmediate:			Component->DeactivateImmediateInternal(false); bContinueIteration = false;  break; //We don't increment CompIdx here as this call will remove an entry from ManagedObjects;
+			case ENiagaraCullReaction::DeactivateResume:			Component->DeactivateInternal(true); break;
+			case ENiagaraCullReaction::DeactivateImmediateResume:	Component->DeactivateImmediateInternal(true); break;
+			};
+		}
+		else
+		{
+			if (CullReaction == ENiagaraCullReaction::Deactivate || CullReaction == ENiagaraCullReaction::DeactivateImmediate)
+			{
+				UE_LOG(LogNiagara, Error, TEXT("Niagara Component is incorrectly still registered with the scalability manager. %d - %s "), (int32)CullReaction, *Component->GetAsset()->GetFullName());
+			}
+			Component->ActivateInternal(false, true);
+		}
+
+		//TODO: Beyond culling by hard limits here we could progressively scale down fx by biasing detail levels they use. Could also introduce some budgeting here like N at lvl 0, M at lvl 1 etc.
+		//TODO: Possibly also limiting the rate at which their instances can tick. Ofc system sims still need to run but instances can skip ticks.
+	}
+
+	return bContinueIteration;
+}
+
+void FNiagaraScalabilityManager::UpdateInternal(FNiagaraWorldManager* WorldMan, FComponentIterationContext& Context)
+{
+	int32 UpdateCount = 0;
+	if (Context.bProcessAllComponents)
+	{
+		for (int32 ComponentIt = 0; ComponentIt < ManagedComponents.Num();)
+		{
+			if (EvaluateCullState(WorldMan, Context, ComponentIt, UpdateCount))
+			{
+				++ComponentIt;
+			}
+		}
+	}
+	else
+	{
+		for (TConstSetBitIterator<> ComponentIt(Context.ComponentRequiresUpdate); UpdateCount < Context.MaxUpdateCount && ComponentIt;)
+		{
+			Context.ComponentRequiresUpdate[ComponentIt.GetIndex()] = false;
+
+			if (EvaluateCullState(WorldMan, Context, ComponentIt.GetIndex(), UpdateCount))
+			{
+				++ComponentIt;
+			}
+		}
+	}
+
+	if (Context.bProcessAllComponents || !Context.ComponentRequiresUpdate.Contains(true))
+	{
+		if (Context.bRequiresGlobalSignificancePass && EffectType->SignificanceHandler)
+		{
+			ProcessSignificance(WorldMan, EffectType->SignificanceHandler, Context);
+		}
+
+		if (Context.bHasDirtyState)
+		{
+			const ENiagaraCullReaction CullReaction = EffectType->CullReaction;
+
+			int32 CompIdx = 0;
+			//As we'll be activating and deactivating here, this must be done on the game thread.
+			while (CompIdx < ManagedComponents.Num())
+			{
+				if (ApplyScalabilityState(CompIdx, CullReaction))
+				{
+					++CompIdx;
+				}
+			}
+
+			Context.bHasDirtyState = false;
+		}
+
+		Context.ComponentRequiresUpdate.Reset();
+	}
+}
+
+void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan, float DeltaSeconds, bool bNewOnly)
 {
 	//Paranoia code in case the EffectType is GCd from under us.
 	if (EffectType == nullptr)
@@ -114,186 +406,82 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan, bool bNe
 		ManagedComponents.Empty();
 		State.Empty();
 		LastUpdateTime = 0.0f;
+		return;
 	}
 
-	float WorldTime = WorldMan->GetWorld()->GetTimeSeconds();
-
-	UNiagaraSignificanceHandler* SignificanceHandler = EffectType->GetSignificanceHandler();
-	bool bShouldUpdateScalabilityStates = false;
 	if (bNewOnly)
 	{
-		bShouldUpdateScalabilityStates = EffectType->bNewSystemsSinceLastScalabilityUpdate;
-	}
-	else
-	{
-		switch (EffectType->UpdateFrequency)
+		// if we're focused on new instances, but there aren't any, then just exit early
+		if (!EffectType->bNewSystemsSinceLastScalabilityUpdate)
 		{
-		case ENiagaraScalabilityUpdateFrequency::Continuous: bShouldUpdateScalabilityStates = true; break;
-		case ENiagaraScalabilityUpdateFrequency::High: bShouldUpdateScalabilityStates = WorldTime >= LastUpdateTime + GScalabilityUpdateTime_High; break;
-		case ENiagaraScalabilityUpdateFrequency::Medium: bShouldUpdateScalabilityStates = WorldTime >= LastUpdateTime + GScalabilityUpdateTime_Medium; break;
-		case ENiagaraScalabilityUpdateFrequency::Low: bShouldUpdateScalabilityStates = WorldTime >= LastUpdateTime + GScalabilityUpdateTime_Low; break;
-		};
-	}
+			return;
+		}
 
-	if (!bShouldUpdateScalabilityStates)
+		FComponentIterationContext NewComponentContext;
+		NewComponentContext.bNewOnly = true;
+		NewComponentContext.bProcessAllComponents = true;
+		EffectType->bNewSystemsSinceLastScalabilityUpdate = false;
+
+		UpdateInternal(WorldMan, NewComponentContext);
+		return;
+	}
+	else if (EffectType->UpdateFrequency == ENiagaraScalabilityUpdateFrequency::SpawnOnly)
 	{
 		return;
 	}
 
-	LastUpdateTime = WorldTime;
-	EffectType->bNewSystemsSinceLastScalabilityUpdate = false;
+	const float CurrentTime = WorldMan->GetWorld()->GetTimeSeconds();
+	const float TimeSinceUpdate = CurrentTime - LastUpdateTime;
+	const float UpdatePeriod = GetScalabilityUpdatePeriod(EffectType->UpdateFrequency);
 
-	//Belt and braces paranoia code to ensure we're safe if a component or System is GCd but the component isn't unregistered for whatever reason.
-	int32 CompIdx = 0;
-	check(State.Num() == ManagedComponents.Num());
-	while (CompIdx < ManagedComponents.Num())
-	{
-		UNiagaraComponent* Component = ManagedComponents[CompIdx];
-		if (Component)
-		{
-			//Belt and braces GC safety. If someone calls MarkPendingKill() directly and we get here before we clear these out in the post GC callback.
-			if (Component->IsPendingKill())
-			{
-				//UE_LOG(LogNiagara, Warning, TEXT("Unregisteded a pending kill Niagara component from the scalability manager. \nComponent: 0x%P - %s\nEffectType: 0x%P - %s"),
-				//	Component, *Component->GetName(), EffectType, *EffectType->GetName());
-				Unregister(Component);
-				continue;
-			}
-			if (Component->GetAsset() == nullptr)
-			{
-				UE_LOG(LogNiagara, Warning, TEXT("Niagara System has been destroyed with components still registered to the scalability manager. Unregistering this component.\nComponent: 0x%P - %s\nEffectType: 0x%P - %s"),
-					Component, *Component->GetName(), EffectType, *EffectType->GetName());
-				Unregister(Component);
-				continue;
-			}
-		}
-
-		++CompIdx;
-	}
-
-	bool bNeedSortedSignificanceCull = false;
-	SignificanceSortedIndices.Reset();
-
-	if (SignificanceHandler)
-	{
-		SignificanceSortedIndices.Reserve(ManagedComponents.Num());
-	}
-
-	//TODO parallelize if we exceed GScalabilityManParallelThreshold instances.
-	CompIdx = 0;
-	bool bAnyDirty = false;
-	for (int32 i = 0; i < ManagedComponents.Num(); ++i)
-	{
-		UNiagaraComponent* Component = ManagedComponents[i];
+	const bool bResetUpdate = EffectType->UpdateFrequency == ENiagaraScalabilityUpdateFrequency::Continuous
+		|| ((TimeSinceUpdate >= UpdatePeriod) && !DefaultContext.ComponentRequiresUpdate.Contains(true));
 		
-		//The GC can pull this ref from underneath us before the component unregisters itself during BeginDestroy().
-		if(!Component)
-		{
-			continue;
-		}
+	const int32 ComponentCount = ManagedComponents.Num();
 
-		FNiagaraScalabilityState& CompState = State[i];
-
-		UNiagaraSystem* System = Component->GetAsset();
-		System->GetActiveInstancesTempCount() = 0;
-
-		if (System->NeedsSortedSignificanceCull() && SignificanceHandler)
-		{
-			SignificanceSortedIndices.Add(i);
-			bNeedSortedSignificanceCull = true;
-		}
-		
-		//Don't update if we're doing new systems only and this is not new.
-		//Saves the potential cost of reavaluating every effect in every tick group something new is added.
-		//Though this does mean the sorted significance values will be using out of date distances etc.
-		//I'm somewhat on the fence currently as to whether it's better to pay this cost for correctness.
-		if(!bNewOnly || Component->GetSystemInstance()->IsPendingSpawn())
-		{
-			const FNiagaraSystemScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings();
-
-	#if DEBUG_SCALABILITY_STATE
-			CompState.bCulledByInstanceCount = false;
-			CompState.bCulledByDistance = false;
-			CompState.bCulledByVisibility = false;
-	#endif
-			WorldMan->CalculateScalabilityState(System, ScalabilitySettings, EffectType, Component, false, CompState);
-
-			bAnyDirty |= CompState.bDirty;
-		}
-	}
-
-	if (bNeedSortedSignificanceCull)
+	if (bResetUpdate)
 	{
-		check(SignificanceHandler);
-		SignificanceHandler->CalculateSignificance(ManagedComponents, State);
+		LastUpdateTime = CurrentTime;
 
-		SignificanceSortedIndices.Sort([&](int32 A, int32 B) { return State[A].Significance > State[B].Significance; });
+		DefaultContext.bHasDirtyState = false;
+		DefaultContext.bNewOnly = false;
+		DefaultContext.bRequiresGlobalSignificancePass = false;
 
-		int32 EffectTypeActiveInstances = 0;
-		for (int32 i = 0; i < SignificanceSortedIndices.Num(); ++i)
+		DefaultContext.MaxUpdateCount = GetMaxUpdatesPerFrame(EffectType, ComponentCount, UpdatePeriod, DeltaSeconds);
+		DefaultContext.bProcessAllComponents = DefaultContext.MaxUpdateCount == ComponentCount;
+
+		if (DefaultContext.bProcessAllComponents)
 		{
-			int32 SortedIdx = SignificanceSortedIndices[i];
-			UNiagaraComponent* Component = ManagedComponents[SortedIdx];
-			FNiagaraScalabilityState& CompState = State[SortedIdx];
-			UNiagaraSystem* System = Component->GetAsset();
-
-			bool bOldCulled = CompState.bCulled;
-
-			const FNiagaraSystemScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings();
-			WorldMan->SortedSignificanceCull(EffectType, ScalabilitySettings, CompState.Significance, EffectTypeActiveInstances, System->GetActiveInstancesTempCount(), CompState);
-
-			//Inform the component how significant it is so emitters internally can scale based on that information.
-			//e.g. expensive emitters can turn off for all but the N most significant systems.
-			int32 SignificanceIndex = CompState.bCulled ? INDEX_NONE : System->GetActiveInstancesTempCount() - 1;
-			Component->SetSystemSignificanceIndex(SignificanceIndex);
-
-			CompState.bDirty |= CompState.bCulled != bOldCulled;
-			bAnyDirty |= CompState.bDirty;
+			DefaultContext.ComponentRequiresUpdate.Reset();
+		}
+		else
+		{
+			DefaultContext.ComponentRequiresUpdate.Init(true, ComponentCount);
 		}
 	}
-
-	if (bAnyDirty)
+	// if we're doing a partial update, then define how much we need to process this iteration
+	else if (DefaultContext.ComponentRequiresUpdate.Num())
 	{
-		CompIdx = 0;
-		//As we'll be activating and deactivating here, this must be done on the game thread.
-		while (CompIdx < ManagedComponents.Num())
+		DefaultContext.MaxUpdateCount = GetMaxUpdatesPerFrame(EffectType, DefaultContext.ComponentRequiresUpdate.CountSetBits(), UpdatePeriod, DeltaSeconds);
+
+		if (DefaultContext.MaxUpdateCount == ComponentCount)
 		{
-			FNiagaraScalabilityState& CompState = State[CompIdx];
-			UNiagaraComponent* Component = ManagedComponents[CompIdx];
-			bool bRepeatIndex = false;
-			if (Component && CompState.bDirty)
-			{
-				CompState.bDirty = false;
-				if (CompState.bCulled)
-				{
-					switch (EffectType->CullReaction)
-					{
-					case ENiagaraCullReaction::Deactivate:					Component->DeactivateInternal(false); bRepeatIndex = true; break;//We don't increment CompIdx here as this call will remove an entry from ManagedObjects;
-					case ENiagaraCullReaction::DeactivateImmediate:			Component->DeactivateImmediateInternal(false); bRepeatIndex = true;  break; //We don't increment CompIdx here as this call will remove an entry from ManagedObjects;
-					case ENiagaraCullReaction::DeactivateResume:			Component->DeactivateInternal(true); break;
-					case ENiagaraCullReaction::DeactivateImmediateResume:	Component->DeactivateImmediateInternal(true); break;
-					};
-				}
-				else
-				{
-					if (EffectType->CullReaction == ENiagaraCullReaction::Deactivate || EffectType->CullReaction == ENiagaraCullReaction::DeactivateImmediate)
-					{
-						UE_LOG(LogNiagara, Error, TEXT("Niagara Component is incorrectly still registered with the scalability manager. %d - %s "), (int32)EffectType->CullReaction, *Component->GetAsset()->GetFullName());
-					}
-					Component->ActivateInternal(false, true);
-				}
-
-				//TODO: Beyond culling by hard limits here we could progressively scale down fx by biasing detail levels they use. Could also introduce some budgeting here like N at lvl 0, M at lvl 1 etc.
-				//TODO: Possibly also limiting the rate at which their instances can tick. Ofc system sims still need to run but instances can skip ticks.
-			}
-
-			//If we are making a call that will unregister this component from the manager and remove it from ManagedComponents then we need to visit the new component that is now at this index.
-			if (bRepeatIndex == false)
-			{
-				++CompIdx;
-			}
+			DefaultContext.bProcessAllComponents = true;
+			DefaultContext.ComponentRequiresUpdate.Reset();
 		}
 	}
+	else
+	{
+		DefaultContext.MaxUpdateCount = 0;
+	}
+
+	// early out if we have nothing to process
+	if (!DefaultContext.MaxUpdateCount)
+	{
+		return;
+	}
+
+	UpdateInternal(WorldMan, DefaultContext);
 }
 
 #if DEBUG_SCALABILITY_STATE

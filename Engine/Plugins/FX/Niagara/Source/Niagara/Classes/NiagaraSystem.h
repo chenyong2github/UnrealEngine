@@ -496,7 +496,6 @@ public:
 	FORCEINLINE void RegisterActiveInstance();
 	FORCEINLINE void UnregisterActiveInstance();
 	FORCEINLINE int32& GetActiveInstancesCount() { return ActiveInstances; }
-	FORCEINLINE int32& GetActiveInstancesTempCount() { return ActiveInstancesTemp; }
 
 private:
 #if WITH_EDITORONLY_DATA
@@ -666,12 +665,6 @@ protected:
 
 	/** Total active instances of this system. */
 	int32 ActiveInstances;
-
-	/** 
-	Temp working value used by the scalability manager when tracking sorted instance count culling. 
-	Systems who are tracking their instance culling separately need an easily accessible working value.
-	*/
-	int32 ActiveInstancesTemp;
 };
 
 extern int32 GEnableNiagaraRuntimeCycleCounts;

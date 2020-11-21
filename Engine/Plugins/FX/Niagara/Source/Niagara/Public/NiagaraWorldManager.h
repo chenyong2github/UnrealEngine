@@ -144,7 +144,7 @@ public:
 
 	UNiagaraComponentPool* GetComponentPool() { return ComponentPool; }
 
-	void UpdateScalabilityManagers(bool bNewSpawnsOnly);
+	void UpdateScalabilityManagers(float DeltaSeconds, bool bNewSpawnsOnly);
 
 	// Dump details about what's inside the world manager
 	void DumpDetails(FOutputDevice& Ar);
