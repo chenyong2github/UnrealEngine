@@ -113,9 +113,9 @@ void ReconstructVolumetricRenderTargetPS(
 #if PERMUTATION_HISTORY_AVAILABLE
 
 	int2 IntPixelPos = int2(PixelPos);
-	int2 IntPixelPosDownsample = IntPixelPos / DownSampleFactor;
-	const int XSub = (IntPixelPosDownsample.x * DownSampleFactor) == int(IntPixelPos.x) ? 0 : 1;
-	const int YSub = (IntPixelPosDownsample.y * DownSampleFactor) == int(IntPixelPos.y) ? 0 : 1;
+	int2 IntPixelPosDownsample = IntPixelPos / (DownSampleFactor);
+	const int XSub = int(IntPixelPos.x) - (IntPixelPosDownsample.x * DownSampleFactor);
+	const int YSub = int(IntPixelPos.y) - (IntPixelPosDownsample.y * DownSampleFactor);
 
 	const bool bUseNewSample = (XSub == CurrentTracingPixelOffset.x) && (YSub == CurrentTracingPixelOffset.y);
 	float4 RGBA = 0.0f;
@@ -229,11 +229,12 @@ void ReconstructVolumetricRenderTargetPS(
 							Depths = NeighboorsDepths;
 						} 
 					}
-					if (abs(PixelDistanceFromViewKm - NewDepths.y) < ClosestDepth)
-					{
-						RGBA = NewRGBA;
-						Depths = NewDepths;
-					}
+					// After more testing, the code below looked unecessary
+					//if (abs(PixelDistanceFromViewKm - NewDepths.y) < ClosestDepth)
+					//{
+					//	RGBA = NewRGBA;
+					//	Depths = NewDepths;
+					//}
 					//RGBA += float4(0, 0.1 0, 0);
 				}
 				else //if(ReconstructDepthZ < 0.000001f)

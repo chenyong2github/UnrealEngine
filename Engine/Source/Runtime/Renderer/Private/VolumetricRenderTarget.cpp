@@ -26,7 +26,7 @@ static TAutoConsoleVariable<float> CVarVolumetricRenderTargetUvNoiseScale(
 
 static TAutoConsoleVariable<int32> CVarVolumetricRenderTargetMode(
 	TEXT("r.VolumetricRenderTarget.Mode"), 0,
-	TEXT("[0] trace quarter resolution + reconstruct at half resolution + upsample [1] trace half res + reconstruct full res + upsample [2] trace at quarter resolution + reconstruct full resolution (cannot intersect with opaque meshes and forces UpsamplingMode=2)"),
+	TEXT("[0] trace quarter resolution + reconstruct at half resolution + upsample [1] trace half res + reconstruct full res + upsample [2] trace at quarter resolution + reconstruct full resolution (cannot intersect with opaque meshes and forces UpsamplingMode=2 [3] trace 1/8 resolution + reconstruct at half resolution + upsample)"),
 	ECVF_SetByScalability);
 
 static TAutoConsoleVariable<int32> CVarVolumetricRenderTargetUpsamplingMode(
@@ -61,6 +61,7 @@ static uint32 GetMainDownsampleFactor(int32 Mode)
 	switch (Mode)
 	{
 	case 0:
+	case 3:
 		return 2; // Reconstruct at half resolution of view
 		break;
 	case 1:
@@ -77,13 +78,16 @@ static uint32 GetTraceDownsampleFactor(int32 Mode)
 	switch (Mode)
 	{
 	case 0:
-		return 2; // Trace at half resolution of the view
+		return 2; // Trace at half resolution of the reconstructed buffer (with it being at the half the resolution of the main view)
 		break;
 	case 1:
-		return 2; // Trace at quarter resolution of view (see GetMainDownsampleFactor)
+		return 2; // Trace at half resolution of the reconstructed buffer (with it being at the same resolution as main view)
 		break;
 	case 2:
-		return 4; // Trace at quarter resolution of view (see GetMainDownsampleFactor)
+		return 4; // Trace at quarter resolution of the reconstructed buffer (with it being at the same resolution as main view)
+		break;
+	case 3:
+		return 4; // Trace at quarter resolution of the reconstructed buffer (with it being at the half the resolution of the main view)
 		break;
 	}
 	check(false); // unhandled mode
@@ -143,7 +147,7 @@ void FVolumetricRenderTargetViewStateData::Initialise(
 {
 	// Update internal settings
 	UvNoiseScale = InUvNoiseScale;
-	Mode = FMath::Clamp(InMode, 0, 2);
+	Mode = FMath::Clamp(InMode, 0, 3);
 	UpsamplingMode = Mode == 2 ? 2 : FMath::Clamp(InUpsamplingMode, 0, 4); // if we are using mode 2 then we cannot intersect with depth and upsampling should be 2 (simple on/off intersection)
 
 	if (bFirstTimeUsed)
@@ -480,7 +484,7 @@ void FSceneRenderer::ReconstructVolumetricRenderTarget(FRDGBuilder& GraphBuilder
 		PassParameters->CurrentTracingPixelOffset = VolumetricCloudRT.GetCurrentTracingPixelOffset();
 		PassParameters->DownSampleFactor = TracingVolumetricCloudRTDownSample;
 		PassParameters->VolumetricRenderTargetMode = VolumetricCloudRT.GetMode();
-		PassParameters->HalfResDepthTexture = VolumetricCloudRT.GetMode() == 0 ? GraphBuilder.RegisterExternalTexture(ViewInfo.HalfResDepthSurfaceCheckerboardMinMax) : GraphBuilder.RegisterExternalTexture(SceneDepthZ);
+		PassParameters->HalfResDepthTexture = (VolumetricCloudRT.GetMode() == 0 || VolumetricCloudRT.GetMode() == 3) ? GraphBuilder.RegisterExternalTexture(ViewInfo.HalfResDepthSurfaceCheckerboardMinMax) : GraphBuilder.RegisterExternalTexture(SceneDepthZ);
 
 		GetTextureSafeUvCoordBound(SrcTracingVolumetric, PassParameters->TracingVolumetricTextureValidCoordRect, PassParameters->TracingVolumetricTextureValidUvRect);
 		GetTextureSafeUvCoordBound(PreviousFrameVolumetricTexture, PassParameters->PreviousFrameVolumetricTextureValidCoordRect, PassParameters->PreviousFrameVolumetricTextureValidUvRect);
