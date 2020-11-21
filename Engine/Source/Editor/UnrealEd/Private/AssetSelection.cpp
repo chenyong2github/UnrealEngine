@@ -718,7 +718,7 @@ FActorFactoryAssetProxy
 void FActorFactoryAssetProxy::GenerateActorFactoryMenuItems( const FAssetData& AssetData, TArray<FMenuItem>* OutMenuItems, bool ExcludeStandAloneFactories  )
 {
 	FText UnusedErrorMessage;
-	const FAssetData NoAssetData;
+	const FAssetData NoAssetData {};
 	for ( int32 FactoryIdx = 0; FactoryIdx < GEditor->ActorFactories.Num(); FactoryIdx++ )
 	{
 		UActorFactory* Factory = GEditor->ActorFactories[FactoryIdx];

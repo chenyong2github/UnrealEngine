@@ -563,7 +563,7 @@ void LevelEditorCreateActorMenu::FillAddReplaceActorMenu(UToolMenu* Menu, EActor
 		FToolMenuSection& Section = Menu->AddSection("Custom", NSLOCTEXT("LevelViewportContextMenu", "CustomSection", "Custom Actors"));
 		TArray< FActorFactoryAssetProxy::FMenuItem > AssetMenuOptions;
 		FText UnusedErrorMessage;
-		const FAssetData NoAssetData;
+		const FAssetData NoAssetData {};
 		for ( int32 FactoryIdx = 0; FactoryIdx < GEditor->ActorFactories.Num(); FactoryIdx++ )
 		{
 			AssetMenuOptions.Empty();
