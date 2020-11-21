@@ -182,7 +182,7 @@ class COREUOBJECT_API FAssetTagValueRef
 	public:
 		FStringPointer() = default;
 		explicit FStringPointer(const FString* InPtr) : Ptr(reinterpret_cast<uint64>(InPtr)) {}
-		FStringPointer& operator=(const FString* InPtr) { Ptr = reinterpret_cast<uint64>(InPtr); }
+		FStringPointer& operator=(const FString* InPtr) { Ptr = reinterpret_cast<uint64>(InPtr); return *this; }
 
 		const FString* operator->() const { return reinterpret_cast<const FString*>(Ptr); }
 		operator const FString*() const { return reinterpret_cast<const FString*>(Ptr); }
