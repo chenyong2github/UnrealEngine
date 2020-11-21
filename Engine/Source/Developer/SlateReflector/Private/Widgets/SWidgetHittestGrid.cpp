@@ -58,7 +58,7 @@ namespace WidgetHittestGridInternal
 		void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
 		{
 			NodeToVisualize = InArgs._NodeToVisualize;
-			SMultiColumnTableRow<TSharedRef<FIntermediateResultNode>>::Construct(SMultiColumnTableRow<TSharedRef<FIntermediateResultNode>>::FArguments().Padding(0), InOwnerTableView);
+			SMultiColumnTableRow<TSharedRef<FIntermediateResultNode>>::Construct(SMultiColumnTableRow<TSharedRef<FIntermediateResultNode>>::FArguments().Padding(0.f), InOwnerTableView);
 		}
 
 	public:

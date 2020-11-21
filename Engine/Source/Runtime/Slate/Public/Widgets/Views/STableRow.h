@@ -1335,7 +1335,7 @@ protected:
 		for( int32 ColumnIndex = 0; ColumnIndex < NumColumns; ++ColumnIndex )
 		{
 			const SHeaderRow::FColumn& Column = Columns[ColumnIndex];
-			if (InColumnHeaders->ShouldGeneratedColumn(Column.ColumnId))
+			if ( InColumnHeaders->ShouldGeneratedColumn(Column.ColumnId) )
 			{
 				TSharedRef< SWidget >* ExistingWidget = ColumnIdToSlotContents.Find(Column.ColumnId);
 				TSharedRef< SWidget > CellContents = SNullWidget::NullWidget;

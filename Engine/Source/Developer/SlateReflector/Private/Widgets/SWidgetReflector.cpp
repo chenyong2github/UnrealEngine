@@ -7,6 +7,7 @@
 #include "Rendering/DrawElements.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Parse.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/TabManager.h"
@@ -72,6 +73,14 @@
  
 namespace WidgetReflectorImpl
 {
+
+/** Command to take a snapshot. */
+void TakeSnapshotCommand(const TArray<FString>&);
+
+FAutoConsoleCommand CCommandWidgetReflectorTakeSnapshot(
+	TEXT("WidgetReflector.TakeSnapshot")
+	, TEXT("Take a snapshot and save the result on the local drive. ie. WidgetReflector.TakeSnapshot [Delay=1.0] [Navigation=false]")
+	, FConsoleCommandWithArgsDelegate::CreateStatic(&TakeSnapshotCommand));
 
 /** Information about a potential widget snapshot target */
 struct FWidgetSnapshotTarget
@@ -277,23 +286,9 @@ private:
 
 	void SetPickingMode(EWidgetPickingMode InMode)
 	{
-#if WITH_SLATE_DEBUGGING
-		static auto CVarSlateGlobalInvalidation = IConsoleManager::Get().FindConsoleVariable(TEXT("Slate.EnableGlobalInvalidation"));
-#endif
-
 		if (PickingMode != InMode)
 		{
 			// Disable visual picking, and re-enable widget caching.
-#if WITH_SLATE_DEBUGGING
-			SInvalidationPanel::EnableInvalidationPanels(true);
-
-			if (PickingMode == EWidgetPickingMode::None)
-			{
-				bLastGlobalInvalidationState = CVarSlateGlobalInvalidation->GetBool();
-			}
-
-			CVarSlateGlobalInvalidation->Set(bLastGlobalInvalidationState);
-#endif
 			VisualCapture.Disable();
 
 			// Enable the picking mode.
@@ -303,19 +298,11 @@ private:
 			if (PickingMode == EWidgetPickingMode::HitTesting)
 			{
 				VisualCapture.Reset();
-#if WITH_SLATE_DEBUGGING
-				SInvalidationPanel::EnableInvalidationPanels(false);
-#endif
-				VisualCapture.Reset();
 			}
 			// If we're using the drawing picking mode enable it!
 			else if (PickingMode == EWidgetPickingMode::Drawable)
 			{
 				VisualCapture.Enable();
-#if WITH_SLATE_DEBUGGING
-				SInvalidationPanel::EnableInvalidationPanels(false);
-				CVarSlateGlobalInvalidation->Set(false);
-#endif
 			}
 		}
 	}
@@ -434,8 +421,6 @@ private:
 
 	FVisualTreeCapture VisualCapture;
 
-	bool bLastGlobalInvalidationState = false;
-
 private:
 	float SnapshotDelay;
 	bool bIsPendingDelayedSnapshot;
@@ -445,11 +430,17 @@ private:
 
 void SWidgetReflector::Construct( const FArguments& InArgs )
 {
+	// If saved, LoadSettings will override these variables.
+	LastPickingMode = EWidgetPickingMode::HitTesting;
+	HiddenReflectorTreeColumns.Add(SReflectorTreeWidgetItem::NAME_Enabled.ToString());
+	HiddenReflectorTreeColumns.Add(SReflectorTreeWidgetItem::NAME_Volatile.ToString());
+	HiddenReflectorTreeColumns.Add(SReflectorTreeWidgetItem::NAME_HasActiveTimer.ToString());
+	HiddenReflectorTreeColumns.Add(SReflectorTreeWidgetItem::NAME_ActualSize.ToString());
+
 	LoadSettings();
 
 	CurrentUIMode = EWidgetReflectorUIMode::Live;
 	PickingMode = EWidgetPickingMode::None;
-	//LastPickingMode = EWidgetPickingMode::HitTesting; //initialized in LoadSettings
 	bFilterReflectorTreeRootWithUMG = false;
 
 	SnapshotDelay = 0.0f;
@@ -698,14 +689,14 @@ TSharedRef<SDockTab> SWidgetReflector::SpawnWidgetHierarchyTab(const FSpawnTabAr
 					[
 						SNew(SCheckBox)
 						.Style(FWidgetReflectorStyle::Get(), "CheckBoxNoHover")
-						.Padding(FMargin(4, 0))
+						.Padding(FMargin(4.f, 0.f))
 						.HAlign(HAlign_Left)
 						.IsChecked(this, &SWidgetReflector::HandleGetPickingButtonChecked)
 						.IsEnabled_Lambda([this]() { return !bIsPendingDelayedSnapshot; })
 						.OnCheckStateChanged(this, &SWidgetReflector::HandlePickingModeStateChanged)
 						[
 							SNew(SBox)
-							.MinDesiredWidth(175)
+							.MinDesiredWidth(175.f)
 							.VAlign(VAlign_Center)
 							[
 								SNew(SHorizontalBox)
@@ -814,7 +805,7 @@ TSharedRef<SDockTab> SWidgetReflector::SpawnWidgetHierarchyTab(const FSpawnTabAr
 			.FillHeight(1.0f)
 			[
 				SNew(SBorder)
-				.Padding(0)
+				.Padding(0.f)
 				.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 				[
 					// The tree view that shows all the info that we capture.
@@ -846,24 +837,38 @@ TSharedRef<SDockTab> SWidgetReflector::SpawnWidgetHierarchyTab(const FSpawnTabAr
 						+SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_Visibility)
 						.DefaultLabel(LOCTEXT("Visibility", "Visibility"))
 						.DefaultTooltip(LOCTEXT("VisibilityTooltip", "Visibility"))
-						.FixedWidth(125.0f)
+						.ManualWidth(125.0f)
+						
+						+ SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_Enabled)
+						.DefaultLabel(LOCTEXT("Enabled", "Enabled"))
+						.DefaultTooltip(LOCTEXT("EnabledToolTip", "Enabled"))
+						.ManualWidth(60.0f)
 
 						+ SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_Focusable)
-						.DefaultLabel(LOCTEXT("Focus", "Focus?"))
+						.DefaultLabel(LOCTEXT("Focus", "Focus"))
 						.DefaultTooltip(LOCTEXT("FocusableTooltip", "Focusability (Note that for hit-test directional navigation to work it must be Focusable and \"Visible\"!)"))
-						.FixedWidth(50.0f)
+						.ManualWidth(60.0f)
+
+						+ SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_HasActiveTimer)
+						.DefaultLabel(LOCTEXT("HasActiveTimer", "Timer"))
+						.DefaultTooltip(LOCTEXT("HasActiveTimerTooltip", "Has Active Timer"))
+						.ManualWidth(60.0f)
 
 						+SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_Clipping)
 						.DefaultLabel(LOCTEXT("Clipping", "Clipping" ))
-						.FixedWidth(100.0f)
+						.ManualWidth(100.0f)
+
+						+ SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_ActualSize)
+						.DefaultLabel(LOCTEXT("ActualSize", "Size"))
+						.ManualWidth(100.0f)
 
 						+SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_WidgetInfo)
 						.DefaultLabel(LOCTEXT("Source", "Source" ))
-						.FillWidth(0.20f)
+						.ManualWidth(200.f)
 
 						+SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_Address)
 						.DefaultLabel( LOCTEXT("Address", "Address") )
-						.FixedWidth(170.0f)
+						.ManualWidth(170.0f)
 					)
 				]
 			]
@@ -993,15 +998,18 @@ void SWidgetReflector::SaveSettings()
 
 void SWidgetReflector::LoadSettings()
 {
-	int32 LastPickingModeAsInt = static_cast<int32>(EWidgetPickingMode::HitTesting);
-	GConfig->GetInt(TEXT("WidgetReflector"), TEXT("LastPickingMode"), LastPickingModeAsInt, *GEditorPerProjectIni);
-	LastPickingMode = ConvertToWidgetPickingMode(LastPickingModeAsInt);
-	if (LastPickingMode == EWidgetPickingMode::None)
+	if (GConfig->DoesSectionExist(TEXT("WidgetReflector"), *GEditorPerProjectIni))
 	{
-		LastPickingMode = EWidgetPickingMode::HitTesting;
-	}
+		int32 LastPickingModeAsInt = static_cast<int32>(EWidgetPickingMode::HitTesting);
+		GConfig->GetInt(TEXT("WidgetReflector"), TEXT("LastPickingMode"), LastPickingModeAsInt, *GEditorPerProjectIni);
+		LastPickingMode = ConvertToWidgetPickingMode(LastPickingModeAsInt);
+		if (LastPickingMode == EWidgetPickingMode::None)
+		{
+			LastPickingMode = EWidgetPickingMode::HitTesting;
+		}
 
-	GConfig->GetArray(TEXT("WidgetReflector"), TEXT("HiddenReflectorTreeColumns"), HiddenReflectorTreeColumns, *GEditorPerProjectIni);
+		GConfig->GetArray(TEXT("WidgetReflector"), TEXT("HiddenReflectorTreeColumns"), HiddenReflectorTreeColumns, *GEditorPerProjectIni);
+	}
 }
 
 
@@ -1137,6 +1145,10 @@ int32 SWidgetReflector::Visualize( const FWidgetPath& InWidgetsToVisualize, FSla
 					SetWidgetsToVisualize(WidgetsToVisualize);
 					return VisualizePickAsRectangles(WidgetsToVisualize, OutDrawElements, LayerId);
 				}
+			}
+			else
+			{
+				SetWidgetsToVisualize(FWidgetPath{});
 			}
 		}
 	}
@@ -1541,8 +1553,8 @@ TSharedRef<SWidget> SWidgetReflector::HandleSnapshotOptionsTreeContextMenu()
 		.HAlign(HAlign_Right)
 		[
 			SNew(SSpinBox<float>)
-			.MinValue(0)
-			.MinDesiredWidth(40)
+			.MinValue(0.f)
+			.MinDesiredWidth(40.f)
 			.Value_Lambda([this]() { return SnapshotDelay; })
 			.OnValueCommitted_Lambda([this](const float InValue, ETextCommit::Type) { SnapshotDelay = FMath::Max(0.0f, InValue); })
 		];
@@ -1893,7 +1905,7 @@ void SWidgetReflector::HandleReflectorTreeSelectionChanged( TSharedPtr<FWidgetRe
 		}
 	}
 
-	if (SelectedWidgetObjects.Num() > 0)
+	if (GIsEditor && SelectedWidgetObjects.Num() > 0)
 	{
 		TabManager->TryInvokeTab(WidgetReflectorTabID::WidgetDetails);
 		if (PropertyViewPtr.IsValid())
@@ -1983,6 +1995,47 @@ void SWidgetReflector::HandleStartTreeWithUMG()
 	bFilterReflectorTreeRootWithUMG = !bFilterReflectorTreeRootWithUMG;
 	UpdateFilteredTreeRoot();
 	ReflectorTree->RequestTreeRefresh();
+}
+
+// console command
+
+static FDelegateHandle TakeSnapshotEndFrameHandle;
+
+void TakeSnapshotCommand_EndFrame(double RequestedTime, bool bRequestNavigation)
+{
+	if (RequestedTime <= FApp::GetCurrentTime())
+	{
+		FWidgetSnapshotData SnapshotData;
+		SnapshotData.TakeSnapshot(bRequestNavigation);
+		FString Filename = FPaths::CreateTempFilename(*FPaths::GameAgnosticSavedDir(), TEXT(""), TEXT(".widgetsnapshot"));
+		SnapshotData.SaveSnapshotToFile(Filename);
+
+		FCoreDelegates::OnEndFrame.Remove(TakeSnapshotEndFrameHandle);
+		TakeSnapshotEndFrameHandle.Reset();
+	}
+}
+
+void TakeSnapshotCommand(const TArray<FString>& Args)
+{
+	FCoreDelegates::OnEndFrame.Remove(TakeSnapshotEndFrameHandle);
+
+	float RequestedDelay = 0.001f;
+	bool bRequestNavigation = false;
+	for (const FString& Arg : Args)
+	{
+		if (FParse::Value(*Arg, TEXT("Delay="), RequestedDelay))
+		{
+			continue;
+		}
+		if (FParse::Bool(*Arg, TEXT("Navigation="), bRequestNavigation))
+		{
+			continue;
+		}
+	}
+
+	const double CurrentTime = FApp::GetCurrentTime();
+	const double RequestedTimeDelay = CurrentTime + (double)RequestedDelay;
+	TakeSnapshotEndFrameHandle = FCoreDelegates::OnEndFrame.AddStatic(&TakeSnapshotCommand_EndFrame, RequestedTimeDelay, bRequestNavigation);
 }
 
 } // namespace WidgetReflectorImpl

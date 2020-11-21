@@ -124,7 +124,7 @@ void SWidgetEventLog::GenerateList()
 	auto GenerateCategory = [this] (EWidgetEventType EventType)
 	{
 		check(GetEnum(EventType)->GetMaxEnumValue() < (int64)TNumericLimits<uint8>::Max());
-		GetBitField(EventType) = TBitArray<>(false, GetEnum(EventType)->GetMaxEnumValue());
+		GetBitField(EventType) = TBitArray<>(false, (int32)GetEnum(EventType)->GetMaxEnumValue());
 		GetCategoryFlag(EventType) = false;
 	};
 	GenerateCategory(EWidgetEventType::Focus);

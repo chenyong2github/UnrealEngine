@@ -28,8 +28,8 @@ enum class EWidgetReflectorNodeType : uint8
  */
 struct FWidgetHitTestInfo
 {
-	bool IsHitTestVisible;
-	bool AreChildrenHitTestVisible;
+	bool IsHitTestVisible = false;
+	bool AreChildrenHitTestVisible = false;
 };
 
 /** 
@@ -77,17 +77,39 @@ public:
 	virtual FText GetWidgetClippingText() const = 0;
 
 	/**
-	* @return The bool indicating whether or not the widget we were initialized from reports as Focusable
-	*/
+	 * @return The bool indicating whether or not the widget we were initialized from reports as Focusable
+	 */
 	virtual bool GetWidgetFocusable() const = 0;
 
-	/** Is the widget visible? */
+	/**
+	 * @return The bool indicating whether or not the widget we were initialized from reports is visible
+	 */
 	virtual bool GetWidgetVisible() const = 0;
 
+	/**
+	 * @return The bool indicating whether or not the widget we were initialized from reports needs tick
+	 */
 	virtual bool GetWidgetNeedsTick() const = 0;
+
+	/**
+	 * @return The bool indicating whether or not the widget we were initialized from reports is volatile
+	 */
 	virtual bool GetWidgetIsVolatile() const = 0;
+
+	/**
+	 * @return The bool indicating whether or not the widget we were initialized from reports is volatile indirectly
+	 */
 	virtual bool GetWidgetIsVolatileIndirectly() const = 0;
+
+	/**
+	 * @return The bool indicating whether or not the widget we were initialized from reports has active timers
+	 */
 	virtual bool GetWidgetHasActiveTimers() const = 0;
+
+	/**
+	 * @return The bool indicating whether or not the widget we were initialized from reports is an Invalidation Root
+	 */
+	virtual bool GetWidgetIsInvalidationRoot() const = 0;
 
 	/**
 	 * The human readable location for widgets that are defined in C++ is the file and line number
@@ -240,6 +262,7 @@ public:
 	virtual bool GetWidgetIsVolatile() const override;
 	virtual bool GetWidgetIsVolatileIndirectly() const override;
 	virtual bool GetWidgetHasActiveTimers() const override;
+	virtual bool GetWidgetIsInvalidationRoot() const override;
 	virtual FText GetWidgetReadableLocation() const override;
 	virtual FString GetWidgetFile() const override;
 	virtual int32 GetWidgetLineNumber() const override;
@@ -296,6 +319,7 @@ public:
 	virtual bool GetWidgetIsVolatile() const override;
 	virtual bool GetWidgetIsVolatileIndirectly() const override;
 	virtual bool GetWidgetHasActiveTimers() const override;
+	virtual bool GetWidgetIsInvalidationRoot() const override;
 	virtual FText GetWidgetReadableLocation() const override;
 	virtual FString GetWidgetFile() const override;
 	virtual int32 GetWidgetLineNumber() const override;
@@ -328,22 +352,35 @@ private:
 	/** The type string of the widget at the point it was passed to Initialize */
 	FText CachedWidgetType;
 
-	/**  */
+	/** The type and short name string of the widget at the point it was passed to Initialize */
 	FText CachedWidgetTypeAndShortName;
 
 	/** The visibility string of the widget at the point it was passed to Initialize */
 	FText CachedWidgetVisibilityText;
 
-	/** Is the widget visible? */
+	/** The visible of the widget at the point it was passed to Initialize */
 	bool bCachedWidgetVisible;
 
 	/** The focusability of the widget at the point it was passed to Initialize */
 	bool bCachedWidgetFocusable;
 
-	bool CachedWidgetNeedsTick;
-	bool CachedWidgetIsVolatile;
-	bool CachedWidgetIsVolatileIndirectly;
-	bool CachedWidgetHasActiveTimers;
+	/** The ticking state of the widget at the point it was passed to Initialize */
+	bool bCachedWidgetNeedsTick;
+
+	/** The volatility state of the widget at the point it was passed to Initialize */
+	bool bCachedWidgetIsVolatile;
+
+	/** The volatility indirectly state of the widget at the point it was passed to Initialize */
+	bool bCachedWidgetIsVolatileIndirectly;
+
+	/** The active timer state of the widget at the point it was passed to Initialize */
+	bool bCachedWidgetHasActiveTimers;
+	
+	/** If the widget was an invalidation root at the point it was passed to Initialize */
+	bool bCachedWidgetIsInvalidationRoot;
+
+	/** The enabled state of the widget at the point it was passed to Initialize */
+	bool bCachedWidgetEnabled;
 	
 	/** The clipping string of the widget at the point it was passed to Initialize */
 	FText CachedWidgetClippingText;
@@ -368,9 +405,6 @@ private:
 
 	/** The in-memory address of the widget at the point it was passed to Initialize */
 	TPointerAsInt CachedWidgetAddress;
-
-	/** The enabled state of the widget at the point it was passed to Initialize */
-	bool CachedWidgetEnabled;
 };
 
 
@@ -493,6 +527,7 @@ public:
 	static bool GetWidgetIsVolatile(const TSharedPtr<const SWidget>& InWidget);
 	static bool GetWidgetIsVolatileIndirectly(const TSharedPtr<const SWidget>& InWidget);
 	static bool GetWidgetHasActiveTimers(const TSharedPtr<const SWidget>& InWidget);
+	static bool GetWidgetIsInvalidationRoot(const TSharedPtr<const SWidget>& InWidget);
 	
 	/**
 	 * The human readable location for widgets that are defined in C++ is the file and line number

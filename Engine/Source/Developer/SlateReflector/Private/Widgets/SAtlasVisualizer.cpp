@@ -491,7 +491,7 @@ FText SAtlasVisualizer::GetViewportSizeText() const
 FVector2D SAtlasVisualizer::GetViewportWidgetSize() const
 {
 	const FIntPoint ViewportSize = GetSize();
-	return FVector2D(ViewportSize.X, ViewportSize.Y);
+	return FVector2D((float)ViewportSize.X, (float)ViewportSize.Y);
 }
 
 FText SAtlasVisualizer::GetZoomLevelPercentText() const

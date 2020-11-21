@@ -131,6 +131,7 @@ class SWidgetSnapshotVisualizer : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_OneParam(FOnWidgetPathPicked, const TArray<TSharedRef<FWidgetReflectorNodeBase>>& /*PickedWidgetPath*/);
+	DECLARE_DELEGATE_OneParam(FOnSnapshotWidgetAction, FWidgetReflectorNodeBase::TPointerAsInt);
 
 	SLATE_BEGIN_ARGS(SWidgetSnapshotVisualizer)
 		: _SnapshotData(nullptr)
@@ -138,7 +139,7 @@ public:
 
 		SLATE_ARGUMENT(const FWidgetSnapshotData*, SnapshotData)
 
-		SLATE_EVENT(FOnWidgetPathPicked, OnWidgetPathPicked);
+		SLATE_EVENT(FOnWidgetPathPicked, OnWidgetPathPicked)
 		SLATE_EVENT(FOnSnapshotWidgetAction, OnSnapshotWidgetSelected)
 
 	SLATE_END_ARGS()
