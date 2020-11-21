@@ -19,8 +19,11 @@ const FStringView EmptyBundles(TEXT("(Bundles=)"));
 
 static bool SkipPrefix(const TCHAR*& InOutIt, FStringView Prefix)
 {
-	bool bOk = FStringView(InOutIt, Prefix.Len()) == Prefix;
-	InOutIt += bOk * Prefix.Len();
+	const bool bOk = FStringView(InOutIt, Prefix.Len()) == Prefix;
+	if (bOk)
+	{
+		InOutIt += Prefix.Len();
+	}
 	return bOk;
 }
 
