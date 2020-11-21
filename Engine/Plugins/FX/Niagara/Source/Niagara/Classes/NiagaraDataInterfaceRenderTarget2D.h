@@ -130,7 +130,7 @@ public:
 	uint8 bOverrideFormat : 1;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(Transient, EditAnywhere, Category = "Render Target")
+	UPROPERTY(EditAnywhere, Category = "Render Target")
 	uint8 bPreviewRenderTarget : 1;
 #endif
 
