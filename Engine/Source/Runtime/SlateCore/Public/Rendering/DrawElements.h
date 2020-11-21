@@ -369,6 +369,7 @@ struct FSlateCachedElementList
 
 private:
 	SLATECORE_API void DestroyCachedData();
+
 public:
 	/** List of source draw elements to create batches from */
 	FSlateDrawElementArray DrawElements;
@@ -381,7 +382,6 @@ public:
 	FSlateCachedElementData* ParentData;
 
 	FSlateCachedFastPathRenderingData* CachedRenderingData;
-private:
 };
 
 struct FSlateCachedElementsHandle
@@ -427,6 +427,7 @@ struct FSlateCachedElementData
 	void CleanupUnusedClipStates();
 
 	const TSparseArray<FSlateRenderBatch>& GetCachedBatches() const { return CachedBatches; }
+	const TArray<TSharedPtr<FSlateCachedElementList>>& GetCachedElementLists() const { return CachedElementLists; }
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
 

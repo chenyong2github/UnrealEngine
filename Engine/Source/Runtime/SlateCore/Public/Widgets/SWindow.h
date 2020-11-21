@@ -804,6 +804,7 @@ public:
 
 	virtual bool Advanced_IsWindow() const override { return true; }
 	virtual bool Advanced_IsInvalidationRoot() const override { return bAllowFastUpdate; }
+	virtual const FSlateInvalidationRoot* Advanced_AsInvalidationRoot() const override { return bAllowFastUpdate ? this : nullptr; }
 
 #if WITH_ACCESSIBILITY
 	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;

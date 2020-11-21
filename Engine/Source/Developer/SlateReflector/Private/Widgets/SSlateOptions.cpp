@@ -93,8 +93,8 @@ void SSlateOptions::Construct( const FArguments& InArgs )
 			.AutoWidth()
 			[
 				SNew(SBox)
-				.MinDesiredWidth(100)
-				.MaxDesiredWidth(250)
+				.MinDesiredWidth(100.f)
+				.MaxDesiredWidth(250.f)
 				[
 					SNew(SSpinBox<float>)
 					.Value(this, &SSlateOptions::HandleAppScaleSliderValue)

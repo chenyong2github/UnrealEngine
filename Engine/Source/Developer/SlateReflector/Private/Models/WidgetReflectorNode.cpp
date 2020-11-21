@@ -158,6 +158,11 @@ bool FLiveWidgetReflectorNode::GetWidgetHasActiveTimers() const
 	return FWidgetReflectorNodeUtils::GetWidgetHasActiveTimers(Widget.Pin());
 }
 
+bool FLiveWidgetReflectorNode::GetWidgetIsInvalidationRoot() const
+{
+	return FWidgetReflectorNodeUtils::GetWidgetIsInvalidationRoot(Widget.Pin());
+}
+
 FText FLiveWidgetReflectorNode::GetWidgetReadableLocation() const
 {
 	return FWidgetReflectorNodeUtils::GetWidgetReadableLocation(Widget.Pin());
@@ -220,8 +225,8 @@ TSharedRef<FSnapshotWidgetReflectorNode> FSnapshotWidgetReflectorNode::Create(co
 }
 
 FSnapshotWidgetReflectorNode::FSnapshotWidgetReflectorNode()
-	: CachedWidgetLineNumber(0)
-	, CachedWidgetEnabled(false)
+	: bCachedWidgetEnabled(false)
+	, CachedWidgetLineNumber(0)
 {
 }
 
@@ -232,10 +237,12 @@ FSnapshotWidgetReflectorNode::FSnapshotWidgetReflectorNode(const FArrangedWidget
 	, CachedWidgetVisibilityText(FWidgetReflectorNodeUtils::GetWidgetVisibilityText(InArrangedWidget.Widget))
 	, bCachedWidgetVisible(FWidgetReflectorNodeUtils::GetWidgetVisibility(InArrangedWidget.Widget))
 	, bCachedWidgetFocusable(FWidgetReflectorNodeUtils::GetWidgetFocusable(InArrangedWidget.Widget))
-	, CachedWidgetNeedsTick(FWidgetReflectorNodeUtils::GetWidgetNeedsTick(InArrangedWidget.Widget))
-	, CachedWidgetIsVolatile(FWidgetReflectorNodeUtils::GetWidgetIsVolatile(InArrangedWidget.Widget))
-	, CachedWidgetIsVolatileIndirectly(FWidgetReflectorNodeUtils::GetWidgetIsVolatileIndirectly(InArrangedWidget.Widget))
-	, CachedWidgetHasActiveTimers(FWidgetReflectorNodeUtils::GetWidgetHasActiveTimers(InArrangedWidget.Widget))
+	, bCachedWidgetNeedsTick(FWidgetReflectorNodeUtils::GetWidgetNeedsTick(InArrangedWidget.Widget))
+	, bCachedWidgetIsVolatile(FWidgetReflectorNodeUtils::GetWidgetIsVolatile(InArrangedWidget.Widget))
+	, bCachedWidgetIsVolatileIndirectly(FWidgetReflectorNodeUtils::GetWidgetIsVolatileIndirectly(InArrangedWidget.Widget))
+	, bCachedWidgetHasActiveTimers(FWidgetReflectorNodeUtils::GetWidgetHasActiveTimers(InArrangedWidget.Widget))
+	, bCachedWidgetIsInvalidationRoot(FWidgetReflectorNodeUtils::GetWidgetIsInvalidationRoot(InArrangedWidget.Widget))
+	, bCachedWidgetEnabled(FWidgetReflectorNodeUtils::GetWidgetEnabled(InArrangedWidget.Widget))
 	, CachedWidgetClippingText(FWidgetReflectorNodeUtils::GetWidgetClippingText(InArrangedWidget.Widget))
 	, CachedWidgetReadableLocation(FWidgetReflectorNodeUtils::GetWidgetReadableLocation(InArrangedWidget.Widget))
 	, CachedWidgetFile(FWidgetReflectorNodeUtils::GetWidgetFile(InArrangedWidget.Widget))
@@ -244,7 +251,6 @@ FSnapshotWidgetReflectorNode::FSnapshotWidgetReflectorNode(const FArrangedWidget
 	, CachedWidgetDesiredSize(FWidgetReflectorNodeUtils::GetWidgetDesiredSize(InArrangedWidget.Widget))
 	, CachedWidgetForegroundColor(FWidgetReflectorNodeUtils::GetWidgetForegroundColor(InArrangedWidget.Widget))
 	, CachedWidgetAddress(FWidgetReflectorNodeUtils::GetWidgetAddress(InArrangedWidget.Widget))
-	, CachedWidgetEnabled(FWidgetReflectorNodeUtils::GetWidgetEnabled(InArrangedWidget.Widget))
 {
 }
 
@@ -280,7 +286,7 @@ bool FSnapshotWidgetReflectorNode::GetWidgetFocusable() const
 
 bool FSnapshotWidgetReflectorNode::GetWidgetVisible() const
 {
-	return bCachedWidgetFocusable;
+	return bCachedWidgetVisible;
 }
 
 FText FSnapshotWidgetReflectorNode::GetWidgetClippingText() const
@@ -290,22 +296,27 @@ FText FSnapshotWidgetReflectorNode::GetWidgetClippingText() const
 
 bool FSnapshotWidgetReflectorNode::GetWidgetNeedsTick() const
 {
-	return CachedWidgetNeedsTick;
+	return bCachedWidgetNeedsTick;
 }
 
 bool FSnapshotWidgetReflectorNode::GetWidgetIsVolatile() const
 {
-	return CachedWidgetIsVolatile;
+	return bCachedWidgetIsVolatile;
 }
 
 bool FSnapshotWidgetReflectorNode::GetWidgetIsVolatileIndirectly() const
 {
-	return CachedWidgetIsVolatileIndirectly;
+	return bCachedWidgetIsVolatileIndirectly;
 }
 
 bool FSnapshotWidgetReflectorNode::GetWidgetHasActiveTimers() const
 {
-	return CachedWidgetHasActiveTimers;
+	return bCachedWidgetHasActiveTimers;
+}
+
+bool FSnapshotWidgetReflectorNode::GetWidgetIsInvalidationRoot() const
+{
+	return bCachedWidgetIsInvalidationRoot;
 }
 
 FText FSnapshotWidgetReflectorNode::GetWidgetReadableLocation() const
@@ -350,7 +361,7 @@ FWidgetReflectorNodeBase::TPointerAsInt FSnapshotWidgetReflectorNode::GetWidgetA
 
 bool FSnapshotWidgetReflectorNode::GetWidgetEnabled() const
 {
-	return CachedWidgetEnabled;
+	return bCachedWidgetEnabled;
 }
 
 TSharedRef<FJsonValue> FSnapshotWidgetReflectorNode::ToJson(const TSharedRef<FSnapshotWidgetReflectorNode>& RootSnapshotNode)
@@ -435,17 +446,26 @@ TSharedRef<FJsonValue> FSnapshotWidgetReflectorNode::ToJson(const TSharedRef<FSn
 	RootJsonObject->SetField(TEXT("AccumulatedRenderTransform"), Internal::CreateSlateRenderTransformJsonValue(RootSnapshotNode->GetAccumulatedRenderTransform()));
 	RootJsonObject->SetField(TEXT("LocalSize"), Internal::CreateVector2DJsonValue(RootSnapshotNode->GetLocalSize()));
 	RootJsonObject->SetField(TEXT("HitTestInfo"), Internal::CreateWidgetHitTestInfoJsonValue(RootSnapshotNode->HitTestInfo));
+	RootJsonObject->SetField(TEXT("Tint"), Internal::CreateLinearColorJsonValue(RootSnapshotNode->Tint));
 	RootJsonObject->SetStringField(TEXT("WidgetType"), RootSnapshotNode->CachedWidgetType.ToString());
+	RootJsonObject->SetStringField(TEXT("WidgetTypeAndShortName"), RootSnapshotNode->CachedWidgetTypeAndShortName.ToString());
 	RootJsonObject->SetStringField(TEXT("WidgetVisibilityText"), RootSnapshotNode->CachedWidgetVisibilityText.ToString());
+	RootJsonObject->SetBoolField(TEXT("WidgetVisible"), RootSnapshotNode->bCachedWidgetVisible);
 	RootJsonObject->SetBoolField(TEXT("WidgetFocusable"), RootSnapshotNode->bCachedWidgetFocusable);
+	RootJsonObject->SetBoolField(TEXT("WidgetNeedsTick"), RootSnapshotNode->bCachedWidgetNeedsTick);
+	RootJsonObject->SetBoolField(TEXT("WidgetIsVolatile"), RootSnapshotNode->bCachedWidgetIsVolatile);
+	RootJsonObject->SetBoolField(TEXT("WidgetIsVolatileIndirectly"), RootSnapshotNode->bCachedWidgetIsVolatileIndirectly);
+	RootJsonObject->SetBoolField(TEXT("WidgetHasActiveTimers"), RootSnapshotNode->bCachedWidgetHasActiveTimers);
+	RootJsonObject->SetBoolField(TEXT("WidgetIsInvalidationRoot"), RootSnapshotNode->bCachedWidgetIsInvalidationRoot);
+	RootJsonObject->SetBoolField(TEXT("WidgetEnabled"), RootSnapshotNode->bCachedWidgetEnabled);
+	RootJsonObject->SetStringField(TEXT("WidgetClippingText"), RootSnapshotNode->CachedWidgetClippingText.ToString());
 	RootJsonObject->SetStringField(TEXT("WidgetReadableLocation"), RootSnapshotNode->CachedWidgetReadableLocation.ToString());
 	RootJsonObject->SetStringField(TEXT("WidgetFile"), RootSnapshotNode->CachedWidgetFile);
 	RootJsonObject->SetNumberField(TEXT("WidgetLineNumber"), RootSnapshotNode->CachedWidgetLineNumber);
-	RootJsonObject->SetStringField(TEXT("WidgetAssetPath"), RootSnapshotNode->CachedWidgetAssetData.ObjectPath.ToString());
 	RootJsonObject->SetField(TEXT("WidgetDesiredSize"), Internal::CreateVector2DJsonValue(RootSnapshotNode->CachedWidgetDesiredSize));
 	RootJsonObject->SetField(TEXT("WidgetForegroundColor"), Internal::CreateSlateColorJsonValue(RootSnapshotNode->CachedWidgetForegroundColor));
 	RootJsonObject->SetStringField(TEXT("WidgetAddress"), Internal::ConvertPtrIntToString(RootSnapshotNode->CachedWidgetAddress));
-	RootJsonObject->SetBoolField(TEXT("WidgetEnabled"), RootSnapshotNode->CachedWidgetEnabled);
+	RootJsonObject->SetStringField(TEXT("WidgetAssetPath"), RootSnapshotNode->CachedWidgetAssetData.ObjectPath.ToString());
 
 	TArray<TSharedPtr<FJsonValue>> ChildNodesJsonArray;
 	for (const auto& ChildReflectorNode : RootSnapshotNode->ChildNodes)
@@ -464,45 +484,57 @@ TSharedRef<FSnapshotWidgetReflectorNode> FSnapshotWidgetReflectorNode::FromJson(
 	{
 		static FVector2D ParseVector2DJsonValue(const TSharedPtr<FJsonValue>& InJsonValue)
 		{
-			check(InJsonValue.IsValid());
+			if (!InJsonValue.IsValid())
+			{
+				return FVector2D::ZeroVector;
+			}
 			const TArray<TSharedPtr<FJsonValue>>& StructJsonArray = InJsonValue->AsArray();
 			check(StructJsonArray.Num() == 2);
 
 			return FVector2D(
-				StructJsonArray[0]->AsNumber(), 
-				StructJsonArray[1]->AsNumber()
+				(float)StructJsonArray[0]->AsNumber(),
+				(float)StructJsonArray[1]->AsNumber()
 				);
 		}
 
 		static FMatrix2x2 ParseMatrix2x2JsonValue(const TSharedPtr<FJsonValue>& InJsonValue)
 		{
-			check(InJsonValue.IsValid());
+			if (!InJsonValue.IsValid())
+			{
+				return FMatrix2x2();
+			}
 			const TArray<TSharedPtr<FJsonValue>>& StructJsonArray = InJsonValue->AsArray();
 			check(StructJsonArray.Num() == 4);
 
 			return FMatrix2x2(
-				StructJsonArray[0]->AsNumber(), 
-				StructJsonArray[1]->AsNumber(), 
-				StructJsonArray[2]->AsNumber(), 
-				StructJsonArray[3]->AsNumber()
+				(float)StructJsonArray[0]->AsNumber(), 
+				(float)StructJsonArray[1]->AsNumber(), 
+				(float)StructJsonArray[2]->AsNumber(),
+				(float)StructJsonArray[3]->AsNumber()
 				);
 		}
 
 		static FSlateLayoutTransform ParseSlateLayoutTransformJsonValue(const TSharedPtr<FJsonValue>& InJsonValue)
 		{
-			check(InJsonValue.IsValid());
+			if (!InJsonValue.IsValid())
+			{
+				return FSlateLayoutTransform();
+			}
 			const TSharedPtr<FJsonObject>& StructJsonObject = InJsonValue->AsObject();
 			check(StructJsonObject.IsValid());
 
 			return FSlateLayoutTransform(
-				StructJsonObject->GetNumberField(TEXT("Scale")),
+				(float)StructJsonObject->GetNumberField(TEXT("Scale")),
 				ParseVector2DJsonValue(StructJsonObject->GetField<EJson::None>(TEXT("Translation")))
 				);
 		}
 
 		static FSlateRenderTransform ParseSlateRenderTransformJsonValue(const TSharedPtr<FJsonValue>& InJsonValue)
 		{
-			check(InJsonValue.IsValid());
+			if (!InJsonValue.IsValid())
+			{
+				return FSlateRenderTransform();
+			}
 			const TSharedPtr<FJsonObject>& StructJsonObject = InJsonValue->AsObject();
 			check(StructJsonObject.IsValid());
 
@@ -514,21 +546,27 @@ TSharedRef<FSnapshotWidgetReflectorNode> FSnapshotWidgetReflectorNode::FromJson(
 
 		static FLinearColor ParseLinearColorJsonValue(const TSharedPtr<FJsonValue>& InJsonValue)
 		{
-			check(InJsonValue.IsValid());
+			if(!InJsonValue.IsValid())
+			{
+				return FLinearColor(EForceInit::ForceInit);
+			}
 			const TArray<TSharedPtr<FJsonValue>>& StructJsonArray = InJsonValue->AsArray();
 			check(StructJsonArray.Num() == 4);
 
 			return FLinearColor(
-				StructJsonArray[0]->AsNumber(), 
-				StructJsonArray[1]->AsNumber(), 
-				StructJsonArray[2]->AsNumber(), 
-				StructJsonArray[3]->AsNumber()
+				(float)StructJsonArray[0]->AsNumber(),
+				(float)StructJsonArray[1]->AsNumber(),
+				(float)StructJsonArray[2]->AsNumber(),
+				(float)StructJsonArray[3]->AsNumber()
 				);
 		}
 
 		static FSlateColor ParseSlateColorJsonValue(const TSharedPtr<FJsonValue>& InJsonValue)
 		{
-			check(InJsonValue.IsValid());
+			if (!InJsonValue.IsValid())
+			{
+				return FSlateColor();
+			}
 			const TSharedPtr<FJsonObject>& StructJsonObject = InJsonValue->AsObject();
 			check(StructJsonObject.IsValid());
 
@@ -545,7 +583,10 @@ TSharedRef<FSnapshotWidgetReflectorNode> FSnapshotWidgetReflectorNode::FromJson(
 
 		static FWidgetHitTestInfo ParseWidgetHitTestInfoJsonValue(const TSharedPtr<FJsonValue>& InJsonValue)
 		{
-			check(InJsonValue.IsValid());
+			if (!InJsonValue.IsValid())
+			{
+				return FWidgetHitTestInfo();
+			}
 			const TSharedPtr<FJsonObject>& StructJsonObject = InJsonValue->AsObject();
 			check(StructJsonObject.IsValid());
 
@@ -572,18 +613,27 @@ TSharedRef<FSnapshotWidgetReflectorNode> FSnapshotWidgetReflectorNode::FromJson(
 	const FSlateRenderTransform RenderTransform = Internal::ParseSlateRenderTransformJsonValue(RootJsonObject->GetField<EJson::None>(TEXT("AccumulatedRenderTransform")));
 	const FVector2D LocalSize = Internal::ParseVector2DJsonValue(RootJsonObject->GetField<EJson::None>(TEXT("LocalSize")));
 	RootSnapshotNode->WidgetGeometry = FGeometry::MakeRoot(LocalSize, LayoutTransform, RenderTransform);
-
 	RootSnapshotNode->HitTestInfo = Internal::ParseWidgetHitTestInfoJsonValue(RootJsonObject->GetField<EJson::None>(TEXT("HitTestInfo")));
+	RootSnapshotNode->Tint = Internal::ParseLinearColorJsonValue(RootJsonObject->GetField<EJson::None>(TEXT("Tint")));
+
 	RootSnapshotNode->CachedWidgetType = FText::FromString(RootJsonObject->GetStringField(TEXT("WidgetType")));
+	RootSnapshotNode->CachedWidgetTypeAndShortName = FText::FromString(RootJsonObject->GetStringField(TEXT("WidgetTypeAndShortName")));
 	RootSnapshotNode->CachedWidgetVisibilityText = FText::FromString(RootJsonObject->GetStringField(TEXT("WidgetVisibilityText")));
+	RootSnapshotNode->bCachedWidgetVisible = RootJsonObject->GetBoolField(TEXT("WidgetVisible"));
 	RootSnapshotNode->bCachedWidgetFocusable = RootJsonObject->GetBoolField(TEXT("WidgetFocusable"));
+	RootSnapshotNode->bCachedWidgetNeedsTick = RootJsonObject->GetBoolField(TEXT("WidgetNeedsTick"));
+	RootSnapshotNode->bCachedWidgetIsVolatile = RootJsonObject->GetBoolField(TEXT("WidgetIsVolatile"));
+	RootSnapshotNode->bCachedWidgetIsVolatileIndirectly = RootJsonObject->GetBoolField(TEXT("WidgetIsVolatileIndirectly"));
+	RootSnapshotNode->bCachedWidgetHasActiveTimers = RootJsonObject->GetBoolField(TEXT("WidgetHasActiveTimers"));
+	RootSnapshotNode->bCachedWidgetIsInvalidationRoot = RootJsonObject->GetBoolField(TEXT("WidgetIsInvalidationRoot"));
+	RootSnapshotNode->bCachedWidgetEnabled = RootJsonObject->GetBoolField(TEXT("WidgetEnabled"));
+	RootSnapshotNode->CachedWidgetClippingText = FText::FromString(RootJsonObject->GetStringField(TEXT("WidgetClippingText")));
 	RootSnapshotNode->CachedWidgetReadableLocation = FText::FromString(RootJsonObject->GetStringField(TEXT("WidgetReadableLocation")));
 	RootSnapshotNode->CachedWidgetFile = RootJsonObject->GetStringField(TEXT("WidgetFile"));
 	RootSnapshotNode->CachedWidgetLineNumber = RootJsonObject->GetIntegerField(TEXT("WidgetLineNumber"));
 	RootSnapshotNode->CachedWidgetDesiredSize = Internal::ParseVector2DJsonValue(RootJsonObject->GetField<EJson::None>(TEXT("WidgetDesiredSize")));
 	RootSnapshotNode->CachedWidgetForegroundColor = Internal::ParseSlateColorJsonValue(RootJsonObject->GetField<EJson::None>(TEXT("WidgetForegroundColor")));
 	RootSnapshotNode->CachedWidgetAddress = Internal::ParsePtrIntFromString(RootJsonObject->GetStringField(TEXT("WidgetAddress")));
-	RootSnapshotNode->CachedWidgetEnabled = RootJsonObject->GetBoolField(TEXT("WidgetEnabled"));
 
 	FName AssetPath(*RootJsonObject->GetStringField(TEXT("WidgetAssetPath")));
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
@@ -828,6 +878,11 @@ bool FWidgetReflectorNodeUtils::GetWidgetIsVolatileIndirectly(const TSharedPtr<c
 bool FWidgetReflectorNodeUtils::GetWidgetHasActiveTimers(const TSharedPtr<const SWidget>& InWidget)
 {
 	return InWidget.IsValid() ? InWidget->HasActiveTimers() : false;
+}
+
+bool FWidgetReflectorNodeUtils::GetWidgetIsInvalidationRoot(const TSharedPtr<const SWidget>& InWidget)
+{
+	return InWidget.IsValid() ? InWidget->Advanced_IsInvalidationRoot() : false;
 }
 
 FText FWidgetReflectorNodeUtils::GetWidgetClippingText(const TSharedPtr<const SWidget>& InWidget)

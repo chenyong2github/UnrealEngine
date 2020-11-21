@@ -385,7 +385,7 @@ void FWidgetSnapshotData::CreateSnapshot(const TArray<TSharedRef<SWindow>>& Visi
 	Reset();
 	Reserve(VisibleWindows.Num());
 
-	for (const auto& VisibleWindow : VisibleWindows)
+	for (const TSharedRef<SWindow>& VisibleWindow : VisibleWindows)
 	{
 		// Snapshot the current state of this window widget hierarchy
 		Windows.Add(FWidgetReflectorNodeUtils::NewSnapshotNodeTreeFrom(FArrangedWidget(VisibleWindow, VisibleWindow->GetWindowGeometryInScreen())));
@@ -446,15 +446,21 @@ void FWidgetSnapshotData::SaveSnapshotToBuffer(TArray<uint8>& OutData) const
 	BufferWriter.SerializeCompressed(TmpJsonData.GetData(), TmpJsonData.Num(), NAME_Zlib);
 }
 
+double SnapshotJsonVersion = 1.5;
+
 TSharedRef<FJsonObject> FWidgetSnapshotData::SaveSnapshotAsJson() const
 {
 	check(Windows.Num() == WindowTextureData.Num());
 
-	TSharedRef<FJsonObject> RootJsonObject = MakeShareable(new FJsonObject());
+	TSharedRef<FJsonObject> RootJsonObject = MakeShared<FJsonObject>();
+
+	{
+		RootJsonObject->SetNumberField(TEXT("Version"), SnapshotJsonVersion);
+	}
 
 	{
 		TArray<TSharedPtr<FJsonValue>> WindowsJsonArray;
-		for (const auto& Window : Windows)
+		for (const TSharedPtr<FWidgetReflectorNodeBase>& Window : Windows)
 		{
 			check(Window->GetNodeType() == EWidgetReflectorNodeType::Snapshot);
 			WindowsJsonArray.Add(FSnapshotWidgetReflectorNode::ToJson(StaticCastSharedRef<FSnapshotWidgetReflectorNode>(Window.ToSharedRef())));
@@ -581,6 +587,14 @@ void FWidgetSnapshotData::LoadSnapshotFromJson(const TSharedRef<FJsonObject>& In
 	Reset();
 
 	{
+		const double VersionNumber = InRootJsonObject->GetNumberField(TEXT("Version"));
+		if (VersionNumber < SnapshotJsonVersion)
+		{
+			UE_LOG(LogSlate, Error, TEXT("The version of the snapshot (%f) is older than the current version (%f). New fields will be initialized to their defaulted value."), VersionNumber, SnapshotJsonVersion);
+		}
+	}
+
+	{
 		const TArray<TSharedPtr<FJsonValue>>& WindowsJsonArray = InRootJsonObject->GetArrayField(TEXT("Windows"));
 		for (const TSharedPtr<FJsonValue>& WindowJsonValue : WindowsJsonArray)
 		{
@@ -601,8 +615,8 @@ void FWidgetSnapshotData::LoadSnapshotFromJson(const TSharedRef<FJsonObject>& In
 				const TArray<TSharedPtr<FJsonValue>>& StructJsonArray = TextureDataJsonObject->GetArrayField(TEXT("Dimensions"));
 				check(StructJsonArray.Num() == 2);
 
-				TextureData.Dimensions.X = FMath::TruncToInt(StructJsonArray[0]->AsNumber());
-				TextureData.Dimensions.Y = FMath::TruncToInt(StructJsonArray[1]->AsNumber());
+				TextureData.Dimensions.X = (int32)(StructJsonArray[0]->AsNumber());
+				TextureData.Dimensions.Y = (int32)(StructJsonArray[1]->AsNumber());
 			}
 
 			{
@@ -613,7 +627,7 @@ void FWidgetSnapshotData::LoadSnapshotFromJson(const TSharedRef<FJsonObject>& In
 				const bool bIsCompressed = TextureDataJsonObject->GetBoolField(TEXT("IsCompressed"));
 				if (bIsCompressed)
 				{
-					const int32 UncompressedDataSizeBytes = FMath::TruncToInt(TextureDataJsonObject->GetNumberField(TEXT("UncompressedSize")));
+					const int32 UncompressedDataSizeBytes = (int32)(TextureDataJsonObject->GetNumberField(TEXT("UncompressedSize")));
 					TextureData.ColorData.AddZeroed(UncompressedDataSizeBytes / sizeof(FColor));
 
 					FCompression::UncompressMemory(NAME_Zlib, TextureData.ColorData.GetData(), UncompressedDataSizeBytes, DecodedTextureDataBytes.GetData(), DecodedTextureDataBytes.Num());
@@ -683,7 +697,7 @@ void FWidgetSnapshotData::CreateBrushes()
 	WindowTextureBrushes.Reserve(WindowTextureData.Num());
 
 	static int32 TextureIndex = 0;
-	for (const auto& TextureData : WindowTextureData)
+	for (const FWidgetSnapshotTextureData& TextureData : WindowTextureData)
 	{
 		if (TextureData.ColorData.Num() > 0)
 		{
@@ -699,7 +713,7 @@ void FWidgetSnapshotData::CreateBrushes()
 
 			WindowTextureBrushes.Add(FSlateDynamicImageBrush::CreateWithImageData(
 				*FString::Printf(TEXT("FWidgetSnapshotData_WindowTextureBrush_%d"), TextureIndex++), 
-				FVector2D(TextureData.Dimensions.X, TextureData.Dimensions.Y), 
+				FVector2D((float)TextureData.Dimensions.X, (float)TextureData.Dimensions.Y),
 				TextureDataAsBGRABytes
 				));
 		}

@@ -237,7 +237,7 @@ void FInputEventVisualizer::HandlePaint(const FPaintArgs& InArgs, const FGeometr
 			for (const FMouseEventInfo& Event : MouseEvents)
 			{
 				// Normalized animation value for the cursor ping between 0 and 1.
-				const float AnimAmount = (CurrentTime - Event.EventTime) / ClickFadeTime;
+				const float AnimAmount = (float)(CurrentTime - Event.EventTime) / ClickFadeTime;
 
 				const FVector2D CursorPosDesktopSpace = Event.CursorPingPosition;
 				const FVector2D PingSize = CursorSize * InputEventVisualizer::PingScaleAmount * FCurveHandle::ApplyEasing(AnimAmount, ECurveEaseFunction::QuadOut);

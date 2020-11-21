@@ -23,9 +23,13 @@ public:
 	static FName NAME_WidgetInfo;
 	static FName NAME_Visibility;
 	static FName NAME_Focusable;
+	static FName NAME_Enabled;
+	static FName NAME_Volatile;
+	static FName NAME_HasActiveTimer;
 	static FName NAME_Clipping;
 	static FName NAME_ForegroundColor;
 	static FName NAME_Address;
+	static FName NAME_ActualSize;
 
 	SLATE_BEGIN_ARGS(SReflectorTreeWidgetItem)
 		: _WidgetInfoToVisualize()
@@ -55,53 +59,6 @@ public:
 
 protected:
 
-	/** @return String representation of the widget we are visualizing */
-	FText GetWidgetType() const
-	{
-		return CachedWidgetType;
-	}
-
-	FText GetWidgetTypeAndShortName() const
-	{
-		return CachedWidgetTypeAndShortName;
-	}
-
-	virtual FString GetReadableLocation() const override
-	{
-		return CachedReadableLocation.ToString();
-	}
-
-	FText GetReadableLocationAsText() const
-	{
-		return CachedReadableLocation;
-	}
-
-	FString GetWidgetFile() const
-	{
-		return CachedWidgetFile;
-	}
-
-	int32 GetWidgetLineNumber() const
-	{
-		return CachedWidgetLineNumber;
-	}
-
-	FText GetVisibilityAsString() const
-	{
-		return CachedWidgetVisibility;
-	}
-	
-	
-	FText GetClippingAsString() const
-	{
-		return CachedWidgetClipping;
-	}
-
-	ECheckBoxState GetFocusableAsCheckBoxState() const
-	{
-		return bCachedWidgetFocusable ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-	}
-
 	/** @return The tint of the reflector node */
 	FSlateColor GetTint() const
 	{
@@ -115,22 +72,6 @@ private:
 	/** The info about the widget that we are visualizing. */
 	TSharedPtr<FWidgetReflectorNodeBase> WidgetInfo;
 
-	FText CachedWidgetType;
-	FText CachedWidgetTypeAndShortName;
-	FText CachedWidgetVisibility;
-	FText CachedWidgetClipping;
-	bool bCachedWidgetFocusable;
-	bool bCachedWidgetVisible;
-	bool bCachedWidgetNeedsTick;
-	bool bCachedWidgetIsVolatile;
-	bool bCachedWidgetIsVolatileIndirectly;
-	bool bCachedWidgetHasActiveTimers;
-	FText CachedReadableLocation;
-	FString CachedWidgetFile;
-	int32 CachedWidgetLineNumber;
-	FAssetData CachedAssetData;
-
 	FAccessSourceCode OnAccessSourceCode;
-
 	FAccessAsset OnAccessAsset;
 };

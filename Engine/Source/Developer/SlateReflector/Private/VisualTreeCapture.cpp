@@ -2,6 +2,7 @@
 
 #include "VisualTreeCapture.h"
 #include "Debugging/SlateDebugging.h"
+#include "FastUpdate/SlateInvalidationRoot.h"
 #include "Rendering/SlateRenderTransform.h"
 #include "Rendering/DrawElements.h"
 #include "Widgets/SWidget.h"
@@ -26,13 +27,37 @@ static bool IsPointInTriangle(const FVector2D& TestPoint, const FVector2D& A, co
 	return BA == CB && CB == AC;
 }
 
-FVisualEntry::FVisualEntry(int32 InElementIndex)
+FVisualEntry::FVisualEntry(const TWeakPtr<const SWidget>& InWidget, int32 InElementIndex)
 	: ElementIndex(InElementIndex)
+	, bFromCache(false)
+	, Widget(InWidget)
 {
+}
+
+FVisualEntry::FVisualEntry(const TSharedRef<const SWidget>& InWidget, const FSlateDrawElement& InElement)
+{
+	const FSlateRenderTransform& Transform = InElement.GetRenderTransform();
+	const FVector2D& LocalSize = InElement.GetLocalSize();
+
+	TopLeft = Transform.TransformPoint(FVector2D(0, 0));
+	TopRight = Transform.TransformPoint(FVector2D(LocalSize.X, 0));
+	BottomLeft = Transform.TransformPoint(FVector2D(0, LocalSize.Y));
+	BottomRight = Transform.TransformPoint(LocalSize);
+
+	LayerId = InElement.GetLayer();
+	ClippingIndex = INDEX_NONE;
+
+	bFromCache = true;
+	Widget = InWidget;
 }
 
 void FVisualEntry::Resolve(const FSlateWindowElementList& ElementList)
 {
+	if (bFromCache)
+	{
+		return;
+	}
+
 	const FSlateDrawElement& Element = ElementList.GetUncachedDrawElements()[ElementIndex];
 	const FSlateRenderTransform& Transform = Element.GetRenderTransform();
 	const FVector2D& LocalSize = Element.GetLocalSize();
@@ -63,10 +88,10 @@ TSharedPtr<const SWidget> FVisualTreeSnapshot::Pick(FVector2D Point)
 		const FVisualEntry& Entry = Entries[Index];
 		if (Entry.ClippingIndex != -1)
 		{
-			// TODO: This isn't always a valid index, but should be.
-			if (ensure(ClippingStates.IsValidIndex(Entry.ClippingIndex)))
+			const TArray<FSlateClippingState>& LocalClippingState = Entry.bFromCache ? CachedClippingStates : ClippingStates;
+			if (ensure(LocalClippingState.IsValidIndex(Entry.ClippingIndex)))
 			{
-				if (!ClippingStates[Entry.ClippingIndex].IsPointInside(Point))
+				if (!LocalClippingState[Entry.ClippingIndex].IsPointInside(Point))
 				{
 					continue;
 				}
@@ -78,15 +103,7 @@ TSharedPtr<const SWidget> FVisualTreeSnapshot::Pick(FVector2D Point)
 			continue;
 		}
 
-		TSharedPtr<const SWidget> Widget = Entry.Widget.Pin();
-
-		//if (Widget->GetVisibility() == EVisibility::HitTestInvisible)
-		//{
-		//	continue;
-		//}
-
-		// Build List.
-		return Widget;
+		return Entry.Widget.Pin();
 	}
 
 	return TSharedPtr<const SWidget>();
@@ -94,6 +111,9 @@ TSharedPtr<const SWidget> FVisualTreeSnapshot::Pick(FVector2D Point)
 
 FVisualTreeCapture::FVisualTreeCapture()
 	: bIsEnabled(false)
+	, WindowIsInvalidationRootCounter(0)
+	, WidgetIsInvalidationRootCounter(0)
+	, WidgetIsInvisibleToWidgetReflectorCounter(0)
 {
 }
 
@@ -114,6 +134,10 @@ void FVisualTreeCapture::Enable()
 		FSlateDebugging::EndWidgetPaint.AddRaw(this, &FVisualTreeCapture::EndWidgetPaint);
 		FSlateDebugging::ElementAdded.AddRaw(this, &FVisualTreeCapture::ElementAdded);
 		bIsEnabled = true;
+
+		WindowIsInvalidationRootCounter = 0;
+		WidgetIsInvalidationRootCounter = 0;
+		WidgetIsInvisibleToWidgetReflectorCounter = 0;
 	}
 #endif
 }
@@ -147,6 +171,37 @@ TSharedPtr<FVisualTreeSnapshot> FVisualTreeCapture::GetVisualTreeForWindow(SWind
 	return VisualTrees.FindRef(InWindow);
 }
 
+void FVisualTreeCapture::AddInvalidationRootCachedEntries(TSharedRef<FVisualTreeSnapshot> Tree, const FSlateInvalidationRoot* InvalidationRoot)
+{
+	check(InvalidationRoot);
+	const FSlateCachedElementData& Data = InvalidationRoot->GetCachedElements();
+	const TArray<TSharedPtr<FSlateCachedElementList>>& CachedElements = Data.GetCachedElementLists();
+	for (const TSharedPtr<FSlateCachedElementList>& CachedElement : CachedElements)
+	{
+		const FSlateDrawElementArray& DrawElementArray = CachedElement->DrawElements;
+		const SWidget* Widget = CachedElement->OwningWidget;
+		// todo, should check if parents has the metadata also
+		if (Widget && !Widget->GetMetaData<FInvisibleToWidgetReflectorMetaData>())
+		{
+			for (const FSlateDrawElement& Element : DrawElementArray)
+			{
+				const int32 EntryIndex = Tree->Entries.Emplace(Widget->AsShared(), Element);
+
+				const FSlateClippingState* ClippingState = Element.GetClippingHandle().GetCachedClipState();
+				if (ClippingState)
+				{
+					int32& ClippingRefIndex = Tree->Entries[EntryIndex].ClippingIndex;
+					ClippingRefIndex = Tree->CachedClippingStates.IndexOfByKey(*ClippingState);
+					if (ClippingRefIndex == INDEX_NONE)
+					{
+						ClippingRefIndex = Tree->CachedClippingStates.Add(*ClippingState);
+					}
+				}
+			}
+		}
+	}
+}
+
 void FVisualTreeCapture::BeginWindow(const FSlateWindowElementList& ElementList)
 {
 	TSharedPtr<FVisualTreeSnapshot> Tree = VisualTrees.FindRef(ElementList.GetPaintWindow());
@@ -158,16 +213,34 @@ void FVisualTreeCapture::BeginWindow(const FSlateWindowElementList& ElementList)
 
 	Tree->Entries.Reset();
 	Tree->ClippingStates.Reset();
+	Tree->CachedClippingStates.Reset();
+
+	if (ElementList.GetPaintWindow()->Advanced_IsInvalidationRoot())
+	{
+		++WindowIsInvalidationRootCounter;
+	}
 }
 
 void FVisualTreeCapture::EndWindow(const FSlateWindowElementList& ElementList)
 {
+	if (ElementList.GetPaintWindow()->Advanced_IsInvalidationRoot())
+	{
+		--WindowIsInvalidationRootCounter;
+	}
+
 	TSharedPtr<FVisualTreeSnapshot> Tree = VisualTrees.FindRef(ElementList.GetPaintWindow());
 	if (Tree.IsValid())
 	{
 		for (FVisualEntry& Entry : Tree->Entries)
 		{
 			Entry.Resolve(ElementList);
+		}
+
+		if (ElementList.GetPaintWindow()->Advanced_IsInvalidationRoot())
+		{
+			// Add cached elements
+			const FSlateInvalidationRoot* InvalidationRoot = ElementList.GetPaintWindow()->Advanced_AsInvalidationRoot();
+			AddInvalidationRootCachedEntries(Tree.ToSharedRef(), InvalidationRoot);
 		}
 
 		Tree->ClippingStates = ElementList.GetClippingManager().GetClippingStates();
@@ -183,6 +256,15 @@ void FVisualTreeCapture::BeginWidgetPaint(const SWidget* Widget, const FPaintArg
 	if (Tree.IsValid())
 	{
 		Tree->WidgetStack.Push(Widget->AsShared());
+
+		if (Widget->Advanced_IsInvalidationRoot())
+		{
+			++WidgetIsInvalidationRootCounter;
+		}
+		if (Widget->GetMetaData<FInvisibleToWidgetReflectorMetaData>())
+		{
+			++WidgetIsInvisibleToWidgetReflectorCounter;
+		}
 	}
 }
 
@@ -192,25 +274,36 @@ void FVisualTreeCapture::EndWidgetPaint(const SWidget* Widget, const FSlateWindo
 	if (Tree.IsValid())
 	{
 		Tree->WidgetStack.Pop();
+
+		if (Widget->Advanced_IsInvalidationRoot())
+		{
+			--WidgetIsInvalidationRootCounter;
+
+			// Add cached elements
+			const FSlateInvalidationRoot* InvalidationRoot = Widget->Advanced_AsInvalidationRoot();
+			AddInvalidationRootCachedEntries(Tree.ToSharedRef(), InvalidationRoot);
+		}
+		if (Widget->GetMetaData<FInvisibleToWidgetReflectorMetaData>())
+		{
+			--WidgetIsInvisibleToWidgetReflectorCounter;
+		}
 	}
 }
 
 void FVisualTreeCapture::ElementAdded(const FSlateWindowElementList& ElementList, int32 InElementIndex)
 {
+	if (WindowIsInvalidationRootCounter > 0 || WidgetIsInvalidationRootCounter > 0 || WidgetIsInvisibleToWidgetReflectorCounter > 0)
+	{
+		return;
+	}
+
 	TSharedPtr<FVisualTreeSnapshot> Tree = VisualTrees.FindRef(ElementList.GetPaintWindow());
 	if (Tree.IsValid())
 	{
 		if (Tree->WidgetStack.Num() > 0)
 		{
 			// Ignore any element added from a widget that's invisible to the widget reflector.
-			if (Tree->WidgetStack.Top().Pin()->GetMetaData<FInvisibleToWidgetReflectorMetaData>())
-			{
-				return;
-			}
-
-			FVisualEntry Entry(InElementIndex);
-			Entry.Widget = Tree->WidgetStack.Top();
-			Tree->Entries.Add(Entry);
+			Tree->Entries.Emplace(Tree->WidgetStack.Top(), InElementIndex);
 		}
 	}
 }
