@@ -196,9 +196,9 @@ public:
 	/** How to handle pooling for this component instance. */
 	ENCPoolMethod PoolingMethod;
 
-	virtual void Activate(bool bReset = false)override;
-	virtual void Deactivate()override;
-	void DeactivateImmediate();
+	virtual void Activate(bool bReset = false) override;
+	virtual void Deactivate() override;
+	virtual void DeactivateImmediate() override;
 
 	FORCEINLINE ENiagaraExecutionState GetRequestedExecutionState()const { return SystemInstance ? SystemInstance->GetRequestedExecutionState() : ENiagaraExecutionState::Complete; }
 	FORCEINLINE ENiagaraExecutionState GetExecutionState()const { return SystemInstance ? SystemInstance->GetActualExecutionState() : ENiagaraExecutionState::Complete; }

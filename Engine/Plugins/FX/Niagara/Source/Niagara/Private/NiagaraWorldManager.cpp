@@ -116,6 +116,7 @@ static FAutoConsoleVariableRef CVarEnableNiagaraInstanceCountCulling(
 
 FDelegateHandle FNiagaraWorldManager::OnWorldInitHandle;
 FDelegateHandle FNiagaraWorldManager::OnWorldCleanupHandle;
+FDelegateHandle FNiagaraWorldManager::OnPostWorldCleanupHandle;
 FDelegateHandle FNiagaraWorldManager::OnPreWorldFinishDestroyHandle;
 FDelegateHandle FNiagaraWorldManager::OnWorldBeginTearDownHandle;
 FDelegateHandle FNiagaraWorldManager::TickWorldHandle;
@@ -249,6 +250,7 @@ void FNiagaraWorldManager::OnStartup()
 {
 	OnWorldInitHandle = FWorldDelegates::OnPreWorldInitialization.AddStatic(&FNiagaraWorldManager::OnWorldInit);
 	OnWorldCleanupHandle = FWorldDelegates::OnWorldCleanup.AddStatic(&FNiagaraWorldManager::OnWorldCleanup);
+	OnPostWorldCleanupHandle = FWorldDelegates::OnPostWorldCleanup.AddStatic(&FNiagaraWorldManager::OnPostWorldCleanup);
 	OnPreWorldFinishDestroyHandle = FWorldDelegates::OnPreWorldFinishDestroy.AddStatic(&FNiagaraWorldManager::OnPreWorldFinishDestroy);
 	OnWorldBeginTearDownHandle = FWorldDelegates::OnWorldBeginTearDown.AddStatic(&FNiagaraWorldManager::OnWorldBeginTearDown);
 	TickWorldHandle = FWorldDelegates::OnWorldPostActorTick.AddStatic(&FNiagaraWorldManager::TickWorld);
@@ -263,6 +265,7 @@ void FNiagaraWorldManager::OnShutdown()
 {
 	FWorldDelegates::OnPreWorldInitialization.Remove(OnWorldInitHandle);
 	FWorldDelegates::OnWorldCleanup.Remove(OnWorldCleanupHandle);
+	FWorldDelegates::OnPostWorldCleanup.Remove(OnPostWorldCleanupHandle);
 	FWorldDelegates::OnPreWorldFinishDestroy.Remove(OnPreWorldFinishDestroyHandle);
 	FWorldDelegates::OnWorldBeginTearDown.Remove(OnWorldBeginTearDownHandle);
 	FWorldDelegates::OnWorldPostActorTick.Remove(TickWorldHandle);
@@ -394,7 +397,7 @@ void FNiagaraWorldManager::OnBatcherDestroyed_Internal(NiagaraEmitterInstanceBat
 
 void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResources)
 {
-	ComponentPool->Cleanup();
+	ComponentPool->Cleanup(World);
 
 	for (int TG = 0; TG < NiagaraNumTickGroups; ++TG)
 	{
@@ -409,6 +412,11 @@ void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResou
 	DeferredDeletionQueue.Empty();
 
 	ScalabilityManagers.Empty();
+}
+
+void FNiagaraWorldManager::OnPostWorldCleanup(bool bSessionEnded, bool bCleanupResources)
+{
+	ComponentPool->Cleanup(World);
 }
 
 void FNiagaraWorldManager::PreGarbageCollect()
@@ -472,6 +480,16 @@ void FNiagaraWorldManager::OnWorldCleanup(UWorld* World, bool bSessionEnded, boo
 	if (Manager)
 	{
 		(*Manager)->OnWorldCleanup(bSessionEnded, bCleanupResources);
+	}
+}
+
+void FNiagaraWorldManager::OnPostWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources)
+{
+	//Cleanup world manager contents but not the manager itself.
+	FNiagaraWorldManager** Manager = WorldManagers.Find(World);
+	if (Manager)
+	{
+		(*Manager)->OnPostWorldCleanup(bSessionEnded, bCleanupResources);
 	}
 }
 

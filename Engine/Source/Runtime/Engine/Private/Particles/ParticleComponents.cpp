@@ -6319,6 +6319,11 @@ void UParticleSystemComponent::Deactivate()
 	}
 }
 
+void UParticleSystemComponent::DeactivateImmediate()
+{
+	Complete();
+}
+
 void UParticleSystemComponent::ApplyWorldOffset(const FVector& InOffset, bool bWorldShift)
 {
 	Super::ApplyWorldOffset(InOffset, bWorldShift);
