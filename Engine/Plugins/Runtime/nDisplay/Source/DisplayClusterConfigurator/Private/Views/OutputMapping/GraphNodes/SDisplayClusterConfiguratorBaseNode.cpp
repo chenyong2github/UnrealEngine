@@ -134,10 +134,7 @@ FReply SDisplayClusterConfiguratorBaseNode::OnDrop(const FGeometry& MyGeometry, 
 
 FCursorReply SDisplayClusterConfiguratorBaseNode::OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const
 {
-	TOptional<EMouseCursor::Type> TheCursor = Cursor.Get();
-	return (TheCursor.IsSet())
-		? FCursorReply::Cursor(TheCursor.GetValue())
-		: FCursorReply::Unhandled();
+	return SWidget::OnCursorQuery(MyGeometry, CursorEvent);
 }
 
 const FSlateBrush* SDisplayClusterConfiguratorBaseNode::GetShadowBrush(bool bSelected) const
