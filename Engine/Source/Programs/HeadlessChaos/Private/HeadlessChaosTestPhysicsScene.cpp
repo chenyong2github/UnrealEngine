@@ -641,7 +641,7 @@ namespace ChaosTest {
 
 			int Count = 0;
 			int ExternalCount = 0;
-			const auto Lambda = [&]()
+			TUniqueFunction<void()> Lambda = [&]()
 			{
 				++Count;
 				EXPECT_EQ(Count,1);	//only hit once on internal thread
