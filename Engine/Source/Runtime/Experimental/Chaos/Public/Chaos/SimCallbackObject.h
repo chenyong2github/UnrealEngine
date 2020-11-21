@@ -168,8 +168,8 @@ private:
 class FSimCallbackCommandObject : public ISimCallbackObject
 {
 public:
-	FSimCallbackCommandObject(const TFunction<void()>& InFunc)
-		: Func(InFunc)
+	FSimCallbackCommandObject(TUniqueFunction<void()>&& InFunc)
+		: Func(MoveTemp(InFunc))
 	{}
 
 	virtual void FreeOutputData_External(FSimCallbackOutput* Output)
@@ -198,7 +198,7 @@ private:
 		Func();
 	}
 
-	TFunction<void()> Func;
+	TUniqueFunction<void()> Func;
 
 	friend struct FSimCallbackInput;
 };

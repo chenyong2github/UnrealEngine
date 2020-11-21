@@ -152,19 +152,19 @@ namespace Chaos
 		}
 
 		template <typename Lambda>
-		void RegisterSimOneShotCallback(const Lambda& Func)
+		void RegisterSimOneShotCallback(Lambda&& Func)
 		{
 			//do we need a pool to avoid allocations?
-			auto CommandObject = new FSimCallbackCommandObject(Func);
+			auto CommandObject = new FSimCallbackCommandObject(MoveTemp(Func));
 			MarshallingManager.RegisterSimCommand_External(CommandObject);
 		}
 
 		template <typename Lambda>
-		void EnqueueCommandImmediate(const Lambda& Func)
+		void EnqueueCommandImmediate(Lambda&& Func)
 		{
 			//TODO: remove this check. Need to rename with _External
 			check(IsInGameThread());
-			RegisterSimOneShotCallback(Func);
+			RegisterSimOneShotCallback(MoveTemp(Func));
 		}
 
 		//Used as helper for GT to go from unique idx back to gt particle
