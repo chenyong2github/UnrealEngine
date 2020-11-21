@@ -1669,7 +1669,7 @@ private:
 		for( int32 LevelIndex = 0; LevelIndex < Levels.Num(); LevelIndex++ )
 		{
 			ULevel* Level = Levels[LevelIndex];
-			if (Level->bIsVisible)
+			if (Level && Level->bIsVisible)
 			{
 				check(Level->TickTaskLevel);
 				LevelList.Add(Level->TickTaskLevel);
