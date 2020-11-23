@@ -219,6 +219,7 @@ public:
 	bool IsLooping() const;
 
 	/** Sets current playback time and applies the shake (both oscillation and cameraanim) to the given POV. */
+	UE_DEPRECATED(4.27, "SetCurrentTimeAndApplyShake is deprecated, please use ScrubAndApplyCameraShake")
 	void SetCurrentTimeAndApplyShake(float NewTime, FMinimalViewInfo& POV);
 	
 	/** Sets actor for playing camera anims */
@@ -228,6 +229,7 @@ private:
 
 	void DoStartShake();
 	void DoUpdateShake(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult);
+	void DoScrubShake(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult);
 	void DoStopShake(bool bImmediately);
 	bool DoGetIsFinished() const;
 
@@ -282,6 +284,7 @@ private:
 	virtual void GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const override;
 	virtual void StartShakePatternImpl(const FCameraShakeStartParams& Params) override;
 	virtual void UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult) override;
+	virtual void ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult) override;
 	virtual bool IsFinishedImpl() const override;
 	virtual void StopShakePatternImpl(const FCameraShakeStopParams& Params) override;
 };
@@ -289,4 +292,3 @@ private:
 /** Backwards compatible name for the Matinee camera shake, for C++ code. */
 UE_DEPRECATED(4.26, "Please use UMatineeCameraShake")
 typedef UMatineeCameraShake UCameraShake;
-

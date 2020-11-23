@@ -63,4 +63,38 @@ bool FCameraShakeStateRestart::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCameraShakeStateScrub, 
+		"System.Engine.Cameras.ShakeStateScrub", 
+		EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FCameraShakeStateScrub::RunTest(const FString& Parameters)
+{
+	FCameraShakeInfo Info;
+	Info.Duration = 1.f;
+	Info.BlendIn = 0.2f;
+	Info.BlendOut = 0.2f;
+
+	FCameraShakeState State;
+	State.Initialize(Info);
+
+	UTEST_EQUAL("Scrub 1", State.Scrub(0.1f), 0.5f);
+	UTEST_TRUE("Scrub 1", State.IsActive());
+
+	UTEST_EQUAL("Scrub 2", State.Scrub(0.4f), 1.f);
+	UTEST_TRUE("Scrub 2", State.IsActive());
+
+	UTEST_EQUAL("Scrub 3", State.Scrub(-1.f), 0.f);
+	UTEST_FALSE("Scrub 3", State.IsActive());
+
+	UTEST_EQUAL("Scrub 4", State.Scrub(0.2f), 1.0f);
+	UTEST_TRUE("Scrub 4", State.IsActive());
+
+	UTEST_EQUAL("Scrub 5", State.Scrub(2.0f), 0.0f);
+	UTEST_FALSE("Scrub 5", State.IsActive());
+
+	UTEST_EQUAL("Scrub 6", State.Scrub(0.9f), 0.5f);
+	UTEST_TRUE("Scrub 6", State.IsActive());
+
+	return true;
+}
+
 #undef LOCTEXT_NAMESPACE
