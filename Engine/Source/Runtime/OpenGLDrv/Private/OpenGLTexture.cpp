@@ -12,6 +12,8 @@
 #include "OpenGLDrv.h"
 #include "OpenGLDrvPrivate.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Engine/Texture.h"
+
 #if PLATFORM_ANDROID
 #include "ThirdParty/Android/detex/AndroidETC.h"
 #endif //PLATFORM_ANDROID
