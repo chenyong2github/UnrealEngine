@@ -64,8 +64,10 @@ struct FDebugTraceInfo
 		, bInsideOfObject(false)
 	{
 	}
-
 };
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnCheatManagerCreated, UCheatManager*);
+
 
 /** A cheat manager extension can extend the main cheat manager in a modular way, being enabled or disabled when the system associated with the cheats is enabled or disabled */
 UCLASS(Blueprintable, Within=CheatManager)
@@ -435,10 +437,19 @@ public:
 		return CastChecked<T>(FindCheatManagerExtensionInterface(T::UClassType::StaticClass()), ECastCheckedType::NullAllowed);
 	}
 
+	/** Register a delegate to call whenever a cheat manager is spawned; it will also be called immediately for cheat managers that already exist at this point */
+	static FDelegateHandle RegisterForOnCheatManagerCreated(FOnCheatManagerCreated::FDelegate&& Delegate);
+
+	/** Unregister a delegate previously registered with CallOrRegister_OnCheatManagerCreated */
+	static void UnregisterFromOnCheatManagerCreated(FDelegateHandle DelegateHandle);
+
 protected:
 	/** List of registered cheat manager extensions */
 	UPROPERTY(Transient)
 	TArray<UCheatManagerExtension*> CheatManagerExtensions;
+
+	/** Delegate called when the asset manager singleton is created */
+	static FOnCheatManagerCreated OnCheatManagerCreatedDelegate;
 
 protected:
 	/** Do game specific bugIt */

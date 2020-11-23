@@ -46,6 +46,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogCheatManager, Log, All);
 
 bool UCheatManager::bDebugCapsuleSweepPawn = false;
 
+FOnCheatManagerCreated UCheatManager::OnCheatManagerCreatedDelegate;
 
 UCheatManager::UCheatManager(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -657,6 +658,7 @@ void UCheatManager::DisableDebugCamera()
 void UCheatManager::InitCheatManager() 
 {
 	ReceiveInitCheatManager(); //BP Initialization event
+	OnCheatManagerCreatedDelegate.Broadcast(this);
 }
 
 void UCheatManager::BeginDestroy()
@@ -1380,6 +1382,26 @@ UCheatManagerExtension* UCheatManager::FindCheatManagerExtensionInterface(const 
 	}
 
 	return nullptr;
+}
+
+FDelegateHandle UCheatManager::RegisterForOnCheatManagerCreated(FOnCheatManagerCreated::FDelegate&& Delegate)
+{
+	for (TObjectIterator<UCheatManager> CheatIt; CheatIt; ++CheatIt)
+	{
+		UCheatManager* CheatInstance = *CheatIt;
+		if (CheatInstance->GetOuter()->IsA(APlayerController::StaticClass()))
+		{
+			Delegate.Execute(CheatInstance);
+		}
+	}
+
+	// Register for cheat managers created in the future
+	return OnCheatManagerCreatedDelegate.Add(MoveTemp(Delegate));
+}
+
+void UCheatManager::UnregisterFromOnCheatManagerCreated(FDelegateHandle DelegateHandle)
+{
+	OnCheatManagerCreatedDelegate.Remove(DelegateHandle);
 }
 
 #undef LOCTEXT_NAMESPACE
