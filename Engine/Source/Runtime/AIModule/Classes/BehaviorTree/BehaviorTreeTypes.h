@@ -76,10 +76,14 @@ namespace EBTNodeResult
 	// keep in sync with DescribeNodeResult()
 	enum Type
 	{
-		Succeeded,		// finished as success
-		Failed,			// finished as failure
-		Aborted,		// finished aborting = failure
-		InProgress,		// not finished yet
+		// finished as success
+		Succeeded,
+		// finished as failure
+		Failed,
+		// finished aborting = failure
+		Aborted,
+		// not finished yet
+		InProgress,
 	};
 }
 
