@@ -29,7 +29,7 @@
 #include "Insights/ViewModels/StatsNodeHelper.h"
 #include "Insights/ViewModels/StatsViewColumnFactory.h"
 #include "Insights/ViewModels/TimingGraphTrack.h"
-#include "Insights/Widgets/SAggregatorStatus.h"
+#include "Insights/Widgets/SAsyncOperationStatus.h"
 #include "Insights/Widgets/SStatsViewTooltip.h"
 #include "Insights/Widgets/SStatsTableRow.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
@@ -273,7 +273,7 @@ void SStatsView::Construct(const FArguments& InArgs)
 					.VAlign(VAlign_Bottom)
 					.Padding(16.0f)
 					[
-						SAssignNew(AggregatorStatus, Insights::SAggregatorStatus, Aggregator)
+						SAssignNew(AsyncOperationStatus, Insights::SAsyncOperationStatus, Aggregator)
 					]
 				]
 			]

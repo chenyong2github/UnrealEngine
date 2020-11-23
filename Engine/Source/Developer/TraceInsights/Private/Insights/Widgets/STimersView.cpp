@@ -30,7 +30,7 @@
 #include "Insights/ViewModels/TimerNodeHelper.h"
 #include "Insights/ViewModels/TimersViewColumnFactory.h"
 #include "Insights/ViewModels/TimingGraphTrack.h"
-#include "Insights/Widgets/SAggregatorStatus.h"
+#include "Insights/Widgets/SAsyncOperationStatus.h"
 #include "Insights/Widgets/STimersViewTooltip.h"
 #include "Insights/Widgets/STimerTableRow.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
@@ -282,7 +282,7 @@ void STimersView::Construct(const FArguments& InArgs)
 					.VAlign(VAlign_Bottom)
 					.Padding(16.0f)
 					[
-						SAssignNew(AggregatorStatus, Insights::SAggregatorStatus, Aggregator)
+						SAssignNew(AsyncOperationStatus, Insights::SAsyncOperationStatus, Aggregator)
 					]
 				]
 			]

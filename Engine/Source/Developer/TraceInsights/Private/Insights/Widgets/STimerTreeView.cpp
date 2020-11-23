@@ -19,7 +19,7 @@
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/TimerButterflyAggregation.h"
 #include "Insights/ViewModels/TimersViewColumnFactory.h"
-#include "Insights/Widgets/SAggregatorStatus.h"
+#include "Insights/Widgets/SAsyncOperationStatus.h"
 #include "Insights/Widgets/STimersViewTooltip.h"
 #include "Insights/Widgets/STimerTableRow.h"
 
@@ -146,7 +146,7 @@ void STimerTreeView::Construct(const FArguments& InArgs, const FText& InViewName
 				.VAlign(VAlign_Bottom)
 				.Padding(16.0f)
 				[
-					SAssignNew(AggregatorStatus, Insights::SAggregatorStatus, TimerButterflyAggregator)
+					SAssignNew(AsyncOperationStatus, Insights::SAsyncOperationStatus, TimerButterflyAggregator)
 				]
 			]
 		]

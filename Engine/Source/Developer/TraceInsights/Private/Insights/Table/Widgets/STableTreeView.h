@@ -17,6 +17,8 @@
 #include "Widgets/Views/STreeView.h"
 
 // Insights
+#include "Insights/Common/InsightsAsyncWorkUtils.h"
+#include "Insights/Common/Stopwatch.h"
 #include "Insights/Table/ViewModels/TableTreeNode.h"
 
 class FMenuBuilder;
@@ -57,7 +59,7 @@ ENUM_CLASS_FLAGS(EAsyncOperationType);
 /**
  * A custom widget used to display the list of tree nodes.
  */
-class STableTreeView : public SCompoundWidget
+class STableTreeView : public SCompoundWidget, public IAsyncOperationStatusProvider
 {
 	friend class FTableTreeViewFilterAsyncTask;
 	friend class FTableTreeViewSortAsyncTask;
@@ -106,6 +108,18 @@ public:
 	bool IsRunningAsyncUpdate() { return bIsUpdateRunning;  }
 
 	void OnClose();
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// IAsyncOperationStatusProvider implementation
+
+	virtual bool IsRunning() const override { return bIsUpdateRunning; }
+
+	virtual double GetAllOperationsDuration() override;
+	virtual double GetCurrentOperationDuration() override { return 0.0; }
+	virtual uint32 GetOperationCount() const override { return 1; }
+	virtual FText GetCurrentOperationName() const override;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 protected:
 	void ConstructWidget(TSharedPtr<FTable> InTablePtr);
@@ -377,11 +391,15 @@ protected:
 	//////////////////////////////////////////////////
 	// Async
 	bool bRunInAsyncMode = false;
-	FGraphEventRef PendingAsyncOperationEvent;;
 	bool bIsUpdateRunning = false;
-	TArray<FTableTreeNodePtr> DummyGroupNodes;
 	bool bIsCloseScheduled = false;
+
+	TArray<FTableTreeNodePtr> DummyGroupNodes;
+	FGraphEventRef PendingAsyncOperationEvent;;
 	EAsyncOperationType PendingAsyncOperations = static_cast<EAsyncOperationType>(0);
+	TSharedPtr<class SAsyncOperationStatus> AsyncOperationStatus;
+	FStopwatch AsyncUpdateStopwatch;
+
 	//////////////////////////////////////////////////
 
 	double StatsStartTime;

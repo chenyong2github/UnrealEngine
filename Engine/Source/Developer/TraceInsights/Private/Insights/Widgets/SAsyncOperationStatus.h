@@ -9,17 +9,17 @@
 namespace Insights
 {
 
-class IStatsAggregator;
+class IAsyncOperationStatusProvider;
 
 // A widget representing the status message used in tree views (Timers, Counters, etc.) when computing the aggregated stats in a background operation.
-class SAggregatorStatus : public SCompoundWidget
+class SAsyncOperationStatus : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SAggregatorStatus) {}
+	SLATE_BEGIN_ARGS(SAsyncOperationStatus) {}
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedRef<IStatsAggregator> InAggregator);
+	void Construct(const FArguments& InArgs, TSharedRef<IAsyncOperationStatusProvider> InStatusProvider);
 
 private:
 	EVisibility GetContentVisibility() const;
@@ -33,7 +33,7 @@ private:
 	FText GetTooltipText() const;
 
 private:
-	TSharedPtr<IStatsAggregator> Aggregator;
+	TSharedPtr<IAsyncOperationStatusProvider> StatusProvider;
 };
 
 } // namespace Insights

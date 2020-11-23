@@ -37,7 +37,7 @@ namespace Insights
 	class ITableCellValueSorter;
 
 	class FCounterAggregator;
-	class SAggregatorStatus;
+	class SAsyncOperationStatus;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -372,7 +372,7 @@ private:
 	//////////////////////////////////////////////////
 
 	TSharedRef<Insights::FCounterAggregator> Aggregator;
-	TSharedPtr<Insights::SAggregatorStatus> AggregatorStatus;
+	TSharedPtr<Insights::SAsyncOperationStatus> AsyncOperationStatus;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

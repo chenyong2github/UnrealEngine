@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Async/AsyncWork.h"
+#include "Insights/Common/InsightsAsyncWorkUtils.h"
 #include "Insights/Common/Stopwatch.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -18,18 +19,13 @@ namespace Insights
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class IStatsAggregator
+class IStatsAggregator : public IAsyncOperationStatusProvider
 {
 public:
 	virtual void Start() = 0;
 	virtual void Cancel() = 0;
 
 	virtual bool IsCancelRequested() const = 0;
-	virtual bool IsRunning() const = 0;
-
-	virtual double GetAllOperationsDuration() = 0;
-	virtual double GetCurrentOperationDuration() = 0;
-	virtual uint32 GetOperationCount() const = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -77,6 +73,8 @@ public:
 	virtual double GetAllOperationsDuration() override { AllOpsStopwatch.Update(); return AllOpsStopwatch.GetAccumulatedTime(); }
 	virtual double GetCurrentOperationDuration() override { CurrentOpStopwatch.Update(); return CurrentOpStopwatch.GetAccumulatedTime(); }
 	virtual uint32 GetOperationCount() const override { return OperationCount; }
+
+	virtual FText GetCurrentOperationName() const;
 
 	//////////////////////////////////////////////////
 

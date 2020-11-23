@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SAggregatorStatus.h"
+#include "SAsyncOperationStatus.h"
 
 #include "EditorStyleSet.h"
 #include "Styling/CoreStyle.h"
@@ -9,28 +9,28 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
+#include "Insights/Common/InsightsAsyncWorkUtils.h"
 #include "Insights/Common/TimeUtils.h"
-#include "Insights/ViewModels/StatsAggregator.h"
 
-#define LOCTEXT_NAMESPACE "SAggregatorStatus"
+#define LOCTEXT_NAMESPACE "SAsyncOperationStatus"
 
 namespace Insights
 {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SAggregatorStatus::Construct(const FArguments& InArgs, TSharedRef<IStatsAggregator> InAggregator)
+void SAsyncOperationStatus::Construct(const FArguments& InArgs, TSharedRef<IAsyncOperationStatusProvider> InStatusProvider)
 {
-	Aggregator = InAggregator;
+	StatusProvider = InStatusProvider;
 
 	ChildSlot
 	[
 		SNew(SBox)
-		.Visibility(this, &SAggregatorStatus::GetContentVisibility)
+		.Visibility(this, &SAsyncOperationStatus::GetContentVisibility)
 		[
 			SNew(SBorder)
 			.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
-			.BorderBackgroundColor(this, &SAggregatorStatus::GetBackgroundColorAndOpacity)
+			.BorderBackgroundColor(this, &SAsyncOperationStatus::GetBackgroundColorAndOpacity)
 			.Padding(FMargin(16.0f, 8.0f, 16.0f, 8.0f))
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
@@ -44,9 +44,9 @@ void SAggregatorStatus::Construct(const FArguments& InArgs, TSharedRef<IStatsAgg
 				[
 					SNew(STextBlock)
 					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
-					.Text(this, &SAggregatorStatus::GetText)
-					.ToolTipText(this, &SAggregatorStatus::GetTooltipText)
-					.ColorAndOpacity(this, &SAggregatorStatus::GetTextColorAndOpacity)
+					.Text(this, &SAsyncOperationStatus::GetText)
+					.ToolTipText(this, &SAsyncOperationStatus::GetTooltipText)
+					.ColorAndOpacity(this, &SAsyncOperationStatus::GetTextColorAndOpacity)
 				]
 
 				+ SHorizontalBox::Slot()
@@ -57,9 +57,9 @@ void SAggregatorStatus::Construct(const FArguments& InArgs, TSharedRef<IStatsAgg
 					SNew(STextBlock)
 					.MinDesiredWidth(16.0f)
 					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
-					.Text(this, &SAggregatorStatus::GetAnimatedText)
-					.ToolTipText(this, &SAggregatorStatus::GetTooltipText)
-					.ColorAndOpacity(this, &SAggregatorStatus::GetTextColorAndOpacity)
+					.Text(this, &SAsyncOperationStatus::GetAnimatedText)
+					.ToolTipText(this, &SAsyncOperationStatus::GetTooltipText)
+					.ColorAndOpacity(this, &SAsyncOperationStatus::GetTextColorAndOpacity)
 				]
 			]
 		]
@@ -68,14 +68,14 @@ void SAggregatorStatus::Construct(const FArguments& InArgs, TSharedRef<IStatsAgg
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-EVisibility SAggregatorStatus::GetContentVisibility() const
+EVisibility SAsyncOperationStatus::GetContentVisibility() const
 {
-	return Aggregator->IsRunning() ? EVisibility::Visible : EVisibility::Collapsed;
+	return StatusProvider->IsRunning() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FSlateColor SAggregatorStatus::GetBackgroundColorAndOpacity() const
+FSlateColor SAsyncOperationStatus::GetBackgroundColorAndOpacity() const
 {
 	const float Opacity = ComputeOpacity();
 	return FSlateColor(FLinearColor(0.2f, 0.2f, 0.2f, Opacity));
@@ -83,7 +83,7 @@ FSlateColor SAggregatorStatus::GetBackgroundColorAndOpacity() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FSlateColor SAggregatorStatus::GetTextColorAndOpacity() const
+FSlateColor SAsyncOperationStatus::GetTextColorAndOpacity() const
 {
 	const float Opacity = ComputeOpacity();
 	return FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f, Opacity));
@@ -91,9 +91,9 @@ FSlateColor SAggregatorStatus::GetTextColorAndOpacity() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-float SAggregatorStatus::ComputeOpacity() const
+float SAsyncOperationStatus::ComputeOpacity() const
 {
-	const double TotalDuration = Aggregator->GetAllOperationsDuration();
+	const double TotalDuration = StatusProvider->GetAllOperationsDuration();
 	constexpr double FadeInStartTime = 0.1; // [second]
 	constexpr double FadeInEndTime = 3.0; // [second]
 	constexpr double FadeInDuration = FadeInEndTime - FadeInStartTime;
@@ -103,16 +103,16 @@ float SAggregatorStatus::ComputeOpacity() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FText SAggregatorStatus::GetText() const
+FText SAsyncOperationStatus::GetText() const
 {
 	return LOCTEXT("DefaultText", "Computing");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FText SAggregatorStatus::GetAnimatedText() const
+FText SAsyncOperationStatus::GetAnimatedText() const
 {
-	const double TotalDuration = Aggregator->GetAllOperationsDuration();
+	const double TotalDuration = StatusProvider->GetAllOperationsDuration();
 	const TCHAR* Anim[] = { TEXT(""), TEXT("."), TEXT(".."), TEXT("..."), };
 	int32 AnimIndex = static_cast<int32>(TotalDuration / 0.2) % UE_ARRAY_COUNT(Anim);
 	return FText::FromString(FString(Anim[AnimIndex]));
@@ -120,19 +120,23 @@ FText SAggregatorStatus::GetAnimatedText() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FText SAggregatorStatus::GetTooltipText() const
+FText SAsyncOperationStatus::GetTooltipText() const
 {
-	const double TotalDuration = Aggregator->GetAllOperationsDuration();
-	const uint32 OperationCount = Aggregator->GetOperationCount();
+	const double TotalDuration = StatusProvider->GetAllOperationsDuration();
+	const uint32 OperationCount = StatusProvider->GetOperationCount();
+	FText CurrentOpName = StatusProvider->GetCurrentOperationName();
+
 	if (OperationCount == 1)
 	{
-		return FText::Format(LOCTEXT("DefaultTooltip_Fmt2", "Computing aggregated stats...\nElapsed Time: {0}"),
+		return FText::Format(LOCTEXT("DefaultTooltip_Fmt2", "{0}...\nElapsed Time: {1}"),
+			CurrentOpName,
 			FText::FromString(TimeUtils::FormatTime(TotalDuration, TimeUtils::Second)));
 	}
 	else
 	{
-		const double Duration = Aggregator->GetCurrentOperationDuration();
-		return FText::Format(LOCTEXT("DefaultTooltip_Fmt3", "Computing aggregated stats...\nElapsed Time: {0}\nElapsed Time (op {1}): {2}"),
+		const double Duration = StatusProvider->GetCurrentOperationDuration();
+		return FText::Format(LOCTEXT("DefaultTooltip_Fmt3", "{0}...\nElapsed Time: {1}\nElapsed Time (op {2}): {3}"),
+			CurrentOpName,
 			FText::FromString(TimeUtils::FormatTime(TotalDuration, TimeUtils::Second)),
 			FText::AsNumber(OperationCount),
 			FText::FromString(TimeUtils::FormatTime(Duration, TimeUtils::Second)));

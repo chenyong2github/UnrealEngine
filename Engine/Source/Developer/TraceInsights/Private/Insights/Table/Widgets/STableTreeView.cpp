@@ -18,7 +18,6 @@
 #include "Widgets/Views/STableViewBase.h"
 
 // Insights
-#include "Insights/Common/Stopwatch.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/Log.h"
 #include "Insights/Table/ViewModels/Table.h"
@@ -30,6 +29,7 @@
 #include "Insights/Table/Widgets/STableTreeViewTooltip.h"
 #include "Insights/Table/Widgets/STableTreeViewRow.h"
 #include "Insights/TimingProfilerCommon.h"
+#include "Insights/Widgets/SAsyncOperationStatus.h"
 
 #define LOCTEXT_NAMESPACE "STableTreeView"
 
@@ -176,25 +176,40 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 
 				+ SScrollBox::Slot()
 				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-					.Padding(0.0f)
+					SNew(SOverlay)
+
+					+ SOverlay::Slot()
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Fill)
 					[
-						SAssignNew(TreeView, STreeView<FTableTreeNodePtr>)
-						.ExternalScrollbar(ExternalScrollbar)
-						.SelectionMode(ESelectionMode::Multi)
-						.TreeItemsSource(&FilteredGroupNodes)
-						.OnGetChildren(this, &STableTreeView::TreeView_OnGetChildren)
-						.OnGenerateRow(this, &STableTreeView::TreeView_OnGenerateRow)
-						.OnSelectionChanged(this, &STableTreeView::TreeView_OnSelectionChanged)
-						.OnMouseButtonDoubleClick(this, &STableTreeView::TreeView_OnMouseButtonDoubleClick)
-						.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &STableTreeView::TreeView_GetMenuContent))
-						.ItemHeight(12.0f)
-						.HeaderRow
-						(
-							SAssignNew(TreeViewHeaderRow, SHeaderRow)
-							.Visibility(EVisibility::Visible)
-						)
+						SNew(SBorder)
+						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.Padding(0.0f)
+						[
+							SAssignNew(TreeView, STreeView<FTableTreeNodePtr>)
+							.ExternalScrollbar(ExternalScrollbar)
+							.SelectionMode(ESelectionMode::Multi)
+							.TreeItemsSource(&FilteredGroupNodes)
+							.OnGetChildren(this, &STableTreeView::TreeView_OnGetChildren)
+							.OnGenerateRow(this, &STableTreeView::TreeView_OnGenerateRow)
+							.OnSelectionChanged(this, &STableTreeView::TreeView_OnSelectionChanged)
+							.OnMouseButtonDoubleClick(this, &STableTreeView::TreeView_OnMouseButtonDoubleClick)
+							.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &STableTreeView::TreeView_GetMenuContent))
+							.ItemHeight(12.0f)
+							.HeaderRow
+							(
+								SAssignNew(TreeViewHeaderRow, SHeaderRow)
+								.Visibility(EVisibility::Visible)
+							)
+						]
+					]
+
+					+ SOverlay::Slot()
+					.HAlign(HAlign_Right)
+					.VAlign(VAlign_Bottom)
+					.Padding(16.0f)
+					[
+						SAssignNew(AsyncOperationStatus, Insights::SAsyncOperationStatus, SharedThis(this))
 					]
 				]
 			]
@@ -2034,6 +2049,7 @@ void STableTreeView::OnPreAsyncUpdate()
 {
 	check(!bIsUpdateRunning);
 
+	AsyncUpdateStopwatch.Restart();
 	bIsUpdateRunning = true;
 
 	ExpandedNodes.Empty();
@@ -2068,6 +2084,8 @@ void STableTreeView::OnPostAsyncUpdate()
 
 	ClearPendingAsyncOperations();
 	TreeView_Refresh();
+
+	AsyncUpdateStopwatch.Stop();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2136,6 +2154,21 @@ void STableTreeView::OnClose()
 		Prerequisites.Add(PendingAsyncOperationEvent);
 		TGraphTask<FTableTreeViewAsyncCompleteTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(SharedThis(this));
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText STableTreeView::GetCurrentOperationName() const
+{
+	return LOCTEXT("CurrentOperationName", "Updating Tree");
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+double STableTreeView::GetAllOperationsDuration()
+{ 
+	AsyncUpdateStopwatch.Update();  
+	return AsyncUpdateStopwatch.GetAccumulatedTime(); 
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

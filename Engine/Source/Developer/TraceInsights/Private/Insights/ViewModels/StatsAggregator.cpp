@@ -4,6 +4,8 @@
 
 #include "Insights/TimingProfilerCommon.h"
 
+#define LOCTEXT_NAMESPACE "SStatsAggregator"
+
 namespace Insights
 {
 
@@ -163,6 +165,13 @@ void FStatsAggregator::Tick(TSharedPtr<const TraceServices::IAnalysisSession> In
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FText FStatsAggregator::GetCurrentOperationName() const
+{
+	return LOCTEXT("OperationName", "Computing aggregated stats");
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 IStatsAggregationWorker* FStatsAggregator::GetWorker() const
 {
 	// It can only be called from OnFinishedCallback.
@@ -174,3 +183,5 @@ IStatsAggregationWorker* FStatsAggregator::GetWorker() const
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 } // namespace Insights
+
+#undef LOCTEXT_NAMESPACE
