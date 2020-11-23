@@ -108,6 +108,9 @@ public:
 	/** Register a delegate to call when all types are scanned at startup, if this has already happened call immediately */
 	virtual void CallOrRegister_OnCompletedInitialScan(FSimpleMulticastDelegate::FDelegate Delegate);
 
+	/** Register a delegate to call when the asset manager singleton is spawned, if this has already happened call immediately */
+	static void CallOrRegister_OnAssetManagerCreated(FSimpleMulticastDelegate::FDelegate&& Delegate);
+
 	/** Returns true if initial scan has completed, this can be pretty late in editor builds */
 	virtual bool HasInitialScanCompleted() const;
 
@@ -519,6 +522,9 @@ public:
 	virtual void GetContentEncryptionConfig(FContentEncryptionConfig& OutContentEncryptionConfig) {}
 #endif
 
+	/** Returns the root path for the package name (i.e. /Game/MyPackage would return Game) */
+	static bool GetContentRootPathFromPackageName(const FString& PackageName, FString& OutContentRootPath);
+
 protected:
 	friend class FAssetManagerEditorModule;
 
@@ -541,9 +547,11 @@ protected:
 	/** Helper function to write out asset reports */
 	virtual bool WriteCustomReport(FString FileName, TArray<FString>& FileLines) const;
 
+public:
 	/** Returns true if the specified TypeInfo should be scanned. Can be implemented by the game. */
 	virtual bool ShouldScanPrimaryAssetType(FPrimaryAssetTypeInfo& TypeInfo) const;
 
+protected:
 	/** Scans all asset types specified in DefaultGame */
 	virtual void ScanPrimaryAssetTypesFromConfig();
 
@@ -723,6 +731,9 @@ protected:
 
 	/** Delegate called when initial span finishes */
 	FSimpleMulticastDelegate OnCompletedInitialScanDelegate;
+
+	/** Delegate called when the asset manager singleton is created */
+	static FSimpleMulticastDelegate OnAssetManagerCreatedDelegate;
 
 	/** Delegate bound to chunk install */
 	FDelegateHandle ChunkInstallDelegateHandle;
