@@ -5,7 +5,9 @@
 #include "CoreMinimal.h"
 #include "GameplayDebuggerTypes.h"
 
+class UWorld;
 class AActor;
+class APlayerController;
 class AGameplayDebuggerCategoryReplicator;
 
 class GAMEPLAYDEBUGGER_API FGameplayDebuggerAddonBase : public TSharedFromThis<FGameplayDebuggerAddonBase>
@@ -17,6 +19,9 @@ public:
 	int32 GetNumInputHandlers() const { return InputHandlers.Num(); }
 	FGameplayDebuggerInputHandler& GetInputHandler(int32 HandlerId) { return InputHandlers[HandlerId]; }
 	FString GetInputHandlerDescription(int32 HandlerId) const;
+	UWorld* GetWorldFromReplicator() const;
+	/** Returns the first non-null world associated with, in order: OwnerPC, DebugActor, AGameplayDebuggerCategoryReplicator owner */
+	UWorld* GetDataWorld(const APlayerController* OwnerPC, const AActor* DebugActor) const;
 
 	/** [ALL] called when gameplay debugger is activated */
 	virtual void OnGameplayDebuggerActivated();

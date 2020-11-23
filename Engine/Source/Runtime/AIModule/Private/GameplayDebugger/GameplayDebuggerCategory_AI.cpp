@@ -301,13 +301,13 @@ void FGameplayDebuggerCategory_AI::OnDataPackReplicated(int32 DataPackId)
 
 void FGameplayDebuggerCategory_AI::DrawData(APlayerController* OwnerPC, FGameplayDebuggerCanvasContext& CanvasContext)
 {
-	UWorld* MyWorld = OwnerPC->GetWorld();
+	UWorld* MyWorld = CanvasContext.GetWorld();
 	AActor* SelectedActor = FindLocalDebugActor();
 
 	const bool bReducedMode = IsSimulateInEditor();
 	bShowCategoryName = !bReducedMode || DataPack.bHasController;
 
-	if (FGameplayDebuggerCategoryTweakables::bDrawOverheadIcons)
+	if (FGameplayDebuggerCategoryTweakables::bDrawOverheadIcons && OwnerPC)
 	{
 		DrawPawnIcons(MyWorld, SelectedActor, OwnerPC->GetPawn(), CanvasContext);
 	}

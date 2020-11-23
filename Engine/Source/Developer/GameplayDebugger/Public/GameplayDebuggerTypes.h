@@ -9,6 +9,8 @@ class FCanvasItem;
 class UCanvas;
 class UFont;
 struct FCanvasIcon;
+class APlayerController;
+class UWorld;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogGameplayDebug, Log, All);
 
@@ -28,6 +30,12 @@ public:
 
 	/** current text font */
 	TWeakObjectPtr<UFont> Font;
+
+	/** the player controller associated with this debugger context  */
+	TWeakObjectPtr<APlayerController> PlayerController;
+
+	/** the world associated with this debugger context  */
+	TWeakObjectPtr<UWorld> World;
 
 	/** font render data */
 	FFontRenderInfo FontRenderInfo;
@@ -108,6 +116,10 @@ public:
 
 	// draw icon on canvas
 	void DrawIcon(const FColor& Color, const FCanvasIcon& Icon, float PosX, float PosY, float Scale = 1.f);
+
+	// fetches the World associated with this context. Will use the World member variable, if set, and 
+	// PlayerController's world otherwise. Note that it can still be null and needs to be tested.
+	UWorld* GetWorld() const;
 };
 
 namespace FGameplayDebuggerCanvasStrings

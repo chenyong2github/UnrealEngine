@@ -121,6 +121,11 @@ FDebugRenderSceneProxy* FGameplayDebuggerCategory_EQS::CreateDebugSceneProxy(con
 void FGameplayDebuggerCategory_EQS::DrawData(APlayerController* OwnerPC, FGameplayDebuggerCanvasContext& CanvasContext)
 {
 #if USE_EQS_DEBUGGER
+	UWorld* World = CanvasContext.GetWorld();
+	if (World == nullptr)
+	{
+		return;
+	}
 
 	const FString HeaderDesc = (DataPack.QueryDebugData.Num() > 1) ?
 		FString::Printf(TEXT("Queries: {yellow}%d{white}, press {yellow}[%s]{white} to cycle through"), DataPack.QueryDebugData.Num(), *GetInputHandlerDescription(0)) :
@@ -146,7 +151,7 @@ void FGameplayDebuggerCategory_EQS::DrawData(APlayerController* OwnerPC, FGamepl
 		const EQSDebug::FQueryData& ShownQueryData = DataPack.QueryDebugData[ShownQueryIndex];
 
 		CanvasContext.MoveToNewLine();
-		CanvasContext.Printf(TEXT("Timestamp: {yellow}%.3f (~ %.2fs ago)"), ShownQueryData.Timestamp, OwnerPC->GetWorld()->TimeSince(ShownQueryData.Timestamp));
+		CanvasContext.Printf(TEXT("Timestamp: {yellow}%.3f (~ %.2fs ago)"), ShownQueryData.Timestamp, World->TimeSince(ShownQueryData.Timestamp));
 		
 		FString OptionsDesc(TEXT("Options: "));
 		for (int32 Idx = 0; Idx < ShownQueryData.Options.Num(); Idx++)
@@ -168,7 +173,8 @@ void FGameplayDebuggerCategory_EQS::DrawData(APlayerController* OwnerPC, FGamepl
 #if USE_EQS_DEBUGGER
 int32 FGameplayDebuggerCategory_EQS::DrawLookedAtItem(const EQSDebug::FQueryData& QueryData, APlayerController* OwnerPC, FGameplayDebuggerCanvasContext& CanvasContext) const
 {
-	if (CanvasContext.Canvas == nullptr)
+	UWorld* World = CanvasContext.GetWorld();
+	if (CanvasContext.Canvas == nullptr || World == nullptr)
 	{
 		return INDEX_NONE;
 	}
@@ -200,8 +206,8 @@ int32 FGameplayDebuggerCategory_EQS::DrawLookedAtItem(const EQSDebug::FQueryData
 	if (BestItemIndex != INDEX_NONE)
 	{
 		const EQSDebug::FDebugHelper& DebugHelper = QueryData.RenderDebugHelpers[BestItemIndex];
-		DrawDebugSphere(OwnerPC->GetWorld(), DebugHelper.Location, DebugHelper.Radius, 8, FColor::Red);
-		DrawDebugCone(OwnerPC->GetWorld(), DebugHelper.Location, FVector(0, 0, 1), 100.0f, 0.1f, 0.1f, 8, FColor::Red);
+		DrawDebugSphere(World, DebugHelper.Location, DebugHelper.Radius, 8, FColor::Red);
+		DrawDebugCone(World, DebugHelper.Location, FVector(0, 0, 1), 100.0f, 0.1f, 0.1f, 8, FColor::Red);
 
 		const int32 FailedTestIndex = DebugHelper.FailedTestIndex;
 		if (FailedTestIndex != INDEX_NONE)

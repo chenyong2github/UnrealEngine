@@ -168,6 +168,7 @@ AGameplayDebuggerPlayerManager& FGameplayDebuggerModule::GetPlayerManager(UWorld
 	{
 		ManagerOb = World->SpawnActor<AGameplayDebuggerPlayerManager>();
 		PlayerManagers.Add(World, ManagerOb);
+		ManagerOb->Init();
 	}
 
 	check(ManagerOb);
@@ -177,7 +178,7 @@ AGameplayDebuggerPlayerManager& FGameplayDebuggerModule::GetPlayerManager(UWorld
 void FGameplayDebuggerModule::OnWorldInitialized(UWorld* World, const UWorld::InitializationValues IVS)
 {
 	// make sure that world has valid player manager, create when it doesn't
-	if (World && World->IsGameWorld())
+	if (World && (World->IsGameWorld() || World->IsEditorWorld()))
 	{
 		GetPlayerManager(World);
 	}

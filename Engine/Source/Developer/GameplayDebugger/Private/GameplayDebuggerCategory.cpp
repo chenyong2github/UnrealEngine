@@ -63,7 +63,13 @@ void FGameplayDebuggerCategory::AddShape(const FGameplayDebuggerShape& Shape)
 
 void FGameplayDebuggerCategory::DrawCategory(APlayerController* OwnerPC, FGameplayDebuggerCanvasContext& CanvasContext)
 {
-	UWorld* World = OwnerPC->GetWorld();
+	// note that we prefer OwnerPC's world here since if it's given then that's the end user of the data
+	UWorld* World = OwnerPC ? OwnerPC->GetWorld() : CanvasContext.World.Get();
+
+	if (!ensure(World))
+	{
+		return;
+	}
 
 	FString CategoryPrefix;
 	if (!bShowCategoryName)

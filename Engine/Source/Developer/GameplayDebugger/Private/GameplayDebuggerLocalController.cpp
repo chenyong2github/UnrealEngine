@@ -30,6 +30,7 @@
 #if WITH_EDITOR
 #include "Editor/GameplayDebuggerEdMode.h"
 #include "EditorModeManager.h"
+#include "Editor.h"
 #endif // WITH_EDITOR
 
 UGameplayDebuggerLocalController::UGameplayDebuggerLocalController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -41,13 +42,16 @@ UGameplayDebuggerLocalController::UGameplayDebuggerLocalController(const FObject
 	bPrevLocallyEnabled = false;
 	bEnableTextShadow = false;
 	ActiveRowIdx = 0;
+#if WITH_EDITOR
+	bActivateOnPIEEnd = false;
+#endif // WITH_EDITOR
 }
 
 void UGameplayDebuggerLocalController::Initialize(AGameplayDebuggerCategoryReplicator& Replicator, AGameplayDebuggerPlayerManager& Manager)
 {
 	CachedReplicator = &Replicator;
 	CachedPlayerManager = &Manager;
-	bSimulateMode = FGameplayDebuggerAddonBase::IsSimulateInEditor();
+	bSimulateMode = FGameplayDebuggerAddonBase::IsSimulateInEditor() || Replicator.IsEditorWorldReplicator();
 
 	UDebugDrawService::Register(bSimulateMode ? TEXT("DebugAI") : TEXT("Game"), FDebugDrawDelegate::CreateUObject(this, &UGameplayDebuggerLocalController::OnDebugDraw));
 
@@ -56,6 +60,13 @@ void UGameplayDebuggerLocalController::Initialize(AGameplayDebuggerCategoryRepli
 	{
 		USelection::SelectionChangedEvent.AddUObject(this, &UGameplayDebuggerLocalController::OnSelectionChanged);
 		USelection::SelectObjectEvent.AddUObject(this, &UGameplayDebuggerLocalController::OnSelectedObject);
+
+		if (Replicator.IsEditorWorldReplicator())
+		{
+			// bind to PIE start and end notifies to hide before pie and re-enable if need be when pie's done
+			FEditorDelegates::BeginPIE.AddUObject(this, &UGameplayDebuggerLocalController::OnBeginPIE);
+			FEditorDelegates::EndPIE.AddUObject(this, &UGameplayDebuggerLocalController::OnEndPIE);
+		}
 	}
 #endif
 
@@ -137,6 +148,9 @@ void UGameplayDebuggerLocalController::OnDebugDraw(class UCanvas* Canvas, class 
 		CanvasContext.CursorY = CanvasContext.DefaultY = PaddingTop;
 
 		CanvasContext.FontRenderInfo.bEnableShadow = bEnableTextShadow;
+
+		CanvasContext.PlayerController = CachedReplicator->GetReplicationOwner();
+		CanvasContext.World = CachedReplicator->GetWorld();
 
 		DrawHeader(CanvasContext);
 
@@ -806,6 +820,28 @@ void UGameplayDebuggerLocalController::RebuildDataPackMap()
 	}
 }
 
+#if WITH_EDITOR
+void UGameplayDebuggerLocalController::OnBeginPIE(const bool bIsSimulating)
+{
+	bActivateOnPIEEnd = bIsLocallyEnabled;
+	if (bIsLocallyEnabled)
+	{
+		ToggleActivation();
+	}
+}
+
+void UGameplayDebuggerLocalController::OnEndPIE(const bool bIsSimulating)
+{
+	if (bActivateOnPIEEnd && !bIsLocallyEnabled)
+	{
+		ToggleActivation();
+	}
+}
+#endif // WITH_EDITOR
+
+//----------------------------------------------------------------------//
+// FGameplayDebuggerConsoleCommands 
+//----------------------------------------------------------------------//
 /**  Helper structure to declare/define console commands in the source file and to access UGameplayDebuggerLocalController protected members */
 struct FGameplayDebuggerConsoleCommands
 {
@@ -819,6 +855,12 @@ private:
 		{
 			Controller = AGameplayDebuggerPlayerManager::GetCurrent(InWorld).GetLocalController(*LocalPC);
 		}
+#if WITH_EDITOR
+		else if (InWorld != nullptr && InWorld->IsGameWorld() == false)
+		{
+			Controller = AGameplayDebuggerPlayerManager::GetCurrent(InWorld).GetEditorController();
+		}
+#endif // WITH_EDITOR
 
 		UE_CLOG(Controller == nullptr, LogConsoleResponse, Error, TEXT("GameplayDebugger not available"));
 		return Controller;

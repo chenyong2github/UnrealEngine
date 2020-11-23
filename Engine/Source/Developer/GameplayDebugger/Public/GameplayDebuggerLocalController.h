@@ -62,6 +62,9 @@ protected:
 	uint32 bIsLocallyEnabled : 1;
 	uint32 bPrevLocallyEnabled : 1;
 	uint32 bEnableTextShadow : 1;
+#if WITH_EDITOR
+	uint32 bActivateOnPIEEnd : 1;
+#endif // WITH_EDITOR
 
 	FString ActivationKeyDesc;
 	FString RowUpKeyDesc;
@@ -120,6 +123,8 @@ protected:
 	/** event for simulate in editor mode */
 	void OnSelectionChanged(UObject* Object);
 	void OnSelectedObject(UObject* Object);
+	void OnBeginPIE(const bool bIsSimulating);
+	void OnEndPIE(const bool bIsSimulating);
 #endif
 
 	FString GetKeyDescriptionShort(const FKey& KeyBind) const;

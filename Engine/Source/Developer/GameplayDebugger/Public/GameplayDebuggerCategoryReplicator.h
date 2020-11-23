@@ -127,6 +127,9 @@ public:
 	/** get replicator state */
 	bool IsEnabled() const { return bIsEnabled; }
 
+	/** returns true if this replicator has been created for an editor world */
+	bool IsEditorWorldReplicator() const { return bIsEditorWorldReplicator; }
+
 	/** get category state */
 	bool IsCategoryEnabled(int32 CategoryId) const;
 
@@ -147,6 +150,10 @@ public:
 
 	/** returns true if object was created for local player (client / standalone) */
 	bool IsLocal() const { return bIsLocal; }
+
+#if WITH_EDITOR
+	void InitForEditor();
+#endif // WITH_EDITOR
 
 protected:
 
@@ -180,6 +187,7 @@ protected:
 	uint32 bIsEnabledLocal : 1;
 	uint32 bHasAuthority : 1;
 	uint32 bIsLocal : 1;
+	uint32 bIsEditorWorldReplicator : 1;
 
 	/** notify about changes in known category set */
 	void OnCategoriesChanged();
@@ -212,4 +220,7 @@ protected:
 
 	/** [LOCAL] notify from CategoryData replication */
 	void OnReceivedDataPackPacket(int32 CategoryId, int32 DataPackId, const FGameplayDebuggerDataPack& DataPacket);
+
+	/** called both from BeginPlay and InitForEditor to setup instance's internal */
+	void Init();
 };

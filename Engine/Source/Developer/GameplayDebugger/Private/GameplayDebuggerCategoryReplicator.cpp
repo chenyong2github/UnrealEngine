@@ -408,6 +408,9 @@ AGameplayDebuggerCategoryReplicator::AGameplayDebuggerCategoryReplicator(const F
 
 	bIsEnabled = false;
 	bIsEnabledLocal = false;
+	bHasAuthority = false;
+	bIsLocal = false;
+	bIsEditorWorldReplicator = false;
 	bReplicates = true;
 
 	ReplicatedData.Owner = this;
@@ -423,15 +426,30 @@ void AGameplayDebuggerCategoryReplicator::BeginPlay()
 	bHasAuthority = FGameplayDebuggerUtils::IsAuthority(World);
 	bIsLocal = (NetMode != NM_DedicatedServer);
 
+	Init();
+}
+
+#if WITH_EDITOR
+void AGameplayDebuggerCategoryReplicator::InitForEditor()
+{
+	bHasAuthority = true;
+	bIsLocal = true;
+	bIsEditorWorldReplicator = true;
+	Init();
+}
+#endif // WITH_EDITOR
+
+void AGameplayDebuggerCategoryReplicator::Init()
+{
+	UWorld* World = GetWorld();
+	check(World);
+
 	FGameplayDebuggerAddonManager& AddonManager = FGameplayDebuggerAddonManager::GetCurrent();
 	AddonManager.OnCategoriesChanged.AddUObject(this, &AGameplayDebuggerCategoryReplicator::OnCategoriesChanged);
 	AddonManager.OnExtensionsChanged.AddUObject(this, &AGameplayDebuggerCategoryReplicator::OnExtensionsChanged);
 
 	OnCategoriesChanged();
 	OnExtensionsChanged();
-
-	AGameplayDebuggerPlayerManager& PlayerManager = AGameplayDebuggerPlayerManager::GetCurrent(GetWorld());
-	PlayerManager.RegisterReplicator(*this);
 
 	SetActorHiddenInGame(!bIsLocal);
 	if (bIsLocal)
@@ -445,6 +463,9 @@ void AGameplayDebuggerCategoryReplicator::BeginPlay()
 	{
 		SetEnabled(FGameplayDebuggerAddonBase::IsSimulateInEditor());
 	}
+
+	AGameplayDebuggerPlayerManager& PlayerManager = AGameplayDebuggerPlayerManager::GetCurrent(World);
+	PlayerManager.RegisterReplicator(*this);
 }
 
 void AGameplayDebuggerCategoryReplicator::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -626,7 +647,7 @@ void AGameplayDebuggerCategoryReplicator::OnReceivedDataPackPacket(int32 Categor
 void AGameplayDebuggerCategoryReplicator::TickActor(float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction)
 {
 	Super::TickActor(DeltaTime, TickType, ThisTickFunction);
-	if (OwnerPC)
+	if (OwnerPC || bIsEditorWorldReplicator)
 	{
 		CollectCategoryData();
 	}

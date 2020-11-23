@@ -9,6 +9,7 @@
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
 #include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
 
 DEFINE_LOG_CATEGORY(LogGameplayDebug);
 
@@ -554,6 +555,13 @@ void FGameplayDebuggerCanvasContext::DrawIcon(const FColor& Color, const FCanvas
 		CanvasOb->SetDrawColor(Color);
 		CanvasOb->DrawIcon(Icon, PosX, PosY, Scale);
 	}
+}
+
+UWorld* FGameplayDebuggerCanvasContext::GetWorld() const 
+{
+	return World.IsValid() 
+		? World.Get()
+		: (PlayerController.IsValid() ? PlayerController->GetWorld() : nullptr);
 }
 
 //////////////////////////////////////////////////////////////////////////
