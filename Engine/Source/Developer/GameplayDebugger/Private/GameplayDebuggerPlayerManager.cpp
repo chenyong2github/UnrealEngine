@@ -251,7 +251,6 @@ const FGameplayDebuggerPlayerData* AGameplayDebuggerPlayerManager::GetPlayerData
 	return nullptr;
 }
 
-#if WITH_EDITOR
 // FTickableGameObject begin
 void AGameplayDebuggerPlayerManager::Tick(float DeltaTime)
 {
@@ -266,7 +265,11 @@ void AGameplayDebuggerPlayerManager::Tick(float DeltaTime)
 
 ETickableTickType AGameplayDebuggerPlayerManager::GetTickableTickType() const
 {
-	return IsTickable() ? ETickableTickType::Conditional : ETickableTickType::Never;
+	return
+#if WITH_EDITOR
+		IsTickable() ? ETickableTickType::Conditional : 
+#endif // WITH_EDITOR
+		ETickableTickType::Never;
 }
 
 TStatId AGameplayDebuggerPlayerManager::GetStatId() const
@@ -276,8 +279,12 @@ TStatId AGameplayDebuggerPlayerManager::GetStatId() const
 
 bool AGameplayDebuggerPlayerManager::IsTickable() const
 {
+#if WITH_EDITOR
 	UWorld* World = GetWorld();
 	return (World != nullptr) && (World->IsEditorWorld() == true) && (World->IsGameWorld() == false);
+#else
+	return false;
+#endif // WITH_EDITOR
 }
 // FTickableGameObject end
-#endif // WITH_EDITOR
+

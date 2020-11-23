@@ -35,7 +35,6 @@ class GAMEPLAYDEBUGGER_API AGameplayDebuggerPlayerManager : public AActor, publi
 
 	virtual void TickActor(float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction) override;
 
-#if WITH_EDITOR
 	// we're ticking only the manager only when in editor
 	// FTickableGameObject begin
 	virtual UWorld* GetTickableGameObjectWorld() const override { return GetWorld(); }
@@ -45,7 +44,6 @@ class GAMEPLAYDEBUGGER_API AGameplayDebuggerPlayerManager : public AActor, publi
 	virtual bool IsTickableInEditor() const override { return true; }
 	virtual bool IsTickable() const override;
 	// FTickableGameObject end
-#endif // WITH_EDITOR
 
 	virtual void PostInitProperties() override;
 
