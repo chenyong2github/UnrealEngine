@@ -5,7 +5,7 @@
 #include "NiagaraDataInterfaceRW.h"
 #include "ClearQuad.h"
 #include "NiagaraComponent.h"
-#include "NiagaraStats.h"
+#include "Niagara/Private/NiagaraStats.h"
 
 #include "NiagaraDataInterfaceGrid3DCollection.generated.h"
 
@@ -38,11 +38,19 @@ struct FGrid3DCollectionRWInstanceData_GameThread
 	FVector CellSize = FVector::ZeroVector;
 	FVector WorldBBoxSize = FVector::ZeroVector;
 	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
+#if WITH_EDITOR
+	bool bPreviewGrid = false;
+	FIntVector4 PreviewAttribute = FIntVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE);
+#endif
 
 	bool NeedsRealloc = false;
 
 	/** A binding to the user ptr we're reading the RT from (if we are). */
 	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
+
+	UTextureRenderTargetVolume* TargetTexture = nullptr;
+
+	bool UpdateTargetTexture(ENiagaraGpuBufferFormat BufferFormat);
 };
 
 struct FGrid3DCollectionRWInstanceData_RenderThread
@@ -52,6 +60,10 @@ struct FGrid3DCollectionRWInstanceData_RenderThread
 	FVector CellSize = FVector::ZeroVector;
 	FVector WorldBBoxSize = FVector::ZeroVector;
 	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
+#if WITH_EDITOR
+	bool bPreviewGrid = false;
+	FIntVector4 PreviewAttribute = FIntVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE);
+#endif
 
 	TArray<TUniquePtr<FGrid3DBuffer>> Buffers;
 	FGrid3DBuffer* CurrentData = nullptr;
@@ -85,7 +97,6 @@ class NIAGARA_API UNiagaraDataInterfaceGrid3DCollection : public UNiagaraDataInt
 	GENERATED_UCLASS_BODY()
 
 public:
-
 	DECLARE_NIAGARA_DI_PARAMETER();
 
 	// Number of attributes stored on the grid
@@ -96,8 +107,20 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Grid3DCollection")
 	FNiagaraUserParameterBinding RenderTargetUserParameter;
 
-	UPROPERTY(EditAnywhere, Category = "Grid3DCollection", meta = (ToolTip = "Changes the format used to store data inside the grid, low bit formats save memory and performance."))
-	ENiagaraGpuBufferFormat BufferFormat;
+	/** When enabled overrides the format used to store data inside the grid, otherwise uses the project default setting.  Lower bit depth formats will save memory and performance at the cost of precision. */
+	UPROPERTY(EditAnywhere, Category = "Grid3DCollection", meta = (EditCondition = "bOverrideFormat"))
+	ENiagaraGpuBufferFormat OverrideBufferFormat;
+
+	UPROPERTY(EditAnywhere, Category = "Grid3DCollection", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverrideFormat : 1;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = "Grid3DCollection", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bPreviewGrid : 1;
+
+	UPROPERTY(EditAnywhere, Category = "Grid3DCollection", meta = (EditCondition = "bPreviewGrid", ToolTip = "When enabled allows you to preview the grid in a debug display") )
+	FName PreviewAttribute = NAME_None;
+#endif
 
 	virtual void PostInitProperties() override;
 	
@@ -120,6 +143,10 @@ public:
 	virtual bool HasPreSimulateTick() const override { return true; }
 	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual bool HasPostSimulateTick() const override { return true; }
+
+	virtual bool CanExposeVariables() const override { return true; }
+	virtual void GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const override;
+	virtual bool GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const override;
 	//~ UNiagaraDataInterface interface END
 
 	// Fills a texture render target 2d with the current data from the simulation
@@ -155,6 +182,8 @@ public:
 	static const FName GetValueFunctionName;
 	static const FName SampleGridFunctionName;
 
+	static const FString AnonymousAttributeString;
+
 protected:
 	//~ UNiagaraDataInterface interface
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
@@ -162,5 +191,5 @@ protected:
 
 	TMap<FNiagaraSystemInstanceID, FGrid3DCollectionRWInstanceData_GameThread*> SystemInstancesToProxyData_GT;
 
-
+	static FNiagaraVariableBase ExposedRTVar;
 };
