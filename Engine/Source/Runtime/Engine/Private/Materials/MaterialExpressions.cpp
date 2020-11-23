@@ -2785,11 +2785,13 @@ void UMaterialExpressionTextureSampleParameter::ValidateParameterName(const bool
 void UMaterialExpressionTextureSampleParameter::SetValueToMatchingExpression(UMaterialExpression* OtherExpression)
 {
 	UTexture* ExistingValue;
-	Material->GetTextureParameterValue(OtherExpression->GetParameterName(), ExistingValue);
-	Texture = ExistingValue;
-	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionTextureSampleParameter, Texture));
-	FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
-	PostEditChangeProperty(PropertyChangedEvent);
+	if (Material->GetTextureParameterValue(OtherExpression->GetParameterName(), ExistingValue))
+	{
+		Texture = ExistingValue;
+		FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionTextureSampleParameter, Texture));
+		FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
+		PostEditChangeProperty(PropertyChangedEvent);
+	}
 }
 #endif // WITH_EDITOR
 
@@ -10534,15 +10536,17 @@ void UMaterialExpressionFontSampleParameter::SetValueToMatchingExpression(UMater
 {
 	UFont* FontValue;
 	int32 FontPage;
-	Material->GetFontParameterValue(FMaterialParameterInfo(OtherExpression->GetParameterName()), FontValue, FontPage);
-	Font = FontValue;
-	FontTexturePage = FontPage;
-	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionFontSampleParameter, Font));
-	FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
-	PostEditChangeProperty(PropertyChangedEvent);
-	ParamProperty = FindFProperty<FProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionFontSampleParameter, FontTexturePage));
-	FPropertyChangedEvent PageChangedEvent(ParamProperty);
-	PostEditChangeProperty(PageChangedEvent);
+	if (Material->GetFontParameterValue(FMaterialParameterInfo(OtherExpression->GetParameterName()), FontValue, FontPage))
+	{
+		Font = FontValue;
+		FontTexturePage = FontPage;
+		FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionFontSampleParameter, Font));
+		FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
+		PostEditChangeProperty(PropertyChangedEvent);
+		ParamProperty = FindFProperty<FProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionFontSampleParameter, FontTexturePage));
+		FPropertyChangedEvent PageChangedEvent(ParamProperty);
+		PostEditChangeProperty(PageChangedEvent);
+	}
 }
 #endif // WITH_EDITOR
 
