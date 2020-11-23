@@ -44,7 +44,7 @@ namespace UnrealBuildTool
 			return ServiceController.GetServices().Any(s => s.ServiceName.StartsWith("SNDBS") && s.Status == ServiceControllerStatus.Running);
 		}
 
-		public override bool ExecuteActions(List<Action> Actions)
+		public override bool ExecuteActions(List<QueuedAction> Actions)
 		{
 			if (Actions.Count == 0)
 				return true;

@@ -269,13 +269,13 @@ namespace UnrealBuildTool
 
 		private ObjectIDGenerator objectIDGenerator = new ObjectIDGenerator();
 
-		private long GetActionID(Action Action)
+		private long GetActionID(QueuedAction Action)
 		{
 			bool bFirstTime = false;
 			return objectIDGenerator.GetId(Action, out bFirstTime);
 		}
 
-		private string ActionToActionString(Action Action)
+		private string ActionToActionString(QueuedAction Action)
 		{
 			return ActionToActionString(GetActionID(Action));
 		}
@@ -299,7 +299,7 @@ namespace UnrealBuildTool
 			return $"\t\t'{ActionToActionString(UniqueId)}', ;{StatusDescription}{ExtraInfoString}";
 		}
 
-		private string ActionToDependencyString(Action Action)
+		private string ActionToDependencyString(QueuedAction Action)
 		{
 			return ActionToDependencyString(GetActionID(Action), Action.StatusDescription, Action.CommandDescription, Action.ActionType);
 		}
@@ -317,33 +317,33 @@ namespace UnrealBuildTool
 
 		private FBBuildType BuildType = FBBuildType.Windows;
 
-		private readonly static Tuple<string, Func<Action, string>, FBBuildType>[] BuildTypeSearchParams = new Tuple<string, Func<Action, string>, FBBuildType>[]
+		private readonly static Tuple<string, Func<QueuedAction, string>, FBBuildType>[] BuildTypeSearchParams = new Tuple<string, Func<QueuedAction, string>, FBBuildType>[]
 		{
-			Tuple.Create<string, Func<Action, string>, FBBuildType>
+			Tuple.Create<string, Func<QueuedAction, string>, FBBuildType>
 			(
 				"Xcode",
 				Action => Action.CommandArguments,
 				FBBuildType.Apple
 			),
-			Tuple.Create<string, Func<Action, string>, FBBuildType>
+			Tuple.Create<string, Func<QueuedAction, string>, FBBuildType>
 			(
 				"apple",
 				Action => Action.CommandArguments.ToLower(),
 				FBBuildType.Apple
 			),
-			Tuple.Create<string, Func<Action, string>, FBBuildType>
+			Tuple.Create<string, Func<QueuedAction, string>, FBBuildType>
 			(
 				"/bin/sh",
 				Action => Action.CommandPath.FullName.ToLower(),
 				FBBuildType.Apple
 			),
-			Tuple.Create<string, Func<Action, string>, FBBuildType>
+			Tuple.Create<string, Func<QueuedAction, string>, FBBuildType>
 			(
 				"Windows",		// Not a great test
 				Action => Action.CommandPath.FullName,
 				FBBuildType.Windows
 			),
-			Tuple.Create<string, Func<Action, string>, FBBuildType>
+			Tuple.Create<string, Func<QueuedAction, string>, FBBuildType>
 			(
 				"Microsoft",	// Not a great test
 				Action => Action.CommandPath.FullName,
@@ -351,11 +351,11 @@ namespace UnrealBuildTool
 			),
 		};
 
-		private bool DetectBuildType(IEnumerable<Action> Actions)
+		private bool DetectBuildType(IEnumerable<QueuedAction> Actions)
 		{
-			foreach (Action Action in Actions)
+			foreach (QueuedAction Action in Actions)
 			{
-				foreach (Tuple<string, Func<Action, string>, FBBuildType> BuildTypeSearchParam in BuildTypeSearchParams)
+				foreach (Tuple<string, Func<QueuedAction, string>, FBBuildType> BuildTypeSearchParam in BuildTypeSearchParams)
 				{
 					if (BuildTypeSearchParam.Item2(Action).Contains(BuildTypeSearchParam.Item1))
 					{
@@ -367,7 +367,7 @@ namespace UnrealBuildTool
 			}
 
 			Log.TraceError("Couldn't detect build type from actions! Unsupported platform?");
-			foreach (Action Action in Actions)
+			foreach (QueuedAction Action in Actions)
 			{
 				PrintActionDetails(Action);
 			}
@@ -387,26 +387,26 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public override bool ExecuteActions(List<Action> Actions)
+		public override bool ExecuteActions(List<QueuedAction> Actions)
 		{
 			if (Actions.Count <= 0)
 				return true;
 
-			IEnumerable<Action> CompileActions		= Actions.Where(Action => (Action.ActionType == ActionType.Compile && Action.bCanExecuteRemotely == true));
-			IEnumerable<Action> NonCompileActions	= Actions.Where(Action => (Action.ActionType != ActionType.Compile || Action.bCanExecuteRemotely == false));
+			IEnumerable<QueuedAction> CompileActions		= Actions.Where(Action => (Action.ActionType == ActionType.Compile && Action.bCanExecuteRemotely == true));
+			IEnumerable<QueuedAction> NonCompileActions	= Actions.Where(Action => (Action.ActionType != ActionType.Compile || Action.bCanExecuteRemotely == false));
 
 			///////////////////////////////////////////////////////////////
 			// Pre Compile Stage
 
 			// We want to complete any non-compile actions locally that are necessary for the distributed compile step
-			List<Action> PreCompileActions =
+			List<QueuedAction> PreCompileActions =
 				NonCompileActions
 				.Where(NonCompileAction => CompileActions.Any(CompileAction => CompileAction.PrerequisiteActions.Contains(NonCompileAction)))
 				.ToList();
 
 			// Precompile actions may have their own prerequisites which need to be executed along with them
-			List<Action> Prerequisites = new List<Action>();
-			foreach (Action PreCompileAction in PreCompileActions)
+			List<QueuedAction> Prerequisites = new List<QueuedAction>();
+			foreach (QueuedAction PreCompileAction in PreCompileActions)
 			{
 				Prerequisites.AddRange(PreCompileAction.PrerequisiteActions);
 			}
@@ -440,7 +440,7 @@ namespace UnrealBuildTool
 			///////////////////////////////////////////////////////////////
 			// Post Compile Stage
 
-			List<Action> PostCompileActions = NonCompileActions.Except(PreCompileActions).ToList();
+			List<QueuedAction> PostCompileActions = NonCompileActions.Except(PreCompileActions).ToList();
 
 			if (PostCompileActions.Any())
 			{
@@ -459,7 +459,7 @@ namespace UnrealBuildTool
 			bffOutputMemoryStream.Write(Info, 0, Info.Length);
 		}
 
-		private void AddPreBuildDependenciesText(IEnumerable<Action> PreBuildDependencies)
+		private void AddPreBuildDependenciesText(IEnumerable<QueuedAction> PreBuildDependencies)
 		{
 			if (!PreBuildDependencies.Any())
 				return;
@@ -717,7 +717,7 @@ namespace UnrealBuildTool
 			return ParsedCompilerOptions;
 		}
 
-		private string GetOptionValue(Dictionary<string, string> OptionsDictionary, string Key, Action Action, bool ProblemIfNotFound = false)
+		private string GetOptionValue(Dictionary<string, string> OptionsDictionary, string Key, QueuedAction Action, bool ProblemIfNotFound = false)
 		{
 			string Value = string.Empty;
 			if (OptionsDictionary.TryGetValue(Key, out Value))
@@ -994,7 +994,7 @@ namespace UnrealBuildTool
 			AddText("}\n\n"); //End Settings
 		}
 
-		private void AddCompileAction(Action Action, IEnumerable<Action> DependencyActions)
+		private void AddCompileAction(QueuedAction Action, IEnumerable<QueuedAction> DependencyActions)
 		{
 			string CompilerName = GetCompilerName();
 			if (Action.CommandPath.FullName.Contains("rc.exe"))
@@ -1109,7 +1109,7 @@ namespace UnrealBuildTool
 			AddText("}\n\n");
 		}
 
-		private void AddLinkAction(Action Action, IEnumerable<Action> DependencyActions)
+		private void AddLinkAction(QueuedAction Action, IEnumerable<QueuedAction> DependencyActions)
 		{
 			string[] SpecialLinkerOptions = IsApple() ? new string[] { "-o" } : new string[] { "/OUT:", "@", "-o" };
 
@@ -1149,13 +1149,13 @@ namespace UnrealBuildTool
 			string ResponseFilePath = GetOptionValue(ParsedLinkerOptions, "@", Action);
 			string OtherCompilerOptions = GetOptionValue(ParsedLinkerOptions, "OtherOptions", Action);
 
-			IEnumerable<Action> PrebuildDependencies = null;
+			IEnumerable<QueuedAction> PrebuildDependencies = null;
 
 			if (Action.CommandPath.FullName.Contains("lib.exe"))
 			{
 				if (DependencyActions.Any())
 				{
-					Func<Action, bool> DoesActionProducePCH = (Action ActionToCheck) =>
+					Func<QueuedAction, bool> DoesActionProducePCH = (QueuedAction ActionToCheck) =>
 					{
 						foreach (FileItem ProducedItem in ActionToCheck.ProducedItems)
 						{
@@ -1256,9 +1256,9 @@ namespace UnrealBuildTool
 				string InputFile = GetOptionValue(ParsedLinkerOptions, "InputFile", Action, ProblemIfNotFound: true);
 				if (!string.IsNullOrEmpty(InputFile))
 				{
-					Action InputFileAction = DependencyActions
+					QueuedAction InputFileAction = DependencyActions
 						.Where(ActionToInspect =>
-							ActionToInspect.ProducedItems.Exists(Item => Item.AbsolutePath == InputFile)
+							ActionToInspect.ProducedItems.Any(Item => Item.AbsolutePath == InputFile)
 						).FirstOrDefault();
 
 					if (InputFileAction != null)
@@ -1304,7 +1304,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private void PrintActionDetails(Action ActionToPrint)
+		private void PrintActionDetails(QueuedAction ActionToPrint)
 		{
 			Log.TraceInformation(ActionToActionString(ActionToPrint));
 			Log.TraceInformation($"Action Type: {ActionToPrint.ActionType.ToString()}");
@@ -1314,7 +1314,7 @@ namespace UnrealBuildTool
 
 		private MemoryStream bffOutputMemoryStream = null;
 
-		private bool CreateBffFile(IEnumerable<Action> Actions, string BffFilePath)
+		private bool CreateBffFile(IEnumerable<QueuedAction> Actions, string BffFilePath)
 		{
 			try
 			{
@@ -1326,11 +1326,11 @@ namespace UnrealBuildTool
 
 				WriteEnvironmentSetup(); //Compiler, environment variables and base paths
 
-				foreach (Action Action in Actions)
+				foreach (QueuedAction Action in Actions)
 				{
 					// Resolve the list of prerequisite items for this action to
 					// a list of actions which produce these prerequisites
-					IEnumerable<Action> DependencyActions = Action.PrerequisiteActions.Distinct();
+					IEnumerable<QueuedAction> DependencyActions = Action.PrerequisiteActions.Distinct();
 
 					AddText($";** Function for Action {GetActionID(Action)} **\n");
 					AddText($";** CommandPath: {Action.CommandPath.FullName}\n");

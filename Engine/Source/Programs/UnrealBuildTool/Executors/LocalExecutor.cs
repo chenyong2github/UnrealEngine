@@ -28,7 +28,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Cache the action that this thread is managing
 		/// </summary>
-		Action Action;
+		QueuedAction Action;
 
 		/// <summary>
 		/// For reporting status to the user
@@ -39,7 +39,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructor, takes the action to process
 		/// </summary>
-		public ActionThread(Action InAction, int InJobNumber, int InTotalJobs)
+		public ActionThread(QueuedAction InAction, int InJobNumber, int InTotalJobs)
 		{
 			Action = InAction;
 			JobNumber = InJobNumber;
@@ -296,7 +296,7 @@ namespace UnrealBuildTool
 		/// Executes the specified actions locally.
 		/// </summary>
 		/// <returns>True if all the tasks successfully executed, or false if any of them failed.</returns>
-		public override bool ExecuteActions(List<Action> Actions)
+		public override bool ExecuteActions(List<QueuedAction> Actions)
 		{
 			// Time to sleep after each iteration of the loop in order to not busy wait.
 			const float LoopSleepTime = 0.1f;
@@ -304,7 +304,7 @@ namespace UnrealBuildTool
 			// The number of actions to execute in parallel is trying to keep the CPU busy enough in presence of I/O stalls.
 			Log.TraceInformation("Performing {0} actions ({1} in parallel)", Actions.Count, NumParallelProcesses);
 
-			Dictionary<Action, ActionThread> ActionThreadDictionary = new Dictionary<Action, ActionThread>();
+			Dictionary<QueuedAction, ActionThread> ActionThreadDictionary = new Dictionary<QueuedAction, ActionThread>();
 			int JobNumber = 1;
 			using (ProgressWriter ProgressWriter = new ProgressWriter("Compiling C++ source code...", false))
 			{
@@ -314,7 +314,7 @@ namespace UnrealBuildTool
 					// Count the number of pending and still executing actions.
 					int NumUnexecutedActions = 0;
 					int NumExecutingActions = 0;
-					foreach (Action Action in Actions)
+					foreach (QueuedAction Action in Actions)
 					{
 						ActionThread ActionThread = null;
 						bool bFoundActionProcess = ActionThreadDictionary.TryGetValue(Action, out ActionThread);
@@ -348,7 +348,7 @@ namespace UnrealBuildTool
 
 					// If there are fewer actions executing than the maximum, look for pending actions that don't have any outdated
 					// prerequisites.
-					foreach (Action Action in Actions)
+					foreach (QueuedAction Action in Actions)
 					{
 						ActionThread ActionProcess = null;
 						bool bFoundActionProcess = ActionThreadDictionary.TryGetValue(Action, out ActionProcess);
@@ -359,7 +359,7 @@ namespace UnrealBuildTool
 								// Determine whether there are any prerequisites of the action that are outdated.
 								bool bHasOutdatedPrerequisites = false;
 								bool bHasFailedPrerequisites = false;
-								foreach (Action PrerequisiteAction in Action.PrerequisiteActions)
+								foreach (QueuedAction PrerequisiteAction in Action.PrerequisiteActions)
 								{
 									if (Actions.Contains(PrerequisiteAction))
 									{
@@ -422,9 +422,9 @@ namespace UnrealBuildTool
 
 			// Check whether any of the tasks failed and log action stats if wanted.
 			bool bSuccess = true;
-			foreach (KeyValuePair<Action, ActionThread> ActionProcess in ActionThreadDictionary)
+			foreach (KeyValuePair<QueuedAction, ActionThread> ActionProcess in ActionThreadDictionary)
 			{
-				Action Action = ActionProcess.Key;
+				QueuedAction Action = ActionProcess.Key;
 				ActionThread ActionThread = ActionProcess.Value;
 
 				// Check for pending actions, preemptive failure

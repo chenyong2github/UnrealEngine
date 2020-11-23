@@ -469,7 +469,7 @@ namespace UnrealBuildTool
 		/// <param name="PrerequisiteActions">The actions to execute</param>
 		/// <param name="TargetActionsToExecute">Actions to execute for this target</param>
 		/// <returns>Set of actions to execute</returns>
-		public static List<Action> PatchActionsForTarget(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, TargetMakefile Makefile, List<Action> PrerequisiteActions, List<Action> TargetActionsToExecute)
+		public static List<QueuedAction> PatchActionsForTarget(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, TargetMakefile Makefile, List<QueuedAction> PrerequisiteActions, List<QueuedAction> TargetActionsToExecute)
 		{
 			// Get the dependency history
 			CppDependencyCache CppDependencies = CppDependencyCache.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefile.TargetType, TargetDescriptor.Architecture);
@@ -501,7 +501,7 @@ namespace UnrealBuildTool
 
 					// Find all the binaries that we're actually going to build
 					HashSet<FileReference> OutputFiles = new HashSet<FileReference>();
-					foreach (Action Action in TargetActionsToExecute)
+					foreach (QueuedAction Action in TargetActionsToExecute)
 					{
 						if (Action.ActionType == ActionType.Link)
 						{
@@ -523,12 +523,12 @@ namespace UnrealBuildTool
 				}
 
 				// Filter the prerequisite actions down to just the compile actions, then recompute all the actions to execute
-				PrerequisiteActions = new List<Action>(TargetActionsToExecute.Where(x => x.ActionType == ActionType.Compile));
+				PrerequisiteActions = new List<QueuedAction>(TargetActionsToExecute.Where(x => x.ActionType == ActionType.Compile));
 				TargetActionsToExecute = ActionGraph.GetActionsToExecute(PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);
 
 				// Update the action graph with these new paths
 				Dictionary<FileReference, FileReference> OriginalFileToPatchedFile = new Dictionary<FileReference, FileReference>();
-				HotReload.PatchActionGraphForLiveCoding(PrerequisiteActions, OriginalFileToPatchedFile);
+				HotReload.PatchActionGraphForLiveCoding(PrerequisiteActions.Select(x => x.Inner), OriginalFileToPatchedFile);
 
 				// Get a new list of actions to execute now that the graph has been modified
 				TargetActionsToExecute = ActionGraph.GetActionsToExecute(PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);
@@ -583,7 +583,7 @@ namespace UnrealBuildTool
 				for (int LastNumFilesWithNewSuffix = 0; FilesRequiringSuffix.Count > LastNumFilesWithNewSuffix;)
 				{
 					LastNumFilesWithNewSuffix = FilesRequiringSuffix.Count;
-					foreach (Action PrerequisiteAction in PrerequisiteActions)
+					foreach (QueuedAction PrerequisiteAction in PrerequisiteActions)
 					{
 						if (!TargetActionsToExecute.Contains(PrerequisiteAction))
 						{
@@ -610,7 +610,7 @@ namespace UnrealBuildTool
 				}
 
 				// Update the action graph with these new paths
-				HotReload.PatchActionGraph(PrerequisiteActions, OldLocationToNewLocation);
+				HotReload.PatchActionGraph(PrerequisiteActions.Select(x => x.Inner), OldLocationToNewLocation);
 
 				// Get a new list of actions to execute now that the graph has been modified
 				TargetActionsToExecute = ActionGraph.GetActionsToExecute(PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);
@@ -632,7 +632,7 @@ namespace UnrealBuildTool
 				}
 
 				// Now filter out all the hot reload files and update the state
-				foreach (Action Action in TargetActionsToExecute)
+				foreach (QueuedAction Action in TargetActionsToExecute)
 				{
 					foreach (FileItem ProducedItem in Action.ProducedItems)
 					{

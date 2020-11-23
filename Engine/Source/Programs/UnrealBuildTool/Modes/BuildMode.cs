@@ -315,10 +315,10 @@ namespace UnrealBuildTool
 				}
 
 				// Merge the action graphs together
-				List<Action> MergedActions;
+				List<QueuedAction> MergedActions;
 				if (TargetDescriptors.Count == 1)
 				{
-					MergedActions = new List<Action>(Makefiles[0].Actions);
+					MergedActions = Makefiles[0].Actions.ConvertAll(x => new QueuedAction(x));
 				}
 				else
 				{
@@ -336,7 +336,7 @@ namespace UnrealBuildTool
 				ActionGraph.Link(MergedActions);
 
 				// Get all the actions that are prerequisites for these targets. This forms the list of actions that we want executed.
-				List<Action> PrerequisiteActions = ActionGraph.GatherPrerequisiteActions(MergedActions, MergedOutputItems);
+				List<QueuedAction> PrerequisiteActions = ActionGraph.GatherPrerequisiteActions(MergedActions, MergedOutputItems);
 
 				// Create the action history
 				ActionHistory History = new ActionHistory();
@@ -353,13 +353,13 @@ namespace UnrealBuildTool
 				}
 
 				// Pre-process module interfaces to generate dependency files
-				List<Action> ModuleDependencyActions = PrerequisiteActions.Where(x => x.ActionType == ActionType.GatherModuleDependencies).ToList();
+				List<QueuedAction> ModuleDependencyActions = PrerequisiteActions.Where(x => x.ActionType == ActionType.GatherModuleDependencies).ToList();
 				if (ModuleDependencyActions.Count > 0)
 				{
-					Dictionary<Action, bool> PreprocessActionToOutdatedFlag = new Dictionary<Action, bool>();
+					Dictionary<QueuedAction, bool> PreprocessActionToOutdatedFlag = new Dictionary<QueuedAction, bool>();
 					ActionGraph.GatherAllOutdatedActions(ModuleDependencyActions, History, PreprocessActionToOutdatedFlag, null, BuildConfiguration.bIgnoreOutdatedImportLibraries);
 
-					List<Action> PreprocessActions = PreprocessActionToOutdatedFlag.Where(x => x.Value).Select(x => x.Key).ToList();
+					List<QueuedAction> PreprocessActions = PreprocessActionToOutdatedFlag.Where(x => x.Value).Select(x => x.Key).ToList();
 					if (PreprocessActions.Count > 0)
 					{
 						Log.TraceInformation("Updating module dependencies...");
@@ -373,7 +373,7 @@ namespace UnrealBuildTool
 				}
 
 				// Figure out which actions need to be built
-				Dictionary<Action, bool> ActionToOutdatedFlag = new Dictionary<Action, bool>();
+				Dictionary<QueuedAction, bool> ActionToOutdatedFlag = new Dictionary<QueuedAction, bool>();
 				for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
 				{
 					TargetDescriptor TargetDescriptor = TargetDescriptors[TargetIdx];
@@ -390,7 +390,7 @@ namespace UnrealBuildTool
 					if (ModuleDependencyActions.Count > 0)
 					{
 						List<FileItem> CompiledModuleInterfaces = new List<FileItem>();
-						foreach(Action PrerequisiteAction in PrerequisiteActions)
+						foreach(QueuedAction PrerequisiteAction in PrerequisiteActions)
 						{
 							if (PrerequisiteAction.ActionType == ActionType.CompileModuleInterface && PrerequisiteAction.CompiledModuleInterfaceFile != null)
 							{
@@ -404,7 +404,7 @@ namespace UnrealBuildTool
 						}
 
 						Dictionary<FileItem, string> ModuleInputs = ModuleOutputs.ToDictionary(x => x.Value, x => x.Key);
-						foreach (Action PrerequisiteAction in PrerequisiteActions)
+						foreach (QueuedAction PrerequisiteAction in PrerequisiteActions)
 						{
 							if (PrerequisiteAction.ActionType == ActionType.CompileModuleInterface)
 							{
@@ -416,8 +416,8 @@ namespace UnrealBuildTool
 										FileItem ModuleOutput;
 										if (ModuleOutputs.TryGetValue(ImportedModule, out ModuleOutput))
 										{
-											PrerequisiteAction.PrerequisiteItems.Add(ModuleOutput);
-											PrerequisiteAction.CommandArguments += String.Format(" /reference \"{0}={1}\"", ImportedModule, ModuleOutput.FullName);
+											PrerequisiteAction.Inner.PrerequisiteItems.Add(ModuleOutput);
+											PrerequisiteAction.Inner.CommandArguments += String.Format(" /reference \"{0}={1}\"", ImportedModule, ModuleOutput.FullName);
 										}
 										else
 										{
@@ -433,7 +433,7 @@ namespace UnrealBuildTool
 									string ModuleName;
 									if(ModuleInputs.TryGetValue(PrerequisiteItem, out ModuleName))
 									{
-										PrerequisiteAction.CommandArguments += String.Format(" /reference \"{0}={1}\"", ModuleName, PrerequisiteItem.AbsolutePath);
+										PrerequisiteAction.Inner.CommandArguments += String.Format(" /reference \"{0}={1}\"", ModuleName, PrerequisiteItem.AbsolutePath);
 									}
 								}
 							}
@@ -441,7 +441,7 @@ namespace UnrealBuildTool
 							{
 								if (PrerequisiteAction.ActionType != ActionType.GatherModuleDependencies)
 								{
-									PrerequisiteAction.PrerequisiteItems.AddRange(CompiledModuleInterfaces);
+									PrerequisiteAction.Inner.PrerequisiteItems.AddRange(CompiledModuleInterfaces);
 								}
 							}
 						}
@@ -456,7 +456,7 @@ namespace UnrealBuildTool
 					{
 						foreach (FileReference SpecificFile in TargetDescriptor.SpecificFilesToCompile)
 						{
-							foreach (Action PrerequisiteAction in PrerequisiteActions.Where(x => x.PrerequisiteItems.Any(y => y.Location == SpecificFile)))
+							foreach (QueuedAction PrerequisiteAction in PrerequisiteActions.Where(x => x.PrerequisiteItems.Any(y => y.Location == SpecificFile)))
 							{
 								ActionToOutdatedFlag[PrerequisiteAction] = true;
 							}
@@ -465,7 +465,7 @@ namespace UnrealBuildTool
 				}
 
 				// Link the action graph again to sort it
-				List<Action> MergedActionsToExecute = ActionToOutdatedFlag.Where(x => x.Value).Select(x => x.Key).ToList();
+				List<QueuedAction> MergedActionsToExecute = ActionToOutdatedFlag.Where(x => x.Value).Select(x => x.Key).ToList();
 				ActionGraph.Link(MergedActionsToExecute);
 
 				// Allow hot reload to override the actions
@@ -539,7 +539,7 @@ namespace UnrealBuildTool
 					// Write actions to an output file
 					using (Timeline.ScopeEvent("ActionGraph.WriteActions"))
 					{
-						ActionGraph.ExportJson(MergedActionsToExecute, WriteOutdatedActionsFile);
+						ActionGraph.ExportJson(MergedActionsToExecute.ConvertAll(x => x.Inner), WriteOutdatedActionsFile);
 					}
 				}
 				else
@@ -783,25 +783,25 @@ namespace UnrealBuildTool
 		/// <param name="TargetDescriptors">List of target descriptors</param>
 		/// <param name="Makefiles">The makefiles being built</param>
 		/// <returns>List of merged actions</returns>
-		static List<Action> MergeActionGraphs(List<TargetDescriptor> TargetDescriptors, TargetMakefile[] Makefiles)
+		static List<QueuedAction> MergeActionGraphs(List<TargetDescriptor> TargetDescriptors, TargetMakefile[] Makefiles)
 		{
 			// Set of all output items. Knowing that there are no conflicts in produced items, we use this to eliminate duplicate actions.
-			Dictionary<FileItem, Action> OutputItemToProducingAction = new Dictionary<FileItem, Action>();
+			Dictionary<FileItem, QueuedAction> OutputItemToProducingAction = new Dictionary<FileItem, QueuedAction>();
 			for(int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
 			{
 				string GroupPrefix = String.Format("{0}-{1}-{2}", TargetDescriptors[TargetIdx].Name, TargetDescriptors[TargetIdx].Platform, TargetDescriptors[TargetIdx].Configuration);
 				foreach(Action Action in Makefiles[TargetIdx].Actions)
 				{
-					Action ExistingAction;
+					QueuedAction ExistingAction;
 					if(!OutputItemToProducingAction.TryGetValue(Action.ProducedItems[0], out ExistingAction))
 					{
-						OutputItemToProducingAction[Action.ProducedItems[0]] = Action;
-						ExistingAction = Action;
+						ExistingAction = new QueuedAction(Action);
+						OutputItemToProducingAction[Action.ProducedItems[0]] = ExistingAction;
 					}
 					ExistingAction.GroupNames.Add(GroupPrefix);
 				}
 			}
-			return new List<Action>(OutputItemToProducingAction.Values);
+			return new List<QueuedAction>(OutputItemToProducingAction.Values);
 		}
 	}
 }

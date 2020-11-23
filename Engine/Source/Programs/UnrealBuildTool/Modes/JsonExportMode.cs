@@ -56,11 +56,12 @@ namespace UnrealBuildTool
 						// Create the makefile
 						const bool bIsAssemblingBuild = true;
 						TargetMakefile Makefile = Target.Build(BuildConfiguration, WorkingSet, bIsAssemblingBuild, TargetDescriptor.SpecificFilesToCompile);
-						ActionGraph.Link(Makefile.Actions);
+						List<QueuedAction> Actions = Makefile.Actions.ConvertAll(x => new QueuedAction(x));
+						ActionGraph.Link(Actions);
 
 						// Filter all the actions to execute
 						HashSet<FileItem> PrerequisiteItems = new HashSet<FileItem>(Makefile.Actions.SelectMany(x => x.ProducedItems).Where(x => x.HasExtension(".h") || x.HasExtension(".cpp")));
-						List<Action> PrerequisiteActions = ActionGraph.GatherPrerequisiteActions(Makefile.Actions, PrerequisiteItems);
+						List<QueuedAction> PrerequisiteActions = ActionGraph.GatherPrerequisiteActions(Actions, PrerequisiteItems);
 
 						// Execute these actions
 						if (PrerequisiteActions.Count > 0)
