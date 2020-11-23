@@ -1136,4 +1136,56 @@ namespace ChaosTest {
 			EXPECT_NEAR(Simulated->V()[2], 0, 1e-2);
 		}
 	}
+
+	GTEST_TEST(EngineInterface, SimDestroyedProxy)
+	{
+		//Need to test:
+		//destroyed proxy still valid in callback, but particle is nulled out
+		//valid for multiple sub-steps
+
+		FChaosScene Scene(nullptr);
+		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+		const float FixedDT = 1;
+		Scene.GetSolver()->EnableAsyncMode(FixedDT);	//tick 1 dt at a time
+
+		FActorCreationParams Params;
+		Params.Scene = &Scene;
+
+		TGeometryParticle<FReal, 3>* Particle = nullptr;
+
+		FChaosEngineInterface::CreateActor(Params, Particle);
+		{
+			auto Sphere = MakeUnique<TSphere<FReal, 3>>(FVec3(0), 3);
+			Particle->SetGeometry(MoveTemp(Sphere));
+		}
+
+		TPBDRigidParticle<FReal, 3>* Simulated = static_cast<TPBDRigidParticle<FReal, 3>*>(Particle);
+
+		TArray<TGeometryParticle<FReal, 3>*> Particles = { Particle };
+		Scene.AddActorsToScene_AssumesLocked(Particles);
+		
+		struct FDummyInput : FSimCallbackInput
+		{
+			FRigidParticlePhysicsProxy* Proxy;
+			void Reset() {}
+		};
+
+		struct FCallback : public TSimCallbackObject<FDummyInput>
+		{
+			virtual void OnPreSimulate_Internal() override
+			{
+				EXPECT_EQ(GetConsumerInput_Internal()->Proxy->GetHandle(), nullptr);
+			}
+		};
+
+		auto Callback = Scene.GetSolver()->CreateAndRegisterSimCallbackObject_External<FCallback>();
+
+		Callback->GetProducerInputData_External()->Proxy = static_cast<FRigidParticlePhysicsProxy*>(Simulated->GetProxy());
+		Scene.GetSolver()->UnregisterObject(Particle);
+
+		FVec3 Grav(0, 0, -1);
+		Scene.SetUpForFrame(&Grav, FixedDT * 3, 99999, 99999, 10, false);
+		Scene.StartFrame();
+		Scene.EndFrame();
+	}
 }

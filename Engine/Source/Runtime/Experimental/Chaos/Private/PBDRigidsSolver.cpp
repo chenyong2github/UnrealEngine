@@ -517,21 +517,23 @@ namespace Chaos
 			if (InParticleType == Chaos::EParticleType::Rigid)
 			{
 				auto Proxy = (FRigidParticlePhysicsProxy*)InProxy;
-
 				Handle = Proxy->GetHandle();
-				delete Proxy;
+				Proxy->SetHandle(nullptr);
+				PendingDestroyRigidProxy.Add(Proxy);
 			}
 			else if (InParticleType == Chaos::EParticleType::Kinematic)
 			{
 				auto Proxy = (FKinematicGeometryParticlePhysicsProxy*)InProxy;
 				Handle = Proxy->GetHandle();
-				delete Proxy;
+				Proxy->SetHandle(nullptr);
+				PendingDestroyKinematicProxy.Add(Proxy);
 			}
 			else
 			{
 				auto Proxy = (FGeometryParticlePhysicsProxy*)InProxy;
 				Handle = Proxy->GetHandle();
-				delete Proxy;
+				Proxy->SetHandle(nullptr);
+				PendingDestroyGeometryProxy.Add(Proxy);
 			}
 
 			//If particle was created and destroyed before commands were enqueued just skip. I suspect we can skip entire lambda, but too much code to verify right now
@@ -767,6 +769,24 @@ namespace Chaos
 	}
 
 	template <typename Traits>
+	void TPBDRigidsSolver<Traits>::DestroyPendingProxies_Internal()
+	{
+		const auto Helper = [](auto& Proxies)
+		{
+			for (auto Proxy : Proxies)
+			{
+				ensure(Proxy->GetHandle() == nullptr);	//should have already cleared this out
+				delete Proxy;
+			}
+			Proxies.Reset();
+		};
+		
+		Helper(PendingDestroyRigidProxy);
+		Helper(PendingDestroyKinematicProxy);
+		Helper(PendingDestroyGeometryProxy);
+	}
+
+	template <typename Traits>
 	void TPBDRigidsSolver<Traits>::AdvanceSolverBy(const FReal DeltaTime, const FSubStepInfo& SubStepInfo)
 	{
 		const FReal StartSimTime = GetSolverTime();
@@ -817,6 +837,12 @@ namespace Chaos
 			//pass information back to external thread
 			//we skip dt=0 case because sync data should be identical if dt = 0
 			MarshallingManager.FinalizePullData_Internal(MEvolution->LatestExternalTimestampConsumed_Internal, StartSimTime, DeltaTime);
+		}
+
+		if(SubStepInfo.Step == SubStepInfo.NumSteps - 1)
+		{
+			//final step so we can destroy proxies
+			DestroyPendingProxies_Internal();
 		}
 	}
 
