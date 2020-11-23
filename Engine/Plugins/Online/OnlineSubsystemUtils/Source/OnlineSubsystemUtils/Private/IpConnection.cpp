@@ -129,14 +129,14 @@ void UIpConnection::InitLocalConnection(UNetDriver* InDriver, class FSocket* InS
 			UE_LOG(LogNet, Verbose, TEXT("IpConnection::InitConnection: Unable to resolve %s"), *InURL.Host);
 			return;
 		}
-
-		// Initialize our send bunch
-		InitSendBuffer();
 	}
 	else
 	{
 		ResolutionState = EAddressResolutionState::WaitingForResolves;
 	}
+
+	// Initialize our send bunch
+	InitSendBuffer();
 }
 
 void UIpConnection::InitRemoteConnection(UNetDriver* InDriver, class FSocket* InSocket, const FURL& InURL, const class FInternetAddr& InRemoteAddr, EConnectionState InState, int32 InMaxPacket, int32 InPacketOverhead)
