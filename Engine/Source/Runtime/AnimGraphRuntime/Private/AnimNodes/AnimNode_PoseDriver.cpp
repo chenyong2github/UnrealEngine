@@ -350,7 +350,9 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 					}
 				}
 
-				if (CurrentPoseAsset.Get()->GetAnimationPose(CurrentPose.Pose, CurrentPose.Curve, PoseExtractContext))
+				FAnimationPoseData CurrentAnimationPoseData(CurrentPose);
+
+				if (CurrentPoseAsset.Get()->GetAnimationPose(CurrentAnimationPoseData, PoseExtractContext))
 				{
 					// blend by weight
 					if (CurrentPoseAsset->IsValidAdditive())
@@ -375,11 +377,15 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 
 						Output = SourceData;
 
-						FAnimationRuntime::AccumulateAdditivePose(Output.Pose, CurrentPose.Pose, Output.Curve, CurrentPose.Curve, 1.f, EAdditiveAnimationType::AAT_LocalSpaceBase);
+						FAnimationPoseData BaseAnimationPoseData(Output);
+						const FAnimationPoseData AdditiveAnimationPoseData(CurrentPose);
+						FAnimationRuntime::AccumulateAdditivePose(BaseAnimationPoseData, AdditiveAnimationPoseData, 1.f, EAdditiveAnimationType::AAT_LocalSpaceBase);
 					}
 					else
 					{
-						FAnimationRuntime::BlendTwoPosesTogetherPerBone(SourceData.Pose, CurrentPose.Pose, SourceData.Curve, CurrentPose.Curve, BoneBlendWeights, Output.Pose, Output.Curve);
+						FAnimationPoseData BlendedAnimationPoseData(Output);
+						const FAnimationPoseData SourceAnimationPoseData(SourceData);
+						FAnimationRuntime::BlendTwoPosesTogetherPerBone(SourceAnimationPoseData, CurrentAnimationPoseData, BoneBlendWeights, BlendedAnimationPoseData);
 					}
 
 					bHaveValidPose = true;
