@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#if PLATFORM_WINDOWS
+
 #include "RiderPathLocator/RiderPathLocator.h"
 
 #include "Internationalization/Regex.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonSerializer.h"
+
+#if PLATFORM_WINDOWS
 
 #include "Windows/WindowsPlatformMisc.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
