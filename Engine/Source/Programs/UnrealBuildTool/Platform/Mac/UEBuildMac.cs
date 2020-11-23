@@ -121,11 +121,6 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-		public override bool CanUseDistcc()
-		{
-			return true;
-		}
-
 		public override void ResetTarget(TargetRules Target)
 		{			
 		}

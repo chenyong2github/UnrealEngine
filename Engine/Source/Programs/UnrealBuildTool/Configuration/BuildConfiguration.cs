@@ -94,13 +94,6 @@ namespace UnrealBuildTool
 		public bool bUseUBTMakefiles = true;
 
 		/// <summary>
-		/// Whether DMUCS/Distcc may be used.
-		/// Distcc requires some setup -- so by default, disable it so that we do not break local or remote building.
-		/// </summary>
-		[XmlConfigFile]
-		public bool bAllowDistcc = false;
-
-		/// <summary>
 		/// Whether to allow using parallel executor on Windows.
 		/// </summary>
 		[XmlConfigFile]

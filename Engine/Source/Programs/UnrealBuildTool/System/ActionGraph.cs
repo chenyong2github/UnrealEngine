@@ -184,10 +184,6 @@ namespace UnrealBuildTool
 				{
 					Executor = new FASTBuild();
 				}
-				else if (BuildConfiguration.bAllowDistcc)
-				{
-					Executor = new Distcc();
-				}
 				else if(BuildConfiguration.bAllowSNDBS && SNDBS.IsAvailable())
 				{
 					Executor = new SNDBS();

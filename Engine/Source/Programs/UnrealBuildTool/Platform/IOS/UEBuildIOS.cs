@@ -874,11 +874,6 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-		public override bool CanUseDistcc()
-		{
-			return true;
-		}
-
 		public bool HasCustomIcons(DirectoryReference ProjectDirectoryName)
 		{
 			string IconDir = Path.Combine(ProjectDirectoryName.FullName, "Build", "IOS", "Resources", "Graphics");

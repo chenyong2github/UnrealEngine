@@ -504,14 +504,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// If this platform can be compiled with DMUCS/Distcc
-		/// </summary>
-		public virtual bool CanUseDistcc()
-		{
-			return false;
-		}
-
-		/// <summary>
 		/// If this platform can be compiled with SN-DBS
 		/// </summary>
 		public virtual bool CanUseSNDBS()
