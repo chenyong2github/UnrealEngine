@@ -81,6 +81,11 @@ namespace UnrealBuildTool
 		ConcurrentDictionary<FileItem, ReflectionInfo> FileToReflectionInfo = new ConcurrentDictionary<FileItem, ReflectionInfo>();
 
 		/// <summary>
+		/// Map from file item to source file info
+		/// </summary>
+		ConcurrentDictionary<FileItem, SourceFile> FileToSourceFile = new ConcurrentDictionary<FileItem, SourceFile>();
+
+		/// <summary>
 		/// Whether the cache has been modified and needs to be saved
 		/// </summary>
 		bool bModified;
@@ -149,6 +154,50 @@ namespace UnrealBuildTool
 					bModified = true;
 				}
 				return IncludeInfo.IncludeText;
+			}
+		}
+
+		/// <summary>
+		/// Finds or adds a SourceFile class for the given file
+		/// </summary>
+		/// <param name="File">File to fetch the source file data for</param>
+		/// <returns>SourceFile instance corresponding to the given source file</returns>
+		public SourceFile GetSourceFile(FileItem File)
+		{
+			if (Parent != null && !File.Location.IsUnderDirectory(BaseDirectory))
+			{
+				return Parent.GetSourceFile(File);
+			}
+			else
+			{
+				SourceFile Result;
+				if (!FileToSourceFile.TryGetValue(File, out Result) || File.LastWriteTimeUtc.Ticks > Result.LastWriteTimeUtc)
+				{
+					SourceFile NewSourceFile = new SourceFile(File);
+					if (Result == null)
+					{
+						if (FileToSourceFile.TryAdd(File, NewSourceFile))
+						{
+							Result = NewSourceFile;
+						}
+						else
+						{
+							Result = FileToSourceFile[File];
+						}
+					}
+					else
+					{
+						if (FileToSourceFile.TryUpdate(File, NewSourceFile, Result))
+						{
+							Result = NewSourceFile;
+						}
+						else
+						{
+							Result = FileToSourceFile[File];
+						}
+					}
+				}
+				return Result;
 			}
 		}
 
