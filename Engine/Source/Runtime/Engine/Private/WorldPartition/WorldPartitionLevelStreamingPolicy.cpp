@@ -133,8 +133,7 @@ FString UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(const FName& InC
 	}
 	else
 	{
-		const FString WorldPackageFileName = InWorld->GetPackage()->FileName.ToString();
-		return FString::Printf(TEXT("%s/%s/%s_%s"), *WorldPackageFileName, FWorldPartitionLevelHelper::GetSavedLevelOutputSubFolderName(), *FPaths::GetBaseFilename(*WorldPackageFileName), *InCellName.ToString());
+		return FString::Printf(TEXT("/%s"), *InCellName.ToString());
 	}
 }
 
@@ -145,8 +144,6 @@ TSubclassOf<UWorldPartitionRuntimeCell> UWorldPartitionLevelStreamingPolicy::Get
 
 void UWorldPartitionLevelStreamingPolicy::PrepareForPIE()
 {
-	check(!WorldPartition->IsPreCooked());
-
 	TSet<const UWorldPartitionRuntimeCell*> AlwaysLoadedCells;
 	TSet<const UWorldPartitionRuntimeCell*> StreamingCells;
 	WorldPartition->RuntimeHash->GetAllStreamingCells(StreamingCells, /*bIncludeDataLayers*/ true);

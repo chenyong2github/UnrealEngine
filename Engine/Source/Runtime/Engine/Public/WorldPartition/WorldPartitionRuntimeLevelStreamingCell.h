@@ -17,10 +17,14 @@ class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSp
 	virtual FLinearColor GetDebugColor() const override;
 
 #if WITH_EDITOR
-	virtual void AddActorToCell(FName Package, FName Path) override;
-	virtual bool CreateCellForCook() override;
+	virtual void AddActorToCell(const FGuid& ActorGuid, FName Package, FName Path) override;
 	virtual int32 GetActorCount() const override;
 	const TArray<FWorldPartitionRuntimeCellObjectMapping>& GetPackages() const { return Packages; }
+
+	// Cook methods
+	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageCookName) override;
+	virtual void FinalizeGeneratedPackageForCook() override;
+	virtual FString GetPackageNameToCreate() const override;
 #endif
 
 	virtual void SetIsAlwaysLoaded(bool bInIsAlwaysLoaded) override;
@@ -35,12 +39,19 @@ private:
 	EStreamingStatus GetLevelStreamingStatus() const;
 
 #if WITH_EDITOR
-	class ULevelStreaming* CreateLevelStreaming() const;
+	class ULevelStreaming* CreateLevelStreaming(const FString& InPackageName = FString()) const;
 #endif
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<FWorldPartitionRuntimeCellObjectMapping> Packages;
+
+	// Actors to be loaded for cook
+	TArray<FGuid> ActorsToLoadForCook;
+
+	// Loaded actors for cook
+	UPROPERTY(Transient)
+	TArray<AActor*> LoadedActorsForCook;
 #endif
 
 	UPROPERTY()

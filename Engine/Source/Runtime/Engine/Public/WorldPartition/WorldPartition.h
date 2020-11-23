@@ -90,23 +90,13 @@ private:
 #if WITH_EDITOR
 	// UWorldPartitionSubsystem interface+
 	friend class UWorldPartitionSubsystem;
-
-	// UActorPartitionSubsystem interface+
 	void ForEachIntersectingActorDesc(const FBox& Box, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const;
 	void ForEachActorDesc(TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const;
 	// UActorPartitionSubsystem interface-
-
-	static void RegisterActorDescFactory(TSubclassOf<AActor> Class, FWorldPartitionActorDescFactory* Factory);
-	// UWorldPartitionSubsystem interface-
-
 public:
-	FName GetWorldPartitionEditorName();
-	
-	// PIE Methods
-	void PrepareForPIE();
-	void CleanupForPIE();
-	void OnPreFixupForPIE(int32 InPIEInstanceID, FSoftObjectPath& ObjectPath);
+	static void RegisterActorDescFactory(TSubclassOf<AActor> Class, FWorldPartitionActorDescFactory* Factory);
 
+	FName GetWorldPartitionEditorName();
 	bool IsSimulating() const;
 
 	FWorldPartitionActorDesc* GetActorDesc(const FGuid& Guid);
@@ -118,12 +108,19 @@ public:
 	void UnloadEditorCells(const FBox& Box);
 	bool RefreshLoadedEditorCells();
 
-	bool IsPreCooked() const { return bIsPreCooked; }
-	void SetIsPreCooked(bool bInIsPreCooked) { bIsPreCooked = bInIsPreCooked; }
+	// PIE Methods
+	void PrepareForPIE();
+	void CleanupForPIE();
+	void OnPreFixupForPIE(int32 InPIEInstanceID, FSoftObjectPath& ObjectPath);
 
-	bool GenerateStreaming(EWorldPartitionStreamingMode Mode);
+	// PIE/Cook Methods
+	bool GenerateStreaming(EWorldPartitionStreamingMode Mode, TArray<FString>* OutPackagesToGenerate = nullptr);
+
+	// Cook Methods
+	bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, const FString& InPackageCookName);
+	void FinalizeGeneratedPackageForCook();
+
 	FBox GetWorldBounds() const;
-
 	void GenerateHLOD();
 	void GenerateNavigationData();
 
@@ -187,9 +184,6 @@ private:
 	mutable UWorldPartitionStreamingPolicy* StreamingPolicy;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	bool bIsPreCooked;
-
 	FLinkerInstancingContext InstancingContext;
 #endif
 

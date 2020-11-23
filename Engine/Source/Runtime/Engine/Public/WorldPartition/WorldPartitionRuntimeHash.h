@@ -18,7 +18,9 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 #if WITH_EDITOR
 	virtual void SetDefaultValues() {}
 	virtual void ImportFromWorldComposition(class UWorldComposition* WorldComposition) {}
-	virtual bool GenerateStreaming(EWorldPartitionStreamingMode Mode, class UWorldPartitionStreamingPolicy* Policy) { return false; }
+	virtual bool GenerateStreaming(EWorldPartitionStreamingMode Mode, class UWorldPartitionStreamingPolicy* Policy, TArray<FString>* OutPackagesToGenerate = nullptr) { return false; }
+	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, const FString& InPackageCookName) { return false; }
+	virtual void FinalizeGeneratedPackageForCook() {}
 	virtual void FlushStreaming() {}
 	virtual bool GenerateHLOD() { return false; }
 	virtual bool GenerateNavigationData() { return false; }

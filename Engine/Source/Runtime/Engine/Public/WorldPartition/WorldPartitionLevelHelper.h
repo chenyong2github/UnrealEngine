@@ -17,9 +17,8 @@
 class FWorldPartitionLevelHelper
 {
 public:
-	static const TCHAR* GetSavedLevelOutputSubFolderName() { return TEXT("WorldPartitionLevels"); }
-	static bool CreateAndSaveLevelForRuntimeCell(const UWorld* InWorld, const FString& InWorldAssetName, const TArray<FWorldPartitionRuntimeCellObjectMapping>& InChildPackages);
-	static ULevel* CreateEmptyLevelForRuntimeCell(const UWorld* InWorld, const FString& InWorldAssetName);
+	static bool CreateAndFillLevelForRuntimeCell(const UWorld* InWorld, const FString& InWorldAssetName, UPackage* InPackage, const TArray<FWorldPartitionRuntimeCellObjectMapping>& InChildPackages);
+	static ULevel* CreateEmptyLevelForRuntimeCell(const UWorld* InWorld, const FString& InWorldAssetName, UPackage* DestPackage = nullptr);
 private:
 	static UWorld::InitializationValues GetWorldInitializationValues();
 };

@@ -30,17 +30,19 @@ UWorld::InitializationValues FWorldPartitionLevelHelper::GetWorldInitializationV
 }
 
 /**
- * Creates, populates and saves a Level used in World Partition
+ * Creates and populates a Level used in World Partition
  */
-bool FWorldPartitionLevelHelper::CreateAndSaveLevelForRuntimeCell(const UWorld* InWorld, const FString& InWorldAssetName, const TArray<FWorldPartitionRuntimeCellObjectMapping>& InChildPackages)
+bool FWorldPartitionLevelHelper::CreateAndFillLevelForRuntimeCell(const UWorld* InWorld, const FString& InWorldAssetName, UPackage* InPackage, const TArray<FWorldPartitionRuntimeCellObjectMapping>& InChildPackages)
 {
 	check(IsRunningCommandlet());
 	check(InWorld && !InWorld->IsGameWorld());
+	check(InPackage);
 
 	// Create streaming cell Level package
-	ULevel* NewLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(InWorld, InWorldAssetName);
-	UPackage* NewPackage = NewLevel->GetPackage();
-	UWorld* NewWorld = UWorld::FindWorldInPackage(NewPackage);
+	ULevel* NewLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(InWorld, InWorldAssetName, InPackage);
+	UPackage* NewLevelPackage = NewLevel->GetPackage();
+	check(NewLevelPackage == InPackage);
+	UWorld* NewWorld = UWorld::FindWorldInPackage(NewLevelPackage);
 
 	// Move all actors to Cell level
 	for (const FWorldPartitionRuntimeCellObjectMapping& PackageObjectMapping : InChildPackages)
@@ -50,52 +52,52 @@ bool FWorldPartitionLevelHelper::CreateAndSaveLevelForRuntimeCell(const UWorld* 
 		{
 			Actor->SetPackageExternal(false, false);
 			Actor->Rename(nullptr, NewLevel);
-			check(Actor->GetPackage() == NewPackage);
+			check(Actor->GetPackage() == NewLevelPackage);
 		}
 		else
 		{
 			UE_LOG(LogEngine, Warning, TEXT("Can't find actor %s."), *PackageObjectMapping.Path.ToString());
 		}
 	}
-
-	// Save
-	const FString PackageName = NewPackage->GetName();
-	const bool bSuccess = UEditorLoadingAndSavingUtils::SaveMap(NewWorld, PackageName);
-	UE_CLOG(!bSuccess, LogEngine, Error, TEXT("Error saving map %s."), *PackageName);
-
-	// No need of this Level anymore
-	NewLevel->MarkPendingKill();
-	NewWorld->RemoveFromRoot();
-	NewWorld->MarkPendingKill();
-
-	return bSuccess;
+	return true;
 }
 
 /**
  * Creates an empty Level used in World Partition
  */
-ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorld* InWorld, const FString& InWorldAssetName)
+ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorld* InWorld, const FString& InWorldAssetName, UPackage* InPackage)
 {
-	// Create Level package
-	FString PackageName = FPackageName::ObjectPathToPackageName(InWorldAssetName);
-	check(!FindObject<UPackage>(nullptr, *PackageName));
-	UPackage* NewPackage = CreatePackage(*PackageName);
-	NewPackage->SetPackageFlags(PKG_NewlyCreated);
+	// Create or use given package
+	UPackage* CellPackage = nullptr;
+	if (InPackage)
+	{
+		check(FindObject<UPackage>(nullptr, *InPackage->GetName()));
+		CellPackage = InPackage;
+	}
+	else
+	{
+		FString PackageName = FPackageName::ObjectPathToPackageName(InWorldAssetName);
+		check(!FindObject<UPackage>(nullptr, *PackageName));
+		CellPackage = CreatePackage(*PackageName);
+		CellPackage->SetPackageFlags(PKG_NewlyCreated);
+	}
+
 	if (InWorld->IsPlayInEditor())
 	{
-		NewPackage->SetPackageFlags(PKG_PlayInEditor);
-		NewPackage->PIEInstanceID = InWorld->GetPackage()->PIEInstanceID;
-		check(NewPackage);
+		check(!InPackage);
+		CellPackage->SetPackageFlags(PKG_PlayInEditor);
+		CellPackage->PIEInstanceID = InWorld->GetPackage()->PIEInstanceID;
 	}
 
 	// Create World & Persistent Level
 	UWorld::InitializationValues IVS = FWorldPartitionLevelHelper::GetWorldInitializationValues();
 	const FName WorldName = FName(FPackageName::ObjectPathToObjectName(InWorldAssetName));
-	UWorld* NewWorld = UWorld::CreateWorld(InWorld->WorldType, /*bInformEngineOfWorld*/false, WorldName, NewPackage, /*bAddToRoot*/false, InWorld->FeatureLevel, &IVS, /*bInSkipInitWorld*/true);
-	check(UWorld::FindWorldInPackage(NewPackage) == NewWorld);
+	UWorld* NewWorld = UWorld::CreateWorld(InWorld->WorldType, /*bInformEngineOfWorld*/false, WorldName, CellPackage, /*bAddToRoot*/false, InWorld->FeatureLevel, &IVS, /*bInSkipInitWorld*/true);
 	check(NewWorld);
+	NewWorld->SetFlags(RF_Public | RF_Standalone);
 	check(NewWorld->GetWorldSettings());
-	check(NewWorld->GetPathName() == InWorldAssetName);
+	check(UWorld::FindWorldInPackage(CellPackage) == NewWorld);
+	check(InPackage || (NewWorld->GetPathName() == InWorldAssetName));
 	
 	// Setup of streaming cell Runtime Level
 	ULevel* NewLevel = NewWorld->PersistentLevel;

@@ -18,7 +18,6 @@
 #include "CookOnTheSide/CookLog.h"
 #include "CookOnTheFlyServer.generated.h"
 
-
 class FAssetRegistryGenerator;
 class FAsyncIODelete;
 struct FPackageNameCache;
@@ -110,6 +109,10 @@ namespace UE
 {
 namespace Cook
 {
+	namespace Private
+	{
+		class FRegisteredCookPackageSplitter;
+	}
 	struct FCookerTimer;
 	class FExternalRequests;
 	struct FPackageData;
@@ -182,6 +185,7 @@ private:
 	ECookInitializationFlags CookFlags = ECookInitializationFlags::None;
 	TUniquePtr<class FSandboxPlatformFile> SandboxFile;
 	TUniquePtr<FAsyncIODelete> AsyncIODelete; // Helper for deleting the old cook directory asynchronously
+	FString DefaultAsyncIODeletePlatformName; // Default platform name to be used by GetAsyncIODelete()
 	bool bIsInitializingSandbox = false; // stop recursion into callbacks when we are initializing sandbox
 	bool bIsSavingPackage = false; // used to stop recursive mark package dirty functions
 	bool bSaveAsyncAllowed = false; // True if and only if command line options and all other restrictions allow the use of SAVE_Async
@@ -192,6 +196,8 @@ private:
 
 	/** List of additional plugin directories to remap into the sandbox as needed */
 	TArray<TSharedRef<IPlugin> > PluginsToRemap;
+
+	TMultiMap<UClass*, UE::Cook::Private::FRegisteredCookPackageSplitter*> RegisteredSplitDataClasses;
 
 	//////////////////////////////////////////////////////////////////////////
 	// precaching system
@@ -306,12 +312,15 @@ private:
 	/** Try to save all packages in the SaveQueue until it's time to break. Report the number of requests that were completed (either skipped or successfully saved or failed to save) */
 	void PumpSaves(UE::Cook::FTickStackData& StackData, uint32 DesiredQueueLength, int32& OutNumPushed, bool& bOutBusy);
 	/**
-	 * Inspect the given package from the PackageTracker and add it to the SaveQueue if the cooker should save it.
+	 * Inspect the given package and add it to the SaveQueue if the cooker should save it.
 	 *
-	 * @param bUpdatePlatforms If true, then FilterLoadedPackage is being called on all existing packages in order a change to the package filter.  Any InProgress PackageDatas will be demoted to request to update the requested platforms.
+	 * @param Package				The package to be added to the SaveQueue.
+	 * @param bIsGeneratedPackage	If true, ignore the CookByTheBookOptions::bSkipHardReferences flag when in CookByTheBook mode.
+	 * @return						Returns the PackageData for this queued package.
 	 */
-	void FilterLoadedPackage(UPackage* Package, bool bUpdatePlatforms);
-	/** Check whether the package filter has change, and if so call FilterLoadedPackage again on each existing package. */
+	UE::Cook::FPackageData* QueueDiscoveredPackage(UPackage* Package, bool bIsGeneratedPackage = false);
+
+	/** Check whether the package filter has change, and if so call QueueDiscoveredPackage again on each existing package. */
 	void UpdatePackageFilter();
 
 	/**
@@ -857,12 +866,15 @@ private:
 	bool ContainsRedirector(const FName& PackageName, TMap<FName, FName>& RedirectedPaths) const;
 	
 	/**
-	 * Calls BeginCacheForCookedPlatformData on all UObjects in the package
+	 * Prepares save by calling BeginCacheForCookedPlatformData on all UObjects in the package. 
+	 * Also splits the package if an object of this package has its class registered to a corresponding 
+	 * FRegisteredCookPackageSplitter and an instance of this splitter class returns true ShouldSplitPackage 
+	 * for this UObject.
 	 *
 	 * @param PackageData the PackageData used to gather all uobjects from
 	 * @return false if time slice was reached, true if all objects have had BeginCacheForCookedPlatformData called
 	 */
-	bool BeginPackageCacheForCookedPlatformData(UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer);
+	bool BeginPrepareSave(UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer);
 	
 	/**
 	 * Returns true when all objects in package have all their cooked platform data loaded
@@ -871,7 +883,7 @@ private:
 	 * @param PackageData the PackageData used to gather all uobjects from
 	 * @return false if time slice was reached, true if all return true for IsCachedCookedPlatformDataLoaded 
 	 */
-	bool FinishPackageCacheForCookedPlatformData(UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer);
+	bool FinishPrepareSave(UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer);
 
 	/**
 	 * Frees all the memory used to call BeginCacheForCookedPlatformData on all the objects in PackageData.
@@ -928,6 +940,12 @@ private:
 
 	/* Delete the sandbox directory (asynchronously) for the given platform in preparation for a clean cook */
 	void DeleteSandboxDirectory(const FString& PlatformName);
+
+	/** If not already done, set the default platform name to be used by GetAsyncIODelete(). */
+	void TrySetDefaultAsyncIODeletePlatform(const FString& PlatformName);
+
+	/* Create the delete-old-cooked-directory helper.*/
+	FAsyncIODelete& GetAsyncIODelete();
 
 	/* Create the delete-old-cooked-directory helper. PlatformName tells it where to create its temp directory. AsyncDeleteDirectory is DeleteSandboxDirectory internal use only and should otherwise be set to nullptr. */
 	FAsyncIODelete& GetAsyncIODelete(const FString& PlatformName, const FString* AsyncDeleteDirectory = nullptr);
@@ -1047,6 +1065,15 @@ private:
 
 	/** Return the PackageNameCache that is caching FileNames on disk for this CookOnTheFlyServer. */
 	const FPackageNameCache& GetPackageNameCache() const;
+
+	/**
+	* In case the given package object is a Package splitter, this function will split the package and generate other packages.
+	*
+	* @param PackageData			Package to be potentially split
+	* @param Obj					Package's object to potentially handle splitting
+	* @param bHasError				If function fails, bHasError is set to true, else false.
+	*/
+	void ConditionalSplitPackage(UE::Cook::FPackageData& PackageData, UObject* Obj, bool& bHasError);
 
 	uint32 FullLoadAndSave(uint32& CookedPackageCount);
 

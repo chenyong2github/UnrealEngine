@@ -97,12 +97,6 @@ void UWorldPartitionLevelStreamingDynamic::CreateRuntimeLevel()
  */
 bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorld, bool bInAllowLevelLoadRequests, EReqLevelBlock InBlockPolicy)
 {
-	// When running with pre-cooked data, behave like regular LevelStreaming
-	if (InPersistentWorld->GetWorldPartition()->IsPreCooked())
-	{
-		return Super::RequestLevel(InPersistentWorld, bInAllowLevelLoadRequests, InBlockPolicy);
-	}
-
 	// Quit early in case load request already issued
 	if (GetCurrentState() == ECurrentState::Loading)
 	{

@@ -173,7 +173,7 @@ AActor* FWorldPartitionActorDesc::GetActor() const
 	return FindObject<AActor>(nullptr, *ActorPath.ToString());
 }
 
-AActor* FWorldPartitionActorDesc::Load(const FLinkerInstancingContext* InstancingContext)
+AActor* FWorldPartitionActorDesc::Load(const FLinkerInstancingContext* InstancingContext) const
 {
 	UPackage* Package = nullptr;
 

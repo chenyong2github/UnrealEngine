@@ -46,44 +46,6 @@ extern UNREALED_API class UEditorEngine* GEditor;
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionRuntimeSpatialHash, Log, All);
 
-#if WITH_EDITOR
-class FScopedLoadActorsHelper
-{
-public:
-	FScopedLoadActorsHelper(UWorldPartition* InWorldPartition, const TArray<FGuid>& InActors, bool bSkipEditorOnly)
-		: WorldPartition(InWorldPartition)
-	{
-		LoadedActors.Reserve(InActors.Num());
-		for (const FGuid& ActorGuid : InActors)
-		{
-			FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(ActorGuid);
-			if (!ActorDesc->GetActor() && (!bSkipEditorOnly || !ActorDesc->GetActorIsEditorOnly()))
-			{
-				AActor* Actor = ActorDesc->Load();
-				if (ensure(Actor))
-				{
-					LoadedActors.Add(Actor);
-				}
-			}
-		}
-	}
-
-	~FScopedLoadActorsHelper()
-	{
-		for (AActor* Actor : LoadedActors)
-		{
-			check(!Actor->IsPackageExternal());
-			TGuardValue<ITransaction*> SuppressTransaction(GUndo, nullptr);
-			WorldPartition->GetWorld()->DestroyActor(Actor, false, false);
-		}
-		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
-	}
-private:
-	UWorldPartition* WorldPartition;
-	TArray<AActor*> LoadedActors;
-};
-#endif //WITH_EDITOR
-
 static int32 GShowRuntimeSpatialHashGridLevel = 0;
 static FAutoConsoleVariableRef CVarShowRuntimeSpatialHashGridLevel(
 	TEXT("wp.Runtime.ShowRuntimeSpatialHashGridLevel"),
@@ -1268,11 +1230,10 @@ void UWorldPartitionRuntimeSpatialHash::ImportFromWorldComposition(UWorldComposi
 	}
 }
 
-bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreamingMode Mode, UWorldPartitionStreamingPolicy* StreamingPolicy)
+bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreamingMode Mode, UWorldPartitionStreamingPolicy* StreamingPolicy, TArray<FString>* OutPackagesToGenerate)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::GenerateStreaming);
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
-	check(!WorldPartition->IsPreCooked());
 
 	UE_SCOPED_TIMER(TEXT("GenerateStreaming"), LogWorldPartitionRuntimeSpatialHash, Log);
 	
@@ -1328,7 +1289,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreami
 	{
 		const FSpatialHashRuntimeGrid& Grid = AllGrids[GridIndex];
 		const FSquare2DGridHelper PartionedActors = GetPartitionedActors(WorldPartition, WorldBounds, Grid, GridActors[GridIndex]);
-		if (!CreateStreamingGrid(Grid, PartionedActors, Mode, StreamingPolicy))
+		if (!CreateStreamingGrid(Grid, PartionedActors, Mode, StreamingPolicy, OutPackagesToGenerate))
 		{
 			return false;
 		}
@@ -1366,7 +1327,7 @@ void UWorldPartitionRuntimeSpatialHash::CacheHLODParents()
 	}
 }
 
-bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRuntimeGrid& RuntimeGrid, const FSquare2DGridHelper& PartionedActors, EWorldPartitionStreamingMode Mode, UWorldPartitionStreamingPolicy* StreamingPolicy)
+bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRuntimeGrid& RuntimeGrid, const FSquare2DGridHelper& PartionedActors, EWorldPartitionStreamingMode Mode, UWorldPartitionStreamingPolicy* StreamingPolicy, TArray<FString>* OutPackagesToGenerate)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid);
 
@@ -1449,7 +1410,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 					{
 						ReferencedHLODActors.Add(ParentHLOD);
 					}
-					StreamingCell->AddActorToCell(ActorDesc->GetActorPackage(), ActorDesc->GetActorPath());
+					StreamingCell->AddActorToCell(ActorGuid, ActorDesc->GetActorPackage(), ActorDesc->GetActorPath());
 					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("  Actor : %s (%s) Origin(%s)"), *(ActorDesc->GetActorPath().ToString()), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid), *FVector2D(ActorDesc->GetOrigin()).ToString());
 				}
 
@@ -1463,12 +1424,22 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 
 				if (Mode == EWorldPartitionStreamingMode::RuntimeStreamingCells)
 				{
-					FScopedLoadActorsHelper LoadCellActors(WorldPartition, FilteredActors, /*bSkipEditorOnly*/true);
 					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Log, TEXT("Creating runtime streaming cells %s."), *StreamingCell->GetName());
-					if (!StreamingCell->CreateCellForCook())
+
+					if (StreamingCell->GetActorCount())
 					{
-						UE_LOG(LogWorldPartitionRuntimeSpatialHash, Error, TEXT("Error creating runtime streaming cells for cook."));
-						return false;
+						if (!OutPackagesToGenerate)
+						{
+							UE_LOG(LogWorldPartitionRuntimeSpatialHash, Error, TEXT("Error creating runtime streaming cells for cook, OutPackagesToGenerate is null."));
+							return false;
+						}
+
+						const FString PackageRelativePath = StreamingCell->GetPackageNameToCreate();
+						check(!PackageRelativePath.IsEmpty());
+						OutPackagesToGenerate->Add(PackageRelativePath);
+
+						// Map relative package to StreamingCell for PopulateGeneratedPackageForCook/FinalizeGeneratedPackageForCook
+						PackagesToGenerateForCook.Add(PackageRelativePath, StreamingCell);
 					}
 				}
 			}
@@ -1478,9 +1449,33 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 	return true;
 }
 
+bool UWorldPartitionRuntimeSpatialHash::PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, const FString& InPackageCookName)
+{
+	if (UWorldPartitionRuntimeCell** MatchingCell = PackagesToGenerateForCook.Find(InPackageRelativePath))
+	{
+		UWorldPartitionRuntimeCell* Cell = *MatchingCell;
+		if (ensure(Cell))
+		{
+			return Cell->PopulateGeneratedPackageForCook(InPackage, InPackageCookName);
+		}
+	}
+	return false;
+}
+
+void UWorldPartitionRuntimeSpatialHash::FinalizeGeneratedPackageForCook()
+{
+	for (const auto& Package : PackagesToGenerateForCook)
+	{
+		UWorldPartitionRuntimeCell* Cell = Package.Value;
+		if (ensure(Cell))
+		{
+			Cell->FinalizeGeneratedPackageForCook();
+		}
+	}
+}
+
 void UWorldPartitionRuntimeSpatialHash::FlushStreaming()
 {
-	check(!GetOuterUWorldPartition()->IsPreCooked());
 	StreamingGrids.Empty();
 }
 

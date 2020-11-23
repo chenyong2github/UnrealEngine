@@ -245,6 +245,18 @@ namespace Cook
 		/** Check whether savestate contracts on the PackageData were invalidated by by e.g. garbage collection of objects in its package. */
 		bool IsSaveInvalidated() const;
 
+		/** Get/Set the flag for whether BeginPrepareSave has been called and returned false because an error occured. */
+		bool GetHasBeginPrepareSaveFailed() const { return static_cast<bool>(bHasBeginPrepareSaveFailed); }
+		void SetHasBeginPrepareSaveFailed(bool bValue) { bHasBeginPrepareSaveFailed = bValue != 0; }
+
+		/** Get/Set override filename to be used when saving cooked package. */
+		FName GetCookedFileName() const { return CookedFileName; }
+		void SetCookedFileName(FName InCookedFileName) { CookedFileName = InCookedFileName; }
+
+		/** Get/Set the flag for whether this package is a Generator package. */
+		bool GetIsGeneratorPackage() const { return static_cast<bool>(bIsGeneratorPackage); }
+		void SetIsGeneratorPackage(bool bValue) { bIsGeneratorPackage = bValue != 0; }
+
 		/** Validate that the fields related to the BeginCacheForCookedPlatformData calls are empty, as required when not in the save state. */
 		void CheckCookedPlatformDataEmpty() const;
 		/** Clear the fields related to the BeginCacheForCookedPlatformData calls, when e.g. leaving the save state. Caller is responsible for having already executed any required cancellation steps to avoid dangling pending operations. */
@@ -325,18 +337,21 @@ namespace Cook
 		FCompletionCallback CompletionCallback;
 		FName PackageName;
 		FName FileName;
+		FName CookedFileName; // Override filename to be used when saving cooked package (used by generated packages)
 		TWeakObjectPtr<UPackage> Package;
 		FPackageDatas& PackageDatas; // The one-per-CookOnTheFlyServer owner of this PackageData
 		TSharedPtr<FPreloadableFile> PreloadableFile;
 		int32 NumPendingCookedPlatformData = 0;
-		int32 CookedPlatformDataNextIndex = 0;
+		int32 CookedPlatformDataNextIndex = -1;
 
 		uint32 State : int32(EPackageState::BitCount);
 		uint32 bIsUrgent : 1;
 		uint32 bIsVisited : 1;
 		uint32 bIsPreloadAttempted : 1;
 		uint32 bIsPreloaded : 1;
+		uint32 bIsGeneratorPackage : 1;
 		uint32 bHasSaveCache : 1;
+		uint32 bHasBeginPrepareSaveFailed : 1;
 		uint32 bCookedPlatformDataStarted : 1;
 		uint32 bCookedPlatformDataCalled : 1;
 		uint32 bCookedPlatformDataComplete : 1;

@@ -1154,6 +1154,13 @@ bool FPaths::CollapseRelativeDirectories(FString& InPath)
 	return true;
 }
 
+FString FPaths::RemoveDuplicateSlashes(const FString& InPath)
+{
+	FString Result = InPath;
+	RemoveDuplicateSlashes(Result);
+	return MoveTemp(Result);
+}
+
 void FPaths::RemoveDuplicateSlashes(FString& InPath)
 {
 	TCHAR* Text = InPath.GetCharArray().GetData();

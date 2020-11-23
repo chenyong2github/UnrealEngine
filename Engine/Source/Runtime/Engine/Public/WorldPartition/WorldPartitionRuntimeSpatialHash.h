@@ -213,7 +213,9 @@ public:
 #if WITH_EDITOR
 	virtual void SetDefaultValues() override;
 	virtual void ImportFromWorldComposition(class UWorldComposition* WorldComposition) override;
-	virtual bool GenerateStreaming(EWorldPartitionStreamingMode Mode, class UWorldPartitionStreamingPolicy* StreamingPolicy) override;
+	virtual bool GenerateStreaming(EWorldPartitionStreamingMode Mode, class UWorldPartitionStreamingPolicy* StreamingPolicy, TArray<FString>* OutPackagesToGenerate = nullptr) override;
+	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, const FString& InPackageCookName) override;
+	virtual void FinalizeGeneratedPackageForCook() override;
 	virtual void FlushStreaming() override;
 	virtual bool GenerateHLOD() override;
 	virtual bool GenerateNavigationData() override;
@@ -244,6 +246,7 @@ private:
 	UPROPERTY(EditAnywhere, Config, Category=RuntimeSettings)
 	TArray<FSpatialHashRuntimeGrid> Grids;
 
+	TMap<FString, UWorldPartitionRuntimeCell*> PackagesToGenerateForCook;
 	TMap<FGuid, FGuid> CachedHLODParents;
 #endif
 
@@ -261,7 +264,7 @@ private:
 	void GetAlwaysLoadedStreamingCells(const FSpatialHashStreamingGrid& StreamingGrid, TSet<const UWorldPartitionRuntimeCell*>& Cells) const;
 	void GetStreamingCells(const FVector& Position, const FSpatialHashStreamingGrid& StreamingGrid, TSet<const UWorldPartitionRuntimeCell*>& Cells) const;
 #if WITH_EDITOR
-	bool CreateStreamingGrid(const FSpatialHashRuntimeGrid& RuntimeGrid, const FSquare2DGridHelper& PartionedActors, EWorldPartitionStreamingMode Mode, UWorldPartitionStreamingPolicy* StreamingPolicy);
+	bool CreateStreamingGrid(const FSpatialHashRuntimeGrid& RuntimeGrid, const FSquare2DGridHelper& PartionedActors, EWorldPartitionStreamingMode Mode, UWorldPartitionStreamingPolicy* StreamingPolicy, TArray<FString>* OutPackagesToGenerate = nullptr);
 #endif
 
 	friend class UWorldPartitionSubsystem;

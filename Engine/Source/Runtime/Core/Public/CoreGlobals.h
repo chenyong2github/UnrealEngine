@@ -209,6 +209,11 @@ FORCEINLINE bool IsRunningCommandlet()
 }
 
 /**
+* Check to see if this executable is running the cookcommandlet
+*/
+CORE_API bool IsRunningCookCommandlet();
+
+/**
  * Check to see if we should initialise RHI and set up scene for rendering even when running a commandlet.
  */
 FORCEINLINE bool IsAllowCommandletRendering()

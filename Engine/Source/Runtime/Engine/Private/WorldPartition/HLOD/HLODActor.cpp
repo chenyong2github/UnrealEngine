@@ -80,7 +80,7 @@ void AWorldPartitionHLOD::OnSubActorUnloaded(AActor& Actor)
 void AWorldPartitionHLOD::SetupLoadedSubActors()
 {
 	UWorld* World = GetWorld();
-	if (World && !World->IsGameWorld())
+	if (World && World->IsEditorWorld() && !World->IsPlayInEditor())
 	{
 		LoadedSubActors.Empty();
 

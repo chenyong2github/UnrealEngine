@@ -843,10 +843,8 @@ bool IsRayTracingEnabled()
 
 #if DO_CHECK && WITH_EDITOR
 	{
-		FString Commandline = FCommandLine::Get();
-		bool bIsCookCommandlet = IsRunningCommandlet() && Commandline.Contains(TEXT("run=cook"));
 		// This function must not be called while cooking
-		if (bIsCookCommandlet)
+		if (IsRunningCookCommandlet())
 		{
 			return false;
 		}

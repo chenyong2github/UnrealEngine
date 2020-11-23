@@ -139,9 +139,6 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	, InitState(EWorldPartitionInitState::Uninitialized)
 	, InstanceTransform(FTransform::Identity)
 	, StreamingPolicy(nullptr)
-#if WITH_EDITOR
-	, bIsPreCooked(false)
-#endif
 {
 	static bool bRegisteredDelegate = false;
 	if (!bRegisteredDelegate)
@@ -303,9 +300,9 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	InitState = EWorldPartitionInitState::Initialized;
 
-	UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
-	if (ensure(WorldPartitionSubsystem))
+	if (World->IsGameWorld())
 	{
+		UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
 		WorldPartitionSubsystem->RegisterWorldPartition(this);
 	}
 
@@ -376,9 +373,9 @@ void UWorldPartition::Uninitialize()
 		EditorHash = nullptr;
 #endif		
 
-		UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
-		if (ensure(WorldPartitionSubsystem))
+		if (World->IsGameWorld())
 		{
+			UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
 			WorldPartitionSubsystem->UnregisterWorldPartition(this);
 		}
 
@@ -676,6 +673,12 @@ bool UWorldPartition::UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartition
 
 bool UWorldPartition::ShouldActorBeLoaded(const FWorldPartitionActorDesc* ActorDesc) const
 {
+	// No filtering when running cook commandlet
+	if (IsRunningCookCommandlet())
+	{
+		return true;
+	}
+
 	if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld()))
 	{
 		uint32 NumValidLayers = 0;
@@ -1062,42 +1065,42 @@ void UWorldPartition::PrepareForPIE()
 {
 	check(World->IsPlayInEditor());
 
-	if (!IsPreCooked())
+	if (!IsMainWorldPartition())
 	{
-		if (!IsMainWorldPartition())
-		{
-			GenerateStreaming(EWorldPartitionStreamingMode::PIE);
-		}
-
-		GetStreamingPolicy()->PrepareForPIE();
+		GenerateStreaming(EWorldPartitionStreamingMode::PIE);
 	}
+
+	GetStreamingPolicy()->PrepareForPIE();
 }
 
 void UWorldPartition::CleanupForPIE()
 {
 	check(World->IsPlayInEditor());
 
-	if (!IsPreCooked())
-	{
-		FlushStreaming();
-	}
+	FlushStreaming();
 }
 
-bool UWorldPartition::GenerateStreaming(EWorldPartitionStreamingMode Mode)
+bool UWorldPartition::GenerateStreaming(EWorldPartitionStreamingMode Mode, TArray<FString>* OutPackagesToGenerate)
 {
-	if (!IsPreCooked())
-	{
-		return RuntimeHash->GenerateStreaming(Mode, GetStreamingPolicy());
-	}
-	return false;
+	check(RuntimeHash);
+	return RuntimeHash->GenerateStreaming(Mode, GetStreamingPolicy(), OutPackagesToGenerate);
+}
+
+bool UWorldPartition::PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, const FString& InPackageCookName)
+{
+	check(RuntimeHash);
+	return RuntimeHash->PopulateGeneratedPackageForCook(InPackage, InPackageRelativePath, InPackageCookName);
+}
+
+void UWorldPartition::FinalizeGeneratedPackageForCook()
+{
+	check(RuntimeHash);
+	RuntimeHash->FinalizeGeneratedPackageForCook();
 }
 
 void UWorldPartition::FlushStreaming()
 {
-	if (!IsPreCooked())
-	{
-		RuntimeHash->FlushStreaming();
-	}
+	RuntimeHash->FlushStreaming();
 }
 
 void UWorldPartition::GenerateHLOD()

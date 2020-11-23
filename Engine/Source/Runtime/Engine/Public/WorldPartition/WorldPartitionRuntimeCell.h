@@ -59,11 +59,14 @@ class UWorldPartitionRuntimeCell : public UObject
 
 #if WITH_EDITOR
 	void SetDataLayers(const TArray<const UDataLayer*> InDataLayers);
-	virtual void AddActorToCell(FName Package, FName Path) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
-	virtual bool CreateCellForCook() PURE_VIRTUAL(UWorldPartitionRuntimeCell::CreateCellForCook, return false;);
+	void AddCellData(const UWorldPartitionRuntimeCellData* InCellData);
+	virtual void AddActorToCell(const FGuid& ActorGuid, FName Package, FName Path) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
 	virtual int32 GetActorCount() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActorCount, return 0;);
 
-	void AddCellData(const UWorldPartitionRuntimeCellData* InCellData);
+	// Cook methods
+	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageCookName) PURE_VIRTUAL(UWorldPartitionRuntimeCell::PopulateGeneratedPackageForCook, return false;);
+	virtual void FinalizeGeneratedPackageForCook() {}
+	virtual FString GetPackageNameToCreate() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetPackageNameToCreate, return FString(""););
 #endif
 
 	const UWorldPartitionRuntimeCellData* GetCellData(const TSubclassOf<UWorldPartitionRuntimeCellData> InCellDataClass) const;

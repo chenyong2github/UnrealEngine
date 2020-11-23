@@ -65,8 +65,8 @@ namespace DetailedCookStats
 	extern double TickCookOnTheSideLoadPackagesTimeSec;
 	extern double TickCookOnTheSideResolveRedirectorsTimeSec;
 	extern double TickCookOnTheSideSaveCookedPackageTimeSec;
-	extern double TickCookOnTheSideBeginPackageCacheForCookedPlatformDataTimeSec;
-	extern double TickCookOnTheSideFinishPackageCacheForCookedPlatformDataTimeSec;
+	extern double TickCookOnTheSideBeginPrepareSaveTimeSec;
+	extern double TickCookOnTheSideFinishPrepareSaveTimeSec;
 	extern double GameCookModificationDelegateTimeSec;
 	double TickLoopGCTimeSec = 0.0;
 	double TickLoopRecompileShaderRequestsTimeSec = 0.0;
@@ -88,8 +88,8 @@ namespace DetailedCookStats
 		ADD_COOK_STAT_FLT(" 0. 1. 1. 0", TickCookOnTheSideLoadPackagesTimeSec);
 		ADD_COOK_STAT_FLT(" 0. 1. 1. 1", TickCookOnTheSideSaveCookedPackageTimeSec);
 		ADD_COOK_STAT_FLT(" 0. 1. 1. 1. 0", TickCookOnTheSideResolveRedirectorsTimeSec);
-		ADD_COOK_STAT_FLT(" 0. 1. 1. 2", TickCookOnTheSideBeginPackageCacheForCookedPlatformDataTimeSec);
-		ADD_COOK_STAT_FLT(" 0. 1. 1. 3", TickCookOnTheSideFinishPackageCacheForCookedPlatformDataTimeSec);
+		ADD_COOK_STAT_FLT(" 0. 1. 1. 2", TickCookOnTheSideBeginPrepareSaveTimeSec);
+		ADD_COOK_STAT_FLT(" 0. 1. 1. 3", TickCookOnTheSideFinishPrepareSaveTimeSec);
 		ADD_COOK_STAT_FLT(" 0. 1. 2", TickLoopGCTimeSec);
 		ADD_COOK_STAT_FLT(" 0. 1. 3", TickLoopRecompileShaderRequestsTimeSec);
 		ADD_COOK_STAT_FLT(" 0. 1. 4", TickLoopShaderProcessAsyncResultsTimeSec);

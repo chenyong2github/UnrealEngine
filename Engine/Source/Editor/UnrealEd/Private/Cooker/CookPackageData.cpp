@@ -27,7 +27,7 @@ namespace Cook
 
 	FPackageData::FPackageData(FPackageDatas& PackageDatas, const FName& InPackageName, const FName& InFileName)
 		: PackageName(InPackageName), FileName(InFileName), PackageDatas(PackageDatas)
-		, bIsUrgent(0), bIsVisited(0), bIsPreloadAttempted(0), bIsPreloaded(0), bHasSaveCache(0), bCookedPlatformDataStarted(0), bCookedPlatformDataCalled(0), bCookedPlatformDataComplete(0), bMonitorIsCooked(0)
+		, bIsUrgent(0), bIsVisited(0), bIsPreloadAttempted(0), bIsPreloaded(0), bIsGeneratorPackage(0), bHasSaveCache(0), bHasBeginPrepareSaveFailed(0), bCookedPlatformDataStarted(0), bCookedPlatformDataCalled(0), bCookedPlatformDataComplete(0), bMonitorIsCooked(0)
 	{
 		SetState(EPackageState::Idle);
 		SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
@@ -594,6 +594,8 @@ namespace Cook
 	{
 		check(GetPackage() != nullptr && GetPackage()->IsFullyLoaded());
 
+		SetHasBeginPrepareSaveFailed(false);
+		SetIsGeneratorPackage(false);
 		CheckObjectCacheEmpty();
 		CheckCookedPlatformDataEmpty();
 	}
@@ -602,6 +604,8 @@ namespace Cook
 	{
 		PackageDatas.GetCookOnTheFlyServer().ReleaseCookedPlatformData(*this);
 		ClearObjectCache();
+		SetHasBeginPrepareSaveFailed(false);
+		SetIsGeneratorPackage(false);
 	}
 
 	void FPackageData::OnEnterInProgress()
@@ -823,7 +827,7 @@ namespace Cook
 
 	void FPackageData::CheckCookedPlatformDataEmpty() const
 	{
-		check(GetCookedPlatformDataNextIndex() == 0);
+		check(GetCookedPlatformDataNextIndex() == -1);
 		check(!GetCookedPlatformDataStarted());
 		check(!GetCookedPlatformDataCalled());
 		check(!GetCookedPlatformDataComplete());
@@ -831,7 +835,7 @@ namespace Cook
 
 	void FPackageData::ClearCookedPlatformData()
 	{
-		CookedPlatformDataNextIndex = 0;
+		CookedPlatformDataNextIndex = -1;
 		// Note that GetNumPendingCookedPlatformData is not cleared; it persists across Saves and CookSessions
 		SetCookedPlatformDataStarted(false);
 		SetCookedPlatformDataCalled(false);

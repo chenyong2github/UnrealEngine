@@ -9,6 +9,7 @@
 #include "Misc/CoreStats.h"
 #include "Misc/Compression.h"
 #include "Misc/LazySingleton.h"
+#include "Misc/CommandLine.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 
@@ -420,6 +421,13 @@ void CORE_API EnableEmitDrawEventsOnlyOnCommandlist()
 {
 	GCommandListOnlyDrawEvents = !GEmitDrawEvents;
 	GEmitDrawEvents = true;
+}
+
+bool CORE_API IsRunningCookCommandlet()
+{
+	FString Commandline = FCommandLine::Get();
+	const bool bIsCookCommandlet = IsRunningCommandlet() && Commandline.Contains(TEXT("run=cook"));
+	return bIsCookCommandlet;
 }
 
 void ToggleGDebugPUCrashedFlag(const TArray<FString>& Args)

@@ -113,10 +113,7 @@ FRDGBufferUAVRef RegisterAsUAV(FRDGBuilder& GraphBuilder, const FRDGExternalBuff
 
 bool IsHairRayTracingEnabled()
 {
-	FString Commandline = FCommandLine::Get();
-	bool bIsCookCommandlet = IsRunningCommandlet() && Commandline.Contains(TEXT("run=cook"));
-
-	if (GIsRHIInitialized && !bIsCookCommandlet)
+	if (GIsRHIInitialized && !IsRunningCookCommandlet())
 	{
 		return IsRayTracingEnabled() && GHairStrandsRaytracingEnable;
 	}

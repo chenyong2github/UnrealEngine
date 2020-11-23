@@ -277,6 +277,7 @@ ULevelStreaming::ULevelStreaming(const FObjectInitializer& ObjectInitializer)
 {
 # if WITH_EDITORONLY_DATA
 	bShouldBeVisibleInEditor = true;
+	bForceIsValidStreamingLevel = false;
 #endif
 	LevelColor = FLinearColor::White;
 	LevelTransform = FTransform::Identity;
@@ -1735,11 +1736,16 @@ ALevelScriptActor* ULevelStreaming::GetLevelScriptActor()
 
 bool ULevelStreaming::IsValidStreamingLevel() const
 {
-	const bool PIESession = GetWorld()->WorldType == EWorldType::PIE || GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
-	if (!PIESession && !WorldAsset.IsNull())
+#if WITH_EDITOR
+	if (!bForceIsValidStreamingLevel)
+#endif
 	{
-		const FString WorldPackageName = GetWorldAssetPackageName();
-		return FPackageName::DoesPackageExist(WorldPackageName);
+		const bool PIESession = GetWorld()->WorldType == EWorldType::PIE || GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
+		if (!PIESession && !WorldAsset.IsNull())
+		{
+			const FString WorldPackageName = GetWorldAssetPackageName();
+			return FPackageName::DoesPackageExist(WorldPackageName);
+		}
 	}
 	return true;
 }

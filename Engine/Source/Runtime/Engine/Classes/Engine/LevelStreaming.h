@@ -233,6 +233,12 @@ public:
 	uint8 bDrawOnLevelStatusMap : 1;
 
 #if WITH_EDITORONLY_DATA
+	/** If True, IsValidStreamingLevel will return true. This is necessary when cooking/saving a World with StreamingLevels
+	 *  referencing generated packages (done during cook process) that doesn't exist yet on disk (i.e. the workspace
+	 *  domain differs from the target domain).
+	 */
+	uint8 bForceIsValidStreamingLevel : 1;
+
 	/** Deprecated level color used for visualization. */
 	UPROPERTY()
 	FColor DrawColor_DEPRECATED;

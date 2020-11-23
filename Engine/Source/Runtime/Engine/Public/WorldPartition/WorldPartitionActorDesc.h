@@ -70,7 +70,7 @@ public:
 	FString ToString() const;
 
 	AActor* GetActor() const;
-	AActor* Load(const FLinkerInstancingContext* InstancingContext = nullptr);
+	AActor* Load(const FLinkerInstancingContext* InstancingContext = nullptr) const;
 	void Unload();
 
 	virtual void Init(const AActor* InActor);

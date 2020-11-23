@@ -481,6 +481,9 @@ public:
 	 */
 	static void RemoveDuplicateSlashes(FString& InPath);
 
+	 /** Returns a copy of the given path on which duplicate slashes were removed (see the inplace version for more details). */
+	static FString RemoveDuplicateSlashes(const FString& InPath);
+
 	/**
 	 * Make fully standard "Unreal" pathname:
 	 *    - Normalizes path separators [NormalizeFilename]

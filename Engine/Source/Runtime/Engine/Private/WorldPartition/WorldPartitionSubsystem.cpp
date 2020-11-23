@@ -211,15 +211,4 @@ void UWorldPartitionSubsystem::RegisterActorDescFactory(TSubclassOf<AActor> Clas
 {
 	UWorldPartition::RegisterActorDescFactory(Class, Factory);
 }
-
-FBox UWorldPartitionSubsystem::GetWorldBounds()
-{
-	if (UWorldPartition* WorldPartition = GetMainWorldPartition())
-	{
-		return WorldPartition->GetWorldBounds();
-	}
-
-	return FBox(ForceInit);
-}
-
 #endif // WITH_EDITOR
