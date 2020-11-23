@@ -95,12 +95,15 @@ void AWaterBrushManager::PostLoad()
 		// OnPostLoad, the world is not set so we cannot retrieve the water mesh actor, we have to delay it to post-init :  
 		OnWorldPostInitHandle = FWorldDelegates::OnPostWorldInitialization.AddLambda([this](UWorld* World, const UWorld::InitializationValues IVS)
 		{
-			TActorIterator<AWaterMeshActor> It(GetWorld());
-			if (AWaterMeshActor* WaterMeshActor = It ? *It : nullptr)
+			if (World == GetWorld())
 			{
-				FVector RTWorldLocation, RTWorldSizeVector;
-				ComputeWaterLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
-				WaterMeshActor->SetLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
+				TActorIterator<AWaterMeshActor> It(World);
+				if (AWaterMeshActor* WaterMeshActor = It ? *It : nullptr)
+				{
+					FVector RTWorldLocation, RTWorldSizeVector;
+					ComputeWaterLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
+					WaterMeshActor->SetLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
+				}
 			}
 		});
 		
