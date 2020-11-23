@@ -4,7 +4,7 @@
 
 
 // Code analysis features
-#if defined( _PREFAST_ ) || defined( PVS_STUDIO )
+#if defined( _PREFAST_ ) || defined( PVS_STUDIO ) || defined(__clang_analyzer__)
 	#define USING_CODE_ANALYSIS 1
 #else
 	#define USING_CODE_ANALYSIS 0
@@ -34,6 +34,8 @@
 //
 
 #if USING_CODE_ANALYSIS
+
+#if !defined(__clang_analyzer__)
 
 	// Input argument
 	// Example:  void SetValue( CA_IN bool bReadable );
@@ -230,4 +232,53 @@
 	//-V:self:678
 	//-V:AccumulateParentID:678
 	//-V:Resource:623
+
+#else // defined(__clang_analyzer__)
+
+// A fake function marked with noreturn that acts as a marker for CA_ASSUME to ensure the
+// static analyzer doesn't take an analysis path that is assumed not to be navigable.
+__declspec(dllimport, noreturn) void CA_AssumeNoReturn();
+
+// Input argument
+// Example:  void SetValue( CA_IN bool bReadable );
+#define CA_IN
+
+// Output argument
+// Example:  void FillValue( CA_OUT bool& bWriteable );
+#define CA_OUT
+
+// Specifies that a function parameter may only be read from, never written.
+// NOTE: CA_READ_ONLY is inferred automatically if your parameter is has a const qualifier.
+// Example:  void SetValue( CA_READ_ONLY bool bReadable );
+#define CA_READ_ONLY
+
+// Specifies that a function parameter may only be written to, never read.
+// Example:  void FillValue( CA_WRITE_ONLY bool& bWriteable );
+#define CA_WRITE_ONLY
+
+// Incoming pointer parameter must not be NULL and must point to a valid location in memory.
+// Place before a function parameter's type name.
+// Example:  void SetPointer( CA_VALID_POINTER void* Pointer );
+#define CA_VALID_POINTER
+
+// Caller must check the return value.  Place before the return value in a function declaration.
+// Example:  CA_CHECK_RETVAL int32 GetNumber();
+#define CA_CHECK_RETVAL
+
+// Function is expected to never return
+#define CA_NO_RETURN __declspec(noreturn)
+
+// Suppresses a warning for a single occurrence.  Should be used only for code analysis warnings on Windows platform!
+#define CA_SUPPRESS( WarningNumber )
+
+// Tells the code analysis engine to assume the statement to be true.  Useful for suppressing false positive warnings.
+#define CA_ASSUME( Expr )  (__builtin_expect(!bool(Expr), 0) ? CA_AssumeNoReturn() : (void)0)
+
+// Does a simple 'if (Condition)', but disables warnings about using constants in the condition.  Helps with some macro expansions.
+#define CA_CONSTANT_IF(Condition) if (Condition)
+
+
+#endif
+
+
 #endif

@@ -183,6 +183,9 @@ namespace UnrealBuildTool
 					// Needed for some of the C++ checkers.
 					Arguments.Add("-Xclang -analyzer-config -Xclang aggressive-binary-operation-simplification=true");
 
+					// Ensure the compiler sets the __clang_analyzer__ macro correctly.
+					Arguments.Add("-Xclang -setup-static-analyzer");
+
 					// Enable only specific checkers of families of checkers
 					// See https://clang.llvm.org/docs/analyzer/checkers.html for a full list. Or run:
 					//    'clang -Xclang -analyzer-checker-help' 

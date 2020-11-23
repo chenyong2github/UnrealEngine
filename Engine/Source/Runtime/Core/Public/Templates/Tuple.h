@@ -32,7 +32,7 @@
 // - Key is a pointer type.
 // - Key and Value are members of a base class.
 // - Dereferencing is done as part of a compound boolean expression (removing '&& Pair.Value != 15' removes the warning)
-#if defined(_MSC_VER) && USING_CODE_ANALYSIS
+#if (defined(_MSC_VER) && !defined(__clang__)) && USING_CODE_ANALYSIS
 	#define UE_TUPLE_STATIC_ANALYSIS_WORKAROUND 1
 #else
 	#define UE_TUPLE_STATIC_ANALYSIS_WORKAROUND 0
