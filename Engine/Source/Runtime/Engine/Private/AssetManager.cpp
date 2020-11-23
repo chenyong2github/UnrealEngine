@@ -110,6 +110,7 @@ struct FPrimaryAssetTypeData
 const FPrimaryAssetType UAssetManager::MapType = FName(TEXT("Map"));
 const FPrimaryAssetType UAssetManager::PrimaryAssetLabelType = FName(TEXT("PrimaryAssetLabel"));
 const FPrimaryAssetType UAssetManager::PackageChunkType = FName(TEXT("PackageChunk"));
+FSimpleMulticastDelegate UAssetManager::OnAssetManagerCreatedDelegate;
 
 UAssetManager::UAssetManager()
 {
@@ -2837,6 +2838,18 @@ void UAssetManager::CallOrRegister_OnCompletedInitialScan(FSimpleMulticastDelega
 	}
 }
 
+void UAssetManager::CallOrRegister_OnAssetManagerCreated(FSimpleMulticastDelegate::FDelegate&& Delegate)
+{
+	if (IsValid())
+	{
+		Delegate.Execute();
+	}
+	else
+	{
+		OnAssetManagerCreatedDelegate.Add(MoveTemp(Delegate));
+	}
+}
+
 bool UAssetManager::HasInitialScanCompleted() const
 {
 	return bHasCompletedInitialScan;
@@ -2929,6 +2942,9 @@ bool UAssetManager::GetPackageManagers(FName PackageName, bool bRecurseToParents
 void UAssetManager::StartInitialLoading()
 {
 	ScanPrimaryAssetTypesFromConfig();
+
+	OnAssetManagerCreatedDelegate.Broadcast();
+	OnAssetManagerCreatedDelegate.Clear();
 }
 
 void UAssetManager::FinishInitialLoading()
@@ -2960,6 +2976,21 @@ bool UAssetManager::IsPathExcludedFromScan(const FString& Path) const
 	{
 		if (Path.Contains(ExcludedPath.Path))
 		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UAssetManager::GetContentRootPathFromPackageName(const FString& PackageName, FString& OutContentRootPath)
+{
+	if (PackageName.StartsWith(TEXT("/"), ESearchCase::CaseSensitive))
+	{
+		const int32 SecondSlashIndex = PackageName.Find(TEXT("/"), ESearchCase::CaseSensitive, ESearchDir::FromStart, 1);
+		if (SecondSlashIndex != INDEX_NONE)
+		{
+			OutContentRootPath = PackageName.Mid(0, SecondSlashIndex + 1);
 			return true;
 		}
 	}
