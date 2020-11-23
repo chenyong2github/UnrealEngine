@@ -6,6 +6,10 @@
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
+const FString FLandscapeSplineTextObjectFactory::SplineLocationTag("SPLINE LOCATION: ");
+const FString FLandscapeSplineTextObjectFactory::SplineBeginTag("BEGIN_SPLINES");
+const FString FLandscapeSplineTextObjectFactory::SplineEndTag("END_SPLINES");
+
 FLandscapeSplineTextObjectFactory::FLandscapeSplineTextObjectFactory(FFeedbackContext* InWarningContext /*= GWarn*/)
 	: FCustomizableTextObjectFactory(InWarningContext)
 {
@@ -13,11 +17,11 @@ FLandscapeSplineTextObjectFactory::FLandscapeSplineTextObjectFactory(FFeedbackCo
 
 TArray<UObject*> FLandscapeSplineTextObjectFactory::ImportSplines(UObject* InParent, const TCHAR* TextBuffer)
 {
-	if (FParse::Command(&TextBuffer, TEXT("BEGIN SPLINES")))
+	if (FParse::Command(&TextBuffer, *SplineBeginTag))
 	{
 		ProcessBuffer(InParent, RF_Transactional, TextBuffer);
 
-		//FParse::Command(&TextBuffer, TEXT("END SPLINES"));
+		check(bProcessedEnd);
 	}
 
 	return OutObjects;
@@ -39,6 +43,18 @@ bool FLandscapeSplineTextObjectFactory::CanCreateClass(UClass* ObjectClass, bool
 	}
 
 	return false;
+}
+
+void FLandscapeSplineTextObjectFactory::ProcessUnidentifiedLine(const FString& StrLine)
+{
+	if (StrLine.StartsWith(SplineEndTag))
+	{
+		bProcessedEnd = true;
+	}
+	else if (StrLine.StartsWith(SplineLocationTag))
+	{
+		SplineLocation.InitFromString(StrLine.Mid(SplineLocationTag.Len()));
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

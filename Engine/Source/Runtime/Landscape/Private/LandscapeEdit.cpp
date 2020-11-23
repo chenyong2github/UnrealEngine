@@ -2196,11 +2196,6 @@ bool ULandscapeInfo::AreAllComponentsRegistered() const
 
 		if (LandscapeProxy->GetLandscapeGuid() == LandscapeGuid)
 		{
-			if (LandscapeProxy->SplineComponent && !LandscapeProxy->SplineComponent->IsRegistered())
-			{
-				return false;
-			}
-
 			for (ULandscapeComponent* LandscapeComponent : LandscapeProxy->LandscapeComponents)
 			{
 				if (LandscapeComponent && !LandscapeComponent->IsRegistered())
@@ -2210,6 +2205,23 @@ bool ULandscapeInfo::AreAllComponentsRegistered() const
 			}
 		}
 	}
+		
+	for (TScriptInterface<ILandscapeSplineInterface> SplineOwner : SplineActors)
+	{
+		if (!SplineOwner.GetObject() || SplineOwner.GetObject()->IsPendingKill())
+		{
+			continue;
+		}
+
+		if (SplineOwner->GetLandscapeGuid() == LandscapeGuid)
+		{
+			if (SplineOwner->GetSplinesComponent() && !SplineOwner->GetSplinesComponent()->IsRegistered())
+			{
+				return false;
+			}
+		}
+	}
+
 
 	return true;
 }

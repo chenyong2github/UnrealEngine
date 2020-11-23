@@ -44,6 +44,8 @@ Landscape.cpp: Terrain rendering
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "ProfilingDebugging/CookStats.h"
+#include "ILandscapeSplineInterface.h"
+#include "LandscapeSplineActor.h"
 #include "LandscapeSplinesComponent.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
@@ -1186,41 +1188,14 @@ ALandscape* ALandscapeStreamingProxy::GetLandscapeActor()
 
 ULandscapeInfo* ALandscapeProxy::CreateLandscapeInfo(bool bMapCheck)
 {
-	ULandscapeInfo* LandscapeInfo = nullptr;
-
-	check(LandscapeGuid.IsValid());
-	UWorld* OwningWorld = GetWorld();
-	check(OwningWorld);
-	
-	auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(OwningWorld);
-	LandscapeInfo = LandscapeInfoMap.Map.FindRef(LandscapeGuid);
-
-	if (!LandscapeInfo)
-	{
-		check(!HasAnyFlags(RF_BeginDestroyed));
-		LandscapeInfo = NewObject<ULandscapeInfo>(GetTransientPackage(), NAME_None, RF_Transactional | RF_Transient);
-		LandscapeInfoMap.Modify(false);
-		LandscapeInfoMap.Map.Add(LandscapeGuid, LandscapeInfo);
-	}
-	check(LandscapeInfo);
+	ULandscapeInfo* LandscapeInfo = ULandscapeInfo::FindOrCreate(GetWorld(), LandscapeGuid);
 	LandscapeInfo->RegisterActor(this, bMapCheck);
-
 	return LandscapeInfo;
 }
 
 ULandscapeInfo* ALandscapeProxy::GetLandscapeInfo() const
 {
-	ULandscapeInfo* LandscapeInfo = nullptr;
-
-	check(LandscapeGuid.IsValid());
-	UWorld* OwningWorld = GetWorld();
-
-	if (OwningWorld != nullptr)
-	{
-		auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(OwningWorld);
-		LandscapeInfo = LandscapeInfoMap.Map.FindRef(LandscapeGuid);
-	}
-	return LandscapeInfo;
+	return ULandscapeInfo::Find(GetWorld(), LandscapeGuid);
 }
 
 FTransform ALandscapeProxy::LandscapeActorToWorld() const
@@ -3084,6 +3059,39 @@ void ULandscapeInfo::RecreateLandscapeInfo(UWorld* InWorld, bool bMapCheck)
 
 #endif
 
+ULandscapeInfo* ULandscapeInfo::Find(UWorld* InWorld, const FGuid& LandscapeGuid)
+{
+	ULandscapeInfo* LandscapeInfo = nullptr;
+
+	check(LandscapeGuid.IsValid());
+	if (InWorld != nullptr)
+	{
+		auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(InWorld);
+		LandscapeInfo = LandscapeInfoMap.Map.FindRef(LandscapeGuid);
+	}
+	return LandscapeInfo;
+}
+
+ULandscapeInfo* ULandscapeInfo::FindOrCreate(UWorld* InWorld, const FGuid& LandscapeGuid)
+{
+	ULandscapeInfo* LandscapeInfo = nullptr;
+
+	check(LandscapeGuid.IsValid());
+	check(InWorld);
+
+	auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(InWorld);
+	LandscapeInfo = LandscapeInfoMap.Map.FindRef(LandscapeGuid);
+
+	if (!LandscapeInfo)
+	{
+		LandscapeInfo = NewObject<ULandscapeInfo>(GetTransientPackage(), NAME_None, RF_Transactional | RF_Transient);
+		LandscapeInfoMap.Modify(false);
+		LandscapeInfoMap.Map.Add(LandscapeGuid, LandscapeInfo);
+	}
+	check(LandscapeInfo);
+	return LandscapeInfo;
+}
+
 void ULandscapeInfo::ForAllLandscapeProxies(TFunctionRef<void(ALandscapeProxy*)> Fn) const
 {
 	ALandscape* Landscape = LandscapeActor.Get();
@@ -3175,6 +3183,8 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 
 		UpdateLayerInfoMap(Proxy);
 		UpdateAllAddCollisions();
+
+		RegisterSplineActor(Proxy);
 	}
 #endif
 	
@@ -3221,6 +3231,8 @@ void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
 			Proxies.Remove(StreamingProxy);
 			StreamingProxy->LandscapeActor = nullptr;
 		}
+
+		UnregisterSplineActor(Proxy);
 	}
 #endif
 
@@ -3252,6 +3264,68 @@ void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
 	}
 #endif
 }
+
+#if WITH_EDITOR
+ALandscapeSplineActor* ULandscapeInfo::CreateSplineActor(const FVector& Location)
+{
+	check(LandscapeActor.Get());
+	UWorld* World = LandscapeActor->GetWorld();
+	check(World);
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.OverrideLevel = World->PersistentLevel;
+	SpawnParams.bNoFail = true;
+	SpawnParams.ObjectFlags |= RF_Transactional;
+	ALandscapeSplineActor* SplineActor = World->SpawnActor<ALandscapeSplineActor>(Location, FRotator::ZeroRotator, SpawnParams);
+	SplineActor->GetSharedProperties(this);
+	SplineActor->GetSplinesComponent()->ShowSplineEditorMesh(true);
+	RegisterSplineActor(SplineActor);
+	return SplineActor;
+}
+
+void ULandscapeInfo::ForAllSplineActors(TFunctionRef<void(TScriptInterface<ILandscapeSplineInterface>)> Fn) const
+{
+	for (const TScriptInterface<ILandscapeSplineInterface>& SplineActor : SplineActors)
+	{
+		Fn(SplineActor);
+	}
+}
+
+TArray<TScriptInterface<ILandscapeSplineInterface>> ULandscapeInfo::GetSplineActors() const
+{
+	TArray<TScriptInterface<ILandscapeSplineInterface>> CopySplineActors(SplineActors);
+	return MoveTemp(CopySplineActors);
+}
+
+void ULandscapeInfo::RegisterSplineActor(TScriptInterface<ILandscapeSplineInterface> SplineActor)
+{
+	Modify();
+	SplineActors.AddUnique(SplineActor);
+
+	if (SplineActor->GetSplinesComponent())
+	{
+		RequestSplineLayerUpdate();
+	}
+}
+
+void ULandscapeInfo::UnregisterSplineActor(TScriptInterface<ILandscapeSplineInterface> SplineActor)
+{
+	Modify();
+	SplineActors.Remove(SplineActor);
+
+	if (SplineActor->GetSplinesComponent())
+	{
+		RequestSplineLayerUpdate();
+	}
+}
+
+void ULandscapeInfo::RequestSplineLayerUpdate()
+{
+	if (LandscapeActor)
+	{
+		LandscapeActor->RequestSplineLayerUpdate();
+	}
+}
+#endif
 
 void ULandscapeInfo::RegisterCollisionComponent(ULandscapeHeightfieldCollisionComponent* Component)
 {

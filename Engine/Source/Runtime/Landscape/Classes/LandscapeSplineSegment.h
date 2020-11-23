@@ -340,6 +340,8 @@ public:
 	const TArray<FLandscapeSplineInterpPoint>& GetPoints() const { return Points; }
 
 #if WITH_EDITOR
+	bool SupportsForeignSplineMesh() const;
+
 	bool IsSplineSelected() const { return bSelected; }
 	virtual void SetSplineSelected(bool bInSelected);
 

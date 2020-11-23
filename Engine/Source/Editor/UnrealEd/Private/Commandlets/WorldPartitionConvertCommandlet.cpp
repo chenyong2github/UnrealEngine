@@ -43,6 +43,10 @@
 #include "LandscapeStreamingProxy.h"
 #include "LandscapeInfo.h"
 #include "LandscapeConfigHelper.h"
+#include "ILandscapeSplineInterface.h"
+#include "LandscapeSplineActor.h"
+#include "LandscapeSplinesComponent.h"
+#include "LandscapeSplineControlPoint.h"
 #include "LandscapeGizmoActor.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
@@ -863,6 +867,39 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 			NewLandscape->GetSharedProperties(FirstProxy);
 
 			LandscapeInfo->RegisterActor(NewLandscape);
+		}
+
+		TSet<AActor*> NewSplineActors;
+						
+		auto MoveControlPointToNewSplineActor = [&NewSplineActors, LandscapeInfo](ULandscapeSplineControlPoint* ControlPoint)
+		{
+			AActor* CurrentOwner = ControlPoint->GetTypedOuter<AActor>();
+			// Control point as already been moved through its connected segments
+			if (NewSplineActors.Contains(CurrentOwner))
+			{
+				return;
+			}
+			
+			const FTransform LocalToWorld = ControlPoint->GetOuterULandscapeSplinesComponent()->GetComponentTransform();
+			const FVector NewActorLocation = LocalToWorld.TransformPosition(ControlPoint->Location);
+						
+			ALandscapeSplineActor* NewSplineActor = LandscapeInfo->CreateSplineActor(NewActorLocation);
+
+			// ULandscapeSplinesComponent doesn't assign SplineEditorMesh when IsCommandlet() is true.
+			NewSplineActor->GetSplinesComponent()->SetDefaultEditorSplineMesh();
+
+			NewSplineActors.Add(NewSplineActor);
+			LandscapeInfo->MoveSpline(ControlPoint, NewSplineActor);
+		};
+				
+		// Iterate on copy since we are creating new spline actors
+		TArray<TScriptInterface<ILandscapeSplineInterface>> OldSplineActors(LandscapeInfo->GetSplineActors());
+		for (TScriptInterface<ILandscapeSplineInterface> PreviousSplineActor : OldSplineActors)
+		{
+			if (ULandscapeSplinesComponent* SplineComponent = PreviousSplineActor->GetSplinesComponent())
+			{
+				SplineComponent->ForEachControlPoint(MoveControlPointToNewSplineActor);
+			}
 		}
 
 		TSet<AActor*> ActorsToDelete;

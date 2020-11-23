@@ -308,10 +308,11 @@ public:
 	void ShowSplineProperties();
 	bool HasSelectedSplineSegments() const;
 	void FlipSelectedSplineSegments();
-	void GetSelectedSplineOwners(TSet<ALandscapeProxy*>& SelectedSplineOwners) const;
+	void GetSelectedSplineOwners(TSet<AActor*>& SelectedSplineOwners) const;
 	virtual void SelectAllConnectedSplineControlPoints();
 	virtual void SelectAllConnectedSplineSegments();
 	virtual void SplineMoveToCurrentLevel();
+	virtual bool CanMoveSplineToCurrentLevel() const;
 	virtual void UpdateSplineMeshLevels();
 	void SetbUseAutoRotateOnJoin(bool InbAutoRotateOnJoin);
 	bool GetbUseAutoRotateOnJoin();

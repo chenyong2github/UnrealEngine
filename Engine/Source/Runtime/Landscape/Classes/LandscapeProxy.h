@@ -16,7 +16,7 @@
 #include "LandscapeWeightmapUsage.h"
 #include "VT/RuntimeVirtualTextureEnum.h"
 #include "ActorPartition/PartitionActor.h"
-
+#include "ILandscapeSplineInterface.h"
 #include "LandscapeProxy.generated.h"
 
 class ALandscape;
@@ -402,7 +402,7 @@ private:
 };
 
 UCLASS(Abstract, MinimalAPI, NotBlueprintable, NotPlaceable, hidecategories=(Display, Attachment, Physics, Debug, Lighting, LOD), showcategories=(Lighting, Rendering, "Utilities|Transformation"), hidecategories=(Mobility))
-class ALandscapeProxy : public APartitionActor
+class ALandscapeProxy : public APartitionActor, public ILandscapeSplineInterface
 {
 	GENERATED_BODY()
 
@@ -411,10 +411,10 @@ public:
 
 	virtual ~ALandscapeProxy();
 
+protected:
 	UPROPERTY()
 	ULandscapeSplinesComponent* SplineComponent;
 
-protected:
 	/** Guid for LandscapeEditorInfo **/
 	UPROPERTY()
 	FGuid LandscapeGuid;
@@ -865,7 +865,7 @@ public:
 	virtual FGuid GetGridGuid() const override { return LandscapeGuid; }
 #endif	//WITH_EDITOR
 
-	FGuid GetLandscapeGuid() const { return LandscapeGuid; }
+	virtual FGuid GetLandscapeGuid() const override { return LandscapeGuid; }
 	void SetLandscapeGuid(const FGuid& Guid) { LandscapeGuid = Guid; }
 	virtual ALandscape* GetLandscapeActor() PURE_VIRTUAL(GetLandscapeActor, return nullptr;)
 	virtual const ALandscape* GetLandscapeActor() const PURE_VIRTUAL(GetLandscapeActor, return nullptr;)
@@ -953,10 +953,10 @@ public:
 	virtual void PostLoad() override;
 
 	LANDSCAPE_API ULandscapeInfo* CreateLandscapeInfo(bool bMapCheck = false);
-	LANDSCAPE_API ULandscapeInfo* GetLandscapeInfo() const;
+	virtual LANDSCAPE_API ULandscapeInfo* GetLandscapeInfo() const override;
 
 	/** Get the LandcapeActor-to-world transform with respect to landscape section offset*/
-	LANDSCAPE_API FTransform LandscapeActorToWorld() const;
+	virtual LANDSCAPE_API FTransform LandscapeActorToWorld() const override;
 
 	/**
 	* Output a landscape heightmap to a render target
@@ -970,11 +970,19 @@ public:
 
 	/** Get landscape position in section space */
 	LANDSCAPE_API FIntPoint GetSectionBaseOffset() const;
+
+	// ILandscapeSplineInterface
+	LANDSCAPE_API virtual ULandscapeSplinesComponent* GetSplinesComponent() const override { return SplineComponent; }
+
 #if WITH_EDITOR
+	LANDSCAPE_API void SetSplinesComponent(ULandscapeSplinesComponent* InSplineComponent) { check(!SplineComponent); SplineComponent = InSplineComponent; }
+
+	LANDSCAPE_API virtual bool SupportsForeignSplineMesh() const override { return true; }
+
 	LANDSCAPE_API int32 GetOutdatedGrassMapCount() const;
 	LANDSCAPE_API void BuildGrassMaps(struct FScopedSlowTask* InSlowTask = nullptr);
-	LANDSCAPE_API void CreateSplineComponent();
-	LANDSCAPE_API void CreateSplineComponent(const FVector& Scale3D);
+	LANDSCAPE_API virtual void CreateSplineComponent() override;
+	LANDSCAPE_API virtual void CreateSplineComponent(const FVector& Scale3D) override;
 
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

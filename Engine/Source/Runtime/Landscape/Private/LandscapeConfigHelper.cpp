@@ -215,10 +215,7 @@ bool FLandscapeConfigHelper::ChangeGridSize(ULandscapeInfo* InLandscapeInfo, uin
 
 		return true;
 	}, GridSize);
-
-	// @todo_ow: This is probably not the final solution
-	MoveSplinesToLandscape(InLandscapeInfo, InLandscapeInfo->LandscapeActor.Get(), 1.0f);
-
+		
 	// Only delete Proxies that where not reused
 	for (ALandscapeProxy* ProxyToDelete : ProxiesToDelete)
 	{
@@ -344,19 +341,19 @@ void FLandscapeConfigHelper::CopyRegionToComponent(ULandscapeInfo* InLandscapeIn
 
 void FLandscapeConfigHelper::MoveSplinesToLandscape(ULandscapeInfo* InLandscapeInfo, ALandscapeProxy* InLandscape, float InScaleFactor)
 {
-	if (!InLandscape->SplineComponent)
+	if (!InLandscape->GetSplinesComponent())
 	{
 		InLandscape->CreateSplineComponent();
 	}
 
 	InLandscapeInfo->ForAllLandscapeProxies([InLandscapeInfo, InLandscape](ALandscapeProxy* LandscapeProxy)
 	{
-		if (InLandscape == LandscapeProxy || LandscapeProxy->SplineComponent == nullptr)
+		if (InLandscape == LandscapeProxy || !LandscapeProxy->GetSplinesComponent())
 		{
 			return;
 		}
 
-		InLandscapeInfo->MoveSplinesToProxy(LandscapeProxy->SplineComponent, InLandscape);
+		InLandscapeInfo->MoveSplinesToProxy(LandscapeProxy->GetSplinesComponent(), InLandscape);
 	});
 }
 

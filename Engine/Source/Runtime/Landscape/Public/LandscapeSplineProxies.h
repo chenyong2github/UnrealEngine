@@ -4,19 +4,22 @@
 
 #include "CoreMinimal.h"
 #include "UObject/UObjectGlobals.h"
-#include "HitProxies.h"
+#include "EngineUtils.h"
+#include "LandscapeSplinesComponent.h"
+#include "LandscapeSplineControlPoint.h"
+#include "LandscapeSplineSegment.h"
 
 class ULandscapeSplineSegment;
 
 //////////////////////////////////////////////////////////////////////////
 // LANDSCAPE SPLINES HIT PROXY
 
-struct HLandscapeSplineProxy : public HHitProxy
+struct HLandscapeSplineProxy : public HActor
 {
 	DECLARE_HIT_PROXY( LANDSCAPE_API );
 
-	HLandscapeSplineProxy(EHitProxyPriority InPriority = HPP_Wireframe) :
-		HHitProxy(InPriority)
+	HLandscapeSplineProxy(ULandscapeSplinesComponent* SplineComponent, EHitProxyPriority InPriority = HPP_Wireframe) :
+		HActor(SplineComponent->GetOwner(), SplineComponent, InPriority)
 	{
 	}
 	virtual EMouseCursor::Type GetMouseCursor() override
@@ -32,7 +35,7 @@ struct HLandscapeSplineProxy_Segment : public HLandscapeSplineProxy
 	class ULandscapeSplineSegment* SplineSegment;
 
 	HLandscapeSplineProxy_Segment(class ULandscapeSplineSegment* InSplineSegment) :
-		HLandscapeSplineProxy(),
+		HLandscapeSplineProxy(InSplineSegment->GetOuterULandscapeSplinesComponent()),
 		SplineSegment(InSplineSegment)
 	{
 	}
@@ -49,7 +52,7 @@ struct HLandscapeSplineProxy_ControlPoint : public HLandscapeSplineProxy
 	class ULandscapeSplineControlPoint* ControlPoint;
 
 	HLandscapeSplineProxy_ControlPoint(class ULandscapeSplineControlPoint* InControlPoint) :
-		HLandscapeSplineProxy(HPP_Foreground),
+		HLandscapeSplineProxy(InControlPoint->GetOuterULandscapeSplinesComponent(), HPP_Foreground),
 		ControlPoint(InControlPoint)
 	{
 	}
@@ -67,7 +70,7 @@ struct HLandscapeSplineProxy_Tangent : public HLandscapeSplineProxy
 	uint32 End:1;
 
 	HLandscapeSplineProxy_Tangent(class ULandscapeSplineSegment* InSplineSegment, bool InEnd) :
-		HLandscapeSplineProxy(HPP_UI),
+		HLandscapeSplineProxy(InSplineSegment->GetOuterULandscapeSplinesComponent(), HPP_UI),
 		SplineSegment(InSplineSegment),
 		End(InEnd)
 	{

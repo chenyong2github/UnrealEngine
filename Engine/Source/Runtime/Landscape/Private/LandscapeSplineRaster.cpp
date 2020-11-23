@@ -577,29 +577,37 @@ bool ULandscapeInfo::ApplySplines(bool bOnlySelected, TSet<ULandscapeComponent*>
 		return SharedPtr;
 	};
 
-	ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
+	ForAllSplineActors([&](TScriptInterface<ILandscapeSplineInterface> SplineOwner)
 	{
-		bResult |= ApplySplinesInternal(bOnlySelected, Proxy, OutModifiedComponents, bMarkPackageDirty, LandscapeMinX, LandscapeMinY, LandscapeMaxX, LandscapeMaxY, GetOrCreateModulate);
+		bResult |= ApplySplinesInternal(bOnlySelected, SplineOwner, OutModifiedComponents, bMarkPackageDirty, LandscapeMinX, LandscapeMinY, LandscapeMaxX, LandscapeMaxY, GetOrCreateModulate);
 	});
 
 	return bResult;
 }
 
-bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* Proxy, TSet<ULandscapeComponent*>* OutModifiedComponents, bool bMarkPackageDirty, int32 LandscapeMinX, int32 LandscapeMinY, int32 LandscapeMaxX, int32 LandscapeMaxY, TFunctionRef<TSharedPtr<FModulateAlpha>(ULandscapeLayerInfoObject*)> GetOrCreateModulate)
+bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, TScriptInterface<ILandscapeSplineInterface> SplineOwner, TSet<ULandscapeComponent*>* OutModifiedComponents, bool bMarkPackageDirty, int32 LandscapeMinX, int32 LandscapeMinY, int32 LandscapeMaxX, int32 LandscapeMaxY, TFunctionRef<TSharedPtr<FModulateAlpha>(ULandscapeLayerInfoObject*)> GetOrCreateModulate)
 {
-	if (!Proxy || !Proxy->SplineComponent || !Proxy->SplineComponent->IsRegistered() || Proxy->SplineComponent->ControlPoints.Num() == 0 || Proxy->SplineComponent->Segments.Num() == 0)
+	if (!SplineOwner)
 	{
 		return false;
 	}
 
-	const FTransform SplineToLandscape = Proxy->SplineComponent->GetComponentTransform().GetRelativeTransform(Proxy->LandscapeActorToWorld());
+	ULandscapeSplinesComponent* SplineComponent = SplineOwner->GetSplinesComponent();
+	
+	if (!SplineComponent || !SplineComponent->IsRegistered() || SplineComponent->ControlPoints.Num() == 0 || SplineComponent->Segments.Num() == 0)
+	{
+		return false;
+	}
+
+
+	const FTransform SplineToLandscape = SplineComponent->GetComponentTransform().GetRelativeTransform(SplineOwner->LandscapeActorToWorld());
 
 	FLandscapeEditDataInterface LandscapeEdit(this);
 	FLandscapeDoNotDirtyScope DoNotDirtyScope(LandscapeEdit, !bMarkPackageDirty);
 	TSet<ULandscapeComponent*> ModifiedComponents;
 	
 
-	for (const ULandscapeSplineControlPoint* ControlPoint : Proxy->SplineComponent->ControlPoints)
+	for (const ULandscapeSplineControlPoint* ControlPoint : SplineComponent->ControlPoints)
 	{
 		if (bOnlySelected && !ControlPoint->IsSplineSelected())
 		{
@@ -675,7 +683,7 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* P
 		}
 	}
 
-	for (const ULandscapeSplineSegment* Segment : Proxy->SplineComponent->Segments)
+	for (const ULandscapeSplineSegment* Segment : SplineComponent->Segments)
 	{
 		if (bOnlySelected && !Segment->IsSplineSelected())
 		{
@@ -750,7 +758,7 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* P
 
 	LandscapeEdit.Flush();
 		
-	if (!Proxy->HasLayersContent())
+	if (!CanHaveLayersContent())
 	{
 		ALandscapeProxy::InvalidateGeneratedComponentData(ModifiedComponents);
 	}

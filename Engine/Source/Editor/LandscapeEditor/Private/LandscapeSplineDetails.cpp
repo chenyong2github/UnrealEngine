@@ -11,6 +11,7 @@
 #include "DetailWidgetRow.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
+#include "ILandscapeSplineInterface.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeSplineDetails"
 
@@ -138,7 +139,7 @@ bool FLandscapeSplineDetails::IsFlipSegmentButtonEnabled() const
 
 FText FLandscapeSplineDetails::OnGetSplineOwningLandscapeText() const
 {
-	TSet<ALandscapeProxy*> SplineOwners;
+	TSet<AActor*> SplineOwners;
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode && LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid())
 	{
@@ -146,7 +147,7 @@ FText FLandscapeSplineDetails::OnGetSplineOwningLandscapeText() const
 	}
 
 	FString SplineOwnersStr;
-	for (ALandscapeProxy* Owner : SplineOwners)
+	for (AActor* Owner : SplineOwners)
 	{
 		if (Owner)
 		{
@@ -154,7 +155,7 @@ FText FLandscapeSplineDetails::OnGetSplineOwningLandscapeText() const
 			{
 				SplineOwnersStr += ", ";
 			}
-			
+
 			SplineOwnersStr += Owner->GetActorLabel();
 		}
 	}
@@ -198,7 +199,12 @@ FReply FLandscapeSplineDetails::OnMoveToCurrentLevelButtonClicked()
 bool FLandscapeSplineDetails::IsMoveToCurrentLevelButtonEnabled() const
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	return (LandscapeEdMode && LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid() && LandscapeEdMode->CurrentToolTarget.LandscapeInfo->GetCurrentLevelLandscapeProxy(true));
+	if (LandscapeEdMode && LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid() && LandscapeEdMode->CurrentToolTarget.LandscapeInfo->GetCurrentLevelLandscapeProxy(true))
+	{
+		return LandscapeEdMode->CanMoveSplineToCurrentLevel();
+	}
+
+	return false;
 }
 
 FReply FLandscapeSplineDetails::OnUpdateSplineMeshLevelsButtonClicked()

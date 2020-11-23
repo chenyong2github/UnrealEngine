@@ -3487,15 +3487,15 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 
 			// Clone landscape splines
 			ALandscape* OldLandscapeActor = LandscapeInfo->LandscapeActor.Get();
-			if (OldLandscapeActor != nullptr && OldLandscapeActor->SplineComponent != NULL)
+			if (OldLandscapeActor != nullptr && OldLandscapeActor->GetSplinesComponent() != nullptr)
 			{
-				ULandscapeSplinesComponent* OldSplines = OldLandscapeActor->SplineComponent;
+				ULandscapeSplinesComponent* OldSplines = OldLandscapeActor->GetSplinesComponent();
 				ULandscapeSplinesComponent* NewSplines = DuplicateObject<ULandscapeSplinesComponent>(OldSplines, NewLandscape, OldSplines->GetFName());
 				NewSplines->AttachToComponent(NewLandscape->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
 
 				const FVector OldSplineScale = OldSplines->GetRelativeTransform().GetScale3D();
 				NewSplines->SetRelativeScale3D(FVector(OldSplineScale.X / LandscapeScaleFactor, OldSplineScale.Y / LandscapeScaleFactor, OldSplineScale.Z));
-				NewLandscape->SplineComponent = NewSplines;
+				NewLandscape->SetSplinesComponent(NewSplines);
 				NewSplines->RegisterComponent();
 
 				// TODO: Foliage on spline meshes

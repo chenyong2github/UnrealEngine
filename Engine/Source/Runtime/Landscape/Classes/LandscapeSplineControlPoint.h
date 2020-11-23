@@ -238,6 +238,8 @@ public:
 	const TArray<FLandscapeSplineInterpPoint>& GetPoints() const { return Points; }
 
 #if WITH_EDITOR
+	bool SupportsForeignSplineMesh() const;
+
 	// Get the name of the best connection point (socket) to use for a particular destination
 	virtual FName GetBestConnectionTo(FVector Destination) const;
 

@@ -18,6 +18,7 @@ class UMeshComponent;
 class USplineMeshComponent;
 class UStaticMesh;
 class UTexture2D;
+class ILandscapeSplineInterface;
 
 // structs for ForeignWorldSplineDataMap
 // these are editor-only, but we don't have the concept of an editor-only USTRUCT
@@ -150,12 +151,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = LandscapeSplines)
 	TArray<USplineMeshComponent*> GetSplineMeshComponents();
 
+	LANDSCAPE_API ILandscapeSplineInterface* GetSplineOwner();
+
 	void CheckSplinesValid();
 	bool ModifySplines(bool bAlwaysMarkDirty = true);
 
 #if WITH_EDITOR
+	void RequestSplineLayerUpdate();
+
 	bool HasAnyControlPointsOrSegments() const { return ControlPoints.Num() > 0 || Segments.Num() > 0; }
 
+	LANDSCAPE_API void SetDefaultEditorSplineMesh();
 	virtual void ShowSplineEditorMesh(bool bShow);
 
 	// Rebuilds all spline points and meshes for all spline control points and segments in this splines component
@@ -197,6 +203,9 @@ public:
 	bool IsUsingEditorMesh(const USplineMeshComponent* SplineMeshComponent) const;
 
 	bool IsUsingLayerInfo(const ULandscapeLayerInfoObject* LayerInfo) const;
+
+	// Iterates throug a copy of the ControlPoints list.
+	LANDSCAPE_API void ForEachControlPoint(TFunctionRef<void(ULandscapeSplineControlPoint*)> Func);
 #endif
 
 	//~ Begin UObject Interface
