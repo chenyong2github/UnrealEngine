@@ -418,7 +418,10 @@ TSharedRef<FInternetAddr> ISocketSubsystem::GetLocalHostAddr(FOutputDevice& Out,
 		}
 		else
 		{
-			HostAddr = AdapterAddresses[0]->Clone();
+			if (AdapterAddresses.Num() > 0)
+			{ 
+				HostAddr = AdapterAddresses[0]->Clone();
+			}
 		}
 	}
 
