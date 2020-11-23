@@ -169,6 +169,8 @@
     <Compile Include="ProjectFiles\Xcode\XcodeFrameworkWrapperProject.cs" />
     <Compile Include="ProjectFiles\Xcode\XcodeProject.cs" />
     <Compile Include="ProjectFiles\Xcode\XcodeProjectFileGenerator.cs" />
+    <Compile Include="Storage\Impl\FileSystemStorageProvider.cs" />
+    <Compile Include="Storage\IStorageProvider.cs" />
     <Compile Include="System\Action.cs" />
     <Compile Include="System\ActionExecutor.cs" />
     <Compile Include="Modes\AggregateParsedTimingInfo.cs" />
