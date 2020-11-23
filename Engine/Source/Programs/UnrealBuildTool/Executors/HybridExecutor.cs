@@ -68,9 +68,8 @@ namespace UnrealBuildTool
 		/// Execute the given actions
 		/// </summary>
 		/// <param name="ActionsToExecute">Actions to be executed</param>
-		/// <param name="bLogDetailedActionStats">Whether to log detailed action stats</param>
 		/// <returns>True if the build succeeded, false otherwise</returns>
-		public override bool ExecuteActions(List<Action> ActionsToExecute, bool bLogDetailedActionStats)
+		public override bool ExecuteActions(List<Action> ActionsToExecute)
 		{
 			// Find the number of dependants for each action
 			Dictionary<Action, int> ActionToNumDependents = ActionsToExecute.ToDictionary(x => x, x => 0);
@@ -133,7 +132,7 @@ namespace UnrealBuildTool
 			// Execute the remote actions
 			if(RemoteActionsToExecute.Count > 0)
 			{
-				if (!RemoteExecutor.ExecuteActions(RemoteActionsToExecute, bLogDetailedActionStats))
+				if (!RemoteExecutor.ExecuteActions(RemoteActionsToExecute))
 				{
 					return false;
 				}
@@ -142,7 +141,7 @@ namespace UnrealBuildTool
 			// Pass all the local actions through to the parallel executor
 			if(LocalActionsToExecute.Count > 0)
 			{
-				if(!LocalExecutor.ExecuteActions(LocalActionsToExecute, bLogDetailedActionStats))
+				if(!LocalExecutor.ExecuteActions(LocalActionsToExecute))
 				{
 					return false;
 				}

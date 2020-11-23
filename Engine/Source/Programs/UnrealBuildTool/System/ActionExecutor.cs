@@ -15,7 +15,7 @@ namespace UnrealBuildTool
 			get;
 		}
 
-		public abstract bool ExecuteActions(List<Action> ActionsToExecute, bool bLogDetailedActionStats);
+		public abstract bool ExecuteActions(List<Action> ActionsToExecute);
 	}
 
 }

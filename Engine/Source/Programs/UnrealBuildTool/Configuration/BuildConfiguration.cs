@@ -37,12 +37,6 @@ namespace UnrealBuildTool
 		public bool bPrintDebugInfo = false;
 
 		/// <summary>
-		/// Whether to log detailed action stats. This forces local execution.
-		/// </summary>
-		[XmlConfigFile]
-		public bool bLogDetailedActionStats = false;
-
-		/// <summary>
 		/// Whether the hybrid executor will be used (a remote executor and local executor).
 		/// </summary>
 		[XmlConfigFile]

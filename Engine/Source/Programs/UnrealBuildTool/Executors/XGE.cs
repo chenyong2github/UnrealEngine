@@ -320,7 +320,7 @@ namespace UnrealBuildTool
 			Log.TraceInformation("XGEEXPORT: Exported '{0}'", OutFile);
 		}
 
-		public override bool ExecuteActions(List<Action> ActionsToExecute, bool bLogDetailedActionStats)
+		public override bool ExecuteActions(List<Action> ActionsToExecute)
 		{
 			bool XGEResult = true;
 

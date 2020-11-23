@@ -68,9 +68,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		private void ThreadFunc()
 		{
-			// thread start time
-			Action.StartTime = DateTimeOffset.Now;
-
 			string Args = Action.CommandArguments;
 #if NET_CORE
 			// Process Arguments follow windows conventions in .NET Core
@@ -182,9 +179,6 @@ namespace UnrealBuildTool
 				if (ActionProcess != null)
 					ActionProcess.Close();
 			}
-
-			// track how long it took
-			Action.EndTime = DateTimeOffset.Now;
 
 			// we are done!!
 			bComplete = true;
@@ -302,7 +296,7 @@ namespace UnrealBuildTool
 		/// Executes the specified actions locally.
 		/// </summary>
 		/// <returns>True if all the tasks successfully executed, or false if any of them failed.</returns>
-		public override bool ExecuteActions(List<Action> Actions, bool bLogDetailedActionStats)
+		public override bool ExecuteActions(List<Action> Actions)
 		{
 			// Time to sleep after each iteration of the loop in order to not busy wait.
 			const float LoopSleepTime = 0.1f;
@@ -426,19 +420,8 @@ namespace UnrealBuildTool
 				}
 			}
 
-			Log.WriteLineIf(bLogDetailedActionStats, LogEventType.Console, "-------- Begin Detailed Action Stats ----------------------------------------------------------");
-			Log.WriteLineIf(bLogDetailedActionStats, LogEventType.Console, "^Action Type^Duration (seconds)^Tool^Task^Using PCH");
-
-			double TotalThreadSeconds = 0;
-
 			// Check whether any of the tasks failed and log action stats if wanted.
 			bool bSuccess = true;
-			double TotalBuildProjectTime = 0;
-			double TotalCompileTime = 0;
-			double TotalCreateAppBundleTime = 0;
-			double TotalGenerateDebugInfoTime = 0;
-			double TotalLinkTime = 0;
-			double TotalOtherActionsTime = 0;
 			foreach (KeyValuePair<Action, ActionThread> ActionProcess in ActionThreadDictionary)
 			{
 				Action Action = ActionProcess.Key;
@@ -455,67 +438,7 @@ namespace UnrealBuildTool
 				{
 					bSuccess = false;
 				}
-				// Log CPU time, tool and task.
-				double ThreadSeconds = Action.Duration.TotalSeconds;
-
-				Log.WriteLineIf(bLogDetailedActionStats,
-					LogEventType.Console,
-					"^{0}^{1:0.00}^{2}^{3}",
-					Action.ActionType.ToString(),
-					ThreadSeconds,
-					Action.CommandPath.GetFileName(),
-					Action.StatusDescription);
-
-				// Update statistics
-				switch (Action.ActionType)
-				{
-					case ActionType.BuildProject:
-						TotalBuildProjectTime += ThreadSeconds;
-						break;
-
-					case ActionType.Compile:
-						TotalCompileTime += ThreadSeconds;
-						break;
-
-					case ActionType.CreateAppBundle:
-						TotalCreateAppBundleTime += ThreadSeconds;
-						break;
-
-					case ActionType.GenerateDebugInfo:
-						TotalGenerateDebugInfoTime += ThreadSeconds;
-						break;
-
-					case ActionType.Link:
-						TotalLinkTime += ThreadSeconds;
-						break;
-
-					default:
-						TotalOtherActionsTime += ThreadSeconds;
-						break;
-				}
-
-				// Keep track of total thread seconds spent on tasks.
-				TotalThreadSeconds += ThreadSeconds;
 			}
-
-			Log.WriteLineIf(bLogDetailedActionStats, LogEventType.Console, "-------- End Detailed Actions Stats -----------------------------------------------------------");
-
-			// Log total CPU seconds and numbers of processors involved in tasks.
-			Log.WriteLineIf(bLogDetailedActionStats,
-				LogEventType.Console, "Cumulative thread seconds ({0} processors): {1:0.00}", System.Environment.ProcessorCount, TotalThreadSeconds);
-
-			// Log detailed stats
-			Log.WriteLineIf(bLogDetailedActionStats,
-				LogEventType.Console,
-				"Cumulative action seconds ({0} processors): {1:0.00} building projects, {2:0.00} compiling, {3:0.00} creating app bundles, {4:0.00} generating debug info, {5:0.00} linking, {6:0.00} other",
-				System.Environment.ProcessorCount,
-				TotalBuildProjectTime,
-				TotalCompileTime,
-				TotalCreateAppBundleTime,
-				TotalGenerateDebugInfoTime,
-				TotalLinkTime,
-				TotalOtherActionsTime
-			);
 
 			return bSuccess;
 		}

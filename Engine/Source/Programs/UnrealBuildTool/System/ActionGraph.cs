@@ -199,7 +199,7 @@ namespace UnrealBuildTool
 
 				// Execute the build
 				Stopwatch Timer = Stopwatch.StartNew();
-				if(!Executor.ExecuteActions(ActionsToExecute, BuildConfiguration.bLogDetailedActionStats))
+				if(!Executor.ExecuteActions(ActionsToExecute))
 				{
 					throw new CompilationResultException(CompilationResult.OtherCompilationError);
 				}
@@ -249,7 +249,26 @@ namespace UnrealBuildTool
 			}
 
 			// Sort actions by number of actions depending on them, descending. Secondary sort criteria is file size.
-			Actions.Sort(Action.Compare);
+			Actions.Sort(CompareActions);
+		}
+
+		/// <summary>
+		/// Compares two actions based on total number of dependent items, descending.
+		/// </summary>
+		/// <param name="A">Action to compare</param>
+		/// <param name="B">Action to compare</param>
+		public static int CompareActions(Action A, Action B)
+		{
+			// Primary sort criteria is total number of dependent files, up to max depth.
+			if (B.NumTotalDependentActions != A.NumTotalDependentActions)
+			{
+				return Math.Sign(B.NumTotalDependentActions - A.NumTotalDependentActions);
+			}
+			// Secondary sort criteria is number of pre-requisites.
+			else
+			{
+				return Math.Sign(B.PrerequisiteItems.Count - A.PrerequisiteItems.Count);
+			}
 		}
 
 		/// <summary>

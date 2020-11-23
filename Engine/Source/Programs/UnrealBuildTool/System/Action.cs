@@ -159,21 +159,6 @@ namespace UnrealBuildTool
 		public int NumTotalDependentActions = 0;
 
 
-		///
-		/// Assembly only (not serialized)
-		///
-
-		/// <summary>
-		/// Start time of action, optionally set by executor.
-		/// </summary>
-		public DateTimeOffset StartTime = DateTimeOffset.MinValue;
-
-		/// <summary>
-		/// End time of action, optionally set by executor.
-		/// </summary>
-		public DateTimeOffset EndTime = DateTimeOffset.MinValue;
-
-
 		public Action(ActionType InActionType)
 		{
 			ActionType = InActionType;
@@ -483,22 +468,6 @@ namespace UnrealBuildTool
 				ReturnString += CommandArguments;
 			}
 			return ReturnString;
-		}
-
-		/// <summary>
-		/// Returns the amount of time that this action is or has been executing in.
-		/// </summary>
-		public TimeSpan Duration
-		{
-			get
-			{
-				if (EndTime == DateTimeOffset.MinValue)
-				{
-					return DateTimeOffset.Now - StartTime;
-				}
-
-				return EndTime - StartTime;
-			}
 		}
 	}
 }

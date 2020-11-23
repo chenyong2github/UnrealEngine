@@ -387,7 +387,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public override bool ExecuteActions(List<Action> Actions, bool bLogDetailedActionStats)
+		public override bool ExecuteActions(List<Action> Actions)
 		{
 			if (Actions.Count <= 0)
 				return true;
@@ -415,7 +415,7 @@ namespace UnrealBuildTool
 
 			if (PreCompileActions.Any())
 			{
-				bool bResult = new LocalExecutor().ExecuteActions(PreCompileActions, bLogDetailedActionStats);
+				bool bResult = new LocalExecutor().ExecuteActions(PreCompileActions);
 
 				if (!bResult)
 					return false;
@@ -444,7 +444,7 @@ namespace UnrealBuildTool
 
 			if (PostCompileActions.Any())
 			{
-				bool bResult = new LocalExecutor().ExecuteActions(PostCompileActions, bLogDetailedActionStats);
+				bool bResult = new LocalExecutor().ExecuteActions(PostCompileActions);
 
 				if (!bResult)
 					return false;
