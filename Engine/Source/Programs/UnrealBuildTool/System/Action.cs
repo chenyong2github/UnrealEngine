@@ -363,65 +363,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Finds conflicts betwee two actions, and prints them to the log
-		/// </summary>
-		/// <param name="Other">Other action to compare to.</param>
-		/// <returns>True if any conflicts were found, false otherwise.</returns>
-		public bool CheckForConflicts(Action Other)
-		{
-			bool bResult = true;
-			if(ActionType != Other.ActionType)
-			{
-				LogConflict("action type is different", ActionType.ToString(), Other.ActionType.ToString());
-				bResult = false;
-			}
-			if(!Enumerable.SequenceEqual(PrerequisiteItems, Other.PrerequisiteItems))
-			{
-				LogConflict("prerequisites are different", String.Join(", ", PrerequisiteItems.Select(x => x.Location)), String.Join(", ", Other.PrerequisiteItems.Select(x => x.Location)));
-				bResult = false;
-			}
-			if(!Enumerable.SequenceEqual(DeleteItems, Other.DeleteItems))
-			{
-				LogConflict("deleted items are different", String.Join(", ", DeleteItems.Select(x => x.Location)), String.Join(", ", Other.DeleteItems.Select(x => x.Location)));
-				bResult = false;
-			}
-			if(DependencyListFile != Other.DependencyListFile)
-			{
-				LogConflict("dependency list is different", (DependencyListFile == null)? "(none)" : DependencyListFile.AbsolutePath, (Other.DependencyListFile == null)? "(none)" : Other.DependencyListFile.AbsolutePath);
-				bResult = false;
-			}
-			if(WorkingDirectory != Other.WorkingDirectory)
-			{
-				LogConflict("working directory is different", WorkingDirectory.FullName, Other.WorkingDirectory.FullName);
-				bResult = false;
-			}
-			if(CommandPath != Other.CommandPath)
-			{
-				LogConflict("command path is different", CommandPath.FullName, Other.CommandPath.FullName);
-				bResult = false;
-			}
-			if(CommandArguments != Other.CommandArguments)
-			{
-				LogConflict("command arguments are different", CommandArguments, Other.CommandArguments);
-				bResult = false;
-			}
-			return bResult;
-		}
-
-		/// <summary>
-		/// Adds the description of a merge error to an output message
-		/// </summary>
-		/// <param name="Description">Description of the difference</param>
-		/// <param name="OldValue">Previous value for the field</param>
-		/// <param name="NewValue">Conflicting value for the field</param>
-		void LogConflict(string Description, string OldValue, string NewValue)
-		{
-			Log.TraceError("Unable to merge actions producing {0}: {1}", ProducedItems[0].Location.GetFileName(), Description);
-			Log.TraceLog("  Previous: {0}", OldValue);
-			Log.TraceLog("  Conflict: {0}", NewValue);
-		}
-
-		/// <summary>
 		/// Increment the number of dependents, recursively
 		/// </summary>
 		/// <param name="VisitedActions">Set of visited actions</param>
