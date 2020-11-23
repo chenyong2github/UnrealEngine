@@ -355,6 +355,60 @@ void UMatineeCameraShake::DoUpdateShake(const FCameraShakeUpdateParams& Params, 
 	}
 }
 
+void UMatineeCameraShake::DoScrubShake(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult)
+{
+	const float NewTime = Params.AbsoluteTime;
+
+	// reset to start and advance to desired point
+	LocSinOffset = InitialLocSinOffset;
+	RotSinOffset = InitialRotSinOffset;
+	FOVSinOffset = InitialFOVSinOffset;
+
+	OscillatorTimeRemaining = OscillationDuration;
+
+	if (OscillationBlendInTime > 0.f)
+	{
+		bBlendingIn = true;
+		CurrentBlendInTime = 0.f;
+	}
+
+	if (OscillationBlendOutTime > 0.f)
+	{
+		bBlendingOut = false;
+		CurrentBlendOutTime = 0.f;
+	}
+
+	if (OscillationDuration > 0.f)
+	{
+		if ((OscillationBlendOutTime > 0.f) && (NewTime > (OscillationDuration - OscillationBlendOutTime)))
+		{
+			bBlendingOut = true;
+			CurrentBlendOutTime = OscillationBlendOutTime - (OscillationDuration - NewTime);
+		}
+	}
+
+	FCameraShakeUpdateParams UpdateParams = Params.ToUpdateParams();
+
+	DoUpdateShake(UpdateParams, OutResult);
+
+	check(EnumHasAnyFlags(OutResult.Flags, ECameraShakeUpdateResultFlags::ApplyAsAbsolute));
+
+	if (AnimInst)
+	{
+		FMinimalViewInfo AnimPOV(Params.POV);
+		AnimPOV.Location = OutResult.Location;
+		AnimPOV.Rotation = OutResult.Rotation;
+		AnimPOV.FOV = OutResult.FOV;
+
+		AnimInst->SetCurrentTime(NewTime);
+		AnimInst->ApplyToView(AnimPOV);
+
+		OutResult.Location = AnimPOV.Location;
+		OutResult.Rotation = AnimPOV.Rotation;
+		OutResult.FOV = AnimPOV.FOV;
+	}
+}
+
 bool UMatineeCameraShake::DoGetIsFinished() const
 {
 	return ((OscillatorTimeRemaining <= 0.f) &&							// oscillator is finished
@@ -379,35 +433,7 @@ bool UMatineeCameraShake::IsLooping() const
 
 void UMatineeCameraShake::SetCurrentTimeAndApplyShake(float NewTime, FMinimalViewInfo& POV)
 {
-	// reset to start and advance to desired point
-	LocSinOffset = InitialLocSinOffset;
-	RotSinOffset = InitialRotSinOffset;
-	FOVSinOffset = InitialFOVSinOffset;
-
-	OscillatorTimeRemaining = OscillationDuration;
-
-	if (OscillationBlendInTime > 0.f)
-	{
-		bBlendingIn = true;
-		CurrentBlendInTime = 0.f;
-	}
-
-	if (OscillationDuration > 0.f)
-	{
-		if ((OscillationBlendOutTime > 0.f) && (NewTime > (OscillationDuration - OscillationBlendOutTime)))
-		{
-			bBlendingOut = true;
-			CurrentBlendOutTime = OscillationBlendOutTime - (OscillationDuration - NewTime);
-		}
-	}
-
-	UpdateAndApplyCameraShake(NewTime, 1.f, POV);
-
-	if (AnimInst)
-	{
-		AnimInst->SetCurrentTime(NewTime);
-		AnimInst->ApplyToView(POV);
-	}
+	ScrubAndApplyCameraShake(NewTime, 1.f, POV);
 }
 
 void UMatineeCameraShakePattern::GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const
@@ -431,6 +457,12 @@ void UMatineeCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdate
 {
 	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
 	Shake->DoUpdateShake(Params, OutResult);
+}
+
+void UMatineeCameraShakePattern::ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult)
+{
+	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
+	Shake->DoScrubShake(Params, OutResult);
 }
 
 bool UMatineeCameraShakePattern::IsFinishedImpl() const

@@ -44,7 +44,6 @@ void UCompositeCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpda
 	checkf(ShakeInstance, TEXT("Running a shake pattern without an outer shake instance"));
 
 	// Update each of our children states.
-	// For those children whose state/duration is automatically managed, we can figure out
 	FCameraShakeUpdateParams ChildParams(Params);
 
 	for (uint32 Index = 0, Num = ChildPatterns.Num(); Index < Num; ++Index)
@@ -83,6 +82,66 @@ void UCompositeCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpda
 			ApplyParams.PlaySpace = ShakeInstance->GetPlaySpace();
 			ApplyParams.UserPlaySpaceMatrix = ShakeInstance->GetUserPlaySpaceMatrix();
 			// This applies the current pattern's update to the parameters we'll pass
+			// to the next one.
+			UCameraShakeBase::ApplyResult(ApplyParams, ChildResult, ChildParams.POV);
+		}
+	}
+
+	// All our children patterns have applied their logic to our temp view, so we can put this in
+	// our own result, marking it as absolute.
+	OutResult.Location = ChildParams.POV.Location;
+	OutResult.Rotation = ChildParams.POV.Rotation;
+	OutResult.FOV = ChildParams.POV.FOV;
+	OutResult.Flags = ECameraShakeUpdateResultFlags::ApplyAsAbsolute;
+}
+
+void UCompositeCameraShakePattern::ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult)
+{
+	// This method is similar to the UpdateShakePatternImpl method above, but calls the scrub methods
+	// instead of the update methods.
+
+	UCameraShakeBase* ShakeInstance = GetShakeInstance();
+	checkf(ShakeInstance, TEXT("Running a shake pattern without an outer shake instance"));
+
+	// Scrub each of our children states.
+	FCameraShakeScrubParams ChildParams(Params);
+
+	for (uint32 Index = 0, Num = ChildPatterns.Num(); Index < Num; ++Index)
+	{
+		FCameraShakeState& PatternState = ChildStates[Index];
+		if (!PatternState.IsActive())
+		{
+			// This pattern was finished for some time already.
+			continue;
+		}
+
+		UCameraShakePattern* Pattern = ChildPatterns[Index];
+		if (Pattern != nullptr)
+		{
+			// Scrub the child state.
+			float ChildBlendingWeight = PatternState.Scrub(Params.AbsoluteTime);
+
+			// Let the child pattern run on the current result, with its own blending weight.
+			ChildParams.BlendingWeight = Params.BlendingWeight * ChildBlendingWeight;
+			ChildParams.TotalScale = FMath::Max(Params.TotalScale * ChildBlendingWeight, 0.f);
+
+			FCameraShakeUpdateResult ChildResult;
+
+			Pattern->ScrubShakePattern(ChildParams, ChildResult);
+
+			if (IsChildPatternFinished(PatternState, Pattern))
+			{
+				// This pattern just ended now. Reset its state and move on to the next.
+				ChildStates[Index] = FCameraShakeState();
+				continue;
+			}
+			
+			// Apply this result and pass it on to the next child pattern.
+			FCameraShakeApplyResultParams ApplyParams;
+			ApplyParams.Scale = ChildParams.TotalScale;
+			ApplyParams.PlaySpace = ShakeInstance->GetPlaySpace();
+			ApplyParams.UserPlaySpaceMatrix = ShakeInstance->GetUserPlaySpaceMatrix();
+			// This applies the current pattern's scrubbing to the parameters we'll pass
 			// to the next one.
 			UCameraShakeBase::ApplyResult(ApplyParams, ChildResult, ChildParams.POV);
 		}
