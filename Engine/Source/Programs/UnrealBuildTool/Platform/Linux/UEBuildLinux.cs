@@ -675,6 +675,11 @@ namespace UnrealBuildTool
 			return true;
 		}
 
+		protected override bool DoesHookRequireAdmin(SDKHookType Hook)
+		{
+			return false;
+		}
+
 		/// <summary>
 		/// Returns platform-specific name used in SDK repository
 		/// </summary>
