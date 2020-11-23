@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "CoreMinimal.h"
-#include "HoloLens/HoloLensPlatformProcess.h"
+//#include "HoloLens/HoloLensPlatformProcess.h"
 #if PLATFORM_WINDOWS
 #include "GenericPlatform/GenericPlatformProcess.h"
 #elif PLATFORM_MAC
@@ -11,12 +11,12 @@
 class FNodeProcessManager
 {
 private:
-	FNodeProcessManager() = default;	
+	FNodeProcessManager() = default;
 	static TSharedPtr<FNodeProcessManager> NodeProcessManager;
 
 	const FString BridgePluginName = TEXT("Bridge");
 	uint32 OutProcessId = 0;
-	FProcHandle NodeProcessHandle;
+	//FProcHandle NodeProcessHandle;
 
 	const FString GetProcessURL() const;
 	const FString GetPluginPath() const;	
