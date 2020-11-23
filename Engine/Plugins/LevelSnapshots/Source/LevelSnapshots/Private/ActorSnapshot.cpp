@@ -180,7 +180,9 @@ public:
 	{
 		this->SetWantBinaryPropertySerialization(false);
 		this->SetIsSaving(true);
-		this->SetIsTransacting(true);
+		this->SetIsTransacting(false);
+		this->SetIsPersistent(true);
+		ArNoDelta = true;
 	}
 
 	virtual int64 Tell() override
@@ -318,7 +320,7 @@ AActor* FLevelSnapshot_Actor::GetDeserializedActor() const
 		DeserializedActor = NewObject<AActor>(GetTransientPackage(), TargetClass, NAME_None, EObjectFlags::RF_Transient);
 
 		//FixupComponents(DeserializedActor);
-		
+
 		Deserialize(DeserializedActor);
 	}
 
