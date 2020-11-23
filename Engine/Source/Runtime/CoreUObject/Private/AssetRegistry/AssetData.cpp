@@ -15,7 +15,9 @@ IMPLEMENT_STRUCT(AssetData);
 const FGuid FAssetRegistryVersion::GUID(0x717F9EE7, 0xE9B0493A, 0x88B39132, 0x1B388107);
 FCustomVersionRegistration GRegisterAssetRegistryVersion(FAssetRegistryVersion::GUID, FAssetRegistryVersion::LatestVersion, TEXT("AssetRegistry"));
 
-static FName GAssetBundleDataName("AssetBundleData");
+namespace UE { namespace AssetData { namespace Private {
+
+const FName GAssetBundleDataName("AssetBundleData");
 
 static TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> ParseAssetBundles(const TCHAR* Text, const FAssetData& Context)
 {
@@ -40,6 +42,8 @@ static TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> ParseAssetBundles(const
 
 	return TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe>();
 }
+
+}}} // end namespace UE::AssetData::Private
 
 FAssetData::FAssetData(FName InPackageName, FName InPackagePath, FName InAssetName, FName InAssetClass, FAssetDataTagMap InTags, TArray<int32> InChunkIDs, uint32 InPackageFlags)
 	: PackageName(InPackageName)
@@ -105,6 +109,8 @@ FAssetData::FAssetData(const UObject* InAsset, bool bAllowBlueprintClass)
 
 void FAssetData::SetTagsAndAssetBundles(FAssetDataTagMap&& Tags)
 {
+	using namespace UE::AssetData::Private;
+
 	for (TPair<FName, FString>& Tag : Tags)
 	{
 		check(!Tag.Key.IsNone() && !Tag.Value.IsEmpty());

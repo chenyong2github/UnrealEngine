@@ -1719,6 +1719,8 @@ FString GetConfigFilename( UObject* SourceObject )
 	}
 }
 
+namespace UE { namespace Object { namespace Private {
+
 const FName GAssetBundleDataName("AssetBundleData");
 
 // Thread local state to avoid UObject::GetAssetRegistryTags() API change
@@ -1807,11 +1809,16 @@ static void GetAssetRegistryTagsFromSearchableProperties(const UObject* Object, 
 	}
 }
 
+}}} // end namespace UE::Object::Private
+
 const FName FPrimaryAssetId::PrimaryAssetTypeTag(TEXT("PrimaryAssetType"));
 const FName FPrimaryAssetId::PrimaryAssetNameTag(TEXT("PrimaryAssetName"));
 
+
 void UObject::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
+	using namespace UE::Object::Private;
+
 	// Add primary asset info if valid
 	FPrimaryAssetId PrimaryAssetId = GetPrimaryAssetId();
 	if (PrimaryAssetId.IsValid())
@@ -1874,6 +1881,8 @@ static TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> MakeSharedBundles(const
 
 void UObject::GetAssetRegistryTags(FAssetData& Out) const
 {
+	using namespace UE::Object::Private;
+
 	const FAssetBundleData* Bundles = nullptr;
 
 	TArray<FAssetRegistryTag> Tags;
