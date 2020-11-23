@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "CoreMinimal.h"
+#include "Widgets/SWindow.h"
+#include "Widgets/SCompoundWidget.h"
 #include "WebJSFunction.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Internationalization/Text.h"
 #include "SLoginWindow.generated.h"
 
 

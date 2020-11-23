@@ -4,6 +4,7 @@
 #include "NetworkMessage.h"
 #include "Async/Async.h"
 #include "Misc/ScopedSlowTask.h"
+#include "UObject/GarbageCollection.h"
 
 
 FTCPServer::FTCPServer() 
@@ -131,7 +132,7 @@ uint32  FTCPServer::Run()
 
 			if (RecievedJson != TEXT(""))
 			{
-				if (!IsGarbageCollecting() && !GIsSavingPackage)
+				if (!IsGarbageCollecting() /*&& !GIsSavingPackage*/)
 				{			
 
 					

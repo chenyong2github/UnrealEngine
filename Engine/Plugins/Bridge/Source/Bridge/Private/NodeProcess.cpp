@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NodeProcess.h"
 #include "Misc/Paths.h"
-
+#include "Lumin/LuminPlatformProcess.h"
+#include "GenericPlatform/GenericPlatformMisc.h"
 #include <iostream>
 #include <stdlib.h>
 #include <string>
@@ -36,18 +37,19 @@ const FString FNodeProcessManager::GetProcessURL() const
 void FNodeProcessManager::StartNodeProcess()
 {
 	const FString ProcessURL = GetProcessURL();
+	FString ProcessParams = TEXT("");
 
 #if PLATFORM_WINDOWS
-	NodeProcessHandle = FPlatformProcess::CreateProc(*ProcessURL, TEXT(""), true, true, true, &OutProcessId, 0, NULL, NULL, NULL);
+	NodeProcessHandle = FPlatformProcess::CreateProc(*ProcessURL, *ProcessParams, true, true, true, &OutProcessId, 0, NULL, NULL, NULL);
 	if (!NodeProcessHandle.IsValid())
 	{
-		UE_LOG(LogTemp, Error, TEXT("There was a problem in creating the Node process"));
+		//UE_LOG(LogTemp, Error, TEXT("There was a problem in creating the Node process"));
 	}
 	int32 ReturnCode;	
 	FPlatformProcess::GetProcReturnCode(NodeProcessHandle, &ReturnCode);
 	if (ReturnCode < 0)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Error : Process return %s"), *FString::FromInt(ReturnCode));
+		//UE_LOG(LogTemp, Error, TEXT("Error : Process return %s"), *FString::FromInt(ReturnCode));
 	}
 
 	/* std::string command = "echo " + std::to_string(OutProcessId) + " >> WIN_NODE_PROCESS_ID.txt"; */
@@ -70,13 +72,13 @@ void FNodeProcessManager::StartNodeProcess()
 	{
 		/* std::string error_command = "echo " + std::to_string(102) + " >> MAC_NODE_PROCESS_ID.txt"; */
 		/* system(error_command.c_str()); */
-		UE_LOG(LogTemp, Error, TEXT("There was a problem in creating the Node process"));
+		//UE_LOG(LogTemp, Error, TEXT("There was a problem in creating the Node process"));
 	}
 	int32 ReturnCode;	
 	FPlatformProcess::GetProcReturnCode(NodeProcessHandle, &ReturnCode);
 	if (ReturnCode < 0)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Error : Process return %s"), *FString::FromInt(ReturnCode));
+		//UE_LOG(LogTemp, Error, TEXT("Error : Process return %s"), *FString::FromInt(ReturnCode));
 	}
 
 	/* std::string mac_command = "echo " + std::to_string(OutProcessId) + " >> MAC_NODE_PROCESS_ID.txt"; */
@@ -93,5 +95,5 @@ void FNodeProcessManager::KillNodeProcess()
 
 void FNodeProcessManager::HandleBrowserUrlChanged(const FText& Url)
 {
-	UE_LOG(LogTemp, Error, TEXT("URL changed"));
+	//UE_LOG(LogTemp, Error, TEXT("URL changed"));
 }

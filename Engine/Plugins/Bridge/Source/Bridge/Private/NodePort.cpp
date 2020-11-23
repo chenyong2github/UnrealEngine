@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NodePort.h"
 #include "UI/BridgeUIManager.h"
-#include "Misc/Paths.h"
-#include "Misc/FileHelper.h"
+
 
 UNodePort::UNodePort(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

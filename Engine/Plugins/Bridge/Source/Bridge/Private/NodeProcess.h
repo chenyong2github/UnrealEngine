@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-
+#include "CoreMinimal.h"
+#include "HoloLens/HoloLensPlatformProcess.h"
 #if PLATFORM_WINDOWS
 #include "GenericPlatform/GenericPlatformProcess.h"
 #elif PLATFORM_MAC
