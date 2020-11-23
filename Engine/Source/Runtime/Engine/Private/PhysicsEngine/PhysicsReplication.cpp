@@ -573,42 +573,44 @@ void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const
 		{
 			//Proxy should exist because we are using latest and any pending deletes would have been enqueued after
 			FRigidParticlePhysicsProxy* Proxy = State.Proxy;
-			TPBDRigidParticleHandle<float, 3>* Handle = Proxy->GetHandle();
-			const FVector TargetPos = State.WorldTM.GetLocation();
-			const FQuat TargetQuat = State.WorldTM.GetRotation();
-
-			// Get Current state
-			FRigidBodyState CurrentState;
-			CurrentState.Position = Handle->X();
-			CurrentState.Quaternion = Handle->R();
-			CurrentState.AngVel = Handle->W();
-			CurrentState.LinVel = Handle->V();
-
-			FVector LinDiff;
-			float LinDiffSize;
-			FVector AngDiffAxis;
-			float AngDiff;
-			float AngDiffSize;
-			ComputeDeltas(CurrentState.Position, CurrentState.Quaternion, TargetPos, TargetQuat, LinDiff, LinDiffSize, AngDiffAxis, AngDiff, AngDiffSize);
-
-			const FVector NewLinVel = FVector(State.LinearVelocity) + (LinDiff * LinearVelocityCoefficient * DeltaSeconds);
-			const FVector NewAngVel = FVector(State.AngularVelocity) + (AngDiffAxis * AngDiff * AngularVelocityCoefficient * DeltaSeconds);
-
-			const FVector NewPos = FMath::Lerp(FVector(CurrentState.Position), TargetPos, PositionLerp);
-			const FQuat NewAng = FQuat::Slerp(CurrentState.Quaternion, TargetQuat, AngleLerp);
-
-			Handle->SetX(NewPos);
-			Handle->SetR(NewAng);
-			Handle->SetV(NewLinVel);
-			Handle->SetW(FMath::DegreesToRadians(NewAngVel));
-
-			EObjectStateType ObjectStateType = EObjectStateType::Dynamic;
-			if ((CharacterMovementCVars::ApplyAsyncSleepState != 0) && State.bShouldSleep)
+			if(TPBDRigidParticleHandle<float, 3>* Handle = Proxy->GetHandle())
 			{
-				ObjectStateType = EObjectStateType::Sleeping;
+				const FVector TargetPos = State.WorldTM.GetLocation();
+				const FQuat TargetQuat = State.WorldTM.GetRotation();
+
+				// Get Current state
+				FRigidBodyState CurrentState;
+				CurrentState.Position = Handle->X();
+				CurrentState.Quaternion = Handle->R();
+				CurrentState.AngVel = Handle->W();
+				CurrentState.LinVel = Handle->V();
+
+				FVector LinDiff;
+				float LinDiffSize;
+				FVector AngDiffAxis;
+				float AngDiff;
+				float AngDiffSize;
+				ComputeDeltas(CurrentState.Position, CurrentState.Quaternion, TargetPos, TargetQuat, LinDiff, LinDiffSize, AngDiffAxis, AngDiff, AngDiffSize);
+
+				const FVector NewLinVel = FVector(State.LinearVelocity) + (LinDiff * LinearVelocityCoefficient * DeltaSeconds);
+				const FVector NewAngVel = FVector(State.AngularVelocity) + (AngDiffAxis * AngDiff * AngularVelocityCoefficient * DeltaSeconds);
+
+				const FVector NewPos = FMath::Lerp(FVector(CurrentState.Position), TargetPos, PositionLerp);
+				const FQuat NewAng = FQuat::Slerp(CurrentState.Quaternion, TargetQuat, AngleLerp);
+
+				Handle->SetX(NewPos);
+				Handle->SetR(NewAng);
+				Handle->SetV(NewLinVel);
+				Handle->SetW(FMath::DegreesToRadians(NewAngVel));
+
+				EObjectStateType ObjectStateType = EObjectStateType::Dynamic;
+				if ((CharacterMovementCVars::ApplyAsyncSleepState != 0) && State.bShouldSleep)
+				{
+					ObjectStateType = EObjectStateType::Sleeping;
+				}
+				auto* Solver = Proxy->GetSolver<FPBDRigidsSolver>();
+				Solver->GetEvolution()->SetParticleObjectState(Handle, ObjectStateType);
 			}
-			auto* Solver = Proxy->GetSolver<FPBDRigidsSolver>();
-			Solver->GetEvolution()->SetParticleObjectState(Handle, ObjectStateType);
 		}
 	}
 }
