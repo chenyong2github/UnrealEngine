@@ -296,12 +296,11 @@ bool UNiagaraDataInterfaceGrid3DCollection::Equals(const UNiagaraDataInterface* 
 		OtherTyped->NumAttributes == NumAttributes &&
 		OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter &&
 		OtherTyped->OverrideBufferFormat == OverrideBufferFormat &&
-		OtherTyped->bOverrideFormat == bOverrideFormat &&
 #if WITH_EDITORONLY_DATA
 		OtherTyped->bPreviewGrid == bPreviewGrid &&
-		OtherTyped->PreviewAttribute == PreviewAttribute
+		OtherTyped->PreviewAttribute == PreviewAttribute &&
 #endif
-		;
+		OtherTyped->bOverrideFormat == bOverrideFormat;
 }
 
 void UNiagaraDataInterfaceGrid3DCollection::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
