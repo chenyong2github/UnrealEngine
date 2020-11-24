@@ -203,6 +203,63 @@ public:
 
 		return TPair<PointDataType, RealType>(nearest, min_distsq);
 	}
+
+
+	/**
+	 * Find all points in grid within a given sphere, without locking / thread-safety.
+	 * @param QueryPoint the center of the query sphere
+	 * @param Radius the radius of the query sphere
+	 * @param DistanceSqFunc Function you provide which measures the squared distance between QueryPoint and a Value
+	 * @param ResultsOut Array of output points in sphere
+	 * @param IgnoreFunc optional Function you may provide which will result in a Value being ignored if IgnoreFunc(Value) returns true
+	 * @return the number of found points
+	 */
+	int FindPointsInBall(
+		const FVector3<RealType>& QueryPoint, RealType Radius,
+		TFunctionRef<RealType(const PointDataType&)> DistanceSqFunc,
+		TArray<PointDataType>& ResultsOut,
+		TFunctionRef<bool(const PointDataType&)> IgnoreFunc = [](const PointDataType& data) { return false; }) const
+	{
+		if (!Hash.Num())
+		{
+			return 0;
+		}
+
+		FVector3i min_idx = Indexer.ToGrid(QueryPoint - Radius * FVector3<RealType>::One());
+		FVector3i max_idx = Indexer.ToGrid(QueryPoint + Radius * FVector3<RealType>::One());
+
+		RealType RadiusSquared = Radius * Radius;
+
+		TArray<PointDataType> Values;
+		for (int zi = min_idx.Z; zi <= max_idx.Z; zi++)
+		{
+			for (int yi = min_idx.Y; yi <= max_idx.Y; yi++)
+			{
+				for (int xi = min_idx.X; xi <= max_idx.X; xi++)
+				{
+					FVector3i idx(xi, yi, zi);
+					Values.Reset();
+					Hash.MultiFind(idx, Values);
+					for (PointDataType Value : Values)
+					{
+						if (IgnoreFunc(Value))
+						{
+							continue;
+						}
+						RealType distsq = DistanceSqFunc(Value);
+						if (distsq < RadiusSquared)
+						{
+							ResultsOut.Add(Value);
+						}
+					}
+				}
+			}
+		}
+
+		return ResultsOut.Num();
+	}
+
+
 };
 
 template <typename PointDataType> using TPointHashGrid3d = TPointHashGrid3<PointDataType, double>;

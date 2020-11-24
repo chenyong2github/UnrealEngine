@@ -608,6 +608,13 @@ public:
 	// Vertex and Triangle attribute arrays
 	//
 public:
+	/**
+	 * Enable requested set of mesh components (triangle groups and vertex normals/colors/UVs)
+	 * and discard any that are not requested
+	 * @param MeshComponentsFlags A 'bitwise or' of requested EMeshComponents flags
+	 */
+	void EnableMeshComponents(int MeshComponentsFlags);
+
 	void EnableVertexNormals(const FVector3f& InitialNormal);
 	void DiscardVertexNormals();
 

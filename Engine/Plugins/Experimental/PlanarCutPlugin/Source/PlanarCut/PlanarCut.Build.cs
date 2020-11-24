@@ -8,7 +8,7 @@ namespace UnrealBuildTool.Rules
 		{
 			PrivateIncludePaths.Add("PlanarCut/Private");
             PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
+            PrivateDependencyModuleNames.Add("MeshUtilitiesCommon");
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

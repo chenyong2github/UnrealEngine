@@ -1783,6 +1783,7 @@ bool FDynamicMeshEditor::SplitMesh(const FDynamicMesh3* SourceMesh, TArray<FDyna
 	// enable matching attributes
 	for (FDynamicMesh3& M : SplitMeshes)
 	{
+		M.EnableMeshComponents(SourceMesh->GetComponentsFlags());
 		if (SourceMesh->HasAttributes())
 		{
 			M.EnableAttributes();
