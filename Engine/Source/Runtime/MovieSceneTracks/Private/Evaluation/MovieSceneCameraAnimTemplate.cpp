@@ -12,7 +12,6 @@
 #include "UObject/Package.h"
 #include "IMovieScenePlayer.h"
 
-
 DECLARE_CYCLE_STAT(TEXT("Camera Anim Track Token Execute"), MovieSceneEval_CameraAnimTrack_TokenExecute, STATGROUP_MovieSceneEval);
 
 /** Structure that holds blended post processing settings */
@@ -25,13 +24,6 @@ struct FBlendedPostProcessSettings : FPostProcessSettings
 	float Weight;
 };
 
-
-FMovieSceneSharedDataId GetSharedExecutionTokenID()
-{
-	static FMovieSceneSharedDataId SharedDataId = FMovieSceneSharedDataId::Allocate();
-	return SharedDataId;
-}
-
 /** Persistent data that exists as long as a given camera track is being evaluated */
 struct FMovieSceneAdditiveCameraData : IPersistentEvaluationData
 {
@@ -42,9 +34,15 @@ struct FMovieSceneAdditiveCameraData : IPersistentEvaluationData
 		, TotalFOVOffset(0.f)
 	{}
 
+	static FMovieSceneSharedDataId GetSharedDataID()
+	{
+		static FMovieSceneSharedDataId SharedDataId = FMovieSceneSharedDataId::Allocate();
+		return SharedDataId;
+	}
+
 	static FMovieSceneAdditiveCameraData& Get(const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData)
 	{
-		return PersistentData.GetOrAdd<FMovieSceneAdditiveCameraData>(FSharedPersistentDataKey(GetSharedExecutionTokenID(), Operand));
+		return PersistentData.GetOrAdd<FMovieSceneAdditiveCameraData>(FSharedPersistentDataKey(GetSharedDataID(), Operand));
 	}
 
 	/** Reset the additive camera values */
@@ -97,76 +95,93 @@ struct FMovieSceneAdditiveCameraData : IPersistentEvaluationData
 		}
 	}
 
-	ACameraActor* GetTempCameraActor(IMovieScenePlayer& Player)
-	{
-		if (!TempCameraActor.IsValid())
-		{
-			// spawn the temp CameraActor used for updating CameraAnims
-			FActorSpawnParameters SpawnInfo;
-			SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-			// We never want to save these temp actors into a map
-			SpawnInfo.ObjectFlags |= RF_Transient;
-			ACameraActor* Cam = Player.GetPlaybackContext()->GetWorld()->SpawnActor<ACameraActor>(SpawnInfo);
-			if (Cam)
-			{
-#if WITH_EDITOR
-				Cam->SetIsTemporarilyHiddenInEditor(true);
-#endif
-				TempCameraActor = Cam;
-
-				struct FDestroyTempObject : IMovieScenePreAnimatedGlobalToken
-				{
-					FDestroyTempObject(AActor& InActor) : TempActor(&InActor) {}
-
-					virtual void RestoreState(IMovieScenePlayer& InPlayer)
-					{
-						AActor* Actor = TempActor.Get();
-						if (Actor)
-						{
-							Actor->Destroy(false, false);
-						}
-					}
-
-					TWeakObjectPtr<AActor> TempActor;
-				};
-
-				Player.SavePreAnimatedState(*Cam, FMovieSceneAnimTypeID::Unique(), FTempCameraPreAnimatedStateProducer());
-			}
-		}
-
-		return TempCameraActor.Get();
-	}
-
 private:
-
-	struct FTempCameraPreAnimatedStateProducer : IMovieScenePreAnimatedTokenProducer
-	{
-		virtual IMovieScenePreAnimatedTokenPtr CacheExistingState(UObject& Object) const override
-		{
-			struct FTempCameraPreAnimatedState : IMovieScenePreAnimatedToken
-			{
-				virtual void RestoreState(UObject& InObject, IMovieScenePlayer& InPlayer)
-				{
-					AActor* Actor = CastChecked<AActor>(&InObject);
-					Actor->Destroy(false, false);
-				}
-			};
-
-			return FTempCameraPreAnimatedState();
-		}
-	};
 
 	bool bApplyTransform, bApplyPostProcessing;
 	TArray<FBlendedPostProcessSettings, TInlineAllocator<2>> BlendedPostProcessSettings;
 	FTransform TotalTransform;
 	float TotalFOVOffset;
-	TWeakObjectPtr<ACameraActor> TempCameraActor;
 };
+
+struct FTempCameraPreAnimatedStateProducer : IMovieScenePreAnimatedTokenProducer
+{
+	virtual IMovieScenePreAnimatedTokenPtr CacheExistingState(UObject& Object) const override
+	{
+		struct FTempCameraPreAnimatedState : IMovieScenePreAnimatedToken
+		{
+			virtual void RestoreState(UObject& InObject, IMovieScenePlayer& InPlayer)
+			{
+				AActor* Actor = CastChecked<AActor>(&InObject);
+				Actor->Destroy(false, false);
+			}
+		};
+
+		return FTempCameraPreAnimatedState();
+	}
+};
+
+FMovieSceneSharedDataId FMovieSceneMatineeCameraData::GetSharedDataID()
+{
+	static FMovieSceneSharedDataId SharedDataId = FMovieSceneSharedDataId::Allocate();
+	return SharedDataId;
+}
+
+FMovieSceneMatineeCameraData& FMovieSceneMatineeCameraData::Get(const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData)
+{
+	return PersistentData.GetOrAdd<FMovieSceneMatineeCameraData>(FSharedPersistentDataKey(GetSharedDataID(), Operand));
+}
+
+ACameraActor* FMovieSceneMatineeCameraData::GetTempCameraActor(IMovieScenePlayer& Player)
+{
+	if (!TempCameraActor.IsValid())
+	{
+		// spawn the temp CameraActor used for updating CameraAnims
+		FActorSpawnParameters SpawnInfo;
+		SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		// We never want to save these temp actors into a map
+		SpawnInfo.ObjectFlags |= RF_Transient;
+		ACameraActor* Cam = Player.GetPlaybackContext()->GetWorld()->SpawnActor<ACameraActor>(SpawnInfo);
+		if (Cam)
+		{
+#if WITH_EDITOR
+			Cam->SetIsTemporarilyHiddenInEditor(true);
+#endif
+			TempCameraActor = Cam;
+
+			struct FDestroyTempObject : IMovieScenePreAnimatedGlobalToken
+			{
+				FDestroyTempObject(AActor& InActor) : TempActor(&InActor) {}
+
+				virtual void RestoreState(IMovieScenePlayer& InPlayer)
+				{
+					AActor* Actor = TempActor.Get();
+					if (Actor)
+					{
+						Actor->Destroy(false, false);
+					}
+				}
+
+				TWeakObjectPtr<AActor> TempActor;
+			};
+
+			Player.SavePreAnimatedState(*Cam, FMovieSceneAnimTypeID::Unique(), FTempCameraPreAnimatedStateProducer());
+		}
+	}
+
+	return TempCameraActor.Get();
+}
 
 /** Pre animated token that restores a camera component's additive transform */
 struct FPreAnimatedCameraTransformTokenProducer : IMovieScenePreAnimatedTokenProducer
 {
+
+	static FMovieSceneAnimTypeID GetAnimTypeID()
+	{
+		static FMovieSceneAnimTypeID AnimTypeID = TMovieSceneAnimTypeID<FPreAnimatedCameraTransformTokenProducer, 0>();
+		return AnimTypeID;
+	}
+
 	virtual IMovieScenePreAnimatedTokenPtr CacheExistingState(UObject& Object) const override
 	{
 		struct FRestoreToken : IMovieScenePreAnimatedToken
@@ -201,9 +216,24 @@ struct FPreAnimatedPostProcessingBlendsTokenProducer : IMovieScenePreAnimatedTok
 };
 
 /** A movie scene execution token that applies camera cuts */
-struct FApplyCameraAnimExecutionToken : IMovieSceneSharedExecutionToken
+struct FMovieSceneApplyAdditiveCameraDataExecutionToken : IMovieSceneSharedExecutionToken
 {
-	FApplyCameraAnimExecutionToken(const FMovieSceneEvaluationOperand& InOperand)
+	static void EnsureSharedToken(const FMovieSceneEvaluationOperand& Operand, FMovieSceneExecutionTokens& ExecutionTokens)
+	{
+		// Add a shared token that will apply the blended camera anims
+		FMovieSceneSharedDataId TokenID = FMovieSceneAdditiveCameraData::GetSharedDataID();
+		// It's safe to cast here as only FMovieSceneApplyAdditiveCameraDataExecutionTokens can have this token ID
+		if (FMovieSceneApplyAdditiveCameraDataExecutionToken* ExistingToken = static_cast<FMovieSceneApplyAdditiveCameraDataExecutionToken*>(ExecutionTokens.FindShared(TokenID)))
+		{
+			ExistingToken->Operands.Add(Operand);
+		}
+		else
+		{
+			ExecutionTokens.AddShared(TokenID, FMovieSceneApplyAdditiveCameraDataExecutionToken(Operand));
+		}
+	}
+
+	FMovieSceneApplyAdditiveCameraDataExecutionToken(const FMovieSceneEvaluationOperand& InOperand)
 	{
 		Operands.Add(InOperand);
 		// Evaluate after everything else in the group
@@ -232,25 +262,19 @@ struct FApplyCameraAnimExecutionToken : IMovieSceneSharedExecutionToken
 	TSet<FMovieSceneEvaluationOperand> Operands;
 };
 
-/** A movie scene execution token that applies camera animations */
-struct FAccumulateCameraAnimExecutionToken : IMovieSceneExecutionToken
+/** Utility class for additive camera execution tokens */
+template<typename Impl, typename UserDataStruct>
+struct TAccumulateCameraAnimExecutionToken : IMovieSceneExecutionToken
 {
-	FAccumulateCameraAnimExecutionToken(const FMovieSceneAdditiveCameraAnimationTemplate* InTemplate) : Template(InTemplate) {}
-
 	virtual void Execute(const FMovieSceneContext& Context, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) override
 	{
-		if (!Template->EnsureSetup(Operand, PersistentData, Player))
+		UserDataStruct UserData;
+		if (!static_cast<Impl*>(this)->Impl::EnsureSetup(Operand, PersistentData, Player, UserData))
 		{
 			return;
 		}
 
-		FMovieSceneAdditiveCameraData& SharedData = FMovieSceneAdditiveCameraData::Get(Operand, PersistentData);
-
-		ACameraActor* TempCameraActor = SharedData.GetTempCameraActor(Player);
-		if (!ensure(TempCameraActor))
-		{
-			return;
-		}
+		FMovieSceneAdditiveCameraData& AdditiveSharedData = FMovieSceneAdditiveCameraData::Get(Operand, PersistentData);
 
 		for (TWeakObjectPtr<> ObjectWP : Player.FindBoundObjects(Operand))
 		{
@@ -265,11 +289,15 @@ struct FAccumulateCameraAnimExecutionToken : IMovieSceneExecutionToken
 			POV.Rotation = CameraComponent->GetComponentRotation();
 			POV.FOV = CameraComponent->FieldOfView;
 
-			if (!Template->UpdateCamera(*TempCameraActor, POV, Context, PersistentData))
+			float PostProcessBlendWeight = 0.f;
+			FPostProcessSettings PostProcessSettings;
+
+			if (!static_cast<Impl*>(this)->Impl::UpdateCamera(Context, Operand, PersistentData, Player, UserData, POV, PostProcessSettings, PostProcessBlendWeight))
 			{
 				continue;
 			}
 
+			// Grab transform and FOV changes.
 			FTransform WorldToBaseCamera = CameraComponent->GetComponentToWorld().Inverse();
 			float BaseFOV = CameraComponent->FieldOfView;
 			FTransform NewCameraToWorld(POV.Rotation, POV.Location);
@@ -280,47 +308,24 @@ struct FAccumulateCameraAnimExecutionToken : IMovieSceneExecutionToken
 			float NewFOVToBaseFOV = BaseFOV - NewFOV;
 
 			{
-				static FMovieSceneAnimTypeID TransformAnimTypeID = TMovieSceneAnimTypeID<FAccumulateCameraAnimExecutionToken, 0>();
+				static FMovieSceneAnimTypeID TransformAnimTypeID = TMovieSceneAnimTypeID<TAccumulateCameraAnimExecutionToken<Impl, UserDataStruct>, 0>();
 				Player.SavePreAnimatedState(*CameraComponent, TransformAnimTypeID, FPreAnimatedCameraTransformTokenProducer());
 
 				// Accumumulate the offsets into the track data for application as part of the track execution token
-				SharedData.AccumulateOffset(NewCameraToBaseCamera, NewFOVToBaseFOV);
+				AdditiveSharedData.AccumulateOffset(NewCameraToBaseCamera, NewFOVToBaseFOV);
 			}
 
-			// harvest PP changes
+			// Grab post process changes.
+			if (PostProcessBlendWeight > 0.f)
 			{
-				UCameraComponent* AnimCamComp = TempCameraActor->GetCameraComponent();
-				if (AnimCamComp && AnimCamComp->PostProcessBlendWeight > 0.f)
-				{
-					static FMovieSceneAnimTypeID PostAnimTypeID = TMovieSceneAnimTypeID<FAccumulateCameraAnimExecutionToken, 1>();
-					Player.SavePreAnimatedState(*CameraComponent, PostAnimTypeID, FPreAnimatedPostProcessingBlendsTokenProducer());
+				static FMovieSceneAnimTypeID PostAnimTypeID = TMovieSceneAnimTypeID<TAccumulateCameraAnimExecutionToken<Impl, UserDataStruct>, 1>();
+				Player.SavePreAnimatedState(*CameraComponent, PostAnimTypeID, FPreAnimatedPostProcessingBlendsTokenProducer());
 
-					SharedData.AccumulatePostProcessing(AnimCamComp->PostProcessSettings, AnimCamComp->PostProcessBlendWeight);
-				}
+				AdditiveSharedData.AccumulatePostProcessing(PostProcessSettings, PostProcessBlendWeight);
 			}
 		}
 	}
-
-	const FMovieSceneAdditiveCameraAnimationTemplate* Template;
 };
-
-void FMovieSceneAdditiveCameraAnimationTemplate::Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
-{
-	ExecutionTokens.Add(FAccumulateCameraAnimExecutionToken(this));
-
-	// Add a shared token that will apply the blended camera anims
-
-	FMovieSceneSharedDataId TokenID = GetSharedExecutionTokenID();
-	// It's safe to cast here as only FApplyCameraAnimExecutionTokens can have this token ID
-	if (FApplyCameraAnimExecutionToken* ExistingToken = static_cast<FApplyCameraAnimExecutionToken*>(ExecutionTokens.FindShared(TokenID)))
-	{
-		ExistingToken->Operands.Add(Operand);
-	}
-	else
-	{
-		ExecutionTokens.AddShared(GetSharedExecutionTokenID(), FApplyCameraAnimExecutionToken(Operand));
-	}
-}
 
 /** Persistent data that exists as long as a given camera anim section is being evaluated */
 struct FMovieSceneCameraAnimSectionInstanceData : IPersistentEvaluationData
@@ -347,93 +352,126 @@ struct FPreAnimatedCameraAnimTokenProducer : IMovieScenePreAnimatedTokenProducer
 	}
 };
 
+/** A movie scene execution token that applies camera animations */
+struct FCameraAnimExecutionToken : TAccumulateCameraAnimExecutionToken<FCameraAnimExecutionToken, ACameraActor*>
+{
+	FCameraAnimExecutionToken(const FMovieSceneCameraAnimSectionData& InSourceData, FFrameNumber InSectionStartTime) 
+		: SourceData(InSourceData)
+		, SectionStartTime(InSectionStartTime)
+	{}
+
+	bool EnsureSetup(const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player, ACameraActor*& OutUserData)
+	{
+		// Get the camera anim instance from the section data (local to this specific section)
+		FMovieSceneCameraAnimSectionInstanceData& SectionData = PersistentData.GetOrAddSectionData<FMovieSceneCameraAnimSectionInstanceData>();
+		UCameraAnimInst* CameraAnimInstance = SectionData.CameraAnimInst.Get();
+
+		if (!CameraAnimInstance)
+		{
+			if (!SourceData.CameraAnim)
+			{
+				return false;
+			}
+
+			// Start playing the camera anim
+			CameraAnimInstance = NewObject<UCameraAnimInst>(GetTransientPackage());
+			if (ensure(CameraAnimInstance))
+			{
+				// make it root so GC doesn't take it away
+				CameraAnimInstance->AddToRoot();
+				CameraAnimInstance->SetStopAutomatically(false);
+
+				// Store the anim instance with the section and always remove it when we've finished evaluating
+				static FMovieSceneAnimTypeID AnimTypeID = TMovieSceneAnimTypeID<FCameraAnimExecutionToken, 0>();
+				Player.SavePreAnimatedState(*CameraAnimInstance, AnimTypeID, FPreAnimatedCameraAnimTokenProducer(), PersistentData.GetSectionKey());
+
+				// We use the global temp actor from the shared data (shared across all additive camera effects for this operand)
+				ACameraActor* TempCameraActor = FMovieSceneMatineeCameraData::Get(Operand, PersistentData).GetTempCameraActor(Player);
+
+				CameraAnimInstance->Play(SourceData.CameraAnim, TempCameraActor, SourceData.PlayRate, SourceData.PlayScale, SourceData.BlendInTime, SourceData.BlendOutTime, SourceData.bLooping, SourceData.bRandomStartTime);
+			}
+
+			SectionData.CameraAnimInst = CameraAnimInstance;
+		}
+
+		// Initialize our user data.
+		OutUserData = FMovieSceneMatineeCameraData::Get(Operand, PersistentData).GetTempCameraActor(Player);
+
+		// If we failed to create the camera anim instance, we're doomed
+		return ensure(CameraAnimInstance && OutUserData);
+	}
+
+	bool UpdateCamera(const FMovieSceneContext& Context, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player, ACameraActor* UserData, FMinimalViewInfo& OutPOV, FPostProcessSettings& OutPostProcessSettings, float& OutPostProcessBlendWeight)
+	{
+		// Get the camera anim instance from the section data (local to this specific section)
+		FMovieSceneCameraAnimSectionInstanceData& SectionData = PersistentData.GetOrAddSectionData<FMovieSceneCameraAnimSectionInstanceData>();
+		UCameraAnimInst* CameraAnimInstance = SectionData.CameraAnimInst.Get();
+
+		if (!CameraAnimInstance || !CameraAnimInstance->CamAnim || !UserData)
+		{
+			return false;
+		}
+
+		// prepare temp camera actor by resetting it
+		ACameraActor& TempCameraActor(*UserData);
+		{
+			TempCameraActor.SetActorLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
+
+			ACameraActor const* const DefaultCamActor = GetDefault<ACameraActor>();
+			if (DefaultCamActor)
+			{
+				TempCameraActor.GetCameraComponent()->AspectRatio = DefaultCamActor->GetCameraComponent()->AspectRatio;
+				TempCameraActor.GetCameraComponent()->PostProcessSettings = CameraAnimInstance->CamAnim->BasePostProcessSettings;
+				TempCameraActor.GetCameraComponent()->PostProcessBlendWeight = CameraAnimInstance->CamAnim->BasePostProcessBlendWeight;
+			}
+		}
+
+		// set camera anim to the correct time
+		const FFrameTime NewCameraAnimTime = Context.GetTime() - SectionStartTime;
+		CameraAnimInstance->SetCurrentTime(NewCameraAnimTime / Context.GetFrameRate());
+
+		if (CameraAnimInstance->CurrentBlendWeight <= 0.f)
+		{
+			return false;
+		}
+
+		// harvest properties from the actor and apply
+		CameraAnimInstance->ApplyToView(OutPOV);
+
+		UCameraComponent* AnimCamComp = TempCameraActor.GetCameraComponent();
+		OutPostProcessSettings = AnimCamComp->PostProcessSettings;
+		OutPostProcessBlendWeight = AnimCamComp->PostProcessBlendWeight;
+
+		return true;
+	}
+
+	FMovieSceneCameraAnimSectionData SourceData;
+	FFrameNumber SectionStartTime;
+};
+
 FMovieSceneCameraAnimSectionTemplate::FMovieSceneCameraAnimSectionTemplate(const UMovieSceneCameraAnimSection& Section)
 	: SourceData(Section.AnimData)
 	, SectionStartTime(Section.HasStartFrame() ? Section.GetInclusiveStartFrame() : 0)
 {
 }
 
-bool FMovieSceneCameraAnimSectionTemplate::EnsureSetup(const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const
+void FMovieSceneCameraAnimSectionTemplate::Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
 {
-	// Get the camera anim instance from the section data (local to this specific section)
-	FMovieSceneCameraAnimSectionInstanceData& SectionData = PersistentData.GetOrAddSectionData<FMovieSceneCameraAnimSectionInstanceData>();
-	UCameraAnimInst* CameraAnimInstance = SectionData.CameraAnimInst.Get();
-
-	if (!CameraAnimInstance)
-	{
-		if (!SourceData.CameraAnim)
-		{
-			return false;
-		}
-
-		// Start playing the camera anim
-		CameraAnimInstance = NewObject<UCameraAnimInst>(GetTransientPackage());
-		if (ensure(CameraAnimInstance))
-		{
-			// make it root so GC doesn't take it away
-			CameraAnimInstance->AddToRoot();
-			CameraAnimInstance->SetStopAutomatically(false);
-
-			// Store the anim instance with the section and always remove it when we've finished evaluating
-			FMovieSceneAnimTypeID AnimTypeID = TMovieSceneAnimTypeID<FMovieSceneCameraAnimSectionTemplate>();
-			Player.SavePreAnimatedState(*CameraAnimInstance, AnimTypeID, FPreAnimatedCameraAnimTokenProducer(), PersistentData.GetSectionKey());
-
-			// We use the global temp actor from the shared data (shared across all additive camera effects for this operand)
-			ACameraActor* TempCameraActor = FMovieSceneAdditiveCameraData::Get(Operand, PersistentData).GetTempCameraActor(Player);
-
-			CameraAnimInstance->Play(SourceData.CameraAnim, TempCameraActor, SourceData.PlayRate, SourceData.PlayScale, SourceData.BlendInTime, SourceData.BlendOutTime, SourceData.bLooping, SourceData.bRandomStartTime);
-		}
-
-		SectionData.CameraAnimInst = CameraAnimInstance;
-	}
-
-	// If we failed to create the camera anim instance, we're doomed
-	return ensure(CameraAnimInstance);
+	ExecutionTokens.Add(FCameraAnimExecutionToken(SourceData, SectionStartTime));
+	FMovieSceneApplyAdditiveCameraDataExecutionToken::EnsureSharedToken(Operand, ExecutionTokens);
 }
 
-bool FMovieSceneCameraAnimSectionTemplate::UpdateCamera(ACameraActor& TempCameraActor, FMinimalViewInfo& POV, const FMovieSceneContext& Context, FPersistentEvaluationData& PersistentData) const
-{
-	// Get the camera anim instance from the section data (local to this specific section)
-	FMovieSceneCameraAnimSectionInstanceData& SectionData = PersistentData.GetOrAddSectionData<FMovieSceneCameraAnimSectionInstanceData>();
-	UCameraAnimInst* CameraAnimInstance = SectionData.CameraAnimInst.Get();
-
-	if (!CameraAnimInstance || !CameraAnimInstance->CamAnim)
-	{
-		return false;
-	}
-
-	// prepare temp camera actor by resetting it
-	{
-		TempCameraActor.SetActorLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
-
-		ACameraActor const* const DefaultCamActor = GetDefault<ACameraActor>();
-		if (DefaultCamActor)
-		{
-			TempCameraActor.GetCameraComponent()->AspectRatio = DefaultCamActor->GetCameraComponent()->AspectRatio;
-			TempCameraActor.GetCameraComponent()->PostProcessSettings = CameraAnimInstance->CamAnim->BasePostProcessSettings;
-			TempCameraActor.GetCameraComponent()->PostProcessBlendWeight = CameraAnimInstance->CamAnim->BasePostProcessBlendWeight;
-		}
-	}
-	
-	// set camera anim to the correct time
-	const FFrameTime NewCameraAnimTime = Context.GetTime() - SectionStartTime;
-	CameraAnimInstance->SetCurrentTime(NewCameraAnimTime / Context.GetFrameRate());
-
-	if (CameraAnimInstance->CurrentBlendWeight <= 0.f)
-	{
-		return false;
-	}
-
-	// harvest properties from the actor and apply
-	CameraAnimInstance->ApplyToView(POV);
-
-	return true;
-}
+// Initialize shake evaluator registry.
+TArray<FMovieSceneBuildShakeEvaluator> FMovieSceneCameraShakeEvaluatorRegistry::ShakeEvaluatorBuilders;
 
 /** Persistent data that exists as long as a given camera anim section is being evaluated */
 struct FMovieSceneCameraShakeSectionInstanceData : IPersistentEvaluationData
 {
-	TWeakObjectPtr<UMatineeCameraShake> CameraShakeInst;
+	/** Camera shake instance */
+	TStrongObjectPtr<UCameraShakeBase> CameraShakeInstance;
+	
+	/** Custom evaluator for the shake (optional) */
+	TStrongObjectPtr<UMovieSceneCameraShakeEvaluator> CameraShakeEvaluator;
 };
 
 /** Pre animated token that restores a camera animation */
@@ -447,12 +485,102 @@ struct FPreAnimatedCameraShakeTokenProducer : IMovieScenePreAnimatedTokenProduce
 			{
 				UCameraShakeBase* CameraShake = CastChecked<UCameraShakeBase>(&InObject);
 				CameraShake->StopShake(true);
-				CameraShake->RemoveFromRoot();
+				CameraShake->TeardownShake();
 			}
 		};
 
 		return FRestoreToken();
 	}
+};
+
+/** A movie scene execution token that applies camera shakes */
+struct FCameraShakeExecutionToken : TAccumulateCameraAnimExecutionToken<FCameraShakeExecutionToken, bool>
+{
+	FCameraShakeExecutionToken(const FMovieSceneCameraShakeSectionData& InSourceData, FFrameNumber InSectionStartTime)
+		: SourceData(InSourceData) 
+		, SectionStartTime(InSectionStartTime)
+	{}
+
+	bool EnsureSetup(const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player, bool& Dummy)
+	{
+		// Get the camera anim instance from the section data (local to this specific section)
+		FMovieSceneCameraShakeSectionInstanceData& SectionData = PersistentData.GetOrAddSectionData<FMovieSceneCameraShakeSectionInstanceData>();
+		UCameraShakeBase* CameraShakeInstance = SectionData.CameraShakeInstance.Get();
+
+		if (!CameraShakeInstance)
+		{
+			if (!*SourceData.ShakeClass)
+			{
+				return false;
+			}
+
+			CameraShakeInstance = NewObject<UCameraShakeBase>(GetTransientPackage(), SourceData.ShakeClass);
+			if (CameraShakeInstance)
+			{
+				// Store the anim instance with the section and always remove it when we've finished evaluating
+				FMovieSceneAnimTypeID AnimTypeID = TMovieSceneAnimTypeID<FCameraShakeExecutionToken>();
+				Player.SavePreAnimatedState(*CameraShakeInstance, AnimTypeID, FPreAnimatedCameraShakeTokenProducer(), PersistentData.GetSectionKey());
+
+				// Custom logic, if any.
+				UMovieSceneCameraShakeEvaluator* CameraShakeEvaluator = FMovieSceneCameraShakeEvaluatorRegistry::BuildShakeEvaluator(CameraShakeInstance);
+				if (CameraShakeEvaluator)
+				{
+					CameraShakeEvaluator->Setup(Operand, PersistentData, Player, CameraShakeInstance);
+				}
+				SectionData.CameraShakeEvaluator.Reset(CameraShakeEvaluator);
+
+				// Start the shake.
+				CameraShakeInstance->StartShake(nullptr, SourceData.PlayScale, SourceData.PlaySpace, SourceData.UserDefinedPlaySpace);
+			}
+			SectionData.CameraShakeInstance.Reset(CameraShakeInstance);
+		}
+		else
+		{
+			// We have a camera shake instance, but we need to check that it's still active. This is because
+			// our shake could have been stopped and torn down by a recompilation of the sequence (when the user
+			// edits it), an auto-save kicking in, etc.
+			if (!CameraShakeInstance->IsActive())
+			{
+				if (UMovieSceneCameraShakeEvaluator* CameraShakeEvaluator = SectionData.CameraShakeEvaluator.Get())
+				{
+					CameraShakeEvaluator->Setup(Operand, PersistentData, Player, CameraShakeInstance);
+				}
+				CameraShakeInstance->StartShake(nullptr, SourceData.PlayScale, SourceData.PlaySpace, SourceData.UserDefinedPlaySpace);
+			}
+		}
+
+		// If we failed to create the camera shake instance, we're doomed
+		return ensure(CameraShakeInstance);
+	}
+
+	bool UpdateCamera(const FMovieSceneContext& Context, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player, bool Dummy, FMinimalViewInfo& OutPOV, FPostProcessSettings& OutPostProcessSettings, float& OutPostProcessBlendWeight)
+	{
+		// Get the camera anim instance from the section data (local to this specific section)
+		FMovieSceneCameraShakeSectionInstanceData& SectionData = PersistentData.GetOrAddSectionData<FMovieSceneCameraShakeSectionInstanceData>();
+		UCameraShakeBase* CameraShakeInstance = SectionData.CameraShakeInstance.Get();
+
+		if (!ensure(CameraShakeInstance))
+		{
+			return false;
+		}
+
+		// Run custom shake logic if any.
+		if (SectionData.CameraShakeEvaluator)
+		{
+			SectionData.CameraShakeEvaluator->Evaluate(Context, Operand, PersistentData, Player, CameraShakeInstance);
+		}
+
+		// Update shake to the new time.
+		const FFrameTime NewShakeTime = Context.GetTime() - SectionStartTime;
+		CameraShakeInstance->ScrubAndApplyCameraShake(NewShakeTime / Context.GetFrameRate(), 1.f, OutPOV);
+
+		// TODO: post process settings
+
+		return true;
+	}
+
+	FMovieSceneCameraShakeSectionData SourceData;
+	FFrameNumber SectionStartTime;
 };
 
 FMovieSceneCameraShakeSectionTemplate::FMovieSceneCameraShakeSectionTemplate()
@@ -464,78 +592,19 @@ FMovieSceneCameraShakeSectionTemplate::FMovieSceneCameraShakeSectionTemplate(con
 	: SourceData(Section.ShakeData)
 	, SectionStartTime(Section.HasStartFrame() ? Section.GetInclusiveStartFrame() : 0)
 {
+	RequiresInitialization();
 }
 
-bool FMovieSceneCameraShakeSectionTemplate::EnsureSetup(const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const
+void FMovieSceneCameraShakeSectionTemplate::Initialize(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const
 {
-	// Get the camera anim instance from the section data (local to this specific section)
 	FMovieSceneCameraShakeSectionInstanceData& SectionData = PersistentData.GetOrAddSectionData<FMovieSceneCameraShakeSectionInstanceData>();
-	UMatineeCameraShake* CameraShakeInstance = SectionData.CameraShakeInst.Get();
-
-	if (!CameraShakeInstance)
-	{
-		if (!*SourceData.ShakeClass)
-		{
-			return false;
-		}
-
-		CameraShakeInstance = NewObject<UMatineeCameraShake>(GetTransientPackage(), SourceData.ShakeClass);
-		if (CameraShakeInstance)
-		{
-			// Store the anim instance with the section and always remove it when we've finished evaluating
-			FMovieSceneAnimTypeID AnimTypeID = TMovieSceneAnimTypeID<FMovieSceneCameraShakeSectionTemplate>();
-			Player.SavePreAnimatedState(*CameraShakeInstance, AnimTypeID, FPreAnimatedCameraShakeTokenProducer(), PersistentData.GetSectionKey());
-
-			// We use the global temp actor from the shared data (shared across all additive camera effects for this operand)
-			ACameraActor* TempCameraActor = FMovieSceneAdditiveCameraData::Get(Operand, PersistentData).GetTempCameraActor(Player);
-
-			// make it root so GC doesn't take it away
-			CameraShakeInstance->AddToRoot();
-			CameraShakeInstance->SetTempCameraAnimActor(TempCameraActor);
-			CameraShakeInstance->StartShake(nullptr, SourceData.PlayScale, SourceData.PlaySpace, SourceData.UserDefinedPlaySpace);
-			if (CameraShakeInstance->AnimInst)
-			{
-				CameraShakeInstance->AnimInst->SetStopAutomatically(false);
-			}
-		}
-
-		SectionData.CameraShakeInst = CameraShakeInstance;
-	}
-
-	// If we failed to create the camera anim instance, we're doomed
-	return ensure(CameraShakeInstance);
+	SectionData.CameraShakeInstance = nullptr;
+	SectionData.CameraShakeEvaluator = nullptr;
 }
 
-bool FMovieSceneCameraShakeSectionTemplate::UpdateCamera(ACameraActor& TempCameraActor, FMinimalViewInfo& POV, const FMovieSceneContext& Context, FPersistentEvaluationData& PersistentData) const
+void FMovieSceneCameraShakeSectionTemplate::Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
 {
-	// Get the camera anim instance from the section data (local to this specific section)
-	FMovieSceneCameraShakeSectionInstanceData& SectionData = PersistentData.GetOrAddSectionData<FMovieSceneCameraShakeSectionInstanceData>();
-	UMatineeCameraShake* CameraShakeInstance = SectionData.CameraShakeInst.Get();
-
-	if (!ensure(CameraShakeInstance))
-	{
-		return false;
-	}
-
-	// prepare temp camera actor by resetting it
-	{
-		TempCameraActor.SetActorLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
-
-		ACameraActor const* const DefaultCamActor = GetDefault<ACameraActor>();
-		if (DefaultCamActor)
-		{
-			TempCameraActor.GetCameraComponent()->AspectRatio = DefaultCamActor->GetCameraComponent()->AspectRatio;
-
-			UCameraAnim* CamAnim = CameraShakeInstance->AnimInst ? CameraShakeInstance->AnimInst->CamAnim : nullptr;
-
-			TempCameraActor.GetCameraComponent()->PostProcessSettings = CamAnim ? CamAnim->BasePostProcessSettings : FPostProcessSettings();
-			TempCameraActor.GetCameraComponent()->PostProcessBlendWeight = CamAnim ? CameraShakeInstance->AnimInst->CamAnim->BasePostProcessBlendWeight : 0.f;
-		}
-	}
-	
-	// set camera anim to the correct time
-	const FFrameTime NewCameraAnimTime = Context.GetTime() - SectionStartTime;
-	CameraShakeInstance->SetCurrentTimeAndApplyShake(NewCameraAnimTime / Context.GetFrameRate(), POV);
-
-	return true;
+	ExecutionTokens.Add(FCameraShakeExecutionToken(SourceData, SectionStartTime));
+	FMovieSceneApplyAdditiveCameraDataExecutionToken::EnsureSharedToken(Operand, ExecutionTokens);
 }
+

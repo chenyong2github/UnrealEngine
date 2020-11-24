@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Templates/SubclassOf.h"
-#include "Camera/CameraShake.h"
+#include "Camera/CameraShakeBase.h"
 #include "MovieSceneSection.h"
 #include "MovieSceneCameraShakeSection.generated.h"
 
@@ -24,7 +24,7 @@ struct FMovieSceneCameraShakeSectionData
 
 	/** Class of the camera shake to play */
 	UPROPERTY(EditAnywhere, Category = "Camera Shake")
-	TSubclassOf<UMatineeCameraShake> ShakeClass;
+	TSubclassOf<UCameraShakeBase> ShakeClass;
 
 	/** Scalar that affects shake intensity */
 	UPROPERTY(EditAnywhere, Category = "Camera Shake")
@@ -56,7 +56,7 @@ public:
 
 public:
 	UPROPERTY()
-	TSubclassOf<UMatineeCameraShake> ShakeClass_DEPRECATED;
+	TSubclassOf<UCameraShakeBase> ShakeClass_DEPRECATED;
 	
 	UPROPERTY()
 	float PlayScale_DEPRECATED;
