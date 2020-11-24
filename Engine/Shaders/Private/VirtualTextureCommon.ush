@@ -481,7 +481,7 @@ VTPageTableResult TextureLoadVirtualPageTableLevel(
 }
 
 // LoadPageTable: 1 Page table, Adaptive
-VTPageTableResult TextureLoadVirtualPageTable(
+VTPageTableResult TextureLoadVirtualPageTableAdaptive(
 	Texture2D<uint4> PageTable0,
 	Texture2D<uint> PageTableIndirection,
 	VTPageTableUniform PageTableUniform,
@@ -504,7 +504,7 @@ VTPageTableResult TextureLoadVirtualPageTable(
 }
 
 // LoadPageTable: 1 Page table, Adaptive, SampleGrad
-VTPageTableResult TextureLoadVirtualPageTableGrad(
+VTPageTableResult TextureLoadVirtualPageTableAdaptiveGrad(
 	Texture2D<uint4> PageTable0,
 	Texture2D<uint> PageTableIndirection,
 	VTPageTableUniform PageTableUniform,
@@ -524,7 +524,7 @@ VTPageTableResult TextureLoadVirtualPageTableGrad(
 }
 
 // LoadPageTable: 1 Page table, Adaptive, SampleLevel
-VTPageTableResult TextureLoadVirtualPageTableLevel(
+VTPageTableResult TextureLoadVirtualPageTableAdaptiveLevel(
 	Texture2D<uint4> PageTable0,
 	Texture2D<uint> PageTableIndirection,
 	VTPageTableUniform PageTableUniform,
@@ -545,7 +545,7 @@ VTPageTableResult TextureLoadVirtualPageTableLevel(
 }
 
 // LoadPageTable: 1 Page table, Adaptive, SampleLevel, No feedback
-VTPageTableResult TextureLoadVirtualPageTableLevel(
+VTPageTableResult TextureLoadVirtualPageTableAdaptiveLevel(
 	Texture2D<uint4> PageTable0,
 	Texture2D<uint> PageTableIndirection,
 	VTPageTableUniform PageTableUniform,
