@@ -19580,15 +19580,11 @@ int32 UMaterialExpressionStrataMultiply::Compile(class FMaterialCompiler* Compil
 {
 	if (!A.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing Top input"));
-	}
-	if (!Weight.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing Base input"));
+		return Compiler->Errorf(TEXT("Missing A input"));
 	}
 
 	int32 ACodeChunk = A.Compile(Compiler);
-	int32 WeightCodeChunk = Weight.Compile(Compiler);
+	int32 WeightCodeChunk = Weight.GetTracedInput().Expression ? Weight.Compile(Compiler) : Compiler->Constant(1.0f);
 
 	int32 OutputCodeChunk = Compiler->StrataMultiply(ACodeChunk, WeightCodeChunk);
 

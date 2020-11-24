@@ -336,7 +336,7 @@ class UMaterialExpressionStrataAdd : public UMaterialExpression
 	//~ End UMaterialExpression Interface
 };
 
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
+UCLASS(MinimalAPI, DisplayName = "Strata Multiply Weight", collapsecategories, hidecategories = Object)
 class UMaterialExpressionStrataMultiply : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
