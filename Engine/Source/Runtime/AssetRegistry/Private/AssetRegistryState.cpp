@@ -343,11 +343,20 @@ void FAssetRegistryState::InitializeFromExisting(const TMap<FName, FAssetData*>&
 			if (InInitializationMode == EInitializationMode::OnlyUpdateExisting)
 			{
 				// Only modify tags
-				if (ExistingData && (LocalTagsAndValues != ExistingData->TagsAndValues))
+				if (ExistingData)
 				{
-					FAssetData TempData = *ExistingData;
-					TempData.TagsAndValues = FAssetDataTagMapSharedView(MoveTemp(LocalTagsAndValues));
-					UpdateAssetData(ExistingData, TempData);
+					// If tags have changed we need to update CachedAssetsByTag
+					if (LocalTagsAndValues != ExistingData->TagsAndValues)
+					{
+						FAssetData TempData = *ExistingData;
+						TempData.TagsAndValues = FAssetDataTagMapSharedView(MoveTemp(LocalTagsAndValues));
+						UpdateAssetData(ExistingData, TempData);
+					}
+					else 
+					{
+						// Bundle tags might have changed but CachedAssetsByTag is up to date
+						ExistingData->TaggedAssetBundles = AssetData.TaggedAssetBundles;
+					}
 				}
 			}
 			else
