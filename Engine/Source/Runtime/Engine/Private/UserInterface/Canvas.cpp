@@ -47,6 +47,21 @@ FCanvasWordWrapper::FCanvasWordWrapper()
 {
 }
 
+FTexture* GetTextureForCanvasItem(UTexture* RenderTexture)
+{
+	// Only assign a valid texture for the canvas item. Proxy textures, from the UTexture implementation, are not valid here.
+	// This is because the proxy textures get destroyed on the render thread as soon as the build completes, which could happen
+	// before the canvas item renders.
+	if (RenderTexture && RenderTexture->Resource && !RenderTexture->Resource->IsProxy())
+	{
+		return RenderTexture->Resource;
+	}
+	else
+	{
+		return GWhiteTexture;
+	}
+}
+
 void FCanvasWordWrapper::Execute(const TCHAR* const InString, const FTextSizingParameters& InParameters, TArray<FWrappedStringElement>& OutStrings, FWrappedLineData* const OutWrappedLineData)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Canvas_WordWrappingTime);
@@ -1534,7 +1549,7 @@ void UCanvas::DrawTile( UTexture* Tex, float X, float Y, float XL, float YL, flo
 		float TexSurfaceWidth= Tex->GetSurfaceWidth();
 		float TexSurfaceHeight = Tex->GetSurfaceHeight();
 
-		FCanvasTileItem TileItem( FVector2D( X, Y ), Tex->Resource,  FVector2D( w, h ),  
+		FCanvasTileItem TileItem( FVector2D( X, Y ), GetTextureForCanvasItem(Tex),  FVector2D( w, h ),  
 			FVector2D(U / TexSurfaceWidth, V / TexSurfaceHeight),
 			FVector2D(U / TexSurfaceWidth + UL / TexSurfaceWidth * w / XL, V / TexSurfaceHeight + VL / TexSurfaceHeight * h / YL),
 			DrawColor );
@@ -1963,21 +1978,6 @@ void UCanvas::K2_DrawLine(FVector2D ScreenPositionA, FVector2D ScreenPositionB, 
 		LineItem.LineThickness = Thickness;
 		LineItem.SetColor(RenderColor);
 		DrawItem(LineItem);
-	}
-}
-
-FTexture* GetTextureForCanvasItem(UTexture* RenderTexture)
-{
-	// Only assign a valid texture for the canvas item. Proxy textures, from the UTexture implementation, are not valid here.
-	// This is because the proxy textures get destroyed on the render thread as soon as the build completes, which could happen
-	// before the canvas item renders.
-	if (RenderTexture && RenderTexture->Resource && !RenderTexture->Resource->IsProxy())
-	{
-		return RenderTexture->Resource;
-	}
-	else
-	{
-		return GWhiteTexture;
 	}
 }
 
