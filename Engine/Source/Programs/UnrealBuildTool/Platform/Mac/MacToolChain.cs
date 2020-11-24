@@ -920,7 +920,7 @@ namespace UnrealBuildTool
 
 			if (!DirectoryReference.Exists(LinkEnvironment.IntermediateDirectory))
 			{
-				return OutputFile;
+				DirectoryReference.CreateDirectory(LinkEnvironment.IntermediateDirectory);
 			}
 
 			if (!bIsBuildingLibrary)
