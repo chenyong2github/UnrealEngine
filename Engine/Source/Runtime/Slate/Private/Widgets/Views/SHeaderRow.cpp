@@ -451,6 +451,7 @@ void SHeaderRow::Construct( const FArguments& InArgs )
 	Style = InArgs._Style;
 	OnGetMaxRowSizeForColumn = InArgs._OnGetMaxRowSizeForColumn;
 	ResizeMode = InArgs._ResizeMode;
+	SplitterHandleSize = InArgs._SplitterHandleSize;
 	bCanSelectGeneratedColumn = InArgs._CanSelectGeneratedColumn;
 	OnHiddenColumnsListChanged = InArgs._OnHiddenColumnsListChanged;
 
@@ -663,7 +664,7 @@ FReply SHeaderRow::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEv
 
 void SHeaderRow::RegenerateWidgets()
 {
-	const float SplitterHandleDetectionSize = 5.0f;
+	const float SplitterHandleDetectionSize = SplitterHandleSize > 0.0f ? SplitterHandleSize + 4.0f : 5.0f;
 	HeaderWidgets.Empty();
 
 	TSharedPtr<SSplitter> Splitter;
@@ -676,7 +677,7 @@ void SHeaderRow::RegenerateWidgets()
 			SAssignNew(Splitter, SSplitter)
 			.Style( &Style->ColumnSplitterStyle )
 			.ResizeMode(ResizeMode)
-			.PhysicalSplitterHandleSize( 0.0f )
+			.PhysicalSplitterHandleSize( SplitterHandleSize )
 			.HitDetectionSplitterHandleSize( SplitterHandleDetectionSize )
 			.OnGetMaxSlotSize(this, &SHeaderRow::GetRowSizeForSlotIndex)
 		]
@@ -776,10 +777,10 @@ void SHeaderRow::RegenerateWidgets()
 				case EColumnSizeMode::Manual:
 				{
 					// Sizing grip to put at the end of the column - we can't use a SSplitter here as it doesn't have the resizing behavior we need
-					const float GripSize = 5.0f;
+					const float GripSize = SplitterHandleSize > 0.0f ? SplitterHandleSize + 4.0f : 5.0f;
 					TSharedRef<SBorder> SizingGrip = SNew(SBorder)
 						.Padding(0.0f)
-						.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
+						.BorderImage( &Style->ColumnSplitterStyle )
 						.Cursor(EMouseCursor::ResizeLeftRight)
 						.Content()
 						[
