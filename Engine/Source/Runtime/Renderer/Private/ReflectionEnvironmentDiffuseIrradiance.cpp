@@ -11,7 +11,7 @@
 #include "Shader.h"
 #include "StaticBoundShaderState.h"
 #include "RHIStaticStates.h"
-#include "PostProcess/SceneRenderTargets.h"
+#include "ReflectionEnvironmentCapture.h"
 #include "GlobalShader.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "ScreenRendering.h"
@@ -21,18 +21,20 @@
 
 extern int32 GDiffuseIrradianceCubemapSize;
 
-FSceneRenderTargetItem& GetEffectiveDiffuseIrradianceRenderTarget(FSceneRenderTargets& SceneContext, int32 TargetMipIndex)
+extern TGlobalResource<FReflectionScratchCubemaps> GReflectionScratchCubemaps;
+
+FSceneRenderTargetItem& GetEffectiveDiffuseIrradianceRenderTarget(int32 TargetMipIndex)
 {
 	const int32 ScratchTextureIndex = TargetMipIndex % 2;
 
-	return SceneContext.DiffuseIrradianceScratchCubemap[ScratchTextureIndex]->GetRenderTargetItem();
+	return GReflectionScratchCubemaps.Irradiance[ScratchTextureIndex]->GetRenderTargetItem();
 }
 
-FSceneRenderTargetItem& GetEffectiveDiffuseIrradianceSourceTexture(FSceneRenderTargets& SceneContext, int32 TargetMipIndex)
+FSceneRenderTargetItem& GetEffectiveDiffuseIrradianceSourceTexture(int32 TargetMipIndex)
 {
 	const int32 ScratchTextureIndex = 1 - TargetMipIndex % 2;
 
-	return SceneContext.DiffuseIrradianceScratchCubemap[ScratchTextureIndex]->GetRenderTargetItem();
+	return GReflectionScratchCubemaps.Irradiance[ScratchTextureIndex]->GetRenderTargetItem();
 }
 
 /** Pixel shader used for copying to diffuse irradiance texture. */
@@ -195,7 +197,6 @@ IMPLEMENT_SHADER_TYPE(,FAccumulateCubeFacesPS,TEXT("/Engine/Private/ReflectionEn
 void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FTextureRHIRef LightingSource, int32 LightingSourceMipIndex, FSHVectorRGB3* OutIrradianceEnvironmentMap)
 {
 	auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
@@ -208,7 +209,7 @@ void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureL
 		{
 			const int32 MipIndex = 0;
 			const int32 MipSize = GDiffuseIrradianceCubemapSize;
-			FSceneRenderTargetItem& EffectiveRT = GetEffectiveDiffuseIrradianceRenderTarget(SceneContext, MipIndex);			
+			FSceneRenderTargetItem& EffectiveRT = GetEffectiveDiffuseIrradianceRenderTarget(MipIndex);
 
 			RHICmdList.Transition(FRHITransitionInfo(EffectiveRT.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 
@@ -258,8 +259,8 @@ void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureL
 				const int32 SourceMipIndex = FMath::Max(MipIndex - 1, 0);
 				const int32 MipSize = 1 << (NumMips - MipIndex - 1);
 
-				FSceneRenderTargetItem& EffectiveRT = GetEffectiveDiffuseIrradianceRenderTarget(SceneContext, MipIndex);
-				FSceneRenderTargetItem& EffectiveSource = GetEffectiveDiffuseIrradianceSourceTexture(SceneContext, MipIndex);
+				FSceneRenderTargetItem& EffectiveRT = GetEffectiveDiffuseIrradianceRenderTarget(MipIndex);
+				FSceneRenderTargetItem& EffectiveSource = GetEffectiveDiffuseIrradianceSourceTexture(MipIndex);
 				check(EffectiveRT.TargetableTexture != EffectiveSource.ShaderResourceTexture);
 
 				RHICmdList.Transition(FRHITransitionInfo(EffectiveRT.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
@@ -304,7 +305,7 @@ void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureL
 
 		{
 			// Gather the cubemap face results and normalize, copy this coefficient to FSceneRenderTargets::Get().SkySHIrradianceMap
-			FSceneRenderTargetItem& EffectiveRT = FSceneRenderTargets::Get().SkySHIrradianceMap->GetRenderTargetItem();
+			FSceneRenderTargetItem& EffectiveRT = GReflectionScratchCubemaps.SkySHIrradiance->GetRenderTargetItem();
 
 			//load/store actions so we don't lose results as we render one pixel at a time on tile renderers.
 			RHICmdList.Transition(FRHITransitionInfo(EffectiveRT.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
@@ -327,7 +328,7 @@ void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureL
 
 			const int32 SourceMipIndex = NumMips - 1;
 			const int32 MipSize = 1;
-			FSceneRenderTargetItem& EffectiveSource = GetEffectiveDiffuseIrradianceRenderTarget(SceneContext, SourceMipIndex);
+			FSceneRenderTargetItem& EffectiveSource = GetEffectiveDiffuseIrradianceRenderTarget(SourceMipIndex);
 			PixelShader->SetParameters(RHICmdList, SourceMipIndex, EffectiveSource.ShaderResourceTexture);
 
 			DrawRectangle( 
@@ -347,7 +348,7 @@ void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureL
 
 	{
 		// Read back the completed SH environment map
-		FSceneRenderTargetItem& EffectiveRT = FSceneRenderTargets::Get().SkySHIrradianceMap->GetRenderTargetItem();
+		FSceneRenderTargetItem& EffectiveRT = GReflectionScratchCubemaps.SkySHIrradiance->GetRenderTargetItem();
 		check(EffectiveRT.ShaderResourceTexture->GetFormat() == PF_FloatRGBA);
 
 		TArray<FFloat16Color> SurfaceData;

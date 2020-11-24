@@ -618,12 +618,7 @@ void FSceneRenderTargets::Allocate(FRDGBuilder& GraphBuilder, const FSceneRender
 
 	EPixelFormat MobileSceneColorFormat = GetDesiredMobileSceneColorFormat();
 		
-	bool bNewAllowStaticLighting;
-	{
-		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
-
-		bNewAllowStaticLighting = CVar->GetValueOnRenderThread() != 0;
-	}
+	const bool bNewAllowStaticLighting = IsStaticLightingAllowed();
 
 	bool bDownsampledOcclusionQueries = GDownsampledOcclusionQueries != 0;
 
@@ -1300,51 +1295,6 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandListImmediate& 
 	}
 }
 
-void FSceneRenderTargets::AllocateReflectionTargets(FRHICommandList& RHICmdList, int32 TargetSize)
-{
-	if (GSupportsRenderTargetFormat_PF_FloatRGBA)
-	{
-		const int32 NumReflectionCaptureMips = FMath::CeilLogTwo(TargetSize) + 1;
-
-		if (ReflectionColorScratchCubemap[0] && ReflectionColorScratchCubemap[0]->GetRenderTargetItem().TargetableTexture->GetNumMips() != NumReflectionCaptureMips)
-		{
-			ReflectionColorScratchCubemap[0].SafeRelease();
-			ReflectionColorScratchCubemap[1].SafeRelease();
-		}
-
-		// Reflection targets are shared between both mobile and deferred shading paths. If we have already allocated for one and are now allocating for the other,
-		// we can skip these targets.
-		bool bSharedReflectionTargetsAllocated = ReflectionColorScratchCubemap[0] != nullptr;
-
-		if (!bSharedReflectionTargetsAllocated)
-		{
-			// We write to these cubemap faces individually during filtering
-			ETextureCreateFlags CubeTexFlags = TexCreate_TargetArraySlicesIndependently;
-
-			{
-				// Create scratch cubemaps for filtering passes
-				FPooledRenderTargetDesc Desc2(FPooledRenderTargetDesc::CreateCubemapDesc(TargetSize, PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 10000, 0, 0)), CubeTexFlags, TexCreate_RenderTargetable, false, 1, NumReflectionCaptureMips));
-				GRenderTargetPool.FindFreeElement(RHICmdList, Desc2, ReflectionColorScratchCubemap[0], TEXT("ReflectionColorScratchCubemap0"), ERenderTargetTransience::NonTransient );
-				GRenderTargetPool.FindFreeElement(RHICmdList, Desc2, ReflectionColorScratchCubemap[1], TEXT("ReflectionColorScratchCubemap1"), ERenderTargetTransience::NonTransient );
-			}
-
-			extern int32 GDiffuseIrradianceCubemapSize;
-			const int32 NumDiffuseIrradianceMips = FMath::CeilLogTwo(GDiffuseIrradianceCubemapSize) + 1;
-
-			{
-				FPooledRenderTargetDesc Desc2(FPooledRenderTargetDesc::CreateCubemapDesc(GDiffuseIrradianceCubemapSize, PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 10000, 0, 0)), CubeTexFlags, TexCreate_RenderTargetable, false, 1, NumDiffuseIrradianceMips));
-				GRenderTargetPool.FindFreeElement(RHICmdList, Desc2, DiffuseIrradianceScratchCubemap[0], TEXT("DiffuseIrradianceScratchCubemap0"), ERenderTargetTransience::NonTransient);
-				GRenderTargetPool.FindFreeElement(RHICmdList, Desc2, DiffuseIrradianceScratchCubemap[1], TEXT("DiffuseIrradianceScratchCubemap1"), ERenderTargetTransience::NonTransient);
-			}
-
-			{
-				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(FSHVector3::MaxSHBasis, 1), PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 10000, 0, 0)), TexCreate_None, TexCreate_RenderTargetable, false));
-				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SkySHIrradianceMap, TEXT("SkySHIrradianceMap"), ERenderTargetTransience::NonTransient);
-			}
-		}
-	}
-}
-
 void FSceneRenderTargets::AllocateVirtualTextureFeedbackBuffer(FRHICommandList& RHICmdList)
 {
 	if (UseVirtualTexturing(CurrentFeatureLevel))
@@ -1658,23 +1608,6 @@ void FSceneRenderTargets::ReleaseAllTargets()
 	VirtualTextureFeedback.SafeRelease();
 	VirtualTextureFeedbackUAV.SafeRelease();
 
-	for (int32 i = 0; i < UE_ARRAY_COUNT(OptionalShadowDepthColor); i++)
-	{
-		OptionalShadowDepthColor[i].SafeRelease();
-	}
-
-	for (int32 i = 0; i < UE_ARRAY_COUNT(ReflectionColorScratchCubemap); i++)
-	{
-		ReflectionColorScratchCubemap[i].SafeRelease();
-	}
-
-	for (int32 i = 0; i < UE_ARRAY_COUNT(DiffuseIrradianceScratchCubemap); i++)
-	{
-		DiffuseIrradianceScratchCubemap[i].SafeRelease();
-	}
-
-	SkySHIrradianceMap.SafeRelease();
-
 	MobileMultiViewSceneColor.SafeRelease();
 	MobileMultiViewSceneDepthZ.SafeRelease();
 
@@ -1751,13 +1684,6 @@ const FTextureRHIRef& FSceneRenderTargets::GetSceneColorTexture() const
 	}
 
 	return (const FTextureRHIRef&)GetSceneColor()->GetRenderTargetItem().ShaderResourceTexture; 
-}
-
-const FUnorderedAccessViewRHIRef& FSceneRenderTargets::GetSceneColorTextureUAV() const
-{
-	check(GetSceneColorForCurrentShadingPath());
-
-	return (const FUnorderedAccessViewRHIRef&)GetSceneColor()->GetRenderTargetItem().UAV;
 }
 
 FCustomDepthTextures FSceneRenderTargets::RequestCustomDepth(FRDGBuilder& GraphBuilder, bool bPrimitives)

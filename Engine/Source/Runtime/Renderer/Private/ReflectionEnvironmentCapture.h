@@ -10,6 +10,7 @@
 #include "Math/SHMath.h"
 #include "RHI.h"
 #include "GlobalShader.h"
+#include "RendererInterface.h"
 
 extern void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FTextureRHIRef LightingSource, int32 LightingSourceMipIndex, FSHVectorRGB3* OutIrradianceEnvironmentMap);
 
@@ -61,4 +62,26 @@ public:
 	{}
 
 	TCubeFilterPS() {}
+};
+
+class FReflectionScratchCubemaps : public FRenderResource
+{
+public:
+	void Allocate(FRHICommandList& RHICmdList, uint32 TargetSize);
+	void Release();
+
+	/** 2 scratch cubemaps used for filtering reflections. */
+	TRefCountPtr<IPooledRenderTarget> Color[2];
+
+	/** Temporary storage during SH irradiance map generation. */
+	TRefCountPtr<IPooledRenderTarget> Irradiance[2];
+
+	/** Temporary storage during SH irradiance map generation. */
+	TRefCountPtr<IPooledRenderTarget> SkySHIrradiance;
+
+private:
+	void ReleaseDynamicRHI() override
+	{
+		Release();
+	}
 };

@@ -439,6 +439,11 @@ FASTVRAM_CVAR(DistanceFieldAOScreenGridResources, 1);
 FASTVRAM_CVAR(ForwardLightingCullingResources, 1);
 FASTVRAM_CVAR(GlobalDistanceFieldCullGridBuffers, 1);
 
+bool IsStaticLightingAllowed()
+{
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+	return CVar->GetValueOnRenderThread() != 0;
+}
 
 #if !UE_BUILD_SHIPPING
 namespace
@@ -2550,8 +2555,23 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 }
 
 #if WITH_MGPU
-void FSceneRenderer::ComputeViewGPUMasks(FRHIGPUMask RenderTargetGPUMask)
+FRHIGPUMask FSceneRenderer::ComputeGPUMasks(FRHICommandListImmediate& RHICmdList)
 {
+	FRHIGPUMask RenderTargetGPUMask = FRHIGPUMask::GPU0();
+	
+	if (GNumExplicitGPUsForRendering > 1 && ViewFamily.RenderTarget)
+	{
+		RenderTargetGPUMask = ViewFamily.RenderTarget->GetGPUMask(RHICmdList);
+	}
+
+	{
+		static auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PathTracing.GPUCount"));
+		if (CVar && CVar->GetInt() > 1)
+		{
+			RenderTargetGPUMask = FRHIGPUMask::All(); // Broadcast to all GPUs 
+		}
+	}
+
 	// First check whether we are in multi-GPU and if fork and join cross-gpu transfers are enabled.
 	// Otherwise fallback on rendering the whole view family on each relevant GPU using broadcast logic.
 	if (GNumExplicitGPUsForRendering > 1 && CVarEnableMultiGPUForkAndJoin.GetValueOnAnyThread() != 0)
@@ -2612,6 +2632,8 @@ void FSceneRenderer::ComputeViewGPUMasks(FRHIGPUMask RenderTargetGPUMask)
 	{
 		AllViewsGPUMask |= Views[ViewIndex].GPUMask;
 	}
+
+	return RenderTargetGPUMask;
 }
 #endif // WITH_MGPU
 

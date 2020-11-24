@@ -1751,8 +1751,8 @@ public:
 	void PrepareViewRectsForRendering();
 
 #if WITH_MGPU
-	/** Setups each FViewInfo::GPUMask. */
-	void ComputeViewGPUMasks(FRHIGPUMask RenderTargetGPUMask);
+	/** Assigns the view GPU masks and returns the render target GPU mask. */
+	FRHIGPUMask ComputeGPUMasks(FRHICommandListImmediate& RHICmdList);
 #endif
 
 	/** Update the rendertarget with each view results.*/
@@ -2306,6 +2306,8 @@ enum class EGPUSkinCacheTransition
 	FrameSetup,
 	Renderer,
 };
+
+extern bool IsStaticLightingAllowed();
 
 /* Run GPU skin cache resource transitions */
 void RunGPUSkinCacheTransition(class FRHICommandList& RHICmdList, class FScene* Scene, EGPUSkinCacheTransition Type);

@@ -1503,17 +1503,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_Render, FColor::Emerald);
 
 #if WITH_MGPU
-	FRHIGPUMask RenderTargetGPUMask = (GNumExplicitGPUsForRendering > 1 && ViewFamily.RenderTarget) ? ViewFamily.RenderTarget->GetGPUMask(RHICmdList) : FRHIGPUMask::GPU0();
-	
-	{
-		static auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PathTracing.GPUCount"));
-		if (CVar && CVar->GetInt() > 1)
-		{
-			RenderTargetGPUMask = FRHIGPUMask::All(); // Broadcast to all GPUs 
-		}
-	}
-
-	ComputeViewGPUMasks(RenderTargetGPUMask);
+	const FRHIGPUMask RenderTargetGPUMask = ComputeGPUMasks(RHICmdList);
 #endif // WITH_MGPU
 
 	// By default, limit our GPU usage to only GPUs specified in the view masks.
@@ -1554,6 +1544,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Create(GraphBuilder);
+
+	const bool bAllowStaticLighting = IsStaticLightingAllowed();
 
 	const bool bUseVirtualTexturing = UseVirtualTexturing(FeatureLevel);
 	if (bUseVirtualTexturing)
@@ -2157,7 +2149,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		CompositionLighting::ProcessBeforeBasePass(GraphBuilder, Views, Scene->UniformBuffers, SceneTextures, DBufferTextures);
 	}
 	
-	if (IsForwardShadingEnabled(ShaderPlatform) && SceneContext.IsStaticLightingAllowed())
+	if (IsForwardShadingEnabled(ShaderPlatform) && bAllowStaticLighting)
 	{
 		RenderIndirectCapsuleShadows(GraphBuilder, SceneTextures);
 	}
@@ -2398,7 +2390,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, HairDatas, /* bIsVisualizePass = */ false);
 
 		// These modulate the scenecolor output from the basepass, which is assumed to be indirect lighting
-		if (SceneContext.IsStaticLightingAllowed())
+		if (bAllowStaticLighting)
 		{
 			RenderIndirectCapsuleShadows(GraphBuilder, SceneTextures);
 		}

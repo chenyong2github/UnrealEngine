@@ -25,6 +25,8 @@ static TAutoConsoleVariable<int32> CVarMobileUseHighQualitySkyCaptureFiltering(
 	TEXT("0: use simple bilinear filtering when generating mobile sky captures."),
 	ECVF_RenderThreadSafe);
 
+extern TGlobalResource<FReflectionScratchCubemaps> GReflectionScratchCubemaps;
+
 class FMobileDownsamplePS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FMobileDownsamplePS, Global);
@@ -70,7 +72,7 @@ IMPLEMENT_SHADER_TYPE(, FMobileDownsamplePS, TEXT("/Engine/Private/ReflectionEnv
 namespace MobileReflectionEnvironmentCapture
 {
 	/** Encapsulates render target picking logic for cubemap mip generation. */
-	FSceneRenderTargetItem& GetEffectiveRenderTarget(FSceneRenderTargets& SceneContext, bool bDownsamplePass, int32 TargetMipIndex)
+	FSceneRenderTargetItem& GetEffectiveRenderTarget(bool bDownsamplePass, int32 TargetMipIndex)
 	{
 		int32 ScratchTextureIndex = TargetMipIndex % 2;
 
@@ -79,11 +81,11 @@ namespace MobileReflectionEnvironmentCapture
 			ScratchTextureIndex = 1 - ScratchTextureIndex;
 		}
 
-		return SceneContext.ReflectionColorScratchCubemap[ScratchTextureIndex]->GetRenderTargetItem();
+		return GReflectionScratchCubemaps.Color[ScratchTextureIndex]->GetRenderTargetItem();
 	}
 
 	/** Encapsulates source texture picking logic for cubemap mip generation. */
-	FSceneRenderTargetItem& GetEffectiveSourceTexture(FSceneRenderTargets& SceneContext, bool bDownsamplePass, int32 TargetMipIndex)
+	FSceneRenderTargetItem& GetEffectiveSourceTexture(bool bDownsamplePass, int32 TargetMipIndex)
 	{
 		int32 ScratchTextureIndex = TargetMipIndex % 2;
 
@@ -92,7 +94,7 @@ namespace MobileReflectionEnvironmentCapture
 			ScratchTextureIndex = 1 - ScratchTextureIndex;
 		}
 
-		return SceneContext.ReflectionColorScratchCubemap[ScratchTextureIndex]->GetRenderTargetItem();
+		return GReflectionScratchCubemaps.Color[ScratchTextureIndex]->GetRenderTargetItem();
 	}
 
 	void ComputeAverageBrightness(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, int32 CubmapSize, float& OutAverageBrightness)
@@ -107,8 +109,6 @@ namespace MobileReflectionEnvironmentCapture
 
 		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-
 		{
 			SCOPED_DRAW_EVENT(RHICmdList, DownsampleCubeMips);
 
@@ -118,8 +118,8 @@ namespace MobileReflectionEnvironmentCapture
 				const int32 SourceMipIndex = FMath::Max(MipIndex - 1, 0);
 				const int32 MipSize = 1 << (NumMips - MipIndex - 1);
 
-				FSceneRenderTargetItem& EffectiveRT = GetEffectiveRenderTarget(SceneContext, true, MipIndex);
-				FSceneRenderTargetItem& EffectiveSource = GetEffectiveSourceTexture(SceneContext, true, MipIndex);
+				FSceneRenderTargetItem& EffectiveRT = GetEffectiveRenderTarget(true, MipIndex);
+				FSceneRenderTargetItem& EffectiveSource = GetEffectiveSourceTexture(true, MipIndex);
 				check(EffectiveRT.TargetableTexture != EffectiveSource.ShaderResourceTexture);
 
 				for (int32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
@@ -166,7 +166,7 @@ namespace MobileReflectionEnvironmentCapture
 			}
 		}
 
-		OutAverageBrightness = ComputeSingleAverageBrightnessFromCubemap(RHICmdList, FeatureLevel, CubmapSize, GetEffectiveRenderTarget(FSceneRenderTargets::Get(), true, NumMips - 1));
+		OutAverageBrightness = ComputeSingleAverageBrightnessFromCubemap(RHICmdList, FeatureLevel, CubmapSize, GetEffectiveRenderTarget(true, NumMips - 1));
 	}
 
 	void CopyToSkyTexture(FRHICommandList& RHICmdList, FScene* Scene, FTexture* ProcessedTexture)
@@ -177,7 +177,6 @@ namespace MobileReflectionEnvironmentCapture
 			const bool bUseHQFiltering = CVarMobileUseHighQualitySkyCaptureFiltering.GetValueOnRenderThread() == 1;
 			const int32 EffectiveTopMipSize = ProcessedTexture->GetSizeX();
 			const int32 NumMips = FMath::CeilLogTwo(EffectiveTopMipSize) + 1;
-			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 			RHICmdList.Transition(FRHITransitionInfo(ProcessedTexture->TextureRHI, ERHIAccess::Unknown, ERHIAccess::CopyDest));
 
@@ -190,7 +189,7 @@ namespace MobileReflectionEnvironmentCapture
 			{
 				// For simple mobile bilin filtering the source for this copy is the dest from the filtering pass.
 				// In the HQ case, the full image is contained in GetEffectiveRenderTarget(.., false,0).
-				FSceneRenderTargetItem& EffectiveSource = GetEffectiveRenderTarget(SceneContext, false, bUseHQFiltering ? 0 : MipIndex);
+				FSceneRenderTargetItem& EffectiveSource = GetEffectiveRenderTarget(false, bUseHQFiltering ? 0 : MipIndex);
 				RHICmdList.Transition(FRHITransitionInfo(EffectiveSource.ShaderResourceTexture, ERHIAccess::Unknown, ERHIAccess::CopySrc));
 				RHICmdList.CopyTexture(EffectiveSource.ShaderResourceTexture, ProcessedTexture->TextureRHI, CopyInfo);
 
@@ -213,7 +212,7 @@ namespace MobileReflectionEnvironmentCapture
 		const int32 NumMips = FMath::CeilLogTwo(EffectiveTopMipSize) + 1;
 		const bool bUseHQFiltering = CVarMobileUseHighQualitySkyCaptureFiltering.GetValueOnRenderThread() == 1;
 		{
-			FSceneRenderTargetItem& EffectiveColorRT = FSceneRenderTargets::Get().ReflectionColorScratchCubemap[0]->GetRenderTargetItem();
+			FSceneRenderTargetItem& EffectiveColorRT = GReflectionScratchCubemaps.Color[0]->GetRenderTargetItem();
 			// Premultiply alpha in-place using alpha blending
 			for (uint32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
 			{
@@ -266,7 +265,6 @@ namespace MobileReflectionEnvironmentCapture
 		FSceneRenderTargetItem* DiffuseConvolutionSource = NULL;
 
 		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 		{
 			SCOPED_DRAW_EVENT(RHICmdList, DownsampleCubeMips);
@@ -277,8 +275,8 @@ namespace MobileReflectionEnvironmentCapture
 				const int32 SourceMipIndex = FMath::Max(MipIndex - 1, 0);
 				const int32 MipSize = 1 << (NumMips - MipIndex - 1);
 
-				FSceneRenderTargetItem& EffectiveRT = GetEffectiveRenderTarget(SceneContext, true, MipIndex);
-				FSceneRenderTargetItem& EffectiveSource = GetEffectiveSourceTexture(SceneContext, true, MipIndex);
+				FSceneRenderTargetItem& EffectiveRT = GetEffectiveRenderTarget(true, MipIndex);
+				FSceneRenderTargetItem& EffectiveSource = GetEffectiveSourceTexture(true, MipIndex);
 				check(EffectiveRT.TargetableTexture != EffectiveSource.ShaderResourceTexture);
 
 				for (int32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
@@ -348,8 +346,8 @@ namespace MobileReflectionEnvironmentCapture
 			SCOPED_DRAW_EVENT(RHICmdList, PrepareSourceCubemapMipsForHQFiltering);
 			for (int32 MipIndex = 1; MipIndex < NumMips; MipIndex += 2)
 			{
-				FSceneRenderTargetItem& SourceTarget = GetEffectiveRenderTarget(SceneContext, true, MipIndex);
-				FSceneRenderTargetItem& DestTarget = GetEffectiveSourceTexture(SceneContext, true, MipIndex);
+				FSceneRenderTargetItem& SourceTarget = GetEffectiveRenderTarget(true, MipIndex);
+				FSceneRenderTargetItem& DestTarget = GetEffectiveSourceTexture(true, MipIndex);
 				check(DestTarget.TargetableTexture != SourceTarget.ShaderResourceTexture);
 
 				// Transition the textures once, so CopyToResolveTarget doesn't ping-pong uselessly between the copy and SRV states.
@@ -387,8 +385,8 @@ namespace MobileReflectionEnvironmentCapture
 			for (int32 MipIndex = 0; MipIndex < NumMips; MipIndex++)
 			{
 				SCOPED_DRAW_EVENT(RHICmdList, FilterCubeMip);
-				FSceneRenderTargetItem& EffectiveRT = GetEffectiveRenderTarget(SceneContext, false, bUseHQFiltering ? 0 : MipIndex);
-				FSceneRenderTargetItem& EffectiveSource = GetEffectiveSourceTexture(SceneContext, false, bUseHQFiltering ? 0 : MipIndex);
+				FSceneRenderTargetItem& EffectiveRT = GetEffectiveRenderTarget(false, bUseHQFiltering ? 0 : MipIndex);
+				FSceneRenderTargetItem& EffectiveSource = GetEffectiveSourceTexture(false, bUseHQFiltering ? 0 : MipIndex);
 				check(EffectiveRT.TargetableTexture != EffectiveSource.ShaderResourceTexture);
 				const int32 MipSize = 1 << (NumMips - MipIndex - 1);
 

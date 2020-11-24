@@ -144,7 +144,6 @@ protected:
 		CurrentFeatureLevel(ERHIFeatureLevel::Num),
 		CurrentShadingPath(EShadingPath::Num),
 		bRequireSceneColorAlpha(false),
-		bAllocateVelocityGBuffer(false),
 		DefaultColorClear(FClearValueBinding::Black),
 		DefaultDepthClear(FClearValueBinding::DepthFar),
 		bHMDAllocatedDepthTarget(false),
@@ -192,21 +191,6 @@ public:
 	int32 GetVirtualTextureFeedbackScale() const;
 	FIntPoint GetVirtualTextureFeedbackBufferSize() const;
 
-	/** Binds the appropriate shadow depth cube map for rendering. */
-	void BeginRenderingCubeShadowDepth(FRHICommandList& RHICmdList, int32 ShadowResolution);
-
-	void FreeReflectionScratchRenderTargets()
-	{
-		for (int32 Idx = 0; Idx < UE_ARRAY_COUNT(ReflectionColorScratchCubemap); ++Idx)
-		{
-			ReflectionColorScratchCubemap[Idx].SafeRelease();
-		}
-		for (int32 Idx = 0; Idx < UE_ARRAY_COUNT(DiffuseIrradianceScratchCubemap); ++Idx)
-		{
-			DiffuseIrradianceScratchCubemap[Idx].SafeRelease();
-		}
-	}
-
 	void SetDefaultColorClear(const FClearValueBinding ColorClear)
 	{
 		DefaultColorClear = ColorClear;
@@ -244,8 +228,6 @@ public:
 	*/
 	static uint16 GetNumSceneColorMSAASamples(ERHIFeatureLevel::Type InFeatureLevel);
 
-	bool IsStaticLightingAllowed() const { return bAllowStaticLighting; }
-
 	/**
 	 * Gets the editor primitives color target/shader resource.  This may recreate the target
 	 * if the msaa settings dont match
@@ -265,7 +247,6 @@ public:
 	// Texture Accessors -----------
 
 	const FTextureRHIRef& GetSceneColorTexture() const;
-	const FUnorderedAccessViewRHIRef& GetSceneColorTextureUAV() const;
 
 	const FTexture2DRHIRef& GetSceneDepthTexture() const
 	{
@@ -349,8 +330,6 @@ public:
 	void AllocateVirtualTextureFeedbackBuffer(FRHICommandList& RHICmdList);
 
 	void AllocateDebugViewModeTargets(FRHICommandList& RHICmdList);
-
-	TRefCountPtr<IPooledRenderTarget>& GetReflectionBrightnessTarget();
 	
 	// Can be called when the Scene Color content is no longer needed. As we create SceneColor on demand we can make sure it is created with the right format.
 	// (as a call to SetSceneColor() can override it with a different format)
@@ -391,17 +370,6 @@ public:
 	TRefCountPtr<IPooledRenderTarget> MobileCustomStencil;
 	// used by the CustomDepth material feature for stencil
 	TRefCountPtr<FRHIShaderResourceView> CustomStencilSRV;
-	// optional in case this RHI requires a color render target (adjust up if necessary)
-	TRefCountPtr<IPooledRenderTarget> OptionalShadowDepthColor[4];
-
-	/** 2 scratch cubemaps used for filtering reflections. */
-	TRefCountPtr<IPooledRenderTarget> ReflectionColorScratchCubemap[2];
-
-	/** Temporary storage during SH irradiance map generation. */
-	TRefCountPtr<IPooledRenderTarget> DiffuseIrradianceScratchCubemap[2];
-
-	/** Temporary storage during SH irradiance map generation. */
-	TRefCountPtr<IPooledRenderTarget> SkySHIrradianceMap;
 
 	/** Color and depth texture arrays for mobile multi-view */
 	TRefCountPtr<IPooledRenderTarget> MobileMultiViewSceneColor;
@@ -555,9 +523,6 @@ private:
 	EShadingPath CurrentShadingPath;
 
 	bool bRequireSceneColorAlpha;
-
-	// Set this per frame since there might be cases where we don't need an extra GBuffer
-	bool bAllocateVelocityGBuffer;
 
 	/** Clear color value, defaults to FClearValueBinding::Black */
 	FClearValueBinding DefaultColorClear;
