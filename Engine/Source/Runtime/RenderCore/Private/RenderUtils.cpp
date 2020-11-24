@@ -984,6 +984,15 @@ RENDERCORE_API bool IsMobileDeferredShadingEnabled(const FStaticShaderPlatform P
 	return MobileShadingPathCvar->GetValueOnAnyThread() == 1;
 }
 
+RENDERCORE_API bool MobileRequiresSceneDepthAux(const FStaticShaderPlatform Platform)
+{
+	if (IsMetalMobilePlatform(Platform) && IsMobileDeferredShadingEnabled(Platform))
+	{
+		return true;
+	}
+	return false;
+}
+
 RENDERCORE_API bool SupportsTextureCubeArray(ERHIFeatureLevel::Type FeatureLevel)
 {
 	return FeatureLevel == ERHIFeatureLevel::SM5 

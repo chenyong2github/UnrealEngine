@@ -159,6 +159,29 @@ static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 	return bUsesCustomDepthStencil;
 }
 
+static bool PostProcessUsesSceneDepth(const FViewInfo& View)
+{
+	// Find out whether post-process materials use CustomDepth/Stencil lookups
+	const FBlendableManager& BlendableManager = View.FinalPostProcessSettings.BlendableManager;
+	FBlendableEntry* BlendableIt = nullptr;
+
+	while (FPostProcessMaterialNode* DataPtr = BlendableManager.IterateBlendables<FPostProcessMaterialNode>(BlendableIt))
+	{
+		if (DataPtr->IsValid())
+		{
+			FMaterialRenderProxy* Proxy = DataPtr->GetMaterialInterface()->GetRenderProxy();
+			check(Proxy);
+
+			const FMaterial& Material = Proxy->GetIncompleteMaterialWithFallback(View.GetFeatureLevel());
+			const FMaterialShaderMap* MaterialShaderMap = Material.GetRenderingThreadShaderMap();
+			if (MaterialShaderMap->UsesSceneTexture(PPI_SceneDepth))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
 
 FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyConsumer* HitProxyConsumer)
 	: FSceneRenderer(InViewFamily, HitProxyConsumer)
@@ -337,6 +360,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	// See CVarMobileForceDepthResolve use in ConditionalResolveSceneDepth.
 	const bool bForceDepthResolve = (CVarMobileForceDepthResolve.GetValueOnRenderThread() == 1);
 	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(Views.GetData(), Views.Num()); 
+	const bool bPostProcessUsesSceneDepth = PostProcessUsesSceneDepth(Views[0]);
 	bRequiresMultiPass = RequiresMultiPass(RHICmdList, Views[0]);
 	bKeepDepthContent = 
 		bRequiresMultiPass || 
@@ -344,7 +368,8 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		bRequriesAmbientOcclusionPass ||
 		bRequiresPixelProjectedPlanarRelfectionPass ||
 		bSeparateTranslucencyActive ||
-		Views[0].bIsReflectionCapture;
+		Views[0].bIsReflectionCapture ||
+		(bDeferredShading && bPostProcessUsesSceneDepth);
 	// never keep MSAA depth
 	bKeepDepthContent = (NumMSAASamples > 1 ? false : bKeepDepthContent);
 
@@ -1041,29 +1066,40 @@ FRHITexture* FMobileSceneRenderer::RenderDeferred(FRHICommandListImmediate& RHIC
 {
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 			
-	FRHITexture* ColorTargets[5] = {
+	FRHITexture* ColorTargets[4] = {
 		SceneContext.GetSceneColorSurface(),
 		SceneContext.GetGBufferATexture().GetReference(),
 		SceneContext.GetGBufferBTexture().GetReference(),
-		SceneContext.GetGBufferCTexture().GetReference(),
-		SceneContext.SceneDepthAux->GetRenderTargetItem().ShaderResourceTexture.GetReference()
+		SceneContext.GetGBufferCTexture().GetReference()
 	};
 
 	// Whether RHI needs to store GBuffer to system memory and do shading in separate render-pass
 	ERenderTargetActions GBufferAction = bRequiresMultiPass ? ERenderTargetActions::Clear_Store : ERenderTargetActions::Clear_DontStore;
 	EDepthStencilTargetActions DepthAction = bKeepDepthContent ? EDepthStencilTargetActions::ClearDepthStencil_StoreDepthStencil : EDepthStencilTargetActions::ClearDepthStencil_DontStoreDepthStencil;
 		
-	ERenderTargetActions ColorTargetsAction[5] = {ERenderTargetActions::Clear_Store, GBufferAction, GBufferAction, GBufferAction, ERenderTargetActions::Clear_Store};
+	ERenderTargetActions ColorTargetsAction[4] = {ERenderTargetActions::Clear_Store, GBufferAction, GBufferAction, GBufferAction};
 	
 	FRHIRenderPassInfo BasePassInfo = FRHIRenderPassInfo();
-	for (int32 Index = 0; Index < UE_ARRAY_COUNT(ColorTargets); ++Index)
+	int32 ColorTargetIndex = 0;
+	for (; ColorTargetIndex < UE_ARRAY_COUNT(ColorTargets); ++ColorTargetIndex)
 	{
-		BasePassInfo.ColorRenderTargets[Index].RenderTarget = ColorTargets[Index];
-		BasePassInfo.ColorRenderTargets[Index].ResolveTarget = nullptr;
-		BasePassInfo.ColorRenderTargets[Index].ArraySlice = -1;
-		BasePassInfo.ColorRenderTargets[Index].MipIndex = 0;
-		BasePassInfo.ColorRenderTargets[Index].Action = ColorTargetsAction[Index];
+		BasePassInfo.ColorRenderTargets[ColorTargetIndex].RenderTarget = ColorTargets[ColorTargetIndex];
+		BasePassInfo.ColorRenderTargets[ColorTargetIndex].ResolveTarget = nullptr;
+		BasePassInfo.ColorRenderTargets[ColorTargetIndex].ArraySlice = -1;
+		BasePassInfo.ColorRenderTargets[ColorTargetIndex].MipIndex = 0;
+		BasePassInfo.ColorRenderTargets[ColorTargetIndex].Action = ColorTargetsAction[ColorTargetIndex];
 	}
+	
+	if (MobileRequiresSceneDepthAux(ShaderPlatform))
+	{
+		BasePassInfo.ColorRenderTargets[ColorTargetIndex].RenderTarget = SceneContext.SceneDepthAux->GetRenderTargetItem().ShaderResourceTexture.GetReference();
+		BasePassInfo.ColorRenderTargets[ColorTargetIndex].ResolveTarget = nullptr;
+		BasePassInfo.ColorRenderTargets[ColorTargetIndex].ArraySlice = -1;
+		BasePassInfo.ColorRenderTargets[ColorTargetIndex].MipIndex = 0;
+		BasePassInfo.ColorRenderTargets[ColorTargetIndex].Action = GBufferAction;
+		ColorTargetIndex++;
+	}
+
 	BasePassInfo.DepthStencilRenderTarget.DepthStencilTarget = SceneContext.GetSceneDepthSurface();
 	BasePassInfo.DepthStencilRenderTarget.ResolveTarget = nullptr;
 	BasePassInfo.DepthStencilRenderTarget.Action = DepthAction;

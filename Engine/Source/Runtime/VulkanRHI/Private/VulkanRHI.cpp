@@ -1586,18 +1586,18 @@ static VkRenderPass CreateRenderPass(FVulkanDevice& InDevice, const FVulkanRende
 
 	// Two subpasses for deferred shading
 	VkAttachmentReference InputAttachments2[MaxSimultaneousRenderTargets + 1];
-	VkAttachmentReference DepthStencilAttachment[1];
+	VkAttachmentReference DepthStencilAttachment;
 	if (bDeferredShadingSubpass)
 	{
 		// both sub-passes only test DepthStencil
-		DepthStencilAttachment[0].attachment = RTLayout.GetDepthStencilAttachmentReference()->attachment;
-		DepthStencilAttachment[0].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+		DepthStencilAttachment.attachment = RTLayout.GetDepthStencilAttachmentReference()->attachment;
+		DepthStencilAttachment.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
 		const VkAttachmentReference* ColorRef = RTLayout.GetColorAttachmentReferences();
 		uint32 NumColorAttachments = RTLayout.GetNumColorAttachments();
-		check(NumColorAttachments == 5); //current layout is SceneColor, GBufferA/B/C, DepthAux
+		check(NumColorAttachments == 4); //current layout is SceneColor, GBufferA/B/C
 
-		// 1. Write to SceneColor and GBuffer, input DepthAux, readonly DepthStencil
+		// 1. Write to SceneColor and GBuffer, input DepthStencil
 		{
 			VkSubpassDescription& SubpassDesc = SubpassDescriptions[NumSubpasses++];
 			FMemory::Memzero(&SubpassDesc, sizeof(VkSubpassDescription));
@@ -1605,17 +1605,10 @@ static VkRenderPass CreateRenderPass(FVulkanDevice& InDevice, const FVulkanRende
 			SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 			SubpassDesc.colorAttachmentCount = 4;
 			SubpassDesc.pColorAttachments = ColorRef;
-			SubpassDesc.pDepthStencilAttachment = DepthStencilAttachment;
-			// DepthAux as Input5
-			for (int32 i = 0; i < 5; ++i)
-			{
-				InputAttachments1[i].attachment = VK_ATTACHMENT_UNUSED;
-				InputAttachments1[i].attachment = VK_IMAGE_LAYOUT_UNDEFINED;
-			}
-			InputAttachments1[5].attachment = ColorRef[4].attachment;
-			InputAttachments1[5].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			SubpassDesc.inputAttachmentCount = 6;
-			SubpassDesc.pInputAttachments = InputAttachments1;
+			SubpassDesc.pDepthStencilAttachment = &DepthStencilAttachment;
+			// depth as Input0
+			SubpassDesc.inputAttachmentCount = 1;
+			SubpassDesc.pInputAttachments = &DepthStencilAttachment;
 						
 			VkSubpassDependency& SubpassDep = SubpassDependencies[NumDependencies++];
 			SubpassDep.srcSubpass = 0;
@@ -1624,14 +1617,10 @@ static VkRenderPass CreateRenderPass(FVulkanDevice& InDevice, const FVulkanRende
 			SubpassDep.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 			SubpassDep.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 			SubpassDep.dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
-			if (GVulkanInputAttachmentShaderRead == 1)
-			{
-				SubpassDep.dstAccessMask|= VK_ACCESS_SHADER_READ_BIT; // this is not required, but flickers on some device without
-			}
 			SubpassDep.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 		}
 
-		// 2. Write to SceneColor, input GBuffer and DepthAux, readonly DepthStencil
+		// 2. Write to SceneColor, input GBuffer and DepthStencil
 		{
 			VkSubpassDescription& SubpassDesc = SubpassDescriptions[NumSubpasses++];
 			FMemory::Memzero(&SubpassDesc, sizeof(VkSubpassDescription));
@@ -1639,18 +1628,18 @@ static VkRenderPass CreateRenderPass(FVulkanDevice& InDevice, const FVulkanRende
 			SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 			SubpassDesc.colorAttachmentCount = 1; // SceneColor only
 			SubpassDesc.pColorAttachments = ColorRef;
-			SubpassDesc.pDepthStencilAttachment = DepthStencilAttachment;
-			// GBuffer,DepthAux as Input2/3/4/5
-			InputAttachments2[0].attachment = VK_ATTACHMENT_UNUSED;
-			InputAttachments2[0].layout = VK_IMAGE_LAYOUT_UNDEFINED;
+			SubpassDesc.pDepthStencilAttachment = &DepthStencilAttachment;
+			// GBuffer as Input2/3/4
+			InputAttachments2[0].attachment = DepthStencilAttachment.attachment;
+			InputAttachments2[0].layout = DepthStencilAttachment.layout;
 			InputAttachments2[1].attachment = VK_ATTACHMENT_UNUSED;
 			InputAttachments2[1].layout = VK_IMAGE_LAYOUT_UNDEFINED;
-			for (int32 i = 2; i < 6; ++i)
+			for (int32 i = 2; i < 5; ++i)
 			{
 				InputAttachments2[i].attachment = ColorRef[i-1].attachment;
 				InputAttachments2[i].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			}
-			SubpassDesc.inputAttachmentCount = 6;
+			SubpassDesc.inputAttachmentCount = 5;
 			SubpassDesc.pInputAttachments = InputAttachments2;
 
 			VkSubpassDependency& SubpassDep = SubpassDependencies[NumDependencies++];

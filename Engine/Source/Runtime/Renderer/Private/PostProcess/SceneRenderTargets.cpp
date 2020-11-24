@@ -1131,6 +1131,14 @@ void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList, EText
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GBufferE, TEXT("GBufferE"));
 		}
 
+		// Some mobile platforms may need to store SceneDepth into color buffer
+		if (IsMobilePlatform(ShaderPlatform) && MobileRequiresSceneDepthAux(ShaderPlatform))
+		{
+			float FarDepth = (float)ERHIZBuffer::FarPlane;
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_R32_FLOAT, FClearValueBinding(FLinearColor(FarDepth,FarDepth,FarDepth,FarDepth)), TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | AddTargetableFlags, false));
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneDepthAux, TEXT("SceneDepthAux"));
+		}
+
 		// otherwise we have a severe problem
 		check(GBufferA);
 	}
@@ -1345,13 +1353,6 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandListImmediate& 
 	AllocateFoveationTexture(RHICmdList);
 	AllocateVirtualTextureFeedbackBuffer(RHICmdList);
 	AllocateDebugViewModeTargets(RHICmdList);
-	
-	if (IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform))
-	{
-		float FarDepth = (float)ERHIZBuffer::FarPlane;
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_R32_FLOAT, FClearValueBinding(FLinearColor(FarDepth,FarDepth,FarDepth,FarDepth)), TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneDepthAux, TEXT("SceneDepthAux"));
-	}
 }
 
 // This is a helper class. It generates and provides N names with
