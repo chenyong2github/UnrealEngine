@@ -3,8 +3,11 @@
 
 #include "MeshIndexUtil.h"
 
-
 void MeshIndexUtil::TriangleToVertexIDs(const FDynamicMesh3* Mesh, const TArray<int>& TriangleIDs, TArray<int>& VertexIDsOut)
+{
+	UE::MeshIndexUtil::TriangleToVertexIDs(Mesh, TriangleIDs, VertexIDsOut);
+}
+void UE::MeshIndexUtil::TriangleToVertexIDs(const FDynamicMesh3* Mesh, const TArray<int>& TriangleIDs, TArray<int>& VertexIDsOut)
 {
 	// if we are getting close to full mesh it is probably more efficient to use a bitmap...
 
@@ -50,8 +53,11 @@ void MeshIndexUtil::TriangleToVertexIDs(const FDynamicMesh3* Mesh, const TArray<
 
 
 
-
 void MeshIndexUtil::VertexToTriangleOneRing(const FDynamicMesh3* Mesh, const TArray<int>& VertexIDs, TSet<int>& TriangleIDsOut)
+{
+	UE::MeshIndexUtil::VertexToTriangleOneRing(Mesh, VertexIDs, TriangleIDsOut);
+}
+void UE::MeshIndexUtil::VertexToTriangleOneRing(const FDynamicMesh3* Mesh, const TArray<int>& VertexIDs, TSet<int>& TriangleIDsOut)
 {
 	int NumVerts = VertexIDs.Num();
 	TriangleIDsOut.Reserve( (NumVerts < 5) ? NumVerts*6 : NumVerts*4);
