@@ -1,14 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Views/Filter/SLevelSnapshotsEditorFilters.h"
+#include "SLevelSnapshotsEditorFilters.h"
 
-#include "Views/Filter/LevelSnapshotsEditorFilterClass.h"
-#include "Views/Filter/LevelSnapshotsEditorFilters.h"
-#include "Widgets/SLevelSnapshotsEditorFilterRow.h"
+#include "LevelSnapshotsEditorData.h"
+#include "LevelSnapshotsEditorFilters.h"
+#include "LevelSnapshotsEditorFilterClass.h"
 #include "LevelSnapshotsEditorStyle.h"
 #include "LevelSnapshotFilters.h"
 #include "LevelSnapshotFiltersBasic.h"
-#include "LevelSnapshotsEditorData.h"
+#include "SFavoriteFilterList.h"
+#include "SLevelSnapshotsEditorFilterRow.h"
 
 #include "EditorStyleSet.h"
 #include "Widgets/Text/STextBlock.h"
@@ -19,7 +20,6 @@
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
-#include "Engine/Blueprint.h"
 #include "Kismet2/KismetEditorUtilities.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
@@ -33,6 +33,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 {
 	FiltersModelPtr = InFilters;
 
+	// TODO: class generation was extracted to UFavoriteFilterContainer. Dominik will refactor to use UFavoriteFilterContainer.
 	// Get all classes
 	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
 	{
@@ -99,6 +100,15 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 	ChildSlot
 		[
 			SNew(SVerticalBox)
+
+			// Favorite filters
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SAssignNew(FavoriteList, SFavoriteFilterList, InFilters->GetBuilder()->EditorDataPtr->GetFavoriteFilters())
+			]
+
+			// Rows
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			[
@@ -110,6 +120,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 				.OnSelectionChanged(this, &SLevelSnapshotsEditorFilters::OnSelectionChanged)
 				.ClearSelectionOnClick(false)
 			]
+
 			// Add button
 			+ SVerticalBox::Slot()
 			.Padding(5.f, 10.f)
@@ -135,6 +146,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 					]
 			]
 
+			// Filter details panel
 			+ SVerticalBox::Slot()
 			.Padding(0.f, 10.f)
 			.AutoHeight()

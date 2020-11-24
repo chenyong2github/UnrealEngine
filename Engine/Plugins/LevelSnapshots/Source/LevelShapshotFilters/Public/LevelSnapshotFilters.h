@@ -7,7 +7,7 @@
 #include "LevelSnapshotFilters.generated.h"
 
 // If you are building your filter in C++ then you should inherit this class
-UCLASS()
+UCLASS(Abstract)
 class LEVELSNAPSHOTFILTERS_API ULevelSnapshotFilter : public UObject
 {
 	GENERATED_BODY()
@@ -20,7 +20,7 @@ public:
 };
 
 // If you are building your filter in Blueprints then you should inherit this class
-UCLASS(Blueprintable)
+UCLASS(Abstract, Blueprintable)
 class LEVELSNAPSHOTFILTERS_API ULevelSnapshotBlueprintFilter : public ULevelSnapshotFilter
 {
 	GENERATED_BODY()

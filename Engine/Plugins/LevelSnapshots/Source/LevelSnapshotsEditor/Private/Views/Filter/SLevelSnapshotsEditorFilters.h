@@ -8,14 +8,16 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
 
-class IDetailsView;
-class SLevelSnapshotsEditorFilters;
 class FLevelSnapshotsEditorFilters;
+class FLevelSnapshotsEditorFilterClass;
+class IDetailsView;
 class ULevelSnapshotsEditorData;
 class ULevelSnapshotFilter;
 class ULevelSnapshotEditorFilterGroup;
+class SFavoriteFilterList;
+class SLevelSnapshotsEditorFilters;
+
 struct FLevelSnapshotsEditorFilterRowGroup;
-class FLevelSnapshotsEditorFilterClass;
 
 struct FLevelSnapshotsEditorFilterRow
 {
@@ -113,6 +115,8 @@ private:
 	void OnSetActiveFilter(ULevelSnapshotFilter* InFilter);
 
 private:
+	
+	TSharedPtr<SFavoriteFilterList> FavoriteList;
 	TSharedPtr<STreeView<TSharedPtr<FLevelSnapshotsEditorFilterRow>>> FilterRowsList;
 
 	TArray<TSharedPtr<FLevelSnapshotsEditorFilterRowGroup>> FilterRowGroups;

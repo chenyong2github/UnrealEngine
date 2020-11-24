@@ -2,6 +2,7 @@
 
 #include "LevelSnapshotsEditorData.h"
 
+#include "FavoriteFilterContainer.h"
 #include "LevelSnapshotFilters.h"
 
 ULevelSnapshotFilter* ULevelSnapshotEditorFilterGroup::AddOrFindFilter(TSubclassOf<ULevelSnapshotFilter> InClass, const FName& InName)
@@ -16,6 +17,19 @@ ULevelSnapshotFilter* ULevelSnapshotEditorFilterGroup::AddOrFindFilter(TSubclass
 	Filters.Add(InName, NewFilter);
 
 	return NewFilter;
+}
+
+ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& ObjectInitializer)
+{
+	FavoriteFilters = ObjectInitializer.CreateDefaultSubobject<UFavoriteFilterContainer>(
+		this,
+		TEXT("FavoriteFilters")
+		);
+}
+
+UFavoriteFilterContainer* ULevelSnapshotsEditorData::GetFavoriteFilters() const
+{
+	return FavoriteFilters;
 }
 
 ULevelSnapshotEditorFilterGroup* ULevelSnapshotsEditorData::AddOrFindGroup(const FName& InName)

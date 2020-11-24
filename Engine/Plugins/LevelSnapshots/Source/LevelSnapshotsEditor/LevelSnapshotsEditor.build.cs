@@ -25,6 +25,7 @@ public class LevelSnapshotsEditor : ModuleRules
 				Path.Combine(ModuleDirectory, "Private", "Views", "Input"),
 				Path.Combine(ModuleDirectory, "Private", "Views", "Results"),
 				Path.Combine(ModuleDirectory, "Private", "Widgets"),
+				Path.Combine(ModuleDirectory, "Private", "Widgets", "Filter")
 			}
 		);
 
