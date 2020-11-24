@@ -17,7 +17,7 @@
 #include "MultiUserClientUtils.h"
 
 #include "Algo/Transform.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Internationalization/Regex.h"
@@ -74,8 +74,7 @@ TSharedRef<SButton> MakeIconButton(const FName& ButtonStyle, const TAttribute<FT
 	const FSlateColor& ForegroundColor, const TAttribute<EVisibility>& Visibility = EVisibility::Visible, const TAttribute<FMargin>& ContentPadding = FMargin(3.0, 2.0), const FName FontStyle = IconColumnFontName)
 {
 	return SNew(SButton)
-		.ForegroundColor(ForegroundColor)
-		.ButtonStyle(FEditorStyle::Get(), ButtonStyle)
+		.ButtonStyle(FAppStyle::Get(), ButtonStyle)
 		.OnClicked(OnClicked)
 		.ToolTipText(Tooltip)
 		.ContentPadding(ContentPadding)
@@ -85,7 +84,7 @@ TSharedRef<SButton> MakeIconButton(const FName& ButtonStyle, const TAttribute<FT
 		.HAlign(HAlign_Center)
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::Get().GetFontStyle(FontStyle))
+			.Font(FAppStyle::Get().GetFontStyle(FontStyle))
 			.Text(GlyphIcon)
 		];
 }
@@ -94,8 +93,7 @@ TSharedRef<SButton> MakeIconButton(const FName& ButtonStyle, const TAttribute<FT
 TSharedRef<SButton> MakeIconButton(const FName& ButtonStyle, const TAttribute<const FSlateBrush*>& Icon, const TAttribute<FText>& Tooltip, const TAttribute<bool>& EnabledAttribute, const FOnClicked& OnClicked, const TAttribute<EVisibility>& Visibility = EVisibility::Visible)
 {
 	return SNew(SButton)
-		.ForegroundColor(FSlateColor::UseForeground())
-		.ButtonStyle(FEditorStyle::Get(), ButtonStyle)
+		.ButtonStyle(FAppStyle::Get(), ButtonStyle)
 		.OnClicked(OnClicked)
 		.ToolTipText(Tooltip)
 		.ContentPadding(FMargin(0, 0))
@@ -104,7 +102,9 @@ TSharedRef<SButton> MakeIconButton(const FName& ButtonStyle, const TAttribute<co
 		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Center)
 		[
-			SNew(SImage).Image(Icon)
+			SNew(SImage)
+			.Image(Icon)
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		];
 }
 
@@ -118,11 +118,11 @@ FText GetServerVersionIgnoredTooltip()
 TSharedRef<SWidget> MakeServerVersionIgnoredWidget(EConcertServerFlags InServerFlags)
 {
 	return SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-		.ColorAndOpacity(FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton.Warning").Normal.TintColor.GetSpecifiedColor())
+		.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
+		.ColorAndOpacity(FAppStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton.Warning").Normal.TintColor.GetSpecifiedColor())
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 			.Text(FEditorFontGlyphs::Exclamation_Triangle)
 			.ToolTipText(GetServerVersionIgnoredTooltip())
 			.Visibility((InServerFlags & EConcertServerFlags::IgnoreSessionRequirement) != EConcertServerFlags::None ? EVisibility::Visible : EVisibility::Collapsed)
@@ -1035,9 +1035,9 @@ TSharedRef<SWidget> SSessionRow::GenerateWidgetForColumn(const FName& ColumnName
 		.ToolTipText(ItemPin->Type == FConcertSessionItem::EType::ActiveSession ? LOCTEXT("ActiveIconTooltip", "Active session") : LOCTEXT("ArchivedIconTooltip", "Archived Session"))
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::Get().GetFontStyle(ConcertBrowserUtils::IconColumnFontName))
+			.Font(FAppStyle::Get().GetFontStyle(ConcertBrowserUtils::IconColumnFontName))
 			.Text(ItemPin->Type == FConcertSessionItem::EType::ActiveSession ? FEditorFontGlyphs::Circle : FEditorFontGlyphs::Archive)
-			.ColorAndOpacity(ItemPin->Type == FConcertSessionItem::EType::ActiveSession ? FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton.Success").Normal.TintColor : FSlateColor::UseSubduedForeground())
+			.ColorAndOpacity(ItemPin->Type == FConcertSessionItem::EType::ActiveSession ? FAppStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton.Success").Normal.TintColor : FSlateColor::UseSubduedForeground())
 		];
 	}
 
@@ -1047,7 +1047,7 @@ TSharedRef<SWidget> SSessionRow::GenerateWidgetForColumn(const FName& ColumnName
 	if (ItemPin->Type == FConcertSessionItem::EType::ActiveSession)
 	{
 		FontColor = bIsDefaultConfig ? FSlateColor(FLinearColor::White) : FSlateColor(FLinearColor::White * 0.8f);
-		FontInfo = FEditorStyle::Get().GetFontStyle("NormalFont");
+		FontInfo = FAppStyle::Get().GetFontStyle("NormalFont");
 	}
 	else
 	{
@@ -1277,7 +1277,7 @@ TSharedRef<SWidget> SNewSessionRow::GenerateWidgetForColumn(const FName& ColumnN
 			.HAlign(HAlign_Center)
 			[
 				SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle(ConcertBrowserUtils::IconColumnFontName))
+					.Font(FAppStyle::Get().GetFontStyle(ConcertBrowserUtils::IconColumnFontName))
 					.Text(FEditorFontGlyphs::Plus_Circle)
 			];
 	}
@@ -1372,7 +1372,7 @@ TSharedRef<SWidget> SNewSessionRow::OnGenerateServersComboOptionWidget(TSharedPt
 		.AutoWidth()
 		[
 			SNew(STextBlock)
-			.Font(bIsDefaultServer ? FEditorStyle::GetFontStyle("BoldFont") : FEditorStyle::GetFontStyle("NormalFont"))
+			.Font(bIsDefaultServer ? FAppStyle::Get().GetFontStyle("BoldFont") : FAppStyle::Get().GetFontStyle("NormalFont"))
 			.Text(GetServerDisplayName(ServerItem->ServerName))
 		]
 		+SHorizontalBox::Slot()
@@ -1473,7 +1473,7 @@ TSharedRef<SWidget> SNewSessionRow::MakeSelectedServerWidget()
 		.Padding(2, 0, 0, 0)
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 			.Text(this, &SNewSessionRow::GetSelectedServerIgnoreVersionText)
 			.ToolTipText(this, &SNewSessionRow::GetSelectedServerIgnoreVersionTooltip)
 		];
@@ -1669,7 +1669,7 @@ TSharedRef<SWidget> SSaveRestoreSessionRow::GenerateWidgetForColumn(const FName&
 			.Padding(8, 0)
 			[
 				SNew(SExpanderArrow, SharedThis(this))
-				.StyleSet(&FEditorStyle::Get())
+				.StyleSet(&FAppStyle::Get())
 				.ShouldDrawWires(true)
 			];
 	}
@@ -1822,7 +1822,7 @@ public:
 		, _ThrobberVisibility(EVisibility::Visible)
 		, _ButtonVisibility(EVisibility::Visible)
 		, _IsButtonEnabled(true)
-		, _ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton"))
+		, _ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton"))
 		, _ButtonIcon()
 		, _ButtonText()
 		, _ButtonToolTip()
@@ -2110,7 +2110,7 @@ void SConcertSessionBrowser::Construct(const FArguments& InArgs, IConcertClientP
 		.Text(LOCTEXT("LookingForServer", "Looking for Multi-User Servers..."))
 		.Visibility_Lambda([this]() { return Controller->GetServers().Num() == 0 ? EVisibility::Visible : EVisibility::Hidden; })
 		.IsButtonEnabled(this, &SConcertSessionBrowser::IsLaunchServerButtonEnabled)
-		.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
+		.ButtonStyle(FAppStyle::Get(), "FlatButton.Default")
 		.ButtonIcon(FConcertFrontendStyle::Get()->GetBrush("Concert.NewServer.Small"))
 		.ButtonText(LOCTEXT("LaunchLocalServer", "Launch a Server"))
 		.ButtonToolTip(LOCTEXT("LaunchServerTooltip", "Launch a Multi-User server on your computer unless one is already running.\nThe editor UDP messaging settings will be passed to the launching server.\nThe server will use the server port found in Multi-User client settings if non 0 or use the editor udp messaging port number + 1, if non 0."))
@@ -2135,7 +2135,7 @@ void SConcertSessionBrowser::Construct(const FArguments& InArgs, IConcertClientP
 		.Visibility_Lambda([this]() { return Controller->GetServers().Num() > 0 && Sessions.Num() == 0 && !Controller->IsCreatingSession() ? EVisibility::Visible : EVisibility::Hidden; })
 		.ThrobberVisibility_Lambda([this]() { return !Controller->HasReceivedInitialSessionList() ? EVisibility::Visible : EVisibility::Collapsed; })
 		.ButtonVisibility_Lambda([this]() { return Controller->HasReceivedInitialSessionList() && Controller->GetActiveSessions().Num() == 0 && Controller->GetArchivedSessions().Num() == 0 ? EVisibility::Visible : EVisibility::Collapsed; })
-		.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
+		.ButtonStyle(FAppStyle::Get(), "FlatButton.Default")
 		.ButtonIcon(FConcertFrontendStyle::Get()->GetBrush("Concert.NewSession.Small"))
 		.ButtonText(LOCTEXT("CreateSession", "Create Session"))
 		.ButtonToolTip(LOCTEXT("CreateSessionTooltip", "Create a new session"))
@@ -2191,7 +2191,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeBrowserContent()
 			.Value(0.6)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 				.Padding(FMargin(1.0f, 2.0f))
 				[
 					SNew(SVerticalBox)
@@ -2246,7 +2246,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeBrowserContent()
 			.Value(0.4)
 			[
 				SAssignNew(SessionDetailsView, SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 				[
 					NoSessionSelectedPanel.ToSharedRef()
 				]
@@ -2467,7 +2467,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeControlBar()
 		.AutoWidth()
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.8"))
 			.ColorAndOpacity_Lambda([this]() { return Controller->GetConcertClient()->GetClientInfo().AvatarColor; })
 			.Text(FEditorFontGlyphs::Square)
 		]
@@ -2479,24 +2479,22 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeControlBar()
 		.Padding(3, 0, 2, 0)
 		[
 			SNew(STextBlock)
-			.Text_Lambda([this]() {return FText::FromString(Controller->GetConcertClient()->GetClientInfo().DisplayName);} )
+			.Text_Lambda([this]() { return FText::FromString(Controller->GetConcertClient()->GetClientInfo().DisplayName);} )
 		]
 
 		// The "Settings" icons.
 		+SHorizontalBox::Slot()
 		.VAlign(VAlign_Fill)
 		.AutoWidth()
-		.Padding(0, 0, 1, 0)
 		[
 			SNew(SButton)
-			.ForegroundColor(FSlateColor::UseForeground())
-			.ButtonStyle(FEditorStyle::Get(), TEXT("FlatButton"))
+			.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
 			.OnClicked_Lambda([](){FModuleManager::GetModulePtr<ISettingsModule>("Settings")->ShowViewer("Project", "Plugins", "Concert"); return FReply::Handled(); })
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Fill)
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.16"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.16"))
 				.Text(FEditorFontGlyphs::Cogs)
 			]
 		];
@@ -2534,7 +2532,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar()
 		.AutoWidth()
 		.Padding(0, 0, PaddingBetweenButtons, 0)
 		[
-			ConcertBrowserUtils::MakeIconButton(TEXT("FlatButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.NewServer"), LOCTEXT("LaunchServerTooltip", "Launch a Multi-User server on your computer unless one is already running.\nThe editor UDP messaging settings will be passed to the launching server.\nThe server will use the server port found in Multi-User client settings if non 0 or use the editor udp messaging port number + 1, if non 0."),
+			ConcertBrowserUtils::MakeIconButton(TEXT("SimpleButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.NewServer"), LOCTEXT("LaunchServerTooltip", "Launch a Multi-User server on your computer unless one is already running.\nThe editor UDP messaging settings will be passed to the launching server.\nThe server will use the server port found in Multi-User client settings if non 0 or use the editor udp messaging port number + 1, if non 0."),
 				TAttribute<bool>(this, &SConcertSessionBrowser::IsLaunchServerButtonEnabled),
 				FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnLaunchServerButtonClicked),
 				TAttribute<EVisibility>::Create([this]() { return IsLaunchServerButtonEnabled() ? EVisibility::Visible : EVisibility::Collapsed; }))
@@ -2543,7 +2541,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar()
 		// Stop server.
 		+SHorizontalBox::Slot()
 		[
-			ConcertBrowserUtils::MakeIconButton(TEXT("FlatButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.CloseServer"), LOCTEXT("ShutdownServerTooltip", "Shutdown the Multi-User server running on this computer."),
+			ConcertBrowserUtils::MakeIconButton(TEXT("SimpleButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.CloseServer"), LOCTEXT("ShutdownServerTooltip", "Shutdown the Multi-User server running on this computer."),
 				true, // Always enabled, but might be collapsed.
 				FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnShutdownServerButtonClicked),
 				TAttribute<EVisibility>::Create([this]() { return IsLaunchServerButtonEnabled() ? EVisibility::Collapsed : EVisibility::Visible; }))
@@ -2554,7 +2552,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar()
 		.AutoWidth()
 		.Padding(0, 0, PaddingBetweenButtons, 0)
 		[
-			ConcertBrowserUtils::MakeIconButton(TEXT("FlatButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.NewSession"), LOCTEXT("NewButtonTooltip", "Create a new session"),
+			ConcertBrowserUtils::MakeIconButton(TEXT("SimpleButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.NewSession"), LOCTEXT("NewButtonTooltip", "Create a new session"),
 				TAttribute<bool>(this, &SConcertSessionBrowser::IsNewButtonEnabled),
 				FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnNewButtonClicked))
 		]
@@ -2572,7 +2570,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar()
 		.AutoWidth()
 		.Padding(0, 0, PaddingBetweenButtons, 0)
 		[
-			ConcertBrowserUtils::MakeIconButton(TEXT("FlatButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.JoinDefaultSession"), AutoJoinTooltip,
+			ConcertBrowserUtils::MakeIconButton(TEXT("SimpleButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.JoinDefaultSession"), AutoJoinTooltip,
 				TAttribute<bool>(this, &SConcertSessionBrowser::IsAutoJoinButtonEnabled),
 				FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnAutoJoinButtonClicked),
 				TAttribute<EVisibility>::Create([this]() { return !IsCancelAutoJoinButtonEnabled() ? EVisibility::Visible : EVisibility::Collapsed; })) // Default button shown if both auto-join/cancel are disabled.
@@ -2583,7 +2581,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar()
 		.AutoWidth()
 		.Padding(0, 0, PaddingBetweenButtons, 0)
 		[
-			ConcertBrowserUtils::MakeIconButton(TEXT("FlatButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.CancelAutoJoin"), CancelAutoJoinTooltip,
+			ConcertBrowserUtils::MakeIconButton(TEXT("SimpleButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.CancelAutoJoin"), CancelAutoJoinTooltip,
 				TAttribute<bool>(this, &SConcertSessionBrowser::IsCancelAutoJoinButtonEnabled),
 				FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnCancelAutoJoinButtonClicked),
 				TAttribute<EVisibility>::Create([this]() { return IsCancelAutoJoinButtonEnabled() ? EVisibility::Visible : EVisibility::Collapsed; }))
@@ -2594,7 +2592,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar()
 		.AutoWidth()
 		.Padding(0, 0, PaddingBetweenButtons, 0)
 		[
-			ConcertBrowserUtils::MakeIconButton(TEXT("FlatButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.JoinSession"), LOCTEXT("JoinButtonTooltip", "Join the selected session"),
+			ConcertBrowserUtils::MakeIconButton(TEXT("SimpleButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.JoinSession"), LOCTEXT("JoinButtonTooltip", "Join the selected session"),
 				TAttribute<bool>(this, &SConcertSessionBrowser::IsJoinButtonEnabled),
 				FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnJoinButtonClicked),
 				TAttribute<EVisibility>::Create([this]() { return !IsRestoreButtonEnabled() ? EVisibility::Visible : EVisibility::Collapsed; })) // Default button shown if both join/restore are disabled.
@@ -2605,7 +2603,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar()
 		.AutoWidth()
 		.Padding(0, 0, PaddingBetweenButtons, 0)
 		[
-			ConcertBrowserUtils::MakeIconButton(TEXT("FlatButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.RestoreSession"), LOCTEXT("RestoreButtonTooltip", "Restore the selected session"),
+			ConcertBrowserUtils::MakeIconButton(TEXT("SimpleButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.RestoreSession"), LOCTEXT("RestoreButtonTooltip", "Restore the selected session"),
 				TAttribute<bool>(this, &SConcertSessionBrowser::IsRestoreButtonEnabled),
 				FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnRestoreButtonClicked),
 				TAttribute<EVisibility>::Create([this]() { return IsRestoreButtonEnabled() ? EVisibility::Visible : EVisibility::Collapsed; }))
@@ -2616,7 +2614,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar()
 		.AutoWidth()
 		.Padding(0, 0, PaddingBetweenButtons, 0)
 		[
-			ConcertBrowserUtils::MakeIconButton(TEXT("FlatButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.ArchiveSession"), LOCTEXT("ArchiveButtonTooltip", "Archive the selected session"),
+			ConcertBrowserUtils::MakeIconButton(TEXT("SimpleButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.ArchiveSession"), LOCTEXT("ArchiveButtonTooltip", "Archive the selected session"),
 				TAttribute<bool>(this, &SConcertSessionBrowser::IsArchiveButtonEnabled),
 				FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnArchiveButtonClicked))
 		]
@@ -2625,7 +2623,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar()
 		+SHorizontalBox::Slot()
 		.AutoWidth()
 		[
-			ConcertBrowserUtils::MakeIconButton(TEXT("FlatButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.DeleteSession"), LOCTEXT("DeleteButtonTooltip", "Delete the selected session if permitted"),
+			ConcertBrowserUtils::MakeIconButton(TEXT("SimpleButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.DeleteSession"), LOCTEXT("DeleteButtonTooltip", "Delete the selected session if permitted"),
 				TAttribute<bool>(this, &SConcertSessionBrowser::IsDeleteButtonEnabled),
 				FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnDeleteButtonClicked))
 		];
@@ -3022,7 +3020,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionViewOptionsBar()
 		.AutoWidth()
 		[
 			SNew(SComboButton)
-			.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
+			.ComboButtonStyle(FAppStyle::Get(), "GenericFilters.ComboButtonStyle")
 			.ForegroundColor(FLinearColor::White)
 			.ContentPadding(0)
 			.OnGetMenuContent_Lambda(AddFilterMenu)
@@ -3036,7 +3034,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionViewOptionsBar()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
 				[
-					SNew(SImage).Image(FEditorStyle::GetBrush("GenericViewButton")) // The eye ball image.
+					SNew(SImage).Image(FAppStyle::Get().GetBrush("GenericViewButton")) // The eye ball image.
 				]
 
 				+SHorizontalBox::Slot()
@@ -3215,7 +3213,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeActiveSessionDetails(TSharedPtr<
 			SAssignNew(DetailsArea, SExpandableArea)
 			.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
 			.BorderImage_Lambda([this]() { return ConcertFrontendUtils::GetExpandableAreaBorderImage(*DetailsArea); })
-			.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BodyBorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 			.BodyBorderBackgroundColor(FLinearColor::White)
 			.OnAreaExpansionChanged(FOnBooleanValueChanged::CreateLambda(OnDetailsAreaExpansionChanged))
 			.InitiallyCollapsed(!(*bDetailsAreaExpanded))
@@ -3223,7 +3221,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeActiveSessionDetails(TSharedPtr<
 			[
 				SNew(STextBlock)
 				.Text(FText::Format(LOCTEXT("Details", "Details"), FText::FromString(Item->SessionName)))
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
 				.ShadowOffset(FVector2D(1.0f, 1.0f))
 			]
 			.BodyContent()
@@ -3249,7 +3247,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeActiveSessionDetails(TSharedPtr<
 			SAssignNew(ClientsArea, SExpandableArea)
 			.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
 			.BorderImage_Lambda([this]() { return ConcertFrontendUtils::GetExpandableAreaBorderImage(*ClientsArea); })
-			.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BodyBorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 			.BodyBorderBackgroundColor(FLinearColor::White)
 			.OnAreaExpansionChanged(FOnBooleanValueChanged::CreateLambda(OnClientsAreaExpansionChanged))
 			.InitiallyCollapsed(!(*bClientsAreaExpanded))
@@ -3257,7 +3255,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeActiveSessionDetails(TSharedPtr<
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("Clients", "Clients"))
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
 				.ShadowOffset(FVector2D(1.0f, 1.0f))
 			]
 			.BodyContent()
@@ -3296,14 +3294,14 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeArchivedSessionDetails(TSharedPt
 	TSharedRef<SExpandableArea> Widget = SAssignNew(DetailsArea, SExpandableArea)
 	.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
 	.BorderImage_Lambda([this]() { return ConcertFrontendUtils::GetExpandableAreaBorderImage(*DetailsArea); })
-	.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+	.BodyBorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 	.BodyBorderBackgroundColor(FLinearColor::White)
 	.InitiallyCollapsed(true)
 	.HeaderContent()
 	[
 		SNew(STextBlock)
 		.Text(FText::Format(LOCTEXT("Details", "Details"), FText::FromString(Item->SessionName)))
-		.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+		.Font(FAppStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
 		.ShadowOffset(FVector2D(1.0f, 1.0f))
 	]
 	.BodyContent()
@@ -3381,7 +3379,7 @@ TSharedRef<ITableRow> SConcertSessionBrowser::OnGenerateClientRowWidget(TSharedP
 		.AutoWidth()
 		[
 			SNew(STextBlock)
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.8"))
 			.ColorAndOpacity(Item->ClientInfo.AvatarColor)
 			.Text(FEditorFontGlyphs::Square)
 		]

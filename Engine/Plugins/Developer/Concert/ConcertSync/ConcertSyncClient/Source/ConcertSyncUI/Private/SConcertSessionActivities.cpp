@@ -3,7 +3,6 @@
 #include "SConcertSessionActivities.h"
 
 #include "IConcertClientWorkspace.h"
-#include "EditorStyleSet.h"
 #include "Algo/Transform.h"
 #include "Misc/AsyncTaskNotification.h"
 #include "Misc/ITransaction.h"
@@ -23,6 +22,7 @@
 #include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableRow.h"
+#include "Styling/AppStyle.h"
 #include "ConcertFrontendStyle.h"
 #include "ConcertFrontendUtils.h"
 #include "ConcertLogGlobal.h"
@@ -428,7 +428,7 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 			+SOverlay::Slot() // Activity list itself.
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 				.BorderBackgroundColor(FSlateColor(FLinearColor(0.6, 0.6, 0.6)))
 				.Padding(0)
 				[
@@ -464,7 +464,7 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 			.InitiallyCollapsed(true)
 			.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
 			.BorderImage_Lambda([this]() { return ConcertFrontendUtils::GetExpandableAreaBorderImage(*ExpandableDetails); })
-			.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BodyBorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 			.BodyBorderBackgroundColor(FLinearColor::White)
 			.OnAreaExpansionChanged(this, &SConcertSessionActivities::OnDetailsAreaExpansionChanged)
 			.Padding(0.0f)
@@ -472,7 +472,7 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("Details", "Details"))
-				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.Font(FAppStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
 				.ShadowOffset(FVector2D(1.0f, 1.0f))
 			]
 			.BodyContent()
@@ -1075,7 +1075,7 @@ TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeMenuWidget()
 TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeViewOptionsWidget()
 {
 	return SNew(SComboButton)
-	.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
+	.ComboButtonStyle(FAppStyle::Get(), "GenericFilters.ComboButtonStyle")
 	.ForegroundColor(FLinearColor::White)
 	.ContentPadding(0)
 	.OnGetMenuContent(this, &FConcertSessionActivitiesOptions::MakeMenuWidget)
@@ -1089,7 +1089,7 @@ TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeViewOptionsWidget()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
 		[
-			SNew(SImage).Image(FEditorStyle::GetBrush("GenericViewButton")) // The eye ball image.
+			SNew(SImage).Image(FAppStyle::Get().GetBrush("GenericViewButton")) // The eye ball image.
 		]
 
 		+SHorizontalBox::Slot()

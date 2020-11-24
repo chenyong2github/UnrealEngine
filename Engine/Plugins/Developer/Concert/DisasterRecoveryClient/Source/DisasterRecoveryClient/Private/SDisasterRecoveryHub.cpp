@@ -10,7 +10,7 @@
 #include "SConcertSessionRecovery.h"
 
 #include "DesktopPlatformModule.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "EditorDirectories.h"
 #include "EditorFontGlyphs.h"
 #include "Framework/Application/SlateApplication.h"
@@ -84,7 +84,7 @@ public:
 	typedef TFunction<void(TSharedPtr<FDisasterRecoverySessionTreeNode>)> FDoubleClickFunc;
 
 	SLATE_BEGIN_ARGS(SDisasterRecoverySessionTreeNodeWidget)
-		: _Font(FEditorStyle::GetFontStyle(TEXT("NormalFont")))
+		: _Font(FAppStyle::Get().GetFontStyle(TEXT("NormalFont")))
 		{
 		}
 		SLATE_ATTRIBUTE(FSlateFontInfo, Font)
@@ -184,7 +184,7 @@ void SDisasterRecoveryHub::Construct(const FArguments& InArgs, const TSharedPtr<
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 		.BorderBackgroundColor(FSlateColor(FLinearColor(0.6, 0.6, 0.6)))
 		.Padding(0)
 		[
@@ -206,7 +206,7 @@ void SDisasterRecoveryHub::Construct(const FArguments& InArgs, const TSharedPtr<
 			.AutoHeight()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 				.Padding(FMargin(2.0f, 2.0f))
 				[
 					MakeToolbarWidget()
@@ -222,7 +222,7 @@ void SDisasterRecoveryHub::Construct(const FArguments& InArgs, const TSharedPtr<
 				.Value(0.25)
 				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 					.Padding(FMargin(2.0f, 2.0f))
 					[
 						MakeSessionTreeView()
@@ -249,12 +249,13 @@ void SDisasterRecoveryHub::Construct(const FArguments& InArgs, const TSharedPtr<
 			[
 				SNew(SUniformGridPanel)
 				.SlotPadding(FMargin(2.0f, 0.0f))
+				.Visibility(InArgs._IsRecoveryMode ? EVisibility::Visible : EVisibility::Collapsed)
 
 				+SUniformGridPanel::Slot(0, 0)
 				[
 					SNew(SButton)
 					.ForegroundColor(FLinearColor::White)
-					.ButtonStyle(FEditorStyle::Get(), TEXT("FlatButton.Success"))
+					.ButtonStyle(FAppStyle::Get(), TEXT("FlatButton.Success"))
 					.ToolTipText(this, &SDisasterRecoveryHub::GetRecoverAllButtonTooltip)
 					.OnClicked(this, &SDisasterRecoveryHub::OnRecoverAllButtonClicked)
 					.HAlign(HAlign_Center)
@@ -263,7 +264,7 @@ void SDisasterRecoveryHub::Construct(const FArguments& InArgs, const TSharedPtr<
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("RecoverAll", "Recover All"))
-						.Font( FEditorStyle::GetFontStyle("BoldFont"))
+						.Font( FAppStyle::Get().GetFontStyle("BoldFont"))
 						.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
 					]
 				]
@@ -272,7 +273,7 @@ void SDisasterRecoveryHub::Construct(const FArguments& InArgs, const TSharedPtr<
 				[
 					SNew(SButton)
 					.ForegroundColor(FLinearColor::White)
-					.ButtonStyle(FEditorStyle::Get(), TEXT("FlatButton.Danger"))
+					.ButtonStyle(FAppStyle::Get(), TEXT("FlatButton.Danger"))
 					.ToolTipText(LOCTEXT("CancelRecoveryTooltip", "Discard any recoverable data for your assets and continue with their last saved state"))
 					.OnClicked(this, &SDisasterRecoveryHub::OnCancelButtonClicked)
 					.HAlign(HAlign_Center)
@@ -280,7 +281,7 @@ void SDisasterRecoveryHub::Construct(const FArguments& InArgs, const TSharedPtr<
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("Cancel", "Cancel"))
-						.Font( FEditorStyle::GetFontStyle("BoldFont"))
+						.Font(FAppStyle::Get().GetFontStyle("BoldFont"))
 						.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
 					]
 				]
@@ -324,16 +325,15 @@ TSharedRef<SWidget> SDisasterRecoveryHub::MakeToolbarWidget()
 		.AutoWidth()
 		[
 			SNew(SButton)
-			.ForegroundColor(FSlateColor::UseForeground())
-			.ButtonStyle(FEditorStyle::Get(), TEXT("FlatButton"))
+			.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
 			.OnClicked(this, &SDisasterRecoveryHub::OnImportClicked)
 			.ToolTipText(LOCTEXT("ImportTooltip", "Import a crashed session for inspection."))
-			.ContentPadding(FMargin(4, 4))
+			.ContentPadding(FMargin(6, 4))
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle(IconFontStyleName))
+				.Font(FAppStyle::Get().GetFontStyle(IconFontStyleName))
 				.Text(FEditorFontGlyphs::Download)
 			]
 		]
@@ -342,15 +342,14 @@ TSharedRef<SWidget> SDisasterRecoveryHub::MakeToolbarWidget()
 		.AutoWidth()
 		[
 			SNew(SButton)
-			.ForegroundColor(FSlateColor::UseForeground())
-			.ButtonStyle(FEditorStyle::Get(), TEXT("FlatButton"))
+			.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
 			.OnClicked(this, &SDisasterRecoveryHub::OnDeleteClicked)
 			.IsEnabled(this, &SDisasterRecoveryHub::IsDeleteButtonEnabled)
 			.ToolTipText(LOCTEXT("DeleteTooltip", "Delete the selected session."))
-			.ContentPadding(FMargin(4, 4))
+			.ContentPadding(FMargin(6, 4))
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle(IconFontStyleName))
+				.Font(FAppStyle::Get().GetFontStyle(IconFontStyleName))
 				.Text(FEditorFontGlyphs::Trash)
 			]
 		]
@@ -365,13 +364,13 @@ TSharedRef<SWidget> SDisasterRecoveryHub::MakeToolbarWidget()
 		.AutoWidth()
 		[
 			SNew(SButton)
-			.ForegroundColor(FSlateColor::UseForeground())
-			.ButtonStyle(FEditorStyle::Get(), TEXT("FlatButton"))
+			.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
 			.OnClicked(this, &SDisasterRecoveryHub::OnConfigClicked)
 			.ToolTipText(LOCTEXT("ConfigureTooltip", "Open the configuration tab."))
+			.ContentPadding(FMargin(6, 4))
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle(IconFontStyleName))
+				.Font(FAppStyle::Get().GetFontStyle(IconFontStyleName))
 				.Text(FEditorFontGlyphs::Cogs)
 			]
 		];
@@ -455,7 +454,7 @@ TSharedRef<SWidget> SDisasterRecoveryHub::MakeSessionTreeView()
 TSharedRef<ITableRow> SDisasterRecoveryHub::OnGenerateSessionTreeNodeWidget(TSharedPtr<FDisasterRecoverySessionTreeNode> TreeNode, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(SDisasterRecoverySessionTreeNodeWidget, TreeNode, OwnerTable)
-		.Font(TreeNode == UnreviewedCrashCategoryRootNode ? FEditorStyle::GetFontStyle(TEXT("BoldFont")) : FEditorStyle::GetFontStyle( TEXT("NormalFont")));
+		.Font(TreeNode == UnreviewedCrashCategoryRootNode ? FAppStyle::Get().GetFontStyle(TEXT("BoldFont")) : FAppStyle::Get().GetFontStyle( TEXT("NormalFont")));
 }
 
 void SDisasterRecoveryHub::OnGetSessionTreeNodeChildren(TSharedPtr<FDisasterRecoverySessionTreeNode> InParent, TArray<TSharedPtr<FDisasterRecoverySessionTreeNode>>& OutChildren) const

@@ -42,8 +42,8 @@ void FConcertFrontendStyle::Initialize()
 	const FVector2D Icon40x40(40.0f, 40.0f);
 	const FVector2D Icon48x48(48.0f, 48.0f);
 
-	// Most icons were designed to be used at 80% opacity.
-	const FLinearColor IconColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.8f));
+	// Use this to change the opacity. Ex: In UE4, the icon looked fine at 80%, in UE5, icons looks homogeneous with others at 100%.
+	const FLinearColor IconColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 1.f));
 
 	// 16x16
 	StyleSet->Set("Concert.Persist",         new IMAGE_PLUGIN_BRUSH("Icons/icon_ConcertPersist_16x", Icon16x16));

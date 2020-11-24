@@ -8,11 +8,9 @@
 #include "ConcertMessageData.h"
 #include "ConcertMessages.h"
 #include "Editor/Transactor.h"
-#include "EditorStyleSet.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "SConcertSessionActivities.h"
-#include "EditorStyleSet.h"
 
 #define LOCTEXT_NAMESPACE "SSessionHistory"
 

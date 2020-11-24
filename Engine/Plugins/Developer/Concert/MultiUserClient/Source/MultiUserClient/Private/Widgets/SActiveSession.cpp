@@ -12,7 +12,7 @@
 #include "Algo/Transform.h"
 #include "Misc/PackageName.h"
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "FileHelpers.h"
 #include "IConcertClient.h"
 #include "IConcertSyncClient.h"
@@ -141,7 +141,7 @@ public:
 				.AutoWidth()
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("LevelEditor.Tabs.Levels"))
+					.Image(FAppStyle::Get().GetBrush("LevelEditor.Tabs.Levels"))
 				]
 				+SHorizontalBox::Slot()
 				.AutoWidth()
@@ -288,7 +288,7 @@ public:
 	FSlateFontInfo GetAvatarFont() const
 	{
 		// This font is used to render a small square box filled with the avatar color.
-		FSlateFontInfo ClientIconFontInfo = FEditorStyle::Get().GetFontStyle(ConcertFrontendUtils::ButtonIconSyle);
+		FSlateFontInfo ClientIconFontInfo = FAppStyle::Get().GetFontStyle(ConcertFrontendUtils::ButtonIconSyle);
 		ClientIconFontInfo.Size = 8;
 		ClientIconFontInfo.OutlineSettings.OutlineSize = 1;
 
@@ -363,12 +363,12 @@ void SActiveSession::Construct(const FArguments& InArgs, TSharedPtr<IConcertSync
 		.Padding(FMargin(4.0f, 1.0f))
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
 			.ColorAndOpacity(FLinearColor(0.75f, 0.75f, 0.75f))
 			.Padding(FMargin(0.0f, 4.0f, 6.0f, 4.0f))
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::GetFontStyle("BoldFont"))
+				.Font(FAppStyle::Get().GetFontStyle("BoldFont"))
 				.Text(this, &SActiveSession::GetConnectionStatusText)
 			]
 		];
@@ -417,7 +417,7 @@ void SActiveSession::Construct(const FArguments& InArgs, TSharedPtr<IConcertSync
 		.Padding(0.0f, 0.0f, 0.0f, 4.0f) // Add space between the status bar and the clients list.
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 			.Padding(0.0f)
 			[
 				StatusBar
@@ -437,13 +437,13 @@ void SActiveSession::Construct(const FArguments& InArgs, TSharedPtr<IConcertSync
 			.Value(0.3)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 				.Padding(0.0f)
 				[
 					SAssignNew(ClientArea, SExpandableArea)
 					.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
 					.BorderImage_Lambda([this]() { return ConcertFrontendUtils::GetExpandableAreaBorderImage(*ClientArea); })
-					.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BodyBorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 					.BodyBorderBackgroundColor(FLinearColor::White)
 					.OnAreaExpansionChanged(this, &SActiveSession::OnClientAreaExpansionChanged)
 					.Padding(0.0f)
@@ -451,7 +451,7 @@ void SActiveSession::Construct(const FArguments& InArgs, TSharedPtr<IConcertSync
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("SessionConnectedClients", "Clients"))
-						.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+						.Font(FAppStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
 						.ShadowOffset(FVector2D(1.0f, 1.0f))
 					]
 					.BodyContent()
@@ -481,13 +481,13 @@ void SActiveSession::Construct(const FArguments& InArgs, TSharedPtr<IConcertSync
 			.Value(0.7)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 				.Padding(0.0f)
 				[
 					SAssignNew(HistoryArea, SExpandableArea)
 					.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
 					.BorderImage_Lambda([this]() { return ConcertFrontendUtils::GetExpandableAreaBorderImage(*HistoryArea); })
-					.BodyBorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BodyBorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 					.BodyBorderBackgroundColor(FLinearColor::White)
 					.OnAreaExpansionChanged(this, &SActiveSession::OnHistoryAreaExpansionChanged)
 					.Padding(0.0f)
@@ -495,7 +495,7 @@ void SActiveSession::Construct(const FArguments& InArgs, TSharedPtr<IConcertSync
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("SessionHistory", "History"))
-						.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+						.Font(FAppStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
 						.ShadowOffset(FVector2D(1.0f, 1.0f))
 					]
 					.BodyContent()
@@ -709,7 +709,7 @@ const FButtonStyle& SActiveSession::GetConnectionIconStyle() const
 		}
 	}
 	
-	return FEditorStyle::Get().GetWidgetStyle<FButtonStyle>(ConcertFrontendUtils::ButtonStyleNames[(int32)ButtonStyle]);
+	return FAppStyle::Get().GetWidgetStyle<FButtonStyle>(ConcertFrontendUtils::ButtonStyleNames[(int32)ButtonStyle]);
 }
 
 FSlateColor SActiveSession::GetConnectionIconColor() const
@@ -719,7 +719,7 @@ FSlateColor SActiveSession::GetConnectionIconColor() const
 
 FSlateFontInfo SActiveSession::GetConnectionIconFontInfo() const
 {
-	FSlateFontInfo ConnectionIconFontInfo = FEditorStyle::Get().GetFontStyle(ConcertFrontendUtils::ButtonIconSyle);
+	FSlateFontInfo ConnectionIconFontInfo = FAppStyle::Get().GetFontStyle(ConcertFrontendUtils::ButtonIconSyle);
 	ConnectionIconFontInfo.OutlineSettings.OutlineSize = 1;
 	ConnectionIconFontInfo.OutlineSettings.OutlineColor = GetConnectionIconStyle().Pressed.TintColor.GetSpecifiedColor();
 

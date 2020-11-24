@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ConcertActionDefinition.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -22,7 +22,7 @@ namespace ConcertFrontendUtils
 	static const FName ButtonIconSyle = TEXT("FontAwesome.10");
 	static const float MinDesiredWidthForBtnAndIcon = 29.f;
 	static const FName ButtonStyleNames[(int32)EConcertActionType::NUM] = {
-		TEXT("FlatButton"),
+		TEXT("SimpleButton"),
 		TEXT("FlatButton.Primary"),
 		TEXT("FlatButton.Info"),
 		TEXT("FlatButton.Success"),
@@ -38,27 +38,26 @@ namespace ConcertFrontendUtils
 	inline TSharedRef<SWidget> CreateDisplayName(const TAttribute<FText>& InDisplayName)
 	{
 		return SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
 			.ColorAndOpacity(FLinearColor(0.75f, 0.75f, 0.75f))
 			.Padding(FMargin(6.0f, 4.0f))
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::GetFontStyle("BoldFont"))
+				.Font(FAppStyle::Get().GetFontStyle("BoldFont"))
 				.Text(InDisplayName)
 			];
 	}
 
 	inline TSharedRef<SButton> CreateTextButton(const FConcertActionDefinition& InDef)
 	{
-		const FButtonStyle* ButtonStyle = &FEditorStyle::Get().GetWidgetStyle<FButtonStyle>(ButtonStyleNames[(int32)InDef.Type]);
+		const FButtonStyle* ButtonStyle = &FAppStyle::Get().GetWidgetStyle<FButtonStyle>(ButtonStyleNames[(int32)InDef.Type]);
 		check(ButtonStyle);
 		const float ButtonContentWidthPadding = 6.f;
 		const float PaddingCompensation = (ButtonStyle->NormalPadding.Left + ButtonStyle->NormalPadding.Right + ButtonContentWidthPadding * 2);
 
 		return SNew(SButton)
-			.ToolTipText(InDef.ToolTipText)
 			.ButtonStyle(ButtonStyle)
-			.ForegroundColor(FLinearColor::White)
+			.ToolTipText(InDef.ToolTipText)
 			.ContentPadding(FMargin(ButtonContentWidthPadding, 2.f))
 			.IsEnabled(InDef.IsEnabled)
 			.Visibility_Lambda([IsVisible = InDef.IsVisible]() { return IsVisible.Get() ? EVisibility::Visible : EVisibility::Collapsed; })
@@ -69,7 +68,7 @@ namespace ConcertFrontendUtils
 				.HAlign(HAlign_Center)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle(ButtonIconSyle))
+					.Font(FAppStyle::Get().GetFontStyle(ButtonIconSyle))
 					.Text(InDef.Text)
 					.Justification(ETextJustify::Center)
 				]
@@ -78,12 +77,8 @@ namespace ConcertFrontendUtils
 
 	inline TSharedRef<SButton> CreateIconButton(const FConcertActionDefinition& InDef)
 	{
-		const FButtonStyle* ButtonStyle = &FEditorStyle::Get().GetWidgetStyle<FButtonStyle>(ButtonStyleNames[(int32)InDef.Type]);
-		check(ButtonStyle);
-
 		return SNew(SButton)
-			.ButtonStyle(ButtonStyle)
-			.ForegroundColor(FSlateColor::UseForeground())
+			.ButtonStyle(FAppStyle::Get(), ButtonStyleNames[(int32)InDef.Type])
 			.ToolTipText(InDef.ToolTipText)
 			.ContentPadding(FMargin(0, 0))
 			.IsEnabled(InDef.IsEnabled)
@@ -94,6 +89,7 @@ namespace ConcertFrontendUtils
 			[
 				SNew(SImage)
 				.Image(TAttribute<const FSlateBrush*>::Create([IconStyleAttr = InDef.IconStyle]() { return FConcertFrontendStyle::Get()->GetBrush(IconStyleAttr.Get()); }))
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			];
 	}
 
@@ -174,9 +170,9 @@ namespace ConcertFrontendUtils
 	{
 		if (Area.IsTitleHovered())
 		{
-			return Area.IsExpanded() ? FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
+			return Area.IsExpanded() ? FAppStyle::Get().GetBrush("DetailsView.CategoryTop_Hovered") : FAppStyle::Get().GetBrush("DetailsView.CollapsedCategory_Hovered");
 		}
-		return Area.IsExpanded() ? FEditorStyle::GetBrush("DetailsView.CategoryTop") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory");
+		return Area.IsExpanded() ? FAppStyle::Get().GetBrush("DetailsView.CategoryTop") : FAppStyle::Get().GetBrush("DetailsView.CollapsedCategory");
 	}
 
 	static FText FormatRelativeTime(const FDateTime& EventTime, const FDateTime* CurrTime = nullptr)
