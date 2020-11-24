@@ -150,7 +150,7 @@ void UGameplayDebuggerLocalController::OnDebugDraw(class UCanvas* Canvas, class 
 		CanvasContext.FontRenderInfo.bEnableShadow = bEnableTextShadow;
 
 		CanvasContext.PlayerController = CachedReplicator->GetReplicationOwner();
-		CanvasContext.World = CachedReplicator->GetWorld();
+		CanvasContext.World = CachedReplicator->GetReplicationOwner() ? CachedReplicator->GetReplicationOwner()->GetWorld() : CachedReplicator->GetWorld();
 
 		DrawHeader(CanvasContext);
 
