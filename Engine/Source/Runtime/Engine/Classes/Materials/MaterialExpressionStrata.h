@@ -64,6 +64,7 @@ class UMaterialExpressionStrataDiffuseBSDF : public UMaterialExpression // STRAT
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual uint32 GetOutputType(int32 OutputIndex) override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
 #endif
 	//~ End UMaterialExpression Interface
 };
@@ -115,6 +116,7 @@ class UMaterialExpressionStrataDielectricBSDF : public UMaterialExpression
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual uint32 GetOutputType(int32 OutputIndex) override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
 #endif
 	//~ End UMaterialExpression Interface
 };
@@ -166,6 +168,7 @@ class UMaterialExpressionStrataConductorBSDF : public UMaterialExpression
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual uint32 GetOutputType(int32 OutputIndex) override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
 #endif
 	//~ End UMaterialExpression Interface
 };
@@ -205,6 +208,7 @@ class UMaterialExpressionStrataVolumeBSDF : public UMaterialExpression
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual uint32 GetOutputType(int32 OutputIndex) override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
 #endif
 	//~ End UMaterialExpression Interface
 };
@@ -238,6 +242,7 @@ class UMaterialExpressionStrataSheenBSDF : public UMaterialExpression
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual uint32 GetOutputType(int32 OutputIndex) override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
 #endif
 	//~ End UMaterialExpression Interface
 };
@@ -278,6 +283,7 @@ class UMaterialExpressionStrataHorizontalMixing : public UMaterialExpression
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual uint32 GetOutputType(int32 OutputIndex) override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
 #endif
 	//~ End UMaterialExpression Interface
 };
@@ -305,6 +311,7 @@ class UMaterialExpressionStrataVerticalLayering : public UMaterialExpression
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual uint32 GetOutputType(int32 OutputIndex) override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
 #endif
 	//~ End UMaterialExpression Interface
 };
@@ -332,6 +339,7 @@ class UMaterialExpressionStrataAdd : public UMaterialExpression
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual uint32 GetOutputType(int32 OutputIndex) override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
 #endif
 	//~ End UMaterialExpression Interface
 };
@@ -359,6 +367,7 @@ class UMaterialExpressionStrataMultiply : public UMaterialExpression
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual uint32 GetOutputType(int32 OutputIndex) override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
 #endif
 	//~ End UMaterialExpression Interface
 };

@@ -128,6 +128,7 @@ class UMaterialExpressionMaterialFunctionCall : public UMaterialExpression
 	virtual void GetExpressionToolTip(TArray<FString>& OutToolTip) override;
 	virtual bool MatchesSearchQuery( const TCHAR* SearchQuery ) override;
 	virtual bool IsResultMaterialAttributes(int32 OutputIndex) override;
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
 	//~ End UMaterialExpression Interface
 

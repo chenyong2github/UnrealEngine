@@ -327,6 +327,11 @@ class ENGINE_API UMaterialExpression : public UObject
 	virtual bool IsResultMaterialAttributes(int32 OutputIndex) { return false; }
 
 	/**
+	 * Marks certain expression types as outputting Strata material. Allows the material functions to directly return a Strata material as output pin.
+	 */
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) { return false; }
+
+	/**
 	 * If true, discards the output index when caching this expression which allows more cases to re-use the output instead of adding a separate instruction
 	 */
 	virtual bool CanIgnoreOutputIndex() { return false; }

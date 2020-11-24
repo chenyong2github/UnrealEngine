@@ -77,6 +77,10 @@ uint32 UMaterialGraphNode_Root::GetInputType(const UEdGraphPin* InputPin) const
 	{
 		return MCT_MaterialAttributes;
 	}
+	else if (Property == MP_FrontMaterial)
+	{
+		return MCT_Strata;
+	}
 	else
 	{
 		return FMaterialAttributeDefinitionMap::GetValueType(Property);
