@@ -43,6 +43,9 @@ public:
 	UPROPERTY(EditAnywhere, Category=Settings, meta = (UIMin = "1", ClampMin = "1"))
 	int SubdivisionLevel = 3;
 
+	UPROPERTY(EditAnywhere, Category = Settings)
+	ESubdivisionScheme SubdivisionScheme = ESubdivisionScheme::CatmullClark;
+
 	UPROPERTY(EditAnywhere, Category=Settings)
 	ESubdivisionOutputNormals NormalComputationMethod = ESubdivisionOutputNormals::Generated;
 
@@ -51,6 +54,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bRenderGroups = true;
+
+	UPROPERTY(EditAnywhere, Category = Settings)
+	bool bRenderCage = true;
 
 };
 

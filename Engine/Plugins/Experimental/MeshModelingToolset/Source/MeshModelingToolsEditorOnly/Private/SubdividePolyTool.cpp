@@ -19,17 +19,18 @@ class SubdivPostProcessor : public IRenderMeshPostProcessor
 public:
 
 	SubdivPostProcessor(int InSubdivisionLevel,
+						ESubdivisionScheme InSubdivisionScheme,
 						ESubdivisionOutputNormals InNormalComputationMethod,
 						ESubdivisionOutputUVs InUVComputationMethod) :
 		SubdivisionLevel(InSubdivisionLevel),
+		SubdivisionScheme(InSubdivisionScheme),
 		NormalComputationMethod(InNormalComputationMethod),
 		UVComputationMethod(InUVComputationMethod)
 	{}
 
 	int SubdivisionLevel = 3;
-
+	ESubdivisionScheme SubdivisionScheme = ESubdivisionScheme::CatmullClark;
 	ESubdivisionOutputNormals NormalComputationMethod = ESubdivisionOutputNormals::Generated;
-
 	ESubdivisionOutputUVs UVComputationMethod = ESubdivisionOutputUVs::Interpolated;
 
 	void ProcessMesh(const FDynamicMesh3& Mesh, FDynamicMesh3& OutRenderMesh) final
@@ -37,6 +38,7 @@ public:
 		constexpr bool bAutoCompute = true;
 		FGroupTopology Topo(&Mesh, bAutoCompute);
 		FSubdividePoly Subd(Topo, Mesh, SubdivisionLevel);
+		Subd.SubdivisionScheme = SubdivisionScheme;
 		Subd.NormalComputationMethod = NormalComputationMethod;
 		Subd.UVComputationMethod = UVComputationMethod;
 
@@ -168,9 +170,12 @@ void USubdividePolyTool::Setup()
 		return;
 	}
 
+	check(Properties->SubdivisionLevel >= 1);	// Should be enforced by UPROPERTY meta tags
+
 	PreviewDynamicMeshComponent->SetRenderMeshPostProcessor(MakeUnique<SubdivPostProcessor>(Properties->SubdivisionLevel,
-																					 Properties->NormalComputationMethod,
-																					 Properties->UVComputationMethod));
+																							Properties->SubdivisionScheme,
+																							Properties->NormalComputationMethod,
+																							Properties->UVComputationMethod));
 
 	// Use the input mesh's material on the preview
 	FComponentMaterialSet MaterialSet;
@@ -192,8 +197,9 @@ void USubdividePolyTool::Setup()
 	{
 		USimpleDynamicMeshComponent* PreviewDynamicMeshComponent = (USimpleDynamicMeshComponent*)PreviewMesh->GetRootComponent();
 		PreviewDynamicMeshComponent->SetRenderMeshPostProcessor(MakeUnique<SubdivPostProcessor>(Properties->SubdivisionLevel,
-																							Properties->NormalComputationMethod,
-																							Properties->UVComputationMethod));
+																								Properties->SubdivisionScheme,
+																								Properties->NormalComputationMethod,
+																								Properties->UVComputationMethod));
 		PreviewDynamicMeshComponent->NotifyMeshUpdated();
 	};
 
@@ -201,6 +207,11 @@ void USubdividePolyTool::Setup()
 	Properties->WatchProperty(Properties->SubdivisionLevel, [this, RebuildMeshPostProcessor](int)
 	{
 		RebuildMeshPostProcessor();
+	});
+	Properties->WatchProperty(Properties->SubdivisionScheme, [this, RebuildMeshPostProcessor](ESubdivisionScheme)
+	{
+		RebuildMeshPostProcessor();
+		bPreviewGeometryNeedsUpdate = true;		// Switch from rendering poly cage to all triangle edges
 	});
 	Properties->WatchProperty(Properties->NormalComputationMethod, [this, RebuildMeshPostProcessor](ESubdivisionOutputNormals)
 	{
@@ -234,11 +245,13 @@ void USubdividePolyTool::Setup()
 
 	Properties->WatchProperty(Properties->bRenderGroups, RenderGroupsChanged);
 
-	ComponentTarget->SetOwnerVisibility(false);
-
 	// Render with polygroup colors
 	RenderGroupsChanged(Properties->bRenderGroups);
 
+	Properties->WatchProperty(Properties->bRenderCage, [this](bool bNewRenderCage)
+	{
+		bPreviewGeometryNeedsUpdate = true;
+	});
 
 	PreviewGeometry = NewObject<UPreviewGeometry>(this);
 	PreviewGeometry->CreateInWorld(ComponentTarget->GetOwnerActor()->GetWorld(), ComponentTarget->GetWorldTransform());
@@ -247,35 +260,71 @@ void USubdividePolyTool::Setup()
 	// regenerate preview geo if mesh changes due to undo/redo/etc
 	PreviewDynamicMeshComponent->OnMeshChanged.AddLambda([this]() { bPreviewGeometryNeedsUpdate = true; });
 
+	ComponentTarget->SetOwnerVisibility(false);
 	PreviewMesh->SetVisible(true);
 }
 
 void USubdividePolyTool::CreateOrUpdatePreviewGeometry()
 {
-	FGroupTopology Topology(OriginalMesh.Get(), true);
-	int NumEdges = Topology.Edges.Num();
-
-	PreviewGeometry->CreateOrUpdateLineSet(TEXT("TopologyEdges"),
-										   NumEdges,
-										   [&Topology, this](int32 Index, TArray<FRenderableLine>& LinesOut)
+	if (!Properties->bRenderCage)
 	{
-		const FGroupTopology::FGroupEdge& Edge = Topology.Edges[Index];
-		FIndex2i EdgeCorners = Edge.EndpointCorners;
+		PreviewGeometry->RemoveLineSet(TEXT("TopologyEdges"));
+		PreviewGeometry->RemoveLineSet(TEXT("AllEdges"));
+		return;
+	}
 
-		if (EdgeCorners[0] == FDynamicMesh3::InvalidID || EdgeCorners[1] == FDynamicMesh3::InvalidID)
+	if (Properties->SubdivisionScheme == ESubdivisionScheme::Loop)
+	{
+		int NumEdges = OriginalMesh->EdgeCount();
+
+		PreviewGeometry->RemoveLineSet(TEXT("TopologyEdges"));
+
+		PreviewGeometry->CreateOrUpdateLineSet(TEXT("AllEdges"),
+											   NumEdges,
+											   [this](int32 Index, TArray<FRenderableLine>& LinesOut)
 		{
-			return;
-		}
+			FIndex2i EdgeVertices = OriginalMesh->GetEdgeV(Index);
 
-		FIndex2i EdgeVertices{ Topology.Corners[EdgeCorners[0]].VertexID,
-							   Topology.Corners[EdgeCorners[1]].VertexID };
-		FVector A = (FVector)OriginalMesh->GetVertex(EdgeVertices[0]);
-		FVector B = (FVector)OriginalMesh->GetVertex(EdgeVertices[1]);
+			if (EdgeVertices[0] == FDynamicMesh3::InvalidID || EdgeVertices[1] == FDynamicMesh3::InvalidID)
+			{
+				return;
+			}
+			FVector A = (FVector)OriginalMesh->GetVertex(EdgeVertices[0]);
+			FVector B = (FVector)OriginalMesh->GetVertex(EdgeVertices[1]);
+			const float TopologyLineThickness = 4.0f;
+			const FColor TopologyLineColor(255, 0, 0);
+			LinesOut.Add(FRenderableLine(A, B, TopologyLineColor, TopologyLineThickness));
+		});
+	}
+	else
+	{
+		FGroupTopology Topology(OriginalMesh.Get(), true);
+		int NumEdges = Topology.Edges.Num();
 
-		const float TopologyLineThickness = 4.0f;
-		const FColor TopologyLineColor(255, 0, 0);
-		LinesOut.Add(FRenderableLine(A, B, TopologyLineColor, TopologyLineThickness));
-	});
+		PreviewGeometry->RemoveLineSet(TEXT("AllEdges"));
+
+		PreviewGeometry->CreateOrUpdateLineSet(TEXT("TopologyEdges"),
+											   NumEdges,
+											   [&Topology, this](int32 Index, TArray<FRenderableLine>& LinesOut)
+		{
+			const FGroupTopology::FGroupEdge& Edge = Topology.Edges[Index];
+			FIndex2i EdgeCorners = Edge.EndpointCorners;
+
+			if (EdgeCorners[0] == FDynamicMesh3::InvalidID || EdgeCorners[1] == FDynamicMesh3::InvalidID)
+			{
+				return;
+			}
+
+			FIndex2i EdgeVertices{ Topology.Corners[EdgeCorners[0]].VertexID,
+									Topology.Corners[EdgeCorners[1]].VertexID };
+			FVector A = (FVector)OriginalMesh->GetVertex(EdgeVertices[0]);
+			FVector B = (FVector)OriginalMesh->GetVertex(EdgeVertices[1]);
+
+			const float TopologyLineThickness = 4.0f;
+			const FColor TopologyLineColor(255, 0, 0);
+			LinesOut.Add(FRenderableLine(A, B, TopologyLineColor, TopologyLineThickness));
+		});
+	}
 }
 
 

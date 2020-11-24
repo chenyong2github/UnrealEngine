@@ -11,6 +11,18 @@ class FDynamicMesh3;
 class FProgressCancel;
 
 /**
+ * Subdivision scheme
+ */
+UENUM()
+enum class ESubdivisionScheme : uint8
+{
+	Bilinear,
+	CatmullClark,
+	Loop
+};
+
+
+/**
  * Method for computing normals on the output mesh
  */
 UENUM()
@@ -59,6 +71,8 @@ public:
 	bool ComputeTopologySubdivision();
 
 	bool ComputeSubdividedMesh(FDynamicMesh3& OutMesh);
+
+	ESubdivisionScheme SubdivisionScheme = ESubdivisionScheme::CatmullClark;
 
 	ESubdivisionOutputNormals NormalComputationMethod = ESubdivisionOutputNormals::Generated;
 
