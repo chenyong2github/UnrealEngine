@@ -70,11 +70,6 @@ namespace UnrealBuildTool
 		FileItem CompiledModuleInterfaceFile { get; }
 
 		/// <summary>
-		/// For C++ source files, specifies a timing file used to track timing information.
-		/// </summary>
-		FileItem TimingFile { get; }
-
-		/// <summary>
 		/// Directory from which to execute the program to create produced items
 		/// </summary>
 		DirectoryReference WorkingDirectory { get; }
@@ -166,11 +161,6 @@ namespace UnrealBuildTool
 		public FileItem CompiledModuleInterfaceFile { get; set; }
 
 		/// <summary>
-		/// For C++ source files, specifies a timing file used to track timing information.
-		/// </summary>
-		public FileItem TimingFile { get; set; }
-
-		/// <summary>
 		/// Directory from which to execute the program to create produced items
 		/// </summary>
 		public DirectoryReference WorkingDirectory { get; set; } = null;
@@ -244,7 +234,6 @@ namespace UnrealBuildTool
 			DeleteItems = new List<FileItem>(InOther.DeleteItems);
 			DependencyListFile = InOther.DependencyListFile;
 			CompiledModuleInterfaceFile = InOther.CompiledModuleInterfaceFile;
-			TimingFile = InOther.TimingFile;
 			WorkingDirectory = InOther.WorkingDirectory;
 			CommandPath = InOther.CommandPath;
 			CommandArguments = InOther.CommandArguments;
@@ -513,7 +502,6 @@ namespace UnrealBuildTool
 		public IEnumerable<FileItem> DeleteItems => Inner.DeleteItems;
 		public FileItem DependencyListFile => Inner.DependencyListFile;
 		public FileItem CompiledModuleInterfaceFile => Inner.CompiledModuleInterfaceFile;
-		public FileItem TimingFile => Inner.TimingFile;
 		public DirectoryReference WorkingDirectory => Inner.WorkingDirectory;
 		public FileReference CommandPath => Inner.CommandPath;
 		public string CommandArguments => Inner.CommandArguments;

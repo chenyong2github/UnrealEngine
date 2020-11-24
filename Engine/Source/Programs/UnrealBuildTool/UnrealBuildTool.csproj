@@ -132,6 +132,7 @@
     <Compile Include="Platform\Lumin\UEDeployLumin.cs" />
     <Compile Include="Platform\Mac\ApplePlatformSDK.cs" />
     <Compile Include="Platform\Windows\MicrosoftPlatformSDK.cs" />
+    <Compile Include="Platform\Windows\VCCompileAction.cs" />
     <Compile Include="Platform\Windows\VCManifestGenerator.cs" />
     <Compile Include="Platform\Windows\VCPreludeCache.cs" />
     <Compile Include="Preprocessor\Identifier.cs" />

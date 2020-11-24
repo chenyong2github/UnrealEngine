@@ -1057,7 +1057,9 @@ namespace UnrealBuildTool
 			CPPOutput Result = new CPPOutput();
 			foreach (FileItem SourceFile in InputFiles)
 			{
-				Action CompileAction = Graph.CreateAction(ActionType.Compile);
+				VCCompileAction CompileAction = new VCCompileAction(EnvVars);
+				Graph.AddAction(CompileAction);
+
 				CompileAction.CommandDescription = "Compile";
 
 				List<string> FileArguments = new List<string>();
@@ -1317,7 +1319,7 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		private Action GenerateParseTimingInfoAction(FileItem SourceFile, Action CompileAction, CPPOutput Result, IActionGraphBuilder Graph)
+		private Action GenerateParseTimingInfoAction(FileItem SourceFile, VCCompileAction CompileAction, CPPOutput Result, IActionGraphBuilder Graph)
 		{
 			FileItem TimingJsonFile = FileItem.GetItemByPath(Path.ChangeExtension(CompileAction.TimingFile.AbsolutePath, ".cta"));
 			Result.DebugDataFiles.Add(TimingJsonFile);
@@ -1340,7 +1342,7 @@ namespace UnrealBuildTool
 			return ParseTimingInfoAction;
 		}
 
-		private void GenerateDependenciesFile(ReadOnlyTargetRules Target, DirectoryReference OutputDir, CPPOutput Result, FileItem SourceFile, Action CompileAction, IActionGraphBuilder Graph)
+		private void GenerateDependenciesFile(ReadOnlyTargetRules Target, DirectoryReference OutputDir, CPPOutput Result, FileItem SourceFile, VCCompileAction CompileAction, IActionGraphBuilder Graph)
 		{
 			List<string> CommandArguments = new List<string>();
 			CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.txt", SourceFile.Location.GetFileName())));
