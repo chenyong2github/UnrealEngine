@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_SoundEffectPreset.h"
+#include "AudioEditorSubsystem.h"
 #include "Developer/AssetTools/Public/IAssetTools.h"
 #include "Developer/AssetTools/Public/AssetToolsModule.h"
 #include "Editors/SoundEffectPresetEditor.h"
@@ -11,17 +12,6 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-static bool bPrototypeSFXEditorEnabled = false;
-static FAutoConsoleCommand GEnableSoundEffectEditorPrototype(
-	TEXT("au.AudioEditor.EnableSoundEffectEditorPrototype"),
-	TEXT("Enables's the UE5 prototype sound effect editor.\n"),
-	FConsoleCommandWithArgsDelegate::CreateStatic(
-		[](const TArray<FString>& Args)
-		{
-			bPrototypeSFXEditorEnabled = true;
-		}
-	)
-);
 
 namespace EffectPresets
 {
@@ -91,22 +81,30 @@ const TArray<FText>& FAssetTypeActions_SoundEffectSourcePreset::GetSubMenus() co
 
 void FAssetTypeActions_SoundEffectPreset::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> ToolkitHost)
 {
-	if (!bPrototypeSFXEditorEnabled)
-	{
-		FAssetTypeActions_Base::OpenAssetEditor(InObjects, ToolkitHost);
-	}
-	else
-	{
-		EToolkitMode::Type Mode = ToolkitHost.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
+	EToolkitMode::Type Mode = ToolkitHost.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
 
+	TArray<UObject*> Objects = InObjects;
+
+	if (UAudioEditorSubsystem* AudioEditorSubsytem = GEditor->GetEditorSubsystem<UAudioEditorSubsystem>())
+	{
 		for (UObject* Object : InObjects)
 		{
 			if (USoundEffectPreset* Preset = Cast<USoundEffectPreset>(Object))
 			{
-				TSharedRef<FSoundEffectPresetEditor> PresetEditor = MakeShared<FSoundEffectPresetEditor>();
-				PresetEditor->Init(Mode, ToolkitHost, Preset);
+				TArray<UUserWidget*> UserWidgets = AudioEditorSubsytem->CreateUserWidgets(USoundEffectPresetViewInterface::StaticClass(), Object->GetClass());
+				if (!UserWidgets.IsEmpty())
+				{
+					TSharedRef<FSoundEffectPresetEditor> PresetEditor = MakeShared<FSoundEffectPresetEditor>();
+					PresetEditor->Init(Mode, ToolkitHost, Preset, UserWidgets);
+					Objects.Remove(Object);
+				}
 			}
 		}
+	}
+
+	if (!Objects.IsEmpty())
+	{
+		FAssetTypeActions_Base::OpenAssetEditor(Objects, ToolkitHost);
 	}
 }
 #undef LOCTEXT_NAMESPACE

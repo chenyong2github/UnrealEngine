@@ -160,7 +160,22 @@ void USubmixEffectDelayPreset::OnInit()
 void USubmixEffectDelayPreset::SetSettings(const FSubmixEffectDelaySettings& InSettings)
 {
 	DynamicSettings = InSettings;
-	UpdateSettings(InSettings);
+
+// 	USubmixEffectDelayStatics::SetDelayLength(DynamicSettings, DynamicSettings.DelayLength);
+// 	USubmixEffectDelayStatics::SetMaximumDelayLength(DynamicSettings, DynamicSettings.MaximumDelayLength);
+
+	UpdateSettings(DynamicSettings);
 }
 
+void USubmixEffectDelayPreset::SetDefaultSettings(const FSubmixEffectDelaySettings& InSettings)
+{
+	Settings = InSettings;
 
+// 	USubmixEffectDelayStatics::SetDelayLength(Settings, Settings.DelayLength);
+// 	USubmixEffectDelayStatics::SetMaximumDelayLength(Settings, Settings.MaximumDelayLength);
+
+	DynamicSettings = Settings;
+	UpdateSettings(DynamicSettings);
+
+	MarkPackageDirty();
+}

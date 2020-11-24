@@ -6,6 +6,7 @@
 #include "AudioEffect.h"
 #include "DSP/Delay.h"
 #include "DSP/Dsp.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "SubmixEffectDelay.generated.h"
 
@@ -36,6 +37,37 @@ struct SYNTHESIS_API FSubmixEffectDelaySettings
 		, InterpolationTime(400.0f)
 		, DelayLength(1000.0f)
 	{
+	}
+};
+
+UCLASS()
+class SYNTHESIS_API USubmixEffectDelayStatics : public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "Audio|Effects|Delay")
+	static FSubmixEffectDelaySettings& SetMaximumDelayLength(UPARAM(ref) FSubmixEffectDelaySettings& DelaySettings, float MaximumDelayLength)
+	{
+		DelaySettings.MaximumDelayLength = FMath::Max(0.0f, MaximumDelayLength);
+		DelaySettings.DelayLength = FMath::Min(DelaySettings.MaximumDelayLength, DelaySettings.DelayLength);
+		return DelaySettings;
+	}
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|Effects|Delay")
+	static FSubmixEffectDelaySettings& SetInterpolationTime(UPARAM(ref) FSubmixEffectDelaySettings& DelaySettings, float InterpolationTime)
+	{
+		DelaySettings.InterpolationTime = FMath::Max(0.0f, InterpolationTime);
+		return DelaySettings;
+	}
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|Effects|Delay")
+	static FSubmixEffectDelaySettings& SetDelayLength(UPARAM(ref) FSubmixEffectDelaySettings& DelaySettings, float DelayLength)
+	{
+		DelaySettings.DelayLength = FMath::Max(0.0f, DelayLength);
+		DelaySettings.MaximumDelayLength = FMath::Max(DelaySettings.MaximumDelayLength, DelaySettings.DelayLength);
+
+		return DelaySettings;
 	}
 };
 
@@ -106,13 +138,22 @@ class SYNTHESIS_API USubmixEffectDelayPreset : public USoundEffectSubmixPreset
 public:
 	EFFECT_PRESET_METHODS(SubmixEffectDelay)
 
-	// Set all tap delay setting. This will replace any dynamically added or modified taps.
-	UFUNCTION(BlueprintCallable, Category = "Audio|Effects|Delay")
+	// Sets runtime delay settings. This will replace any dynamically added or modified settings without modifying
+	// the original UObject.
+	UFUNCTION(BlueprintCallable, Category = "Audio|Effects|Delay", meta = (DisplayName = "Set Dynamic Settings"))
 	void SetSettings(const FSubmixEffectDelaySettings& InSettings);
+
+	// Sets object's default settings. This will update both the default UObject settings (and mark it as dirty),
+	// as well as any dynamically set settings.
+	UFUNCTION(BlueprintCallable, Category = "Audio|Effects|Delay")
+	void SetDefaultSettings(const FSubmixEffectDelaySettings& InSettings);
 
 	// Get the maximum delay possible.
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects|Delay")
-	float GetMaxDelayInMilliseconds() { return DynamicSettings.MaximumDelayLength;  };
+	float GetMaxDelayInMilliseconds() const
+	{
+		return DynamicSettings.MaximumDelayLength;
+	};
 
 	// Set the time it takes to interpolate between parameters, in milliseconds.
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects|Delay")
@@ -125,7 +166,7 @@ public:
 public:
 	virtual void OnInit() override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixEffectPreset, Meta = (ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetDefaultSettings, Category = SubmixEffectPreset, Meta = (ShowOnlyInnerProperties))
 	FSubmixEffectDelaySettings Settings;
 
 	UPROPERTY(transient)

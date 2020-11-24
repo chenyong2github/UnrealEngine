@@ -296,35 +296,6 @@ public:
 		return SoundCueExtensibility.MenuExtensibilityManager;
 	}
 
-	virtual void RegisterSoundEffectPresetWidget(TSubclassOf<USoundEffectPreset> PresetClass, UWidgetBlueprint* WidgetBlueprint) override
-	{
-		UnregisterSoundEffectPresetWidget(PresetClass);
-
-		if (PresetClass)
-		{
-			WidgetBlueprint->AddToRoot();
-			EffectPresetWidgets.Add(PresetClass, WidgetBlueprint);
-		}
-	}
-
-	/** Returns custom widget blueprint for a given SoundEffectPreset class (or null if unset). */
-	virtual UWidgetBlueprint* GetSoundEffectPresetWidget(TSubclassOf<USoundEffectPreset> PresetClass) override
-	{
-		return EffectPresetWidgets.FindRef(PresetClass);
-	}
-
-	virtual void UnregisterSoundEffectPresetWidget(TSubclassOf<USoundEffectPreset> PresetClass) override
-	{
-		if (PresetClass)
-		{
-			if (UWidgetBlueprint* WidgetBlueprint = EffectPresetWidgets.FindRef(PresetClass))
-			{
-				WidgetBlueprint->RemoveFromRoot();
-				EffectPresetWidgets.Remove(PresetClass);
-			}
-		}
-	}
-
 	virtual void ReplaceSoundNodesInGraph(USoundCue* SoundCue, UDialogueWave* DialogueWave, TArray<USoundNode*>& NodesToReplace, const FDialogueContextMapping& ContextMapping) override
 	{
 		// Replace any sound nodes in the graph.
