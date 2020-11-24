@@ -24,16 +24,12 @@ public:
 	~FModelingToolsEditorModeToolkit();
 	
 	/** FModeToolkit interface */
-	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost) override;
+	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode) override;
 
 	/** IToolkit interface */
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
-	virtual class FEdMode* GetEditorMode() const override;
 	virtual TSharedPtr<class SWidget> GetInlineContent() const override { return ToolkitWidget; }
-
-	virtual FModelingToolsEditorMode* GetToolsEditorMode() const;
-	virtual UEdModeInteractiveToolsContext* GetToolsContext() const;
 
 	// set/clear notification message area
 	virtual void PostNotification(const FText& Message);
@@ -70,7 +66,6 @@ private:
 	FText ActiveToolMessage;
 
 	TSharedPtr<SWidget> ToolkitWidget;
-	TSharedPtr<IDetailsView> DetailsView;
 	void UpdateActiveToolProperties();
 
 

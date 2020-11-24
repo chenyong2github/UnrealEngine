@@ -44,23 +44,13 @@ FModelingToolsEditorModeToolkit::~FModelingToolsEditorModeToolkit()
 {
 	UModelingToolsEditorModeSettings* Settings = GetMutableDefault<UModelingToolsEditorModeSettings>();
 	Settings->OnModified.Remove(AssetSettingsModifiedHandle);
-	GetToolsEditorMode()->GetToolsContext()->OnToolNotificationMessage.RemoveAll(this);
-	GetToolsEditorMode()->GetToolsContext()->OnToolWarningMessage.RemoveAll(this);
+	GetScriptableEditorMode()->GetInteractiveToolsContext()->OnToolNotificationMessage.RemoveAll(this);
+	GetScriptableEditorMode()->GetInteractiveToolsContext()->OnToolWarningMessage.RemoveAll(this);
 }
 
-void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
+void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode)
 {
-	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-	FDetailsViewArgs DetailsViewArgs;
-	DetailsViewArgs.bAllowSearch = false;
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-	DetailsViewArgs.bHideSelectionTip = true;
-	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
-	DetailsViewArgs.bShowOptions = false;
-	DetailsViewArgs.bAllowMultipleTopLevelObjects = true;
-
-	DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	FModeToolkit::Init(InitToolkitHost, InOwningMode);
 
 	ModeWarningArea = SNew(STextBlock)
 		.AutoWrapText(true)
@@ -106,7 +96,7 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 
 			+ SVerticalBox::Slot().HAlign(HAlign_Fill).FillHeight(1.f)
 				[
-					DetailsView->AsShared()
+					ModeDetailsView->AsShared()
 				]
 
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).Padding(5)
@@ -114,8 +104,6 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 					MakeAssetConfigPanel()->AsShared()
 				]
 		];
-		
-	FModeToolkit::Init(InitToolkitHost);
 
 	ClearNotification();
 	ClearWarning();
@@ -123,8 +111,8 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 	ActiveToolName = FText::GetEmpty();
 	ActiveToolMessage = FText::GetEmpty();
 
-	GetToolsEditorMode()->GetToolsContext()->OnToolNotificationMessage.AddSP(this, &FModelingToolsEditorModeToolkit::PostNotification);
-	GetToolsEditorMode()->GetToolsContext()->OnToolWarningMessage.AddSP(this, &FModelingToolsEditorModeToolkit::PostWarning);
+	GetScriptableEditorMode()->GetInteractiveToolsContext()->OnToolNotificationMessage.AddSP(this, &FModelingToolsEditorModeToolkit::PostNotification);
+	GetScriptableEditorMode()->GetInteractiveToolsContext()->OnToolWarningMessage.AddSP(this, &FModelingToolsEditorModeToolkit::PostWarning);
 }
 
 
@@ -234,10 +222,10 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 
 void FModelingToolsEditorModeToolkit::UpdateActiveToolProperties()
 {
-	UInteractiveTool* CurTool = GetToolsEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
+	UInteractiveTool* CurTool = GetScriptableEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
 	if (CurTool != nullptr)
 	{
-		DetailsView->SetObjects(CurTool->GetToolProperties(true));
+		ModeDetailsView->SetObjects(CurTool->GetToolProperties(true));
 	}
 }
 
@@ -275,21 +263,6 @@ FName FModelingToolsEditorModeToolkit::GetToolkitFName() const
 FText FModelingToolsEditorModeToolkit::GetBaseToolkitName() const
 {
 	return NSLOCTEXT("ModelingToolsEditorModeToolkit", "DisplayName", "ModelingToolsEditorMode Tool");
-}
-
-class FEdMode* FModelingToolsEditorModeToolkit::GetEditorMode() const
-{
-	return GLevelEditorModeTools().GetActiveMode(FModelingToolsEditorMode::EM_ModelingToolsEditorModeId);
-}
-
-FModelingToolsEditorMode * FModelingToolsEditorModeToolkit::GetToolsEditorMode() const
-{
-	return (FModelingToolsEditorMode *)GetEditorMode();
-}
-
-UEdModeInteractiveToolsContext* FModelingToolsEditorModeToolkit::GetToolsContext() const
-{
-	return GetToolsEditorMode()->GetToolsContext();
 }
 
 static const FName PrimitiveTabName(TEXT("Primitives"));
@@ -550,7 +523,7 @@ void FModelingToolsEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Man
 {
 	UpdateActiveToolProperties();
 
-	UInteractiveTool* CurTool = GetToolsEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
+	UInteractiveTool* CurTool = GetScriptableEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
 	CurTool->OnPropertySetsModified.AddSP(this, &FModelingToolsEditorModeToolkit::UpdateActiveToolProperties);
 
 	ModeHeaderArea->SetVisibility(EVisibility::Collapsed);
@@ -559,13 +532,13 @@ void FModelingToolsEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Man
 
 void FModelingToolsEditorModeToolkit::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
-	DetailsView->SetObject(nullptr);
+	ModeDetailsView->SetObject(nullptr);
 	ActiveToolName = FText::GetEmpty();
 	ModeHeaderArea->SetVisibility(EVisibility::Visible);
 	ModeHeaderArea->SetText(LOCTEXT("SelectToolLabel", "Select a Tool from the Toolbar"));
 	ClearNotification();
 	ClearWarning();
-	UInteractiveTool* CurTool = GetToolsEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
+	UInteractiveTool* CurTool = GetScriptableEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
 	if ( CurTool )
 	{
 		CurTool->OnPropertySetsModified.RemoveAll(this);
