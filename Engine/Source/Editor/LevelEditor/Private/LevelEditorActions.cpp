@@ -312,7 +312,7 @@ void FLevelEditorActionCallbacks::NewLevel()
 
 							WorldPartition->Initialize(World, FTransform::Identity);					
 
-							FWorldBrowserModule& WorldBrowserModule = FModuleManager::GetModuleChecked<FWorldBrowserModule>("WorldBrowser");
+							FWorldBrowserModule& WorldBrowserModule = FModuleManager::LoadModuleChecked<FWorldBrowserModule>("WorldBrowser");
 							WorldBrowserModule.OnBrowseWorld.Broadcast(World);
 						}
 					}
