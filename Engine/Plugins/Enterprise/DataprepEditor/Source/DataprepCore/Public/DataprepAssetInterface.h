@@ -35,7 +35,7 @@ enum class FDataprepAssetChangeType : uint8
  * converts the assets and the given world. An FBX exporter is a possible consumer.
  * This class is an abstract modeling the data preparation pipeline.
  */
-UCLASS(Experimental, Abstract, BlueprintType)
+UCLASS(Abstract, BlueprintType)
 class DATAPREPCORE_API UDataprepRecipeInterface : public UObject
 {
 	GENERATED_BODY()
@@ -53,7 +53,7 @@ protected:
 	FOnDataprepRecipeChanged OnChanged;
 };
 
-UCLASS(Experimental, Abstract, BlueprintType)
+UCLASS(Abstract, BlueprintType)
 class DATAPREPCORE_API UDataprepAssetInterface : public UObject
 {
 	GENERATED_BODY()

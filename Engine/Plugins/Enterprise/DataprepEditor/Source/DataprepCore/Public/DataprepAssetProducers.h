@@ -13,7 +13,7 @@ class UDataprepContentProducer;
 struct FDataprepProducerContext;
 
 /** Structure to hold on a producer and its configuration */
-USTRUCT(Experimental)
+USTRUCT()
 struct FDataprepAssetProducer
 {
 	GENERATED_BODY()
@@ -51,7 +51,7 @@ struct FDataprepAssetProducer
  * the inputs of a DataprepAssetInterface. It provides a set of methods to edit the set of
  * producers and their respective configuration.
  */
-UCLASS(Experimental)
+UCLASS()
 class DATAPREPCORE_API UDataprepAssetProducers : public UObject
 {
 	GENERATED_BODY()

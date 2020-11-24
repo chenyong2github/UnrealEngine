@@ -26,7 +26,7 @@ struct FDataprepProducerContext;
  * a Blueprint as the recipe pipeline. The Blueprint is composed of DataprepAction
  * nodes linearly connected.
  */
-UCLASS(Experimental, BlueprintType)
+UCLASS(BlueprintType)
 class DATAPREPCORE_API UDataprepAsset : public UDataprepAssetInterface
 {
 	GENERATED_BODY()

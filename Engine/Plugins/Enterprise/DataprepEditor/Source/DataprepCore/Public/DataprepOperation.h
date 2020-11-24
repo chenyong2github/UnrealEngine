@@ -133,7 +133,7 @@ struct FDataprepOperationContext
  * Base class for all Dataprep operations
  * Dataprep operations act on a set of input obejcts and can modify their properties: f.e. change materials, add metadata etc.
  */
-UCLASS(Experimental, Abstract, Blueprintable)
+UCLASS(Abstract, Blueprintable)
 class DATAPREPCORE_API UDataprepOperation : public UDataprepParameterizableObject
 {
 	GENERATED_BODY()
@@ -278,7 +278,7 @@ private:
  * but also can create new objects or delete existing ones (like assets and actors), based on the 
  * information they receive as an input
  */
-UCLASS(Experimental, Abstract, Blueprintable)
+UCLASS(Abstract, Blueprintable)
 class DATAPREPCORE_API UDataprepEditingOperation : public UDataprepOperation
 {
 	GENERATED_BODY()

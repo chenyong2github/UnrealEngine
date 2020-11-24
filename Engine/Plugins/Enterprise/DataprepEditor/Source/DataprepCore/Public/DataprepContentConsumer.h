@@ -103,7 +103,7 @@ struct FDataprepConsumerContext
  * 
  * Use the SDataprepConsumerWidget class to detail the properties of this class
  */
-UCLASS(Experimental, Abstract, config = EditorSettings, BlueprintType)
+UCLASS(Abstract, config = EditorSettings, BlueprintType)
 class DATAPREPCORE_API UDataprepContentConsumer : public UObject
 {
 	GENERATED_BODY()

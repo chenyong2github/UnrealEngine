@@ -10,7 +10,7 @@
 class AActor;
 class UWorld;
 
-UCLASS(Deprecated, Experimental, Blueprintable, BlueprintType, meta = (DisplayName = "DEPRECATED Data Preparation Recipe", DeprecationMessage = "No use of Blueprint with Dataprep."))
+UCLASS(Deprecated, Blueprintable, BlueprintType, meta = (DisplayName = "DEPRECATED Data Preparation Recipe", DeprecationMessage = "No use of Blueprint with Dataprep."))
 class DATAPREPCORE_API UDEPRECATED_DataprepRecipe : public UObject
 {
 	GENERATED_BODY()

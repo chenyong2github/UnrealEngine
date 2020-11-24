@@ -20,7 +20,7 @@ class UStaticMesh;
 class UStaticMeshComponent;
 class UWorld;
 
-UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName="Delete Objects", ToolTip = "Delete any asset or actor to process") )
+UCLASS(Category = ObjectOperation, Meta = (DisplayName="Delete Objects", ToolTip = "Delete any asset or actor to process") )
 class UDataprepDeleteObjectsOperation : public UDataprepEditingOperation
 {
 	GENERATED_BODY()
@@ -37,7 +37,7 @@ protected:
 	//~ End UDataprepOperation Interface
 };
 
-UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName="Merge", ToolTip = "Collect geometry from selected actors and merge them into single mesh.") )
+UCLASS(Category = ObjectOperation, Meta = (DisplayName="Merge", ToolTip = "Collect geometry from selected actors and merge them into single mesh.") )
 class UDataprepMergeActorsOperation : public UDataprepEditingOperation
 {
 	GENERATED_BODY()
@@ -90,7 +90,7 @@ protected:
 	AStaticMeshActor* MergedActor;
 };
 
-UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName = "Create Proxy Mesh", ToolTip = "Collect geometry from selected actors and merge them into single mesh with reduction."))
+UCLASS(Category = ObjectOperation, Meta = (DisplayName = "Create Proxy Mesh", ToolTip = "Collect geometry from selected actors and merge them into single mesh with reduction."))
 class UDataprepCreateProxyMeshOperation : public UDataprepEditingOperation
 {
 	GENERATED_BODY()
@@ -125,7 +125,7 @@ protected:
 	AStaticMeshActor* MergedActor;
 };
 
-UCLASS(Experimental, Category = ObjectOperation, Meta = (DisplayName="Delete Unused Assets", ToolTip = "Delete assets that are not referenced by any objects") )
+UCLASS(Category = ObjectOperation, Meta = (DisplayName="Delete Unused Assets", ToolTip = "Delete assets that are not referenced by any objects") )
 class UDataprepDeleteUnusedAssetsOperation : public UDataprepEditingOperation
 {
 	GENERATED_BODY()
@@ -142,7 +142,7 @@ protected:
 	//~ End UDataprepOperation Interface
 };
 
-UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName="Compact Scene Graph", ToolTip = "Delete actors that do not have visuals, but keep those needed to preserve hierarchy") )
+UCLASS(Category = ActorOperation, Meta = (DisplayName="Compact Scene Graph", ToolTip = "Delete actors that do not have visuals, but keep those needed to preserve hierarchy") )
 class UDataprepCompactSceneGraphOperation : public UDataprepEditingOperation
 {
 	GENERATED_BODY()
@@ -161,7 +161,7 @@ protected:
 	bool IsActorVisible(AActor*, TMap<AActor*, bool>& VisibilityMap);
 };
 
-UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName = "Spawn Actors At Location", ToolTip = "For each actor in the input set, spawn an actor from the specified Asset at the same position and orientation than the reference"))
+UCLASS(Category = ActorOperation, Meta = (DisplayName = "Spawn Actors At Location", ToolTip = "For each actor in the input set, spawn an actor from the specified Asset at the same position and orientation than the reference"))
 class UDataprepSpawnActorsAtLocation : public UDataprepEditingOperation
 {
 	GENERATED_BODY()
