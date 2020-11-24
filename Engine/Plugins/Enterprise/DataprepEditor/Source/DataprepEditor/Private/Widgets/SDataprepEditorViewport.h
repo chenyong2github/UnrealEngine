@@ -285,7 +285,7 @@ private:
 
 	void UpdateOverlayText();
 
-	void UpdateScreenSizeText( FText Text );
+	void UpdatePerfStats();
 
 #ifdef VIEWPORT_EXPERIMENTAL
 	void ToggleShowOrientedBox();
@@ -374,7 +374,8 @@ private:
 
 	/** Pointer to the vertical box into which the overlay text items are added */
 	TSharedPtr<SVerticalBox> OverlayTextVerticalBox;
-	TSharedPtr<STextBlock> ScreenSizeText;
+	TSharedPtr<STextBlock> FPSText;
+	TSharedPtr<STextBlock> DrawCallsText;
 
 	/** Index of the profile to use in the preview scene */
 	static int32 AssetViewerProfileIndex;

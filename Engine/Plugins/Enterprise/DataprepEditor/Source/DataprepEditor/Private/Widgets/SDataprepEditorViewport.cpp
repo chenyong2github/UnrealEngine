@@ -32,6 +32,7 @@
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "RHI.h"
 #include "SceneInterface.h"
 #include "SEditorViewportToolBarMenu.h"
 #include "Settings/LevelEditorViewportSettings.h"
@@ -559,9 +560,11 @@ void SDataprepEditorViewport::PopulateViewportOverlays(TSharedRef<SOverlay> Over
 {
 	SEditorViewport::PopulateViewportOverlays(Overlay);
 
-	ScreenSizeText = SNew(STextBlock)
-	.Text( LOCTEXT( "ScreenSize", "Current Screen Size:"))
-	.TextStyle(FEditorStyle::Get(), "TextBlock.ShadowedText");
+	FPSText = SNew(STextBlock)
+		.TextStyle(FEditorStyle::Get(), "TextBlock.ShadowedText");
+
+	DrawCallsText = SNew(STextBlock)
+		.TextStyle(FEditorStyle::Get(), "TextBlock.ShadowedText");
 
 	Overlay->AddSlot()
 	.VAlign(VAlign_Top)
@@ -601,20 +604,14 @@ void SDataprepEditorViewport::UpdateOverlayText()
 	}
 
 	TextItems.Add(FOverlayTextItem(
-		FText::Format( LOCTEXT( "Meshes", "#Static Meshes:  {0}"), FText::AsNumber( StaticMeshes.Num() ) ) ) );
+		FText::Format(LOCTEXT( "Triangles_F", "#Triangles:  {0}"), FText::AsNumber(TrianglesCount))));
 
 	TextItems.Add(FOverlayTextItem(
-		FText::Format( LOCTEXT( "DrawnMeshes", "#Meshes drawn:  {0}"), FText::AsNumber(PreviewMeshComponents.Num()))));
-
-	TextItems.Add(FOverlayTextItem(
-		FText::Format( LOCTEXT( "Triangles_F", "#Triangles To Draw:  {0}"), FText::AsNumber(TrianglesCount))));
-
-	TextItems.Add(FOverlayTextItem(
-		FText::Format( LOCTEXT( "Vertices_F", "#Vertices Used:  {0}"), FText::AsNumber(VerticesCount))));
+		FText::Format(LOCTEXT( "Vertices_F", "#Vertices:  {0}"), FText::AsNumber(VerticesCount))));
 
 	FVector SceneExtents = SceneBounds.GetExtent();
 	TextItems.Add(FOverlayTextItem(
-		FText::Format( LOCTEXT( "ApproxSize_F", "Approx Size: {0}x{1}x{2}"),
+		FText::Format(LOCTEXT( "ApproxSize_F", "Approx Size: {0}x{1}x{2}"),
 		FText::AsNumber(int32(SceneExtents.X * 2.0f)), // x2 as artists wanted length not radius
 		FText::AsNumber(int32(SceneExtents.Y * 2.0f)),
 		FText::AsNumber(int32(SceneExtents.Z * 2.0f)))));
@@ -623,7 +620,12 @@ void SDataprepEditorViewport::UpdateOverlayText()
 
 	OverlayTextVerticalBox->AddSlot()
 	[
-		ScreenSizeText.ToSharedRef()
+		FPSText.ToSharedRef()
+	];
+
+	OverlayTextVerticalBox->AddSlot()
+	[
+		DrawCallsText.ToSharedRef()
 	];
 
 	for (const auto& TextItem : TextItems)
@@ -637,9 +639,16 @@ void SDataprepEditorViewport::UpdateOverlayText()
 	}
 }
 
-void SDataprepEditorViewport::UpdateScreenSizeText( FText Text )
+void SDataprepEditorViewport::UpdatePerfStats()
 {
-	ScreenSizeText->SetText( Text );
+	FNumberFormattingOptions FormatOptions;
+	FormatOptions.MinimumFractionalDigits = 0;
+	FormatOptions.MaximumFractionalDigits = 0;
+
+	extern ENGINE_API float GAverageFPS;
+
+	FPSText->SetText(FText::Format(LOCTEXT( "FPS_F", "FPS:  {0}"), FText::AsNumber(GAverageFPS, &FormatOptions)));
+	DrawCallsText->SetText(FText::Format(LOCTEXT( "DrawCalls_F", "Num Draw Calls:  {0}"), GNumDrawCallsRHI));
 }
 
 void SDataprepEditorViewport::BindCommands()
@@ -1304,17 +1313,7 @@ void FDataprepEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* Hi
 
 void FDataprepEditorViewportClient::DrawCanvas(FViewport& InViewport, FSceneView& View, FCanvas& Canvas)
 {
-	FBoxSphereBounds SphereBounds(DataprepEditorViewport->SceneBounds);
-	float CurrentScreenSize = ComputeBoundsScreenSize(SphereBounds.Origin, SphereBounds.SphereRadius, View);
-
-	FNumberFormattingOptions FormatOptions;
-	FormatOptions.MinimumFractionalDigits = 3;
-	FormatOptions.MaximumFractionalDigits = 6;
-	FormatOptions.MaximumIntegralDigits = 6;
-
-	DataprepEditorViewport->UpdateScreenSizeText(
-		FText::Format( LOCTEXT( "ScreenSize_F", "Current Screen Size:  {0}"), FText::AsNumber(CurrentScreenSize, &FormatOptions)));
-
+	DataprepEditorViewport->UpdatePerfStats();
 	FEditorViewportClient::DrawCanvas(InViewport, View, Canvas);
 }
 
