@@ -1523,7 +1523,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 	ActiveHistoryForFunctionCalls.BeginTranslation(GetUniqueEmitterName());
 
 	CompilationOutput.ScriptData.StatScopes.Empty();
-	EnterStatsScope(FNiagaraStatScope(*CompileOptions.GetFullName(), *CompileOptions.GetFullName()));
+	EnterStatsScope(FNiagaraStatScope(*CompileOptions.GetName(), *CompileOptions.GetName()));
 
 	FHlslNiagaraTranslator* ThisTranslator = this;
 	TArray<int32> OutputChunks;
