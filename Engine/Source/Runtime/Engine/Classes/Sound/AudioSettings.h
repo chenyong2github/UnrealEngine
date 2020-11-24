@@ -64,6 +64,16 @@ struct ENGINE_API FAudioQualitySettings
 	}
 };
 
+USTRUCT()
+struct ENGINE_API FDefaultAudioBusSettings
+{
+	GENERATED_BODY()
+
+	/** The SoundConcurrency assigned to newly created sounds */
+	UPROPERTY(EditAnywhere, Category = "Mix", meta = (AllowedClasses = "AudioBus"))
+	FSoftObjectPath AudioBus;
+};
+
 /**
  * Audio settings.
  */
@@ -177,6 +187,11 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	 */
 	UPROPERTY(config, EditAnywhere, Category="Dialogue")
 	FString DialogueFilenameFormat;
+
+	/** Array of AudioBuses that are automatically initialized when the AudioEngine is initialized */
+	UPROPERTY(config, EditAnywhere, Category="Mix")
+	TArray<FDefaultAudioBusSettings> DefaultAudioBuses;
+
 
 #if WITH_EDITOR
 	FAudioSettingsChanged AudioSettingsChanged;

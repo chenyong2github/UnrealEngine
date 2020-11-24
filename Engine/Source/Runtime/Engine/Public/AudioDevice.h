@@ -821,6 +821,7 @@ protected:
 	 */
 	void InitSoundSources();
 
+
 public:
 	/**
 	 * Registers a sound class with the audio device
@@ -834,6 +835,12 @@ public:
 	* Unregisters a sound class
 	*/
 	void UnregisterSoundClass(USoundClass* SoundClass);
+
+	/* Initialized audio buses marked as default that are to be enabled for the duration of the application. */
+	virtual void InitDefaultAudioBuses() {}
+
+	/* Shutdown all audio buses marked as default. */
+	virtual void ShutdownDefaultAudioBuses() {}
 
 	/** Initializes sound submixes. */
 	virtual void InitSoundSubmixes() {}

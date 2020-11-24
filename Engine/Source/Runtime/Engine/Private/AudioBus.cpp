@@ -45,6 +45,61 @@ void UAudioBus::BeginDestroy()
 #if WITH_EDITOR
 void UAudioBus::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-}
-#endif
+	if (!PropertyChangedEvent.Property)
+	{
+		return;
+	}
 
+	FName PropertyName = PropertyChangedEvent.Property->GetFName();
+	if (PropertyName != GET_MEMBER_NAME_CHECKED(UAudioBus, AudioBusChannels))
+	{
+		return;
+	}
+
+	const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
+	if (!AudioSettings)
+	{
+		return;
+	}
+
+	for (const FDefaultAudioBusSettings& DefaultBusSettings : AudioSettings->DefaultAudioBuses)
+	{
+		if (DefaultBusSettings.AudioBus.ResolveObject() != this)
+		{
+			continue;
+		}
+
+		FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
+		if (!DeviceManager)
+		{
+			continue;
+		}
+
+		// Restart bus with new channel count
+		UObject* AudioBus = DefaultBusSettings.AudioBus.ResolveObject();
+		if (this != AudioBus)
+		{
+			continue;
+		}
+
+		DeviceManager->IterateOverAllDevices([BusId = AudioBus->GetUniqueID(), NumChannels = AudioBusChannels](Audio::FDeviceId, FAudioDevice* InDevice)
+		{
+			if (Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(InDevice))
+			{
+				MixerDevice->StopAudioBus(BusId);
+				switch(NumChannels)
+				{
+					case EAudioBusChannels::Stereo:
+						MixerDevice->StartAudioBus(BusId, 2, false /* bInIsAutomatic */);
+					break;
+
+					case EAudioBusChannels::Mono:
+					default:
+						MixerDevice->StartAudioBus(BusId, 1, false /* bInIsAutomatic */);
+					break;
+				}
+			}
+		});
+	}
+}
+#endif // WITH_EDITOR
