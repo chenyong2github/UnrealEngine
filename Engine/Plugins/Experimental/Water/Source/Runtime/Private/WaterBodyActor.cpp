@@ -797,18 +797,16 @@ void AWaterBody::PrepareCurrentPostProcessSettings()
 
 ALandscapeProxy* AWaterBody::FindLandscape() const
 {
-	if (bAffectsLandscape && !Landscape.IsValid())
+	UWorld* World = GetWorld();
+	if (bAffectsLandscape && !Landscape.IsValid() && (World != nullptr))
 	{
-		for (TObjectIterator<ALandscapeProxy> It; It; ++It)
+		FBox WaterBodyAABB = GetComponentsBoundingBox();
+		for (TActorIterator<ALandscapeProxy> It(World); It; ++It)
 		{
-			if (It->GetWorld() == GetWorld())
+			if (WaterBodyAABB.Intersect(It->GetComponentsBoundingBox()))
 			{
-				FBox Box = It->GetComponentsBoundingBox();
-				if (Box.IsInsideXY(GetActorLocation()))
-				{
-					Landscape = *It;
-					return Landscape.Get();
-				}
+				Landscape = *It;
+				return Landscape.Get();
 			}
 		}
 	}
@@ -1164,6 +1162,12 @@ void AWaterBody::UpdateAll(bool bShapeOrPositionChanged)
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_Water_UpdateAll);
 
 		bShapeOrPositionChanged |= UpdateWaterHeight();
+
+		if (bShapeOrPositionChanged)
+		{
+			// We might be affected to a different landscape now that our shape has changed : 
+			Landscape.Reset();
+		}
 
 		// First, update the water body without taking into account exclusion volumes, as those rely on the collision to detect overlapping water bodies
 		UpdateWaterBody(/* bWithExclusionVolumes*/false);
