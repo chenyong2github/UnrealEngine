@@ -30,7 +30,7 @@ struct FTransformGizmoMeasurement
 
 	/** The text that displays the actual measurement and units */
 	UPROPERTY()
-	class UTextRenderComponent* MeasurementText;
+	class UTextRenderComponent* MeasurementText = nullptr;
 };
 
 

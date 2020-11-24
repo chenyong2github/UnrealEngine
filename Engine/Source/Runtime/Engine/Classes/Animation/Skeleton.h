@@ -198,7 +198,7 @@ struct FRigConfiguration
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	class URig * Rig;
+	class URig * Rig = nullptr;
 
 	// @todo in the future we can make this to be run-time data
 	UPROPERTY()

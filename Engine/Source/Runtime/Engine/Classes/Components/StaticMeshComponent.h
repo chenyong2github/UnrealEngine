@@ -748,7 +748,7 @@ public:
 
 	/** Mesh being used by component */
 	UPROPERTY()
-	class UStaticMesh* StaticMesh;
+	class UStaticMesh* StaticMesh = nullptr;
 
 	/** Array of cached vertex colors for each LOD */
 	UPROPERTY()

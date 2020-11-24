@@ -200,7 +200,7 @@ struct FSoundWaveSpectralDataPerSound
 
 	// The sound wave this spectral data is associated with
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpectralData")
-	USoundWave* SoundWave;
+	USoundWave* SoundWave = nullptr;
 };
 
 USTRUCT(BlueprintType)
@@ -218,7 +218,7 @@ struct FSoundWaveEnvelopeDataPerSound
 
 	// The sound wave this envelope data is associated with
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EnvelopeData")
-	USoundWave* SoundWave;
+	USoundWave* SoundWave = nullptr;
 };
 
 // Sort predicate for sorting spectral data by frequency (lowest first)

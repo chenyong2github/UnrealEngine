@@ -37,7 +37,7 @@ struct FMaterialSubstitutionDataTable : public FTableRowBase
 
 	/** Material to use for the substitution */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MaterialSubstitutionTable")
-	UMaterialInterface* MaterialReplacement;
+	UMaterialInterface* MaterialReplacement = nullptr;
 };
 
 /*
@@ -58,7 +58,7 @@ struct FMeshSubstitutionDataTable
 
 	/** DEPRECATED - Mesh to use for the substitution */
 	UPROPERTY()
-	UStaticMesh* MeshReplacement_DEPRECATED;
+	UStaticMesh* MeshReplacement_DEPRECATED = nullptr;
 };
 
 /*
