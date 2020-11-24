@@ -16,7 +16,11 @@
 #define SHADER_RENDERVIEW_CS 0
 #endif
 
-#if defined(SHADER_MAINVS) || defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_CS
+#ifndef SHADER_RENDERVIEW_PS
+#define SHADER_RENDERVIEW_PS 0
+#endif
+
+#if defined(SHADER_MAINVS) || defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS
 
 #include "/Engine/Generated/Material.ush"
 
@@ -33,7 +37,7 @@ struct RenderVolumetricCloudVSToPS
 #include "ReflectionEnvironmentShared.ush"
 
 
-#if defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_CS
+#if defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS
 
 float3 SampleExtinctionCoefficients(in FPixelMaterialInputs PixelMaterialInputs)
 {
@@ -237,7 +241,7 @@ void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters,
 // Single full screen triangle vertex shader
 ////////////////////////////////////////////////////////////
 
-#if SHADER_RENDERVIEW_CS
+#if SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS
 
 #include "/Engine/Private/SkyAtmosphereCommon.ush"
 
@@ -403,8 +407,6 @@ ParticipatingMediaPhaseContext SetupParticipatingMediaPhaseContext(float BasePha
 
 	return PMPC;
 }
-
-int StepSizeOnZeroConservativeDensity;
 
 bool TraceClouds(
 	in float4 SvPosition,
@@ -632,8 +634,8 @@ bool TraceClouds(
 	#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
 		if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 		{
-			i += StepSizeOnZeroConservativeDensity - 1;
-			t += StepSizeOnZeroConservativeDensity * StepT;
+			i += RenderVolumetricCloudParameters.StepSizeOnZeroConservativeDensity - 1;
+			t += RenderVolumetricCloudParameters.StepSizeOnZeroConservativeDensity * StepT;
 			continue; // Conservative density is 0 so skip and go to the next sample
 		}
 	#endif
@@ -1184,6 +1186,25 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 	}
 #endif
 }
+
+#endif // SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS
+
+#if SHADER_RENDERVIEW_PS
+
+void MainPS(
+	  in FVertexFactoryInterpolantsVSToPS FactoryInterpolants
+	, in float4 SvPosition : SV_Position
+	, out float4 OutColor0 : SV_Target0
+	, out float2 OutColor1 : SV_Target1)
+{
+	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(FactoryInterpolants, SvPosition);
+
+	MainCommon(MaterialParameters, SvPosition, OutColor0, OutColor1);
+}
+
+#endif // SHADER_RENDERVIEW_PS
+
+#if SHADER_RENDERVIEW_CS
 
 float4 OutputViewRect;
 int bBlendCloudColor;
