@@ -25,6 +25,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "WaterIconHelper.h"
 #include "Components/BillboardComponent.h"
+#include "WaterModule.h"
 
 #define LOCTEXT_NAMESPACE "WaterLandscapeBrush"
 
@@ -567,15 +568,16 @@ void AWaterLandscapeBrush::UpdateActorIcon()
 	if (ActorIcon && !bIsEditorPreviewActor)
 	{
 		UTexture2D* IconTexture = ActorIcon->Sprite;
-		if (const UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
+		IWaterModuleInterface& WaterModule = FModuleManager::GetModuleChecked<IWaterModuleInterface>("Water");
+		if (const IWaterEditorServices* WaterEditorServices = WaterModule.GetWaterEditorServices())
 		{
 			if (CheckWaterBrushStatus() != EWaterBrushStatus::Valid)
 			{
-				IconTexture = WaterSubsystem->ErrorSprite;
+				IconTexture = WaterEditorServices->GetErrorSprite();
 			}
 			else
 			{
-				IconTexture = WaterSubsystem->GetWaterActorSprite(GetClass());
+				IconTexture = WaterEditorServices->GetWaterActorSprite(GetClass());
 			}
 		}
 

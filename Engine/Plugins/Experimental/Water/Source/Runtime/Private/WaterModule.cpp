@@ -24,6 +24,15 @@ public:
 	virtual void ShutdownModule() override
 	{
 	}
+
+#if WITH_EDITOR
+	virtual void SetWaterEditorServices(IWaterEditorServices* InWaterEditorServices) { WaterEditorServices = InWaterEditorServices; }
+	virtual IWaterEditorServices* GetWaterEditorServices() const { return WaterEditorServices; }
+#endif // WITH_EDITOR
+private:
+#if WITH_EDITORONLY_DATA
+	IWaterEditorServices* WaterEditorServices = nullptr;
+#endif // WITH_EDITORONLY_DATA
 };
 
 //////////////////////////////////////////////////////////////////////////

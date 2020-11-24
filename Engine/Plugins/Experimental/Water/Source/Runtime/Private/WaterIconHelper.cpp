@@ -8,6 +8,7 @@
 #include "Engine/Texture2D.h"
 #include "WaterRuntimeSettings.h"
 #include "WaterSubsystem.h"
+#include "WaterModule.h"
 
 UBillboardComponent* FWaterIconHelper::EnsureSpriteComponentCreated_Internal(AActor* Actor, UClass* InClass, const TCHAR* InIconTextureName, const FText& InDisplayName)
 {
@@ -24,9 +25,10 @@ UBillboardComponent* FWaterIconHelper::EnsureSpriteComponentCreated_Internal(AAc
 		{
 			ConstructorHelpers::FObjectFinderOptional<UTexture2D> Texture(InIconTextureName);
 
-			if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(Actor->GetWorld()))
+			IWaterModuleInterface& WaterModule = FModuleManager::GetModuleChecked<IWaterModuleInterface>(TEXT("Water"));
+			if (IWaterEditorServices* WaterEditorServices = WaterModule.GetWaterEditorServices())
 			{
-				WaterSubsystem->RegisterWaterActorClassSprite(InClass, Texture.Get());
+				WaterEditorServices->RegisterWaterActorSprite(InClass, Texture.Get());
 			}
 
 			ActorIcon->Sprite = Texture.Get();
