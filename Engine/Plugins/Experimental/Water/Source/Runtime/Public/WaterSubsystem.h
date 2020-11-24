@@ -21,6 +21,7 @@ class AWaterBody;
 class UMaterialParameterCollection;
 class UWaterRuntimeSettings;
 class FSceneView;
+class UTexture2D;
 struct FUnderwaterPostProcessDebugInfo;
 enum class EWaterBodyQueryFlags;
 

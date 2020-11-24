@@ -7,6 +7,7 @@
 #include "Engine/EngineTypes.h"
 #include "AssetTypeCategories.h"
 #include "IAssetTypeActions.h"
+#include "Toolkits/AssetEditorToolkit.h"
 
 class FComponentVisualizer;
 class FWaterWavesEditorToolkit;
