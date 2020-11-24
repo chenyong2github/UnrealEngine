@@ -90,6 +90,16 @@ bool actions::CallHooks::Execute(const CommandType* command, const DuplexPipe* p
 		case hook::Type::COMPILE_ERROR_MESSAGE:
 			hook::CallHooksInRange<hook::CompileErrorMessageFunction>(command->rangeBegin, command->rangeEnd, static_cast<const wchar_t*>(payload));
 			break;
+
+		// BEGIN EPIC MOD - Add the ability for pre and post compile notifications
+		case hook::Type::PRECOMPILE:
+			hook::CallHooksInRange<hook::PrecompileFunction>(command->rangeBegin, command->rangeEnd);
+			break;
+
+		case hook::Type::POSTCOMPILE:
+			hook::CallHooksInRange<hook::PostcompileFunction>(command->rangeBegin, command->rangeEnd);
+			break;
+		// END EPIC MOD
 	}
 
 	pipe->SendAck();

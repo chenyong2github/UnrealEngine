@@ -978,6 +978,57 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 	// EPIC REMOVED: g_theApp.GetMainFrame()->SetBusy(false);
 }
 
+// BEGIN EPIC MOD - Add the ability for pre and post compile notifications
+void ServerCommandThread::CallPrecompileHooks(bool didAllProcessesMakeProgress)
+{
+	// when all processes made progress, none of them is being held in the debugger which means it is safe to
+	// communicate with the client, call hooks, use synchronization points, etc.
+	// however, when a process was held in the debugger and now spins inside the code cave, we are not allowed
+	// to call any of these functions, because that might lead to a deadlock.
+	// similarly, if we're currently handling an exception, calling any of the client-provided functions could be fatal.
+	const bool inExceptionHandler = m_inExceptionHandlerEvent.WaitTimeout(0u);
+	const LiveModule::UpdateType::Enum updateType = (didAllProcessesMakeProgress && !inExceptionHandler)
+		? LiveModule::UpdateType::DEFAULT
+		: LiveModule::UpdateType::NO_CLIENT_COMMUNICATION;
+
+	if (updateType == LiveModule::UpdateType::NO_CLIENT_COMMUNICATION)
+	{
+		return;
+	}
+
+	const size_t count = m_liveModules.size();
+	for (size_t i = 0u; i < count; ++i)
+	{
+		LiveModule* liveModule = m_liveModules[i];
+		liveModule->CallPrecompileHooks();
+	}
+}
+
+void ServerCommandThread::CallPostcompileHooks(bool didAllProcessesMakeProgress)
+{
+	// when all processes made progress, none of them is being held in the debugger which means it is safe to
+	// communicate with the client, call hooks, use synchronization points, etc.
+	// however, when a process was held in the debugger and now spins inside the code cave, we are not allowed
+	// to call any of these functions, because that might lead to a deadlock.
+	// similarly, if we're currently handling an exception, calling any of the client-provided functions could be fatal.
+	const bool inExceptionHandler = m_inExceptionHandlerEvent.WaitTimeout(0u);
+	const LiveModule::UpdateType::Enum updateType = (didAllProcessesMakeProgress && !inExceptionHandler)
+		? LiveModule::UpdateType::DEFAULT
+		: LiveModule::UpdateType::NO_CLIENT_COMMUNICATION;
+
+	if (updateType == LiveModule::UpdateType::NO_CLIENT_COMMUNICATION)
+	{
+		return;
+	}
+
+	const size_t count = m_liveModules.size();
+	for (size_t i = 0u; i < count; ++i)
+	{
+		LiveModule* liveModule = m_liveModules[i];
+		liveModule->CallPostcompileHooks();
+	}
+}
+// END EPIC MOD
 
 unsigned int ServerCommandThread::CompileThread(void)
 {
@@ -1154,7 +1205,15 @@ unsigned int ServerCommandThread::CompileThread(void)
 				GLiveCodingServer->GetBringToFrontDelegate().ExecuteIfBound();
 			}
 
+			// BEGIN EPIC MOD - Add the ability for pre and post compile notifications
+			CallPrecompileHooks(didAllProcessesMakeProgress);
+			// END EPIC MOD
+
 			CompileChanges(didAllProcessesMakeProgress);
+
+			// BEGIN EPIC MOD - Add the ability for pre and post compile notifications
+			CallPostcompileHooks(didAllProcessesMakeProgress);
+			// END EPIC MOD
 
 			// BEGIN EPIC MOD - Non-destructive compile
 			for (std::vector<std::pair<std::wstring, std::wstring>>::reverse_iterator it = m_restoreFiles.rbegin(); it != m_restoreFiles.rend(); it++)
