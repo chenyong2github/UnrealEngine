@@ -11,6 +11,7 @@
 #include "Misc/App.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/MessageDialog.h"
 #include "LiveCodingSettings.h"
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"
@@ -249,6 +250,10 @@ void FLiveCodingModule::Tick()
 	{
 		EnableForSession(Settings->bEnabled);
 		bEnabledLastTick = Settings->bEnabled;
+		if (IsEnabledByDefault() && !IsEnabledForSession())
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoEnableLiveCodingAfterHotReload", "Live Coding cannot be enabled while hot-reloaded modules are active. Please close the editor and build from your IDE before restarting."));
+		}
 	}
 
 	if (bUpdateModulesInTick)
